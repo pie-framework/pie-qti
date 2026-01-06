@@ -4,15 +4,12 @@ This guide explains how the GitHub Pages deployment is configured for pie-qti.
 
 ## What Gets Deployed
 
-The **qti2-example** SvelteKit app is deployed to GitHub Pages as a static site at:
+The **docs-site** SvelteKit app is deployed to GitHub Pages as a static site at:
 **https://pie-framework.github.io/pie-qti/**
 
 This provides:
-- Live interactive demos of the QTI players
-- Item player demo with sample QTI items
-- Assessment player demo with sample assessments
-- File upload for testing your own QTI content
-- XML editor for experimenting with QTI
+- Project documentation and architecture overview
+- Links to the GitHub repository for detailed package READMEs
 
 ## Configuration
 
@@ -20,7 +17,7 @@ This provides:
 
 The example app uses `@sveltejs/adapter-static` to generate a static site.
 
-**File:** `packages/qti2-example/svelte.config.js`
+**File:** `packages/docs-site/svelte.config.js`
 ```javascript
 import adapter from '@sveltejs/adapter-static';
 
@@ -52,7 +49,7 @@ const config = {
 
 ### 2. Prerendering
 
-**File:** `packages/qti2-example/src/routes/+layout.ts`
+**File:** `packages/docs-site/src/routes/+layout.ts`
 ```typescript
 export const prerender = true;
 export const ssr = false;
@@ -74,8 +71,7 @@ Steps:
 1. Checkout code
 2. Setup Bun
 3. Install dependencies
-4. Build all packages (players, transformers, etc.)
-5. Build example app with `NODE_ENV=production`
+4. Build docs site with `NODE_ENV=production`
 6. Upload build artifact
 7. Deploy to GitHub Pages
 
@@ -88,9 +84,9 @@ Steps:
    - Source: GitHub Actions
    - (Don't use "Deploy from branch" - we use Actions)
 
-2. **Push to main branch**:
+2. **Push to master branch**:
    ```bash
-   git push origin main
+   git push origin master
    ```
 
 3. **Check Actions tab**:
@@ -106,16 +102,16 @@ Steps:
 ### Branch Protection (Optional)
 
 To prevent accidental deployments:
-- Only allow deployment from `main` branch
-- Require pull request reviews before merging to `main`
+- Only allow deployment from `master` branch
+- Require pull request reviews before merging to `master`
 
 ## Local Testing
 
 Test the production build locally before deploying:
 
 ```bash
-# Build the example app for production
-cd packages/qti2-example
+# Build the docs site for production
+cd packages/docs-site
 NODE_ENV=production bun run build
 
 # Preview the build
@@ -128,17 +124,17 @@ bun run preview
 
 ## Updating the Site
 
-The site automatically updates when you push to `main`:
+The site automatically updates when you push to `master`:
 
 ```bash
-# Make changes to the example app
-cd packages/qti2-example
+# Make changes to the docs site
+cd packages/docs-site
 # ... edit files ...
 
 # Commit and push
 git add .
-git commit -m "feat: update example app"
-git push origin main
+git commit -m "docs: update docs site"
+git push origin master
 
 # Deployment happens automatically!
 ```
