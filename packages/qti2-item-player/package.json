@@ -24,7 +24,7 @@
 		"e-learning"
 	],
 	"author": "Renaissance Learning",
-	"license": "MIT",
+	"license": "ISC",
 	"dependencies": {
 		"@pie-qti/qti-processing": "workspace:*",
 		"@tiptap/core": "^3.14.0",

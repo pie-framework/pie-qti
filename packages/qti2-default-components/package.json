@@ -25,7 +25,7 @@
     "web-components"
   ],
   "author": "Renaissance Learning",
-  "license": "MIT",
+  "license": "ISC",
   "dependencies": {
     "@pie-qti/qti2-item-player": "workspace:*",
     "@tiptap/core": "^3.14.0",

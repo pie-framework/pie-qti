@@ -1,22 +1,6 @@
 # Architecture: PIE-QTI (integrator-focused)
 
-This document explains **why this repo exists**, how the **QTI players** and **QTI↔PIE transformations** work, how the **transform app** wires everything together, and how to deploy it safely (trust boundaries + security guidance).
-
-If you’re embedding this into your platform, start with:
-
-- **Deployment & trust boundaries** (most important for production)
-- **Players** (how to render QTI safely and extensibly)
-- **Transforms** (how to convert content and preserve round-trips)
-
----
-
-## Why this project exists
-
-**PIE** is a complete solution for playing assessment items (with full assessments in the works). Its main supporter is **Renaissance Learning**, which standardized on PIE for administering assessment items as well as a good share of its authoring (PIE comes with authoring capabilities out-of-the-box).
-
-Renaissance Learning has many partners who export and/or import **QTI**, so transforming between **QTI and PIE** (both directions) is a common case. The main purpose of this project is to **open source a transformation framework** so partners (and anyone interested in PIE) can benefit from it.
-
-On top of that, this framework provides a **near spec-complete QTI 2.1/2.2 player**. The main reason is simple: a good open-source QTI player with a modern stack/build system was missing—and we needed one to make the rest of the tooling good (especially **previewing**, **analysis**, and “convert then render” workflows). So we built one.
+High level document to discuss architecture of PIE-QTI.
 
 ---
 

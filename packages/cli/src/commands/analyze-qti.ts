@@ -83,6 +83,51 @@ export async function analyzeQtiPackage(packagePath: string): Promise<AnalysisRe
   return result;
 }
 
+import { Args, Command, Flags } from '@oclif/core';
+
+export default class AnalyzeQti extends Command {
+  static override description = 'Analyze a QTI package directory or ZIP and summarize interactions, passages, and issues';
+
+  static override examples = [
+    '<%= config.bin %> <%= command.id %> ./some-qti-package-dir',
+    '<%= config.bin %> <%= command.id %> ./some-package.zip',
+    '<%= config.bin %> <%= command.id %> ./some-dir --output report.md',
+  ];
+
+  static override flags = {
+    output: Flags.string({
+      description: 'Write a detailed markdown report to this file path',
+      required: false,
+    }),
+    recursive: Flags.boolean({
+      description: 'Recurse to find packages under the provided directory',
+      default: true,
+      allowNo: true,
+    }),
+    cleanupTemp: Flags.boolean({
+      description: 'Cleanup temporary extracted files when input is a ZIP',
+      default: true,
+      allowNo: true,
+    }),
+  };
+
+  static override args = {
+    input: Args.string({
+      description: 'Directory or ZIP file to analyze',
+      required: true,
+    }),
+  };
+
+  public async run(): Promise<void> {
+    const { args, flags } = await this.parse(AnalyzeQti);
+    await analyzeQtiDirectory(args.input, {
+      recursive: flags.recursive,
+      outputFile: flags.output,
+      cleanupTemp: flags.cleanupTemp,
+    });
+  }
+}
+
 /**
  * Recursively scan directory for QTI files
  */
@@ -517,33 +562,5 @@ function isSupported(type: string): boolean {
   return supported.includes(type) || experimental.includes(type);
 }
 
-// CLI entry point (ES module compatible)
-const isMainModule = import.meta.url === `file://${process.argv[1]}`;
-
-if (isMainModule) {
-  const args = process.argv.slice(2);
-
-  if (args.length === 0) {
-    console.error('Usage: analyze-qti <directory|zip-file> [--output report.md] [--no-cleanup]');
-    console.error('');
-    console.error('Options:');
-    console.error('  --output <file>   Write detailed report to file');
-    console.error('  --no-cleanup      Keep temporary extracted files (for debugging)');
-    process.exit(1);
-  }
-
-  const dir = args[0];
-  const outputIndex = args.indexOf('--output');
-  const outputFile = outputIndex >= 0 && args[outputIndex + 1]
-    ? args[outputIndex + 1]
-    : undefined;
-
-  const cleanupTemp = !args.includes('--no-cleanup');
-
-  analyzeQtiDirectory(dir, { outputFile, cleanupTemp })
-    .then(() => process.exit(0))
-    .catch(error => {
-      console.error('Error:', error);
-      process.exit(1);
-    });
-}
+// Note: This file is an Oclif command module. Keep it free of top-level side effects so
+// the CLI can discover commands by scanning `dist/commands` generically.

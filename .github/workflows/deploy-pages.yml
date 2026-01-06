@@ -35,10 +35,6 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      # Build workspace packages the docs site depends on, then build the docs site itself.
-      - name: Build workspace packages
-        run: bun run build
-
       - name: Build docs site for GitHub Pages
         run: cd packages/docs-site && bun run build
 

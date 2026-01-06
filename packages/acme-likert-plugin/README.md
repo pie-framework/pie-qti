@@ -276,7 +276,7 @@ Navigate to `/plugin-demo` to see Likert scale interactions in action.
 
 ## License
 
-MIT
+ISC
 
 ## Related
 

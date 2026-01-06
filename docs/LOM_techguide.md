@@ -79,7 +79,7 @@ The General category provides discovery metadata essential for item bank operati
   </title>
   <language>en-US</language>
   <description>
-    <string language="en">Solve quadratic equations using the 
+    <string language="en">Solve quadratic equations using the
     quadratic formula with integer coefficients</string>
   </description>
   <keyword><string language="en">algebra</string></keyword>
@@ -157,9 +157,9 @@ The **description** element (6.3) should specify:
   <cost><value>yes</value></cost>
   <copyrightAndOtherRestrictions><value>yes</value></copyrightAndOtherRestrictions>
   <description>
-    <string language="en">Secure operational item. Reproduction 
-    prohibited outside authorized testing contexts. Item bank 
-    subscription required. © 2024 Assessment Publisher.</string>
+    <string language="en">Secure operational item. Reproduction
+    prohibited outside authorized testing contexts. Item bank
+    subscription required.</string>
   </description>
 </rights>
 ```
@@ -301,12 +301,12 @@ The IMS QTI specification defines the `qtiMetadata` element as an **additional c
 QTI 3.0 defines **22 interaction types**:
 
 ```
-associateInteraction, choiceInteraction, customInteraction, 
-drawingInteraction, endAttemptInteraction, extendedTextInteraction, 
-gapMatchInteraction, graphicAssociateInteraction, graphicGapMatchInteraction, 
-graphicOrderInteraction, hotspotInteraction, hottextInteraction, 
-inlineChoiceInteraction, matchInteraction, mediaInteraction, orderInteraction, 
-portableCustomInteraction*, positionObjectInteraction, selectPointInteraction, 
+associateInteraction, choiceInteraction, customInteraction,
+drawingInteraction, endAttemptInteraction, extendedTextInteraction,
+gapMatchInteraction, graphicAssociateInteraction, graphicGapMatchInteraction,
+graphicOrderInteraction, hotspotInteraction, hottextInteraction,
+inlineChoiceInteraction, matchInteraction, mediaInteraction, orderInteraction,
+portableCustomInteraction*, positionObjectInteraction, selectPointInteraction,
 sliderInteraction, textEntryInteraction, uploadInteraction
 ```
 *portableCustomInteraction added in QTI 3.0
@@ -340,7 +340,7 @@ QTI metadata appears as a **sibling to LOM categories** within the metadata elem
     <lom:educational><!-- learning characteristics --></lom:educational>
     <lom:classification><!-- taxonomic alignment --></lom:classification>
   </lom:lom>
-  
+
   <!-- QTI-Specific -->
   <imsqti:qtiMetadata xmlns:imsqti="http://www.imsglobal.org/xsd/imsqti_metadata_v3p0">
     <imsqti:itemTemplate>false</imsqti:itemTemplate>
@@ -391,7 +391,7 @@ package.zip/
     xmlns:imsmd="http://www.imsglobal.org/xsd/imsmd_v1p2"
     xmlns:imsqti="http://www.imsglobal.org/xsd/imsqti_metadata_v3p0"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-    
+
   <!-- PACKAGE-LEVEL METADATA -->
   <metadata>
     <schema>IMS QTI</schema>
@@ -406,7 +406,7 @@ package.zip/
           <imsmd:langstring xml:lang="en">Algebra Item Bank</imsmd:langstring>
         </imsmd:title>
         <imsmd:description>
-          <imsmd:langstring xml:lang="en">Grade 8-10 algebra assessment items 
+          <imsmd:langstring xml:lang="en">Grade 8-10 algebra assessment items
           aligned to Common Core standards</imsmd:langstring>
         </imsmd:description>
       </imsmd:general>
@@ -419,12 +419,12 @@ package.zip/
       </imsmd:lifecycle>
     </imsmd:lom>
   </metadata>
-    
+
   <organizations/>
-    
+
   <resources>
     <!-- ASSESSMENT ITEM WITH FULL METADATA -->
-    <resource identifier="ITEM-001" type="imsqti_item_xmlv3p0" 
+    <resource identifier="ITEM-001" type="imsqti_item_xmlv3p0"
               href="items/item001.xml">
       <metadata>
         <!-- LOM METADATA -->
@@ -435,7 +435,7 @@ package.zip/
               <imsmd:entry>ITEM-QUAD-001</imsmd:entry>
             </imsmd:identifier>
             <imsmd:title>
-              <imsmd:langstring xml:lang="en">Quadratic Equation - 
+              <imsmd:langstring xml:lang="en">Quadratic Equation -
               Standard Form</imsmd:langstring>
             </imsmd:title>
             <imsmd:language>en-US</imsmd:language>
@@ -443,7 +443,7 @@ package.zip/
               <imsmd:langstring xml:lang="en">quadratic equations</imsmd:langstring>
             </imsmd:keyword>
           </imsmd:general>
-          
+
           <imsmd:lifecycle>
             <imsmd:version><imsmd:langstring>1.2</imsmd:langstring></imsmd:version>
             <imsmd:status>
@@ -463,12 +463,12 @@ END:vCard</imsmd:vcard>
               </imsmd:centity>
             </imsmd:contribute>
           </imsmd:lifecycle>
-          
+
           <imsmd:technical>
             <imsmd:format>text/x-imsqti-item-xml</imsmd:format>
             <imsmd:size>3842</imsmd:size>
           </imsmd:technical>
-          
+
           <imsmd:educational>
             <imsmd:learningresourcetype>
               <imsmd:source><imsmd:langstring>LOMv1.0</imsmd:langstring></imsmd:source>
@@ -482,14 +482,14 @@ END:vCard</imsmd:vcard>
               <imsmd:datetime>PT3M</imsmd:datetime>
             </imsmd:typicallearningtime>
           </imsmd:educational>
-          
+
           <imsmd:rights>
             <imsmd:copyrightandotherrestrictions>
               <imsmd:source><imsmd:langstring>LOMv1.0</imsmd:langstring></imsmd:source>
               <imsmd:value><imsmd:langstring>yes</imsmd:langstring></imsmd:value>
             </imsmd:copyrightandotherrestrictions>
           </imsmd:rights>
-          
+
           <!-- Subject Classification -->
           <imsmd:classification>
             <imsmd:purpose>
@@ -508,7 +508,7 @@ END:vCard</imsmd:vcard>
               </imsmd:taxon>
             </imsmd:taxonpath>
           </imsmd:classification>
-          
+
           <!-- Bloom's Taxonomy Classification -->
           <imsmd:classification>
             <imsmd:purpose>
@@ -523,7 +523,7 @@ END:vCard</imsmd:vcard>
               </imsmd:taxon>
             </imsmd:taxonpath>
           </imsmd:classification>
-          
+
           <!-- Standards Alignment -->
           <imsmd:classification>
             <imsmd:purpose>
@@ -539,7 +539,7 @@ END:vCard</imsmd:vcard>
             </imsmd:taxonpath>
           </imsmd:classification>
         </imsmd:lom>
-        
+
         <!-- QTI-SPECIFIC METADATA -->
         <imsqti:qtiMetadata>
           <imsqti:itemTemplate>false</imsqti:itemTemplate>

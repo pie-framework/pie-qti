@@ -405,7 +405,7 @@ bun run lint
 
 ## License
 
-MIT
+ISC
 
 ## Related Packages
 

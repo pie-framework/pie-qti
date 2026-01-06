@@ -1134,4 +1134,4 @@ bun run lint
 
 ## License
 
-MIT
+ISC

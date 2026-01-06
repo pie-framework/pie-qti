@@ -590,37 +590,80 @@ export class BatchTransformer {
   }
 }
 
-// CLI entry point
-const isMainModule = import.meta.url === `file://${process.argv[1]}`;
+import { Args, Command, Flags } from '@oclif/core';
 
-if (isMainModule) {
-  const args = process.argv.slice(2);
+export default class BatchTransform extends Command {
+  static override description =
+    'Batch transform QTI packages (directories/ZIPs) to PIE. Supports nested ZIP extraction + manifest-aware resolution.';
 
-  if (args.length < 2) {
-    console.error('Usage: batch-transform <output-dir> <path1> [path2] [path3] ...');
-    console.error('');
-    console.error('Examples:');
-    console.error('  batch-transform ./output package.zip');
-    console.error('  batch-transform ./output /path/to/qti/dir package.zip');
-    console.error('  batch-transform ./output /path/to/qti/**/*.zip');
-    process.exit(1);
-  }
+  static override examples = [
+    '<%= config.bin %> <%= command.id %> ./some-package.zip -o ./out',
+    '<%= config.bin %> <%= command.id %> ./dir-a ./dir-b -o ./out --no-cleanupTemp',
+  ];
 
-  const outputDir = args[0];
-  const paths = args.slice(1);
+  static override flags = {
+    outputDir: Flags.string({
+      char: 'o',
+      description: 'Output directory for transformed PIE items',
+      required: true,
+    }),
+    maxParallel: Flags.integer({
+      description: 'Max parallel transformations',
+      default: 10,
+    }),
+    extractNestedZips: Flags.boolean({
+      description: 'Extract nested ZIP files',
+      default: true,
+      allowNo: true,
+    }),
+    loadPassageContent: Flags.boolean({
+      description: 'Load passage content from external files',
+      default: false,
+    }),
+    copyMediaAssets: Flags.boolean({
+      description: 'Copy media assets into output directory',
+      default: false,
+    }),
+    generateReport: Flags.boolean({
+      description: 'Generate a summary report',
+      default: true,
+      allowNo: true,
+    }),
+    cleanupTemp: Flags.boolean({
+      description: 'Cleanup temporary extraction directory',
+      default: true,
+      allowNo: true,
+    }),
+    tempDir: Flags.string({
+      description: 'Temporary directory for ZIP extraction',
+      required: false,
+    }),
+  };
 
-  const transformer = new BatchTransformer({
-    outputDir,
-    extractNestedZips: true,
-    loadPassageContent: false,
-    copyMediaAssets: false,
-    generateReport: true,
-  });
+  static override args = {
+    inputs: Args.string({
+      description: 'One or more package paths (directories or ZIPs)',
+      required: true,
+      multiple: true,
+    }),
+  };
 
-  transformer.transform(paths)
-    .then(() => process.exit(0))
-    .catch(error => {
-      console.error('Error:', error.message);
-      process.exit(1);
+  public async run(): Promise<void> {
+    const { args, flags } = await this.parse(BatchTransform);
+    const transformer = new BatchTransformer({
+      outputDir: flags.outputDir,
+      maxParallel: flags.maxParallel,
+      extractNestedZips: flags.extractNestedZips,
+      loadPassageContent: flags.loadPassageContent,
+      copyMediaAssets: flags.copyMediaAssets,
+      generateReport: flags.generateReport,
+      cleanupTemp: flags.cleanupTemp,
+      tempDir: flags.tempDir,
     });
+    const inputs = Array.isArray(args.inputs) ? args.inputs : [args.inputs];
+    await transformer.transform(inputs);
+  }
 }
+
+// Note: This file is an Oclif command module. Keep it free of top-level side effects so
+// the CLI can discover commands by scanning `dist/commands` generically.

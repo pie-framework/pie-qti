@@ -8,9 +8,19 @@
 
 Monorepo for **QTI 2.2 → PIE transformation** and **direct QTI 2.2 rendering** in modern web applications.
 
-## Documentation Site
+## Why this project exists
 
-📚 **[View Full Documentation](https://pie-framework.github.io/pie-qti/)** - Complete guides, API reference, and examples
+The [PIE](https://pie-framework.org/) (Portable Interactions and Elements) framework is a complete solution for playing assessment items (with full assessments in the works). Its main supporter is [Renaissance Learning](https://www.renaissance.com/), which standardized on PIE for administering assessment items as well as a good share of its authoring (PIE comes with authoring capabilities out-of-the-box). Our main implementation partner for PIE is [MCRO](https://mcro.tech/)
+
+Renaissance Learning has many partners who export and/or import **QTI**, so transforming between **QTI and PIE** (both directions) is a common case. The main purpose of this project is to **open source a transformation framework** so partners (and anyone interested in PIE) can benefit from it.
+
+On top of that, this framework provides a **near spec-complete QTI 2.1/2.2 player**. The main reason is simple: a good open-source QTI player with a modern stack/build system was missing—and we needed one to make the rest of the tooling good (especially **previewing**, **analysis**, and “convert then render” workflows). So we built one.
+
+## QTI player documentation Site
+
+📚 **[View Documentation/ Examples](https://pie-framework.github.io/pie-qti/)** - QTI player examples and doc site.
+
+![ACME Likert plugin architecture](docs/images/examples-screenshot-1.png)
 
 ## Features
 
@@ -41,40 +51,35 @@ Everything lives under `packages/`:
 
 ### Tools
 
-- `@pie-framework/transform-cli` (`packages/cli`): Oclif CLI (installs `pie-qti`)
+- `@pie-framework/transform-cli` (`packages/cli`): Oclif CLI for QTI ↔ PIE transforms
 - `@pie-framework/transform-web` (`packages/transform-app`): web UI for trying transforms
 - `@pie-qti/qti2-example` (`packages/qti2-example`): example SvelteKit app for the players + a11y test harness
 
 ## Quick Start
 
 ```bash
-# Install CLI globally (puts `pie-qti` on your PATH)
-bun add -g @pie-framework/transform-cli
+# Install dependencies for this repo
+bun install
 
-# Alternatively, run without a global install:
-# bunx @pie-framework/transform-cli <command> [...args]
-#
-# Example:
-# bunx @pie-framework/transform-cli qti-package.zip --to pie --output ./output
+# Run the CLI from the repo (no global install required)
+bun run pie-qti -- --help
 
-# Transform QTI (zip/package) to PIE
-pie-qti qti-package.zip --to pie --output ./output
-
-# Batch transform
-pie-qti batch ./packages/*.zip --to pie --parallel 10
+# Transform a single QTI XML item to PIE JSON
+bun run pie-qti -- transform packages/transform-app/static/samples/basic-interactions/choice_simple.xml \
+  --format qti22:pie \
+  --output ./output.json \
+  --pretty
 ```
 
 ## CLI
 
-The CLI is implemented in `packages/cli` and exposes the `pie-qti` binary.
+The CLI is implemented in `packages/cli`. In this repo, run it via `bun run pie-qti -- ...`.
 
-Common commands:
+Generic usage:
 
-- `pie-qti --help`
-- `pie-qti transform <input.xml> -o <output.json>`
-- `pie-qti batch <glob-or-dir> --to pie --output <dir-or-jsonl>`
-- `pie-qti analyze-qti <package-or-dir>`
-- `pie-qti discover-qti <package-or-dir>`
+- `bun run pie-qti -- --help` (lists available commands)
+- `bun run pie-qti -- <command> --help` (shows flags/args for a command)
+- Example: `bun run pie-qti -- transform <input.xml> --format qti22:pie --output <output.json>`
 
 ## Development
 

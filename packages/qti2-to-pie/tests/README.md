@@ -242,12 +242,8 @@ TEST_PERF_SINGLE=150 TEST_PERF_BATCH=750 bun test
 
 ## Fixtures
 
-Real-world QTI samples are stored in `tests/integration/fixtures/`.
-
-See [fixtures/README.md](./integration/fixtures/README.md) for:
-- Attribution and licensing
-- File descriptions
-- Update procedures
+Integration tests use QTI samples that live in this repository under `packages/transform-app/static/samples/`
+(plus a few minimal inline XML snippets) to validate transformations without pulling in third-party fixtures/licenses.
 
 ## Troubleshooting
 

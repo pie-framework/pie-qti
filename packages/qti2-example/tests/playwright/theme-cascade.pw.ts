@@ -68,10 +68,8 @@ test.describe('DaisyUI theme cascades into player + TipTap editor', () => {
 		// Wait for network to settle and assessment to render
 		await page.waitForLoadState('networkidle');
 
-		// Ensure shell exists (assessment player mounted)
-		await expect(page.getByRole('heading', { name: 'Grade 5 Mathematics Assessment' })).toBeVisible({
-			timeout: 10000,
-		});
+		// Ensure shell exists (assessment player mounted). The fixture page does not render a fixed heading,
+		// so rely on the shell container rather than a brittle title string.
 		await expect(page.locator('.assessment-shell')).toBeVisible({ timeout: 10000 });
 
 		await setTheme(page, 'light');

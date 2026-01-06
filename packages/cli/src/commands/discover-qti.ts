@@ -90,6 +90,61 @@ export async function discoverQtiPackage(
   }
 }
 
+import { Args, Command, Flags } from '@oclif/core';
+
+export default class DiscoverQti extends Command {
+  static override description = 'Discover and print the structure of a QTI content package (directory or ZIP)';
+
+  static override examples = [
+    '<%= config.bin %> <%= command.id %> ./some-qti-package-dir',
+    '<%= config.bin %> <%= command.id %> ./some-package.zip --pretty',
+    '<%= config.bin %> <%= command.id %> ./some-package.zip --output discovery.json',
+  ];
+
+  static override flags = {
+    output: Flags.string({
+      description: 'Write the JSON result to this file path (defaults to stdout)',
+      required: false,
+    }),
+    pretty: Flags.boolean({
+      description: 'Pretty-print JSON',
+      default: false,
+    }),
+    verbose: Flags.boolean({
+      description: 'Include more detail during discovery',
+      default: false,
+    }),
+    extractDir: Flags.string({
+      description: 'Directory to extract ZIPs into (optional)',
+      required: false,
+    }),
+  };
+
+  static override args = {
+    input: Args.string({
+      description: 'Directory or ZIP file to discover',
+      required: true,
+    }),
+  };
+
+  public async run(): Promise<void> {
+    const { args, flags } = await this.parse(DiscoverQti);
+    const result = await discoverQtiPackage(args.input, {
+      extractDir: flags.extractDir,
+      verbose: flags.verbose,
+    });
+    const json = flags.pretty ? JSON.stringify(result, null, 2) : JSON.stringify(result);
+    if (flags.output) {
+      fs.writeFileSync(flags.output, json, 'utf-8');
+      this.log(`✓ Wrote discovery output to ${flags.output}`);
+    } else {
+      this.log(json);
+    }
+  }
+}
+// Note: This file is an Oclif command module. Keep it free of top-level side effects so
+// the CLI can discover commands by scanning `dist/commands` generically.
+
 /**
  * Explore package directory structure
  */
@@ -531,27 +586,5 @@ export function displayDiscoveryResults(result: DiscoveryResult): void {
   console.log('='.repeat(80));
 }
 
-// CLI entry point (ES module compatible)
-const isMainModule = import.meta.url === `file://${process.argv[1]}`;
-
-if (isMainModule) {
-  const args = process.argv.slice(2);
-
-  if (args.length === 0) {
-    console.error('Usage: discover-qti <package-path>');
-    console.error('  package-path: Path to QTI ZIP file or directory');
-    process.exit(1);
-  }
-
-  const packagePath = args[0];
-
-  discoverQtiPackage(packagePath)
-    .then(result => {
-      displayDiscoveryResults(result);
-      process.exit(0);
-    })
-    .catch(error => {
-      console.error('Error:', error.message);
-      process.exit(1);
-    });
-}
+// Note: This file is an Oclif command module. Keep it free of top-level side effects so
+// the CLI can discover commands by scanning `dist/commands` generically.
