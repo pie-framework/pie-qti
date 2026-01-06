@@ -12,11 +12,24 @@ High-level implementation status for PIE-QTI. This document is intentionally sho
 
 ## Status
 
-- ✅ **Shipped**: QTI 2.2 item player + assessment player + QTI↔PIE transforms
+### QTI 2.x Players — Production-ready
+
+The item player and assessment player are considered production-ready:
+
+- ✅ **Shipped**: QTI 2.2 item player + assessment player
 - ✅ **QTI item interactions**: **21/21** QTI 2.2 interaction types supported in the core player
 - ✅ **Default UI components**: **17** default interaction web components (`@pie-qti/qti2-default-components`)
   - `textEntryInteraction` + `inlineChoiceInteraction` are rendered as inline interactions
   - `uploadInteraction` + `drawingInteraction` use shared Svelte components (`FileUpload`, `DrawingCanvas`)
+
+### PIE ↔ QTI Transforms — Under active development
+
+The transformation framework and tooling are functional but under active development:
+
+- ✅ **Core transforms**: QTI 2.2 → PIE and PIE → QTI 2.2 transform plugins
+- 🚧 **Transform app**: Web UI for upload, analyze, transform, and preview
+- 🚧 **CLI**: Command-line batch operations
+- 🚧 **IMS Content Packages**: Manifest generation and packaging
 
 ---
 

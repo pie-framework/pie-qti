@@ -1,4 +1,4 @@
-# PIE-QTI: Production-Ready QTI 2.2 Implementation
+# PIE-QTI
 
 ![QTI 2.2 Compliant](https://img.shields.io/badge/QTI%202.2-100%25%20Compliant-success)
 ![Interactions](https://img.shields.io/badge/Interactions-21%2F21-success)
@@ -6,80 +6,131 @@
 ![Accessibility](https://img.shields.io/badge/WCAG%202.2%20AA-99.5%25-success)
 ![TypeScript](https://img.shields.io/badge/TypeScript-Strict-blue)
 
-Monorepo for **QTI 2.2 → PIE transformation** and **direct QTI 2.2 rendering** in modern web applications.
+This project provides two major capabilities:
 
-## Why this project exists
+1. **QTI 2.x Players** — Production-ready item and assessment players with extensibility and theming
+2. **PIE ↔ QTI Transformation Framework** — Bidirectional transforms between QTI 2.2 and PIE, with CLI, web app, and IMS Content Package support
 
-The [PIE](https://pie-framework.org/) (Portable Interactions and Elements) framework is a complete solution for playing assessment items (with full assessments in the works). Its main supporter is [Renaissance Learning](https://www.renaissance.com/), which standardized on PIE for administering assessment items as well as a good share of its authoring (PIE comes with authoring capabilities out-of-the-box). Our main implementation partner for PIE is [MCRO](https://mcro.tech/)
+📚 **[Live Examples & Documentation](https://pie-framework.github.io/pie-qti/)**
 
-Renaissance Learning has many partners who export and/or import **QTI**, so transforming between **QTI and PIE** (both directions) is a common case. The main purpose of this project is to **open source a transformation framework** so partners (and anyone interested in PIE) can benefit from it.
+![QTI Player Examples](docs/images/examples-screenshot-1.png)
 
-On top of that, this framework provides a **near spec-complete QTI 2.1/2.2 player**. The main reason is simple: a good open-source QTI player with a modern stack/build system was missing—and we needed one to make the rest of the tooling good (especially **previewing**, **analysis**, and “convert then render” workflows). So we built one.
+> **Project Status**: QTI 2.x players are production-ready. Transform framework is under active development. See [STATUS.md](STATUS.md) for details.
 
-## QTI player documentation Site
+---
 
-📚 **[View Documentation/ Examples](https://pie-framework.github.io/pie-qti/)** - QTI player examples and doc site.
+## Why This Project Exists
 
-![ACME Likert plugin architecture](docs/images/examples-screenshot-1.png)
+[PIE](https://pie-framework.org/) (Portable Interactions and Elements) is a complete framework for playing and authoring assessment items, maintained by [Renaissance Learning](https://www.renaissance.com/) with implementation partner [MCRO](https://mcro.tech/).
 
-## Features
+Many Renaissance partners exchange content in **QTI format**, so bidirectional QTI ↔ PIE transformation is essential. This project **open sources that transformation framework** for partners and the broader community.
 
-- ✅ **Complete QTI 2.2 Implementation**: All 21 interaction types, 45 response processing operators
-- ✅ **Dual-Mode Architecture**: Direct QTI XML rendering + optional PIE JSON transformation
-- ✅ **Production-Grade Quality**: loads of tests, WCAG 2.2 Level AA accessibility
-- ✅ **Modern Stack**: TypeScript, Svelte 5, Bun + Turbo monorepo
-- ✅ **Framework-Agnostic Core**: Pluggable renderer system for any UI framework
+We also built a **spec-complete QTI 2.x player** because a modern, open-source option was missing—and we needed one for previewing, analysis, and "convert then render" workflows.
 
-> 📊 **Project Status**: Production-ready v1.0. See [STATUS.md](STATUS.md) for feature completeness details.
+---
 
-## Packages
+## Part 1: QTI 2.x Players
 
-Everything lives under `packages/`:
+> **Status**: Production-ready
 
-### Transformation core
+Full-featured players for rendering QTI 2.x assessment content in the browser.
 
-- `@pie-framework/transform-types` (`packages/types`): shared TypeScript types (PIE + transform IO)
-- `@pie-framework/element-schemas` (`packages/schemas`): PIE element JSON schemas used for validation
-- `@pie-framework/transform-core` (`packages/core`): plugin registry + transform engine + validation
-- `@pie-qti/qti2-to-pie` (`packages/qti2-to-pie`): QTI 2.2 transformer plugin (XML → PIE JSON)
-- `@pie-qti/pie-to-qti2` (`packages/pie-to-qti2`): PIE transformer plugin (PIE JSON → QTI 2.2 XML)
+### Item Player (`@pie-qti/qti2-item-player`)
 
-### QTI Players
+Renders and scores individual QTI items:
 
-- `@pie-qti/qti2-item-player` (`packages/qti2-item-player`): single-item QTI 2.x player + interaction components
-- `@pie-qti/qti2-assessment-player` (`packages/qti2-assessment-player`): assessment shell (multi-item navigation, sections, rubric blocks)
+- **21 interaction types** — All QTI 2.2 interactions supported
+- **45 response processing operators** — Complete client-side scoring
+- **Role-based rendering** — Candidate, scorer, author, tutor, proctor, testConstructor
+- **Adaptive items** — Multi-attempt workflows with progressive feedback
+- **WCAG 2.2 Level AA** — Full keyboard navigation and screen reader support
+- **Iframe isolation mode** — Optional secure rendering for untrusted content
 
-### Tools
+### Assessment Player (`@pie-qti/qti2-assessment-player`)
 
-- `@pie-framework/transform-cli` (`packages/cli`): Oclif CLI for QTI ↔ PIE transforms
-- `@pie-framework/transform-web` (`packages/transform-app`): web UI for trying transforms
-- `@pie-qti/qti2-example` (`packages/qti2-example`): example SvelteKit app for the players + a11y test harness
+Orchestrates multi-item assessments:
 
-## Quick Start
+- **Navigation modes** — Linear (sequential) and nonlinear (free navigation)
+- **Sections & hierarchy** — Nested sections with rubric blocks
+- **Selection & ordering** — Random item selection and shuffling per QTI spec
+- **Time limits** — Countdown timers with warnings and auto-submission
+- **Item session control** — Max attempts, review/skip, response validation
+- **State persistence** — Auto-save with resume capability
+- **Outcome processing** — Scoring templates (total, weighted, percentage, pass/fail)
+- **Backend adapter** — Optional server-side scoring and secure data handling
+
+### Extensibility
+
+The player architecture separates QTI logic from UI rendering:
+
+- **Plugin system** (`QTIPlugin`) — Register custom extractors, components, and lifecycle hooks
+- **Registries** — Priority-based `ExtractionRegistry` and `ComponentRegistry`
+- **Typesetting hook** — Host-provided math rendering (KaTeX adapter included)
+- **Custom operators** — Support for `<customOperator>` elements
+
+See the [ACME Likert plugin](packages/acme-likert-plugin/) for a complete extensibility example.
+
+### Theming
+
+Components render via web components (Shadow DOM) with a CSS variable contract:
+
+- **Theme tokens** — DaisyUI-compatible variables (`--p`, `--a`, `--b1`, `--bc`, etc.)
+- **`::part()` hooks** — Stable part names for host-side style refinement
+- **Zero-CSS fallback** — Components render correctly with no host styles
+
+See [STYLING.md](packages/qti2-default-components/STYLING.md) for the full styling contract.
+
+---
+
+## Part 2: PIE ↔ QTI Transformation Framework
+
+> **Status**: Under active development
+
+Bidirectional transformation between QTI 2.2 XML and PIE JSON.
+
+### Transform Capabilities
+
+**QTI → PIE** (`@pie-qti/qti2-to-pie`)
+
+- Lossless round-trip when QTI originated from PIE
+- Best-effort semantic transformation otherwise
+- Vendor extension system for custom QTI variants
+
+**PIE → QTI** (`@pie-qti/pie-to-qti2`)
+
+- Lossless reconstruction when PIE contains embedded QTI
+- Generator registry for custom PIE model handling
+- IMS Content Package generation (`imsmanifest.xml`)
+
+### Transform App (`@pie-framework/transform-web`)
+
+![QTI Player Examples](docs/images/transform-app-screenshot-1.png)
+
+Interactive web UI for transformations:
+
+- **Upload** — Single files or ZIP packages (including nested ZIPs)
+- **Analyze** — Discover items, count interactions, report issues
+- **Transform** — Batch convert with progress reporting
+- **Preview** — Side-by-side QTI and PIE rendering
+
+The app uses sessionized local filesystem storage by default, but the architecture supports custom backend adapters.
+
+### CLI (`@pie-framework/transform-cli`)
+
+Command-line tool for batch operations:
 
 ```bash
-# Install dependencies for this repo
-bun install
+# Transform a single item
+bun run pie-qti -- transform input.xml --format qti22:pie --output output.json
 
-# Run the CLI from the repo (no global install required)
+# Analyze QTI content
+bun run pie-qti -- analyze ./content-package/
+
+# See all commands
 bun run pie-qti -- --help
-
-# Transform a single QTI XML item to PIE JSON
-bun run pie-qti -- transform packages/transform-app/static/samples/basic-interactions/choice_simple.xml \
-  --format qti22:pie \
-  --output ./output.json \
-  --pretty
 ```
 
-## CLI
-
-The CLI is implemented in `packages/cli`. In this repo, run it via `bun run pie-qti -- ...`.
-
-Generic usage:
-
-- `bun run pie-qti -- --help` (lists available commands)
-- `bun run pie-qti -- <command> --help` (shows flags/args for a command)
-- Example: `bun run pie-qti -- transform <input.xml> --format qti22:pie --output <output.json>`
+---
 
 ## Development
 
@@ -87,119 +138,63 @@ Generic usage:
 # Install dependencies
 bun install
 
-# Build all packages (Turbo)
+# Build all packages
 bun run build
 
-# Run the transform web UI
-bun run dev:transform-app
-
-# Run the QTI player example app
-bun run dev:example
-
-# Or use these convenient shortcuts from root:
-bun run dev:example       # Run example app in dev mode
-bun run dev:pages         # Same as above (for GitHub Pages testing)
-```
-
-### Development with Local PIE Players
-
-If you want to test QTI-generated PIE content with the PIE players from the [pie-players](https://github.com/pie-framework/pie-players) repository during development, local linking is automatically set up when both repositories are checked out side-by-side.
-
-**Setup:**
-
-1. Clone both repositories side-by-side:
-
-   ```text
-   dev/prj/pie/
-     ├── pie-qti/
-     └── pie-players/
-   ```
-
-2. Build pie-players packages:
-
-   ```bash
-   cd ../pie-players
-   bun install
-   bun run build
-   ```
-
-3. Install pie-qti dependencies:
-
-   ```bash
-   cd ../pie-qti
-   bun install
-   ```
-
-**That's it!** The postinstall script automatically detects the pie-players sibling directory and creates `bunfig.local.toml` to link the local packages. Any changes you make in `pie-players/packages/*` will be immediately reflected without needing to rebuild or republish.
-
-**For External Users:**
-
-External users who clone only pie-qti will automatically get published versions from npm. The postinstall script silently does nothing when pie-players is not present, so there's no impact on standard workflows.
-
-### Testing GitHub Pages Deployment Locally
-
-```bash
-# Build the site exactly as GitHub Pages will
-bun run build:pages
-
-# Preview the production build
-bun run preview:pages
-
-# IMPORTANT: Open http://localhost:4173/pie-qti/ (note the /pie-qti/ base path!)
-# The production build is configured for GitHub Pages with /pie-qti base path
-```
-
-## Tests
-
-At repo root:
-
-```bash
-# Run unit tests across the monorepo (Turbo)
+# Run tests
 bun run test
 
-# Lint / typecheck
+# Lint and typecheck
 bun run lint
 bun run typecheck
+
+# E2E tests (Playwright)
+bun run test:e2e
 ```
 
-Package-level:
+### Local PIE Players
+
+To test with [pie-players](https://github.com/pie-framework/pie-players) locally, clone both repos side-by-side. The postinstall script auto-links them.
+
+### GitHub Pages Preview
 
 ```bash
-# Unit tests (Bun)
-bun --filter @pie-framework/transform-core test
-bun --filter @pie-qti/qti2-to-pie test
-bun --filter @pie-qti/qti2-item-player test
-
-# E2E + a11y (Playwright)
-bun --filter @pie-qti/qti2-example test:e2e
+bun run build:pages
+bun run preview:pages
+# Open http://localhost:4173/pie-qti/
 ```
 
-Accessibility coverage lives in `packages/qti2-example/tests/e2e/` and includes both demo-based checks and component-fixture scans under:
-
-- `GET /a11y-components`
-
-For details, see [`packages/qti2-example/tests/README.md`](packages/qti2-example/tests/README.md).
+---
 
 ## Documentation
 
-### Getting Started
+### Architecture & Project Layout
 
-- **[PIE ↔ QTI Transformation Guide](docs/PIE-QTI-TRANSFORMATION-GUIDE.md)** - Complete guide to bidirectional transformations
+- **[Architecture Guide](docs/ARCHITECTURE.md)** — System design, package map, extensibility, theming, and security
 
-### Package Documentation
+### Players
 
-- **[@pie-qti/pie-to-qti2](packages/pie-to-qti2/README.md)** - PIE to QTI transformation
-- **[@pie-qti/qti2-to-pie](packages/qti2-to-pie/README.md)** - QTI to PIE transformation
-- **[@pie-qti/qti2-item-player](packages/qti2-item-player/README.md)** - QTI item player
-- **[@pie-qti/qti2-assessment-player](packages/qti2-assessment-player/README.md)** - QTI assessment player
+- **[Item Player](packages/qti2-item-player/README.md)** — API, interactions, accessibility
+- **[Assessment Player](packages/qti2-assessment-player/README.md)** — Navigation, scoring, backend integration
+- **[Styling Contract](packages/qti2-default-components/STYLING.md)** — Theming with CSS variables and ::part
+- **[Example App](packages/qti2-example/README.md)** — Demo application with all interactions
 
-### Feature Guides
+### Transforms
 
-- **[Assessment Transformations](packages/pie-to-qti2/docs/ASSESSMENT-TRANSFORMATIONS.md)** - Multi-item assessments with scoring, branching, and adaptive navigation
-- **[External Passages](packages/pie-to-qti2/docs/EXTERNAL-PASSAGES.md)** - External passage support
-- **[Manifest Generation](packages/pie-to-qti2/docs/MANIFEST-GENERATION.md)** - IMS Content Package generation
-- **[QTI 2.2.2 Compliance](packages/pie-to-qti2/docs/QTI-COMPLIANCE.md)** - Standards compliance details
+- **[Transformation Guide](docs/PIE-QTI-TRANSFORMATION-GUIDE.md)** — Bidirectional transform overview
+- **[Transform App](packages/transform-app/README.md)** — Web UI for transformations
+- **[CLI](packages/cli/README.md)** — Command-line batch operations
+- **[QTI → PIE](packages/qti2-to-pie/README.md)** — QTI to PIE transformer
+- **[PIE → QTI](packages/pie-to-qti2/README.md)** — PIE to QTI transformer
+- **[IMS Content Packages](packages/pie-to-qti2/docs/MANIFEST-GENERATION.md)** — Manifest generation
+
+### Extensibility
+
+- **[Custom Generators](packages/pie-to-qti2/CUSTOM-GENERATORS.md)** — Adding PIE model support
+- **[ACME Likert Plugin](packages/acme-likert-plugin/README.md)** — Player extensibility example
+
+---
 
 ## License
 
-ISC License - see [LICENSE](LICENSE) for details
+ISC License — see [LICENSE](LICENSE)

@@ -1,6 +1,6 @@
-# Architecture: PIE-QTI (integrator-focused)
+# Architecture: PIE-QTI
 
-High level document to discuss architecture of PIE-QTI.
+High-level architecture overview for PIE-QTI.
 
 ---
 
@@ -60,6 +60,8 @@ Everything lives under `packages/`:
 ---
 
 ## QTI players: architecture & extensibility
+
+> **Status**: Production-ready
 
 ![Item player extensibility](images/item_player_extensibility.jpeg)
 
@@ -181,7 +183,70 @@ Key references:
 
 ---
 
+### Theming & styling (`packages/qti2-default-components`)
+
+The default interaction components render via **web components** (Svelte custom elements) inside **Shadow DOM**. This provides encapsulation while remaining framework-agnostic for hosts.
+
+#### Styling contract
+
+The theming system balances three goals:
+
+1. **Components work with zero host CSS** — Layout and accessibility styles are built-in.
+2. **Host controls visual theming** — Colors, typography, and radii via CSS variables.
+3. **Host can refine details** — Stable `::part()` hooks for targeted customization.
+
+#### CSS variables (theme tokens)
+
+Components consume DaisyUI-compatible variables:
+
+| Variable | Purpose |
+|----------|---------|
+| `--p` | Primary color |
+| `--a` | Accent color |
+| `--b1`, `--b2`, `--b3` | Base surface colors |
+| `--bc` | Base content (text) color |
+| `--su` | Success color |
+
+Usage in components: `hsl(var(--p))`, `hsl(var(--bc))`, etc.
+
+If the host doesn't provide these variables, components fall back to safe defaults via `var(--token, fallback)`.
+
+#### Host responsibilities
+
+- Set theme variables on `:root` or any ancestor of the web component.
+- Optionally set `data-theme="..."` for DaisyUI theme switching.
+
+#### `::part()` hooks
+
+Each component exposes stable part names for host-side CSS refinement:
+
+```css
+/* Example: customize order interaction items */
+pie-qti-order::part(item) {
+  border-radius: 12px;
+}
+
+pie-qti-order::part(handle) {
+  opacity: 0.9;
+}
+```
+
+Components expose parts for all major structural elements (lists, items, handles, prompts, inputs, etc.).
+
+#### Baseline styles (Shadow DOM fallback)
+
+The default components include a small baseline stylesheet (`ShadowBaseStyles`) that provides minimal styling for common DaisyUI classnames (`btn`, `alert`, `badge`, etc.) **inside Shadow DOM** when the host does not load DaisyUI/Tailwind.
+
+Key references:
+
+- `packages/qti2-default-components/STYLING.md` (full part catalog and examples)
+- `packages/qti2-default-components/src/shared/components/ShadowBaseStyles.svelte`
+
+---
+
 ## Transformations: QTI ↔ PIE
+
+> **Status**: Under active development
 
 ### Transform engine (`packages/core`)
 
@@ -263,6 +328,8 @@ Key reference:
 ---
 
 ## Transform app (`packages/transform-app`): conversion + preview pipeline
+
+> **Status**: Under active development
 
 ![Transform app workflow](images/transform_app_workflow.jpeg)
 
