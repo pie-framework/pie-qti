@@ -7,7 +7,7 @@ A modern, QTI 2.x compliant assessment item player with role-based rendering and
 - ✅ **21 QTI Interaction Types Supported** - All QTI 2.2 interactions
 - ✅ **QTI 2.x Standard Roles** - Candidate, scorer, author, tutor, proctor, testConstructor
 - ✅ **Adaptive Items** - Multi-attempt workflow with progressive feedback
-- ✅ **Full Keyboard Accessibility** (WCAG 2.1 Level AA compliant)
+- ✅ **Full Keyboard Accessibility** (follows WCAG 2.2 Level AA guidelines)
 - ✅ **Client-Side Response Processing** with 45/45 QTI operators
 - ✅ **Framework-Agnostic Core** with a **Web Component interaction layer** (default implementations authored in Svelte)
 - ✅ **TypeScript** with full type definitions
@@ -339,7 +339,7 @@ For complete documentation, see [ADAPTIVE-ITEMS-DESIGN.md](ADAPTIVE-ITEMS-DESIGN
 
 ## Accessibility
 
-All components are WCAG 2.1 Level AA compliant:
+All components follow WCAG 2.2 Level AA guidelines:
 
 - ✅ **Full keyboard navigation** (Tab, Space, Enter, Arrow keys, Escape)
 - ✅ **Screen reader support** with ARIA labels and live regions
@@ -358,7 +358,7 @@ All components are WCAG 2.1 Level AA compliant:
 | GraphicGapMatch | Space/Enter | Select label |
 | | Tab → Space/Enter | Place on hotspot |
 
-For detailed accessibility status, see [WCAG-2.2-COMPLIANCE.md](WCAG-2.2-COMPLIANCE.md).
+For detailed accessibility analysis, see [WCAG-2.2-COMPLIANCE.md](docs/WCAG-2.2-COMPLIANCE.md).
 
 ## Backend Scoring (Optional)
 

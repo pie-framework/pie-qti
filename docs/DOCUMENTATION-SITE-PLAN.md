@@ -97,7 +97,7 @@ Build and deploy an attractive documentation website on GitHub Pages that showca
 
 2. **Framework Benefits** (4 cards)
    - **Complete QTI 2.2 Support**: All 21 interactions, full spec compliance
-   - **Production-Grade**: 1,112+ tests, WCAG 2.2 AA, TypeScript strict
+   - **Production-Grade**: 1,112+ tests, accessibility-tested, TypeScript strict
    - **Dual Architecture**: Direct QTI rendering + PIE transformation
    - **Framework Agnostic**: Pluggable core, works with any UI framework
 
@@ -120,7 +120,7 @@ Build and deploy an attractive documentation website on GitHub Pages that showca
 6. **Stats Bar**
    - 21/21 Interactions
    - 1,112+ Tests
-   - 99.5% WCAG AA
+   - Accessibility-tested
    - 100% TypeScript
 
 7. **Use Cases** (3 columns)
@@ -179,7 +179,7 @@ Build and deploy an attractive documentation website on GitHub Pages that showca
    - Adaptive branching
 
 3. **Accessibility**
-   - WCAG 2.2 Level AA compliance
+   - Follows WCAG 2.2 Level AA guidelines
    - Screen reader support
    - Keyboard navigation
    - Mobile accessibility

@@ -3,7 +3,7 @@
 ![QTI 2.2 Compliant](https://img.shields.io/badge/QTI%202.2-100%25%20Compliant-success)
 ![Interactions](https://img.shields.io/badge/Interactions-21%2F21-success)
 ![Tests](https://img.shields.io/badge/Tests-1112%2B-success)
-![Accessibility](https://img.shields.io/badge/WCAG%202.2%20AA-99.5%25-success)
+![Accessibility](https://img.shields.io/badge/Accessibility-Tested-blue)
 ![TypeScript](https://img.shields.io/badge/TypeScript-Strict-blue)
 
 This project provides two major capabilities:
@@ -43,7 +43,7 @@ Renders and scores individual QTI items:
 - **45 response processing operators** — Complete client-side scoring
 - **Role-based rendering** — Candidate, scorer, author, tutor, proctor, testConstructor
 - **Adaptive items** — Multi-attempt workflows with progressive feedback
-- **WCAG 2.2 Level AA** — Full keyboard navigation and screen reader support
+- **Accessible** — Full keyboard navigation and screen reader support (follows WCAG 2.2 Level AA guidelines)
 - **Iframe isolation mode** — Optional secure rendering for untrusted content
 
 ### Assessment Player (`@pie-qti/qti2-assessment-player`)
