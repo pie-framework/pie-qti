@@ -32,7 +32,7 @@
     "@pie-framework/transform-core": "workspace:*",
     "@pie-framework/transform-types": "workspace:*",
     "node-html-parser": "^6.1.13",
-    "uuid": "^10.0.0",
+    "uuid": "^13.0.0",
     "xml-formatter": "^3.6.4"
   },
   "devDependencies": {
