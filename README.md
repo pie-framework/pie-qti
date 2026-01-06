@@ -16,7 +16,7 @@ Monorepo for **QTI 2.2 → PIE transformation** and **direct QTI 2.2 rendering**
 
 - ✅ **Complete QTI 2.2 Implementation**: All 21 interaction types, 45 response processing operators
 - ✅ **Dual-Mode Architecture**: Direct QTI XML rendering + optional PIE JSON transformation
-- ✅ **Production-Grade Quality**: 1,112+ tests (99.9% pass rate), WCAG 2.2 Level AA accessibility
+- ✅ **Production-Grade Quality**: loads of tests, WCAG 2.2 Level AA accessibility
 - ✅ **Modern Stack**: TypeScript, Svelte 5, Bun + Turbo monorepo
 - ✅ **Framework-Agnostic Core**: Pluggable renderer system for any UI framework
 
