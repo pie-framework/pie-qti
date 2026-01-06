@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/qti/qtiv2p2/imsqti_v2p2.xsd"
+                identifier="mc-basic-001"
+                title="Basic Multiple Choice"
+                adaptive="false"
+                timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier">
+    <correctResponse>
+      <value>choiceA</value>
+    </correctResponse>
+  </responseDeclaration>
+  <itemBody>
+    <p>What is 2 + 2?</p>
+    <choiceInteraction responseIdentifier="RESPONSE" maxChoices="1" shuffle="false">
+      <simpleChoice identifier="choiceA">4</simpleChoice>
+      <simpleChoice identifier="choiceB">3</simpleChoice>
+      <simpleChoice identifier="choiceC">5</simpleChoice>
+      <simpleChoice identifier="choiceD">22</simpleChoice>
+    </choiceInteraction>
+  </itemBody>
+</assessmentItem>

@@ -1,0 +1,23 @@
+{
+  "id": "isNull_isNotNull",
+  "qtiVersion": "2.2",
+  "title": "isNull / isNotNull",
+  "description": "Covers null checks in responseProcessing",
+  "source": {
+    "type": "custom",
+    "license": "CC0-1.0"
+  },
+  "covers": [
+    "baseValue",
+    "expr.baseValue",
+    "expr.isNotNull",
+    "expr.isNull",
+    "expr.variable",
+    "isNotNull",
+    "isNull",
+    "stmt.responseCondition",
+    "stmt.setOutcomeValue"
+  ]
+}
+
+

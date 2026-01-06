@@ -1,0 +1,23 @@
+# Local development configuration for linking pie-players
+# Copy this file to bunfig.local.toml to enable local pie-players development
+#
+# Prerequisites:
+# 1. Clone pie-players alongside pie-qti:
+#    dev/prj/pie/
+#      ├── pie-qti/
+#      └── pie-players/
+#
+# 2. Build pie-players packages:
+#    cd ../pie-players && bun install && bun run build
+#
+# 3. Copy this file:
+#    cp bunfig.local.example.toml bunfig.local.toml
+#
+# 4. Install dependencies:
+#    bun install
+
+[install.scopes]
+# Link to local pie-players packages for fast iteration
+"@pie-framework/pie-assessment-player" = { path = "../pie-players/packages/pie-assessment-player" }
+"@pie-framework/pie-iife-player" = { path = "../pie-players/packages/pie-iife-player" }
+"@pie-framework/pie-esm-player" = { path = "../pie-players/packages/pie-esm-player" }

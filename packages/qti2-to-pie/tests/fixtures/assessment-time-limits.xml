@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentTest xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                identifier="test005"
+                title="Time Limits Test">
+
+  <testPart identifier="part1" navigationMode="nonlinear">
+    <assessmentSection identifier="section1" title="Timed Section" visible="true">
+      <timeLimits maxTime="1800" allowLateSubmission="false"/>
+
+      <assessmentItemRef identifier="item1" href="items/q1.xml">
+        <timeLimits maxTime="300" allowLateSubmission="false"/>
+      </assessmentItemRef>
+
+      <assessmentItemRef identifier="item2" href="items/q2.xml">
+        <timeLimits maxTime="600" allowLateSubmission="true"/>
+      </assessmentItemRef>
+    </assessmentSection>
+  </testPart>
+
+</assessmentTest>

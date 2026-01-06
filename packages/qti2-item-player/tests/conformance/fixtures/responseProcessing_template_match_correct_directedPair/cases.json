@@ -1,0 +1,22 @@
+{
+  "id": "responseProcessing_template_match_correct_directedPair",
+  "cases": [
+    {
+      "name": "correct_scores_maxScore",
+      "responses": { "RESPONSE": "A B" },
+      "expect": { "outcomes": { "SCORE": 1, "MAXSCORE": 1 } }
+    },
+    {
+      "name": "correct_with_extra_whitespace_is_normalized",
+      "responses": { "RESPONSE": "A     B" },
+      "expect": { "outcomes": { "SCORE": 1, "MAXSCORE": 1 } }
+    },
+    {
+      "name": "reversed_is_incorrect",
+      "responses": { "RESPONSE": "B A" },
+      "expect": { "outcomes": { "SCORE": 0, "MAXSCORE": 1 } }
+    }
+  ]
+}
+
+

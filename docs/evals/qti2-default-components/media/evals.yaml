@@ -1,0 +1,95 @@
+version: 1
+
+component:
+  interactionType: mediaInteraction
+  tagName: pie-qti-media
+
+examplesApp:
+  app: "@pie-qti/qti2-example"
+  routeTemplate: "/item-demo/{sampleId}"
+
+evals:
+  - id: media/media-audio/correct-min-plays
+    sampleId: media-audio
+    gradeBand: "K-12"
+    subject: ela
+    intent: "Play count increments when media ends; meeting minPlays scores 1."
+    notes:
+      - "This component counts a 'play' on the `ended` event (completion), not on play start."
+      - "AI tools may need to increase playbackRate or simulate `ended` to avoid long waits."
+    steps:
+      - action: navigate
+        path: "/item-demo/media-audio"
+      - action: playUntilEnded
+        target:
+          description: "Play the audio to completion twice"
+          hint: "minPlays=2; ensure the play count reaches 2"
+        times: 2
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+    expected:
+      responses:
+        MEDIA_RESPONSE:
+          gte: 2
+      outcomes:
+        SCORE:
+          equals: 1.0
+        MAXSCORE:
+          equals: 1.0
+    spiritChecks:
+      - "The UI clearly indicates how many plays are required and shows current play count."
+
+  - id: media/media-audio/wrong-not-enough-plays
+    sampleId: media-audio
+    gradeBand: "K-12"
+    subject: ela
+    intent: "Not meeting minPlays should score 0."
+    steps:
+      - action: navigate
+        path: "/item-demo/media-audio"
+      - action: playUntilEnded
+        target:
+          description: "Play the audio to completion once"
+        times: 1
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+        note: "If submit is disabled until minPlays is met, treat this as acceptable gating behavior."
+    expected:
+      responses:
+        MEDIA_RESPONSE:
+          equals: 1
+      outcomes:
+        SCORE:
+          equals: 0.0
+        MAXSCORE:
+          equals: 1.0
+
+  - id: media/media-video/correct-min-plays
+    sampleId: media-video
+    gradeBand: "K-12"
+    subject: science
+    intent: "Watching at least once (ended count >= 1) should score 1."
+    steps:
+      - action: navigate
+        path: "/item-demo/media-video"
+      - action: playUntilEnded
+        target:
+          description: "Play the video to completion once"
+          hint: "minPlays=1; ensure the play count reaches 1"
+        times: 1
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+    expected:
+      responses:
+        VIDEO_RESPONSE:
+          gte: 1
+      outcomes:
+        SCORE:
+          equals: 1.0
+        MAXSCORE:
+          equals: 1.0
+
+

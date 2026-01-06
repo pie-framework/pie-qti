@@ -1,0 +1,16 @@
+{
+  "id": "responseProcessing_anyN",
+  "title": "responseProcessing: anyN(min/max) boolean aggregation",
+  "description": "Covers anyN@min/@max with boolean child expressions (member checks) and verifies coercion/aggregation behavior.",
+  "spec": "QTI 2.2.2",
+  "provenance": {
+    "source": "authored",
+    "license": "CC0-1.0"
+  },
+  "covers": [
+    "anyN",
+    "baseValue",
+    "expr.anyN",
+    "expr.baseValue"
+  ]
+}

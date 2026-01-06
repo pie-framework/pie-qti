@@ -1,0 +1,13 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "contains(container, value) where container is a multiple response variable.",
+  "covers": [
+    "contains",
+    "expr.contains",
+    "responseCondition",
+    "setOutcomeValue",
+    "stmt.responseCondition",
+    "stmt.setOutcomeValue"
+  ]
+}

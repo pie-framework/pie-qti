@@ -1,0 +1,10 @@
+{
+  "id": "responseProcessing_setResponseValue_setDefaultValue",
+  "title": "responseProcessing: setResponseValue + setDefaultValue",
+  "specVersion": "imsqti_v2p2",
+  "license": "CC0-1.0",
+  "source": "authored",
+  "notes": "Exercises response variable mutation: missing response gets reset to default via setDefaultValue; B is rewritten to A via setResponseValue before scoring."
+}
+
+

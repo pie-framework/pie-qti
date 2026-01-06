@@ -1,0 +1,13 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "exitTemplate should stop evaluation of further templateProcessing statements.",
+  "covers": [
+    "exitTemplate",
+    "responseProcessing",
+    "setTemplateValue",
+    "stmt.exitTemplate",
+    "stmt.setTemplateValue",
+    "templateProcessing"
+  ]
+}

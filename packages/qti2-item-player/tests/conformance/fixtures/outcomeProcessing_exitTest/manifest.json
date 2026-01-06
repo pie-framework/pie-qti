@@ -1,0 +1,10 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "exitTest is test-level; in item-only player we treat it as 'stop executing the current program'.",
+  "covers": [
+    "exitTest",
+    "outcomeProcessing",
+    "stmt.exitTest"
+  ]
+}

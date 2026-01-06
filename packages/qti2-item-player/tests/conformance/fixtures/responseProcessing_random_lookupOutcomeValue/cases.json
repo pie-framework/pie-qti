@@ -1,0 +1,27 @@
+{
+  "id": "responseProcessing_random_lookupOutcomeValue",
+  "seed": 42,
+  "cases": [
+    {
+      "name": "random_is_deterministic_with_seed_and_lookupOutcomeValue_maps_match",
+      "responses": { "RESPONSE": "2" },
+      "expect": {
+        "outcomes": {
+          "PICKED": "B",
+          "LOOKED": 20
+        }
+      }
+    },
+    {
+      "name": "lookupOutcomeValue_uses_defaultValue_when_source_is_null",
+      "responses": {},
+      "expect": {
+        "outcomes": {
+          "LOOKED": 99
+        }
+      }
+    }
+  ]
+}
+
+

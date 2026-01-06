@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+  xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="rp-template-match-correct-2"
+  title="ResponseProcessing Template match_correct (two responses)"
+  adaptive="false"
+  timeDependent="false">
+
+  <responseDeclaration identifier="R1" cardinality="single" baseType="identifier">
+    <correctResponse><value>A</value></correctResponse>
+  </responseDeclaration>
+  <responseDeclaration identifier="R2" cardinality="single" baseType="identifier">
+    <correctResponse><value>B</value></correctResponse>
+  </responseDeclaration>
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+  <outcomeDeclaration identifier="MAXSCORE" cardinality="single" baseType="float">
+    <defaultValue><value>2</value></defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <p>Two responses.</p>
+  </itemBody>
+
+  <responseProcessing template="http://www.imsglobal.org/question/qti_v2p2/rptemplates/match_correct"/>
+</assessmentItem>
+
+

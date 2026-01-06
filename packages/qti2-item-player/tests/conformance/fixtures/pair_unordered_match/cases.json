@@ -1,0 +1,22 @@
+{
+	"id": "pair_unordered_match",
+	"cases": [
+		{
+			"name": "unordered_pairs_match",
+			"responses": { "RESPONSE": ["B A", "D C"] },
+			"expect": { "outcomes": { "SCORE": 1 } }
+		},
+		{
+			"name": "already_normalized_pairs_match",
+			"responses": { "RESPONSE": ["A B", "C D"] },
+			"expect": { "outcomes": { "SCORE": 1 } }
+		},
+		{
+			"name": "mismatch_pair_fails",
+			"responses": { "RESPONSE": ["A B", "C E"] },
+			"expect": { "outcomes": { "SCORE": 0 } }
+		}
+	]
+}
+
+

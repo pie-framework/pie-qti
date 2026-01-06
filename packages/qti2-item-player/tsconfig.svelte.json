@@ -1,0 +1,14 @@
+{
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"declaration": false,
+		"declarationMap": false,
+		"noEmit": true,
+		"types": ["svelte"]
+	},
+	"include": ["src/**/*.ts", "src/**/*.svelte", "src/**/*.d.ts"],
+	"exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"]
+}
+
+
+

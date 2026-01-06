@@ -1,0 +1,105 @@
+version: 1
+
+component:
+  interactionType: graphicGapMatchInteraction
+  tagName: pie-qti-graphic-gap-match
+
+examplesApp:
+  app: "@pie-qti/qti2-example"
+  routeTemplate: "/item-demo/{sampleId}"
+
+evals:
+  - id: graphic-gap-match/solar-system/correct
+    sampleId: graphic-gap-match-solar-system
+    gradeBand: "4-8"
+    subject: science
+    intent: "All labels correctly placed → full mapped score."
+    steps:
+      - action: navigate
+        path: "/item-demo/graphic-gap-match-solar-system"
+      - action: dragPair
+        target:
+          description: "Place Mercury label on hotspot A"
+        pair: "MERCURY A"
+      - action: dragPair
+        target:
+          description: "Place Venus label on hotspot B"
+        pair: "VENUS B"
+      - action: dragPair
+        target:
+          description: "Place Earth label on hotspot C"
+        pair: "EARTH C"
+      - action: dragPair
+        target:
+          description: "Place Mars label on hotspot D"
+        pair: "MARS D"
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+    expected:
+      responses:
+        RESPONSE:
+          containsAll:
+            - "MERCURY A"
+            - "VENUS B"
+            - "EARTH C"
+            - "MARS D"
+      outcomes:
+        SCORE:
+          equals: 4.0
+        MAXSCORE:
+          equals: 4.0
+    spiritChecks:
+      - "Labels are readable, draggable, and snap/land clearly in the target area."
+      - "The item meaning is clear: label the inner planets, not memorize odd trivia."
+
+  - id: graphic-gap-match/solar-system/partial
+    sampleId: graphic-gap-match-solar-system
+    gradeBand: "4-8"
+    subject: science
+    intent: "One label incorrect or missing → partial credit via mapping."
+    steps:
+      - action: navigate
+        path: "/item-demo/graphic-gap-match-solar-system"
+      - action: dragPair
+        pair: "MERCURY A"
+      - action: dragPair
+        pair: "VENUS B"
+      - action: dragPair
+        pair: "EARTH C"
+      - action: dragPair
+        target:
+          description: "Make the last one wrong (e.g., Mars on C) or leave it unfilled"
+        pair: "MARS C"
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+    expected:
+      outcomes:
+        SCORE:
+          equals: 3.0
+        MAXSCORE:
+          equals: 4.0
+
+  - id: graphic-gap-match/solar-system/wrong
+    sampleId: graphic-gap-match-solar-system
+    gradeBand: "4-8"
+    subject: science
+    intent: "All labels wrong → score 0."
+    steps:
+      - action: navigate
+        path: "/item-demo/graphic-gap-match-solar-system"
+      - action: dragPair
+        target:
+          description: "Place labels on the wrong hotspots so none of the correct directedPairs exist."
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+    expected:
+      outcomes:
+        SCORE:
+          equals: 0.0
+        MAXSCORE:
+          equals: 4.0
+
+

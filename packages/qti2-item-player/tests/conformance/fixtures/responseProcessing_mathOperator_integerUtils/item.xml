@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+  xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="rp-math-operator-integer-utils"
+  title="ResponseProcessing mathOperator + integer utils"
+  adaptive="false"
+  timeDependent="false">
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
+    <defaultValue><value>0.0</value></defaultValue>
+  </outcomeDeclaration>
+
+  <outcomeDeclaration identifier="SIN0" cardinality="single" baseType="float"><defaultValue><value>0</value></defaultValue></outcomeDeclaration>
+  <outcomeDeclaration identifier="COS0" cardinality="single" baseType="float"><defaultValue><value>0</value></defaultValue></outcomeDeclaration>
+  <outcomeDeclaration identifier="SEC0" cardinality="single" baseType="float"><defaultValue><value>0</value></defaultValue></outcomeDeclaration>
+  <outcomeDeclaration identifier="EXP0" cardinality="single" baseType="float"><defaultValue><value>0</value></defaultValue></outcomeDeclaration>
+  <outcomeDeclaration identifier="LN1" cardinality="single" baseType="float"><defaultValue><value>0</value></defaultValue></outcomeDeclaration>
+  <outcomeDeclaration identifier="LOG1" cardinality="single" baseType="float"><defaultValue><value>0</value></defaultValue></outcomeDeclaration>
+  <outcomeDeclaration identifier="ABSNEG2" cardinality="single" baseType="float"><defaultValue><value>0</value></defaultValue></outcomeDeclaration>
+  <outcomeDeclaration identifier="FLOOR19" cardinality="single" baseType="integer"><defaultValue><value>0</value></defaultValue></outcomeDeclaration>
+  <outcomeDeclaration identifier="CEIL11" cardinality="single" baseType="integer"><defaultValue><value>0</value></defaultValue></outcomeDeclaration>
+  <outcomeDeclaration identifier="SIGNNEG3" cardinality="single" baseType="integer"><defaultValue><value>0</value></defaultValue></outcomeDeclaration>
+  <outcomeDeclaration identifier="ATAN2_0_1" cardinality="single" baseType="float"><defaultValue><value>0</value></defaultValue></outcomeDeclaration>
+
+  <outcomeDeclaration identifier="GCD_8_12" cardinality="single" baseType="integer"><defaultValue><value>0</value></defaultValue></outcomeDeclaration>
+  <outcomeDeclaration identifier="LCM_4_6" cardinality="single" baseType="integer"><defaultValue><value>0</value></defaultValue></outcomeDeclaration>
+  <outcomeDeclaration identifier="IMOD_5_2" cardinality="single" baseType="integer"><defaultValue><value>0</value></defaultValue></outcomeDeclaration>
+  <outcomeDeclaration identifier="I2F_3" cardinality="single" baseType="float"><defaultValue><value>0</value></defaultValue></outcomeDeclaration>
+
+  <itemBody>
+    <p>Math operator + integer utils.</p>
+  </itemBody>
+
+  <responseProcessing>
+    <responseCondition>
+      <responseElse>
+        <setOutcomeValue identifier="SIN0">
+          <mathOperator name="sin"><baseValue baseType="float">0</baseValue></mathOperator>
+        </setOutcomeValue>
+        <setOutcomeValue identifier="COS0">
+          <mathOperator name="cos"><baseValue baseType="float">0</baseValue></mathOperator>
+        </setOutcomeValue>
+        <setOutcomeValue identifier="SEC0">
+          <mathOperator name="sec"><baseValue baseType="float">0</baseValue></mathOperator>
+        </setOutcomeValue>
+        <setOutcomeValue identifier="EXP0">
+          <mathOperator name="exp"><baseValue baseType="float">0</baseValue></mathOperator>
+        </setOutcomeValue>
+        <setOutcomeValue identifier="LN1">
+          <mathOperator name="ln"><baseValue baseType="float">1</baseValue></mathOperator>
+        </setOutcomeValue>
+        <setOutcomeValue identifier="LOG1">
+          <mathOperator name="log"><baseValue baseType="float">1</baseValue></mathOperator>
+        </setOutcomeValue>
+        <setOutcomeValue identifier="ABSNEG2">
+          <mathOperator name="abs"><baseValue baseType="float">-2</baseValue></mathOperator>
+        </setOutcomeValue>
+        <setOutcomeValue identifier="FLOOR19">
+          <mathOperator name="floor"><baseValue baseType="float">1.9</baseValue></mathOperator>
+        </setOutcomeValue>
+        <setOutcomeValue identifier="CEIL11">
+          <mathOperator name="ceil"><baseValue baseType="float">1.1</baseValue></mathOperator>
+        </setOutcomeValue>
+        <setOutcomeValue identifier="SIGNNEG3">
+          <mathOperator name="signum"><baseValue baseType="float">-3</baseValue></mathOperator>
+        </setOutcomeValue>
+        <setOutcomeValue identifier="ATAN2_0_1">
+          <mathOperator name="atan2">
+            <baseValue baseType="float">0</baseValue>
+            <baseValue baseType="float">1</baseValue>
+          </mathOperator>
+        </setOutcomeValue>
+
+        <setOutcomeValue identifier="GCD_8_12">
+          <gcd>
+            <baseValue baseType="integer">8</baseValue>
+            <baseValue baseType="integer">12</baseValue>
+          </gcd>
+        </setOutcomeValue>
+        <setOutcomeValue identifier="LCM_4_6">
+          <lcm>
+            <baseValue baseType="integer">4</baseValue>
+            <baseValue baseType="integer">6</baseValue>
+          </lcm>
+        </setOutcomeValue>
+        <setOutcomeValue identifier="IMOD_5_2">
+          <integerModulus>
+            <baseValue baseType="integer">5</baseValue>
+            <baseValue baseType="integer">2</baseValue>
+          </integerModulus>
+        </setOutcomeValue>
+        <setOutcomeValue identifier="I2F_3">
+          <integerToFloat>
+            <baseValue baseType="integer">3</baseValue>
+          </integerToFloat>
+        </setOutcomeValue>
+      </responseElse>
+    </responseCondition>
+  </responseProcessing>
+</assessmentItem>
+
+

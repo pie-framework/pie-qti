@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="templateProcessing_exitTemplate" title="exitTemplate stops templateProcessing" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="R" cardinality="single" baseType="string"/>
+
+  <templateDeclaration identifier="T" cardinality="single" baseType="integer">
+    <defaultValue><value>0</value></defaultValue>
+  </templateDeclaration>
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="integer">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <p>T=<printedVariable identifier="T"/></p>
+    <textEntryInteraction responseIdentifier="R" expectedLength="20"/>
+  </itemBody>
+
+  <templateProcessing>
+    <setTemplateValue identifier="T">
+      <baseValue baseType="integer">1</baseValue>
+    </setTemplateValue>
+    <exitTemplate/>
+    <setTemplateValue identifier="T">
+      <baseValue baseType="integer">2</baseValue>
+    </setTemplateValue>
+  </templateProcessing>
+
+  <responseProcessing>
+    <responseCondition>
+      <responseIf>
+        <equal>
+          <variable identifier="T"/>
+          <baseValue baseType="integer">1</baseValue>
+        </equal>
+        <setOutcomeValue identifier="SCORE">
+          <baseValue baseType="integer">1</baseValue>
+        </setOutcomeValue>
+      </responseIf>
+      <responseElse>
+        <setOutcomeValue identifier="SCORE">
+          <baseValue baseType="integer">0</baseValue>
+        </setOutcomeValue>
+      </responseElse>
+    </responseCondition>
+  </responseProcessing>
+</assessmentItem>
+
+

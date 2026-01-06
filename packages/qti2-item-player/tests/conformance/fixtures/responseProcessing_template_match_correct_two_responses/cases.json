@@ -1,0 +1,17 @@
+{
+  "id": "responseProcessing_template_match_correct_two_responses",
+  "cases": [
+    {
+      "name": "all_correct_scores_maxScore",
+      "responses": { "R1": "A", "R2": "B" },
+      "expect": { "outcomes": { "SCORE": 2, "MAXSCORE": 2 } }
+    },
+    {
+      "name": "one_incorrect_scores_zero",
+      "responses": { "R1": "A", "R2": "A" },
+      "expect": { "outcomes": { "SCORE": 0, "MAXSCORE": 2 } }
+    }
+  ]
+}
+
+

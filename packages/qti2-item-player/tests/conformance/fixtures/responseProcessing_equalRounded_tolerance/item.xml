@@ -1,0 +1,39 @@
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="equalRounded_tolerance" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="float"/>
+
+  <outcomeDeclaration identifier="ROUNDED_SIG" cardinality="single" baseType="boolean" defaultValue="false"/>
+  <outcomeDeclaration identifier="TOL_ABS" cardinality="single" baseType="boolean" defaultValue="false"/>
+  <outcomeDeclaration identifier="TOL_REL" cardinality="single" baseType="boolean" defaultValue="false"/>
+
+  <itemBody>
+    <textEntryInteraction responseIdentifier="RESPONSE" expectedLength="16"/>
+  </itemBody>
+
+  <responseProcessing>
+    <!-- equalRounded: significantFigure example -->
+    <setOutcomeValue identifier="ROUNDED_SIG">
+      <equalRounded roundingMode="significantFigure" figures="3">
+        <variable identifier="RESPONSE"/>
+        <baseValue baseType="float">3.183</baseValue>
+      </equalRounded>
+    </setOutcomeValue>
+
+    <!-- equal with absolute tolerance around the first operand (x = 10.0) -->
+    <setOutcomeValue identifier="TOL_ABS">
+      <equal toleranceMode="absolute" tolerance="0.5" includeLowerBound="true" includeUpperBound="true">
+        <baseValue baseType="float">10</baseValue>
+        <variable identifier="RESPONSE"/>
+      </equal>
+    </setOutcomeValue>
+
+    <!-- equal with relative tolerance: +/-10% around x = 20.0 -->
+    <setOutcomeValue identifier="TOL_REL">
+      <equal toleranceMode="relative" tolerance="10" includeLowerBound="true" includeUpperBound="true">
+        <baseValue baseType="float">20</baseValue>
+        <variable identifier="RESPONSE"/>
+      </equal>
+    </setOutcomeValue>
+  </responseProcessing>
+</assessmentItem>
+
+

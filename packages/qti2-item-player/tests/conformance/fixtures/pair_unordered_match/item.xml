@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+	xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+	identifier="pair-unordered-match"
+	title="pair unordered match"
+	adaptive="false"
+	timeDependent="false">
+
+	<responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="pair">
+		<correctResponse>
+			<value>A B</value>
+			<value>C D</value>
+		</correctResponse>
+	</responseDeclaration>
+
+	<outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
+		<defaultValue><value>0</value></defaultValue>
+	</outcomeDeclaration>
+
+	<itemBody>
+		<p>Conformance: pair baseType is unordered (A B == B A).</p>
+	</itemBody>
+
+	<responseProcessing>
+		<responseCondition>
+			<responseIf>
+				<match>
+					<variable identifier="RESPONSE"/>
+					<correct identifier="RESPONSE"/>
+				</match>
+				<setOutcomeValue identifier="SCORE">
+					<baseValue baseType="float">1</baseValue>
+				</setOutcomeValue>
+			</responseIf>
+			<responseElse>
+				<setOutcomeValue identifier="SCORE">
+					<baseValue baseType="float">0</baseValue>
+				</setOutcomeValue>
+			</responseElse>
+		</responseCondition>
+	</responseProcessing>
+</assessmentItem>
+
+

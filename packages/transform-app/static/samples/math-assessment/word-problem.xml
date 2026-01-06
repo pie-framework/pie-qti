@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/imsqti_v2p2.xsd"
+                identifier="word-problem"
+                title="Math Word Problem"
+                adaptive="false"
+                timeDependent="false">
+
+  <responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="identifier">
+    <correctResponse>
+      <value>A</value>
+      <value>C</value>
+    </correctResponse>
+  </responseDeclaration>
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
+    <defaultValue>
+      <value>0</value>
+    </defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <div class="qti-item-body">
+      <h2>Solving a Word Problem</h2>
+      <div style="background: #f0f8ff; padding: 15px; border-radius: 5px; margin: 15px 0;">
+        <p><strong>Problem:</strong></p>
+        <p>Sarah has $50. She buys 3 books that cost $12 each.</p>
+        <p>How much money does she have left?</p>
+      </div>
+
+      <p>Select all the steps needed to solve this problem:</p>
+
+      <choiceInteraction responseIdentifier="RESPONSE" shuffle="false" maxChoices="0">
+        <prompt>Select all correct steps:</prompt>
+        <simpleChoice identifier="A">Multiply 3 × $12 to find the total cost of books</simpleChoice>
+        <simpleChoice identifier="B">Add $50 + $12 to find the total amount</simpleChoice>
+        <simpleChoice identifier="C">Subtract the total cost from $50</simpleChoice>
+        <simpleChoice identifier="D">Divide $50 by 3 to find the answer</simpleChoice>
+      </choiceInteraction>
+    </div>
+  </itemBody>
+
+  <responseProcessing template="http://www.imsglobal.org/question/qti_v2p1/rptemplates/match_correct"/>
+</assessmentItem>

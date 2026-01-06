@@ -1,0 +1,31 @@
+{
+  "id": "responseProcessing_mathOperator_integerUtils",
+  "cases": [
+    {
+      "name": "mathOperator_and_integer_utils_happy_path",
+      "responses": {},
+      "expect": {
+        "score": 0,
+        "outcomes": {
+          "SIN0": 0,
+          "COS0": 1,
+          "SEC0": 1,
+          "EXP0": 1,
+          "LN1": 0,
+          "LOG1": 0,
+          "ABSNEG2": 2,
+          "FLOOR19": 1,
+          "CEIL11": 2,
+          "SIGNNEG3": -1,
+          "ATAN2_0_1": 0,
+          "GCD_8_12": 4,
+          "LCM_4_6": 12,
+          "IMOD_5_2": 1,
+          "I2F_3": 3
+        }
+      }
+    }
+  ]
+}
+
+

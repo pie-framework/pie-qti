@@ -1,0 +1,31 @@
+{
+	"id": "responseProcessing_preCondition",
+	"cases": [
+		{
+			"name": "preCondition_true_false_null_and_variable",
+			"responses": { "RESPONSE": "0" },
+			"expect": {
+				"outcomes": {
+					"PC_TRUE": true,
+					"PC_FALSE": false,
+					"PC_NULL": false,
+					"PC_FROM_VAR": false
+				}
+			}
+		},
+		{
+			"name": "preCondition_variable_nonzero_is_true",
+			"responses": { "RESPONSE": "2" },
+			"expect": {
+				"outcomes": {
+					"PC_TRUE": true,
+					"PC_FALSE": false,
+					"PC_NULL": false,
+					"PC_FROM_VAR": true
+				}
+			}
+		}
+	]
+}
+
+

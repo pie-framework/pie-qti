@@ -1,0 +1,8 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "responseProcessing template=map_response fallback (no responseCondition blocks).",
+  "covers": ["responseProcessing.template.map_response"]
+}
+
+

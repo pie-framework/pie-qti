@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/qti/qtiv2p2/imsqti_v2p2.xsd"
+                identifier="ma-basic-001"
+                title="Basic Match"
+                adaptive="false"
+                timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="directedPair">
+    <correctResponse>
+      <value>A C</value>
+      <value>B D</value>
+    </correctResponse>
+  </responseDeclaration>
+  <itemBody>
+    <matchInteraction responseIdentifier="RESPONSE" shuffle="true">
+      <prompt>Match each animal to its category:</prompt>
+      <simpleMatchSet>
+        <simpleAssociableChoice identifier="A">Dog</simpleAssociableChoice>
+        <simpleAssociableChoice identifier="B">Salmon</simpleAssociableChoice>
+      </simpleMatchSet>
+      <simpleMatchSet>
+        <simpleAssociableChoice identifier="C">Mammal</simpleAssociableChoice>
+        <simpleAssociableChoice identifier="D">Fish</simpleAssociableChoice>
+      </simpleMatchSet>
+    </matchInteraction>
+  </itemBody>
+</assessmentItem>

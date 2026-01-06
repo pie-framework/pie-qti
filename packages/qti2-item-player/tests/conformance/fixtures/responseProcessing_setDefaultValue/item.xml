@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+  xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="responseProcessing_setDefaultValue"
+  title="responseProcessing setDefaultValue"
+  adaptive="false"
+  timeDependent="false"
+>
+  <responseDeclaration identifier="R1" cardinality="single" baseType="identifier">
+    <defaultValue><value>A</value></defaultValue>
+  </responseDeclaration>
+
+  <!-- Intentionally missing defaultValue -->
+  <responseDeclaration identifier="R2" cardinality="single" baseType="identifier" />
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="integer">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <p>setDefaultValue should reset to default (or NULL if absent).</p>
+  </itemBody>
+
+  <responseProcessing>
+    <!-- Force both responses away from their defaults -->
+    <setResponseValue identifier="R1"><baseValue baseType="identifier">B</baseValue></setResponseValue>
+    <setResponseValue identifier="R2"><baseValue baseType="identifier">B</baseValue></setResponseValue>
+
+    <!-- Reset both -->
+    <setDefaultValue identifier="R1" />
+    <setDefaultValue identifier="R2" />
+
+    <!-- Score +1 if R1 reset to A -->
+    <setOutcomeValue identifier="SCORE"><baseValue baseType="integer">0</baseValue></setOutcomeValue>
+    <responseCondition>
+      <responseIf>
+        <match>
+          <variable identifier="R1" />
+          <baseValue baseType="identifier">A</baseValue>
+        </match>
+        <setOutcomeValue identifier="SCORE">
+          <sum>
+            <variable identifier="SCORE" />
+            <baseValue baseType="integer">1</baseValue>
+          </sum>
+        </setOutcomeValue>
+      </responseIf>
+    </responseCondition>
+
+    <!-- Score +1 if R2 reset to NULL (because no defaultValue exists) -->
+    <responseCondition>
+      <responseIf>
+        <isNull>
+          <variable identifier="R2" />
+        </isNull>
+        <setOutcomeValue identifier="SCORE">
+          <sum>
+            <variable identifier="SCORE" />
+            <baseValue baseType="integer">1</baseValue>
+          </sum>
+        </setOutcomeValue>
+      </responseIf>
+    </responseCondition>
+  </responseProcessing>
+</assessmentItem>
+
+

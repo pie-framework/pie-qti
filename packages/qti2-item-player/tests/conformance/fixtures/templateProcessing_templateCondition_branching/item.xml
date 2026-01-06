@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+  xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="templateProcessing_templateCondition_branching"
+  title="templateCondition branching in templateProcessing"
+  adaptive="false"
+  timeDependent="false">
+
+  <templateDeclaration identifier="X" cardinality="single" baseType="integer">
+    <defaultValue><value>0</value></defaultValue>
+  </templateDeclaration>
+  <templateDeclaration identifier="A" cardinality="single" baseType="integer">
+    <defaultValue><value>0</value></defaultValue>
+  </templateDeclaration>
+  <templateDeclaration identifier="B" cardinality="single" baseType="integer">
+    <defaultValue><value>0</value></defaultValue>
+  </templateDeclaration>
+  <templateDeclaration identifier="C" cardinality="single" baseType="integer">
+    <defaultValue><value>0</value></defaultValue>
+  </templateDeclaration>
+
+  <templateProcessing>
+    <!-- Force IF branch -->
+    <setTemplateValue identifier="X">
+      <baseValue baseType="integer">1</baseValue>
+    </setTemplateValue>
+    <templateCondition>
+      <templateIf>
+        <equal>
+          <variable identifier="X"/>
+          <baseValue baseType="integer">1</baseValue>
+        </equal>
+        <setTemplateValue identifier="A">
+          <baseValue baseType="integer">10</baseValue>
+        </setTemplateValue>
+      </templateIf>
+      <templateElseIf>
+        <equal>
+          <variable identifier="X"/>
+          <baseValue baseType="integer">2</baseValue>
+        </equal>
+        <setTemplateValue identifier="A">
+          <baseValue baseType="integer">20</baseValue>
+        </setTemplateValue>
+      </templateElseIf>
+      <templateElse>
+        <setTemplateValue identifier="A">
+          <baseValue baseType="integer">30</baseValue>
+        </setTemplateValue>
+      </templateElse>
+    </templateCondition>
+
+    <!-- Force ELSEIF branch -->
+    <setTemplateValue identifier="X">
+      <baseValue baseType="integer">2</baseValue>
+    </setTemplateValue>
+    <templateCondition>
+      <templateIf>
+        <equal>
+          <variable identifier="X"/>
+          <baseValue baseType="integer">1</baseValue>
+        </equal>
+        <setTemplateValue identifier="B">
+          <baseValue baseType="integer">10</baseValue>
+        </setTemplateValue>
+      </templateIf>
+      <templateElseIf>
+        <equal>
+          <variable identifier="X"/>
+          <baseValue baseType="integer">2</baseValue>
+        </equal>
+        <setTemplateValue identifier="B">
+          <baseValue baseType="integer">20</baseValue>
+        </setTemplateValue>
+      </templateElseIf>
+      <templateElse>
+        <setTemplateValue identifier="B">
+          <baseValue baseType="integer">30</baseValue>
+        </setTemplateValue>
+      </templateElse>
+    </templateCondition>
+
+    <!-- Force ELSE branch -->
+    <setTemplateValue identifier="X">
+      <baseValue baseType="integer">3</baseValue>
+    </setTemplateValue>
+    <templateCondition>
+      <templateIf>
+        <equal>
+          <variable identifier="X"/>
+          <baseValue baseType="integer">1</baseValue>
+        </equal>
+        <setTemplateValue identifier="C">
+          <baseValue baseType="integer">10</baseValue>
+        </setTemplateValue>
+      </templateIf>
+      <templateElseIf>
+        <equal>
+          <variable identifier="X"/>
+          <baseValue baseType="integer">2</baseValue>
+        </equal>
+        <setTemplateValue identifier="C">
+          <baseValue baseType="integer">20</baseValue>
+        </setTemplateValue>
+      </templateElseIf>
+      <templateElse>
+        <setTemplateValue identifier="C">
+          <baseValue baseType="integer">30</baseValue>
+        </setTemplateValue>
+      </templateElse>
+    </templateCondition>
+  </templateProcessing>
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="integer">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <p>Template values: A=<printedVariable identifier="A"/>, B=<printedVariable identifier="B"/>, C=<printedVariable identifier="C"/>.</p>
+  </itemBody>
+
+  <responseProcessing>
+    <setOutcomeValue identifier="SCORE">
+      <sum>
+        <variable identifier="A"/>
+        <variable identifier="B"/>
+        <variable identifier="C"/>
+      </sum>
+    </setOutcomeValue>
+  </responseProcessing>
+</assessmentItem>
+
+

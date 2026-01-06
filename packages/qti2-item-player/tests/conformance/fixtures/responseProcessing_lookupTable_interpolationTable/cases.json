@@ -1,0 +1,27 @@
+{
+	"id": "responseProcessing_lookupTable_interpolationTable",
+	"cases": [
+		{
+			"name": "R=0 -> SCORE=0",
+			"responses": { "R": 0 },
+			"expect": { "score": 0 }
+		},
+		{
+			"name": "R=5 -> SCORE=50 (linear interpolation)",
+			"responses": { "R": 5 },
+			"expect": { "score": 50 }
+		},
+		{
+			"name": "R=-5 -> SCORE=0 (clamp low)",
+			"responses": { "R": -5 },
+			"expect": { "score": 0 }
+		},
+		{
+			"name": "R=12 -> SCORE=100 (clamp high)",
+			"responses": { "R": 12 },
+			"expect": { "score": 100 }
+		}
+	]
+}
+
+

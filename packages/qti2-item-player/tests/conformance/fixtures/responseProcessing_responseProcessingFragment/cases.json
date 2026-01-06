@@ -1,0 +1,12 @@
+{
+	"id": "responseProcessing_responseProcessingFragment",
+	"cases": [
+		{
+			"name": "fragment_is_inlined_and_exitResponse_exits_outer_processing",
+			"responses": { "RESPONSE": "A" },
+			"expect": { "outcomes": { "SCORE": 1 }, "score": 1 }
+		}
+	]
+}
+
+

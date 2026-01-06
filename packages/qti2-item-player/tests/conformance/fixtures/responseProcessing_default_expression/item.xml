@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="default_expression" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="R" cardinality="single" baseType="integer">
+    <defaultValue>
+      <value>5</value>
+    </defaultValue>
+  </responseDeclaration>
+
+  <outcomeDeclaration identifier="O" cardinality="single" baseType="float">
+    <defaultValue>
+      <value>2</value>
+    </defaultValue>
+  </outcomeDeclaration>
+  <outcomeDeclaration identifier="O_DEFAULT" cardinality="single" baseType="float">
+    <defaultValue>
+      <value>0</value>
+    </defaultValue>
+  </outcomeDeclaration>
+  <outcomeDeclaration identifier="R_DEFAULT" cardinality="single" baseType="integer">
+    <defaultValue>
+      <value>0</value>
+    </defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <textEntryInteraction responseIdentifier="R" expectedLength="3" />
+  </itemBody>
+
+  <responseProcessing>
+    <!-- Mutate current values... -->
+    <setOutcomeValue identifier="O">
+      <baseValue baseType="float">10</baseValue>
+    </setOutcomeValue>
+    <setResponseValue identifier="R">
+      <baseValue baseType="integer">3</baseValue>
+    </setResponseValue>
+
+    <!-- ...but <default> must still return the declaration's defaultValue. -->
+    <setOutcomeValue identifier="O_DEFAULT">
+      <default identifier="O" />
+    </setOutcomeValue>
+    <setOutcomeValue identifier="R_DEFAULT">
+      <default identifier="R" />
+    </setOutcomeValue>
+  </responseProcessing>
+</assessmentItem>
+
+

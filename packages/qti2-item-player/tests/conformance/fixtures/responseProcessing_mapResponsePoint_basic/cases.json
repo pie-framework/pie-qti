@@ -1,0 +1,22 @@
+{
+  "id": "responseProcessing_mapResponsePoint_basic",
+  "cases": [
+    {
+      "name": "inside rect => 2",
+      "responses": { "RESPONSE": "10 10" },
+      "expect": { "outcomes": { "SCORE": 2 } }
+    },
+    {
+      "name": "inside circle => 1",
+      "responses": { "RESPONSE": "75 84" },
+      "expect": { "outcomes": { "SCORE": 1 } }
+    },
+    {
+      "name": "outside all => default 0",
+      "responses": { "RESPONSE": "200 200" },
+      "expect": { "outcomes": { "SCORE": 0 } }
+    }
+  ]
+}
+
+

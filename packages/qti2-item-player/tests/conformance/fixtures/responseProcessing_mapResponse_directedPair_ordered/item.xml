@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="map_response_directedPair_ordered" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="directedPair">
+    <mapping defaultValue="0">
+      <mapEntry mapKey="W1 G1" mappedValue="1"/>
+    </mapping>
+  </responseDeclaration>
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
+    <defaultValue>
+      <value>0</value>
+    </defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <p>DirectedPair mapping should be ordered.</p>
+  </itemBody>
+
+  <responseProcessing>
+    <setOutcomeValue identifier="SCORE">
+      <mapResponse identifier="RESPONSE"/>
+    </setOutcomeValue>
+  </responseProcessing>
+</assessmentItem>
+
+

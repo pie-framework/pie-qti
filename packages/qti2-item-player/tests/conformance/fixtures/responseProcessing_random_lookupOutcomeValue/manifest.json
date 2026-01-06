@@ -1,0 +1,14 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "Covers expr.random and the lookupOutcomeValue rule (matchTable/interpolationTable attached to outcomeDeclaration).",
+  "covers": [
+    "expr.random",
+    "lookupOutcomeValue",
+    "matchTable",
+    "outcomeDeclaration",
+    "random",
+    "responseProcessing",
+    "stmt.lookupOutcomeValue"
+  ]
+}

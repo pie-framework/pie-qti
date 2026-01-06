@@ -1,0 +1,106 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+.turbo/
+.svelte-kit/
+
+# Generated artifacts for TypeScript config files (should not live next to sources)
+**/vite.config.js
+**/vite.config.js.map
+**/vite.config.d.ts
+**/vite.config.d.ts.map
+**/tailwind.config.js
+**/tailwind.config.js.map
+**/tailwind.config.d.ts
+**/tailwind.config.d.ts.map
+**/playwright.config.js
+**/playwright.config.js.map
+**/playwright.config.d.ts
+**/playwright.config.d.ts.map
+packages/schemas/scripts/*.js
+packages/schemas/scripts/*.js.map
+packages/schemas/scripts/*.d.ts
+packages/schemas/scripts/*.d.ts.map
+packages/qti2-backend/examples/*.js
+packages/qti2-backend/examples/*.js.map
+packages/qti2-backend/examples/*.d.ts
+packages/qti2-backend/examples/*.d.ts.map
+
+# TypeScript build artifacts in src/ (should only be in dist/)
+**/src/**/*.js
+**/src/**/*.js.map
+**/src/**/*.d.ts
+**/src/**/*.d.ts.map
+# Allow manual ambient type declarations
+!**/src/**/app.d.ts
+!**/src/**/vite-env.d.ts
+!**/src/**/*.svelte.d.ts
+
+# TypeScript build artifacts in tests/ (tests should be .ts files only)
+**/tests/**/*.js
+**/tests/**/*.js.map
+**/tests/**/*.d.ts
+**/tests/**/*.d.ts.map
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+.env.*
+!.env.example
+
+# Local development configuration
+bunfig.local.toml
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# AI assistant tooling (keep out of public repos unless intentionally shared)
+.claude/
+
+# Cursor IDE local data
+.cursor/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+.playwright-mcp/
+*.trace.zip
+**/test-results/
+**/playwright-report/
+
+# Misc
+*.tsbuildinfo
+.cache/
+
+# Local temp
+.tmp/
+**/.tmp/
+
+# App/runtime uploads (usually local-only)
+**/uploads/
+
+# Planning documents (internal use only)
+/plan/

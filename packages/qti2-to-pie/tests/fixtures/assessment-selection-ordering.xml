@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentTest xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                identifier="test003"
+                title="Selection and Ordering Test">
+
+  <testPart identifier="part1" navigationMode="nonlinear">
+    <assessmentSection identifier="section1" title="Random Questions" visible="true">
+      <!-- Select 3 random items from pool of 5 -->
+      <selection select="3" withReplacement="false"/>
+      <ordering shuffle="true"/>
+
+      <assessmentItemRef identifier="pool-item1" href="items/q1.xml"/>
+      <assessmentItemRef identifier="pool-item2" href="items/q2.xml"/>
+      <assessmentItemRef identifier="pool-item3" href="items/q3.xml"/>
+      <assessmentItemRef identifier="pool-item4" href="items/q4.xml"/>
+      <assessmentItemRef identifier="pool-item5" href="items/q5.xml"/>
+    </assessmentSection>
+  </testPart>
+
+</assessmentTest>

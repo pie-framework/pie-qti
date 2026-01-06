@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                identifier="extended-response-with-rubric"
+                title="Essay Question with Rubric"
+                adaptive="false"
+                timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="string"/>
+  <itemBody>
+    <p>Explain the causes and effects of the Industrial Revolution. Provide specific examples to support your answer.</p>
+    <extendedTextInteraction responseIdentifier="RESPONSE" expectedLines="10" expectedLength="500"/>
+  </itemBody>
+  <rubricBlock view="scorer">
+    <p><strong>Scoring Guide:</strong></p>
+    <table>
+      <tr>
+        <th>Points</th>
+        <th>Criteria</th>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td>Comprehensive explanation with multiple detailed examples and clear understanding of both causes and effects</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td>Good explanation with some examples showing understanding of causes and effects</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td>Basic explanation with limited examples, addresses either causes or effects</td>
+      </tr>
+      <tr>
+        <td>1</td>
+        <td>Minimal explanation with few or no examples</td>
+      </tr>
+      <tr>
+        <td>0</td>
+        <td>No response or completely off-topic</td>
+      </tr>
+    </table>
+  </rubricBlock>
+</assessmentItem>

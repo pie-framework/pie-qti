@@ -1,0 +1,16 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "Exercises outcomeProcessing control flow using outcomeCondition and the equal/notEqual-style comparison.",
+  "covers": [
+    "equal",
+    "expr.equal",
+    "outcomeCondition",
+    "outcomeElse",
+    "outcomeIf",
+    "outcomeProcessing",
+    "setOutcomeValue",
+    "stmt.outcomeCondition",
+    "stmt.setOutcomeValue"
+  ]
+}

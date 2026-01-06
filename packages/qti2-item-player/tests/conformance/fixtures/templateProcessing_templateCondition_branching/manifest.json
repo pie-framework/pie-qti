@@ -1,0 +1,22 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "templateProcessing templateCondition branching (if/elseif/else) + setTemplateValue + printedVariable, then responseProcessing reads template variables.",
+  "covers": [
+    "equal",
+    "expr.equal",
+    "expr.sum",
+    "expr.variable",
+    "printedVariable",
+    "responseProcessing",
+    "setOutcomeValue",
+    "setTemplateValue",
+    "stmt.setOutcomeValue",
+    "stmt.setTemplateValue",
+    "stmt.templateCondition",
+    "sum",
+    "templateCondition",
+    "templateProcessing",
+    "variable"
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "id": "responseProcessing_equalRounded_tolerance",
+  "description": "Covers numeric equalRounded (significantFigure/decimalPlace) and equal toleranceMode (absolute/relative + includeLower/UpperBound).",
+  "tags": ["responseProcessing", "equalRounded", "equal", "tolerance", "rounding"],
+  "covers": [
+    "baseValue",
+    "equal",
+    "equalRounded",
+    "expr.baseValue",
+    "expr.equal",
+    "expr.equalRounded",
+    "expr.variable",
+    "stmt.setOutcomeValue"
+  ]
+}
+
+

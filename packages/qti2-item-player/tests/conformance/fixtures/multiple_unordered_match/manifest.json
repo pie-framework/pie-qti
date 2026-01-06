@@ -1,0 +1,11 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "Multiple cardinality should be unordered matching (xfail for swapped order until implemented).",
+  "covers": [
+    "correct",
+    "expr.correct",
+    "match",
+    "multiple"
+  ]
+}

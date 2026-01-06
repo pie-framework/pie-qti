@@ -1,0 +1,27 @@
+{
+  "id": "responseProcessing_anyN",
+  "cases": [
+    {
+      "name": "exactly_two_true (A,B) => 1",
+      "responses": { "RESPONSE": ["A", "B"] },
+      "expect": { "outcomes": { "SCORE": 1 } }
+    },
+    {
+      "name": "only_one_true (A) => 0",
+      "responses": { "RESPONSE": ["A"] },
+      "expect": { "outcomes": { "SCORE": 0 } }
+    },
+    {
+      "name": "three_true (A,B,C) => 0",
+      "responses": { "RESPONSE": ["A", "B", "C"] },
+      "expect": { "outcomes": { "SCORE": 0 } }
+    },
+    {
+      "name": "none_true (empty) => 0",
+      "responses": { "RESPONSE": [] },
+      "expect": { "outcomes": { "SCORE": 0 } }
+    }
+  ]
+}
+
+

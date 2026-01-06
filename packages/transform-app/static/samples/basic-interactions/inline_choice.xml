@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/imsqti_v2p2.xsd"
+                identifier="inline_choice"
+                title="Inline Choice Question"
+                adaptive="false"
+                timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier">
+    <correctResponse>
+      <value>sun</value>
+    </correctResponse>
+  </responseDeclaration>
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
+    <defaultValue>
+      <value>0</value>
+    </defaultValue>
+  </outcomeDeclaration>
+  <itemBody>
+    <p>
+      The Earth orbits around the
+      <inlineChoiceInteraction responseIdentifier="RESPONSE" shuffle="false">
+        <inlineChoice identifier="moon">Moon</inlineChoice>
+        <inlineChoice identifier="sun">Sun</inlineChoice>
+        <inlineChoice identifier="mars">Mars</inlineChoice>
+      </inlineChoiceInteraction>
+      once every 365 days.
+    </p>
+  </itemBody>
+  <responseProcessing template="http://www.imsglobal.org/question/qti_v2p1/rptemplates/match_correct"/>
+</assessmentItem>

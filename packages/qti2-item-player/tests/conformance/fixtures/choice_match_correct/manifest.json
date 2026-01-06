@@ -1,0 +1,14 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "Baseline responseCondition + match/correct + setOutcomeValue scoring.",
+  "covers": [
+    "correct",
+    "expr.correct",
+    "match",
+    "responseCondition",
+    "setOutcomeValue",
+    "stmt.responseCondition",
+    "stmt.setOutcomeValue"
+  ]
+}

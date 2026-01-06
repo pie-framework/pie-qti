@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest xmlns="http://www.imsglobal.org/xsd/imscp_v1p1"
+          xmlns:imsmd="http://www.imsglobal.org/xsd/imsmd_v1p2"
+          xmlns:imsqti="http://www.imsglobal.org/xsd/imsqti_v2p2"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          identifier="with_passages_package"
+          xsi:schemaLocation="http://www.imsglobal.org/xsd/imscp_v1p1 http://www.imsglobal.org/xsd/imscp_v1p1.xsd http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/imsqti_v2p2.xsd">
+  <metadata>
+    <schema>QTI Package</schema>
+    <schemaversion>2.2</schemaversion>
+    <imsmd:lom>
+      <imsmd:general>
+        <imsmd:title>
+          <imsmd:string language="en">QTI Items with Reading Passages</imsmd:string>
+        </imsmd:title>
+        <imsmd:description>
+          <imsmd:string language="en">Sample QTI items featuring reading comprehension passages, stimuli, and rubrics for constructed response items.</imsmd:string>
+        </imsmd:description>
+      </imsmd:general>
+    </imsmd:lom>
+  </metadata>
+  <organizations/>
+  <resources>
+    <resource identifier="choice_with_stimulus" type="imsqti_item_xmlv2p2" href="choice-with-stimulus.xml">
+      <file href="choice-with-stimulus.xml"/>
+    </resource>
+    <resource identifier="extended_response_with_rubric" type="imsqti_item_xmlv2p2" href="extended-response-with-rubric.xml">
+      <file href="extended-response-with-rubric.xml"/>
+    </resource>
+  </resources>
+</manifest>

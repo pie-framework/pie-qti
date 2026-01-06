@@ -1,0 +1,160 @@
+{
+  "samples": [
+    {
+      "id": "basic-interactions",
+      "name": "Basic QTI Interactions",
+      "description": "Simple QTI items demonstrating common interaction types",
+      "version": "1.0.0",
+      "qtiVersion": "2.2",
+      "itemCount": 5,
+      "hasManifest": true,
+      "interactions": [
+        "choiceInteraction",
+        "textEntryInteraction",
+        "inlineChoiceInteraction",
+        "matchInteraction"
+      ],
+      "features": [
+        "Single select choice",
+        "Multiple select choice",
+        "Text entry",
+        "Inline dropdown",
+        "Match/association"
+      ],
+      "path": "basic-interactions",
+      "size": "estimated ~25KB"
+    },
+    {
+      "id": "with-passages",
+      "name": "Items with Reading Passages",
+      "description": "Reading comprehension and constructed response items with stimuli and rubrics",
+      "version": "1.0.0",
+      "qtiVersion": "2.2",
+      "itemCount": 2,
+      "hasManifest": true,
+      "interactions": [
+        "choiceInteraction",
+        "extendedTextInteraction"
+      ],
+      "features": [
+        "Reading passages/stimuli",
+        "Comprehension questions",
+        "Constructed response",
+        "Scoring rubrics"
+      ],
+      "path": "with-passages",
+      "size": "estimated ~15KB"
+    },
+    {
+      "id": "graphic-interactions",
+      "name": "Graphic-Based Interactions",
+      "description": "Items using image-based interactions like hotspot and graphic gap match",
+      "version": "1.0.0",
+      "qtiVersion": "2.2",
+      "itemCount": 2,
+      "hasManifest": true,
+      "interactions": [
+        "hotspotInteraction",
+        "graphicGapMatchInteraction"
+      ],
+      "features": [
+        "Image hotspot selection",
+        "Graphic drag and drop",
+        "Visual assessments"
+      ],
+      "path": "graphic-interactions",
+      "size": "estimated ~20KB"
+    },
+    {
+      "id": "assessment-test",
+      "name": "Complete Assessment Test",
+      "description": "A full QTI assessment test with multiple items, sections, and rubrics",
+      "version": "1.0.0",
+      "qtiVersion": "2.2",
+      "itemCount": 4,
+      "hasManifest": true,
+      "hasAssessmentTest": true,
+      "interactions": [
+        "choiceInteraction",
+        "textEntryInteraction"
+      ],
+      "features": [
+        "Assessment test structure",
+        "Multiple sections",
+        "Section rubrics",
+        "Nonlinear navigation",
+        "Individual submission mode"
+      ],
+      "path": "assessment-test",
+      "size": "estimated ~30KB"
+    },
+    {
+      "id": "math-assessment",
+      "name": "Mathematics Assessment",
+      "description": "Math-focused assessment with algebra, geometry, fractions, and word problems",
+      "version": "1.0.0",
+      "qtiVersion": "2.2",
+      "itemCount": 4,
+      "hasManifest": true,
+      "hasAssessmentTest": true,
+      "interactions": [
+        "choiceInteraction",
+        "textEntryInteraction",
+        "orderInteraction"
+      ],
+      "features": [
+        "Algebra equations",
+        "Geometry problems",
+        "Fraction ordering",
+        "Word problems",
+        "Multi-step reasoning"
+      ],
+      "path": "math-assessment",
+      "size": "estimated ~25KB"
+    },
+    {
+      "id": "interactive-interactions",
+      "name": "Interactive Interactions",
+      "description": "Advanced interactive question types including inline choice, match, associate, and gap match",
+      "version": "1.0.0",
+      "qtiVersion": "2.2",
+      "itemCount": 4,
+      "hasManifest": true,
+      "interactions": [
+        "inlineChoiceInteraction",
+        "matchInteraction",
+        "associateInteraction",
+        "gapMatchInteraction"
+      ],
+      "features": [
+        "Inline dropdown selections",
+        "Match items to targets",
+        "Create associations",
+        "Drag text to gaps"
+      ],
+      "path": "interactive-interactions",
+      "size": "estimated ~20KB"
+    },
+    {
+      "id": "text-interactions",
+      "name": "Text Input Interactions",
+      "description": "Text entry and extended text response items for constructed responses",
+      "version": "1.0.0",
+      "qtiVersion": "2.2",
+      "itemCount": 2,
+      "hasManifest": true,
+      "interactions": [
+        "textEntryInteraction",
+        "extendedTextInteraction"
+      ],
+      "features": [
+        "Short text entry",
+        "Extended text response",
+        "Essay-style questions",
+        "Pattern matching"
+      ],
+      "path": "text-interactions",
+      "size": "estimated ~15KB"
+    }
+  ]
+}

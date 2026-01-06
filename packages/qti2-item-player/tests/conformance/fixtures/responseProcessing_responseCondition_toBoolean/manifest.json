@@ -1,0 +1,9 @@
+{
+  "id": "responseProcessing_responseCondition_toBoolean",
+  "title": "responseCondition condition coercion uses QTI boolean-context rules",
+  "covers": [
+    "responseCondition",
+    "stmt.responseCondition"
+  ],
+  "cases": "cases.json"
+}

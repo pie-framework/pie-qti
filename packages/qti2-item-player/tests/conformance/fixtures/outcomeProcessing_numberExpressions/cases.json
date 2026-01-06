@@ -1,0 +1,14 @@
+{
+  "id": "outcomeProcessing_numberExpressions",
+  "cases": [
+    {
+      "name": "numberResponded_is_rejected_item_only",
+      "xfail": true,
+      "xfailReason": "number* expressions are test-level summative functions; item-only player rejects them.",
+      "responses": { "RESPONSE": "A" },
+      "expect": { "score": 0, "outcomes": { "SCORE": 0 } }
+    }
+  ]
+}
+
+

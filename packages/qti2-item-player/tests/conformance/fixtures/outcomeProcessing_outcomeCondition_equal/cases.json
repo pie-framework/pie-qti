@@ -1,0 +1,17 @@
+{
+  "id": "outcomeProcessing_outcomeCondition_equal",
+  "cases": [
+    {
+      "name": "equal true sets score 1",
+      "responses": { "R": "A" },
+      "expect": { "outcomes": { "SCORE": 1 } }
+    },
+    {
+      "name": "equal false sets score 0",
+      "responses": { "R": "B" },
+      "expect": { "outcomes": { "SCORE": 0 } }
+    }
+  ]
+}
+
+

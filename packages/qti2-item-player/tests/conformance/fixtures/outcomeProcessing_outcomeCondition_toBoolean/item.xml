@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+	xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+	identifier="outcomeProcessing_outcomeCondition_toBoolean"
+	title="outcomeCondition toBoolean"
+	adaptive="false"
+	timeDependent="false"
+>
+	<responseDeclaration identifier="R" cardinality="single" baseType="integer" />
+
+	<outcomeDeclaration identifier="SCORE" cardinality="single" baseType="integer">
+		<defaultValue><value>0</value></defaultValue>
+	</outcomeDeclaration>
+
+	<itemBody>
+		<p>Enter an integer.</p>
+		<textEntryInteraction responseIdentifier="R" expectedLength="10" />
+	</itemBody>
+
+	<outcomeProcessing>
+		<outcomeCondition>
+			<outcomeIf>
+				<variable identifier="R" />
+				<setOutcomeValue identifier="SCORE">
+					<baseValue baseType="integer">1</baseValue>
+				</setOutcomeValue>
+			</outcomeIf>
+			<outcomeElse>
+				<setOutcomeValue identifier="SCORE">
+					<baseValue baseType="integer">0</baseValue>
+				</setOutcomeValue>
+			</outcomeElse>
+		</outcomeCondition>
+	</outcomeProcessing>
+</assessmentItem>
+
+

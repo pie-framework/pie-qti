@@ -1,0 +1,22 @@
+{
+  "id": "mapping_mapResponse",
+  "cases": [
+    {
+      "name": "null_response_scores_zero",
+      "responses": { "RESPONSE": null },
+      "expect": { "score": 0, "outcomes": { "SCORE": 0 } }
+    },
+    {
+      "name": "maps_A_to_2",
+      "responses": { "RESPONSE": "A" },
+      "expect": { "score": 2, "outcomes": { "SCORE": 2 } }
+    },
+    {
+      "name": "maps_B_to_1",
+      "responses": { "RESPONSE": "B" },
+      "expect": { "score": 1, "outcomes": { "SCORE": 1 } }
+    }
+  ]
+}
+
+

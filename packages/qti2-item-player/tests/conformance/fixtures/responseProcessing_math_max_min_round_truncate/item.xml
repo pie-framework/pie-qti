@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="responseProcessing_math_max_min_round_truncate" title="responseProcessing math ops: max/min/round/truncate" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="R" cardinality="single" baseType="float"/>
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <p>Enter a number.</p>
+    <textEntryInteraction responseIdentifier="R" expectedLength="10"/>
+  </itemBody>
+
+  <responseProcessing>
+    <setOutcomeValue identifier="SCORE">
+      <sum>
+        <product>
+          <baseValue baseType="float">1000</baseValue>
+          <max>
+            <variable identifier="R"/>
+            <baseValue baseType="float">5</baseValue>
+          </max>
+        </product>
+        <product>
+          <baseValue baseType="float">100</baseValue>
+          <min>
+            <variable identifier="R"/>
+            <baseValue baseType="float">5</baseValue>
+          </min>
+        </product>
+        <product>
+          <baseValue baseType="float">10</baseValue>
+          <round>
+            <variable identifier="R"/>
+          </round>
+        </product>
+        <truncate>
+          <variable identifier="R"/>
+        </truncate>
+      </sum>
+    </setOutcomeValue>
+  </responseProcessing>
+</assessmentItem>
+
+

@@ -1,0 +1,13 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "templateProcessing + randomInteger + printedVariable substitution in itemBody.",
+  "covers": [
+    "expr.randomInteger",
+    "printedVariable",
+    "randomInteger",
+    "setTemplateValue",
+    "stmt.setTemplateValue",
+    "templateProcessing"
+  ]
+}

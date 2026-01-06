@@ -1,0 +1,17 @@
+{
+  "id": "responseProcessing_template_map_response",
+  "cases": [
+    {
+      "name": "maps_A_to_2",
+      "responses": { "RESPONSE": "A" },
+      "expect": { "outcomes": { "SCORE": 2 } }
+    },
+    {
+      "name": "maps_B_to_1",
+      "responses": { "RESPONSE": "B" },
+      "expect": { "outcomes": { "SCORE": 1 } }
+    }
+  ]
+}
+
+

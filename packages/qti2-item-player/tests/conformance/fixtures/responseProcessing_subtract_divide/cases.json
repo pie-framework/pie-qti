@@ -1,0 +1,15 @@
+{
+  "id": "responseProcessing_subtract_divide",
+  "cases": [
+    {
+      "name": "subtract_and_divide_basic",
+      "responses": {},
+      "expect": {
+        "score": 6,
+        "outcomes": { "SCORE": 6 }
+      }
+    }
+  ]
+}
+
+

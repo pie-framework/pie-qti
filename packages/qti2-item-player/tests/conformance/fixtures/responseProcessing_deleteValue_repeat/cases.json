@@ -1,0 +1,29 @@
+{
+	"id": "responseProcessing_deleteValue_repeat",
+	"cases": [
+		{
+			"name": "deleteValue_removes_all_matches",
+			"responses": { "RESPONSE": ["A", "B", "B", "C"] },
+			"expect": {
+				"outcomes": {
+					"CLEAN_SIZE": 2,
+					"REPEAT_SCALAR_SIZE": 3,
+					"REPEAT_CONTAINER_SIZE": 4
+				}
+			}
+		},
+		{
+			"name": "deleteValue_noop_when_missing",
+			"responses": { "RESPONSE": ["A", "C", "D"] },
+			"expect": {
+				"outcomes": {
+					"CLEAN_SIZE": 3,
+					"REPEAT_SCALAR_SIZE": 3,
+					"REPEAT_CONTAINER_SIZE": 4
+				}
+			}
+		}
+	]
+}
+
+

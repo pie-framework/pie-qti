@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="isNull_isNotNull" title="isNull / isNotNull" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="R" cardinality="single" baseType="string"/>
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="integer">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <p>Enter anything.</p>
+    <textEntryInteraction responseIdentifier="R" expectedLength="20"/>
+  </itemBody>
+
+  <responseProcessing>
+    <responseCondition>
+      <responseIf>
+        <isNull>
+          <variable identifier="R"/>
+        </isNull>
+        <setOutcomeValue identifier="SCORE">
+          <baseValue baseType="integer">1</baseValue>
+        </setOutcomeValue>
+      </responseIf>
+      <responseElseIf>
+        <isNotNull>
+          <variable identifier="R"/>
+        </isNotNull>
+        <setOutcomeValue identifier="SCORE">
+          <baseValue baseType="integer">2</baseValue>
+        </setOutcomeValue>
+      </responseElseIf>
+      <responseElse>
+        <setOutcomeValue identifier="SCORE">
+          <baseValue baseType="integer">0</baseValue>
+        </setOutcomeValue>
+      </responseElse>
+    </responseCondition>
+  </responseProcessing>
+</assessmentItem>
+
+

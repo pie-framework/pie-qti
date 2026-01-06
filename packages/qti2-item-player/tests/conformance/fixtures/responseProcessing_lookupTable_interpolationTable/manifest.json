@@ -1,0 +1,13 @@
+{
+  "source": "authored",
+  "license": "CC0-1.0",
+  "notes": "Minimal fixture to cover lookupTable + interpolationTable (linear interpolation + clamping).",
+  "covers": [
+    "expr.lookupTable",
+    "interpolationTable",
+    "lookupTable",
+    "responseProcessing",
+    "setOutcomeValue",
+    "stmt.setOutcomeValue"
+  ]
+}

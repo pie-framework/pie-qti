@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+  xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="random-and-lookupOutcomeValue"
+  title="random + lookupOutcomeValue"
+  adaptive="false"
+  timeDependent="false">
+
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="integer"/>
+
+  <outcomeDeclaration identifier="PICKED" cardinality="single" baseType="identifier"/>
+
+  <outcomeDeclaration identifier="LOOKED" cardinality="single" baseType="float">
+    <matchTable defaultValue="99">
+      <matchTableEntry sourceValue="1" targetValue="10"/>
+      <matchTableEntry sourceValue="2" targetValue="20"/>
+      <matchTableEntry sourceValue="3" targetValue="30"/>
+    </matchTable>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <p>Fixture-only item.</p>
+  </itemBody>
+
+  <responseProcessing>
+    <setOutcomeValue identifier="PICKED">
+      <random>
+        <multiple>
+          <baseValue baseType="identifier">A</baseValue>
+          <baseValue baseType="identifier">B</baseValue>
+          <baseValue baseType="identifier">C</baseValue>
+        </multiple>
+      </random>
+    </setOutcomeValue>
+
+    <lookupOutcomeValue identifier="LOOKED">
+      <variable identifier="RESPONSE"/>
+    </lookupOutcomeValue>
+  </responseProcessing>
+</assessmentItem>
+
+

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+  xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="rp-template-match-correct-directedPair"
+  title="ResponseProcessing Template match_correct (directedPair)"
+  adaptive="false"
+  timeDependent="false">
+
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="directedPair">
+    <correctResponse>
+      <value>A B</value>
+    </correctResponse>
+  </responseDeclaration>
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
+    <defaultValue><value>0.0</value></defaultValue>
+  </outcomeDeclaration>
+
+  <outcomeDeclaration identifier="MAXSCORE" cardinality="single" baseType="float">
+    <defaultValue><value>1.0</value></defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <p>Associate A → B.</p>
+  </itemBody>
+
+  <responseProcessing template="http://www.imsglobal.org/question/qti_v2p2/rptemplates/match_correct"/>
+</assessmentItem>
+
+

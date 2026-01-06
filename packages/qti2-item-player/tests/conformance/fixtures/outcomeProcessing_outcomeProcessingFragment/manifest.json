@@ -1,0 +1,11 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "Ensures outcomeProcessingFragment inlines and executes its outcomeRules (QTI 2.2.2).",
+  "covers": [
+    "outcomeProcessing",
+    "outcomeProcessingFragment",
+    "setOutcomeValue",
+    "stmt.setOutcomeValue"
+  ]
+}

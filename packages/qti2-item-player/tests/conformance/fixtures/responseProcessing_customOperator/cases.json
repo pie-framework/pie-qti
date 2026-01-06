@@ -1,0 +1,15 @@
+{
+  "id": "responseProcessing_customOperator",
+  "cases": [
+    {
+      "name": "unregistered_customOperator_returns_null",
+      "responses": { "RESPONSE": "x" },
+      "expect": {
+        "score": 0,
+        "outcomes": { "SCORE": null }
+      }
+    }
+  ]
+}
+
+

@@ -1,0 +1,32 @@
+{
+  "name": "@pie-framework/transform-types",
+  "version": "1.0.0",
+  "description": "TypeScript type definitions for PIE Transform",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "pie",
+    "qti",
+    "assessment",
+    "types",
+    "typescript"
+  ],
+  "author": "Renaissance Learning",
+  "license": "ISC",
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  },
+  "type": "module"
+}

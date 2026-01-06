@@ -1,0 +1,33 @@
+{
+	"id": "responseProcessing_containerSize_index",
+	"cases": [
+		{
+			"name": "ordered_response_count_and_index",
+			"responses": { "RESPONSE": ["A", "B", "C"] },
+			"expect": {
+				"outcomes": {
+					"COUNT": 3,
+					"FIRST": "A",
+					"FOURTH_IS_NULL": true,
+					"ORDERED_SIZE": 2,
+					"MULTIPLE_SIZE": 3
+				}
+			}
+		},
+		{
+			"name": "ordered_response_index_reflects_array_order",
+			"responses": { "RESPONSE": ["C", "B", "A"] },
+			"expect": {
+				"outcomes": {
+					"COUNT": 3,
+					"FIRST": "C",
+					"FOURTH_IS_NULL": true,
+					"ORDERED_SIZE": 2,
+					"MULTIPLE_SIZE": 3
+				}
+			}
+		}
+	]
+}
+
+

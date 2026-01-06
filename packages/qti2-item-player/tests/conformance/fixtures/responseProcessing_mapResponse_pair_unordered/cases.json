@@ -1,0 +1,29 @@
+{
+  "id": "responseProcessing_mapResponse_pair_unordered",
+  "cases": [
+    {
+      "name": "maps canonical ordering",
+      "responses": {
+        "RESPONSE": "A B"
+      },
+      "expect": {
+        "outcomes": {
+          "SCORE": 1
+        }
+      }
+    },
+    {
+      "name": "maps reversed ordering (pair is unordered)",
+      "responses": {
+        "RESPONSE": "B A"
+      },
+      "expect": {
+        "outcomes": {
+          "SCORE": 1
+        }
+      }
+    }
+  ]
+}
+
+

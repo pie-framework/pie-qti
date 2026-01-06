@@ -1,0 +1,118 @@
+version: 1
+
+component:
+  interactionType: hottextInteraction
+  tagName: pie-qti-hottext
+
+examplesApp:
+  app: "@pie-qti/qti2-example"
+  routeTemplate: "/item-demo/{sampleId}"
+
+evals:
+  - id: hottext/hottext-single/correct
+    sampleId: hottext-single
+    gradeBand: "3-6"
+    subject: ela
+    intent: "Single-selection hottext: selecting the correct word scores 1."
+    steps:
+      - action: navigate
+        path: "/item-demo/hottext-single"
+      - action: click
+        target:
+          description: "Click the word 'jumps'"
+          hint: "Select hottext identifier H2"
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+    expected:
+      responses:
+        RESPONSE:
+          equals: "H2"
+      outcomes:
+        SCORE:
+          equals: 1.0
+        MAXSCORE:
+          equals: 1.0
+    spiritChecks:
+      - "Clickable words are visually indicated (hover/focus), not hidden surprises."
+
+  - id: hottext/hottext-single/wrong
+    sampleId: hottext-single
+    gradeBand: "3-6"
+    subject: ela
+    intent: "Wrong single selection scores 0."
+    steps:
+      - action: navigate
+        path: "/item-demo/hottext-single"
+      - action: click
+        target:
+          description: "Click a non-verb word (e.g., 'cat')"
+          hint: "Select hottext identifier H1"
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+    expected:
+      responses:
+        RESPONSE:
+          equals: "H1"
+      outcomes:
+        SCORE:
+          equals: 0.0
+        MAXSCORE:
+          equals: 1.0
+
+  - id: hottext/hottext-multiple/correct
+    sampleId: hottext-multiple
+    gradeBand: "5-9"
+    subject: ela
+    intent: "Multi-select hottext: selecting exactly the fact statements scores 1 (all-or-nothing match)."
+    steps:
+      - action: navigate
+        path: "/item-demo/hottext-multiple"
+      - action: click
+        target:
+          description: "Select 'Water boils at 100°C at sea level'"
+          hint: "Identifier H2"
+      - action: click
+        target:
+          description: "Select 'The Earth orbits the Sun'"
+          hint: "Identifier H4"
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+    expected:
+      responses:
+        RESPONSE:
+          containsAll:
+            - "H2"
+            - "H4"
+      outcomes:
+        SCORE:
+          equals: 1.0
+        MAXSCORE:
+          equals: 1.0
+    spiritChecks:
+      - "The fact-vs-opinion distinction is grade-appropriate and not ambiguous."
+
+  - id: hottext/hottext-multiple/partial-like
+    sampleId: hottext-multiple
+    gradeBand: "5-9"
+    subject: ela
+    intent: "Partially correct selection still scores 0 because responseProcessing uses exact match."
+    steps:
+      - action: navigate
+        path: "/item-demo/hottext-multiple"
+      - action: click
+        target:
+          description: "Select only one correct fact (H2) and omit the other"
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+    expected:
+      outcomes:
+        SCORE:
+          equals: 0.0
+        MAXSCORE:
+          equals: 1.0
+
+

@@ -1,0 +1,32 @@
+{
+  "name": "@pie-framework/transform-core",
+  "version": "1.0.0",
+  "description": "Core transformation engine and plugin system for PIE Transform",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "test": "bun test tests",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": ["pie", "qti", "assessment", "transformation", "plugin"],
+  "author": "Renaissance Learning",
+  "license": "ISC",
+  "dependencies": {
+    "@pie-framework/element-schemas": "workspace:*",
+    "@pie-framework/transform-types": "workspace:*",
+    "ajv": "^8.17.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

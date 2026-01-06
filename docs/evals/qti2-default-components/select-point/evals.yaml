@@ -1,0 +1,69 @@
+version: 1
+
+component:
+  interactionType: selectPointInteraction
+  tagName: pie-qti-select-point
+
+examplesApp:
+  app: "@pie-qti/qti2-example"
+  routeTemplate: "/item-demo/{sampleId}"
+
+evals:
+  - id: select-point/select-point/correct
+    sampleId: select-point
+    gradeBand: "4-8"
+    subject: math
+    intent: "Selecting a point inside the target circle region scores 1."
+    steps:
+      - action: navigate
+        path: "/item-demo/select-point"
+      - action: clickAt
+        target:
+          description: "Click near the center of the blue circle"
+          hint: "The prompt hints center ≈ (350, 200); scoring uses inside circle radius 20 around (350,200)."
+        coordinates:
+          x: 350
+          y: 200
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+    expected:
+      responses:
+        RESPONSE:
+          firstPoint:
+            xBetween: [330, 370]
+            yBetween: [180, 220]
+      outcomes:
+        SCORE:
+          equals: 1.0
+        MAXSCORE:
+          equals: 1.0
+    spiritChecks:
+      - "Students can see where clicks register (marker appears) and can remove/redo."
+      - "The target is reasonable for mouse/touch (not pixel-perfect)."
+
+  - id: select-point/select-point/wrong
+    sampleId: select-point
+    gradeBand: "4-8"
+    subject: math
+    intent: "Clicking outside the target region scores 0."
+    steps:
+      - action: navigate
+        path: "/item-demo/select-point"
+      - action: clickAt
+        target:
+          description: "Click in the red square area (clearly not the circle center)"
+        coordinates:
+          x: 130
+          y: 130
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+    expected:
+      outcomes:
+        SCORE:
+          equals: 0.0
+        MAXSCORE:
+          equals: 1.0
+
+

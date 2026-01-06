@@ -1,0 +1,29 @@
+{
+  "id": "responseProcessing_mapResponse_directedPair_ordered",
+  "cases": [
+    {
+      "name": "maps exact ordering",
+      "responses": {
+        "RESPONSE": "W1 G1"
+      },
+      "expect": {
+        "outcomes": {
+          "SCORE": 1
+        }
+      }
+    },
+    {
+      "name": "does not map reversed ordering",
+      "responses": {
+        "RESPONSE": "G1 W1"
+      },
+      "expect": {
+        "outcomes": {
+          "SCORE": 0
+        }
+      }
+    }
+  ]
+}
+
+

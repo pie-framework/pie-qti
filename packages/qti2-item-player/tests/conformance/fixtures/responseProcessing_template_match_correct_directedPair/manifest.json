@@ -1,0 +1,7 @@
+{
+  "id": "responseProcessing_template_match_correct_directedPair",
+  "description": "ResponseProcessing template match_correct with directedPair baseType. Ensures order is respected and whitespace is normalized.",
+  "tags": ["responseProcessing", "template", "match_correct", "directedPair"]
+}
+
+

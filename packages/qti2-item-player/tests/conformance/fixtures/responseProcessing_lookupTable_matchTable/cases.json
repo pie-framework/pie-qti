@@ -1,0 +1,22 @@
+{
+	"id": "responseProcessing_lookupTable_matchTable",
+	"cases": [
+		{
+			"name": "R=1 -> SCORE=2",
+			"responses": { "R": 1 },
+			"expect": { "score": 2 }
+		},
+		{
+			"name": "R=2 -> SCORE=5",
+			"responses": { "R": 2 },
+			"expect": { "score": 5 }
+		},
+		{
+			"name": "R=3 -> SCORE=0 (defaultValue)",
+			"responses": { "R": 3 },
+			"expect": { "score": 0 }
+		}
+	]
+}
+
+

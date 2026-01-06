@@ -1,0 +1,22 @@
+{
+  "source": "custom",
+  "license": "CC0-1.0",
+  "notes": "Minimal fixture proving templateProcessing can set correct responses via setCorrectResponse, and responseProcessing can score via match(variable, correct).",
+  "covers": [
+    "and",
+    "correct",
+    "expr.and",
+    "expr.correct",
+    "match",
+    "responseProcessing",
+    "setCorrectResponse",
+    "setOutcomeValue",
+    "setTemplateValue",
+    "stmt.setCorrectResponse",
+    "stmt.setOutcomeValue",
+    "stmt.setTemplateValue",
+    "stmt.templateCondition",
+    "templateCondition",
+    "templateProcessing"
+  ]
+}

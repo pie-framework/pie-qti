@@ -1,0 +1,23 @@
+{
+	"id": "responseProcessing_anyN_allN",
+	"title": "responseProcessing: anyN + allN",
+	"description": "Covers anyN(min/max) and allN(max) boolean aggregation operators in responseProcessing branching.",
+	"spec": "custom",
+	"provenance": {
+		"source": "authored",
+		"license": "CC0-1.0"
+	},
+	"covers": [
+		"allN",
+		"anyN",
+		"baseValue",
+		"expr.allN",
+		"expr.anyN",
+		"expr.baseValue",
+		"expr.variable",
+		"stmt.responseCondition",
+		"stmt.setOutcomeValue"
+	]
+}
+
+

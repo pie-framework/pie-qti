@@ -1,0 +1,39 @@
+{
+  "id": "responseProcessing_equalRounded_tolerance",
+  "seed": 1,
+  "responses": {},
+  "cases": [
+    {
+      "name": "equalRounded significantFigure: 3.175 ~= 3.183 @ 3 sig figs",
+      "responses": { "RESPONSE": ["3.175"] },
+      "expect": { "outcomes": { "ROUNDED_SIG": true } }
+    },
+    {
+      "name": "equalRounded significantFigure: 3.1749 != 3.183 @ 3 sig figs",
+      "responses": { "RESPONSE": ["3.1749"] },
+      "expect": { "outcomes": { "ROUNDED_SIG": false } }
+    },
+    {
+      "name": "equal absolute tolerance: x=10 tol=0.5 includes bounds => 9.5 is ok",
+      "responses": { "RESPONSE": ["9.5"] },
+      "expect": { "outcomes": { "TOL_ABS": true } }
+    },
+    {
+      "name": "equal absolute tolerance: x=10 tol=0.5 includes bounds => 10.6 is not ok",
+      "responses": { "RESPONSE": ["10.6"] },
+      "expect": { "outcomes": { "TOL_ABS": false } }
+    },
+    {
+      "name": "equal relative tolerance: x=20 tol=10% includes bounds => 18 is ok",
+      "responses": { "RESPONSE": ["18"] },
+      "expect": { "outcomes": { "TOL_REL": true } }
+    },
+    {
+      "name": "equal relative tolerance: x=20 tol=10% includes bounds => 17.9 is not ok",
+      "responses": { "RESPONSE": ["17.9"] },
+      "expect": { "outcomes": { "TOL_REL": false } }
+    }
+  ]
+}
+
+

@@ -1,0 +1,16 @@
+{
+  "id": "template_randomFloat_roundTo_mathConstant",
+  "seed": 123,
+  "cases": [
+    {
+      "name": "randomFloat_is_deterministic_with_seed_and_roundTo_and_mathConstant_work",
+      "responses": { "RESPONSE": null },
+      "expect": {
+        "outcomes": { "SCORE": 0 },
+        "itemBodyContains": ["X rounded: 0.79", "pi rounded: 3.14"]
+      }
+    }
+  ]
+}
+
+

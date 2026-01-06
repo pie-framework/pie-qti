@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+  xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="responseProcessing_arithmetic_nulls"
+  title="responseProcessing arithmetic null propagation"
+  adaptive="false"
+  timeDependent="false"
+>
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="integer" />
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="integer">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <p>Arithmetic should propagate NULL, not NaN.</p>
+  </itemBody>
+
+  <responseProcessing>
+    <setOutcomeValue identifier="SCORE"><baseValue baseType="integer">0</baseValue></setOutcomeValue>
+
+    <responseCondition>
+      <responseIf>
+        <isNull>
+          <subtract>
+            <null/>
+            <baseValue baseType="integer">2</baseValue>
+          </subtract>
+        </isNull>
+        <setOutcomeValue identifier="SCORE">
+          <sum>
+            <variable identifier="SCORE"/>
+            <baseValue baseType="integer">1</baseValue>
+          </sum>
+        </setOutcomeValue>
+      </responseIf>
+    </responseCondition>
+
+    <responseCondition>
+      <responseIf>
+        <isNull>
+          <divide>
+            <baseValue baseType="integer">6</baseValue>
+            <null/>
+          </divide>
+        </isNull>
+        <setOutcomeValue identifier="SCORE">
+          <sum>
+            <variable identifier="SCORE"/>
+            <baseValue baseType="integer">1</baseValue>
+          </sum>
+        </setOutcomeValue>
+      </responseIf>
+    </responseCondition>
+  </responseProcessing>
+</assessmentItem>
+
+

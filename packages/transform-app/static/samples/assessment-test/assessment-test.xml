@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentTest xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                identifier="sample_assessment"
+                title="Sample Mathematics Assessment">
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
+    <defaultValue>
+      <value>0</value>
+    </defaultValue>
+  </outcomeDeclaration>
+
+  <testPart identifier="part1" navigationMode="nonlinear" submissionMode="individual">
+    <assessmentSection identifier="section1" title="Basic Skills" visible="true">
+      <rubricBlock view="candidate">
+        <p><strong>Section 1: Basic Skills</strong></p>
+        <p>This section tests fundamental mathematical concepts. You may navigate between questions.</p>
+      </rubricBlock>
+
+      <assessmentItemRef identifier="item1" href="item1.xml" />
+      <assessmentItemRef identifier="item2" href="item2.xml" />
+      <assessmentItemRef identifier="item3" href="item3.xml" />
+    </assessmentSection>
+
+    <assessmentSection identifier="section2" title="Advanced Problems" visible="true">
+      <rubricBlock view="candidate">
+        <p><strong>Section 2: Advanced Problems</strong></p>
+        <p>These questions require more complex reasoning.</p>
+      </rubricBlock>
+
+      <assessmentItemRef identifier="item4" href="item4.xml" />
+    </assessmentSection>
+  </testPart>
+</assessmentTest>

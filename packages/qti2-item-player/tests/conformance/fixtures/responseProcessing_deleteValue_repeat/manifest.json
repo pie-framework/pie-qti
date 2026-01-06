@@ -1,0 +1,17 @@
+{
+  "id": "responseProcessing_deleteValue_repeat",
+  "title": "responseProcessing: delete + repeat",
+  "description": "Covers QTI 2.2.2 response normalization expressions: delete(container, valueOrContainer) and repeat@numberRepeats.",
+  "spec": "QTI 2.2.2",
+  "provenance": {
+    "source": "authored",
+    "license": "CC0-1.0"
+  },
+  "covers": [
+    "baseValue",
+    "expr.baseValue",
+    "expr.delete",
+    "expr.repeat",
+    "repeat"
+  ]
+}

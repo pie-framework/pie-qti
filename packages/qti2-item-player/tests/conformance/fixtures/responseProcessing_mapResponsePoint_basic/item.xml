@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+  xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="responseProcessing_mapResponsePoint_basic"
+  title="mapResponsePoint basic"
+  adaptive="false"
+  timeDependent="false"
+>
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="point">
+    <areaMapping defaultValue="0" lowerBound="0" upperBound="2">
+      <!-- rect: x1,y1,x2,y2 -->
+      <areaMapEntry shape="rect" coords="0,0,50,50" mappedValue="2"/>
+      <!-- circle: cx,cy,r -->
+      <areaMapEntry shape="circle" coords="75,75,10" mappedValue="1"/>
+    </areaMapping>
+  </responseDeclaration>
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <p>Point scoring item (fixture)</p>
+  </itemBody>
+
+  <responseProcessing>
+    <setOutcomeValue identifier="SCORE">
+      <mapResponsePoint identifier="RESPONSE"/>
+    </setOutcomeValue>
+  </responseProcessing>
+</assessmentItem>
+
+

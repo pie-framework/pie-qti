@@ -1,0 +1,15 @@
+{
+  "id": "responseProcessing_arithmetic_nulls",
+  "cases": [
+    {
+      "name": "subtract_and_divide_return_null_when_operand_null",
+      "responses": {},
+      "expect": {
+        "score": 2,
+        "outcomes": { "SCORE": 2 }
+      }
+    }
+  ]
+}
+
+

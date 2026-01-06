@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+	xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+	identifier="inside-duration-statsOperator-demo"
+	title="inside + duration + statsOperator"
+	adaptive="false"
+	timeDependent="false">
+
+	<outcomeDeclaration identifier="INSIDE_RECT" cardinality="single" baseType="boolean">
+		<defaultValue><value>false</value></defaultValue>
+	</outcomeDeclaration>
+	<outcomeDeclaration identifier="INSIDE_ANY" cardinality="single" baseType="boolean">
+		<defaultValue><value>false</value></defaultValue>
+	</outcomeDeclaration>
+	<outcomeDeclaration identifier="INSIDE_NULL" cardinality="single" baseType="boolean">
+		<defaultValue/>
+	</outcomeDeclaration>
+
+	<outcomeDeclaration identifier="DUR_LT" cardinality="single" baseType="boolean">
+		<defaultValue><value>false</value></defaultValue>
+	</outcomeDeclaration>
+	<outcomeDeclaration identifier="DUR_GTE" cardinality="single" baseType="boolean">
+		<defaultValue><value>false</value></defaultValue>
+	</outcomeDeclaration>
+	<outcomeDeclaration identifier="DUR_NULL" cardinality="single" baseType="boolean">
+		<defaultValue/>
+	</outcomeDeclaration>
+
+	<outcomeDeclaration identifier="STATS_MEAN" cardinality="single" baseType="float">
+		<defaultValue><value>0.0</value></defaultValue>
+	</outcomeDeclaration>
+	<outcomeDeclaration identifier="STATS_SAMPLE_SD" cardinality="single" baseType="float">
+		<defaultValue><value>0.0</value></defaultValue>
+	</outcomeDeclaration>
+	<outcomeDeclaration identifier="STATS_NULL_ON_NULL_MEMBER" cardinality="single" baseType="float">
+		<defaultValue/>
+	</outcomeDeclaration>
+	<outcomeDeclaration identifier="STATS_NULL_ON_NON_NUMERIC" cardinality="single" baseType="float">
+		<defaultValue/>
+	</outcomeDeclaration>
+
+	<itemBody>
+		<p>Conformance: inside + durationLT/durationGTE + statsOperator.</p>
+	</itemBody>
+
+	<responseProcessing>
+		<!-- inside -->
+		<setOutcomeValue identifier="INSIDE_RECT">
+			<inside shape="rect" coords="0,0,10,10">
+				<baseValue baseType="point">5 5</baseValue>
+			</inside>
+		</setOutcomeValue>
+
+		<setOutcomeValue identifier="INSIDE_ANY">
+			<inside shape="circle" coords="5,5,2">
+				<multiple>
+					<baseValue baseType="point">0 0</baseValue>
+					<baseValue baseType="point">6 6</baseValue>
+				</multiple>
+			</inside>
+		</setOutcomeValue>
+
+		<setOutcomeValue identifier="INSIDE_NULL">
+			<inside shape="rect" coords="0,0,10,10">
+				<null/>
+			</inside>
+		</setOutcomeValue>
+
+		<!-- duration comparisons -->
+		<setOutcomeValue identifier="DUR_LT">
+			<durationLT>
+				<baseValue baseType="duration">PT1S</baseValue>
+				<baseValue baseType="duration">PT2S</baseValue>
+			</durationLT>
+		</setOutcomeValue>
+
+		<setOutcomeValue identifier="DUR_GTE">
+			<durationGTE>
+				<baseValue baseType="duration">PT2S</baseValue>
+				<baseValue baseType="duration">PT2S</baseValue>
+			</durationGTE>
+		</setOutcomeValue>
+
+		<setOutcomeValue identifier="DUR_NULL">
+			<durationLT>
+				<null/>
+				<baseValue baseType="duration">PT2S</baseValue>
+			</durationLT>
+		</setOutcomeValue>
+
+		<!-- statsOperator -->
+		<setOutcomeValue identifier="STATS_MEAN">
+			<statsOperator name="mean">
+				<ordered>
+					<baseValue baseType="integer">1</baseValue>
+					<baseValue baseType="integer">2</baseValue>
+					<baseValue baseType="integer">3</baseValue>
+					<baseValue baseType="integer">4</baseValue>
+				</ordered>
+			</statsOperator>
+		</setOutcomeValue>
+
+		<setOutcomeValue identifier="STATS_SAMPLE_SD">
+			<statsOperator name="sampleSD">
+				<ordered>
+					<baseValue baseType="integer">1</baseValue>
+					<baseValue baseType="integer">2</baseValue>
+					<baseValue baseType="integer">3</baseValue>
+					<baseValue baseType="integer">4</baseValue>
+				</ordered>
+			</statsOperator>
+		</setOutcomeValue>
+
+		<setOutcomeValue identifier="STATS_NULL_ON_NULL_MEMBER">
+			<statsOperator name="mean">
+				<multiple>
+					<baseValue baseType="integer">1</baseValue>
+					<null/>
+				</multiple>
+			</statsOperator>
+		</setOutcomeValue>
+
+		<setOutcomeValue identifier="STATS_NULL_ON_NON_NUMERIC">
+			<statsOperator name="mean">
+				<multiple>
+					<baseValue baseType="integer">1</baseValue>
+					<baseValue baseType="string">x</baseValue>
+				</multiple>
+			</statsOperator>
+		</setOutcomeValue>
+	</responseProcessing>
+</assessmentItem>
+
+

@@ -1,0 +1,12 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "Custom operator parses and evaluates safely. If no handler is registered, it returns NULL (safe default).",
+  "covers": [
+    "customOperator",
+    "expr.customOperator",
+    "responseProcessing",
+    "setOutcomeValue",
+    "stmt.setOutcomeValue"
+  ]
+}

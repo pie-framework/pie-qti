@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+  xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="responseProcessing_responseCondition_toBoolean"
+  title="responseCondition condition coercion (toBoolean)"
+  adaptive="false"
+  timeDependent="false">
+
+  <responseDeclaration identifier="I" cardinality="single" baseType="integer" />
+  <responseDeclaration identifier="S" cardinality="single" baseType="string" />
+  <responseDeclaration identifier="M" cardinality="multiple" baseType="identifier" />
+
+  <outcomeDeclaration identifier="OI" cardinality="single" baseType="integer">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+  <outcomeDeclaration identifier="OS" cardinality="single" baseType="integer">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+  <outcomeDeclaration identifier="OM" cardinality="single" baseType="integer">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <p>Condition coercion fixture (no interactions needed).</p>
+  </itemBody>
+
+  <responseProcessing>
+    <!-- integer in boolean context: 0 -> false, non-zero -> true -->
+    <responseCondition>
+      <responseIf>
+        <variable identifier="I"/>
+        <setOutcomeValue identifier="OI"><baseValue baseType="integer">1</baseValue></setOutcomeValue>
+      </responseIf>
+      <responseElse>
+        <setOutcomeValue identifier="OI"><baseValue baseType="integer">0</baseValue></setOutcomeValue>
+      </responseElse>
+    </responseCondition>
+
+    <!-- string in boolean context: "" -> false, non-empty -> true -->
+    <responseCondition>
+      <responseIf>
+        <variable identifier="S"/>
+        <setOutcomeValue identifier="OS"><baseValue baseType="integer">1</baseValue></setOutcomeValue>
+      </responseIf>
+      <responseElse>
+        <setOutcomeValue identifier="OS"><baseValue baseType="integer">0</baseValue></setOutcomeValue>
+      </responseElse>
+    </responseCondition>
+
+    <!-- container in boolean context: [] -> false, non-empty -> true -->
+    <responseCondition>
+      <responseIf>
+        <variable identifier="M"/>
+        <setOutcomeValue identifier="OM"><baseValue baseType="integer">1</baseValue></setOutcomeValue>
+      </responseIf>
+      <responseElse>
+        <setOutcomeValue identifier="OM"><baseValue baseType="integer">0</baseValue></setOutcomeValue>
+      </responseElse>
+    </responseCondition>
+  </responseProcessing>
+</assessmentItem>
+
+

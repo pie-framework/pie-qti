@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentTest xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                identifier="test002"
+                title="Nested Sections Test">
+
+  <testPart identifier="part1" navigationMode="nonlinear">
+    <assessmentSection identifier="section1" title="Mathematics" visible="true">
+      <!-- Top level items -->
+      <assessmentItemRef identifier="item1" href="items/intro.xml"/>
+
+      <!-- Nested subsection: Algebra -->
+      <assessmentSection identifier="section1-1" title="Algebra" visible="true" fixed="false">
+        <assessmentItemRef identifier="item2" href="items/algebra-1.xml"/>
+        <assessmentItemRef identifier="item3" href="items/algebra-2.xml"/>
+      </assessmentSection>
+
+      <!-- Nested subsection: Geometry -->
+      <assessmentSection identifier="section1-2" title="Geometry" visible="true" fixed="true">
+        <assessmentItemRef identifier="item4" href="items/geometry-1.xml" fixed="true"/>
+        <assessmentItemRef identifier="item5" href="items/geometry-2.xml"/>
+      </assessmentSection>
+    </assessmentSection>
+  </testPart>
+
+</assessmentTest>

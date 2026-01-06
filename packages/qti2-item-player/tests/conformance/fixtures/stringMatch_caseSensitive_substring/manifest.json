@@ -1,0 +1,14 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "stringMatch supports caseSensitive and substring flags; fixture uses explicit attributes to avoid relying on spec defaults.",
+  "covers": [
+    "expr.stringMatch",
+    "responseCondition",
+    "responseElseIf",
+    "setOutcomeValue",
+    "stmt.responseCondition",
+    "stmt.setOutcomeValue",
+    "stringMatch"
+  ]
+}

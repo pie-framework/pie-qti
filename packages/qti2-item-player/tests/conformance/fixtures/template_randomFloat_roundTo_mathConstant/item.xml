@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+  xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="template-randomfloat-roundto-constant"
+  title="Template randomFloat + roundTo + mathConstant"
+  adaptive="false"
+  timeDependent="false">
+
+  <templateDeclaration identifier="X" cardinality="single" baseType="float">
+    <defaultValue><value>0</value></defaultValue>
+  </templateDeclaration>
+
+  <templateDeclaration identifier="XR" cardinality="single" baseType="float">
+    <defaultValue><value>0</value></defaultValue>
+  </templateDeclaration>
+
+  <templateDeclaration identifier="PI2" cardinality="single" baseType="float">
+    <defaultValue><value>0</value></defaultValue>
+  </templateDeclaration>
+
+  <templateProcessing>
+    <setTemplateValue identifier="X">
+      <randomFloat min="0" max="1"/>
+    </setTemplateValue>
+    <setTemplateValue identifier="XR">
+      <roundTo roundingMode="decimalPlaces" figures="2">
+        <variable identifier="X"/>
+      </roundTo>
+    </setTemplateValue>
+    <setTemplateValue identifier="PI2">
+      <roundTo roundingMode="decimalPlaces" figures="2">
+        <mathConstant name="pi"/>
+      </roundTo>
+    </setTemplateValue>
+  </templateProcessing>
+
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="integer"/>
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
+    <defaultValue><value>0.0</value></defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <p>X rounded: <printedVariable identifier="XR"/>; pi rounded: <printedVariable identifier="PI2"/></p>
+    <textEntryInteraction responseIdentifier="RESPONSE" expectedLength="3"/>
+  </itemBody>
+</assessmentItem>
+
+

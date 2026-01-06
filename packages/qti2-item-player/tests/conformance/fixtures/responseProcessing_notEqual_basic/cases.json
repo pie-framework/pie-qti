@@ -1,0 +1,22 @@
+{
+  "id": "responseProcessing_notEqual_basic",
+  "cases": [
+    {
+      "name": "missing response => condition false => 0",
+      "responses": {},
+      "expect": { "outcomes": { "SCORE": 0 } }
+    },
+    {
+      "name": "R=0 => false => 0",
+      "responses": { "R": 0 },
+      "expect": { "outcomes": { "SCORE": 0 } }
+    },
+    {
+      "name": "R=1 => true => 1",
+      "responses": { "R": 1 },
+      "expect": { "outcomes": { "SCORE": 1 } }
+    }
+  ]
+}
+
+

@@ -1,0 +1,27 @@
+{
+	"id": "responseProcessing_anyN_allN",
+	"cases": [
+		{
+			"name": "all true (3/3)",
+			"responses": { "R1": true, "R2": true, "R3": true },
+			"expect": { "outcomes": { "SCORE_ANY": 2, "SCORE_ALL": 0 } }
+		},
+		{
+			"name": "two true (2/3)",
+			"responses": { "R1": true, "R2": true, "R3": false },
+			"expect": { "outcomes": { "SCORE_ANY": 2, "SCORE_ALL": 0 } }
+		},
+		{
+			"name": "exactly one true (1/3)",
+			"responses": { "R1": true, "R2": false, "R3": false },
+			"expect": { "outcomes": { "SCORE_ANY": 1, "SCORE_ALL": 1 } }
+		},
+		{
+			"name": "none true (0/3)",
+			"responses": { "R1": false, "R2": false, "R3": false },
+			"expect": { "outcomes": { "SCORE_ANY": 0, "SCORE_ALL": 1 } }
+		}
+	]
+}
+
+

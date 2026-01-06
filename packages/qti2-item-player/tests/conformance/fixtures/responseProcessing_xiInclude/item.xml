@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+	xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+	xmlns:xi="http://www.w3.org/2001/XInclude"
+	identifier="xi-include-processing"
+	title="xi:include in responseProcessing"
+	adaptive="false"
+	timeDependent="false">
+
+	<responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier" />
+	<outcomeDeclaration identifier="SCORE" cardinality="single" baseType="integer" defaultValue="0" />
+
+	<itemBody>
+		<p>xi:include processing test</p>
+	</itemBody>
+
+	<responseProcessing>
+		<xi:include href="external-responseProcessingFragment.xml" parse="xml" />
+		<setOutcomeValue identifier="SCORE">
+			<baseValue baseType="integer">1</baseValue>
+		</setOutcomeValue>
+	</responseProcessing>
+</assessmentItem>
+
+

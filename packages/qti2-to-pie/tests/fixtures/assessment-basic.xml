@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentTest xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/qti/qtiv2p2/imsqti_v2p2.xsd"
+                identifier="test001"
+                title="Basic Mathematics Test">
+
+  <testPart identifier="part1" navigationMode="nonlinear" submissionMode="individual">
+    <assessmentSection identifier="section1" title="Arithmetic" visible="true" fixed="false">
+      <assessmentItemRef identifier="item1" href="items/addition.xml" required="true"/>
+      <assessmentItemRef identifier="item2" href="items/subtraction.xml" required="false"/>
+      <assessmentItemRef identifier="item3" href="items/multiplication.xml" required="true"/>
+    </assessmentSection>
+  </testPart>
+
+</assessmentTest>

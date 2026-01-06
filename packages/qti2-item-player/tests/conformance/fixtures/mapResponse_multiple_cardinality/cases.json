@@ -1,0 +1,12 @@
+{
+  "id": "mapResponse_multiple_cardinality",
+  "cases": [
+    {
+      "name": "sums_mapped_values",
+      "responses": { "RESPONSE": ["A", "B"] },
+      "expect": { "outcomes": { "SCORE": 3 } }
+    }
+  ]
+}
+
+

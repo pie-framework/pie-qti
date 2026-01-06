@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+	xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+	identifier="lookupTable_interpolationTable"
+	title="lookupTable interpolationTable"
+	adaptive="false"
+	timeDependent="false">
+	<responseDeclaration identifier="R" cardinality="single" baseType="float" />
+
+	<outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
+		<defaultValue>
+			<value>0</value>
+		</defaultValue>
+	</outcomeDeclaration>
+
+	<itemBody>
+		<p>Interpolation table test</p>
+	</itemBody>
+
+	<responseProcessing>
+		<setOutcomeValue identifier="SCORE">
+			<lookupTable>
+				<variable identifier="R" />
+				<interpolationTable interpolationMethod="linear" defaultValue="0">
+					<interpolationTableEntry sourceValue="0" targetValue="0" />
+					<interpolationTableEntry sourceValue="10" targetValue="100" />
+				</interpolationTable>
+			</lookupTable>
+		</setOutcomeValue>
+	</responseProcessing>
+</assessmentItem>
+
+

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest xmlns="http://www.imsglobal.org/xsd/imscp_v1p1"
+          xmlns:imsqti="http://www.imsglobal.org/xsd/imsqti_v2p2"
+          identifier="math-assessment-package"
+          xsi:schemaLocation="http://www.imsglobal.org/xsd/imscp_v1p1 http://www.imsglobal.org/xsd/imscp_v1p1.xsd http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/imsqti_v2p2.xsd"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+  <metadata>
+    <schema>QTI Package</schema>
+    <schemaversion>2.2</schemaversion>
+  </metadata>
+
+  <organizations/>
+
+  <resources>
+    <resource identifier="test-math" type="imsqti_test_xmlv2p2" href="math-test.xml">
+      <file href="math-test.xml"/>
+    </resource>
+
+    <resource identifier="item-algebra" type="imsqti_item_xmlv2p2" href="algebra-equation.xml">
+      <file href="algebra-equation.xml"/>
+    </resource>
+
+    <resource identifier="item-geometry" type="imsqti_item_xmlv2p2" href="geometry-area.xml">
+      <file href="geometry-area.xml"/>
+    </resource>
+
+    <resource identifier="item-fractions" type="imsqti_item_xmlv2p2" href="fractions-order.xml">
+      <file href="fractions-order.xml"/>
+    </resource>
+
+    <resource identifier="item-word-problem" type="imsqti_item_xmlv2p2" href="word-problem.xml">
+      <file href="word-problem.xml"/>
+    </resource>
+  </resources>
+</manifest>

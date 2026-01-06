@@ -1,0 +1,17 @@
+{
+  "id": "ordered_match",
+  "cases": [
+    {
+      "name": "matches_in_order",
+      "responses": { "RESPONSE": ["A", "B"] },
+      "expect": { "score": 1, "outcomes": { "SCORE": 1 } }
+    },
+    {
+      "name": "does_not_match_out_of_order",
+      "responses": { "RESPONSE": ["B", "A"] },
+      "expect": { "score": 0, "outcomes": { "SCORE": 0 } }
+    }
+  ]
+}
+
+

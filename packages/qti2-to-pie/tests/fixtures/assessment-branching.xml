@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentTest xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                identifier="test004"
+                title="Branching Test">
+
+  <testPart identifier="part1" navigationMode="linear">
+    <assessmentSection identifier="section1" title="Adaptive Questions" visible="true">
+      <assessmentItemRef identifier="item1" href="items/diagnostic.xml">
+        <!-- Branch to advanced section if score > 5 -->
+        <branchRule target="section2">
+          <expression>
+            <gt>
+              <variable identifier="SCORE"/>
+              <baseValue baseType="integer">5</baseValue>
+            </gt>
+          </expression>
+        </branchRule>
+        <!-- Otherwise go to remedial section -->
+        <branchRule target="section3">
+          <expression>
+            <lte>
+              <variable identifier="SCORE"/>
+              <baseValue baseType="integer">5</baseValue>
+            </lte>
+          </expression>
+        </branchRule>
+      </assessmentItemRef>
+    </assessmentSection>
+
+    <!-- Advanced section -->
+    <assessmentSection identifier="section2" title="Advanced" visible="true">
+      <assessmentItemRef identifier="item2" href="items/advanced.xml"/>
+    </assessmentSection>
+
+    <!-- Remedial section -->
+    <assessmentSection identifier="section3" title="Remedial" visible="true">
+      <assessmentItemRef identifier="item3" href="items/remedial.xml"/>
+    </assessmentSection>
+  </testPart>
+
+</assessmentTest>

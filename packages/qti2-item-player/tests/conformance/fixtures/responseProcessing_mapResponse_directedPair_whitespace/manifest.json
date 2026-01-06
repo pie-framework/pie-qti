@@ -1,0 +1,11 @@
+{
+  "id": "responseProcessing_mapResponse_directedPair_whitespace",
+  "description": "mapResponse should normalize directedPair mapKey/response whitespace consistently.",
+  "covers": [
+    "directedPair",
+    "expr.mapResponse",
+    "mapping",
+    "mapResponse",
+    "responseProcessing"
+  ]
+}

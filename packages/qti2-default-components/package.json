@@ -1,0 +1,93 @@
+{
+  "name": "@pie-qti/qti2-default-components",
+  "version": "0.1.0",
+  "description": "Default Svelte-based component implementations for QTI 2.x player",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "check": "../qti2-assessment-player/node_modules/.bin/svelte-check --tsconfig ./tsconfig.json",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write ."
+  },
+  "keywords": [
+    "qti",
+    "qti2",
+    "qti2.2",
+    "assessment",
+    "player",
+    "components",
+    "svelte",
+    "web-components"
+  ],
+  "author": "Renaissance Learning",
+  "license": "MIT",
+  "dependencies": {
+    "@pie-qti/qti2-item-player": "workspace:*",
+    "@tiptap/core": "^3.14.0",
+    "@tiptap/extension-mathematics": "^3.14.0",
+    "@tiptap/extension-placeholder": "^3.14.0",
+    "@tiptap/starter-kit": "^3.14.0",
+    "mathlive": "^0.108.2"
+  },
+  "peerDependencies": {
+    "svelte": "^5.46.1"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.3.10",
+    "@types/node": "^25.0.3",
+    "svelte": "^5.46.1",
+    "svelte-check": "^4.3.5",
+    "typescript": "^5.9.3"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./MathContent.svelte": {
+      "svelte": "./src/shared/components/MathContent.svelte",
+      "import": "./src/shared/components/MathContent.svelte",
+      "default": "./src/shared/components/MathContent.svelte"
+    },
+    "./plugins": {
+      "svelte": "./src/plugins/index.ts",
+      "import": "./src/plugins/index.ts",
+      "default": "./src/plugins/index.ts"
+    },
+    "./shared": {
+      "types": "./dist/shared/index.d.ts",
+      "import": "./dist/shared/index.js"
+    },
+    "./plugins/*/*.svelte": {
+      "svelte": "./src/plugins/*/*.svelte",
+      "import": "./src/plugins/*/*.svelte",
+      "default": "./src/plugins/*/*.svelte"
+    },
+    "./plugins/*/index": {
+      "types": "./dist/plugins/*/index.d.ts",
+      "import": "./dist/plugins/*/index.js"
+    },
+    "./shared/components/*.svelte": {
+      "svelte": "./src/shared/components/*.svelte",
+      "import": "./src/shared/components/*.svelte",
+      "default": "./src/shared/components/*.svelte"
+    },
+    "./shared/utils/*": {
+      "types": "./dist/shared/utils/*.d.ts",
+      "import": "./dist/shared/utils/*.js"
+    },
+    "./shared/actions/*": {
+      "types": "./dist/shared/actions/*.d.ts",
+      "import": "./dist/shared/actions/*.js"
+    },
+    "./shared/extensions/*": {
+      "types": "./dist/shared/extensions/*.d.ts",
+      "import": "./dist/shared/extensions/*.js"
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "id": "templateProcessing_setCorrectResponse",
+  "cases": [
+    {
+      "name": "all correct",
+      "responses": { "R1": "A", "R2": "B", "R3": "C" },
+      "expect": { "outcomes": { "SCORE": 3 }, "itemBodyContains": ["Correct key is: C"] }
+    },
+    {
+      "name": "wrong R1",
+      "responses": { "R1": "B", "R2": "B", "R3": "C" },
+      "expect": { "outcomes": { "SCORE": 0 } }
+    },
+    {
+      "name": "wrong R2",
+      "responses": { "R1": "A", "R2": "A", "R3": "C" },
+      "expect": { "outcomes": { "SCORE": 0 } }
+    },
+    {
+      "name": "wrong R3 (variable-set correct)",
+      "responses": { "R1": "A", "R2": "B", "R3": "D" },
+      "expect": { "outcomes": { "SCORE": 0 } }
+    }
+  ]
+}
+
+

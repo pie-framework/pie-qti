@@ -1,0 +1,92 @@
+version: 1
+
+component:
+  interactionType: sliderInteraction
+  tagName: pie-qti-slider
+
+examplesApp:
+  app: "@pie-qti/qti2-example"
+  routeTemplate: "/item-demo/{sampleId}"
+
+evals:
+  - id: slider/slider/correct
+    sampleId: slider
+    gradeBand: "4-8"
+    subject: science
+    intent: "Exact value earns full mapped score."
+    steps:
+      - action: navigate
+        path: "/item-demo/slider"
+      - action: setValue
+        target:
+          description: "Set the slider to 75"
+          hint: "Within `pie-qti-slider`, set value to 75 (keyboard arrows OK)"
+        value: 75
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+    expected:
+      responses:
+        RESPONSE:
+          equals: 75
+      outcomes:
+        SCORE:
+          equals: 3.0
+        MAXSCORE:
+          equals: 3.0
+    spiritChecks:
+      - "The slider affords precise selection (ticks/value label or accessible keyboard adjustment)."
+      - "Prompt makes it clear this is an estimate, not an exact science quiz trick."
+
+  - id: slider/slider/partial
+    sampleId: slider
+    gradeBand: "4-8"
+    subject: science
+    intent: "Near miss earns partial credit via mapping."
+    steps:
+      - action: navigate
+        path: "/item-demo/slider"
+      - action: setValue
+        target:
+          description: "Set the slider to 74 (near miss)"
+          hint: "Mapping grants partial for 74 or 76"
+        value: 74
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+    expected:
+      responses:
+        RESPONSE:
+          equals: 74
+      outcomes:
+        SCORE:
+          equals: 2.5
+        MAXSCORE:
+          equals: 3.0
+
+  - id: slider/slider/wrong
+    sampleId: slider
+    gradeBand: "4-8"
+    subject: science
+    intent: "Far-off value should score 0 (mapping defaultValue=0)."
+    steps:
+      - action: navigate
+        path: "/item-demo/slider"
+      - action: setValue
+        target:
+          description: "Set the slider to 50"
+        value: 50
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+    expected:
+      responses:
+        RESPONSE:
+          equals: 50
+      outcomes:
+        SCORE:
+          equals: 0.0
+        MAXSCORE:
+          equals: 3.0
+
+

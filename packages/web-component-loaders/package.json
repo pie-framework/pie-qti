@@ -1,0 +1,32 @@
+{
+	"name": "@pie-qti/web-component-loaders",
+	"version": "0.1.0",
+	"description": "Shared, idempotent client-side loaders for QTI-related web components used across apps",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		}
+	},
+	"scripts": {
+		"build": "tsc -p ./tsconfig.json"
+	},
+	"license": "MIT",
+	"private": true,
+	"peerDependencies": {
+		"@pie-qti/qti2-player-elements": "*"
+	},
+	"peerDependenciesMeta": {
+		"@pie-qti/qti2-player-elements": {
+			"optional": true
+		}
+	},
+	"devDependencies": {
+		"typescript": "^5.9.3"
+	}
+}
+
+

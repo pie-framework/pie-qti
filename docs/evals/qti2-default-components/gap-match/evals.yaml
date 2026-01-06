@@ -1,0 +1,110 @@
+version: 1
+
+component:
+  interactionType: gapMatchInteraction
+  tagName: pie-qti-gap-match
+
+examplesApp:
+  app: "@pie-qti/qti2-example"
+  routeTemplate: "/item-demo/{sampleId}"
+
+evals:
+  - id: gap-match/gap-match/correct
+    sampleId: gap-match
+    gradeBand: "5-9"
+    subject: science
+    intent: "All gaps filled correctly → full mapped score."
+    steps:
+      - action: navigate
+        path: "/item-demo/gap-match"
+      - action: dragToGap
+        target:
+          description: "Gap G1"
+          hint: "Select 'photosynthesis' for the first blank"
+        value: "W1"
+      - action: dragToGap
+        target:
+          description: "Gap G2"
+          hint: "Select 'energy' for the second blank"
+        value: "W2"
+      - action: dragToGap
+        target:
+          description: "Gap G3"
+          hint: "Select 'oxygen' for the third blank"
+        value: "W3"
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+    expected:
+      responses:
+        RESPONSE:
+          containsAll:
+            - "W1 G1"
+            - "W2 G2"
+            - "W3 G3"
+      outcomes:
+        SCORE:
+          equals: 3.0
+        MAXSCORE:
+          equals: 3.0
+    spiritChecks:
+      - "Blank positions are obvious in the sentence and keep reading flow for students."
+      - "Selecting an option makes it clear which blank it filled."
+
+  - id: gap-match/gap-match/partial
+    sampleId: gap-match
+    gradeBand: "5-9"
+    subject: science
+    intent: "Two gaps correct (third left blank) → partial credit via mapping."
+    steps:
+      - action: navigate
+        path: "/item-demo/gap-match"
+      - action: dragToGap
+        target:
+          description: "Gap G1"
+        value: "W1"
+      - action: dragToGap
+        target:
+          description: "Gap G2"
+        value: "W2"
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+    expected:
+      outcomes:
+        SCORE:
+          equals: 2.0
+        MAXSCORE:
+          equals: 3.0
+
+  - id: gap-match/gap-match/wrong
+    sampleId: gap-match
+    gradeBand: "5-9"
+    subject: science
+    intent: "All incorrect → score 0."
+    steps:
+      - action: navigate
+        path: "/item-demo/gap-match"
+      - action: dragToGap
+        target:
+          description: "Gap G1"
+        value: "W2"
+      - action: dragToGap
+        target:
+          description: "Gap G2"
+        value: "W3"
+      - action: dragToGap
+        target:
+          description: "Gap G3"
+        value: "W1"
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+    expected:
+      outcomes:
+        SCORE:
+          equals: 0.0
+        MAXSCORE:
+          equals: 3.0
+
+

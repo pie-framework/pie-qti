@@ -1,0 +1,14 @@
+{
+  "id": "outcomeProcessing_testVariables",
+  "cases": [
+    {
+      "name": "testVariables_is_rejected_item_only",
+      "xfail": true,
+      "xfailReason": "testVariables is test-level; item-only player rejects it.",
+      "responses": { "RESPONSE": "A" },
+      "expect": { "score": 0, "outcomes": { "SCORE": 0 } }
+    }
+  ]
+}
+
+

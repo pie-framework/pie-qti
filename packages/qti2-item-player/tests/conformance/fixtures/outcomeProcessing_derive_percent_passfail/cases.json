@@ -1,0 +1,27 @@
+{
+  "id": "outcomeProcessing_derive_percent_passfail",
+  "cases": [
+    {
+      "name": "both correct => 100% pass",
+      "responses": { "R1": "A", "R2": "B" },
+      "expect": { "outcomes": { "SCORE": 2, "PERCENT": 100, "PASS": true } }
+    },
+    {
+      "name": "one correct => 50% pass",
+      "responses": { "R1": "A", "R2": "C" },
+      "expect": { "outcomes": { "SCORE": 1, "PERCENT": 50, "PASS": true } }
+    },
+    {
+      "name": "none correct => 0% fail",
+      "responses": { "R1": "C", "R2": "C" },
+      "expect": { "outcomes": { "SCORE": 0, "PERCENT": 0, "PASS": false } }
+    },
+    {
+      "name": "missing responses => 0% fail",
+      "responses": {},
+      "expect": { "outcomes": { "SCORE": 0, "PERCENT": 0, "PASS": false } }
+    }
+  ]
+}
+
+

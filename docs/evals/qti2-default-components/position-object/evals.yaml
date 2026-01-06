@@ -1,0 +1,84 @@
+version: 1
+
+component:
+  interactionType: positionObjectInteraction
+  tagName: pie-qti-position-object
+
+examplesApp:
+  app: "@pie-qti/qti2-example"
+  routeTemplate: "/item-demo/{sampleId}"
+
+evals:
+  - id: position-object/position-object/correct
+    sampleId: position-object
+    gradeBand: "4-8"
+    subject: "general"
+    intent: "Placing at least 3 objects meets scoring rule (containerSize >= 3) → score 1."
+    steps:
+      - action: navigate
+        path: "/item-demo/position-object"
+      - action: dragToCanvas
+        target:
+          description: "Drag Sofa onto the room canvas"
+          hint: "Drag from palette into the canvas region"
+      - action: dragToCanvas
+        target:
+          description: "Drag Coffee Table onto the room canvas"
+      - action: dragToCanvas
+        target:
+          description: "Drag Chair onto the room canvas"
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+    expected:
+      responses:
+        RESPONSE:
+          lengthGte: 3
+          eachEntryHas:
+            - "stageId"
+            - "x"
+            - "y"
+      outcomes:
+        SCORE:
+          equals: 1.0
+    spiritChecks:
+      - "The canvas clearly indicates where objects can be dropped."
+      - "Placed objects are movable and removable without accidental loss of work."
+
+  - id: position-object/position-object/partial
+    sampleId: position-object
+    gradeBand: "4-8"
+    subject: "general"
+    intent: "Only 2 placed objects should score 0 (does not meet containerSize >= 3)."
+    steps:
+      - action: navigate
+        path: "/item-demo/position-object"
+      - action: dragToCanvas
+        target:
+          description: "Place exactly two objects (e.g., Sofa and Table)"
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+    expected:
+      outcomes:
+        SCORE:
+          equals: 0.0
+
+  - id: position-object/position-object/wrong-empty
+    sampleId: position-object
+    gradeBand: "4-8"
+    subject: "general"
+    intent: "No placed objects should score 0."
+    steps:
+      - action: navigate
+        path: "/item-demo/position-object"
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+        note: "If submit is disabled for empty responses, treat this as expected gating behavior."
+    expected:
+      outcomes:
+        SCORE:
+          equals: 0.0
+
+

@@ -1,0 +1,17 @@
+{
+  "id": "multiple_unordered_match",
+  "cases": [
+    {
+      "name": "same_order_matches",
+      "responses": { "RESPONSE": ["A", "B"] },
+      "expect": { "outcomes": { "SCORE": 1 } }
+    },
+    {
+      "name": "different_order_should_still_match_per_spec",
+      "responses": { "RESPONSE": ["B", "A"] },
+      "expect": { "outcomes": { "SCORE": 1 } }
+    }
+  ]
+}
+
+

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="mapResponse_directedPair_whitespace"
+  adaptive="false"
+  timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="directedPair">
+    <mapping defaultValue="0">
+      <!-- extra whitespace in mapKey should not matter -->
+      <mapEntry mapKey="W1     G1" mappedValue="1"/>
+    </mapping>
+  </responseDeclaration>
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <p>mapResponse directedPair whitespace normalization</p>
+  </itemBody>
+
+  <responseProcessing>
+    <setOutcomeValue identifier="SCORE">
+      <mapResponse identifier="RESPONSE"/>
+    </setOutcomeValue>
+  </responseProcessing>
+</assessmentItem>
+
+

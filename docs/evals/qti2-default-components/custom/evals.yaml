@@ -1,0 +1,62 @@
+version: 1
+
+component:
+  interactionType: customInteraction
+  tagName: pie-qti-custom
+
+examplesApp:
+  app: "@pie-qti/qti2-example"
+  routeTemplate: "/item-demo/{sampleId}"
+
+evals:
+  - id: custom/custom-interaction/enter-text
+    sampleId: custom-interaction
+    gradeBand: "K-12"
+    subject: "general"
+    intent: "Fallback UI allows candidate to provide a manual response string."
+    steps:
+      - action: navigate
+        path: "/item-demo/custom-interaction"
+      - action: type
+        target:
+          description: "Enter a short response in the fallback input"
+          hint: "Look for an input/textarea labeled for custom interaction response"
+        value: "I could not interact with the vendor widget, so here is my answer."
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+        note: "MAXSCORE is 0 for this sample; submission is mainly to verify response persistence."
+    expected:
+      responses:
+        CUST:
+          contains: "here is my answer"
+      outcomes:
+        SCORE:
+          equals: 0.0
+        MAXSCORE:
+          equals: 0.0
+    spiritChecks:
+      - "The fallback explains what’s happening in student-friendly language."
+      - "The input is accessible and clearly labeled."
+
+  - id: custom/custom-interaction/empty
+    sampleId: custom-interaction
+    gradeBand: "K-12"
+    subject: "general"
+    intent: "Leaving the fallback input empty should keep the response null/empty."
+    steps:
+      - action: navigate
+        path: "/item-demo/custom-interaction"
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+        note: "If submit is disabled due to incomplete response, that is acceptable."
+    expected:
+      responses:
+        CUST:
+          isNullOrEmpty: true
+      outcomes:
+        SCORE:
+          equals: 0.0
+
+

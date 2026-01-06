@@ -1,0 +1,90 @@
+version: 1
+
+# Copy this file into a new interaction directory as `evals.yaml`, then customize.
+# Example target location:
+# - docs/evals/qti2-default-components/{interaction-slug}/evals.yaml
+#
+# These evals are designed to be:
+# - AI-actionable (explicit steps + explicit expected variable values)
+# - Human-readable enough for review
+# - Validated against `@pie-qti/qti2-example` sample items via `/item-demo/{sampleId}`
+
+component:
+  # QTI interaction type, as produced by the player (e.g. choiceInteraction, matchInteraction, hotspotInteraction).
+  interactionType: "<qtiInteractionType>"
+  # Web component tag used by qti2-default-components (e.g. pie-qti-choice).
+  tagName: "<pie-qti-tag-name>"
+
+examplesApp:
+  app: "@pie-qti/qti2-example"
+  # For most validations we use the item demo route.
+  routeTemplate: "/item-demo/{sampleId}"
+
+evals:
+  - id: "<interaction-slug>/<sampleId>/<case-name>"
+    sampleId: "<sampleId>"
+    # Optional classification metadata to help AI tools filter/route evals
+    gradeBand: "K-12"
+    subject: "<math|ela|science|social-studies|general>"
+    intent: "One sentence describing what this eval validates."
+
+    # Optional freeform notes (high-signal constraints, known quirks, timing, etc.)
+    notes:
+      - "Keep steps unambiguous and grounded in what a student would actually do."
+
+    # Steps are deliberately generic; runners can map them to Playwright/Cypress/manual QA.
+    steps:
+      - action: navigate
+        path: "/item-demo/<sampleId>"
+
+      # Examples of common action types (choose whichever applies):
+      # - click: click an element (by label/description; runner chooses selectors)
+      # - select: choose a dropdown option
+      # - type / typeRichText: enter text
+      # - setValue: set a numeric value (e.g. slider)
+      # - dragReorder / matchPairs / clickPair / dragPair / dragToCanvas: interaction-specific moves
+      # - clickAt: coordinate click (for point interactions)
+      # - playUntilEnded: media interactions
+      # - observe: assertions about rendering/visibility
+      - action: click
+        target:
+          description: "Describe what to click in student terms"
+          hint: "Optional: include identifiers like ChoiceA, H2, EARTH, etc."
+
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+          hint: "Button text contains 'Submit Answer'"
+
+    # Expected results are expressed in QTI variable terms:
+    # - responses: responseDeclaration identifiers (e.g. RESPONSE, MEDIA_RESPONSE, CUST)
+    # - outcomes: common outcomes include SCORE, MAXSCORE
+    expected:
+      responses:
+        # Example patterns you can use (choose what fits):
+        # RESPONSE:
+        #   equals: "ChoiceA"
+        # RESPONSE:
+        #   containsAll: ["A B", "C D"]
+        # RESPONSE:
+        #   equalsOrdered: ["ChoiceA", "ChoiceB"]
+        # RESPONSE:
+        #   lengthGte: 3
+        # RESPONSE:
+        #   isNullOrEmpty: true
+        RESPONSE:
+          equals: "<expected-response-value>"
+      outcomes:
+        SCORE:
+          equals: 0.0
+        # Include MAXSCORE when the sample item declares it.
+        # MAXSCORE:
+        #   equals: 1.0
+
+    # “Spirit” checks are secondary but important: is the item fair, clear, and student-friendly?
+    spiritChecks:
+      - "Prompt language is grade-appropriate and instructions are clear."
+      - "Interaction states (selected/filled/paired) are visible and reversible."
+      - "No unnecessary trickiness; distractors are plausible and aligned to learning goal."
+
+

@@ -1,0 +1,12 @@
+{
+  "id": "contains_multiple",
+  "cases": [
+    { "name": "single A", "responses": { "R": ["A"] }, "expect": { "outcomes": { "SCORE": 1 } } },
+    { "name": "single B", "responses": { "R": ["B"] }, "expect": { "outcomes": { "SCORE": 0 } } },
+    { "name": "A and B", "responses": { "R": ["A", "B"] }, "expect": { "outcomes": { "SCORE": 1 } } },
+    { "name": "empty selection", "responses": { "R": [] }, "expect": { "outcomes": { "SCORE": 0 } } },
+    { "name": "unknown choice", "responses": { "R": ["C"] }, "expect": { "outcomes": { "SCORE": 0 } } }
+  ]
+}
+
+

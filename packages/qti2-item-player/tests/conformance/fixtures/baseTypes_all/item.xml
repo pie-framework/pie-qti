@@ -1,0 +1,131 @@
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="baseTypes_all" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="B" cardinality="single" baseType="boolean"/>
+  <responseDeclaration identifier="I" cardinality="single" baseType="integer"/>
+  <responseDeclaration identifier="F" cardinality="single" baseType="float"/>
+  <responseDeclaration identifier="S" cardinality="single" baseType="string"/>
+  <responseDeclaration identifier="ID" cardinality="single" baseType="identifier"/>
+  <responseDeclaration identifier="U" cardinality="single" baseType="uri"/>
+  <responseDeclaration identifier="P" cardinality="single" baseType="pair"/>
+  <responseDeclaration identifier="DP" cardinality="single" baseType="directedPair"/>
+  <responseDeclaration identifier="PT" cardinality="single" baseType="point"/>
+  <responseDeclaration identifier="DUR" cardinality="single" baseType="duration"/>
+  <responseDeclaration identifier="FILE" cardinality="single" baseType="file"/>
+
+  <outcomeDeclaration identifier="OK_B" cardinality="single" baseType="boolean" defaultValue="false"/>
+  <outcomeDeclaration identifier="OK_I" cardinality="single" baseType="boolean" defaultValue="false"/>
+  <outcomeDeclaration identifier="OK_F" cardinality="single" baseType="boolean" defaultValue="false"/>
+  <outcomeDeclaration identifier="OK_S" cardinality="single" baseType="boolean" defaultValue="false"/>
+  <outcomeDeclaration identifier="OK_ID" cardinality="single" baseType="boolean" defaultValue="false"/>
+  <outcomeDeclaration identifier="OK_U" cardinality="single" baseType="boolean" defaultValue="false"/>
+  <outcomeDeclaration identifier="OK_P" cardinality="single" baseType="boolean" defaultValue="false"/>
+  <outcomeDeclaration identifier="OK_DP_AB" cardinality="single" baseType="boolean" defaultValue="false"/>
+  <outcomeDeclaration identifier="OK_PT" cardinality="single" baseType="boolean" defaultValue="false"/>
+  <outcomeDeclaration identifier="OK_DUR" cardinality="single" baseType="boolean" defaultValue="false"/>
+  <outcomeDeclaration identifier="OK_FILE" cardinality="single" baseType="boolean" defaultValue="false"/>
+  <outcomeDeclaration identifier="REC_A" cardinality="single" baseType="integer" defaultValue="0"/>
+  <outcomeDeclaration identifier="REC_B" cardinality="single" baseType="string" defaultValue=""/>
+
+  <itemBody>
+    <p>baseTypes_all</p>
+  </itemBody>
+
+  <responseProcessing>
+    <setOutcomeValue identifier="OK_B">
+      <equal>
+        <variable identifier="B"/>
+        <baseValue baseType="boolean">true</baseValue>
+      </equal>
+    </setOutcomeValue>
+    <setOutcomeValue identifier="OK_I">
+      <equal>
+        <variable identifier="I"/>
+        <baseValue baseType="integer">42</baseValue>
+      </equal>
+    </setOutcomeValue>
+    <setOutcomeValue identifier="OK_F">
+      <equal>
+        <variable identifier="F"/>
+        <baseValue baseType="float">3.5</baseValue>
+      </equal>
+    </setOutcomeValue>
+    <setOutcomeValue identifier="OK_S">
+      <equal>
+        <variable identifier="S"/>
+        <baseValue baseType="string">hello</baseValue>
+      </equal>
+    </setOutcomeValue>
+    <setOutcomeValue identifier="OK_ID">
+      <equal>
+        <variable identifier="ID"/>
+        <baseValue baseType="identifier">X1</baseValue>
+      </equal>
+    </setOutcomeValue>
+    <setOutcomeValue identifier="OK_U">
+      <equal>
+        <variable identifier="U"/>
+        <baseValue baseType="uri">https://example.org/a</baseValue>
+      </equal>
+    </setOutcomeValue>
+    <!-- pair is unordered: "B A" should equal "A B" -->
+    <setOutcomeValue identifier="OK_P">
+      <match>
+        <variable identifier="P"/>
+        <baseValue baseType="pair">A B</baseValue>
+      </match>
+    </setOutcomeValue>
+    <!-- directedPair is ordered -->
+    <setOutcomeValue identifier="OK_DP_AB">
+      <match>
+        <variable identifier="DP"/>
+        <baseValue baseType="directedPair">A B</baseValue>
+      </match>
+    </setOutcomeValue>
+    <setOutcomeValue identifier="OK_PT">
+      <match>
+        <variable identifier="PT"/>
+        <baseValue baseType="point">10 20</baseValue>
+      </match>
+    </setOutcomeValue>
+    <!-- duration is stored as milliseconds -->
+    <setOutcomeValue identifier="OK_DUR">
+      <equal>
+        <variable identifier="DUR"/>
+        <baseValue baseType="duration">PT1H</baseValue>
+      </equal>
+    </setOutcomeValue>
+    <setOutcomeValue identifier="OK_FILE">
+      <equal>
+        <variable identifier="FILE"/>
+        <baseValue baseType="file">file://example.txt</baseValue>
+      </equal>
+    </setOutcomeValue>
+
+    <!-- record + fieldValue -->
+    <setOutcomeValue identifier="REC_A">
+      <fieldValue fieldIdentifier="a">
+        <record>
+          <fieldValue fieldIdentifier="a">
+            <baseValue baseType="integer">7</baseValue>
+          </fieldValue>
+          <fieldValue fieldIdentifier="b">
+            <baseValue baseType="string">ok</baseValue>
+          </fieldValue>
+        </record>
+      </fieldValue>
+    </setOutcomeValue>
+    <setOutcomeValue identifier="REC_B">
+      <fieldValue fieldIdentifier="b">
+        <record>
+          <fieldValue fieldIdentifier="a">
+            <baseValue baseType="integer">7</baseValue>
+          </fieldValue>
+          <fieldValue fieldIdentifier="b">
+            <baseValue baseType="string">ok</baseValue>
+          </fieldValue>
+        </record>
+      </fieldValue>
+    </setOutcomeValue>
+  </responseProcessing>
+</assessmentItem>
+
+

@@ -1,0 +1,18 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "Covers QTI 2.2.2 mathOperator + gcd/lcm/integerModulus/integerToFloat using exact-expectation values.",
+  "covers": [
+    "expr.gcd",
+    "expr.integerModulus",
+    "expr.integerToFloat",
+    "expr.lcm",
+    "expr.mathOperator",
+    "gcd",
+    "integerModulus",
+    "integerToFloat",
+    "lcm",
+    "mathOperator",
+    "responseProcessing"
+  ]
+}

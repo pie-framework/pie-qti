@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/imsqti_v2p2.xsd"
+                identifier="choice_multiple"
+                title="Multiple Response Question"
+                adaptive="false"
+                timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="identifier">
+    <correctResponse>
+      <value>ChoiceA</value>
+      <value>ChoiceC</value>
+      <value>ChoiceD</value>
+    </correctResponse>
+  </responseDeclaration>
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
+    <defaultValue>
+      <value>0</value>
+    </defaultValue>
+  </outcomeDeclaration>
+  <itemBody>
+    <p>Which of the following are programming languages? (Select all that apply)</p>
+    <choiceInteraction responseIdentifier="RESPONSE" shuffle="false" maxChoices="0">
+      <prompt>Select all correct answers:</prompt>
+      <simpleChoice identifier="ChoiceA">Python</simpleChoice>
+      <simpleChoice identifier="ChoiceB">HTML</simpleChoice>
+      <simpleChoice identifier="ChoiceC">JavaScript</simpleChoice>
+      <simpleChoice identifier="ChoiceD">Java</simpleChoice>
+      <simpleChoice identifier="ChoiceE">CSS</simpleChoice>
+    </choiceInteraction>
+  </itemBody>
+  <responseProcessing template="http://www.imsglobal.org/question/qti_v2p1/rptemplates/match_correct"/>
+</assessmentItem>

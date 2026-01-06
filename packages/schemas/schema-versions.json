@@ -1,0 +1,80 @@
+{
+  "multiple-choice": {
+    "version": "11.4.3",
+    "schemaHash": "e7ead176068039d5",
+    "syncedAt": "2025-12-24T16:34:02.207Z",
+    "sourcePath": "/Users/eelco.hillenius/dev/prj/pie/pie-elements/packages/multiple-choice/docs/pie-schema.json"
+  },
+  "extended-text-entry": {
+    "version": "13.4.0",
+    "schemaHash": "0a22fb0f93b3f1ea",
+    "syncedAt": "2025-12-24T16:34:02.223Z",
+    "sourcePath": "/Users/eelco.hillenius/dev/prj/pie/pie-elements/packages/extended-text-entry/docs/pie-schema.json"
+  },
+  "placement-ordering": {
+    "version": "12.3.3",
+    "schemaHash": "0b5c0addd725dcde",
+    "syncedAt": "2025-12-24T17:09:04.941Z",
+    "sourcePath": "/Users/eelco.hillenius/dev/prj/pie/pie-elements/packages/placement-ordering/docs/pie-schema.json"
+  },
+  "match": {
+    "version": "10.3.3",
+    "schemaHash": "31b9998c4211e68c",
+    "syncedAt": "2025-12-24T17:21:48.119Z",
+    "sourcePath": "/Users/eelco.hillenius/dev/prj/pie/pie-elements/packages/match/docs/pie-schema.json"
+  },
+  "explicit-constructed-response": {
+    "version": "9.3.3",
+    "schemaHash": "a5243e3342e779de",
+    "syncedAt": "2025-12-24T17:23:54.274Z",
+    "sourcePath": "/Users/eelco.hillenius/dev/prj/pie/pie-elements/packages/explicit-constructed-response/docs/pie-schema.json"
+  },
+  "select-text": {
+    "version": "11.3.3",
+    "schemaHash": "6fa72bc0ae8b034c",
+    "syncedAt": "2025-12-24T17:33:19.489Z",
+    "sourcePath": "/Users/eelco.hillenius/dev/prj/pie/pie-elements/packages/select-text/docs/pie-schema.json"
+  },
+  "inline-dropdown": {
+    "version": "8.3.3",
+    "schemaHash": "05633d1a5f56813b",
+    "syncedAt": "2025-12-24T17:37:02.971Z",
+    "sourcePath": "/Users/eelco.hillenius/dev/prj/pie/pie-elements/packages/inline-dropdown/docs/pie-schema.json"
+  },
+  "drag-in-the-blank": {
+    "version": "8.3.3",
+    "schemaHash": "7e5e4f8d87b70510",
+    "syncedAt": "2025-12-24T18:40:10.126Z",
+    "sourcePath": "/Users/eelco.hillenius/dev/prj/pie/pie-elements/packages/drag-in-the-blank/docs/pie-schema.json"
+  },
+  "ebsr": {
+    "version": "12.3.3",
+    "schemaHash": "197c46f303507beb",
+    "syncedAt": "2025-12-24T18:53:19.334Z",
+    "sourcePath": "/Users/eelco.hillenius/dev/prj/pie/pie-elements/packages/ebsr/docs/pie-schema.json"
+  },
+  "hotspot": {
+    "version": "9.3.3",
+    "schemaHash": "cdbeab1ad844be95",
+    "syncedAt": "2025-12-24T19:44:36.088Z",
+    "sourcePath": "/Users/eelco.hillenius/dev/prj/pie/pie-elements/packages/hotspot/docs/pie-schema.json"
+  },
+  "image-cloze-association": {
+    "version": "8.3.3",
+    "schemaHash": "ade9a4ee89e5c3a8",
+    "syncedAt": "2025-12-24T19:51:00.860Z",
+    "sourcePath": "/Users/eelco.hillenius/dev/prj/pie/pie-elements/packages/image-cloze-association/docs/pie-schema.json"
+  },
+  "match-list": {
+    "version": "5.3.3",
+    "schemaHash": "da21e978152d1fb8",
+    "syncedAt": "2025-12-24T19:53:09.293Z",
+    "sourcePath": "/Users/eelco.hillenius/dev/prj/pie/pie-elements/packages/match-list/docs/pie-schema.json"
+  },
+  "passage": {
+    "version": "5.3.3",
+    "schemaHash": "b3a3989106088973",
+    "syncedAt": "2025-12-24T19:55:22.498Z",
+    "sourcePath": "/Users/eelco.hillenius/dev/prj/pie/pie-elements/packages/passage/docs/pie-schema.json"
+  }
+}

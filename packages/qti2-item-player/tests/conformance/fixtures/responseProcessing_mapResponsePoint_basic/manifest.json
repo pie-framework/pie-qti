@@ -1,0 +1,12 @@
+{
+  "id": "responseProcessing_mapResponsePoint_basic",
+  "title": "mapResponsePoint with areaMapping (rect/circle/default)",
+  "description": "Scores a point response using areaMapping via mapResponsePoint.",
+  "spec": "QTI 2.x responseProcessing",
+  "covers": [
+    "baseValue",
+    "expr.baseValue",
+    "expr.mapResponsePoint",
+    "mapResponsePoint"
+  ]
+}

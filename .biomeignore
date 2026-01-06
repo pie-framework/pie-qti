@@ -1,0 +1,14 @@
+# Ignore Svelte files - they have their own checker (svelte-check)
+**/*.svelte
+
+# Ignore build artifacts
+dist/
+build/
+.turbo/
+
+# Ignore dependencies
+node_modules/
+.pnpm-store/
+
+# Ignore generated files
+*.tsbuildinfo

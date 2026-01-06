@@ -1,0 +1,7 @@
+{
+  "id": "responseProcessing_mapResponse_directedPair_ordered",
+  "description": "mapResponse with baseType=directedPair should be ordered (no pair canonicalization).",
+  "tags": ["responseProcessing", "mapResponse", "directedPair", "mapping"]
+}
+
+

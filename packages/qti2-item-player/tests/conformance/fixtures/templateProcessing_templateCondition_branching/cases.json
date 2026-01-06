@@ -1,0 +1,17 @@
+{
+  "id": "templateProcessing_templateCondition_branching",
+  "cases": [
+    {
+      "name": "templateCondition branches set expected template values and are readable in responseProcessing",
+      "responses": {},
+      "expect": {
+        "outcomes": {
+          "SCORE": 60
+        },
+        "itemBodyContains": ["A=10", "B=20", "C=30"]
+      }
+    }
+  ]
+}
+
+

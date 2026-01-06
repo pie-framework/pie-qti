@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+  xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="mapresponse-multiple"
+  title="mapResponse Multiple Cardinality"
+  adaptive="false"
+  timeDependent="false">
+
+  <responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="identifier">
+    <mapping defaultValue="0">
+      <mapEntry mapKey="A" mappedValue="1"/>
+      <mapEntry mapKey="B" mappedValue="2"/>
+    </mapping>
+  </responseDeclaration>
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <p>Select values.</p>
+  </itemBody>
+
+  <responseProcessing>
+    <responseCondition>
+      <responseElse>
+        <setOutcomeValue identifier="SCORE">
+          <mapResponse identifier="RESPONSE"/>
+        </setOutcomeValue>
+      </responseElse>
+    </responseCondition>
+  </responseProcessing>
+</assessmentItem>
+
+

@@ -1,0 +1,54 @@
+{
+  "name": "@pie-framework/transform-cli",
+  "version": "0.1.0",
+  "description": "CLI tool for QTI ↔ PIE transformations",
+  "type": "module",
+  "bin": {
+    "pie-transform": "./bin/run.js"
+  },
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "oclif.manifest.json"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "prepack": "bun run build && oclif manifest",
+    "analyze-qti": "node --loader ts-node/esm --no-warnings=ExperimentalWarning ./src/commands/analyze-qti.ts",
+    "discover-qti": "node --loader ts-node/esm --no-warnings=ExperimentalWarning ./src/commands/discover-qti.ts",
+    "batch-transform": "node --loader ts-node/esm --no-warnings=ExperimentalWarning ./src/commands/batch-transform.ts"
+  },
+  "dependencies": {
+    "@oclif/core": "^4.0.0",
+    "@oclif/plugin-help": "^6.2.0",
+    "@pie-qti/qti2-to-pie": "workspace:*",
+    "@pie-framework/transform-core": "workspace:*",
+    "@pie-framework/transform-types": "workspace:*",
+    "@types/unzipper": "^0.10.11",
+    "node-html-parser": "^7.0.1",
+    "unzipper": "^0.12.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.3",
+    "oclif": "^4.0.0",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "oclif": {
+    "bin": "pie-transform",
+    "dirname": "pie-transform",
+    "commands": "./dist/commands",
+    "topicSeparator": " ",
+    "topics": {
+      "transform": {
+        "description": "Transform QTI items to PIE format and vice versa"
+      }
+    }
+  }
+}

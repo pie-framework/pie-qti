@@ -1,0 +1,12 @@
+{
+  "id": "responseProcessing_default_expression",
+  "cases": [
+    {
+      "name": "default ignores current value changes (response + outcome)",
+      "responses": {},
+      "expect": { "outcomes": { "O": 10, "O_DEFAULT": 2, "R_DEFAULT": 5 } }
+    }
+  ]
+}
+
+

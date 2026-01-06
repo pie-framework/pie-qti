@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/qti/qtiv2p2/imsqti_v2p2.xsd"
+                identifier="st-001"
+                title="Select Text"
+                adaptive="false"
+                timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="identifier">
+    <correctResponse>
+      <value>ht1</value>
+      <value>ht3</value>
+    </correctResponse>
+  </responseDeclaration>
+  <itemBody>
+    <p>Select all the verbs in the following sentence:</p>
+    <hottextInteraction responseIdentifier="RESPONSE" maxChoices="3">
+      <p>The <hottext identifier="ht1">cat</hottext> <hottext identifier="ht2">sat</hottext> on the <hottext identifier="ht3">mat</hottext>.</p>
+    </hottextInteraction>
+  </itemBody>
+</assessmentItem>

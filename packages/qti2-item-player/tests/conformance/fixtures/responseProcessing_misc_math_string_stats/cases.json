@@ -1,0 +1,26 @@
+{
+	"id": "responseProcessing_misc_math_string_stats",
+	"cases": [
+		{
+			"name": "basic_ops",
+			"responses": {},
+			"expect": {
+				"outcomes": {
+					"SUB": "BC",
+					"IDIV": 3,
+					"MOD": 1,
+					"POW": 8,
+					"MEAN": 2,
+					"SVAR": 1,
+					"SSD": 1,
+					"PVAR_MILLI": 666,
+					"PSD_MILLI": 816,
+					"TYPE_INT_OK": true,
+					"TYPE_FLOAT_OK": false
+				}
+			}
+		}
+	]
+}
+
+

@@ -1,0 +1,40 @@
+{
+	"name": "@pie-qti/qti2-player-elements",
+	"version": "0.1.0",
+	"description": "QTI 2.x player web components (custom elements) for framework-agnostic embedding",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		},
+		"./register": {
+			"types": "./dist/register.d.ts",
+			"import": "./dist/register.js"
+		}
+	},
+	"scripts": {
+		"build": "vite build && tsc -p ./tsconfig.build.json",
+		"test": "bun test",
+		"typecheck": "tsc --noEmit",
+		"lint": "biome check .",
+		"lint:fix": "biome check --write .",
+		"format": "biome format --write ."
+	},
+	"license": "MIT",
+	"author": "Renaissance Learning",
+	"dependencies": {
+		"@pie-qti/qti2-assessment-player": "workspace:*",
+		"@pie-qti/qti2-item-player": "workspace:*",
+		"svelte": "^5.46.1"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.3.10",
+		"@sveltejs/vite-plugin-svelte": "^6.2.1",
+		"linkedom": "^0.18.12",
+		"typescript": "^5.9.3",
+		"vite": "^7.3.0"
+	}
+}

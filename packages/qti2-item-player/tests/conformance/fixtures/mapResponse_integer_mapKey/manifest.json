@@ -1,0 +1,13 @@
+{
+  "id": "mapResponse_integer_mapKey",
+  "title": "mapResponse: integer baseType with numeric mapKey matching",
+  "spec": "Custom fixture for QTI processing language conformance",
+  "focus": [
+    "mapResponse",
+    "integer baseType",
+    "numeric mapKey matching",
+    "defaultValue"
+  ]
+}
+
+

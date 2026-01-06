@@ -1,0 +1,15 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "responseIf/responseElseIf/responseElse control flow with lt/match expressions.",
+  "covers": [
+    "expr.lt",
+    "lt",
+    "match",
+    "responseCondition",
+    "responseElseIf",
+    "setOutcomeValue",
+    "stmt.responseCondition",
+    "stmt.setOutcomeValue"
+  ]
+}

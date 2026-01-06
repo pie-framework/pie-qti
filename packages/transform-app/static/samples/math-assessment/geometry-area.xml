@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/imsqti_v2p2.xsd"
+                identifier="geometry-area"
+                title="Area of a Rectangle"
+                adaptive="false"
+                timeDependent="false">
+
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="string">
+    <correctResponse>
+      <value>48</value>
+    </correctResponse>
+    <mapping>
+      <mapEntry mapKey="48" mappedValue="1"/>
+      <mapEntry mapKey="48.0" mappedValue="1"/>
+    </mapping>
+  </responseDeclaration>
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
+    <defaultValue>
+      <value>0</value>
+    </defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <div class="qti-item-body">
+      <h2>Calculate Area</h2>
+      <p>A rectangle has a length of 8 meters and a width of 6 meters.</p>
+      <p><strong>What is the area of the rectangle?</strong></p>
+      <p style="margin: 10px 0;">
+        <em>Remember: Area = length × width</em>
+      </p>
+
+      <textEntryInteraction responseIdentifier="RESPONSE" expectedLength="10">
+        <prompt>Enter your answer (in square meters):</prompt>
+      </textEntryInteraction>
+    </div>
+  </itemBody>
+
+  <responseProcessing>
+    <responseCondition>
+      <responseIf>
+        <match>
+          <variable identifier="RESPONSE"/>
+          <correct identifier="RESPONSE"/>
+        </match>
+        <setOutcomeValue identifier="SCORE">
+          <baseValue baseType="float">1</baseValue>
+        </setOutcomeValue>
+      </responseIf>
+      <responseElse>
+        <setOutcomeValue identifier="SCORE">
+          <baseValue baseType="float">0</baseValue>
+        </setOutcomeValue>
+      </responseElse>
+    </responseCondition>
+  </responseProcessing>
+</assessmentItem>

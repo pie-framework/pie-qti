@@ -1,0 +1,14 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "Covers QTI 2.2.2 templateConstraint restart semantics (retry with template vars reset to defaults until constraint holds or max iterations reached).",
+  "covers": [
+    "expr.randomInteger",
+    "randomInteger",
+    "setTemplateValue",
+    "stmt.setTemplateValue",
+    "stmt.templateConstraint",
+    "templateConstraint",
+    "templateProcessing"
+  ]
+}

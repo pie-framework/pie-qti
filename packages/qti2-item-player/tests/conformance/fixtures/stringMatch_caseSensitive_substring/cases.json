@@ -1,0 +1,12 @@
+{
+  "id": "stringMatch_caseSensitive_substring",
+  "cases": [
+    { "name": "case insensitive exact match", "responses": { "R": "Hello" }, "expect": { "outcomes": { "SCORE": 1 } } },
+    { "name": "substring match", "responses": { "R": "Hello world" }, "expect": { "outcomes": { "SCORE": 2 } } },
+    { "name": "case sensitive exact match", "responses": { "R": "hello" }, "expect": { "outcomes": { "SCORE": 3 } } },
+    { "name": "substring match (uppercase)", "responses": { "R": "HELLO WORLD" }, "expect": { "outcomes": { "SCORE": 2 } } },
+    { "name": "no match", "responses": { "R": "xyz" }, "expect": { "outcomes": { "SCORE": 0 } } }
+  ]
+}
+
+

@@ -1,0 +1,9 @@
+{
+  "id": "isNull_isNotNull",
+  "cases": [
+    { "name": "missing response is null", "responses": {}, "expect": { "outcomes": { "SCORE": 1 } } },
+    { "name": "present response is not null", "responses": { "R": "x" }, "expect": { "outcomes": { "SCORE": 2 } } }
+  ]
+}
+
+

@@ -1,0 +1,12 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "Covers preCondition expression (LogicSingle wrapper) in boolean context.",
+  "covers": [
+    "expr.preCondition",
+    "preCondition",
+    "responseProcessing",
+    "setOutcomeValue",
+    "stmt.setOutcomeValue"
+  ]
+}

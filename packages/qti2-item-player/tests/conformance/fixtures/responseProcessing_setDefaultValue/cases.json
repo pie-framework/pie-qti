@@ -1,0 +1,15 @@
+{
+  "id": "responseProcessing_setDefaultValue",
+  "cases": [
+    {
+      "name": "setDefaultValue_resets_to_default_or_null",
+      "responses": {},
+      "expect": {
+        "score": 2,
+        "outcomes": { "SCORE": 2 }
+      }
+    }
+  ]
+}
+
+

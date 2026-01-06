@@ -1,0 +1,12 @@
+{
+  "id": "responseProcessing_record_fieldValue",
+  "cases": [
+    {
+      "name": "extracts fields from constructed record",
+      "responses": {},
+      "expect": { "outcomes": { "OUT_X": 42, "OUT_Y": "A" } }
+    }
+  ]
+}
+
+

@@ -1,0 +1,76 @@
+version: 1
+
+component:
+  interactionType: orderInteraction
+  tagName: pie-qti-order
+
+examplesApp:
+  app: "@pie-qti/qti2-example"
+  routeTemplate: "/item-demo/{sampleId}"
+
+evals:
+  - id: order/order-interaction/correct
+    sampleId: order-interaction
+    gradeBand: "5-9"
+    subject: science
+    intent: "Reordering (shuffle=true) should still allow correct ordering and full score."
+    steps:
+      - action: navigate
+        path: "/item-demo/order-interaction"
+      - action: dragReorder
+        target:
+          description: "Reorder items to: Ask a question → Conduct research → Form a hypothesis → Test the hypothesis"
+          hint: "Within `pie-qti-order`, drag list items; order is initially shuffled."
+      - action: observe
+        target:
+          description: "Order confirmation occurs"
+          hint: "After dragging, the component should show a confirmed state (or not require extra confirmation)."
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+    expected:
+      responses:
+        RESPONSE:
+          equalsOrdered:
+            - "ChoiceA"
+            - "ChoiceB"
+            - "ChoiceC"
+            - "ChoiceD"
+      outcomes:
+        SCORE:
+          equals: 2.0
+        MAXSCORE:
+          equals: 2.0
+    spiritChecks:
+      - "Students can clearly tell how to reorder (drag handles/visual feedback)."
+      - "The order task is instructionally meaningful (scientific method), not arbitrary."
+
+  - id: order/order-interaction/wrong
+    sampleId: order-interaction
+    gradeBand: "5-9"
+    subject: science
+    intent: "Incorrect ordering should score 0 (all-or-nothing match)."
+    steps:
+      - action: navigate
+        path: "/item-demo/order-interaction"
+      - action: dragReorder
+        target:
+          description: "Create an intentionally wrong order (e.g., reverse the list)"
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+    expected:
+      responses:
+        RESPONSE:
+          notEqualsOrdered:
+            - "ChoiceA"
+            - "ChoiceB"
+            - "ChoiceC"
+            - "ChoiceD"
+      outcomes:
+        SCORE:
+          equals: 0.0
+        MAXSCORE:
+          equals: 2.0
+
+

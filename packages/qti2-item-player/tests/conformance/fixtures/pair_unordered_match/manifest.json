@@ -1,0 +1,13 @@
+{
+	"id": "pair_unordered_match",
+	"title": "baseType=pair: unordered equality",
+	"description": "Ensures pair baseType compares as unordered pairs: \"A B\" equals \"B A\" when used in match/equal/member/contains (common for associate interactions).",
+	"spec": "custom",
+	"provenance": {
+		"source": "authored",
+		"license": "CC0-1.0"
+	},
+	"covers": ["baseType.pair", "expr.match"]
+}
+
+

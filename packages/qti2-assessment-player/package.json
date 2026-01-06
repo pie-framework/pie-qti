@@ -1,0 +1,81 @@
+{
+	"name": "@pie-qti/qti2-assessment-player",
+	"version": "0.1.0",
+	"description": "QTI 2.x Assessment Player - Multi-item test player with navigation, sections, and rubric blocks",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"scripts": {
+		"build": "tsc",
+		"test": "bun test --preload ./tests/setup.ts",
+		"typecheck": "tsc --noEmit",
+		"check": "svelte-check --tsconfig ./tsconfig.svelte.json",
+		"lint": "biome check .",
+		"lint:fix": "biome check --write .",
+		"format": "biome format --write ."
+	},
+	"keywords": [
+		"qti",
+		"qti2",
+		"qti2.2",
+		"qti 2.x",
+		"assessment",
+		"test",
+		"player",
+		"navigation",
+		"e-learning"
+	],
+	"author": "Renaissance Learning",
+	"license": "MIT",
+	"dependencies": {
+		"@pie-qti/qti-processing": "workspace:*",
+		"@pie-qti/qti2-item-player": "workspace:*",
+		"@pie-qti/qti2-default-components": "workspace:*",
+		"node-html-parser": "^7.0.1"
+	},
+	"peerDependencies": {
+		"svelte": "^5.46.1"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.3.10",
+		"@types/node": "^25.0.3",
+		"svelte": "^5.46.1",
+		"svelte-check": "^4.3.5",
+		"typescript": "^5.9.3"
+	},
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		},
+		"./integration": {
+			"types": "./dist/integration/index.d.ts",
+			"import": "./dist/integration/index.js"
+		},
+		"./components": {
+			"types": "./src/components/index.ts",
+			"import": "./src/components/index.ts",
+			"svelte": "./src/components/index.ts"
+		},
+		"./components/AssessmentShell.svelte": {
+			"import": "./src/components/AssessmentShell.svelte",
+			"svelte": "./src/components/AssessmentShell.svelte"
+		},
+		"./components/NavigationBar.svelte": {
+			"import": "./src/components/NavigationBar.svelte",
+			"svelte": "./src/components/NavigationBar.svelte"
+		},
+		"./components/SectionMenu.svelte": {
+			"import": "./src/components/SectionMenu.svelte",
+			"svelte": "./src/components/SectionMenu.svelte"
+		},
+		"./components/RubricDisplay.svelte": {
+			"import": "./src/components/RubricDisplay.svelte",
+			"svelte": "./src/components/RubricDisplay.svelte"
+		},
+		"./components/ItemRenderer.svelte": {
+			"import": "./src/components/ItemRenderer.svelte",
+			"svelte": "./src/components/ItemRenderer.svelte"
+		}
+	}
+}

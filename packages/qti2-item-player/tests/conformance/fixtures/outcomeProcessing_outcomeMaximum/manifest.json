@@ -1,0 +1,8 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "outcomeMaximum is a test-level outcomeProcessing expression (OutcomeMinMax.Type). Item-only player rejects it explicitly.",
+  "covers": ["outcomeMaximum"]
+}
+
+

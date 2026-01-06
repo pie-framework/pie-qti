@@ -1,0 +1,15 @@
+{
+  "id": "mapResponse_bounds_default_duplicates",
+  "title": "mapResponse: bounds + defaultValue + duplicates (multiple cardinality)",
+  "spec": "Custom fixture for QTI processing language conformance",
+  "focus": [
+    "mapResponse",
+    "mapping@defaultValue",
+    "mapping@lowerBound",
+    "mapping@upperBound",
+    "multiple cardinality summation",
+    "duplicate responses"
+  ]
+}
+
+

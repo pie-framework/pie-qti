@@ -1,0 +1,1613 @@
+{
+  "description": "Model for the @pie-elements/placement-ordering",
+  "additionalProperties": false,
+  "type": "object",
+  "properties": {
+    "choiceLabel": {
+      "description": "The label for possible choices",
+      "type": "string",
+      "title": "choiceLabel"
+    },
+    "choices": {
+      "description": "Array of all the available choices",
+      "type": "array",
+      "items": {
+        "title": "Choice",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "The id of the choice",
+            "type": "string",
+            "title": "id"
+          },
+          "label": {
+            "description": "The label of the choice",
+            "type": "string",
+            "title": "label"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "title": "choices"
+    },
+    "correctResponse": {
+      "description": "Array of the correct responses in the correct order",
+      "type": "array",
+      "items": {
+        "title": "CorrectResponse",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "The id of the correct response",
+            "type": "string",
+            "title": "id"
+          },
+          "weight": {
+            "description": "The weight of the correct response\nNote: weights are not configurable in the existing component so we'll ignore it for now",
+            "type": "number",
+            "title": "weight"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "title": "correctResponse"
+    },
+    "alternateResponses": {
+      "description": "Array that contains the correct alternate responses",
+      "type": "array",
+      "items": {
+        "title": "AlternateResponse",
+        "type": "object",
+        "properties": {
+          "response": {
+            "description": "Array that contains the alternate response ids",
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "response"
+          }
+        },
+        "required": [
+          "response"
+        ]
+      },
+      "title": "alternateResponses"
+    },
+    "feedback": {
+      "title": "ComplexFeedbackType",
+      "type": "object",
+      "properties": {
+        "correct": {
+          "description": "Indicates the configuration for feedback when answer is correct",
+          "anyOf": [
+            {
+              "title": "DefaultFeedbackType",
+              "type": "object",
+              "properties": {
+                "type": {
+                  "description": "Indicates the feedback type",
+                  "enum": [
+                    "default",
+                    "none"
+                  ],
+                  "type": "string",
+                  "title": "type"
+                },
+                "default": {
+                  "description": "Indicates the feedback value",
+                  "type": "string",
+                  "title": "default"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            {
+              "title": "CustomFeedbackType",
+              "type": "object",
+              "properties": {
+                "type": {
+                  "description": "Indicates the feedback type",
+                  "type": "string",
+                  "enum": [
+                    "custom"
+                  ],
+                  "title": "type"
+                },
+                "custom": {
+                  "description": "Indicates the feedback custom value",
+                  "type": "string",
+                  "title": "custom"
+                }
+              },
+              "required": [
+                "custom",
+                "type"
+              ]
+            }
+          ],
+          "title": "correct"
+        },
+        "incorrect": {
+          "description": "Indicates the configuration for feedback when answer is incorrect",
+          "anyOf": [
+            {
+              "title": "DefaultFeedbackType",
+              "type": "object",
+              "properties": {
+                "type": {
+                  "description": "Indicates the feedback type",
+                  "enum": [
+                    "default",
+                    "none"
+                  ],
+                  "type": "string",
+                  "title": "type"
+                },
+                "default": {
+                  "description": "Indicates the feedback value",
+                  "type": "string",
+                  "title": "default"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            {
+              "title": "CustomFeedbackType",
+              "type": "object",
+              "properties": {
+                "type": {
+                  "description": "Indicates the feedback type",
+                  "type": "string",
+                  "enum": [
+                    "custom"
+                  ],
+                  "title": "type"
+                },
+                "custom": {
+                  "description": "Indicates the feedback custom value",
+                  "type": "string",
+                  "title": "custom"
+                }
+              },
+              "required": [
+                "custom",
+                "type"
+              ]
+            }
+          ],
+          "title": "incorrect"
+        },
+        "partial": {
+          "description": "Indicates the configuration for feedback when answer is partially correct",
+          "anyOf": [
+            {
+              "title": "DefaultFeedbackType",
+              "type": "object",
+              "properties": {
+                "type": {
+                  "description": "Indicates the feedback type",
+                  "enum": [
+                    "default",
+                    "none"
+                  ],
+                  "type": "string",
+                  "title": "type"
+                },
+                "default": {
+                  "description": "Indicates the feedback value",
+                  "type": "string",
+                  "title": "default"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            {
+              "title": "CustomFeedbackType",
+              "type": "object",
+              "properties": {
+                "type": {
+                  "description": "Indicates the feedback type",
+                  "type": "string",
+                  "enum": [
+                    "custom"
+                  ],
+                  "title": "type"
+                },
+                "custom": {
+                  "description": "Indicates the feedback custom value",
+                  "type": "string",
+                  "title": "custom"
+                }
+              },
+              "required": [
+                "custom",
+                "type"
+              ]
+            }
+          ],
+          "title": "partial"
+        }
+      },
+      "required": [
+        "correct",
+        "incorrect"
+      ]
+    },
+    "prompt": {
+      "description": "The item stem for the question",
+      "type": "string",
+      "title": "prompt"
+    },
+    "promptEnabled": {
+      "description": "Determines if prompt should show",
+      "type": "boolean",
+      "title": "promptEnabled"
+    },
+    "lockChoiceOrder": {
+      "description": "Indicates if the choices can lockChoiceOrder",
+      "type": "boolean",
+      "title": "lockChoiceOrder"
+    },
+    "numberedGuides": {
+      "description": "If placement type is placement; show ordering indicates if the boxes are numbered",
+      "type": "boolean",
+      "title": "numberedGuides"
+    },
+    "orientation": {
+      "description": "The layout for displaying the choices",
+      "enum": [
+        "horizontal",
+        "vertical"
+      ],
+      "type": "string",
+      "title": "orientation"
+    },
+    "partialScoring": {
+      "description": "Indicates if partialScoring is enabled",
+      "type": "boolean",
+      "title": "partialScoring"
+    },
+    "placementArea": {
+      "description": "Indicates if the items can be replaced with each other or if they can be placed inside other boxes",
+      "type": "boolean",
+      "title": "placementArea"
+    },
+    "rationale": {
+      "description": "Indicates correct answer rationale",
+      "type": "string",
+      "title": "rationale"
+    },
+    "removeTilesAfterPlacing": {
+      "description": "Indicates if each choice will be removed from choices after becoming a target",
+      "type": "boolean",
+      "title": "removeTilesAfterPlacing"
+    },
+    "scoringType": {
+      "description": "Indicates scoring type",
+      "enum": [
+        "auto",
+        "rubric"
+      ],
+      "type": "string",
+      "title": "scoringType"
+    },
+    "studentInstructions": {
+      "description": "Indicates student instructions",
+      "type": "string",
+      "title": "studentInstructions"
+    },
+    "targetLabel": {
+      "description": "The label for answer area if placement area is enabled",
+      "type": "string",
+      "title": "targetLabel"
+    },
+    "feedbackEnabled": {
+      "description": "Indicates if Feedback is enabled",
+      "type": "boolean",
+      "title": "feedbackEnabled"
+    },
+    "teacherInstructions": {
+      "description": "Indicates teacher instructions",
+      "type": "string",
+      "title": "teacherInstructions"
+    },
+    "rationaleEnabled": {
+      "description": "Indicates if Rationale are enabled",
+      "type": "boolean",
+      "title": "rationaleEnabled"
+    },
+    "studentInstructionsEnabled": {
+      "description": "Indicates if Student Instructions are enabled",
+      "type": "boolean",
+      "title": "studentInstructionsEnabled"
+    },
+    "teacherInstructionsEnabled": {
+      "description": "Indicates if Teacher Instructions are enabled",
+      "type": "boolean",
+      "title": "teacherInstructionsEnabled"
+    },
+    "choiceLabelEnabled": {
+      "description": "Indicates if Choice Label is enabled",
+      "type": "boolean",
+      "title": "choiceLabelEnabled"
+    },
+    "spellCheckEnabled": {
+      "description": "Indicates if spellcheck is enabled for the author. Default value is true",
+      "type": "boolean",
+      "title": "spellCheckEnabled"
+    },
+    "note": {
+      "description": "Indicates the note for the answer",
+      "type": "string",
+      "title": "note"
+    },
+    "toolbarEditorPosition": {
+      "description": "Indicates the editor's toolbar position which can be 'bottom' or 'top'",
+      "default": ": 'bottom'",
+      "enum": [
+        "bottom",
+        "top"
+      ],
+      "type": "string",
+      "title": "toolbarEditorPosition"
+    },
+    "rubricEnabled": {
+      "description": "Indicates if Rubric is enabled",
+      "type": "boolean",
+      "title": "rubricEnabled"
+    },
+    "language": {
+      "description": "Indicates the language of the component\nSupported options: en, es, en_US, en-US, es_ES, es-ES, es_MX, es-MX",
+      "type": "string",
+      "title": "language"
+    },
+    "id": {
+      "description": "Identifier to identify the Pie Element in html markup, Must be unique within a pie item config.",
+      "type": "string",
+      "title": "id"
+    },
+    "element": {
+      "description": "The html Element tag name",
+      "type": "string",
+      "title": "element"
+    }
+  },
+  "required": [
+    "alternateResponses",
+    "choices",
+    "element",
+    "feedbackEnabled",
+    "id",
+    "rationaleEnabled",
+    "rubricEnabled",
+    "spellCheckEnabled",
+    "studentInstructionsEnabled",
+    "teacherInstructionsEnabled"
+  ],
+  "definitions": {
+    "EditableHtmlConfigureProp": {
+      "title": "EditableHtmlConfigureProp",
+      "type": "object",
+      "properties": {
+        "math": {
+          "title": "EditableHtmlButtonConfigure",
+          "type": "object",
+          "properties": {
+            "disabled": {
+              "description": "Indicates if the plugin is disabled or not",
+              "type": "boolean",
+              "title": "disabled"
+            }
+          }
+        },
+        "audio": {
+          "title": "EditableHtmlButtonConfigure",
+          "type": "object",
+          "properties": {
+            "disabled": {
+              "description": "Indicates if the plugin is disabled or not",
+              "type": "boolean",
+              "title": "disabled"
+            }
+          }
+        },
+        "video": {
+          "title": "EditableHtmlButtonConfigure",
+          "type": "object",
+          "properties": {
+            "disabled": {
+              "description": "Indicates if the plugin is disabled or not",
+              "type": "boolean",
+              "title": "disabled"
+            }
+          }
+        },
+        "image": {
+          "title": "EditableHtmlButtonConfigure",
+          "type": "object",
+          "properties": {
+            "disabled": {
+              "description": "Indicates if the plugin is disabled or not",
+              "type": "boolean",
+              "title": "disabled"
+            }
+          }
+        },
+        "customPlugins": {
+          "description": "An array of objects that determine custom plugins.\nA custom plugin is an object which determines how the button will look like (icon) and the event name that will be triggered when button gets pressed (event).\nExample can be found at https://github.com/pie-framework/pie-lib/blob/develop/packages/demo/pages/editable-html.js#L425.",
+          "type": "array",
+          "items": {
+            "title": "CustomPlugin",
+            "type": "object",
+            "properties": {
+              "event": {
+                "description": "The name of the custom event. It needs to be valid (only letters, numbers and \"_\" can be used).\nPIE will emit the event prefixed with \"PIE-\".\nEg: event = 'client_custom_event_A' => the emitted event will be \"PIE-client_custom_event_A\"",
+                "type": "string",
+                "title": "event"
+              },
+              "iconAlt": {
+                "description": "The alt for the custom button icon",
+                "type": "string",
+                "title": "iconAlt"
+              },
+              "iconType": {
+                "description": "The icon type.\nCurrently, only \"SVG\" is supported.",
+                "type": "string",
+                "title": "iconType"
+              },
+              "icon": {
+                "description": "The icon string. Currently, only \"SVG\" is supported, so it needs to be a valid svg.",
+                "type": "string",
+                "title": "icon"
+              }
+            },
+            "required": [
+              "event",
+              "icon",
+              "iconAlt",
+              "iconType"
+            ]
+          },
+          "title": "customPlugins"
+        },
+        "blockquote": {
+          "title": "EditableHtmlButtonConfigure",
+          "type": "object",
+          "properties": {
+            "disabled": {
+              "description": "Indicates if the plugin is disabled or not",
+              "type": "boolean",
+              "title": "disabled"
+            }
+          }
+        },
+        "h3": {
+          "title": "EditableHtmlButtonConfigure",
+          "type": "object",
+          "properties": {
+            "disabled": {
+              "description": "Indicates if the plugin is disabled or not",
+              "type": "boolean",
+              "title": "disabled"
+            }
+          }
+        },
+        "characters": {
+          "title": "EditableHtmlButtonConfigure",
+          "type": "object",
+          "properties": {
+            "disabled": {
+              "description": "Indicates if the plugin is disabled or not",
+              "type": "boolean",
+              "title": "disabled"
+            }
+          }
+        },
+        "bold": {
+          "title": "EditableHtmlButtonConfigure",
+          "type": "object",
+          "properties": {
+            "disabled": {
+              "description": "Indicates if the plugin is disabled or not",
+              "type": "boolean",
+              "title": "disabled"
+            }
+          }
+        },
+        "html": {
+          "title": "EditableHtmlButtonConfigure",
+          "type": "object",
+          "properties": {
+            "disabled": {
+              "description": "Indicates if the plugin is disabled or not",
+              "type": "boolean",
+              "title": "disabled"
+            }
+          }
+        },
+        "italic": {
+          "title": "EditableHtmlButtonConfigure",
+          "type": "object",
+          "properties": {
+            "disabled": {
+              "description": "Indicates if the plugin is disabled or not",
+              "type": "boolean",
+              "title": "disabled"
+            }
+          }
+        },
+        "ol_list": {
+          "title": "EditableHtmlButtonConfigure",
+          "type": "object",
+          "properties": {
+            "disabled": {
+              "description": "Indicates if the plugin is disabled or not",
+              "type": "boolean",
+              "title": "disabled"
+            }
+          }
+        },
+        "redo": {
+          "title": "EditableHtmlButtonConfigure",
+          "type": "object",
+          "properties": {
+            "disabled": {
+              "description": "Indicates if the plugin is disabled or not",
+              "type": "boolean",
+              "title": "disabled"
+            }
+          }
+        },
+        "strikethrough": {
+          "title": "EditableHtmlButtonConfigure",
+          "type": "object",
+          "properties": {
+            "disabled": {
+              "description": "Indicates if the plugin is disabled or not",
+              "type": "boolean",
+              "title": "disabled"
+            }
+          }
+        },
+        "sub": {
+          "title": "EditableHtmlButtonConfigure",
+          "type": "object",
+          "properties": {
+            "disabled": {
+              "description": "Indicates if the plugin is disabled or not",
+              "type": "boolean",
+              "title": "disabled"
+            }
+          }
+        },
+        "sup": {
+          "title": "EditableHtmlButtonConfigure",
+          "type": "object",
+          "properties": {
+            "disabled": {
+              "description": "Indicates if the plugin is disabled or not",
+              "type": "boolean",
+              "title": "disabled"
+            }
+          }
+        },
+        "table": {
+          "title": "EditableHtmlButtonConfigure",
+          "type": "object",
+          "properties": {
+            "disabled": {
+              "description": "Indicates if the plugin is disabled or not",
+              "type": "boolean",
+              "title": "disabled"
+            }
+          }
+        },
+        "ul_list": {
+          "title": "EditableHtmlButtonConfigure",
+          "type": "object",
+          "properties": {
+            "disabled": {
+              "description": "Indicates if the plugin is disabled or not",
+              "type": "boolean",
+              "title": "disabled"
+            }
+          }
+        },
+        "underline": {
+          "title": "EditableHtmlButtonConfigure",
+          "type": "object",
+          "properties": {
+            "disabled": {
+              "description": "Indicates if the plugin is disabled or not",
+              "type": "boolean",
+              "title": "disabled"
+            }
+          }
+        },
+        "undo": {
+          "title": "EditableHtmlButtonConfigure",
+          "type": "object",
+          "properties": {
+            "disabled": {
+              "description": "Indicates if the plugin is disabled or not",
+              "type": "boolean",
+              "title": "disabled"
+            }
+          }
+        }
+      }
+    },
+    "EditableHtmlButtonConfigure": {
+      "title": "EditableHtmlButtonConfigure",
+      "type": "object",
+      "properties": {
+        "disabled": {
+          "description": "Indicates if the plugin is disabled or not",
+          "type": "boolean",
+          "title": "disabled"
+        }
+      }
+    },
+    "CustomPlugin": {
+      "title": "CustomPlugin",
+      "type": "object",
+      "properties": {
+        "event": {
+          "description": "The name of the custom event. It needs to be valid (only letters, numbers and \"_\" can be used).\nPIE will emit the event prefixed with \"PIE-\".\nEg: event = 'client_custom_event_A' => the emitted event will be \"PIE-client_custom_event_A\"",
+          "type": "string",
+          "title": "event"
+        },
+        "iconAlt": {
+          "description": "The alt for the custom button icon",
+          "type": "string",
+          "title": "iconAlt"
+        },
+        "iconType": {
+          "description": "The icon type.\nCurrently, only \"SVG\" is supported.",
+          "type": "string",
+          "title": "iconType"
+        },
+        "icon": {
+          "description": "The icon string. Currently, only \"SVG\" is supported, so it needs to be a valid svg.",
+          "type": "string",
+          "title": "icon"
+        }
+      },
+      "required": [
+        "event",
+        "icon",
+        "iconAlt",
+        "iconType"
+      ]
+    },
+    "EditableHtmlPluginConfigure": {
+      "title": "EditableHtmlPluginConfigure",
+      "type": "object",
+      "properties": {
+        "inputConfiguration": {
+          "title": "EditableHtmlConfigureProp",
+          "type": "object",
+          "properties": {
+            "math": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "audio": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "video": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "image": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "customPlugins": {
+              "description": "An array of objects that determine custom plugins.\nA custom plugin is an object which determines how the button will look like (icon) and the event name that will be triggered when button gets pressed (event).\nExample can be found at https://github.com/pie-framework/pie-lib/blob/develop/packages/demo/pages/editable-html.js#L425.",
+              "type": "array",
+              "items": {
+                "title": "CustomPlugin",
+                "type": "object",
+                "properties": {
+                  "event": {
+                    "description": "The name of the custom event. It needs to be valid (only letters, numbers and \"_\" can be used).\nPIE will emit the event prefixed with \"PIE-\".\nEg: event = 'client_custom_event_A' => the emitted event will be \"PIE-client_custom_event_A\"",
+                    "type": "string",
+                    "title": "event"
+                  },
+                  "iconAlt": {
+                    "description": "The alt for the custom button icon",
+                    "type": "string",
+                    "title": "iconAlt"
+                  },
+                  "iconType": {
+                    "description": "The icon type.\nCurrently, only \"SVG\" is supported.",
+                    "type": "string",
+                    "title": "iconType"
+                  },
+                  "icon": {
+                    "description": "The icon string. Currently, only \"SVG\" is supported, so it needs to be a valid svg.",
+                    "type": "string",
+                    "title": "icon"
+                  }
+                },
+                "required": [
+                  "event",
+                  "icon",
+                  "iconAlt",
+                  "iconType"
+                ]
+              },
+              "title": "customPlugins"
+            },
+            "blockquote": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "h3": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "characters": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "bold": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "html": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "italic": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "ol_list": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "redo": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "strikethrough": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "sub": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "sup": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "table": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "ul_list": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "underline": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "undo": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            }
+          }
+        },
+        "settings": {
+          "description": "Indicates if the item has to be displayed in the Settings Panel",
+          "type": "boolean",
+          "title": "settings"
+        },
+        "label": {
+          "description": "Indicates the label for the item that has to be displayed in the Settings Panel",
+          "type": "string",
+          "title": "label"
+        }
+      }
+    },
+    "ConfigureProp": {
+      "title": "ConfigureProp",
+      "type": "object",
+      "properties": {
+        "settings": {
+          "description": "Indicates if the item has to be displayed in the Settings Panel",
+          "type": "boolean",
+          "title": "settings"
+        },
+        "label": {
+          "description": "Indicates the label for the item that has to be displayed in the Settings Panel",
+          "type": "string",
+          "title": "label"
+        }
+      }
+    },
+    "EditableHtmlPluginConfigureRequired": {
+      "title": "EditableHtmlPluginConfigureRequired",
+      "type": "object",
+      "properties": {
+        "inputConfiguration": {
+          "title": "EditableHtmlConfigureProp",
+          "type": "object",
+          "properties": {
+            "math": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "audio": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "video": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "image": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "customPlugins": {
+              "description": "An array of objects that determine custom plugins.\nA custom plugin is an object which determines how the button will look like (icon) and the event name that will be triggered when button gets pressed (event).\nExample can be found at https://github.com/pie-framework/pie-lib/blob/develop/packages/demo/pages/editable-html.js#L425.",
+              "type": "array",
+              "items": {
+                "title": "CustomPlugin",
+                "type": "object",
+                "properties": {
+                  "event": {
+                    "description": "The name of the custom event. It needs to be valid (only letters, numbers and \"_\" can be used).\nPIE will emit the event prefixed with \"PIE-\".\nEg: event = 'client_custom_event_A' => the emitted event will be \"PIE-client_custom_event_A\"",
+                    "type": "string",
+                    "title": "event"
+                  },
+                  "iconAlt": {
+                    "description": "The alt for the custom button icon",
+                    "type": "string",
+                    "title": "iconAlt"
+                  },
+                  "iconType": {
+                    "description": "The icon type.\nCurrently, only \"SVG\" is supported.",
+                    "type": "string",
+                    "title": "iconType"
+                  },
+                  "icon": {
+                    "description": "The icon string. Currently, only \"SVG\" is supported, so it needs to be a valid svg.",
+                    "type": "string",
+                    "title": "icon"
+                  }
+                },
+                "required": [
+                  "event",
+                  "icon",
+                  "iconAlt",
+                  "iconType"
+                ]
+              },
+              "title": "customPlugins"
+            },
+            "blockquote": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "h3": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "characters": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "bold": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "html": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "italic": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "ol_list": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "redo": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "strikethrough": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "sub": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "sup": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "table": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "ul_list": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "underline": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "undo": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            }
+          }
+        },
+        "required": {
+          "description": "Indicates if the item is required and the value cannot be empty",
+          "type": "boolean",
+          "title": "required"
+        },
+        "settings": {
+          "description": "Indicates if the item has to be displayed in the Settings Panel",
+          "type": "boolean",
+          "title": "settings"
+        },
+        "label": {
+          "description": "Indicates the label for the item that has to be displayed in the Settings Panel",
+          "type": "string",
+          "title": "label"
+        }
+      }
+    },
+    "ConfigureMaxImageDimensionsProp": {
+      "title": "ConfigureMaxImageDimensionsProp",
+      "type": "object",
+      "properties": {
+        "teacherInstructions": {
+          "description": "Indicates the max dimension for images in teacher instructions",
+          "type": "number",
+          "title": "teacherInstructions"
+        },
+        "prompt": {
+          "description": "Indicates the max dimension for images in prompt - this is also the default dimension for all other input fields if it's not specified",
+          "type": "number",
+          "title": "prompt"
+        },
+        "rationale": {
+          "description": "Indicates the max dimension for images in rationale",
+          "type": "number",
+          "title": "rationale"
+        },
+        "choicesWithPlacementArea": {
+          "description": "Only available for the width prop: indicates the max width for images in choices and choices labels when placement area is enabled",
+          "type": "number",
+          "title": "choicesWithPlacementArea"
+        },
+        "choicesWithoutPlacementArea": {
+          "description": "Only available for the width prop: indicates the max width for images in choices and choices labels when placement area is disabled",
+          "type": "number",
+          "title": "choicesWithoutPlacementArea"
+        },
+        "choices": {
+          "description": "Only available for the height prop: indicates the max height for images in choices and choices labels",
+          "type": "number",
+          "title": "choices"
+        }
+      }
+    },
+    "ConfigureMathMLProp": {
+      "title": "ConfigureMathMLProp",
+      "type": "object",
+      "properties": {
+        "mmlOutput": {
+          "description": "Indicates if model should have mathML output instead of latex",
+          "type": "number",
+          "title": "mmlOutput"
+        },
+        "mmlEditing": {
+          "description": "Indicates if mathML that's already in model should be editable",
+          "type": "number",
+          "title": "mmlEditing"
+        }
+      }
+    },
+    "ConfigurePropWithEnabled": {
+      "title": "ConfigurePropWithEnabled",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Indicates the value of the item if it affects config-ui\n(eg.: if item is a switch and displaying an input on the config-ui depends on the switch value: on/off)",
+          "type": "boolean",
+          "title": "enabled"
+        },
+        "settings": {
+          "description": "Indicates if the item has to be displayed in the Settings Panel",
+          "type": "boolean",
+          "title": "settings"
+        },
+        "label": {
+          "description": "Indicates the label for the item that has to be displayed in the Settings Panel",
+          "type": "string",
+          "title": "label"
+        }
+      }
+    },
+    "ConfigureLanguageOptionsProp": {
+      "title": "ConfigureLanguageOptionsProp",
+      "type": "object",
+      "properties": {
+        "value": {
+          "description": "Value of the language option",
+          "type": "string",
+          "title": "value"
+        },
+        "label": {
+          "description": "Label of the language option",
+          "type": "string",
+          "title": "label"
+        }
+      },
+      "required": [
+        "label",
+        "value"
+      ]
+    },
+    "Choice": {
+      "title": "Choice",
+      "type": "object",
+      "properties": {
+        "id": {
+          "description": "The id of the choice",
+          "type": "string",
+          "title": "id"
+        },
+        "label": {
+          "description": "The label of the choice",
+          "type": "string",
+          "title": "label"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "CorrectResponse": {
+      "title": "CorrectResponse",
+      "type": "object",
+      "properties": {
+        "id": {
+          "description": "The id of the correct response",
+          "type": "string",
+          "title": "id"
+        },
+        "weight": {
+          "description": "The weight of the correct response\nNote: weights are not configurable in the existing component so we'll ignore it for now",
+          "type": "number",
+          "title": "weight"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "AlternateResponse": {
+      "title": "AlternateResponse",
+      "type": "object",
+      "properties": {
+        "response": {
+          "description": "Array that contains the alternate response ids",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "response"
+        }
+      },
+      "required": [
+        "response"
+      ]
+    },
+    "ComplexFeedbackType": {
+      "title": "ComplexFeedbackType",
+      "type": "object",
+      "properties": {
+        "correct": {
+          "description": "Indicates the configuration for feedback when answer is correct",
+          "anyOf": [
+            {
+              "title": "DefaultFeedbackType",
+              "type": "object",
+              "properties": {
+                "type": {
+                  "description": "Indicates the feedback type",
+                  "enum": [
+                    "default",
+                    "none"
+                  ],
+                  "type": "string",
+                  "title": "type"
+                },
+                "default": {
+                  "description": "Indicates the feedback value",
+                  "type": "string",
+                  "title": "default"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            {
+              "title": "CustomFeedbackType",
+              "type": "object",
+              "properties": {
+                "type": {
+                  "description": "Indicates the feedback type",
+                  "type": "string",
+                  "enum": [
+                    "custom"
+                  ],
+                  "title": "type"
+                },
+                "custom": {
+                  "description": "Indicates the feedback custom value",
+                  "type": "string",
+                  "title": "custom"
+                }
+              },
+              "required": [
+                "custom",
+                "type"
+              ]
+            }
+          ],
+          "title": "correct"
+        },
+        "incorrect": {
+          "description": "Indicates the configuration for feedback when answer is incorrect",
+          "anyOf": [
+            {
+              "title": "DefaultFeedbackType",
+              "type": "object",
+              "properties": {
+                "type": {
+                  "description": "Indicates the feedback type",
+                  "enum": [
+                    "default",
+                    "none"
+                  ],
+                  "type": "string",
+                  "title": "type"
+                },
+                "default": {
+                  "description": "Indicates the feedback value",
+                  "type": "string",
+                  "title": "default"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            {
+              "title": "CustomFeedbackType",
+              "type": "object",
+              "properties": {
+                "type": {
+                  "description": "Indicates the feedback type",
+                  "type": "string",
+                  "enum": [
+                    "custom"
+                  ],
+                  "title": "type"
+                },
+                "custom": {
+                  "description": "Indicates the feedback custom value",
+                  "type": "string",
+                  "title": "custom"
+                }
+              },
+              "required": [
+                "custom",
+                "type"
+              ]
+            }
+          ],
+          "title": "incorrect"
+        },
+        "partial": {
+          "description": "Indicates the configuration for feedback when answer is partially correct",
+          "anyOf": [
+            {
+              "title": "DefaultFeedbackType",
+              "type": "object",
+              "properties": {
+                "type": {
+                  "description": "Indicates the feedback type",
+                  "enum": [
+                    "default",
+                    "none"
+                  ],
+                  "type": "string",
+                  "title": "type"
+                },
+                "default": {
+                  "description": "Indicates the feedback value",
+                  "type": "string",
+                  "title": "default"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            {
+              "title": "CustomFeedbackType",
+              "type": "object",
+              "properties": {
+                "type": {
+                  "description": "Indicates the feedback type",
+                  "type": "string",
+                  "enum": [
+                    "custom"
+                  ],
+                  "title": "type"
+                },
+                "custom": {
+                  "description": "Indicates the feedback custom value",
+                  "type": "string",
+                  "title": "custom"
+                }
+              },
+              "required": [
+                "custom",
+                "type"
+              ]
+            }
+          ],
+          "title": "partial"
+        }
+      },
+      "required": [
+        "correct",
+        "incorrect"
+      ]
+    },
+    "DefaultFeedbackType": {
+      "title": "DefaultFeedbackType",
+      "type": "object",
+      "properties": {
+        "type": {
+          "description": "Indicates the feedback type",
+          "enum": [
+            "default",
+            "none"
+          ],
+          "type": "string",
+          "title": "type"
+        },
+        "default": {
+          "description": "Indicates the feedback value",
+          "type": "string",
+          "title": "default"
+        }
+      },
+      "required": [
+        "type"
+      ]
+    },
+    "CustomFeedbackType": {
+      "title": "CustomFeedbackType",
+      "type": "object",
+      "properties": {
+        "type": {
+          "description": "Indicates the feedback type",
+          "type": "string",
+          "enum": [
+            "custom"
+          ],
+          "title": "type"
+        },
+        "custom": {
+          "description": "Indicates the feedback custom value",
+          "type": "string",
+          "title": "custom"
+        }
+      },
+      "required": [
+        "custom",
+        "type"
+      ]
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

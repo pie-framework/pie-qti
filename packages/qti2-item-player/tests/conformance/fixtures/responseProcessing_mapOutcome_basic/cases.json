@@ -1,0 +1,27 @@
+{
+  "id": "responseProcessing_mapOutcome_basic",
+  "cases": [
+    {
+      "name": "R=0 -> RAW=0 -> mapOutcome=0",
+      "responses": { "R": "0" },
+      "expect": { "outcomes": { "RAW": 0, "SCORE": 0 } }
+    },
+    {
+      "name": "R=1 -> RAW=1 -> mapOutcome=0.5",
+      "responses": { "R": "1" },
+      "expect": { "outcomes": { "RAW": 1, "SCORE": 0.5 } }
+    },
+    {
+      "name": "R=2 -> RAW=2 -> mapOutcome=1",
+      "responses": { "R": "2" },
+      "expect": { "outcomes": { "RAW": 2, "SCORE": 1 } }
+    },
+    {
+      "name": "R=3 -> RAW=3 -> mapOutcome uses defaultValue=0.25",
+      "responses": { "R": "3" },
+      "expect": { "outcomes": { "RAW": 3, "SCORE": 0.25 } }
+    }
+  ]
+}
+
+

@@ -1,0 +1,16 @@
+{
+  "id": "responseProcessing_inside_duration_statsOperator",
+  "title": "responseProcessing: inside + durationLT/durationGTE + statsOperator",
+  "description": "Covers QTI 2.2.2 expressions inside(point), durationLT/durationGTE, and statsOperator(name=...).",
+  "spec": "QTI 2.2.2",
+  "provenance": {
+    "source": "authored",
+    "license": "CC0-1.0"
+  },
+  "covers": [
+    "expr.durationGTE",
+    "expr.durationLT",
+    "expr.inside",
+    "expr.statsOperator"
+  ]
+}

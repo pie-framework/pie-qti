@@ -1,0 +1,12 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "exitResponse should stop evaluation of further responseProcessing statements.",
+  "covers": [
+    "exitResponse",
+    "responseProcessing",
+    "setOutcomeValue",
+    "stmt.exitResponse",
+    "stmt.setOutcomeValue"
+  ]
+}

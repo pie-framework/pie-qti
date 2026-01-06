@@ -1,0 +1,7 @@
+{
+  "id": "responseProcessing_mapResponse_pair_unordered",
+  "description": "mapResponse with baseType=pair should treat pair values as unordered when looking up mapEntry keys.",
+  "tags": ["responseProcessing", "mapResponse", "pair", "mapping"]
+}
+
+

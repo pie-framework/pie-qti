@@ -1,0 +1,16 @@
+{
+  "id": "template_randomInteger_printedVariable",
+  "seed": 123,
+  "cases": [
+    {
+      "name": "template_processing_initializes_A_and_B_deterministically",
+      "responses": { "RESPONSE": null },
+      "expect": {
+        "outcomes": { "SCORE": 0 },
+        "itemBodyContains": ["What is 5 + 3?"]
+      }
+    }
+  ]
+}
+
+

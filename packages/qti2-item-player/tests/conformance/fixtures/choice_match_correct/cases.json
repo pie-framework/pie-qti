@@ -1,0 +1,17 @@
+{
+  "id": "choice_match_correct",
+  "cases": [
+    {
+      "name": "correct",
+      "responses": { "RESPONSE": "A" },
+      "expect": { "score": 1, "maxScore": 1, "outcomes": { "SCORE": 1, "MAXSCORE": 1 } }
+    },
+    {
+      "name": "incorrect",
+      "responses": { "RESPONSE": "B" },
+      "expect": { "score": 0, "maxScore": 1, "outcomes": { "SCORE": 0, "MAXSCORE": 1 } }
+    }
+  ]
+}
+
+

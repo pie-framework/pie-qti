@@ -1,0 +1,11 @@
+{
+  "id": "mapResponse_integer_mapKey",
+  "cases": [
+    { "name": "number 1 matches mapKey '1'", "responses": { "R": 1 }, "expect": { "outcomes": { "SCORE": 2 } } },
+    { "name": "number -1 matches mapKey '-1'", "responses": { "R": -1 }, "expect": { "outcomes": { "SCORE": 3 } } },
+    { "name": "string '1' also matches mapKey '1'", "responses": { "R": "1" }, "expect": { "outcomes": { "SCORE": 2 } } },
+    { "name": "string '01' normalizes to 1 and matches mapKey '1'", "responses": { "R": "01" }, "expect": { "outcomes": { "SCORE": 2 } } }
+  ]
+}
+
+

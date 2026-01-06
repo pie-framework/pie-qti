@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+	xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 imsqti_v2p2p2.xsd"
+	identifier="responseProcessing_anyN"
+	title="responseProcessing_anyN"
+	adaptive="false"
+	timeDependent="false"
+>
+	<responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="identifier" />
+
+	<outcomeDeclaration identifier="SCORE" cardinality="single" baseType="integer">
+		<defaultValue><value>0</value></defaultValue>
+	</outcomeDeclaration>
+
+	<responseProcessing>
+		<responseCondition>
+			<responseIf>
+				<anyN min="2" max="2">
+					<member>
+						<baseValue baseType="identifier">A</baseValue>
+						<variable identifier="RESPONSE" />
+					</member>
+					<member>
+						<baseValue baseType="identifier">B</baseValue>
+						<variable identifier="RESPONSE" />
+					</member>
+					<member>
+						<baseValue baseType="identifier">C</baseValue>
+						<variable identifier="RESPONSE" />
+					</member>
+				</anyN>
+				<setOutcomeValue identifier="SCORE">
+					<baseValue baseType="integer">1</baseValue>
+				</setOutcomeValue>
+			</responseIf>
+			<responseElse>
+				<setOutcomeValue identifier="SCORE">
+					<baseValue baseType="integer">0</baseValue>
+				</setOutcomeValue>
+			</responseElse>
+		</responseCondition>
+	</responseProcessing>
+</assessmentItem>
+
+

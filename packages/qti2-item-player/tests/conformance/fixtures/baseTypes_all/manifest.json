@@ -1,0 +1,7 @@
+{
+  "id": "baseTypes_all",
+  "description": "Exercises all QTI baseTypes: boolean/integer/float/string/identifier/uri/pair/directedPair/point/duration/file/record.",
+  "tags": ["baseTypes", "responseProcessing"]
+}
+
+

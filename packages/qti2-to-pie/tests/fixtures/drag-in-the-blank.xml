@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/qti/qtiv2p2/imsqti_v2p2.xsd"
+                identifier="ditb-001"
+                title="Animal Classification"
+                adaptive="false"
+                timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="directedPair">
+    <correctResponse>
+      <value>choice1 gap1</value>
+      <value>choice2 gap2</value>
+    </correctResponse>
+  </responseDeclaration>
+  <itemBody>
+    <gapMatchInteraction responseIdentifier="RESPONSE">
+      <prompt>Drag the correct animal type into each blank:</prompt>
+      <gapText identifier="choice1">cat</gapText>
+      <gapText identifier="choice2">salmon</gapText>
+      <gapText identifier="choice3">eagle</gapText>
+      <p>The <gap identifier="gap1"/> is a mammal.</p>
+      <p>The <gap identifier="gap2"/> is a fish.</p>
+    </gapMatchInteraction>
+  </itemBody>
+</assessmentItem>

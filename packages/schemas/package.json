@@ -1,0 +1,29 @@
+{
+  "name": "@pie-framework/element-schemas",
+  "version": "1.0.0",
+  "description": "JSON schemas for PIE element validation",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc && bun run copy-schemas",
+    "copy-schemas": "mkdir -p dist/schemas && cp src/schemas/*.json dist/schemas/",
+    "clean": "rm -rf dist",
+    "sync": "bun run scripts/sync-schemas.ts",
+    "check-updates": "bun run scripts/check-schema-versions.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": ["pie", "schemas", "validation", "json-schema"],
+  "author": "Renaissance Learning",
+  "license": "ISC",
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

@@ -1,0 +1,26 @@
+{
+	"id": "responseProcessing_inside_duration_statsOperator",
+	"cases": [
+		{
+			"name": "inside_duration_statsOperator_happy_paths_and_nulls",
+			"responses": {},
+			"expect": {
+				"score": 0,
+				"outcomes": {
+					"INSIDE_RECT": true,
+					"INSIDE_ANY": true,
+					"INSIDE_NULL": null,
+					"DUR_LT": true,
+					"DUR_GTE": true,
+					"DUR_NULL": null,
+					"STATS_MEAN": 2.5,
+					"STATS_SAMPLE_SD": 1.2909944487358056,
+					"STATS_NULL_ON_NULL_MEMBER": null,
+					"STATS_NULL_ON_NON_NUMERIC": null
+				}
+			}
+		}
+	]
+}
+
+

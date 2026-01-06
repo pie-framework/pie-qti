@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="outcomeProcessing_outcomeCondition_equal" title="Outcome processing with outcomeCondition + equal" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="R" cardinality="single" baseType="identifier">
+    <correctResponse>
+      <value>A</value>
+    </correctResponse>
+  </responseDeclaration>
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="integer">
+    <defaultValue>
+      <value>0</value>
+    </defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <p>Pick A to score 1.</p>
+    <choiceInteraction responseIdentifier="R" maxChoices="1">
+      <simpleChoice identifier="A">A</simpleChoice>
+      <simpleChoice identifier="B">B</simpleChoice>
+    </choiceInteraction>
+  </itemBody>
+
+  <outcomeProcessing>
+    <outcomeCondition>
+      <outcomeIf>
+        <equal>
+          <variable identifier="R"/>
+          <baseValue baseType="identifier">A</baseValue>
+        </equal>
+        <setOutcomeValue identifier="SCORE">
+          <baseValue baseType="integer">1</baseValue>
+        </setOutcomeValue>
+      </outcomeIf>
+      <outcomeElse>
+        <setOutcomeValue identifier="SCORE">
+          <baseValue baseType="integer">0</baseValue>
+        </setOutcomeValue>
+      </outcomeElse>
+    </outcomeCondition>
+  </outcomeProcessing>
+</assessmentItem>
+
+

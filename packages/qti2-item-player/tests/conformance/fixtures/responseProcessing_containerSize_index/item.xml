@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+	xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+	identifier="containersize-index-demo"
+	title="containerSize + index"
+	adaptive="false"
+	timeDependent="false">
+
+	<responseDeclaration identifier="RESPONSE" cardinality="ordered" baseType="identifier"/>
+
+	<outcomeDeclaration identifier="COUNT" cardinality="single" baseType="integer">
+		<defaultValue><value>0</value></defaultValue>
+	</outcomeDeclaration>
+	<outcomeDeclaration identifier="FIRST" cardinality="single" baseType="identifier">
+		<defaultValue><value></value></defaultValue>
+	</outcomeDeclaration>
+	<outcomeDeclaration identifier="FOURTH_IS_NULL" cardinality="single" baseType="boolean">
+		<defaultValue><value>false</value></defaultValue>
+	</outcomeDeclaration>
+	<outcomeDeclaration identifier="ORDERED_SIZE" cardinality="single" baseType="integer">
+		<defaultValue><value>0</value></defaultValue>
+	</outcomeDeclaration>
+	<outcomeDeclaration identifier="MULTIPLE_SIZE" cardinality="single" baseType="integer">
+		<defaultValue><value>0</value></defaultValue>
+	</outcomeDeclaration>
+
+	<itemBody>
+		<p>Conformance: containerSize + index.</p>
+	</itemBody>
+
+	<responseProcessing>
+		<responseCondition>
+			<responseElse>
+				<setOutcomeValue identifier="COUNT">
+					<containerSize>
+						<variable identifier="RESPONSE"/>
+					</containerSize>
+				</setOutcomeValue>
+
+				<setOutcomeValue identifier="FIRST">
+					<index>
+						<variable identifier="RESPONSE"/>
+						<baseValue baseType="integer">1</baseValue>
+					</index>
+				</setOutcomeValue>
+
+				<setOutcomeValue identifier="FOURTH_IS_NULL">
+					<isNull>
+						<index>
+							<variable identifier="RESPONSE"/>
+							<baseValue baseType="integer">4</baseValue>
+						</index>
+					</isNull>
+				</setOutcomeValue>
+
+				<setOutcomeValue identifier="ORDERED_SIZE">
+					<containerSize>
+						<ordered>
+							<baseValue baseType="integer">1</baseValue>
+							<baseValue baseType="integer">2</baseValue>
+						</ordered>
+					</containerSize>
+				</setOutcomeValue>
+
+				<setOutcomeValue identifier="MULTIPLE_SIZE">
+					<containerSize>
+						<multiple>
+							<baseValue baseType="integer">1</baseValue>
+							<baseValue baseType="integer">2</baseValue>
+							<baseValue baseType="integer">3</baseValue>
+						</multiple>
+					</containerSize>
+				</setOutcomeValue>
+			</responseElse>
+		</responseCondition>
+	</responseProcessing>
+</assessmentItem>
+
+

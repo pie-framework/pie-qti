@@ -1,0 +1,91 @@
+version: 1
+
+component:
+  interactionType: extendedTextInteraction
+  tagName: pie-qti-extended-text
+
+examplesApp:
+  app: "@pie-qti/qti2-example"
+  routeTemplate: "/item-demo/{sampleId}"
+
+evals:
+  - id: extended-text/extended-text/good-response
+    sampleId: extended-text
+    gradeBand: "6-10"
+    subject: science
+    intent: "Human-scored extended response: verify response capture + rubric visibility; score remains 0."
+    steps:
+      - action: navigate
+        path: "/item-demo/extended-text"
+      - action: observe
+        target:
+          description: "Candidate-facing rubric note is visible"
+          hint: "Candidate rubric explains it will be scored by instructor"
+      - action: typeRichText
+        target:
+          description: "Enter a scientifically accurate explanation"
+          hint: "In the rich text editor inside `pie-qti-extended-text`"
+        value: "Mitochondria are organelles where cellular respiration happens. They convert energy from nutrients into ATP, which cells use for many processes."
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+    expected:
+      responses:
+        RESPONSE:
+          containsAll:
+            - "Mitochondria"
+            - "ATP"
+            - "cellular respiration"
+      outcomes:
+        SCORE:
+          equals: 0.0
+        MAXSCORE:
+          equals: 4.0
+    spiritChecks:
+      - "The editor supports multi-line writing and doesn’t feel cramped for students."
+      - "The prompt asks for explanation (not just a definition), aligned with assessment intent."
+
+  - id: extended-text/extended-text/partial-response
+    sampleId: extended-text
+    gradeBand: "6-10"
+    subject: science
+    intent: "Partially correct idea should still be captured; automated score remains 0."
+    steps:
+      - action: navigate
+        path: "/item-demo/extended-text"
+      - action: typeRichText
+        target:
+          description: "Enter a short partial explanation"
+        value: "Mitochondria help make energy for the cell."
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+    expected:
+      responses:
+        RESPONSE:
+          contains: "make energy"
+      outcomes:
+        SCORE:
+          equals: 0.0
+
+  - id: extended-text/extended-text/wrong-response
+    sampleId: extended-text
+    gradeBand: "6-10"
+    subject: science
+    intent: "Clearly incorrect response should still be captured; automated score remains 0."
+    steps:
+      - action: navigate
+        path: "/item-demo/extended-text"
+      - action: typeRichText
+        target:
+          description: "Enter an irrelevant answer"
+        value: "Mitochondria are the part of the cell that stores DNA in the nucleus."
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+    expected:
+      outcomes:
+        SCORE:
+          equals: 0.0
+
+

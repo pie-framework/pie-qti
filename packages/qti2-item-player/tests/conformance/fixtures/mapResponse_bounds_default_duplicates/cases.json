@@ -1,0 +1,27 @@
+{
+  "id": "mapResponse_bounds_default_duplicates",
+  "cases": [
+    {
+      "name": "empty selection clamps to lowerBound",
+      "responses": { "R": [] },
+      "expect": { "outcomes": { "SCORE": 2 } }
+    },
+    {
+      "name": "unknown uses defaultValue then clamps to lowerBound",
+      "responses": { "R": ["X"] },
+      "expect": { "outcomes": { "SCORE": 2 } }
+    },
+    {
+      "name": "A + B + unknown clamps to upperBound after sum",
+      "responses": { "R": ["A", "B", "X"] },
+      "expect": { "outcomes": { "SCORE": 15 } }
+    },
+    {
+      "name": "duplicate responses are counted (and then clamped)",
+      "responses": { "R": ["A", "A"] },
+      "expect": { "outcomes": { "SCORE": 15 } }
+    }
+  ]
+}
+
+

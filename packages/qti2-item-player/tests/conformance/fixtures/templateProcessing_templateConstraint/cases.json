@@ -1,0 +1,15 @@
+{
+  "id": "templateProcessing_templateConstraint",
+  "cases": [
+    {
+      "name": "restarts_until_constraint_holds",
+      "responses": {},
+      "expect": {
+        "score": 3,
+        "outcomes": { "SCORE": 3 }
+      }
+    }
+  ]
+}
+
+

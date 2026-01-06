@@ -1,0 +1,59 @@
+version: 1
+
+component:
+  interactionType: graphicOrderInteraction
+  tagName: pie-qti-graphic-order
+
+examplesApp:
+  app: "@pie-qti/qti2-example"
+  routeTemplate: "/item-demo/{sampleId}"
+
+evals:
+  - id: graphic-order/graphic-order/correct
+    sampleId: graphic-order
+    gradeBand: "4-8"
+    subject: science
+    intent: "Correct ordering scores 1 (all-or-nothing match)."
+    steps:
+      - action: navigate
+        path: "/item-demo/graphic-order"
+      - action: dragReorder
+        target:
+          description: "Order from bottom to top: Bedrock → Sedimentary Rock → Top Soil"
+          hint: "Within `pie-qti-graphic-order`, reorder items so RESPONSE = [BEDROCK, SEDIMENTARY, TOPSOIL]"
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+    expected:
+      responses:
+        RESPONSE:
+          equalsOrdered:
+            - "BEDROCK"
+            - "SEDIMENTARY"
+            - "TOPSOIL"
+      outcomes:
+        SCORE:
+          equals: 1.0
+    spiritChecks:
+      - "The ordering intent is clear (bottom-to-top) and matches the prompt language."
+
+  - id: graphic-order/graphic-order/wrong
+    sampleId: graphic-order
+    gradeBand: "4-8"
+    subject: science
+    intent: "Incorrect ordering scores 0."
+    steps:
+      - action: navigate
+        path: "/item-demo/graphic-order"
+      - action: dragReorder
+        target:
+          description: "Create a wrong order (e.g., TOPSOIL first)."
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+    expected:
+      outcomes:
+        SCORE:
+          equals: 0.0
+
+

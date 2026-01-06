@@ -1,0 +1,8 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "responseProcessing template=match_nothing fallback (no responseCondition blocks).",
+  "covers": ["responseProcessing.template.match_nothing"]
+}
+
+

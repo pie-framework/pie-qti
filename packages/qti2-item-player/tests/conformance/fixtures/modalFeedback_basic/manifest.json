@@ -1,0 +1,13 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "Modal feedback selection based on outcomeIdentifier equality and showHide=show.",
+  "covers": [
+    "correct",
+    "expr.correct",
+    "match",
+    "modalFeedback",
+    "setOutcomeValue",
+    "stmt.setOutcomeValue"
+  ]
+}

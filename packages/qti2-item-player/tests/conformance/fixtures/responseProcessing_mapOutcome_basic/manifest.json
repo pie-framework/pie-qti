@@ -1,0 +1,18 @@
+{
+  "id": "responseProcessing_mapOutcome_basic",
+  "title": "responseProcessing: mapOutcome",
+  "specVersion": "imsqti_v2p2",
+  "license": "CC0-1.0",
+  "source": "authored",
+  "notes": "Maps an outcome variable through outcomeDeclaration<mapping> using <mapOutcome> including defaultValue and bounds.",
+  "covers": [
+    "baseValue",
+    "expr.baseValue",
+    "expr.mapOutcome",
+    "expr.variable",
+    "mapOutcome",
+    "stmt.setOutcomeValue"
+  ]
+}
+
+

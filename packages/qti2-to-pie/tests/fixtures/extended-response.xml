@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/qti/qtiv2p2/imsqti_v2p2.xsd"
+                identifier="er-001"
+                title="Essay Question"
+                adaptive="false"
+                timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="string">
+  </responseDeclaration>
+  <itemBody>
+    <p>Explain the significance of the American Revolution.</p>
+    <extendedTextInteraction responseIdentifier="RESPONSE" expectedLines="10">
+      <prompt>Write your answer below:</prompt>
+    </extendedTextInteraction>
+  </itemBody>
+</assessmentItem>

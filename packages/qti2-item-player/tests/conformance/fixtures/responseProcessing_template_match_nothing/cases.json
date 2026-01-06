@@ -1,0 +1,17 @@
+{
+  "id": "responseProcessing_template_match_nothing",
+  "cases": [
+    {
+      "name": "empty_response_scores_maxScore",
+      "responses": {},
+      "expect": { "outcomes": { "SCORE": 1, "MAXSCORE": 1 } }
+    },
+    {
+      "name": "non_empty_response_scores_zero",
+      "responses": { "RESPONSE": "A" },
+      "expect": { "outcomes": { "SCORE": 0, "MAXSCORE": 1 } }
+    }
+  ]
+}
+
+

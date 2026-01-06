@@ -1,0 +1,12 @@
+{
+  "id": "responseProcessing_exitResponse",
+  "cases": [
+    {
+      "name": "exit prevents later SCORE override",
+      "responses": { "R": "anything" },
+      "expect": { "outcomes": { "SCORE": 1 } }
+    }
+  ]
+}
+
+

@@ -1,0 +1,13 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "Covers inline <responseProcessingFragment> execution in responseProcessing.",
+  "covers": [
+    "exitResponse",
+    "responseProcessing",
+    "responseProcessingFragment",
+    "setOutcomeValue",
+    "stmt.exitResponse",
+    "stmt.setOutcomeValue"
+  ]
+}

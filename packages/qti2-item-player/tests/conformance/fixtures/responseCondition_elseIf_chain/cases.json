@@ -1,0 +1,10 @@
+{
+  "id": "responseCondition_elseIf_chain",
+  "cases": [
+    { "name": "negative", "responses": { "RESPONSE": -2 }, "expect": { "outcomes": { "SCORE": -1 } } },
+    { "name": "zero", "responses": { "RESPONSE": 0 }, "expect": { "outcomes": { "SCORE": 0 } } },
+    { "name": "positive", "responses": { "RESPONSE": 2 }, "expect": { "outcomes": { "SCORE": 1 } } }
+  ]
+}
+
+

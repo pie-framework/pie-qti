@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+  xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="responseProcessing_subtract_divide"
+  title="responseProcessing subtract + divide"
+  adaptive="false"
+  timeDependent="false"
+>
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="integer" />
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="integer">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <p>Subtract and divide should work for numeric operands.</p>
+  </itemBody>
+
+  <responseProcessing>
+    <setOutcomeValue identifier="SCORE">
+      <sum>
+        <subtract>
+          <baseValue baseType="integer">5</baseValue>
+          <baseValue baseType="integer">2</baseValue>
+        </subtract>
+        <divide>
+          <baseValue baseType="integer">6</baseValue>
+          <baseValue baseType="integer">2</baseValue>
+        </divide>
+      </sum>
+    </setOutcomeValue>
+  </responseProcessing>
+</assessmentItem>
+
+

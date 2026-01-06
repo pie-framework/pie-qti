@@ -1,0 +1,22 @@
+{
+  "id": "responseProcessing_misc_math_string_stats",
+  "title": "responseProcessing: substring + integerDivide/mod/power + mean/variance/sd + isTypeOf",
+  "description": "Adds coverage for several common QTI processing operators used in scoring formulas and basic type checks.",
+  "spec": "custom",
+  "provenance": {
+    "source": "authored",
+    "license": "CC0-1.0"
+  },
+  "covers": [
+    "expr.integerDivide",
+    "expr.isTypeOf",
+    "expr.mean",
+    "expr.mod",
+    "expr.popSD",
+    "expr.popVariance",
+    "expr.power",
+    "expr.sampleSD",
+    "expr.sampleVariance",
+    "expr.substring"
+  ]
+}

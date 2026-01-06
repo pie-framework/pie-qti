@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                identifier="choice-with-object-passage-2"
+                title="Another Question About Industrial Revolution"
+                adaptive="false"
+                timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier">
+    <correctResponse>
+      <value>C</value>
+    </correctResponse>
+  </responseDeclaration>
+  <itemBody>
+    <object data="passages/industrial-revolution.xml" type="text/html">
+      The Industrial Revolution passage
+    </object>
+    <p>Which innovation is mentioned as a key development during the Industrial Revolution?</p>
+    <choiceInteraction responseIdentifier="RESPONSE" shuffle="false" maxChoices="1">
+      <simpleChoice identifier="A">The printing press</simpleChoice>
+      <simpleChoice identifier="B">The telephone</simpleChoice>
+      <simpleChoice identifier="C">The steam engine</simpleChoice>
+      <simpleChoice identifier="D">The computer</simpleChoice>
+    </choiceInteraction>
+  </itemBody>
+</assessmentItem>

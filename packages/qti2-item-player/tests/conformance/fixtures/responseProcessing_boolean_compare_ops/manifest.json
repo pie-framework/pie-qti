@@ -1,0 +1,27 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "Covers boolean composition (and/or/not) + numeric comparisons (lt/lte/gt/gte) in responseProcessing branching, including boundary logic.",
+  "covers": [
+    "and",
+    "expr.and",
+    "expr.gt",
+    "expr.gte",
+    "expr.isNull",
+    "expr.lt",
+    "expr.lte",
+    "expr.not",
+    "expr.or",
+    "gt",
+    "gte",
+    "isNull",
+    "lt",
+    "lte",
+    "not",
+    "or",
+    "responseCondition",
+    "setOutcomeValue",
+    "stmt.responseCondition",
+    "stmt.setOutcomeValue"
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "Covers numeric scoring operators max/min/round/truncate composed with sum/product in responseProcessing.",
+  "covers": [
+    "expr.max",
+    "expr.min",
+    "expr.product",
+    "expr.round",
+    "expr.sum",
+    "expr.truncate",
+    "max",
+    "min",
+    "product",
+    "round",
+    "setOutcomeValue",
+    "stmt.setOutcomeValue",
+    "sum",
+    "truncate"
+  ]
+}

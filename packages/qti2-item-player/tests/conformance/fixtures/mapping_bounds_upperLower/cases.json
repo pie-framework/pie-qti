@@ -1,0 +1,12 @@
+{
+  "id": "mapping_bounds_upperLower",
+  "cases": [
+    {
+      "name": "upperBound_should_clamp_mapped_value",
+      "responses": { "RESPONSE": "A" },
+      "expect": { "outcomes": { "SCORE": 1 } }
+    }
+  ]
+}
+
+

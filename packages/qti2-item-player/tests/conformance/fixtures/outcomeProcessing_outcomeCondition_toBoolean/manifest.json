@@ -1,0 +1,16 @@
+{
+  "id": "outcomeProcessing_outcomeCondition_toBoolean",
+  "title": "outcomeCondition coerces non-boolean expressions via toBoolean",
+  "description": "Verifies outcomeCondition evaluates its condition in a boolean context for integer response values (0/NULL => false; non-zero => true).",
+  "spec": "QTI 2.2.2",
+  "provenance": {
+    "source": "authored",
+    "license": "CC0-1.0"
+  },
+  "covers": [
+    "baseValue",
+    "expr.baseValue",
+    "outcomeCondition",
+    "stmt.outcomeCondition"
+  ]
+}

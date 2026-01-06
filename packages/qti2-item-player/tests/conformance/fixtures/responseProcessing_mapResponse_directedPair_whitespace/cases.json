@@ -1,0 +1,23 @@
+{
+  "id": "responseProcessing_mapResponse_directedPair_whitespace",
+  "seed": 42,
+  "cases": [
+    {
+      "name": "matches despite whitespace differences",
+      "responses": { "RESPONSE": "W1 G1" },
+      "expect": { "score": 1 }
+    },
+    {
+      "name": "does not match reversed directedPair",
+      "responses": { "RESPONSE": "G1 W1" },
+      "expect": { "score": 0 }
+    },
+    {
+      "name": "matches with extra whitespace in response",
+      "responses": { "RESPONSE": "W1      G1" },
+      "expect": { "score": 1 }
+    }
+  ]
+}
+
+

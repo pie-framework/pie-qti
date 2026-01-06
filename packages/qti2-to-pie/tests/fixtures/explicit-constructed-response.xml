@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/qti/qtiv2p2/imsqti_v2p2.xsd"
+                identifier="ecr-001"
+                title="Geography Fill-in"
+                adaptive="false"
+                timeDependent="false">
+  <responseDeclaration identifier="RESPONSE_1" cardinality="single" baseType="string">
+    <correctResponse>
+      <value>Paris</value>
+    </correctResponse>
+  </responseDeclaration>
+  <responseDeclaration identifier="RESPONSE_2" cardinality="single" baseType="string">
+    <correctResponse>
+      <value>London</value>
+    </correctResponse>
+  </responseDeclaration>
+  <itemBody>
+    <p>The capital of France is <textEntryInteraction responseIdentifier="RESPONSE_1" expectedLength="15" />.</p>
+    <p>The capital of the United Kingdom is <textEntryInteraction responseIdentifier="RESPONSE_2" expectedLength="15" />.</p>
+  </itemBody>
+</assessmentItem>

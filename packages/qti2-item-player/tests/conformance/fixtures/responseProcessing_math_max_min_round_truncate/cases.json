@@ -1,0 +1,22 @@
+{
+  "id": "responseProcessing_math_max_min_round_truncate",
+  "cases": [
+    {
+      "name": "R=4.5 -> max=5, min=4.5, round=5, truncate=4",
+      "responses": { "R": 4.5 },
+      "expect": { "outcomes": { "SCORE": 5504 } }
+    },
+    {
+      "name": "R=5.5 -> max=5.5, min=5, round=6, truncate=5",
+      "responses": { "R": 5.5 },
+      "expect": { "outcomes": { "SCORE": 6065 } }
+    },
+    {
+      "name": "R=-1.5 -> max=5, min=-1.5, round=-1, truncate=-1",
+      "responses": { "R": -1.5 },
+      "expect": { "outcomes": { "SCORE": 4839 } }
+    }
+  ]
+}
+
+

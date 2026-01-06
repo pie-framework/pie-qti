@@ -1,0 +1,88 @@
+version: 1
+
+component:
+  interactionType: graphicAssociateInteraction
+  tagName: pie-qti-graphic-associate
+
+examplesApp:
+  app: "@pie-qti/qti2-example"
+  routeTemplate: "/item-demo/{sampleId}"
+
+evals:
+  - id: graphic-associate/graphic-associate/correct
+    sampleId: graphic-associate
+    gradeBand: "6-10"
+    subject: science
+    intent: "All associations correct → score 1 (exact match)."
+    steps:
+      - action: navigate
+        path: "/item-demo/graphic-associate"
+      - action: clickPair
+        target:
+          description: "Connect Heart → Pump Blood"
+        pair: "HEART PUMP"
+      - action: clickPair
+        target:
+          description: "Connect Lungs → Gas Exchange"
+        pair: "LUNGS OXYGEN"
+      - action: clickPair
+        target:
+          description: "Connect Liver → Filter Blood"
+        pair: "LIVER BLOOD"
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+    expected:
+      responses:
+        RESPONSE:
+          containsAll:
+            - "HEART PUMP"
+            - "LUNGS OXYGEN"
+            - "LIVER BLOOD"
+      outcomes:
+        SCORE:
+          equals: 1.0
+    spiritChecks:
+      - "Hotspots are labeled clearly and connections are visible (lines or obvious pair list)."
+      - "The task matches the learning goal (organ ↔ function) without ambiguity."
+
+  - id: graphic-associate/graphic-associate/partial-like
+    sampleId: graphic-associate
+    gradeBand: "6-10"
+    subject: science
+    intent: "Partially correct (2/3) still scores 0 because responseProcessing uses exact match."
+    steps:
+      - action: navigate
+        path: "/item-demo/graphic-associate"
+      - action: clickPair
+        pair: "HEART PUMP"
+      - action: clickPair
+        pair: "LUNGS OXYGEN"
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+    expected:
+      outcomes:
+        SCORE:
+          equals: 0.0
+
+  - id: graphic-associate/graphic-associate/wrong
+    sampleId: graphic-associate
+    gradeBand: "6-10"
+    subject: science
+    intent: "Wrong associations score 0."
+    steps:
+      - action: navigate
+        path: "/item-demo/graphic-associate"
+      - action: clickPair
+        target:
+          description: "Make incorrect connections (e.g., Heart → Filter Blood)."
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+    expected:
+      outcomes:
+        SCORE:
+          equals: 0.0
+
+

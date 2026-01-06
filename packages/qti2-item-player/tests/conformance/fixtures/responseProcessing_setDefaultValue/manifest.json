@@ -1,0 +1,9 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "setDefaultValue resets a declaration to its declared defaultValue (or NULL if absent).",
+  "covers": [
+    "setDefaultValue",
+    "stmt.setDefaultValue"
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "id": "responseProcessing_boolean_compare_ops",
+  "cases": [
+    {
+      "name": "missing response is null -> SCORE 0",
+      "responses": {},
+      "expect": { "outcomes": { "SCORE": 0 } }
+    },
+    {
+      "name": "within (10,20) -> SCORE 1",
+      "responses": { "N": 15 },
+      "expect": { "outcomes": { "SCORE": 1 } }
+    },
+    {
+      "name": "boundary 10 -> SCORE 3",
+      "responses": { "N": 10 },
+      "expect": { "outcomes": { "SCORE": 3 } }
+    },
+    {
+      "name": "boundary 20 -> SCORE 3",
+      "responses": { "N": 20 },
+      "expect": { "outcomes": { "SCORE": 3 } }
+    },
+    {
+      "name": "below 10 -> SCORE 2",
+      "responses": { "N": 9 },
+      "expect": { "outcomes": { "SCORE": 2 } }
+    },
+    {
+      "name": "above 20 -> SCORE 2",
+      "responses": { "N": 21 },
+      "expect": { "outcomes": { "SCORE": 2 } }
+    }
+  ]
+}
+
+

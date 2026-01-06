@@ -1,0 +1,43 @@
+{
+	"name": "@acme/likert-scale-plugin",
+	"version": "1.0.0",
+	"description": "Likert scale choice interactions for QTI assessments",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"svelte": "./dist/index.js",
+			"default": "./dist/index.js"
+		}
+	},
+	"scripts": {
+		"build": "tsc",
+		"test": "bun test",
+		"typecheck": "tsc --noEmit"
+	},
+	"peerDependencies": {
+		"@pie-qti/qti2-item-player": "workspace:*",
+		"svelte": "^5.46.1"
+	},
+	"devDependencies": {
+		"@pie-qti/qti2-item-player": "workspace:*",
+		"@types/bun": "^1.3.5",
+		"node-html-parser": "^6.1.13",
+		"svelte": "^5.46.1",
+		"typescript": "^5.9.3"
+	},
+	"files": [
+		"dist",
+		"README.md"
+	],
+	"keywords": [
+		"qti",
+		"plugin",
+		"likert",
+		"scale",
+		"assessment"
+	],
+	"license": "MIT"
+}

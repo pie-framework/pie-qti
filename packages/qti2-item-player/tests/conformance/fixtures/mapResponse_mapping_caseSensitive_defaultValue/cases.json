@@ -1,0 +1,9 @@
+{
+  "id": "mapResponse_mapping_caseSensitive_defaultValue",
+  "cases": [
+    { "name": "case-insensitive hit from mapping attribute", "responses": { "R": "PhotoSynthesis" }, "expect": { "outcomes": { "SCORE": 2 } } },
+    { "name": "miss uses defaultValue", "responses": { "R": "unknown" }, "expect": { "outcomes": { "SCORE": 7 } } }
+  ]
+}
+
+

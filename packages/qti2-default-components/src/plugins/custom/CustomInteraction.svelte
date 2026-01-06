@@ -1,0 +1,62 @@
+<svelte:options customElement="pie-qti-custom" />
+
+<script lang="ts">
+	import type { CustomInteractionData, InteractionData } from '@pie-qti/qti2-item-player';
+	import CustomInteractionFallback from '../../shared/components/CustomInteractionFallback.svelte';
+	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
+	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
+
+	interface Props {
+		interaction?: InteractionData | string;
+		response?: string | null;
+		disabled?: boolean;
+		typeset?: (element: HTMLElement) => void;
+		onChange?: (value: string | null) => void;
+	}
+
+	let { interaction = $bindable(), response = $bindable(), disabled = false, typeset, onChange }: Props = $props();
+
+	// Parse props that may be JSON strings (web component usage)
+	const parsedInteraction = $derived(parseJsonProp<InteractionData>(interaction));
+	const parsedResponse = $derived(parseJsonProp<string>(response));
+
+	// Type assertion for custom interaction data
+	const customInteraction = $derived(parsedInteraction as CustomInteractionData | undefined);
+
+	function handleChange(value: string | null) {
+		response = value;
+		// Call onChange callback if provided (for Svelte component usage)
+		onChange?.(value);
+		// Dispatch custom event for web component usage
+		const event = new CustomEvent('qti-change', {
+			detail: {
+				responseId: customInteraction?.responseId,
+				value: value,
+				timestamp: Date.now(),
+			},
+			bubbles: true,
+			composed: true,
+		});
+		dispatchEvent(event);
+	}
+</script>
+
+<ShadowBaseStyles />
+
+<div part="root" class="qti-custom-interaction">
+	{#if !customInteraction}
+		<div class="alert alert-error">No interaction data provided</div>
+	{:else}
+		<!-- @ts-expect-error - CustomInteractionFallback has stricter prop types -->
+		<CustomInteractionFallback
+			responseId={customInteraction.responseId}
+			prompt={customInteraction.prompt}
+			rawAttributes={customInteraction.rawAttributes}
+			xml={customInteraction.xml}
+			{disabled}
+			value={parsedResponse}
+			onChange={handleChange}
+			testIdInput={`custom-input-${customInteraction.responseId}`}
+		/>
+	{/if}
+</div>

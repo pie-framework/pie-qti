@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+	xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+	identifier="misc-math-string-stats"
+	title="Misc operators"
+	adaptive="false"
+	timeDependent="false">
+
+	<outcomeDeclaration identifier="SUB" cardinality="single" baseType="string">
+		<defaultValue><value></value></defaultValue>
+	</outcomeDeclaration>
+	<outcomeDeclaration identifier="IDIV" cardinality="single" baseType="integer">
+		<defaultValue><value>0</value></defaultValue>
+	</outcomeDeclaration>
+	<outcomeDeclaration identifier="MOD" cardinality="single" baseType="float">
+		<defaultValue><value>0</value></defaultValue>
+	</outcomeDeclaration>
+	<outcomeDeclaration identifier="POW" cardinality="single" baseType="float">
+		<defaultValue><value>0</value></defaultValue>
+	</outcomeDeclaration>
+	<outcomeDeclaration identifier="MEAN" cardinality="single" baseType="float">
+		<defaultValue><value>0</value></defaultValue>
+	</outcomeDeclaration>
+	<outcomeDeclaration identifier="SVAR" cardinality="single" baseType="float">
+		<defaultValue><value>0</value></defaultValue>
+	</outcomeDeclaration>
+	<outcomeDeclaration identifier="SSD" cardinality="single" baseType="float">
+		<defaultValue><value>0</value></defaultValue>
+	</outcomeDeclaration>
+	<outcomeDeclaration identifier="PVAR_MILLI" cardinality="single" baseType="float">
+		<defaultValue><value>0</value></defaultValue>
+	</outcomeDeclaration>
+	<outcomeDeclaration identifier="PSD_MILLI" cardinality="single" baseType="float">
+		<defaultValue><value>0</value></defaultValue>
+	</outcomeDeclaration>
+	<outcomeDeclaration identifier="TYPE_INT_OK" cardinality="single" baseType="boolean">
+		<defaultValue><value>false</value></defaultValue>
+	</outcomeDeclaration>
+	<outcomeDeclaration identifier="TYPE_FLOAT_OK" cardinality="single" baseType="boolean">
+		<defaultValue><value>false</value></defaultValue>
+	</outcomeDeclaration>
+
+	<itemBody>
+		<p>Conformance: misc operators.</p>
+	</itemBody>
+
+	<responseProcessing>
+		<responseCondition>
+			<responseElse>
+				<setOutcomeValue identifier="SUB">
+					<substring>
+						<baseValue baseType="string">ABCDE</baseValue>
+						<baseValue baseType="integer">2</baseValue>
+						<baseValue baseType="integer">2</baseValue>
+					</substring>
+				</setOutcomeValue>
+
+				<setOutcomeValue identifier="IDIV">
+					<integerDivide>
+						<baseValue baseType="integer">7</baseValue>
+						<baseValue baseType="integer">2</baseValue>
+					</integerDivide>
+				</setOutcomeValue>
+
+				<setOutcomeValue identifier="MOD">
+					<mod>
+						<baseValue baseType="integer">7</baseValue>
+						<baseValue baseType="integer">2</baseValue>
+					</mod>
+				</setOutcomeValue>
+
+				<setOutcomeValue identifier="POW">
+					<power>
+						<baseValue baseType="integer">2</baseValue>
+						<baseValue baseType="integer">3</baseValue>
+					</power>
+				</setOutcomeValue>
+
+				<setOutcomeValue identifier="MEAN">
+					<mean>
+						<multiple>
+							<baseValue baseType="integer">1</baseValue>
+							<baseValue baseType="integer">2</baseValue>
+							<baseValue baseType="integer">3</baseValue>
+						</multiple>
+					</mean>
+				</setOutcomeValue>
+
+				<setOutcomeValue identifier="SVAR">
+					<sampleVariance>
+						<multiple>
+							<baseValue baseType="integer">1</baseValue>
+							<baseValue baseType="integer">2</baseValue>
+							<baseValue baseType="integer">3</baseValue>
+						</multiple>
+					</sampleVariance>
+				</setOutcomeValue>
+
+				<setOutcomeValue identifier="SSD">
+					<sampleSD>
+						<multiple>
+							<baseValue baseType="integer">1</baseValue>
+							<baseValue baseType="integer">2</baseValue>
+							<baseValue baseType="integer">3</baseValue>
+						</multiple>
+					</sampleSD>
+				</setOutcomeValue>
+
+				<setOutcomeValue identifier="PVAR_MILLI">
+					<truncate>
+						<product>
+							<popVariance>
+								<multiple>
+									<baseValue baseType="integer">1</baseValue>
+									<baseValue baseType="integer">2</baseValue>
+									<baseValue baseType="integer">3</baseValue>
+								</multiple>
+							</popVariance>
+							<baseValue baseType="float">1000</baseValue>
+						</product>
+					</truncate>
+				</setOutcomeValue>
+
+				<setOutcomeValue identifier="PSD_MILLI">
+					<truncate>
+						<product>
+							<popSD>
+								<multiple>
+									<baseValue baseType="integer">1</baseValue>
+									<baseValue baseType="integer">2</baseValue>
+									<baseValue baseType="integer">3</baseValue>
+								</multiple>
+							</popSD>
+							<baseValue baseType="float">1000</baseValue>
+						</product>
+					</truncate>
+				</setOutcomeValue>
+
+				<setOutcomeValue identifier="TYPE_INT_OK">
+					<isTypeOf>
+						<baseValue baseType="integer">5</baseValue>
+						<baseValue baseType="string">integer</baseValue>
+					</isTypeOf>
+				</setOutcomeValue>
+
+				<setOutcomeValue identifier="TYPE_FLOAT_OK">
+					<isTypeOf>
+						<baseValue baseType="integer">5</baseValue>
+						<baseValue baseType="string">float</baseValue>
+					</isTypeOf>
+				</setOutcomeValue>
+			</responseElse>
+		</responseCondition>
+	</responseProcessing>
+</assessmentItem>
+
+

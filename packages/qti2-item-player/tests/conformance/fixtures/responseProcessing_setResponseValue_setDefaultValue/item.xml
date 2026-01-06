@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="responseProcessing_setResponseValue_setDefaultValue"
+  title="setResponseValue + setDefaultValue"
+  adaptive="false"
+  timeDependent="false">
+
+  <responseDeclaration identifier="R" cardinality="single" baseType="identifier">
+    <defaultValue><value>A</value></defaultValue>
+  </responseDeclaration>
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="integer">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <p>Choose A, B, or C.</p>
+    <choiceInteraction responseIdentifier="R" maxChoices="1">
+      <simpleChoice identifier="A">A</simpleChoice>
+      <simpleChoice identifier="B">B</simpleChoice>
+      <simpleChoice identifier="C">C</simpleChoice>
+    </choiceInteraction>
+  </itemBody>
+
+  <responseProcessing>
+    <!-- If response is missing/null, reset it to the declared defaultValue ("A") -->
+    <responseCondition>
+      <responseIf>
+        <isNull>
+          <variable identifier="R"/>
+        </isNull>
+        <setDefaultValue identifier="R"/>
+      </responseIf>
+    </responseCondition>
+
+    <!-- Normalize: if B is chosen, rewrite it to A -->
+    <responseCondition>
+      <responseIf>
+        <match>
+          <variable identifier="R"/>
+          <baseValue baseType="identifier">B</baseValue>
+        </match>
+        <setResponseValue identifier="R">
+          <baseValue baseType="identifier">A</baseValue>
+        </setResponseValue>
+      </responseIf>
+    </responseCondition>
+
+    <!-- Score is 1 if the (possibly rewritten) response equals A -->
+    <responseCondition>
+      <responseIf>
+        <match>
+          <variable identifier="R"/>
+          <baseValue baseType="identifier">A</baseValue>
+        </match>
+        <setOutcomeValue identifier="SCORE">
+          <baseValue baseType="integer">1</baseValue>
+        </setOutcomeValue>
+      </responseIf>
+      <responseElse>
+        <setOutcomeValue identifier="SCORE">
+          <baseValue baseType="integer">0</baseValue>
+        </setOutcomeValue>
+      </responseElse>
+    </responseCondition>
+  </responseProcessing>
+</assessmentItem>
+
+

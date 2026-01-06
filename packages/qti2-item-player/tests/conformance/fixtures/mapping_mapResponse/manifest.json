@@ -1,0 +1,16 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "mapResponse scoring via responseDeclaration mapping + isNull branch.",
+  "covers": [
+    "expr.isNull",
+    "expr.mapResponse",
+    "isNull",
+    "mapping",
+    "mapResponse",
+    "responseCondition",
+    "setOutcomeValue",
+    "stmt.responseCondition",
+    "stmt.setOutcomeValue"
+  ]
+}

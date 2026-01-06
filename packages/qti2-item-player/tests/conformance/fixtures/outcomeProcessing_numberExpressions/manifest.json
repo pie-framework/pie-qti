@@ -1,0 +1,8 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "number* expressions are test-level summative functions (QTI 2.2.2 Number.Type). Item-only player rejects them explicitly.",
+  "covers": ["numberCorrect", "numberIncorrect", "numberPresented", "numberResponded", "numberSelected"]
+}
+
+

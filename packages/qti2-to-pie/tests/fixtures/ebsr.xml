@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/qti/qtiv2p2/imsqti_v2p2.xsd"
+                identifier="ebsr-001"
+                title="Evidence-Based Selected Response"
+                adaptive="false"
+                timeDependent="false">
+  <responseDeclaration identifier="RESPONSE_A" cardinality="single" baseType="identifier">
+    <correctResponse>
+      <value>A</value>
+    </correctResponse>
+  </responseDeclaration>
+  <responseDeclaration identifier="RESPONSE_B" cardinality="single" baseType="identifier">
+    <correctResponse>
+      <value>X</value>
+    </correctResponse>
+  </responseDeclaration>
+  <itemBody>
+    <p>Read the passage below:</p>
+    <p>The water cycle is a continuous process by which water circulates between the Earth's oceans, atmosphere, and land.</p>
+    <choiceInteraction responseIdentifier="RESPONSE_A">
+      <prompt>Part A: What is the main idea of the passage?</prompt>
+      <simpleChoice identifier="A">Water moves in a continuous cycle</simpleChoice>
+      <simpleChoice identifier="B">Water only exists in oceans</simpleChoice>
+      <simpleChoice identifier="C">Water never changes form</simpleChoice>
+    </choiceInteraction>
+    <choiceInteraction responseIdentifier="RESPONSE_B">
+      <prompt>Part B: Which evidence from the passage supports your answer?</prompt>
+      <simpleChoice identifier="X">"continuous process by which water circulates"</simpleChoice>
+      <simpleChoice identifier="Y">"between the Earth's oceans"</simpleChoice>
+      <simpleChoice identifier="Z">"atmosphere, and land"</simpleChoice>
+    </choiceInteraction>
+  </itemBody>
+</assessmentItem>

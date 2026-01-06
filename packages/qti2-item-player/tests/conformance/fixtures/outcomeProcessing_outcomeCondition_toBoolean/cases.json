@@ -1,0 +1,27 @@
+{
+  "id": "outcomeProcessing_outcomeCondition_toBoolean",
+  "cases": [
+    {
+      "name": "missing response => false => 0",
+      "responses": {},
+      "expect": { "outcomes": { "SCORE": 0 } }
+    },
+    {
+      "name": "R=0 => false => 0",
+      "responses": { "R": 0 },
+      "expect": { "outcomes": { "SCORE": 0 } }
+    },
+    {
+      "name": "R=2 => true => 1",
+      "responses": { "R": 2 },
+      "expect": { "outcomes": { "SCORE": 1 } }
+    },
+    {
+      "name": "R=-1 => true => 1",
+      "responses": { "R": -1 },
+      "expect": { "outcomes": { "SCORE": 1 } }
+    }
+  ]
+}
+
+

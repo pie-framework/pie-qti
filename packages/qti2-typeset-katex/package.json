@@ -1,0 +1,28 @@
+{
+  "name": "@pie-qti/qti2-typeset-katex",
+  "version": "0.1.0",
+  "description": "KaTeX-based math typesetting adapter for PIE QTI players (host-provided `typeset` function).",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./css": {
+      "import": "./dist/css.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p ./tsconfig.json",
+    "typecheck": "tsc -p ./tsconfig.json --noEmit"
+  },
+  "license": "ISC",
+  "private": true,
+  "dependencies": {
+    "katex": "^0.16.27"
+  }
+}
+
+

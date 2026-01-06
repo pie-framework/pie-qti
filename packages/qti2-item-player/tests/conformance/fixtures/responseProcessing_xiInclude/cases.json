@@ -1,0 +1,14 @@
+{
+	"id": "responseProcessing_xiInclude",
+	"cases": [
+		{
+			"name": "xi_include_is_rejected_for_now",
+			"responses": { "RESPONSE": "A" },
+			"xfail": true,
+			"xfailReason": "xi:include resolution is not implemented; we require processing rules to be inlined.",
+			"expect": { "outcomes": { "SCORE": 0 }, "score": 0 }
+		}
+	]
+}
+
+

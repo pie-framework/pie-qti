@@ -1,0 +1,22 @@
+{
+  "id": "responseProcessing_patternMatch_caseSensitive",
+  "cases": [
+    {
+      "name": "caseSensitive=true exact lowercase matches",
+      "responses": { "R": "ab" },
+      "expect": { "outcomes": { "SCORE": 2 } }
+    },
+    {
+      "name": "caseSensitive=true does not match mixed case",
+      "responses": { "R": "Ab" },
+      "expect": { "outcomes": { "SCORE": 1 } }
+    },
+    {
+      "name": "no match",
+      "responses": { "R": "xy" },
+      "expect": { "outcomes": { "SCORE": 0 } }
+    }
+  ]
+}
+
+

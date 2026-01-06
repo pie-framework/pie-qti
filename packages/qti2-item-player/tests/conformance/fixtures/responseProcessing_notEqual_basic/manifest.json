@@ -1,0 +1,18 @@
+{
+  "id": "responseProcessing_notEqual_basic",
+  "title": "responseProcessing: notEqual",
+  "description": "Basic notEqual behavior in a responseCondition (missing/null treated as false in condition).",
+  "spec": "QTI 2.2.2",
+  "provenance": { "source": "authored", "license": "CC0-1.0" },
+  "covers": [
+    "baseValue",
+    "expr.baseValue",
+    "expr.notEqual",
+    "expr.variable",
+    "notEqual",
+    "stmt.responseCondition",
+    "stmt.setOutcomeValue"
+  ]
+}
+
+

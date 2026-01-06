@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="responseProcessing_boolean_compare_ops" title="Boolean + comparison operators" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="N" cardinality="single" baseType="integer"/>
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="integer">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <p>Enter an integer.</p>
+    <textEntryInteraction responseIdentifier="N" expectedLength="3"/>
+  </itemBody>
+
+  <responseProcessing>
+    <responseCondition>
+      <responseIf>
+        <isNull>
+          <variable identifier="N"/>
+        </isNull>
+        <setOutcomeValue identifier="SCORE">
+          <baseValue baseType="integer">0</baseValue>
+        </setOutcomeValue>
+      </responseIf>
+
+      <responseElseIf>
+        <and>
+          <gt>
+            <variable identifier="N"/>
+            <baseValue baseType="integer">10</baseValue>
+          </gt>
+          <lt>
+            <variable identifier="N"/>
+            <baseValue baseType="integer">20</baseValue>
+          </lt>
+        </and>
+        <setOutcomeValue identifier="SCORE">
+          <baseValue baseType="integer">1</baseValue>
+        </setOutcomeValue>
+      </responseElseIf>
+
+      <responseElseIf>
+        <and>
+          <gte>
+            <variable identifier="N"/>
+            <baseValue baseType="integer">10</baseValue>
+          </gte>
+          <lte>
+            <variable identifier="N"/>
+            <baseValue baseType="integer">20</baseValue>
+          </lte>
+          <not>
+            <and>
+              <gt>
+                <variable identifier="N"/>
+                <baseValue baseType="integer">10</baseValue>
+              </gt>
+              <lt>
+                <variable identifier="N"/>
+                <baseValue baseType="integer">20</baseValue>
+              </lt>
+            </and>
+          </not>
+        </and>
+        <setOutcomeValue identifier="SCORE">
+          <baseValue baseType="integer">3</baseValue>
+        </setOutcomeValue>
+      </responseElseIf>
+
+      <responseElseIf>
+        <or>
+          <lt>
+            <variable identifier="N"/>
+            <baseValue baseType="integer">10</baseValue>
+          </lt>
+          <gt>
+            <variable identifier="N"/>
+            <baseValue baseType="integer">20</baseValue>
+          </gt>
+        </or>
+        <setOutcomeValue identifier="SCORE">
+          <baseValue baseType="integer">2</baseValue>
+        </setOutcomeValue>
+      </responseElseIf>
+
+      <responseElse>
+        <setOutcomeValue identifier="SCORE">
+          <baseValue baseType="integer">99</baseValue>
+        </setOutcomeValue>
+      </responseElse>
+    </responseCondition>
+  </responseProcessing>
+</assessmentItem>
+
+

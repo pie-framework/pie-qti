@@ -1,0 +1,1204 @@
+{
+  "description": "Model for the @pie-elements/hotspot Interaction",
+  "additionalProperties": false,
+  "type": "object",
+  "properties": {
+    "prompt": {
+      "description": "The question prompt or item stem",
+      "type": "string",
+      "title": "prompt"
+    },
+    "promptEnabled": {
+      "description": "Indicates if the prompt is enabled",
+      "type": "boolean",
+      "title": "promptEnabled"
+    },
+    "imageUrl": {
+      "description": "The image over which hotspots will be drawn",
+      "type": "string",
+      "title": "imageUrl"
+    },
+    "shapes": {
+      "title": "Shape",
+      "type": "object",
+      "properties": {
+        "rectangles": {
+          "description": "the rectangles of the shape",
+          "type": "array",
+          "items": {
+            "title": "Rectangle",
+            "type": "object",
+            "properties": {
+              "id": {
+                "description": "the id of the rectangle",
+                "type": "string",
+                "title": "id"
+              },
+              "correct": {
+                "description": "indicates if the rectangle is correct",
+                "type": "boolean",
+                "title": "correct"
+              },
+              "height": {
+                "description": "the height of the rectangle",
+                "type": "number",
+                "title": "height"
+              },
+              "width": {
+                "description": "the width of the rectangle",
+                "type": "number",
+                "title": "width"
+              },
+              "x": {
+                "description": "the x position of the rectangle",
+                "type": "number",
+                "title": "x"
+              },
+              "y": {
+                "description": "the y position of the rectangle",
+                "type": "number",
+                "title": "y"
+              }
+            },
+            "required": [
+              "height",
+              "width",
+              "x",
+              "y"
+            ]
+          },
+          "title": "rectangles"
+        },
+        "polygons": {
+          "description": "the polygons of the shape",
+          "type": "array",
+          "items": {
+            "title": "Polygon",
+            "type": "object",
+            "properties": {
+              "id": {
+                "description": "the id of the polygon",
+                "type": "string",
+                "title": "id"
+              },
+              "correct": {
+                "description": "indicates if the polygon is correct",
+                "type": "boolean",
+                "title": "correct"
+              },
+              "points": {
+                "description": "the points of the polygon",
+                "type": "array",
+                "items": {
+                  "title": "Point",
+                  "type": "object",
+                  "properties": {
+                    "x": {
+                      "description": "the x position",
+                      "type": "number",
+                      "title": "x"
+                    },
+                    "y": {
+                      "description": "the y position",
+                      "type": "number",
+                      "title": "y"
+                    }
+                  },
+                  "required": [
+                    "x",
+                    "y"
+                  ]
+                },
+                "title": "points"
+              }
+            },
+            "required": [
+              "points"
+            ]
+          },
+          "title": "polygons"
+        }
+      },
+      "required": [
+        "polygons",
+        "rectangles"
+      ]
+    },
+    "multipleCorrect": {
+      "description": "Indicates if the item supports multiple correct answers",
+      "type": "boolean",
+      "title": "multipleCorrect"
+    },
+    "partialScoring": {
+      "description": "Indicates if the item should use partial scoring",
+      "type": "boolean",
+      "title": "partialScoring"
+    },
+    "dimensions": {
+      "description": "The dimensions of the drawable section",
+      "type": "array",
+      "items": {
+        "title": "Dimension",
+        "type": "object",
+        "properties": {
+          "height": {
+            "description": "the height of the section",
+            "type": "number",
+            "title": "height"
+          },
+          "width": {
+            "description": "the width of the section",
+            "type": "number",
+            "title": "width"
+          }
+        },
+        "required": [
+          "height",
+          "width"
+        ]
+      },
+      "title": "dimensions"
+    },
+    "hotspotColor": {
+      "description": "The color that fills the hotspot",
+      "type": "string",
+      "title": "hotspotColor"
+    },
+    "selectedHotspotColor": {
+      "description": "The color that fills the hotspot",
+      "type": "string",
+      "title": "selectedHotspotColor"
+    },
+    "hoverOutlineColor": {
+      "description": "The color of the rectangular outline",
+      "type": "string",
+      "title": "hoverOutlineColor"
+    },
+    "hotspotList": {
+      "description": "The filling hotspot color options",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "title": "hotspotList"
+    },
+    "outlineColor": {
+      "description": "The outline color of the hotspot",
+      "type": "string",
+      "title": "outlineColor"
+    },
+    "outlineList": {
+      "description": "The outline hotspot color options",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "title": "outlineList"
+    },
+    "rationale": {
+      "description": "Indicates the value for rationale",
+      "type": "string",
+      "title": "rationale"
+    },
+    "rationaleEnabled": {
+      "description": "Indicates if Rationale are enabled",
+      "type": "boolean",
+      "title": "rationaleEnabled"
+    },
+    "studentInstructionsEnabled": {
+      "description": "Indicates if Student Instructions are enabled",
+      "type": "boolean",
+      "title": "studentInstructionsEnabled"
+    },
+    "spellCheckEnabled": {
+      "description": "Indicates if spellcheck is enabled for the author. Default value is true",
+      "type": "boolean",
+      "title": "spellCheckEnabled"
+    },
+    "strokeWidth": {
+      "description": "Indicates the width of the outline for a selection",
+      "type": "number",
+      "title": "strokeWidth"
+    },
+    "teacherInstructionsEnabled": {
+      "description": "Indicates if Teacher Instructions are enabled",
+      "type": "boolean",
+      "title": "teacherInstructionsEnabled"
+    },
+    "toolbarEditorPosition": {
+      "description": "Indicates the editor's toolbar position which can be 'bottom' or 'top'",
+      "default": ": 'bottom'",
+      "enum": [
+        "bottom",
+        "top"
+      ],
+      "type": "string",
+      "title": "toolbarEditorPosition"
+    },
+    "rubricEnabled": {
+      "description": "Indicates if Rubric is enabled",
+      "type": "boolean",
+      "title": "rubricEnabled"
+    },
+    "language": {
+      "description": "Indicates the language of the component\nSupported options: en, es, en_US, en-US, es_ES, es-ES, es_MX, es-MX",
+      "type": "string",
+      "title": "language"
+    },
+    "fontSizeFactor": {
+      "description": "Indicates font size adjustment factor",
+      "type": "number",
+      "title": "fontSizeFactor"
+    },
+    "autoplayAudioEnabled": {
+      "description": "Indicates if the audio for the prompt should autoplay",
+      "type": "boolean",
+      "title": "autoplayAudioEnabled"
+    },
+    "completeAudioEnabled": {
+      "description": "Indicates if the audio should reach the end before the item can be marked as 'complete'",
+      "type": "boolean",
+      "title": "completeAudioEnabled"
+    },
+    "customAudioButton": {
+      "description": "Indicates if the audio should be replaced with a custom audio button\n  playImage: image url for the play state\n  pauseImage: image url for the pause state",
+      "type": "object",
+      "properties": {
+        "playImage": {
+          "type": "string",
+          "title": "playImage"
+        },
+        "pauseImage": {
+          "type": "string",
+          "title": "pauseImage"
+        }
+      },
+      "required": [
+        "pauseImage",
+        "playImage"
+      ],
+      "title": "customAudioButton"
+    },
+    "id": {
+      "description": "Identifier to identify the Pie Element in html markup, Must be unique within a pie item config.",
+      "type": "string",
+      "title": "id"
+    },
+    "element": {
+      "description": "The html Element tag name",
+      "type": "string",
+      "title": "element"
+    }
+  },
+  "required": [
+    "dimensions",
+    "element",
+    "id",
+    "multipleCorrect",
+    "partialScoring",
+    "rationaleEnabled",
+    "rubricEnabled",
+    "shapes",
+    "spellCheckEnabled",
+    "strokeWidth",
+    "studentInstructionsEnabled",
+    "teacherInstructionsEnabled"
+  ],
+  "definitions": {
+    "EditableHtmlConfigureProp": {
+      "title": "EditableHtmlConfigureProp",
+      "type": "object",
+      "properties": {
+        "math": {
+          "title": "EditableHtmlButtonConfigure",
+          "type": "object",
+          "properties": {
+            "disabled": {
+              "description": "Indicates if the plugin is disabled or not",
+              "type": "boolean",
+              "title": "disabled"
+            }
+          }
+        },
+        "audio": {
+          "title": "EditableHtmlButtonConfigure",
+          "type": "object",
+          "properties": {
+            "disabled": {
+              "description": "Indicates if the plugin is disabled or not",
+              "type": "boolean",
+              "title": "disabled"
+            }
+          }
+        },
+        "video": {
+          "title": "EditableHtmlButtonConfigure",
+          "type": "object",
+          "properties": {
+            "disabled": {
+              "description": "Indicates if the plugin is disabled or not",
+              "type": "boolean",
+              "title": "disabled"
+            }
+          }
+        },
+        "image": {
+          "title": "EditableHtmlButtonConfigure",
+          "type": "object",
+          "properties": {
+            "disabled": {
+              "description": "Indicates if the plugin is disabled or not",
+              "type": "boolean",
+              "title": "disabled"
+            }
+          }
+        },
+        "customPlugins": {
+          "description": "An array of objects that determine custom plugins.\nA custom plugin is an object which determines how the button will look like (icon) and the event name that will be triggered when button gets pressed (event).\nExample can be found at https://github.com/pie-framework/pie-lib/blob/develop/packages/demo/pages/editable-html.js#L425.",
+          "type": "array",
+          "items": {
+            "title": "CustomPlugin",
+            "type": "object",
+            "properties": {
+              "event": {
+                "description": "The name of the custom event. It needs to be valid (only letters, numbers and \"_\" can be used).\nPIE will emit the event prefixed with \"PIE-\".\nEg: event = 'client_custom_event_A' => the emitted event will be \"PIE-client_custom_event_A\"",
+                "type": "string",
+                "title": "event"
+              },
+              "iconAlt": {
+                "description": "The alt for the custom button icon",
+                "type": "string",
+                "title": "iconAlt"
+              },
+              "iconType": {
+                "description": "The icon type.\nCurrently, only \"SVG\" is supported.",
+                "type": "string",
+                "title": "iconType"
+              },
+              "icon": {
+                "description": "The icon string. Currently, only \"SVG\" is supported, so it needs to be a valid svg.",
+                "type": "string",
+                "title": "icon"
+              }
+            },
+            "required": [
+              "event",
+              "icon",
+              "iconAlt",
+              "iconType"
+            ]
+          },
+          "title": "customPlugins"
+        },
+        "blockquote": {
+          "title": "EditableHtmlButtonConfigure",
+          "type": "object",
+          "properties": {
+            "disabled": {
+              "description": "Indicates if the plugin is disabled or not",
+              "type": "boolean",
+              "title": "disabled"
+            }
+          }
+        },
+        "h3": {
+          "title": "EditableHtmlButtonConfigure",
+          "type": "object",
+          "properties": {
+            "disabled": {
+              "description": "Indicates if the plugin is disabled or not",
+              "type": "boolean",
+              "title": "disabled"
+            }
+          }
+        },
+        "characters": {
+          "title": "EditableHtmlButtonConfigure",
+          "type": "object",
+          "properties": {
+            "disabled": {
+              "description": "Indicates if the plugin is disabled or not",
+              "type": "boolean",
+              "title": "disabled"
+            }
+          }
+        },
+        "bold": {
+          "title": "EditableHtmlButtonConfigure",
+          "type": "object",
+          "properties": {
+            "disabled": {
+              "description": "Indicates if the plugin is disabled or not",
+              "type": "boolean",
+              "title": "disabled"
+            }
+          }
+        },
+        "html": {
+          "title": "EditableHtmlButtonConfigure",
+          "type": "object",
+          "properties": {
+            "disabled": {
+              "description": "Indicates if the plugin is disabled or not",
+              "type": "boolean",
+              "title": "disabled"
+            }
+          }
+        },
+        "italic": {
+          "title": "EditableHtmlButtonConfigure",
+          "type": "object",
+          "properties": {
+            "disabled": {
+              "description": "Indicates if the plugin is disabled or not",
+              "type": "boolean",
+              "title": "disabled"
+            }
+          }
+        },
+        "ol_list": {
+          "title": "EditableHtmlButtonConfigure",
+          "type": "object",
+          "properties": {
+            "disabled": {
+              "description": "Indicates if the plugin is disabled or not",
+              "type": "boolean",
+              "title": "disabled"
+            }
+          }
+        },
+        "redo": {
+          "title": "EditableHtmlButtonConfigure",
+          "type": "object",
+          "properties": {
+            "disabled": {
+              "description": "Indicates if the plugin is disabled or not",
+              "type": "boolean",
+              "title": "disabled"
+            }
+          }
+        },
+        "strikethrough": {
+          "title": "EditableHtmlButtonConfigure",
+          "type": "object",
+          "properties": {
+            "disabled": {
+              "description": "Indicates if the plugin is disabled or not",
+              "type": "boolean",
+              "title": "disabled"
+            }
+          }
+        },
+        "sub": {
+          "title": "EditableHtmlButtonConfigure",
+          "type": "object",
+          "properties": {
+            "disabled": {
+              "description": "Indicates if the plugin is disabled or not",
+              "type": "boolean",
+              "title": "disabled"
+            }
+          }
+        },
+        "sup": {
+          "title": "EditableHtmlButtonConfigure",
+          "type": "object",
+          "properties": {
+            "disabled": {
+              "description": "Indicates if the plugin is disabled or not",
+              "type": "boolean",
+              "title": "disabled"
+            }
+          }
+        },
+        "table": {
+          "title": "EditableHtmlButtonConfigure",
+          "type": "object",
+          "properties": {
+            "disabled": {
+              "description": "Indicates if the plugin is disabled or not",
+              "type": "boolean",
+              "title": "disabled"
+            }
+          }
+        },
+        "ul_list": {
+          "title": "EditableHtmlButtonConfigure",
+          "type": "object",
+          "properties": {
+            "disabled": {
+              "description": "Indicates if the plugin is disabled or not",
+              "type": "boolean",
+              "title": "disabled"
+            }
+          }
+        },
+        "underline": {
+          "title": "EditableHtmlButtonConfigure",
+          "type": "object",
+          "properties": {
+            "disabled": {
+              "description": "Indicates if the plugin is disabled or not",
+              "type": "boolean",
+              "title": "disabled"
+            }
+          }
+        },
+        "undo": {
+          "title": "EditableHtmlButtonConfigure",
+          "type": "object",
+          "properties": {
+            "disabled": {
+              "description": "Indicates if the plugin is disabled or not",
+              "type": "boolean",
+              "title": "disabled"
+            }
+          }
+        }
+      }
+    },
+    "EditableHtmlButtonConfigure": {
+      "title": "EditableHtmlButtonConfigure",
+      "type": "object",
+      "properties": {
+        "disabled": {
+          "description": "Indicates if the plugin is disabled or not",
+          "type": "boolean",
+          "title": "disabled"
+        }
+      }
+    },
+    "CustomPlugin": {
+      "title": "CustomPlugin",
+      "type": "object",
+      "properties": {
+        "event": {
+          "description": "The name of the custom event. It needs to be valid (only letters, numbers and \"_\" can be used).\nPIE will emit the event prefixed with \"PIE-\".\nEg: event = 'client_custom_event_A' => the emitted event will be \"PIE-client_custom_event_A\"",
+          "type": "string",
+          "title": "event"
+        },
+        "iconAlt": {
+          "description": "The alt for the custom button icon",
+          "type": "string",
+          "title": "iconAlt"
+        },
+        "iconType": {
+          "description": "The icon type.\nCurrently, only \"SVG\" is supported.",
+          "type": "string",
+          "title": "iconType"
+        },
+        "icon": {
+          "description": "The icon string. Currently, only \"SVG\" is supported, so it needs to be a valid svg.",
+          "type": "string",
+          "title": "icon"
+        }
+      },
+      "required": [
+        "event",
+        "icon",
+        "iconAlt",
+        "iconType"
+      ]
+    },
+    "ConfigureProp": {
+      "title": "ConfigureProp",
+      "type": "object",
+      "properties": {
+        "settings": {
+          "description": "Indicates if the item has to be displayed in the Settings Panel",
+          "type": "boolean",
+          "title": "settings"
+        },
+        "label": {
+          "description": "Indicates the label for the item that has to be displayed in the Settings Panel",
+          "type": "string",
+          "title": "label"
+        }
+      }
+    },
+    "EditableHtmlPluginConfigureRequired": {
+      "title": "EditableHtmlPluginConfigureRequired",
+      "type": "object",
+      "properties": {
+        "inputConfiguration": {
+          "title": "EditableHtmlConfigureProp",
+          "type": "object",
+          "properties": {
+            "math": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "audio": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "video": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "image": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "customPlugins": {
+              "description": "An array of objects that determine custom plugins.\nA custom plugin is an object which determines how the button will look like (icon) and the event name that will be triggered when button gets pressed (event).\nExample can be found at https://github.com/pie-framework/pie-lib/blob/develop/packages/demo/pages/editable-html.js#L425.",
+              "type": "array",
+              "items": {
+                "title": "CustomPlugin",
+                "type": "object",
+                "properties": {
+                  "event": {
+                    "description": "The name of the custom event. It needs to be valid (only letters, numbers and \"_\" can be used).\nPIE will emit the event prefixed with \"PIE-\".\nEg: event = 'client_custom_event_A' => the emitted event will be \"PIE-client_custom_event_A\"",
+                    "type": "string",
+                    "title": "event"
+                  },
+                  "iconAlt": {
+                    "description": "The alt for the custom button icon",
+                    "type": "string",
+                    "title": "iconAlt"
+                  },
+                  "iconType": {
+                    "description": "The icon type.\nCurrently, only \"SVG\" is supported.",
+                    "type": "string",
+                    "title": "iconType"
+                  },
+                  "icon": {
+                    "description": "The icon string. Currently, only \"SVG\" is supported, so it needs to be a valid svg.",
+                    "type": "string",
+                    "title": "icon"
+                  }
+                },
+                "required": [
+                  "event",
+                  "icon",
+                  "iconAlt",
+                  "iconType"
+                ]
+              },
+              "title": "customPlugins"
+            },
+            "blockquote": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "h3": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "characters": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "bold": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "html": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "italic": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "ol_list": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "redo": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "strikethrough": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "sub": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "sup": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "table": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "ul_list": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "underline": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            },
+            "undo": {
+              "title": "EditableHtmlButtonConfigure",
+              "type": "object",
+              "properties": {
+                "disabled": {
+                  "description": "Indicates if the plugin is disabled or not",
+                  "type": "boolean",
+                  "title": "disabled"
+                }
+              }
+            }
+          }
+        },
+        "required": {
+          "description": "Indicates if the item is required and the value cannot be empty",
+          "type": "boolean",
+          "title": "required"
+        },
+        "settings": {
+          "description": "Indicates if the item has to be displayed in the Settings Panel",
+          "type": "boolean",
+          "title": "settings"
+        },
+        "label": {
+          "description": "Indicates the label for the item that has to be displayed in the Settings Panel",
+          "type": "string",
+          "title": "label"
+        }
+      }
+    },
+    "ConfigureMaxImageDimensionsProp": {
+      "title": "ConfigureMaxImageDimensionsProp",
+      "type": "object",
+      "properties": {
+        "teacherInstructions": {
+          "description": "Indicates the max dimension for images in teacher instructions",
+          "type": "number",
+          "title": "teacherInstructions"
+        },
+        "prompt": {
+          "description": "Indicates the max dimension for images in prompt - this is also the default dimension for all other input fields if it's not specified",
+          "type": "number",
+          "title": "prompt"
+        },
+        "rationale": {
+          "description": "Indicates the max dimension for images in rationale",
+          "type": "number",
+          "title": "rationale"
+        }
+      }
+    },
+    "ConfigureMathMLProp": {
+      "title": "ConfigureMathMLProp",
+      "type": "object",
+      "properties": {
+        "mmlOutput": {
+          "description": "Indicates if model should have mathML output instead of latex",
+          "type": "number",
+          "title": "mmlOutput"
+        },
+        "mmlEditing": {
+          "description": "Indicates if mathML that's already in model should be editable",
+          "type": "number",
+          "title": "mmlEditing"
+        }
+      }
+    },
+    "ConfigurePropWithEnabled": {
+      "title": "ConfigurePropWithEnabled",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Indicates the value of the item if it affects config-ui\n(eg.: if item is a switch and displaying an input on the config-ui depends on the switch value: on/off)",
+          "type": "boolean",
+          "title": "enabled"
+        },
+        "settings": {
+          "description": "Indicates if the item has to be displayed in the Settings Panel",
+          "type": "boolean",
+          "title": "settings"
+        },
+        "label": {
+          "description": "Indicates the label for the item that has to be displayed in the Settings Panel",
+          "type": "string",
+          "title": "label"
+        }
+      }
+    },
+    "ConfigureLanguageOptionsProp": {
+      "title": "ConfigureLanguageOptionsProp",
+      "type": "object",
+      "properties": {
+        "value": {
+          "description": "Value of the language option",
+          "type": "string",
+          "title": "value"
+        },
+        "label": {
+          "description": "Label of the language option",
+          "type": "string",
+          "title": "label"
+        }
+      },
+      "required": [
+        "label",
+        "value"
+      ]
+    },
+    "Shape": {
+      "title": "Shape",
+      "type": "object",
+      "properties": {
+        "rectangles": {
+          "description": "the rectangles of the shape",
+          "type": "array",
+          "items": {
+            "title": "Rectangle",
+            "type": "object",
+            "properties": {
+              "id": {
+                "description": "the id of the rectangle",
+                "type": "string",
+                "title": "id"
+              },
+              "correct": {
+                "description": "indicates if the rectangle is correct",
+                "type": "boolean",
+                "title": "correct"
+              },
+              "height": {
+                "description": "the height of the rectangle",
+                "type": "number",
+                "title": "height"
+              },
+              "width": {
+                "description": "the width of the rectangle",
+                "type": "number",
+                "title": "width"
+              },
+              "x": {
+                "description": "the x position of the rectangle",
+                "type": "number",
+                "title": "x"
+              },
+              "y": {
+                "description": "the y position of the rectangle",
+                "type": "number",
+                "title": "y"
+              }
+            },
+            "required": [
+              "height",
+              "width",
+              "x",
+              "y"
+            ]
+          },
+          "title": "rectangles"
+        },
+        "polygons": {
+          "description": "the polygons of the shape",
+          "type": "array",
+          "items": {
+            "title": "Polygon",
+            "type": "object",
+            "properties": {
+              "id": {
+                "description": "the id of the polygon",
+                "type": "string",
+                "title": "id"
+              },
+              "correct": {
+                "description": "indicates if the polygon is correct",
+                "type": "boolean",
+                "title": "correct"
+              },
+              "points": {
+                "description": "the points of the polygon",
+                "type": "array",
+                "items": {
+                  "title": "Point",
+                  "type": "object",
+                  "properties": {
+                    "x": {
+                      "description": "the x position",
+                      "type": "number",
+                      "title": "x"
+                    },
+                    "y": {
+                      "description": "the y position",
+                      "type": "number",
+                      "title": "y"
+                    }
+                  },
+                  "required": [
+                    "x",
+                    "y"
+                  ]
+                },
+                "title": "points"
+              }
+            },
+            "required": [
+              "points"
+            ]
+          },
+          "title": "polygons"
+        }
+      },
+      "required": [
+        "polygons",
+        "rectangles"
+      ]
+    },
+    "Rectangle": {
+      "title": "Rectangle",
+      "type": "object",
+      "properties": {
+        "id": {
+          "description": "the id of the rectangle",
+          "type": "string",
+          "title": "id"
+        },
+        "correct": {
+          "description": "indicates if the rectangle is correct",
+          "type": "boolean",
+          "title": "correct"
+        },
+        "height": {
+          "description": "the height of the rectangle",
+          "type": "number",
+          "title": "height"
+        },
+        "width": {
+          "description": "the width of the rectangle",
+          "type": "number",
+          "title": "width"
+        },
+        "x": {
+          "description": "the x position of the rectangle",
+          "type": "number",
+          "title": "x"
+        },
+        "y": {
+          "description": "the y position of the rectangle",
+          "type": "number",
+          "title": "y"
+        }
+      },
+      "required": [
+        "height",
+        "width",
+        "x",
+        "y"
+      ]
+    },
+    "Polygon": {
+      "title": "Polygon",
+      "type": "object",
+      "properties": {
+        "id": {
+          "description": "the id of the polygon",
+          "type": "string",
+          "title": "id"
+        },
+        "correct": {
+          "description": "indicates if the polygon is correct",
+          "type": "boolean",
+          "title": "correct"
+        },
+        "points": {
+          "description": "the points of the polygon",
+          "type": "array",
+          "items": {
+            "title": "Point",
+            "type": "object",
+            "properties": {
+              "x": {
+                "description": "the x position",
+                "type": "number",
+                "title": "x"
+              },
+              "y": {
+                "description": "the y position",
+                "type": "number",
+                "title": "y"
+              }
+            },
+            "required": [
+              "x",
+              "y"
+            ]
+          },
+          "title": "points"
+        }
+      },
+      "required": [
+        "points"
+      ]
+    },
+    "Point": {
+      "title": "Point",
+      "type": "object",
+      "properties": {
+        "x": {
+          "description": "the x position",
+          "type": "number",
+          "title": "x"
+        },
+        "y": {
+          "description": "the y position",
+          "type": "number",
+          "title": "y"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ]
+    },
+    "Dimension": {
+      "title": "Dimension",
+      "type": "object",
+      "properties": {
+        "height": {
+          "description": "the height of the section",
+          "type": "number",
+          "title": "height"
+        },
+        "width": {
+          "description": "the width of the section",
+          "type": "number",
+          "title": "width"
+        }
+      },
+      "required": [
+        "height",
+        "width"
+      ]
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

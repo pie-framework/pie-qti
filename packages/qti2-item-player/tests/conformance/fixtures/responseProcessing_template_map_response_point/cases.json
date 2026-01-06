@@ -1,0 +1,22 @@
+{
+  "id": "responseProcessing_template_map_response_point",
+  "cases": [
+    {
+      "name": "rect_maps_to_2",
+      "responses": { "RESPONSE": "10 10" },
+      "expect": { "outcomes": { "SCORE": 2 } }
+    },
+    {
+      "name": "circle_maps_to_1",
+      "responses": { "RESPONSE": "75 84" },
+      "expect": { "outcomes": { "SCORE": 1 } }
+    },
+    {
+      "name": "outside_default_0",
+      "responses": { "RESPONSE": "200 200" },
+      "expect": { "outcomes": { "SCORE": 0 } }
+    }
+  ]
+}
+
+

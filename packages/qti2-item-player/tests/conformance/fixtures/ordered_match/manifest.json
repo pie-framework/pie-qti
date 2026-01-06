@@ -1,0 +1,13 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "Ordered cardinality matching: correctResponse value sequence must match response sequence.",
+  "covers": [
+    "correct",
+    "expr.correct",
+    "match",
+    "ordered",
+    "setOutcomeValue",
+    "stmt.setOutcomeValue"
+  ]
+}

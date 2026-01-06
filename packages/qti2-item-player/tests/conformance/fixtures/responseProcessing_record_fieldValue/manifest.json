@@ -1,0 +1,17 @@
+{
+  "id": "responseProcessing_record_fieldValue",
+  "title": "record + fieldValue",
+  "description": "Constructs a record and reads fields with fieldValue.",
+  "spec": "QTI 2.x responseProcessing",
+  "covers": [
+    "baseValue",
+    "expr.baseValue",
+    "expr.fieldValue",
+    "expr.record",
+    "fieldValue",
+    "record",
+    "stmt.setOutcomeValue"
+  ]
+}
+
+

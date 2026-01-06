@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentTest xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/imsqti_v2p2.xsd"
+                identifier="math-test"
+                title="Mathematics Assessment">
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
+    <defaultValue>
+      <value>0</value>
+    </defaultValue>
+  </outcomeDeclaration>
+
+  <testPart identifier="main" navigationMode="nonlinear" submissionMode="individual">
+    <assessmentSection identifier="algebra" title="Algebra" visible="true">
+      <assessmentItemRef identifier="algebra-equation" href="algebra-equation.xml"/>
+    </assessmentSection>
+
+    <assessmentSection identifier="geometry" title="Geometry" visible="true">
+      <assessmentItemRef identifier="geometry-area" href="geometry-area.xml"/>
+    </assessmentSection>
+
+    <assessmentSection identifier="fractions" title="Fractions and Decimals" visible="true">
+      <assessmentItemRef identifier="fractions-order" href="fractions-order.xml"/>
+    </assessmentSection>
+
+    <assessmentSection identifier="word-problems" title="Word Problems" visible="true">
+      <assessmentItemRef identifier="word-problem" href="word-problem.xml"/>
+    </assessmentSection>
+  </testPart>
+</assessmentTest>

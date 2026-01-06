@@ -1,0 +1,61 @@
+{
+  "id": "baseTypes_all",
+  "cases": [
+    {
+      "name": "all_baseTypes_happy_path",
+      "responses": {
+        "B": "true",
+        "I": "42",
+        "F": "3.5",
+        "S": "hello",
+        "ID": "X1",
+        "U": "https://example.org/a",
+        "P": "B A",
+        "DP": "A B",
+        "PT": "10 20",
+        "DUR": "PT1H",
+        "FILE": "file://example.txt"
+      },
+      "expect": {
+        "outcomes": {
+          "OK_B": true,
+          "OK_I": true,
+          "OK_F": true,
+          "OK_S": true,
+          "OK_ID": true,
+          "OK_U": true,
+          "OK_P": true,
+          "OK_DP_AB": true,
+          "OK_PT": true,
+          "OK_DUR": true,
+          "OK_FILE": true,
+          "REC_A": 7,
+          "REC_B": "ok"
+        }
+      }
+    },
+    {
+      "name": "directedPair_is_ordered",
+      "responses": {
+        "B": "true",
+        "I": "42",
+        "F": "3.5",
+        "S": "hello",
+        "ID": "X1",
+        "U": "https://example.org/a",
+        "P": "B A",
+        "DP": "B A",
+        "PT": "10 20",
+        "DUR": "PT1H",
+        "FILE": "file://example.txt"
+      },
+      "expect": {
+        "outcomes": {
+          "OK_DP_AB": false
+        }
+      }
+    }
+  ]
+}
+
+

@@ -1,0 +1,87 @@
+version: 1
+
+component:
+  interactionType: matchInteraction
+  tagName: pie-qti-match
+
+examplesApp:
+  app: "@pie-qti/qti2-example"
+  routeTemplate: "/item-demo/{sampleId}"
+
+evals:
+  - id: match/match-interaction/correct
+    sampleId: match-interaction
+    gradeBand: "4-8"
+    subject: geography
+    intent: "All pairs correct → full mapped score."
+    steps:
+      - action: navigate
+        path: "/item-demo/match-interaction"
+      - action: matchPairs
+        target:
+          description: "Create the correct pairs: Paris–France, London–England, Berlin–Germany"
+          hint: "Within `pie-qti-match`, connect each capital to its country."
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+    expected:
+      responses:
+        RESPONSE:
+          containsAll:
+            - "capital1 country1"
+            - "capital2 country2"
+            - "capital3 country3"
+      outcomes:
+        SCORE:
+          equals: 3.0
+        MAXSCORE:
+          equals: 3.0
+    spiritChecks:
+      - "The UI makes it clear which items are matched and allows correction without frustration."
+
+  - id: match/match-interaction/partial
+    sampleId: match-interaction
+    gradeBand: "4-8"
+    subject: geography
+    intent: "Only some pairs correct → partial credit via mapping."
+    steps:
+      - action: navigate
+        path: "/item-demo/match-interaction"
+      - action: matchPairs
+        target:
+          description: "Make exactly 2 correct pairs and 1 incorrect pair"
+          hint: "Example: Paris–France (correct), London–England (correct), Berlin–France (incorrect)"
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+    expected:
+      outcomes:
+        SCORE:
+          equals: 2.0
+        MAXSCORE:
+          equals: 3.0
+    spiritChecks:
+      - "Partial correctness is representable in responses; the tool doesn’t force all-or-nothing completion."
+
+  - id: match/match-interaction/wrong
+    sampleId: match-interaction
+    gradeBand: "4-8"
+    subject: geography
+    intent: "All wrong pairs → score 0."
+    steps:
+      - action: navigate
+        path: "/item-demo/match-interaction"
+      - action: matchPairs
+        target:
+          description: "Make 3 incorrect pairs (no correct mapEntry keys)."
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+    expected:
+      outcomes:
+        SCORE:
+          equals: 0.0
+        MAXSCORE:
+          equals: 3.0
+
+

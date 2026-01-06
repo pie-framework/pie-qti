@@ -1,0 +1,11 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "Covers basic numeric subtract and divide expressions.",
+  "covers": [
+    "divide",
+    "expr.divide",
+    "expr.subtract",
+    "subtract"
+  ]
+}

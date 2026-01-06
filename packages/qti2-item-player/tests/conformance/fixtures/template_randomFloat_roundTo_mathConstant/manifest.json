@@ -1,0 +1,15 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "Template processing with QTI 2.2.2 attribute-based randomFloat/randomInteger + roundTo + mathConstant, asserted via printedVariable rendering.",
+  "covers": [
+    "expr.mathConstant",
+    "expr.randomFloat",
+    "expr.roundTo",
+    "mathConstant",
+    "printedVariable",
+    "randomFloat",
+    "roundTo",
+    "templateProcessing"
+  ]
+}

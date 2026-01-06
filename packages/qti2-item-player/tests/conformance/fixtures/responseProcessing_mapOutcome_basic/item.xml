@@ -1,0 +1,40 @@
+<assessmentItem
+	xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+	identifier="map_outcome_basic"
+	adaptive="false"
+	timeDependent="false"
+>
+	<responseDeclaration identifier="R" cardinality="single" baseType="integer" />
+
+	<outcomeDeclaration identifier="RAW" cardinality="single" baseType="integer">
+		<defaultValue>
+			<value>0</value>
+		</defaultValue>
+		<mapping defaultValue="0.25" lowerBound="0" upperBound="1">
+			<mapEntry mapKey="0" mappedValue="0" />
+			<mapEntry mapKey="1" mappedValue="0.5" />
+			<mapEntry mapKey="2" mappedValue="1" />
+		</mapping>
+	</outcomeDeclaration>
+
+	<outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
+		<defaultValue>
+			<value>0</value>
+		</defaultValue>
+	</outcomeDeclaration>
+
+	<itemBody>
+		<textEntryInteraction responseIdentifier="R" expectedLength="2" />
+	</itemBody>
+
+	<responseProcessing>
+		<setOutcomeValue identifier="RAW">
+			<variable identifier="R" />
+		</setOutcomeValue>
+		<setOutcomeValue identifier="SCORE">
+			<mapOutcome identifier="RAW" />
+		</setOutcomeValue>
+	</responseProcessing>
+</assessmentItem>
+
+

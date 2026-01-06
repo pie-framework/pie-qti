@@ -1,0 +1,13 @@
+{
+  "source": "custom-authored",
+  "license": "CC0-1.0",
+  "notes": "Minimal fixture proving the <default> expression returns a declaration's defaultValue, independent of the current value.",
+  "covers": [
+    "default",
+    "expr.default",
+    "setOutcomeValue",
+    "setResponseValue",
+    "stmt.setOutcomeValue",
+    "stmt.setResponseValue"
+  ]
+}

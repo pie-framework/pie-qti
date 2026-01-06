@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                identifier="choice-with-object-passage"
+                title="Question About Industrial Revolution"
+                adaptive="false"
+                timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier">
+    <correctResponse>
+      <value>B</value>
+    </correctResponse>
+  </responseDeclaration>
+  <itemBody>
+    <object data="passages/industrial-revolution.xml" type="text/html">
+      The Industrial Revolution passage
+    </object>
+    <p>Based on the passage, what was a key result of the Industrial Revolution?</p>
+    <choiceInteraction responseIdentifier="RESPONSE" shuffle="false" maxChoices="1">
+      <simpleChoice identifier="A">It decreased industrial productivity</simpleChoice>
+      <simpleChoice identifier="B">It transformed rural societies into industrial ones</simpleChoice>
+      <simpleChoice identifier="C">It eliminated the use of machinery</simpleChoice>
+      <simpleChoice identifier="D">It had no effect on urban development</simpleChoice>
+    </choiceInteraction>
+  </itemBody>
+</assessmentItem>

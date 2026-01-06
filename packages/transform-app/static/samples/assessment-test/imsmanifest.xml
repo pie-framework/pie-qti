@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest xmlns="http://www.imsglobal.org/xsd/imscp_v1p1"
+          xmlns:imsmd="http://www.imsglobal.org/xsd/imsmd_v1p2"
+          xmlns:imsqti="http://www.imsglobal.org/xsd/imsqti_v2p2"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          identifier="assessment_test_package"
+          xsi:schemaLocation="http://www.imsglobal.org/xsd/imscp_v1p1 http://www.imsglobal.org/xsd/imscp_v1p1.xsd http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/imsqti_v2p2.xsd">
+  <metadata>
+    <schema>QTI Package</schema>
+    <schemaversion>2.2</schemaversion>
+    <imsmd:lom>
+      <imsmd:general>
+        <imsmd:title>
+          <imsmd:string language="en">Sample Mathematics Assessment Test</imsmd:string>
+        </imsmd:title>
+        <imsmd:description>
+          <imsmd:string language="en">A complete QTI assessment test with multiple items, sections, and rubrics demonstrating assessment-level features.</imsmd:string>
+        </imsmd:description>
+      </imsmd:general>
+    </imsmd:lom>
+  </metadata>
+  <organizations/>
+  <resources>
+    <resource identifier="assessment_test" type="imsqti_test_xmlv2p2" href="assessment-test.xml">
+      <file href="assessment-test.xml"/>
+    </resource>
+    <resource identifier="item1" type="imsqti_item_xmlv2p2" href="item1.xml">
+      <file href="item1.xml"/>
+    </resource>
+    <resource identifier="item2" type="imsqti_item_xmlv2p2" href="item2.xml">
+      <file href="item2.xml"/>
+    </resource>
+    <resource identifier="item3" type="imsqti_item_xmlv2p2" href="item3.xml">
+      <file href="item3.xml"/>
+    </resource>
+    <resource identifier="item4" type="imsqti_item_xmlv2p2" href="item4.xml">
+      <file href="item4.xml"/>
+    </resource>
+  </resources>
+</manifest>

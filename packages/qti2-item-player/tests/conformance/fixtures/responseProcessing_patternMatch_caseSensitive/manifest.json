@@ -1,0 +1,19 @@
+{
+  "id": "responseProcessing_patternMatch_caseSensitive",
+  "title": "responseProcessing: patternMatch with caseSensitive",
+  "description": "Verifies patternMatch uses regex matching and respects caseSensitive flag.",
+  "spec": {
+    "features": ["responseProcessing", "patternMatch", "caseSensitive"]
+  },
+  "covers": [
+    "baseValue",
+    "expr.baseValue",
+    "expr.patternMatch",
+    "expr.variable",
+    "patternMatch",
+    "stmt.responseCondition",
+    "stmt.setOutcomeValue"
+  ]
+}
+
+

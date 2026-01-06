@@ -1,0 +1,16 @@
+{
+  "id": "responseProcessing_containerSize_index",
+  "title": "responseProcessing: containerSize + index + ordered/multiple constructors",
+  "description": "Covers common container/list operators used in real scoring rubrics: containerSize(), index() (1-based), and ordered()/multiple() constructors.",
+  "spec": "custom",
+  "provenance": {
+    "source": "authored",
+    "license": "CC0-1.0"
+  },
+  "covers": [
+    "expr.containerSize",
+    "expr.index",
+    "expr.multiple",
+    "expr.ordered"
+  ]
+}

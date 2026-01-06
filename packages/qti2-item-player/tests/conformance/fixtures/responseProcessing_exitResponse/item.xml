@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="responseProcessing_exitResponse" title="exitResponse stops responseProcessing" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="R" cardinality="single" baseType="string"/>
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="integer">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <p>Enter any text.</p>
+    <textEntryInteraction responseIdentifier="R" expectedLength="20"/>
+  </itemBody>
+
+  <responseProcessing>
+    <setOutcomeValue identifier="SCORE">
+      <baseValue baseType="integer">1</baseValue>
+    </setOutcomeValue>
+    <exitResponse/>
+    <setOutcomeValue identifier="SCORE">
+      <baseValue baseType="integer">2</baseValue>
+    </setOutcomeValue>
+  </responseProcessing>
+</assessmentItem>
+
+

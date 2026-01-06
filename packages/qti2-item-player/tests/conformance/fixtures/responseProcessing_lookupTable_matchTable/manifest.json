@@ -1,0 +1,13 @@
+{
+  "source": "authored",
+  "license": "CC0-1.0",
+  "notes": "Minimal fixture to cover lookupTable + matchTable (defaultValue + numeric key matching).",
+  "covers": [
+    "expr.lookupTable",
+    "lookupTable",
+    "matchTable",
+    "responseProcessing",
+    "setOutcomeValue",
+    "stmt.setOutcomeValue"
+  ]
+}

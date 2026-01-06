@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest xmlns="http://www.imsglobal.org/xsd/imscp_v1p1"
+          xmlns:imsmd="http://www.imsglobal.org/xsd/imsmd_v1p2"
+          xmlns:imsqti="http://www.imsglobal.org/xsd/imsqti_v2p2"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          identifier="basic_interactions_package"
+          xsi:schemaLocation="http://www.imsglobal.org/xsd/imscp_v1p1 http://www.imsglobal.org/xsd/imscp_v1p1.xsd http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/imsqti_v2p2.xsd">
+  <metadata>
+    <schema>QTI Package</schema>
+    <schemaversion>2.2</schemaversion>
+    <imsmd:lom>
+      <imsmd:general>
+        <imsmd:title>
+          <imsmd:string language="en">Basic QTI Interactions Sample Package</imsmd:string>
+        </imsmd:title>
+        <imsmd:description>
+          <imsmd:string language="en">A sample package demonstrating various QTI 2.2 interaction types including choice, text entry, inline choice, and match interactions.</imsmd:string>
+        </imsmd:description>
+      </imsmd:general>
+    </imsmd:lom>
+  </metadata>
+  <organizations/>
+  <resources>
+    <resource identifier="choice_simple" type="imsqti_item_xmlv2p2" href="choice_simple.xml">
+      <file href="choice_simple.xml"/>
+    </resource>
+    <resource identifier="choice_multiple" type="imsqti_item_xmlv2p2" href="choice_multiple.xml">
+      <file href="choice_multiple.xml"/>
+    </resource>
+    <resource identifier="text_entry" type="imsqti_item_xmlv2p2" href="text_entry.xml">
+      <file href="text_entry.xml"/>
+    </resource>
+    <resource identifier="inline_choice" type="imsqti_item_xmlv2p2" href="inline_choice.xml">
+      <file href="inline_choice.xml"/>
+    </resource>
+    <resource identifier="match_interaction" type="imsqti_item_xmlv2p2" href="match_interaction.xml">
+      <file href="match_interaction.xml"/>
+    </resource>
+  </resources>
+</manifest>

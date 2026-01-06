@@ -1,0 +1,170 @@
+{
+  "description": "Model for the @pie-elements/match-list Interaction",
+  "additionalProperties": false,
+  "type": "object",
+  "properties": {
+    "prompt": {
+      "description": "The question prompt or item stem",
+      "type": "string",
+      "title": "prompt"
+    },
+    "prompts": {
+      "description": "The question prompts that are going to be displayed.",
+      "type": "array",
+      "items": {
+        "description": "Multiple question prompts",
+        "title": "Prompt",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Identifier for a question prompt",
+            "type": [
+              "string",
+              "number"
+            ],
+            "title": "id"
+          },
+          "title": {
+            "description": "Text that will be displayed in the question prompt row",
+            "type": "string",
+            "title": "title"
+          },
+          "relatedAnswer": {
+            "description": "Id for the correct answer for this question prompt",
+            "type": [
+              "string",
+              "number"
+            ],
+            "title": "relatedAnswer"
+          }
+        },
+        "required": [
+          "id",
+          "relatedAnswer",
+          "title"
+        ]
+      },
+      "title": "prompts"
+    },
+    "answers": {
+      "description": "The answer rows that are going to be displayed.",
+      "type": "array",
+      "items": {
+        "description": "Multiple answers",
+        "title": "Answer",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Identifier for an answer row",
+            "type": [
+              "string",
+              "number"
+            ],
+            "title": "id"
+          },
+          "title": {
+            "description": "Text that will be displayed in the answer row",
+            "type": "string",
+            "title": "title"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ]
+      },
+      "title": "answers"
+    },
+    "lockChoiceOrder": {
+      "description": "Indicates if answers should be locked in order according to the model or if they should be shuffed\ntrue - order is respected according to model\nfalse - order is shuffled",
+      "type": "boolean",
+      "title": "lockChoiceOrder"
+    },
+    "duplicates": {
+      "description": "Indicates if duplicates are allowed",
+      "type": "boolean",
+      "title": "duplicates"
+    },
+    "language": {
+      "description": "Indicates the language of the component\nSupported options: en, es, en_US, en-US, es_ES, es-ES, es_MX, es-MX",
+      "type": "string",
+      "title": "language"
+    },
+    "id": {
+      "description": "Identifier to identify the Pie Element in html markup, Must be unique within a pie item config.",
+      "type": "string",
+      "title": "id"
+    },
+    "element": {
+      "description": "The html Element tag name",
+      "type": "string",
+      "title": "element"
+    }
+  },
+  "required": [
+    "answers",
+    "element",
+    "id",
+    "prompts"
+  ],
+  "definitions": {
+    "Prompt": {
+      "description": "Multiple question prompts",
+      "title": "Prompt",
+      "type": "object",
+      "properties": {
+        "id": {
+          "description": "Identifier for a question prompt",
+          "type": [
+            "string",
+            "number"
+          ],
+          "title": "id"
+        },
+        "title": {
+          "description": "Text that will be displayed in the question prompt row",
+          "type": "string",
+          "title": "title"
+        },
+        "relatedAnswer": {
+          "description": "Id for the correct answer for this question prompt",
+          "type": [
+            "string",
+            "number"
+          ],
+          "title": "relatedAnswer"
+        }
+      },
+      "required": [
+        "id",
+        "relatedAnswer",
+        "title"
+      ]
+    },
+    "Answer": {
+      "description": "Multiple answers",
+      "title": "Answer",
+      "type": "object",
+      "properties": {
+        "id": {
+          "description": "Identifier for an answer row",
+          "type": [
+            "string",
+            "number"
+          ],
+          "title": "id"
+        },
+        "title": {
+          "description": "Text that will be displayed in the answer row",
+          "type": "string",
+          "title": "title"
+        }
+      },
+      "required": [
+        "id",
+        "title"
+      ]
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

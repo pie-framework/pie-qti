@@ -1,0 +1,11 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "mapResponse should sum mapped entries for multiple/ordered cardinalities.",
+  "covers": [
+    "expr.mapResponse",
+    "mapping",
+    "mapResponse",
+    "multiple"
+  ]
+}

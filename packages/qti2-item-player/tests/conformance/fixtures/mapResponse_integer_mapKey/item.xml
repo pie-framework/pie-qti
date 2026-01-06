@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="mapResponse_integer_mapKey" title="mapResponse integer mapKey matching" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="R" cardinality="single" baseType="integer">
+    <mapping defaultValue="0">
+      <mapEntry mapKey="1" mappedValue="2"/>
+      <mapEntry mapKey="-1" mappedValue="3"/>
+    </mapping>
+  </responseDeclaration>
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <p>Enter a number.</p>
+    <textEntryInteraction responseIdentifier="R" expectedLength="3"/>
+  </itemBody>
+
+  <responseProcessing>
+    <setOutcomeValue identifier="SCORE">
+      <mapResponse identifier="R"/>
+    </setOutcomeValue>
+  </responseProcessing>
+</assessmentItem>
+
+

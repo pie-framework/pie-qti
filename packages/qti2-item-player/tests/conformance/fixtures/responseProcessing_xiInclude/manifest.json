@@ -1,0 +1,9 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "Tracks unsupported xi:include in processing (we do not resolve external fragments).",
+  "covers": [
+    "responseProcessing",
+    "xi:include"
+  ]
+}

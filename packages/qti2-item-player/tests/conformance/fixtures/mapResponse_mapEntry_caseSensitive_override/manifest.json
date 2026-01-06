@@ -1,0 +1,7 @@
+{
+  "id": "mapResponse_mapEntry_caseSensitive_override",
+  "title": "mapResponse: mapEntry caseSensitive overrides mapping caseSensitive",
+  "description": "Verify that mapping@caseSensitive=\"false\" provides case-insensitive lookups by default, while mapEntry@caseSensitive=\"true\" forces a case-sensitive match for that entry."
+}
+
+

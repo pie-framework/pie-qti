@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="responseProcessing_anyN_allN" title="anyN + allN operators" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="R1" cardinality="single" baseType="boolean"/>
+  <responseDeclaration identifier="R2" cardinality="single" baseType="boolean"/>
+  <responseDeclaration identifier="R3" cardinality="single" baseType="boolean"/>
+
+  <outcomeDeclaration identifier="SCORE_ANY" cardinality="single" baseType="integer">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+  <outcomeDeclaration identifier="SCORE_ALL" cardinality="single" baseType="integer">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <p>Fixture-only item (responses set via harness).</p>
+  </itemBody>
+
+  <responseProcessing>
+    <!-- anyN(min/max) -->
+    <responseCondition>
+      <responseIf>
+        <anyN min="2" max="3">
+          <variable identifier="R1"/>
+          <variable identifier="R2"/>
+          <variable identifier="R3"/>
+        </anyN>
+        <setOutcomeValue identifier="SCORE_ANY">
+          <baseValue baseType="integer">2</baseValue>
+        </setOutcomeValue>
+      </responseIf>
+      <responseElseIf>
+        <anyN min="1" max="1">
+          <variable identifier="R1"/>
+          <variable identifier="R2"/>
+          <variable identifier="R3"/>
+        </anyN>
+        <setOutcomeValue identifier="SCORE_ANY">
+          <baseValue baseType="integer">1</baseValue>
+        </setOutcomeValue>
+      </responseElseIf>
+      <responseElse>
+        <setOutcomeValue identifier="SCORE_ANY">
+          <baseValue baseType="integer">0</baseValue>
+        </setOutcomeValue>
+      </responseElse>
+    </responseCondition>
+
+    <!-- allN(max) (legacy/non-standard): true iff no more than max operands are true -->
+    <responseCondition>
+      <responseIf>
+        <allN max="1">
+          <variable identifier="R1"/>
+          <variable identifier="R2"/>
+          <variable identifier="R3"/>
+        </allN>
+        <setOutcomeValue identifier="SCORE_ALL">
+          <baseValue baseType="integer">1</baseValue>
+        </setOutcomeValue>
+      </responseIf>
+      <responseElse>
+        <setOutcomeValue identifier="SCORE_ALL">
+          <baseValue baseType="integer">0</baseValue>
+        </setOutcomeValue>
+      </responseElse>
+    </responseCondition>
+  </responseProcessing>
+</assessmentItem>
+
+

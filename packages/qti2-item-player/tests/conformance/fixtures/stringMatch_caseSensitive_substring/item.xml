@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="stringMatch_caseSensitive_substring" title="stringMatch with caseSensitive/substring" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="R" cardinality="single" baseType="string"/>
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="integer">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <p>Enter some text.</p>
+    <textEntryInteraction responseIdentifier="R" expectedLength="20"/>
+  </itemBody>
+
+  <responseProcessing>
+    <responseCondition>
+      <responseIf>
+        <stringMatch caseSensitive="true" substring="false">
+          <variable identifier="R"/>
+          <baseValue baseType="string">hello</baseValue>
+        </stringMatch>
+        <setOutcomeValue identifier="SCORE">
+          <baseValue baseType="integer">3</baseValue>
+        </setOutcomeValue>
+      </responseIf>
+      <responseElseIf>
+        <stringMatch caseSensitive="false" substring="false">
+          <variable identifier="R"/>
+          <baseValue baseType="string">hello</baseValue>
+        </stringMatch>
+        <setOutcomeValue identifier="SCORE">
+          <baseValue baseType="integer">1</baseValue>
+        </setOutcomeValue>
+      </responseElseIf>
+      <responseElseIf>
+        <stringMatch caseSensitive="false" substring="true">
+          <variable identifier="R"/>
+          <baseValue baseType="string">ello</baseValue>
+        </stringMatch>
+        <setOutcomeValue identifier="SCORE">
+          <baseValue baseType="integer">2</baseValue>
+        </setOutcomeValue>
+      </responseElseIf>
+      <responseElse>
+        <setOutcomeValue identifier="SCORE">
+          <baseValue baseType="integer">0</baseValue>
+        </setOutcomeValue>
+      </responseElse>
+    </responseCondition>
+  </responseProcessing>
+</assessmentItem>
+
+

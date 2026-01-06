@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+	xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+	identifier="lookupTable_matchTable"
+	title="lookupTable matchTable"
+	adaptive="false"
+	timeDependent="false">
+	<responseDeclaration identifier="R" cardinality="single" baseType="integer" />
+
+	<outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
+		<defaultValue>
+			<value>0</value>
+		</defaultValue>
+	</outcomeDeclaration>
+
+	<itemBody>
+		<p>Lookup table test</p>
+	</itemBody>
+
+	<responseProcessing>
+		<setOutcomeValue identifier="SCORE">
+			<lookupTable>
+				<variable identifier="R" />
+				<matchTable defaultValue="0">
+					<matchTableEntry sourceValue="1" targetValue="2" />
+					<matchTableEntry sourceValue="2" targetValue="5" />
+				</matchTable>
+			</lookupTable>
+		</setOutcomeValue>
+	</responseProcessing>
+</assessmentItem>
+
+

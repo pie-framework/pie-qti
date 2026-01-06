@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest xmlns="http://www.imsglobal.org/xsd/imscp_v1p1"
+          xmlns:imsqti="http://www.imsglobal.org/xsd/imsqti_v2p2"
+          identifier="text-interactions-package"
+          xsi:schemaLocation="http://www.imsglobal.org/xsd/imscp_v1p1 http://www.imsglobal.org/xsd/imscp_v1p1.xsd http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/imsqti_v2p2.xsd"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+  <metadata>
+    <schema>QTI Package</schema>
+    <schemaversion>2.2</schemaversion>
+  </metadata>
+
+  <organizations/>
+
+  <resources>
+    <resource identifier="item-text-entry" type="imsqti_item_xmlv2p2" href="text_entry.xml">
+      <file href="text_entry.xml"/>
+    </resource>
+
+    <resource identifier="item-extended-text" type="imsqti_item_xmlv2p2" href="extended_text.xml">
+      <file href="extended_text.xml"/>
+    </resource>
+  </resources>
+</manifest>

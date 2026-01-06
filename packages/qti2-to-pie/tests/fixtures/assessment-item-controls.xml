@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentTest xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                identifier="test006"
+                title="Item Session Controls Test">
+
+  <testPart identifier="part1" navigationMode="nonlinear">
+    <assessmentSection identifier="section1" title="Controlled Items" visible="true">
+      <assessmentItemRef identifier="item1" href="items/q1.xml">
+        <itemSessionControl maxAttempts="3"
+                           showFeedback="true"
+                           allowReview="true"
+                           showSolution="false"
+                           allowComment="true"
+                           allowSkipping="true"
+                           validateResponses="false"/>
+        <weight identifier="SCORE" value="2.5"/>
+        <category>easy</category>
+        <category>algebra</category>
+      </assessmentItemRef>
+
+      <assessmentItemRef identifier="item2" href="items/q2.xml" required="true" fixed="true">
+        <itemSessionControl maxAttempts="1"
+                           showFeedback="false"
+                           allowReview="false"
+                           showSolution="false"
+                           allowComment="false"
+                           allowSkipping="false"
+                           validateResponses="true"/>
+        <weight identifier="SCORE" value="5.0"/>
+        <category>hard</category>
+      </assessmentItemRef>
+    </assessmentSection>
+  </testPart>
+
+</assessmentTest>

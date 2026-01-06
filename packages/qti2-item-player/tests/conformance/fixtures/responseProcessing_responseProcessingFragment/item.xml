@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+	xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+	identifier="responseProcessingFragment-inline"
+	title="responseProcessingFragment (inline)"
+	adaptive="false"
+	timeDependent="false">
+
+	<responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier" />
+
+	<outcomeDeclaration identifier="SCORE" cardinality="single" baseType="integer" defaultValue="0" />
+
+	<itemBody>
+		<p>Fragment test</p>
+	</itemBody>
+
+	<responseProcessing>
+		<setOutcomeValue identifier="SCORE">
+			<baseValue baseType="integer">0</baseValue>
+		</setOutcomeValue>
+
+		<responseProcessingFragment>
+			<setOutcomeValue identifier="SCORE">
+				<baseValue baseType="integer">1</baseValue>
+			</setOutcomeValue>
+			<exitResponse />
+			<!-- Must NOT run due to exitResponse -->
+			<setOutcomeValue identifier="SCORE">
+				<baseValue baseType="integer">999</baseValue>
+			</setOutcomeValue>
+		</responseProcessingFragment>
+
+		<!-- Must NOT run due to exitResponse -->
+		<setOutcomeValue identifier="SCORE">
+			<baseValue baseType="integer">1000</baseValue>
+		</setOutcomeValue>
+	</responseProcessing>
+</assessmentItem>
+
+

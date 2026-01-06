@@ -1,0 +1,65 @@
+{
+	"name": "@pie-qti/qti2-item-player",
+	"version": "0.1.0",
+	"description": "Modern QTI 2.x player - Client-side with optional backend hooks",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"scripts": {
+		"build": "tsc",
+		"test": "bun test",
+		"typecheck": "tsc --noEmit",
+		"check": "../qti2-assessment-player/node_modules/.bin/svelte-check --tsconfig ./tsconfig.svelte.json",
+		"lint": "biome check .",
+		"lint:fix": "biome check --write .",
+		"format": "biome format --write ."
+	},
+	"keywords": [
+		"qti",
+		"qti2",
+		"qti2.2",
+		"qti 2.x",
+		"assessment",
+		"player",
+		"e-learning"
+	],
+	"author": "Renaissance Learning",
+	"license": "MIT",
+	"dependencies": {
+		"@pie-qti/qti-processing": "workspace:*",
+		"@tiptap/core": "^3.14.0",
+		"@tiptap/extension-mathematics": "^3.14.0",
+		"@tiptap/extension-placeholder": "^3.14.0",
+		"@tiptap/starter-kit": "^3.14.0",
+		"@xmldom/xmldom": "^0.8.11",
+		"decimal.js": "^10.6.0",
+		"katex": "^0.16.27",
+		"mathlive": "^0.108.2",
+		"node-html-parser": "^7.0.1"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.3.10",
+		"@types/node": "^25.0.3",
+		"svelte": "^5.46.1",
+		"svelte-check": "^4.3.5",
+		"typescript": "^5.9.3"
+	},
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		},
+		"./server": {
+			"types": "./dist/server.d.ts",
+			"import": "./dist/server.js"
+		},
+		"./web-components": {
+			"types": "./dist/web-components/index.d.ts",
+			"import": "./dist/web-components/index.js"
+		},
+		"./iframe": {
+			"types": "./dist/iframe/index.d.ts",
+			"import": "./dist/iframe/index.js"
+		}
+	}
+}

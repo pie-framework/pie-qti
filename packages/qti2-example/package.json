@@ -1,0 +1,79 @@
+{
+  "name": "@pie-qti/qti2-example",
+  "version": "0.1.0",
+  "description": "QTI 2.x Player Example & Demo Application",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "test": "echo 'E2E tests run separately via test:e2e'",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
+    "test:a11y": "playwright test tests/playwright/accessibility.pw.ts",
+    "test:a11y:ui": "playwright test tests/playwright/accessibility.pw.ts --ui"
+  },
+  "dependencies": {
+    "@acme/likert-scale-plugin": "workspace:*",
+    "@pie-qti/qti2-assessment-player": "workspace:*",
+    "@pie-qti/qti2-item-player": "workspace:*",
+    "@pie-qti/qti2-default-components": "workspace:*",
+    "@pie-qti/qti2-player-elements": "workspace:*",
+    "@pie-qti/qti2-typeset-katex": "workspace:*",
+    "@pie-qti/web-component-loaders": "workspace:*",
+    "@tiptap/core": "^3.14.0",
+    "@tiptap/extension-code-block": "^3.14.0",
+    "@tiptap/extension-code-block-lowlight": "^3.14.0",
+    "@tiptap/extension-document": "^3.14.0",
+    "@tiptap/extension-history": "^3.14.0",
+    "@tiptap/extension-text": "^3.14.0",
+    "@tiptap/pm": "^3.14.0",
+    "@tiptap/starter-kit": "^3.14.0",
+    "highlight.js": "^11.11.1",
+    "lowlight": "^3.3.0",
+    "unzipper": "^0.12.3",
+    "xml2js": "^0.6.2"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.11.0",
+    "@playwright/test": "^1.57.0",
+    "@sveltejs/adapter-static": "^3.0.10",
+    "@sveltejs/kit": "^2.49.2",
+    "@sveltejs/vite-plugin-svelte": "^6.2.1",
+    "@tailwindcss/vite": "^4.1.18",
+    "@types/node": "^25.0.3",
+    "@types/unzipper": "^0.10.11",
+    "@types/xml2js": "^0.4.14",
+    "axe-core": "^4.11.0",
+    "daisyui": "^5.5.14",
+    "js-yaml": "^4.1.0",
+    "svelte": "^5.46.1",
+    "svelte-check": "^4.3.5",
+    "tailwindcss": "^4.1.18",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "peerDependencies": {
+    "@pie-framework/pie-assessment-player": "^1.0.0",
+    "@pie-framework/pie-iife-player": "^1.0.0",
+    "@pie-framework/pie-esm-player": "^1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@pie-framework/pie-assessment-player": {
+      "optional": true
+    },
+    "@pie-framework/pie-iife-player": {
+      "optional": true
+    },
+    "@pie-framework/pie-esm-player": {
+      "optional": true
+    }
+  }
+}

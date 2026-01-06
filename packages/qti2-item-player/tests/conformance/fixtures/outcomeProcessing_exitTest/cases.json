@@ -1,0 +1,15 @@
+{
+  "id": "outcomeProcessing_exitTest",
+  "cases": [
+    {
+      "name": "exitTest_stops_execution",
+      "responses": { "RESPONSE": "A" },
+      "expect": {
+        "score": 1,
+        "outcomes": { "SCORE": 1 }
+      }
+    }
+  ]
+}
+
+

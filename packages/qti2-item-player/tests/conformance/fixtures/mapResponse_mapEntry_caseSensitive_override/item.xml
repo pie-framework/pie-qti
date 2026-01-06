@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="mapResponse_mapEntry_caseSensitive_override"
+  title="mapResponse mapEntry caseSensitive override"
+  adaptive="false"
+  timeDependent="false">
+  <responseDeclaration identifier="R" cardinality="single" baseType="string">
+    <mapping defaultValue="0" caseSensitive="false">
+      <!-- This entry forces a case-sensitive match only -->
+      <mapEntry mapKey="Hello" mappedValue="2" caseSensitive="true"/>
+      <!-- This entry inherits mapping@caseSensitive=false -->
+      <mapEntry mapKey="world" mappedValue="1"/>
+    </mapping>
+  </responseDeclaration>
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="integer">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <p>Enter either "Hello" or "world" (case varies by rule).</p>
+    <textEntryInteraction responseIdentifier="R" expectedLength="20"/>
+  </itemBody>
+
+  <responseProcessing>
+    <setOutcomeValue identifier="SCORE">
+      <mapResponse identifier="R"/>
+    </setOutcomeValue>
+  </responseProcessing>
+</assessmentItem>
+
+

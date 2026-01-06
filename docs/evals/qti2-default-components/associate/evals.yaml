@@ -1,0 +1,91 @@
+version: 1
+
+component:
+  interactionType: associateInteraction
+  tagName: pie-qti-associate
+
+examplesApp:
+  app: "@pie-qti/qti2-example"
+  routeTemplate: "/item-demo/{sampleId}"
+
+evals:
+  - id: associate/associate-interaction/correct
+    sampleId: associate-interaction
+    gradeBand: "6-10"
+    subject: computer-science
+    intent: "All correct associations → full mapped score."
+    steps:
+      - action: navigate
+        path: "/item-demo/associate-interaction"
+      - action: clickPair
+        target:
+          description: "Create pair: Variable ↔ Stores data"
+          hint: "Click 'Variable' then 'Stores data'"
+      - action: clickPair
+        target:
+          description: "Create pair: Function ↔ Reusable code"
+      - action: clickPair
+        target:
+          description: "Create pair: Loop ↔ Repeats code"
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+    expected:
+      responses:
+        RESPONSE:
+          containsAll:
+            - "A B"
+            - "C D"
+            - "E F"
+      outcomes:
+        SCORE:
+          equals: 3.0
+        MAXSCORE:
+          equals: 3.0
+    spiritChecks:
+      - "It’s visually clear when an association is created and how to undo/remove one."
+
+  - id: associate/associate-interaction/partial
+    sampleId: associate-interaction
+    gradeBand: "6-10"
+    subject: computer-science
+    intent: "Some correct associations → partial credit via mapping."
+    steps:
+      - action: navigate
+        path: "/item-demo/associate-interaction"
+      - action: clickPair
+        target:
+          description: "Create two correct pairs only"
+          hint: "Make 'A B' and 'C D' and stop."
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+    expected:
+      outcomes:
+        SCORE:
+          equals: 2.0
+        MAXSCORE:
+          equals: 3.0
+
+  - id: associate/associate-interaction/wrong
+    sampleId: associate-interaction
+    gradeBand: "6-10"
+    subject: computer-science
+    intent: "Incorrect associations should score 0 (no matching mapEntry keys)."
+    steps:
+      - action: navigate
+        path: "/item-demo/associate-interaction"
+      - action: clickPair
+        target:
+          description: "Create 3 wrong pairs (e.g., Variable ↔ Reusable code, etc.)"
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+    expected:
+      outcomes:
+        SCORE:
+          equals: 0.0
+        MAXSCORE:
+          equals: 3.0
+
+

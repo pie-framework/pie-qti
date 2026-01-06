@@ -1,0 +1,61 @@
+version: 1
+
+component:
+  interactionType: endAttemptInteraction
+  tagName: pie-qti-end-attempt
+
+examplesApp:
+  app: "@pie-qti/qti2-example"
+  routeTemplate: "/item-demo/{sampleId}"
+
+evals:
+  - id: end-attempt/end-attempt/correct
+    sampleId: end-attempt
+    gradeBand: "K-12"
+    subject: "general"
+    intent: "End attempt sets response true; button disables; scoring returns 1."
+    steps:
+      - action: navigate
+        path: "/item-demo/end-attempt"
+      - action: click
+        target:
+          description: "Click the End Assessment button"
+          hint: "Within `pie-qti-end-attempt`, click the main red button"
+      - action: observe
+        target:
+          description: "A warning/message appears indicating the attempt is ended and cannot be modified"
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+        note: "If the app disables submit for endAttempt-only items, treat this as acceptable gating behavior."
+    expected:
+      responses:
+        RESPONSE:
+          equals: true
+      outcomes:
+        SCORE:
+          equals: 1.0
+    spiritChecks:
+      - "The UI clearly communicates finality and prevents accidental repeats (disabled after click)."
+
+  - id: end-attempt/end-attempt/wrong-not-ended
+    sampleId: end-attempt
+    gradeBand: "K-12"
+    subject: "general"
+    intent: "Not clicking should leave response false and score 0."
+    steps:
+      - action: navigate
+        path: "/item-demo/end-attempt"
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+        note: "If the app enforces interaction completion before submit, treat disabled submit as acceptable."
+    expected:
+      responses:
+        RESPONSE:
+          equals: false
+      outcomes:
+        SCORE:
+          equals: 0.0
+
+

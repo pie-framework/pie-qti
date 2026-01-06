@@ -1,0 +1,48 @@
+{
+  "name": "@pie-qti/qti2-to-pie",
+  "version": "1.0.0",
+  "description": "QTI 2.2 to PIE transformation plugin",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./ims-cp": {
+      "types": "./dist/utils/ims-cp/index.d.ts",
+      "import": "./dist/utils/ims-cp/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "pie",
+    "qti",
+    "qti2",
+    "qti2.2",
+    "assessment",
+    "transformation"
+  ],
+  "author": "Renaissance Learning",
+  "license": "ISC",
+  "dependencies": {
+    "@pie-framework/transform-core": "workspace:*",
+    "@pie-framework/transform-types": "workspace:*",
+    "image-size": "^2.0.2",
+    "node-html-parser": "^6.1.13",
+    "unzipper": "^0.12.3",
+    "uuid": "^10.0.0"
+  },
+  "devDependencies": {
+    "@types/unzipper": "^0.10.11",
+    "@types/uuid": "^10.0.0",
+    "typescript": "^5.9.3"
+  },
+  "type": "module"
+}

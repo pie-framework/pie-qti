@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest xmlns="http://www.imsglobal.org/xsd/imscp_v1p1"
+          xmlns:imsmd="http://www.imsglobal.org/xsd/imsmd_v1p2"
+          xmlns:imsqti="http://www.imsglobal.org/xsd/imsqti_v2p2"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          identifier="graphic_interactions_package"
+          xsi:schemaLocation="http://www.imsglobal.org/xsd/imscp_v1p1 http://www.imsglobal.org/xsd/imscp_v1p1.xsd http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/imsqti_v2p2.xsd">
+  <metadata>
+    <schema>QTI Package</schema>
+    <schemaversion>2.2</schemaversion>
+    <imsmd:lom>
+      <imsmd:general>
+        <imsmd:title>
+          <imsmd:string language="en">Graphic Interaction Items</imsmd:string>
+        </imsmd:title>
+        <imsmd:description>
+          <imsmd:string language="en">QTI items demonstrating graphic-based interactions including hotspot and graphic gap match.</imsmd:string>
+        </imsmd:description>
+      </imsmd:general>
+    </imsmd:lom>
+  </metadata>
+  <organizations/>
+  <resources>
+    <resource identifier="hotspot" type="imsqti_item_xmlv2p2" href="hotspot.xml">
+      <file href="hotspot.xml"/>
+    </resource>
+    <resource identifier="graphic_gap_match" type="imsqti_item_xmlv2p2" href="graphic_gap_match.xml">
+      <file href="graphic_gap_match.xml"/>
+    </resource>
+  </resources>
+</manifest>

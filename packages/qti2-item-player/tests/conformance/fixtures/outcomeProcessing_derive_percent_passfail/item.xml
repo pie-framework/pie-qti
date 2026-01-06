@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="outcomeProcessing_derive_percent_passfail"
+  title="Derive percent + pass/fail"
+  adaptive="false"
+  timeDependent="false">
+
+  <responseDeclaration identifier="R1" cardinality="single" baseType="identifier">
+    <correctResponse><value>A</value></correctResponse>
+  </responseDeclaration>
+  <responseDeclaration identifier="R2" cardinality="single" baseType="identifier">
+    <correctResponse><value>B</value></correctResponse>
+  </responseDeclaration>
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="integer">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+  <outcomeDeclaration identifier="MAXSCORE" cardinality="single" baseType="integer">
+    <defaultValue><value>2</value></defaultValue>
+  </outcomeDeclaration>
+  <outcomeDeclaration identifier="PERCENT" cardinality="single" baseType="integer">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+  <outcomeDeclaration identifier="PASS" cardinality="single" baseType="boolean">
+    <defaultValue><value>false</value></defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <p>Two questions.</p>
+  </itemBody>
+
+  <responseProcessing>
+    <!-- accumulate raw points -->
+    <setOutcomeValue identifier="SCORE">
+      <baseValue baseType="integer">0</baseValue>
+    </setOutcomeValue>
+
+    <responseCondition>
+      <responseIf>
+        <match>
+          <variable identifier="R1"/>
+          <correct identifier="R1"/>
+        </match>
+        <setOutcomeValue identifier="SCORE">
+          <sum>
+            <variable identifier="SCORE"/>
+            <baseValue baseType="integer">1</baseValue>
+          </sum>
+        </setOutcomeValue>
+      </responseIf>
+    </responseCondition>
+
+    <responseCondition>
+      <responseIf>
+        <match>
+          <variable identifier="R2"/>
+          <correct identifier="R2"/>
+        </match>
+        <setOutcomeValue identifier="SCORE">
+          <sum>
+            <variable identifier="SCORE"/>
+            <baseValue baseType="integer">1</baseValue>
+          </sum>
+        </setOutcomeValue>
+      </responseIf>
+    </responseCondition>
+  </responseProcessing>
+
+  <outcomeProcessing>
+    <!-- derive percent score -->
+    <setOutcomeValue identifier="PERCENT">
+      <round>
+        <product>
+          <divide>
+            <variable identifier="SCORE"/>
+            <variable identifier="MAXSCORE"/>
+          </divide>
+          <baseValue baseType="float">100</baseValue>
+        </product>
+      </round>
+    </setOutcomeValue>
+
+    <!-- pass if >= 50% -->
+    <outcomeCondition>
+      <outcomeIf>
+        <gte>
+          <variable identifier="PERCENT"/>
+          <baseValue baseType="integer">50</baseValue>
+        </gte>
+        <setOutcomeValue identifier="PASS">
+          <baseValue baseType="boolean">true</baseValue>
+        </setOutcomeValue>
+      </outcomeIf>
+      <outcomeElse>
+        <setOutcomeValue identifier="PASS">
+          <baseValue baseType="boolean">false</baseValue>
+        </setOutcomeValue>
+      </outcomeElse>
+    </outcomeCondition>
+  </outcomeProcessing>
+</assessmentItem>
+
+

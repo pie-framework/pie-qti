@@ -1,0 +1,54 @@
+{
+	"$schema": "https://biomejs.dev/schemas/2.3.10/schema.json",
+	"vcs": {
+		"enabled": true,
+		"clientKind": "git",
+		"useIgnoreFile": true
+	},
+	"files": {
+		"ignoreUnknown": false,
+		"includes": [
+			"**/*",
+			"!**/playwright-report",
+			"!**/test-results",
+			"!**/.svelte-kit",
+			"!**/dist",
+			"!**/tests/**/fixtures/**"
+		]
+	},
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"recommended": false,
+			"correctness": {
+				"recommended": true,
+				"noUnusedVariables": "off",
+				"noUnusedImports": "off",
+				"noUnusedPrivateClassMembers": "off"
+			},
+			"suspicious": {
+				"recommended": true,
+				"noExplicitAny": "off",
+				"noImplicitAnyLet": "off",
+				"noAssignInExpressions": "off",
+				"useIterableCallbackReturn": "off"
+			}
+		}
+	},
+	"formatter": {
+		"enabled": false
+	},
+	"css": {
+		"parser": {
+			"tailwindDirectives": true
+		}
+	},
+	"overrides": [
+		{
+			"includes": ["**/*.svelte"],
+			"linter": {
+				"enabled": false
+			}
+		}
+	]
+}

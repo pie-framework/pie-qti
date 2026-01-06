@@ -1,0 +1,9 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "match_correct template with two responseDeclarations uses MAXSCORE when all correct.",
+  "covers": [
+    "multipleResponses",
+    "responseProcessing.template.match_correct"
+  ]
+}

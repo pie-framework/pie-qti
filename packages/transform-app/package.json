@@ -1,0 +1,72 @@
+{
+  "name": "@pie-framework/transform-web",
+  "version": "0.1.0",
+  "description": "Web interface for testing QTI to PIE transformations",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "test": "echo 'E2E tests run separately via test:e2e'",
+    "test:e2e": "bunx playwright test",
+    "test:e2e:ui": "bunx playwright test --ui",
+    "test:e2e:headed": "bunx playwright test --headed",
+    "test:a11y": "bunx playwright test tests/playwright/accessibility.pw.ts",
+    "test:a11y:ui": "bunx playwright test tests/playwright/accessibility.pw.ts --ui"
+  },
+  "dependencies": {
+    "@pie-qti/qti2-assessment-player": "workspace:*",
+    "@pie-qti/qti2-default-components": "workspace:*",
+    "@pie-qti/qti2-item-player": "workspace:*",
+    "@pie-qti/qti2-player-elements": "workspace:*",
+    "@pie-qti/qti2-typeset-katex": "workspace:*",
+    "@pie-qti/qti2-to-pie": "workspace:*",
+    "@pie-framework/transform-core": "workspace:*",
+    "@pie-framework/transform-types": "workspace:*",
+    "@pie-qti/web-component-loaders": "workspace:*",
+    "@types/unzipper": "^0.10.11",
+    "node-html-parser": "^7.0.1",
+    "unzipper": "^0.12.3"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.11.0",
+    "@playwright/test": "^1.57.0",
+    "@sveltejs/adapter-auto": "^7.0.0",
+    "@sveltejs/kit": "^2.49.2",
+    "@sveltejs/vite-plugin-svelte": "^6.2.1",
+    "@tailwindcss/vite": "^4.1.18",
+    "@types/adm-zip": "^0.5.7",
+    "@types/node": "^25.0.3",
+    "adm-zip": "^0.5.16",
+    "axe-core": "^4.11.0",
+    "daisyui": "^5.5.14",
+    "fast-xml-parser": "^5.3.3",
+    "svelte": "^5.46.1",
+    "svelte-check": "^4.3.5",
+    "tailwindcss": "^4.1.18",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "peerDependencies": {
+    "@pie-framework/pie-iife-player": "^1.0.0",
+    "@pie-framework/pie-esm-player": "^1.0.0",
+    "@pie-framework/pie-assessment-player": "^1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@pie-framework/pie-iife-player": {
+      "optional": true
+    },
+    "@pie-framework/pie-esm-player": {
+      "optional": true
+    },
+    "@pie-framework/pie-assessment-player": {
+      "optional": true
+    }
+  }
+}

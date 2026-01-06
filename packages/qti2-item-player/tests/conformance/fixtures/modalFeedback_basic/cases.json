@@ -1,0 +1,17 @@
+{
+  "id": "modalFeedback_basic",
+  "cases": [
+    {
+      "name": "correct_shows_correct_feedback",
+      "responses": { "RESPONSE": "A" },
+      "expect": { "outcomes": { "FEEDBACK": "correct" }, "modalFeedbackIdentifiers": ["correct"] }
+    },
+    {
+      "name": "incorrect_shows_incorrect_feedback",
+      "responses": { "RESPONSE": "B" },
+      "expect": { "outcomes": { "FEEDBACK": "incorrect" }, "modalFeedbackIdentifiers": ["incorrect"] }
+    }
+  ]
+}
+
+

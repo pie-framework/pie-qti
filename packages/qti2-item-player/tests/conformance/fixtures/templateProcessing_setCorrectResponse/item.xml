@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="templateProcessing_setCorrectResponse" title="templateProcessing setCorrectResponse" adaptive="false" timeDependent="false">
+  <templateDeclaration identifier="T1" cardinality="single" baseType="integer">
+    <defaultValue><value>0</value></defaultValue>
+  </templateDeclaration>
+  <templateDeclaration identifier="T2" cardinality="single" baseType="integer">
+    <defaultValue><value>0</value></defaultValue>
+  </templateDeclaration>
+  <templateDeclaration identifier="KEY" cardinality="single" baseType="string">
+    <defaultValue><value>?</value></defaultValue>
+  </templateDeclaration>
+
+  <responseDeclaration identifier="R1" cardinality="single" baseType="string"/>
+  <responseDeclaration identifier="R2" cardinality="single" baseType="string"/>
+  <responseDeclaration identifier="R3" cardinality="single" baseType="string"/>
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="integer">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+
+  <templateProcessing>
+    <!-- Force one IF branch and one ELSE branch deterministically -->
+    <setTemplateValue identifier="T1"><baseValue baseType="integer">1</baseValue></setTemplateValue>
+    <templateCondition>
+      <templateIf>
+        <equal><variable identifier="T1"/><baseValue baseType="integer">1</baseValue></equal>
+        <setCorrectResponse identifier="R1"><baseValue baseType="string">A</baseValue></setCorrectResponse>
+      </templateIf>
+      <templateElse>
+        <setCorrectResponse identifier="R1"><baseValue baseType="string">B</baseValue></setCorrectResponse>
+      </templateElse>
+    </templateCondition>
+
+    <setTemplateValue identifier="T2"><baseValue baseType="integer">0</baseValue></setTemplateValue>
+    <templateCondition>
+      <templateIf>
+        <equal><variable identifier="T2"/><baseValue baseType="integer">1</baseValue></equal>
+        <setCorrectResponse identifier="R2"><baseValue baseType="string">A</baseValue></setCorrectResponse>
+      </templateIf>
+      <templateElse>
+        <setCorrectResponse identifier="R2"><baseValue baseType="string">B</baseValue></setCorrectResponse>
+      </templateElse>
+    </templateCondition>
+
+    <!-- Also allow correct response to be set from a variable expression -->
+    <setTemplateValue identifier="KEY"><baseValue baseType="string">C</baseValue></setTemplateValue>
+    <setCorrectResponse identifier="R3"><variable identifier="KEY"/></setCorrectResponse>
+  </templateProcessing>
+
+  <itemBody>
+    <p>Correct key is: <printedVariable identifier="KEY"/></p>
+    <textEntryInteraction responseIdentifier="R1" expectedLength="1"/>
+    <textEntryInteraction responseIdentifier="R2" expectedLength="1"/>
+    <textEntryInteraction responseIdentifier="R3" expectedLength="1"/>
+  </itemBody>
+
+  <responseProcessing>
+    <responseCondition>
+      <responseIf>
+        <and>
+          <match><variable identifier="R1"/><correct identifier="R1"/></match>
+          <match><variable identifier="R2"/><correct identifier="R2"/></match>
+          <match><variable identifier="R3"/><correct identifier="R3"/></match>
+        </and>
+        <setOutcomeValue identifier="SCORE"><baseValue baseType="integer">3</baseValue></setOutcomeValue>
+      </responseIf>
+      <responseElse>
+        <setOutcomeValue identifier="SCORE"><baseValue baseType="integer">0</baseValue></setOutcomeValue>
+      </responseElse>
+    </responseCondition>
+  </responseProcessing>
+</assessmentItem>
+
+

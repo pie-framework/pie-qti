@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/imsqti_v2p2.xsd"
+                identifier="algebra-equation"
+                title="Solving Linear Equations"
+                adaptive="false"
+                timeDependent="false">
+
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier">
+    <correctResponse>
+      <value>C</value>
+    </correctResponse>
+  </responseDeclaration>
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
+    <defaultValue>
+      <value>0</value>
+    </defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <div class="qti-item-body">
+      <h2>Solve for x</h2>
+      <p>Solve the following linear equation:</p>
+      <p style="text-align: center; font-size: 1.2em; margin: 20px 0;">
+        <strong>3x + 7 = 22</strong>
+      </p>
+      <p>What is the value of x?</p>
+
+      <choiceInteraction responseIdentifier="RESPONSE" shuffle="false" maxChoices="1">
+        <prompt>Select the correct answer:</prompt>
+        <simpleChoice identifier="A">x = 3</simpleChoice>
+        <simpleChoice identifier="B">x = 4</simpleChoice>
+        <simpleChoice identifier="C">x = 5</simpleChoice>
+        <simpleChoice identifier="D">x = 6</simpleChoice>
+      </choiceInteraction>
+    </div>
+  </itemBody>
+
+  <responseProcessing template="http://www.imsglobal.org/question/qti_v2p1/rptemplates/match_correct"/>
+</assessmentItem>

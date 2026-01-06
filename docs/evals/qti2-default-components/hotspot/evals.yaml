@@ -1,0 +1,92 @@
+version: 1
+
+component:
+  interactionType: hotspotInteraction
+  tagName: pie-qti-hotspot
+
+examplesApp:
+  app: "@pie-qti/qti2-example"
+  routeTemplate: "/item-demo/{sampleId}"
+
+evals:
+  - id: hotspot/hotspot/correct
+    sampleId: hotspot
+    gradeBand: "4-8"
+    subject: science
+    intent: "Single-select hotspot: correct hotspot selection scores 1."
+    steps:
+      - action: navigate
+        path: "/item-demo/hotspot"
+      - action: click
+        target:
+          description: "Click the planet Earth on the image"
+          hint: "Select the hotspot whose identifier is EARTH"
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+    expected:
+      responses:
+        RESPONSE:
+          equals: "EARTH"
+      outcomes:
+        SCORE:
+          equals: 1.0
+        MAXSCORE:
+          equals: 1.0
+    spiritChecks:
+      - "Hotspot targets are large enough and visually discoverable for K-12 students."
+      - "Selection state is visible and reversible (clicking a different hotspot changes selection)."
+
+  - id: hotspot/hotspot/wrong
+    sampleId: hotspot
+    gradeBand: "4-8"
+    subject: science
+    intent: "Incorrect hotspot selection scores 0."
+    steps:
+      - action: navigate
+        path: "/item-demo/hotspot"
+      - action: click
+        target:
+          description: "Click a wrong planet (e.g., Mars)"
+          hint: "Select hotspot identifier MARS"
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+    expected:
+      responses:
+        RESPONSE:
+          equals: "MARS"
+      outcomes:
+        SCORE:
+          equals: 0.0
+        MAXSCORE:
+          equals: 1.0
+
+  - id: hotspot/hotspot-partial-credit/partial
+    sampleId: hotspot-partial-credit
+    gradeBand: "4-8"
+    subject: science
+    intent: "Hotspot with mapResponse partial credit (terrestrial planets)."
+    steps:
+      - action: navigate
+        path: "/item-demo/hotspot-partial-credit"
+      - action: click
+        target:
+          description: "Click Venus (partial credit)"
+          hint: "Select hotspot identifier VENUS (mappedValue=0.7)"
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+    expected:
+      responses:
+        RESPONSE:
+          equals: "VENUS"
+      outcomes:
+        SCORE:
+          equals: 0.7
+        MAXSCORE:
+          equals: 1.0
+    spiritChecks:
+      - "Partial credit is aligned with the learning goal (recognizing terrestrial planets vs oceans)."
+
+

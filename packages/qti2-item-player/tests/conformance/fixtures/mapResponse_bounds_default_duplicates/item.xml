@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="mapResponse_bounds_default_duplicates" title="mapResponse bounds/default/duplicates" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="R" cardinality="multiple" baseType="identifier">
+    <mapping defaultValue="1" lowerBound="2" upperBound="15">
+      <mapEntry mapKey="A" mappedValue="10"/>
+      <mapEntry mapKey="B" mappedValue="5"/>
+    </mapping>
+  </responseDeclaration>
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <p>Select one or more.</p>
+    <choiceInteraction responseIdentifier="R" maxChoices="3">
+      <simpleChoice identifier="A">A</simpleChoice>
+      <simpleChoice identifier="B">B</simpleChoice>
+      <simpleChoice identifier="X">X</simpleChoice>
+    </choiceInteraction>
+  </itemBody>
+
+  <responseProcessing>
+    <setOutcomeValue identifier="SCORE">
+      <mapResponse identifier="R"/>
+    </setOutcomeValue>
+  </responseProcessing>
+</assessmentItem>
+
+

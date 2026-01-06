@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+	xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+	identifier="precondition-expression"
+	title="preCondition Expression"
+	adaptive="false"
+	timeDependent="false">
+
+	<responseDeclaration identifier="RESPONSE" cardinality="single" baseType="integer" />
+
+	<outcomeDeclaration identifier="PC_TRUE" cardinality="single" baseType="boolean" />
+	<outcomeDeclaration identifier="PC_FALSE" cardinality="single" baseType="boolean" />
+	<outcomeDeclaration identifier="PC_NULL" cardinality="single" baseType="boolean" />
+	<outcomeDeclaration identifier="PC_FROM_VAR" cardinality="single" baseType="boolean" />
+
+	<responseProcessing>
+		<setOutcomeValue identifier="PC_TRUE">
+			<preCondition>
+				<baseValue baseType="boolean">true</baseValue>
+			</preCondition>
+		</setOutcomeValue>
+
+		<setOutcomeValue identifier="PC_FALSE">
+			<preCondition>
+				<baseValue baseType="boolean">false</baseValue>
+			</preCondition>
+		</setOutcomeValue>
+
+		<!-- In our boolean coercion, NULL -> false -->
+		<setOutcomeValue identifier="PC_NULL">
+			<preCondition>
+				<null />
+			</preCondition>
+		</setOutcomeValue>
+
+		<setOutcomeValue identifier="PC_FROM_VAR">
+			<preCondition>
+				<variable identifier="RESPONSE" />
+			</preCondition>
+		</setOutcomeValue>
+	</responseProcessing>
+</assessmentItem>
+
+

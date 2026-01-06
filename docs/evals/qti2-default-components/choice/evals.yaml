@@ -1,0 +1,126 @@
+version: 1
+
+component:
+  interactionType: choiceInteraction
+  tagName: pie-qti-choice
+
+examplesApp:
+  app: "@pie-qti/qti2-example"
+  routeTemplate: "/item-demo/{sampleId}"
+
+evals:
+  - id: choice/simple-choice/correct
+    sampleId: simple-choice
+    gradeBand: "3-6"
+    subject: math
+    intent: "Basic single-select multiple choice; check correct scoring + kid-friendly clarity."
+    steps:
+      - action: navigate
+        path: "/item-demo/simple-choice"
+      - action: click
+        target:
+          description: "Select the answer choice '7'"
+          hint: "Within `pie-qti-choice`, click the option labeled '7'"
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+          hint: "Button text contains 'Submit Answer'"
+    expected:
+      responses:
+        RESPONSE:
+          equals: "ChoiceA"
+      outcomes:
+        SCORE:
+          equals: 1.0
+        MAXSCORE:
+          equals: 1.0
+    spiritChecks:
+      - "The prompt reads like a real word problem for elementary students; distractors are plausible but not tricky."
+      - "Selecting an option has an obvious visual state (selected vs unselected)."
+
+  - id: choice/simple-choice/wrong
+    sampleId: simple-choice
+    gradeBand: "3-6"
+    subject: math
+    intent: "Wrong selection should score 0, without breaking the item."
+    steps:
+      - action: navigate
+        path: "/item-demo/simple-choice"
+      - action: click
+        target:
+          description: "Select a wrong option (e.g. '8')"
+          hint: "Within `pie-qti-choice`, click the option labeled '8' (ChoiceD)"
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+    expected:
+      responses:
+        RESPONSE:
+          equals: "ChoiceD"
+      outcomes:
+        SCORE:
+          equals: 0.0
+        MAXSCORE:
+          equals: 1.0
+    spiritChecks:
+      - "Wrong answers do not crash the UI or produce confusing states."
+
+  - id: choice/partial-credit/partial
+    sampleId: partial-credit
+    gradeBand: "6-10"
+    subject: science
+    intent: "Partial-credit mapping via mapResponse; verify non-binary scoring."
+    steps:
+      - action: navigate
+        path: "/item-demo/partial-credit"
+      - action: click
+        target:
+          description: "Select a partially-correct option"
+          hint: "Choose the answer 'The process by which plants make food' (ChoiceB)"
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+    expected:
+      responses:
+        RESPONSE:
+          equals: "ChoiceB"
+      outcomes:
+        SCORE:
+          equals: 2.0
+        MAXSCORE:
+          equals: 3.0
+    spiritChecks:
+      - "The best answer is meaningfully better than the partially correct distractors (not a gotcha)."
+
+  - id: choice/math-inline/correct
+    sampleId: math-inline
+    gradeBand: "8-12"
+    subject: math
+    intent: "Choice interaction with inline MathML; verify math renders and scoring works."
+    steps:
+      - action: navigate
+        path: "/item-demo/math-inline"
+      - action: observe
+        target:
+          description: "Math in the stem is visible and readable"
+          hint: "Math should not appear as raw tags like '<m:math>'"
+      - action: click
+        target:
+          description: "Select the correct option (ChoiceB)"
+          hint: "Pick the option the item defines as correct (responseDeclaration correctResponse = ChoiceB)"
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+    expected:
+      responses:
+        RESPONSE:
+          equals: "ChoiceB"
+      outcomes:
+        SCORE:
+          equals: 1.0
+        MAXSCORE:
+          equals: 1.0
+    spiritChecks:
+      - "Math is legible and aligned with surrounding text; not clipped or overlapping."
+
+

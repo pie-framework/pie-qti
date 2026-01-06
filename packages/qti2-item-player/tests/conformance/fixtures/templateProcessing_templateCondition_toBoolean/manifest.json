@@ -1,0 +1,16 @@
+{
+  "id": "templateProcessing_templateCondition_toBoolean",
+  "title": "templateCondition coerces non-boolean expressions via toBoolean",
+  "description": "Verifies templateCondition evaluates its condition in a boolean context for integer and string template variables (0/empty => false; non-zero/non-empty => true).",
+  "spec": "QTI 2.2.2",
+  "provenance": {
+    "source": "authored",
+    "license": "CC0-1.0"
+  },
+  "covers": [
+    "baseValue",
+    "expr.baseValue",
+    "stmt.templateCondition",
+    "templateCondition"
+  ]
+}

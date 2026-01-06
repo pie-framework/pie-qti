@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+  xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="responseProcessing_record_fieldValue"
+  title="record + fieldValue"
+  adaptive="false"
+  timeDependent="false"
+>
+  <outcomeDeclaration identifier="OUT_X" cardinality="single" baseType="integer">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+  <outcomeDeclaration identifier="OUT_Y" cardinality="single" baseType="string">
+    <defaultValue><value></value></defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <p>Record fixture</p>
+  </itemBody>
+
+  <responseProcessing>
+    <setOutcomeValue identifier="OUT_X">
+      <fieldValue fieldIdentifier="x">
+        <record>
+          <fieldValue fieldIdentifier="x"><baseValue baseType="integer">42</baseValue></fieldValue>
+          <fieldValue fieldIdentifier="y"><baseValue baseType="string">A</baseValue></fieldValue>
+        </record>
+      </fieldValue>
+    </setOutcomeValue>
+    <setOutcomeValue identifier="OUT_Y">
+      <fieldValue fieldIdentifier="y">
+        <record>
+          <fieldValue fieldIdentifier="x"><baseValue baseType="integer">42</baseValue></fieldValue>
+          <fieldValue fieldIdentifier="y"><baseValue baseType="string">A</baseValue></fieldValue>
+        </record>
+      </fieldValue>
+    </setOutcomeValue>
+  </responseProcessing>
+</assessmentItem>
+
+

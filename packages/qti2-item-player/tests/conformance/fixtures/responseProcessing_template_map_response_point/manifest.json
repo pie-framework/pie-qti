@@ -1,0 +1,8 @@
+{
+  "id": "responseProcessing_template_map_response_point",
+  "title": "ResponseProcessing Template map_response_point",
+  "description": "Validates the standard responseProcessing template map_response_point (areaMapping + mapResponsePoint => SCORE).",
+  "spec": "QTI 2.x responseProcessing templates"
+}
+
+

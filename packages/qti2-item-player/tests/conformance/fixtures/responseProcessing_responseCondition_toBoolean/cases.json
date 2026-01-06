@@ -1,0 +1,17 @@
+{
+  "id": "responseProcessing_responseCondition_toBoolean",
+  "cases": [
+    {
+      "name": "all-false",
+      "responses": { "I": 0, "S": "", "M": [] },
+      "expect": { "outcomes": { "OI": 0, "OS": 0, "OM": 0 } }
+    },
+    {
+      "name": "all-true",
+      "responses": { "I": 2, "S": "x", "M": ["A"] },
+      "expect": { "outcomes": { "OI": 1, "OS": 1, "OM": 1 } }
+    }
+  ]
+}
+
+

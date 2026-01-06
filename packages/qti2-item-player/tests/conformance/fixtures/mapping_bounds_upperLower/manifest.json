@@ -1,0 +1,11 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "Mapping bounds (lowerBound/upperBound) should clamp mapped results (xfail until implemented).",
+  "covers": [
+    "expr.mapResponse",
+    "mapping.lowerBound",
+    "mapping.upperBound",
+    "mapResponse"
+  ]
+}

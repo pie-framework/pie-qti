@@ -1,0 +1,46 @@
+version: 1
+
+component:
+  # Inline textEntryInteraction is rendered as a standard <input> inside the item body.
+  interactionType: textEntryInteraction
+  # For this eval runner we use a CSS selector instead of a web component tag.
+  tagName: ".inline-input"
+
+examplesApp:
+  app: "@pie-qti/qti2-example"
+  routeTemplate: "/item-demo/{sampleId}"
+
+evals:
+  - id: text-entry/template-variable-demo/correct-from-template-answer
+    sampleId: template-variable-demo
+    gradeBand: "6-10"
+    subject: math
+    intent: "Validate QTI templateProcessing + printedVariable rendering + responseProcessing scoring by typing the computed ANSWER."
+    steps:
+      - action: navigate
+        path: "/item-demo/template-variable-demo"
+      - action: observe
+        target:
+          description: "The inline text entry input is visible"
+          hint: "Look for the inline input inside the question"
+      - action: type
+        target:
+          description: "Type the computed answer"
+          hint: "Uses the Template Variables (Debug) panel; runner reads ANSWER"
+        value: "$TEMPLATE:ANSWER"
+      - action: submit
+        target:
+          description: "Submit Answer(s) button"
+          hint: "Button text contains 'Submit Answer'"
+    expected:
+      outcomes:
+        SCORE:
+          equals: 1.0
+        MAXSCORE:
+          equals: 1.0
+    spiritChecks:
+      - "Prompt clearly indicates the task and the generated numbers are visible in-line (via printedVariable)."
+      - "Regenerating the variant changes A/B and still scores correctly when typing the new ANSWER."
+
+
+

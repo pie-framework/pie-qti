@@ -1,0 +1,12 @@
+{
+  "id": "templateProcessing_templateCondition_toBoolean",
+  "cases": [
+    {
+      "name": "A=0,B=1,C=0,D=1 => SCORE 2",
+      "responses": {},
+      "expect": { "outcomes": { "SCORE": 2 } }
+    }
+  ]
+}
+
+

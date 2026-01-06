@@ -1,0 +1,12 @@
+{
+  "id": "templateProcessing_exitTemplate",
+  "cases": [
+    {
+      "name": "exit prevents later template overwrite",
+      "responses": { "R": "anything" },
+      "expect": { "outcomes": { "SCORE": 1 } }
+    }
+  ]
+}
+
+

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+  xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="templateConstraint-example"
+  title="templateConstraint Example"
+  adaptive="false"
+  timeDependent="false">
+
+  <templateDeclaration identifier="A" cardinality="single" baseType="integer">
+    <defaultValue><value>0</value></defaultValue>
+  </templateDeclaration>
+
+  <templateDeclaration identifier="B" cardinality="single" baseType="integer">
+    <defaultValue><value>0</value></defaultValue>
+  </templateDeclaration>
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="integer">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <p>Template values A and B are randomly chosen but must differ.</p>
+  </itemBody>
+
+  <templateProcessing>
+    <setTemplateValue identifier="A">
+      <randomInteger min="1" max="3" step="1"/>
+    </setTemplateValue>
+    <setTemplateValue identifier="B">
+      <randomInteger min="1" max="3" step="1"/>
+    </setTemplateValue>
+    <templateConstraint>
+      <not>
+        <equal>
+          <variable identifier="A"/>
+          <variable identifier="B"/>
+        </equal>
+      </not>
+    </templateConstraint>
+  </templateProcessing>
+
+  <outcomeProcessing>
+    <setOutcomeValue identifier="SCORE">
+      <sum>
+        <variable identifier="A"/>
+        <variable identifier="B"/>
+      </sum>
+    </setOutcomeValue>
+  </outcomeProcessing>
+</assessmentItem>
+
+
