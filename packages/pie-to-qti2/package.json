@@ -37,7 +37,7 @@
   },
   "devDependencies": {
     "@pie-qti/qti2-to-pie": "workspace:*",
-    "@types/uuid": "^10.0.0",
+    "@types/uuid": "^11.0.0",
     "typescript": "^5.9.3"
   },
   "type": "module"
