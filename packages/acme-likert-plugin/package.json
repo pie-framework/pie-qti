@@ -3,6 +3,7 @@
 	"version": "1.0.0",
 	"description": "Likert scale choice interactions for QTI assessments",
 	"type": "module",
+	"private": true,
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"exports": {

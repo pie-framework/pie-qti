@@ -1,5 +1,5 @@
 /**
- * @pie-framework/transform-cli
+ * @pie-qti/transform-cli
  *
  * CLI tool for QTI ↔ PIE transformations
  */

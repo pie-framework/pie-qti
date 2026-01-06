@@ -3,7 +3,7 @@
  */
 
 import { beforeEach, describe, expect, test } from 'bun:test';
-import type { TransformContext, TransformInput, TransformOutput, TransformPlugin } from '@pie-framework/transform-types';
+import type { TransformContext, TransformInput, TransformOutput, TransformPlugin } from '@pie-qti/transform-types';
 import { TransformEngine } from '../src/engine/transform-engine';
 
 // Mock plugin for testing

@@ -4,7 +4,7 @@
  * Central registry for managing PIE → QTI generators
  */
 
-import type { PieModel } from '@pie-framework/transform-types';
+import type { PieModel } from '@pie-qti/transform-types';
 import type {
   GeneratorFactory,
   GeneratorRegistration,

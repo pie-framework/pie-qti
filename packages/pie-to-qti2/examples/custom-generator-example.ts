@@ -7,7 +7,7 @@
  * 3. Use it to transform PIE items to QTI
  */
 
-import type { PieItem } from '@pie-framework/transform-types';
+import type { PieItem } from '@pie-qti/transform-types';
 import {
   BaseGenerator,
   buildResponseDeclaration,

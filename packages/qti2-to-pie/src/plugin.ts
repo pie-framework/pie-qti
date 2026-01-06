@@ -10,7 +10,7 @@ import type {
   TransformOutput,
   TransformPlugin,
   ValidationResult,
-} from '@pie-framework/transform-types';
+} from '@pie-qti/transform-types';
 import { parse } from 'node-html-parser';
 import { transformAssessmentTest } from './transformers/assessment-test.js';
 import { transformAssociateToCategorize } from './transformers/associate-to-categorize.js';

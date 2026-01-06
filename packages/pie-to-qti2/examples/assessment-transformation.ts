@@ -6,7 +6,7 @@
  * pre-conditions through bidirectional round-trips.
  */
 
-import type { TransformOutput } from '@pie-framework/transform-core';
+import type { TransformOutput } from '@pie-qti/transform-core';
 import { Qti22ToPiePlugin } from '../../qti2-to-pie/src/plugin.js';
 import { PieToQti2Plugin } from '../src/plugin.js';
 

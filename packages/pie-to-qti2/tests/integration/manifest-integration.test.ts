@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import type { PieItem, PiePassageStimulus, TransformContext } from '@pie-framework/transform-types';
+import type { PieItem, PiePassageStimulus, TransformContext } from '@pie-qti/transform-types';
 import { PieToQti2Plugin } from '../../src/plugin.js';
 
 describe('Manifest Integration', () => {

@@ -9,7 +9,7 @@ import type {PieItem, PieModel,
   TransformInput,
   TransformOutput,
   TransformPlugin
-} from '@pie-framework/transform-types';
+} from '@pie-qti/transform-types';
 import { generateManifest } from './generators/manifest-generator.js';
 import {
   generatePassageFile,

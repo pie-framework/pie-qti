@@ -2,7 +2,7 @@
  * Logger Utilities
  */
 
-import type { TransformLogger } from '@pie-framework/transform-types';
+import type { TransformLogger } from '@pie-qti/transform-types';
 
 /**
  * Simple console logger

@@ -4,7 +4,7 @@
  * Abstract base class for PIE → QTI generators with common functionality
  */
 
-import type { PieModel } from '@pie-framework/transform-types';
+import type { PieModel } from '@pie-qti/transform-types';
 import type { GeneratorContext, GeneratorResult, PieToQtiGenerator } from './types.js';
 
 /**

@@ -15,7 +15,7 @@ The validation system validates PIE items against:
 For quick validation without schemas:
 
 ```typescript
-import { validatePieItemStructure } from '@pie-framework/transform-core';
+import { validatePieItemStructure } from '@pie-qti/transform-core';
 
 const item = {
   id: 'item-001',
@@ -39,7 +39,7 @@ if (!result.valid) {
 For validating against PIE element schemas:
 
 ```typescript
-import { PieItemValidator } from '@pie-framework/transform-core';
+import { PieItemValidator } from '@pie-qti/transform-core';
 
 const validator = new PieItemValidator();
 
@@ -47,7 +47,7 @@ const validator = new PieItemValidator();
 await validator.loadSchemaForElement('@pie-element/multiple-choice');
 
 // Or register schema directly
-import { loadSchema } from '@pie-framework/element-schemas';
+import { loadSchema } from '@pie-qti/element-schemas';
 const schema = await loadSchema('multiple-choice');
 validator.registerSchema('@pie-element/multiple-choice', schema);
 
@@ -99,7 +99,7 @@ export class Qti22ToPiePlugin implements TransformPlugin {
 
 ## PIE Element Schemas
 
-Schemas are provided by the `@pie-framework/element-schemas` package, which contains JSON schemas synced from PIE element packages:
+Schemas are provided by the `@pie-qti/element-schemas` package, which contains JSON schemas synced from PIE element packages:
 
 - **pie-schema.json** - Schema for the PIE item model
 - **config-schema.json** - Schema for authoring configuration (future)
@@ -170,7 +170,7 @@ For testing transformations with validation:
 ```typescript
 import { describe, test, expect } from 'bun:test';
 import { Qti22ToPiePlugin } from '@pie-qti/qti2-to-pie';
-import { PieItemValidator } from '@pie-framework/transform-core';
+import { PieItemValidator } from '@pie-qti/transform-core';
 
 describe('QTI to PIE transformation', () => {
   test('should produce valid PIE output', async () => {

@@ -4,7 +4,7 @@
  * Detect and categorize passages in PIE items
  */
 
-import type { PieItem, PieModel, PiePassageStimulus } from '@pie-framework/transform-types';
+import type { PieItem, PieModel, PiePassageStimulus } from '@pie-qti/transform-types';
 import type { PassageReference, PassageStrategy } from '../types/passages.js';
 
 /**

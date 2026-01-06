@@ -4,7 +4,7 @@
  * Transforms QTI extendedTextInteraction to PIE extended-text-entry
  */
 
-import type { PieExtendedTextModel, PieItem } from '@pie-framework/transform-types';
+import type { PieExtendedTextModel, PieItem } from '@pie-qti/transform-types';
 import type { HTMLElement } from 'node-html-parser';
 import { v4 as uuidv4 } from 'uuid';
 import { extractInlineStimulus, extractObjectPassages, extractRubricBlock } from '../utils/passage-extraction.js';

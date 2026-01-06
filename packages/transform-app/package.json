@@ -1,5 +1,5 @@
 {
-  "name": "@pie-framework/transform-web",
+  "name": "@pie-qti/transform-web",
   "version": "0.1.0",
   "description": "Web interface for testing QTI to PIE transformations",
   "type": "module",
@@ -24,8 +24,8 @@
     "@pie-qti/qti2-player-elements": "workspace:*",
     "@pie-qti/qti2-typeset-katex": "workspace:*",
     "@pie-qti/qti2-to-pie": "workspace:*",
-    "@pie-framework/transform-core": "workspace:*",
-    "@pie-framework/transform-types": "workspace:*",
+    "@pie-qti/transform-core": "workspace:*",
+    "@pie-qti/transform-types": "workspace:*",
     "@pie-qti/web-component-loaders": "workspace:*",
     "@types/unzipper": "^0.10.11",
     "node-html-parser": "^7.0.1",

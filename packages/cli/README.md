@@ -1,4 +1,4 @@
-# @pie-framework/transform-cli
+# @pie-qti/transform-cli
 
 > **Status**: Under active development
 
@@ -122,10 +122,10 @@ bun run batch-transform -- ./path/to/content/ -o ./output/
 
 ## Related Packages
 
-- [@pie-framework/transform-core](../core) — Transform engine
+- [@pie-qti/transform-core](../core) — Transform engine
 - [@pie-qti/qti2-to-pie](../qti2-to-pie) — QTI → PIE transformer
 - [@pie-qti/pie-to-qti2](../pie-to-qti2) — PIE → QTI transformer
-- [@pie-framework/transform-web](../transform-app) — Web UI for transforms
+- [@pie-qti/transform-web](../transform-app) — Web UI for transforms
 
 ## License
 
