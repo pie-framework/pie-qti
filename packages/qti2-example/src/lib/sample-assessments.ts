@@ -3,6 +3,7 @@
  */
 
 import type { QTIRole, SecureAssessment } from '@pie-qti/qti2-assessment-player';
+import { SAMPLE_ITEMS } from './sample-items';
 
 /**
  * Legacy (client-authoritative) demo model.
@@ -38,6 +39,15 @@ export interface LegacyTestPart {
 	identifier: string;
 	navigationMode?: 'linear' | 'nonlinear';
 	submissionMode?: 'individual' | 'simultaneous';
+	itemSessionControl?: {
+		maxAttempts?: number;
+		showFeedback?: boolean;
+		allowReview?: boolean;
+		showSolution?: boolean;
+		allowComment?: boolean;
+		allowSkipping?: boolean;
+		validateResponses?: boolean;
+	};
 	sections: LegacyAssessmentSection[];
 }
 
@@ -70,6 +80,7 @@ export function toSecureAssessment(
 		submissionMode,
 		testParts: (legacy.testParts || []).map((tp) => ({
 			identifier: tp.identifier,
+			itemSessionControl: tp.itemSessionControl,
 			sections: (tp.sections || []).map((s) => ({
 				identifier: s.identifier,
 				title: s.title,
@@ -405,6 +416,12 @@ export const SCIENCE_ASSESSMENT: SampleAssessment = {
 				identifier: 'part-1',
 				navigationMode: 'linear',
 				submissionMode: 'individual',
+				// Match the instructions: must answer each question, cannot go back.
+				itemSessionControl: {
+					allowReview: false,
+					allowSkipping: false,
+					validateResponses: true,
+				},
 				sections: [
 					{
 						identifier: 'section-1',
@@ -728,4 +745,143 @@ export const SAMPLE_ASSESSMENTS: SampleAssessment[] = [
 	MATH_ASSESSMENT,
 	SCIENCE_ASSESSMENT,
 	MIXED_TOPICS_ASSESSMENT,
+	{
+		id: 'interaction-showcase-1',
+		name: 'Interaction Showcase - Mixed Types',
+		description: 'A richer assessment featuring multiple QTI interaction types (including passage+question and hotspot).',
+		assessment: {
+			identifier: 'SHOWCASE-001',
+			title: 'Interaction Showcase',
+			testParts: [
+				{
+					identifier: 'part-1',
+					navigationMode: 'nonlinear',
+					submissionMode: 'simultaneous',
+					sections: [
+						{
+							identifier: 'section-passage',
+							title: 'Passage + Question',
+							visible: true,
+							rubricBlocks: [
+								{
+									view: 'candidate',
+									use: 'passage',
+									content: `
+										<div class="passage">
+											<h3>Reading Passage (Standalone Rubric)</h3>
+											<p>
+												This section demonstrates the assessment player split-pane layout: a passage/rubric on the left
+												and an item on the right. Answer the question using the information in the passage.
+											</p>
+											<p>
+												Water continuously moves between the atmosphere and Earth's surface through evaporation, condensation,
+												precipitation, and collection. This cycle helps distribute fresh water across ecosystems.
+											</p>
+										</div>
+									`,
+								},
+							],
+							questionRefs: [
+								{
+									identifier: 'q-passage-choice',
+									title: 'Question: Water Cycle',
+									itemXml: READING_COMPREHENSION_ASSESSMENT.assessment.testParts[0].sections[0].questionRefs[0].itemXml,
+								},
+							],
+						},
+						{
+							identifier: 'section-inline-stimulus',
+							title: 'Inline Stimulus (Item-level)',
+							visible: true,
+							rubricBlocks: [
+								{
+									view: 'candidate',
+									use: 'instructions',
+									content:
+										'<p>This question includes a <strong>&lt;stimulus&gt;</strong> embedded in the item itself.</p>',
+								},
+							],
+							questionRefs: [
+								{
+									identifier: 'q-inline-stimulus',
+									title: 'Reading Comprehension (Inline Stimulus)',
+									itemXml: SAMPLE_ITEMS.find((i) => i.id === 'choice-with-stimulus')?.xml ?? '',
+								},
+							],
+						},
+						{
+							identifier: 'section-hotspot',
+							title: 'Hotspot',
+							visible: true,
+							rubricBlocks: [
+								{
+									view: 'candidate',
+									use: 'instructions',
+									content:
+										'<p>Click the correct region(s) on the image. This demonstrates <strong>hotspotInteraction</strong>.</p>',
+								},
+							],
+							questionRefs: [
+								{
+									identifier: 'q-hotspot',
+									title: 'Hotspot: Solar System',
+									itemXml: SAMPLE_ITEMS.find((i) => i.id === 'hotspot')?.xml ?? '',
+								},
+							],
+						},
+						{
+							identifier: 'section-dnd',
+							title: 'Drag & Drop',
+							visible: true,
+							rubricBlocks: [
+								{
+									view: 'candidate',
+									use: 'instructions',
+									content:
+										'<p>These items cover a few common drag/drop patterns: order, match, and gap-match.</p>',
+								},
+							],
+							questionRefs: [
+								{
+									identifier: 'q-order',
+									title: 'Order Interaction',
+									itemXml: SAMPLE_ITEMS.find((i) => i.id === 'order-interaction')?.xml ?? '',
+								},
+								{
+									identifier: 'q-match',
+									title: 'Match Interaction',
+									itemXml: SAMPLE_ITEMS.find((i) => i.id === 'match-interaction')?.xml ?? '',
+								},
+								{
+									identifier: 'q-gap-match',
+									title: 'Gap Match',
+									itemXml: SAMPLE_ITEMS.find((i) => i.id === 'gap-match')?.xml ?? '',
+								},
+							],
+						},
+						{
+							identifier: 'section-geo',
+							title: 'Select Point',
+							visible: true,
+							rubricBlocks: [
+								{
+									view: 'candidate',
+									use: 'instructions',
+									content:
+										'<p>Click the image to select a point location. Demonstrates <strong>selectPointInteraction</strong>.</p>',
+								},
+							],
+							questionRefs: [
+								{
+									identifier: 'q-select-point',
+									title: 'Select Point',
+									itemXml: SAMPLE_ITEMS.find((i) => i.id === 'select-point')?.xml ?? '',
+								},
+							],
+						},
+					],
+				},
+			],
+		},
+	},
 ];

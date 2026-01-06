@@ -117,6 +117,11 @@ export class AssessmentPlayer {
 		const itemSessionControl = this.assessment.testParts?.[0]?.itemSessionControl;
 		this.sessionController = new ItemSessionController(itemSessionControl);
 
+		// Initialize per-item session state so itemSessionControl checks work immediately.
+		for (const q of this.questions) {
+			this.sessionController.initializeItem(q.identifier);
+		}
+
 		// Initialize time manager if time limits exist
 		if (this.assessment.timeLimits?.maxTime) {
 			this.timeManager = new TimeManager({
@@ -134,6 +139,23 @@ export class AssessmentPlayer {
 		if (idx >= 0) {
 			this.navigateTo(idx).catch(() => {});
 		}
+	}
+
+	private hasAnyResponse(responses: Record<string, unknown>): boolean {
+		for (const v of Object.values(responses)) {
+			if (v == null) continue;
+			if (Array.isArray(v)) {
+				if (v.length > 0) return true;
+				continue;
+			}
+			if (typeof v === 'string') {
+				if (v.trim().length > 0) return true;
+				continue;
+			}
+			// object / number / boolean etc.
+			return true;
+		}
+		return false;
 	}
 
 	private flattenQuestions(assessment: SecureAssessment): FlatQuestion[] {
@@ -176,8 +198,8 @@ export class AssessmentPlayer {
 
 	public getNavigationState(): NavigationState {
 		const total = this.questions.length;
-		const canPrevious = this.currentItemIndex > 0;
-		const canNext = this.currentItemIndex >= 0 && this.currentItemIndex < total - 1;
+		const canPrevious = this.canPrevious();
+		const canNext = this.canNext();
 		const q = this.questions[this.currentItemIndex];
 		const totalSections = this.getAllSections().length;
 		return {
@@ -220,6 +242,7 @@ export class AssessmentPlayer {
 		const q = this.questions[this.currentItemIndex];
 		if (q) {
 			this.state.itemResponses[q.identifier] = this.responses as any;
+			this.sessionController.markAnswered(q.identifier, this.hasAnyResponse(this.responses));
 		}
 		this.notifyResponseChange();
 	}
@@ -287,6 +310,18 @@ export class AssessmentPlayer {
 	public async navigateTo(index: number): Promise<void> {
 		if (index < 0 || index >= this.questions.length) throw new Error(`Invalid item index: ${index}`);
 
+		// Enforce navigation rules (UI hints, still backend-authoritative for real deployments).
+		if (this.currentItemIndex >= 0 && !this.navigationManager.canNavigateTo(index, this.currentItemIndex)) {
+			if (this.navigationManager.getMode() === 'linear' && index > this.currentItemIndex + 1) {
+				throw new Error('In linear navigation mode, you can only move to the next question.');
+			}
+			throw new Error('Navigation is not allowed.');
+		}
+		const target = this.questions[index];
+		if (target && !this.sessionController.canReview(target.identifier)) {
+			throw new Error('You cannot go back to previous questions in this assessment.');
+		}
+
 		this.currentItemIndex = index;
 		const q = this.questions[index]!;
 		this.state.currentItemIdentifier = q.identifier;
@@ -313,6 +348,26 @@ export class AssessmentPlayer {
 	public async next(): Promise<void> {
 		const state = this.getNavigationState();
 		if (!state.canNext) return;
+
+		const q = this.questions[this.currentItemIndex];
+		if (q) {
+			const hasResponses = this.hasAnyResponse(this.responses);
+			this.sessionController.markAnswered(q.identifier, hasResponses);
+
+			const navAway = this.sessionController.canNavigateAway(q.identifier, hasResponses);
+			if (!navAway.allowed) {
+				throw new Error(navAway.reason || 'You must answer this question before continuing.');
+			}
+
+			// In individual submission mode, submit current item before moving forward.
+			if (this.assessment.submissionMode === 'individual') {
+				const before = this.currentItemIndex;
+				await this.submitCurrentItem();
+				// submitCurrentItem may branch/navigate; if it did, we're done.
+				if (this.currentItemIndex !== before) return;
+			}
+		}
+
 		await this.navigateTo(this.currentItemIndex + 1);
 	}
 
@@ -357,6 +412,15 @@ export class AssessmentPlayer {
 		};
 		this.itemResults.set(q.identifier, itemResult);
 
+		// Track item session rules (review/attempts) and visited items for navigation hints.
+		try {
+			this.sessionController.recordAttempt(q.identifier);
+		} catch {
+			// ignore
+		}
+		this.sessionController.markAnswered(q.identifier, this.hasAnyResponse(this.responses));
+		this.navigationManager.markVisited(this.currentItemIndex);
+
 		// Apply backend branching decision if provided
 		if (res.nextItemIdentifier) {
 			const nextIdx = this.questions.findIndex((x) => x.identifier === res.nextItemIdentifier);
@@ -366,6 +430,23 @@ export class AssessmentPlayer {
 		}
 
 		return itemResult;
+	}
+
+	private canPrevious(): boolean {
+		if (this.currentItemIndex <= 0) return false;
+		const prev = this.questions[this.currentItemIndex - 1];
+		if (!prev) return false;
+		if (!this.navigationManager.canNavigateTo(this.currentItemIndex - 1, this.currentItemIndex)) return false;
+		return this.sessionController.canReview(prev.identifier);
+	}
+
+	private canNext(): boolean {
+		if (this.currentItemIndex < 0) return false;
+		const nextIdx = this.currentItemIndex + 1;
+		if (nextIdx >= this.questions.length) return false;
+		if (!this.navigationManager.canNavigateTo(nextIdx, this.currentItemIndex)) return false;
+		// Note: itemSessionControl constraints on leaving current item are enforced in next().
+		return true;
 	}
 
 	/** Submit entire assessment (finalize on backend) */

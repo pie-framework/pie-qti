@@ -115,8 +115,8 @@
 			this={tagName}
 			interaction={JSON.stringify(interaction)}
 			response={JSON.stringify(responses[interaction.responseId] ?? null)}
-			{disabled}
-			onqti-change={handleQtiChange}
+			disabled={disabled ? true : undefined}
+			on:qti-change={handleQtiChange}
 		/>
 	{/each}
 </div>

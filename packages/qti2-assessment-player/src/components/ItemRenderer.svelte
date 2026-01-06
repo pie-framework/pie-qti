@@ -1,8 +1,31 @@
 <script lang="ts">
 
+	import { onMount } from 'svelte';
 	import ItemBody from '@pie-qti/qti2-default-components/shared/components/ItemBody.svelte';
+	import { registerDefaultComponents } from '@pie-qti/qti2-default-components';
 	import { Player, type QTIRole } from '@pie-qti/qti2-item-player';
 	import type { QuestionRef } from '../types/index.js';
+
+	/**
+	 * Ensure default interaction web components are registered (browser-only).
+	 *
+	 * NOTE: `@pie-qti/qti2-default-components/plugins` has side effects (customElements.define),
+	 * so we only load it on the client to remain SSR-safe.
+	 */
+	let pluginsLoadPromise: Promise<void> | null = null;
+	function ensureDefaultPluginsLoaded() {
+		if (pluginsLoadPromise) return pluginsLoadPromise;
+		pluginsLoadPromise = import('@pie-qti/qti2-default-components/plugins')
+			.then(() => {})
+			.catch((err) => {
+				console.warn('Failed to load default QTI web components:', err);
+			});
+		return pluginsLoadPromise;
+	}
+
+	onMount(() => {
+		void ensureDefaultPluginsLoaded();
+	});
 
 	interface Props {
 		questionRef: QuestionRef;
@@ -33,15 +56,19 @@
 				role,
 			});
 
+			// Ensure the item player can actually render interactions by registering the
+			// default component set into this player's component registry.
+			registerDefaultComponents(newPlayer.getComponentRegistry());
+
 			return {
 				player: newPlayer,
-				error: null
+				error: null,
 			};
 		} catch (err) {
 			console.error('Failed to initialize item player:', err);
 			return {
 				player: null,
-				error: err instanceof Error ? err.message : 'Failed to load item'
+				error: err instanceof Error ? err.message : 'Failed to load item',
 			};
 		}
 	});

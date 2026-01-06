@@ -41,6 +41,7 @@
 	let currentRubricBlocks = $state<any[]>([]);
 	let sections = $state<any[]>([]);
 	let error = $state<string | null>(null);
+	let navError = $state<string | null>(null);
 	let itemPaneEl = $state<HTMLDivElement | null>(null);
 	let testFeedback = $state<Array<{ identifier: string; content: string; access: string }>>([]);
 	let isComplete = $state(false);
@@ -80,6 +81,7 @@
 			// Set up event listeners
 			player.onItemChange(async () => {
 				updateState();
+				navError = null;
 				hasFirstItem = true;
 				if (initTimeout) {
 					clearTimeout(initTimeout);
@@ -122,18 +124,28 @@
 	}
 
 	async function handlePrevious() {
-		if (player) {
+		if (!player) return;
+		try {
+			navError = null;
 			await player.previous();
 			await manageFocusAfterNavigation();
 			announceCurrentQuestion();
+		} catch (err) {
+			console.error('Previous navigation failed:', err);
+			navError = err instanceof Error ? err.message : 'Failed to navigate to previous question';
 		}
 	}
 
 	async function handleNext() {
-		if (player) {
+		if (!player) return;
+		try {
+			navError = null;
 			await player.next();
 			await manageFocusAfterNavigation();
 			announceCurrentQuestion();
+		} catch (err) {
+			console.error('Next navigation failed:', err);
+			navError = err instanceof Error ? err.message : 'Failed to navigate to next question';
 		}
 	}
 
@@ -284,6 +296,27 @@
 			<TestFeedback feedback={testFeedback} />
 		{/if}
 
+		{#if navError}
+			<div class="assessment-nav-error">
+				<div class="alert alert-warning">
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						class="stroke-current shrink-0 h-6 w-6"
+						fill="none"
+						viewBox="0 0 24 24"
+					>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+						/>
+					</svg>
+					<span>{navError}</span>
+				</div>
+			</div>
+		{/if}
+
 		<!-- Main content area -->
 		<div
 			class:has-passage={hasPassage}
@@ -375,6 +408,10 @@
 	.assessment-error,
 	.assessment-loading {
 		padding: 2rem;
+	}
+
+	.assessment-nav-error {
+		padding: 1rem 2rem 0;
 	}
 
 	@media (max-width: 768px) {
