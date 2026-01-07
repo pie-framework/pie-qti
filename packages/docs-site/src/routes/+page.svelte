@@ -72,7 +72,7 @@
 
 	<p>
 		For an example plugin package, see
-		<a href="https://github.com/pie-framework/pie-qti/tree/main/packages/acme-likert-plugin" target="_blank" rel="noreferrer">
+		<a href="https://github.com/pie-framework/pie-qti/tree/master/packages/acme-likert-plugin" target="_blank" rel="noreferrer">
 			<code>packages/acme-likert-plugin</code>
 		</a>.
 	</p>
@@ -81,7 +81,7 @@
 	<p>
 		The player doesn’t bundle a math engine. Instead, the host supplies a <code>typeset(rootEl)</code> function
 		(run after render and on DOM updates). The default adapter package is
-		<a href="https://github.com/pie-framework/pie-qti/tree/main/packages/qti2-typeset-katex" target="_blank" rel="noreferrer">
+		<a href="https://github.com/pie-framework/pie-qti/tree/master/packages/qti2-typeset-katex" target="_blank" rel="noreferrer">
 			<code>packages/qti2-typeset-katex</code>
 		</a>.
 	</p>
@@ -92,19 +92,19 @@
 	<ul>
 		<li>
 			Item player README:
-			<a href="https://github.com/pie-framework/pie-qti/blob/main/packages/qti2-item-player/README.md" target="_blank" rel="noreferrer">
+			<a href="https://github.com/pie-framework/pie-qti/blob/master/packages/qti2-item-player/README.md" target="_blank" rel="noreferrer">
 				<code>packages/qti2-item-player/README.md</code>
 			</a>
 		</li>
 		<li>
 			Backend integration (assessment player):
-			<a href="https://github.com/pie-framework/pie-qti/blob/main/packages/qti2-assessment-player/BACKEND-INTEGRATION.md" target="_blank" rel="noreferrer">
+			<a href="https://github.com/pie-framework/pie-qti/blob/master/packages/qti2-assessment-player/BACKEND-INTEGRATION.md" target="_blank" rel="noreferrer">
 				<code>BACKEND-INTEGRATION.md</code>
 			</a>
 		</li>
 		<li>
 			Transformation guide:
-			<a href="https://github.com/pie-framework/pie-qti/blob/main/docs/PIE-QTI-TRANSFORMATION-GUIDE.md" target="_blank" rel="noreferrer">
+			<a href="https://github.com/pie-framework/pie-qti/blob/master/docs/PIE-QTI-TRANSFORMATION-GUIDE.md" target="_blank" rel="noreferrer">
 				<code>docs/PIE-QTI-TRANSFORMATION-GUIDE.md</code>
 			</a>
 		</li>
