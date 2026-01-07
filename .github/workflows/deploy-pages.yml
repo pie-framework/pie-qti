@@ -44,6 +44,9 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Build workspace packages (required for examples build)
+        run: bun run build
+
       - name: Build docs site for GitHub Pages
         run: cd packages/docs-site && bun run build
 
