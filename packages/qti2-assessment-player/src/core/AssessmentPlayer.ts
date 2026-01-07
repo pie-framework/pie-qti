@@ -186,11 +186,12 @@ export class AssessmentPlayer {
 	// Public API used by components
 	// ---------------------------------------------------------------------------
 
-	public getAllSections(): Array<{ id: string; title?: string; visible: boolean }> {
-		const out: Array<{ id: string; title?: string; visible: boolean }> = [];
+	public getAllSections(): Array<{ id: string; title?: string; visible: boolean; index: number }> {
+		const out: Array<{ id: string; title?: string; visible: boolean; index: number }> = [];
+		let idx = 0;
 		for (const tp of this.assessment.testParts || []) {
 			for (const s of tp.sections || []) {
-				out.push({ id: s.identifier, title: s.title, visible: s.visible });
+				out.push({ id: s.identifier, title: s.title, visible: s.visible, index: idx++ });
 			}
 		}
 		return out;
@@ -245,6 +246,27 @@ export class AssessmentPlayer {
 			this.sessionController.markAnswered(q.identifier, this.hasAnyResponse(this.responses));
 		}
 		this.notifyResponseChange();
+	}
+
+	/**
+	 * Update a response for a specific item.
+	 * Useful when response events are observed outside the current-item renderer and we
+	 * want to be explicit about which item receives the response (some assessments reuse
+	 * the same responseIdentifier like "RESPONSE" across items).
+	 */
+	public updateResponseForItem(itemIdentifier: string, responseId: string, value: unknown): void {
+		const prev = (this.state.itemResponses?.[itemIdentifier] || {}) as Record<string, unknown>;
+		const next = { ...prev, [responseId]: value };
+		this.state.itemResponses[itemIdentifier] = next as any;
+
+		// If this is the active item, keep the live response state + UI hints in sync.
+		const active = this.questions[this.currentItemIndex];
+		if (active?.identifier === itemIdentifier) {
+			this.responses = next;
+			this.sessionController.markAnswered(itemIdentifier, this.hasAnyResponse(this.responses));
+			this.currentItemPlayer?.setResponses(this.responses as any);
+			this.notifyResponseChange();
+		}
 	}
 
 	/**
@@ -451,10 +473,51 @@ export class AssessmentPlayer {
 
 	/** Submit entire assessment (finalize on backend) */
 	public async submit(): Promise<AssessmentResults> {
-		// Ensure current item is submitted
-		const q = this.questions[this.currentItemIndex];
-		if (q && !this.itemResults.has(q.identifier)) {
-			await this.submitCurrentItem();
+		// For simultaneous submission, ensure all items are submitted before finalize so
+		// the backend can compute a complete test score.
+		if (this.assessment.submissionMode === 'simultaneous') {
+			// Preserve client-collected responses across backend state updates.
+			// Some backend adapters return an updatedState snapshot that may only include
+			// responses for items that have been submitted so far, which would otherwise
+			// wipe out responses for later items during this loop.
+			const allItemResponses = { ...(this.state.itemResponses || {}) } as any;
+
+			for (const q of this.questions) {
+				if (this.itemResults.has(q.identifier)) continue;
+				const submittedAt = Date.now();
+				const responsesForItem = (allItemResponses?.[q.identifier] || {}) as any;
+				const res = await this.backend.submitResponses({
+					sessionId: this.sessionId,
+					itemIdentifier: q.identifier,
+					responses: responsesForItem,
+					submittedAt,
+				});
+				if (!res.success || !res.result) {
+					throw new Error(res.error || `Submit failed for item ${q.identifier}`);
+				}
+				if (res.updatedState) {
+					this.state = res.updatedState;
+					// Restore full response map captured on the client.
+					this.state.itemResponses = allItemResponses;
+				} else {
+					this.state.itemScores = this.state.itemScores || {};
+					this.state.itemScores[q.identifier] = res.result;
+					if (!this.state.visitedItems.includes(q.identifier)) this.state.visitedItems.push(q.identifier);
+					this.state.itemResponses[q.identifier] = responsesForItem;
+				}
+				this.itemResults.set(q.identifier, {
+					itemIdentifier: q.identifier,
+					score: res.result.score,
+					maxScore: res.result.maxScore,
+					responses: this.state.itemResponses[q.identifier] || {},
+				});
+			}
+		} else {
+			// Ensure current item is submitted (individual submission mode)
+			const q = this.questions[this.currentItemIndex];
+			if (q && !this.itemResults.has(q.identifier)) {
+				await this.submitCurrentItem();
+			}
 		}
 
 		const finalized: FinalizeAssessmentResponse = await this.backend.finalizeAssessment({

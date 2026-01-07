@@ -1,0 +1,132 @@
+version: 1
+
+# These evals are designed to be:
+# - AI-actionable (explicit steps + explicit expected results)
+# - Human-readable enough for review
+# - Validated against `@pie-qti/qti2-example` via `/assessment-demo`
+#
+# Use this file as a starting point for adding more assessment-level cases:
+# - docs/evals/qti2-assessment-player/evals.yaml
+#
+# Scope (vs qti2-default-components):
+# - qti2-default-components evals focus on a single interaction on `/item-demo/{sampleId}`
+# - qti2-assessment-player evals focus on assessment behaviors on `/assessment-demo`
+#   (navigation rules, section switching, submission modes, end screen, response persistence)
+
+component:
+  # Logical “component” under test: the multi-item assessment player.
+  interactionType: assessmentPlayer
+  # UI host for the player within the example app (Svelte component name).
+  tagName: AssessmentShell
+
+examplesApp:
+  app: "@pie-qti/qti2-example"
+  # For assessment validations we use the assessment demo route.
+  routeTemplate: "/assessment-demo"
+
+evals:
+  - id: assessment-player/interaction-showcase/section-switch-hotspot
+    sampleId: interaction-showcase-1
+    gradeBand: "6-12"
+    subject: general
+    intent: "Switching sections via the Sections menu navigates the rendered item content to the selected section."
+    steps:
+      - action: navigate
+        path: "/assessment-demo"
+      - action: select
+        target:
+          description: "Sample Assessments dropdown"
+          hint: "Select 'Interaction Showcase - Mixed Types'"
+        option:
+          value: "interaction-showcase-1"
+      - action: click
+        target:
+          description: "Open the Sections menu"
+          hint: "Button text is 'Sections' in the header"
+      - action: click
+        target:
+          description: "Choose the Hotspot section"
+          hint: "Click the section list item labeled 'Hotspot'"
+      - action: observe
+        target:
+          description: "Hotspot interaction is visible"
+          hint: "A `pie-qti-hotspot` element is present in the item pane"
+    expected:
+      assessmentResults:
+        # This eval focuses on navigation; scoring is not required.
+        #
+        # For assessment-level checks we allow UI-oriented expectations (since the end screen
+        # is the canonical UX for results), in addition to the QTI-style variable expectations
+        # used in `qti2-default-components`.
+        ui:
+          currentSectionTitle:
+            equals: "Hotspot"
+    spiritChecks:
+      - "Selecting a section changes the item content without a full page reload."
+      - "The selected section is visually reflected (active state in the menu)."
+
+  - id: assessment-player/interaction-showcase/simultaneous-submit-preserves-responses
+    sampleId: interaction-showcase-1
+    gradeBand: "6-12"
+    subject: general
+    intent: "In submissionMode=simultaneous, submitting scores answered items even if later items are skipped; responses are preserved across finalization."
+    notes:
+      - "This catches a class of bugs where backend 'updatedState' snapshots overwrite client-collected itemResponses during final submission."
+    steps:
+      - action: navigate
+        path: "/assessment-demo"
+      - action: select
+        target:
+          description: "Sample Assessments dropdown"
+          hint: "Select 'Interaction Showcase - Mixed Types'"
+        option:
+          value: "interaction-showcase-1"
+
+      # Q1: passage + choice (based on reading comprehension q1; correct is identifier A)
+      - action: click
+        target:
+          description: "Answer the first question correctly"
+          hint: "Within `pie-qti-choice`, choose the option with value/id 'A'"
+
+      - action: click
+        target:
+          description: "Next"
+          hint: "Button text is 'Next'"
+
+      # Q2: inline stimulus choice (choice-with-stimulus; correct is ChoiceB)
+      - action: click
+        target:
+          description: "Answer the second question correctly"
+          hint: "Within `pie-qti-choice`, choose the option with value/id 'ChoiceB'"
+
+      # Skip remaining items and submit.
+      - action: click
+        target:
+          description: "Navigate to the end"
+          hint: "Click Next repeatedly until the Submit Assessment button appears"
+      - action: submit
+        target:
+          description: "Submit Assessment button"
+          hint: "Button text is 'Submit Assessment'"
+      - action: observe
+        target:
+          description: "End screen is shown"
+          hint: "Heading text contains 'Assessment complete'"
+
+    expected:
+      assessmentResults:
+        # For this demo, asserting a lower-bound total ensures the two known-correct responses
+        # actually make it through finalization in submissionMode=simultaneous.
+        totalScore:
+          gte: 2
+        itemScoresByIdentifier:
+          # These are sample question identifiers inside the Interaction Showcase assessment.
+          q-passage-choice:
+            equals: 1
+          q-inline-stimulus:
+            equals: 1
+    spiritChecks:
+      - "Skipping later items does not erase earlier answers."
+      - "The end screen score breakdown matches what a student would expect from the two correct answers."
+
+

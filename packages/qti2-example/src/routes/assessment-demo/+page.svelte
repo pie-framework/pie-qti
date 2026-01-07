@@ -1,11 +1,11 @@
 <script lang="ts">
-	
-	import type { InitSessionRequest } from '@pie-qti/qti2-assessment-player';
+	import type { AssessmentResults, InitSessionRequest } from '@pie-qti/qti2-assessment-player';
 	import { ReferenceBackendAdapter } from '@pie-qti/qti2-assessment-player';
-import AssessmentShell from '@pie-qti/qti2-assessment-player/components/AssessmentShell.svelte';
+	import AssessmentShell from '@pie-qti/qti2-assessment-player/components/AssessmentShell.svelte';
 	import { typesetAction } from '@pie-qti/qti2-default-components/shared';
 	import { typesetMathInElement } from '@pie-qti/qti2-typeset-katex';
 	import { SAMPLE_ASSESSMENTS, type SampleAssessment, toSecureAssessment } from '$lib/sample-assessments';
+	import AssessmentEndScreen from './components/AssessmentEndScreen.svelte';
 	import FileUploader from './components/FileUploader.svelte';
 	import SampleSelector from './components/SampleSelector.svelte';
 
@@ -16,6 +16,40 @@ import AssessmentShell from '@pie-qti/qti2-assessment-player/components/Assessme
 	let uploadedFile = $state<File | null>(null);
 	let isUploading = $state(false);
 	let uploadError = $state<string | null>(null);
+	let results = $state<AssessmentResults | null>(null);
+	let runKey = $state(0);
+
+	type DisplayItemScore = {
+		id: string;
+		title: string;
+		sectionTitle?: string;
+		score: number;
+		maxScore: number;
+	};
+
+	const displayItemScores = $derived.by((): DisplayItemScore[] => {
+		if (!selectedAssessment || !results) return [];
+
+		const metaById = new Map<string, { title?: string; sectionTitle?: string }>();
+		for (const tp of selectedAssessment.assessment.testParts || []) {
+			for (const section of tp.sections || []) {
+				for (const q of section.questionRefs || []) {
+					metaById.set(q.identifier, { title: q.title, sectionTitle: section.title });
+				}
+			}
+		}
+
+		return results.itemResults.map((r) => {
+			const meta = metaById.get(r.itemIdentifier);
+			return {
+				id: r.itemIdentifier,
+				title: meta?.title || r.itemIdentifier,
+				sectionTitle: meta?.sectionTitle,
+				score: r.score,
+				maxScore: r.maxScore,
+			};
+		});
+	});
 
 	// Load initial sample assessment
 	$effect(() => {
@@ -81,6 +115,13 @@ import AssessmentShell from '@pie-qti/qti2-assessment-player/components/Assessme
 		selectedSampleId = sampleId;
 		uploadedFile = null;
 		uploadError = null;
+		results = null;
+		runKey += 1;
+	}
+
+	function handleRetake() {
+		results = null;
+		runKey += 1;
 	}
 </script>
 
@@ -98,22 +139,24 @@ import AssessmentShell from '@pie-qti/qti2-assessment-player/components/Assessme
 	<!-- Assessment Player -->
 	{#if selectedAssessment}
 		<div class="player-section">
-			{#key selectedAssessment.id}
-				<AssessmentShell
-					{backend}
-					{initSession}
-					config={{
-						role: 'candidate',
-						showSections: true,
-						allowSectionNavigation: true,
-						showProgress: true,
-						onComplete: () => {
-							alert('Assessment submitted!');
-						},
-					}}
-					typeset={(el) => typesetMathInElement(el)}
-				/>
-			{/key}
+			{#if results}
+				<AssessmentEndScreen {results} items={displayItemScores} onRetake={handleRetake} />
+			{:else}
+				{#key `${selectedAssessment.id}:${runKey}`}
+					<AssessmentShell
+						{backend}
+						{initSession}
+						config={{
+							role: 'candidate',
+							showSections: true,
+							allowSectionNavigation: true,
+							showProgress: true,
+						}}
+						onSubmit={(r) => (results = r)}
+						typeset={(el) => typesetMathInElement(el)}
+					/>
+				{/key}
+			{/if}
 		</div>
 	{/if}
 </div>

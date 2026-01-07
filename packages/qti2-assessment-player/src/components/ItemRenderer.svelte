@@ -31,6 +31,8 @@
 		questionRef: QuestionRef;
 		role?: QTIRole;
 		extendedTextEditor?: string;
+		/** Responses for the current item (keyed by responseIdentifier). */
+		responses?: Record<string, any>;
 		onResponseChange?: (responseId: string, value: unknown) => void;
 		/** Math typesetting function (KaTeX, MathJax, etc.) */
 		typeset?: (root: HTMLElement) => void | Promise<void>;
@@ -40,6 +42,7 @@
 		questionRef,
 		role = 'candidate',
 		extendedTextEditor: _extendedTextEditor,
+		responses = {},
 		onResponseChange,
 		typeset,
 	}: Props = $props();
@@ -73,12 +76,8 @@
 		}
 	});
 
-	// Get responses from parent or initialize empty
-	let responses = $state<Record<string, any>>({});
-
 	// Handle response changes
 	function handleResponseChange(responseId: string, value: any) {
-		responses = { ...responses, [responseId]: value };
 		onResponseChange?.(responseId, value);
 	}
 </script>

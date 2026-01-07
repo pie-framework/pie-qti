@@ -422,9 +422,12 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			const identifierMatch = itemXml.match(/assessmentItem[^>]+identifier=["']([^"']+)["']/);
 			const itemIdentifier = identifierMatch?.[1] || 'unknown';
 
+			// Use a scorer-grade view of the item for accurate scoring.
+			// NOTE: This reference adapter is intentionally insecure and runs client-side.
+			// In production, scoring must happen server-side with secured item content.
 			const player = new Player({
 				itemXml,
-				role: 'candidate',
+				role: 'scorer',
 			});
 
 			// Set responses using setResponses (plural)

@@ -39,10 +39,12 @@
 	});
 	let currentQuestion = $state<any>(null);
 	let currentRubricBlocks = $state<any[]>([]);
+	let currentResponses = $state<Record<string, unknown>>({});
 	let sections = $state<any[]>([]);
 	let error = $state<string | null>(null);
 	let navError = $state<string | null>(null);
 	let itemPaneEl = $state<HTMLDivElement | null>(null);
+	let rootEl = $state<HTMLElement | null>(null);
 	let testFeedback = $state<Array<{ identifier: string; content: string; access: string }>>([]);
 	let isComplete = $state(false);
 	let initTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -53,8 +55,37 @@
 	const nonPassageRubricBlocks = $derived(currentRubricBlocks.filter((b) => b?.use !== 'passage'));
 	const hasPassage = $derived(passageBlocks.length > 0);
 
+	// Fallback: listen at the shell root for any `qti-change` custom events from nested
+	// web components. Use a reactive effect so we attach even if `rootEl` is set after mount.
+	function handleRootQtiChange(e: Event) {
+		const ce = e as CustomEvent;
+		const detail = (ce as any).detail;
+		if (!detail) return;
+		const { responseId, value } = detail;
+		if (responseId) {
+			handleResponseChange(responseId, value);
+		}
+	}
+
+	$effect(() => {
+		if (!rootEl) return;
+		rootEl.addEventListener('qti-change', handleRootQtiChange as EventListener);
+		return () => rootEl?.removeEventListener('qti-change', handleRootQtiChange as EventListener);
+	});
+
 	// Initialize player
 	onMount(() => {
+		// Capture bubbled `qti-change` events at the document level as a safety net.
+		// This ensures responses are recorded even if an intermediate renderer misses the event.
+		const handleDocumentQtiChange = (e: Event) => {
+			const ce = e as CustomEvent;
+			const detail = (ce as any).detail;
+			if (!detail) return;
+			const { responseId, value } = detail;
+			if (responseId) handleResponseChange(responseId, value);
+		};
+		document.addEventListener('qti-change', handleDocumentQtiChange as EventListener);
+
 		// Never allow infinite "Loading assessment..." state
 		initTimeout = setTimeout(() => {
 			if (!hasFirstItem && !error) {
@@ -95,6 +126,10 @@
 				updateState();
 			});
 
+			player.onResponseChange((responses) => {
+				currentResponses = responses;
+			});
+
 			// If backend did not restore a current item, start at index 0.
 			if (player.getNavigationState().currentIndex < 0) {
 				await player.navigateTo(0);
@@ -105,6 +140,8 @@
 		});
 
 		return () => {
+			document.removeEventListener('qti-change', handleDocumentQtiChange as EventListener);
+			rootEl?.removeEventListener('qti-change', handleRootQtiChange as EventListener);
 			if (initTimeout) {
 				clearTimeout(initTimeout);
 				initTimeout = null;
@@ -121,6 +158,7 @@
 		navState = player.getNavigationState();
 		currentQuestion = player.getCurrentQuestion();
 		currentRubricBlocks = player.getCurrentRubricBlocks();
+		currentResponses = player.getResponses();
 	}
 
 	async function handlePrevious() {
@@ -209,7 +247,10 @@
 	}
 
 	function handleResponseChange(responseId: string, value: unknown) {
-		if (player) {
+		if (!player) return;
+		if (currentQuestion?.identifier) {
+			player.updateResponseForItem(currentQuestion.identifier, responseId, value);
+		} else {
 			player.updateResponse(responseId, value);
 		}
 	}
@@ -280,7 +321,7 @@
 		</div>
 	</div>
 {:else}
-	<div class="assessment-shell" role="application" aria-label="Assessment player">
+	<div bind:this={rootEl} class="assessment-shell" role="application" aria-label="Assessment player">
 		<!-- Header with title and section menu -->
 		<AssessmentHeader
 			title={initSession.assessmentId || 'Assessment'}
@@ -340,6 +381,7 @@
 					{#if currentQuestion}
 						<ItemRenderer
 							questionRef={currentQuestion}
+							responses={currentResponses}
 							role={config.role || 'candidate'}
 							extendedTextEditor={config.extendedTextEditor || 'tiptap'}
 							onResponseChange={handleResponseChange}
@@ -357,8 +399,9 @@
 				{#if currentQuestion}
 					<ItemRenderer
 						questionRef={currentQuestion}
+						responses={currentResponses}
 						role={config.role || 'candidate'}
-					onResponseChange={handleResponseChange}
+						onResponseChange={handleResponseChange}
 						{typeset}
 					/>
 				{/if}
