@@ -1,6 +1,6 @@
 # PIE QTI 2.2 Implementation Status
 
-**Last Updated**: 2026-01-06
+**Last Updated**: 2026-01-07
 
 ---
 
@@ -35,8 +35,9 @@ The transformation framework and tooling are functional but under active develop
 
 ## Test signal
 
-- ✅ **Interaction evals**: YAML specs in `docs/evals/qti2-default-components/*/evals.yaml` executed by Playwright runner in `packages/qti2-example/tests/playwright/qti2-default-components-evals.pw.ts` (currently **49** cases)
-- ✅ **Unit/E2E/a11y**: additional coverage exists across packages (see CI workflow and package READMEs for the authoritative counts)
+- ✅ **Default-components evals**: YAML specs in `docs/evals/qti2-default-components/*/evals.yaml` executed by Playwright runner in `packages/qti2-example/tests/playwright/qti2-default-components-evals.pw.ts` (currently **49** cases)
+- ✅ **Assessment-player evals**: YAML specs in `docs/evals/qti2-assessment-player/*/evals.yaml` (currently **15** cases)
+- ✅ **Unit tests**: additional coverage exists across packages (see package READMEs and workflows for the authoritative commands)
 
 ---
 
@@ -49,7 +50,9 @@ The transformation framework and tooling are functional but under active develop
 
 ## Deployment
 
-- ✅ GitHub Pages: docs site deployed under `/pie-qti` via `.github/workflows/deploy-pages.yml` (build output: `packages/docs-site/build`)
+- ✅ GitHub Pages: docs site deployed under `/pie-qti/` and examples deployed under `/pie-qti/examples/` via `.github/workflows/deploy-pages.yml`
+  - docs build output: `packages/docs-site/build`
+  - examples build output: `packages/qti2-example/build`
 
 ---
 
