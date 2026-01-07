@@ -10,7 +10,10 @@ const config = {
 		adapter: adapter({
 			pages: 'build',
 			assets: 'build',
-			fallback: undefined,
+			// GitHub Pages does not serve `index.html` for directory routes unless the URL ends with `/`.
+			// Emit an SPA fallback so deep links like `/examples/item-demo/inline-choice` still work.
+			// (GitHub Pages serves `404.html` for unknown paths; SvelteKit will then route client-side.)
+			fallback: '404.html',
 			precompress: false,
 			strict: false // Allow non-prerenderable API routes (they won't be available on GitHub Pages)
 		}),
