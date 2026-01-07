@@ -1,5 +1,10 @@
 <script lang="ts">
+	import { dev } from '$app/environment';
 	import { base } from '$app/paths';
+
+	// Note: docs-site is prerendered; avoid creating an internal prerender-crawled link to /examples
+	// (that path is served by a separate app, merged into the final Pages artifact).
+	const examplesHref = dev ? `${base}/examples/` : 'https://pie-framework.github.io/pie-qti/examples/';
 </script>
 
 <header class="border-b border-base-200 bg-base-100/80 backdrop-blur">
@@ -19,7 +24,7 @@
 		<div class="navbar-center hidden md:flex">
 			<ul class="menu menu-horizontal px-1">
 				<li><a href="{base}/">Architecture</a></li>
-				<li><a href="{base}/examples/">Examples</a></li>
+				<li><a href={examplesHref}>Examples</a></li>
 			</ul>
 		</div>
 
