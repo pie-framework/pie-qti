@@ -4,7 +4,12 @@ import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-	plugins: [tailwindcss(), sveltekit()],
+	plugins: [
+		// Tailwind v4 optimization currently warns on daisyUI's standards-track `@property` rule.
+		// Disable Tailwind's optimize pass (Vite will still minify CSS).
+		tailwindcss({ optimize: false }),
+		sveltekit(),
+	],
 	resolve: {
 		alias: [
 			// Bun workspaces may not always materialize a Node-resolvable `node_modules/@pie-qti/...` entry

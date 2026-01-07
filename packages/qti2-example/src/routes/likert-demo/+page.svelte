@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { likertScalePlugin } from '@acme/likert-scale-plugin';
+	import '@pie-qti/qti2-default-components/plugins'; // Load web components
+	import { registerDefaultComponents } from '@pie-qti/qti2-default-components';
 	import ItemBody from '@pie-qti/qti2-default-components/shared/components/ItemBody.svelte';
 	import { Player } from '@pie-qti/qti2-item-player';
-	import { registerDefaultComponents } from '@pie-qti/qti2-default-components';
 	import { typesetMathInElement } from '@pie-qti/qti2-typeset-katex';
 	import { browser } from '$app/environment';
 	import { ALL_LIKERT_ITEMS } from '$lib/sample-likert-items';

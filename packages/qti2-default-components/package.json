@@ -28,17 +28,17 @@
   "license": "ISC",
   "dependencies": {
     "@pie-qti/qti2-item-player": "workspace:*",
-    "@tiptap/core": "^3.14.0",
-    "@tiptap/extension-mathematics": "^3.14.0",
-    "@tiptap/extension-placeholder": "^3.14.0",
-    "@tiptap/starter-kit": "^3.14.0",
+    "@tiptap/core": "^3.15.3",
+    "@tiptap/extension-mathematics": "^3.15.3",
+    "@tiptap/extension-placeholder": "^3.15.3",
+    "@tiptap/starter-kit": "^3.15.3",
     "mathlive": "^0.108.2"
   },
   "peerDependencies": {
     "svelte": "^5.46.1"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.3.10",
+    "@biomejs/biome": "^2.3.11",
     "@types/node": "^25.0.3",
     "svelte": "^5.46.1",
     "svelte-check": "^4.3.5",

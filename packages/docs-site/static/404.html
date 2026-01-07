@@ -8,10 +8,11 @@
 			// GitHub Pages does not automatically serve `index.html` for directory routes unless the URL ends with `/`.
 			// Redirect `/pie-qti/.../some-route` -> `/pie-qti/.../some-route/` so static prerendered pages load.
 			(function () {
+				var p, last, looksLikeFile;
 				try {
-					var p = window.location.pathname;
-					var last = p.split('/').pop() || '';
-					var looksLikeFile = last.includes('.');
+					p = window.location.pathname;
+					last = p.split('/').pop() || '';
+					looksLikeFile = last.includes('.');
 					if (!p.endsWith('/') && !looksLikeFile) {
 						window.location.replace(p + '/' + window.location.search + window.location.hash);
 					}

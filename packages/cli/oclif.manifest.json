@@ -1,0 +1,267 @@
+{
+  "commands": {
+    "analyze-qti": {
+      "aliases": [],
+      "args": {
+        "input": {
+          "description": "Directory or ZIP file to analyze",
+          "name": "input",
+          "required": true
+        }
+      },
+      "description": "Analyze a QTI package directory or ZIP and summarize interactions, passages, and issues",
+      "examples": [
+        "<%= config.bin %> <%= command.id %> ./some-qti-package-dir",
+        "<%= config.bin %> <%= command.id %> ./some-package.zip",
+        "<%= config.bin %> <%= command.id %> ./some-dir --output report.md"
+      ],
+      "flags": {
+        "output": {
+          "description": "Write a detailed markdown report to this file path",
+          "name": "output",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "recursive": {
+          "description": "Recurse to find packages under the provided directory",
+          "name": "recursive",
+          "allowNo": true,
+          "type": "boolean"
+        },
+        "cleanupTemp": {
+          "description": "Cleanup temporary extracted files when input is a ZIP",
+          "name": "cleanupTemp",
+          "allowNo": true,
+          "type": "boolean"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "analyze-qti",
+      "pluginAlias": "@pie-qti/transform-cli",
+      "pluginName": "@pie-qti/transform-cli",
+      "pluginType": "core",
+      "strict": true,
+      "enableJsonFlag": false,
+      "isESM": true,
+      "relativePath": [
+        "dist",
+        "commands",
+        "analyze-qti.js"
+      ]
+    },
+    "batch-transform": {
+      "aliases": [],
+      "args": {
+        "inputs": {
+          "description": "One or more package paths (directories or ZIPs)",
+          "name": "inputs",
+          "required": true
+        }
+      },
+      "description": "Batch transform QTI packages (directories/ZIPs) to PIE. Supports nested ZIP extraction + manifest-aware resolution.",
+      "examples": [
+        "<%= config.bin %> <%= command.id %> ./some-package.zip -o ./out",
+        "<%= config.bin %> <%= command.id %> ./dir-a ./dir-b -o ./out --no-cleanupTemp"
+      ],
+      "flags": {
+        "outputDir": {
+          "char": "o",
+          "description": "Output directory for transformed PIE items",
+          "name": "outputDir",
+          "required": true,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "maxParallel": {
+          "description": "Max parallel transformations",
+          "name": "maxParallel",
+          "default": 10,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "extractNestedZips": {
+          "description": "Extract nested ZIP files",
+          "name": "extractNestedZips",
+          "allowNo": true,
+          "type": "boolean"
+        },
+        "loadPassageContent": {
+          "description": "Load passage content from external files",
+          "name": "loadPassageContent",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "copyMediaAssets": {
+          "description": "Copy media assets into output directory",
+          "name": "copyMediaAssets",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "generateReport": {
+          "description": "Generate a summary report",
+          "name": "generateReport",
+          "allowNo": true,
+          "type": "boolean"
+        },
+        "cleanupTemp": {
+          "description": "Cleanup temporary extraction directory",
+          "name": "cleanupTemp",
+          "allowNo": true,
+          "type": "boolean"
+        },
+        "tempDir": {
+          "description": "Temporary directory for ZIP extraction",
+          "name": "tempDir",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "batch-transform",
+      "pluginAlias": "@pie-qti/transform-cli",
+      "pluginName": "@pie-qti/transform-cli",
+      "pluginType": "core",
+      "strict": true,
+      "enableJsonFlag": false,
+      "isESM": true,
+      "relativePath": [
+        "dist",
+        "commands",
+        "batch-transform.js"
+      ]
+    },
+    "discover-qti": {
+      "aliases": [],
+      "args": {
+        "input": {
+          "description": "Directory or ZIP file to discover",
+          "name": "input",
+          "required": true
+        }
+      },
+      "description": "Discover and print the structure of a QTI content package (directory or ZIP)",
+      "examples": [
+        "<%= config.bin %> <%= command.id %> ./some-qti-package-dir",
+        "<%= config.bin %> <%= command.id %> ./some-package.zip --pretty",
+        "<%= config.bin %> <%= command.id %> ./some-package.zip --output discovery.json"
+      ],
+      "flags": {
+        "output": {
+          "description": "Write the JSON result to this file path (defaults to stdout)",
+          "name": "output",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "pretty": {
+          "description": "Pretty-print JSON",
+          "name": "pretty",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "verbose": {
+          "description": "Include more detail during discovery",
+          "name": "verbose",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "extractDir": {
+          "description": "Directory to extract ZIPs into (optional)",
+          "name": "extractDir",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "discover-qti",
+      "pluginAlias": "@pie-qti/transform-cli",
+      "pluginName": "@pie-qti/transform-cli",
+      "pluginType": "core",
+      "strict": true,
+      "enableJsonFlag": false,
+      "isESM": true,
+      "relativePath": [
+        "dist",
+        "commands",
+        "discover-qti.js"
+      ]
+    },
+    "transform": {
+      "aliases": [],
+      "args": {
+        "input": {
+          "description": "Input file path (QTI XML)",
+          "name": "input",
+          "required": true
+        }
+      },
+      "description": "Transform QTI assessment items to PIE format",
+      "examples": [
+        "<%= config.bin %> <%= command.id %> input.xml -o output.json",
+        "<%= config.bin %> <%= command.id %> input.xml --format qti22:pie",
+        "<%= config.bin %> <%= command.id %> input.xml -o output.json --pretty"
+      ],
+      "flags": {
+        "output": {
+          "char": "o",
+          "description": "Output file path (defaults to stdout)",
+          "name": "output",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "format": {
+          "char": "f",
+          "description": "Transformation format (source:target)",
+          "name": "format",
+          "default": "qti22:pie",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "pretty": {
+          "char": "p",
+          "description": "Pretty-print JSON output",
+          "name": "pretty",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "silent": {
+          "char": "s",
+          "description": "Suppress logs",
+          "name": "silent",
+          "allowNo": false,
+          "type": "boolean"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "transform",
+      "pluginAlias": "@pie-qti/transform-cli",
+      "pluginName": "@pie-qti/transform-cli",
+      "pluginType": "core",
+      "strict": true,
+      "enableJsonFlag": false,
+      "isESM": true,
+      "relativePath": [
+        "dist",
+        "commands",
+        "transform.js"
+      ]
+    }
+  },
+  "version": "0.1.0"
+}
