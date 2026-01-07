@@ -7,5 +7,5 @@
   "access": "public",
   "baseBranch": "master",
   "updateInternalDependencies": "patch",
-  "ignore": ["@acme/likert-scale-plugin"]
+  "ignore": ["@acme/likert-scale-plugin", "@pie-qti/qti2-example"]
 }
