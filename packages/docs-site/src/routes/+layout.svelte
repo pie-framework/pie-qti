@@ -8,7 +8,7 @@
 	// Keep a stable theme for docs
 	$effect(() => {
 		if (browser) {
-			document.documentElement.setAttribute('data-theme', 'halloween');
+			document.documentElement.setAttribute('data-theme', 'light');
 		}
 	});
 </script>
