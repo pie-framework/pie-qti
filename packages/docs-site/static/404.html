@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Not Found</title>
+		<script>
+			// GitHub Pages does not automatically serve `index.html` for directory routes unless the URL ends with `/`.
+			// Redirect `/pie-qti/.../some-route` -> `/pie-qti/.../some-route/` so static prerendered pages load.
+			(function () {
+				try {
+					var p = window.location.pathname;
+					var last = p.split('/').pop() || '';
+					var looksLikeFile = last.includes('.');
+					if (!p.endsWith('/') && !looksLikeFile) {
+						window.location.replace(p + '/' + window.location.search + window.location.hash);
+					}
+				} catch {
+					// If anything goes wrong, fall through to the message below.
+				}
+			})();
+		</script>
+	</head>
+	<body>
+		<p>Not found.</p>
+		<p><a href="/pie-qti/">Go to PIE-QTI home</a></p>
+	</body>
+</html>
+
+
