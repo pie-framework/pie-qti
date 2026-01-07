@@ -89,7 +89,7 @@
 	// Event handlers
 	function handleSampleChange(id: string) {
 		// Use full page reload for fast, reliable navigation with proper math rendering
-		window.location.href = `/item-demo/${encodeURIComponent(id)}`;
+		window.location.href = `${base}/item-demo/${encodeURIComponent(id)}`;
 	}
 
 	function handleXmlChange(newXml: string) {
