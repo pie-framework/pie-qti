@@ -11,7 +11,7 @@ This project provides two major capabilities:
 1. **QTI 2.x Players** — Production-ready item and assessment players with extensibility and theming
 2. **PIE ↔ QTI Transformation Framework** — Bidirectional transforms between QTI 2.2 and PIE, with CLI, web app, and IMS Content Package support
 
-📚 **[Live Examples & Documentation](https://pie-framework.github.io/pie-qti/)**
+📚 **[Live Examples](https://pie-framework.github.io/pie-qti/examples/)**
 
 ![QTI Player Examples](docs/images/examples-screenshot-1.png)
 
@@ -59,7 +59,7 @@ Orchestrates multi-item assessments:
 - **Outcome processing** — Scoring templates (total, weighted, percentage, pass/fail)
 - **Backend adapter** — Optional server-side scoring and secure data handling
 
-### Extensibility
+### Extensibility (Docs)
 
 The player architecture separates QTI logic from UI rendering:
 
