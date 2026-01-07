@@ -137,7 +137,6 @@
 					<li>
 						<a href="{base}/iframe-demo" class:active={currentPath === `${base}/iframe-demo`}>Iframe Demo</a>
 					</li>
-					<li><a href="{base}/docs" class:active={currentPath === `${base}/docs`}>Docs</a></li>
 				</ul>
 				<div class="dropdown dropdown-end">
 					<div tabindex="0" role="button" class="btn btn-ghost" aria-label="Theme: {theme}">
