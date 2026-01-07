@@ -1,9 +1,9 @@
 <script lang="ts">
 
-	import { onMount } from 'svelte';
-	import ItemBody from '@pie-qti/qti2-default-components/shared/components/ItemBody.svelte';
 	import { registerDefaultComponents } from '@pie-qti/qti2-default-components';
+	import ItemBody from '@pie-qti/qti2-default-components/shared/components/ItemBody.svelte';
 	import { Player, type QTIRole } from '@pie-qti/qti2-item-player';
+	import { onMount } from 'svelte';
 	import type { QuestionRef } from '../types/index.js';
 
 	/**

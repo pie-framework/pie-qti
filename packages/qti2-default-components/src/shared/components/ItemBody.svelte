@@ -167,7 +167,7 @@
 	}
 </script>
 
-<div bind:this={rootEl} class="qti-item-body" use:typesetAction={{ typeset }}>
+<div bind:this={rootEl} class="qti-item-body" use:typesetAction={{ typeset }} onqti-change={handleQtiChange}>
 	<!-- Item body with inline interactions -->
 	<div class="prose max-w-none mb-4">
 		<div class="inline-interaction-container">
@@ -182,7 +182,8 @@
 						placeholder="..."
 						aria-label={`Text entry ${segment.interaction.responseId}`}
 						value={responses[segment.interaction.responseId] || ''}
-						on:input={(e) => handleResponseChange(segment.interaction.responseId, e.currentTarget.value)}
+						oninput={(e) =>
+							handleResponseChange(segment.interaction.responseId, (e.currentTarget as HTMLInputElement).value)}
 					/>
 				{:else if segment.type === 'inlineChoice'}
 					<select
@@ -190,7 +191,8 @@
 						style="display: inline-block; margin: 0 4px; width: auto; min-width: 120px;"
 						aria-label={`Inline choice ${segment.interaction.responseId}`}
 						value={responses[segment.interaction.responseId] || ''}
-						on:change={(e) => handleResponseChange(segment.interaction.responseId, e.currentTarget.value)}
+						onchange={(e) =>
+							handleResponseChange(segment.interaction.responseId, (e.currentTarget as HTMLSelectElement).value)}
 					>
 						<option value="">Select...</option>
 						{#each segment.interaction.choices as choice}

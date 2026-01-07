@@ -1,0 +1,117 @@
+version: 1
+
+component:
+  interactionType: assessmentPlayer
+  tagName: AssessmentShell
+
+examplesApp:
+  app: "@pie-qti/qti2-example"
+  routeTemplate: "/assessment-demo"
+
+evals:
+  - id: assessment-player/event-plumbing/showcase-select-point-bubbles-and-persists
+    sampleId: interaction-showcase-1
+    gradeBand: "6-12"
+    subject: general
+    intent: "selectPointInteraction emits qti-change that the assessment shell captures; selected point persists across section switches."
+    steps:
+      - action: navigate
+        path: "/assessment-demo"
+      - action: select
+        target:
+          description: "Sample Assessments dropdown"
+        option:
+          value: "interaction-showcase-1"
+      - action: click
+        target:
+          description: "Open the Sections menu"
+      - action: click
+        target:
+          description: "Switch to Select Point section"
+          hint: "Click 'Select Point'"
+      - action: clickAt
+        target:
+          description: "Click near the target region"
+          hint: "Use the same center-ish coordinates as the single-item demo; marker should appear"
+        coordinates:
+          x: 350
+          y: 200
+      - action: observe
+        target:
+          description: "A point marker is visible"
+          hint: "The component shows a marker at the clicked location"
+      - action: click
+        target:
+          description: "Open the Sections menu"
+      - action: click
+        target:
+          description: "Switch to Passage + Question section"
+      - action: click
+        target:
+          description: "Open the Sections menu"
+      - action: click
+        target:
+          description: "Switch back to Select Point section"
+      - action: observe
+        target:
+          description: "Previously selected point is still visible"
+          hint: "Marker persists (proves response was recorded by assessment shell)"
+    expected:
+      assessmentResults:
+        ui:
+          currentSectionTitle:
+            equals: "Select Point"
+    spiritChecks:
+      - "Students can see that their interaction 'stuck' even after navigating elsewhere."
+
+  - id: assessment-player/event-plumbing/showcase-hotspot-bubbles-and-persists
+    sampleId: interaction-showcase-1
+    gradeBand: "6-12"
+    subject: general
+    intent: "hotspotInteraction emits qti-change that the assessment shell captures; selections persist across section switches."
+    steps:
+      - action: navigate
+        path: "/assessment-demo"
+      - action: select
+        target:
+          description: "Sample Assessments dropdown"
+        option:
+          value: "interaction-showcase-1"
+      - action: click
+        target:
+          description: "Open the Sections menu"
+      - action: click
+        target:
+          description: "Switch to Hotspot section"
+      - action: click
+        target:
+          description: "Select a hotspot region"
+          hint: "Click one visible hotspot area; a visual selected state should appear"
+      - action: observe
+        target:
+          description: "Hotspot selection is visible"
+          hint: "Selected state is visually apparent"
+      - action: click
+        target:
+          description: "Open the Sections menu"
+      - action: click
+        target:
+          description: "Switch to Inline Stimulus section"
+      - action: click
+        target:
+          description: "Open the Sections menu"
+      - action: click
+        target:
+          description: "Switch back to Hotspot section"
+      - action: observe
+        target:
+          description: "Previously selected hotspot remains selected"
+    expected:
+      assessmentResults:
+        ui:
+          currentSectionTitle:
+            equals: "Hotspot"
+    spiritChecks:
+      - "Hotspot selection state is easy to see and persists across navigation."
+
+

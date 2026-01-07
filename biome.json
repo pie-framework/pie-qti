@@ -13,7 +13,7 @@
 			"!**/test-results",
 			"!**/.svelte-kit",
 			"!**/dist",
-			"!**/tests/**/fixtures/**"
+			"!**/tests/**/fixtures"
 		]
 	},
 	"linter": {

@@ -1,0 +1,162 @@
+version: 1
+
+component:
+  interactionType: assessmentPlayer
+  tagName: AssessmentShell
+
+examplesApp:
+  app: "@pie-qti/qti2-example"
+  routeTemplate: "/assessment-demo"
+
+evals:
+  - id: assessment-player/submission-modes/reading-comp-simultaneous-end-screen-complete
+    sampleId: reading-comp-1
+    gradeBand: "3-6"
+    subject: ela
+    intent: "In submissionMode=simultaneous, submitting at end yields a complete end screen with per-question scores for all items."
+    steps:
+      - action: navigate
+        path: "/assessment-demo"
+      - action: select
+        target:
+          description: "Sample Assessments dropdown"
+          hint: "Select 'Reading Comprehension - The Water Cycle'"
+        option:
+          value: "reading-comp-1"
+      - action: click
+        target:
+          description: "Answer Q1 correctly"
+          hint: "Within `pie-qti-choice`, select choice 'Evaporation' (value 'A')"
+      - action: click
+        target:
+          description: "Next"
+      - action: click
+        target:
+          description: "Answer Q2 correctly"
+          hint: "Select 'Condensation' (value 'B')"
+      - action: click
+        target:
+          description: "Next"
+      - action: click
+        target:
+          description: "Answer Q3 correctly"
+          hint: "Select 'It provides fresh water for living things' (value 'C')"
+      - action: submit
+        target:
+          description: "Submit Assessment button"
+          hint: "Button text is 'Submit Assessment'"
+      - action: observe
+        target:
+          description: "End screen is shown"
+          hint: "Heading contains 'Assessment complete'"
+    expected:
+      assessmentResults:
+        totalScore:
+          equals: 3
+        itemScoresByIdentifier:
+          q1:
+            equals: 1
+          q2:
+            equals: 1
+          q3:
+            equals: 1
+    spiritChecks:
+      - "End screen lists all three questions with scores (not just the last one)."
+
+  - id: assessment-player/submission-modes/science-individual-end-screen-complete
+    sampleId: science-1
+    gradeBand: "3-6"
+    subject: science
+    intent: "In submissionMode=individual (linear), completing all items yields a complete end screen with 3 item rows."
+    notes:
+      - "This path exercises per-item submission on navigation, then final submit."
+    steps:
+      - action: navigate
+        path: "/assessment-demo"
+      - action: select
+        target:
+          description: "Sample Assessments dropdown"
+          hint: "Select 'Science - Life Cycles'"
+        option:
+          value: "science-1"
+      - action: dragReorder
+        target:
+          description: "Arrange butterfly life cycle stages in correct order"
+          hint: "Egg → Larva → Pupa → Adult"
+        value:
+          responseId: "RESPONSE"
+          orderedIdentifiers: ["egg", "larva", "pupa", "adult"]
+      - action: click
+        target:
+          description: "Next"
+      - action: click
+        target:
+          description: "Answer Q2 correctly"
+          hint: "Select 'Seed'"
+      - action: click
+        target:
+          description: "Next"
+      - action: type
+        target:
+          description: "Answer Q3 correctly"
+          hint: "Type 'metamorphosis' into the text entry"
+        value: "metamorphosis"
+      - action: submit
+        target:
+          description: "Submit Assessment button"
+      - action: observe
+        target:
+          description: "End screen is shown"
+    expected:
+      assessmentResults:
+        totalScore:
+          equals: 3
+        itemScoresByIdentifier:
+          q1:
+            equals: 1
+          q2:
+            equals: 1
+          q3:
+            equals: 1
+    spiritChecks:
+      - "Linear flow is smooth; submission between items does not lose answers."
+
+  - id: assessment-player/submission-modes/mixed-simultaneous-some-answered-some-skipped
+    sampleId: mixed-1
+    gradeBand: "6-10"
+    subject: general
+    intent: "In submissionMode=simultaneous, skipped items score 0 but answered items still score correctly; end screen includes all items across sections."
+    steps:
+      - action: navigate
+        path: "/assessment-demo"
+      - action: select
+        target:
+          description: "Sample Assessments dropdown"
+          hint: "Select 'Mixed Topics - General Knowledge'"
+        option:
+          value: "mixed-1"
+      - action: click
+        target:
+          description: "Answer Geography Q1 correctly"
+          hint: "Select 'Pacific Ocean' (identifier 'pacific')"
+      - action: click
+        target:
+          description: "Navigate to end"
+          hint: "Click Next until Submit Assessment is visible (skipping is allowed)"
+      - action: submit
+        target:
+          description: "Submit Assessment button"
+      - action: observe
+        target:
+          description: "End screen is shown"
+    expected:
+      assessmentResults:
+        totalScore:
+          gte: 1
+        itemScoresByIdentifier:
+          geo1:
+            equals: 1
+    spiritChecks:
+      - "Answering one item is reflected in the total score even if later items are skipped."
+
+

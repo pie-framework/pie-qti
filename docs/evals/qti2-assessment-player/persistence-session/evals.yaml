@@ -1,0 +1,100 @@
+version: 1
+
+component:
+  interactionType: assessmentPlayer
+  tagName: AssessmentShell
+
+examplesApp:
+  app: "@pie-qti/qti2-example"
+  routeTemplate: "/assessment-demo"
+
+evals:
+  - id: assessment-player/persistence-session/reading-comp-retake-starts-fresh
+    sampleId: reading-comp-1
+    gradeBand: "3-6"
+    subject: ela
+    intent: "After completing an assessment, clicking Retake assessment starts a fresh session (no prefilled responses)."
+    steps:
+      - action: navigate
+        path: "/assessment-demo"
+      - action: select
+        target:
+          description: "Sample Assessments dropdown"
+        option:
+          value: "reading-comp-1"
+      - action: click
+        target:
+          description: "Answer Q1"
+          hint: "Select 'Evaporation' (A)"
+      - action: click
+        target:
+          description: "Next"
+      - action: click
+        target:
+          description: "Answer Q2"
+          hint: "Select 'Condensation' (B)"
+      - action: click
+        target:
+          description: "Next"
+      - action: click
+        target:
+          description: "Answer Q3"
+          hint: "Select the correct choice (C)"
+      - action: submit
+        target:
+          description: "Submit Assessment button"
+      - action: click
+        target:
+          description: "Retake assessment"
+          hint: "Button text is 'Retake assessment'"
+      - action: observe
+        target:
+          description: "First question is shown with no pre-selected choice"
+          hint: "No radio is checked until the student clicks"
+    expected:
+      assessmentResults:
+        ui:
+          currentQuestionTitle:
+            equals: "Question 1: Main Process"
+    spiritChecks:
+      - "Retake is clearly a fresh attempt (no confusing carry-over)."
+
+  - id: assessment-player/persistence-session/reading-comp-refresh-does-not-prefill
+    sampleId: reading-comp-1
+    gradeBand: "3-6"
+    subject: ela
+    intent: "Refreshing the page and re-selecting the same sample assessment does not pre-fill prior responses in the demo."
+    notes:
+      - "The demo backend should always create a fresh session for the example app."
+    steps:
+      - action: navigate
+        path: "/assessment-demo"
+      - action: select
+        target:
+          description: "Sample Assessments dropdown"
+        option:
+          value: "reading-comp-1"
+      - action: click
+        target:
+          description: "Answer Q1"
+          hint: "Select 'Evaporation' (A)"
+      - action: navigate
+        path: "/assessment-demo"
+      - action: select
+        target:
+          description: "Sample Assessments dropdown"
+        option:
+          value: "reading-comp-1"
+      - action: observe
+        target:
+          description: "No pre-selected choice on Q1"
+          hint: "No radio is checked until the student clicks"
+    expected:
+      assessmentResults:
+        ui:
+          currentQuestionTitle:
+            equals: "Question 1: Main Process"
+    spiritChecks:
+      - "Refresh behavior is predictable (does not unexpectedly resume a prior attempt)."
+
+

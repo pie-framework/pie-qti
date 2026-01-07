@@ -183,7 +183,7 @@
 							interaction={JSON.stringify(interaction)}
 							response={JSON.stringify(responses[interaction.responseId] ?? null)}
 							disabled={false}
-							on:qti-change={handleQtiChange}
+							onqti-change={handleQtiChange}
 						/>
 					{/if}
 
