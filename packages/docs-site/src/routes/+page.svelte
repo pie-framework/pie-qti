@@ -29,7 +29,11 @@
 	</ol>
 
 	<p>
-		📚 <strong><a href="{base}/examples/">Live Examples</a></strong>
+		<!-- Use an absolute URL so docs-site prerender does not try to crawl /examples as a docs route -->
+		📚
+		<strong>
+			<a href="https://pie-framework.github.io/pie-qti/examples/" target="_blank" rel="noreferrer">Live Examples</a>
+		</strong>
 	</p>
 
 	<figure>
