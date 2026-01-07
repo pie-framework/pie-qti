@@ -4,7 +4,6 @@
 		type QTIRole,
 		type RubricBlock,
 	} from '@pie-qti/qti2-item-player';
-	import '@pie-qti/qti2-default-components/plugins'; // Load web components
 	import { registerDefaultComponents } from '@pie-qti/qti2-default-components';
 	import { onMount, untrack } from 'svelte';
 	import { goto } from '$app/navigation';

@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   build:
-    name: Build documentation site
+    name: Build docs + examples site
     runs-on: ubuntu-latest
     env:
       NODE_ENV: production
@@ -47,10 +47,21 @@ jobs:
       - name: Build docs site for GitHub Pages
         run: cd packages/docs-site && bun run build
 
+      - name: Build examples app for GitHub Pages (/examples)
+        run: cd packages/qti2-example && bun run build
+
+      - name: Assemble GitHub Pages artifact (docs at /, examples at /examples)
+        run: |
+          rm -rf dist-pages
+          mkdir -p dist-pages/examples
+          cp -R packages/docs-site/build/* dist-pages/
+          cp -R packages/qti2-example/build/* dist-pages/examples/
+          touch dist-pages/.nojekyll
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: packages/docs-site/build
+          path: dist-pages
 
   deploy:
     name: Deploy to GitHub Pages

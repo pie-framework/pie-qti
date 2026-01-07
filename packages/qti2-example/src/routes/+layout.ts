@@ -1,5 +1,5 @@
-// Enable prerendering for static site generation
+// Enable prerendering for static site generation (GitHub Pages).
 export const prerender = true;
 
-// Enable client-side routing
-export const ssr = false;
+// Ensure project-pages deep links work by emitting /route/index.html.
+export const trailingSlash = 'always';

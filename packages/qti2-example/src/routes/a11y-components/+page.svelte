@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { A11Y_FIXTURES } from '$lib/a11y/fixtures';
+	import { base } from '$app/paths';
 </script>
 
 <svelte:head>
@@ -16,7 +17,7 @@
 	<ul class="list-disc pl-6 space-y-2">
 		{#each A11Y_FIXTURES as f}
 			<li>
-				<a class="link link-primary" href={`/a11y-components/${f.id}`}>{f.title}</a>
+				<a class="link link-primary" href={`${base}/a11y-components/${f.id}`}>{f.title}</a>
 			</li>
 		{/each}
 	</ul>

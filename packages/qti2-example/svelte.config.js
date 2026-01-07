@@ -22,7 +22,9 @@ const config = {
 			)
 		},
 		paths: {
-			base: process.env.NODE_ENV === 'production' ? '/pie-qti' : ''
+			// Host the examples app under GitHub Pages project subpath:
+			// https://pie-framework.github.io/pie-qti/examples/
+			base: process.env.NODE_ENV === 'production' ? '/pie-qti/examples' : ''
 		},
 		prerender: {
 			handleMissingId: 'warn',

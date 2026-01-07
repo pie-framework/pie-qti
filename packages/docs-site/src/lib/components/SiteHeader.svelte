@@ -19,6 +19,7 @@
 		<div class="navbar-center hidden md:flex">
 			<ul class="menu menu-horizontal px-1">
 				<li><a href="{base}/">Architecture</a></li>
+				<li><a href="{base}/examples/">Examples</a></li>
 			</ul>
 		</div>
 

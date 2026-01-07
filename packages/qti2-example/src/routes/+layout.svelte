@@ -2,6 +2,7 @@
 	import '../app.css';
 	import '@pie-qti/qti2-typeset-katex/css';
 	import { onMount } from 'svelte';
+	import { browser } from '$app/environment';
 	import { base } from '$app/paths';
 	import { page } from '$app/stores';
 
@@ -48,6 +49,12 @@
 	];
 
 	onMount(() => {
+		// Register QTI player web components on the client only.
+		// This module touches browser globals (customElements/window) and must not run during prerender/SSR.
+		if (browser) {
+			void import('@pie-qti/qti2-default-components/plugins');
+		}
+
 		// Load saved theme from localStorage
 		const savedTheme = localStorage.getItem('theme') || 'light';
 		theme = savedTheme;

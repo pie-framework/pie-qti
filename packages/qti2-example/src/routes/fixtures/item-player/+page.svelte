@@ -1,5 +1,4 @@
 <script lang="ts">
-	import '@pie-qti/qti2-default-components/plugins';
 	import { typesetAction } from '@pie-qti/qti2-default-components/shared';
 	import GraphicGapMatch from '@pie-qti/qti2-default-components/shared/components/GraphicGapMatch.svelte';
 	import InlineInteractionRenderer from '@pie-qti/qti2-default-components/shared/components/InlineInteractionRenderer.svelte';

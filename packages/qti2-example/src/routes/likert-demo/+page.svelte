@@ -2,7 +2,6 @@
 	import { likertScalePlugin } from '@acme/likert-scale-plugin';
 	import ItemBody from '@pie-qti/qti2-default-components/shared/components/ItemBody.svelte';
 	import { Player } from '@pie-qti/qti2-item-player';
-	import '@pie-qti/qti2-default-components/plugins'; // Load web components
 	import { registerDefaultComponents } from '@pie-qti/qti2-default-components';
 	import { typesetMathInElement } from '@pie-qti/qti2-typeset-katex';
 	import { browser } from '$app/environment';

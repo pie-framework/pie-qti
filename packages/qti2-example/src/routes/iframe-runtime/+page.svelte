@@ -5,12 +5,12 @@
 		type QTIRole,
 	} from '@pie-qti/qti2-item-player';
 	import { createEnvelope, parseQtiIframeMessage } from '@pie-qti/qti2-item-player/iframe';
-	import '@pie-qti/qti2-default-components/plugins'; // Load web components
 	import { registerDefaultComponents } from '@pie-qti/qti2-default-components';
 	import { typesetAction } from '@pie-qti/qti2-default-components/shared';
 	import ItemBody from '@pie-qti/qti2-default-components/shared/components/ItemBody.svelte';
 	import { typesetMathInElement } from '@pie-qti/qti2-typeset-katex';
 	import { onDestroy, onMount } from 'svelte';
+	import { browser } from '$app/environment';
 	import { page } from '$app/stores';
 
 	let player: Player | null = $state(null);
@@ -23,7 +23,8 @@
 	let rootEl: HTMLElement | null = $state(null);
 
 	// Optional security: validate messages from a known parent origin.
-	const expectedParentOrigin = $derived($page.url.searchParams.get('parentOrigin'));
+	// Note: during prerendering, query strings are unavailable; guard access.
+	const expectedParentOrigin = $derived(browser ? $page.url.searchParams.get('parentOrigin') : null);
 	const targetParentOrigin = $derived(expectedParentOrigin ?? '*');
 
 	function makePostMessageSafe(value: unknown): unknown {
@@ -212,7 +213,10 @@
 	});
 
 	onDestroy(() => {
-		window.removeEventListener('message', handleIncomingMessage);
+		// During SSR/prerender, Svelte runs destroy handlers; guard browser globals.
+		if (browser) {
+			window.removeEventListener('message', handleIncomingMessage);
+		}
 		resizeObserver?.disconnect();
 	});
 
