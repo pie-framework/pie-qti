@@ -15,9 +15,11 @@
       "cache": false
     },
     "typecheck": {
+      "dependsOn": ["^build"],
       "cache": false
     },
     "check": {
+      "dependsOn": ["^build"],
       "cache": false
     },
     "dev": {
