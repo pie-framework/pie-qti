@@ -102,8 +102,6 @@ bun run typecheck
 
 # Testing
 bun run test
-bun run test:e2e
-bun run test:a11y
 
 # Building
 bun run build
@@ -118,19 +116,12 @@ Check workflow status:
 
 ## Troubleshooting
 
-### E2E Tests Failing
+### Build Failing
 
-If Playwright tests fail:
-1. Check the uploaded Playwright report artifact
-2. Tests may need browser installation: `bunx playwright install --with-deps`
-3. Check for timing issues or flaky tests
-
-### Build Failing on Specific OS
-
-If builds fail on macOS or Windows but not Ubuntu:
-1. Check for path separator issues (`/` vs `\`)
-2. Check for case-sensitive file system differences
-3. Check for shell-specific command differences
+If build fails in CI but not locally:
+1. Verify you're using the pinned Bun version from CI
+2. Confirm `bun install --frozen-lockfile` succeeds locally (lockfile in sync)
+3. Check for missing platform tools in the workflow (e.g. `jq`, `bc`)
 
 ### NPM Publishing Failing
 
