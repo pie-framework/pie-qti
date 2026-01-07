@@ -1,4 +1,7 @@
 <script lang="ts">
+	import { base } from '$app/paths';
+	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
 	import {
 		Player,
 		type QTIRole,
@@ -6,9 +9,6 @@
 	} from '@pie-qti/qti2-item-player';
 	import { registerDefaultComponents } from '@pie-qti/qti2-default-components';
 	import { onMount, untrack } from 'svelte';
-	import { goto } from '$app/navigation';
-	import { base } from '$app/paths';
-	import { page } from '$app/stores';
 	import { SAMPLE_ITEMS } from '$lib/sample-items';
 	import ConfigurationPanel from './components/ConfigurationPanel.svelte';
 	import QuestionPanel from './components/QuestionPanel.svelte';

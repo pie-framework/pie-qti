@@ -1,17 +1,18 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
+	import { page } from '$app/stores';
+	import '@pie-qti/qti2-default-components/plugins'; // Load web components
+	import { registerDefaultComponents } from '@pie-qti/qti2-default-components';
+	import { typesetAction } from '@pie-qti/qti2-default-components/shared';
+	import ItemBody from '@pie-qti/qti2-default-components/shared/components/ItemBody.svelte';
 	import {
 		Player,
 		type PlayerSecurityConfig,
 		type QTIRole,
 	} from '@pie-qti/qti2-item-player';
 	import { createEnvelope, parseQtiIframeMessage } from '@pie-qti/qti2-item-player/iframe';
-	import { registerDefaultComponents } from '@pie-qti/qti2-default-components';
-	import { typesetAction } from '@pie-qti/qti2-default-components/shared';
-	import ItemBody from '@pie-qti/qti2-default-components/shared/components/ItemBody.svelte';
 	import { typesetMathInElement } from '@pie-qti/qti2-typeset-katex';
 	import { onDestroy, onMount } from 'svelte';
-	import { browser } from '$app/environment';
-	import { page } from '$app/stores';
 
 	let player: Player | null = $state(null);
 	let responses = $state<Record<string, any>>({});

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { base } from '$app/paths';
 	import { A11Y_FIXTURES } from '$lib/a11y/fixtures';
 	import { base } from '$app/paths';
 </script>

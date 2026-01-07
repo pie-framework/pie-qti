@@ -4,8 +4,8 @@ import { defineConfig } from 'vite';
 export default defineConfig({
 	plugins: [
 		svelte({
-			// Ensure we also compile workspace package components
-			include: ['**/*.svelte'],
+			// Use `svelte.config.js` for Svelte compiler warning filtering.
+			// Keep this config minimal and Vite-specific.
 		}),
 	],
 	build: {

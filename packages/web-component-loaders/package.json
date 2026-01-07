@@ -15,7 +15,6 @@
 		"build": "tsc -p ./tsconfig.json"
 	},
 	"license": "ISC",
-	"private": true,
 	"peerDependencies": {
 		"@pie-qti/qti2-player-elements": "*"
 	},
