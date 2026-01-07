@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import type { PieItem, TransformContext, TransformInput } from '@pie-framework/transform-types';
+import type { PieItem, TransformContext, TransformInput } from '@pie-qti/transform-types';
 import { PieToQti2Plugin } from '../../src/plugin.js';
 import type { PassageResolver, ResolvedPassage } from '../../src/types/passages.js';
 

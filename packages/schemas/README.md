@@ -1,11 +1,11 @@
-# @pie-framework/element-schemas
+# @pie-qti/element-schemas
 
 JSON schemas for PIE element validation. This package contains schemas extracted from PIE element packages for use in validation without requiring the full element packages as dependencies.
 
 ## Usage
 
 ```typescript
-import { loadSchema, loadAllSchemas } from '@pie-framework/element-schemas';
+import { loadSchema, loadAllSchemas } from '@pie-qti/element-schemas';
 
 // Load a specific schema
 const mcSchema = await loadSchema('multiple-choice');
@@ -38,7 +38,7 @@ git clone https://github.com/pie-framework/pie-elements.git
 To update schemas from pie-elements:
 
 ```bash
-bun --filter @pie-framework/element-schemas sync
+bun --filter @pie-qti/element-schemas sync
 ```
 
 This will:
@@ -52,7 +52,7 @@ This will:
 To check if local schemas are up-to-date:
 
 ```bash
-bun --filter @pie-framework/element-schemas check-updates
+bun --filter @pie-qti/element-schemas check-updates
 ```
 
 This is useful in CI to detect schema drift.
@@ -83,7 +83,7 @@ To add a new PIE element schema:
 
 1. Add the element name to `ELEMENTS_TO_SYNC` in `scripts/sync-schemas.ts`
 2. Add the element type to `AVAILABLE_SCHEMAS` in `src/index.ts`
-3. Run `bun --filter @pie-framework/element-schemas sync` to pull the schema
+3. Run `bun --filter @pie-qti/element-schemas sync` to pull the schema
 4. Commit the new schema file and updated metadata
 
 ## CI Integration
@@ -103,5 +103,5 @@ jobs:
       - name: Clone pie-elements
         run: git clone --depth 1 https://github.com/pie-framework/pie-elements.git ../pie-elements
       - name: Check schema versions
-        run: bun --filter @pie-framework/element-schemas check-updates
+        run: bun --filter @pie-qti/element-schemas check-updates
 ```

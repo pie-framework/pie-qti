@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { SilentLogger, TransformEngine } from '@pie-framework/transform-core';
+import { SilentLogger, TransformEngine } from '@pie-qti/transform-core';
 import { Qti22ToPiePlugin } from '../src/plugin';
 
 const sampleQtiXml = `<?xml version="1.0" encoding="UTF-8"?>

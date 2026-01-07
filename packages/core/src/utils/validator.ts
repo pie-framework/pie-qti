@@ -2,8 +2,8 @@
  * Validation utilities for PIE items and QTI content
  */
 
-import { type ElementType, loadSchema } from '@pie-framework/element-schemas';
-import type { ValidationResult as BaseValidationResult, PieItem } from '@pie-framework/transform-types';
+import { type ElementType, loadSchema } from '@pie-qti/element-schemas';
+import type { ValidationResult as BaseValidationResult, PieItem } from '@pie-qti/transform-types';
 import Ajv from 'ajv';
 
 /**

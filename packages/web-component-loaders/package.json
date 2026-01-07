@@ -25,6 +25,7 @@
 		}
 	},
 	"devDependencies": {
+		"@pie-qti/qti2-player-elements": "workspace:*",
 		"typescript": "^5.9.3"
 	}
 }

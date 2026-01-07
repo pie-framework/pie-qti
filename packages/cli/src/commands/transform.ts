@@ -4,8 +4,8 @@
 
 import { readFile, writeFile } from 'node:fs/promises';
 import { Args, Command, Flags } from '@oclif/core';
-import { ConsoleLogger, TransformEngine } from '@pie-framework/transform-core';
 import { Qti22ToPiePlugin } from '@pie-qti/qti2-to-pie';
+import { ConsoleLogger, TransformEngine } from '@pie-qti/transform-core';
 
 export default class Transform extends Command {
   static override description = 'Transform QTI assessment items to PIE format';

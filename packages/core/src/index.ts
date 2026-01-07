@@ -1,11 +1,11 @@
 /**
- * @pie-framework/transform-core
+ * @pie-qti/transform-core
  *
  * Core transformation engine and plugin system
  */
 
 // Re-export types from transform-types
-export type * from '@pie-framework/transform-types';
+export type * from '@pie-qti/transform-types';
 
 // Engine
 export * from './engine/transform-engine.js';

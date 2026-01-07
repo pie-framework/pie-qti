@@ -1,5 +1,5 @@
 /**
- * @pie-framework/transform-types
+ * @pie-qti/transform-types
  *
  * TypeScript type definitions for PIE Transform framework
  */

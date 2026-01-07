@@ -6,7 +6,7 @@
  * the core framework.
  */
 
-import type { TransformContext, TransformOutput } from '@pie-framework/transform-types';
+import type { TransformContext, TransformOutput } from '@pie-qti/transform-types';
 import type { HTMLElement } from 'node-html-parser';
 
 /**

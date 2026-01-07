@@ -4,7 +4,7 @@
  * Utilities for embedding QTI source XML in PIE items for lossless round-trips
  */
 
-import type { PieItem } from '@pie-framework/transform-types';
+import type { PieItem } from '@pie-qti/transform-types';
 
 export const QTI_NAMESPACE = 'http://www.imsglobal.org/xsd/imsqti_v2p2';
 export const QTI_PREFIX = 'qti';

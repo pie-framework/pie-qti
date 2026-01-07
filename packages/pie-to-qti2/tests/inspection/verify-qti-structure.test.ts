@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import type { PieItem } from '@pie-framework/transform-types';
+import type { PieItem } from '@pie-qti/transform-types';
 import { PieToQti2Plugin } from '../../src/plugin.js';
 
 describe('QTI 2.2.2 Structure Verification', () => {

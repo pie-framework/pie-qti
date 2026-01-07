@@ -1,0 +1,91 @@
+version: 1
+
+component:
+  interactionType: assessmentPlayer
+  tagName: AssessmentShell
+
+examplesApp:
+  app: "@pie-qti/qti2-example"
+  routeTemplate: "/assessment-demo"
+
+evals:
+  - id: assessment-player/section-switching/showcase-switch-and-return-preserves-answer
+    sampleId: interaction-showcase-1
+    gradeBand: "6-12"
+    subject: general
+    intent: "Switching sections away and back preserves in-progress answers for the original item."
+    steps:
+      - action: navigate
+        path: "/assessment-demo"
+      - action: select
+        target:
+          description: "Sample Assessments dropdown"
+        option:
+          value: "interaction-showcase-1"
+      - action: click
+        target:
+          description: "Answer the Passage + Question item"
+          hint: "Select the correct option (value 'A')"
+      - action: click
+        target:
+          description: "Open the Sections menu"
+      - action: click
+        target:
+          description: "Switch to Hotspot section"
+          hint: "Click 'Hotspot'"
+      - action: observe
+        target:
+          description: "Hotspot section content is visible"
+          hint: "`pie-qti-hotspot` is present"
+      - action: click
+        target:
+          description: "Open the Sections menu"
+      - action: click
+        target:
+          description: "Switch back to Passage + Question"
+          hint: "Click 'Passage + Question'"
+      - action: observe
+        target:
+          description: "Previously selected option is still selected"
+          hint: "Within `pie-qti-choice`, the option with value 'A' remains checked"
+    expected:
+      assessmentResults:
+        ui:
+          currentSectionTitle:
+            equals: "Passage + Question"
+    spiritChecks:
+      - "Section switching never resets answers without warning."
+
+  - id: assessment-player/section-switching/mixed-switch-navigates-to-section
+    sampleId: mixed-1
+    gradeBand: "6-10"
+    subject: general
+    intent: "Section switching navigates to the selected section and updates the rendered item content accordingly."
+    steps:
+      - action: navigate
+        path: "/assessment-demo"
+      - action: select
+        target:
+          description: "Sample Assessments dropdown"
+        option:
+          value: "mixed-1"
+      - action: click
+        target:
+          description: "Open the Sections menu"
+      - action: click
+        target:
+          description: "Switch to Science section"
+          hint: "Click 'Science'"
+      - action: observe
+        target:
+          description: "Science section content is visible"
+          hint: "Prompt mentions 'states of matter' and shows a multi-select choice interaction"
+    expected:
+      assessmentResults:
+        ui:
+          currentSectionTitle:
+            equals: "Science"
+    spiritChecks:
+      - "Section switching is fast and predictable; the chosen section is clearly indicated."
+
+

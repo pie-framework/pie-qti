@@ -1,8 +1,8 @@
 <script lang="ts">
-	
+
 	import type { InitSessionRequest, SecureAssessment, SecureItemRef, SecureSection, SecureTestPart } from '@pie-qti/qti2-assessment-player';
 	import { ReferenceBackendAdapter } from '@pie-qti/qti2-assessment-player';
-import AssessmentShell from '@pie-qti/qti2-assessment-player/components/AssessmentShell.svelte';
+	import AssessmentShell from '@pie-qti/qti2-assessment-player/components/AssessmentShell.svelte';
 	import { typesetMathInElement } from '@pie-qti/qti2-typeset-katex';
 
 	const {
@@ -26,7 +26,9 @@ import AssessmentShell from '@pie-qti/qti2-assessment-player/components/Assessme
 
 	let _error = $state<string | null>(null);
 	let assessment = $state<SecureAssessment | null>(null);
-	let initSession = $state<InitSessionRequest>({
+	// Keep init session in sync with the current identifier prop (Svelte 5 runes mode).
+	// Use $derived so we don't capture the initial identifier value and trigger svelte-check warnings.
+	let initSession = $derived<InitSessionRequest>({
 		assessmentId: identifier,
 		candidateId: 'transform-app',
 	});

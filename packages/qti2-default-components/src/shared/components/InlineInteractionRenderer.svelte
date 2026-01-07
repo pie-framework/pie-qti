@@ -10,7 +10,7 @@ interface Props {
 	onResponseChange: (responseId: string, value: any) => void;
 }
 
-const { html, interactions, responses, onResponseChange }: Props = $props();
+let { html, interactions, responses, onResponseChange }: Props = $props();
 
 // Parse HTML and extract inline interaction placeholders
 interface ParsedSegment {

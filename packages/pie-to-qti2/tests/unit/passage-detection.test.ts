@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import type { PieItem } from '@pie-framework/transform-types';
+import type { PieItem } from '@pie-qti/transform-types';
 import {
   detectPassages,
   extractPassageIds,

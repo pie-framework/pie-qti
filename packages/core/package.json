@@ -1,5 +1,5 @@
 {
-  "name": "@pie-framework/transform-core",
+  "name": "@pie-qti/transform-core",
   "version": "1.0.0",
   "description": "Core transformation engine and plugin system for PIE Transform",
   "type": "module",
@@ -22,8 +22,8 @@
   "author": "Renaissance Learning",
   "license": "ISC",
   "dependencies": {
-    "@pie-framework/element-schemas": "workspace:*",
-    "@pie-framework/transform-types": "workspace:*",
+    "@pie-qti/element-schemas": "workspace:*",
+    "@pie-qti/transform-types": "workspace:*",
     "ajv": "^8.17.1"
   },
   "devDependencies": {

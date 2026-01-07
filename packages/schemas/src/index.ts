@@ -1,5 +1,5 @@
 /**
- * @pie-framework/element-schemas
+ * @pie-qti/element-schemas
  *
  * PIE element JSON schemas for validation
  */

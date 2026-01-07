@@ -1,4 +1,4 @@
-# @pie-framework/transform-web
+# @pie-qti/transform-web
 
 > **Status**: Under active development
 
@@ -58,7 +58,7 @@ The transform app is a SvelteKit application that coordinates:
 
 - **Session management** — Uploaded files persist per session
 - **Analysis pipeline** — Extracts metadata from QTI content
-- **Transform engine** — Uses `@pie-framework/transform-core` with `@pie-qti/qti2-to-pie`
+- **Transform engine** — Uses `@pie-qti/transform-core` with `@pie-qti/qti2-to-pie`
 - **Player integration** — QTI players for source preview, PIE players for output preview
 
 ### API Endpoints
@@ -110,8 +110,8 @@ Or for local development with [pie-players](https://github.com/pie-framework/pie
 
 ## Related Packages
 
-- [@pie-framework/transform-cli](../cli) — Command-line transforms
-- [@pie-framework/transform-core](../core) — Transform engine
+- [@pie-qti/transform-cli](../cli) — Command-line transforms
+- [@pie-qti/transform-core](../core) — Transform engine
 - [@pie-qti/qti2-to-pie](../qti2-to-pie) — QTI → PIE transformer
 - [@pie-qti/qti2-item-player](../qti2-item-player) — QTI player for preview
 - [@pie-qti/qti2-assessment-player](../qti2-assessment-player) — Assessment player

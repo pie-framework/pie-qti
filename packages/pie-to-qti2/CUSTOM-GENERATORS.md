@@ -362,7 +362,7 @@ registry.register({
 ```typescript
 import { describe, test, expect } from 'bun:test';
 import { CalculatorGenerator } from './calculator-generator.js';
-import type { PieItem } from '@pie-framework/transform-types';
+import type { PieItem } from '@pie-qti/transform-types';
 
 describe('CalculatorGenerator', () => {
   const generator = new CalculatorGenerator();

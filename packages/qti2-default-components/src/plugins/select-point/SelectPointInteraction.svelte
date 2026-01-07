@@ -3,6 +3,7 @@
 <script lang="ts">
 	import type { Point, SelectPointInteractionData } from '@pie-qti/qti2-item-player';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
+	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
 
 	interface Props {
@@ -24,6 +25,7 @@
 	const parsedResponse = $derived(parseJsonProp<any>(response));
 
 	let selectedPoints = $state<Point[]>([]);
+	let rootElement: HTMLDivElement | null = $state(null);
 	let imageContainer: HTMLDivElement | null = $state(null);
 	let imageElement: HTMLElement | null = $state(null);
 
@@ -99,17 +101,8 @@
 		response = canonicalValue;
 		// Call onChange callback if provided (for Svelte component usage)
 		onChange?.(canonicalValue);
-		// Dispatch custom event for web component usage
-		const event2 = new CustomEvent('qti-change', {
-			detail: {
-				responseId: parsedInteraction?.responseId,
-				value: canonicalValue,
-				timestamp: Date.now(),
-			},
-			bubbles: true,
-			composed: true,
-		});
-		dispatchEvent(event2);
+		// Dispatch event for web component usage - event will bubble up to the host element
+		rootElement?.dispatchEvent(createQtiChangeEvent(parsedInteraction?.responseId, canonicalValue));
 	}
 
 	/**
@@ -125,17 +118,7 @@
 		response = canonicalValue;
 		// Call onChange callback if provided (for Svelte component usage)
 		onChange?.(canonicalValue);
-		// Dispatch custom event for web component usage
-		const event = new CustomEvent('qti-change', {
-			detail: {
-				responseId: parsedInteraction?.responseId,
-				value: canonicalValue,
-				timestamp: Date.now(),
-			},
-			bubbles: true,
-			composed: true,
-		});
-		dispatchEvent(event);
+		rootElement?.dispatchEvent(createQtiChangeEvent(parsedInteraction?.responseId, canonicalValue));
 	}
 
 	/**
@@ -151,17 +134,7 @@
 		response = canonicalValue;
 		// Call onChange callback if provided (for Svelte component usage)
 		onChange?.(canonicalValue);
-		// Dispatch custom event for web component usage
-		const event = new CustomEvent('qti-change', {
-			detail: {
-				responseId: parsedInteraction?.responseId,
-				value: canonicalValue,
-				timestamp: Date.now(),
-			},
-			bubbles: true,
-			composed: true,
-		});
-		dispatchEvent(event);
+		rootElement?.dispatchEvent(createQtiChangeEvent(parsedInteraction?.responseId, canonicalValue));
 	}
 
 	/**
@@ -179,7 +152,7 @@
 
 <ShadowBaseStyles />
 
-<div class="qti-select-point-interaction">
+<div bind:this={rootElement} class="qti-select-point-interaction">
 	{#if !parsedInteraction}
 		<div class="alert alert-error">No interaction data provided</div>
 	{:else}
