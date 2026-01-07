@@ -1,6 +1,6 @@
 {
 	"name": "@pie-qti/web-component-loaders",
-	"version": "0.1.0",
+	"version": "1.0.0",
 	"description": "Shared, idempotent client-side loaders for QTI-related web components used across apps",
 	"type": "module",
 	"main": "./dist/index.js",
@@ -28,5 +28,3 @@
 		"typescript": "^5.9.3"
 	}
 }
-
-
