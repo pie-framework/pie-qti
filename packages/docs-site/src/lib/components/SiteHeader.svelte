@@ -10,11 +10,11 @@
 <header class="border-b border-base-200 bg-base-100/80 backdrop-blur">
 	<div class="navbar max-w-6xl mx-auto px-4">
 		<div class="navbar-start">
-			<a class="btn btn-ghost text-base gap-2" href="{base}/">
+			<a class="btn btn-ghost text-base gap-2" href={`${base}/`}>
 				<img
 					alt="PIE-QTI"
 					class="w-6 h-6"
-					src="{base}/pie-logo-orange.svg"
+					src={`${base}/pie-logo-orange.svg`}
 					loading="eager"
 				/>
 				<span class="font-semibold">PIE-QTI</span>
@@ -23,7 +23,7 @@
 
 		<div class="navbar-center hidden md:flex">
 			<ul class="menu menu-horizontal px-1">
-				<li><a href="{base}/">Architecture</a></li>
+				<li><a href={`${base}/`}>Overview</a></li>
 				<li><a href={examplesHref}>Examples</a></li>
 			</ul>
 		</div>
