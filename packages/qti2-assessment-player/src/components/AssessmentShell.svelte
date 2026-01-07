@@ -39,9 +39,12 @@
 	});
 	let currentQuestion = $state<any>(null);
 	let currentRubricBlocks = $state<any[]>([]);
+	let currentResponses = $state<Record<string, unknown>>({});
 	let sections = $state<any[]>([]);
 	let error = $state<string | null>(null);
+	let navError = $state<string | null>(null);
 	let itemPaneEl = $state<HTMLDivElement | null>(null);
+	let rootEl = $state<HTMLElement | null>(null);
 	let testFeedback = $state<Array<{ identifier: string; content: string; access: string }>>([]);
 	let isComplete = $state(false);
 	let initTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -52,8 +55,37 @@
 	const nonPassageRubricBlocks = $derived(currentRubricBlocks.filter((b) => b?.use !== 'passage'));
 	const hasPassage = $derived(passageBlocks.length > 0);
 
+	// Fallback: listen at the shell root for any `qti-change` custom events from nested
+	// web components. Use a reactive effect so we attach even if `rootEl` is set after mount.
+	function handleRootQtiChange(e: Event) {
+		const ce = e as CustomEvent;
+		const detail = (ce as any).detail;
+		if (!detail) return;
+		const { responseId, value } = detail;
+		if (responseId) {
+			handleResponseChange(responseId, value);
+		}
+	}
+
+	$effect(() => {
+		if (!rootEl) return;
+		rootEl.addEventListener('qti-change', handleRootQtiChange as EventListener);
+		return () => rootEl?.removeEventListener('qti-change', handleRootQtiChange as EventListener);
+	});
+
 	// Initialize player
 	onMount(() => {
+		// Capture bubbled `qti-change` events at the document level as a safety net.
+		// This ensures responses are recorded even if an intermediate renderer misses the event.
+		const handleDocumentQtiChange = (e: Event) => {
+			const ce = e as CustomEvent;
+			const detail = (ce as any).detail;
+			if (!detail) return;
+			const { responseId, value } = detail;
+			if (responseId) handleResponseChange(responseId, value);
+		};
+		document.addEventListener('qti-change', handleDocumentQtiChange as EventListener);
+
 		// Never allow infinite "Loading assessment..." state
 		initTimeout = setTimeout(() => {
 			if (!hasFirstItem && !error) {
@@ -80,6 +112,7 @@
 			// Set up event listeners
 			player.onItemChange(async () => {
 				updateState();
+				navError = null;
 				hasFirstItem = true;
 				if (initTimeout) {
 					clearTimeout(initTimeout);
@@ -93,6 +126,10 @@
 				updateState();
 			});
 
+			player.onResponseChange((responses) => {
+				currentResponses = responses;
+			});
+
 			// If backend did not restore a current item, start at index 0.
 			if (player.getNavigationState().currentIndex < 0) {
 				await player.navigateTo(0);
@@ -103,6 +140,8 @@
 		});
 
 		return () => {
+			document.removeEventListener('qti-change', handleDocumentQtiChange as EventListener);
+			rootEl?.removeEventListener('qti-change', handleRootQtiChange as EventListener);
 			if (initTimeout) {
 				clearTimeout(initTimeout);
 				initTimeout = null;
@@ -119,21 +158,32 @@
 		navState = player.getNavigationState();
 		currentQuestion = player.getCurrentQuestion();
 		currentRubricBlocks = player.getCurrentRubricBlocks();
+		currentResponses = player.getResponses();
 	}
 
 	async function handlePrevious() {
-		if (player) {
+		if (!player) return;
+		try {
+			navError = null;
 			await player.previous();
 			await manageFocusAfterNavigation();
 			announceCurrentQuestion();
+		} catch (err) {
+			console.error('Previous navigation failed:', err);
+			navError = err instanceof Error ? err.message : 'Failed to navigate to previous question';
 		}
 	}
 
 	async function handleNext() {
-		if (player) {
+		if (!player) return;
+		try {
+			navError = null;
 			await player.next();
 			await manageFocusAfterNavigation();
 			announceCurrentQuestion();
+		} catch (err) {
+			console.error('Next navigation failed:', err);
+			navError = err instanceof Error ? err.message : 'Failed to navigate to next question';
 		}
 	}
 
@@ -197,7 +247,10 @@
 	}
 
 	function handleResponseChange(responseId: string, value: unknown) {
-		if (player) {
+		if (!player) return;
+		if (currentQuestion?.identifier) {
+			player.updateResponseForItem(currentQuestion.identifier, responseId, value);
+		} else {
 			player.updateResponse(responseId, value);
 		}
 	}
@@ -268,7 +321,7 @@
 		</div>
 	</div>
 {:else}
-	<div class="assessment-shell" role="application" aria-label="Assessment player">
+	<div bind:this={rootEl} class="assessment-shell" role="application" aria-label="Assessment player">
 		<!-- Header with title and section menu -->
 		<AssessmentHeader
 			title={initSession.assessmentId || 'Assessment'}
@@ -282,6 +335,27 @@
 		<!-- Test Feedback (shown after completion) -->
 		{#if isComplete && testFeedback.length > 0}
 			<TestFeedback feedback={testFeedback} />
+		{/if}
+
+		{#if navError}
+			<div class="assessment-nav-error">
+				<div class="alert alert-warning">
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						class="stroke-current shrink-0 h-6 w-6"
+						fill="none"
+						viewBox="0 0 24 24"
+					>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+						/>
+					</svg>
+					<span>{navError}</span>
+				</div>
+			</div>
 		{/if}
 
 		<!-- Main content area -->
@@ -307,6 +381,7 @@
 					{#if currentQuestion}
 						<ItemRenderer
 							questionRef={currentQuestion}
+							responses={currentResponses}
 							role={config.role || 'candidate'}
 							extendedTextEditor={config.extendedTextEditor || 'tiptap'}
 							onResponseChange={handleResponseChange}
@@ -324,8 +399,9 @@
 				{#if currentQuestion}
 					<ItemRenderer
 						questionRef={currentQuestion}
+						responses={currentResponses}
 						role={config.role || 'candidate'}
-					onResponseChange={handleResponseChange}
+						onResponseChange={handleResponseChange}
 						{typeset}
 					/>
 				{/if}
@@ -375,6 +451,10 @@
 	.assessment-error,
 	.assessment-loading {
 		padding: 2rem;
+	}
+
+	.assessment-nav-error {
+		padding: 1rem 2rem 0;
 	}
 
 	@media (max-width: 768px) {

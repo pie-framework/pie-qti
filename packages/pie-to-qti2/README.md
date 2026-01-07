@@ -36,7 +36,7 @@ bun add @pie-qti/pie-to-qti2
 
 ```typescript
 import { PieToQti2Plugin } from '@pie-qti/pie-to-qti2';
-import { TransformEngine } from '@pie-framework/transform-core';
+import { TransformEngine } from '@pie-qti/transform-core';
 
 const engine = new TransformEngine();
 engine.registerPlugin(new PieToQti2Plugin());
@@ -54,7 +54,7 @@ const qtiXml = result.items[0].content;
 ```typescript
 import { PieToQti2Plugin } from '@pie-qti/pie-to-qti2';
 import { Qti22ToPiePlugin } from '@pie-qti/qti2-to-pie';
-import { TransformEngine } from '@pie-framework/transform-core';
+import { TransformEngine } from '@pie-qti/transform-core';
 
 const engine = new TransformEngine();
 engine.registerPlugin(new PieToQti2Plugin());

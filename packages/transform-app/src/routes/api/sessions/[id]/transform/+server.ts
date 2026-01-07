@@ -1,8 +1,8 @@
 import { existsSync } from 'node:fs';
 import { readdir, readFile } from 'node:fs/promises';
 import { isAbsolute, join, resolve } from 'node:path';
-import { TransformEngine } from '@pie-framework/transform-core';
 import { Qti22ToPiePlugin } from '@pie-qti/qti2-to-pie';
+import { TransformEngine } from '@pie-qti/transform-core';
 import { json } from '@sveltejs/kit';
 import { getStorage } from '$lib/server/storage/FileStorage';
 import { getSessionManager } from '$lib/server/storage/SessionManager';

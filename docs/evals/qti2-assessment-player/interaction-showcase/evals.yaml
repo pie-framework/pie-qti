@@ -1,0 +1,110 @@
+version: 1
+
+component:
+  interactionType: assessmentPlayer
+  tagName: AssessmentShell
+
+examplesApp:
+  app: "@pie-qti/qti2-example"
+  routeTemplate: "/assessment-demo"
+
+evals:
+  - id: assessment-player/interaction-showcase/section-switch-hotspot
+    sampleId: interaction-showcase-1
+    gradeBand: "6-12"
+    subject: general
+    intent: "Switching sections via the Sections menu navigates the rendered item content to the selected section."
+    steps:
+      - action: navigate
+        path: "/assessment-demo"
+      - action: select
+        target:
+          description: "Sample Assessments dropdown"
+          hint: "Select 'Interaction Showcase - Mixed Types'"
+        option:
+          value: "interaction-showcase-1"
+      - action: click
+        target:
+          description: "Open the Sections menu"
+          hint: "Button text is 'Sections' in the header"
+      - action: click
+        target:
+          description: "Choose the Hotspot section"
+          hint: "Click the section list item labeled 'Hotspot'"
+      - action: observe
+        target:
+          description: "Hotspot interaction is visible"
+          hint: "A `pie-qti-hotspot` element is present in the item pane"
+    expected:
+      assessmentResults:
+        # This eval focuses on navigation; scoring is not required.
+        ui:
+          currentSectionTitle:
+            equals: "Hotspot"
+    spiritChecks:
+      - "Selecting a section changes the item content without a full page reload."
+      - "The selected section is visually reflected (active state in the menu)."
+
+  - id: assessment-player/interaction-showcase/simultaneous-submit-preserves-responses
+    sampleId: interaction-showcase-1
+    gradeBand: "6-12"
+    subject: general
+    intent: "In submissionMode=simultaneous, submitting scores answered items even if later items are skipped; responses are preserved across finalization."
+    notes:
+      - "This catches a class of bugs where backend 'updatedState' snapshots overwrite client-collected itemResponses during final submission."
+    steps:
+      - action: navigate
+        path: "/assessment-demo"
+      - action: select
+        target:
+          description: "Sample Assessments dropdown"
+          hint: "Select 'Interaction Showcase - Mixed Types'"
+        option:
+          value: "interaction-showcase-1"
+
+      # Q1: passage + choice (based on reading comprehension q1; correct is identifier A)
+      - action: click
+        target:
+          description: "Answer the first question correctly"
+          hint: "Within `pie-qti-choice`, choose the option with value/id 'A'"
+
+      - action: click
+        target:
+          description: "Next"
+          hint: "Button text is 'Next'"
+
+      # Q2: inline stimulus choice (choice-with-stimulus; correct is ChoiceB)
+      - action: click
+        target:
+          description: "Answer the second question correctly"
+          hint: "Within `pie-qti-choice`, choose the option with value/id 'ChoiceB'"
+
+      # Skip remaining items and submit.
+      - action: click
+        target:
+          description: "Navigate to the end"
+          hint: "Click Next repeatedly until the Submit Assessment button appears"
+      - action: submit
+        target:
+          description: "Submit Assessment button"
+          hint: "Button text is 'Submit Assessment'"
+      - action: observe
+        target:
+          description: "End screen is shown"
+          hint: "Heading text contains 'Assessment complete'"
+
+    expected:
+      assessmentResults:
+        totalScore:
+          gte: 2
+        itemScoresByIdentifier:
+          # These are sample question identifiers inside the Interaction Showcase assessment.
+          q-passage-choice:
+            equals: 1
+          q-inline-stimulus:
+            equals: 1
+    spiritChecks:
+      - "Skipping later items does not erase earlier answers."
+      - "The end screen score breakdown matches what a student would expect from the two correct answers."
+
+

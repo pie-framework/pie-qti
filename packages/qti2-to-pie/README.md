@@ -14,7 +14,7 @@ npm install @pie-qti/qti2-to-pie
 
 ```typescript
 import { Qti22ToPiePlugin } from '@pie-qti/qti2-to-pie';
-import { TransformEngine } from '@pie-framework/transform-core';
+import { TransformEngine } from '@pie-qti/transform-core';
 
 // Create plugin instance
 const plugin = new Qti22ToPiePlugin();

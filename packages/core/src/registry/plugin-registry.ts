@@ -8,7 +8,7 @@ import type {
   TransformFormat,
   TransformInput,
   TransformPlugin,
-} from '@pie-framework/transform-types';
+} from '@pie-qti/transform-types';
 
 export class PluginRegistry {
   private plugins = new Map<string, TransformPlugin>();

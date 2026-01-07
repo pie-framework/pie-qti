@@ -1,0 +1,81 @@
+version: 1
+
+component:
+  interactionType: assessmentPlayer
+  tagName: AssessmentShell
+
+examplesApp:
+  app: "@pie-qti/qti2-example"
+  routeTemplate: "/assessment-demo"
+
+evals:
+  - id: assessment-player/response-isolation/reading-comp-no-prefill-between-items
+    sampleId: reading-comp-1
+    gradeBand: "3-6"
+    subject: ela
+    intent: "Items reusing responseIdentifier=RESPONSE must not leak selection from one item to the next."
+    steps:
+      - action: navigate
+        path: "/assessment-demo"
+      - action: select
+        target:
+          description: "Sample Assessments dropdown"
+        option:
+          value: "reading-comp-1"
+      - action: click
+        target:
+          description: "Answer Q1"
+          hint: "Select 'Evaporation' (value 'A')"
+      - action: click
+        target:
+          description: "Next"
+      - action: observe
+        target:
+          description: "Q2 has no pre-selected choice"
+          hint: "Within `pie-qti-choice`, no radio option is checked before you click anything"
+    expected:
+      assessmentResults:
+        ui:
+          currentQuestionTitle:
+            equals: "Question 2: Cloud Formation"
+    spiritChecks:
+      - "Students never see a 'pre-filled' answer they didn’t choose."
+
+  - id: assessment-player/response-isolation/mixed-no-prefill-across-sections
+    sampleId: mixed-1
+    gradeBand: "6-10"
+    subject: general
+    intent: "Switching sections does not carry responses into a different item that happens to share responseIdentifier=RESPONSE."
+    steps:
+      - action: navigate
+        path: "/assessment-demo"
+      - action: select
+        target:
+          description: "Sample Assessments dropdown"
+        option:
+          value: "mixed-1"
+      - action: click
+        target:
+          description: "Answer Geography Q2 correctly"
+          hint: "Select 'Seven' (identifier 'seven')"
+      - action: click
+        target:
+          description: "Open the Sections menu"
+          hint: "Button text is 'Sections'"
+      - action: click
+        target:
+          description: "Switch to History section"
+          hint: "Click 'History'"
+      - action: observe
+        target:
+          description: "History question has no pre-selected choice"
+          hint: "No option is selected until the student clicks"
+    expected:
+      assessmentResults:
+        ui:
+          currentSectionTitle:
+            equals: "History"
+    spiritChecks:
+      - "Moving between sections never changes answers in other questions."
+
+

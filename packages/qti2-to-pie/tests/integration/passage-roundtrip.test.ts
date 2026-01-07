@@ -9,7 +9,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import type { TransformContext } from '@pie-framework/transform-types';
+import type { TransformContext } from '@pie-qti/transform-types';
 import { Qti22ToPiePlugin } from '../../src/plugin.js';
 
 describe('QTI → PIE with External Passage References', () => {

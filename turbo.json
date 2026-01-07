@@ -19,7 +19,7 @@
       "cache": false
     },
     "check": {
-      "dependsOn": ["build"],
+      "dependsOn": ["^build"],
       "cache": false
     },
     "dev": {

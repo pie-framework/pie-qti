@@ -1,0 +1,96 @@
+version: 1
+
+component:
+  interactionType: assessmentPlayer
+  tagName: AssessmentShell
+
+examplesApp:
+  app: "@pie-qti/qti2-example"
+  routeTemplate: "/assessment-demo"
+
+evals:
+  - id: assessment-player/navigation-rules/science-no-skip-when-unanswered
+    sampleId: science-1
+    gradeBand: "3-6"
+    subject: science
+    intent: "When allowSkipping=false, clicking Next with no answer keeps the candidate on the same question."
+    steps:
+      - action: navigate
+        path: "/assessment-demo"
+      - action: select
+        target:
+          description: "Sample Assessments dropdown"
+          hint: "Select 'Science - Life Cycles'"
+        option:
+          value: "science-1"
+      - action: observe
+        target:
+          description: "Question 1 is visible"
+          hint: "Title shows 'Question 1: Butterfly Life Cycle'"
+      - action: click
+        target:
+          description: "Next"
+          hint: "Button text is 'Next'"
+      - action: observe
+        target:
+          description: "Still on Question 1"
+          hint: "Title still shows 'Question 1: Butterfly Life Cycle' (navigation blocked until answered)"
+    expected:
+      assessmentResults:
+        ui:
+          currentQuestionTitle:
+            equals: "Question 1: Butterfly Life Cycle"
+    spiritChecks:
+      - "The blocking message is clear (student understands they must answer before continuing)."
+
+  - id: assessment-player/navigation-rules/science-no-review-after-advance
+    sampleId: science-1
+    gradeBand: "3-6"
+    subject: science
+    intent: "When allowReview=false, candidate cannot navigate back to previous questions after moving forward."
+    notes:
+      - "Science assessment is linear with allowReview=false, allowSkipping=false, validateResponses=true."
+    steps:
+      - action: navigate
+        path: "/assessment-demo"
+      - action: select
+        target:
+          description: "Sample Assessments dropdown"
+          hint: "Select 'Science - Life Cycles'"
+        option:
+          value: "science-1"
+      - action: observe
+        target:
+          description: "Question 1 (order interaction) is visible"
+          hint: "There is an order/drag interaction for butterfly stages"
+      - action: dragReorder
+        target:
+          description: "Arrange stages to correct order"
+          hint: "Order should be Egg → Larva → Pupa → Adult"
+        value:
+          responseId: "RESPONSE"
+          orderedIdentifiers: ["egg", "larva", "pupa", "adult"]
+      - action: click
+        target:
+          description: "Next"
+      - action: observe
+        target:
+          description: "Now on Question 2"
+          hint: "Title shows 'Question 2: Plant Life Cycle'"
+      - action: click
+        target:
+          description: "Previous"
+          hint: "Button text is 'Previous'"
+      - action: observe
+        target:
+          description: "Still on Question 2"
+          hint: "Back navigation is blocked"
+    expected:
+      assessmentResults:
+        ui:
+          currentQuestionTitle:
+            equals: "Question 2: Plant Life Cycle"
+    spiritChecks:
+      - "The UI communicates that going back is not allowed (without crashing or losing state)."
+
+

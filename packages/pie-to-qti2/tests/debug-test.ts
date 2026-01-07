@@ -1,4 +1,4 @@
-import type { PieItem } from '@pie-framework/transform-types';
+import type { PieItem } from '@pie-qti/transform-types';
 import { PieToQti2Plugin } from '../src/plugin.js';
 
 const pieToQti = new PieToQti2Plugin();

@@ -5,7 +5,7 @@
  * Handles drag-and-drop tasks where students drag choices into gaps in text.
  */
 
-import type { PieItem } from '@pie-framework/transform-types';
+import type { PieItem } from '@pie-qti/transform-types';
 import type { HTMLElement } from 'node-html-parser';
 import { parse } from 'node-html-parser';
 import { v4 as uuid } from 'uuid';

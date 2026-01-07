@@ -28,7 +28,7 @@
       },
     },
     "packages/cli": {
-      "name": "@pie-framework/transform-cli",
+      "name": "@pie-qti/transform-cli",
       "version": "0.1.0",
       "bin": {
         "pie-transform": "./bin/run.js",
@@ -36,9 +36,9 @@
       "dependencies": {
         "@oclif/core": "^4.0.0",
         "@oclif/plugin-help": "^6.2.0",
-        "@pie-framework/transform-core": "workspace:*",
-        "@pie-framework/transform-types": "workspace:*",
         "@pie-qti/qti2-to-pie": "workspace:*",
+        "@pie-qti/transform-core": "workspace:*",
+        "@pie-qti/transform-types": "workspace:*",
         "@types/unzipper": "^0.10.11",
         "node-html-parser": "^7.0.1",
         "unzipper": "^0.12.3",
@@ -50,11 +50,11 @@
       },
     },
     "packages/core": {
-      "name": "@pie-framework/transform-core",
+      "name": "@pie-qti/transform-core",
       "version": "1.0.0",
       "dependencies": {
-        "@pie-framework/element-schemas": "workspace:*",
-        "@pie-framework/transform-types": "workspace:*",
+        "@pie-qti/element-schemas": "workspace:*",
+        "@pie-qti/transform-types": "workspace:*",
         "ajv": "^8.17.1",
       },
       "devDependencies": {
@@ -87,8 +87,8 @@
       "name": "@pie-qti/pie-to-qti2",
       "version": "1.0.0",
       "dependencies": {
-        "@pie-framework/transform-core": "workspace:*",
-        "@pie-framework/transform-types": "workspace:*",
+        "@pie-qti/transform-core": "workspace:*",
+        "@pie-qti/transform-types": "workspace:*",
         "node-html-parser": "^6.1.13",
         "uuid": "^10.0.0",
         "xml-formatter": "^3.6.4",
@@ -185,6 +185,7 @@
         "@sveltejs/kit": "^2.49.2",
         "@sveltejs/vite-plugin-svelte": "^6.2.1",
         "@tailwindcss/vite": "^4.1.18",
+        "@types/js-yaml": "^4.0.9",
         "@types/node": "^25.0.3",
         "@types/unzipper": "^0.10.11",
         "@types/xml2js": "^0.4.14",
@@ -251,8 +252,8 @@
       "name": "@pie-qti/qti2-to-pie",
       "version": "1.0.0",
       "dependencies": {
-        "@pie-framework/transform-core": "workspace:*",
-        "@pie-framework/transform-types": "workspace:*",
+        "@pie-qti/transform-core": "workspace:*",
+        "@pie-qti/transform-types": "workspace:*",
         "image-size": "^2.0.2",
         "node-html-parser": "^6.1.13",
         "unzipper": "^0.12.3",
@@ -272,24 +273,24 @@
       },
     },
     "packages/schemas": {
-      "name": "@pie-framework/element-schemas",
+      "name": "@pie-qti/element-schemas",
       "version": "1.0.0",
       "devDependencies": {
         "typescript": "^5.9.3",
       },
     },
     "packages/transform-app": {
-      "name": "@pie-framework/transform-web",
+      "name": "@pie-qti/transform-web",
       "version": "0.1.0",
       "dependencies": {
-        "@pie-framework/transform-core": "workspace:*",
-        "@pie-framework/transform-types": "workspace:*",
         "@pie-qti/qti2-assessment-player": "workspace:*",
         "@pie-qti/qti2-default-components": "workspace:*",
         "@pie-qti/qti2-item-player": "workspace:*",
         "@pie-qti/qti2-player-elements": "workspace:*",
         "@pie-qti/qti2-to-pie": "workspace:*",
         "@pie-qti/qti2-typeset-katex": "workspace:*",
+        "@pie-qti/transform-core": "workspace:*",
+        "@pie-qti/transform-types": "workspace:*",
         "@pie-qti/web-component-loaders": "workspace:*",
         "@types/unzipper": "^0.10.11",
         "node-html-parser": "^7.0.1",
@@ -326,7 +327,7 @@
       ],
     },
     "packages/types": {
-      "name": "@pie-framework/transform-types",
+      "name": "@pie-qti/transform-types",
       "version": "1.0.0",
       "devDependencies": {
         "typescript": "^5.9.3",
@@ -336,6 +337,7 @@
       "name": "@pie-qti/web-component-loaders",
       "version": "0.1.0",
       "devDependencies": {
+        "@pie-qti/qti2-player-elements": "workspace:*",
         "typescript": "^5.9.3",
       },
       "peerDependencies": {
@@ -603,17 +605,9 @@
 
     "@oclif/plugin-warn-if-update-available": ["@oclif/plugin-warn-if-update-available@3.1.53", "", { "dependencies": { "@oclif/core": "^4", "ansis": "^3.17.0", "debug": "^4.4.3", "http-call": "^5.2.2", "lodash": "^4.17.21", "registry-auth-token": "^5.1.0" } }, "sha512-ALxKMNFFJQJV1Z2OMVTV+q7EbKHhnTAPcTgkgHeXCNdW5nFExoXuwusZLS4Zv2o83j9UoDx1R/CSX7QZVgEHTA=="],
 
-    "@pie-framework/element-schemas": ["@pie-framework/element-schemas@workspace:packages/schemas"],
-
-    "@pie-framework/transform-cli": ["@pie-framework/transform-cli@workspace:packages/cli"],
-
-    "@pie-framework/transform-core": ["@pie-framework/transform-core@workspace:packages/core"],
-
-    "@pie-framework/transform-types": ["@pie-framework/transform-types@workspace:packages/types"],
-
-    "@pie-framework/transform-web": ["@pie-framework/transform-web@workspace:packages/transform-app"],
-
     "@pie-qti/docs-site": ["@pie-qti/docs-site@workspace:packages/docs-site"],
+
+    "@pie-qti/element-schemas": ["@pie-qti/element-schemas@workspace:packages/schemas"],
 
     "@pie-qti/pie-to-qti2": ["@pie-qti/pie-to-qti2@workspace:packages/pie-to-qti2"],
 
@@ -632,6 +626,14 @@
     "@pie-qti/qti2-to-pie": ["@pie-qti/qti2-to-pie@workspace:packages/qti2-to-pie"],
 
     "@pie-qti/qti2-typeset-katex": ["@pie-qti/qti2-typeset-katex@workspace:packages/qti2-typeset-katex"],
+
+    "@pie-qti/transform-cli": ["@pie-qti/transform-cli@workspace:packages/cli"],
+
+    "@pie-qti/transform-core": ["@pie-qti/transform-core@workspace:packages/core"],
+
+    "@pie-qti/transform-types": ["@pie-qti/transform-types@workspace:packages/types"],
+
+    "@pie-qti/transform-web": ["@pie-qti/transform-web@workspace:packages/transform-app"],
 
     "@pie-qti/web-component-loaders": ["@pie-qti/web-component-loaders@workspace:packages/web-component-loaders"],
 
@@ -912,6 +914,8 @@
     "@types/hast": ["@types/hast@3.0.4", "", { "dependencies": { "@types/unist": "*" } }, "sha512-WPs+bbQw5aCj+x6laNGWLH3wviHtoCv/P3+otBhbOhJgG8qtpdAMlTCxLtsTWA7LH1Oh/bFCHsBn0TPS5m30EQ=="],
 
     "@types/http-cache-semantics": ["@types/http-cache-semantics@4.0.4", "", {}, "sha512-1m0bIFVc7eJWyve9S0RnuRgcQqF/Xd5QsUZAZeQFr1Q3/p9JWoQQEqmVy+DPTNpGXwhgIetAoYF8JSc33q29QA=="],
+
+    "@types/js-yaml": ["@types/js-yaml@4.0.9", "", {}, "sha512-k4MGaQl5TGo/iipqb2UDG2UwjXziSWkh0uysQelTlJpX1qGlpUZYm8PnO4DxG1qBomtJUdYJ6qR6xdIah10JLg=="],
 
     "@types/linkify-it": ["@types/linkify-it@5.0.0", "", {}, "sha512-sVDA58zAw4eWAffKOaQH5/5j3XeayukzDk+ewSsnv3p4yJEZHCCzMDiZM8e0OUrRvmpGZ85jf4yDHkHsgBNr9Q=="],
 
@@ -1639,13 +1643,13 @@
 
     "@manypkg/get-packages/fs-extra": ["fs-extra@8.1.0", "", { "dependencies": { "graceful-fs": "^4.2.0", "jsonfile": "^4.0.0", "universalify": "^0.1.0" } }, "sha512-yhlQgA6mnOJUKOsRUFsgJdQCvkKhcz8tlZG5HBQfReYZy46OwLcY+Zia0mtdHsOo9y/hP+CxMN0TU9QxoOtG4g=="],
 
-    "@pie-framework/transform-cli/node-html-parser": ["node-html-parser@7.0.1", "", { "dependencies": { "css-select": "^5.1.0", "he": "1.2.0" } }, "sha512-KGtmPY2kS0thCWGK0VuPyOS+pBKhhe8gXztzA2ilAOhbUbxa9homF1bOyKvhGzMLXUoRds9IOmr/v5lr/lqNmA=="],
-
-    "@pie-framework/transform-web/node-html-parser": ["node-html-parser@7.0.1", "", { "dependencies": { "css-select": "^5.1.0", "he": "1.2.0" } }, "sha512-KGtmPY2kS0thCWGK0VuPyOS+pBKhhe8gXztzA2ilAOhbUbxa9homF1bOyKvhGzMLXUoRds9IOmr/v5lr/lqNmA=="],
-
     "@pie-qti/qti2-assessment-player/node-html-parser": ["node-html-parser@7.0.1", "", { "dependencies": { "css-select": "^5.1.0", "he": "1.2.0" } }, "sha512-KGtmPY2kS0thCWGK0VuPyOS+pBKhhe8gXztzA2ilAOhbUbxa9homF1bOyKvhGzMLXUoRds9IOmr/v5lr/lqNmA=="],
 
     "@pie-qti/qti2-item-player/node-html-parser": ["node-html-parser@7.0.1", "", { "dependencies": { "css-select": "^5.1.0", "he": "1.2.0" } }, "sha512-KGtmPY2kS0thCWGK0VuPyOS+pBKhhe8gXztzA2ilAOhbUbxa9homF1bOyKvhGzMLXUoRds9IOmr/v5lr/lqNmA=="],
+
+    "@pie-qti/transform-cli/node-html-parser": ["node-html-parser@7.0.1", "", { "dependencies": { "css-select": "^5.1.0", "he": "1.2.0" } }, "sha512-KGtmPY2kS0thCWGK0VuPyOS+pBKhhe8gXztzA2ilAOhbUbxa9homF1bOyKvhGzMLXUoRds9IOmr/v5lr/lqNmA=="],
+
+    "@pie-qti/transform-web/node-html-parser": ["node-html-parser@7.0.1", "", { "dependencies": { "css-select": "^5.1.0", "he": "1.2.0" } }, "sha512-KGtmPY2kS0thCWGK0VuPyOS+pBKhhe8gXztzA2ilAOhbUbxa9homF1bOyKvhGzMLXUoRds9IOmr/v5lr/lqNmA=="],
 
     "@pnpm/network.ca-file/graceful-fs": ["graceful-fs@4.2.10", "", {}, "sha512-9ByhssR2fPVsNZj478qUUbKfmL0+t5BDVyjShtyZZLiK7ZDAArFFfopyOTj0M05wE2tJPisA4iTnnXl2YoPvOA=="],
 

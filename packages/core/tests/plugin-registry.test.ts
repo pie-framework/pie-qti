@@ -3,7 +3,7 @@
  */
 
 import { beforeEach, describe, expect, test } from 'bun:test';
-import type { TransformPlugin } from '@pie-framework/transform-types';
+import type { TransformPlugin } from '@pie-qti/transform-types';
 import { PluginRegistry } from '../src/registry/plugin-registry';
 
 // Simple mock plugins

@@ -4,7 +4,7 @@
  * Types for resolving external passage references during PIE → QTI transformation
  */
 
-import type { PiePassageStimulus } from '@pie-framework/transform-types';
+import type { PiePassageStimulus } from '@pie-qti/transform-types';
 
 /**
  * Passage resolution result

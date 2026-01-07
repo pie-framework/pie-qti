@@ -4,7 +4,7 @@
  * Generates QTI-compliant passage/stimulus XML files
  */
 
-import type { PieModel, PiePassageStimulus } from '@pie-framework/transform-types';
+import type { PieModel, PiePassageStimulus } from '@pie-qti/transform-types';
 import type { GeneratedPassageFile, ResolvedPassage } from '../types/passages.js';
 
 /**

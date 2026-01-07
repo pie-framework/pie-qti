@@ -4,7 +4,7 @@
  * Defines the pluggable generator architecture for PIE → QTI transformations
  */
 
-import type { PieItem, PieModel } from '@pie-framework/transform-types';
+import type { PieItem, PieModel } from '@pie-qti/transform-types';
 
 /**
  * Context passed to generators

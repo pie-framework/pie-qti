@@ -1,5 +1,5 @@
 {
-  "name": "pie-qti",
+  "name": "@pie-qti/pie-qti",
   "version": "1.0.0",
   "private": true,
   "description": "Production-ready QTI 2.x players and transformation tools",
@@ -18,8 +18,8 @@
     "dev": "turbo dev",
     "pie-qti": "node packages/cli/bin/run.js",
     "dev:example": "turbo dev --filter=@pie-qti/qti2-example...",
-    "dev:transform-app": "turbo dev --filter=@pie-framework/transform-web...",
-    "dev:examples": "turbo dev --filter=@pie-qti/qti2-example... --filter=@pie-framework/transform-web...",
+    "dev:transform-app": "turbo dev --filter=@pie-qti/transform-web...",
+    "dev:examples": "turbo dev --filter=@pie-qti/qti2-example... --filter=@pie-qti/transform-web...",
     "dev:pages": "cd packages/qti2-example && bun run dev",
     "build:pages": "bun run build && cd packages/qti2-example && NODE_ENV=production bun run build",
     "preview:pages": "cd packages/qti2-example && bun run preview",

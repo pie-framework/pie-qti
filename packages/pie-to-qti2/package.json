@@ -29,8 +29,8 @@
   "author": "Renaissance Learning",
   "license": "ISC",
   "dependencies": {
-    "@pie-framework/transform-core": "workspace:*",
-    "@pie-framework/transform-types": "workspace:*",
+    "@pie-qti/transform-core": "workspace:*",
+    "@pie-qti/transform-types": "workspace:*",
     "node-html-parser": "^6.1.13",
     "uuid": "^10.0.0",
     "xml-formatter": "^3.6.4"

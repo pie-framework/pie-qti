@@ -4,7 +4,7 @@
  * Transforms QTI choiceInteraction to PIE multiple-choice
  */
 
-import type { PieItem, PieMultipleChoiceModel } from '@pie-framework/transform-types';
+import type { PieItem, PieMultipleChoiceModel } from '@pie-qti/transform-types';
 import type { HTMLElement } from 'node-html-parser';
 import { v4 as uuidv4 } from 'uuid';
 import { extractInlineStimulus, extractObjectPassages } from '../utils/passage-extraction.js';

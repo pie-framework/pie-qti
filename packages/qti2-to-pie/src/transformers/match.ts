@@ -5,7 +5,7 @@
  * Handles stem-to-option matching tasks where students match items from two sets.
  */
 
-import type { PieItem } from '@pie-framework/transform-types';
+import type { PieItem } from '@pie-qti/transform-types';
 import type { HTMLElement } from 'node-html-parser';
 import { parse } from 'node-html-parser';
 import { v4 as uuid } from 'uuid';

@@ -5,7 +5,7 @@
  * Handles drag-and-drop interactions where images are dragged onto specific zones on a background image.
  */
 
-import type { PieItem } from '@pie-framework/transform-types';
+import type { PieItem } from '@pie-qti/transform-types';
 import type { HTMLElement } from 'node-html-parser';
 import { parse } from 'node-html-parser';
 import { v4 as uuid } from 'uuid';

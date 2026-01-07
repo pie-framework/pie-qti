@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import type { PieModel } from '@pie-framework/transform-types';
+import type { PieModel } from '@pie-qti/transform-types';
 import { generatePassageFile, generatePassageXml } from '../../src/generators/passage-generator.js';
 import type { ResolvedPassage } from '../../src/types/passages.js';
 

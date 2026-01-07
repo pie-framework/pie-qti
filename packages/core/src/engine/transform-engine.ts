@@ -11,7 +11,7 @@ import type {
   TransformLogger,
   TransformOutput,
   TransformPlugin,
-} from '@pie-framework/transform-types';
+} from '@pie-qti/transform-types';
 import { PluginRegistry } from '../registry/plugin-registry.js';
 import { ConsoleLogger } from '../utils/logger.js';
 

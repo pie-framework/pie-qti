@@ -34,7 +34,7 @@ Each interaction has one `evals.yaml` containing multiple eval cases:
 
 To create a new eval set, start from the template:
 
-- `docs/evals/qti2-default-components/evals.template.yaml`
+- `docs/evals/qti2-default-components/evals.yaml`
 
 The schema is intentionally simple and AI-friendly:
 

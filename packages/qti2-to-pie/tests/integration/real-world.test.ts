@@ -7,7 +7,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import type { TransformContext, TransformInput } from '@pie-framework/transform-types';
+import type { TransformContext, TransformInput } from '@pie-qti/transform-types';
 import { readFileSync } from 'fs';
 import { join, resolve } from 'path';
 import { Qti22ToPiePlugin } from '../../src/plugin.js';

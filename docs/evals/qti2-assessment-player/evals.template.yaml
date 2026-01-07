@@ -1,0 +1,79 @@
+version: 1
+
+# Copy this file into a new assessment directory as `evals.yaml`, then customize.
+# Example target location:
+# - docs/evals/qti2-assessment-player/{assessment-slug}/evals.yaml
+#
+# These evals are designed to be:
+# - AI-actionable (explicit steps + explicit expected results)
+# - Human-readable enough for review
+# - Validated against `@pie-qti/qti2-example` via `/assessment-demo`
+#
+# Scope (vs qti2-default-components):
+# - qti2-default-components evals focus on a single interaction on `/item-demo/{sampleId}`
+# - qti2-assessment-player evals focus on assessment behaviors on `/assessment-demo`
+#   (navigation rules, section switching, submission modes, end screen, response persistence)
+
+component:
+  # Logical “component” under test: the multi-item assessment player.
+  interactionType: "assessmentPlayer"
+  # UI host for the player within the example app (Svelte component name).
+  tagName: "AssessmentShell"
+
+examplesApp:
+  app: "@pie-qti/qti2-example"
+  routeTemplate: "/assessment-demo"
+
+evals:
+  - id: "<assessment-slug>/<sampleId>/<case-name>"
+    sampleId: "<sampleId>"
+    gradeBand: "K-12"
+    subject: "<math|ela|science|social-studies|general>"
+    intent: "One sentence describing what this assessment-level eval validates."
+
+    notes:
+      - "Keep steps unambiguous and grounded in what a student would actually do."
+
+    steps:
+      - action: navigate
+        path: "/assessment-demo"
+      - action: select
+        target:
+          description: "Sample Assessments dropdown"
+          hint: "Select the assessment you want to validate"
+        option:
+          value: "<sampleId>"
+      - action: observe
+        target:
+          description: "Assessment loads and renders the first question"
+
+      # Examples of common action types (choose whichever applies):
+      # - click: click an element (by label/description; runner chooses selectors)
+      # - select: choose a dropdown option
+      # - type / typeRichText: enter text
+      # - clickAt: coordinate click (point interactions)
+      # - submit: submit the assessment (end screen)
+
+    expected:
+      assessmentResults:
+        # UI-oriented expectations are allowed here because the end screen is the canonical UX for results.
+        ui:
+          # Example:
+          # currentSectionTitle:
+          #   equals: "Hotspot"
+          endScreenVisible:
+            equals: false
+        # Scoring expectations (when submitting):
+        # totalScore:
+        #   equals: 0
+        # maxScore:
+        #   equals: 10
+        # itemScoresByIdentifier:
+        #   q1:
+        #     equals: 1
+
+    spiritChecks:
+      - "Navigation and section switching behave as stated (no surprising backtracking or skips)."
+      - "End screen totals and per-question scores match student expectations."
+
+

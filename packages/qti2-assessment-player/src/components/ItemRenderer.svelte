@@ -1,13 +1,38 @@
 <script lang="ts">
 
+	import { registerDefaultComponents } from '@pie-qti/qti2-default-components';
 	import ItemBody from '@pie-qti/qti2-default-components/shared/components/ItemBody.svelte';
 	import { Player, type QTIRole } from '@pie-qti/qti2-item-player';
+	import { onMount } from 'svelte';
 	import type { QuestionRef } from '../types/index.js';
+
+	/**
+	 * Ensure default interaction web components are registered (browser-only).
+	 *
+	 * NOTE: `@pie-qti/qti2-default-components/plugins` has side effects (customElements.define),
+	 * so we only load it on the client to remain SSR-safe.
+	 */
+	let pluginsLoadPromise: Promise<void> | null = null;
+	function ensureDefaultPluginsLoaded() {
+		if (pluginsLoadPromise) return pluginsLoadPromise;
+		pluginsLoadPromise = import('@pie-qti/qti2-default-components/plugins')
+			.then(() => {})
+			.catch((err) => {
+				console.warn('Failed to load default QTI web components:', err);
+			});
+		return pluginsLoadPromise;
+	}
+
+	onMount(() => {
+		void ensureDefaultPluginsLoaded();
+	});
 
 	interface Props {
 		questionRef: QuestionRef;
 		role?: QTIRole;
 		extendedTextEditor?: string;
+		/** Responses for the current item (keyed by responseIdentifier). */
+		responses?: Record<string, any>;
 		onResponseChange?: (responseId: string, value: unknown) => void;
 		/** Math typesetting function (KaTeX, MathJax, etc.) */
 		typeset?: (root: HTMLElement) => void | Promise<void>;
@@ -17,6 +42,7 @@
 		questionRef,
 		role = 'candidate',
 		extendedTextEditor: _extendedTextEditor,
+		responses = {},
 		onResponseChange,
 		typeset,
 	}: Props = $props();
@@ -33,25 +59,25 @@
 				role,
 			});
 
+			// Ensure the item player can actually render interactions by registering the
+			// default component set into this player's component registry.
+			registerDefaultComponents(newPlayer.getComponentRegistry());
+
 			return {
 				player: newPlayer,
-				error: null
+				error: null,
 			};
 		} catch (err) {
 			console.error('Failed to initialize item player:', err);
 			return {
 				player: null,
-				error: err instanceof Error ? err.message : 'Failed to load item'
+				error: err instanceof Error ? err.message : 'Failed to load item',
 			};
 		}
 	});
 
-	// Get responses from parent or initialize empty
-	let responses = $state<Record<string, any>>({});
-
 	// Handle response changes
 	function handleResponseChange(responseId: string, value: any) {
-		responses = { ...responses, [responseId]: value };
 		onResponseChange?.(responseId, value);
 	}
 </script>

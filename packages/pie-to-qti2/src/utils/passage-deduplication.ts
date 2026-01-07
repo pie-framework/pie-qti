@@ -4,7 +4,7 @@
  * Handles deduplication of passages across multiple items in batch transformations
  */
 
-import type { PieItem } from '@pie-framework/transform-types';
+import type { PieItem } from '@pie-qti/transform-types';
 import type { GeneratedPassageFile } from '../types/passages.js';
 
 /**

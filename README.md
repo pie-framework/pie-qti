@@ -102,7 +102,7 @@ Bidirectional transformation between QTI 2.2 XML and PIE JSON.
 - Generator registry for custom PIE model handling
 - IMS Content Package generation (`imsmanifest.xml`)
 
-### Transform App (`@pie-framework/transform-web`)
+### Transform App (`@pie-qti/transform-web`)
 
 ![QTI Player Examples](docs/images/transform-app-screenshot-1.png)
 
@@ -115,7 +115,7 @@ Interactive web UI for transformations:
 
 The app uses sessionized local filesystem storage by default, but the architecture supports custom backend adapters.
 
-### CLI (`@pie-framework/transform-cli`)
+### CLI (`@pie-qti/transform-cli`)
 
 Command-line tool for batch operations:
 
