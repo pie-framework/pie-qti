@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/transform-types",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "TypeScript type definitions for PIE Transform",
   "main": "./dist/index.js",
   "module": "./dist/index.js",

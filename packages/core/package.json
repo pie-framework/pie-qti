@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/transform-core",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Core transformation engine and plugin system for PIE Transform",
   "type": "module",
   "main": "./dist/index.js",
@@ -18,7 +18,13 @@
     "test": "bun test tests",
     "typecheck": "tsc --noEmit"
   },
-  "keywords": ["pie", "qti", "assessment", "transformation", "plugin"],
+  "keywords": [
+    "pie",
+    "qti",
+    "assessment",
+    "transformation",
+    "plugin"
+  ],
   "author": "Renaissance Learning",
   "license": "ISC",
   "dependencies": {

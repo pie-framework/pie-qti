@@ -1,6 +1,6 @@
 {
 	"name": "@pie-qti/qti2-item-player",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"description": "Modern QTI 2.x player - Client-side with optional backend hooks",
 	"type": "module",
 	"main": "./dist/index.js",
