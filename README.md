@@ -183,7 +183,7 @@ bun run preview:pages
 
 - **[Transformation Guide](docs/PIE-QTI-TRANSFORMATION-GUIDE.md)** — Bidirectional transform overview
 - **[Transform App](packages/transform-app/README.md)** — Web UI for transformations
-- **[CLI](packages/cli/README.md)** — Command-line batch operations
+- **[CLI](tools/cli/README.md)** — Command-line batch operations
 - **[QTI → PIE](packages/qti2-to-pie/README.md)** — QTI to PIE transformer
 - **[PIE → QTI](packages/pie-to-qti2/README.md)** — PIE to QTI transformer
 - **[IMS Content Packages](packages/pie-to-qti2/docs/MANIFEST-GENERATION.md)** — Manifest generation

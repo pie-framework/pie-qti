@@ -10,6 +10,7 @@ on:
     paths:
       - ".changeset/**"
       - "packages/**"
+      - "tools/**"
       - "package.json"
       - "bun.lock"
       - "turbo.json"
@@ -89,7 +90,7 @@ jobs:
           after="${{ github.sha }}"
           changed="$(git diff --name-only "$before" "$after" || true)"
 
-          if echo "$changed" | grep -Eq '^packages/[^/]+/(package\.json|CHANGELOG\.md)$'; then
+          if echo "$changed" | grep -Eq '^(packages|tools)/[^/]+/(package\.json|CHANGELOG\.md)$'; then
             echo "has_version_bumps=true" >> "$GITHUB_OUTPUT"
           else
             echo "has_version_bumps=false" >> "$GITHUB_OUTPUT"

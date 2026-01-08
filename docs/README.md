@@ -72,7 +72,7 @@ Comprehensive architecture and implementation plan for the QTI Batch Processor w
 
 - **Getting Started:** See main [README.md](../README.md) in repo root
 - **Web App Development:** Follow BATCH_PROCESSOR_ARCHITECTURE.md phases
-- **CLI Tools:** See `packages/cli/README.md`
+- **CLI Tools:** See `tools/cli/README.md`
 
 ### Specs (local snapshots for fast search / LLM use)
 
