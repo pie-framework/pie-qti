@@ -21,8 +21,8 @@
 			<select
 				id="sample-select"
 				class="select select-bordered"
-				bind:value={selectedSampleId}
-				onchange={() => onSampleChange(selectedSampleId)}
+				value={selectedSampleId}
+				onchange={(e) => onSampleChange(e.currentTarget.value)}
 			>
 				{#each SAMPLE_ASSESSMENTS as sample}
 					<option value={sample.id}>{sample.name}</option>

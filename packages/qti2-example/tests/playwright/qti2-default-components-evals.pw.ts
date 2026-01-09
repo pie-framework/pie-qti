@@ -229,7 +229,9 @@ async function runStep(page: Page, file: EvalFile, step: EvalStep): Promise<{ su
 		case 'navigate':
 			await page.goto(step.path);
 			// Item demo can take a moment to render components.
-			await expect(page.getByRole('heading', { name: /question/i })).toBeVisible();
+			await expect(page.getByRole('heading', { name: /question/i })).toBeVisible({ timeout: 15000 });
+			// Give shadow DOM components extra time to initialize
+			await page.waitForTimeout(1000);
 			return {};
 		case 'observe':
 			// Keep light-weight: ensure page has the component present.
@@ -357,6 +359,8 @@ async function runStep(page: Page, file: EvalFile, step: EvalStep): Promise<{ su
 			if (!gapId) throw new Error('dragToGap step must specify a gap like "G1" in description/hint');
 
 			await page.waitForSelector(tagName, { state: 'attached', timeout: 10_000 });
+			// Wait for component to fully render with shadow DOM
+			await page.waitForTimeout(500);
 
 			// Drive the actual component drop handler via DragEvent + DataTransfer.
 			await page.evaluate(

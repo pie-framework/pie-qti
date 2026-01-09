@@ -14,8 +14,8 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
-    "test:a11y": "playwright test tests/playwright/accessibility.pw.ts",
-    "test:a11y:ui": "playwright test tests/playwright/accessibility.pw.ts --ui"
+    "test:a11y": "playwright test tests/playwright/component-fixtures-a11y.pw.ts",
+    "test:a11y:ui": "playwright test tests/playwright/component-fixtures-a11y.pw.ts --ui"
   },
   "dependencies": {
     "@acme/likert-scale-plugin": "workspace:*",
