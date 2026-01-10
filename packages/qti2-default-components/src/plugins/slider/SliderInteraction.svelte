@@ -58,6 +58,10 @@
 				step={parsedInteraction.step}
 				class="qti-slider-input range range-primary flex-1"
 				value={currentValue}
+				aria-label="Slider value from {parsedInteraction.lowerBound} to {parsedInteraction.upperBound}"
+				aria-valuemin={parsedInteraction.lowerBound}
+				aria-valuemax={parsedInteraction.upperBound}
+				aria-valuenow={currentValue}
 				oninput={(e: Event) => handleChange(Number((e.currentTarget as HTMLInputElement).value))}
 				{disabled}
 			/>

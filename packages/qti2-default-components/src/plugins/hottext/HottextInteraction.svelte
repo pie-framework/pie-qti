@@ -97,6 +97,9 @@
 				const htmlElem = elem as HTMLElement;
 				const selected = isSelected(identifier);
 
+				// Update ARIA state
+				htmlElem.setAttribute('aria-pressed', selected ? 'true' : 'false');
+
 				// Update classes
 				if (selected) {
 					htmlElem.classList.add('selected');
@@ -114,7 +117,7 @@
 	}
 
 	/**
-	 * Initialize hottext elements with click handlers
+	 * Initialize hottext elements with click handlers and keyboard accessibility
 	 */
 	$effect(() => {
 		if (!contentElement) return;
@@ -131,8 +134,25 @@
 				htmlElem.style.borderRadius = '3px';
 				htmlElem.style.transition = 'all 0.2s';
 
+				// Make keyboard accessible
+				htmlElem.setAttribute('role', 'button');
+				htmlElem.setAttribute('tabindex', disabled ? '-1' : '0');
+				htmlElem.setAttribute('aria-pressed', isSelected(identifier) ? 'true' : 'false');
+
+				// Get text content for aria-label
+				const textContent = htmlElem.textContent || identifier;
+				htmlElem.setAttribute('aria-label', `Selectable text: ${textContent}`);
+
 				// Add click handler
 				htmlElem.onclick = () => handleHottextClick(identifier);
+
+				// Add keyboard handler
+				htmlElem.onkeydown = (e: KeyboardEvent) => {
+					if (e.key === 'Enter' || e.key === ' ') {
+						e.preventDefault();
+						handleHottextClick(identifier);
+					}
+				};
 			}
 		});
 

@@ -12,6 +12,11 @@
 	import InlineInteractionRendererFixture from '$lib/a11y/fixtures/InlineInteractionRendererFixture.svelte';
 	import MatchDragDropFixture from '$lib/a11y/fixtures/MatchDragDropFixture.svelte';
 	import SortableListFixture from '$lib/a11y/fixtures/SortableListFixture.svelte';
+	import ChoiceInteractionFixture from '$lib/a11y/fixtures/ChoiceInteractionFixture.svelte';
+	import SliderInteractionFixture from '$lib/a11y/fixtures/SliderInteractionFixture.svelte';
+	import HotspotInteractionFixture from '$lib/a11y/fixtures/HotspotInteractionFixture.svelte';
+	import HottextInteractionFixture from '$lib/a11y/fixtures/HottextInteractionFixture.svelte';
+	import ExtendedTextInteractionFixture from '$lib/a11y/fixtures/ExtendedTextInteractionFixture.svelte';
 
 	interface Props {
 		data: { fixture: string };
@@ -52,6 +57,16 @@
 				<DrawingCanvasFixture />
 			{:else if fixture === 'custom-interaction-fallback'}
 				<CustomInteractionFallbackFixture />
+			{:else if fixture === 'choice-interaction'}
+				<ChoiceInteractionFixture />
+			{:else if fixture === 'slider-interaction'}
+				<SliderInteractionFixture />
+			{:else if fixture === 'hotspot-interaction'}
+				<HotspotInteractionFixture />
+			{:else if fixture === 'hottext-interaction'}
+				<HottextInteractionFixture />
+			{:else if fixture === 'extended-text-interaction'}
+				<ExtendedTextInteractionFixture />
 			{:else if fixture === 'assessment-navigation-bar'}
 				<AssessmentNavigationBarFixture />
 			{:else if fixture === 'assessment-section-menu'}
