@@ -2,6 +2,7 @@
 
 <script lang="ts">
 	import type { OrderInteractionData } from '@pie-qti/qti2-item-player';
+	import { typesetAction } from '../../shared/actions/typesetAction';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import SortableList from '../../shared/components/SortableList.svelte';
 	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
@@ -84,7 +85,7 @@
 
 <ShadowBaseStyles />
 
-<div bind:this={rootElement} class="qti-order-interaction">
+<div bind:this={rootElement} class="qti-order-interaction" use:typesetAction={{ typeset }}>
 	{#if !parsedInteraction}
 		<div class="alert alert-error">No interaction data provided</div>
 	{:else}

@@ -165,6 +165,25 @@
 		const prompt = typeof anyInteraction?.prompt === 'string' ? anyInteraction.prompt : '';
 		return `${interaction.type}|${interaction.responseId}|${ids}|${prompt}`;
 	}
+
+	// Action to set typeset on web components when they mount
+	function setTypesetProp(node: HTMLElement) {
+		// Use microtask to ensure custom element is fully initialized
+		queueMicrotask(() => {
+			if (typeset && node) {
+				(node as any).typeset = typeset;
+			}
+		});
+
+		return {
+			update() {
+				if (typeset) {
+					(node as any).typeset = typeset;
+				}
+			},
+			destroy() {}
+		};
+	}
 </script>
 
 <div bind:this={rootEl} class="qti-item-body" use:typesetAction={{ typeset }} onqti-change={handleQtiChange}>
@@ -214,6 +233,7 @@
 		<svelte:element
 			this={tagName}
 			{...wcProps}
+			use:setTypesetProp
 		/>
 	{/each}
 </div>

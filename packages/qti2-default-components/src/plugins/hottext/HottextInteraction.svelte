@@ -4,6 +4,7 @@
 	import type { HottextInteractionData } from '@pie-qti/qti2-item-player';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
+	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
 
 	interface Props {
 		interaction?: HottextInteractionData | string;
@@ -17,6 +18,9 @@
 	// Parse props that may be JSON strings (web component usage)
 	const parsedInteraction = $derived(parseJsonProp<HottextInteractionData>(interaction));
 	const parsedResponse = $derived(parseJsonProp<string | string[]>(response));
+
+	// Get reference to the root element for event dispatching
+	let rootElement: HTMLDivElement | undefined = $state();
 
 	let selectedIds = $state<string[]>([]);
 
@@ -73,17 +77,10 @@
 		if (responseValue !== null) {
 			onChange?.(responseValue);
 		}
-		// Dispatch custom event for web component usage
-		const event = new CustomEvent('qti-change', {
-			detail: {
-				responseId: parsedInteraction.responseId,
-				value: responseValue,
-				timestamp: Date.now(),
-			},
-			bubbles: true,
-			composed: true,
-		});
-		dispatchEvent(event);
+		// Dispatch custom event for web component usage - event will bubble up to the host element
+		if (rootElement) {
+			rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction.responseId, responseValue));
+		}
 		updateHottextStyles();
 	}
 
@@ -152,7 +149,7 @@
 
 <ShadowBaseStyles />
 
-<div part="root" class="qti-hottext-interaction space-y-3">
+<div bind:this={rootElement} part="root" class="qti-hottext-interaction space-y-3">
 	{#if !parsedInteraction}
 		<div class="alert alert-error">No interaction data provided</div>
 	{:else}
@@ -188,16 +185,10 @@
 						if (responseValue !== null) {
 							onChange?.(responseValue);
 						}
-						const event = new CustomEvent('qti-change', {
-							detail: {
-								responseId: parsedInteraction?.responseId,
-								value: responseValue,
-								timestamp: Date.now(),
-							},
-							bubbles: true,
-							composed: true,
-						});
-						dispatchEvent(event);
+						// Dispatch custom event for web component usage - event will bubble up to the host element
+						if (rootElement) {
+							rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction?.responseId, responseValue));
+						}
 						updateHottextStyles();
 					}}
 					{disabled}

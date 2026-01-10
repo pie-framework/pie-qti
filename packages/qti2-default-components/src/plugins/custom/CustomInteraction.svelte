@@ -5,6 +5,7 @@
 	import CustomInteractionFallback from '../../shared/components/CustomInteractionFallback.svelte';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
+	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
 
 	interface Props {
 		interaction?: InteractionData | string;
@@ -20,6 +21,9 @@
 	const parsedInteraction = $derived(parseJsonProp<InteractionData>(interaction));
 	const parsedResponse = $derived(parseJsonProp<string>(response));
 
+	// Get reference to the root element for event dispatching
+	let rootElement: HTMLDivElement | undefined = $state();
+
 	// Type assertion for custom interaction data
 	const customInteraction = $derived(parsedInteraction as CustomInteractionData | undefined);
 
@@ -27,23 +31,16 @@
 		response = value;
 		// Call onChange callback if provided (for Svelte component usage)
 		onChange?.(value);
-		// Dispatch custom event for web component usage
-		const event = new CustomEvent('qti-change', {
-			detail: {
-				responseId: customInteraction?.responseId,
-				value: value,
-				timestamp: Date.now(),
-			},
-			bubbles: true,
-			composed: true,
-		});
-		dispatchEvent(event);
+		// Dispatch custom event for web component usage - event will bubble up to the host element
+		if (rootElement) {
+			rootElement.dispatchEvent(createQtiChangeEvent(customInteraction?.responseId, value));
+		}
 	}
 </script>
 
 <ShadowBaseStyles />
 
-<div part="root" class="qti-custom-interaction">
+<div bind:this={rootElement} part="root" class="qti-custom-interaction">
 	{#if !customInteraction}
 		<div class="alert alert-error">No interaction data provided</div>
 	{:else}

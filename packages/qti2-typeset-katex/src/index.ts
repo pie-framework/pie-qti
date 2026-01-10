@@ -28,18 +28,22 @@ function mathmlToLatex(mathElement: Element): string {
 	// Handle <math> root element
 	if (tagName === 'math') {
 		const children = Array.from(mathElement.children);
-		return children.map((c) => mathmlToLatex(c)).join(' ');
+		// Only process element children, never include textContent directly
+		const results = children.map((c) => mathmlToLatex(c)).filter(r => r.trim() !== '');
+		return results.join(' ');
 	}
 
 	// Handle <mrow> (row of elements)
 	if (tagName === 'mrow') {
 		const children = Array.from(mathElement.children);
-		return children.map((c) => mathmlToLatex(c)).join(' ');
+		const results = children.map((c) => mathmlToLatex(c)).filter(r => r.trim() !== '');
+		return results.join(' ');
 	}
 
 	// Handle <mi> (identifier), <mn> (number), <mo> (operator)
 	if (tagName === 'mi' || tagName === 'mn' || tagName === 'mo') {
-		return mathElement.textContent || '';
+		// Trim to avoid whitespace issues
+		return (mathElement.textContent || '').trim();
 	}
 
 	// Handle <msup> (superscript: base^exponent)
@@ -108,11 +112,20 @@ function mathmlToLatex(mathElement: Element): string {
  */
 function convertMathMLToLatex(root: HTMLElement): void {
 	// Find all <math> elements (with or without namespace prefix)
-	const mathElements = Array.from(root.querySelectorAll('math, m\\:math'));
+	// Try multiple selectors to handle different browser parsing behaviors
+	const mathElements = Array.from(root.querySelectorAll('math, m\\:math, [xmlns*="MathML"]'));
 
 	for (const mathEl of mathElements) {
 		try {
+			// Skip KaTeX-rendered elements (they contain <semantics> as a child)
+			// KaTeX wraps its output in <math><semantics>...</semantics></math>
+			const hasSemantics = mathEl.querySelector('semantics') !== null;
+			if (hasSemantics) {
+				continue;
+			}
+
 			const latex = mathmlToLatex(mathEl);
+
 			// Determine if this should be display or inline math
 			const display = mathEl.getAttribute('display') === 'block';
 			// Create text node with LaTeX delimiters
