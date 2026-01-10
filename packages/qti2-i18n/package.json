@@ -1,0 +1,33 @@
+{
+  "name": "@pie-qti/qti2-i18n",
+  "version": "0.1.0",
+  "description": "Internationalization (i18n) package for PIE-QTI player ecosystem",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./components/*": "./dist/components/*"
+  },
+  "scripts": {
+    "build": "tsc && bun run copy-components",
+    "copy-components": "mkdir -p dist/components && cp src/components/*.svelte dist/components/",
+    "clean": "rm -rf dist",
+    "test": "bun test src/test",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": ["pie", "qti", "i18n", "internationalization", "localization"],
+  "author": "Renaissance Learning",
+  "license": "ISC",
+  "dependencies": {
+    "svelte": "^5.46.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "@types/bun": "latest"
+  }
+}

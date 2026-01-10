@@ -20,6 +20,7 @@
   "dependencies": {
     "@acme/likert-scale-plugin": "workspace:*",
     "@pie-qti/qti2-assessment-player": "workspace:*",
+    "@pie-qti/qti2-i18n": "workspace:*",
     "@pie-qti/qti2-item-player": "workspace:*",
     "@pie-qti/qti2-default-components": "workspace:*",
     "@pie-qti/qti2-player-elements": "workspace:*",

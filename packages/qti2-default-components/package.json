@@ -27,6 +27,7 @@
   "author": "Renaissance Learning",
   "license": "ISC",
   "dependencies": {
+    "@pie-qti/qti2-i18n": "workspace:*",
     "@pie-qti/qti2-item-player": "workspace:*",
     "@tiptap/core": "^3.15.3",
     "@tiptap/extension-mathematics": "^3.15.3",

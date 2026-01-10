@@ -80,6 +80,16 @@ Components render via web components (Shadow DOM) with a CSS variable contract:
 
 See [STYLING.md](packages/qti2-default-components/STYLING.md) for the full styling contract.
 
+### Internationalization (i18n)
+
+The player UI supports multiple languages with runtime locale switching:
+
+- **Type-safe translations** — TypeScript autocomplete for all message keys
+- **Runtime switching** — Change language without page reload
+- **Small bundle** — <10 KB gzipped (core + default locale)
+
+See [`@pie-qti/qti2-i18n`](packages/qti2-i18n/) for the complete i18n API and migration guide.
+
 ---
 
 ## Part 2: PIE ↔ QTI Transformation Framework
