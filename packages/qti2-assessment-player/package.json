@@ -1,6 +1,6 @@
 {
 	"name": "@pie-qti/qti2-assessment-player",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"description": "QTI 2.x Assessment Player - Multi-item test player with navigation, sections, and rubric blocks",
 	"type": "module",
 	"main": "./dist/index.js",
