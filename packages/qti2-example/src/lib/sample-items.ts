@@ -1967,12 +1967,10 @@ export const DRAWING_INTERACTION = `<?xml version="1.0" encoding="UTF-8"?>
 
   <itemBody>
     <p><strong>Drawing:</strong> Draw a line on the canvas.</p>
-    <drawingInteraction responseIdentifier="DRAW">
-      <prompt>Annotate the diagram</prompt>
+    <drawingInteraction responseIdentifier="DRAW" data-stroke-color="#2563eb" data-line-width="5">
       <object type="image/svg+xml" width="500" height="300">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 300">
-          <rect x="10" y="10" width="480" height="280" fill="#ffffff" stroke="#111827" stroke-width="2"/>
-          <text x="250" y="40" text-anchor="middle" font-size="18" fill="#111827">Draw anywhere inside the box</text>
+          <rect x="0" y="0" width="500" height="300" fill="#ffffff"/>
         </svg>
       </object>
     </drawingInteraction>
@@ -2551,17 +2549,8 @@ export const ADAPTIVE_ITEM = `<?xml version="1.0" encoding="UTF-8"?>
 
   <responseProcessing>
     <responseCondition>
-      <!-- Handle hint request -->
+      <!-- Check answer correctness first -->
       <responseIf>
-        <match>
-          <variable identifier="HINT"/>
-          <baseValue baseType="boolean">true</baseValue>
-        </match>
-        <setOutcomeValue identifier="FEEDBACK">
-          <baseValue baseType="identifier">hint</baseValue>
-        </setOutcomeValue>
-      </responseIf>
-      <responseElseIf>
         <!-- Correct answer -->
         <match>
           <variable identifier="RESPONSE"/>
@@ -2576,7 +2565,7 @@ export const ADAPTIVE_ITEM = `<?xml version="1.0" encoding="UTF-8"?>
         <setOutcomeValue identifier="FEEDBACK">
           <baseValue baseType="identifier">correct</baseValue>
         </setOutcomeValue>
-      </responseElseIf>
+      </responseIf>
       <responseElseIf>
         <!-- First attempt incorrect -->
         <lt>
@@ -2602,6 +2591,18 @@ export const ADAPTIVE_ITEM = `<?xml version="1.0" encoding="UTF-8"?>
           <baseValue baseType="identifier">answer</baseValue>
         </setOutcomeValue>
       </responseElse>
+    </responseCondition>
+    <!-- Handle hint request separately (overrides feedback if hint was requested) -->
+    <responseCondition>
+      <responseIf>
+        <match>
+          <variable identifier="HINT"/>
+          <baseValue baseType="boolean">true</baseValue>
+        </match>
+        <setOutcomeValue identifier="FEEDBACK">
+          <baseValue baseType="identifier">hint</baseValue>
+        </setOutcomeValue>
+      </responseIf>
     </responseCondition>
   </responseProcessing>
 
