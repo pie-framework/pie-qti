@@ -6,6 +6,8 @@
  * can learn from and adapt for their own assessments.
  */
 
+import { EDGE_CASE_ITEMS } from './sample-items-edge-cases.js';
+
 export const SIMPLE_CHOICE = `<?xml version="1.0" encoding="UTF-8"?>
 <assessmentItem
   xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
@@ -3143,4 +3145,7 @@ export const SAMPLE_ITEMS: SampleItem[] = [
     description: 'Multi-attempt adaptive question with progressive feedback and hints',
     xml: ADAPTIVE_ITEM,
   },
+
+  // Edge Case Items - UI Genericity Testing
+  ...EDGE_CASE_ITEMS,
 ];

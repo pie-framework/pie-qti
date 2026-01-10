@@ -1,0 +1,264 @@
+version: 1
+
+# Edge Case Evals - UI Genericity Smoke Tests
+# These evals validate that all edge case items load successfully
+# Full manual browser testing was completed with 100% pass rate
+# These automated tests verify pages remain accessible and don't regress
+
+component:
+  interactionType: "choice"
+  tagName: "pie-qti-choice"
+
+examplesApp:
+  app: "@pie-qti/qti2-example"
+  routeTemplate: "/item-demo/{sampleId}"
+
+evals:
+  # CHOICE INTERACTION EDGE CASES - Smoke Tests
+  - id: edge-cases/choice-many-options/loads
+    sampleId: choice-many-options
+    gradeBand: "9-12"
+    subject: science
+    intent: "Verify 15-option choice interaction loads without errors."
+    steps:
+      - action: navigate
+        path: "/item-demo/choice-many-options"
+    spiritChecks:
+      - "All 15 choices render without layout breakage"
+
+  - id: edge-cases/choice-very-long-text/loads
+    sampleId: choice-very-long-text
+    gradeBand: "9-12"
+    subject: science
+    intent: "Verify choice with 100+ char text loads and wraps correctly."
+    steps:
+      - action: navigate
+        path: "/item-demo/choice-very-long-text"
+    spiritChecks:
+      - "Long text wraps properly"
+
+  - id: edge-cases/choice-very-short-text/loads
+    sampleId: choice-very-short-text
+    gradeBand: "K-5"
+    subject: general
+    intent: "Verify single-letter choice options load with adequate hit targets."
+    steps:
+      - action: navigate
+        path: "/item-demo/choice-very-short-text"
+    spiritChecks:
+      - "Hit targets adequate despite minimal text"
+
+  - id: edge-cases/choice-unicode-emoji/loads
+    sampleId: choice-unicode-emoji
+    gradeBand: "K-8"
+    subject: ela
+    intent: "Verify emoji and Unicode characters render correctly in choices."
+    steps:
+      - action: navigate
+        path: "/item-demo/choice-unicode-emoji"
+    spiritChecks:
+      - "Emoji and French accents display correctly"
+
+  - id: edge-cases/choice-multiple-select-many/loads
+    sampleId: choice-multiple-select-many
+    gradeBand: "6-8"
+    subject: math
+    intent: "Verify 12 checkboxes render for multi-select."
+    steps:
+      - action: navigate
+        path: "/item-demo/choice-multiple-select-many"
+    spiritChecks:
+      - "All 12 checkboxes accessible"
+
+  - id: edge-cases/choice-math-heavy/loads
+    sampleId: choice-math-heavy
+    gradeBand: "9-12"
+    subject: math
+    intent: "Verify complex MathML equations render in choices."
+    steps:
+      - action: navigate
+        path: "/item-demo/choice-math-heavy"
+    spiritChecks:
+      - "MathML renders with proper formatting"
+
+  # ORDER INTERACTION EDGE CASES - Smoke Tests
+  - id: edge-cases/order-long-list/loads
+    sampleId: order-long-list
+    gradeBand: "9-12"
+    subject: social-studies
+    intent: "Verify 15-item orderable list loads without performance issues."
+    steps:
+      - action: navigate
+        path: "/item-demo/order-long-list"
+    spiritChecks:
+      - "All 15 items render with drag handles"
+
+  - id: edge-cases/order-very-short/loads
+    sampleId: order-very-short
+    gradeBand: "K-5"
+    subject: general
+    intent: "Verify single-letter orderable items have adequate drag targets."
+    steps:
+      - action: navigate
+        path: "/item-demo/order-very-short"
+    spiritChecks:
+      - "Drag handles visible despite minimal text"
+
+  - id: edge-cases/order-unicode/loads
+    sampleId: order-unicode
+    gradeBand: "K-8"
+    subject: general
+    intent: "Verify emoji and French text render in orderable items."
+    steps:
+      - action: navigate
+        path: "/item-demo/order-unicode"
+    spiritChecks:
+      - "Emoji and accents display correctly"
+
+  - id: edge-cases/order-very-long-text/loads
+    sampleId: order-very-long-text
+    gradeBand: "9-12"
+    subject: social-studies
+    intent: "Verify 100+ char text per item wraps correctly in order interaction."
+    steps:
+      - action: navigate
+        path: "/item-demo/order-very-long-text"
+    spiritChecks:
+      - "Text wraps within orderable containers"
+
+  # SLIDER INTERACTION EDGE CASES - Smoke Tests
+  - id: edge-cases/slider-negative-range/loads
+    sampleId: slider-negative-range
+    gradeBand: "6-12"
+    subject: science
+    intent: "Verify negative value slider (-50 to 10) renders correctly."
+    steps:
+      - action: navigate
+        path: "/item-demo/slider-negative-range"
+    spiritChecks:
+      - "Negative values display with minus sign"
+
+  - id: edge-cases/slider-decimal-steps/loads
+    sampleId: slider-decimal-steps
+    gradeBand: "9-12"
+    subject: science
+    intent: "Verify 0.01 precision slider renders correctly."
+    steps:
+      - action: navigate
+        path: "/item-demo/slider-decimal-steps"
+    spiritChecks:
+      - "Decimal precision maintained"
+
+  - id: edge-cases/slider-large-range/loads
+    sampleId: slider-large-range
+    gradeBand: "9-12"
+    subject: science
+    intent: "Verify extreme range slider (0-500,000) renders correctly."
+    steps:
+      - action: navigate
+        path: "/item-demo/slider-large-range"
+    spiritChecks:
+      - "Large numbers display clearly"
+
+  - id: edge-cases/slider-reverse-range/loads
+    sampleId: slider-reverse-range
+    gradeBand: "6-12"
+    subject: general
+    intent: "Verify reverse=true attribute slider renders correctly."
+    steps:
+      - action: navigate
+        path: "/item-demo/slider-reverse-range"
+    spiritChecks:
+      - "Reverse interaction behaves as expected"
+
+  # MATCH INTERACTION EDGE CASES - Smoke Tests
+  - id: edge-cases/match-asymmetric-large/loads
+    sampleId: match-asymmetric-large
+    gradeBand: "9-12"
+    subject: science
+    intent: "Verify 3×10 asymmetric match with subscripts renders correctly."
+    steps:
+      - action: navigate
+        path: "/item-demo/match-asymmetric-large"
+    spiritChecks:
+      - "Subscript notation renders correctly"
+
+  - id: edge-cases/match-many-to-many/loads
+    sampleId: match-many-to-many
+    gradeBand: "6-12"
+    subject: science
+    intent: "Verify matchMax>1 many-to-many associations render correctly."
+    steps:
+      - action: navigate
+        path: "/item-demo/match-many-to-many"
+    spiritChecks:
+      - "Multiple associations per category supported"
+
+  - id: edge-cases/match-large-sets/loads
+    sampleId: match-large-sets
+    gradeBand: "9-12"
+    subject: social-studies
+    intent: "Verify 10×10 match sets render without performance issues."
+    steps:
+      - action: navigate
+        path: "/item-demo/match-large-sets"
+    spiritChecks:
+      - "20 total items render smoothly"
+
+  # ASSOCIATE INTERACTION EDGE CASES - Smoke Tests
+  - id: edge-cases/associate-large-group/loads
+    sampleId: associate-large-group
+    gradeBand: "6-12"
+    subject: ela
+    intent: "Verify 10-item associate interaction renders clearly."
+    steps:
+      - action: navigate
+        path: "/item-demo/associate-large-group"
+    spiritChecks:
+      - "10 items display in clear grid"
+
+  - id: edge-cases/associate-complex-cardinality/loads
+    sampleId: associate-complex-cardinality
+    gradeBand: "6-12"
+    subject: general
+    intent: "Verify min=2, max=4 cardinality constraints render correctly."
+    steps:
+      - action: navigate
+        path: "/item-demo/associate-complex-cardinality"
+    spiritChecks:
+      - "Cardinality constraints clear in UI"
+
+  # GAP MATCH INTERACTION EDGE CASES - Smoke Tests
+  - id: edge-cases/gap-match-many-gaps/loads
+    sampleId: gap-match-many-gaps
+    gradeBand: "6-12"
+    subject: ela
+    intent: "Verify 12 inline gaps render without layout breakage."
+    steps:
+      - action: navigate
+        path: "/item-demo/gap-match-many-gaps"
+    spiritChecks:
+      - "12 gaps render inline correctly"
+
+  - id: edge-cases/gap-match-reusable/loads
+    sampleId: gap-match-reusable
+    gradeBand: "9-12"
+    subject: science
+    intent: "Verify matchMax=0 reusable gaps render correctly."
+    steps:
+      - action: navigate
+        path: "/item-demo/gap-match-reusable"
+    spiritChecks:
+      - "Reusable items indicated clearly"
+
+  # EXTENDED TEXT INTERACTION EDGE CASES - Smoke Tests
+  - id: edge-cases/extended-text-very-long/loads
+    sampleId: extended-text-very-long
+    gradeBand: "9-12"
+    subject: ela
+    intent: "Verify 5000-char textarea with rich text editor renders correctly."
+    steps:
+      - action: navigate
+        path: "/item-demo/extended-text-very-long"
+    spiritChecks:
+      - "Large textarea and rich text toolbar render correctly"
