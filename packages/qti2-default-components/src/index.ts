@@ -190,11 +190,24 @@ export function registerDefaultComponents(registry: ComponentRegistry): void {
 		tagName: 'pie-qti-extended-text',
 	});
 
+	// UploadInteraction - File upload
+	registry.register('uploadInteraction', {
+		name: 'default-upload',
+		priority: 0,
+		description: 'Default Svelte-based upload interaction',
+		canHandle: () => true,
+		tagName: 'pie-qti-upload',
+	});
+
+	// DrawingInteraction - Canvas drawing
+	registry.register('drawingInteraction', {
+		name: 'default-drawing',
+		priority: 0,
+		description: 'Default Svelte-based drawing interaction',
+		canHandle: () => true,
+		tagName: 'pie-qti-drawing',
+	});
+
 	// Note: TextEntryInteraction and InlineChoiceInteraction are handled
 	// by ItemRenderer as inline interactions, not as separate components
-
-	// Note: UploadInteraction and DrawingInteraction use shared Svelte components
-	// (FileUpload and DrawingCanvas) rather than web components.
-	// All 21 QTI 2.2 interactions are fully functional.
-	// Future: Consider converting upload/drawing to web components for consistency.
 }

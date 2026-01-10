@@ -123,6 +123,13 @@
 		results = null;
 		runKey += 1;
 	}
+
+	// Expose function for E2E tests to programmatically change sample
+	if (typeof window !== 'undefined') {
+		(window as any).__testHelpers = {
+			selectSample: (sampleId: string) => handleSampleChange(sampleId)
+		};
+	}
 </script>
 
 <div class="assessment-demo-page">

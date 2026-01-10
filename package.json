@@ -10,13 +10,14 @@
   "license": "ISC",
   "author": "Renaissance Learning",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "tools/*"
   ],
   "scripts": {
     "postinstall": "node scripts/setup-local-players.mjs",
     "build": "turbo build",
     "dev": "turbo dev",
-    "pie-qti": "node packages/cli/bin/run.js",
+    "pie-qti": "node tools/cli/bin/run.js",
     "dev:example": "turbo dev --filter=@pie-qti/qti2-example...",
     "dev:transform-app": "turbo dev --filter=@pie-qti/transform-web...",
     "dev:examples": "turbo dev --filter=@pie-qti/qti2-example... --filter=@pie-qti/transform-web...",

@@ -2,6 +2,7 @@
 
 <script lang="ts">
 	import type { MatchInteractionData } from '@pie-qti/qti2-item-player';
+	import { typesetAction } from '../../shared/actions/typesetAction';
 	import MatchDragDrop from '../../shared/components/MatchDragDrop.svelte';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
@@ -40,7 +41,7 @@
 
 <ShadowBaseStyles />
 
-<div bind:this={rootElement} class="qti-match-interaction">
+<div bind:this={rootElement} class="qti-match-interaction" use:typesetAction={{ typeset }}>
 	{#if !parsedInteraction}
 		<div class="alert alert-error">No interaction data provided</div>
 	{:else}

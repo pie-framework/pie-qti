@@ -1,0 +1,115 @@
+{
+  "id": "positionObject_mapResponsePoint_scoring",
+  "cases": [
+    {
+      "name": "placement in primary circle (100,100) r=20 => 2.0",
+      "responses": {
+        "RESPONSE": ["100 100"]
+      },
+      "expect": {
+        "outcomes": {
+          "SCORE": 2.0
+        }
+      }
+    },
+    {
+      "name": "placement near edge of primary circle (110,110) ~14px from center => 2.0",
+      "responses": {
+        "RESPONSE": ["110 110"]
+      },
+      "expect": {
+        "outcomes": {
+          "SCORE": 2.0
+        }
+      }
+    },
+    {
+      "name": "placement just outside primary circle (122,100) 22px from center => 0",
+      "responses": {
+        "RESPONSE": ["122 100"]
+      },
+      "expect": {
+        "outcomes": {
+          "SCORE": 0
+        }
+      }
+    },
+    {
+      "name": "placement in rectangular zone (225,75) => 1.0",
+      "responses": {
+        "RESPONSE": ["225 75"]
+      },
+      "expect": {
+        "outcomes": {
+          "SCORE": 1.0
+        }
+      }
+    },
+    {
+      "name": "placement at rect corner (200,50) => 1.0",
+      "responses": {
+        "RESPONSE": ["200 50"]
+      },
+      "expect": {
+        "outcomes": {
+          "SCORE": 1.0
+        }
+      }
+    },
+    {
+      "name": "placement just outside rect (251,75) => 0",
+      "responses": {
+        "RESPONSE": ["251 75"]
+      },
+      "expect": {
+        "outcomes": {
+          "SCORE": 0
+        }
+      }
+    },
+    {
+      "name": "placement in tertiary circle (150,200) r=15 => 0.5",
+      "responses": {
+        "RESPONSE": ["150 200"]
+      },
+      "expect": {
+        "outcomes": {
+          "SCORE": 0.5
+        }
+      }
+    },
+    {
+      "name": "placement outside all zones => 0 (default)",
+      "responses": {
+        "RESPONSE": ["50 50"]
+      },
+      "expect": {
+        "outcomes": {
+          "SCORE": 0
+        }
+      }
+    },
+    {
+      "name": "multiple placements - sum scores from different zones",
+      "responses": {
+        "RESPONSE": ["100 100", "225 75", "150 200"]
+      },
+      "expect": {
+        "outcomes": {
+          "SCORE": 3.5
+        }
+      }
+    },
+    {
+      "name": "no placement => 0",
+      "responses": {
+        "RESPONSE": []
+      },
+      "expect": {
+        "outcomes": {
+          "SCORE": 0
+        }
+      }
+    }
+  ]
+}

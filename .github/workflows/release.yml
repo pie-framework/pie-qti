@@ -10,6 +10,7 @@ on:
     paths:
       - ".changeset/**"
       - "packages/**"
+      - "tools/**"
       - "package.json"
       - "bun.lock"
       - "turbo.json"
@@ -89,7 +90,7 @@ jobs:
           after="${{ github.sha }}"
           changed="$(git diff --name-only "$before" "$after" || true)"
 
-          if echo "$changed" | grep -Eq '^packages/[^/]+/(package\.json|CHANGELOG\.md)$'; then
+          if echo "$changed" | grep -Eq '^(packages|tools)/[^/]+/(package\.json|CHANGELOG\.md)$'; then
             echo "has_version_bumps=true" >> "$GITHUB_OUTPUT"
           else
             echo "has_version_bumps=false" >> "$GITHUB_OUTPUT"
@@ -127,8 +128,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ steps.changesets.outputs.publishedPackages[0].version }}
-          release_name: Release ${{ steps.changesets.outputs.publishedPackages[0].version }}
+          # changesets/action outputs `publishedPackages` as a JSON string; parse it before indexing.
+          tag_name: v${{ fromJson(steps.changesets.outputs.publishedPackages)[0].version }}
+          release_name: Release v${{ fromJson(steps.changesets.outputs.publishedPackages)[0].version }}
           body: |
             ## Changes
 

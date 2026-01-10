@@ -104,7 +104,13 @@
 	}
 
 	function handleResponseChange(responseId: string, value: any) {
+		console.log('[Demo] Response changed:', { responseId, value });
 		responses = { ...responses, [responseId]: value };
+		console.log('[Demo] All responses:', responses);
+		if (player) {
+			const canSubmit = player.canSubmitResponses(responses);
+			console.log('[Demo] Can submit:', canSubmit);
+		}
 	}
 
 	async function submitResponses() {

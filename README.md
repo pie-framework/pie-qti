@@ -80,6 +80,16 @@ Components render via web components (Shadow DOM) with a CSS variable contract:
 
 See [STYLING.md](packages/qti2-default-components/STYLING.md) for the full styling contract.
 
+### Internationalization (i18n)
+
+The player UI supports multiple languages with runtime locale switching:
+
+- **Type-safe translations** — TypeScript autocomplete for all message keys
+- **Runtime switching** — Change language without page reload
+- **Small bundle** — <10 KB gzipped (core + default locale)
+
+See [`@pie-qti/qti2-i18n`](packages/qti2-i18n/) for the complete i18n API and migration guide.
+
 ---
 
 ## Part 2: PIE ↔ QTI Transformation Framework
@@ -183,7 +193,7 @@ bun run preview:pages
 
 - **[Transformation Guide](docs/PIE-QTI-TRANSFORMATION-GUIDE.md)** — Bidirectional transform overview
 - **[Transform App](packages/transform-app/README.md)** — Web UI for transformations
-- **[CLI](packages/cli/README.md)** — Command-line batch operations
+- **[CLI](tools/cli/README.md)** — Command-line batch operations
 - **[QTI → PIE](packages/qti2-to-pie/README.md)** — QTI to PIE transformer
 - **[PIE → QTI](packages/pie-to-qti2/README.md)** — PIE to QTI transformer
 - **[IMS Content Packages](packages/pie-to-qti2/docs/MANIFEST-GENERATION.md)** — Manifest generation

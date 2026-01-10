@@ -11,6 +11,8 @@
 -->
 
 <style>
+	/* Import KaTeX CSS for math rendering in Shadow DOM */
+	@import url('https://cdn.jsdelivr.net/npm/katex@0.16.27/dist/katex.min.css');
 	/* Buttons */
 	:global(.btn) {
 		display: inline-flex;
@@ -197,6 +199,149 @@
 	:global(.radio),
 	:global(.checkbox) {
 		accent-color: var(--color-primary, oklch(45% 0.24 277));
+	}
+
+	/* Tailwind utilities for canvas drawing */
+	:global(.touch-none) {
+		touch-action: none;
+	}
+	:global(.absolute) {
+		position: absolute;
+	}
+	:global(.relative) {
+		position: relative;
+	}
+	:global(.inset-0) {
+		top: 0;
+		right: 0;
+		bottom: 0;
+		left: 0;
+	}
+	:global(.inline-block) {
+		display: inline-block;
+	}
+	:global(.inline-flex) {
+		display: inline-flex;
+	}
+	:global(.flex) {
+		display: flex;
+	}
+	:global(.items-center) {
+		align-items: center;
+	}
+	:global(.items-start) {
+		align-items: flex-start;
+	}
+	:global(.justify-between) {
+		justify-content: space-between;
+	}
+	:global(.gap-2) {
+		gap: 0.5rem;
+	}
+	:global(.gap-4) {
+		gap: 1rem;
+	}
+	:global(.space-y-2 > * + *) {
+		margin-top: 0.5rem;
+	}
+	:global(.space-y-3 > * + *) {
+		margin-top: 0.75rem;
+	}
+	:global(.overflow-hidden) {
+		overflow: hidden;
+	}
+	:global(.rounded) {
+		border-radius: 0.25rem;
+	}
+	:global(.border) {
+		border-width: 1px;
+	}
+	:global(.border-base-300) {
+		border-color: var(--color-base-300, oklch(95% 0 0));
+	}
+	:global(.bg-base-100) {
+		background-color: var(--color-base-100, oklch(100% 0 0));
+	}
+	:global(.bg-base-content\/70) {
+		background-color: color-mix(in oklch, var(--color-base-content, oklch(21% 0 0)) 70%, transparent);
+	}
+	:global(.text-xs) {
+		font-size: 0.75rem;
+		line-height: 1rem;
+	}
+	:global(.text-sm) {
+		font-size: 0.875rem;
+		line-height: 1.25rem;
+	}
+	:global(.font-semibold) {
+		font-weight: 600;
+	}
+	:global(.text-base-content\/70) {
+		color: color-mix(in oklch, var(--color-base-content, oklch(21% 0 0)) 70%, transparent);
+	}
+	:global(.mb-2) {
+		margin-bottom: 0.5rem;
+	}
+	:global(.mb-3) {
+		margin-bottom: 0.75rem;
+	}
+	:global(.mr-2) {
+		margin-right: 0.5rem;
+	}
+	:global(.w-full) {
+		width: 100%;
+	}
+	:global(.w-auto) {
+		width: auto;
+	}
+	:global(.h-6) {
+		height: 1.5rem;
+	}
+	:global(.w-6) {
+		width: 1.5rem;
+	}
+	:global(.shrink-0) {
+		flex-shrink: 0;
+	}
+	:global(.stroke-current) {
+		stroke: currentColor;
+	}
+	:global(.sr-only) {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border-width: 0;
+	}
+
+	/* Form inputs */
+	:global(.file-input) {
+		border-radius: 0.6rem;
+		border: 1px solid var(--color-base-300, oklch(95% 0 0));
+		background: var(--color-base-100, oklch(100% 0 0));
+		color: var(--color-base-content, oklch(21% 0 0));
+		padding: 0.35rem 0.6rem;
+		font: inherit;
+	}
+	:global(.file-input-bordered) {
+		border: 1px solid var(--color-base-300, oklch(95% 0 0));
+	}
+	:global(.label) {
+		display: flex;
+		user-select: none;
+		padding: 0.25rem 0;
+	}
+	:global(.label-text) {
+		font-size: 0.875rem;
+		line-height: 1.25rem;
+	}
+	:global(.form-control) {
+		display: flex;
+		flex-direction: column;
 	}
 </style>
 

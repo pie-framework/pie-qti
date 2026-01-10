@@ -20,17 +20,29 @@
 		onChange: (value: QTIFileResponse | null) => void;
 		testIdCanvas?: string;
 		testIdClear?: string;
+		/** Stroke color (default: #111827) */
+		strokeColor?: string;
+		/** Line width in pixels (default: 3) */
+		lineWidth?: number;
+		/** Line cap style (default: round) */
+		lineCap?: 'butt' | 'round' | 'square';
+		/** Line join style (default: round) */
+		lineJoin?: 'bevel' | 'round' | 'miter';
 	}
 
 	const {
 		responseId,
-		label = 'Draw your response',
+		label,
 		imageData = null,
 		disabled = false,
 		value = null,
 		onChange,
 		testIdCanvas,
 		testIdClear,
+		strokeColor = '#111827',
+		lineWidth = 3,
+		lineCap = 'round',
+		lineJoin = 'round',
 	}: Props = $props();
 
 	let canvasEl = $state<HTMLCanvasElement | null>(null);
@@ -54,10 +66,10 @@
 		const context = canvasEl.getContext('2d');
 		if (!context) return;
 		ctx = context;
-		ctx.lineJoin = 'round';
-		ctx.lineCap = 'round';
-		ctx.strokeStyle = '#111827';
-		ctx.lineWidth = 3;
+		ctx.lineJoin = lineJoin;
+		ctx.lineCap = lineCap;
+		ctx.strokeStyle = strokeColor;
+		ctx.lineWidth = lineWidth;
 	}
 
 	$effect(() => {
@@ -67,8 +79,20 @@
 	function getCanvasPoint(e: PointerEvent) {
 		if (!canvasEl) return { x: 0, y: 0 };
 		const rect = canvasEl.getBoundingClientRect();
-		const x = e.clientX - rect.left;
-		const y = e.clientY - rect.top;
+		// Get coordinates relative to canvas
+		let x = e.clientX - rect.left;
+		let y = e.clientY - rect.top;
+
+		// Scale from display size to canvas internal size
+		const scaleX = canvasWidth / rect.width;
+		const scaleY = canvasHeight / rect.height;
+		x = x * scaleX;
+		y = y * scaleY;
+
+		// Clamp to canvas bounds
+		x = Math.max(0, Math.min(x, canvasWidth));
+		y = Math.max(0, Math.min(y, canvasHeight));
+
 		return { x, y };
 	}
 
@@ -137,7 +161,9 @@
 
 <div class="space-y-3">
 	<div class="flex items-center justify-between gap-4">
-		<div class="font-semibold">{label}</div>
+		{#if label}
+			<div class="font-semibold">{label}</div>
+		{/if}
 		<button
 			type="button"
 			class="btn btn-sm"
@@ -154,12 +180,12 @@
 	</div>
 
 	<div
-		class="relative inline-block border border-base-300 rounded overflow-hidden bg-base-100"
-		style="width: {canvasWidth}px; height: {canvasHeight}px;"
+		class="relative inline-block"
+		style="width: {canvasWidth}px; height: {canvasHeight}px; user-select: none;"
 	>
 		{#if imageData}
 			{#if imageData.type === 'svg'}
-				<div class="absolute inset-0" aria-hidden="true">
+				<div class="absolute inset-0" style="pointer-events: none;" aria-hidden="true">
 					{@html imageData.content}
 				</div>
 			{:else}
@@ -168,6 +194,7 @@
 					src={imageData.src}
 					alt=""
 					aria-hidden="true"
+					style="pointer-events: none;"
 				/>
 			{/if}
 		{/if}
@@ -184,7 +211,7 @@
 			onpointermove={pointerMove}
 			onpointerup={pointerUp}
 			onpointercancel={pointerUp}
-			style="cursor: {disabled ? 'not-allowed' : 'crosshair'};"
+			style="cursor: {disabled ? 'not-allowed' : 'crosshair'}; pointer-events: auto; border: 1px solid var(--color-base-300, #d1d5db); border-radius: 0.25rem;"
 		></canvas>
 	</div>
 

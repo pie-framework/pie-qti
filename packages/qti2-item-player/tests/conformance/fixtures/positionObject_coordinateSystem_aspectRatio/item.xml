@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+  xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="positionObject_coordinateSystem_aspectRatio"
+  title="Position Object Coordinate System with Non-Square Image"
+  adaptive="false"
+  timeDependent="false"
+>
+  <!--
+    This test verifies coordinate system consistency with non-square images.
+
+    CRITICAL: Coordinates are based on the DECLARED dimensions (300x200), not actual pixels.
+    This test documents that the coordinate system MUST match the declared dimensions.
+
+    Common mistake: declaring wrong dimensions (e.g., 400x400 when image is 300x196)
+    causes ALL coordinates to be wrong, breaking mapResponsePoint scoring.
+  -->
+  <responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="point">
+    <correctResponse>
+      <value>150 100</value>
+    </correctResponse>
+    <areaMapping defaultValue="0">
+      <!-- Center of 300x200 canvas: (150, 100) -->
+      <areaMapEntry shape="circle" coords="150,100,20" mappedValue="1.0"/>
+      <!-- Top-left quadrant: (75, 50) -->
+      <areaMapEntry shape="circle" coords="75,50,15" mappedValue="0.5"/>
+      <!-- Bottom-right edge: (280, 180) -->
+      <areaMapEntry shape="circle" coords="280,180,10" mappedValue="0.25"/>
+    </areaMapping>
+  </responseDeclaration>
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <p>Coordinate system test with 300x200 (non-square) canvas</p>
+    <positionObjectInteraction responseIdentifier="RESPONSE" maxChoices="3">
+      <!-- CRITICAL: These dimensions define the coordinate space -->
+      <object type="image/png" data="canvas-300x200.png" width="300" height="200"/>
+      <positionObjectStage identifier="MARKER" matchMax="3">
+        <object type="image/png" data="marker.png" width="15" height="15"/>
+        Marker
+      </positionObjectStage>
+    </positionObjectInteraction>
+  </itemBody>
+
+  <responseProcessing>
+    <setOutcomeValue identifier="SCORE">
+      <mapResponsePoint identifier="RESPONSE"/>
+    </setOutcomeValue>
+  </responseProcessing>
+</assessmentItem>

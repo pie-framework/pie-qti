@@ -4,6 +4,7 @@
 	import type { HottextInteractionData } from '@pie-qti/qti2-item-player';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
+	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
 
 	interface Props {
 		interaction?: HottextInteractionData | string;
@@ -17,6 +18,9 @@
 	// Parse props that may be JSON strings (web component usage)
 	const parsedInteraction = $derived(parseJsonProp<HottextInteractionData>(interaction));
 	const parsedResponse = $derived(parseJsonProp<string | string[]>(response));
+
+	// Get reference to the root element for event dispatching
+	let rootElement: HTMLDivElement | undefined = $state();
 
 	let selectedIds = $state<string[]>([]);
 
@@ -73,17 +77,10 @@
 		if (responseValue !== null) {
 			onChange?.(responseValue);
 		}
-		// Dispatch custom event for web component usage
-		const event = new CustomEvent('qti-change', {
-			detail: {
-				responseId: parsedInteraction.responseId,
-				value: responseValue,
-				timestamp: Date.now(),
-			},
-			bubbles: true,
-			composed: true,
-		});
-		dispatchEvent(event);
+		// Dispatch custom event for web component usage - event will bubble up to the host element
+		if (rootElement) {
+			rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction.responseId, responseValue));
+		}
 		updateHottextStyles();
 	}
 
@@ -99,6 +96,9 @@
 			if (identifier) {
 				const htmlElem = elem as HTMLElement;
 				const selected = isSelected(identifier);
+
+				// Update ARIA state
+				htmlElem.setAttribute('aria-pressed', selected ? 'true' : 'false');
 
 				// Update classes
 				if (selected) {
@@ -117,7 +117,7 @@
 	}
 
 	/**
-	 * Initialize hottext elements with click handlers
+	 * Initialize hottext elements with click handlers and keyboard accessibility
 	 */
 	$effect(() => {
 		if (!contentElement) return;
@@ -134,8 +134,25 @@
 				htmlElem.style.borderRadius = '3px';
 				htmlElem.style.transition = 'all 0.2s';
 
+				// Make keyboard accessible
+				htmlElem.setAttribute('role', 'button');
+				htmlElem.setAttribute('tabindex', disabled ? '-1' : '0');
+				htmlElem.setAttribute('aria-pressed', isSelected(identifier) ? 'true' : 'false');
+
+				// Get text content for aria-label
+				const textContent = htmlElem.textContent || identifier;
+				htmlElem.setAttribute('aria-label', `Selectable text: ${textContent}`);
+
 				// Add click handler
 				htmlElem.onclick = () => handleHottextClick(identifier);
+
+				// Add keyboard handler
+				htmlElem.onkeydown = (e: KeyboardEvent) => {
+					if (e.key === 'Enter' || e.key === ' ') {
+						e.preventDefault();
+						handleHottextClick(identifier);
+					}
+				};
 			}
 		});
 
@@ -152,7 +169,7 @@
 
 <ShadowBaseStyles />
 
-<div part="root" class="qti-hottext-interaction space-y-3">
+<div bind:this={rootElement} part="root" class="qti-hottext-interaction space-y-3">
 	{#if !parsedInteraction}
 		<div class="alert alert-error">No interaction data provided</div>
 	{:else}
@@ -188,16 +205,10 @@
 						if (responseValue !== null) {
 							onChange?.(responseValue);
 						}
-						const event = new CustomEvent('qti-change', {
-							detail: {
-								responseId: parsedInteraction?.responseId,
-								value: responseValue,
-								timestamp: Date.now(),
-							},
-							bubbles: true,
-							composed: true,
-						});
-						dispatchEvent(event);
+						// Dispatch custom event for web component usage - event will bubble up to the host element
+						if (rootElement) {
+							rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction?.responseId, responseValue));
+						}
 						updateHottextStyles();
 					}}
 					{disabled}

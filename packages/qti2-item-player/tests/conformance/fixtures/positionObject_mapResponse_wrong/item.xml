@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+  xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="positionObject_mapResponse_wrong"
+  title="Position Object with WRONG mapResponse (should fail)"
+  adaptive="false"
+  timeDependent="false"
+>
+  <responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="point">
+    <correctResponse>
+      <value>100 100</value>
+    </correctResponse>
+    <areaMapping defaultValue="0">
+      <areaMapEntry shape="circle" coords="100,100,20" mappedValue="1.0"/>
+    </areaMapping>
+  </responseDeclaration>
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <p>This test documents INCORRECT usage: mapResponse with point baseType</p>
+    <positionObjectInteraction responseIdentifier="RESPONSE" maxChoices="1">
+      <object type="image/png" data="test-canvas.png" width="300" height="300"/>
+      <positionObjectStage identifier="OBJ1" matchMax="1">
+        <object type="image/png" data="marker.png" width="20" height="20"/>
+        Marker
+      </positionObjectStage>
+    </positionObjectInteraction>
+  </itemBody>
+
+  <responseProcessing>
+    <setOutcomeValue identifier="SCORE">
+      <!-- WRONG: Using mapResponse with baseType="point" - should use mapResponsePoint -->
+      <!-- This will always score 0 because mapResponse expects identifier strings, not coordinates -->
+      <mapResponse identifier="RESPONSE"/>
+    </setOutcomeValue>
+  </responseProcessing>
+</assessmentItem>

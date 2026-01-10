@@ -27,3 +27,5 @@ import './graphic-order/GraphicOrderInteraction.svelte';
 import './graphic-associate/GraphicAssociateInteraction.svelte';
 import './select-point/SelectPointInteraction.svelte';
 import './extended-text/ExtendedTextInteraction.svelte';
+import './upload/UploadInteraction.svelte';
+import './drawing/DrawingInteraction.svelte';

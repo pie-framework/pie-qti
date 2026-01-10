@@ -8,6 +8,7 @@
 import type { AssociableChoice } from '@pie-qti/qti2-item-player';
 import { createOrUpdatePair, getSourceForTarget, getTargetForSource, removePairBySource } from '../utils/pairHelpers.js';
 import { touchDrag } from '../utils/touchDragHelper.js';
+import DragHandle from './DragHandle.svelte';
 import '../styles/shared.css';
 
 interface Props {
@@ -173,16 +174,7 @@ function clearMatch(sourceId: string) {
 							{/if}
 						</div>
 						{#if !disabled && !matchedTarget}
-							<svg
-								class="qti-match-handle w-5 h-5 text-base-content/30"
-								part="source-handle"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
-								aria-hidden="true"
-							>
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16" />
-							</svg>
+							<DragHandle size={1.25} opacity={0.3} class="text-base-content" />
 						{/if}
 					</div>
 				</button>
@@ -328,13 +320,6 @@ function clearMatch(sourceId: string) {
 		margin-top: 0.25rem;
 		font-size: 0.875rem;
 		color: var(--color-success, oklch(76% 0.177 163.223));
-	}
-	/* Make the drag-handle SVG sane even without Tailwind's `w-5 h-5` utilities */
-	.qti-match-handle {
-		width: 1.25rem;
-		height: 1.25rem;
-		flex: 0 0 auto;
-		opacity: 0.35;
 	}
 
 	.qti-match-clear {

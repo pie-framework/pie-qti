@@ -5,6 +5,7 @@
  */
 
 import { touchDrag } from '../utils/touchDragHelper.js';
+import DragHandle from './DragHandle.svelte';
 import '../styles/shared.css';
 
 interface Item {
@@ -211,21 +212,7 @@ function moveItem(fromIndex: number, toIndex: number) {
 					class:bg-opacity-20={isGrabbed}
 				>
 					<span part="index" class="qti-sortable-index badge badge-neutral">{index + 1}</span>
-					<svg
-						class="qti-sortable-handle w-4 h-4 text-base-content/50"
-						part="handle"
-						fill="none"
-						stroke="currentColor"
-						viewBox="0 0 24 24"
-						aria-hidden="true"
-					>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M4 8h16M4 16h16"
-						/>
-					</svg>
+					<DragHandle size={1} opacity={0.5} class="text-base-content" />
 					<span part="text" class="qti-sortable-text flex-1">{item.text}</span>
 				</button>
 			</div>
@@ -271,13 +258,6 @@ function moveItem(fromIndex: number, toIndex: number) {
 	.qti-sortable-item[data-disabled='true'] {
 		opacity: 0.55;
 		cursor: not-allowed;
-	}
-	/* Make the drag-handle SVG sane even without Tailwind's `w-4 h-4` utilities */
-	.qti-sortable-handle {
-		width: 1rem;
-		height: 1rem;
-		flex: 0 0 auto;
-		opacity: 0.6;
 	}
 	.qti-sortable-index {
 		display: inline-flex;

@@ -1,9 +1,49 @@
 <svelte:options customElement="pie-qti-position-object" />
 
+<!--
+	QTI 2.2 Position Object Interaction Component
+
+	⚠️ IMPORTANT LIMITATIONS ⚠️
+
+	This interaction type has severe limitations in the QTI 2.2 specification that make it
+	impractical for most educational use cases. After extensive research, we found:
+
+	1. NO real-world implementations beyond the official spec example
+	2. NOT included in QTI 3.0 shared vocabulary/styling guide (likely deprecated)
+	3. Major QTI platforms (TAO, Citolab) show no prominent support
+	4. Only suitable for very narrow use cases
+
+	THE CORE PROBLEM:
+	- Response format is baseType="point" which only stores coordinates: ["158 168", "210 195"]
+	- There is NO way to track WHICH object was placed WHERE
+	- The spec only supports placing multiple copies of the SAME object (like airport icons)
+	- It CANNOT support the obvious use case: "Place these labeled cities on the map"
+
+	SPEC-COMPLIANT USAGE (Airport Example):
+	- One draggable object (airport icon) that can be placed multiple times
+	- Response is just an array of coordinates
+	- Scoring uses areaMapping to check if ANY placement hits target zones
+	- No object identity tracking needed
+
+	NON-STANDARD EXTENSION (Current Implementation):
+	- This component supports multiple positionObjectStage elements with identifiers
+	- It tracks which stage (object) is at which position internally
+	- BUT the QTI response format cannot preserve this information
+	- On reload, objects are mapped to positions by array order (best effort)
+
+	RECOMMENDATION:
+	For labeled-object placement scenarios, use graphicGapMatchInteraction instead,
+	which uses baseType="directedPair" to properly track object+location pairs.
+
+	This implementation exists for QTI 2.2 compatibility but has limited practical utility.
+-->
+
 <script lang="ts">
 	import type { PositionObjectInteractionData } from '@pie-qti/qti2-item-player';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
+	import DragHandle from '../../shared/components/DragHandle.svelte';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
+	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
 
 	interface Position {
 		stageId: string;
@@ -13,16 +53,19 @@
 
 	interface Props {
 		interaction?: PositionObjectInteractionData | string;
-		response?: Position[] | null;
+		response?: string[] | null; // QTI format: array of "x y" strings
 		disabled?: boolean;
-		onChange?: (value: Position[]) => void;
+		onChange?: (value: string[]) => void;
 	}
 
 	let { interaction = $bindable(), response = $bindable(), disabled = false, onChange }: Props = $props();
 
 	// Parse props that may be JSON strings (web component usage)
 	const parsedInteraction = $derived(parseJsonProp<PositionObjectInteractionData>(interaction));
-	const parsedResponse = $derived(parseJsonProp<Position[]>(response));
+	const parsedResponse = $derived(parseJsonProp<string[]>(response));
+
+	// Get reference to the root element for event dispatching
+	let rootElement: HTMLDivElement | undefined = $state();
 
 	// Positions stored as {stageId, x, y}
 	let positions = $state<Position[]>([]);
@@ -35,9 +78,62 @@
 		!parsedInteraction || parsedInteraction.maxChoices === 0 || positions.length < parsedInteraction.maxChoices
 	);
 
+	// Calculate scale factor based on actual vs original image dimensions
+	const scaleFactor = $derived.by(() => {
+		if (!imageContainer || !parsedInteraction?.imageData?.width) return 1;
+		const actualWidth = imageContainer.offsetWidth;
+		const originalWidth = Number(parsedInteraction.imageData.width);
+		return actualWidth / originalWidth;
+	});
+
 	$effect(() => {
-		// Sync with parent response changes
-		positions = parsedResponse ? [...parsedResponse] : [];
+		// Sync with parent response changes - convert QTI point format back to internal Position format
+		// NOTE: This is best-effort reconstruction since QTI baseType="point" doesn't store object identity
+		// We map points to stages by array order, which works for single-stage scenarios but may
+		// produce incorrect results for multi-stage scenarios if objects were placed in different order
+		if (!parsedResponse || parsedResponse.length === 0) {
+			positions = [];
+			return;
+		}
+
+		// Convert QTI point strings ("x y") back to Position objects with stageIds
+		// Map each point to stages in order - assumes response array order matches stage order
+		const newPositions: Position[] = [];
+		const stages = parsedInteraction?.positionObjectStages || [];
+
+		for (let i = 0; i < parsedResponse.length; i++) {
+			const pointStr = parsedResponse[i];
+			const parts = pointStr.trim().split(/\s+/);
+			if (parts.length >= 2) {
+				const x = parseFloat(parts[0]);
+				const y = parseFloat(parts[1]);
+
+				// Determine which stage this point belongs to
+				// For simple cases with one stage, all points belong to that stage
+				// For multiple stages, we need to map based on order and matchMax constraints
+				let stageId = '';
+				if (stages.length === 1) {
+					// Single stage - all points belong to it
+					stageId = stages[0].identifier;
+				} else {
+					// Multiple stages - distribute points based on stage order and matchMax
+					let pointIndex = 0;
+					for (const stage of stages) {
+						if (pointIndex + stage.matchMax > i) {
+							stageId = stage.identifier;
+							break;
+						}
+						pointIndex += stage.matchMax;
+					}
+				}
+
+				if (stageId && !isNaN(x) && !isNaN(y)) {
+					newPositions.push({ stageId, x, y });
+				}
+			}
+		}
+
+		positions = newPositions;
 	});
 
 	function handleDragStart(event: DragEvent, stageId: string, existingIndex?: number) {
@@ -48,6 +144,36 @@
 		// Set drag image to be the object being dragged
 		if (event.dataTransfer) {
 			event.dataTransfer.effectAllowed = 'move';
+
+			// Create a custom drag image at full size
+			const stage = getStageById(stageId);
+			if (stage?.objectData) {
+				const width = parseInt(stage.objectData.width || '50');
+				const height = parseInt(stage.objectData.height || '50');
+
+				// Create a temporary element for the drag image
+				const dragImage = document.createElement('div');
+				dragImage.style.position = 'absolute';
+				dragImage.style.left = '-9999px';
+				dragImage.style.width = `${width}px`;
+				dragImage.style.height = `${height}px`;
+
+				if (stage.objectData.type === 'svg' && stage.objectData.content) {
+					dragImage.innerHTML = stage.objectData.content;
+				} else if (stage.objectData.src) {
+					const img = document.createElement('img');
+					img.src = stage.objectData.src;
+					img.style.width = '100%';
+					img.style.height = '100%';
+					dragImage.appendChild(img);
+				}
+
+				document.body.appendChild(dragImage);
+				event.dataTransfer.setDragImage(dragImage, width / 2, height / 2);
+
+				// Clean up after a short delay
+				setTimeout(() => document.body.removeChild(dragImage), 0);
+			}
 		}
 	}
 
@@ -60,6 +186,10 @@
 		const rect = imageContainer.getBoundingClientRect();
 		let x = event.clientX - rect.left;
 		let y = event.clientY - rect.top;
+
+		// Convert scaled coordinates back to original image coordinates
+		x = x / scaleFactor;
+		y = y / scaleFactor;
 
 		// If centerPoint is true, adjust coordinates to be at the center
 		if (parsedInteraction?.centerPoint) {
@@ -94,20 +224,23 @@
 			positions = [...positions, { stageId: draggedStageId, x, y }];
 		}
 
-		response = positions;
-		// Call onChange callback if provided (for Svelte component usage)
-		onChange?.(positions);
-		// Dispatch custom event for web component usage
-		const event2 = new CustomEvent('qti-change', {
-			detail: {
-				responseId: parsedInteraction?.responseId,
-				value: positions,
-				timestamp: Date.now(),
-			},
-			bubbles: true,
-			composed: true,
+		// Convert positions to QTI point format (space-separated "x y" strings)
+		// QTI baseType="point" expects array of strings like ["158 168", "250 200"]
+		const responseValue = positions.map(pos => `${Math.round(pos.x)} ${Math.round(pos.y)}`);
+
+		console.log('[PositionObject] Emitting response:', {
+			responseId: parsedInteraction?.responseId,
+			value: responseValue,
+			positions: positions
 		});
-		dispatchEvent(event2);
+
+		response = responseValue;
+		// Call onChange callback if provided (for Svelte component usage)
+		onChange?.(responseValue);
+		// Dispatch custom event for web component usage - event will bubble up to the host element
+		if (rootElement) {
+			rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction?.responseId, responseValue));
+		}
 		draggedStageId = null;
 		draggedPositionIndex = null;
 	}
@@ -123,20 +256,18 @@
 	function removePosition(index: number) {
 		if (!canInteract) return;
 		positions = positions.filter((_, i) => i !== index);
-		response = positions;
+
+		// Convert positions to QTI point format (space-separated "x y" strings)
+		// QTI baseType="point" expects array of strings like ["158 168", "250 200"]
+		const responseValue = positions.map(pos => `${Math.round(pos.x)} ${Math.round(pos.y)}`);
+
+		response = responseValue;
 		// Call onChange callback if provided (for Svelte component usage)
-		onChange?.(positions);
-		// Dispatch custom event for web component usage
-		const event = new CustomEvent('qti-change', {
-			detail: {
-				responseId: parsedInteraction?.responseId,
-				value: positions,
-				timestamp: Date.now(),
-			},
-			bubbles: true,
-			composed: true,
-		});
-		dispatchEvent(event);
+		onChange?.(responseValue);
+		// Dispatch custom event for web component usage - event will bubble up to the host element
+		if (rootElement) {
+			rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction?.responseId, responseValue));
+		}
 	}
 
 	function getStageById(id: string) {
@@ -156,7 +287,7 @@
 
 <ShadowBaseStyles />
 
-<div class="qti-position-object-interaction">
+<div bind:this={rootElement} part="root" class="qti-position-object-interaction">
 	{#if !parsedInteraction}
 		<div class="alert alert-error">No interaction data provided</div>
 	{:else}
@@ -164,14 +295,14 @@
 			<p part="prompt" class="qti-po-prompt font-semibold mb-3">{@html parsedInteraction.prompt}</p>
 		{/if}
 
-		<div part="layout" class="qti-po-layout flex flex-col lg:flex-row gap-4">
+		<div part="layout" class="qti-po-layout flex flex-col lg:flex-row gap-4 items-start">
 			<!-- Canvas Area with Background Image -->
-			<div part="canvas-area" class="qti-po-canvas-area flex-1">
+			<div part="canvas-area" class="qti-po-canvas-area flex-1 min-w-0">
 				<div
 					bind:this={imageContainer}
 					part="canvas"
 					class="qti-po-canvas relative border-2 border-base-300 rounded-lg overflow-hidden bg-base-200"
-					style="width: {parsedInteraction.imageData?.width}px; height: {parsedInteraction.imageData?.height}px;"
+					style="width: 100%; aspect-ratio: {parsedInteraction.imageData?.width || 800} / {parsedInteraction.imageData?.height || 600}; box-sizing: border-box;"
 				ondrop={handleDrop}
 				ondragover={handleDragOver}
 				role="region"
@@ -187,7 +318,8 @@
 						<img
 							src={parsedInteraction.imageData.src}
 							alt="Positioning background"
-							class="w-full h-full object-contain pointer-events-none"
+							class="pointer-events-none"
+							style="display: block; width: 100%; height: 100%; object-fit: contain;"
 						/>
 					{/if}
 				{/if}
@@ -199,7 +331,7 @@
 						<div
 							part="placed"
 							class="qti-po-placed absolute cursor-move"
-							style="left: {position.x}px; top: {position.y}px; z-index: {10 + index};"
+							style="left: {position.x * scaleFactor}px; top: {position.y * scaleFactor}px; z-index: {10 + index}; transform-origin: top left;"
 							draggable={canInteract}
 							ondragstart={(e) => handleDragStart(e, position.stageId, index)}
 							role="button"
@@ -209,8 +341,7 @@
 							{#if stage.objectData}
 								{#if stage.objectData.type === 'svg' && stage.objectData.content}
 									<div
-										style="width: {stage.objectData.width || '50'}px; height: {stage.objectData
-											.height || '50'}px;"
+										style="width: {(parseInt(stage.objectData.width || '50')) * scaleFactor}px; height: {(parseInt(stage.objectData.height || '50')) * scaleFactor}px;"
 									>
 										{@html stage.objectData.content}
 									</div>
@@ -218,8 +349,7 @@
 									<img
 										src={stage.objectData.src}
 										alt={stage.label}
-										style="width: {stage.objectData.width || '50'}px; height: {stage.objectData
-											.height || '50'}px;"
+										style="width: {(parseInt(stage.objectData.width || '50')) * scaleFactor}px; height: {(parseInt(stage.objectData.height || '50')) * scaleFactor}px;"
 										class="pointer-events-none"
 									/>
 								{/if}
@@ -274,8 +404,8 @@
 		</div>
 
 		<!-- Object Palette -->
-		<div part="palette" class="qti-po-palette w-full lg:w-80">
-			<div class="qti-po-card card bg-base-100 border border-base-300">
+		<div part="palette" class="qti-po-palette w-full lg:w-auto lg:flex-1 lg:min-w-[18rem]">
+			<div class="qti-po-card card bg-base-100 border border-base-300 h-full">
 				<div class="qti-po-card-body card-body p-4">
 					<h3 class="card-title text-sm">
 						Available Objects ({positions.length}{#if parsedInteraction.maxChoices > 0}/{parsedInteraction.maxChoices}{/if})
@@ -305,18 +435,19 @@
 								<div class="qti-po-preview flex-shrink-0">
 									{#if stage.objectData}
 										{#if stage.objectData.type === 'svg' && stage.objectData.content}
-											<div class="w-10 h-10">
+											<div class="w-10 h-10" data-drag-preview>
 												{@html stage.objectData.content}
 											</div>
 										{:else if stage.objectData.src}
 											<img
 												src={stage.objectData.src}
 												alt={stage.label}
-												class="w-10 h-10 object-contain"
+												class="w-10 h-10 object-contain qti-po-preview-image"
+												data-drag-preview
 											/>
 										{/if}
 									{:else}
-										<div class="w-10 h-10 flex items-center justify-center">
+										<div class="w-10 h-10 flex items-center justify-center" data-drag-preview>
 											<span class="text-2xl">📦</span>
 										</div>
 									{/if}
@@ -332,21 +463,7 @@
 
 								<!-- Drag Indicator -->
 								{#if canInteract && canDrag}
-									<svg
-										xmlns="http://www.w3.org/2000/svg"
-										part="drag-icon"
-										class="qti-icon qti-po-drag-icon h-5 w-5 text-base-content/40"
-										fill="none"
-										viewBox="0 0 24 24"
-										stroke="currentColor"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M8 9l4-4 4 4m0 6l-4 4-4-4"
-										/>
-									</svg>
+									<DragHandle size={1.25} opacity={0.4} />
 								{/if}
 							</div>
 						{/each}
@@ -366,11 +483,6 @@
 	}
 
 	/* Minimal icon sizing so SVGs don't fall back to browser default size without Tailwind */
-	.qti-icon {
-		width: 1.25rem;
-		height: 1.25rem;
-		flex: 0 0 auto;
-	}
 	.qti-icon-xs {
 		width: 0.75rem;
 		height: 0.75rem;
@@ -382,9 +494,10 @@
 		display: flex;
 		gap: 1rem;
 		flex-wrap: wrap;
+		align-items: flex-start;
 	}
 	.qti-po-canvas-area {
-		flex: 1 1 520px;
+		flex: 1 1 0;
 		min-width: 280px;
 	}
 	.qti-po-canvas {
@@ -393,19 +506,21 @@
 		overflow: hidden;
 		border: 2px solid var(--color-base-300, oklch(95% 0 0));
 		background: var(--color-base-200, oklch(98% 0 0));
+		width: 100%;
 	}
 	/* Critical: positioned items must be absolutely positioned even without Tailwind's `absolute` utility */
 	.qti-po-placed {
 		position: absolute;
 	}
 	.qti-po-palette {
-		flex: 0 0 20rem;
+		flex: 1 1 0;
 		min-width: 18rem;
 	}
 	.qti-po-card {
 		border: 1px solid var(--color-base-300, oklch(95% 0 0));
 		border-radius: 0.75rem;
 		background: var(--color-base-100, oklch(100% 0 0));
+		height: 100%;
 	}
 	.qti-po-card-body {
 		padding: 1rem;

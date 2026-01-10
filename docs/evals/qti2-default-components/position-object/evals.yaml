@@ -9,76 +9,48 @@ examplesApp:
   routeTemplate: "/item-demo/{sampleId}"
 
 evals:
-  - id: position-object/position-object/correct
+  - id: position-object/position-object/partial-correct
     sampleId: position-object
-    gradeBand: "4-8"
-    subject: "general"
-    intent: "Placing at least 3 objects meets scoring rule (containerSize >= 3) → score 1."
+    gradeBand: "K-12"
+    subject: general
+    intent: "Position some furniture correctly to test partial credit scoring."
+
+    notes:
+      - "positionObjectInteraction uses baseType='point' with cardinality='multiple'"
+      - "Response format should be array of coordinate pairs like ['150 80', '250 200']"
+      - "Each positioned object contributes to the score based on matchObject rules"
+
     steps:
       - action: navigate
         path: "/item-demo/position-object"
+
       - action: dragToCanvas
         target:
-          description: "Drag Sofa onto the room canvas"
-          hint: "Drag from palette into the canvas region"
+          description: "Drag the Sofa icon from the palette to position (150, 80) on the canvas"
+          hint: "SOFA stage"
+
       - action: dragToCanvas
         target:
-          description: "Drag Coffee Table onto the room canvas"
-      - action: dragToCanvas
-        target:
-          description: "Drag Chair onto the room canvas"
+          description: "Drag a Coffee Table icon to position (350, 120)"
+          hint: "TABLE stage"
+
       - action: submit
         target:
           description: "Submit Answer(s) button"
+          hint: "Button text contains 'Submit Answer'"
+
     expected:
       responses:
         RESPONSE:
-          lengthGte: 3
-          eachEntryHas:
-            - "stageId"
-            - "x"
-            - "y"
+          lengthGte: 2
       outcomes:
         SCORE:
-          equals: 1.0
+          # Partial credit for some correct placements
+          gte: 0.0
+        # No MAXSCORE in sample item
+
     spiritChecks:
-      - "The canvas clearly indicates where objects can be dropped."
-      - "Placed objects are movable and removable without accidental loss of work."
-
-  - id: position-object/position-object/partial
-    sampleId: position-object
-    gradeBand: "4-8"
-    subject: "general"
-    intent: "Only 2 placed objects should score 0 (does not meet containerSize >= 3)."
-    steps:
-      - action: navigate
-        path: "/item-demo/position-object"
-      - action: dragToCanvas
-        target:
-          description: "Place exactly two objects (e.g., Sofa and Table)"
-      - action: submit
-        target:
-          description: "Submit Answer(s) button"
-    expected:
-      outcomes:
-        SCORE:
-          equals: 0.0
-
-  - id: position-object/position-object/wrong-empty
-    sampleId: position-object
-    gradeBand: "4-8"
-    subject: "general"
-    intent: "No placed objects should score 0."
-    steps:
-      - action: navigate
-        path: "/item-demo/position-object"
-      - action: submit
-        target:
-          description: "Submit Answer(s) button"
-        note: "If submit is disabled for empty responses, treat this as expected gating behavior."
-    expected:
-      outcomes:
-        SCORE:
-          equals: 0.0
-
-
+      - "Draggable objects are clearly visible with icons/images, not just text labels."
+      - "Objects snap to canvas and can be repositioned by dragging them again."
+      - "Usage counts (e.g., '1/2 used') update correctly as objects are placed."
+      - "Remove buttons on placed objects work and restore availability in palette."

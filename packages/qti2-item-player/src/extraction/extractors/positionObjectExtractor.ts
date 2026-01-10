@@ -2,6 +2,25 @@
  * Standard QTI positionObjectInteraction extractor
  *
  * Extracts data from positionObjectInteraction elements (drag objects to positions)
+ *
+ * ⚠️ IMPORTANT: QTI 2.2 positionObjectInteraction Limitations
+ *
+ * This interaction has severe limitations that make it impractical for most educational scenarios:
+ *
+ * 1. Response format is baseType="point" - only stores coordinates ["158 168"]
+ * 2. NO way to track which specific object was placed where
+ * 3. Designed ONLY for placing multiple copies of the SAME object (e.g., airport icons)
+ * 4. Cannot support "place labeled objects on map" use cases
+ *
+ * The official QTI 2.2 spec example shows:
+ * - ONE positionObjectStage (container) with background image
+ * - ONE positionObjectInteraction with ONE draggable object
+ * - maxChoices determines how many times the object can be placed
+ * - Scoring uses areaMapping to check if ANY placement hits target zones
+ *
+ * This extractor supports a NON-STANDARD extension with multiple positionObjectStage
+ * elements (each with identifiers), but the response format cannot preserve object identity.
+ * For labeled-object placement, use graphicGapMatchInteraction instead.
  */
 
 import type { ElementExtractor } from '../types.js';
@@ -170,6 +189,15 @@ export const standardPositionObjectExtractor: ElementExtractor<PositionObjectDat
 			errors.push('positionObjectInteraction must have an image URL');
 		} else if (data.imageData.type === 'svg' && !data.imageData.content) {
 			errors.push('positionObjectInteraction must have SVG content');
+		}
+
+		// Warn about dimension consistency (cannot verify actual file dimensions at extraction time)
+		if (data.imageData && data.imageData.type === 'image') {
+			warnings.push(
+				'IMPORTANT: Ensure declared width/height match actual image file dimensions. ' +
+					'Mismatched dimensions cause coordinate system errors in mapResponsePoint scoring. ' +
+					`Declared: ${data.imageData.width || 'unspecified'}×${data.imageData.height || 'unspecified'}`
+			);
 		}
 
 		// Validate positionObjectStages exist

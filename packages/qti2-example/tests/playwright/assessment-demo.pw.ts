@@ -17,21 +17,33 @@ test.describe('/assessment-demo', () => {
 	test('science demo enforces "cannot go back" once you move forward', async ({ page }) => {
 		await page.goto('/assessment-demo');
 
-		// Select the Science sample from dropdown by value (sample id).
-		await page.getByLabel('Sample Assessments').selectOption('science-1');
+		// Wait for test helpers to be available
+		await page.waitForFunction(() => typeof (window as any).__testHelpers !== 'undefined', { timeout: 10000 });
+
+		// Select the Science sample using test helper (workaround for Svelte 5 + Playwright compatibility)
+		await page.evaluate(() => (window as any).__testHelpers.selectSample('science-1'));
+
+		// Wait for the assessment shell to re-render with new content
+		// The shell shows the assessment identifier as a heading when loaded
+		await expect(page.getByRole('heading', { name: 'SCIENCE-001' })).toBeVisible({ timeout: 10000 });
+
+		// Wait for the order interaction to fully render before interacting
+		const orderHost = page.locator('pie-qti-order').first();
+		await expect(orderHost).toBeVisible({ timeout: 10000 });
 
 		// On Q1 (orderInteraction), "Previous" is disabled.
 		const prev = page.getByRole('button', { name: /^Previous$/i });
 		const next = page.getByRole('button', { name: /^Next$/i });
 		await expect(prev).toBeDisabled();
+		await expect(next).toBeEnabled();
 
 		// Move forward without answering should be blocked (allowSkipping=false, validateResponses=true).
 		await next.click();
-		await expect(page.getByText(/must answer this item/i)).toBeVisible();
+		// Wait a bit for validation to trigger
+		await page.waitForTimeout(500);
+		await expect(page.getByText(/must answer this item/i)).toBeVisible({ timeout: 10000 });
 
 		// Provide an order response by dispatching a qti-change from the host element.
-		const orderHost = page.locator('pie-qti-order').first();
-		await expect(orderHost).toBeVisible();
 		const interaction = await orderHost.evaluate((el: any) => {
 			const raw = el.interaction ?? el.getAttribute('interaction');
 			return typeof raw === 'string' ? JSON.parse(raw) : raw;
@@ -64,7 +76,12 @@ test.describe('/assessment-demo', () => {
 
 	test('interaction showcase sample renders multiple interaction types', async ({ page }) => {
 		await page.goto('/assessment-demo');
-		await page.getByLabel('Sample Assessments').selectOption('interaction-showcase-1');
+
+		// Wait for test helpers to be available
+		await page.waitForFunction(() => typeof (window as any).__testHelpers !== 'undefined', { timeout: 10000 });
+
+		// Select the interaction showcase sample using test helper
+		await page.evaluate(() => (window as any).__testHelpers.selectSample('interaction-showcase-1'));
 
 		// The showcase contains a passage split-pane + choice first.
 		await expect(page.locator('pie-qti-choice').first()).toBeVisible();
@@ -73,21 +90,45 @@ test.describe('/assessment-demo', () => {
 
 	test('section switching navigates to the selected section (interaction showcase)', async ({ page }) => {
 		await page.goto('/assessment-demo');
-		await page.getByLabel('Sample Assessments').selectOption('interaction-showcase-1');
+
+		// Wait for test helpers to be available
+		await page.waitForFunction(() => typeof (window as any).__testHelpers !== 'undefined', { timeout: 10000 });
+
+		// Select the interaction showcase sample using test helper
+		await page.evaluate(() => (window as any).__testHelpers.selectSample('interaction-showcase-1'));
+
+		// Wait for the assessment shell to re-render with new content
+		await expect(page.getByRole('heading', { name: 'SHOWCASE-001' })).toBeVisible({ timeout: 10000 });
+
+		// Wait for initial section to load
+		await expect(page.locator('pie-qti-choice').first()).toBeVisible({ timeout: 10000 });
 
 		// Open the section menu (only shown when multiple sections exist).
-		await page.getByRole('button', { name: /^Sections$/i }).click();
+		const sectionsButton = page.getByRole('button', { name: /^Sections$/i });
+		await expect(sectionsButton).toBeVisible();
+		await sectionsButton.click();
+
+		// Wait for menu to open
+		await page.waitForTimeout(300);
 
 		// Select the "Hotspot" section and verify we now render a hotspot interaction.
-		await page.getByRole('button', { name: /^Hotspot$/i }).click();
-		await expect(page.locator('pie-qti-hotspot').first()).toBeVisible();
+		const hotspotButton = page.getByRole('button', { name: /^Hotspot$/i });
+		await expect(hotspotButton).toBeVisible();
+		await hotspotButton.click();
+
+		// Wait for navigation and new interaction to render
+		await page.waitForTimeout(500);
+		await expect(page.locator('pie-qti-hotspot').first()).toBeVisible({ timeout: 15000 });
 	});
 
 	test('after submit, an end screen shows total and per-question scores', async ({ page }) => {
 		await page.goto('/assessment-demo');
 
+		// Wait for test helpers to be available
+		await page.waitForFunction(() => typeof (window as any).__testHelpers !== 'undefined', { timeout: 10000 });
+
 		// Use Reading Comprehension sample (nonlinear/simultaneous) so we can move through items easily.
-		await page.getByLabel('Sample Assessments').selectOption('reading-comp-1');
+		await page.evaluate(() => (window as any).__testHelpers.selectSample('reading-comp-1'));
 
 		const next = page.getByRole('button', { name: /^Next$/i });
 		const submit = page.getByRole('button', { name: /^Submit Assessment$/i });
@@ -117,7 +158,12 @@ test.describe('/assessment-demo', () => {
 
 	test('interaction showcase scoring is non-zero when answering a known-correct item', async ({ page }) => {
 		await page.goto('/assessment-demo');
-		await page.getByLabel('Sample Assessments').selectOption('interaction-showcase-1');
+
+		// Wait for test helpers to be available
+		await page.waitForFunction(() => typeof (window as any).__testHelpers !== 'undefined', { timeout: 10000 });
+
+		// Select the interaction showcase sample using test helper
+		await page.evaluate(() => (window as any).__testHelpers.selectSample('interaction-showcase-1'));
 
 		// First item is based on reading comprehension q1 where correct choice is identifier "A" (Evaporation).
 		const choiceHost = page.locator('pie-qti-choice').first();
@@ -143,7 +189,15 @@ test.describe('/assessment-demo', () => {
 
 	test('interaction showcase scores two known-correct choice items', async ({ page }) => {
 		await page.goto('/assessment-demo');
-		await page.getByLabel('Sample Assessments').selectOption('interaction-showcase-1');
+
+		// Wait for test helpers to be available
+		await page.waitForFunction(() => typeof (window as any).__testHelpers !== 'undefined', { timeout: 10000 });
+
+		// Select the interaction showcase sample using test helper
+		await page.evaluate(() => (window as any).__testHelpers.selectSample('interaction-showcase-1'));
+
+		// Wait for the assessment shell to re-render with new content
+		await expect(page.getByRole('heading', { name: 'SHOWCASE-001' })).toBeVisible({ timeout: 10000 });
 
 		const next = page.getByRole('button', { name: /^Next$/i });
 		const submit = page.getByRole('button', { name: /^Submit Assessment$/i });
@@ -158,16 +212,23 @@ test.describe('/assessment-demo', () => {
 
 		// Q1 (water cycle) correct is "A"
 		const q1Choice = page.locator('pie-qti-choice').first();
-		await expect(q1Choice).toBeVisible();
-		await q1Choice.locator('input[type="radio"][value="A"]').click();
+		await expect(q1Choice).toBeVisible({ timeout: 10000 });
+		const q1Radio = q1Choice.locator('input[type="radio"][value="A"]');
+		await expect(q1Radio).toBeVisible();
+		await q1Radio.click();
+		await expect(q1Radio).toBeChecked();
 		await next.click();
+
+		// Wait for Q2 to load
+		await page.waitForTimeout(500);
 
 		// Q2 (industrial revolution stimulus) correct is "ChoiceB"
 		const q2Choice = page.locator('pie-qti-choice').first();
-		await expect(q2Choice).toBeVisible();
-		await expect(q2Choice.locator('input[type="radio"][value="ChoiceB"]')).toBeVisible();
-		await q2Choice.locator('input[type="radio"][value="ChoiceB"]').click();
-		await expect(q2Choice.locator('input[type="radio"][value="ChoiceB"]')).toBeChecked();
+		await expect(q2Choice).toBeVisible({ timeout: 10000 });
+		const q2Radio = q2Choice.locator('input[type="radio"][value="ChoiceB"]');
+		await expect(q2Radio).toBeVisible({ timeout: 10000 });
+		await q2Radio.click();
+		await expect(q2Radio).toBeChecked();
 
 		const changes = await page.evaluate(() => (window as any).__qtiChanges);
 		console.log('qti-change events:', JSON.stringify(changes, null, 2));

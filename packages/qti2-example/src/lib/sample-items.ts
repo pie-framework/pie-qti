@@ -6,6 +6,8 @@
  * can learn from and adapt for their own assessments.
  */
 
+import { EDGE_CASE_ITEMS } from './sample-items-edge-cases.js';
+
 export const SIMPLE_CHOICE = `<?xml version="1.0" encoding="UTF-8"?>
 <assessmentItem
   xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
@@ -1967,12 +1969,10 @@ export const DRAWING_INTERACTION = `<?xml version="1.0" encoding="UTF-8"?>
 
   <itemBody>
     <p><strong>Drawing:</strong> Draw a line on the canvas.</p>
-    <drawingInteraction responseIdentifier="DRAW">
-      <prompt>Annotate the diagram</prompt>
+    <drawingInteraction responseIdentifier="DRAW" data-stroke-color="#2563eb" data-line-width="5">
       <object type="image/svg+xml" width="500" height="300">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 300">
-          <rect x="10" y="10" width="480" height="280" fill="#ffffff" stroke="#111827" stroke-width="2"/>
-          <text x="250" y="40" text-anchor="middle" font-size="18" fill="#111827">Draw anywhere inside the box</text>
+          <rect x="0" y="0" width="500" height="300" fill="#ffffff"/>
         </svg>
       </object>
     </drawingInteraction>
@@ -2551,17 +2551,8 @@ export const ADAPTIVE_ITEM = `<?xml version="1.0" encoding="UTF-8"?>
 
   <responseProcessing>
     <responseCondition>
-      <!-- Handle hint request -->
+      <!-- Check answer correctness first -->
       <responseIf>
-        <match>
-          <variable identifier="HINT"/>
-          <baseValue baseType="boolean">true</baseValue>
-        </match>
-        <setOutcomeValue identifier="FEEDBACK">
-          <baseValue baseType="identifier">hint</baseValue>
-        </setOutcomeValue>
-      </responseIf>
-      <responseElseIf>
         <!-- Correct answer -->
         <match>
           <variable identifier="RESPONSE"/>
@@ -2576,7 +2567,7 @@ export const ADAPTIVE_ITEM = `<?xml version="1.0" encoding="UTF-8"?>
         <setOutcomeValue identifier="FEEDBACK">
           <baseValue baseType="identifier">correct</baseValue>
         </setOutcomeValue>
-      </responseElseIf>
+      </responseIf>
       <responseElseIf>
         <!-- First attempt incorrect -->
         <lt>
@@ -2602,6 +2593,18 @@ export const ADAPTIVE_ITEM = `<?xml version="1.0" encoding="UTF-8"?>
           <baseValue baseType="identifier">answer</baseValue>
         </setOutcomeValue>
       </responseElse>
+    </responseCondition>
+    <!-- Handle hint request separately (overrides feedback if hint was requested) -->
+    <responseCondition>
+      <responseIf>
+        <match>
+          <variable identifier="HINT"/>
+          <baseValue baseType="boolean">true</baseValue>
+        </match>
+        <setOutcomeValue identifier="FEEDBACK">
+          <baseValue baseType="identifier">hint</baseValue>
+        </setOutcomeValue>
+      </responseIf>
     </responseCondition>
   </responseProcessing>
 
@@ -2756,12 +2759,8 @@ export const GRAPHIC_ORDER_INTERACTION = `<?xml version="1.0" encoding="UTF-8"?>
     <p><strong>Geology:</strong> Arrange the geological layers in order from bottom to top.</p>
     <graphicOrderInteraction responseIdentifier="RESPONSE">
       <prompt>Drag to reorder the layers correctly:</prompt>
-      <object type="image/svg+xml" width="400" height="300">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
-          <rect width="400" height="300" fill="#87CEEB"/>
-          <rect x="50" y="50" width="300" height="200" fill="#DEB887"/>
-          <text x="200" y="150" text-anchor="middle" font-size="16" fill="#333">Earth Cross-Section</text>
-        </svg>
+      <object type="image/png" data="/sample-geolayers.png" width="600" height="350">
+        Geological layers cross-section diagram
       </object>
       <hotspotChoice identifier="TOPSOIL" shape="rect" coords="0,0,100,50">Top Soil</hotspotChoice>
       <hotspotChoice identifier="SEDIMENTARY" shape="rect" coords="0,0,100,50">Sedimentary Rock</hotspotChoice>
@@ -2788,17 +2787,27 @@ export const GRAPHIC_ORDER_INTERACTION = `<?xml version="1.0" encoding="UTF-8"?>
   </responseProcessing>
 </assessmentItem>`;
 
+// NOTE: positionObjectInteraction has severe QTI 2.2 spec limitations:
+// - Response format (baseType="point") only stores coordinates, not object identifiers
+// - Cannot track which specific object was placed where
+// - Only suitable for placing multiple copies of the SAME object (like airport icons)
+// - For labeled object placement, use graphicGapMatchInteraction instead
+// This example demonstrates the interaction but has limited practical utility.
 export const POSITION_OBJECT_INTERACTION = `<?xml version="1.0" encoding="UTF-8"?>
 <assessmentItem
   xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
   identifier="position-object"
-  title="Position Object Interaction">
+  title="Geography - State Capitals"
+  adaptive="false"
+  timeDependent="false">
   <responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="point">
     <correctResponse>
-      <value>150 80</value>
-      <value>350 120</value>
-      <value>250 200</value>
+      <value>105 132</value>
     </correctResponse>
+    <!-- Use areaMapping for tolerance: accept any point within 25px radius of Austin -->
+    <areaMapping defaultValue="0">
+      <areaMapEntry shape="circle" coords="105,132,25" mappedValue="1.0"/>
+    </areaMapping>
   </responseDeclaration>
   <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
     <defaultValue>
@@ -2807,89 +2816,26 @@ export const POSITION_OBJECT_INTERACTION = `<?xml version="1.0" encoding="UTF-8"
   </outcomeDeclaration>
   <itemBody>
     <div class="qti-item">
-      <p>Position the furniture items in the room layout. Drag each piece from the palette and place it in an appropriate location.</p>
-      <positionObjectInteraction responseIdentifier="RESPONSE" maxChoices="5">
-        <prompt>Arrange the furniture in the room</prompt>
-        <object type="image/svg+xml" width="500" height="300">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 300">
-            <rect width="500" height="300" fill="#f5f5f0"/>
-            <text x="10" y="20" font-size="12" fill="#666">Room Layout</text>
-            <rect x="10" y="30" width="480" height="260" fill="white" stroke="#999" stroke-width="2"/>
-            <text x="20" y="50" font-size="10" fill="#999">Living Room - Position furniture as needed</text>
-            <rect x="200" y="30" width="100" height="5" fill="#99ccff" stroke="#6699cc" stroke-width="1"/>
-            <text x="215" y="25" font-size="8" fill="#6699cc">Window</text>
-          </svg>
+      <p>Place the star marker on the capital of Texas (Austin).</p>
+      <positionObjectInteraction responseIdentifier="RESPONSE" maxChoices="1">
+        <prompt>Drag the star to the correct location:</prompt>
+        <object type="image/png" data="/usa-map-capitals.png" width="300" height="196">
+          USA Outline Map
         </object>
-        <positionObjectStage identifier="SOFA" matchMax="1">
-          <object type="image/svg+xml" width="80" height="40">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 40">
-              <rect width="80" height="40" fill="#8B4513" stroke="#654321" stroke-width="2" rx="3"/>
-              <rect x="5" y="5" width="70" height="30" fill="#A0522D"/>
-              <text x="40" y="25" font-size="10" fill="white" text-anchor="middle">Sofa</text>
+        <positionObjectStage identifier="AUSTIN" matchMax="1">
+          <object type="image/svg+xml" width="24" height="24">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="gold" stroke="orange" stroke-width="1">
+              <polygon points="12,2 15,10 24,10 17,15 20,23 12,18 4,23 7,15 0,10 9,10"/>
             </svg>
-          </object>
-          Sofa
-        </positionObjectStage>
-        <positionObjectStage identifier="TABLE" matchMax="2">
-          <object type="image/svg+xml" width="50" height="50">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50">
-              <circle cx="25" cy="25" r="23" fill="#CD853F" stroke="#8B4513" stroke-width="2"/>
-              <text x="25" y="30" font-size="10" fill="white" text-anchor="middle">Table</text>
-            </svg>
-          </object>
-          Coffee Table
-        </positionObjectStage>
-        <positionObjectStage identifier="CHAIR" matchMax="4">
-          <object type="image/svg+xml" width="35" height="35">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 35 35">
-              <rect width="35" height="35" fill="#696969" stroke="#404040" stroke-width="2" rx="2"/>
-              <text x="17.5" y="22" font-size="8" fill="white" text-anchor="middle">Chair</text>
-            </svg>
-          </object>
-          Chair
-        </positionObjectStage>
-        <positionObjectStage identifier="LAMP" matchMax="2">
-          <object type="image/svg+xml" width="25" height="40">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 25 40">
-              <polygon points="5,10 20,10 12.5,0" fill="#FFD700" stroke="#DAA520" stroke-width="1"/>
-              <rect x="10" y="10" width="5" height="30" fill="#696969"/>
-              <text x="12.5" y="35" font-size="6" fill="white" text-anchor="middle">Lamp</text>
-            </svg>
-          </object>
-          Floor Lamp
-        </positionObjectStage>
-        <positionObjectStage identifier="PLANT" matchMax="3">
-          <object type="image/svg+xml" width="30" height="30">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30">
-              <circle cx="15" cy="25" r="5" fill="#8B4513"/>
-              <circle cx="15" cy="15" r="10" fill="#228B22" stroke="#006400" stroke-width="1"/>
-              <text x="15" y="19" font-size="6" fill="white" text-anchor="middle">Plant</text>
-            </svg>
-          </object>
-          Plant
-        </positionObjectStage>
+          </object>Austin</positionObjectStage>
       </positionObjectInteraction>
     </div>
   </itemBody>
   <responseProcessing>
-    <responseCondition>
-      <responseIf>
-        <gte>
-          <containerSize>
-            <variable identifier="RESPONSE"/>
-          </containerSize>
-          <baseValue baseType="integer">3</baseValue>
-        </gte>
-        <setOutcomeValue identifier="SCORE">
-          <baseValue baseType="float">1.0</baseValue>
-        </setOutcomeValue>
-      </responseIf>
-      <responseElse>
-        <setOutcomeValue identifier="SCORE">
-          <baseValue baseType="float">0.0</baseValue>
-        </setOutcomeValue>
-      </responseElse>
-    </responseCondition>
+    <!-- Use mapResponsePoint with areaMapping to score based on proximity to target -->
+    <setOutcomeValue identifier="SCORE">
+      <mapResponsePoint identifier="RESPONSE"/>
+    </setOutcomeValue>
   </responseProcessing>
 </assessmentItem>`;
 
@@ -3199,4 +3145,7 @@ export const SAMPLE_ITEMS: SampleItem[] = [
     description: 'Multi-attempt adaptive question with progressive feedback and hints',
     xml: ADAPTIVE_ITEM,
   },
+
+  // Edge Case Items - UI Genericity Testing
+  ...EDGE_CASE_ITEMS,
 ];

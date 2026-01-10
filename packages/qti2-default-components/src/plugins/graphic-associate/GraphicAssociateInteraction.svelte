@@ -4,6 +4,7 @@
 	import type { GraphicAssociateInteractionData } from '@pie-qti/qti2-item-player';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
+	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
 
 	interface Props {
 		interaction?: GraphicAssociateInteractionData | string;
@@ -17,6 +18,9 @@
 	// Parse props that may be JSON strings (web component usage)
 	const parsedInteraction = $derived(parseJsonProp<GraphicAssociateInteractionData>(interaction));
 	const parsedResponse = $derived(parseJsonProp<string[]>(response));
+
+	// Get reference to the root element for event dispatching
+	let rootElement: HTMLDivElement | undefined = $state();
 
 	// Pairs are stored as "ID1 ID2" strings (space-separated)
 	let pairs = $state<string[]>([]);
@@ -60,17 +64,10 @@
 			response = pairs;
 			// Call onChange callback if provided (for Svelte component usage)
 			onChange?.(pairs);
-			// Dispatch custom event for web component usage
-			const event = new CustomEvent('qti-change', {
-				detail: {
-					responseId: parsedInteraction?.responseId,
-					value: pairs,
-					timestamp: Date.now(),
-				},
-				bubbles: true,
-				composed: true,
-			});
-			dispatchEvent(event);
+			// Dispatch custom event for web component usage - event will bubble up to the host element
+			if (rootElement) {
+				rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction?.responseId, pairs));
+			}
 			selectedHotspot = null;
 		}
 	}
@@ -81,17 +78,10 @@
 		response = pairs;
 		// Call onChange callback if provided (for Svelte component usage)
 		onChange?.(pairs);
-		// Dispatch custom event for web component usage
-		const event = new CustomEvent('qti-change', {
-			detail: {
-				responseId: parsedInteraction?.responseId,
-				value: pairs,
-				timestamp: Date.now(),
-			},
-			bubbles: true,
-			composed: true,
-		});
-		dispatchEvent(event);
+		// Dispatch custom event for web component usage - event will bubble up to the host element
+		if (rootElement) {
+			rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction?.responseId, pairs));
+		}
 	}
 
 	function getHotspotById(id: string) {
@@ -132,7 +122,7 @@
 
 <ShadowBaseStyles />
 
-<div class="qti-graphic-associate-interaction">
+<div bind:this={rootElement} part="root" class="qti-graphic-associate-interaction">
 	{#if !parsedInteraction}
 		<div class="alert alert-error">No interaction data provided</div>
 	{:else}

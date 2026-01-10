@@ -5,6 +5,8 @@
 	import { browser } from '$app/environment';
 	import { base } from '$app/paths';
 	import { page } from '$app/stores';
+	import { initI18n } from '@pie-qti/qti2-i18n';
+	import LocaleSwitcher from '@pie-qti/qti2-i18n/components/LocaleSwitcher.svelte';
 
 	const { children } = $props();
 	let theme = $state('light');
@@ -48,7 +50,11 @@
 		'high-contrast', // WCAG AAA compliant high contrast theme
 	];
 
-	onMount(() => {
+	onMount(async () => {
+		// Initialize i18n system
+		const i18n = initI18n('en-US');
+		await i18n.loadLocale('en-US');
+
 		// Register QTI player web components on the client only.
 		// This module touches browser globals (customElements/window) and must not run during prerender/SSR.
 		if (browser) {
@@ -138,6 +144,9 @@
 						<a href="{base}/iframe-demo" class:active={currentPath === `${base}/iframe-demo`}>Iframe Demo</a>
 					</li>
 				</ul>
+				<div class="px-2">
+					<LocaleSwitcher />
+				</div>
 				<div class="dropdown dropdown-end">
 					<div tabindex="0" role="button" class="btn btn-ghost" aria-label="Theme: {theme}">
 						<svg

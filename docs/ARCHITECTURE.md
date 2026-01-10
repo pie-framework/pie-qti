@@ -48,6 +48,7 @@ Everything lives under `packages/`:
 
 ### Optional adapters / supporting packages
 
+- `packages/qti2-i18n`: Internationalization (i18n) system for player UI (type-safe translations, runtime locale switching)
 - `packages/qti2-typeset-katex`: KaTeX typesetting adapter (host-provided `typeset()` function)
 - `packages/qti-processing`: response processing operators/templates used by the item player
 - `packages/qti2-player-elements`, `packages/web-component-loaders`: web-component build/load helpers
@@ -241,6 +242,102 @@ Key references:
 
 - `packages/qti2-default-components/STYLING.md` (full part catalog and examples)
 - `packages/qti2-default-components/src/shared/components/ShadowBaseStyles.svelte`
+
+---
+
+## Internationalization (i18n)
+
+> **Status**: Production-ready
+> **Package**: `@pie-qti/qti2-i18n`
+
+### Overview
+
+The PIE-QTI player includes a lightweight, type-safe internationalization system for translating player UI strings (buttons, labels, error messages, ARIA text, etc.).
+
+**Note**: This system translates the **player interface**, not QTI assessment content. Assessments are authored in the content creator's chosen language.
+
+### Key features
+
+- **Type-safe translations**: TypeScript autocomplete for all message keys
+- **Runtime locale switching**: Change language without page reload or component remount
+- **Reactive updates**: Svelte store integration automatically updates all UI text
+- **Web Component compatible**: Works within Shadow DOM boundaries via context API
+- **Small bundle size**: <10 KB gzipped (core + default English locale)
+- **On-demand loading**: Additional locales loaded asynchronously when needed
+
+### Supported locales (Priority 1)
+
+| Locale Code | Language                    |
+|-------------|-----------------------------|
+| `en-US`     | English (United States)     |
+| `es-ES`     | Spanish (Spain)             |
+| `fr-FR`     | French (France)             |
+| `de-DE`     | German (Germany)            |
+| `pt-BR`     | Portuguese (Brazil)         |
+
+### Architecture
+
+The i18n system consists of:
+
+1. **Core I18n class** (`I18n.ts`) - Message lookup, interpolation, pluralization, number/date formatting
+2. **Svelte store integration** (`store.ts`) - Reactive `$t`, `$formatNumber`, `$formatDate` stores
+3. **Context API** (`context.ts`) - Pass i18n instance through component tree (including Shadow DOM)
+4. **Locale files** (`locales/*.ts`) - TypeScript modules with structured translation messages
+5. **LocaleSwitcher component** - Dropdown UI for runtime locale selection
+
+### Usage in components
+
+```svelte
+<script lang="ts">
+  import { t } from '@pie-qti/qti2-i18n';
+</script>
+
+<!-- Simple translation -->
+<button>{$t('common.submit')}</button>
+
+<!-- With interpolation -->
+<p>{$t('assessment.question', { current: 1, total: 10 })}</p>
+
+<!-- Error messages -->
+<div class="alert">{$t('interactions.upload.errorInvalidType', { types: 'pdf, jpg' })}</div>
+```
+
+### Initialization
+
+Initialize i18n in the application root (e.g., `+layout.svelte`):
+
+```typescript
+import { initI18n } from '@pie-qti/qti2-i18n';
+
+const i18n = initI18n('en-US');
+await i18n.loadLocale('en-US');
+```
+
+### Message namespaces
+
+Translations are organized by feature:
+
+- `common.*` - Shared UI text (Submit, Cancel, Next, etc.)
+- `units.*` - Unit formatting (bytes, KB, seconds, etc.)
+- `validation.*` - Form validation messages
+- `interactions.*` - QTI interaction-specific text (organized by interaction type)
+- `assessment.*` - Assessment player UI (navigation, sections, timer, feedback)
+- `accessibility.*` - ARIA labels and screen reader announcements
+
+### Type safety
+
+Message keys are automatically typed from the English locale structure. IDEs provide autocomplete and compile-time validation:
+
+```typescript
+$t('common.submit')  // ✅ Valid
+$t('invalid.key')    // ❌ TypeScript error
+```
+
+### Key references
+
+- `packages/qti2-i18n/README.md` - Full API documentation and migration guide
+- `docs/i18n-design-plan.md` - Detailed design document with architecture rationale
+- `packages/qti2-i18n/src/locales/en-US.ts` - Complete list of available translation keys
 
 ---
 

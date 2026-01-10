@@ -332,5 +332,32 @@ describe('standardPositionObjectExtractor', () => {
 			expect(validation.valid).toBe(true);
 			expect(validation.warnings).toContain('positionObjectInteraction has no background image');
 		});
+
+	test('reports warning about dimension consistency for image backgrounds', () => {
+		const data = {
+			positionObjectStages: [
+				{
+					identifier: 'OBJ1',
+					label: 'Object 1',
+					matchMax: 1,
+					objectData: { type: 'image', src: 'obj.png', width: '50', height: '50' },
+				},
+			],
+			imageData: { type: 'image', src: 'test.png', width: '500', height: '400' },
+			maxChoices: 0,
+			minChoices: 0,
+			centerPoint: true,
+			prompt: null,
+		};
+
+		const validation = standardPositionObjectExtractor.validate!(data);
+
+		expect(validation.valid).toBe(true);
+		expect(validation.warnings).toBeDefined();
+		expect(validation.warnings?.some((w) => w.includes('declared width/height match'))).toBe(
+			true
+		);
+		expect(validation.warnings?.some((w) => w.includes('Declared: 500×400'))).toBe(true);
 	});
+});
 });

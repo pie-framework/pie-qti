@@ -6,6 +6,11 @@ export type A11yFixtureId =
 	| 'file-upload'
 	| 'drawing-canvas'
 	| 'custom-interaction-fallback'
+	| 'choice-interaction'
+	| 'slider-interaction'
+	| 'hotspot-interaction'
+	| 'hottext-interaction'
+	| 'extended-text-interaction'
 	| 'assessment-navigation-bar'
 	| 'assessment-section-menu'
 	| 'assessment-rubric-display'
@@ -24,6 +29,11 @@ export const A11Y_FIXTURES: A11yFixture[] = [
 	{ id: 'file-upload', title: 'FileUpload (item-player)' },
 	{ id: 'drawing-canvas', title: 'DrawingCanvas (item-player)' },
 	{ id: 'custom-interaction-fallback', title: 'CustomInteractionFallback (item-player)' },
+	{ id: 'choice-interaction', title: 'ChoiceInteraction (item-player)' },
+	{ id: 'slider-interaction', title: 'SliderInteraction (item-player)' },
+	{ id: 'hotspot-interaction', title: 'HotspotInteraction (item-player)' },
+	{ id: 'hottext-interaction', title: 'HottextInteraction (item-player)' },
+	{ id: 'extended-text-interaction', title: 'ExtendedTextInteraction (item-player)' },
 	{ id: 'assessment-navigation-bar', title: 'NavigationBar (assessment-player)' },
 	{ id: 'assessment-section-menu', title: 'SectionMenu (assessment-player)' },
 	{ id: 'assessment-rubric-display', title: 'RubricDisplay (assessment-player)' },

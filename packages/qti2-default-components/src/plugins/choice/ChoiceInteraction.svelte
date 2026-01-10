@@ -56,7 +56,7 @@
 
 <ShadowBaseStyles />
 
-<div bind:this={rootElement} part="root" class="qti-choice-interaction space-y-2">
+<div bind:this={rootElement} part="root" class="qti-choice-interaction space-y-2" use:typesetAction={{ typeset }}>
 	{#if !parsedInteraction}
 		<div class="alert alert-error">No interaction data provided</div>
 	{:else if parsedInteraction.maxChoices === 1}
@@ -74,7 +74,7 @@
 						onchange={() => handleRadioChange(choice.identifier)}
 						{disabled}
 					/>
-					<span part="text" class="qti-choice-text label-text" use:typesetAction={{ typeset }}>
+					<span part="text" class="qti-choice-text label-text">
 						{@html choice.text}
 					</span>
 				</label>
@@ -98,7 +98,7 @@
 						}}
 						{disabled}
 					/>
-					<span part="text" class="qti-choice-text label-text" use:typesetAction={{ typeset }}>
+					<span part="text" class="qti-choice-text label-text">
 						{@html choice.text}
 					</span>
 				</label>

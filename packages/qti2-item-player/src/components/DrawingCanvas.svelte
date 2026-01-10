@@ -6,32 +6,25 @@
 	 */
 
 	import type { QTIFileResponse } from '../types/index.js';
-
-	type ImageData =
-		| { type: 'svg'; content?: string; width: string; height: string }
-		| { type: 'image'; src?: string; width: string; height: string };
+	import type { DrawingInteractionData } from '../types/interactions';
 
 	interface Props {
-		responseId: string;
-		label?: string;
-		imageData?: ImageData | null;
+		interaction: DrawingInteractionData;
+		response?: QTIFileResponse | null;
 		disabled?: boolean;
-		value?: QTIFileResponse | null;
 		onChange: (value: QTIFileResponse | null) => void;
-		testIdCanvas?: string;
-		testIdClear?: string;
 	}
 
 	const {
-		responseId,
-		label = 'Draw your response',
-		imageData = null,
+		interaction,
+		response = null,
 		disabled = false,
-		value = null,
 		onChange,
-		testIdCanvas,
-		testIdClear,
 	}: Props = $props();
+
+	const responseId = $derived(interaction.responseId);
+	const imageData = $derived(interaction.imageData);
+	const value = $derived(response);
 
 	let canvasEl = $state<HTMLCanvasElement | null>(null);
 	let ctx = $state<CanvasRenderingContext2D | null>(null);
@@ -136,12 +129,14 @@
 </script>
 
 <div class="space-y-3">
+	{#if interaction.prompt}
+		<p class="font-semibold">{interaction.prompt}</p>
+	{/if}
+
 	<div class="flex items-center justify-between gap-4">
-		<div class="font-semibold">{label}</div>
 		<button
 			type="button"
 			class="btn btn-sm"
-			data-testid={testIdClear}
 			onclick={clear}
 			disabled={disabled}
 		>
@@ -174,7 +169,6 @@
 
 		<canvas
 			bind:this={canvasEl}
-			data-testid={testIdCanvas}
 			width={canvasWidth}
 			height={canvasHeight}
 			class="absolute inset-0 touch-none"
