@@ -1,0 +1,29 @@
+{
+  "id": "positionObject_mapResponse_wrong",
+  "cases": [
+    {
+      "name": "correct placement but wrong function => always 0",
+      "responses": {
+        "RESPONSE": ["100 100"]
+      },
+      "expect": {
+        "outcomes": {
+          "SCORE": 0
+        }
+      },
+      "note": "mapResponse cannot process point coordinates - always returns default/0"
+    },
+    {
+      "name": "placement in scoring zone but still 0 due to wrong function",
+      "responses": {
+        "RESPONSE": ["110 110"]
+      },
+      "expect": {
+        "outcomes": {
+          "SCORE": 0
+        }
+      },
+      "note": "This documents the bug we fixed - mapResponse doesn't work with baseType=point"
+    }
+  ]
+}

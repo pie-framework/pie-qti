@@ -1,0 +1,95 @@
+{
+  "id": "positionObject_coordinateSystem_aspectRatio",
+  "cases": [
+    {
+      "name": "exact center of 300x200 canvas => 1.0",
+      "responses": {
+        "RESPONSE": ["150 100"]
+      },
+      "expect": {
+        "outcomes": {
+          "SCORE": 1.0
+        }
+      }
+    },
+    {
+      "name": "near center (160,105) within 20px radius => 1.0",
+      "responses": {
+        "RESPONSE": ["160 105"]
+      },
+      "expect": {
+        "outcomes": {
+          "SCORE": 1.0
+        }
+      }
+    },
+    {
+      "name": "top-left quadrant center (75,50) => 0.5",
+      "responses": {
+        "RESPONSE": ["75 50"]
+      },
+      "expect": {
+        "outcomes": {
+          "SCORE": 0.5
+        }
+      }
+    },
+    {
+      "name": "bottom-right edge (280,180) => 0.25",
+      "responses": {
+        "RESPONSE": ["280 180"]
+      },
+      "expect": {
+        "outcomes": {
+          "SCORE": 0.25
+        }
+      }
+    },
+    {
+      "name": "corner (0,0) outside all zones => 0",
+      "responses": {
+        "RESPONSE": ["0 0"]
+      },
+      "expect": {
+        "outcomes": {
+          "SCORE": 0
+        }
+      }
+    },
+    {
+      "name": "opposite corner (300,200) outside all zones => 0",
+      "responses": {
+        "RESPONSE": ["300 200"]
+      },
+      "expect": {
+        "outcomes": {
+          "SCORE": 0
+        }
+      }
+    },
+    {
+      "name": "horizontal midpoint on top edge (150,0) => 0",
+      "responses": {
+        "RESPONSE": ["150 0"]
+      },
+      "expect": {
+        "outcomes": {
+          "SCORE": 0
+        }
+      },
+      "note": "Tests that coordinates respect aspect ratio - not same as vertical midpoint"
+    },
+    {
+      "name": "multiple placements in different zones sum scores",
+      "responses": {
+        "RESPONSE": ["150 100", "75 50", "280 180"]
+      },
+      "expect": {
+        "outcomes": {
+          "SCORE": 1.75
+        }
+      },
+      "note": "1.0 + 0.5 + 0.25 = 1.75"
+    }
+  ]
+}

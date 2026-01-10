@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+  xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="positionObject_mapResponsePoint_scoring"
+  title="Position Object with mapResponsePoint Scoring"
+  adaptive="false"
+  timeDependent="false"
+>
+  <responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="point">
+    <correctResponse>
+      <value>100 100</value>
+    </correctResponse>
+    <!-- Define scoring zones using areaMapping -->
+    <areaMapping defaultValue="0">
+      <!-- Primary target: circle at (100, 100) with 20px radius scores 2 points -->
+      <areaMapEntry shape="circle" coords="100,100,20" mappedValue="2.0"/>
+      <!-- Secondary target: rectangle from (200,50) to (250,100) scores 1 point -->
+      <areaMapEntry shape="rect" coords="200,50,250,100" mappedValue="1.0"/>
+      <!-- Tertiary target: circle at (150, 200) with 15px radius scores 0.5 points -->
+      <areaMapEntry shape="circle" coords="150,200,15" mappedValue="0.5"/>
+    </areaMapping>
+  </responseDeclaration>
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <p>Position Object interaction with mapResponsePoint scoring test</p>
+    <positionObjectInteraction responseIdentifier="RESPONSE" maxChoices="3">
+      <object type="image/png" data="test-canvas.png" width="300" height="300"/>
+      <positionObjectStage identifier="OBJ1" matchMax="3">
+        <object type="image/png" data="marker.png" width="20" height="20"/>
+        Marker
+      </positionObjectStage>
+    </positionObjectInteraction>
+  </itemBody>
+
+  <responseProcessing>
+    <setOutcomeValue identifier="SCORE">
+      <!-- CRITICAL: Must use mapResponsePoint for point-based area scoring -->
+      <mapResponsePoint identifier="RESPONSE"/>
+    </setOutcomeValue>
+  </responseProcessing>
+</assessmentItem>

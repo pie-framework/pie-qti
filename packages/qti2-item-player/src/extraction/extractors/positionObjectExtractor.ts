@@ -191,6 +191,15 @@ export const standardPositionObjectExtractor: ElementExtractor<PositionObjectDat
 			errors.push('positionObjectInteraction must have SVG content');
 		}
 
+		// Warn about dimension consistency (cannot verify actual file dimensions at extraction time)
+		if (data.imageData && data.imageData.type === 'image') {
+			warnings.push(
+				'IMPORTANT: Ensure declared width/height match actual image file dimensions. ' +
+					'Mismatched dimensions cause coordinate system errors in mapResponsePoint scoring. ' +
+					`Declared: ${data.imageData.width || 'unspecified'}×${data.imageData.height || 'unspecified'}`
+			);
+		}
+
 		// Validate positionObjectStages exist
 		if (!data.positionObjectStages || data.positionObjectStages.length === 0) {
 			errors.push('positionObjectInteraction must have at least one positionObjectStage');
