@@ -6,30 +6,25 @@
 	 */
 
 	import type { QTIFileResponse } from '../types/index.js';
+	import type { UploadInteractionData } from '../types/interactions';
 
 	interface Props {
-		/** Optional label shown above the input */
-		label?: string;
-		/** Response id (used for stable ids/test selectors) */
-		responseId: string;
-		/** Allowed file types (MIME types and/or extensions); empty means accept any */
-		fileTypes?: string[];
+		interaction: UploadInteractionData;
+		response?: QTIFileResponse | null;
 		disabled?: boolean;
-		value?: QTIFileResponse | null;
 		onChange: (value: QTIFileResponse | null) => void;
-		/** Optional test id for the input */
-		testId?: string;
 	}
 
 	const {
-		label = 'Upload a file',
-		responseId,
-		fileTypes = [],
+		interaction,
+		response = null,
 		disabled = false,
-		value = null,
 		onChange,
-		testId,
 	}: Props = $props();
+
+	const responseId = $derived(interaction.responseId);
+	const fileTypes = $derived(interaction.fileTypes);
+	const value = $derived(response);
 
 	let error = $state<string>('');
 
@@ -90,14 +85,13 @@
 	}
 </script>
 
-<div class="space-y-2" role="group" aria-label={label}>
-	<label class="label" for={`upload-${responseId}`}>
-		<span class="label-text font-semibold">{label}</span>
-	</label>
+<div class="space-y-2" role="group" aria-label={interaction.prompt || 'Upload a file'}>
+	{#if interaction.prompt}
+		<p class="font-semibold">{interaction.prompt}</p>
+	{/if}
 
 	<input
 		id={`upload-${responseId}`}
-		data-testid={testId}
 		class="file-input file-input-bordered w-full"
 		type="file"
 		accept={acceptAttr}
