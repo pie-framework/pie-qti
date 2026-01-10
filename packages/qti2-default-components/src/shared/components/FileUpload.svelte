@@ -6,6 +6,7 @@
 	 */
 
 	import type { QTIFileResponse } from '@pie-qti/qti2-item-player';
+	import { t } from '@pie-qti/qti2-i18n';
 
 	interface Props {
 		/** Optional label shown above the input */
@@ -22,7 +23,7 @@
 	}
 
 	const {
-		label = 'Upload a file',
+		label,
 		responseId,
 		fileTypes = [],
 		disabled = false,
@@ -31,9 +32,12 @@
 		testId,
 	}: Props = $props();
 
+	// Use i18n for default label if not provided
+	const displayLabel = $derived(label || $t('interactions.upload.label'));
+
 	let error = $state<string>('');
 
-	const acceptAttr = $derived(() => (fileTypes.length > 0 ? fileTypes.join(',') : undefined));
+	const acceptAttr = $derived(fileTypes.length > 0 ? fileTypes.join(',') : undefined);
 
 	async function fileToResponse(file: File): Promise<QTIFileResponse> {
 		const dataUrl = await new Promise<string>((resolve, reject) => {
@@ -71,7 +75,9 @@
 				return false;
 			});
 			if (!allowed) {
-				error = `File type not allowed. Allowed: ${fileTypes.join(', ')}`;
+				// Get current $t value
+				const translate = $t;
+				error = translate('interactions.upload.errorInvalidType', { types: fileTypes.join(', ') });
 				input.value = '';
 				onChange(null);
 				return;
@@ -90,9 +96,9 @@
 	}
 </script>
 
-<div class="space-y-2" role="group" aria-label={label}>
+<div class="space-y-2" role="group" aria-label={displayLabel}>
 	<label class="label" for={`upload-${responseId}`}>
-		<span class="label-text font-semibold">{label}</span>
+		<span class="label-text font-semibold">{displayLabel}</span>
 	</label>
 
 	<input
@@ -106,7 +112,7 @@
 	/>
 
 	{#if fileTypes.length > 0}
-		<div class="text-xs text-base-content/70">Allowed: {fileTypes.join(', ')}</div>
+		<div class="text-xs text-base-content/70">{$t('interactions.upload.allowedTypes')} {fileTypes.join(', ')}</div>
 	{/if}
 
 	{#if error}
@@ -118,10 +124,10 @@
 	{#if value}
 		<div class="flex items-start justify-between gap-4">
 			<div class="text-sm">
-				<div><strong>Selected:</strong> {value.name}</div>
-				<div class="text-xs text-base-content/70">{value.type || 'unknown'} • {value.size} bytes</div>
+				<div><strong>{$t('interactions.upload.selectedFile')}</strong> {value.name}</div>
+				<div class="text-xs text-base-content/70">{value.type || $t('interactions.upload.unknownType')} • {$t('units.bytes', { count: value.size })}</div>
 			</div>
-			<button type="button" class="btn btn-sm" onclick={clear} disabled={disabled}>Remove</button>
+			<button type="button" class="btn btn-sm" onclick={clear} disabled={disabled}>{$t('common.remove')}</button>
 		</div>
 	{/if}
 </div>

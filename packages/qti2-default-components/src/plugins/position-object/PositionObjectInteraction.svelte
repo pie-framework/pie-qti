@@ -82,7 +82,7 @@
 	const scaleFactor = $derived.by(() => {
 		if (!imageContainer || !parsedInteraction?.imageData?.width) return 1;
 		const actualWidth = imageContainer.offsetWidth;
-		const originalWidth = parsedInteraction.imageData.width;
+		const originalWidth = Number(parsedInteraction.imageData.width);
 		return actualWidth / originalWidth;
 	});
 
@@ -483,11 +483,6 @@
 	}
 
 	/* Minimal icon sizing so SVGs don't fall back to browser default size without Tailwind */
-	.qti-icon {
-		width: 1.25rem;
-		height: 1.25rem;
-		flex: 0 0 auto;
-	}
 	.qti-icon-xs {
 		width: 0.75rem;
 		height: 0.75rem;

@@ -15,8 +15,8 @@ interface Props {
 
 const { size = 1, opacity = 0.5, class: className = '' }: Props = $props();
 
-const sizeInRem = `${size}rem`;
-const opacityStyle = opacity;
+const sizeInRem = $derived(`${size}rem`);
+const opacityStyle = $derived(opacity);
 </script>
 
 <svg
