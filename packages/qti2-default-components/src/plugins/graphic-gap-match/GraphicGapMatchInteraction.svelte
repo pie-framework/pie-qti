@@ -8,6 +8,7 @@
  */
 
 import type { GraphicGapMatchInteractionData } from '@pie-qti/qti2-item-player';
+import type { I18nProvider } from '@pie-qti/qti2-i18n';
 import { createQtiChangeEvent } from '../../shared/utils/eventHelpers.js';
 import { touchDrag } from '../../shared/utils/touchDragHelper.js';
 import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
@@ -18,10 +19,11 @@ interface Props {
 	interaction?: GraphicGapMatchInteractionData | string;
 	response?: string | string[] | null;
 	disabled?: boolean;
+	i18n?: I18nProvider;
 	onChange?: (value: string[]) => void;
 }
 
-let { interaction = $bindable(), response = $bindable(), disabled = false, onChange }: Props = $props();
+let { interaction = $bindable(), response = $bindable(), disabled = false, i18n = $bindable(), onChange }: Props = $props();
 
 // Parse props that may be JSON strings (web component usage)
 const parsedInteraction = $derived(parseJsonProp<GraphicGapMatchInteractionData>(interaction));
@@ -233,7 +235,7 @@ function parseCoords(hotspot: { identifier: string; shape: string; coords: strin
 
 <div class="qti-graphic-gap-match-interaction">
 	{#if !parsedInteraction}
-		<div class="alert alert-error">No interaction data provided</div>
+		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
 		{#if parsedInteraction.prompt}
 			<p part="prompt" class="qti-ggm-prompt font-semibold mb-3">{@html parsedInteraction.prompt}</p>

@@ -52,6 +52,7 @@ export default {
 		submitting: 'Se trimite...',
 		submitAnswer: 'Trimite Răspuns',
 		tryAgain: 'Încearcă Din Nou',
+		errorNoData: 'Nu au fost furnizate date de interacțiune',
 	},
 
 	units: {

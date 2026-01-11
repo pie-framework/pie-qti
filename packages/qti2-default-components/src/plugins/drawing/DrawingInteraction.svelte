@@ -57,7 +57,7 @@
 <div bind:this={rootElement} part="root" class="qti-drawing-interaction" use:typesetAction={{ typeset }}>
 	{#if !parsedInteraction}
 		<div class="alert alert-error">
-			<span>Error: No interaction data provided</span>
+			<span>{i18n?.t('common.error', 'Error')}: {i18n?.t('common.errorNoData', 'No interaction data provided')}</span>
 		</div>
 	{:else}
 		{#if parsedInteraction.prompt}

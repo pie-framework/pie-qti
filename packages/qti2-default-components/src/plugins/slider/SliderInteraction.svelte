@@ -47,7 +47,7 @@
 
 <div bind:this={rootElement} part="root" class="qti-slider-interaction space-y-3">
 	{#if !parsedInteraction}
-		<div class="alert alert-error">No interaction data provided</div>
+		<div class="alert alert-error">{t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
 		{#if parsedInteraction.prompt}
 			<p part="prompt" class="qti-slider-prompt font-semibold">{@html parsedInteraction.prompt}</p>

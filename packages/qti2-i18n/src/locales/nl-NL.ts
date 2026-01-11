@@ -52,6 +52,7 @@ export default {
 		submitting: 'Verzenden...',
 		submitAnswer: 'Antwoord Verzenden',
 		tryAgain: 'Opnieuw Proberen',
+		errorNoData: 'Geen interactiegegevens verstrekt',
 	},
 
 	units: {

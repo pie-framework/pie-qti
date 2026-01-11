@@ -2,6 +2,7 @@
 
 <script lang="ts">
 	import type { ChoiceInteractionData } from '@pie-qti/qti2-item-player';
+	import type { I18nProvider } from '@pie-qti/qti2-i18n';
 	import { typesetAction } from '../../shared/actions/typesetAction';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
@@ -11,11 +12,15 @@
 		interaction?: ChoiceInteractionData | string;
 		response?: string | string[] | null;
 		disabled?: boolean;
+		i18n?: I18nProvider;
 		typeset?: (element: HTMLElement) => void;
 		onChange?: (value: string | string[]) => void;
 	}
 
-	let { interaction = $bindable(), response = $bindable(), disabled = false, typeset, onChange }: Props = $props();
+	let { interaction = $bindable(), response = $bindable(), disabled = false, i18n = $bindable(), typeset, onChange }: Props = $props();
+
+	// Simplified translation helper - locale changes trigger page refresh
+	const t = $derived((key: string, fallback: string) => i18n?.t(key) ?? fallback);
 
 	// Parse props that may be JSON strings (web component usage)
 	const parsedInteraction = $derived(parseJsonProp<ChoiceInteractionData>(interaction));
@@ -58,7 +63,7 @@
 
 <div bind:this={rootElement} part="root" class="qti-choice-interaction space-y-2" use:typesetAction={{ typeset }}>
 	{#if !parsedInteraction}
-		<div class="alert alert-error">No interaction data provided</div>
+		<div class="alert alert-error">{t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else if parsedInteraction.maxChoices === 1}
 		<!-- Single choice (radio buttons) -->
 		{#each parsedInteraction.choices as choice}

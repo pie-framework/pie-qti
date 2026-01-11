@@ -50,6 +50,7 @@ export default {
 		submitting: 'Submitting...',
 		submitAnswer: 'Submit Answer',
 		tryAgain: 'Try Again',
+		errorNoData: 'No interaction data provided',
 	},
 
 	units: {

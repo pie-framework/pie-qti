@@ -52,6 +52,7 @@ export default {
 		submitting: 'Envoi en cours...',
 		submitAnswer: 'Soumettre la Réponse',
 		tryAgain: 'Réessayer',
+		errorNoData: "Aucune donnée d'interaction fournie",
 	},
 
 	units: {

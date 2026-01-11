@@ -2,6 +2,7 @@
 
 <script lang="ts">
 	import type { OrderInteractionData } from '@pie-qti/qti2-item-player';
+	import type { I18nProvider } from '@pie-qti/qti2-i18n';
 	import { typesetAction } from '../../shared/actions/typesetAction';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import SortableList from '../../shared/components/SortableList.svelte';
@@ -12,11 +13,12 @@
 		interaction?: OrderInteractionData | string;
 		response?: string[] | null;
 		disabled?: boolean;
+		i18n?: I18nProvider;
 		typeset?: (element: HTMLElement) => void;
 		onChange?: (value: string[]) => void;
 	}
 
-	let { interaction = $bindable(), response = $bindable(), disabled = false, typeset, onChange }: Props = $props();
+	let { interaction = $bindable(), response = $bindable(), disabled = false, i18n = $bindable(), typeset, onChange }: Props = $props();
 
 	// Parse props that may be JSON strings (web component usage)
 	const parsedInteraction = $derived(parseJsonProp<OrderInteractionData>(interaction));
@@ -87,7 +89,7 @@
 
 <div bind:this={rootElement} class="qti-order-interaction" use:typesetAction={{ typeset }}>
 	{#if !parsedInteraction}
-		<div class="alert alert-error">No interaction data provided</div>
+		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
 		{#if parsedInteraction.prompt}
 			<div class="mb-3 text-sm text-base-content/70">

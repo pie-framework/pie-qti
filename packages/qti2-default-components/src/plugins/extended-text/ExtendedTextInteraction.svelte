@@ -41,7 +41,7 @@
 
 <div bind:this={rootElement} part="root" class="qti-extended-text-interaction">
 	{#if !parsedInteraction}
-		<div class="alert alert-error">No interaction data provided</div>
+		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
 		<div part="editor">
 			<RichTextEditor

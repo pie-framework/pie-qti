@@ -52,6 +52,7 @@ export default {
 		submitting: 'กำลังส่ง...',
 		submitAnswer: 'ส่งคำตอบ',
 		tryAgain: 'ลองอีกครั้ง',
+		errorNoData: 'ไม่มีข้อมูลการโต้ตอบที่จัดเตรียมไว้',
 	},
 
 	units: {

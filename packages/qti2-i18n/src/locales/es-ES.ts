@@ -53,6 +53,7 @@ export default {
 		submitting: 'Enviando...',
 		submitAnswer: 'Enviar Respuesta',
 		tryAgain: 'Intentar de Nuevo',
+		errorNoData: 'No se proporcionaron datos de interacción',
 	},
 
 	units: {
