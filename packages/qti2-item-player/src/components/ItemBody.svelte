@@ -223,7 +223,7 @@
 						onchange={(e) =>
 							handleResponseChange(segment.interaction.responseId, (e.currentTarget as HTMLSelectElement).value)}
 					>
-						<option value="">Select...</option>
+						<option value="">{i18n?.t('interactions.inline.selectPlaceholder', 'Select...')}</option>
 						{#each segment.interaction.choices as choice}
 							<option value={choice.identifier}>{choice.text}</option>
 						{/each}

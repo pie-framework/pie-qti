@@ -372,6 +372,7 @@ export default {
 
 		inline: {
 			placeholder: '...',
+			selectPlaceholder: 'Select...',
 		},
 	},
 
@@ -406,7 +407,11 @@ export default {
 		question: 'Question {current} of {total}',
 		questionAnnouncement: 'Question {current} of {total}',
 		section: 'Section {current} of {total}',
+		sectionDefault: 'Section {number}',
 		closeMenu: 'Close menu',
+		readingPassage: 'Reading Passage',
+		expandPassage: 'Expand passage',
+		collapsePassage: 'Collapse passage',
 
 		attempts: {
 			remaining: '{count} attempts remaining',

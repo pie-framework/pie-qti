@@ -320,6 +320,7 @@ export default {
 
 		inline: {
 			placeholder: '...',
+			selectPlaceholder: 'Seleccionar...',
 		},
 	},
 
@@ -354,6 +355,10 @@ export default {
 		question: 'Pregunta {current} de {total}',
 		questionAnnouncement: 'Pregunta {current} de {total}',
 		section: 'Sección {current} de {total}',
+		sectionDefault: 'Sección {number}',
+		readingPassage: 'Pasaje de Lectura',
+		expandPassage: 'Expandir pasaje',
+		collapsePassage: 'Contraer pasaje',
 		closeMenu: 'Cerrar menú',
 
 		attempts: {

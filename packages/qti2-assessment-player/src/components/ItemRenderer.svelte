@@ -101,12 +101,12 @@
 				d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
 			/>
 		</svg>
-		<span>Error loading item: {playerData.error}</span>
+		<span>{i18n?.t('item.loadError', 'Error loading item: {error}', { error: playerData.error })}</span>
 	</div>
 {:else if !playerData.player}
 	<div class="flex items-center justify-center p-8">
 		<span class="loading loading-spinner loading-lg"></span>
-		<span class="ml-4">Loading item...</span>
+		<span class="ml-4">{i18n?.t('item.loading', 'Loading item...')}</span>
 	</div>
 {:else}
 	<div class="item-container">

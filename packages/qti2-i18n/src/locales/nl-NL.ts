@@ -319,6 +319,7 @@ export default {
 
 		inline: {
 			placeholder: '...',
+			selectPlaceholder: 'Selecteren...',
 		},
 	},
 
@@ -353,6 +354,10 @@ export default {
 		question: 'Vraag {current} van {total}',
 		questionAnnouncement: 'Vraag {current} van {total}',
 		section: 'Sectie {current} van {total}',
+		sectionDefault: 'Sectie {number}',
+		readingPassage: 'Leestekst',
+		expandPassage: 'Tekst uitvouwen',
+		collapsePassage: 'Tekst samenvouwen',
 		closeMenu: 'Menu sluiten',
 
 		attempts: {

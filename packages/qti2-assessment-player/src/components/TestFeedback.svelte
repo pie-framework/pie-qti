@@ -5,6 +5,7 @@
 	 * Displays assessment-level feedback based on outcome conditions.
 	 * Shows feedback when QTI outcome conditions are met.
 	 */
+	import type { I18nProvider } from '@pie-qti/qti2-i18n';
 
 	interface FeedbackItem {
 		identifier: string;
@@ -21,13 +22,15 @@
 		dismissable?: boolean;
 		/** CSS class for custom styling */
 		class?: string;
+		i18n?: I18nProvider;
 	}
 
 	let {
 		feedback = [],
 		onDismiss,
 		dismissable = false,
-		class: className = ''
+		class: className = '',
+		i18n
 	}: Props = $props();
 
 	// Track dismissed items
@@ -55,7 +58,7 @@
 					<button
 						class="feedback-dismiss"
 						onclick={() => handleDismiss(item.identifier)}
-						aria-label="Dismiss feedback"
+						aria-label={i18n?.t('feedback.closeFeedback', 'Dismiss feedback')}
 					>
 						×
 					</button>

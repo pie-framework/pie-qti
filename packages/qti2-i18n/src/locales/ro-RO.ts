@@ -319,6 +319,7 @@ export default {
 
 		inline: {
 			placeholder: '...',
+			selectPlaceholder: 'Selectare...',
 		},
 	},
 
@@ -353,6 +354,10 @@ export default {
 		question: 'Întrebarea {current} din {total}',
 		questionAnnouncement: 'Întrebarea {current} din {total}',
 		section: 'Secțiunea {current} din {total}',
+		sectionDefault: 'Secțiunea {number}',
+		readingPassage: 'Pasaj de Lectură',
+		expandPassage: 'Extinde pasajul',
+		collapsePassage: 'Restrânge pasajul',
 		closeMenu: 'Închide meniul',
 
 		attempts: {

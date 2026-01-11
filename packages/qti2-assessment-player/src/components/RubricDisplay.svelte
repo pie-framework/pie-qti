@@ -1,15 +1,17 @@
 <script lang="ts">
 	import { typesetAction } from '@pie-qti/qti2-default-components/shared';
+	import type { I18nProvider } from '@pie-qti/qti2-i18n';
 	import type { RubricBlock } from '../integration/api-contract.js';
 
 	interface Props {
 		blocks: RubricBlock[];
 		collapsed?: boolean;
+		i18n?: I18nProvider;
 		/** Math typesetting function (KaTeX, MathJax, etc.) */
 		typeset?: (root: HTMLElement) => void | Promise<void>;
 	}
 
-	const { blocks, collapsed = false, typeset }: Props = $props();
+	const { blocks, collapsed = false, i18n, typeset }: Props = $props();
 
 	let isCollapsed = $state(false);
 
@@ -38,11 +40,11 @@
 				{#each passages as passage}
 					<div class="passage">
 						<div class="passage-header">
-							<h4 class="font-semibold text-base">Reading Passage</h4>
+							<h4 class="font-semibold text-base">{i18n?.t('assessment.readingPassage', 'Reading Passage')}</h4>
 							<button
 								class="btn btn-ghost btn-sm"
 								onclick={() => toggleCollapse?.()}
-								aria-label={isCollapsed ? 'Expand passage' : 'Collapse passage'}
+								aria-label={isCollapsed ? i18n?.t('assessment.expandPassage', 'Expand passage') : i18n?.t('assessment.collapsePassage', 'Collapse passage')}
 							>
 								{#if isCollapsed}
 									<svg
