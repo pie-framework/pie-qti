@@ -2,19 +2,21 @@
  * Public API exports for @pie-qti/qti2-i18n package
  */
 
-// Core functionality
-export { I18n } from './core/I18n.js';
-export { initI18n, getI18n, setLocale, t, plural, formatNumber, formatDate, locale } from './core/store.js';
-export { provideI18n, injectI18n } from './core/context.js';
+// Core interface (framework-agnostic)
+export type { I18nProvider, InterpolationValues, PluralOptions } from './core/I18nProvider.js';
 
-// Components
-export { default as LocaleSwitcher } from './components/LocaleSwitcher.svelte';
+// Default implementation
+export { DefaultI18nProvider, createDefaultI18nProvider } from './core/I18n.js';
+
+// Svelte-specific provider with reactive stores
+export { SvelteI18nProvider, createSvelteI18nProvider, createDefaultSvelteI18nProvider } from './providers/SvelteI18nProvider.js';
 
 // Types
 export type {
 	LocaleCode,
 	MessageKey,
-	InterpolationValues,
-	PluralOptions,
 	LocaleMessages,
 } from './core/types.js';
+
+// Example components
+export { default as LocaleSwitcher } from './components/LocaleSwitcher.svelte';

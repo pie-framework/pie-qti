@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { onMount, tick } from 'svelte';
+	import { onMount, tick, getContext } from 'svelte';
+	import type { SvelteI18nProvider } from '@pie-qti/qti2-i18n';
 	import type { BackendAssessmentPlayerConfig } from '../core/AssessmentPlayer.js';
 	import { AssessmentPlayer } from '../core/AssessmentPlayer.js';
 	import type { BackendAdapter, InitSessionRequest } from '../integration/api-contract.js';
@@ -27,7 +28,12 @@
 
 	const { backend, initSession, config = {}, onSubmit, typeset }: Props = $props();
 
-	let player: AssessmentPlayer | null = $state(null);
+	// Get i18n from context (set by +layout.svelte)
+	const contextI18nWrapper = getContext<{ value: SvelteI18nProvider | null } | undefined>('i18n');
+	const contextI18n = $derived(contextI18nWrapper?.value);
+
+	let player = $state<AssessmentPlayer | null>(null);
+	const i18n = $derived(player?.getI18nProvider() ?? contextI18n);
 	let navState = $state<NavigationState>({
 		currentIndex: -1,
 		totalItems: 0,
@@ -89,8 +95,7 @@
 		// Never allow infinite "Loading assessment..." state
 		initTimeout = setTimeout(() => {
 			if (!hasFirstItem && !error) {
-				error =
-					'Timeout loading assessment. This assessment may be invalid or the player failed to initialize.';
+				error = contextI18n?.t('assessment.loadingError') ?? 'assessment.loadingError';
 			}
 		}, 10000);
 
@@ -100,6 +105,7 @@
 			showSections: config.showSections !== false,
 			allowSectionNavigation: config.allowSectionNavigation !== false,
 			showProgress: config.showProgress !== false,
+			i18nProvider: contextI18n, // Pass i18n from context
 			...config,
 		};
 
@@ -136,7 +142,7 @@
 			}
 		})().catch((err) => {
 			console.error('Failed to initialize assessment player:', err);
-			error = err instanceof Error ? err.message : 'Failed to initialize player';
+			error = err instanceof Error ? err.message : (contextI18n?.t('assessment.loadingError') ?? 'assessment.loadingError');
 		});
 
 		return () => {
@@ -170,7 +176,7 @@
 			announceCurrentQuestion();
 		} catch (err) {
 			console.error('Previous navigation failed:', err);
-			navError = err instanceof Error ? err.message : 'Failed to navigate to previous question';
+			navError = err instanceof Error ? err.message : (i18n?.t('assessment.errors.navigationFailed') ?? 'assessment.errors.navigationFailed');
 		}
 	}
 
@@ -183,7 +189,7 @@
 			announceCurrentQuestion();
 		} catch (err) {
 			console.error('Next navigation failed:', err);
-			navError = err instanceof Error ? err.message : 'Failed to navigate to next question';
+			navError = err instanceof Error ? err.message : (i18n?.t('assessment.errors.navigationFailed') ?? 'assessment.errors.navigationFailed');
 		}
 	}
 
@@ -193,7 +199,10 @@
 	function announceCurrentQuestion() {
 		if (!player) return;
 		const state = player.getNavigationState();
-		const msg = `Question ${state.currentIndex + 1} of ${state.totalItems}`;
+		const msg = i18n?.t('assessment.questionAnnouncement', {
+			current: state.currentIndex + 1,
+			total: state.totalItems
+		}) ?? `assessment.questionAnnouncement (${state.currentIndex + 1}/${state.totalItems})`;
 		announcer?.announce(msg, 1500);
 	}
 
@@ -242,7 +251,7 @@
 			// Or show results modal
 		} catch (err) {
 			console.error('Failed to submit assessment:', err);
-			error = err instanceof Error ? err.message : 'Failed to submit assessment';
+			error = err instanceof Error ? err.message : (i18n?.t('assessment.errors.submitFailed') ?? 'assessment.errors.submitFailed');
 		}
 	}
 
@@ -317,7 +326,7 @@
 	<div class="assessment-loading">
 		<div class="flex items-center justify-center p-8">
 			<span class="loading loading-spinner loading-lg"></span>
-			<span class="ml-4">Loading assessment...</span>
+			<span class="ml-4">{contextI18n?.t('assessment.loading') ?? 'assessment.loading'}</span>
 		</div>
 	</div>
 {:else}
@@ -386,6 +395,7 @@
 							extendedTextEditor={config.extendedTextEditor || 'tiptap'}
 							onResponseChange={handleResponseChange}
 							{typeset}
+							{i18n}
 						/>
 					{/if}
 				</SplitPaneResizer>
@@ -403,19 +413,23 @@
 						role={config.role || 'candidate'}
 						onResponseChange={handleResponseChange}
 						{typeset}
+						{i18n}
 					/>
 				{/if}
 			{/if}
 		</div>
 
 		<!-- Navigation bar -->
-		<NavigationBar
-			navState={navState}
-			onPrevious={handlePrevious}
-			onNext={handleNext}
-			onSubmit={handleSubmit}
-			showProgress={config.showProgress !== false}
-		/>
+		{#if i18n}
+			<NavigationBar
+				navState={navState}
+				{i18n}
+				onPrevious={handlePrevious}
+				onNext={handleNext}
+				onSubmit={handleSubmit}
+				showProgress={config.showProgress !== false}
+			/>
+		{/if}
 	</div>
 {/if}
 

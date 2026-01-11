@@ -1,51 +1,92 @@
-<script lang="ts">
-	import { locale, setLocale, type LocaleCode } from '../core/store.js';
+<!--
+  LocaleSwitcher Example Component
 
-	const locales: { code: LocaleCode; label: string }[] = [
-		// English variants
+  This is a reference implementation showing how to create a locale switcher
+  in your application. You can copy and adapt this for your needs.
+
+  Usage:
+
+  <script>
+    import LocaleSwitcher from '@pie-qti/qti2-i18n/components/LocaleSwitcher.svelte';
+    import { createI18n } from '@pie-qti/qti2-i18n';
+
+    let locale = $state('en-US');
+    const i18n = $derived(createI18n(locale));
+
+    function handleLocaleChange(newLocale) {
+      locale = newLocale;
+    }
+  </script>
+
+  <LocaleSwitcher currentLocale={locale} onChange={handleLocaleChange} {i18n} />
+-->
+
+<script lang="ts">
+	import type { I18nProvider } from '../core/types';
+
+	interface Props {
+		/** Currently selected locale code */
+		currentLocale: string;
+		/** Callback when locale changes */
+		onChange: (locale: string) => void;
+		/** I18n provider for translating the component UI (optional) */
+		i18n?: I18nProvider;
+		/** Supported locales (defaults to all available locales) */
+		availableLocales?: Array<{ code: string; label: string }>;
+		/** Label text (can be overridden) */
+		label?: string;
+		/** Compact mode - no label, just dropdown */
+		compact?: boolean;
+	}
+
+	let {
+		currentLocale,
+		onChange,
+		i18n,
+		availableLocales = DEFAULT_LOCALES,
+		label,
+		compact = false,
+	}: Props = $props();
+
+	// Default list of supported locales
+	// Note: Some locales may not have full translations yet
+	const DEFAULT_LOCALES = [
+		// Currently supported with translations
 		{ code: 'en-US', label: 'English (US)' },
-		{ code: 'en-GB', label: 'English (UK)' },
-		{ code: 'en-AU', label: 'English (Australia)' },
-		{ code: 'en-CA', label: 'English (Canada)' },
-		// Western European
 		{ code: 'es-ES', label: 'Español' },
 		{ code: 'fr-FR', label: 'Français' },
-		{ code: 'de-DE', label: 'Deutsch' },
-		{ code: 'it-IT', label: 'Italiano' },
-		{ code: 'pt-BR', label: 'Português' },
 		{ code: 'nl-NL', label: 'Nederlands' },
-		// Central/Eastern European
-		{ code: 'pl-PL', label: 'Polski' },
-		{ code: 'cs-CZ', label: 'Čeština' },
-		{ code: 'hu-HU', label: 'Magyar' },
 		{ code: 'ro-RO', label: 'Română' },
-		{ code: 'uk-UA', label: 'Українська' },
-		{ code: 'tr-TR', label: 'Türkçe' },
-		// Nordic
-		{ code: 'fi-FI', label: 'Suomi' },
-		{ code: 'sv-SE', label: 'Svenska' },
-		{ code: 'da-DK', label: 'Dansk' },
-		{ code: 'nb-NO', label: 'Norsk' },
-		// Asian
-		{ code: 'zh-CN', label: '简体中文' },
-		{ code: 'ja-JP', label: '日本語' },
-		{ code: 'ko-KR', label: '한국어' },
 		{ code: 'th-TH', label: 'ไทย' },
-		{ code: 'hi-IN', label: 'हिन्दी' },
-		// Middle East
-		{ code: 'ar-SA', label: 'العربية' },
 	];
 
-	async function handleLocaleChange(event: Event) {
+	// Reactive translations
+	const translations = $derived({
+		selectLanguage: label ?? i18n?.t('i18n.selectLanguage') ?? 'Language',
+		ariaLabel: i18n?.t('i18n.selectLanguageAriaLabel') ?? 'Select display language',
+	});
+
+	function handleChange(event: Event) {
 		const select = event.target as HTMLSelectElement;
-		await setLocale(select.value as LocaleCode);
+		onChange(select.value);
 	}
 </script>
 
-<div class="locale-switcher">
-	<label for="locale-select">Language:</label>
-	<select id="locale-select" value={$locale} onchange={handleLocaleChange}>
-		{#each locales as { code, label }}
+<div class="locale-switcher" class:compact>
+	{#if !compact}
+		<label for="locale-select" class="locale-label">
+			{translations.selectLanguage}:
+		</label>
+	{/if}
+
+	<select
+		id="locale-select"
+		class="locale-select"
+		value={currentLocale}
+		onchange={handleChange}
+		aria-label={translations.ariaLabel}
+	>
+		{#each availableLocales as { code, label }}
 			<option value={code}>{label}</option>
 		{/each}
 	</select>
@@ -58,17 +99,47 @@
 		gap: 0.5rem;
 	}
 
-	select {
-		padding: 0.25rem 0.5rem;
-		border: 1px solid var(--color-base-300, #d4d4d4);
-		border-radius: 0.25rem;
-		background: var(--color-base-100, #fff);
-		color: var(--color-base-content, #000);
-		cursor: pointer;
+	.locale-switcher.compact {
+		gap: 0;
 	}
 
-	label {
+	.locale-label {
 		font-size: 0.875rem;
 		font-weight: 500;
+		color: var(--color-base-content, oklch(20% 0 0));
+	}
+
+	.locale-select {
+		padding: 0.375rem 0.75rem;
+		border: 1px solid var(--color-base-300, oklch(90% 0 0));
+		border-radius: 0.375rem;
+		background: var(--color-base-100, oklch(100% 0 0));
+		color: var(--color-base-content, oklch(20% 0 0));
+		font-size: 0.875rem;
+		cursor: pointer;
+		transition: all 0.15s ease;
+	}
+
+	.locale-select:hover {
+		border-color: var(--color-primary, oklch(45% 0.24 277));
+	}
+
+	.locale-select:focus {
+		outline: 2px solid var(--color-primary, oklch(45% 0.24 277));
+		outline-offset: 2px;
+		border-color: var(--color-primary, oklch(45% 0.24 277));
+	}
+
+	.locale-select:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	/* Support for DaisyUI if available */
+	:global(.theme-dark) .locale-select,
+	:global([data-theme='dark']) .locale-select {
+		background: var(--color-base-200, oklch(20% 0 0));
+		border-color: var(--color-base-300, oklch(30% 0 0));
+		color: var(--color-base-content, oklch(90% 0 0));
 	}
 </style>

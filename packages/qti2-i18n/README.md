@@ -5,13 +5,15 @@ Lightweight, type-safe internationalization (i18n) package for the PIE-QTI playe
 ## Features
 
 - ✅ **Type-Safe Translations** - TypeScript autocomplete for all message keys
-- ✅ **Runtime Locale Switching** - Change language without page reload
-- ✅ **Reactive Updates** - Svelte store integration for automatic UI updates
+- ✅ **Locale Persistence** - Locale persists across page reloads via localStorage
+- ✅ **Framework Agnostic** - Core provider works with any JavaScript framework
+- ✅ **Svelte Integration** - Simple `$derived` pattern for Svelte 5 components
 - ✅ **Web Component Compatible** - Works within Shadow DOM boundaries
 - ✅ **Small Bundle Size** - <10 KB gzipped for core + default locale
 - ✅ **On-Demand Loading** - Load additional locales asynchronously
 - ✅ **Built-in Formatting** - Number and date formatting via `Intl` APIs
-- ✅ **26 Languages Supported** - English (4 variants), European languages (13), Asian languages (5), Middle Eastern languages (1), and more
+- ✅ **Custom Translations** - Override or extend framework translations
+- ✅ **6 Languages Supported** - en-US (complete), es-ES, fr-FR, nl-NL, ro-RO, th-TH
 
 ## Installation
 
@@ -21,161 +23,139 @@ bun add @pie-qti/qti2-i18n
 
 ## Quick Start
 
-### 1. Initialize i18n
-
-Initialize the i18n system in your application root:
+### 1. Create i18n Provider
 
 ```typescript
-import { initI18n } from '@pie-qti/qti2-i18n';
+import { DefaultI18nProvider } from '@pie-qti/qti2-i18n';
 
-// Initialize with default locale
-const i18n = initI18n('en-US');
-await i18n.loadLocale('en-US');
+// Create provider with default locale
+const i18n = new DefaultI18nProvider('en-US');
+
+// Optional: Load additional locales
+await i18n.loadLocale('es-ES');
+await i18n.loadLocale('fr-FR');
 ```
 
-### 2. Use in Svelte Components
+### 2. Use in Components (Svelte 5)
 
 ```svelte
 <script lang="ts">
-  import { t } from '@pie-qti/qti2-i18n';
+import type { I18nProvider } from '@pie-qti/qti2-i18n';
+
+interface Props {
+  i18n?: I18nProvider;  // Always optional
+}
+
+let { i18n }: Props = $props();
+
+// Simple pattern - locale changes trigger page refresh
+const translations = $derived({
+  submit: i18n?.t('common.submit') ?? 'Submit',
+  cancel: i18n?.t('common.cancel') ?? 'Cancel'
+});
 </script>
 
-<button>{$t('common.submit')}</button>
-<p>{$t('assessment.question', { current: 1, total: 10 })}</p>
+<button>{translations.submit}</button>
+<button>{translations.cancel}</button>
 ```
 
-### 3. Add Locale Switcher
+**Note:** Translations are evaluated once when the component loads. If you need to update translations, the page will reload when the locale changes.
 
-```svelte
-<script>
-  import { LocaleSwitcher } from '@pie-qti/qti2-i18n';
-</script>
+### 3. Switch Locales
 
-<LocaleSwitcher />
+```typescript
+// Switch to Spanish (triggers page reload)
+await i18n.setLocale('es-ES');
+
+// Locale is stored in localStorage and persists across reloads
+// On next page load, i18n will automatically use 'es-ES'
 ```
+
+**Important:** Calling `setLocale()` stores the locale in localStorage and triggers a page reload. This simplifies the codebase by eliminating complex reactivity patterns.
 
 ## API Reference
 
-### Core Functions
+### Core Provider
 
-#### `initI18n(locale: LocaleCode): I18n`
+#### `I18nProvider` Interface
 
-Initialize the i18n singleton with a default locale.
-
-```typescript
-import { initI18n } from '@pie-qti/qti2-i18n';
-
-const i18n = initI18n('en-US');
-await i18n.loadLocale('en-US');
-```
-
-#### `setLocale(locale: LocaleCode): Promise<void>`
-
-Change the current locale (loads if not already loaded).
+The framework-agnostic interface for i18n providers:
 
 ```typescript
-import { setLocale } from '@pie-qti/qti2-i18n';
-
-await setLocale('es-ES'); // Switch to Spanish
+interface I18nProvider {
+  getLocale(): string;
+  setLocale(locale: string): Promise<void>;
+  loadLocale(locale: string): Promise<void>;
+  t(key: string, values?: Record<string, any>): string;
+  formatNumber(value: number, options?: Intl.NumberFormatOptions): string;
+  formatDate(date: Date, options?: Intl.DateTimeFormatOptions): string;
+}
 ```
 
-#### `t` (Svelte Store)
+#### `DefaultI18nProvider`
 
-Reactive translation function for use in Svelte components.
+Basic implementation without framework-specific features:
 
-```svelte
-<script lang="ts">
-  import { t } from '@pie-qti/qti2-i18n';
-</script>
+```typescript
+import { DefaultI18nProvider } from '@pie-qti/qti2-i18n';
 
-<!-- Simple translation -->
-<button>{$t('common.submit')}</button>
+// Create with default locale
+const i18n = new DefaultI18nProvider('en-US');
 
-<!-- With interpolation -->
-<p>{$t('assessment.question', { current: 1, total: 10 })}</p>
+// With custom messages
+const customMessages = {
+  'es-ES': {
+    common: { submit: 'Enviar' }
+  }
+};
+const i18n = new DefaultI18nProvider('en-US', customMessages);
 
-<!-- In JavaScript -->
-<script>
-  const translate = $t;
-  const message = translate('common.loading');
-</script>
+// Load additional locales
+await i18n.loadLocale('es-ES');
+
+// Switch locales
+await i18n.setLocale('es-ES');
+
+// Translate
+const text = i18n.t('common.submit');
+const interpolated = i18n.t('assessment.question', { current: 1, total: 10 });
 ```
 
-#### `formatNumber` (Svelte Store)
+#### `SvelteI18nProvider`
 
-Format numbers according to current locale.
+Svelte-specific wrapper that extends `I18nProvider`:
 
-```svelte
-<script lang="ts">
-  import { formatNumber } from '@pie-qti/qti2-i18n';
-</script>
+```typescript
+import { createDefaultSvelteI18nProvider } from '@pie-qti/qti2-i18n';
 
-<p>{$formatNumber(1234.56)}</p>
-<!-- en-US: "1,234.56" -->
-<!-- de-DE: "1.234,56" -->
+// Create Svelte provider
+const i18n = await createDefaultSvelteI18nProvider('en-US');
+
+// Same API as I18nProvider
+const text = i18n.t('common.submit');
+await i18n.setLocale('es-ES'); // Triggers page reload
+
+// Deprecated reactive stores (kept for backwards compatibility)
+// Note: These are no longer needed since locale changes trigger page reload
+const { locale, t$, plural$, formatNumber$, formatDate$ } = i18n;
 ```
 
-#### `formatDate` (Svelte Store)
-
-Format dates according to current locale.
-
-```svelte
-<script lang="ts">
-  import { formatDate } from '@pie-qti/qti2-i18n';
-</script>
-
-<p>{$formatDate(new Date(), { dateStyle: 'short' })}</p>
-<!-- en-US: "1/9/26" -->
-<!-- de-DE: "09.01.26" -->
-```
+**Migration Note:** The reactive stores (`locale`, `t$`, `plural$`, etc.) are deprecated. Use the direct methods (`t()`, `plural()`, etc.) with `$derived` instead. See the Quick Start section for the recommended pattern.
 
 ### Supported Locales
 
-#### English Variants
+The framework currently includes 6 locales:
 
-| Locale Code | Language                       |
-|-------------|--------------------------------|
-| `en-US`     | English (United States)        |
-| `en-GB`     | English (United Kingdom)       |
-| `en-AU`     | English (Australia)            |
-| `en-CA`     | English (Canada)               |
+| Locale Code | Language                  | Status                   |
+|-------------|---------------------------|--------------------------|
+| `en-US`     | English (United States)   | ✅ Complete (300+ keys)  |
+| `es-ES`     | Spanish (Spain)           | 🚧 ~80% complete         |
+| `fr-FR`     | French (France)           | 🚧 ~70% complete         |
+| `nl-NL`     | Dutch (Netherlands)       | 🚧 ~30% complete         |
+| `ro-RO`     | Romanian (Romania)        | 🚧 ~30% complete         |
+| `th-TH`     | Thai (Thailand)           | 🚧 ~30% complete         |
 
-#### European Languages
-
-| Locale Code | Language                       |
-|-------------|--------------------------------|
-| `es-ES`     | Spanish (Spain)                |
-| `fr-FR`     | French (France)                |
-| `de-DE`     | German (Germany)               |
-| `it-IT`     | Italian (Italy)                |
-| `pt-BR`     | Portuguese (Brazil)            |
-| `nl-NL`     | Dutch (Netherlands)            |
-| `pl-PL`     | Polish (Poland)                |
-| `cs-CZ`     | Czech (Czech Republic)         |
-| `hu-HU`     | Hungarian (Hungary)            |
-| `ro-RO`     | Romanian (Romania)             |
-| `uk-UA`     | Ukrainian (Ukraine)            |
-| `tr-TR`     | Turkish (Turkey)               |
-| `fi-FI`     | Finnish (Finland)              |
-| `sv-SE`     | Swedish (Sweden)               |
-| `da-DK`     | Danish (Denmark)               |
-| `nb-NO`     | Norwegian Bokmål (Norway)      |
-
-#### Asian Languages
-
-| Locale Code | Language                       |
-|-------------|--------------------------------|
-| `zh-CN`     | Chinese Simplified (China)     |
-| `ja-JP`     | Japanese (Japan)               |
-| `ko-KR`     | Korean (South Korea)           |
-| `th-TH`     | Thai (Thailand)                |
-| `hi-IN`     | Hindi (India)                  |
-
-#### Middle Eastern Languages
-
-| Locale Code | Language                       |
-|-------------|--------------------------------|
-| `ar-SA`     | Arabic (Saudi Arabia)          |
+**Note:** Additional locales can be provided via custom translations (see below).
 
 ## Message Keys
 
@@ -202,71 +182,128 @@ $t('invalid.key')
 
 See [en-US.ts](./src/locales/en-US.ts) for the complete list of available keys.
 
-## Migration Guide
+## Custom Translations
 
-### Migrating Existing Components
+You can provide your own translations or override framework translations:
 
-1. **Import i18n functions:**
-   ```typescript
-   import { t } from '@pie-qti/qti2-i18n';
-   ```
+```typescript
+import { DefaultI18nProvider } from '@pie-qti/qti2-i18n';
 
-2. **Replace hardcoded strings:**
-   ```svelte
-   <!-- Before -->
-   <button>Submit</button>
+const customMessages = {
+  // Add a new locale
+  'de-DE': {
+    common: {
+      submit: 'Einreichen',
+      next: 'Weiter',
+      previous: 'Zurück',
+    },
+    interactions: {
+      upload: {
+        label: 'Datei hochladen',
+      },
+    }
+  },
+  // Override specific framework translations
+  'en-US': {
+    common: {
+      submit: 'Send Answer', // Brand-specific terminology
+    }
+  }
+};
 
-   <!-- After -->
-   <button>{$t('common.submit')}</button>
-   ```
+const i18n = new DefaultI18nProvider('en-US', customMessages);
+```
 
-3. **Handle interpolation:**
-   ```svelte
-   <!-- Before -->
-   <p>Question {current} of {total}</p>
+Custom translations have higher priority than framework translations, so you can selectively override specific keys while keeping the rest.
 
-   <!-- After -->
-   <p>{$t('assessment.question', { current, total })}</p>
-   ```
+## Component Integration
 
-4. **Update error messages:**
-   ```typescript
-   // Before
-   error = `File type not allowed. Allowed: ${types.join(', ')}`;
+### Recommended Pattern (Svelte 5)
 
-   // After
-   const translate = $t;
-   error = translate('interactions.upload.errorInvalidType', {
-     types: types.join(', ')
-   });
-   ```
+The recommended approach is simple: use `$derived` to create memoized translations.
 
-### Example Migration
+```svelte
+<script lang="ts">
+import type { I18nProvider } from '@pie-qti/qti2-i18n';
 
-See [FileUpload.svelte](../qti2-default-components/src/shared/components/FileUpload.svelte) for a complete example of a migrated component.
+interface Props {
+  i18n?: I18nProvider;
+}
+
+let { i18n }: Props = $props();
+
+// Memoized translations - evaluated once when component loads
+const translations = $derived({
+  submit: i18n?.t('common.submit') ?? 'Submit',
+  cancel: i18n?.t('common.cancel') ?? 'Cancel'
+});
+</script>
+
+<button class="btn btn-primary">{translations.submit}</button>
+<button class="btn btn-outline">{translations.cancel}</button>
+```
+
+### Inline Pattern (For Simple Cases)
+
+For one-off translations, you can call `t()` directly:
+
+```svelte
+<button>{i18n?.t('common.submit') ?? 'Submit'}</button>
+```
+
+### Helper Pattern (For Cleaner Code)
+
+Create a translation helper for repeated use:
+
+```svelte
+<script lang="ts">
+const t = $derived((key: string, fallback: string) => i18n?.t(key) ?? fallback);
+</script>
+
+<button>{t('common.submit', 'Submit')}</button>
+<button>{t('common.cancel', 'Cancel')}</button>
+```
+
+### Web Components
+
+Web components receive i18n as a property:
+
+```typescript
+interface Props {
+  i18n?: I18nProvider;
+}
+
+let { i18n = $bindable() }: Props = $props();
+
+const t = $derived((key: string, fallback: string) => i18n?.t(key) ?? fallback);
+```
+
+**Note:** No manual subscriptions or reactivity tracking needed. Locale changes trigger a page reload, so components always render with the correct locale.
 
 ## Bundle Size
 
-| Component                    | Size (gzipped) |
-|------------------------------|----------------|
-| Core i18n logic              | ~2 KB          |
-| English locale (en-US)       | ~8 KB          |
-| Additional locale (on-demand)| ~8 KB each     |
-| **Total (default)**          | **~10 KB**     |
+| Component                     | Size (gzipped) |
+|-------------------------------|----------------|
+| Core i18n logic               | ~2 KB          |
+| English locale (en-US)        | ~8 KB          |
+| Additional locale (on-demand) | ~8 KB each     |
+| **Total (default)**           | **~10 KB**     |
 
-## Browser Support
+## Documentation
 
-All modern browsers with ES2022 support:
-- Chrome 94+
-- Firefox 93+
-- Safari 15.4+
-- Edge 94+
+For detailed guides, see the `docs/` directory:
+
+- **[Integration Guide](./docs/INTEGRATION_GUIDE.md)** - Complete guide for adding i18n to components
+- **[Component Patterns](./docs/COMPONENT_PATTERNS.md)** - Svelte 5 + DaisyUI patterns and examples
+- **[Advanced Features](./docs/ADVANCED_FEATURES.md)** - Pluralization, number & date formatting
+- **[Message Keys](./src/locales/en-US.ts)** - All available translation keys and namespaces
 
 ## Development
 
 ### Adding New Messages
 
 1. Add to English locale:
+
    ```typescript
    // src/locales/en-US.ts
    export default {
@@ -276,9 +313,9 @@ All modern browsers with ES2022 support:
    } as const;
    ```
 
-2. Add to all other locales (maintain same structure)
+2. Add to other locales (maintain same structure)
 
-3. TypeScript will automatically provide type safety for the new key
+3. TypeScript automatically provides type safety for the new key
 
 ### Running Tests
 
@@ -291,10 +328,6 @@ bun test
 ```bash
 bun run build
 ```
-
-## Architecture
-
-For detailed architecture information, see [i18n-design-plan.md](../../docs/i18n-design-plan.md).
 
 ## License
 

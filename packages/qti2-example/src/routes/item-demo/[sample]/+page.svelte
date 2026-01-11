@@ -8,7 +8,8 @@
 		type RubricBlock,
 	} from '@pie-qti/qti2-item-player';
 	import { registerDefaultComponents } from '@pie-qti/qti2-default-components';
-	import { onMount, untrack } from 'svelte';
+	import { onMount, untrack, getContext } from 'svelte';
+	import type { SvelteI18nProvider } from '@pie-qti/qti2-i18n';
 	import { SAMPLE_ITEMS } from '$lib/sample-items';
 	import ConfigurationPanel from './components/ConfigurationPanel.svelte';
 	import QuestionPanel from './components/QuestionPanel.svelte';
@@ -19,6 +20,15 @@
 	import * as PanelResize from './lib/panel-resize';
 	import { loadSessionFromServer, saveSessionToServer } from './lib/session-api';
 	import type { SessionData } from './lib/types';
+
+	// Get i18n provider from context (set in root layout)
+	const i18nContext = getContext<{ value: SvelteI18nProvider | null }>('i18n');
+	const i18n = $derived(i18nContext?.value ?? null);
+
+	// Debug logging
+	$effect(() => {
+		console.log('[ItemDemo Page] i18n from context:', i18n);
+	});
 
 	// State
 	let selectedSampleId = $state('simple-choice');
@@ -389,6 +399,7 @@
 					{totalInteractions}
 					{progressPercentage}
 					{isSubmitting}
+					{i18n}
 					disabled={scoringResult !== null}
 					role={selectedRole}
 					onResponseChange={handleResponseChange}

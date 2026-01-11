@@ -6,7 +6,7 @@
 	 */
 
 	import type { QTIFileResponse } from '@pie-qti/qti2-item-player';
-	import { t } from '@pie-qti/qti2-i18n';
+	import type { I18nProvider } from '@pie-qti/qti2-i18n';
 
 	interface Props {
 		/** Optional label shown above the input */
@@ -20,6 +20,8 @@
 		onChange: (value: QTIFileResponse | null) => void;
 		/** Optional test id for the input */
 		testId?: string;
+		/** Optional i18n provider for translations */
+		i18n?: I18nProvider;
 	}
 
 	const {
@@ -30,10 +32,21 @@
 		value = null,
 		onChange,
 		testId,
+		i18n,
 	}: Props = $props();
 
-	// Use i18n for default label if not provided
-	const displayLabel = $derived(label || $t('interactions.upload.label'));
+	// Translations
+	const translations = $derived({
+		label: i18n?.t('interactions.upload.label') ?? 'interactions.upload.label',
+		allowedTypes: i18n?.t('interactions.upload.allowedTypes') ?? 'interactions.upload.allowedTypes',
+		selectedFile: i18n?.t('interactions.upload.selectedFile') ?? 'interactions.upload.selectedFile',
+		unknownType: i18n?.t('interactions.upload.unknownType') ?? 'interactions.upload.unknownType',
+		removeFile: i18n?.t('interactions.upload.removeFile') ?? 'interactions.upload.removeFile',
+		errorInvalidType: (types: string) => i18n?.t('interactions.upload.errorInvalidType', { types }) ?? `interactions.upload.errorInvalidType ${types}`,
+	});
+
+	// Use label prop or fallback to translated text
+	const displayLabel = $derived(label || translations.label);
 
 	let error = $state<string>('');
 
@@ -75,9 +88,7 @@
 				return false;
 			});
 			if (!allowed) {
-				// Get current $t value
-				const translate = $t;
-				error = translate('interactions.upload.errorInvalidType', { types: fileTypes.join(', ') });
+				error = translations.errorInvalidType(fileTypes.join(', '));
 				input.value = '';
 				onChange(null);
 				return;
@@ -112,7 +123,9 @@
 	/>
 
 	{#if fileTypes.length > 0}
-		<div class="text-xs text-base-content/70">{$t('interactions.upload.allowedTypes')} {fileTypes.join(', ')}</div>
+		<div class="text-xs text-base-content/70">
+			{translations.allowedTypes} {fileTypes.join(', ')}
+		</div>
 	{/if}
 
 	{#if error}
@@ -124,10 +137,15 @@
 	{#if value}
 		<div class="flex items-start justify-between gap-4">
 			<div class="text-sm">
-				<div><strong>{$t('interactions.upload.selectedFile')}</strong> {value.name}</div>
-				<div class="text-xs text-base-content/70">{value.type || $t('interactions.upload.unknownType')} • {$t('units.bytes', { count: value.size })}</div>
+				<div><strong>{translations.selectedFile}</strong> {value.name}</div>
+				<div class="text-xs text-base-content/70">
+					{value.type || translations.unknownType} •
+					{i18n?.t('interactions.upload.fileSize', { size: value.size }) ?? `${value.size} bytes`}
+				</div>
 			</div>
-			<button type="button" class="btn btn-sm" onclick={clear} disabled={disabled}>{$t('common.remove')}</button>
+			<button type="button" class="btn btn-sm" onclick={clear} disabled={disabled}>
+				{translations.removeFile}
+			</button>
 		</div>
 	{/if}
 </div>

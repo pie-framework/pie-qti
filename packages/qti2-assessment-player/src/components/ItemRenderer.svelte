@@ -1,8 +1,9 @@
 <script lang="ts">
 
 	import { registerDefaultComponents } from '@pie-qti/qti2-default-components';
-	import ItemBody from '@pie-qti/qti2-default-components/shared/components/ItemBody.svelte';
+	import { ItemBody } from '@pie-qti/qti2-item-player/components';
 	import { Player, type QTIRole } from '@pie-qti/qti2-item-player';
+	import type { I18nProvider } from '@pie-qti/qti2-i18n';
 	import { onMount } from 'svelte';
 	import type { QuestionRef } from '../types/index.js';
 
@@ -36,6 +37,8 @@
 		onResponseChange?: (responseId: string, value: unknown) => void;
 		/** Math typesetting function (KaTeX, MathJax, etc.) */
 		typeset?: (root: HTMLElement) => void | Promise<void>;
+		/** I18n provider for translations */
+		i18n?: I18nProvider;
 	}
 
 	const {
@@ -45,6 +48,7 @@
 		responses = {},
 		onResponseChange,
 		typeset,
+		i18n,
 	}: Props = $props();
 
 	// Derive player from questionRef
@@ -118,6 +122,7 @@
 				{responses}
 				disabled={role !== 'candidate'}
 				{typeset}
+				{i18n}
 				onResponseChange={handleResponseChange}
 			/>
 		</div>

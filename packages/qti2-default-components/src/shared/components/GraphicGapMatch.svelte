@@ -5,6 +5,7 @@
  * Supports keyboard, mouse, and touch interactions
  */
 
+import type { I18nProvider } from '@pie-qti/qti2-i18n';
 import { createOrUpdatePair, getSourceForTarget, getTargetForSource, removePairBySource } from '../utils/pairHelpers.js';
 import { touchDrag } from '../utils/touchDragHelper.js';
 import '../styles/shared.css';
@@ -30,10 +31,25 @@ interface Props {
 	imageWidth: string;
 	imageHeight: string;
 	disabled?: boolean;
+	i18n?: I18nProvider;
 	onPairsChange: (newPairs: string[]) => void;
 }
 
-const { gapTexts, hotspots, pairs, imageData, imageWidth, imageHeight, disabled = false, onPairsChange }: Props = $props();
+const { gapTexts, hotspots, pairs, imageData, imageWidth, imageHeight, disabled = false, i18n, onPairsChange }: Props = $props();
+
+// Reactive translations
+const translations = $derived({
+	keyboardInstructions: i18n?.t('interactions.graphicGapMatch.keyboardInstructions') ?? 'interactions.graphicGapMatch.keyboardInstructions',
+	availableLabel: i18n?.t('interactions.graphicGapMatch.availableLabel') ?? 'interactions.graphicGapMatch.availableLabel',
+	availableHeading: i18n?.t('interactions.graphicGapMatch.availableHeading') ?? 'interactions.graphicGapMatch.availableHeading',
+	alreadyPlaced: i18n?.t('interactions.graphicGapMatch.alreadyPlaced') ?? 'interactions.graphicGapMatch.alreadyPlaced',
+	selectedForPlacement: i18n?.t('interactions.graphicGapMatch.selectedForPlacement') ?? 'interactions.graphicGapMatch.selectedForPlacement',
+	pressSpaceToSelect: i18n?.t('interactions.graphicGapMatch.pressSpaceToSelect') ?? 'interactions.graphicGapMatch.pressSpaceToSelect',
+	pressSpaceToPlace: i18n?.t('interactions.graphicGapMatch.pressSpaceToPlace') ?? 'interactions.graphicGapMatch.pressSpaceToPlace',
+	removeFromHotspot: (label: string) => i18n?.t('interactions.graphicGapMatch.removeFromHotspot', { label }) ?? `interactions.graphicGapMatch.removeFromHotspot (${label})`,
+	hotspot: (number: number) => i18n?.t('interactions.graphicGapMatch.hotspot', { number }) ?? `interactions.graphicGapMatch.hotspot (${number})`,
+	contains: (label: string) => i18n?.t('interactions.graphicGapMatch.contains', { label }) ?? `interactions.graphicGapMatch.contains (${label})`,
+});
 
 let draggedTextId = $state<string | null>(null);
 let hoveredHotspotId = $state<string | null>(null);

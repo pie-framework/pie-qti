@@ -28,6 +28,18 @@
 		line-height: 1.1;
 		cursor: pointer;
 		user-select: none;
+		transition: background-color 0.2s, border-color 0.2s, transform 0.1s;
+	}
+	:global(.btn:hover:not(:disabled)) {
+		background: var(--color-base-300, oklch(95% 0 0));
+		border-color: var(--color-base-content, oklch(21% 0 0));
+	}
+	:global(.btn:active:not(:disabled)) {
+		transform: scale(0.97);
+	}
+	:global(.btn:focus-visible) {
+		outline: 2px solid var(--color-primary, oklch(45% 0.24 277));
+		outline-offset: 2px;
 	}
 	:global(.btn:disabled),
 	:global(.btn.btn-disabled) {
@@ -61,6 +73,10 @@
 	:global(.btn-ghost) {
 		background: transparent;
 		border-color: transparent;
+	}
+	:global(.btn-ghost:hover:not(:disabled)) {
+		background: var(--color-base-200, oklch(98% 0 0));
+		border-color: var(--color-base-300, oklch(95% 0 0));
 	}
 	:global(.btn-outline) {
 		background: transparent;

@@ -11,11 +11,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./components/*": "./dist/components/*"
+    "./components/*": "./dist/components/*",
+    "./locales/*": "./dist/locales/*"
   },
   "scripts": {
-    "build": "tsc && bun run copy-components",
-    "copy-components": "mkdir -p dist/components && cp src/components/*.svelte dist/components/",
+    "build": "tsc",
     "clean": "rm -rf dist",
     "test": "bun test src/test",
     "typecheck": "tsc --noEmit"

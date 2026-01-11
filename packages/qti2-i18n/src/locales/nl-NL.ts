@@ -6,6 +6,8 @@
  * - Use sentence case for labels, title case for buttons
  * - Maintain consistent terminology across interactions
  * - Variables in {curlyBraces} will be replaced with dynamic values
+ *
+ * NOTE: Machine translated. Professional review recommended.
  */
 export default {
 	common: {
@@ -22,13 +24,34 @@ export default {
 		add: 'Toevoegen',
 		search: 'Zoeken',
 		filter: 'Filteren',
-		reset: 'Herstellen',
+		reset: 'Resetten',
+		clear: 'Wissen',
+		clearAll: 'Alles wissen',
 		submit: 'Verzenden',
 		next: 'Volgende',
 		previous: 'Vorige',
 		back: 'Terug',
 		continue: 'Doorgaan',
 		finish: 'Voltooien',
+		complete: 'Voltooien',
+		completed: 'Voltooid',
+		status: 'Status',
+		required: 'Verplicht',
+		review: 'Beoordelen',
+		selected: 'Geselecteerd',
+		available: 'Beschikbaar',
+		showDetails: 'Details tonen',
+		hideDetails: 'Details verbergen',
+		details: 'Details',
+		deselected: '{item} gedeselecteerd',
+		selectionCancelled: 'Selectie geannuleerd',
+		question: 'Vraag',
+		of: 'van',
+		answered: 'beantwoord',
+		pleaseComplete: 'Voltooi de vereiste interacties',
+		submitting: 'Verzenden...',
+		submitAnswer: 'Antwoord Verzenden',
+		tryAgain: 'Opnieuw Proberen',
 	},
 
 	units: {
@@ -40,9 +63,46 @@ export default {
 		hours: '{count} uren',
 	},
 
+	// Meervoudsvoorbeelden
+	// Gebruik i18n.plural('plurals.items', { count: n }) om deze te benaderen
+	plurals: {
+		items: {
+			one: '{count} item',
+			other: '{count} items',
+		},
+		files: {
+			one: '{count} bestand geselecteerd',
+			other: '{count} bestanden geselecteerd',
+		},
+		questions: {
+			one: '{count} vraag',
+			other: '{count} vragen',
+		},
+		answers: {
+			one: '{count} antwoord',
+			other: '{count} antwoorden',
+		},
+		choices: {
+			one: '{count} keuze',
+			other: '{count} keuzes',
+		},
+		attempts: {
+			one: '{count} poging over',
+			other: '{count} pogingen over',
+		},
+		minutesRemaining: {
+			one: '{count} minuut over',
+			other: '{count} minuten over',
+		},
+		secondsRemaining: {
+			one: '{count} seconde over',
+			other: '{count} seconden over',
+		},
+	},
+
 	validation: {
 		required: 'Dit veld is verplicht',
-		invalidFormat: 'Ongeldige indeling',
+		invalidFormat: 'Ongeldig formaat',
 		tooShort: 'Te kort (minimaal {min} tekens)',
 		tooLong: 'Te lang (maximaal {max} tekens)',
 		outOfRange: 'Waarde moet tussen {min} en {max} liggen',
@@ -51,36 +111,23 @@ export default {
 	interactions: {
 		choice: {
 			selectOption: 'Selecteer een optie',
-			selectMultiple: 'Selecteer alle van toepassing zijnde',
+			selectMultiple: 'Selecteer alle toepasselijke opties',
 			selected: 'Geselecteerd',
 			notSelected: 'Niet geselecteerd',
 		},
 
 		upload: {
-			// Shown as label above file input
 			label: 'Upload een bestand',
 			selectFile: 'Kies bestand',
 			dragDrop: 'of sleep en zet neer',
-
-			// Displayed before list of allowed file types
 			allowedTypes: 'Toegestane bestandstypen:',
-
-			// Displayed when file is selected
 			selectedFile: 'Geselecteerd:',
-
-			// File size display - {size} will be replaced with numeric value
 			fileSize: '{size} bytes',
 			fileSizeKb: '{size} KB',
 			fileSizeMb: '{size} MB',
-
 			removeFile: 'Bestand verwijderen',
-
-			// Error shown when file type validation fails
-			// {types} will be replaced with comma-separated list of allowed types
 			errorInvalidType: 'Bestandstype niet toegestaan. Toegestaan: {types}',
 			errorReadFailed: 'Kan bestand niet lezen',
-
-			// {max} will be replaced with maximum size in MB
 			errorTooLarge: 'Bestand is te groot (maximaal {max} MB)',
 			unknownType: 'Onbekend bestandstype',
 		},
@@ -89,10 +136,15 @@ export default {
 			label: 'Teken je antwoord',
 			clear: 'Tekening wissen',
 			undo: 'Ongedaan maken',
-			redo: 'Opnieuw',
+			redo: 'Opnieuw doen',
 			strokeColor: 'Lijnkleur',
 			strokeWidth: 'Lijndikte',
 			tool: 'Gereedschap',
+			instructions: 'Teken met je muis of touchscreen. Gebruik de Wissen-knop om te resetten.',
+			canvas: 'Tekencanvas',
+			updated: 'Tekening bijgewerkt.',
+			cleared: 'Tekening gewist.',
+			generated: 'Gegenereerd:',
 		},
 
 		extendedText: {
@@ -104,7 +156,9 @@ export default {
 			underline: 'Onderstreept',
 			bulletList: 'Opsommingslijst',
 			numberedList: 'Genummerde lijst',
-			insertMath: 'Wiskundige formule invoegen',
+			insertMath: 'Wiskundige vergelijking invoegen',
+			insertInlineMath: 'Inline wiskunde invoegen',
+			insertBlockMath: 'Wiskundeblok invoegen',
 		},
 
 		slider: {
@@ -113,81 +167,124 @@ export default {
 			min: 'Minimum: {min}',
 			max: 'Maximum: {max}',
 			step: 'Stap: {step}',
+			ariaLabel: 'Schuifregelaarwaarde van {lowerBound} tot {upperBound}',
+			statTitle: 'Geselecteerde waarde',
 		},
 
 		hottext: {
 			selected: 'Geselecteerd:',
 			selectText: 'Selecteer tekst uit de passage',
+			clearSelection: 'Selectie wissen',
+			ariaLabel: 'Tekstselectie-interactie',
 		},
 
 		hotspot: {
 			selected: 'Geselecteerd:',
 			selectArea: 'Selecteer gebieden op de afbeelding',
+			ariaLabel: 'Hotspot-interactie',
+			altText: 'Hotspot-interactie',
 		},
 
 		selectPoint: {
 			instruction: 'Klik op de afbeelding om punten te selecteren',
-			maxPointsReached: 'Maximum aantal punten bereikt. Verwijder een punt om een nieuw punt toe te voegen.',
+			instructionAria: 'Klik om punten op de afbeelding te selecteren',
+			maxPointsReached: 'Maximaal aantal punten bereikt. Verwijder een punt om een nieuwe toe te voegen.',
 			point: 'Punt {index}',
 			removePoint: 'Punt {index} verwijderen',
+			removePointTitle: 'Klik om dit punt te verwijderen',
+			removePointAt: 'Punt {index} verwijderen op coördinaten {x}, {y}',
+			removePointAtTitle: 'Klik om dit punt te verwijderen ({x}, {y})',
+			canvas: 'Selectiecanvas',
+			noImage: 'Geen afbeelding opgegeven',
+			pointsSelected: 'Punten geselecteerd:',
+			minimumMet: '✓ Minimum bereikt',
+			selectAtLeast: 'Selecteer minimaal {minChoices}',
 		},
 
 		match: {
-			// Keyboard instruction for accessible drag-drop
-			dragInstruction: 'Druk op spatie of Enter om te koppelen',
-			dropTarget: 'Plaats item hier',
+			keyboardInstructions: 'Druk op Spatie of Enter om een bronitem te selecteren. Tab om naar doelen te navigeren. Druk op Spatie of Enter op een doel om een match te maken. Druk op Escape om selectie te annuleren.',
+			dragInstruction: 'Druk op Spatie of Enter om te koppelen',
+			dropTarget: 'Zet item hier neer',
 			matchedWith: 'Gekoppeld met {target}',
+			selectedForMatching: 'Geselecteerd voor koppeling',
 			available: 'Beschikbaar',
+			availableForMatching: 'Beschikbaar voor koppeling',
 			removeMatch: 'Koppeling verwijderen',
+			clearMatch: 'Koppeling wissen voor {source}',
+			sourceItemsLabel: 'Bronitems om te koppelen',
+			targetItemsLabel: 'Doelitems voor koppeling',
 		},
 
 		gapMatch: {
-			instruction: 'Sleep woorden om de lege plekken in te vullen',
+			instruction: 'Sleep woorden om de lege plaatsen in te vullen',
 			available: 'Beschikbare woorden',
+			availableLabel: 'Beschikbare woorden om te plaatsen',
+			availableHeading: 'Beschikbare woorden:',
 			removeWord: 'Woord verwijderen',
-			// {word} will be replaced with the word being removed
-			removeFromBlanks: '{word} uit de lege plekken verwijderen',
+			removeFromBlanks: '{word} verwijderen uit de lege plaatsen',
 		},
 
 		graphicGapMatch: {
 			instruction: 'Plaats labels op de hotspots van de afbeelding',
+			keyboardInstructions: 'Druk op Spatie of Enter om een label te selecteren. Tab om naar hotspots op de afbeelding te navigeren. Druk op Spatie of Enter op een hotspot om het label te plaatsen. Druk op Escape om selectie te annuleren.',
 			available: 'Beschikbare labels',
-			alreadyPlaced: 'Reeds geplaatst op hotspot',
+			availableLabel: 'Beschikbare labels om te plaatsen',
+			availableHeading: 'Beschikbare labels:',
+			alreadyPlaced: 'Al geplaatst op hotspot',
 			selectedForPlacement: 'Geselecteerd voor plaatsing',
-			pressSpaceToSelect: 'Druk op spatie om te selecteren',
-			pressSpaceToPlace: 'Druk op spatie of Enter om label te plaatsen',
+			pressSpaceToSelect: 'Druk op Spatie om te selecteren',
+			pressSpaceToPlace: 'Druk op Spatie of Enter om label te plaatsen',
 			removeLabel: 'Label verwijderen',
-			removeFromHotspot: '{label} van hotspot verwijderen',
+			removeFromHotspot: '{label} verwijderen van hotspot',
 			hotspot: 'Hotspot {number}',
 			contains: 'Bevat: {label}',
 		},
 
 		order: {
-			instruction: 'Sleep items om ze te sorteren',
-			moveUp: 'Omhoog verplaatsen',
-			moveDown: 'Omlaag verplaatsen',
+			instruction: 'Sleep items om ze te herschikken',
+			keyboardInstructions: 'Druk op Spatie of Enter om een item te pakken. Gebruik pijltjestoetsen om het item te verplaatsen. Druk opnieuw op Spatie of Enter om neer te zetten. Druk op Escape om te annuleren.',
+			grabbed: 'Gepakt. Gebruik pijltjestoetsen om te verplaatsen.',
+			moveUp: 'Omhoog',
+			moveDown: 'Omlaag',
 			position: 'Positie {current} van {total}',
+			listLabel: 'Herschikbare lijst met keuzes',
+			confirmOrder: 'Volgorde bevestigen',
+			confirmOrderNoChanges: 'Volgorde bevestigen (Geen wijzigingen)',
+			confirmAria: 'Bevestig deze volgorde als je antwoord',
 		},
 
 		associate: {
 			instruction: 'Maak associaties tussen items',
 			createPair: 'Paar maken',
 			removePair: 'Paar verwijderen',
+			removeAssociation: 'Associatie verwijderen',
+			diagramLabel: 'Associatiediagram',
+			altText: 'Associatiediagram',
+			hotspotConnections: '{label} ({usageCount}/{matchMax} verbindingen)',
+			selectAnother: 'Geselecteerd: <strong>{label}</strong>. Klik op een andere',
+			minimumRequired: 'Minimaal vereist: {minAssociations}',
 		},
 
 		positionObject: {
 			instruction: 'Sleep objecten op de afbeelding',
 			placeObject: 'Plaats {object} op afbeelding',
-			removeObject: '{object} verwijderen',
+			removeObject: 'Verwijder {object}',
 			objectAt: '{object} op positie ({x}, {y})',
+			canvasLabel: 'Positioneringscanvas',
+			backgroundAlt: 'Positioneringsachtergrond',
+			positioned: '{label} gepositioneerd op ({x}, {y})',
+			minimumRequired: 'Minimaal vereist: {minChoices}',
+			maximumAllowed: 'Maximum: {maxChoices}',
+			availableObjects: 'Beschikbare objecten',
+			objectUsage: '{label} ({usageCount}/{matchMax} gebruikt)',
 		},
 
 		endAttempt: {
-			buttonLabel: 'Poging Beëindigen',
-			ended: 'Poging Beëindigd',
+			buttonLabel: 'Poging beëindigen',
+			ended: 'Poging beëindigd',
 			requested: 'Aangevraagd',
 			warningMessage: 'Je poging is beëindigd en kan niet meer worden gewijzigd.',
-			confirmMessage: 'Weet je zeker dat je jouw poging wilt beëindigen? Je kunt je antwoorden niet meer wijzigen.',
+			confirmMessage: 'Weet je zeker dat je je poging wilt beëindigen? Je kunt je antwoorden niet meer wijzigen.',
 		},
 
 		media: {
@@ -201,21 +298,77 @@ export default {
 			playbackSpeed: 'Afspeelsnelheid',
 			currentTime: '{current} / {duration}',
 			loading: 'Media laden...',
+			ariaLabel: 'Media-inhoud',
+			maxPlayLimitReached: 'Maximale afspeellimiet bereikt',
 		},
+
+		graphicOrder: {
+			instruction: 'Klik op hotspots om ze te ordenen',
+			diagramLabel: 'Ordeningsdiagram',
+			altText: 'Ordeningsdiagram',
+			itemLabel: 'Item {index}: {label}',
+			confirmOrder: 'Volgorde bevestigen',
+			confirmOrderNoChanges: 'Volgorde bevestigen (Geen wijzigingen)',
+			confirmAria: 'Bevestig deze volgorde als je antwoord',
+		},
+
+		custom: {
+			fallbackPlaceholder: 'Voer een handmatig antwoord in (fallback)',
+		},
+
+		inline: {
+			placeholder: '...',
+		},
+	},
+
+	item: {
+		loading: 'Item laden...',
+		loadingError: 'Kan item niet laden',
+		loadError: 'Fout bij laden van item: {error}',
+		parsingError: 'Kan QTI XML niet parseren',
+		processingError: 'Kan antwoorden niet verwerken',
+		submit: 'Verzenden',
+		complete: 'Voltooien',
+		completed: 'Voltooid',
+		attempt: 'Poging {numAttempts}',
+	},
+
+	itemSession: {
+		attempt: 'Poging {numAttempts}',
+		attemptsRemaining: '{attemptsRemaining} pogingen over',
+		maxAttempts: 'Max. pogingen: {maxAttempts}',
+	},
+
+	feedback: {
+		close: 'Feedback sluiten',
+		closeFeedback: 'Feedback negeren',
+		testFeedback: 'Testfeedback',
 	},
 
 	assessment: {
 		title: 'Toets',
 		loading: 'Toets laden...',
-		loadingError: 'Time-out bij het laden van de toets. Deze toets kan ongeldig zijn of de speler is niet geïnitialiseerd.',
+		loadingError: 'Time-out bij laden van toets. Deze toets is mogelijk ongeldig of de speler kon niet worden geïnitialiseerd.',
 		question: 'Vraag {current} van {total}',
+		questionAnnouncement: 'Vraag {current} van {total}',
 		section: 'Sectie {current} van {total}',
+		closeMenu: 'Menu sluiten',
+
+		attempts: {
+			remaining: '{count} pogingen over',
+			oneRemaining: '1 poging over',
+			noRemaining: 'Geen pogingen over ({count} gebruikt)',
+			used: 'Pogingen: {count}',
+			maxReached: 'Max. pogingen bereikt',
+			required: 'Moet antwoorden voordat je verder kunt',
+			reviewNotAllowed: 'Niet toegestaan na verzending',
+		},
 
 		navigation: {
 			previous: 'Vorige',
 			next: 'Volgende',
 			submit: 'Verzenden',
-			jumpTo: 'Spring naar vraag {number}',
+			jumpTo: 'Ga naar vraag {number}',
 			sectionMenu: 'Sectiemenu',
 			progress: 'Voortgang: {percent}%',
 		},
@@ -228,23 +381,23 @@ export default {
 		timer: {
 			timeRemaining: 'Resterende tijd: {time}',
 			timeElapsed: 'Verstreken tijd: {time}',
-			timeUp: 'Tijd is op!',
+			timeUp: 'Tijd is om!',
 		},
 
 		feedback: {
 			correct: 'Correct',
 			incorrect: 'Incorrect',
 			partiallyCorrect: 'Gedeeltelijk correct',
-			unanswered: 'Onbeantwoord',
+			unanswered: 'Niet beantwoord',
 			score: 'Score: {score} / {maxScore}',
 			passed: 'Geslaagd',
 			failed: 'Niet geslaagd',
 		},
 
 		completion: {
-			title: 'Toets Voltooid',
+			title: 'Toets voltooid',
 			message: 'Je hebt de toets voltooid.',
-			score: 'Jouw score: {score} van {maxScore}',
+			score: 'Je score: {score} van {maxScore}',
 			percentage: 'Percentage: {percent}%',
 			viewResults: 'Resultaten bekijken',
 			exit: 'Afsluiten',
@@ -252,19 +405,25 @@ export default {
 
 		errors: {
 			navigationFailed: 'Navigatie mislukt. Probeer het opnieuw.',
-			submitFailed: 'Verzenden van toets mislukt. Probeer het opnieuw.',
-			loadFailed: 'Laden van vraag mislukt.',
-			saveFailed: 'Opslaan van antwoord mislukt.',
+			submitFailed: 'Kan toets niet verzenden. Probeer het opnieuw.',
+			loadFailed: 'Kan vraag niet laden.',
+			saveFailed: 'Kan antwoord niet opslaan.',
 		},
 	},
 
+	i18n: {
+		selectLanguage: 'Taal',
+		selectLanguageAriaLabel: 'Selecteer weergavetaal',
+	},
+
 	accessibility: {
-		skipToContent: 'Spring naar inhoud',
-		skipToNavigation: 'Spring naar navigatie',
-		itemBody: 'Vraag inhoud',
+		skipToContent: 'Naar inhoud springen',
+		skipToNavigation: 'Naar navigatie springen',
+		itemBody: 'Vraaginhoud',
 		navigationRegion: 'Toetsnavigatie',
 		announcement: 'Aankondiging',
 		newQuestion: 'Nieuwe vraag geladen',
 		answerRecorded: 'Antwoord opgeslagen',
+		resizer: 'Grootte van tekst- en vraagpanelen aanpassen',
 	},
 } as const; // 'as const' for strict type inference

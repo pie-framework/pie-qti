@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Player } from '../core/Player';
 	import type { AdaptiveAttemptResult, ModalFeedback, PlayerSecurityConfig, QTIRole } from '../types';
+	import type { I18nProvider } from '@pie-qti/qti2-i18n';
 	import ItemBody from './ItemBody.svelte';
 	import ModalFeedbackDisplay from './ModalFeedbackDisplay.svelte';
 
@@ -11,6 +12,7 @@
 		security?: PlayerSecurityConfig;
 		disabled?: boolean;
 		typeset?: (element: HTMLElement) => void;
+		i18n?: I18nProvider;
 		onResponseChange?: (responseId: string, value: any) => void;
 		onSubmit?: (responses: Record<string, any>, scoringResult: any) => void;
 		/** Called when adaptive item completes (all attempts exhausted) */
@@ -23,6 +25,7 @@
 		security,
 		disabled = false,
 		typeset,
+		i18n,
 		onResponseChange,
 		onSubmit,
 		onComplete,
@@ -49,7 +52,7 @@
 			isCompleted = player.isCompleted();
 			numAttempts = player.getNumAttempts();
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to parse QTI XML';
+			error = e instanceof Error ? e.message : (i18n?.t('item.parsingError') ?? 'item.parsingError');
 			player = null;
 		}
 	});
@@ -89,7 +92,7 @@
 				onSubmit?.(responses, result);
 			}
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to process responses';
+			error = e instanceof Error ? e.message : (i18n?.t('item.processingError') ?? 'item.processingError');
 		}
 	}
 
@@ -109,6 +112,7 @@
 			{responses}
 			{disabled}
 			{typeset}
+			{i18n}
 			onResponseChange={handleResponseChange}
 		/>
 
@@ -120,15 +124,15 @@
 					onclick={() => handleSubmit(true)}
 					disabled={isCompleted || !canSubmit}
 				>
-					{isAdaptive && isCompleted ? 'Completed' : 'Submit'}
+					{isAdaptive && isCompleted ? (i18n?.t('item.completed') ?? 'item.completed') : (i18n?.t('item.submit') ?? 'item.submit')}
 				</button>
 
 				{#if isAdaptive}
 					<div class="text-sm text-base-content/70">
 						{#if isCompleted}
-							<span class="badge badge-success">Complete</span>
+							<span class="badge badge-success">{i18n?.t('item.complete') ?? 'item.complete'}</span>
 						{:else}
-							<span>Attempt {numAttempts + 1}</span>
+							<span>{i18n?.t('item.attempt', { numAttempts: numAttempts + 1 }) ?? `item.attempt (${numAttempts + 1})`}</span>
 						{/if}
 					</div>
 				{/if}
@@ -136,10 +140,10 @@
 		{/if}
 
 		<!-- Modal feedback display -->
-		<ModalFeedbackDisplay feedback={modalFeedback} onClose={closeFeedback} {typeset} />
+		<ModalFeedbackDisplay feedback={modalFeedback} onClose={closeFeedback} {typeset} {i18n} />
 	{:else}
 		<div class="alert alert-info">
-			<span>Loading item...</span>
+			<span>{i18n?.t('item.loading') ?? 'item.loading'}</span>
 		</div>
 	{/if}
 </div>

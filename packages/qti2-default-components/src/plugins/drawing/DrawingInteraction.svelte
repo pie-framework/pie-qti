@@ -2,6 +2,7 @@
 
 <script lang="ts">
 	import type { DrawingInteractionData, QTIFileResponse } from '@pie-qti/qti2-item-player';
+	import type { I18nProvider } from '@pie-qti/qti2-i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import DrawingCanvas from '../../shared/components/DrawingCanvas.svelte';
 	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
@@ -12,11 +13,12 @@
 		interaction?: DrawingInteractionData | string;
 		response?: QTIFileResponse | string | null;
 		disabled?: boolean;
+		i18n?: I18nProvider;
 		typeset?: (element: HTMLElement) => void;
 		onChange?: (value: QTIFileResponse | null) => void;
 	}
 
-	let { interaction = $bindable(), response = $bindable(), disabled = false, typeset, onChange }: Props = $props();
+	let { interaction = $bindable(), response = $bindable(), disabled = false, i18n = $bindable(), typeset, onChange }: Props = $props();
 
 	// Parse props that may be JSON strings (web component usage)
 	const parsedInteraction = $derived(parseJsonProp<DrawingInteractionData>(interaction));
@@ -65,6 +67,7 @@
 			responseId={parsedInteraction.responseId}
 			imageData={parsedInteraction.imageData}
 			{disabled}
+			{i18n}
 			value={parsedResponse}
 			onChange={handleChange}
 			{strokeColor}

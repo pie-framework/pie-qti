@@ -41,6 +41,11 @@ export interface BackendAssessmentPlayerConfig {
 	 * (Plumbed through the shell; the item player remains authoritative for behavior.)
 	 */
 	extendedTextEditor?: string;
+	/**
+	 * Optional i18n provider for internationalization.
+	 * If provided, this will be shared across all item players in the assessment.
+	 */
+	i18nProvider?: any; // Will be I18nProvider from @pie-qti/qti2-i18n
 	// UI options
 	showSections?: boolean;
 	allowSectionNavigation?: boolean;
@@ -73,6 +78,7 @@ export class AssessmentPlayer {
 	private sessionId: SessionId;
 	private assessment: SecureAssessment;
 	private state: SessionState;
+	private i18nProvider: any; // I18nProvider from @pie-qti/qti2-i18n
 
 	private navigationManager: NavigationManager;
 	private sessionController: ItemSessionController;
@@ -98,6 +104,7 @@ export class AssessmentPlayer {
 		this.backend = config.backend;
 		this.sessionId = init.sessionId;
 		this.assessment = init.assessment;
+		this.i18nProvider = config.i18nProvider ?? this.createDefaultI18nProvider();
 		this.state =
 			init.restoredState ??
 			({
@@ -355,6 +362,7 @@ export class AssessmentPlayer {
 		this.currentItemPlayer = new Player({
 			itemXml: q.item.itemXml,
 			role: q.item.role,
+			i18nProvider: this.i18nProvider,
 		});
 		this.currentItemPlayer.setResponses(this.responses as any);
 
@@ -681,5 +689,27 @@ export class AssessmentPlayer {
 
 	private notifyTimeTick(remainingSeconds: number, elapsedSeconds: number): void {
 		for (const l of this.timeTickListeners) l(remainingSeconds, elapsedSeconds);
+	}
+
+	/**
+	 * Get the i18n provider instance
+	 * @returns I18nProvider instance
+	 */
+	public getI18nProvider(): any {
+		return this.i18nProvider;
+	}
+
+	/**
+	 * Create a simple fallback i18n provider when none is provided
+	 */
+	private createDefaultI18nProvider(): any {
+		return {
+			getLocale: () => 'en-US',
+			setLocale: () => {},
+			t: (key: string) => key, // Fallback to key
+			plural: (key: string) => key,
+			formatNumber: (value: number) => value.toString(),
+			formatDate: (date: Date) => date.toISOString(),
+		};
 	}
 }

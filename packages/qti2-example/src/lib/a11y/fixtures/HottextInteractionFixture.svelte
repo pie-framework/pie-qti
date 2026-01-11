@@ -1,7 +1,7 @@
 <script lang="ts">
+	import { ItemBody } from '@pie-qti/qti2-item-player/components';
 	import { Player } from '@pie-qti/qti2-item-player';
 	import { registerDefaultComponents } from '@pie-qti/qti2-default-components';
-	import ItemBody from '@pie-qti/qti2-default-components/shared/components/ItemBody.svelte';
 	import { onMount } from 'svelte';
 
 	// QTI 2.2 hottext interaction XML

@@ -1,34 +1,14 @@
 <script lang="ts">
+	import type { InteractionData } from '../types';
 	import type { Player } from '../core/Player';
-	import { htmlToString, toTrustedHtml } from '../core/trustedTypes';
-	import type { HtmlContent } from '../types';
-	import type { InteractionData } from '../types/interactions';
-	import AssociateInteraction from './AssociateInteraction.svelte';
+	import type { I18nProvider } from '@pie-qti/qti2-i18n';
 	import { typesetAction } from './actions/typesetAction';
-	import ChoiceInteraction from './ChoiceInteraction.svelte';
-	import CustomInteraction from './CustomInteraction.svelte';
-	import DrawingCanvas from './DrawingCanvas.svelte';
-	import EndAttemptInteraction from './EndAttemptInteraction.svelte';
-	import FileUpload from './FileUpload.svelte';
-	import GapMatchInteraction from './GapMatchInteraction.svelte';
-	import GraphicAssociateInteraction from './GraphicAssociateInteraction.svelte';
-	import GraphicGapMatchAdapter from './GraphicGapMatchAdapter.svelte';
-	import GraphicOrderInteraction from './GraphicOrderInteraction.svelte';
-	import HotspotInteraction from './HotspotInteraction.svelte';
-	import HottextInteraction from './HottextInteraction.svelte';
-	import InlineInteractionRenderer from './InlineInteractionRenderer.svelte';
-	import MatchInteraction from './MatchInteraction.svelte';
-	import MediaInteraction from './MediaInteraction.svelte';
-	import OrderInteraction from './OrderInteraction.svelte';
-	import PositionObjectInteraction from './PositionObjectInteraction.svelte';
-	import RichTextEditor from './RichTextEditor.svelte';
-	import SelectPointInteraction from './SelectPointInteraction.svelte';
-	import SliderInteraction from './SliderInteraction.svelte';
 
 	interface Props {
 		player: Player;
 		responses?: Record<string, any>;
 		disabled?: boolean;
+		i18n?: I18nProvider;
 		typeset?: (element: HTMLElement) => void;
 		onResponseChange?: (responseId: string, value: any) => void;
 	}
@@ -37,71 +17,45 @@
 		player,
 		responses = {},
 		disabled = false,
+		i18n,
 		typeset,
 		onResponseChange = () => {},
 	}: Props = $props();
 
-	// State for AssociateInteraction pairing selection
-	let selectedForPairing = $state<string | null>(null);
+	// Get the component registry from the player
+	const componentRegistry = $derived(player.getComponentRegistry());
 
-	function handleSelectionChange(selected: string | null) {
-		selectedForPairing = selected;
-	}
-
-	// Map of interaction types to their Svelte components
-	// This is an internal mapping for rendering Svelte components in ItemBody
-	const componentMap: Record<string, any> = {
-		choiceInteraction: ChoiceInteraction,
-		extendedTextInteraction: RichTextEditor,
-		orderInteraction: OrderInteraction,
-		matchInteraction: MatchInteraction,
-		hotspotInteraction: HotspotInteraction,
-		graphicGapMatchInteraction: GraphicGapMatchAdapter,
-		associateInteraction: AssociateInteraction,
-		gapMatchInteraction: GapMatchInteraction,
-		sliderInteraction: SliderInteraction,
-		drawingInteraction: DrawingCanvas,
-		uploadInteraction: FileUpload,
-		customInteraction: CustomInteraction,
-		hottextInteraction: HottextInteraction,
-		endAttemptInteraction: EndAttemptInteraction,
-		graphicOrderInteraction: GraphicOrderInteraction,
-		graphicAssociateInteraction: GraphicAssociateInteraction,
-		positionObjectInteraction: PositionObjectInteraction,
-		selectPointInteraction: SelectPointInteraction,
-		mediaInteraction: MediaInteraction,
-	};
-
-	// Process interactions using the player's configured extraction registry
+	// Process interactions
 	const interactions = $derived<InteractionData[]>(player.getInteractionData());
-
-	const trustedTypesPolicyName = $derived(player.getTrustedTypesPolicyName?.());
 
 	// Get components for block-level interactions only (not inline interactions)
 	// Inline interactions (textEntry, inlineChoice) are rendered within the HTML via InlineInteractionRenderer
 	const interactionComponents = $derived(
 		interactions
-			.filter(interaction =>
-				interaction.type !== 'textEntryInteraction' &&
-				interaction.type !== 'inlineChoiceInteraction'
+			.filter(
+				(interaction) =>
+					interaction.type !== 'textEntryInteraction' &&
+					interaction.type !== 'inlineChoiceInteraction'
 			)
-			.map(interaction => {
-				const component = componentMap[interaction.type];
-				if (!component) {
-					console.warn(`No component found for interaction type: ${interaction.type}`);
+			.map((interaction) => {
+				try {
+					// Get the web component tag name from the registry
+					const tagName = componentRegistry.getTagName(interaction);
+					return {
+						interaction,
+						tagName,
+					};
+				} catch (error) {
+					console.error(`Failed to get tag name for ${interaction.type}:`, error);
 					return null;
 				}
-				return {
-					interaction,
-					component
-				};
 			})
 			.filter((item): item is NonNullable<typeof item> => item !== null)
 	);
 
 	// Get item body HTML and remove interaction elements (they're rendered separately)
-	const itemBodyHtml = $derived.by((): HtmlContent => {
-		let html = htmlToString(player.getItemBodyHtml());
+	const itemBodyHtml = $derived.by(() => {
+		let html = player.getItemBodyHtml();
 
 		// Remove block interactions from HTML
 		html = html
@@ -133,88 +87,204 @@
 			.replace(/<selectPointInteraction[\s\S]*?<\/selectPointInteraction>/gi, '')
 			.replace(/<customInteraction[\s\S]*?<\/customInteraction>/gi, '');
 
-		return toTrustedHtml(html, trustedTypesPolicyName);
+		return html;
+	});
+
+	// Inline interaction parsing (textEntry, inlineChoice) — kept local to avoid TS issues
+	// around component props inference in runes mode.
+	interface ParsedSegment {
+		type: 'html' | 'textEntry' | 'inlineChoice';
+		content?: string;
+		interaction?: any;
+	}
+
+	const inlineSegments = $derived.by(() => {
+		const html = itemBodyHtml;
+		const result: ParsedSegment[] = [];
+
+		let lastIndex = 0;
+		let match: RegExpExecArray | null;
+
+		// Find placeholders in order.
+		const combinedPattern = /\[TEXTENTRY:([^\]]+)\]|\[INLINECHOICE:([^\]]+)\]/g;
+
+		while ((match = combinedPattern.exec(html)) !== null) {
+			if (match.index > lastIndex) {
+				result.push({ type: 'html', content: html.substring(lastIndex, match.index) });
+			}
+
+			if (match[0].startsWith('[TEXTENTRY:')) {
+				const responseId = match[1];
+				const interaction = (interactions as any[]).find((i) => i.responseId === responseId);
+				if (interaction) result.push({ type: 'textEntry', interaction });
+			} else if (match[0].startsWith('[INLINECHOICE:')) {
+				const responseId = match[2];
+				const interaction = (interactions as any[]).find((i) => i.responseId === responseId);
+				if (interaction) result.push({ type: 'inlineChoice', interaction });
+			}
+
+			lastIndex = match.index + match[0].length;
+		}
+
+		if (lastIndex < html.length) {
+			result.push({ type: 'html', content: html.substring(lastIndex) });
+		}
+
+		if (result.length === 0) {
+			result.push({ type: 'html', content: html });
+		}
+
+		return result;
 	});
 
 	function handleResponseChange(responseId: string, value: any) {
 		onResponseChange(responseId, value);
 	}
+
+	// Handle qti:change events from web components
+	function handleQtiChange(event: CustomEvent) {
+		const { responseId, value } = event.detail;
+		handleResponseChange(responseId, value);
+	}
+
+	// In runes mode, prefer explicit DOM listener wiring to avoid edge cases with
+	// custom events bubbling out of shadow DOM (and to keep typing sane for dynamic elements).
+	let rootEl: HTMLDivElement | null = $state(null);
+	$effect(() => {
+		if (!rootEl) return;
+		const handler = (e: Event) => handleQtiChange(e as CustomEvent);
+		rootEl.addEventListener('qti-change', handler as EventListener);
+		return () => rootEl.removeEventListener('qti-change', handler as EventListener);
+	});
+
+	// Ensure web-component instances are not accidentally reused across items when
+	// different items share the same responseId (common in QTI demos: "RESPONSE").
+	function interactionKey(interaction: InteractionData): string {
+		const anyInteraction = interaction as any;
+		const ids =
+			Array.isArray(anyInteraction?.choices) && anyInteraction.choices.length > 0
+				? anyInteraction.choices.map((c: any) => c?.identifier).filter(Boolean).join(',')
+				: '';
+		// Include prompt if present to further reduce accidental reuse.
+		const prompt = typeof anyInteraction?.prompt === 'string' ? anyInteraction.prompt : '';
+		return `${interaction.type}|${interaction.responseId}|${ids}|${prompt}`;
+	}
+
+	// Action to set typeset and i18n on web components when they mount
+	function setWebComponentProps(node: HTMLElement, params: { i18n?: I18nProvider; typeset?: (el: HTMLElement) => void }) {
+		// Use microtask to ensure custom element is fully initialized
+		queueMicrotask(() => {
+			if (params.typeset && node) {
+				(node as any).typeset = params.typeset;
+			}
+			if (params.i18n && node) {
+				(node as any).i18n = params.i18n;
+			}
+		});
+
+		return {
+			update(newParams: { i18n?: I18nProvider; typeset?: (el: HTMLElement) => void }) {
+				if (newParams.typeset) {
+					(node as any).typeset = newParams.typeset;
+				}
+				if (newParams.i18n) {
+					(node as any).i18n = newParams.i18n;
+				}
+			},
+			destroy() {}
+		};
+	}
 </script>
 
-{#if typeset}
-	<div class="qti-item-body" use:typesetAction={{ typeset }}>
-		<!-- Item body with inline interactions -->
-		<div class="prose max-w-none mb-4">
-			<InlineInteractionRenderer
-				html={itemBodyHtml}
-				{trustedTypesPolicyName}
-				{interactions}
-				{responses}
-				onResponseChange={handleResponseChange}
-			/>
+<div bind:this={rootEl} class="qti-item-body" use:typesetAction={{ typeset }} onqti-change={handleQtiChange}>
+	<!-- Item body with inline interactions -->
+	<div class="prose max-w-none mb-4">
+		<div class="inline-interaction-container">
+			{#each inlineSegments as segment}
+				{#if segment.type === 'html'}
+					{@html segment.content}
+				{:else if segment.type === 'textEntry'}
+					<input
+						type="text"
+						class="input input-bordered input-sm inline-input"
+						style="width: {segment.interaction.expectedLength * 8}px; min-width: 100px; display: inline-block; margin: 0 4px;"
+						placeholder="..."
+						aria-label={`Text entry ${segment.interaction.responseId}`}
+						value={responses[segment.interaction.responseId] || ''}
+						oninput={(e) =>
+							handleResponseChange(segment.interaction.responseId, (e.currentTarget as HTMLInputElement).value)}
+					/>
+				{:else if segment.type === 'inlineChoice'}
+					<select
+						class="select select-bordered select-sm inline-select"
+						style="display: inline-block; margin: 0 4px; width: auto; min-width: 120px;"
+						aria-label={`Inline choice ${segment.interaction.responseId}`}
+						value={responses[segment.interaction.responseId] || ''}
+						onchange={(e) =>
+							handleResponseChange(segment.interaction.responseId, (e.currentTarget as HTMLSelectElement).value)}
+					>
+						<option value="">Select...</option>
+						{#each segment.interaction.choices as choice}
+							<option value={choice.identifier}>{choice.text}</option>
+						{/each}
+					</select>
+				{/if}
+			{/each}
 		</div>
-
-		<!-- Block interactions rendered dynamically via component registry -->
-		{#each interactionComponents as { interaction, component } (interaction.responseId)}
-		{@const Component = component}
-		{#if interaction.type === 'associateInteraction'}
-			<!-- @ts-expect-error - AssociateInteraction requires extra props -->
-			<Component
-				{interaction}
-				response={responses[interaction.responseId] ?? null}
-				{disabled}
-				{typeset}
-				{selectedForPairing}
-				onSelectionChange={handleSelectionChange}
-				onChange={(value: any) => handleResponseChange(interaction.responseId, value)}
-			/>
-		{:else}
-			<Component
-				{interaction}
-				response={responses[interaction.responseId] ?? null}
-				{disabled}
-				{typeset}
-				onChange={(value: any) => handleResponseChange(interaction.responseId, value)}
-			/>
-		{/if}
-	{/each}
 	</div>
-{:else}
-	<div class="qti-item-body">
-		<!-- Item body with inline interactions -->
-		<div class="prose max-w-none mb-4">
-			<InlineInteractionRenderer
-				html={itemBodyHtml}
-				{trustedTypesPolicyName}
-				{interactions}
-				{responses}
-				onResponseChange={handleResponseChange}
-			/>
-		</div>
 
-		<!-- Block interactions rendered dynamically via component registry -->
-		{#each interactionComponents as { interaction, component } (interaction.responseId)}
-		{@const Component = component}
-		{#if interaction.type === 'associateInteraction'}
-			<!-- @ts-expect-error - AssociateInteraction requires extra props -->
-			<Component
-				{interaction}
-				response={responses[interaction.responseId] ?? null}
-				{disabled}
-				{typeset}
-				{selectedForPairing}
-				onSelectionChange={handleSelectionChange}
-				onChange={(value: any) => handleResponseChange(interaction.responseId, value)}
-			/>
-		{:else}
-			<Component
-				{interaction}
-				response={responses[interaction.responseId] ?? null}
-				{disabled}
-				{typeset}
-				onChange={(value: any) => handleResponseChange(interaction.responseId, value)}
-			/>
-		{/if}
+	<!-- Block interactions rendered dynamically as web components -->
+	{#each interactionComponents as { interaction, tagName } (interactionKey(interaction))}
+		{@const wcProps = {
+			interaction: JSON.stringify(interaction),
+			response: JSON.stringify(responses[interaction.responseId] ?? null),
+			disabled: disabled ? true : undefined,
+		}}
+		<svelte:element
+			this={tagName}
+			{...wcProps}
+			use:setWebComponentProps={{ i18n, typeset }}
+		/>
 	{/each}
-	</div>
-{/if}
+</div>
+
+<style>
+	/* Allow the whole item body to shrink inside flex/grid layouts (prevents overflow). */
+	.qti-item-body {
+		max-width: 100%;
+		min-width: 0;
+	}
+
+	/*
+	 * Custom elements default to inline; force them to be block-level and width-contained.
+	 * This prevents wide interactions (SVGs, tables, canvases) from spilling outside panels.
+	 */
+	:global(.qti-item-body :is(
+		pie-qti-choice,
+		pie-qti-slider,
+		pie-qti-order,
+		pie-qti-match,
+		pie-qti-associate,
+		pie-qti-gap-match,
+		pie-qti-hotspot,
+		pie-qti-hottext,
+		pie-qti-media,
+		pie-qti-custom,
+		pie-qti-end-attempt,
+		pie-qti-position-object,
+		pie-qti-graphic-gap-match,
+		pie-qti-graphic-order,
+		pie-qti-graphic-associate,
+		pie-qti-select-point,
+		pie-qti-extended-text
+	)) {
+		display: block;
+		max-width: 100%;
+		min-width: 0;
+	}
+
+	/* Keep inline interactions from breaking paragraph flow */
+	.inline-interaction-container :global(p) {
+		display: inline;
+	}
+</style>

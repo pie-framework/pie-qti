@@ -6,6 +6,7 @@
 	 */
 
 	import type { QTIFileResponse } from '@pie-qti/qti2-item-player';
+	import type { I18nProvider } from '@pie-qti/qti2-i18n';
 
 	type ImageData =
 		| { type: 'svg'; content?: string; width: string; height: string }
@@ -17,6 +18,7 @@
 		imageData?: ImageData | null;
 		disabled?: boolean;
 		value?: QTIFileResponse | null;
+		i18n?: I18nProvider;
 		onChange: (value: QTIFileResponse | null) => void;
 		testIdCanvas?: string;
 		testIdClear?: string;
@@ -36,6 +38,7 @@
 		imageData = null,
 		disabled = false,
 		value = null,
+		i18n,
 		onChange,
 		testIdCanvas,
 		testIdClear,
@@ -60,6 +63,16 @@
 
 	const canvasWidth = $derived(toNumber(imageData?.width, 600));
 	const canvasHeight = $derived(toNumber(imageData?.height, 400));
+
+	// Translations
+	const translations = $derived({
+		clear: i18n?.t('interactions.drawing.clear') ?? 'interactions.drawing.clear',
+		instructions: i18n?.t('interactions.drawing.instructions') ?? 'interactions.drawing.instructions',
+		canvas: i18n?.t('interactions.drawing.canvas') ?? 'interactions.drawing.canvas',
+		updated: i18n?.t('interactions.drawing.updated') ?? 'interactions.drawing.updated',
+		cleared: i18n?.t('interactions.drawing.cleared') ?? 'interactions.drawing.cleared',
+		generated: i18n?.t('interactions.drawing.generated') ?? 'interactions.drawing.generated',
+	});
 
 	function setupCanvas() {
 		if (!canvasEl) return;
@@ -137,7 +150,7 @@
 			dataUrl,
 		};
 		onChange(response);
-		announceText = 'Drawing updated.';
+		announceText = translations.updated;
 	}
 
 	function pointerUp(e: PointerEvent) {
@@ -155,7 +168,7 @@
 		if (disabled || !ctx || !canvasEl) return;
 		ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
 		onChange(null);
-		announceText = 'Drawing cleared.';
+		announceText = translations.cleared;
 	}
 </script>
 
@@ -171,12 +184,12 @@
 			onclick={clear}
 			disabled={disabled}
 		>
-			Clear
+			{translations.clear}
 		</button>
 	</div>
 
 	<div class="text-xs text-base-content/70" id={`drawing-instructions-${responseId}`}>
-		Draw with your mouse or touch. Use the Clear button to reset.
+		{translations.instructions}
 	</div>
 
 	<div
@@ -205,7 +218,7 @@
 			width={canvasWidth}
 			height={canvasHeight}
 			class="absolute inset-0 touch-none"
-			aria-label="Drawing canvas"
+			aria-label={translations.canvas}
 			aria-describedby={`drawing-instructions-${responseId}`}
 			onpointerdown={pointerDown}
 			onpointermove={pointerMove}
@@ -219,8 +232,10 @@
 
 	{#if value}
 		<div class="text-sm">
-			<div><strong>Generated:</strong> {value.name}</div>
-			<div class="text-xs text-base-content/70">{value.size} bytes</div>
+			<div><strong>{translations.generated}</strong> {value.name}</div>
+			<div class="text-xs text-base-content/70">
+				{i18n?.t('interactions.upload.fileSize', { size: value.size }) ?? `${value.size} bytes`}
+			</div>
 		</div>
 	{/if}
 </div>
