@@ -1,6 +1,7 @@
 import type { AssessmentResults, BackendAdapter, BackendAssessmentPlayerConfig, InitSessionRequest, SecureAssessment } from '@pie-qti/qti2-assessment-player';
 import { ReferenceBackendAdapter } from '@pie-qti/qti2-assessment-player';
 import AssessmentShell from '@pie-qti/qti2-assessment-player/components/AssessmentShell.svelte';
+import type { PlayerSecurityConfig } from '@pie-qti/qti2-item-player';
 import { QTI22_ASSESSMENT_PLAYER_TAG } from '../constants.js';
 import { parseAssessmentTestXml } from '../qti/parseAssessmentTest.js';
 import { type QtiItemMap, resolveItemsForAssessment } from '../qti/resolveItems.js';
@@ -37,6 +38,7 @@ export class Qti22AssessmentPlayerElement extends BaseSvelteMountElement<Record<
 			'items-json',
 			// Common
 			'config-json',
+			'security-json',
 		];
 	}
 
@@ -48,6 +50,7 @@ export class Qti22AssessmentPlayerElement extends BaseSvelteMountElement<Record<
 	#itemBaseUrl: string | undefined;
 	#items: QtiItemMap | undefined;
 	#config: Partial<BackendAssessmentPlayerConfig> = {};
+	#security: PlayerSecurityConfig | undefined;
 
 	#backend: BackendAdapter = {
 		async initSession(_request) {
@@ -104,6 +107,11 @@ export class Qti22AssessmentPlayerElement extends BaseSvelteMountElement<Record<
 			if (parsed) this.#config = parsed;
 		}
 
+		if (name === 'security-json') {
+			const parsed = safeJsonParse<PlayerSecurityConfig>(newValue);
+			if (parsed) this.#security = parsed;
+		}
+
 		void this.#syncFromQti();
 		// Don't call _mountOrUpdate here - let #syncFromQti handle it when done
 	}
@@ -113,6 +121,14 @@ export class Qti22AssessmentPlayerElement extends BaseSvelteMountElement<Record<
 	}
 	set config(value: Partial<BackendAssessmentPlayerConfig>) {
 		this.#config = value ?? {};
+		this._mountOrUpdate();
+	}
+
+	get security() {
+		return this.#security;
+	}
+	set security(value: PlayerSecurityConfig | undefined) {
+		this.#security = value;
 		this._mountOrUpdate();
 	}
 
@@ -283,6 +299,7 @@ export class Qti22AssessmentPlayerElement extends BaseSvelteMountElement<Record<
 		// Consumers should listen to DOM events instead.
 		const baseConfig: Partial<BackendAssessmentPlayerConfig> = {
 			...this.#config,
+			security: this.#security,
 			onItemChange: (itemIndex: number, totalItems: number) => {
 				const detail: Qti22AssessmentItemChangeDetail = { itemIndex, totalItems };
 				this.dispatchEvent(

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { READING_COMPREHENSION_ASSESSMENT } from '$lib/sample-assessments';
+	import { getSecurityConfig } from '$lib/player-config';
 
 	let status = $state<'booting' | 'registering' | 'registered' | 'rendered' | 'error'>('booting');
 	let message = $state<string>('Starting…');
@@ -63,6 +64,7 @@
 			el.assessmentTestXml = assessmentTestXml;
 			el.items = items;
 			el.config = { role: 'candidate', navigationMode: 'nonlinear', showSections: true };
+			el.security = getSecurityConfig();
 
 			const ok = await waitForRender(10000);
 			if (!ok) throw new Error('Timeout waiting for assessment to render');

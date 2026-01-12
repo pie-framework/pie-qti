@@ -12,6 +12,7 @@
 	import type { SvelteI18nProvider } from '@pie-qti/qti2-i18n';
 	import { SAMPLE_ITEMS } from '$lib/sample-items';
 	import { getItemXmlForLocale, hasMultilingualVariants } from '$lib/locale-aware-items';
+	import { getSecurityConfig } from '$lib/player-config';
 	import ConfigurationPanel from './components/ConfigurationPanel.svelte';
 	import QuestionPanel from './components/QuestionPanel.svelte';
 	import ResizableDivider from './components/ResizableDivider.svelte';
@@ -73,6 +74,7 @@
 			const newPlayer = new Player({
 				itemXml: xml,
 				role: selectedRole,
+				security: getSecurityConfig(),
 			});
 
 			// Register default components with the player's registry

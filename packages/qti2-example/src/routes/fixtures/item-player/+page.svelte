@@ -10,6 +10,7 @@
 	import { typesetMathInElement } from '@pie-qti/qti2-typeset-katex';
 	import { untrack } from 'svelte';
 	import { SAMPLE_ITEMS } from '$lib/sample-items';
+	import { getSecurityConfig } from '$lib/player-config';
 
 	let selectedSampleId = $state('simple-choice');
 	let xmlContent = $state('');
@@ -31,6 +32,7 @@
 		const newPlayer = new Player({
 			itemXml: xml,
 			role: selectedRole,
+			security: getSecurityConfig(),
 		});
 
 		player = newPlayer;

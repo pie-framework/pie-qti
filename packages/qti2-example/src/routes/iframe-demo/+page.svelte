@@ -3,6 +3,7 @@
 	import { onDestroy, onMount, getContext } from 'svelte';
 	import { base } from '$app/paths';
 	import { SAMPLE_ITEMS } from '$lib/sample-items';
+	import { getSecurityConfig } from '$lib/player-config';
 	import type { SvelteI18nProvider } from '@pie-qti/qti2-i18n';
 
 	const i18nContext = getContext<{ value: SvelteI18nProvider | null }>('i18n');
@@ -54,6 +55,7 @@
 		await host.init({
 			itemXml: item.xml,
 			role: 'candidate',
+			security: getSecurityConfig(),
 		});
 	}
 

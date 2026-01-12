@@ -46,6 +46,11 @@ export interface BackendAssessmentPlayerConfig {
 	 * If provided, this will be shared across all item players in the assessment.
 	 */
 	i18nProvider?: any; // Will be I18nProvider from @pie-qti/qti2-i18n
+	/**
+	 * Security configuration for URL policy and content restrictions.
+	 * If provided, this will be passed to all item players in the assessment.
+	 */
+	security?: any; // Will be PlayerSecurityConfig from @pie-qti/qti2-item-player
 	// UI options
 	showSections?: boolean;
 	allowSectionNavigation?: boolean;

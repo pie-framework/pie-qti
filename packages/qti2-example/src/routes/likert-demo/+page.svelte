@@ -8,6 +8,7 @@
 	import { typesetMathInElement } from '@pie-qti/qti2-typeset-katex';
 	import { browser } from '$app/environment';
 	import { ALL_LIKERT_ITEMS } from '$lib/sample-likert-items';
+	import { getSecurityConfig } from '$lib/player-config';
 
 	let selectedItemIndex = $state(0);
 	let currentItem = $derived(ALL_LIKERT_ITEMS[selectedItemIndex]);
@@ -18,6 +19,7 @@
 		const p = new Player({
 			itemXml: currentItem.xml,
 			plugins: [likertScalePlugin],
+			security: getSecurityConfig(),
 		});
 
 		// Register default components with the player's registry so ItemBody can render interactions.

@@ -1,5 +1,5 @@
 import ItemRenderer from '@pie-qti/qti2-assessment-player/components/ItemRenderer.svelte';
-import type { QTIRole } from '@pie-qti/qti2-item-player';
+import type { PlayerSecurityConfig, QTIRole } from '@pie-qti/qti2-item-player';
 import { QTI22_ITEM_PLAYER_TAG } from '../constants.js';
 import { safeJsonParse } from '../utils/json.js';
 import { BaseSvelteMountElement } from './BaseSvelteMountElement.js';
@@ -19,6 +19,7 @@ export class Qti22ItemPlayerElement extends BaseSvelteMountElement<Record<string
 			'role',
 			'extended-text-editor',
 			'responses-json',
+			'security-json',
 		];
 	}
 
@@ -30,6 +31,7 @@ export class Qti22ItemPlayerElement extends BaseSvelteMountElement<Record<string
 	#role: QTIRole = 'candidate';
 	#extendedTextEditor: 'tiptap' | 'textarea' = 'tiptap';
 	#responses: Record<string, unknown> = {};
+	#security: PlayerSecurityConfig | undefined;
 
 	#updateSeq = 0;
 
@@ -62,6 +64,11 @@ export class Qti22ItemPlayerElement extends BaseSvelteMountElement<Record<string
 			case 'responses-json': {
 				const parsed = safeJsonParse<Record<string, unknown>>(newValue);
 				if (parsed) this.#responses = parsed;
+				break;
+			}
+			case 'security-json': {
+				const parsed = safeJsonParse<PlayerSecurityConfig>(newValue);
+				if (parsed) this.#security = parsed;
 				break;
 			}
 		}
@@ -120,6 +127,14 @@ export class Qti22ItemPlayerElement extends BaseSvelteMountElement<Record<string
 		void this.#syncState();
 	}
 
+	get security() {
+		return this.#security;
+	}
+	set security(value: PlayerSecurityConfig | undefined) {
+		this.#security = value;
+		void this.#syncState();
+	}
+
 	/**
 	 * Convenience: programmatically set a response.
 	 */
@@ -153,6 +168,7 @@ export class Qti22ItemPlayerElement extends BaseSvelteMountElement<Record<string
 			role: this.#role,
 			extendedTextEditor: this.#extendedTextEditor,
 			responses: this.#responses,
+			security: this.#security,
 			onResponseChange: (responseId: string, value: unknown) => {
 				this.#responses = { ...this.#responses, [responseId]: value };
 				const detail: Qti22ItemPlayerResponseChangeDetail = {

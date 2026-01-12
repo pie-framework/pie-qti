@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { SAMPLE_ITEMS } from '$lib/sample-items';
+	import { getSecurityConfig } from '$lib/player-config';
 
 	let status = $state<'booting' | 'registering' | 'registered' | 'rendered' | 'error'>('booting');
 	let message = $state<string>('Starting…');
@@ -43,6 +44,7 @@
 			el.identifier = sample?.id ?? 'item';
 			el.title = sample?.title ?? 'Item';
 			el.role = 'candidate';
+			el.security = getSecurityConfig();
 
 			const ok = await waitForRender(8000);
 			if (!ok) throw new Error('Timeout waiting for item to render');
