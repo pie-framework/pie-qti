@@ -6,6 +6,7 @@ import AssessmentShell from '@pie-qti/qti2-assessment-player/components/Assessme
 	import { typesetAction } from '@pie-qti/qti2-default-components/shared';
 	import { typesetMathInElement } from '@pie-qti/qti2-typeset-katex';
 	import { SAMPLE_ASSESSMENTS, type SampleAssessment, toSecureAssessment } from '$lib/sample-assessments';
+	import { getSecurityConfig } from '$lib/player-config';
 
 	let selectedSampleId = $state('reading-comp-1');
 	let selectedAssessment = $state<SampleAssessment | null>(null);
@@ -55,6 +56,7 @@ import AssessmentShell from '@pie-qti/qti2-assessment-player/components/Assessme
 						showSections: true,
 						allowSectionNavigation: true,
 						showProgress: true,
+						security: getSecurityConfig(),
 						onComplete: () => {
 							// No-op for test fixtures
 						},

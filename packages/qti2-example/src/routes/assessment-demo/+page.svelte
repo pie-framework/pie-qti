@@ -5,6 +5,7 @@
 	import { typesetAction } from '@pie-qti/qti2-default-components/shared';
 	import { typesetMathInElement } from '@pie-qti/qti2-typeset-katex';
 	import { SAMPLE_ASSESSMENTS, type SampleAssessment, toSecureAssessment } from '$lib/sample-assessments';
+	import { getSecurityConfig } from '$lib/player-config';
 	import AssessmentEndScreen from './components/AssessmentEndScreen.svelte';
 	import FileUploader from './components/FileUploader.svelte';
 	import SampleSelector from './components/SampleSelector.svelte';
@@ -158,6 +159,7 @@
 							showSections: true,
 							allowSectionNavigation: true,
 							showProgress: true,
+							security: getSecurityConfig(),
 						}}
 						onSubmit={(r) => (results = r)}
 						typeset={(el) => typesetMathInElement(el)}

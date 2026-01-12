@@ -396,6 +396,7 @@
 							onResponseChange={handleResponseChange}
 							{typeset}
 							{i18n}
+							security={config.security}
 						/>
 					{/if}
 				</SplitPaneResizer>
@@ -414,6 +415,7 @@
 						onResponseChange={handleResponseChange}
 						{typeset}
 						{i18n}
+						security={config.security}
 					/>
 				{/if}
 			{/if}
