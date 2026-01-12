@@ -219,6 +219,13 @@ export default {
 			clearMatch: 'Limpiar emparejamiento de {source}',
 			sourceItemsLabel: 'Elementos fuente para emparejar',
 			targetItemsLabel: 'Elementos objetivo para emparejar',
+			dragFromHere: 'Arrastra desde aquí:',
+			dropHere: 'Suelta aquí:',
+			deselected: '{item} deseleccionado',
+			selected: '{item} seleccionado',
+			navigateToTarget: 'Navega a un objetivo y presiona Espacio o Enter para emparejar',
+			selectionCancelled: 'Selección cancelada',
+			matchCleared: 'Emparejamiento limpiado para {item}',
 		},
 
 		gapMatch: {
@@ -228,9 +235,10 @@ export default {
 			availableHeading: 'Palabras disponibles:',
 			removeWord: 'Eliminar palabra',
 			removeFromBlanks: 'Eliminar {word} de los espacios',
+			selectPlaceholder: 'Seleccionar...',
 			gapAriaLabel: 'Espacio {gapId}',
 			blankGapAriaLabel: 'Espacio en blanco {gapId}. Arrastra una respuesta aquí.',
-			filledGapAriaLabel: 'Blank {gapId}, filled with {word}. Click to clear.',
+			filledGapAriaLabel: 'Espacio {gapId}, rellenado con {word}. Haz clic para limpiar.',
 		},
 
 		graphicGapMatch: {
@@ -245,6 +253,7 @@ export default {
 			pressSpaceToPlace: 'Presiona Espacio o Enter para colocar etiqueta',
 			removeLabel: 'Eliminar etiqueta',
 			removeFromHotspot: 'Eliminar {label} del punto activo',
+			labelPlaced: '{label} colocado en el punto activo {hotspot}',
 			hotspot: 'Punto activo {number}',
 			contains: 'Contiene: {label}',
 		},
@@ -260,6 +269,10 @@ export default {
 			confirmOrder: 'Confirmar orden',
 			confirmOrderNoChanges: 'Confirmar orden (Sin cambios)',
 			confirmAria: 'Confirmar este orden como tu respuesta',
+			itemGrabbed: '{item} agarrado. Posición actual {position} de {total}. Usa las flechas para mover, Espacio o Enter para soltar.',
+			itemDropped: '{item} soltado en la posición {position} de {total}',
+			itemMoved: '{item} movido a la posición {position} de {total}',
+			selectionCancelled: 'Selección de {item} cancelada',
 		},
 
 		associate: {
@@ -272,6 +285,13 @@ export default {
 			hotspotConnections: '{label} ({usageCount}/{matchMax} conexiones)',
 			selectAnother: 'Seleccionado: <strong>{label}</strong>. Haz clic en otro',
 			minimumRequired: 'Mínimo requerido: {minAssociations}',
+			currentAssociations: 'Asociaciones actuales',
+			clickToAssociate: 'Haz clic en dos elementos para crear una asociación entre ellos',
+			clickAnotherOrDeselect: 'Haz clic en otro elemento para crear una asociación (o haz clic nuevamente para deseleccionar)',
+			associations: 'Asociaciones',
+			associationsCount: 'Asociaciones ({count}/{max})',
+			clickHotspotsToAssociate: 'Haz clic en dos puntos activos en la imagen para crear una asociación.',
+			clickAnotherHotspot: 'Seleccionado: <strong>{label}</strong>. Haz clic en otro punto activo para crear una asociación.',
 		},
 
 		positionObject: {
@@ -286,6 +306,9 @@ export default {
 			maximumAllowed: 'Máximo: {maxChoices}',
 			availableObjects: 'Objetos disponibles',
 			objectUsage: '{label} ({usageCount}/{matchMax} usado)',
+			availableObjectsCount: 'Objetos disponibles ({count}/{max})',
+			dragObjectsInstruction: 'Arrastra objetos sobre el lienzo para posicionarlos.',
+			used: '{usageCount}/{matchMax} usado',
 		},
 
 		endAttempt: {
@@ -309,12 +332,22 @@ export default {
 			loading: 'Cargando medios...',
 			ariaLabel: 'Contenido multimedia',
 			maxPlayLimitReached: 'Límite máximo de reproducción alcanzado',
+			playCount: 'Número de reproducciones:',
+			remaining: 'Restante:',
+			requirementMet: '✓ Requisito cumplido',
+			playAtLeast: 'Reproducir al menos {minPlays} vez',
+			playAtLeastPlural: 'Reproducir al menos {minPlays} veces',
+			browserNoSupport: 'Tu navegador no admite este tipo de medio.',
+			audioNoSupport: 'Tu navegador no admite el elemento de audio.',
+			videoNoSupport: 'Tu navegador no admite el elemento de video.',
+			objectDisabled: 'Este elemento usa un tipo de objeto incrustado que está deshabilitado por defecto por razones de seguridad.',
 		},
 
 		graphicOrder: {
 			instruction: 'Haz clic en puntos activos para ordenarlos',
 			diagramLabel: 'Diagrama de ordenamiento',
 			altText: 'Diagrama de ordenamiento',
+			orderHeading: 'Orden (arrastra para reordenar)',
 			itemLabel: 'Elemento {index}: {label}',
 			confirmOrder: 'Confirmar orden',
 			confirmOrderNoChanges: 'Confirmar orden (Sin cambios)',
@@ -322,7 +355,13 @@ export default {
 		},
 
 		custom: {
-			fallbackPlaceholder: 'Ingresa una respuesta manual (alternativa)',
+			unsupported: 'customInteraction no compatible',
+			description: 'Este elemento contiene una interacción específica del proveedor. Este reproductor no ejecuta interacciones personalizadas.',
+			promptLabel: 'Indicación',
+			manualResponse: 'Respuesta manual (opcional)',
+			placeholder: 'Ingresa una respuesta manual (alternativa)',
+			attributes: 'Atributos',
+			xml: 'XML',
 		},
 
 		inline: {
@@ -393,6 +432,9 @@ export default {
 		},
 
 		timer: {
+			remaining: 'Tiempo restante',
+			elapsed: 'Tiempo transcurrido',
+			expired: 'Tiempo expirado',
 			timeRemaining: 'Tiempo restante: {time}',
 			timeElapsed: 'Tiempo transcurrido: {time}',
 			timeUp: '¡Se acabó el tiempo!',

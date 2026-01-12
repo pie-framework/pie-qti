@@ -218,6 +218,13 @@ export default {
 			clearMatch: 'Effacer l\'association pour {source}',
 			sourceItemsLabel: 'Éléments sources à associer',
 			targetItemsLabel: 'Éléments cibles pour l\'association',
+			dragFromHere: 'Faites glisser depuis ici :',
+			dropHere: 'Déposez ici :',
+			deselected: '{item} désélectionné',
+			selected: '{item} sélectionné',
+			navigateToTarget: 'Naviguez vers une cible et appuyez sur Espace ou Entrée pour associer',
+			selectionCancelled: 'Sélection annulée',
+			matchCleared: 'Association effacée pour {item}',
 		},
 
 		gapMatch: {
@@ -227,9 +234,10 @@ export default {
 			availableHeading: 'Mots disponibles :',
 			removeWord: 'Supprimer le mot',
 			removeFromBlanks: 'Supprimer {word} des blancs',
+			selectPlaceholder: 'Sélectionner...',
 			gapAriaLabel: 'Espace {gapId}',
 			blankGapAriaLabel: 'Blanc {gapId}. Déposez une réponse ici.',
-			filledGapAriaLabel: 'Blank {gapId}, filled with {word}. Click to clear.',
+			filledGapAriaLabel: 'Blanc {gapId}, rempli avec {word}. Cliquez pour effacer.',
 		},
 
 		graphicGapMatch: {
@@ -244,6 +252,7 @@ export default {
 			pressSpaceToPlace: 'Appuyez sur Espace ou Entrée pour placer l\'étiquette',
 			removeLabel: 'Supprimer l\'étiquette',
 			removeFromHotspot: 'Supprimer {label} de la zone sensible',
+			labelPlaced: '{label} placé sur la zone sensible {hotspot}',
 			hotspot: 'Zone sensible {number}',
 			contains: 'Contient : {label}',
 		},
@@ -259,6 +268,10 @@ export default {
 			confirmOrder: 'Confirmer l\'ordre',
 			confirmOrderNoChanges: 'Confirmer l\'ordre (Aucun changement)',
 			confirmAria: 'Confirmer cet ordre comme votre réponse',
+			itemGrabbed: '{item} saisi. Position actuelle {position} sur {total}. Utilisez les touches fléchées pour déplacer, Espace ou Entrée pour déposer.',
+			itemDropped: '{item} déposé à la position {position} sur {total}',
+			itemMoved: '{item} déplacé à la position {position} sur {total}',
+			selectionCancelled: 'Sélection de {item} annulée',
 		},
 
 		associate: {
@@ -271,6 +284,13 @@ export default {
 			hotspotConnections: '{label} ({usageCount}/{matchMax} connexions)',
 			selectAnother: 'Sélectionné : <strong>{label}</strong>. Cliquez sur un autre',
 			minimumRequired: 'Minimum requis : {minAssociations}',
+			currentAssociations: 'Associations actuelles',
+			clickToAssociate: 'Cliquez sur deux éléments pour créer une association entre eux',
+			clickAnotherOrDeselect: 'Cliquez sur un autre élément pour créer une association (ou cliquez à nouveau pour désélectionner)',
+			associations: 'Associations',
+			associationsCount: 'Associations ({count}/{max})',
+			clickHotspotsToAssociate: 'Cliquez sur deux zones sensibles sur l\'image pour créer une association.',
+			clickAnotherHotspot: 'Sélectionné : <strong>{label}</strong>. Cliquez sur une autre zone sensible pour créer une association.',
 		},
 
 		positionObject: {
@@ -285,6 +305,9 @@ export default {
 			maximumAllowed: 'Maximum : {maxChoices}',
 			availableObjects: 'Objets disponibles',
 			objectUsage: '{label} ({usageCount}/{matchMax} utilisé)',
+			availableObjectsCount: 'Objets disponibles ({count}/{max})',
+			dragObjectsInstruction: 'Faites glisser les objets sur le canevas pour les positionner.',
+			used: '{usageCount}/{matchMax} utilisé',
 		},
 
 		endAttempt: {
@@ -308,12 +331,22 @@ export default {
 			loading: 'Chargement du média...',
 			ariaLabel: 'Contenu multimédia',
 			maxPlayLimitReached: 'Limite maximale de lecture atteinte',
+			playCount: 'Nombre de lectures :',
+			remaining: 'Restant :',
+			requirementMet: '✓ Exigence satisfaite',
+			playAtLeast: 'Lire au moins {minPlays} fois',
+			playAtLeastPlural: 'Lire au moins {minPlays} fois',
+			browserNoSupport: 'Votre navigateur ne prend pas en charge ce type de média.',
+			audioNoSupport: 'Votre navigateur ne prend pas en charge l\'élément audio.',
+			videoNoSupport: 'Votre navigateur ne prend pas en charge l\'élément vidéo.',
+			objectDisabled: 'Cet élément utilise un type d\'objet intégré qui est désactivé par défaut pour des raisons de sécurité.',
 		},
 
 		graphicOrder: {
 			instruction: 'Cliquez sur les zones sensibles pour les ordonner',
 			diagramLabel: 'Diagramme d\'ordre',
 			altText: 'Diagramme d\'ordre',
+			orderHeading: 'Ordre (faites glisser pour réorganiser)',
 			itemLabel: 'Élément {index} : {label}',
 			confirmOrder: 'Confirmer l\'ordre',
 			confirmOrderNoChanges: 'Confirmer l\'ordre (Aucun changement)',
@@ -321,7 +354,13 @@ export default {
 		},
 
 		custom: {
-			fallbackPlaceholder: 'Entrez une réponse manuelle (solution de secours)',
+			unsupported: 'customInteraction non prise en charge',
+			description: 'Cet élément contient une interaction spécifique au fournisseur. Ce lecteur n\'exécute pas les interactions personnalisées.',
+			promptLabel: 'Invite',
+			manualResponse: 'Réponse manuelle (facultatif)',
+			placeholder: 'Entrez une réponse manuelle (solution de secours)',
+			attributes: 'Attributs',
+			xml: 'XML',
 		},
 
 		inline: {
@@ -392,6 +431,9 @@ export default {
 		},
 
 		timer: {
+			remaining: 'Temps restant',
+			elapsed: 'Temps écoulé',
+			expired: 'Temps expiré',
 			timeRemaining: 'Temps restant : {time}',
 			timeElapsed: 'Temps écoulé : {time}',
 			timeUp: 'Temps écoulé !',

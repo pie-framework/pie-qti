@@ -315,7 +315,41 @@ For detailed guides, see the `docs/` directory:
 
 2. Add to other locales (maintain same structure)
 
-3. TypeScript automatically provides type safety for the new key
+3. Run translation coverage checker:
+
+   ```bash
+   bun run check-translations
+   ```
+
+4. TypeScript automatically provides type safety for the new key
+
+### Translation Coverage Checker
+
+The package includes an automated translation coverage checker that ensures all locales maintain 100% coverage:
+
+```bash
+# Check all locales
+bun run check-translations
+
+# Check specific locale
+bun run check-translations:locale=nl-NL
+```
+
+The checker:
+
+- ✅ **Automatically discovers** all keys from en-US (no hardcoded lists)
+- ✅ **Automatically detects** all locale files (no configuration)
+- ✅ **Reports missing keys** in other locales
+- ✅ **Detects obsolete keys** that should be removed
+- ✅ **Runs in CI/CD** to block PRs with incomplete translations
+
+**Integrated into build:**
+
+```bash
+bun run build  # Automatically checks translations first
+```
+
+See [Translation Coverage Documentation](./docs/TRANSLATION_COVERAGE.md) for details.
 
 ### Running Tests
 
@@ -326,7 +360,11 @@ bun test
 ### Building
 
 ```bash
+# Build with translation check
 bun run build
+
+# Build without translation check (emergency use only)
+bun run build:skip-check
 ```
 
 ## License
