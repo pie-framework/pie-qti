@@ -129,7 +129,7 @@
 
 	<!-- Display current pairs -->
 	{#if pairs.length > 0}
-		<div part="pairs-title" class="divider">Current Associations</div>
+		<div part="pairs-title" class="divider">{i18n?.t('interactions.associate.currentAssociations') ?? 'Current Associations'}</div>
 		<div part="pairs" class="qti-associate-pairs space-y-2">
 			{#each pairs as pair, index}
 				{@const [id1, id2] = pair.split(' ')}

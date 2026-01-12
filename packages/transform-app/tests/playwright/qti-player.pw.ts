@@ -54,7 +54,7 @@ test.describe('QTI Player', () => {
 		expect(isInitialized).toBeTruthy();
 	});
 
-	test('player renders item content in shadow DOM', async ({ page, request }) => {
+	test('player renders item content', async ({ page, request }) => {
 		const sessionId = await createSessionFromSample(request, 'basic-interactions');
 		await navigateToItemsPage(page, sessionId);
 
@@ -70,16 +70,12 @@ test.describe('QTI Player', () => {
 		const playerElement = page.locator('pie-qti2-item-player');
 		await expect(playerElement).toBeVisible();
 
-		// Check that player has shadow DOM with content
+		// Check that player renders content (uses light DOM, not shadow DOM)
 		const hasContent = await playerElement.evaluate((el: any) => {
-			const shadowRoot = el.shadowRoot;
-			if (!shadowRoot) return false;
+			// QTI players use light DOM for better accessibility and flexibility
+			const hasText = el.textContent && el.textContent.trim().length > 0;
+			const hasInteractiveElements = el.querySelectorAll('button, input, select, textarea').length > 0;
 
-			// Check for common QTI player elements
-			// Player should have some content (text, buttons, inputs, etc.)
-			const hasText = shadowRoot.textContent && shadowRoot.textContent.trim().length > 0;
-			const hasInteractiveElements = shadowRoot.querySelectorAll('button, input, select, textarea').length > 0;
-			
 			return hasText || hasInteractiveElements;
 		});
 

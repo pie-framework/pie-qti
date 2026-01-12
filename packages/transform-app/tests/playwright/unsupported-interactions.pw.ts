@@ -98,17 +98,16 @@ test.describe('Unsupported Interaction Detection', () => {
 		// Analyze package
 		await page.getByRole('button', { name: /Analyze Package/i }).click();
 
-		// Wait for analysis to complete
-		await expect(page.getByText(/Analysis complete/i)).toBeVisible({ timeout: 60_000 });
+		// Wait for analysis to complete by checking for the Analysis Results heading
+		await expect(page.getByRole('heading', { name: /Analysis Results/i })).toBeVisible({ timeout: 60_000 });
 
 		// Check for unsupported interaction warning
-		await expect(page.getByText(/UNSUPPORTED INTERACTIONS/i)).toBeVisible();
-		await expect(page.getByText(/sliderInteraction/i)).toBeVisible();
-		await expect(page.getByText(/cannot convert to PIE/i)).toBeVisible();
+		await expect(page.getByText(/UNSUPPORTED INTERACTIONS/i)).toBeVisible({ timeout: 10_000 });
+		await expect(page.getByText(/1 item use unsupported sliderInteraction/i)).toBeVisible({ timeout: 10_000 });
 
 		// Verify red alert is shown
 		await expect(page.locator('.alert-error')).toBeVisible();
-		await expect(page.getByText(/Cannot Convert to PIE/i)).toBeVisible();
+		await expect(page.getByRole('heading', { name: /Cannot Convert to PIE/i })).toBeVisible();
 
 		// Verify Transform to PIE button is disabled
 		const transformButton = page.getByTestId('transform-to-pie');
@@ -170,18 +169,15 @@ test.describe('Unsupported Interaction Detection', () => {
 
 		await page.goto(`/session/${sessionId}`);
 		await page.getByRole('button', { name: /Analyze Package/i }).click();
-		await expect(page.getByText(/Analysis complete/i)).toBeVisible({ timeout: 60_000 });
+
+		// Wait for analysis to complete by checking for the Analysis Results heading
+		await expect(page.getByRole('heading', { name: /Analysis Results/i })).toBeVisible({ timeout: 60_000 });
 
 		// Check for all three unsupported types
-		await expect(page.getByText(/UNSUPPORTED INTERACTIONS/i)).toBeVisible();
-		await expect(page.getByText(/sliderInteraction/i)).toBeVisible();
-		await expect(page.getByText(/uploadInteraction/i)).toBeVisible();
-		await expect(page.getByText(/mediaInteraction/i)).toBeVisible();
-
-		// Count should show for each type
-		await expect(page.getByText(/1 item.*sliderInteraction/i)).toBeVisible();
-		await expect(page.getByText(/1 item.*uploadInteraction/i)).toBeVisible();
-		await expect(page.getByText(/1 item.*mediaInteraction/i)).toBeVisible();
+		await expect(page.getByText(/UNSUPPORTED INTERACTIONS/i)).toBeVisible({ timeout: 10_000 });
+		await expect(page.getByText(/1 item use unsupported sliderInteraction/i)).toBeVisible();
+		await expect(page.getByText(/1 item use unsupported uploadInteraction/i)).toBeVisible();
+		await expect(page.getByText(/1 item use unsupported mediaInteraction/i)).toBeVisible();
 
 		// Transform button still disabled
 		await expect(page.getByTestId('transform-to-pie')).toBeDisabled();
@@ -267,11 +263,13 @@ test.describe('Unsupported Interaction Detection', () => {
 
 		await page.goto(`/session/${sessionId}`);
 		await page.getByRole('button', { name: /Analyze Package/i }).click();
-		await expect(page.getByText(/Analysis complete/i)).toBeVisible({ timeout: 60_000 });
+
+		// Wait for analysis to complete by checking for the Analysis Results heading
+		await expect(page.getByRole('heading', { name: /Analysis Results/i })).toBeVisible({ timeout: 60_000 });
 
 		// Should show experimental warning, not unsupported error
-		await expect(page.getByText(/EXPERIMENTAL CONVERSIONS/i)).toBeVisible();
-		await expect(page.getByText(/associateInteraction/i)).toBeVisible();
+		await expect(page.getByText(/EXPERIMENTAL CONVERSIONS/i)).toBeVisible({ timeout: 10_000 });
+		await expect(page.getByText(/use associateInteraction/i)).toBeVisible();
 		await expect(page.getByText(/fidelity loss/i)).toBeVisible();
 
 		// Transform button should still be enabled (experimental, not blocked)

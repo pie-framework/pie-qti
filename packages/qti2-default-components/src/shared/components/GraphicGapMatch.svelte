@@ -169,7 +169,7 @@ function parseCoords(hotspot: Hotspot): { x: number; y: number; width: number; h
 
 <div class="space-y-4" role="region" aria-describedby="graphic-gap-match-instructions">
 	<!-- Draggable gap texts (labels) -->
-	<div class="flex flex-wrap gap-2 p-4 bg-base-200 rounded-lg border-2 border-base-300" role="group" aria-label="Available labels to place">
+	<div class="flex flex-wrap gap-2 p-4 bg-base-200 rounded-lg border-2 border-base-300" role="group" aria-label={i18n?.t('interactions.graphicGapMatch.availableLabel') ?? 'Available labels to place'}>
 		<div class="w-full text-sm text-base-content/70 font-semibold mb-2">Available Labels:</div>
 		{#each gapTexts as gapText (gapText.identifier)}
 			{@const matchedHotspot = getTargetForSource(pairs, gapText.identifier)}
@@ -205,7 +205,7 @@ function parseCoords(hotspot: Hotspot): { x: number; y: number; width: number; h
 						class="btn btn-sm btn-circle btn-error"
 						onclick={() => clearMatch(gapText.identifier)}
 						aria-label="Remove {gapText.text} from hotspot"
-						title="Remove label"
+						title={i18n?.t('interactions.graphicGapMatch.removeLabel') ?? 'Remove label'}
 					>
 						✕
 					</button>

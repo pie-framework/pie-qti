@@ -21,7 +21,8 @@
     "test": "bun test src/test",
     "typecheck": "tsc --noEmit",
     "check-translations": "bun run scripts/check-translations.ts",
-    "check-translations:locale": "bun run scripts/check-translations.ts --locale"
+    "check-translations:locale": "bun run scripts/check-translations.ts --locale",
+    "scan-hardcoded": "bun run scripts/scan-hardcoded-strings.ts"
   },
   "keywords": ["pie", "qti", "i18n", "internationalization", "localization"],
   "author": "Renaissance Learning",

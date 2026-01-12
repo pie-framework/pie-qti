@@ -351,6 +351,36 @@ bun run build  # Automatically checks translations first
 
 See [Translation Coverage Documentation](./docs/TRANSLATION_COVERAGE.md) for details.
 
+### Hardcoded String Scanner
+
+The package includes a scanner that detects hardcoded English strings in component files that should use i18n:
+
+```bash
+# Scan default components package
+bun run scan-hardcoded
+
+# Scan a custom path
+bun run scan-hardcoded --path=../custom-components
+```
+
+The scanner:
+
+- ✅ **Detects hardcoded strings** that match translation values in en-US
+- ✅ **Suggests the correct i18n key** to use for each match
+- ✅ **Scans .svelte and .ts files** recursively
+- ✅ **Provides exact replacement code** for each hardcoded string
+
+**Example output:**
+
+```text
+📄 plugins/graphic-order/GraphicOrderInteraction.svelte (1 match)
+────────────────────────────────────────────────────────────────
+  Line 138: <h3>Order (drag to reorder)</h3>
+           Use: i18n?.t('interactions.graphicOrder.orderHeading') ?? 'Order (drag to reorder)'
+```
+
+This tool helps maintain consistency by ensuring all user-facing strings use the i18n system.
+
 ### Running Tests
 
 ```bash

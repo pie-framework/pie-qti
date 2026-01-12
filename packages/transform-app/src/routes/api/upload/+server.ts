@@ -3,7 +3,7 @@
  * Accepts ZIP files and creates a new session
  */
 
-import { writeFile } from 'node:fs/promises';
+import { writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { json, error as svelteError } from '@sveltejs/kit';
 import { getStorage } from '$lib/server/storage/FileStorage';
@@ -17,7 +17,11 @@ const ALLOWED_TYPES = ['application/zip', 'application/x-zip-compressed'];
 export const POST: RequestHandler = async ({ request }) => {
   try {
     const formData = await request.formData();
-    const files = formData.getAll('files');
+    // Accept both 'files' (plural) and 'file' (singular) for backwards compatibility
+    let files = formData.getAll('files');
+    if (files.length === 0) {
+      files = formData.getAll('file');
+    }
 
     if (files.length === 0) {
       throw svelteError(400, 'No files provided');
@@ -30,6 +34,9 @@ export const POST: RequestHandler = async ({ request }) => {
     // Create session first to get session ID
     const sessionId = storage.generateSessionId();
     const uploadsPath = storage.getUploadsPath(sessionId);
+
+    // Ensure uploads directory exists
+    await mkdir(uploadsPath, { recursive: true });
 
     // Process each uploaded file
     for (const file of files) {
@@ -66,8 +73,8 @@ export const POST: RequestHandler = async ({ request }) => {
       });
     }
 
-    // Create session with package info
-    const session = await sessionManager.createSession(packages);
+    // Create session with package info, using the same session ID we used for uploads
+    const session = await sessionManager.createSession(packages, sessionId);
 
     return json({
       success: true,

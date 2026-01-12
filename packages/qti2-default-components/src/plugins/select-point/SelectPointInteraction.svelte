@@ -170,7 +170,7 @@
 		style={disabled ? 'cursor: default;' : 'cursor: crosshair;'}
 		role="button"
 		tabindex={disabled ? -1 : 0}
-		aria-label="Click to select points on the image"
+		aria-label={i18n?.t('interactions.selectPoint.instructionAria') ?? 'Click to select points on the image'}
 		onclick={handleImageClick}
 		onkeydown={(e) => {
 			if (e.key === 'Enter' || e.key === ' ') {
@@ -188,7 +188,7 @@
 			{:else if parsedInteraction.imageData.src}
 				<img
 					src={parsedInteraction.imageData.src}
-					alt="Selection canvas"
+					alt={i18n?.t('interactions.selectPoint.canvas') ?? 'Selection canvas'}
 					style="width: {parsedInteraction.imageData.width}px; height: {parsedInteraction.imageData.height}px;"
 					class="block"
 				/>
@@ -220,7 +220,7 @@
 				class="no-image-placeholder bg-base-200 flex items-center justify-center"
 				style="width: 500px; height: 300px;"
 			>
-				<p class="text-base-content/50">No image provided</p>
+				<p class="text-base-content/50">{i18n?.t('interactions.selectPoint.noImage') ?? 'No image provided'}</p>
 			</div>
 		{/if}
 	</div>

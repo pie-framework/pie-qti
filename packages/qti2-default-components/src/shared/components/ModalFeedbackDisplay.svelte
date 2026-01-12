@@ -1,14 +1,16 @@
 <script lang="ts">
 	import type { ModalFeedback } from '@pie-qti/qti2-item-player';
+	import type { I18nProvider } from '@pie-qti/qti2-i18n';
 	import { typesetAction } from './actions/typesetAction';
 
 	interface Props {
 		feedback: ModalFeedback[];
 		onClose?: () => void;
 		typeset?: (element: HTMLElement) => void;
+		i18n?: I18nProvider;
 	}
 
-	let { feedback = [], onClose, typeset }: Props = $props();
+	let { feedback = [], onClose, typeset, i18n }: Props = $props();
 
 	// Show modal if there's feedback
 	const hasActiveFeedback = $derived(feedback.length > 0);
@@ -33,7 +35,7 @@
 			<button
 				class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
 				onclick={handleClose}
-				aria-label="Close feedback"
+				aria-label={i18n?.t('feedback.close') ?? 'Close feedback'}
 			>
 				✕
 			</button>

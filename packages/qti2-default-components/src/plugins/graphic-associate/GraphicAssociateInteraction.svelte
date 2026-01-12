@@ -153,7 +153,7 @@
 							<img
 								bind:this={imageElement}
 								src={parsedInteraction.imageData.src}
-								alt="Association diagram"
+								alt={i18n?.t('interactions.associate.altText') ?? 'Association diagram'}
 								class="w-full h-full object-contain"
 							/>
 						{/if}
@@ -288,7 +288,7 @@
 											<button
 												class="btn btn-xs btn-ghost btn-circle"
 												onclick={() => removePair(index)}
-												aria-label="Remove association"
+												aria-label={i18n?.t('interactions.associate.removeAssociation') ?? 'Remove association'}
 											>
 												<svg
 													xmlns="http://www.w3.org/2000/svg"

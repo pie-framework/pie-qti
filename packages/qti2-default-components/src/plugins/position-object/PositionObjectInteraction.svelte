@@ -308,7 +308,7 @@
 				ondrop={handleDrop}
 				ondragover={handleDragOver}
 				role="region"
-				aria-label="Positioning canvas"
+				aria-label={i18n?.t('interactions.positionObject.canvasLabel') ?? 'Positioning canvas'}
 			>
 				<!-- Background Image -->
 				{#if parsedInteraction.imageData}
@@ -319,7 +319,7 @@
 					{:else if parsedInteraction.imageData.src}
 						<img
 							src={parsedInteraction.imageData.src}
-							alt="Positioning background"
+							alt={i18n?.t('interactions.positionObject.backgroundAlt') ?? 'Positioning background'}
 							class="pointer-events-none"
 							style="display: block; width: 100%; height: 100%; object-fit: contain;"
 						/>

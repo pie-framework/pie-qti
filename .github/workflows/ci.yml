@@ -66,6 +66,24 @@ jobs:
           cd packages/qti2-i18n
           bun run check-translations
 
+  hardcoded-strings:
+    name: Hardcoded String Scan (Informational)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.5
+
+      - name: Scan for hardcoded strings
+        run: |
+          cd packages/qti2-i18n
+          bun run scan-hardcoded
+
   test-unit:
     name: Unit Tests
     runs-on: ubuntu-latest

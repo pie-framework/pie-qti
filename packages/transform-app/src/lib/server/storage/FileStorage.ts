@@ -64,9 +64,9 @@ export class FileStorage {
   /**
    * Create a new session
    */
-  async createSession(packages: PackageInfo[]): Promise<Session> {
-    const sessionId = this.generateSessionId();
-    const sessionPath = this.getSessionPath(sessionId);
+  async createSession(packages: PackageInfo[], sessionId?: string): Promise<Session> {
+    const id = sessionId || this.generateSessionId();
+    const sessionPath = this.getSessionPath(id);
 
     // Create session directories
     await mkdir(join(sessionPath, 'uploads'), { recursive: true });
@@ -74,14 +74,14 @@ export class FileStorage {
     await mkdir(join(sessionPath, 'outputs'), { recursive: true });
 
     const session: Session = {
-      id: sessionId,
+      id,
       created: new Date(),
       status: 'uploading',
       packages,
     };
 
     // Save session metadata
-    await this.saveSessionMetadata(sessionId, session);
+    await this.saveSessionMetadata(id, session);
 
     return session;
   }
@@ -90,6 +90,11 @@ export class FileStorage {
    * Get session metadata
    */
   async getSession(sessionId: string): Promise<Session | null> {
+    // Validate session ID format - return null for invalid IDs
+    if (!this.validateSessionId(sessionId)) {
+      return null;
+    }
+
     const sessionPath = this.getSessionPath(sessionId);
     const metadataPath = join(sessionPath, 'metadata.json');
 

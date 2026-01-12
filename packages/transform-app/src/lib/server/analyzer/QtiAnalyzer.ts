@@ -314,6 +314,7 @@ export class QtiAnalyzer {
           'graphicOrderInteraction',
           'graphicAssociateInteraction',
           'sliderInteraction',
+          'mediaInteraction',
           'positionObjectInteraction',
           'drawingInteraction',
           'uploadInteraction',

@@ -81,7 +81,7 @@
 						d="M5 13l4 4L19 7"
 					/>
 				</svg>
-				{parsedInteraction.countAttempt ? 'Attempt Ended' : 'Requested'}
+				{parsedInteraction.countAttempt ? (i18n?.t('interactions.endAttempt.ended') ?? 'Attempt Ended') : (i18n?.t('interactions.endAttempt.requested') ?? 'Requested')}
 			{:else}
 				<svg
 					xmlns="http://www.w3.org/2000/svg"

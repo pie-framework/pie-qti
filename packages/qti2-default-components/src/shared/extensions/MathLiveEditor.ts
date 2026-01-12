@@ -41,6 +41,8 @@ export interface MathLiveEditorOptions {
 	initialLatex?: string;
 	/** Whether this is inline or block math */
 	isBlock?: boolean;
+	/** Optional i18n provider for translations */
+	i18n?: { t: (key: string) => string | undefined };
 }
 
 /**
@@ -79,7 +81,7 @@ export async function openMathLiveEditor(options: MathLiveEditorOptions): Promis
 
 	// Create header - use DaisyUI font-bold text-lg
 	const header = document.createElement('h3');
-	header.textContent = isBlock ? 'Insert Block Math' : 'Insert Inline Math';
+	header.textContent = isBlock ? (options.i18n?.t('interactions.extendedText.insertBlockMath') ?? 'Insert Block Math') : (options.i18n?.t('interactions.extendedText.insertInlineMath') ?? 'Insert Inline Math');
 	header.className = 'font-bold text-lg mb-4';
 
 	// Create form control wrapper

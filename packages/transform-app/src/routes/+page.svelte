@@ -249,7 +249,7 @@
 						{:else}
 							<p class="text-lg font-semibold mb-2">Drop QTI ZIP files here</p>
 							<p class="text-base-content/60 mb-4">or click to select files</p>
-							<button class="btn btn-primary btn-sm">
+							<span class="btn btn-primary btn-sm pointer-events-none">
 								<svg
 									xmlns="http://www.w3.org/2000/svg"
 									class="h-5 w-5"
@@ -265,7 +265,7 @@
 									/>
 								</svg>
 								Select Files
-							</button>
+							</span>
 						{/if}
 
 						<input

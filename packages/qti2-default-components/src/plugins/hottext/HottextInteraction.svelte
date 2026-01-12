@@ -184,7 +184,7 @@
 			part="content"
 			class="hottext-content qti-hottext-content prose max-w-none"
 			role="group"
-			aria-label="Text selection interaction"
+			aria-label={i18n?.t('interactions.hottext.ariaLabel') ?? 'Text selection interaction'}
 		>
 			{@html parsedInteraction.contentHtml}
 		</div>

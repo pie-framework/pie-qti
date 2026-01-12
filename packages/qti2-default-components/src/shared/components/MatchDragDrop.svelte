@@ -130,7 +130,7 @@ function clearMatch(sourceId: string) {
 	aria-describedby="match-instructions"
 >
 	<!-- Source Set (Left Column) -->
-	<div part="source-column" class="qti-match-col space-y-2" role="group" aria-label="Source items to match">
+	<div part="source-column" class="qti-match-col space-y-2" role="group" aria-label={i18n?.t('interactions.match.sourceItemsLabel') ?? 'Source items to match'}>
 		<h3 part="source-heading" class="qti-match-heading font-semibold text-sm text-base-content/70 mb-3">
 			Drag from here:
 		</h3>
@@ -196,7 +196,7 @@ function clearMatch(sourceId: string) {
 	</div>
 
 	<!-- Target Set (Right Column) - Drop Zones -->
-	<div part="target-column" class="qti-match-col space-y-2" role="group" aria-label="Target items for matching">
+	<div part="target-column" class="qti-match-col space-y-2" role="group" aria-label={i18n?.t('interactions.match.targetItemsLabel') ?? 'Target items for matching'}>
 		<h3 part="target-heading" class="qti-match-heading font-semibold text-sm text-base-content/70 mb-3">
 			Drop here:
 		</h3>

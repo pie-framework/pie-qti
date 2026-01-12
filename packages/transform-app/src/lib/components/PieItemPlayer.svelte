@@ -28,6 +28,7 @@
 	let env = $state<{ mode: PlayerMode; role: PlayerRole }>({ mode: 'gather', role: 'student' });
 	let session = $state({ id: 'preview', data: [] as any[] });
 	let isLoaded = $state(false);
+	let loadError = $state<string | null>(null);
 
 	// Register custom elements in browser only (SSR-safe)
 	onMount(async () => {
@@ -39,6 +40,7 @@
 				isLoaded = true;
 			} catch (error) {
 				console.error('Failed to load PIE players:', error);
+				loadError = error instanceof Error ? error.message : 'Failed to load PIE players';
 			}
 		}
 	});
@@ -163,18 +165,51 @@
 
 	<!-- Player content area -->
 	<div class="rounded-lg border border-base-300 bg-base-200 p-6 min-h-[400px]">
-		{#if !isLoaded}
+		{#if loadError}
+			<div class="alert alert-warning" data-pie-element-error>
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					class="stroke-current shrink-0 h-6 w-6"
+					fill="none"
+					viewBox="0 0 24 24"
+				>
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+					/>
+				</svg>
+				<div>
+					<h3 class="font-bold">PIE Players Not Available</h3>
+					<div class="text-sm">
+						The PIE Framework players are required to preview transformed items but are not installed.
+						<br />
+						<a
+							href="https://github.com/pie-framework/pie-players"
+							target="_blank"
+							rel="noopener"
+							class="link link-primary"
+						>
+							Learn more about PIE players
+						</a>
+					</div>
+				</div>
+			</div>
+		{:else if !isLoaded}
 			<div class="flex items-center justify-center h-64">
 				<span class="loading loading-spinner loading-lg"></span>
 			</div>
 		{:else if playerType === 'iife'}
 			<pie-iife-player
+				data-pie-element
 				config={JSON.stringify(config)}
 				session={JSON.stringify(session)}
 				env={JSON.stringify(env)}
 			></pie-iife-player>
 		{:else if playerType === 'esm'}
 			<pie-esm-player
+				data-pie-element
 				config={JSON.stringify(config)}
 				session={JSON.stringify(session)}
 				env={JSON.stringify(env)}
