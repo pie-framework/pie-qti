@@ -5,6 +5,8 @@
 	 * This does not execute custom logic; it provides visibility + optional manual response entry.
 	 */
 
+	import type { I18nProvider } from '@pie-qti/qti2-i18n';
+
 	interface Props {
 		responseId: string;
 		prompt?: string | null;
@@ -14,6 +16,7 @@
 		value?: string | null;
 		onChange?: (value: string | null) => void;
 		testIdInput?: string;
+		i18n?: I18nProvider;
 	}
 
 	const {
@@ -25,6 +28,7 @@
 		value = null,
 		onChange,
 		testIdInput,
+		i18n,
 	}: Props = $props();
 
 	let open = $state(false);
@@ -43,7 +47,7 @@
 <div part="root" class="qti-custom-fallback space-y-3">
 	<div part="warning" class="qti-custom-warning alert alert-warning">
 		<div>
-			<div class="font-semibold">Unsupported customInteraction</div>
+			<div class="font-semibold">{i18n?.t('interactions.custom.unsupported') ?? 'Unsupported customInteraction'}</div>
 			<div class="text-sm">
 				This item contains a vendor-specific interaction. This player does not execute custom interactions.
 			</div>
@@ -56,7 +60,7 @@
 	{#if onChange}
 		<div part="manual" class="qti-custom-manual form-control">
 			<label part="manual-label" class="qti-custom-manual-label label" for={`custom-${responseId}`}>
-				<span class="label-text font-semibold">Manual response (optional)</span>
+				<span class="label-text font-semibold">{i18n?.t('interactions.custom.manualResponse') ?? 'Manual response (optional)'}</span>
 			</label>
 			<textarea
 				id={`custom-${responseId}`}
@@ -64,7 +68,7 @@
 				part="manual-input"
 				class="qti-custom-manual-input textarea textarea-bordered w-full"
 				rows="3"
-				placeholder="Enter a manual response (fallback)"
+				placeholder={i18n?.t('interactions.custom.placeholder') ?? 'Enter a manual response (fallback)'}
 				value={manualValue}
 				oninput={handleInput}
 				disabled={disabled}
@@ -81,7 +85,7 @@
 			<div class="qti-custom-details-body card-body">
 				<h3 part="details-title" class="qti-custom-details-title card-title text-base">Details</h3>
 				<div class="text-sm">
-					<div class="font-semibold mb-1">Attributes</div>
+					<div class="font-semibold mb-1">{i18n?.t('interactions.custom.attributes') ?? 'Attributes'}</div>
 					<pre part="attributes" class="qti-custom-pre text-xs bg-base-200 p-2 rounded overflow-auto">{JSON.stringify(rawAttributes, null, 2)}</pre>
 				</div>
 				{#if xml}

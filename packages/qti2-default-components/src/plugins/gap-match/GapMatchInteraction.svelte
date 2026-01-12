@@ -209,7 +209,7 @@
 			part="palette"
 			class="qti-gm-palette flex flex-wrap gap-2 p-4 bg-base-200 rounded-lg border-2 border-base-300"
 			role="group"
-			aria-label="Available words to place"
+			aria-label={i18n?.t('interactions.gapMatch.availableLabel') ?? 'Available words to place'}
 		>
 			<div class="qti-gm-palette-title w-full text-sm text-base-content/70 font-semibold mb-2">
 				Available words:
@@ -241,7 +241,7 @@
 							class="btn btn-sm btn-circle btn-error"
 							onclick={() => clearWord(gapText.identifier)}
 							aria-label="Remove {gapText.text} from the blanks"
-							title="Remove word"
+							title={i18n?.t('interactions.gapMatch.removeWord') ?? 'Remove word'}
 						>
 							✕
 						</button>

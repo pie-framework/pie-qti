@@ -4,6 +4,7 @@
  * Accessible via drag-and-drop, keyboard (Space/Enter to grab, arrow keys to move), or touch
  */
 
+import type { I18nProvider } from '@pie-qti/qti2-i18n';
 import { touchDrag } from '../utils/touchDragHelper.js';
 import DragHandle from './DragHandle.svelte';
 import '../styles/shared.css';
@@ -18,6 +19,7 @@ interface Props {
 	orderedIds: string[];
 	orientation?: 'vertical' | 'horizontal';
 	disabled?: boolean;
+	i18n?: I18nProvider;
 	onReorder: (newOrder: string[]) => void;
 }
 
@@ -26,6 +28,7 @@ const {
 	orderedIds,
 	orientation = 'vertical',
 	disabled = false,
+	i18n,
 	onReorder,
 }: Props = $props();
 
@@ -173,7 +176,7 @@ function moveItem(fromIndex: number, toIndex: number) {
 
 <div
 	role="list"
-	aria-label="Reorderable list of choices"
+	aria-label={i18n?.t('interactions.order.listLabel') ?? 'Reorderable list of choices'}
 	aria-describedby="sortable-instructions"
 	data-orientation={orientation}
 	part="list"

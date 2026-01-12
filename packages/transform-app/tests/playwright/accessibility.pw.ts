@@ -269,6 +269,9 @@ test.describe('Transform App Accessibility', () => {
 	test('page should have a main landmark', async ({ page }) => {
 		await page.goto('/');
 
+		// Wait for page to be fully hydrated
+		await page.waitForLoadState('networkidle');
+
 		// Should have a main element or role="main"
 		const mainLandmark = page.locator('main, [role="main"]');
 		const count = await mainLandmark.count();

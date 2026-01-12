@@ -47,7 +47,7 @@
 
 <div bind:this={rootElement} part="root" class="qti-slider-interaction space-y-3">
 	{#if !parsedInteraction}
-		<div class="alert alert-error">{t('common.errorNoData', 'No interaction data provided')}</div>
+		<div class="alert alert-error">{i18n?.t('common.errorNoData') ?? 'No interaction data provided'}</div>
 	{:else}
 		{#if parsedInteraction.prompt}
 			<p part="prompt" class="qti-slider-prompt font-semibold">{@html parsedInteraction.prompt}</p>
@@ -75,7 +75,7 @@
 
 		<div part="value" class="qti-slider-value text-center">
 			<div class="qti-slider-stat stat bg-base-200 rounded-box inline-block">
-				<div class="qti-slider-stat-title stat-title">{t('interactions.slider.statTitle', 'Selected Value')}</div>
+				<div class="qti-slider-stat-title stat-title">{i18n?.t('interactions.slider.statTitle') ?? 'Selected Value'}</div>
 				<div part="value-number" class="qti-slider-stat-value stat-value text-primary">
 					{currentValue}
 				</div>

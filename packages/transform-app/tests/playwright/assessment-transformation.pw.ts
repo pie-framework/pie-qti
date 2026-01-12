@@ -117,7 +117,7 @@ test.describe('Assessment Transformation', () => {
 		await expect(page.getByText(/Analysis complete/i)).toBeVisible({ timeout: 120_000 });
 
 		// Should detect 1 assessment test
-		await expect(page.getByText(/1.*Assessment/i)).toBeVisible();
+		await expect(page.getByText(/1 QTI assessment tests/i)).toBeVisible();
 
 		// Transform (this will transform both items and assessment if requested)
 		await page.getByTestId('transform-to-pie').click();

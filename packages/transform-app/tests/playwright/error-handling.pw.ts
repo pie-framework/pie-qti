@@ -5,9 +5,14 @@ test.describe('Error Handling', () => {
 		await page.goto('/session/invalid-session-id-12345');
 		// Either shows error message or redirects to home
 		// We check that we're not stuck on a broken page
+
+		// Wait for page to be fully loaded
+		await page.waitForLoadState('networkidle');
+
 		const url = page.url();
 		const hasError = await page.getByText(/error|not found|invalid/i).count() > 0;
 		const isHome = url.endsWith('/');
+
 		expect(hasError || isHome).toBeTruthy();
 	});
 
@@ -19,6 +24,9 @@ test.describe('Error Handling', () => {
 
 		// Try to navigate directly to items page
 		await page.goto(`/session/${sessionId}/items`);
+
+		// Wait for page to be fully loaded
+		await page.waitForLoadState('networkidle');
 
 		// Should either show error message or redirect back to session page
 		const url = page.url();

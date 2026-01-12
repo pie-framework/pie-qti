@@ -86,7 +86,7 @@
 					{:else}
 						<img
 							src={parsedInteraction.imageData.src}
-							alt="Hotspot interaction"
+							alt={i18n?.t('interactions.hotspot.altText') ?? 'Hotspot interaction'}
 							part="image"
 							class="qti-hotspot-image"
 						/>

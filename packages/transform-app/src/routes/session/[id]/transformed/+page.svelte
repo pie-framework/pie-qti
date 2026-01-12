@@ -28,8 +28,15 @@ import PieItemPlayer from '$lib/components/PieItemPlayer.svelte';
 		selection = { type: 'assessment', index };
 	}
 
-	function formatDuration(startTime: Date, endTime: Date): string {
-		const ms = new Date(endTime).getTime() - new Date(startTime).getTime();
+	function formatDuration(startTime: Date | string, endTime: Date | string): string {
+		const start = startTime instanceof Date ? startTime : new Date(startTime);
+		const end = endTime instanceof Date ? endTime : new Date(endTime);
+
+		const ms = end.getTime() - start.getTime();
+
+		// Handle invalid dates or negative durations
+		if (isNaN(ms) || ms < 0) return '0ms';
+
 		if (ms < 1000) return `${ms}ms`;
 		return `${(ms / 1000).toFixed(1)}s`;
 	}

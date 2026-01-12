@@ -15,8 +15,8 @@ export class SessionManager {
   /**
    * Create a new session with uploaded packages
    */
-  async createSession(packages: PackageInfo[]): Promise<Session> {
-    return await this.storage.createSession(packages);
+  async createSession(packages: PackageInfo[], sessionId?: string): Promise<Session> {
+    return await this.storage.createSession(packages, sessionId);
   }
 
   /**

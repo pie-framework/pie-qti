@@ -129,7 +129,7 @@
 				width={parsedInteraction.mediaElement.width}
 				height={parsedInteraction.mediaElement.height}
 				class="w-full"
-				aria-label="Media content"
+				aria-label={i18n?.t('interactions.media.ariaLabel') ?? 'Media content'}
 			>
 				<p>Your browser does not support this media type.</p>
 			</object>
@@ -178,7 +178,7 @@
 						d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
 					></path>
 				</svg>
-				<span>Maximum play limit reached</span>
+				<span>{i18n?.t('interactions.media.maxPlayLimitReached') ?? 'Maximum play limit reached'}</span>
 			</div>
 		{/if}
 	{/if}

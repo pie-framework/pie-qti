@@ -121,7 +121,7 @@
 							<img
 								bind:this={imageElement}
 								src={parsedInteraction.imageData.src}
-								alt="Ordering diagram"
+								alt={i18n?.t('interactions.graphicOrder.altText') ?? 'Ordering diagram'}
 								class="w-full h-auto"
 								style="width: {parsedInteraction.imageData.width}px; height: {parsedInteraction.imageData
 									.height}px;"
@@ -135,7 +135,7 @@
 			<div part="panel" class="qti-go-panel w-full">
 				<div class="qti-go-card card bg-base-100 border border-base-300">
 					<div class="qti-go-card-body card-body p-4">
-						<h3 part="panel-title" class="qti-go-title card-title text-sm">Order (drag to reorder)</h3>
+						<h3 part="panel-title" class="qti-go-title card-title text-sm">{i18n?.t('interactions.graphicOrder.orderHeading') ?? 'Order (drag to reorder)'}</h3>
 						<SortableList
 							items={parsedInteraction.hotspotChoices.map(c => ({ id: c.identifier, text: c.label }))}
 							{orderedIds}

@@ -56,7 +56,7 @@
 		const dataUrl = await new Promise<string>((resolve, reject) => {
 			const reader = new FileReader();
 			reader.onload = () => resolve(String(reader.result || ''));
-			reader.onerror = () => reject(new Error('Failed to read file'));
+			reader.onerror = () => reject(new Error(i18n?.t('interactions.upload.errorReadFailed') ?? 'Failed to read file'));
 			reader.readAsDataURL(file);
 		});
 

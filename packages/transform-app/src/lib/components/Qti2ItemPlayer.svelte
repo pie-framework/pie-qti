@@ -1,10 +1,5 @@
 <script lang="ts">
-
-	import { typesetAction } from '@pie-qti/qti2-default-components/shared';
-	// @ts-expect-error - Svelte-check can't resolve workspace subpath exports, but runtime works correctly
-	import { ItemBody } from '@pie-qti/qti2-item-player/components';
-	import { Player, type QTIRole } from '@pie-qti/qti2-item-player';
-	import { typesetMathInElement } from '@pie-qti/qti2-typeset-katex';
+	import { onMount } from 'svelte';
 
 	const {
 		itemXml,
@@ -18,102 +13,74 @@
 		role?: 'candidate' | 'scorer' | 'author' | 'tutor' | 'proctor' | 'testConstructor';
 	} = $props();
 
-	let player = $state<Player | null>(null);
-	let responses = $state<Record<string, any>>({});
+	let playerElement = $state<any>(null);
 	let error = $state<string | null>(null);
-	let isLoading = $state(false);
-	let loadTimeout: ReturnType<typeof setTimeout> | null = null;
+	let isLoading = $state(true);
+	let isReady = $state(false);
 
-	// Track last inputs using plain variables (NOT $state) to avoid re-triggering $effect
-	let lastKey = '';
+	// Track current values to detect changes
+	let currentXml = '';
+	let currentRole = '';
+	let currentIdentifier = '';
 
-	// Clear timeout on unmount
-	$effect(() => {
-		return () => {
-			if (loadTimeout) {
-				clearTimeout(loadTimeout);
-			}
+	function getSecurityConfig() {
+		if (typeof window === 'undefined') return {};
+		return {
+			urlPolicy: {
+				assetBaseUrl: `${window.location.origin}/`,
+			},
 		};
-	});
+	}
 
-	// Initialize/update player when itemXml or role changes
-	$effect(() => {
-		// Clear any existing timeout
-		if (loadTimeout) {
-			clearTimeout(loadTimeout);
-			loadTimeout = null;
+	function updatePlayerProperties() {
+		if (!playerElement || !isReady) return;
+
+		// Only update if values have changed
+		const xmlChanged = itemXml !== currentXml;
+		const roleChanged = role !== currentRole;
+		const identifierChanged = identifier !== currentIdentifier;
+
+		if (xmlChanged || roleChanged || identifierChanged) {
+			playerElement.itemXml = itemXml;
+			playerElement.role = role;
+			playerElement.identifier = identifier;
+			playerElement.title = title;
+			playerElement.security = getSecurityConfig();
+
+			currentXml = itemXml;
+			currentRole = role;
+			currentIdentifier = identifier;
 		}
+	}
 
-		const key = `${role}::${itemXml}`;
-		if (key === lastKey) return;
-		lastKey = key;
-
-		// Reset state
-		player = null;
-		responses = {};
-		error = null;
-		isLoading = true;
-
-		if (!itemXml || itemXml.trim() === '') {
-			isLoading = false;
-			error = 'No XML provided';
-			return;
-		}
-
-		// Set a timeout to detect if loading is stuck
-		loadTimeout = setTimeout(() => {
-			if (isLoading && !player && !error) {
-				isLoading = false;
-				error = 'Timeout: Failed to load QTI player. The XML may be invalid or the player encountered an error.';
-			}
-		}, 5000); // 5 second timeout
-
+	onMount(async () => {
 		try {
-			const p = new Player({
-				itemXml,
-				role: role as QTIRole,
-			});
-			player = p;
+			// Load web components
+			await import('@pie-qti/web-component-loaders').then((m) => m.loadPieQtiPlayerElements());
+			await customElements.whenDefined('pie-qti2-item-player');
 
-			// Initialize responses for all interactions
-			const interactions = p.getInteractions();
-			const newResponses: Record<string, any> = {};
-			for (const interaction of interactions) {
-				if (interaction?.responseIdentifier) {
-					newResponses[interaction.responseIdentifier] = null;
-				}
-			}
-			responses = newResponses;
-			
-			// Success - clear loading and error
 			isLoading = false;
-			error = null;
-			
-			if (loadTimeout) {
-				clearTimeout(loadTimeout);
-				loadTimeout = null;
-			}
+			isReady = true;
+
+			// Set initial properties after component is ready
+			updatePlayerProperties();
 		} catch (err) {
 			isLoading = false;
-			const errorMsg = err instanceof Error ? err.message : String(err);
-			const errorStack = err instanceof Error ? err.stack : undefined;
-			error = `Failed to load QTI item: ${errorMsg}${errorStack ? `\n\nStack: ${errorStack}` : ''}`;
-			player = null;
-			responses = {};
-			
-			if (loadTimeout) {
-				clearTimeout(loadTimeout);
-				loadTimeout = null;
-			}
-			
-			// Log to console for debugging
-			console.error('[Qti2ItemPlayer] Error creating player:', err);
+			error = err instanceof Error ? err.message : String(err);
+			console.error('[Qti2ItemPlayer] Error loading web components:', err);
 		}
 	});
 
-	function handleResponseChange(responseId: string, value: any) {
-		responses = { ...responses, [responseId]: value };
-	}
+	// Update player properties when they change (using $effect for reactivity)
+	$effect(() => {
+		// Create dependencies on props
+		void itemXml;
+		void role;
+		void identifier;
+		void title;
+
+		updatePlayerProperties();
+	});
 </script>
 
 {#if error}
@@ -141,25 +108,6 @@
 		<span class="loading loading-spinner loading-lg"></span>
 		<span class="ml-4">Loading QTI player...</span>
 	</div>
-{:else if player}
-	<div class="w-full" use:typesetAction={{ typeset: typesetMathInElement }}>
-		<ItemBody {player} {responses} disabled={false} typeset={typesetMathInElement} onResponseChange={handleResponseChange} />
-	</div>
 {:else}
-	<div class="alert alert-warning">
-		<svg
-			xmlns="http://www.w3.org/2000/svg"
-			class="stroke-current shrink-0 h-6 w-6"
-			fill="none"
-			viewBox="0 0 24 24"
-		>
-			<path
-				stroke-linecap="round"
-				stroke-linejoin="round"
-				stroke-width="2"
-				d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-			/>
-		</svg>
-		<span>No player instance available. Please check the console for errors.</span>
-	</div>
+	<pie-qti2-item-player bind:this={playerElement} class="block w-full"></pie-qti2-item-player>
 {/if}
