@@ -65,7 +65,9 @@ export function sanitizeResourceUrl(raw: string, policy?: UrlPolicyConfig, kind:
 	if (s.startsWith('/') || s.startsWith('./') || s.startsWith('../')) {
 		if (p.assetBaseUrl) {
 			try {
-				return new URL(s, p.assetBaseUrl).toString();
+				// Strip leading '/' to make URL constructor resolve relative to base path, not origin
+				const relativePath = s.startsWith('/') ? s.slice(1) : s;
+				return new URL(relativePath, p.assetBaseUrl).toString();
 			} catch {
 				return null;
 			}
