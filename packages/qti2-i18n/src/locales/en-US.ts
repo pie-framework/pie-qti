@@ -97,6 +97,10 @@ export default {
 			one: '{count} second remaining',
 			other: '{count} seconds remaining',
 		},
+		submitAnswer: {
+			one: 'Submit Answer',
+			other: 'Submit Answers',
+		},
 	},
 
 	validation: {
@@ -245,6 +249,8 @@ export default {
 			removeFromBlanks: 'Remove {word} from the blanks',
 			selectPlaceholder: 'Select...',
 			gapAriaLabel: 'Gap {gapId}',
+			blankGapAriaLabel: 'Blank {gapId}. Drop an answer here.',
+			filledGapAriaLabel: 'Blank {gapId}, filled with {word}. Click to clear.',
 		},
 
 		graphicGapMatch: {
@@ -487,5 +493,121 @@ export default {
 		newQuestion: 'New question loaded',
 		answerRecorded: 'Answer recorded',
 		resizer: 'Resize passage and question panels',
+	},
+
+	demo: {
+		selectSampleItem: 'Select Sample Item',
+		configurationPanel: 'Configuration Panel',
+		viewingAs: 'Viewing as',
+		role: 'Role',
+		candidate: 'Candidate',
+		author: 'Author',
+		proctor: 'Proctor',
+		scorer: 'Scorer',
+		tutor: 'Tutor',
+		showCorrectAnswers: 'Show correct answers',
+		showFeedback: 'Show feedback',
+		xmlEditor: 'XML Editor',
+
+		// Navigation
+		appName: 'PIE QTI 2.2 Player',
+		home: 'Home',
+		itemDemo: 'Item Demo',
+		assessmentDemo: 'Assessment Demo',
+		likertDemo: 'Likert Plugin Demo',
+		iframeDemo: 'Iframe Demo',
+		theme: 'Theme',
+
+		// Home Page
+		homeTitle: 'QTI 2.2 Player',
+		homeSubtitle: 'A modern, framework-agnostic player for QTI 2.2 assessment items. Works 100% client-side by default, with optional server-side hooks for production use.',
+		homeMetaDescription: 'Modern QTI 2.2 player with optional backend integration',
+		tryItems: 'Try Items',
+		tryAssessments: 'Try Assessments',
+		pluginDemo: 'Plugin Demo',
+		dropQtiFile: 'Drop QTI XML file here',
+		orClickToSelect: 'or click to select a file',
+		selectFile: 'Select File',
+		selectedFile: 'Selected:',
+		loadInPlayer: 'Load in Player',
+		footerTitle: 'QTI 2.2 Player',
+		footerLicense: 'MIT Licensed • Open Source',
+
+		// Settings Panel
+		settings: 'Settings',
+		candidateStudent: 'Candidate (Student)',
+		testConstructor: 'Test Constructor',
+		controlsRubricVisibility: 'Controls rubric visibility and correct answer display',
+		useBackendScoring: 'Use Backend Scoring',
+		scoreOnServer: 'Score responses on the server instead of client-side',
+		sessionManagement: 'Session Management',
+		saving: 'Saving...',
+		saveSession: 'Save Session',
+		loadSession: 'Load Session',
+
+		// Export & Template
+		exportResponses: 'Export Responses',
+		json: 'JSON',
+		csv: 'CSV',
+		templateProcessing: 'Template Processing',
+		rerunTemplateProcessing: 'Re-run templateProcessing and reset the item session',
+		regenerateVariant: 'Regenerate Variant',
+		templateVariablesDebug: 'Template Variables (Debug)',
+		variable: 'Variable',
+		value: 'Value',
+
+		// Keyboard Shortcuts
+		keyboardShortcuts: 'Keyboard Shortcuts',
+		submitAnswersShortcut: 'Submit answers',
+		tryAgainShortcut: 'Try again',
+		exportJsonShortcut: 'Export JSON',
+		saveSessionShortcut: 'Save session',
+		useCmdOnMacOS: 'Use <kbd class="kbd kbd-xs">Cmd</kbd> on macOS',
+
+		// Results Panel
+		results: 'Results',
+		score: 'Score',
+		outcomeVariables: 'Outcome Variables',
+
+		// Misc
+		format: 'Format',
+		selectItemOrPasteXml: 'Select a sample item or paste custom XML to get started.',
+		pageTitle: 'Player Demo - PIE QTI 2.2 Player',
+
+		// Sample Item Descriptions
+		sampleItemDescriptions: {
+			'simple-choice': 'Basic subtraction word problem with plausible distractors',
+			'partial-credit': 'Multiple choice with partial credit using mapResponse',
+			'capital-cities': 'Geography question with shuffled choices',
+			'text-entry': 'Fill-in-the-blank question with case-insensitive matching',
+			'extended-text': 'Multi-line text response question',
+			'inline-choice': 'Dropdown menu embedded in text',
+			'order-interaction': 'Arrange items in correct sequence',
+			'match-interaction': 'Match items from two columns',
+			'associate-interaction': 'Create associations between items',
+			'gap-match': 'Drag words into gaps in text',
+			'graphic-gap-match-solar-system': 'Label the four inner planets of our solar system',
+			'slider': 'Select a value on a numerical slider',
+			'hotspot': 'Click on the Blue Planet in this astronomy question',
+			'hotspot-partial-credit': 'Identify planet with liquid water (partial credit for terrestrial planets)',
+			'template-variable-demo': 'templateProcessing generates values; responseProcessing scores against them',
+			'upload-interaction': 'Upload a file as the response (baseType=file)',
+			'drawing-interaction': 'Draw on a canvas (baseType=file, PNG dataUrl)',
+			'media-audio': 'Audio player with play count tracking and minPlays requirement',
+			'media-video': 'Video player with play count tracking and maxPlays limit',
+			'hottext-single': 'Click to select a single word within text (grammar question)',
+			'hottext-multiple': 'Click to select multiple text segments (reading comprehension)',
+			'select-point': 'Click on the image to select a point location (geography question)',
+			'graphic-order': 'Drag to reorder items on an image (geological layers)',
+			'graphic-associate': 'Click pairs of hotspots to create associations (organ matching)',
+			'position-object': 'Drag and position furniture objects on a room layout',
+			'end-attempt': 'Button to end the assessment attempt',
+			'custom-interaction': 'Shows a fallback UI for customInteraction and allows a manual response',
+			'choice-with-stimulus': 'Question with reading passage embedded inline',
+			'math-inline': 'Multiple choice with MathML inline math rendering',
+			'math-extended': 'Extended response with MathML and rich text editor for showing mathematical work',
+			'math-fractions': 'Fraction arithmetic with MathML block display',
+			'adaptive-capitals': 'Multi-attempt adaptive question with progressive feedback and hints',
+		},
 	},
 } as const; // 'as const' for strict type inference

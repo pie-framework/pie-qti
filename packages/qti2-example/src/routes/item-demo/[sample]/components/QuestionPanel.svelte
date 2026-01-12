@@ -1,6 +1,7 @@
 <script lang="ts">
 
 	import { typesetAction } from '@pie-qti/qti2-default-components/shared';
+	// @ts-expect-error - Svelte-check can't resolve workspace subpath exports, but runtime works correctly
 	import { ItemBody } from '@pie-qti/qti2-item-player/components';
 	import type { Player, QTIRole, RubricBlock } from '@pie-qti/qti2-item-player';
 	import type { I18nProvider } from '@pie-qti/qti2-i18n';
@@ -101,7 +102,7 @@
 						<span class="loading loading-spinner loading-sm"></span>
 						{t('common.submitting', 'Submitting...')}
 					{:else}
-						{t('common.submitAnswer', 'Submit Answer')}{totalInteractions > 1 ? 's' : ''}
+						{(i18n?.plural && i18n.plural('plurals.submitAnswer', { count: totalInteractions })) || (totalInteractions > 1 ? 'Submit Answers' : 'Submit Answer')}
 					{/if}
 				</button>
 			{:else}

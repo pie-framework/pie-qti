@@ -99,6 +99,10 @@ export default {
 			one: '{count} seconde over',
 			other: '{count} seconden over',
 		},
+		submitAnswer: {
+			one: 'Antwoord Verzenden',
+			other: 'Antwoorden Verzenden',
+		},
 	},
 
 	validation: {
@@ -223,6 +227,9 @@ export default {
 			availableHeading: 'Beschikbare woorden:',
 			removeWord: 'Woord verwijderen',
 			removeFromBlanks: '{word} verwijderen uit de lege plaatsen',
+			gapAriaLabel: 'Gat {gapId}',
+			blankGapAriaLabel: 'Lege plek {gapId}. Sleep hier een antwoord naartoe.',
+			filledGapAriaLabel: 'Blank {gapId}, filled with {word}. Click to clear.',
 		},
 
 		graphicGapMatch: {
@@ -431,5 +438,121 @@ export default {
 		newQuestion: 'Nieuwe vraag geladen',
 		answerRecorded: 'Antwoord opgeslagen',
 		resizer: 'Grootte van tekst- en vraagpanelen aanpassen',
+	},
+
+	demo: {
+		selectSampleItem: 'Selecteer voorbeelditem',
+		configurationPanel: 'Configuratiepaneel',
+		viewingAs: 'Bekijken als',
+		role: 'Rol',
+		candidate: 'Kandidaat',
+		author: 'Auteur',
+		proctor: 'Toezichthouder',
+		scorer: 'Beoordelaar',
+		tutor: 'Begeleider',
+		showCorrectAnswers: 'Juiste antwoorden tonen',
+		showFeedback: 'Feedback tonen',
+		xmlEditor: 'XML-editor',
+
+		// Navigation
+		appName: 'PIE QTI 2.2 Speler',
+		home: 'Home',
+		itemDemo: 'Item Demo',
+		assessmentDemo: 'Toets Demo',
+		likertDemo: 'Likert Plugin Demo',
+		iframeDemo: 'Iframe Demo',
+		theme: 'Thema',
+
+		// Home Page
+		homeTitle: 'QTI 2.2 Speler',
+		homeSubtitle: 'Een moderne, framework-onafhankelijke speler voor QTI 2.2 beoordelingsitems. Werkt standaard 100% client-side, met optionele server-side hooks voor productiegebruik.',
+		homeMetaDescription: 'Moderne QTI 2.2 speler met optionele backend-integratie',
+		tryItems: 'Items Proberen',
+		tryAssessments: 'Toetsen Proberen',
+		pluginDemo: 'Plugin Demo',
+		dropQtiFile: 'Sleep QTI XML bestand hier',
+		orClickToSelect: 'of klik om een bestand te selecteren',
+		selectFile: 'Bestand Selecteren',
+		selectedFile: 'Geselecteerd:',
+		loadInPlayer: 'Laden in Speler',
+		footerTitle: 'QTI 2.2 Speler',
+		footerLicense: 'MIT Gelicentieerd • Open Source',
+
+		// Settings Panel
+		settings: 'Instellingen',
+		candidateStudent: 'Kandidaat (Leerling)',
+		testConstructor: 'Toetssamensteller',
+		controlsRubricVisibility: 'Beheert zichtbaarheid van rubric en weergave van juiste antwoorden',
+		useBackendScoring: 'Gebruik Serverbeoordeling',
+		scoreOnServer: 'Beoordeel antwoorden op de server in plaats van client-side',
+		sessionManagement: 'Sessiebeheer',
+		saving: 'Opslaan...',
+		saveSession: 'Sessie Opslaan',
+		loadSession: 'Sessie Laden',
+
+		// Export & Template
+		exportResponses: 'Antwoorden Exporteren',
+		json: 'JSON',
+		csv: 'CSV',
+		templateProcessing: 'Sjabloonverwerking',
+		rerunTemplateProcessing: 'Voer templateProcessing opnieuw uit en reset de itemsessie',
+		regenerateVariant: 'Variant Opnieuw Genereren',
+		templateVariablesDebug: 'Sjabloonvariabelen (Debug)',
+		variable: 'Variabele',
+		value: 'Waarde',
+
+		// Keyboard Shortcuts
+		keyboardShortcuts: 'Sneltoetsen',
+		submitAnswersShortcut: 'Antwoorden verzenden',
+		tryAgainShortcut: 'Opnieuw proberen',
+		exportJsonShortcut: 'JSON exporteren',
+		saveSessionShortcut: 'Sessie opslaan',
+		useCmdOnMacOS: 'Gebruik <kbd class="kbd kbd-xs">Cmd</kbd> op macOS',
+
+		// Results Panel
+		results: 'Resultaten',
+		score: 'Score',
+		outcomeVariables: 'Uitkomstvariabelen',
+
+		// Misc
+		format: 'Formaat',
+		selectItemOrPasteXml: 'Selecteer een voorbeelditem of plak aangepaste XML om te beginnen.',
+		pageTitle: 'Speler Demo - PIE QTI 2.2 Speler',
+
+		// Sample Item Descriptions
+		sampleItemDescriptions: {
+			'simple-choice': 'Basis aftrekopgave met plausibele afleidingsantwoorden',
+			'partial-credit': 'Meerkeuzevraag met gedeeltelijk krediet via mapResponse',
+			'capital-cities': 'Aardrijkskundevraag met geschudde keuzes',
+			'text-entry': 'Invulvraag met hoofdletterongevoelige matching',
+			'extended-text': 'Meerregelige tekstantwoordvraag',
+			'inline-choice': 'Dropdownmenu ingebed in tekst',
+			'order-interaction': 'Items in de juiste volgorde plaatsen',
+			'match-interaction': 'Items uit twee kolommen koppelen',
+			'associate-interaction': 'Associaties tussen items maken',
+			'gap-match': 'Woorden in gaten in de tekst slepen',
+			'graphic-gap-match-solar-system': 'Label de vier binnenplaneten van ons zonnestelsel',
+			'slider': 'Een waarde op een numerieke schuifregelaar selecteren',
+			'hotspot': 'Klik op de Blauwe Planeet in deze astronomievraag',
+			'hotspot-partial-credit': 'Identificeer planeet met vloeibaar water (gedeeltelijk krediet voor terrestrische planeten)',
+			'template-variable-demo': 'templateProcessing genereert waarden; responseProcessing beoordeelt ze',
+			'upload-interaction': 'Een bestand uploaden als antwoord (baseType=file)',
+			'drawing-interaction': 'Tekenen op een canvas (baseType=file, PNG dataUrl)',
+			'media-audio': 'Audiospeler met afspeeltellertracking en minPlays vereiste',
+			'media-video': 'Videospeler met afspeeltellertracking en maxPlays limiet',
+			'hottext-single': 'Klik om één enkel woord in tekst te selecteren (grammaticavraag)',
+			'hottext-multiple': 'Klik om meerdere tekstsegmenten te selecteren (begrijpend lezen)',
+			'select-point': 'Klik op de afbeelding om een puntlocatie te selecteren (aardrijkskundevraag)',
+			'graphic-order': 'Slepen om items op een afbeelding te herschikken (geologische lagen)',
+			'graphic-associate': 'Klik op paren hotspots om associaties te maken (orgaankoppeling)',
+			'position-object': 'Meubelstukobjecten op een kamerindeling slepen en positioneren',
+			'end-attempt': 'Knop om de beoordelingspoging te beëindigen',
+			'custom-interaction': 'Toont een fallback-UI voor customInteraction en staat een handmatig antwoord toe',
+			'choice-with-stimulus': 'Vraag met leespassage inline ingebed',
+			'math-inline': 'Meerkeuzevraag met inline MathML wiskundeweergave',
+			'math-extended': 'Uitgebreid antwoord met MathML en rich text editor voor het tonen van wiskundig werk',
+			'math-fractions': 'Breukenrekenen met MathML blokweergave',
+			'adaptive-capitals': 'Adaptieve vraag met meerdere pogingen en progressieve feedback en hints',
+		},
 	},
 } as const; // 'as const' for strict type inference

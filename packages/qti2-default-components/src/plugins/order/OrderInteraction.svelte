@@ -112,12 +112,14 @@
 					type="button"
 					class="btn btn-primary btn-sm"
 					onclick={confirmOrder}
-					aria-label="Confirm this order as your answer"
+					aria-label={i18n?.t('interactions.order.confirmAria') ?? 'Confirm this order as your answer'}
 				>
-					{hasReordered ? 'Confirm Order' : 'Confirm Order (No Changes)'}
+					{hasReordered
+						? (i18n?.t('interactions.order.confirmOrder') ?? 'Confirm Order')
+						: (i18n?.t('interactions.order.confirmOrderNoChanges') ?? 'Confirm Order (No Changes)')}
 				</button>
 				<span class="text-xs text-base-content/60">
-					Drag items to reorder, or click to confirm the current order
+					{i18n?.t('interactions.order.instruction') ?? 'Drag items to reorder, or click to confirm the current order'}
 				</span>
 			{:else if hasConfirmed}
 				<div class="badge badge-success gap-2">

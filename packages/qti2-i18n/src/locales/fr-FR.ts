@@ -99,6 +99,10 @@ export default {
 			one: '{count} seconde restante',
 			other: '{count} secondes restantes',
 		},
+		submitAnswer: {
+			one: 'Soumettre la Réponse',
+			other: 'Soumettre les Réponses',
+		},
 	},
 
 	validation: {
@@ -223,6 +227,9 @@ export default {
 			availableHeading: 'Mots disponibles :',
 			removeWord: 'Supprimer le mot',
 			removeFromBlanks: 'Supprimer {word} des blancs',
+			gapAriaLabel: 'Espace {gapId}',
+			blankGapAriaLabel: 'Blanc {gapId}. Déposez une réponse ici.',
+			filledGapAriaLabel: 'Blank {gapId}, filled with {word}. Click to clear.',
 		},
 
 		graphicGapMatch: {
@@ -431,5 +438,121 @@ export default {
 		newQuestion: 'Nouvelle question chargée',
 		answerRecorded: 'Réponse enregistrée',
 		resizer: 'Redimensionner les panneaux de passage et de question',
+	},
+
+	demo: {
+		selectSampleItem: 'Sélectionner un élément d\'exemple',
+		configurationPanel: 'Panneau de configuration',
+		viewingAs: 'Affichage en tant que',
+		role: 'Rôle',
+		candidate: 'Candidat',
+		author: 'Auteur',
+		proctor: 'Surveillant',
+		scorer: 'Correcteur',
+		tutor: 'Tuteur',
+		showCorrectAnswers: 'Afficher les réponses correctes',
+		showFeedback: 'Afficher les commentaires',
+		xmlEditor: 'Éditeur XML',
+
+		// Navigation
+		appName: 'Lecteur PIE QTI 2.2',
+		home: 'Accueil',
+		itemDemo: 'Démo d\'Élément',
+		assessmentDemo: 'Démo d\'Évaluation',
+		likertDemo: 'Démo du Plugin Likert',
+		iframeDemo: 'Démo Iframe',
+		theme: 'Thème',
+
+		// Home Page
+		homeTitle: 'Lecteur QTI 2.2',
+		homeSubtitle: 'Un lecteur moderne et indépendant des frameworks pour les éléments d\'évaluation QTI 2.2. Fonctionne 100% côté client par défaut, avec des hooks côté serveur optionnels pour une utilisation en production.',
+		homeMetaDescription: 'Lecteur QTI 2.2 moderne avec intégration backend optionnelle',
+		tryItems: 'Essayer les Éléments',
+		tryAssessments: 'Essayer les Évaluations',
+		pluginDemo: 'Démo du Plugin',
+		dropQtiFile: 'Déposez le fichier QTI XML ici',
+		orClickToSelect: 'ou cliquez pour sélectionner un fichier',
+		selectFile: 'Sélectionner un Fichier',
+		selectedFile: 'Sélectionné :',
+		loadInPlayer: 'Charger dans le Lecteur',
+		footerTitle: 'Lecteur QTI 2.2',
+		footerLicense: 'Licence MIT • Open Source',
+
+		// Settings Panel
+		settings: 'Paramètres',
+		candidateStudent: 'Candidat (Étudiant)',
+		testConstructor: 'Constructeur de Tests',
+		controlsRubricVisibility: 'Contrôle la visibilité de la rubrique et l\'affichage des réponses correctes',
+		useBackendScoring: 'Utiliser la Notation Serveur',
+		scoreOnServer: 'Évaluer les réponses sur le serveur plutôt que côté client',
+		sessionManagement: 'Gestion de Session',
+		saving: 'Enregistrement...',
+		saveSession: 'Enregistrer la Session',
+		loadSession: 'Charger la Session',
+
+		// Export & Template
+		exportResponses: 'Exporter les Réponses',
+		json: 'JSON',
+		csv: 'CSV',
+		templateProcessing: 'Traitement du Modèle',
+		rerunTemplateProcessing: 'Réexécuter templateProcessing et réinitialiser la session de l\'élément',
+		regenerateVariant: 'Régénérer la Variante',
+		templateVariablesDebug: 'Variables de Modèle (Débogage)',
+		variable: 'Variable',
+		value: 'Valeur',
+
+		// Keyboard Shortcuts
+		keyboardShortcuts: 'Raccourcis Clavier',
+		submitAnswersShortcut: 'Soumettre les réponses',
+		tryAgainShortcut: 'Réessayer',
+		exportJsonShortcut: 'Exporter JSON',
+		saveSessionShortcut: 'Enregistrer la session',
+		useCmdOnMacOS: 'Utiliser <kbd class="kbd kbd-xs">Cmd</kbd> sur macOS',
+
+		// Results Panel
+		results: 'Résultats',
+		score: 'Score',
+		outcomeVariables: 'Variables de Résultat',
+
+		// Misc
+		format: 'Format',
+		selectItemOrPasteXml: 'Sélectionnez un élément d\'exemple ou collez du XML personnalisé pour commencer.',
+		pageTitle: 'Démo du Lecteur - Lecteur PIE QTI 2.2',
+
+		// Sample Item Descriptions
+		sampleItemDescriptions: {
+			'simple-choice': 'Problème de soustraction de base avec des distracteurs plausibles',
+			'partial-credit': 'Choix multiple avec crédit partiel utilisant mapResponse',
+			'capital-cities': 'Question de géographie avec choix mélangés',
+			'text-entry': 'Question à trous avec correspondance insensible à la casse',
+			'extended-text': 'Question à réponse textuelle multiligne',
+			'inline-choice': 'Menu déroulant intégré dans le texte',
+			'order-interaction': 'Organiser les éléments dans la séquence correcte',
+			'match-interaction': 'Associer les éléments de deux colonnes',
+			'associate-interaction': 'Créer des associations entre les éléments',
+			'gap-match': 'Faire glisser des mots dans les espaces du texte',
+			'graphic-gap-match-solar-system': 'Étiqueter les quatre planètes intérieures de notre système solaire',
+			'slider': 'Sélectionner une valeur sur un curseur numérique',
+			'hotspot': 'Cliquer sur la Planète Bleue dans cette question d\'astronomie',
+			'hotspot-partial-credit': 'Identifier la planète avec de l\'eau liquide (crédit partiel pour les planètes telluriques)',
+			'template-variable-demo': 'templateProcessing génère des valeurs ; responseProcessing les évalue',
+			'upload-interaction': 'Télécharger un fichier comme réponse (baseType=file)',
+			'drawing-interaction': 'Dessiner sur un canevas (baseType=file, dataUrl PNG)',
+			'media-audio': 'Lecteur audio avec suivi du nombre de lectures et exigence minPlays',
+			'media-video': 'Lecteur vidéo avec suivi du nombre de lectures et limite maxPlays',
+			'hottext-single': 'Cliquer pour sélectionner un seul mot dans le texte (question de grammaire)',
+			'hottext-multiple': 'Cliquer pour sélectionner plusieurs segments de texte (compréhension de lecture)',
+			'select-point': 'Cliquer sur l\'image pour sélectionner un point (question de géographie)',
+			'graphic-order': 'Faire glisser pour réorganiser les éléments sur une image (couches géologiques)',
+			'graphic-associate': 'Cliquer sur des paires de zones actives pour créer des associations (correspondance d\'organes)',
+			'position-object': 'Faire glisser et positionner des objets de mobilier sur un plan de pièce',
+			'end-attempt': 'Bouton pour terminer la tentative d\'évaluation',
+			'custom-interaction': 'Affiche une interface de secours pour customInteraction et permet une réponse manuelle',
+			'choice-with-stimulus': 'Question avec passage de lecture intégré en ligne',
+			'math-inline': 'Choix multiple avec rendu mathématique MathML en ligne',
+			'math-extended': 'Réponse étendue avec MathML et éditeur de texte enrichi pour montrer le travail mathématique',
+			'math-fractions': 'Arithmétique de fractions avec affichage de blocs MathML',
+			'adaptive-capitals': 'Question adaptative à plusieurs tentatives avec rétroaction et indices progressifs',
+		},
 	},
 } as const; // 'as const' for strict type inference

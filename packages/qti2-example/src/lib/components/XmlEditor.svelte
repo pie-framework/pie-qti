@@ -45,9 +45,12 @@
 	import History from '@tiptap/extension-history';
 	import Text from '@tiptap/extension-text';
 	import { all, createLowlight } from 'lowlight';
-import { onDestroy, onMount } from 'svelte';
+	import { onDestroy, onMount, getContext } from 'svelte';
+	import type { SvelteI18nProvider } from '@pie-qti/qti2-i18n';
 
 	const lowlight = createLowlight(all);
+	const i18nContext = getContext<{ value: SvelteI18nProvider | null }>('i18n');
+	const i18n = $derived(i18nContext?.value);
 
 	interface Props {
 		content: string;
@@ -228,7 +231,7 @@ import { onDestroy, onMount } from 'svelte';
 					clip-rule="evenodd"
 				/>
 			</svg>
-			Format
+			{i18n?.t('demo.format') ?? 'Format'}
 		</button>
 	</div>
 

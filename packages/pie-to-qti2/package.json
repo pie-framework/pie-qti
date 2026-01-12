@@ -9,6 +9,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./generators/manifest-generator": {
+      "types": "./dist/generators/manifest-generator.d.ts",
+      "import": "./dist/generators/manifest-generator.js"
     }
   },
   "scripts": {

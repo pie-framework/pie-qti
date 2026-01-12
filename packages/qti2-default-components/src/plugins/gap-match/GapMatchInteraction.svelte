@@ -29,6 +29,9 @@
 	// Rendered prompt container - we keep the original HTML structure and insert live gap targets.
 	let promptContainer: HTMLDivElement | undefined = $state();
 
+	// Track cleanup functions for event listeners to prevent memory leaks
+	let cleanupFunctions: (() => void)[] = [];
+
 	function handleGapChange(gapId: string, wordId: string) {
 		// Remove any existing pair for this gap
 		const newPairs = pairs.filter((p: string) => !p.endsWith(` ${gapId}`));
@@ -86,6 +89,10 @@
 	function renderPromptWithGaps() {
 		if (!promptContainer || !parsedInteraction?.promptText) return;
 
+		// Clean up any existing event listeners before creating new ones
+		cleanupFunctions.forEach(cleanup => cleanup());
+		cleanupFunctions = [];
+
 		// Replace placeholders with marker spans so we can keep the original HTML structure.
 		const html = parsedInteraction.promptText.replace(/\[GAP:([^\]]+)\]/g, (_m, gapId) => {
 			const safe = String(gapId).replace(/"/g, '&quot;');
@@ -113,47 +120,64 @@
 
 			const selected = getSelectedWord(gapId);
 			if (selected) {
-				btn.textContent = getWordText(selected);
+				const word = getWordText(selected);
+				btn.textContent = word;
 				btn.removeAttribute('data-empty');
-				btn.setAttribute('aria-label', `Blank ${gapId}, filled with ${getWordText(selected)}. Click to clear.`);
+				const filledAriaLabel = i18n?.t('interactions.gapMatch.filledGapAriaLabel', { gapId, word }) ?? `Blank ${gapId}, filled with ${word}. Click to clear.`;
+				btn.setAttribute('aria-label', filledAriaLabel);
 			} else {
 				// Keep the gap visually blank (no letters), but still accessible.
 				btn.textContent = '';
 				btn.setAttribute('data-empty', 'true');
-				btn.setAttribute('aria-label', `Blank ${gapId}. Drop an answer here.`);
+				const ariaLabel = i18n?.t('interactions.gapMatch.blankGapAriaLabel', { gapId }) ?? `Blank ${gapId}. Drop an answer here.`;
+				btn.setAttribute('aria-label', ariaLabel);
 			}
 			if (disabled) btn.setAttribute('aria-disabled', 'true');
 
-			btn.addEventListener('dragenter', (e) => {
+			const onDragEnter = (e: DragEvent) => {
 				if (disabled) return;
 				e.preventDefault();
 				btn.classList.add('is-dragover');
-			});
+			};
 
-			btn.addEventListener('dragover', (e) => {
+			const onDragOver = (e: DragEvent) => {
 				if (disabled) return;
 				e.preventDefault();
 				btn.classList.add('is-dragover');
-			});
+			};
 
-			btn.addEventListener('dragleave', () => {
+			const onDragLeave = () => {
 				btn.classList.remove('is-dragover');
-			});
+			};
 
-			btn.addEventListener('drop', (e) => {
+			const onDrop = (e: DragEvent) => {
 				if (disabled) return;
 				e.preventDefault();
 				btn.classList.remove('is-dragover');
 				const wordId = e.dataTransfer?.getData('text/plain') ?? '';
 				if (!wordId) return;
 				handleGapChange(gapId, wordId);
-			});
+			};
 
-			// Click-to-clear for usability (and touch devices).
-			btn.addEventListener('click', () => {
+			const onClick = () => {
 				if (disabled) return;
 				const current = getSelectedWord(gapId);
 				if (current) handleGapChange(gapId, '');
+			};
+
+			btn.addEventListener('dragenter', onDragEnter);
+			btn.addEventListener('dragover', onDragOver);
+			btn.addEventListener('dragleave', onDragLeave);
+			btn.addEventListener('drop', onDrop);
+			btn.addEventListener('click', onClick);
+
+			// Store cleanup functions to remove event listeners later
+			cleanupFunctions.push(() => {
+				btn.removeEventListener('dragenter', onDragEnter);
+				btn.removeEventListener('dragover', onDragOver);
+				btn.removeEventListener('dragleave', onDragLeave);
+				btn.removeEventListener('drop', onDrop);
+				btn.removeEventListener('click', onClick);
 			});
 
 			ph.replaceWith(btn);

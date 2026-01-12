@@ -11,6 +11,7 @@
 	import { onMount, untrack, getContext } from 'svelte';
 	import type { SvelteI18nProvider } from '@pie-qti/qti2-i18n';
 	import { SAMPLE_ITEMS } from '$lib/sample-items';
+	import { getItemXmlForLocale, hasMultilingualVariants } from '$lib/locale-aware-items';
 	import ConfigurationPanel from './components/ConfigurationPanel.svelte';
 	import QuestionPanel from './components/QuestionPanel.svelte';
 	import ResizableDivider from './components/ResizableDivider.svelte';
@@ -263,17 +264,32 @@
 		PanelResize.handleDividerKeyDown(event, leftPanelWidth, (width) => (leftPanelWidth = width));
 	}
 
-	// React to URL parameter changes
+	// React to URL parameter changes and locale changes
 	$effect(() => {
 		// Read sample ID from URL path parameter
 		const urlSampleId = $page.params.sample;
+
+		// Track i18n to make this effect re-run when i18n becomes available
+		const i18nProvider = i18n;
+		const currentLocale = i18nProvider?.getLocale() ?? 'en-US';
+
+		console.log('[ItemDemo] Loading item:', urlSampleId, 'Locale:', currentLocale);
+
 		if (urlSampleId && SAMPLE_ITEMS.find((item) => item.id === urlSampleId)) {
 			selectedSampleId = urlSampleId;
-			const xml = SAMPLE_ITEMS.find((item) => item.id === urlSampleId)?.xml || '';
-			xmlContent = xml;
-			// Use untrack to prevent tracking selectedRole as a dependency
-			// This prevents infinite loops when loadPlayer reads selectedRole
-			untrack(() => loadPlayer(xml));
+			// Use locale-aware XML loading - automatically gets the right language variant
+			// This is now async, so we need to handle the promise
+			getItemXmlForLocale(urlSampleId, currentLocale)
+				.then((xml) => {
+					xmlContent = xml;
+					// Use untrack to prevent tracking selectedRole as a dependency
+					// This prevents infinite loops when loadPlayer reads selectedRole
+					untrack(() => loadPlayer(xml));
+				})
+				.catch((err) => {
+					console.error('[ItemDemo] Error loading XML:', err);
+					errorMessage = err instanceof Error ? err.message : String(err);
+				});
 		} else if (urlSampleId) {
 			// Invalid sample - redirect to default
 			goto(`${base}/item-demo/simple-choice`, { replaceState: true, noScroll: true });
@@ -317,7 +333,7 @@
 <svelte:window onmouseup={handleMouseUp} />
 
 <svelte:head>
-	<title>Player Demo - PIE QTI 2.2 Player</title>
+	<title>{i18n?.t('demo.pageTitle') ?? 'Player Demo - PIE QTI 2.2 Player'}</title>
 </svelte:head>
 
 <div class="container mx-auto px-8 py-12">
@@ -423,7 +439,7 @@
 							d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
 						></path>
 					</svg>
-					<span>Select a sample item or paste custom XML to get started.</span>
+					<span>{i18n?.t('demo.selectItemOrPasteXml') ?? 'Select a sample item or paste custom XML to get started.'}</span>
 				</div>
 			{/if}
 		</div>

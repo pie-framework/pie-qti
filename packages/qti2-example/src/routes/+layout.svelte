@@ -69,31 +69,8 @@
 		const savedLocale = (localStorage.getItem('pie-qti-locale') as LocaleCode) || 'en-US';
 		currentLocale = savedLocale;
 
-		// Example: Custom translations (optional)
-		// Clients can provide complete locale bundles or override specific strings
-		const customMessages = {
-			// Example: Override specific strings for branding
-			'en-US': {
-				common: {
-					submit: 'Send Answer',  // Custom submit button text
-				}
-			},
-			// Example: Provide a complete custom locale bundle
-			'pt-PT': {
-				common: {
-					submit: 'Submeter',
-					next: 'Próximo',
-					previous: 'Anterior',
-				},
-				assessment: {
-					question: 'Questão {current} de {total}',
-				}
-			}
-		};
-
-		// Initialize i18n system with new architecture
-		// Pass customMessages to provide your own translations or override defaults
-		i18n = await createDefaultSvelteI18nProvider(savedLocale, customMessages);
+		// Initialize i18n system
+		i18n = await createDefaultSvelteI18nProvider(savedLocale);
 
 		// Register QTI player web components on the client only.
 		// This module touches browser globals (customElements/window) and must not run during prerender/SSR.
@@ -130,15 +107,14 @@
 	}
 
 	const locales: { code: LocaleCode; label: string }[] = [
-		// Framework-provided locales
 		{ code: 'en-US', label: 'English (US)' },
 		{ code: 'es-ES', label: 'Español' },
 		{ code: 'fr-FR', label: 'Français' },
 		{ code: 'nl-NL', label: 'Nederlands' },
 		{ code: 'ro-RO', label: 'Română' },
 		{ code: 'th-TH', label: 'ไทย' },
-		// Example: Custom locale with client-provided translations
-		{ code: 'pt-PT', label: 'Português (Portugal) [Custom]' },
+		{ code: 'zh-CN', label: '中文(简体)' },
+		{ code: 'ar-SA', label: 'العربية' },
 	];
 </script>
 
@@ -185,31 +161,31 @@
 							d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
 						/>
 					</svg>
-					PIE QTI 2.2 Player
+					{i18n?.t('demo.appName') ?? 'PIE QTI 2.2 Player'}
 				</a>
 			</div>
 			<div class="flex-none gap-2">
 				<ul class="menu menu-horizontal px-1">
-					<li><a href="{base}/" class:active={currentPath === `${base}/`}>Home</a></li>
+					<li><a href="{base}/" class:active={currentPath === `${base}/`}>{i18n?.t('demo.home') ?? 'Home'}</a></li>
 					<li>
-						<a href="{base}/item-demo" class:active={currentPath === `${base}/item-demo`}>Item Demo</a>
+						<a href="{base}/item-demo" class:active={currentPath === `${base}/item-demo`}>{i18n?.t('demo.itemDemo') ?? 'Item Demo'}</a>
 					</li>
 					<li>
 						<a
 							href="{base}/assessment-demo"
 							class:active={currentPath === `${base}/assessment-demo`}
-							>Assessment Demo</a
+							>{i18n?.t('demo.assessmentDemo') ?? 'Assessment Demo'}</a
 						>
 					</li>
 					<li>
 						<a
 							href="{base}/likert-demo"
 							class:active={currentPath === `${base}/likert-demo`}
-							>Likert Plugin Demo</a
+							>{i18n?.t('demo.likertDemo') ?? 'Likert Plugin Demo'}</a
 						>
 					</li>
 					<li>
-						<a href="{base}/iframe-demo" class:active={currentPath === `${base}/iframe-demo`}>Iframe Demo</a>
+						<a href="{base}/iframe-demo" class:active={currentPath === `${base}/iframe-demo`}>{i18n?.t('demo.iframeDemo') ?? 'Iframe Demo'}</a>
 					</li>
 				</ul>
 				<!-- Settings Menu -->
@@ -242,7 +218,7 @@
 								<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="w-4 h-4 stroke-current">
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
 								</svg>
-								Language
+								{i18n?.t('i18n.selectLanguage') ?? 'Language'}
 							</h3>
 							<div class="max-h-64 overflow-y-auto">
 								<ul class="menu menu-compact">
@@ -274,7 +250,7 @@
 								<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="w-4 h-4 stroke-current">
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
 								</svg>
-								Theme
+								{i18n?.t('demo.theme') ?? 'Theme'}
 							</h3>
 							<div class="max-h-64 overflow-y-auto">
 								<ul class="menu menu-compact">

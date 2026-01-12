@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { InteractionData } from '../types';
 	import type { Player } from '../core/Player';
+	// @ts-expect-error - Svelte-check can't resolve workspace packages, but runtime works correctly
 	import type { I18nProvider } from '@pie-qti/qti2-i18n';
 	import { typesetAction } from './actions/typesetAction';
 
@@ -153,8 +154,11 @@
 	$effect(() => {
 		if (!rootEl) return;
 		const handler = (e: Event) => handleQtiChange(e as CustomEvent);
-		rootEl.addEventListener('qti-change', handler as EventListener);
-		return () => rootEl.removeEventListener('qti-change', handler as EventListener);
+		const el = rootEl; // Capture reference for cleanup
+		el.addEventListener('qti-change', handler as EventListener);
+		return () => {
+			el.removeEventListener('qti-change', handler as EventListener);
+		};
 	});
 
 	// Ensure web-component instances are not accidentally reused across items when
@@ -196,7 +200,7 @@
 	}
 </script>
 
-<div bind:this={rootEl} class="qti-item-body" use:typesetAction={{ typeset }} onqti-change={handleQtiChange}>
+<div bind:this={rootEl} class="qti-item-body" use:typesetAction={{ typeset }}>
 	<!-- Item body with inline interactions -->
 	<div class="prose max-w-none mb-4">
 		<div class="inline-interaction-container">

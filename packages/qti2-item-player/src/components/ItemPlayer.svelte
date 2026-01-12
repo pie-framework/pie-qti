@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Player } from '../core/Player';
 	import type { AdaptiveAttemptResult, ModalFeedback, PlayerSecurityConfig, QTIRole } from '../types';
+	// @ts-expect-error - Svelte-check can't resolve workspace packages, but runtime works correctly
 	import type { I18nProvider } from '@pie-qti/qti2-i18n';
 	import ItemBody from './ItemBody.svelte';
 	import ModalFeedbackDisplay from './ModalFeedbackDisplay.svelte';

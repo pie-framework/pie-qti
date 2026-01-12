@@ -100,6 +100,10 @@ export default {
 			one: 'เหลือ {count} วินาที',
 			other: 'เหลือ {count} วินาที',
 		},
+		submitAnswer: {
+			one: 'ส่งคำตอบ',
+			other: 'ส่งคำตอบ',
+		},
 	},
 
 	validation: {
@@ -224,6 +228,9 @@ export default {
 			availableHeading: 'คำที่พร้อมใช้งาน:',
 			removeWord: 'ลบคำ',
 			removeFromBlanks: 'ลบ {word} จากช่องว่าง',
+			gapAriaLabel: 'ช่องว่าง {gapId}',
+			blankGapAriaLabel: 'ช่องว่าง {gapId} วางคำตอบที่นี่',
+			filledGapAriaLabel: 'Blank {gapId}, filled with {word}. Click to clear.',
 		},
 
 		graphicGapMatch: {
@@ -432,5 +439,121 @@ export default {
 		newQuestion: 'โหลดคำถามใหม่แล้ว',
 		answerRecorded: 'บันทึกคำตอบแล้ว',
 		resizer: 'ปรับขนาดแผงข้อความและคำถาม',
+	},
+
+	demo: {
+		selectSampleItem: 'เลือกรายการตัวอย่าง',
+		configurationPanel: 'แผงการกำหนดค่า',
+		viewingAs: 'ดูในฐานะ',
+		role: 'บทบาท',
+		candidate: 'ผู้เข้าสอบ',
+		author: 'ผู้เขียน',
+		proctor: 'ผู้คุมสอบ',
+		scorer: 'ผู้ให้คะแนน',
+		tutor: 'ครูผู้สอน',
+		showCorrectAnswers: 'แสดงคำตอบที่ถูกต้อง',
+		showFeedback: 'แสดงข้อเสนอแนะ',
+		xmlEditor: 'ตัวแก้ไข XML',
+
+		// Navigation
+		appName: 'เครื่องเล่น PIE QTI 2.2',
+		home: 'หน้าแรก',
+		itemDemo: 'ตัวอย่างรายการ',
+		assessmentDemo: 'ตัวอย่างการประเมิน',
+		likertDemo: 'ตัวอย่างปลั๊กอิน Likert',
+		iframeDemo: 'ตัวอย่าง Iframe',
+		theme: 'ธีม',
+
+		// Home Page
+		homeTitle: 'เครื่องเล่น QTI 2.2',
+		homeSubtitle: 'เครื่องเล่นที่ทันสมัยและเป็นอิสระจากเฟรมเวิร์กสำหรับรายการประเมิน QTI 2.2 ทำงานบนฝั่งไคลเอนต์ 100% ตามค่าเริ่มต้น พร้อมตัวเชื่อมฝั่งเซิร์ฟเวอร์ที่เป็นตัวเลือกสำหรับการใช้งานจริง',
+		homeMetaDescription: 'เครื่องเล่น QTI 2.2 ที่ทันสมัยพร้อมการผสานรวมแบ็กเอนด์แบบเลือกได้',
+		tryItems: 'ทดลองรายการ',
+		tryAssessments: 'ทดลองการประเมิน',
+		pluginDemo: 'ตัวอย่างปลั๊กอิน',
+		dropQtiFile: 'วางไฟล์ QTI XML ที่นี่',
+		orClickToSelect: 'หรือคลิกเพื่อเลือกไฟล์',
+		selectFile: 'เลือกไฟล์',
+		selectedFile: 'เลือกแล้ว:',
+		loadInPlayer: 'โหลดในเครื่องเล่น',
+		footerTitle: 'เครื่องเล่น QTI 2.2',
+		footerLicense: 'ลิขสิทธิ์ MIT • โอเพนซอร์ส',
+
+		// Settings Panel
+		settings: 'การตั้งค่า',
+		candidateStudent: 'ผู้เข้าสอบ (นักเรียน)',
+		testConstructor: 'ผู้สร้างแบบทดสอบ',
+		controlsRubricVisibility: 'ควบคุมการมองเห็นหลักเกณฑ์การให้คะแนนและการแสดงคำตอบที่ถูกต้อง',
+		useBackendScoring: 'ใช้การให้คะแนนบนเซิร์ฟเวอร์',
+		scoreOnServer: 'ให้คะแนนคำตอบบนเซิร์ฟเวอร์แทนที่ฝั่งไคลเอนต์',
+		sessionManagement: 'การจัดการเซสชัน',
+		saving: 'กำลังบันทึก...',
+		saveSession: 'บันทึกเซสชัน',
+		loadSession: 'โหลดเซสชัน',
+
+		// Export & Template
+		exportResponses: 'ส่งออกคำตอบ',
+		json: 'JSON',
+		csv: 'CSV',
+		templateProcessing: 'การประมวลผลเทมเพลต',
+		rerunTemplateProcessing: 'เรียกใช้ templateProcessing อีกครั้งและรีเซ็ตเซสชันรายการ',
+		regenerateVariant: 'สร้างตัวแปรใหม่',
+		templateVariablesDebug: 'ตัวแปรเทมเพลต (ดีบัก)',
+		variable: 'ตัวแปร',
+		value: 'ค่า',
+
+		// Keyboard Shortcuts
+		keyboardShortcuts: 'แป้นลัด',
+		submitAnswersShortcut: 'ส่งคำตอบ',
+		tryAgainShortcut: 'ลองอีกครั้ง',
+		exportJsonShortcut: 'ส่งออก JSON',
+		saveSessionShortcut: 'บันทึกเซสชัน',
+		useCmdOnMacOS: 'ใช้ <kbd class="kbd kbd-xs">Cmd</kbd> บน macOS',
+
+		// Results Panel
+		results: 'ผลลัพธ์',
+		score: 'คะแนน',
+		outcomeVariables: 'ตัวแปรผลลัพธ์',
+
+		// Misc
+		format: 'รูปแบบ',
+		selectItemOrPasteXml: 'เลือกรายการตัวอย่างหรือวาง XML ที่กำหนดเองเพื่อเริ่มต้น',
+		pageTitle: 'ตัวอย่างเครื่องเล่น - เครื่องเล่น PIE QTI 2.2',
+
+		// Sample Item Descriptions
+		sampleItemDescriptions: {
+			'simple-choice': 'โจทย์คณิตศาสตร์พื้นฐานเรื่องการลบพร้อมตัวเลือกที่เป็นไปได้',
+			'partial-credit': 'ตัวเลือกหลายตัวเลือกที่มีคะแนนบางส่วนโดยใช้ mapResponse',
+			'capital-cities': 'คำถามภูมิศาสตร์พร้อมตัวเลือกที่สุ่มแล้ว',
+			'text-entry': 'คำถามเติมช่องว่างที่ตรงกันโดยไม่คำนึงถึงตัวพิมพ์ใหญ่เล็ก',
+			'extended-text': 'คำถามคำตอบข้อความหลายบรรทัด',
+			'inline-choice': 'เมนูแบบเลื่อนลงที่ฝังอยู่ในข้อความ',
+			'order-interaction': 'จัดเรียงรายการในลำดับที่ถูกต้อง',
+			'match-interaction': 'จับคู่รายการจากสองคอลัมน์',
+			'associate-interaction': 'สร้างการเชื่อมโยงระหว่างรายการ',
+			'gap-match': 'ลากคำลงในช่องว่างในข้อความ',
+			'graphic-gap-match-solar-system': 'ติดป้ายดาวเคราะห์ชั้นในทั้งสี่ของระบบสุริยะของเรา',
+			'slider': 'เลือกค่าบนตัวเลื่อนตัวเลข',
+			'hotspot': 'คลิกที่ดาวเคราะห์สีน้ำเงินในคำถามดาราศาสตร์นี้',
+			'hotspot-partial-credit': 'ระบุดาวเคราะห์ที่มีน้ำเหลว (คะแนนบางส่วนสำหรับดาวเคราะห์หิน)',
+			'template-variable-demo': 'templateProcessing สร้างค่า responseProcessing ให้คะแนน',
+			'upload-interaction': 'อัปโหลดไฟล์เป็นคำตอบ (baseType=file)',
+			'drawing-interaction': 'วาดบนผืนผ้าใบ (baseType=file, PNG dataUrl)',
+			'media-audio': 'เครื่องเล่นเสียงพร้อมการติดตามจำนวนการเล่นและความต้องการ minPlays',
+			'media-video': 'เครื่องเล่นวิดีโอพร้อมการติดตามจำนวนการเล่นและขอบเขต maxPlays',
+			'hottext-single': 'คลิกเพื่อเลือกคำเดียวในข้อความ (คำถามไวยากรณ์)',
+			'hottext-multiple': 'คลิกเพื่อเลือกหลายส่วนของข้อความ (ความเข้าใจในการอ่าน)',
+			'select-point': 'คลิกที่ภาพเพื่อเลือกตำแหน่งจุด (คำถามภูมิศาสตร์)',
+			'graphic-order': 'ลากเพื่อจัดเรียงรายการบนภาพใหม่ (ชั้นทางธรณีวิทยา)',
+			'graphic-associate': 'คลิกคู่ของจุดฮอตสปอตเพื่อสร้างการเชื่อมโยง (การจับคู่อวัยวะ)',
+			'position-object': 'ลากและวางวัตถุเฟอร์นิเจอร์บนแผนผังห้อง',
+			'end-attempt': 'ปุ่มเพื่อสิ้นสุดความพยายามในการประเมิน',
+			'custom-interaction': 'แสดง UI สำรองสำหรับ customInteraction และอนุญาตให้ตอบด้วยตนเอง',
+			'choice-with-stimulus': 'คำถามพร้อมข้อความอ่านฝังอยู่ในบรรทัด',
+			'math-inline': 'ตัวเลือกหลายตัวเลือกพร้อมการแสดงผลคณิตศาสตร์ MathML แบบอินไลน์',
+			'math-extended': 'คำตอบแบบขยายพร้อม MathML และเครื่องมือแก้ไขข้อความ rich text สำหรับแสดงงานคณิตศาสตร์',
+			'math-fractions': 'เลขคณิตเศษส่วนพร้อมการแสดงผลบล็อก MathML',
+			'adaptive-capitals': 'คำถามปรับตัวได้หลายความพยายามพร้อมคำติชมและคำแนะนำแบบค่อยเป็นค่อยไป',
+		},
 	},
 } as const; // 'as const' for strict type inference

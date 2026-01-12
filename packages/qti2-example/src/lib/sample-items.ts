@@ -7,6 +7,7 @@
  */
 
 import { EDGE_CASE_ITEMS } from './sample-items-edge-cases.js';
+import { MULTILINGUAL_ITEMS } from './sample-items-i18n.js';
 
 export const SIMPLE_CHOICE = `<?xml version="1.0" encoding="UTF-8"?>
 <assessmentItem
@@ -3148,4 +3149,16 @@ export const SAMPLE_ITEMS: SampleItem[] = [
 
   // Edge Case Items - UI Genericity Testing
   ...EDGE_CASE_ITEMS,
+
+  // Multilingual Items - i18n Content Demonstrations
+  ...MULTILINGUAL_ITEMS.flatMap(item =>
+    Object.entries(item.locales)
+      .filter(([_, data]) => data !== undefined)
+      .map(([locale, data]) => ({
+        id: `${item.baseId}.${locale}`,
+        title: `${data!.title} (${locale})`,
+        description: data!.description,
+        xml: data!.xml,
+      }))
+  ),
 ];

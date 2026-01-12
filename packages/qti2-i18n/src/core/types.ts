@@ -13,7 +13,9 @@ export type FrameworkLocaleCode =
 	| 'fr-FR'  // French (France)
 	| 'nl-NL'  // Dutch (Netherlands)
 	| 'ro-RO'  // Romanian (Romania)
-	| 'th-TH'; // Thai (Thailand)
+	| 'th-TH'  // Thai (Thailand)
+	| 'zh-CN'  // Chinese (Simplified, China)
+	| 'ar-SA'; // Arabic (Saudi Arabia)
 
 // Allow any locale code (clients can provide custom locales)
 export type LocaleCode = FrameworkLocaleCode | (string & {});

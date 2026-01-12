@@ -2,8 +2,9 @@ export interface TypesetActionParams {
 	/**
 	 * Typeset function provided by the host app (KaTeX, MathJax, etc).
 	 * It should be idempotent or at least safe to call repeatedly on updates.
+	 * Optional - if not provided, the action is a no-op.
 	 */
-	typeset: (root: HTMLElement) => void | Promise<void>;
+	typeset?: (root: HTMLElement) => void | Promise<void>;
 
 	/**
 	 * Observe subtree changes and re-typeset automatically.
@@ -28,11 +29,11 @@ export function typesetAction(node: HTMLElement, params: TypesetActionParams) {
 	let current = params;
 
 	const schedule = () => {
-		if (disposed || scheduled) return;
+		if (disposed || scheduled || !current.typeset) return;
 		scheduled = true;
 		requestAnimationFrame(async () => {
 			scheduled = false;
-			if (disposed) return;
+			if (disposed || !current.typeset) return;
 			try {
 				await current.typeset(node);
 			} catch {

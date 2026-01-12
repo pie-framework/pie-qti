@@ -58,6 +58,7 @@
 			targetSet={parsedInteraction.targetSet}
 			{pairs}
 			{disabled}
+			{i18n}
 			onPairsChange={handlePairsChange}
 		/>
 	{/if}

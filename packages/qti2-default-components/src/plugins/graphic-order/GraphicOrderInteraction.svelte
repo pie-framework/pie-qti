@@ -151,12 +151,14 @@
 									type="button"
 									class="btn btn-primary btn-sm w-full"
 									onclick={confirmOrder}
-									aria-label="Confirm this order as your answer"
+									aria-label={i18n?.t('interactions.graphicOrder.confirmAria') ?? 'Confirm this order as your answer'}
 								>
-									{hasReordered ? 'Confirm Order' : 'Confirm Order (No Changes)'}
+									{hasReordered
+										? (i18n?.t('interactions.graphicOrder.confirmOrder') ?? 'Confirm Order')
+										: (i18n?.t('interactions.graphicOrder.confirmOrderNoChanges') ?? 'Confirm Order (No Changes)')}
 								</button>
 								<p class="text-xs text-base-content/60 mt-2 text-center">
-									Drag to reorder, or click to confirm
+									{i18n?.t('interactions.graphicOrder.instruction') ?? 'Drag to reorder, or click to confirm'}
 								</p>
 							{:else if hasConfirmed}
 								<div class="alert alert-success py-2">

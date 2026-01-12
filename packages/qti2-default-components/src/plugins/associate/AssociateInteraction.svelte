@@ -158,9 +158,9 @@
 		<div part="helper" class="qti-associate-helper alert alert-info">
 			<span class="text-sm">
 				{#if selectedForPairing}
-					Click another item to create an association (or click again to deselect)
+					{i18n?.t('interactions.associate.clickAnotherOrDeselect') ?? 'Click another item to create an association (or click again to deselect)'}
 				{:else}
-					Click two items to create an association between them
+					{i18n?.t('interactions.associate.clickToAssociate') ?? 'Click two items to create an association between them'}
 				{/if}
 			</span>
 		</div>

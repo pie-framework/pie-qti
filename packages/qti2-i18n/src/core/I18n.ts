@@ -72,13 +72,15 @@ export class DefaultI18nProvider implements I18nProvider {
 	}
 
 	/**
-	 * Set current locale (must be loaded first)
-	 * Note: This is a synchronous method. Use loadLocale() first to load messages.
+	 * Set current locale
+	 * For framework locales, loadLocale() should be called first.
+	 * For custom locales, translations should be provided via customMessages.
 	 */
 	setLocale(locale: string): void {
-		if (!this.loadedLocales.has(locale as LocaleCode)) {
-			console.warn(`[i18n] Locale '${locale}' not loaded. Call loadLocale() first.`);
-			return;
+		// Allow setting custom locales even if not in loadedLocales
+		// They will use customMessages + fallback to en-US
+		if (!this.loadedLocales.has(locale as LocaleCode) && !this.customMessages[locale]) {
+			console.warn(`[i18n] Locale '${locale}' not loaded and no custom messages provided. Using fallback locale.`);
 		}
 		this.currentLocale = locale as LocaleCode;
 	}

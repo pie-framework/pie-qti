@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { ModalFeedback } from '../types';
+	// @ts-expect-error - Svelte-check can't resolve workspace packages, but runtime works correctly
 	import type { I18nProvider } from '@pie-qti/qti2-i18n';
 	import { typesetAction } from './actions/typesetAction';
 

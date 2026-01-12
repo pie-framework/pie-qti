@@ -19,12 +19,13 @@ export interface I18nProvider {
 	setLocale(locale: string): Promise<void> | void;
 
 	/**
-	 * Translate a message key with optional interpolation
+	 * Translate a message key with optional default and/or interpolation
 	 * @param key - Message key (e.g., 'common.submit', 'assessment.question')
-	 * @param values - Optional interpolation values
-	 * @returns Translated message or key if not found
+	 * @param defaultOrValues - Optional default string or interpolation values
+	 * @param values - Optional interpolation values (if second arg is default string)
+	 * @returns Translated message, default, or key if not found
 	 */
-	t(key: string, values?: Record<string, any>): string;
+	t(key: string, defaultOrValues?: Record<string, any> | string, values?: Record<string, any>): string;
 
 	/**
 	 * Optional: Pluralization support
