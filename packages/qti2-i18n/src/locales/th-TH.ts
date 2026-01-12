@@ -219,6 +219,13 @@ export default {
 			clearMatch: 'ล้างการจับคู่สำหรับ {source}',
 			sourceItemsLabel: 'รายการต้นทางที่จะจับคู่',
 			targetItemsLabel: 'รายการเป้าหมายสำหรับการจับคู่',
+			dragFromHere: 'ลากจากที่นี่:',
+			dropHere: 'วางที่นี่:',
+			deselected: 'ยกเลิกการเลือก {item}',
+			selected: 'เลือก {item} แล้ว',
+			navigateToTarget: 'นำทางไปยังเป้าหมายและกด Space หรือ Enter เพื่อจับคู่',
+			selectionCancelled: 'ยกเลิกการเลือก',
+			matchCleared: 'ล้างการจับคู่สำหรับ {item} แล้ว',
 		},
 
 		gapMatch: {
@@ -228,9 +235,10 @@ export default {
 			availableHeading: 'คำที่พร้อมใช้งาน:',
 			removeWord: 'ลบคำ',
 			removeFromBlanks: 'ลบ {word} จากช่องว่าง',
+			selectPlaceholder: 'เลือก...',
 			gapAriaLabel: 'ช่องว่าง {gapId}',
 			blankGapAriaLabel: 'ช่องว่าง {gapId} วางคำตอบที่นี่',
-			filledGapAriaLabel: 'Blank {gapId}, filled with {word}. Click to clear.',
+			filledGapAriaLabel: 'ช่องว่าง {gapId} เติมด้วย {word} แล้ว คลิกเพื่อล้าง',
 		},
 
 		graphicGapMatch: {
@@ -245,6 +253,7 @@ export default {
 			pressSpaceToPlace: 'กด Space หรือ Enter เพื่อวางป้ายกำกับ',
 			removeLabel: 'ลบป้ายกำกับ',
 			removeFromHotspot: 'ลบ {label} จากฮอตสปอต',
+			labelPlaced: 'วาง {label} บนฮอตสปอต {hotspot} แล้ว',
 			hotspot: 'ฮอตสปอต {number}',
 			contains: 'มี: {label}',
 		},
@@ -260,6 +269,10 @@ export default {
 			confirmOrder: 'ยืนยันลำดับ',
 			confirmOrderNoChanges: 'ยืนยันลำดับ (ไม่มีการเปลี่ยนแปลง)',
 			confirmAria: 'ยืนยันลำดับนี้เป็นคำตอบของคุณ',
+			itemGrabbed: 'จับ {item} แล้ว ตำแหน่งปัจจุบัน {position} จาก {total} ใช้ปุ่มลูกศรเพื่อย้าย Space หรือ Enter เพื่อวาง',
+			itemDropped: 'วาง {item} ที่ตำแหน่ง {position} จาก {total} แล้ว',
+			itemMoved: 'ย้าย {item} ไปยังตำแหน่ง {position} จาก {total} แล้ว',
+			selectionCancelled: 'ยกเลิกการเลือก {item}',
 		},
 
 		associate: {
@@ -272,6 +285,13 @@ export default {
 			hotspotConnections: '{label} ({usageCount}/{matchMax} การเชื่อมต่อ)',
 			selectAnother: 'เลือกแล้ว: <strong>{label}</strong> คลิกอันอื่น',
 			minimumRequired: 'จำเป็นขั้นต่ำ: {minAssociations}',
+			currentAssociations: 'ความสัมพันธ์ปัจจุบัน',
+			clickToAssociate: 'คลิกสองรายการเพื่อสร้างความสัมพันธ์ระหว่างกัน',
+			clickAnotherOrDeselect: 'คลิกรายการอื่นเพื่อสร้างความสัมพันธ์ (หรือคลิกอีกครั้งเพื่อยกเลิกการเลือก)',
+			associations: 'ความสัมพันธ์',
+			associationsCount: 'ความสัมพันธ์ ({count}/{max})',
+			clickHotspotsToAssociate: 'คลิกสองฮอตสปอตบนภาพเพื่อสร้างความสัมพันธ์',
+			clickAnotherHotspot: 'เลือกแล้ว: <strong>{label}</strong> คลิกฮอตสปอตอื่นเพื่อสร้างความสัมพันธ์',
 		},
 
 		positionObject: {
@@ -286,6 +306,9 @@ export default {
 			maximumAllowed: 'สูงสุด: {maxChoices}',
 			availableObjects: 'วัตถุที่พร้อมใช้งาน',
 			objectUsage: '{label} ({usageCount}/{matchMax} ใช้แล้ว)',
+			availableObjectsCount: 'วัตถุที่พร้อมใช้งาน ({count}/{max})',
+			dragObjectsInstruction: 'ลากวัตถุบนแคนวาสเพื่อวางตำแหน่ง',
+			used: '{usageCount}/{matchMax} ใช้แล้ว',
 		},
 
 		endAttempt: {
@@ -309,12 +332,22 @@ export default {
 			loading: 'กำลังโหลดสื่อ...',
 			ariaLabel: 'เนื้อหาสื่อ',
 			maxPlayLimitReached: 'ถึงขีดจำกัดการเล่นสูงสุดแล้ว',
+			playCount: 'จำนวนครั้งที่เล่น:',
+			remaining: 'เหลืออยู่:',
+			requirementMet: '✓ ตรงตามข้อกำหนดแล้ว',
+			playAtLeast: 'เล่นอย่างน้อย {minPlays} ครั้ง',
+			playAtLeastPlural: 'เล่นอย่างน้อย {minPlays} ครั้ง',
+			browserNoSupport: 'เบราว์เซอร์ของคุณไม่รองรับประเภทสื่อนี้',
+			audioNoSupport: 'เบราว์เซอร์ของคุณไม่รองรับองค์ประกอบเสียง',
+			videoNoSupport: 'เบราว์เซอร์ของคุณไม่รองรับองค์ประกอบวิดีโอ',
+			objectDisabled: 'รายการนี้ใช้ประเภทออบเจ็กต์แบบฝังที่ถูกปิดใช้งานโดยค่าเริ่มต้นด้วยเหตุผลด้านความปลอดภัย',
 		},
 
 		graphicOrder: {
 			instruction: 'คลิกฮอตสปอตเพื่อจัดเรียง',
 			diagramLabel: 'แผนภาพการจัดเรียง',
 			altText: 'แผนภาพการจัดเรียง',
+			orderHeading: 'ลำดับ (ลากเพื่อจัดเรียงใหม่)',
 			itemLabel: 'รายการ {index}: {label}',
 			confirmOrder: 'ยืนยันลำดับ',
 			confirmOrderNoChanges: 'ยืนยันลำดับ (ไม่มีการเปลี่ยนแปลง)',
@@ -322,7 +355,13 @@ export default {
 		},
 
 		custom: {
-			fallbackPlaceholder: 'ป้อนคำตอบด้วยตนเอง (สำรอง)',
+			unsupported: 'customInteraction ที่ไม่รองรับ',
+			description: 'รายการนี้มีการโต้ตอบเฉพาะผู้ให้บริการ เครื่องเล่นนี้ไม่รันการโต้ตอบแบบกำหนดเอง',
+			promptLabel: 'พรอมต์',
+			manualResponse: 'การตอบกลับด้วยตนเอง (ไม่บังคับ)',
+			placeholder: 'ป้อนคำตอบด้วยตนเอง (สำรอง)',
+			attributes: 'แอตทริบิวต์',
+			xml: 'XML',
 		},
 
 		inline: {
@@ -393,6 +432,9 @@ export default {
 		},
 
 		timer: {
+			remaining: 'เวลาที่เหลือ',
+			elapsed: 'เวลาที่ผ่านไป',
+			expired: 'หมดเวลาแล้ว',
 			timeRemaining: 'เวลาที่เหลือ: {time}',
 			timeElapsed: 'เวลาที่ผ่านไป: {time}',
 			timeUp: 'หมดเวลา!',

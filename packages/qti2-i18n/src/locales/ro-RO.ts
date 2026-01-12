@@ -218,6 +218,13 @@ export default {
 			clearMatch: 'Șterge potrivirea pentru {source}',
 			sourceItemsLabel: 'Elemente sursă de potrivit',
 			targetItemsLabel: 'Elemente țintă pentru potrivire',
+			dragFromHere: 'Trage de aici:',
+			dropHere: 'Plasează aici:',
+			deselected: '{item} deselectat',
+			selected: '{item} selectat',
+			navigateToTarget: 'Navighează la o țintă și apasă Spațiu sau Enter pentru a potrivi',
+			selectionCancelled: 'Selecție anulată',
+			matchCleared: 'Potrivire ștearsă pentru {item}',
 		},
 
 		gapMatch: {
@@ -227,9 +234,10 @@ export default {
 			availableHeading: 'Cuvinte disponibile:',
 			removeWord: 'Elimină cuvânt',
 			removeFromBlanks: 'Elimină {word} din spațiile libere',
+			selectPlaceholder: 'Selectare...',
 			gapAriaLabel: 'Spațiu {gapId}',
 			blankGapAriaLabel: 'Spațiu liber {gapId}. Plasează un răspuns aici.',
-			filledGapAriaLabel: 'Blank {gapId}, filled with {word}. Click to clear.',
+			filledGapAriaLabel: 'Spațiu liber {gapId}, completat cu {word}. Clic pentru a șterge.',
 		},
 
 		graphicGapMatch: {
@@ -244,6 +252,7 @@ export default {
 			pressSpaceToPlace: 'Apasă Spațiu sau Enter pentru a plasa eticheta',
 			removeLabel: 'Elimină eticheta',
 			removeFromHotspot: 'Elimină {label} de pe hotspot',
+			labelPlaced: '{label} plasat pe hotspot {hotspot}',
 			hotspot: 'Hotspot {number}',
 			contains: 'Conține: {label}',
 		},
@@ -259,6 +268,10 @@ export default {
 			confirmOrder: 'Confirmă ordinea',
 			confirmOrderNoChanges: 'Confirmă ordinea (Fără modificări)',
 			confirmAria: 'Confirmă această ordine ca răspuns',
+			itemGrabbed: '{item} apucat. Poziția curentă {position} din {total}. Folosește săgețile pentru a muta, Spațiu sau Enter pentru a plasa.',
+			itemDropped: '{item} plasat la poziția {position} din {total}',
+			itemMoved: '{item} mutat la poziția {position} din {total}',
+			selectionCancelled: 'Selecție {item} anulată',
 		},
 
 		associate: {
@@ -271,6 +284,13 @@ export default {
 			hotspotConnections: '{label} ({usageCount}/{matchMax} conexiuni)',
 			selectAnother: 'Selectat: <strong>{label}</strong>. Clic pe altul',
 			minimumRequired: 'Minim necesar: {minAssociations}',
+			currentAssociations: 'Asocieri curente',
+			clickToAssociate: 'Clic pe două elemente pentru a crea o asociere între ele',
+			clickAnotherOrDeselect: 'Clic pe un alt element pentru a crea o asociere (sau clic din nou pentru a deselecta)',
+			associations: 'Asocieri',
+			associationsCount: 'Asocieri ({count}/{max})',
+			clickHotspotsToAssociate: 'Clic pe două hotspot-uri pe imagine pentru a crea o asociere.',
+			clickAnotherHotspot: 'Selectat: <strong>{label}</strong>. Clic pe un alt hotspot pentru a crea o asociere.',
 		},
 
 		positionObject: {
@@ -285,6 +305,9 @@ export default {
 			maximumAllowed: 'Maxim: {maxChoices}',
 			availableObjects: 'Obiecte disponibile',
 			objectUsage: '{label} ({usageCount}/{matchMax} folosit)',
+			availableObjectsCount: 'Obiecte disponibile ({count}/{max})',
+			dragObjectsInstruction: 'Trage obiectele pe canvas pentru a le poziționa.',
+			used: '{usageCount}/{matchMax} folosit',
 		},
 
 		endAttempt: {
@@ -308,12 +331,22 @@ export default {
 			loading: 'Se încarcă media...',
 			ariaLabel: 'Conținut media',
 			maxPlayLimitReached: 'Limită maximă de redare atinsă',
+			playCount: 'Număr de redări:',
+			remaining: 'Rămas:',
+			requirementMet: '✓ Cerință îndeplinită',
+			playAtLeast: 'Redați cel puțin {minPlays} ori',
+			playAtLeastPlural: 'Redați cel puțin {minPlays} ori',
+			browserNoSupport: 'Browserul tău nu suportă acest tip de media.',
+			audioNoSupport: 'Browserul tău nu suportă elementul audio.',
+			videoNoSupport: 'Browserul tău nu suportă elementul video.',
+			objectDisabled: 'Acest element folosește un tip de obiect încorporat care este dezactivat în mod implicit din motive de securitate.',
 		},
 
 		graphicOrder: {
 			instruction: 'Clic pe hotspot-uri pentru a le ordona',
 			diagramLabel: 'Diagramă de ordonare',
 			altText: 'Diagramă de ordonare',
+			orderHeading: 'Ordine (trage pentru a reordona)',
 			itemLabel: 'Element {index}: {label}',
 			confirmOrder: 'Confirmă ordinea',
 			confirmOrderNoChanges: 'Confirmă ordinea (Fără modificări)',
@@ -321,7 +354,13 @@ export default {
 		},
 
 		custom: {
-			fallbackPlaceholder: 'Introdu un răspuns manual (alternativ)',
+			unsupported: 'customInteraction nesuportat',
+			description: 'Acest element conține o interacțiune specifică furnizorului. Acest player nu execută interacțiuni personalizate.',
+			promptLabel: 'Prompt',
+			manualResponse: 'Răspuns manual (opțional)',
+			placeholder: 'Introdu un răspuns manual (alternativ)',
+			attributes: 'Atribute',
+			xml: 'XML',
 		},
 
 		inline: {
@@ -392,6 +431,9 @@ export default {
 		},
 
 		timer: {
+			remaining: 'Timp rămas',
+			elapsed: 'Timp scurs',
+			expired: 'Timp expirat',
 			timeRemaining: 'Timp rămas: {time}',
 			timeElapsed: 'Timp scurs: {time}',
 			timeUp: 'Timpul s-a terminat!',

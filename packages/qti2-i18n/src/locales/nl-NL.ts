@@ -218,6 +218,13 @@ export default {
 			clearMatch: 'Koppeling wissen voor {source}',
 			sourceItemsLabel: 'Bronitems om te koppelen',
 			targetItemsLabel: 'Doelitems voor koppeling',
+			dragFromHere: 'Sleep vanaf hier:',
+			dropHere: 'Zet hier neer:',
+			deselected: '{item} gedeselecteerd',
+			selected: '{item} geselecteerd',
+			navigateToTarget: 'Navigeer naar een doel en druk op Spatie of Enter om te koppelen',
+			selectionCancelled: 'Selectie geannuleerd',
+			matchCleared: 'Koppeling gewist voor {item}',
 		},
 
 		gapMatch: {
@@ -227,9 +234,10 @@ export default {
 			availableHeading: 'Beschikbare woorden:',
 			removeWord: 'Woord verwijderen',
 			removeFromBlanks: '{word} verwijderen uit de lege plaatsen',
+			selectPlaceholder: 'Selecteren...',
 			gapAriaLabel: 'Gat {gapId}',
 			blankGapAriaLabel: 'Lege plek {gapId}. Sleep hier een antwoord naartoe.',
-			filledGapAriaLabel: 'Blank {gapId}, filled with {word}. Click to clear.',
+			filledGapAriaLabel: 'Lege plek {gapId}, ingevuld met {word}. Klik om te wissen.',
 		},
 
 		graphicGapMatch: {
@@ -244,6 +252,7 @@ export default {
 			pressSpaceToPlace: 'Druk op Spatie of Enter om label te plaatsen',
 			removeLabel: 'Label verwijderen',
 			removeFromHotspot: '{label} verwijderen van hotspot',
+			labelPlaced: '{label} geplaatst op hotspot {hotspot}',
 			hotspot: 'Hotspot {number}',
 			contains: 'Bevat: {label}',
 		},
@@ -259,6 +268,10 @@ export default {
 			confirmOrder: 'Volgorde bevestigen',
 			confirmOrderNoChanges: 'Volgorde bevestigen (Geen wijzigingen)',
 			confirmAria: 'Bevestig deze volgorde als je antwoord',
+			itemGrabbed: '{item} gepakt. Huidige positie {position} van {total}. Gebruik pijltjestoetsen om te verplaatsen, Spatie of Enter om neer te zetten.',
+			itemDropped: '{item} neergezet op positie {position} van {total}',
+			itemMoved: '{item} verplaatst naar positie {position} van {total}',
+			selectionCancelled: '{item} selectie geannuleerd',
 		},
 
 		associate: {
@@ -271,6 +284,13 @@ export default {
 			hotspotConnections: '{label} ({usageCount}/{matchMax} verbindingen)',
 			selectAnother: 'Geselecteerd: <strong>{label}</strong>. Klik op een andere',
 			minimumRequired: 'Minimaal vereist: {minAssociations}',
+			currentAssociations: 'Huidige associaties',
+			clickToAssociate: 'Klik op twee items om een associatie tussen hen te maken',
+			clickAnotherOrDeselect: 'Klik op een ander item om een associatie te maken (of klik opnieuw om te deselecteren)',
+			associations: 'Associaties',
+			associationsCount: 'Associaties ({count}/{max})',
+			clickHotspotsToAssociate: 'Klik op twee hotspots op de afbeelding om een associatie te maken.',
+			clickAnotherHotspot: 'Geselecteerd: <strong>{label}</strong>. Klik op een andere hotspot om een associatie te maken.',
 		},
 
 		positionObject: {
@@ -285,6 +305,9 @@ export default {
 			maximumAllowed: 'Maximum: {maxChoices}',
 			availableObjects: 'Beschikbare objecten',
 			objectUsage: '{label} ({usageCount}/{matchMax} gebruikt)',
+			availableObjectsCount: 'Beschikbare objecten ({count}/{max})',
+			dragObjectsInstruction: 'Sleep objecten op het canvas om ze te positioneren.',
+			used: '{usageCount}/{matchMax} gebruikt',
 		},
 
 		endAttempt: {
@@ -308,12 +331,22 @@ export default {
 			loading: 'Media laden...',
 			ariaLabel: 'Media-inhoud',
 			maxPlayLimitReached: 'Maximale afspeellimiet bereikt',
+			playCount: 'Aantal keer afgespeeld:',
+			remaining: 'Resterend:',
+			requirementMet: '✓ Vereiste voldaan',
+			playAtLeast: 'Speel minimaal {minPlays} keer af',
+			playAtLeastPlural: 'Speel minimaal {minPlays} keer af',
+			browserNoSupport: 'Je browser ondersteunt dit mediatype niet.',
+			audioNoSupport: 'Je browser ondersteunt het audio-element niet.',
+			videoNoSupport: 'Je browser ondersteunt het video-element niet.',
+			objectDisabled: 'Dit item gebruikt een ingesloten objecttype dat standaard is uitgeschakeld om veiligheidsredenen.',
 		},
 
 		graphicOrder: {
 			instruction: 'Klik op hotspots om ze te ordenen',
 			diagramLabel: 'Ordeningsdiagram',
 			altText: 'Ordeningsdiagram',
+			orderHeading: 'Volgorde (sleep om te herschikken)',
 			itemLabel: 'Item {index}: {label}',
 			confirmOrder: 'Volgorde bevestigen',
 			confirmOrderNoChanges: 'Volgorde bevestigen (Geen wijzigingen)',
@@ -321,7 +354,13 @@ export default {
 		},
 
 		custom: {
-			fallbackPlaceholder: 'Voer een handmatig antwoord in (fallback)',
+			unsupported: 'Niet-ondersteunde customInteraction',
+			description: 'Dit item bevat een leveranciersspecifieke interactie. Deze speler voert geen aangepaste interacties uit.',
+			promptLabel: 'Prompt',
+			manualResponse: 'Handmatige reactie (optioneel)',
+			placeholder: 'Voer een handmatig antwoord in (fallback)',
+			attributes: 'Attributen',
+			xml: 'XML',
 		},
 
 		inline: {
@@ -392,6 +431,9 @@ export default {
 		},
 
 		timer: {
+			remaining: 'Resterende tijd',
+			elapsed: 'Verstreken tijd',
+			expired: 'Tijd verstreken',
 			timeRemaining: 'Resterende tijd: {time}',
 			timeElapsed: 'Verstreken tijd: {time}',
 			timeUp: 'Tijd is om!',

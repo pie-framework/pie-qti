@@ -282,7 +282,7 @@ export default {
 			selectPlaceholder: 'اختر...',
 			gapAriaLabel: 'الفراغ {gapId}',
 			blankGapAriaLabel: 'الفراغ {gapId}. أسقط إجابة هنا.',
-			filledGapAriaLabel: 'Blank {gapId}, filled with {word}. Click to clear.',
+			filledGapAriaLabel: 'الفراغ {gapId}، تم ملؤه بـ {word}. انقر للمسح.',
 		},
 
 		graphicGapMatch: {
