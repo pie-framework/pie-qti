@@ -15,6 +15,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import * as unzipper from 'unzipper';
 import { type ManifestResource, type ParsedManifest, parseManifest } from '../manifest-parser.js';
+import { type LocalizedManifest, buildLocalizedManifest } from '../localized-resources.js';
 
 export type OpenContentPackageOptions = {
   /**
@@ -313,6 +314,51 @@ export async function extractZipToDirStream(zipPath: string, targetDir: string):
   await createReadStream(zipPath)
     .pipe(unzipper.Extract({ path: targetDir }))
     .promise();
+}
+
+/**
+ * Resolved manifest with localized resource grouping.
+ */
+export type LocalizedResolvedManifest = ResolvedManifest & {
+  /** Localized view of manifest resources grouped by base ID and locale */
+  localized: LocalizedManifest;
+};
+
+/**
+ * Load and resolve a manifest with localized resource grouping.
+ *
+ * Combines standard manifest resolution with locale-aware resource grouping,
+ * enabling easy lookup of content variants by locale.
+ *
+ * @param packageRoot Absolute path to package root directory
+ * @param defaultLocale Default locale for resources without locale info (default: "en-US")
+ * @returns Resolved manifest with localized resource groups
+ *
+ * @example
+ * ```typescript
+ * const manifest = await loadLocalizedResolvedManifest('/path/to/package');
+ *
+ * // Access standard resolved resources
+ * console.log(manifest.items.length);
+ *
+ * // Access localized grouping
+ * const item = getLocalizedItem(manifest.localized, 'simple-choice', 'es-ES');
+ * console.log(manifest.localized.availableLocales); // Set { "en-US", "es-ES", "fr-FR" }
+ * ```
+ */
+export async function loadLocalizedResolvedManifest(
+  packageRoot: string,
+  defaultLocale: string = 'en-US'
+): Promise<LocalizedResolvedManifest> {
+  const resolved = await loadResolvedManifest(packageRoot);
+
+  // Build localized view from the parsed manifest
+  const localized = buildLocalizedManifest(resolved, defaultLocale);
+
+  return {
+    ...resolved,
+    localized,
+  };
 }
 
 

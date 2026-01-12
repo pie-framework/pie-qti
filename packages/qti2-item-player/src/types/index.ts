@@ -170,6 +170,11 @@ export interface PlayerConfig {
 	/** Optional plugins to extend player functionality */
 	plugins?: any[]; // Will be QTIPlugin[], but avoiding circular dependency
 	/**
+	 * Optional i18n provider for internationalization.
+	 * If not provided, defaults to DefaultI18nProvider with English messages.
+	 */
+	i18nProvider?: any; // Will be I18nProvider from @pie-qti/qti2-i18n
+	/**
 	 * Optional registry for executing QTI <customOperator> expressions.
 	 * Keyed by operator `class` (preferred) or `definition` URI.
 	 */

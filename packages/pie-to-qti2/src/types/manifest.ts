@@ -180,6 +180,9 @@ export interface ItemResource {
 
   /** Metadata */
   metadata?: Record<string, any>;
+
+  /** Locale for this specific variant (e.g., "en-US", "es-ES") */
+  locale?: string;
 }
 
 /**
@@ -200,6 +203,9 @@ export interface PassageResource {
 
   /** Metadata */
   metadata?: Record<string, any>;
+
+  /** Locale for this specific variant (e.g., "en-US", "es-ES") */
+  locale?: string;
 }
 
 /**
@@ -223,4 +229,7 @@ export interface AssessmentResource {
 
   /** Metadata */
   metadata?: Record<string, any>;
+
+  /** Locale for this specific variant (e.g., "en-US", "es-ES") */
+  locale?: string;
 }

@@ -2,6 +2,7 @@
 
 <script lang="ts">
 	import type { SliderInteractionData } from '@pie-qti/qti2-item-player';
+	import type { I18nProvider } from '@pie-qti/qti2-i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
@@ -10,14 +11,18 @@
 		interaction?: SliderInteractionData | string;
 		response?: number | null;
 		disabled?: boolean;
+		i18n?: I18nProvider;
 		onChange?: (value: number) => void;
 	}
 
-	let { interaction = $bindable(), response = $bindable(), disabled = false, onChange }: Props = $props();
+	let { interaction = $bindable(), response = $bindable(), disabled = false, i18n = $bindable(), onChange }: Props = $props();
 
 	// Parse props that may be JSON strings (web component usage)
 	const parsedInteraction = $derived(parseJsonProp<SliderInteractionData>(interaction));
 	const parsedResponse = $derived(parseJsonProp<number>(response));
+
+	// Simplified translation helper - locale changes trigger page refresh
+	const t = $derived((key: string, fallback: string) => i18n?.t(key) ?? fallback);
 
 	// Get reference to the root element for event dispatching
 	let rootElement: HTMLDivElement | undefined = $state();
@@ -42,7 +47,7 @@
 
 <div bind:this={rootElement} part="root" class="qti-slider-interaction space-y-3">
 	{#if !parsedInteraction}
-		<div class="alert alert-error">No interaction data provided</div>
+		<div class="alert alert-error">{t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
 		{#if parsedInteraction.prompt}
 			<p part="prompt" class="qti-slider-prompt font-semibold">{@html parsedInteraction.prompt}</p>
@@ -70,7 +75,7 @@
 
 		<div part="value" class="qti-slider-value text-center">
 			<div class="qti-slider-stat stat bg-base-200 rounded-box inline-block">
-				<div class="qti-slider-stat-title stat-title">Selected Value</div>
+				<div class="qti-slider-stat-title stat-title">{t('interactions.slider.statTitle', 'Selected Value')}</div>
 				<div part="value-number" class="qti-slider-stat-value stat-value text-primary">
 					{currentValue}
 				</div>

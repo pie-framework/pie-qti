@@ -2,6 +2,7 @@
 
 <script lang="ts">
 	import type { UploadInteractionData, QTIFileResponse } from '@pie-qti/qti2-item-player';
+	import type { I18nProvider } from '@pie-qti/qti2-i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import FileUpload from '../../shared/components/FileUpload.svelte';
 	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
@@ -12,11 +13,12 @@
 		interaction?: UploadInteractionData | string;
 		response?: QTIFileResponse | string | null;
 		disabled?: boolean;
+		i18n?: I18nProvider;
 		typeset?: (element: HTMLElement) => void;
 		onChange?: (value: QTIFileResponse | null) => void;
 	}
 
-	let { interaction = $bindable(), response = $bindable(), disabled = false, typeset, onChange }: Props = $props();
+	let { interaction = $bindable(), response = $bindable(), disabled = false, i18n = $bindable(), typeset, onChange }: Props = $props();
 
 	// Parse props that may be JSON strings (web component usage)
 	const parsedInteraction = $derived(parseJsonProp<UploadInteractionData>(interaction));
@@ -41,14 +43,15 @@
 <div bind:this={rootElement} part="root" class="qti-upload-interaction" use:typesetAction={{ typeset }}>
 	{#if !parsedInteraction}
 		<div class="alert alert-error">
-			<span>Error: No interaction data provided</span>
+			<span>{i18n?.t('common.error', 'Error')}: {i18n?.t('common.errorNoData', 'No interaction data provided')}</span>
 		</div>
 	{:else}
 		<FileUpload
-			label={parsedInteraction.prompt || 'Upload a file'}
+			label={parsedInteraction.prompt || i18n?.t('interactions.upload.label', 'Upload a file')}
 			responseId={parsedInteraction.responseId}
 			fileTypes={parsedInteraction.fileTypes}
 			{disabled}
+			{i18n}
 			value={parsedResponse}
 			onChange={handleChange}
 		/>

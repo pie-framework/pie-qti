@@ -1,8 +1,12 @@
 <script lang="ts">
 	import { IFramePlayerHost, type IFramePlayerHostEvent } from '@pie-qti/qti2-item-player/iframe';
-	import { onDestroy, onMount } from 'svelte';
+	import { onDestroy, onMount, getContext } from 'svelte';
 	import { base } from '$app/paths';
 	import { SAMPLE_ITEMS } from '$lib/sample-items';
+	import type { SvelteI18nProvider } from '@pie-qti/qti2-i18n';
+
+	const i18nContext = getContext<{ value: SvelteI18nProvider | null }>('i18n');
+	const i18n = $derived(i18nContext?.value);
 
 	let selectedSampleId = $state('simple-choice');
 	let lastResponses = $state<Record<string, unknown>>({});
@@ -128,7 +132,7 @@
 					{/each}
 				</select>
 				<div class="label">
-					<span class="label-text-alt">{SAMPLE_ITEMS.find((s) => s.id === selectedSampleId)?.description}</span>
+					<span class="label-text-alt">{i18n?.t(`demo.sampleItemDescriptions.${selectedSampleId}`) ?? SAMPLE_ITEMS.find((s) => s.id === selectedSampleId)?.description}</span>
 				</div>
 			</div>
 

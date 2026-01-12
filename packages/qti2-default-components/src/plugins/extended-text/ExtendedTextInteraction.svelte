@@ -2,6 +2,7 @@
 
 <script lang="ts">
 	import type { ExtendedTextInteractionData } from '@pie-qti/qti2-item-player';
+	import type { I18nProvider } from '@pie-qti/qti2-i18n';
 	import RichTextEditor from '../../shared/components/RichTextEditor.svelte';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
@@ -11,11 +12,12 @@
 		interaction?: ExtendedTextInteractionData | string;
 		response?: string | null;
 		disabled?: boolean;
+		i18n?: I18nProvider;
 		typeset?: (element: HTMLElement) => void;
 		onChange?: (value: string) => void;
 	}
 
-	let { interaction = $bindable(), response = $bindable(), disabled = false, typeset, onChange }: Props = $props();
+	let { interaction = $bindable(), response = $bindable(), disabled = false, i18n = $bindable(), typeset, onChange }: Props = $props();
 
 	// Parse props that may be JSON strings (web component usage)
 	const parsedInteraction = $derived(parseJsonProp<ExtendedTextInteractionData>(interaction));
@@ -39,7 +41,7 @@
 
 <div bind:this={rootElement} part="root" class="qti-extended-text-interaction">
 	{#if !parsedInteraction}
-		<div class="alert alert-error">No interaction data provided</div>
+		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
 		<div part="editor">
 			<RichTextEditor
@@ -47,6 +49,7 @@
 			editable={!disabled}
 			placeholder={parsedInteraction.placeholderText || 'Enter your response...'}
 			minHeight={parsedInteraction.expectedLines ? parsedInteraction.expectedLines * 24 : 200}
+			{i18n}
 			onChange={handleChange}
 			/>
 		</div>

@@ -2,6 +2,7 @@
 
 <script lang="ts">
 	import type { AssociateInteractionData } from '@pie-qti/qti2-item-player';
+	import type { I18nProvider } from '@pie-qti/qti2-i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
 
@@ -9,6 +10,7 @@
 		interaction?: AssociateInteractionData | string;
 		response?: string[] | null;
 		disabled?: boolean;
+		i18n?: I18nProvider;
 		selectedForPairing?: string | null;
 		onSelectionChange?: (selected: string | null) => void;
 		onChange?: (value: string[]) => void;
@@ -18,6 +20,7 @@
 		interaction = $bindable(),
 		response = $bindable(),
 		disabled = false,
+		i18n = $bindable(),
 		selectedForPairing: externalSelectedForPairing,
 		onSelectionChange,
 		onChange,
@@ -98,7 +101,7 @@
 
 <div bind:this={rootElement} part="root" class="qti-associate-interaction space-y-3">
 	{#if !parsedInteraction}
-		<div class="alert alert-error">No interaction data provided</div>
+		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
 		{#if parsedInteraction.prompt}
 			<p part="prompt" class="qti-associate-prompt font-semibold">{@html parsedInteraction.prompt}</p>
@@ -155,9 +158,9 @@
 		<div part="helper" class="qti-associate-helper alert alert-info">
 			<span class="text-sm">
 				{#if selectedForPairing}
-					Click another item to create an association (or click again to deselect)
+					{i18n?.t('interactions.associate.clickAnotherOrDeselect') ?? 'Click another item to create an association (or click again to deselect)'}
 				{:else}
-					Click two items to create an association between them
+					{i18n?.t('interactions.associate.clickToAssociate') ?? 'Click two items to create an association between them'}
 				{/if}
 			</span>
 		</div>

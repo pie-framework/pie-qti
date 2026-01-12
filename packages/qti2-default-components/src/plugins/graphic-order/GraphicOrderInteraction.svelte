@@ -2,6 +2,7 @@
 
 <script lang="ts">
 	import type { GraphicOrderInteractionData } from '@pie-qti/qti2-item-player';
+	import type { I18nProvider } from '@pie-qti/qti2-i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import SortableList from '../../shared/components/SortableList.svelte';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
@@ -11,10 +12,11 @@
 		interaction?: GraphicOrderInteractionData | string;
 		response?: string[] | null;
 		disabled?: boolean;
+		i18n?: I18nProvider;
 		onChange?: (value: string[]) => void;
 	}
 
-	let { interaction = $bindable(), response = $bindable(), disabled = false, onChange }: Props = $props();
+	let { interaction = $bindable(), response = $bindable(), disabled = false, i18n = $bindable(), onChange }: Props = $props();
 
 	// Parse props that may be JSON strings (web component usage)
 	const parsedInteraction = $derived(parseJsonProp<GraphicOrderInteractionData>(interaction));
@@ -92,7 +94,7 @@
 
 <div bind:this={rootElement} part="root" class="qti-graphic-order-interaction">
 	{#if !parsedInteraction}
-		<div class="alert alert-error">No interaction data provided</div>
+		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
 		{#if parsedInteraction.prompt}
 			<p part="prompt" class="qti-go-prompt font-semibold mb-3">{@html parsedInteraction.prompt}</p>
@@ -149,12 +151,14 @@
 									type="button"
 									class="btn btn-primary btn-sm w-full"
 									onclick={confirmOrder}
-									aria-label="Confirm this order as your answer"
+									aria-label={i18n?.t('interactions.graphicOrder.confirmAria') ?? 'Confirm this order as your answer'}
 								>
-									{hasReordered ? 'Confirm Order' : 'Confirm Order (No Changes)'}
+									{hasReordered
+										? (i18n?.t('interactions.graphicOrder.confirmOrder') ?? 'Confirm Order')
+										: (i18n?.t('interactions.graphicOrder.confirmOrderNoChanges') ?? 'Confirm Order (No Changes)')}
 								</button>
 								<p class="text-xs text-base-content/60 mt-2 text-center">
-									Drag to reorder, or click to confirm
+									{i18n?.t('interactions.graphicOrder.instruction') ?? 'Drag to reorder, or click to confirm'}
 								</p>
 							{:else if hasConfirmed}
 								<div class="alert alert-success py-2">

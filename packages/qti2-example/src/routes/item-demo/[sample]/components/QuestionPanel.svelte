@@ -1,8 +1,10 @@
 <script lang="ts">
-	
+
 	import { typesetAction } from '@pie-qti/qti2-default-components/shared';
-	import ItemBody from '@pie-qti/qti2-default-components/shared/components/ItemBody.svelte';
-import type { Player, QTIRole, RubricBlock } from '@pie-qti/qti2-item-player';
+	// @ts-expect-error - Svelte-check can't resolve workspace subpath exports, but runtime works correctly
+	import { ItemBody } from '@pie-qti/qti2-item-player/components';
+	import type { Player, QTIRole, RubricBlock } from '@pie-qti/qti2-item-player';
+	import type { I18nProvider } from '@pie-qti/qti2-i18n';
 	import { typesetMathInElement } from '@pie-qti/qti2-typeset-katex';
 
 	interface Props {
@@ -15,6 +17,7 @@ import type { Player, QTIRole, RubricBlock } from '@pie-qti/qti2-item-player';
 		progressPercentage: number;
 		isSubmitting: boolean;
 		disabled: boolean;
+		i18n?: I18nProvider | null;
 		role: QTIRole;
 		onResponseChange: (responseId: string, value: any) => void;
 		onSubmit: () => void;
@@ -31,11 +34,15 @@ import type { Player, QTIRole, RubricBlock } from '@pie-qti/qti2-item-player';
 		progressPercentage,
 		isSubmitting,
 		disabled,
+		i18n,
 		role,
 		onResponseChange,
 		onSubmit,
 		onReset,
 	}: Props = $props();
+
+	// Simplified translation helper - locale changes trigger page refresh
+	const t = $derived((key: string, fallback: string) => i18n?.t(key) ?? fallback);
 
 	// Delegate submission enablement to the player
 	const canSubmit = $derived(player ? player.canSubmitResponses(responses) : false);
@@ -46,9 +53,9 @@ import type { Player, QTIRole, RubricBlock } from '@pie-qti/qti2-item-player';
 	<div class="card bg-base-100 shadow-xl">
 		<div class="card-body py-4">
 			<div class="flex items-center justify-between mb-2">
-				<span class="text-sm font-semibold">Progress</span>
+				<span class="text-sm font-semibold">{t('common.status', 'Progress')}</span>
 				<span class="text-sm text-base-content/70">
-					{answeredCount} of {totalInteractions} answered
+					{answeredCount} {t('common.of', 'of')} {totalInteractions} {t('common.answered', 'answered')}
 				</span>
 			</div>
 			<progress class="progress progress-primary w-full" value={progressPercentage} max="100"></progress>
@@ -58,7 +65,7 @@ import type { Player, QTIRole, RubricBlock } from '@pie-qti/qti2-item-player';
 
 <div class="card bg-base-100 shadow-xl min-w-0" use:typesetAction={{ typeset: (el) => typesetMathInElement(el) }}>
 	<div class="card-body min-w-0">
-		<h2 class="card-title">Question</h2>
+		<h2 class="card-title">{t('common.question', 'Question')}</h2>
 
 		<!-- Rubrics (role-filtered) -->
 		{#if rubrics.length > 0}
@@ -77,6 +84,7 @@ import type { Player, QTIRole, RubricBlock } from '@pie-qti/qti2-item-player';
 				{player}
 				{responses}
 				{disabled}
+				i18n={i18n ?? undefined}
 				typeset={typesetMathInElement}
 				{onResponseChange}
 			/>
@@ -88,17 +96,17 @@ import type { Player, QTIRole, RubricBlock } from '@pie-qti/qti2-item-player';
 					class="btn btn-primary"
 					onclick={onSubmit}
 					disabled={isSubmitting || !canSubmit}
-					title={!canSubmit ? 'Please complete the required interactions' : ''}
+					title={!canSubmit ? t('common.pleaseComplete', 'Please complete the required interactions') : ''}
 				>
 					{#if isSubmitting}
 						<span class="loading loading-spinner loading-sm"></span>
-						Submitting...
+						{t('common.submitting', 'Submitting...')}
 					{:else}
-						Submit Answer{totalInteractions > 1 ? 's' : ''}
+						{(i18n?.plural && i18n.plural('plurals.submitAnswer', { count: totalInteractions })) || (totalInteractions > 1 ? 'Submit Answers' : 'Submit Answer')}
 					{/if}
 				</button>
 			{:else}
-				<button class="btn btn-secondary" onclick={onReset}>Try Again</button>
+				<button class="btn btn-secondary" onclick={onReset}>{t('common.tryAgain', 'Try Again')}</button>
 			{/if}
 		</div>
 	</div>

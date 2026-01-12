@@ -68,6 +68,7 @@ export class Player {
 	private ops: OperatorRegistry;
 	private extractionRegistry: ExtractionRegistry;
 	private componentRegistry: ComponentRegistry;
+	private i18nProvider: any; // I18nProvider from @pie-qti/qti2-i18n
 
 	private responseProcessingProgram: ProcessingProgram | null = null;
 	private templateProcessingProgram: ProcessingProgram | null = null;
@@ -98,6 +99,9 @@ export class Player {
 		// Extraction + rendering registries (for interaction rendering)
 		this.extractionRegistry = (config.extractionRegistry as ExtractionRegistry | undefined) ?? createExtractionRegistry();
 		this.componentRegistry = (config.componentRegistry as ComponentRegistry | undefined) ?? createComponentRegistry();
+
+		// I18n provider (defaults to a simple fallback if not provided)
+		this.i18nProvider = config.i18nProvider ?? this.createDefaultI18nProvider();
 
 		// Register standard extractors (idempotent per-registry instance)
 		for (const ex of ALL_STANDARD_EXTRACTORS) {
@@ -197,6 +201,29 @@ export class Player {
 
 	public getTrustedTypesPolicyName(): string | undefined {
 		return this.config.security?.trustedTypesPolicyName;
+	}
+
+	/**
+	 * Get the i18n provider instance
+	 * @returns I18nProvider instance
+	 */
+	public getI18nProvider(): any {
+		return this.i18nProvider;
+	}
+
+	/**
+	 * Create a simple fallback i18n provider when none is provided
+	 * This avoids a hard dependency on @pie-qti/qti2-i18n
+	 */
+	private createDefaultI18nProvider(): any {
+		return {
+			getLocale: () => 'en-US',
+			setLocale: () => {},
+			t: (key: string) => key, // Fallback to key
+			plural: (key: string) => key,
+			formatNumber: (value: number) => value.toString(),
+			formatDate: (date: Date) => date.toISOString(),
+		};
 	}
 
 	private resetOutcomesToDefault(): void {

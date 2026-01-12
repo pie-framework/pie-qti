@@ -5,6 +5,7 @@
 	import Placeholder from '@tiptap/extension-placeholder';
 	import StarterKit from '@tiptap/starter-kit';
 	import { untrack } from 'svelte';
+	import type { I18nProvider } from '@pie-qti/qti2-i18n';
 	import { openMathLiveEditor } from '../extensions/MathLiveEditor.js';
 
 	interface Props {
@@ -12,6 +13,7 @@
 		editable?: boolean;
 		placeholder?: string;
 		minHeight?: number;
+		i18n?: I18nProvider;
 		onChange?: (html: string) => void;
 	}
 
@@ -20,8 +22,18 @@
 		editable = true,
 		placeholder = '',
 		minHeight = 200,
+		i18n,
 		onChange,
 	}: Props = $props();
+
+	// Translations
+	const translations = $derived({
+		bold: i18n?.t('interactions.extendedText.bold') ?? 'interactions.extendedText.bold',
+		italic: i18n?.t('interactions.extendedText.italic') ?? 'interactions.extendedText.italic',
+		insertInlineMath: i18n?.t('interactions.extendedText.insertInlineMath') ?? 'interactions.extendedText.insertInlineMath',
+		insertBlockMath: i18n?.t('interactions.extendedText.insertBlockMath') ?? 'interactions.extendedText.insertBlockMath',
+		editorLabel: placeholder || (i18n?.t('interactions.extendedText.placeholder') ?? 'interactions.extendedText.placeholder'),
+	});
 
 	let el: HTMLDivElement | null = $state(null);
 	let editor: Editor | null = $state(null);
@@ -78,6 +90,7 @@
 		const initialPlaceholder = untrack(() => placeholder);
 		const initialMinHeight = untrack(() => minHeight);
 		const initialEditable = untrack(() => editable);
+		const initialEditorLabel = untrack(() => translations.editorLabel);
 
 		const ed = new Editor({
 			element: el,
@@ -132,7 +145,7 @@
 					style: `min-height: ${initialMinHeight}px`,
 					role: 'textbox',
 					'aria-multiline': 'true',
-					'aria-label': initialPlaceholder || 'Extended response editor',
+					'aria-label': initialEditorLabel,
 				},
 			},
 			onUpdate: ({ editor: ed }) => {
@@ -186,44 +199,44 @@
 	<div part="toolbar" class="rte-toolbar">
 		<button
 			part="toolbar-button"
-			class="btn btn-sm btn-ghost"
+			class="btn btn-sm"
 			type="button"
 			disabled={!editor || !editable}
 			onclick={() => editor?.chain().focus().toggleBold().run()}
-			aria-label="Bold"
+			aria-label={translations.bold}
 		>
 			<strong>B</strong>
 		</button>
 		<button
 			part="toolbar-button"
-			class="btn btn-sm btn-ghost"
+			class="btn btn-sm"
 			type="button"
 			disabled={!editor || !editable}
 			onclick={() => editor?.chain().focus().toggleItalic().run()}
-			aria-label="Italic"
+			aria-label={translations.italic}
 		>
 			<em>I</em>
 		</button>
 		<div part="toolbar-divider" class="divider divider-horizontal mx-0"></div>
 		<button
 			part="toolbar-button"
-			class="btn btn-sm btn-ghost"
+			class="btn btn-sm"
 			type="button"
 			disabled={!editor || !editable}
 			onclick={() => insertInlineMath()}
-			aria-label="Insert inline math"
+			aria-label={translations.insertInlineMath}
 		>
-			Math (inline)
+			{translations.insertInlineMath}
 		</button>
 		<button
 			part="toolbar-button"
-			class="btn btn-sm btn-ghost"
+			class="btn btn-sm"
 			type="button"
 			disabled={!editor || !editable}
 			onclick={() => insertBlockMath()}
-			aria-label="Insert block math"
+			aria-label={translations.insertBlockMath}
 		>
-			Math (block)
+			{translations.insertBlockMath}
 		</button>
 	</div>
 

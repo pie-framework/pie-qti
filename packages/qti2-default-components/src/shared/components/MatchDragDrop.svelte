@@ -6,6 +6,7 @@
  */
 
 import type { AssociableChoice } from '@pie-qti/qti2-item-player';
+import type { I18nProvider } from '@pie-qti/qti2-i18n';
 import { createOrUpdatePair, getSourceForTarget, getTargetForSource, removePairBySource } from '../utils/pairHelpers.js';
 import { touchDrag } from '../utils/touchDragHelper.js';
 import DragHandle from './DragHandle.svelte';
@@ -16,10 +17,11 @@ interface Props {
 	targetSet: AssociableChoice[];
 	pairs: string[]; // Array of "sourceId targetId" pairs
 	disabled?: boolean;
+	i18n?: I18nProvider;
 	onPairsChange: (newPairs: string[]) => void;
 }
 
-const { sourceSet, targetSet, pairs, disabled = false, onPairsChange }: Props = $props();
+const { sourceSet, targetSet, pairs, disabled = false, i18n, onPairsChange }: Props = $props();
 
 let draggedSourceId = $state<string | null>(null);
 let keyboardSelectedSourceId = $state<string | null>(null); // Source selected via keyboard
@@ -229,7 +231,9 @@ function clearMatch(sourceId: string) {
 						<div class="qti-match-target-sub text-sm text-primary font-medium">← {sourceItem.text}</div>
 					{:else if !disabled}
 						<div class="qti-match-target-hint text-xs text-base-content/70 italic">
-							{keyboardSelectedSourceId ? 'Press Space or Enter to match' : 'Drop item here'}
+							{keyboardSelectedSourceId
+								? (i18n?.t('interactions.match.dragInstruction') ?? 'Press Space or Enter to match')
+								: (i18n?.t('interactions.match.dropTarget') ?? 'Drop item here')}
 						</div>
 					{/if}
 				</div>

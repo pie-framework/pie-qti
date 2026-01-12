@@ -1,18 +1,18 @@
 <script lang="ts">
-	
-	import { onDestroy, onMount } from 'svelte';
-import type { AssessmentPlayer } from '../core/AssessmentPlayer.js';
+	import type { AssessmentPlayer } from '../core/AssessmentPlayer.js';
+	import type { I18nProvider } from '@pie-qti/qti2-i18n';
 	import { TimeManager } from '../core/TimeManager.js';
 
 	interface Props {
 		player: AssessmentPlayer;
+		i18n?: I18nProvider;
 		/** Show timer even when no time limit */
 		showElapsed?: boolean;
 		/** Position of timer */
 		position?: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left';
 	}
 
-	let { player, showElapsed = false, position = 'top-right' }: Props = $props();
+	let { player, i18n, showElapsed = false, position = 'top-right' }: Props = $props();
 
 	// State
 	let remainingSeconds = $state<number | null>(null);
@@ -20,43 +20,39 @@ import type { AssessmentPlayer } from '../core/AssessmentPlayer.js';
 	let isWarning = $state(false);
 	let isExpired = $state(false);
 
-	// Cleanup functions
-	let unsubscribeWarning: (() => void) | null = null;
-	let unsubscribeExpired: (() => void) | null = null;
-	let unsubscribeTick: (() => void) | null = null;
-
-	onMount(() => {
+	// Initialize state and subscribe to timer events
+	$effect(() => {
 		// Initialize from player
 		remainingSeconds = player.getRemainingTime();
 		elapsedSeconds = player.getElapsedTime();
 		isExpired = player.isTimeExpired();
 
 		// Subscribe to timer events
-		unsubscribeWarning = player.onTimeWarning((remaining) => {
+		const unsubscribeWarning = player.onTimeWarning((remaining) => {
 			isWarning = true;
 			remainingSeconds = remaining;
 		});
 
-		unsubscribeExpired = player.onTimeExpired(() => {
+		const unsubscribeExpired = player.onTimeExpired(() => {
 			isExpired = true;
 			remainingSeconds = 0;
 		});
 
-		unsubscribeTick = player.onTimeTick((remaining, elapsed) => {
+		const unsubscribeTick = player.onTimeTick((remaining, elapsed) => {
 			remainingSeconds = remaining;
 			elapsedSeconds = elapsed;
 		});
-	});
 
-	onDestroy(() => {
-		// Cleanup subscriptions
-		unsubscribeWarning?.();
-		unsubscribeExpired?.();
-		unsubscribeTick?.();
+		// Cleanup subscriptions when effect reruns or component unmounts
+		return () => {
+			unsubscribeWarning?.();
+			unsubscribeExpired?.();
+			unsubscribeTick?.();
+		};
 	});
 
 	// Derived values
-	let displayTime = $derived(() => {
+	const displayTime = $derived(() => {
 		if (remainingSeconds !== null && remainingSeconds >= 0) {
 			return TimeManager.formatTime(remainingSeconds);
 		}
@@ -66,12 +62,14 @@ import type { AssessmentPlayer } from '../core/AssessmentPlayer.js';
 		return null;
 	});
 
-	let timerLabel = $derived(() => {
+	const timerLabel = $derived(() => {
 		if (remainingSeconds !== null) {
-			return isExpired ? 'Time Expired' : 'Time Remaining';
+			return isExpired
+				? (i18n?.t('assessment.timer.expired') ?? 'assessment.timer.expired')
+				: (i18n?.t('assessment.timer.remaining') ?? 'assessment.timer.remaining');
 		}
 		if (showElapsed) {
-			return 'Time Elapsed';
+			return i18n?.t('assessment.timer.elapsed') ?? 'assessment.timer.elapsed';
 		}
 		return null;
 	});

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import type { I18nProvider } from '@pie-qti/qti2-i18n';
+
 	interface Section {
 		id: string;
 		title?: string;
@@ -8,11 +10,12 @@
 	interface Props {
 		sections: Section[];
 		currentSectionIndex?: number;
+		i18n?: I18nProvider;
 		onSectionSelect?: (sectionIndex: number) => void;
 		disabled?: boolean;
 	}
 
-	const { sections, currentSectionIndex, onSectionSelect, disabled = false }: Props = $props();
+	const { sections, currentSectionIndex, i18n, onSectionSelect, disabled = false }: Props = $props();
 
 	let isOpen = $state(false);
 
@@ -46,7 +49,7 @@
 					d="M4 6h16M4 12h16M4 18h16"
 				/>
 			</svg>
-			Sections
+			{i18n?.t('assessment.sections.title', 'Sections')}
 		</button>
 
 		{#if isOpen}
@@ -93,14 +96,14 @@
 								</div>
 								<div class="section-info">
 									<div class="section-title">
-										{section.title || `Section ${section.index + 1}`}
+										{section.title || i18n?.t('assessment.sectionDefault', 'Section {number}', { number: section.index + 1 })}
 									</div>
 								</div>
 							</button>
 						{/each}
 					</div>
 				</div>
-				<button class="section-backdrop" onclick={() => toggleMenu?.()} aria-label="Close menu"></button>
+				<button class="section-backdrop" onclick={() => toggleMenu?.()} aria-label={i18n?.t('assessment.closeMenu', 'Close menu')}></button>
 			</div>
 		{/if}
 	</div>

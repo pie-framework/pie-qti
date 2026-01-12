@@ -63,6 +63,11 @@ export default defineConfig({
 				find: /^@pie-qti\/qti2-player-elements$/,
 				replacement: fileURLToPath(new URL('../qti2-player-elements/src/index.ts', import.meta.url)),
 			},
+			{
+				// Allow i18n locales to be loaded from source during development
+				find: /^@pie-qti\/qti2-i18n$/,
+				replacement: fileURLToPath(new URL('../qti2-i18n/src/index.ts', import.meta.url)),
+			},
 		],
 	},
 	server: {

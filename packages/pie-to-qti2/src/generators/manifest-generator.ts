@@ -7,9 +7,12 @@
 
 import { v4 as uuid } from 'uuid';
 import type {
+  AssessmentResource,
   ImsManifest,
+  ItemResource,
   ManifestGenerationOptions,
   ManifestInput,
+  PassageResource,
   Resource,
   ResourceDependency,
 } from '../types/manifest.js';
@@ -41,11 +44,16 @@ export function buildManifest(input: ManifestInput): ImsManifest {
   // Add passage resources first (items depend on them)
   if (input.passages && input.passages.length > 0) {
     for (const passage of input.passages) {
+      // Add language metadata if locale is specified
+      const metadata = passage.locale
+        ? { ...passage.metadata, language: passage.locale }
+        : passage.metadata;
+
       resources.push({
         identifier: passage.id,
         type: passage.type || 'imsqti_item_xmlv2p2',
         href: passage.filePath,
-        metadata: passage.metadata,
+        metadata,
         files: passage.files?.map(f => ({ href: f })),
       });
     }
@@ -62,11 +70,16 @@ export function buildManifest(input: ManifestInput): ImsManifest {
       }
     }
 
+    // Add language metadata if locale is specified
+    const metadata = item.locale
+      ? { ...item.metadata, language: item.locale }
+      : item.metadata;
+
     resources.push({
       identifier: item.id,
       type: item.type || 'imsqti_item_xmlv2p2',
       href: item.filePath,
-      metadata: item.metadata,
+      metadata,
       files: item.files?.map(f => ({ href: f })),
       dependencies: dependencies.length > 0 ? dependencies : undefined,
     });
@@ -84,11 +97,16 @@ export function buildManifest(input: ManifestInput): ImsManifest {
         }
       }
 
+      // Add language metadata if locale is specified
+      const metadata = assessment.locale
+        ? { ...assessment.metadata, language: assessment.locale }
+        : assessment.metadata;
+
       resources.push({
         identifier: assessment.id,
         type: assessment.type || 'imsqti_assessment_xmlv2p2',
         href: assessment.filePath,
-        metadata: assessment.metadata,
+        metadata,
         files: assessment.files?.map(f => ({ href: f })),
         dependencies: dependencies.length > 0 ? dependencies : undefined,
       });
@@ -154,9 +172,23 @@ export function manifestToXml(manifest: ImsManifest): string {
     // Metadata (if provided)
     if (resource.metadata) {
       lines.push('      <metadata>');
-      for (const [key, value] of Object.entries(resource.metadata)) {
-        lines.push(`        <imsmd:${key}>${escapeXml(String(value))}</imsmd:${key}>`);
+
+      // Special handling for IMS LOM language (must be in lom/general structure)
+      if (resource.metadata.language) {
+        lines.push('        <imsmd:lom>');
+        lines.push('          <imsmd:general>');
+        lines.push('            <imsmd:language>' + escapeXml(String(resource.metadata.language)) + '</imsmd:language>');
+        lines.push('          </imsmd:general>');
+        lines.push('        </imsmd:lom>');
       }
+
+      // Other metadata fields
+      for (const [key, value] of Object.entries(resource.metadata)) {
+        if (key !== 'language') {
+          lines.push(`        <imsmd:${key}>${escapeXml(String(value))}</imsmd:${key}>`);
+        }
+      }
+
       lines.push('      </metadata>');
     }
 
@@ -309,4 +341,115 @@ export function generateAssessmentManifest(
   };
 
   return generateManifest(input);
+}
+/**
+ * Generate manifest for multilingual content package
+ *
+ * Convenience function that expands base identifiers into locale-suffixed resources.
+ * This is purely a helper - you can achieve the same result by calling `generateManifest()`
+ * directly with locale-suffixed identifiers. The locale system works generically with
+ * any identifier pattern.
+ *
+ * Each generated resource:
+ * - Gets a locale-suffixed identifier (e.g., "item.en-US", "item.es-ES")
+ * - Automatically receives IMS LOM language metadata
+ * - Works with the same fallback system as manually-created resources
+ *
+ * @param input Multilingual manifest input
+ * @returns Manifest XML string
+ *
+ * @example
+ * ```typescript
+ * // Using convenience function
+ * const manifest = generateMultilingualManifest({
+ *   baseItems: [{
+ *     baseId: "simple-choice",
+ *     locales: {
+ *       "en-US": { filePath: "items/simple-choice.en-US.xml" },
+ *       "es-ES": { filePath: "items/simple-choice.es-ES.xml" }
+ *     }
+ *   }]
+ * });
+ *
+ * // Equivalent manual approach (no special multilingual mode)
+ * const manifest = generateManifest({
+ *   items: [
+ *     { id: "simple-choice.en-US", filePath: "items/simple-choice.en-US.xml", locale: "en-US" },
+ *     { id: "simple-choice.es-ES", filePath: "items/simple-choice.es-ES.xml", locale: "es-ES" }
+ *   ]
+ * });
+ * ```
+ */
+export function generateMultilingualManifest(input: {
+  baseItems: Array<{
+    baseId: string;
+    locales: Record<string, { filePath: string; dependencies?: string[] }>;
+  }>;
+  basePassages?: Array<{
+    baseId: string;
+    locales: Record<string, { filePath: string }>;
+  }>;
+  baseAssessments?: Array<{
+    baseId: string;
+    locales: Record<string, { filePath: string; dependencies?: string[] }>;
+  }>;
+  options?: ManifestGenerationOptions;
+}): string {
+  const items: ItemResource[] = [];
+  const passages: PassageResource[] = [];
+  const assessments: AssessmentResource[] = [];
+
+  // Expand passages with locale variants
+  if (input.basePassages) {
+    for (const basePassage of input.basePassages) {
+      for (const [locale, data] of Object.entries(basePassage.locales)) {
+        passages.push({
+          id: `${basePassage.baseId}.${locale}`,
+          filePath: data.filePath,
+          locale,
+        });
+      }
+    }
+  }
+
+  // Expand items with locale variants
+  for (const baseItem of input.baseItems) {
+    for (const [locale, data] of Object.entries(baseItem.locales)) {
+      // Map dependencies to locale-specific identifiers if they exist
+      const dependencies = data.dependencies?.map(depId => `${depId}.${locale}`);
+
+      items.push({
+        id: `${baseItem.baseId}.${locale}`,
+        filePath: data.filePath,
+        dependencies,
+        locale,
+      });
+    }
+  }
+
+  // Expand assessments with locale variants
+  if (input.baseAssessments) {
+    for (const baseAssessment of input.baseAssessments) {
+      for (const [locale, data] of Object.entries(baseAssessment.locales)) {
+        // Map dependencies to locale-specific identifiers
+        const dependencies = data.dependencies?.map(depId => `${depId}.${locale}`);
+
+        assessments.push({
+          id: `${baseAssessment.baseId}.${locale}`,
+          filePath: data.filePath,
+          dependencies,
+          locale,
+        });
+      }
+    }
+  }
+
+  const manifestInput: ManifestInput = {
+    items,
+    passages,
+    assessments: assessments.length > 0 ? assessments : undefined,
+    options: input.options,
+  };
+
+  return generateManifest(manifestInput);
 }

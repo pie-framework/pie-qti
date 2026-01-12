@@ -19,6 +19,11 @@ This project provides two major capabilities:
 
 ---
 
+> [!WARNING]
+> While I believe the QTI player is production ready, we're still sticking to 0.1.x for a while, and we may make API changes between versions. I don't foresee a lot of that, but nevertheless, until this project has been used in the wild for a while, we may need some tweaks here and there to make the API good and meanwhile it's best to keep the code clean and unbothered with shims and other backwards compatibility constructs. Once we're at 1.0.0, we'll make stronger commitments for the API. But, let us know if you plan to use this for a non-trivial/ production system, and we can move such commitments forward.
+
+---
+
 ## Why This Project Exists
 
 [PIE](https://pie-framework.org/) (Portable Interactions and Elements) is a complete framework for playing and authoring assessment items, maintained by [Renaissance Learning](https://www.renaissance.com/) with implementation partner [MCRO](https://mcro.tech/).
@@ -86,9 +91,10 @@ The player UI supports multiple languages with runtime locale switching:
 
 - **Type-safe translations** — TypeScript autocomplete for all message keys
 - **Runtime switching** — Change language without page reload
+- **Custom translations** — Clients provide complete locale bundles or override specific strings
 - **Small bundle** — <10 KB gzipped (core + default locale)
 
-See [`@pie-qti/qti2-i18n`](packages/qti2-i18n/) for the complete i18n API and migration guide.
+See [`@pie-qti/qti2-i18n`](packages/qti2-i18n/) for the complete i18n API and [custom translation examples](packages/qti2-i18n/docs/custom-translations-example.md).
 
 ---
 

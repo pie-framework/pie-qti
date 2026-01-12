@@ -48,6 +48,8 @@ export interface ManifestResource {
   metadata?: {
     title?: string;
     description?: string;
+    /** IMS LOM language code (e.g., "en-US", "es-ES") */
+    language?: string;
   };
 }
 
@@ -163,13 +165,19 @@ function parseResource(resourceEl: HTMLElement): ManifestResource {
     .filter((id): id is string => !!id);
 
   // Extract metadata if present
-  let metadata: { title?: string; description?: string } | undefined;
+  let metadata: { title?: string; description?: string; language?: string } | undefined;
   const metadataEl = resourceEl.querySelector('metadata');
   if (metadataEl) {
     const title = metadataEl.querySelector('title')?.textContent?.trim();
     const description = metadataEl.querySelector('description')?.textContent?.trim();
-    if (title || description) {
-      metadata = { title, description };
+
+    // Extract IMS LOM language (supports multiple selector patterns)
+    const languageEl = metadataEl.querySelector('language, [\\:language]') ||
+                       metadataEl.querySelector('[name="language"]');
+    const language = languageEl?.textContent?.trim();
+
+    if (title || description || language) {
+      metadata = { title, description, language };
     }
   }
 

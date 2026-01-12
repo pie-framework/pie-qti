@@ -1,12 +1,11 @@
 /**
- * Arabic (Saudi Arabia) translations
+ * الترجمة العربية (المملكة العربية السعودية)
  *
- * Guidelines for translators:
- * - Keep messages concise for UI constraints
- * - Use sentence case for labels, title case for buttons
- * - Maintain consistent terminology across interactions
- * - Variables in {curlyBraces} will be replaced with dynamic values
- * - Text is stored in LTR order; RTL rendering is handled by CSS
+ * إرشادات للمترجمين:
+ * - حافظ على إيجاز الرسائل لتناسب قيود واجهة المستخدم
+ * - استخدم الأحرف الصغيرة للتسميات والأحرف الكبيرة للأزرار
+ * - حافظ على اتساق المصطلحات عبر جميع التفاعلات
+ * - المتغيرات بين {الأقواس المعقوفة} سيتم استبدالها بقيم ديناميكية
  */
 export default {
 	common: {
@@ -18,18 +17,40 @@ export default {
 		close: 'إغلاق',
 		save: 'حفظ',
 		delete: 'حذف',
-		edit: 'تعديل',
+		edit: 'تحرير',
 		remove: 'إزالة',
 		add: 'إضافة',
 		search: 'بحث',
 		filter: 'تصفية',
 		reset: 'إعادة تعيين',
+		clear: 'مسح',
+		clearAll: 'مسح الكل',
 		submit: 'إرسال',
 		next: 'التالي',
 		previous: 'السابق',
 		back: 'رجوع',
 		continue: 'متابعة',
 		finish: 'إنهاء',
+		complete: 'إكمال',
+		completed: 'مكتمل',
+		status: 'الحالة',
+		required: 'مطلوب',
+		review: 'مراجعة',
+		selected: 'محدد',
+		available: 'متاح',
+		showDetails: 'إظهار التفاصيل',
+		hideDetails: 'إخفاء التفاصيل',
+		details: 'التفاصيل',
+		deselected: 'تم إلغاء تحديد {item}',
+		selectionCancelled: 'تم إلغاء التحديد',
+		question: 'سؤال',
+		of: 'من',
+		answered: 'تمت الإجابة',
+		pleaseComplete: 'يرجى إكمال التفاعلات المطلوبة',
+		submitting: 'جارٍ الإرسال...',
+		submitAnswer: 'إرسال الإجابة',
+		tryAgain: 'حاول مرة أخرى',
+		errorNoData: 'لم يتم توفير بيانات التفاعل',
 	},
 
 	units: {
@@ -41,17 +62,90 @@ export default {
 		hours: '{count} ساعة',
 	},
 
+	// Pluralization examples
+	// Use i18n.plural('plurals.items', { count: n }) to access these
+	plurals: {
+		items: {
+			zero: '{count} عنصر',
+			one: 'عنصر واحد',
+			two: 'عنصران',
+			few: '{count} عناصر',
+			many: '{count} عنصرًا',
+			other: '{count} عنصر',
+		},
+		files: {
+			zero: 'لم يتم تحديد أي ملف',
+			one: 'تم تحديد ملف واحد',
+			two: 'تم تحديد ملفان',
+			few: 'تم تحديد {count} ملفات',
+			many: 'تم تحديد {count} ملفًا',
+			other: 'تم تحديد {count} ملف',
+		},
+		questions: {
+			zero: '{count} سؤال',
+			one: 'سؤال واحد',
+			two: 'سؤالان',
+			few: '{count} أسئلة',
+			many: '{count} سؤالًا',
+			other: '{count} سؤال',
+		},
+		answers: {
+			zero: '{count} إجابة',
+			one: 'إجابة واحدة',
+			two: 'إجابتان',
+			few: '{count} إجابات',
+			many: '{count} إجابة',
+			other: '{count} إجابة',
+		},
+		choices: {
+			zero: '{count} خيار',
+			one: 'خيار واحد',
+			two: 'خياران',
+			few: '{count} خيارات',
+			many: '{count} خيارًا',
+			other: '{count} خيار',
+		},
+		attempts: {
+			zero: 'لا توجد محاولات متبقية',
+			one: 'محاولة واحدة متبقية',
+			two: 'محاولتان متبقيتان',
+			few: '{count} محاولات متبقية',
+			many: '{count} محاولة متبقية',
+			other: '{count} محاولة متبقية',
+		},
+		minutesRemaining: {
+			zero: '{count} دقيقة متبقية',
+			one: 'دقيقة واحدة متبقية',
+			two: 'دقيقتان متبقيتان',
+			few: '{count} دقائق متبقية',
+			many: '{count} دقيقة متبقية',
+			other: '{count} دقيقة متبقية',
+		},
+		secondsRemaining: {
+			zero: '{count} ثانية متبقية',
+			one: 'ثانية واحدة متبقية',
+			two: 'ثانيتان متبقيتان',
+			few: '{count} ثوانٍ متبقية',
+			many: '{count} ثانية متبقية',
+			other: '{count} ثانية متبقية',
+		},
+		submitAnswer: {
+			one: 'إرسال الإجابة',
+			other: 'إرسال الإجابات',
+		},
+	},
+
 	validation: {
 		required: 'هذا الحقل مطلوب',
 		invalidFormat: 'تنسيق غير صالح',
-		tooShort: 'قصير جداً (الحد الأدنى {min} حرف)',
-		tooLong: 'طويل جداً (الحد الأقصى {max} حرف)',
+		tooShort: 'قصير جدًا (الحد الأدنى {min} حرفًا)',
+		tooLong: 'طويل جدًا (الحد الأقصى {max} حرفًا)',
 		outOfRange: 'يجب أن تكون القيمة بين {min} و {max}',
 	},
 
 	interactions: {
 		choice: {
-			selectOption: 'اختر خياراً',
+			selectOption: 'اختر خيارًا',
 			selectMultiple: 'اختر جميع ما ينطبق',
 			selected: 'محدد',
 			notSelected: 'غير محدد',
@@ -59,15 +153,15 @@ export default {
 
 		upload: {
 			// Shown as label above file input
-			label: 'رفع ملف',
-			selectFile: 'اختيار ملف',
-			dragDrop: 'أو السحب والإفلات',
+			label: 'تحميل ملف',
+			selectFile: 'اختر ملفًا',
+			dragDrop: 'أو اسحب وأفلت',
 
 			// Displayed before list of allowed file types
 			allowedTypes: 'أنواع الملفات المسموح بها:',
 
 			// Displayed when file is selected
-			selectedFile: 'محدد:',
+			selectedFile: 'المحدد:',
 
 			// File size display - {size} will be replaced with numeric value
 			fileSize: '{size} بايت',
@@ -79,10 +173,10 @@ export default {
 			// Error shown when file type validation fails
 			// {types} will be replaced with comma-separated list of allowed types
 			errorInvalidType: 'نوع الملف غير مسموح به. المسموح: {types}',
-			errorReadFailed: 'فشل في قراءة الملف',
+			errorReadFailed: 'فشل قراءة الملف',
 
 			// {max} will be replaced with maximum size in MB
-			errorTooLarge: 'الملف كبير جداً (الحد الأقصى {max} ميجابايت)',
+			errorTooLarge: 'حجم الملف كبير جدًا (الحد الأقصى {max} ميجابايت)',
 			unknownType: 'نوع ملف غير معروف',
 		},
 
@@ -94,18 +188,25 @@ export default {
 			strokeColor: 'لون الخط',
 			strokeWidth: 'عرض الخط',
 			tool: 'أداة',
+			instructions: 'ارسم باستخدام الماوس أو اللمس. استخدم زر المسح لإعادة التعيين.',
+			canvas: 'لوحة الرسم',
+			updated: 'تم تحديث الرسم.',
+			cleared: 'تم مسح الرسم.',
+			generated: 'تم إنشاؤه:',
 		},
 
 		extendedText: {
 			placeholder: 'اكتب إجابتك هنا...',
-			characterCount: '{count} حرف',
-			characterLimit: '{count} / {max} حرف',
+			characterCount: '{count} حرفًا',
+			characterLimit: '{count} / {max} حرفًا',
 			bold: 'عريض',
 			italic: 'مائل',
-			underline: 'تسطير',
+			underline: 'تحته خط',
 			bulletList: 'قائمة نقطية',
 			numberedList: 'قائمة مرقمة',
 			insertMath: 'إدراج معادلة رياضية',
+			insertInlineMath: 'إدراج معادلة مضمنة',
+			insertBlockMath: 'إدراج معادلة منفصلة',
 		},
 
 		slider: {
@@ -114,80 +215,151 @@ export default {
 			min: 'الحد الأدنى: {min}',
 			max: 'الحد الأقصى: {max}',
 			step: 'الخطوة: {step}',
+			ariaLabel: 'قيمة شريط التمرير من {lowerBound} إلى {upperBound}',
+			statTitle: 'القيمة المحددة',
 		},
 
 		hottext: {
 			selected: 'محدد:',
-			selectText: 'اختر نصاً من المقطع',
+			selectText: 'اختر نصًا من الفقرة',
+			clearSelection: 'مسح التحديد',
+			ariaLabel: 'تفاعل تحديد النص',
 		},
 
 		hotspot: {
 			selected: 'محدد:',
 			selectArea: 'اختر مناطق على الصورة',
+			ariaLabel: 'تفاعل النقطة الساخنة',
+			altText: 'تفاعل النقطة الساخنة',
 		},
 
 		selectPoint: {
-			instruction: 'انقر على الصورة لاختيار نقاط',
+			instruction: 'انقر على الصورة لتحديد النقاط',
+			instructionAria: 'انقر لتحديد النقاط على الصورة',
 			maxPointsReached: 'تم الوصول إلى الحد الأقصى للنقاط. قم بإزالة نقطة لإضافة نقطة جديدة.',
-			point: 'نقطة {index}',
-			removePoint: 'إزالة نقطة {index}',
+			point: 'النقطة {index}',
+			removePoint: 'إزالة النقطة {index}',
+			removePointTitle: 'انقر لإزالة هذه النقطة',
+			removePointAt: 'إزالة النقطة {index} عند الإحداثيات {x}، {y}',
+			removePointAtTitle: 'انقر لإزالة هذه النقطة ({x}، {y})',
+			canvas: 'لوحة التحديد',
+			noImage: 'لم يتم توفير صورة',
+			pointsSelected: 'النقاط المحددة:',
+			minimumMet: '✓ تم تحقيق الحد الأدنى',
+			selectAtLeast: 'اختر على الأقل {minChoices}',
 		},
 
 		match: {
 			// Keyboard instruction for accessible drag-drop
-			dragInstruction: 'اضغط على مسافة أو Enter للمطابقة',
-			dropTarget: 'ضع العنصر هنا',
+			keyboardInstructions: 'اضغط على مفتاح المسافة أو الإدخال لتحديد عنصر مصدر. اضغط على Tab للانتقال إلى الأهداف. اضغط على مفتاح المسافة أو الإدخال على هدف لإنشاء مطابقة. اضغط على Escape لإلغاء التحديد.',
+			dragInstruction: 'اضغط على مفتاح المسافة أو الإدخال للمطابقة',
+			dropTarget: 'أفلت العنصر هنا',
 			matchedWith: 'مطابق مع {target}',
+			selectedForMatching: 'محدد للمطابقة',
 			available: 'متاح',
+			availableForMatching: 'متاح للمطابقة',
 			removeMatch: 'إزالة المطابقة',
+			clearMatch: 'مسح المطابقة لـ {source}',
+			sourceItemsLabel: 'عناصر المصدر للمطابقة',
+			targetItemsLabel: 'عناصر الهدف للمطابقة',
+			dragFromHere: 'اسحب من هنا:',
+			dropHere: 'أفلت هنا:',
+			deselected: 'تم إلغاء تحديد {item}',
+			selected: 'تم تحديد {item}',
+			navigateToTarget: 'انتقل إلى هدف واضغط على مفتاح المسافة أو الإدخال للمطابقة',
+			selectionCancelled: 'تم إلغاء التحديد',
+			matchCleared: 'تم مسح المطابقة لـ {item}',
 		},
 
 		gapMatch: {
 			instruction: 'اسحب الكلمات لملء الفراغات',
 			available: 'الكلمات المتاحة',
+			availableLabel: 'الكلمات المتاحة للوضع',
+			availableHeading: 'الكلمات المتاحة:',
 			removeWord: 'إزالة الكلمة',
 			// {word} will be replaced with the word being removed
 			removeFromBlanks: 'إزالة {word} من الفراغات',
+			selectPlaceholder: 'اختر...',
+			gapAriaLabel: 'الفراغ {gapId}',
+			blankGapAriaLabel: 'الفراغ {gapId}. أسقط إجابة هنا.',
+			filledGapAriaLabel: 'Blank {gapId}, filled with {word}. Click to clear.',
 		},
 
 		graphicGapMatch: {
 			instruction: 'ضع التسميات على النقاط الساخنة للصورة',
+			keyboardInstructions: 'اضغط على مفتاح المسافة أو الإدخال لتحديد تسمية. اضغط على Tab للانتقال إلى النقاط الساخنة على الصورة. اضغط على مفتاح المسافة أو الإدخال على نقطة ساخنة لوضع التسمية. اضغط على Escape لإلغاء التحديد.',
 			available: 'التسميات المتاحة',
-			alreadyPlaced: 'موضوعة بالفعل على نقطة ساخنة',
+			availableLabel: 'التسميات المتاحة للوضع',
+			availableHeading: 'التسميات المتاحة:',
+			alreadyPlaced: 'تم وضعها بالفعل على النقطة الساخنة',
 			selectedForPlacement: 'محددة للوضع',
-			pressSpaceToSelect: 'اضغط على مسافة للاختيار',
-			pressSpaceToPlace: 'اضغط على مسافة أو Enter لوضع التسمية',
+			pressSpaceToSelect: 'اضغط على مفتاح المسافة للتحديد',
+			pressSpaceToPlace: 'اضغط على مفتاح المسافة أو الإدخال لوضع التسمية',
 			removeLabel: 'إزالة التسمية',
 			removeFromHotspot: 'إزالة {label} من النقطة الساخنة',
-			hotspot: 'نقطة ساخنة {number}',
+			labelPlaced: 'تم وضع {label} على النقطة الساخنة {hotspot}',
+			hotspot: 'النقطة الساخنة {number}',
 			contains: 'يحتوي على: {label}',
 		},
 
 		order: {
 			instruction: 'اسحب العناصر لإعادة ترتيبها',
-			moveUp: 'نقل لأعلى',
-			moveDown: 'نقل لأسفل',
+			keyboardInstructions: 'اضغط على مفتاح المسافة أو الإدخال للإمساك بعنصر. استخدم مفاتيح الأسهم لتحريك العنصر. اضغط على مفتاح المسافة أو الإدخال مرة أخرى للإفلات. اضغط على Escape للإلغاء.',
+			grabbed: 'تم الإمساك. استخدم مفاتيح الأسهم للتحريك.',
+			moveUp: 'تحريك لأعلى',
+			moveDown: 'تحريك لأسفل',
 			position: 'الموضع {current} من {total}',
+			listLabel: 'قائمة قابلة لإعادة الترتيب من الخيارات',
+			confirmOrder: 'تأكيد الترتيب',
+			confirmOrderNoChanges: 'تأكيد الترتيب (لا توجد تغييرات)',
+			confirmAria: 'تأكيد هذا الترتيب كإجابتك',
+			itemGrabbed: 'تم الإمساك بـ {item}. الموضع الحالي {position} من {total}. استخدم مفاتيح الأسهم للتحريك، مفتاح المسافة أو الإدخال للإفلات.',
+			itemDropped: 'تم إفلات {item} في الموضع {position} من {total}',
+			itemMoved: 'تم نقل {item} إلى الموضع {position} من {total}',
+			selectionCancelled: 'تم إلغاء تحديد {item}',
 		},
 
 		associate: {
 			instruction: 'إنشاء ارتباطات بين العناصر',
 			createPair: 'إنشاء زوج',
-			removePair: 'إزالة زوج',
+			removePair: 'إزالة الزوج',
+			removeAssociation: 'إزالة الارتباط',
+			diagramLabel: 'مخطط الارتباط',
+			altText: 'مخطط الارتباط',
+			hotspotConnections: '{label} ({usageCount}/{matchMax} اتصالات)',
+			selectAnother: 'محدد: <strong>{label}</strong>. انقر على آخر',
+			minimumRequired: 'الحد الأدنى المطلوب: {minAssociations}',
+			currentAssociations: 'الارتباطات الحالية',
+			clickToAssociate: 'انقر على عنصرين لإنشاء ارتباط بينهما',
+			clickAnotherOrDeselect: 'انقر على عنصر آخر لإنشاء ارتباط (أو انقر مرة أخرى لإلغاء التحديد)',
+			associations: 'الارتباطات',
+			associationsCount: 'الارتباطات ({count}/{max})',
+			clickHotspotsToAssociate: 'انقر على نقطتين ساخنتين على الصورة لإنشاء ارتباط.',
+			clickAnotherHotspot: 'محدد: <strong>{label}</strong>. انقر على نقطة ساخنة أخرى لإنشاء ارتباط.',
 		},
 
 		positionObject: {
-			instruction: 'اسحب الكائنات إلى الصورة',
+			instruction: 'اسحب الكائنات على الصورة',
 			placeObject: 'ضع {object} على الصورة',
 			removeObject: 'إزالة {object}',
-			objectAt: '{object} في الموضع ({x}, {y})',
+			objectAt: '{object} في الموضع ({x}، {y})',
+			canvasLabel: 'لوحة التموضع',
+			backgroundAlt: 'خلفية التموضع',
+			positioned: 'تم وضع {label} عند ({x}، {y})',
+			minimumRequired: 'الحد الأدنى المطلوب: {minChoices}',
+			maximumAllowed: 'الحد الأقصى: {maxChoices}',
+			availableObjects: 'الكائنات المتاحة',
+			objectUsage: '{label} ({usageCount}/{matchMax} مستخدم)',
+			availableObjectsCount: 'الكائنات المتاحة ({count}/{max})',
+			dragObjectsInstruction: 'اسحب الكائنات على اللوحة لوضعها.',
+			used: '{usageCount}/{matchMax} مستخدم',
 		},
 
 		endAttempt: {
 			buttonLabel: 'إنهاء المحاولة',
 			ended: 'انتهت المحاولة',
 			requested: 'مطلوب',
-			warningMessage: 'انتهت محاولتك ولا يمكن تعديلها بعد الآن.',
+			warningMessage: 'تم إنهاء محاولتك ولا يمكن تعديلها بعد الآن.',
 			confirmMessage: 'هل أنت متأكد من أنك تريد إنهاء محاولتك؟ لن تتمكن من تغيير إجاباتك.',
 		},
 
@@ -202,7 +374,68 @@ export default {
 			playbackSpeed: 'سرعة التشغيل',
 			currentTime: '{current} / {duration}',
 			loading: 'جارٍ تحميل الوسائط...',
+			ariaLabel: 'محتوى الوسائط',
+			maxPlayLimitReached: 'تم الوصول إلى الحد الأقصى للتشغيل',
+			playCount: 'عدد مرات التشغيل:',
+			remaining: 'المتبقي:',
+			requirementMet: '✓ تم تحقيق المتطلب',
+			playAtLeast: 'شغل على الأقل {minPlays} مرة',
+			playAtLeastPlural: 'شغل على الأقل {minPlays} مرات',
+			browserNoSupport: 'متصفحك لا يدعم هذا النوع من الوسائط.',
+			audioNoSupport: 'متصفحك لا يدعم عنصر الصوت.',
+			videoNoSupport: 'متصفحك لا يدعم عنصر الفيديو.',
+			objectDisabled: 'يستخدم هذا العنصر نوع كائن مضمن معطل بشكل افتراضي لأسباب أمنية.',
 		},
+
+		graphicOrder: {
+			instruction: 'انقر على النقاط الساخنة لترتيبها',
+			diagramLabel: 'مخطط الترتيب',
+			altText: 'مخطط الترتيب',
+			orderHeading: 'الترتيب (اسحب لإعادة الترتيب)',
+			itemLabel: 'العنصر {index}: {label}',
+			confirmOrder: 'تأكيد الترتيب',
+			confirmOrderNoChanges: 'تأكيد الترتيب (لا توجد تغييرات)',
+			confirmAria: 'تأكيد هذا الترتيب كإجابتك',
+		},
+
+		custom: {
+			unsupported: 'تفاعل مخصص غير مدعوم',
+			description: 'يحتوي هذا العنصر على تفاعل خاص بمزود. هذا المشغل لا ينفذ التفاعلات المخصصة.',
+			promptLabel: 'الموجه',
+			manualResponse: 'استجابة يدوية (اختياري)',
+			placeholder: 'أدخل استجابة يدوية (احتياطية)',
+			attributes: 'السمات',
+			xml: 'XML',
+		},
+
+		inline: {
+			placeholder: '...',
+			selectPlaceholder: 'اختر...',
+		},
+	},
+
+	item: {
+		loading: 'جارٍ تحميل العنصر...',
+		loadingError: 'فشل تحميل العنصر',
+		loadError: 'خطأ في تحميل العنصر: {error}',
+		parsingError: 'فشل تحليل QTI XML',
+		processingError: 'فشل معالجة الإجابات',
+		submit: 'إرسال',
+		complete: 'إكمال',
+		completed: 'مكتمل',
+		attempt: 'المحاولة {numAttempts}',
+	},
+
+	itemSession: {
+		attempt: 'المحاولة {numAttempts}',
+		attemptsRemaining: '{attemptsRemaining} محاولات متبقية',
+		maxAttempts: 'الحد الأقصى للمحاولات: {maxAttempts}',
+	},
+
+	feedback: {
+		close: 'إغلاق التعليقات',
+		closeFeedback: 'رفض التعليقات',
+		testFeedback: 'تعليقات الاختبار',
 	},
 
 	assessment: {
@@ -210,23 +443,42 @@ export default {
 		loading: 'جارٍ تحميل التقييم...',
 		loadingError: 'انتهت مهلة تحميل التقييم. قد يكون هذا التقييم غير صالح أو فشل المشغل في التهيئة.',
 		question: 'السؤال {current} من {total}',
+		questionAnnouncement: 'السؤال {current} من {total}',
 		section: 'القسم {current} من {total}',
+		sectionDefault: 'القسم {number}',
+		closeMenu: 'إغلاق القائمة',
+		readingPassage: 'فقرة القراءة',
+		expandPassage: 'توسيع الفقرة',
+		collapsePassage: 'طي الفقرة',
+
+		attempts: {
+			remaining: '{count} محاولات متبقية',
+			oneRemaining: 'محاولة واحدة متبقية',
+			noRemaining: 'لا توجد محاولات متبقية (تم استخدام {count})',
+			used: 'المحاولات: {count}',
+			maxReached: 'تم الوصول إلى الحد الأقصى للمحاولات',
+			required: 'يجب الإجابة قبل المتابعة',
+			reviewNotAllowed: 'غير مسموح بعد الإرسال',
+		},
 
 		navigation: {
 			previous: 'السابق',
 			next: 'التالي',
 			submit: 'إرسال',
-			jumpTo: 'الانتقال إلى السؤال {number}',
+			jumpTo: 'انتقل إلى السؤال {number}',
 			sectionMenu: 'قائمة الأقسام',
 			progress: 'التقدم: {percent}%',
 		},
 
 		sections: {
 			title: 'الأقسام',
-			selectSection: 'اختر القسم',
+			selectSection: 'اختر قسمًا',
 		},
 
 		timer: {
+			remaining: 'الوقت المتبقي',
+			elapsed: 'الوقت المنقضي',
+			expired: 'انتهى الوقت',
 			timeRemaining: 'الوقت المتبقي: {time}',
 			timeElapsed: 'الوقت المنقضي: {time}',
 			timeUp: 'انتهى الوقت!',
@@ -235,28 +487,33 @@ export default {
 		feedback: {
 			correct: 'صحيح',
 			incorrect: 'غير صحيح',
-			partiallyCorrect: 'صحيح جزئياً',
+			partiallyCorrect: 'صحيح جزئيًا',
 			unanswered: 'لم تتم الإجابة',
-			score: 'النتيجة: {score} / {maxScore}',
-			passed: 'نجح',
-			failed: 'رسب',
+			score: 'الدرجة: {score} / {maxScore}',
+			passed: 'ناجح',
+			failed: 'راسب',
 		},
 
 		completion: {
 			title: 'اكتمل التقييم',
 			message: 'لقد أكملت التقييم.',
-			score: 'نتيجتك: {score} من {maxScore}',
+			score: 'درجتك: {score} من {maxScore}',
 			percentage: 'النسبة المئوية: {percent}%',
 			viewResults: 'عرض النتائج',
 			exit: 'خروج',
 		},
 
 		errors: {
-			navigationFailed: 'فشل التنقل. حاول مرة أخرى.',
-			submitFailed: 'فشل إرسال التقييم. حاول مرة أخرى.',
+			navigationFailed: 'فشل التنقل. يرجى المحاولة مرة أخرى.',
+			submitFailed: 'فشل إرسال التقييم. يرجى المحاولة مرة أخرى.',
 			loadFailed: 'فشل تحميل السؤال.',
 			saveFailed: 'فشل حفظ الإجابة.',
 		},
+	},
+
+	i18n: {
+		selectLanguage: 'اللغة',
+		selectLanguageAriaLabel: 'اختر لغة العرض',
 	},
 
 	accessibility: {
@@ -267,5 +524,122 @@ export default {
 		announcement: 'إعلان',
 		newQuestion: 'تم تحميل سؤال جديد',
 		answerRecorded: 'تم تسجيل الإجابة',
+		resizer: 'تغيير حجم لوحات الفقرة والسؤال',
+	},
+
+	demo: {
+		selectSampleItem: 'اختر عنصرًا نموذجيًا',
+		configurationPanel: 'لوحة التكوين',
+		viewingAs: 'المشاهدة كـ',
+		role: 'الدور',
+		candidate: 'مرشح',
+		author: 'مؤلف',
+		proctor: 'مراقب',
+		scorer: 'مصحح',
+		tutor: 'مدرس',
+		showCorrectAnswers: 'إظهار الإجابات الصحيحة',
+		showFeedback: 'إظهار التعليقات',
+		xmlEditor: 'محرر XML',
+
+		// Navigation
+		appName: 'مشغل PIE QTI 2.2',
+		home: 'الصفحة الرئيسية',
+		itemDemo: 'عرض العنصر',
+		assessmentDemo: 'عرض التقييم',
+		likertDemo: 'عرض مكون Likert',
+		iframeDemo: 'عرض Iframe',
+		theme: 'السمة',
+
+		// Home Page
+		homeTitle: 'مشغل QTI 2.2',
+		homeSubtitle: 'مشغل حديث ومستقل عن الإطار لعناصر تقييم QTI 2.2. يعمل بنسبة 100% على جانب العميل بشكل افتراضي، مع خطافات اختيارية على جانب الخادم للاستخدام في بيئة الإنتاج.',
+		homeMetaDescription: 'مشغل QTI 2.2 حديث مع تكامل اختياري للخلفية',
+		tryItems: 'تجربة العناصر',
+		tryAssessments: 'تجربة التقييمات',
+		pluginDemo: 'عرض المكون الإضافي',
+		dropQtiFile: 'أسقط ملف QTI XML هنا',
+		orClickToSelect: 'أو انقر لاختيار ملف',
+		selectFile: 'اختيار ملف',
+		selectedFile: 'المحدد:',
+		loadInPlayer: 'تحميل في المشغل',
+		footerTitle: 'مشغل QTI 2.2',
+		footerLicense: 'ترخيص MIT • مفتوح المصدر',
+
+		// Settings Panel
+		settings: 'الإعدادات',
+		candidateStudent: 'مرشح (طالب)',
+		testConstructor: 'منشئ الاختبار',
+		controlsRubricVisibility: 'يتحكم في رؤية معايير التقييم وعرض الإجابات الصحيحة',
+		useBackendScoring: 'استخدام تصحيح الخادم',
+		scoreOnServer: 'تصحيح الإجابات على الخادم بدلاً من جانب العميل',
+		sessionManagement: 'إدارة الجلسة',
+		saving: 'جارٍ الحفظ...',
+		saveSession: 'حفظ الجلسة',
+		loadSession: 'تحميل الجلسة',
+
+		// Export & Template
+		exportResponses: 'تصدير الإجابات',
+		json: 'JSON',
+		csv: 'CSV',
+		templateProcessing: 'معالجة القالب',
+		rerunTemplateProcessing: 'إعادة تشغيل معالجة القالب وإعادة تعيين جلسة العنصر',
+		regenerateVariant: 'إعادة إنشاء البديل',
+		templateVariablesDebug: 'متغيرات القالب (تصحيح الأخطاء)',
+		variable: 'المتغير',
+		value: 'القيمة',
+
+		// Keyboard Shortcuts
+		keyboardShortcuts: 'اختصارات لوحة المفاتيح',
+		submitAnswersShortcut: 'إرسال الإجابات',
+		tryAgainShortcut: 'حاول مرة أخرى',
+		exportJsonShortcut: 'تصدير JSON',
+		saveSessionShortcut: 'حفظ الجلسة',
+		useCmdOnMacOS: 'استخدم <kbd class="kbd kbd-xs">Cmd</kbd> على macOS',
+
+		// Results Panel
+		results: 'النتائج',
+		score: 'الدرجة',
+		outcomeVariables: 'متغيرات النتيجة',
+
+		// Misc
+		format: 'التنسيق',
+		selectItemOrPasteXml: 'اختر عنصرًا نموذجيًا أو الصق XML مخصصًا للبدء.',
+		pageTitle: 'عرض المشغل - مشغل PIE QTI 2.2',
+
+		// Sample Item Descriptions
+		sampleItemDescriptions: {
+			'simple-choice': 'مسألة طرح كلامية أساسية مع خيارات معقولة',
+			'partial-credit': 'اختيار متعدد مع درجة جزئية باستخدام mapResponse',
+			'capital-cities': 'سؤال جغرافي مع خيارات مختلطة',
+			'text-entry': 'سؤال ملء الفراغ مع مطابقة غير حساسة لحالة الأحرف',
+			'extended-text': 'سؤال استجابة نصية متعددة الأسطر',
+			'inline-choice': 'قائمة منسدلة مضمنة في النص',
+			'order-interaction': 'ترتيب العناصر بالتسلسل الصحيح',
+			'match-interaction': 'مطابقة العناصر من عمودين',
+			'associate-interaction': 'إنشاء ارتباطات بين العناصر',
+			'gap-match': 'سحب الكلمات إلى الفراغات في النص',
+			'graphic-gap-match-solar-system': 'تسمية الكواكب الأربعة الداخلية من نظامنا الشمسي',
+			'slider': 'اختيار قيمة على شريط تمرير رقمي',
+			'hotspot': 'انقر على الكوكب الأزرق في سؤال الفلك هذا',
+			'hotspot-partial-credit': 'تحديد الكوكب الذي يحتوي على ماء سائل (درجة جزئية للكواكب الأرضية)',
+			'template-variable-demo': 'معالجة القالب تولد القيم؛ معالجة الاستجابة تقيمها',
+			'upload-interaction': 'تحميل ملف كاستجابة (baseType=file)',
+			'drawing-interaction': 'الرسم على لوحة (baseType=file، PNG dataUrl)',
+			'media-audio': 'مشغل صوت مع تتبع عدد مرات التشغيل ومتطلب minPlays',
+			'media-video': 'مشغل فيديو مع تتبع عدد مرات التشغيل وحد maxPlays',
+			'hottext-single': 'انقر لتحديد كلمة واحدة داخل النص (سؤال نحوي)',
+			'hottext-multiple': 'انقر لتحديد مقاطع نصية متعددة (فهم القراءة)',
+			'select-point': 'انقر على الصورة لتحديد موقع نقطة (سؤال جغرافي)',
+			'graphic-order': 'اسحب لإعادة ترتيب العناصر على صورة (طبقات جيولوجية)',
+			'graphic-associate': 'انقر على أزواج من النقاط الساخنة لإنشاء ارتباطات (مطابقة الأعضاء)',
+			'position-object': 'اسحب وضع كائنات الأثاث على مخطط الغرفة',
+			'end-attempt': 'زر لإنهاء محاولة التقييم',
+			'custom-interaction': 'يعرض واجهة احتياطية لـ customInteraction ويسمح باستجابة يدوية',
+			'choice-with-stimulus': 'سؤال مع فقرة قراءة مضمنة',
+			'math-inline': 'اختيار متعدد مع عرض رياضيات MathML مضمنة',
+			'math-extended': 'استجابة موسعة مع MathML ومحرر نص منسق لعرض العمل الرياضي',
+			'math-fractions': 'حساب الكسور مع عرض كتلة MathML',
+			'adaptive-capitals': 'سؤال تكيفي متعدد المحاولات مع تعليقات وتلميحات تقدمية',
+		},
 	},
 } as const; // 'as const' for strict type inference

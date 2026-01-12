@@ -60,6 +60,11 @@
 		"./iframe": {
 			"types": "./dist/iframe/index.d.ts",
 			"import": "./dist/iframe/index.js"
+		},
+		"./components": {
+			"types": "./dist/components/index.d.ts",
+			"svelte": "./src/components/index.ts",
+			"import": "./dist/components/index.js"
 		}
 	}
 }

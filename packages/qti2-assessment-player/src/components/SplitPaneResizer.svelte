@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import type { I18nProvider } from '@pie-qti/qti2-i18n';
 	import RubricDisplay from './RubricDisplay.svelte';
 
 	interface Props {
@@ -9,6 +10,7 @@
 		children: any;
 		/** Math typesetting function */
 		typeset?: (root: HTMLElement) => void | Promise<void>;
+		i18n?: I18nProvider;
 		/** Storage key for persisting split position */
 		storageKey?: string;
 		/** Minimum left pane percentage */
@@ -25,6 +27,7 @@
 		leftContent,
 		children,
 		typeset,
+		i18n,
 		storageKey = 'qti22-split-pane.splitLeftPct',
 		minLeftPct = 25,
 		maxLeftPct = 75,
@@ -167,7 +170,7 @@
 		class="splitter"
 		role="separator"
 		aria-orientation="vertical"
-		aria-label="Resize passage and question panels"
+		aria-label={i18n?.t('accessibility.resizer', 'Resize passage and question panels')}
 		aria-valuemin={minLeftPct}
 		aria-valuemax={maxLeftPct}
 		aria-valuenow={Math.round(splitLeftPct)}

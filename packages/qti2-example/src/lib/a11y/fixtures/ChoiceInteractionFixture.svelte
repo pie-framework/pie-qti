@@ -1,7 +1,8 @@
 <script lang="ts">
+	// @ts-expect-error - Svelte-check can't resolve workspace subpath exports, but runtime works correctly
+	import { ItemBody } from '@pie-qti/qti2-item-player/components';
 	import { Player } from '@pie-qti/qti2-item-player';
 	import { registerDefaultComponents } from '@pie-qti/qti2-default-components';
-	import ItemBody from '@pie-qti/qti2-default-components/shared/components/ItemBody.svelte';
 	import { onMount } from 'svelte';
 
 	// Simple QTI 2.2 choice interaction XML
@@ -56,7 +57,7 @@
 				{player}
 				{responses}
 				disabled={false}
-				onResponseChange={(id, value) => (responses = { ...responses, [id]: value })}
+				onResponseChange={(id: string, value: any) => (responses = { ...responses, [id]: value })}
 			/>
 		</div>
 	{/if}

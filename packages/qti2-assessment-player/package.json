@@ -29,6 +29,7 @@
 	"license": "ISC",
 	"dependencies": {
 		"@pie-qti/qti-processing": "workspace:*",
+		"@pie-qti/qti2-i18n": "workspace:*",
 		"@pie-qti/qti2-item-player": "workspace:*",
 		"@pie-qti/qti2-default-components": "workspace:*",
 		"node-html-parser": "^7.0.2"

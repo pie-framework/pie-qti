@@ -1,19 +1,35 @@
 <script lang="ts">
 	import type { NavigationState } from '../types/index.js';
+	import type { SvelteI18nProvider } from '@pie-qti/qti2-i18n';
 
 	interface Props {
 		navState: NavigationState;
+		i18n?: SvelteI18nProvider;
 		onPrevious?: () => void;
 		onNext?: () => void;
 		onSubmit?: () => void;
 		showProgress?: boolean;
 	}
 
-	const { navState, onPrevious, onNext, onSubmit, showProgress = true }: Props = $props();
+	const { navState, i18n, onPrevious, onNext, onSubmit, showProgress = true }: Props = $props();
 
 	const progressPercentage = $derived(
 		navState.totalItems > 0 ? ((navState.currentIndex + 1) / navState.totalItems) * 100 : 0,
 	);
+
+	// Simplified translations - no manual subscriptions needed
+	// Locale changes trigger page refresh, so reactivity is not required
+	const translations = $derived({
+		question: i18n?.t('assessment.question', { current: navState.currentIndex + 1, total: navState.totalItems })
+			?? `Question ${navState.currentIndex + 1} of ${navState.totalItems}`,
+		section: navState.currentSection
+			? (navState.currentSection.title ?? (i18n?.t('assessment.section', { current: navState.currentSection.index + 1, total: 0 })
+				?? `Section ${navState.currentSection.index + 1}`))
+			: null,
+		previous: i18n?.t('common.previous') ?? 'Previous',
+		next: i18n?.t('common.next') ?? 'Next',
+		submit: i18n?.t('assessment.navigation.submit') ?? 'Submit',
+	});
 </script>
 
 <div class="navigation-bar">
@@ -21,10 +37,10 @@
 	{#if showProgress}
 		<div class="progress-section">
 			<div class="progress-label text-sm">
-				Question {navState.currentIndex + 1} of {navState.totalItems}
-				{#if navState.currentSection}
+				{translations.question}
+				{#if translations.section}
 					<span class="text-base-content/60">
-						({navState.currentSection.title || `Section ${navState.currentSection.index + 1}`})
+						({translations.section})
 					</span>
 				{/if}
 			</div>
@@ -52,7 +68,7 @@
 			>
 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
 			</svg>
-			Previous
+			{translations.previous}
 		</button>
 
 		<div class="flex-1"></div>
@@ -60,7 +76,7 @@
 		{#if navState.currentIndex === navState.totalItems - 1}
 			<!-- Submit button on last item -->
 			<button class="btn btn-primary" onclick={() => onSubmit?.()} disabled={navState.isLoading}>
-				Submit Assessment
+				{translations.submit}
 			</button>
 		{:else}
 			<!-- Next button -->
@@ -69,7 +85,7 @@
 				onclick={() => onNext?.()}
 				disabled={!navState.canNext || navState.isLoading}
 			>
-				Next
+				{translations.next}
 				<svg
 					xmlns="http://www.w3.org/2000/svg"
 					class="h-5 w-5"

@@ -1,8 +1,10 @@
 <script lang="ts">
 
 	import { registerDefaultComponents } from '@pie-qti/qti2-default-components';
-	import ItemBody from '@pie-qti/qti2-default-components/shared/components/ItemBody.svelte';
+	// @ts-expect-error - Svelte-check can't resolve workspace subpath exports, but runtime works correctly
+	import { ItemBody } from '@pie-qti/qti2-item-player/components';
 	import { Player, type QTIRole } from '@pie-qti/qti2-item-player';
+	import type { I18nProvider } from '@pie-qti/qti2-i18n';
 	import { onMount } from 'svelte';
 	import type { QuestionRef } from '../types/index.js';
 
@@ -36,6 +38,8 @@
 		onResponseChange?: (responseId: string, value: unknown) => void;
 		/** Math typesetting function (KaTeX, MathJax, etc.) */
 		typeset?: (root: HTMLElement) => void | Promise<void>;
+		/** I18n provider for translations */
+		i18n?: I18nProvider;
 	}
 
 	const {
@@ -45,6 +49,7 @@
 		responses = {},
 		onResponseChange,
 		typeset,
+		i18n,
 	}: Props = $props();
 
 	// Derive player from questionRef
@@ -97,12 +102,12 @@
 				d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
 			/>
 		</svg>
-		<span>Error loading item: {playerData.error}</span>
+		<span>{i18n?.t('item.loadError', 'Error loading item: {error}', { error: playerData.error })}</span>
 	</div>
 {:else if !playerData.player}
 	<div class="flex items-center justify-center p-8">
 		<span class="loading loading-spinner loading-lg"></span>
-		<span class="ml-4">Loading item...</span>
+		<span class="ml-4">{i18n?.t('item.loading', 'Loading item...')}</span>
 	</div>
 {:else}
 	<div class="item-container">
@@ -118,6 +123,7 @@
 				{responses}
 				disabled={role !== 'candidate'}
 				{typeset}
+				{i18n}
 				onResponseChange={handleResponseChange}
 			/>
 		</div>

@@ -13,6 +13,14 @@
     "./ims-cp": {
       "types": "./dist/utils/ims-cp/index.d.ts",
       "import": "./dist/utils/ims-cp/index.js"
+    },
+    "./utils/localized-resources": {
+      "types": "./dist/utils/localized-resources.d.ts",
+      "import": "./dist/utils/localized-resources.js"
+    },
+    "./utils/manifest-parser": {
+      "types": "./dist/utils/manifest-parser.d.ts",
+      "import": "./dist/utils/manifest-parser.js"
     }
   },
   "scripts": {

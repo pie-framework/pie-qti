@@ -1,17 +1,18 @@
 <script lang="ts">
-	
 	import { onDestroy, onMount } from 'svelte';
-import type { AssessmentPlayer } from '../core/AssessmentPlayer.js';
+	import type { SvelteI18nProvider } from '@pie-qti/qti2-i18n';
+	import type { AssessmentPlayer } from '../core/AssessmentPlayer.js';
 
 	interface Props {
 		player: AssessmentPlayer;
+		i18n: SvelteI18nProvider;
 		/** Where to position the info display */
 		position?: 'inline' | 'floating';
 		/** Show detailed information */
 		showDetails?: boolean;
 	}
 
-	let { player, position = 'inline', showDetails = false }: Props = $props();
+	let { player, i18n, position = 'inline', showDetails = false }: Props = $props();
 
 	let sessionInfo = $state<{
 		canSubmit: boolean;
@@ -59,14 +60,14 @@ import type { AssessmentPlayer } from '../core/AssessmentPlayer.js';
 		}
 
 		if (sessionInfo.remainingAttempts === 0) {
-			return `No attempts remaining (${sessionInfo.attemptCount} used)`;
+			return i18n.t('assessment.attempts.noRemaining', { count: sessionInfo.attemptCount });
 		}
 
 		if (sessionInfo.remainingAttempts === 1) {
-			return `1 attempt remaining`;
+			return i18n.t('assessment.attempts.oneRemaining');
 		}
 
-		return `${sessionInfo.remainingAttempts} attempts remaining`;
+		return i18n.t('assessment.attempts.remaining', { count: sessionInfo.remainingAttempts });
 	});
 </script>
 
@@ -99,29 +100,28 @@ import type { AssessmentPlayer } from '../core/AssessmentPlayer.js';
 			<div class="session-details">
 				{#if sessionInfo.attemptCount > 0}
 					<div class="detail-item">
-						<span class="detail-label">Attempts:</span>
-						<span class="detail-value">{sessionInfo.attemptCount}</span>
+						<span class="detail-label">{i18n.t('assessment.attempts.used', { count: sessionInfo.attemptCount })}</span>
 					</div>
 				{/if}
 
 				{#if !sessionInfo.canSubmit}
 					<div class="detail-item warning">
-						<span class="detail-label">Status:</span>
-						<span class="detail-value">Max attempts reached</span>
+						<span class="detail-label">{i18n.t('common.status')}:</span>
+						<span class="detail-value">{i18n.t('assessment.attempts.maxReached')}</span>
 					</div>
 				{/if}
 
 				{#if !sessionInfo.canSkip}
 					<div class="detail-item info">
-						<span class="detail-label">Required:</span>
-						<span class="detail-value">Must answer before continuing</span>
+						<span class="detail-label">{i18n.t('common.required')}:</span>
+						<span class="detail-value">{i18n.t('assessment.attempts.required')}</span>
 					</div>
 				{/if}
 
 				{#if !sessionInfo.canReview}
 					<div class="detail-item info">
-						<span class="detail-label">Review:</span>
-						<span class="detail-value">Not allowed once submitted</span>
+						<span class="detail-label">{i18n.t('common.review')}:</span>
+						<span class="detail-value">{i18n.t('assessment.attempts.reviewNotAllowed')}</span>
 					</div>
 				{/if}
 			</div>

@@ -4,7 +4,8 @@
 	import '@pie-qti/qti2-default-components/plugins'; // Load web components
 	import { registerDefaultComponents } from '@pie-qti/qti2-default-components';
 	import { typesetAction } from '@pie-qti/qti2-default-components/shared';
-	import ItemBody from '@pie-qti/qti2-default-components/shared/components/ItemBody.svelte';
+	// @ts-expect-error - Svelte-check can't resolve workspace subpath exports, but runtime works correctly
+	import { ItemBody } from '@pie-qti/qti2-item-player/components';
 	import {
 		Player,
 		type PlayerSecurityConfig,
