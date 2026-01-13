@@ -97,7 +97,7 @@
 				<svg
 					part="overlay"
 					class="qti-hotspot-overlay"
-					style="width: 100%; height: 100%;"
+					style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"
 					viewBox="0 0 {parsedInteraction.imageData?.width || '800'} {parsedInteraction.imageData?.height || '600'}"
 					xmlns="http://www.w3.org/2000/svg"
 				>

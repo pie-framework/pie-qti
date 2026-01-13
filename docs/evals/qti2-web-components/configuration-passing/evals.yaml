@@ -1,0 +1,182 @@
+version: 1
+
+# Web Components - Configuration Passing Evaluation
+#
+# Tests that configuration (security, i18n, responses) is correctly
+# passed to web components via JSON attributes and properties.
+# Validates configuration inheritance from assessment to items.
+
+component:
+  interactionType: choiceInteraction
+  tagName: pie-qti-choice
+
+examplesApp:
+  app: "@pie-qti/qti2-example"
+  routeTemplate: "/item-demo/{sampleId}"
+
+evals:
+  - id: web-components/configuration-passing/simple-choice/security-config
+    sampleId: simple-choice
+    gradeBand: "K-12"
+    subject: general
+    intent: "Verify that security configuration (assetBaseUrl) is applied to the item player."
+
+    notes:
+      - "Security config includes assetBaseUrl for asset resolution"
+      - "Configured in getSecurityConfig() function"
+      - "Validates that config reaches the player component"
+
+    steps:
+      - action: navigate
+        path: "/item-demo/simple-choice"
+
+      - action: observe
+        target:
+          description: "Item loads with security config applied"
+          hint: "Assets should resolve using configured baseUrl"
+
+      - action: observe
+        target:
+          description: "No security-related errors or warnings"
+
+    expected:
+      outcomes:
+        SCORE:
+          gte: 0
+
+    spiritChecks:
+      - "Security configuration is applied correctly."
+      - "Asset URL resolution works as expected."
+
+  - id: web-components/configuration-passing/simple-choice/i18n-provider
+    sampleId: simple-choice
+    gradeBand: "K-12"
+    subject: general
+    intent: "Verify that i18n provider is passed to item player and UI text is translated."
+
+    notes:
+      - "i18n provider set via Svelte context in +layout.svelte"
+      - "Player components should receive and use the provider"
+      - "Tests configuration passing through component hierarchy"
+
+    steps:
+      - action: setLocalStorage
+        key: "pie-qti-locale"
+        value: "es-ES"
+
+      - action: navigate
+        path: "/item-demo/simple-choice"
+
+      - action: observe
+        target:
+          description: "UI text is in Spanish"
+          hint: "Submit button and other UI elements show Spanish text"
+
+      - action: observe
+        target:
+          description: "i18n provider is working"
+          hint: "Translations are applied throughout the interface"
+
+    expected:
+      localStorage:
+        pie-qti-locale:
+          equals: "es-ES"
+
+    spiritChecks:
+      - "i18n provider reaches all components that need it."
+      - "Translations are consistently applied."
+
+  - id: web-components/configuration-passing/assessment-demo/config-inheritance
+    sampleId: reading-comp-1
+    gradeBand: "3-6"
+    subject: ela
+    intent: "Verify that configuration (security, i18n) propagates from assessment player to individual item players."
+
+    notes:
+      - "Assessment player should pass config to all item players"
+      - "Tests configuration inheritance pattern"
+      - "Uses assessment-demo route"
+
+    steps:
+      - action: setLocalStorage
+        key: "pie-qti-locale"
+        value: "fr-FR"
+
+      - action: navigate
+        path: "/assessment-demo"
+
+      - action: select
+        target:
+          description: "Sample Assessments dropdown"
+        option:
+          value: "reading-comp-1"
+
+      - action: observe
+        target:
+          description: "First item loads with French UI"
+          hint: "Submit button should be in French"
+
+      - action: click
+        target:
+          description: "Next button"
+
+      - action: observe
+        target:
+          description: "Second item also has French UI"
+          hint: "All items inherit i18n config from assessment"
+
+    expected:
+      assessmentResults:
+        ui:
+          currentQuestionTitle:
+            # Verify we navigated to Q2
+            isPresent: true
+
+    spiritChecks:
+      - "Configuration propagates to all items in assessment."
+      - "Consistent UI language across all items."
+      - "No configuration loss when navigating between items."
+
+  - id: web-components/configuration-passing/assessment-demo/security-inheritance
+    sampleId: mixed-1
+    gradeBand: "6-10"
+    subject: general
+    intent: "Verify that security configuration (assetBaseUrl) is inherited by all items in an assessment."
+
+    notes:
+      - "Tests that asset loading works consistently across assessment items"
+      - "Security config set at assessment level should apply to all items"
+
+    steps:
+      - action: navigate
+        path: "/assessment-demo"
+
+      - action: select
+        target:
+          description: "Sample Assessments dropdown"
+        option:
+          value: "mixed-1"
+
+      - action: observe
+        target:
+          description: "First item loads without asset errors"
+
+      - action: click
+        target:
+          description: "Next button"
+
+      - action: observe
+        target:
+          description: "Second item also loads assets correctly"
+          hint: "No 404 errors for any assets"
+
+    expected:
+      assessmentResults:
+        ui:
+          currentQuestionTitle:
+            isPresent: true
+
+    spiritChecks:
+      - "Security config applies to all items in assessment."
+      - "Asset loading is consistent across items."
+      - "No configuration-related errors."

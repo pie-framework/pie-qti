@@ -1,0 +1,238 @@
+version: 1
+
+# Settings UI - Settings Menu Evaluation
+#
+# Tests the SettingsMenu dropdown component functionality, including
+# menu visibility, language/theme selection, keyboard navigation,
+# and accessibility (ARIA labels).
+
+component:
+  interactionType: settingsMenu
+  tagName: SettingsMenu
+
+examplesApp:
+  app: "@pie-qti/qti2-example"
+  routeTemplate: "/item-demo/{sampleId}"
+
+evals:
+  - id: settings-ui/settings-menu/simple-choice/open-close-menu
+    sampleId: simple-choice
+    gradeBand: "K-12"
+    subject: general
+    intent: "Verify that the settings menu can be opened and closed, and displays Language and Theme sections."
+
+    notes:
+      - "Settings gear icon is in top-right corner of navbar"
+      - "Menu should close when clicking outside or on backdrop"
+      - "Tests basic UI interaction flow"
+
+    steps:
+      - action: navigate
+        path: "/item-demo/simple-choice"
+
+      - action: observe
+        target:
+          description: "Settings gear icon is visible in navbar"
+          hint: "Top-right corner button with gear/cog icon"
+
+      - action: click
+        target:
+          description: "Settings gear icon"
+
+      - action: observe
+        target:
+          description: "Settings dropdown menu appears"
+          hint: "Menu contains two sections: Language and Theme"
+
+      - action: observe
+        target:
+          description: "Language section shows 8 locale options"
+          hint: "Should list: English (US), Español, Français, etc."
+
+      - action: observe
+        target:
+          description: "Theme section shows available themes"
+          hint: "Should show light, dark, and other DaisyUI themes"
+
+      # Close menu by clicking outside
+      - action: click
+        target:
+          description: "Click outside the menu to close it"
+          hint: "Click on the main content area"
+
+      - action: observe
+        target:
+          description: "Settings menu is no longer visible"
+
+    expected:
+      # This is a UI interaction test, no QTI responses/outcomes to check
+      # Could add custom UI state assertions if runner supports it
+
+    spiritChecks:
+      - "Settings menu is easy to discover and access."
+      - "Menu sections (Language/Theme) are clearly labeled and organized."
+      - "Opening/closing the menu is intuitive and responsive."
+
+  - id: settings-ui/settings-menu/simple-choice/select-spanish
+    sampleId: simple-choice
+    gradeBand: "K-12"
+    subject: general
+    intent: "Verify that selecting 'Español' in the settings menu changes the locale and displays a checkmark."
+
+    notes:
+      - "Clicking a locale triggers page reload"
+      - "Active locale should show checkmark icon"
+      - "Tests locale selection feedback"
+
+    steps:
+      - action: navigate
+        path: "/item-demo/simple-choice"
+
+      - action: click
+        target:
+          description: "Settings gear icon"
+
+      - action: observe
+        target:
+          description: "English (US) has checkmark (current locale)"
+          hint: "Active locale shows checkmark icon"
+
+      - action: click
+        target:
+          description: "Click 'Español' in language list"
+
+      # Page reload happens automatically
+      - action: observe
+        target:
+          description: "Page reloads with Spanish locale"
+          hint: "UI text should be in Spanish"
+
+      - action: click
+        target:
+          description: "Settings gear icon"
+
+      - action: observe
+        target:
+          description: "'Español' now shows checkmark"
+          hint: "Active locale indicator moved to Español"
+
+    expected:
+      localStorage:
+        pie-qti-locale:
+          equals: "es-ES"
+
+    spiritChecks:
+      - "Locale selection provides immediate visual feedback (checkmark)."
+      - "Page reload preserves navigation context (same item)."
+      - "Active selection is clearly indicated after reload."
+
+  - id: settings-ui/settings-menu/simple-choice/keyboard-navigation
+    sampleId: simple-choice
+    gradeBand: "K-12"
+    subject: general
+    intent: "Verify that the settings menu can be operated entirely with keyboard (Tab and Enter keys)."
+
+    notes:
+      - "Tests keyboard accessibility"
+      - "Tab should move focus through menu items"
+      - "Enter should activate selections"
+      - "Important for screen reader users and keyboard-only users"
+
+    steps:
+      - action: navigate
+        path: "/item-demo/simple-choice"
+
+      - action: pressKey
+        key: "Tab"
+        target:
+          description: "Press Tab to focus settings gear icon"
+          hint: "May need multiple Tab presses to reach settings button"
+
+      - action: pressKey
+        key: "Enter"
+        target:
+          description: "Press Enter to open settings menu"
+
+      - action: observe
+        target:
+          description: "Settings menu opens"
+
+      - action: pressKey
+        key: "Tab"
+        target:
+          description: "Press Tab to navigate to first language option"
+
+      - action: observe
+        target:
+          description: "First language option receives focus"
+          hint: "Visual focus indicator should be visible"
+
+      - action: pressKey
+        key: "Tab"
+        target:
+          description: "Continue Tab to navigate through options"
+
+      - action: observe
+        target:
+          description: "Focus moves to next option"
+
+    expected:
+      # UI interaction test
+
+    spiritChecks:
+      - "All interactive elements are reachable via Tab key."
+      - "Focus indicators are clearly visible on all menu items."
+      - "Keyboard navigation follows logical order (top to bottom)."
+      - "Enter key activates selections as expected."
+
+  - id: settings-ui/settings-menu/simple-choice/aria-labels
+    sampleId: simple-choice
+    gradeBand: "K-12"
+    subject: general
+    intent: "Verify that the settings menu has proper ARIA attributes for screen reader accessibility."
+
+    notes:
+      - "Tests WCAG 2.2 Level AA compliance"
+      - "Settings button should have aria-label"
+      - "Menu should have role='menu'"
+      - "Active selections should have aria-current"
+
+    steps:
+      - action: navigate
+        path: "/item-demo/simple-choice"
+
+      - action: observe
+        target:
+          description: "Settings button has aria-label attribute"
+          hint: "Should be something like 'Open settings menu' or 'Settings'"
+
+      - action: click
+        target:
+          description: "Settings gear icon"
+
+      - action: observe
+        target:
+          description: "Dropdown menu has role='menu' attribute"
+
+      - action: observe
+        target:
+          description: "Language section has aria-label"
+          hint: "Group label for language options"
+
+      - action: observe
+        target:
+          description: "Current locale has aria-current='true'"
+          hint: "Active language option marked with aria-current"
+
+      - action: observe
+        target:
+          description: "Menu items have role='menuitem'"
+
+    expected:
+      # ARIA attribute validation
+
+    spiritChecks:
+      - "ARIA labels are descriptive and helpful for screen readers."
+      - "Menu structure is semantically correct (role attributes)."
+      - "Active selections are clearly announced to assistive tech."
+      - "No ARIA errors or warnings in accessibility tree."

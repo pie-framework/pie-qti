@@ -1,0 +1,96 @@
+version: 1
+
+# i18n UI Translations Evaluation
+#
+# Tests that player UI elements (buttons, labels, feedback messages) are properly
+# translated across all supported locales.
+
+component:
+  interactionType: choiceInteraction
+  tagName: pie-qti-choice
+
+examplesApp:
+  app: "@pie-qti/qti2-example"
+  routeTemplate: "/item-demo/{sampleId}"
+
+evals:
+  - id: i18n/ui-translations/simple-choice/submit-button-french
+    sampleId: simple-choice
+    gradeBand: "3-6"
+    subject: math
+    intent: "Verify that UI elements (like submit button) are translated to French."
+
+    notes:
+      - "Tests @pie-qti/qti2-i18n translation system"
+      - "Validates that button labels use fr-FR translations"
+
+    steps:
+      - action: setLocalStorage
+        key: "pie-qti-locale"
+        value: "fr-FR"
+
+      - action: navigate
+        path: "/item-demo/simple-choice"
+
+      - action: observe
+        target:
+          description: "UI elements render in French"
+          hint: "Button labels should be in French"
+
+    spiritChecks:
+      - "UI translations are consistent and natural."
+      - "All interactive elements are labeled in French."
+
+  - id: i18n/ui-translations/extended-text/editor-labels-spanish
+    sampleId: extended-text
+    gradeBand: "6-12"
+    subject: language-arts
+    intent: "Verify that rich text editor labels are translated to Spanish."
+
+    notes:
+      - "Tests that TipTap editor UI is translated"
+      - "Validates toolbar labels and placeholder text"
+
+    steps:
+      - action: setLocalStorage
+        key: "pie-qti-locale"
+        value: "es-ES"
+
+      - action: navigate
+        path: "/item-demo/extended-text"
+
+      - action: observe
+        target:
+          description: "Editor UI renders in Spanish"
+          hint: "Toolbar buttons should have Spanish labels"
+
+    spiritChecks:
+      - "Editor controls are clearly labeled in Spanish."
+      - "Placeholder text is appropriate and translated."
+
+  - id: i18n/ui-translations/simple-choice/page-title-dutch
+    sampleId: simple-choice
+    gradeBand: "3-6"
+    subject: math
+    intent: "Verify that page title and navigation elements are translated to Dutch."
+
+    notes:
+      - "Tests that top-level UI elements use nl-NL translations"
+      - "Validates consistent translation across the page"
+
+    steps:
+      - action: setLocalStorage
+        key: "pie-qti-locale"
+        value: "nl-NL"
+
+      - action: navigate
+        path: "/item-demo/simple-choice"
+
+      - action: observe
+        target:
+          description: "Page elements render in Dutch"
+          hint: "Question heading and UI text should be in Dutch"
+
+    spiritChecks:
+      - "Dutch translations are clear and natural."
+      - "No mixed-language UI elements."

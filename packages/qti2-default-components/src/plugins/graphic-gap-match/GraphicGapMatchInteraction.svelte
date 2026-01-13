@@ -316,7 +316,7 @@ function parseCoords(hotspot: { identifier: string; shape: string; coords: strin
 			<div
 				part="stage"
 				class="qti-ggm-stage relative inline-block border-2 border-base-300 rounded-lg"
-				style="width: {parsedInteraction.imageData?.width}px; height: {parsedInteraction.imageData?.height}px;"
+				style="position: relative; display: inline-block; width: {parsedInteraction.imageData?.width}px; height: {parsedInteraction.imageData?.height}px;"
 			>
 				<!-- SVG image -->
 				{#if parsedInteraction.imageData?.content}
@@ -327,7 +327,7 @@ function parseCoords(hotspot: { identifier: string; shape: string; coords: strin
 				<svg
 					part="overlay"
 					class="qti-ggm-overlay absolute top-0 left-0 w-full h-full pointer-events-none"
-					style="pointer-events: none; top: 0; left: 0;"
+					style="position: absolute; width: 100%; height: 100%; pointer-events: none; top: 0; left: 0;"
 					viewBox="0 0 {parsedInteraction.imageData?.width} {parsedInteraction.imageData?.height}"
 				>
 					{#each parsedInteraction.hotspots as hotspot (hotspot.identifier)}

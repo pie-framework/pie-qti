@@ -1,0 +1,70 @@
+version: 1
+
+# i18n RTL Support Evaluation
+#
+# Tests right-to-left (RTL) language support for Arabic (ar-SA).
+# Validates that text direction, alignment, and visual layout work correctly.
+
+component:
+  interactionType: choiceInteraction
+  tagName: pie-qti-choice
+
+examplesApp:
+  app: "@pie-qti/qti2-example"
+  routeTemplate: "/item-demo/{sampleId}"
+
+evals:
+  - id: i18n/rtl-support/capital-cities/text-direction
+    sampleId: capital-cities
+    gradeBand: "3-6"
+    subject: social-studies
+    intent: "Verify that Arabic text renders with correct RTL text direction."
+
+    notes:
+      - "Tests HTML dir='rtl' attribute or equivalent CSS"
+      - "Validates that Arabic text flows naturally right-to-left"
+
+    steps:
+      - action: setLocalStorage
+        key: "pie-qti-locale"
+        value: "ar-SA"
+
+      - action: navigate
+        path: "/item-demo/capital-cities"
+
+      - action: observe
+        target:
+          description: "Arabic text flows right-to-left"
+          hint: "Text should be aligned to the right and read right-to-left"
+
+    spiritChecks:
+      - "RTL layout feels natural for Arabic readers."
+      - "Text alignment is correct (right-aligned)."
+      - "No layout issues or overlapping text."
+
+  - id: i18n/rtl-support/hottext-single/interaction-alignment
+    sampleId: hottext-single
+    gradeBand: "6-9"
+    subject: language-arts
+    intent: "Verify that hottext interaction works naturally in RTL layout."
+
+    notes:
+      - "Tests that clickable hottext spans work in RTL context"
+      - "Validates that selection feedback is properly positioned"
+
+    steps:
+      - action: setLocalStorage
+        key: "pie-qti-locale"
+        value: "ar-SA"
+
+      - action: navigate
+        path: "/item-demo/hottext-single"
+
+      - action: observe
+        target:
+          description: "Hottext interaction renders in RTL layout"
+          hint: "Clickable spans should be properly positioned in RTL text"
+
+    spiritChecks:
+      - "Hottext spans are clearly identifiable in RTL text."
+      - "Interaction controls feel natural for RTL reading."

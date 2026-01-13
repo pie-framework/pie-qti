@@ -163,7 +163,7 @@
 					<svg
 						part="overlay"
 						class="qti-ga-overlay absolute inset-0 w-full h-full pointer-events-none"
-						style="z-index: 10;"
+						style="position: absolute; width: 100%; height: 100%; top: 0; left: 0; z-index: 10;"
 					>
 						{#each pairs as pair, index}
 							{@const [id1, id2] = pair.split(' ')}

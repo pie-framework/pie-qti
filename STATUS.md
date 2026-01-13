@@ -1,6 +1,6 @@
 # PIE QTI 2.2 Implementation Status
 
-**Last Updated**: 2026-01-07
+**Last Updated**: 2026-01-12
 
 ---
 
@@ -37,6 +37,11 @@ The transformation framework and tooling are functional but under active develop
 
 - ✅ **Default-components evals**: YAML specs in `docs/evals/qti2-default-components/*/evals.yaml` executed by Playwright runner in `packages/qti2-example/tests/playwright/qti2-default-components-evals.pw.ts` (currently **49** cases)
 - ✅ **Assessment-player evals**: YAML specs in `docs/evals/qti2-assessment-player/*/evals.yaml` (currently **15** cases)
+- ✅ **i18n evals**: YAML specs in `docs/evals/qti2-i18n/*/evals.yaml` testing internationalization across 8 locales (currently **14** cases)
+- ✅ **Settings UI evals**: YAML specs in `docs/evals/qti2-settings-ui/*/evals.yaml` testing theme and locale switching UI (currently **7** cases)
+- ✅ **Asset loading evals**: YAML specs in `docs/evals/qti2-asset-loading/*/evals.yaml` testing URL resolution and asset loading (currently **3** cases)
+- ✅ **Web components evals**: YAML specs in `docs/evals/qti2-web-components/*/evals.yaml` testing configuration passing (currently **4** cases)
+- ✅ **Total eval cases**: **92** (up from 64)
 - ✅ **Unit tests**: additional coverage exists across packages (see package READMEs and workflows for the authoritative commands)
 
 ---
