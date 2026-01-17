@@ -47,11 +47,15 @@ export class StorageZipExtractor implements ZipExtractor {
 			// Step 4: Copy extracted files to storage
 			const files = await this.copyToStorage(tempDir, targetPath, storage);
 
+			const totalSize = storage.getDirectorySize
+				? await storage.getDirectorySize(targetPath)
+				: 0;
+
 			return {
 				success: true,
 				files,
 				totalFiles: files.length,
-				totalSize: await storage.getDirectorySize(targetPath),
+				totalSize,
 			};
 		} finally {
 			// Step 5: Clean up temp directory
@@ -82,8 +86,10 @@ export class StorageZipExtractor implements ZipExtractor {
 				const targetPath = `${currentTarget}/${entry.name}`;
 
 				if (entry.isDirectory()) {
-					// Create directory in storage
-					await storage.createDirectory(targetPath);
+					// Create directory in storage if supported
+					if (storage.createDirectory) {
+						await storage.createDirectory(targetPath);
+					}
 					// Recursively copy directory contents
 					await copyDirectory(sourcePath, targetPath);
 				} else if (entry.isFile()) {

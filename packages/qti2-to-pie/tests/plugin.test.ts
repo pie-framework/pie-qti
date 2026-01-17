@@ -77,15 +77,16 @@ describe('Qti22ToPiePlugin', () => {
 
     engine.use(plugin);
 
-    const output = await engine.transform(sampleQtiXml, {
+    const handle = await engine.transform(sampleQtiXml, {
       sourceFormat: 'qti22',
       targetFormat: 'pie',
       logger: new SilentLogger(),
     });
+    const output = await handle.result();
 
-    expect(output.items.length).toBe(1);
-    expect(output.items[0].content.id).toBe('choice-001');
-    expect(output.metadata.pluginId).toBe('qti22-to-pie');
+    expect(output.pieConfig).toBeDefined();
+    expect(output.metadata.sourceFormat).toBe('qti22');
+    expect(output.metadata.targetFormat).toBe('pie');
   });
 
   test('should accept empty constructor options (backward compatible)', () => {

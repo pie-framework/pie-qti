@@ -111,37 +111,14 @@ describe('ConfigLoader', () => {
 			});
 		});
 
-		test('should load S3 storage config from env', () => {
+		test('should load custom storage backend from env', () => {
 			process.env.PIE_QTI_STORAGE_BACKEND = 's3';
-			process.env.PIE_QTI_S3_BUCKET = 'my-bucket';
-			process.env.PIE_QTI_S3_REGION = 'us-west-2';
-			process.env.PIE_QTI_S3_PREFIX = 'pie-qti/';
-			process.env.PIE_QTI_S3_ENDPOINT = 'https://s3.example.com';
 
 			const config = loadFromEnv();
 
 			expect(config.storage).toEqual({
 				backend: 's3',
-				options: {
-					bucket: 'my-bucket',
-					region: 'us-west-2',
-					prefix: 'pie-qti/',
-					endpoint: 'https://s3.example.com',
-				},
-			});
-		});
-
-		test('should load database storage config from env', () => {
-			process.env.PIE_QTI_STORAGE_BACKEND = 'database';
-			process.env.PIE_QTI_DATABASE_URL = 'postgresql://localhost/pieqti';
-
-			const config = loadFromEnv();
-
-			expect(config.storage).toEqual({
-				backend: 'database',
-				options: {
-					connectionString: 'postgresql://localhost/pieqti',
-				},
+				options: {},
 			});
 		});
 

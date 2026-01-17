@@ -28,11 +28,13 @@ export const POST: RequestHandler = async ({ params, locals }) => {
 		const random = Math.random().toString(36).substring(2, 10);
 		const sessionId = `${timestamp}-${random}`;
 
-		// Create session directories
-		await storage.createDirectory(sessionStorage.getSessionPath(sessionId));
-		await storage.createDirectory(sessionStorage.getUploadsPath(sessionId));
-		await storage.createDirectory(sessionStorage.getExtractedPath(sessionId));
-		await storage.createDirectory(sessionStorage.getOutputsPath(sessionId));
+		// Create session directories if supported
+		if (storage.createDirectory) {
+			await storage.createDirectory(sessionStorage.getSessionPath(sessionId));
+			await storage.createDirectory(sessionStorage.getUploadsPath(sessionId));
+			await storage.createDirectory(sessionStorage.getExtractedPath(sessionId));
+			await storage.createDirectory(sessionStorage.getOutputsPath(sessionId));
+		}
 
 		// Scan files to get total size
 		const files = await readdir(samplePath);
@@ -48,12 +50,12 @@ export const POST: RequestHandler = async ({ params, locals }) => {
 			}
 		}
 
-		// Copy files to the session's uploads directory
-		const uploadsPath = sessionStorage.getUploadsPath(sessionId);
+		// Copy files to the session's extracted directory (samples are already extracted)
+		const extractedPath = sessionStorage.getExtractedPath(sessionId);
 
 		for (const file of fileList) {
 			const sourcePath = join(samplePath, file);
-			const destPath = join(uploadsPath, file);
+			const destPath = join(extractedPath, file);
 
 			const content = await readFile(sourcePath);
 			await storage.writeBuffer(destPath, content);

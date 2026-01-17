@@ -79,6 +79,57 @@ export class FilesystemBackend implements StorageBackend {
 		await fs.writeFile(resolved, content);
 	}
 
+	async write(filePath: string, content: string | Buffer): Promise<void> {
+		if (typeof content === 'string') {
+			await this.writeText(filePath, content);
+		} else {
+			await this.writeBuffer(filePath, content);
+		}
+	}
+
+	async createReadStream(filePath: string): Promise<import('stream').Readable> {
+		const { createReadStream } = await import('node:fs');
+		const resolved = this.resolvePath(filePath);
+		return createReadStream(resolved);
+	}
+
+	async createWriteStream(filePath: string): Promise<import('stream').Writable> {
+		const { createWriteStream } = await import('node:fs');
+		const resolved = this.resolvePath(filePath);
+		await fs.mkdir(path.dirname(resolved), { recursive: true });
+		return createWriteStream(resolved);
+	}
+
+	async list(pattern: string): Promise<import('@pie-qti/transform-types').ResourceInfo[]> {
+		// Simple glob-like pattern matching (basic implementation)
+		const dirPath = pattern.includes('*') ? path.dirname(pattern) : pattern;
+		const resolved = this.resolvePath(dirPath);
+
+		try {
+			const entries = await fs.readdir(resolved, { withFileTypes: true });
+			const results: import('@pie-qti/transform-types').ResourceInfo[] = [];
+
+			for (const entry of entries) {
+				const fullPath = path.join(dirPath, entry.name);
+				const stat = await fs.stat(this.resolvePath(fullPath));
+
+				results.push({
+					uri: fullPath,
+					type: entry.isDirectory() ? 'directory' : 'file',
+					size: entry.isFile() ? stat.size : undefined,
+					lastModified: stat.mtime,
+				});
+			}
+
+			return results;
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+				return [];
+			}
+			throw error;
+		}
+	}
+
 	async exists(filePath: string): Promise<boolean> {
 		try {
 			const resolved = this.resolvePath(filePath);

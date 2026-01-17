@@ -21,11 +21,13 @@ export const POST: RequestHandler = async ({ params, locals }) => {
 			throw svelteError(404, 'Session not found');
 		}
 
-		// Check if already analyzed
-		if (session.status === 'ready' && session.extractedFiles) {
+		// Check if already analyzed (both extracted AND analysis exists)
+		const existingAnalysis = await appSessionStorage.getAnalysis(id);
+		if (session.status === 'ready' && session.extractedFiles && existingAnalysis) {
 			return json({
 				success: true,
 				message: 'Session already analyzed',
+				analysis: existingAnalysis,
 				extractedFiles: session.extractedFiles,
 			});
 		}
@@ -39,29 +41,46 @@ export const POST: RequestHandler = async ({ params, locals }) => {
 		const uploadsPath = sessionStorage.getUploadsPath(id);
 		const extractedPath = sessionStorage.getExtractedPath(id);
 
-		// List uploaded files
-		const uploadedFiles = await storage.listFiles(uploadsPath);
-		const zipFiles = uploadedFiles.filter(
-			(f) => f.endsWith('.zip') || f.endsWith('.ZIP'),
-		);
+		let allExtractedFiles: string[] = [];
 
-		if (zipFiles.length === 0) {
-			throw svelteError(400, 'No ZIP files found in session');
+		// Check if files are already extracted (e.g., from samples)
+		const extractedExists = await storage.exists(extractedPath);
+		if (extractedExists && storage.listFiles) {
+			const existingFiles = await storage.listFiles(extractedPath);
+			if (existingFiles.length > 0) {
+				// Files already extracted, use them
+				allExtractedFiles = existingFiles;
+			}
 		}
 
-		// Extract each ZIP file
-		const extractor = new StorageZipExtractor();
-		const allExtractedFiles: string[] = [];
+		// If no extracted files, try to extract from uploads
+		if (allExtractedFiles.length === 0) {
+			// List uploaded files
+			if (!storage.listFiles) {
+				throw svelteError(500, 'Storage backend does not support listing files');
+			}
+			const uploadedFiles = await storage.listFiles(uploadsPath);
+			const zipFiles = uploadedFiles.filter(
+				(f) => f.endsWith('.zip') || f.endsWith('.ZIP'),
+			);
 
-		for (const zipFile of zipFiles) {
-			const zipPath = `${uploadsPath}/${zipFile}`;
-			const result = await extractor.extract(zipPath, extractedPath, storage);
-
-			if (!result.success) {
-				throw new Error(`Failed to extract ${zipFile}`);
+			if (zipFiles.length === 0) {
+				throw svelteError(400, 'No ZIP files found and no extracted files available');
 			}
 
-			allExtractedFiles.push(...result.files);
+			// Extract each ZIP file
+			const extractor = new StorageZipExtractor();
+
+			for (const zipFile of zipFiles) {
+				const zipPath = `${uploadsPath}/${zipFile}`;
+				const result = await extractor.extract(zipPath, extractedPath, storage);
+
+				if (!result.success) {
+					throw new Error(`Failed to extract ${zipFile}`);
+				}
+
+				allExtractedFiles.push(...result.files);
+			}
 		}
 
 		// Update session with extracted files
@@ -71,9 +90,14 @@ export const POST: RequestHandler = async ({ params, locals }) => {
 		await sessionStorage.writeSessionMetadata(id, session);
 
 		// Analyze the packages
+		// Convert storage-relative path to absolute filesystem path
+		const absoluteExtractedPath = (storage as any).resolvePath
+			? (storage as any).resolvePath(extractedPath)
+			: require('node:path').resolve(process.cwd(), 'uploads', extractedPath);
+
 		const webAnalysisResult = await analyzer.analyzeSession(
 			id,
-			extractedPath,
+			absoluteExtractedPath,
 			(progress) => {
 				// Future enhancement: Emit progress updates via Server-Sent Events (SSE)
 				console.log('Analysis progress:', progress);

@@ -4,30 +4,6 @@ This directory contains the **active** documentation for the PIE QTI / transform
 
 ## Current Documents
 
-### [VENDOR_CUSTOMIZATION_GUIDE.md](./VENDOR_CUSTOMIZATION_GUIDE.md)
-
-Complete guide for implementing vendor-specific QTI transformations in separate packages. Covers:
-
-- Vendor extension system architecture and interfaces
-- VendorDetector, VendorTransformer, AssetResolver patterns
-- CSS class extraction and metadata handling
-- Complete implementation examples (Amplify, ExamView, Wonders/Inspire)
-- Testing and best practices
-
-**Status:** Active reference guide
-**Last Updated:** 2025-12-31
-
-### [VENDOR_QTI_ANALYSIS.md](./VENDOR_QTI_ANALYSIS.md)
-
-Analysis of real-world vendor QTI content patterns from customer data. Based on analysis of 97 QTI files from multiple vendors including:
-
-- Amplify CKLA (14 files) - Audio in choices, external images
-- ExamView/McGraw-Hill (6 files) - CDATA heavy, MathML with S3 fallbacks
-- Wonders/Inspire (45+ files) - External stylesheets, obfuscated CSS
-
-**Status:** Reference documentation
-**Last Updated:** 2025-12-31
-
 ### [PLUGIN_API.md](./PLUGIN_API.md)
 
 Runtime plugin API for the QTI 2.2 Item Player (`@pie-qti/qti2-item-player`). Documents:
@@ -92,8 +68,7 @@ We keep **local, greppable snapshots** of key specs so agents and devs can refer
 1. Start with BATCH_PROCESSOR_ARCHITECTURE.md for overall design
 2. Review code in `packages/` for implementation details
 3. Check `packages/qti2-to-pie/src/transformers/` for QTI transformation logic
-4. See VENDOR_CUSTOMIZATION_GUIDE.md if working with vendor-specific QTI
-5. See PLUGIN_API.md if adding custom runtime interactions
+4. See PLUGIN_API.md if adding custom runtime interactions
 
 ## Document Maintenance
 

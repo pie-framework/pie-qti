@@ -113,4 +113,20 @@ export class S3Backend implements StorageBackend {
 	async getUrl(_path: string): Promise<string> {
 		throw new Error('S3Backend not implemented');
 	}
+
+	async write(_path: string, _content: string | Buffer): Promise<void> {
+		throw new Error('S3Backend not implemented');
+	}
+
+	async createReadStream(_path: string): Promise<import('stream').Readable> {
+		throw new Error('S3Backend not implemented');
+	}
+
+	async createWriteStream(_path: string): Promise<import('stream').Writable> {
+		throw new Error('S3Backend not implemented');
+	}
+
+	async list(_pattern: string): Promise<import('@pie-qti/transform-types').ResourceInfo[]> {
+		throw new Error('S3Backend not implemented');
+	}
 }

@@ -77,6 +77,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 				let entries: string[] = [];
 				try {
 					if (!(await storage.exists(dir))) continue;
+					if (!storage.listFiles) continue;
 					entries = await storage.listFiles(dir);
 				} catch {
 					continue;
@@ -88,8 +89,10 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 					// Check if it's a directory by trying to list it
 					let isDirectory = false;
 					try {
-						await storage.listFiles(fullPath);
-						isDirectory = true;
+						if (storage.listFiles) {
+							await storage.listFiles(fullPath);
+							isDirectory = true;
+						}
 					} catch {
 						isDirectory = false;
 					}

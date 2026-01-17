@@ -16,3 +16,7 @@ export * from './storage/index.js';
 // Configuration types
 export * from './config/vendor-config.js';
 export * from './config/plugin-config.js';
+export * from './config/orchestration-config.js';
+
+// Orchestration types
+export * from './orchestration/index.js';

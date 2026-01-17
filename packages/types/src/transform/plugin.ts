@@ -11,23 +11,6 @@
 export type TransformFormat = string;
 
 /**
- * Well-known format constants
- * Use these for built-in formats to avoid typos
- */
-export const KNOWN_FORMATS = {
-	QTI22: 'qti22',
-	PIE: 'pie',
-	LEARNOSITY: 'learnosity',
-	CANVAS: 'canvas',
-	BRIGHTSPACE: 'brightspace',
-} as const;
-
-/**
- * Type for known format values
- */
-export type KnownFormat = (typeof KNOWN_FORMATS)[keyof typeof KNOWN_FORMATS];
-
-/**
  * Transform plugin interface
  */
 export interface TransformPlugin {

@@ -3,7 +3,6 @@
  * Detects PIE JSON format
  */
 
-import { KNOWN_FORMATS } from '@pie-qti/transform-types';
 import type { FormatDetector } from '../registry/format-detector-registry.js';
 
 /**
@@ -12,7 +11,7 @@ import type { FormatDetector } from '../registry/format-detector-registry.js';
  */
 export class PieDetector implements FormatDetector {
 	readonly id = 'pie-detector';
-	readonly formatId = KNOWN_FORMATS.PIE;
+	readonly formatId = 'pie';
 	readonly priority = 90;
 
 	/**

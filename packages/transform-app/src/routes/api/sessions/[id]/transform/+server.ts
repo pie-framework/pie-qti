@@ -42,9 +42,21 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		const candidates: string[] = [];
 
 		if (isAbsolutePath(normalized)) {
-			// Absolute path - try to resolve relative to session directories
-			const pathWithoutLeadingSlash = normalized.substring(1);
-			candidates.push(pathWithoutLeadingSlash);
+			// Absolute path - convert to storage-relative path
+			// Storage backend resolves paths relative to its rootDir (./uploads)
+			const storageRoot = (storage as any).rootDir || process.cwd() + '/uploads';
+			if (normalized.startsWith(storageRoot + '/')) {
+				// Path is within storage root, make it relative
+				candidates.push(normalized.substring(storageRoot.length + 1));
+			} else if (normalized.includes('/uploads/sessions/')) {
+				// Extract the storage-relative part (sessions/...)
+				const match = normalized.match(/\/uploads\/(sessions\/.+)/);
+				if (match) {
+					candidates.push(match[1]);
+				}
+			}
+			// Also try without leading slash as fallback
+			candidates.push(normalized.substring(1));
 		} else {
 			// Relative path - try different base directories
 			candidates.push(`${extractedPath}/${normalized}`);
@@ -85,6 +97,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 			let entries: string[] = [];
 			try {
 				if (!(await storage.exists(dir))) continue;
+				if (!storage.listFiles) continue;
 				entries = await storage.listFiles(dir);
 			} catch {
 				continue;
@@ -96,8 +109,10 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 				// Check if it's a directory by trying to list it
 				let isDirectory = false;
 				try {
-					await storage.listFiles(fullPath);
-					isDirectory = true;
+					if (storage.listFiles) {
+						await storage.listFiles(fullPath);
+						isDirectory = true;
+					}
 				} catch {
 					isDirectory = false;
 				}
@@ -129,13 +144,6 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 	 */
 	function titleFromId(fileId: string): string {
 		return fileId.replace(/_/g, ' ').replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-	}
-
-	/**
-	 * Return single item if array has one element, otherwise return full array
-	 */
-	function firstOrAll(items: unknown[]) {
-		return items.length === 1 ? items[0] : items;
 	}
 
 	/**
@@ -207,11 +215,12 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 	// Execute item transformations
 	for (const item of itemsToTransform) {
 		try {
-			const result = await engine.transform(item.xml, { sourceFormat: 'qti22', targetFormat: 'pie' });
+			const handle = await engine.transform(item.xml, { sourceFormat: 'qti22', targetFormat: 'pie' });
+			const result = await handle.result();
 			results.items.push({
 				identifier: item.id,
 				title: item.title,
-				pieConfig: firstOrAll(result.items),
+				pieConfig: result.pieConfig,
 				warnings: result.warnings ?? [],
 			});
 		} catch (error: unknown) {
@@ -239,11 +248,12 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 
 			try {
 				const xml = await readSessionXml(path);
-				const result = await engine.transform(xml, { sourceFormat: 'qti22', targetFormat: 'pie' });
+				const handle = await engine.transform(xml, { sourceFormat: 'qti22', targetFormat: 'pie' });
+				const result = await handle.result();
 				results.assessments.push({
 					identifier: fileId,
 					title: titleFromId(fileId),
-					pieConfig: firstOrAll(result.items),
+					pieConfig: result.pieConfig,
 					warnings: result.warnings ?? [],
 				});
 			} catch (error: unknown) {

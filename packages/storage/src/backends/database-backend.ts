@@ -96,4 +96,20 @@ export class DatabaseBackend implements StorageBackend {
 	async getDirectorySize(_path: string): Promise<number> {
 		throw new Error('DatabaseBackend not implemented');
 	}
+
+	async write(_path: string, _content: string | Buffer): Promise<void> {
+		throw new Error('DatabaseBackend not implemented');
+	}
+
+	async createReadStream(_path: string): Promise<import('stream').Readable> {
+		throw new Error('DatabaseBackend not implemented');
+	}
+
+	async createWriteStream(_path: string): Promise<import('stream').Writable> {
+		throw new Error('DatabaseBackend not implemented');
+	}
+
+	async list(_pattern: string): Promise<import('@pie-qti/transform-types').ResourceInfo[]> {
+		throw new Error('DatabaseBackend not implemented');
+	}
 }

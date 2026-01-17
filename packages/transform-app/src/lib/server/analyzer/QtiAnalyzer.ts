@@ -76,8 +76,8 @@ export class QtiAnalyzer {
       const packageDirs = await this.findPackageDirectories(extractedPath);
 
       if (packageDirs.length === 0) {
-        // No extracted packages, analyze uploads directory directly
-        packageDirs.push(extractedPath.replace('/extracted', '/uploads'));
+        // No subdirectories with manifests, analyze extracted directory directly
+        packageDirs.push(extractedPath);
       }
 
       // Analyze each package

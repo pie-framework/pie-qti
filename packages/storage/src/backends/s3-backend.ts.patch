@@ -1,0 +1,21 @@
+
+	async write(key: string, content: string | Buffer): Promise<void> {
+		if (typeof content === 'string') {
+			await this.writeText(key, content);
+		} else {
+			await this.writeBuffer(key, content);
+		}
+	}
+
+	async createReadStream(key: string): Promise<import('stream').Readable> {
+		throw new Error('createReadStream not yet implemented for S3Backend');
+	}
+
+	async createWriteStream(key: string): Promise<import('stream').Writable> {
+		throw new Error('createWriteStream not yet implemented for S3Backend');
+	}
+
+	async list(pattern: string): Promise<import('@pie-qti/transform-types').ResourceInfo[]> {
+		throw new Error('list not yet implemented for S3Backend');
+	}
+

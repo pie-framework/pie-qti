@@ -3,7 +3,6 @@
  * Detects QTI 2.2 XML format
  */
 
-import { KNOWN_FORMATS } from '@pie-qti/transform-types';
 import type { FormatDetector } from '../registry/format-detector-registry.js';
 
 /**
@@ -12,7 +11,7 @@ import type { FormatDetector } from '../registry/format-detector-registry.js';
  */
 export class Qti22Detector implements FormatDetector {
 	readonly id = 'qti22-detector';
-	readonly formatId = KNOWN_FORMATS.QTI22;
+	readonly formatId = 'qti22';
 	readonly priority = 100;
 
 	/**

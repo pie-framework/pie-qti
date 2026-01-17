@@ -54,39 +54,37 @@
 			.filter((item): item is NonNullable<typeof item> => item !== null)
 	);
 
-	// Get item body HTML and remove interaction elements (they're rendered separately)
+	// Get item body HTML and process interactions
+	// Block interactions are kept in HTML but wrapped with a hidden marker (see styles below)
+	// Inline interactions are replaced with placeholders
 	const itemBodyHtml = $derived.by(() => {
 		let html = player.getItemBodyHtml();
 
-		// Remove block interactions from HTML
+		// Replace inline interactions with placeholders (they need to be rendered in-flow)
 		html = html
-			.replace(/<choiceInteraction[\s\S]*?<\/choiceInteraction>/gi, '')
 			.replace(
 				/<textEntryInteraction[^>]*responseIdentifier="([^"]+)"[^>]*?(?:\/>|><\/textEntryInteraction>)/gi,
 				'[TEXTENTRY:$1]'
 			)
-			.replace(/<extendedTextInteraction[\s\S]*?<\/extendedTextInteraction>/gi, '')
 			.replace(
 				/<inlineChoiceInteraction[^>]*responseIdentifier="([^"]+)"[^>]*>[\s\S]*?<\/inlineChoiceInteraction>/gi,
 				'[INLINECHOICE:$1]'
-			)
-			.replace(/<orderInteraction[\s\S]*?<\/orderInteraction>/gi, '')
-			.replace(/<matchInteraction[\s\S]*?<\/matchInteraction>/gi, '')
-			.replace(/<associateInteraction[\s\S]*?<\/associateInteraction>/gi, '')
-			.replace(/<gapMatchInteraction[\s\S]*?<\/gapMatchInteraction>/gi, '')
-			.replace(/<sliderInteraction[\s\S]*?<\/sliderInteraction>/gi, '')
-			.replace(/<hotspotInteraction[\s\S]*?<\/hotspotInteraction>/gi, '')
-			.replace(/<graphicGapMatchInteraction[\s\S]*?<\/graphicGapMatchInteraction>/gi, '')
-			.replace(/<graphicOrderInteraction[\s\S]*?<\/graphicOrderInteraction>/gi, '')
-			.replace(/<graphicAssociateInteraction[\s\S]*?<\/graphicAssociateInteraction>/gi, '')
-			.replace(/<positionObjectInteraction[\s\S]*?<\/positionObjectInteraction>/gi, '')
-			.replace(/<endAttemptInteraction[\s\S]*?<\/endAttemptInteraction>/gi, '')
-			.replace(/<uploadInteraction[\s\S]*?<\/uploadInteraction>/gi, '')
-			.replace(/<drawingInteraction[\s\S]*?<\/drawingInteraction>/gi, '')
-			.replace(/<mediaInteraction[\s\S]*?<\/mediaInteraction>/gi, '')
-			.replace(/<hottextInteraction[\s\S]*?<\/hottextInteraction>/gi, '')
-			.replace(/<selectPointInteraction[\s\S]*?<\/selectPointInteraction>/gi, '')
-			.replace(/<customInteraction[\s\S]*?<\/customInteraction>/gi, '');
+			);
+
+		// Wrap all block-level *Interaction elements with a hidden marker
+		// This is extensible - any element ending in "Interaction" will be hidden
+		html = html.replace(
+			/<(\w+Interaction)(\s[^>]*)?>[\s\S]*?<\/\1>/gi,
+			(match, tagName) => {
+				// Skip inline interactions (already handled above)
+				if (tagName.toLowerCase() === 'textentryinteraction' ||
+				    tagName.toLowerCase() === 'inlinechoiceinteraction') {
+					return match;
+				}
+				// Wrap block interactions with a hidden span
+				return `<span class="qti-hidden-interaction">${match}</span>`;
+			}
+		);
 
 		return html;
 	});
@@ -290,5 +288,15 @@
 	/* Keep inline interactions from breaking paragraph flow */
 	.inline-interaction-container :global(p) {
 		display: inline;
+	}
+
+	/*
+	 * Hide all QTI interaction elements wrapped with qti-hidden-interaction.
+	 * These are rendered separately as web components above.
+	 * Keeping them in the HTML (but hidden) makes debugging easier and is fully extensible.
+	 * Any *Interaction element will be automatically wrapped and hidden - no hardcoded list needed!
+	 */
+	:global(.qti-item-body .qti-hidden-interaction) {
+		display: none !important;
 	}
 </style>

@@ -95,11 +95,12 @@ export default class Transform extends BaseCommand {
 
       // Transform
       this.log(`Transforming from ${sourceFormat} to ${targetFormat}...`);
-      const result = await engine.transform(inputContent, {
+      const handle = await engine.transform(inputContent, {
         sourceFormat: sourceFormat as any,
         targetFormat: targetFormat as any,
         logger,
       });
+      const result = await handle.result();
 
       // Format output
       const outputJson = flags.pretty
@@ -109,7 +110,7 @@ export default class Transform extends BaseCommand {
       // Write output
       if (flags.output) {
         await writeFile(flags.output, outputJson, 'utf-8');
-        this.log(`✓ Transformed ${result.items.length} item(s) to ${flags.output}`);
+        this.log(`✓ Transformed 1 item(s) to ${flags.output}`);
       } else {
         this.log(outputJson);
       }
@@ -117,9 +118,13 @@ export default class Transform extends BaseCommand {
       // Show summary
       if (!flags.silent) {
         this.log('\nSummary:');
-        this.log(`  Items transformed: ${result.items.length}`);
-        this.log(`  Processing time: ${result.metadata.processingTime}ms`);
-        this.log(`  Plugin: ${result.metadata.pluginId}`);
+        this.log(`  Items transformed: 1`);
+        if (result.metadata) {
+          this.log(`  Processing time: ${result.metadata.processingTime}ms`);
+          if (result.metadata.vendorDetected) {
+            this.log(`  Vendor detected: ${result.metadata.vendorDetected}`);
+          }
+        }
       }
     } catch (error) {
       this.error(`Transformation failed: ${(error as Error).message}`);

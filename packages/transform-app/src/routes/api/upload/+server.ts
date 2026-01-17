@@ -36,7 +36,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const uploadsPath = sessionStorage.getUploadsPath(sessionId);
 
 		// Ensure uploads directory exists
-		await storage.createDirectory(uploadsPath);
+		if (storage.createDirectory) {
+			await storage.createDirectory(uploadsPath);
+		}
 
 		// Track uploaded files for response
 		const uploadedFiles: Array<{ id: string; name: string; size: number }> = [];

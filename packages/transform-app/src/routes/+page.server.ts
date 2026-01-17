@@ -1,9 +1,9 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { Qti22ToPiePlugin } from '@pie-qti/qti2-to-pie';
-import type { Actions } from './$types';
+import type { Actions, PageServerLoad } from './$types';
 
-export const load = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals }) => {
 	const { appSessionStorage } = locals;
 	const sessions = await appSessionStorage.listSessions();
 
@@ -19,7 +19,7 @@ export const load = async ({ locals }) => {
 
 	return {
 		sessions: sessions
-			.map((s) => ({
+			.map((s: any) => ({
 				id: s.id,
 				created: s.createdAt,
 				status: s.status,

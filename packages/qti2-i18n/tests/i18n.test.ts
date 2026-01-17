@@ -3,9 +3,9 @@
  */
 
 import { describe, expect, test, beforeEach } from 'bun:test';
-import type { I18nProvider } from '../core/I18nProvider.js';
-import enUS from '../locales/en-US.js';
-import esES from '../locales/es-ES.js';
+import type { I18nProvider } from '../src/core/I18nProvider.js';
+import enUS from '../src/locales/en-US.js';
+import esES from '../src/locales/es-ES.js';
 
 // Create a test implementation of I18nProvider that doesn't rely on Vite's import.meta.glob
 class TestI18nProvider implements I18nProvider {
@@ -125,7 +125,7 @@ describe('I18n Core', () => {
 
 describe('Svelte I18n Provider', () => {
 	test('wraps I18nProvider with reactive stores', async () => {
-		const { SvelteI18nProvider } = await import('../providers/SvelteI18nProvider.js');
+		const { SvelteI18nProvider } = await import('../src/providers/SvelteI18nProvider.js');
 		const base = new TestI18nProvider('en-US');
 
 		const svelte = new SvelteI18nProvider(base);
@@ -134,7 +134,7 @@ describe('Svelte I18n Provider', () => {
 	});
 
 	test('locale changes update reactive stores', async () => {
-		const { SvelteI18nProvider } = await import('../providers/SvelteI18nProvider.js');
+		const { SvelteI18nProvider } = await import('../src/providers/SvelteI18nProvider.js');
 		const base = new TestI18nProvider('en-US');
 
 		const svelte = new SvelteI18nProvider(base);

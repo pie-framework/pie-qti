@@ -29,7 +29,7 @@ export async function loadFromFile(
  * Load configuration from environment variables
  *
  * Supported environment variables:
- * - PIE_QTI_STORAGE_BACKEND: Storage backend type (filesystem, s3, database)
+ * - PIE_QTI_STORAGE_BACKEND: Storage backend type (filesystem, memory, or custom)
  * - PIE_QTI_STORAGE_ROOT_DIR: Root directory for filesystem storage
  * - PIE_QTI_LOG_LEVEL: Logging level (debug, info, warn, error)
  * - PIE_QTI_CONFIG: Path to config file (takes precedence)
@@ -49,8 +49,7 @@ export function loadFromEnv(): TransformConfig {
 		config.storage = {
 			backend: process.env.PIE_QTI_STORAGE_BACKEND as
 				| 'filesystem'
-				| 's3'
-				| 'database'
+				| 'memory'
 				| 'custom',
 			options: {},
 		};
@@ -65,28 +64,7 @@ export function loadFromEnv(): TransformConfig {
 			};
 		}
 
-		// S3-specific options
-		if (process.env.PIE_QTI_STORAGE_BACKEND === 's3') {
-			config.storage.options = {
-				bucket: process.env.PIE_QTI_S3_BUCKET || '',
-				region: process.env.PIE_QTI_S3_REGION || 'us-east-1',
-				prefix: process.env.PIE_QTI_S3_PREFIX || '',
-			};
-
-			if (process.env.PIE_QTI_S3_ENDPOINT) {
-				config.storage.options.endpoint = process.env.PIE_QTI_S3_ENDPOINT;
-			}
-		}
-
-		// Database-specific options
-		if (
-			process.env.PIE_QTI_STORAGE_BACKEND === 'database' &&
-			process.env.PIE_QTI_DATABASE_URL
-		) {
-			config.storage.options = {
-				connectionString: process.env.PIE_QTI_DATABASE_URL,
-			};
-		}
+		// Custom backend options are loaded by the custom backend implementation
 	}
 
 	// Logger configuration

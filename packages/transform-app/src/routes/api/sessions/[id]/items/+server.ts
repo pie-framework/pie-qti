@@ -30,8 +30,17 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 			const candidates: string[] = [];
 
 			if (isAbsolutePath(normalized)) {
-				const pathWithoutLeadingSlash = normalized.substring(1);
-				candidates.push(pathWithoutLeadingSlash);
+				// Absolute path - convert to storage-relative path
+				const storageRoot = (storage as any).rootDir || process.cwd() + '/uploads';
+				if (normalized.startsWith(storageRoot + '/')) {
+					candidates.push(normalized.substring(storageRoot.length + 1));
+				} else if (normalized.includes('/uploads/sessions/')) {
+					const match = normalized.match(/\/uploads\/(sessions\/.+)/);
+					if (match) {
+						candidates.push(match[1]);
+					}
+				}
+				candidates.push(normalized.substring(1));
 			} else {
 				candidates.push(`${extractedPath}/${normalized}`);
 				candidates.push(`${uploadsPath}/${normalized}`);

@@ -81,12 +81,16 @@ export class SessionStorageImpl implements SessionStorage {
 
 	async listSessions(): Promise<Session[]> {
 		try {
+			if (!this.storage.listFiles) {
+				throw new Error('listFiles not supported by this storage backend');
+			}
+
 			// List all directories in base path
 			const entries = await this.storage.listFiles(this.basePath);
 
 			// Read metadata for each session
 			const sessions = await Promise.all(
-				entries.map((sessionId) => this.readSessionMetadata(sessionId)),
+				entries.map((sessionId: string) => this.readSessionMetadata(sessionId)),
 			);
 
 			// Filter out null results (sessions without metadata)
@@ -97,6 +101,10 @@ export class SessionStorageImpl implements SessionStorage {
 	}
 
 	async getSessionSize(sessionId: string): Promise<number> {
+		if (!this.storage.getDirectorySize) {
+			throw new Error('getDirectorySize not supported by this storage backend');
+		}
+
 		const sessionPath = this.getSessionPath(sessionId);
 		return this.storage.getDirectorySize(sessionPath);
 	}

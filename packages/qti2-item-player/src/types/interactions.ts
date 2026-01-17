@@ -292,30 +292,10 @@ export type InteractionData =
 	| EndAttemptInteractionData;
 
 /**
- * All supported QTI 2.2 interaction types
+ * QTI interaction type identifier
+ * Extensible string type allows custom interaction types
  */
-export type InteractionType =
-	| 'choiceInteraction'
-	| 'textEntryInteraction'
-	| 'extendedTextInteraction'
-	| 'inlineChoiceInteraction'
-	| 'orderInteraction'
-	| 'matchInteraction'
-	| 'associateInteraction'
-	| 'gapMatchInteraction'
-	| 'sliderInteraction'
-	| 'hotspotInteraction'
-	| 'graphicGapMatchInteraction'
-	| 'uploadInteraction'
-	| 'drawingInteraction'
-	| 'customInteraction'
-	| 'mediaInteraction'
-	| 'hottextInteraction'
-	| 'selectPointInteraction'
-	| 'graphicOrderInteraction'
-	| 'graphicAssociateInteraction'
-	| 'positionObjectInteraction'
-	| 'endAttemptInteraction';
+export type InteractionType = string;
 
 /**
  * Map interaction types to their data structures

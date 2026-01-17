@@ -4,21 +4,17 @@
 
 import type { QtiValue } from '@pie-qti/qti-processing';
 
-export type BaseType =
-	| 'boolean'
-	| 'integer'
-	| 'float'
-	| 'string'
-	| 'point'
-	| 'pair'
-	| 'directedPair'
-	| 'duration'
-	| 'file'
-	| 'uri'
-	| 'intOrIdentifier'
-	| 'identifier';
+/**
+ * QTI base type identifier
+ * Extensible string type allows custom base types
+ */
+export type BaseType = string;
 
-export type Cardinality = 'single' | 'multiple' | 'ordered' | 'record';
+/**
+ * QTI cardinality identifier
+ * Extensible string type allows custom cardinality values
+ */
+export type Cardinality = string;
 
 export interface VariableDeclaration {
 	identifier: string;
