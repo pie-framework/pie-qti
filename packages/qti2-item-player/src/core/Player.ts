@@ -254,7 +254,7 @@ export class Player {
 	 * We return sanitized HTML for direct rendering.
 	 */
 	public getRubrics(): RubricBlock[] {
-		const role = this.config.role;
+		const role = this.role;
 		const rubricEls = findDescendants(this.assessmentItem, 'rubricBlock');
 		if (rubricEls.length === 0) return [];
 
