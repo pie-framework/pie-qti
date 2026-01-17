@@ -3,11 +3,12 @@
  */
 
 import { readFile, writeFile } from 'node:fs/promises';
-import { Args, Command, Flags } from '@oclif/core';
+import { Args, Flags } from '@oclif/core';
 import { Qti22ToPiePlugin } from '@pie-qti/qti2-to-pie';
-import { ConsoleLogger, TransformEngine } from '@pie-qti/transform-core';
+import { ConsoleLogger } from '@pie-qti/transform-core';
+import { BaseCommand } from '../base-command.js';
 
-export default class Transform extends Command {
+export default class Transform extends BaseCommand {
   static override description = 'Transform QTI assessment items to PIE format';
 
   static override examples = [
@@ -17,6 +18,7 @@ export default class Transform extends Command {
   ];
 
   static override flags = {
+    ...BaseCommand.baseFlags,
     output: Flags.string({
       char: 'o',
       description: 'Output file path (defaults to stdout)',
@@ -55,15 +57,35 @@ export default class Transform extends Command {
       this.error('Invalid format. Use format like "qti22:pie"');
     }
 
-    // Setup engine
-    const engine = new TransformEngine();
     const logger = flags.silent ? undefined : new ConsoleLogger();
 
-    // Register plugins based on format
+    // Setup engine with config support
+    let engine;
+    try {
+      engine = await this.createEngine(flags.config);
+    } catch (error) {
+      // Fallback to manual plugin registration if config loading fails
+      this.warn(`Config loading failed, using built-in plugins: ${(error as Error).message}`);
+      engine = (await import('@pie-qti/transform-core')).TransformEngine;
+      const engineInstance = new engine();
+
+      // Register plugins based on format
+      if (sourceFormat === 'qti22' && targetFormat === 'pie') {
+        engineInstance.use(new Qti22ToPiePlugin());
+      } else {
+        this.error(`Unsupported transformation: ${sourceFormat} to ${targetFormat}`);
+      }
+
+      engine = engineInstance;
+    }
+
+    // If engine has no plugins for this transformation, register default
     if (sourceFormat === 'qti22' && targetFormat === 'pie') {
-      engine.use(new Qti22ToPiePlugin());
-    } else {
-      this.error(`Unsupported transformation: ${sourceFormat} to ${targetFormat}`);
+      const plugins = engine.getPlugins();
+      if (plugins.length === 0) {
+        engine.use(new Qti22ToPiePlugin());
+        this.log('Using built-in QTI 2.2 to PIE plugin');
+      }
     }
 
     try {

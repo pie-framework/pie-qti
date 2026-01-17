@@ -14,6 +14,10 @@ import type {
 } from '@pie-qti/transform-types';
 import { PluginRegistry } from '../registry/plugin-registry.js';
 import { ConsoleLogger } from '../utils/logger.js';
+import type { FormatDetector } from '../registry/format-detector-registry.js';
+import { FormatDetectorRegistry } from '../registry/format-detector-registry.js';
+import { Qti22Detector } from '../detectors/qti22-detector.js';
+import { PieDetector } from '../detectors/pie-detector.js';
 
 export interface TransformOptions {
   /** Source format (will be auto-detected if not provided) */
@@ -34,11 +38,17 @@ export interface TransformOptions {
 
 export class TransformEngine {
   private registry: PluginRegistry;
+  private formatDetectorRegistry: FormatDetectorRegistry;
   private defaultLogger: TransformLogger;
 
   constructor() {
     this.registry = new PluginRegistry();
+    this.formatDetectorRegistry = new FormatDetectorRegistry();
     this.defaultLogger = new ConsoleLogger();
+
+    // Register built-in format detectors
+    this.formatDetectorRegistry.register(new Qti22Detector());
+    this.formatDetectorRegistry.register(new PieDetector());
   }
 
   /**
@@ -46,6 +56,14 @@ export class TransformEngine {
    */
   use(plugin: TransformPlugin): this {
     this.registry.register(plugin);
+    return this;
+  }
+
+  /**
+   * Register a custom format detector
+   */
+  registerFormatDetector(detector: FormatDetector): this {
+    this.formatDetectorRegistry.register(detector);
     return this;
   }
 
@@ -191,39 +209,18 @@ export class TransformEngine {
   }
 
   /**
-   * Auto-detect input format
+   * Auto-detect input format using registered format detectors
    */
   private async detectFormat(input: TransformInput): Promise<TransformFormat> {
-    // If content is string, try to detect XML (QTI) vs JSON (PIE)
-    if (typeof input.content === 'string') {
-      const trimmed = input.content.trim();
+    const detected = await this.formatDetectorRegistry.detectFormat(input.content);
 
-      if (trimmed.startsWith('<?xml') || trimmed.startsWith('<')) {
-        // It's XML - this repo only supports QTI 2.2.x at transform time.
-        if (
-          trimmed.includes('imsqti_v2p2') ||
-          trimmed.includes('http://www.imsglobal.org/xsd/imsqti_v2p2')
-        ) {
-          return 'qti22';
-        }
-
-        throw new Error(
-          'Unsupported QTI namespace. Expected QTI 2.2 (imsqti_v2p2).'
-        );
-      }
-
-      if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-        // It's JSON - assume PIE
-        return 'pie';
-      }
+    if (!detected) {
+      throw new Error(
+        'Could not detect input format. Please specify sourceFormat explicitly.'
+      );
     }
 
-    // If object, assume PIE
-    if (typeof input.content === 'object') {
-      return 'pie';
-    }
-
-    throw new Error('Could not detect input format');
+    return detected;
   }
 
   /**

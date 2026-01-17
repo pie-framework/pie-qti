@@ -10,6 +10,18 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./config/config-loader.js": {
+      "types": "./dist/config/config-loader.d.ts",
+      "import": "./dist/config/config-loader.js"
+    },
+    "./config/plugin-loader.js": {
+      "types": "./dist/config/plugin-loader.d.ts",
+      "import": "./dist/config/plugin-loader.js"
+    },
+    "./config/vendor-registry.js": {
+      "types": "./dist/config/vendor-registry.d.ts",
+      "import": "./dist/config/vendor-registry.js"
     }
   },
   "scripts": {

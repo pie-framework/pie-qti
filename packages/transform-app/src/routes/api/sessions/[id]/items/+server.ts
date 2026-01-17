@@ -3,162 +3,161 @@
  * Returns a list of all QTI items in a session
  */
 
-import { existsSync } from 'node:fs';
-import { readFile } from 'node:fs/promises';
-import { isAbsolute, join, resolve } from 'node:path';
 import { json, error as svelteError } from '@sveltejs/kit';
-import { getStorage } from '$lib/server/storage/FileStorage';
-import { getSessionManager } from '$lib/server/storage/SessionManager';
 import type { RequestHandler } from './$types';
 
-export const GET: RequestHandler = async ({ params }) => {
-  const { id } = params;
+export const GET: RequestHandler = async ({ params, locals }) => {
+	const { id } = params;
 
-  try {
-    const sessionManager = getSessionManager();
-    const storage = getStorage();
-    const extractedPath = storage.getExtractedPath(id);
-    const uploadsPath = storage.getUploadsPath(id);
-    const extractedRoot = resolve(extractedPath);
-    const uploadsRoot = resolve(uploadsPath);
+	try {
+		const { storage, sessionStorage, appSessionStorage } = locals;
+		const extractedPath = sessionStorage.getExtractedPath(id);
+		const uploadsPath = sessionStorage.getUploadsPath(id);
 
-    function normalizePossiblyAbsolutePath(p: string): string {
-      // Some analysis data may have lost the leading '/' (e.g. "Users/…") when serialized.
-      if (!isAbsolute(p) && (p.startsWith('Users/') || p.startsWith('home/'))) {
-        return `/${p}`;
-      }
-      return p;
-    }
+		function normalizePossiblyAbsolutePath(p: string): string {
+			if (p.startsWith('Users/') || p.startsWith('home/')) {
+				return `/${p}`;
+			}
+			return p;
+		}
 
-    async function readSessionXml(samplePath: string): Promise<string> {
-      const normalized = normalizePossiblyAbsolutePath(samplePath);
-      const candidates: string[] = [];
+		function isAbsolutePath(p: string): boolean {
+			return p.startsWith('/');
+		}
 
-      if (isAbsolute(normalized)) {
-        candidates.push(normalized);
-      } else {
-        candidates.push(join(extractedPath, normalized));
-        candidates.push(join(uploadsPath, normalized));
-        const baseName = normalized.split('/').pop();
-        if (baseName && baseName !== normalized) {
-          candidates.push(join(uploadsPath, baseName));
-          candidates.push(join(extractedPath, baseName));
-        }
-      }
+		async function readSessionXml(samplePath: string): Promise<string> {
+			const normalized = normalizePossiblyAbsolutePath(samplePath);
+			const candidates: string[] = [];
 
-      for (const candidate of candidates) {
-        const resolved = resolve(candidate);
-        const inSession =
-          resolved.startsWith(extractedRoot) || resolved.startsWith(uploadsRoot);
-        if (!inSession) continue;
-        if (!existsSync(resolved)) continue;
-        return await readFile(resolved, 'utf-8');
-      }
+			if (isAbsolutePath(normalized)) {
+				const pathWithoutLeadingSlash = normalized.substring(1);
+				candidates.push(pathWithoutLeadingSlash);
+			} else {
+				candidates.push(`${extractedPath}/${normalized}`);
+				candidates.push(`${uploadsPath}/${normalized}`);
+				const baseName = normalized.split('/').pop();
+				if (baseName && baseName !== normalized) {
+					candidates.push(`${uploadsPath}/${baseName}`);
+					candidates.push(`${extractedPath}/${baseName}`);
+				}
+			}
 
-      throw new Error(`ENOENT: no such file or directory, open '${candidates[0] || samplePath}'`);
-    }
+			for (const candidate of candidates) {
+				try {
+					if (await storage.exists(candidate)) {
+						return await storage.readText(candidate);
+					}
+				} catch {
+					continue;
+				}
+			}
 
-    // Get session
-    const session = await sessionManager.getSession(id);
-    if (!session) {
-      throw svelteError(404, 'Session not found');
-    }
+			throw new Error(`ENOENT: no such file or directory, open '${candidates[0] || samplePath}'`);
+		}
 
-    // Check if analysis is available
-    if (!session.analysis) {
-      throw svelteError(400, 'Session has not been analyzed yet');
-    }
+		// Get session with analysis
+		const session = await appSessionStorage.getSession(id);
+		if (!session) {
+			throw svelteError(404, 'Session not found');
+		}
 
-    // Build list of items from analysis results
-    const items: Array<{
-      id: string;
-      title: string;
-      filePath: string;
-      sourcePath: string;
-      interactions: string[];
-      url: string;
-      xml?: string;
-    }> = [];
+		// Check if analysis is available
+		if (!session.analysis) {
+			throw svelteError(400, 'Session has not been analyzed yet');
+		}
 
-    // Iterate through packages and their samples
-    for (const pkg of session.analysis.packages) {
-      // Get items from interaction samples
-      const interactionSamples = pkg.samples.interactions;
+		// Build list of items from analysis results
+		const items: Array<{
+			id: string;
+			title: string;
+			filePath: string;
+			sourcePath: string;
+			interactions: string[];
+			url: string;
+			xml?: string;
+		}> = [];
 
-      // Create a Set to track unique file paths
-      const seenFiles = new Set<string>();
+		// Iterate through packages and their samples
+		for (const pkg of session.analysis.packages) {
+			// Get items from interaction samples
+			const interactionSamples = pkg.samples.interactions;
 
-      for (const [interactionType, filePaths] of Object.entries(interactionSamples)) {
-        for (const filePath of filePaths) {
-          if (seenFiles.has(filePath)) {
-            // If we've already processed this file, just add the interaction type
-            const existingItem = items.find((item) => item.sourcePath === filePath);
-            if (existingItem && !existingItem.interactions.includes(interactionType)) {
-              existingItem.interactions.push(interactionType);
-            }
-            continue;
-          }
+			// Create a Set to track unique file paths
+			const seenFiles = new Set<string>();
 
-          seenFiles.add(filePath);
+			for (const [interactionType, filePaths] of Object.entries(interactionSamples)) {
+				if (!Array.isArray(filePaths)) continue;
 
-          // Extract filename from path
-          const fileName = filePath.split('/').pop() || 'unknown';
-          const fileId = fileName.replace(/\.xml$/i, '');
+				for (const filePath of filePaths) {
+					if (seenFiles.has(filePath)) {
+						// If we've already processed this file, just add the interaction type
+						const existingItem = items.find((item) => item.sourcePath === filePath);
+						if (existingItem && !existingItem.interactions.includes(interactionType)) {
+							existingItem.interactions.push(interactionType);
+						}
+						continue;
+					}
 
-          // Construct URL to serve this item
-          const url = `/api/sessions/${id}/items/${fileName}`;
+					seenFiles.add(filePath);
 
-          // Read the XML content
-          const xmlContent = await readSessionXml(filePath);
+					// Extract filename from path
+					const fileName = filePath.split('/').pop() || 'unknown';
+					const fileId = fileName.replace(/\.xml$/i, '');
 
-          items.push({
-            id: fileId,
-            title: fileId.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
-            filePath: fileName,
-            sourcePath: filePath,
-            interactions: [interactionType],
-            url,
-            xml: xmlContent
-          });
-        }
-      }
+					// Construct URL to serve this item
+					const url = `/api/sessions/${id}/items/${fileName}`;
 
-      // Add passage samples if any
-      for (const passagePath of pkg.samples.passages) {
-        const fileName = passagePath.split('/').pop() || 'unknown';
-        const fileId = fileName.replace(/\.xml$/i, '');
-        const url = `/api/sessions/${id}/items/${fileName}`;
+					// Read the XML content
+					const xmlContent = await readSessionXml(filePath);
 
-        if (!seenFiles.has(passagePath)) {
-          // Read the XML content
-          const xmlContent = await readSessionXml(passagePath);
+					items.push({
+						id: fileId,
+						title: fileId.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+						filePath: fileName,
+						sourcePath: filePath,
+						interactions: [interactionType],
+						url,
+						xml: xmlContent
+					});
+				}
+			}
 
-          items.push({
-            id: fileId,
-            title: `Passage: ${fileId.replace(/_/g, ' ')}`,
-            filePath: fileName,
-            sourcePath: passagePath,
-            interactions: ['passage'],
-            url,
-            xml: xmlContent
-          });
-        }
-      }
-    }
+			// Add passage samples if any
+			for (const passagePath of pkg.samples.passages) {
+				const fileName = passagePath.split('/').pop() || 'unknown';
+				const fileId = fileName.replace(/\.xml$/i, '');
+				const url = `/api/sessions/${id}/items/${fileName}`;
 
-    return json({
-      success: true,
-      sessionId: id,
-      items,
-      totalItems: items.length
-    });
-  } catch (err) {
-    console.error('List items error:', err);
+				if (!seenFiles.has(passagePath)) {
+					// Read the XML content
+					const xmlContent = await readSessionXml(passagePath);
 
-    if (err && typeof err === 'object' && 'status' in err) {
-      throw err;
-    }
+					items.push({
+						id: fileId,
+						title: `Passage: ${fileId.replace(/_/g, ' ')}`,
+						filePath: fileName,
+						sourcePath: passagePath,
+						interactions: ['passage'],
+						url,
+						xml: xmlContent
+					});
+				}
+			}
+		}
 
-    throw svelteError(500, err instanceof Error ? err.message : 'Failed to list items');
-  }
+		return json({
+			success: true,
+			sessionId: id,
+			items,
+			totalItems: items.length
+		});
+	} catch (err) {
+		console.error('List items error:', err);
+
+		if (err && typeof err === 'object' && 'status' in err) {
+			throw err;
+		}
+
+		throw svelteError(500, err instanceof Error ? err.message : 'Failed to list items');
+	}
 };

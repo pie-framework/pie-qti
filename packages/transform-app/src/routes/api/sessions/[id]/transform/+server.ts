@@ -1,91 +1,122 @@
-import { existsSync } from 'node:fs';
-import { readdir, readFile } from 'node:fs/promises';
-import { isAbsolute, join, resolve } from 'node:path';
+/**
+ * Session transformation endpoint
+ * Transforms QTI items and assessments to PIE format
+ */
+
+import { json } from '@sveltejs/kit';
 import { Qti22ToPiePlugin } from '@pie-qti/qti2-to-pie';
 import { TransformEngine } from '@pie-qti/transform-core';
-import { json } from '@sveltejs/kit';
-import { getStorage } from '$lib/server/storage/FileStorage';
-import { getSessionManager } from '$lib/server/storage/SessionManager';
 import type { RequestHandler } from './$types';
 
-export const POST: RequestHandler = async ({ params, request }) => {
+export const POST: RequestHandler = async ({ params, request, locals }) => {
 	const { id } = params;
 	const body = await request.json();
 	const { itemIds, assessmentIds } = body; // Optional: transform specific items
 
-	const sessionManager = getSessionManager();
-	const storage = getStorage();
-	const extractedPath = storage.getExtractedPath(id);
-	const uploadsPath = storage.getUploadsPath(id);
-	const extractedRoot = resolve(extractedPath);
-	const uploadsRoot = resolve(uploadsPath);
+	const { storage, sessionStorage, appSessionStorage } = locals;
+	const extractedPath = sessionStorage.getExtractedPath(id);
+	const uploadsPath = sessionStorage.getUploadsPath(id);
 
+	/**
+	 * Normalize paths that may have lost leading slash during serialization
+	 */
 	function normalizePossiblyAbsolutePath(p: string): string {
-		// Some analysis data may have lost the leading '/' (e.g. "Users/…") when serialized.
-		if (!isAbsolute(p) && (p.startsWith('Users/') || p.startsWith('home/'))) {
+		if (p.startsWith('Users/') || p.startsWith('home/')) {
 			return `/${p}`;
 		}
 		return p;
 	}
 
+	/**
+	 * Check if a path is absolute (storage paths are relative)
+	 */
+	function isAbsolutePath(p: string): boolean {
+		return p.startsWith('/');
+	}
+
+	/**
+	 * Read XML file from session storage with path resolution fallbacks
+	 */
 	async function readSessionXml(samplePath: string): Promise<string> {
 		const normalized = normalizePossiblyAbsolutePath(samplePath);
 		const candidates: string[] = [];
 
-		if (isAbsolute(normalized)) {
-			candidates.push(normalized);
+		if (isAbsolutePath(normalized)) {
+			// Absolute path - try to resolve relative to session directories
+			const pathWithoutLeadingSlash = normalized.substring(1);
+			candidates.push(pathWithoutLeadingSlash);
 		} else {
-			candidates.push(join(extractedPath, normalized));
-			candidates.push(join(uploadsPath, normalized));
+			// Relative path - try different base directories
+			candidates.push(`${extractedPath}/${normalized}`);
+			candidates.push(`${uploadsPath}/${normalized}`);
+
 			const baseName = normalized.split('/').pop();
 			if (baseName && baseName !== normalized) {
-				candidates.push(join(uploadsPath, baseName));
-				candidates.push(join(extractedPath, baseName));
+				candidates.push(`${uploadsPath}/${baseName}`);
+				candidates.push(`${extractedPath}/${baseName}`);
 			}
 		}
 
+		// Try each candidate path
 		for (const candidate of candidates) {
-			const resolved = resolve(candidate);
-			const inSession = resolved.startsWith(extractedRoot) || resolved.startsWith(uploadsRoot);
-			if (!inSession) continue;
-			if (!existsSync(resolved)) continue;
-			return await readFile(resolved, 'utf-8');
+			try {
+				if (await storage.exists(candidate)) {
+					return await storage.readText(candidate);
+				}
+			} catch {
+				// Try next candidate
+				continue;
+			}
 		}
 
 		throw new Error(`ENOENT: no such file or directory, open '${candidates[0] || samplePath}'`);
 	}
 
+	/**
+	 * Recursively find all assessment test XML files in a directory
+	 */
 	async function findAssessmentTestPaths(rootDir: string, limit = 50): Promise<string[]> {
 		const found: string[] = [];
 		const stack: string[] = [rootDir];
 
 		while (stack.length > 0 && found.length < limit) {
 			const dir = stack.pop()!;
-			if (!existsSync(dir)) continue;
 
-			let entries: Array<{ name: string; isDirectory: () => boolean }> = [];
+			let entries: string[] = [];
 			try {
-				entries = (await readdir(dir, { withFileTypes: true })) as any;
+				if (!(await storage.exists(dir))) continue;
+				entries = await storage.listFiles(dir);
 			} catch {
 				continue;
 			}
 
-			for (const entry of entries) {
-				const fullPath = join(dir, entry.name);
-				if (entry.isDirectory()) {
+			for (const entryName of entries) {
+				const fullPath = `${dir}/${entryName}`;
+
+				// Check if it's a directory by trying to list it
+				let isDirectory = false;
+				try {
+					await storage.listFiles(fullPath);
+					isDirectory = true;
+				} catch {
+					isDirectory = false;
+				}
+
+				if (isDirectory) {
 					stack.push(fullPath);
 					continue;
 				}
-				if (!entry.name.toLowerCase().endsWith('.xml')) continue;
+
+				if (!entryName.toLowerCase().endsWith('.xml')) continue;
 
 				try {
-					const xml = await readFile(fullPath, 'utf-8');
+					const xml = await storage.readText(fullPath);
 					if (xml.toLowerCase().includes('<assessmenttest')) {
 						found.push(fullPath);
 						if (found.length >= limit) break;
 					}
 				} catch {
-					// ignore unreadable file
+					// Ignore unreadable file
 				}
 			}
 		}
@@ -93,19 +124,29 @@ export const POST: RequestHandler = async ({ params, request }) => {
 		return found;
 	}
 
+	/**
+	 * Convert file ID to title by replacing separators with spaces
+	 */
 	function titleFromId(fileId: string): string {
 		return fileId.replace(/_/g, ' ').replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 	}
 
+	/**
+	 * Return single item if array has one element, otherwise return full array
+	 */
 	function firstOrAll(items: unknown[]) {
 		return items.length === 1 ? items[0] : items;
 	}
 
+	/**
+	 * Extract error message from unknown error type
+	 */
 	function errorMessage(e: unknown): string {
 		return e instanceof Error ? e.message : String(e);
 	}
 
-	const session = await sessionManager.getSession(id);
+	// Get session metadata with analysis
+	const session = await appSessionStorage.getSession(id);
 
 	if (!session) {
 		return json({ error: 'Session not found' }, { status: 404 });
@@ -115,6 +156,7 @@ export const POST: RequestHandler = async ({ params, request }) => {
 		return json({ error: 'Session not analyzed yet' }, { status: 400 });
 	}
 
+	// Create transform engine with QTI to PIE plugin
 	const engine = new TransformEngine();
 	engine.use(new Qti22ToPiePlugin());
 
@@ -162,6 +204,7 @@ export const POST: RequestHandler = async ({ params, request }) => {
 		}
 	}
 
+	// Execute item transformations
 	for (const item of itemsToTransform) {
 		try {
 			const result = await engine.transform(item.xml, { sourceFormat: 'qti22', targetFormat: 'pie' });
@@ -213,7 +256,45 @@ export const POST: RequestHandler = async ({ params, request }) => {
 	}
 
 	// Save transformation results
-	await sessionManager.saveTransformation(id, results);
+	const transformationResult = {
+		sessionId: id,
+		status: (results.errors.length === 0 ? 'success' : results.errors.length < results.items.length ? 'partial' : 'failed') as 'success' | 'partial' | 'failed',
+		startTime: new Date(),
+		endTime: new Date(),
+		duration: 0,
+		packages: [{
+			packageName: 'default',
+			items: results.items.map(item => ({
+				sourceId: item.identifier,
+				sourcePath: item.identifier,
+				outputPath: '',
+				type: 'item' as const,
+				success: true,
+				warnings: item.warnings.map(w => ({ message: String(w) })),
+				metadata: { interactions: [], pieElements: [] },
+			})),
+			errors: results.errors.map(e => ({
+				file: e.identifier,
+				error: e.error,
+				packagePath: 'default',
+			})),
+		}],
+		summary: {
+			totalItems: results.items.length + results.errors.length,
+			successfulItems: results.items.length,
+			failedItems: results.errors.length,
+			totalAssessments: results.assessments.length,
+			successfulAssessments: results.assessments.length,
+			totalPassages: 0,
+			successfulPassages: 0,
+		},
+		// Include flattened arrays for UI
+		items: results.items,
+		assessments: results.assessments,
+		errors: results.errors,
+	};
+
+	await appSessionStorage.saveTransformation(id, transformationResult);
 
 	return json(results);
 };

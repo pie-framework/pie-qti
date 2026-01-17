@@ -3,22 +3,17 @@
  * Returns a list of all QTI assessment tests in a session
  */
 
-import { existsSync } from 'node:fs';
-import { readdir, readFile } from 'node:fs/promises';
-import { isAbsolute, join, resolve } from 'node:path';
 import { json, error as svelteError } from '@sveltejs/kit';
-import { getStorage } from '$lib/server/storage/FileStorage';
-import { getSessionManager } from '$lib/server/storage/SessionManager';
 import type { RequestHandler } from './$types';
 
-export const GET: RequestHandler = async ({ params }) => {
+export const GET: RequestHandler = async ({ params, locals }) => {
 	const { id } = params;
 
 	try {
-		const sessionManager = getSessionManager();
+		const { storage, sessionStorage, appSessionStorage } = locals;
 
-		// Get session
-		const session = await sessionManager.getSession(id);
+		// Get session with analysis
+		const session = await appSessionStorage.getSession(id);
 		if (!session) {
 			throw svelteError(404, 'Session not found');
 		}
@@ -28,52 +23,45 @@ export const GET: RequestHandler = async ({ params }) => {
 			throw svelteError(400, 'Session has not been analyzed yet');
 		}
 
-		// Build list of assessment tests from analysis results
-		const assessments: Array<{
-			id: string;
-			title: string;
-			filePath: string;
-			itemCount: number;
-			xml: string;
-			items: Record<string, string>;
-		}> = [];
-
-		// Iterate through packages
-		const storage = getStorage();
-		const extractedPath = storage.getExtractedPath(id);
-		const uploadsPath = storage.getUploadsPath(id);
-		const extractedRoot = resolve(extractedPath);
-		const uploadsRoot = resolve(uploadsPath);
+		const extractedPath = sessionStorage.getExtractedPath(id);
+		const uploadsPath = sessionStorage.getUploadsPath(id);
 
 		function normalizePossiblyAbsolutePath(p: string): string {
-			if (!isAbsolute(p) && (p.startsWith('Users/') || p.startsWith('home/'))) {
+			if (p.startsWith('Users/') || p.startsWith('home/')) {
 				return `/${p}`;
 			}
 			return p;
+		}
+
+		function isAbsolutePath(p: string): boolean {
+			return p.startsWith('/');
 		}
 
 		async function readSessionXml(samplePath: string): Promise<string> {
 			const normalized = normalizePossiblyAbsolutePath(samplePath);
 			const candidates: string[] = [];
 
-			if (isAbsolute(normalized)) {
-				candidates.push(normalized);
+			if (isAbsolutePath(normalized)) {
+				const pathWithoutLeadingSlash = normalized.substring(1);
+				candidates.push(pathWithoutLeadingSlash);
 			} else {
-				candidates.push(join(extractedPath, normalized));
-				candidates.push(join(uploadsPath, normalized));
+				candidates.push(`${extractedPath}/${normalized}`);
+				candidates.push(`${uploadsPath}/${normalized}`);
 				const baseName = normalized.split('/').pop();
 				if (baseName && baseName !== normalized) {
-					candidates.push(join(uploadsPath, baseName));
-					candidates.push(join(extractedPath, baseName));
+					candidates.push(`${uploadsPath}/${baseName}`);
+					candidates.push(`${extractedPath}/${baseName}`);
 				}
 			}
 
 			for (const candidate of candidates) {
-				const resolved = resolve(candidate);
-				const inSession = resolved.startsWith(extractedRoot) || resolved.startsWith(uploadsRoot);
-				if (!inSession) continue;
-				if (!existsSync(resolved)) continue;
-				return await readFile(resolved, 'utf-8');
+				try {
+					if (await storage.exists(candidate)) {
+						return await storage.readText(candidate);
+					}
+				} catch {
+					continue;
+				}
 			}
 
 			throw new Error(`ENOENT: no such file or directory, open '${candidates[0] || samplePath}'`);
@@ -85,37 +73,58 @@ export const GET: RequestHandler = async ({ params }) => {
 
 			while (stack.length > 0 && found.length < limit) {
 				const dir = stack.pop()!;
-				if (!existsSync(dir)) continue;
 
-				let entries: Array<{ name: string; isDirectory: () => boolean }> = [];
+				let entries: string[] = [];
 				try {
-					entries = (await readdir(dir, { withFileTypes: true })) as any;
+					if (!(await storage.exists(dir))) continue;
+					entries = await storage.listFiles(dir);
 				} catch {
 					continue;
 				}
 
-				for (const entry of entries) {
-					const fullPath = join(dir, entry.name);
-					if (entry.isDirectory()) {
+				for (const entryName of entries) {
+					const fullPath = `${dir}/${entryName}`;
+
+					// Check if it's a directory by trying to list it
+					let isDirectory = false;
+					try {
+						await storage.listFiles(fullPath);
+						isDirectory = true;
+					} catch {
+						isDirectory = false;
+					}
+
+					if (isDirectory) {
 						stack.push(fullPath);
 						continue;
 					}
-					if (!entry.name.toLowerCase().endsWith('.xml')) continue;
+
+					if (!entryName.toLowerCase().endsWith('.xml')) continue;
 
 					try {
-						const xml = await readFile(fullPath, 'utf-8');
+						const xml = await storage.readText(fullPath);
 						if (xml.toLowerCase().includes('<assessmenttest')) {
 							found.push(fullPath);
 							if (found.length >= limit) break;
 						}
 					} catch {
-						// ignore unreadable file
+						// Ignore unreadable file
 					}
 				}
 			}
 
 			return found;
 		}
+
+		// Build list of assessment tests from analysis results
+		const assessments: Array<{
+			id: string;
+			title: string;
+			filePath: string;
+			itemCount: number;
+			xml: string;
+			items: Record<string, string>;
+		}> = [];
 
 		for (const pkg of session.analysis.packages) {
 			// Get assessment test samples
@@ -143,8 +152,10 @@ export const GET: RequestHandler = async ({ params }) => {
 
 				// Gather all item file paths from various sources
 				for (const [_interactionType, filePaths] of Object.entries(pkg.samples.interactions)) {
-					for (const filePath of filePaths) {
-						itemFiles.add(filePath);
+					if (Array.isArray(filePaths)) {
+						for (const filePath of filePaths) {
+							itemFiles.add(filePath);
+						}
 					}
 				}
 

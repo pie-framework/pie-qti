@@ -4,22 +4,21 @@
  */
 
 import { json } from '@sveltejs/kit';
-import { getSessionManager } from '$lib/server/storage/SessionManager';
 import type { RequestHandler } from './$types';
 
-export const GET: RequestHandler = async () => {
-  const sessionManager = getSessionManager();
-  const sessions = await sessionManager.listSessions();
+export const GET: RequestHandler = async ({ locals }) => {
+	const { appSessionStorage } = locals;
+	const sessions = await appSessionStorage.listSessions();
 
-  return json({
-    success: true,
-    sessions: sessions.map((s) => ({
-      id: s.id,
-      created: s.created.toISOString(),
-      status: s.status,
-      packageCount: s.packages.length,
-      hasAnalysis: !!s.analysis,
-      hasTransformation: !!s.transformation,
-    })),
-  });
+	return json({
+		success: true,
+		sessions: sessions.map((s) => ({
+			id: s.id,
+			createdAt: s.createdAt,
+			status: s.status,
+			packageCount: s.analysis?.packages?.length || 0,
+			hasAnalysis: !!s.analysis,
+			hasTransformation: !!s.transformation,
+		})),
+	});
 };

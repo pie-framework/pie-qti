@@ -3,95 +3,106 @@
  * Accepts ZIP files and creates a new session
  */
 
-import { writeFile, mkdir } from 'node:fs/promises';
-import { join } from 'node:path';
 import { json, error as svelteError } from '@sveltejs/kit';
-import { getStorage } from '$lib/server/storage/FileStorage';
-import { getSessionManager } from '$lib/server/storage/SessionManager';
-import type { PackageInfo } from '$lib/server/storage/types';
 import type { RequestHandler } from './$types';
 
 const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
 const ALLOWED_TYPES = ['application/zip', 'application/x-zip-compressed'];
 
-export const POST: RequestHandler = async ({ request }) => {
-  try {
-    const formData = await request.formData();
-    // Accept both 'files' (plural) and 'file' (singular) for backwards compatibility
-    let files = formData.getAll('files');
-    if (files.length === 0) {
-      files = formData.getAll('file');
-    }
+/**
+ * Generate a unique session ID
+ */
+function generateSessionId(): string {
+	return `session-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+}
 
-    if (files.length === 0) {
-      throw svelteError(400, 'No files provided');
-    }
+export const POST: RequestHandler = async ({ request, locals }) => {
+	try {
+		const formData = await request.formData();
+		// Accept both 'files' (plural) and 'file' (singular) for backwards compatibility
+		let files = formData.getAll('files');
+		if (files.length === 0) {
+			files = formData.getAll('file');
+		}
 
-    const storage = getStorage();
-    const sessionManager = getSessionManager();
-    const packages: PackageInfo[] = [];
+		if (files.length === 0) {
+			throw svelteError(400, 'No files provided');
+		}
 
-    // Create session first to get session ID
-    const sessionId = storage.generateSessionId();
-    const uploadsPath = storage.getUploadsPath(sessionId);
+		const { storage, sessionStorage } = locals;
 
-    // Ensure uploads directory exists
-    await mkdir(uploadsPath, { recursive: true });
+		// Create session first to get session ID
+		const sessionId = generateSessionId();
+		const uploadsPath = sessionStorage.getUploadsPath(sessionId);
 
-    // Process each uploaded file
-    for (const file of files) {
-      if (!(file instanceof File)) {
-        continue;
-      }
+		// Ensure uploads directory exists
+		await storage.createDirectory(uploadsPath);
 
-      // Validate file type
-      if (!ALLOWED_TYPES.includes(file.type) && !file.name.endsWith('.zip')) {
-        throw svelteError(400, `Invalid file type: ${file.type}. Only ZIP files are allowed.`);
-      }
+		// Track uploaded files for response
+		const uploadedFiles: Array<{ id: string; name: string; size: number }> = [];
 
-      // Validate file size
-      if (file.size > MAX_FILE_SIZE) {
-        throw svelteError(400, `File too large: ${file.name}. Maximum size is 500MB.`);
-      }
+		// Process each uploaded file
+		for (const file of files) {
+			if (!(file instanceof File)) {
+				continue;
+			}
 
-      // Generate package ID and save file
-      const packageId = `pkg-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
-      const fileName = file.name;
-      const filePath = join(uploadsPath, fileName);
+			// Validate file type
+			if (!ALLOWED_TYPES.includes(file.type) && !file.name.endsWith('.zip')) {
+				throw svelteError(
+					400,
+					`Invalid file type: ${file.type}. Only ZIP files are allowed.`,
+				);
+			}
 
-      // Read file as buffer and write to disk
-      const buffer = Buffer.from(await file.arrayBuffer());
-      await writeFile(filePath, buffer);
+			// Validate file size
+			if (file.size > MAX_FILE_SIZE) {
+				throw svelteError(
+					400,
+					`File too large: ${file.name}. Maximum size is 500MB.`,
+				);
+			}
 
-      packages.push({
-        id: packageId,
-        name: fileName,
-        type: 'zip',
-        size: file.size,
-        path: `uploads/${fileName}`,
-        originalName: fileName,
-      });
-    }
+			// Generate package ID and save file
+			const packageId = `pkg-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+			const fileName = file.name;
+			const filePath = `${uploadsPath}/${fileName}`;
 
-    // Create session with package info, using the same session ID we used for uploads
-    const session = await sessionManager.createSession(packages, sessionId);
+			// Read file as buffer and write to storage
+			const buffer = Buffer.from(await file.arrayBuffer());
+			await storage.writeBuffer(filePath, buffer);
 
-    return json({
-      success: true,
-      sessionId: session.id,
-      packages: packages.map((p) => ({
-        id: p.id,
-        name: p.name,
-        size: p.size,
-      })),
-    });
-  } catch (err) {
-    console.error('Upload error:', err);
+			uploadedFiles.push({
+				id: packageId,
+				name: fileName,
+				size: file.size,
+			});
+		}
 
-    if (err && typeof err === 'object' && 'status' in err) {
-      throw err; // Re-throw SvelteKit errors
-    }
+		// Create session with package info
+		const session = {
+			id: sessionId,
+			createdAt: new Date().toISOString(),
+			status: 'uploading' as const,
+		};
 
-    throw svelteError(500, err instanceof Error ? err.message : 'Upload failed');
-  }
+		await sessionStorage.writeSessionMetadata(sessionId, session);
+
+		return json({
+			success: true,
+			sessionId: session.id,
+			packages: uploadedFiles,
+		});
+	} catch (err) {
+		console.error('Upload error:', err);
+
+		if (err && typeof err === 'object' && 'status' in err) {
+			throw err; // Re-throw SvelteKit errors
+		}
+
+		throw svelteError(
+			500,
+			err instanceof Error ? err.message : 'Upload failed',
+		);
+	}
 };

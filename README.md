@@ -129,7 +129,7 @@ Interactive web UI for transformations:
 - **Transform** — Batch convert with progress reporting
 - **Preview** — Side-by-side QTI and PIE rendering
 
-The app uses sessionized local filesystem storage by default, but the architecture supports custom backend adapters.
+Storage is pluggable with filesystem (default), S3, or database backends via configuration.
 
 ### CLI (`@pie-qti/transform-cli`)
 
@@ -198,6 +198,8 @@ bun run preview:pages
 ### Transforms
 
 - **[Transformation Guide](docs/PIE-QTI-TRANSFORMATION-GUIDE.md)** — Bidirectional transform overview
+- **[Configuration Guide](docs/CONFIGURATION.md)** — Storage backends, plugins, and environment setup
+- **[Migration Guide](docs/MIGRATION_GUIDE.md)** — Upgrading from legacy storage to new architecture
 - **[Transform App](packages/transform-app/README.md)** — Web UI for transformations
 - **[CLI](tools/cli/README.md)** — Command-line batch operations
 - **[QTI → PIE](packages/qti2-to-pie/README.md)** — QTI to PIE transformer

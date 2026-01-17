@@ -144,7 +144,7 @@
 			<div>
 				<h1 class="text-2xl font-bold">Session {session.id.split('-')[0]}</h1>
 				<p class="text-sm text-base-content/60">
-					Created {new Date(session.created).toLocaleString()}
+					Created {new Date(session.createdAt).toLocaleString()}
 				</p>
 			</div>
 			<div class="flex items-center gap-2">
@@ -190,13 +190,13 @@
 								</tr>
 							</thead>
 							<tbody>
-								{#each session.packages as pkg}
+								{#each session.analysis?.packages || [] as pkg}
 									<tr>
-										<td class="font-medium">{pkg.name}</td>
+										<td class="font-medium">{pkg.packageName}</td>
 										<td>
-											<span class="badge badge-sm">{pkg.type.toUpperCase()}</span>
+											<span class="badge badge-sm">QTI</span>
 										</td>
-										<td class="text-sm text-base-content/60">{_formatBytes(pkg.size)}</td>
+										<td class="text-sm text-base-content/60">{pkg.itemCount} items</td>
 										<td>
 											<span class="badge badge-info badge-sm">Uploaded</span>
 										</td>
@@ -240,10 +240,10 @@
 							<button
 								class="btn btn-primary"
 								onclick={() => _analyzePackages?.()}
-								disabled={_isAnalyzing || session.status === 'analyzing'}
+								disabled={_isAnalyzing}
 								data-testid="analyze-packages"
 							>
-								{#if _isAnalyzing || session.status === 'analyzing'}
+								{#if _isAnalyzing}
 									<span class="loading loading-spinner"></span>
 									Analyzing...
 								{:else}

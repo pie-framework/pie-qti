@@ -87,4 +87,99 @@ describe('Qti22ToPiePlugin', () => {
     expect(output.items[0].content.id).toBe('choice-001');
     expect(output.metadata.pluginId).toBe('qti22-to-pie');
   });
+
+  test('should accept empty constructor options (backward compatible)', () => {
+    const plugin = new Qti22ToPiePlugin();
+
+    expect(plugin.id).toBe('qti22-to-pie');
+    expect(plugin.sourceFormat).toBe('qti22');
+    expect(plugin.targetFormat).toBe('pie');
+  });
+
+  test('should accept constructor options with vendor detectors', () => {
+    const mockDetector = {
+      name: 'test-detector',
+      vendor: 'test-vendor',
+      detect: () => ({ vendor: 'test-vendor', confidence: 0.8 }),
+    };
+
+    const plugin = new Qti22ToPiePlugin({
+      vendorDetectors: [mockDetector],
+    });
+
+    expect(plugin.id).toBe('qti22-to-pie');
+  });
+
+  test('should accept constructor options with vendor transformers', () => {
+    const mockTransformer = {
+      name: 'test-transformer',
+      vendor: 'test-vendor',
+      canHandle: () => false,
+      transform: async () => ({ items: [], format: 'pie' }),
+    };
+
+    const plugin = new Qti22ToPiePlugin({
+      vendorTransformers: [mockTransformer],
+    });
+
+    expect(plugin.id).toBe('qti22-to-pie');
+  });
+
+  test('should accept constructor options with asset resolvers', () => {
+    const mockResolver = {
+      resolve: async () => ({ url: 'test.png', content: Buffer.from('') }),
+    };
+
+    const plugin = new Qti22ToPiePlugin({
+      assetResolvers: [mockResolver],
+    });
+
+    expect(plugin.id).toBe('qti22-to-pie');
+  });
+
+  test('should accept constructor options with CSS class extractors', () => {
+    const mockExtractor = {
+      extract: () => ({ vendor: [], behavior: [] }),
+    };
+
+    const plugin = new Qti22ToPiePlugin({
+      cssClassExtractors: [mockExtractor],
+    });
+
+    expect(plugin.id).toBe('qti22-to-pie');
+  });
+
+  test('should accept constructor options with metadata extractors', () => {
+    const mockExtractor = {
+      extract: () => ({}),
+    };
+
+    const plugin = new Qti22ToPiePlugin({
+      metadataExtractors: [mockExtractor],
+    });
+
+    expect(plugin.id).toBe('qti22-to-pie');
+  });
+
+  test('should accept constructor options with multiple extension types', () => {
+    const mockDetector = {
+      name: 'test-detector',
+      vendor: 'test-vendor',
+      detect: () => ({ vendor: 'test-vendor', confidence: 0.8 }),
+    };
+
+    const mockTransformer = {
+      name: 'test-transformer',
+      vendor: 'test-vendor',
+      canHandle: () => false,
+      transform: async () => ({ items: [], format: 'pie' }),
+    };
+
+    const plugin = new Qti22ToPiePlugin({
+      vendorDetectors: [mockDetector],
+      vendorTransformers: [mockTransformer],
+    });
+
+    expect(plugin.id).toBe('qti22-to-pie');
+  });
 });

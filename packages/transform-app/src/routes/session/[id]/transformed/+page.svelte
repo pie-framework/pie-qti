@@ -252,7 +252,7 @@ import PieItemPlayer from '$lib/components/PieItemPlayer.svelte';
 							{/if}
 
 							<div class="overflow-y-auto">
-								<PieAssessmentPreview assessment={selectedAssessment.pieConfig.items[0]} />
+								<PieAssessmentPreview assessment={(selectedAssessment.pieConfig as any).items?.[0]} />
 							</div>
 						{:else}
 							<div class="flex flex-col items-center justify-center h-96 text-base-content/60">
