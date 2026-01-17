@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { READING_COMPREHENSION_ASSESSMENT } from '$lib/sample-assessments';
 	import { getSecurityConfig } from '$lib/player-config';
+	import { assignProps } from '$lib/utils/assignProps';
 
 	let status = $state<'booting' | 'registering' | 'registered' | 'rendered' | 'error'>('booting');
 	let message = $state<string>('Starting…');
@@ -61,10 +62,12 @@
 
 			if (!el) throw new Error('Element not mounted');
 
-			el.assessmentTestXml = assessmentTestXml;
-			el.items = items;
-			el.config = { role: 'candidate', navigationMode: 'nonlinear', showSections: true };
-			el.security = getSecurityConfig();
+			assignProps(el, {
+				assessmentTestXml,
+				items,
+				config: { role: 'candidate', navigationMode: 'nonlinear', showSections: true },
+				security: getSecurityConfig(),
+			});
 
 			const ok = await waitForRender(10000);
 			if (!ok) throw new Error('Timeout waiting for assessment to render');

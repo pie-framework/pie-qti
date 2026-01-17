@@ -4,11 +4,13 @@
 	// @ts-expect-error - Svelte-check can't resolve workspace packages, but runtime works correctly
 	import type { I18nProvider } from '@pie-qti/qti2-i18n';
 	import { typesetAction } from './actions/typesetAction';
+	import { assignProps } from './utils/assignProps';
 
 	interface Props {
 		player: Player;
 		responses?: Record<string, any>;
 		disabled?: boolean;
+		role?: 'candidate' | 'scorer' | 'author' | 'tutor' | 'proctor' | 'testConstructor';
 		i18n?: I18nProvider;
 		typeset?: (element: HTMLElement) => void;
 		onResponseChange?: (responseId: string, value: any) => void;
@@ -18,6 +20,7 @@
 		player,
 		responses = {},
 		disabled = false,
+		role = 'candidate',
 		i18n,
 		typeset,
 		onResponseChange = () => {},
@@ -28,6 +31,11 @@
 
 	// Process interactions
 	const interactions = $derived<InteractionData[]>(player.getInteractionData());
+
+	// Get correct responses when role is scorer
+	const correctResponses = $derived.by(() => {
+		return role === 'scorer' ? player.getCorrectResponses() : {};
+	});
 
 	// Get components for block-level interactions only (not inline interactions)
 	// Inline interactions (textEntry, inlineChoice) are rendered within the HTML via InlineInteractionRenderer
@@ -140,6 +148,16 @@
 		onResponseChange(responseId, value);
 	}
 
+	function handleTextEntryInput(responseId: string, e: Event) {
+		const value = (e.currentTarget as HTMLInputElement | null)?.value ?? '';
+		handleResponseChange(responseId, value);
+	}
+
+	function handleInlineChoiceChange(responseId: string, e: Event) {
+		const value = (e.currentTarget as HTMLSelectElement | null)?.value ?? '';
+		handleResponseChange(responseId, value);
+	}
+
 	// Handle qti:change events from web components
 	function handleQtiChange(event: CustomEvent) {
 		const { responseId, value } = event.detail;
@@ -173,25 +191,29 @@
 	}
 
 	// Action to set typeset and i18n on web components when they mount
-	function setWebComponentProps(node: HTMLElement, params: { i18n?: I18nProvider; typeset?: (el: HTMLElement) => void }) {
+	function setWebComponentProps(
+		node: HTMLElement,
+		params: {
+			i18n?: I18nProvider;
+			typeset?: (el: HTMLElement) => void;
+			[key: string]: unknown;
+		}
+	) {
 		// Use microtask to ensure custom element is fully initialized
 		queueMicrotask(() => {
-			if (params.typeset && node) {
-				(node as any).typeset = params.typeset;
-			}
-			if (params.i18n && node) {
-				(node as any).i18n = params.i18n;
-			}
+			if (!node) return;
+			assignProps(node, params);
 		});
 
 		return {
-			update(newParams: { i18n?: I18nProvider; typeset?: (el: HTMLElement) => void }) {
-				if (newParams.typeset) {
-					(node as any).typeset = newParams.typeset;
+			update(
+				newParams: {
+					i18n?: I18nProvider;
+					typeset?: (el: HTMLElement) => void;
+					[key: string]: unknown;
 				}
-				if (newParams.i18n) {
-					(node as any).i18n = newParams.i18n;
-				}
+			) {
+				assignProps(node, newParams);
 			},
 			destroy() {}
 		};
@@ -213,8 +235,7 @@
 						placeholder="..."
 						aria-label={`Text entry ${segment.interaction.responseId}`}
 						value={responses[segment.interaction.responseId] || ''}
-						oninput={(e) =>
-							handleResponseChange(segment.interaction.responseId, (e.currentTarget as HTMLInputElement).value)}
+						on:input={(e) => handleTextEntryInput(segment.interaction.responseId, e)}
 					/>
 				{:else if segment.type === 'inlineChoice'}
 					<select
@@ -222,8 +243,7 @@
 						style="display: inline-block; margin: 0 4px; width: auto; min-width: 120px;"
 						aria-label={`Inline choice ${segment.interaction.responseId}`}
 						value={responses[segment.interaction.responseId] || ''}
-						onchange={(e) =>
-							handleResponseChange(segment.interaction.responseId, (e.currentTarget as HTMLSelectElement).value)}
+						on:change={(e) => handleInlineChoiceChange(segment.interaction.responseId, e)}
 					>
 						<option value="">{i18n?.t('interactions.inline.selectPlaceholder', 'Select...')}</option>
 						{#each segment.interaction.choices as choice}
@@ -237,15 +257,18 @@
 
 	<!-- Block interactions rendered dynamically as web components -->
 	{#each interactionComponents as { interaction, tagName } (interactionKey(interaction))}
-		{@const wcProps = {
-			interaction: JSON.stringify(interaction),
-			response: JSON.stringify(responses[interaction.responseId] ?? null),
-			disabled: disabled ? true : undefined,
-		}}
+		{@const correctRespForInteraction = correctResponses[interaction.responseId] ?? null}
 		<svelte:element
 			this={tagName}
-			{...wcProps}
-			use:setWebComponentProps={{ i18n, typeset }}
+			use:setWebComponentProps={{
+				i18n,
+				typeset,
+				interaction,
+				response: responses[interaction.responseId] ?? null,
+				correctResponse: role === 'scorer' ? correctRespForInteraction : null,
+				disabled,
+				role,
+			}}
 		/>
 	{/each}
 </div>

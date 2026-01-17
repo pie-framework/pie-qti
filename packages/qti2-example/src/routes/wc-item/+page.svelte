@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { SAMPLE_ITEMS } from '$lib/sample-items';
 	import { getSecurityConfig } from '$lib/player-config';
+	import { assignProps } from '$lib/utils/assignProps';
 
 	let status = $state<'booting' | 'registering' | 'registered' | 'rendered' | 'error'>('booting');
 	let message = $state<string>('Starting…');
@@ -40,11 +41,13 @@
 			});
 
 			// Prefer properties over attributes for large XML strings
-			el.itemXml = sample?.xml ?? '';
-			el.identifier = sample?.id ?? 'item';
-			el.title = sample?.title ?? 'Item';
-			el.role = 'candidate';
-			el.security = getSecurityConfig();
+			assignProps(el, {
+				itemXml: sample?.xml ?? '',
+				identifier: sample?.id ?? 'item',
+				title: sample?.title ?? 'Item',
+				role: 'candidate',
+				security: getSecurityConfig(),
+			});
 
 			const ok = await waitForRender(8000);
 			if (!ok) throw new Error('Timeout waiting for item to render');

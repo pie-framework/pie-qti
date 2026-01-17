@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { assignProps } from '../utils/assignProps';
 
 	const {
 		assessmentTestXml,
@@ -24,10 +25,6 @@
 	let isLoading = $state(true);
 	let isReady = $state(false);
 
-	// Track current values to detect changes
-	let currentXml = '';
-	let currentItemsJson = '';
-
 	function getSecurityConfig() {
 		if (typeof window === 'undefined') return {};
 		return {
@@ -39,24 +36,16 @@
 
 	function updatePlayerProperties() {
 		if (!playerElement || !isReady) return;
-
-		const itemsJson = JSON.stringify(items);
-		const xmlChanged = assessmentTestXml !== currentXml;
-		const itemsChanged = itemsJson !== currentItemsJson;
-
-		if (xmlChanged || itemsChanged) {
-			playerElement.assessmentTestXml = assessmentTestXml;
-			playerElement.items = items;
-			playerElement.config = {
+		assignProps(playerElement, {
+			assessmentTestXml,
+			items,
+			config: {
 				role: config.role || 'candidate',
 				navigationMode: config.navigationMode,
-				showSections: config.showSections !== false
-			};
-			playerElement.security = getSecurityConfig();
-
-			currentXml = assessmentTestXml;
-			currentItemsJson = itemsJson;
-		}
+				showSections: config.showSections !== false,
+			},
+			security: getSecurityConfig(),
+		});
 	}
 
 	onMount(async () => {

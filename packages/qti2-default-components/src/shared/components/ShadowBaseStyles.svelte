@@ -165,6 +165,33 @@
 		background: color-mix(in oklch, var(--color-error, oklch(71% 0.194 13.428)) 8%, transparent);
 	}
 
+	/* Correct answer indicators */
+	:global(.qti-correct-indicator) {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.25rem;
+		padding: 0.25rem 0.5rem;
+		background: color-mix(in oklch, var(--color-success, oklch(76% 0.177 163.223)) 8%, transparent);
+		border: 1px solid var(--color-success, oklch(76% 0.177 163.223));
+		border-radius: 0.5rem;
+		color: var(--color-base-content, oklch(21% 0 0));
+		font-size: 0.875rem;
+	}
+
+	:global(.qti-correct-highlight) {
+		background-color: color-mix(in oklch, var(--color-success, oklch(76% 0.177 163.223)) 8%, transparent);
+		border: 2px solid var(--color-success, oklch(76% 0.177 163.223));
+		border-radius: 0.5rem;
+	}
+
+	:global(.border-success) {
+		border-color: var(--color-success, oklch(76% 0.177 163.223));
+	}
+
+	:global(.text-success) {
+		color: var(--color-success, oklch(76% 0.177 163.223));
+	}
+
 	/* Cards */
 	:global(.card) {
 		border-radius: 0.75rem;
