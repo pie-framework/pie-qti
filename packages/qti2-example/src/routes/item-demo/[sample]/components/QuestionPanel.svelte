@@ -84,7 +84,6 @@
 				{player}
 				{responses}
 				{disabled}
-				{role}
 				i18n={i18n ?? undefined}
 				typeset={typesetMathInElement}
 				{onResponseChange}

@@ -19,7 +19,6 @@
 	let uploadError = $state<string | null>(null);
 	let results = $state<AssessmentResults | null>(null);
 	let runKey = $state(0);
-	let showCorrectAnswers = $state(false);
 
 	type DisplayItemScore = {
 		id: string;
@@ -123,7 +122,6 @@
 
 	function handleRetake() {
 		results = null;
-		showCorrectAnswers = false;
 		runKey += 1;
 	}
 
@@ -150,13 +148,7 @@
 	{#if selectedAssessment}
 		<div class="player-section">
 			{#if results}
-				<AssessmentEndScreen
-					{results}
-					items={displayItemScores}
-					assessment={selectedAssessment}
-					bind:showCorrectAnswers
-					onRetake={handleRetake}
-				/>
+				<AssessmentEndScreen {results} items={displayItemScores} onRetake={handleRetake} />
 			{:else}
 				{#key `${selectedAssessment.id}:${runKey}`}
 					<AssessmentShell
