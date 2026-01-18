@@ -40,11 +40,11 @@
 				{#each passages as passage}
 					<div class="passage">
 						<div class="passage-header">
-							<h4 class="font-semibold text-base">{i18n?.t('assessment.readingPassage', 'Reading Passage')}</h4>
+							<h4 class="font-semibold text-base">{i18n?.t('assessment.readingPassage') ?? 'Reading Passage'}</h4>
 							<button
 								class="btn btn-ghost btn-sm"
 								onclick={() => toggleCollapse?.()}
-								aria-label={isCollapsed ? i18n?.t('assessment.expandPassage', 'Expand passage') : i18n?.t('assessment.collapsePassage', 'Collapse passage')}
+								aria-label={isCollapsed ? (i18n?.t('assessment.expandPassage') ?? 'Expand passage') : (i18n?.t('assessment.collapsePassage') ?? 'Collapse passage')}
 							>
 								{#if isCollapsed}
 									<svg

@@ -120,6 +120,7 @@ export default {
 			selectMultiple: 'เลือกทั้งหมดที่ใช้ได้',
 			selected: 'เลือกแล้ว',
 			notSelected: 'ยังไม่ได้เลือก',
+			correct: 'ถูกต้อง',
 		},
 
 		upload: {
@@ -286,6 +287,7 @@ export default {
 			selectAnother: 'เลือกแล้ว: <strong>{label}</strong> คลิกอันอื่น',
 			minimumRequired: 'จำเป็นขั้นต่ำ: {minAssociations}',
 			currentAssociations: 'ความสัมพันธ์ปัจจุบัน',
+			correctAssociations: 'ความสัมพันธ์ที่ถูกต้อง',
 			clickToAssociate: 'คลิกสองรายการเพื่อสร้างความสัมพันธ์ระหว่างกัน',
 			clickAnotherOrDeselect: 'คลิกรายการอื่นเพื่อสร้างความสัมพันธ์ (หรือคลิกอีกครั้งเพื่อยกเลิกการเลือก)',
 			associations: 'ความสัมพันธ์',
@@ -495,6 +497,7 @@ export default {
 		tutor: 'ครูผู้สอน',
 		showCorrectAnswers: 'แสดงคำตอบที่ถูกต้อง',
 		showFeedback: 'แสดงข้อเสนอแนะ',
+		settings_aria: 'เปิดเมนูการตั้งค่า',
 		xmlEditor: 'ตัวแก้ไข XML',
 
 		// Navigation

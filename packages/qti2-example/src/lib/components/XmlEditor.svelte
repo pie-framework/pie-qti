@@ -8,7 +8,6 @@
  *
  * Features:
  * - Filter-based syntax highlighting (works on both light and dark themes)
- * - Auto-format XML with indentation
  * - Customizable colors via CSS variables
  * - Read-only mode support
  * - Bindable content for live updates
@@ -109,40 +108,6 @@
 		return '';
 	}
 
-	// Format XML
-	function formatXml() {
-		if (!editor) return;
-		try {
-			const text = extractTextFromHtml(editor.getHTML());
-			// Simple XML formatting
-			const formatted = text
-				.replace(/>\s*</g, '>\n<')
-				.split('\n')
-				.map((line) => line.trim())
-				.filter((line) => line.length > 0);
-
-			let indentLevel = 0;
-			const indentedLines = formatted.map((line) => {
-				if (line.startsWith('</')) {
-					indentLevel = Math.max(0, indentLevel - 1);
-				}
-				const indented = '  '.repeat(indentLevel) + line;
-				if (line.startsWith('<') && !line.startsWith('</') && !line.endsWith('/>')) {
-					indentLevel++;
-				}
-				return indented;
-			});
-
-			const formattedXml = indentedLines.join('\n');
-			isUpdatingFromProp = true;
-			editor.commands.setContent(formatContentAsHtml(formattedXml));
-			content = formattedXml;
-			onContentChange?.(formattedXml);
-		} catch (err) {
-			console.error('Error formatting XML:', err);
-		}
-	}
-
 	// Initialize editor
 	onMount(() => {
 		if (!editorElement) return;
@@ -216,25 +181,6 @@
 </script>
 
 <div class="xml-editor-container">
-	<!-- Toolbar -->
-	<div class="toolbar">
-		<button class="btn btn-sm btn-ghost" onclick={() => formatXml?.()} disabled={readOnly}>
-			<svg
-				xmlns="http://www.w3.org/2000/svg"
-				class="h-4 w-4"
-				viewBox="0 0 20 20"
-				fill="currentColor"
-			>
-				<path
-					fill-rule="evenodd"
-					d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"
-					clip-rule="evenodd"
-				/>
-			</svg>
-			{i18n?.t('demo.format') ?? 'Format'}
-		</button>
-	</div>
-
 	<!-- Editor -->
 	<div class="editor-wrapper">
 		<div bind:this={editorElement} class="editor-content"></div>
@@ -247,16 +193,6 @@
 		border-radius: 8px;
 		overflow: hidden;
 		background: hsl(var(--b1));
-	}
-
-	.toolbar {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		padding: 0.5rem 1rem;
-		border-bottom: 1px solid hsl(var(--bc) / 0.2);
-		background: hsl(var(--b2));
-		color: hsl(var(--bc));
 	}
 
 	.editor-wrapper {

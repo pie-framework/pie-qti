@@ -4,15 +4,18 @@
 	import { hasMultilingualVariants } from '$lib/locale-aware-items';
 	import { getContext } from 'svelte';
 	import type { SvelteI18nProvider } from '@pie-qti/qti2-i18n';
+	import type { QTIRole } from '@pie-qti/qti2-item-player';
 
 	interface Props {
 		selectedSampleId: string;
 		xmlContent: string;
+		selectedRole: QTIRole;
 		onSampleChange: (id: string) => void;
 		onXmlChange: (xml: string) => void;
+		onRoleChange: (role: QTIRole) => void;
 	}
 
-	let { selectedSampleId = $bindable(), xmlContent = $bindable(), onSampleChange, onXmlChange }: Props = $props();
+	let { selectedSampleId = $bindable(), xmlContent = $bindable(), selectedRole = $bindable(), onSampleChange, onXmlChange, onRoleChange }: Props = $props();
 
 	// Get i18n from context
 	const i18nContext = getContext<{ value: SvelteI18nProvider | null }>('i18n');
@@ -47,7 +50,6 @@
 
 <div class="card bg-base-100 shadow-xl">
 	<div class="card-body">
-		<h2 class="card-title">{i18n?.t('demo.xmlEditor') ?? 'XML Editor'}</h2>
 
 		<div class="form-control w-full mb-4">
 			<label class="label" for="sample-select">
@@ -85,6 +87,39 @@
 			</div>
 		</div>
 
-		<XmlEditor bind:content={xmlContent} onContentChange={onXmlChange} />
+		<!-- Role Selector -->
+		<div class="form-control w-full mb-4">
+			<label class="label" for="role-select">
+				<span class="label-text font-semibold">{i18n?.t('demo.role') ?? 'Role'}</span>
+			</label>
+			<select
+				id="role-select"
+				class="select select-bordered w-full"
+				bind:value={selectedRole}
+				onchange={() => onRoleChange(selectedRole)}
+			>
+				<option value="candidate">{i18n?.t('demo.candidateStudent') ?? 'Candidate (Student)'}</option>
+				<option value="scorer">{i18n?.t('demo.scorer') ?? 'Scorer'}</option>
+				<option value="tutor">{i18n?.t('demo.tutor') ?? 'Tutor'}</option>
+				<option value="author">{i18n?.t('demo.author') ?? 'Author'}</option>
+				<option value="testConstructor">{i18n?.t('demo.testConstructor') ?? 'Test Constructor'}</option>
+				<option value="proctor">{i18n?.t('demo.proctor') ?? 'Proctor'}</option>
+			</select>
+			<div class="label">
+				<span class="label-text-alt text-xs">
+					{i18n?.t('demo.controlsRubricVisibility') ?? 'Controls rubric visibility and correct answer display'}
+				</span>
+			</div>
+		</div>
+
+		<!-- XML Editor in collapsible block -->
+		<details class="collapse collapse-arrow bg-base-200 mt-4">
+			<summary class="collapse-title text-lg font-medium">
+				{i18n?.t('demo.xmlEditor') ?? 'XML Editor'}
+			</summary>
+			<div class="collapse-content">
+				<XmlEditor bind:content={xmlContent} onContentChange={onXmlChange} />
+			</div>
+		</details>
 	</div>
 </div>

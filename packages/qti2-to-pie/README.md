@@ -81,15 +81,15 @@ This package supports vendor-specific QTI transformations through a flexible ext
 
 ```typescript
 import { Qti22ToPiePlugin } from '@pie-qti/qti2-to-pie';
-import { amplifyDetector, amplifyTransformer } from '@your-org/qti-vendor-amplify';
+import { vendorDetector, vendorTransformer } from '@acme/qti-vendor-extensions';
 
 const plugin = new Qti22ToPiePlugin();
 
 // Register vendor extensions
-plugin.registerVendorDetector(amplifyDetector);
-plugin.registerVendorTransformer(amplifyTransformer);
+plugin.registerVendorDetector(vendorDetector);
+plugin.registerVendorTransformer(vendorTransformer);
 
-// Now transforms will automatically detect and handle Amplify QTI
+// Now transforms will automatically detect and handle vendor-specific QTI
 ```
 
 ### Extension Types
@@ -241,8 +241,6 @@ applyBehavioralClasses(pieModel, classes.behavioral);
 
 ## Complete Documentation
 
-- **[Vendor Customization Guide](../../docs/VENDOR_CUSTOMIZATION_GUIDE.md)** - Complete guide with examples
-- **[Vendor QTI Analysis](../../docs/VENDOR_QTI_ANALYSIS.md)** - Real-world vendor patterns
 - **[Type Definitions](./src/types/vendor-extensions.ts)** - Full TypeScript interfaces
 
 ## Supported QTI Versions

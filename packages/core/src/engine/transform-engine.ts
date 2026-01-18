@@ -9,11 +9,20 @@ import type {
   TransformFormat,
   TransformInput,
   TransformLogger,
-  TransformOutput,
   TransformPlugin,
+  WorkflowOrchestrator,
+  WorkflowHandle,
+  StorageBackend,
 } from '@pie-qti/transform-types';
 import { PluginRegistry } from '../registry/plugin-registry.js';
 import { ConsoleLogger } from '../utils/logger.js';
+import type { FormatDetector } from '../registry/format-detector-registry.js';
+import { FormatDetectorRegistry } from '../registry/format-detector-registry.js';
+import { Qti22Detector } from '../detectors/qti22-detector.js';
+import { PieDetector } from '../detectors/pie-detector.js';
+import { InMemoryOrchestrator } from '../orchestration/in-memory-orchestrator.js';
+import { TransformItemWorkflow, type TransformItemInput, type TransformItemOutput } from '../orchestration/workflows/transform-item-workflow.js';
+import { BatchTransformWorkflow, type BatchTransformInput, type BatchTransformOutput } from '../orchestration/workflows/batch-transform-workflow.js';
 
 export interface TransformOptions {
   /** Source format (will be auto-detected if not provided) */
@@ -34,11 +43,21 @@ export interface TransformOptions {
 
 export class TransformEngine {
   private registry: PluginRegistry;
+  private formatDetectorRegistry: FormatDetectorRegistry;
   private defaultLogger: TransformLogger;
+  private orchestrator: WorkflowOrchestrator;
+  private storage?: StorageBackend;
 
-  constructor() {
+  constructor(orchestrator?: WorkflowOrchestrator, storage?: StorageBackend) {
     this.registry = new PluginRegistry();
+    this.formatDetectorRegistry = new FormatDetectorRegistry();
     this.defaultLogger = new ConsoleLogger();
+    this.orchestrator = orchestrator || new InMemoryOrchestrator();
+    this.storage = storage;
+
+    // Register built-in format detectors
+    this.formatDetectorRegistry.register(new Qti22Detector());
+    this.formatDetectorRegistry.register(new PieDetector());
   }
 
   /**
@@ -50,13 +69,21 @@ export class TransformEngine {
   }
 
   /**
+   * Register a custom format detector
+   */
+  registerFormatDetector(detector: FormatDetector): this {
+    this.formatDetectorRegistry.register(detector);
+    return this;
+  }
+
+  /**
    * Transform input to target format
+   * Returns a workflow handle for monitoring progress and getting results
    */
   async transform(
     input: string | object,
     options: TransformOptions
-  ): Promise<TransformOutput> {
-    const startTime = Date.now();
+  ): Promise<WorkflowHandle<TransformItemOutput>> {
     const logger = options.logger || this.defaultLogger;
 
     // Prepare input
@@ -81,6 +108,12 @@ export class TransformEngine {
 
     logger.debug(`Using plugin: ${plugin.name} (${plugin.id})`);
 
+    // Initialize plugin if needed
+    if (plugin.initialize) {
+      logger.debug('Initializing plugin...');
+      await plugin.initialize(options);
+    }
+
     // Create context
     const context: TransformContext = {
       logger,
@@ -88,142 +121,96 @@ export class TransformEngine {
       options,
     };
 
+    // Prepare workflow input
+    const workflowInput: TransformItemInput = {
+      content: typeof input === 'string' ? input : JSON.stringify(input),
+      itemId: 'item-' + Date.now(),
+      sourceFormat,
+      targetFormat: options.targetFormat,
+      plugin,
+      context,
+      storage: this.storage,
+    };
+
+    // Start workflow
+    return this.orchestrator.startWorkflow(TransformItemWorkflow, workflowInput);
+  }
+
+  /**
+   * Transform multiple inputs in batch
+   * Returns a workflow handle for monitoring progress and getting results
+   */
+  async transformBatch(
+    inputs: Array<string | object>,
+    options: TransformOptions & { parallel?: number }
+  ): Promise<WorkflowHandle<BatchTransformOutput>> {
+    const logger = options.logger || this.defaultLogger;
+
+    // Detect format if not provided
+    const sourceFormat = options.sourceFormat || (await this.detectFormat({
+      content: inputs[0],
+      format: options.sourceFormat,
+    }));
+
+    logger.info(`Batch transforming ${inputs.length} items`);
+
+    // Find appropriate plugin
+    const plugin = this.registry.findPlugin(sourceFormat, options.targetFormat);
+
+    if (!plugin) {
+      throw new Error(
+        `No plugin found for transformation: ${sourceFormat} → ${options.targetFormat}`
+      );
+    }
+
     // Initialize plugin if needed
     if (plugin.initialize) {
       logger.debug('Initializing plugin...');
       await plugin.initialize(options);
     }
 
-    // Transform
-    logger.info('Starting transformation...');
-    const output = await plugin.transform(transformInput, context);
-
-    // Validate output if plugin supports it
-    if (plugin.validate) {
-      logger.debug('Validating output...');
-      const validation = await plugin.validate(output);
-      if (!validation.valid) {
-        logger.warn('Validation warnings/errors detected');
-        if (validation.errors && validation.errors.length > 0) {
-          validation.errors.forEach((error) => logger.error(error));
-        }
-        if (validation.warnings && validation.warnings.length > 0) {
-          validation.warnings.forEach((warning) => logger.warn(warning));
-        }
-      }
-    }
-
-    // Update metadata
-    const processingTime = Date.now() - startTime;
-    output.metadata = {
-      ...output.metadata,
-      sourceFormat,
-      targetFormat: options.targetFormat,
-      pluginId: plugin.id,
-      timestamp: new Date(),
-      itemCount: output.items.length,
-      processingTime,
+    // Create context
+    const context: TransformContext = {
+      logger,
+      vendor: options.vendor,
+      options,
     };
 
-    logger.info(
-      `Transformation complete: ${output.items.length} items in ${processingTime}ms`
-    );
+    if (!this.storage) {
+      throw new Error('Storage backend required for batch transformation');
+    }
 
-    return output;
+    // Prepare workflow input
+    const workflowInput: BatchTransformInput = {
+      items: inputs.map((input, index) => ({
+        itemId: `item-${Date.now()}-${index}`,
+        contentUri: typeof input === 'string' ? input : `memory://item-${index}`,
+      })),
+      sourceFormat,
+      targetFormat: options.targetFormat,
+      plugin,
+      context,
+      storage: this.storage,
+      maxConcurrent: options.parallel || 5,
+    };
+
+    // Start workflow
+    return this.orchestrator.startWorkflow(BatchTransformWorkflow, workflowInput);
   }
 
   /**
-   * Transform multiple inputs in batch
-   */
-  async transformBatch(
-    inputs: Array<string | object>,
-    options: TransformOptions & { parallel?: number }
-  ): Promise<TransformOutput[]> {
-    const parallelism = options.parallel || 5;
-    const logger = options.logger || this.defaultLogger;
-
-    logger.info(`Batch transforming ${inputs.length} items with parallelism=${parallelism}`);
-
-    const results: TransformOutput[] = [];
-    const chunks: Array<Array<string | object>> = [];
-
-    // Split into chunks
-    for (let i = 0; i < inputs.length; i += parallelism) {
-      chunks.push(inputs.slice(i, i + parallelism));
-    }
-
-    // Process chunks
-    for (let i = 0; i < chunks.length; i++) {
-      const chunk = chunks[i];
-      logger.debug(`Processing chunk ${i + 1}/${chunks.length} (${chunk.length} items)`);
-
-      const chunkResults = await Promise.all(
-        chunk.map((input) => this.transform(input, options))
-      );
-
-      results.push(...chunkResults);
-    }
-
-    logger.info(`Batch transformation complete: ${results.length} outputs`);
-    return results;
-  }
-
-  /**
-   * Transform stream of inputs
-   */
-  async *transformStream(
-    inputs: AsyncIterable<string | object>,
-    options: TransformOptions
-  ): AsyncGenerator<TransformOutput> {
-    const logger = options.logger || this.defaultLogger;
-
-    logger.info('Starting streaming transformation...');
-
-    let count = 0;
-    for await (const input of inputs) {
-      const output = await this.transform(input, options);
-      count++;
-      logger.debug(`Streamed ${count} items`);
-      yield output;
-    }
-
-    logger.info(`Streaming transformation complete: ${count} items`);
-  }
-
-  /**
-   * Auto-detect input format
+   * Auto-detect input format using registered format detectors
    */
   private async detectFormat(input: TransformInput): Promise<TransformFormat> {
-    // If content is string, try to detect XML (QTI) vs JSON (PIE)
-    if (typeof input.content === 'string') {
-      const trimmed = input.content.trim();
+    const detected = await this.formatDetectorRegistry.detectFormat(input.content);
 
-      if (trimmed.startsWith('<?xml') || trimmed.startsWith('<')) {
-        // It's XML - this repo only supports QTI 2.2.x at transform time.
-        if (
-          trimmed.includes('imsqti_v2p2') ||
-          trimmed.includes('http://www.imsglobal.org/xsd/imsqti_v2p2')
-        ) {
-          return 'qti22';
-        }
-
-        throw new Error(
-          'Unsupported QTI namespace. Expected QTI 2.2 (imsqti_v2p2).'
-        );
-      }
-
-      if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-        // It's JSON - assume PIE
-        return 'pie';
-      }
+    if (!detected) {
+      throw new Error(
+        'Could not detect input format. Please specify sourceFormat explicitly.'
+      );
     }
 
-    // If object, assume PIE
-    if (typeof input.content === 'object') {
-      return 'pie';
-    }
-
-    throw new Error('Could not detect input format');
+    return detected;
   }
 
   /**
@@ -253,5 +240,22 @@ export class TransformEngine {
     }
 
     this.registry.clear();
+
+    // Shutdown orchestrator
+    await this.orchestrator.shutdown();
+  }
+
+  /**
+   * Get the workflow orchestrator
+   */
+  getOrchestrator(): WorkflowOrchestrator {
+    return this.orchestrator;
+  }
+
+  /**
+   * Set storage backend
+   */
+  setStorage(storage: StorageBackend): void {
+    this.storage = storage;
   }
 }

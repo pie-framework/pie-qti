@@ -1,0 +1,128 @@
+version: 1
+
+# Asset Loading - URL Resolution Evaluation
+#
+# Tests that asset URLs (images, audio, video) are correctly resolved
+# using the configured assetBaseUrl. Validates relative paths, absolute
+# paths, and GitHub Pages subpath deployment scenarios.
+
+component:
+  interactionType: mediaInteraction
+  tagName: pie-qti-media
+
+examplesApp:
+  app: "@pie-qti/qti2-example"
+  routeTemplate: "/item-demo/{sampleId}"
+
+evals:
+  - id: asset-loading/asset-url-resolution/media/audio-relative-path
+    sampleId: media-interaction
+    gradeBand: "K-12"
+    subject: general
+    intent: "Verify that media interaction with relative audio path loads correctly using configured assetBaseUrl."
+
+    notes:
+      - "Tests URL resolution for media assets"
+      - "assetBaseUrl is configured in getSecurityConfig()"
+      - "Relative paths should resolve against baseUrl"
+      - "No 404 errors should occur"
+
+    steps:
+      - action: navigate
+        path: "/item-demo/media-interaction"
+
+      - action: observe
+        target:
+          description: "Audio player is visible and initialized"
+          hint: "Media element should be rendered without errors"
+
+      - action: observe
+        target:
+          description: "Audio source URL is resolved correctly"
+          hint: "No 404 errors in network log, audio element has valid src"
+
+      - action: playUntilEnded
+        target:
+          description: "Play audio to completion"
+        times: 1
+
+    expected:
+      outcomes:
+        SCORE:
+          gte: 0
+
+    spiritChecks:
+      - "Media assets load without 404 errors."
+      - "Relative paths resolve correctly with baseUrl."
+      - "Audio playback works smoothly."
+
+  - id: asset-loading/asset-url-resolution/simple-choice/svg-image-path
+    sampleId: simple-choice
+    gradeBand: "3-6"
+    subject: math
+    intent: "Verify that images in choice prompts resolve correctly (if present)."
+
+    notes:
+      - "Tests image URL resolution in QTI item content"
+      - "Some items may include <img> tags in prompt or choices"
+      - "This is a smoke test for basic asset loading"
+
+    steps:
+      - action: navigate
+        path: "/item-demo/simple-choice"
+
+      - action: observe
+        target:
+          description: "Item content loads without broken images"
+          hint: "No broken image icons or 404 errors"
+
+      - action: observe
+        target:
+          description: "All visual content is displayed correctly"
+
+    expected:
+      # This is primarily a smoke test for asset loading
+
+    spiritChecks:
+      - "No broken image icons or missing assets."
+      - "Item visual fidelity is maintained."
+
+  - id: asset-loading/asset-url-resolution/graphic-gap-match/canvas-images
+    sampleId: graphic-gap-match-solar-system
+    gradeBand: "3-6"
+    subject: science
+    intent: "Verify that graphic-gap-match background images and draggable item images load correctly."
+
+    notes:
+      - "graphic-gap-match uses background images for hotspots"
+      - "Tests complex asset loading scenario"
+      - "Background image and drag items should all resolve"
+
+    steps:
+      - action: navigate
+        path: "/item-demo/graphic-gap-match-solar-system"
+
+      - action: observe
+        target:
+          description: "Background image (solar system diagram) loads"
+          hint: "Large background image showing the solar system"
+
+      - action: observe
+        target:
+          description: "Draggable planet/label images load"
+          hint: "All draggable items should have images"
+
+      - action: dragPair
+        target:
+          description: "Drag a label to a hotspot"
+          hint: "Test that interaction works with loaded assets"
+
+    expected:
+      outcomes:
+        SCORE:
+          gte: 0
+
+    spiritChecks:
+      - "All graphic assets load without errors."
+      - "Background image is clear and properly sized."
+      - "Draggable items render with correct images."

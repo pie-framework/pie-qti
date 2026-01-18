@@ -10,16 +10,21 @@
 	interface Props {
 		interaction?: GraphicAssociateInteractionData | string;
 		response?: string[] | null;
+		correctResponse?: string[] | null;
 		disabled?: boolean;
+		role?: string;
 		i18n?: I18nProvider;
 		onChange?: (value: string[]) => void;
 	}
 
-	let { interaction = $bindable(), response = $bindable(), disabled = false, i18n = $bindable(), onChange }: Props = $props();
+	let { interaction = $bindable(), response = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), onChange }: Props = $props();
 
 	// Parse props that may be JSON strings (web component usage)
 	const parsedInteraction = $derived(parseJsonProp<GraphicAssociateInteractionData>(interaction));
 	const parsedResponse = $derived(parseJsonProp<string[]>(response));
+	const parsedCorrectResponse = $derived(parseJsonProp<string[]>(correctResponse));
+	const isShowingCorrect = $derived(role === 'scorer' && parsedCorrectResponse !== null);
+	const correctPairs = $derived(Array.isArray(parsedCorrectResponse) ? parsedCorrectResponse : []);
 
 	// Get reference to the root element for event dispatching
 	let rootElement: HTMLDivElement | undefined = $state();
@@ -104,6 +109,16 @@
 		return getHotspotUsageCount(id) >= hotspot.matchMax;
 	}
 
+	function isCorrectPair(id1: string, id2: string): boolean {
+		if (!isShowingCorrect) return false;
+		return correctPairs.some((p) => p === `${id1} ${id2}` || p === `${id2} ${id1}`);
+	}
+
+	function isHotspotInCorrectPair(id: string): boolean {
+		if (!isShowingCorrect) return false;
+		return correctPairs.some((p) => p.includes(id));
+	}
+
 	// Calculate center point of a hotspot for visual connections
 	function getHotspotCenter(coords: string, shape: string): { x: number; y: number } {
 		const parts = coords.split(',').map(Number);
@@ -163,7 +178,7 @@
 					<svg
 						part="overlay"
 						class="qti-ga-overlay absolute inset-0 w-full h-full pointer-events-none"
-						style="z-index: 10;"
+						style="position: absolute; width: 100%; height: 100%; top: 0; left: 0; z-index: 10;"
 					>
 						{#each pairs as pair, index}
 							{@const [id1, id2] = pair.split(' ')}
@@ -172,17 +187,41 @@
 							{#if hotspot1 && hotspot2}
 								{@const center1 = getHotspotCenter(hotspot1.coords, hotspot1.shape)}
 								{@const center2 = getHotspotCenter(hotspot2.coords, hotspot2.shape)}
+								{@const isCorrect = isCorrectPair(id1, id2)}
 								<line
 									x1={center1.x}
 									y1={center1.y}
 									x2={center2.x}
 									y2={center2.y}
-									stroke="var(--color-primary, oklch(45% 0.24 277))"
+									stroke={isCorrect ? 'var(--color-success, oklch(76% 0.177 163.223))' : 'var(--color-primary, oklch(45% 0.24 277))'}
 									stroke-width="3"
 									stroke-linecap="round"
 								/>
 							{/if}
 						{/each}
+						{#if isShowingCorrect}
+							{#each correctPairs as pair}
+								{@const [id1, id2] = pair.split(' ')}
+								{@const hotspot1 = getHotspotById(id1)}
+								{@const hotspot2 = getHotspotById(id2)}
+								{@const isInUserPairs = pairs.some((p) => p === pair || p === `${id2} ${id1}`)}
+								{#if hotspot1 && hotspot2 && !isInUserPairs}
+									{@const center1 = getHotspotCenter(hotspot1.coords, hotspot1.shape)}
+									{@const center2 = getHotspotCenter(hotspot2.coords, hotspot2.shape)}
+									<line
+										x1={center1.x}
+										y1={center1.y}
+										x2={center2.x}
+										y2={center2.y}
+										stroke="var(--color-success, oklch(76% 0.177 163.223))"
+										stroke-width="2"
+										stroke-dasharray="4,4"
+										stroke-linecap="round"
+										opacity="0.6"
+									/>
+								{/if}
+							{/each}
+						{/if}
 					</svg>
 
 					<!-- Clickable hotspot areas -->
@@ -190,6 +229,7 @@
 						{@const isSelected = isHotspotSelected(hotspot.identifier)}
 						{@const isMaxed = isHotspotMaxed(hotspot.identifier)}
 						{@const usageCount = getHotspotUsageCount(hotspot.identifier)}
+						{@const isCorrect = isHotspotInCorrectPair(hotspot.identifier)}
 
 						{#if hotspot.shape === 'rect'}
 							{@const [x1, y1, x2, y2] = hotspot.coords.split(',').map(Number)}
@@ -197,7 +237,9 @@
 								part="hotspot"
 								class="qti-ga-hotspot absolute border-2 transition-all {isSelected
 									? 'bg-primary/40 border-primary border-4'
-									: 'bg-primary/10 border-primary hover:bg-primary/20'} {isMaxed
+									: isCorrect
+										? 'bg-success/20 border-success'
+										: 'bg-primary/10 border-primary hover:bg-primary/20'} {isMaxed
 									? 'opacity-50 cursor-not-allowed'
 									: canInteract
 										? 'cursor-pointer'
@@ -206,7 +248,7 @@
 									y1}px; z-index: 20;"
 								onclick={() => handleHotspotClick(hotspot.identifier)}
 								disabled={!canInteract || isMaxed}
-								aria-label="{hotspot.label} ({usageCount}/{hotspot.matchMax} connections)"
+								aria-label="{hotspot.label} ({usageCount}/{hotspot.matchMax} connections){isCorrect ? '. Correct answer' : ''}"
 							>
 								<span class="text-xs font-bold text-primary-content">{hotspot.label}</span>
 							</button>
@@ -216,7 +258,9 @@
 								part="hotspot"
 								class="qti-ga-hotspot qti-ga-hotspot-circle absolute rounded-full border-2 flex items-center justify-center transition-all {isSelected
 									? 'bg-primary/40 border-primary border-4'
-									: 'bg-primary/10 border-primary hover:bg-primary/20'} {isMaxed
+									: isCorrect
+										? 'bg-success/20 border-success'
+										: 'bg-primary/10 border-primary hover:bg-primary/20'} {isMaxed
 									? 'opacity-50 cursor-not-allowed'
 									: canInteract
 										? 'cursor-pointer'
@@ -225,7 +269,7 @@
 									2}px; z-index: 20;"
 								onclick={() => handleHotspotClick(hotspot.identifier)}
 								disabled={!canInteract || isMaxed}
-								aria-label="{hotspot.label} ({usageCount}/{hotspot.matchMax} connections)"
+								aria-label="{hotspot.label} ({usageCount}/{hotspot.matchMax} connections){isCorrect ? '. Correct answer' : ''}"
 							>
 								<span class="text-xs font-bold text-primary-content">{hotspot.label}</span>
 							</button>
@@ -275,10 +319,11 @@
 									{@const [id1, id2] = pair.split(' ')}
 									{@const hotspot1 = getHotspotById(id1)}
 									{@const hotspot2 = getHotspotById(id2)}
+									{@const isCorrect = isCorrectPair(id1, id2)}
 									<div
-										class="flex items-center gap-2 p-2 rounded-lg bg-base-200 border border-base-300"
+										class="flex items-center gap-2 p-2 rounded-lg bg-base-200 border border-base-300 {isCorrect ? 'border-success bg-success/10' : ''}"
 									>
-										<div class="badge badge-sm badge-primary">{index + 1}</div>
+										<div class="badge badge-sm {isCorrect ? 'badge-success' : 'badge-primary'}">{index + 1}</div>
 										<div class="flex-1 text-sm">
 											<span class="font-medium">{hotspot1?.label}</span>
 											<span class="mx-1">↔</span>

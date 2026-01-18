@@ -5,9 +5,10 @@
  */
 
 /**
- * Supported formats
+ * Transform format identifier
+ * Extensible string type allows arbitrary format pairs to be registered
  */
-export type TransformFormat = 'qti22' | 'pie';
+export type TransformFormat = string;
 
 /**
  * Transform plugin interface

@@ -13,7 +13,7 @@ import type { HTMLElement } from 'node-html-parser';
  * Vendor information detected from QTI content
  */
 export interface VendorInfo {
-  /** Vendor identifier (e.g., 'amplify-ckla', 'examview-mcgrawhill') */
+  /** Vendor identifier */
   vendor: string;
 
   /** Confidence score (0.0-1.0) */

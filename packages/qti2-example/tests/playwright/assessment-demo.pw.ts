@@ -104,15 +104,18 @@ test.describe('/assessment-demo', () => {
 		await expect(page.locator('pie-qti-choice').first()).toBeVisible({ timeout: 10000 });
 
 		// Open the section menu (only shown when multiple sections exist).
-		const sectionsButton = page.getByRole('button', { name: /^Sections$/i });
-		await expect(sectionsButton).toBeVisible();
+		// The button has an icon (hamburger menu) and may have localized text.
+		// Find it by the SVG path that represents the hamburger icon.
+		const sectionsButton = page.locator('button.btn:has(svg path[d*="M4 6h16M4 12h16M4 18h16"])').first();
+		await expect(sectionsButton).toBeVisible({ timeout: 10000 });
 		await sectionsButton.click();
 
 		// Wait for menu to open
-		await page.waitForTimeout(300);
+		await page.waitForTimeout(500);
 
 		// Select the "Hotspot" section and verify we now render a hotspot interaction.
-		const hotspotButton = page.getByRole('button', { name: /^Hotspot$/i });
+		// Section buttons are in a dropdown and contain "Hotspot" in their text
+		const hotspotButton = page.locator('button.section-item:has-text("Hotspot")').first();
 		await expect(hotspotButton).toBeVisible();
 		await hotspotButton.click();
 
@@ -130,21 +133,31 @@ test.describe('/assessment-demo', () => {
 		// Use Reading Comprehension sample (nonlinear/simultaneous) so we can move through items easily.
 		await page.evaluate(() => (window as any).__testHelpers.selectSample('reading-comp-1'));
 
-		const next = page.getByRole('button', { name: /^Next$/i });
-		const submit = page.getByRole('button', { name: /^Submit Assessment$/i });
+		// Wait for assessment to load
+		await page.waitForTimeout(1000);
+
+		// Find Next button by looking for button with forward arrow SVG and text content
+		// (may be in any language, so we don't match specific text)
+		const next = page.locator('button:has-text("Next"), button:has-text("Siguiente"), button:has-text("Suivant"), button:has-text("Volgende")').first();
+		const submit = page.locator('button:has-text("Submit"), button:has-text("Enviar")').first();
 
 		// Navigate through items, answering each with the first choice, until we reach Submit.
 		for (let i = 0; i < 5; i++) {
-			if (await submit.isVisible()) break;
+			// Check if submit button is visible
+			if (await submit.isVisible().catch(() => false)) break;
 
 			const choiceHost = page.locator('pie-qti-choice').first();
-			await expect(choiceHost).toBeVisible();
+			await expect(choiceHost).toBeVisible({ timeout: 10000 });
 			await choiceHost.locator('input[type="radio"]').first().click();
 
+			// Wait for Next button to be visible and enabled before clicking
+			await expect(next).toBeVisible({ timeout: 5000 });
+			await expect(next).toBeEnabled({ timeout: 5000 });
 			await next.click();
+			await page.waitForTimeout(500);
 		}
 
-		await expect(submit).toBeVisible();
+		await expect(submit).toBeVisible({ timeout: 10000 });
 		await submit.click();
 
 		// End screen should render.
@@ -165,19 +178,25 @@ test.describe('/assessment-demo', () => {
 		// Select the interaction showcase sample using test helper
 		await page.evaluate(() => (window as any).__testHelpers.selectSample('interaction-showcase-1'));
 
+		// Wait for assessment to load
+		await page.waitForTimeout(1000);
+
 		// First item is based on reading comprehension q1 where correct choice is identifier "A" (Evaporation).
 		const choiceHost = page.locator('pie-qti-choice').first();
-		await expect(choiceHost).toBeVisible();
+		await expect(choiceHost).toBeVisible({ timeout: 10000 });
 		await choiceHost.locator('input[type="radio"][value="A"]').click();
 
 		// Navigate to the end and submit.
-		const next = page.getByRole('button', { name: /^Next$/i });
-		const submit = page.getByRole('button', { name: /^Submit Assessment$/i });
+		const next = page.locator('button:has-text("Next"), button:has-text("Siguiente"), button:has-text("Suivant"), button:has-text("Volgende")').first();
+		const submit = page.locator('button:has-text("Submit"), button:has-text("Enviar")').first();
 		for (let i = 0; i < 30; i++) {
-			if (await submit.isVisible()) break;
+			if (await submit.isVisible().catch(() => false)) break;
+			await expect(next).toBeVisible({ timeout: 5000 });
+			await expect(next).toBeEnabled({ timeout: 5000 });
 			await next.click();
+			await page.waitForTimeout(300);
 		}
-		await expect(submit).toBeVisible();
+		await expect(submit).toBeVisible({ timeout: 10000 });
 		await submit.click();
 
 		// End screen: total score should not be 0.
@@ -199,8 +218,11 @@ test.describe('/assessment-demo', () => {
 		// Wait for the assessment shell to re-render with new content
 		await expect(page.getByRole('heading', { name: 'SHOWCASE-001' })).toBeVisible({ timeout: 10000 });
 
-		const next = page.getByRole('button', { name: /^Next$/i });
-		const submit = page.getByRole('button', { name: /^Submit Assessment$/i });
+		// Wait for assessment to load
+		await page.waitForTimeout(1000);
+
+		const next = page.locator('button:has-text("Next"), button:has-text("Siguiente"), button:has-text("Suivant"), button:has-text("Volgende")').first();
+		const submit = page.locator('button:has-text("Submit"), button:has-text("Enviar")').first();
 
 		// Capture qti-change events to ensure responses are emitted for both items.
 		await page.evaluate(() => {
@@ -217,6 +239,8 @@ test.describe('/assessment-demo', () => {
 		await expect(q1Radio).toBeVisible();
 		await q1Radio.click();
 		await expect(q1Radio).toBeChecked();
+		await expect(next).toBeVisible({ timeout: 5000 });
+		await expect(next).toBeEnabled({ timeout: 5000 });
 		await next.click();
 
 		// Wait for Q2 to load
@@ -235,10 +259,13 @@ test.describe('/assessment-demo', () => {
 
 		// Skip the rest to submit.
 		for (let i = 0; i < 30; i++) {
-			if (await submit.isVisible()) break;
+			if (await submit.isVisible().catch(() => false)) break;
+			await expect(next).toBeVisible({ timeout: 5000 });
+			await expect(next).toBeEnabled({ timeout: 5000 });
 			await next.click();
+			await page.waitForTimeout(300);
 		}
-		await expect(submit).toBeVisible();
+		await expect(submit).toBeVisible({ timeout: 10000 });
 		await submit.click();
 
 		await expect(page.getByRole('heading', { name: /assessment complete/i })).toBeVisible();

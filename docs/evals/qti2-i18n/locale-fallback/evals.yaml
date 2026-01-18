@@ -1,0 +1,70 @@
+version: 1
+
+# i18n Locale Fallback Evaluation
+#
+# Tests graceful degradation when unsupported or invalid locales are encountered.
+# Validates that the application falls back to English (en-US) without errors.
+
+component:
+  interactionType: choiceInteraction
+  tagName: pie-qti-choice
+
+examplesApp:
+  app: "@pie-qti/qti2-example"
+  routeTemplate: "/item-demo/{sampleId}"
+
+evals:
+  - id: i18n/locale-fallback/unsupported-locale/default-to-english
+    sampleId: simple-choice
+    gradeBand: "3-6"
+    subject: math
+    intent: "Verify that unsupported locale codes (like de-DE German) fall back to English."
+
+    notes:
+      - "Tests fallback behavior for valid but unsupported locale codes"
+      - "Should not crash or display broken UI"
+
+    steps:
+      - action: setLocalStorage
+        key: "pie-qti-locale"
+        value: "de-DE"
+
+      - action: navigate
+        path: "/item-demo/simple-choice"
+
+      - action: observe
+        target:
+          description: "UI falls back to English"
+          hint: "Should display English text, not German or errors"
+
+    spiritChecks:
+      - "Application doesn't crash with unsupported locale."
+      - "UI is fully functional in fallback (English) locale."
+      - "No broken text or missing translations."
+
+  - id: i18n/locale-fallback/invalid-storage-value/handles-gracefully
+    sampleId: simple-choice
+    gradeBand: "3-6"
+    subject: math
+    intent: "Verify that invalid localStorage values don't break the application."
+
+    notes:
+      - "Tests resilience against corrupted or invalid locale codes"
+      - "Should gracefully fall back to default locale"
+
+    steps:
+      - action: setLocalStorage
+        key: "pie-qti-locale"
+        value: "invalid-LOCALE"
+
+      - action: navigate
+        path: "/item-demo/simple-choice"
+
+      - action: observe
+        target:
+          description: "UI renders without errors"
+          hint: "Should fall back to English and display normally"
+
+    spiritChecks:
+      - "No JavaScript errors or broken UI."
+      - "Application recovers gracefully from invalid data."

@@ -3,7 +3,7 @@
  */
 
 import { beforeEach, describe, expect, test } from 'bun:test';
-import type { TransformContext, TransformInput, TransformOutput, TransformPlugin } from '@pie-qti/transform-types';
+import type { TransformContext, TransformInput, TransformOutput, TransformPlugin, StorageBackend } from '@pie-qti/transform-types';
 import { TransformEngine } from '../src/engine/transform-engine';
 
 // Mock plugin for testing
@@ -86,15 +86,14 @@ describe('TransformEngine', () => {
   </itemBody>
 </assessmentItem>`;
 
-    const output = await engine.transform(qtiXml, {
+    const handle = await engine.transform(qtiXml, {
       sourceFormat: 'qti22',
       targetFormat: 'pie',
     });
+    const output = await handle.result();
 
     expect(output).toBeDefined();
-    expect(output.items.length).toBe(1);
-    expect(output.items[0].id).toBe('test-item');
-    expect(output.format).toBe('pie');
+    expect(output.pieConfig).toBeDefined();
     expect(output.metadata.sourceFormat).toBe('qti22');
     expect(output.metadata.targetFormat).toBe('pie');
   });
@@ -108,10 +107,11 @@ describe('TransformEngine', () => {
   <itemBody><p>Test</p></itemBody>
 </assessmentItem>`;
 
-    const output = await engine.transform(qtiXml, {
+    const handle = await engine.transform(qtiXml, {
       targetFormat: 'pie',
       // sourceFormat not specified - should auto-detect
     });
+    const output = await handle.result();
 
     expect(output.metadata.sourceFormat).toBe('qti22');
   });
@@ -132,22 +132,39 @@ describe('TransformEngine', () => {
     const plugin = new MockPlugin();
     engine.use(plugin);
 
+    // Create a simple mock storage backend for batch transformation
+    const mockStorage: StorageBackend = {
+      name: 'mock-storage',
+      async initialize() {},
+      async readText() { return ''; },
+      async writeText() {},
+      async readBuffer() { return Buffer.from(''); },
+      async writeBuffer() {},
+      async write() {},
+      async createReadStream() { throw new Error('Not implemented'); },
+      async createWriteStream() { throw new Error('Not implemented'); },
+      async exists() { return false; },
+      async list() { return []; },
+      async delete() {},
+    };
+    engine.setStorage(mockStorage);
+
     const inputs = [
       '<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2">1</assessmentItem>',
       '<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2">2</assessmentItem>',
       '<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2">3</assessmentItem>',
     ];
 
-    const outputs = await engine.transformBatch(inputs, {
+    const handle = await engine.transformBatch(inputs, {
       sourceFormat: 'qti22',
       targetFormat: 'pie',
       parallel: 2,
     });
+    const result = await handle.result();
 
-    expect(outputs.length).toBe(3);
-    outputs.forEach((output) => {
-      expect(output.items.length).toBe(1);
-      expect(output.format).toBe('pie');
+    expect(result.successful.length).toBe(3);
+    result.successful.forEach((item) => {
+      expect(item.result.pieConfig).toBeDefined();
     });
   });
 

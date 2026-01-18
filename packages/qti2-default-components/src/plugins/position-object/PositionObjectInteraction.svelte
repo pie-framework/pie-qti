@@ -55,16 +55,20 @@
 	interface Props {
 		interaction?: PositionObjectInteractionData | string;
 		response?: string[] | null; // QTI format: array of "x y" strings
+		correctResponse?: string[] | null; // QTI format: array of "x y" strings
 		disabled?: boolean;
+		role?: string;
 		i18n?: I18nProvider;
 		onChange?: (value: string[]) => void;
 	}
 
-	let { interaction = $bindable(), response = $bindable(), disabled = false, i18n = $bindable(), onChange }: Props = $props();
+	let { interaction = $bindable(), response = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), onChange }: Props = $props();
 
 	// Parse props that may be JSON strings (web component usage)
 	const parsedInteraction = $derived(parseJsonProp<PositionObjectInteractionData>(interaction));
 	const parsedResponse = $derived(parseJsonProp<string[]>(response));
+	const parsedCorrectResponse = $derived(parseJsonProp<string[]>(correctResponse));
+	const isShowingCorrect = $derived(role === 'scorer' && parsedCorrectResponse !== null && parsedCorrectResponse !== undefined);
 
 	// Get reference to the root element for event dispatching
 	let rootElement: HTMLDivElement | undefined = $state();
@@ -285,6 +289,76 @@
 		if (!stage) return false;
 		return getStageUsageCount(id) < stage.matchMax;
 	}
+
+	/**
+	 * Parse correct response points (same format as user response)
+	 */
+	function parseCorrectPositions(value: string[] | null | undefined): Position[] {
+		if (!value || !Array.isArray(value) || value.length === 0) return [];
+		if (!parsedInteraction) return [];
+
+		const stages = parsedInteraction.positionObjectStages || [];
+		const correctPositions: Position[] = [];
+
+		for (let i = 0; i < value.length; i++) {
+			const pointStr = value[i];
+			const parts = pointStr.trim().split(/\s+/);
+			if (parts.length >= 2) {
+				const x = parseFloat(parts[0]);
+				const y = parseFloat(parts[1]);
+
+				// Determine which stage this point belongs to (same logic as user response)
+				let stageId = '';
+				if (stages.length === 1) {
+					stageId = stages[0].identifier;
+				} else {
+					let pointIndex = 0;
+					for (const stage of stages) {
+						if (pointIndex + stage.matchMax > i) {
+							stageId = stage.identifier;
+							break;
+						}
+						pointIndex += stage.matchMax;
+					}
+				}
+
+				if (stageId && !isNaN(x) && !isNaN(y)) {
+					correctPositions.push({ stageId, x, y });
+				}
+			}
+		}
+
+		return correctPositions;
+	}
+
+	const correctPositions = $derived(
+		isShowingCorrect ? parseCorrectPositions(parsedCorrectResponse) : []
+	);
+
+	/**
+	 * Check if a user position matches a correct position (within tolerance)
+	 */
+	function isPositionCorrect(pos: Position): boolean {
+		if (!isShowingCorrect) return false;
+		return correctPositions.some(
+			(correct) =>
+				correct.stageId === pos.stageId &&
+				Math.abs(correct.x - pos.x) < 5 &&
+				Math.abs(correct.y - pos.y) < 5
+		);
+	}
+
+	/**
+	 * Check if a correct position is already placed by the user
+	 */
+	function isCorrectPositionPlaced(correctPos: Position): boolean {
+		return positions.some(
+			(pos) =>
+				pos.stageId === correctPos.stageId &&
+				Math.abs(pos.x - correctPos.x) < 5 &&
+				Math.abs(pos.y - correctPos.y) < 5
+		);
+	}
 </script>
 
 <ShadowBaseStyles />
@@ -329,16 +403,17 @@
 				<!-- Positioned Objects -->
 				{#each positions as position, index}
 					{@const stage = getStageById(position.stageId)}
+					{@const isCorrect = isPositionCorrect(position)}
 					{#if stage}
 						<div
 							part="placed"
-							class="qti-po-placed absolute cursor-move"
+							class="qti-po-placed absolute cursor-move {isCorrect ? 'qti-po-placed-correct' : ''}"
 							style="left: {position.x * scaleFactor}px; top: {position.y * scaleFactor}px; z-index: {10 + index}; transform-origin: top left;"
 							draggable={canInteract}
 							ondragstart={(e) => handleDragStart(e, position.stageId, index)}
 							role="button"
 							tabindex={canInteract ? 0 : -1}
-							aria-label="Positioned {stage.label} at ({position.x}, {position.y})"
+							aria-label="Positioned {stage.label} at ({position.x}, {position.y}){isCorrect ? '. Correct position' : ''}"
 						>
 							{#if stage.objectData}
 								{#if stage.objectData.type === 'svg' && stage.objectData.content}
@@ -358,10 +433,14 @@
 							{:else}
 								<!-- Text-only object -->
 								<div
-									class="px-3 py-2 bg-primary text-primary-content rounded-lg shadow-lg font-medium"
+									class="px-3 py-2 rounded-lg shadow-lg font-medium {isCorrect ? 'bg-success text-white' : 'bg-primary text-primary-content'}"
 								>
 									{stage.label}
 								</div>
+							{/if}
+
+							{#if isCorrect}
+								<span class="badge badge-success badge-xs absolute -top-1 -right-1">✓</span>
 							{/if}
 
 							{#if canInteract}
@@ -394,6 +473,47 @@
 						</div>
 					{/if}
 				{/each}
+
+				<!-- Render correct positions that haven't been placed by the user -->
+				{#if isShowingCorrect && correctPositions.length > 0}
+					{#each correctPositions as correctPos, index}
+						{@const stage = getStageById(correctPos.stageId)}
+						{@const isPlaced = isCorrectPositionPlaced(correctPos)}
+						{#if stage && !isPlaced}
+							<div
+								part="correct-placed"
+								class="qti-po-placed qti-po-placed-correct qti-po-placed-ghost absolute pointer-events-none"
+								style="left: {correctPos.x * scaleFactor}px; top: {correctPos.y * scaleFactor}px; z-index: {5 + index}; transform-origin: top left;"
+								aria-label="Correct position for {stage.label} at ({correctPos.x}, {correctPos.y})"
+							>
+								{#if stage.objectData}
+									{#if stage.objectData.type === 'svg' && stage.objectData.content}
+										<div
+											style="width: {(parseInt(stage.objectData.width || '50')) * scaleFactor}px; height: {(parseInt(stage.objectData.height || '50')) * scaleFactor}px;"
+										>
+											{@html stage.objectData.content}
+										</div>
+									{:else if stage.objectData.src}
+										<img
+											src={stage.objectData.src}
+											alt={stage.label}
+											style="width: {(parseInt(stage.objectData.width || '50')) * scaleFactor}px; height: {(parseInt(stage.objectData.height || '50')) * scaleFactor}px;"
+											class="pointer-events-none"
+										/>
+									{/if}
+								{:else}
+									<!-- Text-only object -->
+									<div
+										class="px-3 py-2 bg-success text-white rounded-lg shadow-lg font-medium opacity-60"
+									>
+										{stage.label}
+									</div>
+								{/if}
+								<span class="badge badge-success badge-xs absolute -top-1 -right-1">✓</span>
+							</div>
+						{/if}
+					{/each}
+				{/if}
 			</div>
 
 			{#if parsedInteraction.minChoices > 0}
@@ -513,6 +633,18 @@
 	/* Critical: positioned items must be absolutely positioned even without Tailwind's `absolute` utility */
 	.qti-po-placed {
 		position: absolute;
+	}
+
+	.qti-po-placed-correct {
+		border: 3px solid var(--color-success, oklch(76% 0.177 163.223));
+		border-radius: 4px;
+		box-shadow: 0 0 0 2px var(--color-success, oklch(76% 0.177 163.223)) inset;
+	}
+
+	.qti-po-placed-ghost {
+		opacity: 0.6;
+		border: 3px dashed var(--color-success, oklch(76% 0.177 163.223));
+		border-radius: 4px;
 	}
 	.qti-po-palette {
 		flex: 1 1 0;

@@ -126,6 +126,7 @@
 				player={playerData.player}
 				{responses}
 				disabled={role !== 'candidate'}
+				{role}
 				{typeset}
 				{i18n}
 				onResponseChange={handleResponseChange}

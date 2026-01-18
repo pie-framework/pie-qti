@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { assignProps } from '../utils/assignProps';
 
 	const {
 		itemXml,
@@ -19,10 +20,6 @@
 	let isReady = $state(false);
 
 	// Track current values to detect changes
-	let currentXml = '';
-	let currentRole = '';
-	let currentIdentifier = '';
-
 	function getSecurityConfig() {
 		if (typeof window === 'undefined') return {};
 		return {
@@ -34,23 +31,13 @@
 
 	function updatePlayerProperties() {
 		if (!playerElement || !isReady) return;
-
-		// Only update if values have changed
-		const xmlChanged = itemXml !== currentXml;
-		const roleChanged = role !== currentRole;
-		const identifierChanged = identifier !== currentIdentifier;
-
-		if (xmlChanged || roleChanged || identifierChanged) {
-			playerElement.itemXml = itemXml;
-			playerElement.role = role;
-			playerElement.identifier = identifier;
-			playerElement.title = title;
-			playerElement.security = getSecurityConfig();
-
-			currentXml = itemXml;
-			currentRole = role;
-			currentIdentifier = identifier;
-		}
+		assignProps(playerElement, {
+			itemXml,
+			role,
+			identifier,
+			title,
+			security: getSecurityConfig(),
+		});
 	}
 
 	onMount(async () => {

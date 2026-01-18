@@ -49,7 +49,7 @@
 					d="M4 6h16M4 12h16M4 18h16"
 				/>
 			</svg>
-			{i18n?.t('assessment.sections.title', 'Sections')}
+			{i18n?.t('assessment.sections.title') ?? 'Sections'}
 		</button>
 
 		{#if isOpen}
@@ -96,14 +96,14 @@
 								</div>
 								<div class="section-info">
 									<div class="section-title">
-										{section.title || i18n?.t('assessment.sectionDefault', 'Section {number}', { number: section.index + 1 })}
+										{section.title || (i18n?.t('assessment.sectionDefault', { number: section.index + 1 }) ?? `Section ${section.index + 1}`)}
 									</div>
 								</div>
 							</button>
 						{/each}
 					</div>
 				</div>
-				<button class="section-backdrop" onclick={() => toggleMenu?.()} aria-label={i18n?.t('assessment.closeMenu', 'Close menu')}></button>
+				<button class="section-backdrop" onclick={() => toggleMenu?.()} aria-label={i18n?.t('assessment.closeMenu') ?? 'Close menu'}></button>
 			</div>
 		{/if}
 	</div>

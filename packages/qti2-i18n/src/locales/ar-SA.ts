@@ -149,6 +149,7 @@ export default {
 			selectMultiple: 'اختر جميع ما ينطبق',
 			selected: 'محدد',
 			notSelected: 'غير محدد',
+			correct: 'صحيح',
 		},
 
 		upload: {
@@ -330,6 +331,7 @@ export default {
 			selectAnother: 'محدد: <strong>{label}</strong>. انقر على آخر',
 			minimumRequired: 'الحد الأدنى المطلوب: {minAssociations}',
 			currentAssociations: 'الارتباطات الحالية',
+			correctAssociations: 'الارتباطات الصحيحة',
 			clickToAssociate: 'انقر على عنصرين لإنشاء ارتباط بينهما',
 			clickAnotherOrDeselect: 'انقر على عنصر آخر لإنشاء ارتباط (أو انقر مرة أخرى لإلغاء التحديد)',
 			associations: 'الارتباطات',
@@ -539,6 +541,7 @@ export default {
 		tutor: 'مدرس',
 		showCorrectAnswers: 'إظهار الإجابات الصحيحة',
 		showFeedback: 'إظهار التعليقات',
+		settings_aria: 'فتح قائمة الإعدادات',
 		xmlEditor: 'محرر XML',
 
 		// Navigation

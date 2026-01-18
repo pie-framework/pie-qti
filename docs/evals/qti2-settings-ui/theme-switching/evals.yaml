@@ -1,0 +1,154 @@
+version: 1
+
+# Settings UI - Theme Switching Evaluation
+#
+# Tests theme switching functionality, including visual changes,
+# persistence via localStorage, and high-contrast theme accessibility.
+
+component:
+  interactionType: themeManager
+  tagName: SettingsMenu
+
+examplesApp:
+  app: "@pie-qti/qti2-example"
+  routeTemplate: "/item-demo/{sampleId}"
+
+evals:
+  - id: settings-ui/theme-switching/simple-choice/light-to-dark
+    sampleId: simple-choice
+    gradeBand: "K-12"
+    subject: general
+    intent: "Verify that switching from light to dark theme changes the UI appearance and persists the selection."
+
+    notes:
+      - "Theme changes are immediate (no page reload)"
+      - "Theme stored in localStorage with key 'theme'"
+      - "DaisyUI themes applied via data-theme attribute on html element"
+
+    steps:
+      - action: navigate
+        path: "/item-demo/simple-choice"
+
+      - action: observe
+        target:
+          description: "Page loads with default light theme"
+          hint: "Background should be light colored"
+
+      - action: click
+        target:
+          description: "Settings gear icon"
+
+      - action: click
+        target:
+          description: "Click 'dark' in theme list"
+
+      - action: observe
+        target:
+          description: "Theme changes to dark immediately"
+          hint: "Background should change to dark color"
+
+      - action: observe
+        target:
+          description: "'dark' theme shows checkmark"
+          hint: "Active theme indicator on 'dark'"
+
+    expected:
+      localStorage:
+        theme:
+          equals: "dark"
+
+    spiritChecks:
+      - "Theme change is immediate and visually obvious."
+      - "Dark theme has good contrast and readability."
+      - "Active theme selection is clearly indicated with checkmark."
+
+  - id: settings-ui/theme-switching/simple-choice/high-contrast
+    sampleId: simple-choice
+    gradeBand: "K-12"
+    subject: general
+    intent: "Verify that the high-contrast theme provides WCAG AAA compliant contrast ratios for accessibility."
+
+    notes:
+      - "high-contrast is a custom theme (not standard DaisyUI)"
+      - "Should meet WCAG AAA contrast requirements (7:1 for normal text)"
+      - "Tests accessibility for users with visual impairments"
+
+    steps:
+      - action: navigate
+        path: "/item-demo/simple-choice"
+
+      - action: click
+        target:
+          description: "Settings gear icon"
+
+      - action: click
+        target:
+          description: "Click 'high-contrast' in theme list"
+
+      - action: observe
+        target:
+          description: "High contrast colors are applied"
+          hint: "Should have very distinct foreground/background contrast"
+
+      - action: observe
+        target:
+          description: "Text is clearly legible with high contrast"
+
+      - action: observe
+        target:
+          description: "Interactive elements have clear visual boundaries"
+          hint: "Buttons, inputs should have strong outlines/borders"
+
+    expected:
+      localStorage:
+        theme:
+          equals: "high-contrast"
+
+    spiritChecks:
+      - "High contrast theme is noticeably different from standard themes."
+      - "All text is easily readable with strong contrast."
+      - "Interactive elements are clearly distinguishable."
+      - "No color-only indicators (visual boundaries are clear)."
+
+  - id: settings-ui/theme-switching/simple-choice/persistence-reload
+    sampleId: simple-choice
+    gradeBand: "K-12"
+    subject: general
+    intent: "Verify that theme selection persists across page reloads."
+
+    notes:
+      - "Tests localStorage persistence"
+      - "Theme should be applied on initial page load from localStorage"
+      - "No flash of unstyled content (FOUC)"
+
+    steps:
+      - action: setLocalStorage
+        key: "theme"
+        value: "dracula"
+
+      - action: navigate
+        path: "/item-demo/simple-choice"
+
+      - action: observe
+        target:
+          description: "Page loads with dracula theme applied"
+          hint: "Should immediately have dracula theme colors (dark purple tones)"
+
+      - action: click
+        target:
+          description: "Settings gear icon"
+
+      - action: observe
+        target:
+          description: "'dracula' theme shows checkmark"
+          hint: "Active theme indicator on 'dracula'"
+
+    expected:
+      localStorage:
+        theme:
+          equals: "dracula"
+
+    spiritChecks:
+      - "Theme persists reliably across page loads."
+      - "No flash of default theme before saved theme applies."
+      - "Active theme is correctly indicated in settings menu."

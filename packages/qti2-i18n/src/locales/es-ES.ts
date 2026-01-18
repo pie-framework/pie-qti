@@ -120,6 +120,7 @@ export default {
 			selectMultiple: 'Selecciona todas las que apliquen',
 			selected: 'Seleccionado',
 			notSelected: 'No seleccionado',
+			correct: 'Correcto',
 		},
 
 		upload: {
@@ -286,6 +287,7 @@ export default {
 			selectAnother: 'Seleccionado: <strong>{label}</strong>. Haz clic en otro',
 			minimumRequired: 'Mínimo requerido: {minAssociations}',
 			currentAssociations: 'Asociaciones actuales',
+			correctAssociations: 'Asociaciones correctas',
 			clickToAssociate: 'Haz clic en dos elementos para crear una asociación entre ellos',
 			clickAnotherOrDeselect: 'Haz clic en otro elemento para crear una asociación (o haz clic nuevamente para deseleccionar)',
 			associations: 'Asociaciones',
@@ -495,6 +497,7 @@ export default {
 		tutor: 'Tutor',
 		showCorrectAnswers: 'Mostrar respuestas correctas',
 		showFeedback: 'Mostrar retroalimentación',
+		settings_aria: 'Abrir menú de configuración',
 		xmlEditor: 'Editor XML',
 
 		// Navigation

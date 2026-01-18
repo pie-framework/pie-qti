@@ -117,6 +117,7 @@ export default {
 			selectMultiple: '选择所有适用项',
 			selected: '已选择',
 			notSelected: '未选择',
+			correct: '正确',
 		},
 
 		upload: {
@@ -298,6 +299,7 @@ export default {
 			selectAnother: '已选择:<strong>{label}</strong>。点击另一个',
 			minimumRequired: '最少需要:{minAssociations}',
 			currentAssociations: '当前关联',
+			correctAssociations: '正确关联',
 			clickToAssociate: '点击两个项目以在它们之间创建关联',
 			clickAnotherOrDeselect: '点击另一个项目以创建关联(或再次点击以取消选择)',
 			associations: '关联',
@@ -507,6 +509,7 @@ export default {
 		tutor: '辅导员',
 		showCorrectAnswers: '显示正确答案',
 		showFeedback: '显示反馈',
+		settings_aria: '打开设置菜单',
 		xmlEditor: 'XML 编辑器',
 
 		// 导航

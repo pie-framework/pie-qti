@@ -34,9 +34,10 @@ Everything lives under `packages/`:
 
 ### Transform system
 
-- `packages/types`: shared transformation type contracts (input/output formats)
+- `packages/types`: shared transformation type contracts (input/output formats, storage interfaces)
 - `packages/schemas`: PIE schema/validation assets
 - `packages/core`: transform engine + plugin registry (format orchestration)
+- `packages/storage`: pluggable storage backends (filesystem, S3, database)
 - `packages/qti2-to-pie`: QTI → PIE transform plugin (plus vendor extension hooks)
 - `packages/pie-to-qti2`: PIE → QTI transform plugin (generator registry + packaging)
 
@@ -432,10 +433,36 @@ Key reference:
 
 The transform app is a SvelteKit web UI that wires together:
 
-- upload and extraction (sessionized filesystem storage),
+- upload and extraction (pluggable storage backend with session management),
 - analysis (discover items/tests, count interactions, record issues),
 - transformation (batch convert to PIE),
 - preview (QTI player preview and PIE player preview side-by-side).
+
+### Storage architecture
+
+The transform app uses a **pluggable storage system** (`@pie-qti/storage`) that abstracts storage backends:
+
+- **Default**: Filesystem backend (stores sessions in `./uploads/sessions/`)
+- **Optional**: S3, database, or custom backends via configuration
+
+Sessions are stored with separate metadata files:
+
+- `metadata.json` - Core session state (id, status, timestamps)
+- `analysis.json` - Analysis results (packages, items, interactions)
+- `transformation.json` - Transform results (items, assessments, errors)
+
+This separation enables:
+
+- Independent loading of analysis/transformation data
+- Efficient storage backends (only fetch what's needed)
+- Clear data ownership and versioning
+
+Key references:
+
+- Storage types: `packages/types/src/storage/index.ts`
+- Storage package: `packages/storage/src/`
+- App storage wrapper: `packages/transform-app/src/lib/server/storage/app-session-storage.ts`
+- Configuration: `docs/CONFIGURATION.md`
 
 ### Server-side flow (sessioned)
 

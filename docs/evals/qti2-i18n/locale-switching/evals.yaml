@@ -1,0 +1,237 @@
+version: 1
+
+# i18n Locale Switching Evaluation
+#
+# Tests the locale switching UI functionality in the example app.
+# Validates that users can switch between 8 supported locales and that
+# the selection persists across page reloads via localStorage.
+
+component:
+  interactionType: localeManager
+  tagName: SettingsMenu
+
+examplesApp:
+  app: "@pie-qti/qti2-example"
+  routeTemplate: "/item-demo/{sampleId}"
+
+evals:
+  - id: i18n/locale-switching/simple-choice/switch-to-spanish
+    sampleId: simple-choice
+    gradeBand: "K-12"
+    subject: general
+    intent: "Verify that clicking 'Español' in the settings menu switches the UI locale to Spanish and triggers a page reload."
+
+    notes:
+      - "Locale switching triggers a full page reload to apply translations"
+      - "The SettingsMenu component is in the top-right navbar (gear icon)"
+      - "localStorage key 'pie-qti-locale' stores the selected locale"
+
+    steps:
+      - action: navigate
+        path: "/item-demo/simple-choice"
+
+      - action: click
+        target:
+          description: "Settings gear icon in top-right corner"
+          hint: "Button with gear/cog icon, aria-label contains 'Settings'"
+
+      - action: observe
+        target:
+          description: "Settings dropdown menu is visible"
+          hint: "Menu contains Language and Theme sections"
+
+      - action: click
+        target:
+          description: "Select 'Español' from the language list"
+          hint: "Language option with label 'Español'"
+
+      # Note: Page reload happens automatically after locale selection
+      - action: observe
+        target:
+          description: "Page has reloaded with Spanish locale"
+          hint: "Submit button text should be in Spanish (e.g., 'Enviar respuesta' or similar)"
+
+    expected:
+      # Note: The runner will need to check localStorage programmatically
+      # This is a proposed extension to the eval schema
+      localStorage:
+        pie-qti-locale:
+          equals: "es-ES"
+
+    spiritChecks:
+      - "Locale switching is accessible and provides clear visual feedback (checkmarks)."
+      - "The settings menu is easy to find and operate."
+      - "Page reload happens smoothly without losing navigation context."
+
+  - id: i18n/locale-switching/simple-choice/persistence-after-reload
+    sampleId: simple-choice
+    gradeBand: "K-12"
+    subject: general
+    intent: "Verify that a previously selected locale persists across page reloads by checking localStorage and observing the active locale indicator."
+
+    notes:
+      - "This test programmatically sets localStorage before navigation"
+      - "The app should initialize with the saved locale on mount"
+      - "Active locale shows a checkmark in the settings menu"
+
+    steps:
+      # Note: This step requires runner support for setting localStorage before navigation
+      - action: setLocalStorage
+        key: "pie-qti-locale"
+        value: "fr-FR"
+
+      - action: navigate
+        path: "/item-demo/simple-choice"
+
+      - action: observe
+        target:
+          description: "UI text is in French"
+          hint: "Submit button should show French text (e.g., 'Soumettre la réponse')"
+
+      - action: click
+        target:
+          description: "Settings gear icon"
+          hint: "Top-right gear button"
+
+      - action: observe
+        target:
+          description: "Settings menu shows 'Français' with checkmark"
+          hint: "Active locale has checkmark icon next to it"
+
+    expected:
+      localStorage:
+        pie-qti-locale:
+          equals: "fr-FR"
+
+    spiritChecks:
+      - "Locale preference persists reliably across page loads."
+      - "The active locale is clearly indicated in the settings menu."
+      - "No flash of wrong-language content (FOUC) on page load."
+
+  - id: i18n/locale-switching/capital-cities/cycle-all-locales
+    sampleId: capital-cities
+    gradeBand: "3-6"
+    subject: social-studies
+    intent: "Verify that all 8 supported locales are accessible via the settings menu and that the multilingual item 'capital-cities' loads correctly in each locale."
+
+    notes:
+      - "Tests all 8 locales: en-US, es-ES, fr-FR, nl-NL, ro-RO, th-TH, zh-CN, ar-SA"
+      - "capital-cities is a multilingual sample item with translations in all 8 locales"
+      - "This is a smoke test to ensure no locale is broken"
+
+    steps:
+      - action: navigate
+        path: "/item-demo/capital-cities"
+
+      # Test en-US (default)
+      - action: observe
+        target:
+          description: "Item loads in English by default"
+          hint: "Question text should be in English"
+
+      # Switch to es-ES
+      - action: click
+        target:
+          description: "Settings gear icon"
+
+      - action: click
+        target:
+          description: "Select 'Español'"
+          hint: "Language option labeled 'Español'"
+
+      - action: observe
+        target:
+          description: "Item reloads in Spanish"
+          hint: "Question text is now in Spanish"
+
+      # Switch to fr-FR
+      - action: click
+        target:
+          description: "Settings gear icon"
+
+      - action: click
+        target:
+          description: "Select 'Français'"
+
+      - action: observe
+        target:
+          description: "Item reloads in French"
+
+      # Switch to nl-NL
+      - action: click
+        target:
+          description: "Settings gear icon"
+
+      - action: click
+        target:
+          description: "Select 'Nederlands'"
+
+      - action: observe
+        target:
+          description: "Item reloads in Dutch"
+
+      # Switch to ro-RO
+      - action: click
+        target:
+          description: "Settings gear icon"
+
+      - action: click
+        target:
+          description: "Select 'Română'"
+
+      - action: observe
+        target:
+          description: "Item reloads in Romanian"
+
+      # Switch to th-TH
+      - action: click
+        target:
+          description: "Settings gear icon"
+
+      - action: click
+        target:
+          description: "Select 'ไทย'"
+
+      - action: observe
+        target:
+          description: "Item reloads in Thai"
+          hint: "Thai script characters should be visible"
+
+      # Switch to zh-CN
+      - action: click
+        target:
+          description: "Settings gear icon"
+
+      - action: click
+        target:
+          description: "Select '中文(简体)'"
+
+      - action: observe
+        target:
+          description: "Item reloads in Chinese"
+          hint: "Chinese characters should be visible"
+
+      # Switch to ar-SA
+      - action: click
+        target:
+          description: "Settings gear icon"
+
+      - action: click
+        target:
+          description: "Select 'العربية'"
+
+      - action: observe
+        target:
+          description: "Item reloads in Arabic"
+          hint: "Arabic script should be visible, text direction may be RTL"
+
+    expected:
+      localStorage:
+        pie-qti-locale:
+          equals: "ar-SA"
+
+    spiritChecks:
+      - "All 8 locales are accessible and work without errors."
+      - "Each locale loads appropriate translated content."
+      - "Special scripts (Thai, Chinese, Arabic) render correctly."
+      - "No broken layout or missing text in any locale."

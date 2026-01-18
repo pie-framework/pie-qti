@@ -1,0 +1,55 @@
+{
+	"name": "@pie-qti/storage",
+	"version": "0.0.1",
+	"description": "Storage abstraction layer for PIE Transform framework",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		},
+		"./backends/filesystem": {
+			"types": "./dist/backends/filesystem-backend.d.ts",
+			"default": "./dist/backends/filesystem-backend.js"
+		},
+		"./backends/s3": {
+			"types": "./dist/backends/s3-backend.d.ts",
+			"default": "./dist/backends/s3-backend.js"
+		},
+		"./backends/database": {
+			"types": "./dist/backends/database-backend.d.ts",
+			"default": "./dist/backends/database-backend.js"
+		},
+		"./session-storage": {
+			"types": "./dist/session-storage.d.ts",
+			"default": "./dist/session-storage.js"
+		},
+		"./zip-extractor": {
+			"types": "./dist/zip-extractor.d.ts",
+			"default": "./dist/zip-extractor.js"
+		}
+	},
+	"scripts": {
+		"build": "tsc",
+		"test": "bun test tests"
+	},
+	"dependencies": {
+		"@pie-qti/transform-types": "workspace:*",
+		"adm-zip": "^0.5.16"
+	},
+	"peerDependencies": {
+		"@aws-sdk/client-s3": "^3.0.0"
+	},
+	"peerDependenciesMeta": {
+		"@aws-sdk/client-s3": {
+			"optional": true
+		}
+	},
+	"devDependencies": {
+		"@types/adm-zip": "^0.5.5",
+		"@types/bun": "latest",
+		"typescript": "^5.7.3"
+	}
+}

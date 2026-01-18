@@ -1,12 +1,11 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { Qti22ToPiePlugin } from '@pie-qti/qti2-to-pie';
-import { getSessionManager } from '$lib/server/storage/SessionManager';
-import type { Actions } from './$types';
+import type { Actions, PageServerLoad } from './$types';
 
-export const load = async () => {
-	const sessionManager = getSessionManager();
-	const sessions = await sessionManager.listSessions();
+export const load: PageServerLoad = async ({ locals }) => {
+	const { appSessionStorage } = locals;
+	const sessions = await appSessionStorage.listSessions();
 
 	let samples: any[] = [];
 	try {
@@ -20,11 +19,11 @@ export const load = async () => {
 
 	return {
 		sessions: sessions
-			.map((s) => ({
+			.map((s: any) => ({
 				id: s.id,
-				created: s.created.toISOString(),
+				created: s.createdAt,
 				status: s.status,
-				packageCount: s.packages.length,
+				packageCount: s.extractedFiles?.length || 0,
 				hasAnalysis: !!s.analysis,
 				hasTransformation: !!s.transformation,
 			}))

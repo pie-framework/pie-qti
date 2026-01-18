@@ -24,6 +24,7 @@
     "@pie-qti/qti2-player-elements": "workspace:*",
     "@pie-qti/qti2-typeset-katex": "workspace:*",
     "@pie-qti/qti2-to-pie": "workspace:*",
+    "@pie-qti/storage": "workspace:*",
     "@pie-qti/transform-core": "workspace:*",
     "@pie-qti/transform-types": "workspace:*",
     "@pie-qti/web-component-loaders": "workspace:*",

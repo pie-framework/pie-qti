@@ -27,11 +27,6 @@
 	const i18nContext = getContext<{ value: SvelteI18nProvider | null }>('i18n');
 	const i18n = $derived(i18nContext?.value ?? null);
 
-	// Debug logging
-	$effect(() => {
-		console.log('[ItemDemo Page] i18n from context:', i18n);
-	});
-
 	// State
 	let selectedSampleId = $state('simple-choice');
 	let xmlContent = $state('');
@@ -268,34 +263,67 @@
 
 	// React to URL parameter changes and locale changes
 	$effect(() => {
-		// Read sample ID from URL path parameter
+		// Read dependencies - effect will re-run when these change
 		const urlSampleId = $page.params.sample;
-
-		// Track i18n to make this effect re-run when i18n becomes available
 		const i18nProvider = i18n;
 		const currentLocale = i18nProvider?.getLocale() ?? 'en-US';
 
-		console.log('[ItemDemo] Loading item:', urlSampleId, 'Locale:', currentLocale);
+		// Early return if no valid sample ID
+		if (!urlSampleId) return;
 
-		if (urlSampleId && SAMPLE_ITEMS.find((item) => item.id === urlSampleId)) {
-			selectedSampleId = urlSampleId;
-			// Use locale-aware XML loading - automatically gets the right language variant
-			// This is now async, so we need to handle the promise
-			getItemXmlForLocale(urlSampleId, currentLocale)
-				.then((xml) => {
-					xmlContent = xml;
-					// Use untrack to prevent tracking selectedRole as a dependency
-					// This prevents infinite loops when loadPlayer reads selectedRole
-					untrack(() => loadPlayer(xml));
-				})
-				.catch((err) => {
-					console.error('[ItemDemo] Error loading XML:', err);
-					errorMessage = err instanceof Error ? err.message : String(err);
-				});
-		} else if (urlSampleId) {
+		// Validate sample exists
+		if (!SAMPLE_ITEMS.find((item) => item.id === urlSampleId)) {
 			// Invalid sample - redirect to default
 			goto(`${base}/item-demo/simple-choice`, { replaceState: true, noScroll: true });
+			return;
 		}
+
+		console.log('[ItemDemo] Loading item:', urlSampleId, 'Locale:', currentLocale);
+
+		// Use AbortController to cancel in-flight requests when effect re-runs
+		// This is the standard pattern for async operations in effects
+		const abortController = new AbortController();
+		const signal = abortController.signal;
+
+		// Clean up previous player instance before creating a new one
+		// Use untrack to prevent reactive updates from triggering the effect again
+		untrack(() => {
+			if (player) {
+				player = null;
+				responses = {};
+				scoringResult = null;
+			}
+			selectedSampleId = urlSampleId;
+		});
+
+		// Use locale-aware XML loading - automatically gets the right language variant
+		getItemXmlForLocale(urlSampleId, currentLocale)
+			.then((xml) => {
+				// Ignore results if this effect has been superseded (standard cancellation pattern)
+				if (signal.aborted) return;
+
+				// Use untrack to prevent reactive updates from triggering the effect
+				// This is the standard pattern when updating state from async operations
+				untrack(() => {
+					xmlContent = xml;
+					loadPlayer(xml);
+				});
+			})
+			.catch((err) => {
+				// Ignore errors if this effect has been superseded
+				if (signal.aborted) return;
+
+				console.error('[ItemDemo] Error loading XML:', err);
+				untrack(() => {
+					errorMessage = err instanceof Error ? err.message : String(err);
+				});
+			});
+
+		// Cleanup function: abort in-flight requests when effect re-runs or component unmounts
+		// This is the standard Svelte 5 pattern for async cleanup
+		return () => {
+			abortController.abort();
+		};
 	});
 
 	// Keyboard shortcuts
@@ -353,23 +381,10 @@
 			<ConfigurationPanel
 				bind:selectedSampleId
 				bind:xmlContent
+				bind:selectedRole
 				onSampleChange={handleSampleChange}
 				onXmlChange={handleXmlChange}
-			/>
-
-			<SettingsPanel
-				bind:selectedRole
-				bind:useBackendScoring
-				{sessionId}
-				{isSaving}
-				hasPlayer={player !== null}
-				{templateVariables}
-				onRegenerateVariant={regenerateVariant}
 				onRoleChange={handleRoleChange}
-				onBackendScoringChange={() => {}}
-				onSaveSession={saveSession}
-				onLoadSession={loadSession}
-				onExport={exportResponses}
 			/>
 		</div>
 

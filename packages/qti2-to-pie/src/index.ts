@@ -5,6 +5,7 @@
  */
 
 export { Qti22ToPiePlugin } from './plugin.js';
+export type { Qti22ToPiePluginOptions } from './plugin.js';
 export type { AssessmentSection, AssessmentTestOptions, ItemReference, PieAssessment } from './transformers/assessment-test.js';
 export { transformAssessmentTest } from './transformers/assessment-test.js';
 export type { DragInTheBlankOptions } from './transformers/drag-in-the-blank.js';

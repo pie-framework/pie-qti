@@ -2156,7 +2156,11 @@ export const SELECT_POINT_INTERACTION = `<?xml version="1.0" encoding="UTF-8"?>
   adaptive="false"
   timeDependent="false">
 
-  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="point"/>
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="point">
+    <correctResponse>
+      <value>350 200</value>
+    </correctResponse>
+  </responseDeclaration>
 
   <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
     <defaultValue>
@@ -2917,20 +2921,13 @@ export const GRAPHIC_ASSOCIATE_INTERACTION = `<?xml version="1.0" encoding="UTF-
     <p><strong>Biology:</strong> Connect each organ to its primary function by clicking pairs of hotspots.</p>
     <graphicAssociateInteraction responseIdentifier="RESPONSE" maxAssociations="3" minAssociations="1">
       <prompt>Click an organ, then click its function to create an association:</prompt>
-      <object type="image/svg+xml" width="500" height="300">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 300">
-          <rect width="500" height="300" fill="#f5f5f5"/>
-          <text x="250" y="150" text-anchor="middle" font-size="20" fill="#666">Human Body Diagram</text>
-          <text x="100" y="50" text-anchor="middle" font-size="14" fill="#333">ORGANS</text>
-          <text x="400" y="50" text-anchor="middle" font-size="14" fill="#333">FUNCTIONS</text>
-        </svg>
-      </object>
-      <associableHotspot identifier="HEART" shape="rect" coords="50,80,150,120" matchMax="1">Heart</associableHotspot>
-      <associableHotspot identifier="LUNGS" shape="rect" coords="50,140,150,180" matchMax="1">Lungs</associableHotspot>
-      <associableHotspot identifier="LIVER" shape="rect" coords="50,200,150,240" matchMax="1">Liver</associableHotspot>
-      <associableHotspot identifier="PUMP" shape="rect" coords="350,80,450,120" matchMax="1">Pump Blood</associableHotspot>
-      <associableHotspot identifier="OXYGEN" shape="rect" coords="350,140,450,180" matchMax="1">Gas Exchange</associableHotspot>
-      <associableHotspot identifier="BLOOD" shape="rect" coords="350,200,450,240" matchMax="1">Filter Blood</associableHotspot>
+      <object type="image/png" data="/human-body-diagram.png" width="560" height="560"/>
+      <associableHotspot identifier="HEART" shape="rect" coords="180,280,280,320" matchMax="1">Heart</associableHotspot>
+      <associableHotspot identifier="LUNGS" shape="rect" coords="80,210,180,250" matchMax="1">Lungs</associableHotspot>
+      <associableHotspot identifier="LIVER" shape="rect" coords="100,420,200,460" matchMax="1">Liver</associableHotspot>
+      <associableHotspot identifier="PUMP" shape="rect" coords="400,80,500,120" matchMax="1">Pump Blood</associableHotspot>
+      <associableHotspot identifier="OXYGEN" shape="rect" coords="400,140,500,180" matchMax="1">Gas Exchange</associableHotspot>
+      <associableHotspot identifier="BLOOD" shape="rect" coords="400,200,500,240" matchMax="1">Filter Blood</associableHotspot>
     </graphicAssociateInteraction>
   </itemBody>
   <responseProcessing>

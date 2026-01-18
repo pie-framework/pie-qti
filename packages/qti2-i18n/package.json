@@ -18,7 +18,7 @@
     "build": "bun run check-translations && tsc",
     "build:skip-check": "tsc",
     "clean": "rm -rf dist",
-    "test": "bun test src/test",
+    "test": "bun test tests",
     "typecheck": "tsc --noEmit",
     "check-translations": "bun run scripts/check-translations.ts",
     "check-translations:locale": "bun run scripts/check-translations.ts --locale",

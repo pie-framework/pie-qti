@@ -10,6 +10,7 @@ import type {
   TransformOutput,
   TransformPlugin,
   ValidationResult,
+  VendorExtensionConfig,
 } from '@pie-qti/transform-types';
 import { parse } from 'node-html-parser';
 import { transformAssessmentTest } from './transformers/assessment-test.js';
@@ -41,6 +42,42 @@ import { extractPieExtension, hasPieExtension } from './utils/pie-extension.js';
 import { embedQtiSourceInPie } from './utils/qti-extension-embedder.js';
 import { validateQti } from './utils/qti-validator.js';
 
+/**
+ * Configuration options for the Qti22ToPiePlugin
+ */
+export interface Qti22ToPiePluginOptions {
+  /**
+   * Direct instance registration - vendor detectors to register
+   */
+  vendorDetectors?: VendorDetector[];
+
+  /**
+   * Direct instance registration - vendor transformers to register
+   */
+  vendorTransformers?: VendorTransformer[];
+
+  /**
+   * Direct instance registration - asset resolvers to register
+   */
+  assetResolvers?: AssetResolver[];
+
+  /**
+   * Direct instance registration - CSS class extractors to register
+   */
+  cssClassExtractors?: CssClassExtractor[];
+
+  /**
+   * Direct instance registration - metadata extractors to register
+   */
+  metadataExtractors?: MetadataExtractor[];
+
+  /**
+   * Config-based registration - vendor extensions configuration
+   * Note: This is typically used by the config loader, not directly by users
+   */
+  vendorExtensions?: VendorExtensionConfig;
+}
+
 export class Qti22ToPiePlugin implements TransformPlugin {
   readonly id = 'qti22-to-pie';
   readonly version = '1.0.0';
@@ -58,6 +95,52 @@ export class Qti22ToPiePlugin implements TransformPlugin {
     cssClassExtractors: [],
     metadataExtractors: [],
   };
+
+  /**
+   * Create a new Qti22ToPiePlugin instance
+   *
+   * @param options - Optional configuration for vendor extensions
+   *
+   * @example
+   * // Create with no options (backward compatible)
+   * const plugin = new Qti22ToPiePlugin();
+   *
+   * @example
+   * // Create with direct instance registration
+   * const plugin = new Qti22ToPiePlugin({
+   *   vendorDetectors: [new MyVendorDetector()],
+   *   vendorTransformers: [new MyVendorTransformer()],
+   * });
+   *
+   * @example
+   * // Create with config-based registration (used by config loader)
+   * const plugin = new Qti22ToPiePlugin({
+   *   vendorExtensions: {
+   *     detectors: [{ module: '@acme/vendor-plugin', export: 'Detector' }],
+   *   },
+   * });
+   */
+  constructor(options: Qti22ToPiePluginOptions = {}) {
+    // Register extensions provided directly as instances
+    options.vendorDetectors?.forEach((detector) =>
+      this.registerVendorDetector(detector)
+    );
+    options.vendorTransformers?.forEach((transformer) =>
+      this.registerVendorTransformer(transformer)
+    );
+    options.assetResolvers?.forEach((resolver) =>
+      this.registerAssetResolver(resolver)
+    );
+    options.cssClassExtractors?.forEach((extractor) =>
+      this.registerCssClassExtractor(extractor)
+    );
+    options.metadataExtractors?.forEach((extractor) =>
+      this.registerMetadataExtractor(extractor)
+    );
+
+    // Note: vendorExtensions config is handled by VendorExtensionRegistry
+    // after plugin instantiation, not in the constructor
+  }
 
   async canHandle(input: TransformInput): Promise<boolean> {
     if (typeof input.content !== 'string') {

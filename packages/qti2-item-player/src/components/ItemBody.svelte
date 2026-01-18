@@ -4,11 +4,13 @@
 	// @ts-expect-error - Svelte-check can't resolve workspace packages, but runtime works correctly
 	import type { I18nProvider } from '@pie-qti/qti2-i18n';
 	import { typesetAction } from './actions/typesetAction';
+	import { assignProps } from './utils/assignProps';
 
 	interface Props {
 		player: Player;
 		responses?: Record<string, any>;
 		disabled?: boolean;
+		role?: 'candidate' | 'scorer' | 'author' | 'tutor' | 'proctor' | 'testConstructor';
 		i18n?: I18nProvider;
 		typeset?: (element: HTMLElement) => void;
 		onResponseChange?: (responseId: string, value: any) => void;
@@ -18,6 +20,7 @@
 		player,
 		responses = {},
 		disabled = false,
+		role = 'candidate',
 		i18n,
 		typeset,
 		onResponseChange = () => {},
@@ -28,6 +31,11 @@
 
 	// Process interactions
 	const interactions = $derived<InteractionData[]>(player.getInteractionData());
+
+	// Get correct responses when role is scorer
+	const correctResponses = $derived.by(() => {
+		return role === 'scorer' ? player.getCorrectResponses() : {};
+	});
 
 	// Get components for block-level interactions only (not inline interactions)
 	// Inline interactions (textEntry, inlineChoice) are rendered within the HTML via InlineInteractionRenderer
@@ -54,39 +62,37 @@
 			.filter((item): item is NonNullable<typeof item> => item !== null)
 	);
 
-	// Get item body HTML and remove interaction elements (they're rendered separately)
+	// Get item body HTML and process interactions
+	// Block interactions are kept in HTML but wrapped with a hidden marker (see styles below)
+	// Inline interactions are replaced with placeholders
 	const itemBodyHtml = $derived.by(() => {
 		let html = player.getItemBodyHtml();
 
-		// Remove block interactions from HTML
+		// Replace inline interactions with placeholders (they need to be rendered in-flow)
 		html = html
-			.replace(/<choiceInteraction[\s\S]*?<\/choiceInteraction>/gi, '')
 			.replace(
 				/<textEntryInteraction[^>]*responseIdentifier="([^"]+)"[^>]*?(?:\/>|><\/textEntryInteraction>)/gi,
 				'[TEXTENTRY:$1]'
 			)
-			.replace(/<extendedTextInteraction[\s\S]*?<\/extendedTextInteraction>/gi, '')
 			.replace(
 				/<inlineChoiceInteraction[^>]*responseIdentifier="([^"]+)"[^>]*>[\s\S]*?<\/inlineChoiceInteraction>/gi,
 				'[INLINECHOICE:$1]'
-			)
-			.replace(/<orderInteraction[\s\S]*?<\/orderInteraction>/gi, '')
-			.replace(/<matchInteraction[\s\S]*?<\/matchInteraction>/gi, '')
-			.replace(/<associateInteraction[\s\S]*?<\/associateInteraction>/gi, '')
-			.replace(/<gapMatchInteraction[\s\S]*?<\/gapMatchInteraction>/gi, '')
-			.replace(/<sliderInteraction[\s\S]*?<\/sliderInteraction>/gi, '')
-			.replace(/<hotspotInteraction[\s\S]*?<\/hotspotInteraction>/gi, '')
-			.replace(/<graphicGapMatchInteraction[\s\S]*?<\/graphicGapMatchInteraction>/gi, '')
-			.replace(/<graphicOrderInteraction[\s\S]*?<\/graphicOrderInteraction>/gi, '')
-			.replace(/<graphicAssociateInteraction[\s\S]*?<\/graphicAssociateInteraction>/gi, '')
-			.replace(/<positionObjectInteraction[\s\S]*?<\/positionObjectInteraction>/gi, '')
-			.replace(/<endAttemptInteraction[\s\S]*?<\/endAttemptInteraction>/gi, '')
-			.replace(/<uploadInteraction[\s\S]*?<\/uploadInteraction>/gi, '')
-			.replace(/<drawingInteraction[\s\S]*?<\/drawingInteraction>/gi, '')
-			.replace(/<mediaInteraction[\s\S]*?<\/mediaInteraction>/gi, '')
-			.replace(/<hottextInteraction[\s\S]*?<\/hottextInteraction>/gi, '')
-			.replace(/<selectPointInteraction[\s\S]*?<\/selectPointInteraction>/gi, '')
-			.replace(/<customInteraction[\s\S]*?<\/customInteraction>/gi, '');
+			);
+
+		// Wrap all block-level *Interaction elements with a hidden marker
+		// This is extensible - any element ending in "Interaction" will be hidden
+		html = html.replace(
+			/<(\w+Interaction)(\s[^>]*)?>[\s\S]*?<\/\1>/gi,
+			(match, tagName) => {
+				// Skip inline interactions (already handled above)
+				if (tagName.toLowerCase() === 'textentryinteraction' ||
+				    tagName.toLowerCase() === 'inlinechoiceinteraction') {
+					return match;
+				}
+				// Wrap block interactions with a hidden span
+				return `<span class="qti-hidden-interaction">${match}</span>`;
+			}
+		);
 
 		return html;
 	});
@@ -142,6 +148,22 @@
 		onResponseChange(responseId, value);
 	}
 
+	function handleTextEntryInput(responseId: string, e: Event) {
+		const value = (e.currentTarget as HTMLInputElement | null)?.value ?? '';
+		handleResponseChange(responseId, value);
+	}
+
+	function handleInlineChoiceChange(responseId: string, e: Event) {
+		const value = (e.currentTarget as HTMLSelectElement | null)?.value ?? '';
+		handleResponseChange(responseId, value);
+	}
+
+	// Helper to find correct choice for inline choice interactions
+	function findCorrectChoice(choices: any[], correctAnswer: string | null): any {
+		if (!correctAnswer) return null;
+		return choices.find((c: any) => c.identifier === correctAnswer) || null;
+	}
+
 	// Handle qti:change events from web components
 	function handleQtiChange(event: CustomEvent) {
 		const { responseId, value } = event.detail;
@@ -175,25 +197,29 @@
 	}
 
 	// Action to set typeset and i18n on web components when they mount
-	function setWebComponentProps(node: HTMLElement, params: { i18n?: I18nProvider; typeset?: (el: HTMLElement) => void }) {
+	function setWebComponentProps(
+		node: HTMLElement,
+		params: {
+			i18n?: I18nProvider;
+			typeset?: (el: HTMLElement) => void;
+			[key: string]: unknown;
+		}
+	) {
 		// Use microtask to ensure custom element is fully initialized
 		queueMicrotask(() => {
-			if (params.typeset && node) {
-				(node as any).typeset = params.typeset;
-			}
-			if (params.i18n && node) {
-				(node as any).i18n = params.i18n;
-			}
+			if (!node) return;
+			assignProps(node, params);
 		});
 
 		return {
-			update(newParams: { i18n?: I18nProvider; typeset?: (el: HTMLElement) => void }) {
-				if (newParams.typeset) {
-					(node as any).typeset = newParams.typeset;
+			update(
+				newParams: {
+					i18n?: I18nProvider;
+					typeset?: (el: HTMLElement) => void;
+					[key: string]: unknown;
 				}
-				if (newParams.i18n) {
-					(node as any).i18n = newParams.i18n;
-				}
+			) {
+				assignProps(node, newParams);
 			},
 			destroy() {}
 		};
@@ -208,30 +234,52 @@
 				{#if segment.type === 'html'}
 					{@html segment.content}
 				{:else if segment.type === 'textEntry'}
+					{@const correctAnswer = role === 'scorer' ? (correctResponses[segment.interaction.responseId] ?? null) : null}
+					{@const displayValue = role === 'scorer' && correctAnswer !== null ? correctAnswer : (responses[segment.interaction.responseId] || '')}
 					<input
 						type="text"
 						class="input input-bordered input-sm inline-input"
+						class:border-success={correctAnswer !== null}
+						class:bg-success={correctAnswer !== null}
+						class:bg-opacity-10={correctAnswer !== null}
 						style="width: {segment.interaction.expectedLength * 8}px; min-width: 100px; display: inline-block; margin: 0 4px;"
 						placeholder="..."
-						aria-label={`Text entry ${segment.interaction.responseId}`}
-						value={responses[segment.interaction.responseId] || ''}
-						oninput={(e) =>
-							handleResponseChange(segment.interaction.responseId, (e.currentTarget as HTMLInputElement).value)}
+						aria-label={`Text entry ${segment.interaction.responseId}${correctAnswer ? '. Correct answer: ' + correctAnswer : ''}`}
+						value={displayValue}
+						on:input={(e) => handleTextEntryInput(segment.interaction.responseId, e)}
+						{disabled}
 					/>
 				{:else if segment.type === 'inlineChoice'}
-					<select
-						class="select select-bordered select-sm inline-select"
-						style="display: inline-block; margin: 0 4px; width: auto; min-width: 120px;"
-						aria-label={`Inline choice ${segment.interaction.responseId}`}
-						value={responses[segment.interaction.responseId] || ''}
-						onchange={(e) =>
-							handleResponseChange(segment.interaction.responseId, (e.currentTarget as HTMLSelectElement).value)}
-					>
-						<option value="">{i18n?.t('interactions.inline.selectPlaceholder', 'Select...')}</option>
-						{#each segment.interaction.choices as choice}
-							<option value={choice.identifier}>{choice.text}</option>
-						{/each}
-					</select>
+					{@const correctAnswer = role === 'scorer' ? (correctResponses[segment.interaction.responseId] ?? null) : null}
+					{@const userResponse = responses[segment.interaction.responseId] || ''}
+					{@const displayValue = role === 'scorer' && correctAnswer !== null ? correctAnswer : userResponse}
+					{@const correctChoice = findCorrectChoice(segment.interaction.choices, correctAnswer)}
+					<span class="inline-choice-wrapper" style="display: inline-block; position: relative;">
+						<select
+							class="select select-bordered select-sm inline-select"
+							class:border-success={correctAnswer !== null}
+							class:bg-success={correctAnswer !== null}
+							class:bg-opacity-10={correctAnswer !== null}
+							style="display: inline-block; margin: 0 4px; width: auto; min-width: 120px;"
+							aria-label={`Inline choice ${segment.interaction.responseId}${correctAnswer && correctChoice ? '. Correct answer: ' + (correctChoice as any).text : ''}`}
+							value={displayValue}
+							on:change={(e) => handleInlineChoiceChange(segment.interaction.responseId, e)}
+							{disabled}
+						>
+							<option value="">{i18n?.t('interactions.inline.selectPlaceholder', 'Select...')}</option>
+							{#each segment.interaction.choices as choice}
+								{@const isCorrect = correctAnswer === choice.identifier}
+								<option value={choice.identifier}>
+									{choice.text}{isCorrect ? ' ✓' : ''}
+								</option>
+							{/each}
+						</select>
+						{#if correctAnswer !== null && correctChoice}
+							<span class="badge badge-success badge-sm" style="position: absolute; top: -1.5rem; left: 0; white-space: nowrap; font-size: 0.7rem;">
+								{i18n?.t('interactions.choice.correct', 'Correct') ?? 'Correct'}: {(correctChoice as any).text}
+							</span>
+						{/if}
+					</span>
 				{/if}
 			{/each}
 		</div>
@@ -239,15 +287,18 @@
 
 	<!-- Block interactions rendered dynamically as web components -->
 	{#each interactionComponents as { interaction, tagName } (interactionKey(interaction))}
-		{@const wcProps = {
-			interaction: JSON.stringify(interaction),
-			response: JSON.stringify(responses[interaction.responseId] ?? null),
-			disabled: disabled ? true : undefined,
-		}}
+		{@const correctRespForInteraction = correctResponses[interaction.responseId] ?? null}
 		<svelte:element
 			this={tagName}
-			{...wcProps}
-			use:setWebComponentProps={{ i18n, typeset }}
+			use:setWebComponentProps={{
+				i18n,
+				typeset,
+				interaction,
+				response: responses[interaction.responseId] ?? null,
+				correctResponse: role === 'scorer' ? correctRespForInteraction : null,
+				disabled,
+				role,
+			}}
 		/>
 	{/each}
 </div>
@@ -290,5 +341,15 @@
 	/* Keep inline interactions from breaking paragraph flow */
 	.inline-interaction-container :global(p) {
 		display: inline;
+	}
+
+	/*
+	 * Hide all QTI interaction elements wrapped with qti-hidden-interaction.
+	 * These are rendered separately as web components above.
+	 * Keeping them in the HTML (but hidden) makes debugging easier and is fully extensible.
+	 * Any *Interaction element will be automatically wrapped and hidden - no hardcoded list needed!
+	 */
+	:global(.qti-item-body .qti-hidden-interaction) {
+		display: none !important;
 	}
 </style>

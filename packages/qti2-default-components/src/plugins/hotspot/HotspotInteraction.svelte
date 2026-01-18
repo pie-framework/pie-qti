@@ -10,16 +10,33 @@
 	interface Props {
 		interaction?: HotspotInteractionData | string;
 		response?: string | null;
+		correctResponse?: string | string[] | null;
 		disabled?: boolean;
+		role?: string;
 		i18n?: I18nProvider;
 		onChange?: (value: string) => void;
 	}
 
-	let { interaction = $bindable(), response = $bindable(), disabled = false, i18n = $bindable(), onChange }: Props = $props();
+	let { interaction = $bindable(), response = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), onChange }: Props = $props();
 
 	// Parse props that may be JSON strings (web component usage)
 	const parsedInteraction = $derived(parseJsonProp<HotspotInteractionData>(interaction));
 	const parsedResponse = $derived(parseJsonProp<string>(response));
+	const parsedCorrectResponse = $derived(parseJsonProp<string | string[]>(correctResponse));
+	const isShowingCorrect = $derived(role === 'scorer' && parsedCorrectResponse !== null);
+
+	// Get correct IDs as array
+	const correctIds = $derived.by(() => {
+		if (!isShowingCorrect) return [];
+		if (Array.isArray(parsedCorrectResponse)) {
+			return parsedCorrectResponse;
+		}
+		return parsedCorrectResponse ? [parsedCorrectResponse] : [];
+	});
+
+	function isCorrect(identifier: string): boolean {
+		return isShowingCorrect && correctIds.includes(identifier);
+	}
 
 	// Get reference to the root element for event dispatching
 	let rootElement: HTMLDivElement | undefined = $state();
@@ -97,12 +114,13 @@
 				<svg
 					part="overlay"
 					class="qti-hotspot-overlay"
-					style="width: 100%; height: 100%;"
+					style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"
 					viewBox="0 0 {parsedInteraction.imageData?.width || '800'} {parsedInteraction.imageData?.height || '600'}"
 					xmlns="http://www.w3.org/2000/svg"
 				>
 					{#each parsedInteraction.hotspotChoices as choice}
 						{@const isSelected = parsedResponse === choice.identifier}
+						{@const isCorrectChoice = isCorrect(choice.identifier)}
 						{@const coords = choice.coords.split(',').map(Number)}
 
 						{#if choice.shape === 'circle'}
@@ -111,12 +129,12 @@
 								cx={coords[0]}
 								cy={coords[1]}
 								r={coords[2]}
-								fill={isSelected ? 'rgba(59, 130, 246, 0.3)' : 'rgba(0, 0, 0, 0)'}
-								stroke={isSelected ? '#3b82f6' : 'transparent'}
+								fill={isSelected ? 'rgba(59, 130, 246, 0.3)' : isCorrectChoice ? 'rgba(34, 197, 94, 0.3)' : 'rgba(0, 0, 0, 0)'}
+								stroke={isSelected ? '#3b82f6' : isCorrectChoice ? '#22c55e' : 'transparent'}
 								stroke-width="2"
 								class="qti-hotspot-shape hover:fill-[rgba(59,130,246,0.1)] transition-all"
 								role="button"
-								aria-label={`Select hotspot ${choice.identifier}`}
+								aria-label={`Select hotspot ${choice.identifier}${isCorrectChoice ? '. Correct answer' : ''}`}
 								aria-pressed={isSelected ? 'true' : 'false'}
 								tabindex={disabled ? -1 : 0}
 								onclick={() => handleClick(choice.identifier)}
@@ -129,12 +147,12 @@
 								y={coords[1]}
 								width={coords[2]}
 								height={coords[3]}
-								fill={isSelected ? 'rgba(59, 130, 246, 0.3)' : 'rgba(0, 0, 0, 0)'}
-								stroke={isSelected ? '#3b82f6' : 'transparent'}
+								fill={isSelected ? 'rgba(59, 130, 246, 0.3)' : isCorrectChoice ? 'rgba(34, 197, 94, 0.3)' : 'rgba(0, 0, 0, 0)'}
+								stroke={isSelected ? '#3b82f6' : isCorrectChoice ? '#22c55e' : 'transparent'}
 								stroke-width="2"
 								class="qti-hotspot-shape hover:fill-[rgba(59,130,246,0.1)] transition-all"
 								role="button"
-								aria-label={`Select hotspot ${choice.identifier}`}
+								aria-label={`Select hotspot ${choice.identifier}${isCorrectChoice ? '. Correct answer' : ''}`}
 								aria-pressed={isSelected ? 'true' : 'false'}
 								tabindex={disabled ? -1 : 0}
 								onclick={() => handleClick(choice.identifier)}
@@ -152,12 +170,12 @@
 								.join(' ')}
 							<polygon
 								{points}
-								fill={isSelected ? 'rgba(59, 130, 246, 0.3)' : 'rgba(0, 0, 0, 0)'}
-								stroke={isSelected ? '#3b82f6' : 'transparent'}
+								fill={isSelected ? 'rgba(59, 130, 246, 0.3)' : isCorrectChoice ? 'rgba(34, 197, 94, 0.3)' : 'rgba(0, 0, 0, 0)'}
+								stroke={isSelected ? '#3b82f6' : isCorrectChoice ? '#22c55e' : 'transparent'}
 								stroke-width="2"
 								class="qti-hotspot-shape hover:fill-[rgba(59,130,246,0.1)] transition-all"
 								role="button"
-								aria-label={`Select hotspot ${choice.identifier}`}
+								aria-label={`Select hotspot ${choice.identifier}${isCorrectChoice ? '. Correct answer' : ''}`}
 								aria-pressed={isSelected ? 'true' : 'false'}
 								tabindex={disabled ? -1 : 0}
 								onclick={() => handleClick(choice.identifier)}
@@ -169,9 +187,14 @@
 			</div>
 		</div>
 
-		{#if parsedResponse}
+		{#if parsedResponse || (isShowingCorrect && correctIds.length > 0)}
 			<div part="selected" class="alert alert-info">
-				<span>Selected: {parsedResponse}</span>
+				{#if parsedResponse}
+					<span>Selected: {parsedResponse}</span>
+				{/if}
+				{#if isShowingCorrect && correctIds.length > 0}
+					<span class="ml-2">Correct: {correctIds.join(', ')}</span>
+				{/if}
 			</div>
 		{/if}
 	{/if}

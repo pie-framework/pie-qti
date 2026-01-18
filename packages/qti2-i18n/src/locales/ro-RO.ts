@@ -119,6 +119,7 @@ export default {
 			selectMultiple: 'Selectează toate variantele aplicabile',
 			selected: 'Selectat',
 			notSelected: 'Neselectat',
+			correct: 'Corect',
 		},
 
 		upload: {
@@ -285,6 +286,7 @@ export default {
 			selectAnother: 'Selectat: <strong>{label}</strong>. Clic pe altul',
 			minimumRequired: 'Minim necesar: {minAssociations}',
 			currentAssociations: 'Asocieri curente',
+			correctAssociations: 'Asocieri corecte',
 			clickToAssociate: 'Clic pe două elemente pentru a crea o asociere între ele',
 			clickAnotherOrDeselect: 'Clic pe un alt element pentru a crea o asociere (sau clic din nou pentru a deselecta)',
 			associations: 'Asocieri',
@@ -494,6 +496,7 @@ export default {
 		tutor: 'Tutor',
 		showCorrectAnswers: 'Arată răspunsurile corecte',
 		showFeedback: 'Arată feedback',
+		settings_aria: 'Deschide meniul de setări',
 		xmlEditor: 'Editor XML',
 
 		// Navigation

@@ -9,7 +9,9 @@
 	interface Props {
 		interaction?: AssociateInteractionData | string;
 		response?: string[] | null;
+		correctResponse?: string[] | null;
 		disabled?: boolean;
+		role?: string;
 		i18n?: I18nProvider;
 		selectedForPairing?: string | null;
 		onSelectionChange?: (selected: string | null) => void;
@@ -19,7 +21,9 @@
 	let {
 		interaction = $bindable(),
 		response = $bindable(),
+		correctResponse = $bindable(),
 		disabled = false,
+		role = 'candidate',
 		i18n = $bindable(),
 		selectedForPairing: externalSelectedForPairing,
 		onSelectionChange,
@@ -29,6 +33,8 @@
 	// Parse props that may be JSON strings (web component usage)
 	const parsedInteraction = $derived(parseJsonProp<AssociateInteractionData>(interaction));
 	const parsedResponse = $derived(parseJsonProp<string[]>(response));
+	const parsedCorrectResponse = $derived(parseJsonProp<string[]>(correctResponse));
+	const isShowingCorrect = $derived(role === 'scorer' && parsedCorrectResponse !== null);
 
 	// Get reference to the root element for event dispatching
 	let rootElement: HTMLDivElement | undefined = $state();
@@ -95,6 +101,22 @@
 	function isInPair(choiceId: string): boolean {
 		return pairs.some((p) => p.includes(choiceId));
 	}
+
+	function isCorrectPair(choiceId: string): boolean {
+		if (!isShowingCorrect) return false;
+		return (parsedCorrectResponse || []).some((p) => p.includes(choiceId));
+	}
+
+	function isCorrectPairMatch(id1: string, id2: string): boolean {
+		if (!isShowingCorrect || !parsedCorrectResponse) return false;
+		return parsedCorrectResponse.some(
+			(p) => p === `${id1} ${id2}` || p === `${id2} ${id1}`
+		);
+	}
+
+	const correctPairs = $derived(
+		isShowingCorrect && parsedCorrectResponse ? parsedCorrectResponse : []
+	);
 </script>
 
 <ShadowBaseStyles />
@@ -111,35 +133,78 @@
 		<div part="choices" class="qti-associate-choices grid grid-cols-2 gap-2">
 			{#each parsedInteraction.choices as choice}
 			{@const isSelected = selectedForPairing === choice.identifier}
+			{@const inPair = isInPair(choice.identifier)}
+			{@const isCorrect = isCorrectPair(choice.identifier)}
 			<button
 				part="choice"
-				class="btn btn-outline {isSelected ? 'btn-accent' : isInPair(choice.identifier) ? 'btn-primary' : 'btn-neutral'}"
+				class="btn btn-outline {isSelected ? 'btn-accent' : inPair ? 'btn-primary' : isCorrect ? 'btn-success' : 'btn-neutral'}"
 				onclick={() => handleChoiceClick(choice.identifier)}
 				{disabled}
 			>
 				{@html choice.text}
 				{#if isSelected}
 					<span class="ml-2">◉</span>
-				{:else if isInPair(choice.identifier)}
+				{:else if inPair}
 					<span class="ml-2">✓</span>
 				{/if}
 			</button>
 		{/each}
 	</div>
 
+	<!-- Display correct associations when in scorer mode -->
+	{#if isShowingCorrect && correctPairs.length > 0}
+		<div part="correct-pairs-title" class="divider">
+			{i18n?.t('interactions.associate.correctAssociations') ?? 'Correct Associations'}
+		</div>
+		<div part="correct-pairs" class="qti-associate-pairs space-y-2">
+			{#each correctPairs as pair}
+				{@const [id1, id2] = pair.split(' ')}
+				{@const choice1 = parsedInteraction.choices.find((c: any) => c.identifier === id1)}
+				{@const choice2 = parsedInteraction.choices.find((c: any) => c.identifier === id2)}
+				{@const isInUserPairs = pairs.some((p) => p === pair || p === `${id2} ${id1}`)}
+				{#if choice1 && choice2}
+					<div
+						part="correct-pair"
+						class="qti-associate-pair flex items-center gap-4 p-2 bg-success/10 border border-success rounded"
+					>
+						<span class="flex-1">{choice1.text}</span>
+						<span class="text-success">↔</span>
+						<span class="flex-1">{choice2.text}</span>
+						<span class="badge badge-success badge-sm">
+							{i18n?.t('interactions.choice.correct', 'Correct') ?? 'Correct'}
+						</span>
+					</div>
+				{/if}
+			{/each}
+		</div>
+	{/if}
+
 	<!-- Display current pairs -->
 	{#if pairs.length > 0}
-		<div part="pairs-title" class="divider">{i18n?.t('interactions.associate.currentAssociations') ?? 'Current Associations'}</div>
+		<div part="pairs-title" class="divider">
+			{i18n?.t('interactions.associate.currentAssociations') ?? 'Current Associations'}
+		</div>
 		<div part="pairs" class="qti-associate-pairs space-y-2">
 			{#each pairs as pair, index}
 				{@const [id1, id2] = pair.split(' ')}
 				{@const choice1 = parsedInteraction.choices.find((c: any) => c.identifier === id1)}
 				{@const choice2 = parsedInteraction.choices.find((c: any) => c.identifier === id2)}
+				{@const isCorrect = isCorrectPairMatch(id1, id2)}
 				{#if choice1 && choice2}
-					<div part="pair" class="qti-associate-pair flex items-center gap-4 p-2 bg-primary/10 rounded">
+					<div
+						part="pair"
+						class="qti-associate-pair flex items-center gap-4 p-2 rounded {isCorrect
+							? 'bg-success/10 border border-success'
+							: 'bg-primary/10 border border-base-300'}"
+					>
 						<span class="flex-1">{choice1.text}</span>
-						<span class="text-primary">↔</span>
+						<span class="{isCorrect ? 'text-success' : 'text-primary'}">↔</span>
 						<span class="flex-1">{choice2.text}</span>
+						{#if isCorrect}
+							<span class="badge badge-success badge-sm">
+								{i18n?.t('interactions.choice.correct', 'Correct') ?? 'Correct'}
+							</span>
+						{/if}
 						<button
 							part="pair-remove"
 							class="btn btn-sm btn-ghost btn-circle"
@@ -154,16 +219,20 @@
 		</div>
 	{/if}
 
-		<!-- Selection helper -->
-		<div part="helper" class="qti-associate-helper alert alert-info">
-			<span class="text-sm">
-				{#if selectedForPairing}
-					{i18n?.t('interactions.associate.clickAnotherOrDeselect') ?? 'Click another item to create an association (or click again to deselect)'}
-				{:else}
-					{i18n?.t('interactions.associate.clickToAssociate') ?? 'Click two items to create an association between them'}
-				{/if}
-			</span>
-		</div>
+		<!-- Selection helper - Hide when showing correct answers -->
+		{#if !isShowingCorrect}
+			<div part="helper" class="qti-associate-helper alert alert-info">
+				<span class="text-sm">
+					{#if selectedForPairing}
+						{i18n?.t('interactions.associate.clickAnotherOrDeselect') ??
+							'Click another item to create an association (or click again to deselect)'}
+					{:else}
+						{i18n?.t('interactions.associate.clickToAssociate') ??
+							'Click two items to create an association between them'}
+					{/if}
+				</span>
+			</div>
+		{/if}
 	{/if}
 </div>
 
@@ -196,8 +265,6 @@
 		gap: 0.75rem;
 		padding: 0.5rem;
 		border-radius: 0.75rem;
-		border: 1px solid var(--color-base-300, oklch(95% 0 0));
-		background: color-mix(in oklch, var(--color-primary, oklch(45% 0.24 277)) 6%, transparent);
 	}
 	.qti-associate-helper {
 		border: 1px solid var(--color-base-300, oklch(95% 0 0));

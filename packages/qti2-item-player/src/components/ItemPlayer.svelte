@@ -112,6 +112,7 @@
 			{player}
 			{responses}
 			{disabled}
+			{role}
 			{typeset}
 			{i18n}
 			onResponseChange={handleResponseChange}

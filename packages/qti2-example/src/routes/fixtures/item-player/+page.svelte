@@ -11,6 +11,7 @@
 	import { untrack } from 'svelte';
 	import { SAMPLE_ITEMS } from '$lib/sample-items';
 	import { getSecurityConfig } from '$lib/player-config';
+	import { assignProps } from '$lib/utils/assignProps';
 
 	let selectedSampleId = $state('simple-choice');
 	let xmlContent = $state('');
@@ -75,6 +76,20 @@
 	function handleQtiChange(event: CustomEvent) {
 		const { responseId, value } = event.detail;
 		handleResponseChange(responseId, value);
+	}
+
+	function setElementProps(node: HTMLElement, props: Record<string, unknown>) {
+		queueMicrotask(() => {
+			if (!node) return;
+			assignProps(node, props);
+		});
+
+		return {
+			update(next: Record<string, unknown>) {
+				assignProps(node, next);
+			},
+			destroy() {}
+		};
 	}
 </script>
 
@@ -181,9 +196,11 @@
 					{#if interaction.type === 'hotspotInteraction'}
 						<svelte:element
 							this={'pie-qti-hotspot'}
-							interaction={JSON.stringify(interaction)}
-							response={JSON.stringify(responses[interaction.responseId] ?? null)}
-							disabled={false}
+							use:setElementProps={{
+								interaction,
+								response: responses[interaction.responseId] ?? null,
+								disabled: false,
+							}}
 							onqti-change={handleQtiChange}
 						/>
 					{/if}

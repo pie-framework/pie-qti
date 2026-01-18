@@ -1,0 +1,129 @@
+version: 1
+
+# i18n Multilingual Items Evaluation
+#
+# Tests that QTI item content (prompts, choices, feedback) renders correctly
+# in all supported locales. Validates that translations are pedagogically appropriate
+# and that all special characters render properly.
+#
+# There are 15 multilingual sample items with translations across all 8 locales.
+
+component:
+  interactionType: choiceInteraction
+  tagName: pie-qti-choice
+
+examplesApp:
+  app: "@pie-qti/qti2-example"
+  routeTemplate: "/item-demo/{sampleId}"
+
+evals:
+  - id: i18n/multilingual-items/simple-choice/english-baseline
+    sampleId: simple-choice
+    gradeBand: "3-6"
+    subject: math
+    intent: "Baseline test for simple-choice item in English (en-US locale)."
+
+    notes:
+      - "Establishes baseline behavior for comparison with other locales"
+      - "Verifies that the item renders without errors in the default locale"
+
+    steps:
+      - action: setLocalStorage
+        key: "pie-qti-locale"
+        value: "en-US"
+
+      - action: navigate
+        path: "/item-demo/simple-choice"
+
+      - action: observe
+        target:
+          description: "Question text is in English"
+          hint: "Prompt should be rendered in English"
+
+    spiritChecks:
+      - "English prompt is clear and grade-appropriate."
+      - "All UI elements are visible and functional."
+
+  - id: i18n/multilingual-items/simple-choice/spanish-translation
+    sampleId: simple-choice
+    gradeBand: "3-6"
+    subject: math
+    intent: "Verify that simple-choice item content renders in Spanish."
+
+    notes:
+      - "Tests that translations maintain educational integrity"
+      - "Verifies that Spanish text renders correctly"
+
+    steps:
+      - action: setLocalStorage
+        key: "pie-qti-locale"
+        value: "es-ES"
+
+      - action: navigate
+        path: "/item-demo/simple-choice"
+
+      - action: observe
+        target:
+          description: "Question text is in Spanish"
+          hint: "Prompt should be rendered in Spanish"
+
+    spiritChecks:
+      - "Spanish translation is clear and grade-appropriate."
+      - "All choices are translated consistently."
+
+  - id: i18n/multilingual-items/capital-cities/arabic-content
+    sampleId: capital-cities
+    gradeBand: "3-6"
+    subject: social-studies
+    intent: "Verify that capital-cities item renders correctly in Arabic (RTL language)."
+
+    notes:
+      - "Tests RTL text direction and Arabic character rendering"
+      - "Arabic question: 'ما هي عاصمة فرنسا؟' (What is the capital of France?)"
+      - "Correct answer: باريس (Paris)"
+
+    steps:
+      - action: setLocalStorage
+        key: "pie-qti-locale"
+        value: "ar-SA"
+
+      - action: navigate
+        path: "/item-demo/capital-cities"
+
+      - action: observe
+        target:
+          description: "Question renders in Arabic with correct RTL direction"
+          hint: "Arabic text should flow right-to-left"
+
+    spiritChecks:
+      - "Arabic text renders correctly without character corruption."
+      - "RTL layout is natural and readable."
+      - "Choices are properly aligned for RTL reading."
+
+  - id: i18n/multilingual-items/hottext-single/chinese-rendering
+    sampleId: hottext-single
+    gradeBand: "6-9"
+    subject: language-arts
+    intent: "Verify that hottext item renders correctly with Chinese characters."
+
+    notes:
+      - "Tests Chinese (Simplified) character rendering"
+      - "Validates that inline hottext spans work with non-Latin scripts"
+
+    steps:
+      - action: setLocalStorage
+        key: "pie-qti-locale"
+        value: "zh-CN"
+
+      - action: navigate
+        path: "/item-demo/hottext-single"
+
+      - action: observe
+        target:
+          description: "Question and hottext choices render in Chinese"
+          hint: "Chinese characters should display correctly"
+
+    spiritChecks:
+      - "Chinese characters render clearly without font issues."
+      - "Hottext spans are properly clickable."
+      - "Translation maintains the intended educational objective."

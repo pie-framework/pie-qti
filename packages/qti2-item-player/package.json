@@ -7,6 +7,7 @@
 	"types": "./dist/index.d.ts",
 	"scripts": {
 		"build": "tsc",
+		"dev": "tsc --watch",
 		"test": "bun test",
 		"typecheck": "tsc --noEmit",
 		"check": "../qti2-assessment-player/node_modules/.bin/svelte-check --tsconfig ./tsconfig.svelte.json",

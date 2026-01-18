@@ -119,6 +119,7 @@ export default {
 			selectMultiple: 'Selecteer alle toepasselijke opties',
 			selected: 'Geselecteerd',
 			notSelected: 'Niet geselecteerd',
+			correct: 'Correct',
 		},
 
 		upload: {
@@ -285,6 +286,7 @@ export default {
 			selectAnother: 'Geselecteerd: <strong>{label}</strong>. Klik op een andere',
 			minimumRequired: 'Minimaal vereist: {minAssociations}',
 			currentAssociations: 'Huidige associaties',
+			correctAssociations: 'Correcte associaties',
 			clickToAssociate: 'Klik op twee items om een associatie tussen hen te maken',
 			clickAnotherOrDeselect: 'Klik op een ander item om een associatie te maken (of klik opnieuw om te deselecteren)',
 			associations: 'Associaties',
@@ -494,6 +496,7 @@ export default {
 		tutor: 'Begeleider',
 		showCorrectAnswers: 'Juiste antwoorden tonen',
 		showFeedback: 'Feedback tonen',
+		settings_aria: 'Instellingenmenu openen',
 		xmlEditor: 'XML-editor',
 
 		// Navigation

@@ -119,6 +119,7 @@ export default {
 			selectMultiple: 'Sélectionnez toutes les réponses applicables',
 			selected: 'Sélectionné',
 			notSelected: 'Non sélectionné',
+			correct: 'Correct',
 		},
 
 		upload: {
@@ -285,6 +286,7 @@ export default {
 			selectAnother: 'Sélectionné : <strong>{label}</strong>. Cliquez sur un autre',
 			minimumRequired: 'Minimum requis : {minAssociations}',
 			currentAssociations: 'Associations actuelles',
+			correctAssociations: 'Associations correctes',
 			clickToAssociate: 'Cliquez sur deux éléments pour créer une association entre eux',
 			clickAnotherOrDeselect: 'Cliquez sur un autre élément pour créer une association (ou cliquez à nouveau pour désélectionner)',
 			associations: 'Associations',
@@ -494,6 +496,7 @@ export default {
 		tutor: 'Tuteur',
 		showCorrectAnswers: 'Afficher les réponses correctes',
 		showFeedback: 'Afficher les commentaires',
+		settings_aria: 'Ouvrir le menu des paramètres',
 		xmlEditor: 'Éditeur XML',
 
 		// Navigation

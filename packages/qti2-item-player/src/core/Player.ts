@@ -254,7 +254,7 @@ export class Player {
 	 * We return sanitized HTML for direct rendering.
 	 */
 	public getRubrics(): RubricBlock[] {
-		const role = this.config.role;
+		const role = this.role;
 		const rubricEls = findDescendants(this.assessmentItem, 'rubricBlock');
 		if (rubricEls.length === 0) return [];
 
@@ -461,6 +461,35 @@ export class Player {
 		for (const d of Object.values(this.decls)) {
 			if ((d as any).__kind !== 'response') continue;
 			out[d.identifier] = d.value.kind === 'value' ? d.value.value : null;
+		}
+		return out;
+	}
+
+	/**
+	 * Get correct response for a specific response identifier
+	 * @param responseId - The response identifier
+	 * @returns The correct response value, or undefined if not available
+	 */
+	public getCorrectResponse(responseId: string): any | undefined {
+		const decl = this.decls[responseId];
+		if (!decl || (decl as any).__kind !== 'response') return undefined;
+		const respDecl = decl as any; // ResponseDeclaration from qti-processing
+		if (!respDecl.correctResponse) return undefined;
+		if (respDecl.correctResponse.kind !== 'value') return undefined;
+		return respDecl.correctResponse.value;
+	}
+
+	/**
+	 * Get all correct responses as a map
+	 * @returns Map of responseId to correct response value
+	 */
+	public getCorrectResponses(): Record<string, any> {
+		const out: Record<string, any> = {};
+		for (const d of Object.values(this.decls)) {
+			if ((d as any).__kind !== 'response') continue;
+			const respDecl = d as any;
+			if (!respDecl.correctResponse || respDecl.correctResponse.kind !== 'value') continue;
+			out[d.identifier] = respDecl.correctResponse.value;
 		}
 		return out;
 	}
