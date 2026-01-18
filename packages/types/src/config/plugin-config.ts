@@ -23,8 +23,8 @@ export interface PluginConfig {
  * Storage backend configuration
  */
 export interface StorageConfig {
-	/** Type of storage backend */
-	backend: 'filesystem' | 's3' | 'database' | 'custom';
+	/** Type of storage backend (name-based, extensible) */
+	backend: string;
 
 	/** Backend-specific configuration options */
 	options?: Record<string, unknown>;

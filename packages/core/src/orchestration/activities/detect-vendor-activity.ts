@@ -30,7 +30,7 @@ export const DetectVendorActivity: Activity<DetectVendorInput, DetectVendorOutpu
   type: 'detect-vendor',
   name: 'Detect Vendor',
 
-  async execute(context, input) {
+  async execute(context, _input) {
     context.log('debug', 'Detecting vendor-specific patterns');
 
     // Vendor detection relies on pluggable vendor detectors configured at runtime

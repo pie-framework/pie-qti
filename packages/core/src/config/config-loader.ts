@@ -29,7 +29,7 @@ export async function loadFromFile(
  * Load configuration from environment variables
  *
  * Supported environment variables:
- * - PIE_QTI_STORAGE_BACKEND: Storage backend type (filesystem, memory, or custom)
+ * - PIE_QTI_STORAGE_BACKEND: Storage backend type (name-based, e.g., 'filesystem', 's3', 'database', or any custom name)
  * - PIE_QTI_STORAGE_ROOT_DIR: Root directory for filesystem storage
  * - PIE_QTI_LOG_LEVEL: Logging level (debug, info, warn, error)
  * - PIE_QTI_CONFIG: Path to config file (takes precedence)
@@ -47,15 +47,13 @@ export function loadFromEnv(): TransformConfig {
 	// Storage configuration
 	if (process.env.PIE_QTI_STORAGE_BACKEND) {
 		config.storage = {
-			backend: process.env.PIE_QTI_STORAGE_BACKEND as
-				| 'filesystem'
-				| 'memory'
-				| 'custom',
+			backend: process.env.PIE_QTI_STORAGE_BACKEND,
 			options: {},
 		};
 
 		// Filesystem-specific options
 		if (
+			config.storage &&
 			process.env.PIE_QTI_STORAGE_BACKEND === 'filesystem' &&
 			process.env.PIE_QTI_STORAGE_ROOT_DIR
 		) {
@@ -64,7 +62,7 @@ export function loadFromEnv(): TransformConfig {
 			};
 		}
 
-		// Custom backend options are loaded by the custom backend implementation
+		// Backend-specific options are loaded by the backend implementation
 	}
 
 	// Logger configuration

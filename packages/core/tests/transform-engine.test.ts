@@ -3,7 +3,7 @@
  */
 
 import { beforeEach, describe, expect, test } from 'bun:test';
-import type { TransformContext, TransformInput, TransformOutput, TransformPlugin } from '@pie-qti/transform-types';
+import type { TransformContext, TransformInput, TransformOutput, TransformPlugin, StorageBackend } from '@pie-qti/transform-types';
 import { TransformEngine } from '../src/engine/transform-engine';
 
 // Mock plugin for testing
@@ -132,9 +132,22 @@ describe('TransformEngine', () => {
     const plugin = new MockPlugin();
     engine.use(plugin);
 
-    // Set storage for batch transformation
-    const { InMemoryStorage } = await import('@pie-qti/storage');
-    engine.setStorage(new InMemoryStorage());
+    // Create a simple mock storage backend for batch transformation
+    const mockStorage: StorageBackend = {
+      name: 'mock-storage',
+      async initialize() {},
+      async readText() { return ''; },
+      async writeText() {},
+      async readBuffer() { return Buffer.from(''); },
+      async writeBuffer() {},
+      async write() {},
+      async createReadStream() { throw new Error('Not implemented'); },
+      async createWriteStream() { throw new Error('Not implemented'); },
+      async exists() { return false; },
+      async list() { return []; },
+      async delete() {},
+    };
+    engine.setStorage(mockStorage);
 
     const inputs = [
       '<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2">1</assessmentItem>',

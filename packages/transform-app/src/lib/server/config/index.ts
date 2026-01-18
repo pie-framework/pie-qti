@@ -4,7 +4,7 @@
  */
 
 import type { StorageBackend } from '@pie-qti/storage';
-import { FilesystemBackend } from '@pie-qti/storage';
+import { storageBackendRegistry } from '@pie-qti/storage';
 import {
 	loadFromEnv,
 	loadFromFile,
@@ -52,6 +52,7 @@ export function getConfig(): TransformConfig {
 
 /**
  * Create storage backend from configuration
+ * Uses the storage backend registry to create backends by name
  */
 export async function createStorageBackend(
 	config?: TransformConfig,
@@ -63,34 +64,16 @@ export async function createStorageBackend(
 		options: {},
 	};
 
-	switch (storageConfig.backend) {
-		case 'filesystem': {
-			const rootDir =
-				(storageConfig.options?.rootDir as string) ||
-				process.env.PIE_QTI_STORAGE_ROOT_DIR ||
-				'./uploads';
-			return new FilesystemBackend({ rootDir });
-		}
-
-		case 's3':
-			throw new Error(
-				'S3 storage backend not yet implemented in transform-app. Use filesystem backend.',
-			);
-
-		case 'database':
-			throw new Error(
-				'Database storage backend not yet implemented in transform-app. Use filesystem backend.',
-			);
-
-		case 'custom':
-			throw new Error(
-				'Custom storage backend requires implementation. Use filesystem backend.',
-			);
-
-		default:
-			throw new Error(
-				`Unknown storage backend: ${storageConfig.backend}. Use filesystem.`,
-			);
+	try {
+		return storageBackendRegistry.create(
+			storageConfig.backend,
+			storageConfig.options,
+		);
+	} catch (error) {
+		const available = storageBackendRegistry.getRegisteredNames().join(', ');
+		throw new Error(
+			`Failed to create storage backend '${storageConfig.backend}': ${(error as Error).message}. Available backends: ${available || 'none'}`,
+		);
 	}
 }
 
