@@ -331,6 +331,7 @@ export default {
 			selectAnother: 'محدد: <strong>{label}</strong>. انقر على آخر',
 			minimumRequired: 'الحد الأدنى المطلوب: {minAssociations}',
 			currentAssociations: 'الارتباطات الحالية',
+			correctAssociations: 'الارتباطات الصحيحة',
 			clickToAssociate: 'انقر على عنصرين لإنشاء ارتباط بينهما',
 			clickAnotherOrDeselect: 'انقر على عنصر آخر لإنشاء ارتباط (أو انقر مرة أخرى لإلغاء التحديد)',
 			associations: 'الارتباطات',

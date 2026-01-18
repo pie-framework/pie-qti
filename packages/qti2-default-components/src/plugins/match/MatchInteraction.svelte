@@ -12,17 +12,21 @@
 	interface Props {
 		interaction?: MatchInteractionData | string;
 		response?: string[] | null;
+		correctResponse?: string[] | null;
 		disabled?: boolean;
+		role?: string;
 		i18n?: I18nProvider;
 		typeset?: (element: HTMLElement) => void;
 		onChange?: (value: string[]) => void;
 	}
 
-	let { interaction = $bindable(), response = $bindable(), disabled = false, i18n = $bindable(), typeset, onChange }: Props = $props();
+	let { interaction = $bindable(), response = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), typeset, onChange }: Props = $props();
 
 	// Parse props that may be JSON strings (web component usage)
 	const parsedInteraction = $derived(parseJsonProp<MatchInteractionData>(interaction));
 	const parsedResponse = $derived(parseJsonProp<string[]>(response));
+	const parsedCorrectResponse = $derived(parseJsonProp<string[]>(correctResponse));
+	const isShowingCorrect = $derived(role === 'scorer' && parsedCorrectResponse !== null);
 
 	// Get reference to the root element for event dispatching
 	let rootElement: HTMLDivElement | undefined = $state();
@@ -57,6 +61,7 @@
 			sourceSet={parsedInteraction.sourceSet}
 			targetSet={parsedInteraction.targetSet}
 			{pairs}
+			correctPairs={isShowingCorrect ? (parsedCorrectResponse || []) : []}
 			{disabled}
 			{i18n}
 			onPairsChange={handlePairsChange}

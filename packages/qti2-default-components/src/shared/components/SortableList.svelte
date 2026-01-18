@@ -17,6 +17,7 @@ interface Item {
 interface Props {
 	items: Item[];
 	orderedIds: string[];
+	correctOrder?: string[];
 	orientation?: 'vertical' | 'horizontal';
 	disabled?: boolean;
 	i18n?: I18nProvider;
@@ -26,6 +27,7 @@ interface Props {
 const {
 	items,
 	orderedIds,
+	correctOrder = [],
 	orientation = 'vertical',
 	disabled = false,
 	i18n,
@@ -188,6 +190,8 @@ function moveItem(fromIndex: number, toIndex: number) {
 		{@const item = items.find((i) => i.id === id)}
 		{#if item}
 			{@const isGrabbed = keyboardSelectedId === id}
+			{@const correctIndex = correctOrder.indexOf(id)}
+			{@const isCorrect = correctIndex !== -1 && correctIndex === index}
 			<div role="listitem">
 				<button
 					type="button"
@@ -200,9 +204,10 @@ function moveItem(fromIndex: number, toIndex: number) {
 					ondragend={handleDragEnd}
 					onkeydown={(e) => handleKeyDown(e, id)}
 					disabled={disabled}
-					aria-label="{item.text}. Position {index + 1} of {orderedIds.length}{isGrabbed ? '. Grabbed. Use arrow keys to move.' : ''}"
+					aria-label="{item.text}. Position {index + 1} of {orderedIds.length}{isGrabbed ? '. Grabbed. Use arrow keys to move.' : ''}{isCorrect ? '. Correct position' : ''}"
 					aria-grabbed={isGrabbed}
 					data-grabbed={isGrabbed}
+					data-correct={isCorrect}
 					data-disabled={disabled}
 					part="item"
 					class="qti-sortable-item flex items-center gap-2 p-3 bg-base-200 rounded select-none transition-all w-full text-left"
@@ -212,11 +217,16 @@ function moveItem(fromIndex: number, toIndex: number) {
 					class:ring-2={(dragOverId === id && draggedId !== id) || isGrabbed}
 					class:ring-primary={(dragOverId === id && draggedId !== id) || isGrabbed}
 					class:bg-primary={isGrabbed}
-					class:bg-opacity-20={isGrabbed}
+					class:bg-opacity-20={isGrabbed || isCorrect}
+					class:bg-success={isCorrect}
+					class:border-success={isCorrect}
 				>
-					<span part="index" class="qti-sortable-index badge badge-neutral">{index + 1}</span>
+					<span part="index" class="qti-sortable-index badge {isCorrect ? 'badge-success' : 'badge-neutral'}">{index + 1}</span>
 					<DragHandle size={1} opacity={0.5} class="text-base-content" />
 					<span part="text" class="qti-sortable-text flex-1">{item.text}</span>
+					{#if isCorrect}
+						<span class="badge badge-success badge-sm">{i18n?.t('interactions.choice.correct', 'Correct') ?? 'Correct'}</span>
+					{/if}
 				</button>
 			</div>
 		{/if}
@@ -257,6 +267,10 @@ function moveItem(fromIndex: number, toIndex: number) {
 	.qti-sortable-item[data-grabbed='true'] {
 		border-color: var(--color-primary, oklch(45% 0.24 277));
 		background: color-mix(in oklch, var(--color-primary, oklch(45% 0.24 277)) 8%, transparent);
+	}
+	.qti-sortable-item[data-correct='true'] {
+		border-color: var(--color-success, oklch(76% 0.177 163.223));
+		background: color-mix(in oklch, var(--color-success, oklch(76% 0.177 163.223)) 8%, transparent);
 	}
 	.qti-sortable-item[data-disabled='true'] {
 		opacity: 0.55;

@@ -299,6 +299,7 @@ export default {
 			selectAnother: 'Selected: <strong>{label}</strong>. Click another',
 			minimumRequired: 'Minimum required: {minAssociations}',
 			currentAssociations: 'Current Associations',
+			correctAssociations: 'Correct Associations',
 			clickToAssociate: 'Click two items to create an association between them',
 			clickAnotherOrDeselect: 'Click another item to create an association (or click again to deselect)',
 			associations: 'Associations',

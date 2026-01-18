@@ -287,6 +287,7 @@ export default {
 			selectAnother: 'เลือกแล้ว: <strong>{label}</strong> คลิกอันอื่น',
 			minimumRequired: 'จำเป็นขั้นต่ำ: {minAssociations}',
 			currentAssociations: 'ความสัมพันธ์ปัจจุบัน',
+			correctAssociations: 'ความสัมพันธ์ที่ถูกต้อง',
 			clickToAssociate: 'คลิกสองรายการเพื่อสร้างความสัมพันธ์ระหว่างกัน',
 			clickAnotherOrDeselect: 'คลิกรายการอื่นเพื่อสร้างความสัมพันธ์ (หรือคลิกอีกครั้งเพื่อยกเลิกการเลือก)',
 			associations: 'ความสัมพันธ์',

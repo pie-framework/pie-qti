@@ -10,16 +10,29 @@
 	interface Props {
 		interaction?: HottextInteractionData | string;
 		response?: string | string[] | null;
+		correctResponse?: string | string[] | null;
 		disabled?: boolean;
+		role?: string;
 		i18n?: I18nProvider;
 		onChange?: (value: string | string[]) => void;
 	}
 
-	let { interaction = $bindable(), response = $bindable(), disabled = false, i18n = $bindable(), onChange }: Props = $props();
+	let { interaction = $bindable(), response = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), onChange }: Props = $props();
 
 	// Parse props that may be JSON strings (web component usage)
 	const parsedInteraction = $derived(parseJsonProp<HottextInteractionData>(interaction));
 	const parsedResponse = $derived(parseJsonProp<string | string[]>(response));
+	const parsedCorrectResponse = $derived(parseJsonProp<string | string[]>(correctResponse));
+	const isShowingCorrect = $derived(role === 'scorer' && parsedCorrectResponse !== null);
+
+	// Get correct IDs as array
+	const correctIds = $derived.by(() => {
+		if (!isShowingCorrect) return [];
+		if (Array.isArray(parsedCorrectResponse)) {
+			return parsedCorrectResponse;
+		}
+		return parsedCorrectResponse ? [parsedCorrectResponse] : [];
+	});
 
 	// Get reference to the root element for event dispatching
 	let rootElement: HTMLDivElement | undefined = $state();
@@ -51,6 +64,13 @@
 	 */
 	function isSelected(identifier: string): boolean {
 		return selectedIds.includes(identifier);
+	}
+
+	/**
+	 * Check if a hottext element is correct
+	 */
+	function isCorrect(identifier: string): boolean {
+		return isShowingCorrect && correctIds.includes(identifier);
 	}
 
 	/**
@@ -103,6 +123,7 @@
 				htmlElem.setAttribute('aria-pressed', selected ? 'true' : 'false');
 
 				// Update classes
+				const isCorrectChoice = isCorrect(identifier);
 				if (selected) {
 					htmlElem.classList.add('selected');
 					htmlElem.classList.remove('selectable');
@@ -113,6 +134,11 @@
 					} else {
 						htmlElem.classList.remove('selectable');
 					}
+				}
+				if (isCorrectChoice) {
+					htmlElem.classList.add('correct');
+				} else {
+					htmlElem.classList.remove('correct');
 				}
 			}
 		});
@@ -258,5 +284,13 @@
 		background-color: hsl(var(--p) / 0.3);
 		border: 2px solid hsl(var(--p));
 		font-weight: 600;
+	}
+
+	:global(.hottext-content hottext.correct) {
+		background-color: color-mix(in oklch, var(--color-success, oklch(76% 0.177 163.223)) 8%, transparent);
+		border: 1px solid var(--color-success, oklch(76% 0.177 163.223));
+		border-radius: 0.25rem;
+		padding: 2px 4px;
+		margin: -2px -4px;
 	}
 </style>

@@ -18,16 +18,21 @@ import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 interface Props {
 	interaction?: GraphicGapMatchInteractionData | string;
 	response?: string | string[] | null;
+	correctResponse?: string[] | null;
 	disabled?: boolean;
+	role?: string;
 	i18n?: I18nProvider;
 	onChange?: (value: string[]) => void;
 }
 
-let { interaction = $bindable(), response = $bindable(), disabled = false, i18n = $bindable(), onChange }: Props = $props();
+let { interaction = $bindable(), response = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), onChange }: Props = $props();
 
 // Parse props that may be JSON strings (web component usage)
 const parsedInteraction = $derived(parseJsonProp<GraphicGapMatchInteractionData>(interaction));
 const parsedResponse = $derived(parseJsonProp<string | string[]>(response));
+const parsedCorrectResponse = $derived(parseJsonProp<string[]>(correctResponse));
+const isShowingCorrect = $derived(role === 'scorer' && parsedCorrectResponse !== null);
+const correctPairs = $derived(Array.isArray(parsedCorrectResponse) ? parsedCorrectResponse : []);
 
 let pairs = $state<string[]>([]);
 let draggedTextId = $state<string | null>(null);
@@ -50,6 +55,28 @@ function getMatchedHotspot(gapTextId: string): string | null {
 function getMatchedGapText(hotspotId: string): string | null {
 	const pair = pairs.find((p) => p.endsWith(` ${hotspotId}`));
 	return pair ? pair.split(' ')[0] : null;
+}
+
+// Get the correct hotspot for a gap text
+function getCorrectHotspot(gapTextId: string): string | null {
+	const pair = correctPairs.find((p) => p.startsWith(`${gapTextId} `));
+	return pair ? pair.split(' ')[1] : null;
+}
+
+// Get the correct gap text for a hotspot
+function getCorrectGapText(hotspotId: string): string | null {
+	const pair = correctPairs.find((p) => p.endsWith(` ${hotspotId}`));
+	return pair ? pair.split(' ')[0] : null;
+}
+
+// Check if a gap text has a correct answer
+function isCorrectGapText(gapTextId: string): boolean {
+	return isShowingCorrect && getCorrectHotspot(gapTextId) !== null;
+}
+
+// Check if a hotspot has a correct answer
+function isCorrectHotspot(hotspotId: string): boolean {
+	return isShowingCorrect && getCorrectGapText(hotspotId) !== null;
 }
 
 function handleDragStart(gapTextId: string) {
@@ -257,60 +284,62 @@ function parseCoords(hotspot: { identifier: string; shape: string; coords: strin
 			role="region"
 			aria-describedby="graphic-gap-match-instructions"
 		>
-			<!-- Draggable gap texts (labels) -->
-			<div
-				part="labels"
-				class="qti-ggm-labels flex flex-wrap gap-2 p-4 bg-base-200 rounded-lg border-2 border-base-300"
-				role="group"
-				aria-label={i18n?.t('interactions.graphicGapMatch.availableLabel') ?? 'Available labels to place'}
-			>
-				<div class="qti-ggm-labels-title w-full text-sm text-base-content/70 font-semibold mb-2">
-					Available Labels:
-				</div>
-				{#each parsedInteraction.gapTexts as gapText (gapText.identifier)}
-					{@const matchedHotspot = getMatchedHotspot(gapText.identifier)}
-					{@const isDragged = draggedTextId === gapText.identifier}
-					{@const isSelected = keyboardSelectedTextId === gapText.identifier}
+			<!-- Draggable gap texts (labels) - Hide when showing correct answers -->
+			{#if !isShowingCorrect}
+				<div
+					part="labels"
+					class="qti-ggm-labels flex flex-wrap gap-2 p-4 bg-base-200 rounded-lg border-2 border-base-300"
+					role="group"
+					aria-label={i18n?.t('interactions.graphicGapMatch.availableLabel') ?? 'Available labels to place'}
+				>
+					<div class="qti-ggm-labels-title w-full text-sm text-base-content/70 font-semibold mb-2">
+						Available Labels:
+					</div>
+					{#each parsedInteraction.gapTexts as gapText (gapText.identifier)}
+						{@const matchedHotspot = getMatchedHotspot(gapText.identifier)}
+						{@const isDragged = draggedTextId === gapText.identifier}
+						{@const isSelected = keyboardSelectedTextId === gapText.identifier}
 
-					<div class="inline-flex items-center gap-1">
-						<button
-							type="button"
-							draggable={!disabled && !matchedHotspot}
-							use:touchDrag
-							ondragstart={() => handleDragStart(gapText.identifier)}
-							ondragend={handleDragEnd}
-							onclick={() => handleGapTextClick(gapText.identifier)}
-							onkeydown={(e) => handleGapTextKeyDown(e, gapText.identifier)}
-							disabled={disabled || !!matchedHotspot}
-							aria-pressed={isSelected}
-							aria-label="{gapText.text}{matchedHotspot ? '. Already placed on hotspot' : ''}{isSelected ? '. Selected for placement' : '. Press Space to select'}"
-							class="btn btn-md font-medium transition-all"
-							class:btn-primary={!matchedHotspot && !isSelected}
-							class:btn-accent={isSelected}
-							class:btn-success={matchedHotspot}
-							class:cursor-grab={!disabled && !matchedHotspot && !isSelected}
-							class:cursor-not-allowed={disabled}
-							class:opacity-70={disabled || isDragged}
-							class:contrast-125={matchedHotspot}
-							class:saturate-150={matchedHotspot}
-						>
-							{gapText.text}
-						</button>
-						{#if matchedHotspot && !disabled}
+						<div class="inline-flex items-center gap-1">
 							<button
 								type="button"
-								part="label-remove"
-								class="btn btn-sm btn-circle btn-error"
-								onclick={() => clearMatch(gapText.identifier)}
-								aria-label="Remove {gapText.text} from hotspot"
-								title={i18n?.t('interactions.graphicGapMatch.removeLabel') ?? 'Remove label'}
+								draggable={!disabled && !matchedHotspot}
+								use:touchDrag
+								ondragstart={() => handleDragStart(gapText.identifier)}
+								ondragend={handleDragEnd}
+								onclick={() => handleGapTextClick(gapText.identifier)}
+								onkeydown={(e) => handleGapTextKeyDown(e, gapText.identifier)}
+								disabled={disabled || !!matchedHotspot}
+								aria-pressed={isSelected}
+								aria-label="{gapText.text}{matchedHotspot ? '. Already placed on hotspot' : ''}{isSelected ? '. Selected for placement' : '. Press Space to select'}"
+								class="btn btn-md font-medium transition-all"
+								class:btn-primary={!matchedHotspot && !isSelected}
+								class:btn-accent={isSelected}
+								class:btn-success={matchedHotspot}
+								class:cursor-grab={!disabled && !matchedHotspot && !isSelected}
+								class:cursor-not-allowed={disabled}
+								class:opacity-70={disabled || isDragged}
+								class:contrast-125={matchedHotspot}
+								class:saturate-150={matchedHotspot}
 							>
-								✕
+								{gapText.text}
 							</button>
-						{/if}
-					</div>
-				{/each}
-			</div>
+							{#if matchedHotspot && !disabled}
+								<button
+									type="button"
+									part="label-remove"
+									class="btn btn-sm btn-circle btn-error"
+									onclick={() => clearMatch(gapText.identifier)}
+									aria-label="Remove {gapText.text} from hotspot"
+									title={i18n?.t('interactions.graphicGapMatch.removeLabel') ?? 'Remove label'}
+								>
+									✕
+								</button>
+							{/if}
+						</div>
+					{/each}
+				</div>
+			{/if}
 
 			<!-- Image/diagram with hotspot drop zones -->
 			<div
@@ -335,6 +364,9 @@ function parseCoords(hotspot: { identifier: string; shape: string; coords: strin
 						{@const matchedGapText = getMatchedGapText(hotspot.identifier)}
 						{@const gapTextObj = matchedGapText ? parsedInteraction.gapTexts.find((g) => g.identifier === matchedGapText) : null}
 						{@const isHovered = hoveredHotspotId === hotspot.identifier}
+						{@const correctGapText = getCorrectGapText(hotspot.identifier)}
+						{@const correctGapTextObj = correctGapText ? parsedInteraction.gapTexts.find((g) => g.identifier === correctGapText) : null}
+						{@const isCorrect = isCorrectHotspot(hotspot.identifier)}
 
 						<g>
 							<!-- Hotspot drop zone -->
@@ -344,15 +376,15 @@ function parseCoords(hotspot: { identifier: string; shape: string; coords: strin
 								<circle
 									role="button"
 									tabindex={disabled || !keyboardSelectedTextId ? -1 : 0}
-									aria-label="Hotspot {hotspotIndex + 1}{matchedGapText && gapTextObj ? '. Contains ' + gapTextObj.text : '. Available'}{keyboardSelectedTextId ? '. Press Space or Enter to place label' : ''}"
+									aria-label="Hotspot {hotspotIndex + 1}{matchedGapText && gapTextObj ? '. Contains ' + gapTextObj.text : correctGapTextObj ? '. Correct answer: ' + correctGapTextObj.text : '. Available'}{keyboardSelectedTextId ? '. Press Space or Enter to place label' : ''}"
 									cx={cx}
 									cy={cy}
 									r={r}
-									fill={matchedGapText ? '#10b981' : isHovered ? '#3b82f6' : 'transparent'}
-									fill-opacity={matchedGapText ? '0.3' : isHovered ? '0.2' : '0'}
-									stroke={matchedGapText ? '#10b981' : isHovered ? '#3b82f6' : '#6b7280'}
+									fill={matchedGapText ? '#10b981' : isCorrect ? '#10b981' : isHovered ? '#3b82f6' : 'transparent'}
+									fill-opacity={matchedGapText ? '0.3' : isCorrect ? '0.2' : isHovered ? '0.2' : '0'}
+									stroke={matchedGapText ? '#10b981' : isCorrect ? '#10b981' : isHovered ? '#3b82f6' : '#6b7280'}
 									stroke-width="2"
-									stroke-dasharray={matchedGapText ? '' : '4,4'}
+									stroke-dasharray={matchedGapText || isCorrect ? '' : '4,4'}
 									class="transition-all"
 									style="pointer-events: auto; cursor: {disabled ? 'not-allowed' : 'pointer'};"
 									ondragover={(e) => handleHotspotDragOver(e, hotspot.identifier)}
@@ -367,16 +399,16 @@ function parseCoords(hotspot: { identifier: string; shape: string; coords: strin
 								<rect
 									role="button"
 									tabindex={disabled || !keyboardSelectedTextId ? -1 : 0}
-									aria-label="Hotspot {hotspotIndex + 1}{matchedGapText && gapTextObj ? '. Contains ' + gapTextObj.text : '. Available'}{keyboardSelectedTextId ? '. Press Space or Enter to place label' : ''}"
+									aria-label="Hotspot {hotspotIndex + 1}{matchedGapText && gapTextObj ? '. Contains ' + gapTextObj.text : correctGapTextObj ? '. Correct answer: ' + correctGapTextObj.text : '. Available'}{keyboardSelectedTextId ? '. Press Space or Enter to place label' : ''}"
 									x={x}
 									y={y}
 									width={width}
 									height={height}
-									fill={matchedGapText ? '#10b981' : isHovered ? '#3b82f6' : 'transparent'}
-									fill-opacity={matchedGapText ? '0.3' : isHovered ? '0.2' : '0'}
-									stroke={matchedGapText ? '#10b981' : isHovered ? '#3b82f6' : '#6b7280'}
+									fill={matchedGapText ? '#10b981' : isCorrect ? '#10b981' : isHovered ? '#3b82f6' : 'transparent'}
+									fill-opacity={matchedGapText ? '0.3' : isCorrect ? '0.2' : isHovered ? '0.2' : '0'}
+									stroke={matchedGapText ? '#10b981' : isCorrect ? '#10b981' : isHovered ? '#3b82f6' : '#6b7280'}
 									stroke-width="2"
-									stroke-dasharray={matchedGapText ? '' : '4,4'}
+									stroke-dasharray={matchedGapText || isCorrect ? '' : '4,4'}
 									class="transition-all"
 									style="pointer-events: auto; cursor: {disabled ? 'not-allowed' : 'pointer'};"
 									ondragover={(e) => handleHotspotDragOver(e, hotspot.identifier)}
@@ -387,7 +419,7 @@ function parseCoords(hotspot: { identifier: string; shape: string; coords: strin
 								/>
 							{/if}
 
-							<!-- Label text on hotspot if matched -->
+							<!-- Label text on hotspot if matched or correct -->
 							{#if matchedGapText && gapTextObj}
 								{@const [cx, cy] = hotspot.coords.split(',').map(Number)}
 								<text
@@ -400,6 +432,19 @@ function parseCoords(hotspot: { identifier: string; shape: string; coords: strin
 									font-size="14"
 								>
 									{gapTextObj.text}
+								</text>
+							{:else if isCorrect && correctGapTextObj}
+								{@const [cx, cy] = hotspot.coords.split(',').map(Number)}
+								<text
+									x={cx}
+									y={cy}
+									text-anchor="middle"
+									dominant-baseline="middle"
+									class="font-bold pointer-events-none"
+									fill="#10b981"
+									font-size="14"
+								>
+									{correctGapTextObj.text}
 								</text>
 							{/if}
 						</g>

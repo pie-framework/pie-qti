@@ -286,6 +286,7 @@ export default {
 			selectAnother: 'Selectat: <strong>{label}</strong>. Clic pe altul',
 			minimumRequired: 'Minim necesar: {minAssociations}',
 			currentAssociations: 'Asocieri curente',
+			correctAssociations: 'Asocieri corecte',
 			clickToAssociate: 'Clic pe două elemente pentru a crea o asociere între ele',
 			clickAnotherOrDeselect: 'Clic pe un alt element pentru a crea o asociere (sau clic din nou pentru a deselecta)',
 			associations: 'Asocieri',

@@ -16,12 +16,13 @@ interface Props {
 	sourceSet: AssociableChoice[];
 	targetSet: AssociableChoice[];
 	pairs: string[]; // Array of "sourceId targetId" pairs
+	correctPairs?: string[]; // Array of correct "sourceId targetId" pairs
 	disabled?: boolean;
 	i18n?: I18nProvider;
 	onPairsChange: (newPairs: string[]) => void;
 }
 
-const { sourceSet, targetSet, pairs, disabled = false, i18n, onPairsChange }: Props = $props();
+const { sourceSet, targetSet, pairs, correctPairs = [], disabled = false, i18n, onPairsChange }: Props = $props();
 
 let draggedSourceId = $state<string | null>(null);
 let keyboardSelectedSourceId = $state<string | null>(null); // Source selected via keyboard
@@ -138,6 +139,8 @@ function clearMatch(sourceId: string) {
 			{@const matchedTarget = getTargetForSource(pairs, source.identifier)}
 			{@const targetItem = matchedTarget ? targetSet.find((t) => t.identifier === matchedTarget) : null}
 			{@const isSelected = keyboardSelectedSourceId === source.identifier}
+			{@const correctTarget = getTargetForSource(correctPairs, source.identifier)}
+			{@const isCorrect = correctTarget !== null}
 
 			<div class="qti-match-source-wrapper relative">
 				<button
@@ -148,19 +151,20 @@ function clearMatch(sourceId: string) {
 					ondragend={handleDragEnd}
 					onkeydown={(e) => handleSourceKeyDown(e, source.identifier)}
 					disabled={disabled}
-					aria-label="{source.text}{matchedTarget && targetItem ? '. Matched with ' + targetItem.text : ''}{isSelected ? '. Selected for matching' : ''}"
+					aria-label="{source.text}{matchedTarget && targetItem ? '. Matched with ' + targetItem.text : ''}{isSelected ? '. Selected for matching' : ''}{isCorrect ? '. Correct answer' : ''}"
 					aria-pressed={isSelected}
 					data-matched={!!matchedTarget}
 					data-selected={isSelected}
+					data-correct={isCorrect}
 					data-dragging={draggedSourceId === source.identifier}
 					part="source-item"
 					class="qti-match-source p-3 rounded-lg border-2 transition-all w-full"
-					class:bg-base-200={!matchedTarget && !isSelected}
-					class:bg-success={matchedTarget}
+					class:bg-base-200={!matchedTarget && !isSelected && !isCorrect}
+					class:bg-success={matchedTarget || isCorrect}
 					class:bg-primary={isSelected}
-					class:bg-opacity-20={matchedTarget || isSelected}
-					class:border-base-300={!matchedTarget && !isSelected}
-					class:border-success={matchedTarget}
+					class:bg-opacity-20={matchedTarget || isSelected || isCorrect}
+					class:border-base-300={!matchedTarget && !isSelected && !isCorrect}
+					class:border-success={matchedTarget || isCorrect}
 					class:border-primary={isSelected}
 					class:ring-2={isSelected}
 					class:ring-primary={isSelected}
@@ -173,6 +177,14 @@ function clearMatch(sourceId: string) {
 							<div class="qti-match-source-title font-medium">{source.text}</div>
 							{#if matchedTarget && targetItem}
 								<div class="qti-match-source-sub text-sm text-success mt-1">→ {targetItem.text}</div>
+							{:else if isCorrect && correctTarget}
+								{@const correctTargetItem = targetSet.find((t) => t.identifier === correctTarget)}
+								{#if correctTargetItem}
+									<div class="qti-match-source-sub text-sm text-success mt-1">→ {correctTargetItem.text}</div>
+								{/if}
+							{/if}
+							{#if isCorrect && !matchedTarget}
+								<span class="badge badge-success badge-sm ml-2">{i18n?.t('interactions.choice.correct', 'Correct') ?? 'Correct'}</span>
 							{/if}
 						</div>
 						{#if !disabled && !matchedTarget}
@@ -204,6 +216,8 @@ function clearMatch(sourceId: string) {
 			{@const matchedSource = getSourceForTarget(pairs, target.identifier)}
 			{@const sourceItem = matchedSource ? sourceSet.find((s) => s.identifier === matchedSource) : null}
 			{@const isHighlight = (draggedSourceId && !matchedSource) || (keyboardSelectedSourceId && !matchedSource)}
+			{@const correctSource = getSourceForTarget(correctPairs, target.identifier)}
+			{@const isCorrect = correctSource !== null}
 
 			<button
 				type="button"
@@ -211,16 +225,20 @@ function clearMatch(sourceId: string) {
 				ondrop={(e) => handleDrop(e, target.identifier)}
 				onkeydown={(e) => handleTargetKeyDown(e, target.identifier)}
 				disabled={disabled || !keyboardSelectedSourceId}
-				aria-label="{target.text}{matchedSource && sourceItem ? '. Matched with ' + sourceItem.text : '. Available for matching'}"
+				aria-label="{target.text}{matchedSource && sourceItem ? '. Matched with ' + sourceItem.text : '. Available for matching'}{isCorrect ? '. Correct answer' : ''}"
 				data-matched={!!matchedSource}
 				data-highlight={isHighlight}
+				data-correct={isCorrect}
 				part="target"
 				class="qti-match-target p-3 rounded-lg border-2 border-dashed min-h-[60px] transition-all"
-				class:bg-base-100={!matchedSource}
+				class:bg-base-100={!matchedSource && !isCorrect}
 				class:bg-primary={matchedSource}
+				class:bg-success={isCorrect && !matchedSource}
 				class:bg-opacity-10={matchedSource}
-				class:border-base-300={!matchedSource}
+				class:bg-opacity-20={isCorrect && !matchedSource}
+				class:border-base-300={!matchedSource && !isCorrect}
 				class:border-primary={matchedSource}
+				class:border-success={isCorrect && !matchedSource}
 				class:border-accent={draggedSourceId && !matchedSource || (keyboardSelectedSourceId && !matchedSource)}
 				class:bg-accent={draggedSourceId && !matchedSource || (keyboardSelectedSourceId && !matchedSource)}
 				class:bg-opacity-5={draggedSourceId && !matchedSource || (keyboardSelectedSourceId && !matchedSource)}
@@ -229,12 +247,20 @@ function clearMatch(sourceId: string) {
 					<div class="qti-match-target-title font-medium text-base-content/70">{target.text}</div>
 					{#if matchedSource && sourceItem}
 						<div class="qti-match-target-sub text-sm text-primary font-medium">← {sourceItem.text}</div>
+					{:else if isCorrect && correctSource}
+						{@const correctSourceItem = sourceSet.find((s) => s.identifier === correctSource)}
+						{#if correctSourceItem}
+							<div class="qti-match-target-sub text-sm text-success font-medium">← {correctSourceItem.text}</div>
+						{/if}
 					{:else if !disabled}
 						<div class="qti-match-target-hint text-xs text-base-content/70 italic">
 							{keyboardSelectedSourceId
 								? (i18n?.t('interactions.match.dragInstruction') ?? 'Press Space or Enter to match')
 								: (i18n?.t('interactions.match.dropTarget') ?? 'Drop item here')}
 						</div>
+					{/if}
+					{#if isCorrect && !matchedSource}
+						<span class="badge badge-success badge-sm mt-1">{i18n?.t('interactions.choice.correct', 'Correct') ?? 'Correct'}</span>
 					{/if}
 				</div>
 			</button>
@@ -299,7 +325,8 @@ function clearMatch(sourceId: string) {
 		border-color: var(--color-primary, oklch(45% 0.24 277));
 		background: color-mix(in oklch, var(--color-primary, oklch(45% 0.24 277)) 8%, transparent);
 	}
-	.qti-match-source[data-matched='true'] {
+	.qti-match-source[data-matched='true'],
+	.qti-match-source[data-correct='true'] {
 		border-color: var(--color-success, oklch(76% 0.177 163.223));
 		background: color-mix(in oklch, var(--color-success, oklch(76% 0.177 163.223)) 8%, transparent);
 	}
@@ -364,6 +391,10 @@ function clearMatch(sourceId: string) {
 	.qti-match-target[data-matched='true'] {
 		border-color: var(--color-primary, oklch(45% 0.24 277));
 		background: color-mix(in oklch, var(--color-primary, oklch(45% 0.24 277)) 6%, transparent);
+	}
+	.qti-match-target[data-correct='true'] {
+		border-color: var(--color-success, oklch(76% 0.177 163.223));
+		background: color-mix(in oklch, var(--color-success, oklch(76% 0.177 163.223)) 8%, transparent);
 	}
 	.qti-match-target[data-highlight='true'] {
 		border-color: var(--color-accent, oklch(77% 0.152 181.912));

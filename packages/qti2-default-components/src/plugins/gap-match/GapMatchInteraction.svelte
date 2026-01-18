@@ -10,18 +10,23 @@
 	interface Props {
 		interaction?: GapMatchInteractionData | string;
 		response?: string[];
+		correctResponse?: string[] | null;
 		disabled?: boolean;
+		role?: string;
 		i18n?: I18nProvider;
 		onChange?: (value: string[]) => void;
 	}
 
-	let { interaction = $bindable(), response = $bindable(), disabled = false, i18n = $bindable(), onChange }: Props = $props();
+	let { interaction = $bindable(), response = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), onChange }: Props = $props();
 
 	// Parse props that may be JSON strings (web component usage)
 	const parsedInteraction = $derived(parseJsonProp<GapMatchInteractionData>(interaction));
 	const parsedResponse = $derived(parseJsonProp<string[]>(response));
+	const parsedCorrectResponse = $derived(parseJsonProp<string[]>(correctResponse));
+	const isShowingCorrect = $derived(role === 'scorer' && parsedCorrectResponse !== null);
 
 	const pairs = $derived(Array.isArray(parsedResponse) ? parsedResponse : []);
+	const correctPairs = $derived(Array.isArray(parsedCorrectResponse) ? parsedCorrectResponse : []);
 
 	// Get reference to the root element for event dispatching
 	let rootElement: HTMLDivElement | undefined = $state();
@@ -60,6 +65,15 @@
 	function getSelectedWord(gapId: string): string {
 		const pair = pairs.find((p: string) => p.endsWith(` ${gapId}`));
 		return pair ? pair.split(' ')[0] : '';
+	}
+
+	function getCorrectWord(gapId: string): string {
+		const pair = correctPairs.find((p: string) => p.endsWith(` ${gapId}`));
+		return pair ? pair.split(' ')[0] : '';
+	}
+
+	function isCorrectGap(gapId: string): boolean {
+		return isShowingCorrect && getCorrectWord(gapId) !== '';
 	}
 
 	function getWordText(wordId: string): string {
@@ -119,17 +133,28 @@
 			btn.className = 'qti-gm-gap-target select select-bordered select-sm';
 
 			const selected = getSelectedWord(gapId);
+			const correct = getCorrectWord(gapId);
+			const isCorrect = isCorrectGap(gapId);
 			if (selected) {
 				const word = getWordText(selected);
 				btn.textContent = word;
 				btn.removeAttribute('data-empty');
-				const filledAriaLabel = i18n?.t('interactions.gapMatch.filledGapAriaLabel', { gapId, word }) ?? `Blank ${gapId}, filled with ${word}. Click to clear.`;
+				if (isCorrect) {
+					btn.classList.add('qti-gm-gap-correct');
+				}
+				const filledAriaLabel = i18n?.t('interactions.gapMatch.filledGapAriaLabel', { gapId, word }) ?? `Blank ${gapId}, filled with ${word}. Click to clear.${isCorrect ? ' Correct answer.' : ''}`;
 				btn.setAttribute('aria-label', filledAriaLabel);
 			} else {
 				// Keep the gap visually blank (no letters), but still accessible.
 				btn.textContent = '';
 				btn.setAttribute('data-empty', 'true');
-				const ariaLabel = i18n?.t('interactions.gapMatch.blankGapAriaLabel', { gapId }) ?? `Blank ${gapId}. Drop an answer here.`;
+				if (isCorrect && correct) {
+					const correctWord = getWordText(correct);
+					btn.textContent = correctWord;
+					btn.classList.add('qti-gm-gap-correct');
+					btn.removeAttribute('data-empty');
+				}
+				const ariaLabel = i18n?.t('interactions.gapMatch.blankGapAriaLabel', { gapId }) ?? `Blank ${gapId}. Drop an answer here.${isCorrect ? ' Correct answer: ' + getWordText(correct) : ''}`;
 				btn.setAttribute('aria-label', ariaLabel);
 			}
 			if (disabled) btn.setAttribute('aria-disabled', 'true');
@@ -190,6 +215,10 @@
 		parsedInteraction?.promptText;
 		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
 		pairs.length;
+		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
+		correctPairs.length;
+		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
+		isShowingCorrect;
 		renderPromptWithGaps();
 	});
 </script>
@@ -321,6 +350,10 @@
 	:global(.qti-gm-gap-target[aria-disabled='true']) {
 		opacity: 0.6;
 		cursor: not-allowed;
+	}
+	:global(.qti-gm-gap-target.qti-gm-gap-correct) {
+		border-color: var(--color-success, oklch(76% 0.177 163.223));
+		background: color-mix(in oklch, var(--color-success, oklch(76% 0.177 163.223)) 8%, transparent);
 	}
 	:global(.qti-gm-gap-target:focus-visible) {
 		outline: 2px solid hsl(var(--p, 240 100% 50%) / 0.5);

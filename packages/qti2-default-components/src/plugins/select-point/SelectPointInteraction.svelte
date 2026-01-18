@@ -15,21 +15,96 @@
 		 * an array of {x,y} points for convenience. We accept all of these and normalize internally.
 		 */
 		response?: any;
+		correctResponse?: any;
 		disabled?: boolean;
+		role?: string;
 		i18n?: I18nProvider;
 		onChange?: (value: any) => void;
 	}
 
-	let { interaction = $bindable(), response = $bindable(), disabled = false, i18n = $bindable(), onChange }: Props = $props();
+	let { interaction = $bindable(), response = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), onChange }: Props = $props();
 
 	// Parse props that may be JSON strings (web component usage)
 	const parsedInteraction = $derived(parseJsonProp<SelectPointInteractionData>(interaction));
 	const parsedResponse = $derived(parseJsonProp<any>(response));
+	const parsedCorrectResponse = $derived(parseJsonProp<any>(correctResponse));
+	const isShowingCorrect = $derived(
+		role === 'scorer' && parsedCorrectResponse !== null && parsedCorrectResponse !== undefined
+	);
 
 	let selectedPoints = $state<Point[]>([]);
 	let rootElement: HTMLDivElement | null = $state(null);
 	let imageContainer: HTMLDivElement | null = $state(null);
 	let imageElement: HTMLElement | null = $state(null);
+
+	/**
+	 * Parse correct response points (same format as user response)
+	 */
+	function parsePoints(value: any): Point[] {
+		if (!value) return [];
+		
+		if (Array.isArray(value)) {
+			return value
+				.map((v) => {
+					if (typeof v === 'string') {
+						const parts = v.trim().split(/\s+/);
+						if (parts.length === 2) {
+							const x = Number(parts[0]);
+							const y = Number(parts[1]);
+							if (!isNaN(x) && !isNaN(y)) {
+								return { x, y } satisfies Point;
+							}
+						}
+						return null;
+					}
+					if (v && typeof v === 'object' && v.x !== undefined && v.y !== undefined) {
+						const x = Number(v.x);
+						const y = Number(v.y);
+						if (!isNaN(x) && !isNaN(y)) {
+							return { x, y } satisfies Point;
+						}
+					}
+					return null;
+				})
+				.filter(Boolean) as Point[];
+		} else if (typeof value === 'string' && value.trim()) {
+			const parts = value.trim().split(/\s+/);
+			if (parts.length === 2) {
+				const x = Number(parts[0]);
+				const y = Number(parts[1]);
+				if (!isNaN(x) && !isNaN(y)) {
+					return [{ x, y }];
+				}
+			}
+		} else if (value && typeof value === 'object' && value.x !== undefined && value.y !== undefined) {
+			const x = Number(value.x);
+			const y = Number(value.y);
+			if (!isNaN(x) && !isNaN(y)) {
+				return [{ x, y }];
+			}
+		}
+		return [];
+	}
+
+	const correctPoints = $derived(
+		isShowingCorrect && parsedCorrectResponse !== null && parsedCorrectResponse !== undefined
+			? parsePoints(parsedCorrectResponse)
+			: []
+	);
+
+	// Debug logging
+	$effect(() => {
+		if (role === 'scorer') {
+			console.log('[SelectPoint] Role:', role);
+			console.log('[SelectPoint] parsedCorrectResponse:', parsedCorrectResponse);
+			console.log('[SelectPoint] correctPoints array:', JSON.stringify(correctPoints));
+			console.log('[SelectPoint] correctPoints.length:', correctPoints.length);
+			if (correctPoints.length > 0) {
+				console.log('[SelectPoint] First correct point x:', correctPoints[0].x, 'y:', correctPoints[0].y);
+			}
+		}
+	});
+
 
 	$effect(() => {
 		// Sync with parent response changes
@@ -181,7 +256,7 @@
 		{#if parsedInteraction.imageData}
 			{#if parsedInteraction.imageData.type === 'svg'}
 				<div
-					style="width: {parsedInteraction.imageData.width}px; height: {parsedInteraction.imageData.height}px;"
+					style="width: {parsedInteraction.imageData.width}px; height: {parsedInteraction.imageData.height}px; position: relative;"
 				>
 					{@html parsedInteraction.imageData.content}
 				</div>
@@ -189,7 +264,7 @@
 				<img
 					src={parsedInteraction.imageData.src}
 					alt={i18n?.t('interactions.selectPoint.canvas') ?? 'Selection canvas'}
-					style="width: {parsedInteraction.imageData.width}px; height: {parsedInteraction.imageData.height}px;"
+					style="width: {parsedInteraction.imageData.width}px; height: {parsedInteraction.imageData.height}px; position: relative; z-index: 1;"
 					class="block"
 				/>
 			{/if}
@@ -200,21 +275,43 @@
 				{@const intrinsicHeight = parseInt(parsedInteraction.imageData?.height || '300')}
 				{@const xPercent = (point.x / intrinsicWidth) * 100}
 				{@const yPercent = (point.y / intrinsicHeight) * 100}
+				{@const isCorrect = isShowingCorrect && correctPoints.some((p) => Math.abs(p.x - point.x) < 1 && Math.abs(p.y - point.y) < 1)}
 				<button
 					type="button"
 					class="point-marker"
-					style="left: {xPercent}%; top: {yPercent}%;"
+					class:point-marker-correct={isCorrect}
+					style="left: {xPercent}%; top: {yPercent}%; z-index: 100;"
 					onclick={(e) => {
 						e.stopPropagation();
 						removePoint(index);
 					}}
-					aria-label="Remove point {index + 1} at coordinates {point.x}, {point.y}"
-					title="Click to remove this point ({point.x}, {point.y})"
+					aria-label="Remove point {index + 1} at coordinates {point.x}, {point.y}{isCorrect ? '. Correct answer' : ''}"
+					title="Click to remove this point ({point.x}, {point.y}){isCorrect ? ' - Correct' : ''}"
 					{disabled}
 				>
-					<span class="point-number">{index + 1}</span>
+					<span class="point-number">{isCorrect ? '✓' : index + 1}</span>
 				</button>
 			{/each}
+
+			<!-- Render correct points as markers (when in scorer mode and not already selected) -->
+			{#if isShowingCorrect && correctPoints.length > 0}
+				{#each correctPoints as point, index}
+					{@const intrinsicWidth = parseInt(parsedInteraction.imageData?.width || '500')}
+					{@const intrinsicHeight = parseInt(parsedInteraction.imageData?.height || '300')}
+					{@const xPercent = (point.x / intrinsicWidth) * 100}
+					{@const yPercent = (point.y / intrinsicHeight) * 100}
+					{@const isAlreadySelected = selectedPoints.some((p) => Math.abs(p.x - point.x) < 1 && Math.abs(p.y - point.y) < 1)}
+					<div
+						part="correct-point"
+						class="point-marker point-marker-correct"
+						style="left: {xPercent}%; top: {yPercent}%; pointer-events: none; z-index: 200;"
+						aria-label="Correct answer point at coordinates {point.x}, {point.y}"
+						title="Correct answer: ({point.x}, {point.y})"
+					>
+						<span class="point-number">✓</span>
+					</div>
+				{/each}
+			{/if}
 		{:else}
 			<div
 				class="no-image-placeholder bg-base-200 flex items-center justify-center"
@@ -312,6 +409,35 @@
 	.point-marker:disabled {
 		cursor: not-allowed;
 		opacity: 0.6;
+	}
+
+	.point-marker-correct {
+		background-color: #10b981 !important;
+		border-color: white !important;
+		border-width: 4px !important;
+		cursor: default;
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 0 0 0 4px #10b981 !important;
+		width: 50px !important;
+		height: 50px !important;
+		z-index: 200 !important;
+		position: absolute !important;
+		opacity: 1 !important;
+		display: flex !important;
+		align-items: center !important;
+		justify-content: center !important;
+	}
+
+	.point-marker-correct .point-number {
+		font-size: 28px !important;
+		font-weight: 900 !important;
+		color: white !important;
+		line-height: 1 !important;
+		display: block !important;
+	}
+
+	.point-marker-correct:hover {
+		background-color: var(--color-success, oklch(76% 0.177 163.223));
+		transform: translate(-50%, -50%);
 	}
 
 	.point-number {

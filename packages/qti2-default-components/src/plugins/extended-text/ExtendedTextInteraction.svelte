@@ -11,17 +11,21 @@
 	interface Props {
 		interaction?: ExtendedTextInteractionData | string;
 		response?: string | null;
+		correctResponse?: string | null;
 		disabled?: boolean;
+		role?: string;
 		i18n?: I18nProvider;
 		typeset?: (element: HTMLElement) => void;
 		onChange?: (value: string) => void;
 	}
 
-	let { interaction = $bindable(), response = $bindable(), disabled = false, i18n = $bindable(), typeset, onChange }: Props = $props();
+	let { interaction = $bindable(), response = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), typeset, onChange }: Props = $props();
 
 	// Parse props that may be JSON strings (web component usage)
 	const parsedInteraction = $derived(parseJsonProp<ExtendedTextInteractionData>(interaction));
 	const parsedResponse = $derived(parseJsonProp<string>(response));
+	const parsedCorrectResponse = $derived(parseJsonProp<string>(correctResponse));
+	const isShowingCorrect = $derived(role === 'scorer' && parsedCorrectResponse !== null);
 
 	// Get reference to the root element for event dispatching
 	let rootElement: HTMLDivElement | undefined = $state();
@@ -53,6 +57,14 @@
 			onChange={handleChange}
 			/>
 		</div>
+		{#if isShowingCorrect && parsedCorrectResponse}
+			<div part="correct-answer" class="mt-3 p-3 bg-success bg-opacity-10 border border-success rounded">
+				<div class="text-sm font-semibold text-success mb-2">
+					{i18n?.t('interactions.choice.correct', 'Correct') ?? 'Correct'} Answer:
+				</div>
+				<div class="text-sm">{parsedCorrectResponse}</div>
+			</div>
+		{/if}
 	{/if}
 </div>
 

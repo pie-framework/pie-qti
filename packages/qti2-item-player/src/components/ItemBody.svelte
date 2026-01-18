@@ -158,6 +158,12 @@
 		handleResponseChange(responseId, value);
 	}
 
+	// Helper to find correct choice for inline choice interactions
+	function findCorrectChoice(choices: any[], correctAnswer: string | null): any {
+		if (!correctAnswer) return null;
+		return choices.find((c: any) => c.identifier === correctAnswer) || null;
+	}
+
 	// Handle qti:change events from web components
 	function handleQtiChange(event: CustomEvent) {
 		const { responseId, value } = event.detail;
@@ -228,28 +234,52 @@
 				{#if segment.type === 'html'}
 					{@html segment.content}
 				{:else if segment.type === 'textEntry'}
+					{@const correctAnswer = role === 'scorer' ? (correctResponses[segment.interaction.responseId] ?? null) : null}
+					{@const displayValue = role === 'scorer' && correctAnswer !== null ? correctAnswer : (responses[segment.interaction.responseId] || '')}
 					<input
 						type="text"
 						class="input input-bordered input-sm inline-input"
+						class:border-success={correctAnswer !== null}
+						class:bg-success={correctAnswer !== null}
+						class:bg-opacity-10={correctAnswer !== null}
 						style="width: {segment.interaction.expectedLength * 8}px; min-width: 100px; display: inline-block; margin: 0 4px;"
 						placeholder="..."
-						aria-label={`Text entry ${segment.interaction.responseId}`}
-						value={responses[segment.interaction.responseId] || ''}
+						aria-label={`Text entry ${segment.interaction.responseId}${correctAnswer ? '. Correct answer: ' + correctAnswer : ''}`}
+						value={displayValue}
 						on:input={(e) => handleTextEntryInput(segment.interaction.responseId, e)}
+						{disabled}
 					/>
 				{:else if segment.type === 'inlineChoice'}
-					<select
-						class="select select-bordered select-sm inline-select"
-						style="display: inline-block; margin: 0 4px; width: auto; min-width: 120px;"
-						aria-label={`Inline choice ${segment.interaction.responseId}`}
-						value={responses[segment.interaction.responseId] || ''}
-						on:change={(e) => handleInlineChoiceChange(segment.interaction.responseId, e)}
-					>
-						<option value="">{i18n?.t('interactions.inline.selectPlaceholder', 'Select...')}</option>
-						{#each segment.interaction.choices as choice}
-							<option value={choice.identifier}>{choice.text}</option>
-						{/each}
-					</select>
+					{@const correctAnswer = role === 'scorer' ? (correctResponses[segment.interaction.responseId] ?? null) : null}
+					{@const userResponse = responses[segment.interaction.responseId] || ''}
+					{@const displayValue = role === 'scorer' && correctAnswer !== null ? correctAnswer : userResponse}
+					{@const correctChoice = findCorrectChoice(segment.interaction.choices, correctAnswer)}
+					<span class="inline-choice-wrapper" style="display: inline-block; position: relative;">
+						<select
+							class="select select-bordered select-sm inline-select"
+							class:border-success={correctAnswer !== null}
+							class:bg-success={correctAnswer !== null}
+							class:bg-opacity-10={correctAnswer !== null}
+							style="display: inline-block; margin: 0 4px; width: auto; min-width: 120px;"
+							aria-label={`Inline choice ${segment.interaction.responseId}${correctAnswer && correctChoice ? '. Correct answer: ' + (correctChoice as any).text : ''}`}
+							value={displayValue}
+							on:change={(e) => handleInlineChoiceChange(segment.interaction.responseId, e)}
+							{disabled}
+						>
+							<option value="">{i18n?.t('interactions.inline.selectPlaceholder', 'Select...')}</option>
+							{#each segment.interaction.choices as choice}
+								{@const isCorrect = correctAnswer === choice.identifier}
+								<option value={choice.identifier}>
+									{choice.text}{isCorrect ? ' ✓' : ''}
+								</option>
+							{/each}
+						</select>
+						{#if correctAnswer !== null && correctChoice}
+							<span class="badge badge-success badge-sm" style="position: absolute; top: -1.5rem; left: 0; white-space: nowrap; font-size: 0.7rem;">
+								{i18n?.t('interactions.choice.correct', 'Correct') ?? 'Correct'}: {(correctChoice as any).text}
+							</span>
+						{/if}
+					</span>
 				{/if}
 			{/each}
 		</div>

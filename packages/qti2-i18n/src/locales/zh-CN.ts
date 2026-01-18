@@ -299,6 +299,7 @@ export default {
 			selectAnother: '已选择:<strong>{label}</strong>。点击另一个',
 			minimumRequired: '最少需要:{minAssociations}',
 			currentAssociations: '当前关联',
+			correctAssociations: '正确关联',
 			clickToAssociate: '点击两个项目以在它们之间创建关联',
 			clickAnotherOrDeselect: '点击另一个项目以创建关联(或再次点击以取消选择)',
 			associations: '关联',
