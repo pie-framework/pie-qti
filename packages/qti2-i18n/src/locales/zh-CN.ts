@@ -117,6 +117,7 @@ export default {
 			selectMultiple: '选择所有适用项',
 			selected: '已选择',
 			notSelected: '未选择',
+			correct: '正确',
 		},
 
 		upload: {
@@ -507,6 +508,7 @@ export default {
 		tutor: '辅导员',
 		showCorrectAnswers: '显示正确答案',
 		showFeedback: '显示反馈',
+		settings_aria: '打开设置菜单',
 		xmlEditor: 'XML 编辑器',
 
 		// 导航

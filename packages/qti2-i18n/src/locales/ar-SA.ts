@@ -149,6 +149,7 @@ export default {
 			selectMultiple: 'اختر جميع ما ينطبق',
 			selected: 'محدد',
 			notSelected: 'غير محدد',
+			correct: 'صحيح',
 		},
 
 		upload: {
@@ -539,6 +540,7 @@ export default {
 		tutor: 'مدرس',
 		showCorrectAnswers: 'إظهار الإجابات الصحيحة',
 		showFeedback: 'إظهار التعليقات',
+		settings_aria: 'فتح قائمة الإعدادات',
 		xmlEditor: 'محرر XML',
 
 		// Navigation

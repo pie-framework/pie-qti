@@ -119,6 +119,7 @@ export default {
 			selectMultiple: 'Sélectionnez toutes les réponses applicables',
 			selected: 'Sélectionné',
 			notSelected: 'Non sélectionné',
+			correct: 'Correct',
 		},
 
 		upload: {
@@ -494,6 +495,7 @@ export default {
 		tutor: 'Tuteur',
 		showCorrectAnswers: 'Afficher les réponses correctes',
 		showFeedback: 'Afficher les commentaires',
+		settings_aria: 'Ouvrir le menu des paramètres',
 		xmlEditor: 'Éditeur XML',
 
 		// Navigation

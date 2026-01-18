@@ -30,8 +30,13 @@
 		onChange
 	}: Props = $props();
 
-	// Simplified translation helper - locale changes trigger page refresh
-	const t = $derived((key: string, fallback: string) => i18n?.t(key) ?? fallback);
+	// Translation helper:
+	// The default i18n provider returns the key itself when a translation is missing.
+	// We treat that as "missing" so we can safely fall back to the provided string.
+	const t = $derived((key: string, fallback: string) => {
+		const v = i18n?.t(key);
+		return !v || v === key ? fallback : v;
+	});
 
 	// Parse props that may be JSON strings (web component usage)
 	const parsedInteraction = $derived(parseJsonProp<ChoiceInteractionData>(interaction));

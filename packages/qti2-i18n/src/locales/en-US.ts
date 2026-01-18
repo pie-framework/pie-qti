@@ -117,6 +117,7 @@ export default {
 			selectMultiple: 'Select all that apply',
 			selected: 'Selected',
 			notSelected: 'Not selected',
+			correct: 'Correct',
 		},
 
 		upload: {
@@ -507,6 +508,7 @@ export default {
 		tutor: 'Tutor',
 		showCorrectAnswers: 'Show correct answers',
 		showFeedback: 'Show feedback',
+		settings_aria: 'Open settings menu',
 		xmlEditor: 'XML Editor',
 
 		// Navigation

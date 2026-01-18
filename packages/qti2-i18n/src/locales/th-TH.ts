@@ -120,6 +120,7 @@ export default {
 			selectMultiple: 'เลือกทั้งหมดที่ใช้ได้',
 			selected: 'เลือกแล้ว',
 			notSelected: 'ยังไม่ได้เลือก',
+			correct: 'ถูกต้อง',
 		},
 
 		upload: {
@@ -495,6 +496,7 @@ export default {
 		tutor: 'ครูผู้สอน',
 		showCorrectAnswers: 'แสดงคำตอบที่ถูกต้อง',
 		showFeedback: 'แสดงข้อเสนอแนะ',
+		settings_aria: 'เปิดเมนูการตั้งค่า',
 		xmlEditor: 'ตัวแก้ไข XML',
 
 		// Navigation

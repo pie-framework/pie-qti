@@ -119,6 +119,7 @@ export default {
 			selectMultiple: 'Selectează toate variantele aplicabile',
 			selected: 'Selectat',
 			notSelected: 'Neselectat',
+			correct: 'Corect',
 		},
 
 		upload: {
@@ -494,6 +495,7 @@ export default {
 		tutor: 'Tutor',
 		showCorrectAnswers: 'Arată răspunsurile corecte',
 		showFeedback: 'Arată feedback',
+		settings_aria: 'Deschide meniul de setări',
 		xmlEditor: 'Editor XML',
 
 		// Navigation

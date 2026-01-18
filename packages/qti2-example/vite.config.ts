@@ -73,6 +73,10 @@ export default defineConfig({
 	server: {
 		fs: {
 			allow: ['..']
+		},
+		hmr: {
+			// Reduce HMR update frequency to prevent overwhelming the browser
+			overlay: true
 		}
 	},
 	preview: {

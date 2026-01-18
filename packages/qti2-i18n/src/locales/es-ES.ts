@@ -120,6 +120,7 @@ export default {
 			selectMultiple: 'Selecciona todas las que apliquen',
 			selected: 'Seleccionado',
 			notSelected: 'No seleccionado',
+			correct: 'Correcto',
 		},
 
 		upload: {
@@ -495,6 +496,7 @@ export default {
 		tutor: 'Tutor',
 		showCorrectAnswers: 'Mostrar respuestas correctas',
 		showFeedback: 'Mostrar retroalimentación',
+		settings_aria: 'Abrir menú de configuración',
 		xmlEditor: 'Editor XML',
 
 		// Navigation

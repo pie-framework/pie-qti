@@ -119,6 +119,7 @@ export default {
 			selectMultiple: 'Selecteer alle toepasselijke opties',
 			selected: 'Geselecteerd',
 			notSelected: 'Niet geselecteerd',
+			correct: 'Correct',
 		},
 
 		upload: {
@@ -494,6 +495,7 @@ export default {
 		tutor: 'Begeleider',
 		showCorrectAnswers: 'Juiste antwoorden tonen',
 		showFeedback: 'Feedback tonen',
+		settings_aria: 'Instellingenmenu openen',
 		xmlEditor: 'XML-editor',
 
 		// Navigation
