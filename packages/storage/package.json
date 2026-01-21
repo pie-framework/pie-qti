@@ -40,10 +40,14 @@
 		"adm-zip": "^0.5.16"
 	},
 	"peerDependencies": {
-		"@aws-sdk/client-s3": "^3.0.0"
+		"@aws-sdk/client-s3": "^3.0.0",
+		"@aws-sdk/s3-request-presigner": "^3.0.0"
 	},
 	"peerDependenciesMeta": {
 		"@aws-sdk/client-s3": {
+			"optional": true
+		},
+		"@aws-sdk/s3-request-presigner": {
 			"optional": true
 		}
 	},

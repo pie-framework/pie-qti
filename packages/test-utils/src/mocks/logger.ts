@@ -3,7 +3,7 @@
  * Provides test-friendly logger implementations
  */
 
-import type { TransformLogger } from '@pie-qti/transform-types';
+import type { TransformLogger, LogContext } from '@pie-qti/transform-types';
 
 /**
  * Logger that captures all log messages for testing
@@ -13,24 +13,31 @@ export class CaptureLogger implements TransformLogger {
 	private logs: Array<{
 		level: 'info' | 'warn' | 'error' | 'debug';
 		message: string;
-		itemId?: string;
-		error?: Error;
+		context: LogContext;
 	}> = [];
 
-	info(message: string, itemId?: string): void {
-		this.logs.push({ level: 'info', message, itemId });
+	info(message: string, itemId?: string, context?: LogContext): void {
+		this.logs.push({ level: 'info', message, context: this.mergeContext(itemId, context) });
 	}
 
-	warn(message: string, itemId?: string): void {
-		this.logs.push({ level: 'warn', message, itemId });
+	warn(message: string, itemId?: string, context?: LogContext): void {
+		this.logs.push({ level: 'warn', message, context: this.mergeContext(itemId, context) });
 	}
 
-	error(message: string, error?: Error, itemId?: string): void {
-		this.logs.push({ level: 'error', message, error, itemId });
+	error(message: string, itemId?: string, context?: LogContext): void {
+		this.logs.push({ level: 'error', message, context: this.mergeContext(itemId, context) });
 	}
 
-	debug(message: string, itemId?: string): void {
-		this.logs.push({ level: 'debug', message, itemId });
+	debug(message: string, itemId?: string, context?: LogContext): void {
+		this.logs.push({ level: 'debug', message, context: this.mergeContext(itemId, context) });
+	}
+
+	private mergeContext(itemId?: string, context?: LogContext): LogContext {
+		if (!itemId && !context) return {};
+		return {
+			...context,
+			itemId: itemId || context?.itemId,
+		};
 	}
 
 	// Test helper methods
@@ -53,7 +60,14 @@ export class CaptureLogger implements TransformLogger {
 	 * Get logs for a specific item
 	 */
 	getLogsByItemId(itemId: string) {
-		return this.logs.filter((log) => log.itemId === itemId);
+		return this.logs.filter((log) => log.context.itemId === itemId);
+	}
+
+	/**
+	 * Get logs by context property
+	 */
+	getLogsByContext(key: keyof LogContext, value: unknown) {
+		return this.logs.filter((log) => log.context[key] === value);
 	}
 
 	/**
@@ -61,6 +75,13 @@ export class CaptureLogger implements TransformLogger {
 	 */
 	hasMessage(message: string): boolean {
 		return this.logs.some((log) => log.message.includes(message));
+	}
+
+	/**
+	 * Check if any log has specific context
+	 */
+	hasContext(key: keyof LogContext, value: unknown): boolean {
+		return this.logs.some((log) => log.context[key] === value);
 	}
 
 	/**
@@ -90,19 +111,19 @@ export class CaptureLogger implements TransformLogger {
  * Useful for keeping test output clean
  */
 export class SilentLogger implements TransformLogger {
-	info(_message: string, _itemId?: string): void {
+	info(_message: string, _itemId?: string, _context?: LogContext): void {
 		// No-op
 	}
 
-	warn(_message: string, _itemId?: string): void {
+	warn(_message: string, _itemId?: string, _context?: LogContext): void {
 		// No-op
 	}
 
-	error(_message: string, _error?: Error, _itemId?: string): void {
+	error(_message: string, _itemId?: string, _context?: LogContext): void {
 		// No-op
 	}
 
-	debug(_message: string, _itemId?: string): void {
+	debug(_message: string, _itemId?: string, _context?: LogContext): void {
 		// No-op
 	}
 }
@@ -114,26 +135,47 @@ export class SilentLogger implements TransformLogger {
 export class ConsoleLogger implements TransformLogger {
 	constructor(private prefix = '[TEST]') {}
 
-	info(message: string, itemId?: string): void {
-		const itemPrefix = itemId ? `[${itemId}]` : '';
-		console.log(`${this.prefix}${itemPrefix} INFO:`, message);
+	info(message: string, itemId?: string, context?: LogContext): void {
+		const ctx = this.mergeContext(itemId, context);
+		const contextStr = this.formatContext(ctx);
+		console.log(`${this.prefix}${contextStr} INFO:`, message);
 	}
 
-	warn(message: string, itemId?: string): void {
-		const itemPrefix = itemId ? `[${itemId}]` : '';
-		console.warn(`${this.prefix}${itemPrefix} WARN:`, message);
+	warn(message: string, itemId?: string, context?: LogContext): void {
+		const ctx = this.mergeContext(itemId, context);
+		const contextStr = this.formatContext(ctx);
+		console.warn(`${this.prefix}${contextStr} WARN:`, message);
 	}
 
-	error(message: string, error?: Error, itemId?: string): void {
-		const itemPrefix = itemId ? `[${itemId}]` : '';
-		console.error(`${this.prefix}${itemPrefix} ERROR:`, message);
-		if (error) {
-			console.error(error);
-		}
+	error(message: string, itemId?: string, context?: LogContext): void {
+		const ctx = this.mergeContext(itemId, context);
+		const contextStr = this.formatContext(ctx);
+		console.error(`${this.prefix}${contextStr} ERROR:`, message);
 	}
 
-	debug(message: string, itemId?: string): void {
-		const itemPrefix = itemId ? `[${itemId}]` : '';
-		console.debug(`${this.prefix}${itemPrefix} DEBUG:`, message);
+	debug(message: string, itemId?: string, context?: LogContext): void {
+		const ctx = this.mergeContext(itemId, context);
+		const contextStr = this.formatContext(ctx);
+		console.debug(`${this.prefix}${contextStr} DEBUG:`, message);
+	}
+
+	private mergeContext(itemId?: string, context?: LogContext): LogContext {
+		if (!itemId && !context) return {};
+		return {
+			...context,
+			itemId: itemId || context?.itemId,
+		};
+	}
+
+	private formatContext(context: LogContext): string {
+		if (!context || Object.keys(context).length === 0) return '';
+
+		const parts: string[] = [];
+		if (context.itemId) parts.push(`item:${context.itemId}`);
+		if (context.sessionId) parts.push(`session:${context.sessionId}`);
+		if (context.userId) parts.push(`user:${context.userId}`);
+		if (context.vendor) parts.push(`vendor:${context.vendor}`);
+
+		return parts.length > 0 ? `[${parts.join(' ')}]` : '';
 	}
 }

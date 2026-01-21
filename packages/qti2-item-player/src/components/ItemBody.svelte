@@ -246,7 +246,7 @@
 						placeholder="..."
 						aria-label={`Text entry ${segment.interaction.responseId}${correctAnswer ? '. Correct answer: ' + correctAnswer : ''}`}
 						value={displayValue}
-						on:input={(e) => handleTextEntryInput(segment.interaction.responseId, e)}
+						oninput={(e) => handleTextEntryInput(segment.interaction.responseId, e)}
 						{disabled}
 					/>
 				{:else if segment.type === 'inlineChoice'}
@@ -263,7 +263,7 @@
 							style="display: inline-block; margin: 0 4px; width: auto; min-width: 120px;"
 							aria-label={`Inline choice ${segment.interaction.responseId}${correctAnswer && correctChoice ? '. Correct answer: ' + (correctChoice as any).text : ''}`}
 							value={displayValue}
-							on:change={(e) => handleInlineChoiceChange(segment.interaction.responseId, e)}
+							onchange={(e) => handleInlineChoiceChange(segment.interaction.responseId, e)}
 							{disabled}
 						>
 							<option value="">{i18n?.t('interactions.inline.selectPlaceholder', 'Select...')}</option>

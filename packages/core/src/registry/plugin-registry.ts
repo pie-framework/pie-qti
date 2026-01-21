@@ -54,16 +54,21 @@ export class PluginRegistry {
 
   /**
    * Find plugin that can handle transformation from source to target format
+   * If multiple plugins match, returns the one with highest priority
    */
   findPlugin(
     sourceFormat: TransformFormat,
     targetFormat: TransformFormat
   ): TransformPlugin | undefined {
-    return Array.from(this.plugins.values()).find(
-      (plugin) =>
-        plugin.sourceFormat === sourceFormat &&
-        plugin.targetFormat === targetFormat
-    );
+    const candidates = Array.from(this.plugins.values())
+      .filter(
+        (plugin) =>
+          plugin.sourceFormat === sourceFormat &&
+          plugin.targetFormat === targetFormat
+      )
+      .sort((a, b) => (b.priority ?? 100) - (a.priority ?? 100));
+
+    return candidates[0];
   }
 
   /**
