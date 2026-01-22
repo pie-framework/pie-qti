@@ -12,6 +12,7 @@
 	let error: string | null = null;
 	let packageId: string = '';
 	let itemId: string = '';
+	let itemTitle: string | null = null;
 
 	// Get package data from browser storage to enable navigation
 	let packageData: PackageStructure | null = null;
@@ -32,6 +33,11 @@
 					currentItemIndex = packageData.items.findIndex(
 						(item) => item.identifier === itemId
 					);
+					// Get the item title if available
+					const currentItem = packageData.items.find((item) => item.identifier === itemId);
+					if (currentItem) {
+						itemTitle = currentItem.title || null;
+					}
 				} else if (packageData) {
 					// Package ID mismatch
 					error = 'Package not found. Please upload the package again.';
@@ -89,7 +95,7 @@
 </script>
 
 <svelte:head>
-	<title>QTI Item: {itemId}</title>
+	<title>{itemTitle ? `${itemTitle} - QTI Item` : `QTI Item: ${itemId}`}</title>
 </svelte:head>
 
 <div class="max-w-7xl mx-auto px-6 py-8 space-y-6">
@@ -99,10 +105,15 @@
 			<button class="btn btn-outline btn-sm" on:click={goBack}>← Back to Package</button>
 			<div class="divider divider-horizontal"></div>
 			<div>
-				<h1 class="text-2xl font-bold">Item: {itemId}</h1>
+				<h1 class="text-2xl font-bold">
+					{itemTitle || `Item: ${itemId}`}
+				</h1>
 				{#if currentItemIndex >= 0}
 					<p class="text-sm text-base-content/70">
 						Item {currentItemIndex + 1} of {totalItems}
+						{#if itemTitle}
+							<span class="ml-2 text-xs">({itemId})</span>
+						{/if}
 					</p>
 				{/if}
 			</div>

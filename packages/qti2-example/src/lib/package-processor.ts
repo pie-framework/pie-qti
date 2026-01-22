@@ -76,6 +76,41 @@ function extractTitleFromMetadata(resource: any): string | undefined {
 }
 
 /**
+ * Extract title from QTI item/test XML content
+ * Handles both attribute-style (title="...") and element-style (<title>...</title>) titles
+ */
+function extractTitleFromQtiXml(xmlContent: string): string | undefined {
+	if (!xmlContent) return undefined;
+
+	// Try attribute-style title first: <assessmentItem title="...">
+	const attributeMatch = xmlContent.match(/<assessmentItem[^>]*\s+title=["']([^"']+)["']/i);
+	if (attributeMatch && attributeMatch[1]) {
+		return attributeMatch[1].trim();
+	}
+
+	// Try test attribute-style: <assessmentTest title="...">
+	const testAttributeMatch = xmlContent.match(/<assessmentTest[^>]*\s+title=["']([^"']+)["']/i);
+	if (testAttributeMatch && testAttributeMatch[1]) {
+		return testAttributeMatch[1].trim();
+	}
+
+	// Try element-style title: <title>...</title>
+	// Look for title element that's a direct child of assessmentItem or assessmentTest
+	const elementMatch = xmlContent.match(/<(?:assessmentItem|assessmentTest)[^>]*>[\s\S]*?<title[^>]*>([^<]+)<\/title>/i);
+	if (elementMatch && elementMatch[1]) {
+		return elementMatch[1].trim();
+	}
+
+	// Fallback: look for any <title> element (less specific but might catch some cases)
+	const fallbackMatch = xmlContent.match(/<title[^>]*>([^<]+)<\/title>/i);
+	if (fallbackMatch && fallbackMatch[1]) {
+		return fallbackMatch[1].trim();
+	}
+
+	return undefined;
+}
+
+/**
  * Process a QTI package ZIP file client-side
  */
 export async function processPackage(file: File): Promise<PackageStructure> {
@@ -165,23 +200,43 @@ export async function processPackage(file: File): Promise<PackageStructure> {
 		}))
 		.filter((item: PackageItem) => item.identifier && item.href);
 
-	// Also scan items directory for actual item files
+	// Also scan items directory for actual item files and update titles
+	// This ensures we get titles from the actual QTI XML files, not just the manifest
 	const itemFiles = Object.keys(files).filter(
 		(path) => path.startsWith('items/') && path.endsWith('.xml')
 	);
 	for (const itemPath of itemFiles) {
 		const itemContent = files[itemPath];
 		const identifierMatch = itemContent.match(/identifier=["']([^"']+)["']/);
-		const titleMatch = itemContent.match(/title=["']([^"']+)["']/);
 
 		if (identifierMatch) {
 			const identifier = identifierMatch[1];
-			if (!items.find((i) => i.identifier === identifier)) {
+			const extractedTitle = extractTitleFromQtiXml(itemContent);
+			
+			// Try to find existing item and update its title
+			const existingItem = items.find((i) => i.identifier === identifier);
+			if (existingItem) {
+				// Always prefer title from XML file if available (it's more accurate)
+				if (extractedTitle) {
+					existingItem.title = extractedTitle;
+				}
+			} else {
+				// Add new item if not found
 				items.push({
 					identifier,
 					href: itemPath,
-					title: titleMatch?.[1]
+					title: extractedTitle
 				});
+			}
+		}
+	}
+	
+	// Also check items found in manifest - try to extract titles from their XML files
+	for (const item of items) {
+		if (!item.title && item.href && files[item.href]) {
+			const extractedTitle = extractTitleFromQtiXml(files[item.href]);
+			if (extractedTitle) {
+				item.title = extractedTitle;
 			}
 		}
 	}
@@ -200,23 +255,43 @@ export async function processPackage(file: File): Promise<PackageStructure> {
 		}))
 		.filter((test: PackageTest) => test.identifier && test.href);
 
-	// Also scan tests directory
+	// Also scan tests directory and update titles
+	// This ensures we get titles from the actual QTI XML files, not just the manifest
 	const testFiles = Object.keys(files).filter(
 		(path) => path.startsWith('tests/') && path.endsWith('.xml')
 	);
 	for (const testPath of testFiles) {
 		const testContent = files[testPath];
 		const identifierMatch = testContent.match(/identifier=["']([^"']+)["']/);
-		const titleMatch = testContent.match(/title=["']([^"']+)["']/);
 
 		if (identifierMatch) {
 			const identifier = identifierMatch[1];
-			if (!tests.find((t) => t.identifier === identifier)) {
+			const extractedTitle = extractTitleFromQtiXml(testContent);
+			
+			// Try to find existing test and update its title
+			const existingTest = tests.find((t) => t.identifier === identifier);
+			if (existingTest) {
+				// Always prefer title from XML file if available (it's more accurate)
+				if (extractedTitle) {
+					existingTest.title = extractedTitle;
+				}
+			} else {
+				// Add new test if not found
 				tests.push({
 					identifier,
 					href: testPath,
-					title: titleMatch?.[1]
+					title: extractedTitle
 				});
+			}
+		}
+	}
+	
+	// Also check tests found in manifest - try to extract titles from their XML files
+	for (const test of tests) {
+		if (!test.title && test.href && files[test.href]) {
+			const extractedTitle = extractTitleFromQtiXml(files[test.href]);
+			if (extractedTitle) {
+				test.title = extractedTitle;
 			}
 		}
 	}
