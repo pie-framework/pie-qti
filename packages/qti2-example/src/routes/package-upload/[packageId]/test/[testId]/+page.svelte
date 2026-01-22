@@ -4,6 +4,7 @@
 	import { goto } from '$app/navigation';
 	import { loadPackageDataAsync, getTestXml } from '$lib/package-processor';
 	import type { PackageStructure } from '$lib/package-processor';
+	import XmlEditor from '$lib/components/XmlEditor.svelte';
 
 	let testXml = $state<string | null>(null);
 	let loading = $state(true);
@@ -137,7 +138,7 @@
 		<div class="card bg-base-100 shadow-xl">
 			<div class="card-body">
 				<h2 class="card-title">Test XML</h2>
-				<pre class="text-xs overflow-x-auto p-4 bg-base-300 rounded"><code>{testXml}</code></pre>
+				<XmlEditor content={testXml} readOnly={true} />
 			</div>
 		</div>
 	{/if}

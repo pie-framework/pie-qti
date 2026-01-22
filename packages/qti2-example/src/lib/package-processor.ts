@@ -9,25 +9,40 @@ import {
 	SessionStorageBackend
 } from '@pie-qti/ims-cp-browser';
 import type { VirtualPackage } from '@pie-qti/ims-cp-browser';
+import { extractQtiItemMetadata, type QtiItemMetadata } from '@pie-qti/ims-cp-core';
 
 // Storage key for the current package ID
 const STORAGE_KEY_CURRENT_PACKAGE = 'qti-current-package-id';
+
+/**
+ * Package item with comprehensive metadata
+ */
+export interface PackageItem {
+	identifier: string;
+	href: string;
+	title?: string;
+	/** Full QTI metadata extracted from XML */
+	metadata?: QtiItemMetadata;
+}
+
+/**
+ * Package test with comprehensive metadata
+ */
+export interface PackageTest {
+	identifier: string;
+	href: string;
+	title?: string;
+	/** Full QTI metadata extracted from XML */
+	metadata?: QtiItemMetadata;
+}
 
 /**
  * Legacy interface for backward compatibility with existing UI code
  */
 export interface PackageStructure {
 	packageId: string;
-	items: Array<{
-		identifier: string;
-		href: string;
-		title?: string;
-	}>;
-	tests: Array<{
-		identifier: string;
-		href: string;
-		title?: string;
-	}>;
+	items: PackageItem[];
+	tests: PackageTest[];
 	assets: {
 		images: string[];
 		styles: string[];
@@ -67,19 +82,49 @@ export async function processPackage(file: File): Promise<PackageStructure> {
 function convertToPackageStructure(pkg: VirtualPackage): PackageStructure {
 	const items = pkg.manifest.items
 		.filter((item) => item.hrefResolved) // Filter out items without hrefs
-		.map((item) => ({
-			identifier: item.identifier,
-			href: item.hrefResolved as string, // Safe after filter
-			title: item.identifier // TODO: Extract title from metadata if available
-		}));
+		.map((item) => {
+			// Extract comprehensive metadata from XML content
+			let metadata: QtiItemMetadata | undefined;
+			if (item.hrefResolved) {
+				const xmlContent = pkg.readText(item.hrefResolved);
+				if (xmlContent) {
+					metadata = extractQtiItemMetadata(xmlContent);
+				}
+			}
+
+			// Use metadata title or fallback to identifier
+			const title = metadata?.title || item.identifier;
+
+			return {
+				identifier: item.identifier,
+				href: item.hrefResolved as string, // Safe after filter
+				title,
+				metadata
+			};
+		});
 
 	const tests = pkg.manifest.tests
 		.filter((test) => test.hrefResolved) // Filter out tests without hrefs
-		.map((test) => ({
-			identifier: test.identifier,
-			href: test.hrefResolved as string, // Safe after filter
-			title: test.identifier // TODO: Extract title from metadata if available
-		}));
+		.map((test) => {
+			// Extract comprehensive metadata from XML content
+			let metadata: QtiItemMetadata | undefined;
+			if (test.hrefResolved) {
+				const xmlContent = pkg.readText(test.hrefResolved);
+				if (xmlContent) {
+					metadata = extractQtiItemMetadata(xmlContent);
+				}
+			}
+
+			// Use metadata title or fallback to identifier
+			const title = metadata?.title || test.identifier;
+
+			return {
+				identifier: test.identifier,
+				href: test.hrefResolved as string, // Safe after filter
+				title,
+				metadata
+			};
+		});
 
 	// Categorize assets by file extension
 	const images: string[] = [];

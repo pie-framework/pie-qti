@@ -13,6 +13,7 @@
 	import { loadPackageDataAsync, getItemXml } from '$lib/package-processor';
 	import type { PackageStructure } from '$lib/package-processor';
 	import { getSecurityConfig } from '$lib/player-config';
+	import XmlEditor from '$lib/components/XmlEditor.svelte';
 
 	let itemXml = $state<string | null>(null);
 	let loading = $state(true);
@@ -22,6 +23,8 @@
 	let packageData = $state<PackageStructure | null>(null);
 	let currentItemIndex = $state(-1);
 	let totalItems = $state(0);
+	let itemTitle = $state<string | null>(null);
+	let itemMetadata = $state<any>(null);
 
 	// Player state
 	let player = $state<Player | null>(null);
@@ -57,6 +60,13 @@
 					currentItemIndex = packageData.items.findIndex(
 						(item) => item.identifier === urlItemId
 					);
+
+					// Get the item title and metadata if available
+					const currentItem = packageData.items.find((item) => item.identifier === urlItemId);
+					if (currentItem) {
+						itemTitle = currentItem.title || null;
+						itemMetadata = currentItem.metadata || null;
+					}
 				} else if (packageData) {
 					// Package ID mismatch
 					error = 'Package not found. Please upload the package again.';
@@ -125,7 +135,7 @@
 </script>
 
 <svelte:head>
-	<title>QTI Item: {$page.params.itemId}</title>
+	<title>{itemTitle ? `${itemTitle} - QTI Item` : `QTI Item: ${$page.params.itemId}`}</title>
 </svelte:head>
 
 <div class="max-w-7xl mx-auto px-6 py-8 space-y-6">
@@ -135,10 +145,15 @@
 			<button class="btn btn-outline btn-sm" onclick={goBack}>← Back to Package</button>
 			<div class="divider divider-horizontal"></div>
 			<div>
-				<h1 class="text-2xl font-bold">Item: {$page.params.itemId}</h1>
+				<h1 class="text-2xl font-bold">
+					{itemTitle || `Item: ${$page.params.itemId}`}
+				</h1>
 				{#if currentItemIndex >= 0}
 					<p class="text-sm text-base-content/70">
 						Item {currentItemIndex + 1} of {totalItems}
+						{#if itemTitle}
+							<span class="ml-2 text-xs opacity-70">({$page.params.itemId})</span>
+						{/if}
 					</p>
 				{/if}
 			</div>
@@ -205,11 +220,55 @@
 			</div>
 		</div>
 
+		<!-- Metadata View (Collapsible) -->
+		{#if itemMetadata}
+			<details class="collapse collapse-arrow bg-base-200">
+				<summary class="collapse-title text-lg font-medium">Item Metadata</summary>
+				<div class="collapse-content space-y-4">
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+						{#if itemMetadata.identifier}
+							<div>
+								<h3 class="font-semibold text-sm text-base-content/70">Identifier</h3>
+								<code class="text-xs">{itemMetadata.identifier}</code>
+							</div>
+						{/if}
+
+						{#if itemMetadata.title}
+							<div>
+								<h3 class="font-semibold text-sm text-base-content/70">Title</h3>
+								<p>{itemMetadata.title}</p>
+							</div>
+						{/if}
+
+						{#if itemMetadata.interactionTypes && itemMetadata.interactionTypes.length > 0}
+							<div>
+								<h3 class="font-semibold text-sm text-base-content/70">Interaction Types</h3>
+								<div class="flex flex-wrap gap-1 mt-1">
+									{#each itemMetadata.interactionTypes as interactionType}
+										<span class="badge badge-sm badge-primary">{interactionType}</span>
+									{/each}
+								</div>
+							</div>
+						{/if}
+
+						{#if itemMetadata.searchMetadata && Object.keys(itemMetadata.searchMetadata).length > 0}
+							<div class="md:col-span-2">
+								<h3 class="font-semibold text-sm text-base-content/70">Search Metadata</h3>
+								<div class="bg-base-300 rounded p-3 mt-1">
+									<pre class="text-xs">{JSON.stringify(itemMetadata.searchMetadata, null, 2)}</pre>
+								</div>
+							</div>
+						{/if}
+					</div>
+				</div>
+			</details>
+		{/if}
+
 		<!-- Raw XML View (Collapsible) -->
 		<details class="collapse collapse-arrow bg-base-200">
 			<summary class="collapse-title text-lg font-medium">View Raw XML</summary>
-			<div class="collapse-content">
-				<pre class="text-xs overflow-x-auto p-4 bg-base-300 rounded"><code>{itemXml}</code></pre>
+			<div class="collapse-content pt-4">
+				<XmlEditor content={itemXml} readOnly={true} />
 			</div>
 		</details>
 	{/if}

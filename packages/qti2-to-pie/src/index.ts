@@ -47,6 +47,8 @@ export type {
   VendorInfo,
   VendorTransformer,
 } from './types/vendor-extensions.js';
+// Standard metadata extractor (default implementation)
+export { StandardMetadataExtractor, createStandardMetadataExtractor } from './extractors/standard-metadata-extractor.js';
 // PIE extension utilities for lossless round-trip
 export type { PieExtensionData, PieExtensionMetadata } from './utils/pie-extension.js';
 export { extractDataAttributes, extractPieExtension, hasPieExtension, PIE_NAMESPACE, PIE_PREFIX } from './utils/pie-extension.js';
