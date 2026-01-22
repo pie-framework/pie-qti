@@ -29,6 +29,7 @@ const config = {
 			// https://pie-framework.github.io/pie-qti/examples/
 			base: process.env.NODE_ENV === 'production' ? '/pie-qti/examples' : ''
 		},
+		trailingSlash: 'always', // Ensure URLs end with `/` so GitHub Pages serves directories correctly
 		prerender: {
 			handleMissingId: 'warn',
 			handleUnseenRoutes: 'ignore' // Ignore dynamic routes like /a11y-components/[fixture]
