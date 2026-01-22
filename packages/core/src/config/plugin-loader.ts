@@ -18,8 +18,8 @@ export async function loadPlugin<T = unknown>(
 	config: PluginConfig,
 ): Promise<T> {
 	try {
-		// Dynamic import of the module
-		const module = await import(config.module);
+		// Dynamic import of the module (Vite cannot statically analyze this)
+		const module = await import(/* @vite-ignore */ config.module);
 
 		// Get the export (default or named)
 		const exportName = config.export || 'default';

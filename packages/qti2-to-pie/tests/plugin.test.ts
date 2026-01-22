@@ -3,30 +3,35 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { SilentLogger, TransformEngine } from '@pie-qti/transform-core';
+import { TransformEngine } from '@pie-qti/transform-core';
+import {
+	createQtiWrapper,
+	createResponseDeclaration,
+	createChoiceInteraction,
+	SilentLogger,
+	createTestEngine,
+	expectSuccessfulTransform,
+	expectValidPieModel,
+} from '@pie-qti/test-utils';
 import { Qti22ToPiePlugin } from '../src/plugin';
 
-const sampleQtiXml = `<?xml version="1.0" encoding="UTF-8"?>
-<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
-                identifier="choice-001"
-                title="Sample Multiple Choice"
-                adaptive="false"
-                timeDependent="false">
-  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier">
-    <correctResponse>
-      <value>choiceA</value>
-    </correctResponse>
-  </responseDeclaration>
+// Create sample QTI using test utilities
+const sampleQtiXml = createQtiWrapper(
+	`
+  ${createResponseDeclaration('RESPONSE', 'single', ['choiceA'])}
   <itemBody>
     <p>What is 2 + 2?</p>
-    <choiceInteraction responseIdentifier="RESPONSE" maxChoices="1" shuffle="false">
-      <simpleChoice identifier="choiceA">4</simpleChoice>
-      <simpleChoice identifier="choiceB">3</simpleChoice>
-      <simpleChoice identifier="choiceC">5</simpleChoice>
-      <simpleChoice identifier="choiceD">22</simpleChoice>
-    </choiceInteraction>
+    ${createChoiceInteraction('RESPONSE', [
+			{ id: 'choiceA', text: '4' },
+			{ id: 'choiceB', text: '3' },
+			{ id: 'choiceC', text: '5' },
+			{ id: 'choiceD', text: '22' },
+		])}
   </itemBody>
-</assessmentItem>`;
+`,
+	'choice-001',
+	'Sample Multiple Choice',
+);
 
 describe('Qti22ToPiePlugin', () => {
   test('should identify as correct plugin', () => {
@@ -65,22 +70,20 @@ describe('Qti22ToPiePlugin', () => {
       { logger: new SilentLogger() }
     );
 
-    expect(output.items.length).toBe(1);
-    expect(output.format).toBe('pie');
+    expectSuccessfulTransform(output, 1);
     expect(output.items[0].content.id).toBe('choice-001');
     expect(output.items[0].content.metadata?.searchMetaData.title).toBe('Sample Multiple Choice');
   });
 
   test('should work with TransformEngine', async () => {
-    const engine = new TransformEngine();
-    const plugin = new Qti22ToPiePlugin();
-
-    engine.use(plugin);
+    const engine = createTestEngine({
+      plugins: [new Qti22ToPiePlugin()],
+      logger: new SilentLogger(),
+    });
 
     const handle = await engine.transform(sampleQtiXml, {
       sourceFormat: 'qti22',
       targetFormat: 'pie',
-      logger: new SilentLogger(),
     });
     const output = await handle.result();
 
