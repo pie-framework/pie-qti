@@ -53,12 +53,20 @@
 		</p>
 
 		<div
+			role="button"
+			tabindex="0"
 			class="border-2 border-dashed rounded-lg p-12 text-center transition-colors {dragOver
 				? 'border-primary bg-primary/10'
 				: 'border-base-300'}"
 			on:dragover={handleDragOver}
 			on:dragleave={handleDragLeave}
 			on:drop={handleDrop}
+			on:keydown={(e) => {
+				if (e.key === 'Enter' || e.key === ' ') {
+					e.preventDefault();
+					triggerFileInput();
+				}
+			}}
 		>
 			{#if loading}
 				<div class="flex flex-col items-center gap-4">
