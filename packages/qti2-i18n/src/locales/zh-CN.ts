@@ -579,6 +579,7 @@ export default {
 
 		// 示例项目描述
 		sampleItemDescriptions: {
+			'': '自定义上传项目',
 			'simple-choice': '带有合理干扰项的基础减法应用题',
 			'partial-credit': '使用 mapResponse 的部分得分多项选择题',
 			'capital-cities': '带有随机选项的地理问题',

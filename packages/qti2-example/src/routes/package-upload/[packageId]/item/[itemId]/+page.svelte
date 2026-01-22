@@ -2,7 +2,10 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { browser } from '$app/environment';
+	import { goto } from '$app/navigation';
 	import '@pie-qti/qti2-item-player';
+	import { loadPackageData, getItemXml } from '$lib/package-processor';
+	import type { PackageStructure } from '$lib/package-processor';
 
 	let itemXml: string | null = null;
 	let loading = true;
@@ -10,8 +13,8 @@
 	let packageId: string = '';
 	let itemId: string = '';
 
-	// Get package data from localStorage to enable navigation
-	let packageData: any = null;
+	// Get package data from browser storage to enable navigation
+	let packageData: PackageStructure | null = null;
 	let currentItemIndex = -1;
 	let totalItems = 0;
 
@@ -20,37 +23,38 @@
 		packageId = $page.params.packageId || '';
 		itemId = $page.params.itemId || '';
 
-		// Load package data from localStorage for navigation
+		// Load package data from browser storage for navigation
 		if (browser) {
 			try {
-				const stored = localStorage.getItem('qti-package-data');
-				if (stored) {
-					packageData = JSON.parse(stored);
-					if (packageData.packageId === packageId) {
-						totalItems = packageData.items.length;
-						currentItemIndex = packageData.items.findIndex(
-							(item: any) => item.identifier === itemId
-						);
-					}
+				packageData = loadPackageData();
+				if (packageData && packageData.packageId === packageId) {
+					totalItems = packageData.items.length;
+					currentItemIndex = packageData.items.findIndex(
+						(item) => item.identifier === itemId
+					);
+				} else if (packageData) {
+					// Package ID mismatch
+					error = 'Package not found. Please upload the package again.';
+					loading = false;
+					return;
+				} else {
+					error = 'No package data found. Please upload a package first.';
+					loading = false;
+					return;
 				}
 			} catch (err) {
 				console.error('Failed to load package data:', err);
+				error = 'Failed to load package data';
+				loading = false;
+				return;
 			}
 		}
 
-		// Fetch item XML
+		// Get item XML from browser storage
 		try {
-			const response = await fetch(`/api/package-upload/${packageId}/item/${itemId}`);
-			if (!response.ok) {
-				const errorData = await response.json().catch(() => ({ error: 'Failed to load item' }));
-				throw new Error(errorData.error || `Failed to load item: ${response.statusText}`);
-			}
-
-			const data = await response.json();
-			if (data.success && data.xml) {
-				itemXml = data.xml;
-			} else {
-				throw new Error('Invalid response from server');
+			itemXml = getItemXml(itemId);
+			if (!itemXml) {
+				throw new Error(`Item ${itemId} not found in package`);
 			}
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to load item';
@@ -63,7 +67,7 @@
 	function navigateToItem(index: number) {
 		if (packageData && packageData.items[index]) {
 			const item = packageData.items[index];
-			window.location.href = `/package-upload/${packageId}/item/${item.identifier}`;
+			goto(`/package-upload/${packageId}/item/${item.identifier}`);
 		}
 	}
 
@@ -80,7 +84,7 @@
 	}
 
 	function goBack() {
-		window.location.href = '/package-upload';
+		goto('/package-upload');
 	}
 </script>
 

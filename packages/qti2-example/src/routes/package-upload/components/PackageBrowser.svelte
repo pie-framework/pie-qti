@@ -16,11 +16,13 @@
 		};
 	};
 
-	function viewItem(item: { identifier: string; href: string }) {
+	function viewItem(event: CustomEvent<[item: { identifier: string; href: string }]>) {
+		const item = event.detail[0];
 		goto(`/package-upload/${packageData.packageId}/item/${item.identifier}`);
 	}
 
-	function viewTest(test: { identifier: string; href: string }) {
+	function viewTest(event: CustomEvent<[test: { identifier: string; href: string }]>) {
+		const test = event.detail[0];
 		goto(`/package-upload/${packageData.packageId}/test/${test.identifier}`);
 	}
 </script>

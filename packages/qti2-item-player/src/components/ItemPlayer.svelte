@@ -37,6 +37,7 @@
 	let responses = $state<Record<string, any>>({});
 	let error = $state<string | null>(null);
 	let modalFeedback = $state<ModalFeedback[]>([]);
+	let outcomeValues = $state<Record<string, any>>({});
 	let isAdaptive = $state(false);
 	let isCompleted = $state(false);
 	let numAttempts = $state(0);
@@ -49,6 +50,7 @@
 			// Reset state when XML changes
 			responses = {};
 			modalFeedback = [];
+			outcomeValues = {};
 			isAdaptive = player.isAdaptive();
 			isCompleted = player.isCompleted();
 			numAttempts = player.getNumAttempts();
@@ -78,6 +80,7 @@
 				numAttempts = result.numAttempts;
 				isCompleted = result.completed;
 				modalFeedback = result.modalFeedback || [];
+				outcomeValues = result.outcomeValues || {};
 
 				// Notify parent
 				onSubmit?.(responses, result);
@@ -90,6 +93,7 @@
 				// Non-adaptive item: use standard processResponses()
 				const result = player.processResponses();
 				modalFeedback = result.modalFeedback || [];
+				outcomeValues = result.outcomeValues || {};
 				onSubmit?.(responses, result);
 			}
 		} catch (e) {
@@ -115,6 +119,7 @@
 			{role}
 			{typeset}
 			{i18n}
+			{outcomeValues}
 			onResponseChange={handleResponseChange}
 		/>
 

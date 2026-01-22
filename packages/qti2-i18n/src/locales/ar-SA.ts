@@ -611,6 +611,7 @@ export default {
 
 		// Sample Item Descriptions
 		sampleItemDescriptions: {
+			'': 'عنصر مخصص تم تحميله',
 			'simple-choice': 'مسألة طرح كلامية أساسية مع خيارات معقولة',
 			'partial-credit': 'اختيار متعدد مع درجة جزئية باستخدام mapResponse',
 			'capital-cities': 'سؤال جغرافي مع خيارات مختلطة',

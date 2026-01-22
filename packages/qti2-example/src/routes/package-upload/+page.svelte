@@ -3,48 +3,29 @@
 	import { browser } from '$app/environment';
 	import PackageUploader from './components/PackageUploader.svelte';
 	import PackageBrowser from './components/PackageBrowser.svelte';
+	import { processPackage, loadPackageData, clearPackageData } from '$lib/package-processor';
+	import type { PackageStructure } from '$lib/package-processor';
 
-	const STORAGE_KEY = 'qti-package-data';
-
-	let packageData: any = null;
+	let packageData: PackageStructure | null = null;
 	let loading = false;
 	let error: string | null = null;
 
-	// Load package data from localStorage on mount
+	// Load package data from browser storage on mount
 	onMount(() => {
 		if (browser) {
 			try {
-				const stored = localStorage.getItem(STORAGE_KEY);
+				const stored = loadPackageData();
 				if (stored) {
-					packageData = JSON.parse(stored);
+					packageData = stored;
 					console.log('Restored package data from browser storage:', packageData.packageId);
 				}
 			} catch (err) {
 				console.error('Failed to restore package data from storage:', err);
 				// Clear corrupted data
-				localStorage.removeItem(STORAGE_KEY);
+				clearPackageData();
 			}
 		}
 	});
-
-	// Save package data to localStorage
-	function savePackageData(data: any) {
-		if (browser) {
-			try {
-				localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-				console.log('Saved package data to browser storage');
-			} catch (err) {
-				console.error('Failed to save package data to storage:', err);
-			}
-		}
-	}
-
-	// Clear package data from localStorage
-	function clearPackageData() {
-		if (browser) {
-			localStorage.removeItem(STORAGE_KEY);
-		}
-	}
 
 	async function handleUpload(file: File) {
 		loading = true;
@@ -52,49 +33,19 @@
 		packageData = null;
 
 		try {
-			// Debug: Log file info
-			console.log('Frontend: Uploading file:', {
+			console.log('Processing package client-side:', {
 				name: file.name,
 				type: file.type,
-				size: file.size,
-				isFile: file instanceof File,
-				isBlob: file instanceof Blob
+				size: file.size
 			});
 
-			const formData = new FormData();
-			formData.append('file', file);
+			// Process the package entirely in the browser
+			packageData = await processPackage(file);
 
-			// Debug: Verify FormData
-			const formDataFile = formData.get('file');
-			console.log('Frontend: FormData file entry:', {
-				type: typeof formDataFile,
-				isFile: formDataFile instanceof File,
-				isBlob: formDataFile instanceof Blob,
-				value: formDataFile
-			});
-
-			const response = await fetch('/api/package-upload', {
-				method: 'POST',
-				body: formData,
-				// Don't set Content-Type - let fetch set it automatically for FormData
-			});
-
-			if (!response.ok) {
-				const errorData = await response.json().catch(() => ({ error: 'Upload failed' }));
-				throw new Error(errorData.error || `Upload failed: ${response.statusText}`);
-			}
-
-			const data = await response.json();
-			if (data.success && data.package) {
-				packageData = data.package;
-				// Save to localStorage for persistence
-				savePackageData(packageData);
-			} else {
-				throw new Error('Invalid response from server');
-			}
+			console.log('Package processed successfully:', packageData.packageId);
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Upload failed';
-			console.error('Upload error:', err);
+			error = err instanceof Error ? err.message : 'Failed to process package';
+			console.error('Package processing error:', err);
 		} finally {
 			loading = false;
 		}
@@ -115,9 +66,8 @@
 	<div class="prose max-w-none">
 		<h1>QTI Package Upload</h1>
 		<p>
-			Upload a complete QTI package ZIP file to browse all items, tests, and assets. This tool
-			extracts and parses the full package structure, allowing you to view individual items or
-			complete assessments.
+			<strong>Note:</strong> Processing happens entirely in your browser and consumes local memory and storage.
+			Large packages may impact performance.
 		</p>
 	</div>
 

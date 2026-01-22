@@ -6,7 +6,7 @@
 	export let items: Array<{ identifier: string; href: string; title?: string }>;
 
 	function handleView(item: { identifier: string; href: string }) {
-		dispatch('view', item);
+		dispatch('view', [item]);
 	}
 </script>
 

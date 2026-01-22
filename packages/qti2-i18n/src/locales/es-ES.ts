@@ -567,6 +567,7 @@ export default {
 
 		// Sample Item Descriptions
 		sampleItemDescriptions: {
+			'': 'Elemento personalizado cargado',
 			'simple-choice': 'Problema matemático básico de resta con distractores plausibles',
 			'partial-credit': 'Opción múltiple con crédito parcial usando mapResponse',
 			'capital-cities': 'Pregunta de geografía con opciones mezcladas',

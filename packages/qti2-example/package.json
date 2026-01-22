@@ -20,9 +20,9 @@
   "dependencies": {
     "@acme/likert-scale-plugin": "workspace:*",
     "@pie-qti/qti2-assessment-player": "workspace:*",
+    "@pie-qti/qti2-default-components": "workspace:*",
     "@pie-qti/qti2-i18n": "workspace:*",
     "@pie-qti/qti2-item-player": "workspace:*",
-    "@pie-qti/qti2-default-components": "workspace:*",
     "@pie-qti/qti2-player-elements": "workspace:*",
     "@pie-qti/qti2-typeset-katex": "workspace:*",
     "@pie-qti/web-component-loaders": "workspace:*",
@@ -35,6 +35,7 @@
     "@tiptap/pm": "^3.14.0",
     "@tiptap/starter-kit": "^3.14.0",
     "highlight.js": "^11.11.1",
+    "jszip": "^3.10.1",
     "lowlight": "^3.3.0",
     "unzipper": "^0.12.3",
     "xml2js": "^0.6.2"
