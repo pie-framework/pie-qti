@@ -108,3 +108,6 @@ playwright-report/
 
 # Planning documents (internal use only)
 /plan/
+
+# Empty package directory (no source files, only build artifacts)
+packages/transform-ui/
