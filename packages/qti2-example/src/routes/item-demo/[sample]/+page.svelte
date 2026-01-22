@@ -41,6 +41,7 @@
 	let selectedRole = $state<QTIRole>('candidate');
 	let rubrics = $state<RubricBlock[]>([]);
 	let templateVariables = $derived(player ? player.getTemplateVariables() : {});
+	let hasLoadedCustomUpload = false; // Track if we've loaded a custom upload in this effect cycle
 
 	// Panel resize state
 	let leftPanelWidth = $state(50);
@@ -270,6 +271,46 @@
 
 		// Early return if no valid sample ID
 		if (!urlSampleId) return;
+
+		// Reset the flag when navigating TO a non-custom page
+		if (urlSampleId !== 'custom') {
+			hasLoadedCustomUpload = false;
+		}
+
+		// Handle 'custom' sample ID for uploaded files
+		if (urlSampleId === 'custom') {
+			// Check for uploaded XML from sessionStorage (only if we haven't loaded it yet)
+			const uploadedXml = !hasLoadedCustomUpload ? sessionStorage.getItem('uploadedItemXml') : null;
+			const uploadedName = !hasLoadedCustomUpload ? sessionStorage.getItem('uploadedItemName') : null;
+
+			console.log('[ItemDemo] custom effect - uploadedXml:', uploadedXml?.length, 'hasLoadedCustomUpload:', hasLoadedCustomUpload, 'current xmlContent:', xmlContent.length);
+
+			if (uploadedXml && !hasLoadedCustomUpload) {
+				console.log('[ItemDemo] Found uploaded XML:', uploadedName);
+
+				// Mark that we've loaded the upload
+				hasLoadedCustomUpload = true;
+
+				// Clear the stored data
+				sessionStorage.removeItem('uploadedItemXml');
+				sessionStorage.removeItem('uploadedItemName');
+
+				// Load the uploaded XML
+				untrack(() => {
+					xmlContent = uploadedXml;
+					selectedSampleId = '';
+					console.log('[ItemDemo] Set xmlContent to:', xmlContent.length);
+					loadPlayer(uploadedXml);
+				});
+			} else {
+				console.log('[ItemDemo] No uploaded XML in sessionStorage or already loaded');
+				// No uploaded XML, just set selectedSampleId to empty
+				untrack(() => {
+					selectedSampleId = '';
+				});
+			}
+			return;
+		}
 
 		// Validate sample exists
 		if (!SAMPLE_ITEMS.find((item) => item.id === urlSampleId)) {

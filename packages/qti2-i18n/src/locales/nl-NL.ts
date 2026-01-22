@@ -566,6 +566,7 @@ export default {
 
 		// Sample Item Descriptions
 		sampleItemDescriptions: {
+			'': 'Aangepast geüpload item',
 			'simple-choice': 'Basis aftrekopgave met plausibele afleidingsantwoorden',
 			'partial-credit': 'Meerkeuzevraag met gedeeltelijk krediet via mapResponse',
 			'capital-cities': 'Aardrijkskundevraag met geschudde keuzes',

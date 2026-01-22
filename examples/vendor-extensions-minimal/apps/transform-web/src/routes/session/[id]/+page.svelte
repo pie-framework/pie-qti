@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { goto, invalidateAll } from '$app/navigation';
-	import { ConfirmDialog } from '@pie-qti/transform-ui';
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import type { PageData } from './$types';
 
 	const { data }: { data: PageData } = $props();

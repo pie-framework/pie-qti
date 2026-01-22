@@ -14,6 +14,7 @@
 		i18n?: I18nProvider;
 		typeset?: (element: HTMLElement) => void;
 		onResponseChange?: (responseId: string, value: any) => void;
+		outcomeValues?: Record<string, any>; // Needed for feedbackInline visibility
 	}
 
 	let {
@@ -24,6 +25,7 @@
 		i18n,
 		typeset,
 		onResponseChange = () => {},
+		outcomeValues = {},
 	}: Props = $props();
 
 	// Get the component registry from the player
@@ -78,6 +80,26 @@
 				/<inlineChoiceInteraction[^>]*responseIdentifier="([^"]+)"[^>]*>[\s\S]*?<\/inlineChoiceInteraction>/gi,
 				'[INLINECHOICE:$1]'
 			);
+
+		// Process feedbackInline elements - conditionally show/hide based on outcome values
+		html = html.replace(
+			/<feedbackInline[^>]*outcomeIdentifier="([^"]+)"[^>]*identifier="([^"]+)"[^>]*showHide="([^"]+)"[^>]*>([\s\S]*?)<\/feedbackInline>/gi,
+			(match, outcomeId, feedbackId, showHide) => {
+				// Check if this feedback should be visible
+				const outcomeValue = outcomeValues[outcomeId];
+				const shouldShow = showHide.toLowerCase() === 'show'
+					? outcomeValue === feedbackId
+					: outcomeValue !== feedbackId;
+
+				// If should not show, return empty string (remove from HTML)
+				if (!shouldShow) {
+					return '';
+				}
+
+				// If should show, return the content without the feedbackInline wrapper
+				return match.replace(/<feedbackInline[^>]*>/, '').replace(/<\/feedbackInline>/, '');
+			}
+		);
 
 		// Wrap all block-level *Interaction elements with a hidden marker
 		// This is extensible - any element ending in "Interaction" will be hidden

@@ -156,11 +156,15 @@
 
 	// Update editor when content prop changes externally
 	$effect(() => {
-		if (editor && !isUpdatingFromProp) {
+		if (editor) {
 			const currentContent = extractTextFromHtml(editor.getHTML());
-			if (currentContent !== content) {
+			if (currentContent !== content && !isUpdatingFromProp) {
 				isUpdatingFromProp = true;
 				editor.commands.setContent(formatContentAsHtml(content));
+				// Reset flag in next tick to allow the update to propagate
+				queueMicrotask(() => {
+					isUpdatingFromProp = false;
+				});
 			}
 		}
 	});

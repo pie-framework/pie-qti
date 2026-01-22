@@ -566,6 +566,7 @@ export default {
 
 		// Sample Item Descriptions
 		sampleItemDescriptions: {
+			'': 'Élément personnalisé téléchargé',
 			'simple-choice': 'Problème de soustraction de base avec des distracteurs plausibles',
 			'partial-credit': 'Choix multiple avec crédit partiel utilisant mapResponse',
 			'capital-cities': 'Question de géographie avec choix mélangés',
