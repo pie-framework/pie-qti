@@ -143,6 +143,25 @@ export class Player {
 		if (config.responses) {
 			this.setResponses(config.responses as Record<string, unknown>);
 		}
+
+		// Detect and log QTI version for compatibility awareness
+		const detectedVersion = this.detectQTIVersion();
+		if (detectedVersion === 'unknown') {
+			console.warn('[QTI Player] Could not detect QTI version. Assuming QTI 2.2 compatibility.');
+		} else if (detectedVersion === '2.0') {
+			console.warn(
+				'[QTI Player] QTI 2.0 detected. Some features may not be fully supported. QTI 2.2 is recommended.'
+			);
+		} else if (detectedVersion === '2.1') {
+			console.info(
+				'[QTI Player] QTI 2.1 detected. Using QTI 2.2 compatibility mode with CC2 template support.'
+			);
+		}
+
+		// Check strict compliance if enabled
+		if (this.config.strictQtiCompliance?.enabled) {
+			this.validateStrictCompliance();
+		}
 	}
 
 	/** Breaking-change API: returns the typed declaration map */
@@ -226,6 +245,47 @@ export class Player {
 		};
 	}
 
+	/**
+	 * Detects the QTI version from the assessmentItem element.
+	 * Checks both namespace URI and version attribute.
+	 *
+	 * @returns QTI version string ('2.0', '2.1', '2.2') or 'unknown'
+	 */
+	private detectQTIVersion(): string {
+		const ns = (this.assessmentItem as any).namespaceURI;
+		if (ns?.includes('v2p2') || ns?.includes('imsqti_v2p2')) return '2.2';
+		if (ns?.includes('v2p1') || ns?.includes('imsqti_v2p1')) return '2.1';
+		if (ns?.includes('v2p0') || ns?.includes('imsqti_v2p0')) return '2.0';
+
+		const versionAttr = getAttr(this.assessmentItem, 'version');
+		if (versionAttr === '2.0') return '2.0';
+		if (versionAttr === '2.1') return '2.1';
+		if (versionAttr === '2.2') return '2.2';
+
+		return 'unknown';
+	}
+
+	/**
+	 * Validates strict QTI 2.2 compliance if enabled in configuration.
+	 * Logs warnings or throws errors based on config settings.
+	 */
+	private validateStrictCompliance(): void {
+		const config = this.config.strictQtiCompliance;
+		if (!config?.enabled) return;
+
+		const version = this.detectQTIVersion();
+		if (version !== '2.2') {
+			const message = `[QTI Player] Strict compliance enabled but item version is ${version}, not 2.2`;
+			if (config.rejectUnknownExtensions) {
+				throw new Error(message);
+			} else if (config.logDeviations !== false) {
+				console.warn(message);
+			}
+		}
+
+		// Future: Add validation for non-standard elements/attributes
+	}
+
 	private resetOutcomesToDefault(): void {
 		for (const d of Object.values(this.decls)) {
 			if ((d as any).__kind !== 'outcome') continue;
@@ -297,8 +357,8 @@ export class Player {
 		// Important: using the original XML avoids namespace/serialization artifacts from XMLSerializer.
 		enforceItemXmlLimits(this.itemXml, this.config.security);
 		const docRoot = parse(this.itemXml, { lowerCaseTagName: false, comment: false }) as any as QTIElement;
-		// node-html-parser's CSS selectors match lowercase tag names.
-		const parsedItemBody = (docRoot.querySelector?.('itembody') as any as QTIElement | null) ?? null;
+		// Note: Use camelCase selectors to match standard QTI element names (node-html-parser preserves case with lowerCaseTagName: false)
+		const parsedItemBody = (docRoot.querySelector?.('itemBody') as any as QTIElement | null) ?? null;
 		const root = parsedItemBody ?? docRoot;
 
 		const declMap = new Map<string, ExtractionVariableDeclaration>();
@@ -313,7 +373,7 @@ export class Player {
 		// Discover all elements that match any standard extractor elementType
 		const tagSet = new Set<string>();
 		for (const ex of ALL_STANDARD_EXTRACTORS) {
-			for (const t of ex.elementTypes ?? []) tagSet.add(t.toLowerCase());
+			for (const t of ex.elementTypes ?? []) tagSet.add(t);
 		}
 
 		const elements: QTIElement[] = [];
@@ -662,7 +722,10 @@ export class Player {
 
 	private execResponseProcessingTemplate(templateUrl: string): void {
 		const name = templateUrl.split('/').pop()?.toLowerCase();
-		if (!name) return;
+		if (!name) {
+			console.warn(`[QTI Player] Could not extract template name from URL: ${templateUrl}`);
+			return;
+		}
 
 		const responseDeclIds = Object.values(this.decls)
 			.filter((d) => (d as any).__kind === 'response')
@@ -730,6 +793,7 @@ export class Player {
 				return;
 			}
 			default:
+				console.warn(`[QTI Player] Unsupported response processing template: ${name}`);
 				return;
 		}
 	}

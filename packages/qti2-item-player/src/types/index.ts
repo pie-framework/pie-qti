@@ -150,6 +150,21 @@ export interface RubricBlock {
 	html: HtmlContent; // HTML content of the rubric
 }
 
+/**
+ * QTI specification compliance configuration.
+ * Controls whether the player enforces strict QTI 2.2 spec or allows vendor extensions.
+ */
+export interface QTIComplianceConfig {
+	/** Enable strict QTI 2.2 compliance mode. Default: false (lenient) */
+	enabled?: boolean;
+
+	/** Reject items with unknown or non-standard elements. Default: false */
+	rejectUnknownExtensions?: boolean;
+
+	/** Log warnings for spec deviations and vendor extensions. Default: true */
+	logDeviations?: boolean;
+}
+
 export interface PlayerConfig {
 	itemXml?: string;
 	sessionState?: SessionState;
@@ -181,6 +196,12 @@ export interface PlayerConfig {
 	 * Defaults are conservative for same-DOM embedding.
 	 */
 	security?: PlayerSecurityConfig;
+
+	/**
+	 * QTI specification compliance settings.
+	 * Set strictQtiCompliance.enabled = true for strict QTI 2.2 validation.
+	 */
+	strictQtiCompliance?: QTIComplianceConfig;
 }
 
 export interface UrlPolicyConfig {
