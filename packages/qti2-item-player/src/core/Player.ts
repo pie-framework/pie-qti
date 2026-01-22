@@ -357,8 +357,8 @@ export class Player {
 		// Important: using the original XML avoids namespace/serialization artifacts from XMLSerializer.
 		enforceItemXmlLimits(this.itemXml, this.config.security);
 		const docRoot = parse(this.itemXml, { lowerCaseTagName: false, comment: false }) as any as QTIElement;
-		// Note: Use camelCase selectors to match standard QTI element names (node-html-parser preserves case with lowerCaseTagName: false)
-		const parsedItemBody = (docRoot.querySelector?.('itemBody') as any as QTIElement | null) ?? null;
+		// node-html-parser's CSS selectors match lowercase tag names.
+		const parsedItemBody = (docRoot.querySelector?.('itembody') as any as QTIElement | null) ?? null;
 		const root = parsedItemBody ?? docRoot;
 
 		const declMap = new Map<string, ExtractionVariableDeclaration>();
@@ -373,7 +373,7 @@ export class Player {
 		// Discover all elements that match any standard extractor elementType
 		const tagSet = new Set<string>();
 		for (const ex of ALL_STANDARD_EXTRACTORS) {
-			for (const t of ex.elementTypes ?? []) tagSet.add(t);
+			for (const t of ex.elementTypes ?? []) tagSet.add(t.toLowerCase());
 		}
 
 		const elements: QTIElement[] = [];
