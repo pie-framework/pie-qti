@@ -2,6 +2,7 @@
   "name": "@pie-qti-examples/cli",
   "version": "0.1.0",
   "description": "Example CLI with ExampleCorp vendor commands",
+  "private": true,
   "type": "module",
   "bin": {
     "pie-vendor-example": "./bin/run.js"
