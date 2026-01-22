@@ -1,0 +1,5 @@
+@import 'tailwindcss';
+
+/* Import DaisyUI v5 styles and themes */
+@import 'daisyui/daisyui.css';
+@import 'daisyui/themes.css';

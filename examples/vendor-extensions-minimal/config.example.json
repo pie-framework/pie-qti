@@ -1,0 +1,16 @@
+{
+  "plugins": [
+    {
+      "module": "@pie-qti-examples/vendor-examplecorp-plugin",
+      "config": {
+        "customOption": "example-value"
+      }
+    }
+  ],
+  "storage": {
+    "backend": "filesystem",
+    "options": {
+      "rootDir": "./uploads"
+    }
+  }
+}

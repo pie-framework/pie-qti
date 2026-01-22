@@ -566,6 +566,7 @@ export default {
 
 		// Sample Item Descriptions
 		sampleItemDescriptions: {
+			'': 'Element personalizat încărcat',
 			'simple-choice': 'Problemă de bază de scădere cu distractori plauzibili',
 			'partial-credit': 'Alegere multiplă cu credit parțial folosind mapResponse',
 			'capital-cities': 'Întrebare de geografie cu opțiuni amestecate',

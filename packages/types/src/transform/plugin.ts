@@ -30,6 +30,20 @@ export interface TransformPlugin {
   readonly targetFormat: TransformFormat;
 
   /**
+   * Plugin priority (optional)
+   * Higher priority plugins are selected first when multiple plugins
+   * match the same source/target format pair.
+   * Default: 100
+   *
+   * Recommended ranges:
+   * - 1-99: Low priority (fallback implementations)
+   * - 100-499: Normal priority (standard plugins)
+   * - 500-999: High priority (vendor-specific overrides)
+   * - 1000+: Critical priority (framework internals)
+   */
+  readonly priority?: number;
+
+  /**
    * Initialize plugin (optional)
    */
   initialize?(options: PluginOptions): Promise<void>;
@@ -117,6 +131,18 @@ export interface TransformContext {
 
   /** Additional options */
   options?: Record<string, any>;
+
+  /** Storage backend for file operations */
+  storage?: any; // StorageBackend from storage package - using any to avoid circular dependency
+
+  /** Current session identifier */
+  sessionId?: string;
+
+  /** User identifier for logging and tracking */
+  userId?: string;
+
+  /** Vendor metadata from detection phase */
+  metadata?: Record<string, unknown>;
 }
 
 /**
@@ -161,21 +187,153 @@ export interface TransformWarning {
 }
 
 /**
- * Transform error
+ * Error category for classification
  */
-export interface TransformError {
-  itemId?: string;
-  message: string;
-  code?: string;
-  fatal: boolean;
+export enum ErrorCategory {
+  /**
+   * User input validation error
+   * Example: Invalid QTI XML, missing required elements
+   * Action: Show to user, allow correction
+   */
+  VALIDATION = 'validation',
+
+  /**
+   * Configuration or setup error
+   * Example: Missing API keys, invalid storage config
+   * Action: Alert ops team, check configuration
+   */
+  CONFIGURATION = 'configuration',
+
+  /**
+   * Internal plugin or framework error
+   * Example: Null pointer, unexpected state
+   * Action: Log for debugging, may indicate bug
+   */
+  INTERNAL = 'internal',
+
+  /**
+   * External service or network error
+   * Example: S3 unavailable, API timeout
+   * Action: Retry with backoff, check service status
+   */
+  EXTERNAL = 'external',
 }
 
 /**
- * Logger interface
+ * Transform error with classification
+ */
+export interface TransformError {
+  /**
+   * Item identifier if error is item-specific
+   */
+  itemId?: string;
+
+  /**
+   * Error message
+   */
+  message: string;
+
+  /**
+   * Error code for programmatic handling
+   */
+  code?: string;
+
+  /**
+   * Error category for classification
+   */
+  category: ErrorCategory;
+
+  /**
+   * Whether error is recoverable
+   * Recoverable errors can be retried or worked around
+   */
+  recoverable: boolean;
+
+  /**
+   * Whether error is fatal (stops entire transformation)
+   * @deprecated Use category and recoverable instead for more nuanced handling
+   */
+  fatal: boolean;
+
+  /**
+   * Underlying cause if error is wrapped
+   */
+  cause?: Error;
+
+  /**
+   * Additional context for debugging
+   */
+  context?: Record<string, unknown>;
+}
+
+/**
+ * Structured logging context
+ */
+export interface LogContext {
+  /**
+   * Item identifier
+   */
+  itemId?: string;
+
+  /**
+   * Session identifier for correlating logs across requests
+   */
+  sessionId?: string;
+
+  /**
+   * User identifier
+   */
+  userId?: string;
+
+  /**
+   * Vendor identifier
+   */
+  vendor?: string;
+
+  /**
+   * Correlation ID for distributed tracing
+   */
+  correlationId?: string;
+
+  /**
+   * Additional context properties
+   */
+  [key: string]: unknown;
+}
+
+/**
+ * Logger interface with structured logging support
  */
 export interface TransformLogger {
-  debug(message: string, itemId?: string): void;
-  info(message: string, itemId?: string): void;
-  warn(message: string, itemId?: string): void;
-  error(message: string, itemId?: string): void;
+  /**
+   * Log debug message
+   * @param message - Log message
+   * @param itemId - Optional item ID (deprecated, use context.itemId)
+   * @param context - Optional structured context
+   */
+  debug(message: string, itemId?: string, context?: LogContext): void;
+
+  /**
+   * Log info message
+   * @param message - Log message
+   * @param itemId - Optional item ID (deprecated, use context.itemId)
+   * @param context - Optional structured context
+   */
+  info(message: string, itemId?: string, context?: LogContext): void;
+
+  /**
+   * Log warning message
+   * @param message - Log message
+   * @param itemId - Optional item ID (deprecated, use context.itemId)
+   * @param context - Optional structured context
+   */
+  warn(message: string, itemId?: string, context?: LogContext): void;
+
+  /**
+   * Log error message
+   * @param message - Log message
+   * @param itemId - Optional item ID (deprecated, use context.itemId)
+   * @param context - Optional structured context
+   */
+  error(message: string, itemId?: string, context?: LogContext): void;
 }

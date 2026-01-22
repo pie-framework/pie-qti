@@ -151,4 +151,77 @@ describe('PluginRegistry', () => {
     expect(registry.size).toBe(0);
     expect(registry.getAll().length).toBe(0);
   });
+
+  test('should select plugin with higher priority', () => {
+    const lowPriority: TransformPlugin = {
+      ...createMockPlugin('low-priority', 'qti22', 'pie'),
+      priority: 100,
+    };
+
+    const highPriority: TransformPlugin = {
+      ...createMockPlugin('high-priority', 'qti22', 'pie'),
+      priority: 500,
+    };
+
+    registry.register(lowPriority);
+    registry.register(highPriority);
+
+    const found = registry.findPlugin('qti22', 'pie');
+    expect(found?.id).toBe('high-priority');
+    expect(found?.priority).toBe(500);
+  });
+
+  test('should use default priority of 100 when not specified', () => {
+    const withoutPriority = createMockPlugin('no-priority', 'qti22', 'pie');
+    const withPriority: TransformPlugin = {
+      ...createMockPlugin('with-priority', 'qti22', 'pie'),
+      priority: 200,
+    };
+
+    registry.register(withoutPriority);
+    registry.register(withPriority);
+
+    const found = registry.findPlugin('qti22', 'pie');
+    expect(found?.id).toBe('with-priority');
+  });
+
+  test('should select first registered when priorities are equal', () => {
+    const first: TransformPlugin = {
+      ...createMockPlugin('first', 'qti22', 'pie'),
+      priority: 100,
+    };
+
+    const second: TransformPlugin = {
+      ...createMockPlugin('second', 'qti22', 'pie'),
+      priority: 100,
+    };
+
+    registry.register(first);
+    registry.register(second);
+
+    const found = registry.findPlugin('qti22', 'pie');
+    // With equal priority, the sort is stable, so first registered wins
+    expect(found?.id).toBe('first');
+  });
+
+  test('should handle vendor plugin overriding default plugin', () => {
+    // Simulate default qti22-to-pie plugin
+    const defaultPlugin: TransformPlugin = {
+      ...createMockPlugin('qti22-to-pie', 'qti22', 'pie'),
+      priority: 100,
+    };
+
+    // Simulate vendor-specific plugin with higher priority
+    const vendorPlugin: TransformPlugin = {
+      ...createMockPlugin('vendor-qti22-to-pie', 'qti22', 'pie'),
+      priority: 500,
+    };
+
+    registry.register(defaultPlugin);
+    registry.register(vendorPlugin);
+
+    const found = registry.findPlugin('qti22', 'pie');
+    expect(found?.id).toBe('vendor-qti22-to-pie');
+    expect(found?.priority).toBe(500);
+  });
 });

@@ -143,6 +143,25 @@ export class Player {
 		if (config.responses) {
 			this.setResponses(config.responses as Record<string, unknown>);
 		}
+
+		// Detect and log QTI version for compatibility awareness
+		const detectedVersion = this.detectQTIVersion();
+		if (detectedVersion === 'unknown') {
+			console.warn('[QTI Player] Could not detect QTI version. Assuming QTI 2.2 compatibility.');
+		} else if (detectedVersion === '2.0') {
+			console.warn(
+				'[QTI Player] QTI 2.0 detected. Some features may not be fully supported. QTI 2.2 is recommended.'
+			);
+		} else if (detectedVersion === '2.1') {
+			console.info(
+				'[QTI Player] QTI 2.1 detected. Using QTI 2.2 compatibility mode with CC2 template support.'
+			);
+		}
+
+		// Check strict compliance if enabled
+		if (this.config.strictQtiCompliance?.enabled) {
+			this.validateStrictCompliance();
+		}
 	}
 
 	/** Breaking-change API: returns the typed declaration map */
@@ -224,6 +243,47 @@ export class Player {
 			formatNumber: (value: number) => value.toString(),
 			formatDate: (date: Date) => date.toISOString(),
 		};
+	}
+
+	/**
+	 * Detects the QTI version from the assessmentItem element.
+	 * Checks both namespace URI and version attribute.
+	 *
+	 * @returns QTI version string ('2.0', '2.1', '2.2') or 'unknown'
+	 */
+	private detectQTIVersion(): string {
+		const ns = (this.assessmentItem as any).namespaceURI;
+		if (ns?.includes('v2p2') || ns?.includes('imsqti_v2p2')) return '2.2';
+		if (ns?.includes('v2p1') || ns?.includes('imsqti_v2p1')) return '2.1';
+		if (ns?.includes('v2p0') || ns?.includes('imsqti_v2p0')) return '2.0';
+
+		const versionAttr = getAttr(this.assessmentItem, 'version');
+		if (versionAttr === '2.0') return '2.0';
+		if (versionAttr === '2.1') return '2.1';
+		if (versionAttr === '2.2') return '2.2';
+
+		return 'unknown';
+	}
+
+	/**
+	 * Validates strict QTI 2.2 compliance if enabled in configuration.
+	 * Logs warnings or throws errors based on config settings.
+	 */
+	private validateStrictCompliance(): void {
+		const config = this.config.strictQtiCompliance;
+		if (!config?.enabled) return;
+
+		const version = this.detectQTIVersion();
+		if (version !== '2.2') {
+			const message = `[QTI Player] Strict compliance enabled but item version is ${version}, not 2.2`;
+			if (config.rejectUnknownExtensions) {
+				throw new Error(message);
+			} else if (config.logDeviations !== false) {
+				console.warn(message);
+			}
+		}
+
+		// Future: Add validation for non-standard elements/attributes
 	}
 
 	private resetOutcomesToDefault(): void {
@@ -662,14 +722,18 @@ export class Player {
 
 	private execResponseProcessingTemplate(templateUrl: string): void {
 		const name = templateUrl.split('/').pop()?.toLowerCase();
-		if (!name) return;
+		if (!name) {
+			console.warn(`[QTI Player] Could not extract template name from URL: ${templateUrl}`);
+			return;
+		}
 
 		const responseDeclIds = Object.values(this.decls)
 			.filter((d) => (d as any).__kind === 'response')
 			.map((d) => d.identifier);
 
 		switch (name) {
-			case 'match_correct': {
+			case 'match_correct':
+			case 'cc2_match': { // CC2_match is an alias for match_correct (QTI 2.1 compatibility)
 				const allCorrect = responseDeclIds.every((id) => {
 					const expr = { kind: 'expr.match', id: 'tmp', a: { kind: 'expr.variable', id: 'tmp', identifier: id }, b: { kind: 'expr.correct', id: 'tmp', identifier: id } } as any;
 					// Use evaluator match semantics by evaluating a constructed MatchExpr
@@ -685,7 +749,8 @@ export class Player {
 				this.ctx.setValue('SCORE', qtiValue('float', 'single', allCorrect ? (Number.isFinite(max) ? max : 1) : 0));
 				return;
 			}
-			case 'match_nothing': {
+			case 'match_nothing':
+			case 'cc2_match_nothing': { // QTI 2.1 compatibility
 				const isEmptyResponse = (v: QtiValue | undefined): boolean => {
 					if (!v) return true;
 					if (v.kind === 'null') return true;
@@ -701,7 +766,8 @@ export class Player {
 				this.ctx.setValue('SCORE', qtiValue('float', 'single', allEmpty ? (Number.isFinite(max) ? max : 1) : 0));
 				return;
 			}
-			case 'map_response': {
+			case 'map_response':
+			case 'cc2_map_response': { // QTI 2.1 compatibility
 				let total = 0;
 				for (const id of responseDeclIds) {
 					const d = this.decls[id];
@@ -715,7 +781,8 @@ export class Player {
 				this.ctx.setValue('SCORE', qtiValue('float', 'single', total));
 				return;
 			}
-			case 'map_response_point': {
+			case 'map_response_point':
+			case 'cc2_map_response_point': { // QTI 2.1 compatibility
 				let total = 0;
 				for (const id of responseDeclIds) {
 					const d = this.decls[id];
@@ -730,6 +797,7 @@ export class Player {
 				return;
 			}
 			default:
+				console.warn(`[QTI Player] Unsupported response processing template: ${name}`);
 				return;
 		}
 	}

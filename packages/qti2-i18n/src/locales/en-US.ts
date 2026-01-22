@@ -579,6 +579,7 @@ export default {
 
 		// Sample Item Descriptions
 		sampleItemDescriptions: {
+			'': 'Custom uploaded item',
 			'simple-choice': 'Basic subtraction word problem with plausible distractors',
 			'partial-credit': 'Multiple choice with partial credit using mapResponse',
 			'capital-cities': 'Geography question with shuffled choices',

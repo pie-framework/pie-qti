@@ -11,7 +11,10 @@
   "author": "Renaissance Learning",
   "workspaces": [
     "packages/*",
-    "tools/*"
+    "tools/*",
+    "examples/*/packages/*",
+    "examples/*/tools/*",
+    "examples/*/apps/*"
   ],
   "scripts": {
     "postinstall": "node scripts/setup-local-players.mjs",
@@ -21,6 +24,8 @@
     "dev:example": "turbo dev --filter=@pie-qti/qti2-example...",
     "dev:transform-app": "turbo dev --filter=@pie-qti/transform-web...",
     "dev:examples": "turbo dev --filter=@pie-qti/qti2-example... --filter=@pie-qti/transform-web...",
+    "dev:vendor-example": "cd examples/vendor-extensions-minimal/apps/transform-web && bun run dev",
+    "build:vendor-example": "turbo build --filter=@pie-qti-examples/*",
     "dev:pages": "cd packages/qti2-example && bun run dev",
     "build:pages": "bun run build && cd packages/qti2-example && NODE_ENV=production bun run build",
     "preview:pages": "cd packages/qti2-example && bun run preview",

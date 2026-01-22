@@ -1,0 +1,22 @@
+{
+  "name": "@pie-qti/ims-cp-browser",
+  "version": "0.1.0",
+  "description": "Browser-compatible IMS Content Package utilities",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@pie-qti/ims-cp-core": "workspace:*",
+    "jszip": "^3.10.1"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  }
+}

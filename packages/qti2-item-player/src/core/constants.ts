@@ -93,6 +93,11 @@ export const BUILTIN_DECLARATIONS: Record<string, VariableDeclaration> = {
 };
 
 // Namespaces
+/**
+ * QTI 2.2 Response Processing Templates namespace.
+ * Note: Template resolution is namespace-agnostic - only the template filename is used.
+ * Templates from v2p0, v2p1, and v2p2 namespaces are all supported.
+ */
 export const RPTEMPLATES = 'http://www.imsglobal.org/question/qti_v2p2/rptemplates';
 export const SVG_NS = 'http://www.w3.org/2000/svg';
 export const XLINK_NS = 'http://www.w3.org/1999/xlink';

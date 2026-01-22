@@ -208,8 +208,8 @@ describe('ConfigLoader', () => {
 			const config2: TransformConfig = {
 				plugins: {
 					qti22: {
-						learnosity: {
-							module: '@acme/qti-to-learnosity',
+						vendorc: {
+							module: '@acme/qti-to-vendorc',
 						},
 					},
 				},
@@ -218,7 +218,7 @@ describe('ConfigLoader', () => {
 			const merged = merge(config1, config2);
 
 			expect(merged.plugins?.qti22?.pie).toBeDefined();
-			expect(merged.plugins?.qti22?.learnosity).toBeDefined();
+			expect(merged.plugins?.qti22?.vendorc).toBeDefined();
 		});
 
 		test('should merge vendor extensions', () => {

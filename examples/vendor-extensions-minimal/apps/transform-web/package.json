@@ -1,0 +1,34 @@
+{
+  "name": "@pie-qti-examples/transform-web",
+  "version": "0.1.0",
+  "description": "Example transform web app with ExampleCorp plugin",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "typecheck": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --threshold warning",
+    "test": "echo \"No tests yet\" && exit 0"
+  },
+  "dependencies": {
+    "@pie-qti-examples/vendor-examplecorp-plugin": "workspace:*",
+    "@pie-qti/storage": "workspace:*",
+    "@pie-qti/transform-core": "workspace:*",
+    "@pie-qti/transform-types": "workspace:*",
+    "@pie-qti/qti2-to-pie": "workspace:*"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-auto": "^7.0.0",
+    "@sveltejs/kit": "^2.49.2",
+    "@sveltejs/vite-plugin-svelte": "^5.0.4",
+    "@tailwindcss/vite": "^4.1.18",
+    "daisyui": "^5.5.14",
+    "svelte": "^5.46.1",
+    "svelte-check": "^4.2.0",
+    "tailwindcss": "^4.1.18",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.0"
+  }
+}

@@ -114,6 +114,47 @@ const player = new Player({
 | `drawingInteraction` | `DrawingCanvas` | Draw/annotate on a canvas |
 | `customInteraction` | `CustomInteractionFallback` | Fallback display + optional manual response |
 
+## QTI Version Support
+
+This player is designed for **QTI 2.2** but provides best-effort support for QTI 2.0 and 2.1:
+
+- **QTI 2.2**: Full support (recommended)
+- **QTI 2.1**: Supported with CC2 template aliases (`cc2_match`, `cc2_map_response`, etc.)
+- **QTI 2.0**: Limited support - core interactions work, but some features may be unsupported
+
+### Version Detection
+
+The player automatically detects QTI version from:
+
+1. Namespace URI (`xmlns="http://www.imsglobal.org/xsd/imsqti_v2pX"`)
+2. Version attribute (`<assessmentItem version="2.X">`)
+
+Warnings are logged for older versions or when version cannot be detected.
+
+### Template Processing
+
+Response processing templates are namespace-agnostic. The player supports:
+
+- Standard QTI 2.2 templates: `match_correct`, `map_response`, etc.
+- QTI 2.1 CC2 aliases: `cc2_match`, `cc2_map_response`, etc.
+
+### Strict Compliance Mode
+
+For strict QTI 2.2 validation, enable strict compliance:
+
+```typescript
+const player = new Player({
+  itemXml: qtiXml,
+  strictQtiCompliance: {
+    enabled: true,                    // Enable strict QTI 2.2 validation
+    rejectUnknownExtensions: true,    // Throw errors on non-2.2 versions
+    logDeviations: true               // Log warnings for spec deviations
+  }
+});
+```
+
+See [QTI Compliance Documentation](./docs/QTI-COMPLIANCE.md) for details.
+
 ## Architecture
 
 ### Three-Layer Design
