@@ -43,7 +43,7 @@
 								{/if}
 							</td>
 							<td>
-								<button class="btn btn-sm btn-secondary" on:click={() => handleView(test)}>
+								<button class="btn btn-sm btn-secondary" onclick={() => handleView(test)}>
 									View
 								</button>
 							</td>

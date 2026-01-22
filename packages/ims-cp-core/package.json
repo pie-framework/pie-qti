@@ -1,0 +1,33 @@
+{
+  "name": "@pie-qti/ims-cp-core",
+  "version": "0.1.0",
+  "description": "Core IMS Content Package manifest parsing utilities (browser + Node.js)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./manifest-parser": {
+      "types": "./dist/manifest-parser.d.ts",
+      "import": "./dist/manifest-parser.js"
+    },
+    "./localized-resources": {
+      "types": "./dist/localized-resources.d.ts",
+      "import": "./dist/localized-resources.js"
+    },
+    "./passage-reusability": {
+      "types": "./dist/passage-reusability.d.ts",
+      "import": "./dist/passage-reusability.js"
+    }
+  },
+  "dependencies": {
+    "node-html-parser": "^6.1.13"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  }
+}

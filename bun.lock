@@ -116,6 +116,34 @@
         "vite": "^7.3.0",
       },
     },
+    "packages/ims-cp-browser": {
+      "name": "@pie-qti/ims-cp-browser",
+      "version": "0.1.0",
+      "dependencies": {
+        "@pie-qti/ims-cp-core": "workspace:*",
+        "jszip": "^3.10.1",
+      },
+    },
+    "packages/ims-cp-core": {
+      "name": "@pie-qti/ims-cp-core",
+      "version": "0.1.0",
+      "dependencies": {
+        "node-html-parser": "^6.1.13",
+      },
+    },
+    "packages/ims-cp-node": {
+      "name": "@pie-qti/ims-cp-node",
+      "version": "0.1.0",
+      "dependencies": {
+        "@pie-qti/ims-cp-core": "workspace:*",
+        "unzipper": "^0.12.3",
+      },
+      "devDependencies": {
+        "@types/node": "^25.0.3",
+        "@types/unzipper": "^0.10.11",
+        "typescript": "^5.9.3",
+      },
+    },
     "packages/pie-to-qti2": {
       "name": "@pie-qti/pie-to-qti2",
       "version": "0.1.1",
@@ -724,6 +752,12 @@
     "@pie-qti/docs-site": ["@pie-qti/docs-site@workspace:packages/docs-site"],
 
     "@pie-qti/element-schemas": ["@pie-qti/element-schemas@workspace:packages/schemas"],
+
+    "@pie-qti/ims-cp-browser": ["@pie-qti/ims-cp-browser@workspace:packages/ims-cp-browser"],
+
+    "@pie-qti/ims-cp-core": ["@pie-qti/ims-cp-core@workspace:packages/ims-cp-core"],
+
+    "@pie-qti/ims-cp-node": ["@pie-qti/ims-cp-node@workspace:packages/ims-cp-node"],
 
     "@pie-qti/pie-to-qti2": ["@pie-qti/pie-to-qti2@workspace:packages/pie-to-qti2"],
 

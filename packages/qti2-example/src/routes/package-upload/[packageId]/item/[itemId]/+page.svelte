@@ -1,36 +1,61 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { getContext } from 'svelte';
 	import { page } from '$app/stores';
 	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
-	import '@pie-qti/qti2-item-player';
-	import { loadPackageData, getItemXml } from '$lib/package-processor';
+	import { Player } from '@pie-qti/qti2-item-player';
+	// @ts-expect-error - Svelte-check can't resolve workspace subpath exports, but runtime works correctly
+	import { ItemBody } from '@pie-qti/qti2-item-player/components';
+	import { registerDefaultComponents } from '@pie-qti/qti2-default-components';
+	import { typesetAction } from '@pie-qti/qti2-default-components/shared';
+	import { typesetMathInElement } from '@pie-qti/qti2-typeset-katex';
+	import type { SvelteI18nProvider } from '@pie-qti/qti2-i18n';
+	import { loadPackageDataAsync, getItemXml } from '$lib/package-processor';
 	import type { PackageStructure } from '$lib/package-processor';
+	import { getSecurityConfig } from '$lib/player-config';
 
-	let itemXml: string | null = null;
-	let loading = true;
-	let error: string | null = null;
-	let packageId: string = '';
-	let itemId: string = '';
+	let itemXml = $state<string | null>(null);
+	let loading = $state(true);
+	let error = $state<string | null>(null);
 
 	// Get package data from browser storage to enable navigation
-	let packageData: PackageStructure | null = null;
-	let currentItemIndex = -1;
-	let totalItems = 0;
+	let packageData = $state<PackageStructure | null>(null);
+	let currentItemIndex = $state(-1);
+	let totalItems = $state(0);
 
-	onMount(async () => {
-		// Get params from URL
-		packageId = $page.params.packageId || '';
-		itemId = $page.params.itemId || '';
+	// Player state
+	let player = $state<Player | null>(null);
+	let responses = $state<Record<string, any>>({});
 
-		// Load package data from browser storage for navigation
-		if (browser) {
+	// Get i18n provider from context
+	const i18nContext = getContext<{ value: SvelteI18nProvider | null }>('i18n');
+	const i18n = i18nContext?.value ?? null;
+
+	// React to URL parameter changes
+	$effect(() => {
+		// Read dependencies - effect will re-run when these change
+		const urlPackageId = $page.params.packageId || '';
+		const urlItemId = $page.params.itemId || '';
+
+		if (!browser || !urlPackageId || !urlItemId) return;
+
+		// Reset state for new item
+		loading = true;
+		error = null;
+		itemXml = null;
+		player = null;
+		responses = {};
+
+		// Load item asynchronously
+		(async () => {
 			try {
-				packageData = loadPackageData();
-				if (packageData && packageData.packageId === packageId) {
+				// Load package data from browser storage
+				packageData = await loadPackageDataAsync();
+
+				if (packageData && packageData.packageId === urlPackageId) {
 					totalItems = packageData.items.length;
 					currentItemIndex = packageData.items.findIndex(
-						(item) => item.identifier === itemId
+						(item) => item.identifier === urlItemId
 					);
 				} else if (packageData) {
 					// Package ID mismatch
@@ -42,32 +67,39 @@
 					loading = false;
 					return;
 				}
-			} catch (err) {
-				console.error('Failed to load package data:', err);
-				error = 'Failed to load package data';
-				loading = false;
-				return;
-			}
-		}
 
-		// Get item XML from browser storage
-		try {
-			itemXml = getItemXml(itemId);
-			if (!itemXml) {
-				throw new Error(`Item ${itemId} not found in package`);
+				// Get item XML from browser storage
+				if (!packageData) {
+					throw new Error('Package data not loaded');
+				}
+
+				itemXml = getItemXml(packageData, urlItemId);
+				if (!itemXml) {
+					throw new Error(`Item ${urlItemId} not found in package`);
+				}
+
+				// Initialize player
+				player = new Player({
+					itemXml: itemXml,
+					role: 'candidate',
+					security: getSecurityConfig()
+				});
+
+				// Register default components
+				registerDefaultComponents(player.getComponentRegistry());
+			} catch (err) {
+				error = err instanceof Error ? err.message : 'Failed to load item';
+				console.error('Error loading item:', err);
+			} finally {
+				loading = false;
 			}
-		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to load item';
-			console.error('Error loading item:', err);
-		} finally {
-			loading = false;
-		}
+		})();
 	});
 
 	function navigateToItem(index: number) {
 		if (packageData && packageData.items[index]) {
 			const item = packageData.items[index];
-			goto(`/package-upload/${packageId}/item/${item.identifier}`);
+			goto(`/package-upload/${$page.params.packageId}/item/${item.identifier}`);
 		}
 	}
 
@@ -86,20 +118,24 @@
 	function goBack() {
 		goto('/package-upload');
 	}
+
+	function handleResponseChange(responseId: string, value: any) {
+		responses = { ...responses, [responseId]: value };
+	}
 </script>
 
 <svelte:head>
-	<title>QTI Item: {itemId}</title>
+	<title>QTI Item: {$page.params.itemId}</title>
 </svelte:head>
 
 <div class="max-w-7xl mx-auto px-6 py-8 space-y-6">
 	<!-- Navigation Header -->
 	<div class="flex justify-between items-center">
 		<div class="flex items-center gap-4">
-			<button class="btn btn-outline btn-sm" on:click={goBack}>← Back to Package</button>
+			<button class="btn btn-outline btn-sm" onclick={goBack}>← Back to Package</button>
 			<div class="divider divider-horizontal"></div>
 			<div>
-				<h1 class="text-2xl font-bold">Item: {itemId}</h1>
+				<h1 class="text-2xl font-bold">Item: {$page.params.itemId}</h1>
 				{#if currentItemIndex >= 0}
 					<p class="text-sm text-base-content/70">
 						Item {currentItemIndex + 1} of {totalItems}
@@ -112,14 +148,14 @@
 			<div class="flex gap-2">
 				<button
 					class="btn btn-sm btn-outline"
-					on:click={goToPrevious}
+					onclick={goToPrevious}
 					disabled={currentItemIndex <= 0}
 				>
 					← Previous
 				</button>
 				<button
 					class="btn btn-sm btn-outline"
-					on:click={goToNext}
+					onclick={goToNext}
 					disabled={currentItemIndex >= totalItems - 1}
 				>
 					Next →
@@ -153,11 +189,19 @@
 			<span class="loading loading-spinner loading-lg text-primary"></span>
 			<p class="text-base-content/70">Loading item...</p>
 		</div>
-	{:else if itemXml}
+	{:else if player && itemXml}
 		<!-- QTI Item Player -->
-		<div class="card bg-base-100 shadow-xl">
+		<div class="card bg-base-100 shadow-xl" use:typesetAction={{ typeset: (el) => typesetMathInElement(el) }}>
 			<div class="card-body">
-				<pie-qti2-item-player xml={itemXml}></pie-qti2-item-player>
+				<ItemBody
+					{player}
+					{responses}
+					disabled={false}
+					role="candidate"
+					i18n={i18n ?? undefined}
+					typeset={typesetMathInElement}
+					onResponseChange={handleResponseChange}
+				/>
 			</div>
 		</div>
 

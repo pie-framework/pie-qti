@@ -1,37 +1,33 @@
 /**
  * Client-side QTI package processing utilities
- * Handles ZIP extraction, parsing, and storage in the browser
+ * Uses @pie-qti/ims-cp-browser for package handling
  */
 
-import JSZip from 'jszip';
-import { parseString } from 'xml2js';
+import {
+	openPackage,
+	loadPackageFromStorage as loadPackage,
+	SessionStorageBackend
+} from '@pie-qti/ims-cp-browser';
+import type { VirtualPackage } from '@pie-qti/ims-cp-browser';
 
-// Security: Maximum file size (50MB) to prevent browser memory issues
-const MAX_FILE_SIZE = 50 * 1024 * 1024;
+// Storage key for the current package ID
+const STORAGE_KEY_CURRENT_PACKAGE = 'qti-current-package-id';
 
-// Security: Maximum number of files in a package
-const MAX_FILES_IN_PACKAGE = 1000;
-
-// Storage keys
-const STORAGE_KEY_PACKAGE_DATA = 'qti-package-data';
-const STORAGE_KEY_PACKAGE_FILES = 'qti-package-files';
-
-export interface PackageItem {
-	identifier: string;
-	href: string;
-	title?: string;
-}
-
-export interface PackageTest {
-	identifier: string;
-	href: string;
-	title?: string;
-}
-
+/**
+ * Legacy interface for backward compatibility with existing UI code
+ */
 export interface PackageStructure {
 	packageId: string;
-	items: PackageItem[];
-	tests: PackageTest[];
+	items: Array<{
+		identifier: string;
+		href?: string;
+		title?: string;
+	}>;
+	tests: Array<{
+		identifier: string;
+		href?: string;
+		title?: string;
+	}>;
 	assets: {
 		images: string[];
 		styles: string[];
@@ -40,329 +36,119 @@ export interface PackageStructure {
 		passages: string[];
 	};
 	manifest: any;
+	// Internal: Store reference to VirtualPackage
+	_pkg: VirtualPackage;
 }
 
 /**
- * Parse XML string to JavaScript object
- */
-function parseXml(xmlString: string): Promise<any> {
-	return new Promise((resolve, reject) => {
-		parseString(xmlString, (err, result) => {
-			if (err) {
-				reject(err);
-			} else {
-				resolve(result);
-			}
-		});
-	});
-}
-
-/**
- * Extract title from resource metadata
- */
-function extractTitleFromMetadata(resource: any): string | undefined {
-	const metadata = resource.metadata?.[0];
-	if (metadata) {
-		const lom = metadata.lom?.[0];
-		if (lom) {
-			const general = lom.general?.[0];
-			if (general) {
-				const title = general.title?.[0]?.string?.[0]?._ || general.title?.[0]?.string?.[0];
-				if (title) return title;
-			}
-		}
-	}
-	return undefined;
-}
-
-/**
- * Process a QTI package ZIP file client-side
+ * Process a QTI package file uploaded by the user
+ *
+ * @param file Browser File object from file input or drag-and-drop
+ * @returns PackageStructure with parsed manifest and file access
  */
 export async function processPackage(file: File): Promise<PackageStructure> {
-	// Security: Validate file size
-	if (file.size > MAX_FILE_SIZE) {
-		throw new Error(
-			`File size ${(file.size / 1024 / 1024).toFixed(2)}MB exceeds maximum allowed size of ${MAX_FILE_SIZE / 1024 / 1024}MB`
-		);
-	}
+	const storage = new SessionStorageBackend();
 
-	// Load ZIP file
-	const zip = await JSZip.loadAsync(file);
+	const pkg = await openPackage(file, {
+		storage,
+		maxFileSize: 50 * 1024 * 1024, // 50MB
+		maxFiles: 1000
+	});
 
-	// Security: Validate file count
-	const fileCount = Object.keys(zip.files).length;
-	if (fileCount > MAX_FILES_IN_PACKAGE) {
-		throw new Error(
-			`Package contains ${fileCount} files, exceeds maximum of ${MAX_FILES_IN_PACKAGE}`
-		);
-	}
+	// Store current package ID for later retrieval
+	localStorage.setItem(STORAGE_KEY_CURRENT_PACKAGE, pkg.packageId);
 
-	// Extract all files into memory
-	const files: Record<string, string> = {};
-	const binaryFiles: Record<string, Blob> = {};
-
-	for (const [path, zipEntry] of Object.entries(zip.files)) {
-		if (!zipEntry.dir) {
-			// Security: Basic path validation (no absolute paths)
-			if (path.startsWith('/') || path.includes('..')) {
-				console.warn(`Skipping potentially unsafe path: ${path}`);
-				continue;
-			}
-
-			// Determine if file is text or binary based on extension
-			const isText =
-				path.endsWith('.xml') ||
-				path.endsWith('.txt') ||
-				path.endsWith('.json') ||
-				path.endsWith('.css') ||
-				path.endsWith('.html');
-
-			if (isText) {
-				files[path] = await zipEntry.async('text');
-			} else {
-				binaryFiles[path] = await zipEntry.async('blob');
-			}
-		}
-	}
-
-	// Parse imsmanifest.xml
-	let manifest: any = null;
-	let manifestPath = 'imsmanifest.xml';
-
-	if (files[manifestPath]) {
-		manifest = await parseXml(files[manifestPath]);
-	} else {
-		// Try to find manifest in subdirectories
-		const manifestFile = Object.keys(files).find((path) => path.endsWith('imsmanifest.xml'));
-		if (manifestFile) {
-			manifestPath = manifestFile;
-			manifest = await parseXml(files[manifestFile]);
-		}
-	}
-
-	if (!manifest) {
-		throw new Error('No imsmanifest.xml found in ZIP file');
-	}
-
-	// Extract all resources from manifest
-	const resources = manifest.manifest?.resources?.[0]?.resource || [];
-
-	// Extract items (QTI items)
-	const items: PackageItem[] = resources
-		.filter((r: any) => {
-			if (!r.$) return false;
-			const type = r.$?.type || '';
-			return (
-				type.includes('imsqti_item') ||
-				type.includes('imsqti_assessmentitem') ||
-				(r.dependency && r.dependency.some((d: any) => d.$?.identifierref?.startsWith('ITEM-')))
-			);
-		})
-		.map((r: any) => ({
-			identifier: r.$?.identifier || '',
-			href: r.$?.href || '',
-			title: r.$?.title || extractTitleFromMetadata(r)
-		}))
-		.filter((item: PackageItem) => item.identifier && item.href);
-
-	// Also scan items directory for actual item files
-	const itemFiles = Object.keys(files).filter(
-		(path) => path.startsWith('items/') && path.endsWith('.xml')
-	);
-	for (const itemPath of itemFiles) {
-		const itemContent = files[itemPath];
-		const identifierMatch = itemContent.match(/identifier=["']([^"']+)["']/);
-		const titleMatch = itemContent.match(/title=["']([^"']+)["']/);
-
-		if (identifierMatch) {
-			const identifier = identifierMatch[1];
-			if (!items.find((i) => i.identifier === identifier)) {
-				items.push({
-					identifier,
-					href: itemPath,
-					title: titleMatch?.[1]
-				});
-			}
-		}
-	}
-
-	// Extract tests (QTI assessments)
-	const tests: PackageTest[] = resources
-		.filter((r: any) => {
-			if (!r.$) return false;
-			const type = r.$?.type || '';
-			return type.includes('imsqti_test') || type.includes('imsqti_assessmenttest');
-		})
-		.map((r: any) => ({
-			identifier: r.$?.identifier || '',
-			href: r.$?.href || '',
-			title: r.$?.title || extractTitleFromMetadata(r)
-		}))
-		.filter((test: PackageTest) => test.identifier && test.href);
-
-	// Also scan tests directory
-	const testFiles = Object.keys(files).filter(
-		(path) => path.startsWith('tests/') && path.endsWith('.xml')
-	);
-	for (const testPath of testFiles) {
-		const testContent = files[testPath];
-		const identifierMatch = testContent.match(/identifier=["']([^"']+)["']/);
-		const titleMatch = testContent.match(/title=["']([^"']+)["']/);
-
-		if (identifierMatch) {
-			const identifier = identifierMatch[1];
-			if (!tests.find((t) => t.identifier === identifier)) {
-				tests.push({
-					identifier,
-					href: testPath,
-					title: titleMatch?.[1]
-				});
-			}
-		}
-	}
-
-	// Find assets
-	const allPaths = [...Object.keys(files), ...Object.keys(binaryFiles)];
-
-	const images = allPaths.filter(
-		(p) => p.startsWith('images/') && /\.(png|jpg|jpeg|gif|svg|webp)$/i.test(p)
-	);
-
-	const styles = allPaths.filter((p) => p.startsWith('styles/') && p.endsWith('.css'));
-
-	const audio = allPaths.filter(
-		(p) => p.startsWith('audio/') && /\.(mp3|wav|ogg|m4a)$/i.test(p)
-	);
-
-	const video = allPaths.filter(
-		(p) => p.startsWith('video/') && /\.(mp4|webm|ogg|mov)$/i.test(p)
-	);
-
-	const passages = allPaths.filter((p) => p.startsWith('passages/') && p.endsWith('.xml'));
-
-	const packageId = `pkg-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-
-	const packageStructure: PackageStructure = {
-		packageId,
-		items,
-		tests,
-		assets: {
-			images,
-			styles,
-			audio,
-			video,
-			passages
-		},
-		manifest
-	};
-
-	// Store package data and files in localStorage/sessionStorage
-	storePackageData(packageStructure, files, binaryFiles);
-
-	return packageStructure;
+	return convertToPackageStructure(pkg);
 }
 
 /**
- * Store package data in browser storage
- * Uses localStorage for metadata, sessionStorage for file content (to avoid size limits)
+ * Convert VirtualPackage to legacy PackageStructure format
  */
-function storePackageData(
-	packageData: PackageStructure,
-	files: Record<string, string>,
-	binaryFiles: Record<string, Blob>
-): void {
-	try {
-		// Store package metadata in localStorage
-		localStorage.setItem(STORAGE_KEY_PACKAGE_DATA, JSON.stringify(packageData));
+function convertToPackageStructure(pkg: VirtualPackage): PackageStructure {
+	const items = pkg.manifest.items.map((item) => ({
+		identifier: item.identifier,
+		href: item.hrefResolved,
+		title: item.identifier // TODO: Extract title from metadata if available
+	}));
 
-		// Store text files in sessionStorage (cleared on tab close)
-		sessionStorage.setItem(STORAGE_KEY_PACKAGE_FILES, JSON.stringify(files));
+	const tests = pkg.manifest.tests.map((test) => ({
+		identifier: test.identifier,
+		href: test.hrefResolved,
+		title: test.identifier // TODO: Extract title from metadata if available
+	}));
 
-		// Binary files are handled differently - we'll convert to data URLs for storage
-		// Note: This has size limitations, but works for demo purposes
-		const binaryFilePromises = Object.entries(binaryFiles).map(async ([path, blob]) => {
-			const reader = new FileReader();
-			return new Promise<[string, string]>((resolve) => {
-				reader.onload = () => {
-					resolve([path, reader.result as string]);
-				};
-				reader.readAsDataURL(blob);
-			});
-		});
+	// Categorize assets by file extension
+	const images: string[] = [];
+	const styles: string[] = [];
+	const audio: string[] = [];
+	const video: string[] = [];
+	const passages: string[] = [];
 
-		Promise.all(binaryFilePromises).then((binaryData) => {
-			const binaryFilesData = Object.fromEntries(binaryData);
-			sessionStorage.setItem('qti-package-binary-files', JSON.stringify(binaryFilesData));
-		});
+	for (const file of pkg.files.values()) {
+		const path = file.path;
+		const ext = path.split('.').pop()?.toLowerCase() || '';
 
-		console.log('Package data stored in browser storage');
-	} catch (err) {
-		console.error('Failed to store package data:', err);
-		throw new Error(
-			'Failed to store package data. Package may be too large for browser storage.'
-		);
+		if (['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'].includes(ext)) {
+			images.push(path);
+		} else if (['css'].includes(ext)) {
+			styles.push(path);
+		} else if (['mp3', 'wav', 'ogg'].includes(ext)) {
+			audio.push(path);
+		} else if (['mp4', 'webm', 'ogv'].includes(ext)) {
+			video.push(path);
+		} else if (path.includes('passage') || path.includes('stimulus')) {
+			passages.push(path);
+		}
 	}
+
+	return {
+		packageId: pkg.packageId,
+		items,
+		tests,
+		assets: { images, styles, audio, video, passages },
+		manifest: pkg.manifest,
+		_pkg: pkg
+	};
 }
 
 /**
  * Load package data from browser storage
+ * @returns PackageStructure or null if no package is stored
  */
 export function loadPackageData(): PackageStructure | null {
 	try {
-		const stored = localStorage.getItem(STORAGE_KEY_PACKAGE_DATA);
-		if (stored) {
-			return JSON.parse(stored);
-		}
+		const packageId = localStorage.getItem(STORAGE_KEY_CURRENT_PACKAGE);
+		if (!packageId) return null;
+
+		// NOTE: This function is synchronous but loading from storage requires async.
+		// For now, we'll return null and require the UI to use async loading.
+		// The UI should call loadPackageDataAsync() instead.
+		console.warn(
+			'loadPackageData() is deprecated and returns null. Use loadPackageDataAsync() instead.'
+		);
+		return null;
 	} catch (err) {
 		console.error('Failed to load package data:', err);
-	}
-	return null;
-}
-
-/**
- * Get item XML content by identifier
- */
-export function getItemXml(itemId: string): string | null {
-	try {
-		const filesJson = sessionStorage.getItem(STORAGE_KEY_PACKAGE_FILES);
-		if (!filesJson) return null;
-
-		const files: Record<string, string> = JSON.parse(filesJson);
-		const packageData = loadPackageData();
-		if (!packageData) return null;
-
-		// Find the item
-		const item = packageData.items.find((i) => i.identifier === itemId);
-		if (!item) return null;
-
-		// Return the XML content
-		return files[item.href] || null;
-	} catch (err) {
-		console.error('Failed to get item XML:', err);
 		return null;
 	}
 }
 
 /**
- * Get test XML content by identifier
+ * Load package data from browser storage (async version)
+ * @returns PackageStructure or null if no package is stored
  */
-export function getTestXml(testId: string): string | null {
+export async function loadPackageDataAsync(): Promise<PackageStructure | null> {
 	try {
-		const filesJson = sessionStorage.getItem(STORAGE_KEY_PACKAGE_FILES);
-		if (!filesJson) return null;
+		const packageId = localStorage.getItem(STORAGE_KEY_CURRENT_PACKAGE);
+		if (!packageId) return null;
 
-		const files: Record<string, string> = JSON.parse(filesJson);
-		const packageData = loadPackageData();
-		if (!packageData) return null;
+		const storage = new SessionStorageBackend();
+		const pkg = await loadPackage(packageId, storage);
+		if (!pkg) return null;
 
-		// Find the test
-		const test = packageData.tests.find((t) => t.identifier === testId);
-		if (!test) return null;
-
-		// Return the XML content
-		return files[test.href] || null;
+		return convertToPackageStructure(pkg);
 	} catch (err) {
-		console.error('Failed to get test XML:', err);
+		console.error('Failed to load package data:', err);
 		return null;
 	}
 }
@@ -370,24 +156,75 @@ export function getTestXml(testId: string): string | null {
 /**
  * Clear all package data from storage
  */
-export function clearPackageData(): void {
-	localStorage.removeItem(STORAGE_KEY_PACKAGE_DATA);
-	sessionStorage.removeItem(STORAGE_KEY_PACKAGE_FILES);
-	sessionStorage.removeItem('qti-package-binary-files');
+export async function clearPackageData(): Promise<void> {
+	try {
+		const packageId = localStorage.getItem(STORAGE_KEY_CURRENT_PACKAGE);
+		if (packageId) {
+			// Clear the stored package data
+			const storage = new SessionStorageBackend();
+			await storage.delete(`qti-package-${packageId}`);
+		}
+		localStorage.removeItem(STORAGE_KEY_CURRENT_PACKAGE);
+	} catch (err) {
+		console.error('Failed to clear package data:', err);
+	}
 }
 
 /**
- * Get asset data URL (for images, etc.)
+ * Get package data URL for displaying binary assets (images, videos, etc.)
+ *
+ * @param pkg PackageStructure instance
+ * @param path Package-relative path to the asset
+ * @returns Data URL or blob URL for the asset
  */
-export function getAssetDataUrl(assetPath: string): string | null {
-	try {
-		const binaryFilesJson = sessionStorage.getItem('qti-package-binary-files');
-		if (!binaryFilesJson) return null;
+export function getAssetUrl(pkg: PackageStructure, path: string): string | null {
+	return pkg._pkg.getDataUrl(path);
+}
 
-		const binaryFiles: Record<string, string> = JSON.parse(binaryFilesJson);
-		return binaryFiles[assetPath] || null;
-	} catch (err) {
-		console.error('Failed to get asset:', err);
-		return null;
-	}
+/**
+ * Read text file content from package
+ *
+ * @param pkg PackageStructure instance
+ * @param path Package-relative path to the text file
+ * @returns File content as string
+ */
+export function readTextFile(pkg: PackageStructure, path: string): string | null {
+	return pkg._pkg.readText(path);
+}
+
+/**
+ * List all files in a directory within the package
+ *
+ * @param pkg PackageStructure instance
+ * @param directory Optional directory path (defaults to root)
+ * @returns Array of files in the directory
+ */
+export function listFiles(pkg: PackageStructure, directory?: string) {
+	return pkg._pkg.listFiles(directory);
+}
+
+/**
+ * Get item XML content by identifier
+ *
+ * @param pkg PackageStructure instance
+ * @param itemId Item identifier
+ * @returns Item XML content or null
+ */
+export function getItemXml(pkg: PackageStructure, itemId: string): string | null {
+	const item = pkg.items.find((i) => i.identifier === itemId);
+	if (!item || !item.href) return null;
+	return pkg._pkg.readText(item.href);
+}
+
+/**
+ * Get test XML content by identifier
+ *
+ * @param pkg PackageStructure instance
+ * @param testId Test identifier
+ * @returns Test XML content or null
+ */
+export function getTestXml(pkg: PackageStructure, testId: string): string | null {
+	const test = pkg.tests.find((t) => t.identifier === testId);
+	if (!test || !test.href) return null;
+	return pkg._pkg.readText(test.href);
 }

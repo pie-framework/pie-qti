@@ -3,7 +3,7 @@
 	import { browser } from '$app/environment';
 	import PackageUploader from './components/PackageUploader.svelte';
 	import PackageBrowser from './components/PackageBrowser.svelte';
-	import { processPackage, loadPackageData, clearPackageData } from '$lib/package-processor';
+	import { processPackage, loadPackageDataAsync, clearPackageData } from '$lib/package-processor';
 	import type { PackageStructure } from '$lib/package-processor';
 
 	let packageData: PackageStructure | null = null;
@@ -11,10 +11,10 @@
 	let error: string | null = null;
 
 	// Load package data from browser storage on mount
-	onMount(() => {
+	onMount(async () => {
 		if (browser) {
 			try {
-				const stored = loadPackageData();
+				const stored = await loadPackageDataAsync();
 				if (stored) {
 					packageData = stored;
 					console.log('Restored package data from browser storage:', packageData.packageId);
@@ -22,7 +22,7 @@
 			} catch (err) {
 				console.error('Failed to restore package data from storage:', err);
 				// Clear corrupted data
-				clearPackageData();
+				await clearPackageData();
 			}
 		}
 	});
@@ -51,10 +51,10 @@
 		}
 	}
 
-	function handleReset() {
+	async function handleReset() {
 		packageData = null;
 		error = null;
-		clearPackageData();
+		await clearPackageData();
 	}
 </script>
 
