@@ -20,12 +20,12 @@ export interface PackageStructure {
 	packageId: string;
 	items: Array<{
 		identifier: string;
-		href?: string;
+		href: string;
 		title?: string;
 	}>;
 	tests: Array<{
 		identifier: string;
-		href?: string;
+		href: string;
 		title?: string;
 	}>;
 	assets: {
@@ -65,17 +65,21 @@ export async function processPackage(file: File): Promise<PackageStructure> {
  * Convert VirtualPackage to legacy PackageStructure format
  */
 function convertToPackageStructure(pkg: VirtualPackage): PackageStructure {
-	const items = pkg.manifest.items.map((item) => ({
-		identifier: item.identifier,
-		href: item.hrefResolved,
-		title: item.identifier // TODO: Extract title from metadata if available
-	}));
+	const items = pkg.manifest.items
+		.filter((item) => item.hrefResolved) // Filter out items without hrefs
+		.map((item) => ({
+			identifier: item.identifier,
+			href: item.hrefResolved as string, // Safe after filter
+			title: item.identifier // TODO: Extract title from metadata if available
+		}));
 
-	const tests = pkg.manifest.tests.map((test) => ({
-		identifier: test.identifier,
-		href: test.hrefResolved,
-		title: test.identifier // TODO: Extract title from metadata if available
-	}));
+	const tests = pkg.manifest.tests
+		.filter((test) => test.hrefResolved) // Filter out tests without hrefs
+		.map((test) => ({
+			identifier: test.identifier,
+			href: test.hrefResolved as string, // Safe after filter
+			title: test.identifier // TODO: Extract title from metadata if available
+		}));
 
 	// Categorize assets by file extension
 	const images: string[] = [];
@@ -212,7 +216,7 @@ export function listFiles(pkg: PackageStructure, directory?: string) {
  */
 export function getItemXml(pkg: PackageStructure, itemId: string): string | null {
 	const item = pkg.items.find((i) => i.identifier === itemId);
-	if (!item || !item.href) return null;
+	if (!item) return null;
 	return pkg._pkg.readText(item.href);
 }
 
@@ -225,6 +229,6 @@ export function getItemXml(pkg: PackageStructure, itemId: string): string | null
  */
 export function getTestXml(pkg: PackageStructure, testId: string): string | null {
 	const test = pkg.tests.find((t) => t.identifier === testId);
-	if (!test || !test.href) return null;
+	if (!test) return null;
 	return pkg._pkg.readText(test.href);
 }
