@@ -2,6 +2,7 @@
 	import { page } from '$app/stores';
 	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
+	import { base } from '$app/paths';
 	import { loadPackageDataAsync, getTestXml } from '$lib/package-processor';
 	import type { PackageStructure } from '$lib/package-processor';
 	import XmlEditor from '$lib/components/XmlEditor.svelte';
@@ -64,7 +65,7 @@
 	});
 
 	function goBack() {
-		goto('/package-upload');
+		goto(`${base}/package-upload`);
 	}
 </script>
 

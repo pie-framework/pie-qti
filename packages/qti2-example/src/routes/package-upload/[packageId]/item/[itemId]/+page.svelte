@@ -3,6 +3,7 @@
 	import { page } from '$app/stores';
 	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
+	import { base } from '$app/paths';
 	import { Player } from '@pie-qti/qti2-item-player';
 	// @ts-expect-error - Svelte-check can't resolve workspace subpath exports, but runtime works correctly
 	import { ItemBody } from '@pie-qti/qti2-item-player/components';
@@ -109,7 +110,7 @@
 	function navigateToItem(index: number) {
 		if (packageData && packageData.items[index]) {
 			const item = packageData.items[index];
-			goto(`/package-upload/${$page.params.packageId}/item/${item.identifier}`);
+			goto(`${base}/package-upload/${$page.params.packageId}/item/${item.identifier}`);
 		}
 	}
 
@@ -126,7 +127,7 @@
 	}
 
 	function goBack() {
-		goto('/package-upload');
+		goto(`${base}/package-upload`);
 	}
 
 	function handleResponseChange(responseId: string, value: any) {

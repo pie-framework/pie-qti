@@ -15,7 +15,7 @@ const config = {
 			// (GitHub Pages serves `404.html` for unknown paths; SvelteKit will then route client-side.)
 			fallback: '404.html',
 			precompress: false,
-			strict: false // Allow non-prerenderable API routes (they won't be available on GitHub Pages)
+			strict: true // Fail build if API routes or non-prerenderable pages are added (not supported on GitHub Pages)
 		}),
 		alias: {
 			// Bun workspaces may not always materialize a Node-resolvable `node_modules/@pie-qti/...` entry.
@@ -29,7 +29,6 @@ const config = {
 			// https://pie-framework.github.io/pie-qti/examples/
 			base: process.env.NODE_ENV === 'production' ? '/pie-qti/examples' : ''
 		},
-		trailingSlash: 'always', // Ensure URLs end with `/` so GitHub Pages serves directories correctly
 		prerender: {
 			handleMissingId: 'warn',
 			handleUnseenRoutes: 'ignore' // Ignore dynamic routes like /a11y-components/[fixture]

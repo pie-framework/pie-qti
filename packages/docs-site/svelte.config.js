@@ -16,7 +16,6 @@ const config = {
 		paths: {
 			base: process.env.NODE_ENV === 'production' ? '/pie-qti' : ''
 		},
-		trailingSlash: 'always', // Ensure URLs end with `/` so GitHub Pages serves directories correctly
 		prerender: {
 			entries: ['*'],
 			handleMissingId: 'warn'
