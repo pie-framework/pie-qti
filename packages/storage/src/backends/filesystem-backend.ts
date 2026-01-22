@@ -227,6 +227,63 @@ export class FilesystemBackend implements StorageBackend {
 	}
 
 	/**
+	 * Read multiple files in batch
+	 * More efficient than reading files sequentially
+	 */
+	async readBatch(uris: string[]): Promise<Map<string, string | Buffer>> {
+		const results = new Map<string, string | Buffer>();
+
+		// Read all files in parallel
+		const readPromises = uris.map(async (uri) => {
+			try {
+				const buffer = await this.readBuffer(uri);
+				return { uri, buffer };
+			} catch (error) {
+				// Skip files that don't exist or can't be read
+				console.warn(`Failed to read ${uri}:`, error);
+				return null;
+			}
+		});
+
+		const readResults = await Promise.all(readPromises);
+
+		for (const result of readResults) {
+			if (result) {
+				results.set(result.uri, result.buffer);
+			}
+		}
+
+		return results;
+	}
+
+	/**
+	 * Write multiple files in batch
+	 * More efficient than writing files sequentially
+	 */
+	async writeBatch(
+		writes: Array<{ uri: string; content: string | Buffer; options?: any }>
+	): Promise<void> {
+		// Ensure all parent directories exist
+		const dirPaths = new Set<string>();
+		for (const { uri } of writes) {
+			const resolved = this.resolvePath(uri);
+			dirPaths.add(path.dirname(resolved));
+		}
+
+		// Create all directories in parallel
+		await Promise.all(
+			Array.from(dirPaths).map(dir => fs.mkdir(dir, { recursive: true }))
+		);
+
+		// Write all files in parallel
+		const writePromises = writes.map(({ uri, content }) =>
+			this.write(uri, content)
+		);
+
+		await Promise.all(writePromises);
+	}
+
+	/**
 	 * Get absolute filesystem path (filesystem-specific feature)
 	 * This is not part of StorageBackend interface but useful for filesystem backend
 	 */

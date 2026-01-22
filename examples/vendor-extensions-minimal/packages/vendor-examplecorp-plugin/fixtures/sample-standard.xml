@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                identifier="standard-choice-001"
+                title="Standard QTI Multiple Choice"
+                adaptive="false"
+                timeDependent="false">
+
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier">
+    <correctResponse>
+      <value>choice_C</value>
+    </correctResponse>
+  </responseDeclaration>
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
+    <defaultValue>
+      <value>0</value>
+    </defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <div class="prompt">
+      <p>What is the capital of France?</p>
+    </div>
+
+    <choiceInteraction responseIdentifier="RESPONSE" shuffle="true" maxChoices="1">
+      <prompt>Select the correct answer:</prompt>
+      <simpleChoice identifier="choice_A">London</simpleChoice>
+      <simpleChoice identifier="choice_B">Berlin</simpleChoice>
+      <simpleChoice identifier="choice_C">Paris</simpleChoice>
+      <simpleChoice identifier="choice_D">Madrid</simpleChoice>
+    </choiceInteraction>
+  </itemBody>
+
+  <responseProcessing template="http://www.imsglobal.org/question/qti_v2p2/rptemplates/match_correct"/>
+
+</assessmentItem>

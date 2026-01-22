@@ -445,4 +445,53 @@ export class S3Backend implements StorageBackend {
 			);
 		}
 	}
+
+	/**
+	 * Read multiple files in batch from S3
+	 * Uses parallel requests for better performance
+	 */
+	async readBatch(uris: string[]): Promise<Map<string, string | Buffer>> {
+		await this.ensureAwsSdk();
+
+		const results = new Map<string, string | Buffer>();
+
+		// Read all files in parallel
+		const readPromises = uris.map(async (uri) => {
+			try {
+				const buffer = await this.readBuffer(uri);
+				return { uri, buffer };
+			} catch (error) {
+				// Skip files that don't exist or can't be read
+				console.warn(`Failed to read ${uri} from S3:`, error);
+				return null;
+			}
+		});
+
+		const readResults = await Promise.all(readPromises);
+
+		for (const result of readResults) {
+			if (result) {
+				results.set(result.uri, result.buffer);
+			}
+		}
+
+		return results;
+	}
+
+	/**
+	 * Write multiple files in batch to S3
+	 * Uses parallel uploads for better performance
+	 */
+	async writeBatch(
+		writes: Array<{ uri: string; content: string | Buffer; options?: any }>
+	): Promise<void> {
+		await this.ensureAwsSdk();
+
+		// Write all files in parallel
+		const writePromises = writes.map(({ uri, content }) =>
+			this.write(uri, content)
+		);
+
+		await Promise.all(writePromises);
+	}
 }

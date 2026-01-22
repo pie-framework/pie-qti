@@ -1,0 +1,52 @@
+{
+	"name": "@pie-qti/transform-ui",
+	"version": "0.1.0",
+	"type": "module",
+	"description": "Reusable UI components and utilities for PIE-QTI transform applications",
+	"author": "PIE Framework",
+	"license": "MIT",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"svelte": "./dist/index.js",
+			"default": "./dist/index.js"
+		},
+		"./components/*": {
+			"types": "./dist/components/*.d.ts",
+			"svelte": "./dist/components/*.svelte",
+			"default": "./dist/components/*"
+		}
+	},
+	"files": [
+		"dist",
+		"!dist/**/*.test.*",
+		"!dist/**/*.spec.*"
+	],
+	"scripts": {
+		"dev": "vite dev",
+		"build": "vite build && npm run package",
+		"preview": "vite preview",
+		"package": "svelte-kit sync && svelte-package && publint",
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
+	},
+	"peerDependencies": {
+		"svelte": "^5.0.0"
+	},
+	"devDependencies": {
+		"@sveltejs/adapter-auto": "^7.0.0",
+		"@sveltejs/kit": "^2.50.0",
+		"@sveltejs/package": "^2.3.7",
+		"@sveltejs/vite-plugin-svelte": "^6.2.1",
+		"publint": "^0.2.12",
+		"svelte": "^5.46.1",
+		"svelte-check": "^4.3.5",
+		"typescript": "^5.7.3",
+		"vite": "^7.3.1"
+	},
+	"dependencies": {
+		"daisyui": "^5.5.14"
+	},
+	"svelte": "./dist/index.js",
+	"types": "./dist/index.d.ts"
+}

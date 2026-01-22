@@ -131,6 +131,18 @@ export interface TransformContext {
 
   /** Additional options */
   options?: Record<string, any>;
+
+  /** Storage backend for file operations */
+  storage?: any; // StorageBackend from storage package - using any to avoid circular dependency
+
+  /** Current session identifier */
+  sessionId?: string;
+
+  /** User identifier for logging and tracking */
+  userId?: string;
+
+  /** Vendor metadata from detection phase */
+  metadata?: Record<string, unknown>;
 }
 
 /**

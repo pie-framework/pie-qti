@@ -1,0 +1,311 @@
+<script lang="ts">
+	let selectedFile: File | null = null;
+	let selectedVendor = 'auto';
+	let transformResult: any = null;
+	let isTransforming = false;
+	let isLoadingSample = false;
+	let error: string | null = null;
+
+	const vendors = [
+		{
+			id: 'auto',
+			name: 'Auto-detect',
+			description: 'Let the system automatically detect the vendor based on QTI content'
+		},
+		{
+			id: 'examplecorp',
+			name: 'ExampleCorp',
+			description: 'ExampleCorp QTI content with custom extensions'
+		},
+		{
+			id: 'standard',
+			name: 'Standard QTI',
+			description: 'Standard QTI 2.x content without vendor extensions'
+		}
+	];
+
+	const samples = [
+		{
+			type: 'examplecorp',
+			name: 'ExampleCorp Sample',
+			description: 'Biology question with partial credit, hints, and standards',
+			icon: '🧬'
+		},
+		{
+			type: 'standard',
+			name: 'Standard QTI Sample',
+			description: 'Basic multiple choice without vendor extensions',
+			icon: '📝'
+		}
+	];
+
+	function handleFileSelect(event: Event) {
+		const target = event.target as HTMLInputElement;
+		if (target.files && target.files.length > 0) {
+			selectedFile = target.files[0];
+			transformResult = null;
+			error = null;
+		}
+	}
+
+	async function loadSample(type: string) {
+		isLoadingSample = true;
+		error = null;
+		transformResult = null;
+
+		try {
+			const response = await fetch(`/api/samples?type=${type}`);
+			if (!response.ok) {
+				throw new Error('Failed to load sample');
+			}
+
+			const data = await response.json();
+
+			// Create a File object from the sample content
+			const blob = new Blob([data.content], { type: 'application/xml' });
+			selectedFile = new File([blob], data.filename, { type: 'application/xml' });
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Failed to load sample';
+		} finally {
+			isLoadingSample = false;
+		}
+	}
+
+	async function handleTransform() {
+		if (!selectedFile) return;
+
+		isTransforming = true;
+		error = null;
+		transformResult = null;
+
+		try {
+			const content = await selectedFile.text();
+
+			const response = await fetch('/api/transform', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					content,
+					vendor: selectedVendor === 'auto' ? undefined : selectedVendor
+				})
+			});
+
+			if (!response.ok) {
+				throw new Error(`Transform failed: ${response.statusText}`);
+			}
+
+			transformResult = await response.json();
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Unknown error occurred';
+		} finally {
+			isTransforming = false;
+		}
+	}
+</script>
+
+<div class="container mx-auto px-4 py-8">
+	<header class="text-center mb-12">
+		<h1 class="text-4xl font-bold mb-4">PIE-QTI Vendor Extensions Example</h1>
+		<p class="text-lg text-base-content/70">
+			Demonstrates custom vendor plugin integration with the PIE-QTI transformation system
+		</p>
+	</header>
+
+	<div class="max-w-4xl mx-auto space-y-6">
+		<!-- Info Alert -->
+		<div class="alert alert-info">
+			<svg
+				xmlns="http://www.w3.org/2000/svg"
+				fill="none"
+				viewBox="0 0 24 24"
+				class="stroke-current shrink-0 w-6 h-6"
+			>
+				<path
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					stroke-width="2"
+					d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+				></path>
+			</svg>
+			<div>
+				<h3 class="font-bold">Example Vendor Plugin Active</h3>
+				<div class="text-sm">
+					This app includes the <strong>ExampleCorp</strong> plugin (priority 550) which overrides
+					the standard QTI plugin when ExampleCorp content is detected.
+				</div>
+			</div>
+		</div>
+
+		<!-- Vendor Selection -->
+		<div class="card bg-base-100 shadow-xl">
+			<div class="card-body">
+				<h2 class="card-title">Step 1: Select Vendor</h2>
+				<ul class="menu bg-base-200 rounded-box">
+					{#each vendors as vendor}
+						<li>
+							<label class="flex items-start gap-3 py-3">
+								<input
+									type="radio"
+									name="vendor"
+									value={vendor.id}
+									bind:group={selectedVendor}
+									class="radio radio-primary mt-0.5 flex-shrink-0"
+								/>
+								<div class="flex-1">
+									<div class="font-semibold">{vendor.name}</div>
+									<div class="text-sm opacity-60">{vendor.description}</div>
+								</div>
+							</label>
+						</li>
+					{/each}
+				</ul>
+			</div>
+		</div>
+
+		<!-- File Upload -->
+		<div class="card bg-base-100 shadow-xl">
+			<div class="card-body">
+				<h2 class="card-title">Step 2: Upload QTI File</h2>
+				<input
+					type="file"
+					accept=".xml,.qti"
+					onchange={handleFileSelect}
+					class="file-input file-input-bordered file-input-primary w-full"
+				/>
+
+				<div class="divider">OR</div>
+
+				<div class="space-y-2">
+					<p class="text-sm font-semibold">Load a sample file:</p>
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+						{#each samples as sample}
+							<button
+								onclick={() => loadSample(sample.type)}
+								disabled={isLoadingSample}
+								class="btn btn-outline btn-sm justify-start h-auto py-3"
+							>
+								<span class="text-2xl mr-2">{sample.icon}</span>
+								<div class="text-left">
+									<div class="font-semibold">{sample.name}</div>
+									<div class="text-xs opacity-70 font-normal">{sample.description}</div>
+								</div>
+							</button>
+						{/each}
+					</div>
+				</div>
+
+				{#if selectedFile}
+					<div class="text-sm text-base-content/70 mt-2">
+						Selected: {selectedFile.name} ({(selectedFile.size / 1024).toFixed(2)} KB)
+					</div>
+				{/if}
+			</div>
+		</div>
+
+		<!-- Transform Button -->
+		<div class="card bg-base-100 shadow-xl">
+			<div class="card-body">
+				<h2 class="card-title">Step 3: Transform</h2>
+				<button
+					onclick={handleTransform}
+					disabled={!selectedFile || isTransforming}
+					class="btn btn-primary btn-lg w-full"
+				>
+					{#if isTransforming}
+						<span class="loading loading-spinner"></span>
+						Transforming...
+					{:else}
+						Transform to PIE Format
+					{/if}
+				</button>
+			</div>
+		</div>
+
+		<!-- Error Display -->
+		{#if error}
+			<div class="alert alert-error">
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					class="stroke-current shrink-0 h-6 w-6"
+					fill="none"
+					viewBox="0 0 24 24"
+				>
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+					/>
+				</svg>
+				<span>{error}</span>
+			</div>
+		{/if}
+
+		<!-- Results Display -->
+		{#if transformResult}
+			<div class="card bg-base-100 shadow-xl">
+				<div class="card-body">
+					<h2 class="card-title">Transform Result</h2>
+
+					<!-- Metadata -->
+					<div class="stats stats-vertical lg:stats-horizontal shadow">
+						<div class="stat">
+							<div class="stat-title">Plugin Used</div>
+							<div class="stat-value text-2xl">{transformResult.pluginUsed || 'Unknown'}</div>
+							<div class="stat-desc">Priority: {transformResult.pluginPriority || 'N/A'}</div>
+						</div>
+
+						<div class="stat">
+							<div class="stat-title">Vendor Detected</div>
+							<div class="stat-value text-2xl">
+								{transformResult.detectedVendor || 'None'}
+							</div>
+							<div class="stat-desc">
+								Confidence: {((transformResult.confidence || 0) * 100).toFixed(0)}%
+							</div>
+						</div>
+
+						<div class="stat">
+							<div class="stat-title">Status</div>
+							<div class="stat-value text-2xl">
+								{transformResult.success ? '✓' : '✗'}
+							</div>
+							<div class="stat-desc">{transformResult.success ? 'Success' : 'Failed'}</div>
+						</div>
+					</div>
+
+					<!-- PIE Output -->
+					<div class="form-control">
+						<label for="pie-output" class="label">
+							<span class="label-text font-semibold">PIE Model Output</span>
+						</label>
+						<textarea
+							id="pie-output"
+							class="textarea textarea-bordered font-mono text-sm h-64"
+							readonly
+							value={JSON.stringify(JSON.parse(transformResult.output), null, 2)}
+						></textarea>
+					</div>
+
+					<!-- Download Button -->
+					<div class="card-actions justify-end">
+						<button
+							onclick={() => {
+								const blob = new Blob([transformResult.output], { type: 'application/json' });
+								const url = URL.createObjectURL(blob);
+								const a = document.createElement('a');
+								a.href = url;
+								a.download = 'transformed.json';
+								a.click();
+								URL.revokeObjectURL(url);
+							}}
+							class="btn btn-primary"
+						>
+							Download PIE JSON
+						</button>
+					</div>
+				</div>
+			</div>
+		{/if}
+	</div>
+</div>
