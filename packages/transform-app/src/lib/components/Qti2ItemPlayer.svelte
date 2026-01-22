@@ -31,6 +31,17 @@
 
 	function updatePlayerProperties() {
 		if (!playerElement || !isReady) return;
+		
+		// Debug: log what we're setting
+		console.log('[Qti2ItemPlayer] Updating properties:', {
+			identifier,
+			title,
+			role,
+			itemXmlLength: itemXml?.length,
+			itemXmlPreview: itemXml?.substring(0, 200),
+			hasItemXml: !!itemXml
+		});
+		
 		assignProps(playerElement, {
 			itemXml,
 			role,
@@ -38,6 +49,14 @@
 			title,
 			security: getSecurityConfig(),
 		});
+		
+		// Verify it was set
+		if (playerElement.itemXml !== itemXml) {
+			console.warn('[Qti2ItemPlayer] Warning: itemXml property may not have been set correctly', {
+				expected: itemXml?.substring(0, 100),
+				actual: playerElement.itemXml?.substring(0, 100)
+			});
+		}
 	}
 
 	onMount(async () => {
@@ -58,15 +77,22 @@
 		}
 	});
 
+	// Track previous XML to detect changes
+	let previousItemXml = $state<string | undefined>(undefined);
+
 	// Update player properties when they change (using $effect for reactivity)
 	$effect(() => {
 		// Create dependencies on props
-		void itemXml;
-		void role;
-		void identifier;
-		void title;
+		const currentXml = itemXml;
+		const xmlChanged = currentXml !== previousItemXml;
+		
+		// Update previous value
+		previousItemXml = currentXml;
 
-		updatePlayerProperties();
+		// Only update if XML actually changed or component just became ready
+		if (xmlChanged || isReady) {
+			updatePlayerProperties();
+		}
 	});
 </script>
 

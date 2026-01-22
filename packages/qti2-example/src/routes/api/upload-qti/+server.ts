@@ -60,12 +60,16 @@ export const POST: RequestHandler = async ({ request }) => {
 		const stream = Readable.from(buffer);
 		const directory = await unzipper.Open.buffer(buffer);
 
-		// Extract all files
-		for (const file of directory.files) {
-			if (file.type === 'File') {
-				const content = await file.buffer();
-				files[file.path] = content.toString('utf-8');
-			}
+		// Count total files first
+		const allFiles = directory.files.filter((f) => f.type === 'File');
+		const totalFiles = allFiles.length;
+
+		// Extract all files with progress tracking
+		let processedFiles = 0;
+		for (const file of allFiles) {
+			const content = await file.buffer();
+			files[file.path] = content.toString('utf-8');
+			processedFiles++;
 		}
 
 		// Parse imsmanifest.xml
@@ -132,6 +136,10 @@ export const POST: RequestHandler = async ({ request }) => {
 			success: true,
 			data: packageData,
 			mainXml: mainFileContent,
+			extractionInfo: {
+				totalFiles,
+				processedFiles,
+			},
 		});
 	} catch (err) {
 		console.error('Error processing QTI ZIP:', err);

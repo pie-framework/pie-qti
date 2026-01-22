@@ -24,6 +24,19 @@
 
 	const _selectedItem = $derived(items[selectedItemIndex]);
 
+	// Debug: log when selected item changes
+	$effect(() => {
+		if (_selectedItem) {
+			console.log('Selected item changed:', {
+				id: _selectedItem.id,
+				title: _selectedItem.title,
+				sourcePath: _selectedItem.sourcePath,
+				xmlLength: _selectedItem.xml?.length,
+				xmlPreview: _selectedItem.xml?.substring(0, 100)
+			});
+		}
+	});
+
 	onMount(async () => {
 		await loadItems();
 	});
@@ -33,6 +46,7 @@
 		_itemsError = null;
 
 		try {
+			console.log('[TransformApp Items] Loading items for session:', session.id);
 			const response = await fetch(`/api/sessions/${session.id}/items`);
 
 			if (!response.ok) {
@@ -41,9 +55,13 @@
 			}
 
 			const result = await response.json();
+			console.log('[TransformApp Items] Loaded', result.items?.length || 0, 'items');
+			if (result.items && result.items.length > 0) {
+				console.log('[TransformApp Items] First item XML preview:', result.items[0].xml?.substring(0, 200));
+			}
 			items = result.items;
 		} catch (error) {
-			console.error('Failed to load items:', error);
+			console.error('[TransformApp Items] Failed to load items:', error);
 			_itemsError = error instanceof Error ? error.message : 'Failed to load items';
 		} finally {
 			_isLoadingItems = false;
@@ -177,9 +195,9 @@
 							<!-- QTI Player -->
 							{#if _selectedItem && _selectedItem.xml}
 								<div class="bg-base-200 rounded-lg p-4">
-									{#key _selectedItem.id}
+									{#key `${_selectedItem.sourcePath || _selectedItem.id}-${selectedItemIndex}`}
 										<Qti2ItemPlayer
-											itemXml={_selectedItem.xml}
+											itemXml={_selectedItem.xml || ''}
 											identifier={_selectedItem.id}
 											title={_selectedItem.title}
 											role={_showCorrectResponses ? 'scorer' : 'candidate'}
