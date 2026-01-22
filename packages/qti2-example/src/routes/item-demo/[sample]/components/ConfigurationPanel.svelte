@@ -61,6 +61,9 @@
 				bind:value={selectedSampleId}
 				onchange={() => onSampleChange(selectedSampleId)}
 			>
+				{#if selectedSampleId === ''}
+					<option value="">Custom Upload</option>
+				{/if}
 				{#if i18nItems.length > 0}
 					<optgroup label="🌐 Multilingual Items">
 						{#each i18nItems as item}
@@ -112,14 +115,23 @@
 			</div>
 		</div>
 
-		<!-- XML Editor in collapsible block -->
-		<details class="collapse collapse-arrow bg-base-200 mt-4">
-			<summary class="collapse-title text-lg font-medium">
-				{i18n?.t('demo.xmlEditor') ?? 'XML Editor'}
-			</summary>
-			<div class="collapse-content">
+		<!-- XML Editor in collapsible block - open by default for custom uploads -->
+		{#if selectedSampleId === ''}
+			<!-- Always open for custom uploads -->
+			<div class="bg-base-200 mt-4 rounded-lg p-4">
+				<h3 class="text-lg font-medium mb-4">{i18n?.t('demo.xmlEditor') ?? 'XML Editor'}</h3>
 				<XmlEditor bind:content={xmlContent} onContentChange={onXmlChange} />
 			</div>
-		</details>
+		{:else}
+			<!-- Collapsible for sample items -->
+			<details class="collapse collapse-arrow bg-base-200 mt-4">
+				<summary class="collapse-title text-lg font-medium">
+					{i18n?.t('demo.xmlEditor') ?? 'XML Editor'}
+				</summary>
+				<div class="collapse-content">
+					<XmlEditor bind:content={xmlContent} onContentChange={onXmlChange} />
+				</div>
+			</details>
+		{/if}
 	</div>
 </div>

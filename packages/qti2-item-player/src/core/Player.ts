@@ -732,7 +732,8 @@ export class Player {
 			.map((d) => d.identifier);
 
 		switch (name) {
-			case 'match_correct': {
+			case 'match_correct':
+			case 'cc2_match': { // CC2_match is an alias for match_correct (QTI 2.1 compatibility)
 				const allCorrect = responseDeclIds.every((id) => {
 					const expr = { kind: 'expr.match', id: 'tmp', a: { kind: 'expr.variable', id: 'tmp', identifier: id }, b: { kind: 'expr.correct', id: 'tmp', identifier: id } } as any;
 					// Use evaluator match semantics by evaluating a constructed MatchExpr
@@ -748,7 +749,8 @@ export class Player {
 				this.ctx.setValue('SCORE', qtiValue('float', 'single', allCorrect ? (Number.isFinite(max) ? max : 1) : 0));
 				return;
 			}
-			case 'match_nothing': {
+			case 'match_nothing':
+			case 'cc2_match_nothing': { // QTI 2.1 compatibility
 				const isEmptyResponse = (v: QtiValue | undefined): boolean => {
 					if (!v) return true;
 					if (v.kind === 'null') return true;
@@ -764,7 +766,8 @@ export class Player {
 				this.ctx.setValue('SCORE', qtiValue('float', 'single', allEmpty ? (Number.isFinite(max) ? max : 1) : 0));
 				return;
 			}
-			case 'map_response': {
+			case 'map_response':
+			case 'cc2_map_response': { // QTI 2.1 compatibility
 				let total = 0;
 				for (const id of responseDeclIds) {
 					const d = this.decls[id];
@@ -778,7 +781,8 @@ export class Player {
 				this.ctx.setValue('SCORE', qtiValue('float', 'single', total));
 				return;
 			}
-			case 'map_response_point': {
+			case 'map_response_point':
+			case 'cc2_map_response_point': { // QTI 2.1 compatibility
 				let total = 0;
 				for (const id of responseDeclIds) {
 					const d = this.decls[id];

@@ -48,10 +48,10 @@ async function initializeStorage(): Promise<void> {
 		transformEngine.use(new Qti22ToPiePlugin());
 
 		// Load and register additional plugins from config (if any)
-		if (config.plugins && config.plugins.length > 0) {
+		if (config.plugins && Object.keys(config.plugins).length > 0) {
 			try {
-				await loadAndRegisterPlugins(transformEngine, config);
-				console.log(`[Transform App] Loaded ${config.plugins.length} additional plugin(s)`);
+				await loadAndRegisterPlugins(transformEngine, config.plugins);
+				console.log(`[Transform App] Loaded ${Object.keys(config.plugins).length} additional plugin(s)`);
 			} catch (error) {
 				console.warn('[Transform App] Failed to load plugins from config:', error);
 				// Continue with just the core plugin

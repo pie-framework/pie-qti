@@ -567,6 +567,7 @@ export default {
 
 		// Sample Item Descriptions
 		sampleItemDescriptions: {
+			'': 'รายการที่อัปโหลดแบบกำหนดเอง',
 			'simple-choice': 'โจทย์คณิตศาสตร์พื้นฐานเรื่องการลบพร้อมตัวเลือกที่เป็นไปได้',
 			'partial-credit': 'ตัวเลือกหลายตัวเลือกที่มีคะแนนบางส่วนโดยใช้ mapResponse',
 			'capital-cities': 'คำถามภูมิศาสตร์พร้อมตัวเลือกที่สุ่มแล้ว',

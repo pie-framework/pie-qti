@@ -10,6 +10,7 @@
 	let fileInput: HTMLInputElement;
 	let isDragging = $state(false);
 	let selectedFile = $state<File | null>(null);
+	let showFileTypeError = $state(false);
 
 	function handleDrop(event: DragEvent) {
 		event.preventDefault();
@@ -17,7 +18,13 @@
 
 		const files = event.dataTransfer?.files;
 		if (files && files.length > 0) {
-			selectedFile = files[0];
+			const file = files[0];
+			// Only accept XML files
+			if (file.name.toLowerCase().endsWith('.xml')) {
+				selectedFile = file;
+			} else {
+				showFileTypeError = true;
+			}
 		}
 	}
 
@@ -35,6 +42,25 @@
 		const target = event.target as HTMLInputElement;
 		if (target.files && target.files.length > 0) {
 			selectedFile = target.files[0];
+		}
+	}
+
+	async function handleLoadInPlayer() {
+		if (!selectedFile) return;
+
+		try {
+			// Read the file content
+			const xmlContent = await selectedFile.text();
+
+			// Store in sessionStorage for the item-demo page to pick up
+			sessionStorage.setItem('uploadedItemXml', xmlContent);
+			sessionStorage.setItem('uploadedItemName', selectedFile.name);
+
+			// Navigate to item-demo with special 'custom' sample ID
+			window.location.href = `${base}/item-demo/custom`;
+		} catch (err) {
+			console.error('Failed to read file:', err);
+			alert('Failed to read file');
 		}
 	}
 </script>
@@ -108,6 +134,23 @@
 						</svg>
 						{i18n?.t('demo.pluginDemo') ?? 'Plugin Demo'}
 					</a>
+					<a href="{base}/package-upload" class="btn btn-accent btn-lg">
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							class="h-6 w-6"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+							/>
+						</svg>
+						Package Upload
+					</a>
 				</div>
 			</div>
 		</div>
@@ -148,7 +191,7 @@
 
 							{#if selectedFile}
 								<p class="text-lg font-semibold mb-2">{i18n?.t('demo.selectedFile') ?? 'Selected:'} {selectedFile.name}</p>
-								<a href="{base}/item-demo" class="btn btn-primary mt-4">{i18n?.t('demo.loadInPlayer') ?? 'Load in Player'}</a>
+								<button class="btn btn-primary mt-4" onclick={(e) => { e.stopPropagation(); handleLoadInPlayer(); }}>{i18n?.t('demo.loadInPlayer') ?? 'Load in Player'}</button>
 							{:else}
 								<p class="text-lg font-semibold mb-2">{i18n?.t('demo.dropQtiFile') ?? 'Drop QTI XML file here'}</p>
 								<p class="text-base-content/60 mb-4">{i18n?.t('demo.orClickToSelect') ?? 'or click to select a file'}</p>
@@ -193,3 +236,20 @@
 		</div>
 	</footer>
 </div>
+
+<!-- File Type Error Dialog -->
+<dialog class="modal" class:modal-open={showFileTypeError}>
+	<div class="modal-box">
+		<h3 class="font-bold text-lg">Wrong File Type</h3>
+		<p class="py-4">
+			Please select an XML file. For QTI packages (ZIP files), use the <strong>Package Upload</strong> button above.
+		</p>
+		<div class="modal-action">
+			<button class="btn" onclick={() => (showFileTypeError = false)}>Close</button>
+			<a href="{base}/package-upload" class="btn btn-primary">Go to Package Upload</a>
+		</div>
+	</div>
+	<form method="dialog" class="modal-backdrop">
+		<button onclick={() => (showFileTypeError = false)}>close</button>
+	</form>
+</dialog>
