@@ -10,9 +10,9 @@
 	import { typesetAction } from '@pie-qti/qti2-default-components/shared';
 	import { typesetMathInElement } from '@pie-qti/qti2-typeset-katex';
 	import type { SvelteI18nProvider } from '@pie-qti/qti2-i18n';
-	import { loadPackageDataAsync, getItemXml } from '$lib/package-processor';
-	import type { PackageStructure } from '$lib/package-processor';
-	import { getSecurityConfig } from '$lib/player-config';
+import { loadPackageDataAsync, getItemXml, resolveImagesInXml } from '$lib/package-processor';
+import type { PackageStructure } from '$lib/package-processor';
+import { getSecurityConfig } from '$lib/player-config';
 
 	let itemXml = $state<string | null>(null);
 	let loading = $state(true);
@@ -26,6 +26,7 @@
 	// Player state
 	let player = $state<Player | null>(null);
 	let responses = $state<Record<string, any>>({});
+	let outcomeValues = $state<Record<string, any>>({});
 
 	// Get i18n provider from context
 	const i18nContext = getContext<{ value: SvelteI18nProvider | null }>('i18n');
@@ -39,12 +40,13 @@
 
 		if (!browser || !urlPackageId || !urlItemId) return;
 
-		// Reset state for new item
+				// Reset state for new item
 		loading = true;
 		error = null;
 		itemXml = null;
 		player = null;
 		responses = {};
+		outcomeValues = {};
 
 		// Load item asynchronously
 		(async () => {
@@ -73,9 +75,25 @@
 					throw new Error('Package data not loaded');
 				}
 
-				itemXml = getItemXml(packageData, urlItemId);
-				if (!itemXml) {
+				const item = packageData.items.find((i) => i.identifier === urlItemId);
+				if (!item) {
 					throw new Error(`Item ${urlItemId} not found in package`);
+				}
+
+				let rawItemXml = getItemXml(packageData, urlItemId);
+				if (!rawItemXml) {
+					throw new Error(`Item ${urlItemId} not found in package`);
+				}
+
+				// Resolve images from package and replace with data URLs
+				itemXml = await resolveImagesInXml(rawItemXml, packageData, item.href);
+				
+				// Debug: Verify images are present in resolved XML
+				const hasImages = itemXml.includes('data:image/') || itemXml.includes('<img') || itemXml.includes('<object');
+				console.log('[Item Load] Images present in resolved XML:', hasImages);
+				if (hasImages) {
+					const imgMatches = itemXml.match(/<img[^>]*src="([^"]+)"/gi);
+					console.log('[Item Load] Found img tags:', imgMatches?.length || 0);
 				}
 
 				// Initialize player
@@ -87,6 +105,11 @@
 
 				// Register default components
 				registerDefaultComponents(player.getComponentRegistry());
+
+				// Process initial empty responses to set up outcome values (feedback will be hidden initially)
+				player.setResponses({});
+				const initialResult = player.processResponses();
+				outcomeValues = initialResult.outcomeValues || {};
 			} catch (err) {
 				error = err instanceof Error ? err.message : 'Failed to load item';
 				console.error('Error loading item:', err);
@@ -121,6 +144,50 @@
 
 	function handleResponseChange(responseId: string, value: any) {
 		responses = { ...responses, [responseId]: value };
+		// Process responses to get outcome values for feedback visibility
+		if (player) {
+			try {
+				player.setResponses(responses);
+				const result = player.processResponses();
+				outcomeValues = result.outcomeValues || {};
+				
+				// For preview mode: If FEEDBACK outcome exists but wasn't set by response processing,
+				// automatically set it to the selected choice identifier to enable feedbackInline display.
+				// This makes feedback work "out of the box" even with simple templates like CC2_match
+				// that only set SCORE, not FEEDBACK.
+				if (!outcomeValues.FEEDBACK && value && itemXml) {
+					// Check if FEEDBACK outcome is declared in the XML
+					const hasFeedbackOutcome = itemXml.includes('outcomeDeclaration identifier="FEEDBACK"');
+					if (hasFeedbackOutcome) {
+						// Set FEEDBACK to the selected choice identifier (for single choice)
+						// or first selected choice (for multiple choice)
+						const feedbackValue = Array.isArray(value) ? value[0] : value;
+						outcomeValues = { ...outcomeValues, FEEDBACK: feedbackValue };
+					}
+				}
+			} catch (err) {
+				// If processing fails, clear outcome values (feedback will be hidden)
+				outcomeValues = {};
+			}
+		}
+	}
+
+	function copyXmlToClipboard() {
+		if (itemXml) {
+			navigator.clipboard.writeText(itemXml).then(() => {
+				// Show a brief success message (you could use a toast library here)
+				const button = document.querySelector('.copy-xml-btn') as HTMLElement;
+				if (button) {
+					const originalText = button.textContent;
+					button.textContent = 'Copied!';
+					setTimeout(() => {
+						button.textContent = originalText;
+					}, 2000);
+				}
+			}).catch((err) => {
+				console.error('Failed to copy XML to clipboard:', err);
+			});
+		}
 	}
 </script>
 
@@ -196,6 +263,7 @@
 				<ItemBody
 					{player}
 					{responses}
+					{outcomeValues}
 					disabled={false}
 					role="candidate"
 					i18n={i18n ?? undefined}
@@ -209,6 +277,29 @@
 		<details class="collapse collapse-arrow bg-base-200">
 			<summary class="collapse-title text-lg font-medium">View Raw XML</summary>
 			<div class="collapse-content">
+				<div class="flex justify-end mb-2">
+					<button
+						class="btn btn-sm btn-outline copy-xml-btn"
+						onclick={copyXmlToClipboard}
+						disabled={!itemXml}
+					>
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							class="h-4 w-4 mr-1"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+							/>
+						</svg>
+						Copy to Clipboard
+					</button>
+				</div>
 				<pre class="text-xs overflow-x-auto p-4 bg-base-300 rounded"><code>{itemXml}</code></pre>
 			</div>
 		</details>

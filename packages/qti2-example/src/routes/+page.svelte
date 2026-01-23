@@ -2,6 +2,7 @@
 	import { base } from '$app/paths';
 	import { getContext } from 'svelte';
 	import type { SvelteI18nProvider } from '@pie-qti/qti2-i18n';
+	import JSZip from 'jszip';
 
 	// Get i18n from context
 	const i18nContext = getContext<{ value: SvelteI18nProvider | null }>('i18n');
@@ -11,17 +12,39 @@
 	let isDragging = $state(false);
 	let selectedFile = $state<File | null>(null);
 	let showFileTypeError = $state(false);
+	let isProcessing = $state(false);
+	let foundXmlFiles = $state<string[]>([]);
+	let selectedXmlFile = $state<string | null>(null);
 
-	function handleDrop(event: DragEvent) {
+	async function handleDrop(event: DragEvent) {
 		event.preventDefault();
 		isDragging = false;
 
 		const files = event.dataTransfer?.files;
 		if (files && files.length > 0) {
 			const file = files[0];
-			// Only accept XML files
-			if (file.name.toLowerCase().endsWith('.xml')) {
+			// Accept XML and ZIP files
+			const fileName = file.name.toLowerCase();
+			if (fileName.endsWith('.xml') || fileName.endsWith('.zip')) {
 				selectedFile = file;
+				foundXmlFiles = [];
+				selectedXmlFile = null;
+				
+				// If it's a ZIP file, automatically extract and find XML files
+				if (fileName.endsWith('.zip')) {
+					try {
+						isProcessing = true;
+						foundXmlFiles = await extractXmlFromZip(file);
+						if (foundXmlFiles.length > 0) {
+							selectedXmlFile = foundXmlFiles[0];
+						}
+					} catch (err) {
+						console.error('Failed to extract ZIP:', err);
+						alert(`Failed to extract ZIP file: ${err instanceof Error ? err.message : 'Unknown error'}`);
+					} finally {
+						isProcessing = false;
+					}
+				}
 			} else {
 				showFileTypeError = true;
 			}
@@ -38,29 +61,114 @@
 		isDragging = false;
 	}
 
-	function handleFileSelect(event: Event) {
+	async function handleFileSelect(event: Event) {
 		const target = event.target as HTMLInputElement;
 		if (target.files && target.files.length > 0) {
-			selectedFile = target.files[0];
+			const file = target.files[0];
+			selectedFile = file;
+			foundXmlFiles = [];
+			selectedXmlFile = null;
+			
+			// If it's a ZIP file, automatically extract and find XML files
+			if (file.name.toLowerCase().endsWith('.zip')) {
+				try {
+					isProcessing = true;
+					foundXmlFiles = await extractXmlFromZip(file);
+					if (foundXmlFiles.length > 0) {
+						selectedXmlFile = foundXmlFiles[0];
+					}
+				} catch (err) {
+					console.error('Failed to extract ZIP:', err);
+					alert(`Failed to extract ZIP file: ${err instanceof Error ? err.message : 'Unknown error'}`);
+				} finally {
+					isProcessing = false;
+				}
+			}
 		}
+	}
+
+	async function extractXmlFromZip(file: File): Promise<string[]> {
+		const zip = new JSZip();
+		const zipData = await file.arrayBuffer();
+		const zipContents = await zip.loadAsync(zipData);
+		
+		const xmlFiles: string[] = [];
+		
+		// Find all XML files in the ZIP
+		for (const [path, zipEntry] of Object.entries(zipContents.files)) {
+			if (!zipEntry.dir && path.toLowerCase().endsWith('.xml')) {
+				xmlFiles.push(path);
+			}
+		}
+		
+		return xmlFiles.sort();
+	}
+
+	async function getXmlContentFromZip(file: File, xmlPath: string): Promise<string> {
+		const zip = new JSZip();
+		const zipData = await file.arrayBuffer();
+		const zipContents = await zip.loadAsync(zipData);
+		const xmlEntry = zipContents.files[xmlPath];
+		
+		if (!xmlEntry) {
+			throw new Error(`XML file not found: ${xmlPath}`);
+		}
+		
+		return await xmlEntry.async('string');
 	}
 
 	async function handleLoadInPlayer() {
 		if (!selectedFile) return;
 
 		try {
-			// Read the file content
-			const xmlContent = await selectedFile.text();
+			isProcessing = true;
+			let xmlContent: string;
+			let fileName: string;
+
+			if (selectedFile.name.toLowerCase().endsWith('.zip')) {
+				// Handle ZIP file
+				// Ensure we have extracted XML files
+				if (foundXmlFiles.length === 0) {
+					foundXmlFiles = await extractXmlFromZip(selectedFile);
+					
+					if (foundXmlFiles.length === 0) {
+						alert('No XML files found in the ZIP archive.');
+						isProcessing = false;
+						return;
+					}
+					
+					// Auto-select the first XML file if none selected
+					if (!selectedXmlFile) {
+						selectedXmlFile = foundXmlFiles[0];
+					}
+				}
+				
+				// Load the selected XML file
+				if (!selectedXmlFile) {
+					alert('Please select an XML file to preview.');
+					isProcessing = false;
+					return;
+				}
+				
+				xmlContent = await getXmlContentFromZip(selectedFile, selectedXmlFile);
+				fileName = selectedXmlFile.split('/').pop() || selectedXmlFile;
+			} else {
+				// Handle XML file (existing behavior)
+				xmlContent = await selectedFile.text();
+				fileName = selectedFile.name;
+			}
 
 			// Store in sessionStorage for the item-demo page to pick up
 			sessionStorage.setItem('uploadedItemXml', xmlContent);
-			sessionStorage.setItem('uploadedItemName', selectedFile.name);
+			sessionStorage.setItem('uploadedItemName', fileName);
 
 			// Navigate to item-demo with special 'custom' sample ID
 			window.location.href = `${base}/item-demo/custom`;
 		} catch (err) {
-			console.error('Failed to read file:', err);
-			alert('Failed to read file');
+			console.error('Failed to process file:', err);
+			alert(`Failed to process file: ${err instanceof Error ? err.message : 'Unknown error'}`);
+		} finally {
+			isProcessing = false;
 		}
 	}
 </script>
@@ -191,9 +299,37 @@
 
 							{#if selectedFile}
 								<p class="text-lg font-semibold mb-2">{i18n?.t('demo.selectedFile') ?? 'Selected:'} {selectedFile.name}</p>
-								<button class="btn btn-primary mt-4" onclick={(e) => { e.stopPropagation(); handleLoadInPlayer(); }}>{i18n?.t('demo.loadInPlayer') ?? 'Load in Player'}</button>
+								
+								{#if selectedFile.name.toLowerCase().endsWith('.zip') && foundXmlFiles.length > 0}
+									<!-- Show XML files found in ZIP -->
+									<div class="w-full mt-4">
+										<p class="text-sm text-base-content/70 mb-2">Found {foundXmlFiles.length} XML file{foundXmlFiles.length !== 1 ? 's' : ''}:</p>
+										<select 
+											class="select select-bordered w-full mb-4"
+											onchange={(e) => selectedXmlFile = (e.target as HTMLSelectElement).value}
+											value={selectedXmlFile || ''}
+										>
+											{#each foundXmlFiles as xmlFile}
+												<option value={xmlFile}>{xmlFile}</option>
+											{/each}
+										</select>
+									</div>
+								{/if}
+								
+								<button 
+									class="btn btn-primary mt-4" 
+									onclick={(e) => { e.stopPropagation(); handleLoadInPlayer(); }}
+									disabled={isProcessing}
+								>
+									{#if isProcessing}
+										<span class="loading loading-spinner loading-sm"></span>
+										Processing...
+									{:else}
+										{i18n?.t('demo.loadInPlayer') ?? 'Load in Player'}
+									{/if}
+								</button>
 							{:else}
-								<p class="text-lg font-semibold mb-2">{i18n?.t('demo.dropQtiFile') ?? 'Drop QTI XML file here'}</p>
+								<p class="text-lg font-semibold mb-2">{i18n?.t('demo.dropQtiFile') ?? 'Drop QTI XML file or ZIP folder here'}</p>
 								<p class="text-base-content/60 mb-4">{i18n?.t('demo.orClickToSelect') ?? 'or click to select a file'}</p>
 								<button class="btn btn-primary btn-sm">
 									<svg
@@ -218,7 +354,7 @@
 								type="file"
 								bind:this={fileInput}
 								onchange={(e) => handleFileSelect?.(e)}
-								accept=".xml"
+								accept=".xml,.zip"
 								class="hidden"
 							/>
 						</div>
@@ -242,11 +378,10 @@
 	<div class="modal-box">
 		<h3 class="font-bold text-lg">Wrong File Type</h3>
 		<p class="py-4">
-			Please select an XML file. For QTI packages (ZIP files), use the <strong>Package Upload</strong> button above.
+			Please select an XML file or ZIP folder containing XML files.
 		</p>
 		<div class="modal-action">
 			<button class="btn" onclick={() => (showFileTypeError = false)}>Close</button>
-			<a href="{base}/package-upload" class="btn btn-primary">Go to Package Upload</a>
 		</div>
 	</div>
 	<form method="dialog" class="modal-backdrop">

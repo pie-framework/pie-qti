@@ -17,6 +17,7 @@
 		i18n?: I18nProvider;
 		typeset?: (element: HTMLElement) => void;
 		onChange?: (value: string | string[]) => void;
+		outcomeValues?: Record<string, any>;
 	}
 
 	let {
@@ -27,7 +28,8 @@
 		role = 'candidate',
 		i18n = $bindable(),
 		typeset,
-		onChange
+		onChange,
+		outcomeValues = {}
 	}: Props = $props();
 
 	// Translation helper:
@@ -51,6 +53,38 @@
 			return parsedCorrectResponse.includes(identifier);
 		}
 		return parsedCorrectResponse === identifier;
+	}
+
+	// Helper function to filter feedbackInline from choice text based on outcome values
+	function filterFeedbackInline(text: string): string {
+		if (!text) return text;
+		
+		// Remove feedbackInline elements based on outcome values
+		return text.replace(
+			/<feedbackInline[^>]*outcomeIdentifier="([^"]+)"[^>]*identifier="([^"]+)"[^>]*showHide="([^"]+)"[^>]*>([\s\S]*?)<\/feedbackInline>/gi,
+			(match, outcomeId, feedbackId, showHide) => {
+				const outcomeValue = outcomeValues[outcomeId];
+				
+				// If outcomeValue is undefined/null/empty, hide feedback (no response processed yet)
+				if (outcomeValue === undefined || outcomeValue === null || outcomeValue === '') {
+					return '';
+				}
+				
+				const shouldShow = showHide.toLowerCase() === 'show'
+					? outcomeValue === feedbackId
+					: outcomeValue !== feedbackId;
+
+				// If should not show, return empty string (remove from HTML)
+				if (!shouldShow) {
+					return '';
+				}
+
+				// If should show, return the content without the feedbackInline wrapper
+				// Add spacing before feedback content for better readability
+				const content = match.replace(/<feedbackInline[^>]*>/, '').replace(/<\/feedbackInline>/, '');
+				return ` <span class="qti-feedback-inline">${content}</span>`;
+			}
+		);
 	}
 
 	// Get reference to the root element for event dispatching
@@ -112,7 +146,7 @@
 						{disabled}
 					/>
 					<span part="text" class="qti-choice-text label-text">
-						{@html choice.text}
+						{@html filterFeedbackInline(choice.text)}
 					</span>
 					{#if isCorrectChoice(choice.identifier)}
 						<span class="badge badge-success badge-sm">{t('interactions.choice.correct', 'Correct')}</span>
@@ -144,7 +178,7 @@
 						{disabled}
 					/>
 					<span part="text" class="qti-choice-text label-text">
-						{@html choice.text}
+						{@html filterFeedbackInline(choice.text)}
 					</span>
 					{#if isCorrectChoice(choice.identifier)}
 						<span class="badge badge-success badge-sm">{t('interactions.choice.correct', 'Correct')}</span>
@@ -190,5 +224,14 @@
 	.radio-success,
 	.checkbox-success {
 		accent-color: var(--color-success, oklch(76% 0.177 163.223));
+	}
+
+	/* Feedback inline spacing */
+	:global(.qti-feedback-inline) {
+		display: inline-block;
+		margin-left: 0.5rem;
+		padding-left: 0.5rem;
+		border-left: 2px solid var(--color-base-content, currentColor);
+		opacity: 0.8;
 	}
 </style>

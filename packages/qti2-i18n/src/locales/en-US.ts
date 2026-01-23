@@ -528,7 +528,7 @@ export default {
 		tryItems: 'Try Items',
 		tryAssessments: 'Try Assessments',
 		pluginDemo: 'Plugin Demo',
-		dropQtiFile: 'Drop QTI XML file here',
+		dropQtiFile: 'Drop QTI XML file or ZIP folder here',
 		orClickToSelect: 'or click to select a file',
 		selectFile: 'Select File',
 		selectedFile: 'Selected:',

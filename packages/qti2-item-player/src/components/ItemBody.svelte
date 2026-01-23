@@ -87,6 +87,12 @@
 			(match, outcomeId, feedbackId, showHide) => {
 				// Check if this feedback should be visible
 				const outcomeValue = outcomeValues[outcomeId];
+				
+				// If outcomeValue is undefined/null/empty, hide feedback (no response processed yet)
+				if (outcomeValue === undefined || outcomeValue === null || outcomeValue === '') {
+					return '';
+				}
+				
 				const shouldShow = showHide.toLowerCase() === 'show'
 					? outcomeValue === feedbackId
 					: outcomeValue !== feedbackId;
@@ -97,7 +103,9 @@
 				}
 
 				// If should show, return the content without the feedbackInline wrapper
-				return match.replace(/<feedbackInline[^>]*>/, '').replace(/<\/feedbackInline>/, '');
+				// Add spacing before feedback content for better readability
+				const content = match.replace(/<feedbackInline[^>]*>/, '').replace(/<\/feedbackInline>/, '');
+				return ` <span class="qti-feedback-inline">${content}</span>`;
 			}
 		);
 
@@ -320,6 +328,7 @@
 				correctResponse: role === 'scorer' ? correctRespForInteraction : null,
 				disabled,
 				role,
+				outcomeValues,
 			}}
 		/>
 	{/each}
@@ -373,5 +382,14 @@
 	 */
 	:global(.qti-item-body .qti-hidden-interaction) {
 		display: none !important;
+	}
+
+	/* Feedback inline spacing */
+	:global(.qti-item-body .qti-feedback-inline) {
+		display: inline-block;
+		margin-left: 0.5rem;
+		padding-left: 0.5rem;
+		border-left: 2px solid var(--color-base-content, currentColor);
+		opacity: 0.8;
 	}
 </style>

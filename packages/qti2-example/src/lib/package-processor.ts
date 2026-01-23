@@ -13,6 +13,10 @@ import type { VirtualPackage } from '@pie-qti/ims-cp-browser';
 // Storage key for the current package ID
 const STORAGE_KEY_CURRENT_PACKAGE = 'qti-current-package-id';
 
+// In-memory cache for package instances (preserves binary files)
+// This is necessary because binary files are not persisted to storage
+const packageCache = new Map<string, PackageStructure>();
+
 /**
  * Legacy interface for backward compatibility with existing UI code
  */
@@ -58,7 +62,12 @@ export async function processPackage(file: File): Promise<PackageStructure> {
 	// Store current package ID for later retrieval
 	localStorage.setItem(STORAGE_KEY_CURRENT_PACKAGE, pkg.packageId);
 
-	return convertToPackageStructure(pkg);
+	const packageStructure = convertToPackageStructure(pkg);
+	
+	// Cache the package structure in memory (preserves binary files)
+	packageCache.set(pkg.packageId, packageStructure);
+	
+	return packageStructure;
 }
 
 /**
@@ -146,6 +155,15 @@ export async function loadPackageDataAsync(): Promise<PackageStructure | null> {
 		const packageId = localStorage.getItem(STORAGE_KEY_CURRENT_PACKAGE);
 		if (!packageId) return null;
 
+		// First, check if we have the package in memory cache (preserves binary files)
+		const cached = packageCache.get(packageId);
+		if (cached) {
+			console.log('Loaded package from memory cache (preserves binary files)');
+			return cached;
+		}
+
+		// Fallback: Load from storage (binary files will be missing)
+		console.warn('Loading package from storage - binary files (images) will not be available');
 		const storage = new SessionStorageBackend();
 		const pkg = await loadPackage(packageId, storage);
 		if (!pkg) return null;
@@ -164,6 +182,9 @@ export async function clearPackageData(): Promise<void> {
 	try {
 		const packageId = localStorage.getItem(STORAGE_KEY_CURRENT_PACKAGE);
 		if (packageId) {
+			// Clear from memory cache
+			packageCache.delete(packageId);
+			
 			// Clear the stored package data
 			const storage = new SessionStorageBackend();
 			await storage.delete(`qti-package-${packageId}`);
@@ -231,4 +252,299 @@ export function getTestXml(pkg: PackageStructure, testId: string): string | null
 	const test = pkg.tests.find((t) => t.identifier === testId);
 	if (!test) return null;
 	return pkg._pkg.readText(test.href);
+}
+
+/**
+ * Resolve image references in QTI XML and replace with data URLs from package
+ * 
+ * Finds all <object data="..."> and <img src="..."> tags in the XML and replaces
+ * their image paths with data URLs from the package.
+ * 
+ * @param itemXml The QTI item XML string
+ * @param pkg PackageStructure instance containing the images
+ * @param itemHref The href path of the item file (used for resolving relative paths)
+ * @returns Modified XML string with image references replaced with data URLs
+ */
+export async function resolveImagesInXml(
+	itemXml: string,
+	pkg: PackageStructure,
+	itemHref: string
+): Promise<string> {
+	// Create a DOMParser to parse and modify the XML
+	const parser = new DOMParser();
+	const doc = parser.parseFromString(itemXml, 'text/xml');
+	
+	// Check for parse errors
+	const parseError = doc.querySelector('parsererror');
+	if (parseError) {
+		console.warn('XML parse error in resolveImagesInXml:', parseError.textContent);
+		return itemXml; // Return original if parsing fails
+	}
+	
+	// Debug: Log available images in package
+	console.log(`[Image Resolution] Item href: ${itemHref}`);
+	console.log(`[Image Resolution] Available images (${pkg.assets.images.length}):`, pkg.assets.images);
+	
+	// Debug: Log actual files in package (first 10)
+	const allFiles = Array.from(pkg._pkg.files.keys());
+	const imageFiles = allFiles.filter(f => {
+		const ext = f.split('.').pop()?.toLowerCase() || '';
+		return ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'].includes(ext);
+	});
+	console.log(`[Image Resolution] Actual image files in package (${imageFiles.length}):`, imageFiles.slice(0, 10));
+	
+	// Get the directory containing the item file for resolving relative paths
+	const itemDir = itemHref.substring(0, itemHref.lastIndexOf('/') + 1);
+	console.log(`[Image Resolution] Item directory: ${itemDir}`);
+	
+	// Helper function to get MIME type from file path
+	const getMimeType = (path: string): string => {
+		const ext = path.split('.').pop()?.toLowerCase() || '';
+		const mimeTypes: Record<string, string> = {
+			'jpg': 'image/jpeg',
+			'jpeg': 'image/jpeg',
+			'png': 'image/png',
+			'gif': 'image/gif',
+			'svg': 'image/svg+xml',
+			'webp': 'image/webp',
+		};
+		return mimeTypes[ext] || 'image/jpeg'; // Default to jpeg if unknown
+	};
+
+	// Helper function to convert blob to data URL (base64) with correct MIME type
+	const blobToDataUrl = async (blob: Blob, filePath: string): Promise<string> => {
+		return new Promise((resolve, reject) => {
+			const reader = new FileReader();
+			reader.onloadend = () => {
+				let dataUrl = reader.result as string;
+				// Ensure we have the correct MIME type
+				const correctMimeType = getMimeType(filePath);
+				// Replace the MIME type if it's wrong (e.g., application/octet-stream)
+				if (dataUrl.startsWith('data:application/octet-stream') || 
+				    dataUrl.startsWith('data:application/octet-stream;')) {
+					dataUrl = dataUrl.replace(/^data:[^;]+/, `data:${correctMimeType}`);
+				} else if (!dataUrl.startsWith(`data:${correctMimeType}`)) {
+					// If MIME type is different, replace it
+					dataUrl = dataUrl.replace(/^data:[^;]+/, `data:${correctMimeType}`);
+				}
+				// Ensure no spaces in the data URL format
+				dataUrl = dataUrl.replace(/; /g, ';').replace(/; /g, ';');
+				resolve(dataUrl);
+			};
+			reader.onerror = reject;
+			reader.readAsDataURL(blob);
+		});
+	};
+
+	// Helper function to resolve a single image reference
+	const resolveImageReference = async (imagePath: string): Promise<string | null> => {
+		// Try multiple path resolution strategies
+		const resolvedPaths = tryResolveImagePath(imagePath, itemDir, itemHref);
+		
+		for (const path of resolvedPaths) {
+			// Check if file exists in the package first
+			const file = pkg._pkg.getFile(path);
+			if (file && file.type === 'binary') {
+				const blob = file.content as Blob;
+				try {
+					const dataUrl = await blobToDataUrl(blob, path);
+					console.log(`✓ Resolved image: ${imagePath} -> ${path} -> data URL (${dataUrl.substring(0, 50)}...)`);
+					return dataUrl;
+				} catch (err) {
+					console.warn(`  Failed to convert blob to data URL for: ${path}`, err);
+				}
+			}
+		}
+		
+		// Fallback: Try to find image by filename in all available images
+		const filename = imagePath.split('/').pop() || imagePath.split('\\').pop() || imagePath;
+		if (filename) {
+			const lowerFilename = filename.toLowerCase();
+			
+			// Try exact filename match first (case-insensitive)
+			for (const availableImage of pkg.assets.images) {
+				const lowerAvailable = availableImage.toLowerCase();
+				// Check if the available image ends with the filename (case-insensitive)
+				if (lowerAvailable.endsWith('/' + lowerFilename) || lowerAvailable.endsWith('\\' + lowerFilename) || lowerAvailable === lowerFilename) {
+					const file = pkg._pkg.getFile(availableImage);
+					if (file && file.type === 'binary') {
+						const blob = file.content as Blob;
+						try {
+							const dataUrl = await blobToDataUrl(blob, availableImage);
+							console.log(`✓ Resolved image by filename match: ${imagePath} -> ${availableImage} -> data URL`);
+							return dataUrl;
+						} catch (err) {
+							console.warn(`  Failed to convert blob to data URL for: ${availableImage}`, err);
+						}
+					}
+				}
+			}
+			
+			// Try partial match (filename appears anywhere in path)
+			for (const availableImage of pkg.assets.images) {
+				if (availableImage.toLowerCase().includes(lowerFilename)) {
+					const file = pkg._pkg.getFile(availableImage);
+					if (file && file.type === 'binary') {
+						const blob = file.content as Blob;
+						try {
+							const dataUrl = await blobToDataUrl(blob, availableImage);
+							console.log(`✓ Resolved image by partial match: ${imagePath} -> ${availableImage} -> data URL`);
+							return dataUrl;
+						} catch (err) {
+							console.warn(`  Failed to convert blob to data URL for: ${availableImage}`, err);
+						}
+					}
+				}
+			}
+			
+			// Last resort: Match by filename only, ignoring directory structure
+			for (const availableImage of pkg.assets.images) {
+				const availableFilename = availableImage.split('/').pop() || availableImage.split('\\').pop() || availableImage;
+				if (availableFilename.toLowerCase() === lowerFilename) {
+					const file = pkg._pkg.getFile(availableImage);
+					if (file && file.type === 'binary') {
+						const blob = file.content as Blob;
+						try {
+							const dataUrl = await blobToDataUrl(blob, availableImage);
+							console.log(`✓ Resolved image by filename-only match: ${imagePath} -> ${availableImage} -> data URL`);
+							return dataUrl;
+						} catch (err) {
+							console.warn(`  Failed to convert blob to data URL for: ${availableImage}`, err);
+						}
+					} else if (file) {
+						console.warn(`  Found matching filename but file is not binary: ${availableImage} (type: ${file.type})`);
+					} else {
+						console.warn(`  Found matching filename but file not found in package: ${availableImage}`);
+					}
+				}
+			}
+		}
+		
+		console.warn(`✗ Could not resolve image: ${imagePath}`);
+		console.warn(`  Tried paths: ${resolvedPaths.join(', ')}`);
+		console.warn(`  Available images: ${pkg.assets.images.slice(0, 5).join(', ')}${pkg.assets.images.length > 5 ? '...' : ''}`);
+		return null;
+	};
+	
+	// Find all <object> tags with data attributes (image references)
+	// Use getElementsByTagName to avoid namespace issues
+	const objectElements = doc.getElementsByTagName('object');
+	for (const obj of Array.from(objectElements)) {
+		const dataAttr = obj.getAttribute('data');
+		if (!dataAttr) continue;
+		
+		// Skip if it's already a data URL or blob URL
+		if (dataAttr.startsWith('data:') || dataAttr.startsWith('blob:')) {
+			// If it's a blob URL, try to resolve it to a data URL
+			if (dataAttr.startsWith('blob:')) {
+				// Extract the original path if possible, or skip
+				continue;
+			}
+			continue;
+		}
+		
+		const dataUrl = await resolveImageReference(dataAttr);
+		if (dataUrl) {
+			// Replace the data attribute with the data URL
+			obj.setAttribute('data', dataUrl);
+		}
+	}
+	
+	// Find all <img> tags with src attributes
+	const imgElements = doc.getElementsByTagName('img');
+	for (const img of Array.from(imgElements)) {
+		const srcAttr = img.getAttribute('src');
+		if (!srcAttr) continue;
+		
+		// Skip if it's already a data URL
+		if (srcAttr.startsWith('data:')) {
+			continue;
+		}
+		
+		// If it's a blob URL, we need to resolve it
+		if (srcAttr.startsWith('blob:')) {
+			// Try to find the original path from the blob URL or skip
+			// For now, we'll skip blob URLs and let them fail gracefully
+			continue;
+		}
+		
+		const dataUrl = await resolveImageReference(srcAttr);
+		if (dataUrl) {
+			// Replace the src attribute with the data URL
+			img.setAttribute('src', dataUrl);
+		}
+	}
+	
+	// Serialize back to XML string
+	return new XMLSerializer().serializeToString(doc);
+}
+
+/**
+ * Try multiple strategies to resolve an image path
+ * Returns an array of possible paths to try in order
+ * 
+ * @param imagePath The image path from the XML (may be relative or absolute)
+ * @param itemDir The directory containing the item file
+ * @param itemHref The full href path of the item file
+ * @returns Array of resolved paths to try
+ */
+function tryResolveImagePath(imagePath: string, itemDir: string, itemHref: string): string[] {
+	// Remove query strings and fragments
+	const cleanPath = imagePath.split('?')[0].split('#')[0];
+	
+	// If it's a data URL, return as-is (no resolution needed)
+	if (cleanPath.startsWith('data:')) {
+		return [cleanPath];
+	}
+	
+	const pathsToTry: string[] = [];
+	
+	// Strategy 1: If it's already an absolute path (starts with /), use it as-is
+	if (cleanPath.startsWith('/')) {
+		pathsToTry.push(cleanPath.substring(1)); // Remove leading slash for package paths
+		pathsToTry.push(cleanPath); // Also try with leading slash
+	}
+	
+	// Strategy 2: Resolve relative to item directory
+	const parts = cleanPath.split('/');
+	const dirParts = itemDir.split('/').filter(p => p);
+	
+	for (const part of parts) {
+		if (part === '..') {
+			if (dirParts.length > 0) {
+				dirParts.pop();
+			}
+		} else if (part !== '.' && part !== '') {
+			dirParts.push(part);
+		}
+	}
+	
+	const relativePath = dirParts.join('/');
+	pathsToTry.push(relativePath);
+	
+	// Strategy 3: Try with just the filename in the same directory as item
+	const filename = cleanPath.substring(cleanPath.lastIndexOf('/') + 1);
+	if (filename && filename !== cleanPath) {
+		const filenamePath = itemDir + filename;
+		pathsToTry.push(filenamePath);
+	}
+	
+	// Strategy 4: Try in an 'images' subdirectory relative to item
+	if (filename && filename !== cleanPath) {
+		const imagesPath = itemDir + 'images/' + filename;
+		pathsToTry.push(imagesPath);
+	}
+	
+	// Strategy 5: Try root-level images directory
+	if (filename && filename !== cleanPath) {
+		pathsToTry.push('images/' + filename);
+	}
+	
+	// Strategy 6: Try just the filename at root
+	if (filename && filename !== cleanPath) {
+		pathsToTry.push(filename);
+	}
+	
+	// Remove duplicates and return
+	return [...new Set(pathsToTry)];
 }
