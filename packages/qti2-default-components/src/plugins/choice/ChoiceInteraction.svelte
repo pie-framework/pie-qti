@@ -55,6 +55,21 @@
 		return parsedCorrectResponse === identifier;
 	}
 
+	// Helper function to clean up feedback text formatting
+	function cleanFeedbackText(content: string): string {
+		if (!content) return content;
+		
+		// Replace "Incorrect;" or "<strong>Incorrect;</strong>" with "Incorrect " (space after, no semicolon)
+		content = content.replace(/<strong>Incorrect;<\/strong>/gi, '<strong>Incorrect</strong> ');
+		content = content.replace(/Incorrect;/gi, 'Incorrect ');
+		
+		// Replace "Correct;" or "<strong>Correct;</strong>" with "Correct " (space after, no semicolon)
+		content = content.replace(/<strong>Correct;<\/strong>/gi, '<strong>Correct</strong> ');
+		content = content.replace(/Correct;/gi, 'Correct ');
+		
+		return content;
+	}
+
 	// Helper function to filter feedbackInline from choice text based on outcome values
 	function filterFeedbackInline(text: string): string {
 		if (!text) return text;
@@ -81,7 +96,8 @@
 
 				// If should show, return the content without the feedbackInline wrapper
 				// Add spacing before feedback content for better readability
-				const content = match.replace(/<feedbackInline[^>]*>/, '').replace(/<\/feedbackInline>/, '');
+				let content = match.replace(/<feedbackInline[^>]*>/, '').replace(/<\/feedbackInline>/, '');
+				content = cleanFeedbackText(content);
 				return ` <span class="qti-feedback-inline">${content}</span>`;
 			}
 		);
