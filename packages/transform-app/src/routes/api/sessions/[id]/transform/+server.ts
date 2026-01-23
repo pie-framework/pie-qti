@@ -18,52 +18,73 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 	const uploadsPath = sessionStorage.getUploadsPath(id);
 
 	/**
-	 * Normalize paths that may have lost leading slash during serialization
+	 * Check if a path is absolute (Windows or Unix)
 	 */
-	function normalizePossiblyAbsolutePath(p: string): string {
-		if (p.startsWith('Users/') || p.startsWith('home/')) {
-			return `/${p}`;
+	function isAbsolutePath(p: string): boolean {
+		// Windows absolute path (C:\, D:\, etc.)
+		if (/^[A-Za-z]:[\\/]/.test(p)) {
+			return true;
 		}
-		return p;
+		// Unix absolute path
+		return p.startsWith('/');
 	}
 
 	/**
-	 * Check if a path is absolute (storage paths are relative)
+	 * Convert absolute path to storage-relative path
 	 */
-	function isAbsolutePath(p: string): boolean {
-		return p.startsWith('/');
+	function convertAbsoluteToStorageRelative(absolutePath: string): string | null {
+		// Normalize Windows backslashes to forward slashes
+		const normalized = absolutePath.replace(/\\/g, '/');
+		
+		// Try to extract the storage-relative part
+		// Look for /uploads/sessions/ pattern
+		const uploadsMatch = normalized.match(/\/uploads\/(sessions\/.+)/);
+		if (uploadsMatch) {
+			return uploadsMatch[1];
+		}
+		
+		// Try to extract just sessions/... part
+		const sessionsMatch = normalized.match(/(sessions\/.+)/);
+		if (sessionsMatch) {
+			return sessionsMatch[1];
+		}
+		
+		// If path contains the storage root, extract relative part
+		const storageRoot = (storage as any).rootDir || process.cwd() + '/uploads';
+		const normalizedRoot = storageRoot.replace(/\\/g, '/');
+		if (normalized.startsWith(normalizedRoot + '/')) {
+			return normalized.substring(normalizedRoot.length + 1);
+		}
+		
+		return null;
 	}
 
 	/**
 	 * Read XML file from session storage with path resolution fallbacks
 	 */
 	async function readSessionXml(samplePath: string): Promise<string> {
-		const normalized = normalizePossiblyAbsolutePath(samplePath);
 		const candidates: string[] = [];
 
-		if (isAbsolutePath(normalized)) {
+		if (isAbsolutePath(samplePath)) {
 			// Absolute path - convert to storage-relative path
-			// Storage backend resolves paths relative to its rootDir (./uploads)
-			const storageRoot = (storage as any).rootDir || process.cwd() + '/uploads';
-			if (normalized.startsWith(storageRoot + '/')) {
-				// Path is within storage root, make it relative
-				candidates.push(normalized.substring(storageRoot.length + 1));
-			} else if (normalized.includes('/uploads/sessions/')) {
-				// Extract the storage-relative part (sessions/...)
-				const match = normalized.match(/\/uploads\/(sessions\/.+)/);
-				if (match) {
-					candidates.push(match[1]);
-				}
+			const storageRelative = convertAbsoluteToStorageRelative(samplePath);
+			if (storageRelative) {
+				candidates.push(storageRelative);
 			}
-			// Also try without leading slash as fallback
-			candidates.push(normalized.substring(1));
+			
+			// Also try extracting just the filename
+			const fileName = samplePath.split(/[\\/]/).pop();
+			if (fileName) {
+				candidates.push(`${extractedPath}/${fileName}`);
+				candidates.push(`${uploadsPath}/${fileName}`);
+			}
 		} else {
 			// Relative path - try different base directories
-			candidates.push(`${extractedPath}/${normalized}`);
-			candidates.push(`${uploadsPath}/${normalized}`);
+			candidates.push(`${extractedPath}/${samplePath}`);
+			candidates.push(`${uploadsPath}/${samplePath}`);
 
-			const baseName = normalized.split('/').pop();
-			if (baseName && baseName !== normalized) {
+			const baseName = samplePath.split('/').pop();
+			if (baseName && baseName !== samplePath) {
 				candidates.push(`${uploadsPath}/${baseName}`);
 				candidates.push(`${extractedPath}/${baseName}`);
 			}

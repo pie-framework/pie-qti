@@ -26,29 +26,60 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		const extractedPath = sessionStorage.getExtractedPath(id);
 		const uploadsPath = sessionStorage.getUploadsPath(id);
 
-		function normalizePossiblyAbsolutePath(p: string): string {
-			if (p.startsWith('Users/') || p.startsWith('home/')) {
-				return `/${p}`;
-			}
-			return p;
-		}
-
 		function isAbsolutePath(p: string): boolean {
+			// Windows absolute path (C:\, D:\, etc.)
+			if (/^[A-Za-z]:[\\/]/.test(p)) {
+				return true;
+			}
+			// Unix absolute path
 			return p.startsWith('/');
 		}
 
+		function convertAbsoluteToStorageRelative(absolutePath: string): string | null {
+			// Normalize Windows backslashes to forward slashes
+			const normalized = absolutePath.replace(/\\/g, '/');
+			
+			// Try to extract the storage-relative part
+			const uploadsMatch = normalized.match(/\/uploads\/(sessions\/.+)/);
+			if (uploadsMatch) {
+				return uploadsMatch[1];
+			}
+			
+			const sessionsMatch = normalized.match(/(sessions\/.+)/);
+			if (sessionsMatch) {
+				return sessionsMatch[1];
+			}
+			
+			const storageRoot = (storage as any).rootDir || process.cwd() + '/uploads';
+			const normalizedRoot = storageRoot.replace(/\\/g, '/');
+			if (normalized.startsWith(normalizedRoot + '/')) {
+				return normalized.substring(normalizedRoot.length + 1);
+			}
+			
+			return null;
+		}
+
 		async function readSessionXml(samplePath: string): Promise<string> {
-			const normalized = normalizePossiblyAbsolutePath(samplePath);
 			const candidates: string[] = [];
 
-			if (isAbsolutePath(normalized)) {
-				const pathWithoutLeadingSlash = normalized.substring(1);
-				candidates.push(pathWithoutLeadingSlash);
+			if (isAbsolutePath(samplePath)) {
+				// Absolute path - convert to storage-relative path
+				const storageRelative = convertAbsoluteToStorageRelative(samplePath);
+				if (storageRelative) {
+					candidates.push(storageRelative);
+				}
+				
+				// Also try extracting just the filename
+				const fileName = samplePath.split(/[\\/]/).pop();
+				if (fileName) {
+					candidates.push(`${extractedPath}/${fileName}`);
+					candidates.push(`${uploadsPath}/${fileName}`);
+				}
 			} else {
-				candidates.push(`${extractedPath}/${normalized}`);
-				candidates.push(`${uploadsPath}/${normalized}`);
-				const baseName = normalized.split('/').pop();
-				if (baseName && baseName !== normalized) {
+				candidates.push(`${extractedPath}/${samplePath}`);
+				candidates.push(`${uploadsPath}/${samplePath}`);
+				const baseName = samplePath.split('/').pop();
+				if (baseName && baseName !== samplePath) {
 					candidates.push(`${uploadsPath}/${baseName}`);
 					candidates.push(`${extractedPath}/${baseName}`);
 				}
