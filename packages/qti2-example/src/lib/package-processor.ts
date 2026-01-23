@@ -548,3 +548,98 @@ function tryResolveImagePath(imagePath: string, itemDir: string, itemHref: strin
 	// Remove duplicates and return
 	return [...new Set(pathsToTry)];
 }
+
+/**
+ * Load all items referenced in a QTI assessment test XML
+ * 
+ * Parses the test XML to find item references, loads each item's XML,
+ * resolves images in each item, and returns a map of item identifiers/hrefs to resolved XML.
+ * 
+ * @param testXml The QTI assessment test XML string
+ * @param pkg PackageStructure instance containing the items
+ * @param testHref The href path of the test file (used for resolving relative item paths)
+ * @returns Promise resolving to a map of item identifiers/hrefs to resolved XML strings
+ */
+export async function loadTestItems(
+	testXml: string,
+	pkg: PackageStructure,
+	testHref: string
+): Promise<Record<string, string>> {
+	const parser = new DOMParser();
+	const doc = parser.parseFromString(testXml, 'text/xml');
+	
+	// Check for parse errors
+	const parseError = doc.querySelector('parsererror');
+	if (parseError) {
+		console.warn('XML parse error in loadTestItems:', parseError.textContent);
+		return {};
+	}
+	
+	// Get the directory containing the test file for resolving relative paths
+	const testDir = testHref.includes('/') ? testHref.substring(0, testHref.lastIndexOf('/') + 1) : '';
+	
+	// Find all assessmentItemRef elements
+	const itemRefs = doc.getElementsByTagName('assessmentItemRef');
+	const items: Record<string, string> = {};
+	
+	for (const ref of Array.from(itemRefs)) {
+		const href = ref.getAttribute('href');
+		const identifier = ref.getAttribute('identifier');
+		
+		if (!href) {
+			console.warn('assessmentItemRef missing href attribute');
+			continue;
+		}
+		
+		// Resolve item path relative to test file
+		let itemPath = href;
+		if (!href.startsWith('/') && testDir) {
+			// Resolve relative to test directory
+			itemPath = testDir + href;
+			// Normalize path (remove ./ and ../)
+			const parts = itemPath.split('/');
+			const resolved: string[] = [];
+			for (const part of parts) {
+				if (part === '.' || part === '') continue;
+				if (part === '..') {
+					resolved.pop();
+				} else {
+					resolved.push(part);
+				}
+			}
+			itemPath = resolved.join('/');
+		} else if (href.startsWith('/')) {
+			itemPath = href.substring(1); // Remove leading /
+		}
+		
+		// Try to find the item by href
+		const item = pkg.items.find((i) => i.href === itemPath || i.href === href);
+		if (!item) {
+			console.warn(`Item not found for href: ${href} (resolved: ${itemPath})`);
+			continue;
+		}
+		
+		// Load item XML
+		const rawItemXml = pkg._pkg.readText(item.href);
+		if (!rawItemXml) {
+			console.warn(`Could not read item XML for href: ${item.href}`);
+			continue;
+		}
+		
+		// Resolve images in item XML
+		const resolvedXml = await resolveImagesInXml(rawItemXml, pkg, item.href);
+		
+		// Store by multiple keys for flexible lookup
+		items[href] = resolvedXml;
+		if (identifier) {
+			items[identifier] = resolvedXml;
+		}
+		items[itemPath] = resolvedXml;
+		items[item.href] = resolvedXml;
+		if (item.identifier) {
+			items[item.identifier] = resolvedXml;
+		}
+	}
+	
+	return items;
+}

@@ -39,6 +39,10 @@ export interface NavigationState {
 		index: number;
 	};
 	totalSections?: number;
+	currentQuestion?: {
+		identifier: string;
+		title?: string;
+	};
 }
 
 export interface ItemResult {

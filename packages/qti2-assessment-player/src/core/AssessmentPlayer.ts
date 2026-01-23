@@ -225,6 +225,9 @@ export class AssessmentPlayer {
 				? { id: q.section.identifier, title: q.section.title, index: q.sectionIndex }
 				: undefined,
 			totalSections,
+			currentQuestion: q
+				? { identifier: q.item.identifier, title: q.item.title }
+				: undefined,
 		};
 	}
 

@@ -20,14 +20,15 @@
 	// Simplified translations - no manual subscriptions needed
 	// Locale changes trigger page refresh, so reactivity is not required
 	const translations = $derived({
-		question: i18n?.t('assessment.question', { current: navState.currentIndex + 1, total: navState.totalItems })
-			?? `Question ${navState.currentIndex + 1} of ${navState.totalItems}`,
+		question: navState.currentQuestion?.identifier ?? navState.currentQuestion?.title ??
+			(i18n?.t('assessment.question', { current: navState.currentIndex + 1, total: navState.totalItems })
+			?? `Question ${navState.currentIndex + 1} of ${navState.totalItems}`),
 		section: navState.currentSection
 			? (navState.currentSection.title ?? (i18n?.t('assessment.section', { current: navState.currentSection.index + 1, total: 0 })
 				?? `Section ${navState.currentSection.index + 1}`))
 			: null,
-		previous: i18n?.t('common.previous') ?? 'Previous',
-		next: i18n?.t('common.next') ?? 'Next',
+		previous: i18n?.t('assessment.navigation.previous') ?? 'Previous',
+		next: i18n?.t('assessment.navigation.next') ?? 'Next',
 		submit: i18n?.t('assessment.navigation.submit') ?? 'Submit',
 	});
 </script>

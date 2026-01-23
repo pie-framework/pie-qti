@@ -89,6 +89,56 @@
 	function handleResponseChange(responseId: string, value: any) {
 		onResponseChange?.(responseId, value);
 	}
+
+	// Process responses to get outcomes for feedback display
+	// Only process when there are actual responses to ensure feedback is hidden initially
+	const outcomeValues = $derived.by(() => {
+		if (!playerData.player) {
+			return {};
+		}
+		
+		// If no responses, return empty object to hide feedback
+		const hasResponses = Object.keys(responses).length > 0 && 
+			Object.values(responses).some(v => v !== null && v !== undefined && v !== '');
+		
+		if (!hasResponses) {
+			return {};
+		}
+		
+		try {
+			// Set responses on the player
+			playerData.player.setResponses(responses);
+			// Process responses to get outcomes
+			const result = playerData.player.processResponses();
+			// Extract outcome values for feedback filtering
+			// processResponses() returns outcomeValues directly as Record<string, any>
+			let outcomes = result.outcomeValues || {};
+			
+			// For preview mode: If FEEDBACK outcome exists but wasn't set by response processing,
+			// automatically set it to the selected choice identifier to enable feedbackInline display.
+			// This makes feedback work "out of the box" even with simple templates like CC2_match
+			// that only set SCORE, not FEEDBACK.
+			if (!outcomes.FEEDBACK && questionRef.itemXml) {
+				// Check if FEEDBACK outcome is declared in the XML
+				const hasFeedbackOutcome = questionRef.itemXml.includes('outcomeDeclaration identifier="FEEDBACK"');
+				if (hasFeedbackOutcome) {
+					// Get the first non-empty response value
+					const firstResponse = Object.values(responses).find(v => v !== null && v !== undefined && v !== '');
+					if (firstResponse) {
+						// Set FEEDBACK to the selected choice identifier (for single choice)
+						// or first selected choice (for multiple choice)
+						const feedbackValue = Array.isArray(firstResponse) ? firstResponse[0] : firstResponse;
+						outcomes = { ...outcomes, FEEDBACK: feedbackValue };
+					}
+				}
+			}
+			
+			return outcomes;
+		} catch (err) {
+			console.warn('Failed to process responses for outcomes:', err);
+			return {};
+		}
+	});
 </script>
 
 {#if playerData.error}
@@ -129,6 +179,7 @@
 				{role}
 				{typeset}
 				{i18n}
+				{outcomeValues}
 				onResponseChange={handleResponseChange}
 			/>
 		</div>
