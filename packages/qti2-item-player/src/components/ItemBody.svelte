@@ -84,6 +84,24 @@
 	// Inline interactions are replaced with placeholders
 	const itemBodyHtml = $derived.by(() => {
 		let html = player.getItemBodyHtml();
+		
+		// Debug: Log HTML extraction details
+		const htmlStr = typeof html === 'string' ? html : String(html);
+		if (!htmlStr || htmlStr.trim().length === 0) {
+			console.warn('[ItemBody] WARNING: getItemBodyHtml() returned empty HTML!');
+		} else {
+			const hasParagraphs = htmlStr.includes('<p');
+			const hasImages = htmlStr.includes('<img') || htmlStr.includes('<object');
+			const hasInteractions = /<(\w+Interaction)/i.test(htmlStr);
+			console.log('[ItemBody] Extracted HTML:', {
+				length: htmlStr.length,
+				hasParagraphs,
+				hasImages,
+				hasInteractions,
+				first200Chars: htmlStr.substring(0, 200),
+				fullHtml: htmlStr.length < 500 ? htmlStr : htmlStr.substring(0, 500) + '...',
+			});
+		}
 
 		// Replace inline interactions with placeholders (they need to be rendered in-flow)
 		html = html
@@ -127,20 +145,57 @@
 
 		// Wrap all block-level *Interaction elements with a hidden marker
 		// This is extensible - any element ending in "Interaction" will be hidden
-		html = html.replace(
-			/<(\w+Interaction)(\s[^>]*)?>[\s\S]*?<\/\1>/gi,
-			(match, tagName) => {
-				// Skip inline interactions (already handled above)
-				if (tagName.toLowerCase() === 'textentryinteraction' ||
-				    tagName.toLowerCase() === 'inlinechoiceinteraction') {
-					return match;
-				}
-				// Wrap block interactions with a hidden span
-				return `<span class="qti-hidden-interaction">${match}</span>`;
+		// Use a more robust regex that handles nested content better
+		const interactionRegex = /<(\w+Interaction)(\s[^>]*)?>([\s\S]*?)<\/\1>/gi;
+		let lastIndex = 0;
+		let processedHtml = '';
+		let match: RegExpExecArray | null;
+		
+		// Reset regex lastIndex
+		interactionRegex.lastIndex = 0;
+		
+		while ((match = interactionRegex.exec(html)) !== null) {
+			// Add content before the interaction (this is the stem!)
+			if (match.index > lastIndex) {
+				processedHtml += html.substring(lastIndex, match.index);
 			}
-		);
-
-		return html;
+			
+			const tagName = match[1];
+			const fullMatch = match[0];
+			
+			// Skip inline interactions (already handled above)
+			if (tagName.toLowerCase() === 'textentryinteraction' ||
+			    tagName.toLowerCase() === 'inlinechoiceinteraction') {
+				processedHtml += fullMatch;
+			} else {
+				// Wrap block interactions with a hidden span
+				processedHtml += `<span class="qti-hidden-interaction">${fullMatch}</span>`;
+			}
+			
+			lastIndex = match.index + fullMatch.length;
+		}
+		
+		// Add any remaining content after the last interaction
+		if (lastIndex < html.length) {
+			processedHtml += html.substring(lastIndex);
+		}
+		
+		// If no interactions were found, use original HTML
+		if (processedHtml === '') {
+			processedHtml = html;
+		}
+		
+		// Debug: Log processed HTML
+		console.log('[ItemBody] After processing interactions:', {
+			originalLength: html.length,
+			processedLength: processedHtml.length,
+			hasParagraphs: processedHtml.includes('<p'),
+			hasImages: processedHtml.includes('<img') || processedHtml.includes('<object'),
+			hasHiddenInteractions: processedHtml.includes('qti-hidden-interaction'),
+			preview: processedHtml.substring(0, 300),
+		});
+		
+		return processedHtml;
 	});
 
 	// Inline interaction parsing (textEntry, inlineChoice) — kept local to avoid TS issues
@@ -163,7 +218,14 @@
 
 		while ((match = combinedPattern.exec(html)) !== null) {
 			if (match.index > lastIndex) {
-				result.push({ type: 'html', content: html.substring(lastIndex, match.index) });
+				const segmentContent = html.substring(lastIndex, match.index);
+				result.push({ type: 'html', content: segmentContent });
+				console.log('[ItemBody] Added HTML segment before inline interaction:', {
+					length: segmentContent.length,
+					hasParagraphs: segmentContent.includes('<p'),
+					hasImages: segmentContent.includes('<img') || segmentContent.includes('<object'),
+					preview: segmentContent.substring(0, 200),
+				});
 			}
 
 			if (match[0].startsWith('[TEXTENTRY:')) {
@@ -180,12 +242,32 @@
 		}
 
 		if (lastIndex < html.length) {
-			result.push({ type: 'html', content: html.substring(lastIndex) });
+			const remainingContent = html.substring(lastIndex);
+			result.push({ type: 'html', content: remainingContent });
+			console.log('[ItemBody] Added final HTML segment:', {
+				length: remainingContent.length,
+				hasParagraphs: remainingContent.includes('<p'),
+				hasImages: remainingContent.includes('<img') || remainingContent.includes('<object'),
+				hasHiddenInteractions: remainingContent.includes('qti-hidden-interaction'),
+				preview: remainingContent.substring(0, 300),
+			});
 		}
 
 		if (result.length === 0) {
 			result.push({ type: 'html', content: html });
+			console.log('[ItemBody] No inline interactions found, using full HTML as single segment:', {
+				length: html.length,
+				hasParagraphs: html.includes('<p'),
+				hasImages: html.includes('<img') || html.includes('<object'),
+				preview: html.substring(0, 300),
+			});
 		}
+
+		console.log('[ItemBody] Final inlineSegments:', {
+			totalSegments: result.length,
+			htmlSegments: result.filter(s => s.type === 'html').length,
+			totalHtmlLength: result.filter(s => s.type === 'html').reduce((sum, s) => sum + (s.content?.length || 0), 0),
+		});
 
 		return result;
 	});

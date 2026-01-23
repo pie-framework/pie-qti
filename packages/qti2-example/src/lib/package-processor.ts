@@ -361,7 +361,7 @@ export async function resolveImagesInXml(
 		if (filename) {
 			const lowerFilename = filename.toLowerCase();
 			
-			// Try exact filename match first (case-insensitive)
+				// Try exact filename match first (case-insensitive)
 			for (const availableImage of pkg.assets.images) {
 				const lowerAvailable = availableImage.toLowerCase();
 				// Check if the available image ends with the filename (case-insensitive)
@@ -375,6 +375,32 @@ export async function resolveImagesInXml(
 							return dataUrl;
 						} catch (err) {
 							console.warn(`  Failed to convert blob to data URL for: ${availableImage}`, err);
+						}
+					}
+				}
+			}
+			
+			// Try matching by image number (e.g., "img11" in "qtiv2p2_G6_Form-dA-img11.jpg")
+			// This handles cases where form variants differ (Form-dA vs Form-dB)
+			const imgNumberMatch = lowerFilename.match(/img(\d+)/i);
+			if (imgNumberMatch) {
+				const imgNumber = imgNumberMatch[1]; // e.g., "11"
+				for (const availableImage of pkg.assets.images) {
+					const availableFilename = availableImage.split('/').pop() || availableImage.split('\\').pop() || availableImage;
+					const lowerAvailableFilename = availableFilename.toLowerCase();
+					// Check if this image has the same number (e.g., also has "img11")
+					if (lowerAvailableFilename.includes('img' + imgNumber) && 
+					    lowerAvailableFilename.match(/\.(jpg|jpeg|png|gif|svg|webp)$/i)) {
+						const file = pkg._pkg.getFile(availableImage);
+						if (file && file.type === 'binary') {
+							const blob = file.content as Blob;
+							try {
+								const dataUrl = await blobToDataUrl(blob, availableImage);
+								console.log(`✓ Resolved image by number match (img${imgNumber}): ${imagePath} -> ${availableImage} -> data URL`);
+								return dataUrl;
+							} catch (err) {
+								console.warn(`  Failed to convert blob to data URL for: ${availableImage}`, err);
+							}
 						}
 					}
 				}
@@ -629,16 +655,49 @@ export async function loadTestItems(
 		// Resolve images in item XML
 		const resolvedXml = await resolveImagesInXml(rawItemXml, pkg, item.href);
 		
+		// Verify resolved XML contains itemBody (basic sanity check)
+		if (!resolvedXml.includes('<itemBody')) {
+			console.error(`[loadTestItems] WARNING: Resolved XML for item "${identifier || href}" does not contain <itemBody> tag!`);
+			console.error(`[loadTestItems] Original XML length: ${rawItemXml.length}, Resolved XML length: ${resolvedXml.length}`);
+		}
+		
 		// Store by multiple keys for flexible lookup
+		// Store original href as-is (may include path variations)
 		items[href] = resolvedXml;
+		
+		// Store by identifier if available
 		if (identifier) {
 			items[identifier] = resolvedXml;
 		}
+		
+		// Store by resolved path
 		items[itemPath] = resolvedXml;
+		
+		// Store by item's actual href from package
 		items[item.href] = resolvedXml;
+		
+		// Store by item's identifier from package
 		if (item.identifier) {
 			items[item.identifier] = resolvedXml;
 		}
+		
+		// Also try storing by filename only (for cases where href is just filename)
+		const filename = href.split('/').pop() || href.split('\\').pop() || href;
+		if (filename && filename !== href) {
+			items[filename] = resolvedXml;
+		}
+		
+		// Debug: Log what keys we're storing for this item
+		console.log(`[loadTestItems] Stored item "${identifier || href}" with keys:`, {
+			href,
+			identifier,
+			itemPath,
+			itemHref: item.href,
+			itemIdentifier: item.identifier,
+			filename,
+			hasItemBody: resolvedXml.includes('<itemBody'),
+			hasImages: resolvedXml.includes('<img') || resolvedXml.includes('<object'),
+		});
 	}
 	
 	return items;

@@ -141,7 +141,12 @@
 <div bind:this={rootElement} part="root" class="qti-choice-interaction space-y-2" use:typesetAction={{ typeset }}>
 	{#if !parsedInteraction}
 		<div class="alert alert-error">{i18n?.t('common.errorNoData') ?? 'No interaction data provided'}</div>
-	{:else if parsedInteraction.maxChoices === 1}
+	{:else}
+		{#if parsedInteraction.prompt}
+			<div part="prompt" class="qti-choice-prompt font-semibold mb-3">{@html parsedInteraction.prompt}</div>
+		{/if}
+		
+		{#if parsedInteraction.maxChoices === 1}
 		<!-- Single choice (radio buttons) -->
 		{#each parsedInteraction.choices as choice}
 			<div part="option" class="qti-choice-option form-control">
@@ -202,6 +207,7 @@
 				</label>
 			</div>
 		{/each}
+		{/if}
 	{/if}
 </div>
 

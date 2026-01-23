@@ -58,8 +58,20 @@
 	// Derive player from questionRef
 	let playerData = $derived.by(() => {
 		if (!questionRef.itemXml) {
+			console.warn('[ItemRenderer] No item XML provided for item:', questionRef.identifier);
 			return { player: null, error: 'No item XML provided' };
 		}
+
+		// Debug: Log item XML info
+		const hasItemBody = questionRef.itemXml.includes('<itemBody');
+		const hasImages = questionRef.itemXml.includes('<img') || questionRef.itemXml.includes('<object');
+		const xmlLength = questionRef.itemXml.length;
+		console.log(`[ItemRenderer] Loading item "${questionRef.identifier}":`, {
+			hasItemBody,
+			hasImages,
+			xmlLength,
+			itemBodyStart: questionRef.itemXml.indexOf('<itemBody'),
+		});
 
 		try {
 			const newPlayer = new Player({
@@ -72,12 +84,27 @@
 			// default component set into this player's component registry.
 			registerDefaultComponents(newPlayer.getComponentRegistry());
 
+			// Debug: Check what HTML is extracted
+			try {
+				const bodyHtml = newPlayer.getItemBodyHtml();
+				const bodyHtmlStr = typeof bodyHtml === 'string' ? bodyHtml : String(bodyHtml);
+				console.log(`[ItemRenderer] Extracted itemBody HTML for "${questionRef.identifier}":`, {
+					htmlLength: bodyHtmlStr.length,
+					hasImages: bodyHtmlStr.includes('<img') || bodyHtmlStr.includes('<object'),
+					hasParagraphs: bodyHtmlStr.includes('<p'),
+					hasChoiceInteraction: bodyHtmlStr.includes('choiceInteraction'),
+					preview: bodyHtmlStr.substring(0, 200),
+				});
+			} catch (htmlErr) {
+				console.warn(`[ItemRenderer] Failed to extract itemBody HTML:`, htmlErr);
+			}
+
 			return {
 				player: newPlayer,
 				error: null,
 			};
 		} catch (err) {
-			console.error('Failed to initialize item player:', err);
+			console.error('[ItemRenderer] Failed to initialize item player:', err);
 			return {
 				player: null,
 				error: err instanceof Error ? err.message : 'Failed to load item',
