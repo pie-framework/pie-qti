@@ -23,14 +23,19 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
 export const DELETE: RequestHandler = async ({ params, locals }) => {
 	const { id } = params;
-	const { sessionStorage } = locals;
+	const { appSessionStorage } = locals;
 
-	const session = await sessionStorage.readSessionMetadata(id);
+	console.log(`[DELETE] Attempting to delete session: ${id}`);
+
+	const session = await appSessionStorage.getSession(id);
 	if (!session) {
+		console.log(`[DELETE] Session not found: ${id}`);
 		throw svelteError(404, 'Session not found');
 	}
 
-	await sessionStorage.deleteSession(id);
+	console.log(`[DELETE] Found session, deleting: ${id}`);
+	await appSessionStorage.deleteSession(id);
+	console.log(`[DELETE] Session deleted successfully: ${id}`);
 
 	return json({
 		success: true,

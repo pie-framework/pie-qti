@@ -1,16 +1,17 @@
 <script lang="ts">
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto } from '$app/navigation';
+	import { invalidateAll } from '$app/navigation';
+	import { onMount, onDestroy } from 'svelte';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import type { PageData } from './$types';
 
 	const { data }: { data: PageData } = $props();
 
 	const session = $derived(data.session);
-	let _isAnalyzing = $state(false);
-	let _analysisError = $state<string | null>(null);
 	let _showDeleteConfirm = $state(false);
 	let _isTransforming = $state(false);
 	let _transformError = $state<string | null>(null);
+	let _pollInterval: number | null = null;
 
 	// Check if there are unsupported interactions that prevent PIE conversion
 	const hasUnsupportedInteractions = $derived(() => {
@@ -23,14 +24,6 @@
 
 	const canTransformToPie = $derived(!hasUnsupportedInteractions());
 
-	function _formatBytes(bytes: number): string {
-		if (bytes === 0) return '0 B';
-		const k = 1024;
-		const sizes = ['B', 'KB', 'MB', 'GB'];
-		const i = Math.floor(Math.log(bytes) / Math.log(k));
-		return Math.round(bytes / k ** i * 100) / 100 + ' ' + sizes[i];
-	}
-
 	function _getStatusColor(status: string): string {
 		switch (status) {
 			case 'complete':
@@ -39,37 +32,12 @@
 				return 'badge-error';
 			case 'transforming':
 			case 'analyzing':
+			case 'extracting':
 				return 'badge-warning';
 			case 'ready':
 				return 'badge-success';
 			default:
 				return 'badge-info';
-		}
-	}
-
-	async function _analyzePackages() {
-		_isAnalyzing = true;
-		_analysisError = null;
-
-		try {
-			const response = await fetch(`/api/sessions/${session.id}/analyze`, {
-				method: 'POST'
-			});
-
-			if (!response.ok) {
-				const error = await response.json();
-				throw new Error(error.message || 'Analysis failed');
-			}
-
-			const _result = await response.json();
-
-			// Refresh SvelteKit data without a full page reload
-			await invalidateAll();
-		} catch (error) {
-			console.error('Analysis error:', error);
-			_analysisError = error instanceof Error ? error.message : 'Analysis failed';
-		} finally {
-			_isAnalyzing = false;
 		}
 	}
 
@@ -84,14 +52,15 @@
 			});
 
 			if (!response.ok) {
-				throw new Error('Failed to delete session');
+				const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+				throw new Error(errorData.message || `Delete failed with status ${response.status}`);
 			}
 
 			// Redirect to home
 			await goto('/');
 		} catch (error) {
 			console.error('Delete session error:', error);
-			_analysisError = error instanceof Error ? error.message : 'Failed to delete session';
+			alert(`Failed to delete session: ${error instanceof Error ? error.message : 'Unknown error'}`);
 			throw error; // Re-throw to prevent dialog from closing
 		}
 	}
@@ -112,8 +81,6 @@
 				throw new Error(error.error || 'Transformation failed');
 			}
 
-			const _results = await response.json();
-
 			// Navigate to results view
 			await goto(`/session/${session.id}/transformed`);
 		} catch (error) {
@@ -123,6 +90,29 @@
 			_isTransforming = false;
 		}
 	}
+
+	// Poll for analysis completion when session is in extracting state
+	onMount(() => {
+		if (!session.analysis && (session.status === 'extracting' || session.status === 'analyzing')) {
+			_pollInterval = window.setInterval(async () => {
+				await invalidateAll();
+			}, 2000); // Poll every 2 seconds
+		}
+	});
+
+	onDestroy(() => {
+		if (_pollInterval !== null) {
+			clearInterval(_pollInterval);
+		}
+	});
+
+	// Stop polling when analysis completes
+	$effect(() => {
+		if (session.analysis && _pollInterval !== null) {
+			clearInterval(_pollInterval);
+			_pollInterval = null;
+		}
+	});
 </script>
 
 <svelte:head>
@@ -213,74 +203,12 @@
 				<div class="card-body">
 					<h2 class="card-title">Actions</h2>
 
-					{#if _analysisError}
-						<div class="alert alert-error mb-4">
-							<svg
-								xmlns="http://www.w3.org/2000/svg"
-								class="stroke-current shrink-0 h-6 w-6"
-								fill="none"
-								viewBox="0 0 24 24"
-							>
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
-								/>
-							</svg>
-							<span>{_analysisError}</span>
-						</div>
-					{/if}
-
 					{#if !session.analysis}
 						<p class="text-sm text-base-content/60 mb-4">
-							Analyze the packages to inspect their structure and contents.
+							Package is being analyzed...
 						</p>
-						<div class="flex gap-2">
-							<button
-								class="btn btn-primary"
-								onclick={() => _analyzePackages?.()}
-								disabled={_isAnalyzing}
-								data-testid="analyze-packages"
-							>
-								{#if _isAnalyzing}
-									<span class="loading loading-spinner"></span>
-									Analyzing...
-								{:else}
-									<svg
-										xmlns="http://www.w3.org/2000/svg"
-										class="h-5 w-5"
-										fill="none"
-										viewBox="0 0 24 24"
-										stroke="currentColor"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-										/>
-									</svg>
-									Analyze Packages
-								{/if}
-							</button>
-							<button class="btn btn-outline" disabled>
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									class="h-5 w-5"
-									fill="none"
-									viewBox="0 0 24 24"
-									stroke="currentColor"
-								>
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-									/>
-								</svg>
-								Transform All (Coming Soon)
-							</button>
+						<div class="flex justify-center py-4">
+							<span class="loading loading-spinner loading-lg text-primary"></span>
 						</div>
 					{:else}
 						{#if canTransformToPie}
@@ -331,36 +259,17 @@
 							</div>
 						{/if}
 
-						<div class="flex gap-2">
-							<button
-								class="btn btn-primary"
-								onclick={() => _transformToPie?.()}
-								disabled={_isTransforming || !canTransformToPie}
-								data-testid="transform-to-pie"
-								title={!canTransformToPie ? 'Package contains unsupported interaction types' : ''}
-							>
-								{#if _isTransforming}
-									<span class="loading loading-spinner"></span>
-									Transforming...
-								{:else}
-									<svg
-										xmlns="http://www.w3.org/2000/svg"
-										class="h-5 w-5"
-										fill="none"
-										viewBox="0 0 24 24"
-										stroke="currentColor"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-										/>
-									</svg>
-									Transform to PIE
-								{/if}
-							</button>
-							<button class="btn btn-outline" onclick={() => _analyzePackages?.()} disabled={_isAnalyzing} data-testid="re-analyze">
+						<button
+							class="btn btn-primary"
+							onclick={() => _transformToPie?.()}
+							disabled={_isTransforming || !canTransformToPie}
+							data-testid="transform-to-pie"
+							title={!canTransformToPie ? 'Package contains unsupported interaction types' : ''}
+						>
+							{#if _isTransforming}
+								<span class="loading loading-spinner"></span>
+								Transforming...
+							{:else}
 								<svg
 									xmlns="http://www.w3.org/2000/svg"
 									class="h-5 w-5"
@@ -375,9 +284,9 @@
 										d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
 									/>
 								</svg>
-								Re-analyze
-							</button>
-						</div>
+								Transform to PIE
+							{/if}
+						</button>
 					{/if}
 				</div>
 			</div>
@@ -456,40 +365,173 @@
 						{/if}
 
 						<!-- Package Details -->
-						<div class="collapse collapse-arrow bg-base-200 mt-4">
-							<input type="checkbox" />
-							<div class="collapse-title font-medium">
-								Package Details ({session.analysis.packages.length} packages)
-							</div>
-							<div class="collapse-content">
-								{#each session.analysis.packages as pkg}
-									<div class="card bg-base-100 mb-3">
-										<div class="card-body p-4">
-											<h4 class="font-semibold">{pkg.packageName}</h4>
-											<div class="grid grid-cols-3 gap-2 text-sm">
+						<div class="mt-4">
+							<h3 class="font-semibold text-lg mb-3">Package Details</h3>
+							<div class="space-y-3">
+								{#each session.analysis.packages as pkg, idx}
+									<div class="collapse collapse-arrow bg-base-200">
+										<input type="checkbox" id="pkg-{idx}" />
+										<label for="pkg-{idx}" class="collapse-title">
+											<div class="flex items-center justify-between pr-4">
 												<div>
-													<span class="text-base-content/60">Items:</span>
-													<span class="font-medium">{pkg.itemCount}</span>
+													<span class="font-semibold">{pkg.packageName}</span>
+													{#if !pkg.hasManifest}
+														<span class="badge badge-warning badge-sm ml-2">No Manifest</span>
+													{/if}
 												</div>
-												<div>
-													<span class="text-base-content/60">Passages:</span>
-													<span class="font-medium">{pkg.passageCount}</span>
-												</div>
-												<div>
-													<span class="text-base-content/60">Tests:</span>
-													<span class="font-medium">{pkg.testCount}</span>
+												<div class="flex gap-3 text-sm">
+													<span class="text-base-content/60">
+														{pkg.itemCount} items
+													</span>
+													{#if pkg.passageCount > 0}
+														<span class="text-base-content/60">
+															{pkg.passageCount} passages
+														</span>
+													{/if}
+													{#if pkg.testCount > 0}
+														<span class="text-base-content/60">
+															{pkg.testCount} tests
+														</span>
+													{/if}
 												</div>
 											</div>
-											{#if Object.keys(pkg.interactionTypes).length > 0}
-												<div class="mt-2">
-													<div class="text-xs text-base-content/60 mb-1">Interactions:</div>
-													<div class="flex flex-wrap gap-1">
-														{#each Object.entries(pkg.interactionTypes) as [type, count]}
-															<span class="badge badge-sm">{type} ×{count}</span>
-														{/each}
+										</label>
+										<div class="collapse-content">
+											<div class="space-y-4 pt-2">
+												<!-- Interaction Types -->
+												{#if Object.keys(pkg.interactionTypes).length > 0}
+													<div>
+														<h4 class="text-sm font-semibold mb-2 text-base-content/80">Interaction Types</h4>
+														<div class="flex flex-wrap gap-2">
+															{#each Object.entries(pkg.interactionTypes) as [type, count]}
+																<span class="badge badge-outline">
+																	{type}
+																	<span class="ml-1 font-bold">×{count}</span>
+																</span>
+															{/each}
+														</div>
 													</div>
-												</div>
-											{/if}
+												{/if}
+
+												<!-- Assessment Tests -->
+												{#if pkg.samples.tests.length > 0}
+													<div>
+														<h4 class="text-sm font-semibold mb-2 text-base-content/80">
+															Assessment Tests
+															{#if pkg.testCount > pkg.samples.tests.length}
+																<span class="text-xs font-normal text-base-content/60">
+																	(showing {pkg.samples.tests.length} of {pkg.testCount})
+																</span>
+															{/if}
+														</h4>
+														<div class="overflow-x-auto">
+															<table class="table table-sm table-zebra">
+																<thead>
+																	<tr>
+																		<th>File</th>
+																	</tr>
+																</thead>
+																<tbody>
+																	{#each pkg.samples.tests as test}
+																		<tr>
+																			<td class="font-mono text-xs">{test}</td>
+																		</tr>
+																	{/each}
+																</tbody>
+															</table>
+														</div>
+													</div>
+												{/if}
+
+												<!-- Passages -->
+												{#if pkg.samples.passages.length > 0}
+													<div>
+														<h4 class="text-sm font-semibold mb-2 text-base-content/80">
+															Passages
+															{#if pkg.passageCount > pkg.samples.passages.length}
+																<span class="text-xs font-normal text-base-content/60">
+																	(showing {pkg.samples.passages.length} of {pkg.passageCount})
+																</span>
+															{/if}
+														</h4>
+														<div class="overflow-x-auto">
+															<table class="table table-sm table-zebra">
+																<thead>
+																	<tr>
+																		<th>File</th>
+																		<th>Pattern</th>
+																	</tr>
+																</thead>
+																<tbody>
+																	{#each pkg.samples.passages as passage}
+																		<tr>
+																			<td class="font-mono text-xs">{passage}</td>
+																			<td>
+																				{#if pkg.passagePatterns.inline > 0}
+																					<span class="badge badge-xs">inline</span>
+																				{/if}
+																				{#if pkg.passagePatterns.object > 0}
+																					<span class="badge badge-xs">object</span>
+																				{/if}
+																				{#if pkg.passagePatterns.standalone > 0}
+																					<span class="badge badge-xs">standalone</span>
+																				{/if}
+																			</td>
+																		</tr>
+																	{/each}
+																</tbody>
+															</table>
+														</div>
+													</div>
+												{/if}
+
+												<!-- Sample Interactions by Type -->
+												{#if Object.keys(pkg.samples.interactions).length > 0}
+													<div>
+														<h4 class="text-sm font-semibold mb-2 text-base-content/80">Sample Items by Interaction Type</h4>
+														<div class="space-y-2">
+															{#each Object.entries(pkg.samples.interactions) as [type, items]}
+																<div class="collapse collapse-arrow bg-base-100">
+																	<input type="checkbox" id="int-{idx}-{type}" />
+																	<label for="int-{idx}-{type}" class="collapse-title text-sm py-2 min-h-0">
+																		<span class="badge badge-sm badge-outline">{type}</span>
+																		<span class="text-xs text-base-content/60 ml-2">
+																			{items.length} sample{items.length !== 1 ? 's' : ''}
+																		</span>
+																	</label>
+																	<div class="collapse-content">
+																		<div class="overflow-x-auto">
+																			<table class="table table-xs">
+																				<tbody>
+																					{#each items as item}
+																						<tr>
+																							<td class="font-mono text-xs">{item}</td>
+																						</tr>
+																					{/each}
+																				</tbody>
+																			</table>
+																		</div>
+																	</div>
+																</div>
+															{/each}
+														</div>
+													</div>
+												{/if}
+
+												<!-- Package Issues -->
+												{#if pkg.issues.length > 0}
+													<div>
+														<h4 class="text-sm font-semibold mb-2 text-base-content/80">Issues</h4>
+														<div class="alert alert-warning py-2">
+															<ul class="text-xs list-disc list-inside">
+																{#each pkg.issues as issue}
+																	<li>{issue}</li>
+																{/each}
+															</ul>
+														</div>
+													</div>
+												{/if}
+											</div>
 										</div>
 									</div>
 								{/each}

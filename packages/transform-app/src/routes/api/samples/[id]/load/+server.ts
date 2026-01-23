@@ -7,6 +7,7 @@ import { readdir, readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { json, error as svelteError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { getQtiAnalyzer } from '$lib/server/analyzer/QtiAnalyzer';
 
 export const POST: RequestHandler = async ({ params, locals }) => {
 	const { id } = params;
@@ -21,7 +22,7 @@ export const POST: RequestHandler = async ({ params, locals }) => {
 			throw svelteError(404, `Sample package '${id}' not found`);
 		}
 
-		const { storage, sessionStorage } = locals;
+		const { storage, sessionStorage, appSessionStorage } = locals;
 
 		// Generate session ID
 		const timestamp = Date.now();
@@ -63,22 +64,66 @@ export const POST: RequestHandler = async ({ params, locals }) => {
 		}
 
 		// Create session metadata
-		const session = {
+		const session: any = {
 			id: sessionId,
 			createdAt: new Date().toISOString(),
 			lastAccessedAt: new Date().toISOString(),
-			status: 'ready' as const,
+			status: 'extracting',
 			extractedFiles: fileList,
 		};
 
 		await sessionStorage.writeSessionMetadata(sessionId, session);
 
-		return json({
-			success: true,
-			sessionId: session.id,
-			sampleId: id,
-			message: `Sample '${id}' loaded successfully`,
-		});
+		// Auto-analyze the sample package
+		try {
+			const analyzer = getQtiAnalyzer();
+
+			// Get absolute path for analysis
+			const absoluteExtractedPath = (storage as any).resolvePath
+				? (storage as any).resolvePath(extractedPath)
+				: join(process.cwd(), 'uploads', extractedPath);
+
+			const webAnalysisResult = await analyzer.analyzeSession(
+				sessionId,
+				absoluteExtractedPath,
+				(progress) => {
+					console.log('Sample analysis progress:', progress);
+				},
+			);
+
+			// Convert Map to Record for storage
+			const analysisResult = {
+				...webAnalysisResult,
+				allInteractionTypes: Object.fromEntries(webAnalysisResult.allInteractionTypes),
+			};
+
+			// Save analysis results
+			await appSessionStorage.saveAnalysis(sessionId, analysisResult);
+
+			return json({
+				success: true,
+				sessionId: session.id,
+				sampleId: id,
+				message: `Sample '${id}' loaded successfully`,
+				analyzed: true,
+			});
+		} catch (analysisError) {
+			console.error('Sample auto-analysis failed:', analysisError);
+
+			session.status = 'error';
+			session.error = analysisError instanceof Error ? analysisError.message : 'Analysis failed';
+			session.lastAccessedAt = new Date().toISOString();
+			await sessionStorage.writeSessionMetadata(sessionId, session);
+
+			return json({
+				success: true,
+				sessionId: session.id,
+				sampleId: id,
+				message: `Sample '${id}' loaded successfully`,
+				analyzed: false,
+				analysisError: analysisError instanceof Error ? analysisError.message : 'Analysis failed',
+			});
+		}
 	} catch (err) {
 		console.error('Load sample error:', err);
 

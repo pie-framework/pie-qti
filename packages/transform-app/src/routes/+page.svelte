@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
+	import QtiPackageUploader from '$lib/components/QtiPackageUploader.svelte';
 	import type { PageData } from './$types';
 
 	const { data }: { data: PageData } = $props();
 
 	let _isUploading = $state(false);
 	let _uploadError = $state<string | null>(null);
-	let _isDragging = $state(false);
 	let sessions = $state<any[]>([]);
 	let _loadingSessions = $state(false);
 	let _samples = $state<any[]>([]);
@@ -15,8 +15,6 @@
 	let _showDeleteConfirm = $state(false);
 	let _sessionToDelete = $state<string | null>(null);
 	let _initializedFromLoad = $state(false);
-
-	let _fileInput: HTMLInputElement;
 
 	// Initialize state from server load (once).
 	$effect(() => {
@@ -77,34 +75,45 @@
 	}
 
 	function _promptDeleteSession(sessionId: string) {
+		console.log('Prompting delete for session:', sessionId);
 		_sessionToDelete = sessionId;
 		_showDeleteConfirm = true;
 	}
 
 	async function _confirmDeleteSession() {
-		if (!_sessionToDelete) return;
+		console.log('Confirming delete for session:', _sessionToDelete);
+		if (!_sessionToDelete) {
+			console.warn('No session selected for deletion');
+			return;
+		}
 
 		try {
+			console.log('Sending DELETE request to:', `/api/sessions/${_sessionToDelete}`);
 			const response = await fetch(`/api/sessions/${_sessionToDelete}`, {
 				method: 'DELETE'
 			});
 
+			console.log('DELETE response status:', response.status);
+
 			if (!response.ok) {
-				throw new Error('Failed to delete session');
+				const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+				console.error('DELETE failed with error:', errorData);
+				throw new Error(errorData.message || `Delete failed with status ${response.status}`);
 			}
 
+			console.log('Delete successful, removing from local state');
 			// Remove from local state
 			sessions = sessions.filter((s) => s.id !== _sessionToDelete);
 			_sessionToDelete = null;
+			console.log('Session removed from list');
 		} catch (error) {
 			console.error('Delete session error:', error);
 			_uploadError = error instanceof Error ? error.message : 'Failed to delete session';
+			throw error; // Re-throw to keep dialog open on error
 		}
 	}
 
-	async function handleFiles(files: FileList | null) {
-		if (!files || files.length === 0) return;
-
+	async function handleUpload(files: FileList) {
 		_uploadError = null;
 		_isUploading = true;
 
@@ -113,13 +122,7 @@
 
 			// Add all files
 			for (let i = 0; i < files.length; i++) {
-				const file = files[i];
-				if (!file.name.endsWith('.zip')) {
-					_uploadError = 'Only ZIP files are allowed';
-					_isUploading = false;
-					return;
-				}
-				formData.append('files', file);
+				formData.append('files', files[i]);
 			}
 
 			const response = await fetch('/api/upload', {
@@ -142,31 +145,6 @@
 		} finally {
 			_isUploading = false;
 		}
-	}
-
-	function _handleDrop(event: DragEvent) {
-		event.preventDefault();
-		_isDragging = false;
-
-		const files = event.dataTransfer?.files;
-		if (files) {
-			handleFiles(files);
-		}
-	}
-
-	function _handleDragOver(event: DragEvent) {
-		event.preventDefault();
-		_isDragging = true;
-	}
-
-	function _handleDragLeave(event: DragEvent) {
-		event.preventDefault();
-		_isDragging = false;
-	}
-
-	function _handleFileSelect(event: Event) {
-		const target = event.target as HTMLInputElement;
-		handleFiles(target.files);
 	}
 
 	function _formatDate(dateStr: string): string {
@@ -212,92 +190,29 @@
 				</p>
 			</div>
 
-			<!-- Upload Area -->
-			<div class="card bg-base-100 shadow-xl mb-8">
-				<div class="card-body">
-					<div
-						class="border-4 border-dashed rounded-lg p-12 text-center transition-colors {_isDragging ? 'border-primary bg-primary/5' : 'border-base-300'}"
-						ondrop={(e) => _handleDrop?.(e)}
-						ondragover={(e) => _handleDragOver?.(e)}
-						ondragleave={(e) => _handleDragLeave?.(e)}
-						role="button"
-						tabindex="0"
-						onclick={() => _fileInput.click()}
-						onkeydown={(e) => e.key === 'Enter' && _fileInput.click()}
-						data-testid="upload-dropzone"
-					>
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							class="h-16 w-16 mx-auto mb-4 opacity-50"
-							fill="none"
-							viewBox="0 0 24 24"
-							stroke="currentColor"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-							/>
-						</svg>
+		<!-- Upload Area -->
+		<div class="mb-8">
+			<QtiPackageUploader loading={_isUploading} onUpload={handleUpload} />
+		</div>
 
-						{#if _isUploading}
-							<div class="mb-4">
-								<span class="loading loading-spinner loading-lg text-primary"></span>
-							</div>
-							<p class="text-lg font-semibold">Uploading...</p>
-						{:else}
-							<p class="text-lg font-semibold mb-2">Drop QTI ZIP files here</p>
-							<p class="text-base-content/60 mb-4">or click to select files</p>
-							<span class="btn btn-primary btn-sm pointer-events-none">
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									class="h-5 w-5"
-									fill="none"
-									viewBox="0 0 24 24"
-									stroke="currentColor"
-								>
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-									/>
-								</svg>
-								Select Files
-							</span>
-						{/if}
-
-						<input
-							type="file"
-							bind:this={_fileInput}
-							onchange={(e) => _handleFileSelect?.(e)}
-							accept=".zip"
-							multiple
-							class="hidden"
-						/>
-					</div>
-
-					{#if _uploadError}
-						<div class="alert alert-error mt-4">
-							<svg
-								xmlns="http://www.w3.org/2000/svg"
-								class="stroke-current shrink-0 h-6 w-6"
-								fill="none"
-								viewBox="0 0 24 24"
-							>
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
-								/>
-							</svg>
-							<span>{_uploadError}</span>
-						</div>
-					{/if}
-				</div>
+		{#if _uploadError}
+			<div class="alert alert-error">
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					class="stroke-current shrink-0 h-6 w-6"
+					fill="none"
+					viewBox="0 0 24 24"
+				>
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+					/>
+				</svg>
+				<span>{_uploadError}</span>
 			</div>
+		{/if}
 
 			<!-- Recent Sessions -->
 			{#if !_loadingSessions && sessions.length > 0}
@@ -318,7 +233,7 @@
 								<tbody>
 									{#each sessions as session}
 										<tr class="hover" data-testid={"recent-session-" + session.id}>
-											<td class="font-mono text-xs">{session.id.split('-')[0]}</td>
+											<td class="font-mono text-xs">{session.id}</td>
 											<td>
 												<span class="badge {_getStatusColor(session.status)} badge-sm">
 													{session.status}
