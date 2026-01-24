@@ -1,7 +1,6 @@
 <script lang="ts">
 	import type { InteractionData } from '../types';
 	import type { Player } from '../core/Player';
-	// @ts-expect-error - Svelte-check can't resolve workspace packages, but runtime works correctly
 	import type { I18nProvider } from '@pie-qti/qti2-i18n';
 	import { normalizeHeuristicsConfig, type QtiHeuristicsConfig } from '@pie-qti/ims-cp-core';
 	import { processFeedbackInline } from './utils/feedbackUtils';

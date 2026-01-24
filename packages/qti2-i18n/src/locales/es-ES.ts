@@ -664,7 +664,6 @@ export default {
 			analysisComplete: 'Análisis completo. Revise los resultados a continuación o proceda a la transformación.',
 			cannotConvert: 'No se puede Convertir a PIE',
 			unsupportedMessage: 'Este paquete contiene tipos de interacción QTI que no tienen equivalente en PIE. Vea los problemas a continuación para obtener detalles. Use el reproductor QTI en su lugar para ver una vista previa de estos elementos.',
-			cannotConvertMessage: 'Este paquete contiene tipos de interacción QTI que no tienen equivalente en PIE. Vea los problemas a continuación para obtener detalles. Use el reproductor QTI en su lugar para ver una vista previa de estos elementos.',
 			transforming: 'Transformando...',
 			transformToPie: 'Transformar a PIE',
 			analysisResults: 'Resultados del Análisis',

@@ -2,7 +2,7 @@
  * Cross-platform path utilities for handling Windows and Unix absolute paths
  */
 
-import type { Storage } from '@pie-qti/storage';
+import type { StorageBackend } from '@pie-qti/storage';
 
 /**
  * Check if a path is absolute (Windows or Unix)
@@ -22,7 +22,7 @@ export function isAbsolutePath(p: string): boolean {
  */
 export function convertAbsoluteToStorageRelative(
 	absolutePath: string,
-	storage: Storage
+	storage: StorageBackend
 ): string | null {
 	// Normalize Windows backslashes to forward slashes
 	const normalized = absolutePath.replace(/\\/g, '/');
@@ -56,7 +56,7 @@ export function convertAbsoluteToStorageRelative(
  */
 export async function readSessionXml(
 	samplePath: string,
-	storage: Storage,
+	storage: StorageBackend,
 	extractedPath: string,
 	uploadsPath: string
 ): Promise<string> {

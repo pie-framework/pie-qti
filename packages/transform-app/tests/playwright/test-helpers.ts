@@ -238,8 +238,8 @@ export async function uploadQtiFile(
  * @param timeout - Maximum wait time in ms (default: 10000)
  */
 export async function waitForClickable(
-	page: Page,
-	selector: ReturnType<typeof page.getByRole | typeof page.getByText | typeof page.getByTestId>,
+	_page: Page,
+	selector: ReturnType<typeof _page.getByRole | typeof _page.getByText | typeof _page.getByTestId>,
 	timeout: number = 10_000
 ): Promise<void> {
 	await expect(selector).toBeVisible({ timeout });
