@@ -1,16 +1,9 @@
 import { expect, test } from '@playwright/test';
+import { createSessionFromSample, waitForAnalysis } from './test-helpers.js';
 
 /**
  * Navigation tests using semantic queries where possible.
  */
-
-async function createSessionFromSample(request: any, sampleId: string): Promise<string> {
-	const res = await request.post(`/api/samples/${sampleId}/load`);
-	expect(res.ok()).toBeTruthy();
-	const json = await res.json();
-	expect(typeof json.sessionId).toBe('string');
-	return json.sessionId as string;
-}
 
 test.describe('Navigation', () => {
 	test('breadcrumbs work correctly', async ({ page, request }) => {
@@ -18,7 +11,7 @@ test.describe('Navigation', () => {
 
 		// Navigate to session page
 		await page.goto(`/session/${sessionId}`);
-		
+
 		// Use semantic query for breadcrumb links
 		await expect(page.getByRole('link', { name: 'Home' }).first()).toBeVisible();
 		// Breadcrumb text (not a link) - data-testid is reasonable for non-interactive text
@@ -31,9 +24,10 @@ test.describe('Navigation', () => {
 		// Navigate back to session
 		await page.goto(`/session/${sessionId}`);
 
-		// Analyze and go to items using semantic queries
-		await page.getByRole('button', { name: /Analyze Package/i }).click();
-		await expect(page.getByRole('link', { name: /Browse & Preview Items/i })).toBeVisible({ timeout: 120_000 });
+		// Sample packages are auto-analyzed, wait for analysis to complete
+		await waitForAnalysis(page);
+
+		// Navigate to items page
 		await page.getByRole('link', { name: /Browse & Preview Items/i }).click();
 
 		// Check items page breadcrumbs - use semantic queries for links
@@ -54,4 +48,3 @@ test.describe('Navigation', () => {
 		await expect(page).toHaveURL('/');
 	});
 });
-
