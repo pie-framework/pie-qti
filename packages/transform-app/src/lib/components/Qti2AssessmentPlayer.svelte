@@ -35,13 +35,15 @@
 	}
 
 	function updatePlayerProperties() {
-		if (!playerElement || !isReady) return;
-		console.log('[Qti2AssessmentPlayer] Updating properties:', {
-			hasXml: !!assessmentTestXml,
-			xmlLength: assessmentTestXml?.length,
-			itemsCount: Object.keys(items).length,
-			config
-		});
+		if (!playerElement || !isReady) {
+			return;
+		}
+
+		if (!assessmentTestXml) {
+			console.error('[Qti2AssessmentPlayer] ERROR: assessmentTestXml is empty/undefined!');
+			return;
+		}
+
 		assignProps(playerElement, {
 			assessmentTestXml,
 			items,

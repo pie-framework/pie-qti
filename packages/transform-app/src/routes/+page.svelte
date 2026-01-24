@@ -101,6 +101,14 @@
 				throw new Error(errorData.message || `Delete failed with status ${response.status}`);
 			}
 
+			const deleteData = await response.json();
+			console.log('=== SESSION DELETION INFO ===');
+			console.log(`Session ID: ${_sessionToDelete}`);
+			console.log(`Storage Backend: ${deleteData.storageBackend}`);
+			console.log(`Storage Path: ${deleteData.storagePath}`);
+			console.log(`Deletion Verified: ${deleteData.verified}`);
+			console.log('============================');
+
 			console.log('Delete successful, removing from local state');
 			// Remove from local state
 			sessions = sessions.filter((s) => s.id !== _sessionToDelete);

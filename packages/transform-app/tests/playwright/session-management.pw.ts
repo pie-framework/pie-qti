@@ -46,6 +46,40 @@ test.describe('Session Management', () => {
 		await expect(page).toHaveURL(`/session/${sessionId}`);
 	});
 
+	test('delete session removes it permanently', async ({ page, request }) => {
+		const sessionId = await createSessionFromSample(request, 'basic-interactions');
+
+		// Go to session page
+		await page.goto(`/session/${sessionId}`);
+
+		// Delete the session
+		const deleteButton = page.getByRole('button', { name: /Delete/i });
+		await expect(deleteButton).toBeVisible({ timeout: 10_000 });
+		await deleteButton.click();
+
+		// Confirm deletion
+		await expect(page.getByTestId('delete-confirm-dialog')).toBeVisible();
+		await page.getByRole('button', { name: /Delete Session/i }).click();
+
+		// Should redirect to home
+		await expect(page).toHaveURL('/', { timeout: 10_000 });
+
+		// IMPORTANT: Refresh the page to reload sessions list
+		// This tests that deleted sessions don't reappear after page refresh
+		console.log(`[TEST] Refreshing page to verify session ${sessionId} doesn't reappear`);
+		await page.reload();
+		await page.waitForLoadState('networkidle');
+
+		// Session should NOT appear in the list after refresh
+		const sessionRow = page.locator(`[data-testid="recent-session-${sessionId}"]`);
+		await expect(sessionRow).not.toBeVisible();
+		console.log(`[TEST] ✓ Session ${sessionId} does NOT reappear after page refresh`);
+
+		// Verify the session is actually deleted via API
+		const response = await request.get(`/api/sessions/${sessionId}`);
+		expect(response.status()).toBe(404);
+	});
+
 	test.skip('re-analyze button works after initial analysis', async ({ page, request }) => {
 		// TODO: Re-analyze functionality not yet implemented - packages are auto-analyzed on upload/load
 		const sessionId = await createSessionFromSample(request, 'basic-interactions');

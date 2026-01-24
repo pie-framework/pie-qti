@@ -56,6 +56,17 @@
 				throw new Error(errorData.message || `Delete failed with status ${response.status}`);
 			}
 
+			const deleteData = await response.json();
+			console.log('=== SESSION DELETION INFO ===');
+			console.log(`Session ID: ${session.id}`);
+			console.log(`Storage Backend: ${deleteData.storageBackend}`);
+			console.log(`Storage Path: ${deleteData.storagePath}`);
+			console.log(`Deletion Verified: ${deleteData.verified}`);
+			console.log('============================');
+
+			// Invalidate all cached data so the homepage reloads the session list
+			await invalidateAll();
+
 			// Redirect to home
 			await goto('/');
 		} catch (error) {
