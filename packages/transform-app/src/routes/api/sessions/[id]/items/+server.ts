@@ -5,6 +5,7 @@
 
 import { json, error as svelteError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { readSessionXml } from '$lib/server/utils/path-utils';
 
 export const GET: RequestHandler = async ({ params, locals }) => {
 	const { id } = params;
@@ -13,56 +14,6 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		const { storage, sessionStorage, appSessionStorage } = locals;
 		const extractedPath = sessionStorage.getExtractedPath(id);
 		const uploadsPath = sessionStorage.getUploadsPath(id);
-
-		function normalizePossiblyAbsolutePath(p: string): string {
-			if (p.startsWith('Users/') || p.startsWith('home/')) {
-				return `/${p}`;
-			}
-			return p;
-		}
-
-		function isAbsolutePath(p: string): boolean {
-			return p.startsWith('/');
-		}
-
-		async function readSessionXml(samplePath: string): Promise<string> {
-			const normalized = normalizePossiblyAbsolutePath(samplePath);
-			const candidates: string[] = [];
-
-			if (isAbsolutePath(normalized)) {
-				// Absolute path - convert to storage-relative path
-				const storageRoot = (storage as any).rootDir || process.cwd() + '/uploads';
-				if (normalized.startsWith(storageRoot + '/')) {
-					candidates.push(normalized.substring(storageRoot.length + 1));
-				} else if (normalized.includes('/uploads/sessions/')) {
-					const match = normalized.match(/\/uploads\/(sessions\/.+)/);
-					if (match) {
-						candidates.push(match[1]);
-					}
-				}
-				candidates.push(normalized.substring(1));
-			} else {
-				candidates.push(`${extractedPath}/${normalized}`);
-				candidates.push(`${uploadsPath}/${normalized}`);
-				const baseName = normalized.split('/').pop();
-				if (baseName && baseName !== normalized) {
-					candidates.push(`${uploadsPath}/${baseName}`);
-					candidates.push(`${extractedPath}/${baseName}`);
-				}
-			}
-
-			for (const candidate of candidates) {
-				try {
-					if (await storage.exists(candidate)) {
-						return await storage.readText(candidate);
-					}
-				} catch {
-					continue;
-				}
-			}
-
-			throw new Error(`ENOENT: no such file or directory, open '${candidates[0] || samplePath}'`);
-		}
 
 		// Get session with analysis
 		const session = await appSessionStorage.getSession(id);
@@ -117,7 +68,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 					const url = `/api/sessions/${id}/items/${fileName}`;
 
 					// Read the XML content
-					const xmlContent = await readSessionXml(filePath);
+					const xmlContent = await readSessionXml(filePath, storage, extractedPath, uploadsPath);
 
 					items.push({
 						id: fileId,
@@ -139,7 +90,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
 				if (!seenFiles.has(passagePath)) {
 					// Read the XML content
-					const xmlContent = await readSessionXml(passagePath);
+					const xmlContent = await readSessionXml(passagePath, storage, extractedPath, uploadsPath);
 
 					items.push({
 						id: fileId,

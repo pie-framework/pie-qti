@@ -5,6 +5,7 @@
 
 import { json, error as svelteError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { readSessionXml } from '$lib/server/utils/path-utils';
 
 export const GET: RequestHandler = async ({ params, locals }) => {
 	const { id } = params;
@@ -25,47 +26,6 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
 		const extractedPath = sessionStorage.getExtractedPath(id);
 		const uploadsPath = sessionStorage.getUploadsPath(id);
-
-		function normalizePossiblyAbsolutePath(p: string): string {
-			if (p.startsWith('Users/') || p.startsWith('home/')) {
-				return `/${p}`;
-			}
-			return p;
-		}
-
-		function isAbsolutePath(p: string): boolean {
-			return p.startsWith('/');
-		}
-
-		async function readSessionXml(samplePath: string): Promise<string> {
-			const normalized = normalizePossiblyAbsolutePath(samplePath);
-			const candidates: string[] = [];
-
-			if (isAbsolutePath(normalized)) {
-				const pathWithoutLeadingSlash = normalized.substring(1);
-				candidates.push(pathWithoutLeadingSlash);
-			} else {
-				candidates.push(`${extractedPath}/${normalized}`);
-				candidates.push(`${uploadsPath}/${normalized}`);
-				const baseName = normalized.split('/').pop();
-				if (baseName && baseName !== normalized) {
-					candidates.push(`${uploadsPath}/${baseName}`);
-					candidates.push(`${extractedPath}/${baseName}`);
-				}
-			}
-
-			for (const candidate of candidates) {
-				try {
-					if (await storage.exists(candidate)) {
-						return await storage.readText(candidate);
-					}
-				} catch {
-					continue;
-				}
-			}
-
-			throw new Error(`ENOENT: no such file or directory, open '${candidates[0] || samplePath}'`);
-		}
 
 		async function findAssessmentTestPaths(rootDir: string, limit = 5): Promise<string[]> {
 			const found: string[] = [];
@@ -143,7 +103,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
 			for (const testPath of testPaths) {
 				// Read the assessment test XML
-				const testXml = await readSessionXml(testPath);
+				const testXml = await readSessionXml(testPath, storage, extractedPath, uploadsPath);
 
 				// Extract filename from path
 				const fileName = testPath.split('/').pop() || 'unknown';
@@ -164,7 +124,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
 				// Read all item XMLs
 				for (const itemPath of itemFiles) {
-					const itemXml = await readSessionXml(itemPath);
+					const itemXml = await readSessionXml(itemPath, storage, extractedPath, uploadsPath);
 					const itemFileName = itemPath.split('/').pop() || '';
 					// Store by both filename and identifier
 					items[itemFileName] = itemXml;
