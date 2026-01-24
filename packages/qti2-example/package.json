@@ -82,5 +82,6 @@
     "@pie-framework/pie-esm-player": {
       "optional": true
     }
-  }
+  },
+  "license": "MIT"
 }

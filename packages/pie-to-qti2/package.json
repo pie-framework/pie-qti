@@ -30,8 +30,7 @@
     "transformation",
     "pie-to-qti"
   ],
-  "author": "Renaissance Learning",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "@pie-qti/transform-core": "workspace:*",
     "@pie-qti/transform-types": "workspace:*",

@@ -7,8 +7,7 @@
     "type": "git",
     "url": "https://github.com/pie-framework/pie-qti.git"
   },
-  "license": "ISC",
-  "author": "Renaissance Learning",
+  "license": "MIT",
   "workspaces": [
     "packages/*",
     "tools/*",

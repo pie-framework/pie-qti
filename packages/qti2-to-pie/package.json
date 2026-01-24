@@ -37,8 +37,7 @@
     "assessment",
     "transformation"
   ],
-  "author": "Renaissance Learning",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "@pie-qti/ims-cp-core": "workspace:*",
     "@pie-qti/transform-core": "workspace:*",

@@ -36,5 +36,6 @@
     "dirname": "pie-vendor-example",
     "commands": "./dist/commands",
     "topicSeparator": ":"
-  }
+  },
+  "license": "MIT"
 }

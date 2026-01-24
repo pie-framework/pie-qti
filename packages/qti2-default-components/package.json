@@ -24,8 +24,7 @@
     "svelte",
     "web-components"
   ],
-  "author": "Renaissance Learning",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "@pie-qti/qti2-i18n": "workspace:*",
     "@pie-qti/qti2-item-player": "workspace:*",

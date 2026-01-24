@@ -70,5 +70,6 @@
     "@pie-framework/pie-assessment-player": {
       "optional": true
     }
-  }
+  },
+  "license": "MIT"
 }

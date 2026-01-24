@@ -50,5 +50,6 @@
         "description": "Transform QTI items to PIE format and vice versa"
       }
     }
-  }
+  },
+  "license": "MIT"
 }

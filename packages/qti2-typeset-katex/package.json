@@ -18,7 +18,7 @@
     "build": "tsc -p ./tsconfig.json",
     "typecheck": "tsc -p ./tsconfig.json --noEmit"
   },
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "katex": "^0.16.27"
   }
