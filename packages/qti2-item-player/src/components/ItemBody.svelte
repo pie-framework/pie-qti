@@ -3,6 +3,8 @@
 	import type { Player } from '../core/Player';
 	// @ts-expect-error - Svelte-check can't resolve workspace packages, but runtime works correctly
 	import type { I18nProvider } from '@pie-qti/qti2-i18n';
+	import { normalizeHeuristicsConfig, type QtiHeuristicsConfig } from '@pie-qti/ims-cp-core';
+	import { processFeedbackInline } from './utils/feedbackUtils';
 	import { typesetAction } from './actions/typesetAction';
 	import { assignProps } from './utils/assignProps';
 
@@ -15,6 +17,7 @@
 		typeset?: (element: HTMLElement) => void;
 		onResponseChange?: (responseId: string, value: any) => void;
 		outcomeValues?: Record<string, any>; // Needed for feedbackInline visibility
+		heuristicsConfig?: QtiHeuristicsConfig; // Optional heuristics configuration
 	}
 
 	let {
@@ -26,7 +29,11 @@
 		typeset,
 		onResponseChange = () => {},
 		outcomeValues = {},
+		heuristicsConfig,
 	}: Props = $props();
+
+	// Normalize heuristics configuration with defaults
+	const heuristics = $derived(normalizeHeuristicsConfig(heuristicsConfig));
 
 	// Get the component registry from the player
 	const componentRegistry = $derived(player.getComponentRegistry());
@@ -82,24 +89,11 @@
 			);
 
 		// Process feedbackInline elements - conditionally show/hide based on outcome values
-		html = html.replace(
-			/<feedbackInline[^>]*outcomeIdentifier="([^"]+)"[^>]*identifier="([^"]+)"[^>]*showHide="([^"]+)"[^>]*>([\s\S]*?)<\/feedbackInline>/gi,
-			(match, outcomeId, feedbackId, showHide) => {
-				// Check if this feedback should be visible
-				const outcomeValue = outcomeValues[outcomeId];
-				const shouldShow = showHide.toLowerCase() === 'show'
-					? outcomeValue === feedbackId
-					: outcomeValue !== feedbackId;
-
-				// If should not show, return empty string (remove from HTML)
-				if (!shouldShow) {
-					return '';
-				}
-
-				// If should show, return the content without the feedbackInline wrapper
-				return match.replace(/<feedbackInline[^>]*>/, '').replace(/<\/feedbackInline>/, '');
-			}
-		);
+		html = processFeedbackInline(html, {
+			outcomeValues,
+			applyHeuristics: heuristics.feedbackTextFormatting,
+			wrapWithSpan: false
+		});
 
 		// Wrap all block-level *Interaction elements with a hidden marker
 		// This is extensible - any element ending in "Interaction" will be hidden
@@ -373,5 +367,17 @@
 	 */
 	:global(.qti-item-body .qti-hidden-interaction) {
 		display: none !important;
+	}
+
+	/*
+	 * Style for inline feedback elements that appear within choice text or other content.
+	 * Provides visual distinction and spacing for feedback that appears inline with content.
+	 */
+	:global(.qti-feedback-inline) {
+		display: inline-block;
+		margin-left: 0.5rem;
+		padding-left: 0.5rem;
+		border-left: 2px solid var(--color-base-content, currentColor);
+		opacity: 0.8;
 	}
 </style>

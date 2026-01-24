@@ -3,6 +3,8 @@
 <script lang="ts">
 	import type { ChoiceInteractionData } from '@pie-qti/qti2-item-player';
 	import type { I18nProvider } from '@pie-qti/qti2-i18n';
+	import { normalizeHeuristicsConfig, type QtiHeuristicsConfig } from '@pie-qti/qti2-item-player';
+	import { processFeedbackInline } from '@pie-qti/qti2-item-player/components/utils';
 	import { typesetAction } from '../../shared/actions/typesetAction';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
@@ -17,6 +19,8 @@
 		i18n?: I18nProvider;
 		typeset?: (element: HTMLElement) => void;
 		onChange?: (value: string | string[]) => void;
+		outcomeValues?: Record<string, any>;
+		heuristicsConfig?: QtiHeuristicsConfig;
 	}
 
 	let {
@@ -27,8 +31,13 @@
 		role = 'candidate',
 		i18n = $bindable(),
 		typeset,
-		onChange
+		onChange,
+		outcomeValues = {},
+		heuristicsConfig
 	}: Props = $props();
+
+	// Normalize heuristics configuration with defaults
+	const heuristics = $derived(normalizeHeuristicsConfig(heuristicsConfig));
 
 	// Translation helper:
 	// The default i18n provider returns the key itself when a translation is missing.
@@ -51,6 +60,15 @@
 			return parsedCorrectResponse.includes(identifier);
 		}
 		return parsedCorrectResponse === identifier;
+	}
+
+	// Helper function to filter feedbackInline from choice text based on outcome values
+	function filterFeedbackInline(text: string): string {
+		return processFeedbackInline(text, {
+			outcomeValues,
+			applyHeuristics: heuristics.feedbackTextFormatting,
+			wrapWithSpan: true
+		});
 	}
 
 	// Get reference to the root element for event dispatching

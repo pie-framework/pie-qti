@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@acme/likert-scale-plugin": "workspace:*",
+    "@pie-qti/logger": "workspace:*",
     "@pie-qti/ims-cp-browser": "workspace:*",
     "@pie-qti/ims-cp-core": "workspace:*",
     "@pie-qti/qti2-assessment-player": "workspace:*",

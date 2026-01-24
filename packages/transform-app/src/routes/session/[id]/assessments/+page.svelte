@@ -41,6 +41,14 @@
 			}
 
 			const result = await response.json();
+			console.log('[Assessments] Loaded assessments:', result.assessments.map((a: any) => ({
+				id: a.id,
+				title: a.title,
+				itemCount: a.itemCount,
+				hasXml: !!a.xml,
+				xmlLength: a.xml?.length,
+				itemsCount: Object.keys(a.items || {}).length
+			})));
 			assessments = result.assessments;
 		} catch (error) {
 			console.error('Failed to load assessments:', error);

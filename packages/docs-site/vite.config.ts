@@ -9,5 +9,8 @@ export default defineConfig({
 		// standards-track `@property` at-rule, which currently produces a noisy warning during
 		// optimization. Disable Tailwind's optimization pass here; Vite will still minify CSS.
 		tailwindcss({ optimize: false }),
-	]
+	],
+	server: {
+		port: 5201
+	}
 });

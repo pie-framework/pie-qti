@@ -15,7 +15,7 @@ const ALLOWED_TYPES = ['application/zip', 'application/x-zip-compressed'];
  * Generate a unique session ID
  */
 function generateSessionId(): string {
-	return `session-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+	return `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
 }
 
 export const POST: RequestHandler = async ({ request, locals }) => {
@@ -83,11 +83,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			});
 		}
 
-		// Create session with initial status
+		// Create session with initial status 'uploaded'
+		// Analysis will be triggered automatically by the session page
 		const session: any = {
 			id: sessionId,
 			createdAt: new Date().toISOString(),
-			status: 'extracting',
+			status: 'uploaded',
 		};
 
 		await sessionStorage.writeSessionMetadata(sessionId, session);

@@ -17,6 +17,10 @@ export type { ResolvedManifest, ResolvedManifestResource } from './package-loade
 export { SessionStorageBackend, LocalStorageBackend, MemoryStorageBackend } from './storage.js';
 export * from './path-utils.js';
 
+// Image resolution utilities
+export { resolveImagesInXml, tryResolveImagePath } from './image-resolver.js';
+export type { ResolveImagesOptions, LoggerLike } from './image-resolver.js';
+
 /**
  * Open an IMS Content Package from a browser File object
  *

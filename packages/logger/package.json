@@ -1,0 +1,45 @@
+{
+	"name": "@pie-qti/logger",
+	"version": "0.1.0",
+	"description": "Universal logging utilities for PIE QTI (browser + Node.js)",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		},
+		"./browser": {
+			"types": "./dist/browser.d.ts",
+			"default": "./dist/browser.js"
+		},
+		"./server": {
+			"types": "./dist/server.d.ts",
+			"default": "./dist/server.js"
+		}
+	},
+	"files": [
+		"dist",
+		"src",
+		"README.md"
+	],
+	"scripts": {
+		"build": "tsc",
+		"test": "bun test",
+		"typecheck": "tsc --noEmit",
+		"clean": "rm -rf dist"
+	},
+	"keywords": [
+		"qti",
+		"logger",
+		"logging",
+		"universal",
+		"isomorphic"
+	],
+	"author": "PIE Framework",
+	"license": "MIT",
+	"devDependencies": {
+		"typescript": "^5.9.3"
+	}
+}

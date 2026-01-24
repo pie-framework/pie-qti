@@ -91,9 +91,9 @@ export const POST: RequestHandler = async ({ params, locals }) => {
 
 		// Analyze the packages
 		// Convert storage-relative path to absolute filesystem path
-		const absoluteExtractedPath = (storage as any).resolvePath
-			? (storage as any).resolvePath(extractedPath)
-			: require('node:path').resolve(process.cwd(), 'uploads', extractedPath);
+		// For filesystem backend, paths are relative to the rootDir which is typically 'uploads'
+		const path = await import('node:path');
+		const absoluteExtractedPath = path.resolve(process.cwd(), 'uploads', extractedPath);
 
 		const webAnalysisResult = await analyzer.analyzeSession(
 			id,

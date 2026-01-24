@@ -6,13 +6,24 @@
 import {
 	openPackage,
 	loadPackageFromStorage as loadPackage,
-	SessionStorageBackend
+	SessionStorageBackend,
+	resolveImagesInXml as resolveImagesInXmlCore
 } from '@pie-qti/ims-cp-browser';
 import type { VirtualPackage } from '@pie-qti/ims-cp-browser';
 import { extractQtiItemMetadata, type QtiItemMetadata } from '@pie-qti/ims-cp-core';
+import { createLogger } from '@pie-qti/logger/browser';
 
 // Storage key for the current package ID
 const STORAGE_KEY_CURRENT_PACKAGE = 'qti-current-package-id';
+
+// In-memory cache for package instances (preserves binary files)
+// This is necessary because binary files are not persisted to storage
+// Implements LRU eviction: maximum 5 packages, or approximately 250MB
+const MAX_CACHE_SIZE = 5;
+const packageCache = new Map<string, PackageStructure>();
+
+// Logger for package processing operations
+const logger = createLogger('PackageProcessor');
 
 /**
  * Package item with comprehensive metadata
@@ -37,7 +48,22 @@ export interface PackageTest {
 }
 
 /**
- * Legacy interface for backward compatibility with existing UI code
+ * Evict oldest package from cache if we exceed the maximum size
+ * Uses LRU (Least Recently Used) strategy
+ */
+function evictOldestPackageIfNeeded(): void {
+	if (packageCache.size >= MAX_CACHE_SIZE) {
+		// Map maintains insertion order, so first key is oldest
+		const oldestKey = packageCache.keys().next().value;
+		if (oldestKey) {
+			logger.debug(`Evicting package from cache: ${oldestKey}`);
+			packageCache.delete(oldestKey);
+		}
+	}
+}
+
+/**
+ * Package structure with comprehensive item and asset metadata
  */
 export interface PackageStructure {
 	packageId: string;
@@ -73,11 +99,18 @@ export async function processPackage(file: File): Promise<PackageStructure> {
 	// Store current package ID for later retrieval
 	localStorage.setItem(STORAGE_KEY_CURRENT_PACKAGE, pkg.packageId);
 
-	return convertToPackageStructure(pkg);
+	const packageStructure = convertToPackageStructure(pkg);
+
+	// Cache the package structure in memory (preserves binary files)
+	// Evict oldest package if cache is full
+	evictOldestPackageIfNeeded();
+	packageCache.set(pkg.packageId, packageStructure);
+
+	return packageStructure;
 }
 
 /**
- * Convert VirtualPackage to legacy PackageStructure format
+ * Convert VirtualPackage to PackageStructure format
  */
 function convertToPackageStructure(pkg: VirtualPackage): PackageStructure {
 	const items = pkg.manifest.items
@@ -164,40 +197,27 @@ function convertToPackageStructure(pkg: VirtualPackage): PackageStructure {
  * Load package data from browser storage
  * @returns PackageStructure or null if no package is stored
  */
-export function loadPackageData(): PackageStructure | null {
-	try {
-		const packageId = localStorage.getItem(STORAGE_KEY_CURRENT_PACKAGE);
-		if (!packageId) return null;
-
-		// NOTE: This function is synchronous but loading from storage requires async.
-		// For now, we'll return null and require the UI to use async loading.
-		// The UI should call loadPackageDataAsync() instead.
-		console.warn(
-			'loadPackageData() is deprecated and returns null. Use loadPackageDataAsync() instead.'
-		);
-		return null;
-	} catch (err) {
-		console.error('Failed to load package data:', err);
-		return null;
-	}
-}
-
-/**
- * Load package data from browser storage (async version)
- * @returns PackageStructure or null if no package is stored
- */
 export async function loadPackageDataAsync(): Promise<PackageStructure | null> {
 	try {
 		const packageId = localStorage.getItem(STORAGE_KEY_CURRENT_PACKAGE);
 		if (!packageId) return null;
 
+		// First, check if we have the package in memory cache (preserves binary files)
+		const cached = packageCache.get(packageId);
+		if (cached) {
+			logger.debug('Loaded package from memory cache (preserves binary files)');
+			return cached;
+		}
+
+		// Fallback: Load from storage (binary files will be missing)
+		logger.warn('Loading package from storage - binary files (images) will not be available');
 		const storage = new SessionStorageBackend();
 		const pkg = await loadPackage(packageId, storage);
 		if (!pkg) return null;
 
 		return convertToPackageStructure(pkg);
 	} catch (err) {
-		console.error('Failed to load package data:', err);
+		logger.error('Failed to load package data:', err);
 		return null;
 	}
 }
@@ -215,7 +235,7 @@ export async function clearPackageData(): Promise<void> {
 		}
 		localStorage.removeItem(STORAGE_KEY_CURRENT_PACKAGE);
 	} catch (err) {
-		console.error('Failed to clear package data:', err);
+		logger.error('Failed to clear package data:', err);
 	}
 }
 
@@ -276,4 +296,24 @@ export function getTestXml(pkg: PackageStructure, testId: string): string | null
 	const test = pkg.tests.find((t) => t.identifier === testId);
 	if (!test) return null;
 	return pkg._pkg.readText(test.href);
+}
+
+/**
+ * Resolve image references in QTI XML and replace with data URLs from package
+ *
+ * This is a wrapper around the core implementation from @pie-qti/ims-cp-browser
+ * that provides compatibility with the PackageStructure interface.
+ *
+ * @param itemXml The QTI item XML string
+ * @param pkg PackageStructure instance containing the images
+ * @param itemHref The href path of the item file (used for resolving relative paths)
+ * @returns Modified XML string with image references replaced with data URLs
+ */
+export async function resolveImagesInXml(
+	itemXml: string,
+	pkg: PackageStructure,
+	itemHref: string
+): Promise<string> {
+	// Use the core implementation from ims-cp-browser with our logger
+	return resolveImagesInXmlCore(itemXml, pkg._pkg, itemHref, { logger });
 }

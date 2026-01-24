@@ -4,7 +4,7 @@
 	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
 	import { base } from '$app/paths';
-	import { Player } from '@pie-qti/qti2-item-player';
+	import { Player, normalizeHeuristicsConfig, shouldAutoPopulateFeedbackOutcome, type QtiHeuristicsConfig } from '@pie-qti/qti2-item-player';
 	// @ts-expect-error - Svelte-check can't resolve workspace subpath exports, but runtime works correctly
 	import { ItemBody } from '@pie-qti/qti2-item-player/components';
 	import { registerDefaultComponents } from '@pie-qti/qti2-default-components';
@@ -15,6 +15,25 @@
 	import type { PackageStructure } from '$lib/package-processor';
 	import { getSecurityConfig } from '$lib/player-config';
 	import XmlEditor from '$lib/components/XmlEditor.svelte';
+
+	/**
+	 * Default outcome identifier for feedback display
+	 * This is a common convention in QTI content but can vary by authoring tool.
+	 * Some templates use 'FEEDBACK', others may use different identifiers.
+	 */
+	const FEEDBACK_OUTCOME_ID = 'FEEDBACK';
+
+	/**
+	 * QTI Heuristics configuration
+	 * By default, all heuristics are enabled for better compatibility with real-world QTI content
+	 */
+	const heuristicsConfig: QtiHeuristicsConfig = {
+		enabled: true,
+		feedbackTextFormatting: true,
+		lenientImagePaths: true,
+		autoPopulateFeedbackOutcome: true,
+	};
+	const heuristics = normalizeHeuristicsConfig(heuristicsConfig);
 
 	let itemXml = $state<string | null>(null);
 	let loading = $state(true);
@@ -30,6 +49,7 @@
 	// Player state
 	let player = $state<Player | null>(null);
 	let responses = $state<Record<string, any>>({});
+	let outcomeValues = $state<Record<string, any>>({});
 
 	// Get i18n provider from context
 	const i18nContext = getContext<{ value: SvelteI18nProvider | null }>('i18n');
@@ -49,6 +69,7 @@
 		itemXml = null;
 		player = null;
 		responses = {};
+		outcomeValues = {};
 
 		// Load item asynchronously
 		(async () => {
@@ -132,6 +153,52 @@
 
 	function handleResponseChange(responseId: string, value: any) {
 		responses = { ...responses, [responseId]: value };
+		// Process responses to get outcome values for feedback visibility
+		if (player) {
+			try {
+				player.setResponses(responses);
+				const result = player.processResponses();
+				outcomeValues = result.outcomeValues || {};
+
+				// QTI Heuristic: Auto-populate FEEDBACK outcome if missing
+				// This is a heuristic for templates that only set SCORE but have feedbackInline elements.
+				// Can be disabled by setting heuristicsConfig.autoPopulateFeedbackOutcome = false
+				if (shouldAutoPopulateFeedbackOutcome(heuristics, console as any)) {
+					if (!outcomeValues[FEEDBACK_OUTCOME_ID] && value && itemXml) {
+						// Check if the feedback outcome is declared in the XML
+						const hasFeedbackOutcome = itemXml.includes(`outcomeDeclaration identifier="${FEEDBACK_OUTCOME_ID}"`);
+						if (hasFeedbackOutcome) {
+							// Set feedback outcome to the selected choice identifier (for single choice)
+							// or first selected choice (for multiple choice)
+							const feedbackValue = Array.isArray(value) ? value[0] : value;
+							outcomeValues = { ...outcomeValues, [FEEDBACK_OUTCOME_ID]: feedbackValue };
+							console.debug('[QTI Heuristic] Auto-populated FEEDBACK outcome with value:', feedbackValue);
+						}
+					}
+				}
+			} catch (err) {
+				// If processing fails, clear outcome values (feedback will be hidden)
+				outcomeValues = {};
+			}
+		}
+	}
+
+	function copyXmlToClipboard() {
+		if (itemXml) {
+			navigator.clipboard.writeText(itemXml).then(() => {
+				// Show a brief success message (you could use a toast library here)
+				const button = document.querySelector('.copy-xml-btn') as HTMLElement;
+				if (button) {
+					const originalText = button.textContent;
+					button.textContent = 'Copied!';
+					setTimeout(() => {
+						button.textContent = originalText;
+					}, 2000);
+				}
+			}).catch((err) => {
+				console.error('Failed to copy XML to clipboard:', err);
+			});
+		}
 	}
 </script>
 
@@ -212,11 +279,13 @@
 				<ItemBody
 					{player}
 					{responses}
+					{outcomeValues}
 					disabled={false}
 					role="candidate"
 					i18n={i18n ?? undefined}
 					typeset={typesetMathInElement}
 					onResponseChange={handleResponseChange}
+					{heuristicsConfig}
 				/>
 			</div>
 		</div>

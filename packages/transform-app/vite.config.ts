@@ -20,6 +20,7 @@ export default defineConfig({
 		}
 	},
 	server: {
+		port: 5202,
 		fs: {
 			allow: ['..']
 		}

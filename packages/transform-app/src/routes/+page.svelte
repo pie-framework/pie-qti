@@ -364,26 +364,6 @@
 				</div>
 			{/if}
 
-			<!-- Features -->
-			<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
-				<div class="text-center">
-					<div class="text-4xl mb-2">📦</div>
-					<h3 class="font-semibold mb-1">Analyze</h3>
-					<p class="text-sm text-base-content/60">
-						Inspect QTI package structure, items, and interactions
-					</p>
-				</div>
-				<div class="text-center">
-					<div class="text-4xl mb-2">⚙️</div>
-					<h3 class="font-semibold mb-1">Transform</h3>
-					<p class="text-sm text-base-content/60">Batch convert QTI items to PIE format</p>
-				</div>
-				<div class="text-center">
-					<div class="text-4xl mb-2">👁️</div>
-					<h3 class="font-semibold mb-1">Preview</h3>
-					<p class="text-sm text-base-content/60">Compare QTI and PIE rendering side-by-side</p>
-				</div>
-			</div>
 		</div>
 	</div>
 </div>

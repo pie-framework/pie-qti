@@ -14,7 +14,8 @@ describe('ConsoleLogger', () => {
 	let consoleErrorSpy: ReturnType<typeof mock>;
 
 	beforeEach(() => {
-		logger = new ConsoleLogger();
+		// Use 'debug' level to test all log levels
+		logger = new ConsoleLogger('debug');
 		consoleDebugSpy = mock(() => {});
 		consoleInfoSpy = mock(() => {});
 		consoleWarnSpy = mock(() => {});
@@ -94,7 +95,8 @@ describe('JsonLogger', () => {
 	let consoleWarnSpy: ReturnType<typeof mock>;
 
 	beforeEach(() => {
-		logger = new JsonLogger();
+		// Use 'debug' level to test all log levels
+		logger = new JsonLogger('debug');
 		consoleInfoSpy = mock(() => {});
 		consoleWarnSpy = mock(() => {});
 

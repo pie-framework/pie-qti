@@ -4,6 +4,19 @@
  * Core interfaces for the plugin architecture
  */
 
+import type { LogContext, ServerLogger } from '@pie-qti/logger/server';
+
+/**
+ * Transform logger interface (alias for ServerLogger)
+ * @deprecated Import ServerLogger directly from @pie-qti/logger/server
+ */
+export type TransformLogger = ServerLogger;
+
+/**
+ * Re-export LogContext for convenience
+ */
+export type { LogContext };
+
 /**
  * Transform format identifier
  * Extensible string type allows arbitrary format pairs to be registered
@@ -264,76 +277,4 @@ export interface TransformError {
    * Additional context for debugging
    */
   context?: Record<string, unknown>;
-}
-
-/**
- * Structured logging context
- */
-export interface LogContext {
-  /**
-   * Item identifier
-   */
-  itemId?: string;
-
-  /**
-   * Session identifier for correlating logs across requests
-   */
-  sessionId?: string;
-
-  /**
-   * User identifier
-   */
-  userId?: string;
-
-  /**
-   * Vendor identifier
-   */
-  vendor?: string;
-
-  /**
-   * Correlation ID for distributed tracing
-   */
-  correlationId?: string;
-
-  /**
-   * Additional context properties
-   */
-  [key: string]: unknown;
-}
-
-/**
- * Logger interface with structured logging support
- */
-export interface TransformLogger {
-  /**
-   * Log debug message
-   * @param message - Log message
-   * @param itemId - Optional item ID (deprecated, use context.itemId)
-   * @param context - Optional structured context
-   */
-  debug(message: string, itemId?: string, context?: LogContext): void;
-
-  /**
-   * Log info message
-   * @param message - Log message
-   * @param itemId - Optional item ID (deprecated, use context.itemId)
-   * @param context - Optional structured context
-   */
-  info(message: string, itemId?: string, context?: LogContext): void;
-
-  /**
-   * Log warning message
-   * @param message - Log message
-   * @param itemId - Optional item ID (deprecated, use context.itemId)
-   * @param context - Optional structured context
-   */
-  warn(message: string, itemId?: string, context?: LogContext): void;
-
-  /**
-   * Log error message
-   * @param message - Log message
-   * @param itemId - Optional item ID (deprecated, use context.itemId)
-   * @param context - Optional structured context
-   */
-  error(message: string, itemId?: string, context?: LogContext): void;
 }
