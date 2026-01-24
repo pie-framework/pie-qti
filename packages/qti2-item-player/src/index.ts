@@ -62,6 +62,20 @@ export {
 
 export { isResponseEmpty } from './utils/responseUtils.js';
 
+// Re-export QTI heuristics from @pie-qti/ims-cp-core for convenience
+// (heuristics are now in the shared ingestion layer)
+export {
+	normalizeHeuristicsConfig,
+	applyFeedbackTextHeuristics,
+	shouldUseLenientImagePaths,
+	shouldAutoPopulateFeedbackOutcome,
+	DEFAULT_HEURISTICS_CONFIG,
+	STRICT_QTI_CONFIG,
+	FEEDBACK_TEXT_TRANSFORMS,
+	type QtiHeuristicsConfig,
+	type TextTransform,
+} from '@pie-qti/ims-cp-core';
+
 /**
  * NOTE (SSR safety):
  * Web component base classes depend on DOM globals like `HTMLElement` and must not be

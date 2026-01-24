@@ -601,4 +601,209 @@ export default {
 			'adaptive-capitals': 'Adaptieve vraag met meerdere pogingen en progressieve feedback en hints',
 		},
 	},
+
+	transform: {
+		// App title and navigation
+		appName: 'QTI Batch Processor',
+		appDescription: 'Upload QTI-pakketten om structuur te analyseren, naar PIE-formaat om te zetten en resultaten te bekijken',
+		home: 'Home',
+
+		// Session management
+		sessions: {
+			title: 'Recente Sessies',
+			session: 'Sessie',
+			status: 'Status',
+			packages: 'Pakketten',
+			created: 'Gemaakt',
+			createdAt: 'Gemaakt {date}',
+			open: 'Openen',
+			delete: 'Verwijderen',
+			deleteTitle: 'Sessie verwijderen',
+			deleteConfirmTitle: 'Sessie Verwijderen',
+			deleteConfirmMessage: 'Weet je zeker dat je deze sessie wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt en alle bestanden worden permanent verwijderd.',
+			deleted: 'Sessie verwijderd',
+			notFound: 'Sessie Niet Gevonden',
+			notFoundMessage: 'De gevraagde sessie kan niet worden gevonden of bestaat niet.',
+		},
+
+		// Samples
+		samples: {
+			title: 'Voorbeeld QTI-Pakketten',
+			description: 'Probeer de processor met vooraf geladen voorbeeldpakketten die verschillende QTI-interactietypen demonstreren.',
+			itemCount: '{count, plural, one {# item} other {# items}}',
+			hasManifest: 'Manifest',
+			load: 'Voorbeeld Laden',
+			loadSample: 'Voorbeeld Laden',
+			loaded: "Voorbeeld '{id}' succesvol geladen",
+			notFound: "Voorbeeldpakket '{id}' niet gevonden",
+			loadFailed: 'Voorbeeld laden mislukt',
+		},
+
+		// Upload
+		upload: {
+			dropPrompt: 'Drop QTI ZIP-bestanden hier',
+			orClickToSelect: 'of klik om bestanden te selecteren',
+			selectFiles: 'Bestanden Selecteren',
+			processing: 'Verwerken...',
+			invalidType: 'Alleen ZIP-bestanden zijn toegestaan',
+			fileTooLarge: 'Bestand te groot: {filename}. Maximale grootte is {maxSize}MB.',
+			noFiles: 'Geen bestanden verstrekt',
+			uploadFailed: 'Upload mislukt',
+		},
+
+		// Session detail page
+		detail: {
+			uploadedPackages: 'Geüploade Pakketten',
+			package: 'Pakket',
+			type: 'Type',
+			size: 'Grootte',
+			uploaded: 'Geüpload',
+			actions: 'Acties',
+			analyzing: 'Pakket wordt geanalyseerd...',
+			analysisComplete: 'Analyse voltooid. Bekijk de resultaten hieronder of ga door naar transformatie.',
+			cannotConvert: 'Kan Niet Naar PIE Omzetten',
+			unsupportedMessage: 'Dit pakket bevat QTI-interactietypen die geen PIE-equivalent hebben. Zie problemen hieronder voor details. Gebruik in plaats daarvan de QTI-speler om deze items te bekijken.',
+			transforming: 'Omzetten...',
+			transformToPie: 'Naar PIE Omzetten',
+			analysisResults: 'Analyseresultaten',
+			totalItems: 'Totaal Items',
+			passages: 'Passages',
+			tests: 'Toetsen',
+			interactionTypesFound: 'Gevonden Interactietypen',
+			issuesFound: 'Gevonden Problemen',
+			packageDetails: 'Pakketdetails',
+			noManifest: 'Geen Manifest',
+			items: 'items',
+			interactionTypes: 'Interactietypen',
+			assessmentTests: 'Beoordelingstoetsen',
+			file: 'Bestand',
+			pattern: 'Patroon',
+			sampleItems: 'Voorbeelditems per Interactietype',
+			issues: 'Problemen',
+			browseAssessments: 'Bladeren & Bekijken van Beoordelingstoetsen',
+			browseAssessmentsDescription: 'Bladeren en bekijk {count, plural, one {# QTI-beoordelingstoets} other {# QTI-beoordelingstoetsen}} gevonden in deze sessie',
+			individualItems: 'Afzonderlijke Items',
+			browseItems: 'Bladeren & Bekijken van Items',
+			browseItemsDescription: 'Bladeren en bekijk {count, plural, one {# QTI-item} other {# QTI-items}} gevonden in deze sessie',
+		},
+
+		// Analysis results
+		analysis: {
+			title: 'Analyseresultaten',
+			totalItems: 'Totaal Items',
+			passages: 'Passages',
+			tests: 'Toetsen',
+			packages: 'Pakketten',
+			interactionTypesFound: 'Gevonden Interactietypen',
+			issuesFound: 'Gevonden Problemen ({count})',
+			assessmentTests: 'Beoordelingtoetsen',
+			individualItems: 'Afzonderlijke Items',
+		},
+
+		// Items browser
+		items: {
+			title: 'Item Browser',
+			description: 'Bladeren en bekijk {count} QTI-beoordelingsitems',
+			loading: 'Items laden...',
+			notFound: 'Geen items gevonden in deze sessie.',
+			itemsCount: 'Items ({count})',
+			showCorrect: 'Juiste Antwoord Tonen',
+			xmlNotAvailable: 'Item XML niet beschikbaar',
+			noSelection: 'Geen item geselecteerd',
+			notAvailable: 'Items Niet Beschikbaar',
+		},
+
+		// Assessments browser
+		assessments: {
+			title: 'Beoordelingtoetsen',
+			loading: 'Beoordelingtoetsen laden...',
+			notFound: 'Geen beoordelingtoetsen gevonden in deze sessie.',
+			showCorrect: 'Juiste Antwoord Tonen',
+			assessmentsCount: 'Beoordelingen ({count})',
+			selectPrompt: 'Selecteer een beoordeling om een voorbeeld te bekijken',
+		},
+
+		// Transformation results
+		transformed: {
+			pageTitle: 'Transformatieresultaten - Sessie {sessionId}',
+			breadcrumb: 'Omgezet',
+			title: 'Transformatieresultaten',
+			summary: '{itemCount} item{itemCount, plural, one {} other {s}}{assessmentCount, plural, =0 {} other { + {assessmentCount} beoordeling{assessmentCount, plural, one {} other {en}}}} omgezet in {duration}',
+			backToSession: 'Terug naar Sessie',
+			content: 'Omgezette Inhoud',
+			items: 'Items',
+			assessments: 'Toetsen',
+			errors: 'Fouten',
+			warnings: '{count, plural, one {# waarschuwing} other {# waarschuwingen}}',
+			transformationErrors: '{count, plural, one {# Transformatiefout} other {# Transformatiefouten}}',
+			noItems: 'Geen items omgezet',
+			selectPrompt: 'Selecteer een item of toets om een voorbeeld te bekijken',
+		},
+
+		// PIE Player controls
+		player: {
+			selectPlayerType: 'Selecteer spelerstype',
+			iife: 'IIFE',
+			esm: 'ESM',
+			gather: 'Gather',
+			view: 'View',
+			evaluate: 'Evaluate',
+			browse: 'Browse',
+			student: 'Student',
+			instructor: 'Instructor',
+			notAvailable: 'PIE-Spelers Niet Beschikbaar',
+			debugConfig: 'Debug: config JSON',
+		},
+
+		// QTI Player controls
+		qtiPlayer: {
+			errorLoading: 'Fout bij laden van QTI-speler',
+			loading: 'QTI-speler laden...',
+			waitingForData: 'Wachten op beoordelingsgegevens...',
+		},
+
+		// Assessment preview
+		assessmentPreview: {
+			totalItems: 'Totaal Items',
+			sections: 'Secties',
+			timeLimit: 'Tijdslimiet',
+			configuration: 'Configuratie',
+			navigation: 'Navigatie:',
+			submission: 'Inzending:',
+		},
+
+		// Confirmation dialog
+		dialog: {
+			defaultTitle: 'Actie Bevestigen',
+			defaultConfirm: 'Bevestigen',
+			defaultCancel: 'Annuleren',
+			close: 'sluiten',
+		},
+
+		// API Error messages
+		errors: {
+			noContent: 'Zorg dat je QTI XML-inhoud verstrekt',
+			invalidQti: 'De verstrekte inhoud lijkt geen geldige QTI 2.2 XML te zijn',
+			transformFailed: 'Transformatie mislukt',
+			noItemsProduced: 'Transformatie heeft geen items opgeleverd',
+			transformError: 'Transformatiefout: {message}',
+			sessionNotFound: 'Sessie niet gevonden',
+			alreadyAnalyzed: 'Sessie reeds geanalyseerd',
+			noListSupport: 'Opslagbackend ondersteunt geen bestandenlijsting',
+			noZipFiles: 'Geen ZIP-bestanden gevonden en geen geëxtraheerde bestanden beschikbaar',
+			extractFailed: 'Kon {filename} niet uitpakken',
+			analysisComplete: 'Analyse voltooid',
+			notAnalyzed: 'Sessie nog niet geanalyseerd',
+			analysisFailed: 'Analyse mislukt',
+			noTransformation: 'Geen transformatieresultaten gevonden voor sessie {sessionId}',
+			getTransformationFailed: 'Kon transformatieresultaten niet ophalen',
+			loadSamplesFailed: 'Kon voorbeelden niet laden',
+		},
+
+		// Badges
+		badges: {
+			qti: 'QTI',
+			uploaded: 'Geüpload',
+		},
+	},
 } as const; // 'as const' for strict type inference

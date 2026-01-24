@@ -93,7 +93,7 @@ export class QtiAnalyzer {
         });
 
         try {
-          const result = await this.analyzePackage(pkgPath);
+          const result = await this.analyzePackage(pkgPath, extractedPath);
 
           packages.push(result);
 
@@ -179,7 +179,7 @@ export class QtiAnalyzer {
   /**
    * Analyze a single QTI package directory
    */
-  private async analyzePackage(packagePath: string): Promise<PackageAnalysis> {
+  private async analyzePackage(packagePath: string, basePath?: string): Promise<PackageAnalysis> {
     const packageName = packagePath.split('/').pop() || 'unknown';
     const result: PackageAnalysis = {
       packagePath,
@@ -214,19 +214,27 @@ export class QtiAnalyzer {
       result.passageCount = resolvedManifest.passages.length;
       result.testCount = resolvedManifest.tests.length;
 
-      // Sample tests/passages from manifest (absolute file paths)
+      // Sample tests/passages from manifest (store relative paths if basePath provided)
       for (const test of resolvedManifest.tests.slice(0, 3)) {
         const rel = test.hrefResolved || test.href;
         if (!rel) continue;
         const abs = toAbsolutePath(packagePath, rel);
-        if (existsSync(abs)) result.samples.tests.push(abs);
+        if (existsSync(abs)) {
+          // Store relative to basePath if provided, otherwise absolute
+          const pathToStore = basePath ? abs.replace(basePath + '/', '') : abs;
+          result.samples.tests.push(pathToStore);
+        }
       }
 
       for (const passage of resolvedManifest.passages.slice(0, 5)) {
         const rel = passage.hrefResolved || passage.href;
         if (!rel) continue;
         const abs = toAbsolutePath(packagePath, rel);
-        if (existsSync(abs)) result.samples.passages.push(abs);
+        if (existsSync(abs)) {
+          // Store relative to basePath if provided, otherwise absolute
+          const pathToStore = basePath ? abs.replace(basePath + '/', '') : abs;
+          result.samples.passages.push(pathToStore);
+        }
       }
 
       // Manifest dependency pattern: items -> passage-like resources
@@ -241,7 +249,7 @@ export class QtiAnalyzer {
     }
 
     // Scan all XML files in the package
-    await this.scanDirectoryForQti(packagePath, result, !!resolvedManifest);
+    await this.scanDirectoryForQti(packagePath, result, !!resolvedManifest, basePath);
 
     return result;
   }
@@ -252,7 +260,8 @@ export class QtiAnalyzer {
   private async scanDirectoryForQti(
     dirPath: string,
     result: PackageAnalysis,
-    useManifestCounts: boolean
+    useManifestCounts: boolean,
+    basePath?: string
   ): Promise<void> {
     if (!existsSync(dirPath)) {
       return;
@@ -265,9 +274,9 @@ export class QtiAnalyzer {
 
       if (entry.isDirectory()) {
         // Recursively scan subdirectories
-        await this.scanDirectoryForQti(fullPath, result, useManifestCounts);
+        await this.scanDirectoryForQti(fullPath, result, useManifestCounts, basePath);
       } else if (entry.name.toLowerCase().endsWith('.xml')) {
-        await this.analyzeXmlFile(fullPath, result, useManifestCounts);
+        await this.analyzeXmlFile(fullPath, result, useManifestCounts, basePath);
       }
     }
   }
@@ -275,7 +284,7 @@ export class QtiAnalyzer {
   /**
    * Analyze a single XML file
    */
-  private async analyzeXmlFile(filePath: string, result: PackageAnalysis, useManifestCounts: boolean): Promise<void> {
+  private async analyzeXmlFile(filePath: string, result: PackageAnalysis, useManifestCounts: boolean, basePath?: string): Promise<void> {
     try {
       const content = await readFile(filePath, 'utf-8');
       const _doc = parse(content, {
@@ -331,12 +340,13 @@ export class QtiAnalyzer {
             result.interactionTypes[interactionType] =
               (result.interactionTypes[interactionType] || 0) + count;
 
-            // Store sample
+            // Store sample (relative to basePath if provided)
             if (!result.samples.interactions[interactionType]) {
               result.samples.interactions[interactionType] = [];
             }
             if (result.samples.interactions[interactionType].length < 3) {
-              result.samples.interactions[interactionType].push(filePath);
+              const pathToStore = basePath ? filePath.replace(basePath + '/', '') : filePath;
+              result.samples.interactions[interactionType].push(pathToStore);
             }
           }
         }
@@ -357,7 +367,8 @@ export class QtiAnalyzer {
       if (rawContent.includes('<assessmenttest')) {
         if (!useManifestCounts) result.testCount++;
         if (result.samples.tests.length < 3) {
-          result.samples.tests.push(filePath);
+          const pathToStore = basePath ? filePath.replace(basePath + '/', '') : filePath;
+          result.samples.tests.push(pathToStore);
         }
       }
 
@@ -366,7 +377,8 @@ export class QtiAnalyzer {
         if (!useManifestCounts) result.passageCount++;
         result.passagePatterns.standalone++;
         if (result.samples.passages.length < 5) {
-          result.samples.passages.push(filePath);
+          const pathToStore = basePath ? filePath.replace(basePath + '/', '') : filePath;
+          result.samples.passages.push(pathToStore);
         }
       }
     } catch (error) {

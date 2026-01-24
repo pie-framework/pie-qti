@@ -80,7 +80,7 @@
 			console.error('Failed to initialize item player:', err);
 			return {
 				player: null,
-				error: err instanceof Error ? err.message : 'Failed to load item',
+				error: err instanceof Error ? err.message : (i18n?.t('item.loadingError') ?? 'Failed to load item'),
 			};
 		}
 	});

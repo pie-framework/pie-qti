@@ -7,6 +7,7 @@ import { json } from '@sveltejs/kit';
 import { Qti22ToPiePlugin } from '@pie-qti/qti2-to-pie';
 import { TransformEngine } from '@pie-qti/transform-core';
 import type { RequestHandler } from './$types';
+import { readSessionXml } from '$lib/server/utils/path-utils';
 
 export const POST: RequestHandler = async ({ params, request, locals }) => {
 	const { id } = params;
@@ -16,73 +17,6 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 	const { storage, sessionStorage, appSessionStorage } = locals;
 	const extractedPath = sessionStorage.getExtractedPath(id);
 	const uploadsPath = sessionStorage.getUploadsPath(id);
-
-	/**
-	 * Normalize paths that may have lost leading slash during serialization
-	 */
-	function normalizePossiblyAbsolutePath(p: string): string {
-		if (p.startsWith('Users/') || p.startsWith('home/')) {
-			return `/${p}`;
-		}
-		return p;
-	}
-
-	/**
-	 * Check if a path is absolute (storage paths are relative)
-	 */
-	function isAbsolutePath(p: string): boolean {
-		return p.startsWith('/');
-	}
-
-	/**
-	 * Read XML file from session storage with path resolution fallbacks
-	 */
-	async function readSessionXml(samplePath: string): Promise<string> {
-		const normalized = normalizePossiblyAbsolutePath(samplePath);
-		const candidates: string[] = [];
-
-		if (isAbsolutePath(normalized)) {
-			// Absolute path - convert to storage-relative path
-			// Storage backend resolves paths relative to its rootDir (./uploads)
-			const storageRoot = (storage as any).rootDir || process.cwd() + '/uploads';
-			if (normalized.startsWith(storageRoot + '/')) {
-				// Path is within storage root, make it relative
-				candidates.push(normalized.substring(storageRoot.length + 1));
-			} else if (normalized.includes('/uploads/sessions/')) {
-				// Extract the storage-relative part (sessions/...)
-				const match = normalized.match(/\/uploads\/(sessions\/.+)/);
-				if (match) {
-					candidates.push(match[1]);
-				}
-			}
-			// Also try without leading slash as fallback
-			candidates.push(normalized.substring(1));
-		} else {
-			// Relative path - try different base directories
-			candidates.push(`${extractedPath}/${normalized}`);
-			candidates.push(`${uploadsPath}/${normalized}`);
-
-			const baseName = normalized.split('/').pop();
-			if (baseName && baseName !== normalized) {
-				candidates.push(`${uploadsPath}/${baseName}`);
-				candidates.push(`${extractedPath}/${baseName}`);
-			}
-		}
-
-		// Try each candidate path
-		for (const candidate of candidates) {
-			try {
-				if (await storage.exists(candidate)) {
-					return await storage.readText(candidate);
-				}
-			} catch {
-				// Try next candidate
-				continue;
-			}
-		}
-
-		throw new Error(`ENOENT: no such file or directory, open '${candidates[0] || samplePath}'`);
-	}
 
 	/**
 	 * Recursively find all assessment test XML files in a directory
@@ -201,7 +135,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 				const fileId = fileName.replace(/\.xml$/i, '');
 				if (itemIdSet && !itemIdSet.has(fileId)) continue;
 
-				const xml = await readSessionXml(sourcePath);
+				const xml = await readSessionXml(sourcePath, storage, extractedPath, uploadsPath);
 				itemsToTransform.push({
 					id: fileId,
 					title: titleFromId(fileId),
@@ -247,7 +181,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 			if (!assessmentIdSet.has(fileId)) continue;
 
 			try {
-				const xml = await readSessionXml(path);
+				const xml = await readSessionXml(path, storage, extractedPath, uploadsPath);
 				const handle = await engine.transform(xml, { sourceFormat: 'qti22', targetFormat: 'pie' });
 				const result = await handle.result();
 				results.assessments.push({

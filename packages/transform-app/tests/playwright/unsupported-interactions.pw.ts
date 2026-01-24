@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import AdmZip from 'adm-zip';
 import { XMLBuilder } from 'fast-xml-parser';
+import { waitForAnalysis } from './test-helpers.js';
 
 /**
  * E2E tests for unsupported interaction detection and validation
@@ -95,11 +96,8 @@ test.describe('Unsupported Interaction Detection', () => {
 		// Navigate to session page
 		await page.goto(`/session/${sessionId}`);
 
-		// Analyze package
-		await page.getByRole('button', { name: /Analyze Package/i }).click();
-
-		// Wait for analysis to complete by checking for the Analysis Results heading
-		await expect(page.getByRole('heading', { name: /Analysis Results/i })).toBeVisible({ timeout: 60_000 });
+		// Uploads are auto-analyzed, wait for analysis to complete
+		await waitForAnalysis(page);
 
 		// Check for unsupported interaction warning
 		await expect(page.getByText(/UNSUPPORTED INTERACTIONS/i)).toBeVisible({ timeout: 10_000 });
@@ -168,10 +166,9 @@ test.describe('Unsupported Interaction Detection', () => {
 		const sessionId = uploadJson.sessionId;
 
 		await page.goto(`/session/${sessionId}`);
-		await page.getByRole('button', { name: /Analyze Package/i }).click();
 
-		// Wait for analysis to complete by checking for the Analysis Results heading
-		await expect(page.getByRole('heading', { name: /Analysis Results/i })).toBeVisible({ timeout: 60_000 });
+		// Uploads are auto-analyzed, wait for analysis to complete
+		await waitForAnalysis(page);
 
 		// Check for all three unsupported types
 		await expect(page.getByText(/UNSUPPORTED INTERACTIONS/i)).toBeVisible({ timeout: 10_000 });
@@ -217,8 +214,9 @@ test.describe('Unsupported Interaction Detection', () => {
 		const sessionId = uploadJson.sessionId;
 
 		await page.goto(`/session/${sessionId}`);
-		await page.getByRole('button', { name: /Analyze Package/i }).click();
-		await expect(page.getByText(/Analysis complete/i)).toBeVisible({ timeout: 60_000 });
+
+		// Uploads are auto-analyzed, wait for analysis to complete
+		await waitForAnalysis(page);
 
 		// Should NOT show unsupported interactions warning
 		await expect(page.getByText(/UNSUPPORTED INTERACTIONS/i)).not.toBeVisible();
@@ -262,10 +260,9 @@ test.describe('Unsupported Interaction Detection', () => {
 		const sessionId = uploadJson.sessionId;
 
 		await page.goto(`/session/${sessionId}`);
-		await page.getByRole('button', { name: /Analyze Package/i }).click();
 
-		// Wait for analysis to complete by checking for the Analysis Results heading
-		await expect(page.getByRole('heading', { name: /Analysis Results/i })).toBeVisible({ timeout: 60_000 });
+		// Uploads are auto-analyzed, wait for analysis to complete
+		await waitForAnalysis(page);
 
 		// Should show experimental warning, not unsupported error
 		await expect(page.getByText(/EXPERIMENTAL CONVERSIONS/i)).toBeVisible({ timeout: 10_000 });

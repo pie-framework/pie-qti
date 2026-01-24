@@ -1,56 +1,30 @@
 import { expect, test } from '@playwright/test';
+import {
+	createSessionFromSample,
+	navigateToItemsPage,
+	waitForPlayerReady,
+	selectItem,
+	getPlayerElement,
+	clickShowCorrect,
+	playerHasContent,
+	playerIsInitialized
+} from './test-helpers.js';
 
 /**
  * QTI Player functionality tests.
  * Tests that the player loads, renders interactions, and handles user input correctly.
  */
 
-async function createSessionFromSample(request: any, sampleId: string): Promise<string> {
-	const res = await request.post(`/api/samples/${sampleId}/load`);
-	expect(res.ok()).toBeTruthy();
-	const json = await res.json();
-	expect(typeof json.sessionId).toBe('string');
-	return json.sessionId as string;
-}
-
-async function navigateToItemsPage(page: any, sessionId: string) {
-	await page.goto(`/session/${sessionId}`);
-	
-	// Analyze packages
-	await page.getByRole('button', { name: /Analyze Package/i }).click();
-	
-	// Wait for analysis to complete and browse items link to appear
-	await expect(page.getByRole('link', { name: /Browse & Preview Items/i })).toBeVisible({ timeout: 120_000 });
-	
-	// Navigate to items page
-	await page.getByRole('link', { name: /Browse & Preview Items/i }).click();
-	await expect(page.getByRole('heading', { name: /Item Browser/i })).toBeVisible();
-	
-	// Wait for items to load
-	await expect(page.getByTestId('item-select-0')).toBeVisible({ timeout: 60_000 });
-}
-
 test.describe('QTI Player', () => {
 	test('player web component loads and renders', async ({ page, request }) => {
 		const sessionId = await createSessionFromSample(request, 'basic-interactions');
 		await navigateToItemsPage(page, sessionId);
 
-		// Wait for web component to be defined
-		await page.waitForFunction(() => {
-			return customElements.get('pie-qti2-item-player') !== undefined;
-		}, { timeout: 30_000 });
-
-		// Check that the player element exists in the DOM
-		const playerElement = page.locator('pie-qti2-item-player');
-		await expect(playerElement).toBeVisible({ timeout: 30_000 });
-
-		// Verify player has loaded (check for loading spinner to disappear)
-		await expect(page.getByText('Loading QTI player...')).not.toBeVisible({ timeout: 30_000 });
+		// Wait for player to be ready
+		await waitForPlayerReady(page);
 
 		// Verify player element has been initialized with properties
-		const isInitialized = await playerElement.evaluate((el: any) => {
-			return el && typeof el.itemXml === 'string';
-		});
+		const isInitialized = await playerIsInitialized(page);
 		expect(isInitialized).toBeTruthy();
 	});
 
@@ -59,26 +33,16 @@ test.describe('QTI Player', () => {
 		await navigateToItemsPage(page, sessionId);
 
 		// Wait for player to load
-		await page.waitForFunction(() => {
-			return customElements.get('pie-qti2-item-player') !== undefined;
-		}, { timeout: 30_000 });
+		await waitForPlayerReady(page);
 
 		// Select first item
-		await page.getByTestId('item-select-0').click();
-		await page.waitForTimeout(3000);
+		await selectItem(page, 0);
 
-		const playerElement = page.locator('pie-qti2-item-player');
+		const playerElement = getPlayerElement(page);
 		await expect(playerElement).toBeVisible();
 
 		// Check that player renders content (uses light DOM, not shadow DOM)
-		const hasContent = await playerElement.evaluate((el: any) => {
-			// QTI players use light DOM for better accessibility and flexibility
-			const hasText = el.textContent && el.textContent.trim().length > 0;
-			const hasInteractiveElements = el.querySelectorAll('button, input, select, textarea').length > 0;
-
-			return hasText || hasInteractiveElements;
-		});
-
+		const hasContent = await playerHasContent(page);
 		expect(hasContent).toBeTruthy();
 	});
 
@@ -87,16 +51,13 @@ test.describe('QTI Player', () => {
 		await navigateToItemsPage(page, sessionId);
 
 		// Wait for player to load
-		await page.waitForFunction(() => {
-			return customElements.get('pie-qti2-item-player') !== undefined;
-		}, { timeout: 30_000 });
+		await waitForPlayerReady(page);
 
 		// Select a choice interaction item (first item is usually choice)
-		await page.getByTestId('item-select-0').click();
-		await page.waitForTimeout(3000); // Wait for player to render and load XML
+		await selectItem(page, 0);
 
 		// Check that player element is visible
-		const playerElement = page.locator('pie-qti2-item-player');
+		const playerElement = getPlayerElement(page);
 		await expect(playerElement).toBeVisible();
 
 		// Verify player has loaded the item XML
@@ -120,7 +81,7 @@ test.describe('QTI Player', () => {
 			// Look for radio buttons or choice buttons
 			const radios = shadowRoot.querySelectorAll('input[type="radio"]');
 			const buttons = shadowRoot.querySelectorAll('button[role="radio"], button[data-choice]');
-			
+
 			if (radios.length > 0) {
 				// Click first radio
 				(radios[0] as HTMLElement).click();
@@ -130,7 +91,7 @@ test.describe('QTI Player', () => {
 				(buttons[0] as HTMLElement).click();
 				return true;
 			}
-			
+
 			return false;
 		});
 
@@ -146,18 +107,17 @@ test.describe('QTI Player', () => {
 		await navigateToItemsPage(page, sessionId);
 
 		// Wait for player to load
-		await page.waitForFunction(() => {
-			return customElements.get('pie-qti2-item-player') !== undefined;
-		}, { timeout: 30_000 });
+		await waitForPlayerReady(page);
 
 		// Find and select text entry item (usually last item in basic-interactions)
 		const textEntryItem = page.getByTestId('item-select-4'); // Text Entry is typically 5th item
-		if (await textEntryItem.count() > 0) {
-			await textEntryItem.click();
-			await page.waitForTimeout(3000); // Wait for player to render
+		const itemCount = await textEntryItem.count();
+
+		if (itemCount > 0) {
+			await selectItem(page, 4);
 
 			// Check that player loaded
-			const playerElement = page.locator('pie-qti2-item-player');
+			const playerElement = getPlayerElement(page);
 			await expect(playerElement).toBeVisible();
 
 			// Verify player has loaded the text entry item XML
@@ -172,8 +132,10 @@ test.describe('QTI Player', () => {
 				if (!shadowRoot) return false;
 
 				// Look for text inputs
-				const textInputs = shadowRoot.querySelectorAll('input[type="text"], textarea, input:not([type])');
-				
+				const textInputs = shadowRoot.querySelectorAll(
+					'input[type="text"], textarea, input:not([type])'
+				);
+
 				if (textInputs.length > 0) {
 					const input = textInputs[0] as HTMLInputElement;
 					input.value = 'test answer';
@@ -181,7 +143,7 @@ test.describe('QTI Player', () => {
 					input.dispatchEvent(new Event('change', { bubbles: true }));
 					return input.value === 'test answer';
 				}
-				
+
 				return false;
 			});
 
@@ -198,16 +160,13 @@ test.describe('QTI Player', () => {
 		await navigateToItemsPage(page, sessionId);
 
 		// Wait for player to load
-		await page.waitForFunction(() => {
-			return customElements.get('pie-qti2-item-player') !== undefined;
-		}, { timeout: 30_000 });
+		await waitForPlayerReady(page);
 
 		// Select an item
-		await page.getByTestId('item-select-0').click();
-		await page.waitForTimeout(2000);
+		await selectItem(page, 0);
 
 		// Get the player element
-		const playerElement = page.locator('pie-qti2-item-player');
+		const playerElement = getPlayerElement(page);
 		await expect(playerElement).toBeVisible();
 
 		// Check initial role (should be 'candidate')
@@ -215,8 +174,7 @@ test.describe('QTI Player', () => {
 		expect(initialRole).toBe('candidate');
 
 		// Toggle "Show Correct"
-		const showCorrectToggle = page.getByRole('checkbox', { name: 'Show Correct' });
-		await showCorrectToggle.check();
+		await clickShowCorrect(page);
 
 		// Wait a bit for the role to update
 		await page.waitForTimeout(1000);
@@ -226,6 +184,7 @@ test.describe('QTI Player', () => {
 		expect(updatedRole).toBe('scorer');
 
 		// Toggle back
+		const showCorrectToggle = page.getByLabel(/Show Correct/i);
 		await showCorrectToggle.uncheck();
 		await page.waitForTimeout(1000);
 
@@ -239,22 +198,18 @@ test.describe('QTI Player', () => {
 		await navigateToItemsPage(page, sessionId);
 
 		// Wait for player to load
-		await page.waitForFunction(() => {
-			return customElements.get('pie-qti2-item-player') !== undefined;
-		}, { timeout: 30_000 });
+		await waitForPlayerReady(page);
 
 		// Select first item
-		await page.getByTestId('item-select-0').click();
-		await page.waitForTimeout(2000);
+		await selectItem(page, 0);
 
 		// Get initial item identifier
-		const playerElement = page.locator('pie-qti2-item-player');
+		const playerElement = getPlayerElement(page);
 		await expect(playerElement).toBeVisible();
 		const firstItemId = await playerElement.evaluate((el: any) => el.identifier);
 
 		// Select second item
-		await page.getByTestId('item-select-1').click();
-		await page.waitForTimeout(2000);
+		await selectItem(page, 1);
 
 		// Verify player updated with new item
 		const secondItemId = await playerElement.evaluate((el: any) => el.identifier);
@@ -268,12 +223,12 @@ test.describe('QTI Player', () => {
 		// Verify API response includes XML
 		const response = await request.get(`/api/sessions/${sessionId}/items`);
 		expect(response.ok()).toBeTruthy();
-		
+
 		const data = await response.json();
 		expect(data.success).toBeTruthy();
 		expect(Array.isArray(data.items)).toBeTruthy();
 		expect(data.items.length).toBeGreaterThan(0);
-		
+
 		// Verify at least one item has XML
 		const itemWithXml = data.items.find((item: any) => item.xml && item.xml.length > 0);
 		expect(itemWithXml).toBeTruthy();
@@ -288,11 +243,11 @@ test.describe('QTI Player', () => {
 		// This test verifies that if an item doesn't have XML, it shows appropriate message
 		// We can't easily simulate this without mocking, but we can verify the UI handles it
 		await expect(page.getByRole('heading', { name: /Item Browser/i })).toBeVisible();
-		
+
 		// If there's a warning message, it should be visible
 		const warningMessage = page.getByText(/Item XML not available/i);
 		const hasWarning = await warningMessage.count();
-		
+
 		// If warning exists, it should be properly displayed
 		if (hasWarning > 0) {
 			await expect(warningMessage).toBeVisible();
@@ -304,16 +259,12 @@ test.describe('QTI Player', () => {
 		await navigateToItemsPage(page, sessionId);
 
 		// Wait for player to load
-		await page.waitForFunction(() => {
-			return customElements.get('pie-qti2-item-player') !== undefined;
-		}, { timeout: 30_000 });
+		await waitForPlayerReady(page);
 
 		// Select an item
-		await page.getByTestId('item-select-0').click();
-		await page.waitForTimeout(2000);
+		await selectItem(page, 0);
 
 		// Listen for response-change events
-		const responseEvents: any[] = [];
 		await page.evaluate(() => {
 			const player = document.querySelector('pie-qti2-item-player');
 			if (player) {
@@ -325,9 +276,9 @@ test.describe('QTI Player', () => {
 		});
 
 		// Try to interact with the player
-		const choiceButtons = page.locator('pie-qti2-item-player').locator('button, input[type="radio"]');
+		const choiceButtons = getPlayerElement(page).locator('button, input[type="radio"]');
 		const buttonCount = await choiceButtons.count();
-		
+
 		if (buttonCount > 0) {
 			await choiceButtons.first().click();
 			await page.waitForTimeout(1000);
@@ -338,4 +289,3 @@ test.describe('QTI Player', () => {
 		}
 	});
 });
-

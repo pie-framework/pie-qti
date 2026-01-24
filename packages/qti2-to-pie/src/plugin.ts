@@ -41,6 +41,7 @@ import { extractSearchMetadata } from './utils/metadata-extraction.js';
 import { extractPieExtension, hasPieExtension } from './utils/pie-extension.js';
 import { embedQtiSourceInPie } from './utils/qti-extension-embedder.js';
 import { validateQti } from './utils/qti-validator.js';
+import { createStandardMetadataExtractor } from './extractors/standard-metadata-extractor.js';
 
 /**
  * Configuration options for the Qti22ToPiePlugin
@@ -121,6 +122,9 @@ export class Qti22ToPiePlugin implements TransformPlugin {
    * });
    */
   constructor(options: Qti22ToPiePluginOptions = {}) {
+    // Register standard metadata extractor by default (can be overridden by vendors)
+    this.registerMetadataExtractor(createStandardMetadataExtractor());
+
     // Register extensions provided directly as instances
     options.vendorDetectors?.forEach((detector) =>
       this.registerVendorDetector(detector)
@@ -361,16 +365,37 @@ export class Qti22ToPiePlugin implements TransformPlugin {
       const processingTime = Date.now() - startTime;
       logger?.info(`Transformation complete in ${processingTime}ms (type: ${interactionType})`);
 
-      // Extract searchMetaData from QTI
-      const extractedSearchMetadata = extractSearchMetadata(doc);
-      if (Object.keys(extractedSearchMetadata).length > 0) {
-        logger?.info(`Extracted searchMetaData with ${Object.keys(extractedSearchMetadata).length} fields`);
-        // Add to top-level searchMetaData property
-        pieItem.searchMetaData = {
-          ...extractedSearchMetadata,
-          // Preserve any transformer-generated metadata
-          ...(pieItem.metadata?.searchMetaData || {}),
-        };
+      // Extract metadata using registered metadata extractors
+      // Priority: vendor-specific extractor > standard extractor
+      const metadataExtractor = this.vendorExtensions.metadataExtractors.find(
+        extractor => extractor.vendor === vendorInfo?.vendor
+      ) || this.vendorExtensions.metadataExtractors.find(
+        extractor => extractor.vendor === 'standard'
+      );
+
+      if (metadataExtractor) {
+        const extractedMetadata = metadataExtractor.extract(qtiXml, doc, vendorInfo || { vendor: 'standard', confidence: 1.0 });
+        logger?.info(`Extracted metadata using ${metadataExtractor.vendor} extractor`);
+
+        // Apply extracted searchMetadata
+        if (extractedMetadata.searchMetadata && Object.keys(extractedMetadata.searchMetadata).length > 0) {
+          logger?.info(`Extracted searchMetaData with ${Object.keys(extractedMetadata.searchMetadata).length} fields`);
+          pieItem.searchMetaData = {
+            ...extractedMetadata.searchMetadata,
+            // Preserve any transformer-generated metadata
+            ...(pieItem.metadata?.searchMetaData || {}),
+          };
+        }
+      } else {
+        // Fallback to old method if no extractor available
+        const extractedSearchMetadata = extractSearchMetadata(doc);
+        if (Object.keys(extractedSearchMetadata).length > 0) {
+          logger?.info(`Extracted searchMetaData with ${Object.keys(extractedSearchMetadata).length} fields (legacy method)`);
+          pieItem.searchMetaData = {
+            ...extractedSearchMetadata,
+            ...(pieItem.metadata?.searchMetaData || {}),
+          };
+        }
       }
 
       // Embed original QTI XML for lossless round-trip

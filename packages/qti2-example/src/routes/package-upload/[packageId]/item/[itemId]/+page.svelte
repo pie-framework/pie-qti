@@ -3,7 +3,8 @@
 	import { page } from '$app/stores';
 	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
-	import { Player } from '@pie-qti/qti2-item-player';
+	import { base } from '$app/paths';
+	import { Player, normalizeHeuristicsConfig, shouldAutoPopulateFeedbackOutcome, type QtiHeuristicsConfig } from '@pie-qti/qti2-item-player';
 	// @ts-expect-error - Svelte-check can't resolve workspace subpath exports, but runtime works correctly
 	import { ItemBody } from '@pie-qti/qti2-item-player/components';
 	import { registerDefaultComponents } from '@pie-qti/qti2-default-components';
@@ -13,6 +14,26 @@
 	import { loadPackageDataAsync, getItemXml } from '$lib/package-processor';
 	import type { PackageStructure } from '$lib/package-processor';
 	import { getSecurityConfig } from '$lib/player-config';
+	import XmlEditor from '$lib/components/XmlEditor.svelte';
+
+	/**
+	 * Default outcome identifier for feedback display
+	 * This is a common convention in QTI content but can vary by authoring tool.
+	 * Some templates use 'FEEDBACK', others may use different identifiers.
+	 */
+	const FEEDBACK_OUTCOME_ID = 'FEEDBACK';
+
+	/**
+	 * QTI Heuristics configuration
+	 * By default, all heuristics are enabled for better compatibility with real-world QTI content
+	 */
+	const heuristicsConfig: QtiHeuristicsConfig = {
+		enabled: true,
+		feedbackTextFormatting: true,
+		lenientImagePaths: true,
+		autoPopulateFeedbackOutcome: true,
+	};
+	const heuristics = normalizeHeuristicsConfig(heuristicsConfig);
 
 	let itemXml = $state<string | null>(null);
 	let loading = $state(true);
@@ -22,10 +43,13 @@
 	let packageData = $state<PackageStructure | null>(null);
 	let currentItemIndex = $state(-1);
 	let totalItems = $state(0);
+	let itemTitle = $state<string | null>(null);
+	let itemMetadata = $state<any>(null);
 
 	// Player state
 	let player = $state<Player | null>(null);
 	let responses = $state<Record<string, any>>({});
+	let outcomeValues = $state<Record<string, any>>({});
 
 	// Get i18n provider from context
 	const i18nContext = getContext<{ value: SvelteI18nProvider | null }>('i18n');
@@ -45,6 +69,7 @@
 		itemXml = null;
 		player = null;
 		responses = {};
+		outcomeValues = {};
 
 		// Load item asynchronously
 		(async () => {
@@ -57,6 +82,13 @@
 					currentItemIndex = packageData.items.findIndex(
 						(item) => item.identifier === urlItemId
 					);
+
+					// Get the item title and metadata if available
+					const currentItem = packageData.items.find((item) => item.identifier === urlItemId);
+					if (currentItem) {
+						itemTitle = currentItem.title || null;
+						itemMetadata = currentItem.metadata || null;
+					}
 				} else if (packageData) {
 					// Package ID mismatch
 					error = 'Package not found. Please upload the package again.';
@@ -99,7 +131,7 @@
 	function navigateToItem(index: number) {
 		if (packageData && packageData.items[index]) {
 			const item = packageData.items[index];
-			goto(`/package-upload/${$page.params.packageId}/item/${item.identifier}`);
+			goto(`${base}/package-upload/${$page.params.packageId}/item/${item.identifier}`);
 		}
 	}
 
@@ -116,16 +148,62 @@
 	}
 
 	function goBack() {
-		goto('/package-upload');
+		goto(`${base}/package-upload`);
 	}
 
 	function handleResponseChange(responseId: string, value: any) {
 		responses = { ...responses, [responseId]: value };
+		// Process responses to get outcome values for feedback visibility
+		if (player) {
+			try {
+				player.setResponses(responses);
+				const result = player.processResponses();
+				outcomeValues = result.outcomeValues || {};
+
+				// QTI Heuristic: Auto-populate FEEDBACK outcome if missing
+				// This is a heuristic for templates that only set SCORE but have feedbackInline elements.
+				// Can be disabled by setting heuristicsConfig.autoPopulateFeedbackOutcome = false
+				if (shouldAutoPopulateFeedbackOutcome(heuristics, console as any)) {
+					if (!outcomeValues[FEEDBACK_OUTCOME_ID] && value && itemXml) {
+						// Check if the feedback outcome is declared in the XML
+						const hasFeedbackOutcome = itemXml.includes(`outcomeDeclaration identifier="${FEEDBACK_OUTCOME_ID}"`);
+						if (hasFeedbackOutcome) {
+							// Set feedback outcome to the selected choice identifier (for single choice)
+							// or first selected choice (for multiple choice)
+							const feedbackValue = Array.isArray(value) ? value[0] : value;
+							outcomeValues = { ...outcomeValues, [FEEDBACK_OUTCOME_ID]: feedbackValue };
+							console.debug('[QTI Heuristic] Auto-populated FEEDBACK outcome with value:', feedbackValue);
+						}
+					}
+				}
+			} catch (err) {
+				// If processing fails, clear outcome values (feedback will be hidden)
+				outcomeValues = {};
+			}
+		}
+	}
+
+	function copyXmlToClipboard() {
+		if (itemXml) {
+			navigator.clipboard.writeText(itemXml).then(() => {
+				// Show a brief success message (you could use a toast library here)
+				const button = document.querySelector('.copy-xml-btn') as HTMLElement;
+				if (button) {
+					const originalText = button.textContent;
+					button.textContent = 'Copied!';
+					setTimeout(() => {
+						button.textContent = originalText;
+					}, 2000);
+				}
+			}).catch((err) => {
+				console.error('Failed to copy XML to clipboard:', err);
+			});
+		}
 	}
 </script>
 
 <svelte:head>
-	<title>QTI Item: {$page.params.itemId}</title>
+	<title>{itemTitle ? `${itemTitle} - QTI Item` : `QTI Item: ${$page.params.itemId}`}</title>
 </svelte:head>
 
 <div class="max-w-7xl mx-auto px-6 py-8 space-y-6">
@@ -135,10 +213,15 @@
 			<button class="btn btn-outline btn-sm" onclick={goBack}>← Back to Package</button>
 			<div class="divider divider-horizontal"></div>
 			<div>
-				<h1 class="text-2xl font-bold">Item: {$page.params.itemId}</h1>
+				<h1 class="text-2xl font-bold">
+					{itemTitle || `Item: ${$page.params.itemId}`}
+				</h1>
 				{#if currentItemIndex >= 0}
 					<p class="text-sm text-base-content/70">
 						Item {currentItemIndex + 1} of {totalItems}
+						{#if itemTitle}
+							<span class="ml-2 text-xs opacity-70">({$page.params.itemId})</span>
+						{/if}
 					</p>
 				{/if}
 			</div>
@@ -196,20 +279,66 @@
 				<ItemBody
 					{player}
 					{responses}
+					{outcomeValues}
 					disabled={false}
 					role="candidate"
 					i18n={i18n ?? undefined}
 					typeset={typesetMathInElement}
 					onResponseChange={handleResponseChange}
+					{heuristicsConfig}
 				/>
 			</div>
 		</div>
 
+		<!-- Metadata View (Collapsible) -->
+		{#if itemMetadata}
+			<details class="collapse collapse-arrow bg-base-200">
+				<summary class="collapse-title text-lg font-medium">Item Metadata</summary>
+				<div class="collapse-content space-y-4">
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+						{#if itemMetadata.identifier}
+							<div>
+								<h3 class="font-semibold text-sm text-base-content/70">Identifier</h3>
+								<code class="text-xs">{itemMetadata.identifier}</code>
+							</div>
+						{/if}
+
+						{#if itemMetadata.title}
+							<div>
+								<h3 class="font-semibold text-sm text-base-content/70">Title</h3>
+								<p>{itemMetadata.title}</p>
+							</div>
+						{/if}
+
+						{#if itemMetadata.interactionTypes && itemMetadata.interactionTypes.length > 0}
+							<div>
+								<h3 class="font-semibold text-sm text-base-content/70">Interaction Types</h3>
+								<div class="flex flex-wrap gap-1 mt-1">
+									{#each itemMetadata.interactionTypes as interactionType}
+										<span class="badge badge-sm badge-primary">{interactionType}</span>
+									{/each}
+								</div>
+							</div>
+						{/if}
+
+						{#if itemMetadata.searchMetadata && Object.keys(itemMetadata.searchMetadata).length > 0}
+							<div class="md:col-span-2">
+								<h3 class="font-semibold text-sm text-base-content/70">Search Metadata</h3>
+								<div class="bg-base-300 rounded p-3 mt-1">
+									<pre class="text-xs">{JSON.stringify(itemMetadata.searchMetadata, null, 2)}</pre>
+								</div>
+							</div>
+						{/if}
+					</div>
+				</div>
+			</details>
+		{/if}
+
 		<!-- Raw XML View (Collapsible) -->
 		<details class="collapse collapse-arrow bg-base-200">
 			<summary class="collapse-title text-lg font-medium">View Raw XML</summary>
-			<div class="collapse-content">
-				<pre class="text-xs overflow-x-auto p-4 bg-base-300 rounded"><code>{itemXml}</code></pre>
+			<div class="collapse-content pt-4">
+				<XmlEditor content={itemXml} readOnly={true} />
 			</div>
 		</details>
 	{/if}

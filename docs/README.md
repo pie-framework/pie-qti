@@ -29,6 +29,47 @@ Comprehensive architecture and implementation plan for the QTI Batch Processor w
 **Status:** Active design document
 **Last Updated:** 2025-12-25
 
+### [TRANSFORMATION-ENGINE.md](./TRANSFORMATION-ENGINE.md)
+
+Complete architecture guide for the QTI transformation framework. Documents:
+
+- Transform engine architecture and component responsibilities
+- Plugin system with priority-based selection
+- Extensibility points (custom plugins, transformers, asset resolvers)
+- Transform process flow and error handling
+- Integration with transform app and CLI
+- Best practices for plugin development
+
+**Includes:** Architecture diagram (`images/qti-transform-engine.png`)
+**Status:** Active architecture documentation
+**Last Updated:** 2026-01-24
+
+### [PIE-QTI-TRANSFORMATION-GUIDE.md](./PIE-QTI-TRANSFORMATION-GUIDE.md)
+
+User-facing guide for bidirectional PIE ↔ QTI transformations. Covers:
+
+- Quick start examples (item and assessment transformations)
+- Supported PIE elements and QTI interactions
+- IMS Content Package generation
+- Common patterns and best practices
+- Troubleshooting
+
+**Status:** Active user guide
+**Last Updated:** 2025-12-31
+
+### [VENDOR-TRANSFORM-PLUGIN-GUIDE.md](./VENDOR-TRANSFORM-PLUGIN-GUIDE.md)
+
+Developer guide for building vendor-specific transform plugins. Includes:
+
+- Plugin interface deep dive
+- Vendor detection patterns
+- Custom transformers and asset resolution
+- Complete working examples
+- Testing strategies
+
+**Status:** Active developer guide
+**Last Updated:** 2025-12-31
+
 ### Other active docs in this folder
 
 - `QTI_2.2_techguide.md` (technical reference)
@@ -41,6 +82,9 @@ Comprehensive architecture and implementation plan for the QTI Batch Processor w
 - `QTI-RESPONSE-TRACKING-AND-SCORING.md` (scoring/response tracking)
 - `SAMPLES_FEATURE.md` (samples feature)
 - `SESSION_MANAGEMENT.md` (session management)
+- `ARCHITECTURE.md` (overall system architecture)
+- `CONFIGURATION.md` (storage backends and configuration)
+- `MIGRATION_GUIDE.md` (upgrading from legacy storage)
 
 ## Quick Links
 

@@ -1,9 +1,12 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, getContext } from 'svelte';
 	import Qti2ItemPlayer from '$lib/components/Qti2ItemPlayer.svelte';
 	import type { PageData } from './$types';
+	import type { SvelteI18nProvider } from '@pie-qti/qti2-i18n';
 
 	const { data }: { data: PageData } = $props();
+	const i18nContext = getContext<{ value: SvelteI18nProvider | undefined }>('i18n');
+	const i18n = $derived(i18nContext?.value);
 
 	const session = $derived(data.session);
 
@@ -63,14 +66,14 @@
 			<div>
 				<div class="breadcrumbs text-sm">
 					<ul>
-						<li><a href="/" data-testid="items-breadcrumb-home">Home</a></li>
-						<li><a href="/session/{session.id}" data-testid="items-breadcrumb-session">Session {session.id.slice(0, 8)}</a></li>
-						<li data-testid="items-breadcrumb-items">Items</li>
+						<li><a href="/" data-testid="items-breadcrumb-home">{i18n?.t('transform.home') ?? 'Home'}</a></li>
+						<li><a href="/session/{session.id}" data-testid="items-breadcrumb-session">{i18n?.t('transform.sessions.session') ?? 'Session'} {session.id.slice(0, 8)}</a></li>
+						<li data-testid="items-breadcrumb-items">{i18n?.t('transform.items.title') ?? 'Items'}</li>
 					</ul>
 				</div>
-				<h1 class="text-3xl font-bold" data-testid="items-title">Item Browser</h1>
+				<h1 class="text-3xl font-bold" data-testid="items-title">{i18n?.t('transform.items.title') ?? 'Item Browser'}</h1>
 				<p class="text-base-content/60 mt-2">
-					Browse and preview {session.analysis?.totalItems || 0} QTI assessment items
+					{i18n?.t('transform.items.description', { count: session.analysis?.totalItems || 0 }) ?? `Browse and preview ${session.analysis?.totalItems || 0} QTI assessment items`}
 				</p>
 			</div>
 		</div>
@@ -78,7 +81,7 @@
 		{#if _isLoadingItems}
 			<div class="flex items-center justify-center p-12">
 				<span class="loading loading-spinner loading-lg"></span>
-				<span class="ml-4 text-lg">Loading items...</span>
+				<span class="ml-4 text-lg">{i18n?.t('transform.items.loading') ?? 'Loading items...'}</span>
 			</div>
 		{:else if _itemsError}
 			<div class="alert alert-error">
@@ -112,7 +115,7 @@
 						d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
 					/>
 				</svg>
-				<span>No items found in this session.</span>
+				<span>{i18n?.t('transform.items.notFound') ?? 'No items found in this session.'}</span>
 			</div>
 		{:else}
 			<!-- Split Panel Layout -->
@@ -121,7 +124,7 @@
 				<div class="lg:col-span-4">
 					<div class="card bg-base-100 shadow-xl">
 						<div class="card-body p-4">
-							<h2 class="card-title text-lg mb-2">Items ({items.length})</h2>
+							<h2 class="card-title text-lg mb-2">{i18n?.t('transform.items.itemsCount', { count: items.length }) ?? `Items (${items.length})`}</h2>
 
 							<div class="overflow-y-auto max-h-[calc(100vh-250px)]">
 								<div class="space-y-2">
@@ -162,7 +165,7 @@
 
 								<div class="form-control">
 									<label class="label cursor-pointer gap-2">
-										<span class="label-text">Show Correct</span>
+										<span class="label-text">{i18n?.t('transform.items.showCorrect') ?? 'Show Correct'}</span>
 										<input
 											type="checkbox"
 											class="toggle toggle-primary"
@@ -188,11 +191,11 @@
 								</div>
 							{:else if _selectedItem}
 								<div class="alert alert-warning">
-									<span>Item XML not available (has xml: {_selectedItem.xml ? 'yes' : 'no'})</span>
+									<span>{i18n?.t('transform.items.xmlNotAvailable') ?? 'Item XML not available'}</span>
 								</div>
 							{:else}
 								<div class="alert alert-info">
-									<span>No item selected</span>
+									<span>{i18n?.t('transform.items.noSelection') ?? 'No item selected'}</span>
 								</div>
 							{/if}
 						</div>

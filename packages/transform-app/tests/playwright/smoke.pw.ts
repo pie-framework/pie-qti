@@ -1,32 +1,24 @@
 import { expect, test } from '@playwright/test';
+import { createSessionFromSample, waitForAnalysis } from './test-helpers.js';
 
 /**
  * Smoke tests using Playwright's recommended semantic queries.
  * Uses data-testid only for dynamic lists and complex components.
  */
 
-async function createSessionFromSample(request: any, sampleId: string): Promise<string> {
-	const res = await request.post(`/api/samples/${sampleId}/load`);
-	expect(res.ok()).toBeTruthy();
-	const json = await res.json();
-	expect(json.success).toBeTruthy();
-	expect(typeof json.sessionId).toBe('string');
-	return json.sessionId as string;
-}
-
 test.describe('transform-app', () => {
-	test('home loads and shows samples + upload dropzone', async ({ page }) => {
+	test('home loads and shows samples + upload area', async ({ page }) => {
 		await page.goto('/');
-		
-		// Use semantic query for heading
+
+		// Use semantic query for main heading
 		await expect(page.getByRole('heading', { name: /QTI Batch Processor/i })).toBeVisible();
-		
-		// Complex dropzone component - data-testid is appropriate
-		await expect(page.getByTestId('upload-dropzone')).toBeVisible();
-		
-		// Use semantic query for card heading
+
+		// Check for file input (upload functionality) - more robust than testid
+		await expect(page.locator('input[type="file"]')).toBeAttached();
+
+		// Use semantic query for samples section heading
 		await expect(page.getByRole('heading', { name: /Sample QTI Package/i })).toBeVisible();
-		
+
 		// Dynamic sample list - data-testid is appropriate (order may vary)
 		await expect(page.locator('[data-testid^="sample-load-"]').first()).toBeVisible();
 	});
@@ -35,18 +27,16 @@ test.describe('transform-app', () => {
 		const sessionId = await createSessionFromSample(request, 'basic-interactions');
 
 		await page.goto(`/session/${sessionId}`);
-		
+
 		// Use semantic query for heading
 		await expect(page.getByRole('heading', { name: /Session/i })).toBeVisible();
 
-		// Use semantic query for button with accessible name
-		await page.getByRole('button', { name: /Analyze Package/i }).click();
-		
-		// Wait for link to appear (semantic query)
-		await expect(page.getByRole('link', { name: /Browse & Preview Items/i })).toBeVisible({ timeout: 120_000 });
+		// Sample packages are auto-analyzed, so just wait for analysis to complete
+		await waitForAnalysis(page);
 
+		// Navigate to items page
 		await page.getByRole('link', { name: /Browse & Preview Items/i }).click();
-		
+
 		// Use semantic query for page heading
 		await expect(page.getByRole('heading', { name: /Item Browser/i })).toBeVisible();
 
@@ -57,8 +47,10 @@ test.describe('transform-app', () => {
 		// For dynamic content, data-testid is appropriate
 		const initialTitle = await page.getByTestId('selected-item-title').textContent();
 		const secondItem = page.getByTestId('item-select-1');
-		if (await secondItem.count()) {
+		const secondItemCount = await secondItem.count();
+		if (secondItemCount > 0) {
 			await secondItem.click();
+			await page.waitForTimeout(500); // Wait for title to update
 			await expect(page.getByTestId('selected-item-title')).not.toHaveText(initialTitle ?? '');
 		}
 	});

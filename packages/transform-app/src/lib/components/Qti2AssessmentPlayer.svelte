@@ -35,7 +35,15 @@
 	}
 
 	function updatePlayerProperties() {
-		if (!playerElement || !isReady) return;
+		if (!playerElement || !isReady) {
+			return;
+		}
+
+		if (!assessmentTestXml) {
+			console.error('[Qti2AssessmentPlayer] ERROR: assessmentTestXml is empty/undefined!');
+			return;
+		}
+
 		assignProps(playerElement, {
 			assessmentTestXml,
 			items,
@@ -103,5 +111,12 @@
 		<span class="ml-4">Loading QTI assessment player...</span>
 	</div>
 {:else}
-	<pie-qti2-assessment-player bind:this={playerElement} class="block w-full min-h-[400px]"></pie-qti2-assessment-player>
+	<!-- Only render the player when we have assessment XML -->
+	{#if assessmentTestXml}
+		<pie-qti2-assessment-player bind:this={playerElement} class="block w-full min-h-[400px]"></pie-qti2-assessment-player>
+	{:else}
+		<div class="alert alert-info">
+			<span>Waiting for assessment data...</span>
+		</div>
+	{/if}
 {/if}

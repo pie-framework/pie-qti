@@ -16,23 +16,33 @@ test.describe('Error Handling', () => {
 		expect(hasError || isHome).toBeTruthy();
 	});
 
-	test('items page handles missing analysis gracefully', async ({ page, request }) => {
-		// Create a session but don't analyze
+	test('items page can be accessed directly after auto-analysis', async ({ page, request }) => {
+		// Create a session (auto-analyzed)
 		const res = await request.post('/api/samples/basic-interactions/load');
 		const json = await res.json();
 		const sessionId = json.sessionId;
 
-		// Try to navigate directly to items page
+		// Navigate directly to items page
 		await page.goto(`/session/${sessionId}/items`);
 
 		// Wait for page to be fully loaded
 		await page.waitForLoadState('networkidle');
 
-		// Should either show error message or redirect back to session page
+		// Should show items page with player (since sample packages are auto-analyzed)
+		// Or show error message if analysis failed
 		const url = page.url();
-		const hasError = await page.getByText(/error|not found|analyze/i).count() > 0;
-		const isSessionPage = url.includes(`/session/${sessionId}`) && !url.includes('/items');
-		expect(hasError || isSessionPage).toBeTruthy();
+		const isItemsPage = url.includes(`/session/${sessionId}/items`);
+		const hasError = await page.getByText(/error|not found/i).count() > 0;
+		const hasPlayer = await page.locator('pie-qti2-item-player').count() > 0;
+
+		// Either we're on items page with player, or there's an error message
+		expect(isItemsPage || hasError).toBeTruthy();
+
+		// If on items page, should have player or items list
+		if (isItemsPage) {
+			const hasItemsList = await page.locator('[data-testid^="item-select-"]').count() > 0;
+			expect(hasPlayer || hasItemsList).toBeTruthy();
+		}
 	});
 
 	test('empty session shows appropriate message', async ({ page }) => {

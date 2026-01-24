@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
+	import type { PackageItem } from '$lib/package-processor';
 
 	const dispatch = createEventDispatcher<{ view: [item: { identifier: string; href: string }] }>();
 
-	export let items: Array<{ identifier: string; href: string; title?: string }>;
+	export let items: PackageItem[];
 
-	function handleView(item: { identifier: string; href: string }) {
+	function handleView(item: PackageItem) {
 		dispatch('view', [item]);
 	}
 </script>
@@ -25,6 +26,7 @@
 						<th>#</th>
 						<th>Identifier</th>
 						<th>Title</th>
+						<th>Interaction Types</th>
 						<th>Actions</th>
 					</tr>
 				</thead>
@@ -40,6 +42,17 @@
 									{item.title}
 								{:else}
 									<span class="text-base-content/50 italic">No title</span>
+								{/if}
+							</td>
+							<td>
+								{#if item.metadata?.interactionTypes && item.metadata.interactionTypes.length > 0}
+									<div class="flex flex-wrap gap-1">
+										{#each item.metadata.interactionTypes as interactionType}
+											<span class="badge badge-sm badge-outline">{interactionType}</span>
+										{/each}
+									</div>
+								{:else}
+									<span class="text-base-content/50 italic text-xs">None detected</span>
 								{/if}
 							</td>
 							<td>

@@ -14,5 +14,13 @@ export {
 	type Qti22ItemPlayerResponseChangeDetail,
 } from './elements/Qti22ItemPlayerElement.js';
 export type { QtiItemMap } from './qti/resolveItems.js';
+export { parseAssessmentTestXml } from './qti/parseAssessmentTest.js';
+export { resolveItemsForAssessment } from './qti/resolveItems.js';
+export type {
+	ParsedAssessmentTest,
+	ParsedTestPart,
+	ParsedAssessmentSection,
+	ParsedQuestionRef,
+} from './qti/types.js';
 
 

@@ -41,6 +41,7 @@
   "license": "ISC",
   "dependencies": {
     "@pie-qti/element-schemas": "workspace:*",
+    "@pie-qti/logger": "workspace:*",
     "@pie-qti/transform-types": "workspace:*",
     "ajv": "^8.17.1",
     "node-html-parser": "^6.1.13"

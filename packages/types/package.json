@@ -25,6 +25,9 @@
   ],
   "author": "Renaissance Learning",
   "license": "ISC",
+  "dependencies": {
+    "@pie-qti/logger": "workspace:*"
+  },
   "devDependencies": {
     "typescript": "^5.9.3"
   },

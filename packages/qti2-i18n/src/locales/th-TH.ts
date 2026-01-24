@@ -602,4 +602,209 @@ export default {
 			'adaptive-capitals': 'คำถามปรับตัวได้หลายความพยายามพร้อมคำติชมและคำแนะนำแบบค่อยเป็นค่อยไป',
 		},
 	},
+
+	transform: {
+		// App title and navigation
+		appName: 'ตัวประมวลผล QTI แบบสำหรับกลุ่ม',
+		appDescription: 'อัปโหลดแพ็คเกจ QTI เพื่อวิเคราะห์โครงสร้าง แปลงเป็นรูปแบบ PIE และดูตัวอย่างผลลัพธ์',
+		home: 'หน้าแรก',
+
+		// Session management
+		sessions: {
+			title: 'เซสชันล่าสุด',
+			session: 'เซสชัน',
+			status: 'สถานะ',
+			packages: 'แพ็คเกจ',
+			created: 'สร้างแล้ว',
+			createdAt: 'สร้างเมื่อ {date}',
+			open: 'เปิด',
+			delete: 'ลบ',
+			deleteTitle: 'ลบเซสชัน',
+			deleteConfirmTitle: 'ลบเซสชัน',
+			deleteConfirmMessage: 'คุณแน่ใจหรือไม่ว่าต้องการลบเซสชันนี้? ไม่สามารถยกเลิกการดำเนินการนี้ได้ และไฟล์ทั้งหมดจะถูกลบอย่างถาวร',
+			deleted: 'ลบเซสชันแล้ว',
+			notFound: 'ไม่พบเซสชัน',
+			notFoundMessage: 'ไม่สามารถค้นหาเซสชันที่ร้องขอหรือไม่มีอยู่',
+		},
+
+		// Samples
+		samples: {
+			title: 'แพ็คเกจ QTI ตัวอย่าง',
+			description: 'ลองใช้ตัวประมวลผลกับแพ็คเกจตัวอย่างที่โหลดไว้ล่วงหน้าซึ่งแสดงประเภทการโต้ตอบ QTI ต่างๆ',
+			itemCount: '{count, plural, one {# รายการ} other {# รายการ}}',
+			hasManifest: 'Manifest',
+			load: 'โหลดตัวอย่าง',
+			loadSample: 'โหลดตัวอย่าง',
+			loaded: "โหลดตัวอย่าง '{id}' สำเร็จแล้ว",
+			notFound: "ไม่พบแพ็คเกจตัวอย่าง '{id}'",
+			loadFailed: 'ไม่สามารถโหลดตัวอย่าง',
+		},
+
+		// Upload
+		upload: {
+			dropPrompt: 'วางไฟล์ ZIP QTI ที่นี่',
+			orClickToSelect: 'หรือคลิกเพื่อเลือกไฟล์',
+			selectFiles: 'เลือกไฟล์',
+			processing: 'กำลังประมวลผล...',
+			invalidType: 'อนุญาตเฉพาะไฟล์ ZIP เท่านั้น',
+			fileTooLarge: 'ไฟล์ใหญ่เกินไป: {filename} ขนาดสูงสุด {maxSize}MB',
+			noFiles: 'ไม่มีไฟล์ที่ให้',
+			uploadFailed: 'อัปโหลดไม่สำเร็จ',
+		},
+
+		// Session detail page
+		detail: {
+			uploadedPackages: 'แพ็คเกจที่อัปโหลด',
+			package: 'แพ็คเกจ',
+			type: 'ประเภท',
+			size: 'ขนาด',
+			uploaded: 'อัปโหลดแล้ว',
+			actions: 'ผลกระทำ',
+			analyzing: 'กำลังวิเคราะห์แพ็คเกจ...',
+			analysisComplete: 'วิเคราะห์เสร็จสมบูรณ์ แล้ว ตรวจสอบผลลัพธ์ด้านล่างหรือดำเนินการแปลง',
+			cannotConvert: 'ไม่สามารถแปลงเป็น PIE',
+			unsupportedMessage: 'แพ็คเกจนี้มีประเภทการโต้ตอบ QTI ที่ไม่มีเทียบเท่า PIE ดูปัญหาด้านล่างสำหรับรายละเอียด ใช้เครื่องเล่น QTI แทนเพื่อดูตัวอย่างรายการเหล่านี้',
+			transforming: 'กำลังแปลง...',
+			transformToPie: 'แปลงเป็น PIE',
+			analysisResults: 'ผลลัพธ์การวิเคราะห์',
+			totalItems: 'จำนวนรายการทั้งหมด',
+			passages: 'ข้อความอ่าน',
+			tests: 'การทดสอบ',
+			interactionTypesFound: 'พบประเภทการโต้ตอบ',
+			issuesFound: 'พบปัญหา',
+			packageDetails: 'รายละเอียดแพ็คเกจ',
+			noManifest: 'ไม่มี Manifest',
+			items: 'รายการ',
+			interactionTypes: 'ประเภทการโต้ตอบ',
+			assessmentTests: 'การทดสอบการประเมิน',
+			file: 'ไฟล์',
+			pattern: 'รูปแบบ',
+			sampleItems: 'รายการตัวอย่างตามประเภทการโต้ตอบ',
+			issues: 'ปัญหา',
+			browseAssessments: 'เรียกดูและดูตัวอย่างการทดสอบการประเมิน',
+			browseAssessmentsDescription: 'เรียกดูและดูตัวอย่าง {count, plural, one {# การทดสอบการประเมิน QTI} other {# การทดสอบการประเมิน QTI}} ที่พบในเซสชันนี้',
+			individualItems: 'รายการแต่ละรายการ',
+			browseItems: 'เรียกดูและดูตัวอย่างรายการ',
+			browseItemsDescription: 'เรียกดูและดูตัวอย่าง {count, plural, one {# รายการ QTI} other {# รายการ QTI}} ที่พบในเซสชันนี้',
+		},
+
+		// Analysis results
+		analysis: {
+			title: 'ผลลัพธ์การวิเคราะห์',
+			totalItems: 'จำนวนรายการทั้งหมด',
+			passages: 'ข้อความอ่าน',
+			tests: 'การทดสอบ',
+			packages: 'แพ็คเกจ',
+			interactionTypesFound: 'พบประเภทการโต้ตอบ',
+			issuesFound: 'พบปัญหา ({count})',
+			assessmentTests: 'การทดสอบการประเมิน',
+			individualItems: 'รายการแต่ละรายการ',
+		},
+
+		// Items browser
+		items: {
+			title: 'ตัวเรียกดู QTI',
+			description: 'ท่องและดูตัวอย่าง {count} รายการประเมิน QTI',
+			loading: 'กำลังโหลดรายการ...',
+			notFound: 'ไม่พบรายการในเซสชันนี้',
+			itemsCount: 'รายการ ({count})',
+			showCorrect: 'แสดงคำตอบที่ถูกต้อง',
+			xmlNotAvailable: 'ไม่มี XML ของรายการ',
+			noSelection: 'ไม่มีรายการที่เลือก',
+			notAvailable: 'ไม่มีรายการที่พร้อมใช้งาน',
+		},
+
+		// Assessments browser
+		assessments: {
+			title: 'การทดสอบการประเมิน',
+			loading: 'กำลังโหลดการทดสอบการประเมิน...',
+			notFound: 'ไม่พบการทดสอบการประเมินในเซสชันนี้',
+			showCorrect: 'แสดงคำตอบที่ถูกต้อง',
+			assessmentsCount: 'การประเมิน ({count})',
+			selectPrompt: 'เลือกการประเมินเพื่อดูตัวอย่าง',
+		},
+
+		// Transformation results
+		transformed: {
+			pageTitle: 'ผลลัพธ์การแปลง - เซสชัน {sessionId}',
+			breadcrumb: 'แปลงแล้ว',
+			title: 'ผลลัพธ์การแปลง',
+			summary: '{itemCount} รายการ{itemCount, plural, one {} other {}}{assessmentCount, plural, =0 {} other { + {assessmentCount} การประเมิน{assessmentCount, plural, one {} other {}}}} แปลงแล้วใน {duration}',
+			backToSession: 'กลับไปที่เซสชัน',
+			content: 'เนื้อหาที่แปลงแล้ว',
+			items: 'รายการ',
+			assessments: 'การประเมิน',
+			errors: 'ข้อผิดพลาด',
+			warnings: '{count, plural, one {# คำเตือน} other {# คำเตือน}}',
+			transformationErrors: '{count, plural, one {# ข้อผิดพลาดในการแปลง} other {# ข้อผิดพลาดในการแปลง}}',
+			noItems: 'ไม่มีรายการที่แปลง',
+			selectPrompt: 'เลือกรายการหรือการประเมินเพื่อดูตัวอย่าง',
+		},
+
+		// PIE Player controls
+		player: {
+			selectPlayerType: 'เลือกประเภทเครื่องเล่น',
+			iife: 'IIFE',
+			esm: 'ESM',
+			gather: 'รวบรวม',
+			view: 'ดู',
+			evaluate: 'ประเมิน',
+			browse: 'ท่องเว็บ',
+			student: 'นักเรียน',
+			instructor: 'ครูผู้สอน',
+			notAvailable: 'เครื่องเล่น PIE ไม่พร้อมใช้งาน',
+			debugConfig: 'ดีบัก: JSON การกำหนดค่า',
+		},
+
+		// QTI Player controls
+		qtiPlayer: {
+			errorLoading: 'ข้อผิดพลาดในการโหลดเครื่องเล่น QTI',
+			loading: 'กำลังโหลดเครื่องเล่น QTI...',
+			waitingForData: 'รอข้อมูลการประเมิน...',
+		},
+
+		// Assessment preview
+		assessmentPreview: {
+			totalItems: 'จำนวนรายการทั้งหมด',
+			sections: 'ส่วนต่างๆ',
+			timeLimit: 'ข้อจำกัดเวลา',
+			configuration: 'การกำหนดค่า',
+			navigation: 'การนำทาง:',
+			submission: 'การส่ง:',
+		},
+
+		// Confirmation dialog
+		dialog: {
+			defaultTitle: 'ยืนยันการดำเนินการ',
+			defaultConfirm: 'ยืนยัน',
+			defaultCancel: 'ยกเลิก',
+			close: 'ปิด',
+		},
+
+		// API Error messages
+		errors: {
+			noContent: 'กรุณาให้เนื้อหา QTI XML',
+			invalidQti: 'เนื้อหาที่ให้ดูเหมือนไม่ใช่ QTI 2.2 XML ที่ถูกต้อง',
+			transformFailed: 'การแปลงล้มเหลว',
+			noItemsProduced: 'การแปลงไม่มีรายการที่ผลิต',
+			transformError: 'ข้อผิดพลาดในการแปลง: {message}',
+			sessionNotFound: 'ไม่พบเซสชัน',
+			alreadyAnalyzed: 'เซสชันวิเคราะห์แล้ว',
+			noListSupport: 'แบ็กเอนด์ที่เก็บข้อมูลไม่รองรับการแสดงรายการไฟล์',
+			noZipFiles: 'ไม่พบไฟล์ ZIP และไม่มีไฟล์ที่แยกไว้',
+			extractFailed: 'ไม่สามารถแยก {filename}',
+			analysisComplete: 'วิเคราะห์เสร็จสมบูรณ์',
+			notAnalyzed: 'เซสชันยังไม่ได้รับการวิเคราะห์',
+			analysisFailed: 'วิเคราะห์ล้มเหลว',
+			noTransformation: 'ไม่พบผลลัพธ์การแปลงสำหรับเซสชัน {sessionId}',
+			getTransformationFailed: 'ไม่สามารถรับผลลัพธ์การแปลง',
+			loadSamplesFailed: 'ไม่สามารถโหลดตัวอย่าง',
+		},
+
+		// Badges
+		badges: {
+			qti: 'QTI',
+			uploaded: 'อัปโหลดแล้ว',
+		},
+	},
 } as const; // 'as const' for strict type inference

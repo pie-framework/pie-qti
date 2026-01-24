@@ -92,7 +92,7 @@
 					<div>
 						<p class="text-lg font-semibold mb-2">Drag and drop a ZIP file here</p>
 						<p class="text-sm text-base-content/70 mb-4">or</p>
-						<button class="btn btn-primary" on:click={triggerFileInput}>Browse Files</button>
+						<button class="btn btn-primary" on:click={triggerFileInput} disabled={loading}>Browse Files</button>
 					</div>
 					<p class="text-xs text-base-content/50 mt-4">
 						Supports IMS Content Package format with QTI 2.x items and tests

@@ -646,4 +646,209 @@ export default {
 			'adaptive-capitals': 'سؤال تكيفي متعدد المحاولات مع تعليقات وتلميحات تقدمية',
 		},
 	},
+
+	transform: {
+		// App title and navigation
+		appName: 'معالج دفعات QTI',
+		appDescription: 'تحميل حزم QTI لتحليل البنية، والتحويل إلى صيغة PIE، ومعاينة النتائج',
+		home: 'الصفحة الرئيسية',
+
+		// Session management
+		sessions: {
+			title: 'الجلسات الأخيرة',
+			session: 'الجلسة',
+			status: 'الحالة',
+			packages: 'الحزم',
+			created: 'تم الإنشاء',
+			createdAt: 'تم الإنشاء {date}',
+			open: 'فتح',
+			delete: 'حذف',
+			deleteTitle: 'حذف الجلسة',
+			deleteConfirmTitle: 'حذف الجلسة',
+			deleteConfirmMessage: 'هل أنت متأكد من أنك تريد حذف هذه الجلسة؟ لا يمكن التراجع عن هذا الإجراء وسيتم إزالة جميع الملفات بشكل دائم.',
+			deleted: 'تم حذف الجلسة',
+			notFound: 'لم يتم العثور على الجلسة',
+			notFoundMessage: 'تعذر العثور على الجلسة المطلوبة أو أنها غير موجودة.',
+		},
+
+		// Samples
+		samples: {
+			title: 'حزم QTI النموذجية',
+			description: 'جرب المعالج مع حزم نموذجية محملة مسبقًا توضح أنواع التفاعل المختلفة في QTI.',
+			itemCount: '{count, plural, zero {# عنصر} one {عنصر واحد} two {عنصران} few {# عناصر} many {# عنصرًا} other {# عنصر}}',
+			hasManifest: 'البيان',
+			load: 'تحميل النموذج',
+			loadSample: 'تحميل النموذج',
+			loaded: "تم تحميل النموذج '{id}' بنجاح",
+			notFound: "لم يتم العثور على الحزمة النموذجية '{id}'",
+			loadFailed: 'فشل تحميل النموذج',
+		},
+
+		// Upload
+		upload: {
+			dropPrompt: 'أسقط ملفات ZIP QTI هنا',
+			orClickToSelect: 'أو انقر لاختيار الملفات',
+			selectFiles: 'اختيار الملفات',
+			processing: 'جارٍ المعالجة...',
+			invalidType: 'فقط ملفات ZIP مسموح بها',
+			fileTooLarge: 'الملف كبير جدًا: {filename}. الحد الأقصى للحجم هو {maxSize}MB.',
+			noFiles: 'لم يتم توفير ملفات',
+			uploadFailed: 'فشل التحميل',
+		},
+
+		// Session detail page
+		detail: {
+			uploadedPackages: 'الحزم المحملة',
+			package: 'الحزمة',
+			type: 'النوع',
+			size: 'الحجم',
+			uploaded: 'تم التحميل',
+			actions: 'الإجراءات',
+			analyzing: 'جارٍ تحليل الحزمة...',
+			analysisComplete: 'اكتمل التحليل. راجع النتائج أدناه أو تابع إلى التحويل.',
+			cannotConvert: 'لا يمكن التحويل إلى PIE',
+			unsupportedMessage: 'تحتوي هذه الحزمة على أنواع تفاعل QTI ليس لها مكافئ في PIE. راجع المشكلات أدناه للحصول على التفاصيل. استخدم مشغل QTI بدلاً من ذلك لمعاينة هذه العناصر.',
+			transforming: 'جارٍ التحويل...',
+			transformToPie: 'التحويل إلى PIE',
+			analysisResults: 'نتائج التحليل',
+			totalItems: 'إجمالي العناصر',
+			passages: 'الفقرات',
+			tests: 'الاختبارات',
+			interactionTypesFound: 'أنواع التفاعل الموجودة',
+			issuesFound: 'المشكلات الموجودة',
+			packageDetails: 'تفاصيل الحزمة',
+			noManifest: 'لا يوجد بيان',
+			items: 'عناصر',
+			interactionTypes: 'أنواع التفاعل',
+			assessmentTests: 'اختبارات التقييم',
+			file: 'ملف',
+			pattern: 'نمط',
+			sampleItems: 'عناصر نموذجية حسب نوع التفاعل',
+			issues: 'المشكلات',
+			browseAssessments: 'تصفح ومعاينة اختبارات التقييم',
+			browseAssessmentsDescription: 'تصفح ومعاينة {count, plural, zero {# اختبار تقييم QTI} one {اختبار تقييم QTI واحد} two {اختباري تقييم QTI} few {# اختبارات تقييم QTI} many {# اختبار تقييم QTI} other {# اختبار تقييم QTI}} الموجودة في هذه الجلسة',
+			individualItems: 'العناصر الفردية',
+			browseItems: 'تصفح ومعاينة العناصر',
+			browseItemsDescription: 'تصفح ومعاينة {count, plural, zero {# عنصر QTI} one {عنصر QTI واحد} two {عنصري QTI} few {# عناصر QTI} many {# عنصر QTI} other {# عنصر QTI}} الموجودة في هذه الجلسة',
+		},
+
+		// Analysis results
+		analysis: {
+			title: 'نتائج التحليل',
+			totalItems: 'إجمالي العناصر',
+			passages: 'الفقرات',
+			tests: 'الاختبارات',
+			packages: 'الحزم',
+			interactionTypesFound: 'أنواع التفاعل الموجودة',
+			issuesFound: 'المشكلات الموجودة ({count})',
+			assessmentTests: 'اختبارات التقييم',
+			individualItems: 'العناصر الفردية',
+		},
+
+		// Items browser
+		items: {
+			title: 'متصفح العناصر',
+			description: 'تصفح ومعاينة {count} عنصر تقييم QTI',
+			loading: 'جارٍ تحميل العناصر...',
+			notFound: 'لم يتم العثور على عناصر في هذه الجلسة.',
+			itemsCount: 'العناصر ({count})',
+			showCorrect: 'إظهار الإجابات الصحيحة',
+			xmlNotAvailable: 'XML العنصر غير متاح',
+			noSelection: 'لم يتم تحديد عنصر',
+			notAvailable: 'العناصر غير متاحة',
+		},
+
+		// Assessments browser
+		assessments: {
+			title: 'اختبارات التقييم',
+			loading: 'جارٍ تحميل اختبارات التقييم...',
+			notFound: 'لم يتم العثور على اختبارات تقييم في هذه الجلسة.',
+			showCorrect: 'إظهار الإجابات الصحيحة',
+			assessmentsCount: 'التقييمات ({count})',
+			selectPrompt: 'اختر تقييمًا لمعاينته',
+		},
+
+		// Transformation results
+		transformed: {
+			pageTitle: 'نتائج التحويل - الجلسة {sessionId}',
+			breadcrumb: 'محول',
+			title: 'نتائج التحويل',
+			summary: '{itemCount} عنصر{itemCount, plural, zero {} one {} two {} few {} many {} other {}}{assessmentCount, plural, =0 {} other { + {assessmentCount} تقييم{assessmentCount, plural, zero {} one {} two {} few {} many {} other {}}}} تم تحويله في {duration}',
+			backToSession: 'العودة إلى الجلسة',
+			content: 'المحتوى المحول',
+			items: 'العناصر',
+			assessments: 'التقييمات',
+			errors: 'الأخطاء',
+			warnings: '{count, plural, zero {# تحذير} one {تحذير واحد} two {تحذيران} few {# تحذيرات} many {# تحذيرًا} other {# تحذير}}',
+			transformationErrors: '{count, plural, zero {# خطأ تحويل} one {خطأ تحويل واحد} two {خطأا تحويل} few {# أخطاء تحويل} many {# خطأ تحويل} other {# خطأ تحويل}}',
+			noItems: 'لم يتم تحويل أي عناصر',
+			selectPrompt: 'اختر عنصرًا أو تقييمًا للمعاينة',
+		},
+
+		// PIE Player controls
+		player: {
+			selectPlayerType: 'اختر نوع المشغل',
+			iife: 'IIFE',
+			esm: 'ESM',
+			gather: 'جمع',
+			view: 'عرض',
+			evaluate: 'تقييم',
+			browse: 'تصفح',
+			student: 'طالب',
+			instructor: 'مدرس',
+			notAvailable: 'مشغلات PIE غير متاحة',
+			debugConfig: 'تصحيح الأخطاء: JSON التكوين',
+		},
+
+		// QTI Player controls
+		qtiPlayer: {
+			errorLoading: 'خطأ في تحميل مشغل QTI',
+			loading: 'جارٍ تحميل مشغل QTI...',
+			waitingForData: 'في انتظار بيانات التقييم...',
+		},
+
+		// Assessment preview
+		assessmentPreview: {
+			totalItems: 'إجمالي العناصر',
+			sections: 'الأقسام',
+			timeLimit: 'حد الوقت',
+			configuration: 'التكوين',
+			navigation: 'التنقل:',
+			submission: 'الإرسال:',
+		},
+
+		// Confirmation dialog
+		dialog: {
+			defaultTitle: 'تأكيد الإجراء',
+			defaultConfirm: 'تأكيد',
+			defaultCancel: 'إلغاء',
+			close: 'إغلاق',
+		},
+
+		// API Error messages
+		errors: {
+			noContent: 'يرجى توفير محتوى QTI XML',
+			invalidQti: 'يبدو أن المحتوى المقدم ليس QTI 2.2 XML صالحًا',
+			transformFailed: 'فشل التحويل',
+			noItemsProduced: 'لم ينتج التحويل أي عناصر',
+			transformError: 'خطأ في التحويل: {message}',
+			sessionNotFound: 'لم يتم العثور على الجلسة',
+			alreadyAnalyzed: 'تم تحليل الجلسة بالفعل',
+			noListSupport: 'خلفية التخزين لا تدعم إدراج الملفات',
+			noZipFiles: 'لم يتم العثور على ملفات ZIP ولا توجد ملفات مستخرجة متاحة',
+			extractFailed: 'فشل استخراج {filename}',
+			analysisComplete: 'اكتمل التحليل',
+			notAnalyzed: 'لم يتم تحليل الجلسة بعد',
+			analysisFailed: 'فشل التحليل',
+			noTransformation: 'لم يتم العثور على نتائج التحويل للجلسة {sessionId}',
+			getTransformationFailed: 'فشل الحصول على نتائج التحويل',
+			loadSamplesFailed: 'فشل تحميل النماذج',
+		},
+
+		// Badges
+		badges: {
+			qti: 'QTI',
+			uploaded: 'تم التحميل',
+		},
+	},
 } as const; // 'as const' for strict type inference

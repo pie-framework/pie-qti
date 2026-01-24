@@ -1,13 +1,17 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { getContext } from 'svelte';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
+	import QtiPackageUploader from '$lib/components/QtiPackageUploader.svelte';
 	import type { PageData } from './$types';
+	import type { SvelteI18nProvider } from '@pie-qti/qti2-i18n';
 
 	const { data }: { data: PageData } = $props();
+	const i18nContext = getContext<{ value: SvelteI18nProvider | undefined }>('i18n');
+	const i18n = $derived(i18nContext?.value);
 
 	let _isUploading = $state(false);
 	let _uploadError = $state<string | null>(null);
-	let _isDragging = $state(false);
 	let sessions = $state<any[]>([]);
 	let _loadingSessions = $state(false);
 	let _samples = $state<any[]>([]);
@@ -15,8 +19,6 @@
 	let _showDeleteConfirm = $state(false);
 	let _sessionToDelete = $state<string | null>(null);
 	let _initializedFromLoad = $state(false);
-
-	let _fileInput: HTMLInputElement;
 
 	// Initialize state from server load (once).
 	$effect(() => {
@@ -77,34 +79,53 @@
 	}
 
 	function _promptDeleteSession(sessionId: string) {
+		console.log('Prompting delete for session:', sessionId);
 		_sessionToDelete = sessionId;
 		_showDeleteConfirm = true;
 	}
 
 	async function _confirmDeleteSession() {
-		if (!_sessionToDelete) return;
+		console.log('Confirming delete for session:', _sessionToDelete);
+		if (!_sessionToDelete) {
+			console.warn('No session selected for deletion');
+			return;
+		}
 
 		try {
+			console.log('Sending DELETE request to:', `/api/sessions/${_sessionToDelete}`);
 			const response = await fetch(`/api/sessions/${_sessionToDelete}`, {
 				method: 'DELETE'
 			});
 
+			console.log('DELETE response status:', response.status);
+
 			if (!response.ok) {
-				throw new Error('Failed to delete session');
+				const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+				console.error('DELETE failed with error:', errorData);
+				throw new Error(errorData.message || `Delete failed with status ${response.status}`);
 			}
 
+			const deleteData = await response.json();
+			console.log('=== SESSION DELETION INFO ===');
+			console.log(`Session ID: ${_sessionToDelete}`);
+			console.log(`Storage Backend: ${deleteData.storageBackend}`);
+			console.log(`Storage Path: ${deleteData.storagePath}`);
+			console.log(`Deletion Verified: ${deleteData.verified}`);
+			console.log('============================');
+
+			console.log('Delete successful, removing from local state');
 			// Remove from local state
 			sessions = sessions.filter((s) => s.id !== _sessionToDelete);
 			_sessionToDelete = null;
+			console.log('Session removed from list');
 		} catch (error) {
 			console.error('Delete session error:', error);
 			_uploadError = error instanceof Error ? error.message : 'Failed to delete session';
+			throw error; // Re-throw to keep dialog open on error
 		}
 	}
 
-	async function handleFiles(files: FileList | null) {
-		if (!files || files.length === 0) return;
-
+	async function handleUpload(files: FileList) {
 		_uploadError = null;
 		_isUploading = true;
 
@@ -113,13 +134,7 @@
 
 			// Add all files
 			for (let i = 0; i < files.length; i++) {
-				const file = files[i];
-				if (!file.name.endsWith('.zip')) {
-					_uploadError = 'Only ZIP files are allowed';
-					_isUploading = false;
-					return;
-				}
-				formData.append('files', file);
+				formData.append('files', files[i]);
 			}
 
 			const response = await fetch('/api/upload', {
@@ -142,31 +157,6 @@
 		} finally {
 			_isUploading = false;
 		}
-	}
-
-	function _handleDrop(event: DragEvent) {
-		event.preventDefault();
-		_isDragging = false;
-
-		const files = event.dataTransfer?.files;
-		if (files) {
-			handleFiles(files);
-		}
-	}
-
-	function _handleDragOver(event: DragEvent) {
-		event.preventDefault();
-		_isDragging = true;
-	}
-
-	function _handleDragLeave(event: DragEvent) {
-		event.preventDefault();
-		_isDragging = false;
-	}
-
-	function _handleFileSelect(event: Event) {
-		const target = event.target as HTMLInputElement;
-		handleFiles(target.files);
 	}
 
 	function _formatDate(dateStr: string): string {
@@ -197,8 +187,8 @@
 </script>
 
 <svelte:head>
-	<title>QTI Batch Processor</title>
-	<meta name="description" content="Upload and transform QTI packages to PIE format" />
+	<title>{i18n?.t('transform.appName') ?? 'QTI Batch Processor'}</title>
+	<meta name="description" content={i18n?.t('transform.appDescription') ?? 'Upload QTI packages to analyze structure, transform to PIE format, and preview results'} />
 </svelte:head>
 
 <div class="h-full flex flex-col">
@@ -206,119 +196,56 @@
 		<div class="w-full max-w-4xl lg:max-w-6xl xl:max-w-7xl 2xl:max-w-screen-2xl">
 			<!-- Header -->
 			<div class="text-center mb-8" data-testid="home-header">
-				<h1 class="text-4xl font-bold mb-2">QTI Batch Processor</h1>
+				<h1 class="text-4xl font-bold mb-2">{i18n?.t('transform.appName') ?? 'QTI Batch Processor'}</h1>
 				<p class="text-base-content/60">
-					Upload QTI packages to analyze structure, transform to PIE format, and preview results
+					{i18n?.t('transform.appDescription') ?? 'Upload QTI packages to analyze structure, transform to PIE format, and preview results'}
 				</p>
 			</div>
 
-			<!-- Upload Area -->
-			<div class="card bg-base-100 shadow-xl mb-8">
-				<div class="card-body">
-					<div
-						class="border-4 border-dashed rounded-lg p-12 text-center transition-colors {_isDragging ? 'border-primary bg-primary/5' : 'border-base-300'}"
-						ondrop={(e) => _handleDrop?.(e)}
-						ondragover={(e) => _handleDragOver?.(e)}
-						ondragleave={(e) => _handleDragLeave?.(e)}
-						role="button"
-						tabindex="0"
-						onclick={() => _fileInput.click()}
-						onkeydown={(e) => e.key === 'Enter' && _fileInput.click()}
-						data-testid="upload-dropzone"
-					>
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							class="h-16 w-16 mx-auto mb-4 opacity-50"
-							fill="none"
-							viewBox="0 0 24 24"
-							stroke="currentColor"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-							/>
-						</svg>
+		<!-- Upload Area -->
+		<div class="mb-8">
+			<QtiPackageUploader loading={_isUploading} onUpload={handleUpload} />
+		</div>
 
-						{#if _isUploading}
-							<div class="mb-4">
-								<span class="loading loading-spinner loading-lg text-primary"></span>
-							</div>
-							<p class="text-lg font-semibold">Uploading...</p>
-						{:else}
-							<p class="text-lg font-semibold mb-2">Drop QTI ZIP files here</p>
-							<p class="text-base-content/60 mb-4">or click to select files</p>
-							<span class="btn btn-primary btn-sm pointer-events-none">
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									class="h-5 w-5"
-									fill="none"
-									viewBox="0 0 24 24"
-									stroke="currentColor"
-								>
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-									/>
-								</svg>
-								Select Files
-							</span>
-						{/if}
-
-						<input
-							type="file"
-							bind:this={_fileInput}
-							onchange={(e) => _handleFileSelect?.(e)}
-							accept=".zip"
-							multiple
-							class="hidden"
-						/>
-					</div>
-
-					{#if _uploadError}
-						<div class="alert alert-error mt-4">
-							<svg
-								xmlns="http://www.w3.org/2000/svg"
-								class="stroke-current shrink-0 h-6 w-6"
-								fill="none"
-								viewBox="0 0 24 24"
-							>
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
-								/>
-							</svg>
-							<span>{_uploadError}</span>
-						</div>
-					{/if}
-				</div>
+		{#if _uploadError}
+			<div class="alert alert-error">
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					class="stroke-current shrink-0 h-6 w-6"
+					fill="none"
+					viewBox="0 0 24 24"
+				>
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+					/>
+				</svg>
+				<span>{_uploadError}</span>
 			</div>
+		{/if}
 
 			<!-- Recent Sessions -->
 			{#if !_loadingSessions && sessions.length > 0}
 				<div class="card bg-base-100 shadow-xl">
 					<div class="card-body">
-						<h2 class="card-title">Recent Sessions</h2>
+						<h2 class="card-title">{i18n?.t('transform.sessions.title') ?? 'Recent Sessions'}</h2>
 						<div class="overflow-x-auto">
 							<table class="table table-sm">
 								<thead>
 									<tr>
-										<th>Session</th>
-										<th>Status</th>
-										<th>Packages</th>
-										<th>Created</th>
+										<th>{i18n?.t('transform.sessions.session') ?? 'Session'}</th>
+										<th>{i18n?.t('transform.sessions.status') ?? 'Status'}</th>
+										<th>{i18n?.t('transform.sessions.packages') ?? 'Packages'}</th>
+										<th>{i18n?.t('transform.sessions.created') ?? 'Created'}</th>
 										<th></th>
 									</tr>
 								</thead>
 								<tbody>
 									{#each sessions as session}
 										<tr class="hover" data-testid={"recent-session-" + session.id}>
-											<td class="font-mono text-xs">{session.id.split('-')[0]}</td>
+											<td class="font-mono text-xs">{session.id}</td>
 											<td>
 												<span class="badge {_getStatusColor(session.status)} badge-sm">
 													{session.status}
@@ -329,7 +256,7 @@
 											<td>
 												<div class="flex gap-1">
 													<a href="/session/{session.id}" class="btn btn-ghost btn-xs">
-														Open
+														{i18n?.t('transform.sessions.open') ?? 'Open'}
 														<svg
 															xmlns="http://www.w3.org/2000/svg"
 															class="h-4 w-4"
@@ -348,7 +275,7 @@
 													<button
 														onclick={() => _promptDeleteSession(session.id)}
 														class="btn btn-ghost btn-xs text-error"
-														title="Delete session"
+														title={i18n?.t('transform.sessions.deleteTitle') ?? 'Delete session'}
 													>
 														<svg
 															xmlns="http://www.w3.org/2000/svg"
@@ -395,11 +322,10 @@
 									d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
 								/>
 							</svg>
-							Sample QTI Packages
+							{i18n?.t('transform.samples.title') ?? 'Sample QTI Packages'}
 						</h2>
 						<p class="text-sm text-base-content/60 mb-4">
-							Try the processor with pre-loaded sample packages demonstrating various QTI
-							interaction types.
+							{i18n?.t('transform.samples.description') ?? 'Try the processor with pre-loaded sample packages demonstrating various QTI interaction types.'}
 						</p>
 						<div class="grid grid-cols-1 gap-3">
 							{#each _samples as sample}
@@ -411,12 +337,12 @@
 												<p class="text-sm text-base-content/60 mt-1">{sample.description}</p>
 												<div class="flex flex-wrap gap-2 mt-2">
 													<span class="badge badge-sm badge-outline">
-														{sample.itemCount} items
+														{i18n?.t('transform.samples.itemsCount', { count: sample.itemCount }) ?? `${sample.itemCount} items`}
 													</span>
 													<span class="badge badge-sm badge-outline">QTI {sample.qtiVersion}</span>
 													{#if sample.hasManifest}
 														<span class="badge badge-sm badge-success badge-outline">
-															Manifest
+															{i18n?.t('transform.samples.hasManifest') ?? 'Manifest'}
 														</span>
 													{/if}
 												</div>
@@ -437,7 +363,7 @@
 												{#if _isUploading}
 													<span class="loading loading-spinner loading-xs"></span>
 												{:else}
-													Load Sample
+													{i18n?.t('transform.samples.load') ?? 'Load Sample'}
 												{/if}
 											</button>
 										</div>
@@ -449,36 +375,16 @@
 				</div>
 			{/if}
 
-			<!-- Features -->
-			<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
-				<div class="text-center">
-					<div class="text-4xl mb-2">📦</div>
-					<h3 class="font-semibold mb-1">Analyze</h3>
-					<p class="text-sm text-base-content/60">
-						Inspect QTI package structure, items, and interactions
-					</p>
-				</div>
-				<div class="text-center">
-					<div class="text-4xl mb-2">⚙️</div>
-					<h3 class="font-semibold mb-1">Transform</h3>
-					<p class="text-sm text-base-content/60">Batch convert QTI items to PIE format</p>
-				</div>
-				<div class="text-center">
-					<div class="text-4xl mb-2">👁️</div>
-					<h3 class="font-semibold mb-1">Preview</h3>
-					<p class="text-sm text-base-content/60">Compare QTI and PIE rendering side-by-side</p>
-				</div>
-			</div>
 		</div>
 	</div>
 </div>
 
 <ConfirmDialog
 	bind:open={_showDeleteConfirm}
-	title="Delete Session"
-	message="Are you sure you want to delete this session? This action cannot be undone and all files will be permanently removed."
-	confirmText="Delete"
-	cancelText="Cancel"
+	title={i18n?.t('transform.sessions.deleteConfirmTitle') ?? 'Delete Session'}
+	message={i18n?.t('transform.sessions.deleteConfirmMessage') ?? 'Are you sure you want to delete this session? This action cannot be undone and all files will be permanently removed.'}
+	confirmText={i18n?.t('transform.sessions.delete') ?? 'Delete'}
+	cancelText={i18n?.t('common.cancel') ?? 'Cancel'}
 	confirmClass="btn-error"
 	onConfirm={_confirmDeleteSession}
 />

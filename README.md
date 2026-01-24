@@ -104,6 +104,20 @@ See [`@pie-qti/qti2-i18n`](packages/qti2-i18n/) for the complete i18n API and [c
 
 Bidirectional transformation between QTI 2.2 XML and PIE JSON.
 
+### Architecture Overview
+
+The transformation framework provides a plugin-based architecture for converting between assessment formats:
+
+![QTI Transform Engine Architecture](docs/images/qti-transform-engine.png)
+
+The engine orchestrates transformations through:
+
+- **Plugin Registry** — Priority-based plugin selection (vendor plugins override defaults)
+- **Transform Engine** — Format detection, plugin matching, and execution
+- **Extensibility System** — Custom transformers, asset resolvers, and vendor-specific handlers
+
+See [Transformation Engine Documentation](docs/TRANSFORMATION-ENGINE.md) for complete architecture details.
+
 ### Transform Capabilities
 
 **QTI → PIE** (`@pie-qti/qti2-to-pie`)
@@ -197,7 +211,9 @@ bun run preview:pages
 
 ### Transforms
 
+- **[Transformation Engine](docs/TRANSFORMATION-ENGINE.md)** — Architecture, plugin system, and extensibility
 - **[Transformation Guide](docs/PIE-QTI-TRANSFORMATION-GUIDE.md)** — Bidirectional transform overview
+- **[Vendor Plugin Guide](docs/VENDOR-TRANSFORM-PLUGIN-GUIDE.md)** — Building custom vendor plugins
 - **[Configuration Guide](docs/CONFIGURATION.md)** — Storage backends, plugins, and environment setup
 - **[Migration Guide](docs/MIGRATION_GUIDE.md)** — Upgrading from legacy storage to new architecture
 - **[Transform App](packages/transform-app/README.md)** — Web UI for transformations

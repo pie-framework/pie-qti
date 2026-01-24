@@ -40,6 +40,7 @@
   "author": "Renaissance Learning",
   "license": "ISC",
   "dependencies": {
+    "@pie-qti/ims-cp-core": "workspace:*",
     "@pie-qti/transform-core": "workspace:*",
     "@pie-qti/transform-types": "workspace:*",
     "image-size": "^2.0.2",

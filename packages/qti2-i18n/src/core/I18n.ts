@@ -11,10 +11,11 @@ import type { LocaleCode, FrameworkLocaleCode, MessageKey, LocaleMessages } from
 
 // Use Vite's glob import to load all locales dynamically
 // Load en-US eagerly (default/fallback locale), others lazily
+// In dev mode, Vite uses .ts files directly. In production, use .js files from dist.
 // @ts-expect-error - import.meta.glob is a Vite feature, not standard TypeScript
-const eagerLocales = import.meta.glob('../locales/en-US.ts', { eager: true });
+const eagerLocales = import.meta.glob('../locales/en-US.{js,ts}', { eager: true });
 // @ts-expect-error - import.meta.glob is a Vite feature, not standard TypeScript
-const lazyLocales = import.meta.glob('../locales/*.ts', { eager: false });
+const lazyLocales = import.meta.glob('../locales/*.{js,ts}', { eager: false });
 
 // Combine both for lookup
 const localeModules = { ...lazyLocales };
@@ -38,7 +39,8 @@ export class DefaultI18nProvider implements I18nProvider {
 		this.customMessages = customMessages || {};
 
 		// Load en-US eagerly from the eager imports to ensure immediate availability
-		const enUSModule = eagerLocales['../locales/en-US.ts'] as any;
+		// Try both .ts (dev) and .js (prod) extensions
+		const enUSModule = (eagerLocales['../locales/en-US.ts'] || eagerLocales['../locales/en-US.js']) as any;
 		if (enUSModule) {
 			this.messages['en-US'] = enUSModule.default;
 			this.loadedLocales.add('en-US');
@@ -55,8 +57,10 @@ export class DefaultI18nProvider implements I18nProvider {
 		}
 
 		try {
-			const modulePath = `../locales/${locale}.ts`;
-			const loader = localeModules[modulePath];
+			// Try both .ts (dev) and .js (prod) extensions
+			const modulePathTs = `../locales/${locale}.ts`;
+			const modulePathJs = `../locales/${locale}.js`;
+			const loader = localeModules[modulePathTs] || localeModules[modulePathJs];
 
 			if (!loader) {
 				throw new Error(`Locale '${locale}' not found in available modules`);

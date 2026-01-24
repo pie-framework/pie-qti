@@ -614,4 +614,209 @@ export default {
 			'adaptive-capitals': '带有渐进式反馈和提示的多次尝试自适应问题',
 		},
 	},
+
+	transform: {
+		// 应用标题和导航
+		appName: 'QTI 批处理工具',
+		appDescription: '上传 QTI 包来分析结构、转换为 PIE 格式并预览结果',
+		home: '主页',
+
+		// 会话管理
+		sessions: {
+			title: '最近的会话',
+			session: '会话',
+			status: '状态',
+			packages: '包',
+			created: '创建',
+			createdAt: '创建于 {date}',
+			open: '打开',
+			delete: '删除',
+			deleteTitle: '删除会话',
+			deleteConfirmTitle: '删除会话',
+			deleteConfirmMessage: '你确定要删除此会话吗?此操作无法撤销,所有文件将被永久删除。',
+			deleted: '会话已删除',
+			notFound: '未找到会话',
+			notFoundMessage: '找不到请求的会话或不存在。',
+		},
+
+		// 示例
+		samples: {
+			title: '示例 QTI 包',
+			description: '使用演示各种 QTI 交互类型的预加载示例包来尝试此处理工具。',
+			itemCount: '{count, plural, one {# 个项目} other {# 个项目}}',
+			hasManifest: '清单',
+			load: '加载示例',
+			loadSample: '加载示例',
+			loaded: '示例 \'{id}\' 加载成功',
+			notFound: '未找到示例包 \'{id}\'',
+			loadFailed: '加载示例失败',
+		},
+
+		// 上传
+		upload: {
+			dropPrompt: '将 QTI ZIP 文件拖放到此处',
+			orClickToSelect: '或点击选择文件',
+			selectFiles: '选择文件',
+			processing: '处理中...',
+			invalidType: '只允许 ZIP 文件',
+			fileTooLarge: '文件过大:{filename}。最大大小为 {maxSize}MB。',
+			noFiles: '未提供文件',
+			uploadFailed: '上���失败',
+		},
+
+		// 会话详情页面
+		detail: {
+			uploadedPackages: '已上传的包',
+			package: '包',
+			type: '类型',
+			size: '大小',
+			uploaded: '已上传',
+			actions: '操作',
+			analyzing: '正在分析包...',
+			analysisComplete: '分析完成。查看下面的结果或继续进行转换。',
+			cannotConvert: '无法转换为 PIE',
+			unsupportedMessage: '此包包含没有 PIE 等效项的 QTI 交互类型。查看下面的问题了解详情。使用 QTI 播放器预览这些项目。',
+			transforming: '转换中...',
+			transformToPie: '转换为 PIE',
+			analysisResults: '分析结果',
+			totalItems: '总项目数',
+			passages: '文章',
+			tests: '测试',
+			interactionTypesFound: '发现的交互类型',
+			issuesFound: '发现的问题',
+			packageDetails: '包详情',
+			noManifest: '无清单',
+			items: '项目',
+			interactionTypes: '交互类型',
+			assessmentTests: '评估测试',
+			file: '文件',
+			pattern: '模式',
+			sampleItems: '按交互类型的示例项目',
+			issues: '问题',
+			browseAssessments: '浏览和预览评估测试',
+			browseAssessmentsDescription: '浏览和预览此会话中找到的 {count, plural, one {# 个 QTI 评估测试} other {# 个 QTI 评估测试}}',
+			individualItems: '单项项目',
+			browseItems: '浏览和预览项目',
+			browseItemsDescription: '浏览和预览此会话中找到的 {count, plural, one {# 个 QTI 项目} other {# 个 QTI 项目}}',
+		},
+
+		// 分析结果
+		analysis: {
+			title: '分析结果',
+			totalItems: '总项目数',
+			passages: '文章',
+			tests: '测试',
+			packages: '包',
+			interactionTypesFound: '发现的交互类型',
+			issuesFound: '发现的问题({count})',
+			assessmentTests: '评估测试',
+			individualItems: '单项项目',
+		},
+
+		// 项目浏览器
+		items: {
+			title: '项目浏览器',
+			description: '浏览和预览此会话中的 {count} 个 QTI 评估项目',
+			loading: '加载项目中...',
+			notFound: '此会话中未找到项目。',
+			itemsCount: '项目({count})',
+			showCorrect: '显示正确答案',
+			xmlNotAvailable: '项目 XML 不可用',
+			noSelection: '未选择项目',
+			notAvailable: '项目不可用',
+		},
+
+		// 评估浏览器
+		assessments: {
+			title: '评估测试',
+			loading: '加载评估测试中...',
+			notFound: '此会话中未找到评估测试。',
+			showCorrect: '显示正确答案',
+			assessmentsCount: '评估 ({count})',
+			selectPrompt: '选择评估以预览',
+		},
+
+		// 转换结果
+		transformed: {
+			pageTitle: '转换结果 - 会话 {sessionId}',
+			breadcrumb: '已转换',
+			title: '转换结果',
+			summary: '{itemCount} 个项目{itemCount, plural, one {} other {}}{assessmentCount, plural, =0 {} other { + {assessmentCount} 个评估{assessmentCount, plural, one {} other {}}}}在 {duration} 内转换完成',
+			backToSession: '返回会话',
+			content: '转换的内容',
+			items: '项目',
+			assessments: '评估',
+			errors: '错误',
+			warnings: '{count, plural, one {# 个警告} other {# 个警告}}',
+			transformationErrors: '{count, plural, one {# 个转换错误} other {# 个转换错误}}',
+			noItems: '未转换任何项目',
+			selectPrompt: '选择项目或评估以预览',
+		},
+
+		// PIE 播放器控制
+		player: {
+			selectPlayerType: '选择播放器类型',
+			iife: 'IIFE',
+			esm: 'ESM',
+			gather: '收集',
+			view: '查看',
+			evaluate: '评估',
+			browse: '浏览',
+			student: '学生',
+			instructor: '讲师',
+			notAvailable: 'PIE 播放器不可用',
+			debugConfig: '调试:配置 JSON',
+		},
+
+		// QTI 播放器控制
+		qtiPlayer: {
+			errorLoading: '加载 QTI 播放器时出错',
+			loading: '加载 QTI 播放器中...',
+			waitingForData: '等待评估数据...',
+		},
+
+		// 评估预览
+		assessmentPreview: {
+			totalItems: '总项目数',
+			sections: '部分',
+			timeLimit: '时间限制',
+			configuration: '配置',
+			navigation: '导航:',
+			submission: '提交:',
+		},
+
+		// 确认对话框
+		dialog: {
+			defaultTitle: '确认操作',
+			defaultConfirm: '确认',
+			defaultCancel: '取消',
+			close: '关闭',
+		},
+
+		// API 错误消息
+		errors: {
+			noContent: '请提供 QTI XML 内容',
+			invalidQti: '提供的内容似乎不是有效的 QTI 2.2 XML',
+			transformFailed: '转换失败',
+			noItemsProduced: '转换未生成任何项目',
+			transformError: '转换错误:{message}',
+			sessionNotFound: '未找到会话',
+			alreadyAnalyzed: '会话已分析',
+			noListSupport: '存储后端不支持列出文件',
+			noZipFiles: '未找到 ZIP 文件,且没有可用的解压缩文件',
+			extractFailed: '解压缩 {filename} 失败',
+			analysisComplete: '分析完成',
+			notAnalyzed: '会话尚未分析',
+			analysisFailed: '分析失败',
+			noTransformation: '未找到会话 {sessionId} 的转换结果',
+			getTransformationFailed: '获取转换结果失败',
+			loadSamplesFailed: '加载示例失败',
+		},
+
+		// 徽章
+		badges: {
+			qti: 'QTI',
+			uploaded: '已上传',
+		},
+	},
 } as const; // 'as const' 用于严格的类型推断

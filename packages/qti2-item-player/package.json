@@ -27,6 +27,8 @@
 	"author": "Renaissance Learning",
 	"license": "ISC",
 	"dependencies": {
+		"@pie-qti/ims-cp-core": "workspace:*",
+		"@pie-qti/qti2-i18n": "workspace:*",
 		"@pie-qti/qti-processing": "workspace:*",
 		"@tiptap/core": "^3.15.3",
 		"@tiptap/extension-mathematics": "^3.15.3",
@@ -66,6 +68,10 @@
 			"types": "./dist/components/index.d.ts",
 			"svelte": "./src/components/index.ts",
 			"import": "./dist/components/index.js"
+		},
+		"./components/utils": {
+			"types": "./dist/components/utils/index.d.ts",
+			"import": "./dist/components/utils/index.js"
 		}
 	}
 }

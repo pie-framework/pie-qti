@@ -5,6 +5,7 @@
 
 import { json, error as svelteError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { readSessionXml } from '$lib/server/utils/path-utils';
 
 export const GET: RequestHandler = async ({ params, locals }) => {
 	const { id } = params;
@@ -25,47 +26,6 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
 		const extractedPath = sessionStorage.getExtractedPath(id);
 		const uploadsPath = sessionStorage.getUploadsPath(id);
-
-		function normalizePossiblyAbsolutePath(p: string): string {
-			if (p.startsWith('Users/') || p.startsWith('home/')) {
-				return `/${p}`;
-			}
-			return p;
-		}
-
-		function isAbsolutePath(p: string): boolean {
-			return p.startsWith('/');
-		}
-
-		async function readSessionXml(samplePath: string): Promise<string> {
-			const normalized = normalizePossiblyAbsolutePath(samplePath);
-			const candidates: string[] = [];
-
-			if (isAbsolutePath(normalized)) {
-				const pathWithoutLeadingSlash = normalized.substring(1);
-				candidates.push(pathWithoutLeadingSlash);
-			} else {
-				candidates.push(`${extractedPath}/${normalized}`);
-				candidates.push(`${uploadsPath}/${normalized}`);
-				const baseName = normalized.split('/').pop();
-				if (baseName && baseName !== normalized) {
-					candidates.push(`${uploadsPath}/${baseName}`);
-					candidates.push(`${extractedPath}/${baseName}`);
-				}
-			}
-
-			for (const candidate of candidates) {
-				try {
-					if (await storage.exists(candidate)) {
-						return await storage.readText(candidate);
-					}
-				} catch {
-					continue;
-				}
-			}
-
-			throw new Error(`ENOENT: no such file or directory, open '${candidates[0] || samplePath}'`);
-		}
 
 		async function findAssessmentTestPaths(rootDir: string, limit = 5): Promise<string[]> {
 			const found: string[] = [];
@@ -119,6 +79,35 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 			return found;
 		}
 
+		// Helper to parse assessment metadata from XML
+		interface AssessmentMetadata {
+			identifier: string;
+			title: string;
+			navigationMode: 'linear' | 'nonlinear';
+			submissionMode: 'individual' | 'simultaneous';
+			sectionCount: number;
+			itemCount: number;
+		}
+
+		function parseAssessmentMetadata(xml: string): AssessmentMetadata {
+			const identifierMatch = xml.match(/assessmentTest[^>]+identifier="([^"]+)"/);
+			const titleMatch = xml.match(/assessmentTest[^>]+title="([^"]+)"/);
+			const navigationMatch = xml.match(/testPart[^>]+navigationMode="([^"]+)"/);
+			const submissionMatch = xml.match(/testPart[^>]+submissionMode="([^"]+)"/);
+
+			const sectionMatches = xml.match(/<assessmentSection/g);
+			const itemMatches = xml.match(/<assessmentItemRef/g);
+
+			return {
+				identifier: identifierMatch?.[1] || 'unknown',
+				title: titleMatch?.[1] || 'Untitled Assessment',
+				navigationMode: (navigationMatch?.[1] as 'linear' | 'nonlinear') || 'nonlinear',
+				submissionMode: (submissionMatch?.[1] as 'individual' | 'simultaneous') || 'simultaneous',
+				sectionCount: sectionMatches?.length || 0,
+				itemCount: itemMatches?.length || 0,
+			};
+		}
+
 		// Build list of assessment tests from analysis results
 		const assessments: Array<{
 			id: string;
@@ -127,27 +116,46 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 			itemCount: number;
 			xml: string;
 			items: Record<string, string>;
+			identifier: string;
+			navigationMode: 'linear' | 'nonlinear';
+			submissionMode: 'individual' | 'simultaneous';
+			sectionCount: number;
 		}> = [];
 
+		// Track seen assessments to prevent duplicates across packages
+		const seenAssessments = new Set<string>();
+
 		for (const pkg of session.analysis.packages) {
-			// Get assessment test samples
+			// Get assessment test samples - deduplicate results from both paths
 			const testPaths =
 				(pkg.samples as any)?.tests?.length
 					? (pkg.samples as any).tests
 					: pkg.testCount > 0
-						? [
+						? Array.from(new Set([
 								...(await findAssessmentTestPaths(extractedPath, 5)),
 								...(await findAssessmentTestPaths(uploadsPath, 5)),
-							]
+							]))
 						: [];
 
 			for (const testPath of testPaths) {
+				// Normalize path for deduplication (remove extracted/uploads prefix)
+				const normalizedPath = testPath.replace(/^.*\/(extracted|uploads)\//, '');
+
+				// Skip if we've already processed this assessment
+				if (seenAssessments.has(normalizedPath)) {
+					continue;
+				}
+				seenAssessments.add(normalizedPath);
+
 				// Read the assessment test XML
-				const testXml = await readSessionXml(testPath);
+				const testXml = await readSessionXml(testPath, storage, extractedPath, uploadsPath);
 
 				// Extract filename from path
 				const fileName = testPath.split('/').pop() || 'unknown';
 				const fileId = fileName.replace(/\.xml$/i, '');
+
+				// Parse assessment metadata
+				const metadata = parseAssessmentMetadata(testXml);
 
 				// Collect all item XMLs from this package
 				const items: Record<string, string> = {};
@@ -164,7 +172,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
 				// Read all item XMLs
 				for (const itemPath of itemFiles) {
-					const itemXml = await readSessionXml(itemPath);
+					const itemXml = await readSessionXml(itemPath, storage, extractedPath, uploadsPath);
 					const itemFileName = itemPath.split('/').pop() || '';
 					// Store by both filename and identifier
 					items[itemFileName] = itemXml;
@@ -176,11 +184,15 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
 				assessments.push({
 					id: fileId,
-					title: fileId.replace(/_/g, ' ').replace(/-/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+					title: metadata.title || fileId.replace(/_/g, ' ').replace(/-/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
 					filePath: fileName,
 					itemCount: itemFiles.size,
 					xml: testXml,
-					items
+					items,
+					identifier: metadata.identifier,
+					navigationMode: metadata.navigationMode,
+					submissionMode: metadata.submissionMode,
+					sectionCount: metadata.sectionCount,
 				});
 			}
 		}

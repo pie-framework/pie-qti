@@ -85,6 +85,7 @@
       "version": "0.1.1",
       "dependencies": {
         "@pie-qti/element-schemas": "workspace:*",
+        "@pie-qti/logger": "workspace:*",
         "@pie-qti/transform-types": "workspace:*",
         "ajv": "^8.17.1",
         "node-html-parser": "^6.1.13",
@@ -128,6 +129,7 @@
       "name": "@pie-qti/ims-cp-core",
       "version": "0.1.0",
       "dependencies": {
+        "@pie-qti/logger": "workspace:*",
         "node-html-parser": "^6.1.13",
       },
     },
@@ -141,6 +143,13 @@
       "devDependencies": {
         "@types/node": "^25.0.3",
         "@types/unzipper": "^0.10.11",
+        "typescript": "^5.9.3",
+      },
+    },
+    "packages/logger": {
+      "name": "@pie-qti/logger",
+      "version": "0.1.0",
+      "devDependencies": {
         "typescript": "^5.9.3",
       },
     },
@@ -223,6 +232,8 @@
       "dependencies": {
         "@acme/likert-scale-plugin": "workspace:*",
         "@pie-qti/ims-cp-browser": "workspace:*",
+        "@pie-qti/ims-cp-core": "workspace:*",
+        "@pie-qti/logger": "workspace:*",
         "@pie-qti/qti2-assessment-player": "workspace:*",
         "@pie-qti/qti2-default-components": "workspace:*",
         "@pie-qti/qti2-i18n": "workspace:*",
@@ -291,7 +302,9 @@
       "name": "@pie-qti/qti2-item-player",
       "version": "0.1.1",
       "dependencies": {
+        "@pie-qti/ims-cp-core": "workspace:*",
         "@pie-qti/qti-processing": "workspace:*",
+        "@pie-qti/qti2-i18n": "workspace:*",
         "@tiptap/core": "^3.15.3",
         "@tiptap/extension-mathematics": "^3.15.3",
         "@tiptap/extension-placeholder": "^3.15.3",
@@ -330,6 +343,7 @@
       "name": "@pie-qti/qti2-to-pie",
       "version": "0.1.1",
       "dependencies": {
+        "@pie-qti/ims-cp-core": "workspace:*",
         "@pie-qti/transform-core": "workspace:*",
         "@pie-qti/transform-types": "workspace:*",
         "image-size": "^2.0.2",
@@ -399,6 +413,7 @@
       "dependencies": {
         "@pie-qti/qti2-assessment-player": "workspace:*",
         "@pie-qti/qti2-default-components": "workspace:*",
+        "@pie-qti/qti2-i18n": "workspace:*",
         "@pie-qti/qti2-item-player": "workspace:*",
         "@pie-qti/qti2-player-elements": "workspace:*",
         "@pie-qti/qti2-to-pie": "workspace:*",
@@ -444,6 +459,9 @@
     "packages/types": {
       "name": "@pie-qti/transform-types",
       "version": "0.1.1",
+      "dependencies": {
+        "@pie-qti/logger": "workspace:*",
+      },
       "devDependencies": {
         "typescript": "^5.9.3",
       },
@@ -759,6 +777,8 @@
     "@pie-qti/ims-cp-core": ["@pie-qti/ims-cp-core@workspace:packages/ims-cp-core"],
 
     "@pie-qti/ims-cp-node": ["@pie-qti/ims-cp-node@workspace:packages/ims-cp-node"],
+
+    "@pie-qti/logger": ["@pie-qti/logger@workspace:packages/logger"],
 
     "@pie-qti/pie-to-qti2": ["@pie-qti/pie-to-qti2@workspace:packages/pie-to-qti2"],
 

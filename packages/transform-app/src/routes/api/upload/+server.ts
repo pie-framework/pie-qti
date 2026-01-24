@@ -1,9 +1,11 @@
 /**
  * File upload API endpoint
- * Accepts ZIP files and creates a new session
+ * Accepts ZIP files, creates a new session, and auto-analyzes the packages
  */
 
 import { json, error as svelteError } from '@sveltejs/kit';
+import { StorageZipExtractor } from '@pie-qti/storage';
+import { getQtiAnalyzer } from '$lib/server/analyzer/QtiAnalyzer';
 import type { RequestHandler } from './$types';
 
 const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
@@ -13,7 +15,7 @@ const ALLOWED_TYPES = ['application/zip', 'application/x-zip-compressed'];
  * Generate a unique session ID
  */
 function generateSessionId(): string {
-	return `session-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+	return `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
 }
 
 export const POST: RequestHandler = async ({ request, locals }) => {
@@ -81,20 +83,88 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			});
 		}
 
-		// Create session with package info
-		const session = {
+		// Create session with initial status 'uploaded'
+		// Analysis will be triggered automatically by the session page
+		const session: any = {
 			id: sessionId,
 			createdAt: new Date().toISOString(),
-			status: 'uploading' as const,
+			status: 'uploaded',
 		};
 
 		await sessionStorage.writeSessionMetadata(sessionId, session);
 
-		return json({
-			success: true,
-			sessionId: session.id,
-			packages: uploadedFiles,
-		});
+		// Auto-analyze the packages immediately after upload
+		try {
+			const analyzer = getQtiAnalyzer();
+			const extractedPath = sessionStorage.getExtractedPath(sessionId);
+
+			// Extract ZIP files
+			const extractor = new StorageZipExtractor();
+			let allExtractedFiles: string[] = [];
+
+			const uploadedZipFiles = uploadedFiles.map(f => `${uploadsPath}/${f.name}`);
+
+			for (const zipPath of uploadedZipFiles) {
+				const result = await extractor.extract(zipPath, extractedPath, storage);
+
+				if (!result.success) {
+					throw new Error(`Failed to extract ${zipPath}`);
+				}
+
+				allExtractedFiles.push(...result.files);
+			}
+
+			// Update session with extracted files
+			session.status = 'ready';
+			session.extractedFiles = allExtractedFiles;
+			session.lastAccessedAt = new Date().toISOString();
+			await sessionStorage.writeSessionMetadata(sessionId, session);
+
+			// Analyze the packages
+			const absoluteExtractedPath = (storage as any).resolvePath
+				? (storage as any).resolvePath(extractedPath)
+				: require('node:path').resolve(process.cwd(), 'uploads', extractedPath);
+
+			const webAnalysisResult = await analyzer.analyzeSession(
+				sessionId,
+				absoluteExtractedPath,
+				(progress) => {
+					console.log('Analysis progress:', progress);
+				},
+			);
+
+			// Convert Map to Record for storage
+			const analysisResult = {
+				...webAnalysisResult,
+				allInteractionTypes: Object.fromEntries(webAnalysisResult.allInteractionTypes),
+			};
+
+			// Save analysis results
+			await locals.appSessionStorage.saveAnalysis(sessionId, analysisResult);
+
+			return json({
+				success: true,
+				sessionId: session.id,
+				packages: uploadedFiles,
+				analyzed: true,
+			});
+		} catch (analysisError) {
+			// If analysis fails, still return success for upload but mark session as error
+			console.error('Auto-analysis failed:', analysisError);
+
+			session.status = 'error';
+			session.error = analysisError instanceof Error ? analysisError.message : 'Analysis failed';
+			session.lastAccessedAt = new Date().toISOString();
+			await sessionStorage.writeSessionMetadata(sessionId, session);
+
+			return json({
+				success: true,
+				sessionId: session.id,
+				packages: uploadedFiles,
+				analyzed: false,
+				analysisError: analysisError instanceof Error ? analysisError.message : 'Analysis failed',
+			});
+		}
 	} catch (err) {
 		console.error('Upload error:', err);
 

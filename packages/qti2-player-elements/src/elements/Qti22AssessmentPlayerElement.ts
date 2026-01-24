@@ -72,12 +72,21 @@ export class Qti22AssessmentPlayerElement extends BaseSvelteMountElement<Record<
 	#initSession: InitSessionRequest = { assessmentId: 'assessment', candidateId: 'candidate' };
 
 	#loadSeq = 0;
+	#allowMount = false;
 
 	connectedCallback() {
 		super.connectedCallback();
 		queueMicrotask(() => {
 			this.dispatchEvent(new CustomEvent('ready', { bubbles: true, composed: true }));
 		});
+	}
+
+	protected override _mountOrUpdate() {
+		// Prevent mounting until assessment is loaded or no XML is provided
+		if (!this.#allowMount && this.#assessmentTestXml) {
+			return;
+		}
+		super._mountOrUpdate();
 	}
 
 	attributeChangedCallback(name: string, _oldValue: string | null, newValue: string | null) {
@@ -121,7 +130,11 @@ export class Qti22AssessmentPlayerElement extends BaseSvelteMountElement<Record<
 	}
 	set config(value: Partial<BackendAssessmentPlayerConfig>) {
 		this.#config = value ?? {};
-		this._mountOrUpdate();
+		// Don't call _mountOrUpdate here - let #syncFromQti handle it when done
+		// If assessment is not being loaded (no XML), then update immediately
+		if (!this.#assessmentTestXml) {
+			this._mountOrUpdate();
+		}
 	}
 
 	get security() {
@@ -129,7 +142,11 @@ export class Qti22AssessmentPlayerElement extends BaseSvelteMountElement<Record<
 	}
 	set security(value: PlayerSecurityConfig | undefined) {
 		this.#security = value;
-		this._mountOrUpdate();
+		// Don't call _mountOrUpdate here - let #syncFromQti handle it when done
+		// If assessment is not being loaded (no XML), then update immediately
+		if (!this.#assessmentTestXml) {
+			this._mountOrUpdate();
+		}
 	}
 
 	/**
@@ -216,7 +233,10 @@ export class Qti22AssessmentPlayerElement extends BaseSvelteMountElement<Record<
 			this.#initSession = { assessmentId, candidateId };
 
 			this.dispatchEvent(new CustomEvent('load-end', { bubbles: true, composed: true }));
-			this._mountOrUpdate(); // Mount/update with resolved assessment
+
+			// Allow mounting now that backend is ready
+			this.#allowMount = true;
+			this._mountOrUpdate();
 		} catch (e) {
 			if (seq !== this.#loadSeq) return;
 			// Keep current backend/initSession; component will display error.

@@ -8,6 +8,7 @@
  */
 
 import type { MathfieldElement } from 'mathlive';
+import type { I18nProvider } from '@pie-qti/qti2-i18n';
 
 const DEFAULT_MATHLIVE_CSS_URL = 'https://cdn.jsdelivr.net/npm/mathlive@0.108.2/dist/mathlive-static.css';
 
@@ -46,13 +47,15 @@ export interface MathLiveEditorOptions {
 	 * Useful for CSP-restricted deployments (serve from your own domain).
 	 */
 	cssUrl?: string;
+	/** Optional i18n provider for translations */
+	i18n?: I18nProvider;
 }
 
 /**
  * Opens a modal dialog with MathLive editor for LaTeX input
  */
 export async function openMathLiveEditor(options: MathLiveEditorOptions): Promise<() => void> {
-	const { onConfirm, onCancel, initialLatex = '', isBlock = false, cssUrl = DEFAULT_MATHLIVE_CSS_URL } = options;
+	const { onConfirm, onCancel, initialLatex = '', isBlock = false, cssUrl = DEFAULT_MATHLIVE_CSS_URL, i18n } = options;
 
 	// Ensure MathLive is loaded and registered before creating the mathfield
 	await ensureMathLiveLoaded(cssUrl);
@@ -84,7 +87,9 @@ export async function openMathLiveEditor(options: MathLiveEditorOptions): Promis
 
 	// Create header - use DaisyUI font-bold text-lg
 	const header = document.createElement('h3');
-	header.textContent = isBlock ? 'Insert Block Math' : 'Insert Inline Math';
+	header.textContent = isBlock
+		? (i18n?.t('interactions.extendedText.insertBlockMath') ?? 'Insert Block Math')
+		: (i18n?.t('interactions.extendedText.insertInlineMath') ?? 'Insert Inline Math');
 	header.className = 'font-bold text-lg mb-4';
 
 	// Create form control wrapper
