@@ -614,4 +614,209 @@ export default {
 			'adaptive-capitals': 'Multi-attempt adaptive question with progressive feedback and hints',
 		},
 	},
+
+	transform: {
+		// App title and navigation
+		appName: 'QTI Batch Processor',
+		appDescription: 'Upload QTI packages to analyze structure, transform to PIE format, and preview results',
+		home: 'Home',
+
+		// Session management
+		sessions: {
+			title: 'Recent Sessions',
+			session: 'Session',
+			status: 'Status',
+			packages: 'Packages',
+			created: 'Created',
+			createdAt: 'Created {date}',
+			open: 'Open',
+			delete: 'Delete',
+			deleteTitle: 'Delete session',
+			deleteConfirmTitle: 'Delete Session',
+			deleteConfirmMessage: 'Are you sure you want to delete this session? This action cannot be undone and all files will be permanently removed.',
+			deleted: 'Session deleted',
+			notFound: 'Session Not Found',
+			notFoundMessage: 'The requested session could not be found or does not exist.',
+		},
+
+		// Samples
+		samples: {
+			title: 'Sample QTI Packages',
+			description: 'Try the processor with pre-loaded sample packages demonstrating various QTI interaction types.',
+			itemCount: '{count, plural, one {# item} other {# items}}',
+			hasManifest: 'Manifest',
+			load: 'Load Sample',
+			loadSample: 'Load Sample',
+			loaded: "Sample '{id}' loaded successfully",
+			notFound: "Sample package '{id}' not found",
+			loadFailed: 'Failed to load sample',
+		},
+
+		// Upload
+		upload: {
+			dropPrompt: 'Drop QTI ZIP files here',
+			orClickToSelect: 'or click to select files',
+			selectFiles: 'Select Files',
+			processing: 'Processing...',
+			invalidType: 'Only ZIP files are allowed',
+			fileTooLarge: 'File too large: {filename}. Maximum size is {maxSize}MB.',
+			noFiles: 'No files provided',
+			uploadFailed: 'Upload failed',
+		},
+
+		// Session detail page
+		detail: {
+			uploadedPackages: 'Uploaded Packages',
+			package: 'Package',
+			type: 'Type',
+			size: 'Size',
+			uploaded: 'Uploaded',
+			actions: 'Actions',
+			analyzing: 'Package is being analyzed...',
+			analysisComplete: 'Analysis complete. Review results below or proceed to transformation.',
+			cannotConvert: 'Cannot Convert to PIE',
+			unsupportedMessage: 'This package contains QTI interaction types that have no PIE equivalent. See issues below for details. Use the QTI player instead to preview these items.',
+			transforming: 'Transforming...',
+			transformToPie: 'Transform to PIE',
+			analysisResults: 'Analysis Results',
+			totalItems: 'Total Items',
+			passages: 'Passages',
+			tests: 'Tests',
+			interactionTypesFound: 'Interaction Types Found',
+			issuesFound: 'Issues Found',
+			packageDetails: 'Package Details',
+			noManifest: 'No Manifest',
+			items: 'items',
+			interactionTypes: 'Interaction Types',
+			assessmentTests: 'Assessment Tests',
+			file: 'File',
+			pattern: 'Pattern',
+			sampleItems: 'Sample Items by Interaction Type',
+			issues: 'Issues',
+			browseAssessments: 'Browse & Preview Assessment Tests',
+			browseAssessmentsDescription: 'Browse and preview {count, plural, one {# QTI assessment test} other {# QTI assessment tests}} found in this session',
+			individualItems: 'Individual Items',
+			browseItems: 'Browse & Preview Items',
+			browseItemsDescription: 'Browse and preview {count, plural, one {# QTI item} other {# QTI items}} found in this session',
+		},
+
+		// Analysis results
+		analysis: {
+			title: 'Analysis Results',
+			totalItems: 'Total Items',
+			passages: 'Passages',
+			tests: 'Tests',
+			packages: 'Packages',
+			interactionTypesFound: 'Interaction Types Found',
+			issuesFound: 'Issues Found ({count})',
+			assessmentTests: 'Assessment Tests',
+			individualItems: 'Individual Items',
+		},
+
+		// Items browser
+		items: {
+			title: 'Item Browser',
+			description: 'Browse and preview {count} QTI assessment items',
+			loading: 'Loading items...',
+			notFound: 'No items found in this session.',
+			itemsCount: 'Items ({count})',
+			showCorrect: 'Show Correct',
+			xmlNotAvailable: 'Item XML not available',
+			noSelection: 'No item selected',
+			notAvailable: 'Items Not Available',
+		},
+
+		// Assessments browser
+		assessments: {
+			title: 'Assessment Tests',
+			loading: 'Loading assessment tests...',
+			notFound: 'No assessment tests found in this session.',
+			showCorrect: 'Show Correct',
+			assessmentsCount: 'Assessments ({count})',
+			selectPrompt: 'Select an assessment to preview',
+		},
+
+		// Transformation results
+		transformed: {
+			pageTitle: 'Transformation Results - Session {sessionId}',
+			breadcrumb: 'Transformed',
+			title: 'Transformation Results',
+			summary: '{itemCount} item{itemCount, plural, one {} other {s}}{assessmentCount, plural, =0 {} other { + {assessmentCount} assessment{assessmentCount, plural, one {} other {s}}}} transformed in {duration}',
+			backToSession: 'Back to Session',
+			content: 'Transformed Content',
+			items: 'Items',
+			assessments: 'Assessments',
+			errors: 'Errors',
+			warnings: '{count, plural, one {# warning} other {# warnings}}',
+			transformationErrors: '{count, plural, one {# Transformation Error} other {# Transformation Errors}}',
+			noItems: 'No items transformed',
+			selectPrompt: 'Select an item or assessment to preview',
+		},
+
+		// PIE Player controls
+		player: {
+			selectPlayerType: 'Select player type',
+			iife: 'IIFE',
+			esm: 'ESM',
+			gather: 'Gather',
+			view: 'View',
+			evaluate: 'Evaluate',
+			browse: 'Browse',
+			student: 'Student',
+			instructor: 'Instructor',
+			notAvailable: 'PIE Players Not Available',
+			debugConfig: 'Debug: config JSON',
+		},
+
+		// QTI Player controls
+		qtiPlayer: {
+			errorLoading: 'Error loading QTI player',
+			loading: 'Loading QTI player...',
+			waitingForData: 'Waiting for assessment data...',
+		},
+
+		// Assessment preview
+		assessmentPreview: {
+			totalItems: 'Total Items',
+			sections: 'Sections',
+			timeLimit: 'Time Limit',
+			configuration: 'Configuration',
+			navigation: 'Navigation:',
+			submission: 'Submission:',
+		},
+
+		// Confirmation dialog
+		dialog: {
+			defaultTitle: 'Confirm Action',
+			defaultConfirm: 'Confirm',
+			defaultCancel: 'Cancel',
+			close: 'close',
+		},
+
+		// API Error messages
+		errors: {
+			noContent: 'Please provide QTI XML content',
+			invalidQti: 'The provided content does not appear to be valid QTI 2.2 XML',
+			transformFailed: 'Transformation failed',
+			noItemsProduced: 'Transformation produced no items',
+			transformError: 'Transformation error: {message}',
+			sessionNotFound: 'Session not found',
+			alreadyAnalyzed: 'Session already analyzed',
+			noListSupport: 'Storage backend does not support listing files',
+			noZipFiles: 'No ZIP files found and no extracted files available',
+			extractFailed: 'Failed to extract {filename}',
+			analysisComplete: 'Analysis complete',
+			notAnalyzed: 'Session not analyzed yet',
+			analysisFailed: 'Analysis failed',
+			noTransformation: 'No transformation results found for session {sessionId}',
+			getTransformationFailed: 'Failed to get transformation results',
+			loadSamplesFailed: 'Failed to load samples',
+		},
+
+		// Badges
+		badges: {
+			qti: 'QTI',
+			uploaded: 'Uploaded',
+		},
+	},
 } as const; // 'as const' for strict type inference

@@ -1,10 +1,14 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { getContext } from 'svelte';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import QtiPackageUploader from '$lib/components/QtiPackageUploader.svelte';
 	import type { PageData } from './$types';
+	import type { SvelteI18nProvider } from '@pie-qti/qti2-i18n';
 
 	const { data }: { data: PageData } = $props();
+	const i18nContext = getContext<{ value: SvelteI18nProvider | undefined }>('i18n');
+	const i18n = $derived(i18nContext?.value);
 
 	let _isUploading = $state(false);
 	let _uploadError = $state<string | null>(null);
@@ -183,8 +187,8 @@
 </script>
 
 <svelte:head>
-	<title>QTI Batch Processor</title>
-	<meta name="description" content="Upload and transform QTI packages to PIE format" />
+	<title>{i18n?.t('transform.appName') ?? 'QTI Batch Processor'}</title>
+	<meta name="description" content={i18n?.t('transform.appDescription') ?? 'Upload QTI packages to analyze structure, transform to PIE format, and preview results'} />
 </svelte:head>
 
 <div class="h-full flex flex-col">
@@ -192,9 +196,9 @@
 		<div class="w-full max-w-4xl lg:max-w-6xl xl:max-w-7xl 2xl:max-w-screen-2xl">
 			<!-- Header -->
 			<div class="text-center mb-8" data-testid="home-header">
-				<h1 class="text-4xl font-bold mb-2">QTI Batch Processor</h1>
+				<h1 class="text-4xl font-bold mb-2">{i18n?.t('transform.appName') ?? 'QTI Batch Processor'}</h1>
 				<p class="text-base-content/60">
-					Upload QTI packages to analyze structure, transform to PIE format, and preview results
+					{i18n?.t('transform.appDescription') ?? 'Upload QTI packages to analyze structure, transform to PIE format, and preview results'}
 				</p>
 			</div>
 
@@ -226,15 +230,15 @@
 			{#if !_loadingSessions && sessions.length > 0}
 				<div class="card bg-base-100 shadow-xl">
 					<div class="card-body">
-						<h2 class="card-title">Recent Sessions</h2>
+						<h2 class="card-title">{i18n?.t('transform.sessions.title') ?? 'Recent Sessions'}</h2>
 						<div class="overflow-x-auto">
 							<table class="table table-sm">
 								<thead>
 									<tr>
-										<th>Session</th>
-										<th>Status</th>
-										<th>Packages</th>
-										<th>Created</th>
+										<th>{i18n?.t('transform.sessions.session') ?? 'Session'}</th>
+										<th>{i18n?.t('transform.sessions.status') ?? 'Status'}</th>
+										<th>{i18n?.t('transform.sessions.packages') ?? 'Packages'}</th>
+										<th>{i18n?.t('transform.sessions.created') ?? 'Created'}</th>
 										<th></th>
 									</tr>
 								</thead>
@@ -252,7 +256,7 @@
 											<td>
 												<div class="flex gap-1">
 													<a href="/session/{session.id}" class="btn btn-ghost btn-xs">
-														Open
+														{i18n?.t('transform.sessions.open') ?? 'Open'}
 														<svg
 															xmlns="http://www.w3.org/2000/svg"
 															class="h-4 w-4"
@@ -271,7 +275,7 @@
 													<button
 														onclick={() => _promptDeleteSession(session.id)}
 														class="btn btn-ghost btn-xs text-error"
-														title="Delete session"
+														title={i18n?.t('transform.sessions.deleteTitle') ?? 'Delete session'}
 													>
 														<svg
 															xmlns="http://www.w3.org/2000/svg"
@@ -318,11 +322,10 @@
 									d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
 								/>
 							</svg>
-							Sample QTI Packages
+							{i18n?.t('transform.samples.title') ?? 'Sample QTI Packages'}
 						</h2>
 						<p class="text-sm text-base-content/60 mb-4">
-							Try the processor with pre-loaded sample packages demonstrating various QTI
-							interaction types.
+							{i18n?.t('transform.samples.description') ?? 'Try the processor with pre-loaded sample packages demonstrating various QTI interaction types.'}
 						</p>
 						<div class="grid grid-cols-1 gap-3">
 							{#each _samples as sample}
@@ -334,12 +337,12 @@
 												<p class="text-sm text-base-content/60 mt-1">{sample.description}</p>
 												<div class="flex flex-wrap gap-2 mt-2">
 													<span class="badge badge-sm badge-outline">
-														{sample.itemCount} items
+														{i18n?.t('transform.samples.itemsCount', { count: sample.itemCount }) ?? `${sample.itemCount} items`}
 													</span>
 													<span class="badge badge-sm badge-outline">QTI {sample.qtiVersion}</span>
 													{#if sample.hasManifest}
 														<span class="badge badge-sm badge-success badge-outline">
-															Manifest
+															{i18n?.t('transform.samples.hasManifest') ?? 'Manifest'}
 														</span>
 													{/if}
 												</div>
@@ -360,7 +363,7 @@
 												{#if _isUploading}
 													<span class="loading loading-spinner loading-xs"></span>
 												{:else}
-													Load Sample
+													{i18n?.t('transform.samples.load') ?? 'Load Sample'}
 												{/if}
 											</button>
 										</div>
@@ -378,10 +381,10 @@
 
 <ConfirmDialog
 	bind:open={_showDeleteConfirm}
-	title="Delete Session"
-	message="Are you sure you want to delete this session? This action cannot be undone and all files will be permanently removed."
-	confirmText="Delete"
-	cancelText="Cancel"
+	title={i18n?.t('transform.sessions.deleteConfirmTitle') ?? 'Delete Session'}
+	message={i18n?.t('transform.sessions.deleteConfirmMessage') ?? 'Are you sure you want to delete this session? This action cannot be undone and all files will be permanently removed.'}
+	confirmText={i18n?.t('transform.sessions.delete') ?? 'Delete'}
+	cancelText={i18n?.t('common.cancel') ?? 'Cancel'}
 	confirmClass="btn-error"
 	onConfirm={_confirmDeleteSession}
 />

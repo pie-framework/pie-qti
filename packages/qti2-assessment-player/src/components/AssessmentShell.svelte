@@ -333,7 +333,7 @@
 	<div bind:this={rootEl} class="assessment-shell" role="application" aria-label="Assessment player">
 		<!-- Header with title and section menu -->
 		<AssessmentHeader
-			title={initSession.assessmentId || 'Assessment'}
+			title={initSession.assessmentId || (i18n?.t('assessment.title') ?? 'Assessment')}
 			{sections}
 			currentSectionIndex={navState.currentSection?.index}
 			showSections={config.showSections}
@@ -373,7 +373,7 @@
 			class="assessment-content"
 			tabindex="-1"
 			role="region"
-			aria-label="Question content"
+			aria-label={i18n?.t('accessibility.itemBody') ?? 'Question content'}
 			aria-live="polite"
 		>
 			{#if hasPassage}

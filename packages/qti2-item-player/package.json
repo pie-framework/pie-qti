@@ -28,6 +28,7 @@
 	"license": "ISC",
 	"dependencies": {
 		"@pie-qti/ims-cp-core": "workspace:*",
+		"@pie-qti/qti2-i18n": "workspace:*",
 		"@pie-qti/qti-processing": "workspace:*",
 		"@tiptap/core": "^3.15.3",
 		"@tiptap/extension-mathematics": "^3.15.3",

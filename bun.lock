@@ -304,6 +304,7 @@
       "dependencies": {
         "@pie-qti/ims-cp-core": "workspace:*",
         "@pie-qti/qti-processing": "workspace:*",
+        "@pie-qti/qti2-i18n": "workspace:*",
         "@tiptap/core": "^3.15.3",
         "@tiptap/extension-mathematics": "^3.15.3",
         "@tiptap/extension-placeholder": "^3.15.3",
@@ -412,6 +413,7 @@
       "dependencies": {
         "@pie-qti/qti2-assessment-player": "workspace:*",
         "@pie-qti/qti2-default-components": "workspace:*",
+        "@pie-qti/qti2-i18n": "workspace:*",
         "@pie-qti/qti2-item-player": "workspace:*",
         "@pie-qti/qti2-player-elements": "workspace:*",
         "@pie-qti/qti2-to-pie": "workspace:*",

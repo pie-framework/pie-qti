@@ -1,14 +1,31 @@
 <script lang="ts">
 	import '../app.css';
 	import '@pie-qti/qti2-typeset-katex/css';
-	import { onMount } from 'svelte';
+	import { onMount, setContext } from 'svelte';
+	import { createDefaultSvelteI18nProvider, type SvelteI18nProvider, type LocaleCode } from '@pie-qti/qti2-i18n';
 
 	const { children } = $props();
 	let theme = $state('light');
+	let i18n = $state<SvelteI18nProvider | null>(null);
 
 	const _themes = ['light', 'dark', 'cupcake', 'cyberpunk'];
 
-	onMount(() => {
+	// Provide i18n to child components via Svelte context
+	// Use a getter to make it reactive - captures the current value of i18n
+	setContext('i18n', {
+		get value() {
+			return i18n;
+		}
+	});
+
+	onMount(async () => {
+		// Load saved locale from localStorage or use default
+		// pie-qti-locale is managed by SvelteI18nProvider
+		const savedLocale = (localStorage.getItem('pie-qti-locale') as LocaleCode) || 'en-US';
+
+		// Initialize i18n system
+		i18n = await createDefaultSvelteI18nProvider(savedLocale);
+
 		// Load saved theme from localStorage
 		const savedTheme = localStorage.getItem('theme') || 'light';
 		theme = savedTheme;
@@ -23,14 +40,14 @@
 </script>
 
 <svelte:head>
-	<title>QTI to PIE Transformer</title>
+	<title>{i18n?.t('transform.appName') ?? 'QTI Batch Processor'}</title>
 </svelte:head>
 
 <div class="h-screen flex flex-col bg-base-200">
 	<!-- Theme Selector -->
 	<div class="navbar bg-base-100 shadow-lg min-h-0 h-12">
 		<div class="flex-1">
-			<a href="/" class="btn btn-ghost btn-sm normal-case" data-testid="navbar-home">QTI Batch Processor</a>
+			<a href="/" class="btn btn-ghost btn-sm normal-case" data-testid="navbar-home">{i18n?.t('transform.appName') ?? 'QTI Batch Processor'}</a>
 		</div>
 		<div class="flex-none gap-2">
 			<div class="dropdown dropdown-end">

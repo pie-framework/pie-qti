@@ -1,10 +1,13 @@
 <script lang="ts">
-	
+	import { getContext } from 'svelte';
 	import PieAssessmentPreview from '$lib/components/PieAssessmentPreview.svelte';
-import PieItemPlayer from '$lib/components/PieItemPlayer.svelte';
+	import PieItemPlayer from '$lib/components/PieItemPlayer.svelte';
 	import type { PageData } from './$types';
+	import type { SvelteI18nProvider } from '@pie-qti/qti2-i18n';
 
 	const { data }: { data: PageData } = $props();
+	const i18nContext = getContext<{ value: SvelteI18nProvider | undefined }>('i18n');
+	const i18n = $derived(i18nContext?.value);
 
 	const session = $derived(data.session);
 	const transformation = $derived(data.transformation);
@@ -43,7 +46,7 @@ import PieItemPlayer from '$lib/components/PieItemPlayer.svelte';
 </script>
 
 <svelte:head>
-	<title>Transformation Results - Session {session.id}</title>
+	<title>{i18n?.t('transform.transformed.pageTitle', { sessionId: session.id }) ?? `Transformation Results - Session ${session.id}`}</title>
 </svelte:head>
 
 <div class="h-full flex flex-col p-4">
@@ -51,22 +54,22 @@ import PieItemPlayer from '$lib/components/PieItemPlayer.svelte';
 		<!-- Breadcrumb -->
 		<div class="text-sm breadcrumbs">
 			<ul>
-				<li><a href="/" data-testid="breadcrumb-home">Home</a></li>
-				<li><a href="/session/{session.id}" data-testid="breadcrumb-session">Session {session.id.split('-')[0]}</a></li>
-				<li data-testid="breadcrumb-transformed">Transformed</li>
+				<li><a href="/" data-testid="breadcrumb-home">{i18n?.t('transform.home') ?? 'Home'}</a></li>
+				<li><a href="/session/{session.id}" data-testid="breadcrumb-session">{i18n?.t('transform.sessions.session') ?? 'Session'} {session.id.split('-')[0]}</a></li>
+				<li data-testid="breadcrumb-transformed">{i18n?.t('transform.transformed.breadcrumb') ?? 'Transformed'}</li>
 			</ul>
 		</div>
 
 		<!-- Page Header -->
 		<div class="flex justify-between items-center">
 			<div>
-				<h1 class="text-2xl font-bold">Transformation Results</h1>
+				<h1 class="text-2xl font-bold">{i18n?.t('transform.transformed.title') ?? 'Transformation Results'}</h1>
 				<p class="text-sm text-base-content/60">
-					{transformation.items.length} item{transformation.items.length !== 1 ? 's' : ''}
-					{#if transformation.assessments.length > 0}
-						+ {transformation.assessments.length} assessment{transformation.assessments.length !== 1 ? 's' : ''}
-					{/if}
-					transformed in {formatDuration(transformation.startTime, transformation.endTime)}
+					{i18n?.t('transform.transformed.summary', {
+						itemCount: transformation.items.length,
+						assessmentCount: transformation.assessments.length,
+						duration: formatDuration(transformation.startTime, transformation.endTime)
+					}) ?? `${transformation.items.length} item${transformation.items.length !== 1 ? 's' : ''}${transformation.assessments.length > 0 ? ` + ${transformation.assessments.length} assessment${transformation.assessments.length !== 1 ? 's' : ''}` : ''} transformed in ${formatDuration(transformation.startTime, transformation.endTime)}`}
 				</p>
 			</div>
 			<div class="flex gap-2">
@@ -74,7 +77,7 @@ import PieItemPlayer from '$lib/components/PieItemPlayer.svelte';
 					<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
 					</svg>
-					Back to Session
+					{i18n?.t('transform.transformed.backToSession') ?? 'Back to Session'}
 				</a>
 			</div>
 		</div>
@@ -87,23 +90,23 @@ import PieItemPlayer from '$lib/components/PieItemPlayer.svelte';
 			<div class="lg:col-span-1">
 				<div class="card bg-base-100 shadow-xl h-full">
 					<div class="card-body">
-						<h2 class="card-title">Transformed Content</h2>
+						<h2 class="card-title">{i18n?.t('transform.transformed.content') ?? 'Transformed Content'}</h2>
 
 						<!-- Summary Stats -->
 						<div class="stats stats-vertical shadow mb-4">
 							<div class="stat">
-								<div class="stat-title">Items</div>
+								<div class="stat-title">{i18n?.t('transform.transformed.items') ?? 'Items'}</div>
 								<div class="stat-value text-2xl">{transformation.items.length}</div>
 							</div>
 							{#if transformation.assessments.length > 0}
 								<div class="stat">
-									<div class="stat-title">Assessments</div>
+									<div class="stat-title">{i18n?.t('transform.transformed.assessments') ?? 'Assessments'}</div>
 									<div class="stat-value text-2xl">{transformation.assessments.length}</div>
 								</div>
 							{/if}
 							{#if transformation.errors.length > 0}
 								<div class="stat">
-									<div class="stat-title">Errors</div>
+									<div class="stat-title">{i18n?.t('transform.transformed.errors') ?? 'Errors'}</div>
 									<div class="stat-value text-2xl text-error">{transformation.errors.length}</div>
 								</div>
 							{/if}
@@ -114,7 +117,7 @@ import PieItemPlayer from '$lib/components/PieItemPlayer.svelte';
 							<!-- Assessments -->
 							{#if transformation.assessments.length > 0}
 								<div class="mb-3">
-									<h3 class="text-sm font-semibold mb-2 text-base-content/60">Assessments</h3>
+									<h3 class="text-sm font-semibold mb-2 text-base-content/60">{i18n?.t('transform.transformed.assessments') ?? 'Assessments'}</h3>
 									<div class="flex flex-col gap-2">
 										{#each transformation.assessments as assessment, index}
 											<button
@@ -133,7 +136,7 @@ import PieItemPlayer from '$lib/components/PieItemPlayer.svelte';
 													</div>
 													{#if assessment.warnings.length > 0}
 														<div class="badge badge-warning badge-xs">
-															{assessment.warnings.length} warning{assessment.warnings.length > 1 ? 's' : ''}
+															{i18n?.t('transform.transformed.warnings', { count: assessment.warnings.length }) ?? `${assessment.warnings.length} warning${assessment.warnings.length > 1 ? 's' : ''}`}
 														</div>
 													{/if}
 												</div>
@@ -149,11 +152,11 @@ import PieItemPlayer from '$lib/components/PieItemPlayer.svelte';
 									<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
 										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
 									</svg>
-									<span>No items transformed</span>
+									<span>{i18n?.t('transform.transformed.noItems') ?? 'No items transformed'}</span>
 								</div>
 							{:else}
 								<div class="mb-3">
-									<h3 class="text-sm font-semibold mb-2 text-base-content/60">Items</h3>
+									<h3 class="text-sm font-semibold mb-2 text-base-content/60">{i18n?.t('transform.transformed.items') ?? 'Items'}</h3>
 									<div class="flex flex-col gap-2">
 										{#each transformation.items as item, index}
 											<button
@@ -167,7 +170,7 @@ import PieItemPlayer from '$lib/components/PieItemPlayer.svelte';
 													<div class="font-medium">{item.title || item.identifier}</div>
 													{#if item.warnings.length > 0}
 														<div class="badge badge-warning badge-xs">
-															{item.warnings.length} warning{item.warnings.length > 1 ? 's' : ''}
+															{i18n?.t('transform.transformed.warnings', { count: item.warnings.length }) ?? `${item.warnings.length} warning${item.warnings.length > 1 ? 's' : ''}`}
 														</div>
 													{/if}
 												</div>
@@ -186,7 +189,7 @@ import PieItemPlayer from '$lib/components/PieItemPlayer.svelte';
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
 								</svg>
 								<div>
-									<h3 class="font-bold">{transformation.errors.length} Transformation Error{transformation.errors.length > 1 ? 's' : ''}</h3>
+									<h3 class="font-bold">{i18n?.t('transform.transformed.transformationErrors', { count: transformation.errors.length }) ?? `${transformation.errors.length} Transformation Error${transformation.errors.length > 1 ? 's' : ''}`}</h3>
 									<ul class="text-sm list-disc list-inside mt-2">
 										{#each transformation.errors.slice(0, 3) as error}
 											<li>{error.identifier}: {error.error}</li>
@@ -259,7 +262,7 @@ import PieItemPlayer from '$lib/components/PieItemPlayer.svelte';
 								<svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
 								</svg>
-								<p class="text-lg">Select an item or assessment to preview</p>
+								<p class="text-lg">{i18n?.t('transform.transformed.selectPrompt') ?? 'Select an item or assessment to preview'}</p>
 							</div>
 						{/if}
 					</div>

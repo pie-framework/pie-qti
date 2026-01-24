@@ -601,4 +601,211 @@ export default {
 			'adaptive-capitals': 'Question adaptative à plusieurs tentatives avec rétroaction et indices progressifs',
 		},
 	},
+
+	transform: {
+		// App title and navigation
+		appName: 'Processeur Batch QTI',
+		appDescription: 'Téléchargez les packages QTI pour analyser la structure, transformer au format PIE et prévisualiser les résultats',
+		home: 'Accueil',
+
+		// Session management
+		sessions: {
+			title: 'Sessions Récentes',
+			session: 'Session',
+			status: 'Statut',
+			packages: 'Packages',
+			created: 'Créé',
+			createdAt: 'Créé {date}',
+			open: 'Ouvrir',
+			delete: 'Supprimer',
+			deleteTitle: 'Supprimer la session',
+			deleteConfirmTitle: 'Supprimer la Session',
+			deleteConfirmMessage: 'Êtes-vous sûr de vouloir supprimer cette session ? Cette action ne peut pas être annulée et tous les fichiers seront supprimés définitivement.',
+			deleted: 'Session supprimée',
+			notFound: 'Session Non Trouvée',
+			notFoundMessage: 'La session demandée n\'a pas pu être trouvée ou n\'existe pas.',
+		},
+
+		// Samples
+		samples: {
+			title: 'Packages QTI Exemples',
+			description: 'Essayez le processeur avec des packages d\'exemple prédéfinis démontrant divers types d\'interactions QTI.',
+			itemCount: '{count, plural, one {# élément} other {# éléments}}',
+			hasManifest: 'Manifest',
+			load: 'Charger l\'Exemple',
+			manifest: 'Manifest',
+			loadSample: 'Charger l\'Exemple',
+			loaded: "Exemple '{id}' chargé avec succès",
+			notFound: "Package d\'exemple '{id}' non trouvé",
+			loadFailed: 'Échec du chargement de l\'exemple',
+		},
+
+		// Upload
+		upload: {
+			dropPrompt: 'Déposez les fichiers QTI ZIP ici',
+			orClickToSelect: 'ou cliquez pour sélectionner des fichiers',
+			selectFiles: 'Sélectionner des Fichiers',
+			processing: 'Traitement en cours...',
+			invalidType: 'Seuls les fichiers ZIP sont autorisés',
+			fileTooLarge: 'Fichier trop volumineux : {filename}. La taille maximale est {maxSize}MB.',
+			noFiles: 'Aucun fichier fourni',
+			uploadFailed: 'Échec du téléchargement',
+		},
+
+		// Session detail page
+		detail: {
+			uploadedPackages: 'Packages Téléchargés',
+			package: 'Package',
+			type: 'Type',
+			size: 'Taille',
+			uploaded: 'Téléchargé',
+			actions: 'Actions',
+			analyzing: 'Le package est en cours d\'analyse...',
+			analysisComplete: 'Analyse terminée. Consultez les résultats ci-dessous ou procédez à la transformation.',
+			cannotConvert: 'Impossible de Convertir en PIE',
+			unsupportedMessage: 'Ce package contient des types d\'interactions QTI qui n\'ont pas d\'équivalent PIE. Consultez les problèmes ci-dessous pour plus de détails. Utilisez le lecteur QTI à la place pour prévisualiser ces éléments.',
+			cannotConvertMessage: 'Ce package contient des types d\'interactions QTI qui n\'ont pas d\'équivalent PIE. Consultez les problèmes ci-dessous pour plus de détails. Utilisez le lecteur QTI à la place pour prévisualiser ces éléments.',
+			transforming: 'Transformation en cours...',
+			transformToPie: 'Transformer en PIE',
+			analysisResults: 'Résultats de l\'Analyse',
+			totalItems: 'Total des Éléments',
+			passages: 'Passages',
+			tests: 'Tests',
+			interactionTypesFound: 'Types d\'Interactions Trouvés',
+			issuesFound: 'Problèmes Trouvés',
+			packageDetails: 'Détails du Package',
+			noManifest: 'Pas de Manifest',
+			items: 'éléments',
+			interactionTypes: 'Types d\'Interactions',
+			assessmentTests: 'Tests d\'Évaluation',
+			file: 'Fichier',
+			pattern: 'Modèle',
+			sampleItems: 'Éléments Exemples par Type d\'Interaction',
+			issues: 'Problèmes',
+			browseAssessments: 'Parcourir et Prévisualiser les Tests d\'Évaluation',
+			browseAssessmentsDescription: 'Parcourir et prévisualiser {count, plural, one {# test d\'évaluation QTI} other {# tests d\'évaluation QTI}} trouvés dans cette session',
+			individualItems: 'Éléments Individuels',
+			browseItems: 'Parcourir et Prévisualiser les Éléments',
+			browseItemsDescription: 'Parcourir et prévisualiser {count, plural, one {# élément QTI} other {# éléments QTI}} trouvés dans cette session',
+		},
+
+		// Analysis results
+		analysis: {
+			title: 'Résultats de l\'Analyse',
+			totalItems: 'Total d\'Éléments',
+			passages: 'Passages',
+			tests: 'Tests',
+			packages: 'Packages',
+			interactionTypesFound: 'Types d\'Interactions Trouvés',
+			issuesFound: 'Problèmes Trouvés ({count})',
+			assessmentTests: 'Tests d\'Évaluation',
+			individualItems: 'Éléments Individuels',
+		},
+
+		// Items browser
+		items: {
+			title: 'Navigateur d\'Éléments',
+			description: 'Parcourez et prévisualisez {count} éléments d\'évaluation QTI',
+			loading: 'Chargement des éléments...',
+			notFound: 'Aucun élément trouvé dans cette session.',
+			itemsCount: 'Éléments ({count})',
+			showCorrect: 'Afficher la Réponse Correcte',
+			xmlNotAvailable: 'XML de l\'élément non disponible',
+			noSelection: 'Aucun élément sélectionné',
+			notAvailable: 'Éléments Non Disponibles',
+		},
+
+		// Assessments browser
+		assessments: {
+			title: 'Tests d\'Évaluation',
+			loading: 'Chargement des tests d\'évaluation...',
+			notFound: 'Aucun test d\'évaluation trouvé dans cette session.',
+			showCorrect: 'Afficher la Réponse Correcte',
+			assessmentsCount: 'Évaluations ({count})',
+			selectPrompt: 'Sélectionnez une évaluation pour la prévisualiser',
+		},
+
+		// Transformation results
+		transformed: {
+			pageTitle: 'Résultats de la Transformation - Session {sessionId}',
+			breadcrumb: 'Transformé',
+			title: 'Résultats de la Transformation',
+			summary: '{itemCount} élément{itemCount, plural, one {} other {s}}{assessmentCount, plural, =0 {} other { + {assessmentCount} évaluation{assessmentCount, plural, one {} other {s}}}} transformé{itemCount, plural, one {} other {s}} en {duration}',
+			backToSession: 'Retour à la Session',
+			content: 'Contenu Transformé',
+			items: 'Éléments',
+			assessments: 'Évaluations',
+			errors: 'Erreurs',
+			warnings: '{count, plural, one {# avertissement} other {# avertissements}}',
+			transformationErrors: '{count, plural, one {# Erreur de Transformation} other {# Erreurs de Transformation}}',
+			noItems: 'Aucun élément transformé',
+			selectPrompt: 'Sélectionnez un élément ou une évaluation pour prévisualiser',
+		},
+
+		// PIE Player controls
+		player: {
+			selectPlayerType: 'Sélectionnez le type de lecteur',
+			iife: 'IIFE',
+			esm: 'ESM',
+			gather: 'Gather',
+			view: 'View',
+			evaluate: 'Evaluate',
+			browse: 'Browse',
+			student: 'Étudiant',
+			instructor: 'Instructeur',
+			notAvailable: 'Lecteurs PIE Non Disponibles',
+			debugConfig: 'Débogage : JSON de configuration',
+		},
+
+		// QTI Player controls
+		qtiPlayer: {
+			errorLoading: 'Erreur lors du chargement du lecteur QTI',
+			loading: 'Chargement du lecteur QTI...',
+			waitingForData: 'En attente des données d\'évaluation...',
+		},
+
+		// Assessment preview
+		assessmentPreview: {
+			totalItems: 'Total d\'Éléments',
+			sections: 'Sections',
+			timeLimit: 'Limite de Temps',
+			configuration: 'Configuration',
+			navigation: 'Navigation :',
+			submission: 'Soumission :',
+		},
+
+		// Confirmation dialog
+		dialog: {
+			defaultTitle: 'Confirmer l\'Action',
+			defaultConfirm: 'Confirmer',
+			defaultCancel: 'Annuler',
+			close: 'fermer',
+		},
+
+		// API Error messages
+		errors: {
+			noContent: 'Veuillez fournir du contenu XML QTI',
+			invalidQti: 'Le contenu fourni ne semble pas être du XML QTI 2.2 valide',
+			transformFailed: 'La transformation a échoué',
+			noItemsProduced: 'La transformation n\'a produit aucun élément',
+			transformError: 'Erreur de transformation : {message}',
+			sessionNotFound: 'Session non trouvée',
+			alreadyAnalyzed: 'Session déjà analysée',
+			noListSupport: 'Le backend de stockage ne prend pas en charge l\'énumération des fichiers',
+			noZipFiles: 'Aucun fichier ZIP trouvé et aucun fichier extrait disponible',
+			extractFailed: 'Échec de l\'extraction {filename}',
+			analysisComplete: 'Analyse terminée',
+			notAnalyzed: 'Session non encore analysée',
+			analysisFailed: 'Analyse échouée',
+			noTransformation: 'Aucun résultat de transformation trouvé pour la session {sessionId}',
+			getTransformationFailed: 'Échec de l\'obtention des résultats de transformation',
+			loadSamplesFailed: 'Échec du chargement des exemples',
+		},
+
+		// Badges
+		badges: {
+			qti: 'QTI',
+			uploaded: 'Téléchargé',
+		},
+	},
 } as const; // 'as const' for strict type inference

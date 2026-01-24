@@ -48,7 +48,7 @@
 </script>
 
 {#if visibleFeedback.length > 0}
-	<div class="test-feedback {className}" role="region" aria-label="Test feedback">
+	<div class="test-feedback {className}" role="region" aria-label={i18n?.t('feedback.testFeedback') ?? 'Test feedback'}>
 		{#each visibleFeedback as item (item.identifier)}
 			<div class="feedback-item" data-identifier={item.identifier}>
 				<div class="feedback-content">

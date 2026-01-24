@@ -18,5 +18,5 @@ export type {
 	LocaleMessages,
 } from './core/types.js';
 
-// Example components
-export { default as LocaleSwitcher } from './components/LocaleSwitcher.svelte';
+// Example components (commented out - Svelte files need special build process)
+// export { default as LocaleSwitcher } from './components/LocaleSwitcher.svelte';

@@ -601,4 +601,211 @@ export default {
 			'adaptive-capitals': 'Întrebare adaptivă cu mai multe încercări cu feedback și indicii progresive',
 		},
 	},
+
+	transform: {
+		// App title and navigation
+		appName: 'QTI Batch Processor',
+		appDescription: 'Încarcă pachete QTI pentru a analiza structura, transforma în format PIE și previzualizează rezultatele',
+		home: 'Acasă',
+
+		// Session management
+		sessions: {
+			title: 'Sesiuni Recente',
+			session: 'Sesiune',
+			status: 'Status',
+			packages: 'Pachete',
+			created: 'Creat',
+			createdAt: 'Creat {date}',
+			open: 'Deschide',
+			delete: 'Ștergere',
+			deleteTitle: 'Ștergere sesiune',
+			deleteConfirmTitle: 'Ștergere Sesiune',
+			deleteConfirmMessage: 'Ești sigur că vrei să ștergi această sesiune? Această acțiune nu poate fi anulată și toate fișierele vor fi șterse permanent.',
+			deleted: 'Sesiune ștearsă',
+			notFound: 'Sesiune Nu A Fost Găsită',
+			notFoundMessage: 'Sesiunea solicitată nu a putut fi găsită sau nu există.',
+		},
+
+		// Samples
+		samples: {
+			title: 'Pachete QTI de Probă',
+			description: 'Încearcă procesatorul cu pachete de probă pre-încărcate care demonstrează diferite tipuri de interacțiuni QTI.',
+			itemCount: '{count, plural, one {# element} other {# elemente}}',
+			hasManifest: 'Manifest',
+			load: 'Încarcă Probă',
+			manifest: 'Manifest',
+			loadSample: 'Încarcă Probă',
+			loaded: "Proba '{id}' încărcată cu succes",
+			notFound: "Pachetul de probă '{id}' nu a fost găsit",
+			loadFailed: 'Încărcarea probei a eșuat',
+		},
+
+		// Upload
+		upload: {
+			dropPrompt: 'Plasează fișiere QTI ZIP aici',
+			orClickToSelect: 'sau fă clic pentru a selecta fișiere',
+			selectFiles: 'Selectează Fișiere',
+			processing: 'Se procesează...',
+			invalidType: 'Doar fișierele ZIP sunt permise',
+			fileTooLarge: 'Fișier prea mare: {filename}. Dimensiunea maximă este {maxSize}MB.',
+			noFiles: 'Niciun fișier furnizat',
+			uploadFailed: 'Încărcarea a eșuat',
+		},
+
+		// Session detail page
+		detail: {
+			uploadedPackages: 'Pachete Încărcate',
+			package: 'Pachet',
+			type: 'Tip',
+			size: 'Dimensiune',
+			uploaded: 'Încărcat',
+			actions: 'Acțiuni',
+			analyzing: 'Pachetul se analizează...',
+			analysisComplete: 'Analiza completă. Revizuiește rezultatele de mai jos sau continuă cu transformarea.',
+			cannotConvert: 'Nu Se Poate Converti în PIE',
+			unsupportedMessage: 'Acest pachet conține tipuri de interacțiuni QTI care nu au echivalent PIE. Vezi problemele de mai jos pentru detalii. Folosește playerul QTI pentru a previzualiza aceste elemente.',
+			cannotConvertMessage: 'Acest pachet conține tipuri de interacțiuni QTI care nu au echivalent PIE. Vezi problemele de mai jos pentru detalii. Folosește playerul QTI pentru a previzualiza aceste elemente.',
+			transforming: 'Se transformă...',
+			transformToPie: 'Transformă în PIE',
+			analysisResults: 'Rezultate Analiză',
+			totalItems: 'Total Elemente',
+			passages: 'Pasaje',
+			tests: 'Teste',
+			interactionTypesFound: 'Tipuri de Interacțiuni Găsite',
+			issuesFound: 'Probleme Găsite',
+			packageDetails: 'Detalii Pachet',
+			noManifest: 'Niciun Manifest',
+			items: 'elemente',
+			interactionTypes: 'Tipuri de Interacțiuni',
+			assessmentTests: 'Teste de Evaluare',
+			file: 'Fișier',
+			pattern: 'Model',
+			sampleItems: 'Elemente Exemplu după Tipul de Interacțiune',
+			issues: 'Probleme',
+			browseAssessments: 'Răsfoiește și Previzualizează Testele de Evaluare',
+			browseAssessmentsDescription: 'Răsfoiește și previzualizează {count, plural, one {# test de evaluare QTI} other {# teste de evaluare QTI}} găsite în această sesiune',
+			individualItems: 'Elemente Individuale',
+			browseItems: 'Răsfoiește și Previzualizează Elementele',
+			browseItemsDescription: 'Răsfoiește și previzualizează {count, plural, one {# element QTI} other {# elemente QTI}} găsite în această sesiune',
+		},
+
+		// Analysis results
+		analysis: {
+			title: 'Rezultate Analiză',
+			totalItems: 'Total Elemente',
+			passages: 'Pasaje',
+			tests: 'Teste',
+			packages: 'Pachete',
+			interactionTypesFound: 'Tipuri de Interacțiuni Găsite',
+			issuesFound: 'Probleme Găsite ({count})',
+			assessmentTests: 'Teste de Evaluare',
+			individualItems: 'Elemente Individuale',
+		},
+
+		// Items browser
+		items: {
+			title: 'Browser Elemente',
+			description: 'Răsfoiește și previzualizează {count} elemente de evaluare QTI',
+			loading: 'Se încarcă elemente...',
+			notFound: 'Niciun element găsit în această sesiune.',
+			itemsCount: 'Elemente ({count})',
+			showCorrect: 'Arată Corect',
+			xmlNotAvailable: 'XML element nu este disponibil',
+			noSelection: 'Niciun element selectat',
+			notAvailable: 'Elemente Nu Sunt Disponibile',
+		},
+
+		// Assessments browser
+		assessments: {
+			title: 'Teste de Evaluare',
+			loading: 'Se încarcă testele de evaluare...',
+			notFound: 'Niciun test de evaluare găsit în această sesiune.',
+			showCorrect: 'Arată Corect',
+			assessmentsCount: 'Evaluări ({count})',
+			selectPrompt: 'Selectează o evaluare pentru a o previzualiza',
+		},
+
+		// Transformation results
+		transformed: {
+			pageTitle: 'Rezultate Transformare - Sesiune {sessionId}',
+			breadcrumb: 'Transformat',
+			title: 'Rezultate Transformare',
+			summary: '{itemCount} element{itemCount, plural, one {} other {e}}{assessmentCount, plural, =0 {} other { + {assessmentCount} evaluare{assessmentCount, plural, one {} other {i}}}} transformat{itemCount, plural, one {} other {e}} în {duration}',
+			backToSession: 'Înapoi la Sesiune',
+			content: 'Conținut Transformat',
+			items: 'Elemente',
+			assessments: 'Evaluări',
+			errors: 'Erori',
+			warnings: '{count, plural, one {# avertisment} other {# avertismente}}',
+			transformationErrors: '{count, plural, one {# Eroare de Transformare} other {# Erori de Transformare}}',
+			noItems: 'Niciun element transformat',
+			selectPrompt: 'Selectează un element sau o evaluare pentru a previzualiza',
+		},
+
+		// PIE Player controls
+		player: {
+			selectPlayerType: 'Selectează tipul playerului',
+			iife: 'IIFE',
+			esm: 'ESM',
+			gather: 'Gather',
+			view: 'View',
+			evaluate: 'Evaluate',
+			browse: 'Browse',
+			student: 'Elev',
+			instructor: 'Instructor',
+			notAvailable: 'Playere PIE Nu Sunt Disponibile',
+			debugConfig: 'Depanare: JSON config',
+		},
+
+		// QTI Player controls
+		qtiPlayer: {
+			errorLoading: 'Eroare la încărcarea playerului QTI',
+			loading: 'Se încarcă playerul QTI...',
+			waitingForData: 'Se așteaptă datele evaluării...',
+		},
+
+		// Assessment preview
+		assessmentPreview: {
+			totalItems: 'Total Elemente',
+			sections: 'Secțiuni',
+			timeLimit: 'Limită de Timp',
+			configuration: 'Configurație',
+			navigation: 'Navigare:',
+			submission: 'Trimitere:',
+		},
+
+		// Confirmation dialog
+		dialog: {
+			defaultTitle: 'Confirmă Acțiunea',
+			defaultConfirm: 'Confirmă',
+			defaultCancel: 'Anulare',
+			close: 'închide',
+		},
+
+		// API Error messages
+		errors: {
+			noContent: 'Te rugăm să furnizezi conținut QTI XML',
+			invalidQti: 'Conținutul furnizat nu pare să fie XML QTI 2.2 valid',
+			transformFailed: 'Transformarea a eșuat',
+			noItemsProduced: 'Transformarea nu a produs niciun element',
+			transformError: 'Eroare de transformare: {message}',
+			sessionNotFound: 'Sesiune nu a fost găsită',
+			alreadyAnalyzed: 'Sesiune deja analizată',
+			noListSupport: 'Backend-ul de stocare nu suportă listarea fișierelor',
+			noZipFiles: 'Niciun fișier ZIP găsit și niciun fișier extras disponibil',
+			extractFailed: 'Eșec la extragerea {filename}',
+			analysisComplete: 'Analiza completă',
+			notAnalyzed: 'Sesiune nu a fost analizată încă',
+			analysisFailed: 'Analiza a eșuat',
+			noTransformation: 'Niciun rezultat de transformare găsit pentru sesiunea {sessionId}',
+			getTransformationFailed: 'Eșec la obținerea rezultatelor transformării',
+			loadSamplesFailed: 'Eșec la încărcarea probelor',
+		},
+
+		// Badges
+		badges: {
+			qti: 'QTI',
+			uploaded: 'Încărcat',
+		},
+	},
 } as const; // 'as const' for strict type inference

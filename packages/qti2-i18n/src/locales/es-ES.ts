@@ -602,4 +602,210 @@ export default {
 			'adaptive-capitals': 'Pregunta adaptativa de múltiples intentos con retroalimentación y pistas progresivas',
 		},
 	},
+
+	transform: {
+		// App title and navigation
+		appName: 'Procesador de Lotes QTI',
+		appDescription: 'Carga paquetes QTI para analizar estructura, transformar a formato PIE y vista previa de resultados',
+		home: 'Inicio',
+
+		// Session management
+		sessions: {
+			title: 'Sesiones Recientes',
+			session: 'Sesión',
+			status: 'Estado',
+			packages: 'Paquetes',
+			created: 'Creado',
+			createdAt: 'Creado {date}',
+			open: 'Abrir',
+			delete: 'Eliminar',
+			deleteTitle: 'Eliminar sesión',
+			deleteConfirmTitle: 'Eliminar Sesión',
+			deleteConfirmMessage: '¿Está seguro de que desea eliminar esta sesión? Esta acción no se puede deshacer y todos los archivos se eliminarán permanentemente.',
+			deleted: 'Sesión eliminada',
+			notFound: 'Sesión No Encontrada',
+			notFoundMessage: 'No se pudo encontrar la sesión solicitada o no existe.',
+		},
+
+		// Samples
+		samples: {
+			title: 'Paquetes QTI de Muestra',
+			description: 'Pruebe el procesador con paquetes de muestra precargados que demuestran varios tipos de interacción QTI.',
+			itemCount: '{count, plural, one {# elemento} other {# elementos}}',
+			hasManifest: 'Manifiesto',
+			load: 'Cargar Muestra',
+			loadSample: 'Cargar Muestra',
+			loaded: "Muestra '{id}' cargada exitosamente",
+			notFound: "Paquete de muestra '{id}' no encontrado",
+			loadFailed: 'Error al cargar muestra',
+		},
+
+		// Upload
+		upload: {
+			dropPrompt: 'Suelte archivos ZIP de QTI aquí',
+			orClickToSelect: 'o haga clic para seleccionar archivos',
+			selectFiles: 'Seleccionar Archivos',
+			processing: 'Procesando...',
+			invalidType: 'Solo se permiten archivos ZIP',
+			fileTooLarge: 'Archivo demasiado grande: {filename}. El tamaño máximo es {maxSize}MB.',
+			noFiles: 'No se proporcionaron archivos',
+			uploadFailed: 'Error en la carga',
+		},
+
+		// Session detail page
+		detail: {
+			uploadedPackages: 'Paquetes Cargados',
+			package: 'Paquete',
+			type: 'Tipo',
+			size: 'Tamaño',
+			uploaded: 'Cargado',
+			actions: 'Acciones',
+			analyzing: 'El paquete está siendo analizado...',
+			analysisComplete: 'Análisis completo. Revise los resultados a continuación o proceda a la transformación.',
+			cannotConvert: 'No se puede Convertir a PIE',
+			unsupportedMessage: 'Este paquete contiene tipos de interacción QTI que no tienen equivalente en PIE. Vea los problemas a continuación para obtener detalles. Use el reproductor QTI en su lugar para ver una vista previa de estos elementos.',
+			cannotConvertMessage: 'Este paquete contiene tipos de interacción QTI que no tienen equivalente en PIE. Vea los problemas a continuación para obtener detalles. Use el reproductor QTI en su lugar para ver una vista previa de estos elementos.',
+			transforming: 'Transformando...',
+			transformToPie: 'Transformar a PIE',
+			analysisResults: 'Resultados del Análisis',
+			totalItems: 'Total de Elementos',
+			passages: 'Pasajes',
+			tests: 'Pruebas',
+			interactionTypesFound: 'Tipos de Interacción Encontrados',
+			issuesFound: 'Problemas Encontrados',
+			packageDetails: 'Detalles del Paquete',
+			noManifest: 'Sin Manifiesto',
+			items: 'elementos',
+			interactionTypes: 'Tipos de Interacción',
+			assessmentTests: 'Pruebas de Evaluación',
+			file: 'Archivo',
+			pattern: 'Patrón',
+			sampleItems: 'Elementos de Muestra por Tipo de Interacción',
+			issues: 'Problemas',
+			browseAssessments: 'Explorar y Vista Previa de Pruebas de Evaluación',
+			browseAssessmentsDescription: 'Explorar y ver vista previa de {count, plural, one {# prueba de evaluación QTI} other {# pruebas de evaluación QTI}} encontradas en esta sesión',
+			individualItems: 'Elementos Individuales',
+			browseItems: 'Explorar y Vista Previa de Elementos',
+			browseItemsDescription: 'Explorar y ver vista previa de {count, plural, one {# elemento QTI} other {# elementos QTI}} encontrados en esta sesión',
+		},
+
+		// Analysis results
+		analysis: {
+			title: 'Resultados del Análisis',
+			totalItems: 'Total de Elementos',
+			passages: 'Pasajes',
+			tests: 'Pruebas',
+			packages: 'Paquetes',
+			interactionTypesFound: 'Tipos de Interacción Encontrados',
+			issuesFound: 'Problemas Encontrados ({count})',
+			assessmentTests: 'Pruebas de Evaluación',
+			individualItems: 'Elementos Individuales',
+		},
+
+		// Items browser
+		items: {
+			title: 'Navegador de Elementos',
+			description: 'Examinar y ver vista previa de {count} elementos de evaluación QTI',
+			loading: 'Cargando elementos...',
+			notFound: 'No se encontraron elementos en esta sesión.',
+			itemsCount: 'Elementos ({count})',
+			showCorrect: 'Mostrar Correcto',
+			xmlNotAvailable: 'XML del elemento no disponible',
+			noSelection: 'Ningún elemento seleccionado',
+			notAvailable: 'Elementos No Disponibles',
+		},
+
+		// Assessments browser
+		assessments: {
+			title: 'Pruebas de Evaluación',
+			loading: 'Cargando pruebas de evaluación...',
+			notFound: 'No se encontraron pruebas de evaluación en esta sesión.',
+			showCorrect: 'Mostrar Correcto',
+			assessmentsCount: 'Evaluaciones ({count})',
+			selectPrompt: 'Seleccione una evaluación para ver una vista previa',
+		},
+
+		// Transformation results
+		transformed: {
+			pageTitle: 'Resultados de la Transformación - Sesión {sessionId}',
+			breadcrumb: 'Transformado',
+			title: 'Resultados de la Transformación',
+			summary: '{itemCount} elemento{itemCount, plural, one {} other {s}}{assessmentCount, plural, =0 {} other { + {assessmentCount} evaluación{assessmentCount, plural, one {} other {es}}}} transformado{itemCount, plural, one {} other {s}} en {duration}',
+			backToSession: 'Volver a la Sesión',
+			content: 'Contenido Transformado',
+			items: 'Elementos',
+			assessments: 'Evaluaciones',
+			errors: 'Errores',
+			warnings: '{count, plural, one {# advertencia} other {# advertencias}}',
+			transformationErrors: '{count, plural, one {# Error de Transformación} other {# Errores de Transformación}}',
+			noItems: 'No hay elementos transformados',
+			selectPrompt: 'Seleccione un elemento o evaluación para ver una vista previa',
+		},
+
+		// PIE Player controls
+		player: {
+			selectPlayerType: 'Seleccionar tipo de reproductor',
+			iife: 'IIFE',
+			esm: 'ESM',
+			gather: 'Recopilar',
+			view: 'Ver',
+			evaluate: 'Evaluar',
+			browse: 'Examinar',
+			student: 'Estudiante',
+			instructor: 'Instructor',
+			notAvailable: 'Reproductores PIE No Disponibles',
+			debugConfig: 'Depuración: JSON de configuración',
+		},
+
+		// QTI Player controls
+		qtiPlayer: {
+			errorLoading: 'Error al cargar reproductor QTI',
+			loading: 'Cargando reproductor QTI...',
+			waitingForData: 'Esperando datos de evaluación...',
+		},
+
+		// Assessment preview
+		assessmentPreview: {
+			totalItems: 'Total de Elementos',
+			sections: 'Secciones',
+			timeLimit: 'Límite de Tiempo',
+			configuration: 'Configuración',
+			navigation: 'Navegación:',
+			submission: 'Envío:',
+		},
+
+		// Confirmation dialog
+		dialog: {
+			defaultTitle: 'Confirmar Acción',
+			defaultConfirm: 'Confirmar',
+			defaultCancel: 'Cancelar',
+			close: 'cerrar',
+		},
+
+		// API Error messages
+		errors: {
+			noContent: 'Proporcione contenido XML de QTI',
+			invalidQti: 'El contenido proporcionado no parece ser XML QTI 2.2 válido',
+			transformFailed: 'Error en la transformación',
+			noItemsProduced: 'La transformación no produjo elementos',
+			transformError: 'Error de transformación: {message}',
+			sessionNotFound: 'Sesión no encontrada',
+			alreadyAnalyzed: 'Sesión ya analizada',
+			noListSupport: 'El backend de almacenamiento no admite listado de archivos',
+			noZipFiles: 'No se encontraron archivos ZIP ni archivos extraídos disponibles',
+			extractFailed: 'Error al extraer {filename}',
+			analysisComplete: 'Análisis completo',
+			notAnalyzed: 'Sesión aún no analizada',
+			analysisFailed: 'Error en el análisis',
+			noTransformation: 'No se encontraron resultados de transformación para la sesión {sessionId}',
+			getTransformationFailed: 'Error al obtener resultados de transformación',
+			loadSamplesFailed: 'Error al cargar muestras',
+		},
+
+		// Badges
+		badges: {
+			qti: 'QTI',
+			uploaded: 'Cargado',
+		},
+	},
 } as const;

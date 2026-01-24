@@ -1,13 +1,60 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { invalidateAll } from '$app/navigation';
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount, onDestroy, getContext } from 'svelte';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import type { PageData } from './$types';
+	import type { SvelteI18nProvider } from '@pie-qti/qti2-i18n';
 
 	const { data }: { data: PageData } = $props();
+	const i18nContext = getContext<{ value: SvelteI18nProvider | undefined }>('i18n');
+	const i18n = $derived(i18nContext?.value);
 
 	const session = $derived(data.session);
+
+	// Derived translations
+	const t = $derived({
+		home: i18n?.t('transform.home') ?? 'Home',
+		session: i18n?.t('transform.sessions.session') ?? 'Session',
+		created: i18n?.t('transform.sessions.created') ?? 'Created',
+		deleteTitle: i18n?.t('transform.sessions.deleteTitle') ?? 'Delete session',
+		delete: i18n?.t('transform.sessions.delete') ?? 'Delete',
+		uploadedPackages: i18n?.t('transform.detail.uploadedPackages') ?? 'Uploaded Packages',
+		package: i18n?.t('transform.detail.package') ?? 'Package',
+		type: i18n?.t('transform.detail.type') ?? 'Type',
+		size: i18n?.t('transform.detail.size') ?? 'Size',
+		status: i18n?.t('transform.sessions.status') ?? 'Status',
+		uploaded: i18n?.t('transform.detail.uploaded') ?? 'Uploaded',
+		actions: i18n?.t('transform.detail.actions') ?? 'Actions',
+		analyzing: i18n?.t('transform.detail.analyzing') ?? 'Package is being analyzed...',
+		analysisComplete: i18n?.t('transform.detail.analysisComplete') ?? 'Analysis complete. Review results below or proceed to transformation.',
+		cannotConvert: i18n?.t('transform.detail.cannotConvert') ?? 'Cannot Convert to PIE',
+		unsupportedMessage: i18n?.t('transform.detail.unsupportedMessage') ?? 'This package contains QTI interaction types that have no PIE equivalent. See issues below for details. Use the QTI player instead to preview these items.',
+		transforming: i18n?.t('transform.detail.transforming') ?? 'Transforming...',
+		transformToPie: i18n?.t('transform.detail.transformToPie') ?? 'Transform to PIE',
+		analysisResults: i18n?.t('transform.detail.analysisResults') ?? 'Analysis Results',
+		totalItems: i18n?.t('transform.detail.totalItems') ?? 'Total Items',
+		passages: i18n?.t('transform.detail.passages') ?? 'Passages',
+		tests: i18n?.t('transform.detail.tests') ?? 'Tests',
+		packages: i18n?.t('transform.sessions.packages') ?? 'Packages',
+		interactionTypesFound: i18n?.t('transform.detail.interactionTypesFound') ?? 'Interaction Types Found',
+		issuesFound: i18n?.t('transform.detail.issuesFound') ?? 'Issues Found',
+		packageDetails: i18n?.t('transform.detail.packageDetails') ?? 'Package Details',
+		noManifest: i18n?.t('transform.detail.noManifest') ?? 'No Manifest',
+		items: i18n?.t('transform.detail.items') ?? 'items',
+		interactionTypes: i18n?.t('transform.detail.interactionTypes') ?? 'Interaction Types',
+		assessmentTests: i18n?.t('transform.detail.assessmentTests') ?? 'Assessment Tests',
+		file: i18n?.t('transform.detail.file') ?? 'File',
+		pattern: i18n?.t('transform.detail.pattern') ?? 'Pattern',
+		sampleItems: i18n?.t('transform.detail.sampleItems') ?? 'Sample Items by Interaction Type',
+		issues: i18n?.t('transform.detail.issues') ?? 'Issues',
+		browseAssessments: i18n?.t('transform.detail.browseAssessments') ?? 'Browse & Preview Assessment Tests',
+		individualItems: i18n?.t('transform.detail.individualItems') ?? 'Individual Items',
+		browseItems: i18n?.t('transform.detail.browseItems') ?? 'Browse & Preview Items',
+		deleteConfirmTitle: i18n?.t('transform.sessions.deleteConfirmTitle') ?? 'Delete Session',
+		deleteConfirmMessage: i18n?.t('transform.sessions.deleteConfirmMessage') ?? 'Are you sure you want to delete this session? This action cannot be undone and all files will be permanently removed.',
+		cancel: i18n?.t('common.cancel') ?? 'Cancel',
+	});
 	let _showDeleteConfirm = $state(false);
 	let _isTransforming = $state(false);
 	let _transformError = $state<string | null>(null);
@@ -127,7 +174,7 @@
 </script>
 
 <svelte:head>
-	<title>Session {session.id} - QTI Batch Processor</title>
+	<title>{t.session} {session.id} - {i18n?.t('transform.appName') ?? 'QTI Batch Processor'}</title>
 </svelte:head>
 
 <div class="h-full flex flex-col p-4">
@@ -135,24 +182,24 @@
 		<!-- Breadcrumb -->
 		<div class="text-sm breadcrumbs">
 			<ul>
-				<li><a href="/" data-testid="session-breadcrumb-home">Home</a></li>
-				<li data-testid="session-breadcrumb-session">Session {session.id.split('-')[0]}</li>
+				<li><a href="/" data-testid="session-breadcrumb-home">{t.home}</a></li>
+				<li data-testid="session-breadcrumb-session">{t.session} {session.id.split('-')[0]}</li>
 			</ul>
 		</div>
 
 		<!-- Session Header -->
 		<div class="flex justify-between items-center">
 			<div>
-				<h1 class="text-2xl font-bold">Session {session.id.split('-')[0]}</h1>
+				<h1 class="text-2xl font-bold">{t.session} {session.id.split('-')[0]}</h1>
 				<p class="text-sm text-base-content/60">
-					Created {new Date(session.createdAt).toLocaleString()}
+					{t.created} {new Date(session.createdAt).toLocaleString()}
 				</p>
 			</div>
 			<div class="flex items-center gap-2">
 				<span class="badge {_getStatusColor(session.status)} badge-lg">
 					{session.status}
 				</span>
-				<button onclick={() => _promptDeleteSession?.()} class="btn btn-error btn-sm" title="Delete session" data-testid="delete-session">
+				<button onclick={() => _promptDeleteSession?.()} class="btn btn-error btn-sm" title={t.deleteTitle} data-testid="delete-session">
 					<svg
 						xmlns="http://www.w3.org/2000/svg"
 						class="h-5 w-5"
@@ -167,7 +214,7 @@
 							d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
 						/>
 					</svg>
-					Delete
+					{t.delete}
 				</button>
 			</div>
 		</div>
@@ -179,15 +226,15 @@
 			<!-- Packages Section -->
 			<div class="card bg-base-100 shadow-xl">
 				<div class="card-body">
-					<h2 class="card-title">Uploaded Packages</h2>
+					<h2 class="card-title">{t.uploadedPackages}</h2>
 					<div class="overflow-x-auto">
 						<table class="table table-sm">
 							<thead>
 								<tr>
-									<th>Package</th>
-									<th>Type</th>
-									<th>Size</th>
-									<th>Status</th>
+									<th>{t.package}</th>
+									<th>{t.type}</th>
+									<th>{t.size}</th>
+									<th>{t.status}</th>
 								</tr>
 							</thead>
 							<tbody>
@@ -197,9 +244,9 @@
 										<td>
 											<span class="badge badge-sm">QTI</span>
 										</td>
-										<td class="text-sm text-base-content/60">{pkg.itemCount} items</td>
+										<td class="text-sm text-base-content/60">{pkg.itemCount} {t.items}</td>
 										<td>
-											<span class="badge badge-info badge-sm">Uploaded</span>
+											<span class="badge badge-info badge-sm">{t.uploaded}</span>
 										</td>
 									</tr>
 								{/each}
@@ -212,11 +259,11 @@
 			<!-- Actions Section -->
 			<div class="card bg-base-100 shadow-xl">
 				<div class="card-body">
-					<h2 class="card-title">Actions</h2>
+					<h2 class="card-title">{t.actions}</h2>
 
 					{#if !session.analysis}
 						<p class="text-sm text-base-content/60 mb-4">
-							Package is being analyzed...
+							{t.analyzing}
 						</p>
 						<div class="flex justify-center py-4">
 							<span class="loading loading-spinner loading-lg text-primary"></span>
@@ -224,7 +271,7 @@
 					{:else}
 						{#if canTransformToPie}
 							<p class="text-sm text-base-content/60 mb-4">
-								Analysis complete. Review results below or proceed to transformation.
+								{t.analysisComplete}
 							</p>
 						{:else}
 							<div class="alert alert-error mb-4">
@@ -242,10 +289,9 @@
 									/>
 								</svg>
 								<div>
-									<h3 class="font-bold">Cannot Convert to PIE</h3>
+									<h3 class="font-bold">{t.cannotConvert}</h3>
 									<div class="text-sm">
-										This package contains QTI interaction types that have no PIE equivalent.
-										See issues below for details. Use the QTI player instead to preview these items.
+										{t.unsupportedMessage}
 									</div>
 								</div>
 							</div>
@@ -275,11 +321,11 @@
 							onclick={() => _transformToPie?.()}
 							disabled={_isTransforming || !canTransformToPie}
 							data-testid="transform-to-pie"
-							title={!canTransformToPie ? 'Package contains unsupported interaction types' : ''}
+							title={!canTransformToPie ? t.unsupportedMessage : ''}
 						>
 							{#if _isTransforming}
 								<span class="loading loading-spinner"></span>
-								Transforming...
+								{t.transforming}
 							{:else}
 								<svg
 									xmlns="http://www.w3.org/2000/svg"
@@ -295,7 +341,7 @@
 										d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
 									/>
 								</svg>
-								Transform to PIE
+								{t.transformToPie}
 							{/if}
 						</button>
 					{/if}
@@ -306,24 +352,24 @@
 			{#if session.analysis}
 				<div class="card bg-base-100 shadow-xl">
 					<div class="card-body">
-						<h2 class="card-title">Analysis Results</h2>
+						<h2 class="card-title">{t.analysisResults}</h2>
 
 						<!-- Summary Stats -->
 						<div class="stats stats-vertical lg:stats-horizontal shadow mb-4">
 							<div class="stat">
-								<div class="stat-title">Total Items</div>
+								<div class="stat-title">{t.totalItems}</div>
 								<div class="stat-value text-primary">{session.analysis.totalItems}</div>
 							</div>
 							<div class="stat">
-								<div class="stat-title">Passages</div>
+								<div class="stat-title">{t.passages}</div>
 								<div class="stat-value text-secondary">{session.analysis.totalPassages}</div>
 							</div>
 							<div class="stat">
-								<div class="stat-title">Tests</div>
+								<div class="stat-title">{t.tests}</div>
 								<div class="stat-value">{session.analysis.totalTests}</div>
 							</div>
 							<div class="stat">
-								<div class="stat-title">Packages</div>
+								<div class="stat-title">{t.packages}</div>
 								<div class="stat-value">{session.analysis.packages.length}</div>
 							</div>
 						</div>
@@ -331,7 +377,7 @@
 						<!-- Interaction Types -->
 						{#if Object.keys(session.analysis.allInteractionTypes).length > 0}
 							<div class="mb-4">
-								<h3 class="font-semibold mb-2">Interaction Types Found</h3>
+								<h3 class="font-semibold mb-2">{t.interactionTypesFound}</h3>
 								<div class="flex flex-wrap gap-2">
 									{#each Object.entries(session.analysis.allInteractionTypes) as [type, count]}
 										<div class="badge badge-outline badge-lg">
@@ -556,10 +602,9 @@
 			{#if session.analysis && session.analysis.totalTests > 0}
 				<div class="card bg-base-100 shadow-xl">
 					<div class="card-body">
-						<h2 class="card-title">Assessment Tests</h2>
+						<h2 class="card-title">{t.assessmentTests}</h2>
 						<p class="text-sm text-base-content/60 mb-4">
-							Browse and preview {session.analysis.totalTests} QTI assessment tests found in this
-							session
+							{i18n?.t('transform.detail.browseAssessmentsDescription', { count: session.analysis.totalTests }) ?? `Browse and preview ${session.analysis.totalTests} QTI assessment tests found in this session`}
 						</p>
 
 						<a href="/session/{session.id}/assessments" class="btn btn-primary" data-testid="browse-assessments">
@@ -577,7 +622,7 @@
 									d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
 								/>
 							</svg>
-							Browse & Preview Assessment Tests
+							{t.browseAssessments}
 						</a>
 					</div>
 				</div>
@@ -587,9 +632,9 @@
 			{#if session.analysis && session.analysis.totalItems > 0}
 				<div class="card bg-base-100 shadow-xl">
 					<div class="card-body">
-						<h2 class="card-title">Individual Items</h2>
+						<h2 class="card-title">{t.individualItems}</h2>
 						<p class="text-sm text-base-content/60 mb-4">
-							Browse and preview {session.analysis.totalItems} QTI items found in this session
+							{i18n?.t('transform.detail.browseItemsDescription', { count: session.analysis.totalItems }) ?? `Browse and preview ${session.analysis.totalItems} QTI items found in this session`}
 						</p>
 
 						<a href="/session/{session.id}/items" class="btn btn-primary" data-testid="browse-items">
@@ -613,7 +658,7 @@
 									d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
 								/>
 							</svg>
-							Browse & Preview Items
+							{t.browseItems}
 						</a>
 					</div>
 				</div>
@@ -624,10 +669,10 @@
 
 <ConfirmDialog
 	bind:open={_showDeleteConfirm}
-	title="Delete Session"
-	message="Are you sure you want to delete this session? All files will be permanently removed and this action cannot be undone."
-	confirmText="Delete Session"
-	cancelText="Cancel"
+	title={t.deleteConfirmTitle}
+	message={t.deleteConfirmMessage}
+	confirmText={t.delete}
+	cancelText={t.cancel}
 	confirmClass="btn-error"
 	onConfirm={_confirmDeleteSession}
 />
