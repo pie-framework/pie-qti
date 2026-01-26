@@ -12,7 +12,7 @@ jobs:
     steps:
       - name: Notify Slack on PR Opened
         if: github.event.action == 'opened'
-        uses: slackapi/slack-github-action@v1.27.0
+        uses: slackapi/slack-github-action@v2.1.1
         with:
           payload: |
             {
@@ -58,7 +58,7 @@ jobs:
 
       - name: Notify Slack on PR Merged
         if: github.event.action == 'closed' && github.event.pull_request.merged == true
-        uses: slackapi/slack-github-action@v1.27.0
+        uses: slackapi/slack-github-action@v2.1.1
         with:
           payload: |
             {
@@ -104,7 +104,7 @@ jobs:
 
       - name: Notify Slack on PR Closed (not merged)
         if: github.event.action == 'closed' && github.event.pull_request.merged == false
-        uses: slackapi/slack-github-action@v1.27.0
+        uses: slackapi/slack-github-action@v2.1.1
         with:
           payload: |
             {
@@ -142,7 +142,7 @@ jobs:
 
       - name: Notify Slack on PR Review
         if: github.event_name == 'pull_request_review'
-        uses: slackapi/slack-github-action@v1.27.0
+        uses: slackapi/slack-github-action@v2.1.1
         with:
           payload: |
             {
