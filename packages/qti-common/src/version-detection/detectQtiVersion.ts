@@ -69,9 +69,9 @@ function detectFromDocument(doc: any): QtiVersion {
 		}
 	}
 
-	// Strategy 2: Check root element name
+	// Strategy 2: Check root element name (any qti- prefixed element indicates QTI 3.0)
 	const localName = root.localName || root.tagName;
-	if (localName === 'qti-assessment-item' || localName === 'qti-assessment-test') {
+	if (localName === 'qti-assessment-item' || localName === 'qti-assessment-test' || localName.startsWith('qti-')) {
 		return '3.0';
 	}
 
@@ -113,8 +113,8 @@ function detectFromString(xml: string): QtiVersion {
 		return '2.0';
 	}
 
-	// Check root element
-	if (/<qti-assessment-(item|test)[\s>]/.test(xml)) {
+	// Check root element or any QTI 3.0 element (kebab-case with qti- prefix)
+	if (/<qti-assessment-(item|test)[\s>]/.test(xml) || /<qti-[a-z-]+[\s>]/.test(xml)) {
 		return '3.0';
 	}
 

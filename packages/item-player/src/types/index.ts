@@ -180,6 +180,12 @@ export interface PlayerConfig {
 	 * @since 0.2.0
 	 */
 	elementNameMapper?: any; // Will be ElementNameMapper from @pie-qti/qti-common
+	/**
+	 * Optional attribute name mapper for handling different QTI versions.
+	 * Defaults to Qti2xAttributeNameMapper for backward compatibility.
+	 * @since 0.3.0
+	 */
+	attributeNameMapper?: any; // Will be AttributeNameMapper from @pie-qti/qti-common
 	/** Optional web component registry for custom interaction components */
 	componentRegistry?: any; // Will be ComponentRegistry, but avoiding circular dependency
 	/** Optional extraction registry for custom element extractors */

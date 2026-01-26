@@ -27,8 +27,14 @@ import {
 	toNumber,
 	toStringValue,
 } from '@pie-qti/qti-processing';
-import type { ElementNameMapper } from '@pie-qti/qti-common';
-import { Qti2xElementNameMapper } from '@pie-qti/qti-common';
+import type { ElementNameMapper, AttributeNameMapper } from '@pie-qti/qti-common';
+import {
+	Qti2xElementNameMapper,
+	Qti2xAttributeNameMapper,
+	Qti3ElementNameMapper,
+	Qti3AttributeNameMapper,
+	detectQtiVersion,
+} from '@pie-qti/qti-common';
 import { parse } from 'node-html-parser';
 import type { ExtractionRegistry } from '../extraction/ExtractionRegistry.js';
 import { createExtractionRegistry } from '../extraction/ExtractionRegistry.js';
@@ -82,7 +88,28 @@ export class Player {
 		this.itemXml = config.itemXml ?? '';
 		this.role = config.role ?? 'candidate';
 		this.rng = config.rng ?? (typeof config.seed === 'number' ? createSeededRng(config.seed) : Math.random);
-		this.mapper = (config.elementNameMapper as ElementNameMapper | undefined) ?? new Qti2xElementNameMapper();
+
+		// Auto-detect QTI version and create appropriate mappers if not provided
+		if (!config.elementNameMapper) {
+			const version = detectQtiVersion(this.itemXml);
+			if (version === '3.0') {
+				this.mapper = new Qti3ElementNameMapper();
+				// Set in config so it's available to extraction utils
+				(config as any).elementNameMapper = this.mapper;
+				// Also set attribute mapper if not provided
+				if (!config.attributeNameMapper) {
+					(config as any).attributeNameMapper = new Qti3AttributeNameMapper();
+				}
+			} else {
+				this.mapper = new Qti2xElementNameMapper();
+				(config as any).elementNameMapper = this.mapper;
+				if (!config.attributeNameMapper) {
+					(config as any).attributeNameMapper = new Qti2xAttributeNameMapper();
+				}
+			}
+		} else {
+			this.mapper = config.elementNameMapper as ElementNameMapper;
+		}
 
 		// Optional DoS guardrails for untrusted content (compat-by-default; disabled unless enabled).
 		enforceItemXmlLimits(this.itemXml, this.config.security);
@@ -101,7 +128,8 @@ export class Player {
 		}
 
 		// Extraction + rendering registries (for interaction rendering)
-		this.extractionRegistry = (config.extractionRegistry as ExtractionRegistry | undefined) ?? createExtractionRegistry();
+		// Pass the element name mapper to the extraction registry for QTI version handling
+		this.extractionRegistry = (config.extractionRegistry as ExtractionRegistry | undefined) ?? createExtractionRegistry(this.mapper);
 		this.componentRegistry = (config.componentRegistry as ComponentRegistry | undefined) ?? createComponentRegistry();
 
 		// I18n provider (defaults to a simple fallback if not provided)
@@ -241,6 +269,24 @@ export class Player {
 	}
 
 	/**
+	 * Get attribute value with QTI version support.
+	 * Tries the attribute mapper's native form first, then falls back to direct lookup.
+	 * @param el - Element to get attribute from
+	 * @param canonicalName - Canonical (lowercase) attribute name
+	 * @returns Attribute value or null
+	 */
+	private getAttrMapped(el: Element, canonicalName: string): string | null {
+		// Try mapped attribute name first (e.g., 'mapkey' -> 'map-key' for QTI 3.0)
+		if (this.config.attributeNameMapper) {
+			const nativeName = this.config.attributeNameMapper.toNative(canonicalName);
+			const value = el.getAttribute(nativeName);
+			if (value !== null) return value;
+		}
+		// Fallback to canonical name (for QTI 2.x compatibility)
+		return getAttr(el, canonicalName);
+	}
+
+	/**
 	 * Create a simple fallback i18n provider when none is provided
 	 * This avoids a hard dependency on @pie-qti/i18n
 	 */
@@ -263,11 +309,19 @@ export class Player {
 	 */
 	private detectQTIVersion(): string {
 		const ns = (this.assessmentItem as any).namespaceURI;
+		if (ns?.includes('v3p0') || ns?.includes('imsqtiasi_v3p0')) return '3.0';
 		if (ns?.includes('v2p2') || ns?.includes('imsqti_v2p2')) return '2.2';
 		if (ns?.includes('v2p1') || ns?.includes('imsqti_v2p1')) return '2.1';
 		if (ns?.includes('v2p0') || ns?.includes('imsqti_v2p0')) return '2.0';
 
+		// Check element name for QTI 3.0
+		const localName = (this.assessmentItem as any).localName || (this.assessmentItem as any).tagName;
+		if (localName === 'qti-assessment-item' || localName === 'qti-assessment-test') {
+			return '3.0';
+		}
+
 		const versionAttr = getAttr(this.assessmentItem, 'version');
+		if (versionAttr?.startsWith('3.')) return '3.0';
 		if (versionAttr === '2.0') return '2.0';
 		if (versionAttr === '2.1') return '2.1';
 		if (versionAttr === '2.2') return '2.2';
@@ -834,9 +888,9 @@ export class Player {
 		const decls: DeclarationMap = {};
 
 		const addDecl = (kind: DeclKind, el: Element) => {
-			const identifier = getAttr(el, 'identifier');
-			const cardinality = (getAttr(el, 'cardinality') || 'single') as Cardinality;
-			const baseType = (getAttr(el, 'baseType') || 'string') as BaseType;
+			const identifier = this.getAttrMapped(el, 'identifier');
+			const cardinality = (this.getAttrMapped(el, 'cardinality') || 'single') as Cardinality;
+			const baseType = (this.getAttrMapped(el, 'baseType') || 'string') as BaseType;
 			if (!identifier) return;
 
 			const defaultValue = this.parseDefaultValue(el, baseType, cardinality);
@@ -854,7 +908,7 @@ export class Player {
 			// Response + outcome declarations may define mappings used by mapResponse/mapOutcome.
 			// (Templates do not participate in mapping.)
 			if (kind === 'response' || kind === 'outcome') {
-				const mappingEl = findFirstDescendant(el, 'mapping');
+				const mappingEl = findFirstDescendant(el, this.mapper.toNative('mapping'));
 				if (mappingEl) {
 					decls[identifier].mapping = this.parseMapping(mappingEl, baseType);
 				}
@@ -863,8 +917,8 @@ export class Player {
 			// Outcome declarations may define a lookup table (matchTable or interpolationTable)
 			// used by the lookupOutcomeValue rule.
 			if (kind === 'outcome') {
-				const matchTableEl = findFirstDescendant(el, 'matchTable');
-				const interpolationTableEl = findFirstDescendant(el, 'interpolationTable');
+				const matchTableEl = findFirstDescendant(el, this.mapper.toNative('matchtable'));
+				const interpolationTableEl = findFirstDescendant(el, this.mapper.toNative('interpolationtable'));
 				if (matchTableEl) {
 					decls[identifier].lookupTable = this.parseMatchTable(matchTableEl);
 				} else if (interpolationTableEl) {
@@ -873,11 +927,11 @@ export class Player {
 			}
 
 			if (kind === 'response') {
-				const correctEl = findFirstDescendant(el, 'correctResponse');
+				const correctEl = findFirstDescendant(el, this.mapper.toNative('correctresponse'));
 				if (correctEl) {
 					decls[identifier].correctResponse = this.parseCorrectResponse(correctEl, baseType, cardinality);
 				}
-				const areaMappingEl = findFirstDescendant(el, 'areaMapping');
+				const areaMappingEl = findFirstDescendant(el, this.mapper.toNative('areamapping'));
 				if (areaMappingEl) {
 					decls[identifier].areaMapping = this.parseAreaMapping(areaMappingEl);
 				}
@@ -897,7 +951,7 @@ export class Player {
 		return {
 			kind: 'table.matchTable' as const,
 			defaultValue: Number.isFinite(defaultValue as any) ? defaultValue : undefined,
-			entries: findDescendants(el, 'matchTableEntry').map((e) => ({
+			entries: findDescendants(el, this.mapper.toNative('matchtableentry')).map((e) => ({
 				sourceValue: (getAttr(e, 'sourceValue') || '').trim(),
 				targetValue: (getAttr(e, 'targetValue') || '').trim(),
 			})),
@@ -912,7 +966,7 @@ export class Player {
 			kind: 'table.interpolationTable' as const,
 			defaultValue: Number.isFinite(defaultValue as any) ? defaultValue : undefined,
 			interpolationMethod,
-			entries: findDescendants(el, 'interpolationTableEntry')
+			entries: findDescendants(el, this.mapper.toNative('interpolationtableentry'))
 				.map((e) => ({
 					sourceValue: Number((getAttr(e, 'sourceValue') || '').trim()),
 					targetValue: Number((getAttr(e, 'targetValue') || '').trim()),
@@ -982,9 +1036,9 @@ export class Player {
 	}
 
 	private parseDefaultValue(declEl: Element, baseType: BaseType, cardinality: Cardinality): QtiValue {
-		const defaultEl = findFirstDescendant(declEl, 'defaultValue');
+		const defaultEl = findFirstDescendant(declEl, this.mapper.toNative('defaultvalue'));
 		if (!defaultEl) return qtiNull(baseType, cardinality);
-		const values = findDescendants(defaultEl, 'value').map((v) => (v.textContent || '').trim());
+		const values = findDescendants(defaultEl, this.mapper.toNative('value')).map((v) => (v.textContent || '').trim());
 		if (cardinality === 'multiple' || cardinality === 'ordered') {
 			return qtiValue(
 				baseType,
@@ -999,7 +1053,7 @@ export class Player {
 	}
 
 	private parseCorrectResponse(correctEl: Element, baseType: BaseType, cardinality: Cardinality): QtiValue {
-		const values = findDescendants(correctEl, 'value').map((v) => (v.textContent || '').trim());
+		const values = findDescendants(correctEl, this.mapper.toNative('value')).map((v) => (v.textContent || '').trim());
 		if (cardinality === 'multiple' || cardinality === 'ordered') {
 			return qtiValue(
 				baseType,
@@ -1014,10 +1068,10 @@ export class Player {
 	}
 
 	private parseMapping(mappingEl: Element, baseType: BaseType) {
-		const defaultValue = Number(getAttr(mappingEl, 'defaultValue') || 0);
-		const lowerBound = getAttr(mappingEl, 'lowerBound') ? Number(getAttr(mappingEl, 'lowerBound')) : undefined;
-		const upperBound = getAttr(mappingEl, 'upperBound') ? Number(getAttr(mappingEl, 'upperBound')) : undefined;
-		const mappingCaseSensitive = getAttr(mappingEl, 'caseSensitive') || 'true';
+		const defaultValue = Number(this.getAttrMapped(mappingEl, 'defaultValue') || 0);
+		const lowerBound = this.getAttrMapped(mappingEl, 'lowerBound') ? Number(this.getAttrMapped(mappingEl, 'lowerBound')) : undefined;
+		const upperBound = this.getAttrMapped(mappingEl, 'upperBound') ? Number(this.getAttrMapped(mappingEl, 'upperBound')) : undefined;
+		const mappingCaseSensitive = this.getAttrMapped(mappingEl, 'caseSensitive') || 'true';
 		const entries: Record<string, any> = {};
 
 		const normalizePairKey = (k: string): string => {
@@ -1032,11 +1086,11 @@ export class Player {
 			return k.trim();
 		};
 
-		for (const e of findDescendants(mappingEl, 'mapEntry')) {
-			const mapKey = getAttr(e, 'mapKey');
-			const mappedValue = getAttr(e, 'mappedValue');
+		for (const e of findDescendants(mappingEl, this.mapper.toNative('mapentry'))) {
+			const mapKey = this.getAttrMapped(e, 'mapKey');
+			const mappedValue = this.getAttrMapped(e, 'mappedValue');
 			if (!mapKey || mappedValue === null) continue;
-			const effectiveCaseSensitive = getAttr(e, 'caseSensitive') || mappingCaseSensitive || 'true';
+			const effectiveCaseSensitive = this.getAttrMapped(e, 'caseSensitive') || mappingCaseSensitive || 'true';
 			const storedKey =
 				baseType === 'pair'
 					? normalizePairKey(mapKey)
@@ -1067,7 +1121,7 @@ export class Player {
 			: undefined;
 
 		const entries: AreaMapEntry[] = [];
-		for (const e of findDescendants(areaMappingEl, 'areaMapEntry')) {
+		for (const e of findDescendants(areaMappingEl, this.mapper.toNative('areamapentry'))) {
 			const shape = (getAttr(e, 'shape') || 'default') as AreaMapEntry['shape'];
 			const coords = String(getAttr(e, 'coords') || '');
 			const mappedValue = Number(getAttr(e, 'mappedValue') || 0);
