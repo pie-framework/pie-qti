@@ -63,7 +63,7 @@ jobs:
 
       - name: Check translation coverage
         run: |
-          cd packages/qti2-i18n
+          cd packages/i18n
           bun run check-translations
 
   hardcoded-strings:
@@ -81,7 +81,7 @@ jobs:
 
       - name: Scan for hardcoded strings
         run: |
-          cd packages/qti2-i18n
+          cd packages/i18n
           bun run scan-hardcoded
 
   test-unit:
