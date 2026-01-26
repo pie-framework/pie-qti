@@ -11,7 +11,7 @@ This project provides two major capabilities:
 1. **QTI 2.x & 3.0 Players** — Production-ready item and assessment players with unified version-agnostic architecture
 2. **PIE ↔ QTI Transformation Framework** — Bidirectional transforms between QTI and PIE, with CLI, web app, and IMS Content Package support
 
-📚 **[Live Examples](https://pie-framework.github.io/pie-qti/examples/)**
+📚 **[Live Examples](https://qti.pie-framework.org/examples/)**
 
 ![QTI Player Examples](docs/images/examples-screenshot-1.png)
 
