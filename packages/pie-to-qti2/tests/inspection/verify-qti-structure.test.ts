@@ -6,10 +6,10 @@
 
 import { describe, expect, test } from 'bun:test';
 import type { PieItem } from '@pie-qti/transform-types';
-import { PieToQti2Plugin } from '../../src/plugin.js';
+import { PieToQtiPlugin } from '../../src/plugin.js';
 
 describe('QTI 2.2.2 Structure Verification', () => {
-  const pieToQti = new PieToQti2Plugin();
+  const pieToQti = new PieToQtiPlugin();
 
   const logger = {
     debug: () => {},

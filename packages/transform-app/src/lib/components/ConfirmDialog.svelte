@@ -3,7 +3,7 @@
 	 * Reusable confirmation dialog component using DaisyUI modal
 	 */
 	import { getContext } from 'svelte';
-	import type { SvelteI18nProvider } from '@pie-qti/qti2-i18n';
+	import type { SvelteI18nProvider } from '@pie-qti/i18n';
 
 	const i18nContext = getContext<{ value: SvelteI18nProvider | undefined }>('i18n');
 	const i18n = $derived(i18nContext?.value);

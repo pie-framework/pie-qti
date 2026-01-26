@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item
+  xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0"
+  identifier="qti3-hotspot-interaction"
+  title="QTI 3.0 Hotspot Interaction"
+  adaptive="false"
+  time-dependent="false">
+
+  <qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="identifier">
+    <qti-correct-response>
+      <qti-value>hotspot_paris</qti-value>
+    </qti-correct-response>
+  </qti-response-declaration>
+
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float">
+    <qti-default-value>
+      <qti-value>0.0</qti-value>
+    </qti-default-value>
+  </qti-outcome-declaration>
+
+  <qti-item-body>
+    <qti-hotspot-interaction response-identifier="RESPONSE" max-choices="1">
+      <qti-prompt>Click on the location of Paris on the map of France.</qti-prompt>
+      <qti-object data="images/france-map.png" type="image/png" width="400" height="300">
+        <span>Map of France</span>
+      </qti-object>
+      <qti-hotspot-choice identifier="hotspot_paris" shape="circle" coords="200,150,20"/>
+      <qti-hotspot-choice identifier="hotspot_marseille" shape="circle" coords="220,250,20"/>
+      <qti-hotspot-choice identifier="hotspot_lyon" shape="circle" coords="230,180,20"/>
+    </qti-hotspot-interaction>
+  </qti-item-body>
+
+  <qti-response-processing>
+    <qti-response-condition>
+      <qti-response-if>
+        <qti-match>
+          <qti-variable identifier="RESPONSE"/>
+          <qti-correct identifier="RESPONSE"/>
+        </qti-match>
+        <qti-set-outcome-value identifier="SCORE">
+          <qti-base-value base-type="float">1.0</qti-base-value>
+        </qti-set-outcome-value>
+      </qti-response-if>
+      <qti-response-else>
+        <qti-set-outcome-value identifier="SCORE">
+          <qti-base-value base-type="float">0.0</qti-base-value>
+        </qti-set-outcome-value>
+      </qti-response-else>
+    </qti-response-condition>
+  </qti-response-processing>
+
+</qti-assessment-item>

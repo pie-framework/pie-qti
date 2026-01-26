@@ -5,7 +5,7 @@
  *
  * @example
  * ```typescript
- * import { Player } from '@pie-qti/qti2-item-player';
+ * import { Player } from '@pie-qti/item-player';
  * import { likertScalePlugin } from '@acme/likert-scale-plugin';
  *
  * const player = new Player({

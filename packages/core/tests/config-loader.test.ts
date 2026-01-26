@@ -199,7 +199,7 @@ describe('ConfigLoader', () => {
 				plugins: {
 					qti22: {
 						pie: {
-							module: '@pie-qti/qti2-to-pie',
+							module: '@pie-qti/to-pie',
 						},
 					},
 				},

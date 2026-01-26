@@ -4,7 +4,7 @@
  * Provides Likert scale choice interactions for QTI assessments.
  */
 
-import type { ExtractionRegistry, PluginContext, QTIPlugin, RenderContext } from '@pie-qti/qti2-item-player';
+import type { ExtractionRegistry, PluginContext, QTIPlugin, RenderContext } from '@pie-qti/item-player';
 import { likertChoiceExtractor } from './extractors/index.js';
 
 export const likertScalePlugin: QTIPlugin = {

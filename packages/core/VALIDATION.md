@@ -116,7 +116,7 @@ See the [schemas package README](../schemas/README.md) for information on keepin
 For validating QTI input:
 
 ```typescript
-import { QtiValidator } from '@pie-qti/qti2-to-pie';
+import { QtiValidator } from '@pie-qti/to-pie';
 
 const validator = new QtiValidator();
 
@@ -169,7 +169,7 @@ For testing transformations with validation:
 
 ```typescript
 import { describe, test, expect } from 'bun:test';
-import { Qti22ToPiePlugin } from '@pie-qti/qti2-to-pie';
+import { Qti22ToPiePlugin } from '@pie-qti/to-pie';
 import { PieItemValidator } from '@pie-qti/transform-core';
 
 describe('QTI to PIE transformation', () => {

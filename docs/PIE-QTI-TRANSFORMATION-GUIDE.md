@@ -36,12 +36,12 @@ bun add @pie-qti/pie-to-qti2
 - Archive content in interoperable format
 - Enable content sharing across systems
 
-### @pie-qti/qti2-to-pie
+### @pie-qti/to-pie
 
 Transforms QTI 2.2 content to PIE format.
 
 ```bash
-bun add @pie-qti/qti2-to-pie
+bun add @pie-qti/to-pie
 ```
 
 **Use Cases:**
@@ -56,7 +56,7 @@ bun add @pie-qti/qti2-to-pie
 
 ```typescript
 import { PieToQti2Plugin } from '@pie-qti/pie-to-qti2';
-import { Qti22ToPiePlugin } from '@pie-qti/qti2-to-pie';
+import { Qti22ToPiePlugin } from '@pie-qti/to-pie';
 
 // PIE item
 const pieItem = {
@@ -486,7 +486,7 @@ async function exportPieItems(pieItems: any[], outputDir: string) {
 ### Pattern 2: Content Migration
 
 ```typescript
-import { Qti22ToPiePlugin } from '@pie-qti/qti2-to-pie';
+import { Qti22ToPiePlugin } from '@pie-qti/to-pie';
 import { PieToQti2Plugin } from '@pie-qti/pie-to-qti2';
 
 async function migrateQtiToPie(qtiXml: string): Promise<any> {
@@ -542,7 +542,7 @@ bun test packages/pie-to-qti2/tests/integration
 bun run packages/pie-to-qti2/examples/assessment-transformation.ts
 
 # Round-trip validation
-bun test packages/qti2-to-pie/tests/integration/passage-roundtrip.test.ts
+bun test packages/to-pie/tests/integration/passage-roundtrip.test.ts
 ```
 
 ## Documentation
@@ -550,7 +550,7 @@ bun test packages/qti2-to-pie/tests/integration/passage-roundtrip.test.ts
 ### Package-Specific Guides
 
 - **[@pie-qti/pie-to-qti2 README](../packages/pie-to-qti2/README.md)** - PIE to QTI transformation
-- **[@pie-qti/qti2-to-pie README](../packages/qti2-to-pie/README.md)** - QTI to PIE transformation
+- **[@pie-qti/to-pie README](../packages/to-pie/README.md)** - QTI to PIE transformation
 
 ### Feature Guides
 
@@ -561,7 +561,7 @@ bun test packages/qti2-to-pie/tests/integration/passage-roundtrip.test.ts
 
 ### Technical Guides
 
-- **[Vendor Customization](../packages/qti2-to-pie/docs/VENDOR_CUSTOMIZATION_GUIDE.md)** - Vendor extensions
+- **[Vendor Customization](../packages/to-pie/docs/VENDOR_CUSTOMIZATION_GUIDE.md)** - Vendor extensions
 
 ## Troubleshooting
 

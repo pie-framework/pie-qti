@@ -266,7 +266,7 @@ test.describe('QTI Player', () => {
 
 		// Listen for response-change events
 		await page.evaluate(() => {
-			const player = document.querySelector('pie-qti2-item-player');
+			const player = document.querySelector('pie-qti-item-player');
 			if (player) {
 				player.addEventListener('response-change', (e: any) => {
 					(window as any).__responseEvents = (window as any).__responseEvents || [];

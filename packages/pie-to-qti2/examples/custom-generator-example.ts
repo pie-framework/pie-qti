@@ -14,7 +14,7 @@ import {
   GeneratorContext,
   GeneratorResult,
   generateIdentifier,
-  PieToQti2Plugin,
+  PieToQtiPlugin,
   QtiBuilder,
 } from '../src/index.js';
 
@@ -107,7 +107,7 @@ class SliderGenerator extends BaseGenerator {
 // ============================================================================
 
 // Create plugin instance
-const plugin = new PieToQti2Plugin();
+const plugin = new PieToQtiPlugin();
 
 // Register the custom generator
 plugin.registerGenerator(
@@ -232,7 +232,7 @@ class VendorMultipleChoiceGenerator extends BaseGenerator {
 function overrideExample() {
   console.log('\n\n🔧 Example: Overriding Built-in Generator\n');
 
-  const customPlugin = new PieToQti2Plugin();
+  const customPlugin = new PieToQtiPlugin();
 
   // Override the built-in multiple-choice generator
   customPlugin.registerGenerator(

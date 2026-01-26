@@ -1,0 +1,828 @@
+/**
+ * English (United States) translations
+ *
+ * Guidelines for translators:
+ * - Keep messages concise for UI constraints
+ * - Use sentence case for labels, title case for buttons
+ * - Maintain consistent terminology across interactions
+ * - Variables in {curlyBraces} will be replaced with dynamic values
+ */
+export default {
+	common: {
+		loading: 'Loading...',
+		error: 'Error',
+		success: 'Success',
+		cancel: 'Cancel',
+		confirm: 'Confirm',
+		close: 'Close',
+		save: 'Save',
+		delete: 'Delete',
+		edit: 'Edit',
+		remove: 'Remove',
+		add: 'Add',
+		search: 'Search',
+		filter: 'Filter',
+		reset: 'Reset',
+		clear: 'Clear',
+		clearAll: 'Clear All',
+		submit: 'Submit',
+		next: 'Next',
+		previous: 'Previous',
+		back: 'Back',
+		continue: 'Continue',
+		finish: 'Finish',
+		complete: 'Complete',
+		completed: 'Completed',
+		status: 'Status',
+		required: 'Required',
+		review: 'Review',
+		selected: 'Selected',
+		available: 'Available',
+		showDetails: 'Show details',
+		hideDetails: 'Hide details',
+		details: 'Details',
+		deselected: '{item} deselected',
+		selectionCancelled: 'Selection cancelled',
+		question: 'Question',
+		of: 'of',
+		answered: 'answered',
+		pleaseComplete: 'Please complete the required interactions',
+		submitting: 'Submitting...',
+		submitAnswer: 'Submit Answer',
+		tryAgain: 'Try Again',
+		errorNoData: 'No interaction data provided',
+	},
+
+	units: {
+		bytes: '{count} bytes',
+		kilobytes: '{count} KB',
+		megabytes: '{count} MB',
+		seconds: '{count} seconds',
+		minutes: '{count} minutes',
+		hours: '{count} hours',
+	},
+
+	// Pluralization examples
+	// Use i18n.plural('plurals.items', { count: n }) to access these
+	plurals: {
+		items: {
+			one: '{count} item',
+			other: '{count} items',
+		},
+		files: {
+			one: '{count} file selected',
+			other: '{count} files selected',
+		},
+		questions: {
+			one: '{count} question',
+			other: '{count} questions',
+		},
+		answers: {
+			one: '{count} answer',
+			other: '{count} answers',
+		},
+		choices: {
+			one: '{count} choice',
+			other: '{count} choices',
+		},
+		attempts: {
+			one: '{count} attempt remaining',
+			other: '{count} attempts remaining',
+		},
+		minutesRemaining: {
+			one: '{count} minute remaining',
+			other: '{count} minutes remaining',
+		},
+		secondsRemaining: {
+			one: '{count} second remaining',
+			other: '{count} seconds remaining',
+		},
+		submitAnswer: {
+			one: 'Submit Answer',
+			other: 'Submit Answers',
+		},
+	},
+
+	validation: {
+		required: 'This field is required',
+		invalidFormat: 'Invalid format',
+		tooShort: 'Too short (minimum {min} characters)',
+		tooLong: 'Too long (maximum {max} characters)',
+		outOfRange: 'Value must be between {min} and {max}',
+	},
+
+	interactions: {
+		choice: {
+			selectOption: 'Select an option',
+			selectMultiple: 'Select all that apply',
+			selected: 'Selected',
+			notSelected: 'Not selected',
+			correct: 'Correct',
+		},
+
+		upload: {
+			// Shown as label above file input
+			label: 'Upload a file',
+			selectFile: 'Choose file',
+			dragDrop: 'or drag and drop',
+
+			// Displayed before list of allowed file types
+			allowedTypes: 'Allowed file types:',
+
+			// Displayed when file is selected
+			selectedFile: 'Selected:',
+
+			// File size display - {size} will be replaced with numeric value
+			fileSize: '{size} bytes',
+			fileSizeKb: '{size} KB',
+			fileSizeMb: '{size} MB',
+
+			removeFile: 'Remove file',
+
+			// Error shown when file type validation fails
+			// {types} will be replaced with comma-separated list of allowed types
+			errorInvalidType: 'File type not allowed. Allowed: {types}',
+			errorReadFailed: 'Failed to read file',
+
+			// {max} will be replaced with maximum size in MB
+			errorTooLarge: 'File is too large (maximum {max} MB)',
+			unknownType: 'Unknown file type',
+		},
+
+		drawing: {
+			label: 'Draw your response',
+			clear: 'Clear drawing',
+			undo: 'Undo',
+			redo: 'Redo',
+			strokeColor: 'Stroke color',
+			strokeWidth: 'Stroke width',
+			tool: 'Tool',
+			instructions: 'Draw with your mouse or touch. Use the Clear button to reset.',
+			canvas: 'Drawing canvas',
+			updated: 'Drawing updated.',
+			cleared: 'Drawing cleared.',
+			generated: 'Generated:',
+		},
+
+		extendedText: {
+			placeholder: 'Type your response here...',
+			characterCount: '{count} characters',
+			characterLimit: '{count} / {max} characters',
+			bold: 'Bold',
+			italic: 'Italic',
+			underline: 'Underline',
+			bulletList: 'Bullet list',
+			numberedList: 'Numbered list',
+			insertMath: 'Insert math equation',
+			insertInlineMath: 'Insert inline math',
+			insertBlockMath: 'Insert block math',
+			enterMathExpression: 'Enter your math expression:',
+			latexSource: 'LaTeX source:',
+			keyboard: 'Keyboard',
+			update: 'Update',
+			insert: 'Insert',
+		},
+
+		slider: {
+			label: 'Slider',
+			selectedValue: 'Selected value: {value}',
+			min: 'Minimum: {min}',
+			max: 'Maximum: {max}',
+			step: 'Step: {step}',
+			ariaLabel: 'Slider value from {lowerBound} to {upperBound}',
+			statTitle: 'Selected Value',
+		},
+
+		hottext: {
+			selected: 'Selected:',
+			selectText: 'Select text from the passage',
+			clearSelection: 'Clear Selection',
+			ariaLabel: 'Text selection interaction',
+		},
+
+		hotspot: {
+			selected: 'Selected:',
+			selectArea: 'Select areas on the image',
+			ariaLabel: 'Hotspot interaction',
+			altText: 'Hotspot interaction',
+		},
+
+		selectPoint: {
+			instruction: 'Click on the image to select points',
+			instructionAria: 'Click to select points on the image',
+			maxPointsReached: 'Maximum points reached. Remove a point to add a new one.',
+			point: 'Point {index}',
+			removePoint: 'Remove point {index}',
+			removePointTitle: 'Click to remove this point',
+			removePointAt: 'Remove point {index} at coordinates {x}, {y}',
+			removePointAtTitle: 'Click to remove this point ({x}, {y})',
+			canvas: 'Selection canvas',
+			noImage: 'No image provided',
+			pointsSelected: 'Points selected:',
+			minimumMet: '✓ Minimum met',
+			selectAtLeast: 'Select at least {minChoices}',
+		},
+
+		match: {
+			// Keyboard instruction for accessible drag-drop
+			keyboardInstructions: 'Press Space or Enter to select a source item. Tab to navigate to targets. Press Space or Enter on a target to create a match. Press Escape to cancel selection.',
+			dragInstruction: 'Press Space or Enter to match',
+			dropTarget: 'Drop item here',
+			matchedWith: 'Matched with {target}',
+			selectedForMatching: 'Selected for matching',
+			available: 'Available',
+			availableForMatching: 'Available for matching',
+			removeMatch: 'Remove match',
+			clearMatch: 'Clear match for {source}',
+			sourceItemsLabel: 'Source items to match',
+			targetItemsLabel: 'Target items for matching',
+			dragFromHere: 'Drag from here:',
+			dropHere: 'Drop here:',
+			deselected: '{item} deselected',
+			selected: '{item} selected',
+			navigateToTarget: 'Navigate to a target and press Space or Enter to match',
+			selectionCancelled: 'Selection cancelled',
+			matchCleared: 'Match cleared for {item}',
+		},
+
+		gapMatch: {
+			instruction: 'Drag words to fill in the blanks',
+			available: 'Available words',
+			availableLabel: 'Available words to place',
+			availableHeading: 'Available words:',
+			removeWord: 'Remove word',
+			// {word} will be replaced with the word being removed
+			removeFromBlanks: 'Remove {word} from the blanks',
+			selectPlaceholder: 'Select...',
+			gapAriaLabel: 'Gap {gapId}',
+			blankGapAriaLabel: 'Blank {gapId}. Drop an answer here.',
+			filledGapAriaLabel: 'Blank {gapId}, filled with {word}. Click to clear.',
+		},
+
+		graphicGapMatch: {
+			instruction: 'Place labels on the image hotspots',
+			keyboardInstructions: 'Press Space or Enter to select a label. Tab to navigate to hotspots on the image. Press Space or Enter on a hotspot to place the label. Press Escape to cancel selection.',
+			available: 'Available labels',
+			availableLabel: 'Available labels to place',
+			availableHeading: 'Available Labels:',
+			alreadyPlaced: 'Already placed on hotspot',
+			selectedForPlacement: 'Selected for placement',
+			pressSpaceToSelect: 'Press Space to select',
+			pressSpaceToPlace: 'Press Space or Enter to place label',
+			removeLabel: 'Remove label',
+			removeFromHotspot: 'Remove {label} from hotspot',
+			labelPlaced: '{label} placed on hotspot {hotspot}',
+			hotspot: 'Hotspot {number}',
+			contains: 'Contains: {label}',
+		},
+
+		order: {
+			instruction: 'Drag items to reorder them',
+			keyboardInstructions: 'Press Space or Enter to grab an item. Use arrow keys to move the item. Press Space or Enter again to drop. Press Escape to cancel.',
+			grabbed: 'Grabbed. Use arrow keys to move.',
+			moveUp: 'Move up',
+			moveDown: 'Move down',
+			position: 'Position {current} of {total}',
+			listLabel: 'Reorderable list of choices',
+			confirmOrder: 'Confirm Order',
+			confirmOrderNoChanges: 'Confirm Order (No Changes)',
+			confirmAria: 'Confirm this order as your answer',
+			itemGrabbed: '{item} grabbed. Current position {position} of {total}. Use arrow keys to move, Space or Enter to drop.',
+			itemDropped: '{item} dropped at position {position} of {total}',
+			itemMoved: '{item} moved to position {position} of {total}',
+			selectionCancelled: '{item} selection cancelled',
+		},
+
+		associate: {
+			instruction: 'Create associations between items',
+			createPair: 'Create pair',
+			removePair: 'Remove pair',
+			removeAssociation: 'Remove association',
+			diagramLabel: 'Association diagram',
+			altText: 'Association diagram',
+			hotspotConnections: '{label} ({usageCount}/{matchMax} connections)',
+			selectAnother: 'Selected: <strong>{label}</strong>. Click another',
+			selectAnotherHotspot: 'Selected: <strong>{label}</strong>. Click another hotspot to create an association.',
+			minimumRequired: 'Minimum required: {minAssociations}',
+			currentAssociations: 'Current Associations',
+			correctAssociations: 'Correct Associations',
+			clickToAssociate: 'Click two items to create an association between them',
+			clickAnotherOrDeselect: 'Click another item to create an association (or click again to deselect)',
+			associations: 'Associations',
+			associationsCount: 'Associations ({count}/{max})',
+			clickHotspotsToAssociate: 'Click two hotspots on the image to create an association.',
+			clickAnotherHotspot: 'Selected: <strong>{label}</strong>. Click another hotspot to create an association.',
+		},
+
+		positionObject: {
+			instruction: 'Drag objects onto the image',
+			placeObject: 'Place {object} on image',
+			removeObject: 'Remove {object}',
+			objectAt: '{object} at position ({x}, {y})',
+			canvasLabel: 'Positioning canvas',
+			backgroundAlt: 'Positioning background',
+			positioned: 'Positioned {label} at ({x}, {y})',
+			minimumRequired: 'Minimum required: {minChoices}',
+			maximumAllowed: 'Maximum: {maxChoices}',
+			availableObjects: 'Available Objects',
+			objectUsage: '{label} ({usageCount}/{matchMax} used)',
+			availableObjectsCount: 'Available Objects ({count}/{max})',
+			dragObjectsInstruction: 'Drag objects onto the canvas to position them.',
+			used: '{usageCount}/{matchMax} used',
+		},
+
+		endAttempt: {
+			buttonLabel: 'End Attempt',
+			ended: 'Attempt Ended',
+			requested: 'Requested',
+			warningMessage: 'Your attempt has been ended and can no longer be modified.',
+			confirmMessage: 'Are you sure you want to end your attempt? You will not be able to change your responses.',
+		},
+
+		media: {
+			play: 'Play',
+			pause: 'Pause',
+			volume: 'Volume',
+			mute: 'Mute',
+			unmute: 'Unmute',
+			fullscreen: 'Fullscreen',
+			exitFullscreen: 'Exit fullscreen',
+			playbackSpeed: 'Playback speed',
+			currentTime: '{current} / {duration}',
+			loading: 'Loading media...',
+			ariaLabel: 'Media content',
+			maxPlayLimitReached: 'Maximum play limit reached',
+			playCount: 'Play count:',
+			remaining: 'Remaining:',
+			requirementMet: '✓ Requirement met',
+			playAtLeast: 'Play at least {minPlays} time',
+			playAtLeastPlural: 'Play at least {minPlays} times',
+			browserNoSupport: 'Your browser does not support this media type.',
+			audioNoSupport: 'Your browser does not support the audio element.',
+			videoNoSupport: 'Your browser does not support the video element.',
+			objectDisabled: 'This item uses an embedded object type that is disabled by default for security.',
+		},
+
+		graphicOrder: {
+			instruction: 'Click hotspots to order them',
+			diagramLabel: 'Ordering diagram',
+			altText: 'Ordering diagram',
+			orderHeading: 'Order (drag to reorder)',
+			itemLabel: 'Item {index}: {label}',
+			confirmOrder: 'Confirm Order',
+			confirmOrderNoChanges: 'Confirm Order (No Changes)',
+			confirmAria: 'Confirm this order as your answer',
+		},
+
+		custom: {
+			unsupported: 'Unsupported customInteraction',
+			description: 'This item contains a vendor-specific interaction. This player does not execute custom interactions.',
+			promptLabel: 'Prompt',
+			manualResponse: 'Manual response (optional)',
+			placeholder: 'Enter a manual response (fallback)',
+			attributes: 'Attributes',
+			xml: 'XML',
+		},
+
+		inline: {
+			placeholder: '...',
+			selectPlaceholder: 'Select...',
+		},
+	},
+
+	item: {
+		loading: 'Loading item...',
+		loadingError: 'Failed to load item',
+		loadError: 'Error loading item: {error}',
+		parsingError: 'Failed to parse QTI XML',
+		processingError: 'Failed to process responses',
+		submit: 'Submit',
+		complete: 'Complete',
+		completed: 'Completed',
+		attempt: 'Attempt {numAttempts}',
+	},
+
+	itemSession: {
+		attempt: 'Attempt {numAttempts}',
+		attemptsRemaining: '{attemptsRemaining} attempts remaining',
+		maxAttempts: 'Max attempts: {maxAttempts}',
+	},
+
+	feedback: {
+		close: 'Close feedback',
+		closeFeedback: 'Dismiss feedback',
+		testFeedback: 'Test feedback',
+	},
+
+	assessment: {
+		title: 'Assessment',
+		loading: 'Loading assessment...',
+		loadingError: 'Timeout loading assessment. This assessment may be invalid or the player failed to initialize.',
+		question: 'Question {current} of {total}',
+		questionAnnouncement: 'Question {current} of {total}',
+		section: 'Section {current} of {total}',
+		sectionDefault: 'Section {number}',
+		closeMenu: 'Close menu',
+		readingPassage: 'Reading Passage',
+		expandPassage: 'Expand passage',
+		collapsePassage: 'Collapse passage',
+
+		attempts: {
+			remaining: '{count} attempts remaining',
+			oneRemaining: '1 attempt remaining',
+			noRemaining: 'No attempts remaining ({count} used)',
+			used: 'Attempts: {count}',
+			maxReached: 'Max attempts reached',
+			required: 'Must answer before continuing',
+			reviewNotAllowed: 'Not allowed once submitted',
+		},
+
+		navigation: {
+			previous: 'Previous',
+			next: 'Next',
+			submit: 'Submit',
+			jumpTo: 'Jump to question {number}',
+			sectionMenu: 'Section menu',
+			progress: 'Progress: {percent}%',
+		},
+
+		sections: {
+			title: 'Sections',
+			selectSection: 'Select section',
+		},
+
+		timer: {
+			remaining: 'Time Remaining',
+			elapsed: 'Time Elapsed',
+			expired: 'Time Expired',
+			timeRemaining: 'Time remaining: {time}',
+			timeElapsed: 'Time elapsed: {time}',
+			timeUp: "Time's up!",
+		},
+
+		feedback: {
+			correct: 'Correct',
+			incorrect: 'Incorrect',
+			partiallyCorrect: 'Partially correct',
+			unanswered: 'Unanswered',
+			score: 'Score: {score} / {maxScore}',
+			passed: 'Passed',
+			failed: 'Failed',
+		},
+
+		completion: {
+			title: 'Assessment Complete',
+			message: 'You have completed the assessment.',
+			score: 'Your score: {score} out of {maxScore}',
+			percentage: 'Percentage: {percent}%',
+			viewResults: 'View results',
+			exit: 'Exit',
+		},
+
+		errors: {
+			navigationFailed: 'Navigation failed. Please try again.',
+			submitFailed: 'Failed to submit assessment. Please try again.',
+			loadFailed: 'Failed to load question.',
+			saveFailed: 'Failed to save response.',
+		},
+	},
+
+	i18n: {
+		selectLanguage: 'Language',
+		selectLanguageAriaLabel: 'Select display language',
+	},
+
+	accessibility: {
+		skipToContent: 'Skip to content',
+		skipToNavigation: 'Skip to navigation',
+		itemBody: 'Question content',
+		navigationRegion: 'Assessment navigation',
+		announcement: 'Announcement',
+		newQuestion: 'New question loaded',
+		answerRecorded: 'Answer recorded',
+		resizer: 'Resize passage and question panels',
+	},
+
+	demo: {
+		selectSampleItem: 'Select Sample Item',
+		configurationPanel: 'Configuration Panel',
+		viewingAs: 'Viewing as',
+		role: 'Role',
+		candidate: 'Candidate',
+		author: 'Author',
+		proctor: 'Proctor',
+		scorer: 'Scorer',
+		tutor: 'Tutor',
+		showCorrectAnswers: 'Show correct answers',
+		showFeedback: 'Show feedback',
+		settings_aria: 'Open settings menu',
+		xmlEditor: 'XML Editor',
+
+		// Navigation
+		appName: 'PIE QTI Player',
+		home: 'Home',
+		itemDemo: 'Item Demo',
+		assessmentDemo: 'Assessment Demo',
+		likertDemo: 'Likert Plugin Demo',
+		iframeDemo: 'Iframe Demo',
+		theme: 'Theme',
+
+		// Home Page
+		homeTitle: 'QTI Player',
+		homeSubtitle: 'A modern, framework-agnostic player for QTI assessment items. Works 100% client-side by default, with optional server-side hooks for production use.',
+		homeMetaDescription: 'Modern QTI player with optional backend integration',
+		tryItems: 'Try Items',
+		tryAssessments: 'Try Assessments',
+		pluginDemo: 'Plugin Demo',
+		dropQtiFile: 'Drop QTI XML file here',
+		orClickToSelect: 'or click to select a file',
+		selectFile: 'Select File',
+		selectedFile: 'Selected:',
+		loadInPlayer: 'Load in Player',
+		footerTitle: 'QTI Player',
+		footerLicense: 'MIT Licensed • Open Source',
+
+		// Settings Panel
+		settings: 'Settings',
+		candidateStudent: 'Candidate (Student)',
+		testConstructor: 'Test Constructor',
+		controlsRubricVisibility: 'Controls rubric visibility and correct answer display',
+		useBackendScoring: 'Use Backend Scoring',
+		scoreOnServer: 'Score responses on the server instead of client-side',
+		sessionManagement: 'Session Management',
+		saving: 'Saving...',
+		saveSession: 'Save Session',
+		loadSession: 'Load Session',
+
+		// Export & Template
+		exportResponses: 'Export Responses',
+		json: 'JSON',
+		csv: 'CSV',
+		templateProcessing: 'Template Processing',
+		rerunTemplateProcessing: 'Re-run templateProcessing and reset the item session',
+		regenerateVariant: 'Regenerate Variant',
+		templateVariablesDebug: 'Template Variables (Debug)',
+		variable: 'Variable',
+		value: 'Value',
+
+		// Keyboard Shortcuts
+		keyboardShortcuts: 'Keyboard Shortcuts',
+		submitAnswersShortcut: 'Submit answers',
+		tryAgainShortcut: 'Try again',
+		exportJsonShortcut: 'Export JSON',
+		saveSessionShortcut: 'Save session',
+		useCmdOnMacOS: 'Use <kbd class="kbd kbd-xs">Cmd</kbd> on macOS',
+
+		// Results Panel
+		results: 'Results',
+		score: 'Score',
+		outcomeVariables: 'Outcome Variables',
+
+		// Misc
+		format: 'Format',
+		selectItemOrPasteXml: 'Select a sample item or paste custom XML to get started.',
+		pageTitle: 'Player Demo - PIE QTI Player',
+
+		// Sample Item Descriptions
+		sampleItemDescriptions: {
+			'': 'Custom uploaded item',
+			'simple-choice': 'Basic subtraction word problem with plausible distractors',
+			'partial-credit': 'Multiple choice with partial credit using mapResponse',
+			'capital-cities': 'Geography question with shuffled choices',
+			'text-entry': 'Fill-in-the-blank question with case-insensitive matching',
+			'extended-text': 'Multi-line text response question',
+			'inline-choice': 'Dropdown menu embedded in text',
+			'order-interaction': 'Arrange items in correct sequence',
+			'match-interaction': 'Match items from two columns',
+			'associate-interaction': 'Create associations between items',
+			'gap-match': 'Drag words into gaps in text',
+			'graphic-gap-match-solar-system': 'Label the four inner planets of our solar system',
+			'slider': 'Select a value on a numerical slider',
+			'hotspot': 'Click on the Blue Planet in this astronomy question',
+			'hotspot-partial-credit': 'Identify planet with liquid water (partial credit for terrestrial planets)',
+			'template-variable-demo': 'templateProcessing generates values; responseProcessing scores against them',
+			'upload-interaction': 'Upload a file as the response (baseType=file)',
+			'drawing-interaction': 'Draw on a canvas (baseType=file, PNG dataUrl)',
+			'media-audio': 'Audio player with play count tracking and minPlays requirement',
+			'media-video': 'Video player with play count tracking and maxPlays limit',
+			'hottext-single': 'Click to select a single word within text (grammar question)',
+			'hottext-multiple': 'Click to select multiple text segments (reading comprehension)',
+			'select-point': 'Click on the image to select a point location (geography question)',
+			'graphic-order': 'Drag to reorder items on an image (geological layers)',
+			'graphic-associate': 'Click pairs of hotspots to create associations (organ matching)',
+			'position-object': 'Drag and position furniture objects on a room layout',
+			'end-attempt': 'Button to end the assessment attempt',
+			'custom-interaction': 'Shows a fallback UI for customInteraction and allows a manual response',
+			'choice-with-stimulus': 'Question with reading passage embedded inline',
+			'math-inline': 'Multiple choice with MathML inline math rendering',
+			'math-extended': 'Extended response with MathML and rich text editor for showing mathematical work',
+			'math-fractions': 'Fraction arithmetic with MathML block display',
+			'adaptive-capitals': 'Multi-attempt adaptive question with progressive feedback and hints',
+		},
+	},
+
+	transform: {
+		// App title and navigation
+		appName: 'QTI Batch Processor',
+		appDescription: 'Upload QTI packages to analyze structure, transform to PIE format, and preview results',
+		home: 'Home',
+
+		// Session management
+		sessions: {
+			title: 'Recent Sessions',
+			session: 'Session',
+			status: 'Status',
+			packages: 'Packages',
+			created: 'Created',
+			createdAt: 'Created {date}',
+			open: 'Open',
+			delete: 'Delete',
+			deleteTitle: 'Delete session',
+			deleteConfirmTitle: 'Delete Session',
+			deleteConfirmMessage: 'Are you sure you want to delete this session? This action cannot be undone and all files will be permanently removed.',
+			deleted: 'Session deleted',
+			notFound: 'Session Not Found',
+			notFoundMessage: 'The requested session could not be found or does not exist.',
+		},
+
+		// Samples
+		samples: {
+			title: 'Sample QTI Packages',
+			description: 'Try the processor with pre-loaded sample packages demonstrating various QTI interaction types.',
+			itemCount: '{count, plural, one {# item} other {# items}}',
+			hasManifest: 'Manifest',
+			load: 'Load Sample',
+			loadSample: 'Load Sample',
+			loaded: "Sample '{id}' loaded successfully",
+			notFound: "Sample package '{id}' not found",
+			loadFailed: 'Failed to load sample',
+		},
+
+		// Upload
+		upload: {
+			dropPrompt: 'Drop QTI ZIP files here',
+			orClickToSelect: 'or click to select files',
+			selectFiles: 'Select Files',
+			processing: 'Processing...',
+			invalidType: 'Only ZIP files are allowed',
+			fileTooLarge: 'File too large: {filename}. Maximum size is {maxSize}MB.',
+			noFiles: 'No files provided',
+			uploadFailed: 'Upload failed',
+		},
+
+		// Session detail page
+		detail: {
+			uploadedPackages: 'Uploaded Packages',
+			package: 'Package',
+			type: 'Type',
+			size: 'Size',
+			uploaded: 'Uploaded',
+			actions: 'Actions',
+			analyzing: 'Package is being analyzed...',
+			analysisComplete: 'Analysis complete. Review results below or proceed to transformation.',
+			cannotConvert: 'Cannot Convert to PIE',
+			unsupportedMessage: 'This package contains QTI interaction types that have no PIE equivalent. See issues below for details. Use the QTI player instead to preview these items.',
+			transforming: 'Transforming...',
+			transformToPie: 'Transform to PIE',
+			analysisResults: 'Analysis Results',
+			totalItems: 'Total Items',
+			passages: 'Passages',
+			tests: 'Tests',
+			interactionTypesFound: 'Interaction Types Found',
+			issuesFound: 'Issues Found',
+			packageDetails: 'Package Details',
+			noManifest: 'No Manifest',
+			items: 'items',
+			interactionTypes: 'Interaction Types',
+			assessmentTests: 'Assessment Tests',
+			file: 'File',
+			pattern: 'Pattern',
+			sampleItems: 'Sample Items by Interaction Type',
+			issues: 'Issues',
+			browseAssessments: 'Browse & Preview Assessment Tests',
+			browseAssessmentsDescription: 'Browse and preview {count, plural, one {# QTI assessment test} other {# QTI assessment tests}} found in this session',
+			individualItems: 'Individual Items',
+			browseItems: 'Browse & Preview Items',
+			browseItemsDescription: 'Browse and preview {count, plural, one {# QTI item} other {# QTI items}} found in this session',
+		},
+
+		// Analysis results
+		analysis: {
+			title: 'Analysis Results',
+			totalItems: 'Total Items',
+			passages: 'Passages',
+			tests: 'Tests',
+			packages: 'Packages',
+			interactionTypesFound: 'Interaction Types Found',
+			issuesFound: 'Issues Found ({count})',
+			assessmentTests: 'Assessment Tests',
+			individualItems: 'Individual Items',
+		},
+
+		// Items browser
+		items: {
+			title: 'Item Browser',
+			description: 'Browse and preview {count} QTI assessment items',
+			loading: 'Loading items...',
+			notFound: 'No items found in this session.',
+			itemsCount: 'Items ({count})',
+			showCorrect: 'Show Correct',
+			xmlNotAvailable: 'Item XML not available',
+			noSelection: 'No item selected',
+			notAvailable: 'Items Not Available',
+		},
+
+		// Assessments browser
+		assessments: {
+			title: 'Assessment Tests',
+			loading: 'Loading assessment tests...',
+			notFound: 'No assessment tests found in this session.',
+			showCorrect: 'Show Correct',
+			assessmentsCount: 'Assessments ({count})',
+			selectPrompt: 'Select an assessment to preview',
+		},
+
+		// Transformation results
+		transformed: {
+			pageTitle: 'Transformation Results - Session {sessionId}',
+			breadcrumb: 'Transformed',
+			title: 'Transformation Results',
+			summary: '{itemCount} item{itemCount, plural, one {} other {s}}{assessmentCount, plural, =0 {} other { + {assessmentCount} assessment{assessmentCount, plural, one {} other {s}}}} transformed in {duration}',
+			backToSession: 'Back to Session',
+			content: 'Transformed Content',
+			items: 'Items',
+			assessments: 'Assessments',
+			errors: 'Errors',
+			warnings: '{count, plural, one {# warning} other {# warnings}}',
+			transformationErrors: '{count, plural, one {# Transformation Error} other {# Transformation Errors}}',
+			noItems: 'No items transformed',
+			selectPrompt: 'Select an item or assessment to preview',
+		},
+
+		// PIE Player controls
+		player: {
+			selectPlayerType: 'Select player type',
+			iife: 'IIFE',
+			esm: 'ESM',
+			gather: 'Gather',
+			view: 'View',
+			evaluate: 'Evaluate',
+			browse: 'Browse',
+			student: 'Student',
+			instructor: 'Instructor',
+			notAvailable: 'PIE Players Not Available',
+			debugConfig: 'Debug: config JSON',
+		},
+
+		// QTI Player controls
+		qtiPlayer: {
+			errorLoading: 'Error loading QTI player',
+			loading: 'Loading QTI player...',
+			waitingForData: 'Waiting for assessment data...',
+		},
+
+		// Assessment preview
+		assessmentPreview: {
+			totalItems: 'Total Items',
+			sections: 'Sections',
+			timeLimit: 'Time Limit',
+			configuration: 'Configuration',
+			navigation: 'Navigation:',
+			submission: 'Submission:',
+		},
+
+		// Confirmation dialog
+		dialog: {
+			defaultTitle: 'Confirm Action',
+			defaultConfirm: 'Confirm',
+			defaultCancel: 'Cancel',
+			close: 'close',
+		},
+
+		// API Error messages
+		errors: {
+			noContent: 'Please provide QTI XML content',
+			invalidQti: 'The provided content does not appear to be valid QTI XML',
+			transformFailed: 'Transformation failed',
+			noItemsProduced: 'Transformation produced no items',
+			transformError: 'Transformation error: {message}',
+			sessionNotFound: 'Session not found',
+			alreadyAnalyzed: 'Session already analyzed',
+			noListSupport: 'Storage backend does not support listing files',
+			noZipFiles: 'No ZIP files found and no extracted files available',
+			extractFailed: 'Failed to extract {filename}',
+			analysisComplete: 'Analysis complete',
+			notAnalyzed: 'Session not analyzed yet',
+			analysisFailed: 'Analysis failed',
+			noTransformation: 'No transformation results found for session {sessionId}',
+			getTransformationFailed: 'Failed to get transformation results',
+			loadSamplesFailed: 'Failed to load samples',
+		},
+
+		// Badges
+		badges: {
+			qti: 'QTI',
+			uploaded: 'Uploaded',
+		},
+	},
+} as const; // 'as const' for strict type inference

@@ -6,7 +6,7 @@
 import { Command, Flags, Args } from '@oclif/core';
 import { readFileSync } from 'node:fs';
 import { ExampleCorpPlugin } from '@pie-qti-examples/vendor-examplecorp-plugin';
-import { Qti22ToPiePlugin } from '@pie-qti/qti2-to-pie';
+import { QtiToPiePlugin } from '@pie-qti/to-pie';
 
 export default class VendorDetect extends Command {
 	static description = 'Detect which vendor plugin can handle a QTI file';
@@ -39,7 +39,7 @@ export default class VendorDetect extends Command {
 
 			// Initialize plugins
 			const plugins = [
-				new Qti22ToPiePlugin(),
+				new QtiToPiePlugin(),
 				new ExampleCorpPlugin()
 			];
 

@@ -52,7 +52,7 @@ export interface TransformConfig {
 	/**
 	 * Plugin registration by format pair
 	 * Maps sourceFormat -> targetFormat -> PluginConfig
-	 * Example: { "qti22": { "pie": { module: "@pie-qti/qti2-to-pie" } } }
+	 * Example: { "qti22": { "pie": { module: "@pie-qti/to-pie" } } }
 	 */
 	plugins?: {
 		[sourceFormat: string]: {

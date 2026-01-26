@@ -10,13 +10,13 @@ import { fileURLToPath } from 'node:url';
 /**
  * Load fixture from a specific package's fixtures directory
  *
- * @param packageName Name of the package (e.g., 'qti2-to-pie')
+ * @param packageName Name of the package (e.g., 'to-pie')
  * @param fixturePath Relative path within the package's tests/fixtures directory
  * @returns File contents as string
  *
  * @example
  * ```typescript
- * const qti = loadFixture('qti2-to-pie', 'multiple-choice/basic.xml');
+ * const qti = loadFixture('to-pie', 'multiple-choice/basic.xml');
  * ```
  */
 export function loadFixture(packageName: string, fixturePath: string): string {

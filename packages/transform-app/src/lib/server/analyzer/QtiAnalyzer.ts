@@ -6,7 +6,7 @@
 import { existsSync } from 'node:fs';
 import { readdir, readFile, } from 'node:fs/promises';
 import { join } from 'node:path';
-import { loadResolvedManifest, type ResolvedManifest, toAbsolutePath } from '@pie-qti/qti2-to-pie/ims-cp';
+import { loadResolvedManifest, type ResolvedManifest, toAbsolutePath } from '@pie-qti/to-pie/ims-cp';
 import { parse } from 'node-html-parser';
 
 export interface AnalysisProgress {

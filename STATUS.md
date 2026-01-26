@@ -18,7 +18,7 @@ The item player and assessment player are considered production-ready:
 
 - ✅ **Shipped**: QTI 2.2 item player + assessment player
 - ✅ **QTI item interactions**: **21/21** QTI 2.2 interaction types supported in the core player
-- ✅ **Default UI components**: **17** default interaction web components (`@pie-qti/qti2-default-components`)
+- ✅ **Default UI components**: **17** default interaction web components (`@pie-qti/default-components`)
   - `textEntryInteraction` + `inlineChoiceInteraction` are rendered as inline interactions
   - `uploadInteraction` + `drawingInteraction` use shared Svelte components (`FileUpload`, `DrawingCanvas`)
 
@@ -35,12 +35,12 @@ The transformation framework and tooling are functional but under active develop
 
 ## Test signal
 
-- ✅ **Default-components evals**: YAML specs in `docs/evals/qti2-default-components/*/evals.yaml` executed by Playwright runner in `packages/qti2-example/tests/playwright/qti2-default-components-evals.pw.ts` (currently **49** cases)
-- ✅ **Assessment-player evals**: YAML specs in `docs/evals/qti2-assessment-player/*/evals.yaml` (currently **15** cases)
-- ✅ **i18n evals**: YAML specs in `docs/evals/qti2-i18n/*/evals.yaml` testing internationalization across 8 locales (currently **14** cases)
-- ✅ **Settings UI evals**: YAML specs in `docs/evals/qti2-settings-ui/*/evals.yaml` testing theme and locale switching UI (currently **7** cases)
-- ✅ **Asset loading evals**: YAML specs in `docs/evals/qti2-asset-loading/*/evals.yaml` testing URL resolution and asset loading (currently **3** cases)
-- ✅ **Web components evals**: YAML specs in `docs/evals/qti2-web-components/*/evals.yaml` testing configuration passing (currently **4** cases)
+- ✅ **Default-components evals**: YAML specs in `docs/evals/default-components/*/evals.yaml` executed by Playwright runner in `packages/example/tests/playwright/default-components-evals.pw.ts` (currently **49** cases)
+- ✅ **Assessment-player evals**: YAML specs in `docs/evals/assessment-player/*/evals.yaml` (currently **15** cases)
+- ✅ **i18n evals**: YAML specs in `docs/evals/i18n/*/evals.yaml` testing internationalization across 8 locales (currently **14** cases)
+- ✅ **Settings UI evals**: YAML specs in `docs/evals/settings-ui/*/evals.yaml` testing theme and locale switching UI (currently **7** cases)
+- ✅ **Asset loading evals**: YAML specs in `docs/evals/asset-loading/*/evals.yaml` testing URL resolution and asset loading (currently **3** cases)
+- ✅ **Web components evals**: YAML specs in `docs/evals/web-components/*/evals.yaml` testing configuration passing (currently **4** cases)
 - ✅ **Total eval cases**: **92** (up from 64)
 - ✅ **Unit tests**: additional coverage exists across packages (see package READMEs and workflows for the authoritative commands)
 
@@ -57,15 +57,15 @@ The transformation framework and tooling are functional but under active develop
 
 - ✅ GitHub Pages: docs site deployed under `/pie-qti/` and examples deployed under `/pie-qti/examples/` via `.github/workflows/deploy-pages.yml`
   - docs build output: `packages/docs-site/build`
-  - examples build output: `packages/qti2-example/build`
+  - examples build output: `packages/example/build`
 
 ---
 
 ## Where to look next
 
 - **Project overview**: `README.md`
-- **QTI item player**: `packages/qti2-item-player/README.md`
-- **Assessment player**: `packages/qti2-assessment-player/README.md`
-- **Default interaction UI**: `packages/qti2-default-components/README.md` + `packages/qti2-default-components/STYLING.md`
-- **Evals**: `docs/evals/qti2-default-components/README.md`
+- **QTI item player**: `packages/item-player/README.md`
+- **Assessment player**: `packages/assessment-player/README.md`
+- **Default interaction UI**: `packages/default-components/README.md` + `packages/default-components/STYLING.md`
+- **Evals**: `docs/evals/default-components/README.md`
 - **Scoring/response model**: `docs/QTI-RESPONSE-TRACKING-AND-SCORING.md`

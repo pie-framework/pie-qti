@@ -162,7 +162,7 @@ Load test fixtures from packages or shared locations.
 import { loadFixture, loadSharedFixture } from '@pie-qti/test-utils';
 
 // Load from specific package
-const qti = loadFixture('qti2-to-pie', 'multiple-choice/basic.xml');
+const qti = loadFixture('to-pie', 'multiple-choice/basic.xml');
 
 // Load from shared test-utils fixtures
 const vendorQti = loadSharedFixture('vendors/pearson/hotspot-001.xml');

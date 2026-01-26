@@ -38,26 +38,26 @@ Everything lives under `packages/`:
 - `packages/schemas`: PIE schema/validation assets
 - `packages/core`: transform engine + plugin registry (format orchestration)
 - `packages/storage`: pluggable storage backends (filesystem, S3, database)
-- `packages/qti2-to-pie`: QTI → PIE transform plugin (plus vendor extension hooks)
+- `packages/to-pie`: QTI → PIE transform plugin (plus vendor extension hooks)
 - `packages/pie-to-qti2`: PIE → QTI transform plugin (generator registry + packaging)
 
 ### Player packages
 
-- `packages/qti2-item-player`: QTI item player (core engine + extraction + web-component rendering + optional iframe host helper)
-- `packages/qti2-assessment-player`: QTI assessment shell (sections, navigation, persistence, backend adapter)
-- `packages/qti2-default-components`: default web components for QTI interactions (Svelte-authored, but web-component contract is framework-agnostic)
+- `packages/item-player`: QTI item player (core engine + extraction + web-component rendering + optional iframe host helper)
+- `packages/assessment-player`: QTI assessment shell (sections, navigation, persistence, backend adapter)
+- `packages/default-components`: default web components for QTI interactions (Svelte-authored, but web-component contract is framework-agnostic)
 
 ### Optional adapters / supporting packages
 
-- `packages/qti2-i18n`: Internationalization (i18n) system for player UI (type-safe translations, runtime locale switching)
-- `packages/qti2-typeset-katex`: KaTeX typesetting adapter (host-provided `typeset()` function)
+- `packages/i18n`: Internationalization (i18n) system for player UI (type-safe translations, runtime locale switching)
+- `packages/typeset-katex`: KaTeX typesetting adapter (host-provided `typeset()` function)
 - `packages/qti-processing`: response processing operators/templates used by the item player
-- `packages/qti2-player-elements`, `packages/web-component-loaders`: web-component build/load helpers
+- `packages/player-elements`, `packages/web-component-loaders`: web-component build/load helpers
 
 ### Apps
 
 - `packages/transform-app`: web conversion UI
-- `packages/qti2-example`: example app + fixtures + reference iframe runtime page
+- `packages/example`: example app + fixtures + reference iframe runtime page
 
 ---
 
@@ -67,7 +67,7 @@ Everything lives under `packages/`:
 
 ![Item player extensibility](images/item_player_extensibility.jpeg)
 
-### Item player (`packages/qti2-item-player`)
+### Item player (`packages/item-player`)
 
 #### Core idea
 
@@ -95,8 +95,8 @@ Plugins can register:
 
 Key references:
 
-- `packages/qti2-item-player/src/core/Plugin.ts`
-- `packages/qti2-item-player/src/core/PluginManager.ts`
+- `packages/item-player/src/core/Plugin.ts`
+- `packages/item-player/src/core/PluginManager.ts`
 - Example plugin: `packages/acme-likert-plugin/`
 
 ![ACME Likert plugin architecture](images/acme_likert_plugin_architecture.jpeg)
@@ -108,7 +108,7 @@ Key references:
 
 Key reference:
 
-- `packages/qti2-item-player/src/core/ComponentRegistry.ts`
+- `packages/item-player/src/core/ComponentRegistry.ts`
 
 ##### 3) Typesetting hook (`typeset(rootEl)`)
 
@@ -116,13 +116,13 @@ The player intentionally does **not** bundle a math engine. Instead, the host ca
 
 Default adapter:
 
-- `packages/qti2-typeset-katex` provides `typesetMathInElement` and KaTeX CSS.
+- `packages/typeset-katex` provides `typesetMathInElement` and KaTeX CSS.
 
 Key references:
 
-- `packages/qti2-typeset-katex/README.md`
-- `packages/qti2-item-player/src/components/actions/typesetAction.ts`
-- `packages/qti2-item-player/src/core/ItemRenderer.ts` (applies `typeset` to the rendered wrapper)
+- `packages/typeset-katex/README.md`
+- `packages/item-player/src/components/actions/typesetAction.ts`
+- `packages/item-player/src/core/ItemRenderer.ts` (applies `typeset` to the rendered wrapper)
 
 ##### 4) Custom operators (`customOperators`)
 
@@ -130,7 +130,7 @@ If you need QTI `<customOperator>` support, the player can be configured with a 
 
 Key reference:
 
-- `packages/qti2-item-player/src/types/index.ts` (`customOperators`)
+- `packages/item-player/src/types/index.ts` (`customOperators`)
 
 #### Optional isolation: iframe mode
 
@@ -138,15 +138,15 @@ Key reference:
 
 For untrusted QTI, consider iframe isolation. The repo provides:
 
-- **Host helper**: `@pie-qti/qti2-item-player/iframe`
+- **Host helper**: `@pie-qti/item-player/iframe`
 - **Protocol types/validators** for postMessage messages
 
-You host your own runtime page/app (the repo’s `qti2-example` includes a reference runtime for demo/testing).
+You host your own runtime page/app (the repo’s `example` includes a reference runtime for demo/testing).
 
 Key references:
 
-- `packages/qti2-item-player/docs/iframe-mode.md`
-- `packages/qti2-item-player/src/iframe/IFramePlayerHost.ts`
+- `packages/item-player/docs/iframe-mode.md`
+- `packages/item-player/src/iframe/IFramePlayerHost.ts`
 
 #### Same-DOM safety controls (security configuration)
 
@@ -159,14 +159,14 @@ When rendering into the host DOM, configure security guardrails explicitly:
 
 Key references:
 
-- `packages/qti2-item-player/src/types/index.ts` (`PlayerSecurityConfig`)
-- `packages/qti2-item-player/src/core/sanitizer.ts`
-- `packages/qti2-item-player/src/core/urlPolicy.ts`
-- `packages/qti2-item-player/docs/security-audit.md`
+- `packages/item-player/src/types/index.ts` (`PlayerSecurityConfig`)
+- `packages/item-player/src/core/sanitizer.ts`
+- `packages/item-player/src/core/urlPolicy.ts`
+- `packages/item-player/docs/security-audit.md`
 
 ---
 
-### Assessment player (`packages/qti2-assessment-player`)
+### Assessment player (`packages/assessment-player`)
 
 The assessment player orchestrates a multi-item test experience:
 
@@ -180,12 +180,12 @@ The assessment player orchestrates a multi-item test experience:
 
 Key references:
 
-- `packages/qti2-assessment-player/README.md`
-- `packages/qti2-assessment-player/BACKEND-INTEGRATION.md`
+- `packages/assessment-player/README.md`
+- `packages/assessment-player/BACKEND-INTEGRATION.md`
 
 ---
 
-### Theming & styling (`packages/qti2-default-components`)
+### Theming & styling (`packages/default-components`)
 
 The default interaction components render via **web components** (Svelte custom elements) inside **Shadow DOM**. This provides encapsulation while remaining framework-agnostic for hosts.
 
@@ -241,15 +241,15 @@ The default components include a small baseline stylesheet (`ShadowBaseStyles`) 
 
 Key references:
 
-- `packages/qti2-default-components/STYLING.md` (full part catalog and examples)
-- `packages/qti2-default-components/src/shared/components/ShadowBaseStyles.svelte`
+- `packages/default-components/STYLING.md` (full part catalog and examples)
+- `packages/default-components/src/shared/components/ShadowBaseStyles.svelte`
 
 ---
 
 ## Internationalization (i18n)
 
 > **Status**: Production-ready
-> **Package**: `@pie-qti/qti2-i18n`
+> **Package**: `@pie-qti/i18n`
 
 ### Overview
 
@@ -290,7 +290,7 @@ The i18n system consists of:
 
 ```svelte
 <script lang="ts">
-  import { t } from '@pie-qti/qti2-i18n';
+  import { t } from '@pie-qti/i18n';
 </script>
 
 <!-- Simple translation -->
@@ -308,7 +308,7 @@ The i18n system consists of:
 Initialize i18n in the application root (e.g., `+layout.svelte`):
 
 ```typescript
-import { initI18n } from '@pie-qti/qti2-i18n';
+import { initI18n } from '@pie-qti/i18n';
 
 const i18n = initI18n('en-US');
 await i18n.loadLocale('en-US');
@@ -336,9 +336,9 @@ $t('invalid.key')    // ❌ TypeScript error
 
 ### Key references
 
-- `packages/qti2-i18n/README.md` - Full API documentation and migration guide
+- `packages/i18n/README.md` - Full API documentation and migration guide
 - `docs/i18n-design-plan.md` - Detailed design document with architecture rationale
-- `packages/qti2-i18n/src/locales/en-US.ts` - Complete list of available translation keys
+- `packages/i18n/src/locales/en-US.ts` - Complete list of available translation keys
 
 ---
 
@@ -361,7 +361,7 @@ Key references:
 
 ---
 
-### QTI → PIE (`packages/qti2-to-pie`)
+### QTI → PIE (`packages/to-pie`)
 
 ![Transform pipelines](images/transform_pipelines.jpeg)
 
@@ -380,7 +380,7 @@ QTI → PIE supports a vendor extension system:
 
 Key references:
 
-- `packages/qti2-to-pie/src/plugin.ts` (vendor registration + lossless extraction checks)
+- `packages/to-pie/src/plugin.ts` (vendor registration + lossless extraction checks)
 
 ---
 
@@ -420,7 +420,7 @@ For stable references across systems:
 
 Key reference:
 
-- `packages/qti2-to-pie/src/plugin.ts` (`extractBaseId`)
+- `packages/to-pie/src/plugin.ts` (`extractBaseId`)
 - `packages/pie-to-qti2/src/plugin.ts` (`addSearchMetadata` stores `sourceSystemId` and `externalId`)
 
 ---
@@ -537,7 +537,7 @@ For `candidate` role:
 
 Reference:
 
-- `packages/qti2-assessment-player/BACKEND-INTEGRATION.md`
+- `packages/assessment-player/BACKEND-INTEGRATION.md`
 
 ### CSP / Trusted Types guidance (production hardening)
 
@@ -563,9 +563,9 @@ You’ll likely want multiple layers:
 - Transformation overview: `docs/PIE-QTI-TRANSFORMATION-GUIDE.md`
 - QTI 2.2 notes: `docs/QTI_2.2_techguide.md`
 - IMS Content Package notes: `docs/IMS_Content_Packages_techguide.md`
-- QTI item player: `packages/qti2-item-player/README.md`
-- Iframe mode reference: `packages/qti2-item-player/docs/iframe-mode.md`
-- Security audit notes: `packages/qti2-item-player/docs/security-audit.md`
-- QTI assessment player: `packages/qti2-assessment-player/README.md`
-- Backend integration: `packages/qti2-assessment-player/BACKEND-INTEGRATION.md`
+- QTI item player: `packages/item-player/README.md`
+- Iframe mode reference: `packages/item-player/docs/iframe-mode.md`
+- Security audit notes: `packages/item-player/docs/security-audit.md`
+- QTI assessment player: `packages/assessment-player/README.md`
+- Backend integration: `packages/assessment-player/BACKEND-INTEGRATION.md`
 - IMS Content Packages: `packages/pie-to-qti2/docs/MANIFEST-GENERATION.md`

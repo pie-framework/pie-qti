@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { Qti22ToPiePlugin } from '@pie-qti/qti2-to-pie';
+import { QtiToPiePlugin } from '@pie-qti/to-pie';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -44,7 +44,7 @@ export const actions = {
 		}
 
 		try {
-			const plugin = new Qti22ToPiePlugin();
+			const plugin = new QtiToPiePlugin();
 
 			// Check if plugin can handle this content
 			const canHandle = await plugin.canHandle({ content: qtiXml, format: 'qti22' });

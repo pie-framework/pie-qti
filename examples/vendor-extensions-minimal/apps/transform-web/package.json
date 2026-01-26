@@ -17,7 +17,7 @@
     "@pie-qti/storage": "workspace:*",
     "@pie-qti/transform-core": "workspace:*",
     "@pie-qti/transform-types": "workspace:*",
-    "@pie-qti/qti2-to-pie": "workspace:*"
+    "@pie-qti/to-pie": "workspace:*"
   },
   "devDependencies": {
     "@sveltejs/adapter-auto": "^7.0.0",

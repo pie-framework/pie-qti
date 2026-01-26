@@ -33,7 +33,7 @@ test.describe('Error Handling', () => {
 		const url = page.url();
 		const isItemsPage = url.includes(`/session/${sessionId}/items`);
 		const hasError = await page.getByText(/error|not found/i).count() > 0;
-		const hasPlayer = await page.locator('pie-qti2-item-player').count() > 0;
+		const hasPlayer = await page.locator('pie-qti-item-player').count() > 0;
 
 		// Either we're on items page with player, or there's an error message
 		expect(isItemsPage || hasError).toBeTruthy();

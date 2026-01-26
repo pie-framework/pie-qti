@@ -10,8 +10,8 @@
  * Shows complete lossless round-trip preservation.
  */
 
-import { Qti22ToPiePlugin } from '../../qti2-to-pie/src/plugin.js';
-import { PieToQti2Plugin } from '../src/plugin.js';
+import { QtiToPiePlugin } from '../../qti2-to-pie/src/plugin.js';
+import { PieToQtiPlugin } from '../src/plugin.js';
 
 // Example 1: Outcome Declarations (Test-Level Variables)
 async function outcomeDeclarationsExample() {
@@ -92,8 +92,8 @@ async function outcomeDeclarationsExample() {
 </outcomeProcessing>`
   };
 
-  const pieToQti = new PieToQti2Plugin();
-  const qtiToPie = new Qti22ToPiePlugin();
+  const pieToQti = new PieToQtiPlugin();
+  const qtiToPie = new QtiToPiePlugin();
 
   // PIE → QTI
   const qtiResult = await pieToQti.transform(
@@ -217,8 +217,8 @@ async function templateDeclarationsExample() {
 </outcomeProcessing>`
   };
 
-  const pieToQti = new PieToQti2Plugin();
-  const qtiToPie = new Qti22ToPiePlugin();
+  const pieToQti = new PieToQtiPlugin();
+  const qtiToPie = new QtiToPiePlugin();
 
   // PIE → QTI
   const qtiResult = await pieToQti.transform(
@@ -375,8 +375,8 @@ async function testFeedbackExample() {
     ]
   };
 
-  const pieToQti = new PieToQti2Plugin();
-  const qtiToPie = new Qti22ToPiePlugin();
+  const pieToQti = new PieToQtiPlugin();
+  const qtiToPie = new QtiToPiePlugin();
 
   // PIE → QTI
   const qtiResult = await pieToQti.transform(
@@ -589,8 +589,8 @@ async function completeAdvancedExample() {
     }
   };
 
-  const pieToQti = new PieToQti2Plugin();
-  const qtiToPie = new Qti22ToPiePlugin();
+  const pieToQti = new PieToQtiPlugin();
+  const qtiToPie = new QtiToPiePlugin();
 
   // PIE → QTI
   const qtiResult = await pieToQti.transform(

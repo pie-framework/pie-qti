@@ -13,10 +13,14 @@
 		"forceConsistentCasingInFileNames": true,
 		"moduleResolution": "bundler",
 		"resolveJsonModule": true,
-		"allowSyntheticDefaultImports": true
+		"allowSyntheticDefaultImports": true,
+		"composite": true
 	},
 	"include": ["src/**/*.ts"],
-	"exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"]
+	"exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"],
+	"references": [
+		{ "path": "../qti-common" }
+	]
 }
 
 

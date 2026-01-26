@@ -12,7 +12,7 @@ This package provides small helper functions that:
 
 This package is currently `private` and is meant to be used from within the `pie-qti` workspace.
 
-It declares `@pie-qti/qti2-player-elements` as an (optional) peer dependency, because the loader imports its register module at runtime.
+It declares `@pie-qti/player-elements` as an (optional) peer dependency, because the loader imports its register module at runtime.
 
 ## Usage
 
@@ -23,8 +23,8 @@ import { loadPieQtiPlayerElements } from '@pie-qti/web-component-loaders';
 
 await loadPieQtiPlayerElements();
 // At this point the register module was imported and we waited for:
-// - <pie-qti2-item-player>
-// - <pie-qti2-assessment-player>
+// - <pie-qti-item-player>
+// - <pie-qti-assessment-player>
 ```
 
 ### Using in React (example)

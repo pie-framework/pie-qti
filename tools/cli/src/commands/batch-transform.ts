@@ -11,8 +11,8 @@
  * - Error recovery
  */
 
-import { Qti22ToPiePlugin } from '@pie-qti/qti2-to-pie';
-import { extractZipToDirSafe, loadResolvedManifest } from '@pie-qti/qti2-to-pie/ims-cp';
+import { QtiToPiePlugin } from '@pie-qti/to-pie';
+import { extractZipToDirSafe, loadResolvedManifest } from '@pie-qti/to-pie/ims-cp';
 import * as fs from 'fs';
 import { parse as parseHtml } from 'node-html-parser';
 import * as path from 'path';
@@ -78,13 +78,13 @@ export interface TransformError {
 }
 
 export class BatchTransformer {
-  private plugin: Qti22ToPiePlugin;
+  private plugin: QtiToPiePlugin;
   private options: Required<BatchTransformOptions>;
   private workingDir: string;
   private extractedPaths: string[] = [];
 
   constructor(options: BatchTransformOptions) {
-    this.plugin = new Qti22ToPiePlugin();
+    this.plugin = new QtiToPiePlugin();
     this.options = {
       extractNestedZips: true,
       loadPassageContent: false,

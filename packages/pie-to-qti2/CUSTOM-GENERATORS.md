@@ -399,7 +399,7 @@ describe('CalculatorGenerator', () => {
 ```typescript
 import { describe, test, expect } from 'bun:test';
 import { PieToQti2Plugin } from '@pie-qti/pie-to-qti2';
-import { Qti22ToPiePlugin } from '@pie-qti/qti2-to-pie';
+import { Qti22ToPiePlugin } from '@pie-qti/to-pie';
 import { CalculatorGenerator } from './calculator-generator.js';
 
 describe('Calculator Round-Trip', () => {

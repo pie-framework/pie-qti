@@ -15,6 +15,7 @@
   },
   "license": "MIT",
   "dependencies": {
+    "@pie-qti/qti-common": "workspace:*",
     "@xmldom/xmldom": "^0.8.11",
     "decimal.js": "^10.6.0"
   },

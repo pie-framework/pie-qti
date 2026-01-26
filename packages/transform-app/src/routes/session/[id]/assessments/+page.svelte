@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { onMount, getContext } from 'svelte';
-	import { ReferenceBackendAdapter } from '@pie-qti/qti2-assessment-player';
-	import AssessmentShell from '@pie-qti/qti2-assessment-player/components/AssessmentShell.svelte';
-	import { parseAssessmentTestXml, resolveItemsForAssessment } from '@pie-qti/qti2-player-elements';
-	import { typesetMathInElement } from '@pie-qti/qti2-typeset-katex';
+	import { ReferenceBackendAdapter } from '@pie-qti/assessment-player';
+	import AssessmentShell from '@pie-qti/assessment-player/components/AssessmentShell.svelte';
+	import { parseAssessmentTestXml, resolveItemsForAssessment } from '@pie-qti/player-elements';
+	import { typesetMathInElement } from '@pie-qti/typeset-katex';
 	import type { PageData } from './$types';
-	import type { InitSessionRequest, SecureAssessment, QTIRole } from '@pie-qti/qti2-assessment-player';
-	import type { SvelteI18nProvider } from '@pie-qti/qti2-i18n';
+	import type { InitSessionRequest, SecureAssessment, QTIRole } from '@pie-qti/assessment-player';
+	import type { SvelteI18nProvider } from '@pie-qti/i18n';
 
 	const { data }: { data: PageData } = $props();
 	const i18nContext = getContext<{ value: SvelteI18nProvider | undefined }>('i18n');

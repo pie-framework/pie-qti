@@ -227,7 +227,7 @@ adapter: adapter({
 
 For offline support, add a service worker:
 ```bash
-cd packages/qti2-example
+cd packages/example
 bun add -D @sveltejs/service-worker
 ```
 
@@ -252,6 +252,6 @@ For private repos, you need a paid plan.
 ## Related Documentation
 
 - [.github/workflows/deploy-pages.yml](.github/workflows/deploy-pages.yml) - Deployment workflow
-- [packages/qti2-example/svelte.config.js](../packages/qti2-example/svelte.config.js) - SvelteKit config
+- [packages/example/svelte.config.js](../packages/example/svelte.config.js) - SvelteKit config
 - [SvelteKit Static Adapter](https://kit.svelte.dev/docs/adapter-static) - Official docs
 - [GitHub Pages](https://docs.github.com/en/pages) - Official docs

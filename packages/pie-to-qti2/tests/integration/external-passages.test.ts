@@ -6,7 +6,7 @@
 
 import { describe, expect, test } from 'bun:test';
 import type { PieItem, TransformContext, TransformInput } from '@pie-qti/transform-types';
-import { PieToQti2Plugin } from '../../src/plugin.js';
+import { PieToQtiPlugin } from '../../src/plugin.js';
 import type { PassageResolver, ResolvedPassage } from '../../src/types/passages.js';
 
 describe('External Passage Integration', () => {
@@ -25,7 +25,7 @@ describe('External Passage Integration', () => {
     };
 
     // Create plugin with resolver
-    const plugin = new PieToQti2Plugin({ passageResolver: resolver });
+    const plugin = new PieToQtiPlugin({ passageResolver: resolver });
 
     // PIE item with external passage reference
     const pieItem: PieItem = {
@@ -103,7 +103,7 @@ describe('External Passage Integration', () => {
 
   test('should use provided passage stimulus object without resolver', async () => {
     // Plugin WITHOUT resolver
-    const plugin = new PieToQti2Plugin();
+    const plugin = new PieToQtiPlugin();
 
     // PIE item with full passage object
     const pieItem: PieItem = {
@@ -182,7 +182,7 @@ describe('External Passage Integration', () => {
 
   test('should throw error if resolver required but not provided', async () => {
     // Plugin WITHOUT resolver
-    const plugin = new PieToQti2Plugin();
+    const plugin = new PieToQtiPlugin();
 
     // PIE item with string passage reference (requires resolver)
     const pieItem: PieItem = {
@@ -236,7 +236,7 @@ describe('External Passage Integration', () => {
     };
 
     // Plugin with INLINE strategy forced
-    const plugin = new PieToQti2Plugin({
+    const plugin = new PieToQtiPlugin({
       passageResolver: resolver,
       passageStrategy: 'inline', // Force inline even though external passage exists
     });
@@ -297,7 +297,7 @@ describe('External Passage Integration', () => {
       throw new Error('Should not be called for inline passages');
     };
 
-    const plugin = new PieToQti2Plugin({ passageResolver: resolver });
+    const plugin = new PieToQtiPlugin({ passageResolver: resolver });
 
     // PIE item with inline passages in config.models[]
     const pieItem: PieItem = {

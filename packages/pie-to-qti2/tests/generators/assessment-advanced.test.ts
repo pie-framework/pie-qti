@@ -7,7 +7,7 @@
  */
 
 import { describe, expect, it } from 'bun:test';
-import { PieToQti2Plugin } from '../../src/plugin.js';
+import { PieToQtiPlugin } from '../../src/plugin.js';
 
 describe('PIE → QTI Advanced Features - Outcome Declarations', () => {
   it('should preserve outcome declarations in generated QTI', async () => {
@@ -41,7 +41,7 @@ describe('PIE → QTI Advanced Features - Outcome Declarations', () => {
       ]
     };
 
-    const plugin = new PieToQti2Plugin();
+    const plugin = new PieToQtiPlugin();
     const result = await plugin.transform({ content: pieAssessment }, { logger: console });
     const qtiXml = result.items[0].content;
 
@@ -79,7 +79,7 @@ describe('PIE → QTI Advanced Features - Outcome Declarations', () => {
       ]
     };
 
-    const plugin = new PieToQti2Plugin();
+    const plugin = new PieToQtiPlugin();
     const result = await plugin.transform({ content: pieAssessment }, { logger: console });
     const qtiXml = result.items[0].content;
 
@@ -111,7 +111,7 @@ describe('PIE → QTI Advanced Features - Outcome Declarations', () => {
       ]
     };
 
-    const plugin = new PieToQti2Plugin();
+    const plugin = new PieToQtiPlugin();
     const result = await plugin.transform({ content: pieAssessment }, { logger: console });
     const qtiXml = result.items[0].content;
 
@@ -148,7 +148,7 @@ describe('PIE → QTI Advanced Features - Template Declarations', () => {
       ]
     };
 
-    const plugin = new PieToQti2Plugin();
+    const plugin = new PieToQtiPlugin();
     const result = await plugin.transform({ content: pieAssessment }, { logger: console });
     const qtiXml = result.items[0].content;
 
@@ -179,7 +179,7 @@ describe('PIE → QTI Advanced Features - Template Declarations', () => {
       ]
     };
 
-    const plugin = new PieToQti2Plugin();
+    const plugin = new PieToQtiPlugin();
     const result = await plugin.transform({ content: pieAssessment }, { logger: console });
     const qtiXml = result.items[0].content;
 
@@ -212,7 +212,7 @@ describe('PIE → QTI Advanced Features - Template Declarations', () => {
       ]
     };
 
-    const plugin = new PieToQti2Plugin();
+    const plugin = new PieToQtiPlugin();
     const result = await plugin.transform({ content: pieAssessment }, { logger: console });
     const qtiXml = result.items[0].content;
 
@@ -246,7 +246,7 @@ describe('PIE → QTI Advanced Features - Template Processing', () => {
       ]
     };
 
-    const plugin = new PieToQti2Plugin();
+    const plugin = new PieToQtiPlugin();
     const result = await plugin.transform({ content: pieAssessment }, { logger: console });
     const qtiXml = result.items[0].content;
 
@@ -277,7 +277,7 @@ describe('PIE → QTI Advanced Features - Template Processing', () => {
       ]
     };
 
-    const plugin = new PieToQti2Plugin();
+    const plugin = new PieToQtiPlugin();
     const result = await plugin.transform({ content: pieAssessment }, { logger: console });
     const qtiXml = result.items[0].content;
 
@@ -317,7 +317,7 @@ describe('PIE → QTI Advanced Features - Template Processing', () => {
       ]
     };
 
-    const plugin = new PieToQti2Plugin();
+    const plugin = new PieToQtiPlugin();
     const result = await plugin.transform({ content: pieAssessment }, { logger: console });
     const qtiXml = result.items[0].content;
 
@@ -360,7 +360,7 @@ describe('PIE → QTI Advanced Features - Test Feedback', () => {
       ]
     };
 
-    const plugin = new PieToQti2Plugin();
+    const plugin = new PieToQtiPlugin();
     const result = await plugin.transform({ content: pieAssessment }, { logger: console });
     const qtiXml = result.items[0].content;
 
@@ -394,7 +394,7 @@ describe('PIE → QTI Advanced Features - Test Feedback', () => {
       ]
     };
 
-    const plugin = new PieToQti2Plugin();
+    const plugin = new PieToQtiPlugin();
     const result = await plugin.transform({ content: pieAssessment }, { logger: console });
     const qtiXml = result.items[0].content;
 
@@ -441,7 +441,7 @@ describe('PIE → QTI Advanced Features - Test Feedback', () => {
       ]
     };
 
-    const plugin = new PieToQti2Plugin();
+    const plugin = new PieToQtiPlugin();
     const result = await plugin.transform({ content: pieAssessment }, { logger: console });
     const qtiXml = result.items[0].content;
 
@@ -489,7 +489,7 @@ describe('PIE → QTI Advanced Features - Combined Features', () => {
       ]
     };
 
-    const plugin = new PieToQti2Plugin();
+    const plugin = new PieToQtiPlugin();
     const result = await plugin.transform({ content: pieAssessment }, { logger: console });
     const qtiXml = result.items[0].content;
 
@@ -591,7 +591,7 @@ describe('PIE → QTI Advanced Features - Combined Features', () => {
       }
     };
 
-    const plugin = new PieToQti2Plugin();
+    const plugin = new PieToQtiPlugin();
     const result = await plugin.transform({ content: pieAssessment }, { logger: console });
     const qtiXml = result.items[0].content;
 

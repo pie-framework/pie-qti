@@ -380,7 +380,7 @@ Example is integrated into parent workspace for:
 
 - **API Documentation**: See parent `packages/types/src/transform/plugin.ts`
 - **Core Transform Engine**: `packages/core/src/engine.ts`
-- **Default QTI Plugin**: `packages/qti2-to-pie/src/index.ts`
+- **Default QTI Plugin**: `packages/to-pie/src/index.ts`
 - **Testing Guide**: [TESTING.md](TESTING.md)
 
 ## License
