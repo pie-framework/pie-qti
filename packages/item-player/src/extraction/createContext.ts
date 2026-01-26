@@ -4,6 +4,7 @@
  * Creates ExtractionContext instances with utilities and metadata
  */
 
+import type { ElementNameMapper } from '@pie-qti/qti-common';
 import type { PlayerConfig } from '../types/index.js';
 import type { QTIElement } from '../types/interactions.js';
 import type { ExtractionContext, VariableDeclaration } from './types.js';
@@ -36,12 +37,15 @@ export function createExtractionContext(
 	declarations: Map<string, VariableDeclaration>,
 	config: PlayerConfig
 ): ExtractionContext {
+	// Pass the element name mapper to extraction utils for QTI version handling
+	const mapper = (config.elementNameMapper as ElementNameMapper | undefined);
+
 	return {
 		element,
 		responseId,
 		dom,
 		declarations,
-		utils: createExtractionUtils(config.security),
+		utils: createExtractionUtils(config.security, mapper),
 		config,
 	};
 }

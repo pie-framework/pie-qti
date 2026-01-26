@@ -4,6 +4,8 @@
  * Provides DOM manipulation and content extraction helpers for extractors
  */
 
+import type { ElementNameMapper } from '@pie-qti/qti-common';
+import { Qti2xElementNameMapper } from '@pie-qti/qti-common';
 import { sanitizeTextContent } from '../core/sanitizer.js';
 import type { PlayerSecurityConfig } from '../types/index.js';
 import type { QTIElement } from '../types/interactions.js';
@@ -27,12 +29,27 @@ function getHtmlContent(element: QTIElement | null | undefined): string {
 
 /**
  * Get children by tag name from QTI elements
+ * Note: This version does NOT handle QTI version mapping - use the one in ExtractionUtils instead
  */
 function getChildrenByTag(
 	element: QTIElement | null | undefined,
 	tagName: string
 ): QTIElement[] {
 	return (element?.childNodes?.filter((n) => n.rawTagName === tagName) as QTIElement[]) || [];
+}
+
+/**
+ * Get children by tag name with QTI version awareness
+ */
+function getChildrenByTagWithMapper(
+	element: QTIElement | null | undefined,
+	tagName: string,
+	mapper: ElementNameMapper
+): QTIElement[] {
+	if (!element?.childNodes) return [];
+	return element.childNodes.filter((n) =>
+		matchesTagName((n as QTIElement).rawTagName, tagName, mapper)
+	) as QTIElement[];
 }
 
 /**
@@ -76,13 +93,45 @@ function getClasses(element: QTIElement): string[] {
 }
 
 /**
- * Create extraction utilities instance
- * Provides standard helpers for extracting data from QTI elements
+ * Helper to check if an element's tag name matches a given QTI element name.
+ * Handles both QTI 2.x and QTI 3.0 element naming conventions.
+ *
+ * @param rawTagName - The element's raw tag name from the HTML
+ * @param expectedTagName - The tag name to check (in QTI 2.x format, e.g., 'simpleChoice')
+ * @param mapper - Optional element name mapper for QTI version handling
+ * @returns true if the tag name matches
  */
-export function createExtractionUtils(security?: PlayerSecurityConfig): ExtractionUtils {
+function matchesTagName(
+	rawTagName: string | undefined,
+	expectedTagName: string,
+	mapper: ElementNameMapper
+): boolean {
+	if (!rawTagName) return false;
+
+	// Convert expected tag name to canonical form (lowercase)
+	const canonical = expectedTagName.toLowerCase();
+
+	// Get the native form for this QTI version
+	const native = mapper.toNative(canonical);
+
+	// Check if raw tag name matches the native form (case-insensitive)
+	return rawTagName.toLowerCase() === native.toLowerCase();
+}
+
+/**
+ * Create extraction utilities instance
+ * Provides standard helpers for extracting data from QTI elements.
+ * Automatically handles both QTI 2.x and QTI 3.0 element naming conventions.
+ */
+export function createExtractionUtils(
+	security?: PlayerSecurityConfig,
+	mapper?: ElementNameMapper
+): ExtractionUtils {
+	// Default to QTI 2.x mapper for backward compatibility
+	const elementMapper = mapper || new Qti2xElementNameMapper();
 	return {
 		getChildrenByTag(element: QTIElement, tagName: string): QTIElement[] {
-			return getChildrenByTag(element, tagName);
+			return getChildrenByTagWithMapper(element, tagName, elementMapper);
 		},
 
 		querySelectorAll(element: QTIElement, selector: string): QTIElement[] {
@@ -93,12 +142,12 @@ export function createExtractionUtils(security?: PlayerSecurityConfig): Extracti
 			for (const part of parts) {
 				const nextResults: QTIElement[] = [];
 				for (const current of results) {
-					if (current.rawTagName === part) {
+					if (matchesTagName(current.rawTagName, part, elementMapper)) {
 						nextResults.push(current);
 					}
 					if (current.childNodes) {
 						for (const child of current.childNodes) {
-							if (typeof child !== 'string' && (child as QTIElement).rawTagName === part) {
+							if (typeof child !== 'string' && matchesTagName((child as QTIElement).rawTagName, part, elementMapper)) {
 								nextResults.push(child as QTIElement);
 							}
 						}
@@ -120,7 +169,7 @@ export function createExtractionUtils(security?: PlayerSecurityConfig): Extracti
 			if (!element.childNodes) return false;
 
 			for (const child of element.childNodes) {
-				if (typeof child !== 'string' && (child as QTIElement).rawTagName === tagName) {
+				if (typeof child !== 'string' && matchesTagName((child as QTIElement).rawTagName, tagName, elementMapper)) {
 					return true;
 				}
 			}
@@ -149,7 +198,7 @@ export function createExtractionUtils(security?: PlayerSecurityConfig): Extracti
 		},
 
 		getPrompt(element: QTIElement): string | null {
-			const promptElement = getChildrenByTag(element, 'prompt')[0];
+			const promptElement = getChildrenByTagWithMapper(element, 'prompt', elementMapper)[0];
 			return promptElement ? getHtmlContent(promptElement) : null;
 		},
 

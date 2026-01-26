@@ -368,7 +368,9 @@ export class Player {
 		enforceItemXmlLimits(this.itemXml, this.config.security);
 		const docRoot = parse(this.itemXml, { lowerCaseTagName: false, comment: false }) as any as QTIElement;
 		// node-html-parser's CSS selectors match lowercase tag names.
-		const parsedItemBody = (docRoot.querySelector?.('itembody') as any as QTIElement | null) ?? null;
+		// Search for itemBody in the native form for this QTI version (itembody for 2.x, qti-item-body for 3.0)
+		const itemBodyTag = this.mapper.toNative('itembody').toLowerCase();
+		const parsedItemBody = (docRoot.querySelector?.(itemBodyTag) as any as QTIElement | null) ?? null;
 		const root = parsedItemBody ?? docRoot;
 
 		const declMap = new Map<string, ExtractionVariableDeclaration>();
@@ -380,10 +382,18 @@ export class Player {
 			});
 		}
 
-		// Discover all elements that match any standard extractor elementType
+		// Discover all elements that match any standard extractor elementType.
+		// Extractors specify element types in QTI 2.x form (e.g., 'choiceInteraction').
+		// We use the mapper to convert to the appropriate form for this QTI version
+		// (e.g., 'choiceInteraction' for QTI 2.x, 'qti-choice-interaction' for QTI 3.0).
 		const tagSet = new Set<string>();
 		for (const ex of ALL_STANDARD_EXTRACTORS) {
-			for (const t of ex.elementTypes ?? []) tagSet.add(t.toLowerCase());
+			for (const t of ex.elementTypes ?? []) {
+				// Convert to canonical form (lowercase), then to native form using mapper
+				const canonical = t.toLowerCase();
+				const native = this.mapper.toNative(canonical);
+				tagSet.add(native.toLowerCase());
+			}
 		}
 
 		const elements: QTIElement[] = [];
@@ -397,7 +407,11 @@ export class Player {
 
 		const interactions: InteractionData[] = [];
 		for (const el of elements) {
-			const responseId = el.getAttribute?.('responseIdentifier') || el.getAttribute?.('responseidentifier') || '';
+			// Try both QTI 2.x (responseIdentifier) and QTI 3.0 (response-identifier) attribute names
+			const responseId = el.getAttribute?.('responseIdentifier') ||
+			                   el.getAttribute?.('response-identifier') ||
+			                   el.getAttribute?.('responseidentifier') ||
+			                   '';
 			if (!responseId) continue;
 
 			const ctx = createExtractionContext(el, responseId, root, declMap, this.config);
