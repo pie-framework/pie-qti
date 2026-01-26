@@ -285,7 +285,9 @@ export class ExtractionRegistry {
 	 * @returns Read-only array of extractors for this type, sorted by priority
 	 */
 	getExtractorsForType(elementType: string): ReadonlyArray<ElementExtractor> {
-		return this.extractorsByType.get(elementType) || [];
+		// Convert to canonical form for lookup
+		const canonicalType = this.qti2xMapper.toCanonical(elementType);
+		return this.extractorsByType.get(canonicalType) || [];
 	}
 
 	/**

@@ -37,9 +37,9 @@ export const standardDrawingExtractor: ElementExtractor<DrawingData> = {
 	elementTypes: ['drawingInteraction'],
 	description: 'Extracts standard QTI drawingInteraction (drawing on canvas)',
 
-	canHandle(_element, _context) {
-		// The registry already filtered by element type, so all elements here are standard
-		return true;
+	canHandle(element, _context) {
+		// All drawingInteraction elements are standard
+		return element.rawTagName === 'drawingInteraction';
 	},
 
 	extract(element, context) {

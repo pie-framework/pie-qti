@@ -105,7 +105,7 @@ describe('QTI 3.0 Attribute Extraction', () => {
 
 		// No mapper specified - defaults to QTI 2.x
 		const dom = parse(xml);
-		const element = dom.querySelector('choiceInteraction') as unknown as QTIElement;
+		const element = dom.querySelector('choiceinteraction') as unknown as QTIElement;
 
 		const utils = createExtractionUtils(); // Defaults to Qti2xAttributeNameMapper
 
@@ -131,7 +131,7 @@ describe('QTI 3.0 Attribute Extraction', () => {
 		// QTI 2.x
 		const qti2xml = `<choiceInteraction shuffle="true" />`;
 		const qti2Dom = parse(qti2xml);
-		const qti2Element = qti2Dom.querySelector('choiceInteraction') as unknown as QTIElement;
+		const qti2Element = qti2Dom.querySelector('choiceinteraction') as unknown as QTIElement;
 		const qti2Utils = createExtractionUtils(); // defaults
 
 		expect(qti2Utils.getBooleanAttribute(qti2Element, 'shuffle', false)).toBe(true);

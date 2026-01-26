@@ -34,9 +34,9 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 	elementTypes: ['gapMatchInteraction'],
 	description: 'Extracts standard QTI gapMatchInteraction (drag words into gaps)',
 
-	canHandle(_element, _context) {
-		// The registry already filtered by element type, so all elements here are standard
-		return true;
+	canHandle(element, _context) {
+		// All gapMatchInteraction elements are standard
+		return element.rawTagName === 'gapMatchInteraction';
 	},
 
 	extract(element, context) {

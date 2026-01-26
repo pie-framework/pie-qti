@@ -30,9 +30,9 @@ export const standardSliderExtractor: ElementExtractor<SliderData> = {
 	elementTypes: ['sliderInteraction'],
 	description: 'Extracts standard QTI sliderInteraction (slider input)',
 
-	canHandle(_element, _context) {
-		// The registry already filtered by element type, so all elements here are standard
-		return true;
+	canHandle(element, _context) {
+		// All sliderInteraction elements are standard
+		return element.rawTagName === 'sliderInteraction';
 	},
 
 	extract(element, context) {

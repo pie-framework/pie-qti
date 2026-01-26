@@ -44,9 +44,9 @@ export const standardGraphicOrderExtractor: ElementExtractor<GraphicOrderData> =
 	elementTypes: ['graphicOrderInteraction'],
 	description: 'Extracts standard QTI graphicOrderInteraction (order items on image)',
 
-	canHandle(_element, _context) {
-		// The registry already filtered by element type, so all elements here are standard
-		return true;
+	canHandle(element, _context) {
+		// All graphicOrderInteraction elements are standard
+		return element.rawTagName === 'graphicOrderInteraction';
 	},
 
 	extract(element, context) {
