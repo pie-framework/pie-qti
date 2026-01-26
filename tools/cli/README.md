@@ -123,7 +123,7 @@ bun run batch-transform -- ./path/to/content/ -o ./output/
 ## Related Packages
 
 - [@pie-qti/transform-core](../../packages/core) — Transform engine
-- [@pie-qti/qti2-to-pie](../../packages/qti2-to-pie) — QTI → PIE transformer
+- [@pie-qti/to-pie](../../packages/to-pie) — QTI → PIE transformer
 - [@pie-qti/pie-to-qti2](../../packages/pie-to-qti2) — PIE → QTI transformer
 - [@pie-qti/transform-web](../../packages/transform-app) — Web UI for transforms
 

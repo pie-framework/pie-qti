@@ -6,7 +6,7 @@ This directory contains the **active** documentation for the PIE QTI / transform
 
 ### [PLUGIN_API.md](./PLUGIN_API.md)
 
-Runtime plugin API for the QTI 2.2 Item Player (`@pie-qti/qti2-item-player`). Documents:
+Runtime plugin API for the QTI 2.2 Item Player (`@pie-qti/item-player`). Documents:
 
 - Custom element detection at render time
 - Custom interaction renderers
@@ -111,7 +111,7 @@ We keep **local, greppable snapshots** of key specs so agents and devs can refer
 
 1. Start with BATCH_PROCESSOR_ARCHITECTURE.md for overall design
 2. Review code in `packages/` for implementation details
-3. Check `packages/qti2-to-pie/src/transformers/` for QTI transformation logic
+3. Check `packages/to-pie/src/transformers/` for QTI transformation logic
 4. See PLUGIN_API.md if adding custom runtime interactions
 
 ## Document Maintenance

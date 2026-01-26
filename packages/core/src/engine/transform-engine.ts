@@ -18,7 +18,7 @@ import { PluginRegistry } from '../registry/plugin-registry.js';
 import { ConsoleLogger } from '../utils/logger.js';
 import type { FormatDetector } from '../registry/format-detector-registry.js';
 import { FormatDetectorRegistry } from '../registry/format-detector-registry.js';
-import { Qti22Detector } from '../detectors/qti22-detector.js';
+import { QtiDetector } from '../detectors/qti-detector.js';
 import { PieDetector } from '../detectors/pie-detector.js';
 import { InMemoryOrchestrator } from '../orchestration/in-memory-orchestrator.js';
 import { TransformItemWorkflow, type TransformItemInput, type TransformItemOutput } from '../orchestration/workflows/transform-item-workflow.js';
@@ -56,7 +56,7 @@ export class TransformEngine {
     this.storage = storage;
 
     // Register built-in format detectors
-    this.formatDetectorRegistry.register(new Qti22Detector());
+    this.formatDetectorRegistry.register(new QtiDetector());
     this.formatDetectorRegistry.register(new PieDetector());
   }
 

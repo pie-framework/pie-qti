@@ -1,8 +1,8 @@
 <script lang="ts">
 	import '../app.css';
-	import '@pie-qti/qti2-typeset-katex/css';
+	import '@pie-qti/typeset-katex/css';
 	import { onMount, setContext } from 'svelte';
-	import { createDefaultSvelteI18nProvider, type SvelteI18nProvider, type LocaleCode } from '@pie-qti/qti2-i18n';
+	import { createDefaultSvelteI18nProvider, type SvelteI18nProvider, type LocaleCode } from '@pie-qti/i18n';
 
 	const { children } = $props();
 	let theme = $state('light');

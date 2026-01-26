@@ -4,7 +4,7 @@
 	import { onMount, onDestroy, getContext } from 'svelte';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import type { PageData } from './$types';
-	import type { SvelteI18nProvider } from '@pie-qti/qti2-i18n';
+	import type { SvelteI18nProvider } from '@pie-qti/i18n';
 
 	const { data }: { data: PageData } = $props();
 	const i18nContext = getContext<{ value: SvelteI18nProvider | undefined }>('i18n');

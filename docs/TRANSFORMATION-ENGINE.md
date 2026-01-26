@@ -140,7 +140,7 @@ for (const plugin of candidates) {
 #### Transform Plugins
 
 **Packages:**
-- `@pie-qti/qti2-to-pie` — QTI 2.2 → PIE
+- `@pie-qti/to-pie` — QTI 2.2 → PIE
 - `@pie-qti/pie-to-qti2` — PIE → QTI 2.2
 - Vendor-specific plugins (custom)
 
@@ -226,7 +226,7 @@ In `tools/cli/src/index.ts`:
 
 ```typescript
 import { TransformEngine } from '@pie-qti/transform-core';
-import { Qti22ToPiePlugin } from '@pie-qti/qti2-to-pie';
+import { Qti22ToPiePlugin } from '@pie-qti/to-pie';
 import { PieToQti2Plugin } from '@pie-qti/pie-to-qti2';
 import { vendorAcmePlugin } from '@vendor/acme-plugin';
 

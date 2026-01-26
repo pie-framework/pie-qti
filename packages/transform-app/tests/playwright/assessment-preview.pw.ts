@@ -61,7 +61,7 @@ test.describe('Assessment Preview', () => {
 		await page.waitForTimeout(2000);
 
 		// If we're showing the player, it should not have error alerts
-		const hasPlayer = await page.locator('pie-qti2-assessment-player').count() > 0;
+		const hasPlayer = await page.locator('pie-qti-assessment-player').count() > 0;
 		if (hasPlayer) {
 			// The player should not show error messages about missing XML
 			const playerErrors = await page.getByText(/No assessment loaded.*assessment-test-xml/i).count();

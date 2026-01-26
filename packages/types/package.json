@@ -23,8 +23,7 @@
     "types",
     "typescript"
   ],
-  "author": "Renaissance Learning",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "@pie-qti/logger": "workspace:*"
   },

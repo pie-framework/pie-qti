@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item
+  xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0"
+  identifier="qti3-extended-text"
+  title="QTI 3.0 Extended Text Interaction"
+  adaptive="false"
+  time-dependent="false">
+
+  <qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="string">
+    <qti-correct-response>
+      <qti-value></qti-value>
+    </qti-correct-response>
+  </qti-response-declaration>
+
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float">
+    <qti-default-value>
+      <qti-value>0.0</qti-value>
+    </qti-default-value>
+  </qti-outcome-declaration>
+
+  <qti-item-body>
+    <qti-extended-text-interaction
+      response-identifier="RESPONSE"
+      expected-lines="10"
+      expected-length="500"
+      format="plain">
+      <qti-prompt>Describe the main causes of World War I in 200-500 words.</qti-prompt>
+    </qti-extended-text-interaction>
+  </qti-item-body>
+
+  <qti-response-processing>
+    <qti-response-condition>
+      <qti-response-if>
+        <qti-not>
+          <qti-is-null>
+            <qti-variable identifier="RESPONSE"/>
+          </qti-is-null>
+        </qti-not>
+        <qti-set-outcome-value identifier="SCORE">
+          <qti-base-value base-type="float">0.0</qti-base-value>
+        </qti-set-outcome-value>
+      </qti-response-if>
+    </qti-response-condition>
+  </qti-response-processing>
+
+  <qti-modal-feedback outcome-identifier="SCORE" identifier="submitted" show-hide="show">
+    <qti-content-body>
+      <p>Your response has been submitted for manual grading.</p>
+    </qti-content-body>
+  </qti-modal-feedback>
+
+</qti-assessment-item>

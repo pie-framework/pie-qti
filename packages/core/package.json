@@ -37,8 +37,7 @@
     "transformation",
     "plugin"
   ],
-  "author": "Renaissance Learning",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "@pie-qti/element-schemas": "workspace:*",
     "@pie-qti/logger": "workspace:*",

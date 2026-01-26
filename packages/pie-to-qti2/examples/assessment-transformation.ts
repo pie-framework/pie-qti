@@ -7,8 +7,8 @@
  */
 
 import type { TransformOutput } from '@pie-qti/transform-core';
-import { Qti22ToPiePlugin } from '../../qti2-to-pie/src/plugin.js';
-import { PieToQti2Plugin } from '../src/plugin.js';
+import { QtiToPiePlugin } from '../../qti2-to-pie/src/plugin.js';
+import { PieToQtiPlugin } from '../src/plugin.js';
 
 // Example 1: Simple Assessment with Scoring
 async function simpleAssessmentExample() {
@@ -69,8 +69,8 @@ async function simpleAssessmentExample() {
 </outcomeProcessing>`
   };
 
-  const pieToQti = new PieToQti2Plugin();
-  const qtiToPie = new Qti22ToPiePlugin();
+  const pieToQti = new PieToQtiPlugin();
+  const qtiToPie = new QtiToPiePlugin();
 
   // PIE → QTI
   const qtiResult = await pieToQti.transform(
@@ -199,8 +199,8 @@ async function adaptiveAssessmentExample() {
 </outcomeProcessing>`
   };
 
-  const pieToQti = new PieToQti2Plugin();
-  const qtiToPie = new Qti22ToPiePlugin();
+  const pieToQti = new PieToQtiPlugin();
+  const qtiToPie = new QtiToPiePlugin();
 
   // PIE → QTI
   const qtiResult = await pieToQti.transform(
@@ -311,8 +311,8 @@ async function conditionalAssessmentExample() {
 </outcomeProcessing>`
   };
 
-  const pieToQti = new PieToQti2Plugin();
-  const qtiToPie = new Qti22ToPiePlugin();
+  const pieToQti = new PieToQtiPlugin();
+  const qtiToPie = new QtiToPiePlugin();
 
   // PIE → QTI
   const qtiResult = await pieToQti.transform(
@@ -404,8 +404,8 @@ async function itemBankingExample() {
 </outcomeProcessing>`
   };
 
-  const pieToQti = new PieToQti2Plugin();
-  const qtiToPie = new Qti22ToPiePlugin();
+  const pieToQti = new PieToQtiPlugin();
+  const qtiToPie = new QtiToPiePlugin();
 
   // PIE → QTI
   const qtiResult = await pieToQti.transform(

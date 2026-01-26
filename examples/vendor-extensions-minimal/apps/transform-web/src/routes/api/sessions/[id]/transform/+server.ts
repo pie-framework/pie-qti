@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { sessionStorage } from '$lib/server/storage/session-storage';
 import { ExampleCorpPlugin } from '@pie-qti-examples/vendor-examplecorp-plugin';
-import { Qti22ToPiePlugin } from '@pie-qti/qti2-to-pie';
+import { QtiToPiePlugin } from '@pie-qti/to-pie';
 
 /**
  * POST /api/sessions/:id/transform - Transform QTI to PIE
@@ -25,7 +25,7 @@ export const POST: RequestHandler = async ({ params }) => {
 		// Initialize plugins
 		const plugins = [
 			new ExampleCorpPlugin(), // Priority 550
-			new Qti22ToPiePlugin()   // Priority 100
+			new QtiToPiePlugin()   // Priority 100
 		];
 
 		// Step 1: Detect which plugin can handle this content
@@ -50,7 +50,7 @@ export const POST: RequestHandler = async ({ params }) => {
 
 			// Default to standard QTI plugin if none can handle
 			if (!selectedPlugin) {
-				selectedPlugin = new Qti22ToPiePlugin();
+				selectedPlugin = new QtiToPiePlugin();
 			}
 		} else {
 			// Use specified vendor
@@ -58,7 +58,7 @@ export const POST: RequestHandler = async ({ params }) => {
 				selectedPlugin = new ExampleCorpPlugin();
 				detectedVendor = 'examplecorp';
 			} else {
-				selectedPlugin = new Qti22ToPiePlugin();
+				selectedPlugin = new QtiToPiePlugin();
 			}
 		}
 

@@ -18,13 +18,13 @@
     "test:a11y:ui": "bunx playwright test tests/playwright/accessibility.pw.ts --ui"
   },
   "dependencies": {
-    "@pie-qti/qti2-assessment-player": "workspace:*",
-    "@pie-qti/qti2-default-components": "workspace:*",
-    "@pie-qti/qti2-i18n": "workspace:*",
-    "@pie-qti/qti2-item-player": "workspace:*",
-    "@pie-qti/qti2-player-elements": "workspace:*",
-    "@pie-qti/qti2-typeset-katex": "workspace:*",
-    "@pie-qti/qti2-to-pie": "workspace:*",
+    "@pie-qti/assessment-player": "workspace:*",
+    "@pie-qti/default-components": "workspace:*",
+    "@pie-qti/i18n": "workspace:*",
+    "@pie-qti/item-player": "workspace:*",
+    "@pie-qti/player-elements": "workspace:*",
+    "@pie-qti/typeset-katex": "workspace:*",
+    "@pie-qti/to-pie": "workspace:*",
     "@pie-qti/storage": "workspace:*",
     "@pie-qti/transform-core": "workspace:*",
     "@pie-qti/transform-types": "workspace:*",
@@ -70,5 +70,6 @@
     "@pie-framework/pie-assessment-player": {
       "optional": true
     }
-  }
+  },
+  "license": "MIT"
 }

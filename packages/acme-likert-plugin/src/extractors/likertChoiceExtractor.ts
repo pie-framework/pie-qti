@@ -9,7 +9,7 @@ import type {
 	ElementExtractor,
 	ExtractionContext,
 	ValidationResult,
-} from '@pie-qti/qti2-item-player';
+} from '@pie-qti/item-player';
 
 export interface LikertChoiceData {
 	identifier: string;

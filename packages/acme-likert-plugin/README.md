@@ -2,7 +2,7 @@
 
 A QTI 2.2 plugin that provides **Likert scale choice interactions** for educational assessments.
 
-This package currently provides **extraction + validation** for vendor-specific `<likertChoice>` markup. Rendering is still done by whatever **web component** is registered for `choiceInteraction` in your host app (typically `@pie-qti/qti2-default-components`).
+This package currently provides **extraction + validation** for vendor-specific `<likertChoice>` markup. Rendering is still done by whatever **web component** is registered for `choiceInteraction` in your host app (typically `@pie-qti/default-components`).
 
 ## Features
 
@@ -27,10 +27,10 @@ npm install @acme/likert-scale-plugin
 ### Basic Usage
 
 ```typescript
-import { Player } from '@pie-qti/qti2-item-player';
+import { Player } from '@pie-qti/item-player';
 import { likertScalePlugin } from '@acme/likert-scale-plugin';
-import '@pie-qti/qti2-default-components/plugins';
-import { registerDefaultComponents } from '@pie-qti/qti2-default-components';
+import '@pie-qti/default-components/plugins';
+import { registerDefaultComponents } from '@pie-qti/default-components';
 
 const qtiXml = `<?xml version="1.0" encoding="UTF-8"?>
 <assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
@@ -65,7 +65,7 @@ console.log(registry.hasExtractor('acme:likert-choice')); // true
 ### Direct Extraction
 
 ```typescript
-import { ExtractionRegistry } from '@pie-qti/qti2-item-player';
+import { ExtractionRegistry } from '@pie-qti/item-player';
 import { likertChoiceExtractor } from '@acme/likert-scale-plugin';
 
 const registry = new ExtractionRegistry();
@@ -169,7 +169,7 @@ The extractor validates:
 
 ## Rendering (web components)
 
-The `@pie-qti/qti2-item-player` renders interactions as **custom elements** (web components). This plugin currently does **not** register a custom element; it only affects extraction (it adds metadata/validation for Likert choices).
+The `@pie-qti/item-player` renders interactions as **custom elements** (web components). This plugin currently does **not** register a custom element; it only affects extraction (it adds metadata/validation for Likert choices).
 
 If you want a dedicated Likert UI, create/register a custom element for `choiceInteraction` with a higher-priority `canHandle()` predicate (e.g. when `data.metadata?.isLikert === true`) and map it via the player’s `ComponentRegistry`.
 
@@ -265,10 +265,10 @@ Unlike the old `ElementDetectionPipeline` approach, this plugin:
 
 ## Examples
 
-See the [QTI Examples app](../qti2-example) for live demos:
+See the [QTI Examples app](../example) for live demos:
 
 ```bash
-cd packages/qti2-example
+cd packages/example
 bun run dev
 ```
 
@@ -280,6 +280,6 @@ ISC
 
 ## Related
 
-- [@pie-qti/qti2-item-player](../qti2-item-player) - Core QTI player
+- [@pie-qti/item-player](../item-player) - Core QTI player
 - [Extraction System Documentation](../../docs/PLUGIN_BASED_EXTRACTION_SPEC.md)
 - [Plugin Guide](../../docs/PLUGIN_GUIDE.md)

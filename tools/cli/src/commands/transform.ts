@@ -4,7 +4,7 @@
 
 import { readFile, writeFile } from 'node:fs/promises';
 import { Args, Flags } from '@oclif/core';
-import { Qti22ToPiePlugin } from '@pie-qti/qti2-to-pie';
+import { QtiToPiePlugin } from '@pie-qti/to-pie';
 import { ConsoleLogger } from '@pie-qti/transform-core';
 import { BaseCommand } from '../base-command.js';
 
@@ -71,7 +71,7 @@ export default class Transform extends BaseCommand {
 
       // Register plugins based on format
       if (sourceFormat === 'qti22' && targetFormat === 'pie') {
-        engineInstance.use(new Qti22ToPiePlugin());
+        engineInstance.use(new QtiToPiePlugin());
       } else {
         this.error(`Unsupported transformation: ${sourceFormat} to ${targetFormat}`);
       }
@@ -83,7 +83,7 @@ export default class Transform extends BaseCommand {
     if (sourceFormat === 'qti22' && targetFormat === 'pie') {
       const plugins = engine.getPlugins();
       if (plugins.length === 0) {
-        engine.use(new Qti22ToPiePlugin());
+        engine.use(new QtiToPiePlugin());
         this.log('Using built-in QTI 2.2 to PIE plugin');
       }
     }

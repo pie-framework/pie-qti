@@ -4,7 +4,7 @@
  */
 
 import { json } from '@sveltejs/kit';
-import { Qti22ToPiePlugin } from '@pie-qti/qti2-to-pie';
+import { QtiToPiePlugin } from '@pie-qti/to-pie';
 import { TransformEngine } from '@pie-qti/transform-core';
 import type { RequestHandler } from './$types';
 import { readSessionXml } from '$lib/server/utils/path-utils';
@@ -100,7 +100,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 
 	// Create transform engine with QTI to PIE plugin
 	const engine = new TransformEngine();
-	engine.use(new Qti22ToPiePlugin());
+	engine.use(new QtiToPiePlugin());
 
 	const results = {
 		items: [] as Array<{

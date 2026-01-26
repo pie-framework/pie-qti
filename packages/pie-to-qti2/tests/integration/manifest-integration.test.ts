@@ -6,7 +6,7 @@
 
 import { describe, expect, test } from 'bun:test';
 import type { PieItem, PiePassageStimulus, TransformContext } from '@pie-qti/transform-types';
-import { PieToQti2Plugin } from '../../src/plugin.js';
+import { PieToQtiPlugin } from '../../src/plugin.js';
 
 describe('Manifest Integration', () => {
   const mockLogger = {
@@ -49,7 +49,7 @@ describe('Manifest Integration', () => {
       title: 'Test Passage',
     };
 
-    const plugin = new PieToQti2Plugin({
+    const plugin = new PieToQtiPlugin({
       generatePackage: true,
       passageStrategy: 'external',
       passageResolver: async (passageId) => ({
@@ -114,7 +114,7 @@ describe('Manifest Integration', () => {
       },
     };
 
-    const plugin = new PieToQti2Plugin({
+    const plugin = new PieToQtiPlugin({
       generatePackage: true,
       passageStrategy: 'external',
       passageResolver: async (passageId) => ({
@@ -156,7 +156,7 @@ describe('Manifest Integration', () => {
       },
     };
 
-    const plugin = new PieToQti2Plugin({
+    const plugin = new PieToQtiPlugin({
       generatePackage: false, // Explicitly disabled
       passageStrategy: 'external',
       passageResolver: async (passageId) => ({
@@ -204,7 +204,7 @@ describe('Manifest Integration', () => {
       },
     };
 
-    const plugin = new PieToQti2Plugin({
+    const plugin = new PieToQtiPlugin({
       generatePackage: true, // Enabled, but no external passages
     });
 
@@ -236,7 +236,7 @@ describe('Manifest Integration', () => {
       },
     };
 
-    const plugin = new PieToQti2Plugin({
+    const plugin = new PieToQtiPlugin({
       generatePackage: true,
       passageStrategy: 'external',
       passageResolver: async (passageId) => ({
@@ -284,7 +284,7 @@ describe('Manifest Integration', () => {
       },
     };
 
-    const plugin = new PieToQti2Plugin({
+    const plugin = new PieToQtiPlugin({
       generatePackage: true,
       passageStrategy: 'external',
       passageResolver: async (passageId) => ({
@@ -326,7 +326,7 @@ describe('Manifest Integration', () => {
       },
     };
 
-    const plugin = new PieToQti2Plugin({
+    const plugin = new PieToQtiPlugin({
       generatePackage: true, // Enabled but item has no passages
     });
 
@@ -365,7 +365,7 @@ describe('Manifest Integration', () => {
       },
     };
 
-    const plugin = new PieToQti2Plugin({
+    const plugin = new PieToQtiPlugin({
       generatePackage: true,
       passageStrategy: 'external',
       passageResolver: async (passageId) => ({

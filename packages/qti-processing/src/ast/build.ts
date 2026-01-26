@@ -13,45 +13,76 @@ import type {
 	StatementNode,
 	TemplateConditionStmt,
 } from './types.js';
-
-export function buildTemplateProcessingAst(templateProcessingEl: Element): ProcessingProgram {
-	const scope: ProcessingScope = 'item';
-	return {
-		kind: 'program',
-		id: newAstId('program'),
-		statements: buildStatements(childElements(templateProcessingEl), 'template', { scope }),
-	};
-}
-
-export function buildResponseProcessingAst(responseProcessingEl: Element): ProcessingProgram {
-	const scope: ProcessingScope = 'item';
-	return {
-		kind: 'program',
-		id: newAstId('program'),
-		statements: buildStatements(childElements(responseProcessingEl), 'response', { scope }),
-	};
-}
+import type { ElementNameMapper } from '@pie-qti/qti-common';
+import { Qti2xElementNameMapper } from '@pie-qti/qti-common';
 
 export type ProcessingScope = 'item' | 'test';
 
+/**
+ * Options for building AST from QTI processing XML.
+ */
+export interface BuildOptions {
+	scope: ProcessingScope;
+	/**
+	 * Element name mapper for handling different QTI versions.
+	 * Defaults to Qti2xElementNameMapper for backward compatibility.
+	 */
+	elementNameMapper?: ElementNameMapper;
+}
+
+export function buildTemplateProcessingAst(
+	templateProcessingEl: Element,
+	options?: { elementNameMapper?: ElementNameMapper }
+): ProcessingProgram {
+	const scope: ProcessingScope = 'item';
+	return {
+		kind: 'program',
+		id: newAstId('program'),
+		statements: buildStatements(childElements(templateProcessingEl), 'template', {
+			scope,
+			elementNameMapper: options?.elementNameMapper,
+		}),
+	};
+}
+
+export function buildResponseProcessingAst(
+	responseProcessingEl: Element,
+	options?: { elementNameMapper?: ElementNameMapper }
+): ProcessingProgram {
+	const scope: ProcessingScope = 'item';
+	return {
+		kind: 'program',
+		id: newAstId('program'),
+		statements: buildStatements(childElements(responseProcessingEl), 'response', {
+			scope,
+			elementNameMapper: options?.elementNameMapper,
+		}),
+	};
+}
+
 export function buildOutcomeProcessingAst(
 	outcomeProcessingEl: Element,
-	options?: { scope?: ProcessingScope }
+	options?: { scope?: ProcessingScope; elementNameMapper?: ElementNameMapper }
 ): ProcessingProgram {
 	const scope: ProcessingScope = options?.scope ?? 'item';
 	return {
 		kind: 'program',
 		id: newAstId('program'),
-		statements: buildStatements(childElements(outcomeProcessingEl), 'outcome', { scope }),
+		statements: buildStatements(childElements(outcomeProcessingEl), 'outcome', {
+			scope,
+			elementNameMapper: options?.elementNameMapper,
+		}),
 	};
 }
 
 type StatementMode = 'template' | 'response' | 'outcome';
 
-function buildStatements(els: Element[], mode: StatementMode, options: { scope: ProcessingScope }): StatementNode[] {
+function buildStatements(els: Element[], mode: StatementMode, options: BuildOptions): StatementNode[] {
+	const mapper = options.elementNameMapper ?? new Qti2xElementNameMapper();
 	const out: StatementNode[] = [];
 	for (const el of els) {
-		const tag = (localName(el) || '').toLowerCase();
+		const rawName = localName(el) || '';
+		const tag = mapper.toCanonical(rawName);
 		switch (tag) {
 			case 'responseprocessingfragment': {
 				// Inline fragments are equivalent to a grouped list of response rules.
@@ -211,13 +242,14 @@ function buildStatements(els: Element[], mode: StatementMode, options: { scope: 
 	return out;
 }
 
-function buildResponseCondition(el: Element, options: { scope: ProcessingScope }): ResponseConditionStmt {
+function buildResponseCondition(el: Element, options: BuildOptions): ResponseConditionStmt {
+	const mapper = options.elementNameMapper ?? new Qti2xElementNameMapper();
 	const children = childElements(el);
 	const id = newAstId('stmt');
 
-	const ifEl = children.find((c) => (localName(c) || '').toLowerCase() === 'responseif') || null;
-	const elseIfEls = children.filter((c) => (localName(c) || '').toLowerCase() === 'responseelseif');
-	const elseEl = children.find((c) => (localName(c) || '').toLowerCase() === 'responseelse') || null;
+	const ifEl = children.find((c) => mapper.toCanonical(localName(c) || '') === 'responseif') || null;
+	const elseIfEls = children.filter((c) => mapper.toCanonical(localName(c) || '') === 'responseelseif');
+	const elseEl = children.find((c) => mapper.toCanonical(localName(c) || '') === 'responseelse') || null;
 
 	const ifBranch = ifEl ? buildConditionalBranch(ifEl, 'response', options) : undefined;
 	const elseIfBranches = elseIfEls.map((e) => buildConditionalBranch(e, 'response', options)).filter(Boolean) as any;
@@ -232,13 +264,14 @@ function buildResponseCondition(el: Element, options: { scope: ProcessingScope }
 	};
 }
 
-function buildTemplateCondition(el: Element, options: { scope: ProcessingScope }): TemplateConditionStmt {
+function buildTemplateCondition(el: Element, options: BuildOptions): TemplateConditionStmt {
+	const mapper = options.elementNameMapper ?? new Qti2xElementNameMapper();
 	const children = childElements(el);
 	const id = newAstId('stmt');
 
-	const ifEl = children.find((c) => (localName(c) || '').toLowerCase() === 'templateif') || null;
-	const elseIfEls = children.filter((c) => (localName(c) || '').toLowerCase() === 'templateelseif');
-	const elseEl = children.find((c) => (localName(c) || '').toLowerCase() === 'templateelse') || null;
+	const ifEl = children.find((c) => mapper.toCanonical(localName(c) || '') === 'templateif') || null;
+	const elseIfEls = children.filter((c) => mapper.toCanonical(localName(c) || '') === 'templateelseif');
+	const elseEl = children.find((c) => mapper.toCanonical(localName(c) || '') === 'templateelse') || null;
 
 	const ifBranch = ifEl ? buildConditionalBranch(ifEl, 'template', options) : undefined;
 	const elseIfBranches = elseIfEls.map((e) => buildConditionalBranch(e, 'template', options)).filter(Boolean) as any;
@@ -253,13 +286,14 @@ function buildTemplateCondition(el: Element, options: { scope: ProcessingScope }
 	};
 }
 
-function buildOutcomeCondition(el: Element, options: { scope: ProcessingScope }): OutcomeConditionStmt {
+function buildOutcomeCondition(el: Element, options: BuildOptions): OutcomeConditionStmt {
+	const mapper = options.elementNameMapper ?? new Qti2xElementNameMapper();
 	const children = childElements(el);
 	const id = newAstId('stmt');
 
-	const ifEl = children.find((c) => (localName(c) || '').toLowerCase() === 'outcomeif') || null;
-	const elseIfEls = children.filter((c) => (localName(c) || '').toLowerCase() === 'outcomeelseif');
-	const elseEl = children.find((c) => (localName(c) || '').toLowerCase() === 'outcomeelse') || null;
+	const ifEl = children.find((c) => mapper.toCanonical(localName(c) || '') === 'outcomeif') || null;
+	const elseIfEls = children.filter((c) => mapper.toCanonical(localName(c) || '') === 'outcomeelseif');
+	const elseEl = children.find((c) => mapper.toCanonical(localName(c) || '') === 'outcomeelse') || null;
 
 	const ifBranch = ifEl ? buildConditionalBranch(ifEl, 'outcome', options) : undefined;
 	const elseIfBranches = elseIfEls.map((e) => buildConditionalBranch(e, 'outcome', options)).filter(Boolean) as any;
@@ -274,7 +308,7 @@ function buildOutcomeCondition(el: Element, options: { scope: ProcessingScope })
 	};
 }
 
-function buildConditionalBranch(el: Element, mode: StatementMode, options: { scope: ProcessingScope }) {
+function buildConditionalBranch(el: Element, mode: StatementMode, options: BuildOptions) {
 	const condEl = firstChildElement(el);
 	if (!condEl) return undefined;
 	const cond = buildExpression(condEl, options);
@@ -286,14 +320,16 @@ function buildConditionalBranch(el: Element, mode: StatementMode, options: { sco
 	return { condition: cond, statements };
 }
 
-function buildElseBranch(el: Element, mode: StatementMode, options: { scope: ProcessingScope }) {
+function buildElseBranch(el: Element, mode: StatementMode, options: BuildOptions) {
 	const statements = buildStatements(childElements(el), mode, options);
 	return { statements };
 }
 
-export function buildExpression(el: Element, options?: { scope?: ProcessingScope }): ExpressionNode {
+export function buildExpression(el: Element, options?: { scope?: ProcessingScope; elementNameMapper?: ElementNameMapper }): ExpressionNode {
+	const mapper = options?.elementNameMapper ?? new Qti2xElementNameMapper();
 	const scope: ProcessingScope = options?.scope ?? 'item';
-	const tag = (localName(el) || '').toLowerCase();
+	const rawName = localName(el) || '';
+	const tag = mapper.toCanonical(rawName);
 	const id = newAstId('expr');
 	const kids = childElements(el);
 

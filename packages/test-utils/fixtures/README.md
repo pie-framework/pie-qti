@@ -43,7 +43,7 @@ const pieModel = loadSharedFixture('pie/multiple-choice/basic.json');
 import { loadFixture } from '@pie-qti/test-utils';
 
 // Load from a specific package's fixtures directory
-const qti = loadFixture('qti2-to-pie', 'custom-test.xml');
+const qti = loadFixture('to-pie', 'custom-test.xml');
 ```
 
 ## Adding New Fixtures

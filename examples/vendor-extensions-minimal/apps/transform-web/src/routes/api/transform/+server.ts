@@ -6,7 +6,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { ExampleCorpPlugin } from '@pie-qti-examples/vendor-examplecorp-plugin';
-import { Qti22ToPiePlugin } from '@pie-qti/qti2-to-pie';
+import { QtiToPiePlugin } from '@pie-qti/to-pie';
 
 export const POST: RequestHandler = async ({ request }) => {
 	try {
@@ -19,7 +19,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		// Initialize plugins
 		const plugins = [
 			new ExampleCorpPlugin(), // Priority 550
-			new Qti22ToPiePlugin()   // Priority 100
+			new QtiToPiePlugin()   // Priority 100
 		];
 
 		// Step 1: Detect which plugin can handle this content
@@ -44,7 +44,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 			// Default to standard QTI plugin if none can handle
 			if (!selectedPlugin) {
-				selectedPlugin = new Qti22ToPiePlugin();
+				selectedPlugin = new QtiToPiePlugin();
 			}
 		} else {
 			// Use specified vendor
@@ -52,7 +52,7 @@ export const POST: RequestHandler = async ({ request }) => {
 				selectedPlugin = new ExampleCorpPlugin();
 				detectedVendor = 'examplecorp';
 			} else {
-				selectedPlugin = new Qti22ToPiePlugin();
+				selectedPlugin = new QtiToPiePlugin();
 			}
 		}
 

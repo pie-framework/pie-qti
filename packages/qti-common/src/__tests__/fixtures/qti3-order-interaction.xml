@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item
+  xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0"
+  identifier="qti3-order-interaction"
+  title="QTI 3.0 Order Interaction"
+  adaptive="false"
+  time-dependent="false">
+
+  <qti-response-declaration identifier="RESPONSE" cardinality="ordered" base-type="identifier">
+    <qti-correct-response>
+      <qti-value>step_1</qti-value>
+      <qti-value>step_2</qti-value>
+      <qti-value>step_3</qti-value>
+      <qti-value>step_4</qti-value>
+    </qti-correct-response>
+  </qti-response-declaration>
+
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float">
+    <qti-default-value>
+      <qti-value>0.0</qti-value>
+    </qti-default-value>
+  </qti-outcome-declaration>
+
+  <qti-item-body>
+    <qti-order-interaction response-identifier="RESPONSE" shuffle="true" max-choices="4" min-choices="4">
+      <qti-prompt>Place the following steps in the correct order to make a cup of tea:</qti-prompt>
+      <qti-simple-choice identifier="step_1">Boil water</qti-simple-choice>
+      <qti-simple-choice identifier="step_2">Place tea bag in cup</qti-simple-choice>
+      <qti-simple-choice identifier="step_3">Pour hot water over tea bag</qti-simple-choice>
+      <qti-simple-choice identifier="step_4">Let steep for 3-5 minutes</qti-simple-choice>
+    </qti-order-interaction>
+  </qti-item-body>
+
+  <qti-response-processing>
+    <qti-response-condition>
+      <qti-response-if>
+        <qti-match>
+          <qti-variable identifier="RESPONSE"/>
+          <qti-correct identifier="RESPONSE"/>
+        </qti-match>
+        <qti-set-outcome-value identifier="SCORE">
+          <qti-base-value base-type="float">1.0</qti-base-value>
+        </qti-set-outcome-value>
+      </qti-response-if>
+      <qti-response-else>
+        <qti-set-outcome-value identifier="SCORE">
+          <qti-base-value base-type="float">0.0</qti-base-value>
+        </qti-set-outcome-value>
+      </qti-response-else>
+    </qti-response-condition>
+  </qti-response-processing>
+
+</qti-assessment-item>

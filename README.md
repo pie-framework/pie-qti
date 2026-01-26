@@ -1,6 +1,6 @@
 # PIE-QTI
 
-![QTI 2.2 Compliant](https://img.shields.io/badge/QTI%202.2-100%25%20Compliant-success)
+![QTI 2.x & 3.0 Support](https://img.shields.io/badge/QTI%202.x%20%26%203.0-Supported-success)
 ![Interactions](https://img.shields.io/badge/Interactions-21%2F21-success)
 ![Tests](https://img.shields.io/badge/Tests-1112%2B-success)
 ![Accessibility](https://img.shields.io/badge/Accessibility-Tested-blue)
@@ -8,8 +8,8 @@
 
 This project provides two major capabilities:
 
-1. **QTI 2.x Players** — Production-ready item and assessment players with extensibility and theming
-2. **PIE ↔ QTI Transformation Framework** — Bidirectional transforms between QTI 2.2 and PIE, with CLI, web app, and IMS Content Package support
+1. **QTI 2.x & 3.0 Players** — Production-ready item and assessment players with unified version-agnostic architecture
+2. **PIE ↔ QTI Transformation Framework** — Bidirectional transforms between QTI and PIE, with CLI, web app, and IMS Content Package support
 
 📚 **[Live Examples](https://pie-framework.github.io/pie-qti/examples/)**
 
@@ -34,13 +34,24 @@ We also built a **spec-complete QTI 2.x player** because a modern, open-source o
 
 ---
 
-## Part 1: QTI 2.x Players
+## Part 1: QTI Players (2.x & 3.0)
 
-> **Status**: Production-ready
+> **Status**: Production-ready (QTI 2.x); QTI 3.0 infrastructure complete, player enhancements in progress
 
-Full-featured players for rendering QTI 2.x assessment content in the browser.
+Full-featured players for rendering QTI 2.x and 3.0 assessment content in the browser.
 
-### Item Player (`@pie-qti/qti2-item-player`)
+### Version-Agnostic Architecture
+
+The players use a unified architecture that supports both QTI 2.x and 3.0 through automatic version detection:
+
+- **QTI 2.x** — camelCase elements (`choiceInteraction`, `itemBody`)
+- **QTI 3.0** — kebab-case with `qti-` prefix (`qti-choice-interaction`, `qti-item-body`)
+- **Common Internal Model** — Both versions convert to the same canonical representation
+- **Zero Breaking Changes** — Existing QTI 2.x code continues to work unchanged
+
+See [`@pie-qti/qti-common`](packages/qti-common/README.md) for the version abstraction layer.
+
+### Item Player (`@pie-qti/item-player`)
 
 Renders and scores individual QTI items:
 
@@ -51,7 +62,7 @@ Renders and scores individual QTI items:
 - **Accessible** — Full keyboard navigation and screen reader support (follows WCAG 2.2 Level AA guidelines)
 - **Iframe isolation mode** — Optional secure rendering for untrusted content
 
-### Assessment Player (`@pie-qti/qti2-assessment-player`)
+### Assessment Player (`@pie-qti/assessment-player`)
 
 Orchestrates multi-item assessments:
 
@@ -83,7 +94,7 @@ Components render via web components (Shadow DOM) with a CSS variable contract:
 - **`::part()` hooks** — Stable part names for host-side style refinement
 - **Zero-CSS fallback** — Components render correctly with no host styles
 
-See [STYLING.md](packages/qti2-default-components/STYLING.md) for the full styling contract.
+See [STYLING.md](packages/default-components/STYLING.md) for the full styling contract.
 
 ### Internationalization (i18n)
 
@@ -94,7 +105,7 @@ The player UI supports multiple languages with runtime locale switching:
 - **Custom translations** — Clients provide complete locale bundles or override specific strings
 - **Small bundle** — <10 KB gzipped (core + default locale)
 
-See [`@pie-qti/qti2-i18n`](packages/qti2-i18n/) for the complete i18n API and [custom translation examples](packages/qti2-i18n/docs/custom-translations-example.md).
+See [`@pie-qti/i18n`](packages/i18n/) for the complete i18n API and [custom translation examples](packages/i18n/docs/custom-translations-example.md).
 
 ---
 
@@ -120,13 +131,14 @@ See [Transformation Engine Documentation](docs/TRANSFORMATION-ENGINE.md) for com
 
 ### Transform Capabilities
 
-**QTI → PIE** (`@pie-qti/qti2-to-pie`)
+**QTI → PIE** (`@pie-qti/to-pie`)
 
+- Supports QTI 2.x and 3.0 (auto-detected)
 - Lossless round-trip when QTI originated from PIE
 - Best-effort semantic transformation otherwise
 - Vendor extension system for custom QTI variants
 
-**PIE → QTI** (`@pie-qti/pie-to-qti2`)
+**PIE → QTI** (`@pie-qti/pie-to-qti`)
 
 - Lossless reconstruction when PIE contains embedded QTI
 - Generator registry for custom PIE model handling
@@ -204,10 +216,11 @@ bun run preview:pages
 
 ### Players
 
-- **[Item Player](packages/qti2-item-player/README.md)** — API, interactions, accessibility
-- **[Assessment Player](packages/qti2-assessment-player/README.md)** — Navigation, scoring, backend integration
-- **[Styling Contract](packages/qti2-default-components/STYLING.md)** — Theming with CSS variables and ::part
-- **[Example App](packages/qti2-example/README.md)** — Demo application with all interactions
+- **[Item Player](packages/item-player/README.md)** — API, interactions, accessibility
+- **[Assessment Player](packages/assessment-player/README.md)** — Navigation, scoring, backend integration
+- **[QTI Common](packages/qti-common/README.md)** — Version abstraction layer (QTI 2.x & 3.0)
+- **[Styling Contract](packages/default-components/STYLING.md)** — Theming with CSS variables and ::part
+- **[Example App](packages/example/README.md)** — Demo application with all interactions
 
 ### Transforms
 
@@ -218,13 +231,13 @@ bun run preview:pages
 - **[Migration Guide](docs/MIGRATION_GUIDE.md)** — Upgrading from legacy storage to new architecture
 - **[Transform App](packages/transform-app/README.md)** — Web UI for transformations
 - **[CLI](tools/cli/README.md)** — Command-line batch operations
-- **[QTI → PIE](packages/qti2-to-pie/README.md)** — QTI to PIE transformer
-- **[PIE → QTI](packages/pie-to-qti2/README.md)** — PIE to QTI transformer
-- **[IMS Content Packages](packages/pie-to-qti2/docs/MANIFEST-GENERATION.md)** — Manifest generation
+- **[QTI → PIE](packages/to-pie/README.md)** — QTI to PIE transformer
+- **[PIE → QTI](packages/pie-to-qti/README.md)** — PIE to QTI transformer
+- **[IMS Content Packages](packages/pie-to-qti/docs/MANIFEST-GENERATION.md)** — Manifest generation
 
 ### Extensibility
 
-- **[Custom Generators](packages/pie-to-qti2/CUSTOM-GENERATORS.md)** — Adding PIE model support
+- **[Custom Generators](packages/pie-to-qti/CUSTOM-GENERATORS.md)** — Adding PIE model support
 - **[ACME Likert Plugin](packages/acme-likert-plugin/README.md)** — Player extensibility example
 
 ---

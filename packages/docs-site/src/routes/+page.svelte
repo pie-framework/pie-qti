@@ -125,7 +125,7 @@
 					<div class="card-actions justify-end mt-4">
 						<a
 							class="btn btn-sm btn-outline"
-							href="https://github.com/pie-framework/pie-qti/blob/master/packages/qti2-item-player/README.md"
+							href="https://github.com/pie-framework/pie-qti/blob/master/packages/item-player/README.md"
 							target="_blank"
 							rel="noreferrer"
 						>
@@ -197,7 +197,7 @@
 						<li>
 							<a
 								class="link link-primary"
-								href="https://github.com/pie-framework/pie-qti/blob/master/packages/qti2-default-components/STYLING.md"
+								href="https://github.com/pie-framework/pie-qti/blob/master/packages/default-components/STYLING.md"
 								target="_blank"
 								rel="noreferrer"
 							>

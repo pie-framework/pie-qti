@@ -25,10 +25,6 @@ packages/schemas/scripts/*.js
 packages/schemas/scripts/*.js.map
 packages/schemas/scripts/*.d.ts
 packages/schemas/scripts/*.d.ts.map
-packages/qti2-backend/examples/*.js
-packages/qti2-backend/examples/*.js.map
-packages/qti2-backend/examples/*.d.ts
-packages/qti2-backend/examples/*.d.ts.map
 
 # TypeScript build artifacts in src/ (should only be in dist/)
 **/src/**/*.js

@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import type { ExtractionContext } from '@pie-qti/qti2-item-player';
+import type { ExtractionContext } from '@pie-qti/item-player';
 import { parse } from 'node-html-parser';
 import { likertChoiceExtractor } from '../../src/extractors/likertChoiceExtractor.js';
 

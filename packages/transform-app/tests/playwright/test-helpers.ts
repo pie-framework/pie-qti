@@ -92,12 +92,12 @@ export async function waitForPlayerReady(
 ): Promise<void> {
 	// Wait for custom element to be defined
 	await page.waitForFunction(
-		() => customElements.get('pie-qti2-item-player') !== undefined,
+		() => customElements.get('pie-qti-item-player') !== undefined,
 		{ timeout }
 	);
 
 	// Wait for player element to be visible
-	const playerElement = page.locator('pie-qti2-item-player');
+	const playerElement = page.locator('pie-qti-item-player');
 	await expect(playerElement).toBeVisible({ timeout });
 
 	// Wait for loading spinner to disappear (if it exists)
@@ -179,7 +179,7 @@ export async function selectItem(
  * @returns Playwright locator for the player element
  */
 export function getPlayerElement(page: Page) {
-	return page.locator('pie-qti2-item-player');
+	return page.locator('pie-qti-item-player');
 }
 
 /**

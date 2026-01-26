@@ -44,7 +44,7 @@ cat > package.json <<EOF
   "dependencies": {
     "@pie-qti/transform-core": "workspace:*",
     "@pie-qti/transform-types": "workspace:*",
-    "@pie-qti/qti2-to-pie": "workspace:*"
+    "@pie-qti/to-pie": "workspace:*"
   },
   "devDependencies": {
     "@pie-qti/test-utils": "workspace:*",
@@ -64,7 +64,7 @@ Create `src/index.ts`:
 
 ```typescript
 import type { TransformPlugin, TransformInput, TransformOutput, TransformContext } from '@pie-qti/transform-types';
-import { Qti22ToPiePlugin } from '@pie-qti/qti2-to-pie';
+import { Qti22ToPiePlugin } from '@pie-qti/to-pie';
 
 export class VendorAcmePlugin implements TransformPlugin {
   readonly id = 'vendor-acme-qti22-to-pie';
@@ -1200,7 +1200,7 @@ import type {
   TransformContext,
 } from '@pie-qti/transform-types';
 import { ErrorCategory } from '@pie-qti/transform-types';
-import { Qti22ToPiePlugin } from '@pie-qti/qti2-to-pie';
+import { Qti22ToPiePlugin } from '@pie-qti/to-pie';
 import { parse } from 'node-html-parser';
 
 export interface AcmePluginConfig {
