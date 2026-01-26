@@ -188,7 +188,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "*Published Packages:*\n```${{ steps.changesets.outputs.publishedPackages }}```"
+                    "text": "*Published Packages:*\n```\n${{ toJSON(fromJSON(steps.changesets.outputs.publishedPackages)) }}\n```"
                   }
                 }
               ]
