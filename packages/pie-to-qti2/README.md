@@ -4,7 +4,7 @@ Bidirectional transformation plugin that converts PIE (Platform for Interactive 
 
 ## Overview
 
-This package provides PIE → QTI transformation capabilities, completing the bidirectional transformation system when used alongside `@pie-qti/qti2-to-pie`. Together, they enable lossless round-trips:
+This package provides PIE → QTI transformation capabilities, completing the bidirectional transformation system when used alongside `@pie-qti/to-pie`. Together, they enable lossless round-trips:
 
 - **PIE → QTI → PIE**: Preserves all PIE data through embedded `<pie:sourceModel>` extensions
 - **QTI → PIE → QTI**: Preserves all QTI data through embedded `qtiSource` metadata
@@ -53,7 +53,7 @@ const qtiXml = result.items[0].content;
 
 ```typescript
 import { PieToQti2Plugin } from '@pie-qti/pie-to-qti2';
-import { Qti22ToPiePlugin } from '@pie-qti/qti2-to-pie';
+import { Qti22ToPiePlugin } from '@pie-qti/to-pie';
 import { TransformEngine } from '@pie-qti/transform-core';
 
 const engine = new TransformEngine();

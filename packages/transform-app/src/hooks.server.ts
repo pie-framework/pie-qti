@@ -8,7 +8,7 @@ import type { StorageBackend, SessionStorage } from '@pie-qti/storage';
 import { SessionStorageImpl } from '@pie-qti/storage';
 import { TransformEngine } from '@pie-qti/transform-core';
 import { loadAndRegisterPlugins } from '@pie-qti/transform-core/config/plugin-loader.js';
-import { Qti22ToPiePlugin } from '@pie-qti/qti2-to-pie';
+import { QtiToPiePlugin } from '@pie-qti/to-pie';
 import { createStorageBackend, loadConfig } from '$lib/server/config';
 import { AppSessionStorage } from '$lib/server/storage/app-session-storage';
 
@@ -45,7 +45,7 @@ async function initializeStorage(): Promise<void> {
 		transformEngine = new TransformEngine();
 
 		// Register core QTI plugin
-		transformEngine.use(new Qti22ToPiePlugin());
+		transformEngine.use(new QtiToPiePlugin());
 
 		// Load and register additional plugins from config (if any)
 		if (config.plugins && Object.keys(config.plugins).length > 0) {

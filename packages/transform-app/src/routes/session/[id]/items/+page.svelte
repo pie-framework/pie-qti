@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { onMount, getContext } from 'svelte';
-	import Qti2ItemPlayer from '$lib/components/Qti2ItemPlayer.svelte';
+	import Qti2ItemPlayer from '$lib/components/QtiItemPlayer.svelte';
 	import type { PageData } from './$types';
-	import type { SvelteI18nProvider } from '@pie-qti/qti2-i18n';
+	import type { SvelteI18nProvider } from '@pie-qti/i18n';
 
 	const { data }: { data: PageData } = $props();
 	const i18nContext = getContext<{ value: SvelteI18nProvider | undefined }>('i18n');

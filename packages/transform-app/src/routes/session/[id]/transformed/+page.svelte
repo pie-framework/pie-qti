@@ -3,7 +3,7 @@
 	import PieAssessmentPreview from '$lib/components/PieAssessmentPreview.svelte';
 	import PieItemPlayer from '$lib/components/PieItemPlayer.svelte';
 	import type { PageData } from './$types';
-	import type { SvelteI18nProvider } from '@pie-qti/qti2-i18n';
+	import type { SvelteI18nProvider } from '@pie-qti/i18n';
 
 	const { data }: { data: PageData } = $props();
 	const i18nContext = getContext<{ value: SvelteI18nProvider | undefined }>('i18n');

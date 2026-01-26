@@ -139,7 +139,7 @@ Extend existing hooks in `.claude/settings.json`:
         ]
       },
       {
-        "matcher": "Edit|Write(packages/qti2-*/**/*.ts|packages/qti2-*/**/*.tsx|packages/qti2-*/**/*.svelte)",
+        "matcher": "Edit|Write(packages/qti-*/**/*.ts|packages/qti-*/**/*.tsx|packages/qti-*/**/*.svelte)",
         "hooks": [
           {
             "type": "agent",
@@ -307,8 +307,8 @@ Extend existing hooks in `.claude/settings.json`:
 - **Accessibility**: axe-core (for web content)
 
 ### Existing Code to Reference
-- `packages/qti2-item-player/src/qti-heuristics.ts` - Vendor patterns
-- `packages/qti2-to-pie/` - QTI→PIE conversion logic
+- `packages/item-player/src/qti-heuristics.ts` - Vendor patterns
+- `packages/to-pie/` - QTI→PIE conversion logic
 - `.claude/skills/assessment-content-validator/` - Current validator
 
 ---

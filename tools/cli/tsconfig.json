@@ -12,6 +12,6 @@
   "references": [
     { "path": "../../packages/types" },
     { "path": "../../packages/core" },
-    { "path": "../../packages/qti2-to-pie" }
+    { "path": "../../packages/to-pie" }
   ]
 }

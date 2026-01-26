@@ -60,7 +60,7 @@ All features are preserved through:
 
 ```typescript
 import { PieToQti2Plugin } from '@pie-qti/pie-to-qti2';
-import { Qti22ToPiePlugin } from '@pie-qti/qti2-to-pie';
+import { Qti22ToPiePlugin } from '@pie-qti/to-pie';
 
 // Define PIE assessment
 const pieAssessment = {
@@ -961,7 +961,7 @@ Verify that assessment transformations preserve all features:
 
 ```typescript
 import { PieToQti2Plugin } from '@pie-qti/pie-to-qti2';
-import { Qti22ToPiePlugin } from '@pie-qti/qti2-to-pie';
+import { Qti22ToPiePlugin } from '@pie-qti/to-pie';
 
 const pieToQti = new PieToQti2Plugin();
 const qtiToPie = new Qti22ToPiePlugin();
@@ -1073,8 +1073,8 @@ const assessment = {
 Always verify that your assessments survive round-trips:
 
 ```bash
-# Create test script
-node test-assessment-roundtrip.js
+# Run manual test script
+node packages/pie-to-qti2/tests/manual/test-assessment-roundtrip.js
 
 # Verify all features preserved
 ✅ Identifier preserved

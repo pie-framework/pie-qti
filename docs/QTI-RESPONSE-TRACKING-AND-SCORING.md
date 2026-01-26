@@ -2,7 +2,7 @@
 
 ## Overview
 
-QTI implements a complete client-side state management and scoring system that can operate without backend code. This document explains how our TypeScript implementation handles response tracking, scoring, and state management in the **qti2-item-player** package.
+QTI implements a complete client-side state management and scoring system that can operate without backend code. This document explains how our TypeScript implementation handles response tracking, scoring, and state management in the **item-player** package.
 
 ---
 
@@ -28,7 +28,7 @@ QTI uses three types of **variables** to track state:
 
 ### Built-in Variables
 
-Every QTI item gets these automatically ([constants.ts:62-93](../packages/qti2-item-player/src/core/constants.ts#L62-L93)):
+Every QTI item gets these automatically ([constants.ts:62-93](../packages/item-player/src/core/constants.ts#L62-L93)):
 
 ```typescript
 export const BUILTIN_DECLARATIONS: Record<string, VariableDeclaration> = {
@@ -67,7 +67,7 @@ export const BUILTIN_DECLARATIONS: Record<string, VariableDeclaration> = {
 
 ### Variable Properties
 
-Each variable has ([types/index.ts:21-29](../packages/qti2-item-player/src/types/index.ts#L21-L29)):
+Each variable has ([types/index.ts:21-29](../packages/item-player/src/types/index.ts#L21-L29)):
 
 ```typescript
 export interface VariableDeclaration {
@@ -81,7 +81,7 @@ export interface VariableDeclaration {
 }
 ```
 
-**BaseType** values ([types/index.ts:5-17](../packages/qti2-item-player/src/types/index.ts#L5-L17)):
+**BaseType** values ([types/index.ts:5-17](../packages/item-player/src/types/index.ts#L5-L17)):
 
 - `boolean`, `integer`, `float`, `string`
 - `identifier` (most common for choice responses)
@@ -103,7 +103,7 @@ export interface VariableDeclaration {
 
 ### Step 1: User Interacts
 
-When a student clicks/types/drags, the interaction processor updates the response variable ([declarations.ts:90-100](../packages/qti2-item-player/src/core/declarations.ts#L90-L100)):
+When a student clicks/types/drags, the interaction processor updates the response variable ([declarations.ts:90-100](../packages/item-player/src/core/declarations.ts#L90-L100)):
 
 ```typescript
 /**
@@ -121,7 +121,7 @@ export function setVariableValue(
 }
 ```
 
-Example from [choiceProcessor.ts](../packages/qti2-item-player/src/processors/choiceProcessor.ts):
+Example from [choiceProcessor.ts](../packages/item-player/src/processors/choiceProcessor.ts):
 
 ```typescript
 // When user selects "choiceA" in a multiple choice
@@ -148,7 +148,7 @@ setVariableValue(player.declarations, '$dirty', true);
 
 ### Step 2: Submit
 
-When student clicks "Submit", the player processes responses ([Player.ts:446-497](../packages/qti2-item-player/src/core/Player.ts#L446-L497)):
+When student clicks "Submit", the player processes responses ([Player.ts:446-497](../packages/item-player/src/core/Player.ts#L446-L497)):
 
 ```typescript
 /**
@@ -256,8 +256,8 @@ Uses a scoring map for partial credit:
 
 Implementation note: the current runtime is **AST-based**. `mapResponse` is evaluated as an expression in:
 
-- `packages/qti2-item-player/src/processing/eval/evaluator.ts` (expression evaluation)
-- With mapping parsed into declarations by `packages/qti2-item-player/src/core/Player.ts`
+- `packages/item-player/src/processing/eval/evaluator.ts` (expression evaluation)
+- With mapping parsed into declarations by `packages/item-player/src/core/Player.ts`
 
 #### 3. `map_response_point`
 
@@ -363,7 +363,7 @@ function setOutcomeValue(elem) {
 
 ### Operators Available
 
-QTI 2.2 provides a rich set of operators for scoring logic. Our implementation includes 45+ operators (see full list in the "Operators Implemented" section of this document or in `packages/qti2-item-player/src/processing/eval/operators.ts`).
+QTI 2.2 provides a rich set of operators for scoring logic. Our implementation includes 45+ operators (see full list in the "Operators Implemented" section of this document or in `packages/item-player/src/processing/eval/operators.ts`).
 
 **Key operator categories:**
 
@@ -426,7 +426,7 @@ player.declarations = {
 
 ### Serialization
 
-The player provides methods to get/set all variable state ([Player.ts:380-442](../packages/qti2-item-player/src/core/Player.ts#L380-L442)):
+The player provides methods to get/set all variable state ([Player.ts:380-442](../packages/item-player/src/core/Player.ts#L380-L442)):
 
 ```typescript
 // Get current responses
@@ -459,7 +459,7 @@ Our player is designed to integrate with web applications:
 ### Getting Responses
 
 ```typescript
-import { Player } from '@pie-qti/qti2-item-player';
+import { Player } from '@pie-qti/item-player';
 
 const player = new Player(qtiXml, config);
 
@@ -532,11 +532,11 @@ if (result.canContinue) {
 
 ## 6. What Our QTI 2.2 Player Provides
 
-Our **qti2-item-player** implementation provides a complete client-side scoring system:
+Our **item-player** implementation provides a complete client-side scoring system:
 
 ### Player API
 
-The `Player` class ([Player.ts](../packages/qti2-item-player/src/core/Player.ts)) provides these key methods:
+The `Player` class ([Player.ts](../packages/item-player/src/core/Player.ts)) provides these key methods:
 
 ```typescript
 class Player {
@@ -592,14 +592,14 @@ interface ModalFeedback {
 Our player supports:
 
 1. ✅ **All 6 standard response processing templates** (`match_correct`, `map_response`, `map_response_point`, etc.)
-2. ✅ **Custom response processing rules** (implemented in the AST engine; see [`ast/types.ts`](../packages/qti2-item-player/src/processing/ast/types.ts) and [`eval/evaluator.ts`](../packages/qti2-item-player/src/processing/eval/evaluator.ts))
+2. ✅ **Custom response processing rules** (implemented in the AST engine; see [`ast/types.ts`](../packages/item-player/src/processing/ast/types.ts) and [`eval/evaluator.ts`](../packages/item-player/src/processing/eval/evaluator.ts))
 3. ✅ **Outcome processing** for test-level scoring (in assessment player)
 4. ✅ **Feedback rules** (modalFeedback, inline feedback)
 5. ✅ **Template processing** for randomization and adaptive items
 
 ### Operators Implemented
 
-Our implementation includes a growing set of QTI operators (see the AST engine implementation in [`ast/types.ts`](../packages/qti2-item-player/src/processing/ast/types.ts) and [`eval/evaluator.ts`](../packages/qti2-item-player/src/processing/eval/evaluator.ts)):
+Our implementation includes a growing set of QTI operators (see the AST engine implementation in [`ast/types.ts`](../packages/item-player/src/processing/ast/types.ts) and [`eval/evaluator.ts`](../packages/item-player/src/processing/eval/evaluator.ts)):
 
 **Comparison**: `match`, `equal`, `lt`, `lte`, `gt`, `gte`
 
@@ -639,8 +639,8 @@ Our implementation includes a growing set of QTI operators (see the AST engine i
 ### What We Implemented
 
 - ✅ **Pure TypeScript** - Type-safe declarations, operators, and scoring
-- ✅ **Operators** - Implemented in the AST engine ([`ast/types.ts`](../packages/qti2-item-player/src/processing/ast/types.ts), [`eval/evaluator.ts`](../packages/qti2-item-player/src/processing/eval/evaluator.ts))
-- ✅ **Functional architecture** - Clean variable management ([declarations.ts](../packages/qti2-item-player/src/core/declarations.ts))
+- ✅ **Operators** - Implemented in the AST engine ([`ast/types.ts`](../packages/item-player/src/processing/ast/types.ts), [`eval/evaluator.ts`](../packages/item-player/src/processing/eval/evaluator.ts))
+- ✅ **Functional architecture** - Clean variable management ([declarations.ts](../packages/item-player/src/core/declarations.ts))
 - ✅ **All standard templates** - `match_correct`, `map_response`, `map_response_point`, etc.
 - ✅ **Adaptive items** - Multi-attempt support with `completionStatus` tracking
 - ✅ **Template variables** - Full support for randomization
@@ -661,11 +661,11 @@ Our implementation includes a growing set of QTI operators (see the AST engine i
 
 - **Spec snapshots (local, preferred)**: [SPEC_SNAPSHOTS.md](./SPEC_SNAPSHOTS.md)
 - Key Implementation Files:
-  - [Player.ts](../packages/qti2-item-player/src/core/Player.ts) - Main player class with response processing
-  - [AST builder](../packages/qti2-item-player/src/processing/ast/build.ts) - XML → AST
-  - [Evaluator](../packages/qti2-item-player/src/processing/eval/evaluator.ts) - Expression evaluation (`mapResponse`, operators, etc.)
-  - [Operator registry](../packages/qti2-item-player/src/processing/eval/operators.ts) - Operator definitions
-  - [Executor](../packages/qti2-item-player/src/processing/exec/execute.ts) - Statement execution (`setOutcomeValue`, conditions, exits, etc.)
-  - [Runtime context](../packages/qti2-item-player/src/processing/runtime/context.ts) - Declarations + variable state
-  - [Runtime values](../packages/qti2-item-player/src/processing/runtime/value.ts) - BaseType/cardinality coercion + normalization
-  - [types/index.ts](../packages/qti2-item-player/src/types/index.ts) - TypeScript type definitions
+  - [Player.ts](../packages/item-player/src/core/Player.ts) - Main player class with response processing
+  - [AST builder](../packages/item-player/src/processing/ast/build.ts) - XML → AST
+  - [Evaluator](../packages/item-player/src/processing/eval/evaluator.ts) - Expression evaluation (`mapResponse`, operators, etc.)
+  - [Operator registry](../packages/item-player/src/processing/eval/operators.ts) - Operator definitions
+  - [Executor](../packages/item-player/src/processing/exec/execute.ts) - Statement execution (`setOutcomeValue`, conditions, exits, etc.)
+  - [Runtime context](../packages/item-player/src/processing/runtime/context.ts) - Declarations + variable state
+  - [Runtime values](../packages/item-player/src/processing/runtime/value.ts) - BaseType/cardinality coercion + normalization
+  - [types/index.ts](../packages/item-player/src/types/index.ts) - TypeScript type definitions

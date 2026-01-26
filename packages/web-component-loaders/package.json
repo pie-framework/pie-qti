@@ -16,15 +16,15 @@
   },
   "license": "MIT",
   "peerDependencies": {
-    "@pie-qti/qti2-player-elements": "*"
+    "@pie-qti/player-elements": "*"
   },
   "peerDependenciesMeta": {
-    "@pie-qti/qti2-player-elements": {
+    "@pie-qti/player-elements": {
       "optional": true
     }
   },
   "devDependencies": {
-    "@pie-qti/qti2-player-elements": "workspace:*",
+    "@pie-qti/player-elements": "workspace:*",
     "typescript": "^5.9.3"
   }
 }

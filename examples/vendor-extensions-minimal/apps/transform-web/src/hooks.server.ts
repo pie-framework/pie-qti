@@ -7,7 +7,7 @@ import type { Handle } from '@sveltejs/kit';
 import type { StorageBackend } from '@pie-qti/storage';
 import { FilesystemBackend } from '@pie-qti/storage';
 import { TransformEngine } from '@pie-qti/transform-core';
-import { Qti22ToPiePlugin } from '@pie-qti/qti2-to-pie';
+import { QtiToPiePlugin } from '@pie-qti/to-pie';
 import { ExampleCorpPlugin } from '@pie-qti-examples/vendor-examplecorp-plugin';
 
 let storageBackend: StorageBackend | null = null;
@@ -32,14 +32,14 @@ async function initialize(): Promise<void> {
 		transformEngine = new TransformEngine();
 
 		// Register core QTI plugin (priority 100)
-		transformEngine.use(new Qti22ToPiePlugin());
+		transformEngine.use(new QtiToPiePlugin());
 
 		// Register ExampleCorp vendor plugin (priority 550)
 		// This will override the core plugin when ExampleCorp content is detected
 		transformEngine.use(new ExampleCorpPlugin());
 
 		console.log('[Example App] Initialized with plugins:');
-		console.log('  - Qti22ToPiePlugin (priority 100)');
+		console.log('  - QtiToPiePlugin (priority 100)');
 		console.log('  - ExampleCorpPlugin (priority 550)');
 		console.log(`[Example App] Storage: ${storageBackend.name}`);
 	} catch (error) {

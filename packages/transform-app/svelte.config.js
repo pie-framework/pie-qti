@@ -5,7 +5,7 @@ import adapter from '@sveltejs/adapter-auto';
 const config = {
 	compilerOptions: {
 		// Enable compiling Svelte components that declare `<svelte:options customElement="...">`.
-		// This is required for `@pie-qti/qti2-default-components/plugins` to register custom elements.
+		// This is required for `@pie-qti/default-components/plugins` to register custom elements.
 		customElement: true
 	},
 	kit: {

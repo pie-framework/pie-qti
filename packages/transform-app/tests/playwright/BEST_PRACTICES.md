@@ -261,7 +261,7 @@ await Promise.race(strategies);
 
 ### Web Component Lifecycle
 
-The QTI player is a custom web component (`<pie-qti2-item-player>`):
+The QTI player is a custom web component (`<pie-qti-item-player>`):
 
 1. **Registration**: Component class registered with `customElements.define()`
 2. **Properties Set**: `itemXml`, `identifier`, `role` properties assigned

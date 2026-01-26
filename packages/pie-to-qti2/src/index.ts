@@ -7,9 +7,9 @@
 
 // Generator system (for pluggable custom generators)
 export * from './generators/index.js';
-export type { PieToQti2PluginOptions } from './plugin.js';
+export type { PieToQtiPluginOptions } from './plugin.js';
 // Main plugin
-export { PieToQti2Plugin } from './plugin.js';
+export { PieToQtiPlugin } from './plugin.js';
 // Types
 export * from './types/index.js';
 // Utilities

@@ -7,10 +7,10 @@
 
 import { describe, expect, test } from 'bun:test';
 import type { PieItem } from '@pie-qti/transform-types';
-import { PieToQti2Plugin } from '../../src/plugin.js';
+import { PieToQtiPlugin } from '../../src/plugin.js';
 
 describe('Multi-Model Support', () => {
-  const pieToQti = new PieToQti2Plugin();
+  const pieToQti = new PieToQtiPlugin();
 
   // Mock logger
   const logger = {

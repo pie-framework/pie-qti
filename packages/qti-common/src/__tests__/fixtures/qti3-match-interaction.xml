@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item
+  xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0"
+  identifier="qti3-match-interaction"
+  title="QTI 3.0 Match Interaction"
+  adaptive="false"
+  time-dependent="false">
+
+  <qti-response-declaration identifier="RESPONSE" cardinality="multiple" base-type="directed-pair">
+    <qti-correct-response>
+      <qti-value>country_fr capital_paris</qti-value>
+      <qti-value>country_de capital_berlin</qti-value>
+      <qti-value>country_es capital_madrid</qti-value>
+    </qti-correct-response>
+  </qti-response-declaration>
+
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float">
+    <qti-default-value>
+      <qti-value>0.0</qti-value>
+    </qti-default-value>
+  </qti-outcome-declaration>
+
+  <qti-item-body>
+    <qti-match-interaction response-identifier="RESPONSE" shuffle="false" max-associations="3">
+      <qti-prompt>Match each country with its capital city.</qti-prompt>
+      <qti-simple-match-set>
+        <qti-simple-associable-choice identifier="country_fr" match-max="1">France</qti-simple-associable-choice>
+        <qti-simple-associable-choice identifier="country_de" match-max="1">Germany</qti-simple-associable-choice>
+        <qti-simple-associable-choice identifier="country_es" match-max="1">Spain</qti-simple-associable-choice>
+      </qti-simple-match-set>
+      <qti-simple-match-set>
+        <qti-simple-associable-choice identifier="capital_paris" match-max="1">Paris</qti-simple-associable-choice>
+        <qti-simple-associable-choice identifier="capital_berlin" match-max="1">Berlin</qti-simple-associable-choice>
+        <qti-simple-associable-choice identifier="capital_madrid" match-max="1">Madrid</qti-simple-associable-choice>
+      </qti-simple-match-set>
+    </qti-match-interaction>
+  </qti-item-body>
+
+  <qti-response-processing>
+    <qti-response-condition>
+      <qti-response-if>
+        <qti-match>
+          <qti-variable identifier="RESPONSE"/>
+          <qti-correct identifier="RESPONSE"/>
+        </qti-match>
+        <qti-set-outcome-value identifier="SCORE">
+          <qti-base-value base-type="float">1.0</qti-base-value>
+        </qti-set-outcome-value>
+      </qti-response-if>
+      <qti-response-else>
+        <qti-set-outcome-value identifier="SCORE">
+          <qti-base-value base-type="float">0.0</qti-base-value>
+        </qti-set-outcome-value>
+      </qti-response-else>
+    </qti-response-condition>
+  </qti-response-processing>
+
+</qti-assessment-item>

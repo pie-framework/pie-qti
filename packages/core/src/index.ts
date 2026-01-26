@@ -15,7 +15,7 @@ export * from './registry/plugin-registry.js';
 export * from './registry/format-detector-registry.js';
 
 // Detectors
-export * from './detectors/qti22-detector.js';
+export * from './detectors/qti-detector.js';
 export * from './detectors/pie-detector.js';
 
 // Configuration

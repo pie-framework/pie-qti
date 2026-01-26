@@ -1,7 +1,7 @@
 import type { PieItem } from '@pie-qti/transform-types';
-import { PieToQti2Plugin } from '../src/plugin.js';
+import { PieToQtiPlugin } from '../src/plugin.js';
 
-const pieToQti = new PieToQti2Plugin();
+const pieToQti = new PieToQtiPlugin();
 
 const logger = {
   debug: console.log,

@@ -7,19 +7,19 @@ import {
 	FormatDetectorRegistry,
 	type FormatDetector,
 } from '../src/registry/format-detector-registry';
-import { Qti22Detector } from '../src/detectors/qti22-detector';
+import { QtiDetector } from '../src/detectors/qti-detector';
 import { PieDetector } from '../src/detectors/pie-detector';
 
 describe('FormatDetectorRegistry', () => {
 	test('should register a format detector', () => {
 		const registry = new FormatDetectorRegistry();
-		const detector = new Qti22Detector();
+		const detector = new QtiDetector();
 
 		registry.register(detector);
 
 		const detectors = registry.getDetectors();
 		expect(detectors).toHaveLength(1);
-		expect(detectors[0].id).toBe('qti22-detector');
+		expect(detectors[0].id).toBe('qti-detector');
 	});
 
 	test('should sort detectors by priority (highest first)', () => {
@@ -59,7 +59,7 @@ describe('FormatDetectorRegistry', () => {
 
 	test('should detect QTI 2.2 format', async () => {
 		const registry = new FormatDetectorRegistry();
-		registry.register(new Qti22Detector());
+		registry.register(new QtiDetector());
 		registry.register(new PieDetector());
 
 		const qtiXml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -74,7 +74,7 @@ describe('FormatDetectorRegistry', () => {
 
 	test('should detect PIE format (object)', async () => {
 		const registry = new FormatDetectorRegistry();
-		registry.register(new Qti22Detector());
+		registry.register(new QtiDetector());
 		registry.register(new PieDetector());
 
 		const pieObject = {
@@ -89,7 +89,7 @@ describe('FormatDetectorRegistry', () => {
 
 	test('should detect PIE format (JSON string)', async () => {
 		const registry = new FormatDetectorRegistry();
-		registry.register(new Qti22Detector());
+		registry.register(new QtiDetector());
 		registry.register(new PieDetector());
 
 		const pieJson = JSON.stringify({
@@ -165,7 +165,7 @@ describe('FormatDetectorRegistry', () => {
 
 	test('should clear all detectors', () => {
 		const registry = new FormatDetectorRegistry();
-		registry.register(new Qti22Detector());
+		registry.register(new QtiDetector());
 		registry.register(new PieDetector());
 
 		expect(registry.getDetectors()).toHaveLength(2);

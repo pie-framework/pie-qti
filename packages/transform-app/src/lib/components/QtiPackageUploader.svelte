@@ -4,7 +4,7 @@
 	 * Provides drag-and-drop and file selection for ZIP files
 	 */
 	import { getContext } from 'svelte';
-	import type { SvelteI18nProvider } from '@pie-qti/qti2-i18n';
+	import type { SvelteI18nProvider } from '@pie-qti/i18n';
 
 	interface Props {
 		loading?: boolean;

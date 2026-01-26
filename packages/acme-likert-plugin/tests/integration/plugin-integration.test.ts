@@ -4,7 +4,7 @@
 
 import '../setup.js';
 import { describe, expect, test } from 'bun:test';
-import { Player } from '@pie-qti/qti2-item-player';
+import { Player } from '@pie-qti/item-player';
 import { parse } from 'node-html-parser';
 import { likertScalePlugin } from '../../src/index.js';
 

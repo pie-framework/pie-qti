@@ -64,7 +64,7 @@ registry.registerReference('item-1', {
 
 ## API
 
-### Breaking Changes from qti2-to-pie
+### Breaking Changes from to-pie
 
 - `generateStablePassageId()` is now **async** (returns `Promise<string>`)
 - `PassageRegistry.detectAndMergeDuplicates()` is now **async**

@@ -28,7 +28,7 @@ import './generators/index.js';
 /**
  * Plugin configuration options
  */
-export interface PieToQti2PluginOptions {
+export interface PieToQtiPluginOptions {
   /**
    * Custom generator registry to use
    * If not provided, uses the default registry with built-in generators
@@ -43,7 +43,7 @@ export interface PieToQti2PluginOptions {
    *
    * @example
    * ```typescript
-   * const plugin = new PieToQti2Plugin({
+   * const plugin = new PieToQtiPlugin({
    *   passageResolver: async (passageId) => {
    *     const passage = await db.passages.findById(passageId);
    *     return {
@@ -78,7 +78,7 @@ export interface PieToQti2PluginOptions {
 /**
  * PIE to QTI 2.2 transformation plugin
  */
-export class PieToQti2Plugin implements TransformPlugin {
+export class PieToQtiPlugin implements TransformPlugin {
   readonly id = 'pie-to-qti2';
   readonly version = '1.0.0';
   readonly name = 'PIE to QTI 2.2';
@@ -95,7 +95,7 @@ export class PieToQti2Plugin implements TransformPlugin {
    *
    * @param options - Configuration options
    */
-  constructor(options: PieToQti2PluginOptions = {}) {
+  constructor(options: PieToQtiPluginOptions = {}) {
     // Use provided registry or default
     this.registry = options.registry || defaultRegistry;
     this.passageResolver = options.passageResolver;

@@ -35,7 +35,7 @@ Thank you for your interest in contributing to the PIE-QTI project! This documen
 
 5. **Start development server**
    ```bash
-   cd packages/qti2-example
+   cd packages/example
    bun run dev
    ```
 
@@ -43,10 +43,10 @@ Thank you for your interest in contributing to the PIE-QTI project! This documen
 
 This is a monorepo with multiple packages:
 
-- **`packages/qti2-item-player/`** - Core item player (21 interaction types)
-- **`packages/qti2-assessment-player/`** - Multi-item assessment player
-- **`packages/qti2-player-elements/`** - Web component wrappers
-- **`packages/qti2-example/`** - Demo application
+- **`packages/item-player/`** - Core item player (21 interaction types)
+- **`packages/assessment-player/`** - Multi-item assessment player
+- **`packages/player-elements/`** - Web component wrappers
+- **`packages/example/`** - Demo application
 - **`packages/transform-app/`** - Transform web UI (includes QTI package upload and manifest parsing)
 
 ## Code Standards
@@ -106,10 +106,10 @@ This is a monorepo with multiple packages:
 
 ### Adding New Interaction Types
 
-1. Create processor in `packages/qti2-item-player/src/processors/`
-2. Add Svelte component in `packages/qti2-item-player/src/components/`
+1. Create processor in `packages/item-player/src/processors/`
+2. Add Svelte component in `packages/item-player/src/components/`
 3. Update `InlineInteractionRenderer.svelte` or `BlockInteractionRenderer.svelte`
-4. Add tests in `packages/qti2-item-player/tests/processors/`
+4. Add tests in `packages/item-player/tests/processors/`
 5. Update documentation in README
 
 ### Fixing Bugs

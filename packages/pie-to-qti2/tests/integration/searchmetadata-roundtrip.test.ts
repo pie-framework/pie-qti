@@ -5,13 +5,13 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { Qti22ToPiePlugin } from '@pie-qti/qti2-to-pie';
+import { QtiToPiePlugin } from '@pie-qti/to-pie';
 import type { PieItem } from '@pie-qti/transform-types';
-import { PieToQti2Plugin } from '../../src/plugin.js';
+import { PieToQtiPlugin } from '../../src/plugin.js';
 
 describe('searchMetaData Round-Trip', () => {
-  const pieToQti = new PieToQti2Plugin();
-  const qtiToPie = new Qti22ToPiePlugin();
+  const pieToQti = new PieToQtiPlugin();
+  const qtiToPie = new QtiToPiePlugin();
 
   // Mock logger
   const logger = {

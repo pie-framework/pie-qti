@@ -6,7 +6,7 @@
 import { Command, Flags, Args } from '@oclif/core';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { TransformEngine } from '@pie-qti/transform-core';
-import { Qti22ToPiePlugin } from '@pie-qti/qti2-to-pie';
+import { QtiToPiePlugin } from '@pie-qti/to-pie';
 import { ExampleCorpPlugin } from '@pie-qti-examples/vendor-examplecorp-plugin';
 
 export default class VendorTransform extends Command {
@@ -54,11 +54,11 @@ export default class VendorTransform extends Command {
 			const engine = new TransformEngine();
 
 			// Register plugins (core first, then vendor)
-			engine.use(new Qti22ToPiePlugin()); // Priority 100
+			engine.use(new QtiToPiePlugin()); // Priority 100
 			engine.use(new ExampleCorpPlugin()); // Priority 550
 
 			// Auto-detect which plugin can handle this
-			const plugins = [new ExampleCorpPlugin(), new Qti22ToPiePlugin()];
+			const plugins = [new ExampleCorpPlugin(), new QtiToPiePlugin()];
 			let selectedPlugin = null;
 
 			if (!flags.vendor) {
@@ -75,14 +75,14 @@ export default class VendorTransform extends Command {
 				}
 				if (!selectedPlugin) {
 					this.log('No vendor detected, using standard QTI plugin');
-					selectedPlugin = new Qti22ToPiePlugin();
+					selectedPlugin = new QtiToPiePlugin();
 				}
 			} else {
 				// Use specified vendor
 				if (flags.vendor === 'examplecorp') {
 					selectedPlugin = new ExampleCorpPlugin();
 				} else {
-					selectedPlugin = new Qti22ToPiePlugin();
+					selectedPlugin = new QtiToPiePlugin();
 				}
 			}
 

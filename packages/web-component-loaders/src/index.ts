@@ -19,12 +19,12 @@ export async function loadPieQtiPlayerElements(): Promise<void> {
 	if (typeof globalThis.window === 'undefined') return;
 	const store = getStore();
 
-	store.pieQtiPlayerElements ??= import('@pie-qti/qti2-player-elements/register').then(async () => {
+	store.pieQtiPlayerElements ??= import('@pie-qti/player-elements/register').then(async () => {
 		const win = globalThis.window as Window & { customElements?: CustomElementRegistry };
 		if (!win || typeof win.customElements === 'undefined') return;
 		await Promise.allSettled([
-			win.customElements.whenDefined('pie-qti2-item-player'),
-			win.customElements.whenDefined('pie-qti2-assessment-player'),
+			win.customElements.whenDefined('pie-qti-item-player'),
+			win.customElements.whenDefined('pie-qti-assessment-player'),
 		]);
 	});
 
