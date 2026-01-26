@@ -28,7 +28,7 @@
 				</div>
 
 				<div class="mt-8 flex flex-wrap gap-3">
-					<a class="btn btn-primary" href={examplesHref} target={dev ? undefined : '_blank'} rel="noreferrer">
+					<a class="btn btn-primary" href={examplesHref} data-sveltekit-reload rel="noreferrer">
 						Live Examples
 					</a>
 					<a
@@ -180,7 +180,7 @@
 					<h2 class="card-title">Quick links</h2>
 					<ul class="mt-2 space-y-2">
 						<li>
-							<a class="link link-primary" href={examplesHref} target={dev ? undefined : '_blank'} rel="noreferrer">
+							<a class="link link-primary" href={examplesHref} data-sveltekit-reload rel="noreferrer">
 								Live Examples
 							</a>
 						</li>

@@ -24,7 +24,7 @@
 		<div class="navbar-center hidden md:flex">
 			<ul class="menu menu-horizontal px-1">
 				<li><a href={`${base}/`}>Overview</a></li>
-				<li><a href={examplesHref}>Examples</a></li>
+				<li><a href={examplesHref} data-sveltekit-reload>Examples</a></li>
 			</ul>
 		</div>
 
