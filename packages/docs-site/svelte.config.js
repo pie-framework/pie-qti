@@ -22,7 +22,14 @@ const config = {
 		},
 		prerender: {
 			entries: ['*'],
-			handleMissingId: 'warn'
+			handleMissingId: 'warn',
+			handleHttpError: ({ status, path }) => {
+				// Ignore 404s for /examples path - it's served by a separate app
+				if (status === 404 && path.startsWith('/examples')) {
+					return;
+				}
+				throw new Error(`${status} ${path}`);
+			}
 		}
 	}
 };
