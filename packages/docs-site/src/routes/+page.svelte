@@ -4,7 +4,7 @@
 
 	// Note: docs-site is prerendered; avoid creating an internal prerender-crawled link to /examples
 	// (that path is served by a separate app, merged into the final Pages artifact).
-	const examplesHref = dev ? `${base}/examples/` : 'https://pie-framework.github.io/pie-qti/examples/';
+	const examplesHref = `${base}/examples/`;
 </script>
 
 <svelte:head>
@@ -72,7 +72,7 @@
 				<div class="card-body">
 					<div class="mockup-browser border border-base-300 bg-base-200">
 						<div class="mockup-browser-toolbar">
-							<div class="input border border-base-300 bg-base-100">pie-framework.github.io/pie-qti/examples</div>
+							<div class="input border border-base-300 bg-base-100">qti.pie-framework.org/examples</div>
 						</div>
 						<div class="bg-base-100 p-3">
 							<img

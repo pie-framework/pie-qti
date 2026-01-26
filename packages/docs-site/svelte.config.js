@@ -14,7 +14,11 @@ const config = {
 			strict: false
 		}),
 		paths: {
-			base: process.env.NODE_ENV === 'production' ? '/pie-qti' : ''
+			// No base path needed for custom domain (qti.pie-framework.org)
+			// Use GITHUB_PAGES_SUBPATH env var if deploying to GitHub Pages URL
+			base: process.env.GITHUB_PAGES_SUBPATH === 'true' && process.env.NODE_ENV === 'production'
+				? '/pie-qti'
+				: ''
 		},
 		prerender: {
 			entries: ['*'],
