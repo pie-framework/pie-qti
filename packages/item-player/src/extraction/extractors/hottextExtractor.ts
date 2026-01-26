@@ -30,9 +30,9 @@ export const standardHottextExtractor: ElementExtractor<HottextData> = {
 	elementTypes: ['hottextInteraction'],
 	description: 'Extracts standard QTI hottextInteraction (select text spans)',
 
-	canHandle(element, _context) {
-		// All hottextInteraction elements are standard
-		return element.rawTagName === 'hottextInteraction';
+	canHandle(_element, _context) {
+		// The registry already filtered by element type, so all elements here are standard
+		return true;
 	},
 
 	extract(element, context) {

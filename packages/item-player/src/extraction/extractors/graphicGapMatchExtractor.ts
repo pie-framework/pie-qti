@@ -44,9 +44,9 @@ export const standardGraphicGapMatchExtractor: ElementExtractor<GraphicGapMatchD
 	elementTypes: ['graphicGapMatchInteraction'],
 	description: 'Extracts standard QTI graphicGapMatchInteraction (drag text/images into gaps)',
 
-	canHandle(element, _context) {
-		// All graphicGapMatchInteraction elements are standard
-		return element.rawTagName === 'graphicGapMatchInteraction';
+	canHandle(_element, _context) {
+		// The registry already filtered by element type, so all elements here are standard
+		return true;
 	},
 
 	extract(element, context) {

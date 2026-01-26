@@ -38,9 +38,9 @@ export const standardSelectPointExtractor: ElementExtractor<SelectPointData> = {
 	elementTypes: ['selectPointInteraction'],
 	description: 'Extracts standard QTI selectPointInteraction (click point on image)',
 
-	canHandle(element, _context) {
-		// All selectPointInteraction elements are standard
-		return element.rawTagName === 'selectPointInteraction';
+	canHandle(_element, _context) {
+		// The registry already filtered by element type, so all elements here are standard
+		return true;
 	},
 
 	extract(element, context) {

@@ -26,9 +26,10 @@ export const standardTextEntryExtractor: ElementExtractor<TextEntryData> = {
 	elementTypes: ['textEntryInteraction'],
 	description: 'Extracts standard QTI textEntryInteraction (inline text input)',
 
-	canHandle(element, _context) {
-		// All textEntryInteraction elements are standard
-		return element.rawTagName === 'textEntryInteraction';
+	canHandle(_element, _context) {
+		// All textEntryInteraction elements are standard (both QTI 2.x and 3.0)
+		// The registry already filtered by element type, so if we're here, it's a textEntryInteraction
+		return true;
 	},
 
 	extract(element, context) {

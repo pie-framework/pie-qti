@@ -40,9 +40,9 @@ export const standardMediaExtractor: ElementExtractor<MediaData> = {
 	elementTypes: ['mediaInteraction'],
 	description: 'Extracts standard QTI mediaInteraction (video/audio playback)',
 
-	canHandle(element, _context) {
-		// All mediaInteraction elements are standard
-		return element.rawTagName === 'mediaInteraction';
+	canHandle(_element, _context) {
+		// The registry already filtered by element type, so all elements here are standard
+		return true;
 	},
 
 	extract(element, context) {

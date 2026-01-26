@@ -45,9 +45,9 @@ export const standardHotspotExtractor: ElementExtractor<HotspotData> = {
 	elementTypes: ['hotspotInteraction'],
 	description: 'Extracts standard QTI hotspotInteraction (clickable areas on image)',
 
-	canHandle(element, _context) {
-		// All hotspotInteraction elements are standard
-		return element.rawTagName === 'hotspotInteraction';
+	canHandle(_element, _context) {
+		// The registry already filtered by element type, so all elements here are standard
+		return true;
 	},
 
 	extract(element, context) {

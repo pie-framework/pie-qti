@@ -35,11 +35,9 @@ export const standardAssociateExtractor: ElementExtractor<AssociateData> = {
 	description: 'Extracts standard QTI associateInteraction (associating items)',
 
 	canHandle(element, context) {
-		// All associateInteraction elements with simpleAssociableChoice are standard
-		return (
-			element.rawTagName === 'associateInteraction' &&
-			context.utils.hasChildWithTag(element, 'simpleAssociableChoice')
-		);
+		// All associateInteraction elements with simpleAssociableChoice are standard (both QTI 2.x and 3.0)
+		// The registry already filtered by element type, just check for required children
+		return context.utils.hasChildWithTag(element, 'simpleAssociableChoice');
 	},
 
 	extract(element, context) {

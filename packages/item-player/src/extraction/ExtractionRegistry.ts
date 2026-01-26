@@ -8,6 +8,7 @@
  * - Validation and error handling
  */
 
+import { Qti2xElementNameMapper, type ElementNameMapper } from '@pie-qti/qti-common';
 import type { QTIElement } from '../types/interactions.js';
 import type {
 	ElementExtractor,
@@ -29,6 +30,16 @@ export class ExtractionRegistry {
 
 	/** Cache for element -> extractor lookups (WeakMap for automatic GC) */
 	private extractorCache = new WeakMap<QTIElement, ElementExtractor>();
+
+	/** Optional element name mapper for QTI version handling */
+	private elementNameMapper?: ElementNameMapper;
+
+	/** QTI 2.x mapper for converting canonical names to extractor registry keys */
+	private qti2xMapper = new Qti2xElementNameMapper();
+
+	constructor(elementNameMapper?: ElementNameMapper) {
+		this.elementNameMapper = elementNameMapper;
+	}
 
 	/**
 	 * Register an extractor with the registry
@@ -76,11 +87,16 @@ export class ExtractionRegistry {
 		this.extractorsById.set(extractor.id, extractor as ElementExtractor);
 
 		// Register by type for fast lookup
+		// Normalize element types to canonical (lowercase) form for version-agnostic lookup
 		for (const type of extractor.elementTypes) {
-			let extractors = this.extractorsByType.get(type);
+			// Convert to canonical form - extractors specify QTI 2.x names (e.g., 'choiceInteraction')
+			// but we store them in canonical form (e.g., 'choiceinteraction') for QTI version independence
+			const canonicalType = this.qti2xMapper.toCanonical(type);
+
+			let extractors = this.extractorsByType.get(canonicalType);
 			if (!extractors) {
 				extractors = [];
-				this.extractorsByType.set(type, extractors);
+				this.extractorsByType.set(canonicalType, extractors);
 			}
 
 			extractors.push(extractor as ElementExtractor);
@@ -103,9 +119,10 @@ export class ExtractionRegistry {
 		// Remove from ID map
 		this.extractorsById.delete(id);
 
-		// Remove from type maps
+		// Remove from type maps (using canonical form)
 		for (const type of extractor.elementTypes) {
-			const extractors = this.extractorsByType.get(type);
+			const canonicalType = this.qti2xMapper.toCanonical(type);
+			const extractors = this.extractorsByType.get(canonicalType);
 			if (extractors) {
 				const index = extractors.findIndex((e) => e.id === id);
 				if (index !== -1) {
@@ -113,7 +130,7 @@ export class ExtractionRegistry {
 				}
 				// Clean up empty arrays
 				if (extractors.length === 0) {
-					this.extractorsByType.delete(type);
+					this.extractorsByType.delete(canonicalType);
 				}
 			}
 		}
@@ -137,8 +154,24 @@ export class ExtractionRegistry {
 		const cached = this.extractorCache.get(element);
 		if (cached) return cached;
 
+		// Get element type - normalize using mapper for QTI version handling
+		// Extractors are registered in canonical (lowercase) form for version independence.
+		// Convert any QTI version element name to canonical form for lookup.
+		//
+		// Example for QTI 3.0:
+		//   'qti-choice-interaction' → 'choiceinteraction' (canonical)
+		// Example for QTI 2.x:
+		//   'choiceInteraction' → 'choiceinteraction' (canonical)
+		let lookupKey = element.rawTagName || '';
+		const originalKey = lookupKey;
+
+		if (lookupKey && this.elementNameMapper) {
+			// Convert element's raw tag to canonical form using the document's mapper
+			lookupKey = this.elementNameMapper.toCanonical(lookupKey);
+		}
+
 		// Get extractors for this element type (O(1) map lookup)
-		const extractors = this.extractorsByType.get(element.rawTagName || '');
+		const extractors = this.extractorsByType.get(lookupKey);
 		if (!extractors || extractors.length === 0) {
 			return null;
 		}
@@ -278,7 +311,7 @@ export class ExtractionRegistry {
 	 * @returns New registry with same extractors
 	 */
 	clone(): ExtractionRegistry {
-		const cloned = new ExtractionRegistry();
+		const cloned = new ExtractionRegistry(this.elementNameMapper);
 		for (const extractor of this.extractorsById.values()) {
 			cloned.register(extractor);
 		}
@@ -288,8 +321,9 @@ export class ExtractionRegistry {
 
 /**
  * Create a new extraction registry
+ * @param elementNameMapper - Optional element name mapper for QTI version handling
  * @returns Empty registry ready for extractor registration
  */
-export function createExtractionRegistry(): ExtractionRegistry {
-	return new ExtractionRegistry();
+export function createExtractionRegistry(elementNameMapper?: ElementNameMapper): ExtractionRegistry {
+	return new ExtractionRegistry(elementNameMapper);
 }

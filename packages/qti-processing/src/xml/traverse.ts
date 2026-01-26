@@ -73,12 +73,22 @@ export function findAssessmentItem(doc: Document): Element {
 	const root = doc.documentElement;
 	if (!root) throw new Error('XML has no documentElement');
 
-	// QTI items often have <assessmentItem> as the root element, but some wrappers exist.
-	if (localName(root)?.toLowerCase() === 'assessmentitem') return root;
+	const rootName = localName(root)?.toLowerCase();
 
-	const found = findFirstDescendant(root, 'assessmentItem');
-	if (!found) throw new Error('Could not find assessmentItem element in XML');
-	return found;
+	// QTI items can have <assessmentItem> (QTI 2.x) or <qti-assessment-item> (QTI 3.0) as root
+	if (rootName === 'assessmentitem' || rootName === 'qti-assessment-item') {
+		return root;
+	}
+
+	// Try QTI 2.x first
+	let found = findFirstDescendant(root, 'assessmentItem');
+	if (found) return found;
+
+	// Try QTI 3.0
+	found = findFirstDescendant(root, 'qti-assessment-item');
+	if (found) return found;
+
+	throw new Error('Could not find assessmentItem or qti-assessment-item element in XML');
 }
 
 

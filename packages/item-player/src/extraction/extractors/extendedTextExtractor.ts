@@ -27,9 +27,10 @@ export const standardExtendedTextExtractor: ElementExtractor<ExtendedTextData> =
 	elementTypes: ['extendedTextInteraction'],
 	description: 'Extracts standard QTI extendedTextInteraction (multi-line text input)',
 
-	canHandle(element, _context) {
-		// All extendedTextInteraction elements are standard
-		return element.rawTagName === 'extendedTextInteraction';
+	canHandle(_element, _context) {
+		// All extendedTextInteraction elements are standard (both QTI 2.x and 3.0)
+		// The registry already filtered by element type
+		return true;
 	},
 
 	extract(element, context) {

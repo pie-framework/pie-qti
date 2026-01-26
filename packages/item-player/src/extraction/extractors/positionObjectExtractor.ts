@@ -66,9 +66,9 @@ export const standardPositionObjectExtractor: ElementExtractor<PositionObjectDat
 	elementTypes: ['positionObjectInteraction'],
 	description: 'Extracts standard QTI positionObjectInteraction (drag object to position)',
 
-	canHandle(element, _context) {
-		// All positionObjectInteraction elements are standard
-		return element.rawTagName === 'positionObjectInteraction';
+	canHandle(_element, _context) {
+		// The registry already filtered by element type, so all elements here are standard
+		return true;
 	},
 
 	extract(element, context) {

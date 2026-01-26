@@ -28,9 +28,10 @@ export const standardMatchExtractor: ElementExtractor<MatchData> = {
 	elementTypes: ['matchInteraction'],
 	description: 'Extracts standard QTI matchInteraction (matching pairs)',
 
-	canHandle(element, _context) {
-		// All matchInteraction elements are standard
-		return element.rawTagName === 'matchInteraction';
+	canHandle(_element, _context) {
+		// All matchInteraction elements are standard (both QTI 2.x and 3.0)
+		// The registry already filtered by element type
+		return true;
 	},
 
 	extract(element, context) {

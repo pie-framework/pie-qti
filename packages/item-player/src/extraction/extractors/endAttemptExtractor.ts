@@ -26,9 +26,9 @@ export const standardEndAttemptExtractor: ElementExtractor<EndAttemptData> = {
 	elementTypes: ['endAttemptInteraction'],
 	description: 'Extracts standard QTI endAttemptInteraction (end attempt button)',
 
-	canHandle(element, _context) {
-		// All endAttemptInteraction elements are standard
-		return element.rawTagName === 'endAttemptInteraction';
+	canHandle(_element, _context) {
+		// The registry already filtered by element type, so all elements here are standard
+		return true;
 	},
 
 	extract(element, context) {

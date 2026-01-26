@@ -26,9 +26,9 @@ export const standardCustomExtractor: ElementExtractor<CustomData> = {
 	elementTypes: ['customInteraction'],
 	description: 'Extracts standard QTI customInteraction (custom/portable interactions)',
 
-	canHandle(element, _context) {
-		// All customInteraction elements are handled by this extractor
-		return element.rawTagName === 'customInteraction';
+	canHandle(_element, _context) {
+		// The registry already filtered by element type, so all elements here are standard
+		return true;
 	},
 
 	extract(element, context) {

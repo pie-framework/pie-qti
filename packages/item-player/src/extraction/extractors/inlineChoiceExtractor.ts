@@ -25,9 +25,9 @@ export const standardInlineChoiceExtractor: ElementExtractor<InlineChoiceData> =
 	elementTypes: ['inlineChoiceInteraction'],
 	description: 'Extracts standard QTI inlineChoiceInteraction (dropdown in text)',
 
-	canHandle(element, _context) {
-		// All inlineChoiceInteraction elements are standard
-		return element.rawTagName === 'inlineChoiceInteraction';
+	canHandle(_element, _context) {
+		// The registry already filtered by element type, so all elements here are standard
+		return true;
 	},
 
 	extract(element, context) {
