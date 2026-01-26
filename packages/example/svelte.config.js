@@ -25,9 +25,14 @@ const config = {
 			)
 		},
 		paths: {
-			// Host the examples app under GitHub Pages project subpath:
-			// https://pie-framework.github.io/pie-qti/examples/
-			base: process.env.NODE_ENV === 'production' ? '/pie-qti/examples' : ''
+			// When using custom domain (qti.pie-framework.org), examples are at /examples
+			// When using GitHub Pages URL (pie-framework.github.io/pie-qti), examples are at /pie-qti/examples
+			// Use GITHUB_PAGES_SUBPATH env var to control this (set in workflow for GitHub Pages URL)
+			base: process.env.GITHUB_PAGES_SUBPATH === 'true' && process.env.NODE_ENV === 'production'
+				? '/pie-qti/examples'
+				: process.env.NODE_ENV === 'production'
+					? '/examples'
+					: ''
 		},
 		prerender: {
 			handleMissingId: 'warn',

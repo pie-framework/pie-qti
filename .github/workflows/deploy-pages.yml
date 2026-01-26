@@ -56,14 +56,14 @@ jobs:
         run: cd packages/docs-site && bun run build
 
       - name: Build examples app for GitHub Pages (/examples)
-        run: cd packages/qti2-example && bun run build
+        run: cd packages/example && bun run build
 
       - name: Assemble GitHub Pages artifact (docs at /, examples at /examples)
         run: |
           rm -rf dist-pages
           mkdir -p dist-pages/examples
           cp -R packages/docs-site/build/* dist-pages/
-          cp -R packages/qti2-example/build/* dist-pages/examples/
+          cp -R packages/example/build/* dist-pages/examples/
           touch dist-pages/.nojekyll
 
       - name: Upload Pages artifact
