@@ -79,6 +79,58 @@ By default, the app uses local filesystem storage. The architecture supports cus
 - Authentication and authorization
 - Server-side scoring
 
+## Configuration
+
+### Plugin Management
+
+The transform-app includes a built-in admin interface at `/admin/plugins` showing:
+
+- Installed transform plugins with priorities
+- Registered vendor extensions
+- Available extension points (storage, formats, themes, locales)
+- Configuration documentation
+
+### Config File
+
+Copy `config.example.json` to `config.json` and customize:
+
+```json
+{
+  "storage": {
+    "backend": "filesystem",
+    "options": { "rootDir": "./data/sessions" }
+  },
+  "plugins": {
+    "qti22": {
+      "pie": {
+        "module": "@pie-qti/to-pie",
+        "options": { "preserveQtiSource": true }
+      }
+    }
+  },
+  "logger": {
+    "level": "info",
+    "format": "text"
+  }
+}
+```
+
+Point to the config file:
+
+```bash
+PIE_QTI_CONFIG=./config.json bun run dev
+```
+
+### Extension Points
+
+**Transform Plugins** — Register custom format converters
+**Vendor Extensions** — Add vendor-specific transformers, detectors, asset resolvers
+**Storage Backends** — Use filesystem (default), S3, database, or custom
+**UI Themes** — Customize with DaisyUI themes (light, dark, cupcake, cyberpunk)
+**i18n Locales** — Add translations for additional languages
+
+See `/admin/plugins` in the running app for complete extension point documentation.
+
 ## Development
 
 ```bash

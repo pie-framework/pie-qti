@@ -51,15 +51,21 @@ async function initializeStorage(): Promise<void> {
 		if (config.plugins && Object.keys(config.plugins).length > 0) {
 			try {
 				await loadAndRegisterPlugins(transformEngine, config.plugins);
-				console.log(`[Transform App] Loaded ${Object.keys(config.plugins).length} additional plugin(s)`);
+				console.log(`[Transform App] Loaded ${Object.keys(config.plugins).length} additional plugin(s) from config`);
 			} catch (error) {
 				console.warn('[Transform App] Failed to load plugins from config:', error);
 				// Continue with just the core plugin
 			}
 		}
 
-		console.log(`[Transform App] Storage initialized: ${storageBackend.name}`);
-		console.log(`[Transform App] Transform engine initialized with plugins`);
+		// Log initialization summary
+		const plugins = transformEngine.getPlugins();
+		console.log(`[Transform App] Configuration loaded`);
+		console.log(`[Transform App] Storage backend: ${storageBackend.name}`);
+		console.log(`[Transform App] Plugins registered (${plugins.length}):`);
+		for (const plugin of plugins) {
+			console.log(`  - ${plugin.name} (${plugin.sourceFormat} → ${plugin.targetFormat}, priority: ${plugin.priority || 100})`);
+		}
 	} catch (error) {
 		console.error('[Transform App] Failed to initialize storage:', error);
 		throw error;

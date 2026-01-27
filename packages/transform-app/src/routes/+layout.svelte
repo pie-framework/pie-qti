@@ -50,6 +50,12 @@
 			<a href="/" class="btn btn-ghost btn-sm normal-case" data-testid="navbar-home">{i18n?.t('transform.appName') ?? 'QTI Batch Processor'}</a>
 		</div>
 		<div class="flex-none gap-2">
+			<a href="/admin/plugins" class="btn btn-ghost btn-sm">
+				<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="w-4 h-4 stroke-current">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+				</svg>
+				<span class="hidden sm:inline">Plugins</span>
+			</a>
 			<div class="dropdown dropdown-end">
 				<div tabindex="0" role="button" class="btn btn-ghost btn-sm">
 					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="w-4 h-4 stroke-current">
