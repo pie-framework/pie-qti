@@ -11,6 +11,13 @@ import { loadAndRegisterPlugins } from '@pie-qti/transform-core/config/plugin-lo
 import { QtiToPiePlugin } from '@pie-qti/to-pie';
 import { createStorageBackend, loadConfig } from '$lib/server/config';
 import { AppSessionStorage } from '$lib/server/storage/app-session-storage';
+import {
+	AcmeVendorDetector,
+	AcmeSliderTransformer,
+	AcmeAssetResolver,
+	AcmeCssClassExtractor,
+	AcmeMetadataExtractor,
+} from '@pie-qti/demo-vendor-extensions';
 
 let storageBackend: StorageBackend | null = null;
 let sessionStorage: SessionStorage | null = null;
@@ -44,8 +51,23 @@ async function initializeStorage(): Promise<void> {
 		// Initialize transform engine
 		transformEngine = new TransformEngine();
 
-		// Register core QTI plugin
-		transformEngine.use(new QtiToPiePlugin());
+		// Register core QTI plugin with demo vendor extensions
+		console.log('[Transform App] Initializing QTI plugin with Acme vendor extensions...');
+		const qtiPlugin = new QtiToPiePlugin({
+			vendorDetectors: [new AcmeVendorDetector()],
+			vendorTransformers: [new AcmeSliderTransformer()],
+			assetResolvers: [new AcmeAssetResolver()],
+			cssClassExtractors: [new AcmeCssClassExtractor()],
+			metadataExtractors: [new AcmeMetadataExtractor()],
+		});
+		transformEngine.use(qtiPlugin);
+		console.log('[Transform App] ✅ Acme vendor extensions registered:');
+		console.log('[Transform App]    - AcmeVendorDetector (detects Acme QTI patterns)');
+		console.log('[Transform App]    - AcmeSliderTransformer (handles sliderInteraction)');
+		console.log('[Transform App]    - AcmeAssetResolver (resolves Acme CDN assets)');
+		console.log('[Transform App]    - AcmeCssClassExtractor (categorizes Acme CSS classes)');
+		console.log('[Transform App]    - AcmeMetadataExtractor (extracts Acme metadata)');
+
 
 		// Load and register additional plugins from config (if any)
 		if (config.plugins && Object.keys(config.plugins).length > 0) {

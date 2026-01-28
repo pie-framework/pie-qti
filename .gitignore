@@ -110,3 +110,5 @@ packages/transform-ui/
 
 # Editor MCP configurations (user-specific paths)
 .cursor/mcp.json
+
+packages/mcp-imagen
