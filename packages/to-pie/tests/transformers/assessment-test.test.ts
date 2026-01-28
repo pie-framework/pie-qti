@@ -5,7 +5,6 @@
 import { describe, expect, it } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { PieAssessment } from '../../src/transformers/assessment-test.js';
 import { transformAssessmentTest } from '../../src/transformers/assessment-test.js';
 
 function loadFixture(name: string): string {
@@ -22,16 +21,17 @@ describe('transformAssessmentTest', () => {
 			expect(assessment).toBeDefined();
 			expect(assessment.identifier).toBe('test001');
 			expect(assessment.title).toBe('Basic Mathematics Test');
-			expect(assessment.metadata.source).toBe('qti22');
-			expect(assessment.metadata.qtiIdentifier).toBe('test001');
+			expect(assessment.qtiVersion).toBe('3.0');
+			expect(assessment.testParts).toHaveLength(1);
 		});
 
 		it('should extract sections from assessment', () => {
 			const xml = loadFixture('assessment-basic.xml');
 			const assessment = transformAssessmentTest(xml, 'test-001');
 
-			expect(assessment.sections).toHaveLength(1);
-			const section = assessment.sections[0];
+			expect(assessment.testParts).toHaveLength(1);
+			expect(assessment.testParts[0].sections).toHaveLength(1);
+			const section = assessment.testParts[0].sections[0];
 			expect(section.identifier).toBe('section1');
 			expect(section.title).toBe('Arithmetic');
 			expect(section.visible).toBe(true);
@@ -42,7 +42,7 @@ describe('transformAssessmentTest', () => {
 			const xml = loadFixture('assessment-basic.xml');
 			const assessment = transformAssessmentTest(xml, 'test-001');
 
-			const section = assessment.sections[0];
+			const section = assessment.testParts[0].sections[0];
 			expect(section.itemRefs).toHaveLength(3);
 
 			expect(section.itemRefs[0].identifier).toBe('item1');
@@ -65,11 +65,11 @@ describe('transformAssessmentTest', () => {
 
 			// Each transformation should generate unique IDs
 			expect(assessment1.id).not.toBe(assessment2.id);
-			expect(assessment1.sections[0].id).not.toBe(assessment2.sections[0].id);
+			expect(assessment1.testParts[0].sections[0].id).not.toBe(assessment2.testParts[0].sections[0].id);
 
 			// But identifiers should remain the same
 			expect(assessment1.identifier).toBe(assessment2.identifier);
-			expect(assessment1.sections[0].identifier).toBe(assessment2.sections[0].identifier);
+			expect(assessment1.testParts[0].sections[0].identifier).toBe(assessment2.testParts[0].sections[0].identifier);
 		});
 	});
 
@@ -80,8 +80,8 @@ describe('transformAssessmentTest', () => {
 
 			// NOTE: Current implementation has a bug where nested sections appear at top level
 			// This should be 1, but implementation returns 3 (parent + 2 nested)
-			expect(assessment.sections).toHaveLength(3);
-			const topSection = assessment.sections[0];
+			expect(assessment.testParts[0].sections).toHaveLength(3);
+			const topSection = assessment.testParts[0].sections[0];
 			expect(topSection.identifier).toBe('section1');
 			expect(topSection.title).toBe('Mathematics');
 
@@ -98,7 +98,7 @@ describe('transformAssessmentTest', () => {
 			const xml = loadFixture('assessment-nested-sections.xml');
 			const assessment = transformAssessmentTest(xml, 'test-002');
 
-			const algebraSection = assessment.sections[0].subsections![0];
+			const algebraSection = assessment.testParts[0].sections[0].subsections![0];
 			expect(algebraSection.identifier).toBe('section1-1');
 			expect(algebraSection.title).toBe('Algebra');
 			expect(algebraSection.visible).toBe(true);
@@ -112,7 +112,7 @@ describe('transformAssessmentTest', () => {
 			const xml = loadFixture('assessment-nested-sections.xml');
 			const assessment = transformAssessmentTest(xml, 'test-002');
 
-			const geometrySection = assessment.sections[0].subsections![1];
+			const geometrySection = assessment.testParts[0].sections[0].subsections![1];
 			expect(geometrySection.identifier).toBe('section1-2');
 			expect(geometrySection.title).toBe('Geometry');
 			expect(geometrySection.visible).toBe(true);
@@ -128,7 +128,7 @@ describe('transformAssessmentTest', () => {
 
 			// NOTE: Current implementation collects ALL items including from nested sections
 			// This is actually a bug, but documenting current behavior
-			const topSection = assessment.sections[0];
+			const topSection = assessment.testParts[0].sections[0];
 			expect(topSection.itemRefs.length).toBeGreaterThan(1);
 
 			// Subsections should have their own items
@@ -136,10 +136,10 @@ describe('transformAssessmentTest', () => {
 			const geometry = topSection.subsections![1];
 
 			expect(algebra.itemRefs).toHaveLength(2);
-			expect(algebra.itemRefs.map(i => i.identifier)).toEqual(['item2', 'item3']);
+			expect(algebra.itemRefs.map((i: any) => i.identifier)).toEqual(['item2', 'item3']);
 
 			expect(geometry.itemRefs).toHaveLength(2);
-			expect(geometry.itemRefs.map(i => i.identifier)).toEqual(['item4', 'item5']);
+			expect(geometry.itemRefs.map((i: any) => i.identifier)).toEqual(['item4', 'item5']);
 		});
 	});
 
@@ -148,7 +148,7 @@ describe('transformAssessmentTest', () => {
 			const xml = loadFixture('assessment-selection-ordering.xml');
 			const assessment = transformAssessmentTest(xml, 'test-003');
 
-			const section = assessment.sections[0];
+			const section = assessment.testParts[0].sections[0];
 			expect(section.selection).toBeDefined();
 			expect(section.selection?.select).toBe(3);
 			expect(section.selection?.withReplacement).toBe(false);
@@ -158,7 +158,7 @@ describe('transformAssessmentTest', () => {
 			const xml = loadFixture('assessment-selection-ordering.xml');
 			const assessment = transformAssessmentTest(xml, 'test-003');
 
-			const section = assessment.sections[0];
+			const section = assessment.testParts[0].sections[0];
 			expect(section.ordering).toBeDefined();
 			expect(section.ordering?.shuffle).toBe(true);
 			expect(section.shuffle).toBe(true);
@@ -168,7 +168,7 @@ describe('transformAssessmentTest', () => {
 			const xml = loadFixture('assessment-selection-ordering.xml');
 			const assessment = transformAssessmentTest(xml, 'test-003');
 
-			const section = assessment.sections[0];
+			const section = assessment.testParts[0].sections[0];
 			// Even though only 3 will be selected, all 5 should be present in the data
 			expect(section.itemRefs).toHaveLength(5);
 		});
@@ -181,7 +181,7 @@ describe('transformAssessmentTest', () => {
 				includeBranchRules: true
 			});
 
-			const item = assessment.sections[0].itemRefs[0];
+			const item = assessment.testParts[0].sections[0].itemRefs[0];
 			expect(item.branchRule).toBeDefined();
 			expect(item.branchRule).toHaveLength(2);
 		});
@@ -192,7 +192,7 @@ describe('transformAssessmentTest', () => {
 				includeBranchRules: true
 			});
 
-			const branchRules = assessment.sections[0].itemRefs[0].branchRule!;
+			const branchRules = assessment.testParts[0].sections[0].itemRefs[0].branchRule!;
 			expect(branchRules[0].target).toBe('section2');
 			expect(branchRules[1].target).toBe('section3');
 		});
@@ -203,7 +203,7 @@ describe('transformAssessmentTest', () => {
 				includeBranchRules: true
 			});
 
-			const branchRules = assessment.sections[0].itemRefs[0].branchRule!;
+			const branchRules = assessment.testParts[0].sections[0].itemRefs[0].branchRule!;
 			expect(branchRules[0].conditionXml).toContain('<gt>');
 			expect(branchRules[0].conditionXml).toContain('identifier="SCORE"');
 			expect(branchRules[0].conditionXml).toContain('<baseValue baseType="integer">5</baseValue>');
@@ -219,7 +219,7 @@ describe('transformAssessmentTest', () => {
 				includeBranchRules: false
 			});
 
-			const item = assessment.sections[0].itemRefs[0];
+			const item = assessment.testParts[0].sections[0].itemRefs[0];
 			expect(item.branchRule).toBeUndefined();
 		});
 
@@ -227,10 +227,10 @@ describe('transformAssessmentTest', () => {
 			const xml = loadFixture('assessment-branching.xml');
 			const assessment = transformAssessmentTest(xml, 'test-004');
 
-			expect(assessment.sections).toHaveLength(3);
-			expect(assessment.sections[0].identifier).toBe('section1');
-			expect(assessment.sections[1].identifier).toBe('section2');
-			expect(assessment.sections[2].identifier).toBe('section3');
+			expect(assessment.testParts[0].sections).toHaveLength(3);
+			expect(assessment.testParts[0].sections[0].identifier).toBe('section1');
+			expect(assessment.testParts[0].sections[1].identifier).toBe('section2');
+			expect(assessment.testParts[0].sections[2].identifier).toBe('section3');
 		});
 	});
 
@@ -241,7 +241,7 @@ describe('transformAssessmentTest', () => {
 				includeTimeLimits: true
 			});
 
-			const section = assessment.sections[0];
+			const section = assessment.testParts[0].sections[0];
 			expect(section.timeLimits).toBeDefined();
 			expect(section.timeLimits?.maxTime).toBe(1800); // 30 minutes in seconds
 			expect(section.timeLimits?.allowLateSubmission).toBe(false);
@@ -253,7 +253,7 @@ describe('transformAssessmentTest', () => {
 				includeTimeLimits: true
 			});
 
-			const items = assessment.sections[0].itemRefs;
+			const items = assessment.testParts[0].sections[0].itemRefs;
 
 			// Item 1: 5 minutes, no late submission
 			expect(items[0].timeLimits).toBeDefined();
@@ -272,9 +272,9 @@ describe('transformAssessmentTest', () => {
 				includeTimeLimits: false
 			});
 
-			const section = assessment.sections[0];
+			const section = assessment.testParts[0].sections[0];
 			expect(section.timeLimits).toBeUndefined();
-			expect(assessment.sections[0].itemRefs[0].timeLimits).toBeUndefined();
+			expect(assessment.testParts[0].sections[0].itemRefs[0].timeLimits).toBeUndefined();
 		});
 	});
 
@@ -285,7 +285,7 @@ describe('transformAssessmentTest', () => {
 				includeItemControls: true
 			});
 
-			const item = assessment.sections[0].itemRefs[0];
+			const item = assessment.testParts[0].sections[0].itemRefs[0];
 			expect(item.itemSessionControl).toBeDefined();
 		});
 
@@ -295,7 +295,7 @@ describe('transformAssessmentTest', () => {
 				includeItemControls: true
 			});
 
-			const control = assessment.sections[0].itemRefs[0].itemSessionControl!;
+			const control = assessment.testParts[0].sections[0].itemRefs[0].itemSessionControl!;
 			expect(control.maxAttempts).toBe(3);
 			expect(control.showFeedback).toBe(true);
 			expect(control.allowReview).toBe(true);
@@ -311,7 +311,7 @@ describe('transformAssessmentTest', () => {
 				includeItemControls: true
 			});
 
-			const control = assessment.sections[0].itemRefs[1].itemSessionControl!;
+			const control = assessment.testParts[0].sections[0].itemRefs[1].itemSessionControl!;
 			expect(control.maxAttempts).toBe(1);
 			expect(control.showFeedback).toBe(false);
 			expect(control.allowReview).toBe(false);
@@ -327,7 +327,7 @@ describe('transformAssessmentTest', () => {
 				includeItemControls: false
 			});
 
-			const item = assessment.sections[0].itemRefs[0];
+			const item = assessment.testParts[0].sections[0].itemRefs[0];
 			expect(item.itemSessionControl).toBeUndefined();
 		});
 	});
@@ -337,10 +337,10 @@ describe('transformAssessmentTest', () => {
 			const xml = loadFixture('assessment-item-controls.xml');
 			const assessment = transformAssessmentTest(xml, 'test-006');
 
-			const item1 = assessment.sections[0].itemRefs[0];
+			const item1 = assessment.testParts[0].sections[0].itemRefs[0];
 			expect(item1.category).toEqual(['easy', 'algebra']);
 
-			const item2 = assessment.sections[0].itemRefs[1];
+			const item2 = assessment.testParts[0].sections[0].itemRefs[1];
 			expect(item2.category).toEqual(['hard']);
 		});
 
@@ -348,10 +348,10 @@ describe('transformAssessmentTest', () => {
 			const xml = loadFixture('assessment-item-controls.xml');
 			const assessment = transformAssessmentTest(xml, 'test-006');
 
-			const item1 = assessment.sections[0].itemRefs[0];
+			const item1 = assessment.testParts[0].sections[0].itemRefs[0];
 			expect(item1.weight).toBe(2.5);
 
-			const item2 = assessment.sections[0].itemRefs[1];
+			const item2 = assessment.testParts[0].sections[0].itemRefs[1];
 			expect(item2.weight).toBe(5.0);
 		});
 
@@ -359,11 +359,11 @@ describe('transformAssessmentTest', () => {
 			const xml = loadFixture('assessment-item-controls.xml');
 			const assessment = transformAssessmentTest(xml, 'test-006');
 
-			const item1 = assessment.sections[0].itemRefs[0];
+			const item1 = assessment.testParts[0].sections[0].itemRefs[0];
 			expect(item1.required).toBeFalsy();
 			expect(item1.fixed).toBeFalsy();
 
-			const item2 = assessment.sections[0].itemRefs[1];
+			const item2 = assessment.testParts[0].sections[0].itemRefs[1];
 			expect(item2.required).toBe(true);
 			expect(item2.fixed).toBe(true);
 		});
@@ -378,7 +378,7 @@ describe('transformAssessmentTest', () => {
 				includeItemControls: false
 			});
 
-			const item = assessment.sections[0].itemRefs[0];
+			const item = assessment.testParts[0].sections[0].itemRefs[0];
 			expect(item.timeLimits).toBeUndefined();
 			expect(item.branchRule).toBeUndefined();
 			expect(item.itemSessionControl).toBeUndefined();
@@ -393,7 +393,7 @@ describe('transformAssessmentTest', () => {
 			const assessment = transformAssessmentTest(xml, 'test-001');
 
 			// Default behavior: options are false/undefined
-			const section = assessment.sections[0];
+			const section = assessment.testParts[0].sections[0];
 			expect(section.timeLimits).toBeUndefined();
 		});
 	});
@@ -417,8 +417,8 @@ describe('transformAssessmentTest', () => {
 				</assessmentTest>`;
 
 			const assessment = transformAssessmentTest(xml, 'test-empty');
-			expect(assessment.sections).toHaveLength(1);
-			expect(assessment.sections[0].itemRefs).toHaveLength(0);
+			expect(assessment.testParts[0].sections).toHaveLength(1);
+			expect(assessment.testParts[0].sections[0].itemRefs).toHaveLength(0);
 		});
 
 		it('should handle missing optional attributes', () => {
@@ -453,9 +453,9 @@ describe('transformAssessmentTest', () => {
 
 			const assessment = transformAssessmentTest(xml, 'test-bad');
 			// Should only include items with both identifier and href
-			expect(assessment.sections[0].itemRefs).toHaveLength(2);
-			expect(assessment.sections[0].itemRefs[0].identifier).toBe('item1');
-			expect(assessment.sections[0].itemRefs[1].identifier).toBe('item3');
+			expect(assessment.testParts[0].sections[0].itemRefs).toHaveLength(2);
+			expect(assessment.testParts[0].sections[0].itemRefs[0].identifier).toBe('item1');
+			expect(assessment.testParts[0].sections[0].itemRefs[1].identifier).toBe('item3');
 		});
 	});
 
@@ -477,10 +477,14 @@ describe('transformAssessmentTest', () => {
 				</assessmentTest>`;
 
 			const assessment = transformAssessmentTest(xml, 'multi');
-			// All sections from all parts should be combined
-			expect(assessment.sections).toHaveLength(2);
-			expect(assessment.sections[0].identifier).toBe('section1');
-			expect(assessment.sections[1].identifier).toBe('section2');
+			// QTI 3.0: testParts are preserved as separate structures
+			expect(assessment.testParts).toHaveLength(2);
+			expect(assessment.testParts[0].identifier).toBe('part1');
+			expect(assessment.testParts[0].sections).toHaveLength(1);
+			expect(assessment.testParts[0].sections[0].identifier).toBe('section1');
+			expect(assessment.testParts[1].identifier).toBe('part2');
+			expect(assessment.testParts[1].sections).toHaveLength(1);
+			expect(assessment.testParts[1].sections[0].identifier).toBe('section2');
 		});
 
 		it('should preserve section visibility flags', () => {
@@ -501,9 +505,9 @@ describe('transformAssessmentTest', () => {
 				</assessmentTest>`;
 
 			const assessment = transformAssessmentTest(xml, 'vis');
-			expect(assessment.sections[0].visible).toBe(true);
-			expect(assessment.sections[1].visible).toBe(false);
-			expect(assessment.sections[2].visible).toBe(true); // Default is true
+			expect(assessment.testParts[0].sections[0].visible).toBe(true);
+			expect(assessment.testParts[0].sections[1].visible).toBe(false);
+			expect(assessment.testParts[0].sections[2].visible).toBe(true); // Default is true
 		});
 	});
 });

@@ -10,11 +10,70 @@ import { parse } from 'node-html-parser';
 import { v4 as uuid } from 'uuid';
 import { createMissingElementError } from '../utils/qti-errors.js';
 
+// QTI 3.0 Type Definitions
+
+export interface TestPart {
+  identifier: string;
+  navigationMode: 'linear' | 'nonlinear';
+  submissionMode: 'individual' | 'simultaneous';
+  sections: AssessmentSection[];
+}
+
+export interface ContextDeclaration {
+  identifier: string;
+  baseType: 'boolean' | 'integer' | 'float' | 'string' | 'identifier' |
+            'point' | 'pair' | 'directedPair' | 'duration' | 'file' | 'uri';
+  cardinality: 'single' | 'multiple' | 'ordered' | 'record';
+  defaultValue?: any;
+}
+
+export interface CatalogCard {
+  catalog: string; // 'spoken', 'sign-language', 'braille', etc.
+  language?: string;
+  content: string;
+}
+
+export interface AccessibilityCatalog {
+  identifier: string;
+  cards: CatalogCard[];
+}
+
+export interface PersonalNeedsProfile {
+  supports: string[];
+  prohibitedSupports?: string[];
+  activateAtInit?: string[];
+}
+
+export interface StimulusRef {
+  identifier: string;
+  href: string;
+  type: 'qti-stimulus';
+}
+
 export interface PieAssessment {
   id: string;
   title: string;
   identifier: string;
   description?: string;
+
+  /** QTI version - always '3.0' */
+  qtiVersion: '3.0';
+
+  /** QTI 3.0 test structure: testParts → sections → items */
+  testParts: TestPart[];
+
+  /** QTI 3.0: Context declarations (global shared variables) */
+  contextDeclarations?: ContextDeclaration[];
+
+  /** QTI 3.0: Integrated APIP accessibility catalogs */
+  accessibilityCatalogs?: AccessibilityCatalog[];
+
+  /** QTI 3.0: Personal Needs Profile (PNP 3.0) */
+  personalNeedsProfile?: PersonalNeedsProfile;
+
+  /** QTI 3.0: Stimulus references (shared passages) */
+  stimulusRefs?: StimulusRef[];
+
   /**
    * Lossless XML for assessment-level outcomeProcessing (QTI expression/rule set).
    * Required for full QTI-conformant test processing.
@@ -47,13 +106,7 @@ export interface PieAssessment {
     /** Lossless XML for complete testFeedback element */
     xml: string;
   }>;
-  metadata: {
-    source: 'qti22';
-    qtiIdentifier: string;
-    navigationMode?: 'linear' | 'nonlinear';
-    submissionMode?: 'individual' | 'simultaneous';
-  };
-  sections: AssessmentSection[];
+
   timeLimits?: {
     maxTime?: number; // seconds
     allowLateSubmission?: boolean;
@@ -167,16 +220,25 @@ export function transformAssessmentTest(
   const testFeedback = extractTestFeedback(assessmentTest);
 
   // Get test parts (typically one testPart per assessment)
-  const testParts = assessmentTest.getElementsByTagName('testPart');
-  const sections: AssessmentSection[] = [];
+  const testPartElements = assessmentTest.getElementsByTagName('testPart');
+  const testParts: TestPart[] = [];
 
-  for (const testPart of Array.from(testParts)) {
-    // Note: navigationMode and submissionMode could be extracted here for future use
-    // const navigationMode = testPart.getAttribute('navigationMode') as 'linear' | 'nonlinear' | undefined;
-    // const submissionMode = testPart.getAttribute('submissionMode') as 'individual' | 'simultaneous' | undefined;
+  // QTI 3.0 requires at least one testPart
+  if (testPartElements.length === 0) {
+    throw createMissingElementError('testPart', {
+      itemId: assessmentId,
+      details: 'QTI 3.0 requires at least one <testPart> element. The test structure must follow: test → testPart → section → items.',
+    });
+  }
+
+  for (const testPartElement of Array.from(testPartElements)) {
+    const testPartIdentifier = testPartElement.getAttribute('identifier') || 'default-part';
+    const navigationMode = (testPartElement.getAttribute('navigationMode') as 'linear' | 'nonlinear') || 'nonlinear';
+    const submissionMode = (testPartElement.getAttribute('submissionMode') as 'individual' | 'simultaneous') || 'individual';
 
     // Extract assessment sections from test part
-    const assessmentSections = testPart.getElementsByTagName('assessmentSection');
+    const assessmentSections = testPartElement.getElementsByTagName('assessmentSection');
+    const testPartSections: AssessmentSection[] = [];
 
     for (const section of Array.from(assessmentSections)) {
       // Skip nested sections (they'll be handled recursively)
@@ -186,28 +248,46 @@ export function transformAssessmentTest(
 
       const transformedSection = transformSection(section, options);
       if (transformedSection) {
-        sections.push(transformedSection);
+        testPartSections.push(transformedSection);
       }
     }
 
-    // Note: timeLimits and other testPart-level settings could be stored
-    // in the assessment metadata if needed in the future
+    // Build QTI 3.0 testPart structure
+    testParts.push({
+      identifier: testPartIdentifier,
+      navigationMode,
+      submissionMode,
+      sections: testPartSections,
+    });
   }
+
+  // Extract QTI 3.0 context declarations
+  const contextDeclarations = extractContextDeclarations(assessmentTest);
+
+  // Extract QTI 3.0 accessibility catalogs
+  const accessibilityCatalogs = extractAccessibilityCatalogs(assessmentTest);
+
+  // Extract QTI 3.0 personal needs profile
+  const personalNeedsProfile = extractPersonalNeedsProfile(assessmentTest);
+
+  // Extract QTI 3.0 stimulus references
+  const stimulusRefs = extractStimulusRefs(assessmentTest);
 
   const assessment: PieAssessment = {
     id: uuid(),
     title,
     identifier,
+    qtiVersion: '3.0',
+    testParts,
+    contextDeclarations: contextDeclarations.length > 0 ? contextDeclarations : undefined,
+    accessibilityCatalogs: accessibilityCatalogs.length > 0 ? accessibilityCatalogs : undefined,
+    personalNeedsProfile,
+    stimulusRefs: stimulusRefs.length > 0 ? stimulusRefs : undefined,
     outcomeProcessingXml,
     outcomeDeclarationsXml: outcomeDeclarationsXml.length > 0 ? outcomeDeclarationsXml : undefined,
     templateDeclarationsXml: templateDeclarationsXml.length > 0 ? templateDeclarationsXml : undefined,
     templateProcessingXml,
     testFeedback: testFeedback.length > 0 ? testFeedback : undefined,
-    metadata: {
-      source: 'qti22',
-      qtiIdentifier: identifier,
-    },
-    sections,
   };
 
   return assessment;
@@ -589,4 +669,143 @@ function extractTestFeedback(assessmentTest: HTMLElement): Array<{
   }
 
   return feedbackList;
+}
+
+/**
+ * Extract QTI 3.0 context declarations (global shared variables)
+ */
+function extractContextDeclarations(assessmentTest: HTMLElement): ContextDeclaration[] {
+  const declarations: ContextDeclaration[] = [];
+  const contextDeclarations = assessmentTest.getElementsByTagName('contextDeclaration');
+
+  for (const declaration of Array.from(contextDeclarations)) {
+    // Skip if nested inside other elements
+    if (declaration.parentNode === assessmentTest) {
+      const identifier = declaration.getAttribute('identifier');
+      const baseType = declaration.getAttribute('baseType');
+      const cardinality = declaration.getAttribute('cardinality');
+
+      if (identifier && baseType && cardinality) {
+        const contextDecl: ContextDeclaration = {
+          identifier,
+          baseType: baseType as ContextDeclaration['baseType'],
+          cardinality: cardinality as ContextDeclaration['cardinality'],
+        };
+
+        // Extract default value if present
+        const defaultValue = declaration.querySelector('defaultValue') ||
+                           declaration.getElementsByTagName('defaultValue')[0];
+        if (defaultValue) {
+          const valueElement = defaultValue.querySelector('value') ||
+                             defaultValue.getElementsByTagName('value')[0];
+          if (valueElement) {
+            contextDecl.defaultValue = valueElement.textContent?.trim();
+          }
+        }
+
+        declarations.push(contextDecl);
+      }
+    }
+  }
+
+  return declarations;
+}
+
+/**
+ * Extract QTI 3.0 accessibility catalogs (integrated APIP)
+ */
+function extractAccessibilityCatalogs(assessmentTest: HTMLElement): AccessibilityCatalog[] {
+  const catalogs: AccessibilityCatalog[] = [];
+  const catalogElements = assessmentTest.getElementsByTagName('accessibilityCatalog');
+
+  for (const catalogElement of Array.from(catalogElements)) {
+    const identifier = catalogElement.getAttribute('identifier');
+    if (!identifier) continue;
+
+    const cards: CatalogCard[] = [];
+    const cardElements = catalogElement.getElementsByTagName('catalogCard');
+
+    for (const cardElement of Array.from(cardElements)) {
+      const catalog = cardElement.getAttribute('catalog');
+      const language = cardElement.getAttribute('language') || undefined;
+      const content = cardElement.textContent?.trim();
+
+      if (catalog && content) {
+        cards.push({ catalog, language, content });
+      }
+    }
+
+    if (cards.length > 0) {
+      catalogs.push({ identifier, cards });
+    }
+  }
+
+  return catalogs;
+}
+
+/**
+ * Extract QTI 3.0 personal needs profile (PNP 3.0)
+ */
+function extractPersonalNeedsProfile(assessmentTest: HTMLElement): PersonalNeedsProfile | undefined {
+  const pnpElement = assessmentTest.querySelector('personalNeedsProfile') ||
+                    assessmentTest.getElementsByTagName('personalNeedsProfile')[0];
+
+  if (!pnpElement) return undefined;
+
+  const supports: string[] = [];
+  const prohibitedSupports: string[] = [];
+  const activateAtInit: string[] = [];
+
+  // Extract supports
+  const supportElements = pnpElement.getElementsByTagName('support');
+  for (const support of Array.from(supportElements)) {
+    const value = support.textContent?.trim();
+    if (value) supports.push(value);
+  }
+
+  // Extract prohibited supports
+  const prohibitedElements = pnpElement.getElementsByTagName('prohibitedSupport');
+  for (const prohibited of Array.from(prohibitedElements)) {
+    const value = prohibited.textContent?.trim();
+    if (value) prohibitedSupports.push(value);
+  }
+
+  // Extract activate at init
+  const activateElements = pnpElement.getElementsByTagName('activateAtInit');
+  for (const activate of Array.from(activateElements)) {
+    const value = activate.textContent?.trim();
+    if (value) activateAtInit.push(value);
+  }
+
+  if (supports.length === 0) return undefined;
+
+  return {
+    supports,
+    prohibitedSupports: prohibitedSupports.length > 0 ? prohibitedSupports : undefined,
+    activateAtInit: activateAtInit.length > 0 ? activateAtInit : undefined,
+  };
+}
+
+/**
+ * Extract QTI 3.0 stimulus references (shared passages)
+ */
+function extractStimulusRefs(assessmentTest: HTMLElement): StimulusRef[] {
+  const stimulusRefs: StimulusRef[] = [];
+  const stimulusElements = assessmentTest.getElementsByTagName('stimulusRef');
+
+  for (const stimulus of Array.from(stimulusElements)) {
+    const identifier = stimulus.getAttribute('identifier');
+    const href = stimulus.getAttribute('href');
+    const type = stimulus.getAttribute('type');
+
+    if (identifier && href) {
+      stimulusRefs.push({
+        identifier,
+        href,
+        type: (type as 'qti-stimulus') || 'qti-stimulus',
+      });
+    }
+  }
+
+  return stimulusRefs;
 }
