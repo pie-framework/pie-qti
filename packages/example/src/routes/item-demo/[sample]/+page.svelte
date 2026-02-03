@@ -113,10 +113,12 @@
 	}
 
 	function handleResponseChange(responseId: string, value: any) {
-		console.log('[Demo] Response changed:', { responseId, value });
+		console.log('[Demo] Response changed:', { responseId, value, valueType: typeof value, isArray: Array.isArray(value), arrayLength: Array.isArray(value) ? value.length : 'N/A' });
 		responses = { ...responses, [responseId]: value };
 		console.log('[Demo] All responses:', responses);
 		if (player) {
+			const validation = player.validateResponses(responses);
+			console.log('[Demo] Validation result:', validation);
 			const canSubmit = player.canSubmitResponses(responses);
 			console.log('[Demo] Can submit:', canSubmit);
 		}
