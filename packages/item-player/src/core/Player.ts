@@ -206,10 +206,21 @@ export class Player {
 			}
 		}
 
+		
 		// Execute outcome processing if present (runs after responseProcessing)
 		this.execOutcomeProcessingProgram();
 
+		// For non-adaptive items, update completionStatus and numAttempts after processing
+		if (!this.isAdaptive()) {
+			// Set completionStatus to 'completed' for non-adaptive items (single submission)
+			this.ctx.setValue('completionStatus', qtiValue('identifier', 'single', 'completed'));
+			// Increment numAttempts for non-adaptive items (tracks total submissions, including retries)
+			const currentAttempts = this.getNumAttempts();
+			this.ctx.setValue('numAttempts', qtiValue('integer', 'single', currentAttempts + 1));
+		}
+
 		const outcomes = this.collectOutcomes();
+		
 		const score = Number(outcomes.SCORE ?? 0);
 		const maxScore = Number(outcomes.MAXSCORE ?? 1);
 		const completionStatus = (outcomes.completionStatus as CompletionStatus | undefined) ?? 'not_attempted';
