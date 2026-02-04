@@ -28,6 +28,7 @@
     "@pie-qti/item-player": "workspace:*",
     "@pie-qti/player-elements": "workspace:*",
     "@pie-qti/qti-common": "workspace:*",
+    "@pie-qti/qti-processing": "workspace:*",
     "@pie-qti/typeset-katex": "workspace:*",
     "@pie-qti/web-component-loaders": "workspace:*",
     "@tiptap/core": "^3.14.0",

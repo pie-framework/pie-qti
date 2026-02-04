@@ -139,8 +139,20 @@
 	}
 
 	function commitValue() {
-		if (!canvasEl) return;
+		if (!canvasEl || !ctx) return;
 		const dataUrl = canvasEl.toDataURL('image/png');
+		
+		// Extract ImageData synchronously from canvas and cache it
+		// This allows the custom operator to access pixel data without async image loading
+		if (typeof window !== 'undefined' && (window as any).__drawingImageCache) {
+			try {
+				const imageData = ctx.getImageData(0, 0, canvasEl.width, canvasEl.height);
+				(window as any).__drawingImageCache.cacheImageData(dataUrl, imageData);
+			} catch (e) {
+				console.warn('[DrawingCanvas] Failed to cache image data:', e);
+			}
+		}
+		
 		const size = dataUrlSize(dataUrl);
 		const response: QTIFileResponse = {
 			name: `drawing-${responseId}.png`,

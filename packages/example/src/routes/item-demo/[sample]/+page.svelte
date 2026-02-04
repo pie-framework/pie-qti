@@ -22,6 +22,10 @@
 	import * as PanelResize from './lib/panel-resize';
 	import { loadSessionFromServer, saveSessionToServer } from './lib/session-api';
 	import type { SessionData } from './lib/types';
+	// Initialize drawing image cache (sets up window.__drawingImageCache)
+	import '$lib/drawing-image-cache';
+	// Import custom operator for drawing scoring
+	import { hasLineOperator } from '$lib/drawing-scoring';
 
 	// Get i18n provider from context (set in root layout)
 	const i18nContext = getContext<{ value: SvelteI18nProvider | null }>('i18n');
@@ -71,6 +75,9 @@
 				itemXml: xml,
 				role: selectedRole,
 				security: getSecurityConfig(),
+				customOperators: {
+					'drawing.hasLine': hasLineOperator,
+				},
 			});
 
 			// Register default components with the player's registry

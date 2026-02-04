@@ -1964,7 +1964,7 @@ export const DRAWING_INTERACTION = `<?xml version="1.0" encoding="UTF-8"?>
 
   <outcomeDeclaration identifier="MAXSCORE" cardinality="single" baseType="float">
     <defaultValue>
-      <value>0.0</value>
+      <value>1.0</value>
     </defaultValue>
   </outcomeDeclaration>
 
@@ -1979,7 +1979,26 @@ export const DRAWING_INTERACTION = `<?xml version="1.0" encoding="UTF-8"?>
     </drawingInteraction>
   </itemBody>
 
-  <!-- No scoring for drawing -->
+  <responseProcessing>
+    <responseCondition>
+      <responseIf>
+        <equal>
+          <customOperator class="drawing.hasLine">
+            <variable identifier="DRAW"/>
+          </customOperator>
+          <baseValue baseType="float">1.0</baseValue>
+        </equal>
+        <setOutcomeValue identifier="SCORE">
+          <baseValue baseType="float">1.0</baseValue>
+        </setOutcomeValue>
+      </responseIf>
+      <responseElse>
+        <setOutcomeValue identifier="SCORE">
+          <baseValue baseType="float">0.0</baseValue>
+        </setOutcomeValue>
+      </responseElse>
+    </responseCondition>
+  </responseProcessing>
 </assessmentItem>`;
 
 export const MEDIA_INTERACTION_AUDIO = `<?xml version="1.0" encoding="UTF-8"?>
@@ -2758,6 +2777,11 @@ export const GRAPHIC_ORDER_INTERACTION = `<?xml version="1.0" encoding="UTF-8"?>
   <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
     <defaultValue>
       <value>0</value>
+    </defaultValue>
+  </outcomeDeclaration>
+  <outcomeDeclaration identifier="MAXSCORE" cardinality="single" baseType="float">
+    <defaultValue>
+      <value>1.0</value>
     </defaultValue>
   </outcomeDeclaration>
   <itemBody>

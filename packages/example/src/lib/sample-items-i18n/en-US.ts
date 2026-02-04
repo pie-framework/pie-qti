@@ -905,7 +905,7 @@ export const ITEMS_EN_US: Record<string, LocalizedItemData> = {
 
   <outcomeDeclaration identifier="MAXSCORE" cardinality="single" baseType="float">
     <defaultValue>
-      <value>0.0</value>
+      <value>1.0</value>
     </defaultValue>
   </outcomeDeclaration>
 
@@ -919,6 +919,27 @@ export const ITEMS_EN_US: Record<string, LocalizedItemData> = {
       </object>
     </drawingInteraction>
   </itemBody>
+
+  <responseProcessing>
+    <responseCondition>
+      <responseIf>
+        <equal>
+          <customOperator class="drawing.hasLine">
+            <variable identifier="DRAW"/>
+          </customOperator>
+          <baseValue baseType="float">1.0</baseValue>
+        </equal>
+        <setOutcomeValue identifier="SCORE">
+          <baseValue baseType="float">1.0</baseValue>
+        </setOutcomeValue>
+      </responseIf>
+      <responseElse>
+        <setOutcomeValue identifier="SCORE">
+          <baseValue baseType="float">0.0</baseValue>
+        </setOutcomeValue>
+      </responseElse>
+    </responseCondition>
+  </responseProcessing>
 </assessmentItem>`,
   },
   'hottext-multiple': {
@@ -1000,6 +1021,11 @@ export const ITEMS_EN_US: Record<string, LocalizedItemData> = {
   <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
     <defaultValue>
       <value>0</value>
+    </defaultValue>
+  </outcomeDeclaration>
+  <outcomeDeclaration identifier="MAXSCORE" cardinality="single" baseType="float">
+    <defaultValue>
+      <value>1.0</value>
     </defaultValue>
   </outcomeDeclaration>
   <itemBody>
