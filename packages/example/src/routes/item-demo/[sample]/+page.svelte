@@ -22,8 +22,6 @@
 	import * as PanelResize from './lib/panel-resize';
 	import { loadSessionFromServer, saveSessionToServer } from './lib/session-api';
 	import type { SessionData } from './lib/types';
-	// Initialize drawing image cache (sets up window.__drawingImageCache)
-	import '$lib/drawing-image-cache';
 	// Import custom operator for drawing scoring
 	import { hasLineOperator } from '$lib/drawing-scoring';
 

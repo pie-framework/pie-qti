@@ -89,6 +89,16 @@ export interface QTIFileResponse {
 	lastModified: number;
 	/** Base64 data URL, e.g. data:application/pdf;base64,... */
 	dataUrl: string;
+	/**
+	 * Optional ImageData extracted from canvas (for drawing interactions).
+	 * This allows custom operators to analyze drawing content synchronously
+	 * without needing to decode the dataUrl asynchronously.
+	 */
+	imageData?: {
+		data: Uint8ClampedArray;
+		width: number;
+		height: number;
+	};
 }
 
 export interface ModalFeedback {

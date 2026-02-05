@@ -142,15 +142,13 @@
 		if (!canvasEl || !ctx) return;
 		const dataUrl = canvasEl.toDataURL('image/png');
 		
-		// Extract ImageData synchronously from canvas and cache it
-		// This allows the custom operator to access pixel data without async image loading
-		if (typeof window !== 'undefined' && (window as any).__drawingImageCache) {
-			try {
-				const imageData = ctx.getImageData(0, 0, canvasEl.width, canvasEl.height);
-				(window as any).__drawingImageCache.cacheImageData(dataUrl, imageData);
-			} catch (e) {
-				console.warn('[DrawingCanvas] Failed to cache image data:', e);
-			}
+		// Extract ImageData synchronously from canvas and include it in the response
+		// This allows custom operators to analyze drawing content without async image loading
+		let canvasImageData: globalThis.ImageData | undefined;
+		try {
+			canvasImageData = ctx.getImageData(0, 0, canvasEl.width, canvasEl.height);
+		} catch (e) {
+			console.warn('[DrawingCanvas] Failed to extract image data:', e);
 		}
 		
 		const size = dataUrlSize(dataUrl);
@@ -160,6 +158,12 @@
 			size,
 			lastModified: Date.now(),
 			dataUrl,
+			// Include ImageData if available (for drawing analysis in custom operators)
+			imageData: canvasImageData ? {
+				data: canvasImageData.data,
+				width: canvasImageData.width,
+				height: canvasImageData.height,
+			} : undefined,
 		};
 		onChange(response);
 		announceText = translations.updated;
