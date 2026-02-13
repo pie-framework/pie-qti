@@ -501,6 +501,16 @@ export class Player {
 		return this.getInteractions().filter((i) => i.type !== 'endAttemptInteraction');
 	}
 
+	/**
+	 * Returns response identifiers of endAttempt interactions with countAttempt="false".
+	 * Used to detect hint-only submissions (e.g. Request Hint button).
+	 */
+	public getHintEndAttemptIdentifiers(): string[] {
+		return this.getInteractions()
+			.filter((i: any) => i.type === 'endAttemptInteraction' && i.countAttempt === false)
+			.map((i: any) => i.responseIdentifier);
+	}
+
 	public getResponseIdentifiers(): string[] {
 		return this.getResponseInteractions().map((i) => i.responseIdentifier);
 	}

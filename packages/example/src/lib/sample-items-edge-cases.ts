@@ -526,11 +526,7 @@ export const SLIDER_NEGATIVE_RANGE = `<?xml version="1.0" encoding="UTF-8"?>
   adaptive="false"
   timeDependent="false">
 
-  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="integer">
-    <correctResponse>
-      <value>-15</value>
-    </correctResponse>
-  </responseDeclaration>
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="integer"/>
 
   <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
     <defaultValue><value>0.0</value></defaultValue>
@@ -550,10 +546,10 @@ export const SLIDER_NEGATIVE_RANGE = `<?xml version="1.0" encoding="UTF-8"?>
   <responseProcessing>
     <responseCondition>
       <responseIf>
-        <match>
+        <gt>
           <variable identifier="RESPONSE"/>
-          <correct identifier="RESPONSE"/>
-        </match>
+          <baseValue baseType="integer">0</baseValue>
+        </gt>
         <setOutcomeValue identifier="SCORE">
           <baseValue baseType="float">1.0</baseValue>
         </setOutcomeValue>
@@ -1242,7 +1238,7 @@ export const EXTENDED_TEXT_VERY_LONG = `<?xml version="1.0" encoding="UTF-8"?>
   </outcomeDeclaration>
 
   <itemBody>
-    <p>Write a comprehensive essay (minimum 3000 words) analyzing the causes and effects of climate change, including scientific evidence, economic impacts, and potential solutions. Your essay should include an introduction, multiple body paragraphs with evidence, and a conclusion.</p>
+    <p>Write a comprehensive essay (minimum 2500 words) analyzing the causes and effects of climate change, including scientific evidence, economic impacts, and potential solutions. Your essay should include an introduction, multiple body paragraphs with evidence, and a conclusion.</p>
     <extendedTextInteraction responseIdentifier="RESPONSE" expectedLength="5000" expectedLines="100">
       <prompt>Write your essay here:</prompt>
     </extendedTextInteraction>

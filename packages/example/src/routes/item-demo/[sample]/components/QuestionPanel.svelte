@@ -16,6 +16,7 @@
 		totalInteractions: number;
 		progressPercentage: number;
 		isSubmitting: boolean;
+		numAttempts?: number;
 		disabled: boolean;
 		i18n?: I18nProvider | null;
 		role: QTIRole;
@@ -33,6 +34,7 @@
 		totalInteractions,
 		progressPercentage,
 		isSubmitting,
+		numAttempts = 0,
 		disabled,
 		i18n,
 		role,
@@ -91,8 +93,13 @@
 			/>
 		</div>
 
-		<div class="card-actions justify-end mt-6">
+		<div class="card-actions justify-end mt-6 flex items-center gap-4">
 			{#if scoringResult === null}
+				{#if player?.isAdaptive?.()}
+					<div class="text-sm text-base-content/70">
+						{t('item.attempt', `Attempt ${numAttempts + 1}`)}
+					</div>
+				{/if}
 				<button
 					class="btn btn-primary"
 					onclick={onSubmit}

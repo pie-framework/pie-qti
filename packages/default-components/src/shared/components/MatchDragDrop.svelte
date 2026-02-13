@@ -7,7 +7,7 @@
 
 import type { AssociableChoice } from '@pie-qti/item-player';
 import type { I18nProvider } from '@pie-qti/i18n';
-import { createOrUpdatePair, getSourceForTarget, getTargetForSource, removePairBySource } from '../utils/pairHelpers.js';
+import { createOrUpdatePair, getSourceForTarget, getTargetsForSource, removePairBySource } from '../utils/pairHelpers.js';
 import { touchDrag } from '../utils/touchDragHelper.js';
 import DragHandle from './DragHandle.svelte';
 import '../styles/shared.css';
@@ -136,63 +136,64 @@ function clearMatch(sourceId: string) {
 			{i18n?.t('interactions.match.dragFromHere') ?? 'Drag from here:'}
 		</h3>
 		{#each sourceSet as source (source.identifier)}
-			{@const matchedTarget = getTargetForSource(pairs, source.identifier)}
-			{@const targetItem = matchedTarget ? targetSet.find((t) => t.identifier === matchedTarget) : null}
+			{@const matchedTargets = getTargetsForSource(pairs, source.identifier)}
+			{@const targetItems = matchedTargets.map((tid) => targetSet.find((t) => t.identifier === tid)).filter(Boolean)}
 			{@const isSelected = keyboardSelectedSourceId === source.identifier}
-			{@const correctTarget = getTargetForSource(correctPairs, source.identifier)}
-			{@const isCorrect = correctTarget !== null}
+			{@const correctTargets = getTargetsForSource(correctPairs, source.identifier)}
+			{@const isCorrect = correctTargets.length > 0}
+			{@const canDragMore = matchedTargets.length < (source.matchMax ?? 1)}
 
 			<div class="qti-match-source-wrapper relative">
 				<button
 					type="button"
-					draggable={!disabled && !matchedTarget}
+					draggable={!disabled && canDragMore}
 					use:touchDrag
 					ondragstart={() => handleDragStart(source.identifier)}
 					ondragend={handleDragEnd}
 					onkeydown={(e) => handleSourceKeyDown(e, source.identifier)}
 					disabled={disabled}
-					aria-label="{source.text}{matchedTarget && targetItem ? '. Matched with ' + targetItem.text : ''}{isSelected ? '. Selected for matching' : ''}{isCorrect ? '. Correct answer' : ''}"
+					aria-label="{source.text}{targetItems.length ? '. Matched with ' + targetItems.map((t) => t?.text).join(', ') : ''}{isSelected ? '. Selected for matching' : ''}{isCorrect ? '. Correct answer' : ''}"
 					aria-pressed={isSelected}
-					data-matched={!!matchedTarget}
+					data-matched={matchedTargets.length > 0}
 					data-selected={isSelected}
 					data-correct={isCorrect}
 					data-dragging={draggedSourceId === source.identifier}
 					part="source-item"
 					class="qti-match-source p-3 rounded-lg border-2 transition-all w-full"
-					class:bg-base-200={!matchedTarget && !isSelected && !isCorrect}
-					class:bg-success={matchedTarget || isCorrect}
+					class:bg-base-200={matchedTargets.length === 0 && !isSelected && !isCorrect}
+					class:bg-success={matchedTargets.length > 0 || isCorrect}
 					class:bg-primary={isSelected}
-					class:bg-opacity-20={matchedTarget || isSelected || isCorrect}
-					class:border-base-300={!matchedTarget && !isSelected && !isCorrect}
-					class:border-success={matchedTarget || isCorrect}
+					class:bg-opacity-20={matchedTargets.length > 0 || isSelected || isCorrect}
+					class:border-base-300={matchedTargets.length === 0 && !isSelected && !isCorrect}
+					class:border-success={matchedTargets.length > 0 || isCorrect}
 					class:border-primary={isSelected}
 					class:ring-2={isSelected}
 					class:ring-primary={isSelected}
-					class:cursor-grab={!disabled && !matchedTarget && !isSelected}
+					class:cursor-grab={!disabled && canDragMore && !isSelected}
 					class:cursor-not-allowed={disabled}
 					class:opacity-50={disabled || draggedSourceId === source.identifier}
 				>
 					<div class="qti-match-source-content flex items-center justify-between gap-2">
 						<div class="qti-match-source-text flex-1">
 							<div class="qti-match-source-title font-medium">{source.text}</div>
-							{#if matchedTarget && targetItem}
-								<div class="qti-match-source-sub text-sm text-success mt-1">→ {targetItem.text}</div>
-							{:else if isCorrect && correctTarget}
-								{@const correctTargetItem = targetSet.find((t) => t.identifier === correctTarget)}
-								{#if correctTargetItem}
-									<div class="qti-match-source-sub text-sm text-success mt-1">→ {correctTargetItem.text}</div>
+							{#if targetItems.length > 0}
+								<div class="qti-match-source-sub text-sm text-success mt-1">→ {targetItems.map((t) => t?.text).join(', ')}</div>
+							{:else if isCorrect && correctTargets.length > 0}
+								{@const correctTargetItems = correctTargets.map((tid) => targetSet.find((t) => t.identifier === tid)).filter(Boolean)}
+								{#if correctTargetItems.length > 0}
+									<div class="qti-match-source-sub text-sm text-success mt-1">→ {correctTargetItems.map((t) => t?.text).join(', ')}</div>
 								{/if}
 							{/if}
-							{#if isCorrect && !matchedTarget}
+							{#if isCorrect && matchedTargets.length === 0}
 								<span class="badge badge-success badge-sm ml-2">{i18n?.t('interactions.choice.correct', 'Correct') ?? 'Correct'}</span>
 							{/if}
 						</div>
-						{#if !disabled && !matchedTarget}
+						{#if !disabled && canDragMore}
 							<DragHandle size={1.25} opacity={0.3} class="text-base-content" />
 						{/if}
 					</div>
 				</button>
-				{#if matchedTarget && !disabled}
+				{#if matchedTargets.length > 0 && !disabled}
 					<button
 						type="button"
 						part="source-clear"

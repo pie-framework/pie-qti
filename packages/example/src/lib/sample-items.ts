@@ -2492,7 +2492,7 @@ export const MATH_EXTENDED_RESPONSE = `<?xml version="1.0" encoding="UTF-8"?>
   <itemBody>
     <p>A right triangle has legs of length <m:math><m:mrow><m:mi>a</m:mi><m:mo>=</m:mo><m:mn>5</m:mn></m:mrow></m:math> and <m:math><m:mrow><m:mi>b</m:mi><m:mo>=</m:mo><m:mn>12</m:mn></m:mrow></m:math>.</p>
     <p>Using the Pythagorean theorem <m:math><m:mrow><m:msup><m:mi>a</m:mi><m:mn>2</m:mn></m:msup><m:mo>+</m:mo><m:msup><m:mi>b</m:mi><m:mn>2</m:mn></m:msup><m:mo>=</m:mo><m:msup><m:mi>c</m:mi><m:mn>2</m:mn></m:msup></m:mrow></m:math>, find the length of the hypotenuse <m:math><m:mi>c</m:mi></m:math>.</p>
-    <p><strong>Show all your work and explain your reasoning.</strong></p>
+    <p><strong> Show all your work and explain your reasoning.</strong></p>
     <extendedTextInteraction responseIdentifier="RESPONSE" expectedLines="6" expectedLength="500"/>
   </itemBody>
 
@@ -2506,8 +2506,16 @@ export const MATH_EXTENDED_RESPONSE = `<?xml version="1.0" encoding="UTF-8"?>
           <baseValue baseType="float">0.0</baseValue>
         </setOutcomeValue>
       </responseIf>
+      <responseElseIf>
+        <patternMatch caseSensitive="false">
+          <variable identifier="RESPONSE"/>
+          <baseValue baseType="string">\\b13\\b</baseValue>
+        </patternMatch>
+        <setOutcomeValue identifier="SCORE">
+          <baseValue baseType="float">4.0</baseValue>
+        </setOutcomeValue>
+      </responseElseIf>
       <responseElse>
-        <!-- This item requires human scoring based on the rubric -->
         <setOutcomeValue identifier="SCORE">
           <baseValue baseType="float">0.0</baseValue>
         </setOutcomeValue>

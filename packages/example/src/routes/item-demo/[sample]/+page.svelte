@@ -7,7 +7,10 @@
 		type QTIRole,
 		type RubricBlock,
 	} from '@pie-qti/item-player';
+	// @ts-expect-error - Svelte-check can't resolve workspace subpath exports
+	import { ModalFeedbackDisplay } from '@pie-qti/item-player/components';
 	import { registerDefaultComponents } from '@pie-qti/default-components';
+	import { typesetMathInElement } from '@pie-qti/typeset-katex';
 	import { onMount, untrack, getContext } from 'svelte';
 	import type { SvelteI18nProvider } from '@pie-qti/i18n';
 	import { SAMPLE_ITEMS } from '$lib/sample-items';
@@ -42,6 +45,8 @@
 	let isSubmitting = $state(false);
 	let selectedRole = $state<QTIRole>('candidate');
 	let rubrics = $state<RubricBlock[]>([]);
+	let modalFeedback = $state<any[]>([]);
+	let numAttempts = $state(0);
 	let templateVariables = $derived(player ? player.getTemplateVariables() : {});
 	let hasLoadedCustomUpload = false; // Track if we've loaded a custom upload in this effect cycle
 
@@ -62,6 +67,8 @@
 		try {
 			errorMessage = '';
 			scoringResult = null;
+			modalFeedback = [];
+			numAttempts = 0;
 
 			if (!xml.trim()) {
 				player = null;
@@ -118,14 +125,23 @@
 	}
 
 	function handleResponseChange(responseId: string, value: any) {
-		console.log('[Demo] Response changed:', { responseId, value, valueType: typeof value, isArray: Array.isArray(value), arrayLength: Array.isArray(value) ? value.length : 'N/A' });
 		responses = { ...responses, [responseId]: value };
-		console.log('[Demo] All responses:', responses);
-		if (player) {
-			const validation = player.validateResponses(responses);
-			console.log('[Demo] Validation result:', validation);
-			const canSubmit = player.canSubmitResponses(responses);
-			console.log('[Demo] Can submit:', canSubmit);
+
+		// When user clicks "Request Hint" (endAttempt with countAttempt=false), immediately
+		// run processing to show the hint modal without incrementing numAttempts
+		if (player?.isAdaptive?.()) {
+			const hintIds = player.getHintEndAttemptIdentifiers();
+			if (hintIds.includes(responseId) && value === true) {
+				try {
+					player.setResponses(responses);
+					const result = player.submitAttempt(false);
+					modalFeedback = result.modalFeedback || [];
+					// Don't set scoringResult - item continues; hint doesn't count as attempt
+				} catch (e) {
+					errorMessage = e instanceof Error ? e.message : String(e);
+				}
+				return;
+			}
 		}
 	}
 
@@ -153,6 +169,21 @@
 				}
 
 				scoringResult = data.result;
+			} else if (player.isAdaptive()) {
+				// Adaptive item: use submitAttempt so numAttempts accrues only for real attempts
+				player.setResponses(responses);
+				const result = player.submitAttempt(true);
+				numAttempts = result.numAttempts;
+				modalFeedback = result.modalFeedback || [];
+				// Only set scoringResult when item is completed (disables form)
+				if (result.completed) {
+					scoringResult = {
+						score: result.score,
+						maxScore: result.maxScore,
+						outcomeValues: result.outcomeValues,
+						modalFeedback: result.modalFeedback,
+					};
+				}
 			} else {
 				player.setResponses(responses);
 				scoringResult = player.processResponses();
@@ -167,6 +198,12 @@
 	function resetResponses() {
 		if (!player) return;
 
+		// For adaptive items, reload player to reset numAttempts and completionStatus
+		if (player.isAdaptive() && xmlContent) {
+			loadPlayer(xmlContent);
+			return; // loadPlayer resets responses and scoringResult
+		}
+
 		const interactions = player.getResponseInteractions();
 		const newResponses: Record<string, any> = {};
 		for (const interaction of interactions) {
@@ -177,7 +214,13 @@
 
 		responses = newResponses;
 		scoringResult = null;
+		modalFeedback = [];
+		numAttempts = 0;
 		errorMessage = '';
+	}
+
+	function closeFeedback() {
+		modalFeedback = [];
 	}
 
 	function regenerateVariant() {
@@ -480,12 +523,20 @@
 					{totalInteractions}
 					{progressPercentage}
 					{isSubmitting}
+					{numAttempts}
 					{i18n}
 					disabled={scoringResult !== null}
 					role={selectedRole}
 					onResponseChange={handleResponseChange}
 					onSubmit={submitResponses}
 					onReset={resetResponses}
+				/>
+
+				<ModalFeedbackDisplay
+					feedback={modalFeedback}
+					onClose={closeFeedback}
+					typeset={typesetMathInElement}
+					{i18n}
 				/>
 
 				<ResultsPanel {scoringResult} />

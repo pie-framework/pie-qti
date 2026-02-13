@@ -47,7 +47,7 @@
 <div part="root" class="qti-custom-fallback space-y-3">
 	<div part="warning" class="qti-custom-warning alert alert-warning">
 		<div>
-			<div class="font-semibold">{i18n?.t('interactions.custom.unsupported') ?? 'Unsupported customInteraction'}</div>
+			<div class="font-semibold">{i18n?.t('interactions.custom.unsupported') ?? 'Custom Interaction (Currently Unsupported)'}</div>
 			<div class="text-sm">
 				This item contains a vendor-specific interaction. This player does not execute custom interactions.
 			</div>

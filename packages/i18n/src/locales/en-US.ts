@@ -375,7 +375,7 @@ export default {
 		},
 
 		custom: {
-			unsupported: 'Unsupported customInteraction',
+			unsupported: 'Custom Interaction (Currently Unsupported)',
 			description: 'This item contains a vendor-specific interaction. This player does not execute custom interactions.',
 			promptLabel: 'Prompt',
 			manualResponse: 'Manual response (optional)',
