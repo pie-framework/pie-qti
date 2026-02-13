@@ -52,14 +52,11 @@ export function hasLineOperator(args: QtiValue[], meta: { class?: string; defini
 	}
 	
 	if (!fileResponse) {
-		console.log('[Drawing Scoring] No valid file response found');
 		return qtiValue('float', 'single', 0.0);
 	}
-	
+
 	// Use library utility to analyze drawing
 	const hasLine = analyzeDrawing(fileResponse, 50);
-	
-	console.log(`[Drawing Scoring] Drawing analysis result: ${hasLine ? 'has line' : 'no line'}`);
-	
+
 	return qtiValue('float', 'single', hasLine ? 1.0 : 0.0);
 }
