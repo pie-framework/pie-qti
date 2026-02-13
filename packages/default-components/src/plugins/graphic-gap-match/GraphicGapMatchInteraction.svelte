@@ -50,21 +50,9 @@ $effect(() => {
 	// Sync with parent response changes (only if not an internal update)
 	if (!isInternalUpdate) {
 		const newPairs = Array.isArray(parsedResponse) ? [...parsedResponse] : [];
-		console.log('[GraphicGapMatch] Syncing pairs from response:', { parsedResponse, newPairs, parsedInteraction: parsedInteraction?.responseId });
 		pairs = newPairs;
 	}
 	isInternalUpdate = false; // Reset flag
-});
-
-// Debug: Log when component mounts/updates
-$effect(() => {
-	console.log('[GraphicGapMatch] Component state:', { 
-		hasInteraction: !!parsedInteraction, 
-		responseId: parsedInteraction?.responseId,
-		response: parsedResponse,
-		pairs,
-		disabled 
-	});
 });
 
 // Get the hotspot matched to a gap text
@@ -102,11 +90,7 @@ function isCorrectHotspot(hotspotId: string): boolean {
 }
 
 function handleDragStart(gapTextId: string) {
-	if (disabled) {
-		console.log('[GraphicGapMatch] Drag start blocked - disabled');
-		return;
-	}
-	console.log('[GraphicGapMatch] Drag start:', gapTextId);
+	if (disabled) return;
 	draggedTextId = gapTextId;
 }
 
@@ -146,9 +130,7 @@ function handleHotspotDrop(event: DragEvent, hotspotId: string) {
 	// Dispatch custom event for web component usage - dispatch from rootElement to ensure it bubbles out of Shadow DOM
 	const valueArray = Array.isArray(pairs) ? [...pairs] : [];
 	if (rootElement) {
-		const event2 = createQtiChangeEvent(parsedInteraction.responseId, valueArray);
-		console.log('[GraphicGapMatch] Dispatching qti-change:', { responseId: parsedInteraction.responseId, value: valueArray, pairsLength: valueArray.length });
-		rootElement.dispatchEvent(event2);
+		rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction.responseId, valueArray));
 	}
 
 	draggedTextId = null;
@@ -169,9 +151,7 @@ function clearMatch(gapTextId: string) {
 	// Dispatch custom event for web component usage - dispatch from rootElement to ensure it bubbles out of Shadow DOM
 	const valueArray = Array.isArray(pairs) ? [...pairs] : [];
 	if (rootElement) {
-		const event = createQtiChangeEvent(parsedInteraction.responseId, valueArray);
-		console.log('[GraphicGapMatch] Dispatching qti-change (clearMatch):', { responseId: parsedInteraction.responseId, value: valueArray });
-		rootElement.dispatchEvent(event);
+		rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction.responseId, valueArray));
 	}
 
 	announceText = `${gapTextName} removed from hotspot`;
@@ -241,9 +221,7 @@ function placeSelectedLabelOnHotspot(hotspotId: string) {
 	// Dispatch custom event for web component usage - dispatch from rootElement to ensure it bubbles out of Shadow DOM
 	const valueArray = Array.isArray(pairs) ? [...pairs] : [];
 	if (rootElement) {
-		const event2 = createQtiChangeEvent(parsedInteraction.responseId, valueArray);
-		console.log('[GraphicGapMatch] Dispatching qti-change (keyboard):', { responseId: parsedInteraction.responseId, value: valueArray, length: valueArray.length });
-		rootElement.dispatchEvent(event2);
+		rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction.responseId, valueArray));
 	}
 
 	announceText = `${gapTextName} placed on hotspot ${hotspotIndex + 1}`;

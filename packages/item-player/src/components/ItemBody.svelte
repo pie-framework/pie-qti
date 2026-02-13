@@ -181,7 +181,6 @@
 
 	// Handle qti:change events from web components
 	function handleQtiChange(event: CustomEvent) {
-		console.log('[ItemBody] Received qti-change event:', event.detail);
 		const { responseId, value } = event.detail;
 		handleResponseChange(responseId, value);
 	}
@@ -191,17 +190,10 @@
 	let rootEl: HTMLDivElement | null = $state(null);
 	$effect(() => {
 		if (!rootEl) return;
-		const handler = (e: Event) => {
-			console.log('[ItemBody] Event listener triggered:', e.type, e.target, (e as CustomEvent).detail);
-			handleQtiChange(e as CustomEvent);
-		};
+		const handler = (e: Event) => handleQtiChange(e as CustomEvent);
 		const el = rootEl; // Capture reference for cleanup
-		console.log('[ItemBody] Adding qti-change listener to rootEl');
 		el.addEventListener('qti-change', handler as EventListener);
-		return () => {
-			console.log('[ItemBody] Removing qti-change listener from rootEl');
-			el.removeEventListener('qti-change', handler as EventListener);
-		};
+		return () => el.removeEventListener('qti-change', handler as EventListener);
 	});
 
 	// Ensure web-component instances are not accidentally reused across items when

@@ -72,7 +72,7 @@
 	}
 
 	function isWordUsed(wordId: string): boolean {
-		const matchMax = parsedInteraction?.gapTexts?.find((g) => g.identifier === wordId)?.matchMax ?? 1;
+		const matchMax = getMatchMax(wordId);
 		const count = pairs.filter((p: string) => p.startsWith(`${wordId} `)).length;
 		return matchMax > 0 ? count >= matchMax : false; // matchMax=0 means unlimited, never "used"
 	}
