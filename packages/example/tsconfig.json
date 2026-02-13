@@ -11,5 +11,8 @@
 		"sourceMap": true,
 		"strict": true,
 		"moduleResolution": "bundler"
-	}
+	},
+	"exclude": [
+		"tests/playwright/**/*"
+	]
 }
