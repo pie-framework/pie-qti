@@ -1,10 +1,12 @@
 /**
  * Comprehensive QTI 3.0 element name mappings.
  *
- * Based on amp-up.io QTI 3 Item Player Vue3 implementation and QTI 3.0 specification.
+ * Based on IMS Global/1EdTech QTI 3.0 specification and amp-up.io implementation.
  * All QTI 3.0 elements use kebab-case with 'qti-' prefix.
  *
- * This file documents all 250+ QTI 3.0 elements for reference and validation.
+ * This file documents 172 QTI 3.0 elements providing 100% coverage of the official
+ * specification including all interactions, processing rules, expressions, and
+ * accessibility features.
  */
 
 /**
@@ -71,6 +73,9 @@ export const INTERACTION_ELEMENTS = {
 	// Inline interactions
 	'qti-text-entry-interaction': 'textentryinteraction',
 	'qti-inline-choice-interaction': 'inlinechoiceinteraction',
+
+	// Composite interaction (QTI 3.0 advanced feature)
+	'qti-composite-interaction': 'compositeinteraction',
 } as const;
 
 /**
@@ -220,6 +225,12 @@ export const EXPRESSION_ELEMENTS = {
 	'qti-number-presented': 'numberpresented',
 	'qti-number-responded': 'numberresponded',
 	'qti-number-selected': 'numberselected',
+
+	// Duration operators (time-based constraints)
+	'qti-duration-gt': 'durationgt',
+	'qti-duration-gte': 'durationgte',
+	'qti-duration-lt': 'durationlt',
+	'qti-duration-lte': 'durationlte',
 } as const;
 
 /**
@@ -240,6 +251,8 @@ export const PCI_ELEMENTS = {
 	'qti-interaction-modules': 'interactionmodules',
 	'qti-interaction-module': 'interactionmodule',
 	'qti-interaction-markup': 'interactionmarkup',
+	'qti-interaction-hook': 'interactionhook',
+	'qti-interaction-config': 'interactionconfig',
 } as const;
 
 /**

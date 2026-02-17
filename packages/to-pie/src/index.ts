@@ -6,7 +6,18 @@
 
 export { QtiToPiePlugin } from './plugin.js';
 export type { QtiToPiePluginOptions } from './plugin.js';
-export type { AssessmentSection, AssessmentTestOptions, ItemReference, PieAssessment } from './transformers/assessment-test.js';
+export type {
+  AccessibilityCatalog,
+  AssessmentSection,
+  AssessmentTestOptions,
+  CatalogCard,
+  ContextDeclaration,
+  ItemReference,
+  PersonalNeedsProfile,
+  PieAssessment,
+  StimulusRef,
+  TestPart,
+} from './transformers/assessment-test.js';
 export { transformAssessmentTest } from './transformers/assessment-test.js';
 export type { DragInTheBlankOptions } from './transformers/drag-in-the-blank.js';
 export { transformDragInTheBlank } from './transformers/drag-in-the-blank.js';

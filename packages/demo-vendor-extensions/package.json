@@ -1,0 +1,29 @@
+{
+  "name": "@pie-qti/demo-vendor-extensions",
+  "version": "0.1.0",
+  "description": "Demo vendor extensions for QTI transformation - showcases all customization points",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@pie-qti/to-pie": "workspace:*",
+    "@pie-qti/transform-types": "workspace:*",
+    "node-html-parser": "^6.1.13",
+    "uuid": "^11.0.5"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  },
+  "type": "module"
+}

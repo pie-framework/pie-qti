@@ -11,7 +11,7 @@ This project provides two major capabilities:
 1. **QTI 2.x & 3.0 Players** — Production-ready item and assessment players with unified version-agnostic architecture
 2. **PIE ↔ QTI Transformation Framework** — Bidirectional transforms between QTI and PIE, with CLI, web app, and IMS Content Package support
 
-📚 **[Live Examples](https://pie-framework.github.io/pie-qti/examples/)**
+📚 **[Live Examples](https://qti.pie-framework.org/examples/)**
 
 ![QTI Player Examples](docs/images/examples-screenshot-1.png)
 
@@ -156,6 +156,32 @@ Interactive web UI for transformations:
 - **Preview** — Side-by-side QTI and PIE rendering
 
 Storage is pluggable with filesystem (default), S3, or database backends via configuration.
+
+#### Plugin & Extension Management
+
+The transform-app includes a built-in admin interface for viewing and managing plugins:
+
+- Navigate to `/admin/plugins` to see installed transform plugins
+- View registered vendor extensions and their counts
+- Explore available extension points (storage backends, formats, themes, locales)
+- Configuration examples and documentation
+
+**Extension Points:**
+
+- **Transform Plugins** — Add support for custom formats or vendor-specific QTI variants
+- **Vendor Extensions** — Customize transformation behavior (detectors, transformers, asset resolvers)
+- **Storage Backends** — Choose filesystem, S3, database, or implement custom storage
+- **UI Themes** — Customize appearance with DaisyUI themes
+- **i18n Locales** — Add translations for additional languages
+
+**Configuration:**
+Create a `config.json` file (see `packages/transform-app/config.example.json` for structure) and reference it:
+
+```bash
+PIE_QTI_CONFIG=./config.json bun run dev:transform-app
+```
+
+Or register plugins directly in `packages/transform-app/src/hooks.server.ts`.
 
 ### CLI (`@pie-qti/transform-cli`)
 

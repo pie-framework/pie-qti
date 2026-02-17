@@ -1,0 +1,38 @@
+{
+  "storage": {
+    "backend": "filesystem",
+    "options": {
+      "rootDir": "./data/sessions"
+    }
+  },
+  "plugins": {
+    "qti22": {
+      "pie": {
+        "module": "@pie-qti/to-pie",
+        "options": {
+          "preserveQtiSource": true,
+          "enableVendorExtensions": true
+        }
+      }
+    },
+    "pie": {
+      "qti22": {
+        "module": "@pie-qti/pie-to-qti2",
+        "options": {
+          "passageStrategy": "external"
+        }
+      }
+    }
+  },
+  "vendorExtensions": {
+    "detectors": [],
+    "transformers": [],
+    "assetResolvers": [],
+    "cssClassExtractors": [],
+    "metadataExtractors": []
+  },
+  "logger": {
+    "level": "info",
+    "format": "text"
+  }
+}

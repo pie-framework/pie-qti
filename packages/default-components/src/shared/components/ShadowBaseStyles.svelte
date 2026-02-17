@@ -12,7 +12,7 @@
 
 <style>
 	/* Import KaTeX CSS for math rendering in Shadow DOM */
-	@import url('https://cdn.jsdelivr.net/npm/katex@0.16.27/dist/katex.min.css');
+	@import 'katex/dist/katex.min.css';
 	/* Buttons */
 	:global(.btn) {
 		display: inline-flex;

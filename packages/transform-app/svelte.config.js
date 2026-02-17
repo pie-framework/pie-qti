@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url';
-import adapter from '@sveltejs/adapter-auto';
+import adapter from '@sveltejs/adapter-node';
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
@@ -9,7 +9,9 @@ const config = {
 		customElement: true
 	},
 	kit: {
-		adapter: adapter(),
+		adapter: adapter({
+			out: 'build'
+		}),
 		alias: {
 			// Ensure workspace source resolves even if Bun doesn't create a node-resolvable entry.
 			'@pie-qti/web-component-loaders': fileURLToPath(
