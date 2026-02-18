@@ -11,7 +11,7 @@ import type { MathfieldElement } from 'mathlive';
 import type { I18nProvider } from '@pie-qti/i18n';
 
 // Import MathLive CSS from the local package
-import 'mathlive/mathlive-static.css';
+import 'mathlive/static.css';
 
 const DEFAULT_MATHLIVE_CSS_URL = ''; // No longer needed - CSS is imported above
 
