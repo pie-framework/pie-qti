@@ -24,12 +24,9 @@
 <div class="hero bg-base-200 rounded-lg mb-8">
 	<div class="hero-content text-center py-12">
 		<div class="max-w-md">
-			<h1 class="text-4xl font-bold">{i18n?.t('transform.admin.plugins.title', 'Plugin Management')}</h1>
+			<h1 class="text-4xl font-bold">{(i18n?.t('transform.admin.plugins.title') ?? 'Plugin Management')}</h1>
 			<p class="py-4">
-				{i18n?.t(
-					'transform.admin.plugins.subtitle',
-					'View installed plugins and available extension points'
-				)}
+			{(i18n?.t('transform.admin.plugins.subtitle') ?? 'View installed plugins and available extension points')}
 			</p>
 		</div>
 	</div>
@@ -53,10 +50,10 @@
 				></path>
 			</svg>
 		</div>
-		<div class="stat-title">{i18n?.t('transform.admin.plugins.totalPlugins', 'Total Plugins')}</div>
+		<div class="stat-title">{(i18n?.t('transform.admin.plugins.totalPlugins') ?? 'Total Plugins')}</div>
 		<div class="stat-value text-primary">{data.plugins.length}</div>
 		<div class="stat-desc">
-			{i18n?.t('transform.admin.plugins.activePlugins', 'All plugins active')}
+			{(i18n?.t('transform.admin.plugins.activePlugins') ?? 'All plugins active')}
 		</div>
 	</div>
 
@@ -77,14 +74,14 @@
 			</svg>
 		</div>
 		<div class="stat-title">
-			{i18n?.t('transform.admin.plugins.vendorExtensions', 'Vendor Extensions')}
+			{(i18n?.t('transform.admin.plugins.vendorExtensions') ?? 'Vendor Extensions')}
 		</div>
 		<div class="stat-value text-secondary">{totalExtensions}</div>
-		<div class="stat-desc">{i18n?.t('transform.admin.plugins.extensionsRegistered', 'Registered')}</div>
+		<div class="stat-desc">{(i18n?.t('transform.admin.plugins.extensionsRegistered') ?? 'Registered')}</div>
 	</div>
 
 	<div class="stat">
-		<div class="stat-title">{i18n?.t('transform.admin.plugins.storageBackend', 'Storage Backend')}</div>
+		<div class="stat-title">{(i18n?.t('transform.admin.plugins.storageBackend') ?? 'Storage Backend')}</div>
 		<div class="stat-value text-sm">{data.storageInfo.backend}</div>
 		<div class="stat-desc">{data.storageInfo.type}</div>
 	</div>
@@ -94,24 +91,21 @@
 <div class="card bg-base-100 shadow-xl mb-8">
 	<div class="card-body">
 		<h2 class="card-title">
-			{i18n?.t('transform.admin.plugins.installedPlugins', 'Installed Transform Plugins')}
+			{(i18n?.t('transform.admin.plugins.installedPlugins') ?? 'Installed Transform Plugins')}
 		</h2>
 		<p class="text-sm opacity-70 mb-4">
-			{i18n?.t(
-				'transform.admin.plugins.pluginsDescription',
-				'These plugins handle transformations between different formats'
-			)}
+			{(i18n?.t('transform.admin.plugins.pluginsDescription') ?? 'These plugins handle transformations between different formats')}
 		</p>
 
 		<div class="overflow-x-auto">
 			<table class="table table-zebra">
 				<thead>
 					<tr>
-						<th>{i18n?.t('transform.admin.plugins.pluginName', 'Plugin Name')}</th>
-						<th>{i18n?.t('transform.admin.plugins.format', 'Format')}</th>
-						<th>{i18n?.t('transform.admin.plugins.priority', 'Priority')}</th>
-						<th>{i18n?.t('transform.admin.plugins.version', 'Version')}</th>
-						<th>{i18n?.t('transform.admin.plugins.status', 'Status')}</th>
+						<th>{(i18n?.t('transform.admin.plugins.pluginName') ?? 'Plugin Name')}</th>
+						<th>{(i18n?.t('transform.admin.plugins.format') ?? 'Format')}</th>
+						<th>{(i18n?.t('transform.admin.plugins.priority') ?? 'Priority')}</th>
+						<th>{(i18n?.t('transform.admin.plugins.version') ?? 'Version')}</th>
+						<th>{(i18n?.t('transform.admin.plugins.status') ?? 'Status')}</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -136,7 +130,7 @@
 							<td class="font-mono text-sm">{plugin.version}</td>
 							<td>
 								<span class="badge badge-success badge-sm">
-									{i18n?.t('transform.admin.plugins.active', 'Active')}
+									{(i18n?.t('transform.admin.plugins.active') ?? 'Active')}
 								</span>
 							</td>
 						</tr>
@@ -151,13 +145,10 @@
 <div class="card bg-base-100 shadow-xl mb-8">
 	<div class="card-body">
 		<h2 class="card-title">
-			{i18n?.t('transform.admin.plugins.vendorExtensionPoints', 'Vendor Extension Points')}
+			{(i18n?.t('transform.admin.plugins.vendorExtensionPoints') ?? 'Vendor Extension Points')}
 		</h2>
 		<p class="text-sm opacity-70 mb-4">
-			{i18n?.t(
-				'transform.admin.plugins.extensionsDescription',
-				'Vendor-specific extensions registered in plugins'
-			)}
+		{(i18n?.t('transform.admin.plugins.extensionsDescription') ?? 'Vendor-specific extensions registered in plugins')}
 		</p>
 
 		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -180,13 +171,10 @@
 <div class="card bg-base-100 shadow-xl mb-8">
 	<div class="card-body">
 		<h2 class="card-title">
-			{i18n?.t('transform.admin.plugins.availableExtensionPoints', 'Available Extension Points')}
+			{(i18n?.t('transform.admin.plugins.availableExtensionPoints') ?? 'Available Extension Points')}
 		</h2>
 		<p class="text-sm opacity-70 mb-4">
-			{i18n?.t(
-				'transform.admin.plugins.configureExtensions',
-				'Configure these via config.json or environment variables'
-			)}
+			{(i18n?.t('transform.admin.plugins.configureExtensions') ?? 'Configure these via config.json or environment variables')}
 		</p>
 
 		<div class="space-y-2">
@@ -194,7 +182,7 @@
 			<div class="collapse collapse-arrow bg-base-200">
 				<input type="checkbox" />
 				<div class="collapse-title font-medium">
-					{i18n?.t('transform.admin.plugins.storageBackends', 'Storage Backends')} ({data.extensionPoints.storageBackends.length} available)
+					{(i18n?.t('transform.admin.plugins.storageBackends') ?? 'Storage Backends')} ({data.extensionPoints.storageBackends.length} available)
 				</div>
 				<div class="collapse-content">
 					<div class="flex flex-wrap gap-2 pt-2">
@@ -203,10 +191,7 @@
 						{/each}
 					</div>
 					<p class="text-sm mt-3 opacity-70">
-						{i18n?.t(
-							'transform.admin.plugins.storageDescription',
-							'Choose where to store sessions and transformed content'
-						)}
+					{(i18n?.t('transform.admin.plugins.storageDescription') ?? 'Choose where to store sessions and transformed content')}
 					</p>
 				</div>
 			</div>
@@ -215,7 +200,7 @@
 			<div class="collapse collapse-arrow bg-base-200">
 				<input type="checkbox" />
 				<div class="collapse-title font-medium">
-					{i18n?.t('transform.admin.plugins.transformFormats', 'Transform Formats')} ({data.extensionPoints.transformFormats.length} supported)
+					{(i18n?.t('transform.admin.plugins.transformFormats') ?? 'Transform Formats')} ({data.extensionPoints.transformFormats.length} supported)
 				</div>
 				<div class="collapse-content">
 					<div class="flex flex-wrap gap-2 pt-2">
@@ -224,10 +209,7 @@
 						{/each}
 					</div>
 					<p class="text-sm mt-3 opacity-70">
-						{i18n?.t(
-							'transform.admin.plugins.formatsDescription',
-							'Supported input and output formats for transformations'
-						)}
+					{(i18n?.t('transform.admin.plugins.formatsDescription') ?? 'Supported input and output formats for transformations')}
 					</p>
 				</div>
 			</div>
@@ -236,7 +218,7 @@
 			<div class="collapse collapse-arrow bg-base-200">
 				<input type="checkbox" />
 				<div class="collapse-title font-medium">
-					{i18n?.t('transform.admin.plugins.vendorExtensionTypes', 'Vendor Extension Types')} ({data.extensionPoints.vendorExtensionTypes.length} types)
+					{(i18n?.t('transform.admin.plugins.vendorExtensionTypes') ?? 'Vendor Extension Types')} ({data.extensionPoints.vendorExtensionTypes.length} types)
 				</div>
 				<div class="collapse-content">
 					<div class="flex flex-wrap gap-2 pt-2">
@@ -245,10 +227,7 @@
 						{/each}
 					</div>
 					<p class="text-sm mt-3 opacity-70">
-						{i18n?.t(
-							'transform.admin.plugins.vendorTypesDescription',
-							'Customize transformation behavior for specific vendors'
-						)}
+					{(i18n?.t('transform.admin.plugins.vendorTypesDescription') ?? 'Customize transformation behavior for specific vendors')}
 					</p>
 				</div>
 			</div>
@@ -257,7 +236,7 @@
 			<div class="collapse collapse-arrow bg-base-200">
 				<input type="checkbox" />
 				<div class="collapse-title font-medium">
-					{i18n?.t('transform.admin.plugins.uiThemes', 'UI Themes')} ({data.extensionPoints.themes.length}
+					{(i18n?.t('transform.admin.plugins.uiThemes') ?? 'UI Themes')} ({data.extensionPoints.themes.length}
 					available)
 				</div>
 				<div class="collapse-content">
@@ -267,10 +246,7 @@
 						{/each}
 					</div>
 					<p class="text-sm mt-3 opacity-70">
-						{i18n?.t(
-							'transform.admin.plugins.themesDescription',
-							'Customize the application appearance'
-						)}
+					{(i18n?.t('transform.admin.plugins.themesDescription') ?? 'Customize the application appearance')}
 					</p>
 				</div>
 			</div>
@@ -279,7 +255,7 @@
 			<div class="collapse collapse-arrow bg-base-200">
 				<input type="checkbox" />
 				<div class="collapse-title font-medium">
-					{i18n?.t('transform.admin.plugins.locales', 'Locales')} ({data.extensionPoints.locales.length}
+					{(i18n?.t('transform.admin.plugins.locales') ?? 'Locales')} ({data.extensionPoints.locales.length}
 					supported)
 				</div>
 				<div class="collapse-content">
@@ -289,10 +265,7 @@
 						{/each}
 					</div>
 					<p class="text-sm mt-3 opacity-70">
-						{i18n?.t(
-							'transform.admin.plugins.localesDescription',
-							'Add translations for different languages'
-						)}
+					{(i18n?.t('transform.admin.plugins.localesDescription') ?? 'Add translations for different languages')}
 					</p>
 				</div>
 			</div>
@@ -316,28 +289,25 @@
 		></path>
 	</svg>
 	<div>
-		<h3 class="font-bold">{i18n?.t('transform.admin.plugins.howToConfigure', 'How to Configure')}</h3>
+		<h3 class="font-bold">{(i18n?.t('transform.admin.plugins.howToConfigure') ?? 'How to Configure')}</h3>
 		<div class="text-sm mt-2">
 			<p class="mb-2">
-				{i18n?.t(
-					'transform.admin.plugins.configureVia',
-					'Configure plugins and extensions through these methods:'
-				)}
+			{(i18n?.t('transform.admin.plugins.configureVia') ?? 'Configure plugins and extensions through these methods:')}
 			</p>
 			<ul class="list-disc list-inside space-y-1 ml-2">
 				<li>
-					<strong>{i18n?.t('transform.admin.plugins.envVar', 'Environment variable')}:</strong>
+					<strong>{(i18n?.t('transform.admin.plugins.envVar') ?? 'Environment variable')}:</strong>
 					<code class="bg-base-300 px-2 py-1 rounded">PIE_QTI_CONFIG=/path/to/config.json</code>
 				</li>
 				<li>
-					<strong>{i18n?.t('transform.admin.plugins.configFile', 'Config file')}:</strong>
-					{i18n?.t('transform.admin.plugins.seeExample', 'See')}
+					<strong>{(i18n?.t('transform.admin.plugins.configFile') ?? 'Config file')}:</strong>
+					{(i18n?.t('transform.admin.plugins.seeExample') ?? 'See')}
 					<code class="bg-base-300 px-2 py-1 rounded">config.example.json</code>
-					{i18n?.t('transform.admin.plugins.forStructure', 'for structure')}
+					{(i18n?.t('transform.admin.plugins.forStructure') ?? 'for structure')}
 				</li>
 				<li>
-					<strong>{i18n?.t('transform.admin.plugins.directCode', 'Direct code')}:</strong>
-					{i18n?.t('transform.admin.plugins.registerIn', 'Register in')}
+					<strong>{(i18n?.t('transform.admin.plugins.directCode') ?? 'Direct code')}:</strong>
+					{(i18n?.t('transform.admin.plugins.registerIn') ?? 'Register in')}
 					<code class="bg-base-300 px-2 py-1 rounded">src/hooks.server.ts</code>
 				</li>
 			</ul>
