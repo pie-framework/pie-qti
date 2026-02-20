@@ -26,14 +26,16 @@
   },
   "keywords": [
     "pie",
-    "qti", "qti2", "qti3",
+    "qti",
+    "qti2",
+    "qti3",
     "i18n",
     "internationalization",
     "localization"
   ],
   "license": "MIT",
   "dependencies": {
-    "svelte": "^5.46.1"
+    "svelte": "^5.51.3"
   },
   "devDependencies": {
     "typescript": "^5.9.3",

@@ -1,17 +1,25 @@
 {
   "name": "@pie-qti/element-schemas",
   "version": "0.1.1",
-  "description": "JSON schemas for PIE element validation",
-  "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
   },
+  "description": "JSON schemas for PIE element validation",
+  "keywords": [
+    "pie",
+    "schemas",
+    "validation",
+    "json-schema"
+  ],
+  "license": "MIT",
   "scripts": {
     "build": "tsc && bun run copy-schemas",
     "copy-schemas": "mkdir -p dist/schemas && cp src/schemas/*.json dist/schemas/",
@@ -20,14 +28,6 @@
     "check-updates": "bun run scripts/check-schema-versions.ts",
     "typecheck": "tsc --noEmit"
   },
-  "keywords": [
-    "pie",
-    "schemas",
-    "validation",
-    "json-schema"
-  ],
-  "license": "MIT",
-  "devDependencies": {
-    "typescript": "^5.9.3"
-  }
+  "type": "module",
+  "types": "./dist/index.d.ts"
 }

@@ -11,7 +11,7 @@
 
 import type { MathfieldElement } from 'mathlive';
 // Import MathLive CSS from the local package
-import 'mathlive/mathlive-static.css';
+import 'mathlive/static.css';
 
 // Dynamically import MathLive to register the custom element
 let mathLiveLoaded: Promise<void> | null = null;

@@ -105,8 +105,8 @@ export class SvelteI18nProvider implements I18nProvider {
 		}
 	}
 
-	t(key: string, values?: Record<string, any>): string {
-		return this.provider.t(key, values);
+	t(key: string, defaultOrValues?: Record<string, any> | string, values?: Record<string, any>): string {
+		return this.provider.t(key, defaultOrValues, values);
 	}
 
 	plural(key: string, options: PluralOptions): string {

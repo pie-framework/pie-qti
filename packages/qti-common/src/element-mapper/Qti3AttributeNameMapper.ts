@@ -1,4 +1,4 @@
-import type { AttributeNameMapper } from './AttributeNameMapper';
+import type { AttributeNameMapper } from './AttributeNameMapper.js';
 
 /**
  * QTI 3.0 attribute name mappings from kebab-case to camelCase.

@@ -27,7 +27,7 @@
   "dependencies": {
     "@pie-qti/assessment-player": "workspace:*",
     "@pie-qti/item-player": "workspace:*",
-    "svelte": "^5.46.1"
+    "svelte": "^5.51.3"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.11",

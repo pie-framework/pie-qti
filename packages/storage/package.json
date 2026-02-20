@@ -8,26 +8,32 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
     "./backends/filesystem": {
       "types": "./dist/backends/filesystem-backend.d.ts",
+      "import": "./dist/backends/filesystem-backend.js",
       "default": "./dist/backends/filesystem-backend.js"
     },
     "./backends/s3": {
       "types": "./dist/backends/s3-backend.d.ts",
+      "import": "./dist/backends/s3-backend.js",
       "default": "./dist/backends/s3-backend.js"
     },
     "./backends/database": {
       "types": "./dist/backends/database-backend.d.ts",
+      "import": "./dist/backends/database-backend.js",
       "default": "./dist/backends/database-backend.js"
     },
     "./session-storage": {
       "types": "./dist/session-storage.d.ts",
+      "import": "./dist/session-storage.js",
       "default": "./dist/session-storage.js"
     },
     "./zip-extractor": {
       "types": "./dist/zip-extractor.d.ts",
+      "import": "./dist/zip-extractor.js",
       "default": "./dist/zip-extractor.js"
     }
   },

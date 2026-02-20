@@ -1,23 +1,30 @@
 {
-  "name": "@pie-qti/test-utils",
-  "version": "0.1.0",
-  "description": "Shared test utilities for PIE-QTI packages",
-  "type": "module",
-  "exports": {
-    ".": "./src/index.ts"
-  },
-  "scripts": {
-    "test": "bun test"
-  },
-  "dependencies": {
-    "@pie-qti/transform-types": "workspace:*",
-    "@pie-qti/storage": "workspace:*",
-    "@pie-qti/transform-core": "workspace:*",
-    "node-html-parser": "^7.0.1"
-  },
-  "devDependencies": {
-    "@types/bun": "^1.3.5",
-    "typescript": "^5.9.3"
-  },
-  "license": "MIT"
+"name": "@pie-qti/test-utils",
+"version": "0.1.0",
+"description": "Shared test utilities for PIE-QTI packages",
+"type": "module",
+"main": "./dist/index.js",
+"types": "./dist/index.d.ts",
+"exports": {
+".": {
+"types": "./dist/index.d.ts",
+"import": "./dist/index.js",
+"default": "./dist/index.js"
+}
+},
+"scripts": {
+"build": "tsc -p tsconfig.build.json",
+"test": "bun test"
+},
+"dependencies": {
+"@pie-qti/storage": "workspace:*",
+"@pie-qti/transform-core": "workspace:*",
+"@pie-qti/transform-types": "workspace:*",
+"node-html-parser": "^7.0.1"
+},
+"devDependencies": {
+"@types/bun": "^1.3.5",
+"typescript": "^5.9.3"
+},
+"license": "MIT"
 }

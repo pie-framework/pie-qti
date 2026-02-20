@@ -1,10 +1,12 @@
 {
 	"name": "@pie-qti/qti-common",
 	"version": "0.1.0",
-	"description": "Shared utilities and abstractions for QTI 2.x and QTI 3.0 support",
-	"type": "module",
 	"main": "./dist/index.js",
-	"types": "./dist/index.d.ts",
+	"devDependencies": {
+		"@types/bun": "^1.3.5",
+		"@xmldom/xmldom": "^0.8.11",
+		"typescript": "^5.9.3"
+	},
 	"exports": {
 		".": {
 			"types": "./dist/index.d.ts",
@@ -19,18 +21,15 @@
 			"import": "./dist/version-detection/index.js"
 		}
 	},
+	"description": "Shared utilities and abstractions for QTI 2.x and QTI 3.0 support",
 	"files": ["dist"],
+	"license": "MIT",
 	"scripts": {
 		"build": "tsc",
 		"dev": "tsc --watch",
 		"typecheck": "tsc --noEmit",
 		"test": "bun test"
 	},
-	"dependencies": {},
-	"devDependencies": {
-		"@types/bun": "^1.3.5",
-		"@xmldom/xmldom": "^0.8.11",
-		"typescript": "^5.9.3"
-	},
-	"license": "MIT"
+	"type": "module",
+	"types": "./dist/index.d.ts"
 }

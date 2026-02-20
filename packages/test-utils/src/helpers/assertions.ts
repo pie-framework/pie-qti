@@ -3,7 +3,7 @@
  * Common assertions for testing transforms, PIE models, and QTI content
  */
 
-import type { TransformOutput, TransformEngine } from '@pie-qti/transform-types';
+import type { TransformOutput } from '@pie-qti/transform-types';
 import { expect } from 'bun:test';
 
 /**
@@ -207,7 +207,7 @@ export function expectMetadata(
 
 	for (const [field, expectedType] of Object.entries(expectedFields)) {
 		expect(metadata[field]).toBeDefined();
-		expect(typeof metadata[field]).toBe(expectedType);
+		expect((typeof metadata[field]) === expectedType).toBe(true);
 	}
 }
 

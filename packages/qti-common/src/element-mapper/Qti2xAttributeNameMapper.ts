@@ -1,4 +1,4 @@
-import type { AttributeNameMapper } from './AttributeNameMapper';
+import type { AttributeNameMapper } from './AttributeNameMapper.js';
 
 /**
  * QTI 2.x attribute name mapper.

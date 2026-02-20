@@ -5,10 +5,10 @@
  */
 
 // PIE types
-export * from './pie';
+export * from './pie/index.js';
 
 // Transform plugin types
-export * from './transform/plugin';
+export * from './transform/plugin.js';
 
 // Storage abstraction types
 export * from './storage/index.js';

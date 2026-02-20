@@ -10,7 +10,6 @@ import type {
 	WorkflowOrchestrator,
 } from '@pie-qti/transform-types';
 import { TransformEngine } from '@pie-qti/transform-core';
-import { SilentLogger } from '../mocks/logger.js';
 
 export interface TestEngineOptions {
 	/**

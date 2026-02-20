@@ -28,10 +28,10 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@pie-qti/qti-processing": "workspace:*",
+    "@pie-qti/default-components": "workspace:*",
     "@pie-qti/i18n": "workspace:*",
     "@pie-qti/item-player": "workspace:*",
-    "@pie-qti/default-components": "workspace:*",
+    "@pie-qti/qti-processing": "workspace:*",
     "node-html-parser": "^7.0.2"
   },
   "peerDependencies": {
@@ -40,7 +40,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.3.11",
     "@types/node": "^25.0.3",
-    "svelte": "^5.46.1",
+    "svelte": "^5.51.3",
     "svelte-check": "^4.3.5",
     "typescript": "^5.9.3"
   },
