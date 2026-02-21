@@ -218,7 +218,7 @@
 		<div part="footer" class="qti-hottext-footer flex items-center justify-between text-sm text-base-content/70">
 			<div>
 				<span class="font-medium">Selected:</span>
-				<span class="ml-2">{selectedIds.length} / {parsedInteraction.maxChoices}</span>
+				<span class="ml-2">{selectedIds.length} / {parsedInteraction.hottextChoices.length}</span>
 			</div>
 
 			{#if selectedIds.length > 0}

@@ -457,6 +457,293 @@ describe('Player', () => {
 		});
 	});
 
+	describe('Hint EndAttempt Interactions', () => {
+		test('should identify endAttempt interactions with countAttempt="false"', () => {
+			const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+  xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="hint-example"
+  title="Hint Example"
+  adaptive="false"
+  timeDependent="false">
+
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier" />
+  <responseDeclaration identifier="HINT_BTN" cardinality="single" baseType="identifier" />
+  <responseDeclaration identifier="SUBMIT_BTN" cardinality="single" baseType="identifier" />
+
+  <itemBody>
+    <choiceInteraction responseIdentifier="RESPONSE" shuffle="false" maxChoices="1">
+      <simpleChoice identifier="A">A</simpleChoice>
+      <simpleChoice identifier="B">B</simpleChoice>
+    </choiceInteraction>
+    <endAttemptInteraction responseIdentifier="HINT_BTN" title="Request Hint" countAttempt="false" />
+    <endAttemptInteraction responseIdentifier="SUBMIT_BTN" title="Submit Answer" />
+  </itemBody>
+</assessmentItem>`;
+
+			const player = new Player({ itemXml: xml });
+			const hintIdentifiers = player.getHintEndAttemptIdentifiers();
+
+			expect(hintIdentifiers).toEqual(['HINT_BTN']);
+			expect(hintIdentifiers).not.toContain('SUBMIT_BTN');
+		});
+
+		test('should return empty array when no hint endAttempt interactions exist', () => {
+			const player = new Player({ itemXml: SIMPLE_CHOICE_XML });
+			const hintIdentifiers = player.getHintEndAttemptIdentifiers();
+
+			expect(hintIdentifiers).toEqual([]);
+		});
+	});
+
+	describe('Non-Adaptive Item Completion', () => {
+		test('should set completionStatus to completed for non-adaptive items after submission', () => {
+			const player = new Player({ itemXml: SIMPLE_CHOICE_XML });
+
+			player.setResponses({ RESPONSE: 'ChoiceA' });
+			const result = player.processResponses();
+
+			expect(result.outcomeValues.completionStatus).toBe('completed');
+		});
+
+		test('should increment numAttempts for non-adaptive items', () => {
+			const player = new Player({ itemXml: SIMPLE_CHOICE_XML });
+
+			// First submission
+			player.setResponses({ RESPONSE: 'ChoiceA' });
+			let result = player.processResponses();
+			expect(result.outcomeValues.numAttempts).toBe(1);
+
+			// Second submission
+			player.setResponses({ RESPONSE: 'ChoiceB' });
+			result = player.processResponses();
+			expect(result.outcomeValues.numAttempts).toBe(2);
+		});
+
+		test('should not modify completionStatus for adaptive items', () => {
+			const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+  xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="adaptive-example"
+  title="Adaptive Example"
+  adaptive="true"
+  timeDependent="false">
+
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier">
+    <correctResponse><value>ChoiceA</value></correctResponse>
+  </responseDeclaration>
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
+    <defaultValue><value>0.0</value></defaultValue>
+  </outcomeDeclaration>
+
+  <outcomeDeclaration identifier="completionStatus" cardinality="single" baseType="identifier">
+    <defaultValue><value>unknown</value></defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <choiceInteraction responseIdentifier="RESPONSE" shuffle="false" maxChoices="1">
+      <simpleChoice identifier="ChoiceA">A</simpleChoice>
+      <simpleChoice identifier="ChoiceB">B</simpleChoice>
+    </choiceInteraction>
+  </itemBody>
+
+  <responseProcessing>
+    <responseCondition>
+      <responseIf>
+        <match>
+          <variable identifier="RESPONSE"/>
+          <correct identifier="RESPONSE"/>
+        </match>
+        <setOutcomeValue identifier="SCORE">
+          <baseValue baseType="float">1.0</baseValue>
+        </setOutcomeValue>
+      </responseIf>
+    </responseCondition>
+  </responseProcessing>
+</assessmentItem>`;
+
+			const player = new Player({ itemXml: xml });
+			player.setResponses({ RESPONSE: 'ChoiceA' });
+			const result = player.processResponses();
+
+			// Should remain 'unknown' for adaptive items (not auto-set to completed)
+			expect(result.outcomeValues.completionStatus).toBe('unknown');
+		});
+	});
+
+	describe('MAXSCORE Fallback', () => {
+		test('should provide MAXSCORE fallback of 1.0 when not defined', () => {
+			const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+  xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="no-maxscore"
+  title="No MAXSCORE"
+  adaptive="false"
+  timeDependent="false">
+
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier">
+    <correctResponse><value>ChoiceA</value></correctResponse>
+  </responseDeclaration>
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
+    <defaultValue><value>0.0</value></defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <choiceInteraction responseIdentifier="RESPONSE" shuffle="false" maxChoices="1">
+      <simpleChoice identifier="ChoiceA">A</simpleChoice>
+    </choiceInteraction>
+  </itemBody>
+
+  <responseProcessing>
+    <responseCondition>
+      <responseIf>
+        <match>
+          <variable identifier="RESPONSE"/>
+          <correct identifier="RESPONSE"/>
+        </match>
+        <setOutcomeValue identifier="SCORE">
+          <baseValue baseType="float">1.0</baseValue>
+        </setOutcomeValue>
+      </responseIf>
+    </responseCondition>
+  </responseProcessing>
+</assessmentItem>`;
+
+			const player = new Player({ itemXml: xml });
+			player.setResponses({ RESPONSE: 'ChoiceA' });
+			const result = player.processResponses();
+
+			expect(result.maxScore).toBe(1.0);
+			expect(result.outcomeValues.MAXSCORE).toBe(1.0);
+		});
+
+		test('should use defined MAXSCORE when present', () => {
+			const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+  xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="with-maxscore"
+  title="With MAXSCORE"
+  adaptive="false"
+  timeDependent="false">
+
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier">
+    <correctResponse><value>ChoiceA</value></correctResponse>
+  </responseDeclaration>
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
+    <defaultValue><value>0.0</value></defaultValue>
+  </outcomeDeclaration>
+
+  <outcomeDeclaration identifier="MAXSCORE" cardinality="single" baseType="float">
+    <defaultValue><value>5.0</value></defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <choiceInteraction responseIdentifier="RESPONSE" shuffle="false" maxChoices="1">
+      <simpleChoice identifier="ChoiceA">A</simpleChoice>
+    </choiceInteraction>
+  </itemBody>
+
+  <responseProcessing>
+    <responseCondition>
+      <responseIf>
+        <match>
+          <variable identifier="RESPONSE"/>
+          <correct identifier="RESPONSE"/>
+        </match>
+        <setOutcomeValue identifier="SCORE">
+          <baseValue baseType="float">5.0</baseValue>
+        </setOutcomeValue>
+      </responseIf>
+    </responseCondition>
+  </responseProcessing>
+</assessmentItem>`;
+
+			const player = new Player({ itemXml: xml });
+			player.setResponses({ RESPONSE: 'ChoiceA' });
+			const result = player.processResponses();
+
+			expect(result.maxScore).toBe(5.0);
+			expect(result.outcomeValues.MAXSCORE).toBe(5.0);
+		});
+	});
+
+	describe('File Response Handling', () => {
+		test('should preserve QTIFileResponse objects with imageData for file baseType', () => {
+			const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+  xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="drawing-example"
+  title="Drawing Example"
+  adaptive="false"
+  timeDependent="false">
+
+  <responseDeclaration identifier="DRAW" cardinality="single" baseType="file" />
+
+  <itemBody>
+    <drawingInteraction responseIdentifier="DRAW">
+      <prompt>Draw</prompt>
+    </drawingInteraction>
+  </itemBody>
+</assessmentItem>`;
+
+			const player = new Player({ itemXml: xml });
+
+			const fileResponse = {
+				fileName: 'drawing.png',
+				mimeType: 'image/png',
+				data: 'base64data',
+				imageData: {
+					data: new Uint8ClampedArray([0, 0, 0, 255]),
+					width: 1,
+					height: 1,
+				},
+			};
+
+			player.setResponses({ DRAW: fileResponse });
+			const responses = player.getResponses();
+
+			expect(responses.DRAW).toBeDefined();
+			expect((responses.DRAW as any).imageData).toBeDefined();
+			expect((responses.DRAW as any).imageData.data).toBeInstanceOf(Uint8ClampedArray);
+		});
+
+		test('should preserve file response arrays for multiple cardinality', () => {
+			const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+  xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="upload-multiple"
+  title="Upload Multiple"
+  adaptive="false"
+  timeDependent="false">
+
+  <responseDeclaration identifier="UPLOADS" cardinality="multiple" baseType="file" />
+
+  <itemBody>
+    <uploadInteraction responseIdentifier="UPLOADS">
+      <prompt>Upload files</prompt>
+    </uploadInteraction>
+  </itemBody>
+</assessmentItem>`;
+
+			const player = new Player({ itemXml: xml });
+
+			const fileResponses = [
+				{ fileName: 'file1.txt', mimeType: 'text/plain', data: 'data1' },
+				{ fileName: 'file2.txt', mimeType: 'text/plain', data: 'data2' },
+			];
+
+			player.setResponses({ UPLOADS: fileResponses });
+			const responses = player.getResponses();
+
+			expect(Array.isArray(responses.UPLOADS)).toBe(true);
+			expect((responses.UPLOADS as any[]).length).toBe(2);
+			expect((responses.UPLOADS as any[])[0].fileName).toBe('file1.txt');
+		});
+	});
+
 	describe('Template Processing + printedVariable', () => {
 		const TEMPLATE_PROCESSING_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <assessmentItem

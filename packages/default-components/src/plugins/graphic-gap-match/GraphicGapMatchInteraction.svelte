@@ -40,9 +40,19 @@ let hoveredHotspotId = $state<string | null>(null);
 let keyboardSelectedTextId = $state<string | null>(null); // Gap text selected via keyboard
 let announceText = $state<string>(''); // For screen reader announcements
 
+// Get reference to the root element for event dispatching (needed for Shadow DOM)
+let rootElement: HTMLDivElement | undefined = $state();
+
+// Track if we're updating from internal change (user drag) vs external (prop update)
+let isInternalUpdate = false;
+
 $effect(() => {
-	// Sync with parent response changes
-	pairs = Array.isArray(parsedResponse) ? [...parsedResponse] : [];
+	// Sync with parent response changes (only if not an internal update)
+	if (!isInternalUpdate) {
+		const newPairs = Array.isArray(parsedResponse) ? [...parsedResponse] : [];
+		pairs = newPairs;
+	}
+	isInternalUpdate = false; // Reset flag
 });
 
 // Get the hotspot matched to a gap text
@@ -100,7 +110,7 @@ function handleHotspotDragLeave() {
 }
 
 function handleHotspotDrop(event: DragEvent, hotspotId: string) {
-	if (disabled || !draggedTextId) return;
+	if (disabled || !draggedTextId || !parsedInteraction) return;
 	event.preventDefault();
 
 	// Remove any existing pair for this gapText
@@ -112,21 +122,16 @@ function handleHotspotDrop(event: DragEvent, hotspotId: string) {
 	// Add new pair
 	newPairs.push(`${draggedTextId} ${hotspotId}`);
 
+	isInternalUpdate = true; // Mark as internal update to prevent sync effect from overwriting
 	pairs = newPairs;
 	response = pairs;
 	// Call onChange callback if provided (for Svelte component usage)
 	onChange?.(pairs);
-	// Dispatch custom event for web component usage
-	const event2 = new CustomEvent('qti-change', {
-		detail: {
-			responseId: parsedInteraction?.responseId,
-			value: pairs,
-			timestamp: Date.now(),
-		},
-		bubbles: true,
-		composed: true,
-	});
-	dispatchEvent(event2);
+	// Dispatch custom event for web component usage - dispatch from rootElement to ensure it bubbles out of Shadow DOM
+	const valueArray = Array.isArray(pairs) ? [...pairs] : [];
+	if (rootElement) {
+		rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction.responseId, valueArray));
+	}
 
 	draggedTextId = null;
 	hoveredHotspotId = null;
@@ -138,21 +143,16 @@ function clearMatch(gapTextId: string) {
 	const gapTextName = gapTextObj?.text || 'Label';
 
 	const newPairs = pairs.filter((p) => !p.startsWith(`${gapTextId} `));
+	isInternalUpdate = true; // Mark as internal update
 	pairs = newPairs;
 	response = pairs;
 	// Call onChange callback if provided (for Svelte component usage)
 	onChange?.(pairs);
-	// Dispatch custom event for web component usage
-	const event = new CustomEvent('qti-change', {
-		detail: {
-			responseId: parsedInteraction?.responseId,
-			value: pairs,
-			timestamp: Date.now(),
-		},
-		bubbles: true,
-		composed: true,
-	});
-	dispatchEvent(event);
+	// Dispatch custom event for web component usage - dispatch from rootElement to ensure it bubbles out of Shadow DOM
+	const valueArray = Array.isArray(pairs) ? [...pairs] : [];
+	if (rootElement) {
+		rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction.responseId, valueArray));
+	}
 
 	announceText = `${gapTextName} removed from hotspot`;
 }
@@ -213,21 +213,16 @@ function placeSelectedLabelOnHotspot(hotspotId: string) {
 	newPairs = newPairs.filter((p) => !p.endsWith(` ${hotspotId}`));
 	newPairs.push(`${keyboardSelectedTextId} ${hotspotId}`);
 
+	isInternalUpdate = true; // Mark as internal update
 	pairs = newPairs;
 	response = pairs;
 	// Call onChange callback if provided (for Svelte component usage)
 	onChange?.(pairs);
-	// Dispatch custom event for web component usage
-	const event2 = new CustomEvent('qti-change', {
-		detail: {
-			responseId: parsedInteraction?.responseId,
-			value: pairs,
-			timestamp: Date.now(),
-		},
-		bubbles: true,
-		composed: true,
-	});
-	dispatchEvent(event2);
+	// Dispatch custom event for web component usage - dispatch from rootElement to ensure it bubbles out of Shadow DOM
+	const valueArray = Array.isArray(pairs) ? [...pairs] : [];
+	if (rootElement) {
+		rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction.responseId, valueArray));
+	}
 
 	announceText = `${gapTextName} placed on hotspot ${hotspotIndex + 1}`;
 	keyboardSelectedTextId = null;
@@ -260,7 +255,7 @@ function parseCoords(hotspot: { identifier: string; shape: string; coords: strin
 
 <ShadowBaseStyles />
 
-<div class="qti-graphic-gap-match-interaction">
+<div bind:this={rootElement} class="qti-graphic-gap-match-interaction">
 	{#if !parsedInteraction}
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}

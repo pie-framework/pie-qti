@@ -37,29 +37,44 @@
 	// Track cleanup functions for event listeners to prevent memory leaks
 	let cleanupFunctions: (() => void)[] = [];
 
-	function handleGapChange(gapId: string, wordId: string) {
-		// Remove any existing pair for this gap
-		const newPairs = pairs.filter((p: string) => !p.endsWith(` ${gapId}`));
+	function getMatchMax(wordId: string): number {
+		const gt = parsedInteraction?.gapTexts?.find((g) => g.identifier === wordId);
+		return gt?.matchMax ?? 1;
+	}
 
-		// If this word is already used in another gap, move it (remove its previous assignment).
-		const withoutWord = newPairs.filter((p: string) => !p.startsWith(`${wordId} `));
+	function handleGapChange(gapId: string, wordId: string) {
+		// Remove any existing pair for this gap (each gap holds one word)
+		let newPairs = pairs.filter((p: string) => !p.endsWith(` ${gapId}`));
+
+		// For reusable words (matchMax=0 or >1): don't remove other placements. For matchMax=1: move the word.
+		const matchMax = getMatchMax(wordId);
+		const currentCount = newPairs.filter((p: string) => p.startsWith(`${wordId} `)).length;
+		if (matchMax === 1 || (matchMax > 0 && currentCount >= matchMax)) {
+			// Single-use or at limit: remove this word from other gaps (move)
+			newPairs = newPairs.filter((p: string) => !p.startsWith(`${wordId} `));
+		}
 
 		// Add new pair if a word was selected
 		if (wordId) {
-			withoutWord.push(`${wordId} ${gapId}`);
+			const newPair = `${wordId} ${gapId}`;
+			if (!newPairs.includes(newPair)) {
+				newPairs.push(newPair);
+			}
 		}
 
-		response = withoutWord;
+		response = newPairs;
 		// Call onChange callback if provided (for Svelte component usage)
-		onChange?.(withoutWord);
+		onChange?.(newPairs);
 		// Dispatch event for web component usage - event will bubble up to the host element
 		if (rootElement) {
-			rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction?.responseId, withoutWord));
+			rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction?.responseId, newPairs));
 		}
 	}
 
 	function isWordUsed(wordId: string): boolean {
-		return pairs.some((p: string) => p.startsWith(wordId));
+		const matchMax = getMatchMax(wordId);
+		const count = pairs.filter((p: string) => p.startsWith(`${wordId} `)).length;
+		return matchMax > 0 ? count >= matchMax : false; // matchMax=0 means unlimited, never "used"
 	}
 
 	function getSelectedWord(gapId: string): string {

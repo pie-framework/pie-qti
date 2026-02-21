@@ -234,10 +234,21 @@ export class Player {
 			}
 		}
 
+		
 		// Execute outcome processing if present (runs after responseProcessing)
 		this.execOutcomeProcessingProgram();
 
+		// For non-adaptive items, update completionStatus and numAttempts after processing
+		if (!this.isAdaptive()) {
+			// Set completionStatus to 'completed' for non-adaptive items (single submission)
+			this.ctx.setValue('completionStatus', qtiValue('identifier', 'single', 'completed'));
+			// Increment numAttempts for non-adaptive items (tracks total submissions, including retries)
+			const currentAttempts = this.getNumAttempts();
+			this.ctx.setValue('numAttempts', qtiValue('integer', 'single', currentAttempts + 1));
+		}
+
 		const outcomes = this.collectOutcomes();
+		
 		const score = Number(outcomes.SCORE ?? 0);
 		const maxScore = Number(outcomes.MAXSCORE ?? 1);
 		const completionStatus = (outcomes.completionStatus as CompletionStatus | undefined) ?? 'not_attempted';
@@ -542,6 +553,16 @@ export class Player {
 
 	public getResponseInteractions(): Array<{ type: string; responseIdentifier: string } & Record<string, any>> {
 		return this.getInteractions().filter((i) => i.type !== 'endAttemptInteraction');
+	}
+
+	/**
+	 * Returns response identifiers of endAttempt interactions with countAttempt="false".
+	 * Used to detect hint-only submissions (e.g. Request Hint button).
+	 */
+	public getHintEndAttemptIdentifiers(): string[] {
+		return this.getInteractions()
+			.filter((i: any) => i.type === 'endAttemptInteraction' && i.countAttempt === false)
+			.map((i: any) => i.responseIdentifier);
 	}
 
 	public getResponseIdentifiers(): string[] {
@@ -1139,6 +1160,17 @@ export class Player {
 			return raw as QtiValue;
 		}
 
+		// For file types, preserve QTIFileResponse objects directly
+		if (baseType === 'file') {
+			if (cardinality === 'multiple' || cardinality === 'ordered') {
+				const arr = Array.isArray(raw) ? raw : [raw];
+				// For file types, preserve objects (QTIFileResponse) directly
+				return qtiValue(baseType, cardinality, arr.filter((v) => v !== null && v !== undefined));
+			}
+			// For single file, preserve the object directly
+			return qtiValue(baseType, cardinality, raw);
+		}
+
 		if (cardinality === 'multiple' || cardinality === 'ordered') {
 			const arr = Array.isArray(raw) ? raw : [raw];
 			const coerced = arr
@@ -1164,6 +1196,10 @@ export class Player {
 			if ((d as any).__kind !== 'outcome') continue;
 			if (d.value.kind === 'value') out[d.identifier] = d.value.value;
 			else if (d.value.kind === 'null') out[d.identifier] = null;
+		}
+		// Ensure MAXSCORE always has a value (fallback to 1.0 if null or missing)
+		if (out.MAXSCORE === null || out.MAXSCORE === undefined) {
+			out.MAXSCORE = 1.0;
 		}
 		return out;
 	}
