@@ -92,20 +92,6 @@
 			: []
 	);
 
-	// Debug logging
-	$effect(() => {
-		if (role === 'scorer') {
-			console.log('[SelectPoint] Role:', role);
-			console.log('[SelectPoint] parsedCorrectResponse:', parsedCorrectResponse);
-			console.log('[SelectPoint] correctPoints array:', JSON.stringify(correctPoints));
-			console.log('[SelectPoint] correctPoints.length:', correctPoints.length);
-			if (correctPoints.length > 0) {
-				console.log('[SelectPoint] First correct point x:', correctPoints[0].x, 'y:', correctPoints[0].y);
-			}
-		}
-	});
-
-
 	$effect(() => {
 		// Sync with parent response changes
 		const r = parsedResponse;

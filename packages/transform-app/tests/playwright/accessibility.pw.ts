@@ -225,7 +225,7 @@ test.describe('Transform App Accessibility', () => {
 
 		// Filter for color contrast violations only
 		const contrastViolations = accessibilityScanResults.violations.filter(
-			v => v.id === 'color-contrast'
+			(v: { id: string }) => v.id === 'color-contrast'
 		);
 
 		expect(contrastViolations).toEqual([]);

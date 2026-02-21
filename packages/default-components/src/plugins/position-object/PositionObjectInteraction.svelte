@@ -234,12 +234,6 @@
 		// QTI baseType="point" expects array of strings like ["158 168", "250 200"]
 		const responseValue = positions.map(pos => `${Math.round(pos.x)} ${Math.round(pos.y)}`);
 
-		console.log('[PositionObject] Emitting response:', {
-			responseId: parsedInteraction?.responseId,
-			value: responseValue,
-			positions: positions
-		});
-
 		response = responseValue;
 		// Call onChange callback if provided (for Svelte component usage)
 		onChange?.(responseValue);

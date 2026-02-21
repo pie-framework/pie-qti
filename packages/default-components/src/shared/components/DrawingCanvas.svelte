@@ -139,8 +139,18 @@
 	}
 
 	function commitValue() {
-		if (!canvasEl) return;
+		if (!canvasEl || !ctx) return;
 		const dataUrl = canvasEl.toDataURL('image/png');
+		
+		// Extract ImageData synchronously from canvas and include it in the response
+		// This allows custom operators to analyze drawing content without async image loading
+		let canvasImageData: globalThis.ImageData | undefined;
+		try {
+			canvasImageData = ctx.getImageData(0, 0, canvasEl.width, canvasEl.height);
+		} catch (e) {
+			console.warn('[DrawingCanvas] Failed to extract image data:', e);
+		}
+		
 		const size = dataUrlSize(dataUrl);
 		const response: QTIFileResponse = {
 			name: `drawing-${responseId}.png`,
@@ -148,6 +158,12 @@
 			size,
 			lastModified: Date.now(),
 			dataUrl,
+			// Include ImageData if available (for drawing analysis in custom operators)
+			imageData: canvasImageData ? {
+				data: canvasImageData.data,
+				width: canvasImageData.width,
+				height: canvasImageData.height,
+			} : undefined,
 		};
 		onChange(response);
 		announceText = translations.updated;
