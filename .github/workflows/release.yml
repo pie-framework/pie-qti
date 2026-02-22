@@ -85,12 +85,14 @@ jobs:
             echo "has_changesets=false" >> "$GITHUB_OUTPUT"
           fi
 
-          # Did this push include version/changelog changes (i.e. merged release PR)?
+          # Did this push include actual package version bumps (i.e. merged release PR)?
           before="${{ github.event.before }}"
           after="${{ github.sha }}"
-          changed="$(git diff --name-only "$before" "$after" || true)"
+          version_diff="$(git diff -U0 "$before" "$after" -- packages/*/package.json tools/*/package.json || true)"
 
-          if echo "$changed" | grep -Eq '^(packages|tools)/[^/]+/(package\.json|CHANGELOG\.md)$'; then
+          # Require both removed and added "version" lines to avoid treating metadata-only
+          # package.json edits as publish intents.
+          if echo "$version_diff" | grep -Eq '^-\\s*"version"\\s*:' && echo "$version_diff" | grep -Eq '^\\+\\s*"version"\\s*:'; then
             echo "has_version_bumps=true" >> "$GITHUB_OUTPUT"
           else
             echo "has_version_bumps=false" >> "$GITHUB_OUTPUT"
