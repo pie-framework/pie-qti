@@ -61,6 +61,10 @@ async function main() {
   // Allow passing flags through to `changeset publish` (e.g. --tag next, --dry-run).
   const publishArgs = process.argv.slice(2);
 
+  // Enforce lockstep/fixed-versioning invariants before release.
+  const fixed = await run("node", ["scripts/check-fixed-versioning.mjs"]);
+  if (fixed.code !== 0) process.exit(fixed.code);
+
   // Build first (same behavior as old `bun run build && changeset publish`).
   const build = await run("bun", ["run", "build"]);
   if (build.code !== 0) process.exit(build.code);

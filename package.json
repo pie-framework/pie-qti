@@ -42,6 +42,7 @@
     "clean": "turbo clean && rm -rf node_modules",
     "typecheck": "turbo typecheck",
     "check": "turbo check",
+    "check:fixed-versioning": "node scripts/check-fixed-versioning.mjs",
     "changeset": "changeset",
     "version": "changeset version",
     "release": "node scripts/release.mjs"

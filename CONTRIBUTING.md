@@ -7,7 +7,7 @@ Thank you for your interest in contributing to the PIE-QTI project! This documen
 ### Prerequisites
 
 - **Bun** ≥1.1.0 (package manager and runtime)
-- **Node.js** ≥18.0.0 (for compatibility)
+- **Node.js** ≥20.19.0 (for compatibility)
 - **Git** for version control
 
 ### Getting Started

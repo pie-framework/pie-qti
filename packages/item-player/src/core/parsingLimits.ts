@@ -18,7 +18,7 @@ const DEFAULTS: Omit<NormalizedParsingLimits, 'enabled'> = {
 };
 
 function getByteLengthUtf8(s: string): number {
-	// TextEncoder is available in modern runtimes (browser + Bun/node 18+).
+	// TextEncoder is available in modern runtimes (browser + Bun/node 20+).
 	// Fall back to a conservative approximation if unavailable.
 	const TE: typeof TextEncoder | undefined = (globalThis as any).TextEncoder;
 	if (!TE) return s.length * 2;

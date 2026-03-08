@@ -18,6 +18,19 @@ on:
       - ".github/workflows/release.yml"
   workflow_dispatch:
     inputs:
+      release_intent:
+        description: "What should this manual run do?"
+        required: true
+        type: choice
+        options:
+          - version-pr
+          - publish
+        default: version-pr
+      force_publish:
+        description: "Allow manual publish even when version-bump detection is false (use for reruns/recovery)"
+        required: false
+        type: boolean
+        default: false
       version_type:
         description: 'Version bump type (major/minor/patch)'
         required: false
@@ -27,6 +40,15 @@ on:
           - major
           - minor
           - patch
+      publish_auth:
+        description: "Publish auth mode for manual publish runs"
+        required: false
+        type: choice
+        options:
+          - auto
+          - token
+          - oidc
+        default: auto
 
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
@@ -34,6 +56,9 @@ jobs:
   release:
     name: Release to NPM
     runs-on: ubuntu-latest
+    env:
+      PUBLISH_NPM_TOKEN: ""
+      PUBLISH_NODE_AUTH_TOKEN: ""
     permissions:
       contents: write
       pull-requests: write
@@ -49,6 +74,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20.19.0
+          registry-url: https://registry.npmjs.org
+          always-auth: true
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -98,6 +125,27 @@ jobs:
             echo "has_version_bumps=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Validate manual release intent prerequisites
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: |
+          set -euo pipefail
+          intent="${{ inputs.release_intent }}"
+          has_changesets="${{ steps.detect.outputs.has_changesets }}"
+          has_version_bumps="${{ steps.detect.outputs.has_version_bumps }}"
+          force_publish="${{ inputs.force_publish }}"
+
+          if [ "$intent" = "version-pr" ] && [ "$has_changesets" != "true" ]; then
+            echo "Manual intent 'version-pr' requires at least one .changeset/*.md file in this commit."
+            exit 1
+          fi
+
+          if [ "$intent" = "publish" ] && [ "$has_version_bumps" != "true" ] && [ "$force_publish" != "true" ]; then
+            echo "Manual intent 'publish' requires package.json/CHANGELOG.md version bump changes."
+            echo "If you are rerunning/recovering a failed publish from master, re-run with force_publish=true."
+            exit 1
+          fi
+
       - name: Stop early (no changesets / no version bumps)
         if: github.event_name != 'workflow_dispatch' && steps.detect.outputs.has_changesets != 'true' && steps.detect.outputs.has_version_bumps != 'true'
         run: |
@@ -105,24 +153,80 @@ jobs:
           exit 0
 
       - name: Build packages (publish runs only)
-        if: github.event_name == 'workflow_dispatch' || steps.detect.outputs.has_version_bumps == 'true'
+        if: (github.event_name == 'workflow_dispatch' && inputs.release_intent == 'publish') || (github.event_name != 'workflow_dispatch' && steps.detect.outputs.has_version_bumps == 'true')
         run: bun run build
 
       - name: Run tests (publish runs only)
-        if: github.event_name == 'workflow_dispatch' || steps.detect.outputs.has_version_bumps == 'true'
+        if: (github.event_name == 'workflow_dispatch' && inputs.release_intent == 'publish') || (github.event_name != 'workflow_dispatch' && steps.detect.outputs.has_version_bumps == 'true')
         run: bun run test
 
+      - name: Resolve npm publish auth mode
+        if: (github.event_name == 'workflow_dispatch' && inputs.release_intent == 'publish') || (github.event_name != 'workflow_dispatch' && steps.detect.outputs.has_version_bumps == 'true')
+        id: npm_auth
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          REGISTRY="$(npm config get registry)"
+          echo "npm registry: ${REGISTRY}"
+          if [ "${REGISTRY}" != "https://registry.npmjs.org/" ]; then
+            echo "Unexpected npm registry configured: ${REGISTRY}" >&2
+            exit 1
+          fi
+
+          publish_auth_input="auto"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            publish_auth_input="${{ inputs.publish_auth }}"
+          fi
+
+          if [ "${publish_auth_input}" = "token" ]; then
+            if [ -z "${NPM_TOKEN:-}" ]; then
+              echo "publish_auth=token requires NPM_TOKEN secret." >&2
+              exit 1
+            fi
+            echo "mode=token" >> "$GITHUB_OUTPUT"
+          elif [ "${publish_auth_input}" = "oidc" ]; then
+            echo "mode=oidc" >> "$GITHUB_OUTPUT"
+          else
+            if [ -n "${NPM_TOKEN:-}" ]; then
+              echo "mode=token" >> "$GITHUB_OUTPUT"
+            else
+              echo "mode=oidc" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+      - name: Configure token auth for npm publish
+        if: steps.npm_auth.outputs.mode == 'token'
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          echo "Using token auth for npm publish."
+          echo "PUBLISH_NPM_TOKEN=${NPM_TOKEN}" >> "$GITHUB_ENV"
+          echo "PUBLISH_NODE_AUTH_TOKEN=${NPM_TOKEN}" >> "$GITHUB_ENV"
+
+      - name: Configure OIDC auth for npm publish
+        if: steps.npm_auth.outputs.mode == 'oidc'
+        run: |
+          set -euo pipefail
+          echo "Using OIDC trusted publishing for npm publish."
+          echo "PUBLISH_NPM_TOKEN=" >> "$GITHUB_ENV"
+          echo "PUBLISH_NODE_AUTH_TOKEN=" >> "$GITHUB_ENV"
+
       - name: Create Release Pull Request or Publish to NPM
+        if: github.event_name == 'workflow_dispatch' || steps.detect.outputs.has_changesets == 'true' || steps.detect.outputs.has_version_bumps == 'true'
         id: changesets
         uses: changesets/action@v1
         with:
           publish: bun run release
           version: bun run version
-          title: 'chore(release): version packages'
+          title: 'chore(release): version packages [skip-heavy-ci]'
           commit: 'chore(release): version packages'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ env.PUBLISH_NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ env.PUBLISH_NODE_AUTH_TOKEN }}
+          NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
 
       - name: Create GitHub Release
         if: steps.changesets.outputs.published == 'true'

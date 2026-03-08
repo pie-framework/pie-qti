@@ -22,7 +22,7 @@ This guide provides comprehensive instructions for building vendor-specific tran
 
 ### Prerequisites
 
-- Node.js 18+ or Bun runtime
+- Node.js 20.19+ or Bun runtime
 - Basic understanding of QTI 2.2 specification
 - Familiarity with PIE model format
 
@@ -1134,7 +1134,7 @@ Specify compatible framework versions:
 ```json
 {
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.19.0"
   },
   "peerDependencies": {
     "@pie-qti/transform-core": "^0.1.0",
