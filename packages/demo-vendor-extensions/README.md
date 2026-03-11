@@ -119,7 +119,7 @@ const qtiPlugin = new QtiToPiePlugin({
 
 ### Already Integrated
 
-The demo extensions are already wired up in the transform app at [packages/transform-app/src/hooks.server.ts](../transform-app/src/hooks.server.ts#L48-L66).
+The demo extensions are already wired up in the transform app at [apps/transform/src/hooks.server.ts](../../apps/transform/src/hooks.server.ts#L48-L66).
 
 ## Testing the Extensions
 

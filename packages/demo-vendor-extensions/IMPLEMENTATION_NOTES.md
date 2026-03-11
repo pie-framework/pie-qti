@@ -43,7 +43,7 @@ Located at `/packages/demo-vendor-extensions/`
 
 The extensions are automatically loaded in the transform app at startup:
 
-**File:** [packages/transform-app/src/hooks.server.ts](../transform-app/src/hooks.server.ts#L48-L66)
+**File:** [apps/transform/src/hooks.server.ts](../../apps/transform/src/hooks.server.ts#L48-L66)
 
 ```typescript
 const qtiPlugin = new QtiToPiePlugin({

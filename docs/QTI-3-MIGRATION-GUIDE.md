@@ -205,7 +205,7 @@ As of v0.1.1, all packages have been renamed to be version-agnostic:
 | `@pie-qti/assessment-player` | `@pie-qti/assessment-player` | Version-agnostic |
 | `@pie-qti/default-components` | `@pie-qti/default-components` | Render any version |
 | `@pie-qti/player-elements` | `@pie-qti/player-elements` | Version-agnostic |
-| `@pie-qti/example` | `@pie-qti/example` | Version-agnostic |
+| `@pie-qti/app-demo` | `@pie-qti/app-demo` | Demo app moved under apps |
 | `@pie-qti/i18n` | `@pie-qti/i18n` | Generic UI strings |
 | `@pie-qti/to-pie` | `@pie-qti/to-pie` | Handles both 2.x and 3.0 |
 | `@pie-qti/typeset-katex` | `@pie-qti/typeset-katex` | Version-agnostic |

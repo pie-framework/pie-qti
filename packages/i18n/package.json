@@ -15,7 +15,7 @@
     "./locales/*": "./dist/locales/*"
   },
   "scripts": {
-    "build": "bun run check-translations && tsc",
+    "build": "if [ \"$PIE_QTI_DEV_FAST_BUILD\" = \"1\" ]; then tsc; else bun run check-translations && tsc; fi",
     "build:skip-check": "tsc",
     "clean": "rm -rf dist",
     "test": "bun test tests",

@@ -1,4 +1,4 @@
-# @pie-qti/example
+# @pie-qti/app-demo
 
 Demo application showcasing the QTI 2.x item and assessment players with interactive examples.
 
@@ -118,7 +118,7 @@ Test different QTI 2.x standard roles:
 bun install
 
 # Start dev server
-cd packages/example
+cd apps/demo
 bun run dev
 
 # Open browser to http://localhost:5173

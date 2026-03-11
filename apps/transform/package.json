@@ -1,5 +1,5 @@
 {
-  "name": "@pie-qti/transform-web",
+  "name": "@pie-qti/app-transform",
   "version": "0.1.1",
   "description": "Web interface for testing QTI to PIE transformations",
   "type": "module",

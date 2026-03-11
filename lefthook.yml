@@ -2,5 +2,5 @@ pre-commit:
   parallel: true
   commands:
     svelte-build:
-      glob: "packages/**/*.{js,ts,svelte,css}"
-      run: bun run --cwd packages/example build && bun run --cwd packages/transform-app build && bun run --cwd packages/docs-site build
+      glob: "{apps,packages}/**/*.{js,ts,svelte,css}"
+      run: bun run --cwd apps/demo build && bun run --cwd apps/transform build && bun run --cwd apps/docs build

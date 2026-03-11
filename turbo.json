@@ -1,6 +1,6 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "globalPassThroughEnv": ["NODE_ENV"],
+  "globalPassThroughEnv": ["NODE_ENV", "PIE_QTI_DEV_FAST_BUILD"],
   "ui": "tui",
   "tasks": {
     "build": {

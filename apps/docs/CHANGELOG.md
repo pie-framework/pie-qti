@@ -1,4 +1,4 @@
-# @pie-qti/docs-site
+# @pie-qti/app-docs
 
 ## 0.1.1
 

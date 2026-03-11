@@ -452,7 +452,7 @@ ISC
 
 - [@pie-qti/assessment-player](../assessment-player) - Multi-item test player
 - [@pie-qti/player-elements](../player-elements) - Web components
-- [@pie-qti/example](../example) - Demo application
+- [@pie-qti/app-demo](../../apps/demo) - Demo application
 - [@pie-qti/to-pie](../to-pie) - QTI to PIE transformer
 
 ## Contributing

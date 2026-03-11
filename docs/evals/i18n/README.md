@@ -97,7 +97,7 @@ Tests graceful degradation:
 
 ### Run all i18n evals
 ```bash
-cd packages/example
+cd apps/demo
 bun run test:e2e -- docs/evals/qti-i18n
 ```
 
@@ -142,7 +142,7 @@ bun run test:e2e:ui -- docs/evals/qti-i18n
 
 ### Multilingual Item Loading
 - Items are lazy-loaded per locale via dynamic imports
-- Located in `packages/example/src/lib/sample-items-i18n/`
+- Located in `apps/demo/src/lib/sample-items-i18n/`
 - Fallback chain: exact locale → language variant → en-US
 
 ## Spirit Checks
@@ -158,8 +158,8 @@ All evals include spirit checks to validate:
 
 - **i18n package**: `packages/i18n/README.md`
 - **Translation keys**: `packages/i18n/src/locales/en-US.ts`
-- **Sample items**: `packages/example/src/lib/sample-items-i18n/`
-- **Settings menu**: `packages/example/src/lib/components/SettingsMenu.svelte`
+- **Sample items**: `apps/demo/src/lib/sample-items-i18n/`
+- **Settings menu**: `apps/demo/src/lib/components/SettingsMenu.svelte`
 
 ## Notes for Test Runners
 

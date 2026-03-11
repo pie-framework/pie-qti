@@ -265,10 +265,10 @@ Unlike the old `ElementDetectionPipeline` approach, this plugin:
 
 ## Examples
 
-See the [QTI Examples app](../example) for live demos:
+See the [QTI Examples app](../../apps/demo) for live demos:
 
 ```bash
-cd packages/example
+cd apps/demo
 bun run dev
 ```
 

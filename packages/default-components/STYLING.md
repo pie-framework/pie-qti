@@ -73,7 +73,7 @@ pie-qti-match::part(target) {
 
 The repo includes a Playwright regression test that renders `pie-qti-order` and `pie-qti-match` in an iframe with **no Tailwind/DaisyUI loaded** and asserts that SVG handles do not fall back to browser-default sizing.
 
-See: `packages/example/tests/playwright/no-host-css.pw.ts`
+See: `apps/demo/tests/playwright/no-host-css.pw.ts`
 
 ## Baseline class styling (Shadow DOM)
 

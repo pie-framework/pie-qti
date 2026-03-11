@@ -1,4 +1,4 @@
-# @pie-qti/transform-web
+# @pie-qti/app-transform
 
 > **Status**: Under active development
 
@@ -21,7 +21,7 @@ From the repository root:
 bun install
 
 # Start the transform app
-bun run dev:transform-app
+bun run dev:transform
 
 # Open http://localhost:5174
 ```
@@ -135,7 +135,7 @@ See `/admin/plugins` in the running app for complete extension point documentati
 
 ```bash
 # Start dev server
-cd packages/transform-app
+cd apps/transform
 bun run dev
 
 # Build for production

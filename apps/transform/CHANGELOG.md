@@ -1,4 +1,4 @@
-# @pie-qti/transform-web
+# @pie-qti/app-transform
 
 ## 0.1.1
 

@@ -86,7 +86,7 @@ Phase 1 implements the foundation for uploading and browsing complete QTI packag
 
 1. Start the dev server:
    ```bash
-   bun run dev:example
+   bun run dev:demo
    ```
 
 2. Navigate to: http://localhost:5173/package-upload
@@ -119,7 +119,7 @@ Phase 1 implements the foundation for uploading and browsing complete QTI packag
 ## Files Created
 
 ```
-packages/example/src/routes/
+apps/demo/src/routes/
 ├── api/
 │   └── package-upload/
 │       └── +server.ts              # API endpoint

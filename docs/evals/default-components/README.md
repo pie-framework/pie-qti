@@ -10,11 +10,11 @@ The evals are designed to be:
 
 - **Machine-actionable**: structured steps + explicit expected response/outcome values.
 - **Assessment-faithful**: they check the “spirit of the item” (clarity, student-facing UX, plausibility of distractors, avoiding trickiness).
-- **Validated against real items**: every eval references a concrete sample item from `@pie-qti/example` (primarily the `item-demo` route).
+- **Validated against real items**: every eval references a concrete sample item from `@pie-qti/app-demo` (primarily the `item-demo` route).
 
 ## How to use these evals
 
-- Use the `@pie-qti/example` app as the target environment.
+- Use the `@pie-qti/app-demo` app as the target environment.
 - For each eval case, navigate to:
   - `/item-demo/{sampleId}`
 - Perform the described interactions (click/drag/select/type).

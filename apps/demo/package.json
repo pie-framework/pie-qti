@@ -1,5 +1,5 @@
 {
-  "name": "@pie-qti/example",
+  "name": "@pie-qti/app-demo",
   "version": "0.1.0",
   "description": "QTI (2.x and 3.0) Player Example & Demo Application",
   "type": "module",

@@ -21,7 +21,7 @@ Real eval sets live under `docs/evals/assessment-player/<slug>/evals.yaml`.
 
 ## How to use these evals
 
-- Use the `@pie-qti/example` app as the target environment.
+- Use the `@pie-qti/app-demo` app as the target environment.
 - For each eval case, navigate to:
   - `/assessment-demo`
 - Select the desired sample assessment from the **Sample Assessments** dropdown.

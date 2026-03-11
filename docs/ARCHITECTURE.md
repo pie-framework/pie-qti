@@ -30,7 +30,7 @@ High-level architecture overview for PIE-QTI.
 
 ## Repository map (mental model)
 
-Everything lives under `packages/`:
+Everything lives under `packages/` and `apps/`:
 
 ### Transform system
 
@@ -56,8 +56,8 @@ Everything lives under `packages/`:
 
 ### Apps
 
-- `packages/transform-app`: web conversion UI
-- `packages/example`: example app + fixtures + reference iframe runtime page
+- `apps/transform`: web conversion UI
+- `apps/demo`: example app + fixtures + reference iframe runtime page
 
 ---
 
@@ -425,7 +425,7 @@ Key reference:
 
 ---
 
-## Transform app (`packages/transform-app`): conversion + preview pipeline
+## Transform app (`apps/transform`): conversion + preview pipeline
 
 > **Status**: Under active development
 
@@ -461,17 +461,17 @@ Key references:
 
 - Storage types: `packages/types/src/storage/index.ts`
 - Storage package: `packages/storage/src/`
-- App storage wrapper: `packages/transform-app/src/lib/server/storage/app-session-storage.ts`
+- App storage wrapper: `apps/transform/src/lib/server/storage/app-session-storage.ts`
 - Configuration: `docs/CONFIGURATION.md`
 
 ### Server-side flow (sessioned)
 
 1) **Upload**: `POST /api/upload` stores ZIP(s) in a new session
-   - reference: `packages/transform-app/src/routes/api/upload/+server.ts`
+   - reference: `apps/transform/src/routes/api/upload/+server.ts`
 2) **Analyze**: `POST /api/sessions/[id]/analyze` extracts and analyzes the session
-   - reference: `packages/transform-app/src/routes/api/sessions/[id]/analyze/+server.ts`
+   - reference: `apps/transform/src/routes/api/sessions/[id]/analyze/+server.ts`
 3) **Transform**: `POST /api/sessions/[id]/transform` uses `TransformEngine` + `Qti22ToPiePlugin`
-   - reference: `packages/transform-app/src/routes/api/sessions/[id]/transform/+server.ts`
+   - reference: `apps/transform/src/routes/api/sessions/[id]/transform/+server.ts`
 
 ### Preview model
 
@@ -480,9 +480,9 @@ Key references:
 
 Key references:
 
-- QTI item preview component: `packages/transform-app/src/lib/components/Qti2ItemPlayer.svelte`
-- QTI assessment preview component: `packages/transform-app/src/lib/components/Qti2AssessmentPlayer.svelte`
-- PIE preview component: `packages/transform-app/src/lib/components/PieItemPlayer.svelte`
+- QTI item preview component: `apps/transform/src/lib/components/Qti2ItemPlayer.svelte`
+- QTI assessment preview component: `apps/transform/src/lib/components/Qti2AssessmentPlayer.svelte`
+- PIE preview component: `apps/transform/src/lib/components/PieItemPlayer.svelte`
 
 ---
 

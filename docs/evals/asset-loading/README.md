@@ -31,7 +31,7 @@ Asset types tested:
 
 ### Run all asset loading evals
 ```bash
-cd packages/example
+cd apps/demo
 bun run test:e2e -- docs/evals/qti-asset-loading
 ```
 
@@ -43,7 +43,7 @@ bun run test:e2e:ui -- docs/evals/qti-asset-loading
 ## Implementation Details
 
 ### Security Configuration
-**File**: `packages/example/src/lib/player-config.ts`
+**File**: `apps/demo/src/lib/player-config.ts`
 
 ```typescript
 export function getSecurityConfig(): NonNullable<PlayerConfig['security']> {
@@ -91,7 +91,7 @@ All evals include spirit checks to validate:
 ## Related Documentation
 
 - **URL policy**: `packages/item-player/src/core/urlPolicy.ts`
-- **Player config**: `packages/example/src/lib/player-config.ts`
+- **Player config**: `apps/demo/src/lib/player-config.ts`
 - **Security config**: `packages/item-player/README.md`
 
 ## Notes for Test Runners
