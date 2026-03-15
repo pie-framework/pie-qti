@@ -78,7 +78,6 @@ export function getMultilingualItem(itemId: string): MultilingualSampleItem | un
 }
 
 /**
- * Legacy export for backward compatibility
  * Builds the list of multilingual items from available item IDs
  */
 export const MULTILINGUAL_ITEMS: MultilingualSampleItem[] = getItemIds().map((itemId: string) => ({

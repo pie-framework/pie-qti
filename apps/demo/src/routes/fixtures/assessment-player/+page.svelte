@@ -5,7 +5,7 @@
 import AssessmentShell from '@pie-qti/assessment-player/components/AssessmentShell.svelte';
 	import { typesetAction } from '@pie-qti/default-components/shared';
 	import { typesetMathInElement } from '@pie-qti/typeset-katex';
-	import { SAMPLE_ASSESSMENTS, type SampleAssessment, toSecureAssessment } from '$lib/sample-assessments';
+	import { SAMPLE_ASSESSMENTS, type SampleAssessment } from '$lib/sample-assessments';
 	import { getSecurityConfig } from '$lib/player-config';
 
 	let selectedSampleId = $state('reading-comp-1');
@@ -18,7 +18,7 @@ import AssessmentShell from '@pie-qti/assessment-player/components/AssessmentShe
 		const sample = SAMPLE_ASSESSMENTS.find((s) => s.id === selectedSampleId);
 		if (sample) {
 			selectedAssessment = sample;
-			const secure = toSecureAssessment(sample.assessment, { role: 'candidate' });
+			const secure = sample.assessment;
 			const b = new ReferenceBackendAdapter();
 			b.registerAssessment(secure.identifier, secure);
 			backend = b;

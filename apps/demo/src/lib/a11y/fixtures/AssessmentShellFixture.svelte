@@ -3,10 +3,9 @@
 	import type { InitSessionRequest } from '@pie-qti/assessment-player';
 	import { ReferenceBackendAdapter } from '@pie-qti/assessment-player';
 import AssessmentShell from '@pie-qti/assessment-player/components/AssessmentShell.svelte';
-	import { SAMPLE_ASSESSMENTS, toSecureAssessment } from '$lib/sample-assessments';
+	import { SAMPLE_ASSESSMENTS } from '$lib/sample-assessments';
 
-	const assessment = SAMPLE_ASSESSMENTS[0]?.assessment;
-	const secureAssessment = assessment ? toSecureAssessment(assessment, { role: 'candidate' }) : null;
+	const secureAssessment = SAMPLE_ASSESSMENTS[0]?.assessment ?? null;
 
 	const backend = new ReferenceBackendAdapter();
 	if (secureAssessment) backend.registerAssessment(secureAssessment.identifier, secureAssessment);
@@ -21,7 +20,7 @@ import AssessmentShell from '@pie-qti/assessment-player/components/AssessmentShe
 		Fixture for the assessment shell (navigation, sections, rubrics, and item rendering).
 	</p>
 
-	{#if assessment}
+	{#if secureAssessment}
 		<div class="border border-base-300 rounded">
 			<AssessmentShell
 				{backend}

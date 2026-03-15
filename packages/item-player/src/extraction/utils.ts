@@ -160,7 +160,7 @@ export function createExtractionUtils(
 	mapper?: ElementNameMapper,
 	attributeMapper?: AttributeNameMapper
 ): ExtractionUtils {
-	// Default to QTI 2.x mappers for backward compatibility
+	// Default to QTI 2.x mappers (primary supported QTI format)
 	const elementMapper = mapper || new Qti2xElementNameMapper();
 	const attrMapper = attributeMapper || new Qti2xAttributeNameMapper();
 	return {

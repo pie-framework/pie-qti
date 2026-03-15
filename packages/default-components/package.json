@@ -29,6 +29,7 @@
   "dependencies": {
     "@pie-qti/i18n": "workspace:*",
     "@pie-qti/item-player": "workspace:*",
+    "@pie-qti/qti-common": "workspace:*",
     "@tiptap/core": "^3.15.3",
     "@tiptap/extension-mathematics": "^3.15.3",
     "@tiptap/extension-placeholder": "^3.15.3",

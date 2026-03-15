@@ -44,13 +44,13 @@ import type {
 	AdaptiveAttemptResult,
 	CompletionStatus,
 	HtmlContent,
+	ItemSessionState,
 	ModalFeedback,
 	PlayerConfig,
 	PlayerSecurityConfig,
 	QTIRole,
 	RubricBlock,
 	ScoringResult,
-	SessionState,
 } from '../types/index.js';
 import type { InteractionData, QTIElement } from '../types/interactions.js';
 import type { ResponseValidationResult } from '../types/responseValidation.js';
@@ -670,8 +670,8 @@ export class Player {
 		}
 	}
 
-	public getSessionState(): SessionState {
-		const out: SessionState = {};
+	public getSessionState(): ItemSessionState {
+		const out: ItemSessionState = {};
 		for (const d of Object.values(this.decls)) {
 			out[d.identifier] = d.value.kind === 'value' ? d.value.value : null;
 		}
@@ -1048,7 +1048,7 @@ export class Player {
 		}
 	}
 
-	private applySessionState(state: SessionState): void {
+	private applySessionState(state: ItemSessionState): void {
 		for (const [id, raw] of Object.entries(state)) {
 			const d = this.decls[id];
 			if (!d) continue;

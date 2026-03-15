@@ -4,7 +4,7 @@
 	import AssessmentShell from '@pie-qti/assessment-player/components/AssessmentShell.svelte';
 	import { typesetAction } from '@pie-qti/default-components/shared';
 	import { typesetMathInElement } from '@pie-qti/typeset-katex';
-	import { SAMPLE_ASSESSMENTS, type SampleAssessment, toSecureAssessment } from '$lib/sample-assessments';
+	import { SAMPLE_ASSESSMENTS, type SampleAssessment } from '$lib/sample-assessments';
 	import { getSecurityConfig } from '$lib/player-config';
 	import AssessmentEndScreen from './components/AssessmentEndScreen.svelte';
 	import FileUploader from './components/FileUploader.svelte';
@@ -35,7 +35,7 @@
 		const metaById = new Map<string, { title?: string; sectionTitle?: string }>();
 		for (const tp of selectedAssessment.assessment.testParts || []) {
 			for (const section of tp.sections || []) {
-				for (const q of section.questionRefs || []) {
+				for (const q of section.items || []) {
 					metaById.set(q.identifier, { title: q.title, sectionTitle: section.title });
 				}
 			}
@@ -59,7 +59,7 @@
 		if (sample) {
 			selectedAssessment = sample;
 			// Create a fresh reference backend for each sample selection.
-			const secure = toSecureAssessment(sample.assessment, { role: 'candidate' });
+			const secure = sample.assessment;
 			const b = new ReferenceBackendAdapter();
 			b.registerAssessment(secure.identifier, secure);
 			backend = b;
@@ -79,7 +79,7 @@
 
 		try {
 			const formData = new FormData();
-			formData.append('file', file);
+			formData.append('files', file);
 
 			const response = await fetch('/api/upload-qti', {
 				method: 'POST',

@@ -10,9 +10,9 @@
 
 	// Build a minimal QTI assessmentTest XML that references item hrefs we can resolve from an in-memory map.
 	const testParts = READING_COMPREHENSION_ASSESSMENT.assessment?.testParts ?? [];
-	const q1 = testParts[0]?.sections?.[0]?.questionRefs?.[0];
-	const q2 = testParts[0]?.sections?.[0]?.questionRefs?.[1];
-	const q3 = testParts[0]?.sections?.[0]?.questionRefs?.[2];
+	const q1 = testParts[0]?.sections?.[0]?.items?.[0];
+	const q2 = testParts[0]?.sections?.[0]?.items?.[1];
+	const q3 = testParts[0]?.sections?.[0]?.items?.[2];
 
 	const items: Record<string, string> = {
 		'q1.xml': q1?.itemXml ?? '',

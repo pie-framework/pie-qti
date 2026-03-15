@@ -225,9 +225,9 @@ describe('Loggers', () => {
 	test('CaptureLogger filters by item ID', () => {
 		const logger = new CaptureLogger();
 
-		logger.info('message1', 'item-1');
-		logger.info('message2', 'item-2');
-		logger.info('message3', 'item-1');
+		logger.info('message1', { itemId: 'item-1' });
+		logger.info('message2', { itemId: 'item-2' });
+		logger.info('message3', { itemId: 'item-1' });
 
 		const item1Logs = logger.getLogsByItemId('item-1');
 		expect(item1Logs).toHaveLength(2);

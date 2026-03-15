@@ -92,7 +92,7 @@ async function runStep(page: Page, step: EvalStep): Promise<void> {
 
 			// Settings gear icon
 			if (description.includes('settings') || description.includes('gear')) {
-				const btn = page.getByRole('button', { name: /settings/i });
+				const btn = page.locator('[data-testid="settings-menu-button"]').first();
 				await btn.click();
 				await page.waitForTimeout(500);
 				break;

@@ -312,7 +312,9 @@
 				response: responses[interaction.responseId] ?? null,
 				correctResponse: role === 'scorer' ? correctRespForInteraction : null,
 				disabled,
-				role,
+				// Avoid invalid ARIA role values on custom-element hosts.
+				// Components default to candidate when role is omitted.
+				role: role === 'scorer' ? 'scorer' : undefined,
 			}}
 		/>
 	{/each}

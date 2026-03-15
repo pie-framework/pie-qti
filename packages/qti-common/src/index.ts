@@ -22,6 +22,9 @@ export {
 	toKebabCase,
 } from './xml/index.js';
 
+// DOM utility helpers shared across player packages
+export { assignProps, type AssignPropsOptions, touchDrag, touchDragStyles } from './dom/index.js';
+
 // Parser factory
 export {
 	createQtiParser,

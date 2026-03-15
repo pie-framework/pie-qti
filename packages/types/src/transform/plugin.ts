@@ -6,16 +6,7 @@
 
 import type { LogContext, ServerLogger } from '@pie-qti/logger/server';
 
-/**
- * Transform logger interface (alias for ServerLogger)
- * @deprecated Import ServerLogger directly from @pie-qti/logger/server
- */
-export type TransformLogger = ServerLogger;
-
-/**
- * Re-export LogContext for convenience
- */
-export type { LogContext };
+export type { LogContext, ServerLogger };
 
 /**
  * Transform format identifier
@@ -137,7 +128,7 @@ export interface TransformOutput {
  */
 export interface TransformContext {
   /** Logger for transformation messages */
-  logger?: TransformLogger;
+  logger?: ServerLogger;
 
   /** Vendor-specific options */
   vendor?: string;
@@ -261,12 +252,6 @@ export interface TransformError {
    * Recoverable errors can be retried or worked around
    */
   recoverable: boolean;
-
-  /**
-   * Whether error is fatal (stops entire transformation)
-   * @deprecated Use category and recoverable instead for more nuanced handling
-   */
-  fatal: boolean;
 
   /**
    * Underlying cause if error is wrapped

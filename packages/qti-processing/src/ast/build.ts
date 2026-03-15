@@ -25,7 +25,7 @@ export interface BuildOptions {
 	scope: ProcessingScope;
 	/**
 	 * Element name mapper for handling different QTI versions.
-	 * Defaults to Qti2xElementNameMapper for backward compatibility.
+	 * Defaults to Qti2xElementNameMapper (primary supported QTI format).
 	 */
 	elementNameMapper?: ElementNameMapper;
 }
@@ -513,7 +513,7 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 						: null;
 			if (!roundingMode) {
 				throw new Error(
-					'<equalRounded> roundingMode must be "decimalPlaces"|"significantFigures" (or legacy singular forms)',
+					'<equalRounded> roundingMode must be "decimalPlaces"|"significantFigures"',
 				);
 			}
 			return {

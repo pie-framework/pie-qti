@@ -24,7 +24,6 @@ export * from './config/plugin-loader.js';
 export * from './config/vendor-registry.js';
 
 // Utilities
-export * from './utils/logger.js';
 export * from './utils/validator.js';
 export * from './utils/errors.js';
 

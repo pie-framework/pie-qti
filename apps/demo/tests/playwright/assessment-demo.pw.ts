@@ -32,8 +32,8 @@ test.describe('/assessment-demo', () => {
 		await expect(orderHost).toBeVisible({ timeout: 10000 });
 
 		// On Q1 (orderInteraction), "Previous" is disabled.
-		const prev = page.getByRole('button', { name: /^Previous$/i });
-		const next = page.getByRole('button', { name: /^Next$/i });
+		const prev = page.locator('[data-testid="assessment-prev"]');
+		const next = page.locator('[data-testid="assessment-next"]');
 		await expect(prev).toBeDisabled();
 		await expect(next).toBeEnabled();
 
@@ -85,7 +85,7 @@ test.describe('/assessment-demo', () => {
 
 		// The showcase contains a passage split-pane + choice first.
 		await expect(page.locator('pie-qti-choice').first()).toBeVisible();
-		await expect(page.getByRole('button', { name: /^Next$/i })).toBeVisible();
+		await expect(page.locator('[data-testid="assessment-next"]')).toBeVisible();
 	});
 
 	test('section switching navigates to the selected section (interaction showcase)', async ({ page }) => {
@@ -138,8 +138,8 @@ test.describe('/assessment-demo', () => {
 
 		// Find Next button by looking for button with forward arrow SVG and text content
 		// (may be in any language, so we don't match specific text)
-		const next = page.locator('button:has-text("Next"), button:has-text("Siguiente"), button:has-text("Suivant"), button:has-text("Volgende")').first();
-		const submit = page.locator('button:has-text("Submit"), button:has-text("Enviar")').first();
+		const next = page.locator('[data-testid="assessment-next"]');
+		const submit = page.locator('[data-testid="assessment-submit"]');
 
 		// Navigate through items, answering each with the first choice, until we reach Submit.
 		for (let i = 0; i < 5; i++) {
@@ -187,8 +187,8 @@ test.describe('/assessment-demo', () => {
 		await choiceHost.locator('input[type="radio"][value="A"]').click();
 
 		// Navigate to the end and submit.
-		const next = page.locator('button:has-text("Next"), button:has-text("Siguiente"), button:has-text("Suivant"), button:has-text("Volgende")').first();
-		const submit = page.locator('button:has-text("Submit"), button:has-text("Enviar")').first();
+		const next = page.locator('[data-testid="assessment-next"]');
+		const submit = page.locator('[data-testid="assessment-submit"]');
 		for (let i = 0; i < 30; i++) {
 			if (await submit.isVisible().catch(() => false)) break;
 			await expect(next).toBeVisible({ timeout: 5000 });
@@ -221,8 +221,8 @@ test.describe('/assessment-demo', () => {
 		// Wait for assessment to load
 		await page.waitForTimeout(1000);
 
-		const next = page.locator('button:has-text("Next"), button:has-text("Siguiente"), button:has-text("Suivant"), button:has-text("Volgende")').first();
-		const submit = page.locator('button:has-text("Submit"), button:has-text("Enviar")').first();
+		const next = page.locator('[data-testid="assessment-next"]');
+		const submit = page.locator('[data-testid="assessment-submit"]');
 
 		// Capture qti-change events to ensure responses are emitted for both items.
 		await page.evaluate(() => {

@@ -12,7 +12,7 @@ import { readFileSync } from 'fs';
 import { join, resolve } from 'path';
 import { QtiToPiePlugin } from '../../src/plugin.js';
 
-const fixturesDir = resolve(__dirname, '../../../apps/transform/static/samples');
+const fixturesDir = resolve(import.meta.dir, '../../../../apps/transform/static/samples');
 
 // Simple logger for tests
 const testLogger = {

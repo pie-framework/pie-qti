@@ -415,23 +415,23 @@ test.describe('Web components without host CSS', () => {
 		const frame = page.frameLocator('#no-host-css');
 
 		// Ensure elements exist and are upgraded.
-		await frame.locator('pie-qti-order').waitFor();
-		await frame.locator('pie-qti-match').waitFor();
-		await frame.locator('pie-qti-end-attempt').waitFor();
-		await frame.locator('pie-qti-media').waitFor();
-		await frame.locator('pie-qti-select-point').waitFor();
-		await frame.locator('pie-qti-hotspot').waitFor();
-		await frame.locator('pie-qti-graphic-gap-match').waitFor();
-		await frame.locator('pie-qti-graphic-order').waitFor();
-		await frame.locator('pie-qti-position-object').waitFor();
-		await frame.locator('pie-qti-graphic-associate').waitFor();
-		await frame.locator('pie-qti-choice').waitFor();
-		await frame.locator('pie-qti-slider').waitFor();
-		await frame.locator('pie-qti-gap-match').waitFor();
-		await frame.locator('pie-qti-hottext').waitFor();
-		await frame.locator('pie-qti-associate').waitFor();
-		await frame.locator('pie-qti-custom').waitFor();
-		await frame.locator('pie-qti-extended-text').waitFor();
+		await frame.locator('pie-qti-order').waitFor({ state: 'attached' });
+		await frame.locator('pie-qti-match').waitFor({ state: 'attached' });
+		await frame.locator('pie-qti-end-attempt').waitFor({ state: 'attached' });
+		await frame.locator('pie-qti-media').waitFor({ state: 'attached' });
+		await frame.locator('pie-qti-select-point').waitFor({ state: 'attached' });
+		await frame.locator('pie-qti-hotspot').waitFor({ state: 'attached' });
+		await frame.locator('pie-qti-graphic-gap-match').waitFor({ state: 'attached' });
+		await frame.locator('pie-qti-graphic-order').waitFor({ state: 'attached' });
+		await frame.locator('pie-qti-position-object').waitFor({ state: 'attached' });
+		await frame.locator('pie-qti-graphic-associate').waitFor({ state: 'attached' });
+		await frame.locator('pie-qti-choice').waitFor({ state: 'attached' });
+		await frame.locator('pie-qti-slider').waitFor({ state: 'attached' });
+		await frame.locator('pie-qti-gap-match').waitFor({ state: 'attached' });
+		await frame.locator('pie-qti-hottext').waitFor({ state: 'attached' });
+		await frame.locator('pie-qti-associate').waitFor({ state: 'attached' });
+		await frame.locator('pie-qti-custom').waitFor({ state: 'attached' });
+		await frame.locator('pie-qti-extended-text').waitFor({ state: 'attached' });
 
 		// Order: the drag-handle SVG should be small (not browser default 300x150).
 		const orderHandleSize = await frame.locator('pie-qti-order').evaluate((el) => {

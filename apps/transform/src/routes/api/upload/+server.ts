@@ -21,11 +21,7 @@ function generateSessionId(): string {
 export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
 		const formData = await request.formData();
-		// Accept both 'files' (plural) and 'file' (singular) for backwards compatibility
-		let files = formData.getAll('files');
-		if (files.length === 0) {
-			files = formData.getAll('file');
-		}
+		const files = formData.getAll('files');
 
 		if (files.length === 0) {
 			throw svelteError(400, 'No files provided');

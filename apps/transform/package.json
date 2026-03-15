@@ -24,6 +24,7 @@
     "@pie-qti/i18n": "workspace:*",
     "@pie-qti/item-player": "workspace:*",
     "@pie-qti/player-elements": "workspace:*",
+    "@pie-qti/qti-common": "workspace:*",
     "@pie-qti/typeset-katex": "workspace:*",
     "@pie-qti/to-pie": "workspace:*",
     "@pie-qti/storage": "workspace:*",

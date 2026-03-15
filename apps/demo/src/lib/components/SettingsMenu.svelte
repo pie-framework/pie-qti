@@ -99,6 +99,7 @@
 	<button
 		tabindex="0"
 		class="btn btn-ghost btn-circle"
+		data-testid="settings-menu-button"
 		aria-label={translations.ariaLabel}
 		aria-haspopup="true"
 	>
