@@ -195,33 +195,6 @@ const baseType = getAttribute(element, 'baseType');  // Works for both!
 const maxChoices = getNumberAttribute(element, 'maxChoices', 1);
 ```
 
-## Package Naming Changes
-
-As of v0.1.1, all packages have been renamed to be version-agnostic:
-
-| Old Name (< v0.1.1) | New Name (≥ v0.1.1) | Reason |
-|---------------------|---------------------|--------|
-| `@pie-qti/item-player` | `@pie-qti/item-player` | Supports both 2.x and 3.0 |
-| `@pie-qti/assessment-player` | `@pie-qti/assessment-player` | Version-agnostic |
-| `@pie-qti/default-components` | `@pie-qti/default-components` | Render any version |
-| `@pie-qti/player-elements` | `@pie-qti/player-elements` | Version-agnostic |
-| `@pie-qti/app-demo` | `@pie-qti/app-demo` | Demo app moved under apps |
-| `@pie-qti/i18n` | `@pie-qti/i18n` | Generic UI strings |
-| `@pie-qti/to-pie` | `@pie-qti/to-pie` | Handles both 2.x and 3.0 |
-| `@pie-qti/typeset-katex` | `@pie-qti/typeset-katex` | Version-agnostic |
-
-**Update your imports:**
-
-```typescript
-// Before
-import { Player } from '@pie-qti/item-player';
-import { transformQtiToPie } from '@pie-qti/to-pie';
-
-// After
-import { Player } from '@pie-qti/item-player';
-import { transformQtiToPie } from '@pie-qti/to-pie';
-```
-
 ## Benefits of Unified Architecture
 
 ### For Users
