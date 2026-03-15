@@ -41,6 +41,8 @@ import {
 import { Player } from '@pie-qti/item-player';
 import { parse } from 'node-html-parser';
 import type {
+	AssessmentSessionState,
+	AssessmentScoringResult,
 	BackendAdapter,
 	FinalizeAssessmentRequest,
 	FinalizeAssessmentResponse,
@@ -48,13 +50,11 @@ import type {
 	InitSessionResponse,
 	QueryItemBankRequest,
 	QueryItemBankResponse,
-	SaveStateRequest,
-	SaveStateResponse,
-	ScoringResult,
+	SaveAssessmentStateRequest,
+	SaveAssessmentStateResponse,
 	SecureAssessment,
 	SecureItemRef,
 	SessionId,
-	SessionState,
 	SubmitResponsesRequest,
 	SubmitResponsesResponse,
 } from './api-contract.js';
@@ -88,7 +88,7 @@ interface StoredSession {
 	/** Full assessment structure with QTI XML */
 	assessment: SecureAssessment;
 	/** Current state */
-	state: SessionState;
+	state: AssessmentSessionState;
 	/** Created timestamp */
 	createdAt: number;
 	/** Finalized flag */
@@ -152,8 +152,8 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 		// For reference implementation, we'll use demo data
 		const assessment = this.getAssessment(request.assessmentId);
 
-		const state: SessionState = {
-			currentItemIdentifier: assessment.testParts[0].sections[0].items[0].identifier,
+		const state: AssessmentSessionState = {
+			currentItemIdentifier: assessment.testParts[0].sections[0].assessmentItemRefs[0].identifier,
 			visitedItems: [],
 			itemResponses: {},
 			itemScores: {},
@@ -258,7 +258,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 	/**
 	 * Save session state (for auto-save)
 	 */
-	async saveState(request: SaveStateRequest): Promise<SaveStateResponse> {
+	async saveState(request: SaveAssessmentStateRequest): Promise<SaveAssessmentStateResponse> {
 		const session = this.loadSession(request.sessionId);
 		if (!session) {
 			return {
@@ -400,7 +400,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 	private findItemXml(assessment: SecureAssessment, itemIdentifier: string): string | null {
 		for (const part of assessment.testParts) {
 			for (const section of part.sections) {
-				for (const item of section.items) {
+				for (const item of section.assessmentItemRefs) {
 					if (item.identifier === itemIdentifier) {
 						return item.itemXml;
 					}
@@ -416,7 +416,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 	 * **SECURITY WARNING**: This is done CLIENT-SIDE for demo purposes only.
 	 * Production implementations MUST perform scoring SERVER-SIDE.
 	 */
-	private scoreItem(itemXml: string, responses: Record<string, any>): ScoringResult {
+	private scoreItem(itemXml: string, responses: Record<string, any>): AssessmentScoringResult {
 		try {
 			// Extract identifier from XML using regex (more reliable than DOM parsing)
 			const identifierMatch = itemXml.match(/assessmentItem[^>]+identifier=["']([^"']+)["']/);
@@ -471,7 +471,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			testParts: [
 				{
 					identifier: 'part1',
-					rubrics: [],
+					rubricBlocks: [],
 					itemSessionControl: {
 						maxAttempts: 1,
 						showFeedback: true,
@@ -486,7 +486,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 							identifier: 'section1',
 							title: 'Section 1',
 							visible: true,
-							items: [
+							assessmentItemRefs: [
 								{
 									identifier: 'item1',
 									role: 'candidate',
@@ -607,7 +607,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 		const out: string[] = [];
 		for (const part of assessment.testParts || []) {
 			for (const section of part.sections || []) {
-				for (const item of section.items || []) {
+				for (const item of section.assessmentItemRefs || []) {
 					out.push(item.identifier);
 				}
 			}

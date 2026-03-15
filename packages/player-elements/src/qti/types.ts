@@ -1,6 +1,6 @@
-import type { RubricBlock } from '@pie-qti/assessment-player';
+import type { AssessmentRubricBlock } from '@pie-qti/assessment-player';
 
-export interface ParsedQuestionRef {
+export interface ParsedAssessmentItemRef {
 	identifier: string;
 	title?: string;
 	href?: string;
@@ -12,8 +12,8 @@ export interface ParsedAssessmentSection {
 	identifier: string;
 	title?: string;
 	visible?: boolean;
-	rubricBlocks?: RubricBlock[];
-	questionRefs?: ParsedQuestionRef[];
+	rubricBlocks?: AssessmentRubricBlock[];
+	assessmentItemRefs?: ParsedAssessmentItemRef[];
 	sections?: ParsedAssessmentSection[];
 }
 

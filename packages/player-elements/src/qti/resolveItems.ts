@@ -1,27 +1,27 @@
-import type { ParsedAssessmentSection, ParsedAssessmentTest, ParsedQuestionRef, ParsedTestPart } from './types.js';
+import type { ParsedAssessmentItemRef, ParsedAssessmentSection, ParsedAssessmentTest, ParsedTestPart } from './types.js';
 
 export type QtiItemMap = Record<string, string>;
 
-function collectQuestionRefsFromSections(sections: ParsedAssessmentSection[] | undefined): ParsedQuestionRef[] {
+function collectAssessmentItemRefsFromSections(sections: ParsedAssessmentSection[] | undefined): ParsedAssessmentItemRef[] {
 	if (!sections) return [];
-	const out: ParsedQuestionRef[] = [];
+	const out: ParsedAssessmentItemRef[] = [];
 	for (const s of sections) {
-		if (s.questionRefs) out.push(...s.questionRefs);
-		if (s.sections) out.push(...collectQuestionRefsFromSections(s.sections));
+		if (s.assessmentItemRefs) out.push(...s.assessmentItemRefs);
+		if (s.sections) out.push(...collectAssessmentItemRefsFromSections(s.sections));
 	}
 	return out;
 }
 
-function collectQuestionRefs(assessment: ParsedAssessmentTest): ParsedQuestionRef[] {
+function collectAssessmentItemRefs(assessment: ParsedAssessmentTest): ParsedAssessmentItemRef[] {
 	const parts = assessment.testParts ?? [];
-	const out: ParsedQuestionRef[] = [];
+	const out: ParsedAssessmentItemRef[] = [];
 	for (const p of parts) {
-		out.push(...collectQuestionRefsFromSections(p.sections));
+		out.push(...collectAssessmentItemRefsFromSections(p.sections));
 	}
 	return out;
 }
 
-function setQuestionRefItemXmlInPlace(
+function setAssessmentItemRefXmlInPlace(
 	assessment: ParsedAssessmentTest,
 	identifier: string,
 	href: string | undefined,
@@ -32,8 +32,8 @@ function setQuestionRefItemXmlInPlace(
 		const stack: ParsedAssessmentSection[] = [...(p.sections ?? [])];
 		while (stack.length) {
 			const s = stack.pop()!;
-			if (s.questionRefs) {
-				for (const q of s.questionRefs) {
+			if (s.assessmentItemRefs) {
+				for (const q of s.assessmentItemRefs) {
 					if (q.identifier === identifier || (href && q.href === href)) {
 						q.itemXml = itemXml;
 					}
@@ -60,8 +60,8 @@ export async function resolveItemsForAssessment(options: {
 	const { assessment, itemBaseUrl, items } = options;
 	const baseUrl = itemBaseUrl ? normalizeBaseUrl(itemBaseUrl) : undefined;
 
-	// Mutate in-place (questionRefs are nested); return same reference.
-	const refs = collectQuestionRefs(assessment);
+	// Mutate in-place (assessmentItemRefs are nested); return same reference.
+	const refs = collectAssessmentItemRefs(assessment);
 
 	const tasks = refs.map(async (q) => {
 		if (q.itemXml) return;
@@ -83,7 +83,7 @@ export async function resolveItemsForAssessment(options: {
 			const res = await fetch(url);
 			if (!res.ok) throw new Error(`Failed to fetch QTI item: ${url} (${res.status})`);
 			const xml = await res.text();
-			setQuestionRefItemXmlInPlace(assessment, q.identifier, q.href, xml);
+			setAssessmentItemRefXmlInPlace(assessment, q.identifier, q.href, xml);
 		}
 	});
 

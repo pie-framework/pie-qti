@@ -1,6 +1,6 @@
-import type { QTIRole, RubricBlock } from '@pie-qti/assessment-player';
+import type { AssessmentRubricBlock, QTIRole } from '@pie-qti/assessment-player';
 import { DOMParser as LinkedomDOMParser } from 'linkedom';
-import type { ParsedAssessmentSection, ParsedAssessmentTest, ParsedQuestionRef, ParsedTestPart } from './types.js';
+import type { ParsedAssessmentItemRef, ParsedAssessmentSection, ParsedAssessmentTest, ParsedTestPart } from './types.js';
 
 // Use native DOMParser in browser, linkedom in Node/Bun
 const DOMParserImpl = typeof DOMParser !== 'undefined' ? DOMParser : LinkedomDOMParser;
@@ -48,7 +48,7 @@ function parseQtiRoleList(viewAttr: string | undefined): QTIRole[] {
 	return roles.length ? roles : ['candidate'];
 }
 
-function parseRubricBlocks(sectionEl: Element): RubricBlock[] | undefined {
+function parseRubricBlocks(sectionEl: Element): AssessmentRubricBlock[] | undefined {
 	const blocks = childrenByLocalName(sectionEl, 'rubricBlock');
 	if (blocks.length === 0) return undefined;
 
@@ -60,7 +60,7 @@ function parseRubricBlocks(sectionEl: Element): RubricBlock[] | undefined {
 	}));
 }
 
-function parseItemRefs(sectionEl: Element): ParsedQuestionRef[] | undefined {
+function parseAssessmentItemRefs(sectionEl: Element): ParsedAssessmentItemRef[] | undefined {
 	const itemRefs = Array.from(sectionEl.childNodes)
 		.filter((n): n is Element => n.nodeType === 1)
 		.filter((el) => (el as Element).localName === 'assessmentItemRef');
@@ -88,7 +88,7 @@ function parseSection(sectionEl: Element): ParsedAssessmentSection {
 	const visible = visibleRaw === undefined ? undefined : visibleRaw !== 'false';
 
 	const rubricBlocks = parseRubricBlocks(sectionEl);
-	const questionRefs = parseItemRefs(sectionEl);
+	const assessmentItemRefs = parseAssessmentItemRefs(sectionEl);
 
 	// Only parse direct child sections (not deep descendants)
 	const childSections = Array.from(sectionEl.childNodes)
@@ -101,7 +101,7 @@ function parseSection(sectionEl: Element): ParsedAssessmentSection {
 		title,
 		visible,
 		rubricBlocks,
-		questionRefs,
+		assessmentItemRefs,
 		sections: childSections.length ? childSections : undefined,
 	};
 }

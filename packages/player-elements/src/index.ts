@@ -20,7 +20,7 @@ export type {
 	ParsedAssessmentTest,
 	ParsedTestPart,
 	ParsedAssessmentSection,
-	ParsedQuestionRef,
+	ParsedAssessmentItemRef,
 } from './qti/types.js';
 
 

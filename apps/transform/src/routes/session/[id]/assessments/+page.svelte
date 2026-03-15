@@ -134,7 +134,7 @@
 
 			for (const section of sections) {
 				// Process current section
-				const items = (section.questionRefs || [])
+				const items = (section.assessmentItemRefs || [])
 					.filter((q: any) => {
 						if (!q.itemXml) {
 							console.warn(`Item ${q.identifier} has no itemXml, skipping`);

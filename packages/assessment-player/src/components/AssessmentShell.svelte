@@ -43,7 +43,7 @@
 		currentSection: undefined,
 		totalSections: undefined,
 	});
-	let currentQuestion = $state<any>(null);
+	let currentItem = $state<any>(null);
 	let currentRubricBlocks = $state<any[]>([]);
 	let currentResponses = $state<Record<string, unknown>>({});
 	let sections = $state<any[]>([]);
@@ -162,7 +162,7 @@
 		if (!player) return;
 
 		navState = player.getNavigationState();
-		currentQuestion = player.getCurrentQuestion();
+		currentItem = player.getCurrentItem();
 		currentRubricBlocks = player.getCurrentRubricBlocks();
 		currentResponses = player.getResponses();
 	}
@@ -257,8 +257,8 @@
 
 	function handleResponseChange(responseId: string, value: unknown) {
 		if (!player) return;
-		if (currentQuestion?.identifier) {
-			player.updateResponseForItem(currentQuestion.identifier, responseId, value);
+		if (currentItem?.identifier) {
+			player.updateResponseForItem(currentItem.identifier, responseId, value);
 		} else {
 			player.updateResponse(responseId, value);
 		}
@@ -387,9 +387,9 @@
 						<RubricDisplay blocks={nonPassageRubricBlocks} {typeset} />
 					{/if}
 
-					{#if currentQuestion}
+					{#if currentItem}
 						<ItemRenderer
-							questionRef={currentQuestion}
+							itemRef={currentItem}
 							responses={currentResponses}
 							role={config.role || 'candidate'}
 							extendedTextEditor={config.extendedTextEditor || 'tiptap'}
@@ -407,9 +407,9 @@
 				{/if}
 
 				<!-- Current item -->
-				{#if currentQuestion}
+				{#if currentItem}
 					<ItemRenderer
-						questionRef={currentQuestion}
+						itemRef={currentItem}
 						responses={currentResponses}
 						role={config.role || 'candidate'}
 						onResponseChange={handleResponseChange}

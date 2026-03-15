@@ -49,7 +49,7 @@ export interface InitSessionResponse {
 	/** Assessment structure WITHOUT sensitive data */
 	assessment: SecureAssessment;
 	/** Restored state if resuming, undefined if new session */
-	restoredState?: SessionState;
+	restoredState?: AssessmentSessionState;
 }
 
 // ============================================================================
@@ -82,7 +82,7 @@ export interface SecureTestPart {
 	/** Sections contain items */
 	sections: SecureSection[];
 	/** Candidate instructions (safe for display) */
-	rubrics?: RubricBlock[];
+	rubricBlocks?: AssessmentRubricBlock[];
 	/**
 	 * Item session control (QTI testPart/itemSessionControl).
 	 * Server is authoritative; client uses this for UI hints only.
@@ -103,14 +103,14 @@ export interface SecureSection {
 	title?: string;
 	/** Visible determines if section appears in navigation */
 	visible: boolean;
-	/** Item references */
-	items: SecureItemRef[];
+	/** Assessment item references */
+	assessmentItemRefs: SecureItemRef[];
 	/** Section-level time limit */
 	timeLimits?: {
 		maxTime?: number;
 	};
 	/** Candidate instructions (safe for display) */
-	rubrics?: RubricBlock[];
+	rubricBlocks?: AssessmentRubricBlock[];
 }
 
 export interface SecureItemRef {
@@ -124,7 +124,7 @@ export interface SecureItemRef {
 	required?: boolean;
 }
 
-export interface RubricBlock {
+export interface AssessmentRubricBlock {
 	/** Optional rubric identifier (QTI rubricBlock@identifier) */
 	identifier?: string;
 	/** Rubric content (HTML) */
@@ -165,7 +165,7 @@ export interface SubmitResponsesResponse {
 	/** Was submission accepted? */
 	success: boolean;
 	/** Scoring result (if submission mode allows immediate scoring) */
-	result?: ScoringResult;
+	result?: AssessmentScoringResult;
 	/**
 	 * Backend-authoritative next item (branching/navigation decision).
 	 * If omitted, client may fall back to linear next/previous UI navigation.
@@ -175,7 +175,7 @@ export interface SubmitResponsesResponse {
 	 * Backend-authoritative session state snapshot after applying the submission.
 	 * If provided, client should replace its local state with this.
 	 */
-	updatedState?: SessionState;
+	updatedState?: AssessmentSessionState;
 	/** Error message if success=false */
 	error?: string;
 }
@@ -189,7 +189,7 @@ export interface SubmitResponsesResponse {
  *
  * Security: Server computes this, client never sees scoring rules
  */
-export interface ScoringResult {
+export interface AssessmentScoringResult {
 	/** Item identifier */
 	itemIdentifier: string;
 	/** Normalized score 0.0-1.0 */
@@ -222,12 +222,12 @@ export interface FeedbackItem {
  *
  * Security: State includes responses but not scores (until finalized)
  */
-export interface SaveStateRequest {
+export interface SaveAssessmentStateRequest {
 	sessionId: SessionId;
-	state: SessionState;
+	state: AssessmentSessionState;
 }
 
-export interface SaveStateResponse {
+export interface SaveAssessmentStateResponse {
 	success: boolean;
 	/** Server timestamp of save */
 	savedAt: number;
@@ -236,7 +236,7 @@ export interface SaveStateResponse {
 /**
  * Session state for persistence
  */
-export interface SessionState {
+export interface AssessmentSessionState {
 	/** Current item identifier */
 	currentItemIdentifier: string;
 	/** Visited items (for navigation) */
@@ -244,7 +244,7 @@ export interface SessionState {
 	/** Submitted responses per item */
 	itemResponses: Record<string, Record<string, ResponseValue>>;
 	/** Scoring results per item (populated after submission) */
-	itemScores?: Record<string, ScoringResult>;
+	itemScores?: Record<string, AssessmentScoringResult>;
 	/** Time tracking */
 	timing: {
 		/** Session start time */
@@ -276,7 +276,7 @@ export interface FinalizeAssessmentResponse {
 	/** Maximum possible score */
 	maxScore: number;
 	/** Per-item results */
-	itemScores: Record<string, ScoringResult>;
+	itemScores: Record<string, AssessmentScoringResult>;
 	/** Assessment-level feedback */
 	feedback?: string;
 	/** Server timestamp */
@@ -356,7 +356,7 @@ export interface BackendAdapter {
 	/**
 	 * Save session state (auto-save during assessment)
 	 */
-	saveState(request: SaveStateRequest): Promise<SaveStateResponse>;
+	saveState(request: SaveAssessmentStateRequest): Promise<SaveAssessmentStateResponse>;
 
 	/**
 	 * Finalize assessment and get results

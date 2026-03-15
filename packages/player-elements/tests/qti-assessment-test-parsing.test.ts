@@ -42,10 +42,10 @@ describe('parseAssessmentTestXml', () => {
 		expect(section?.rubricBlocks?.[0]?.view).toEqual(['candidate']);
 		expect(section?.rubricBlocks?.[0]?.content).toContain('<p>Passage');
 
-		expect(section?.questionRefs?.length).toBe(1);
-		expect(section?.questionRefs?.[0]?.identifier).toBe('ITEM-1');
-		expect(section?.questionRefs?.[0]?.href).toBe('items/item1.xml');
-		expect(section?.questionRefs?.[0]?.title).toBe('Item 1');
+		expect(section?.assessmentItemRefs?.length).toBe(1);
+		expect(section?.assessmentItemRefs?.[0]?.identifier).toBe('ITEM-1');
+		expect(section?.assessmentItemRefs?.[0]?.href).toBe('items/item1.xml');
+		expect(section?.assessmentItemRefs?.[0]?.title).toBe('Item 1');
 	});
 
 	test('synthesizes a default testPart when assessmentTest has top-level sections only', () => {
@@ -82,7 +82,7 @@ describe('resolveItemsForAssessment', () => {
 			},
 		});
 
-		const q = assessment.testParts?.[0]?.sections?.[0]?.questionRefs?.[0];
+		const q = assessment.testParts?.[0]?.sections?.[0]?.assessmentItemRefs?.[0];
 		expect(q?.itemXml).toContain('assessmentItem');
 		expect(q?.itemXml).toContain('identifier="ITEM-1"');
 	});
@@ -117,7 +117,7 @@ describe('resolveItemsForAssessment', () => {
 
 		expect(calls.length).toBe(1);
 		expect(calls[0]).toBe('https://example.test/qti/items/item1.xml');
-		const q = assessment.testParts?.[0]?.sections?.[0]?.questionRefs?.[0];
+		const q = assessment.testParts?.[0]?.sections?.[0]?.assessmentItemRefs?.[0];
 		expect(q?.itemXml).toContain('assessmentItem');
 	});
 });

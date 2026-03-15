@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { typesetAction } from '@pie-qti/default-components/shared';
 	import type { I18nProvider } from '@pie-qti/i18n';
-	import type { RubricBlock } from '../integration/api-contract.js';
+	import type { AssessmentRubricBlock } from '../integration/api-contract.js';
 
 	interface Props {
-		blocks: RubricBlock[];
+		blocks: AssessmentRubricBlock[];
 		collapsed?: boolean;
 		i18n?: I18nProvider;
 		/** Math typesetting function (KaTeX, MathJax, etc.) */

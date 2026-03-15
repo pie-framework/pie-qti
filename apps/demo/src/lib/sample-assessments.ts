@@ -2,104 +2,14 @@
  * Sample QTI assessments for demonstration
  */
 
-import type { QTIRole, SecureAssessment } from '@pie-qti/assessment-player';
+import type { SecureAssessment } from '@pie-qti/assessment-player';
 import { SAMPLE_ITEMS } from './sample-items';
-
-/**
- * Legacy (client-authoritative) demo model.
- *
- * The assessment player is now backend-authoritative, so these fixtures are
- * converted to `SecureAssessment` via `toSecureAssessment()` at runtime.
- */
-export interface LegacyRubricBlock {
-	id?: string;
-	identifier?: string;
-	view: string;
-	use?: string;
-	content: string;
-}
-
-export interface LegacyQuestionRef {
-	identifier: string;
-	title?: string;
-	href?: string;
-	required?: boolean;
-	itemXml: string;
-}
-
-export interface LegacyAssessmentSection {
-	identifier: string;
-	title?: string;
-	visible: boolean;
-	rubricBlocks?: LegacyRubricBlock[];
-	questionRefs: LegacyQuestionRef[];
-}
-
-export interface LegacyTestPart {
-	identifier: string;
-	navigationMode?: 'linear' | 'nonlinear';
-	submissionMode?: 'individual' | 'simultaneous';
-	itemSessionControl?: {
-		maxAttempts?: number;
-		showFeedback?: boolean;
-		allowReview?: boolean;
-		showSolution?: boolean;
-		allowComment?: boolean;
-		allowSkipping?: boolean;
-		validateResponses?: boolean;
-	};
-	sections: LegacyAssessmentSection[];
-}
-
-export interface LegacyAssessmentTest {
-	identifier: string;
-	title: string;
-	testParts: LegacyTestPart[];
-}
 
 export interface SampleAssessment {
 	id: string;
 	name: string;
 	description: string;
-	assessment: LegacyAssessmentTest;
-}
-
-export function toSecureAssessment(
-	legacy: LegacyAssessmentTest,
-	opts?: { role?: QTIRole },
-): SecureAssessment {
-	const firstPart = legacy.testParts?.[0];
-	const navigationMode = firstPart?.navigationMode ?? 'nonlinear';
-	const submissionMode = firstPart?.submissionMode ?? 'individual';
-	const role: QTIRole = opts?.role ?? 'candidate';
-
-	return {
-		identifier: legacy.identifier,
-		title: legacy.title,
-		navigationMode,
-		submissionMode,
-		testParts: (legacy.testParts || []).map((tp) => ({
-			identifier: tp.identifier,
-			itemSessionControl: tp.itemSessionControl,
-			sections: (tp.sections || []).map((s) => ({
-				identifier: s.identifier,
-				title: s.title,
-				visible: s.visible,
-				items: (s.questionRefs || []).map((q) => ({
-					identifier: q.identifier,
-					itemXml: q.itemXml,
-					role,
-					required: q.required,
-				})),
-				rubrics: (s.rubricBlocks || []).map((rb) => ({
-					identifier: rb.identifier ?? rb.id,
-					content: rb.content,
-					view: [(rb.view ?? 'candidate') as QTIRole],
-					use: rb.use,
-				})),
-			})),
-		})),
-	};
+	assessment: SecureAssessment;
 }
 
 /**
@@ -112,11 +22,11 @@ export const READING_COMPREHENSION_ASSESSMENT: SampleAssessment = {
 	assessment: {
 		identifier: 'READING-COMP-001',
 		title: 'Reading Comprehension: The Water Cycle',
+		navigationMode: 'nonlinear',
+		submissionMode: 'simultaneous',
 		testParts: [
 			{
 				identifier: 'part-1',
-				navigationMode: 'nonlinear',
-				submissionMode: 'simultaneous',
 				sections: [
 					{
 						identifier: 'section-1',
@@ -124,7 +34,7 @@ export const READING_COMPREHENSION_ASSESSMENT: SampleAssessment = {
 						visible: true,
 						rubricBlocks: [
 							{
-								view: 'candidate',
+								view: ['candidate'],
 								use: 'passage',
 								content: `
 									<div class="passage">
@@ -149,10 +59,10 @@ export const READING_COMPREHENSION_ASSESSMENT: SampleAssessment = {
 								`,
 							},
 						],
-						questionRefs: [
+						assessmentItemRefs: [
 							{
 								identifier: 'q1',
-								title: 'Question 1: Main Process',
+								role: 'candidate',
 								itemXml: `
 									<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
 										identifier="q1"
@@ -184,7 +94,7 @@ export const READING_COMPREHENSION_ASSESSMENT: SampleAssessment = {
 							},
 							{
 								identifier: 'q2',
-								title: 'Question 2: Cloud Formation',
+								role: 'candidate',
 								itemXml: `
 									<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
 										identifier="q2"
@@ -216,7 +126,7 @@ export const READING_COMPREHENSION_ASSESSMENT: SampleAssessment = {
 							},
 							{
 								identifier: 'q3',
-								title: 'Question 3: Importance',
+								role: 'candidate',
 								itemXml: `
 									<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
 										identifier="q3"
@@ -264,11 +174,11 @@ export const MATH_ASSESSMENT: SampleAssessment = {
 	assessment: {
 		identifier: 'MATH-GRADE5-001',
 		title: 'Grade 5 Mathematics Assessment',
+		navigationMode: 'nonlinear',
+		submissionMode: 'simultaneous',
 		testParts: [
 			{
 				identifier: 'part-1',
-				navigationMode: 'nonlinear',
-				submissionMode: 'simultaneous',
 				sections: [
 					{
 						identifier: 'section-arithmetic',
@@ -276,15 +186,15 @@ export const MATH_ASSESSMENT: SampleAssessment = {
 						visible: true,
 						rubricBlocks: [
 							{
-								view: 'candidate',
+								view: ['candidate'],
 								use: 'instructions',
 								content: '<p>Answer all questions in this section. Show your work if needed.</p>',
 							},
 						],
-						questionRefs: [
+						assessmentItemRefs: [
 							{
 								identifier: 'q1',
-								title: 'Addition',
+								role: 'candidate',
 								itemXml: `
 									<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
 										identifier="q1"
@@ -322,7 +232,7 @@ export const MATH_ASSESSMENT: SampleAssessment = {
 							},
 							{
 								identifier: 'q2',
-								title: 'Multiplication',
+								role: 'candidate',
 								itemXml: `
 									<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
 										identifier="q2"
@@ -355,15 +265,15 @@ export const MATH_ASSESSMENT: SampleAssessment = {
 						visible: true,
 						rubricBlocks: [
 							{
-								view: 'candidate',
+								view: ['candidate'],
 								use: 'instructions',
 								content: '<p>Simplify your answers when possible.</p>',
 							},
 						],
-						questionRefs: [
+						assessmentItemRefs: [
 							{
 								identifier: 'q3',
-								title: 'Fraction Addition',
+								role: 'candidate',
 								itemXml: `
 									<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
 										identifier="q3"
@@ -411,12 +321,12 @@ export const SCIENCE_ASSESSMENT: SampleAssessment = {
 	assessment: {
 		identifier: 'SCIENCE-001',
 		title: 'Life Cycles Assessment',
+		navigationMode: 'linear',
+		submissionMode: 'individual',
 		testParts: [
 			{
 				identifier: 'part-1',
-				navigationMode: 'linear',
-				submissionMode: 'individual',
-				// Match the instructions: must answer each question, cannot go back.
+				// Must answer each question, cannot go back.
 				itemSessionControl: {
 					allowReview: false,
 					allowSkipping: false,
@@ -429,7 +339,7 @@ export const SCIENCE_ASSESSMENT: SampleAssessment = {
 						visible: true,
 						rubricBlocks: [
 							{
-								view: 'candidate',
+								view: ['candidate'],
 								use: 'instructions',
 								content: `
 									<div class="instructions">
@@ -440,10 +350,10 @@ export const SCIENCE_ASSESSMENT: SampleAssessment = {
 								`,
 							},
 						],
-						questionRefs: [
+						assessmentItemRefs: [
 							{
 								identifier: 'q1',
-								title: 'Question 1: Butterfly Life Cycle',
+								role: 'candidate',
 								itemXml: `
 									<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
 										identifier="q1"
@@ -479,7 +389,7 @@ export const SCIENCE_ASSESSMENT: SampleAssessment = {
 							},
 							{
 								identifier: 'q2',
-								title: 'Question 2: Plant Life Cycle',
+								role: 'candidate',
 								itemXml: `
 									<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
 										identifier="q2"
@@ -511,7 +421,7 @@ export const SCIENCE_ASSESSMENT: SampleAssessment = {
 							},
 							{
 								identifier: 'q3',
-								title: 'Question 3: Metamorphosis',
+								role: 'candidate',
 								itemXml: `
 									<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
 										identifier="q3"
@@ -553,11 +463,11 @@ export const MIXED_TOPICS_ASSESSMENT: SampleAssessment = {
 	assessment: {
 		identifier: 'MIXED-001',
 		title: 'General Knowledge Assessment',
+		navigationMode: 'nonlinear',
+		submissionMode: 'simultaneous',
 		testParts: [
 			{
 				identifier: 'part-1',
-				navigationMode: 'nonlinear',
-				submissionMode: 'simultaneous',
 				sections: [
 					{
 						identifier: 'section-geography',
@@ -565,15 +475,15 @@ export const MIXED_TOPICS_ASSESSMENT: SampleAssessment = {
 						visible: true,
 						rubricBlocks: [
 							{
-								view: 'candidate',
+								view: ['candidate'],
 								use: 'instructions',
 								content: '<p><strong>Section 1: Geography</strong> - Answer questions about world geography.</p>',
 							},
 						],
-						questionRefs: [
+						assessmentItemRefs: [
 							{
 								identifier: 'geo1',
-								title: 'Oceans',
+								role: 'candidate',
 								itemXml: `
 									<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
 										identifier="geo1"
@@ -605,7 +515,7 @@ export const MIXED_TOPICS_ASSESSMENT: SampleAssessment = {
 							},
 							{
 								identifier: 'geo2',
-								title: 'Continents',
+								role: 'candidate',
 								itemXml: `
 									<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
 										identifier="geo2"
@@ -643,15 +553,15 @@ export const MIXED_TOPICS_ASSESSMENT: SampleAssessment = {
 						visible: true,
 						rubricBlocks: [
 							{
-								view: 'candidate',
+								view: ['candidate'],
 								use: 'instructions',
 								content: '<p><strong>Section 2: History</strong> - Test your knowledge of historical events.</p>',
 							},
 						],
-						questionRefs: [
+						assessmentItemRefs: [
 							{
 								identifier: 'hist1',
-								title: 'Moon Landing',
+								role: 'candidate',
 								itemXml: `
 									<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
 										identifier="hist1"
@@ -689,15 +599,15 @@ export const MIXED_TOPICS_ASSESSMENT: SampleAssessment = {
 						visible: true,
 						rubricBlocks: [
 							{
-								view: 'candidate',
+								view: ['candidate'],
 								use: 'instructions',
 								content: '<p><strong>Section 3: Science</strong> - Basic science concepts.</p>',
 							},
 						],
-						questionRefs: [
+						assessmentItemRefs: [
 							{
 								identifier: 'sci1',
-								title: 'States of Matter',
+								role: 'candidate',
 								itemXml: `
 									<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
 										identifier="sci1"
@@ -752,11 +662,11 @@ export const SAMPLE_ASSESSMENTS: SampleAssessment[] = [
 		assessment: {
 			identifier: 'SHOWCASE-001',
 			title: 'Interaction Showcase',
+			navigationMode: 'nonlinear',
+			submissionMode: 'simultaneous',
 			testParts: [
 				{
 					identifier: 'part-1',
-					navigationMode: 'nonlinear',
-					submissionMode: 'simultaneous',
 					sections: [
 						{
 							identifier: 'section-passage',
@@ -764,7 +674,7 @@ export const SAMPLE_ASSESSMENTS: SampleAssessment[] = [
 							visible: true,
 							rubricBlocks: [
 								{
-									view: 'candidate',
+									view: ['candidate'],
 									use: 'passage',
 									content: `
 										<div class="passage">
@@ -781,11 +691,11 @@ export const SAMPLE_ASSESSMENTS: SampleAssessment[] = [
 									`,
 								},
 							],
-							questionRefs: [
+							assessmentItemRefs: [
 								{
 									identifier: 'q-passage-choice',
-									title: 'Question: Water Cycle',
-									itemXml: READING_COMPREHENSION_ASSESSMENT.assessment.testParts[0].sections[0].questionRefs[0].itemXml,
+									role: 'candidate',
+									itemXml: READING_COMPREHENSION_ASSESSMENT.assessment.testParts[0].sections[0].assessmentItemRefs[0].itemXml,
 								},
 							],
 						},
@@ -795,16 +705,16 @@ export const SAMPLE_ASSESSMENTS: SampleAssessment[] = [
 							visible: true,
 							rubricBlocks: [
 								{
-									view: 'candidate',
+									view: ['candidate'],
 									use: 'instructions',
 									content:
 										'<p>This question includes a <strong>&lt;stimulus&gt;</strong> embedded in the item itself.</p>',
 								},
 							],
-							questionRefs: [
+							assessmentItemRefs: [
 								{
 									identifier: 'q-inline-stimulus',
-									title: 'Reading Comprehension (Inline Stimulus)',
+									role: 'candidate',
 									itemXml: SAMPLE_ITEMS.find((i) => i.id === 'choice-with-stimulus')?.xml ?? '',
 								},
 							],
@@ -815,16 +725,16 @@ export const SAMPLE_ASSESSMENTS: SampleAssessment[] = [
 							visible: true,
 							rubricBlocks: [
 								{
-									view: 'candidate',
+									view: ['candidate'],
 									use: 'instructions',
 									content:
 										'<p>Click the correct region(s) on the image. This demonstrates <strong>hotspotInteraction</strong>.</p>',
 								},
 							],
-							questionRefs: [
+							assessmentItemRefs: [
 								{
 									identifier: 'q-hotspot',
-									title: 'Hotspot: Solar System',
+									role: 'candidate',
 									itemXml: SAMPLE_ITEMS.find((i) => i.id === 'hotspot')?.xml ?? '',
 								},
 							],
@@ -835,26 +745,26 @@ export const SAMPLE_ASSESSMENTS: SampleAssessment[] = [
 							visible: true,
 							rubricBlocks: [
 								{
-									view: 'candidate',
+									view: ['candidate'],
 									use: 'instructions',
 									content:
 										'<p>These items cover a few common drag/drop patterns: order, match, and gap-match.</p>',
 								},
 							],
-							questionRefs: [
+							assessmentItemRefs: [
 								{
 									identifier: 'q-order',
-									title: 'Order Interaction',
+									role: 'candidate',
 									itemXml: SAMPLE_ITEMS.find((i) => i.id === 'order-interaction')?.xml ?? '',
 								},
 								{
 									identifier: 'q-match',
-									title: 'Match Interaction',
+									role: 'candidate',
 									itemXml: SAMPLE_ITEMS.find((i) => i.id === 'match-interaction')?.xml ?? '',
 								},
 								{
 									identifier: 'q-gap-match',
-									title: 'Gap Match',
+									role: 'candidate',
 									itemXml: SAMPLE_ITEMS.find((i) => i.id === 'gap-match')?.xml ?? '',
 								},
 							],
@@ -865,16 +775,16 @@ export const SAMPLE_ASSESSMENTS: SampleAssessment[] = [
 							visible: true,
 							rubricBlocks: [
 								{
-									view: 'candidate',
+									view: ['candidate'],
 									use: 'instructions',
 									content:
 										'<p>Click the image to select a point location. Demonstrates <strong>selectPointInteraction</strong>.</p>',
 								},
 							],
-							questionRefs: [
+							assessmentItemRefs: [
 								{
 									identifier: 'q-select-point',
-									title: 'Select Point',
+									role: 'candidate',
 									itemXml: SAMPLE_ITEMS.find((i) => i.id === 'select-point')?.xml ?? '',
 								},
 							],

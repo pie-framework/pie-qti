@@ -11,17 +11,18 @@
 import type { QTIRole } from '@pie-qti/item-player';
 import { Player } from '@pie-qti/item-player';
 import type {
+	AssessmentRubricBlock,
+	AssessmentSessionState,
+	AssessmentScoringResult,
 	BackendAdapter,
 	FinalizeAssessmentResponse,
 	InitSessionRequest,
 	InitSessionResponse,
-	ScoringResult,
 	SecureAssessment,
 	SecureItemRef,
 	SecureSection,
 	SecureTestPart,
 	SessionId,
-	SessionState,
 } from '../integration/api-contract.js';
 import type {
 	AssessmentResults,
@@ -64,13 +65,20 @@ export interface BackendAssessmentPlayerConfig {
 	onComplete?: () => void;
 }
 
-type FlatQuestion = {
+type FlatItem = {
 	identifier: string;
 	item: SecureItemRef;
 	section: SecureSection;
 	testPart: SecureTestPart;
 	index: number;
 	sectionIndex: number;
+};
+
+type CurrentItemView = {
+	identifier: string;
+	title?: string;
+	required?: boolean;
+	itemXml: string;
 };
 
 export class AssessmentPlayer {
@@ -82,14 +90,14 @@ export class AssessmentPlayer {
 	private backend: BackendAdapter;
 	private sessionId: SessionId;
 	private assessment: SecureAssessment;
-	private state: SessionState;
+	private state: AssessmentSessionState;
 	private i18nProvider: any; // I18nProvider from @pie-qti/i18n
 
 	private navigationManager: NavigationManager;
 	private sessionController: ItemSessionController;
 	private timeManager: TimeManager | null = null;
 
-	private questions: FlatQuestion[] = [];
+	private items: FlatItem[] = [];
 	private currentItemIndex = -1;
 	private currentItemPlayer: Player | null = null;
 	private responses: Record<string, unknown> = {};
@@ -118,19 +126,19 @@ export class AssessmentPlayer {
 				itemResponses: {},
 				itemScores: {},
 				timing: { startedAt: Date.now(), itemTimes: {}, totalTime: 0 },
-			} as SessionState);
+			} as AssessmentSessionState);
 
-		this.questions = this.flattenQuestions(this.assessment);
+		this.items = this.flattenItems(this.assessment);
 
 		const navigationMode = this.assessment.navigationMode || 'nonlinear';
-		this.navigationManager = new NavigationManager(navigationMode, this.questions.length);
+		this.navigationManager = new NavigationManager(navigationMode, this.items.length);
 
 		// Item session control is a UI hint; backend remains authoritative.
 		const itemSessionControl = this.assessment.testParts?.[0]?.itemSessionControl;
 		this.sessionController = new ItemSessionController(itemSessionControl);
 
 		// Initialize per-item session state so itemSessionControl checks work immediately.
-		for (const q of this.questions) {
+		for (const q of this.items) {
 			this.sessionController.initializeItem(q.identifier);
 		}
 
@@ -147,7 +155,7 @@ export class AssessmentPlayer {
 
 		// Restore to backend-provided current item if present
 		const startId = this.state.currentItemIdentifier;
-		const idx = startId ? this.questions.findIndex((q) => q.identifier === startId) : -1;
+		const idx = startId ? this.items.findIndex((q) => q.identifier === startId) : -1;
 		if (idx >= 0) {
 			this.navigateTo(idx).catch(() => {});
 		}
@@ -170,15 +178,15 @@ export class AssessmentPlayer {
 		return false;
 	}
 
-	private flattenQuestions(assessment: SecureAssessment): FlatQuestion[] {
-		const out: FlatQuestion[] = [];
+	private flattenItems(assessment: SecureAssessment): FlatItem[] {
+		const out: FlatItem[] = [];
 		const testParts = assessment.testParts || [];
 		let idx = 0;
 		let secIdx = 0;
 
 		for (const tp of testParts) {
 			for (const section of tp.sections || []) {
-				for (const item of section.items || []) {
+				for (const item of section.assessmentItemRefs || []) {
 					out.push({
 						identifier: item.identifier,
 						item,
@@ -210,10 +218,10 @@ export class AssessmentPlayer {
 	}
 
 	public getNavigationState(): NavigationState {
-		const total = this.questions.length;
+		const total = this.items.length;
 		const canPrevious = this.canPrevious();
 		const canNext = this.canNext();
-		const q = this.questions[this.currentItemIndex];
+		const q = this.items[this.currentItemIndex];
 		const totalSections = this.getAllSections().length;
 		return {
 			currentIndex: this.currentItemIndex,
@@ -228,10 +236,9 @@ export class AssessmentPlayer {
 		};
 	}
 
-	public getCurrentQuestion(): any | null {
-		const q = this.questions[this.currentItemIndex];
+	public getCurrentItem(): CurrentItemView | null {
+		const q = this.items[this.currentItemIndex];
 		if (!q) return null;
-		// Keep the legacy QuestionRef-ish shape expected by ItemRenderer.svelte
 		return {
 			identifier: q.item.identifier,
 			title: q.section.title,
@@ -240,10 +247,10 @@ export class AssessmentPlayer {
 		};
 	}
 
-	public getCurrentRubricBlocks(): any[] {
-		const q = this.questions[this.currentItemIndex];
+	public getCurrentRubricBlocks(): AssessmentRubricBlock[] {
+		const q = this.items[this.currentItemIndex];
 		if (!q) return [];
-		return q.section.rubrics || q.testPart.rubrics || [];
+		return q.section.rubricBlocks || q.testPart.rubricBlocks || [];
 	}
 
 	public getVisibleFeedback(): Array<{ identifier: string; content: string; access: string }> {
@@ -252,7 +259,7 @@ export class AssessmentPlayer {
 
 	public updateResponse(responseId: string, value: unknown): void {
 		this.responses = { ...this.responses, [responseId]: value };
-		const q = this.questions[this.currentItemIndex];
+		const q = this.items[this.currentItemIndex];
 		if (q) {
 			this.state.itemResponses[q.identifier] = this.responses as any;
 			this.sessionController.markAnswered(q.identifier, this.hasAnyResponse(this.responses));
@@ -272,7 +279,7 @@ export class AssessmentPlayer {
 		this.state.itemResponses[itemIdentifier] = next as any;
 
 		// If this is the active item, keep the live response state + UI hints in sync.
-		const active = this.questions[this.currentItemIndex];
+		const active = this.items[this.currentItemIndex];
 		if (active?.identifier === itemIdentifier) {
 			this.responses = next;
 			this.sessionController.markAnswered(itemIdentifier, this.hasAnyResponse(this.responses));
@@ -293,7 +300,7 @@ export class AssessmentPlayer {
 	 * Get the current session state snapshot (client-side view).
 	 * Note: backend remains authoritative; this is intended for simple save/resume.
 	 */
-	public getState(): SessionState {
+	public getState(): AssessmentSessionState {
 		// Shallow clone to avoid accidental external mutation.
 		return {
 			...this.state,
@@ -310,12 +317,12 @@ export class AssessmentPlayer {
 	/**
 	 * Restore a previously saved session state.
 	 */
-	public async restoreState(state: SessionState): Promise<void> {
+	public async restoreState(state: AssessmentSessionState): Promise<void> {
 		this.state = state;
 
 		// Restore visited state for UI navigation hints.
 		const visitedIdx = (state.visitedItems || [])
-			.map((id) => this.questions.findIndex((q) => q.identifier === id))
+			.map((id) => this.items.findIndex((q) => q.identifier === id))
 			.filter((i) => i >= 0);
 		this.navigationManager.restoreState(visitedIdx);
 
@@ -333,16 +340,16 @@ export class AssessmentPlayer {
 		}
 
 		const currentId = state.currentItemIdentifier;
-		const idx = currentId ? this.questions.findIndex((q) => q.identifier === currentId) : -1;
+		const idx = currentId ? this.items.findIndex((q) => q.identifier === currentId) : -1;
 		if (idx >= 0) {
 			await this.navigateTo(idx);
-		} else if (this.questions.length > 0) {
+		} else if (this.items.length > 0) {
 			await this.navigateTo(0);
 		}
 	}
 
 	public async navigateTo(index: number): Promise<void> {
-		if (index < 0 || index >= this.questions.length) throw new Error(`Invalid item index: ${index}`);
+		if (index < 0 || index >= this.items.length) throw new Error(`Invalid item index: ${index}`);
 
 		// Enforce navigation rules (UI hints, still backend-authoritative for real deployments).
 		if (this.currentItemIndex >= 0 && !this.navigationManager.canNavigateTo(index, this.currentItemIndex)) {
@@ -351,13 +358,13 @@ export class AssessmentPlayer {
 			}
 			throw new Error('Navigation is not allowed.');
 		}
-		const target = this.questions[index];
+		const target = this.items[index];
 		if (target && !this.sessionController.canReview(target.identifier)) {
 			throw new Error('You cannot go back to previous questions in this assessment.');
 		}
 
 		this.currentItemIndex = index;
-		const q = this.questions[index]!;
+		const q = this.items[index]!;
 		this.state.currentItemIdentifier = q.identifier;
 
 		// Restore responses
@@ -376,7 +383,7 @@ export class AssessmentPlayer {
 	}
 
 	public async navigateToSection(sectionId: string): Promise<void> {
-		const idx = this.questions.findIndex((q) => q.section.identifier === sectionId);
+		const idx = this.items.findIndex((q) => q.section.identifier === sectionId);
 		if (idx >= 0) await this.navigateTo(idx);
 	}
 
@@ -384,7 +391,7 @@ export class AssessmentPlayer {
 		const state = this.getNavigationState();
 		if (!state.canNext) return;
 
-		const q = this.questions[this.currentItemIndex];
+		const q = this.items[this.currentItemIndex];
 		if (q) {
 			const hasResponses = this.hasAnyResponse(this.responses);
 			this.sessionController.markAnswered(q.identifier, hasResponses);
@@ -414,7 +421,7 @@ export class AssessmentPlayer {
 
 	/** Submit current item (server-side scoring) */
 	public async submitCurrentItem(): Promise<ItemResult> {
-		const q = this.questions[this.currentItemIndex];
+		const q = this.items[this.currentItemIndex];
 		if (!q) throw new Error('No current item');
 
 		const submittedAt = Date.now();
@@ -458,7 +465,7 @@ export class AssessmentPlayer {
 
 		// Apply backend branching decision if provided
 		if (res.nextItemIdentifier) {
-			const nextIdx = this.questions.findIndex((x) => x.identifier === res.nextItemIdentifier);
+			const nextIdx = this.items.findIndex((x) => x.identifier === res.nextItemIdentifier);
 			if (nextIdx >= 0) {
 				await this.navigateTo(nextIdx);
 			}
@@ -469,7 +476,7 @@ export class AssessmentPlayer {
 
 	private canPrevious(): boolean {
 		if (this.currentItemIndex <= 0) return false;
-		const prev = this.questions[this.currentItemIndex - 1];
+		const prev = this.items[this.currentItemIndex - 1];
 		if (!prev) return false;
 		if (!this.navigationManager.canNavigateTo(this.currentItemIndex - 1, this.currentItemIndex)) return false;
 		return this.sessionController.canReview(prev.identifier);
@@ -478,7 +485,7 @@ export class AssessmentPlayer {
 	private canNext(): boolean {
 		if (this.currentItemIndex < 0) return false;
 		const nextIdx = this.currentItemIndex + 1;
-		if (nextIdx >= this.questions.length) return false;
+		if (nextIdx >= this.items.length) return false;
 		if (!this.navigationManager.canNavigateTo(nextIdx, this.currentItemIndex)) return false;
 		// Note: itemSessionControl constraints on leaving current item are enforced in next().
 		return true;
@@ -495,7 +502,7 @@ export class AssessmentPlayer {
 			// wipe out responses for later items during this loop.
 			const allItemResponses = { ...(this.state.itemResponses || {}) } as any;
 
-			for (const q of this.questions) {
+			for (const q of this.items) {
 				if (this.itemResults.has(q.identifier)) continue;
 				const submittedAt = Date.now();
 				const responsesForItem = (allItemResponses?.[q.identifier] || {}) as any;
@@ -527,7 +534,7 @@ export class AssessmentPlayer {
 			}
 		} else {
 			// Ensure current item is submitted (individual submission mode)
-			const q = this.questions[this.currentItemIndex];
+			const q = this.items[this.currentItemIndex];
 			if (q && !this.itemResults.has(q.identifier)) {
 				await this.submitCurrentItem();
 			}
@@ -540,7 +547,7 @@ export class AssessmentPlayer {
 
 		// Map backend itemScores to ItemResult[]
 		const itemScores = finalized.itemScores || {};
-		const itemResults: ItemResult[] = Object.values(itemScores).map((r: ScoringResult) => ({
+		const itemResults: ItemResult[] = Object.values(itemScores).map((r: AssessmentScoringResult) => ({
 			itemIdentifier: r.itemIdentifier,
 			score: r.score,
 			maxScore: r.maxScore,
@@ -575,7 +582,7 @@ export class AssessmentPlayer {
 		canReview: boolean;
 		canSkip: boolean;
 	} | null {
-		const q = this.questions[this.currentItemIndex];
+		const q = this.items[this.currentItemIndex];
 		if (!q) return null;
 		const id = q.identifier;
 
@@ -663,12 +670,12 @@ export class AssessmentPlayer {
 	// ---------------------------------------------------------------------------
 
 	private notifyItemChange(): void {
-		for (const l of this.itemChangeListeners) l(this.currentItemIndex, this.questions.length);
-		this.config.onItemChange?.(this.currentItemIndex, this.questions.length);
+		for (const l of this.itemChangeListeners) l(this.currentItemIndex, this.items.length);
+		this.config.onItemChange?.(this.currentItemIndex, this.items.length);
 	}
 
 	private notifySectionChange(): void {
-		const q = this.questions[this.currentItemIndex];
+		const q = this.items[this.currentItemIndex];
 		const sectionIndex = q?.sectionIndex ?? 0;
 		const totalSections = this.getAllSections().length;
 		for (const l of this.sectionChangeListeners) l(sectionIndex, totalSections);
