@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { execSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 
@@ -51,6 +52,40 @@ const fail = (message) => {
 	process.exit(1);
 };
 
+const parseSemver = (value) => {
+	if (typeof value !== "string") return null;
+	const normalized = value.trim().replace(/^v/, "");
+	const match = normalized.match(/^(\d+)\.(\d+)\.(\d+)(?:[-+].+)?$/);
+	if (!match) return null;
+	return {
+		major: Number.parseInt(match[1], 10),
+		minor: Number.parseInt(match[2], 10),
+		patch: Number.parseInt(match[3], 10),
+		raw: normalized,
+	};
+};
+
+const fetchPublishedVersion = (pkgName) => {
+	try {
+		const out = execSync(`npm view "${pkgName}" version --json`, {
+			cwd: ROOT,
+			stdio: "pipe",
+		})
+			.toString("utf8")
+			.trim();
+		const parsed = JSON.parse(out);
+		if (typeof parsed === "string") return parsed;
+		if (Array.isArray(parsed) && parsed.length > 0) {
+			return String(parsed[parsed.length - 1]);
+		}
+		return null;
+	} catch (error) {
+		fail(
+			`Failed to read published version for ${pkgName} from npm: ${error.stderr?.toString()?.trim() || error.message}`,
+		);
+	}
+};
+
 const publishablePackages = discoverPublishablePackages();
 if (publishablePackages.length === 0) {
 	fail("No publishable @pie-qti packages found in packages/* or tools/*.");
@@ -97,6 +132,60 @@ if (versions.size !== 1) {
 		.join("\n");
 
 	fail(`Expected one lockstep version across publishable packages, found ${versions.size}:\n${details}`);
+}
+
+if (process.env.SKIP_NPM_VERSION_SEQUENCE_CHECK !== "1") {
+	const localVersion = publishablePackages[0].version;
+	const localSemver = parseSemver(localVersion);
+	if (!localSemver) {
+		fail(`Local version "${localVersion}" is not a valid semver.`);
+	}
+
+	const publishedVersionMap = new Map();
+	for (const pkg of publishablePackages) {
+		const published = fetchPublishedVersion(pkg.name);
+		if (!published) {
+			fail(`Package ${pkg.name} has no published version on npm.`);
+		}
+		publishedVersionMap.set(pkg.name, published);
+	}
+
+	const publishedVersions = new Set(publishedVersionMap.values());
+	if (publishedVersions.size !== 1) {
+		const details = [...publishedVersionMap.entries()]
+			.sort(([a], [b]) => a.localeCompare(b))
+			.map(([name, version]) => `- ${name}: ${version}`)
+			.join("\n");
+		fail(
+			`Expected one lockstep published npm version across fixed packages, found ${publishedVersions.size}:\n${details}`,
+		);
+	}
+
+	const publishedVersion = [...publishedVersions][0];
+	const publishedSemver = parseSemver(publishedVersion);
+	if (!publishedSemver) {
+		fail(`Published version "${publishedVersion}" is not a valid semver.`);
+	}
+	if (
+		localSemver.major !== publishedSemver.major ||
+		localSemver.minor !== publishedSemver.minor
+	) {
+		fail(
+			`Local version ${localVersion} must keep major/minor aligned with published ${publishedVersion} for patch lockstep releases.`,
+		);
+	}
+
+	const delta = localSemver.patch - publishedSemver.patch;
+	if (delta !== 1) {
+		if (delta <= 0) {
+			fail(
+				`Local version ${localVersion} must be exactly one patch ahead of published ${publishedVersion}. Did you run changeset version?`,
+			);
+		}
+		fail(
+			`Local version ${localVersion} skips patch versions from published ${publishedVersion}. Reset version/changelog files and rerun release once.`,
+		);
+	}
 }
 
 const violations = [];

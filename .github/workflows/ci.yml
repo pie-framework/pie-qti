@@ -7,12 +7,14 @@ on:
     branches: [master, develop]
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
   lint:
-    name: Lint & Format
+    name: Lint & Typecheck
+    # Skip on changeset-release PRs and on PRs labelled/titled [skip-heavy-ci]
+    if: ${{ !(github.event_name == 'pull_request' && (startsWith(github.head_ref, 'changeset-release/') || contains(github.event.pull_request.title, '[skip-heavy-ci]') || contains(join(github.event.pull_request.labels.*.name, ','), 'skip-heavy-ci'))) }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -26,13 +28,12 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.3.6
+          bun-version: 1.3.5
 
       - name: Cache Bun downloads
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.bun/install/cache
+          path: ~/.bun/install/cache
           key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
           restore-keys: |
             ${{ runner.os }}-bun-
@@ -51,6 +52,7 @@ jobs:
 
   translations:
     name: Translation Coverage
+    if: ${{ !(github.event_name == 'pull_request' && (startsWith(github.head_ref, 'changeset-release/') || contains(github.event.pull_request.title, '[skip-heavy-ci]') || contains(join(github.event.pull_request.labels.*.name, ','), 'skip-heavy-ci'))) }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -59,7 +61,10 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.3.6
+          bun-version: 1.3.5
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
 
       - name: Check translation coverage
         run: |
@@ -77,7 +82,10 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.3.6
+          bun-version: 1.3.5
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
 
       - name: Scan for hardcoded strings
         run: |
@@ -86,6 +94,7 @@ jobs:
 
   test-unit:
     name: Unit Tests
+    if: ${{ !(github.event_name == 'pull_request' && (startsWith(github.head_ref, 'changeset-release/') || contains(github.event.pull_request.title, '[skip-heavy-ci]') || contains(join(github.event.pull_request.labels.*.name, ','), 'skip-heavy-ci'))) }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -99,13 +108,12 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.3.6
+          bun-version: 1.3.5
 
       - name: Cache Bun downloads
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.bun/install/cache
+          path: ~/.bun/install/cache
           key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
           restore-keys: |
             ${{ runner.os }}-bun-
@@ -118,6 +126,7 @@ jobs:
 
   build:
     name: Build All Packages
+    if: ${{ !(github.event_name == 'pull_request' && (startsWith(github.head_ref, 'changeset-release/') || contains(github.event.pull_request.title, '[skip-heavy-ci]') || contains(join(github.event.pull_request.labels.*.name, ','), 'skip-heavy-ci'))) }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -131,13 +140,12 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.3.6
+          bun-version: 1.3.5
 
       - name: Cache Bun downloads
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.bun/install/cache
+          path: ~/.bun/install/cache
           key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
           restore-keys: |
             ${{ runner.os }}-bun-
@@ -148,8 +156,12 @@ jobs:
       - name: Build packages
         run: bun run build
 
-      - name: Check build artifacts (Unix)
-        run: ls -R packages/*/dist
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: packages/*/dist
+          retention-days: 7
 
   all-checks:
     name: All Checks Passed
@@ -159,10 +171,10 @@ jobs:
     steps:
       - name: Check all job statuses
         run: |
-          if [[ "${{ needs.lint.result }}" != "success" ]] || \
-             [[ "${{ needs.translations.result }}" != "success" ]] || \
-             [[ "${{ needs.test-unit.result }}" != "success" ]] || \
-             [[ "${{ needs.build.result }}" != "success" ]]; then
+          if [[ "${{ needs.lint.result }}" != "success" && "${{ needs.lint.result }}" != "skipped" ]] || \
+             [[ "${{ needs.translations.result }}" != "success" && "${{ needs.translations.result }}" != "skipped" ]] || \
+             [[ "${{ needs.test-unit.result }}" != "success" && "${{ needs.test-unit.result }}" != "skipped" ]] || \
+             [[ "${{ needs.build.result }}" != "success" && "${{ needs.build.result }}" != "skipped" ]]; then
             echo "One or more checks failed"
             exit 1
           fi

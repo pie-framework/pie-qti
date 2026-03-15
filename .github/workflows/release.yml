@@ -4,8 +4,8 @@ on:
   push:
     branches:
       - master
-    # Avoid running release on docs-only changes.
-    # Releases should be driven by Changesets (new .changeset files) and the
+    # Only run when relevant files change.
+    # Releases are driven by Changesets (.changeset files) and the
     # resulting version-bump commits (packages/*/package.json + CHANGELOG.md).
     paths:
       - ".changeset/**"
@@ -80,13 +80,12 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.3.6
+          bun-version: 1.3.5
 
       - name: Cache Bun downloads
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.bun/install/cache
+          path: ~/.bun/install/cache
           key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
           restore-keys: |
             ${{ runner.os }}-bun-
@@ -119,7 +118,7 @@ jobs:
 
           # Require both removed and added "version" lines to avoid treating metadata-only
           # package.json edits as publish intents.
-          if echo "$version_diff" | grep -Eq '^-\\s*"version"\\s*:' && echo "$version_diff" | grep -Eq '^\\+\\s*"version"\\s*:'; then
+          if echo "$version_diff" | grep -Eq '^-[[:space:]]*"version"[[:space:]]*:' && echo "$version_diff" | grep -Eq '^\+[[:space:]]*"version"[[:space:]]*:'; then
             echo "has_version_bumps=true" >> "$GITHUB_OUTPUT"
           else
             echo "has_version_bumps=false" >> "$GITHUB_OUTPUT"
@@ -159,6 +158,10 @@ jobs:
       - name: Run tests (publish runs only)
         if: (github.event_name == 'workflow_dispatch' && inputs.release_intent == 'publish') || (github.event_name != 'workflow_dispatch' && steps.detect.outputs.has_version_bumps == 'true')
         run: bun run test
+
+      - name: Check fixed monorepo versioning invariants (publish runs only)
+        if: (github.event_name == 'workflow_dispatch' && inputs.release_intent == 'publish') || (github.event_name != 'workflow_dispatch' && steps.detect.outputs.has_version_bumps == 'true')
+        run: SKIP_NPM_VERSION_SEQUENCE_CHECK=1 node scripts/check-fixed-versioning.mjs
 
       - name: Resolve npm publish auth mode
         if: (github.event_name == 'workflow_dispatch' && inputs.release_intent == 'publish') || (github.event_name != 'workflow_dispatch' && steps.detect.outputs.has_version_bumps == 'true')
@@ -218,7 +221,8 @@ jobs:
         id: changesets
         uses: changesets/action@v1
         with:
-          publish: bun run release
+          # release script handles: workspace range rewriting, build, publish, restore
+          publish: node scripts/changeset-publish-resolved-workspaces.mjs
           version: bun run version
           title: 'chore(release): version packages [skip-heavy-ci]'
           commit: 'chore(release): version packages'
@@ -227,6 +231,7 @@ jobs:
           NPM_TOKEN: ${{ env.PUBLISH_NPM_TOKEN }}
           NODE_AUTH_TOKEN: ${{ env.PUBLISH_NODE_AUTH_TOKEN }}
           NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
+          LEFTHOOK: 0
 
       - name: Create GitHub Release
         if: steps.changesets.outputs.published == 'true'
@@ -234,7 +239,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          # changesets/action outputs `publishedPackages` as a JSON string; parse it before indexing.
           tag_name: v${{ fromJson(steps.changesets.outputs.publishedPackages)[0].version }}
           release_name: Release v${{ fromJson(steps.changesets.outputs.publishedPackages)[0].version }}
           body: |
@@ -246,8 +250,22 @@ jobs:
           draft: false
           prerelease: false
 
+      - name: Summary
+        if: steps.changesets.outputs.published == 'true'
+        run: |
+          echo "### Published Packages" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '${{ steps.changesets.outputs.publishedPackages }}' | jq -r '.[] | "- \(.name)@\(.version)"' >> $GITHUB_STEP_SUMMARY
+
+      - name: Verify published dependency closure
+        if: steps.changesets.outputs.published == 'true'
+        env:
+          PUBLISHED_PACKAGES_JSON: ${{ steps.changesets.outputs.publishedPackages }}
+        run: node scripts/check-published-closure.mjs
+
       - name: Notify Slack on Successful Publish
         if: steps.changesets.outputs.published == 'true'
+        continue-on-error: true
         uses: slackapi/slack-github-action@v1.27.0
         with:
           payload: |
@@ -274,10 +292,6 @@ jobs:
                     },
                     {
                       "type": "mrkdwn",
-                      "text": "*Package:*\n${{ fromJson(steps.changesets.outputs.publishedPackages)[0].name }}"
-                    },
-                    {
-                      "type": "mrkdwn",
                       "text": "*Branch:*\n${{ github.ref_name }}"
                     },
                     {
@@ -289,13 +303,6 @@ jobs:
                       "text": "*Workflow:*\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>"
                     }
                   ]
-                },
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "*Published Packages:*\n```\n${{ toJSON(fromJSON(steps.changesets.outputs.publishedPackages)) }}\n```"
-                  }
                 }
               ]
             }
@@ -305,6 +312,7 @@ jobs:
 
       - name: Notify Slack on Release Failure
         if: failure()
+        continue-on-error: true
         uses: slackapi/slack-github-action@v1.27.0
         with:
           payload: |
