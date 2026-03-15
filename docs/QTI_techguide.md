@@ -1,8 +1,8 @@
-# IMS QTI 2.2: Comprehensive Technical Implementation Guide
+# QTI: Comprehensive Technical Implementation Guide
 
 **Question and Test Interoperability Specification**
 
-*Version 2.2 Final Release | September 2015*
+*Covers QTI 2.1, 2.2, and 3.0*
 
 ## Spec snapshots (local)
 
@@ -15,7 +15,7 @@ This repo keeps local, greppable spec snapshots for QTI work. See [SPEC_SNAPSHOT
 - [Part I: Specification Overview](#part-i-specification-overview)
   - [1.1 Purpose and Scope](#11-purpose-and-scope)
   - [1.2 Historical Evolution](#12-historical-evolution)
-  - [1.3 QTI 2.2 Key Enhancements](#13-qti-22-key-enhancements)
+  - [1.3 Version Differences Reference](#13-version-differences-reference)
 - [Part II: Assessment Architecture](#part-ii-assessment-architecture)
   - [2.1 Hierarchical Structure](#21-hierarchical-structure)
   - [2.2 Assessment Item Structure](#22-assessment-item-structure)
@@ -32,11 +32,14 @@ This repo keeps local, greppable spec snapshots for QTI work. See [SPEC_SNAPSHOT
 - [Part V: XML Schema and Namespaces](#part-v-xml-schema-and-namespaces)
   - [5.1 Namespace Declarations](#51-namespace-declarations)
   - [5.2 Document Structure](#52-document-structure)
-- [Part VI: Implementation Guidance](#part-vi-implementation-guidance)
-  - [6.1 Conformance Profiles](#61-conformance-profiles)
-  - [6.2 Common Implementation Issues](#62-common-implementation-issues)
-  - [6.3 Best Practices](#63-best-practices)
-  - [6.4 Available Libraries and Tools](#64-available-libraries-and-tools)
+- [Part VI: QTI 3.0 Features](#part-vi-qti-30-features)
+  - [6.1 Portable Custom Interactions (PCI)](#61-portable-custom-interactions-pci)
+  - [6.2 Personal Needs and Preferences (PNP)](#62-personal-needs-and-preferences-pnp)
+  - [6.3 Catalog System](#63-catalog-system)
+- [Part VII: Implementation Guidance](#part-vii-implementation-guidance)
+  - [7.1 Conformance Profiles](#71-conformance-profiles)
+  - [7.2 Common Implementation Issues](#72-common-implementation-issues)
+  - [7.3 Best Practices](#73-best-practices)
 - [Conclusion](#conclusion)
 
 ---
@@ -45,7 +48,7 @@ This repo keeps local, greppable spec snapshots for QTI work. See [SPEC_SNAPSHOT
 
 ## 1.1 Purpose and Scope
 
-The **IMS Question and Test Interoperability (QTI) 2.2 specification** defines a standardized XML format for representing assessment content, enabling portable exchange of questions and tests between authoring systems, delivery platforms, item banks, and learning management systems. Released September 1, 2015 by the IMS Global Learning Consortium (now 1EdTech), QTI 2.2 represents the mature evolution of assessment interoperability standards.
+The **IMS/1EdTech Question and Test Interoperability (QTI) specification** defines a standardized XML format for representing assessment content, enabling portable exchange of questions and tests between authoring systems, delivery platforms, item banks, and learning management systems.
 
 QTI solves a fundamental problem in educational technology: **vendor lock-in of assessment content**. Organizations investing significant resources in question development can preserve that investment when changing platforms, as content authored in QTI format transfers freely between any certified system.
 
@@ -59,21 +62,91 @@ The specification supports everything from simple multiple-choice quizzes to com
 | 1.2 | January 2002 | Major update; over 6,000 downloads by Feb 2002 |
 | 2.0 | January 2005 | Complete redesign focusing on individual assessment items |
 | 2.1 | August 2012 | Added tests, sections, results reporting; major adoption milestone |
-| **2.2** | **September 2015** | **HTML5 elements, WAI-ARIA accessibility, MathML v3, CSS3 Speech** |
-| 3.0 | May 2022 | Merged QTI with APIP; NOT backward compatible with 2.x |
+| 2.2 | September 2015 | HTML5 elements, WAI-ARIA accessibility, MathML v3, CSS3 Speech |
+| 2.2.4 | March 2021 | Maintenance update; XSD corrections |
+| **3.0** | **May 2022** | **Merged QTI with APIP; NOT backward compatible with 2.x** |
 
-QTI 2.2 continues receiving maintenance updates, with version 2.2.4 released in March 2021 containing XSD corrections.
+## 1.3 Version Differences Reference
 
-## 1.3 QTI 2.2 Key Enhancements
+QTI 3.0 is a significant break from 2.x. All element names change from `camelCase` to `qti-kebab-case`, and multi-word attributes change from `camelCase` to `kebab-case`. The core data model, interaction types, and response processing semantics remain consistent across versions.
 
-QTI 2.2's key enhancements over version 2.1 centered on web standards modernization:
+### Element Name Mapping
 
-- **HTML5 elements:** `figure`, `figcaption`, `audio`, `video`, `section`, `article`, `nav`, `aside`, `header`, `footer`
-- **WAI-ARIA accessibility attributes:** `role`, `aria-label`, `aria-describedby`, `aria-hidden`, and more
-- **MathML version 3:** Enhanced mathematical notation support with template variable integration
-- **CSS3 Speech integration:** Text-to-speech control for accessibility
-- **Bidirectional text support:** `dir` attribute for right-to-left languages
-- **Ruby markup:** East Asian language annotation support
+| Canonical Concept | QTI 2.x | QTI 3.0 |
+|-------------------|---------|---------|
+| `assessmentItem` | `<assessmentItem>` | `<qti-assessment-item>` |
+| `assessmentTest` | `<assessmentTest>` | `<qti-assessment-test>` |
+| `responseDeclaration` | `<responseDeclaration>` | `<qti-response-declaration>` |
+| `outcomeDeclaration` | `<outcomeDeclaration>` | `<qti-outcome-declaration>` |
+| `itemBody` | `<itemBody>` | `<qti-item-body>` |
+| `responseProcessing` | `<responseProcessing>` | `<qti-response-processing>` |
+| `choiceInteraction` | `<choiceInteraction>` | `<qti-choice-interaction>` |
+| `simpleChoice` | `<simpleChoice>` | `<qti-simple-choice>` |
+| `orderInteraction` | `<orderInteraction>` | `<qti-order-interaction>` |
+| `associateInteraction` | `<associateInteraction>` | `<qti-associate-interaction>` |
+| `matchInteraction` | `<matchInteraction>` | `<qti-match-interaction>` |
+| `gapMatchInteraction` | `<gapMatchInteraction>` | `<qti-gap-match-interaction>` |
+| `inlineChoiceInteraction` | `<inlineChoiceInteraction>` | `<qti-inline-choice-interaction>` |
+| `textEntryInteraction` | `<textEntryInteraction>` | `<qti-text-entry-interaction>` |
+| `extendedTextInteraction` | `<extendedTextInteraction>` | `<qti-extended-text-interaction>` |
+| `hottextInteraction` | `<hottextInteraction>` | `<qti-hottext-interaction>` |
+| `hotspotInteraction` | `<hotspotInteraction>` | `<qti-hotspot-interaction>` |
+| `selectPointInteraction` | `<selectPointInteraction>` | `<qti-select-point-interaction>` |
+| `graphicOrderInteraction` | `<graphicOrderInteraction>` | `<qti-graphic-order-interaction>` |
+| `graphicAssociateInteraction` | `<graphicAssociateInteraction>` | `<qti-graphic-associate-interaction>` |
+| `graphicGapMatchInteraction` | `<graphicGapMatchInteraction>` | `<qti-graphic-gap-match-interaction>` |
+| `positionObjectInteraction` | `<positionObjectInteraction>` | `<qti-position-object-interaction>` |
+| `sliderInteraction` | `<sliderInteraction>` | `<qti-slider-interaction>` |
+| `mediaInteraction` | `<mediaInteraction>` | `<qti-media-interaction>` |
+| `drawingInteraction` | `<drawingInteraction>` | `<qti-drawing-interaction>` |
+| `uploadInteraction` | `<uploadInteraction>` | `<qti-upload-interaction>` |
+| `endAttemptInteraction` | `<endAttemptInteraction>` | `<qti-end-attempt-interaction>` |
+| `customInteraction` | `<customInteraction>` | `<qti-portable-custom-interaction>` *(see Part VI)* |
+| `modalFeedback` | `<modalFeedback>` | `<qti-modal-feedback>` |
+| `testPart` | `<testPart>` | `<qti-test-part>` |
+| `assessmentSection` | `<assessmentSection>` | `<qti-assessment-section>` |
+| `assessmentItemRef` | `<assessmentItemRef>` | `<qti-assessment-item-ref>` |
+
+### Attribute Name Mapping
+
+Single-word attributes are unchanged. Multi-word attributes change from `camelCase` to `kebab-case`:
+
+| Concept | QTI 2.x | QTI 3.0 |
+|---------|---------|---------|
+| Response binding | `responseIdentifier` | `response-identifier` |
+| Cardinality | `cardinality` | `cardinality` *(unchanged)* |
+| Base type | `baseType` | `base-type` |
+| Max choices | `maxChoices` | `max-choices` |
+| Min choices | `minChoices` | `min-choices` |
+| Max associations | `maxAssociations` | `max-associations` |
+| Navigation mode | `navigationMode` | `navigation-mode` |
+| Submission mode | `submissionMode` | `submission-mode` |
+| Time dependent | `timeDependent` | `time-dependent` |
+| Correct response | `<correctResponse>` | `<qti-correct-response>` |
+
+### QTI 2.1 vs 2.2
+
+The differences between 2.1 and 2.2 are smaller and backward-compatible. QTI 2.2 added:
+
+- **HTML5 elements** in item body: `figure`, `figcaption`, `audio`, `video`, `section`, `article`, `nav`, `aside`, `header`, `footer`
+- **WAI-ARIA attributes**: `role`, `aria-label`, `aria-describedby`, `aria-hidden`, and others
+- **MathML version 3**: Enhanced mathematical notation with template variable integration
+- **CSS3 Speech**: Text-to-speech control attributes for accessibility
+- **Bidirectional text**: `dir` attribute for right-to-left language support
+- **Ruby markup**: East Asian language annotation
+- **`label` element** on `inlineChoiceInteraction`: Default display text before selection
+- **`format` attribute** on `textEntryInteraction`: Display format hint
+- **Native `audio`/`video` elements** in `mediaInteraction` (alongside `object`)
+
+Items valid in QTI 2.1 are generally valid in QTI 2.2. Namespace URI is the only required change when upgrading.
+
+### Namespace URIs
+
+| Version | Namespace URI |
+|---------|--------------|
+| QTI 2.1 | `http://www.imsglobal.org/xsd/imsqti_v2p1` |
+| QTI 2.2 | `http://www.imsglobal.org/xsd/imsqti_v2p2` |
+| QTI 3.0 | `http://www.imsglobal.org/xsd/imsqtiasi_v3p0` |
 
 ---
 
@@ -125,7 +198,9 @@ The **assessmentItem** represents a single question and contains the complete de
 
 # Part III: Interaction Types Reference
 
-QTI 2.2 supports **21 interaction types** organized into four functional categories. Each interaction binds to a response variable through the required `responseIdentifier` attribute.
+QTI supports **21 standard interaction types** organized into four functional categories. Each interaction binds to a response variable through the required `responseIdentifier` attribute (QTI 2.x) / `response-identifier` attribute (QTI 3.0).
+
+Examples in this section use QTI 2.x syntax. For QTI 3.0, apply the naming conventions from the mapping table in Part I.
 
 ## 3.1 Simple Selection Interactions
 
@@ -140,7 +215,7 @@ QTI 2.2 supports **21 interaction types** organized into four functional categor
 | Attribute | Required | Description |
 |-----------|----------|-------------|
 | `responseIdentifier` | Required | Identifier binding to responseDeclaration |
-| `shuffle` | Optional | Boolean. If true, randomizes choice order on delivery. Default: false |
+| `shuffle` | Optional | If true, randomizes choice order on delivery. Default: false |
 | `maxChoices` | Optional | Maximum selections allowed. 0=unlimited, 1=single-choice (radio). Default: 1 |
 | `minChoices` | Optional | Minimum selections required for valid response. Default: 0 |
 | `orientation` | Optional | Visual hint: 'horizontal' or 'vertical' |
@@ -157,7 +232,7 @@ QTI 2.2 supports **21 interaction types** organized into four functional categor
 | `identifier` | Required | Unique identifier for this choice within the interaction |
 | `fixed` | Optional | If true, choice position is fixed during shuffle. Default: false |
 | `templateIdentifier` | Optional | Links to template variable for conditional visibility |
-| `showHide` | Optional | 'show' or 'hide' - controls template-based visibility |
+| `showHide` | Optional | 'show' or 'hide' — controls template-based visibility |
 
 **XML Example:**
 
@@ -191,18 +266,7 @@ QTI 2.2 supports **21 interaction types** organized into four functional categor
 | `maxChoices` | Optional | Maximum choices to include. 0 or omitted means all required |
 | `orientation` | Optional | Visual hint: 'horizontal' or 'vertical' |
 
-**XML Example:**
-
-```xml
-<orderInteraction responseIdentifier="RESPONSE" shuffle="true">
-  <prompt>Arrange these events in chronological order:</prompt>
-  <simpleChoice identifier="A">World War I begins</simpleChoice>
-  <simpleChoice identifier="B">Moon landing</simpleChoice>
-  <simpleChoice identifier="C">Fall of Berlin Wall</simpleChoice>
-</orderInteraction>
-```
-
-**Implementation Notes:** Typically implemented with drag-and-drop UI. Use the `fixed` attribute on choices to prevent specific items from being shuffled (e.g., ensure the initial presentation never shows the correct answer). Response stores identifiers in candidate's chosen order.
+**Implementation Notes:** Typically implemented with drag-and-drop UI. Use the `fixed` attribute on choices to prevent specific items from being shuffled. Response stores identifiers in candidate's chosen order.
 
 ---
 
@@ -249,10 +313,7 @@ QTI 2.2 supports **21 interaction types** organized into four functional categor
 | `maxAssociations` | Optional | Maximum total matches allowed. Default: 1 |
 | `minAssociations` | Optional | Minimum matches required. Default: 0 |
 
-**Structure:**
-
-- Contains exactly two `simpleMatchSet` elements
-- Each simpleMatchSet contains `simpleAssociableChoice` elements with matchMax/matchMin
+**Structure:** Contains exactly two `simpleMatchSet` elements, each containing `simpleAssociableChoice` elements with matchMax/matchMin.
 
 **XML Example:**
 
@@ -310,7 +371,7 @@ QTI 2.2 supports **21 interaction types** organized into four functional categor
 </gapMatchInteraction>
 ```
 
-**Implementation Notes:** Gap elements appear inline within paragraph content. The `matchMax` attribute on gapText/gapImg controls how many times each choice can be used. This is ideal for cloze-style reading comprehension tests.
+**Implementation Notes:** Gap elements appear inline within paragraph content. The `matchMax` attribute on gapText/gapImg controls how many times each choice can be used. Ideal for cloze-style reading comprehension tests.
 
 ---
 
@@ -344,19 +405,7 @@ QTI 2.2 supports **21 interaction types** organized into four functional categor
 | `templateIdentifier` | Optional | Links to template variable |
 | `showHide` | Optional | Controls template-based visibility |
 
-**XML Example:**
-
-```xml
-<p>The chemical formula for water is 
-  <inlineChoiceInteraction responseIdentifier="RESPONSE" shuffle="false">
-    <inlineChoice identifier="A">CO2</inlineChoice>
-    <inlineChoice identifier="B">H2O</inlineChoice>
-    <inlineChoice identifier="C">NaCl</inlineChoice>
-  </inlineChoiceInteraction>.
-</p>
-```
-
-**Implementation Notes:** Render as a dropdown/select element inline with surrounding text. The `label` element (QTI 2.2+) can provide placeholder text before the candidate makes a selection.
+**Implementation Notes:** Render as a dropdown/select element inline with surrounding text. The `label` element provides placeholder text before the candidate makes a selection.
 
 ---
 
@@ -376,15 +425,6 @@ QTI 2.2 supports **21 interaction types** organized into four functional categor
 | `patternMask` | Optional | Regular expression for input validation |
 | `placeholderText` | Optional | Hint text displayed when field is empty |
 | `format` | Optional | (QTI 2.2+) Display format hint |
-
-**XML Example:**
-
-```xml
-<p>The year World War II ended was 
-  <textEntryInteraction responseIdentifier="RESPONSE" 
-      expectedLength="4" patternMask="[0-9]{4}"/>.
-</p>
-```
 
 **Implementation Notes:** Use `stringMatch` or `patternMatch` operators in response processing for text comparison. Set `caseSensitive` attribute as appropriate. The `patternMask` provides client-side validation but should also be validated server-side.
 
@@ -406,18 +446,9 @@ QTI 2.2 supports **21 interaction types** organized into four functional categor
 | `expectedLines` | Optional | Expected line count (for sizing) |
 | `minStrings` | Optional | Minimum number of response strings required |
 | `maxStrings` | Optional | Maximum number of response strings allowed |
-| `format` | Optional | 'plain', 'preFormatted', or 'xhtml' - indicates expected content type |
+| `format` | Optional | 'plain', 'preFormatted', or 'xhtml' — indicates expected content type |
 | `patternMask` | Optional | Regular expression for validation |
 | `placeholderText` | Optional | Hint text displayed when empty |
-
-**XML Example:**
-
-```xml
-<extendedTextInteraction responseIdentifier="RESPONSE" 
-    expectedLines="10" format="plain">
-  <prompt>Discuss the causes of World War I in 500 words or less.</prompt>
-</extendedTextInteraction>
-```
 
 **Implementation Notes:** Essays typically require human scoring. Set `externalScored='human'` on the outcomeDeclaration. The `format` attribute guides whether to provide plain text, preserve formatting, or enable XHTML editing.
 
@@ -449,8 +480,8 @@ QTI 2.2 supports **21 interaction types** organized into four functional categor
 
 ```xml
 <hottextInteraction responseIdentifier="RESPONSE" maxChoices="2">
-  <p>The <hottext identifier="H1">quick</hottext> brown 
-     <hottext identifier="H2">fox</hottext> jumps over the 
+  <p>The <hottext identifier="H1">quick</hottext> brown
+     <hottext identifier="H2">fox</hottext> jumps over the
      <hottext identifier="H3">lazy</hottext> dog.</p>
 </hottextInteraction>
 ```
@@ -501,17 +532,16 @@ Graphical interactions involve a background image with defined regions (hotspots
   <object type="image/png" data="europe_map.png" width="400" height="300"/>
   <hotspotChoice identifier="FR" shape="poly" coords="150,120,180,100,200,130,170,160"/>
   <hotspotChoice identifier="DE" shape="rect" coords="200,80,280,150"/>
-  <hotspotChoice identifier="ES" shape="poly" coords="80,180,120,160,140,200,90,220"/>
 </hotspotInteraction>
 ```
 
-**Implementation Notes:** The delivery engine must clearly indicate selected hotspots. Hotspots may or may not be visually indicated before selection depending on item design. Coordinates are relative to the image's natural dimensions.
+**Implementation Notes:** The delivery engine must clearly indicate selected hotspots. Coordinates are relative to the image's natural dimensions.
 
 ---
 
 ### 3.3.2 selectPointInteraction
 
-**Purpose:** Allows the candidate to click one or more points on an image. Unlike hotspotInteraction, the valid regions are NOT shown to the candidate—this creates "hidden hotspot" questions.
+**Purpose:** Allows the candidate to click one or more points on an image. Unlike hotspotInteraction, the valid regions are NOT shown to the candidate — this creates "hidden hotspot" questions.
 
 **Response Binding:** Bound to a response variable with baseType `point` (format: "x y") and cardinality `single` or `multiple`.
 
@@ -523,15 +553,6 @@ Graphical interactions involve a background image with defined regions (hotspots
 | `maxChoices` | Optional | Maximum points selectable. 0=unlimited. Default: 1 |
 | `minChoices` | Optional | Minimum points required. Default: 0 |
 
-**XML Example:**
-
-```xml
-<selectPointInteraction responseIdentifier="RESPONSE" maxChoices="1">
-  <prompt>Click on Edinburgh on the map:</prompt>
-  <object type="image/png" data="uk_map.png" width="300" height="400"/>
-</selectPointInteraction>
-```
-
 **Scoring with areaMapping:**
 
 ```xml
@@ -542,7 +563,7 @@ Graphical interactions involve a background image with defined regions (hotspots
 </responseDeclaration>
 ```
 
-**Implementation Notes:** Use `areaMapping` in the responseDeclaration to score point responses. The areaMapping defines regions with associated scores—candidates receive points based on where they click without seeing the target zones. Show only the clicked point(s), never the scoring regions.
+**Implementation Notes:** Use `areaMapping` in the responseDeclaration to score point responses. Show only the clicked point(s), never the scoring regions.
 
 ---
 
@@ -560,7 +581,7 @@ Graphical interactions involve a background image with defined regions (hotspots
 | `maxChoices` | Optional | Maximum hotspots to order. 0=all required |
 | `minChoices` | Optional | Minimum hotspots to order |
 
-**Implementation Notes:** Display numbers or other indicators showing the order in which hotspots were selected. Allow candidates to reset and reorder their selections.
+**Implementation Notes:** Display numbers or other indicators showing the selection order. Allow candidates to reset and reorder their selections.
 
 ---
 
@@ -588,7 +609,7 @@ Graphical interactions involve a background image with defined regions (hotspots
 | `matchMax` | Required | Maximum times this hotspot can be associated |
 | `matchMin` | Optional | Minimum associations required |
 
-**Implementation Notes:** Uses `associableHotspot` elements with `matchMax` controlling how many times each hotspot can be used. Typically rendered by drawing lines between associated hotspots.
+**Implementation Notes:** Typically rendered by drawing lines between associated hotspots. `matchMax` controls how many times each hotspot can participate in an association.
 
 ---
 
@@ -612,23 +633,6 @@ Graphical interactions involve a background image with defined regions (hotspots
 | `matchMin` | Optional | Minimum uses required |
 | `objectLabel` | Optional | Accessibility label |
 
-**XML Example:**
-
-```xml
-<graphicGapMatchInteraction responseIdentifier="RESPONSE">
-  <prompt>Drag the labels to the correct parts of the cell:</prompt>
-  <object type="image/png" data="cell_diagram.png" width="400" height="300"/>
-  <gapImg identifier="L1" matchMax="1">
-    <object type="image/png" data="nucleus_label.png" width="60" height="20"/>
-  </gapImg>
-  <gapImg identifier="L2" matchMax="1">
-    <object type="image/png" data="membrane_label.png" width="60" height="20"/>
-  </gapImg>
-  <associableHotspot identifier="H1" shape="circle" coords="200,150,30" matchMax="1"/>
-  <associableHotspot identifier="H2" shape="rect" coords="50,50,350,250" matchMax="1"/>
-</graphicGapMatchInteraction>
-```
-
 **Implementation Notes:** Implement with drag-and-drop interface. Dropped items should snap to hotspot positions. Provide visual feedback for valid drop targets.
 
 ---
@@ -648,20 +652,7 @@ Graphical interactions involve a background image with defined regions (hotspots
 | `maxChoices` | Optional | Maximum placements allowed |
 | `minChoices` | Optional | Minimum placements required |
 
-**Structure:**
-
-Must be contained within a `positionObjectStage` element which provides the background:
-
-```xml
-<positionObjectStage>
-  <object type="image/png" data="background.png" width="400" height="300"/>
-  <positionObjectInteraction responseIdentifier="RESPONSE" maxChoices="1">
-    <object type="image/png" data="marker.png" width="20" height="20"/>
-  </positionObjectInteraction>
-</positionObjectStage>
-```
-
-**Implementation Notes:** Multiple positionObjectInteractions can share the same stage. The response records where the candidate placed the moveable object. Use `areaMapping` for scoring based on placement regions.
+**Structure:** Must be contained within a `positionObjectStage` element which provides the background. Multiple positionObjectInteractions can share the same stage. Use `areaMapping` for scoring based on placement regions.
 
 ---
 
@@ -685,16 +676,7 @@ Must be contained within a `positionObjectStage` element which provides the back
 | `orientation` | Optional | 'horizontal' or 'vertical' |
 | `reverse` | Optional | If true, reverses the slider direction |
 
-**XML Example:**
-
-```xml
-<sliderInteraction responseIdentifier="RESPONSE"
-    lowerBound="0" upperBound="100" step="5" stepLabel="true">
-  <prompt>Rate your confidence level (0-100%):</prompt>
-</sliderInteraction>
-```
-
-**Implementation Notes:** Provide clear visual feedback of current value. Consider accessibility—ensure keyboard navigation works. The `step` attribute constrains valid values (e.g., step=5 means only 0, 5, 10, 15... are valid).
+**Implementation Notes:** Ensure keyboard navigation works for accessibility. The `step` attribute constrains valid values (e.g., step=5 means only 0, 5, 10, 15... are valid).
 
 ---
 
@@ -714,46 +696,17 @@ Must be contained within a `positionObjectStage` element which provides the back
 | `maxPlays` | Optional | Maximum times candidate can play media. 0=unlimited |
 | `loop` | Optional | If true, media loops continuously |
 
-**XML Example (using object):**
-
-```xml
-<mediaInteraction responseIdentifier="RESPONSE" minPlays="1" maxPlays="3">
-  <prompt>Listen to the audio clip, then answer the questions below:</prompt>
-  <object type="audio/mpeg" data="listening_passage.mp3"/>
-</mediaInteraction>
-```
-
-**XML Example (using HTML5 audio - QTI 2.2):**
-
-```xml
-<mediaInteraction responseIdentifier="RESPONSE" minPlays="1">
-  <audio>
-    <source src="listening_passage.mp3" type="audio/mpeg"/>
-    <source src="listening_passage.ogg" type="audio/ogg"/>
-  </audio>
-</mediaInteraction>
-```
-
-**Implementation Notes:** QTI 2.2 adds native `audio` and `video` elements alongside the traditional `object` element. Use `minPlays` to enforce listening/viewing requirements. The response variable tracks play count for validation.
+**Implementation Notes:** QTI 2.2 and 3.0 support native `audio`/`video` elements alongside the traditional `object` element. Use `minPlays` to enforce listening/viewing requirements. The response variable tracks play count for validation.
 
 ---
 
 ### 3.4.3 drawingInteraction
 
-**Purpose:** Provides a freehand drawing canvas where candidates can sketch responses. The drawing occurs on a provided background image which also determines output dimensions and format.
+**Purpose:** Provides a freehand drawing canvas where candidates can sketch responses. The drawing occurs on a provided background image which determines output dimensions and format.
 
 **Response Binding:** Bound to a response variable with baseType `file` and cardinality `single`. The response is the drawing as image data.
 
-**Structure:**
-
-```xml
-<drawingInteraction responseIdentifier="RESPONSE">
-  <prompt>Draw a diagram of photosynthesis:</prompt>
-  <object type="image/png" data="blank_canvas.png" width="400" height="300"/>
-</drawingInteraction>
-```
-
-**Implementation Notes:** Requires a canvas-capable rendering environment. The `object` element provides the background/canvas and determines output format. Typically requires human scoring. Provide basic drawing tools (pen, eraser, color selection). Consider touch device support.
+**Implementation Notes:** Requires a canvas-capable rendering environment. Typically requires human scoring. Provide basic drawing tools (pen, eraser, color selection). Consider touch device support.
 
 ---
 
@@ -770,15 +723,7 @@ Must be contained within a `positionObjectStage` element which provides the back
 | `responseIdentifier` | Required | Identifier binding to responseDeclaration |
 | `type` | Optional | MIME type constraint for accepted files (e.g., 'application/pdf') |
 
-**XML Example:**
-
-```xml
-<uploadInteraction responseIdentifier="RESPONSE" type="application/pdf">
-  <prompt>Upload your completed assignment as a PDF file:</prompt>
-</uploadInteraction>
-```
-
-**Implementation Notes:** Response processing for file-based questions is typically out of scope—files usually require human review or external processing systems. Implement file size limits and security scanning. Consider providing progress feedback for large uploads.
+**Implementation Notes:** Files usually require human review or external processing. Implement file size limits and security scanning.
 
 ---
 
@@ -796,42 +741,15 @@ Must be contained within a `positionObjectStage` element which provides the back
 | `title` | Required | Button label text (e.g., 'Give Up', 'Show Hint') |
 | `countAttempt` | Optional | If false, clicking doesn't increment numAttempts. Default: true |
 
-**XML Example:**
-
-```xml
-<responseDeclaration identifier="HINT" cardinality="single" baseType="boolean"/>
-
-<itemBody>
-  <choiceInteraction responseIdentifier="RESPONSE" maxChoices="1">
-    <prompt>What is the capital of Australia?</prompt>
-    <simpleChoice identifier="A">Sydney</simpleChoice>
-    <simpleChoice identifier="B">Melbourne</simpleChoice>
-    <simpleChoice identifier="C">Canberra</simpleChoice>
-  </choiceInteraction>
-  <endAttemptInteraction responseIdentifier="HINT" 
-      title="Request Hint" countAttempt="false"/>
-</itemBody>
-```
-
-**Implementation Notes:** Combine with `adaptive='true'` on the item and responseProcessing logic that checks the button's response variable. Use `countAttempt='false'` for hint requests that shouldn't penalize the candidate. The item continues presenting until `completionStatus` is set to "completed".
+**Implementation Notes:** Combine with `adaptive='true'` on the item and responseProcessing logic that checks the button's response variable. Use `countAttempt='false'` for hint requests that shouldn't penalize the candidate.
 
 ---
 
-### 3.4.6 customInteraction
+### 3.4.6 customInteraction / portableCustomInteraction
 
-**Purpose:** Extension point for proprietary interaction types not covered by standard QTI interactions. Allows platform-specific features while maintaining overall QTI structure.
+In QTI 2.x, `customInteraction` is an extension point for proprietary interaction types. In QTI 3.0, this is replaced by the fully standardized **Portable Custom Interaction (PCI)** mechanism — see [Part VI, Section 6.1](#61-portable-custom-interactions-pci) for a complete treatment.
 
-**Response Binding:** Response type depends on the custom implementation.
-
-**Attributes:**
-
-| Attribute | Required | Description |
-|-----------|----------|-------------|
-| `responseIdentifier` | Required | Identifier binding to responseDeclaration |
-| `class` | Optional | Implementation class identifier |
-| `extension` | Optional | Additional extension data |
-
-**Structure:**
+**QTI 2.x customInteraction:**
 
 ```xml
 <customInteraction responseIdentifier="RESPONSE" class="myPlatform.chemEditor">
@@ -842,7 +760,7 @@ Must be contained within a `positionObjectStage` element which provides the back
 </customInteraction>
 ```
 
-**Implementation Notes:** Using customInteraction trades interoperability for capability. Content using custom interactions may not transfer between platforms. QTI 3.0 introduces Portable Custom Interactions (PCI) for better standardized extensibility. Document any custom interactions thoroughly for potential migration.
+**Implementation Notes:** Using `customInteraction` in QTI 2.x trades interoperability for capability. Content using custom interactions may not transfer between platforms. QTI 3.0 PCI provides a standards-based alternative with much better portability guarantees.
 
 ---
 
@@ -894,7 +812,7 @@ QTI provides three standard templates that cover most scoring needs while maximi
 Awards 1 point if the response exactly matches the declared `correctResponse`, 0 otherwise.
 
 ```xml
-<responseProcessing 
+<responseProcessing
     template="http://www.imsglobal.org/question/qti_v2p2/rptemplates/match_correct"/>
 ```
 
@@ -916,7 +834,7 @@ Uses a `mapping` element to assign point values to each possible response value,
   </mapping>
 </responseDeclaration>
 
-<responseProcessing 
+<responseProcessing
     template="http://www.imsglobal.org/question/qti_v2p2/rptemplates/map_response"/>
 ```
 
@@ -932,7 +850,7 @@ Uses `areaMapping` for coordinate-based responses, defining scoring regions with
   </areaMapping>
 </responseDeclaration>
 
-<responseProcessing 
+<responseProcessing
     template="http://www.imsglobal.org/question/qti_v2p2/rptemplates/map_response_point"/>
 ```
 
@@ -984,49 +902,84 @@ For custom scoring logic, use `responseCondition` with expressions:
 
 ## 5.1 Namespace Declarations
 
-| Namespace URI | Purpose |
-|--------------|---------|
-| `http://www.imsglobal.org/xsd/imsqti_v2p2` | Core QTI ASI content |
-| `http://www.imsglobal.org/xsd/imsqti_result_v2p2` | Results reporting |
-| `http://www.imsglobal.org/xsd/imsqti_metadata_v2p2` | QTI-specific metadata |
-| `http://www.w3.org/1998/Math/MathML` | Mathematical content |
-| `http://www.imsglobal.org/xsd/imscp_v1p1` | Content packaging manifest |
+| Namespace URI | Version | Purpose |
+|--------------|---------|---------|
+| `http://www.imsglobal.org/xsd/imsqti_v2p1` | QTI 2.1 | Core QTI ASI content |
+| `http://www.imsglobal.org/xsd/imsqti_v2p2` | QTI 2.2 | Core QTI ASI content |
+| `http://www.imsglobal.org/xsd/imsqtiasi_v3p0` | QTI 3.0 | Core QTI ASI content |
+| `http://www.imsglobal.org/xsd/imsqti_result_v2p2` | QTI 2.x | Results reporting |
+| `http://www.imsglobal.org/xsd/imsqti_metadata_v2p2` | QTI 2.x | QTI-specific metadata |
+| `http://www.w3.org/1998/Math/MathML` | All | Mathematical content |
+| `http://www.imsglobal.org/xsd/imscp_v1p1` | All | Content packaging manifest |
 
 ## 5.2 Document Structure
 
-### Assessment Item Structure
+### Assessment Item — QTI 2.x
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 
+    xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2
         http://www.imsglobal.org/xsd/qti/qtiv2p2/imsqti_v2p2p2.xsd"
-    identifier="item001" 
-    title="Sample Question" 
-    adaptive="false" 
+    identifier="item001"
+    title="Sample Question"
+    adaptive="false"
     timeDependent="false">
-    
+
   <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier">
     <correctResponse>
       <value>B</value>
     </correctResponse>
   </responseDeclaration>
-  
+
   <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
     <defaultValue>
       <value>0</value>
     </defaultValue>
   </outcomeDeclaration>
-  
+
   <itemBody>
     <!-- Interactions and content here -->
   </itemBody>
-  
-  <responseProcessing 
+
+  <responseProcessing
       template="http://www.imsglobal.org/question/qti_v2p2/rptemplates/match_correct"/>
-      
+
 </assessmentItem>
+```
+
+### Assessment Item — QTI 3.0
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    identifier="item001"
+    title="Sample Question"
+    adaptive="false"
+    time-dependent="false">
+
+  <qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="identifier">
+    <qti-correct-response>
+      <qti-value>B</qti-value>
+    </qti-correct-response>
+  </qti-response-declaration>
+
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float">
+    <qti-default-value>
+      <qti-value>0</qti-value>
+    </qti-default-value>
+  </qti-outcome-declaration>
+
+  <qti-item-body>
+    <!-- Interactions and content here -->
+  </qti-item-body>
+
+  <qti-response-processing
+      template="https://purl.imsglobal.org/spec/qti/v3p0/rptemplates/match_correct"/>
+
+</qti-assessment-item>
 ```
 
 ### Assessment Test Structure
@@ -1035,16 +988,16 @@ For custom scoring logic, use `responseCondition` with expressions:
 <?xml version="1.0" encoding="UTF-8"?>
 <assessmentTest xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
     identifier="test001" title="Sample Test">
-    
+
   <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float"/>
-  
+
   <testPart identifier="part1" navigationMode="linear" submissionMode="individual">
     <assessmentSection identifier="section1" title="Section 1" visible="true">
       <assessmentItemRef identifier="item1" href="items/item001.xml"/>
       <assessmentItemRef identifier="item2" href="items/item002.xml"/>
     </assessmentSection>
   </testPart>
-  
+
   <outcomeProcessing>
     <setOutcomeValue identifier="SCORE">
       <sum>
@@ -1052,7 +1005,7 @@ For custom scoring logic, use `responseCondition` with expressions:
       </sum>
     </setOutcomeValue>
   </outcomeProcessing>
-  
+
 </assessmentTest>
 ```
 
@@ -1060,7 +1013,7 @@ For custom scoring logic, use `responseCondition` with expressions:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<manifest identifier="PACKAGE-001" 
+<manifest identifier="PACKAGE-001"
           xmlns="http://www.imsglobal.org/xsd/imscp_v1p1">
   <metadata>
     <schema>IMS QTI</schema>
@@ -1078,9 +1031,418 @@ For custom scoring logic, use `responseCondition` with expressions:
 
 ---
 
-# Part VI: Implementation Guidance
+# Part VI: QTI 3.0 Features
 
-## 6.1 Conformance Profiles
+QTI 3.0 merges the QTI specification with the Accessible Portable Item Protocol (APIP), bringing first-class accessibility support into the core standard. The three major new capabilities introduced in QTI 3.0 — Portable Custom Interactions, Personal Needs and Preferences, and the Catalog system — are documented in detail here.
+
+## 6.1 Portable Custom Interactions (PCI)
+
+### Overview
+
+Portable Custom Interactions replace the QTI 2.x `customInteraction` extension point with a fully standardized mechanism for delivering arbitrary interaction types across platforms. A PCI is a self-contained JavaScript module that implements a defined interface, enabling it to run in any conformant QTI 3.0 player without platform-specific integration.
+
+The key advance over `customInteraction` is **portability**: a PCI carries its runtime code, dependencies, and configuration within a well-defined container, so the item can move between authoring systems and delivery platforms while the interaction remains fully functional.
+
+### XML Structure
+
+```xml
+<qti-portable-custom-interaction
+  response-identifier="RESPONSE"
+  custom-interaction-type-identifier="org.example.chemistry-editor"
+  module="./pci-modules/chem-editor/index.js">
+
+  <qti-interaction-markup>
+    <!-- HTML/SVG used as the initial DOM scaffold for the PCI -->
+    <div id="chem-canvas" style="width:400px;height:300px;"></div>
+  </qti-interaction-markup>
+
+  <qti-interaction-modules>
+    <qti-interaction-module id="chem-editor"
+      primary-path="./pci-modules/chem-editor/index.js"
+      fallback-path="./pci-modules/chem-editor/index-legacy.js"/>
+  </qti-interaction-modules>
+
+  <qti-pci-properties>
+    <!-- Static configuration passed to the module at init -->
+    <qti-pci-property name="allowedElements" value="C,H,O,N"/>
+    <qti-pci-property name="displayMode" value="structural"/>
+  </qti-pci-properties>
+
+</qti-portable-custom-interaction>
+```
+
+### Module Interface
+
+Every PCI module must implement the `IMSGLOBAL.PCI` interface:
+
+```javascript
+// pci-modules/chem-editor/index.js
+export default {
+  /**
+   * Called once after the DOM scaffold is ready.
+   * @param {HTMLElement} dom - The element matching qti-interaction-markup
+   * @param {Object} config - Properties from qti-pci-properties
+   * @param {Object} boundTo - Map of response variable identifiers to initial values
+   */
+  initialize(dom, config, boundTo) {
+    // Set up the interaction UI
+    this._editor = new ChemEditor(dom, config);
+    if (boundTo.RESPONSE) {
+      this._editor.loadState(boundTo.RESPONSE);
+    }
+  },
+
+  /**
+   * Called by the player when it needs the current response value.
+   * Must return a value compatible with the responseDeclaration baseType/cardinality.
+   * @returns {*} The current response
+   */
+  getResponse() {
+    return this._editor.getState();
+  },
+
+  /**
+   * Called by the player to restore a previously saved response.
+   * @param {*} response - Previously returned getResponse() value
+   */
+  setResponse(response) {
+    this._editor.loadState(response);
+  },
+
+  /**
+   * Called when the item enters a state where interaction is not allowed
+   * (e.g., after submission, review mode).
+   */
+  disable() {
+    this._editor.setReadOnly(true);
+  },
+
+  /**
+   * Called when the interaction should resume accepting input.
+   */
+  enable() {
+    this._editor.setReadOnly(false);
+  },
+
+  /**
+   * Optional. Called when the player destroys the item.
+   * Clean up event listeners, timers, etc.
+   */
+  destroy() {
+    this._editor.teardown();
+  }
+};
+```
+
+### Response Declaration
+
+The response variable for a PCI is declared like any other, with the baseType and cardinality appropriate to the interaction's output:
+
+```xml
+<!-- Example: PCI returns a structured JSON string -->
+<qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="string">
+  <qti-correct-response>
+    <qti-value>{"bonds":[{"from":"C1","to":"O1","type":"double"}]}</qti-value>
+  </qti-correct-response>
+</qti-response-declaration>
+```
+
+### Scoring PCI Responses
+
+PCI responses can be scored using standard response processing if the value can be compared with standard operators:
+
+```xml
+<qti-response-processing>
+  <qti-response-condition>
+    <qti-response-if>
+      <match>
+        <variable identifier="RESPONSE"/>
+        <correct identifier="RESPONSE"/>
+      </match>
+      <set-outcome-value identifier="SCORE">
+        <base-value base-type="float">1</base-value>
+      </set-outcome-value>
+    </qti-response-if>
+  </qti-response-condition>
+</qti-response-processing>
+```
+
+For complex responses that require domain-specific evaluation (e.g., checking chemical structural equivalence rather than string equality), set `externalScored="externalMachine"` on the outcomeDeclaration and handle scoring outside the QTI runtime.
+
+### Packaging and Distribution
+
+PCI modules are packaged within the standard QTI content package. All module files referenced in `qti-interaction-modules` must be listed as resources in the package manifest:
+
+```xml
+<resource identifier="item-pci-chem" type="imsqti_item_xmlv3p0" href="items/chem-item.xml">
+  <file href="items/chem-item.xml"/>
+  <file href="pci-modules/chem-editor/index.js"/>
+  <file href="pci-modules/chem-editor/index-legacy.js"/>
+  <file href="pci-modules/chem-editor/chem-editor.css"/>
+</resource>
+```
+
+### Key Differences from QTI 2.x customInteraction
+
+| Aspect | QTI 2.x customInteraction | QTI 3.0 PCI |
+|--------|--------------------------|------------|
+| Module delivery | Platform-specific, external | Self-contained, in-package |
+| Interface contract | None (platform defines) | Standardized IMSGLOBAL.PCI interface |
+| Portability | None — platform coupling required | Full — runs in any conformant player |
+| State management | Platform-specific | Standardized getResponse/setResponse |
+| Fallback support | None | `fallback-path` on module element |
+| Discovery | Out-of-band | `custom-interaction-type-identifier` |
+
+---
+
+## 6.2 Personal Needs and Preferences (PNP)
+
+### Overview
+
+Personal Needs and Preferences (PNP) is the APIP accessibility framework integrated into QTI 3.0. PNP allows a candidate's accessibility requirements to be expressed as a profile that drives delivery-time adaptation of content presentation. Rather than creating separate accessible versions of items, a single item can be rendered appropriately for many different needs based on the active PNP profile.
+
+PNP profiles are typically stored at the platform level (associated with a student account), delivered to the player at session initialization, and applied dynamically during rendering.
+
+### PNP Profile Structure
+
+A PNP profile is a structured document (typically delivered as JSON or XML) describing the candidate's needs. The profile is organized into categories:
+
+```json
+{
+  "pnp": {
+    "accessForAllUser": {
+      "userId": "student-12345",
+      "userIdType": "platform"
+    },
+    "display": {
+      "increaseDefaultFontSize": false,
+      "colorOverlay": {
+        "active": true,
+        "colorScheme": "blackwhite"
+      },
+      "reverseContrast": false,
+      "magnification": false
+    },
+    "content": {
+      "glossaryOnScreen": true,
+      "keywordTranslation": {
+        "active": true,
+        "languageCode": "es"
+      },
+      "extendedTime": {
+        "active": true,
+        "multiplier": 1.5
+      }
+    },
+    "inputMethods": {
+      "keyboardNavigation": true,
+      "switchAccess": false
+    },
+    "cognitive": {
+      "structuredLabelSupport": true,
+      "eliminationTool": true
+    }
+  }
+}
+```
+
+### Color Schemes
+
+QTI 3.0 defines a standard set of named color schemes that players must support:
+
+| Scheme Identifier | Description |
+|-------------------|-------------|
+| `default` | Platform default styling |
+| `blackwhite` | Black text on white background |
+| `whitenav` | White text on dark/navy background |
+| `blackcream` | Black text on cream/off-white background |
+| `yellowblue` | Yellow text on dark blue background |
+| `medgray` | Dark text on medium gray background |
+
+Players apply color schemes via CSS class or custom property injection:
+
+```css
+/* Example: blackwhite scheme */
+.qti-pnp-colorscheme-blackwhite {
+  --qti-bg-color: #ffffff;
+  --qti-text-color: #000000;
+  --qti-border-color: #000000;
+  --qti-highlight-color: #000000;
+  background-color: var(--qti-bg-color);
+  color: var(--qti-text-color);
+}
+```
+
+### Accessibility Tool Features
+
+PNP controls which accessibility tools are available during item delivery:
+
+**Elimination Tool:** Allows candidates to mark and hide choices they've ruled out.
+
+```html
+<!-- Player renders an elimination button per choice when eliminationTool is active -->
+<div class="qti-choice" data-identifier="A">
+  <span class="qti-choice-content">London</span>
+  <button class="qti-eliminate-btn" aria-label="Eliminate this choice">✕</button>
+</div>
+```
+
+**Structured Labels:** Augments interaction prompts and choice labels with additional structural markup for screen reader clarity.
+
+**Keyword Translation:** When `keywordTranslation` is active, terms linked to catalog entries (see Section 6.3) are automatically presented with translations in the specified language.
+
+### Extended Time
+
+When `extendedTime` is present in the PNP profile, the delivery platform multiplies all declared time limits by the specified multiplier:
+
+```
+effective_time_limit = declared_time_limit × pnp.content.extendedTime.multiplier
+```
+
+This applies to both item-level `timeLimits` and test/section-level `timeLimits`.
+
+### Item Authoring for PNP
+
+Item authors should write items to be PNP-compatible from the start:
+
+- Use the Catalog system (Section 6.3) to provide glossary definitions and keyword translations
+- Use `aria-label` and `aria-describedby` consistently on interactive elements
+- Avoid relying solely on color to convey meaning (contrast-scheme compatibility)
+- Test items with multiple active color schemes
+- Provide text alternatives for all media content
+
+### PNP and the Player API
+
+```typescript
+// Pass a PNP profile at session initialization
+const player = new Player(itemXml, {
+  pnp: {
+    colorScheme: 'blackwhite',
+    glossaryOnScreen: true,
+    keywordTranslation: { active: true, languageCode: 'es' },
+    eliminationTool: true,
+    extendedTime: { active: true, multiplier: 1.5 }
+  }
+});
+
+// PNP profile can also be updated dynamically (e.g., mid-session adjustments)
+player.updatePnp({ colorScheme: 'yellowblue' });
+```
+
+---
+
+## 6.3 Catalog System
+
+### Overview
+
+The Catalog system provides a structured mechanism for attaching supplementary information to content within an item — most commonly glossary definitions, translations, and reading-level adaptations. Unlike inline annotations, catalog content is decoupled from the item body text and only surfaced based on the active PNP profile or explicit candidate request.
+
+The catalog is particularly powerful in combination with PNP: when `glossaryOnScreen` is active in the candidate's PNP profile, catalog entries are automatically surfaced for linked terms without any author intervention beyond the initial linking.
+
+### Linking Content to Catalog Entries
+
+Text in the item body is linked to catalog entries using the `data-catalog-idref` attribute:
+
+```xml
+<qti-item-body>
+  <p>
+    The process of <span data-catalog-idref="cat-photosynthesis">photosynthesis</span>
+    converts light energy into <span data-catalog-idref="cat-glucose">glucose</span>.
+  </p>
+</qti-item-body>
+```
+
+### Catalog Structure
+
+The `qti-catalog` element lives at the item level, parallel to `qti-item-body`:
+
+```xml
+<qti-catalog id="item-catalog">
+
+  <qti-card identifier="cat-photosynthesis">
+
+    <!-- Default text definition (shown when no language-specific match) -->
+    <qti-card-entry catalog-idref="cat-photosynthesis" usage="glossary-on-screen">
+      <qti-html-content>
+        <p>The process by which green plants use sunlight, water, and carbon dioxide
+        to produce oxygen and energy in the form of glucose.</p>
+      </qti-html-content>
+    </qti-card-entry>
+
+    <!-- Spanish translation -->
+    <qti-card-entry catalog-idref="cat-photosynthesis" usage="keyword-translation" xml:lang="es">
+      <qti-html-content>
+        <p>El proceso mediante el cual las plantas verdes usan la luz solar, el agua
+        y el dióxido de carbono para producir oxígeno y glucosa.</p>
+      </qti-html-content>
+    </qti-card-entry>
+
+    <!-- Text-to-speech phonetic hint -->
+    <qti-card-entry catalog-idref="cat-photosynthesis" usage="tts-pronunciation">
+      <qti-html-content>foh-toh-SIN-thuh-sis</qti-html-content>
+    </qti-card-entry>
+
+  </qti-card>
+
+  <qti-card identifier="cat-glucose">
+    <qti-card-entry catalog-idref="cat-glucose" usage="glossary-on-screen">
+      <qti-html-content>
+        <p>A simple sugar that is an important energy source in living organisms.</p>
+      </qti-html-content>
+    </qti-card-entry>
+  </qti-card>
+
+</qti-catalog>
+```
+
+### Card Entry Usage Values
+
+| Usage | Description |
+|-------|-------------|
+| `glossary-on-screen` | Displayed when `glossaryOnScreen` is true in PNP, or when candidate explicitly requests definition |
+| `keyword-translation` | Displayed when `keywordTranslation` is active in PNP for the matching `xml:lang` |
+| `tts-pronunciation` | Read by the TTS engine instead of the standard text pronunciation |
+| `illustrated-glossary` | Image-based definition (can contain `<img>` or SVG) |
+| `signing-definition` | Sign-language video for the term |
+| `braille-text` | Braille-optimized text for refreshable braille displays |
+
+### Rendering Catalog Entries
+
+Players surface catalog content in several ways depending on PNP configuration and candidate action:
+
+**Tooltip/Popup (most common):** When `glossaryOnScreen` is active, linked terms gain a visual indicator. Hovering or tapping opens a popup showing the matching `glossary-on-screen` entry.
+
+**Inline expansion:** Some players inject the definition inline, toggled by a button.
+
+**Keyword translation panel:** When `keywordTranslation` is active, a side panel or overlay shows the translated definitions for all visible linked terms.
+
+```typescript
+// Player surfaces catalog entries based on PNP
+const player = new Player(itemXml, {
+  pnp: {
+    glossaryOnScreen: true,
+    keywordTranslation: { active: true, languageCode: 'es' }
+  }
+});
+
+// The player will automatically:
+// 1. Identify all elements with data-catalog-idref in the item body
+// 2. For glossaryOnScreen: add tooltip triggers to linked terms
+// 3. For keywordTranslation: find qti-card-entry elements with usage="keyword-translation"
+//    and the matching xml:lang, and surface those
+```
+
+### Shared Catalogs (External Catalog References)
+
+For large item banks where many items share the same glossary terms, QTI 3.0 supports referencing an external catalog file rather than embedding per-item catalogs. The external catalog file follows the same `qti-catalog` structure and is referenced from the content package manifest.
+
+This reduces content duplication significantly for standardized term sets (subject-area vocabulary, accessibility terms, etc.).
+
+---
+
+# Part VII: Implementation Guidance
+
+## 7.1 Conformance Profiles
 
 1EdTech defines certification through profiles constraining the full specification:
 
@@ -1092,14 +1454,16 @@ For custom scoring logic, use `responseCondition` with expressions:
 
 **Four certification categories exist:**
 
-1. **Authoring Systems** - Create QTI content
-2. **Delivery Systems** - Present and score QTI content
-3. **Item Bank Systems** - Store and manage QTI content (must preserve unchanged)
-4. **Content Packages** - Bundled QTI content for exchange
+1. **Authoring Systems** — Create QTI content
+2. **Delivery Systems** — Present and score QTI content
+3. **Item Bank Systems** — Store and manage QTI content (must preserve unchanged)
+4. **Content Packages** — Bundled QTI content for exchange
 
-The **CC QTI Package** profile represents the most widely supported minimal subset—validated as importable across multiple QTI 2.x implementations during interoperability testing. Targeting this profile maximizes portability.
+The **CC QTI Package** profile represents the most widely supported minimal subset — validated as importable across multiple QTI 2.x implementations during interoperability testing. Targeting this profile maximizes portability.
 
-## 6.2 Common Implementation Issues
+QTI 3.0 introduces its own certification program with additional conformance levels covering PCI hosting, PNP support, and catalog rendering.
+
+## 7.2 Common Implementation Issues
 
 - **Version incompatibility** between 1.x and 2.x (fundamentally different models)
 - **Incomplete implementations** claiming QTI support with low actual compliance
@@ -1109,17 +1473,20 @@ The **CC QTI Package** profile represents the most widely supported minimal subs
 - **Identifier case sensitivity** (QTI 2.x identifiers are case-sensitive, unlike 1.x)
 - **Missing or incorrect schema locations** causing validation failures
 - **Floating-point comparison** issues in scoring (use tolerance)
+- **QTI 3.0 attribute casing** — Multi-word attributes must be kebab-case; mixed conventions cause parse failures in strict players
+- **PCI module loading failures** — Ensure all module paths listed in `qti-interaction-modules` are included in the content package manifest
 
-## 6.3 Best Practices
+## 7.3 Best Practices
 
 ### Content Authoring
 
-- Target the **CC QTI Package profile** for maximum portability
+- Target the **CC QTI Package profile** for maximum portability across QTI 2.x systems
 - Use **standard response processing templates** whenever possible
 - **Validate content against official XSDs** before export
 - Limit identifiers to **32 characters** for compatibility
 - Use meaningful, descriptive identifiers (not just "A", "B", "C")
 - Include `correctResponse` even when using custom processing
+- For QTI 3.0 content, add catalog entries for domain-specific vocabulary from the start
 
 ### Scoring Implementation
 
@@ -1134,38 +1501,38 @@ The **CC QTI Package** profile represents the most widely supported minimal subs
 - Handle namespace declarations strictly
 - Provide graceful degradation for unsupported interactions
 - Implement proper time tracking for `timeDependent` items
+- Apply PNP profiles before rendering — not after — to avoid layout reflow
 
 ### Validation Resources
 
-- **1EdTech online validator** (members only) - Official certification testing
-- **QTIWorks validator** - Public alternative validation
-- **Official XSD schemas** - Available at imsglobal.org
+- **1EdTech online validator** (members only) — Official certification testing
+- **QTIWorks validator** — Public alternative validation for QTI 2.x
+- **Official XSD schemas** — Available at imsglobal.org
 
 ---
 
 # Conclusion
 
-QTI 2.2 represents the stable, mature standard for assessment interoperability with broad industry adoption. Its hierarchical data model cleanly separates test structure from item content, while the extensive interaction type library covers virtually all assessment scenarios. The specification's use of standard XML with formal XSD validation ensures content can be reliably exchanged between systems.
+QTI defines the standard for assessment interoperability across the educational technology ecosystem. The 2.x series (2.1 and 2.2) provides a stable, broadly adopted foundation with strong tooling and certification programs. QTI 3.0 modernizes the specification by merging with APIP to bring first-class accessibility features — PCI, PNP, and the Catalog system — into the core standard, at the cost of a non-backward-compatible syntax change.
 
-For maximum interoperability, implementers should:
+For maximum interoperability with today's installed base, target QTI 2.2. For new authoring infrastructure where accessibility and extensibility are priorities, QTI 3.0 is the forward path.
 
-1. **Target the CC QTI Package profile** for widest compatibility
-2. **Use standard response processing templates** when possible
-3. **Validate content rigorously** against official schemas before export
-4. **Test imports/exports** across multiple platforms
+Key implementation principles apply across all versions:
 
-While QTI 3.0 offers modernized features and native accessibility integration, QTI 2.2 remains widely deployed with continued maintenance support (version 2.2.4 released March 2021).
-
-The key to successful QTI implementation lies in understanding that the specification prioritizes **portability over presentation**—content should transfer between systems even if rendered somewhat differently. This design philosophy enables the vendor-neutral assessment ecosystem that benefits educational institutions, publishers, and assessment organizations worldwide.
+1. **Use standard response processing templates** when possible
+2. **Validate content rigorously** against official schemas before export
+3. **Treat identifiers as case-sensitive** throughout
+4. **Design for portability** — custom interactions and operators reduce the range of systems that can consume content
 
 ---
 
 ## References
 
 - **Local snapshot (preferred)**: [SPEC_SNAPSHOTS.md](./SPEC_SNAPSHOTS.md)
-- **Canonical source page**: [`https://www.imsglobal.org/content/question-and-test-interoperability-v222-final`](https://www.imsglobal.org/content/question-and-test-interoperability-v222-final)
+- **QTI 2.2 canonical source**: [`https://www.imsglobal.org/content/question-and-test-interoperability-v222-final`](https://www.imsglobal.org/content/question-and-test-interoperability-v222-final)
+- **QTI 3.0 specification**: [`https://www.imsglobal.org/spec/qti/v3p0/`](https://www.imsglobal.org/spec/qti/v3p0/)
 - **1EdTech standards landing**: [`https://www.1edtech.org/standards/qti/index`](https://www.1edtech.org/standards/qti/index)
 
 ---
 
-*Document Version: 1.0 | Generated: December 2024*
+*Document Version: 2.0 | Updated: March 2026*

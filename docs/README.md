@@ -47,7 +47,7 @@ Developer guide for building vendor-specific transform plugins. Includes:
 
 ### Other active docs in this folder
 
-- `QTI_2.2_techguide.md` (technical reference)
+- `QTI_techguide.md` (technical reference — covers QTI 2.1, 2.2, and 3.0)
 - `IMS_Content_Packages_techguide.md` (IMS Content Packaging)
 - `LOM_techguide.md` (IEEE LOM metadata)
 - `QTI-RESPONSE-TRACKING-AND-SCORING.md` (scoring/response tracking)
