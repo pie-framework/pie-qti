@@ -38,7 +38,7 @@
     "@xmldom/xmldom": "^0.8.11",
     "decimal.js": "^10.6.0",
     "katex": "^0.16.27",
-    "mathlive": "^0.108.2",
+    "mathlive": "^0.109.0",
     "node-html-parser": "^7.0.2"
   },
   "devDependencies": {
