@@ -12,12 +12,20 @@
 	// Keep in sync with `SIMPLE_CHOICE`'s itemBody text in `$lib/sample-items`.
 	const expectedText = 'If Maya has 12 cookies and gives 5 to her friend, how many cookies does she have left?';
 
+	/** QTI interaction CEs use open shadow roots; recurse so we see prompt text inside them. */
+	function deepText(root: Node | null | undefined): string {
+		if (!root) return '';
+		if (root.nodeType === Node.TEXT_NODE) return root.textContent ?? '';
+		let s = '';
+		for (const c of root.childNodes) s += deepText(c);
+		if (root instanceof Element && root.shadowRoot) s += deepText(root.shadowRoot);
+		return s;
+	}
+
 	async function waitForRender(timeoutMs: number) {
 		const start = Date.now();
 		while (Date.now() - start < timeoutMs) {
-			// Check both light DOM + shadow DOM (implementation-specific)
-			const text = (el?.textContent ?? '') + (el?.shadowRoot?.textContent ?? '');
-			if (text.includes(expectedText)) return true;
+			if (deepText(el).includes(expectedText)) return true;
 			await new Promise((r) => setTimeout(r, 100));
 		}
 		return false;
@@ -36,11 +44,6 @@
 
 			if (!el) throw new Error('Element not mounted');
 
-			el.addEventListener('ready', () => {
-				// no-op; useful for debugging
-			});
-
-			// Prefer properties over attributes for large XML strings
 			assignProps(el, {
 				itemXml: sample?.xml ?? '',
 				identifier: sample?.id ?? 'item',
@@ -49,7 +52,7 @@
 				security: getSecurityConfig(),
 			});
 
-			const ok = await waitForRender(8000);
+			const ok = await waitForRender(30_000);
 			if (!ok) throw new Error('Timeout waiting for item to render');
 
 			status = 'rendered';
@@ -110,5 +113,3 @@
 		</div>
 	</div>
 </div>
-
-

@@ -4,14 +4,14 @@
   "main": "./dist/index.js",
   "devDependencies": {
     "@pie-qti/item-player": "workspace:*",
-    "@types/bun": "^1.3.5",
+    "@types/bun": "^1.3.11",
     "node-html-parser": "^6.1.13",
-    "svelte": "^5.51.3",
+    "svelte": "^5.54.0",
     "typescript": "^5.9.3"
   },
   "peerDependencies": {
     "@pie-qti/item-player": "workspace:*",
-    "svelte": "^5.46.1"
+    "svelte": "^5.54.0"
   },
   "exports": {
     ".": {

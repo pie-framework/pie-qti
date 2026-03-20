@@ -214,6 +214,15 @@
         "<%= config.bin %> <%= command.id %> input.xml -o output.json --pretty"
       ],
       "flags": {
+        "config": {
+          "char": "c",
+          "description": "Path to configuration file (JSON)",
+          "name": "config",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
         "output": {
           "char": "o",
           "description": "Output file path (defaults to stdout)",
@@ -263,5 +272,5 @@
       ]
     }
   },
-  "version": "0.1.0"
+  "version": "0.1.1"
 }

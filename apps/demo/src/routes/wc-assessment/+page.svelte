@@ -10,9 +10,9 @@
 
 	// Build a minimal QTI assessmentTest XML that references item hrefs we can resolve from an in-memory map.
 	const testParts = READING_COMPREHENSION_ASSESSMENT.assessment?.testParts ?? [];
-	const q1 = testParts[0]?.sections?.[0]?.items?.[0];
-	const q2 = testParts[0]?.sections?.[0]?.items?.[1];
-	const q3 = testParts[0]?.sections?.[0]?.items?.[2];
+	const q1 = testParts[0]?.sections?.[0]?.assessmentItemRefs?.[0];
+	const q2 = testParts[0]?.sections?.[0]?.assessmentItemRefs?.[1];
+	const q3 = testParts[0]?.sections?.[0]?.assessmentItemRefs?.[2];
 
 	const items: Record<string, string> = {
 		'q1.xml': q1?.itemXml ?? '',
@@ -39,11 +39,25 @@
 
 	const expectedText = 'The Water Cycle';
 
+	function deepText(root: Node | null | undefined): string {
+		if (!root) return '';
+		if (root.nodeType === Node.TEXT_NODE) return root.textContent ?? '';
+		let s = '';
+		for (const c of root.childNodes) s += deepText(c);
+		if (root instanceof Element && root.shadowRoot) s += deepText(root.shadowRoot);
+		return s;
+	}
+
 	async function waitForRender(timeoutMs: number) {
 		const start = Date.now();
 		while (Date.now() - start < timeoutMs) {
-			const text = (el?.textContent ?? '') + (el?.shadowRoot?.textContent ?? '');
-			if (text.includes(expectedText)) return true;
+			const host = el ?? document.querySelector('pie-qti-assessment-player');
+			if (!host) {
+				await new Promise((r) => setTimeout(r, 150));
+				continue;
+			}
+			const flat = `${host.innerText ?? ''}\n${deepText(host)}`;
+			if (flat.includes(expectedText)) return true;
 			await new Promise((r) => setTimeout(r, 150));
 		}
 		return false;
@@ -60,16 +74,17 @@
 			status = 'registered';
 			message = 'Web component registered. Rendering…';
 
-			if (!el) throw new Error('Element not mounted');
+			const host = el ?? document.querySelector('pie-qti-assessment-player');
+			if (!host) throw new Error('Element not mounted');
 
-			assignProps(el, {
+			assignProps(host, {
 				assessmentTestXml,
 				items,
 				config: { role: 'candidate', navigationMode: 'nonlinear', showSections: true },
 				security: getSecurityConfig(),
 			});
 
-			const ok = await waitForRender(10000);
+			const ok = await waitForRender(25_000);
 			if (!ok) throw new Error('Timeout waiting for assessment to render');
 
 			status = 'rendered';

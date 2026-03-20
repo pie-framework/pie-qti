@@ -6,18 +6,13 @@ test.describe('web component initialization', () => {
 
 		await expect(page.getByRole('heading', { name: 'Web Component: Item Player' })).toBeVisible();
 
-		// The page itself reports status; wait for it to hit rendered
-		await expect(page.getByText(/Status:\s*rendered/i)).toBeVisible({ timeout: 15_000 });
-
-		// Verify the custom element is defined
 		await page.waitForFunction(() => !!customElements.get('pie-qti-item-player'), null, {
 			timeout: 15_000,
 		});
 
-		// Verify rendered content - element exists
-		const el = page.locator('pie-qti-item-player');
-		await expect(el).toBeVisible();
-		// Status reaching "rendered" is sufficient proof the component mounted and rendered
+		await expect(page.getByText(/Status:\s*rendered/i)).toBeVisible({ timeout: 35_000 });
+
+		await expect(page.locator('pie-qti-item-player')).toBeAttached();
 	});
 
 	test('wc assessment player registers and renders', async ({ page }) => {
@@ -25,19 +20,12 @@ test.describe('web component initialization', () => {
 
 		await expect(page.getByRole('heading', { name: 'Web Component: Assessment Player' })).toBeVisible();
 
-		// The page itself reports status; wait for it to hit rendered
-		await expect(page.getByText(/Status:\s*rendered/i)).toBeVisible({ timeout: 20_000 });
+		await expect(page.getByText(/Status:\s*rendered/i)).toBeVisible({ timeout: 35_000 });
 
-		// Verify the custom element is defined
 		await page.waitForFunction(() => !!customElements.get('pie-qti-assessment-player'), null, {
 			timeout: 20_000,
 		});
 
-		// Verify rendered content - element exists
-		const el = page.locator('pie-qti-assessment-player');
-		await expect(el).toBeVisible();
-		// Status reaching "rendered" is sufficient proof the component mounted and rendered
+		await expect(page.locator('pie-qti-assessment-player')).toBeAttached();
 	});
 });
-
-

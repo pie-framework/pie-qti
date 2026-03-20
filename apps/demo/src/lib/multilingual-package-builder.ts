@@ -5,8 +5,7 @@
  * for demonstration and testing purposes.
  */
 
-// @ts-expect-error - TypeScript can't resolve subpath exports in workspace packages, but Vite handles it correctly at runtime
-import { generateMultilingualManifest } from '@pie-qti/pie-to-qti/generators/manifest-generator';
+import { generateMultilingualManifest } from "@pie-qti/pie-to-qti2/generators/manifest-generator";
 import {
   MULTILINGUAL_ITEMS,
   getAvailableLocales,

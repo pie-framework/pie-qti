@@ -27,13 +27,32 @@
   "dependencies": {
     "@pie-qti/assessment-player": "workspace:*",
     "@pie-qti/item-player": "workspace:*",
-    "svelte": "^5.51.3"
+    "svelte": "^5.54.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.3.11",
-    "@sveltejs/vite-plugin-svelte": "^6.2.3",
+    "@biomejs/biome": "^2.4.8",
+    "@sveltejs/vite-plugin-svelte": "^7.0.0",
     "linkedom": "^0.18.12",
     "typescript": "^5.9.3",
-    "vite": "^7.3.1"
-  }
+    "vite": "^8.0.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pie-framework/pie-qti.git",
+    "directory": "packages/player-elements"
+  },
+  "homepage": "https://github.com/pie-framework/pie-qti/tree/master/packages/player-elements",
+  "bugs": {
+    "url": "https://github.com/pie-framework/pie-qti/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "files": [
+    "dist"
+  ]
 }

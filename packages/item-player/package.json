@@ -10,7 +10,7 @@
     "dev": "tsc --watch",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
-    "check": "../assessment-player/node_modules/.bin/svelte-check --tsconfig ./tsconfig.svelte.json",
+    "check": "svelte-check --tsconfig ./tsconfig.svelte.json",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write ."
@@ -42,9 +42,9 @@
     "node-html-parser": "^7.0.2"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.3.11",
+    "@biomejs/biome": "^2.4.8",
     "@types/node": "^25.0.3",
-    "svelte": "^5.51.3",
+    "svelte": "^5.54.0",
     "svelte-check": "^4.3.5",
     "typescript": "^5.9.3"
   },
@@ -66,13 +66,31 @@
       "import": "./dist/iframe/index.js"
     },
     "./components": {
-      "types": "./dist/components/index.d.ts",
-      "svelte": "./src/components/index.ts",
-      "import": "./dist/components/index.js"
+      "svelte": "./src/components/index.ts"
     },
     "./components/utils": {
       "types": "./dist/components/utils/index.d.ts",
       "import": "./dist/components/utils/index.js"
     }
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pie-framework/pie-qti.git",
+    "directory": "packages/item-player"
+  },
+  "homepage": "https://github.com/pie-framework/pie-qti/tree/master/packages/item-player",
+  "bugs": {
+    "url": "https://github.com/pie-framework/pie-qti/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "files": [
+    "dist",
+    "src"
+  ]
 }

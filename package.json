@@ -37,7 +37,7 @@
     "lint": "bun run lint:biome && bun run lint:svelte",
     "lint:biome": "biome check .",
     "lint:svelte": "turbo check",
-    "lint:all": "bun run lint && bun run check && bun run typecheck",
+    "lint:all": "bun run lint && bun run check && bun run typecheck && bun run check:package-metadata && bun run check:deps",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "clean": "turbo clean && rm -rf node_modules",
@@ -45,31 +45,43 @@
     "check": "turbo check",
     "check:fixed-versioning": "SKIP_NPM_VERSION_SEQUENCE_CHECK=1 node scripts/check-fixed-versioning.mjs",
     "check:fixed-versioning:full": "node scripts/check-fixed-versioning.mjs",
+    "check:package-metadata": "bun ./scripts/check-package-metadata.mjs",
+    "check:publint": "bun ./scripts/check-publint.mjs",
+    "check:types-publish": "bun ./scripts/check-attw.mjs",
+    "check:pack-exports": "bun ./scripts/check-pack-exports.mjs",
+    "check:pack-smoke": "bun ./scripts/check-pack-smoke.mjs",
+    "check:deps": "bun ./scripts/check-deps.mjs",
+    "check:source-exports": "bun ./scripts/check-source-exports.mjs",
+    "verify:apps:deploy": "bun run docs:build && turbo build --filter=@pie-qti/app-demo --filter=@pie-qti/app-transform",
+    "verify:publish": "bun run build && bun run verify:publish:quick",
+    "verify:publish:quick": "bun run check:fixed-versioning && bun run check:package-metadata && bun run check:publint && bun run check:types-publish && bun run check:pack-exports && bun run check:pack-smoke && bun run check:deps && bun run check:source-exports",
     "check:npm-auth": "dotenvx run -f .env -- node scripts/check-npm-auth.mjs",
     "restore:workspace-ranges": "node scripts/restore-workspace-ranges.mjs",
     "pack:local": "bun run build && node scripts/pack-local.mjs",
     "changeset": "changeset",
     "version": "changeset version",
     "release": "dotenvx run -f .env -- node scripts/release.mjs",
-    "release:with-version": "node scripts/create-temporary-release-changeset.mjs && bun run version && bun run restore:workspace-ranges && bun run check:npm-auth && bun run check:fixed-versioning:full && bun run test && bun run release && bun run restore:workspace-ranges"
+    "release:with-version": "bun ./scripts/create-temporary-release-changeset.mjs && bun run version && bun run restore:workspace-ranges && bun run check:npm-auth && bun run verify:publish && bun run test && bun run release && bun run restore:workspace-ranges"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.3.11",
-    "@changesets/cli": "^2.29.8",
-    "@dotenvx/dotenvx": "^1.55.1",
-    "@types/bun": "^1.3.5",
+    "@arethetypeswrong/cli": "^0.18.2",
+    "@biomejs/biome": "^2.4.8",
+    "@changesets/cli": "^2.30.0",
+    "@dotenvx/dotenvx": "^1.56.0",
+    "@types/bun": "^1.3.11",
     "@vitalets/google-translate-api": "^9.2.1",
-    "lefthook": "^2.1.1",
-    "turbo": "^2.8.16",
+    "lefthook": "^2.1.4",
+    "publint": "^0.3.17",
+    "turbo": "^2.8.19",
     "typescript": "^5.9.3"
   },
-  "packageManager": "bun@1.3.5",
+  "packageManager": "bun@1.3.11",
   "engines": {
-    "bun": ">=1.1.0"
+    "bun": ">=1.3.11"
   },
   "dependencies": {
     "@tailwindcss/typography": "^0.5.19",
-    "@tailwindcss/vite": "^4.1.18",
-    "tailwindcss": "^4.1.18"
+    "@tailwindcss/vite": "^4.2.2",
+    "tailwindcss": "^4.2.2"
   }
 }

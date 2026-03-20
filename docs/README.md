@@ -59,7 +59,9 @@ Developer guide for building vendor-specific transform plugins. Includes:
 ### For Developers
 
 - **Getting Started:** See main [README.md](../README.md) in repo root
-- **CLI Tools:** See `packages/cli/README.md`
+- **App deployability checks:** See root `verify:apps:deploy` command (builds docs/demo/transform production outputs)
+- **Publish verification:** [development/publish-verification.md](./development/publish-verification.md) — `verify:publish`, publint, attw, pack checks
+- **CLI Tools:** See `tools/cli/README.md`
 
 ### Specs (local snapshots for fast search / LLM use)
 

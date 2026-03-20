@@ -35,8 +35,8 @@
 		const metaById = new Map<string, { title?: string; sectionTitle?: string }>();
 		for (const tp of selectedAssessment.assessment.testParts || []) {
 			for (const section of tp.sections || []) {
-				for (const q of section.items || []) {
-					metaById.set(q.identifier, { title: q.title, sectionTitle: section.title });
+				for (const q of section.assessmentItemRefs || []) {
+					metaById.set(q.identifier, { title: undefined, sectionTitle: section.title });
 				}
 			}
 		}

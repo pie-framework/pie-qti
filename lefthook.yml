@@ -1,6 +1,16 @@
 pre-commit:
   parallel: true
   commands:
-    svelte-build:
+    svelte-check:
       glob: "{apps,packages}/**/*.{js,ts,svelte,css}"
-      run: bun run --cwd apps/demo build && bun run --cwd apps/transform build && bun run --cwd apps/docs build
+      run: bun run check
+    check-deps:
+      run: bun run check:deps
+    check-package-metadata:
+      run: bun run check:package-metadata
+
+pre-push:
+  parallel: false
+  commands:
+    check-publint:
+      run: bun run check:publint

@@ -160,7 +160,7 @@ export class QtiItemPlayerElement extends BaseSvelteMountElement<Record<string, 
 
 	getProps() {
 		return {
-			questionRef: {
+			itemRef: {
 				identifier: this.#identifier,
 				title: this.#title,
 				itemXml: this.#itemXml ?? '',

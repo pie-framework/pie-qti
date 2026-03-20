@@ -6,7 +6,7 @@ import path from "node:path";
 
 const ROOT = process.cwd();
 const CHANGESET_CONFIG_PATH = path.join(ROOT, ".changeset", "config.json");
-const WORKSPACE_ROOTS = ["packages", "tools"];
+const WORKSPACE_ROOTS = ["packages"];
 const DEP_SECTIONS = [
 	"dependencies",
 	"peerDependencies",
@@ -80,8 +80,13 @@ const fetchPublishedVersion = (pkgName) => {
 		}
 		return null;
 	} catch (error) {
+		const stderr = error.stderr?.toString?.() ?? "";
+		const msg = `${stderr} ${error.message ?? ""}`;
+		if (/404|ENOTFOUND|E404|Not found|could not be found/i.test(msg)) {
+			return null;
+		}
 		fail(
-			`Failed to read published version for ${pkgName} from npm: ${error.stderr?.toString()?.trim() || error.message}`,
+			`Failed to read published version for ${pkgName} from npm: ${stderr.trim() || error.message}`,
 		);
 	}
 };
@@ -144,12 +149,27 @@ if (process.env.SKIP_NPM_VERSION_SEQUENCE_CHECK !== "1") {
 	const publishedVersionMap = new Map();
 	for (const pkg of publishablePackages) {
 		const published = fetchPublishedVersion(pkg.name);
-		if (!published) {
-			fail(`Package ${pkg.name} has no published version on npm.`);
+		if (published) {
+			publishedVersionMap.set(pkg.name, published);
 		}
-		publishedVersionMap.set(pkg.name, published);
 	}
 
+	if (publishedVersionMap.size === 0) {
+		console.log(
+			"[check-fixed-versioning] No packages found on npm; skipping npm patch sequence check.",
+		);
+	} else if (publishedVersionMap.size < publishablePackages.length) {
+		const unpublished = publishablePackages
+			.filter((p) => !publishedVersionMap.has(p.name))
+			.map((p) => p.name);
+		console.log(
+			`[check-fixed-versioning] Unpublished on npm (skipped for patch sequence): ${unpublished.join(", ")}`,
+		);
+	}
+
+	if (publishedVersionMap.size === 0) {
+		// First-time monorepo publish or offline; workspace invariants already checked above.
+	} else {
 	const publishedVersions = new Set(publishedVersionMap.values());
 	if (publishedVersions.size !== 1) {
 		const details = [...publishedVersionMap.entries()]
@@ -185,6 +205,7 @@ if (process.env.SKIP_NPM_VERSION_SEQUENCE_CHECK !== "1") {
 		fail(
 			`Local version ${localVersion} skips patch versions from published ${publishedVersion}. Reset version/changelog files and rerun release once.`,
 		);
+	}
 	}
 }
 

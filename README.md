@@ -218,7 +218,25 @@ bun run typecheck
 
 # E2E tests (Playwright)
 bun run test:e2e
+
+# App deployability checks (docs/demo/transform production builds)
+bun run verify:apps:deploy
+
+# Publish readiness (publint, attw, pack, deps, metadata)
+bun run verify:publish
 ```
+
+CI uses two required quality lanes on PRs:
+
+- **Deployability lane:** `verify:apps:deploy` (apps/docs, apps/demo, apps/transform production buildability)
+- **Publishability lane:** `verify:publish:quick` (metadata, exports, publint, attw, pack, deps, source exports)
+
+Release behavior is lockstep and patch-only for publishable `packages/*`:
+
+- merges to `master` auto-generate a temporary patch changeset when needed for release PR prep
+- local full release flow: `bun run release:with-version`
+
+See [docs/development/publish-verification.md](docs/development/publish-verification.md) for full publish-readiness details.
 
 ### Local PIE Players
 

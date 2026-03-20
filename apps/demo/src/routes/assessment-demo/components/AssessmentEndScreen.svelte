@@ -31,7 +31,7 @@
 		const map = new Map<string, string>();
 		for (const tp of assessment.assessment.testParts || []) {
 			for (const section of tp.sections || []) {
-				for (const q of section.items || []) {
+				for (const q of section.assessmentItemRefs || []) {
 					map.set(q.identifier, q.itemXml);
 				}
 			}
