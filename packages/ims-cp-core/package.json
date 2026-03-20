@@ -25,7 +25,7 @@
   },
   "dependencies": {
     "@pie-qti/logger": "workspace:*",
-    "node-html-parser": "^6.1.13"
+    "node-html-parser": "^7.1.0"
   },
   "devDependencies": {
     "typescript": "^5.9.3"
