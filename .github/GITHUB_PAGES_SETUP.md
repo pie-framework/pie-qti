@@ -17,7 +17,7 @@ This provides:
 
 The example app uses `@sveltejs/adapter-static` to generate a static site.
 
-**File:** `packages/docs-site/svelte.config.js`
+**File:** `apps/docs/svelte.config.js`
 ```javascript
 import adapter from '@sveltejs/adapter-static';
 
@@ -49,7 +49,7 @@ const config = {
 
 ### 2. Prerendering
 
-**File:** `packages/docs-site/src/routes/+layout.ts`
+**File:** `apps/docs/src/routes/+layout.ts`
 ```typescript
 export const prerender = true;
 export const ssr = false;
@@ -111,7 +111,7 @@ Test the production build locally before deploying:
 
 ```bash
 # Build the docs site for production
-cd packages/docs-site
+cd apps/docs
 NODE_ENV=production bun run build
 
 # Preview the build
@@ -128,7 +128,7 @@ The site automatically updates when you push to `master`:
 
 ```bash
 # Make changes to the docs site
-cd packages/docs-site
+cd apps/docs
 # ... edit files ...
 
 # Commit and push
@@ -227,7 +227,7 @@ adapter: adapter({
 
 For offline support, add a service worker:
 ```bash
-cd packages/example
+cd apps/demo
 bun add -D @sveltejs/service-worker
 ```
 
@@ -252,6 +252,6 @@ For private repos, you need a paid plan.
 ## Related Documentation
 
 - [.github/workflows/deploy-pages.yml](.github/workflows/deploy-pages.yml) - Deployment workflow
-- [packages/example/svelte.config.js](../packages/example/svelte.config.js) - SvelteKit config
+- [apps/demo/svelte.config.js](../apps/demo/svelte.config.js) - SvelteKit config
 - [SvelteKit Static Adapter](https://kit.svelte.dev/docs/adapter-static) - Official docs
 - [GitHub Pages](https://docs.github.com/en/pages) - Official docs

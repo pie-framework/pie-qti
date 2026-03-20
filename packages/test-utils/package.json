@@ -1,23 +1,50 @@
 {
   "name": "@pie-qti/test-utils",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Shared test utilities for PIE-QTI packages",
   "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
   },
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
     "test": "bun test"
   },
   "dependencies": {
-    "@pie-qti/transform-types": "workspace:*",
+    "@pie-qti/logger": "workspace:*",
     "@pie-qti/storage": "workspace:*",
     "@pie-qti/transform-core": "workspace:*",
+    "@pie-qti/transform-types": "workspace:*",
     "node-html-parser": "^7.0.1"
   },
   "devDependencies": {
-    "@types/bun": "^1.3.5",
+    "@types/bun": "^1.3.11",
     "typescript": "^5.9.3"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pie-framework/pie-qti.git",
+    "directory": "packages/test-utils"
+  },
+  "homepage": "https://github.com/pie-framework/pie-qti/tree/master/packages/test-utils",
+  "bugs": {
+    "url": "https://github.com/pie-framework/pie-qti/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "files": [
+    "dist"
+  ]
 }

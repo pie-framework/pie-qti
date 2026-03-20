@@ -343,15 +343,26 @@ export class QtiToPiePlugin implements TransformPlugin {
           const processingTimeTest = Date.now() - startTime;
           logger?.info(`Assessment transformation complete in ${processingTimeTest}ms`);
 
+          // Count total items across all testParts and sections
+          const itemCount = assessment.testParts.reduce(
+            (total: number, testPart) =>
+              total +
+              testPart.sections.reduce(
+                (sectionTotal: number, section) => sectionTotal + section.itemRefs.length,
+                0
+              ),
+            0
+          );
+
           return {
             items: [{ content: assessment, format: 'pie' as const }], // Return assessment wrapped
             format: 'pie',
             metadata: {
-              sourceFormat: 'qti22',
+              sourceFormat: 'qti3',
               targetFormat: 'pie',
               pluginId: this.id,
               timestamp: new Date(),
-              itemCount: assessment.sections.reduce((sum, s) => sum + s.itemRefs.length, 0),
+              itemCount,
               processingTime: processingTimeTest,
             },
           };

@@ -25,6 +25,7 @@
   "dependencies": {
     "@oclif/core": "^4.0.0",
     "@oclif/plugin-help": "^6.2.0",
+    "@pie-qti/logger": "workspace:*",
     "@pie-qti/to-pie": "workspace:*",
     "@pie-qti/transform-core": "workspace:*",
     "@pie-qti/transform-types": "workspace:*",
@@ -51,5 +52,18 @@
       }
     }
   },
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pie-framework/pie-qti.git",
+    "directory": "tools/cli"
+  },
+  "homepage": "https://github.com/pie-framework/pie-qti/tree/master/tools/cli",
+  "bugs": {
+    "url": "https://github.com/pie-framework/pie-qti/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false
 }

@@ -8,26 +8,32 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
     "./backends/filesystem": {
       "types": "./dist/backends/filesystem-backend.d.ts",
+      "import": "./dist/backends/filesystem-backend.js",
       "default": "./dist/backends/filesystem-backend.js"
     },
     "./backends/s3": {
       "types": "./dist/backends/s3-backend.d.ts",
+      "import": "./dist/backends/s3-backend.js",
       "default": "./dist/backends/s3-backend.js"
     },
     "./backends/database": {
       "types": "./dist/backends/database-backend.d.ts",
+      "import": "./dist/backends/database-backend.js",
       "default": "./dist/backends/database-backend.js"
     },
     "./session-storage": {
       "types": "./dist/session-storage.d.ts",
+      "import": "./dist/session-storage.js",
       "default": "./dist/session-storage.js"
     },
     "./zip-extractor": {
       "types": "./dist/zip-extractor.d.ts",
+      "import": "./dist/zip-extractor.js",
       "default": "./dist/zip-extractor.js"
     }
   },
@@ -53,8 +59,27 @@
   },
   "devDependencies": {
     "@types/adm-zip": "^0.5.5",
-    "@types/bun": "latest",
+    "@types/bun": "^1.3.11",
     "typescript": "^5.7.3"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pie-framework/pie-qti.git",
+    "directory": "packages/storage"
+  },
+  "homepage": "https://github.com/pie-framework/pie-qti/tree/master/packages/storage",
+  "bugs": {
+    "url": "https://github.com/pie-framework/pie-qti/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "files": [
+    "dist"
+  ]
 }

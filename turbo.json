@@ -1,11 +1,23 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "globalPassThroughEnv": ["NODE_ENV"],
+  "globalDependencies": [
+    "package.json",
+    "bun.lock",
+    "turbo.json",
+    "tsconfig.json",
+    "tsconfig.base.json"
+  ],
+  "globalPassThroughEnv": ["NODE_ENV", "PIE_QTI_DEV_FAST_BUILD"],
   "ui": "tui",
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", "build/**", ".svelte-kit/**"]
+      "outputs": ["dist/**", "build/**", ".svelte-kit/**"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/tsconfig.json",
+        "$TURBO_ROOT$/tsconfig.base.json"
+      ]
     },
     "test": {
       "dependsOn": ["build"],

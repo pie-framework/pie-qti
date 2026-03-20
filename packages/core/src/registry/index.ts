@@ -1,1 +1,1 @@
-export * from './plugin-registry';
+export * from './plugin-registry.js';

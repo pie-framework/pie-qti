@@ -11,8 +11,7 @@
 -->
 
 <style>
-	/* Import KaTeX CSS for math rendering in Shadow DOM */
-	@import url('https://cdn.jsdelivr.net/npm/katex@0.16.27/dist/katex.min.css');
+	/* KaTeX CSS is provided by host app bundles (avoid runtime @import 404s in nested routes). */
 	/* Buttons */
 	:global(.btn) {
 		display: inline-flex;

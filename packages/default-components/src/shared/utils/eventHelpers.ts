@@ -1,3 +1,5 @@
+import type { QTIChangeEventDetail } from '@pie-qti/item-player/web-components';
+
 /**
  * Event emission helpers for QTI components
  */
@@ -8,10 +10,17 @@
  * @param value - The response value
  * @returns A CustomEvent that can be dispatched
  */
-export function createQtiChangeEvent(responseId: string | undefined, value: any): CustomEvent {
+function requireResponseId(responseId: string | undefined): string {
+	if (!responseId || responseId.trim().length === 0) {
+		throw new Error('qti-change event requires a non-empty responseId');
+	}
+	return responseId;
+}
+
+export function createQtiChangeEvent(responseId: string | undefined, value: unknown): CustomEvent<QTIChangeEventDetail> {
 	return new CustomEvent('qti-change', {
 		detail: {
-			responseId,
+			responseId: requireResponseId(responseId),
 			value,
 			timestamp: Date.now(),
 		},
@@ -29,7 +38,7 @@ export function createQtiChangeEvent(responseId: string | undefined, value: any)
 export function emitQtiChange(
 	element: HTMLElement | EventTarget,
 	responseId: string | undefined,
-	value: any
+	value: unknown
 ): void {
 	const event = createQtiChangeEvent(responseId, value);
 	element.dispatchEvent(event);

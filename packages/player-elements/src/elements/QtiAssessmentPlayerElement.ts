@@ -281,7 +281,7 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 
 		const mapSection = (s: ParsedAssessmentSection) => {
 			const items =
-				s.questionRefs?.map((q) => {
+				s.assessmentItemRefs?.map((q) => {
 					if (!q.itemXml) {
 						throw new Error(`Missing itemXml for item "${q.identifier}" (provide items-json or item-base-url).`);
 					}
@@ -297,8 +297,8 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 				identifier: s.identifier,
 				title: s.title,
 				visible: s.visible ?? true,
-				items,
-				rubrics: s.rubricBlocks,
+				assessmentItemRefs: items,
+				rubricBlocks: s.rubricBlocks,
 			};
 		};
 

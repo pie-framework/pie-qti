@@ -5,7 +5,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { Args, Flags } from '@oclif/core';
 import { QtiToPiePlugin } from '@pie-qti/to-pie';
-import { ConsoleLogger } from '@pie-qti/transform-core';
+import { ConsoleLogger } from '@pie-qti/logger/server';
 import { BaseCommand } from '../base-command.js';
 
 export default class Transform extends BaseCommand {

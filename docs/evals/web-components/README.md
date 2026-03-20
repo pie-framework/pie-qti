@@ -30,7 +30,7 @@ Configuration methods tested:
 
 ### Run all web component evals
 ```bash
-cd packages/example
+cd apps/demo
 bun run test:e2e -- docs/evals/web-components
 ```
 
@@ -96,7 +96,7 @@ All evals include spirit checks to validate:
 - **Web components**: `packages/player-elements/README.md`
 - **Assessment player**: `packages/assessment-player/README.md`
 - **Item player**: `packages/item-player/README.md`
-- **Security config**: `packages/example/src/lib/player-config.ts`
+- **Security config**: `apps/demo/src/lib/player-config.ts`
 
 ## Notes for Test Runners
 

@@ -4,7 +4,7 @@
  * Specific model types for different PIE elements
  */
 
-import type { PieModel } from './item';
+import type { PieModel } from './item.js';
 
 /**
  * Multiple Choice Model

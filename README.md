@@ -11,7 +11,7 @@ This project provides two major capabilities:
 1. **QTI 2.x & 3.0 Players** — Production-ready item and assessment players with unified version-agnostic architecture
 2. **PIE ↔ QTI Transformation Framework** — Bidirectional transforms between QTI and PIE, with CLI, web app, and IMS Content Package support
 
-📚 **[Live Examples](https://pie-framework.github.io/pie-qti/examples/)**
+📚 **[Live Examples](https://qti.pie-framework.org/examples/)**
 
 ![QTI Player Examples](docs/images/examples-screenshot-1.png)
 
@@ -144,7 +144,7 @@ See [Transformation Engine Documentation](docs/TRANSFORMATION-ENGINE.md) for com
 - Generator registry for custom PIE model handling
 - IMS Content Package generation (`imsmanifest.xml`)
 
-### Transform App (`@pie-qti/transform-web`)
+### Transform App (`@pie-qti/app-transform`)
 
 ![QTI Player Examples](docs/images/transform-app-screenshot-1.png)
 
@@ -156,6 +156,32 @@ Interactive web UI for transformations:
 - **Preview** — Side-by-side QTI and PIE rendering
 
 Storage is pluggable with filesystem (default), S3, or database backends via configuration.
+
+#### Plugin & Extension Management
+
+The transform-app includes a built-in admin interface for viewing and managing plugins:
+
+- Navigate to `/admin/plugins` to see installed transform plugins
+- View registered vendor extensions and their counts
+- Explore available extension points (storage backends, formats, themes, locales)
+- Configuration examples and documentation
+
+**Extension Points:**
+
+- **Transform Plugins** — Add support for custom formats or vendor-specific QTI variants
+- **Vendor Extensions** — Customize transformation behavior (detectors, transformers, asset resolvers)
+- **Storage Backends** — Choose filesystem, S3, database, or implement custom storage
+- **UI Themes** — Customize appearance with DaisyUI themes
+- **i18n Locales** — Add translations for additional languages
+
+**Configuration:**
+Create a `config.json` file (see `apps/transform/config.example.json` for structure) and reference it:
+
+```bash
+PIE_QTI_CONFIG=./config.json bun run dev:transform
+```
+
+Or register plugins directly in `apps/transform/src/hooks.server.ts`.
 
 ### CLI (`@pie-qti/transform-cli`)
 
@@ -192,7 +218,25 @@ bun run typecheck
 
 # E2E tests (Playwright)
 bun run test:e2e
+
+# App deployability checks (docs/demo/transform production builds)
+bun run verify:apps:deploy
+
+# Publish readiness (publint, attw, pack, deps, metadata)
+bun run verify:publish
 ```
+
+CI uses two required quality lanes on PRs:
+
+- **Deployability lane:** `verify:apps:deploy` (apps/docs, apps/demo, apps/transform production buildability)
+- **Publishability lane:** `verify:publish:quick` (metadata, exports, publint, attw, pack, deps, source exports)
+
+Release behavior is lockstep and patch-only for publishable `packages/*`:
+
+- merges to `master` auto-generate a temporary patch changeset when needed for release PR prep
+- local full release flow: `bun run release:with-version`
+
+See [docs/development/publish-verification.md](docs/development/publish-verification.md) for full publish-readiness details.
 
 ### Local PIE Players
 
@@ -220,7 +264,7 @@ bun run preview:pages
 - **[Assessment Player](packages/assessment-player/README.md)** — Navigation, scoring, backend integration
 - **[QTI Common](packages/qti-common/README.md)** — Version abstraction layer (QTI 2.x & 3.0)
 - **[Styling Contract](packages/default-components/STYLING.md)** — Theming with CSS variables and ::part
-- **[Example App](packages/example/README.md)** — Demo application with all interactions
+- **[Example App](apps/demo/README.md)** — Demo application with all interactions
 
 ### Transforms
 
@@ -229,7 +273,7 @@ bun run preview:pages
 - **[Vendor Plugin Guide](docs/VENDOR-TRANSFORM-PLUGIN-GUIDE.md)** — Building custom vendor plugins
 - **[Configuration Guide](docs/CONFIGURATION.md)** — Storage backends, plugins, and environment setup
 - **[Migration Guide](docs/MIGRATION_GUIDE.md)** — Upgrading from legacy storage to new architecture
-- **[Transform App](packages/transform-app/README.md)** — Web UI for transformations
+- **[Transform App](apps/transform/README.md)** — Web UI for transformations
 - **[CLI](tools/cli/README.md)** — Command-line batch operations
 - **[QTI → PIE](packages/to-pie/README.md)** — QTI to PIE transformer
 - **[PIE → QTI](packages/pie-to-qti/README.md)** — PIE to QTI transformer

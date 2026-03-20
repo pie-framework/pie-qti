@@ -4,8 +4,8 @@
  * Provides DOM manipulation and content extraction helpers for extractors
  */
 
-import type { ElementNameMapper } from '@pie-qti/qti-common';
-import { Qti2xElementNameMapper } from '@pie-qti/qti-common';
+import type { ElementNameMapper, AttributeNameMapper } from '@pie-qti/qti-common';
+import { Qti2xElementNameMapper, Qti2xAttributeNameMapper } from '@pie-qti/qti-common';
 import { sanitizeTextContent } from '../core/sanitizer.js';
 import type { PlayerSecurityConfig } from '../types/index.js';
 import type { QTIElement } from '../types/interactions.js';
@@ -54,34 +54,66 @@ function getChildrenByTagWithMapper(
 
 /**
  * Extract a boolean attribute from a QTI element
+ * Supports both QTI 2.x (camelCase) and QTI 3.0 (kebab-case) attributes
  */
 function getBooleanAttribute(
 	element: QTIElement,
 	name: string,
-	defaultValue = false
+	defaultValue = false,
+	attributeMapper?: AttributeNameMapper
 ): boolean {
-	const value = element.getAttribute(name);
+	let value = element.getAttribute(name);
+
+	// If not found and we have a mapper, try the native format (QTI 3.0 kebab-case)
+	if ((value === null || value === undefined) && attributeMapper) {
+		const nativeName = attributeMapper.toNative(name);
+		value = element.getAttribute(nativeName);
+	}
+
 	if (value === null || value === undefined) return defaultValue;
 	return value === 'true';
 }
 
 /**
  * Extract a number attribute from a QTI element
+ * Supports both QTI 2.x (camelCase) and QTI 3.0 (kebab-case) attributes
  */
 function getNumberAttribute(
 	element: QTIElement,
 	name: string,
-	defaultValue: number
+	defaultValue: number,
+	attributeMapper?: AttributeNameMapper
 ): number {
-	const value = element.getAttribute(name);
+	let value = element.getAttribute(name);
+
+	// If not found and we have a mapper, try the native format (QTI 3.0 kebab-case)
+	if ((value === null || value === undefined) && attributeMapper) {
+		const nativeName = attributeMapper.toNative(name);
+		value = element.getAttribute(nativeName);
+	}
+
 	return value ? Number(value) : defaultValue;
 }
 
 /**
  * Extract a string attribute from a QTI element
+ * Supports both QTI 2.x (camelCase) and QTI 3.0 (kebab-case) attributes
  */
-function getStringAttribute(element: QTIElement, name: string, defaultValue = ''): string {
-	return element.getAttribute(name) || defaultValue;
+function getStringAttribute(
+	element: QTIElement,
+	name: string,
+	defaultValue = '',
+	attributeMapper?: AttributeNameMapper
+): string {
+	let value = element.getAttribute(name);
+
+	// If not found and we have a mapper, try the native format (QTI 3.0 kebab-case)
+	if ((value === null || value === undefined) && attributeMapper) {
+		const nativeName = attributeMapper.toNative(name);
+		value = element.getAttribute(nativeName);
+	}
+
+	return value || defaultValue;
 }
 
 /**
@@ -121,14 +153,16 @@ function matchesTagName(
 /**
  * Create extraction utilities instance
  * Provides standard helpers for extracting data from QTI elements.
- * Automatically handles both QTI 2.x and QTI 3.0 element naming conventions.
+ * Automatically handles both QTI 2.x and QTI 3.0 element and attribute naming conventions.
  */
 export function createExtractionUtils(
 	security?: PlayerSecurityConfig,
-	mapper?: ElementNameMapper
+	mapper?: ElementNameMapper,
+	attributeMapper?: AttributeNameMapper
 ): ExtractionUtils {
-	// Default to QTI 2.x mapper for backward compatibility
+	// Default to QTI 2.x mappers (primary supported QTI format)
 	const elementMapper = mapper || new Qti2xElementNameMapper();
+	const attrMapper = attributeMapper || new Qti2xAttributeNameMapper();
 	return {
 		getChildrenByTag(element: QTIElement, tagName: string): QTIElement[] {
 			return getChildrenByTagWithMapper(element, tagName, elementMapper);
@@ -186,15 +220,15 @@ export function createExtractionUtils(
 		},
 
 		getAttribute(element: QTIElement, name: string, defaultValue = ''): string {
-			return getStringAttribute(element, name, defaultValue);
+			return getStringAttribute(element, name, defaultValue, attrMapper);
 		},
 
 		getBooleanAttribute(element: QTIElement, name: string, defaultValue = false): boolean {
-			return getBooleanAttribute(element, name, defaultValue);
+			return getBooleanAttribute(element, name, defaultValue, attrMapper);
 		},
 
 		getNumberAttribute(element: QTIElement, name: string, defaultValue = 0): number {
-			return getNumberAttribute(element, name, defaultValue);
+			return getNumberAttribute(element, name, defaultValue, attrMapper);
 		},
 
 		getPrompt(element: QTIElement): string | null {

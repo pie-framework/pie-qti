@@ -242,7 +242,7 @@ engine.use(vendorAcmePlugin);
 
 #### Web App Registration
 
-In `packages/transform-app/src/lib/transform/engine.ts`:
+In `apps/transform/src/lib/transform/engine.ts`:
 
 ```typescript
 import { TransformEngine } from '@pie-qti/transform-core';
@@ -565,7 +565,7 @@ describe('VendorCustomPlugin', () => {
 
 ## Transform App Integration
 
-The web application ([transform-app](../packages/transform-app/)) provides a UI for the transformation engine.
+The web application ([transform-app](../apps/transform/)) provides a UI for the transformation engine.
 
 ### App Architecture
 
@@ -599,7 +599,7 @@ Transform Web App
 The app loads plugins dynamically based on configuration:
 
 ```typescript
-// packages/transform-app/src/lib/transform/plugin-loader.ts
+// apps/transform/src/lib/transform/plugin-loader.ts
 export async function loadPlugins(category: 'core' | 'vendor'): Promise<TransformPlugin[]> {
   const config = await loadConfig();
   const plugins: TransformPlugin[] = [];
@@ -625,7 +625,7 @@ export async function loadPlugins(category: 'core' | 'vendor'): Promise<Transfor
 The app uses configurable storage backends:
 
 ```typescript
-// packages/transform-app/src/lib/storage/index.ts
+// apps/transform/src/lib/storage/index.ts
 export function createStorageBackend(config: StorageConfig): StorageBackend {
   switch (config.type) {
     case 'filesystem':

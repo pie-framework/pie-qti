@@ -419,7 +419,7 @@ describe('Advanced Assessment Features - Combined Features', () => {
 
     // Verify basic assessment structure
     expect(result.title).toBe('Complete Advanced Test');
-    expect(result.sections).toHaveLength(1);
+    expect(result.testParts[0].sections).toHaveLength(1);
   });
 
   it('should preserve correct XML nesting for all features', () => {

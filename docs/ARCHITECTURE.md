@@ -30,7 +30,7 @@ High-level architecture overview for PIE-QTI.
 
 ## Repository map (mental model)
 
-Everything lives under `packages/`:
+Everything lives under `packages/` and `apps/`:
 
 ### Transform system
 
@@ -56,8 +56,8 @@ Everything lives under `packages/`:
 
 ### Apps
 
-- `packages/transform-app`: web conversion UI
-- `packages/example`: example app + fixtures + reference iframe runtime page
+- `apps/transform`: web conversion UI
+- `apps/demo`: example app + fixtures + reference iframe runtime page
 
 ---
 
@@ -260,58 +260,39 @@ The PIE-QTI player includes a lightweight, type-safe internationalization system
 ### Key features
 
 - **Type-safe translations**: TypeScript autocomplete for all message keys
-- **Runtime locale switching**: Change language without page reload or component remount
-- **Reactive updates**: Svelte store integration automatically updates all UI text
-- **Web Component compatible**: Works within Shadow DOM boundaries via context API
+- **Runtime locale switching**: Change language via provider (persisted to localStorage with `SvelteI18nProvider`)
+- **Web Component compatible**: Works within Shadow DOM boundaries
 - **Small bundle size**: <10 KB gzipped (core + default English locale)
 - **On-demand loading**: Additional locales loaded asynchronously when needed
 
-### Supported locales (Priority 1)
+### Supported locales
 
 | Locale Code | Language                    |
 |-------------|-----------------------------|
 | `en-US`     | English (United States)     |
 | `es-ES`     | Spanish (Spain)             |
 | `fr-FR`     | French (France)             |
-| `de-DE`     | German (Germany)            |
-| `pt-BR`     | Portuguese (Brazil)         |
+| `nl-NL`     | Dutch (Netherlands)         |
+| `ro-RO`     | Romanian (Romania)          |
+| `ar-SA`     | Arabic (Saudi Arabia)       |
+| `zh-CN`     | Chinese (Simplified)        |
+| `th-TH`     | Thai (Thailand)             |
 
 ### Architecture
 
 The i18n system consists of:
 
-1. **Core I18n class** (`I18n.ts`) - Message lookup, interpolation, pluralization, number/date formatting
-2. **Svelte store integration** (`store.ts`) - Reactive `$t`, `$formatNumber`, `$formatDate` stores
-3. **Context API** (`context.ts`) - Pass i18n instance through component tree (including Shadow DOM)
-4. **Locale files** (`locales/*.ts`) - TypeScript modules with structured translation messages
-5. **LocaleSwitcher component** - Dropdown UI for runtime locale selection
-
-### Usage in components
-
-```svelte
-<script lang="ts">
-  import { t } from '@pie-qti/i18n';
-</script>
-
-<!-- Simple translation -->
-<button>{$t('common.submit')}</button>
-
-<!-- With interpolation -->
-<p>{$t('assessment.question', { current: 1, total: 10 })}</p>
-
-<!-- Error messages -->
-<div class="alert">{$t('interactions.upload.errorInvalidType', { types: 'pdf, jpg' })}</div>
-```
+1. **`DefaultI18nProvider`** (`packages/i18n/src/core/I18n.ts`) - Core provider: message lookup, interpolation, pluralization, lazy locale loading via Vite glob imports
+2. **`SvelteI18nProvider`** (`packages/i18n/src/providers/SvelteI18nProvider.ts`) - Wraps any `I18nProvider`; persists locale to localStorage and triggers page reload on locale change
+3. **Locale files** (`packages/i18n/src/locales/*.ts`) - TypeScript modules with structured translation messages
+4. **`LocaleSwitcher` component** (`packages/i18n/src/components/LocaleSwitcher.svelte`) - Dropdown UI for runtime locale selection
 
 ### Initialization
 
-Initialize i18n in the application root (e.g., `+layout.svelte`):
-
 ```typescript
-import { initI18n } from '@pie-qti/i18n';
+import { createDefaultSvelteI18nProvider } from '@pie-qti/i18n';
 
-const i18n = initI18n('en-US');
-await i18n.loadLocale('en-US');
+const provider = createDefaultSvelteI18nProvider('en-US');
 ```
 
 ### Message namespaces
@@ -325,19 +306,9 @@ Translations are organized by feature:
 - `assessment.*` - Assessment player UI (navigation, sections, timer, feedback)
 - `accessibility.*` - ARIA labels and screen reader announcements
 
-### Type safety
-
-Message keys are automatically typed from the English locale structure. IDEs provide autocomplete and compile-time validation:
-
-```typescript
-$t('common.submit')  // ✅ Valid
-$t('invalid.key')    // ❌ TypeScript error
-```
-
 ### Key references
 
-- `packages/i18n/README.md` - Full API documentation and migration guide
-- `docs/i18n-design-plan.md` - Detailed design document with architecture rationale
+- `packages/i18n/README.md` - Full API documentation
 - `packages/i18n/src/locales/en-US.ts` - Complete list of available translation keys
 
 ---
@@ -425,7 +396,7 @@ Key reference:
 
 ---
 
-## Transform app (`packages/transform-app`): conversion + preview pipeline
+## Transform app (`apps/transform`): conversion + preview pipeline
 
 > **Status**: Under active development
 
@@ -461,17 +432,17 @@ Key references:
 
 - Storage types: `packages/types/src/storage/index.ts`
 - Storage package: `packages/storage/src/`
-- App storage wrapper: `packages/transform-app/src/lib/server/storage/app-session-storage.ts`
+- App storage wrapper: `apps/transform/src/lib/server/storage/app-session-storage.ts`
 - Configuration: `docs/CONFIGURATION.md`
 
 ### Server-side flow (sessioned)
 
 1) **Upload**: `POST /api/upload` stores ZIP(s) in a new session
-   - reference: `packages/transform-app/src/routes/api/upload/+server.ts`
+   - reference: `apps/transform/src/routes/api/upload/+server.ts`
 2) **Analyze**: `POST /api/sessions/[id]/analyze` extracts and analyzes the session
-   - reference: `packages/transform-app/src/routes/api/sessions/[id]/analyze/+server.ts`
+   - reference: `apps/transform/src/routes/api/sessions/[id]/analyze/+server.ts`
 3) **Transform**: `POST /api/sessions/[id]/transform` uses `TransformEngine` + `Qti22ToPiePlugin`
-   - reference: `packages/transform-app/src/routes/api/sessions/[id]/transform/+server.ts`
+   - reference: `apps/transform/src/routes/api/sessions/[id]/transform/+server.ts`
 
 ### Preview model
 
@@ -480,9 +451,9 @@ Key references:
 
 Key references:
 
-- QTI item preview component: `packages/transform-app/src/lib/components/Qti2ItemPlayer.svelte`
-- QTI assessment preview component: `packages/transform-app/src/lib/components/Qti2AssessmentPlayer.svelte`
-- PIE preview component: `packages/transform-app/src/lib/components/PieItemPlayer.svelte`
+- QTI item preview component: `apps/transform/src/lib/components/QtiItemPlayer.svelte`
+- QTI assessment preview component: `apps/transform/src/lib/components/QtiAssessmentPlayer.svelte`
+- PIE preview component: `apps/transform/src/lib/components/PieItemPlayer.svelte`
 
 ---
 

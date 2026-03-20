@@ -12,7 +12,7 @@
  * import { createLogger } from '@pie-qti/logger/server';
  *
  * const logger = createLogger({ format: 'json' });
- * logger.info('Processing item', 'item-123', { vendor: 'ExampleCorp' });
+ * logger.info('Processing item', { vendor: 'ExampleCorp', itemId: 'item-123' });
  * ```
  *
  * Environment Variables:
@@ -56,23 +56,10 @@ const LOG_LEVEL_VALUES: Record<LogLevel, number> = {
  * Compatible with structured logging and log aggregation tools
  */
 export interface ServerLogger {
-	debug(message: string, itemId?: string, context?: LogContext): void;
-	info(message: string, itemId?: string, context?: LogContext): void;
-	warn(message: string, itemId?: string, context?: LogContext): void;
-	error(message: string, itemId?: string, context?: LogContext): void;
-}
-
-/**
- * Merge itemId parameter into context for backward compatibility
- */
-function mergeContext(itemId?: string, context?: LogContext): LogContext {
-	if (!itemId && !context) return {};
-
-	return {
-		...context,
-		// itemId parameter takes precedence over context.itemId for backward compatibility
-		itemId: itemId || context?.itemId,
-	};
+	debug(message: string, context?: LogContext): void;
+	info(message: string, context?: LogContext): void;
+	warn(message: string, context?: LogContext): void;
+	error(message: string, context?: LogContext): void;
 }
 
 /**
@@ -105,34 +92,30 @@ export class ConsoleLogger implements ServerLogger {
 		return LOG_LEVEL_VALUES[level] >= LOG_LEVEL_VALUES[this.minLevel];
 	}
 
-	debug(message: string, itemId?: string, context?: LogContext): void {
+	debug(message: string, context?: LogContext): void {
 		if (!this.shouldLog('debug')) return;
-		const ctx = mergeContext(itemId, context);
-		const prefix = formatContext(ctx);
+		const prefix = formatContext(context ?? {});
 		const formatted = prefix ? `[DEBUG] ${prefix} ${message}` : `[DEBUG] ${message}`;
 		console.debug(formatted);
 	}
 
-	info(message: string, itemId?: string, context?: LogContext): void {
+	info(message: string, context?: LogContext): void {
 		if (!this.shouldLog('info')) return;
-		const ctx = mergeContext(itemId, context);
-		const prefix = formatContext(ctx);
+		const prefix = formatContext(context ?? {});
 		const formatted = prefix ? `[INFO] ${prefix} ${message}` : `[INFO] ${message}`;
 		console.info(formatted);
 	}
 
-	warn(message: string, itemId?: string, context?: LogContext): void {
+	warn(message: string, context?: LogContext): void {
 		if (!this.shouldLog('warn')) return;
-		const ctx = mergeContext(itemId, context);
-		const prefix = formatContext(ctx);
+		const prefix = formatContext(context ?? {});
 		const formatted = prefix ? `[WARN] ${prefix} ${message}` : `[WARN] ${message}`;
 		console.warn(formatted);
 	}
 
-	error(message: string, itemId?: string, context?: LogContext): void {
+	error(message: string, context?: LogContext): void {
 		if (!this.shouldLog('error')) return;
-		const ctx = mergeContext(itemId, context);
-		const prefix = formatContext(ctx);
+		const prefix = formatContext(context ?? {});
 		const formatted = prefix ? `[ERROR] ${prefix} ${message}` : `[ERROR] ${message}`;
 		console.error(formatted);
 	}
@@ -159,37 +142,36 @@ export class JsonLogger implements ServerLogger {
 		return LOG_LEVEL_VALUES[level] >= LOG_LEVEL_VALUES[this.minLevel];
 	}
 
-	debug(message: string, itemId?: string, context?: LogContext): void {
+	debug(message: string, context?: LogContext): void {
 		if (this.shouldLog('debug')) {
-			this.log('debug', message, itemId, context);
+			this.log('debug', message, context);
 		}
 	}
 
-	info(message: string, itemId?: string, context?: LogContext): void {
+	info(message: string, context?: LogContext): void {
 		if (this.shouldLog('info')) {
-			this.log('info', message, itemId, context);
+			this.log('info', message, context);
 		}
 	}
 
-	warn(message: string, itemId?: string, context?: LogContext): void {
+	warn(message: string, context?: LogContext): void {
 		if (this.shouldLog('warn')) {
-			this.log('warn', message, itemId, context);
+			this.log('warn', message, context);
 		}
 	}
 
-	error(message: string, itemId?: string, context?: LogContext): void {
+	error(message: string, context?: LogContext): void {
 		if (this.shouldLog('error')) {
-			this.log('error', message, itemId, context);
+			this.log('error', message, context);
 		}
 	}
 
 	private log(
 		level: LogLevel,
 		message: string,
-		itemId?: string,
 		context?: LogContext,
 	): void {
-		const ctx = mergeContext(itemId, context);
+		const ctx = context ?? {};
 
 		// Strip line breaks from message to ensure single-line JSON output
 		const cleanMessage = message.replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
@@ -244,24 +226,20 @@ export class MemoryLogger implements ServerLogger {
 		timestamp: Date;
 	}> = [];
 
-	debug(message: string, itemId?: string, context?: LogContext): void {
-		const ctx = mergeContext(itemId, context);
-		this.messages.push({ level: 'debug', message, context: ctx, timestamp: new Date() });
+	debug(message: string, context?: LogContext): void {
+		this.messages.push({ level: 'debug', message, context: context ?? {}, timestamp: new Date() });
 	}
 
-	info(message: string, itemId?: string, context?: LogContext): void {
-		const ctx = mergeContext(itemId, context);
-		this.messages.push({ level: 'info', message, context: ctx, timestamp: new Date() });
+	info(message: string, context?: LogContext): void {
+		this.messages.push({ level: 'info', message, context: context ?? {}, timestamp: new Date() });
 	}
 
-	warn(message: string, itemId?: string, context?: LogContext): void {
-		const ctx = mergeContext(itemId, context);
-		this.messages.push({ level: 'warn', message, context: ctx, timestamp: new Date() });
+	warn(message: string, context?: LogContext): void {
+		this.messages.push({ level: 'warn', message, context: context ?? {}, timestamp: new Date() });
 	}
 
-	error(message: string, itemId?: string, context?: LogContext): void {
-		const ctx = mergeContext(itemId, context);
-		this.messages.push({ level: 'error', message, context: ctx, timestamp: new Date() });
+	error(message: string, context?: LogContext): void {
+		this.messages.push({ level: 'error', message, context: context ?? {}, timestamp: new Date() });
 	}
 
 	clear(): void {
@@ -375,21 +353,21 @@ export function createLogger(namespace: string, baseContext?: LogContext): Serve
 	const contextWithNamespace = { ...baseContext, namespace };
 
 	return {
-		debug(message: string, itemId?: string, context?: LogContext): void {
+		debug(message: string, context?: LogContext): void {
 			const merged = { ...contextWithNamespace, ...context };
-			logger.debug(`[${namespace}] ${message}`, itemId, merged);
+			logger.debug(`[${namespace}] ${message}`, merged);
 		},
-		info(message: string, itemId?: string, context?: LogContext): void {
+		info(message: string, context?: LogContext): void {
 			const merged = { ...contextWithNamespace, ...context };
-			logger.info(`[${namespace}] ${message}`, itemId, merged);
+			logger.info(`[${namespace}] ${message}`, merged);
 		},
-		warn(message: string, itemId?: string, context?: LogContext): void {
+		warn(message: string, context?: LogContext): void {
 			const merged = { ...contextWithNamespace, ...context };
-			logger.warn(`[${namespace}] ${message}`, itemId, merged);
+			logger.warn(`[${namespace}] ${message}`, merged);
 		},
-		error(message: string, itemId?: string, context?: LogContext): void {
+		error(message: string, context?: LogContext): void {
 			const merged = { ...contextWithNamespace, ...context };
-			logger.error(`[${namespace}] ${message}`, itemId, merged);
+			logger.error(`[${namespace}] ${message}`, merged);
 		},
 	};
 }

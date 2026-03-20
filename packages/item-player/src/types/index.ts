@@ -2,24 +2,28 @@
  * Core QTI types for the player
  */
 
-import type { QtiValue } from '@pie-qti/qti-processing';
+import type {
+	BaseType as ProcessingBaseType,
+	Cardinality as ProcessingCardinality,
+	QtiValue,
+} from '@pie-qti/qti-processing';
 
 /**
  * QTI base type identifier
  * Extensible string type allows custom base types
  */
-export type BaseType = string;
+export type VariableBaseType = ProcessingBaseType;
 
 /**
  * QTI cardinality identifier
  * Extensible string type allows custom cardinality values
  */
-export type Cardinality = string;
+export type VariableCardinality = ProcessingCardinality;
 
 export interface VariableDeclaration {
 	identifier: string;
-	baseType: BaseType;
-	cardinality: Cardinality;
+	baseType: VariableBaseType;
+	cardinality: VariableCardinality;
 	value: any;
 	defaultValue?: any;
 	mapping?: Mapping;
@@ -70,7 +74,7 @@ export interface OutcomeDeclaration extends VariableDeclaration {
 	views?: string[];
 }
 
-export interface SessionState {
+export interface ItemSessionState {
 	[variableId: string]: any;
 }
 
@@ -89,6 +93,16 @@ export interface QTIFileResponse {
 	lastModified: number;
 	/** Base64 data URL, e.g. data:application/pdf;base64,... */
 	dataUrl: string;
+	/**
+	 * Optional ImageData extracted from canvas (for drawing interactions).
+	 * This allows custom operators to analyze drawing content synchronously
+	 * without needing to decode the dataUrl asynchronously.
+	 */
+	imageData?: {
+		data: Uint8ClampedArray;
+		width: number;
+		height: number;
+	};
 }
 
 export interface ModalFeedback {
@@ -167,7 +181,7 @@ export interface QTIComplianceConfig {
 
 export interface PlayerConfig {
 	itemXml?: string;
-	sessionState?: SessionState;
+	sessionState?: ItemSessionState;
 	responses?: InteractionResponse;
 	role?: QTIRole;
 	/** Optional seed for deterministic random operations (e.g. templateProcessing randomInteger) */
@@ -176,10 +190,16 @@ export interface PlayerConfig {
 	rng?: () => number;
 	/**
 	 * Optional element name mapper for handling different QTI versions.
-	 * Defaults to Qti2xElementNameMapper for backward compatibility.
+	 * Defaults to Qti2xElementNameMapper (primary supported QTI format).
 	 * @since 0.2.0
 	 */
 	elementNameMapper?: any; // Will be ElementNameMapper from @pie-qti/qti-common
+	/**
+	 * Optional attribute name mapper for handling different QTI versions.
+	 * Defaults to Qti2xAttributeNameMapper (primary supported QTI format).
+	 * @since 0.3.0
+	 */
+	attributeNameMapper?: any; // Will be AttributeNameMapper from @pie-qti/qti-common
 	/** Optional web component registry for custom interaction components */
 	componentRegistry?: any; // Will be ComponentRegistry, but avoiding circular dependency
 	/** Optional extraction registry for custom element extractors */

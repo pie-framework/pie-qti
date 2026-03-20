@@ -73,6 +73,6 @@ Your runtime page should:
 
 See the reference runtime implementation:
 
-- `packages/example/src/routes/iframe-runtime/+page.svelte` (non-production)
+- `apps/demo/src/routes/iframe-runtime/+page.svelte` (non-production)
 
 

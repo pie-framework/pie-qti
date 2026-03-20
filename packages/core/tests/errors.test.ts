@@ -30,7 +30,6 @@ describe('createError', () => {
 			itemId: 'item-123',
 			category: ErrorCategory.VALIDATION,
 			recoverable: true,
-			fatal: false,
 			context: { key: 'value' },
 		});
 
@@ -39,7 +38,6 @@ describe('createError', () => {
 		expect(error.itemId).toBe('item-123');
 		expect(error.category).toBe(ErrorCategory.VALIDATION);
 		expect(error.recoverable).toBe(true);
-		expect(error.fatal).toBe(false);
 		expect(error.context).toEqual({ key: 'value' });
 	});
 
@@ -49,28 +47,24 @@ describe('createError', () => {
 			category: ErrorCategory.VALIDATION,
 		});
 		expect(validationError.recoverable).toBe(true);
-		expect(validationError.fatal).toBe(false);
 
 		const configError = createError({
 			message: 'Config',
 			category: ErrorCategory.CONFIGURATION,
 		});
 		expect(configError.recoverable).toBe(false);
-		expect(configError.fatal).toBe(true);
 
 		const internalError = createError({
 			message: 'Internal',
 			category: ErrorCategory.INTERNAL,
 		});
 		expect(internalError.recoverable).toBe(false);
-		expect(internalError.fatal).toBe(true);
 
 		const externalError = createError({
 			message: 'External',
 			category: ErrorCategory.EXTERNAL,
 		});
 		expect(externalError.recoverable).toBe(true);
-		expect(externalError.fatal).toBe(false);
 	});
 
 	test('should allow overriding defaults', () => {
@@ -78,11 +72,9 @@ describe('createError', () => {
 			message: 'External error',
 			category: ErrorCategory.EXTERNAL,
 			recoverable: false,
-			fatal: true,
 		});
 
 		expect(error.recoverable).toBe(false);
-		expect(error.fatal).toBe(true);
 	});
 });
 
@@ -93,7 +85,6 @@ describe('Helper functions', () => {
 		expect(error.category).toBe(ErrorCategory.VALIDATION);
 		expect(error.message).toBe('Invalid XML');
 		expect(error.recoverable).toBe(true);
-		expect(error.fatal).toBe(false);
 	});
 
 	test('createValidationError with options', () => {
@@ -112,7 +103,6 @@ describe('Helper functions', () => {
 		expect(error.category).toBe(ErrorCategory.CONFIGURATION);
 		expect(error.message).toBe('Missing API key');
 		expect(error.recoverable).toBe(false);
-		expect(error.fatal).toBe(true);
 	});
 
 	test('createInternalError', () => {
@@ -120,7 +110,6 @@ describe('Helper functions', () => {
 
 		expect(error.category).toBe(ErrorCategory.INTERNAL);
 		expect(error.recoverable).toBe(false);
-		expect(error.fatal).toBe(true);
 	});
 
 	test('createExternalError', () => {
@@ -128,7 +117,6 @@ describe('Helper functions', () => {
 
 		expect(error.category).toBe(ErrorCategory.EXTERNAL);
 		expect(error.recoverable).toBe(true);
-		expect(error.fatal).toBe(false);
 	});
 });
 
@@ -176,14 +164,9 @@ describe('shouldNotifyOps', () => {
 		expect(shouldNotifyOps(error)).toBe(true);
 	});
 
-	test('should return true for fatal internal errors', () => {
-		const error = createInternalError('Critical bug', { fatal: true });
+	test('should return true for internal errors', () => {
+		const error = createInternalError('Critical bug');
 		expect(shouldNotifyOps(error)).toBe(true);
-	});
-
-	test('should return false for non-fatal internal errors', () => {
-		const error = createInternalError('Minor issue', { fatal: false });
-		expect(shouldNotifyOps(error)).toBe(false);
 	});
 
 	test('should return false for validation and external errors', () => {

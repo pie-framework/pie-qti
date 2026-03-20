@@ -256,7 +256,7 @@ Uses a scoring map for partial credit:
 
 Implementation note: the current runtime is **AST-based**. `mapResponse` is evaluated as an expression in:
 
-- `packages/item-player/src/processing/eval/evaluator.ts` (expression evaluation)
+- `packages/qti-processing/src/eval/evaluator.ts` (expression evaluation)
 - With mapping parsed into declarations by `packages/item-player/src/core/Player.ts`
 
 #### 3. `map_response_point`
@@ -363,7 +363,7 @@ function setOutcomeValue(elem) {
 
 ### Operators Available
 
-QTI 2.2 provides a rich set of operators for scoring logic. Our implementation includes 45+ operators (see full list in the "Operators Implemented" section of this document or in `packages/item-player/src/processing/eval/operators.ts`).
+QTI 2.2 provides a rich set of operators for scoring logic. Our implementation includes 45+ operators (see full list in the "Operators Implemented" section of this document or in `packages/qti-processing/src/eval/operators.ts`).
 
 **Key operator categories:**
 
@@ -592,14 +592,14 @@ interface ModalFeedback {
 Our player supports:
 
 1. ✅ **All 6 standard response processing templates** (`match_correct`, `map_response`, `map_response_point`, etc.)
-2. ✅ **Custom response processing rules** (implemented in the AST engine; see [`ast/types.ts`](../packages/item-player/src/processing/ast/types.ts) and [`eval/evaluator.ts`](../packages/item-player/src/processing/eval/evaluator.ts))
+2. ✅ **Custom response processing rules** (implemented in the AST engine; see [`ast/types.ts`](../packages/qti-processing/src/ast/types.ts) and [`eval/evaluator.ts`](../packages/qti-processing/src/eval/evaluator.ts))
 3. ✅ **Outcome processing** for test-level scoring (in assessment player)
 4. ✅ **Feedback rules** (modalFeedback, inline feedback)
 5. ✅ **Template processing** for randomization and adaptive items
 
 ### Operators Implemented
 
-Our implementation includes a growing set of QTI operators (see the AST engine implementation in [`ast/types.ts`](../packages/item-player/src/processing/ast/types.ts) and [`eval/evaluator.ts`](../packages/item-player/src/processing/eval/evaluator.ts)):
+Our implementation includes a growing set of QTI operators (see the AST engine implementation in [`ast/types.ts`](../packages/qti-processing/src/ast/types.ts) and [`eval/evaluator.ts`](../packages/qti-processing/src/eval/evaluator.ts)):
 
 **Comparison**: `match`, `equal`, `lt`, `lte`, `gt`, `gte`
 
@@ -639,7 +639,7 @@ Our implementation includes a growing set of QTI operators (see the AST engine i
 ### What We Implemented
 
 - ✅ **Pure TypeScript** - Type-safe declarations, operators, and scoring
-- ✅ **Operators** - Implemented in the AST engine ([`ast/types.ts`](../packages/item-player/src/processing/ast/types.ts), [`eval/evaluator.ts`](../packages/item-player/src/processing/eval/evaluator.ts))
+- ✅ **Operators** - Implemented in the AST engine ([`ast/types.ts`](../packages/qti-processing/src/ast/types.ts), [`eval/evaluator.ts`](../packages/qti-processing/src/eval/evaluator.ts))
 - ✅ **Functional architecture** - Clean variable management ([declarations.ts](../packages/item-player/src/core/declarations.ts))
 - ✅ **All standard templates** - `match_correct`, `map_response`, `map_response_point`, etc.
 - ✅ **Adaptive items** - Multi-attempt support with `completionStatus` tracking
@@ -659,13 +659,13 @@ Our implementation includes a growing set of QTI operators (see the AST engine i
 
 ## References
 
-- **Spec snapshots (local, preferred)**: [SPEC_SNAPSHOTS.md](./SPEC_SNAPSHOTS.md)
+- **QTI 2.2 spec (local snapshot)**: `docs/specs/qti2.2.2/qtiv2p2/`
 - Key Implementation Files:
   - [Player.ts](../packages/item-player/src/core/Player.ts) - Main player class with response processing
-  - [AST builder](../packages/item-player/src/processing/ast/build.ts) - XML → AST
-  - [Evaluator](../packages/item-player/src/processing/eval/evaluator.ts) - Expression evaluation (`mapResponse`, operators, etc.)
-  - [Operator registry](../packages/item-player/src/processing/eval/operators.ts) - Operator definitions
-  - [Executor](../packages/item-player/src/processing/exec/execute.ts) - Statement execution (`setOutcomeValue`, conditions, exits, etc.)
-  - [Runtime context](../packages/item-player/src/processing/runtime/context.ts) - Declarations + variable state
-  - [Runtime values](../packages/item-player/src/processing/runtime/value.ts) - BaseType/cardinality coercion + normalization
+  - [AST builder](../packages/qti-processing/src/ast/build.ts) - XML → AST
+  - [Evaluator](../packages/qti-processing/src/eval/evaluator.ts) - Expression evaluation (`mapResponse`, operators, etc.)
+  - [Operator registry](../packages/qti-processing/src/eval/operators.ts) - Operator definitions
+  - [Executor](../packages/qti-processing/src/exec/execute.ts) - Statement execution (`setOutcomeValue`, conditions, exits, etc.)
+  - [Runtime context](../packages/qti-processing/src/runtime/context.ts) - Declarations + variable state
+  - [Runtime values](../packages/qti-processing/src/runtime/value.ts) - BaseType/cardinality coercion + normalization
   - [types/index.ts](../packages/item-player/src/types/index.ts) - TypeScript type definitions

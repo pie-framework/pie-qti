@@ -3,41 +3,33 @@
  * Provides test-friendly logger implementations
  */
 
-import type { TransformLogger, LogContext } from '@pie-qti/transform-types';
+import type { ServerLogger, LogContext } from '@pie-qti/logger/server';
 
 /**
  * Logger that captures all log messages for testing
  * Useful for verifying that expected logs were produced
  */
-export class CaptureLogger implements TransformLogger {
+export class CaptureLogger implements ServerLogger {
 	private logs: Array<{
 		level: 'info' | 'warn' | 'error' | 'debug';
 		message: string;
 		context: LogContext;
 	}> = [];
 
-	info(message: string, itemId?: string, context?: LogContext): void {
-		this.logs.push({ level: 'info', message, context: this.mergeContext(itemId, context) });
+	info(message: string, context?: LogContext): void {
+		this.logs.push({ level: 'info', message, context: context ?? {} });
 	}
 
-	warn(message: string, itemId?: string, context?: LogContext): void {
-		this.logs.push({ level: 'warn', message, context: this.mergeContext(itemId, context) });
+	warn(message: string, context?: LogContext): void {
+		this.logs.push({ level: 'warn', message, context: context ?? {} });
 	}
 
-	error(message: string, itemId?: string, context?: LogContext): void {
-		this.logs.push({ level: 'error', message, context: this.mergeContext(itemId, context) });
+	error(message: string, context?: LogContext): void {
+		this.logs.push({ level: 'error', message, context: context ?? {} });
 	}
 
-	debug(message: string, itemId?: string, context?: LogContext): void {
-		this.logs.push({ level: 'debug', message, context: this.mergeContext(itemId, context) });
-	}
-
-	private mergeContext(itemId?: string, context?: LogContext): LogContext {
-		if (!itemId && !context) return {};
-		return {
-			...context,
-			itemId: itemId || context?.itemId,
-		};
+	debug(message: string, context?: LogContext): void {
+		this.logs.push({ level: 'debug', message, context: context ?? {} });
 	}
 
 	// Test helper methods
@@ -110,61 +102,38 @@ export class CaptureLogger implements TransformLogger {
  * Logger that outputs nothing
  * Useful for keeping test output clean
  */
-export class SilentLogger implements TransformLogger {
-	info(_message: string, _itemId?: string, _context?: LogContext): void {
-		// No-op
-	}
-
-	warn(_message: string, _itemId?: string, _context?: LogContext): void {
-		// No-op
-	}
-
-	error(_message: string, _itemId?: string, _context?: LogContext): void {
-		// No-op
-	}
-
-	debug(_message: string, _itemId?: string, _context?: LogContext): void {
-		// No-op
-	}
+export class SilentLogger implements ServerLogger {
+	info(): void {}
+	warn(): void {}
+	error(): void {}
+	debug(): void {}
 }
 
 /**
  * Logger that outputs to console
  * Useful for debugging test failures
  */
-export class ConsoleLogger implements TransformLogger {
+export class ConsoleLogger implements ServerLogger {
 	constructor(private prefix = '[TEST]') {}
 
-	info(message: string, itemId?: string, context?: LogContext): void {
-		const ctx = this.mergeContext(itemId, context);
-		const contextStr = this.formatContext(ctx);
+	info(message: string, context?: LogContext): void {
+		const contextStr = this.formatContext(context ?? {});
 		console.log(`${this.prefix}${contextStr} INFO:`, message);
 	}
 
-	warn(message: string, itemId?: string, context?: LogContext): void {
-		const ctx = this.mergeContext(itemId, context);
-		const contextStr = this.formatContext(ctx);
+	warn(message: string, context?: LogContext): void {
+		const contextStr = this.formatContext(context ?? {});
 		console.warn(`${this.prefix}${contextStr} WARN:`, message);
 	}
 
-	error(message: string, itemId?: string, context?: LogContext): void {
-		const ctx = this.mergeContext(itemId, context);
-		const contextStr = this.formatContext(ctx);
+	error(message: string, context?: LogContext): void {
+		const contextStr = this.formatContext(context ?? {});
 		console.error(`${this.prefix}${contextStr} ERROR:`, message);
 	}
 
-	debug(message: string, itemId?: string, context?: LogContext): void {
-		const ctx = this.mergeContext(itemId, context);
-		const contextStr = this.formatContext(ctx);
+	debug(message: string, context?: LogContext): void {
+		const contextStr = this.formatContext(context ?? {});
 		console.debug(`${this.prefix}${contextStr} DEBUG:`, message);
-	}
-
-	private mergeContext(itemId?: string, context?: LogContext): LogContext {
-		if (!itemId && !context) return {};
-		return {
-			...context,
-			itemId: itemId || context?.itemId,
-		};
 	}
 
 	private formatContext(context: LogContext): string {

@@ -97,24 +97,30 @@ export class DefaultI18nProvider implements I18nProvider {
 	}
 
 	/**
-	 * Translate message key with optional interpolation
+	 * Translate message key with optional default and/or interpolation
 	 * @example t('upload.label') => "Upload a file"
+	 * @example t('upload.label', 'Upload') => translated or "Upload" if missing
 	 * @example t('upload.selected', { name: 'file.pdf' }) => "Selected: file.pdf"
 	 */
-	t(key: string, values?: Record<string, any>): string {
+	t(key: string, defaultOrValues?: Record<string, any> | string, values?: Record<string, any>): string {
 		const message = this.getMessage(key);
+		const interpolationValues = typeof defaultOrValues === 'object' && defaultOrValues !== null
+			? defaultOrValues
+			: values;
+		const defaultStr = typeof defaultOrValues === 'string' ? defaultOrValues : undefined;
+
 		if (!message) {
 			if (process.env.NODE_ENV === 'development') {
 				console.warn(`[i18n] Missing translation: ${key} (locale: ${this.currentLocale})`);
 			}
-			return key; // Fallback to key itself
+			return defaultStr ?? key;
 		}
 
-		if (!values) return message;
+		if (!interpolationValues) return message;
 
 		// Simple interpolation: replace {key} with values[key]
-		return message.replace(/\{(\w+)\}/g, (match, key) => {
-			return String(values[key] ?? match);
+		return message.replace(/\{(\w+)\}/g, (match, k) => {
+			return String(interpolationValues[k] ?? match);
 		});
 	}
 

@@ -9,6 +9,9 @@ import { detectQtiVersion, type QtiVersion } from './version-detection/detectQti
 import { Qti2xElementNameMapper } from './element-mapper/Qti2xElementNameMapper.js';
 import { Qti3ElementNameMapper } from './element-mapper/Qti3ElementNameMapper.js';
 import type { ElementNameMapper } from './element-mapper/ElementNameMapper.js';
+import { Qti2xAttributeNameMapper } from './element-mapper/Qti2xAttributeNameMapper.js';
+import { Qti3AttributeNameMapper } from './element-mapper/Qti3AttributeNameMapper.js';
+import type { AttributeNameMapper } from './element-mapper/AttributeNameMapper.js';
 
 /**
  * Result of creating a QTI parser.
@@ -23,6 +26,11 @@ export interface QtiParserResult {
 	 * Element name mapper appropriate for the detected version
 	 */
 	mapper: ElementNameMapper;
+
+	/**
+	 * Attribute name mapper appropriate for the detected version
+	 */
+	attributeMapper: AttributeNameMapper;
 }
 
 /**
@@ -40,6 +48,12 @@ export interface CreateParserOptions {
 	 * If provided, overrides automatic mapper selection.
 	 */
 	mapper?: ElementNameMapper;
+
+	/**
+	 * Custom attribute name mapper to use.
+	 * If provided, overrides automatic mapper selection.
+	 */
+	attributeMapper?: AttributeNameMapper;
 }
 
 /**
@@ -73,24 +87,17 @@ export interface CreateParserOptions {
  * ```
  */
 export function createQtiParser(xml: string, options?: CreateParserOptions): QtiParserResult {
-	// Use custom mapper if provided
-	if (options?.mapper) {
-		const version = options.version ?? detectQtiVersion(xml);
-		return {
-			version,
-			mapper: options.mapper,
-		};
-	}
-
 	// Detect or use specified version
 	const version = options?.version ?? detectQtiVersion(xml);
 
-	// Create appropriate mapper based on version
-	const mapper = createMapperForVersion(version);
+	// Use custom mappers if provided, otherwise create appropriate ones
+	const mapper = options?.mapper ?? createMapperForVersion(version);
+	const attributeMapper = options?.attributeMapper ?? createAttributeMapperForVersion(version);
 
 	return {
 		version,
 		mapper,
+		attributeMapper,
 	};
 }
 
@@ -121,6 +128,35 @@ export function createMapperForVersion(version: QtiVersion): ElementNameMapper {
 			// Default to QTI 2.x mapper for unknown versions
 			// (most existing content is QTI 2.x)
 			return new Qti2xElementNameMapper();
+	}
+}
+
+/**
+ * Create attribute name mapper for a specific QTI version.
+ *
+ * @param version - QTI version
+ * @returns Attribute name mapper for the version
+ *
+ * @example
+ * ```typescript
+ * const qti2AttrMapper = createAttributeMapperForVersion('2.2');
+ * const qti3AttrMapper = createAttributeMapperForVersion('3.0');
+ * ```
+ */
+export function createAttributeMapperForVersion(version: QtiVersion): AttributeNameMapper {
+	switch (version) {
+		case '2.0':
+		case '2.1':
+		case '2.2':
+			return new Qti2xAttributeNameMapper();
+
+		case '3.0':
+			return new Qti3AttributeNameMapper();
+
+		case 'unknown':
+		default:
+			// Default to QTI 2.x mapper for unknown versions
+			return new Qti2xAttributeNameMapper();
 	}
 }
 

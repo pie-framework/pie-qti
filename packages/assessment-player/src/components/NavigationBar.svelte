@@ -56,6 +56,7 @@
 	<div class="navigation-buttons">
 		<button
 			class="btn btn-outline"
+			data-testid="assessment-prev"
 			onclick={() => onPrevious?.()}
 			disabled={!navState.canPrevious || navState.isLoading}
 		>
@@ -75,13 +76,14 @@
 
 		{#if navState.currentIndex === navState.totalItems - 1}
 			<!-- Submit button on last item -->
-			<button class="btn btn-primary" onclick={() => onSubmit?.()} disabled={navState.isLoading}>
+			<button class="btn btn-primary" data-testid="assessment-submit" onclick={() => onSubmit?.()} disabled={navState.isLoading}>
 				{translations.submit}
 			</button>
 		{:else}
 			<!-- Next button -->
 			<button
 				class="btn btn-primary"
+				data-testid="assessment-next"
 				onclick={() => onNext?.()}
 				disabled={!navState.canNext || navState.isLoading}
 			>

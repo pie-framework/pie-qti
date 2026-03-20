@@ -154,10 +154,10 @@
 			</div>
 		{/if}
 
-		{#if parsedInteraction.maxPlays > 0}
+		{#if parsedInteraction.minPlays > 0 && !hasMetMinPlays}
 			<div>
 				<span class="font-medium">Remaining:</span>
-				<span class="ml-2">{Math.max(0, parsedInteraction.maxPlays - playCount)}</span>
+				<span class="ml-2">{Math.max(0, parsedInteraction.minPlays - playCount)}</span>
 			</div>
 		{/if}
 	</div>

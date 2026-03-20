@@ -3,14 +3,9 @@
  * Helpers for creating pre-configured TransformEngine instances for testing
  */
 
-import type {
-	TransformPlugin,
-	StorageBackend,
-	TransformLogger,
-	WorkflowOrchestrator,
-} from '@pie-qti/transform-types';
+import type { TransformPlugin, StorageBackend, WorkflowOrchestrator } from '@pie-qti/transform-types';
+import type { ServerLogger } from '@pie-qti/logger/server';
 import { TransformEngine } from '@pie-qti/transform-core';
-import { SilentLogger } from '../mocks/logger.js';
 
 export interface TestEngineOptions {
 	/**
@@ -26,7 +21,7 @@ export interface TestEngineOptions {
 	/**
 	 * Logger instance (defaults to SilentLogger)
 	 */
-	logger?: TransformLogger;
+	logger?: ServerLogger;
 
 	/**
 	 * Workflow orchestrator

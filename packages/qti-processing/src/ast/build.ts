@@ -25,7 +25,7 @@ export interface BuildOptions {
 	scope: ProcessingScope;
 	/**
 	 * Element name mapper for handling different QTI versions.
-	 * Defaults to Qti2xElementNameMapper for backward compatibility.
+	 * Defaults to Qti2xElementNameMapper (primary supported QTI format).
 	 */
 	elementNameMapper?: ElementNameMapper;
 }
@@ -513,7 +513,7 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 						: null;
 			if (!roundingMode) {
 				throw new Error(
-					'<equalRounded> roundingMode must be "decimalPlaces"|"significantFigures" (or legacy singular forms)',
+					'<equalRounded> roundingMode must be "decimalPlaces"|"significantFigures"',
 				);
 			}
 			return {
@@ -586,11 +586,11 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 		}
 		case 'durationlt': {
 			if (kids.length !== 2) throw new Error('<durationLT> requires exactly two child expressions');
-			return { kind: 'expr.durationLT', id, a: buildExpression(kids[0]!), b: buildExpression(kids[1]!) };
+			return { kind: 'expr.durationLT', id, a: buildExpression(kids[0]!, options), b: buildExpression(kids[1]!, options) };
 		}
 		case 'durationgte': {
 			if (kids.length !== 2) throw new Error('<durationGTE> requires exactly two child expressions');
-			return { kind: 'expr.durationGTE', id, a: buildExpression(kids[0]!), b: buildExpression(kids[1]!) };
+			return { kind: 'expr.durationGTE', id, a: buildExpression(kids[0]!, options), b: buildExpression(kids[1]!, options) };
 		}
 		case 'inside': {
 			const shape = (getAttr(el, 'shape') || '').trim() as any;
@@ -598,13 +598,13 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 			if (!shape) throw new Error('<inside> requires shape attribute');
 			if (!coords) throw new Error('<inside> requires coords attribute');
 			if (kids.length !== 1) throw new Error('<inside> requires exactly one child expression');
-			return { kind: 'expr.inside', id, shape, coords, value: buildExpression(kids[0]!) };
+			return { kind: 'expr.inside', id, shape, coords, value: buildExpression(kids[0]!, options) };
 		}
 		case 'statsoperator': {
 			const name = (getAttr(el, 'name') || '').trim() as any;
 			if (!name) throw new Error('<statsOperator> requires name attribute');
 			if (kids.length !== 1) throw new Error('<statsOperator> requires exactly one child expression');
-			return { kind: 'expr.statsOperator', id, name, values: buildExpression(kids[0]!) };
+			return { kind: 'expr.statsOperator', id, name, values: buildExpression(kids[0]!, options) };
 		}
 		case 'record': {
 			// QTI record: children are <fieldValue fieldIdentifier="...">VALUE</fieldValue>
@@ -619,19 +619,19 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 		}
 		case 'fieldvalue': {
 			const fieldIdentifier = getAttr(el, 'fieldIdentifier') || '';
-			return { kind: 'expr.fieldValue', id, fieldIdentifier, record: buildExpression(kids[0]!) };
+			return { kind: 'expr.fieldValue', id, fieldIdentifier, record: buildExpression(kids[0]!, options) };
 		}
 		case 'substring': {
 			return {
 				kind: 'expr.substring',
 				id,
-				value: buildExpression(kids[0]!),
-				start: buildExpression(kids[1]!),
+				value: buildExpression(kids[0]!, options),
+				start: buildExpression(kids[1]!, options),
 				length: kids[2] ? buildExpression(kids[2]) : undefined,
 			};
 		}
 		case 'lookuptable': {
-			const source = buildExpression(kids[0]!);
+			const source = buildExpression(kids[0]!, options);
 			const tableEl = kids[1];
 			if (!tableEl) {
 				throw new Error('<lookupTable> is missing its table element child');
@@ -691,43 +691,43 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 			throw new Error(`<lookupTable> unsupported table element: <${tableTag}>`);
 		}
 		case 'power': {
-			return { kind: 'expr.power', id, a: buildExpression(kids[0]!), b: buildExpression(kids[1]!) };
+			return { kind: 'expr.power', id, a: buildExpression(kids[0]!, options), b: buildExpression(kids[1]!, options) };
 		}
 		case 'mod': {
-			return { kind: 'expr.mod', id, a: buildExpression(kids[0]!), b: buildExpression(kids[1]!) };
+			return { kind: 'expr.mod', id, a: buildExpression(kids[0]!, options), b: buildExpression(kids[1]!, options) };
 		}
 		case 'integerdivide': {
-			return { kind: 'expr.integerDivide', id, a: buildExpression(kids[0]!), b: buildExpression(kids[1]!) };
+			return { kind: 'expr.integerDivide', id, a: buildExpression(kids[0]!, options), b: buildExpression(kids[1]!, options) };
 		}
 		case 'mean': {
-			return { kind: 'expr.mean', id, values: buildExpression(kids[0]!) };
+			return { kind: 'expr.mean', id, values: buildExpression(kids[0]!, options) };
 		}
 		case 'samplevariance': {
-			return { kind: 'expr.sampleVariance', id, values: buildExpression(kids[0]!) };
+			return { kind: 'expr.sampleVariance', id, values: buildExpression(kids[0]!, options) };
 		}
 		case 'samplesd': {
-			return { kind: 'expr.sampleSD', id, values: buildExpression(kids[0]!) };
+			return { kind: 'expr.sampleSD', id, values: buildExpression(kids[0]!, options) };
 		}
 		case 'popvariance': {
-			return { kind: 'expr.popVariance', id, values: buildExpression(kids[0]!) };
+			return { kind: 'expr.popVariance', id, values: buildExpression(kids[0]!, options) };
 		}
 		case 'popsd': {
-			return { kind: 'expr.popSD', id, values: buildExpression(kids[0]!) };
+			return { kind: 'expr.popSD', id, values: buildExpression(kids[0]!, options) };
 		}
 		case 'istypeof': {
 			return {
 				kind: 'expr.isTypeOf',
 				id,
-				value: buildExpression(kids[0]!),
-				baseType: buildExpression(kids[1]!),
+				value: buildExpression(kids[0]!, options),
+				baseType: buildExpression(kids[1]!, options),
 			};
 		}
 		case 'stringmatch': {
 			return {
 				kind: 'expr.stringMatch',
 				id,
-				a: buildExpression(kids[0]!),
-				b: buildExpression(kids[1]!),
+				a: buildExpression(kids[0]!, options),
+				b: buildExpression(kids[1]!, options),
 				caseSensitive: boolAttr('caseSensitive', false),
 				substring: boolAttr('substring', false),
 			};
@@ -736,28 +736,28 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 			return {
 				kind: 'expr.patternMatch',
 				id,
-				value: buildExpression(kids[0]!),
-				pattern: buildExpression(kids[1]!),
+				value: buildExpression(kids[0]!, options),
+				pattern: buildExpression(kids[1]!, options),
 				caseSensitive: boolAttr('caseSensitive', true),
 			};
 		}
 		case 'isnull': {
-			return { kind: 'expr.isNull', id, expr: buildExpression(kids[0]!) };
+			return { kind: 'expr.isNull', id, expr: buildExpression(kids[0]!, options) };
 		}
 		case 'isnotnull': {
-			return { kind: 'expr.isNotNull', id, expr: buildExpression(kids[0]!) };
+			return { kind: 'expr.isNotNull', id, expr: buildExpression(kids[0]!, options) };
 		}
 		case 'lt': {
-			return { kind: 'expr.lt', id, a: buildExpression(kids[0]!), b: buildExpression(kids[1]!) };
+			return { kind: 'expr.lt', id, a: buildExpression(kids[0]!, options), b: buildExpression(kids[1]!, options) };
 		}
 		case 'lte': {
-			return { kind: 'expr.lte', id, a: buildExpression(kids[0]!), b: buildExpression(kids[1]!) };
+			return { kind: 'expr.lte', id, a: buildExpression(kids[0]!, options), b: buildExpression(kids[1]!, options) };
 		}
 		case 'gt': {
-			return { kind: 'expr.gt', id, a: buildExpression(kids[0]!), b: buildExpression(kids[1]!) };
+			return { kind: 'expr.gt', id, a: buildExpression(kids[0]!, options), b: buildExpression(kids[1]!, options) };
 		}
 		case 'gte': {
-			return { kind: 'expr.gte', id, a: buildExpression(kids[0]!), b: buildExpression(kids[1]!) };
+			return { kind: 'expr.gte', id, a: buildExpression(kids[0]!, options), b: buildExpression(kids[1]!, options) };
 		}
 		case 'and': {
 			return { kind: 'expr.and', id, ops: kids.map((k) => buildExpression(k, options)) };
@@ -766,7 +766,7 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 			return { kind: 'expr.or', id, ops: kids.map((k) => buildExpression(k, options)) };
 		}
 		case 'not': {
-			return { kind: 'expr.not', id, expr: buildExpression(kids[0]!) };
+			return { kind: 'expr.not', id, expr: buildExpression(kids[0]!, options) };
 		}
 		case 'anyn': {
 			// QTI anyN: true if min <= #true(children) <= max
@@ -783,17 +783,17 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 			return { kind: 'expr.sum', id, values: kids.map((k) => buildExpression(k, options)) };
 		}
 		case 'subtract': {
-			return { kind: 'expr.subtract', id, a: buildExpression(kids[0]!), b: buildExpression(kids[1]!) };
+			return { kind: 'expr.subtract', id, a: buildExpression(kids[0]!, options), b: buildExpression(kids[1]!, options) };
 		}
 		case 'product': {
 			return { kind: 'expr.product', id, values: kids.map((k) => buildExpression(k, options)) };
 		}
 		case 'divide': {
-			return { kind: 'expr.divide', id, a: buildExpression(kids[0]!), b: buildExpression(kids[1]!) };
+			return { kind: 'expr.divide', id, a: buildExpression(kids[0]!, options), b: buildExpression(kids[1]!, options) };
 		}
 		case 'random': {
 			if (kids.length !== 1) throw new Error('<random> requires exactly one child expression');
-			return { kind: 'expr.random', id, value: buildExpression(kids[0]!) };
+			return { kind: 'expr.random', id, value: buildExpression(kids[0]!, options) };
 		}
 		case 'max': {
 			return { kind: 'expr.max', id, values: kids.map((k) => buildExpression(k, options)) };
@@ -802,10 +802,10 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 			return { kind: 'expr.min', id, values: kids.map((k) => buildExpression(k, options)) };
 		}
 		case 'round': {
-			return { kind: 'expr.round', id, value: buildExpression(kids[0]!) };
+			return { kind: 'expr.round', id, value: buildExpression(kids[0]!, options) };
 		}
 		case 'truncate': {
-			return { kind: 'expr.truncate', id, value: buildExpression(kids[0]!) };
+			return { kind: 'expr.truncate', id, value: buildExpression(kids[0]!, options) };
 		}
 		case 'mapresponse': {
 			return { kind: 'expr.mapResponse', id, identifier: getAttr(el, 'identifier') || '' };

@@ -35,7 +35,7 @@ The transformation framework and tooling are functional but under active develop
 
 ## Test signal
 
-- ✅ **Default-components evals**: YAML specs in `docs/evals/default-components/*/evals.yaml` executed by Playwright runner in `packages/example/tests/playwright/default-components-evals.pw.ts` (currently **49** cases)
+- ✅ **Default-components evals**: YAML specs in `docs/evals/default-components/*/evals.yaml` executed by Playwright runner in `apps/demo/tests/playwright/default-components-evals.pw.ts` (currently **49** cases)
 - ✅ **Assessment-player evals**: YAML specs in `docs/evals/assessment-player/*/evals.yaml` (currently **15** cases)
 - ✅ **i18n evals**: YAML specs in `docs/evals/i18n/*/evals.yaml` testing internationalization across 8 locales (currently **14** cases)
 - ✅ **Settings UI evals**: YAML specs in `docs/evals/settings-ui/*/evals.yaml` testing theme and locale switching UI (currently **7** cases)
@@ -56,8 +56,8 @@ The transformation framework and tooling are functional but under active develop
 ## Deployment
 
 - ✅ GitHub Pages: docs site deployed under `/pie-qti/` and examples deployed under `/pie-qti/examples/` via `.github/workflows/deploy-pages.yml`
-  - docs build output: `packages/docs-site/build`
-  - examples build output: `packages/example/build`
+  - docs build output: `apps/docs/build`
+  - examples build output: `apps/demo/build`
 
 ---
 

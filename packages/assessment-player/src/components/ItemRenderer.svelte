@@ -6,7 +6,7 @@
 	import { Player, type PlayerSecurityConfig, type QTIRole } from '@pie-qti/item-player';
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import { onMount } from 'svelte';
-	import type { QuestionRef } from '../types/index.js';
+	import type { ItemRef } from '../types/index.js';
 
 	/**
 	 * Ensure default interaction web components are registered (browser-only).
@@ -30,7 +30,7 @@
 	});
 
 	interface Props {
-		questionRef: QuestionRef;
+		itemRef: ItemRef;
 		role?: QTIRole;
 		extendedTextEditor?: string;
 		/** Responses for the current item (keyed by responseIdentifier). */
@@ -45,7 +45,7 @@
 	}
 
 	const {
-		questionRef,
+		itemRef,
 		role = 'candidate',
 		extendedTextEditor: _extendedTextEditor,
 		responses = {},
@@ -55,15 +55,15 @@
 		security,
 	}: Props = $props();
 
-	// Derive player from questionRef
+	// Derive player from itemRef
 	let playerData = $derived.by(() => {
-		if (!questionRef.itemXml) {
+		if (!itemRef.itemXml) {
 			return { player: null, error: 'No item XML provided' };
 		}
 
 		try {
 			const newPlayer = new Player({
-				itemXml: questionRef.itemXml,
+				itemXml: itemRef.itemXml,
 				role,
 				security,
 			});
@@ -115,9 +115,9 @@
 	</div>
 {:else}
 	<div class="item-container">
-		{#if questionRef.title}
+		{#if itemRef.title}
 			<div class="item-header">
-				<h3 class="text-lg font-semibold mb-4">{questionRef.title}</h3>
+				<h3 class="text-lg font-semibold mb-4">{itemRef.title}</h3>
 			</div>
 		{/if}
 

@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/i18n",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Internationalization (i18n) package for PIE-QTI player ecosystem",
   "type": "module",
   "main": "./dist/index.js",
@@ -11,11 +11,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./components/*": "./dist/components/*",
+    "./components/*": "./src/components/*",
     "./locales/*": "./dist/locales/*"
   },
   "scripts": {
-    "build": "bun run check-translations && tsc",
+    "build": "if [ \"$PIE_QTI_DEV_FAST_BUILD\" = \"1\" ]; then tsc; else bun run check-translations && tsc; fi",
     "build:skip-check": "tsc",
     "clean": "rm -rf dist",
     "test": "bun test tests",
@@ -26,17 +26,39 @@
   },
   "keywords": [
     "pie",
-    "qti", "qti2", "qti3",
+    "qti",
+    "qti2",
+    "qti3",
     "i18n",
     "internationalization",
     "localization"
   ],
   "license": "MIT",
   "dependencies": {
-    "svelte": "^5.46.1"
+    "svelte": "^5.54.0"
   },
   "devDependencies": {
     "typescript": "^5.9.3",
-    "@types/bun": "latest"
-  }
+    "@types/bun": "^1.3.11"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pie-framework/pie-qti.git",
+    "directory": "packages/i18n"
+  },
+  "homepage": "https://github.com/pie-framework/pie-qti/tree/master/packages/i18n",
+  "bugs": {
+    "url": "https://github.com/pie-framework/pie-qti/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "files": [
+    "dist",
+    "src/components"
+  ]
 }

@@ -10,7 +10,10 @@
 import type { MathfieldElement } from 'mathlive';
 import type { I18nProvider } from '@pie-qti/i18n';
 
-const DEFAULT_MATHLIVE_CSS_URL = 'https://cdn.jsdelivr.net/npm/mathlive@0.108.2/dist/mathlive-static.css';
+// Import MathLive CSS from the local package
+import 'mathlive/mathlive-static.css';
+
+const DEFAULT_MATHLIVE_CSS_URL = ''; // No longer needed - CSS is imported above
 
 // Dynamically import MathLive to register the custom element
 let mathLiveLoaded: Promise<void> | null = null;
@@ -21,8 +24,8 @@ async function ensureMathLiveLoaded(cssUrl: string = DEFAULT_MATHLIVE_CSS_URL): 
 			// Import MathLive to register the <math-field> custom element
 			await import('mathlive');
 
-			// Load MathLive CSS if not already loaded
-			if (!document.querySelector('link[href*="mathlive"]')) {
+			// CSS is already imported at the top of this file, but allow custom URL if provided
+			if (cssUrl && !document.querySelector('link[href*="mathlive"]')) {
 				const link = document.createElement('link');
 				link.rel = 'stylesheet';
 				link.href = cssUrl;

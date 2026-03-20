@@ -8,14 +8,14 @@ import type {
   TransformContext,
   TransformFormat,
   TransformInput,
-  TransformLogger,
   TransformPlugin,
   WorkflowOrchestrator,
   WorkflowHandle,
   StorageBackend,
 } from '@pie-qti/transform-types';
+import type { ServerLogger } from '@pie-qti/logger/server';
+import { ConsoleLogger } from '@pie-qti/logger/server';
 import { PluginRegistry } from '../registry/plugin-registry.js';
-import { ConsoleLogger } from '../utils/logger.js';
 import type { FormatDetector } from '../registry/format-detector-registry.js';
 import { FormatDetectorRegistry } from '../registry/format-detector-registry.js';
 import { QtiDetector } from '../detectors/qti-detector.js';
@@ -35,7 +35,7 @@ export interface TransformOptions {
   vendor?: string;
 
   /** Logger instance */
-  logger?: TransformLogger;
+  logger?: ServerLogger;
 
   /** Additional options */
   [key: string]: any;
@@ -44,7 +44,7 @@ export interface TransformOptions {
 export class TransformEngine {
   private registry: PluginRegistry;
   private formatDetectorRegistry: FormatDetectorRegistry;
-  private defaultLogger: TransformLogger;
+  private defaultLogger: ServerLogger;
   private orchestrator: WorkflowOrchestrator;
   private storage?: StorageBackend;
 

@@ -10,7 +10,7 @@ export type QTIRole = import('@pie-qti/item-player').QTIRole;
 /**
  * Minimal item reference shape used by the UI renderer.
  */
-export interface QuestionRef {
+export interface ItemRef {
 	identifier: string;
 	title?: string;
 	required?: boolean;

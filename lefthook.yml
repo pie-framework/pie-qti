@@ -1,0 +1,16 @@
+pre-commit:
+  parallel: true
+  commands:
+    svelte-check:
+      glob: "{apps,packages}/**/*.{js,ts,svelte,css}"
+      run: bun run check
+    check-deps:
+      run: bun run check:deps
+    check-package-metadata:
+      run: bun run check:package-metadata
+
+pre-push:
+  parallel: false
+  commands:
+    check-publint:
+      run: bun run check:publint

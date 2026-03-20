@@ -21,5 +21,27 @@
   "license": "MIT",
   "dependencies": {
     "katex": "^0.16.27"
-  }
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pie-framework/pie-qti.git",
+    "directory": "packages/typeset-katex"
+  },
+  "homepage": "https://github.com/pie-framework/pie-qti/tree/master/packages/typeset-katex",
+  "bugs": {
+    "url": "https://github.com/pie-framework/pie-qti/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "files": [
+    "dist"
+  ]
 }

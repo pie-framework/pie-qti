@@ -242,7 +242,7 @@ TEST_PERF_SINGLE=150 TEST_PERF_BATCH=750 bun test
 
 ## Fixtures
 
-Integration tests use QTI samples that live in this repository under `packages/transform-app/static/samples/`
+Integration tests use QTI samples that live in this repository under `apps/transform/static/samples/`
 (plus a few minimal inline XML snippets) to validate transformations without pulling in third-party fixtures/licenses.
 
 ## Troubleshooting

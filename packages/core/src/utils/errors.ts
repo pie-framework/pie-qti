@@ -15,7 +15,6 @@ export interface CreateErrorOptions {
 	itemId?: string;
 	category: ErrorCategory;
 	recoverable?: boolean;
-	fatal?: boolean;
 	cause?: Error;
 	context?: Record<string, unknown>;
 }
@@ -30,7 +29,6 @@ export function createError(options: CreateErrorOptions): TransformError {
 		itemId: options.itemId,
 		category: options.category,
 		recoverable: options.recoverable ?? isRecoverableByDefault(options.category),
-		fatal: options.fatal ?? isFatalByDefault(options.category),
 		cause: options.cause,
 		context: options.context,
 	};
@@ -47,7 +45,6 @@ export function createValidationError(
 		message,
 		category: ErrorCategory.VALIDATION,
 		recoverable: true,
-		fatal: false,
 		...options,
 	});
 }
@@ -63,7 +60,6 @@ export function createConfigurationError(
 		message,
 		category: ErrorCategory.CONFIGURATION,
 		recoverable: false,
-		fatal: true,
 		...options,
 	});
 }
@@ -79,7 +75,6 @@ export function createInternalError(
 		message,
 		category: ErrorCategory.INTERNAL,
 		recoverable: false,
-		fatal: true,
 		...options,
 	});
 }
@@ -95,7 +90,6 @@ export function createExternalError(
 		message,
 		category: ErrorCategory.EXTERNAL,
 		recoverable: true,
-		fatal: false,
 		...options,
 	});
 }
@@ -110,20 +104,6 @@ function isRecoverableByDefault(category: ErrorCategory): boolean {
 			return true;
 		case ErrorCategory.CONFIGURATION:
 		case ErrorCategory.INTERNAL:
-			return false;
-	}
-}
-
-/**
- * Check if error is fatal by default based on category
- */
-function isFatalByDefault(category: ErrorCategory): boolean {
-	switch (category) {
-		case ErrorCategory.CONFIGURATION:
-		case ErrorCategory.INTERNAL:
-			return true;
-		case ErrorCategory.VALIDATION:
-		case ErrorCategory.EXTERNAL:
 			return false;
 	}
 }
@@ -148,7 +128,7 @@ export function shouldShowToUser(error: TransformError): boolean {
 export function shouldNotifyOps(error: TransformError): boolean {
 	return (
 		error.category === ErrorCategory.CONFIGURATION ||
-		(error.category === ErrorCategory.INTERNAL && error.fatal)
+		error.category === ErrorCategory.INTERNAL
 	);
 }
 

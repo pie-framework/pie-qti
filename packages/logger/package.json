@@ -1,35 +1,33 @@
 {
   "name": "@pie-qti/logger",
-  "version": "0.1.0",
-  "description": "Universal logging utilities for PIE QTI (browser + Node.js)",
-  "type": "module",
+  "version": "0.1.1",
   "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
     "./browser": {
       "types": "./dist/browser.d.ts",
+      "import": "./dist/browser.js",
       "default": "./dist/browser.js"
     },
     "./server": {
       "types": "./dist/server.d.ts",
+      "import": "./dist/server.js",
       "default": "./dist/server.js"
     }
   },
+  "description": "Universal logging utilities for PIE QTI (browser + Node.js)",
   "files": [
     "dist",
     "src",
     "README.md"
   ],
-  "scripts": {
-    "build": "tsc",
-    "test": "bun test",
-    "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist"
-  },
   "keywords": [
     "qti",
     "logger",
@@ -38,7 +36,28 @@
     "isomorphic"
   ],
   "license": "MIT",
-  "devDependencies": {
-    "typescript": "^5.9.3"
+  "scripts": {
+    "build": "tsc",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pie-framework/pie-qti.git",
+    "directory": "packages/logger"
+  },
+  "homepage": "https://github.com/pie-framework/pie-qti/tree/master/packages/logger",
+  "bugs": {
+    "url": "https://github.com/pie-framework/pie-qti/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20.19.0"
   }
 }

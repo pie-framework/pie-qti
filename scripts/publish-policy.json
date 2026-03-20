@@ -1,0 +1,18 @@
+{
+	"requiredPublishConfigAccess": "public",
+	"requiredFields": ["license", "homepage", "bugs", "files", "sideEffects"],
+	"requireRepositoryDirectory": true,
+	"requireExportsOrMainTypes": true,
+	"requireNodeEngine": true,
+	"defaultNodeEngine": ">=20.19.0",
+	"workspaceRoots": ["packages", "tools"],
+	"publishablePackageNamePrefix": "@pie-qti/",
+	"allowedSourceExportPackages": [
+		"@pie-qti/item-player",
+		"@pie-qti/assessment-player",
+		"@pie-qti/default-components",
+		"@pie-qti/i18n"
+	],
+	"allowedUndeclaredRuntimeImports": {},
+	"attwSuppressInternalResolutionPackages": ["@pie-qti/item-player"]
+}

@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/ims-cp-core",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Core IMS Content Package manifest parsing utilities (browser + Node.js)",
   "type": "module",
   "main": "./dist/index.js",
@@ -27,9 +27,31 @@
     "@pie-qti/logger": "workspace:*",
     "node-html-parser": "^6.1.13"
   },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  },
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pie-framework/pie-qti.git",
+    "directory": "packages/ims-cp-core"
+  },
+  "homepage": "https://github.com/pie-framework/pie-qti/tree/master/packages/ims-cp-core",
+  "bugs": {
+    "url": "https://github.com/pie-framework/pie-qti/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "files": [
+    "dist"
+  ]
 }

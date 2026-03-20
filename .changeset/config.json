@@ -2,10 +2,34 @@
   "$schema": "https://unpkg.com/@changesets/config@3.1.2/schema.json",
   "changelog": "@changesets/cli/changelog",
   "commit": false,
-  "fixed": [],
+  "fixed": [
+    [
+      "@pie-qti/assessment-player",
+      "@pie-qti/default-components",
+      "@pie-qti/demo-vendor-extensions",
+      "@pie-qti/element-schemas",
+      "@pie-qti/i18n",
+      "@pie-qti/ims-cp-browser",
+      "@pie-qti/ims-cp-core",
+      "@pie-qti/ims-cp-node",
+      "@pie-qti/item-player",
+      "@pie-qti/logger",
+      "@pie-qti/pie-to-qti2",
+      "@pie-qti/player-elements",
+      "@pie-qti/qti-common",
+      "@pie-qti/qti-processing",
+      "@pie-qti/storage",
+      "@pie-qti/test-utils",
+      "@pie-qti/to-pie",
+      "@pie-qti/transform-core",
+      "@pie-qti/transform-types",
+      "@pie-qti/typeset-katex",
+      "@pie-qti/web-component-loaders"
+    ]
+  ],
   "linked": [],
   "access": "public",
   "baseBranch": "master",
   "updateInternalDependencies": "patch",
-  "ignore": ["@acme/likert-scale-plugin", "@pie-qti/example", "@pie-qti/transform-cli"]
+  "ignore": ["@acme/likert-scale-plugin", "@pie-qti/app-demo", "@pie-qti/transform-cli"]
 }

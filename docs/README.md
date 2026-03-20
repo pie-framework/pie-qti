@@ -4,31 +4,6 @@ This directory contains the **active** documentation for the PIE QTI / transform
 
 ## Current Documents
 
-### [PLUGIN_API.md](./PLUGIN_API.md)
-
-Runtime plugin API for the QTI 2.2 Item Player (`@pie-qti/item-player`). Documents:
-
-- Custom element detection at render time
-- Custom interaction renderers
-- Lifecycle hooks and data transformers
-- Plugin registration and dependency management
-
-**Status:** Active API documentation
-**Last Updated:** 2025-12-31
-
-### [BATCH_PROCESSOR_ARCHITECTURE.md](./BATCH_PROCESSOR_ARCHITECTURE.md)
-
-Comprehensive architecture and implementation plan for the QTI Batch Processor web application. This is the primary design document for the web interface that handles:
-
-- QTI package upload (ZIP files and directories)
-- Package analysis and structure inspection
-- Batch transformation to PIE format
-- Preview capabilities (PIE Player)
-- Results browsing and export
-
-**Status:** Active design document
-**Last Updated:** 2025-12-25
-
 ### [TRANSFORMATION-ENGINE.md](./TRANSFORMATION-ENGINE.md)
 
 Complete architecture guide for the QTI transformation framework. Documents:
@@ -72,33 +47,25 @@ Developer guide for building vendor-specific transform plugins. Includes:
 
 ### Other active docs in this folder
 
-- `QTI_2.2_techguide.md` (technical reference)
+- `QTI_techguide.md` (technical reference — covers QTI 2.1, 2.2, and 3.0)
 - `IMS_Content_Packages_techguide.md` (IMS Content Packaging)
 - `LOM_techguide.md` (IEEE LOM metadata)
-- `QTI_PLAYER_PLUGIN_SYSTEM.md` (player extensibility concepts)
-- `QTI_PLAYER_ENCAPSULATION_REVIEW.md` (player integration notes)
-- `QTI_EXTENSIONS_INVENTORY.md` (extension inventory)
-- `QTI-BACKEND-DESIGN.md` (backend design)
 - `QTI-RESPONSE-TRACKING-AND-SCORING.md` (scoring/response tracking)
-- `SAMPLES_FEATURE.md` (samples feature)
-- `SESSION_MANAGEMENT.md` (session management)
+- `QTI-3-MIGRATION-GUIDE.md` (QTI 3.0 support and unified architecture)
 - `ARCHITECTURE.md` (overall system architecture)
-- `CONFIGURATION.md` (storage backends and configuration)
-- `MIGRATION_GUIDE.md` (upgrading from legacy storage)
 
 ## Quick Links
 
 ### For Developers
 
 - **Getting Started:** See main [README.md](../README.md) in repo root
-- **Web App Development:** Follow BATCH_PROCESSOR_ARCHITECTURE.md phases
+- **App deployability checks:** See root `verify:apps:deploy` command (builds docs/demo/transform production outputs)
+- **Publish verification:** [development/publish-verification.md](./development/publish-verification.md) — `verify:publish`, publint, attw, pack checks
 - **CLI Tools:** See `tools/cli/README.md`
 
 ### Specs (local snapshots for fast search / LLM use)
 
 We keep **local, greppable snapshots** of key specs so agents and devs can reference them without relying on external browsing:
-
-- **Index**: See [SPEC_SNAPSHOTS.md](./SPEC_SNAPSHOTS.md)
 
 - **QTI 2.2.2 (target) — extracted from official 1EdTech ZIP**:
   - `docs/specs/qti2.2.2/qtiv2p2/imsqti_v2p2_oview.md` (overview, LLM-friendly)
@@ -109,10 +76,10 @@ We keep **local, greppable snapshots** of key specs so agents and devs can refer
 
 ### For Understanding the Codebase
 
-1. Start with BATCH_PROCESSOR_ARCHITECTURE.md for overall design
+1. Start with ARCHITECTURE.md for overall design
 2. Review code in `packages/` for implementation details
-3. Check `packages/to-pie/src/transformers/` for QTI transformation logic
-4. See PLUGIN_API.md if adding custom runtime interactions
+3. Check `packages/to-pie/src/` for QTI → PIE transformation logic
+4. Check `packages/item-player/src/core/Plugin.ts` if adding custom runtime interactions
 
 ## Document Maintenance
 

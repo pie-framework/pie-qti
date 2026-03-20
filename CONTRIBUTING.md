@@ -7,7 +7,7 @@ Thank you for your interest in contributing to the PIE-QTI project! This documen
 ### Prerequisites
 
 - **Bun** ≥1.1.0 (package manager and runtime)
-- **Node.js** ≥18.0.0 (for compatibility)
+- **Node.js** ≥20.19.0 (for compatibility)
 - **Git** for version control
 
 ### Getting Started
@@ -35,7 +35,7 @@ Thank you for your interest in contributing to the PIE-QTI project! This documen
 
 5. **Start development server**
    ```bash
-   cd packages/example
+   cd apps/demo
    bun run dev
    ```
 
@@ -46,8 +46,8 @@ This is a monorepo with multiple packages:
 - **`packages/item-player/`** - Core item player (21 interaction types)
 - **`packages/assessment-player/`** - Multi-item assessment player
 - **`packages/player-elements/`** - Web component wrappers
-- **`packages/example/`** - Demo application
-- **`packages/transform-app/`** - Transform web UI (includes QTI package upload and manifest parsing)
+- **`apps/demo/`** - Demo application
+- **`apps/transform/`** - Transform web UI (includes QTI package upload and manifest parsing)
 
 ## Code Standards
 

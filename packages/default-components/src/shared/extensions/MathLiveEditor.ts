@@ -10,6 +10,8 @@
  */
 
 import type { MathfieldElement } from 'mathlive';
+// Import MathLive CSS from the local package
+import 'mathlive/static.css';
 
 // Dynamically import MathLive to register the custom element
 let mathLiveLoaded: Promise<void> | null = null;
@@ -18,15 +20,8 @@ async function ensureMathLiveLoaded(): Promise<void> {
 	if (!mathLiveLoaded && typeof window !== 'undefined') {
 		mathLiveLoaded = (async () => {
 			// Import MathLive to register the <math-field> custom element
+			// CSS is already imported at the top of this file
 			await import('mathlive');
-
-			// Load MathLive CSS if not already loaded
-			if (!document.querySelector('link[href*="mathlive"]')) {
-				const link = document.createElement('link');
-				link.rel = 'stylesheet';
-				link.href = 'https://cdn.jsdelivr.net/npm/mathlive@0.108.2/dist/mathlive-static.css';
-				document.head.appendChild(link);
-			}
 		})();
 	}
 	return mathLiveLoaded || Promise.resolve();

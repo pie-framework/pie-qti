@@ -44,7 +44,7 @@ Available themes:
 
 ### Run all settings UI evals
 ```bash
-cd packages/example
+cd apps/demo
 bun run test:e2e -- docs/evals/qti-settings-ui
 ```
 
@@ -65,7 +65,7 @@ bun run test:e2e:ui -- docs/evals/qti-settings-ui
 ## Implementation Details
 
 ### Component Location
-- **File**: `packages/example/src/lib/components/SettingsMenu.svelte`
+- **File**: `apps/demo/src/lib/components/SettingsMenu.svelte`
 - **Location**: Top-right corner of navbar (gear icon)
 
 ### localStorage Keys
@@ -114,9 +114,9 @@ All evals include spirit checks to validate:
 
 ## Related Documentation
 
-- **SettingsMenu component**: `packages/example/src/lib/components/SettingsMenu.svelte`
+- **SettingsMenu component**: `apps/demo/src/lib/components/SettingsMenu.svelte`
 - **i18n system**: `docs/evals/i18n/README.md`
-- **Root layout**: `packages/example/src/routes/+layout.svelte`
+- **Root layout**: `apps/demo/src/routes/+layout.svelte`
 
 ## Notes for Test Runners
 
