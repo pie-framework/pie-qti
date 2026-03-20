@@ -258,7 +258,7 @@ jobs:
       - name: Notify Slack on Successful Publish
         if: steps.changesets.outputs.published == 'true'
         continue-on-error: true
-        uses: slackapi/slack-github-action@v1.27.0
+        uses: slackapi/slack-github-action@v3.0.1
         with:
           payload: |
             {
@@ -305,7 +305,7 @@ jobs:
       - name: Notify Slack on Release Failure
         if: failure()
         continue-on-error: true
-        uses: slackapi/slack-github-action@v1.27.0
+        uses: slackapi/slack-github-action@v3.0.1
         with:
           payload: |
             {
