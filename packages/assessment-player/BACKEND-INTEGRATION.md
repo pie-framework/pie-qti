@@ -1,6 +1,6 @@
 ## Backend Integration Guide
 
-Complete guide for integrating the QTI 2.2 Assessment Player with secure backend services.
+Complete guide for integrating the QTI assessment player with secure backend services.
 
 ---
 
@@ -28,7 +28,7 @@ Complete guide for integrating the QTI 2.2 Assessment Player with secure backend
 
 ### No Backend Required
 
-**The QTI 2.2 Assessment Player works completely standalone by default.**
+**The QTI assessment player works completely standalone by default.**
 
 Perfect for:
 - 🎨 **Demos and prototypes** - Quick integration without infrastructure
@@ -95,7 +95,7 @@ The assessment player follows a **zero-trust security model** where:
 
 ### Role-Based Data Filtering
 
-The server MUST filter data based on QTI 2.2 roles:
+The server MUST filter data based on QTI role/view actors:
 
 | Role | Can See Correct Answers | Can See Scores | Can See Solutions |
 |------|------------------------|----------------|-------------------|

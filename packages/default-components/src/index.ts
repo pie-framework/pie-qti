@@ -1,7 +1,7 @@
 /**
  * @pie-qti/default-components
  *
- * Default Svelte-based component implementations for the QTI 2.x player.
+ * Default Svelte-based component implementations for the QTI player.
  * These components are packaged as web components that work with the
  * framework-agnostic @pie-qti/item-player core.
  */

@@ -17,7 +17,7 @@
 			<div>
 				<h1 class="text-4xl lg:text-5xl font-bold tracking-tight">PIE-QTI</h1>
 				<p class="mt-4 text-lg opacity-80">
-					Production-ready <strong>QTI 2.x players</strong> and a <strong>PIE ↔ QTI 2.2</strong> transformation framework.
+					Production-ready <strong>QTI 2.2/3.0 players</strong> and a <strong>PIE ↔ QTI 2.2</strong> transformation framework.
 				</p>
 
 				<div class="mt-6 flex flex-wrap gap-2">
@@ -115,7 +115,7 @@
 
 			<div class="card bg-base-100 shadow">
 				<div class="card-body">
-					<h2 class="card-title">QTI 2.x Players</h2>
+					<h2 class="card-title">QTI Players (2.2/3.0)</h2>
 					<ul class="mt-2 space-y-1 opacity-80">
 						<li><strong>Item player</strong>: 21 interaction types, 45 operators, role-based rendering</li>
 						<li><strong>Assessment player</strong>: sections, navigation rules, submission modes, scoring</li>

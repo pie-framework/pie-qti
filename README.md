@@ -1,6 +1,6 @@
 # PIE-QTI
 
-![QTI 2.x & 3.0 Support](https://img.shields.io/badge/QTI%202.x%20%26%203.0-Supported-success)
+![QTI 2.2 & 3.0 Support](https://img.shields.io/badge/QTI%202.2%20%26%203.0-Supported-success)
 ![Interactions](https://img.shields.io/badge/Interactions-21%2F21-success)
 ![Tests](https://img.shields.io/badge/Tests-1112%2B-success)
 ![Accessibility](https://img.shields.io/badge/Accessibility-Tested-blue)
@@ -8,14 +8,14 @@
 
 This project provides two major capabilities:
 
-1. **QTI 2.x & 3.0 Players** — Production-ready item and assessment players with unified version-agnostic architecture
+1. **QTI 2.2 & 3.0 Players** — Production-ready item and assessment players with unified version-agnostic architecture
 2. **PIE ↔ QTI Transformation Framework** — Bidirectional transforms between QTI and PIE, with CLI, web app, and IMS Content Package support
 
 📚 **[Live Examples](https://qti.pie-framework.org/examples/)**
 
 ![QTI Player Examples](docs/images/examples-screenshot-1.png)
 
-> **Project Status**: QTI 2.x players are production-ready. Transform framework is under active development. See [STATUS.md](STATUS.md) for details.
+> **Project Status**: QTI players are production-ready. Transform framework is under active development. See [STATUS.md](STATUS.md) for details.
 
 ---
 
@@ -30,24 +30,24 @@ This project provides two major capabilities:
 
 Many Renaissance partners exchange content in **QTI format**, so bidirectional QTI ↔ PIE transformation is essential. This project **open sources that transformation framework** for partners and the broader community.
 
-We also built a **spec-complete QTI 2.x player** because a modern, open-source option was missing—and we needed one for previewing, analysis, and "convert then render" workflows.
+We also built a **spec-complete QTI player** because a modern, open-source option was missing—and we needed one for previewing, analysis, and "convert then render" workflows.
 
 ---
 
-## Part 1: QTI Players (2.x & 3.0)
+## Part 1: QTI Players (2.2 & 3.0)
 
-> **Status**: Production-ready (QTI 2.x); QTI 3.0 infrastructure complete, player enhancements in progress
+> **Status**: Production-ready (QTI 2.2); QTI 3.0 infrastructure complete, player enhancements in progress
 
-Full-featured players for rendering QTI 2.x and 3.0 assessment content in the browser.
+Full-featured players for rendering QTI 2.2 and 3.0 assessment content in the browser.
 
 ### Version-Agnostic Architecture
 
-The players use a unified architecture that supports both QTI 2.x and 3.0 through automatic version detection:
+The players use a unified architecture that supports both QTI 2.2 and 3.0 through automatic version detection:
 
-- **QTI 2.x** — camelCase elements (`choiceInteraction`, `itemBody`)
+- **QTI 2.2 syntax family** — camelCase elements (`choiceInteraction`, `itemBody`)
 - **QTI 3.0** — kebab-case with `qti-` prefix (`qti-choice-interaction`, `qti-item-body`)
 - **Common Internal Model** — Both versions convert to the same canonical representation
-- **Zero Breaking Changes** — Existing QTI 2.x code continues to work unchanged
+- **Zero Breaking Changes** — Existing QTI 2.2 code continues to work unchanged
 
 See [`@pie-qti/qti-common`](packages/qti-common/README.md) for the version abstraction layer.
 
@@ -57,7 +57,7 @@ Renders and scores individual QTI items:
 
 - **21 interaction types** — All QTI 2.2 interactions supported
 - **45 response processing operators** — Complete client-side scoring
-- **Role-based rendering** — Candidate, scorer, author, tutor, proctor, testConstructor
+- **Role/view-aware rendering** — candidate, scorer, author, tutor, proctor, testConstructor
 - **Adaptive items** — Multi-attempt workflows with progressive feedback
 - **Accessible** — Full keyboard navigation and screen reader support (follows WCAG 2.2 Level AA guidelines)
 - **Iframe isolation mode** — Optional secure rendering for untrusted content
@@ -133,7 +133,7 @@ See [Transformation Engine Documentation](docs/TRANSFORMATION-ENGINE.md) for com
 
 **QTI → PIE** (`@pie-qti/to-pie`)
 
-- Supports QTI 2.x and 3.0 (auto-detected)
+- Supports QTI 2.2 and 3.0 (auto-detected)
 - Lossless round-trip when QTI originated from PIE
 - Best-effort semantic transformation otherwise
 - Vendor extension system for custom QTI variants
@@ -262,7 +262,7 @@ bun run preview:pages
 
 - **[Item Player](packages/item-player/README.md)** — API, interactions, accessibility
 - **[Assessment Player](packages/assessment-player/README.md)** — Navigation, scoring, backend integration
-- **[QTI Common](packages/qti-common/README.md)** — Version abstraction layer (QTI 2.x & 3.0)
+- **[QTI Common](packages/qti-common/README.md)** — Version abstraction layer (QTI 2.2 & 3.0)
 - **[Styling Contract](packages/default-components/STYLING.md)** — Theming with CSS variables and ::part
 - **[Example App](apps/demo/README.md)** — Demo application with all interactions
 

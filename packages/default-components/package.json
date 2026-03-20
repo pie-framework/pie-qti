@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/default-components",
-  "version": "0.1.1",
+  "version": "0.1.4",
   "description": "Default Svelte-based component implementations for QTI (2.x and 3.0) player",
   "type": "module",
   "main": "./dist/index.js",

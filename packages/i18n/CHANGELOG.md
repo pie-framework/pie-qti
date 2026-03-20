@@ -1,4 +1,4 @@
-# @pie-qti/element-schemas
+# @pie-qti/i18n
 
 ## 0.1.4
 
@@ -17,9 +17,3 @@
 ### Patch Changes
 
 - Temporary release changeset: patch all publishable packages to keep lockstep versions.
-
-## 0.1.1
-
-### Patch Changes
-
-- 2243643: Publish the initial public release of all publishable PIE-QTI packages.

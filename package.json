@@ -2,7 +2,7 @@
   "name": "pie-qti",
   "version": "0.1.0",
   "private": true,
-  "description": "Production-ready QTI 2.x players and transformation tools",
+  "description": "Production-ready QTI 2.2/3.0 players and transformation tools",
   "repository": {
     "type": "git",
     "url": "https://github.com/pie-framework/pie-qti.git"

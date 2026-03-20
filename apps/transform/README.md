@@ -48,7 +48,7 @@ bun run dev:transform
 
 ### 4. Preview
 
-- **QTI Preview** — Renders the original QTI using the QTI 2.x players
+- **QTI Preview** — Renders the original QTI using the QTI player stack
 - **PIE Preview** — Renders the transformed PIE using PIE players
 - Compare rendering side-by-side to verify transformation quality
 

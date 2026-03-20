@@ -6,6 +6,7 @@
 	import { processFeedbackInline } from './utils/feedbackUtils';
 	import { typesetAction } from './actions/typesetAction';
 	import { assignProps } from './utils/assignProps';
+	import { getRoleCapabilities } from '../core/rolePolicy';
 
 	interface Props {
 		player: Player;
@@ -36,13 +37,15 @@
 
 	// Get the component registry from the player
 	const componentRegistry = $derived(player.getComponentRegistry());
+	const roleCapabilities = $derived(getRoleCapabilities(role));
+	const effectiveDisabled = $derived(disabled || roleCapabilities.isReadOnly);
 
 	// Process interactions
 	const interactions = $derived<InteractionData[]>(player.getInteractionData());
 
-	// Get correct responses when role is scorer
+	// Get correct responses for roles allowed by policy.
 	const correctResponses = $derived.by(() => {
-		return role === 'scorer' ? player.getCorrectResponses() : {};
+		return roleCapabilities.canViewCorrectResponses ? player.getCorrectResponses() : {};
 	});
 
 	// Get components for block-level interactions only (not inline interactions)
@@ -249,8 +252,8 @@
 				{#if segment.type === 'html'}
 					{@html segment.content}
 				{:else if segment.type === 'textEntry'}
-					{@const correctAnswer = role === 'scorer' ? (correctResponses[segment.interaction.responseId] ?? null) : null}
-					{@const displayValue = role === 'scorer' && correctAnswer !== null ? correctAnswer : (responses[segment.interaction.responseId] || '')}
+					{@const correctAnswer = roleCapabilities.canViewCorrectResponses ? (correctResponses[segment.interaction.responseId] ?? null) : null}
+					{@const displayValue = roleCapabilities.canViewCorrectResponses && correctAnswer !== null ? correctAnswer : (responses[segment.interaction.responseId] || '')}
 					<input
 						type="text"
 						class="input input-bordered input-sm inline-input"
@@ -262,12 +265,12 @@
 						aria-label={`Text entry ${segment.interaction.responseId}${correctAnswer ? '. Correct answer: ' + correctAnswer : ''}`}
 						value={displayValue}
 						oninput={(e) => handleTextEntryInput(segment.interaction.responseId, e)}
-						{disabled}
+						disabled={effectiveDisabled}
 					/>
 				{:else if segment.type === 'inlineChoice'}
-					{@const correctAnswer = role === 'scorer' ? (correctResponses[segment.interaction.responseId] ?? null) : null}
+					{@const correctAnswer = roleCapabilities.canViewCorrectResponses ? (correctResponses[segment.interaction.responseId] ?? null) : null}
 					{@const userResponse = responses[segment.interaction.responseId] || ''}
-					{@const displayValue = role === 'scorer' && correctAnswer !== null ? correctAnswer : userResponse}
+					{@const displayValue = roleCapabilities.canViewCorrectResponses && correctAnswer !== null ? correctAnswer : userResponse}
 					{@const correctChoice = findCorrectChoice(segment.interaction.choices, correctAnswer)}
 					<span class="inline-choice-wrapper" style="display: inline-block; position: relative;">
 						<select
@@ -279,7 +282,7 @@
 							aria-label={`Inline choice ${segment.interaction.responseId}${correctAnswer && correctChoice ? '. Correct answer: ' + (correctChoice as any).text : ''}`}
 							value={displayValue}
 							onchange={(e) => handleInlineChoiceChange(segment.interaction.responseId, e)}
-							{disabled}
+							disabled={effectiveDisabled}
 						>
 							<option value="">{i18n?.t('interactions.inline.selectPlaceholder', 'Select...')}</option>
 							{#each segment.interaction.choices as choice}
@@ -310,11 +313,11 @@
 				typeset,
 				interaction,
 				response: responses[interaction.responseId] ?? null,
-				correctResponse: role === 'scorer' ? correctRespForInteraction : null,
-				disabled,
+				correctResponse: roleCapabilities.canViewCorrectResponses ? correctRespForInteraction : null,
+				disabled: effectiveDisabled,
 				// Avoid invalid ARIA role values on custom-element hosts.
 				// Components default to candidate when role is omitted.
-				role: role === 'scorer' ? 'scorer' : undefined,
+				role: roleCapabilities.canViewCorrectResponses ? 'scorer' : undefined,
 			}}
 		/>
 	{/each}

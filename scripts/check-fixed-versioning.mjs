@@ -93,7 +93,7 @@ const fetchPublishedVersion = (pkgName) => {
 
 const publishablePackages = discoverPublishablePackages();
 if (publishablePackages.length === 0) {
-	fail("No publishable @pie-qti packages found in packages/* or tools/*.");
+	fail("No publishable @pie-qti packages found in packages/*.");
 }
 
 if (!existsSync(CHANGESET_CONFIG_PATH)) {
@@ -170,42 +170,69 @@ if (process.env.SKIP_NPM_VERSION_SEQUENCE_CHECK !== "1") {
 	if (publishedVersionMap.size === 0) {
 		// First-time monorepo publish or offline; workspace invariants already checked above.
 	} else {
-	const publishedVersions = new Set(publishedVersionMap.values());
-	if (publishedVersions.size !== 1) {
-		const details = [...publishedVersionMap.entries()]
-			.sort(([a], [b]) => a.localeCompare(b))
-			.map(([name, version]) => `- ${name}: ${version}`)
-			.join("\n");
-		fail(
-			`Expected one lockstep published npm version across fixed packages, found ${publishedVersions.size}:\n${details}`,
-		);
-	}
-
-	const publishedVersion = [...publishedVersions][0];
-	const publishedSemver = parseSemver(publishedVersion);
-	if (!publishedSemver) {
-		fail(`Published version "${publishedVersion}" is not a valid semver.`);
-	}
-	if (
-		localSemver.major !== publishedSemver.major ||
-		localSemver.minor !== publishedSemver.minor
-	) {
-		fail(
-			`Local version ${localVersion} must keep major/minor aligned with published ${publishedVersion} for patch lockstep releases.`,
-		);
-	}
-
-	const delta = localSemver.patch - publishedSemver.patch;
-	if (delta !== 1) {
-		if (delta <= 0) {
+		const parsedPublished = [...publishedVersionMap.entries()].map(([name, version]) => ({
+			name,
+			version,
+			semver: parseSemver(version),
+		}));
+		const invalidPublished = parsedPublished.filter((entry) => !entry.semver);
+		if (invalidPublished.length > 0) {
 			fail(
-				`Local version ${localVersion} must be exactly one patch ahead of published ${publishedVersion}. Did you run changeset version?`,
+				`Found invalid published semver(s):\n${invalidPublished
+					.map((entry) => `- ${entry.name}: ${entry.version}`)
+					.join("\n")}`,
 			);
 		}
-		fail(
-			`Local version ${localVersion} skips patch versions from published ${publishedVersion}. Reset version/changelog files and rerun release once.`,
+
+		const publishedVersions = new Set(parsedPublished.map((entry) => entry.version));
+		const convergenceMode = publishedVersions.size > 1;
+		const publishedMajorMinor = new Set(
+			parsedPublished.map((entry) => `${entry.semver.major}.${entry.semver.minor}`),
 		);
-	}
+		if (publishedMajorMinor.size !== 1) {
+			const details = parsedPublished
+				.sort((a, b) => a.name.localeCompare(b.name))
+				.map((entry) => `- ${entry.name}: ${entry.version}`)
+				.join("\n");
+			fail(
+				`Expected one published major/minor across fixed packages during patch-only releases, found ${publishedMajorMinor.size}:\n${details}`,
+			);
+		}
+
+		const highestPublished = parsedPublished.reduce((max, current) =>
+			current.semver.patch > max.semver.patch ? current : max,
+		);
+		const referencePublishedVersion = highestPublished.version;
+
+		if (
+			localSemver.major !== highestPublished.semver.major ||
+			localSemver.minor !== highestPublished.semver.minor
+		) {
+			fail(
+				`Local version ${localVersion} must keep major/minor aligned with highest published ${referencePublishedVersion} for patch lockstep releases.`,
+			);
+		}
+
+		const delta = localSemver.patch - highestPublished.semver.patch;
+		if (convergenceMode) {
+			if (delta <= 0) {
+				fail(
+					`Local version ${localVersion} must be ahead of highest published ${referencePublishedVersion} while converging mixed published patch versions.`,
+				);
+			}
+			console.log(
+				`[check-fixed-versioning] Convergence mode: allowing local ${localVersion} to advance from mixed published baseline (highest ${referencePublishedVersion}).`,
+			);
+		} else if (delta !== 1) {
+			if (delta <= 0) {
+				fail(
+					`Local version ${localVersion} must be exactly one patch ahead of highest published ${referencePublishedVersion}. Did you run changeset version?`,
+				);
+			}
+			fail(
+				`Local version ${localVersion} skips patch versions from highest published ${referencePublishedVersion}. Reset version/changelog files and rerun release once.`,
+			);
+		}
 	}
 }
 

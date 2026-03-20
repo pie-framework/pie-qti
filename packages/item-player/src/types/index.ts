@@ -149,13 +149,9 @@ export interface AdaptiveAttemptResult extends ScoringResult {
 }
 
 /**
- * QTI 2.2 standard roles
- * - candidate: Student/test-taker
- * - scorer: Automated or human scoring system
- * - proctor: Test administrator/invigilator
- * - testConstructor: Test author/developer
- * - tutor: Instructional/learning mode
- * - author: Content author
+ * QTI role/view actors used for audience filtering (for example rubric/outcome visibility).
+ * Runtime interaction behavior (readonly vs editable, correct-answer visibility) is a player
+ * policy layered on top of these roles.
  */
 export type QTIRole = 'candidate' | 'scorer' | 'proctor' | 'testConstructor' | 'tutor' | 'author';
 

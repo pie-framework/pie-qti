@@ -1,5 +1,5 @@
 /**
- * QTI 2.2 Assessment Player Components
+ * QTI Assessment Player Components
  *
  * Reusable Svelte components for rendering assessments (multi-item tests).
  *

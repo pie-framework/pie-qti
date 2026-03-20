@@ -204,7 +204,7 @@ export async function POST({ request }: RequestEvent) {
 ```typescript
 function filterItemXml(xml: string, role: QTIRole): string {
   // Remove <correctResponse> elements for candidates
-  // QTI 2.2 role-based behavior: candidate role should not see correct answers
+  // Role-based behavior policy: candidate role should not see correct answers
   if (role === 'candidate') {
     // Use XML parser to remove correctResponse nodes
     return removeCorrectResponses(xml);

@@ -1,6 +1,6 @@
 # @pie-qti/player-elements
 
-Framework-agnostic **Web Components (Custom Elements)** for the QTI 2.x players in this repo.
+Framework-agnostic **Web Components (Custom Elements)** for the QTI players in this repo.
 
 ## Elements
 
@@ -32,7 +32,7 @@ const el = document.querySelector('pie-qti-item-player');
 el.itemXml = qtiItemXmlString;
 el.identifier = 'item-1';
 el.title = 'My Item';
-el.role = 'candidate'; // QTI 2.x standard role
+el.role = 'candidate'; // QTI role/view actor
 ```
 
 ### Listen for interactions/responses
@@ -75,8 +75,8 @@ el.items = {
 
 ```js
 el.config = {
-  role: 'candidate', // QTI 2.x standard role
-  navigationMode: 'nonlinear', // QTI 2.x navigation mode
+  role: 'candidate', // QTI role/view actor
+  navigationMode: 'nonlinear', // QTI navigation mode
   showSections: true
 };
 ```

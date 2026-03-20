@@ -1,6 +1,6 @@
 # @pie-qti/assessment-player
 
-QTI 2.x Assessment Player - Multi-item test player with navigation, sections, and rubric blocks.
+QTI Assessment Player (QTI 2.2/3.0 compatible item delivery) - Multi-item test player with navigation, sections, and rubric blocks.
 
 ## Features
 
@@ -10,13 +10,13 @@ QTI 2.x Assessment Player - Multi-item test player with navigation, sections, an
 - ✅ **Rubric blocks** - Reading passages, instructions, and rubrics
 - ✅ **Progress tracking** - Visual progress indicators
 - ✅ **Section menu** - Quick navigation between sections
-- ✅ **Outcome Processing** - QTI 2.x scoring with total/weighted/percentage/pass-fail templates
+- ✅ **Outcome Processing** - QTI-aligned scoring with total/weighted/percentage/pass-fail templates
 - ✅ **Test Feedback** - Conditional feedback based on outcome variables
 - ✅ **Time Limits** - Assessment-level countdown timers with warnings and auto-submission
 - ✅ **Item Session Control** - Max attempts, review/skip controls, response validation
 - ✅ **State Persistence** - Auto-save with resume capability and optional backend integration
-- ✅ **Selection & Ordering** - Random item selection and shuffling per QTI 2.x spec
-- ✅ **QTI 2.x Standard Roles** - Candidate, scorer, tutor, author, proctor, testConstructor
+- ✅ **Selection & Ordering** - Random item selection and shuffling per QTI spec
+- ✅ **QTI Role/View Actors** - candidate, scorer, tutor, author, proctor, testConstructor
 - ✅ **Backend Integration** - Optional secure backend API (client-side by default)
 - ✅ **Svelte 5 components** - Modern reactive UI
 - ✅ **TypeScript** - Full type safety
@@ -112,7 +112,7 @@ console.log('Total score:', results.totalScore, '/', results.maxScore);
 
 ## Assessment Format
 
-The player uses a QTI 2.x-compliant JSON format:
+The player uses a QTI-aligned JSON format:
 
 ```typescript
 interface QtiAssessmentTest {
@@ -208,18 +208,18 @@ class MyBackendAdapter implements BackendAdapter {
 
 **See [BACKEND-INTEGRATION.md](./BACKEND-INTEGRATION.md) for complete implementation guide.**
 
-## QTI 2.x Standard Roles
+## QTI Role/View Actors
 
-The player implements QTI 2.x standard roles to control behavior:
+QTI roles are audience markers for `view`-controlled content. This player applies the runtime policy below:
 
 | Role | Behavior |
 |------|----------|
 | `candidate` | Test-taker - inputs editable, no correct answers shown |
-| `scorer` | Grader - inputs readonly, correct answers shown |
-| `author` | Content author - inputs readonly, correct answers shown |
-| `tutor` | Instructional mode - inputs readonly, correct answers shown |
-| `proctor` | Test administrator - inputs readonly, limited feedback |
-| `testConstructor` | Test developer - inputs readonly, correct answers shown |
+| `scorer` | Grader/reviewer - inputs readonly, correct answers shown |
+| `author` | Content authoring review - inputs readonly, correct answers shown |
+| `tutor` | Instructional review - inputs readonly, correct answers shown |
+| `proctor` | Test administration view - inputs readonly, no correct answers shown |
+| `testConstructor` | Test construction review - inputs readonly, correct answers shown |
 
 ```typescript
 // For test-takers
@@ -231,7 +231,7 @@ The player implements QTI 2.x standard roles to control behavior:
 
 ## Time Limits
 
-QTI 2.x supports time limits at assessment, test part, section, and item levels. The player provides:
+QTI supports time limits at assessment, test part, section, and item levels. The player provides:
 
 - **Countdown timer** - Displays remaining time to candidates
 - **Warning threshold** - Alert before time expires (default: 60 seconds)
@@ -502,7 +502,7 @@ interface PersistableState {
 
 ## Selection & Ordering
 
-The assessment player supports QTI 2.x selection and ordering rules for creating randomized assessments and item pools.
+The assessment player supports QTI selection and ordering rules for creating randomized assessments and item pools.
 
 ### Selection Rules
 
@@ -699,7 +699,7 @@ ordering: { shuffle: true }
 
 ## Outcome Processing & Scoring
 
-The assessment player implements QTI 2.x outcome processing for aggregating item scores into assessment-level outcomes.
+The assessment player implements QTI outcome processing patterns for aggregating item scores into assessment-level outcomes.
 
 ### Scoring Templates
 
@@ -1051,7 +1051,7 @@ Renders individual QTI items within the assessment.
 
 **Props:**
 - `questionRef: QuestionRef` - Question reference with item XML
-- `role?: QTIRole` - QTI 2.x standard role (default: 'candidate')
+- `role?: QTIRole` - QTI role/view actor (default: 'candidate')
 - `extendedTextEditor?: 'tiptap' | 'textarea'` - Editor type for extended text
 - `responses?: Record<string, unknown>` - Response data
 - `onResponseChange?: (responseId: string, value: unknown) => void` - Response handler

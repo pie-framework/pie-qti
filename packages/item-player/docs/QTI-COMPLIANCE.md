@@ -1,8 +1,8 @@
-# QTI 2.2 Specification Compliance
+# QTI Specification Compliance
 
 ## Compliance Level
 
-This player implements **QTI 2.2** as the baseline specification with backward compatibility for QTI 2.0/2.1.
+This player supports **QTI 3.0** and **QTI 2.2** with compatibility support for QTI 2.0/2.1.
 
 ## Supported QTI Features
 
@@ -36,13 +36,19 @@ The player supports both QTI 2.2 standard templates and QTI 2.1 Common Cartridge
 
 ### QTI Roles
 
-All 6 standard QTI roles are supported:
-- ✅ `candidate` - Student taking the assessment
-- ✅ `scorer` - Person scoring responses
-- ✅ `tutor` - Tutor/instructor viewing with feedback
-- ✅ `author` - Content author with full visibility
-- ✅ `testConstructor` - Assessment designer
-- ✅ `proctor` - Test administrator
+All 6 standard QTI role/view actors are supported for audience filtering (`view`):
+- ✅ `candidate`
+- ✅ `scorer`
+- ✅ `tutor`
+- ✅ `author`
+- ✅ `testConstructor`
+- ✅ `proctor`
+
+Runtime behavior policy in this player:
+
+- `candidate`: editable, no correct answers shown
+- `scorer`/`author`/`tutor`/`testConstructor`: readonly, correct answers shown
+- `proctor`: readonly, no correct answers shown
 
 ## Known Vendor Extensions
 

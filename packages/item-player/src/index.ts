@@ -1,6 +1,6 @@
 /**
  * @pie-qti/item-player
- * Modern QTI 2.2 player - Framework-agnostic with web components
+ * Modern QTI player (2.2/3.0) - Framework-agnostic with web components
  */
 
 
@@ -22,6 +22,7 @@ export {
 	type ItemRendererConfig,
 } from './core/ItemRenderer.js';
 export { Player } from './core/Player.js';
+export { getRoleCapabilities, type RoleCapabilities } from './core/rolePolicy.js';
 // Plugin system (new extraction-based plugins)
 export {
 	type PluginContext,

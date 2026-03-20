@@ -24,7 +24,7 @@ High-level architecture overview for PIE-QTI.
 ### Version support (important boundary)
 
 - **Transforms**: target **QTI 2.2** (`imsqti_v2p2`) for transformation. Treat other namespaces/variants as “ingest-time compatibility work” and validate early.
-- **Players**: designed for **QTI 2.x** content in practice (role-based rendering, response processing, optional backend scoring patterns). For highest interoperability, keep content aligned to QTI 2.2.
+- **Players**: designed for **QTI 2.2 and 3.0** content (role/view-aware rendering, response processing, optional backend scoring patterns). For highest interoperability in legacy ecosystems, keep content aligned to QTI 2.2.
 
 ---
 
