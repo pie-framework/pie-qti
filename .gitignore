@@ -61,11 +61,9 @@ pnpm-debug.log*
 # Local development configuration
 bunfig.local.toml
 
-# Claude Code local settings
+# Claude Code — ignore private/local files but track shared project config
 .claude/settings.local.json
-
-# AI assistant tooling (keep out of public repos unless intentionally shared)
-.claude/
+.claude/**/*.local.md
 
 # Cursor IDE local data
 .cursor/
