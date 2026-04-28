@@ -10,8 +10,10 @@ import type { ElementExtractor } from '../types.js';
  * Inline choice data extracted from inlineChoiceInteraction elements
  */
 export interface InlineChoiceData {
-	choices: Array<{ identifier: string; text: string }>;
+	choices: Array<{ identifier: string; text: string; fixed?: boolean }>;
 	shuffle: boolean;
+	/** Text from the QTI <label> child element; used as the placeholder "Select…" option */
+	label: string | null;
 }
 
 /**
@@ -35,10 +37,18 @@ export const standardInlineChoiceExtractor: ElementExtractor<InlineChoiceData> =
 
 		// Extract choices (inlineChoice children)
 		const inlineChoices = utils.getChildrenByTag(element, 'inlineChoice');
-		const choices = inlineChoices.map((choice) => ({
-			identifier: utils.getAttribute(choice, 'identifier', ''),
-			text: utils.getTextContent(choice),
-		}));
+		const choices = inlineChoices.map((choice) => {
+			const fixed = utils.getBooleanAttribute(choice, 'fixed');
+			return {
+				identifier: utils.getAttribute(choice, 'identifier', ''),
+				text: utils.getTextContent(choice),
+				...(fixed ? { fixed } : {}),
+			};
+		});
+
+		// Extract <label> child — used as placeholder text in the dropdown
+		const labelElements = utils.getChildrenByTag(element, 'label');
+		const label = labelElements.length > 0 ? utils.getTextContent(labelElements[0]) : null;
 
 		// Extract attributes
 		const shuffle = utils.getBooleanAttribute(element, 'shuffle');
@@ -46,6 +56,7 @@ export const standardInlineChoiceExtractor: ElementExtractor<InlineChoiceData> =
 		return {
 			choices,
 			shuffle,
+			label,
 		};
 	},
 

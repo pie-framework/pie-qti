@@ -34,9 +34,17 @@ export const standardUploadExtractor: ElementExtractor<UploadData> = {
 	extract(element, context) {
 		const { utils } = context;
 
-		// Extract fileType child elements
+		// Extract fileType child elements (vendor / QTI 3.0 style)
 		const fileTypeElements = utils.getChildrenByTag(element, 'fileType');
-		const fileTypes = fileTypeElements.map((el) => utils.getTextContent(el));
+		let fileTypes = fileTypeElements.map((el) => utils.getTextContent(el));
+
+		// Fall back to QTI 2.x `type` attribute when no <fileType> children are present
+		if (fileTypes.length === 0) {
+			const typeAttr = utils.getAttribute(element, 'type', '');
+			if (typeAttr) {
+				fileTypes = typeAttr.split(/\s+/).filter(Boolean);
+			}
+		}
 
 		// Extract all attributes
 		const rawAttributes: Record<string, string> = {};

@@ -15,7 +15,7 @@ export interface HottextData {
 	hottextChoices: Array<{ identifier: string; text: string; classes?: string[] }>;
 	contentHtml: string;
 	maxChoices: number;
-	minChoices?: number;
+	minChoices: number;
 	prompt: string | null;
 }
 
@@ -90,7 +90,7 @@ export const standardHottextExtractor: ElementExtractor<HottextData> = {
 			hottextChoices,
 			contentHtml,
 			maxChoices,
-			...(minChoices > 0 ? { minChoices } : {}),
+			minChoices,
 			prompt,
 		};
 	},

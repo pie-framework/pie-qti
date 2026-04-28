@@ -34,11 +34,54 @@
 	// Track whether user has confirmed their order
 	let hasConfirmed = $state(false);
 
-	// Get ordered IDs from response, or use original order
+	// Shuffle choices on first render when shuffle=true, respecting fixed=true per choice.
+	// Uses a simple seeded shuffle keyed to the responseId so the order is stable within a session.
+	const shuffledChoiceIds = $derived.by(() => {
+		const choices = parsedInteraction?.choices;
+		if (!choices || !parsedInteraction?.shuffle) {
+			return choices?.map((c) => c.identifier) ?? [];
+		}
+
+		// Separate fixed and non-fixed choices
+		const fixedSlots = new Map<number, string>(); // index → identifier
+		const movable: string[] = [];
+		for (let i = 0; i < choices.length; i++) {
+			if (choices[i].fixed) {
+				fixedSlots.set(i, choices[i].identifier);
+			} else {
+				movable.push(choices[i].identifier);
+			}
+		}
+
+		// Fisher-Yates shuffle with a simple deterministic seed
+		const seed = (parsedInteraction.responseId ?? 'order').split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+		const rng = (n: number) => {
+			// LCG: good enough for presentation shuffle
+			return ((seed * 1664525 + 1013904223 + n * 22695477) & 0x7fffffff) / 0x7fffffff;
+		};
+		for (let i = movable.length - 1; i > 0; i--) {
+			const j = Math.floor(rng(i) * (i + 1));
+			[movable[i], movable[j]] = [movable[j], movable[i]];
+		}
+
+		// Reconstruct full array, inserting fixed choices back into their original slots
+		const result: string[] = new Array(choices.length);
+		let movableIdx = 0;
+		for (let i = 0; i < choices.length; i++) {
+			if (fixedSlots.has(i)) {
+				result[i] = fixedSlots.get(i)!;
+			} else {
+				result[i] = movable[movableIdx++];
+			}
+		}
+		return result;
+	});
+
+	// Get ordered IDs from response, or use shuffled/original order
 	const orderedIds = $derived(
 		parsedResponse && parsedResponse.length > 0
 			? parsedResponse
-			: parsedInteraction?.choices.map((c) => c.identifier) ?? []
+			: shuffledChoiceIds
 	);
 
 	// Track initial order to detect if user has made changes

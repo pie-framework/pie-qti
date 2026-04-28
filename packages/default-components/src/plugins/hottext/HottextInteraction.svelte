@@ -220,8 +220,15 @@
 
 		<div part="footer" class="qti-hottext-footer flex items-center justify-between text-sm text-base-content/70">
 			<div>
-				<span class="font-medium">Selected:</span>
+				<span class="font-medium">{i18n?.t('interactions.hottext.selected') ?? 'Selected'}:</span>
 				<span class="ml-2">{selectedIds.length} / {parsedInteraction.hottextChoices.length}</span>
+				{#if parsedInteraction.minChoices > 0}
+					{#if selectedIds.length >= parsedInteraction.minChoices}
+						<span class="badge badge-success badge-sm ml-2">✓ {i18n?.t('interactions.hottext.minimumMet') ?? 'Minimum met'}</span>
+					{:else}
+						<span class="badge badge-warning badge-sm ml-2">{i18n?.t('interactions.hottext.selectAtLeast', `Select at least ${parsedInteraction.minChoices}`) ?? `Select at least ${parsedInteraction.minChoices}`}</span>
+					{/if}
+				{/if}
 			</div>
 
 			{#if selectedIds.length > 0}

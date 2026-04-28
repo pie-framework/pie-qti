@@ -284,7 +284,7 @@
 							onchange={(e) => handleInlineChoiceChange(segment.interaction.responseId, e)}
 							disabled={effectiveDisabled}
 						>
-							<option value="">{i18n?.t('interactions.inline.selectPlaceholder', 'Select...')}</option>
+							<option value="">{segment.interaction.label ?? i18n?.t('interactions.inline.selectPlaceholder', 'Select...')}</option>
 							{#each segment.interaction.choices as choice}
 								{@const isCorrect = correctAnswer === choice.identifier}
 								<option value={choice.identifier}>

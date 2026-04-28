@@ -12,6 +12,8 @@ import type { ElementExtractor } from '../types.js';
 export interface OrderData {
 	choices: Array<{ identifier: string; text: string; fixed?: boolean; classes?: string[] }>;
 	shuffle: boolean;
+	minChoices: number;
+	maxChoices: number;
 	orientation?: string;
 	prompt: string | null;
 }
@@ -56,11 +58,15 @@ export const standardOrderExtractor: ElementExtractor<OrderData> = {
 		// Extract attributes
 		const shuffle = utils.getBooleanAttribute(element, 'shuffle');
 		const orientation = utils.getAttribute(element, 'orientation', 'vertical');
+		const minChoices = utils.getNumberAttribute(element, 'minChoices', 0);
+		const maxChoices = utils.getNumberAttribute(element, 'maxChoices', 0);
 
 		return {
 			choices,
 			shuffle,
 			orientation,
+			minChoices,
+			maxChoices,
 			prompt,
 		};
 	},

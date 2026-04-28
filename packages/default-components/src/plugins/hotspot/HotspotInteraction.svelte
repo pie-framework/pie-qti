@@ -123,6 +123,9 @@
 						{@const isCorrectChoice = isCorrect(choice.identifier)}
 						{@const coords = choice.coords.split(',').map(Number)}
 
+						{@const shapeLabel = choice.hotspotLabel || `Hotspot ${choice.identifier}`}
+						{@const ariaLabel = `${shapeLabel}${isCorrectChoice ? '. Correct answer' : ''}`}
+
 						{#if choice.shape === 'circle'}
 							<!-- Circle: coords are cx, cy, radius -->
 							<circle
@@ -134,7 +137,7 @@
 								stroke-width="2"
 								class="qti-hotspot-shape hover:fill-[rgba(59,130,246,0.1)] transition-all"
 								role="button"
-								aria-label={`Select hotspot ${choice.identifier}${isCorrectChoice ? '. Correct answer' : ''}`}
+								aria-label={ariaLabel}
 								aria-pressed={isSelected ? 'true' : 'false'}
 								tabindex={disabled ? -1 : 0}
 								onclick={() => handleClick(choice.identifier)}
@@ -152,7 +155,25 @@
 								stroke-width="2"
 								class="qti-hotspot-shape hover:fill-[rgba(59,130,246,0.1)] transition-all"
 								role="button"
-								aria-label={`Select hotspot ${choice.identifier}${isCorrectChoice ? '. Correct answer' : ''}`}
+								aria-label={ariaLabel}
+								aria-pressed={isSelected ? 'true' : 'false'}
+								tabindex={disabled ? -1 : 0}
+								onclick={() => handleClick(choice.identifier)}
+								onkeydown={(e) => handleKeyDown(e, choice.identifier)}
+							/>
+						{:else if choice.shape === 'ellipse'}
+							<!-- Ellipse: QTI coords are cx,cy,rx,ry -->
+							<ellipse
+								cx={coords[0]}
+								cy={coords[1]}
+								rx={coords[2]}
+								ry={coords[3]}
+								fill={isSelected ? 'rgba(59, 130, 246, 0.3)' : isCorrectChoice ? 'rgba(34, 197, 94, 0.3)' : 'rgba(0, 0, 0, 0)'}
+								stroke={isSelected ? '#3b82f6' : isCorrectChoice ? '#22c55e' : 'transparent'}
+								stroke-width="2"
+								class="qti-hotspot-shape hover:fill-[rgba(59,130,246,0.1)] transition-all"
+								role="button"
+								aria-label={ariaLabel}
 								aria-pressed={isSelected ? 'true' : 'false'}
 								tabindex={disabled ? -1 : 0}
 								onclick={() => handleClick(choice.identifier)}
@@ -175,7 +196,7 @@
 								stroke-width="2"
 								class="qti-hotspot-shape hover:fill-[rgba(59,130,246,0.1)] transition-all"
 								role="button"
-								aria-label={`Select hotspot ${choice.identifier}${isCorrectChoice ? '. Correct answer' : ''}`}
+								aria-label={ariaLabel}
 								aria-pressed={isSelected ? 'true' : 'false'}
 								tabindex={disabled ? -1 : 0}
 								onclick={() => handleClick(choice.identifier)}

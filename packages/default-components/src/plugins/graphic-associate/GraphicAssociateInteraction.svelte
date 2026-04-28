@@ -123,14 +123,22 @@
 	function getHotspotCenter(coords: string, shape: string): { x: number; y: number } {
 		const parts = coords.split(',').map(Number);
 		if (shape === 'rect') {
-			// rect: x1,y1,x2,y2
+			// rect: left,top,right,bottom
 			return {
 				x: (parts[0] + parts[2]) / 2,
 				y: (parts[1] + parts[3]) / 2,
 			};
-		} else if (shape === 'circle') {
-			// circle: cx,cy,r
+		} else if (shape === 'circle' || shape === 'ellipse') {
+			// circle: cx,cy,r  |  ellipse: cx,cy,rx,ry
 			return { x: parts[0], y: parts[1] };
+		} else if (shape === 'poly') {
+			// poly: x1,y1,x2,y2,... — centroid average
+			const xs = parts.filter((_, i) => i % 2 === 0);
+			const ys = parts.filter((_, i) => i % 2 !== 0);
+			return {
+				x: xs.reduce((a, b) => a + b, 0) / xs.length,
+				y: ys.reduce((a, b) => a + b, 0) / ys.length,
+			};
 		}
 		// Default fallback
 		return { x: parts[0] || 0, y: parts[1] || 0 };
@@ -267,6 +275,54 @@
 										: 'cursor-not-allowed opacity-70'}"
 								style="left: {cx - r}px; top: {cy - r}px; width: {r * 2}px; height: {r *
 									2}px; z-index: 20;"
+								onclick={() => handleHotspotClick(hotspot.identifier)}
+								disabled={!canInteract || isMaxed}
+								aria-label="{hotspot.label} ({usageCount}/{hotspot.matchMax} connections){isCorrect ? '. Correct answer' : ''}"
+							>
+								<span class="text-xs font-bold text-primary-content">{hotspot.label}</span>
+							</button>
+						{:else if hotspot.shape === 'ellipse'}
+							<!-- Ellipse: QTI coords are cx,cy,rx,ry — use bounding box for hit target -->
+							{@const [cx, cy, rx, ry] = hotspot.coords.split(',').map(Number)}
+							<button
+								part="hotspot"
+								class="qti-ga-hotspot absolute border-2 flex items-center justify-center transition-all {isSelected
+									? 'bg-primary/40 border-primary border-4'
+									: isCorrect
+										? 'bg-success/20 border-success'
+										: 'bg-primary/10 border-primary hover:bg-primary/20'} {isMaxed
+									? 'opacity-50 cursor-not-allowed'
+									: canInteract
+										? 'cursor-pointer'
+										: 'cursor-not-allowed opacity-70'}"
+								style="left: {cx - rx}px; top: {cy - ry}px; width: {rx * 2}px; height: {ry * 2}px; border-radius: 50%; z-index: 20;"
+								onclick={() => handleHotspotClick(hotspot.identifier)}
+								disabled={!canInteract || isMaxed}
+								aria-label="{hotspot.label} ({usageCount}/{hotspot.matchMax} connections){isCorrect ? '. Correct answer' : ''}"
+							>
+								<span class="text-xs font-bold text-primary-content">{hotspot.label}</span>
+							</button>
+						{:else if hotspot.shape === 'poly'}
+							<!-- Polygon: use axis-aligned bounding box of all vertices for hit target -->
+							{@const pts = hotspot.coords.split(',').map(Number)}
+							{@const xs = pts.filter((_, i) => i % 2 === 0)}
+							{@const ys = pts.filter((_, i) => i % 2 !== 0)}
+							{@const x1 = Math.min(...xs)}
+							{@const y1 = Math.min(...ys)}
+							{@const x2 = Math.max(...xs)}
+							{@const y2 = Math.max(...ys)}
+							<button
+								part="hotspot"
+								class="qti-ga-hotspot absolute border-2 flex items-center justify-center transition-all {isSelected
+									? 'bg-primary/40 border-primary border-4'
+									: isCorrect
+										? 'bg-success/20 border-success'
+										: 'bg-primary/10 border-primary hover:bg-primary/20'} {isMaxed
+									? 'opacity-50 cursor-not-allowed'
+									: canInteract
+										? 'cursor-pointer'
+										: 'cursor-not-allowed opacity-70'}"
+								style="left: {x1}px; top: {y1}px; width: {x2 - x1}px; height: {y2 - y1}px; z-index: 20;"
 								onclick={() => handleHotspotClick(hotspot.identifier)}
 								disabled={!canInteract || isMaxed}
 								aria-label="{hotspot.label} ({usageCount}/{hotspot.matchMax} connections){isCorrect ? '. Correct answer' : ''}"

@@ -23,8 +23,9 @@ export interface ChoiceInteractionData extends BaseInteractionData {
 	type: 'choiceInteraction';
 	shuffle: boolean;
 	maxChoices: number;
+	minChoices: number;
 	prompt: string | null;
-	choices: Array<{ identifier: string; text: HtmlContent; classes?: string[] }>;
+	choices: Array<{ identifier: string; text: HtmlContent; fixed?: boolean; classes?: string[] }>;
 	/** CSS classes from the choiceInteraction element for custom renderer detection */
 	interactionClasses?: string[];
 }
@@ -47,14 +48,18 @@ export interface ExtendedTextInteractionData extends BaseInteractionData {
 export interface InlineChoiceInteractionData extends BaseInteractionData {
 	type: 'inlineChoiceInteraction';
 	shuffle: boolean;
-	choices: Array<{ identifier: string; text: string }>;
+	/** Placeholder label from the QTI <label> child element; shown as the unselected "Select…" option */
+	label: string | null;
+	choices: Array<{ identifier: string; text: string; fixed?: boolean }>;
 }
 
 export interface OrderInteractionData extends BaseInteractionData {
 	type: 'orderInteraction';
 	shuffle: boolean;
+	minChoices: number;
+	maxChoices: number;
 	prompt: string | null;
-	choices: Array<{ identifier: string; text: string }>;
+	choices: Array<{ identifier: string; text: string; fixed?: boolean }>;
 }
 
 export interface AssociableChoice {
@@ -111,6 +116,8 @@ export interface HotspotChoice {
 	identifier: string;
 	shape: string;
 	coords: string;
+	/** Author-provided label for the hotspot; used as accessible aria-label */
+	hotspotLabel?: string;
 }
 
 export interface HotspotInteractionData extends BaseInteractionData {
@@ -132,7 +139,10 @@ export interface GraphicGapMatchInteractionData extends BaseInteractionData {
 	type: 'graphicGapMatchInteraction';
 	prompt: string | null;
 	imageData: ImageData | null;
+	maxAssociations: number;
 	gapTexts: Array<{ identifier: string; text: string; matchMax: number }>;
+	/** Image-based draggable labels (gapImg elements); rendered as <img> in the choice pool */
+	gapImages: Array<{ identifier: string; src: string; alt: string; matchMax: number; width?: number; height?: number }>;
 	hotspots: AssociableHotspot[];
 }
 
@@ -189,6 +199,7 @@ export interface HottextInteractionData extends BaseInteractionData {
 	type: 'hottextInteraction';
 	prompt: string | null;
 	maxChoices: number;
+	minChoices: number;
 	contentHtml: HtmlContent;
 	hottextChoices: HottextChoice[];
 }

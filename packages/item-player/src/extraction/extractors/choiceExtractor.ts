@@ -11,9 +11,10 @@ import type { ElementExtractor, ExtractionContext } from '../types.js';
  * Choice data extracted from simpleChoice elements
  */
 export interface ChoiceData {
-	choices: Array<{ identifier: string; text: string; classes?: string[] }>;
+	choices: Array<{ identifier: string; text: string; fixed?: boolean; classes?: string[] }>;
 	shuffle: boolean;
 	maxChoices: number;
+	minChoices: number;
 	prompt: string | null;
 }
 
@@ -40,9 +41,11 @@ export const standardChoiceExtractor: ElementExtractor<ChoiceData> = {
 		const simpleChoices = utils.getChildrenByTag(element, 'simpleChoice');
 		const choices = simpleChoices.map((choice) => {
 			const classes = utils.getClasses(choice);
+			const fixed = utils.getBooleanAttribute(choice, 'fixed');
 			return {
 				identifier: utils.getAttribute(choice, 'identifier', ''),
 				text: utils.getHtmlContent(choice),
+				...(fixed ? { fixed } : {}),
 				...(classes.length > 0 ? { classes } : {}),
 			};
 		});
@@ -54,11 +57,13 @@ export const standardChoiceExtractor: ElementExtractor<ChoiceData> = {
 		// Extract attributes
 		const shuffle = utils.getBooleanAttribute(element, 'shuffle');
 		const maxChoices = utils.getNumberAttribute(element, 'maxChoices', 1);
+		const minChoices = utils.getNumberAttribute(element, 'minChoices', 0);
 
 		return {
 			choices,
 			shuffle,
 			maxChoices,
+			minChoices,
 			prompt,
 		};
 	},

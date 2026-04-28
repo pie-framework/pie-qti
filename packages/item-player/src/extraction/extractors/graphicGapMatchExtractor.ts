@@ -22,12 +22,21 @@ export interface ImageData {
  */
 export interface GraphicGapMatchData {
 	imageData: ImageData | null;
+	maxAssociations: number;
 	gapTexts: Array<{
 		identifier: string;
 		text: string;
 		matchMax: number;
 		matchMin?: number;
 		classes?: string[];
+	}>;
+	gapImages: Array<{
+		identifier: string;
+		src: string;
+		alt: string;
+		matchMax: number;
+		width?: number;
+		height?: number;
 	}>;
 	hotspots: Array<{ identifier: string; shape: string; coords: string; matchMax: number }>;
 	prompt: string | null;
@@ -83,6 +92,9 @@ export const standardGraphicGapMatchExtractor: ElementExtractor<GraphicGapMatchD
 			}
 		}
 
+		// Extract interaction-level attributes
+		const maxAssociations = utils.getNumberAttribute(element, 'maxAssociations', 0);
+
 		// Extract gapText children (draggable text labels)
 		const gapTextElements = utils.getChildrenByTag(element, 'gapText');
 		const gapTexts = gapTextElements.map((gapText) => {
@@ -97,6 +109,34 @@ export const standardGraphicGapMatchExtractor: ElementExtractor<GraphicGapMatchD
 				matchMax,
 				...(matchMin > 0 ? { matchMin } : {}),
 				...(classes.length > 0 ? { classes } : {}),
+			};
+		});
+
+		// Extract gapImg children (draggable image labels)
+		const gapImgElements = utils.getChildrenByTag(element, 'gapImg');
+		const gapImages = gapImgElements.map((gapImg) => {
+			const matchMax = utils.getNumberAttribute(gapImg, 'matchMax', 1);
+			const objectChildren = utils.getChildrenByTag(gapImg, 'object');
+			let src = '';
+			let alt = '';
+			let width: number | undefined;
+			let height: number | undefined;
+			if (objectChildren.length > 0) {
+				const obj = objectChildren[0];
+				src = utils.getAttribute(obj, 'data', '');
+				alt = utils.getTextContent(obj);
+				const w = utils.getNumberAttribute(obj, 'width', 0);
+				const h = utils.getNumberAttribute(obj, 'height', 0);
+				if (w > 0) width = w;
+				if (h > 0) height = h;
+			}
+			return {
+				identifier: utils.getAttribute(gapImg, 'identifier', ''),
+				src,
+				alt,
+				matchMax,
+				...(width !== undefined ? { width } : {}),
+				...(height !== undefined ? { height } : {}),
 			};
 		});
 
@@ -115,7 +155,9 @@ export const standardGraphicGapMatchExtractor: ElementExtractor<GraphicGapMatchD
 
 		return {
 			imageData,
+			maxAssociations,
 			gapTexts,
+			gapImages,
 			hotspots,
 			prompt,
 		};
@@ -134,9 +176,9 @@ export const standardGraphicGapMatchExtractor: ElementExtractor<GraphicGapMatchD
 			errors.push('graphicGapMatchInteraction must have SVG content');
 		}
 
-		// Validate gapTexts exist
-		if (!data.gapTexts || data.gapTexts.length === 0) {
-			errors.push('graphicGapMatchInteraction must have at least one gapText');
+		// Validate that at least one draggable choice type is present
+		if ((!data.gapTexts || data.gapTexts.length === 0) && (!data.gapImages || data.gapImages.length === 0)) {
+			errors.push('graphicGapMatchInteraction must have at least one gapText or gapImg');
 		}
 
 		// Validate hotspots exist

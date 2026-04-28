@@ -333,6 +333,52 @@ function parseCoords(hotspot: { identifier: string; shape: string; coords: strin
 							{/if}
 						</div>
 					{/each}
+
+					{#each (parsedInteraction.gapImages ?? []) as gapImage (gapImage.identifier)}
+						{@const matchedHotspot = getMatchedHotspot(gapImage.identifier)}
+						{@const isDragged = draggedTextId === gapImage.identifier}
+						{@const isSelected = keyboardSelectedTextId === gapImage.identifier}
+
+						<div class="inline-flex items-center gap-1">
+							<button
+								type="button"
+								draggable={!disabled && !matchedHotspot}
+								use:touchDrag
+								ondragstart={() => handleDragStart(gapImage.identifier)}
+								ondragend={handleDragEnd}
+								onclick={() => handleGapTextClick(gapImage.identifier)}
+								onkeydown={(e) => handleGapTextKeyDown(e, gapImage.identifier)}
+								disabled={disabled || !!matchedHotspot}
+								aria-pressed={isSelected}
+								aria-label="{gapImage.alt || gapImage.identifier}{matchedHotspot ? '. Already placed on hotspot' : ''}{isSelected ? '. Selected for placement' : '. Press Space to select'}"
+								class="btn btn-md p-1 transition-all"
+								class:btn-primary={!matchedHotspot && !isSelected}
+								class:btn-accent={isSelected}
+								class:btn-success={matchedHotspot}
+								class:cursor-grab={!disabled && !matchedHotspot && !isSelected}
+								class:cursor-not-allowed={disabled}
+								class:opacity-70={disabled || isDragged}
+							>
+								<img
+									src={gapImage.src}
+									alt={gapImage.alt || gapImage.identifier}
+									style={gapImage.width ? `width: ${gapImage.width}px;` : ''}
+								/>
+							</button>
+							{#if matchedHotspot && !disabled}
+								<button
+									type="button"
+									part="label-remove"
+									class="btn btn-sm btn-circle btn-error"
+									onclick={() => clearMatch(gapImage.identifier)}
+									aria-label="Remove {gapImage.alt || gapImage.identifier} from hotspot"
+									title={i18n?.t('interactions.graphicGapMatch.removeLabel') ?? 'Remove label'}
+								>
+									✕
+								</button>
+							{/if}
+						</div>
+					{/each}
 				</div>
 			{/if}
 
