@@ -78,18 +78,18 @@ Subsystem-level PRDs covering how major packages work and how to extend them.
 
 | File | Subsystem | Packages | Status |
 |------|-----------|----------|--------|
-| `architecture/item-player.md` | QTI Item Player | `@pie-qti/item-player` | planned |
-| `architecture/assessment-player.md` | Assessment Shell | `@pie-qti/assessment-player` | planned |
-| `architecture/transform-engine.md` | Transform Engine & Plugin System | `@pie-qti/core`, `@pie-qti/types` | planned |
-| `architecture/qti-to-pie.md` | QTI → PIE Transform | `@pie-qti/to-pie` | planned |
-| `architecture/pie-to-qti.md` | PIE → QTI Transform | `@pie-qti/pie-to-qti2` | planned |
-| `architecture/response-processing.md` | Response Processing Engine | `@pie-qti/qti-processing` | planned |
-| `architecture/web-components.md` | Web Component Infrastructure | `@pie-qti/default-components`, `@pie-qti/player-elements` | planned |
-| `architecture/item-player-plugin-system.md` | Item Player Plugin / Extension API | `@pie-qti/item-player` | planned |
-| `architecture/vendor-extensions.md` | Vendor Transform Extensions | `@pie-qti/to-pie` vendor hooks | planned |
-| `architecture/ims-content-packages.md` | IMS Content Package Support | `@pie-qti/ims-cp-*` | planned |
-| `architecture/storage.md` | Pluggable Storage Backends | `@pie-qti/storage` | planned |
-| `architecture/security.md` | Security Model (sanitization, iframe isolation, Trusted Types) | `@pie-qti/item-player` | planned |
+| `architecture/item-player.md` | QTI Item Player | `@pie-qti/item-player` | draft |
+| `architecture/assessment-player.md` | Assessment Shell | `@pie-qti/assessment-player` | draft |
+| `architecture/transform-engine.md` | Transform Engine & Plugin System | `@pie-qti/core`, `@pie-qti/types` | draft |
+| `architecture/qti-to-pie.md` | QTI → PIE Transform | `@pie-qti/to-pie` | draft |
+| `architecture/pie-to-qti.md` | PIE → QTI Transform | `@pie-qti/pie-to-qti2` | draft |
+| `architecture/response-processing.md` | Response Processing Engine | `@pie-qti/qti-processing` | draft |
+| `architecture/web-components.md` | Web Component Infrastructure | `@pie-qti/default-components`, `@pie-qti/player-elements` | draft |
+| `architecture/item-player-plugin-system.md` | Item Player Plugin / Extension API | `@pie-qti/item-player` | draft |
+| `architecture/vendor-extensions.md` | Vendor Transform Extensions | `@pie-qti/to-pie` vendor hooks | draft |
+| `architecture/ims-content-packages.md` | IMS Content Package Support | `@pie-qti/ims-cp-*` | draft |
+| `architecture/storage.md` | Pluggable Storage Backends | `@pie-qti/storage` | draft |
+| `architecture/security.md` | Security Model (sanitization, iframe isolation, Trusted Types) | `@pie-qti/item-player` | draft |
 
 Each architecture PRD answers:
 - What problem does this subsystem solve?
