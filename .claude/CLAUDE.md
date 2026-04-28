@@ -53,6 +53,8 @@ This project has custom Claude skills available. Use them proactively when relev
 - **assessment-content-validator**: Use when creating QTI assessment items, reviewing test fixtures, or debugging assessment issues. Validates both technical correctness (QTI/PIE compliance) and pedagogical quality (appropriate difficulty, clear instructions, K-12 appropriateness).
 - **accessibility-reviewer-assessments**: Use when implementing new interactions, reviewing UI changes, or conducting accessibility audits. Checks WCAG 2.2 Level AA compliance and assessment-specific accessibility needs.
 - **api-design-reviewer**: Use when designing new APIs, reviewing API changes, or conducting framework code reviews. Checks consistency, usability, type safety, and breaking changes.
+- **prd-author**: Use when writing a new PRD for an interaction, architecture subsystem, or cross-cutting system concern. It reads the relevant source, asks targeted questions to fill gaps, and produces a complete draft aligned to `docs/prds/TEMPLATE.md`. Also invoke proactively when a significant new feature is complete and lacks a PRD.
+- **prd-reviewer**: Use when reviewing an existing PRD for accuracy, completeness, and staleness. Invoke proactively when opening a PR that touches a package covered by a PRD — check whether the PRD needs updating before merging.
 
 ## Monorepo Structure
 
@@ -113,6 +115,7 @@ import XmlEditor from '$lib/components/XmlEditor.svelte';
 ```
 
 **Features**:
+
 - Syntax highlighting with TipTap and Lowlight
 - Theme-aware (works with all 32 DaisyUI themes)
 - Text selection enabled for copying
