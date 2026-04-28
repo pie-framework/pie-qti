@@ -107,13 +107,13 @@ Cross-cutting concerns that span multiple packages.
 
 | File | Concern | Status |
 |------|---------|--------|
-| `systems/i18n.md` | Internationalization (locale switching, RTL, pluralization, lazy loading) | planned |
-| `systems/theming.md` | Theming and visual customization (DaisyUI, CSS variables, `::part()`) | planned |
-| `systems/accessibility.md` | Accessibility baseline (WCAG 2.2 AA, assessment-specific patterns) | planned |
-| `systems/navigation-modes.md` | QTI navigation modes (linear/nonlinear) and submission modes | planned |
-| `systems/math-typesetting.md` | Math rendering (KaTeX adapter, host-provided `typeset()`) | planned |
-| `systems/cli.md` | CLI tool (batch transform, analyze, discover) | planned |
-| `systems/transform-app.md` | Transform web app (upload → analyze → transform → preview) | planned |
+| `systems/i18n.md` | Internationalization (locale switching, RTL, pluralization, lazy loading) | draft |
+| `systems/theming.md` | Theming and visual customization (DaisyUI, CSS variables, `::part()`) | draft |
+| `systems/accessibility.md` | Accessibility baseline (WCAG 2.2 AA, assessment-specific patterns) | draft |
+| `systems/navigation-modes.md` | QTI navigation modes (linear/nonlinear) and submission modes | draft |
+| `systems/math-typesetting.md` | Math rendering (KaTeX adapter, host-provided `typeset()`) | draft |
+| `systems/cli.md` | CLI tool (batch transform, analyze, discover) | draft |
+| `systems/transform-app.md` | Transform web app (upload → analyze → transform → preview) | draft |
 
 ---
 
