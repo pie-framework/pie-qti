@@ -52,7 +52,7 @@ export interface AreaMapping {
 	defaultValue?: number;
 	lowerBound?: number;
 	upperBound?: number;
-	entries: Record<string, AreaMapEntry>;
+	entries: AreaMapEntry[];
 }
 
 export interface AreaMapEntry {

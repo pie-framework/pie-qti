@@ -66,6 +66,10 @@ export interface AssociableChoice {
 	identifier: string;
 	text: string;
 	matchMax: number;
+	/** Minimum number of times this choice must appear in the response (QTI matchMin) */
+	matchMin?: number;
+	/** CSS classes from the choice element for custom renderer detection */
+	classes?: string[];
 }
 
 export interface MatchInteractionData extends BaseInteractionData {
@@ -82,6 +86,7 @@ export interface AssociateInteractionData extends BaseInteractionData {
 	type: 'associateInteraction';
 	shuffle: boolean;
 	maxAssociations: number;
+	minAssociations?: number;
 	prompt: string | null;
 	choices: AssociableChoice[];
 }
@@ -353,7 +358,7 @@ export interface InteractionValueMap {
 	sliderInteraction: number;
 	hotspotInteraction: string[];
 	graphicGapMatchInteraction: Record<string, string>;
-	uploadInteraction: import('../types/index.js').QTIFileResponse[];
+	uploadInteraction: import('../types/index.js').QTIFileResponse | null;
 	drawingInteraction: string;
 	customInteraction: any;
 	mediaInteraction: any;
