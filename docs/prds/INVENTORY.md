@@ -41,25 +41,25 @@ One PRD per QTI interaction type implemented in `@pie-qti/default-components`.
 | File | QTI Type | Component | Status |
 |------|----------|-----------|--------|
 | `interactions/choice.md` | `choiceInteraction` | `pie-qti-choice` | draft |
-| `interactions/order.md` | `orderInteraction` | `pie-qti-order` | planned |
-| `interactions/match.md` | `matchInteraction` | `pie-qti-match` | planned |
-| `interactions/associate.md` | `associateInteraction` | `pie-qti-associate` | planned |
-| `interactions/gap-match.md` | `gapMatchInteraction` | `pie-qti-gap-match` | planned |
-| `interactions/graphic-gap-match.md` | `graphicGapMatchInteraction` | `pie-qti-graphic-gap-match` | planned |
-| `interactions/hotspot.md` | `hotspotInteraction` | `pie-qti-hotspot` | planned |
-| `interactions/hottext.md` | `hottextInteraction` | `pie-qti-hottext` | planned |
-| `interactions/extended-text.md` | `extendedTextInteraction` | `pie-qti-extended-text` | planned |
-| `interactions/slider.md` | `sliderInteraction` | `pie-qti-slider` | planned |
-| `interactions/select-point.md` | `selectPointInteraction` | `pie-qti-select-point` | planned |
-| `interactions/graphic-order.md` | `graphicOrderInteraction` | `pie-qti-graphic-order` | planned |
-| `interactions/graphic-associate.md` | `graphicAssociateInteraction` | `pie-qti-graphic-associate` | planned |
-| `interactions/position-object.md` | `positionObjectInteraction` | `pie-qti-position-object` | planned |
-| `interactions/media.md` | `mediaInteraction` | `pie-qti-media` | planned |
-| `interactions/end-attempt.md` | `endAttemptInteraction` | `pie-qti-end-attempt` | planned |
-| `interactions/upload.md` | `uploadInteraction` | `pie-qti-upload` | planned |
-| `interactions/drawing.md` | `drawingInteraction` | `pie-qti-drawing` | planned |
-| `interactions/custom.md` | `customInteraction` | `pie-qti-custom` | planned |
-| `interactions/inline-interactions.md` | `textEntryInteraction`, `inlineChoiceInteraction` | inline renderers | planned |
+| `interactions/order.md` | `orderInteraction` | `pie-qti-order` | draft |
+| `interactions/match.md` | `matchInteraction` | `pie-qti-match` | draft |
+| `interactions/associate.md` | `associateInteraction` | `pie-qti-associate` | draft |
+| `interactions/gap-match.md` | `gapMatchInteraction` | `pie-qti-gap-match` | draft |
+| `interactions/graphic-gap-match.md` | `graphicGapMatchInteraction` | `pie-qti-graphic-gap-match` | draft |
+| `interactions/hotspot.md` | `hotspotInteraction` | `pie-qti-hotspot` | draft |
+| `interactions/hottext.md` | `hottextInteraction` | `pie-qti-hottext` | draft |
+| `interactions/extended-text.md` | `extendedTextInteraction` | `pie-qti-extended-text` | draft |
+| `interactions/slider.md` | `sliderInteraction` | `pie-qti-slider` | draft |
+| `interactions/select-point.md` | `selectPointInteraction` | `pie-qti-select-point` | draft |
+| `interactions/graphic-order.md` | `graphicOrderInteraction` | `pie-qti-graphic-order` | draft |
+| `interactions/graphic-associate.md` | `graphicAssociateInteraction` | `pie-qti-graphic-associate` | draft |
+| `interactions/position-object.md` | `positionObjectInteraction` | `pie-qti-position-object` | draft |
+| `interactions/media.md` | `mediaInteraction` | `pie-qti-media` | draft |
+| `interactions/end-attempt.md` | `endAttemptInteraction` | `pie-qti-end-attempt` | draft |
+| `interactions/upload.md` | `uploadInteraction` | `pie-qti-upload` | draft |
+| `interactions/drawing.md` | `drawingInteraction` | `pie-qti-drawing` | draft |
+| `interactions/custom.md` | `customInteraction` | `pie-qti-custom` | draft |
+| `interactions/inline-interactions.md` | `textEntryInteraction`, `inlineChoiceInteraction` | inline renderers | draft |
 
 Each interaction PRD answers:
 - What does this interaction do (QTI spec summary, in plain language)?
