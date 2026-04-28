@@ -72,6 +72,7 @@ export interface MatchInteractionData extends BaseInteractionData {
 	type: 'matchInteraction';
 	shuffle: boolean;
 	maxAssociations: number;
+	minAssociations?: number;
 	prompt: string | null;
 	sourceSet: AssociableChoice[];
 	targetSet: AssociableChoice[];

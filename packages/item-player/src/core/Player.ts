@@ -697,8 +697,33 @@ export class Player {
 				const minPlays = Number(i.minPlays || 0);
 				complete = Number(value || 0) >= minPlays;
 			} else if (required) {
-				if (Array.isArray(value)) complete = value.length > 0;
-				else complete = value !== null && value !== undefined && value !== '';
+				if (Array.isArray(value)) {
+					complete = value.length > 0;
+					// Enforce minChoices / minAssociations where applicable
+					const minChoices = Number(i.minChoices || i.minAssociations || 0);
+					if (complete && minChoices > 0) {
+						complete = value.length >= minChoices;
+					}
+					// Enforce matchMin per-choice: each pairing entry "id1 id2" in value must
+					// appear at least matchMin times for the relevant choice.
+					// matchMin is on individual choices so we check the counts per identifier.
+					const choices: Array<{ identifier: string; matchMin?: number }> = i.choices ?? i.gapTexts ?? i.sourceSet ?? i.associableHotspots ?? [];
+					for (const choice of choices) {
+						const min = Number(choice.matchMin || 0);
+						if (min > 0) {
+							const count = (value as string[]).filter((p) => {
+								const parts = p.split(' ');
+								return parts[0] === choice.identifier || parts[1] === choice.identifier;
+							}).length;
+							if (count < min) {
+								complete = false;
+								break;
+							}
+						}
+					}
+				} else {
+					complete = value !== null && value !== undefined && value !== '';
+				}
 			}
 
 			const errors: string[] = [];

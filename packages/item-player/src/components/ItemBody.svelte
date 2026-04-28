@@ -261,7 +261,9 @@
 						class:bg-success={correctAnswer !== null}
 						class:bg-opacity-10={correctAnswer !== null}
 						style="width: {segment.interaction.expectedLength * 8}px; min-width: 100px; display: inline-block; margin: 0 4px;"
-						placeholder="..."
+						placeholder={segment.interaction.placeholderText || '...'}
+						pattern={segment.interaction.patternMask || undefined}
+						title={segment.interaction.patternMask ? `Format: ${segment.interaction.patternMask}` : undefined}
 						aria-label={`Text entry ${segment.interaction.responseId}${correctAnswer ? '. Correct answer: ' + correctAnswer : ''}`}
 						value={displayValue}
 						oninput={(e) => handleTextEntryInput(segment.interaction.responseId, e)}

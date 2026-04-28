@@ -303,11 +303,20 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 		const totalScore = Object.values(itemScores).reduce((sum, result) => sum + result.score, 0);
 		const maxScore = Object.values(itemScores).reduce((sum, result) => sum + result.maxScore, 0);
 
+		// Compute basic test-level outcomes for testFeedback evaluation.
+		// A real backend would run QTI outcomeProcessing rules; here we derive
+		// SCORE and PASS from the aggregate item scores.
+		const outcomes: Record<string, string> = {
+			SCORE: String(totalScore),
+			PASS: maxScore > 0 && totalScore / maxScore >= 0.5 ? 'true' : 'false',
+		};
+
 		return {
 			success: true,
 			totalScore,
 			maxScore,
 			itemScores,
+			outcomes,
 			finalizedAt: Date.now(),
 		};
 	}

@@ -61,6 +61,18 @@ export interface InitSessionResponse {
  *
  * Security: NO correct answers, NO scoring rules, NO sensitive rubrics
  */
+export interface TestFeedbackItem {
+	identifier: string;
+	/** Outcome variable name to evaluate (e.g. "PASS", "GRADE") */
+	outcomeIdentifier: string;
+	/** 'show' = show when outcome equals identifier; 'hide' = show when it does not */
+	showHide: 'show' | 'hide';
+	/** 'atEnd' = only after submission; 'during' = also during attempt */
+	access: 'atEnd' | 'during';
+	/** HTML content to display */
+	content: string;
+}
+
 export interface SecureAssessment {
 	identifier: string;
 	title: string;
@@ -75,6 +87,8 @@ export interface SecureAssessment {
 		maxTime?: number; // seconds
 		allowLateSubmission?: boolean;
 	};
+	/** QTI testFeedback blocks for post-submission display */
+	testFeedback?: TestFeedbackItem[];
 }
 
 export interface SecureTestPart {
@@ -277,8 +291,14 @@ export interface FinalizeAssessmentResponse {
 	maxScore: number;
 	/** Per-item results */
 	itemScores: Record<string, AssessmentScoringResult>;
-	/** Assessment-level feedback */
+	/** Assessment-level feedback (legacy: single string; prefer outcomes + assessment.testFeedback) */
 	feedback?: string;
+	/**
+	 * Test-level outcome variable values after outcomeProcessing.
+	 * Used to evaluate testFeedback visibility via string equality.
+	 * Keys are outcome identifiers (e.g. "PASS", "GRADE"); values are their string representations.
+	 */
+	outcomes?: Record<string, string>;
 	/** Server timestamp */
 	finalizedAt: number;
 }

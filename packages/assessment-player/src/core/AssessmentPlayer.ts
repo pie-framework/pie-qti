@@ -554,9 +554,26 @@ export class AssessmentPlayer {
 			responses: this.state.itemResponses[r.itemIdentifier] || {},
 		}));
 
-		this.visibleFeedback = finalized.feedback
-			? [{ identifier: 'testFeedback', content: finalized.feedback, access: 'atEnd' }]
-			: [];
+		// Evaluate testFeedback visibility using QTI string equality:
+		// show when outcomeIdentifier's value equals feedback.identifier (for showHide='show'),
+		// or does NOT equal it (for showHide='hide').
+		const structuredFeedback = this.assessment.testFeedback ?? [];
+		const outcomes = finalized.outcomes ?? {};
+		if (structuredFeedback.length > 0) {
+			this.visibleFeedback = structuredFeedback
+				.filter((fb) => fb.access === 'atEnd')
+				.filter((fb) => {
+					const outcomeValue = String(outcomes[fb.outcomeIdentifier] ?? '');
+					const matches = outcomeValue === fb.identifier;
+					return fb.showHide === 'show' ? matches : !matches;
+				})
+				.map((fb) => ({ identifier: fb.identifier, content: fb.content, access: fb.access }));
+		} else {
+			// Legacy: backend returns a plain feedback string
+			this.visibleFeedback = finalized.feedback
+				? [{ identifier: 'testFeedback', content: finalized.feedback, access: 'atEnd' }]
+				: [];
+		}
 
 		this.notifyComplete();
 		if (this.config.onComplete) this.config.onComplete();

@@ -14,6 +14,7 @@ export interface MatchData {
 	targetSet: Array<{ identifier: string; text: string; matchMax: number; classes?: string[] }>;
 	shuffle: boolean;
 	maxAssociations: number;
+	minAssociations?: number;
 	prompt: string | null;
 }
 
@@ -93,6 +94,8 @@ export const standardMatchExtractor: ElementExtractor<MatchData> = {
 		// Extract attributes
 		const shuffle = utils.getBooleanAttribute(element, 'shuffle');
 		const maxAssociations = utils.getNumberAttribute(element, 'maxAssociations', 1);
+		const minAssociationsRaw = utils.getNumberAttribute(element, 'minAssociations', 0);
+		const minAssociations = minAssociationsRaw > 0 ? minAssociationsRaw : undefined;
 
 		// Extract prompt (optional)
 		const promptElements = utils.getChildrenByTag(element, 'prompt');
@@ -103,6 +106,7 @@ export const standardMatchExtractor: ElementExtractor<MatchData> = {
 			targetSet,
 			shuffle,
 			maxAssociations,
+			...(minAssociations !== undefined ? { minAssociations } : {}),
 			prompt,
 		};
 	},
