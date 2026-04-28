@@ -28,6 +28,12 @@
 	const pairs = $derived(Array.isArray(parsedResponse) ? parsedResponse : []);
 	const correctPairs = $derived(Array.isArray(parsedCorrectResponse) ? parsedCorrectResponse : []);
 
+	// K-02: identifier of the word currently "held" in the keyboard pick-up flow
+	let pickedUpWord: string | null = $state(null);
+
+	// K-02: live region message for screen reader announcements
+	let liveMessage: string = $state('');
+
 	// Get reference to the root element for event dispatching
 	let rootElement: HTMLDivElement | undefined = $state();
 
@@ -103,6 +109,39 @@
 		e.dataTransfer.effectAllowed = 'move';
 	}
 
+	// K-02: handle keyboard pick-up on a word button
+	function onWordKeydown(e: KeyboardEvent, wordId: string) {
+		if (disabled) return;
+		if (e.key === 'Enter' || e.key === ' ') {
+			e.preventDefault();
+			if (pickedUpWord === wordId) {
+				// Toggle off — pressing the already-held word cancels the pick-up
+				pickedUpWord = null;
+				liveMessage = i18n?.t('interactions.gapMatch.pickUpCancelled') ?? 'Pick-up cancelled.';
+			} else {
+				// Pick up this word (replaces any previously held word)
+				pickedUpWord = wordId;
+				const wordText = getWordText(wordId);
+				liveMessage =
+					i18n?.t('interactions.gapMatch.pickedUp', { word: wordText }) ??
+					`Picked up: ${wordText}. Tab to a blank and press Enter to place it. Press Escape to cancel.`;
+			}
+		} else if (e.key === 'Escape') {
+			if (pickedUpWord !== null) {
+				pickedUpWord = null;
+				liveMessage = i18n?.t('interactions.gapMatch.pickUpCancelled') ?? 'Pick-up cancelled.';
+			}
+		}
+	}
+
+	// K-02: global Escape handler to cancel pick-up from anywhere in the component
+	function onRootKeydown(e: KeyboardEvent) {
+		if (e.key === 'Escape' && pickedUpWord !== null) {
+			pickedUpWord = null;
+			liveMessage = i18n?.t('interactions.gapMatch.pickUpCancelled') ?? 'Pick-up cancelled.';
+		}
+	}
+
 	function clearWord(wordId: string) {
 		if (disabled) return;
 		const newPairs = pairs.filter((p: string) => !p.startsWith(`${wordId} `));
@@ -157,7 +196,18 @@
 				if (isCorrect) {
 					btn.classList.add('qti-gm-gap-correct');
 				}
-				const filledAriaLabel = i18n?.t('interactions.gapMatch.filledGapAriaLabel', { gapId, word }) ?? `Blank ${gapId}, filled with ${word}. Click to clear.${isCorrect ? ' Correct answer.' : ''}`;
+				// K-02: update aria-label to hint drop action when a word is held
+				let filledAriaLabel: string;
+				if (pickedUpWord !== null) {
+					const heldWordText = getWordText(pickedUpWord);
+					filledAriaLabel =
+						i18n?.t('interactions.gapMatch.filledGapAriaLabelWithHeld', { gapId, word, heldWord: heldWordText }) ??
+						`Blank ${gapId}, filled with ${word}. Press Enter to replace with ${heldWordText}.${isCorrect ? ' Correct answer.' : ''}`;
+				} else {
+					filledAriaLabel =
+						i18n?.t('interactions.gapMatch.filledGapAriaLabel', { gapId, word }) ??
+						`Blank ${gapId}, filled with ${word}. Click to clear.${isCorrect ? ' Correct answer.' : ''}`;
+				}
 				btn.setAttribute('aria-label', filledAriaLabel);
 			} else {
 				// Keep the gap visually blank (no letters), but still accessible.
@@ -169,9 +219,26 @@
 					btn.classList.add('qti-gm-gap-correct');
 					btn.removeAttribute('data-empty');
 				}
-				const ariaLabel = i18n?.t('interactions.gapMatch.blankGapAriaLabel', { gapId }) ?? `Blank ${gapId}. Drop an answer here.${isCorrect ? ' Correct answer: ' + getWordText(correct) : ''}`;
+				// K-02: update aria-label to hint drop action when a word is held
+				let ariaLabel: string;
+				if (pickedUpWord !== null) {
+					const heldWordText = getWordText(pickedUpWord);
+					ariaLabel =
+						i18n?.t('interactions.gapMatch.blankGapAriaLabelWithHeld', { gapId, heldWord: heldWordText }) ??
+						`Blank ${gapId}. Press Enter to place ${heldWordText} here.${isCorrect ? ' Correct answer: ' + getWordText(correct) : ''}`;
+				} else {
+					ariaLabel =
+						i18n?.t('interactions.gapMatch.blankGapAriaLabel', { gapId }) ??
+						`Blank ${gapId}. Drop an answer here.${isCorrect ? ' Correct answer: ' + getWordText(correct) : ''}`;
+				}
 				btn.setAttribute('aria-label', ariaLabel);
 			}
+
+			// K-02: apply "ready to receive" visual class when a word is held
+			if (pickedUpWord !== null) {
+				btn.classList.add('qti-gm-gap-ready');
+			}
+
 			if (disabled) btn.setAttribute('aria-disabled', 'true');
 
 			const onDragEnter = (e: DragEvent) => {
@@ -201,8 +268,33 @@
 
 			const onClick = () => {
 				if (disabled) return;
-				const current = getSelectedWord(gapId);
-				if (current) handleGapChange(gapId, '');
+				// K-02: if a word is held, drop it into this gap
+				if (pickedUpWord !== null) {
+					const wordText = getWordText(pickedUpWord);
+					handleGapChange(gapId, pickedUpWord);
+					liveMessage =
+						i18n?.t('interactions.gapMatch.placed', { word: wordText, gapId }) ??
+						`Placed ${wordText} in blank ${gapId}.`;
+					pickedUpWord = null;
+				} else {
+					// No word held: clear this gap if it has a word
+					const current = getSelectedWord(gapId);
+					if (current) handleGapChange(gapId, '');
+				}
+			};
+
+			// K-02: keydown handler for gap buttons
+			const onKeydown = (e: KeyboardEvent) => {
+				if (disabled) return;
+				if (e.key === 'Enter' || e.key === ' ') {
+					e.preventDefault();
+					onClick();
+				} else if (e.key === 'Escape') {
+					if (pickedUpWord !== null) {
+						pickedUpWord = null;
+						liveMessage = i18n?.t('interactions.gapMatch.pickUpCancelled') ?? 'Pick-up cancelled.';
+					}
+				}
 			};
 
 			btn.addEventListener('dragenter', onDragEnter);
@@ -210,6 +302,7 @@
 			btn.addEventListener('dragleave', onDragLeave);
 			btn.addEventListener('drop', onDrop);
 			btn.addEventListener('click', onClick);
+			btn.addEventListener('keydown', onKeydown);
 
 			// Store cleanup functions to remove event listeners later
 			cleanupFunctions.push(() => {
@@ -218,6 +311,7 @@
 				btn.removeEventListener('dragleave', onDragLeave);
 				btn.removeEventListener('drop', onDrop);
 				btn.removeEventListener('click', onClick);
+				btn.removeEventListener('keydown', onKeydown);
 			});
 
 			ph.replaceWith(btn);
@@ -234,13 +328,26 @@
 		correctPairs.length;
 		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
 		isShowingCorrect;
+		// K-02: re-render whenever pickedUpWord changes so gap aria-labels and styles update
+		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
+		pickedUpWord;
 		renderPromptWithGaps();
 	});
 </script>
 
 <ShadowBaseStyles />
 
-<div bind:this={rootElement} part="root" class="qti-gap-match-interaction space-y-3">
+<!-- K-02: visually-hidden live region for screen reader announcements -->
+<div
+	aria-live="polite"
+	aria-atomic="true"
+	class="qti-gm-live-region"
+>
+	{liveMessage}
+</div>
+
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div bind:this={rootElement} part="root" class="qti-gap-match-interaction space-y-3" onkeydown={onRootKeydown}>
 	{#if !parsedInteraction}
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
@@ -260,21 +367,29 @@
 			</div>
 			{#each parsedInteraction.gapTexts as gapText (gapText.identifier)}
 				{@const used = isWordUsed(gapText.identifier)}
+				{@const isHeld = pickedUpWord === gapText.identifier}
 				<div class="inline-flex items-center gap-1">
 					<button
 						part="word"
 						type="button"
 						class="btn btn-md font-medium transition-all"
-						class:btn-primary={!used}
-						class:btn-success={used}
+						class:btn-primary={!used && !isHeld}
+						class:btn-success={used && !isHeld}
+						class:btn-warning={isHeld}
+						class:qti-gm-word-held={isHeld}
 						class:cursor-grab={!disabled && !used}
 						class:cursor-not-allowed={disabled}
 						class:opacity-70={disabled}
 						data-word-id={gapText.identifier}
 						draggable={!disabled && !used}
 						aria-disabled={disabled || used}
+						aria-pressed={isHeld}
 						disabled={disabled || used}
 						ondragstart={(e: DragEvent) => onWordDragStart(e, gapText.identifier)}
+						onkeydown={(e: KeyboardEvent) => onWordKeydown(e, gapText.identifier)}
+						aria-label={isHeld
+							? (i18n?.t('interactions.gapMatch.wordAriaLabelHeld', { word: gapText.text }) ?? `${gapText.text} (currently held). Press Enter to cancel, or Tab to a blank.`)
+							: (i18n?.t('interactions.gapMatch.wordAriaLabel', { word: gapText.text }) ?? `${gapText.text} (press Enter to pick up)`)}
 					>
 						{gapText.text}
 					</button>
@@ -326,6 +441,18 @@
 		border: 1px solid var(--color-base-300, oklch(95% 0 0));
 		background: var(--color-base-100, oklch(100% 0 0));
 	}
+	/* K-02: visually hidden live region */
+	.qti-gm-live-region {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border: 0;
+	}
 	:global(.qti-gm-gap-target) {
 		display: inline-flex;
 		align-items: center;
@@ -343,7 +470,7 @@
 			background-color 120ms ease;
 	}
 	:global(.qti-gm-gap-target[data-empty='true']) {
-		/* Same size + base styling as a filled gap, but dashed to indicate “drop here”. */
+		/* Same size + base styling as a filled gap, but dashed to indicate "drop here". */
 		border-style: dashed;
 		border-color: color-mix(
 			in oklch,
@@ -370,6 +497,12 @@
 		border-color: var(--color-success, oklch(76% 0.177 163.223));
 		background: color-mix(in oklch, var(--color-success, oklch(76% 0.177 163.223)) 8%, transparent);
 	}
+	/* K-02: "ready to receive" visual for gap targets when a word is held */
+	:global(.qti-gm-gap-target.qti-gm-gap-ready) {
+		border-style: dashed;
+		border-color: var(--color-primary, oklch(45% 0.24 277));
+		box-shadow: 0 0 0 2px color-mix(in oklch, var(--color-primary, oklch(45% 0.24 277)) 22%, transparent);
+	}
 	:global(.qti-gm-gap-target:focus-visible) {
 		outline: 2px solid hsl(var(--p, 240 100% 50%) / 0.5);
 		outline-offset: 2px;
@@ -390,5 +523,10 @@
 	}
 	.qti-gm-palette [part='word'][draggable='true']:active {
 		cursor: grabbing;
+	}
+	/* K-02: "held" visual for the picked-up word button */
+	:global(.qti-gm-word-held) {
+		outline: 3px solid var(--color-warning, oklch(84% 0.2 85));
+		outline-offset: 2px;
 	}
 </style>

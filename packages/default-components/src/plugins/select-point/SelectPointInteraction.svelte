@@ -37,6 +37,12 @@
 	let imageContainer: HTMLDivElement | null = $state(null);
 	let imageElement: HTMLElement | null = $state(null);
 
+	// Keyboard crosshair state (K-01)
+	let crosshairActive = $state(false);
+	let crosshairX = $state(0.5); // normalized 0-1
+	let crosshairY = $state(0.5); // normalized 0-1
+	let liveRegionText = $state('');
+
 	/**
 	 * Parse correct response points (same format as user response)
 	 */
@@ -216,6 +222,79 @@
 			}
 		}
 	});
+
+	/**
+	 * Place a point at the current crosshair position (K-01).
+	 * Converts normalized crosshair coords to intrinsic pixel coords.
+	 */
+	function placePointAtCrosshair() {
+		if (!canSelectMore || !parsedInteraction?.imageData) return;
+
+		const intrinsicWidth = parseInt(parsedInteraction.imageData.width) || 500;
+		const intrinsicHeight = parseInt(parsedInteraction.imageData.height) || 300;
+
+		const x = Math.round(crosshairX * intrinsicWidth);
+		const y = Math.round(crosshairY * intrinsicHeight);
+
+		selectedPoints = [...selectedPoints, { x, y }];
+
+		const canonicalValue =
+			parsedInteraction.maxChoices === 1
+				? (selectedPoints[0] ? `${selectedPoints[0].x} ${selectedPoints[0].y}` : null)
+				: selectedPoints.map((p) => `${p.x} ${p.y}`);
+		response = canonicalValue;
+		onChange?.(canonicalValue);
+		rootElement?.dispatchEvent(createQtiChangeEvent(parsedInteraction?.responseId, canonicalValue));
+	}
+
+	/**
+	 * Handle keyboard events on the image container (K-01).
+	 * Arrow keys move the crosshair; Enter/Space place a point.
+	 */
+	function handleKeydown(e: KeyboardEvent) {
+		if (disabled) return;
+
+		const LARGE_STEP = 0.05; // 5% per arrow key press
+		const SMALL_STEP = 0.01; // 1% with Shift for fine control
+
+		switch (e.key) {
+			case 'ArrowLeft':
+			case 'ArrowRight':
+			case 'ArrowUp':
+			case 'ArrowDown': {
+				e.preventDefault();
+				const step = e.shiftKey ? SMALL_STEP : LARGE_STEP;
+				if (e.key === 'ArrowLeft')  crosshairX = Math.max(0, crosshairX - step);
+				if (e.key === 'ArrowRight') crosshairX = Math.min(1, crosshairX + step);
+				if (e.key === 'ArrowUp')    crosshairY = Math.max(0, crosshairY - step);
+				if (e.key === 'ArrowDown')  crosshairY = Math.min(1, crosshairY + step);
+
+				const xPct = Math.round(crosshairX * 100);
+				const yPct = Math.round(crosshairY * 100);
+				liveRegionText = `Position: ${xPct}%, ${yPct}%`;
+				break;
+			}
+			case 'Enter':
+			case ' ':
+				e.preventDefault();
+				if (canSelectMore) {
+					placePointAtCrosshair();
+				}
+				break;
+		}
+	}
+
+	function handleFocus() {
+		crosshairActive = true;
+		crosshairX = 0.5;
+		crosshairY = 0.5;
+		liveRegionText = 'Position: 50%, 50%';
+	}
+
+	function handleBlur() {
+		crosshairActive = false;
+		liveRegionText = '';
+	}
 </script>
 
 <ShadowBaseStyles />
@@ -230,19 +309,24 @@
 
 		<div class="space-y-3">
 
+	<!-- Visually-hidden live region announces crosshair position to screen readers -->
+	<span
+		aria-live="polite"
+		aria-atomic="true"
+		style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;"
+	>{liveRegionText}</span>
+
 	<div
 		bind:this={imageContainer}
 		class="image-container relative inline-block"
 		style={disabled ? 'cursor: default;' : 'cursor: crosshair;'}
 		role="button"
 		tabindex={disabled ? -1 : 0}
-		aria-label={i18n?.t('interactions.selectPoint.instructionAria') ?? 'Click to select points on the image'}
+		aria-label={i18n?.t('interactions.selectPoint.instructionAria') ?? 'Click or use arrow keys to position crosshair, then press Enter or Space to select a point on the image'}
 		onclick={handleImageClick}
-		onkeydown={(e) => {
-			if (e.key === 'Enter' || e.key === ' ') {
-				e.preventDefault();
-			}
-		}}
+		onkeydown={handleKeydown}
+		onfocus={handleFocus}
+		onblur={handleBlur}
 	>
 		{#if parsedInteraction.imageData}
 			{#if parsedInteraction.imageData.type === 'svg'}
@@ -310,6 +394,28 @@
 			>
 				<p class="text-base-content/50">{i18n?.t('interactions.selectPoint.noImage') ?? 'No image provided'}</p>
 			</div>
+		{/if}
+
+		<!-- Keyboard crosshair overlay (K-01) — visible only when container has focus -->
+		{#if crosshairActive && !disabled && parsedInteraction?.imageData}
+			{@const imgW = parseInt(parsedInteraction.imageData.width) || 500}
+			{@const imgH = parseInt(parsedInteraction.imageData.height) || 300}
+			{@const cx = crosshairX * imgW}
+			{@const cy = crosshairY * imgH}
+			<svg
+				aria-hidden="true"
+				class="crosshair-overlay"
+				style="width: {imgW}px; height: {imgH}px;"
+				viewBox="0 0 {imgW} {imgH}"
+				xmlns="http://www.w3.org/2000/svg"
+			>
+				<!-- Horizontal line -->
+				<line x1="0" y1={cy} x2={imgW} y2={cy} class="crosshair-line" />
+				<!-- Vertical line -->
+				<line x1={cx} y1="0" x2={cx} y2={imgH} class="crosshair-line" />
+				<!-- Centre dot -->
+				<circle cx={cx} cy={cy} r="5" class="crosshair-dot" />
+			</svg>
 		{/if}
 	</div>
 
@@ -440,5 +546,26 @@
 	.no-image-placeholder {
 		border: 2px dashed hsl(var(--bc) / 0.2);
 		border-radius: 8px;
+	}
+
+	/* K-01 keyboard crosshair overlay */
+	.crosshair-overlay {
+		position: absolute;
+		top: 0;
+		left: 0;
+		pointer-events: none;
+		z-index: 150;
+	}
+
+	.crosshair-line {
+		stroke: #2563eb;
+		stroke-width: 1.5;
+		stroke-dasharray: 4 3;
+		opacity: 0.85;
+	}
+
+	.crosshair-dot {
+		fill: #2563eb;
+		opacity: 0.9;
 	}
 </style>

@@ -4,7 +4,7 @@
 /**
  * Graphic Gap Match component for graphicGapMatchInteractionData
  * Drag labels onto specific areas of an image/diagram
- * Supports keyboard, mouse, and touch interactions
+ * Supports keyboard (two-phase pick-up/drop), mouse, and touch interactions
  */
 
 import type { GraphicGapMatchInteractionData } from '@pie-qti/item-player';
@@ -37,8 +37,10 @@ const correctPairs = $derived(Array.isArray(parsedCorrectResponse) ? parsedCorre
 let pairs = $state<string[]>([]);
 let draggedTextId = $state<string | null>(null);
 let hoveredHotspotId = $state<string | null>(null);
-let keyboardSelectedTextId = $state<string | null>(null); // Gap text selected via keyboard
-let announceText = $state<string>(''); // For screen reader announcements
+/** Identifier of the label currently "held" via keyboard (two-phase pick-up/drop). */
+let pickedUpLabel = $state<string | null>(null);
+/** Text announced to screen readers via the aria-live region. */
+let liveMessage = $state<string>('');
 
 // Get reference to the root element for event dispatching (needed for Shadow DOM)
 let rootElement: HTMLDivElement | undefined = $state();
@@ -154,64 +156,61 @@ function clearMatch(gapTextId: string) {
 		rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction.responseId, valueArray));
 	}
 
-	announceText = `${gapTextName} removed from hotspot`;
+	liveMessage = `${gapTextName} removed from hotspot`;
 }
 
-// Keyboard handlers for gap texts (labels)
-function handleGapTextClick(gapTextId: string) {
-	if (disabled || !parsedInteraction) return;
+/**
+ * Resolve a human-readable name for a label by identifier.
+ * Checks gapTexts first, then gapImages.
+ */
+function getLabelName(labelId: string): string {
+	if (!parsedInteraction) return 'Label';
+	const text = parsedInteraction.gapTexts.find((g) => g.identifier === labelId);
+	if (text) return text.text;
+	const img = parsedInteraction.gapImages.find((g) => g.identifier === labelId);
+	if (img) return img.alt || img.identifier;
+	return 'Label';
+}
 
-	const gapTextObj = parsedInteraction.gapTexts.find((g) => g.identifier === gapTextId);
-	const gapTextName = gapTextObj?.text || 'Label';
+// Phase-1 handler: pick up or put down a label from the palette.
+function handleLabelActivate(labelId: string) {
+	if (disabled) return;
 
-	if (keyboardSelectedTextId === gapTextId) {
-		// Deselect
-		keyboardSelectedTextId = null;
-		announceText = `${gapTextName} deselected`;
+	if (pickedUpLabel === labelId) {
+		// Second press on the same label cancels the pick-up
+		pickedUpLabel = null;
+		liveMessage = 'Cancelled.';
 	} else {
-		// Select this gap text for placement
-		keyboardSelectedTextId = gapTextId;
-		announceText = `${gapTextName} selected. Navigate to a hotspot and press Space or Enter to place.`;
+		pickedUpLabel = labelId;
+		const name = getLabelName(labelId);
+		liveMessage = `Picked up: ${name}. Tab to a hotspot and press Enter to place it.`;
 	}
 }
 
-function handleGapTextKeyDown(event: KeyboardEvent, gapTextId: string) {
-	if (disabled || !parsedInteraction) return;
-
-	const gapTextObj = parsedInteraction.gapTexts.find((g) => g.identifier === gapTextId);
-	const gapTextName = gapTextObj?.text || 'Label';
+function handleLabelKeyDown(event: KeyboardEvent, labelId: string) {
+	if (disabled) return;
 
 	if (event.key === ' ' || event.key === 'Enter') {
 		event.preventDefault();
-
-		if (keyboardSelectedTextId === gapTextId) {
-			// Deselect
-			keyboardSelectedTextId = null;
-			announceText = `${gapTextName} deselected`;
-		} else {
-			// Select this gap text for placement
-			keyboardSelectedTextId = gapTextId;
-			announceText = `${gapTextName} selected. Navigate to a hotspot and press Space or Enter to place.`;
-		}
-	} else if (event.key === 'Escape' && keyboardSelectedTextId) {
+		handleLabelActivate(labelId);
+	} else if (event.key === 'Escape' && pickedUpLabel) {
 		event.preventDefault();
-		keyboardSelectedTextId = null;
-		announceText = `Selection cancelled`;
+		pickedUpLabel = null;
+		liveMessage = 'Cancelled.';
 	}
 }
 
-// Keyboard handlers for hotspots
-function placeSelectedLabelOnHotspot(hotspotId: string) {
-	if (disabled || !keyboardSelectedTextId || !parsedInteraction) return;
+// Phase-2 handler: drop the held label onto a hotspot.
+function placePickedUpLabelOnHotspot(hotspotId: string) {
+	if (disabled || !pickedUpLabel || !parsedInteraction) return;
 
 	const hotspotIndex = parsedInteraction.hotspots.findIndex((h) => h.identifier === hotspotId);
-	const gapTextObj = parsedInteraction.gapTexts.find((g) => g.identifier === keyboardSelectedTextId);
-	const gapTextName = gapTextObj?.text || 'Label';
+	const labelName = getLabelName(pickedUpLabel);
 
 	// Create match
-	let newPairs = pairs.filter((p) => !p.startsWith(`${keyboardSelectedTextId} `));
+	let newPairs = pairs.filter((p) => !p.startsWith(`${pickedUpLabel} `));
 	newPairs = newPairs.filter((p) => !p.endsWith(` ${hotspotId}`));
-	newPairs.push(`${keyboardSelectedTextId} ${hotspotId}`);
+	newPairs.push(`${pickedUpLabel} ${hotspotId}`);
 
 	isInternalUpdate = true; // Mark as internal update
 	pairs = newPairs;
@@ -224,16 +223,27 @@ function placeSelectedLabelOnHotspot(hotspotId: string) {
 		rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction.responseId, valueArray));
 	}
 
-	announceText = `${gapTextName} placed on hotspot ${hotspotIndex + 1}`;
-	keyboardSelectedTextId = null;
+	liveMessage = `Placed ${labelName} on hotspot ${hotspotIndex + 1}.`;
+	pickedUpLabel = null;
 }
 
 function handleHotspotKeyDown(event: KeyboardEvent, hotspotId: string) {
-	if (disabled || !keyboardSelectedTextId || !parsedInteraction) return;
+	if (disabled || !parsedInteraction) return;
 
 	if (event.key === ' ' || event.key === 'Enter') {
+		if (pickedUpLabel) {
+			event.preventDefault();
+			placePickedUpLabelOnHotspot(hotspotId);
+		}
+	}
+}
+
+// Global Escape on root element cancels any active pick-up
+function handleRootKeyDown(event: KeyboardEvent) {
+	if (event.key === 'Escape' && pickedUpLabel) {
 		event.preventDefault();
-		placeSelectedLabelOnHotspot(hotspotId);
+		pickedUpLabel = null;
+		liveMessage = 'Cancelled.';
 	}
 }
 
@@ -255,7 +265,8 @@ function parseCoords(hotspot: { identifier: string; shape: string; coords: strin
 
 <ShadowBaseStyles />
 
-<div bind:this={rootElement} class="qti-graphic-gap-match-interaction">
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div bind:this={rootElement} class="qti-graphic-gap-match-interaction" onkeydown={handleRootKeyDown}>
 	{#if !parsedInteraction}
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
@@ -263,14 +274,14 @@ function parseCoords(hotspot: { identifier: string; shape: string; coords: strin
 			<p part="prompt" class="qti-ggm-prompt font-semibold mb-3">{@html parsedInteraction.prompt}</p>
 		{/if}
 
-		<!-- Screen reader announcements -->
+		<!-- Visually-hidden live region for screen reader announcements -->
 		<div aria-live="polite" aria-atomic="true" class="sr-only">
-			{announceText}
+			{liveMessage}
 		</div>
 
 		<!-- Instructions for keyboard users -->
 		<div id="graphic-gap-match-instructions" class="sr-only">
-			Press Space or Enter to select a label. Tab to navigate to hotspots on the image. Press Space or Enter on a hotspot to place the label. Press Escape to cancel selection.
+			Press Space or Enter to pick up a label. Tab to a hotspot on the image and press Enter to place it. Press Escape to cancel.
 		</div>
 
 		<div
@@ -293,7 +304,7 @@ function parseCoords(hotspot: { identifier: string; shape: string; coords: strin
 					{#each parsedInteraction.gapTexts as gapText (gapText.identifier)}
 						{@const matchedHotspot = getMatchedHotspot(gapText.identifier)}
 						{@const isDragged = draggedTextId === gapText.identifier}
-						{@const isSelected = keyboardSelectedTextId === gapText.identifier}
+						{@const isHeld = pickedUpLabel === gapText.identifier}
 
 						<div class="inline-flex items-center gap-1">
 							<button
@@ -302,16 +313,16 @@ function parseCoords(hotspot: { identifier: string; shape: string; coords: strin
 								use:touchDrag
 								ondragstart={() => handleDragStart(gapText.identifier)}
 								ondragend={handleDragEnd}
-								onclick={() => handleGapTextClick(gapText.identifier)}
-								onkeydown={(e) => handleGapTextKeyDown(e, gapText.identifier)}
+								onclick={() => handleLabelActivate(gapText.identifier)}
+								onkeydown={(e) => handleLabelKeyDown(e, gapText.identifier)}
 								disabled={disabled || !!matchedHotspot}
-								aria-pressed={isSelected}
-								aria-label="{gapText.text}{matchedHotspot ? '. Already placed on hotspot' : ''}{isSelected ? '. Selected for placement' : '. Press Space to select'}"
+								aria-pressed={isHeld}
+								aria-label="{gapText.text}{matchedHotspot ? '. Already placed on hotspot' : ''}{isHeld ? '. Picked up. Tab to a hotspot and press Enter to place.' : '. Press Space or Enter to pick up'}"
 								class="btn btn-md font-medium transition-all"
-								class:btn-primary={!matchedHotspot && !isSelected}
-								class:btn-accent={isSelected}
+								class:btn-primary={!matchedHotspot && !isHeld}
+								class:qti-ggm-label-held={isHeld}
 								class:btn-success={matchedHotspot}
-								class:cursor-grab={!disabled && !matchedHotspot && !isSelected}
+								class:cursor-grab={!disabled && !matchedHotspot && !isHeld}
 								class:cursor-not-allowed={disabled}
 								class:opacity-70={disabled || isDragged}
 								class:contrast-125={matchedHotspot}
@@ -337,7 +348,7 @@ function parseCoords(hotspot: { identifier: string; shape: string; coords: strin
 					{#each (parsedInteraction.gapImages ?? []) as gapImage (gapImage.identifier)}
 						{@const matchedHotspot = getMatchedHotspot(gapImage.identifier)}
 						{@const isDragged = draggedTextId === gapImage.identifier}
-						{@const isSelected = keyboardSelectedTextId === gapImage.identifier}
+						{@const isHeld = pickedUpLabel === gapImage.identifier}
 
 						<div class="inline-flex items-center gap-1">
 							<button
@@ -346,16 +357,16 @@ function parseCoords(hotspot: { identifier: string; shape: string; coords: strin
 								use:touchDrag
 								ondragstart={() => handleDragStart(gapImage.identifier)}
 								ondragend={handleDragEnd}
-								onclick={() => handleGapTextClick(gapImage.identifier)}
-								onkeydown={(e) => handleGapTextKeyDown(e, gapImage.identifier)}
+								onclick={() => handleLabelActivate(gapImage.identifier)}
+								onkeydown={(e) => handleLabelKeyDown(e, gapImage.identifier)}
 								disabled={disabled || !!matchedHotspot}
-								aria-pressed={isSelected}
-								aria-label="{gapImage.alt || gapImage.identifier}{matchedHotspot ? '. Already placed on hotspot' : ''}{isSelected ? '. Selected for placement' : '. Press Space to select'}"
+								aria-pressed={isHeld}
+								aria-label="{gapImage.alt || gapImage.identifier}{matchedHotspot ? '. Already placed on hotspot' : ''}{isHeld ? '. Picked up. Tab to a hotspot and press Enter to place.' : '. Press Space or Enter to pick up'}"
 								class="btn btn-md p-1 transition-all"
-								class:btn-primary={!matchedHotspot && !isSelected}
-								class:btn-accent={isSelected}
+								class:btn-primary={!matchedHotspot && !isHeld}
+								class:qti-ggm-label-held={isHeld}
 								class:btn-success={matchedHotspot}
-								class:cursor-grab={!disabled && !matchedHotspot && !isSelected}
+								class:cursor-grab={!disabled && !matchedHotspot && !isHeld}
 								class:cursor-not-allowed={disabled}
 								class:opacity-70={disabled || isDragged}
 							>
@@ -408,6 +419,8 @@ function parseCoords(hotspot: { identifier: string; shape: string; coords: strin
 						{@const correctGapText = getCorrectGapText(hotspot.identifier)}
 						{@const correctGapTextObj = correctGapText ? parsedInteraction.gapTexts.find((g) => g.identifier === correctGapText) : null}
 						{@const isCorrect = isCorrectHotspot(hotspot.identifier)}
+						{@const hotspotReady = !!pickedUpLabel && !disabled}
+						{@const pickedUpLabelName = pickedUpLabel ? getLabelName(pickedUpLabel) : ''}
 
 						<g>
 							<!-- Hotspot drop zone -->
@@ -416,22 +429,22 @@ function parseCoords(hotspot: { identifier: string; shape: string; coords: strin
 								{@const hotspotIndex = parsedInteraction.hotspots.findIndex((h) => h.identifier === hotspot.identifier)}
 								<circle
 									role="button"
-									tabindex={disabled || !keyboardSelectedTextId ? -1 : 0}
-									aria-label="Hotspot {hotspotIndex + 1}{matchedGapText && gapTextObj ? '. Contains ' + gapTextObj.text : correctGapTextObj ? '. Correct answer: ' + correctGapTextObj.text : '. Available'}{keyboardSelectedTextId ? '. Press Space or Enter to place label' : ''}"
+									tabindex={disabled ? -1 : 0}
+									aria-label="Hotspot {hotspotIndex + 1}{matchedGapText && gapTextObj ? '. Contains ' + gapTextObj.text : correctGapTextObj ? '. Correct answer: ' + correctGapTextObj.text : '. Empty'}{hotspotReady ? '. Press Enter to place ' + pickedUpLabelName + ' here' : ''}"
 									cx={cx}
 									cy={cy}
 									r={r}
-									fill={matchedGapText ? '#10b981' : isCorrect ? '#10b981' : isHovered ? '#3b82f6' : 'transparent'}
-									fill-opacity={matchedGapText ? '0.3' : isCorrect ? '0.2' : isHovered ? '0.2' : '0'}
-									stroke={matchedGapText ? '#10b981' : isCorrect ? '#10b981' : isHovered ? '#3b82f6' : '#6b7280'}
-									stroke-width="2"
-									stroke-dasharray={matchedGapText || isCorrect ? '' : '4,4'}
-									class="transition-all"
-									style="pointer-events: auto; cursor: {disabled ? 'not-allowed' : 'pointer'};"
+									fill={matchedGapText ? '#10b981' : isCorrect ? '#10b981' : hotspotReady ? '#3b82f6' : isHovered ? '#3b82f6' : 'transparent'}
+									fill-opacity={matchedGapText ? '0.3' : isCorrect ? '0.2' : hotspotReady ? '0.15' : isHovered ? '0.2' : '0'}
+									stroke={matchedGapText ? '#10b981' : isCorrect ? '#10b981' : hotspotReady ? '#3b82f6' : isHovered ? '#3b82f6' : '#6b7280'}
+									stroke-width={hotspotReady ? '3' : '2'}
+									stroke-dasharray={matchedGapText || isCorrect ? '' : hotspotReady ? '6,3' : '4,4'}
+									class="transition-all{hotspotReady ? ' qti-ggm-hotspot-ready' : ''}"
+									style="pointer-events: auto; cursor: {disabled ? 'not-allowed' : hotspotReady ? 'copy' : 'pointer'};"
 									ondragover={(e) => handleHotspotDragOver(e, hotspot.identifier)}
 									ondragleave={handleHotspotDragLeave}
 									ondrop={(e) => handleHotspotDrop(e, hotspot.identifier)}
-									onclick={() => placeSelectedLabelOnHotspot(hotspot.identifier)}
+									onclick={() => placePickedUpLabelOnHotspot(hotspot.identifier)}
 									onkeydown={(e) => handleHotspotKeyDown(e, hotspot.identifier)}
 								/>
 							{:else if hotspot.shape === 'rect'}
@@ -439,23 +452,23 @@ function parseCoords(hotspot: { identifier: string; shape: string; coords: strin
 								{@const hotspotIndex = parsedInteraction.hotspots.findIndex((h) => h.identifier === hotspot.identifier)}
 								<rect
 									role="button"
-									tabindex={disabled || !keyboardSelectedTextId ? -1 : 0}
-									aria-label="Hotspot {hotspotIndex + 1}{matchedGapText && gapTextObj ? '. Contains ' + gapTextObj.text : correctGapTextObj ? '. Correct answer: ' + correctGapTextObj.text : '. Available'}{keyboardSelectedTextId ? '. Press Space or Enter to place label' : ''}"
+									tabindex={disabled ? -1 : 0}
+									aria-label="Hotspot {hotspotIndex + 1}{matchedGapText && gapTextObj ? '. Contains ' + gapTextObj.text : correctGapTextObj ? '. Correct answer: ' + correctGapTextObj.text : '. Empty'}{hotspotReady ? '. Press Enter to place ' + pickedUpLabelName + ' here' : ''}"
 									x={x}
 									y={y}
 									width={width}
 									height={height}
-									fill={matchedGapText ? '#10b981' : isCorrect ? '#10b981' : isHovered ? '#3b82f6' : 'transparent'}
-									fill-opacity={matchedGapText ? '0.3' : isCorrect ? '0.2' : isHovered ? '0.2' : '0'}
-									stroke={matchedGapText ? '#10b981' : isCorrect ? '#10b981' : isHovered ? '#3b82f6' : '#6b7280'}
-									stroke-width="2"
-									stroke-dasharray={matchedGapText || isCorrect ? '' : '4,4'}
-									class="transition-all"
-									style="pointer-events: auto; cursor: {disabled ? 'not-allowed' : 'pointer'};"
+									fill={matchedGapText ? '#10b981' : isCorrect ? '#10b981' : hotspotReady ? '#3b82f6' : isHovered ? '#3b82f6' : 'transparent'}
+									fill-opacity={matchedGapText ? '0.3' : isCorrect ? '0.2' : hotspotReady ? '0.15' : isHovered ? '0.2' : '0'}
+									stroke={matchedGapText ? '#10b981' : isCorrect ? '#10b981' : hotspotReady ? '#3b82f6' : isHovered ? '#3b82f6' : '#6b7280'}
+									stroke-width={hotspotReady ? '3' : '2'}
+									stroke-dasharray={matchedGapText || isCorrect ? '' : hotspotReady ? '6,3' : '4,4'}
+									class="transition-all{hotspotReady ? ' qti-ggm-hotspot-ready' : ''}"
+									style="pointer-events: auto; cursor: {disabled ? 'not-allowed' : hotspotReady ? 'copy' : 'pointer'};"
 									ondragover={(e) => handleHotspotDragOver(e, hotspot.identifier)}
 									ondragleave={handleHotspotDragLeave}
 									ondrop={(e) => handleHotspotDrop(e, hotspot.identifier)}
-									onclick={() => placeSelectedLabelOnHotspot(hotspot.identifier)}
+									onclick={() => placePickedUpLabelOnHotspot(hotspot.identifier)}
 									onkeydown={(e) => handleHotspotKeyDown(e, hotspot.identifier)}
 								/>
 							{/if}
@@ -546,4 +559,22 @@ function parseCoords(hotspot: { identifier: string; shape: string; coords: strin
 		display: block;
 	}
 
+	/* Label button in "held" (picked-up) state */
+	:global(.qti-ggm-label-held) {
+		outline: 3px solid var(--color-accent, oklch(65% 0.2 320));
+		outline-offset: 2px;
+		background-color: var(--color-accent, oklch(65% 0.2 320)) !important;
+		color: var(--color-accent-content, #fff) !important;
+		box-shadow: 0 0 0 4px oklch(65% 0.2 320 / 0.25);
+	}
+
+	/* SVG hotspot shape in "ready to receive drop" state — pulsing outline */
+	:global(.qti-ggm-hotspot-ready) {
+		animation: ggm-hotspot-pulse 1.2s ease-in-out infinite;
+	}
+
+	@keyframes ggm-hotspot-pulse {
+		0%, 100% { stroke-opacity: 1; }
+		50% { stroke-opacity: 0.4; }
+	}
 </style>

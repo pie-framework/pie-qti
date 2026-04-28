@@ -77,7 +77,15 @@
 	let positions = $state<Position[]>([]);
 	let draggedStageId: string | null = $state(null);
 	let draggedPositionIndex: number | null = $state(null);
+	// imageContainer / imageContainer are the same element — one binding covers both roles
 	let imageContainer: HTMLDivElement | null = $state(null);
+
+	// Keyboard accessibility state (K-04)
+	let selectedStageId: string | null = $state(null); // stage currently being keyboard-positioned
+	let crosshairX = $state(0.5); // normalized [0,1] x position on background image
+	let crosshairY = $state(0.5); // normalized [0,1] y position on background image
+	let crosshairActive = $state(false); // whether the crosshair is visible/active
+	let liveMessage = $state(''); // message for aria-live region
 
 	const canInteract = $derived(!disabled);
 	const canAddMore = $derived(
@@ -353,6 +361,140 @@
 				Math.abs(pos.y - correctPos.y) < 5
 		);
 	}
+
+	// ---------------------------------------------------------------------------
+	// Keyboard accessibility (K-04) — two-phase: palette select → canvas place
+	// ---------------------------------------------------------------------------
+
+	/**
+	 * Activate keyboard placement mode for a palette stage.
+	 * Phase 1: user presses Enter/Space on a palette item.
+	 */
+	function activateKeyboardPlacement(stageId: string) {
+		if (!canInteract) return;
+		const stage = getStageById(stageId);
+		if (!stage || !canDragStage(stageId)) return;
+
+		selectedStageId = stageId;
+		crosshairActive = true;
+
+		// Initialise crosshair to the stage's last placed position, or centre
+		const existing = [...positions].reverse().find((p: Position) => p.stageId === stageId);
+		if (existing && parsedInteraction?.imageData) {
+			const imgW = Number(parsedInteraction.imageData.width) || 1;
+			const imgH = Number(parsedInteraction.imageData.height) || 1;
+			crosshairX = Math.max(0, Math.min(1, existing.x / imgW));
+			crosshairY = Math.max(0, Math.min(1, existing.y / imgH));
+		} else {
+			crosshairX = 0.5;
+			crosshairY = 0.5;
+		}
+
+		liveMessage = `${stage.label} selected. Tab to canvas, then use arrow keys to position. Press Enter to place, Escape to cancel.`;
+
+		// Move focus to the canvas so arrow keys work immediately
+		requestAnimationFrame(() => imageContainer?.focus());
+	}
+
+	/**
+	 * Handle keydown on a palette item.
+	 */
+	function handlePaletteKeydown(event: KeyboardEvent, stageId: string) {
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			activateKeyboardPlacement(stageId);
+		}
+	}
+
+	/**
+	 * Place the currently selected stage at the crosshair position.
+	 */
+	function placeAtCrosshair() {
+		if (!selectedStageId || !parsedInteraction?.imageData) return;
+
+		const imgW = Number(parsedInteraction.imageData.width) || 800;
+		const imgH = Number(parsedInteraction.imageData.height) || 600;
+
+		let x = crosshairX * imgW;
+		let y = crosshairY * imgH;
+
+		// Apply centerPoint adjustment (same logic as mouse drop)
+		if (parsedInteraction.centerPoint) {
+			const stage = getStageById(selectedStageId);
+			if (stage?.objectData) {
+				x -= parseInt(stage.objectData.width || '50') / 2;
+				y -= parseInt(stage.objectData.height || '50') / 2;
+			}
+		}
+
+		const stage = getStageById(selectedStageId);
+		if (!stage) return;
+
+		// Check stage capacity
+		const usageCount = getStageUsageCount(selectedStageId);
+		if (usageCount >= stage.matchMax) return;
+		if (!canAddMore) return;
+
+		positions = [...positions, { stageId: selectedStageId, x, y }];
+
+		const responseValue = positions.map((pos) => `${Math.round(pos.x)} ${Math.round(pos.y)}`);
+		response = responseValue;
+		onChange?.(responseValue);
+		if (rootElement) {
+			rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction?.responseId, responseValue));
+		}
+
+		const pct = (v: number) => Math.round(v * 100);
+		liveMessage = `${stage.label} placed at ${pct(crosshairX)}%, ${pct(crosshairY)}%.`;
+
+		selectedStageId = null;
+		crosshairActive = false;
+	}
+
+	/**
+	 * Handle keydown on the canvas when in keyboard placement mode.
+	 */
+	function handleCanvasKeydown(event: KeyboardEvent) {
+		if (!crosshairActive || !selectedStageId) return;
+
+		const step = event.shiftKey ? 0.01 : 0.05;
+
+		switch (event.key) {
+			case 'ArrowLeft':
+				event.preventDefault();
+				crosshairX = Math.max(0, crosshairX - step);
+				break;
+			case 'ArrowRight':
+				event.preventDefault();
+				crosshairX = Math.min(1, crosshairX + step);
+				break;
+			case 'ArrowUp':
+				event.preventDefault();
+				crosshairY = Math.max(0, crosshairY - step);
+				break;
+			case 'ArrowDown':
+				event.preventDefault();
+				crosshairY = Math.min(1, crosshairY + step);
+				break;
+			case 'Enter':
+			case ' ':
+				event.preventDefault();
+				placeAtCrosshair();
+				return;
+			case 'Escape':
+				event.preventDefault();
+				selectedStageId = null;
+				crosshairActive = false;
+				liveMessage = 'Placement cancelled.';
+				return;
+			default:
+				return;
+		}
+
+		// Announce updated position after arrow movement
+		const pct = (v: number) => Math.round(v * 100);
+		liveMessage = `Position: ${pct(crosshairX)}%, ${pct(crosshairY)}%.`;
+	}
 </script>
 
 <ShadowBaseStyles />
@@ -368,15 +510,21 @@
 		<div part="layout" class="qti-po-layout flex flex-col lg:flex-row gap-4 items-start">
 			<!-- Canvas Area with Background Image -->
 			<div part="canvas-area" class="qti-po-canvas-area flex-1 min-w-0">
+				<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+				<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 				<div
 					bind:this={imageContainer}
 					part="canvas"
-					class="qti-po-canvas relative border-2 border-base-300 rounded-lg overflow-hidden bg-base-200"
+					class="qti-po-canvas relative border-2 border-base-300 rounded-lg overflow-hidden bg-base-200 {crosshairActive ? 'qti-po-canvas-active' : ''}"
 					style="width: 100%; aspect-ratio: {parsedInteraction.imageData?.width || 800} / {parsedInteraction.imageData?.height || 600}; box-sizing: border-box;"
 				ondrop={handleDrop}
 				ondragover={handleDragOver}
-				role="region"
-				aria-label={i18n?.t('interactions.positionObject.canvasLabel') ?? 'Positioning canvas'}
+				onkeydown={handleCanvasKeydown}
+				role="application"
+				tabindex={crosshairActive ? 0 : -1}
+				aria-label={crosshairActive
+					? (i18n?.t('interactions.positionObject.canvasActiveLabel') ?? `Positioning canvas – use arrow keys to move crosshair, Enter to place, Escape to cancel`)
+					: (i18n?.t('interactions.positionObject.canvasLabel') ?? 'Positioning canvas')}
 			>
 				<!-- Background Image -->
 				{#if parsedInteraction.imageData}
@@ -508,6 +656,39 @@
 						{/if}
 					{/each}
 				{/if}
+
+				<!-- Keyboard crosshair overlay (K-04) -->
+				{#if crosshairActive}
+					<svg
+						class="qti-po-crosshair-overlay"
+						aria-hidden="true"
+						xmlns="http://www.w3.org/2000/svg"
+					>
+						<!-- vertical line -->
+						<line
+							x1="{crosshairX * 100}%"
+							y1="0"
+							x2="{crosshairX * 100}%"
+							y2="100%"
+							class="qti-po-crosshair-line"
+						/>
+						<!-- horizontal line -->
+						<line
+							x1="0"
+							y1="{crosshairY * 100}%"
+							x2="100%"
+							y2="{crosshairY * 100}%"
+							class="qti-po-crosshair-line"
+						/>
+						<!-- centre dot -->
+						<circle
+							cx="{crosshairX * 100}%"
+							cy="{crosshairY * 100}%"
+							r="6"
+							class="qti-po-crosshair-dot"
+						/>
+					</svg>
+				{/if}
 			</div>
 
 			{#if parsedInteraction.minChoices > 0}
@@ -527,7 +708,7 @@
 						Available Objects ({positions.length}{#if parsedInteraction.maxChoices > 0}/{parsedInteraction.maxChoices}{/if})
 					</h3>
 
-					<p class="text-xs text-base-content/60 mb-2">Drag objects onto the canvas to position them.</p>
+					<p class="text-xs text-base-content/60 mb-2">Drag objects onto the canvas, or press Enter/Space on an object then use arrow keys to position it on the canvas.</p>
 
 					<div class="space-y-2">
 						{#each parsedInteraction.positionObjectStages as stage}
@@ -535,17 +716,16 @@
 							{@const canDrag = canDragStage(stage.identifier)}
 							<div
 								part="palette-item"
-								class="qti-po-palette-item flex items-center gap-3 p-3 rounded-lg bg-base-200 border border-base-300 {canInteract &&
-								canDrag
-									? 'cursor-move hover:border-primary'
-									: 'opacity-50 cursor-not-allowed'}"
+								class="qti-po-palette-item flex items-center gap-3 p-3 rounded-lg bg-base-200 border border-base-300 {canInteract && canDrag ? 'cursor-move hover:border-primary' : 'opacity-50 cursor-not-allowed'} {selectedStageId === stage.identifier ? 'qti-po-palette-item-selected' : ''}"
 								draggable={canInteract && canDrag}
 								ondragstart={(e) => {
 									if (canDrag) handleDragStart(e, stage.identifier);
 								}}
+								onkeydown={(e) => handlePaletteKeydown(e, stage.identifier)}
 								role="button"
 								tabindex={canInteract && canDrag ? 0 : -1}
-								aria-label="{stage.label} ({usageCount}/{stage.matchMax} used)"
+								aria-label="{stage.label} ({usageCount}/{stage.matchMax} used){selectedStageId === stage.identifier ? '. Selected for placement' : ''}"
+								aria-pressed={selectedStageId === stage.identifier}
 							>
 								<!-- Object Preview -->
 								<div class="qti-po-preview flex-shrink-0">
@@ -589,6 +769,9 @@
 		</div>
 		</div>
 	{/if}
+
+	<!-- Visually-hidden live region for keyboard placement announcements (K-04) -->
+	<div aria-live="polite" aria-atomic="true" class="qti-po-sr-only">{liveMessage}</div>
 </div>
 
 <style>
@@ -661,5 +844,58 @@
 		border-radius: 0.75rem;
 		border: 1px solid var(--color-base-300, oklch(95% 0 0));
 		background: var(--color-base-200, oklch(98% 0 0));
+	}
+
+	/* Selected palette item (K-04) */
+	.qti-po-palette-item-selected {
+		border-color: var(--color-primary, oklch(49.12% 0.3096 275.75));
+		background: var(--color-primary, oklch(49.12% 0.3096 275.75));
+		color: var(--color-primary-content, oklch(89.824% 0.06192 275.75));
+		box-shadow: 0 0 0 3px color-mix(in oklch, var(--color-primary, oklch(49.12% 0.3096 275.75)) 40%, transparent);
+	}
+
+	/* Canvas active state ring (K-04) */
+	.qti-po-canvas-active {
+		outline: 3px solid var(--color-primary, oklch(49.12% 0.3096 275.75));
+		outline-offset: 2px;
+	}
+	.qti-po-canvas-active:focus {
+		outline: 3px solid var(--color-primary, oklch(49.12% 0.3096 275.75));
+		outline-offset: 2px;
+	}
+
+	/* Crosshair SVG overlay (K-04) */
+	.qti-po-crosshair-overlay {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		pointer-events: none;
+		z-index: 100;
+	}
+	.qti-po-crosshair-line {
+		stroke: var(--color-primary, oklch(49.12% 0.3096 275.75));
+		stroke-width: 1.5;
+		stroke-dasharray: 6 4;
+		opacity: 0.85;
+	}
+	.qti-po-crosshair-dot {
+		fill: var(--color-primary, oklch(49.12% 0.3096 275.75));
+		stroke: white;
+		stroke-width: 2;
+		opacity: 0.95;
+	}
+
+	/* Visually hidden live region (K-04) */
+	.qti-po-sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border: 0;
 	}
 </style>
