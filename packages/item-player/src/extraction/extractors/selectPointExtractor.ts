@@ -119,9 +119,9 @@ export const standardSelectPointExtractor: ElementExtractor<SelectPointData> = {
 			errors.push('selectPointInteraction must have SVG content');
 		}
 
-		// Validate maxChoices
-		if (data.maxChoices <= 0) {
-			errors.push('maxChoices must be at least 1');
+		// Validate maxChoices — 0 means unlimited per QTI spec
+		if (data.maxChoices < 0) {
+			errors.push('maxChoices must be non-negative');
 		}
 
 		// Validate minChoices
@@ -129,8 +129,8 @@ export const standardSelectPointExtractor: ElementExtractor<SelectPointData> = {
 			errors.push('minChoices must be non-negative');
 		}
 
-		// Validate minChoices <= maxChoices
-		if (data.minChoices > data.maxChoices) {
+		// Validate minChoices <= maxChoices (skip when maxChoices=0, meaning unlimited)
+		if (data.maxChoices > 0 && data.minChoices > data.maxChoices) {
 			errors.push(`minChoices (${data.minChoices}) must be less than or equal to maxChoices (${data.maxChoices})`);
 		}
 

@@ -16,13 +16,17 @@ interface Props {
 	sourceSet: AssociableChoice[];
 	targetSet: AssociableChoice[];
 	pairs: string[]; // Array of "sourceId targetId" pairs
+	maxAssociations?: number; // 0 = unlimited per QTI spec
 	correctPairs?: string[]; // Array of correct "sourceId targetId" pairs
 	disabled?: boolean;
 	i18n?: I18nProvider;
 	onPairsChange: (newPairs: string[]) => void;
 }
 
-const { sourceSet, targetSet, pairs, correctPairs = [], disabled = false, i18n, onPairsChange }: Props = $props();
+const { sourceSet, targetSet, pairs, maxAssociations = 0, correctPairs = [], disabled = false, i18n, onPairsChange }: Props = $props();
+
+// maxAssociations=0 means unlimited; otherwise cap total pairs
+const canAddMorePairs = $derived(maxAssociations === 0 || pairs.length < maxAssociations);
 
 let draggedSourceId = $state<string | null>(null);
 let keyboardSelectedSourceId = $state<string | null>(null); // Source selected via keyboard
@@ -42,6 +46,13 @@ function handleDragOver(event: DragEvent) {
 function handleDrop(event: DragEvent, targetId: string) {
 	if (disabled || !draggedSourceId) return;
 	event.preventDefault();
+
+	// Allow replacing an existing pair for this source, but block new pairs when at limit
+	const existingPair = pairs.find((p) => p.startsWith(draggedSourceId + ' '));
+	if (!existingPair && !canAddMorePairs) {
+		draggedSourceId = null;
+		return;
+	}
 
 	createMatch(draggedSourceId, targetId);
 	draggedSourceId = null;
@@ -89,6 +100,14 @@ function handleTargetKeyDown(event: KeyboardEvent, targetId: string) {
 
 		const source = sourceSet.find((s) => s.identifier === keyboardSelectedSourceId);
 		const sourceName = source?.text || 'Item';
+
+		// Allow replacing an existing pair for this source, but block new pairs when at limit
+		const existingPair = pairs.find((p) => p.startsWith(keyboardSelectedSourceId + ' '));
+		if (!existingPair && !canAddMorePairs) {
+			announceText = `Maximum associations reached. Remove a pair to add a new one.`;
+			keyboardSelectedSourceId = null;
+			return;
+		}
 
 		createMatch(keyboardSelectedSourceId, targetId);
 		announceText = `${sourceName} matched with ${targetName}`;

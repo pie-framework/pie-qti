@@ -61,6 +61,7 @@
 			sourceSet={parsedInteraction.sourceSet}
 			targetSet={parsedInteraction.targetSet}
 			{pairs}
+			maxAssociations={parsedInteraction.maxAssociations}
 			correctPairs={isShowingCorrect ? (parsedCorrectResponse || []) : []}
 			{disabled}
 			{i18n}

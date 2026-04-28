@@ -55,8 +55,11 @@
 	/**
 	 * Check if selection limit has been reached
 	 */
+	// maxChoices=0 means unlimited per QTI spec
 	const canSelectMore = $derived(
-		parsedInteraction ? selectedIds.length < parsedInteraction.maxChoices : false
+		parsedInteraction
+			? parsedInteraction.maxChoices === 0 || selectedIds.length < parsedInteraction.maxChoices
+			: false
 	);
 
 	/**

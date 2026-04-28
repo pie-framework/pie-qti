@@ -141,12 +141,12 @@
 								onkeydown={(e) => handleKeyDown(e, choice.identifier)}
 							/>
 						{:else if choice.shape === 'rect'}
-							<!-- Rectangle: coords are x, y, width, height -->
+							<!-- Rectangle: QTI coords are left,top,right,bottom -->
 							<rect
 								x={coords[0]}
 								y={coords[1]}
-								width={coords[2]}
-								height={coords[3]}
+								width={coords[2] - coords[0]}
+								height={coords[3] - coords[1]}
 								fill={isSelected ? 'rgba(59, 130, 246, 0.3)' : isCorrectChoice ? 'rgba(34, 197, 94, 0.3)' : 'rgba(0, 0, 0, 0)'}
 								stroke={isSelected ? '#3b82f6' : isCorrectChoice ? '#22c55e' : 'transparent'}
 								stroke-width="2"
