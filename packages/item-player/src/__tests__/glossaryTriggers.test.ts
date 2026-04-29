@@ -187,6 +187,9 @@ function makeMockPlayer(pnp: any, catalog: Record<string, Record<string, string 
 		getCatalogEntry: (idref: string, usage: string, _lang?: string) => {
 			return catalog[idref]?.[usage] ?? null;
 		},
+		getComponentRegistry: () => ({
+			getTagNameForType: (_type: string) => null,
+		}),
 	} as any;
 }
 

@@ -318,7 +318,7 @@ describe('standardGraphicGapMatchExtractor', () => {
 			const validation = standardGraphicGapMatchExtractor.validate!(data);
 
 			expect(validation.valid).toBe(false);
-			expect(validation.errors).toContain('graphicGapMatchInteraction must have at least one gapText');
+			expect(validation.errors).toContain('graphicGapMatchInteraction must have at least one gapText or gapImg');
 		});
 
 		test('reports error for empty hotspots', () => {
