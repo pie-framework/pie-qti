@@ -257,7 +257,7 @@ already in place. What follows is the application-level work.
 Scope       — `packages/item-player/src/extraction/extractors/customExtractor.ts`;
               new `packages/item-player/src/pci/` module;
               `packages/item-player/src/core/Player.ts`
-Status      — Open
+Status      — Done (commit fa8fa97, 2026-04-28)
 Effort      — L
 Spec ref    — §6.1
 
@@ -307,7 +307,7 @@ Scope       — `packages/item-player/src/core/Player.ts`;
               new `packages/item-player/src/pnp/` module;
               `packages/default-components/src/` (individual component changes);
               `packages/assessment-player/src/core/AssessmentPlayer.ts`
-Status      — Open
+Status      — Done (commit fa8fa97, 2026-04-28)
 Effort      — L
 Spec ref    — §6.2
 
@@ -355,7 +355,7 @@ Scope       — `packages/item-player/src/extraction/` (new catalog extractor);
               `packages/item-player/src/core/Player.ts`;
               `packages/default-components/src/` (new `CatalogPopup` component);
               `packages/item-player/src/pnp/` (integration with G-09)
-Status      — Open
+Status      — Done (commit fa8fa97, 2026-04-28)
 Effort      — L
 Spec ref    — §6.3
 Depends on  — G-09 (glossary trigger UI is part of PNP; catalog provides the content)

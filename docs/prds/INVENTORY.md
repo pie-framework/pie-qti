@@ -58,7 +58,7 @@ One PRD per QTI interaction type implemented in `@pie-qti/default-components`.
 | `interactions/end-attempt.md` | `endAttemptInteraction` | `pie-qti-end-attempt` | draft |
 | `interactions/upload.md` | `uploadInteraction` | `pie-qti-upload` | draft |
 | `interactions/drawing.md` | `drawingInteraction` | `pie-qti-drawing` | draft |
-| `interactions/custom.md` | `customInteraction` | `pie-qti-custom` | draft |
+| `interactions/custom.md` | `customInteraction` / `qti-portable-custom-interaction` | `pie-qti-custom` | current |
 | `interactions/inline-interactions.md` | `textEntryInteraction`, `inlineChoiceInteraction` | inline renderers | draft |
 
 Each interaction PRD answers:
