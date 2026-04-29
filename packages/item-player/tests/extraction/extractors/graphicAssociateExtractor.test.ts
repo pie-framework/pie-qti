@@ -163,6 +163,55 @@ describe('standardGraphicAssociateExtractor', () => {
 		expect(result.prompt).toBeNull();
 	});
 
+	describe('matchGroup extraction', () => {
+		test('extracts single matchGroup value', () => {
+			const xml = `
+				<graphicAssociateInteraction responseIdentifier="RESPONSE" maxAssociations="3">
+					<object data="diagram.png" type="image/png" width="500" height="400"/>
+					<associableHotspot identifier="A" shape="rect" coords="50,50,150,100" matchMax="2" matchGroup="set-a">Area A</associableHotspot>
+					<associableHotspot identifier="B" shape="rect" coords="200,50,300,100" matchMax="2">Area B</associableHotspot>
+				</graphicAssociateInteraction>
+			`;
+			const element = parseQTI(xml);
+			const context = createTestContext(element, 'RESPONSE');
+
+			const result = standardGraphicAssociateExtractor.extract(element, context);
+
+			expect(result.associableHotspots[0].matchGroup).toEqual(['set-a']);
+			expect(result.associableHotspots[1].matchGroup).toBeUndefined();
+		});
+
+		test('extracts multiple matchGroup values', () => {
+			const xml = `
+				<graphicAssociateInteraction responseIdentifier="RESPONSE" maxAssociations="3">
+					<object data="diagram.png" type="image/png" width="500" height="400"/>
+					<associableHotspot identifier="A" shape="rect" coords="50,50,150,100" matchMax="2" matchGroup="set-a set-b">Area A</associableHotspot>
+				</graphicAssociateInteraction>
+			`;
+			const element = parseQTI(xml);
+			const context = createTestContext(element, 'RESPONSE');
+
+			const result = standardGraphicAssociateExtractor.extract(element, context);
+
+			expect(result.associableHotspots[0].matchGroup).toEqual(['set-a', 'set-b']);
+		});
+
+		test('omits matchGroup when absent', () => {
+			const xml = `
+				<graphicAssociateInteraction responseIdentifier="RESPONSE" maxAssociations="3">
+					<object data="diagram.png" type="image/png" width="500" height="400"/>
+					<associableHotspot identifier="A" shape="rect" coords="50,50,150,100" matchMax="2">Area A</associableHotspot>
+				</graphicAssociateInteraction>
+			`;
+			const element = parseQTI(xml);
+			const context = createTestContext(element, 'RESPONSE');
+
+			const result = standardGraphicAssociateExtractor.extract(element, context);
+
+			expect(result.associableHotspots[0].matchGroup).toBeUndefined();
+		});
+	});
+
 	describe('canHandle predicate', () => {
 		test('handles graphicAssociateInteraction element', () => {
 			const xml = `

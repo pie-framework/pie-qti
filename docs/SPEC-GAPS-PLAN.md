@@ -44,7 +44,7 @@ item banks. Work here should be prioritised before any QTI 3.0 work.
 Scope       — `packages/item-player/src/extraction/extractors/associateExtractor.ts`,
               `matchExtractor.ts`, `gapMatchExtractor.ts`, `graphicGapMatchExtractor.ts`;
               corresponding default-components UI components
-Status      — Open
+Status      — Done (commit e2660fb, 2026-04-29)
 Effort      — M
 Spec ref    — §3.1.3 (associateInteraction), §3.1.4 (matchInteraction), §3.1.5 (gapMatchInteraction),
               §3.3.5 (graphicGapMatchInteraction)
@@ -107,7 +107,7 @@ Test signal
 
 Scope       — `packages/item-player/src/extraction/extractors/textEntryExtractor.ts`;
               `packages/default-components/src/plugins/text-entry/`
-Status      — Open
+Status      — Done (commit e2660fb, 2026-04-29)
 Effort      — S
 Spec ref    — §3.2.2
 
@@ -135,7 +135,7 @@ Test signal
 ### G-04: `patternMask` not enforced as live input constraint
 
 Scope       — `packages/default-components/src/plugins/text-entry/`
-Status      — Open
+Status      — Done (commit e2660fb, 2026-04-29)
 Effort      — S
 Spec ref    — §3.2.2, §3.2.3
 
@@ -192,7 +192,7 @@ Test signal
 ### G-06: `matchMin` usage constraint not validated at submission time
 
 Scope       — `packages/item-player/src/utils/responseUtils.ts` or `Player.ts`
-Status      — Open
+Status      — Done (partial, commit e2660fb, 2026-04-29 — matchMin extracted; runtime validation pending)
 Effort      — S
 Spec ref    — §3.1.3, §3.1.4, §3.1.5, §3.3.4, §3.3.5
 
@@ -221,7 +221,7 @@ Test signal
 ### G-07: STATUS.md and README.md are inconsistent about QTI 3.0 scope
 
 Scope       — `STATUS.md`, `README.md`
-Status      — Open
+Status      — Done (commit e2660fb, 2026-04-29)
 Effort      — S
 Spec ref    — N/A
 

@@ -167,6 +167,67 @@ describe('standardMatchExtractor', () => {
 		expect(result.targetSet[0].matchMin).toBeUndefined();
 	});
 
+	describe('matchGroup extraction', () => {
+		test('extracts single matchGroup value on source and target', () => {
+			const xml = `
+				<matchInteraction responseIdentifier="RESPONSE" shuffle="false" maxAssociations="0">
+					<simpleMatchSet>
+						<simpleAssociableChoice identifier="S1" matchMax="1" matchGroup="set-a">Source 1</simpleAssociableChoice>
+					</simpleMatchSet>
+					<simpleMatchSet>
+						<simpleAssociableChoice identifier="T1" matchMax="1" matchGroup="set-b">Target 1</simpleAssociableChoice>
+					</simpleMatchSet>
+				</matchInteraction>
+			`;
+			const element = parseQTI(xml);
+			const context = createTestContext(element, 'RESPONSE');
+
+			const result = standardMatchExtractor.extract(element, context);
+
+			expect(result.sourceSet[0].matchGroup).toEqual(['set-a']);
+			expect(result.targetSet[0].matchGroup).toEqual(['set-b']);
+		});
+
+		test('extracts multiple matchGroup values', () => {
+			const xml = `
+				<matchInteraction responseIdentifier="RESPONSE" shuffle="false" maxAssociations="0">
+					<simpleMatchSet>
+						<simpleAssociableChoice identifier="S1" matchMax="1" matchGroup="set-a set-b">Source 1</simpleAssociableChoice>
+					</simpleMatchSet>
+					<simpleMatchSet>
+						<simpleAssociableChoice identifier="T1" matchMax="1">Target 1</simpleAssociableChoice>
+					</simpleMatchSet>
+				</matchInteraction>
+			`;
+			const element = parseQTI(xml);
+			const context = createTestContext(element, 'RESPONSE');
+
+			const result = standardMatchExtractor.extract(element, context);
+
+			expect(result.sourceSet[0].matchGroup).toEqual(['set-a', 'set-b']);
+		});
+
+		test('omits matchGroup when absent', () => {
+			const xml = `
+				<matchInteraction responseIdentifier="RESPONSE" shuffle="false" maxAssociations="0">
+					<simpleMatchSet>
+						<simpleAssociableChoice identifier="S1" matchMax="1">Source 1</simpleAssociableChoice>
+					</simpleMatchSet>
+					<simpleMatchSet>
+						<simpleAssociableChoice identifier="T1" matchMax="1">Target 1</simpleAssociableChoice>
+					</simpleMatchSet>
+				</matchInteraction>
+			`;
+			const element = parseQTI(xml);
+			const context = createTestContext(element, 'RESPONSE');
+
+			const result = standardMatchExtractor.extract(element, context);
+
+			expect(result.sourceSet[0].matchGroup).toBeUndefined();
+			expect(result.targetSet[0].matchGroup).toBeUndefined();
+		});
+	});
+
 	describe('canHandle predicate', () => {
 		test('handles matchInteraction element', () => {
 			const xml = `

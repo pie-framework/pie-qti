@@ -113,6 +113,54 @@ describe('standardAssociateExtractor', () => {
 		});
 	});
 
+	describe('matchGroup extraction', () => {
+		test('extracts single matchGroup value', () => {
+			const xml = `
+				<associateInteraction responseIdentifier="RESPONSE" shuffle="false" maxAssociations="0">
+					<simpleAssociableChoice identifier="A" matchMax="1" matchGroup="animal">Cat</simpleAssociableChoice>
+					<simpleAssociableChoice identifier="B" matchMax="1" matchGroup="animal">Dog</simpleAssociableChoice>
+					<simpleAssociableChoice identifier="C" matchMax="1">Other</simpleAssociableChoice>
+				</associateInteraction>
+			`;
+			const element = parseQTI(xml);
+			const context = createTestContext(element, 'RESPONSE');
+
+			const result = standardAssociateExtractor.extract(element, context);
+
+			expect(result.choices[0].matchGroup).toEqual(['animal']);
+			expect(result.choices[1].matchGroup).toEqual(['animal']);
+		});
+
+		test('extracts multiple matchGroup values', () => {
+			const xml = `
+				<associateInteraction responseIdentifier="RESPONSE" shuffle="false" maxAssociations="0">
+					<simpleAssociableChoice identifier="A" matchMax="1" matchGroup="set-a set-b">Item A</simpleAssociableChoice>
+					<simpleAssociableChoice identifier="B" matchMax="1">Item B</simpleAssociableChoice>
+				</associateInteraction>
+			`;
+			const element = parseQTI(xml);
+			const context = createTestContext(element, 'RESPONSE');
+
+			const result = standardAssociateExtractor.extract(element, context);
+
+			expect(result.choices[0].matchGroup).toEqual(['set-a', 'set-b']);
+		});
+
+		test('omits matchGroup when absent', () => {
+			const xml = `
+				<associateInteraction responseIdentifier="RESPONSE" shuffle="false" maxAssociations="0">
+					<simpleAssociableChoice identifier="A" matchMax="1">Item A</simpleAssociableChoice>
+				</associateInteraction>
+			`;
+			const element = parseQTI(xml);
+			const context = createTestContext(element, 'RESPONSE');
+
+			const result = standardAssociateExtractor.extract(element, context);
+
+			expect(result.choices[0].matchGroup).toBeUndefined();
+		});
+	});
+
 	describe('validation', () => {
 		test('validates correct associate data', () => {
 			const data = {
