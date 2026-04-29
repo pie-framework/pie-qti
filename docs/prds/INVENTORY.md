@@ -110,6 +110,8 @@ Cross-cutting concerns that span multiple packages.
 | `systems/i18n.md` | Internationalization (locale switching, RTL, pluralization, lazy loading) | draft |
 | `systems/theming.md` | Theming and visual customization (DaisyUI, CSS variables, `::part()`) | draft |
 | `systems/accessibility.md` | Accessibility baseline (WCAG 2.2 AA, assessment-specific patterns) | draft |
+| `systems/pnp.md` | QTI 3.0 Personal Needs and Preferences profile (color schemes, elimination tool, extended time, glossary triggers) | draft |
+| `systems/catalog.md` | QTI 3.0 Catalog system (glossary, keyword translation, illustrated glossary, platform-level usages) | draft |
 | `systems/navigation-modes.md` | QTI navigation modes (linear/nonlinear) and submission modes | draft |
 | `systems/math-typesetting.md` | Math rendering (KaTeX adapter, host-provided `typeset()`) | draft |
 | `systems/cli.md` | CLI tool (batch transform, analyze, discover) | draft |

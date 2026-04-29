@@ -1,6 +1,6 @@
-# PIE QTI 2.2 Implementation Status
+# PIE QTI Implementation Status
 
-**Last Updated**: 2026-01-12
+**Last Updated**: 2026-04-28
 
 ---
 
@@ -12,7 +12,7 @@ High-level implementation status for PIE-QTI. This document is intentionally sho
 
 ## Status
 
-### QTI 2.x Players — Production-ready
+### QTI 2.2 Players — Production-ready
 
 The item player and assessment player are considered production-ready:
 
@@ -21,6 +21,16 @@ The item player and assessment player are considered production-ready:
 - ✅ **Default UI components**: **17** default interaction web components (`@pie-qti/default-components`)
   - `textEntryInteraction` + `inlineChoiceInteraction` are rendered as inline interactions
   - `uploadInteraction` + `drawingInteraction` use shared Svelte components (`FileUpload`, `DrawingCanvas`)
+
+### QTI 3.0 — Infrastructure complete, standard interactions supported
+
+- ✅ **Version detection**: Namespace URI, root element name (`<qti-assessment-item>`), and version attribute
+- ✅ **Element/attribute mapping**: Full bidirectional mapping (172 elements, camelCase ↔ kebab-case with `qti-` prefix)
+- ✅ **Standard interactions**: All 21 interaction types work with QTI 3.0 XML (shared parsing/scoring logic)
+- ✅ **Response processing**: All operators work with QTI 3.0 element names
+- 🚧 **Portable Custom Interactions (PCI)**: Element mapping ready; module loading not yet implemented
+- 🚧 **Personal Needs & Preferences (PNP)**: Planned
+- 🚧 **Catalog / Glossary system**: Element mapping ready; UI not yet implemented
 
 ### PIE ↔ QTI Transforms — Under active development
 
@@ -49,7 +59,6 @@ The transformation framework and tooling are functional but under active develop
 ## Intentional non-goals
 
 - ❌ Full QTI rule interpreter for assessment-level outcome processing (use standard templates + pluggable outcome processors)
-- ❌ QTI 3.0 features (project targets QTI 2.x)
 
 ---
 

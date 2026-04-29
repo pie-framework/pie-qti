@@ -403,7 +403,7 @@ Then: Focus is not moved away from the candidate's current position
 
 ## Open questions
 
-- [ ] **G-09 — PNP profile (Tier 2, Open):** The QTI 3.0 PNP profile (`PnpProfile`) defines six named color schemes, an elimination tool for choice interactions, extended time multipliers, glossary-on-screen triggers, and keyword translation. None of these are implemented. `PlayerConfig` has no `pnp` field. Until G-09 is resolved, hosts requiring PNP features must implement them outside the framework. See `docs/SPEC-GAPS-PLAN.md` §G-09 for the full action plan.
+- [ ] **G-09 — PNP profile (Tier 2, Open):** PNP profile support (color schemes, elimination tool, extended time, glossary triggers) is fully specified in `docs/prds/systems/pnp.md`. Implementation is tracked at `docs/SPEC-GAPS-PLAN.md §G-09`. Until G-09 ships, hosts requiring PNP features must implement them outside the framework.
 
 - [ ] **G-13 — Structured label and braille support (Tier 3, Deferred):** PNP `structuredLabelSupport` adds supplementary ARIA group wrappers and sub-labels to complex interactions. `braille-text` catalog entries expose content to refreshable braille displays. Neither is implemented; the catalog system prerequisite (G-10) is itself not implemented. See `docs/SPEC-GAPS-PLAN.md` §G-13.
 
