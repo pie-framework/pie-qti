@@ -374,6 +374,90 @@ describe('Player', () => {
 			expect(bad.entries.RESPONSE.errors.length).toBeGreaterThan(0);
 		});
 
+		test('validateResponses enforces matchMin on associateInteraction choices', () => {
+			const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+  xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="associate-matchmin"
+  title="Associate matchMin"
+  adaptive="false"
+  timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="directedPair" />
+  <itemBody>
+    <associateInteraction responseIdentifier="RESPONSE" shuffle="false" maxAssociations="4">
+      <simpleAssociableChoice identifier="A" matchMax="2" matchMin="1">Item A</simpleAssociableChoice>
+      <simpleAssociableChoice identifier="B" matchMax="2">Item B</simpleAssociableChoice>
+      <simpleAssociableChoice identifier="C" matchMax="2">Item C</simpleAssociableChoice>
+    </associateInteraction>
+  </itemBody>
+</assessmentItem>`;
+			const player = new Player({ itemXml: xml });
+
+			// A is not used — should be incomplete
+			const missing = player.validateResponses({ RESPONSE: ['B C'] });
+			expect(missing.entries.RESPONSE.complete).toBe(false);
+
+			// A is used once — satisfies matchMin=1
+			const satisfied = player.validateResponses({ RESPONSE: ['A B'] });
+			expect(satisfied.entries.RESPONSE.complete).toBe(true);
+		});
+
+		test('validateResponses enforces matchMin on matchInteraction sourceSet and targetSet', () => {
+			const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+  xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="match-matchmin"
+  title="Match matchMin"
+  adaptive="false"
+  timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="directedPair" />
+  <itemBody>
+    <matchInteraction responseIdentifier="RESPONSE" shuffle="false" maxAssociations="4">
+      <simpleMatchSet>
+        <simpleAssociableChoice identifier="S1" matchMax="2" matchMin="1">Source 1</simpleAssociableChoice>
+        <simpleAssociableChoice identifier="S2" matchMax="2">Source 2</simpleAssociableChoice>
+      </simpleMatchSet>
+      <simpleMatchSet>
+        <simpleAssociableChoice identifier="T1" matchMax="2" matchMin="1">Target 1</simpleAssociableChoice>
+        <simpleAssociableChoice identifier="T2" matchMax="2">Target 2</simpleAssociableChoice>
+      </simpleMatchSet>
+    </matchInteraction>
+  </itemBody>
+</assessmentItem>`;
+			const player = new Player({ itemXml: xml });
+
+			// Neither S1 nor T1 used — incomplete
+			const missing = player.validateResponses({ RESPONSE: ['S2 T2'] });
+			expect(missing.entries.RESPONSE.complete).toBe(false);
+
+			// Both S1 and T1 used once — satisfied
+			const satisfied = player.validateResponses({ RESPONSE: ['S1 T1'] });
+			expect(satisfied.entries.RESPONSE.complete).toBe(true);
+		});
+
+		test('validateResponses returns complete when no matchMin constraints exist', () => {
+			const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+  xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="associate-no-matchmin"
+  title="Associate no matchMin"
+  adaptive="false"
+  timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="directedPair" />
+  <itemBody>
+    <associateInteraction responseIdentifier="RESPONSE" shuffle="false" maxAssociations="2">
+      <simpleAssociableChoice identifier="A" matchMax="2">Item A</simpleAssociableChoice>
+      <simpleAssociableChoice identifier="B" matchMax="2">Item B</simpleAssociableChoice>
+    </associateInteraction>
+  </itemBody>
+</assessmentItem>`;
+			const player = new Player({ itemXml: xml });
+
+			// Any non-empty response is complete when no matchMin is set
+			const result = player.validateResponses({ RESPONSE: ['A B'] });
+			expect(result.entries.RESPONSE.complete).toBe(true);
+		});
+
 		test('should include uploadInteraction in interactions list', () => {
 			const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <assessmentItem

@@ -826,8 +826,15 @@ export class Player {
 					}
 					// Enforce matchMin per-choice: each pairing entry "id1 id2" in value must
 					// appear at least matchMin times for the relevant choice.
-					// matchMin is on individual choices so we check the counts per identifier.
-					const choices: Array<{ identifier: string; matchMin?: number }> = i.choices ?? i.gapTexts ?? i.sourceSet ?? i.associableHotspots ?? [];
+					// Collect all choice arrays that can carry matchMin across all pairing interaction types.
+					const choices: Array<{ identifier: string; matchMin?: number }> = [
+						...(i.choices ?? []),
+						...(i.gapTexts ?? []),
+						...(i.gapImages ?? []),
+						...(i.sourceSet ?? []),
+						...(i.targetSet ?? []),
+						...(i.associableHotspots ?? []),
+					];
 					for (const choice of choices) {
 						const min = Number(choice.matchMin || 0);
 						if (min > 0) {

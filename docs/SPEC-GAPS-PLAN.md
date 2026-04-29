@@ -192,7 +192,7 @@ Test signal
 ### G-06: `matchMin` usage constraint not validated at submission time
 
 Scope       — `packages/item-player/src/utils/responseUtils.ts` or `Player.ts`
-Status      — Done (partial, commit e2660fb, 2026-04-29 — matchMin extracted; runtime validation pending)
+Status      — Done (commit e2660fb + followup, 2026-04-29 — matchMin extracted and validated at runtime)
 Effort      — S
 Spec ref    — §3.1.3, §3.1.4, §3.1.5, §3.3.4, §3.3.5
 
