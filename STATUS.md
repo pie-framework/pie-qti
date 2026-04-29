@@ -28,9 +28,9 @@ The item player and assessment player are considered production-ready:
 - ✅ **Element/attribute mapping**: Full bidirectional mapping (172 elements, camelCase ↔ kebab-case with `qti-` prefix)
 - ✅ **Standard interactions**: All 21 interaction types work with QTI 3.0 XML (shared parsing/scoring logic)
 - ✅ **Response processing**: All operators work with QTI 3.0 element names
-- 🚧 **Portable Custom Interactions (PCI)**: Element mapping ready; module loading not yet implemented
-- 🚧 **Personal Needs & Preferences (PNP)**: Planned
-- 🚧 **Catalog / Glossary system**: Element mapping ready; UI not yet implemented
+- ✅ **Portable Custom Interactions (PCI)**: PciHost module lifecycle, module loading, and player integration complete (commit fa8fa97)
+- ✅ **Personal Needs & Preferences (PNP)**: Color schemes, elimination tool, extended time, and glossary triggers complete (commit fa8fa97)
+- ✅ **Catalog / Glossary system**: Catalog extractor, CatalogPopup component, and PNP integration complete (commit fa8fa97)
 
 ### PIE ↔ QTI Transforms — Under active development
 
@@ -53,6 +53,10 @@ The transformation framework and tooling are functional but under active develop
 - ✅ **Web components evals**: YAML specs in `docs/evals/web-components/*/evals.yaml` testing configuration passing (currently **4** cases)
 - ✅ **Total eval cases**: **92** (up from 64)
 - ✅ **Unit tests**: additional coverage exists across packages (see package READMEs and workflows for the authoritative commands)
+
+---
+
+Spec-gap tracking: see [`docs/SPEC-GAPS-PLAN.md`](docs/SPEC-GAPS-PLAN.md).
 
 ---
 

@@ -167,9 +167,27 @@
 		onResponseChange(responseId, value);
 	}
 
+	let textEntryErrors = $state<Map<string, string>>(new Map());
+
 	function handleTextEntryInput(responseId: string, e: Event) {
-		const value = (e.currentTarget as HTMLInputElement | null)?.value ?? '';
+		const input = e.currentTarget as HTMLInputElement | null;
+		const value = input?.value ?? '';
 		handleResponseChange(responseId, value);
+		if (input?.validity.valid) {
+			const m = new Map(textEntryErrors);
+			m.delete(responseId);
+			textEntryErrors = m;
+		}
+	}
+
+	function handleTextEntryInvalid(responseId: string, e: Event) {
+		e.preventDefault();
+		const msg = i18n?.t('interactions.textEntry.patternError', 'Please match the required format') ?? 'Please match the required format';
+		textEntryErrors = new Map(textEntryErrors).set(responseId, msg);
+	}
+
+	function handleTextEntryBlur(e: Event) {
+		(e.currentTarget as HTMLInputElement | null)?.checkValidity();
 	}
 
 	function handleInlineChoiceChange(responseId: string, e: Event) {
@@ -265,11 +283,24 @@
 						placeholder={segment.interaction.placeholderText || '...'}
 						pattern={segment.interaction.patternMask || undefined}
 						title={segment.interaction.patternMask ? `Format: ${segment.interaction.patternMask}` : undefined}
+						data-format={segment.interaction.format || undefined}
 						aria-label={`Text entry ${segment.interaction.responseId}${correctAnswer ? '. Correct answer: ' + correctAnswer : ''}`}
+						aria-invalid={textEntryErrors.has(segment.interaction.responseId) ? 'true' : undefined}
+						aria-describedby={textEntryErrors.has(segment.interaction.responseId) ? `${segment.interaction.responseId}-error` : undefined}
 						value={displayValue}
 						oninput={(e) => handleTextEntryInput(segment.interaction.responseId, e)}
+						oninvalid={(e) => handleTextEntryInvalid(segment.interaction.responseId, e)}
+						onblur={handleTextEntryBlur}
 						disabled={effectiveDisabled}
 					/>
+					{#if textEntryErrors.has(segment.interaction.responseId)}
+						<span
+							id="{segment.interaction.responseId}-error"
+							role="alert"
+							class="qti-text-entry-error text-error text-xs"
+							style="display: block;"
+						>{textEntryErrors.get(segment.interaction.responseId)}</span>
+					{/if}
 				{:else if segment.type === 'inlineChoice'}
 					{@const correctAnswer = roleCapabilities.canViewCorrectResponses ? (correctResponses[segment.interaction.responseId] ?? null) : null}
 					{@const userResponse = responses[segment.interaction.responseId] || ''}

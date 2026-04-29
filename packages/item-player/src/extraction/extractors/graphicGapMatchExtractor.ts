@@ -28,6 +28,7 @@ export interface GraphicGapMatchData {
 		text: string;
 		matchMax: number;
 		matchMin?: number;
+		matchGroup?: string[];
 		classes?: string[];
 	}>;
 	gapImages: Array<{
@@ -35,6 +36,7 @@ export interface GraphicGapMatchData {
 		src: string;
 		alt: string;
 		matchMax: number;
+		matchGroup?: string[];
 		width?: number;
 		height?: number;
 	}>;
@@ -101,6 +103,8 @@ export const standardGraphicGapMatchExtractor: ElementExtractor<GraphicGapMatchD
 			const classes = utils.getClasses(gapText);
 			const matchMax = utils.getNumberAttribute(gapText, 'matchMax', 1);
 			const matchMin = utils.getNumberAttribute(gapText, 'matchMin', 0);
+			const matchGroupRaw = utils.getAttribute(gapText, 'matchGroup', '');
+			const matchGroup = matchGroupRaw.split(/\s+/).filter(Boolean);
 			const text = utils.getHtmlContent(gapText);
 
 			return {
@@ -108,6 +112,7 @@ export const standardGraphicGapMatchExtractor: ElementExtractor<GraphicGapMatchD
 				text,
 				matchMax,
 				...(matchMin > 0 ? { matchMin } : {}),
+				...(matchGroup.length > 0 ? { matchGroup } : {}),
 				...(classes.length > 0 ? { classes } : {}),
 			};
 		});
@@ -116,6 +121,8 @@ export const standardGraphicGapMatchExtractor: ElementExtractor<GraphicGapMatchD
 		const gapImgElements = utils.getChildrenByTag(element, 'gapImg');
 		const gapImages = gapImgElements.map((gapImg) => {
 			const matchMax = utils.getNumberAttribute(gapImg, 'matchMax', 1);
+			const matchGroupRaw = utils.getAttribute(gapImg, 'matchGroup', '');
+			const matchGroup = matchGroupRaw.split(/\s+/).filter(Boolean);
 			const objectChildren = utils.getChildrenByTag(gapImg, 'object');
 			let src = '';
 			let alt = '';
@@ -135,6 +142,7 @@ export const standardGraphicGapMatchExtractor: ElementExtractor<GraphicGapMatchD
 				src,
 				alt,
 				matchMax,
+				...(matchGroup.length > 0 ? { matchGroup } : {}),
 				...(width !== undefined ? { width } : {}),
 				...(height !== undefined ? { height } : {}),
 			};

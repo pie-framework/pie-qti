@@ -6,6 +6,7 @@
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
+	import { isCompatibleMatchGroup } from '../../shared/utils/matchGroupUtils';
 
 	interface Props {
 		interaction?: GapMatchInteractionData | string;
@@ -42,6 +43,26 @@
 
 	// Track cleanup functions for event listeners to prevent memory leaks
 	let cleanupFunctions: (() => void)[] = [];
+
+	// Words that cannot be placed because they share a matchGroup with an already-placed word
+	const unavailableWords = $derived.by(() => {
+		if (!parsedInteraction) return new Set<string>();
+		const placedGroups = new Set<string>();
+		for (const pair of pairs) {
+			const wordId = pair.split(' ')[0];
+			const gt = parsedInteraction.gapTexts.find((g) => g.identifier === wordId);
+			gt?.matchGroup?.forEach((g) => placedGroups.add(g));
+		}
+		return new Set(
+			parsedInteraction.gapTexts
+				.filter((gt) => {
+					const isPlaced = pairs.some((p) => p.startsWith(`${gt.identifier} `));
+					if (isPlaced) return false;
+					return gt.matchGroup?.some((g) => placedGroups.has(g)) ?? false;
+				})
+				.map((gt) => gt.identifier)
+		);
+	});
 
 	function getMatchMax(wordId: string): number {
 		const gt = parsedInteraction?.gapTexts?.find((g) => g.identifier === wordId);
@@ -368,21 +389,23 @@
 			{#each parsedInteraction.gapTexts as gapText (gapText.identifier)}
 				{@const used = isWordUsed(gapText.identifier)}
 				{@const isHeld = pickedUpWord === gapText.identifier}
+				{@const isUnavailable = unavailableWords.has(gapText.identifier)}
 				<div class="inline-flex items-center gap-1">
 					<button
 						part="word"
 						type="button"
 						class="btn btn-md font-medium transition-all"
-						class:btn-primary={!used && !isHeld}
+						class:btn-primary={!used && !isHeld && !isUnavailable}
 						class:btn-success={used && !isHeld}
 						class:btn-warning={isHeld}
 						class:qti-gm-word-held={isHeld}
-						class:cursor-grab={!disabled && !used}
-						class:cursor-not-allowed={disabled}
+						class:cursor-grab={!disabled && !used && !isUnavailable}
+						class:cursor-not-allowed={disabled || isUnavailable}
+						class:opacity-40={isUnavailable}
 						class:opacity-70={disabled}
 						data-word-id={gapText.identifier}
-						draggable={!disabled && !used}
-						aria-disabled={disabled || used}
+						draggable={!disabled && !used && !isUnavailable}
+						aria-disabled={disabled || used || isUnavailable}
 						aria-pressed={isHeld}
 						disabled={disabled || used}
 						ondragstart={(e: DragEvent) => onWordDragStart(e, gapText.identifier)}

@@ -15,6 +15,7 @@ export interface AssociateData {
 		text: string;
 		matchMax: number;
 		matchMin?: number;
+		matchGroup?: string[];
 		classes?: string[];
 	}>;
 	shuffle: boolean;
@@ -51,12 +52,15 @@ export const standardAssociateExtractor: ElementExtractor<AssociateData> = {
 			const classes = utils.getClasses(choice);
 			const matchMax = utils.getNumberAttribute(choice, 'matchMax', 1);
 			const matchMin = utils.getNumberAttribute(choice, 'matchMin', 0);
+			const matchGroupRaw = utils.getAttribute(choice, 'matchGroup', '');
+			const matchGroup = matchGroupRaw.split(/\s+/).filter(Boolean);
 
 			return {
 				identifier: utils.getAttribute(choice, 'identifier', ''),
 				text: utils.getHtmlContent(choice),
 				matchMax,
 				...(matchMin > 0 ? { matchMin } : {}),
+				...(matchGroup.length > 0 ? { matchGroup } : {}),
 				...(classes.length > 0 ? { classes } : {}),
 			};
 		});

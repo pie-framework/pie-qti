@@ -15,6 +15,7 @@ export interface GapMatchData {
 		text: string;
 		matchMax: number;
 		matchMin?: number;
+		matchGroup?: string[];
 		classes?: string[];
 	}>;
 	gaps: string[];
@@ -48,12 +49,15 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 			const classes = utils.getClasses(gapText);
 			const matchMax = utils.getNumberAttribute(gapText, 'matchMax', 1);
 			const matchMin = utils.getNumberAttribute(gapText, 'matchMin', 0);
+			const matchGroupRaw = utils.getAttribute(gapText, 'matchGroup', '');
+			const matchGroup = matchGroupRaw.split(/\s+/).filter(Boolean);
 
 			return {
 				identifier: utils.getAttribute(gapText, 'identifier', ''),
 				text: utils.getTextContent(gapText),
 				matchMax,
 				...(matchMin > 0 ? { matchMin } : {}),
+				...(matchGroup.length > 0 ? { matchGroup } : {}),
 				...(classes.length > 0 ? { classes } : {}),
 			};
 		});

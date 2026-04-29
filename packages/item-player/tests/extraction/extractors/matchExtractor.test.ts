@@ -127,6 +127,46 @@ describe('standardMatchExtractor', () => {
 		expect(result.maxAssociations).toBe(0);
 	});
 
+	test('extracts matchMin on source and target choices', () => {
+		const xml = `
+			<matchInteraction responseIdentifier="RESPONSE" shuffle="false" maxAssociations="0">
+				<simpleMatchSet>
+					<simpleAssociableChoice identifier="S1" matchMax="2" matchMin="1">Source 1</simpleAssociableChoice>
+				</simpleMatchSet>
+				<simpleMatchSet>
+					<simpleAssociableChoice identifier="T1" matchMax="2" matchMin="2">Target 1</simpleAssociableChoice>
+				</simpleMatchSet>
+			</matchInteraction>
+		`;
+		const element = parseQTI(xml);
+		const context = createTestContext(element, 'RESPONSE');
+
+		const result = standardMatchExtractor.extract(element, context);
+
+		expect(result.sourceSet[0].matchMin).toBe(1);
+		expect(result.targetSet[0].matchMin).toBe(2);
+	});
+
+	test('omits matchMin when zero', () => {
+		const xml = `
+			<matchInteraction responseIdentifier="RESPONSE" shuffle="false" maxAssociations="0">
+				<simpleMatchSet>
+					<simpleAssociableChoice identifier="S1" matchMax="1">Source 1</simpleAssociableChoice>
+				</simpleMatchSet>
+				<simpleMatchSet>
+					<simpleAssociableChoice identifier="T1" matchMax="1">Target 1</simpleAssociableChoice>
+				</simpleMatchSet>
+			</matchInteraction>
+		`;
+		const element = parseQTI(xml);
+		const context = createTestContext(element, 'RESPONSE');
+
+		const result = standardMatchExtractor.extract(element, context);
+
+		expect(result.sourceSet[0].matchMin).toBeUndefined();
+		expect(result.targetSet[0].matchMin).toBeUndefined();
+	});
+
 	describe('canHandle predicate', () => {
 		test('handles matchInteraction element', () => {
 			const xml = `

@@ -12,6 +12,7 @@ import type { I18nProvider } from '@pie-qti/i18n';
 import { createQtiChangeEvent } from '../../shared/utils/eventHelpers.js';
 import { touchDrag } from '../../shared/utils/touchDragHelper.js';
 import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
+
 import '../../shared/styles/shared.css';
 import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 
@@ -48,6 +49,29 @@ let rootElement: HTMLDivElement | undefined = $state();
 // Track if we're updating from internal change (user drag) vs external (prop update)
 let isInternalUpdate = false;
 
+// Labels (gapTexts + gapImages) unavailable due to matchGroup conflicts with already-placed labels
+const unavailableLabels = $derived.by(() => {
+	if (!parsedInteraction) return new Set<string>();
+	type WithMatchGroup = { identifier: string; matchGroup?: string[] };
+	const gapTexts = parsedInteraction.gapTexts as WithMatchGroup[];
+	const gapImages = (parsedInteraction.gapImages ?? []) as WithMatchGroup[];
+	const placedGroups = new Set<string>();
+	for (const pair of pairs) {
+		const labelId = pair.split(' ')[0];
+		const label = [...gapTexts, ...gapImages].find((g) => g.identifier === labelId);
+		label?.matchGroup?.forEach((g) => placedGroups.add(g));
+	}
+	return new Set(
+		[...gapTexts, ...gapImages]
+			.filter((label) => {
+				const isPlaced = pairs.some((p) => p.startsWith(`${label.identifier} `));
+				if (isPlaced) return false;
+				return label.matchGroup?.some((g) => placedGroups.has(g)) ?? false;
+			})
+			.map((label) => label.identifier)
+	);
+});
+
 $effect(() => {
 	// Sync with parent response changes (only if not an internal update)
 	if (!isInternalUpdate) {
@@ -69,21 +93,10 @@ function getMatchedGapText(hotspotId: string): string | null {
 	return pair ? pair.split(' ')[0] : null;
 }
 
-// Get the correct hotspot for a gap text
-function getCorrectHotspot(gapTextId: string): string | null {
-	const pair = correctPairs.find((p) => p.startsWith(`${gapTextId} `));
-	return pair ? pair.split(' ')[1] : null;
-}
-
 // Get the correct gap text for a hotspot
 function getCorrectGapText(hotspotId: string): string | null {
 	const pair = correctPairs.find((p) => p.endsWith(` ${hotspotId}`));
 	return pair ? pair.split(' ')[0] : null;
-}
-
-// Check if a gap text has a correct answer
-function isCorrectGapText(gapTextId: string): boolean {
-	return isShowingCorrect && getCorrectHotspot(gapTextId) !== null;
 }
 
 // Check if a hotspot has a correct answer
@@ -247,20 +260,6 @@ function handleRootKeyDown(event: KeyboardEvent) {
 	}
 }
 
-// Parse coords based on shape
-function parseCoords(hotspot: { identifier: string; shape: string; coords: string; matchMax: number }): { x: number; y: number; width: number; height: number } {
-	const coords = hotspot.coords.split(',').map(Number);
-	const shape = hotspot.shape as 'circle' | 'rect' | 'poly';
-	if (shape === 'circle') {
-		const [cx, cy, r] = coords;
-		return { x: cx - r, y: cy - r, width: r * 2, height: r * 2 };
-	} else if (shape === 'rect') {
-		const [x, y, width, height] = coords;
-		return { x, y, width, height };
-	}
-	// For poly, use bounding box (simplified)
-	return { x: coords[0], y: coords[1], width: 40, height: 40 };
-}
 </script>
 
 <ShadowBaseStyles />
@@ -305,26 +304,29 @@ function parseCoords(hotspot: { identifier: string; shape: string; coords: strin
 						{@const matchedHotspot = getMatchedHotspot(gapText.identifier)}
 						{@const isDragged = draggedTextId === gapText.identifier}
 						{@const isHeld = pickedUpLabel === gapText.identifier}
+						{@const isUnavailable = unavailableLabels.has(gapText.identifier)}
 
 						<div class="inline-flex items-center gap-1">
 							<button
 								type="button"
-								draggable={!disabled && !matchedHotspot}
+								draggable={!disabled && !matchedHotspot && !isUnavailable}
 								use:touchDrag
 								ondragstart={() => handleDragStart(gapText.identifier)}
 								ondragend={handleDragEnd}
 								onclick={() => handleLabelActivate(gapText.identifier)}
 								onkeydown={(e) => handleLabelKeyDown(e, gapText.identifier)}
 								disabled={disabled || !!matchedHotspot}
+								aria-disabled={isUnavailable ? 'true' : undefined}
 								aria-pressed={isHeld}
-								aria-label="{gapText.text}{matchedHotspot ? '. Already placed on hotspot' : ''}{isHeld ? '. Picked up. Tab to a hotspot and press Enter to place.' : '. Press Space or Enter to pick up'}"
+								aria-label="{gapText.text}{matchedHotspot ? '. Already placed on hotspot' : isUnavailable ? '. Not available due to match group restriction' : ''}{isHeld ? '. Picked up. Tab to a hotspot and press Enter to place.' : '. Press Space or Enter to pick up'}"
 								class="btn btn-md font-medium transition-all"
 								class:btn-primary={!matchedHotspot && !isHeld}
 								class:qti-ggm-label-held={isHeld}
 								class:btn-success={matchedHotspot}
-								class:cursor-grab={!disabled && !matchedHotspot && !isHeld}
-								class:cursor-not-allowed={disabled}
-								class:opacity-70={disabled || isDragged}
+								class:cursor-grab={!disabled && !matchedHotspot && !isHeld && !isUnavailable}
+								class:cursor-not-allowed={disabled || isUnavailable}
+								class:opacity-40={isUnavailable}
+								class:opacity-70={!isUnavailable && (disabled || isDragged)}
 								class:contrast-125={matchedHotspot}
 								class:saturate-150={matchedHotspot}
 							>
@@ -349,26 +351,29 @@ function parseCoords(hotspot: { identifier: string; shape: string; coords: strin
 						{@const matchedHotspot = getMatchedHotspot(gapImage.identifier)}
 						{@const isDragged = draggedTextId === gapImage.identifier}
 						{@const isHeld = pickedUpLabel === gapImage.identifier}
+						{@const isUnavailable = unavailableLabels.has(gapImage.identifier)}
 
 						<div class="inline-flex items-center gap-1">
 							<button
 								type="button"
-								draggable={!disabled && !matchedHotspot}
+								draggable={!disabled && !matchedHotspot && !isUnavailable}
 								use:touchDrag
 								ondragstart={() => handleDragStart(gapImage.identifier)}
 								ondragend={handleDragEnd}
 								onclick={() => handleLabelActivate(gapImage.identifier)}
 								onkeydown={(e) => handleLabelKeyDown(e, gapImage.identifier)}
 								disabled={disabled || !!matchedHotspot}
+								aria-disabled={isUnavailable ? 'true' : undefined}
 								aria-pressed={isHeld}
-								aria-label="{gapImage.alt || gapImage.identifier}{matchedHotspot ? '. Already placed on hotspot' : ''}{isHeld ? '. Picked up. Tab to a hotspot and press Enter to place.' : '. Press Space or Enter to pick up'}"
+								aria-label="{gapImage.alt || gapImage.identifier}{matchedHotspot ? '. Already placed on hotspot' : isUnavailable ? '. Not available due to match group restriction' : ''}{isHeld ? '. Picked up. Tab to a hotspot and press Enter to place.' : '. Press Space or Enter to pick up'}"
 								class="btn btn-md p-1 transition-all"
 								class:btn-primary={!matchedHotspot && !isHeld}
 								class:qti-ggm-label-held={isHeld}
 								class:btn-success={matchedHotspot}
-								class:cursor-grab={!disabled && !matchedHotspot && !isHeld}
-								class:cursor-not-allowed={disabled}
-								class:opacity-70={disabled || isDragged}
+								class:cursor-grab={!disabled && !matchedHotspot && !isHeld && !isUnavailable}
+								class:cursor-not-allowed={disabled || isUnavailable}
+								class:opacity-40={isUnavailable}
+								class:opacity-70={!isUnavailable && (disabled || isDragged)}
 							>
 								<img
 									src={gapImage.src}
@@ -412,7 +417,6 @@ function parseCoords(hotspot: { identifier: string; shape: string; coords: strin
 					viewBox="0 0 {parsedInteraction.imageData?.width} {parsedInteraction.imageData?.height}"
 				>
 					{#each parsedInteraction.hotspots as hotspot (hotspot.identifier)}
-						{@const coords = parseCoords(hotspot)}
 						{@const matchedGapText = getMatchedGapText(hotspot.identifier)}
 						{@const gapTextObj = matchedGapText ? parsedInteraction.gapTexts.find((g) => g.identifier === matchedGapText) : null}
 						{@const isHovered = hoveredHotspotId === hotspot.identifier}

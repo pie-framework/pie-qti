@@ -29,6 +29,7 @@ export interface GraphicAssociateData {
 		coords: string;
 		matchMax: number;
 		matchMin?: number;
+		matchGroup?: string[];
 		classes?: string[];
 	}>;
 	maxAssociations: number;
@@ -95,6 +96,8 @@ export const standardGraphicAssociateExtractor: ElementExtractor<GraphicAssociat
 			const coords = utils.getAttribute(hotspot, 'coords', '0,0,50,50');
 			const matchMax = utils.getNumberAttribute(hotspot, 'matchMax', 1);
 			const matchMin = utils.getNumberAttribute(hotspot, 'matchMin', 0);
+			const matchGroupRaw = utils.getAttribute(hotspot, 'matchGroup', '');
+			const matchGroup = matchGroupRaw.split(/\s+/).filter(Boolean);
 
 			// Get text content as label, use identifier as fallback
 			const textContent = utils.getTextContent(hotspot).trim();
@@ -107,6 +110,7 @@ export const standardGraphicAssociateExtractor: ElementExtractor<GraphicAssociat
 				coords,
 				matchMax,
 				...(matchMin > 0 ? { matchMin } : {}),
+				...(matchGroup.length > 0 ? { matchGroup } : {}),
 				...(classes.length > 0 ? { classes } : {}),
 			};
 		});

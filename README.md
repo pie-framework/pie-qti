@@ -36,7 +36,7 @@ We also built a **spec-complete QTI player** because a modern, open-source optio
 
 ## Part 1: QTI Players (2.2 & 3.0)
 
-> **Status**: Production-ready (QTI 2.2); QTI 3.0 infrastructure complete, player enhancements in progress
+> **Status**: Production-ready (QTI 2.2); QTI 3.0 infrastructure complete; PCI/PNP/Catalog implemented (see STATUS.md)
 
 Full-featured players for rendering QTI 2.2 and 3.0 assessment content in the browser.
 

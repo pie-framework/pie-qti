@@ -70,6 +70,26 @@ describe('standardTextEntryExtractor', () => {
 		expect(result.placeholderText).toBe('');
 	});
 
+	test('extracts format attribute', () => {
+		const xml = `<textEntryInteraction responseIdentifier="RESPONSE" format="plain" />`;
+		const element = parseQTI(xml);
+		const context = createTestContext(element, 'RESPONSE');
+
+		const result = standardTextEntryExtractor.extract(element, context);
+
+		expect(result.format).toBe('plain');
+	});
+
+	test('omits format when absent', () => {
+		const xml = `<textEntryInteraction responseIdentifier="RESPONSE" />`;
+		const element = parseQTI(xml);
+		const context = createTestContext(element, 'RESPONSE');
+
+		const result = standardTextEntryExtractor.extract(element, context);
+
+		expect(result.format).toBeUndefined();
+	});
+
 	describe('canHandle predicate', () => {
 		test('handles textEntryInteraction element', () => {
 			const xml = `<textEntryInteraction responseIdentifier="RESPONSE" />`;

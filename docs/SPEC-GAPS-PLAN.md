@@ -1,7 +1,7 @@
 # PIE-QTI Specification Gaps — Implementation Plan
 
 **Status**: Living document
-**Last reviewed**: 2026-03-14
+**Last reviewed**: 2026-04-29
 **Source analysis**: Comparison of `docs/QTI_techguide.md` against the codebase
 
 This document is the authoritative meta-plan for closing gaps between the QTI specification and the
@@ -77,7 +77,7 @@ Test signal
 
 Scope       — `packages/item-player/src/extraction/extractors/inlineChoiceExtractor.ts`;
               `packages/default-components/src/plugins/inline-choice/`
-Status      — Open
+Status      — Done (already implemented; no code change needed)
 Effort      — S
 Spec ref    — §3.2.1
 
@@ -87,7 +87,9 @@ displayed in the dropdown before the candidate makes a selection (a placeholder/
 dropdown UIs typically show a blank or the first choice, which can confuse candidates.
 
 Current
-`InlineChoiceData` has `choices` and `shuffle` only. The extractor does not look for a `<label>` child.
+`InlineChoiceData.label: string | null` exists in `inlineChoiceExtractor.ts`; the extractor reads
+the `<label>` child element; `ItemBody.svelte:290` uses it as the placeholder `<option>` with i18n
+fallback to `'Select...'`.
 
 Action
 1. Add `label?: string` to `InlineChoiceData`.
@@ -162,7 +164,7 @@ Test signal
 
 Scope       — `packages/assessment-player/src/core/AssessmentPlayer.ts` (or
               `OutcomeProcessor.ts` wherever `getVisibleFeedback()` lives)
-Status      — Open
+Status      — Done (already implemented; no code change needed)
 Effort      — S
 Spec ref    — §2.1 (Assessment Architecture — testFeedback)
 
@@ -173,9 +175,9 @@ is shown when the outcome variable named by `outcomeIdentifier` equals `identifi
 can be any type, not just boolean.
 
 Current
-The assessment player's feedback resolution reads `showHide: 'show'` as "show when `PASSED` is
-truthy" (treating the outcome as a boolean). Non-boolean cases — e.g. `outcomeIdentifier="GRADE"`
-+ `identifier="A"` should show when `GRADE === "A"` — are not handled.
+`AssessmentPlayer.ts:574-576` already performs `String(outcomes[fb.outcomeIdentifier] ?? '') ===
+fb.identifier` — string equality for all outcome types. Boolean outcomes still work because
+`true`/`false` are coerced to `"true"`/`"false"` before comparison.
 
 Action
 1. Locate `getVisibleFeedback()` (likely `AssessmentPlayer.ts` or `OutcomeProcessor.ts`).

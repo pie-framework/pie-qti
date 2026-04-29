@@ -9,6 +9,7 @@ import type { AssociableChoice } from '@pie-qti/item-player';
 import type { I18nProvider } from '@pie-qti/i18n';
 import { createOrUpdatePair, getSourceForTarget, getTargetsForSource, removePairBySource } from '../utils/pairHelpers.js';
 import { touchDrag } from '../utils/touchDragHelper.js';
+import { isCompatibleMatchGroup } from '../utils/matchGroupUtils.js';
 import DragHandle from './DragHandle.svelte';
 import '../styles/shared.css';
 
@@ -28,6 +29,18 @@ const { sourceSet, targetSet, pairs, maxAssociations = 0, correctPairs = [], dis
 // maxAssociations=0 means unlimited; otherwise cap total pairs
 const canAddMorePairs = $derived(maxAssociations === 0 || pairs.length < maxAssociations);
 
+// Targets incompatible with the active source due to matchGroup constraints
+const blockedTargetIds = $derived.by(() => {
+	const activeSourceId = draggedSourceId ?? keyboardSelectedSourceId;
+	if (!activeSourceId) return new Set<string>();
+	const src = sourceSet.find((s) => s.identifier === activeSourceId);
+	return new Set(
+		targetSet
+			.filter((t) => !isCompatibleMatchGroup(src?.matchGroup, t.matchGroup))
+			.map((t) => t.identifier)
+	);
+});
+
 let draggedSourceId = $state<string | null>(null);
 let keyboardSelectedSourceId = $state<string | null>(null); // Source selected via keyboard
 let announceText = $state<string>(''); // For screen reader announcements
@@ -46,6 +59,11 @@ function handleDragOver(event: DragEvent) {
 function handleDrop(event: DragEvent, targetId: string) {
 	if (disabled || !draggedSourceId) return;
 	event.preventDefault();
+
+	if (blockedTargetIds.has(targetId)) {
+		draggedSourceId = null;
+		return;
+	}
 
 	// Allow replacing an existing pair for this source, but block new pairs when at limit
 	const existingPair = pairs.find((p) => p.startsWith(draggedSourceId + ' '));
@@ -97,6 +115,11 @@ function handleTargetKeyDown(event: KeyboardEvent, targetId: string) {
 
 	if ((event.key === ' ' || event.key === 'Enter') && keyboardSelectedSourceId) {
 		event.preventDefault();
+
+		if (blockedTargetIds.has(targetId)) {
+			announceText = `This target cannot be matched with the selected source.`;
+			return;
+		}
 
 		const source = sourceSet.find((s) => s.identifier === keyboardSelectedSourceId);
 		const sourceName = source?.text || 'Item';
@@ -238,6 +261,7 @@ function clearMatch(sourceId: string) {
 			{@const isHighlight = (draggedSourceId && !matchedSource) || (keyboardSelectedSourceId && !matchedSource)}
 			{@const correctSource = getSourceForTarget(correctPairs, target.identifier)}
 			{@const isCorrect = correctSource !== null}
+			{@const isBlocked = blockedTargetIds.has(target.identifier)}
 
 			<button
 				type="button"
@@ -245,7 +269,8 @@ function clearMatch(sourceId: string) {
 				ondrop={(e) => handleDrop(e, target.identifier)}
 				onkeydown={(e) => handleTargetKeyDown(e, target.identifier)}
 				disabled={disabled || !keyboardSelectedSourceId}
-				aria-label="{target.text}{matchedSource && sourceItem ? '. Matched with ' + sourceItem.text : '. Available for matching'}{isCorrect ? '. Correct answer' : ''}"
+				aria-disabled={isBlocked ? 'true' : undefined}
+				aria-label="{target.text}{matchedSource && sourceItem ? '. Matched with ' + sourceItem.text : '. Available for matching'}{isCorrect ? '. Correct answer' : ''}{isBlocked ? '. Not compatible with selected source' : ''}"
 				data-matched={!!matchedSource}
 				data-highlight={isHighlight}
 				data-correct={isCorrect}
@@ -262,6 +287,8 @@ function clearMatch(sourceId: string) {
 				class:border-accent={draggedSourceId && !matchedSource || (keyboardSelectedSourceId && !matchedSource)}
 				class:bg-accent={draggedSourceId && !matchedSource || (keyboardSelectedSourceId && !matchedSource)}
 				class:bg-opacity-5={draggedSourceId && !matchedSource || (keyboardSelectedSourceId && !matchedSource)}
+				class:opacity-40={isBlocked}
+				class:cursor-not-allowed={isBlocked}
 			>
 				<div class="qti-match-target-content flex flex-col gap-1">
 					<div class="qti-match-target-title font-medium text-base-content/70">{target.text}</div>

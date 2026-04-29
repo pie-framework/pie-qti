@@ -13,6 +13,7 @@ export interface TextEntryData {
 	expectedLength: number;
 	patternMask: string | null;
 	placeholderText: string;
+	format?: string;
 }
 
 /**
@@ -40,11 +41,13 @@ export const standardTextEntryExtractor: ElementExtractor<TextEntryData> = {
 		const expectedLength = utils.getNumberAttribute(element, 'expectedLength', 20);
 		const patternMask = utils.getAttribute(element, 'patternMask', '');
 		const placeholderText = utils.getAttribute(element, 'placeholderText', '');
+		const format = utils.getAttribute(element, 'format', '');
 
 		return {
 			expectedLength,
 			patternMask: patternMask || null,
 			placeholderText,
+			...(format ? { format } : {}),
 		};
 	},
 

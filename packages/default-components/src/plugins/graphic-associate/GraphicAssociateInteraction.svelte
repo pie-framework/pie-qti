@@ -6,6 +6,7 @@
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
 	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
+	import { isCompatibleMatchGroup } from '../../shared/utils/matchGroupUtils';
 
 	interface Props {
 		interaction?: GraphicAssociateInteractionData | string;
@@ -38,6 +39,19 @@
 	const canInteract = $derived(!disabled);
 	const canAddMore = $derived(!parsedInteraction || pairs.length < parsedInteraction.maxAssociations);
 
+	// Hotspots incompatible with the currently selected hotspot due to matchGroup constraints
+	const blockedHotspots = $derived.by(() => {
+		if (!selectedHotspot || !parsedInteraction) return new Set<string>();
+		type WithMatchGroup = { identifier: string; matchGroup?: string[] };
+		const hotspots = parsedInteraction.associableHotspots as (typeof parsedInteraction.associableHotspots[number] & WithMatchGroup)[];
+		const src = hotspots.find((h) => h.identifier === selectedHotspot);
+		return new Set(
+			hotspots
+				.filter((h) => h.identifier !== selectedHotspot && !isCompatibleMatchGroup(src?.matchGroup, h.matchGroup))
+				.map((h) => h.identifier)
+		);
+	});
+
 	$effect(() => {
 		// Sync with parent response changes
 		pairs = parsedResponse ? [...parsedResponse] : [];
@@ -65,6 +79,7 @@
 		} else {
 			// Second selection - create a pair
 			if (!canAddMore) return;
+			if (blockedHotspots.has(hotspotId)) return;
 
 			const newPair = `${selectedHotspot} ${hotspotId}`;
 			pairs = [...pairs, newPair];
@@ -236,6 +251,7 @@
 					{#each parsedInteraction.associableHotspots as hotspot}
 						{@const isSelected = isHotspotSelected(hotspot.identifier)}
 						{@const isMaxed = isHotspotMaxed(hotspot.identifier)}
+						{@const isBlocked = blockedHotspots.has(hotspot.identifier)}
 						{@const usageCount = getHotspotUsageCount(hotspot.identifier)}
 						{@const isCorrect = isHotspotInCorrectPair(hotspot.identifier)}
 
@@ -247,8 +263,8 @@
 									? 'bg-primary/40 border-primary border-4'
 									: isCorrect
 										? 'bg-success/20 border-success'
-										: 'bg-primary/10 border-primary hover:bg-primary/20'} {isMaxed
-									? 'opacity-50 cursor-not-allowed'
+										: 'bg-primary/10 border-primary hover:bg-primary/20'} {isMaxed || isBlocked
+									? 'opacity-40 cursor-not-allowed'
 									: canInteract
 										? 'cursor-pointer'
 										: 'cursor-not-allowed opacity-70'}"
@@ -256,7 +272,8 @@
 									y1}px; z-index: 20;"
 								onclick={() => handleHotspotClick(hotspot.identifier)}
 								disabled={!canInteract || isMaxed}
-								aria-label="{hotspot.label} ({usageCount}/{hotspot.matchMax} connections){isCorrect ? '. Correct answer' : ''}"
+								aria-disabled={isBlocked ? 'true' : undefined}
+								aria-label="{hotspot.label} ({usageCount}/{hotspot.matchMax} connections){isCorrect ? '. Correct answer' : isBlocked ? '. Not available due to match group restriction' : ''}"
 							>
 								<span class="text-xs font-bold text-primary-content">{hotspot.label}</span>
 							</button>
@@ -268,8 +285,8 @@
 									? 'bg-primary/40 border-primary border-4'
 									: isCorrect
 										? 'bg-success/20 border-success'
-										: 'bg-primary/10 border-primary hover:bg-primary/20'} {isMaxed
-									? 'opacity-50 cursor-not-allowed'
+										: 'bg-primary/10 border-primary hover:bg-primary/20'} {isMaxed || isBlocked
+									? 'opacity-40 cursor-not-allowed'
 									: canInteract
 										? 'cursor-pointer'
 										: 'cursor-not-allowed opacity-70'}"
@@ -277,7 +294,8 @@
 									2}px; z-index: 20;"
 								onclick={() => handleHotspotClick(hotspot.identifier)}
 								disabled={!canInteract || isMaxed}
-								aria-label="{hotspot.label} ({usageCount}/{hotspot.matchMax} connections){isCorrect ? '. Correct answer' : ''}"
+								aria-disabled={isBlocked ? 'true' : undefined}
+								aria-label="{hotspot.label} ({usageCount}/{hotspot.matchMax} connections){isCorrect ? '. Correct answer' : isBlocked ? '. Not available due to match group restriction' : ''}"
 							>
 								<span class="text-xs font-bold text-primary-content">{hotspot.label}</span>
 							</button>
@@ -290,15 +308,16 @@
 									? 'bg-primary/40 border-primary border-4'
 									: isCorrect
 										? 'bg-success/20 border-success'
-										: 'bg-primary/10 border-primary hover:bg-primary/20'} {isMaxed
-									? 'opacity-50 cursor-not-allowed'
+										: 'bg-primary/10 border-primary hover:bg-primary/20'} {isMaxed || isBlocked
+									? 'opacity-40 cursor-not-allowed'
 									: canInteract
 										? 'cursor-pointer'
 										: 'cursor-not-allowed opacity-70'}"
 								style="left: {cx - rx}px; top: {cy - ry}px; width: {rx * 2}px; height: {ry * 2}px; border-radius: 50%; z-index: 20;"
 								onclick={() => handleHotspotClick(hotspot.identifier)}
 								disabled={!canInteract || isMaxed}
-								aria-label="{hotspot.label} ({usageCount}/{hotspot.matchMax} connections){isCorrect ? '. Correct answer' : ''}"
+								aria-disabled={isBlocked ? 'true' : undefined}
+								aria-label="{hotspot.label} ({usageCount}/{hotspot.matchMax} connections){isCorrect ? '. Correct answer' : isBlocked ? '. Not available due to match group restriction' : ''}"
 							>
 								<span class="text-xs font-bold text-primary-content">{hotspot.label}</span>
 							</button>
@@ -317,15 +336,16 @@
 									? 'bg-primary/40 border-primary border-4'
 									: isCorrect
 										? 'bg-success/20 border-success'
-										: 'bg-primary/10 border-primary hover:bg-primary/20'} {isMaxed
-									? 'opacity-50 cursor-not-allowed'
+										: 'bg-primary/10 border-primary hover:bg-primary/20'} {isMaxed || isBlocked
+									? 'opacity-40 cursor-not-allowed'
 									: canInteract
 										? 'cursor-pointer'
 										: 'cursor-not-allowed opacity-70'}"
 								style="left: {x1}px; top: {y1}px; width: {x2 - x1}px; height: {y2 - y1}px; z-index: 20;"
 								onclick={() => handleHotspotClick(hotspot.identifier)}
 								disabled={!canInteract || isMaxed}
-								aria-label="{hotspot.label} ({usageCount}/{hotspot.matchMax} connections){isCorrect ? '. Correct answer' : ''}"
+								aria-disabled={isBlocked ? 'true' : undefined}
+								aria-label="{hotspot.label} ({usageCount}/{hotspot.matchMax} connections){isCorrect ? '. Correct answer' : isBlocked ? '. Not available due to match group restriction' : ''}"
 							>
 								<span class="text-xs font-bold text-primary-content">{hotspot.label}</span>
 							</button>

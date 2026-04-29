@@ -5,6 +5,7 @@
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
+	import { isCompatibleMatchGroup } from '../../shared/utils/matchGroupUtils';
 
 	interface Props {
 		interaction?: AssociateInteractionData | string;
@@ -73,6 +74,17 @@
 		}
 	}
 
+	// Choices that cannot be paired with the currently selected choice due to matchGroup constraints
+	const blockedChoices = $derived.by(() => {
+		if (!selectedForPairing || !parsedInteraction) return new Set<string>();
+		const src = parsedInteraction.choices.find((c) => c.identifier === selectedForPairing);
+		return new Set(
+			parsedInteraction.choices
+				.filter((c) => c.identifier !== selectedForPairing && !isCompatibleMatchGroup(src?.matchGroup, c.matchGroup))
+				.map((c) => c.identifier)
+		);
+	});
+
 	function handleChoiceClick(choiceId: string) {
 		if (disabled) return;
 
@@ -84,8 +96,9 @@
 		else if (selectedForPairing === choiceId) {
 			setSelectedForPairing(null);
 		}
-		// If different item clicked, create a pair
+		// If different item clicked, check matchGroup compatibility then create a pair
 		else {
+			if (blockedChoices.has(choiceId)) return;
 			const newPair = `${selectedForPairing} ${choiceId}`;
 			const newPairs = [...pairs, newPair];
 			emitChange(newPairs);
@@ -135,9 +148,13 @@
 			{@const isSelected = selectedForPairing === choice.identifier}
 			{@const inPair = isInPair(choice.identifier)}
 			{@const isCorrect = isCorrectPair(choice.identifier)}
+			{@const isBlocked = blockedChoices.has(choice.identifier)}
 			<button
 				part="choice"
 				class="btn btn-outline {isSelected ? 'btn-accent' : inPair ? 'btn-primary' : isCorrect ? 'btn-success' : 'btn-neutral'}"
+				class:opacity-40={isBlocked}
+				class:cursor-not-allowed={isBlocked}
+				aria-disabled={isBlocked ? 'true' : undefined}
 				onclick={() => handleChoiceClick(choice.identifier)}
 				{disabled}
 			>

@@ -35,6 +35,7 @@ export interface TextEntryInteractionData extends BaseInteractionData {
 	expectedLength: number;
 	patternMask: string | null;
 	placeholderText: string;
+	format?: string;
 }
 
 export interface ExtendedTextInteractionData extends BaseInteractionData {
@@ -68,6 +69,8 @@ export interface AssociableChoice {
 	matchMax: number;
 	/** Minimum number of times this choice must appear in the response (QTI matchMin) */
 	matchMin?: number;
+	/** Pairing constraint: choice can only be paired with others sharing a group value (QTI matchGroup) */
+	matchGroup?: string[];
 	/** CSS classes from the choice element for custom renderer detection */
 	classes?: string[];
 }
@@ -95,7 +98,7 @@ export interface GapMatchInteractionData extends BaseInteractionData {
 	type: 'gapMatchInteraction';
 	shuffle: boolean;
 	prompt: string | null;
-	gapTexts: Array<{ identifier: string; text: string; matchMax: number }>;
+	gapTexts: Array<{ identifier: string; text: string; matchMax: number; matchGroup?: string[] }>;
 	gaps: Array<{ identifier: string; index: number }>;
 	promptText: string;
 }
@@ -146,9 +149,9 @@ export interface GraphicGapMatchInteractionData extends BaseInteractionData {
 	prompt: string | null;
 	imageData: ImageData | null;
 	maxAssociations: number;
-	gapTexts: Array<{ identifier: string; text: string; matchMax: number }>;
+	gapTexts: Array<{ identifier: string; text: string; matchMax: number; matchGroup?: string[] }>;
 	/** Image-based draggable labels (gapImg elements); rendered as <img> in the choice pool */
-	gapImages: Array<{ identifier: string; src: string; alt: string; matchMax: number; width?: number; height?: number }>;
+	gapImages: Array<{ identifier: string; src: string; alt: string; matchMax: number; matchGroup?: string[]; width?: number; height?: number }>;
 	hotspots: AssociableHotspot[];
 }
 
@@ -243,6 +246,8 @@ export interface GraphicAssociateHotspot {
 	coords: string;
 	matchMax: number;
 	label: string;
+	/** Pairing constraint: hotspot can only be associated with others sharing a group value (QTI matchGroup) */
+	matchGroup?: string[];
 }
 
 export interface GraphicAssociateInteractionData extends BaseInteractionData {
