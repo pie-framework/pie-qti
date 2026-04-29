@@ -11,6 +11,7 @@ import type { QTIChangeEvent } from '../web-components/QTIInteractionElement.js'
 import type { ComponentRegistry } from './ComponentRegistry.js';
 import type { Player } from './Player.js';
 import { htmlToString, toTrustedHtml } from './trustedTypes.js';
+import { applyGlossaryTriggers } from '../catalog/applyGlossaryTriggers.js';
 
 /**
  * Configuration for ItemRenderer
@@ -104,6 +105,9 @@ export class ItemRenderer {
 			interactions
 		);
 		proseContainer.innerHTML = toTrustedHtml(processedHtml, this.player.getTrustedTypesPolicyName()) as any;
+
+		// Inject glossary/keyword-translation trigger buttons for [data-catalog-idref] terms
+		applyGlossaryTriggers(proseContainer, this.player);
 
 		wrapper.appendChild(proseContainer);
 

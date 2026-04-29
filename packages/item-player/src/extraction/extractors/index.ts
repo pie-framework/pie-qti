@@ -10,6 +10,7 @@ import type { ElementExtractor } from '../types.js';
 import { standardAssociateExtractor } from './associateExtractor.js';
 import { standardChoiceExtractor } from './choiceExtractor.js';
 import { standardCustomExtractor } from './customExtractor.js';
+import { portableCustomExtractor } from './portableCustomExtractor.js';
 import { standardDrawingExtractor } from './drawingExtractor.js';
 import { standardEndAttemptExtractor } from './endAttemptExtractor.js';
 import { standardExtendedTextExtractor } from './extendedTextExtractor.js';
@@ -36,6 +37,7 @@ export type { ChoiceData } from './choiceExtractor.js';
 export { standardChoiceExtractor } from './choiceExtractor.js';
 export type { CustomData } from './customExtractor.js';
 export { standardCustomExtractor } from './customExtractor.js';
+export { portableCustomExtractor } from './portableCustomExtractor.js';
 export type { DrawingData } from './drawingExtractor.js';
 export { standardDrawingExtractor } from './drawingExtractor.js';
 export type { EndAttemptData } from './endAttemptExtractor.js';
@@ -86,6 +88,8 @@ export { standardUploadExtractor } from './uploadExtractor.js';
  * }
  */
 export const ALL_STANDARD_EXTRACTORS: ElementExtractor[] = [
+	// PCI extractor has higher priority (20) than standardCustomExtractor (10)
+	portableCustomExtractor,
 	// All 21 standard QTI 2.2 interaction extractors (Phase 2 - Complete)
 	standardChoiceExtractor,
 	standardTextEntryExtractor,

@@ -61,6 +61,13 @@ import { createSeededRng } from './random.js';
 import { sanitizeHtml } from './sanitizer.js';
 import { toTrustedHtml } from './trustedTypes.js';
 import { sanitizeResourceUrl } from './urlPolicy.js';
+import type { PnpProfile } from '../pnp/types.js';
+import { applyPnpToRoot } from '../pnp/applyPnp.js';
+import type { CatalogIndex } from '../catalog/types.js';
+import { extractCatalogFromItemXml, mergeCatalogs } from '../catalog/catalogExtractor.js';
+import { getCatalogEntry } from '../catalog/catalogLookup.js';
+import { PciHost } from '../pci/PciHost.js';
+import type { ExtractedPci } from '../pci/types.js';
 
 type DeclKind = 'response' | 'outcome' | 'template';
 
@@ -82,6 +89,10 @@ export class Player {
 	private responseProcessingProgram: ProcessingProgram | null = null;
 	private templateProcessingProgram: ProcessingProgram | null = null;
 	private outcomeProcessingProgram: ProcessingProgram | null = null;
+	private _pnp: PnpProfile | undefined;
+	private _rootEl: HTMLElement | undefined;
+	private _catalogIndex: CatalogIndex = new Map();
+	private _pciHosts: Map<string, PciHost> = new Map();
 
 	constructor(config: PlayerConfig) {
 		this.config = config;
@@ -196,10 +207,109 @@ export class Player {
 			);
 		}
 
+		// Store PNP profile for later use (applyPnpToRoot is called once a root element is available).
+		this._pnp = config.pnp;
+
+		// Build catalog index from item XML and optional shared catalog.
+		const itemCatalog = extractCatalogFromItemXml(this.itemXml);
+		if (config.catalogXml) {
+			const sharedCatalog = extractCatalogFromItemXml(config.catalogXml);
+			// Item-level wins on collision: merge shared first, then override with item entries.
+			this._catalogIndex = mergeCatalogs(sharedCatalog, itemCatalog);
+		} else {
+			this._catalogIndex = itemCatalog;
+		}
+
 		// Check strict compliance if enabled
 		if (this.config.strictQtiCompliance?.enabled) {
 			this.validateStrictCompliance();
 		}
+	}
+
+	/**
+	 * Apply the PNP profile to a player root element.
+	 * Call this once the root DOM element is available (e.g. after mounting).
+	 * The player stores the element reference so updatePnp() can re-apply without re-parsing the item.
+	 */
+	public applyPnp(rootEl: HTMLElement): void {
+		this._rootEl = rootEl;
+		applyPnpToRoot(rootEl, this._pnp);
+	}
+
+	/**
+	 * Update the PNP profile mid-session without re-parsing the item XML.
+	 * Deep-merges the partial profile into the current profile and re-applies.
+	 */
+	public updatePnp(partial: Partial<PnpProfile>): void {
+		this._pnp = mergePnp(this._pnp, partial);
+		if (this._rootEl) {
+			applyPnpToRoot(this._rootEl, this._pnp);
+		}
+	}
+
+	/** Return the current resolved PNP profile. */
+	public getPnp(): PnpProfile | undefined {
+		return this._pnp;
+	}
+
+	/**
+	 * Look up a catalog entry by card identifier, usage type, and optional language.
+	 * Returns the HTML string for the matched entry, or null if not found.
+	 *
+	 * Language fallback: exact match → prefix match → no-lang entry → null.
+	 */
+	public getCatalogEntry(idref: string, usage: string, lang?: string): string | null {
+		return getCatalogEntry(this._catalogIndex, idref, usage, lang);
+	}
+
+	/**
+	 * Create a PciHost for an extracted PCI and register it for response tracking.
+	 * The caller (typically ItemRenderer) is responsible for calling host.load() and
+	 * host.initialize(domNode) once the DOM element is available.
+	 */
+	public createPciHost(data: ExtractedPci): PciHost {
+		const baseUrl = this.config.pciBaseUrl ?? (typeof document !== 'undefined' ? document.baseURI : '');
+		const host = new PciHost(data, baseUrl);
+
+		// Wire response changes back into the player's declaration context
+		host.onResponseChange((responseId: string, value: unknown) => {
+			const d = this.decls[responseId];
+			if (d) {
+				d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, value);
+			}
+		});
+
+		this._pciHosts.set(data.responseIdentifier, host);
+		return host;
+	}
+
+	/**
+	 * Push a response value into the PCI identified by responseIdentifier.
+	 * Called from setResponses() so session restore reaches PCI modules.
+	 */
+	public setPciResponse(responseIdentifier: string, value: unknown): void {
+		this._pciHosts.get(responseIdentifier)?.setResponse(value);
+	}
+
+	/**
+	 * Disable/enable all PCI hosts based on role.
+	 * 'candidate' = enabled; any other role = disabled.
+	 */
+	public syncPciDisabledState(): void {
+		const disabled = this.role !== 'candidate';
+		for (const host of this._pciHosts.values()) {
+			if (disabled) host.disable(); else host.enable();
+		}
+	}
+
+	/**
+	 * Destroy all PCI hosts. Call on player teardown.
+	 */
+	public destroyPciHosts(): void {
+		for (const host of this._pciHosts.values()) {
+			host.destroy();
+		}
+		this._pciHosts.clear();
 	}
 
 	/** Breaking-change API: returns the typed declaration map */
@@ -212,7 +322,17 @@ export class Player {
 			const d = this.decls[id];
 			if (!d) continue;
 			d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, raw);
+			// Push restored responses into any mounted PCI modules
+			this.setPciResponse(id, raw);
 		}
+	}
+
+	/**
+	 * Destroy all resources owned by this player instance (PCI modules, etc.).
+	 * Call when unmounting to prevent memory leaks.
+	 */
+	public destroy(): void {
+		this.destroyPciHosts();
 	}
 
 	public processResponses(): ScoringResult {
@@ -1278,4 +1398,14 @@ export class Player {
 	}
 }
 
+// ---------------------------------------------------------------------------
+// Module-level helpers
+// ---------------------------------------------------------------------------
 
+function mergePnp(base: PnpProfile | undefined, partial: Partial<PnpProfile>): PnpProfile {
+	return {
+		display: { ...(base?.display ?? {}), ...(partial.display ?? {}) },
+		content: { ...(base?.content ?? {}), ...(partial.content ?? {}) },
+		cognitive: { ...(base?.cognitive ?? {}), ...(partial.cognitive ?? {}) },
+	};
+}

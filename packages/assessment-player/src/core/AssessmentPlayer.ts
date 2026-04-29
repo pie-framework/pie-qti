@@ -8,7 +8,7 @@
  * - Apply backend navigation decisions + session state
  */
 
-import type { QTIRole } from '@pie-qti/item-player';
+import type { QTIRole, PnpProfile } from '@pie-qti/item-player';
 import { Player } from '@pie-qti/item-player';
 import type {
 	AssessmentRubricBlock,
@@ -58,6 +58,13 @@ export interface BackendAssessmentPlayerConfig {
 	showProgress?: boolean;
 	// Time management
 	timeWarningThreshold?: number;
+	/**
+	 * QTI 3.0 §6.2 Personal Needs and Preferences profile.
+	 * Extended time (pnp.content.extendedTime) is applied to assessment timeLimits.
+	 * The full profile is passed down to each item player for component-level features
+	 * (color scheme, elimination tool).
+	 */
+	pnp?: PnpProfile;
 	// Callbacks
 	onItemChange?: (itemIndex: number, totalItems: number) => void;
 	onSectionChange?: (sectionIndex: number, totalSections: number) => void;
@@ -147,6 +154,7 @@ export class AssessmentPlayer {
 			this.timeManager = new TimeManager({
 				assessmentTimeLimits: this.assessment.timeLimits,
 				warningThreshold: config.timeWarningThreshold || 60,
+				extendedTime: config.pnp?.content?.extendedTime,
 				onWarning: (remainingSeconds) => this.notifyTimeWarning(remainingSeconds),
 				onExpired: () => this.notifyTimeExpired(),
 				onTick: (remainingSeconds, elapsedSeconds) => this.notifyTimeTick(remainingSeconds, elapsedSeconds),

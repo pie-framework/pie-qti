@@ -18,9 +18,11 @@
 		i18n?: I18nProvider;
 		typeset?: (element: HTMLElement) => void;
 		onChange?: (value: string[]) => void;
+		/** When true, renders an elimination toggle button per choice (QTI 3.0 PNP §6.2). */
+		eliminationTool?: boolean;
 	}
 
-	let { interaction = $bindable(), response = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), typeset, onChange }: Props = $props();
+	let { interaction = $bindable(), response = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), typeset, onChange, eliminationTool = false }: Props = $props();
 
 	// Parse props that may be JSON strings (web component usage)
 	const parsedInteraction = $derived(parseJsonProp<OrderInteractionData>(interaction));
@@ -130,6 +132,25 @@
 			hasConfirmed = false;
 		}
 	});
+
+	// Elimination tool state
+	let eliminatedChoices = $state(new Set<string>());
+
+	function toggleElimination(identifier: string) {
+		const next = new Set(eliminatedChoices);
+		if (next.has(identifier)) {
+			next.delete(identifier);
+		} else {
+			next.add(identifier);
+		}
+		eliminatedChoices = next;
+	}
+
+	function eliminationLabel(identifier: string): string {
+		return eliminatedChoices.has(identifier)
+			? (i18n?.t('interactions.choice.restoreChoice') ?? 'Restore')
+			: (i18n?.t('interactions.choice.eliminateChoice') ?? 'Eliminate');
+	}
 </script>
 
 <ShadowBaseStyles />
@@ -144,14 +165,31 @@
 			</div>
 		{/if}
 
-		<SortableList
-			items={parsedInteraction.choices.map(c => ({ id: c.identifier, text: c.text }))}
-			{orderedIds}
-			correctOrder={isShowingCorrect ? (parsedCorrectResponse || []) : []}
-			orientation="vertical"
-			{disabled}
-			onReorder={handleReorder}
-		/>
+		<div class="qti-order-sortable-wrapper" class:qti-order-with-elimination={eliminationTool}>
+			<SortableList
+				items={parsedInteraction.choices.map(c => ({ id: c.identifier, text: c.text }))}
+				{orderedIds}
+				correctOrder={isShowingCorrect ? (parsedCorrectResponse || []) : []}
+				orientation="vertical"
+				{disabled}
+				onReorder={handleReorder}
+			/>
+			{#if eliminationTool}
+				<div class="qti-order-elimination-col" aria-hidden="true">
+					{#each orderedIds as id (id)}
+						<button
+							type="button"
+							class="qti-eliminate-btn"
+							aria-label={eliminationLabel(id)}
+							aria-pressed={eliminatedChoices.has(id)}
+							aria-hidden="false"
+							onclick={() => toggleElimination(id)}
+							data-eliminated={eliminatedChoices.has(id) ? '' : undefined}
+						>✕</button>
+					{/each}
+				</div>
+			{/if}
+		</div>
 
 		<!-- Confirmation button for WCAG 2.2 SC 3.3.4 compliance -->
 		<div class="mt-4 flex items-center gap-3">
@@ -198,5 +236,45 @@
 		width: 1rem;
 		height: 1rem;
 		flex: 0 0 auto;
+	}
+
+	/* Elimination tool layout */
+	.qti-order-sortable-wrapper {
+		position: relative;
+	}
+
+	.qti-order-with-elimination {
+		display: grid;
+		grid-template-columns: 1fr auto;
+		gap: 0.25rem;
+		align-items: start;
+	}
+
+	.qti-order-elimination-col {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.qti-eliminate-btn {
+		background: none;
+		border: 1px solid currentColor;
+		border-radius: 50%;
+		width: 1.75rem;
+		height: 1.75rem;
+		font-size: 0.75rem;
+		cursor: pointer;
+		opacity: 0.4;
+		padding: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+	}
+
+	.qti-eliminate-btn:hover,
+	.qti-eliminate-btn[data-eliminated] {
+		opacity: 1;
+		color: var(--color-error, oklch(63% 0.237 25.331));
 	}
 </style>

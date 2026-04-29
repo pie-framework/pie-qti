@@ -177,6 +177,19 @@ export interface QTIComplianceConfig {
 
 export interface PlayerConfig {
 	itemXml?: string;
+	/**
+	 * QTI 3.0 §6.2 Personal Needs and Preferences profile.
+	 * Color scheme is applied immediately as data-qti-colorscheme on the player root.
+	 * Use player.updatePnp() to change mid-session without re-parsing the item.
+	 */
+	pnp?: import('../pnp/types.js').PnpProfile;
+	/**
+	 * Optional shared catalog XML string (QTI 3.0 §6.3).
+	 * Parsed and merged with any catalog embedded in the item XML.
+	 * Item-level catalog entries take precedence over shared entries with the same identifier.
+	 * Deferred: external catalog files from IMS manifest (G-15) are not yet supported.
+	 */
+	catalogXml?: string;
 	sessionState?: ItemSessionState;
 	responses?: InteractionResponse;
 	role?: QTIRole;
@@ -212,6 +225,11 @@ export interface PlayerConfig {
 	 * Keyed by operator `class` (preferred) or `definition` URI.
 	 */
 	customOperators?: Record<string, (args: QtiValue[], meta: { class?: string; definition?: string }) => QtiValue>;
+	/**
+	 * Optional base URL for resolving relative PCI module paths.
+	 * Defaults to document.baseURI when running in a browser.
+	 */
+	pciBaseUrl?: string;
 
 	/**
 	 * Security-related controls for untrusted QTI rendered into the host DOM.

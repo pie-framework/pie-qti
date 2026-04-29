@@ -65,6 +65,21 @@ export {
 
 export { isResponseEmpty } from './utils/responseUtils.js';
 
+// PNP profile (QTI 3.0 §6.2)
+export type { PnpProfile } from './pnp/types.js';
+export { applyPnpToRoot } from './pnp/applyPnp.js';
+export { parsePnpXml } from './pnp/parsePnpXml.js';
+
+// Catalog (QTI 3.0 §6.3)
+export type { CatalogIndex, CatalogCard, CatalogEntry } from './catalog/types.js';
+export { extractCatalog, extractCatalogFromItemXml, mergeCatalogs } from './catalog/catalogExtractor.js';
+export { getCatalogEntry } from './catalog/catalogLookup.js';
+
+// PCI — Portable Custom Interaction (QTI 3.0 §6.1)
+export type { PciModule, PciBoundTo, ExtractedPci } from './pci/types.js';
+export { PciLoadError } from './pci/types.js';
+export { PciHost } from './pci/PciHost.js';
+
 // Re-export QTI heuristics from @pie-qti/ims-cp-core for convenience
 // (heuristics are now in the shared ingestion layer)
 export {

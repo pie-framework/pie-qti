@@ -25,6 +25,12 @@ export interface TimeManagerConfig {
 	onExpired?: () => void;
 	/** Callback for time updates (fires every second) */
 	onTick?: (remainingSeconds: number, elapsedSeconds: number) => void;
+	/**
+	 * QTI 3.0 PNP extended time accommodation.
+	 * When active, multiplies assessmentTimeLimits.maxTime by the given multiplier.
+	 * multiplier: Infinity removes the time limit entirely.
+	 */
+	extendedTime?: { active: boolean; multiplier: number };
 }
 
 export interface TimeTrackingState {
@@ -63,10 +69,21 @@ export class TimeManager {
 			isPaused: false,
 		};
 
-		// Initialize timer if time limit exists
+		// Initialize timer if time limit exists, applying PNP extended-time multiplier if set.
 		if (config.assessmentTimeLimits?.maxTime) {
-			this.maxTimeSeconds = config.assessmentTimeLimits.maxTime;
-			this.startTimer();
+			const base = config.assessmentTimeLimits.maxTime;
+			const et = config.extendedTime;
+			if (et?.active && et.multiplier === Infinity) {
+				// multiplier: Infinity → unlimited time (no countdown)
+				this.maxTimeSeconds = null;
+			} else if (et?.active && et.multiplier > 0) {
+				this.maxTimeSeconds = base * et.multiplier;
+			} else {
+				this.maxTimeSeconds = base;
+			}
+			if (this.maxTimeSeconds !== null) {
+				this.startTimer();
+			}
 		}
 	}
 
