@@ -1,13 +1,13 @@
 # PRD: Transform CLI
 
 <!--
-  Status: draft
+  Status: current
   Type: system
   Packages: @pie-qti/transform-cli
   Last reviewed: 2026-04-27
 -->
 
-**Status:** draft  
+**Status:** current  
 **Type:** system  
 **Packages:** `@pie-qti/transform-cli`  
 **Last reviewed:** 2026-04-27

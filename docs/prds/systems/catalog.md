@@ -1,13 +1,13 @@
 # PRD: Catalog System (Glossary and Accessibility Content)
 
 <!--
-  Status: draft
+  Status: current
   Type: system
   Packages: @pie-qti/item-player, @pie-qti/default-components
   Last reviewed: 2026-04-28
 -->
 
-**Status:** draft
+**Status:** current
 **Type:** system
 **Packages:** `@pie-qti/item-player`, `@pie-qti/default-components`
 **Last reviewed:** 2026-04-28
@@ -124,11 +124,11 @@ All eight types defined in QTI 3.0 §6.3 are parsed and stored in `CatalogIndex`
 - **FR-4:** All eight catalog usage types must be stored: `glossary-on-screen`, `keyword-translation`, `illustrated-glossary`, `tts-pronunciation`, `signing-definition`, `braille-text`, `audio-description`, `extended-description`. Unknown usage values must be stored as-is (forward-compatible).
 - **FR-5:** `player.getCatalogEntry(idref: string, usage: string, lang?: string): string | null` must be a public player method. It must apply the three-level language fallback: exact `xml:lang` match, then language-prefix match, then no-`xml:lang` entry. It must return `null` when the identifier is not found or when no entry matches the requested usage.
 - **FR-6:** If `PlayerConfig.catalogXml` is provided, the player must parse it as a standalone catalog XML string and merge it into the item-level `CatalogIndex`. Item-level entries must take precedence over shared entries when both define the same card identifier.
-- **FR-7:** When `pnp.content.glossaryOnScreen` is true, the item body renderer must find every `[data-catalog-idref]` element in the rendered item body and mount an accessible trigger button. Activating the trigger must open a `CatalogPopup` populated with the result of `getCatalogEntry(idref, 'glossary-on-screen')`.
+- **FR-7:** When `pnp.content.glossaryOnScreen` is true, the item body renderer must find every `[data-catalog-idref]` element in the rendered item body and mount an accessible trigger button. Activating the trigger must open a focus-trapped inline popup populated with the result of `getCatalogEntry(idref, 'glossary-on-screen')`.
 - **FR-8:** When `pnp.content.keywordTranslation.active` is true, the same trigger mechanism applies using `usage = 'keyword-translation'` and `lang = pnp.content.keywordTranslation.languageCode`. If no matching entry is found for the requested language, the trigger must still render (and the popup content may be empty or fall back to the no-lang entry).
 - **FR-9:** For `illustrated-glossary` entries, the popup must render the `html` value as an `<img src="...">` with an `alt` attribute derived from the term's visible text.
 - **FR-10:** For `tts-pronunciation`, `signing-definition`, `braille-text`, `audio-description`, and `extended-description` entries, the player must fire a `qti-catalog-lookup` `CustomEvent` (same event used by PNP trigger UI) with `detail: { idref, usage, html }`. The player must not render any popup for these usages.
-- **FR-11:** `CatalogPopup` must be a Svelte component in `packages/default-components/src/catalog/` that accepts `content: string`, `label: string`, and `onClose: () => void` props. It must be mountable by the player without requiring additional component registry setup.
+- **FR-11:** `CatalogPopup.svelte` must be a Svelte component in `packages/default-components/src/catalog/` that accepts `content: string`, `label: string`, and `onClose: () => void` props, for use by host applications. The player's own popup is implemented as a vanilla-JS `mountPopup()` function in `applyGlossaryTriggers.ts`; both must implement equivalent accessibility behavior (focus trap, Escape to close, `role="dialog"`).
 - **FR-12:** When `pnp` is absent or neither `glossaryOnScreen` nor `keywordTranslation.active` is true, no trigger buttons must appear on `[data-catalog-idref]` elements, regardless of whether a catalog is present.
 
 ---
@@ -157,15 +157,15 @@ All eight types defined in QTI 3.0 §6.3 are parsed and stored in `CatalogIndex`
 
 ---
 
-### `CatalogPopup` in `default-components`, not `item-player`
+### Vanilla-JS popup in `item-player`; `CatalogPopup.svelte` for host apps
 
-**Decision:** `CatalogPopup` is a Svelte component in `packages/default-components/src/catalog/`, not in `packages/item-player`.
+**Decision:** The in-player popup for on-screen catalog usages is a vanilla-JS `mountPopup()` function in `packages/item-player/src/catalog/applyGlossaryTriggers.ts`. `CatalogPopup.svelte` in `packages/default-components/src/catalog/` is a separate Svelte component provided for host applications, not used internally by the player.
 
-**Rationale:** `item-player` is a rendering-framework-agnostic package. Placing a Svelte component with CSS and focus management logic in `item-player` would create a Svelte dependency in a package currently usable without it. `default-components` already owns all Svelte-based interaction UI. The player instantiates `CatalogPopup` via the same mechanism it uses for interaction components, keeping the architectural boundary clean.
+**Rationale:** `item-player` has no Svelte dependency — it is called from `ItemRenderer.ts`, which is framework-agnostic. A vanilla-JS popup (`document.createElement`, `role="dialog"`, Tab-trap event listener) satisfies the accessibility requirements with no new package dependency and no compilation step. This was simpler to implement correctly than importing a Svelte component into a non-Svelte context or introducing a component registry indirection. `CatalogPopup.svelte` is provided as a convenience for host applications that want a declaratively-mountable Svelte component with the same UX.
 
-**Alternatives considered:** Implementing `CatalogPopup` as a plain custom element (no Svelte) inside `item-player` — rejected because building accessible focus traps and dialogs in vanilla Web Components requires substantial boilerplate and duplicates functionality already available in the Svelte component layer.
+**Alternatives considered:** Instantiating `CatalogPopup.svelte` from `item-player` via the component registry — rejected because `item-player` deliberately has no Svelte dependency; introducing one via the registry would couple the framework package to a UI framework.
 
-**Consequences:** Hosts that replace the default component set must also provide a replacement `CatalogPopup` or accept no glossary popup UI (catalog data remains accessible via `getCatalogEntry()`).
+**Consequences:** The player's popup has no Svelte reactivity and no DaisyUI styling. Its CSS classes (`qti-catalog-popup`, `qti-catalog-popup__header`, etc.) must be styled at the document level by the host if custom branding is needed. Hosts that want full design control can ignore the built-in popup and instead listen to `qti-catalog-lookup` events to mount their own popup.
 
 ---
 
@@ -212,7 +212,7 @@ All eight types defined in QTI 3.0 §6.3 are parsed and stored in `CatalogIndex`
 | `PlayerConfig.catalogXml` | `string` (standalone catalog XML) | Pass a shared catalog XML string; merged with item-level catalog; item-level entries win on collision | Load an assessment-level glossary XML and pass it to each item player |
 | `player.getCatalogEntry()` | `(idref: string, usage: string, lang?: string) => string \| null` | Call directly from host code to retrieve catalog content | Implement a custom glossary dialog that populates from `getCatalogEntry()` |
 | `qti-catalog-lookup` event | `CustomEvent<{ idref: string; usage: string; html: string \| null; languageCode?: string }>` | Listen on the player root for platform-level usages | Wire `tts-pronunciation` to the host TTS engine |
-| `CatalogPopup` component | `packages/default-components/src/catalog/CatalogPopup.svelte` | Replace with a custom popup component by providing it through the component registry | Provide a branded popup with additional context information |
+| `CatalogPopup` host component | `packages/default-components/src/catalog/CatalogPopup.svelte` | Use in host app for declarative Svelte popup; or listen to `qti-catalog-lookup` events and mount any custom popup | Provide a branded popup with additional context information |
 
 ---
 
@@ -220,7 +220,7 @@ All eight types defined in QTI 3.0 §6.3 are parsed and stored in `CatalogIndex`
 
 ### `CatalogIndex`, `CatalogCard`, `CatalogEntry`
 
-Defined in `packages/item-player/src/catalog/types.ts` (planned):
+Defined in `packages/item-player/src/catalog/types.ts`:
 
 ```typescript
 /**
@@ -575,11 +575,11 @@ AC-E5: QTI 2.x items with no catalog are unaffected
 
 ## Open questions
 
-- [ ] **CatalogPopup positioning strategy:** Should the popup anchor to the trigger element (tooltip style) or center in the viewport (dialog style)? For short definitions a tooltip is less disruptive; for longer HTML content or illustrated entries a centered dialog is more readable. The answer may depend on the `usage` type. This needs a UX decision before implementation.
+- [x] **CatalogPopup positioning strategy:** Resolved — the popup anchors to the trigger element (tooltip/inline style), appended as a child of the wrapper span. Short definitions display inline; longer content scrolls within the popup body.
 
-- [ ] **Trigger button visual design for terms with multiple catalog usages:** A single term may have both `glossary-on-screen` and `keyword-translation` entries. If both PNP flags are active, should there be one trigger (opening the appropriate popup based on the active accommodation) or two triggers? One trigger per active accommodation is simpler but may crowd short inline text.
+- [x] **Trigger button visual design for terms with multiple catalog usages:** Resolved — `applyGlossaryTriggers` creates one trigger per active PNP accommodation. If both `glossaryOnScreen` and `keywordTranslation.active` are true, two buttons appear per term. Each button is independently labelled.
 
-- [ ] **Platform-level event trigger point:** For `tts-pronunciation` and `signing-definition`, should the event fire on trigger activation (same as glossary — requires a visible trigger button) or automatically when the user's reading position reaches the term (no trigger UI needed, but requires intersection observer integration)? Auto-triggering on reach is more appropriate for TTS reading flows but adds complexity. For this milestone, activation-based firing is assumed.
+- [x] **Platform-level event trigger point:** Resolved — events fire on trigger button activation (same mechanism as glossary). Automatic intersection-observer triggering was deferred; the trigger button is the canonical activation point for this milestone.
 
 ---
 
@@ -592,6 +592,7 @@ AC-E5: QTI 2.x items with no catalog are unaffected
 - Element mappings (already in place): `packages/qti-common/src/element-mapper/qti3-element-mappings.ts` — `CATALOG_ELEMENTS`
 - Adjacent PRD: `docs/prds/systems/pnp.md` — PNP profile; `glossaryOnScreen` and `keywordTranslation` flags gate catalog trigger UI
 - Adjacent PRD: `docs/prds/systems/accessibility.md` — WCAG 2.2 AA baseline; CatalogPopup accessibility requirements derive from it
-- Implementation (planned): `packages/item-player/src/catalog/types.ts`, `catalogExtractor.ts`, `catalogLookup.ts`
-- Implementation (planned): `packages/item-player/src/core/Player.ts` (catalog index storage, `getCatalogEntry()` public method)
-- Implementation (planned): `packages/default-components/src/catalog/CatalogPopup.svelte`
+- Implementation: `packages/item-player/src/catalog/types.ts`, `catalogExtractor.ts`, `catalogLookup.ts`
+- Implementation: `packages/item-player/src/catalog/applyGlossaryTriggers.ts` (trigger injection + vanilla-JS popup for on-screen usages)
+- Implementation: `packages/item-player/src/core/Player.ts` (catalog index storage, `getCatalogEntry()` public method)
+- Host-app component: `packages/default-components/src/catalog/CatalogPopup.svelte` (Svelte popup for host use; not used internally by the player)

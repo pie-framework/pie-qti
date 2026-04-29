@@ -17,3 +17,6 @@ export { default as ModalFeedbackDisplay } from './ModalFeedbackDisplay.svelte';
 
 // Utility actions (dependency-free)
 export { typesetAction } from './actions/typesetAction';
+
+// Catalog actions
+export { glossaryAction, type GlossaryActionParams } from '../catalog/glossaryAction';

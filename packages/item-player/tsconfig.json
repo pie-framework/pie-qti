@@ -16,5 +16,5 @@
 		"allowSyntheticDefaultImports": true
 	},
 	"include": ["src/**/*.ts"],
-	"exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts", "**/*.svelte", "src/components/index.ts"]
+	"exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts", "**/*.svelte", "src/components/index.ts", "src/element.ts"]
 }

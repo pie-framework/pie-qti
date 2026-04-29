@@ -29,3 +29,4 @@ import './select-point/SelectPointInteraction.svelte';
 import './extended-text/ExtendedTextInteraction.svelte';
 import './upload/UploadInteraction.svelte';
 import './drawing/DrawingInteraction.svelte';
+import '../catalog/CatalogPopup.svelte';

@@ -1,13 +1,13 @@
 # PRD: Theming System
 
 <!--
-  Status: draft
+  Status: current
   Type: system
   Packages: @pie-qti/default-components, @pie-qti/player-elements
   Last reviewed: 2026-04-27
 -->
 
-**Status:** draft  
+**Status:** current  
 **Type:** system  
 **Packages:** `@pie-qti/default-components`, `@pie-qti/player-elements`  
 **Last reviewed:** 2026-04-27

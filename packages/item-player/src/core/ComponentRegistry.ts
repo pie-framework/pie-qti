@@ -189,6 +189,20 @@ export class ComponentRegistry {
 	hasComponent(type: string): boolean {
 		return this.components.has(type) && this.components.get(type)!.length > 0;
 	}
+
+	/**
+	 * Get the tag name for a registered type by name (no canHandle evaluation).
+	 * Useful for non-interaction components like catalogPopup where the type string
+	 * is known and there is no InteractionData object to pass.
+	 *
+	 * Returns the highest-priority registered tag name for the type, or null if
+	 * the type is not registered.
+	 */
+	getTagNameForType(type: string): string | null {
+		const components = this.components.get(type);
+		if (!components || components.length === 0) return null;
+		return components[0].config.tagName;
+	}
 }
 
 /**

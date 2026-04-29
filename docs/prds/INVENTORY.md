@@ -107,15 +107,15 @@ Cross-cutting concerns that span multiple packages.
 
 | File | Concern | Status |
 |------|---------|--------|
-| `systems/i18n.md` | Internationalization (locale switching, RTL, pluralization, lazy loading) | draft |
-| `systems/theming.md` | Theming and visual customization (DaisyUI, CSS variables, `::part()`) | draft |
-| `systems/accessibility.md` | Accessibility baseline (WCAG 2.2 AA, assessment-specific patterns) | draft |
-| `systems/pnp.md` | QTI 3.0 Personal Needs and Preferences profile (color schemes, elimination tool, extended time, glossary triggers) | draft |
-| `systems/catalog.md` | QTI 3.0 Catalog system (glossary, keyword translation, illustrated glossary, platform-level usages) | draft |
-| `systems/navigation-modes.md` | QTI navigation modes (linear/nonlinear) and submission modes | draft |
-| `systems/math-typesetting.md` | Math rendering (KaTeX adapter, host-provided `typeset()`) | draft |
-| `systems/cli.md` | CLI tool (batch transform, analyze, discover) | draft |
-| `systems/transform-app.md` | Transform web app (upload → analyze → transform → preview) | draft |
+| `systems/i18n.md` | Internationalization (locale switching, RTL, pluralization, lazy loading) | current |
+| `systems/theming.md` | Theming and visual customization (DaisyUI, CSS variables, `::part()`) | current |
+| `systems/accessibility.md` | Accessibility baseline (WCAG 2.2 AA, assessment-specific patterns) | current |
+| `systems/pnp.md` | QTI 3.0 Personal Needs and Preferences profile (color schemes, elimination tool, extended time, glossary triggers) | current |
+| `systems/catalog.md` | QTI 3.0 Catalog system (glossary, keyword translation, illustrated glossary, platform-level usages) | current |
+| `systems/navigation-modes.md` | QTI navigation modes (linear/nonlinear) and submission modes | current |
+| `systems/math-typesetting.md` | Math rendering (KaTeX adapter, host-provided `typeset()`) | current |
+| `systems/cli.md` | CLI tool (batch transform, analyze, discover) | current |
+| `systems/transform-app.md` | Transform web app (upload → analyze → transform → preview) | current |
 
 ---
 

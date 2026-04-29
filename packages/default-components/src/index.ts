@@ -210,4 +210,13 @@ export function registerDefaultComponents(registry: ComponentRegistry): void {
 
 	// Note: TextEntryInteraction and InlineChoiceInteraction are handled
 	// by ItemRenderer as inline interactions, not as separate components
+
+	// CatalogPopup - focus-trapped dialog for glossary/keyword-translation entries
+	registry.register('catalogPopup', {
+		name: 'default-catalog-popup',
+		priority: 0,
+		description: 'Default Svelte-based catalog popup dialog',
+		canHandle: () => true,
+		tagName: 'pie-qti-catalog-popup',
+	});
 }

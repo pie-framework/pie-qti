@@ -1,13 +1,13 @@
 # PRD: Accessibility System
 
 <!--
-  Status: draft
+  Status: current
   Type: system
   Packages: @pie-qti/item-player, @pie-qti/assessment-player, @pie-qti/default-components
-  Last reviewed: 2026-04-27
+  Last reviewed: 2026-04-28
 -->
 
-**Status:** draft
+**Status:** current
 **Type:** system
 **Packages:** `@pie-qti/item-player`, `@pie-qti/assessment-player`, `@pie-qti/default-components`
 **Last reviewed:** 2026-04-27
@@ -403,9 +403,9 @@ Then: Focus is not moved away from the candidate's current position
 
 ## Open questions
 
-- [ ] **G-09 — PNP profile (Tier 2, Open):** PNP profile support (color schemes, elimination tool, extended time, glossary triggers) is fully specified in `docs/prds/systems/pnp.md`. Implementation is tracked at `docs/SPEC-GAPS-PLAN.md §G-09`. Until G-09 ships, hosts requiring PNP features must implement them outside the framework.
+- [x] **G-09 — PNP profile:** Shipped in commit `fa8fa97` (2026-04-28). Color schemes, elimination tool, extended time, glossary/keyword-translation triggers and popups are all implemented. See `docs/prds/systems/pnp.md` for full specification.
 
-- [ ] **G-13 — Structured label and braille support (Tier 3, Deferred):** PNP `structuredLabelSupport` adds supplementary ARIA group wrappers and sub-labels to complex interactions. `braille-text` catalog entries expose content to refreshable braille displays. Neither is implemented; the catalog system prerequisite (G-10) is itself not implemented. See `docs/SPEC-GAPS-PLAN.md` §G-13.
+- [ ] **G-13 — Structured label and braille support (Tier 3, Deferred):** PNP `structuredLabelSupport` adds supplementary ARIA group wrappers and sub-labels to complex interactions. `braille-text` catalog entries expose content to refreshable braille displays. The catalog prerequisite (G-10) has shipped; G-13 itself remains deferred. See `docs/SPEC-GAPS-PLAN.md` §G-13.
 
 - [ ] **Cross-shadow ARIA with ARIA IDRef Reflection:** ARIA 1.3 defines `ariaLabelledByElements` / `ariaDescribedByElements` to allow IDREF relationships across shadow boundaries. As of 2026 this is not reliably supported in all target browsers. Once browser support stabilizes, interaction components should be updated to accept external labelling rather than requiring self-contained labels.
 

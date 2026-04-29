@@ -7,7 +7,8 @@ const PLATFORM_USAGES = new Set(['tts-pronunciation', 'signing-definition', 'bra
  *
  * When pnp.content.glossaryOnScreen is true, each [data-catalog-idref] element gets a
  * trigger button. Clicking the button looks up the catalog entry and shows a floating
- * popup. Clicking again or pressing Escape closes it.
+ * popup rendered by the 'catalogPopup' component from the registry (defaults to
+ * pie-qti-catalog-popup). Clicking again or pressing Escape closes it.
  *
  * For platform-level usages (tts-pronunciation, signing-definition, braille-text,
  * audio-description) the player fires a `qti-catalog-lookup` CustomEvent instead of
@@ -53,7 +54,7 @@ export function applyGlossaryTriggers(container: HTMLElement, player: Player): v
 				}
 				const html = player.getCatalogEntry(idref, 'glossary-on-screen');
 				if (html !== null) {
-					currentCleanup = mountPopup(wrapper, termEl.textContent ?? idref, html, btn, () => {
+					currentCleanup = mountPopup(wrapper, termEl.textContent ?? idref, html, btn, player, () => {
 						currentCleanup = null;
 					});
 				}
@@ -73,7 +74,7 @@ export function applyGlossaryTriggers(container: HTMLElement, player: Player): v
 				}
 				const html = player.getCatalogEntry(idref, 'keyword-translation', lang);
 				if (html !== null) {
-					currentCleanup = mountPopup(wrapper, termEl.textContent ?? idref, html, btn, () => {
+					currentCleanup = mountPopup(wrapper, termEl.textContent ?? idref, html, btn, player, () => {
 						currentCleanup = null;
 					});
 				}
@@ -102,55 +103,91 @@ function createTriggerButton(termText: string, usage: string): HTMLButtonElement
 	btn.className = 'qti-catalog-trigger';
 	btn.setAttribute('aria-label', `Show definition: ${termText}`);
 	btn.setAttribute('data-catalog-usage', usage);
-	// Small superscript-style indicator
 	btn.textContent = usage === 'keyword-translation' ? 'T' : '?';
 	return btn;
 }
 
 /**
- * Mount a vanilla JS popup adjacent to `anchor`. Returns a cleanup function.
- * Focus is trapped within the popup; Escape and the close button dismiss it.
+ * Mount a catalog popup via the component registry. Falls back to a minimal
+ * vanilla-JS popup if no 'catalogPopup' component is registered (e.g. in tests
+ * that don't load default-components). Returns a cleanup function.
  */
 function mountPopup(
 	anchor: HTMLElement,
 	label: string,
 	html: string,
 	triggerBtn: HTMLButtonElement,
+	player: Player,
 	onClose: () => void
 ): () => void {
+	const registry = player.getComponentRegistry();
+
+	let popupEl: HTMLElement;
+
+	const catalogPopupTag = registry.getTagNameForType('catalogPopup');
+	if (catalogPopupTag !== null) {
+		const el = document.createElement(catalogPopupTag) as HTMLElement & {
+			content: string;
+			label: string;
+			onClose: () => void;
+		};
+		el.content = html;
+		el.label = label;
+		el.onClose = cleanup;
+		anchor.appendChild(el);
+		popupEl = el;
+	} else {
+		// Minimal fallback for environments without default-components
+		popupEl = buildFallbackPopup(label, html);
+		anchor.appendChild(popupEl);
+	}
+
+	function cleanup() {
+		popupEl.remove();
+		triggerBtn.focus();
+		onClose();
+	}
+
+	return cleanup;
+}
+
+/**
+ * Minimal accessible fallback popup used when no catalogPopup component is registered.
+ * Uses DaisyUI card classes where available; degrades gracefully without them.
+ */
+function buildFallbackPopup(label: string, html: string): HTMLElement {
 	const popup = document.createElement('div');
-	popup.className = 'qti-catalog-popup';
+	popup.className = 'card card-bordered bg-base-100 shadow-lg qti-catalog-popup';
 	popup.setAttribute('role', 'dialog');
 	popup.setAttribute('aria-label', label);
 	popup.setAttribute('aria-modal', 'true');
+	popup.style.cssText = 'position:absolute;z-index:1000;min-width:16rem;max-width:24rem';
 
-	// Header
 	const header = document.createElement('div');
-	header.className = 'qti-catalog-popup__header';
+	header.className = 'card-title flex justify-between items-center px-3 py-2 border-b border-base-300 bg-base-200';
 
 	const title = document.createElement('span');
-	title.className = 'qti-catalog-popup__title';
+	title.className = 'text-sm font-semibold';
 	title.textContent = label;
 
 	const closeBtn = document.createElement('button');
 	closeBtn.type = 'button';
-	closeBtn.className = 'qti-catalog-popup__close';
+	closeBtn.className = 'btn btn-ghost btn-xs';
 	closeBtn.setAttribute('aria-label', 'Close');
 	closeBtn.textContent = '✕';
 
 	header.appendChild(title);
 	header.appendChild(closeBtn);
 
-	// Body
 	const body = document.createElement('div');
-	body.className = 'qti-catalog-popup__body';
+	body.className = 'card-body p-3';
 
 	const isUrl = /^(https?:\/\/|\/)/i.test(html.trim());
 	if (isUrl) {
 		const img = document.createElement('img');
 		img.src = html.trim();
 		img.alt = label;
-		img.className = 'qti-catalog-popup__img';
+		img.className = 'max-w-full h-auto block mx-auto';
 		body.appendChild(img);
 	} else {
 		body.innerHTML = html;
@@ -158,27 +195,20 @@ function mountPopup(
 
 	popup.appendChild(header);
 	popup.appendChild(body);
-	anchor.appendChild(popup);
 
-	// Focus the close button
-	closeBtn.focus();
-
+	// Focus trap + Escape
 	const focusableSelector = 'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])';
-
-	function getFocusable(): HTMLElement[] {
-		return Array.from(popup.querySelectorAll<HTMLElement>(focusableSelector)).filter(
-			(el) => el.offsetParent !== null
-		);
-	}
 
 	function handleKeyDown(e: KeyboardEvent) {
 		if (e.key === 'Escape') {
 			e.preventDefault();
-			cleanup();
+			closeBtn.click();
 			return;
 		}
 		if (e.key === 'Tab') {
-			const focusable = getFocusable();
+			const focusable = Array.from(popup.querySelectorAll<HTMLElement>(focusableSelector)).filter(
+				(el) => el.offsetParent !== null
+			);
 			if (focusable.length === 0) { e.preventDefault(); return; }
 			const first = focusable[0];
 			const last = focusable[focusable.length - 1];
@@ -192,15 +222,11 @@ function mountPopup(
 		}
 	}
 
-	closeBtn.addEventListener('click', () => cleanup());
 	popup.addEventListener('keydown', handleKeyDown);
+	closeBtn.addEventListener('click', () => popup.remove());
 
-	function cleanup() {
-		popup.removeEventListener('keydown', handleKeyDown);
-		popup.remove();
-		triggerBtn.focus();
-		onClose();
-	}
+	// Move focus in on next tick
+	setTimeout(() => closeBtn.focus(), 0);
 
-	return cleanup;
+	return popup;
 }

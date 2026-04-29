@@ -1,13 +1,13 @@
 # PRD: Navigation Modes System
 
 <!--
-  Status: draft
+  Status: current
   Type: system
   Packages: @pie-qti/assessment-player
   Last reviewed: 2026-04-27
 -->
 
-**Status:** draft
+**Status:** current
 **Type:** system
 **Packages:** `@pie-qti/assessment-player`
 **Last reviewed:** 2026-04-27

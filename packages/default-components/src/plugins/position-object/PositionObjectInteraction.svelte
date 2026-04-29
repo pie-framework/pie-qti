@@ -117,6 +117,7 @@
 
 		for (let i = 0; i < parsedResponse.length; i++) {
 			const pointStr = parsedResponse[i];
+			if (typeof pointStr !== 'string') continue;
 			const parts = pointStr.trim().split(/\s+/);
 			if (parts.length >= 2) {
 				const x = parseFloat(parts[0]);
@@ -304,6 +305,7 @@
 
 		for (let i = 0; i < value.length; i++) {
 			const pointStr = value[i];
+			if (typeof pointStr !== 'string') continue;
 			const parts = pointStr.trim().split(/\s+/);
 			if (parts.length >= 2) {
 				const x = parseFloat(parts[0]);

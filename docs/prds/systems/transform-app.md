@@ -1,13 +1,13 @@
 # PRD: Transform Web Application
 
 <!--
-  Status: draft
+  Status: current
   Type: system
   Packages: @pie-qti/app-transform
   Last reviewed: 2026-04-27
 -->
 
-**Status:** draft  
+**Status:** current  
 **Type:** system  
 **Packages:** `@pie-qti/app-transform`  
 **Last reviewed:** 2026-04-27

@@ -1,13 +1,13 @@
 # PRD: Personal Needs and Preferences (PNP) Profile
 
 <!--
-  Status: draft
+  Status: current
   Type: system
   Packages: @pie-qti/item-player, @pie-qti/assessment-player, @pie-qti/default-components
   Last reviewed: 2026-04-28
 -->
 
-**Status:** draft
+**Status:** current
 **Type:** system
 **Packages:** `@pie-qti/item-player`, `@pie-qti/assessment-player`, `@pie-qti/default-components`
 **Last reviewed:** 2026-04-28
@@ -16,7 +16,7 @@
 
 ## Summary
 
-The PNP (Personal Needs and Preferences) profile is a QTI 3.0 §6.2 mechanism for delivering candidate-specific accessibility accommodations as structured data alongside the assessment. PIE-QTI implements the core PNP surface: six named color schemes applied via a CSS data-attribute on the player root, a per-choice elimination tool in `choiceInteraction` and `orderInteraction`, an extended-time multiplier that scales `timeLimits.maxTime` in the assessment player, and trigger UI for glossary and keyword-translation terms that fires a `qti-catalog-lookup` DOM event (catalog content itself is provided by the catalog system, G-10). Structured label and braille support are deferred to G-13.
+The PNP (Personal Needs and Preferences) profile is a QTI 3.0 §6.2 mechanism for delivering candidate-specific accessibility accommodations as structured data alongside the assessment. PIE-QTI implements the core PNP surface: six named color schemes applied via a CSS data-attribute on the player root, a per-choice elimination tool in `choiceInteraction` and `orderInteraction`, an extended-time multiplier that scales `timeLimits.maxTime` in the assessment player, and trigger UI with inline popup for on-screen glossary and keyword-translation accommodations (illustrated-glossary renders as `<img>`), plus `qti-catalog-lookup` DOM events for platform-level usages (TTS, signing, braille, audio description). Structured label and braille support are deferred to G-13.
 
 ---
 
@@ -80,7 +80,7 @@ Removing an eliminated choice from the DOM would change the response set silentl
 
 ### Known gaps
 
-**G-09 — PNP profile support (Open, Tier 2):** This PRD defines the full G-09 scope. See `docs/SPEC-GAPS-PLAN.md §G-09` for the complete remediation action list.
+**G-09 — PNP profile support:** Implemented in commit `fa8fa97` (2026-04-28). Color schemes, elimination tool, extended time, glossary/keyword-translation triggers and popups are all shipped. Remaining deferred items: magnification overlay (browser zoom sufficient), structured labels (G-13), braille routing (G-13), sign language video (G-14).
 
 ---
 
@@ -93,9 +93,9 @@ Removing an eliminated choice from the DOM would change the response set silentl
 - **FR-5:** When `pnp.cognitive.eliminationTool` is `true`, every `simpleChoice` in a `choiceInteraction` and every orderable item in an `orderInteraction` must render a toggle button that marks/unmarks that choice as eliminated. The button must be visible, labelled, and keyboard-operable.
 - **FR-6:** An eliminated choice must receive the `data-eliminated` attribute and `aria-disabled="true"`. Its response-variable eligibility must not change — it must remain selectable and its identifier must be included in or excluded from the response exactly as if the elimination state did not exist.
 - **FR-7:** When `pnp.content.extendedTime.active` is `true`, the assessment player must multiply `timeLimits.maxTime` by `pnp.content.extendedTime.multiplier` before initialising `TimeManager`. A multiplier of `Infinity` must result in no time limit being set at all (equivalent to `maxTime` absent).
-- **FR-8:** When `pnp.content.glossaryOnScreen` is `true`, the item body renderer must locate every element carrying `data-catalog-idref` and decorate it with an accessible trigger button. Activating the trigger must fire a `qti-catalog-lookup` `CustomEvent` on the root player element with `{ bubbles: true, composed: true }` and `detail: { idref: string; usage: 'glossary-on-screen' }`.
-- **FR-9:** When `pnp.content.keywordTranslation.active` is `true`, the same trigger mechanism applies but `detail.usage` is `'keyword-translation'` and `detail.languageCode` is `pnp.content.keywordTranslation.languageCode`.
-- **FR-10:** The player must not render any popup or panel for catalog-linked terms. Rendering the catalog content is the host's responsibility, exercised through the `qti-catalog-lookup` event (or by the catalog system, G-10, when it is implemented).
+- **FR-8:** When `pnp.content.glossaryOnScreen` is `true`, the item body renderer must locate every element carrying `data-catalog-idref` and decorate it with an accessible trigger button. Activating the trigger must look up the catalog entry via `getCatalogEntry(idref, 'glossary-on-screen')` and open an inline focus-trapped popup containing the catalog HTML. For `illustrated-glossary` entries the popup renders an `<img>`.
+- **FR-9:** When `pnp.content.keywordTranslation.active` is `true`, the same trigger-plus-popup mechanism applies using `usage = 'keyword-translation'` and `lang = pnp.content.keywordTranslation.languageCode`.
+- **FR-10:** For `tts-pronunciation`, `signing-definition`, `braille-text`, and `audio-description` entries, the player must fire a `qti-catalog-lookup` `CustomEvent` on the root player element with `{ bubbles: true, composed: true }` and `detail: { idref: string; usage: string; html: string | null }`. The player must not render any popup for these platform-level usages.
 - **FR-11:** The iframe postMessage protocol must be extended with a `SET_PNP` message type so that hosts using the iframe embedding mode can push PNP updates mid-session.
 - **FR-12:** `parsePnpXml` must silently ignore unknown child elements; it must not throw on forward-compatible QTI 3.0 PNP features not yet defined in `PnpProfile`.
 
@@ -149,15 +149,17 @@ Removing an eliminated choice from the DOM would change the response set silentl
 
 ---
 
-### Glossary trigger decoupled from catalog content
+### Inline popup for on-screen usages; events for platform-level usages
 
-**Decision:** When `glossaryOnScreen` is true, the player fires a `qti-catalog-lookup` event on trigger activation. It does not look up or render catalog content. That is G-10's responsibility.
+**Decision:** For `glossary-on-screen`, `keyword-translation`, and `illustrated-glossary` entries, `applyGlossaryTriggers` (in `item-player`) looks up the catalog entry and mounts a vanilla-JS focus-trapped popup adjacent to the trigger. For `tts-pronunciation`, `signing-definition`, `braille-text`, and `audio-description` entries, the player fires a `qti-catalog-lookup` event and renders no popup.
 
-**Rationale:** PNP (G-09) and the catalog system (G-10) are independent implementation milestones. Building the trigger UI does not require the catalog system to be complete; hosts can implement their own popup handler by listening to the event before G-10 ships. The event protocol is the stable contract between the two systems.
+**Rationale:** G-09 (PNP trigger UI) and G-10 (catalog parsing) were implemented together in the same milestone. The on-screen usages (`glossary-on-screen`, `keyword-translation`) have everything they need in-player: the catalog index is available, the content is HTML or an image URL, and a vanilla popup requires no external framework dependency. Platform-level usages (`tts-pronunciation`, signing, braille, audio) require capabilities the player cannot assume — TTS engines, braille hardware, video players — so an event is the correct boundary.
 
-**Alternatives considered:** Coupling G-09 trigger to G-10 catalog lookup in a single code path — rejected because it blocks PNP delivery on catalog delivery, and because the event-based protocol is more testable in isolation.
+**Why vanilla JS, not `CatalogPopup.svelte`:** `item-player` has no Svelte dependency. `applyGlossaryTriggers.ts` is called from `ItemRenderer.ts`, which is framework-agnostic. A vanilla-JS popup satisfies the requirement with no new package dependency. `CatalogPopup.svelte` exists in `default-components` as a separate offering for host applications that want a declaratively-mounted Svelte component with the same behavior.
 
-**Consequences:** Without G-10, glossary triggers fire events that go unhandled unless the host provides a listener. This is acceptable behavior — visible trigger buttons with no popup are a graceful degradation.
+**Alternatives considered:** Coupling trigger to event-only and relying on G-10 to render the popup — was the original plan but rejected when G-09 and G-10 were implemented together, since the event-only path would leave the on-screen usages inoperable until a host listener was added.
+
+**Consequences:** The popup is rendered using `document.createElement` and appended to the DOM. It does not participate in Svelte reactivity. Its CSS classes (`qti-catalog-popup`, etc.) must be styled at the document level if the host wants branded styling.
 
 ---
 
@@ -385,15 +387,15 @@ Then: An accessible trigger button is rendered on or adjacent to the span
   AND the button has an aria-label referencing the term text
 ```
 
-**AC-17: Glossary trigger fires qti-catalog-lookup event**
+**AC-17: Glossary trigger opens inline popup with catalog content**
 ```
 Given: A glossary trigger button is rendered for idref="cat-photosynthesis"
+  AND the catalog contains an entry for "cat-photosynthesis" with usage "glossary-on-screen"
 When: The user activates the trigger button
-Then: A qti-catalog-lookup CustomEvent is dispatched on the player root element
-  AND event.bubbles is true AND event.composed is true
-  AND event.detail.idref is "cat-photosynthesis"
-  AND event.detail.usage is "glossary-on-screen"
-  AND no popup or panel is rendered by the player itself
+Then: A focus-trapped popup appears adjacent to the trigger containing the catalog entry HTML
+  AND the popup has role="dialog" and aria-modal="true"
+  AND no qti-catalog-lookup event is fired for this glossary-on-screen usage
+  AND activating the trigger a second time (or pressing Escape) closes the popup
 ```
 
 **AC-18: No glossary triggers when glossaryOnScreen is false**
@@ -549,6 +551,10 @@ Then: Three separate trigger buttons are rendered, one per span
 - Adjacent PRD: `docs/prds/systems/catalog.md` — catalog content for glossary/keyword-translation triggers
 - Adjacent PRD: `docs/prds/interactions/choice.md` — elimination tool UI lives in the choice interaction component
 - Adjacent PRD: `docs/prds/systems/theming.md` — color scheme CSS must integrate with DaisyUI/`data-theme`
-- Implementation (planned): `packages/item-player/src/pnp/types.ts`, `applyPnp.ts`, `parsePnpXml.ts`
-- Implementation (planned): `packages/assessment-player/src/core/AssessmentPlayer.ts` (extended time wiring)
-- Implementation (planned): `packages/default-components/src/plugins/choice/ChoiceInteraction.svelte` (elimination tool)
+- Implementation: `packages/item-player/src/pnp/types.ts`, `applyPnp.ts`, `parsePnpXml.ts`
+- Implementation: `packages/item-player/src/catalog/applyGlossaryTriggers.ts` (glossary/keyword-translation trigger + vanilla popup)
+- Implementation: `packages/assessment-player/src/core/AssessmentPlayer.ts` (extended time wiring)
+- Implementation: `packages/assessment-player/src/core/TimeManager.ts` (extended time multiplier)
+- Implementation: `packages/default-components/src/plugins/choice/ChoiceInteraction.svelte` (elimination tool)
+- Implementation: `packages/default-components/src/plugins/order/OrderInteraction.svelte` (elimination tool)
+- Host-app component: `packages/default-components/src/catalog/CatalogPopup.svelte` (Svelte popup for host use)

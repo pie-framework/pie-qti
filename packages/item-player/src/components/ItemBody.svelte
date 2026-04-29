@@ -5,6 +5,7 @@
 	import { normalizeHeuristicsConfig, type QtiHeuristicsConfig } from '@pie-qti/ims-cp-core';
 	import { processFeedbackInline } from './utils/feedbackUtils';
 	import { typesetAction } from './actions/typesetAction';
+	import { glossaryAction } from '../catalog/glossaryAction';
 	import { assignProps } from './utils/assignProps';
 	import { getRoleCapabilities } from '../core/rolePolicy';
 
@@ -244,7 +245,7 @@
 	}
 </script>
 
-<div bind:this={rootEl} class="qti-item-body" use:typesetAction={{ typeset }}>
+<div bind:this={rootEl} class="qti-item-body" use:typesetAction={{ typeset }} use:glossaryAction={{ player }}>
 	<!-- Item body with inline interactions -->
 	<div class="prose max-w-none mb-4">
 		<div class="inline-interaction-container">

@@ -6,7 +6,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && vite build",
     "dev": "tsc --watch",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
@@ -43,10 +43,13 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.8",
+    "@sveltejs/vite-plugin-svelte": "^7.0.0",
     "@types/node": "^25.0.3",
     "svelte": "^5.54.0",
     "svelte-check": "^4.3.5",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vite": "^8.0.10",
+    "vite-plugin-dts": "^4.5.4"
   },
   "exports": {
     ".": {
@@ -71,6 +74,10 @@
     "./components/utils": {
       "types": "./dist/components/utils/index.d.ts",
       "import": "./dist/components/utils/index.js"
+    },
+    "./element": {
+      "types": "./dist/element.d.ts",
+      "import": "./dist/element.js"
     }
   },
   "repository": {
@@ -85,7 +92,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "sideEffects": false,
+  "sideEffects": ["./dist/element.js"],
   "engines": {
     "node": ">=20.19.0"
   },

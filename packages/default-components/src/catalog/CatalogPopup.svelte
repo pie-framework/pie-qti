@@ -1,3 +1,5 @@
+<svelte:options customElement="pie-qti-catalog-popup" />
+
 <script lang="ts">
 	/**
 	 * CatalogPopup — accessible floating dialog for QTI 3.0 catalog entries.

@@ -1,13 +1,13 @@
 # PRD: Math Typesetting System
 
 <!--
-  Status: draft
+  Status: current
   Type: system
   Packages: @pie-qti/typeset-katex, @pie-qti/item-player
   Last reviewed: 2026-04-27
 -->
 
-**Status:** draft  
+**Status:** current  
 **Type:** system  
 **Packages:** `@pie-qti/typeset-katex`, `@pie-qti/item-player`  
 **Last reviewed:** 2026-04-27
