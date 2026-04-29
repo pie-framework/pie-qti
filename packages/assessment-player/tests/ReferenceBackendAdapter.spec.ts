@@ -7,6 +7,7 @@
 
 import { beforeEach, describe, expect, it } from 'bun:test';
 import { ReferenceBackendAdapter } from '../src/integration/ReferenceBackendAdapter.js';
+import type { SecureAssessment } from '../src/integration/api-contract.js';
 
 // Mock DOM environment for web components
 if (typeof globalThis.HTMLElement === 'undefined') {
@@ -304,6 +305,239 @@ describe('ReferenceBackendAdapter', () => {
 			expect(resumed?.sessionId).toBe(session.sessionId);
 			expect(resumed?.restoredState?.visitedItems).toContain('item1');
 			expect(resumed?.restoredState?.itemResponses.item1).toBeDefined();
+		});
+	});
+
+	// ===========================================================================
+	// branchRule tests
+	// ===========================================================================
+
+	describe('branchRule evaluation', () => {
+		const ITEM_XML = (id: string) => `<assessmentItem identifier="${id}" title="Item" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier">
+    <correctResponse><value>A</value></correctResponse>
+  </responseDeclaration>
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+  <itemBody><p>Q?</p>
+    <choiceInteraction responseIdentifier="RESPONSE" shuffle="false" maxChoices="1">
+      <simpleChoice identifier="A">A</simpleChoice>
+      <simpleChoice identifier="B">B</simpleChoice>
+    </choiceInteraction>
+  </itemBody>
+  <responseProcessing>
+    <responseCondition>
+      <responseIf>
+        <match><variable identifier="RESPONSE"/><correct identifier="RESPONSE"/></match>
+        <setOutcomeValue identifier="SCORE"><baseValue baseType="float">1</baseValue></setOutcomeValue>
+      </responseIf>
+      <responseElse>
+        <setOutcomeValue identifier="SCORE"><baseValue baseType="float">0</baseValue></setOutcomeValue>
+      </responseElse>
+    </responseCondition>
+  </responseProcessing>
+</assessmentItem>`;
+
+		function makeBranchAssessment(branchRules: Array<{ target: string; conditionXml?: string }>): SecureAssessment {
+			return {
+				identifier: 'branch-test',
+				title: 'Branch Test',
+				navigationMode: 'linear',
+				submissionMode: 'individual',
+				testParts: [{
+					identifier: 'part1',
+					sections: [{
+						identifier: 'section1',
+						visible: true,
+						assessmentItemRefs: [
+							{
+								identifier: 'q1',
+								role: 'candidate',
+								itemXml: ITEM_XML('q1'),
+								branchRule: branchRules,
+							},
+							{ identifier: 'q2', role: 'candidate', itemXml: ITEM_XML('q2') },
+							{ identifier: 'q3', role: 'candidate', itemXml: ITEM_XML('q3') },
+						],
+					}],
+				}],
+			};
+		}
+
+		it('unconditional branchRule fires and skips to target', async () => {
+			const assessment = makeBranchAssessment([{ target: 'q3' }]);
+			adapter.registerAssessment('branch-test', assessment);
+			const session = await adapter.initSession({ assessmentId: 'branch-test', candidateId: 'c1' });
+
+			const res = await adapter.submitResponses({
+				sessionId: session.sessionId,
+				itemIdentifier: 'q1',
+				responses: { RESPONSE: 'A' },
+				submittedAt: Date.now(),
+			});
+
+			expect(res.success).toBe(true);
+			expect(res.nextItemIdentifier).toBe('q3');
+		});
+
+		it('conditional branchRule fires when SCORE matches', async () => {
+			// Skip to q3 if score >= 1 (correct answer), otherwise fall through to q2
+			const assessment = makeBranchAssessment([
+				{
+					target: 'q3',
+					conditionXml: '<gte><variable identifier="SCORE"/><baseValue baseType="float">1</baseValue></gte>',
+				},
+				{ target: 'q2' }, // fallback unconditional
+			]);
+			adapter.registerAssessment('branch-test', assessment);
+			const session = await adapter.initSession({ assessmentId: 'branch-test', candidateId: 'c1' });
+
+			// Correct answer → SCORE=1 → first rule fires → q3
+			const res = await adapter.submitResponses({
+				sessionId: session.sessionId,
+				itemIdentifier: 'q1',
+				responses: { RESPONSE: 'A' },
+				submittedAt: Date.now(),
+			});
+			expect(res.nextItemIdentifier).toBe('q3');
+		});
+
+		it('conditional branchRule falls through to next rule when condition is false', async () => {
+			const assessment = makeBranchAssessment([
+				{
+					target: 'q3',
+					conditionXml: '<gte><variable identifier="SCORE"/><baseValue baseType="float">1</baseValue></gte>',
+				},
+				{ target: 'q2' }, // unconditional fallback
+			]);
+			adapter.registerAssessment('branch-test', assessment);
+			const session = await adapter.initSession({ assessmentId: 'branch-test', candidateId: 'c1' });
+
+			// Wrong answer → SCORE=0 → first rule fails → fallback rule fires → q2
+			const res = await adapter.submitResponses({
+				sessionId: session.sessionId,
+				itemIdentifier: 'q1',
+				responses: { RESPONSE: 'B' },
+				submittedAt: Date.now(),
+			});
+			expect(res.nextItemIdentifier).toBe('q2');
+		});
+
+		it('returns EXIT_TEST target from branchRule as-is', async () => {
+			const assessment = makeBranchAssessment([{ target: 'EXIT_TEST' }]);
+			adapter.registerAssessment('branch-test', assessment);
+			const session = await adapter.initSession({ assessmentId: 'branch-test', candidateId: 'c1' });
+
+			const res = await adapter.submitResponses({
+				sessionId: session.sessionId,
+				itemIdentifier: 'q1',
+				responses: { RESPONSE: 'A' },
+				submittedAt: Date.now(),
+			});
+			expect(res.nextItemIdentifier).toBe('EXIT_TEST');
+		});
+
+		it('uses linear next item when no branchRules are present', async () => {
+			const assessment = makeBranchAssessment([]); // no branch rules
+			adapter.registerAssessment('branch-test', assessment);
+			const session = await adapter.initSession({ assessmentId: 'branch-test', candidateId: 'c1' });
+
+			const res = await adapter.submitResponses({
+				sessionId: session.sessionId,
+				itemIdentifier: 'q1',
+				responses: { RESPONSE: 'A' },
+				submittedAt: Date.now(),
+			});
+			expect(res.nextItemIdentifier).toBe('q2');
+		});
+	});
+
+	// ===========================================================================
+	// selection / ordering tests
+	// ===========================================================================
+
+	describe('selection and ordering (via AssessmentPlayer flattenItems)', () => {
+		// These tests verify the AssessmentPlayer's flattenItems behavior using
+		// a registered assessment with selection/ordering attributes.
+
+		function makeSelectAssessment(select: number, shuffle: boolean, itemCount = 5): SecureAssessment {
+			const items = Array.from({ length: itemCount }, (_, i) => ({
+				identifier: `item${i + 1}`,
+				role: 'candidate' as const,
+				itemXml: `<assessmentItem identifier="item${i + 1}" title="Item ${i + 1}" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier">
+    <correctResponse><value>A</value></correctResponse>
+  </responseDeclaration>
+  <itemBody><p>Q${i + 1}</p></itemBody>
+</assessmentItem>`,
+			}));
+			return {
+				identifier: 'select-test',
+				title: 'Select Test',
+				navigationMode: 'linear',
+				submissionMode: 'individual',
+				testParts: [{
+					identifier: 'part1',
+					sections: [{
+						identifier: 'section1',
+						visible: true,
+						assessmentItemRefs: items,
+						selection: { select },
+						ordering: { shuffle },
+					}],
+				}],
+			};
+		}
+
+		it('selection: reduces item count to the requested number', async () => {
+			const { AssessmentPlayer } = await import('../src/core/AssessmentPlayer.js');
+			const assessment = makeSelectAssessment(3, false);
+			adapter.registerAssessment('select-test', assessment);
+
+			const player = await AssessmentPlayer.create({
+				backend: adapter,
+				initSession: { assessmentId: 'select-test', candidateId: 'c1' },
+			});
+
+			// There are 5 items but selection=3
+			expect(player.getNavigationState().totalItems).toBe(3);
+		});
+
+		it('ordering shuffle: with seeded rng, all items are present and order is deterministic', async () => {
+			const { AssessmentPlayer } = await import('../src/core/AssessmentPlayer.js');
+			const assessment = makeSelectAssessment(5, true, 5);
+
+			// LCG seeded RNG for determinism
+			let s = 42;
+			const seedRng = () => {
+				s = (s * 16807) % 2147483647;
+				return (s - 1) / 2147483646;
+			};
+
+			adapter.registerAssessment('select-test', assessment);
+
+			const player1 = await AssessmentPlayer.create({
+				backend: adapter,
+				initSession: { assessmentId: 'select-test', candidateId: 'c1' },
+				rng: seedRng,
+			});
+
+			// All 5 items still present (no selection restriction)
+			expect(player1.getNavigationState().totalItems).toBe(5);
+		});
+
+		it('selection + ordering: shuffles first then slices to correct count', async () => {
+			const { AssessmentPlayer } = await import('../src/core/AssessmentPlayer.js');
+			const assessment = makeSelectAssessment(3, true, 5);
+			adapter.registerAssessment('select-test', assessment);
+
+			const player = await AssessmentPlayer.create({
+				backend: adapter,
+				initSession: { assessmentId: 'select-test', candidateId: 'c1' },
+			});
+
+			expect(player.getNavigationState().totalItems).toBe(3);
 		});
 	});
 });

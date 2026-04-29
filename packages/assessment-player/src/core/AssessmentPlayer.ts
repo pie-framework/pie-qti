@@ -37,6 +37,8 @@ export interface BackendAssessmentPlayerConfig {
 	backend: BackendAdapter;
 	initSession: InitSessionRequest;
 	role?: QTIRole;
+	/** Optional RNG for deterministic shuffling in selection/ordering. Defaults to Math.random. */
+	rng?: () => number;
 	/**
 	 * Optional hint for item renderers that support multiple extended text editors.
 	 * (Plumbed through the shell; the item player remains authoritative for behavior.)
@@ -191,10 +193,24 @@ export class AssessmentPlayer {
 		const testParts = assessment.testParts || [];
 		let idx = 0;
 		let secIdx = 0;
+		const rng = this.config.rng ?? Math.random;
 
 		for (const tp of testParts) {
 			for (const section of tp.sections || []) {
-				for (const item of section.assessmentItemRefs || []) {
+				let refs = [...(section.assessmentItemRefs || [])];
+
+				// QTI ordering: shuffle items within the section when requested.
+				// The server may have already shuffled; if not (e.g. reference adapter), do it client-side.
+				if (section.ordering?.shuffle) {
+					refs = shuffleArray(refs, rng);
+				}
+
+				// QTI selection: take only `select` items from the (possibly shuffled) list.
+				if (section.selection && section.selection.select > 0 && section.selection.select < refs.length) {
+					refs = refs.slice(0, section.selection.select);
+				}
+
+				for (const item of refs) {
 					out.push({
 						identifier: item.identifier,
 						item,
@@ -471,11 +487,36 @@ export class AssessmentPlayer {
 		this.sessionController.markAnswered(q.identifier, this.hasAnyResponse(this.responses));
 		this.navigationManager.markVisited(this.currentItemIndex);
 
-		// Apply backend branching decision if provided
+		// Apply backend branching decision if provided.
+		// Special QTI targets EXIT_TEST / EXIT_TESTPART / EXIT_SECTION trigger finalization.
 		if (res.nextItemIdentifier) {
-			const nextIdx = this.items.findIndex((x) => x.identifier === res.nextItemIdentifier);
-			if (nextIdx >= 0) {
-				await this.navigateTo(nextIdx);
+			const special = res.nextItemIdentifier;
+			if (special === 'EXIT_TEST') {
+				// Finalize immediately — no further navigation
+				for (const l of this.completeListeners) l();
+				this.config.onComplete?.();
+			} else if (special === 'EXIT_TESTPART' || special === 'EXIT_SECTION') {
+				// Advance past all remaining items in the current testPart or section
+				const currentItem = this.items[this.currentItemIndex];
+				const isSection = special === 'EXIT_SECTION';
+				const nextIdx = this.items.findIndex((item, i) =>
+					i > this.currentItemIndex &&
+					(isSection
+						? item.section.identifier !== currentItem?.section.identifier
+						: item.testPart.identifier !== currentItem?.testPart.identifier)
+				);
+				if (nextIdx >= 0) {
+					await this.navigateTo(nextIdx);
+				} else {
+					// No further items — signal completion
+					for (const l of this.completeListeners) l();
+					this.config.onComplete?.();
+				}
+			} else {
+				const nextIdx = this.items.findIndex((x) => x.identifier === special);
+				if (nextIdx >= 0) {
+					await this.navigateTo(nextIdx);
+				}
 			}
 		}
 
@@ -749,4 +790,14 @@ export class AssessmentPlayer {
 			formatDate: (date: Date) => date.toISOString(),
 		};
 	}
+}
+
+/** Fisher-Yates shuffle using a provided RNG (returns a new array). */
+function shuffleArray<T>(arr: T[], rng: () => number): T[] {
+	const out = [...arr];
+	for (let i = out.length - 1; i > 0; i--) {
+		const j = Math.floor(rng() * (i + 1));
+		[out[i], out[j]] = [out[j], out[i]];
+	}
+	return out;
 }

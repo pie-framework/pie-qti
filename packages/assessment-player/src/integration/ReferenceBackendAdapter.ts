@@ -235,15 +235,27 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 
 		const order = this.getItemOrder(session.assessment);
 		const idx = order.indexOf(request.itemIdentifier);
-		let nextItemIdentifier = idx >= 0 ? order[idx + 1] : undefined;
+		let nextItemIdentifier: string | undefined = idx >= 0 ? order[idx + 1] : undefined;
 
-		// Demo branching using qti-processing (backend-authoritative). If SCORE > 0, go to item2.
-		if (request.itemIdentifier === 'item1') {
-			const condXml = `<gt><variable identifier="SCORE" /><baseValue baseType="float">0</baseValue></gt>`;
-			if (this.evaluateConditionXml(condXml, { SCORE: result.score })) {
-				nextItemIdentifier = 'item2';
-			} else {
-				nextItemIdentifier = undefined;
+		// QTI branchRule evaluation (backend-authoritative).
+		// Evaluate each rule in order; the first matching rule determines the next item.
+		// Special targets EXIT_TEST / EXIT_TESTPART / EXIT_SECTION are returned as-is for
+		// the client to interpret.
+		const itemRef = this.findItemRef(session.assessment, request.itemIdentifier);
+		if (itemRef?.branchRule && itemRef.branchRule.length > 0) {
+			const outcomeVars: Record<string, unknown> = {
+				...result.outcomeValues,
+				SCORE: result.score,
+			};
+			nextItemIdentifier = undefined; // reset — branch rules take full control
+			for (const rule of itemRef.branchRule) {
+				const matches = rule.conditionXml
+					? this.evaluateConditionXml(rule.conditionXml, outcomeVars)
+					: true; // unconditional branch
+				if (matches) {
+					nextItemIdentifier = rule.target;
+					break;
+				}
 			}
 		}
 
@@ -407,11 +419,15 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 	}
 
 	private findItemXml(assessment: SecureAssessment, itemIdentifier: string): string | null {
+		return this.findItemRef(assessment, itemIdentifier)?.itemXml ?? null;
+	}
+
+	private findItemRef(assessment: SecureAssessment, itemIdentifier: string): SecureItemRef | null {
 		for (const part of assessment.testParts) {
 			for (const section of part.sections) {
 				for (const item of section.assessmentItemRefs) {
 					if (item.identifier === itemIdentifier) {
-						return item.itemXml;
+						return item;
 					}
 				}
 			}

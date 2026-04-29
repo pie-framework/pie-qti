@@ -117,7 +117,7 @@ export interface SecureSection {
 	title?: string;
 	/** Visible determines if section appears in navigation */
 	visible: boolean;
-	/** Assessment item references */
+	/** Assessment item references (order reflects selection/ordering already applied server-side) */
 	assessmentItemRefs: SecureItemRef[];
 	/** Section-level time limit */
 	timeLimits?: {
@@ -125,6 +125,22 @@ export interface SecureSection {
 	};
 	/** Candidate instructions (safe for display) */
 	rubricBlocks?: AssessmentRubricBlock[];
+	/**
+	 * QTI selection: how many items to present from this section.
+	 * When present the server has already applied selection; client uses this for progress display.
+	 */
+	selection?: {
+		/** Number of items selected for this session */
+		select: number;
+		withReplacement?: boolean;
+	};
+	/**
+	 * QTI ordering: whether items were shuffled.
+	 * When true the server has already shuffled assessmentItemRefs.
+	 */
+	ordering?: {
+		shuffle: boolean;
+	};
 }
 
 export interface SecureItemRef {
@@ -136,6 +152,18 @@ export interface SecureItemRef {
 	role: QTIRole;
 	/** Required=true means item must be attempted */
 	required?: boolean;
+	/**
+	 * QTI branchRule: ordered list of branch rules on this item.
+	 * The backend evaluates these after scoring and returns nextItemIdentifier in SubmitResponsesResponse.
+	 * Carried here so reference/demo adapters can evaluate them client-side.
+	 */
+	branchRule?: Array<{
+		/** Identifier of the target item, section, testPart, or one of the special values:
+		 *  EXIT_TEST | EXIT_TESTPART | EXIT_SECTION */
+		target: string;
+		/** Serialised QTI expression XML (the child of <branchRule>). Absent means unconditional. */
+		conditionXml?: string;
+	}>;
 }
 
 export interface AssessmentRubricBlock {
