@@ -9,12 +9,12 @@ Last reviewed: 2026-04-29
 Pursue DELIVERY certification in this order:
 
 1. QTI 2.2 Basic (near-zero gaps — submit now)
-2. QTI 3.0 Basic (same feature set, marginal additional work)
-3. QTI 2.2 Advanced (T9 `<outcomeProcessing>` is the main gap)
-4. QTI 3.0 Advanced (incremental from Advanced)
+2. QTI 2.2 Advanced (T9 `<outcomeProcessing>` is the main gap)
+3. QTI 3.0 Basic (same feature set as QTI 2.2 Basic, marginal additional work)
+4. QTI 3.0 Advanced (incremental from QTI 2.2 Advanced)
 5. QTI 3.0 Elevated Accessibility (long-term; aligns with Renaissance WCAG mandate)
 
-Do not pursue EXPORT, AUTHORING, or PCI certification at this time.
+Do not pursue EXPORT, AUTHORING, PCI, or Elective certification at this time.
 
 ---
 
@@ -55,29 +55,7 @@ What to do:
 
 ---
 
-### Step 2: QTI 3.0 Basic — DELIVERY
-
-**Effort**: Low (run the QTI 3.0 Basic test packages; one new feature to verify: I19a)  
-**Prerequisite**: None (can run in parallel with Step 1)  
-**Status**: One feature to verify — see [qti30-gap-analysis.md](qti30-gap-analysis.md)
-
-Why:
-- Same interaction set as QTI 2.2 Basic. Our version-agnostic architecture means the QTI 3.0
-  kebab-case element names are already handled by the name mapper.
-- QTI 3.0 is the future. Having QTI 3.0 Basic certified alongside QTI 2.2 Basic signals
-  forward compatibility.
-- The only addition over QTI 2.2 Basic is I19a (Shared Vocabulary Subset) — CSS class
-  handling we believe is already in place.
-
-What to do:
-1. Verify I19a Shared Vocabulary Subset delivery (CSS class passthrough).
-2. Run all packages in `qti-conformance/qti3.0/Basic/` through the players.
-3. Fill in `QTI 3 Delivery Certification Checklist.xlsx` (Basic section).
-4. Submit.
-
----
-
-### Step 3: QTI 2.2 Advanced — DELIVERY
+### Step 2: QTI 2.2 Advanced — DELIVERY
 
 **Effort**: Medium (T9 outcomeProcessing gap; MathML verification; 2–4 weeks)  
 **Prerequisite**: QTI 2.2 Basic certification (Step 1)  
@@ -99,11 +77,35 @@ Main gaps to resolve before submission:
 
 ---
 
+### Step 3: QTI 3.0 Basic — DELIVERY
+
+**Effort**: Low (run the QTI 3.0 Basic test packages; one new feature to verify: I19a)  
+**Prerequisite**: QTI 2.2 Basic certification (Step 1)  
+**Status**: One feature to verify — see [qti30-gap-analysis.md](qti30-gap-analysis.md)
+
+Why:
+
+- Same interaction set as QTI 2.2 Basic. Our version-agnostic architecture means the QTI 3.0
+  kebab-case element names are already handled by the name mapper.
+- QTI 3.0 is the future. Having QTI 3.0 Basic certified signals forward compatibility to
+  content publishers and LMS vendors who are already migrating.
+- The only addition over QTI 2.2 Basic is I19a (Shared Vocabulary Subset) — CSS class
+  handling we believe is already in place.
+
+What to do:
+
+1. Verify I19a Shared Vocabulary Subset delivery (CSS class passthrough).
+2. Run all packages in `qti-conformance/qti3.0/Basic/` through the players.
+3. Fill in `QTI 3 Delivery Certification Checklist.xlsx` (Basic section).
+4. Submit.
+
+---
+
 ### Step 4: QTI 3.0 Advanced — DELIVERY
 
-**Effort**: Low incremental from Step 3 (MathML v3 verification; Shared Vocabulary FULL audit;
+**Effort**: Low incremental from Step 2 (MathML v3 verification; Shared Vocabulary FULL audit;
 Shared Stimulus review)  
-**Prerequisite**: QTI 3.0 Basic certification (Step 2)  
+**Prerequisite**: QTI 3.0 Basic certification (Step 3)  
 **Status**: 3–4 features need verification — see [qti30-gap-analysis.md](qti30-gap-analysis.md)
 
 Why:
@@ -157,7 +159,8 @@ Main gaps (each warrants a PRD):
 | EXPORT capability | pie-qti is a delivery engine. The PIE→QTI transform exists but is not a primary product surface. Revisit if we productise the transform. |
 | AUTHORING capability | Not an authoring tool. |
 | QTI 3.0 PCI certification | Separate program for PCI host environments. Worthwhile only if we market pie-qti as a PCI platform to third-party interaction authors. |
-| Elective level | Lower ROI than Elevated Accessibility. Order, Slider, and Media are all implemented but elective certification adds little market value beyond what Advanced already signals. |
+| QTI 2.2 Elective | Skipped by decision. Order, Slider, and Media are implemented but elective certification adds no meaningful market value beyond Advanced. |
+| QTI 3.0 Elective | Same reasoning. PCI is the only notable addition and has its own separate certification track if ever needed. |
 
 ---
 

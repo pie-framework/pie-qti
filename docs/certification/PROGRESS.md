@@ -11,17 +11,19 @@ This document tracks the live status of each certification milestone. Update it 
 For strategy rationale and effort estimates see [STRATEGY.md](STRATEGY.md).
 For feature-level gap detail see [qti22-gap-analysis.md](qti22-gap-analysis.md) and [qti30-gap-analysis.md](qti30-gap-analysis.md).
 
+Elective level (QTI 2.2 and QTI 3.0) is not being pursued. See [STRATEGY.md](STRATEGY.md).
+
 ---
 
 ## Status legend
 
 | Symbol | Meaning |
 |--------|---------|
-| ⬜ Not started |
-| 🔵 In progress |
-| 🟡 Blocked / needs investigation |
-| ✅ Complete |
-| 🏆 Certified |
+| ⬜ | Not started |
+| 🔵 | In progress |
+| 🟡 | Blocked / needs investigation |
+| ✅ | Complete |
+| 🏆 | Certified |
 
 ---
 
@@ -47,42 +49,18 @@ For feature-level gap detail see [qti22-gap-analysis.md](qti22-gap-analysis.md) 
 
 ---
 
-## Milestone 2 — QTI 3.0 Basic DELIVERY
+## Milestone 2 — QTI 2.2 Advanced DELIVERY
 
 **Overall status**: ⬜ Not started  
 **Target date**: —  
 **Submitted**: —  
-**Certified**: —
-
-| Step | Status | Notes |
-|------|--------|-------|
-| Verify I19a Shared Vocabulary Subset CSS class passthrough | ⬜ | Check item player HTML renderer does not strip QTI shared vocab classes |
-| Run `Basic/Q2 - Choice Interaction/` test package | ⬜ | |
-| Run `Basic/Q5 - Extended Text Entry Interaction/` test package | ⬜ | |
-| Run `Basic/Q20 - Text Entry Interaction/` test package | ⬜ | |
-| Run `Basic/I9b - Response Processing Fixed Template/` test package | ⬜ | |
-| Run `Basic/T4 and T7 - Test Structures/` test package | ⬜ | |
-| Run `Basic/A1 - Alternate Text for Graphics/` test package | ⬜ | |
-| Validate XML with member validator | ⬜ | |
-| Complete `QTI 3 Delivery Certification Checklist.xlsx` (Basic section) | ⬜ | |
-| Submit checklist to 1EdTech | ⬜ | |
-
-**Implementation gaps**: I19a needs verification. See [qti30-gap-analysis.md — Basic](qti30-gap-analysis.md#basic-level).
-
----
-
-## Milestone 3 — QTI 2.2 Advanced DELIVERY
-
-**Overall status**: ⬜ Not started  
-**Target date**: —  
-**Submitted**: —  
-**Certified**: —
+**Certified**: —  
 **Prerequisite**: Milestone 1 (QTI 2.2 Basic) must be certified first.
 
 ### Open gaps to close before test run
 
 | Gap | Status | PRD | PR / Commit | Notes |
-|-----|--------|-----|-------------|-------|
+| --- | --- | --- | --- | --- |
 | T9 — Full `<outcomeProcessing>` XML interpreter | 🟡 Needs investigation | — | — | Determine if template system satisfies acceptance criteria or if AST work (G-11) is required |
 | I18 — MathML v2 rendering | 🟡 Needs verification | — | — | Confirm math library is bundled and tested |
 | P7 — QTI Metadata delivery | 🟡 Needs verification | — | — | Run test package; check if metadata display criteria require UI changes |
@@ -111,19 +89,52 @@ For feature-level gap detail see [qti22-gap-analysis.md](qti22-gap-analysis.md) 
 
 ---
 
+## Milestone 3 — QTI 3.0 Basic DELIVERY
+
+**Overall status**: ⬜ Not started  
+**Target date**: —  
+**Submitted**: —  
+**Certified**: —  
+**Prerequisite**: Milestone 1 (QTI 2.2 Basic) must be certified first.
+
+### Open gaps to close before test run
+
+| Gap | Status | PRD | PR / Commit | Notes |
+| --- | --- | --- | --- | --- |
+| I19a — Shared Vocabulary Subset CSS class passthrough | 🟡 Needs verification | — | — | Check item player HTML renderer does not strip QTI shared vocab classes |
+
+### Test execution checklist
+
+| Step | Status | Notes |
+|------|--------|-------|
+| Close / resolve all gaps above | ⬜ | |
+| Run `Basic/Q2 - Choice Interaction/` test package | ⬜ | |
+| Run `Basic/Q5 - Extended Text Entry Interaction/` test package | ⬜ | |
+| Run `Basic/Q20 - Text Entry Interaction/` test package | ⬜ | |
+| Run `Basic/I9b - Response Processing Fixed Template/` test package | ⬜ | |
+| Run `Basic/T4 and T7 - Test Structures/` test package | ⬜ | |
+| Run `Basic/A1 - Alternate Text for Graphics/` test package | ⬜ | |
+| Validate XML with member validator | ⬜ | |
+| Complete `QTI 3 Delivery Certification Checklist.xlsx` (Basic section) | ⬜ | |
+| Submit checklist to 1EdTech | ⬜ | |
+
+**Implementation gaps**: I19a needs verification. See [qti30-gap-analysis.md — Basic](qti30-gap-analysis.md#basic-level).
+
+---
+
 ## Milestone 4 — QTI 3.0 Advanced DELIVERY
 
 **Overall status**: ⬜ Not started  
 **Target date**: —  
 **Submitted**: —  
-**Certified**: —
-**Prerequisite**: Milestone 2 (QTI 3.0 Basic) must be certified first.
+**Certified**: —  
+**Prerequisite**: Milestone 3 (QTI 3.0 Basic) must be certified first.
 
 ### Open gaps to close before test run
 
 | Gap | Status | PRD | PR / Commit | Notes |
-|-----|--------|-----|-------------|-------|
-| T9 — Full `<outcomeProcessing>` XML (same as QTI 2.2 Advanced) | 🟡 Needs investigation | — | — | Shared with Milestone 3 |
+| --- | --- | --- | --- | --- |
+| T9 — Full `<outcomeProcessing>` XML (same as QTI 2.2 Advanced) | 🟡 Needs investigation | — | — | Shared with Milestone 2; resolved there first |
 | I4 — Shared Stimulus import + delivery | 🟡 Needs verification | — | — | Cross-item stimulus body in assessment player |
 | I18 — MathML v3 support | 🟡 Needs verification | — | — | v3 required for QTI 3.0 Advanced |
 | I19b — Shared Vocabulary FULL CSS class coverage | 🟡 Needs verification | — | — | Audit full class list against item player HTML renderer |
@@ -145,13 +156,13 @@ For feature-level gap detail see [qti22-gap-analysis.md](qti22-gap-analysis.md) 
 **Overall status**: ⬜ Not started  
 **Target date**: —  
 **Submitted**: —  
-**Certified**: —
+**Certified**: —  
 **Prerequisite**: Milestone 4 (QTI 3.0 Advanced) must be certified first.
 
 ### Open gaps to close before test run
 
 | Gap | Status | PRD | PR / Commit | Notes |
-|-----|--------|-----|-------------|-------|
+| --- | --- | --- | --- | --- |
 | A-9 — Audio-description catalog delivery | ⬜ | — | — | |
 | A-13b — Captions (track) delivery + toggle | ⬜ | — | — | |
 | A-29 — Long-description visually-hidden rendering | ⬜ | — | — | |
@@ -170,7 +181,7 @@ For feature-level gap detail see [qti22-gap-analysis.md](qti22-gap-analysis.md) 
 | Run `Elevated Accessibility/QTI3_ARIA.xml` delivery criteria (A-2a) | ⬜ | |
 | Run `Elevated Accessibility/qti3_example_asl.xml` delivery criteria (I-4, A-29, A-36, A-41) | ⬜ | |
 | Run `Elevated Accessibility/qti3_example_video.xml` delivery criteria (A-9, A-13b, A-15, A-44) | ⬜ | |
-| Verify delivery system criteria: A-6 (time), A-8 (masking), A-11 (breaks), A-30a (magnification), A-40a (screen reader), A-40b (TTS), A-42a (color) | ⬜ | |
+| Verify delivery system criteria: A-6, A-8, A-11, A-30a, A-40a, A-40b, A-42a | ⬜ | |
 | Validate XML with member validator | ⬜ | |
 | Complete `QTI 3 Delivery Certification Checklist.xlsx` (Elevated Accessibility section) | ⬜ | |
 | Submit checklist to 1EdTech | ⬜ | |
@@ -179,10 +190,10 @@ For feature-level gap detail see [qti22-gap-analysis.md](qti22-gap-analysis.md) 
 
 ## Summary table
 
-| Milestone | Capability | Status | Certified date |
-|-----------|-----------|--------|----------------|
-| QTI 2.2 Basic DELIVERY | DELIVERY | ⬜ Not started | — |
-| QTI 3.0 Basic DELIVERY | DELIVERY | ⬜ Not started | — |
-| QTI 2.2 Advanced DELIVERY | DELIVERY | ⬜ Not started | — |
-| QTI 3.0 Advanced DELIVERY | DELIVERY | ⬜ Not started | — |
-| QTI 3.0 Elevated Accessibility DELIVERY | DELIVERY | ⬜ Not started | — |
+| # | Milestone | Status | Certified date |
+|---|-----------|--------|----------------|
+| 1 | QTI 2.2 Basic DELIVERY | ⬜ Not started | — |
+| 2 | QTI 2.2 Advanced DELIVERY | ⬜ Not started | — |
+| 3 | QTI 3.0 Basic DELIVERY | ⬜ Not started | — |
+| 4 | QTI 3.0 Advanced DELIVERY | ⬜ Not started | — |
+| 5 | QTI 3.0 Elevated Accessibility DELIVERY | ⬜ Not started | — |
