@@ -6,6 +6,7 @@
  * can learn from and adapt for their own assessments.
  */
 
+import { CONFORMANCE_QTI22_ADVANCED_ITEMS } from './sample-items-conformance.js';
 import { EDGE_CASE_ITEMS } from './sample-items-edge-cases.js';
 import { MULTILINGUAL_ITEMS } from './sample-items-i18n.js';
 
@@ -190,6 +191,7 @@ export interface SampleItem {
   title: string;
   description: string;
   xml: string;
+  group?: string;
 }
 
 export const TEXT_ENTRY = `<?xml version="1.0" encoding="UTF-8"?>
@@ -3158,4 +3160,7 @@ export const SAMPLE_ITEMS: SampleItem[] = [
         xml: data!.xml,
       }))
   ),
+
+  // QTI 2.2 Advanced DELIVERY Conformance Items
+  ...CONFORMANCE_QTI22_ADVANCED_ITEMS.map(item => ({ ...item, group: 'conformance-qti22-advanced' })),
 ];
