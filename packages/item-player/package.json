@@ -31,6 +31,7 @@
     "@pie-qti/ims-cp-core": "workspace:*",
     "@pie-qti/qti-common": "workspace:*",
     "@pie-qti/qti-processing": "workspace:*",
+    "@pie-qti/typeset-katex": "workspace:*",
     "@tiptap/core": "^3.15.3",
     "@tiptap/extension-mathematics": "^3.15.3",
     "@tiptap/extension-placeholder": "^3.15.3",

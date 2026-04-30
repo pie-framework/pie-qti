@@ -1,6 +1,6 @@
 # QTI Certification Progress Tracker
 
-Last updated: 2026-04-29 (Milestone 1 static analysis complete)
+Last updated: 2026-04-29 (Advanced gaps T9, I18, S1, S9 addressed)
 
 This document tracks the live status of each certification milestone. Update it whenever:
 - A gap is closed (link the PR/commit)
@@ -85,9 +85,11 @@ See [certification-check-qti22-basic.md](certification-check-qti22-basic.md) for
 
 | Gap | Status | PRD | PR / Commit | Notes |
 | --- | --- | --- | --- | --- |
-| T9 — Full `<outcomeProcessing>` XML interpreter | 🟡 Needs investigation | — | — | Determine if template system satisfies acceptance criteria or if AST work (G-11) is required |
-| I18 — MathML v2 rendering | 🔴 Gap confirmed | — | — | `@pie-qti/typeset-katex` bundled but never wired into item-player; MathML renders as raw DOM, not typeset |
-| P7 — QTI Metadata delivery | 🔴 Gap confirmed | — | — | No DELIVERY acceptance criteria in README ("no specific criteria at this time") — verify this is a no-op for certification |
+| T9 — Full `<outcomeProcessing>` XML interpreter | ✅ Implemented | — | develop | `ReferenceBackendAdapter.runOutcomeProcessing()` — parses XML, runs `buildOutcomeProcessingAst` + `execProgram` with `testVariables` support |
+| S1 — Section-level `itemSessionControl` | ✅ Implemented | — | develop | `AssessmentPlayer.getEffectiveItemSessionControl()` — three-level merge (section → testPart → defaults); applied on `navigateTo()` |
+| S9 — `assessmentSectionRef` external file resolution | ✅ Implemented | — | develop | `ReferenceBackendAdapter.parseAssessmentTestXml()` — resolves `href` via `fileResolver` callback |
+| I18 — MathML v2 rendering | ✅ Implemented | — | develop | `@pie-qti/typeset-katex` wired into `ItemPlayer.svelte` via `effectiveTypeset = typeset ?? typesetMathInElement` |
+| P7 — QTI Metadata delivery | 🟡 Needs verification | — | — | No DELIVERY acceptance criteria in README ("no specific criteria at this time") — verify this is a no-op for certification |
 
 ### Test execution checklist
 

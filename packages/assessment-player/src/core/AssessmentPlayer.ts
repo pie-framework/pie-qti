@@ -143,6 +143,7 @@ export class AssessmentPlayer {
 		this.navigationManager = new NavigationManager(navigationMode, this.items.length);
 
 		// Item session control is a UI hint; backend remains authoritative.
+		// Start with testPart-level defaults; section-level overrides are applied per item in navigateTo().
 		const itemSessionControl = this.assessment.testParts?.[0]?.itemSessionControl;
 		this.sessionController = new ItemSessionController(itemSessionControl);
 
@@ -169,6 +170,29 @@ export class AssessmentPlayer {
 		if (idx >= 0) {
 			this.navigateTo(idx).catch(() => {});
 		}
+	}
+
+	/**
+	 * Compute effective itemSessionControl for a given item using three-level fallback:
+	 * section-level (highest priority) → testPart-level → defaults.
+	 * Section-level values override testPart-level when present.
+	 */
+	private getEffectiveItemSessionControl(flat: FlatItem): SecureSection['itemSessionControl'] {
+		const testPartControl = flat.testPart.itemSessionControl;
+		const sectionControl = flat.section.itemSessionControl;
+
+		if (!sectionControl) return testPartControl;
+		if (!testPartControl) return sectionControl;
+
+		return {
+			maxAttempts: sectionControl.maxAttempts ?? testPartControl.maxAttempts,
+			showFeedback: sectionControl.showFeedback ?? testPartControl.showFeedback,
+			allowReview: sectionControl.allowReview ?? testPartControl.allowReview,
+			showSolution: sectionControl.showSolution ?? testPartControl.showSolution,
+			allowComment: sectionControl.allowComment ?? testPartControl.allowComment,
+			allowSkipping: sectionControl.allowSkipping ?? testPartControl.allowSkipping,
+			validateResponses: sectionControl.validateResponses ?? testPartControl.validateResponses,
+		};
 	}
 
 	private hasAnyResponse(responses: Record<string, unknown>): boolean {
@@ -390,6 +414,12 @@ export class AssessmentPlayer {
 		this.currentItemIndex = index;
 		const q = this.items[index]!;
 		this.state.currentItemIdentifier = q.identifier;
+
+		// Apply three-level itemSessionControl fallback for this item's section (S1).
+		const effectiveControl = this.getEffectiveItemSessionControl(q);
+		if (effectiveControl) {
+			this.sessionController.updateSettings(effectiveControl);
+		}
 
 		// Restore responses
 		this.responses = { ...(this.state.itemResponses[q.identifier] || {}) };

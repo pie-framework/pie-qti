@@ -87,6 +87,17 @@ export interface SecureAssessment {
 		maxTime?: number; // seconds
 		allowLateSubmission?: boolean;
 	};
+	/** QTI outcomeDeclarations for test-level variables */
+	outcomeDeclarations?: Array<{
+		identifier: string;
+		baseType: string;
+		cardinality: string;
+		defaultValue?: unknown;
+	}>;
+	/** Raw <outcomeProcessing> XML string, if present */
+	outcomeProcessingXml?: string;
+	/** Base URL/path for resolving relative hrefs (e.g. assessmentSectionRef) */
+	baseUrl?: string;
 	/** QTI testFeedback blocks for post-submission display */
 	testFeedback?: TestFeedbackItem[];
 }
@@ -140,6 +151,19 @@ export interface SecureSection {
 	 */
 	ordering?: {
 		shuffle: boolean;
+	};
+	/**
+	 * Item session control (QTI assessmentSection/itemSessionControl).
+	 * Section-level values take precedence over testPart-level when present.
+	 */
+	itemSessionControl?: {
+		maxAttempts?: number;
+		showFeedback?: boolean;
+		allowReview?: boolean;
+		showSolution?: boolean;
+		allowComment?: boolean;
+		allowSkipping?: boolean;
+		validateResponses?: boolean;
 	};
 }
 

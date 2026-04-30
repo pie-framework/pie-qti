@@ -29,11 +29,14 @@
 
 import {
 	buildExpression,
+	buildOutcomeProcessingAst,
 	DeclarationContext,
 	type DeclarationMap,
 	evalExpr,
+	execProgram,
 	OperatorRegistry,
 	parseXml,
+	serializeXml,
 	type QtiValue,
 	qtiNull,
 	qtiValue,
@@ -54,6 +57,8 @@ import type {
 	SaveAssessmentStateResponse,
 	SecureAssessment,
 	SecureItemRef,
+	SecureSection,
+	SecureTestPart,
 	SessionId,
 	SubmitResponsesRequest,
 	SubmitResponsesResponse,
@@ -312,25 +317,105 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 
 		// Compute total score
 		const itemScores = session.state.itemScores || {};
-		const totalScore = Object.values(itemScores).reduce((sum, result) => sum + result.score, 0);
+		const fallbackTotal = Object.values(itemScores).reduce((sum, result) => sum + result.score, 0);
 		const maxScore = Object.values(itemScores).reduce((sum, result) => sum + result.maxScore, 0);
 
-		// Compute basic test-level outcomes for testFeedback evaluation.
-		// A real backend would run QTI outcomeProcessing rules; here we derive
-		// SCORE and PASS from the aggregate item scores.
-		const outcomes: Record<string, string> = {
-			SCORE: String(totalScore),
-			PASS: maxScore > 0 && totalScore / maxScore >= 0.5 ? 'true' : 'false',
-		};
+		// Execute test-level outcome processing if available
+		const outcomes = this.runOutcomeProcessing(session.assessment, itemScores);
+		const totalScore = outcomes !== null ? (outcomes['SCORE_TOTAL'] ?? outcomes['SCORE'] ?? fallbackTotal) as number : fallbackTotal;
 
 		return {
 			success: true,
 			totalScore,
 			maxScore,
 			itemScores,
-			outcomes,
 			finalizedAt: Date.now(),
 		};
+	}
+
+	/**
+	 * Execute test-level outcome processing (T9/T1).
+	 * Returns a map of outcome variable values, or null if no outcomeProcessing is defined.
+	 */
+	private runOutcomeProcessing(
+		assessment: SecureAssessment,
+		itemScores: Record<string, AssessmentScoringResult>
+	): Record<string, unknown> | null {
+		if (!assessment.outcomeProcessingXml) {
+			return null;
+		}
+
+		try {
+			// Build declaration map from outcomeDeclarations
+			const decls: DeclarationMap = {};
+			for (const d of assessment.outcomeDeclarations || []) {
+				const baseType = d.baseType as any;
+				const cardinality = d.cardinality as any;
+				let defaultQtiValue: QtiValue;
+				if (d.defaultValue !== undefined) {
+					defaultQtiValue = qtiValue(baseType, cardinality, d.defaultValue);
+				} else if (baseType === 'float' || baseType === 'integer') {
+					defaultQtiValue = qtiValue(baseType, 'single', 0);
+				} else {
+					defaultQtiValue = qtiNull();
+				}
+				decls[d.identifier] = {
+					identifier: d.identifier,
+					baseType,
+					cardinality,
+					defaultValue: defaultQtiValue,
+					value: { ...defaultQtiValue },
+				};
+			}
+
+			const ctx = new DeclarationContext(decls);
+			const ops = new OperatorRegistry();
+
+			// Build test items array for testVariables expression
+			const testItems = Object.entries(itemScores).map(([id, scoring]) => ({
+				identifier: id,
+				variables: {
+					SCORE: qtiValue('float', 'single', scoring.score),
+					// Add any other outcome values from the scoring result
+					...Object.fromEntries(
+						Object.entries(scoring.outcomeValues || {}).map(([k, v]) => [
+							k,
+							typeof v === 'number'
+								? qtiValue('float', 'single', v)
+								: qtiValue('string', 'single', String(v)),
+						])
+					),
+				},
+			}));
+
+			// Parse and execute outcome processing
+			const opEl = parseXml(assessment.outcomeProcessingXml).documentElement;
+			if (!opEl) return null;
+
+			const program = buildOutcomeProcessingAst(opEl, { scope: 'test' });
+			execProgram(
+				{
+					ctx,
+					ops,
+					rng: Math.random,
+					test: { items: testItems },
+				},
+				program
+			);
+
+			// Extract outcome values
+			const result: Record<string, unknown> = {};
+			for (const d of assessment.outcomeDeclarations || []) {
+				const v = ctx.getValue(d.identifier);
+				if (v.kind === 'value') {
+					result[d.identifier] = v.value;
+				}
+			}
+			return result;
+		} catch (err) {
+			console.warn('[ReferenceBackendAdapter] outcomeProcessing failed:', err);
+			return null;
+		}
 	}
 
 	/**
@@ -419,7 +504,16 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 	}
 
 	private findItemXml(assessment: SecureAssessment, itemIdentifier: string): string | null {
-		return this.findItemRef(assessment, itemIdentifier)?.itemXml ?? null;
+		for (const part of assessment.testParts) {
+			for (const section of part.sections) {
+				for (const item of section.assessmentItemRefs) {
+					if (item.identifier === itemIdentifier) {
+						return item.itemXml;
+					}
+				}
+			}
+		}
+		return null;
 	}
 
 	private findItemRef(assessment: SecureAssessment, itemIdentifier: string): SecureItemRef | null {
@@ -597,6 +691,301 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 					],
 				},
 			],
+		};
+	}
+
+	// =========================================================================
+	// STATIC: QTI TEST XML PARSER
+	// =========================================================================
+
+	/**
+	 * Parse a QTI assessmentTest XML string into a SecureAssessment structure.
+	 *
+	 * Handles:
+	 * - S1: section-level itemSessionControl
+	 * - S9: assessmentSectionRef href resolution (requires fileResolver)
+	 * - T9/T1: outcomeDeclarations + outcomeProcessing extraction
+	 *
+	 * @param testXml - Raw QTI assessmentTest XML string
+	 * @param options.role - Role to assign to items (default: 'candidate')
+	 * @param options.itemXmlMap - Map of item identifier -> itemXml for pre-loaded items
+	 * @param options.fileResolver - Async function to load external files by relative href
+	 * @param options.baseUrl - Base URL for resolving relative hrefs
+	 */
+	static async parseAssessmentTestXml(
+		testXml: string,
+		options: {
+			role?: SecureItemRef['role'];
+			itemXmlMap?: Record<string, string>;
+			fileResolver?: (href: string) => Promise<string>;
+			baseUrl?: string;
+		} = {}
+	): Promise<SecureAssessment> {
+		const { role = 'candidate', itemXmlMap = {}, fileResolver, baseUrl } = options;
+		const doc = parseXml(testXml);
+		const root = doc.documentElement;
+		if (!root) throw new Error('Empty assessmentTest XML');
+
+		const getAttr = (el: Element, name: string): string | undefined => {
+			const v = el.getAttribute(name);
+			return v === null ? undefined : v;
+		};
+
+		const childElements = (el: Element): Element[] =>
+			Array.from(el.childNodes).filter((n): n is Element => n.nodeType === 1);
+
+		const childrenByTag = (el: Element, tag: string): Element[] =>
+			childElements(el).filter((c) => c.localName === tag);
+
+		// Parse itemSessionControl element
+		const parseItemSessionControl = (
+			el: Element
+		): SecureSection['itemSessionControl'] | undefined => {
+			const isc = childrenByTag(el, 'itemSessionControl')[0];
+			if (!isc) return undefined;
+			const boolAttr = (name: string): boolean | undefined => {
+				const v = getAttr(isc, name);
+				return v === undefined ? undefined : v !== 'false';
+			};
+			const intAttr = (name: string): number | undefined => {
+				const v = getAttr(isc, name);
+				return v === undefined ? undefined : parseInt(v, 10);
+			};
+			return {
+				maxAttempts: intAttr('maxAttempts'),
+				showFeedback: boolAttr('showFeedback') ?? boolAttr('show-feedback'),
+				allowReview: boolAttr('allowReview') ?? boolAttr('allow-review'),
+				showSolution: boolAttr('showSolution') ?? boolAttr('show-solution'),
+				allowComment: boolAttr('allowComment') ?? boolAttr('allow-comment'),
+				allowSkipping: boolAttr('allowSkipping') ?? boolAttr('allow-skipping'),
+				validateResponses: boolAttr('validateResponses') ?? boolAttr('validate-responses'),
+			};
+		};
+
+		// Parse a single assessmentSection element
+		const parseSection = (sectionEl: Element): SecureSection => {
+			const identifier = getAttr(sectionEl, 'identifier') ?? 'section';
+			const title = getAttr(sectionEl, 'title');
+			const visibleRaw = getAttr(sectionEl, 'visible');
+			const visible = visibleRaw === undefined ? true : visibleRaw !== 'false';
+
+			const itemSessionControl = parseItemSessionControl(sectionEl);
+
+			// rubricBlocks
+			const rubricBlockEls = childrenByTag(sectionEl, 'rubricBlock');
+			const rubricBlocks = rubricBlockEls.length > 0
+				? rubricBlockEls.map((b, idx) => ({
+					identifier: getAttr(b, 'identifier') ?? `${identifier}-rubric-${idx + 1}`,
+					view: (getAttr(b, 'view') ?? 'candidate').split(/\s+/).filter(Boolean) as any[],
+					use: getAttr(b, 'use'),
+					content: serializeXml(b),
+				}))
+				: undefined;
+
+			// assessmentItemRefs
+			const itemRefEls = childrenByTag(sectionEl, 'assessmentItemRef');
+			const assessmentItemRefs: SecureItemRef[] = itemRefEls.map((ref) => {
+				const itemId = getAttr(ref, 'identifier') ?? 'item';
+				const href = getAttr(ref, 'href');
+				// Look up pre-loaded XML by identifier or href
+				const resolvedXml = itemXmlMap[itemId] ?? (href ? itemXmlMap[href] : undefined) ?? '';
+				const requiredRaw = getAttr(ref, 'required');
+				const required = requiredRaw === undefined ? undefined : requiredRaw !== 'false';
+				return {
+					identifier: itemId,
+					itemXml: resolvedXml,
+					role,
+					required,
+				};
+			});
+
+			return {
+				identifier,
+				title,
+				visible,
+				assessmentItemRefs,
+				rubricBlocks,
+				itemSessionControl,
+			};
+		};
+
+		// Resolve assessmentSectionRef: load and parse referenced section file
+		const resolveSectionRef = async (sectionRefEl: Element): Promise<SecureSection | null> => {
+			const href = getAttr(sectionRefEl, 'href');
+			if (!href) {
+				console.warn('[ReferenceBackendAdapter] assessmentSectionRef missing href, skipping');
+				return null;
+			}
+
+			if (!fileResolver) {
+				console.warn(
+					`[ReferenceBackendAdapter] assessmentSectionRef href="${href}" found but no fileResolver provided, skipping`
+				);
+				return null;
+			}
+
+			try {
+				const sectionXml = await fileResolver(href);
+				const secDoc = parseXml(sectionXml);
+				const secRoot = secDoc.documentElement;
+				if (!secRoot || secRoot.localName !== 'assessmentSection') {
+					console.warn(
+						`[ReferenceBackendAdapter] assessmentSectionRef href="${href}": root element is not <assessmentSection>, skipping`
+					);
+					return null;
+				}
+				return parseSection(secRoot);
+			} catch (err) {
+				console.warn(
+					`[ReferenceBackendAdapter] Failed to load assessmentSectionRef href="${href}":`,
+					err
+				);
+				return null;
+			}
+		};
+
+		// Parse testPart children (sections + sectionRefs)
+		const parseSectionsForTestPart = async (testPartEl: Element): Promise<SecureSection[]> => {
+			const sections: SecureSection[] = [];
+			for (const child of childElements(testPartEl)) {
+				if (child.localName === 'assessmentSection') {
+					sections.push(parseSection(child));
+				} else if (child.localName === 'assessmentSectionRef') {
+					const resolved = await resolveSectionRef(child);
+					if (resolved) sections.push(resolved);
+				}
+			}
+			return sections;
+		};
+
+		// Parse testPart-level itemSessionControl
+		const parseTestPartItemSessionControl = (
+			testPartEl: Element
+		): SecureTestPart['itemSessionControl'] | undefined => {
+			const isc = childrenByTag(testPartEl, 'itemSessionControl')[0];
+			if (!isc) return undefined;
+			const boolAttr = (name: string): boolean | undefined => {
+				const v = getAttr(isc, name);
+				return v === undefined ? undefined : v !== 'false';
+			};
+			const intAttr = (name: string): number | undefined => {
+				const v = getAttr(isc, name);
+				return v === undefined ? undefined : parseInt(v, 10);
+			};
+			return {
+				maxAttempts: intAttr('maxAttempts'),
+				showFeedback: boolAttr('showFeedback') ?? boolAttr('show-feedback'),
+				allowReview: boolAttr('allowReview') ?? boolAttr('allow-review'),
+				showSolution: boolAttr('showSolution') ?? boolAttr('show-solution'),
+				allowComment: boolAttr('allowComment') ?? boolAttr('allow-comment'),
+				allowSkipping: boolAttr('allowSkipping') ?? boolAttr('allow-skipping'),
+				validateResponses: boolAttr('validateResponses') ?? boolAttr('validate-responses'),
+			};
+		};
+
+		// Extract outcomeDeclarations
+		const outcomeDeclarations = childrenByTag(root, 'outcomeDeclaration').map((d) => {
+			const identifier = getAttr(d, 'identifier') ?? 'OUTCOME';
+			const baseType = getAttr(d, 'baseType') ?? 'float';
+			const cardinality = getAttr(d, 'cardinality') ?? 'single';
+			// Parse defaultValue if present
+			const defaultValueEl = childrenByTag(d, 'defaultValue')[0];
+			let defaultValue: unknown = undefined;
+			if (defaultValueEl) {
+				const valueEl = childrenByTag(defaultValueEl, 'value')[0];
+				if (valueEl) {
+					const text = valueEl.textContent?.trim() ?? '0';
+					if (baseType === 'float' || baseType === 'integer') {
+						defaultValue = Number(text);
+					} else {
+						defaultValue = text;
+					}
+				}
+			}
+			return { identifier, baseType, cardinality, defaultValue };
+		});
+
+		// Extract outcomeProcessing XML
+		const outcomeProcessingEl = childrenByTag(root, 'outcomeProcessing')[0];
+		const outcomeProcessingXml = outcomeProcessingEl
+			? serializeXml(outcomeProcessingEl)
+			: undefined;
+
+		// Extract timeLimits
+		const timeLimitsEl = childrenByTag(root, 'timeLimit')[0];
+		const timeLimits = timeLimitsEl
+			? {
+				maxTime: timeLimitsEl.getAttribute('maxTime')
+					? Number(timeLimitsEl.getAttribute('maxTime'))
+					: undefined,
+				allowLateSubmission: timeLimitsEl.getAttribute('allowLateSubmission') === 'true',
+			}
+			: undefined;
+
+		// Parse testParts
+		const testPartEls = childrenByTag(root, 'testPart');
+		const firstTestPart = testPartEls[0];
+
+		// Navigation/submission mode from first testPart (QTI 2.2 spec)
+		const navigationMode = (getAttr(firstTestPart ?? root, 'navigationMode') ?? 'nonlinear') as
+			| 'linear'
+			| 'nonlinear';
+		const submissionMode = (getAttr(firstTestPart ?? root, 'submissionMode') ?? 'simultaneous') as
+			| 'individual'
+			| 'simultaneous';
+
+		const testParts: SecureTestPart[] = [];
+		for (const tp of testPartEls) {
+			const tpIdentifier = getAttr(tp, 'identifier') ?? 'part-1';
+			const tpItemSessionControl = parseTestPartItemSessionControl(tp);
+			const tpRubricBlockEls = childrenByTag(tp, 'rubricBlock');
+			const tpRubricBlocks = tpRubricBlockEls.length > 0
+				? tpRubricBlockEls.map((b, idx) => ({
+					identifier: getAttr(b, 'identifier') ?? `${tpIdentifier}-rubric-${idx + 1}`,
+					view: (getAttr(b, 'view') ?? 'candidate').split(/\s+/).filter(Boolean) as any[],
+					use: getAttr(b, 'use'),
+					content: serializeXml(b),
+				}))
+				: undefined;
+
+			const sections = await parseSectionsForTestPart(tp);
+			testParts.push({
+				identifier: tpIdentifier,
+				sections,
+				rubricBlocks: tpRubricBlocks,
+				itemSessionControl: tpItemSessionControl,
+			});
+		}
+
+		// If no testParts, try top-level sections
+		if (testParts.length === 0) {
+			const topSections: SecureSection[] = [];
+			for (const child of childElements(root)) {
+				if (child.localName === 'assessmentSection') {
+					topSections.push(parseSection(child));
+				} else if (child.localName === 'assessmentSectionRef') {
+					const resolved = await resolveSectionRef(child);
+					if (resolved) topSections.push(resolved);
+				}
+			}
+			if (topSections.length > 0) {
+				testParts.push({
+					identifier: 'part-1',
+					sections: topSections,
+				});
+			}
+		}
+
+		return {
+			identifier: getAttr(root, 'identifier') ?? 'assessment',
+			title: getAttr(root, 'title') ?? 'Assessment',
+			navigationMode,
+			submissionMode,
+			testParts,
+			timeLimits,
+			outcomeDeclarations: outcomeDeclarations.length > 0 ? outcomeDeclarations : undefined,
+			outcomeProcessingXml,
+			baseUrl,
 		};
 	}
 
