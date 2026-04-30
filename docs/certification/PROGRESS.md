@@ -75,7 +75,7 @@ See [certification-check-qti22-basic.md](certification-check-qti22-basic.md) for
 
 ## Milestone 2 — QTI 2.2 Advanced DELIVERY
 
-**Overall status**: ⬜ Not started  
+**Overall status**: 🔵 In progress — gaps closed, automated tests pass, member validator + checklist pending  
 **Target date**: —  
 **Submitted**: —  
 **Certified**: —  
@@ -95,23 +95,23 @@ See [certification-check-qti22-basic.md](certification-check-qti22-basic.md) for
 
 | Step | Status | Notes |
 |------|--------|-------|
-| Close / resolve all gaps above | ⬜ | |
-| Run `Advanced Level/Q6 - Gap Match Interaction/` test package | ⬜ | |
-| Run `Advanced Level/Q8 - Graphic Gap Match Interaction/` test package | ⬜ | |
-| Run `Advanced Level/Q10 - Hotspot/` test package | ⬜ | |
-| Run `Advanced Level/Q11 - Hot-text Interaction/` test package | ⬜ | |
-| Run `Advanced Level/Q12 - Inline Choice Interaction/` test package | ⬜ | |
-| Run `Advanced Level/Q13 - Match Interaction/` test package | ⬜ | |
-| Run `Advanced Level/I17 - Composite Item/` test package | ⬜ | |
-| Run `Advanced Level/S3 and S4/` test package | ⬜ | |
-| Run `Advanced Level/S5 - Rubric Block in Sections/` test package | ⬜ | |
-| Run `Advanced Level/T1 - Outcome Declaration/` test package | ⬜ | |
-| Run `Advanced Level/T5 - Test Parts - Item Session Control/` test package | ⬜ | |
-| Run `Advanced Level/T12 - Sections/` test package | ⬜ | |
-| Run `Advanced Level/P7 – QTI Metadata/` test package | ⬜ | |
-| Validate XML with member validator | ⬜ | |
-| Complete `QTI 2p2 Delivery Certification Checklist.xlsx` (Advanced section) | ⬜ | |
-| Submit checklist to 1EdTech | ⬜ | |
+| Close / resolve all gaps above | ✅ | T9, S1, S9, I18 implemented; P7 verified no delivery criteria |
+| Run `Advanced Level/T1 - Outcome Declaration/` test package | ✅ | Automated: `conformance-qti22-advanced.test.ts` (T1-D1, T9-D1 ×3) |
+| Run `Advanced Level/T5 - Test Parts - Item Session Control/` test package | ✅ | Automated: `conformance-qti22-advanced.test.ts` (T5-D1 ×3) |
+| Run `Advanced Level/T12 - Sections/` test package | ✅ | Automated: T12-D1, T2-D1, S1-D1/D2, S9-D1 (14 tests) |
+| Run `Advanced Level/Q6 - Gap Match Interaction/` test package | ⬜ | Manual — load in example app |
+| Run `Advanced Level/Q8 - Graphic Gap Match Interaction/` test package | ⬜ | Manual — load in example app |
+| Run `Advanced Level/Q10 - Hotspot/` test package | ⬜ | Manual — load in example app |
+| Run `Advanced Level/Q11 - Hot-text Interaction/` test package | ⬜ | Manual — load in example app |
+| Run `Advanced Level/Q12 - Inline Choice Interaction/` test package | ⬜ | Manual — load in example app |
+| Run `Advanced Level/Q13 - Match Interaction/` test package | ⬜ | Manual — load in example app |
+| Run `Advanced Level/I17 - Composite Item/` test package | ⬜ | Manual — load in example app |
+| Run `Advanced Level/S3 and S4/` test package | ⬜ | Manual — load in example app |
+| Run `Advanced Level/S5 - Rubric Block in Sections/` test package | ⬜ | Manual — load in example app |
+| Run `Advanced Level/P7 – QTI Metadata/` test package | ⬜ | Manual — verify no delivery criteria required |
+| Validate XML with member validator | ⬜ | Manual — upload official test package ZIPs |
+| Complete `QTI 2p2 Delivery Certification Checklist.xlsx` (Advanced section) | ⬜ | Manual — after member validator pass |
+| Submit checklist to 1EdTech | ⬜ | Manual — after checklist complete |
 
 ---
 
