@@ -1,0 +1,44 @@
+{
+  "id": "qti22_advanced_q13_match",
+  "cases": [
+    {
+      "name": "Q13-D2/D4: no associations -> SCORE=0",
+      "responses": { "RESPONSE": [] },
+      "expect": {
+        "score": 0,
+        "outcomes": { "SCORE": 0 }
+      }
+    },
+    {
+      "name": "Q13-D2/D4: all 3 correct (r2 h1, r2 h3, r4 h3) -> SCORE=1 (match_correct)",
+      "responses": { "RESPONSE": ["r2 h1", "r2 h3", "r4 h3"] },
+      "expect": {
+        "score": 1,
+        "outcomes": { "SCORE": 1 }
+      }
+    },
+    {
+      "name": "Q13-D2/D4: partial correct (r2 h1 only) -> SCORE=0",
+      "responses": { "RESPONSE": ["r2 h1"] },
+      "expect": {
+        "score": 0,
+        "outcomes": { "SCORE": 0 }
+      }
+    },
+    {
+      "name": "Q13-D2/D4: wrong associations -> SCORE=0",
+      "responses": { "RESPONSE": ["r1 h1", "r3 h2"] },
+      "expect": {
+        "score": 0,
+        "outcomes": { "SCORE": 0 }
+      }
+    },
+    {
+      "name": "Q13-D4: directedPair response variable accepted (baseType=directedPair)",
+      "responses": { "RESPONSE": ["r2 h1", "r2 h3", "r4 h3"] },
+      "expect": {
+        "score": 1
+      }
+    }
+  ]
+}

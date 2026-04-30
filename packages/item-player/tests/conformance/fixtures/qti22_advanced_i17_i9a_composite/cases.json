@@ -1,0 +1,93 @@
+{
+  "id": "qti22_advanced_i17_i9a_composite",
+  "cases": [
+    {
+      "name": "I17-D1 / I9-D11: all null -> SCORE=0, all subscores=0",
+      "responses": { "response_1": null, "response_2": null, "response_3": null },
+      "expect": {
+        "score": 0,
+        "outcomes": { "SCORE": 0, "SCORE_1": 0, "SCORE_2": 0, "SCORE_3": 0 }
+      }
+    },
+    {
+      "name": "I9-D1: response_1=choice_1 (correct) -> SCORE_1=1",
+      "responses": { "response_1": "choice_1", "response_2": null, "response_3": null },
+      "expect": {
+        "score": 1,
+        "outcomes": { "SCORE": 1, "SCORE_1": 1, "SCORE_2": 0, "SCORE_3": 0 }
+      }
+    },
+    {
+      "name": "I9-D1: response_1=choice_2 (wrong) -> SCORE_1=0",
+      "responses": { "response_1": "choice_2", "response_2": null, "response_3": null },
+      "expect": {
+        "score": 0,
+        "outcomes": { "SCORE": 0, "SCORE_1": 0, "SCORE_2": 0, "SCORE_3": 0 }
+      }
+    },
+    {
+      "name": "I9-D2: response_2=choice_4 (correct) -> SCORE_2=1",
+      "responses": { "response_1": null, "response_2": "choice_4", "response_3": null },
+      "expect": {
+        "score": 1,
+        "outcomes": { "SCORE": 1, "SCORE_1": 0, "SCORE_2": 1, "SCORE_3": 0 }
+      }
+    },
+    {
+      "name": "I9-D2: response_2=choice_5 (wrong) -> SCORE_2=0",
+      "responses": { "response_1": null, "response_2": "choice_5", "response_3": null },
+      "expect": {
+        "score": 0,
+        "outcomes": { "SCORE": 0, "SCORE_1": 0, "SCORE_2": 0, "SCORE_3": 0 }
+      }
+    },
+    {
+      "name": "I9-D3: response_3='poet' -> SCORE_3=1",
+      "responses": { "response_1": null, "response_2": null, "response_3": "poet" },
+      "expect": {
+        "score": 1,
+        "outcomes": { "SCORE": 1, "SCORE_1": 0, "SCORE_2": 0, "SCORE_3": 1 }
+      }
+    },
+    {
+      "name": "I9-D3: response_3='playwright' -> SCORE_3=1",
+      "responses": { "response_1": null, "response_2": null, "response_3": "playwright" },
+      "expect": {
+        "score": 1,
+        "outcomes": { "SCORE": 1, "SCORE_1": 0, "SCORE_2": 0, "SCORE_3": 1 }
+      }
+    },
+    {
+      "name": "I9-D3: response_3='writer' -> SCORE_3=0.5",
+      "responses": { "response_1": null, "response_2": null, "response_3": "writer" },
+      "expect": {
+        "score": 0.5,
+        "outcomes": { "SCORE": 0.5, "SCORE_1": 0, "SCORE_2": 0, "SCORE_3": 0.5 }
+      }
+    },
+    {
+      "name": "I9-D11: all correct (choice_1, choice_4, poet) -> SCORE=3",
+      "responses": { "response_1": "choice_1", "response_2": "choice_4", "response_3": "poet" },
+      "expect": {
+        "score": 3,
+        "outcomes": { "SCORE": 3, "SCORE_1": 1, "SCORE_2": 1, "SCORE_3": 1 }
+      }
+    },
+    {
+      "name": "I9-D11: all correct with playwright -> SCORE=3",
+      "responses": { "response_1": "choice_1", "response_2": "choice_4", "response_3": "playwright" },
+      "expect": {
+        "score": 3,
+        "outcomes": { "SCORE": 3, "SCORE_1": 1, "SCORE_2": 1, "SCORE_3": 1 }
+      }
+    },
+    {
+      "name": "I9-D11: choice_2 + choice_5 + writer -> SCORE=0.5",
+      "responses": { "response_1": "choice_2", "response_2": "choice_5", "response_3": "writer" },
+      "expect": {
+        "score": 0.5,
+        "outcomes": { "SCORE": 0.5, "SCORE_1": 0, "SCORE_2": 0, "SCORE_3": 0.5 }
+      }
+    }
+  ]
+}

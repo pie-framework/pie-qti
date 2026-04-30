@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" 
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/imsqti_v2p2p2.xsd" 
+  adaptive="false" identifier="match-example-2" timeDependent="false" title="Match Example 2">
+<responseDeclaration baseType="directedPair" cardinality="multiple" identifier="RESPONSE">
+  <correctResponse>
+    <value>r2 h1</value>
+    <value>r2 h3</value>
+    <value>r4 h3</value>
+  </correctResponse>
+</responseDeclaration>
+<outcomeDeclaration baseType="float" cardinality="single" identifier="SCORE">
+  <defaultValue>
+    <value>0</value>
+  </defaultValue>
+</outcomeDeclaration>
+<itemBody>
+  <div>
+    <p>Which properties do the following animal classes have?</p>
+
+    <matchInteraction maxAssociations="3" responseIdentifier="RESPONSE">
+      <simpleMatchSet>
+        <simpleAssociableChoice identifier="r1" matchMax="0">
+          <p>Asexual</p>
+        </simpleAssociableChoice>
+        <simpleAssociableChoice identifier="r2" matchMax="0">
+          <p>Endothermic</p>
+        </simpleAssociableChoice>
+        <simpleAssociableChoice identifier="r3" matchMax="0">
+          <p>Possess Gills</p>
+        </simpleAssociableChoice>
+        <simpleAssociableChoice identifier="r4" matchMax="0">
+          <p>Bear Live Young</p>
+        </simpleAssociableChoice>
+      </simpleMatchSet>
+      <simpleMatchSet>
+        <simpleAssociableChoice identifier="h1" matchMax="2">Birds</simpleAssociableChoice>
+        <simpleAssociableChoice identifier="h2" matchMax="2">Reptiles</simpleAssociableChoice>
+        <simpleAssociableChoice identifier="h3" matchMax="2">Mammals</simpleAssociableChoice>
+      </simpleMatchSet>
+    </matchInteraction>
+  </div>
+  <p class="ets-direction_paragraph">Select all choices that apply.</p>
+</itemBody>
+<responseProcessing template="http://www.imsglobal.org/question/qti_v2p2/rptemplates/match_correct"/>
+</assessmentItem>
