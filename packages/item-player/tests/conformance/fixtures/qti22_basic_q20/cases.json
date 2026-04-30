@@ -1,0 +1,26 @@
+{
+  "id": "qti22_basic_q20",
+  "cases": [
+    {
+      "name": "Q20-D1: no text entered -> RESPONSE=NULL",
+      "responses": { "RESPONSE": null },
+      "expect": {
+        "outcomes": { "ECHO": null }
+      }
+    },
+    {
+      "name": "Q20-D1b: empty string -> RESPONSE=NULL",
+      "responses": { "RESPONSE": "" },
+      "expect": {
+        "outcomes": { "ECHO": null }
+      }
+    },
+    {
+      "name": "Q20-D2: text entered -> RESPONSE matches entered string (string, single)",
+      "responses": { "RESPONSE": "jumped" },
+      "expect": {
+        "outcomes": { "ECHO": "jumped" }
+      }
+    }
+  ]
+}

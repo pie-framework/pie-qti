@@ -1,0 +1,11 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "QTI 2.2 Basic Level I9b – Response Processing Fixed Template match_correct with identifier baseType. Mirrors all DELIVERY acceptance criteria for match-correct-identifier. Item XML is internally authored to comply with FIXTURE_POLICY.",
+  "covers": [
+    "I9b-match-correct",
+    "I9b-match-D1",
+    "I9b-match-D2",
+    "I9b-match-D3"
+  ]
+}

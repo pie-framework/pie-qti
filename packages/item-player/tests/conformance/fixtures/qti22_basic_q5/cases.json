@@ -1,0 +1,33 @@
+{
+  "id": "qti22_basic_q5",
+  "cases": [
+    {
+      "name": "Q5-L1-D1: no text entered -> RESPONSE=NULL",
+      "responses": { "RESPONSE": null },
+      "expect": {
+        "outcomes": { "ECHO": null }
+      }
+    },
+    {
+      "name": "Q5-L1-D1b: empty string -> RESPONSE=NULL",
+      "responses": { "RESPONSE": "" },
+      "expect": {
+        "outcomes": { "ECHO": null }
+      }
+    },
+    {
+      "name": "Q5-L1-D2: text entered -> RESPONSE matches entered string (string, single)",
+      "responses": { "RESPONSE": "Autumn wind blows cold" },
+      "expect": {
+        "outcomes": { "ECHO": "Autumn wind blows cold" }
+      }
+    },
+    {
+      "name": "Q5-L1-D2b: long text -> RESPONSE preserved without truncation",
+      "responses": { "RESPONSE": "Over the wintry forest, winds howl in rage with no leaves to blow. The autumn wind rustles through the valley, carrying the scent of pine and the memory of summer days long past." },
+      "expect": {
+        "outcomes": { "ECHO": "Over the wintry forest, winds howl in rage with no leaves to blow. The autumn wind rustles through the valley, carrying the scent of pine and the memory of summer days long past." }
+      }
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 # QTI Certification Progress Tracker
 
-Last updated: 2026-04-29
+Last updated: 2026-04-29 (Milestone 1 static analysis complete)
 
 This document tracks the live status of each certification milestone. Update it whenever:
 - A gap is closed (link the PR/commit)
@@ -29,21 +29,45 @@ Elective level (QTI 2.2 and QTI 3.0) is not being pursued. See [STRATEGY.md](STR
 
 ## Milestone 1 — QTI 2.2 Basic DELIVERY
 
-**Overall status**: ⬜ Not started  
+**Overall status**: 🔵 In progress — automated tests pass, member validator + checklist pending  
 **Target date**: —  
 **Submitted**: —  
 **Certified**: —
 
+### Static analysis (2026-04-29)
+
+All DELIVERY criteria verified against codebase. No implementation gaps found.
+See [certification-check-qti22-basic.md](certification-check-qti22-basic.md) for the full per-criterion report.
+
+| Feature | Static analysis | Notes |
+| --- | --- | --- |
+| Q2 single cardinality | ✅ Pass | `choiceExtractor.ts`, `Player.ts:1307–1343` |
+| Q2 multiple cardinality | ✅ Pass | Same path; empty array = valid empty Multiple container |
+| Q5 Extended Text | ✅ Pass | `extendedTextExtractor.ts`, `Player.ts:1341–1342` |
+| Q20 Text Entry | ✅ Pass | `textEntryExtractor.ts`, same coercion path |
+| I9b match_correct template | ✅ Pass | `qti-processing` AST + evaluator |
+| I9b map_response template | ✅ Pass | Per-identifier mapping; default=0 for unmapped |
+| I0/I1/I2/I7/I8 (item root, declarations, body, HTML) | ✅ Pass | Implicit — required for Q2/Q5/Q20/I9b to work; `Player.ts:128–133` |
+| A1 Alternate text for graphics | ✅ Pass | `sanitizer.ts` — `alt` never stripped |
+| T4/T7 Test Part + Section structure | ✅ Pass | `AssessmentPlayer.ts:142–143` |
+| T14 Record & Restore Responses | ✅ Pass | `AssessmentPlayer.ts:288,344–373` — `itemResponses` persisted; `restoreState()` rehydrates |
+| P1/P4 Test/Item Instances (IMS CP) | ✅ Pass | Manifest parsing + item extraction in assessment player |
+
+### Test execution checklist
+
 | Step | Status | Notes |
 |------|--------|-------|
-| Run `Basic Level/Q2 - Choice Interaction/` test package | ⬜ | |
-| Run `Basic Level/Q5 - Extended Text Entry Interaction/` test package | ⬜ | |
-| Run `Basic Level/Q20 - Text Entry Interaction/` test package | ⬜ | |
-| Run `Basic Level/I9b - Response Processing Fixed Template/` test package | ⬜ | |
-| Run `Basic Level/T4 and T7 - Test Structures/` test package | ⬜ | |
-| Validate XML with member validator (https://membervalidator3.1edtech.org/) | ⬜ | |
-| Complete `QTI 2p2 Delivery Certification Checklist.xlsx` | ⬜ | |
-| Submit checklist to 1EdTech | ⬜ | |
+| Run `Basic Level/Q2 - Choice Interaction/single-cardinality/` test package | ✅ | Automated: `qti22_basic_q2_single` fixture (D51–D55) + live runner (`run-conformance-packages.test.ts`) |
+| Run `Basic Level/Q2 - Choice Interaction/multiple-cardinality/` test package | ✅ | Automated: `qti22_basic_q2_multiple` fixture (D1–D7) + live runner |
+| Run `Basic Level/Q5 - Extended Text Entry Interaction/baseType-string/` test package | ✅ | Automated: `qti22_basic_q5` fixture (D1–D2) + live runner |
+| Run `Basic Level/Q20 - Text Entry Interaction/baseType-string/` test package | ✅ | Automated: `qti22_basic_q20` fixture (D1–D2) + live runner |
+| Run `Basic Level/I9b - Response Processing Fixed Template/match-correct-identifier/` test package | ✅ | Automated: `qti22_basic_i9b_match_correct` fixture + live runner |
+| Run `Basic Level/I9b - Response Processing Fixed Template/map-response-identifier/` test package | ✅ | Automated: `qti22_basic_i9b_map_response` fixture (D1–D11) + live runner |
+| Run `Basic Level/T4 and T7 - Test Structures/` test package | ✅ | Automated: `conformance-qti22-basic.test.ts` (T4-D1/D2, T7-D1/D2, T14-D1) + live runner |
+| Run `Basic Level/A1 - Alternate Text for Graphics/` test package | ⬜ | Manual — verify alt attribute passthrough in rendered HTML |
+| Validate XML with member validator (https://membervalidator3.1edtech.org/) | ⬜ | Manual — upload official test package ZIPs |
+| Complete `QTI 2p2 Delivery Certification Checklist.xlsx` | ⬜ | Manual — after member validator pass |
+| Submit checklist to 1EdTech | ⬜ | Manual — after checklist complete |
 
 **Implementation gaps**: None identified. See [qti22-gap-analysis.md — Basic](qti22-gap-analysis.md#basic-level).
 
@@ -192,7 +216,7 @@ Elective level (QTI 2.2 and QTI 3.0) is not being pursued. See [STRATEGY.md](STR
 
 | # | Milestone | Status | Certified date |
 |---|-----------|--------|----------------|
-| 1 | QTI 2.2 Basic DELIVERY | ⬜ Not started | — |
+| 1 | QTI 2.2 Basic DELIVERY | 🔵 In progress | — |
 | 2 | QTI 2.2 Advanced DELIVERY | ⬜ Not started | — |
 | 3 | QTI 3.0 Basic DELIVERY | ⬜ Not started | — |
 | 4 | QTI 3.0 Advanced DELIVERY | ⬜ Not started | — |

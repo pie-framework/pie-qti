@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+  xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="qti22-basic-q20"
+  title="Q20 Text Entry Interaction - BaseType String"
+  adaptive="false"
+  timeDependent="false">
+
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="string"/>
+
+  <!-- ECHO outcome copies RESPONSE so fixture cases can assert its string value -->
+  <outcomeDeclaration identifier="ECHO" cardinality="single" baseType="string"/>
+
+  <itemBody>
+    <p>The cow <textEntryInteraction responseIdentifier="RESPONSE" expectedLength="15"/> over the moon.</p>
+  </itemBody>
+
+  <responseProcessing>
+    <setOutcomeValue identifier="ECHO">
+      <variable identifier="RESPONSE"/>
+    </setOutcomeValue>
+  </responseProcessing>
+
+</assessmentItem>

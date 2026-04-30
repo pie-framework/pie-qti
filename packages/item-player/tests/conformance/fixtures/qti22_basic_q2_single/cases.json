@@ -1,0 +1,33 @@
+{
+  "id": "qti22_basic_q2_single",
+  "cases": [
+    {
+      "name": "Q2-L1-D51: no selection -> RESPONSE=NULL (ECHO=null)",
+      "responses": { "RESPONSE": null },
+      "expect": {
+        "outcomes": { "ECHO": null }
+      }
+    },
+    {
+      "name": "Q2-L1-D52: select choice_a -> RESPONSE=choice_a",
+      "responses": { "RESPONSE": "choice_a" },
+      "expect": {
+        "outcomes": { "ECHO": "choice_a" }
+      }
+    },
+    {
+      "name": "Q2-L1-D53: select choice_b -> RESPONSE=choice_b",
+      "responses": { "RESPONSE": "choice_b" },
+      "expect": {
+        "outcomes": { "ECHO": "choice_b" }
+      }
+    },
+    {
+      "name": "Q2-L1-D54: select choice_c -> RESPONSE=choice_c",
+      "responses": { "RESPONSE": "choice_c" },
+      "expect": {
+        "outcomes": { "ECHO": "choice_c" }
+      }
+    }
+  ]
+}

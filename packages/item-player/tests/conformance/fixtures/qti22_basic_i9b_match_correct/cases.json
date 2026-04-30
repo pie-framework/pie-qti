@@ -1,0 +1,41 @@
+{
+  "id": "qti22_basic_i9b_match_correct",
+  "cases": [
+    {
+      "name": "I9b-match-D1: RESPONSE=NULL -> SCORE=0",
+      "responses": { "RESPONSE": null },
+      "expect": {
+        "score": 0,
+        "maxScore": 1,
+        "outcomes": { "SCORE": 0, "MAXSCORE": 1 }
+      }
+    },
+    {
+      "name": "I9b-match-D2: RESPONSE=choice_a (correct) -> SCORE=1",
+      "responses": { "RESPONSE": "choice_a" },
+      "expect": {
+        "score": 1,
+        "maxScore": 1,
+        "outcomes": { "SCORE": 1, "MAXSCORE": 1 }
+      }
+    },
+    {
+      "name": "I9b-match-D3: RESPONSE=choice_b (incorrect) -> SCORE=0",
+      "responses": { "RESPONSE": "choice_b" },
+      "expect": {
+        "score": 0,
+        "maxScore": 1,
+        "outcomes": { "SCORE": 0, "MAXSCORE": 1 }
+      }
+    },
+    {
+      "name": "I9b-match-D3b: RESPONSE=choice_c (extra choice, incorrect) -> SCORE=0",
+      "responses": { "RESPONSE": "choice_c" },
+      "expect": {
+        "score": 0,
+        "maxScore": 1,
+        "outcomes": { "SCORE": 0, "MAXSCORE": 1 }
+      }
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "QTI 2.2 Basic Level Q20 – Text Entry Interaction baseType string. Mirrors DELIVERY criteria Q5-L1-D1 and Q5-L1-D2 (Q20 README reuses Q5 criterion IDs). Item XML is internally authored to comply with FIXTURE_POLICY.",
+  "covers": [
+    "Q20-text-entry",
+    "Q20-D1",
+    "Q20-D2"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "QTI 2.2 Basic Level Q2 – Choice Interaction multiple cardinality. Mirrors DELIVERY criteria Q2-L1-D1 through Q2-L1-D7. Item XML is internally authored to comply with FIXTURE_POLICY.",
+  "covers": [
+    "Q2-multiple-cardinality",
+    "Q2-L1-D1",
+    "Q2-L1-D2",
+    "Q2-L1-D3",
+    "Q2-L1-D4",
+    "Q2-L1-D5",
+    "Q2-L1-D6",
+    "Q2-L1-D7"
+  ]
+}
