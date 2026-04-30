@@ -86,8 +86,8 @@ See [certification-check-qti22-basic.md](certification-check-qti22-basic.md) for
 | Gap | Status | PRD | PR / Commit | Notes |
 | --- | --- | --- | --- | --- |
 | T9 — Full `<outcomeProcessing>` XML interpreter | 🟡 Needs investigation | — | — | Determine if template system satisfies acceptance criteria or if AST work (G-11) is required |
-| I18 — MathML v2 rendering | 🟡 Needs verification | — | — | Confirm math library is bundled and tested |
-| P7 — QTI Metadata delivery | 🟡 Needs verification | — | — | Run test package; check if metadata display criteria require UI changes |
+| I18 — MathML v2 rendering | 🔴 Gap confirmed | — | — | `@pie-qti/typeset-katex` bundled but never wired into item-player; MathML renders as raw DOM, not typeset |
+| P7 — QTI Metadata delivery | 🔴 Gap confirmed | — | — | No DELIVERY acceptance criteria in README ("no specific criteria at this time") — verify this is a no-op for certification |
 
 ### Test execution checklist
 
@@ -125,7 +125,7 @@ See [certification-check-qti22-basic.md](certification-check-qti22-basic.md) for
 
 | Gap | Status | PRD | PR / Commit | Notes |
 | --- | --- | --- | --- | --- |
-| I19a — Shared Vocabulary Subset CSS class passthrough | 🟡 Needs verification | — | — | Check item player HTML renderer does not strip QTI shared vocab classes |
+| I19a — Shared Vocabulary Subset CSS class passthrough | ✅ Verified | — | — | Sanitizer uses denylist; `class` attribute passes through untouched (`sanitizer.ts:110–157`) |
 
 ### Test execution checklist
 
