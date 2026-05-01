@@ -194,6 +194,15 @@ const Q10_HOTSPOT_MULTIPLE = `
 
 // Q10-D2: Polygon shapes hotspot — plant diagram (simplified inline SVG replaces 483 KB plants.svg)
 // Correct answer: i4 (rhizome, underground portion)
+//
+// SVG uses the SAME 680×680 coordinate space as the original conformance item so that
+// the hotspot polygons from the original XML align exactly with the visual elements:
+//   i1 lily pad polygon centroid: ~(215, 164) — floating on water surface
+//   i2 leaf triangle centroid:    ~(350, 121) — stem leaf above water
+//   i3 bud circle:                 (379,  80) — flower bud at top
+//   i4 rhizome triangle centroid: ~(297, 538) — horizontal stem in lake bed
+//
+// Water lily anatomy: rhizome buried in lake bed → stem rises through water → pads float
 const Q10_HOTSPOT_SHAPES = `
 <?xml version="1.0" encoding="UTF-8"?>
 <assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
@@ -213,50 +222,63 @@ const Q10_HOTSPOT_SHAPES = `
     <p>In the following image, which part of the plant is the rhizome?</p>
     <p>Select a highlighted part of the image to indicate your answer.</p>
     <hotspotInteraction maxChoices="1" minChoices="1" responseIdentifier="RESPONSE">
-      <object type="image/svg+xml" width="340" height="400">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 400">
-          <!-- Sky -->
-          <rect width="340" height="240" fill="#87CEEB"/>
-          <!-- Ground line -->
-          <rect y="240" width="340" height="10" fill="#8B6914"/>
-          <!-- Underground -->
-          <rect y="250" width="340" height="150" fill="#C2935A"/>
-          <!-- Water line at bottom -->
-          <rect y="360" width="340" height="40" fill="#4A90E2" opacity="0.4"/>
+      <object type="image/svg+xml" width="680" height="680">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 680">
+          <!-- Sky: y=0–200 -->
+          <rect width="680" height="200" fill="#87CEEB"/>
+          <!-- Water: y=200–580 -->
+          <rect y="200" width="680" height="380" fill="#4A90E2" opacity="0.55"/>
+          <!-- Lake bed / mud: y=580–680 -->
+          <rect y="580" width="680" height="100" fill="#8B6914"/>
 
-          <!-- Stem (i1: lily pad area) -->
-          <rect x="155" y="80" width="12" height="160" fill="#4a7c3f"/>
-          <!-- Flower / lily pad (i1 region) -->
-          <ellipse cx="161" cy="75" rx="45" ry="18" fill="#6abf69" stroke="#357a38" stroke-width="2"/>
-          <circle cx="161" cy="68" r="12" fill="#FFD700" stroke="#e6ac00" stroke-width="1.5"/>
+          <!-- Water surface shimmer -->
+          <line x1="0" y1="200" x2="680" y2="200" stroke="#1a6bb5" stroke-width="3" opacity="0.6"/>
 
-          <!-- Leaves above water (i2 region) -->
-          <ellipse cx="220" cy="130" rx="35" ry="12" fill="#4a7c3f" transform="rotate(-25,220,130)"/>
-          <ellipse cx="100" cy="140" rx="35" ry="12" fill="#4a7c3f" transform="rotate(20,100,140)"/>
+          <!-- Stem from rhizome (297,538) up to water surface then to lily pad -->
+          <path d="M 297,538 Q 260,380 215,200 L 215,164" stroke="#4a7c3f" stroke-width="10" fill="none" stroke-linecap="round"/>
 
-          <!-- Floating leaf (i3 region) — circle hotspot in original -->
-          <ellipse cx="270" cy="245" rx="30" ry="10" fill="#4a7c3f" stroke="#357a38" stroke-width="1.5"/>
+          <!-- Secondary stem to leaf (i2) and bud (i3) -->
+          <path d="M 240,140 Q 300,130 350,121" stroke="#4a7c3f" stroke-width="7" fill="none"/>
+          <path d="M 350,121 Q 365,100 379,80" stroke="#4a7c3f" stroke-width="6" fill="none"/>
 
-          <!-- Rhizome — horizontal underground stem (i4 region, correct answer) -->
-          <rect x="80" y="295" width="180" height="22" rx="11" fill="#8B5E2A" stroke="#5c3b18" stroke-width="2"/>
-          <!-- Roots hanging from rhizome -->
-          <line x1="110" y1="317" x2="105" y2="360" stroke="#7a5230" stroke-width="2"/>
-          <line x1="140" y1="317" x2="138" y2="362" stroke="#7a5230" stroke-width="2"/>
-          <line x1="170" y1="317" x2="170" y2="365" stroke="#7a5230" stroke-width="2"/>
-          <line x1="200" y1="317" x2="202" y2="360" stroke="#7a5230" stroke-width="2"/>
-          <line x1="230" y1="317" x2="235" y2="355" stroke="#7a5230" stroke-width="2"/>
+          <!-- i1: Lily pad — large ellipse matching polygon centroid ~(215, 164) -->
+          <ellipse cx="215" cy="164" rx="72" ry="28" fill="#5ab85a" stroke="#2d7a2d" stroke-width="3"/>
+          <!-- Pad notch (characteristic V-cut) -->
+          <path d="M 215,136 L 215,164" stroke="#2d7a2d" stroke-width="2"/>
+          <text x="215" y="158" text-anchor="middle" font-size="18" font-weight="bold" fill="#fff">i1: Pad</text>
 
-          <!-- Labels -->
-          <text x="170" y="48" text-anchor="middle" font-size="11" fill="#1a5c1a" font-weight="bold">Flower (i1)</text>
-          <text x="255" y="120" font-size="10" fill="#1a5c1a" font-weight="bold">Leaf (i2)</text>
-          <text x="275" y="240" font-size="10" fill="#1a5c1a" font-weight="bold">Float (i3)</text>
-          <text x="170" y="290" text-anchor="middle" font-size="11" fill="#4a1f00" font-weight="bold">Rhizome (i4) ← correct</text>
+          <!-- i2: Leaf — small oval near triangle centroid ~(350, 121) -->
+          <ellipse cx="350" cy="121" rx="28" ry="14" fill="#5ab85a" stroke="#2d7a2d" stroke-width="2" transform="rotate(-20,350,121)"/>
+          <text x="365" y="110" font-size="16" font-weight="bold" fill="#1a4a1a">i2: Leaf</text>
 
-          <text x="170" y="20" text-anchor="middle" font-size="13" font-weight="bold" fill="#1a1a6e">Water Lily — Identify the Rhizome</text>
-          <text x="170" y="390" text-anchor="middle" font-size="10" fill="#555">Simplified diagram (original: plants.svg)</text>
+          <!-- i3: Bud — circle at (379, 80) radius 14 in original -->
+          <circle cx="379" cy="80" r="22" fill="#FFD700" stroke="#e6ac00" stroke-width="3"/>
+          <!-- Petals suggestion -->
+          <circle cx="379" cy="58" r="8" fill="#FF8C00" opacity="0.8"/>
+          <circle cx="397" cy="68" r="8" fill="#FF8C00" opacity="0.8"/>
+          <text x="410" y="75" font-size="16" font-weight="bold" fill="#7a4f00">i3: Bud</text>
+
+          <!-- i4: Rhizome — horizontal stem in lake bed, centroid ~(297, 538) -->
+          <rect x="194" y="518" width="166" height="40" rx="20" fill="#8B5E2A" stroke="#4a2e0a" stroke-width="3"/>
+          <!-- Root hairs from rhizome -->
+          <line x1="220" y1="558" x2="212" y2="610" stroke="#5c3b18" stroke-width="3"/>
+          <line x1="250" y1="560" x2="245" y2="615" stroke="#5c3b18" stroke-width="3"/>
+          <line x1="280" y1="560" x2="280" y2="618" stroke="#5c3b18" stroke-width="3"/>
+          <line x1="310" y1="560" x2="315" y2="615" stroke="#5c3b18" stroke-width="3"/>
+          <line x1="340" y1="558" x2="348" y2="610" stroke="#5c3b18" stroke-width="3"/>
+          <text x="297" y="543" text-anchor="middle" font-size="18" font-weight="bold" fill="#fff">i4: Rhizome ✓</text>
+
+          <!-- Zone labels -->
+          <text x="20" y="30" font-size="14" fill="#1a3a6e">Sky</text>
+          <text x="20" y="230" font-size="14" fill="#fff" opacity="0.9">Water</text>
+          <text x="20" y="610" font-size="14" fill="#f5deb3">Lake bed</text>
+
+          <!-- Title -->
+          <text x="340" y="645" text-anchor="middle" font-size="20" font-weight="bold" fill="#f5deb3">Water Lily — Click the Rhizome</text>
+          <text x="340" y="668" text-anchor="middle" font-size="13" fill="#c4a97a">(Simplified diagram; original: plants.svg)</text>
         </svg>
       </object>
-      <!-- Hotspot coordinates match the original conformance XML for i4 (rhizome polygon) -->
+      <!-- Original conformance hotspot coordinates — aligned to 680×680 SVG above -->
       <hotspotChoice coords="243,129,221,130,204,133,186,140,172,146,159,155,149,165,146,175,147,183,151,189,159,194,173,198,187,199,203,199,222,196,241,189,261,179,274,169,284,155,281,142,272,136,260,131,243,129" identifier="i1" shape="poly"/>
       <hotspotChoice coords="330,118,357,108,364,138,330,118" identifier="i2" shape="poly"/>
       <hotspotChoice coords="379,80,14" identifier="i3" shape="circle"/>
