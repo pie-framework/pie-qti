@@ -75,14 +75,27 @@ export const standardGraphicGapMatchExtractor: ElementExtractor<GraphicGapMatchD
 			const height = utils.getNumberAttribute(objectElement, 'height', 0);
 
 			if (type.startsWith('image/svg')) {
-				// Extract inline SVG content - get full content including <svg> tag
+				// Inline SVG: <object type="image/svg+xml"><svg>...</svg></object>
+				// External SVG: <object type="image/svg+xml" data="path/to/file.svg"/>
+				// The <object> may contain alt text (not SVG markup) — only treat as inline if content has <svg.
 				const content = utils.getHtmlContent(objectElement);
-				imageData = {
-					type: 'svg',
-					content,
-					...(width > 0 ? { width } : {}),
-					...(height > 0 ? { height } : {}),
-				};
+				const hasSvgMarkup = /<svg[\s>]/i.test(content);
+				if (hasSvgMarkup) {
+					imageData = {
+						type: 'svg',
+						content,
+						...(width > 0 ? { width } : {}),
+						...(height > 0 ? { height } : {}),
+					};
+				} else {
+					// External SVG file reference — render via <img src>
+					imageData = {
+						type: 'image',
+						src: data,
+						...(width > 0 ? { width } : {}),
+						...(height > 0 ? { height } : {}),
+					};
+				}
 			} else {
 				// External image reference
 				imageData = {

@@ -65,15 +65,27 @@ export const standardHotspotExtractor: ElementExtractor<HotspotData> = {
 			const height = utils.getAttribute(objectElement, 'height', 'auto');
 
 			if (type.startsWith('image/svg')) {
-				// Extract inline SVG content - keep the full <svg>...</svg> markup.
-				// (Using the innerHTML of the <svg> element would drop the wrapper tag and render as plain text.)
+				// Inline SVG: <object type="image/svg+xml"><svg>...</svg></object>
+				// External SVG: <object type="image/svg+xml" data="path/to/file.svg"/>
+				// The <object> may contain alt text (not SVG markup) — only treat as inline if content has <svg.
 				const content = utils.getHtmlContent(objectElement);
-				imageData = {
-					type: 'svg',
-					content,
-					width,
-					height,
-				};
+				const hasSvgMarkup = /<svg[\s>]/i.test(content);
+				if (hasSvgMarkup) {
+					imageData = {
+						type: 'svg',
+						content,
+						width,
+						height,
+					};
+				} else {
+					// External SVG file reference — render via <img src> (SVG renders in img tags)
+					imageData = {
+						type: 'image',
+						src: data,
+						width,
+						height,
+					};
+				}
 			} else {
 				// External image reference
 				imageData = {

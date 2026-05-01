@@ -404,9 +404,15 @@ function handleRootKeyDown(event: KeyboardEvent) {
 				class="qti-ggm-stage relative inline-block border-2 border-base-300 rounded-lg"
 				style="position: relative; display: inline-block; width: {parsedInteraction.imageData?.width}px; height: {parsedInteraction.imageData?.height}px;"
 			>
-				<!-- SVG image -->
+				<!-- SVG image or raster image -->
 				{#if parsedInteraction.imageData?.content}
 					{@html parsedInteraction.imageData.content}
+				{:else if parsedInteraction.imageData?.src}
+					<img
+						src={parsedInteraction.imageData.src}
+						alt={i18n?.t('interactions.graphicGapMatch.imageAlt') ?? 'Graphic gap match image'}
+						style="width: 100%; height: 100%; display: block; position: absolute; top: 0; left: 0;"
+					/>
 				{/if}
 
 				<!-- Overlay with hotspot drop zones -->
@@ -452,7 +458,9 @@ function handleRootKeyDown(event: KeyboardEvent) {
 									onkeydown={(e) => handleHotspotKeyDown(e, hotspot.identifier)}
 								/>
 							{:else if hotspot.shape === 'rect'}
-								{@const [x, y, width, height] = hotspot.coords.split(',').map(Number)}
+								{@const [x, y, right, bottom] = hotspot.coords.split(',').map(Number)}
+								{@const width = right - x}
+								{@const height = bottom - y}
 								{@const hotspotIndex = parsedInteraction.hotspots.findIndex((h) => h.identifier === hotspot.identifier)}
 								<rect
 									role="button"
