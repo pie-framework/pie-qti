@@ -77,7 +77,7 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 			// Get the raw HTML content and extract gaps
 			const promptHtml = promptElement.outerHTML || promptElement.toString();
 
-			// Extract gap elements from prompt
+			// Extract gap elements from prompt children
 			const gapElements = utils.getChildrenByTag(promptElement, 'gap');
 			for (const gap of gapElements) {
 				gaps.push(utils.getAttribute(gap, 'identifier', ''));
@@ -91,29 +91,32 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 				.replace(/<gap\s+identifier='([^']+)'[^>]*>/g, '[GAP:$1]')
 				.replace(/<\/gap>/g, '')
 				.trim();
-		} else {
-			// No <prompt> element: derive promptText from the interaction content excluding <gapText> blocks.
-			const interactionHtml = element.outerHTML || element.toString();
+		}
 
-			// Extract gap identifiers from anywhere in the interaction body.
+		// If gaps were not found inside a <prompt>, search the full interaction body.
+		// This handles items where <gap> elements appear in <p>/<blockquote> siblings of <prompt>.
+		if (gaps.length === 0) {
+			const interactionHtml = element.outerHTML || element.toString();
 			const gapIdMatches = Array.from(
-				interactionHtml.matchAll(/<gap\s+identifier=(?:"([^"]+)"|'([^']+)')[^>]*\/?>/g)
+				interactionHtml.matchAll(/<gap\s+identifier=(?:"([^"]+)"|'([^']+)')[^>]*\/?>/gi)
 			);
 			for (const m of gapIdMatches) {
 				const id = (m[1] || m[2] || '').trim();
 				if (id) gaps.push(id);
 			}
 
-			promptText = interactionHtml
-				.replace(/<gapMatchInteraction[^>]*>/, '')
-				.replace(/<\/gapMatchInteraction>/, '')
-				// Remove draggable palette entries (gapText)
-				.replace(/<gapText[\s\S]*?<\/gapText>/g, '')
-				// Replace gap tags with placeholders
-				.replace(/<gap\s+identifier="([^"]+)"[^>]*\/?>/g, '[GAP:$1]')
-				.replace(/<gap\s+identifier='([^']+)'[^>]*\/?>/g, '[GAP:$1]')
-				.replace(/<\/gap>/g, '')
-				.trim();
+			if (!promptText) {
+				// No prompt element either: build promptText from full interaction content.
+				const interactionHtml2 = element.outerHTML || element.toString();
+				promptText = interactionHtml2
+					.replace(/<gapMatchInteraction[^>]*>/, '')
+					.replace(/<\/gapMatchInteraction>/, '')
+					.replace(/<gapText[\s\S]*?<\/gapText>/g, '')
+					.replace(/<gap\s+identifier="([^"]+)"[^>]*\/?>/g, '[GAP:$1]')
+					.replace(/<gap\s+identifier='([^']+)'[^>]*\/?>/g, '[GAP:$1]')
+					.replace(/<\/gap>/g, '')
+					.trim();
+			}
 		}
 
 		// Extract attributes

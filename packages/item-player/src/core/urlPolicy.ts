@@ -62,14 +62,17 @@ export function sanitizeResourceUrl(raw: string, policy?: UrlPolicyConfig, kind:
 	if (s.startsWith('//')) return p.allowProtocolRelative ? `https:${s}` : null;
 
 	// Relative/absolute-path URLs: allow and optionally resolve.
-	if (s.startsWith('/') || s.startsWith('./') || s.startsWith('../')) {
+	// Bare relative paths (e.g. "images/foo.png" from IMS CP manifests) are treated
+	// the same as "./" paths — they have no scheme and are safe to pass through.
+	if (s.startsWith('/') || s.startsWith('./') || s.startsWith('../') || !/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(s)) {
 		if (p.assetBaseUrl) {
 			try {
 				// Strip leading '/' to make URL constructor resolve relative to base path, not origin
 				const relativePath = s.startsWith('/') ? s.slice(1) : s;
 				return new URL(relativePath, p.assetBaseUrl).toString();
 			} catch {
-				return null;
+				// assetBaseUrl resolution failed; return the raw relative path as-is
+				return s;
 			}
 		}
 		return s;

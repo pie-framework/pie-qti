@@ -110,6 +110,25 @@ export async function processPackage(file: File): Promise<PackageStructure> {
 }
 
 /**
+ * Load a conformance package ZIP from a URL and process it.
+ *
+ * Fetches the ZIP, wraps it in a File, and passes it through the standard
+ * processPackage() pipeline — identical to user-uploaded packages.
+ *
+ * @param zipUrl Absolute URL to a .zip IMS Content Package
+ */
+export async function loadConformancePackageFromUrl(zipUrl: string): Promise<PackageStructure> {
+	const response = await fetch(zipUrl);
+	if (!response.ok) {
+		throw new Error(`Failed to fetch conformance package: ${response.status} ${zipUrl}`);
+	}
+	const blob = await response.blob();
+	const filename = zipUrl.split('/').pop() ?? 'package.zip';
+	const file = new File([blob], filename, { type: 'application/zip' });
+	return processPackage(file);
+}
+
+/**
  * Convert VirtualPackage to PackageStructure format
  */
 function convertToPackageStructure(pkg: VirtualPackage): PackageStructure {
