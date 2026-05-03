@@ -36,6 +36,10 @@ export interface TextEntryInteractionData extends BaseInteractionData {
 	patternMask: string | null;
 	placeholderText: string;
 	format?: string;
+	/** CSS classes from the textEntryInteraction element (e.g. qti-input-width-N) */
+	interactionClasses?: string[];
+	/** Pattern mask validation message (data-patternmask-message) */
+	patternMaskMessage?: string | null;
 }
 
 export interface ExtendedTextInteractionData extends BaseInteractionData {
@@ -44,6 +48,8 @@ export interface ExtendedTextInteractionData extends BaseInteractionData {
 	expectedLength: number;
 	placeholderText: string;
 	format: string;
+	/** CSS classes from the extendedTextInteraction element (e.g. qti-height-lines-N) */
+	interactionClasses?: string[];
 }
 
 export interface InlineChoiceInteractionData extends BaseInteractionData {

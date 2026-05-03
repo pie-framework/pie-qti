@@ -43,7 +43,7 @@
 
 <ShadowBaseStyles />
 
-<div bind:this={rootElement} part="root" class="qti-extended-text-interaction">
+<div bind:this={rootElement} part="root" class={['qti-extended-text-interaction', ...(parsedInteraction?.interactionClasses ?? [])].join(' ')}>
 	{#if !parsedInteraction}
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
@@ -73,5 +73,27 @@
 	.qti-extended-text-interaction {
 		display: grid;
 		gap: 0.75rem;
+	}
+
+	/* QTI 3.0 Shared Vocabulary: qti-height-lines-N sets minimum textarea height.
+	   Each line unit = 1.5rem (24px) matching the editor's line-height. */
+	.qti-height-lines-1  { --qti-min-height: 1.5rem; }
+	.qti-height-lines-2  { --qti-min-height: 3rem; }
+	.qti-height-lines-3  { --qti-min-height: 4.5rem; }
+	.qti-height-lines-4  { --qti-min-height: 6rem; }
+	.qti-height-lines-5  { --qti-min-height: 7.5rem; }
+	.qti-height-lines-6  { --qti-min-height: 9rem; }
+	.qti-height-lines-7  { --qti-min-height: 10.5rem; }
+	.qti-height-lines-8  { --qti-min-height: 12rem; }
+	.qti-height-lines-10 { --qti-min-height: 15rem; }
+	.qti-height-lines-12 { --qti-min-height: 18rem; }
+	.qti-height-lines-15 { --qti-min-height: 22.5rem; }
+	.qti-height-lines-20 { --qti-min-height: 30rem; }
+	.qti-height-lines-25 { --qti-min-height: 37.5rem; }
+
+	/* Apply the CSS variable to the editor's inner textarea via the part */
+	[class*='qti-height-lines-'] :global([part='editor'] .ProseMirror),
+	[class*='qti-height-lines-'] :global([part='editor'] textarea) {
+		min-height: var(--qti-min-height);
 	}
 </style>

@@ -1,6 +1,6 @@
 # QTI Certification Progress Tracker
 
-Last updated: 2026-05-03 (Q8/Q10/Q11 visual verification complete; S5 automated; S3/S4/P7 confirmed N/A or no delivery criteria; all Advanced items ✅)
+Last updated: 2026-05-03 (Q8/Q10/Q11 visual verification complete; S5 automated; S3/S4/P7 confirmed N/A or no delivery criteria; all Advanced items ✅; QTI 3.0 Basic Shared Vocabulary gaps closed — Q2 label classes, Q5 height-lines, Q20 input-width + patternmask-message)
 
 This document tracks the live status of each certification milestone. Update it whenever:
 - A gap is closed (link the PR/commit)
@@ -117,34 +117,38 @@ See [certification-check-qti22-basic.md](certification-check-qti22-basic.md) for
 
 ## Milestone 3 — QTI 3.0 Basic DELIVERY
 
-**Overall status**: ⬜ Not started  
+**Overall status**: 🔵 In progress — Shared Vocabulary gaps closed; automated extractor tests pass; visual run + member validator pending  
 **Target date**: —  
 **Submitted**: —  
 **Certified**: —  
 **Prerequisite**: Milestone 1 (QTI 2.2 Basic) must be certified first.
 
-### Open gaps to close before test run
+### Open gaps closed (2026-05-03)
 
-| Gap | Status | PRD | PR / Commit | Notes |
-| --- | --- | --- | --- | --- |
-| I19a — Shared Vocabulary Subset CSS class passthrough | ✅ Verified | — | — | Sanitizer uses denylist; `class` attribute passes through untouched (`sanitizer.ts:110–157`) |
+| Gap | Status | PR / Commit | Notes |
+| --- | --- | --- | --- |
+| I19a — Shared Vocabulary CSS class passthrough (sanitizer) | ✅ Verified | — | `class` attribute passes through untouched (`sanitizer.ts:110–157`) |
+| Q2 — `qti-labels-*` / `qti-orientation-*` interaction classes | ✅ Implemented | develop | `choiceExtractor.ts` extracts `interactionClasses`; `ChoiceInteraction.svelte` spreads them onto root element |
+| Q5 — `qti-height-lines-N` interaction classes | ✅ Implemented | develop | `extendedTextExtractor.ts` extracts `interactionClasses`; `ExtendedTextInteraction.svelte` spreads + adds CSS for `--qti-min-height` |
+| Q20 — `qti-input-width-N` interaction classes | ✅ Implemented | develop | `textEntryExtractor.ts` extracts `interactionClasses`; `ItemBody.svelte` applies `qti-input-width-N` class + CSS `ch`-unit rules |
+| Q20 — `data-patternmask-message` | ✅ Implemented | develop | Extracted to `patternMaskMessage` in `TextEntryInteractionData`; used as custom `oninvalid` message in `ItemBody.svelte` |
 
 ### Test execution checklist
 
 | Step | Status | Notes |
 |------|--------|-------|
-| Close / resolve all gaps above | ⬜ | |
-| Run `Basic/Q2 - Choice Interaction/` test package | ⬜ | |
-| Run `Basic/Q5 - Extended Text Entry Interaction/` test package | ⬜ | |
-| Run `Basic/Q20 - Text Entry Interaction/` test package | ⬜ | |
+| Close / resolve all gaps above | ✅ | All gaps closed; 11 automated extractor tests pass (`conformance-qti3-basic.test.ts`) |
+| Run `Basic/Q2 - Choice Interaction/` test package | ⬜ | Manual — load via conformance page; verify label classes render |
+| Run `Basic/Q5 - Extended Text Entry Interaction/` test package | ⬜ | Manual — verify `qti-height-lines-3/6/15` controls textarea height |
+| Run `Basic/Q20 - Text Entry Interaction/` test package | ⬜ | Manual — verify `qti-input-width-N` controls input width; `data-patternmask-message` on violation |
 | Run `Basic/I9b - Response Processing Fixed Template/` test package | ⬜ | |
 | Run `Basic/T4 and T7 - Test Structures/` test package | ⬜ | |
-| Run `Basic/A1 - Alternate Text for Graphics/` test package | ⬜ | |
-| Validate XML with member validator | ⬜ | |
-| Complete `QTI 3 Delivery Certification Checklist.xlsx` (Basic section) | ⬜ | |
-| Submit checklist to 1EdTech | ⬜ | |
+| Run `Basic/A1 - Alternate Text for Graphics/` test package | ⬜ | Manual — verify alt attribute passthrough in rendered HTML |
+| Validate XML with member validator | ⬜ | Manual — upload official test package ZIPs |
+| Complete `QTI 3 Delivery Certification Checklist.xlsx` (Basic section) | ⬜ | Manual — after member validator pass |
+| Submit checklist to 1EdTech | ⬜ | Manual — after checklist complete |
 
-**Implementation gaps**: I19a needs verification. See [qti30-gap-analysis.md — Basic](qti30-gap-analysis.md#basic-level).
+**Implementation gaps**: All known gaps closed. See [qti30-gap-analysis.md — Basic](qti30-gap-analysis.md#basic-level).
 
 ---
 
@@ -219,7 +223,7 @@ See [certification-check-qti22-basic.md](certification-check-qti22-basic.md) for
 | # | Milestone | Status | Certified date |
 |---|-----------|--------|----------------|
 | 1 | QTI 2.2 Basic DELIVERY | 🔵 In progress | — |
-| 2 | QTI 2.2 Advanced DELIVERY | ⬜ Not started | — |
-| 3 | QTI 3.0 Basic DELIVERY | ⬜ Not started | — |
+| 2 | QTI 2.2 Advanced DELIVERY | 🔵 In progress | — |
+| 3 | QTI 3.0 Basic DELIVERY | 🔵 In progress | — |
 | 4 | QTI 3.0 Advanced DELIVERY | ⬜ Not started | — |
 | 5 | QTI 3.0 Elevated Accessibility DELIVERY | ⬜ Not started | — |

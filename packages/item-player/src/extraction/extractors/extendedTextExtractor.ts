@@ -43,12 +43,14 @@ export const standardExtendedTextExtractor: ElementExtractor<ExtendedTextData> =
 		const expectedLength = utils.getNumberAttribute(element, 'expectedLength', 200);
 		const placeholderText = utils.getAttribute(element, 'placeholderText', '');
 		const format = utils.getAttribute(element, 'format', 'plain');
+		const interactionClasses = utils.getClasses(element);
 
 		return {
 			expectedLines,
 			expectedLength,
 			placeholderText,
 			format,
+			...(interactionClasses.length > 0 ? { interactionClasses } : {}),
 		};
 	},
 

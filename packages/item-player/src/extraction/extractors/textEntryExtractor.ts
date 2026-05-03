@@ -42,12 +42,16 @@ export const standardTextEntryExtractor: ElementExtractor<TextEntryData> = {
 		const patternMask = utils.getAttribute(element, 'patternMask', '');
 		const placeholderText = utils.getAttribute(element, 'placeholderText', '');
 		const format = utils.getAttribute(element, 'format', '');
+		const interactionClasses = utils.getClasses(element);
+		const patternMaskMessage = utils.getAttribute(element, 'data-patternmask-message', '') || null;
 
 		return {
 			expectedLength,
 			patternMask: patternMask || null,
 			placeholderText,
 			...(format ? { format } : {}),
+			...(interactionClasses.length > 0 ? { interactionClasses } : {}),
+			...(patternMaskMessage ? { patternMaskMessage } : {}),
 		};
 	},
 

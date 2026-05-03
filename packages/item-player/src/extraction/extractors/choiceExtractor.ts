@@ -58,6 +58,7 @@ export const standardChoiceExtractor: ElementExtractor<ChoiceData> = {
 		const shuffle = utils.getBooleanAttribute(element, 'shuffle');
 		const maxChoices = utils.getNumberAttribute(element, 'maxChoices', 1);
 		const minChoices = utils.getNumberAttribute(element, 'minChoices', 0);
+		const interactionClasses = utils.getClasses(element);
 
 		return {
 			choices,
@@ -65,6 +66,7 @@ export const standardChoiceExtractor: ElementExtractor<ChoiceData> = {
 			maxChoices,
 			minChoices,
 			prompt,
+			...(interactionClasses.length > 0 ? { interactionClasses } : {}),
 		};
 	},
 

@@ -180,9 +180,11 @@
 		}
 	}
 
-	function handleTextEntryInvalid(responseId: string, e: Event) {
+	function handleTextEntryInvalid(responseId: string, e: Event, customMessage?: string | null) {
 		e.preventDefault();
-		const msg = i18n?.t('interactions.textEntry.patternError', 'Please match the required format') ?? 'Please match the required format';
+		const msg = customMessage
+			?? i18n?.t('interactions.textEntry.patternError', 'Please match the required format')
+			?? 'Please match the required format';
 		textEntryErrors = new Map(textEntryErrors).set(responseId, msg);
 	}
 
@@ -273,13 +275,15 @@
 				{:else if segment.type === 'textEntry'}
 					{@const correctAnswer = roleCapabilities.canViewCorrectResponses ? (correctResponses[segment.interaction.responseId] ?? null) : null}
 					{@const displayValue = roleCapabilities.canViewCorrectResponses && correctAnswer !== null ? correctAnswer : (responses[segment.interaction.responseId] || '')}
+					{@const inputWidthClass = (segment.interaction.interactionClasses ?? []).find((c: string) => c.startsWith('qti-input-width-'))}
+					{@const extraClasses = (segment.interaction.interactionClasses ?? []).filter((c: string) => !c.startsWith('qti-input-width-')).join(' ')}
 					<input
 						type="text"
-						class="input input-bordered input-sm inline-input"
+						class={['input input-bordered input-sm inline-input', inputWidthClass ?? '', extraClasses].filter(Boolean).join(' ')}
 						class:border-success={correctAnswer !== null}
 						class:bg-success={correctAnswer !== null}
 						class:bg-opacity-10={correctAnswer !== null}
-						style="width: {segment.interaction.expectedLength * 8}px; min-width: 100px; display: inline-block; margin: 0 4px;"
+						style={inputWidthClass ? 'min-width: 100px; display: inline-block; margin: 0 4px;' : `width: ${segment.interaction.expectedLength * 8}px; min-width: 100px; display: inline-block; margin: 0 4px;`}
 						placeholder={segment.interaction.placeholderText || '...'}
 						pattern={segment.interaction.patternMask || undefined}
 						title={segment.interaction.patternMask ? `Format: ${segment.interaction.patternMask}` : undefined}
@@ -289,7 +293,7 @@
 						aria-describedby={textEntryErrors.has(segment.interaction.responseId) ? `${segment.interaction.responseId}-error` : undefined}
 						value={displayValue}
 						oninput={(e) => handleTextEntryInput(segment.interaction.responseId, e)}
-						oninvalid={(e) => handleTextEntryInvalid(segment.interaction.responseId, e)}
+						oninvalid={(e) => handleTextEntryInvalid(segment.interaction.responseId, e, segment.interaction.patternMaskMessage)}
 						onblur={handleTextEntryBlur}
 						disabled={effectiveDisabled}
 					/>
@@ -418,4 +422,22 @@
 		border-left: 2px solid var(--color-base-content, currentColor);
 		opacity: 0.8;
 	}
+
+	/* QTI 3.0 Shared Vocabulary: qti-input-width-N sets minimum input width in character units. */
+	:global(.qti-input-width-1)  { min-width: 1ch; }
+	:global(.qti-input-width-2)  { min-width: 2ch; }
+	:global(.qti-input-width-3)  { min-width: 3ch; }
+	:global(.qti-input-width-4)  { min-width: 4ch; }
+	:global(.qti-input-width-5)  { min-width: 5ch; }
+	:global(.qti-input-width-6)  { min-width: 6ch; }
+	:global(.qti-input-width-10) { min-width: 10ch; }
+	:global(.qti-input-width-15) { min-width: 15ch; }
+	:global(.qti-input-width-20) { min-width: 20ch; }
+	:global(.qti-input-width-25) { min-width: 25ch; }
+	:global(.qti-input-width-30) { min-width: 30ch; }
+	:global(.qti-input-width-35) { min-width: 35ch; }
+	:global(.qti-input-width-40) { min-width: 40ch; }
+	:global(.qti-input-width-45) { min-width: 45ch; }
+	:global(.qti-input-width-50) { min-width: 50ch; }
+	:global(.qti-input-width-72) { min-width: 72ch; }
 </style>
