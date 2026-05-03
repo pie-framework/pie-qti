@@ -11,7 +11,7 @@
 	import { typesetAction } from '@pie-qti/default-components/shared';
 	import { typesetMathInElement } from '@pie-qti/typeset-katex';
 	import type { SvelteI18nProvider } from '@pie-qti/i18n';
-	import { loadPackageDataAsync, getItemXml } from '$lib/package-processor';
+	import { loadPackageDataAsync, getItemXml, resolveImagesInXml } from '$lib/package-processor';
 	import type { PackageStructure } from '$lib/package-processor';
 	import { getSecurityConfig } from '$lib/player-config';
 	import XmlEditor from '$lib/components/XmlEditor.svelte';
@@ -110,11 +110,25 @@
 					throw new Error(`Item ${urlItemId} not found in package`);
 				}
 
+				// Resolve image paths from ZIP assets to inline data URLs
+				const currentItem2 = packageData.items.find((item) => item.identifier === urlItemId);
+				if (currentItem2?.href) {
+					itemXml = await resolveImagesInXml(itemXml, packageData, currentItem2.href);
+				}
+
 				// Initialize player
+				// allowSvgDataImages: images were already resolved from the ZIP by resolveImagesInXml,
+				// so data:image/svg+xml URLs here are trusted (not from raw author XML).
 				player = new Player({
 					itemXml: itemXml,
 					role: 'candidate',
-					security: getSecurityConfig()
+					security: {
+						...getSecurityConfig(),
+						urlPolicy: {
+							...getSecurityConfig().urlPolicy,
+							allowSvgDataImages: true,
+						},
+					}
 				});
 
 				// Register default components

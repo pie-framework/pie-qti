@@ -217,7 +217,8 @@ export async function resolveImagesInXml(
 
 		for (const path of resolvedPaths) {
 			const file = pkg.getFile(path);
-			if (file && file.type === 'binary') {
+			if (!file) continue;
+			if (file.type === 'binary') {
 				const blob = file.content as Blob;
 				try {
 					const dataUrl = await blobToDataUrl(blob, path);
@@ -226,6 +227,11 @@ export async function resolveImagesInXml(
 				} catch (err) {
 					logger?.warn(`Failed to convert blob to data URL for: ${path}`, err);
 				}
+			} else if (file.type === 'text' && path.toLowerCase().endsWith('.svg')) {
+				// SVGs are stored as text strings; encode as data URL directly
+				const encoded = encodeURIComponent(file.content as string);
+				logger?.debug(`✓ Resolved SVG (text): ${imagePath} -> ${path}`);
+				return `data:image/svg+xml,${encoded}`;
 			}
 		}
 
@@ -248,7 +254,12 @@ export async function resolveImagesInXml(
 				    lowerAvailable.endsWith('\\' + lowerFilename) ||
 				    lowerAvailable === lowerFilename) {
 					const file = pkg.getFile(availableImage);
-					if (file && file.type === 'binary') {
+					if (!file) continue;
+					if (file.type === 'text' && availableImage.toLowerCase().endsWith('.svg')) {
+						const encoded = encodeURIComponent(file.content as string);
+						logger?.debug(`✓ Resolved SVG by filename: ${imagePath} -> ${availableImage}`);
+						return `data:image/svg+xml,${encoded}`;
+					} else if (file.type === 'binary') {
 						try {
 							const dataUrl = await blobToDataUrl(file.content as Blob, availableImage);
 							logger?.debug(`✓ Resolved image by filename: ${imagePath} -> ${availableImage}`);
@@ -264,7 +275,12 @@ export async function resolveImagesInXml(
 			for (const availableImage of availableImages) {
 				if (availableImage.toLowerCase().includes(lowerFilename)) {
 					const file = pkg.getFile(availableImage);
-					if (file && file.type === 'binary') {
+					if (!file) continue;
+					if (file.type === 'text' && availableImage.toLowerCase().endsWith('.svg')) {
+						const encoded = encodeURIComponent(file.content as string);
+						logger?.debug(`✓ Resolved SVG by partial match: ${imagePath} -> ${availableImage}`);
+						return `data:image/svg+xml,${encoded}`;
+					} else if (file.type === 'binary') {
 						try {
 							const dataUrl = await blobToDataUrl(file.content as Blob, availableImage);
 							logger?.debug(`✓ Resolved image by partial match: ${imagePath} -> ${availableImage}`);
