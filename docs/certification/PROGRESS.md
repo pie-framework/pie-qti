@@ -1,6 +1,6 @@
 # QTI Certification Progress Tracker
 
-Last updated: 2026-04-30 (Q8/Q10/Q11 conformance items added to demo app for visual verification)
+Last updated: 2026-05-03 (Q8/Q10/Q11 visual verification complete; S5 automated; S3/S4/P7 confirmed N/A or no delivery criteria; all Advanced items ✅)
 
 This document tracks the live status of each certification milestone. Update it whenever:
 - A gap is closed (link the PR/commit)
@@ -75,7 +75,7 @@ See [certification-check-qti22-basic.md](certification-check-qti22-basic.md) for
 
 ## Milestone 2 — QTI 2.2 Advanced DELIVERY
 
-**Overall status**: 🔵 In progress — gaps closed, automated tests pass, member validator + checklist pending  
+**Overall status**: 🔵 In progress — all test packages verified (automated + visual), member validator + checklist pending  
 **Target date**: —  
 **Submitted**: —  
 **Certified**: —  
@@ -100,15 +100,15 @@ See [certification-check-qti22-basic.md](certification-check-qti22-basic.md) for
 | Run `Advanced Level/T5 - Test Parts - Item Session Control/` test package | ✅ | Automated: `conformance-qti22-advanced.test.ts` (T5-D1 ×3) |
 | Run `Advanced Level/T12 - Sections/` test package | ✅ | Automated: T12-D1, T2-D1, S1-D1/D2, S9-D1 (14 tests) |
 | Run `Advanced Level/Q6 - Gap Match Interaction/` test package | ✅ | Automated: `qti22_advanced_q6_gap_match` fixture (D1/D2 ×6 cases) |
-| Run `Advanced Level/Q8 - Graphic Gap Match Interaction/` test package | 🔵 | Demo: `conf-q8-gap-img` (D1/GapImg) and `conf-q8-gap-text` (D2/GapText) — visually verify drag-drop and scoring |
-| Run `Advanced Level/Q10 - Hotspot/` test package | 🔵 | Demo: `conf-q10-hotspot-single` (D3), `conf-q10-hotspot-multiple` (D1), `conf-q10-hotspot-shapes` (D2/polygon) — visually verify click+score |
-| Run `Advanced Level/Q11 - Hot-text Interaction/` test package | 🔵 | Demo: `conf-q11-hottext-single` (D1), `conf-q11-hottext-multiple` (D2) — visually verify hottext selection and scoring |
+| Run `Advanced Level/Q8 - Graphic Gap Match Interaction/` test package | ✅ | Visual: official ZIP via conformance page — UK airport PNG renders, 6 gap images + 3 rect hotspots (b9ee1de) |
+| Run `Advanced Level/Q10 - Hotspot/` test package | ✅ | Visual: official ZIP via conformance page — UK cities PNG (circles), polygon shapes SVG (plants.svg) all render (b9ee1de) |
+| Run `Advanced Level/Q11 - Hot-text Interaction/` test package | ✅ | Visual: official ZIP via conformance page — single + multiple cardinality, selection/counter works |
 | Run `Advanced Level/Q12 - Inline Choice Interaction/` test package | ✅ | Automated: `qti22_advanced_q12_inline_choice` fixture (D1/D3/D4/D5 ×6 cases) |
 | Run `Advanced Level/Q13 - Match Interaction/` test package | ✅ | Automated: `qti22_advanced_q13_match` fixture (D2/D3/D4 ×5 cases) |
 | Run `Advanced Level/I17 - Composite Item/` test package | ✅ | Automated: `qti22_advanced_i17_i9a_composite` fixture (I17-D1, I9-D1/D2/D3/D11 ×11 cases) |
-| Run `Advanced Level/S3 and S4/` test package | ⬜ | Manual — load in example app |
-| Run `Advanced Level/S5 - Rubric Block in Sections/` test package | ⬜ | Manual — load in example app |
-| Run `Advanced Level/P7 – QTI Metadata/` test package | ⬜ | Manual — verify no delivery criteria required |
+| Run `Advanced Level/S3 and S4/` test package | ✅ | No DELIVERY criteria in README (EXPORT/IMPORT/AUTHORING only) — N/A for delivery cert |
+| Run `Advanced Level/S5 - Rubric Block in Sections/` test package | ✅ | Automated: `conformance-qti22-advanced.test.ts` S5-D1/D2/D3 + getCurrentRubricBlocks() per-section (5 tests) |
+| Run `Advanced Level/P7 – QTI Metadata/` test package | ✅ | Visual: official ZIP renders "Unattended Luggage" choice item; README confirms no specific delivery criteria |
 | Validate XML with member validator | ⬜ | Manual — upload official test package ZIPs |
 | Complete `QTI 2p2 Delivery Certification Checklist.xlsx` (Advanced section) | ⬜ | Manual — after member validator pass |
 | Submit checklist to 1EdTech | ⬜ | Manual — after checklist complete |

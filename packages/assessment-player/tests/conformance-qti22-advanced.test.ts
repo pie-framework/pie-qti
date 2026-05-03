@@ -11,12 +11,21 @@
  *   S1-L2-D1  Section 1 allowSkipping=true — candidate can skip without responding
  *   S1-L2-D2  Section 2 allowSkipping=false — candidate must respond before advancing
  *   S9-L2-D1  Section 3 loaded from assessmentSectionRef (section3.xml)
+ *   S5-L2-D1  rubricBlock for Section 1 ("Rubric Block for Section 1") exposed to candidate
+ *   S5-L2-D2  rubricBlock for Section 2 exposed to candidate
+ *   S5-L2-D3  rubricBlock for Section 3 exposed to candidate
  */
 
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import { beforeEach, describe, expect, it } from 'bun:test';
 import { AssessmentPlayer } from '../src/core/AssessmentPlayer.js';
 import { ReferenceBackendAdapter } from '../src/integration/ReferenceBackendAdapter.js';
 import type { SecureAssessment } from '../src/integration/api-contract.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const CONFORMANCE = join(__dirname, '../../../../qti-conformance/qti2.2/Advanced Level');
 
 // ---------------------------------------------------------------------------
 // Item XML helpers
@@ -481,5 +490,88 @@ describe('QTI 2.2 Advanced — S9 parseAssessmentTestXml assessmentSectionRef', 
 		const sections = assessment.testParts[0].sections;
 		expect(sections[0].itemSessionControl?.allowSkipping).toBe(true);
 		expect(sections[1].itemSessionControl?.allowSkipping).toBe(false);
+	});
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// S5 — Rubric Block in Sections (official conformance XML)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('QTI 2.2 Advanced — S5 Rubric Block in Sections (official conformance XML)', () => {
+	const S5_DIR = join(CONFORMANCE, 'S5 - Rubric Block in Sections');
+	const S5_ASSESSMENT_XML = readFileSync(join(S5_DIR, 'assessment.xml'), 'utf-8');
+
+	const s5ItemXmlMap: Record<string, string> = {
+		'items/choice-single-cardinality.xml': readFileSync(
+			join(S5_DIR, 'items/choice-single-cardinality.xml'),
+			'utf-8'
+		),
+		'items/choice-multiple-cardinality.xml': readFileSync(
+			join(S5_DIR, 'items/choice-multiple-cardinality.xml'),
+			'utf-8'
+		),
+		'items/text-entry.xml': readFileSync(join(S5_DIR, 'items/text-entry.xml'), 'utf-8'),
+	};
+
+	it('S5-L2-D1/D2/D3: each section has exactly one rubricBlock with candidate view', async () => {
+		const assessment = await ReferenceBackendAdapter.parseAssessmentTestXml(S5_ASSESSMENT_XML, {
+			itemXmlMap: s5ItemXmlMap,
+		});
+		const sections = assessment.testParts[0].sections;
+		expect(sections).toHaveLength(3);
+
+		for (const section of sections) {
+			expect(section.rubricBlocks).toBeDefined();
+			expect(section.rubricBlocks!.length).toBe(1);
+			expect(section.rubricBlocks![0].view).toContain('candidate');
+		}
+	});
+
+	it('S5-L2-D1: Section 1 rubricBlock content contains "Section 1"', async () => {
+		const assessment = await ReferenceBackendAdapter.parseAssessmentTestXml(S5_ASSESSMENT_XML, {
+			itemXmlMap: s5ItemXmlMap,
+		});
+		const rubric = assessment.testParts[0].sections[0].rubricBlocks![0];
+		expect(rubric.content).toContain('Section 1');
+	});
+
+	it('S5-L2-D2: Section 2 rubricBlock content contains "Section 2"', async () => {
+		const assessment = await ReferenceBackendAdapter.parseAssessmentTestXml(S5_ASSESSMENT_XML, {
+			itemXmlMap: s5ItemXmlMap,
+		});
+		const rubric = assessment.testParts[0].sections[1].rubricBlocks![0];
+		expect(rubric.content).toContain('Section 2');
+	});
+
+	it('S5-L2-D3: Section 3 rubricBlock content contains "Section 3"', async () => {
+		const assessment = await ReferenceBackendAdapter.parseAssessmentTestXml(S5_ASSESSMENT_XML, {
+			itemXmlMap: s5ItemXmlMap,
+		});
+		const rubric = assessment.testParts[0].sections[2].rubricBlocks![0];
+		expect(rubric.content).toContain('Section 3');
+	});
+
+	it('S5: getCurrentRubricBlocks() returns section rubric when navigated to item in that section', async () => {
+		const assessment = await ReferenceBackendAdapter.parseAssessmentTestXml(S5_ASSESSMENT_XML, {
+			itemXmlMap: s5ItemXmlMap,
+		});
+		const player = await createPlayer(assessment);
+
+		// Item 1 is in Section 1 — rubric should say "Section 1"
+		const rubrics = player.getCurrentRubricBlocks();
+		expect(rubrics).toHaveLength(1);
+		expect(rubrics[0].content).toContain('Section 1');
+
+		// Navigate to item 2 (Section 2)
+		await player.navigateTo(1);
+		const rubrics2 = player.getCurrentRubricBlocks();
+		expect(rubrics2).toHaveLength(1);
+		expect(rubrics2[0].content).toContain('Section 2');
+
+		// Navigate to item 3 (Section 3)
+		await player.navigateTo(2);
+		const rubrics3 = player.getCurrentRubricBlocks();
+		expect(rubrics3).toHaveLength(1);
+		expect(rubrics3[0].content).toContain('Section 3');
 	});
 });

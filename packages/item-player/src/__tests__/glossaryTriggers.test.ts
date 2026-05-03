@@ -133,7 +133,14 @@ function matchesSelector(el: FakeElement, selector: string): boolean {
 	return false;
 }
 
+let savedDocument: any;
+let savedCustomEvent: any;
+let savedEvent: any;
+
 function makeEnv() {
+	savedDocument = (globalThis as any).document;
+	savedCustomEvent = (globalThis as any).CustomEvent;
+	savedEvent = (globalThis as any).Event;
 	const doc = new FakeDocument();
 	(globalThis as any).document = doc;
 	(globalThis as any).CustomEvent = FakeEvent;
@@ -141,9 +148,12 @@ function makeEnv() {
 }
 
 function clearEnv() {
-	delete (globalThis as any).document;
-	delete (globalThis as any).CustomEvent;
-	delete (globalThis as any).Event;
+	if (savedDocument !== undefined) (globalThis as any).document = savedDocument;
+	else delete (globalThis as any).document;
+	if (savedCustomEvent !== undefined) (globalThis as any).CustomEvent = savedCustomEvent;
+	else delete (globalThis as any).CustomEvent;
+	if (savedEvent !== undefined) (globalThis as any).Event = savedEvent;
+	else delete (globalThis as any).Event;
 }
 
 // ---------------------------------------------------------------------------
