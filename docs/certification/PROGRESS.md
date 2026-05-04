@@ -1,6 +1,6 @@
 # QTI Certification Progress Tracker
 
-Last updated: 2026-05-04 (QTI 3.0 Advanced implementation verification complete: I18 MathML v3 patched/tested, deterministic automated tests added, all 20 Advanced packages load through the demo conformance page; member validator + checklist + submission remain external certification operations)
+Last updated: 2026-05-04 (public clean-room QTI Advanced certification gate added: `bun run test:certification:public`; official 1EdTech package execution moved to the private conformance project)
 
 This document tracks the live status of each certification milestone. Update it whenever:
 - A gap is closed (link the PR/commit)
@@ -12,6 +12,10 @@ For strategy rationale and effort estimates see [STRATEGY.md](STRATEGY.md).
 This file is the source of truth for remaining certification work and historical gap status.
 
 Elective level (QTI 2.2 and QTI 3.0) is not being pursued. See [STRATEGY.md](STRATEGY.md).
+
+Public CI uses the clean-room coverage matrix in [PUBLIC_COVERAGE_MATRIX.md](PUBLIC_COVERAGE_MATRIX.md).
+Official 1EdTech conformance ZIP/XML artifacts must not be committed to this repository; run them from
+the private `pie-qti-conformance` project against published `@pie-qti/*` packages.
 
 ---
 
@@ -56,10 +60,10 @@ All DELIVERY criteria verified against codebase. No implementation gaps found.
 
 | Step | Status | Notes |
 |------|--------|-------|
-| Run `Basic Level/Q2 - Choice Interaction/single-cardinality/` test package | ✅ | Automated: `qti22_basic_q2_single` fixture (D51–D55) + live runner (`run-conformance-packages.test.ts`) |
-| Run `Basic Level/Q2 - Choice Interaction/multiple-cardinality/` test package | ✅ | Automated: `qti22_basic_q2_multiple` fixture (D1–D7) + live runner |
-| Run `Basic Level/Q5 - Extended Text Entry Interaction/baseType-string/` test package | ✅ | Automated: `qti22_basic_q5` fixture (D1–D2) + live runner |
-| Run `Basic Level/Q20 - Text Entry Interaction/baseType-string/` test package | ✅ | Automated: `qti22_basic_q20` fixture (D1–D2) + live runner |
+| Run `Basic Level/Q2 - Choice Interaction/single-cardinality/` test package | ✅ | Public clean-room fixture: `qti22_basic_q2_single` (D51–D55); official package execution is private |
+| Run `Basic Level/Q2 - Choice Interaction/multiple-cardinality/` test package | ✅ | Public clean-room fixture: `qti22_basic_q2_multiple` (D1–D7); official package execution is private |
+| Run `Basic Level/Q5 - Extended Text Entry Interaction/baseType-string/` test package | ✅ | Public clean-room fixture: `qti22_basic_q5` (D1–D2); official package execution is private |
+| Run `Basic Level/Q20 - Text Entry Interaction/baseType-string/` test package | ✅ | Public clean-room fixture: `qti22_basic_q20` (D1–D2); official package execution is private |
 | Run `Basic Level/I9b - Response Processing Fixed Template/match-correct-identifier/` test package | ✅ | Automated: `qti22_basic_i9b_match_correct` fixture + live runner |
 | Run `Basic Level/I9b - Response Processing Fixed Template/map-response-identifier/` test package | ✅ | Automated: `qti22_basic_i9b_map_response` fixture (D1–D11) + live runner |
 | Run `Basic Level/T4 and T7 - Test Structures/` test package | ✅ | Automated: `conformance-qti22-basic.test.ts` (T4-D1/D2, T7-D1/D2, T14-D1) + live runner |
@@ -99,9 +103,9 @@ All DELIVERY criteria verified against codebase. No implementation gaps found.
 | Run `Advanced Level/T5 - Test Parts - Item Session Control/` test package | ✅ | Automated: `conformance-qti22-advanced.test.ts` (T5-D1 ×3) |
 | Run `Advanced Level/T12 - Sections/` test package | ✅ | Automated: T12-D1, T2-D1, S1-D1/D2, S9-D1 (14 tests) |
 | Run `Advanced Level/Q6 - Gap Match Interaction/` test package | ✅ | Automated: `qti22_advanced_q6_gap_match` fixture (D1/D2 ×6 cases) |
-| Run `Advanced Level/Q8 - Graphic Gap Match Interaction/` test package | ✅ | Visual: official ZIP via conformance page — UK airport PNG renders, 6 gap images + 3 rect hotspots (b9ee1de) |
-| Run `Advanced Level/Q10 - Hotspot/` test package | ✅ | Visual: official ZIP via conformance page — UK cities PNG (circles), polygon shapes SVG (plants.svg) all render (b9ee1de) |
-| Run `Advanced Level/Q11 - Hot-text Interaction/` test package | ✅ | Visual: official ZIP via conformance page — single + multiple cardinality, selection/counter works |
+| Run `Advanced Level/Q8 - Graphic Gap Match Interaction/` test package | ✅ | Public clean-room fixture + Playwright coverage; official package execution is private |
+| Run `Advanced Level/Q10 - Hotspot/` test package | ✅ | Public clean-room fixture + Playwright coverage; official package execution is private |
+| Run `Advanced Level/Q11 - Hot-text Interaction/` test package | ✅ | Public clean-room fixture + Playwright coverage; official package execution is private |
 | Run `Advanced Level/Q12 - Inline Choice Interaction/` test package | ✅ | Automated: `qti22_advanced_q12_inline_choice` fixture (D1/D3/D4/D5 ×6 cases) |
 | Run `Advanced Level/Q13 - Match Interaction/` test package | ✅ | Automated: `qti22_advanced_q13_match` fixture (D2/D3/D4 ×5 cases) |
 | Run `Advanced Level/I17 - Composite Item/` test package | ✅ | Automated: `qti22_advanced_i17_i9a_composite` fixture (I17-D1, I9-D1/D2/D3/D11 ×11 cases) |
@@ -168,7 +172,7 @@ All DELIVERY criteria verified against codebase. No implementation gaps found.
 | I18 — MathML v3 support | ✅ Verified | — | — | QTI 3.0 Advanced MathML appears in Q5/Q6/Q12; `@pie-qti/typeset-katex` now recurses through `mstyle` and normalizes common MathML operators; covered by `packages/typeset-katex/tests/mathml.test.ts` |
 | I19b/I20 — Shared Vocabulary FULL CSS class coverage | ✅ Implemented | — | — | qti-shared-vocabulary.css with ~100 utility classes; imported in app.css |
 | Q2/Q5/Q6/Q8/Q10/Q11/Q12/Q13 — Advanced SV behavioral features | ✅ Implemented | — | — | qti-input-control-hidden, qti-orientation-*, qti-choices-stacking-N, qti-counter-down/up, qti-match-tabular, qti-selections-dark/light, etc. |
-| All 20 conformance ZIPs + conformance page section | ✅ Implemented | — | — | static/conformance/qti30-advanced/ + conformance-packages.ts |
+| Public clean-room Advanced gate | ✅ Implemented | — | — | `docs/certification/public-coverage-matrix.json` + `bun run test:certification:public`; official ZIPs live only in the private project |
 
 ### Test execution checklist
 

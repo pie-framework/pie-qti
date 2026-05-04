@@ -42,48 +42,48 @@
       }
     },
     {
-      "name": "I9-D3: response_3='poet' -> SCORE_3=1",
-      "responses": { "response_1": null, "response_2": null, "response_3": "poet" },
+      "name": "I9-D3: response_3='goggles' -> SCORE_3=1",
+      "responses": { "response_1": null, "response_2": null, "response_3": "goggles" },
       "expect": {
         "score": 1,
         "outcomes": { "SCORE": 1, "SCORE_1": 0, "SCORE_2": 0, "SCORE_3": 1 }
       }
     },
     {
-      "name": "I9-D3: response_3='playwright' -> SCORE_3=1",
-      "responses": { "response_1": null, "response_2": null, "response_3": "playwright" },
+      "name": "I9-D3: response_3='safety goggles' -> SCORE_3=1",
+      "responses": { "response_1": null, "response_2": null, "response_3": "safety goggles" },
       "expect": {
         "score": 1,
         "outcomes": { "SCORE": 1, "SCORE_1": 0, "SCORE_2": 0, "SCORE_3": 1 }
       }
     },
     {
-      "name": "I9-D3: response_3='writer' -> SCORE_3=0.5",
-      "responses": { "response_1": null, "response_2": null, "response_3": "writer" },
+      "name": "I9-D3: response_3='glasses' -> SCORE_3=0.5",
+      "responses": { "response_1": null, "response_2": null, "response_3": "glasses" },
       "expect": {
         "score": 0.5,
         "outcomes": { "SCORE": 0.5, "SCORE_1": 0, "SCORE_2": 0, "SCORE_3": 0.5 }
       }
     },
     {
-      "name": "I9-D11: all correct (choice_1, choice_4, poet) -> SCORE=3",
-      "responses": { "response_1": "choice_1", "response_2": "choice_4", "response_3": "poet" },
+      "name": "I9-D11: all correct (choice_1, choice_4, goggles) -> SCORE=3",
+      "responses": { "response_1": "choice_1", "response_2": "choice_4", "response_3": "goggles" },
       "expect": {
         "score": 3,
         "outcomes": { "SCORE": 3, "SCORE_1": 1, "SCORE_2": 1, "SCORE_3": 1 }
       }
     },
     {
-      "name": "I9-D11: all correct with playwright -> SCORE=3",
-      "responses": { "response_1": "choice_1", "response_2": "choice_4", "response_3": "playwright" },
+      "name": "I9-D11: all correct with safety goggles -> SCORE=3",
+      "responses": { "response_1": "choice_1", "response_2": "choice_4", "response_3": "safety goggles" },
       "expect": {
         "score": 3,
         "outcomes": { "SCORE": 3, "SCORE_1": 1, "SCORE_2": 1, "SCORE_3": 1 }
       }
     },
     {
-      "name": "I9-D11: choice_2 + choice_5 + writer -> SCORE=0.5",
-      "responses": { "response_1": "choice_2", "response_2": "choice_5", "response_3": "writer" },
+      "name": "I9-D11: choice_2 + choice_5 + glasses -> SCORE=0.5",
+      "responses": { "response_1": "choice_2", "response_2": "choice_5", "response_3": "glasses" },
       "expect": {
         "score": 0.5,
         "outcomes": { "SCORE": 0.5, "SCORE_1": 0, "SCORE_2": 0, "SCORE_3": 0.5 }

@@ -1,0 +1,6 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "Clean-room QTI 2.2 Advanced Q8 graphicGapMatchInteraction fixture covering graphic hotspots, gapText labels, and map_response scoring.",
+  "covers": ["Q8", "graphicGapMatchInteraction", "map_response", "directedPair"]
+}

@@ -8,8 +8,10 @@ description: This skill should be used when the user asks to "check certificatio
 Evaluate whether the pie-qti codebase meets the 1EdTech DELIVERY acceptance criteria for a
 specific QTI conformance feature ID (e.g. `Q2`, `T9`, `A-8`, `I19a`).
 
-The conformance repo lives at `../qti-conformance/` relative to the project root
-(absolute: `/Users/eelco.hillenius/dev/prj/pie/qti-conformance/`).
+Public certification work in this repository must use clean-room fixtures and
+`bun run test:certification:public`. The official conformance suite lives in the
+private `pie-qti-conformance` project and must not be read or copied into this repo
+when building public tests.
 
 ## Step 1 — Resolve the feature location
 
@@ -98,14 +100,17 @@ bun run eval --filter assessment-player
 bun test
 ```
 
-Also suggest loading the official test package in the example app:
-- Test packages are ZIP files or directories in `qti-conformance/<version>/<level>/<feature>/`
-- The example app at `packages/example/` can load IMS Content Packages directly
+For public regression coverage, suggest:
+- `bun run test:certification:public`
+- Targeted clean-room test files from `docs/certification/public-coverage-matrix.json`
+
+Only suggest official package execution as a private-project follow-up, never as a public CI gate.
 
 ## Important constraints
 
 - Only evaluate DELIVERY criteria. EXPORT, IMPORT, and AUTHORING criteria are out of scope
   for pie-qti.
+- Do not add official 1EdTech ZIP/XML assets or tests that require `../qti-conformance` to this public repo.
 - Be precise about which version (QTI 2.2 vs 3.0) the criteria come from — they differ.
 - When a criterion cannot be verified without a live test run, say so clearly rather than
   guessing. The goal is an honest readiness assessment, not a rubber stamp.

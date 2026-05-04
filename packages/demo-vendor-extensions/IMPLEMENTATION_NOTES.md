@@ -41,7 +41,7 @@ Located at `/packages/demo-vendor-extensions/`
 
 ## Integration
 
-The extensions are automatically loaded in the transform app at startup:
+The extensions can be registered by any transform host at startup. The internal transform reference harness keeps one example:
 
 **File:** [apps/transform/src/hooks.server.ts](../../apps/transform/src/hooks.server.ts#L48-L66)
 
@@ -105,7 +105,7 @@ Create a QTI file with Acme vendor markers and a slider:
 </assessmentItem>
 ```
 
-Upload to transform app and watch console logs for detection and transformation.
+Run through a host that registers the demo extensions and watch console logs for detection and transformation.
 
 ## Files Created
 
@@ -147,7 +147,7 @@ packages/demo-vendor-extensions/
 ## Build Status
 
 ✅ Package builds successfully
-✅ Transform app builds with extensions
+✅ Reference harness builds with extensions
 ✅ All TypeScript checks pass
 ✅ Ready for demo
 

@@ -56,8 +56,8 @@ Everything lives under `packages/` and `apps/`:
 
 ### Apps
 
-- `apps/transform`: web conversion UI
 - `apps/demo`: example app + fixtures + reference iframe runtime page
+- `apps/transform`: internal transform reference harness, excluded from supported app CI
 
 ---
 
@@ -396,13 +396,13 @@ Key reference:
 
 ---
 
-## Transform app (`apps/transform`): conversion + preview pipeline
+## Transform reference harness (`apps/transform`)
 
-> **Status**: Under active development
+> **Status**: Internal reference harness. Composer CMS is the intended home for product import workflows.
 
 ![Transform app workflow](images/transform_app_workflow.jpeg)
 
-The transform app is a SvelteKit web UI that wires together:
+The transform harness is a SvelteKit web UI that demonstrates how the reusable packages can be wired together:
 
 - upload and extraction (pluggable storage backend with session management),
 - analysis (discover items/tests, count interactions, record issues),
@@ -411,7 +411,7 @@ The transform app is a SvelteKit web UI that wires together:
 
 ### Storage architecture
 
-The transform app uses a **pluggable storage system** (`@pie-qti/storage`) that abstracts storage backends:
+The harness uses a **pluggable storage system** (`@pie-qti/storage`) that abstracts storage backends:
 
 - **Default**: Filesystem backend (stores sessions in `./uploads/sessions/`)
 - **Optional**: S3, database, or custom backends via configuration
@@ -448,6 +448,8 @@ Key references:
 
 - **QTI preview**: uses the QTI players + typesetting adapter to render XML directly.
 - **PIE preview**: uses PIE web components (`pie-iife-player` / `pie-esm-player`) to render the transformed PIE config.
+
+Product import implementations should compose the same package-level pieces (`@pie-qti/to-pie`, `@pie-qti/transform-core`, QTI players, PIE players) inside their own persistence, workflow, and authorization boundaries instead of depending on this app.
 
 Key references:
 

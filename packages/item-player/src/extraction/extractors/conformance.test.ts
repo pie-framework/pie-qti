@@ -1,297 +1,208 @@
-/**
- * Extractor conformance tests — QTI 2.2 Advanced Level
- *
- * Each test loads an item XML directly from the official 1EdTech conformance
- * package at ../../../../../../qti-conformance and verifies that extraction
- * succeeds and produces correct data structures.
- *
- * These tests exercise the same extraction code path used in production and
- * provide a stronger conformance signal than hand-crafted fixture XML.
- *
- * Note: getInteractionData() returns InteractionData[] where extracted fields
- * are spread at the top level (no nested .data property).
- */
-
-import { readFileSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
 import { describe, it, expect } from 'bun:test';
 import { Player } from '../../core/Player.js';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const CONFORMANCE = join(__dirname, '../../../../../../qti-conformance/qti2.2/Advanced Level');
+const wrapItem = (identifier: string, body: string, declarations = '') => `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="${identifier}" title="${identifier}" adaptive="false" timeDependent="false">
+  ${declarations}
+  <itemBody>${body}</itemBody>
+</assessmentItem>`;
 
-function loadXml(packageDir: string, filename: string): string {
-	return readFileSync(join(CONFORMANCE, packageDir, filename), 'utf-8');
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Q6 – Gap Match Interaction
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe('Q6 – Gap Match Interaction (official conformance XML)', () => {
-	it('extracts gap-match-example-1 (Richard III quotes)', () => {
-		const xml = loadXml('Q6 - Gap Match Interaction', 'gap-match-example-1.xml');
-		const player = new Player({ itemXml: xml });
-		const interactions = player.getInteractionData();
-
-		expect(interactions).toHaveLength(1);
-		const interaction = interactions[0] as any;
-		expect(interaction.type).toBe('gapMatchInteraction');
-		expect(interaction.gapTexts.length).toBeGreaterThan(0);
-		expect(interaction.gaps.length).toBeGreaterThan(0);
-	});
-
-	it('extracts gap-match-example-2 (MathML choices)', () => {
-		const xml = loadXml('Q6 - Gap Match Interaction', 'gap-match-example-2.xml');
-		const player = new Player({ itemXml: xml });
-		const interactions = player.getInteractionData();
-
-		expect(interactions).toHaveLength(1);
-		const interaction = interactions[0] as any;
-		expect(interaction.type).toBe('gapMatchInteraction');
-		expect(interaction.gapTexts.length).toBeGreaterThan(0);
-		expect(interaction.gaps.length).toBeGreaterThan(0);
-	});
-
-	it('extracts gap-match-example-3 (table with unlimited matchMax)', () => {
-		const xml = loadXml('Q6 - Gap Match Interaction', 'gap-match-example-3.xml');
-		const player = new Player({ itemXml: xml });
-		const interactions = player.getInteractionData();
-
-		expect(interactions).toHaveLength(1);
-		const interaction = interactions[0] as any;
-		expect(interaction.type).toBe('gapMatchInteraction');
-		expect(interaction.gaps.length).toBeGreaterThan(0);
-	});
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Q8 – Graphic Gap Match Interaction
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe('Q8 – Graphic Gap Match Interaction (official conformance XML)', () => {
-	it('extracts graphic-gap-match-interaction-1 (gapImg — airport tags)', () => {
-		const xml = loadXml(
-			'Q8 - Graphic Gap Match Interaction',
-			'graphic-gap-match-interaction-1.xml'
+describe('QTI 2.2 Advanced clean-room extraction coverage', () => {
+	it('Q2 Advanced: extracts a choiceInteraction with bounded single selection', () => {
+		const xml = wrapItem(
+			'q2-advanced-choice',
+			`<choiceInteraction responseIdentifier="RESPONSE" shuffle="false" maxChoices="1">
+        <prompt>Select the measurement tool for temperature.</prompt>
+        <simpleChoice identifier="thermometer">Thermometer</simpleChoice>
+        <simpleChoice identifier="ruler">Ruler</simpleChoice>
+      </choiceInteraction>`,
+			'<responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier"/>'
 		);
-		const player = new Player({ itemXml: xml });
-		const interactions = player.getInteractionData();
+		const interaction = new Player({ itemXml: xml }).getInteractionData()[0] as any;
 
-		expect(interactions).toHaveLength(1);
-		const interaction = interactions[0] as any;
-		expect(interaction.type).toBe('graphicGapMatchInteraction');
-
-		expect(interaction.imageData).not.toBeNull();
-		expect(interaction.imageData.type).toBe('image');
-		expect(interaction.imageData.src).toBe('images/ukairtags.png');
-		expect(interaction.imageData.width).toBe(206);
-		expect(interaction.imageData.height).toBe(280);
-
-		expect(interaction.gapImages).toHaveLength(6); // CBG, EBG, EDI, GLA, MAN, MCH
-		expect(interaction.hotspots).toHaveLength(3); // A, B, C
-
-		const hotspotA = interaction.hotspots.find((h: any) => h.identifier === 'A');
-		expect(hotspotA).toBeDefined();
-		expect(hotspotA.shape).toBe('rect');
-		expect(hotspotA.coords).toBe('6,100,43,125');
+		expect(interaction.type).toBe('choiceInteraction');
+		expect(interaction.responseId).toBe('RESPONSE');
+		expect(interaction.maxChoices).toBe(1);
+		expect(interaction.choices.map((c: any) => c.identifier)).toEqual(['thermometer', 'ruler']);
 	});
 
-	it('extracts graphic-gap-match-interaction-2 (gapText — airport tags)', () => {
-		const xml = loadXml(
-			'Q8 - Graphic Gap Match Interaction',
-			'graphic-gap-match-interaction-2.xml'
+	it('Q6: extracts gap choices, gaps, and unlimited matchMax values', () => {
+		const xml = wrapItem(
+			'q6-gap-match',
+			`<p>Complete the energy chain:
+        <gapMatchInteraction responseIdentifier="RESPONSE">
+          <prompt>Drag each source into the correct gap.</prompt>
+          <gapText identifier="sunlight" matchMax="0">sunlight</gapText>
+          <gapText identifier="plants" matchMax="1">plants</gapText>
+          <blockquote>
+            <gap identifier="gap_1"/> is captured by <gap identifier="gap_2"/>.
+          </blockquote>
+        </gapMatchInteraction>
+      </p>`,
+			'<responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="directedPair"/>'
 		);
-		const player = new Player({ itemXml: xml });
-		const interactions = player.getInteractionData();
+		const interaction = new Player({ itemXml: xml }).getInteractionData()[0] as any;
 
-		expect(interactions).toHaveLength(1);
-		const interaction = interactions[0] as any;
-		expect(interaction.type).toBe('graphicGapMatchInteraction');
-
-		expect(interaction.imageData).not.toBeNull();
-		expect(interaction.imageData.type).toBe('image');
-		expect(interaction.imageData.src).toBe('images/ukairtags.png');
-
-		expect(interaction.gapTexts.length).toBeGreaterThan(0);
-		expect(interaction.hotspots).toHaveLength(3); // A, B, C
+		expect(interaction.type).toBe('gapMatchInteraction');
+		expect(interaction.gapTexts).toHaveLength(2);
+		expect(interaction.gapTexts.find((g: any) => g.identifier === 'sunlight')?.matchMax).toBe(0);
+		expect(interaction.gaps).toEqual(['gap_1', 'gap_2']);
 	});
-});
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Q10 – Hotspot Interaction
-// ─────────────────────────────────────────────────────────────────────────────
+	it('Q8: extracts graphic gap match background, text/image choices, and hotspots', () => {
+		const xml = wrapItem(
+			'q8-graphic-gap-match',
+			`<graphicGapMatchInteraction responseIdentifier="RESPONSE">
+        <prompt>Label the parts of the diagram.</prompt>
+        <object data="images/cell-diagram.svg" type="image/svg+xml" width="400" height="300">Cell diagram</object>
+        <gapText identifier="nucleus" matchMax="1">Nucleus</gapText>
+        <gapImg identifier="membrane" matchMax="1" src="images/membrane-label.svg"/>
+        <associableHotspot identifier="A" matchMax="1" shape="rect" coords="20,30,120,90"/>
+        <associableHotspot identifier="B" matchMax="1" shape="circle" coords="250,150,35"/>
+      </graphicGapMatchInteraction>`,
+			'<responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="directedPair"/>'
+		);
+		const interaction = new Player({ itemXml: xml }).getInteractionData()[0] as any;
 
-describe('Q10 – Hotspot Interaction (official conformance XML)', () => {
-	it('extracts hotspot-interaction-single (circle choices, single cardinality)', () => {
-		const xml = loadXml('Q10 - Hotspot', 'hotspot-interaction-single.xml');
-		const player = new Player({ itemXml: xml });
-		const interactions = player.getInteractionData();
+		expect(interaction.type).toBe('graphicGapMatchInteraction');
+		expect(interaction.imageData.src).toBe('images/cell-diagram.svg');
+		expect(interaction.imageData.width).toBe(400);
+		expect(interaction.gapTexts).toHaveLength(1);
+		expect(interaction.gapImages).toHaveLength(1);
+		expect(interaction.hotspots.map((h: any) => h.shape)).toEqual(['rect', 'circle']);
+	});
 
-		expect(interactions).toHaveLength(1);
-		const interaction = interactions[0] as any;
+	it('Q10: extracts hotspot choices with single and multiple cardinality metadata', () => {
+		const xml = wrapItem(
+			'q10-hotspot',
+			`<hotspotInteraction responseIdentifier="RESPONSE" maxChoices="0" minChoices="1">
+        <prompt>Select all shaded regions.</prompt>
+        <object data="images/region-map.svg" type="image/svg+xml" width="320" height="240">Region map</object>
+        <hotspotChoice identifier="north" shape="rect" coords="10,10,110,80"/>
+        <hotspotChoice identifier="south" shape="poly" coords="20,160,90,150,110,210,30,220"/>
+      </hotspotInteraction>`,
+			'<responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="identifier"/>'
+		);
+		const interaction = new Player({ itemXml: xml }).getInteractionData()[0] as any;
+
 		expect(interaction.type).toBe('hotspotInteraction');
-
-		expect(interaction.imageData).not.toBeNull();
-		expect(interaction.imageData.type).toBe('image');
-		expect(interaction.imageData.src).toBe('images/ukair.png');
-		expect(interaction.maxChoices).toBe(1);
-		expect(interaction.hotspotChoices).toHaveLength(4); // A, B, C, D
-
-		for (const h of interaction.hotspotChoices) {
-			expect(h.shape).toBe('circle');
-		}
-	});
-
-	it('extracts hotspot-interaction-multiple (maxChoices=0 = unlimited)', () => {
-		const xml = loadXml('Q10 - Hotspot', 'hotspot-interaction-multiple.xml');
-		const player = new Player({ itemXml: xml });
-		const interactions = player.getInteractionData();
-
-		expect(interactions).toHaveLength(1);
-		const interaction = interactions[0] as any;
 		expect(interaction.maxChoices).toBe(0);
-		expect(interaction.hotspotChoices).toHaveLength(4);
-	});
-
-	it('extracts hotspot-interaction-shapes (polygon shapes, external SVG via img)', () => {
-		const xml = loadXml('Q10 - Hotspot', 'hotspot-interaction-shapes.xml');
-		const player = new Player({ itemXml: xml });
-		const interactions = player.getInteractionData();
-
-		expect(interactions).toHaveLength(1);
-		const interaction = interactions[0] as any;
-
-		// <object data="images/plants.svg" type="image/svg+xml"> with alt text (not inline SVG markup)
-		// → must be resolved as type:'image' since there is no <svg> markup in the object content
-		expect(interaction.imageData).not.toBeNull();
-		expect(interaction.imageData.type).toBe('image');
-		expect(interaction.imageData.src).toBe('images/plants.svg');
-
-		expect(interaction.hotspotChoices).toHaveLength(4); // i1(poly), i2(poly), i3(circle), i4(poly)
-		expect(interaction.maxChoices).toBe(1);
 		expect(interaction.minChoices).toBe(1);
-
-		const i4 = interaction.hotspotChoices.find((h: any) => h.identifier === 'i4');
-		expect(i4).toBeDefined();
-		expect(i4.shape).toBe('poly');
+		expect(interaction.hotspotChoices.map((h: any) => h.shape)).toEqual(['rect', 'poly']);
 	});
-});
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Q11 – Hot-text Interaction
-// ─────────────────────────────────────────────────────────────────────────────
+	it('Q11: extracts single and multiple hottext choices', () => {
+		const xml = wrapItem(
+			'q11-hottext',
+			`<hottextInteraction responseIdentifier="RESPONSE" maxChoices="2">
+        <prompt>Select the two facts.</prompt>
+        <p><hottext identifier="fact_1">Water freezes at 0 degrees Celsius.</hottext></p>
+        <p><hottext identifier="opinion_1">Winter is the best season.</hottext></p>
+        <p><hottext identifier="fact_2">The Moon orbits Earth.</hottext></p>
+      </hottextInteraction>`,
+			'<responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="identifier"/>'
+		);
+		const interaction = new Player({ itemXml: xml }).getInteractionData()[0] as any;
 
-describe('Q11 – Hot-text Interaction (official conformance XML)', () => {
-	it('extracts hot-text-interaction-1 (single cardinality, maxChoices=1)', () => {
-		const xml = loadXml('Q11 - Hot-text Interaction', 'hot-text-interaction-1.xml');
-		const player = new Player({ itemXml: xml });
-		const interactions = player.getInteractionData();
-
-		expect(interactions).toHaveLength(1);
-		const interaction = interactions[0] as any;
 		expect(interaction.type).toBe('hottextInteraction');
-		expect(interaction.maxChoices).toBe(1);
-		expect(interaction.hottextChoices.length).toBeGreaterThanOrEqual(5); // A-E
-	});
-
-	it('extracts hot-text-interaction-2 (multiple cardinality, maxChoices=2)', () => {
-		const xml = loadXml('Q11 - Hot-text Interaction', 'hot-text-interaction-2.xml');
-		const player = new Player({ itemXml: xml });
-		const interactions = player.getInteractionData();
-
-		expect(interactions).toHaveLength(1);
-		const interaction = interactions[0] as any;
 		expect(interaction.maxChoices).toBe(2);
-		expect(interaction.hottextChoices.length).toBeGreaterThanOrEqual(5);
+		expect(interaction.hottextChoices.map((h: any) => h.identifier)).toEqual([
+			'fact_1',
+			'opinion_1',
+			'fact_2',
+		]);
 	});
-});
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Q12 – Inline Choice Interaction
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe('Q12 – Inline Choice Interaction (official conformance XML)', () => {
-	it('extracts inline-choice.xml (simple single cardinality)', () => {
-		const xml = loadXml('Q12 - Inline Choice Interaction', 'inline-choice.xml');
+	it('Q12: extracts inline choices and leaves placeholders in item body HTML', () => {
+		const xml = wrapItem(
+			'q12-inline-choice',
+			`<p>A triangle with three equal sides is
+        <inlineChoiceInteraction responseIdentifier="RESPONSE" shuffle="false">
+          <inlineChoice identifier="equilateral">equilateral</inlineChoice>
+          <inlineChoice identifier="scalene">scalene</inlineChoice>
+        </inlineChoiceInteraction>.
+      </p>`,
+			'<responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier"/>'
+		);
 		const player = new Player({ itemXml: xml });
-		const interactions = player.getInteractionData();
+		const interaction = player.getInteractionData()[0] as any;
 
-		expect(interactions).toHaveLength(1);
-		const interaction = interactions[0] as any;
 		expect(interaction.type).toBe('inlineChoiceInteraction');
-		expect(interaction.choices.length).toBeGreaterThan(0);
+		expect(interaction.choices.map((c: any) => c.identifier)).toEqual(['equilateral', 'scalene']);
+		expect(player.getItemBodyHtml()).toContain('inlineChoiceInteraction');
 	});
 
-	it('extracts inline-choice-mathml.xml (MathML in choices)', () => {
-		const xml = loadXml('Q12 - Inline Choice Interaction', 'inline-choice-mathml.xml');
-		const player = new Player({ itemXml: xml });
-		const interactions = player.getInteractionData();
+	it('Q13: extracts match sets and maxAssociations', () => {
+		const xml = wrapItem(
+			'q13-match',
+			`<matchInteraction responseIdentifier="RESPONSE" shuffle="false" maxAssociations="3">
+        <prompt>Match each process to its description.</prompt>
+        <simpleMatchSet>
+          <simpleAssociableChoice identifier="evaporation" matchMax="1">Evaporation</simpleAssociableChoice>
+          <simpleAssociableChoice identifier="condensation" matchMax="1">Condensation</simpleAssociableChoice>
+        </simpleMatchSet>
+        <simpleMatchSet>
+          <simpleAssociableChoice identifier="liquid_to_gas" matchMax="1">Liquid changes to gas</simpleAssociableChoice>
+          <simpleAssociableChoice identifier="gas_to_liquid" matchMax="1">Gas changes to liquid</simpleAssociableChoice>
+        </simpleMatchSet>
+      </matchInteraction>`,
+			'<responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="directedPair"/>'
+		);
+		const interaction = new Player({ itemXml: xml }).getInteractionData()[0] as any;
 
-		expect(interactions).toHaveLength(1);
-		const interaction = interactions[0] as any;
-		expect(interaction.type).toBe('inlineChoiceInteraction');
-		expect(interaction.choices.length).toBeGreaterThan(0);
-	});
-
-	it('extracts inline-choice-composite.xml (multiple interactions in one item)', () => {
-		const xml = loadXml('Q12 - Inline Choice Interaction', 'inline-choice-composite.xml');
-		const player = new Player({ itemXml: xml });
-		const interactions = player.getInteractionData();
-
-		// Composite item: multiple inlineChoiceInteractions
-		expect(interactions.length).toBeGreaterThan(1);
-		for (const interaction of interactions) {
-			expect(interaction.type).toBe('inlineChoiceInteraction');
-		}
-	});
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Q13 – Match Interaction
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe('Q13 – Match Interaction (official conformance XML)', () => {
-	it('extracts match-example-1 (Shakespeare character-to-play)', () => {
-		const xml = loadXml('Q13 - Match Interaction', 'match-example-1.xml');
-		const player = new Player({ itemXml: xml });
-		const interactions = player.getInteractionData();
-
-		expect(interactions).toHaveLength(1);
-		const interaction = interactions[0] as any;
 		expect(interaction.type).toBe('matchInteraction');
-		// matchExtractor returns sourceSet and targetSet (two simpleMatchSets)
-		expect(interaction.sourceSet.length).toBeGreaterThan(0);
-		expect(interaction.targetSet.length).toBeGreaterThan(0);
-	});
-
-	it('extracts match-example-2 (maxAssociations=3)', () => {
-		const xml = loadXml('Q13 - Match Interaction', 'match-example-2.xml');
-		const player = new Player({ itemXml: xml });
-		const interactions = player.getInteractionData();
-
-		expect(interactions).toHaveLength(1);
-		const interaction = interactions[0] as any;
 		expect(interaction.maxAssociations).toBe(3);
+		expect(interaction.sourceSet).toHaveLength(2);
+		expect(interaction.targetSet).toHaveLength(2);
 	});
-});
 
-// ─────────────────────────────────────────────────────────────────────────────
-// I17 – Composite Item (full responseProcessing, 3 interactions)
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe('I17 – Composite Item (official conformance XML)', () => {
-	it('extracts all 3 interactions from shakespeare_biography.xml', () => {
-		const xml = loadXml('I17 - Composite Item', 'shakespeare_biography.xml');
-		const player = new Player({ itemXml: xml });
-		const interactions = player.getInteractionData();
-
-		// 2× inlineChoiceInteraction + 1× textEntryInteraction
-		expect(interactions).toHaveLength(3);
-
+	it('I17: extracts multiple interactions from one composite item', () => {
+		const xml = wrapItem(
+			'i17-composite',
+			`<p>The state of matter with a fixed volume but no fixed shape is
+        <inlineChoiceInteraction responseIdentifier="STATE" shuffle="false">
+          <inlineChoice identifier="liquid">liquid</inlineChoice>
+          <inlineChoice identifier="solid">solid</inlineChoice>
+        </inlineChoiceInteraction>.
+      </p>
+      <p>Write the freezing point of water in Celsius:
+        <textEntryInteraction responseIdentifier="TEMP" expectedLength="3"/>
+      </p>
+      <choiceInteraction responseIdentifier="UNIT" maxChoices="1">
+        <simpleChoice identifier="celsius">Celsius</simpleChoice>
+        <simpleChoice identifier="fahrenheit">Fahrenheit</simpleChoice>
+      </choiceInteraction>`,
+			`<responseDeclaration identifier="STATE" cardinality="single" baseType="identifier"/>
+      <responseDeclaration identifier="TEMP" cardinality="single" baseType="string"/>
+      <responseDeclaration identifier="UNIT" cardinality="single" baseType="identifier"/>`
+		);
+		const interactions = new Player({ itemXml: xml }).getInteractionData();
 		const types = interactions.map((i) => i.type).sort();
-		expect(types.filter((t) => t === 'inlineChoiceInteraction')).toHaveLength(2);
-		expect(types.filter((t) => t === 'textEntryInteraction')).toHaveLength(1);
+
+		expect(interactions).toHaveLength(3);
+		expect(types).toEqual(['choiceInteraction', 'inlineChoiceInteraction', 'textEntryInteraction']);
+	});
+
+	it('P7: ignores metadata while preserving deliverable item content', () => {
+		const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  xmlns:imsmd="http://www.imsglobal.org/xsd/imsmd_v1p2"
+  identifier="p7-metadata" title="Metadata Item" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier"/>
+  <imsmd:lom>
+    <imsmd:general><imsmd:title><imsmd:string>Clean-room metadata fixture</imsmd:string></imsmd:title></imsmd:general>
+  </imsmd:lom>
+  <itemBody>
+    <choiceInteraction responseIdentifier="RESPONSE" maxChoices="1">
+      <simpleChoice identifier="A">A public fixture can include metadata.</simpleChoice>
+      <simpleChoice identifier="B">Metadata prevents delivery.</simpleChoice>
+    </choiceInteraction>
+  </itemBody>
+</assessmentItem>`;
+		const player = new Player({ itemXml: xml });
+
+		expect(player.getInteractionData()).toHaveLength(1);
+		expect(player.getItemBodyHtml()).toContain('public fixture');
 	});
 });

@@ -55,7 +55,7 @@ This project has custom Claude skills available. Use them proactively when relev
 - **api-design-reviewer**: Use when designing new APIs, reviewing API changes, or conducting framework code reviews. Checks consistency, usability, type safety, and breaking changes.
 - **prd-author**: Use when writing a new PRD for an interaction, architecture subsystem, or cross-cutting system concern. It reads the relevant source, asks targeted questions to fill gaps, and produces a complete draft aligned to `docs/prds/TEMPLATE.md`. Also invoke proactively when a significant new feature is complete and lacks a PRD.
 - **prd-reviewer**: Use when reviewing an existing PRD for accuracy, completeness, and staleness. Invoke proactively when opening a PR that touches a package covered by a PRD — check whether the PRD needs updating before merging.
-- **certification-checker**: Use when evaluating a specific QTI feature ID (e.g. Q2, T9, A-8, I19a) against the 1EdTech DELIVERY acceptance criteria. Reads the official conformance repo README, maps criteria to implementation files, and reports pass/fail/needs-investigation with evidence. Invoke before updating `docs/certification/PROGRESS.md` with a readiness verdict.
+- **certification-checker**: Use when evaluating a specific QTI feature ID (e.g. Q2, T9, A-8, I19a) against the 1EdTech DELIVERY acceptance criteria. Public work must use clean-room fixtures and `bun run test:certification:public`; official 1EdTech package execution belongs in the private conformance project. Invoke before updating `docs/certification/PROGRESS.md` with a readiness verdict.
 
 ## Monorepo Structure
 

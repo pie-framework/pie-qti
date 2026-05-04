@@ -11,6 +11,7 @@ and what work remains before each submission.
 | [OVERVIEW.md](OVERVIEW.md) | What the 1EdTech certification program is, how it works, what versions/levels/capabilities exist | Program rules change or new QTI version is released |
 | [STRATEGY.md](STRATEGY.md) | Recommended certification path, business rationale, effort estimates, sequencing | Priorities shift, resourcing changes, a certification is achieved |
 | [PROGRESS.md](PROGRESS.md) | Live tracker: where we are in the certification process, open gaps, submitted checklists | After every sprint that touches a certification milestone |
+| [PUBLIC_COVERAGE_MATRIX.md](PUBLIC_COVERAGE_MATRIX.md) | Public clean-room QTI Advanced DELIVERY coverage matrix | Public certification-facing tests or fixtures change |
 
 ## How to use this folder
 
@@ -18,12 +19,15 @@ and what work remains before each submission.
    PROGRESS.md to scope the remaining work.
 2. **Filing a PRD for a gap**: use the gap ID (e.g. T9, A-8) as the reference in the PRD title.
 3. **After closing a gap**: update PROGRESS.md with the implementation and verification evidence.
-4. **Submitting for certification**: follow the process in OVERVIEW.md; use test packages from
-   `../../../qti-conformance/` and the checklist workbooks from the same repo.
+4. **Before merging certification-facing changes**: run `bun run test:certification:public`.
+5. **Submitting for certification**: use the private `pie-qti-conformance` project for official
+   1EdTech package execution and checklist evidence. Public CI must not read that private repo.
 
 ## Related resources
 
-- Official test packages: `/Users/eelco.hillenius/dev/prj/pie/qti-conformance/`
+- Public clean-room gate: `bun run test:certification:public`
+- Public coverage matrix: [PUBLIC_COVERAGE_MATRIX.md](PUBLIC_COVERAGE_MATRIX.md)
+- Official test packages: private sibling project only; do not commit official ZIP/XML artifacts here
 - Official spec docs: `/Users/eelco.hillenius/dev/prj/pie/qti-documentation/`
 - Online validator: https://membervalidator3.1edtech.org/
 - 1EdTech conformance page: https://www.1edtech.org/standards/qti/conformance

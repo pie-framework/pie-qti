@@ -12,7 +12,7 @@ Complete architecture guide for the QTI transformation framework. Documents:
 - Plugin system with priority-based selection
 - Extensibility points (custom plugins, transformers, asset resolvers)
 - Transform process flow and error handling
-- Integration with transform app and CLI
+- Integration with host applications and the CLI
 - Best practices for plugin development
 
 **Includes:** Architecture diagram (`images/qti-transform-engine.png`)
@@ -59,7 +59,7 @@ Developer guide for building vendor-specific transform plugins. Includes:
 ### For Developers
 
 - **Getting Started:** See main [README.md](../README.md) in repo root
-- **App deployability checks:** See root `verify:apps:deploy` command (builds docs/demo/transform production outputs)
+- **App deployability checks:** See root `verify:apps:deploy` command (builds docs/demo production outputs)
 - **Publish verification:** [development/publish-verification.md](./development/publish-verification.md) — `verify:publish`, publint, attw, pack checks
 - **CLI Tools:** See `tools/cli/README.md`
 

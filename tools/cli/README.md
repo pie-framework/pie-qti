@@ -20,7 +20,7 @@ From the repository root:
 bun install
 
 # Transform a single QTI item to PIE
-bun run pie-qti -- transform apps/transform/static/samples/basic-interactions/choice_simple.xml \
+bun run pie-qti -- transform packages/to-pie/tests/fixtures/qti-samples/basic-interactions/choice_simple.xml \
   --format qti22:pie \
   --output ./output.json \
   --pretty
@@ -125,7 +125,7 @@ bun run batch-transform -- ./path/to/content/ -o ./output/
 - [@pie-qti/transform-core](../../packages/core) — Transform engine
 - [@pie-qti/to-pie](../../packages/to-pie) — QTI → PIE transformer
 - [@pie-qti/pie-to-qti2](../../packages/pie-to-qti2) — PIE → QTI transformer
-- [@pie-qti/app-transform](../../apps/transform) — Web UI for transforms
+- [apps/transform](../../apps/transform) — Internal reference harness for transform host integration
 
 ## License
 

@@ -78,7 +78,7 @@ The framework grew from a need to move content bidirectionally between the PIE a
 ### WorkflowOrchestrator is injectable, defaulting to InMemoryOrchestrator
 
 **Decision:** `TransformEngine` accepts an optional `WorkflowOrchestrator` in its constructor and defaults to `InMemoryOrchestrator` when none is supplied.
-**Rationale:** `InMemoryOrchestrator` runs all activities in the current process with no external dependencies — ideal for CLI, tests, and the web transform app. Production batch pipelines may need a durable orchestrator (e.g., Temporal) that survives process restarts and distributes work across workers. By programming to the `WorkflowOrchestrator` interface, the engine is oblivious to which engine is running.
+**Rationale:** `InMemoryOrchestrator` runs all activities in the current process with no external dependencies — ideal for CLI, tests, and local reference harnesses. Production batch pipelines may need a durable orchestrator (e.g., Temporal) that survives process restarts and distributes work across workers. By programming to the `WorkflowOrchestrator` interface, the engine is oblivious to which engine is running.
 **Alternatives considered:** Hardcoding `InMemoryOrchestrator` was rejected because it would require forking the engine for production use. An environment-variable-based switch inside the engine was rejected because it couples infrastructure decisions to library code.
 **Consequences:** Callers that need progress tracking, cancellation, or durability must supply an orchestrator implementation. The `InMemoryOrchestrator`'s `sleep()` uses `setTimeout` (not workflow-safe) and heartbeats are no-ops — document this limitation for users who intend to migrate to Temporal.
 

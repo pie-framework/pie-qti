@@ -1,34 +1,25 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" 
-  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/imsqti_v2p2p2.xsd" 
-  adaptive="false" identifier="gap-match-example-1" timeDependent="false" title="Gap Match Example 1">
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  adaptive="false" identifier="gap-match-energy-cycle" timeDependent="false" title="Gap Match Energy Cycle">
   <responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="directedPair">
     <correctResponse>
-      <value>W G1</value>
-      <value>Su G2</value>
+      <value>sunlight gap_1</value>
+      <value>plants gap_2</value>
     </correctResponse>
     <mapping defaultValue="-1" lowerBound="0">
-      <mapEntry mapKey="W G1" mappedValue="1"/>
-      <mapEntry mapKey="Su G2" mappedValue="2"/>
+      <mapEntry mapKey="sunlight gap_1" mappedValue="1"/>
+      <mapEntry mapKey="plants gap_2" mappedValue="2"/>
     </mapping>
   </responseDeclaration>
   <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float"/>
   <itemBody>
     <gapMatchInteraction responseIdentifier="RESPONSE">
-      <prompt>Identify the missing words in this famous quote from Shakespeare's Richard III.</prompt>
-      <gapText identifier="W" matchMax="1">winter</gapText>
-      <gapText identifier="Sp" matchMax="1">spring</gapText>
-      <gapText identifier="Su" matchMax="1">summer</gapText>
-      <gapText identifier="A" matchMax="1">autumn</gapText>
-      <blockquote>
-        <p>
-          Now is the <gap identifier="G1"/> of our discontent<br/> 
-          Made glorious <gap identifier="G2"/> by this sun of York;<br/>
-          And all the clouds that lour'd upon our house<br/>
-          In the deep bosom of the ocean buried.
-        </p>
-      </blockquote>
+      <prompt>Drag the correct words into the gaps.</prompt>
+      <gapText identifier="sunlight" matchMax="1">sunlight</gapText>
+      <gapText identifier="plants" matchMax="1">plants</gapText>
+      <gapText identifier="animals" matchMax="1">animals</gapText>
+      <gapText identifier="minerals" matchMax="1">minerals</gapText>
+      <p><gap identifier="gap_1"/> is captured by <gap identifier="gap_2"/> during photosynthesis.</p>
     </gapMatchInteraction>
   </itemBody>
   <responseProcessing template="http://www.imsglobal.org/question/qti_v2p2/rptemplates/map_response"/>

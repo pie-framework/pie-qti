@@ -473,5 +473,5 @@ AC-E10: Fractions-order sample (math content, no shuffle)
 - i18n keys: `packages/i18n/src/locales/en-US.ts` — `interactions.order.*`
 - Eval scenarios: `docs/evals/default-components/order/evals.yaml`
 - QTI 3.0 fixture: `packages/qti-common/src/__tests__/fixtures/qti3-order-interaction.xml`
-- Real-world fixture: `apps/transform/static/samples/math-assessment/fractions-order.xml`
+- Real-world fixture: `packages/to-pie/tests/fixtures/qti-samples/math-assessment/fractions-order.xml`
 - Adjacent PRDs: `docs/prds/interactions/choice.md` (shares shuffle pattern and `fixed` gap), `docs/prds/interactions/graphic-order.md` (graphic variant)

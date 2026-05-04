@@ -1,0 +1,6 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "Clean-room QTI 2.2 Advanced I17 composite item fixture covering multiple interactions and custom responseProcessing with match/mapResponse.",
+  "covers": ["I17", "I9a", "inlineChoiceInteraction", "textEntryInteraction", "responseCondition", "mapResponse"]
+}

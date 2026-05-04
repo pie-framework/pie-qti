@@ -1,8 +1,10 @@
 # @pie-qti/app-transform
 
-> **Status**: Under active development
+> **Status**: Internal reference harness. Not part of supported app CI.
 
-Interactive web application for QTI ↔ PIE transformations with analysis and preview capabilities.
+Interactive reference application for QTI ↔ PIE transformations with analysis and preview capabilities. Product import workflows should be built in Composer CMS; this app is kept as a local playground and implementation example for the reusable `@pie-qti/*` transform packages.
+
+Shared clean-room QTI samples live under `packages/to-pie/tests/fixtures/qti-samples`; the harness reads them from there when run locally.
 
 ## Features
 
@@ -20,8 +22,9 @@ From the repository root:
 # Install dependencies
 bun install
 
-# Start the transform app
-bun run dev:transform
+# Start the reference harness
+cd apps/transform
+bun run dev
 
 # Open http://localhost:5174
 ```
@@ -54,7 +57,7 @@ bun run dev:transform
 
 ## Architecture
 
-The transform app is a SvelteKit application that coordinates:
+The reference harness is a SvelteKit application that coordinates:
 
 - **Session management** — Uploaded files persist per session
 - **Analysis pipeline** — Extracts metadata from QTI content
@@ -147,6 +150,8 @@ bun run typecheck
 # E2E tests
 bun run test:e2e
 ```
+
+The root `build`, `test`, `check`, and deployability scripts intentionally exclude this app.
 
 ## Configuration
 

@@ -1,0 +1,6 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "Clean-room QTI 2.2 Advanced Q12 inlineChoiceInteraction fixture covering two inline choices and additive response processing.",
+  "covers": ["Q12", "inlineChoiceInteraction", "responseCondition", "setOutcomeValue"]
+}

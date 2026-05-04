@@ -512,5 +512,5 @@ AC-E7: maxChoices=0 (unlimited) in extractor
 - Types: `packages/item-player/src/types/interactions.ts` — `HotspotInteractionData`, `HotspotChoice`, `ImageData`
 - To-PIE transformer: `packages/to-pie/src/transformers/hotspot.ts` (note: uses correct `rect` coord interpretation)
 - Eval YAML: `docs/evals/default-components/hotspot/evals.yaml`
-- Sample XML: `apps/transform/static/samples/graphic-interactions/hotspot.xml`
+- Sample XML: `packages/to-pie/tests/fixtures/qti-samples/graphic-interactions/hotspot.xml`
 - Adjacent PRDs: [choice.md](choice.md) (same `qti-change` event pattern, same shadow DOM design), [select-point.md](select-point.md) (similar image-overlay interaction, different response type)

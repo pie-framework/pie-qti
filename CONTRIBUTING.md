@@ -47,7 +47,7 @@ This is a monorepo with multiple packages:
 - **`packages/assessment-player/`** - Multi-item assessment player
 - **`packages/player-elements/`** - Web component wrappers
 - **`apps/demo/`** - Demo application
-- **`apps/transform/`** - Transform web UI (includes QTI package upload and manifest parsing)
+- **`apps/transform/`** - Internal transform reference harness; not part of supported app CI
 
 ## Code Standards
 
@@ -68,6 +68,7 @@ This is a monorepo with multiple packages:
 - Write tests for new features
 - Maintain existing test coverage
 - Run tests with `bun test`
+- For QTI certification-facing changes, run `bun run test:certification:public`
 - E2E tests: `bun run test:e2e` (requires dev server running)
 
 ### Commits
@@ -89,6 +90,7 @@ This is a monorepo with multiple packages:
    ```bash
    bun run build
    bun test
+   bun run test:certification:public  # Required for QTI delivery behavior changes
    bun run test:e2e  # If applicable
    ```
 

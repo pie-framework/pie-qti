@@ -35,7 +35,7 @@ describe('ims-cp', () => {
   test('loadResolvedManifest works on repo sample packages', async () => {
     const sampleDir = path.resolve(
       import.meta.dir,
-      '../../../../apps/transform/static/samples/basic-interactions'
+      '../fixtures/qti-samples/basic-interactions'
     );
 
     const resolved = await loadResolvedManifest(sampleDir);
@@ -49,7 +49,7 @@ describe('ims-cp', () => {
   test('openContentPackage(folder) returns non-temporary handle', async () => {
     const sampleDir = path.resolve(
       import.meta.dir,
-      '../../../../apps/transform/static/samples/basic-interactions'
+      '../fixtures/qti-samples/basic-interactions'
     );
     const pkg = await openContentPackage(sampleDir);
     expect(pkg.isTemporary).toBe(false);

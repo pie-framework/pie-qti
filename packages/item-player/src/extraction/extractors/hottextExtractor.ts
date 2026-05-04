@@ -32,7 +32,7 @@ export const standardHottextExtractor: ElementExtractor<HottextData> = {
 
 	canHandle(element, _context) {
 		// All hottextInteraction elements are standard
-		return element.rawTagName === 'hottextInteraction';
+		return element.rawTagName === 'hottextInteraction' || element.rawTagName === 'qti-hottext-interaction';
 	},
 
 	extract(element, context) {
@@ -41,7 +41,7 @@ export const standardHottextExtractor: ElementExtractor<HottextData> = {
 		// Extract hottext children (selectable text spans) - recursively search entire tree
 		const findHottextElements = (el: any): any[] => {
 			const results: any[] = [];
-			if (el.rawTagName === 'hottext') {
+			if (el.rawTagName === 'hottext' || el.rawTagName === 'qti-hottext') {
 				results.push(el);
 			}
 			if (el.childNodes) {
@@ -79,7 +79,11 @@ export const standardHottextExtractor: ElementExtractor<HottextData> = {
 		let contentHtml = '';
 		for (const child of element.childNodes) {
 			// Skip prompt elements
-			if (typeof child !== 'string' && (child as QTIElement).rawTagName !== 'prompt') {
+			if (
+				typeof child !== 'string' &&
+				(child as QTIElement).rawTagName !== 'prompt' &&
+				(child as QTIElement).rawTagName !== 'qti-prompt'
+			) {
 				contentHtml += (child as QTIElement).outerHTML || child.toString();
 			} else if (typeof child === 'string') {
 				contentHtml += child;

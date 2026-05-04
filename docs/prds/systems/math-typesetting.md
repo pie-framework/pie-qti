@@ -137,7 +137,7 @@ The converter is explicitly documented in the source as intentionally minimal. H
 
 **Rationale:** KaTeX auto-render mutates the DOM in place — it replaces text nodes containing LaTeX delimiters with structured HTML (`<span class="katex">…</span>`). ProseMirror and TipTap maintain an internal virtual DOM representation that maps to the live DOM; when KaTeX rewrites a text node inside a ProseMirror editor, the editor's internal state becomes inconsistent with the live DOM, causing the editor to break or throw. The `contenteditable` guard prevents KaTeX from scanning inside any editor subtree.
 
-This matters in the PIE-QTI ecosystem specifically because the transform app's XML editor (`XmlEditor.svelte`) uses TipTap. When an item body contains LaTeX in a prompt that is displayed near the TipTap editor, the `typeset` hook is called on a container that encompasses both the rendered item content and the editor — without the guard, the editor would be destroyed.
+This matters in the PIE-QTI ecosystem because host applications may render QTI content near rich text editors such as TipTap. When an item body contains LaTeX in a prompt that is displayed near an editor, the `typeset` hook can be called on a container that encompasses both rendered item content and the editor — without the guard, the editor would be destroyed.
 
 **Alternatives considered:**
 - Pass a narrower `root` element to `typeset` that excludes editor regions. Rejected because the `typeset` hook receives the entire item body container; narrowing would require the caller to know about editor regions, coupling the hook interface to editor implementation details.

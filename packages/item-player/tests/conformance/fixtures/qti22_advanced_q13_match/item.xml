@@ -1,13 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" 
-  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/imsqti_v2p2p2.xsd" 
-  adaptive="false" identifier="match-example-2" timeDependent="false" title="Match Example 2">
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  adaptive="false" identifier="match-water-cycle" timeDependent="false" title="Match Water Cycle">
 <responseDeclaration baseType="directedPair" cardinality="multiple" identifier="RESPONSE">
   <correctResponse>
-    <value>r2 h1</value>
-    <value>r2 h3</value>
-    <value>r4 h3</value>
+    <value>process_evaporation description_liquid_to_gas</value>
+    <value>process_condensation description_gas_to_liquid</value>
+    <value>process_precipitation description_falls_to_ground</value>
   </correctResponse>
 </responseDeclaration>
 <outcomeDeclaration baseType="float" cardinality="single" identifier="SCORE">
@@ -17,31 +15,28 @@
 </outcomeDeclaration>
 <itemBody>
   <div>
-    <p>Which properties do the following animal classes have?</p>
+    <p>Match each water cycle process to its description.</p>
 
     <matchInteraction maxAssociations="3" responseIdentifier="RESPONSE">
       <simpleMatchSet>
-        <simpleAssociableChoice identifier="r1" matchMax="0">
-          <p>Asexual</p>
+        <simpleAssociableChoice identifier="process_evaporation" matchMax="1">
+          <p>Evaporation</p>
         </simpleAssociableChoice>
-        <simpleAssociableChoice identifier="r2" matchMax="0">
-          <p>Endothermic</p>
+        <simpleAssociableChoice identifier="process_condensation" matchMax="1">
+          <p>Condensation</p>
         </simpleAssociableChoice>
-        <simpleAssociableChoice identifier="r3" matchMax="0">
-          <p>Possess Gills</p>
-        </simpleAssociableChoice>
-        <simpleAssociableChoice identifier="r4" matchMax="0">
-          <p>Bear Live Young</p>
+        <simpleAssociableChoice identifier="process_precipitation" matchMax="1">
+          <p>Precipitation</p>
         </simpleAssociableChoice>
       </simpleMatchSet>
       <simpleMatchSet>
-        <simpleAssociableChoice identifier="h1" matchMax="2">Birds</simpleAssociableChoice>
-        <simpleAssociableChoice identifier="h2" matchMax="2">Reptiles</simpleAssociableChoice>
-        <simpleAssociableChoice identifier="h3" matchMax="2">Mammals</simpleAssociableChoice>
+        <simpleAssociableChoice identifier="description_liquid_to_gas" matchMax="1">Liquid water changes to water vapor.</simpleAssociableChoice>
+        <simpleAssociableChoice identifier="description_gas_to_liquid" matchMax="1">Water vapor forms liquid droplets.</simpleAssociableChoice>
+        <simpleAssociableChoice identifier="description_falls_to_ground" matchMax="1">Water falls from clouds to the ground.</simpleAssociableChoice>
       </simpleMatchSet>
     </matchInteraction>
   </div>
-  <p class="ets-direction_paragraph">Select all choices that apply.</p>
+  <p>Select all matching pairs.</p>
 </itemBody>
 <responseProcessing template="http://www.imsglobal.org/question/qti_v2p2/rptemplates/match_correct"/>
 </assessmentItem>

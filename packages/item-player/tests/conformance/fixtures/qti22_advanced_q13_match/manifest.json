@@ -1,0 +1,6 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "Clean-room QTI 2.2 Advanced Q13 matchInteraction fixture covering directedPair match_correct scoring and maxAssociations.",
+  "covers": ["Q13", "matchInteraction", "directedPair", "match_correct"]
+}

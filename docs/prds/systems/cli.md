@@ -111,7 +111,7 @@ At `0.1.x` the CLI's command interface, output schemas, and config format are st
 
 **Decision:** CLI plugins are transform engine plugins loaded from the config JSON's `plugins` field. There is no CLI-specific plugin API.
 
-**Rationale:** The transform engine's plugin system (`loadAndRegisterPlugins`, `loadFormatDetectors`) already provides the extension mechanism needed: register custom `TransformPlugin` implementations that handle additional interaction types or vendor-specific QTI extensions. Reusing this system means any plugin that works in the web transform app also works in the CLI with no additional wrapping. There is no need to design a separate CLI plugin contract.
+**Rationale:** The transform engine's plugin system (`loadAndRegisterPlugins`, `loadFormatDetectors`) already provides the extension mechanism needed: register custom `TransformPlugin` implementations that handle additional interaction types or vendor-specific QTI extensions. Reusing this system means plugins are shared across host applications and the CLI with no additional wrapping. There is no need to design a separate CLI plugin contract.
 
 **Alternatives considered:**
 - oclif's own plugin system (CLI plugins as npm packages that add commands): appropriate for adding new CLI commands, not for adding transform logic. The two concerns are orthogonal.
@@ -474,6 +474,6 @@ Notes: The discover-qti command uses openContentPackage which manages its own te
 - Transform engine: `packages/core/` (`@pie-qti/transform-core`)
 - QTI-to-PIE transformer: `packages/to-pie/` (`@pie-qti/to-pie`)
 - PIE-to-QTI transformer: `packages/pie-to-qti2/` (`@pie-qti/pie-to-qti2`)
-- Web transform app: `apps/transform/` (`@pie-qti/app-transform`) — shares the same engine and plugins
+- Transform reference harness: `apps/transform/` (`@pie-qti/app-transform`) — historical host integration example, not a supported deployable app
 - Config types: `@pie-qti/transform-types` (`TransformConfig`, `TransformPlugin`, `FormatDetector`)
 - Adjacent PRDs: none yet; a `transform-core` architecture PRD would document the engine, plugin contract, and config loader that this CLI depends on

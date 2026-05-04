@@ -61,7 +61,7 @@ Part names are **public API**. Renaming a part is a breaking change for any host
 
 ### Player-level apps (assessment-player, item-player)
 
-The assessment player and item player applications are not web components. They are SvelteKit applications that load DaisyUI and Tailwind normally: the `<html>` element carries `data-theme="..."`, and all Tailwind utilities and DaisyUI component classes are available throughout the app. Theming for these apps is conventional and does not require the CSS variable bridge. App-level Tailwind configurations (e.g. `apps/transform/tailwind.config.ts`) customize primary and secondary palette values for brand alignment while inheriting all other DaisyUI theme defaults.
+The assessment player and item player applications are not web components. They are SvelteKit applications that load DaisyUI and Tailwind normally: the `<html>` element carries `data-theme="..."`, and all Tailwind utilities and DaisyUI component classes are available throughout the app. Theming for these apps is conventional and does not require the CSS variable bridge. App-level Tailwind configurations (e.g. `apps/demo/tailwind.config.ts`) customize primary and secondary palette values for brand alignment while inheriting all other DaisyUI theme defaults.
 
 ---
 
@@ -272,8 +272,8 @@ AC-5: Custom --color-primary on :root overrides fallback
 **AC-6: app-level brand token customization**
 ```
 AC-6: App tailwind.config.ts primary override propagates to all components
-  Given: The transform app is built with primary: '#ee4923' in tailwind.config.ts
-  When: The transform app is loaded in a browser
+  Given: The demo app is built with primary brand tokens in tailwind.config.ts
+  When: The demo app is loaded in a browser
   Then: --color-primary resolves to a value corresponding to #ee4923 in oklch
         and all DaisyUI primary-colored elements (primary buttons, focus rings) use this color
 ```
@@ -399,7 +399,7 @@ AC-E5: color-mix fallback expressions produce valid rendered colors
 
 - Implementation: `packages/default-components/src/shared/components/ShadowBaseStyles.svelte`
 - Example interaction: `packages/default-components/src/plugins/choice/ChoiceInteraction.svelte`
-- App theme config: `apps/transform/tailwind.config.ts`
+- App theme config: `apps/demo/tailwind.config.ts`
 - Adjacent PRDs: `docs/prds/architecture/web-components.md` (Shadow DOM isolation rationale), `docs/prds/systems/i18n.md` (same Shadow DOM constraint applies to locale propagation)
 - DaisyUI v5 theme reference: https://daisyui.com/docs/themes/
 - CSS `::part()` spec: https://www.w3.org/TR/css-shadow-parts-1/

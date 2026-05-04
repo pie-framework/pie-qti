@@ -144,44 +144,24 @@ See [Transformation Engine Documentation](docs/TRANSFORMATION-ENGINE.md) for com
 - Generator registry for custom PIE model handling
 - IMS Content Package generation (`imsmanifest.xml`)
 
-### Transform App (`@pie-qti/app-transform`)
+### Transform Reference Harness (`apps/transform`)
 
 ![QTI Player Examples](docs/images/transform-app-screenshot-1.png)
 
-Interactive web UI for transformations:
+`apps/transform` is retained as an internal/reference harness for exploring the transformation pipeline. It is no longer a supported deployable app or the intended home for CMS import workflows. New import product work belongs in Composer CMS; this repository supports the reusable transform packages and examples.
+
+The harness demonstrates:
 
 - **Upload** — Single files or ZIP packages (including nested ZIPs)
 - **Analyze** — Discover items, count interactions, report issues
 - **Transform** — Batch convert with progress reporting
 - **Preview** — Side-by-side QTI and PIE rendering
 
-Storage is pluggable with filesystem (default), S3, or database backends via configuration.
-
-#### Plugin & Extension Management
-
-The transform-app includes a built-in admin interface for viewing and managing plugins:
-
-- Navigate to `/admin/plugins` to see installed transform plugins
-- View registered vendor extensions and their counts
-- Explore available extension points (storage backends, formats, themes, locales)
-- Configuration examples and documentation
-
-**Extension Points:**
+Supported extension points live in the packages, not in the app:
 
 - **Transform Plugins** — Add support for custom formats or vendor-specific QTI variants
 - **Vendor Extensions** — Customize transformation behavior (detectors, transformers, asset resolvers)
 - **Storage Backends** — Choose filesystem, S3, database, or implement custom storage
-- **UI Themes** — Customize appearance with DaisyUI themes
-- **i18n Locales** — Add translations for additional languages
-
-**Configuration:**
-Create a `config.json` file (see `apps/transform/config.example.json` for structure) and reference it:
-
-```bash
-PIE_QTI_CONFIG=./config.json bun run dev:transform
-```
-
-Or register plugins directly in `apps/transform/src/hooks.server.ts`.
 
 ### CLI (`@pie-qti/transform-cli`)
 
@@ -219,7 +199,7 @@ bun run typecheck
 # E2E tests (Playwright)
 bun run test:e2e
 
-# App deployability checks (docs/demo/transform production builds)
+# App deployability checks (docs/demo production builds)
 bun run verify:apps:deploy
 
 # Publish readiness (publint, attw, pack, deps, metadata)
@@ -228,7 +208,7 @@ bun run verify:publish
 
 CI uses two required quality lanes on PRs:
 
-- **Deployability lane:** `verify:apps:deploy` (apps/docs, apps/demo, apps/transform production buildability)
+- **Deployability lane:** `verify:apps:deploy` (apps/docs and apps/demo production buildability)
 - **Publishability lane:** `verify:publish:quick` (metadata, exports, publint, attw, pack, deps, source exports)
 
 Release behavior is lockstep and patch-only for publishable `packages/*`:
@@ -273,7 +253,7 @@ bun run preview:pages
 - **[Vendor Plugin Guide](docs/VENDOR-TRANSFORM-PLUGIN-GUIDE.md)** — Building custom vendor plugins
 - **[Configuration Guide](docs/CONFIGURATION.md)** — Storage backends, plugins, and environment setup
 - **[Migration Guide](docs/MIGRATION_GUIDE.md)** — Upgrading from legacy storage to new architecture
-- **[Transform App](apps/transform/README.md)** — Web UI for transformations
+- **[Transform Reference Harness](apps/transform/README.md)** — Internal playground for transformation experiments
 - **[CLI](tools/cli/README.md)** — Command-line batch operations
 - **[QTI → PIE](packages/to-pie/README.md)** — QTI to PIE transformer
 - **[PIE → QTI](packages/pie-to-qti/README.md)** — PIE to QTI transformer

@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/qti/qtiv2p2/imsqti_v2p2p2.xsd" 
-  title="Shakespeare Biography" identifier="I17-Shakespeare-Biography" timeDependent="false" adaptive="false">
+  title="Science Lab Safety Composite" identifier="i17-science-lab-safety" timeDependent="false" adaptive="false">
   <responseDeclaration identifier="response_1" cardinality="single" baseType="identifier">
     <correctResponse>
       <value>choice_1</value>
@@ -13,12 +13,12 @@
   </responseDeclaration>
   <responseDeclaration identifier="response_3" cardinality="single" baseType="string">
     <correctResponse>
-      <value>poet</value>
+      <value>goggles</value>
     </correctResponse>
     <mapping defaultValue="0">
-      <mapEntry mapKey="poet" mappedValue="1" />
-      <mapEntry mapKey="playwright" mappedValue="1" />
-      <mapEntry mapKey="writer" mappedValue="0.5" />
+      <mapEntry mapKey="goggles" mappedValue="1" />
+      <mapEntry mapKey="safety goggles" mappedValue="1" />
+      <mapEntry mapKey="glasses" mappedValue="0.5" />
     </mapping>
   </responseDeclaration>
 
@@ -29,34 +29,29 @@
 
   <itemBody>
     <p>
-      <b>About William Shakespeare</b>
+      <b>Science Lab Safety</b>
     </p>
     <p>
-      Date of birth:
+      Before heating a liquid, a student should:
       <inlineChoiceInteraction responseIdentifier="response_1">
-        <inlineChoice identifier="choice_1">26 April 1564</inlineChoice>
-        <inlineChoice identifier="choice_2">29 February 1664</inlineChoice>
-        <inlineChoice identifier="choice_3">2 March 2010</inlineChoice>
+        <inlineChoice identifier="choice_1">point the test tube away from people</inlineChoice>
+        <inlineChoice identifier="choice_2">seal the test tube tightly</inlineChoice>
+        <inlineChoice identifier="choice_3">hold it with bare hands</inlineChoice>
       </inlineChoiceInteraction>
     </p>
     <p>
-      Date of death:
+      A spill on the lab table should be:
       <inlineChoiceInteraction responseIdentifier="response_2">
-        <inlineChoice identifier="choice_4">23 April 1616</inlineChoice>
-        <inlineChoice identifier="choice_5">24 April 1616</inlineChoice>
-        <inlineChoice identifier="choice_6">25 April 1616</inlineChoice>
+        <inlineChoice identifier="choice_4">reported to the teacher</inlineChoice>
+        <inlineChoice identifier="choice_5">ignored until the end of class</inlineChoice>
+        <inlineChoice identifier="choice_6">covered with a notebook</inlineChoice>
       </inlineChoiceInteraction>
     </p>
     <hr />
     <p>
-      <i>Shakespeare</i> was an English 
+      When using chemicals, students should wear
       <textEntryInteraction responseIdentifier="response_3" expectedLength="15" />, 
-      widely  regarded as the greatest writer in the English language and the 
-      world's pre-eminent dramatist.  His surviving works, including some 
-      collaborations, consist of about <b>38</b> plays, <b>154</b> sonnets, <b>2</b> 
-      long poems, and several other poems.  His plays have been translated 
-      into every major living language and are performed more often than those of 
-      any other playwright.
+      to protect their eyes during the investigation.
     </p>
   </itemBody>
 

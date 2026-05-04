@@ -99,7 +99,7 @@ When `role="scorer"` and `correctResponse` is provided, the label pool (the `gap
 
 ### `gapImg` element — not supported
 
-The canonical QTI specification defines `graphicGapMatchInteraction` as having `gapImg` child elements (each containing an `<object>` image), not `gapText`. The standard IMS sample XML (see `apps/transform/static/samples/graphic-interactions/graphic_gap_match.xml`) uses `gapImg`. However, the extractor (`graphicGapMatchExtractor.ts`) reads only `gapText` children, not `gapImg`. All demo items and test fixtures in this codebase use `gapText` elements. `gapImg` children in a QTI XML file will silently produce an empty choice pool.
+The canonical QTI specification defines `graphicGapMatchInteraction` as having `gapImg` child elements (each containing an `<object>` image), not `gapText`. The standard IMS sample XML (see `packages/to-pie/tests/fixtures/qti-samples/graphic-interactions/graphic_gap_match.xml`) uses `gapImg`. However, the extractor (`graphicGapMatchExtractor.ts`) reads only `gapText` children, not `gapImg`. All demo items and test fixtures in this codebase use `gapText` elements. `gapImg` children in a QTI XML file will silently produce an empty choice pool.
 
 This is a significant divergence from spec: standard QTI `graphicGapMatchInteraction` uses `gapImg`, but the implementation only supports `gapText`. See Known gaps.
 
@@ -594,6 +594,6 @@ AC-E10: Rapid successive drops on same hotspot
 - Types: `packages/item-player/src/types/interactions.ts` — `GraphicGapMatchInteractionData`, `AssociableHotspot`
 - Touch drag action: `packages/default-components/src/shared/utils/touchDragHelper.ts` (re-export from `@pie-qti/qti-common`)
 - Evals: `docs/evals/default-components/graphic-gap-match/evals.yaml`
-- Sample XML (spec-standard, uses gapImg): `apps/transform/static/samples/graphic-interactions/graphic_gap_match.xml`
+- Sample XML (spec-standard, uses gapImg): `packages/to-pie/tests/fixtures/qti-samples/graphic-interactions/graphic_gap_match.xml`
 - Sample XML (demo, uses gapText): `apps/demo/src/lib/sample-items.ts` (GRAPHIC_GAP_MATCH_SOLAR_SYSTEM)
 - Adjacent PRDs: `docs/prds/interactions/match.md` (directedPair semantics, matchGroup G-01), `docs/prds/interactions/hotspot.md` (hotspot coordinate system, shape rendering)

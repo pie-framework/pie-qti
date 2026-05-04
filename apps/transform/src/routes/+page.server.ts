@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { QtiToPiePlugin } from '@pie-qti/to-pie';
+import { getQtiSampleRoot } from '$lib/server/samples';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -9,7 +10,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	let samples: any[] = [];
 	try {
-		const metadataPath = join(process.cwd(), 'static', 'samples', 'samples-metadata.json');
+		const metadataPath = join(getQtiSampleRoot(), 'samples-metadata.json');
 		const content = await readFile(metadataPath, 'utf-8');
 		const metadata = JSON.parse(content);
 		samples = metadata?.samples ?? [];

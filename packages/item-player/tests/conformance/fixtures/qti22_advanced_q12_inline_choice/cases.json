@@ -2,7 +2,7 @@
   "id": "qti22_advanced_q12_inline_choice",
   "cases": [
     {
-      "name": "Q12-D1: both null -> RESPONSE=null, RESPONSE_1=null, SCORE=0",
+      "name": "Q12-D1: both null -> SCORE=0",
       "responses": { "RESPONSE": null, "RESPONSE_1": null },
       "expect": {
         "score": 0,
@@ -10,32 +10,32 @@
       }
     },
     {
-      "name": "Q12-D3: RESPONSE=w (York/correct) -> SCORE=1",
-      "responses": { "RESPONSE": "w", "RESPONSE_1": null },
+      "name": "Q12-D3: first inline choice correct -> SCORE=1",
+      "responses": { "RESPONSE": "liquid", "RESPONSE_1": null },
       "expect": {
         "score": 1,
         "outcomes": { "SCORE": 1 }
       }
     },
     {
-      "name": "Q12-D4: RESPONSE=s (wrong) -> SCORE=0",
-      "responses": { "RESPONSE": "s", "RESPONSE_1": null },
+      "name": "Q12-D4: first inline choice wrong -> SCORE=0",
+      "responses": { "RESPONSE": "solid", "RESPONSE_1": null },
       "expect": {
         "score": 0,
         "outcomes": { "SCORE": 0 }
       }
     },
     {
-      "name": "Q12-D5: both correct (w, Y) -> SCORE=2",
-      "responses": { "RESPONSE": "w", "RESPONSE_1": "Y" },
+      "name": "Q12-D5: both inline choices correct -> SCORE=2",
+      "responses": { "RESPONSE": "liquid", "RESPONSE_1": "evaporation" },
       "expect": {
         "score": 2,
         "outcomes": { "SCORE": 2 }
       }
     },
     {
-      "name": "Q12-D5: only RESPONSE_1 correct (Y) -> SCORE=1",
-      "responses": { "RESPONSE": "s", "RESPONSE_1": "Y" },
+      "name": "Q12-D5: only second inline choice correct -> SCORE=1",
+      "responses": { "RESPONSE": "gas", "RESPONSE_1": "evaporation" },
       "expect": {
         "score": 1,
         "outcomes": { "SCORE": 1 }
@@ -43,7 +43,7 @@
     },
     {
       "name": "Q12-D5: both wrong -> SCORE=0",
-      "responses": { "RESPONSE": "a", "RESPONSE_1": "G" },
+      "responses": { "RESPONSE": "solid", "RESPONSE_1": "condensation" },
       "expect": {
         "score": 0,
         "outcomes": { "SCORE": 0 }

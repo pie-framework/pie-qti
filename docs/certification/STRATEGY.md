@@ -43,8 +43,8 @@ Why first:
 - Validates the core interoperability claim. "QTI 2.2 Basic Certified" is the minimum bar
   expected by most content publishers and LMS vendors.
 - All required features are implemented and tested.
-- Running the official test packages is the main remaining work — this doubles as a
-  regression test suite we should run regularly anyway.
+- Public regression coverage comes from `bun run test:certification:public`; official test package
+  execution belongs in the private conformance project.
 
 What to do:
 1. Run all packages in `qti-conformance/qti2.2/Basic Level/` through the item player and
@@ -110,7 +110,8 @@ Why:
 - MathML v3 is verified/patched for the constructs used by the QTI 3.0 Advanced packages.
 - Glossary (A15), Magnification (A30a), and Text-appearance (A42a) are already implemented
   via the PNP system.
-- Shared Stimulus and Shared Vocabulary FULL are implemented; all 20 official Advanced packages load through the demo conformance page.
+- Shared Stimulus and Shared Vocabulary FULL are implemented; public clean-room coverage is gated by
+  `bun run test:certification:public`, with official package playback handled privately.
 
 Remaining work:
 

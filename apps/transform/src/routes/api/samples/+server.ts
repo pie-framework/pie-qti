@@ -6,11 +6,12 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { json } from '@sveltejs/kit';
+import { getQtiSampleRoot } from '$lib/server/samples';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async () => {
   try {
-    const metadataPath = join(process.cwd(), 'static', 'samples', 'samples-metadata.json');
+    const metadataPath = join(getQtiSampleRoot(), 'samples-metadata.json');
     const content = await readFile(metadataPath, 'utf-8');
     const metadata = JSON.parse(content);
 

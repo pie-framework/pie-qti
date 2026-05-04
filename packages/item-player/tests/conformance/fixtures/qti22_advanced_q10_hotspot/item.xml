@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="hotspot-water-cycle" title="Hotspot Water Cycle" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier">
+    <correctResponse><value>evaporation</value></correctResponse>
+  </responseDeclaration>
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float"/>
+  <itemBody>
+    <hotspotInteraction responseIdentifier="RESPONSE" maxChoices="1" minChoices="1">
+      <prompt>Select the region that represents evaporation.</prompt>
+      <object data="images/water-cycle.svg" type="image/svg+xml" width="400" height="260">Water cycle diagram</object>
+      <hotspotChoice identifier="evaporation" shape="circle" coords="110,190,35"/>
+      <hotspotChoice identifier="condensation" shape="rect" coords="220,40,320,95"/>
+      <hotspotChoice identifier="precipitation" shape="poly" coords="270,105,320,130,300,180,245,150"/>
+    </hotspotInteraction>
+  </itemBody>
+  <responseProcessing template="http://www.imsglobal.org/question/qti_v2p2/rptemplates/match_correct"/>
+</assessmentItem>

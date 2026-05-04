@@ -34,33 +34,13 @@ const appConfigs: Record<string, AppConfig> = {
 			"@acme/likert-scale-plugin",
 		],
 	},
-	transform: {
-		appDir: "apps/transform",
-		logPrefix: "dev:transform",
-		watchFilters: [
-			"@pie-qti/transform-types",
-			"@pie-qti/transform-core",
-			"@pie-qti/to-pie",
-			"@pie-qti/storage",
-			"@pie-qti/demo-vendor-extensions",
-			"@pie-qti/i18n",
-			"@pie-qti/item-player",
-			"@pie-qti/default-components",
-			"@pie-qti/assessment-player",
-			"@pie-qti/player-elements",
-			"@pie-qti/web-component-loaders",
-			"@pie-qti/typeset-katex",
-			"@pie-qti/logger",
-			"@pie-qti/ims-cp-core",
-		],
-	},
 };
 
 function usageAndExit(message?: string): never {
 	if (message) {
 		console.error(message);
 	}
-	console.error("Usage: bun scripts/dev-app.ts <demo|transform> [vite args...]");
+	console.error("Usage: bun scripts/dev-app.ts <demo> [vite args...]");
 	process.exit(1);
 }
 

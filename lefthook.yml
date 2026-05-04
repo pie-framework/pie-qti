@@ -14,3 +14,10 @@ pre-push:
   commands:
     check-publint:
       run: bun run check:publint
+    qti-public-certification:
+      run: |
+        if [ "$SKIP_QTI_PUBLIC_CERTIFICATION" = "1" ]; then
+          echo "Skipping public QTI certification gate because SKIP_QTI_PUBLIC_CERTIFICATION=1"
+        else
+          bun run test:certification:public
+        fi

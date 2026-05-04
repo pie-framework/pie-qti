@@ -162,12 +162,12 @@
 		<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
 			<div class="card bg-base-100 shadow">
 				<div class="card-body">
-					<h2 class="card-title">Transform App</h2>
+					<h2 class="card-title">Transform Libraries</h2>
 					<p class="opacity-80">
-						Upload, analyze, transform, and preview QTI/PIE content.
+						Reusable QTI/PIE transform packages, CLI workflows, and reference examples.
 					</p>
 					<img
-						alt="Transform app screenshot"
+						alt="QTI transform workflow screenshot"
 						class="mt-4 rounded-lg border border-base-200"
 						src={`${base}/images/transform-app-screenshot-1.png`}
 						loading="lazy"

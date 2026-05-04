@@ -16,16 +16,10 @@
  *   S5-L2-D3  rubricBlock for Section 3 exposed to candidate
  */
 
-import { readFileSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
 import { beforeEach, describe, expect, it } from 'bun:test';
 import { AssessmentPlayer } from '../src/core/AssessmentPlayer.js';
 import { ReferenceBackendAdapter } from '../src/integration/ReferenceBackendAdapter.js';
 import type { SecureAssessment } from '../src/integration/api-contract.js';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const CONFORMANCE = join(__dirname, '../../../../qti-conformance/qti2.2/Advanced Level');
 
 // ---------------------------------------------------------------------------
 // Item XML helpers
@@ -494,23 +488,43 @@ describe('QTI 2.2 Advanced — S9 parseAssessmentTestXml assessmentSectionRef', 
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// S5 — Rubric Block in Sections (official conformance XML)
+// S5 — Rubric Block in Sections (clean-room XML)
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('QTI 2.2 Advanced — S5 Rubric Block in Sections (official conformance XML)', () => {
-	const S5_DIR = join(CONFORMANCE, 'S5 - Rubric Block in Sections');
-	const S5_ASSESSMENT_XML = readFileSync(join(S5_DIR, 'assessment.xml'), 'utf-8');
+describe('QTI 2.2 Advanced — S5 Rubric Block in Sections (clean-room XML)', () => {
+	const S5_ASSESSMENT_XML = `<assessmentTest xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="s5-rubric-clean-room" title="S5 Rubric Clean Room">
+  <testPart identifier="part-1" navigationMode="nonlinear" submissionMode="individual">
+    <assessmentSection identifier="section-1" title="Section 1" visible="true">
+      <rubricBlock identifier="section-1-rubric" view="candidate">
+        <p>Section 1: answer the science item.</p>
+      </rubricBlock>
+      <assessmentItemRef identifier="s5-item-1" href="items/choice-single-cardinality.xml"/>
+    </assessmentSection>
+    <assessmentSection identifier="section-2" title="Section 2" visible="true">
+      <rubricBlock identifier="section-2-rubric" view="candidate">
+        <p>Section 2: select all correct observations.</p>
+      </rubricBlock>
+      <assessmentItemRef identifier="s5-item-2" href="items/choice-multiple-cardinality.xml"/>
+    </assessmentSection>
+    <assessmentSection identifier="section-3" title="Section 3" visible="true">
+      <rubricBlock identifier="section-3-rubric" view="candidate">
+        <p>Section 3: type a short numeric response.</p>
+      </rubricBlock>
+      <assessmentItemRef identifier="s5-item-3" href="items/text-entry.xml"/>
+    </assessmentSection>
+  </testPart>
+</assessmentTest>`;
 
 	const s5ItemXmlMap: Record<string, string> = {
-		'items/choice-single-cardinality.xml': readFileSync(
-			join(S5_DIR, 'items/choice-single-cardinality.xml'),
-			'utf-8'
-		),
-		'items/choice-multiple-cardinality.xml': readFileSync(
-			join(S5_DIR, 'items/choice-multiple-cardinality.xml'),
-			'utf-8'
-		),
-		'items/text-entry.xml': readFileSync(join(S5_DIR, 'items/text-entry.xml'), 'utf-8'),
+		'items/choice-single-cardinality.xml': makeSimpleChoiceItem('s5-item-1'),
+		'items/choice-multiple-cardinality.xml': makeSimpleChoiceItem('s5-item-2'),
+		'items/text-entry.xml': `<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="s5-item-3" title="s5-item-3" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="string"/>
+  <itemBody>
+    <p>How many sides does a triangle have? <textEntryInteraction responseIdentifier="RESPONSE" expectedLength="2"/></p>
+  </itemBody>
+</assessmentItem>`,
 	};
 
 	it('S5-L2-D1/D2/D3: each section has exactly one rubricBlock with candidate view', async () => {

@@ -10,7 +10,7 @@ Comprehensive guide to the PIE-QTI transformation framework architecture, plugin
 4. [Transform Engine](#transform-engine)
 5. [Extensibility Points](#extensibility-points)
 6. [Building Custom Plugins](#building-custom-plugins)
-7. [Transform App Integration](#transform-app-integration)
+7. [Reference Harness Integration](#reference-harness-integration)
 8. [CLI Integration](#cli-integration)
 9. [Best Practices](#best-practices)
 
@@ -240,24 +240,24 @@ engine.use(new PieToQti2Plugin());
 engine.use(vendorAcmePlugin);
 ```
 
-#### Web App Registration
+#### Host Application Registration
 
-In `apps/transform/src/lib/transform/engine.ts`:
+Applications and CLIs register the core plugin and any vendor extensions directly with the engine:
 
 ```typescript
 import { TransformEngine } from '@pie-qti/transform-core';
-import { loadPlugins } from './plugin-loader';
+import { QtiToPiePlugin } from '@pie-qti/to-pie';
+import {
+  AcmeVendorDetector,
+  AcmeSliderTransformer,
+} from '@pie-qti/demo-vendor-extensions';
 
-export async function createEngine(): Promise<TransformEngine> {
+export function createEngine(): TransformEngine {
   const engine = new TransformEngine();
-
-  // Load core plugins
-  const corePlugins = await loadPlugins('core');
-  corePlugins.forEach(p => engine.use(p));
-
-  // Load vendor plugins from configuration
-  const vendorPlugins = await loadPlugins('vendor');
-  vendorPlugins.forEach(p => engine.use(p));
+  engine.use(new QtiToPiePlugin({
+    vendorDetectors: [new AcmeVendorDetector()],
+    vendorTransformers: [new AcmeSliderTransformer()],
+  }));
 
   return engine;
 }
@@ -563,14 +563,14 @@ describe('VendorCustomPlugin', () => {
 
 ---
 
-## Transform App Integration
+## Reference Harness Integration
 
-The web application ([transform-app](../apps/transform/)) provides a UI for the transformation engine.
+The web application ([apps/transform](../apps/transform/)) is an internal reference harness for the transformation engine. It is not a supported deployable app or the intended home for CMS import workflows; Composer CMS owns production import orchestration, persistence, permissions, and editorial state.
 
 ### App Architecture
 
 ```
-Transform Web App
+Transform Reference Harness
 ├── Upload Interface
 │   ├── File upload (ZIP, XML, JSON)
 │   ├── Package extraction
@@ -596,36 +596,14 @@ Transform Web App
 
 ### Plugin Integration
 
-The app loads plugins dynamically based on configuration:
-
-```typescript
-// apps/transform/src/lib/transform/plugin-loader.ts
-export async function loadPlugins(category: 'core' | 'vendor'): Promise<TransformPlugin[]> {
-  const config = await loadConfig();
-  const plugins: TransformPlugin[] = [];
-
-  if (category === 'core') {
-    // Load core plugins
-    plugins.push(new Qti22ToPiePlugin());
-    plugins.push(new PieToQti2Plugin());
-  } else {
-    // Load vendor plugins from configuration
-    for (const vendorConfig of config.vendorPlugins || []) {
-      const plugin = await importVendorPlugin(vendorConfig);
-      plugins.push(plugin);
-    }
-  }
-
-  return plugins;
-}
-```
+Plugin and vendor-extension support is a package-level contract. The reference harness demonstrates one host integration in `apps/transform/src/hooks.server.ts`; production hosts should register the same extension types in their own application bootstrap code.
 
 ### Storage Integration
 
-The app uses configurable storage backends:
+The harness uses configurable storage backends:
 
 ```typescript
-// apps/transform/src/lib/storage/index.ts
+// apps/transform/src/lib/server/config/index.ts
 export function createStorageBackend(config: StorageConfig): StorageBackend {
   switch (config.type) {
     case 'filesystem':

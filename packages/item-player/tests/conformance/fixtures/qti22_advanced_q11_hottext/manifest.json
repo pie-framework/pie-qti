@@ -1,0 +1,6 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "Clean-room QTI 2.2 Advanced Q11 hottextInteraction fixture covering multiple cardinality and match_correct scoring.",
+  "covers": ["Q11", "hottextInteraction", "match_correct"]
+}

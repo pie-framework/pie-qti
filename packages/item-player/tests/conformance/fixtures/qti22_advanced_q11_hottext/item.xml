@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="hottext-facts" title="Hottext Facts" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="identifier">
+    <correctResponse>
+      <value>fact_1</value>
+      <value>fact_2</value>
+    </correctResponse>
+  </responseDeclaration>
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float"/>
+  <itemBody>
+    <hottextInteraction responseIdentifier="RESPONSE" maxChoices="2">
+      <prompt>Select the two factual statements.</prompt>
+      <p><hottext identifier="fact_1">Earth orbits the Sun.</hottext></p>
+      <p><hottext identifier="opinion_1">Rainy days are the best days.</hottext></p>
+      <p><hottext identifier="fact_2">Water freezes at 0 degrees Celsius.</hottext></p>
+    </hottextInteraction>
+  </itemBody>
+  <responseProcessing template="http://www.imsglobal.org/question/qti_v2p2/rptemplates/match_correct"/>
+</assessmentItem>

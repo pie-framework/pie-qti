@@ -1,0 +1,20 @@
+{
+  "id": "qti22_advanced_q11_hottext",
+  "cases": [
+    {
+      "name": "Q11: no hottext selected -> SCORE=0",
+      "responses": { "RESPONSE": [] },
+      "expect": { "score": 0, "outcomes": { "SCORE": 0 } }
+    },
+    {
+      "name": "Q11: both facts selected -> SCORE=1",
+      "responses": { "RESPONSE": ["fact_1", "fact_2"] },
+      "expect": { "score": 1, "outcomes": { "SCORE": 1 } }
+    },
+    {
+      "name": "Q11: partial selection -> SCORE=0",
+      "responses": { "RESPONSE": ["fact_1"] },
+      "expect": { "score": 0, "outcomes": { "SCORE": 0 } }
+    }
+  ]
+}

@@ -8,12 +8,13 @@ import { join } from 'node:path';
 import { json, error as svelteError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getQtiAnalyzer } from '$lib/server/analyzer/QtiAnalyzer';
+import { getQtiSampleRoot } from '$lib/server/samples';
 
 export const POST: RequestHandler = async ({ params, locals }) => {
 	const { id } = params;
 
 	try {
-		const samplePath = join(process.cwd(), 'static', 'samples', id);
+		const samplePath = join(getQtiSampleRoot(), id);
 
 		// Verify sample exists
 		try {

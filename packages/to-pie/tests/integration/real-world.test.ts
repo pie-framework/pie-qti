@@ -2,7 +2,7 @@
  * Integration Tests with QTI Samples
  *
  * These tests use QTI samples that live in this repository under
- * `apps/transform/static/samples/` to validate our transformers work correctly
+ * `packages/to-pie/tests/fixtures/qti-samples/` to validate our transformers work correctly
  * without pulling in third-party fixtures/licenses.
  */
 
@@ -12,7 +12,7 @@ import { readFileSync } from 'fs';
 import { join, resolve } from 'path';
 import { QtiToPiePlugin } from '../../src/plugin.js';
 
-const fixturesDir = resolve(import.meta.dir, '../../../../apps/transform/static/samples');
+const fixturesDir = resolve(import.meta.dir, '../fixtures/qti-samples');
 
 // Simple logger for tests
 const testLogger = {

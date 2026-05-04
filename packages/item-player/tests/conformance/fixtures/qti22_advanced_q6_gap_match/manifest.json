@@ -1,0 +1,6 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "Clean-room QTI 2.2 Advanced Q6 gapMatchInteraction fixture covering directedPair responses, matchMax, map_response, and lowerBound clamping.",
+  "covers": ["Q6", "gapMatchInteraction", "map_response", "directedPair"]
+}

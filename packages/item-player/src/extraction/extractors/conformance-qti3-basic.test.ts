@@ -1,158 +1,82 @@
-/**
- * Extractor conformance tests — QTI 3.0 Basic Level (Shared Vocabulary)
- *
- * Verifies that interaction-level CSS classes (qti-labels-*, qti-height-lines-N,
- * qti-input-width-N) and data-patternmask-message are correctly extracted from
- * official 1EdTech QTI 3.0 Basic conformance packages.
- *
- * Criteria covered:
- *   Q2-L1-D201–D217  — qti-labels-* / qti-orientation-* on choice interaction
- *   Q5-L1-D101–D104  — qti-height-lines-N on extended text interaction
- *   Q20-L1-D102–D118 — qti-input-width-N on text entry interaction
- *   Q20-L1-D111      — data-patternmask-message on text entry interaction
- */
-
-import { readFileSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
 import { describe, it, expect } from 'bun:test';
 import { Player } from '../../core/Player.js';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const CONFORMANCE_30 = join(__dirname, '../../../../../../qti-conformance/qti3.0/Basic');
+const qti3Item = (identifier: string, body: string, declarations = '') => `<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0"
+  identifier="${identifier}" title="${identifier}" adaptive="false" time-dependent="false">
+  ${declarations}
+  <qti-item-body>${body}</qti-item-body>
+</qti-assessment-item>`;
 
-function loadXml(packageDir: string, filename: string): string {
-	return readFileSync(join(CONFORMANCE_30, packageDir, filename), 'utf-8');
-}
+describe('QTI 3.0 Basic/Advanced Shared Vocabulary clean-room extraction', () => {
+	it('Q2: extracts qti-labels-none and qti-orientation-horizontal from choice interaction', () => {
+		const xml = qti3Item(
+			'qti3-choice-sv',
+			`<qti-choice-interaction response-identifier="RESPONSE" max-choices="1"
+        class="qti-labels-none qti-orientation-horizontal qti-choices-stacking-2">
+        <qti-prompt>Select the renewable energy source.</qti-prompt>
+        <qti-simple-choice identifier="solar">Solar</qti-simple-choice>
+        <qti-simple-choice identifier="coal">Coal</qti-simple-choice>
+      </qti-choice-interaction>`,
+			'<qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="identifier"/>'
+		);
+		const interaction = new Player({ itemXml: xml }).getInteractionData()[0] as any;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Q2 — Choice Interaction (Shared Vocabulary classes)
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe('Q2 – Choice Interaction shared vocabulary classes (QTI 3.0 Basic official XML)', () => {
-	it('single-cardinality-sv-1: no interaction classes (baseline item)', () => {
-		const xml = loadXml('Q2 - Choice Interaction/single-cardinality', 'single-cardinality-sv-1.xml');
-		const player = new Player({ itemXml: xml });
-		const interactions = player.getInteractionData();
-		expect(interactions).toHaveLength(1);
-		const interaction = interactions[0] as any;
 		expect(interaction.type).toBe('choiceInteraction');
-		// No interactionClasses on a baseline item
-		expect(interaction.interactionClasses ?? []).toHaveLength(0);
-	});
-
-	it('single-cardinality-sv-2a: extracts qti-labels-none from qti-choice-interaction', () => {
-		const xml = loadXml('Q2 - Choice Interaction/single-cardinality', 'single-cardinality-sv-2a.xml');
-		const player = new Player({ itemXml: xml });
-		const interactions = player.getInteractionData();
-		expect(interactions).toHaveLength(1);
-		const interaction = interactions[0] as any;
-		expect(interaction.type).toBe('choiceInteraction');
-		expect(interaction.interactionClasses).toBeDefined();
+		expect(interaction.maxChoices).toBe(1);
 		expect(interaction.interactionClasses).toContain('qti-labels-none');
+		expect(interaction.interactionClasses).toContain('qti-orientation-horizontal');
+		expect(interaction.interactionClasses).toContain('qti-choices-stacking-2');
 	});
 
-	it('multiple-cardinality-sv-1: extracts choices correctly (baseline, max-choices=0 means unlimited)', () => {
-		const xml = loadXml('Q2 - Choice Interaction/multiple-cardinality', 'multiple-cardinality-sv-1.xml');
-		const player = new Player({ itemXml: xml });
-		const interactions = player.getInteractionData();
-		expect(interactions).toHaveLength(1);
-		const interaction = interactions[0] as any;
+	it('Q2: treats max-choices="0" as unlimited for multiple cardinality', () => {
+		const xml = qti3Item(
+			'qti3-choice-multiple',
+			`<qti-choice-interaction response-identifier="RESPONSE" max-choices="0">
+        <qti-simple-choice identifier="oxygen">Oxygen</qti-simple-choice>
+        <qti-simple-choice identifier="nitrogen">Nitrogen</qti-simple-choice>
+        <qti-simple-choice identifier="water">Water vapor</qti-simple-choice>
+      </qti-choice-interaction>`,
+			'<qti-response-declaration identifier="RESPONSE" cardinality="multiple" base-type="identifier"/>'
+		);
+		const interaction = new Player({ itemXml: xml }).getInteractionData()[0] as any;
+
 		expect(interaction.type).toBe('choiceInteraction');
-		// max-choices="0" means unlimited selections per QTI spec
 		expect(interaction.maxChoices).toBe(0);
-		expect(interaction.choices.length).toBeGreaterThan(1);
+		expect(interaction.choices).toHaveLength(3);
 	});
-});
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Q5 — Extended Text Interaction (qti-height-lines-N)
-// ─────────────────────────────────────────────────────────────────────────────
+	it('Q5: extracts qti-height-lines and qti-counter classes from extended text', () => {
+		const xml = qti3Item(
+			'qti3-extended-text-sv',
+			`<qti-extended-text-interaction response-identifier="RESPONSE"
+        class="qti-height-lines-6 qti-counter-down"
+        expected-lines="6" expected-length="600"/>`,
+			'<qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="string"/>'
+		);
+		const interaction = new Player({ itemXml: xml }).getInteractionData()[0] as any;
 
-describe('Q5 – Extended Text Interaction shared vocabulary classes (QTI 3.0 Basic official XML)', () => {
-	it('base-type-string: no interaction classes (baseline item)', () => {
-		const xml = loadXml('Q5 - Extended Text Entry Interaction/baseType-string', 'base-type-string.xml');
-		const player = new Player({ itemXml: xml });
-		const interactions = player.getInteractionData();
-		expect(interactions).toHaveLength(1);
-		const interaction = interactions[0] as any;
 		expect(interaction.type).toBe('extendedTextInteraction');
-		expect(interaction.interactionClasses ?? []).toHaveLength(0);
-	});
-
-	it('extended-text-sv-2a: extracts qti-height-lines-3', () => {
-		const xml = loadXml('Q5 - Extended Text Entry Interaction/baseType-string', 'extended-text-sv-2a.xml');
-		const player = new Player({ itemXml: xml });
-		const interactions = player.getInteractionData();
-		expect(interactions).toHaveLength(1);
-		const interaction = interactions[0] as any;
-		expect(interaction.type).toBe('extendedTextInteraction');
-		expect(interaction.interactionClasses).toBeDefined();
-		expect(interaction.interactionClasses).toContain('qti-height-lines-3');
-	});
-
-	it('extended-text-sv-2b: extracts qti-height-lines-6', () => {
-		const xml = loadXml('Q5 - Extended Text Entry Interaction/baseType-string', 'extended-text-sv-2b.xml');
-		const player = new Player({ itemXml: xml });
-		const interactions = player.getInteractionData();
-		expect(interactions).toHaveLength(1);
-		const interaction = interactions[0] as any;
+		expect(interaction.expectedLines).toBe(6);
 		expect(interaction.interactionClasses).toContain('qti-height-lines-6');
+		expect(interaction.interactionClasses).toContain('qti-counter-down');
 	});
 
-	it('extended-text-sv-2c: extracts qti-height-lines-15', () => {
-		const xml = loadXml('Q5 - Extended Text Entry Interaction/baseType-string', 'extended-text-sv-2c.xml');
-		const player = new Player({ itemXml: xml });
-		const interactions = player.getInteractionData();
-		expect(interactions).toHaveLength(1);
-		const interaction = interactions[0] as any;
-		expect(interaction.interactionClasses).toContain('qti-height-lines-15');
-	});
-});
+	it('Q20: extracts qti-input-width and data-patternmask-message from text entry', () => {
+		const xml = qti3Item(
+			'qti3-text-entry-sv',
+			`<p>Enter the three-letter code:
+        <qti-text-entry-interaction response-identifier="RESPONSE"
+          class="qti-input-width-6"
+          pattern-mask="[A-Z]{3}"
+          data-patternmask-message="Use exactly three uppercase letters."/>
+      </p>`,
+			'<qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="string"/>'
+		);
+		const interaction = new Player({ itemXml: xml }).getInteractionData()[0] as any;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Q20 — Text Entry Interaction (qti-input-width-N + data-patternmask-message)
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe('Q20 – Text Entry Interaction shared vocabulary classes (QTI 3.0 Basic official XML)', () => {
-	it('base-type-string: no interaction classes (baseline item)', () => {
-		const xml = loadXml('Q20 - Text Entry Interaction/baseType-string', 'base-type-string.xml');
-		const player = new Player({ itemXml: xml });
-		const interactions = player.getInteractionData();
-		expect(interactions).toHaveLength(1);
-		const interaction = interactions[0] as any;
-		expect(interaction.type).toBe('textEntryInteraction');
-		expect(interaction.interactionClasses ?? []).toHaveLength(0);
-	});
-
-	it('text-entry-sv-2a: extracts qti-input-width-1', () => {
-		const xml = loadXml('Q20 - Text Entry Interaction/baseType-string', 'text-entry-sv-2a.xml');
-		const player = new Player({ itemXml: xml });
-		const interactions = player.getInteractionData();
-		expect(interactions).toHaveLength(1);
-		const interaction = interactions[0] as any;
-		expect(interaction.type).toBe('textEntryInteraction');
-		expect(interaction.interactionClasses).toBeDefined();
-		expect(interaction.interactionClasses).toContain('qti-input-width-1');
-	});
-
-	it('text-entry-sv-2b: extracts qti-input-width-2', () => {
-		const xml = loadXml('Q20 - Text Entry Interaction/baseType-string', 'text-entry-sv-2b.xml');
-		const player = new Player({ itemXml: xml });
-		const interactions = player.getInteractionData();
-		expect(interactions).toHaveLength(1);
-		const interaction = interactions[0] as any;
-		expect(interaction.interactionClasses).toContain('qti-input-width-2');
-	});
-
-	it('text-entry-sv-3: extracts qti-input-width-6 and data-patternmask-message', () => {
-		const xml = loadXml('Q20 - Text Entry Interaction/baseType-string', 'text-entry-sv-3.xml');
-		const player = new Player({ itemXml: xml });
-		const interactions = player.getInteractionData();
-		expect(interactions).toHaveLength(1);
-		const interaction = interactions[0] as any;
 		expect(interaction.type).toBe('textEntryInteraction');
 		expect(interaction.interactionClasses).toContain('qti-input-width-6');
-		expect(interaction.patternMaskMessage).toBe('Maximum of 6 digits or decimal points permitted');
+		expect(interaction.patternMaskMessage).toBe('Use exactly three uppercase letters.');
 	});
 });

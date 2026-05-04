@@ -6,7 +6,7 @@ import path from "node:path";
 
 const ROOT = process.cwd();
 const CHANGESET_CONFIG_PATH = path.join(ROOT, ".changeset", "config.json");
-const WORKSPACE_ROOTS = ["packages"];
+const POLICY_PATH = path.join(ROOT, "scripts", "publish-policy.json");
 const DEP_SECTIONS = [
 	"dependencies",
 	"peerDependencies",
@@ -16,10 +16,16 @@ const DEP_SECTIONS = [
 
 const readJson = (filePath) => JSON.parse(readFileSync(filePath, "utf8"));
 
+const getWorkspaceRoots = () => {
+	if (!existsSync(POLICY_PATH)) return ["packages"];
+	const policy = readJson(POLICY_PATH);
+	return policy.workspaceRoots ?? ["packages"];
+};
+
 const discoverPublishablePackages = () => {
 	const packages = [];
 
-	for (const workspaceRoot of WORKSPACE_ROOTS) {
+	for (const workspaceRoot of getWorkspaceRoots()) {
 		const absRoot = path.join(ROOT, workspaceRoot);
 		if (!existsSync(absRoot)) continue;
 

@@ -1,22 +1,24 @@
 # PRD: Transform Web Application
 
 <!--
-  Status: current
+  Status: reference
   Type: system
   Packages: @pie-qti/app-transform
-  Last reviewed: 2026-04-27
+  Last reviewed: 2026-05-04
 -->
 
-**Status:** current  
+**Status:** reference harness, not supported deployable app  
 **Type:** system  
 **Packages:** `@pie-qti/app-transform`  
-**Last reviewed:** 2026-04-27
+**Last reviewed:** 2026-05-04
 
 ---
 
 ## Summary
 
-`@pie-qti/app-transform` is an interactive SvelteKit web application that provides a browser-based interface for the QTI ↔ PIE transformation pipeline. It exposes a four-step workflow — upload QTI content, analyze it to discover items and surface issues, transform it to PIE format, and preview source and output side-by-side — layered over the same `@pie-qti/transform-core` / `@pie-qti/to-pie` engine used by the CLI. The app is primarily a developer and migration-engineering tool, not a learner-facing interface: its intended users are item bank managers migrating QTI content to PIE at scale and engineers validating transform fidelity.
+`@pie-qti/app-transform` is an interactive SvelteKit reference harness for the QTI ↔ PIE transformation pipeline. It demonstrates upload, analysis, transform, and preview flows over the same `@pie-qti/transform-core` / `@pie-qti/to-pie` engine used by the CLI, but it is no longer part of supported app CI and should not be treated as the product import surface.
+
+Production CMS import work belongs in Composer CMS, where batch orchestration, persistence, permissions, staging, audit, standards alignment, and editorial workflows can be modeled explicitly. This app remains useful as implementation history and a local playground for framework developers validating transform fidelity.
 
 ---
 
@@ -24,9 +26,9 @@
 
 ### Why a web app in addition to the CLI
 
-The CLI (`@pie-qti/transform-cli`) covers batch transformation in automated pipelines. However, it gives no feedback about whether the output renders correctly — a transform can succeed technically while losing visual fidelity (layout breaks, media missing, interaction state wrong). Validating transform quality with the CLI requires separately loading the output in a player, comparing screenshots, and interpreting XML diffs. That workflow is slow and error-prone.
+The CLI (`@pie-qti/transform-cli`) covers batch transformation in automated pipelines. Historically, the transform app supplied an interactive visual inspection loop for cases where a transform could succeed technically while losing visual fidelity.
 
-The web app solves two distinct problems:
+The reference harness demonstrates two problems that production hosts still need to solve:
 
 1. **Migration verification.** Item bank engineers need to see QTI source and PIE output rendered side-by-side to confirm fidelity before committing a migration. No automated diff algorithm is a reliable substitute for human visual inspection of rendered assessment content — interactions have rich formatting, math, media, and passage layout that don't reduce cleanly to structural comparison.
 
@@ -66,7 +68,7 @@ The application is not intended for learners, teachers, or production assessment
 
 - **FR-10:** Display the five most recent sessions on the home page with ID, status, package count, and relative creation time.
 
-- **FR-11:** Provide built-in sample QTI packages that can be loaded with one click, bypassing the upload step. Samples must enumerate interaction types and item count.
+- **FR-11:** Historical only. Built-in sample QTI packages were moved to `packages/to-pie/tests/fixtures/qti-samples` so reusable test assets no longer live inside the app boundary.
 
 - **FR-12:** Expose an admin interface at `/admin/plugins` that shows: installed transform plugins with source/target formats and priority, registered vendor extensions by type, active storage backend, and all available extension points (storage backends, transform formats, vendor extension types, UI themes, locales).
 
