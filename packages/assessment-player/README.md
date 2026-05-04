@@ -156,10 +156,13 @@ interface RubricBlock {
 **By default**, the player runs 100% client-side with no backend required. This is perfect for demos, development, and non-critical assessments.
 
 **For production**, integrate with a secure backend for:
+
 - Server-side scoring (prevent score manipulation)
 - Role-based data filtering (hide correct answers from candidates)
 - Persistent session storage
 - Authentication and authorization
+
+The player can be embedded inside an LTI 1.3 / LTI Advantage tool, but LTI launch validation, Deep Linking, AGS grade passback, and NRPS roster lookup are host-application responsibilities. Use the `BackendAdapter` boundary to connect player sessions and submissions to the host tool's LTI-aware backend.
 
 ### Quick Start
 

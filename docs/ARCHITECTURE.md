@@ -469,6 +469,7 @@ This section combines “deployment guidance” with “security boundary clarif
 - **Plugins/custom components are integrator-owned**: any `QTIPlugin` and any custom web components run as host code. Treat them as trusted application code (review, test, pin).
 - **Client-side scoring is not secure**: for high-stakes assessment, you must do **server-side scoring** and avoid sending correct answers / scoring logic to the candidate.
 - **Best isolation is origin isolation**: for untrusted QTI, prefer iframe mode and run the runtime on a separate origin with strict postMessage allowlists.
+- **LTI is a host integration concern**: the player can run inside an LTI 1.3 / LTI Advantage tool, but launch validation, Deep Linking, AGS grade passback, NRPS roster lookup, and LMS policy enforcement belong to the host application.
 
 ### Recommended deployment modes
 
