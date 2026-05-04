@@ -8,10 +8,10 @@ Last reviewed: 2026-04-29
 
 Pursue DELIVERY certification in this order:
 
-1. QTI 2.2 Basic (near-zero gaps — submit now)
-2. QTI 2.2 Advanced (T9 `<outcomeProcessing>` is the main gap)
+1. QTI 2.2 Basic (implementation complete; submit after validator/checklist)
+2. QTI 2.2 Advanced (implementation complete; submit after validator/checklist)
 3. QTI 3.0 Basic (same feature set as QTI 2.2 Basic, marginal additional work)
-4. QTI 3.0 Advanced (incremental from QTI 2.2 Advanced)
+4. QTI 3.0 Advanced (implementation and package verification complete; external certification operations remain)
 5. QTI 3.0 Elevated Accessibility (long-term; aligns with Renaissance WCAG mandate)
 
 Do not pursue EXPORT, AUTHORING, PCI, or Elective certification at this time.
@@ -37,7 +37,7 @@ certifying in one.
 
 **Effort**: Low (1–2 weeks of test execution + submission paperwork)  
 **Prerequisite**: None  
-**Status**: No implementation gaps found (see [qti22-gap-analysis.md](qti22-gap-analysis.md))
+**Status**: No implementation gaps found; see [PROGRESS.md](PROGRESS.md)
 
 Why first:
 - Validates the core interoperability claim. "QTI 2.2 Basic Certified" is the minimum bar
@@ -57,31 +57,30 @@ What to do:
 
 ### Step 2: QTI 2.2 Advanced — DELIVERY
 
-**Effort**: Medium (T9 outcomeProcessing gap; MathML verification; 2–4 weeks)  
+**Effort**: Medium (test-package verification complete; validator/checklist remain)  
 **Prerequisite**: QTI 2.2 Basic certification (Step 1)  
-**Status**: 2–3 gaps to investigate — see [qti22-gap-analysis.md](qti22-gap-analysis.md)
+**Status**: Implementation gaps closed; see [PROGRESS.md](PROGRESS.md)
 
 Why:
 - Advanced covers the interactions used in most real-world K-12 item banks (GapMatch,
   Hotspot, Match, etc.). Basic is a necessary milestone, but Advanced is the level that
   matters for competitive differentiation.
-- Most features are already implemented. The main risk is T9 (full `<outcomeProcessing>` XML
-  interpreter at assessment level — currently we use a template system).
+- Required features are implemented and test-package verification is complete. The remaining
+  work is certification operations: member validator, checklist, and submission.
 
-Main gaps to resolve before submission:
-- **T9**: Investigate whether the 4 scoring templates (total_score, weighted_score,
-  percentage_score, pass_fail) satisfy the acceptance criteria, or whether full XML AST
-  evaluation is required. File a PRD if AST work is needed (references G-11 in SPEC-GAPS-PLAN).
-- **I18**: Confirm MathML rendering is active and the math library is bundled.
-- **P7**: Run the metadata test package and verify acceptance criteria.
+Implementation gaps closed before submission:
+
+- **T9**: Full assessment-level `<outcomeProcessing>` execution is implemented in the reference backend.
+- **I18**: QTI 2.2 MathML rendering is wired through the KaTeX typesetting adapter.
+- **P7**: The official QTI 2.2 README has no delivery acceptance criteria; package render verified.
 
 ---
 
 ### Step 3: QTI 3.0 Basic — DELIVERY
 
-**Effort**: Low (run the QTI 3.0 Basic test packages; one new feature to verify: I19a)  
+**Effort**: Low (run the QTI 3.0 Basic test packages; validator/checklist remain)  
 **Prerequisite**: QTI 2.2 Basic certification (Step 1)  
-**Status**: One feature to verify — see [qti30-gap-analysis.md](qti30-gap-analysis.md)
+**Status**: No known implementation gaps — see [PROGRESS.md](PROGRESS.md)
 
 Why:
 
@@ -89,36 +88,35 @@ Why:
   kebab-case element names are already handled by the name mapper.
 - QTI 3.0 is the future. Having QTI 3.0 Basic certified signals forward compatibility to
   content publishers and LMS vendors who are already migrating.
-- The only addition over QTI 2.2 Basic is I19a (Shared Vocabulary Subset) — CSS class
-  handling we believe is already in place.
+- The only addition over QTI 2.2 Basic is I19a (Shared Vocabulary Subset); CSS class
+  passthrough and Basic interaction-specific classes are implemented.
 
 What to do:
 
-1. Verify I19a Shared Vocabulary Subset delivery (CSS class passthrough).
-2. Run all packages in `qti-conformance/qti3.0/Basic/` through the players.
-3. Fill in `QTI 3 Delivery Certification Checklist.xlsx` (Basic section).
-4. Submit.
+1. Run all packages in `qti-conformance/qti3.0/Basic/` through the players.
+2. Fill in `QTI 3 Delivery Certification Checklist.xlsx` (Basic section).
+3. Submit.
 
 ---
 
 ### Step 4: QTI 3.0 Advanced — DELIVERY
 
-**Effort**: Low incremental from Step 2 (MathML v3 verification; Shared Vocabulary FULL audit;
-Shared Stimulus review)  
+**Effort**: Low incremental from Step 2 (validator/checklist/submission remain)  
 **Prerequisite**: QTI 3.0 Basic certification (Step 3)  
-**Status**: 3–4 features need verification — see [qti30-gap-analysis.md](qti30-gap-analysis.md)
+**Status**: No known implementation gaps; demo package verification complete — see [PROGRESS.md](PROGRESS.md)
 
 Why:
 - Required for Elevated Accessibility (Step 5).
-- Shared Vocabulary FULL and MathML v3 are the main deltas over QTI 2.2 Advanced.
+- MathML v3 is verified/patched for the constructs used by the QTI 3.0 Advanced packages.
 - Glossary (A15), Magnification (A30a), and Text-appearance (A42a) are already implemented
   via the PNP system.
+- Shared Stimulus and Shared Vocabulary FULL are implemented; all 20 official Advanced packages load through the demo conformance page.
 
-Main gaps to resolve:
-- **I18**: MathML v3 (confirm KaTeX/MathJax version supports MathML 3).
-- **I19b**: Shared Vocabulary FULL — audit which CSS classes are expected to be recognised
-  and whether our passthrough handles all of them.
-- **I4 / Shared Stimulus**: Verify cross-item shared stimulus body import and delivery.
+Remaining work:
+
+- Run the 1EdTech member validator.
+- Complete the Advanced section of `QTI 3 Delivery Certification Checklist.xlsx`.
+- Submit the checklist to 1EdTech after the QTI 3.0 Basic prerequisite is certified.
 
 ---
 
@@ -185,4 +183,4 @@ A certification is complete when:
 1. All acceptance criteria in the relevant DELIVERY README files are marked pass.
 2. The checklist workbook is submitted and acknowledged by 1EdTech.
 3. The system appears in the imscert.org listings.
-4. The gap analysis file in this folder is updated to reflect the certified state.
+4. PROGRESS.md is updated to reflect the certified state.

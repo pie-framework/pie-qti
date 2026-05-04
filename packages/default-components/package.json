@@ -90,6 +90,10 @@
     "./shared/extensions/*": {
       "types": "./dist/shared/extensions/*.d.ts",
       "import": "./dist/shared/extensions/*.js"
+    },
+    "./src/shared/styles/qti-shared-vocabulary.css": {
+      "style": "./src/shared/styles/qti-shared-vocabulary.css",
+      "default": "./src/shared/styles/qti-shared-vocabulary.css"
     }
   },
   "repository": {

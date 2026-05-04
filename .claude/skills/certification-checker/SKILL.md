@@ -118,7 +118,5 @@ Also suggest loading the official test package in the example app:
 
 - **`references/feature-index.md`** — maps every feature ID to its conformance repo directory
   and its implementation files in the codebase
-- **`docs/certification/qti22-gap-analysis.md`** — existing gap analysis for QTI 2.2
-- **`docs/certification/qti30-gap-analysis.md`** — existing gap analysis for QTI 3.0
-- **`docs/certification/PROGRESS.md`** — live progress tracker to update after each check
+- **`docs/certification/PROGRESS.md`** — live progress tracker and certification source of truth to update after each check
 - **`docs/SPEC-GAPS-PLAN.md`** — existing implementation gap plan

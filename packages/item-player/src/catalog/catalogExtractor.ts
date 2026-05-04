@@ -49,36 +49,28 @@ export function mergeCatalogs(base: CatalogIndex, override: CatalogIndex): Catal
 function buildIndex(infoEl: NhpElement): CatalogIndex {
 	const index: CatalogIndex = new Map();
 
+	for (const catalogEl of infoEl.querySelectorAll('qti-catalog')) {
+		const identifier = catalogEl.getAttribute('id') ?? catalogEl.getAttribute('identifier');
+		if (!identifier) continue;
+
+		const entries: CatalogEntry[] = [];
+		for (const cardEl of catalogEl.querySelectorAll('qti-card')) {
+			const cardUsage = cardEl.getAttribute('support') ?? cardEl.getAttribute('usage');
+			for (const entry of extractCardEntries(cardEl, cardUsage ?? undefined)) {
+				entries.push(entry);
+			}
+		}
+
+		if (entries.length > 0) {
+			index.set(identifier, { entries });
+		}
+	}
+
 	for (const cardEl of infoEl.querySelectorAll('qti-card')) {
 		const identifier = cardEl.getAttribute('identifier');
 		if (!identifier) continue;
 
-		const entries: CatalogEntry[] = [];
-
-		for (const entryEl of cardEl.querySelectorAll('qti-card-entry')) {
-			const usage = entryEl.getAttribute('usage');
-			if (!usage) continue;
-
-			// xml:lang is stored as 'xml:lang' or just 'lang' in node-html-parser
-			const lang =
-				entryEl.getAttribute('xml:lang') ??
-				entryEl.getAttribute('xmllang') ??
-				entryEl.getAttribute('lang') ??
-				undefined;
-
-			// Inner content: from <qti-html-content> (innerHTML) or <qti-file-href> (src attr)
-			const htmlContent = entryEl.querySelector('qti-html-content');
-			const fileHref = entryEl.querySelector('qti-file-href');
-
-			let html = '';
-			if (htmlContent) {
-				html = htmlContent.innerHTML ?? htmlContent.text ?? '';
-			} else if (fileHref) {
-				html = fileHref.getAttribute('src') ?? fileHref.text?.trim() ?? '';
-			}
-
-			entries.push({ usage, lang: lang || undefined, html });
-		}
+		const entries = extractCardEntries(cardEl);
 
 		if (entries.length > 0) {
 			const existing = index.get(identifier);
@@ -91,4 +83,48 @@ function buildIndex(infoEl: NhpElement): CatalogIndex {
 	}
 
 	return index;
+}
+
+function extractCardEntries(cardEl: NhpElement, fallbackUsage?: string): CatalogEntry[] {
+	const explicitEntries = cardEl.querySelectorAll('qti-card-entry');
+	const entries: CatalogEntry[] = [];
+
+	if (explicitEntries.length > 0) {
+		for (const entryEl of explicitEntries) {
+			const usage =
+				entryEl.getAttribute('usage') ??
+				entryEl.getAttribute('data-reading-type') ??
+				fallbackUsage;
+			if (!usage) continue;
+			entries.push({
+				usage,
+				lang: getLang(entryEl),
+				html: extractHtmlContent(entryEl),
+			});
+		}
+		return entries;
+	}
+
+	if (fallbackUsage) {
+		entries.push({
+			usage: fallbackUsage,
+			lang: getLang(cardEl),
+			html: extractHtmlContent(cardEl),
+		});
+	}
+
+	return entries;
+}
+
+function getLang(el: NhpElement): string | undefined {
+	return el.getAttribute('xml:lang') ?? el.getAttribute('xmllang') ?? el.getAttribute('lang') ?? undefined;
+}
+
+function extractHtmlContent(el: NhpElement): string {
+	const htmlContent = el.querySelector('qti-html-content');
+	const fileHref = el.querySelector('qti-file-href');
+
+	if (htmlContent) return htmlContent.innerHTML ?? htmlContent.text ?? '';
+	if (fileHref) return fileHref.getAttribute('src') ?? fileHref.text?.trim() ?? '';
+	return '';
 }

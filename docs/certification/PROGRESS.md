@@ -1,6 +1,6 @@
 # QTI Certification Progress Tracker
 
-Last updated: 2026-05-03 (Q8/Q10/Q11 visual verification complete; S5 automated; S3/S4/P7 confirmed N/A or no delivery criteria; all Advanced items ✅; QTI 3.0 Basic Shared Vocabulary gaps closed — Q2 label classes, Q5 height-lines, Q20 input-width + patternmask-message)
+Last updated: 2026-05-04 (QTI 3.0 Advanced implementation verification complete: I18 MathML v3 patched/tested, deterministic automated tests added, all 20 Advanced packages load through the demo conformance page; member validator + checklist + submission remain external certification operations)
 
 This document tracks the live status of each certification milestone. Update it whenever:
 - A gap is closed (link the PR/commit)
@@ -9,7 +9,7 @@ This document tracks the live status of each certification milestone. Update it 
 - A certification is awarded
 
 For strategy rationale and effort estimates see [STRATEGY.md](STRATEGY.md).
-For feature-level gap detail see [qti22-gap-analysis.md](qti22-gap-analysis.md) and [qti30-gap-analysis.md](qti30-gap-analysis.md).
+This file is the source of truth for remaining certification work and historical gap status.
 
 Elective level (QTI 2.2 and QTI 3.0) is not being pursued. See [STRATEGY.md](STRATEGY.md).
 
@@ -37,7 +37,6 @@ Elective level (QTI 2.2 and QTI 3.0) is not being pursued. See [STRATEGY.md](STR
 ### Static analysis (2026-04-29)
 
 All DELIVERY criteria verified against codebase. No implementation gaps found.
-See [certification-check-qti22-basic.md](certification-check-qti22-basic.md) for the full per-criterion report.
 
 | Feature | Static analysis | Notes |
 | --- | --- | --- |
@@ -69,7 +68,7 @@ See [certification-check-qti22-basic.md](certification-check-qti22-basic.md) for
 | Complete `QTI 2p2 Delivery Certification Checklist.xlsx` | ⬜ | Manual — after member validator pass |
 | Submit checklist to 1EdTech | ⬜ | Manual — after checklist complete |
 
-**Implementation gaps**: None identified. See [qti22-gap-analysis.md — Basic](qti22-gap-analysis.md#basic-level).
+**Implementation gaps**: None identified.
 
 ---
 
@@ -148,13 +147,13 @@ See [certification-check-qti22-basic.md](certification-check-qti22-basic.md) for
 | Complete `QTI 3 Delivery Certification Checklist.xlsx` (Basic section) | ⬜ | Manual — after member validator pass |
 | Submit checklist to 1EdTech | ⬜ | Manual — after checklist complete |
 
-**Implementation gaps**: All known gaps closed. See [qti30-gap-analysis.md — Basic](qti30-gap-analysis.md#basic-level).
+**Implementation gaps**: All known gaps closed.
 
 ---
 
 ## Milestone 4 — QTI 3.0 Advanced DELIVERY
 
-**Overall status**: 🟡 Implementation in progress  
+**Overall status**: 🔵 In progress — implementation + demo package verification complete; member validator + checklist pending  
 **Target date**: —  
 **Submitted**: —  
 **Certified**: —  
@@ -164,9 +163,9 @@ See [certification-check-qti22-basic.md](certification-check-qti22-basic.md) for
 
 | Gap | Status | PRD | PR / Commit | Notes |
 | --- | --- | --- | --- | --- |
-| T9 — Full `<outcomeProcessing>` XML (same as QTI 2.2 Advanced) | 🟡 Needs investigation | — | — | Shared with Milestone 2; resolved there first |
+| T9 — Full `<outcomeProcessing>` XML (same as QTI 2.2 Advanced) | ✅ Implemented | — | develop | Shared with Milestone 2; `ReferenceBackendAdapter.runOutcomeProcessing()` now executes assessment-level XML |
 | I4 — Shared Stimulus import + delivery | ✅ Implemented | — | — | extractStimulusRefsFromItemXml + loadStimulusContent in package-processor; ItemBody.svelte injects at data-stimulus-idref or prepends |
-| I18 — MathML v3 support | 🟡 Needs verification | — | — | v3 required for QTI 3.0 Advanced |
+| I18 — MathML v3 support | ✅ Verified | — | — | QTI 3.0 Advanced MathML appears in Q5/Q6/Q12; `@pie-qti/typeset-katex` now recurses through `mstyle` and normalizes common MathML operators; covered by `packages/typeset-katex/tests/mathml.test.ts` |
 | I19b/I20 — Shared Vocabulary FULL CSS class coverage | ✅ Implemented | — | — | qti-shared-vocabulary.css with ~100 utility classes; imported in app.css |
 | Q2/Q5/Q6/Q8/Q10/Q11/Q12/Q13 — Advanced SV behavioral features | ✅ Implemented | — | — | qti-input-control-hidden, qti-orientation-*, qti-choices-stacking-N, qti-counter-down/up, qti-match-tabular, qti-selections-dark/light, etc. |
 | All 20 conformance ZIPs + conformance page section | ✅ Implemented | — | — | static/conformance/qti30-advanced/ + conformance-packages.ts |
@@ -175,11 +174,37 @@ See [certification-check-qti22-basic.md](certification-check-qti22-basic.md) for
 
 | Step | Status | Notes |
 |------|--------|-------|
-| Close / resolve all gaps above | ⬜ | |
-| Run all `Advanced/` test packages | ⬜ | Includes A13captions_A15glossary, I4 Shared Stimulus, I20 Shared Vocabulary, S3/S4, T1, T5, T12 |
-| Validate XML with member validator | ⬜ | |
-| Complete `QTI 3 Delivery Certification Checklist.xlsx` (Advanced section) | ⬜ | |
-| Submit checklist to 1EdTech | ⬜ | |
+| Close / resolve all gaps above | ✅ | I18 MathML v3 verified/patched; QTI 3.0 assessment parsing, QTI 3.0 template filenames, A15 catalog parsing, A13 media/track asset resolution, and Q6 `qti-gap` extraction defects fixed during verification |
+| Run deterministic QTI 3.0 Advanced automated tests | ✅ | `bun test packages/typeset-katex/tests/mathml.test.ts`; `bun test packages/assessment-player/tests/conformance-qti30-advanced.test.ts`; `bun test packages/item-player/src/extraction/extractors/conformance-qti3-advanced.test.ts` |
+| Run all `Advanced/` test packages | ✅ | 2026-05-04 browser pass through `/conformance`; all 20 QTI 3.0 Advanced ZIPs loaded without page errors or console errors |
+| Validate XML with member validator | ⬜ | External/manual — requires 1EdTech member-validator access and uploading official ZIPs |
+| Complete `QTI 3 Delivery Certification Checklist.xlsx` (Advanced section) | ⬜ | External/manual — workbook not present in repo; complete after member validator pass |
+| Submit checklist to 1EdTech | ⬜ | External/manual — after checklist complete |
+
+### QTI 3.0 Advanced package run evidence (2026-05-04)
+
+| Package | Feature | Result | Evidence |
+| --- | --- | --- | --- |
+| `q30adv-q2-single` | Q2 | ✅ Pass | Demo conformance page opened first item; item body rendered |
+| `q30adv-q2-multiple` | Q2 | ✅ Pass | Demo conformance page opened first item; item body rendered |
+| `q30adv-q5-extended-text` | Q5 | ✅ Pass | Demo conformance page opened first item; item body rendered |
+| `q30adv-q6-gap-match` | Q6 | ✅ Pass | Demo conformance page opened first item; item body rendered |
+| `q30adv-q8-graphic-gap-match` | Q8 | ✅ Pass | Demo conformance page opened first item; item body rendered |
+| `q30adv-q10-hotspot` | Q10 | ✅ Pass | Demo conformance page opened first item; item body rendered |
+| `q30adv-q11-hottext` | Q11 | ✅ Pass | Demo conformance page opened first item; item body rendered |
+| `q30adv-q12-inline-choice` | Q12 | ✅ Pass | Demo conformance page opened first item; item body rendered |
+| `q30adv-q13-match` | Q13 | ✅ Pass | Demo conformance page opened first item; item body rendered |
+| `q30adv-i4-shared-stimulus` | I4 | ✅ Pass | Demo conformance page opened first item; item body rendered; focused automated test covers stimulus ref/docking markers |
+| `q30adv-i17-composite-item` | I17 | ✅ Pass | Demo conformance page opened first item; item body rendered |
+| `q30adv-i20-shared-vocabulary` | I20 | ✅ Pass | Demo conformance page opened first item; item body rendered; focused automated test covers Shared Vocabulary class preservation |
+| `q30adv-a13-a15-captions-glossary` | A13/A15 | ✅ Pass | Demo conformance page opened first item; item body rendered; media/caption assets resolved without 404s after fix |
+| `q30adv-p7-metadata-lom` | P7 | ✅ Pass | Demo conformance page opened first item; item body rendered |
+| `q30adv-p7-metadata-qti` | P7 | ✅ Pass | Demo conformance page opened first item; item body rendered |
+| `q30adv-s3-s4-selection-ordering` | S3/S4 | ✅ Pass | Demo conformance page opened assessment XML viewer |
+| `q30adv-s5-rubric-block` | S5 | ✅ Pass | Demo conformance page opened assessment XML viewer; focused automated test covers section rubric blocks |
+| `q30adv-t1-outcome-declaration` | T1/T9 | ✅ Pass | Demo conformance page opened assessment XML viewer; focused automated test covers SCORE_TOTAL outcome processing |
+| `q30adv-t5-item-session-control` | T5 | ✅ Pass | Demo conformance page opened assessment XML viewer; focused automated test covers unlimited maxAttempts |
+| `q30adv-t12-sections` | T12/T2/S1/S9 | ✅ Pass | Demo conformance page opened assessment XML viewer; focused automated test covers time limits, section controls, sectionRef resolution |
 
 ---
 
@@ -227,5 +252,5 @@ See [certification-check-qti22-basic.md](certification-check-qti22-basic.md) for
 | 1 | QTI 2.2 Basic DELIVERY | 🔵 In progress | — |
 | 2 | QTI 2.2 Advanced DELIVERY | 🔵 In progress | — |
 | 3 | QTI 3.0 Basic DELIVERY | 🔵 In progress | — |
-| 4 | QTI 3.0 Advanced DELIVERY | ⬜ Not started | — |
+| 4 | QTI 3.0 Advanced DELIVERY | 🟡 In progress | — |
 | 5 | QTI 3.0 Elevated Accessibility DELIVERY | ⬜ Not started | — |

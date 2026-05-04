@@ -74,6 +74,18 @@ const STORAGE_PREFIX = 'qti_session_';
  */
 const BANK_CACHE_PREFIX = 'qti_bank_cache_';
 
+function toCanonicalQtiName(name: string | null | undefined): string {
+	const withoutPrefix = (name ?? '').replace(/^qti-/, '');
+	return withoutPrefix.replace(/-([a-z])/g, (_, char: string) => char.toUpperCase());
+}
+
+const qtiElementNameMapper = {
+	version: 'qti2x-or-qti3',
+	toCanonical: (elementName: string) => toCanonicalQtiName(elementName).toLowerCase(),
+	toNative: (canonicalName: string) => canonicalName,
+	isValidElementName: () => true,
+};
+
 /**
  * Cache entry for item bank queries
  */
@@ -392,7 +404,10 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			const opEl = parseXml(assessment.outcomeProcessingXml).documentElement;
 			if (!opEl) return null;
 
-			const program = buildOutcomeProcessingAst(opEl, { scope: 'test' });
+			const program = buildOutcomeProcessingAst(opEl, {
+				scope: 'test',
+				elementNameMapper: qtiElementNameMapper,
+			});
 			execProgram(
 				{
 					ctx,
@@ -727,15 +742,17 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 		if (!root) throw new Error('Empty assessmentTest XML');
 
 		const getAttr = (el: Element, name: string): string | undefined => {
-			const v = el.getAttribute(name);
-			return v === null ? undefined : v;
+			const direct = el.getAttribute(name);
+			if (direct !== null && direct !== '') return direct;
+			const mapped = el.getAttribute(name.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`));
+			return mapped === null || mapped === '' ? undefined : mapped;
 		};
 
 		const childElements = (el: Element): Element[] =>
 			Array.from(el.childNodes).filter((n): n is Element => n.nodeType === 1);
 
 		const childrenByTag = (el: Element, tag: string): Element[] =>
-			childElements(el).filter((c) => c.localName === tag);
+			childElements(el).filter((c) => toCanonicalQtiName(c.localName) === tag);
 
 		// Parse itemSessionControl element
 		const parseItemSessionControl = (
@@ -828,7 +845,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 				const sectionXml = await fileResolver(href);
 				const secDoc = parseXml(sectionXml);
 				const secRoot = secDoc.documentElement;
-				if (!secRoot || secRoot.localName !== 'assessmentSection') {
+				if (!secRoot || toCanonicalQtiName(secRoot.localName) !== 'assessmentSection') {
 					console.warn(
 						`[ReferenceBackendAdapter] assessmentSectionRef href="${href}": root element is not <assessmentSection>, skipping`
 					);
@@ -848,9 +865,9 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 		const parseSectionsForTestPart = async (testPartEl: Element): Promise<SecureSection[]> => {
 			const sections: SecureSection[] = [];
 			for (const child of childElements(testPartEl)) {
-				if (child.localName === 'assessmentSection') {
+				if (toCanonicalQtiName(child.localName) === 'assessmentSection') {
 					sections.push(parseSection(child));
-				} else if (child.localName === 'assessmentSectionRef') {
+				} else if (toCanonicalQtiName(child.localName) === 'assessmentSectionRef') {
 					const resolved = await resolveSectionRef(child);
 					if (resolved) sections.push(resolved);
 				}
@@ -912,13 +929,13 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			: undefined;
 
 		// Extract timeLimits
-		const timeLimitsEl = childrenByTag(root, 'timeLimit')[0];
+		const timeLimitsEl = childrenByTag(root, 'timeLimit')[0] ?? childrenByTag(root, 'timeLimits')[0];
 		const timeLimits = timeLimitsEl
 			? {
-				maxTime: timeLimitsEl.getAttribute('maxTime')
-					? Number(timeLimitsEl.getAttribute('maxTime'))
+				maxTime: getAttr(timeLimitsEl, 'maxTime')
+					? Number(getAttr(timeLimitsEl, 'maxTime'))
 					: undefined,
-				allowLateSubmission: timeLimitsEl.getAttribute('allowLateSubmission') === 'true',
+				allowLateSubmission: getAttr(timeLimitsEl, 'allowLateSubmission') === 'true',
 			}
 			: undefined;
 
@@ -961,9 +978,9 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 		if (testParts.length === 0) {
 			const topSections: SecureSection[] = [];
 			for (const child of childElements(root)) {
-				if (child.localName === 'assessmentSection') {
+				if (toCanonicalQtiName(child.localName) === 'assessmentSection') {
 					topSections.push(parseSection(child));
-				} else if (child.localName === 'assessmentSectionRef') {
+				} else if (toCanonicalQtiName(child.localName) === 'assessmentSectionRef') {
 					const resolved = await resolveSectionRef(child);
 					if (resolved) topSections.push(resolved);
 				}

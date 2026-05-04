@@ -980,7 +980,7 @@ export class Player {
 	}
 
 	private execResponseProcessingTemplate(templateUrl: string): void {
-		const name = templateUrl.split('/').pop()?.toLowerCase();
+		const name = templateUrl.split('/').pop()?.toLowerCase().replace(/\.xml$/, '');
 		if (!name) {
 			console.warn(`[QTI Player] Could not extract template name from URL: ${templateUrl}`);
 			return;

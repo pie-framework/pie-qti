@@ -7,7 +7,8 @@ import {
 	openPackage,
 	loadPackageFromStorage as loadPackage,
 	SessionStorageBackend,
-	resolveImagesInXml as resolveImagesInXmlCore
+	resolveImagesInXml as resolveImagesInXmlCore,
+	tryResolveImagePath
 } from '@pie-qti/ims-cp-browser';
 import type { VirtualPackage } from '@pie-qti/ims-cp-browser';
 import { extractQtiItemMetadata, type QtiItemMetadata } from '@pie-qti/ims-cp-core';
@@ -334,7 +335,33 @@ export async function resolveImagesInXml(
 	itemHref: string
 ): Promise<string> {
 	// Use the core implementation from ims-cp-browser with our logger
-	return resolveImagesInXmlCore(itemXml, pkg._pkg, itemHref, { logger });
+	const resolvedImages = await resolveImagesInXmlCore(itemXml, pkg._pkg, itemHref, { logger });
+	return resolveMediaReferencesInXml(resolvedImages, pkg, itemHref);
+}
+
+function resolveMediaReferencesInXml(xml: string, pkg: PackageStructure, itemHref: string): string {
+	const parser = new DOMParser();
+	const doc = parser.parseFromString(xml, 'text/xml');
+	if (doc.querySelector('parsererror') || doc.documentElement.nodeName === 'parsererror') {
+		return xml;
+	}
+
+	const itemDir = itemHref.substring(0, itemHref.lastIndexOf('/') + 1);
+	for (const el of Array.from(doc.querySelectorAll('video[src], audio[src], source[src], track[src]'))) {
+		const src = el.getAttribute('src');
+		if (!src || src.startsWith('data:') || src.startsWith('blob:') || /^https?:\/\//i.test(src)) {
+			continue;
+		}
+
+		const resolvedUrl = tryResolveImagePath(src, itemDir)
+			.map((path) => pkg._pkg.getDataUrl(path))
+			.find((url): url is string => !!url);
+		if (resolvedUrl) {
+			el.setAttribute('src', resolvedUrl);
+		}
+	}
+
+	return new XMLSerializer().serializeToString(doc);
 }
 
 /**

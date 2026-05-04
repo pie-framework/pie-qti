@@ -85,11 +85,11 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 
 			// Replace gap elements with placeholders in the text
 			promptText = promptHtml
-				.replace(/<prompt[^>]*>/, '')
-				.replace(/<\/prompt>/, '')
-				.replace(/<gap\s+identifier="([^"]+)"[^>]*>/g, '[GAP:$1]')
-				.replace(/<gap\s+identifier='([^']+)'[^>]*>/g, '[GAP:$1]')
-				.replace(/<\/gap>/g, '')
+				.replace(/<qti-prompt[^>]*>|<prompt[^>]*>/, '')
+				.replace(/<\/qti-prompt>|<\/prompt>/, '')
+				.replace(/<(?:qti-)?gap\s+identifier="([^"]+)"[^>]*>/g, '[GAP:$1]')
+				.replace(/<(?:qti-)?gap\s+identifier='([^']+)'[^>]*>/g, '[GAP:$1]')
+				.replace(/<\/(?:qti-)?gap>/g, '')
 				.trim();
 		}
 
@@ -98,7 +98,7 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 		if (gaps.length === 0) {
 			const interactionHtml = element.outerHTML || element.toString();
 			const gapIdMatches = Array.from(
-				interactionHtml.matchAll(/<gap\s+identifier=(?:"([^"]+)"|'([^']+)')[^>]*\/?>/gi)
+				interactionHtml.matchAll(/<(?:qti-)?gap\s+identifier=(?:"([^"]+)"|'([^']+)')[^>]*\/?>/gi)
 			);
 			for (const m of gapIdMatches) {
 				const id = (m[1] || m[2] || '').trim();
@@ -109,12 +109,12 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 				// No prompt element either: build promptText from full interaction content.
 				const interactionHtml2 = element.outerHTML || element.toString();
 				promptText = interactionHtml2
-					.replace(/<gapMatchInteraction[^>]*>/, '')
-					.replace(/<\/gapMatchInteraction>/, '')
-					.replace(/<gapText[\s\S]*?<\/gapText>/g, '')
-					.replace(/<gap\s+identifier="([^"]+)"[^>]*\/?>/g, '[GAP:$1]')
-					.replace(/<gap\s+identifier='([^']+)'[^>]*\/?>/g, '[GAP:$1]')
-					.replace(/<\/gap>/g, '')
+					.replace(/<(?:qti-)?gap-match-interaction[^>]*>|<gapMatchInteraction[^>]*>/, '')
+					.replace(/<\/(?:qti-)?gap-match-interaction>|<\/gapMatchInteraction>/, '')
+					.replace(/<(?:qti-)?gap-text[\s\S]*?<\/(?:qti-)?gap-text>|<gapText[\s\S]*?<\/gapText>/g, '')
+					.replace(/<(?:qti-)?gap\s+identifier="([^"]+)"[^>]*\/?>/g, '[GAP:$1]')
+					.replace(/<(?:qti-)?gap\s+identifier='([^']+)'[^>]*\/?>/g, '[GAP:$1]')
+					.replace(/<\/(?:qti-)?gap>/g, '')
 					.trim();
 			}
 		}

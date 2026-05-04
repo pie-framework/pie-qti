@@ -194,7 +194,7 @@ describe('QTI 3.0 Extraction', () => {
 			const result = player.processResponses();
 
 			expect(result.score).toBe(1.0);
-			expect(result.outcomeValues.SCORE).toBe('1.0'); // outcomeValues are strings
+			expect(result.outcomeValues.SCORE).toBe(1.0);
 		});
 	});
 

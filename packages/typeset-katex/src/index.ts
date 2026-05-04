@@ -17,7 +17,7 @@ export interface TypesetMathOptions {
 
 /**
  * Convert MathML element to LaTeX string.
- * This is a basic converter for common QTI 2.2 MathML patterns.
+ * This is a basic converter for common QTI 2.2/3.0 MathML patterns.
  *
  * NOTE: This is intentionally minimal; if you need comprehensive MathML support,
  * consider integrating a dedicated MathML→LaTeX library in your host app.
@@ -33,8 +33,8 @@ function mathmlToLatex(mathElement: Element): string {
 		return results.join(' ');
 	}
 
-	// Handle <mrow> (row of elements)
-	if (tagName === 'mrow') {
+	// Handle container elements that only affect grouping or presentation.
+	if (tagName === 'mrow' || tagName === 'mstyle') {
 		const children = Array.from(mathElement.children);
 		const results = children.map((c) => mathmlToLatex(c)).filter(r => r.trim() !== '');
 		return results.join(' ');
@@ -42,8 +42,15 @@ function mathmlToLatex(mathElement: Element): string {
 
 	// Handle <mi> (identifier), <mn> (number), <mo> (operator)
 	if (tagName === 'mi' || tagName === 'mn' || tagName === 'mo') {
-		// Trim to avoid whitespace issues
-		return (mathElement.textContent || '').trim();
+		// Trim to avoid whitespace issues and normalize common MathML operators to KaTeX-friendly LaTeX.
+		const text = (mathElement.textContent || '').trim();
+		if (tagName === 'mo') {
+			if (text === '⁡') return '';
+			if (text === '×') return '\\times';
+			if (text === '−') return '-';
+		}
+		if (tagName === 'mi' && text === 'π') return '\\pi';
+		return text;
 	}
 
 	// Handle <msup> (superscript: base^exponent)
