@@ -36,7 +36,7 @@ describe('Q2 – Choice Interaction shared vocabulary classes (QTI 3.0 Basic off
 		const interactions = player.getInteractionData();
 		expect(interactions).toHaveLength(1);
 		const interaction = interactions[0] as any;
-		expect(interaction.type).toBe('qti-choice-interaction');
+		expect(interaction.type).toBe('choiceInteraction');
 		// No interactionClasses on a baseline item
 		expect(interaction.interactionClasses ?? []).toHaveLength(0);
 	});
@@ -47,7 +47,7 @@ describe('Q2 – Choice Interaction shared vocabulary classes (QTI 3.0 Basic off
 		const interactions = player.getInteractionData();
 		expect(interactions).toHaveLength(1);
 		const interaction = interactions[0] as any;
-		expect(interaction.type).toBe('qti-choice-interaction');
+		expect(interaction.type).toBe('choiceInteraction');
 		expect(interaction.interactionClasses).toBeDefined();
 		expect(interaction.interactionClasses).toContain('qti-labels-none');
 	});
@@ -58,7 +58,7 @@ describe('Q2 – Choice Interaction shared vocabulary classes (QTI 3.0 Basic off
 		const interactions = player.getInteractionData();
 		expect(interactions).toHaveLength(1);
 		const interaction = interactions[0] as any;
-		expect(interaction.type).toBe('qti-choice-interaction');
+		expect(interaction.type).toBe('choiceInteraction');
 		// max-choices="0" means unlimited selections per QTI spec
 		expect(interaction.maxChoices).toBe(0);
 		expect(interaction.choices.length).toBeGreaterThan(1);
@@ -76,7 +76,7 @@ describe('Q5 – Extended Text Interaction shared vocabulary classes (QTI 3.0 Ba
 		const interactions = player.getInteractionData();
 		expect(interactions).toHaveLength(1);
 		const interaction = interactions[0] as any;
-		expect(interaction.type).toBe('qti-extended-text-interaction');
+		expect(interaction.type).toBe('extendedTextInteraction');
 		expect(interaction.interactionClasses ?? []).toHaveLength(0);
 	});
 
@@ -86,7 +86,7 @@ describe('Q5 – Extended Text Interaction shared vocabulary classes (QTI 3.0 Ba
 		const interactions = player.getInteractionData();
 		expect(interactions).toHaveLength(1);
 		const interaction = interactions[0] as any;
-		expect(interaction.type).toBe('qti-extended-text-interaction');
+		expect(interaction.type).toBe('extendedTextInteraction');
 		expect(interaction.interactionClasses).toBeDefined();
 		expect(interaction.interactionClasses).toContain('qti-height-lines-3');
 	});
@@ -121,7 +121,7 @@ describe('Q20 – Text Entry Interaction shared vocabulary classes (QTI 3.0 Basi
 		const interactions = player.getInteractionData();
 		expect(interactions).toHaveLength(1);
 		const interaction = interactions[0] as any;
-		expect(interaction.type).toBe('qti-text-entry-interaction');
+		expect(interaction.type).toBe('textEntryInteraction');
 		expect(interaction.interactionClasses ?? []).toHaveLength(0);
 	});
 
@@ -131,7 +131,7 @@ describe('Q20 – Text Entry Interaction shared vocabulary classes (QTI 3.0 Basi
 		const interactions = player.getInteractionData();
 		expect(interactions).toHaveLength(1);
 		const interaction = interactions[0] as any;
-		expect(interaction.type).toBe('qti-text-entry-interaction');
+		expect(interaction.type).toBe('textEntryInteraction');
 		expect(interaction.interactionClasses).toBeDefined();
 		expect(interaction.interactionClasses).toContain('qti-input-width-1');
 	});
@@ -151,7 +151,7 @@ describe('Q20 – Text Entry Interaction shared vocabulary classes (QTI 3.0 Basi
 		const interactions = player.getInteractionData();
 		expect(interactions).toHaveLength(1);
 		const interaction = interactions[0] as any;
-		expect(interaction.type).toBe('qti-text-entry-interaction');
+		expect(interaction.type).toBe('textEntryInteraction');
 		expect(interaction.interactionClasses).toContain('qti-input-width-6');
 		expect(interaction.patternMaskMessage).toBe('Maximum of 6 digits or decimal points permitted');
 	});

@@ -49,8 +49,8 @@
 		return roleCapabilities.canViewCorrectResponses ? player.getCorrectResponses() : {};
 	});
 
-	// Get components for block-level interactions only (not inline interactions)
-	// Inline interactions (textEntry, inlineChoice) are rendered within the HTML via InlineInteractionRenderer
+	// Get components for block-level interactions only (not inline interactions).
+	// Type is always normalized to QTI 2.x camelCase by Player (qti-text-entry-interaction → textEntryInteraction).
 	const interactionComponents = $derived(
 		interactions
 			.filter(
@@ -80,14 +80,27 @@
 	const itemBodyHtml = $derived.by(() => {
 		let html = player.getItemBodyHtml();
 
-		// Replace inline interactions with placeholders (they need to be rendered in-flow)
+		// Replace inline interactions with placeholders (they need to be rendered in-flow).
+		// Handles both QTI 2.x camelCase and QTI 3.0 kebab-case element names.
 		html = html
+			// QTI 2.x: <textEntryInteraction responseIdentifier="..." />
 			.replace(
 				/<textEntryInteraction[^>]*responseIdentifier="([^"]+)"[^>]*?(?:\/>|><\/textEntryInteraction>)/gi,
 				'[TEXTENTRY:$1]'
 			)
+			// QTI 3.0: <qti-text-entry-interaction response-identifier="..." />
+			.replace(
+				/<qti-text-entry-interaction[^>]*response-identifier="([^"]+)"[^>]*?(?:\/>|><\/qti-text-entry-interaction>)/gi,
+				'[TEXTENTRY:$1]'
+			)
+			// QTI 2.x: <inlineChoiceInteraction responseIdentifier="...">...</inlineChoiceInteraction>
 			.replace(
 				/<inlineChoiceInteraction[^>]*responseIdentifier="([^"]+)"[^>]*>[\s\S]*?<\/inlineChoiceInteraction>/gi,
+				'[INLINECHOICE:$1]'
+			)
+			// QTI 3.0: <qti-inline-choice-interaction response-identifier="...">...</qti-inline-choice-interaction>
+			.replace(
+				/<qti-inline-choice-interaction[^>]*response-identifier="([^"]+)"[^>]*>[\s\S]*?<\/qti-inline-choice-interaction>/gi,
 				'[INLINECHOICE:$1]'
 			);
 
@@ -98,14 +111,15 @@
 			wrapWithSpan: false
 		});
 
-		// Wrap all block-level *Interaction elements with a hidden marker
-		// This is extensible - any element ending in "Interaction" will be hidden
+		// Wrap all block-level interaction elements with a hidden marker.
+		// Matches both QTI 2.x camelCase (*Interaction) and QTI 3.0 kebab-case (qti-*-interaction).
 		html = html.replace(
-			/<(\w+Interaction)(\s[^>]*)?>[\s\S]*?<\/\1>/gi,
+			/<(\w+Interaction|qti-[\w-]+-interaction)(\s[^>]*)?>[\s\S]*?<\/\1>/gi,
 			(match, tagName) => {
-				// Skip inline interactions (already handled above)
-				if (tagName.toLowerCase() === 'textentryinteraction' ||
-				    tagName.toLowerCase() === 'inlinechoiceinteraction') {
+				const lower = tagName.toLowerCase();
+				// Skip inline interactions (already replaced with placeholders above)
+				if (lower === 'textentryinteraction' || lower === 'inlinechoiceinteraction' ||
+				    lower === 'qti-text-entry-interaction' || lower === 'qti-inline-choice-interaction') {
 					return match;
 				}
 				// Wrap block interactions with a hidden span

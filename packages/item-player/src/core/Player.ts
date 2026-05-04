@@ -603,8 +603,16 @@ export class Player {
 			const res = this.extractionRegistry.extract<any>(el, ctx);
 			if (!res.success) continue;
 
+			// Normalize raw tag to QTI 2.x camelCase for ComponentRegistry compatibility.
+			// QTI 3.0 elements use kebab-case with 'qti-' prefix:
+			//   'qti-choice-interaction' → 'choiceInteraction'
+			const rawTag = el.rawTagName;
+			const normalizedType = rawTag.startsWith('qti-')
+				? rawTag.slice(4).replace(/-([a-z])/g, (_: string, c: string) => c.toUpperCase())
+				: rawTag;
+
 			interactions.push({
-				type: el.rawTagName as any,
+				type: normalizedType as any,
 				responseId,
 				...res.data,
 			});
