@@ -121,6 +121,10 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 
 		// Extract attributes
 		const shuffle = utils.getBooleanAttribute(element, 'shuffle');
+		const interactionClasses = utils.getClasses(element);
+		const choicesContainerWidth = utils.getAttribute(element, 'data-choices-container-width', '') || null;
+		const maxSelectionsMessage = utils.getAttribute(element, 'data-max-selections-message', '') || null;
+		const minSelectionsMessage = utils.getAttribute(element, 'data-min-selections-message', '') || null;
 
 		return {
 			gapTexts,
@@ -128,6 +132,10 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 			shuffle,
 			prompt,
 			promptText,
+			...(interactionClasses.length > 0 ? { interactionClasses } : {}),
+			...(choicesContainerWidth ? { choicesContainerWidth } : {}),
+			...(maxSelectionsMessage ? { maxSelectionsMessage } : {}),
+			...(minSelectionsMessage ? { minSelectionsMessage } : {}),
 		};
 	},
 

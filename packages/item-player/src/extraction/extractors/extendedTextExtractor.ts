@@ -43,6 +43,8 @@ export const standardExtendedTextExtractor: ElementExtractor<ExtendedTextData> =
 		const expectedLength = utils.getNumberAttribute(element, 'expectedLength', 200);
 		const placeholderText = utils.getAttribute(element, 'placeholderText', '');
 		const format = utils.getAttribute(element, 'format', 'plain');
+		const patternMask = utils.getAttribute(element, 'patternMask', '') || null;
+		const patternMaskMessage = utils.getAttribute(element, 'patternMaskMessage', '') || null;
 		const interactionClasses = utils.getClasses(element);
 
 		return {
@@ -50,6 +52,8 @@ export const standardExtendedTextExtractor: ElementExtractor<ExtendedTextData> =
 			expectedLength,
 			placeholderText,
 			format,
+			...(patternMask ? { patternMask } : {}),
+			...(patternMaskMessage ? { patternMaskMessage } : {}),
 			...(interactionClasses.length > 0 ? { interactionClasses } : {}),
 		};
 	},

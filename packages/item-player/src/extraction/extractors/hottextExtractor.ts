@@ -67,6 +67,9 @@ export const standardHottextExtractor: ElementExtractor<HottextData> = {
 		// Extract attributes
 		const maxChoices = utils.getNumberAttribute(element, 'maxChoices', 1);
 		const minChoices = utils.getNumberAttribute(element, 'minChoices', 0);
+		const interactionClasses = utils.getClasses(element);
+		const maxSelectionsMessage = utils.getAttribute(element, 'data-max-selections-message', '') || null;
+		const minSelectionsMessage = utils.getAttribute(element, 'data-min-selections-message', '') || null;
 
 		// Extract prompt (optional)
 		const promptElements = utils.getChildrenByTag(element, 'prompt');
@@ -92,6 +95,9 @@ export const standardHottextExtractor: ElementExtractor<HottextData> = {
 			maxChoices,
 			minChoices,
 			prompt,
+			...(interactionClasses.length > 0 ? { interactionClasses } : {}),
+			...(maxSelectionsMessage ? { maxSelectionsMessage } : {}),
+			...(minSelectionsMessage ? { minSelectionsMessage } : {}),
 		};
 	},
 

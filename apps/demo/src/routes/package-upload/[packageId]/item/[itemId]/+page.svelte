@@ -11,7 +11,7 @@
 	import { typesetAction } from '@pie-qti/default-components/shared';
 	import { typesetMathInElement } from '@pie-qti/typeset-katex';
 	import type { SvelteI18nProvider } from '@pie-qti/i18n';
-	import { loadPackageDataAsync, getItemXml, resolveImagesInXml } from '$lib/package-processor';
+	import { loadPackageDataAsync, getItemXml, resolveImagesInXml, extractStimulusRefsFromItemXml, loadStimulusContent } from '$lib/package-processor';
 	import type { PackageStructure } from '$lib/package-processor';
 	import { getSecurityConfig } from '$lib/player-config';
 	import XmlEditor from '$lib/components/XmlEditor.svelte';
@@ -50,6 +50,7 @@
 	let player = $state<Player | null>(null);
 	let responses = $state<Record<string, any>>({});
 	let outcomeValues = $state<Record<string, any>>({});
+	let stimulusContent = $state<Record<string, string>>({});
 
 	// Get i18n provider from context
 	const i18nContext = getContext<{ value: SvelteI18nProvider | null }>('i18n');
@@ -70,6 +71,7 @@
 		player = null;
 		responses = {};
 		outcomeValues = {};
+		stimulusContent = {};
 
 		// Load item asynchronously
 		(async () => {
@@ -114,6 +116,14 @@
 				const currentItem2 = packageData.items.find((item) => item.identifier === urlItemId);
 				if (currentItem2?.href) {
 					itemXml = await resolveImagesInXml(itemXml, packageData, currentItem2.href);
+				}
+
+				// Load QTI 3.0 shared stimulus content (if any qti-assessment-stimulus-ref elements exist)
+				if (currentItem2?.href) {
+					const stimulusRefs = extractStimulusRefsFromItemXml(itemXml);
+					if (stimulusRefs.length > 0) {
+						stimulusContent = await loadStimulusContent(packageData, currentItem2.href, stimulusRefs);
+					}
 				}
 
 				// Initialize player
@@ -300,6 +310,7 @@
 					typeset={typesetMathInElement}
 					onResponseChange={handleResponseChange}
 					{heuristicsConfig}
+					{stimulusContent}
 				/>
 			</div>
 		</div>

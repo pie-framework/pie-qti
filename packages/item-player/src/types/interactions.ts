@@ -28,6 +28,10 @@ export interface ChoiceInteractionData extends BaseInteractionData {
 	choices: Array<{ identifier: string; text: HtmlContent; fixed?: boolean; classes?: string[] }>;
 	/** CSS classes from the choiceInteraction element for custom renderer detection */
 	interactionClasses?: string[];
+	/** Message shown when candidate exceeds maxChoices (data-max-selections-message) */
+	maxSelectionsMessage?: string | null;
+	/** Message shown when candidate submits below minChoices (data-min-selections-message) */
+	minSelectionsMessage?: string | null;
 }
 
 export interface TextEntryInteractionData extends BaseInteractionData {
@@ -48,6 +52,8 @@ export interface ExtendedTextInteractionData extends BaseInteractionData {
 	expectedLength: number;
 	placeholderText: string;
 	format: string;
+	patternMask?: string | null;
+	patternMaskMessage?: string | null;
 	/** CSS classes from the extendedTextInteraction element (e.g. qti-height-lines-N) */
 	interactionClasses?: string[];
 }
@@ -57,7 +63,11 @@ export interface InlineChoiceInteractionData extends BaseInteractionData {
 	shuffle: boolean;
 	/** Placeholder label from the QTI <label> child element; shown as the unselected "Select…" option */
 	label: string | null;
+	/** Placeholder text from data-prompt attribute; alternative to <label> for dropdown default option */
+	dataPrompt?: string | null;
 	choices: Array<{ identifier: string; text: string; fixed?: boolean }>;
+	/** CSS classes from the inlineChoiceInteraction element (e.g. qti-input-width-N) */
+	interactionClasses?: string[];
 }
 
 export interface OrderInteractionData extends BaseInteractionData {
@@ -89,6 +99,14 @@ export interface MatchInteractionData extends BaseInteractionData {
 	prompt: string | null;
 	sourceSet: AssociableChoice[];
 	targetSet: AssociableChoice[];
+	/** CSS classes from the matchInteraction element (e.g. qti-choices-top, qti-match-tabular) */
+	interactionClasses?: string[];
+	/** Message shown when candidate exceeds maxAssociations */
+	maxSelectionsMessage?: string | null;
+	/** Message shown when candidate submits below minAssociations */
+	minSelectionsMessage?: string | null;
+	/** Label for first column header in tabular mode (data-qti-first-column-header) */
+	firstColumnHeader?: string | null;
 }
 
 export interface AssociateInteractionData extends BaseInteractionData {
@@ -104,9 +122,17 @@ export interface GapMatchInteractionData extends BaseInteractionData {
 	type: 'gapMatchInteraction';
 	shuffle: boolean;
 	prompt: string | null;
-	gapTexts: Array<{ identifier: string; text: string; matchMax: number; matchGroup?: string[] }>;
+	gapTexts: Array<{ identifier: string; text: string; matchMax: number; matchGroup?: string[]; inputWidth?: number }>;
 	gaps: Array<{ identifier: string; index: number }>;
 	promptText: string;
+	/** CSS classes from the gapMatchInteraction element (e.g. qti-choices-top, qti-choices-bottom) */
+	interactionClasses?: string[];
+	/** Width of the choice container in px (data-choices-container-width) */
+	choicesContainerWidth?: string | null;
+	/** Message shown when candidate exceeds max associations */
+	maxSelectionsMessage?: string | null;
+	/** Message shown when candidate submits below min associations */
+	minSelectionsMessage?: string | null;
 }
 
 export interface SliderInteractionData extends BaseInteractionData {
@@ -138,9 +164,16 @@ export interface HotspotChoice {
 export interface HotspotInteractionData extends BaseInteractionData {
 	type: 'hotspotInteraction';
 	maxChoices: number;
+	minChoices?: number;
 	prompt: string | null;
 	imageData: ImageData | null;
 	hotspotChoices: HotspotChoice[];
+	/** CSS classes from the hotspotInteraction element (e.g. qti-selections-light, qti-selections-dark) */
+	interactionClasses?: string[];
+	/** Message shown when candidate exceeds maxChoices */
+	maxSelectionsMessage?: string | null;
+	/** Message shown when candidate submits below minChoices */
+	minSelectionsMessage?: string | null;
 }
 
 export interface AssociableHotspot {
@@ -159,6 +192,14 @@ export interface GraphicGapMatchInteractionData extends BaseInteractionData {
 	/** Image-based draggable labels (gapImg elements); rendered as <img> in the choice pool */
 	gapImages: Array<{ identifier: string; src: string; alt: string; matchMax: number; matchGroup?: string[]; width?: number; height?: number }>;
 	hotspots: AssociableHotspot[];
+	/** CSS classes from the graphicGapMatchInteraction element (e.g. qti-choices-top, qti-selections-dark) */
+	interactionClasses?: string[];
+	/** Width of the choice container in px (data-choices-container-width) */
+	choicesContainerWidth?: string | null;
+	/** Message shown when candidate exceeds max associations */
+	maxSelectionsMessage?: string | null;
+	/** Message shown when candidate submits below min associations */
+	minSelectionsMessage?: string | null;
 }
 
 export interface UploadInteractionData extends BaseInteractionData {
@@ -217,6 +258,12 @@ export interface HottextInteractionData extends BaseInteractionData {
 	minChoices: number;
 	contentHtml: HtmlContent;
 	hottextChoices: HottextChoice[];
+	/** CSS classes from the hottextInteraction element (e.g. qti-input-control-hidden) */
+	interactionClasses?: string[];
+	/** Message shown when candidate exceeds maxChoices */
+	maxSelectionsMessage?: string | null;
+	/** Message shown when candidate submits below minChoices */
+	minSelectionsMessage?: string | null;
 }
 
 export interface Point {

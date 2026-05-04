@@ -154,7 +154,7 @@ See [certification-check-qti22-basic.md](certification-check-qti22-basic.md) for
 
 ## Milestone 4 — QTI 3.0 Advanced DELIVERY
 
-**Overall status**: ⬜ Not started  
+**Overall status**: 🟡 Implementation in progress  
 **Target date**: —  
 **Submitted**: —  
 **Certified**: —  
@@ -165,9 +165,11 @@ See [certification-check-qti22-basic.md](certification-check-qti22-basic.md) for
 | Gap | Status | PRD | PR / Commit | Notes |
 | --- | --- | --- | --- | --- |
 | T9 — Full `<outcomeProcessing>` XML (same as QTI 2.2 Advanced) | 🟡 Needs investigation | — | — | Shared with Milestone 2; resolved there first |
-| I4 — Shared Stimulus import + delivery | 🟡 Needs verification | — | — | Cross-item stimulus body in assessment player |
+| I4 — Shared Stimulus import + delivery | ✅ Implemented | — | — | extractStimulusRefsFromItemXml + loadStimulusContent in package-processor; ItemBody.svelte injects at data-stimulus-idref or prepends |
 | I18 — MathML v3 support | 🟡 Needs verification | — | — | v3 required for QTI 3.0 Advanced |
-| I19b — Shared Vocabulary FULL CSS class coverage | 🟡 Needs verification | — | — | Audit full class list against item player HTML renderer |
+| I19b/I20 — Shared Vocabulary FULL CSS class coverage | ✅ Implemented | — | — | qti-shared-vocabulary.css with ~100 utility classes; imported in app.css |
+| Q2/Q5/Q6/Q8/Q10/Q11/Q12/Q13 — Advanced SV behavioral features | ✅ Implemented | — | — | qti-input-control-hidden, qti-orientation-*, qti-choices-stacking-N, qti-counter-down/up, qti-match-tabular, qti-selections-dark/light, etc. |
+| All 20 conformance ZIPs + conformance page section | ✅ Implemented | — | — | static/conformance/qti30-advanced/ + conformance-packages.ts |
 
 ### Test execution checklist
 

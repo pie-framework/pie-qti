@@ -265,7 +265,7 @@ function handleRootKeyDown(event: KeyboardEvent) {
 <ShadowBaseStyles />
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div bind:this={rootElement} class="qti-graphic-gap-match-interaction" onkeydown={handleRootKeyDown}>
+<div bind:this={rootElement} class={['qti-graphic-gap-match-interaction', ...(parsedInteraction?.interactionClasses ?? [])].join(' ')} onkeydown={handleRootKeyDown}>
 	{#if !parsedInteraction}
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
@@ -294,6 +294,7 @@ function handleRootKeyDown(event: KeyboardEvent) {
 				<div
 					part="labels"
 					class="qti-ggm-labels flex flex-wrap gap-2 p-4 bg-base-200 rounded-lg border-2 border-base-300"
+					style={parsedInteraction.choicesContainerWidth ? `width: ${parsedInteraction.choicesContainerWidth}` : undefined}
 					role="group"
 					aria-label={i18n?.t('interactions.graphicGapMatch.availableLabel') ?? 'Available labels to place'}
 				>

@@ -256,3 +256,313 @@ export const CONFORMANCE_PACKAGES_QTI30_BASIC: ConformancePackage[] = [
 
 export const ITEM_PACKAGES_QTI30_BASIC = CONFORMANCE_PACKAGES_QTI30_BASIC.filter((p) => p.type === 'item');
 export const TEST_PACKAGES_QTI30_BASIC = CONFORMANCE_PACKAGES_QTI30_BASIC.filter((p) => p.type === 'test');
+
+// ── QTI 3.0 Advanced Level ───────────────────────────────────────────────────
+
+const BASE30_ADV = '/conformance/qti30-advanced';
+
+export const CONFORMANCE_PACKAGES_QTI30_ADVANCED: ConformancePackage[] = [
+	// ── Item-level interaction packages ─────────────────────────────────────
+	{
+		id: 'q30adv-q2-single',
+		featureId: 'Q2',
+		title: 'Q2 – Choice Interaction (single cardinality, Advanced)',
+		zipPath: `${BASE30_ADV}/q2-single-cardinality.zip`,
+		type: 'item',
+		deliveryCriteria: [
+			'Q2-L2-D51',
+			'Q2-L2-D52',
+			'Q2-L2-D201',
+			'Q2-L2-D202',
+			'Q2-L2-D203',
+			'Q2-L2-D204',
+			'Q2-L2-D205',
+			'Q2-L2-D221',
+		],
+		description:
+			'Single-cardinality items with validation examples and Shared Vocabulary: qti-input-control-hidden, qti-labels-none, qti-orientation-*, qti-choices-stacking-N, data-min-selections-message.',
+	},
+	{
+		id: 'q30adv-q2-multiple',
+		featureId: 'Q2',
+		title: 'Q2 – Choice Interaction (multiple cardinality, Advanced)',
+		zipPath: `${BASE30_ADV}/q2-multiple-cardinality.zip`,
+		type: 'item',
+		deliveryCriteria: [
+			'Q2-L2-D101',
+			'Q2-L2-D102',
+			'Q2-L2-D103',
+			'Q2-L2-D104',
+			'Q2-L2-D105',
+			'Q2-L2-D114',
+			'Q2-L2-D115',
+			'Q2-L2-D116',
+		],
+		description:
+			'Multiple-cardinality items with qti-input-control-hidden, qti-orientation-*, qti-choices-stacking-N (Z/N patterns), data-max/min-selections-message.',
+	},
+	{
+		id: 'q30adv-q5-extended-text',
+		featureId: 'Q5',
+		title: 'Q5 – Extended Text Entry Interaction (Advanced)',
+		zipPath: `${BASE30_ADV}/q5-extended-text.zip`,
+		type: 'item',
+		deliveryCriteria: [
+			'Q5-L2-D101',
+			'Q5-L2-D102',
+			'Q5-L2-D103',
+			'Q5-L2-D104',
+			'Q5-L2-D105',
+			'Q5-L2-D106',
+			'Q5-L2-D107',
+			'Q5-L2-D108',
+			'Q5-L2-D109',
+			'Q5-L2-D110',
+			'Q5-L2-D121',
+			'Q5-L2-D131',
+		],
+		description:
+			'qti-height-lines-N for plain/xhtml, qti-counter-down/up (character count), pattern-mask enforcement with message, placeholder-text.',
+	},
+	{
+		id: 'q30adv-q6-gap-match',
+		featureId: 'Q6',
+		title: 'Q6 – Gap Match Interaction (Advanced)',
+		zipPath: `${BASE30_ADV}/q6-gap-match.zip`,
+		type: 'item',
+		deliveryCriteria: [
+			'Q6-L2-D1',
+			'Q6-L2-D2',
+			'Q6-L2-D3',
+			'Q6-L2-D4',
+			'Q6-L2-D101',
+			'Q6-L2-D102',
+			'Q6-L2-D103',
+			'Q6-L2-D104',
+			'Q6-L2-D105',
+			'Q6-L2-D106',
+			'Q6-L2-D107',
+			'Q6-L2-D108',
+			'Q6-L2-D109',
+		],
+		description:
+			'Gap match + Shared Vocabulary: qti-choices-top/bottom/left/right, data-choices-container-width, qti-input-width-N on gaps, selection messages.',
+	},
+	{
+		id: 'q30adv-q8-graphic-gap-match',
+		featureId: 'Q8',
+		title: 'Q8 – Graphic Gap Match Interaction (Advanced)',
+		zipPath: `${BASE30_ADV}/q8-graphic-gap-match.zip`,
+		type: 'item',
+		deliveryCriteria: [
+			'Q8-L2-D1',
+			'Q8-L2-D2',
+			'Q8-L2-D101',
+			'Q8-L2-D102',
+			'Q8-L2-D103',
+			'Q8-L2-D104',
+			'Q8-L2-D105',
+			'Q8-L2-D106',
+			'Q8-L2-D107',
+			'Q8-L2-D108',
+			'Q8-L2-D109',
+			'Q8-L2-D110',
+		],
+		description:
+			'GapImg + GapText + Shared Vocabulary: choice positioning, data-choices-container-width, qti-selections-dark/light, qti-unselected-hidden, selection messages.',
+	},
+	{
+		id: 'q30adv-q10-hotspot',
+		featureId: 'Q10',
+		title: 'Q10 – Hotspot Interaction (Advanced)',
+		zipPath: `${BASE30_ADV}/q10-hotspot.zip`,
+		type: 'item',
+		deliveryCriteria: [
+			'Q10-L2-D1',
+			'Q10-L2-D2',
+			'Q10-L2-D3',
+			'Q10-L2-D101',
+			'Q10-L2-D102',
+		],
+		description:
+			'Three hotspot items + Shared Vocabulary: qti-selections-light/dark, data-min/max-selections-message.',
+	},
+	{
+		id: 'q30adv-q11-hottext',
+		featureId: 'Q11',
+		title: 'Q11 – Hot-text Interaction (Advanced)',
+		zipPath: `${BASE30_ADV}/q11-hottext.zip`,
+		type: 'item',
+		deliveryCriteria: [
+			'Q11-L2-D1',
+			'Q11-L2-D2',
+			'Q11-L2-D3',
+			'Q11-L2-D101',
+			'Q11-L2-D102',
+		],
+		description:
+			'Single + multiple cardinality hot-text + Shared Vocabulary: qti-input-control-hidden, selection messages.',
+	},
+	{
+		id: 'q30adv-q12-inline-choice',
+		featureId: 'Q12',
+		title: 'Q12 – Inline Choice Interaction (Advanced)',
+		zipPath: `${BASE30_ADV}/q12-inline-choice.zip`,
+		type: 'item',
+		deliveryCriteria: [
+			'Q12-L2-D1',
+			'Q12-L2-D2',
+			'Q12-L2-D3',
+			'Q12-L2-D4',
+			'Q12-L2-D5',
+			'Q12-L2-D21',
+			'Q12-L2-D101',
+			'Q12-L2-D102',
+			'Q12-L2-D103',
+		],
+		description:
+			'Composite item, invalid cardinality validation + Shared Vocabulary: qti-input-width-N, data-prompt, data-min-selections-message.',
+	},
+	{
+		id: 'q30adv-q13-match',
+		featureId: 'Q13',
+		title: 'Q13 – Match Interaction (Advanced)',
+		zipPath: `${BASE30_ADV}/q13-match.zip`,
+		type: 'item',
+		deliveryCriteria: [
+			'Q13-L2-D1',
+			'Q13-L2-D2',
+			'Q13-L2-D3',
+			'Q13-L2-D4',
+			'Q13-L2-D101',
+			'Q13-L2-D102',
+			'Q13-L2-D103',
+			'Q13-L2-D104',
+			'Q13-L2-D105',
+			'Q13-L2-D106',
+			'Q13-L2-D107',
+			'Q13-L2-D108',
+			'Q13-L2-D109',
+			'Q13-L2-D110',
+		],
+		description:
+			'Match interaction + Shared Vocabulary: qti-choices-top/bottom/left/right, qti-match-tabular with row/column headers, qti-header-hidden, selection messages.',
+	},
+	{
+		id: 'q30adv-i4-shared-stimulus',
+		featureId: 'I4',
+		title: 'I4 – Shared Stimulus',
+		zipPath: `${BASE30_ADV}/i4-shared-stimulus.zip`,
+		type: 'item',
+		deliveryCriteria: ['I4-L2-D1', 'I4-L2-D2', 'I4-L2-D101'],
+		description:
+			'Three items sharing a reading passage (unbelievableNight.xml). Item 2 positions stimulus via data-stimulus-idref in left column.',
+	},
+	{
+		id: 'q30adv-i17-composite-item',
+		featureId: 'I17',
+		title: 'I17 – Composite Item (QTI 3.0)',
+		zipPath: `${BASE30_ADV}/i17-composite-item.zip`,
+		type: 'item',
+		deliveryCriteria: ['I17-L2-D1', 'I9-L2-D1', 'I9-L2-D2', 'I9-L2-D3', 'I9-L2-D11'],
+		description:
+			'Shakespeare biography item with 3 interactions (2× inlineChoice + 1× textEntry), per-interaction subscores summed to overall SCORE.',
+	},
+	{
+		id: 'q30adv-i20-shared-vocabulary',
+		featureId: 'I20',
+		title: 'I20 – Shared Vocabulary CSS (Full)',
+		zipPath: `${BASE30_ADV}/i20-shared-vocabulary.zip`,
+		type: 'item',
+		deliveryCriteria: [
+			'I20-L2-D1',
+			'I20-L2-D2',
+			'I20-L2-D3',
+			'I20-L2-D4',
+			'I20-L2-D5',
+			'I20-L2-D21',
+		],
+		description:
+			'Items demonstrating the full QTI 3.0 Shared Vocabulary CSS class set: text formatting, alignment, layout grid, padding, margin, display, and width utilities.',
+	},
+	{
+		id: 'q30adv-a13-a15-captions-glossary',
+		featureId: 'A13/A15',
+		title: 'A13 – Captions / A15 – Glossary',
+		zipPath: `${BASE30_ADV}/a13-a15-captions-glossary.zip`,
+		type: 'item',
+		deliveryCriteria: ['A13-L2-D1', 'A15-L2-D1', 'A15-L2-D2'],
+		description:
+			'Video item with caption track (A13) and glossary trigger for "acronym" term (A15, keyboard-accessible).',
+	},
+	{
+		id: 'q30adv-p7-metadata-lom',
+		featureId: 'P7',
+		title: 'P7 – QTI Metadata (LOM)',
+		zipPath: `${BASE30_ADV}/p7-metadata-lom.zip`,
+		type: 'item',
+		deliveryCriteria: [],
+		description: 'Choice item with LOM metadata in the IMS manifest.',
+	},
+	{
+		id: 'q30adv-p7-metadata-qti',
+		featureId: 'P7',
+		title: 'P7 – QTI Metadata (QTI-only)',
+		zipPath: `${BASE30_ADV}/p7-metadata-qti.zip`,
+		type: 'item',
+		deliveryCriteria: [],
+		description: 'Choice item with QTI-only metadata (no LOM) in the IMS manifest.',
+	},
+
+	// ── Assessment-level test packages ───────────────────────────────────────
+	{
+		id: 'q30adv-s3-s4-selection-ordering',
+		featureId: 'S3/S4',
+		title: 'S3/S4 – Selection & Ordering (QTI 3.0)',
+		zipPath: `${BASE30_ADV}/s3-s4-selection-ordering.zip`,
+		type: 'test',
+		deliveryCriteria: ['S3-L2-D1', 'S3-L2-D2', 'S4-L2-D1', 'S4-L2-D11', 'S4-L2-D12'],
+		description:
+			'Two sections: Section A selects 2 of 3 items (Item 1 fixed), Section B selects 2 of 3 and shuffles. Nonlinear navigation.',
+	},
+	{
+		id: 'q30adv-s5-rubric-block',
+		featureId: 'S5',
+		title: 'S5 – Rubric Block in Sections (QTI 3.0)',
+		zipPath: `${BASE30_ADV}/s5-rubric-block.zip`,
+		type: 'test',
+		deliveryCriteria: ['S5-L2-D1', 'S5-L2-D2', 'S5-L2-D3'],
+		description: '3-section test with candidate-facing rubricBlock in each section.',
+	},
+	{
+		id: 'q30adv-t1-outcome-declaration',
+		featureId: 'T1/T9',
+		title: 'T1 – Outcome Declaration / T9 – Outcome Processing (QTI 3.0)',
+		zipPath: `${BASE30_ADV}/t1-outcome-declaration.zip`,
+		type: 'test',
+		deliveryCriteria: ['T1-L2-D1', 'T9-L2-D1'],
+		description: '3-item test with SCORE_TOTAL outcomeDeclaration and outcomeProcessing that sums item scores.',
+	},
+	{
+		id: 'q30adv-t5-item-session-control',
+		featureId: 'T5',
+		title: 'T5 – Test Parts / Item Session Control (QTI 3.0)',
+		zipPath: `${BASE30_ADV}/t5-item-session-control.zip`,
+		type: 'test',
+		deliveryCriteria: ['T5-L2-D1'],
+		description: '3-item test with testPart-level itemSessionControl (maxAttempts="0" = unlimited).',
+	},
+	{
+		id: 'q30adv-t12-sections',
+		featureId: 'T12/T2/S1/S9',
+		title: 'T12 – Sections (also T2, S1, S9) (QTI 3.0)',
+		zipPath: `${BASE30_ADV}/t12-sections.zip`,
+		type: 'test',
+		deliveryCriteria: ['T12-L2-D1', 'T2-L2-D1', 'S1-L2-D1', 'S1-L2-D2', 'S9-L2-D1'],
+		description:
+			'8-item test in 3 sections with time limit (60s), per-section allowSkipping, and external section reference.',
+	},
+];
+
+export const ITEM_PACKAGES_QTI30_ADVANCED = CONFORMANCE_PACKAGES_QTI30_ADVANCED.filter((p) => p.type === 'item');
+export const TEST_PACKAGES_QTI30_ADVANCED = CONFORMANCE_PACKAGES_QTI30_ADVANCED.filter((p) => p.type === 'test');

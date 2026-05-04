@@ -19,6 +19,8 @@
 		onResponseChange?: (responseId: string, value: any) => void;
 		outcomeValues?: Record<string, any>; // Needed for feedbackInline visibility
 		heuristicsConfig?: QtiHeuristicsConfig; // Optional heuristics configuration
+		/** QTI 3.0 shared stimulus content: map of stimulus identifier → HTML string */
+		stimulusContent?: Record<string, string>;
 	}
 
 	let {
@@ -31,6 +33,7 @@
 		onResponseChange = () => {},
 		outcomeValues = {},
 		heuristicsConfig,
+		stimulusContent = {},
 	}: Props = $props();
 
 	// Normalize heuristics configuration with defaults
@@ -79,6 +82,33 @@
 	// Inline interactions are replaced with placeholders
 	const itemBodyHtml = $derived.by(() => {
 		let html = player.getItemBodyHtml();
+
+		// QTI 3.0 Shared Stimulus: inject stimulus HTML at data-stimulus-idref docking points.
+		// Any stimulus identifier that has no docking div is prepended to the body.
+		if (stimulusContent && Object.keys(stimulusContent).length > 0) {
+			const docked = new Set<string>();
+			// Replace docking divs: <div ... data-stimulus-idref="ID" ...></div>
+			html = html.replace(
+				/<div([^>]*)\bdata-stimulus-idref="([^"]+)"([^>]*)>\s*<\/div>/gi,
+				(match, before, identifier, after) => {
+					const content = stimulusContent[identifier];
+					if (content) {
+						docked.add(identifier);
+						// Preserve any other attributes on the docking div
+						return `<div${before} data-stimulus-idref="${identifier}"${after} class="qti-stimulus-dock">${content}</div>`;
+					}
+					return match; // no content found — leave as-is
+				}
+			);
+			// Prepend any stimuli that had no docking div
+			const undocked = Object.entries(stimulusContent)
+				.filter(([id]) => !docked.has(id))
+				.map(([, content]) => `<div class="qti-stimulus-block">${content}</div>`)
+				.join('');
+			if (undocked) {
+				html = undocked + html;
+			}
+		}
 
 		// Replace inline interactions with placeholders (they need to be rendered in-flow).
 		// Handles both QTI 2.x camelCase and QTI 3.0 kebab-case element names.
@@ -435,6 +465,11 @@
 		padding-left: 0.5rem;
 		border-left: 2px solid var(--color-base-content, currentColor);
 		opacity: 0.8;
+	}
+
+	/* QTI 3.0 Shared Stimulus: stimulus blocks that were prepended before the item body */
+	:global(.qti-stimulus-block) {
+		margin-bottom: 1rem;
 	}
 
 	/* QTI 3.0 Shared Vocabulary: qti-input-width-N sets minimum input width in character units. */

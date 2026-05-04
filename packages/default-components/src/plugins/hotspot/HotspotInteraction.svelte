@@ -84,7 +84,7 @@
 
 <ShadowBaseStyles />
 
-<div bind:this={rootElement} class="qti-hotspot-interaction space-y-3">
+<div bind:this={rootElement} class={['qti-hotspot-interaction space-y-3', ...(parsedInteraction?.interactionClasses ?? [])].join(' ')}>
 	{#if !parsedInteraction}
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
@@ -218,10 +218,32 @@
 				{/if}
 			</div>
 		{/if}
+		{#if parsedInteraction.maxSelectionsMessage}
+			{@const selected = Array.isArray(parsedResponse) ? parsedResponse : (parsedResponse ? [parsedResponse] : [])}
+			{#if selected.length >= parsedInteraction.maxChoices && parsedInteraction.maxChoices > 0}
+				<p class="qti-selection-message" role="alert">{parsedInteraction.maxSelectionsMessage}</p>
+			{/if}
+		{/if}
 	{/if}
 </div>
 
 <style>
+	.qti-selection-message {
+		font-size: 0.875rem;
+		color: var(--color-warning, oklch(77% 0.194 82));
+		margin-top: 0.25rem;
+	}
+
+	/* qti-selections-light / qti-selections-dark: hotspot overlay color theme */
+	.qti-selections-light .qti-hotspot-shape {
+		fill: rgba(255, 255, 255, 0.4);
+		stroke: rgba(255, 255, 255, 0.8);
+	}
+	.qti-selections-dark .qti-hotspot-shape {
+		fill: rgba(0, 0, 0, 0.4);
+		stroke: rgba(0, 0, 0, 0.8);
+	}
+
 	/* Minimal layout so this works without Tailwind utilities */
 	.qti-hotspot-interaction {
 		display: grid;

@@ -114,6 +114,9 @@
 		let newValues = [...currentValues];
 
 		if (checked) {
+			// Enforce maxChoices (0 = unlimited)
+			const max = parsedInteraction?.maxChoices ?? 0;
+			if (max > 0 && newValues.length >= max) return;
 			newValues.push(identifier);
 		} else {
 			newValues = newValues.filter((v) => v !== identifier);
@@ -127,6 +130,13 @@
 			rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction?.responseId, newValues));
 		}
 	}
+
+	// Selection limit message: show max message when at/over limit; min message is for submit time
+	const selectionCount = $derived(Array.isArray(parsedResponse) ? parsedResponse.length : (parsedResponse ? 1 : 0));
+	const maxChoices = $derived(parsedInteraction?.maxChoices ?? 0);
+	const showMaxMessage = $derived(
+		maxChoices > 0 && selectionCount >= maxChoices && !!parsedInteraction?.maxSelectionsMessage
+	);
 </script>
 
 <ShadowBaseStyles />
@@ -222,6 +232,9 @@
 			</div>
 		{/each}
 	{/if}
+	{#if showMaxMessage}
+		<p class="qti-selection-message qti-max-selection-message" role="alert">{parsedInteraction?.maxSelectionsMessage}</p>
+	{/if}
 </div>
 
 <style>
@@ -300,5 +313,39 @@
 	[data-eliminated] .qti-eliminate-btn {
 		opacity: 1;
 		color: var(--color-error, oklch(63% 0.237 25.331));
+	}
+
+	/* ── QTI Shared Vocabulary behavioral classes ─────────────────────────── */
+
+	/* qti-input-control-hidden: hide radio/checkbox controls but keep keyboard-accessible */
+	:global(.qti-input-control-hidden) .qti-choice-interaction input[type='radio'],
+	:global(.qti-input-control-hidden) .qti-choice-interaction input[type='checkbox'],
+	.qti-choice-interaction.qti-input-control-hidden input[type='radio'],
+	.qti-choice-interaction.qti-input-control-hidden input[type='checkbox'] {
+		position: absolute;
+		opacity: 0;
+		width: 0;
+		height: 0;
+		pointer-events: none;
+	}
+
+	/* qti-orientation-horizontal: choices in a row */
+	.qti-choice-interaction.qti-orientation-horizontal {
+		grid-auto-flow: column;
+		grid-template-columns: repeat(auto-fill, minmax(0, 1fr));
+	}
+
+	/* qti-choices-stacking-N: N-column grid */
+	.qti-choice-interaction.qti-choices-stacking-1 { grid-template-columns: 1fr; }
+	.qti-choice-interaction.qti-choices-stacking-2 { grid-template-columns: repeat(2, 1fr); }
+	.qti-choice-interaction.qti-choices-stacking-3 { grid-template-columns: repeat(3, 1fr); }
+	.qti-choice-interaction.qti-choices-stacking-4 { grid-template-columns: repeat(4, 1fr); }
+	.qti-choice-interaction.qti-choices-stacking-5 { grid-template-columns: repeat(5, 1fr); }
+
+	/* Selection limit messages */
+	.qti-selection-message {
+		font-size: 0.875rem;
+		color: var(--color-warning, oklch(77% 0.194 82));
+		margin-top: 0.5rem;
 	}
 </style>

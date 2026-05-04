@@ -86,24 +86,29 @@ const segments = $derived.by(() => {
 		{#if segment.type === 'html'}
 			{@html segment.content}
 		{:else if segment.type === 'textEntry'}
+			{@const inputWidthClass = (segment.interaction.interactionClasses ?? []).find((c: string) => c.startsWith('qti-input-width-'))}
+			{@const inputWidthCh = inputWidthClass ? parseInt(inputWidthClass.replace('qti-input-width-', ''), 10) : null}
 			<input
 				type="text"
-				class="input input-bordered input-sm inline-input"
-				style="width: {segment.interaction.expectedLength * 8}px; min-width: 100px; display: inline-block; margin: 0 4px;"
-				placeholder="..."
+				class={['input input-bordered input-sm inline-input', ...(segment.interaction.interactionClasses ?? [])].join(' ')}
+				style={inputWidthCh ? `width: ${inputWidthCh}ch; display: inline-block; margin: 0 4px;` : `width: ${(segment.interaction.expectedLength ?? 15) * 8}px; min-width: 100px; display: inline-block; margin: 0 4px;`}
+				placeholder={segment.interaction.placeholderText || ''}
 				aria-label={`Text entry ${segment.interaction.responseId}`}
 				value={responses[segment.interaction.responseId] || ''}
 				oninput={(e) => onResponseChange(segment.interaction.responseId, e.currentTarget.value)}
 			/>
 		{:else if segment.type === 'inlineChoice'}
+			{@const inputWidthClass = (segment.interaction.interactionClasses ?? []).find((c: string) => c.startsWith('qti-input-width-'))}
+			{@const inputWidthCh = inputWidthClass ? parseInt(inputWidthClass.replace('qti-input-width-', ''), 10) : null}
+			{@const placeholder = segment.interaction.dataPrompt ?? segment.interaction.label ?? 'Select...'}
 			<select
-				class="select select-bordered select-sm inline-select"
-				style="display: inline-block; margin: 0 4px; width: auto; min-width: 120px;"
+				class={['select select-bordered select-sm inline-select', ...(segment.interaction.interactionClasses ?? [])].join(' ')}
+				style={inputWidthCh ? `width: ${inputWidthCh}ch; display: inline-block; margin: 0 4px;` : `display: inline-block; margin: 0 4px; width: auto; min-width: 120px;`}
 				aria-label={`Inline choice ${segment.interaction.responseId}`}
 				value={responses[segment.interaction.responseId] || ''}
 				onchange={(e) => onResponseChange(segment.interaction.responseId, e.currentTarget.value)}
 			>
-				<option value="">Select...</option>
+				<option value="" disabled>{placeholder}</option>
 				{#each segment.interaction.choices as choice}
 					<option value={choice.identifier}>{choice.text}</option>
 				{/each}

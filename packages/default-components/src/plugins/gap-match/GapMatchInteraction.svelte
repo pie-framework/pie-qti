@@ -368,7 +368,7 @@
 </div>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div bind:this={rootElement} part="root" class="qti-gap-match-interaction space-y-3" onkeydown={onRootKeydown}>
+<div bind:this={rootElement} part="root" class={['qti-gap-match-interaction space-y-3', ...(parsedInteraction?.interactionClasses ?? [])].join(' ')} onkeydown={onRootKeydown}>
 	{#if !parsedInteraction}
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
@@ -380,6 +380,7 @@
 		<div
 			part="palette"
 			class="qti-gm-palette flex flex-wrap gap-2 p-4 bg-base-200 rounded-lg border-2 border-base-300"
+			style={parsedInteraction.choicesContainerWidth ? `width: ${parsedInteraction.choicesContainerWidth}` : undefined}
 			role="group"
 			aria-label={i18n?.t('interactions.gapMatch.availableLabel') ?? 'Available words to place'}
 		>

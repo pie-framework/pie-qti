@@ -200,7 +200,7 @@
 
 <ShadowBaseStyles />
 
-<div bind:this={rootElement} part="root" class="qti-hottext-interaction space-y-3">
+<div bind:this={rootElement} part="root" class={['qti-hottext-interaction space-y-3', ...(parsedInteraction?.interactionClasses ?? [])].join(' ')}>
 	{#if !parsedInteraction}
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
@@ -255,10 +255,29 @@
 				</button>
 			{/if}
 		</div>
+		{#if parsedInteraction.maxSelectionsMessage && selectedIds.length >= parsedInteraction.maxChoices && parsedInteraction.maxChoices > 0}
+			<p class="qti-selection-message" role="alert">{parsedInteraction.maxSelectionsMessage}</p>
+		{/if}
 	{/if}
 </div>
 
 <style>
+	.qti-selection-message {
+		font-size: 0.875rem;
+		color: var(--color-warning, oklch(77% 0.194 82));
+		margin-top: 0.25rem;
+	}
+
+	/* qti-input-control-hidden: hide visual selection indicators but keep keyboard-accessible */
+	.qti-input-control-hidden :global(hottext) {
+		cursor: pointer;
+		outline: none;
+	}
+	.qti-input-control-hidden :global(hottext[data-selected]) {
+		background-color: transparent;
+		text-decoration: underline;
+	}
+
 	/* Minimal layout so this works without Tailwind/DaisyUI */
 	.qti-hottext-interaction {
 		display: grid;

@@ -47,7 +47,7 @@
 
 <ShadowBaseStyles />
 
-<div bind:this={rootElement} class="qti-match-interaction" use:typesetAction={{ typeset }}>
+<div bind:this={rootElement} class={['qti-match-interaction', ...(parsedInteraction?.interactionClasses ?? [])].join(' ')} use:typesetAction={{ typeset }}>
 	{#if !parsedInteraction}
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
@@ -67,5 +67,16 @@
 			{i18n}
 			onPairsChange={handlePairsChange}
 		/>
+		{#if parsedInteraction.maxSelectionsMessage && pairs.length >= parsedInteraction.maxAssociations && parsedInteraction.maxAssociations > 0}
+			<p class="qti-selection-message" role="alert">{parsedInteraction.maxSelectionsMessage}</p>
+		{/if}
 	{/if}
 </div>
+
+<style>
+	.qti-selection-message {
+		font-size: 0.875rem;
+		color: var(--color-warning, oklch(77% 0.194 82));
+		margin-top: 0.5rem;
+	}
+</style>

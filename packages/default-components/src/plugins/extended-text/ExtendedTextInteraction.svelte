@@ -39,6 +39,22 @@
 			rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction?.responseId, html));
 		}
 	}
+
+	// Character counter support (qti-counter-down / qti-counter-up)
+	function charCount(html: string, format: string): number {
+		if (format === 'xhtml') {
+			// Strip HTML tags, count only text characters
+			return html.replace(/<[^>]*>/g, '').length;
+		}
+		return html.length;
+	}
+
+	const currentCount = $derived(charCount(parsedResponse ?? '', parsedInteraction?.format ?? 'plain'));
+	const expectedLength = $derived(parsedInteraction?.expectedLength ?? 0);
+	const classes = $derived(parsedInteraction?.interactionClasses ?? []);
+	const showCounterDown = $derived(classes.includes('qti-counter-down') && expectedLength > 0);
+	const showCounterUp = $derived(classes.includes('qti-counter-up') && expectedLength > 0);
+	const remaining = $derived(expectedLength - currentCount);
 </script>
 
 <ShadowBaseStyles />
@@ -57,6 +73,15 @@
 			onChange={handleChange}
 			/>
 		</div>
+		{#if showCounterDown}
+			<p part="counter" class="qti-character-counter" aria-live="polite">
+				{remaining >= 0 ? remaining : 0} {i18n?.t('interactions.extendedText.charsRemaining', 'characters remaining')}
+			</p>
+		{:else if showCounterUp}
+			<p part="counter" class="qti-character-counter" aria-live="polite">
+				{currentCount} / {expectedLength} {i18n?.t('interactions.extendedText.charsUsed', 'characters')}
+			</p>
+		{/if}
 		{#if isShowingCorrect && parsedCorrectResponse}
 			<div part="correct-answer" class="mt-3 p-3 bg-success bg-opacity-10 border border-success rounded">
 				<div class="text-sm font-semibold text-success mb-2">
@@ -95,5 +120,13 @@
 	[class*='qti-height-lines-'] :global([part='editor'] .ProseMirror),
 	[class*='qti-height-lines-'] :global([part='editor'] textarea) {
 		min-height: var(--qti-min-height);
+	}
+
+	.qti-character-counter {
+		font-size: 0.8125rem;
+		color: var(--color-base-content, #374151);
+		opacity: 0.7;
+		margin-top: 0.25rem;
+		text-align: right;
 	}
 </style>

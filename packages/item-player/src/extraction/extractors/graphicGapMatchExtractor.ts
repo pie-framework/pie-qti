@@ -174,6 +174,11 @@ export const standardGraphicGapMatchExtractor: ElementExtractor<GraphicGapMatchD
 		const promptElements = utils.getChildrenByTag(element, 'prompt');
 		const prompt = promptElements.length > 0 ? utils.getHtmlContent(promptElements[0]) : null;
 
+		const interactionClasses = utils.getClasses(element);
+		const choicesContainerWidth = utils.getAttribute(element, 'data-choices-container-width', '') || null;
+		const maxSelectionsMessage = utils.getAttribute(element, 'data-max-selections-message', '') || null;
+		const minSelectionsMessage = utils.getAttribute(element, 'data-min-selections-message', '') || null;
+
 		return {
 			imageData,
 			maxAssociations,
@@ -181,6 +186,10 @@ export const standardGraphicGapMatchExtractor: ElementExtractor<GraphicGapMatchD
 			gapImages,
 			hotspots,
 			prompt,
+			...(interactionClasses.length > 0 ? { interactionClasses } : {}),
+			...(choicesContainerWidth ? { choicesContainerWidth } : {}),
+			...(maxSelectionsMessage ? { maxSelectionsMessage } : {}),
+			...(minSelectionsMessage ? { minSelectionsMessage } : {}),
 		};
 	},
 

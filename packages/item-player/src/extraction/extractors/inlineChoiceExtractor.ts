@@ -50,13 +50,19 @@ export const standardInlineChoiceExtractor: ElementExtractor<InlineChoiceData> =
 		const labelElements = utils.getChildrenByTag(element, 'label');
 		const label = labelElements.length > 0 ? utils.getTextContent(labelElements[0]) : null;
 
+		// data-prompt: alternative placeholder for the dropdown default option
+		const dataPrompt = utils.getAttribute(element, 'data-prompt', '') || null;
+
 		// Extract attributes
 		const shuffle = utils.getBooleanAttribute(element, 'shuffle');
+		const interactionClasses = utils.getClasses(element);
 
 		return {
 			choices,
 			shuffle,
 			label,
+			...(dataPrompt ? { dataPrompt } : {}),
+			...(interactionClasses.length > 0 ? { interactionClasses } : {}),
 		};
 	},
 
