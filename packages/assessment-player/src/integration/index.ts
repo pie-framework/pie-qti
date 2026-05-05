@@ -68,3 +68,8 @@ export type {
 
 // Export reference implementation (for development/demos)
 export { ReferenceBackendAdapter } from './ReferenceBackendAdapter.js';
+export {
+	getAssessmentItemIdentifier,
+	scoreAssessmentItem,
+	type AssessmentItemScoringInput,
+} from './assessment-item-scorer.js';

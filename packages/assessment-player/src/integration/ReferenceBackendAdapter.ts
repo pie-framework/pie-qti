@@ -41,7 +41,6 @@ import {
 	qtiNull,
 	qtiValue,
 } from '@pie-qti/qti-processing';
-import { Player } from '@pie-qti/item-player';
 import { parse } from 'node-html-parser';
 import type {
 	AssessmentSessionState,
@@ -63,6 +62,7 @@ import type {
 	SubmitResponsesRequest,
 	SubmitResponsesResponse,
 } from './api-contract.js';
+import { scoreAssessmentItem } from './assessment-item-scorer.js';
 
 /**
  * Storage key prefix for localStorage
@@ -245,7 +245,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 
 		// **SECURITY WARNING**: Client-side scoring is INSECURE
 		// In production, this MUST be done server-side
-		const result = this.scoreItem(itemXml, request.responses);
+		const result = scoreAssessmentItem({ itemXml, responses: request.responses });
 
 		// Store responses and result
 		session.state.itemResponses[request.itemIdentifier] = request.responses;
@@ -569,51 +569,6 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			}
 		}
 		return null;
-	}
-
-	/**
-	 * Score an item using the Player
-	 *
-	 * **SECURITY WARNING**: This is done CLIENT-SIDE for demo purposes only.
-	 * Production implementations MUST perform scoring SERVER-SIDE.
-	 */
-	private scoreItem(itemXml: string, responses: Record<string, any>): AssessmentScoringResult {
-		try {
-			// Extract identifier from XML using regex (more reliable than DOM parsing)
-			const identifierMatch = itemXml.match(/assessmentItem[^>]+identifier=["']([^"']+)["']/);
-			const itemIdentifier = identifierMatch?.[1] || 'unknown';
-
-			// Use a scorer-grade view of the item for accurate scoring.
-			// NOTE: This reference adapter is intentionally insecure and runs client-side.
-			// In production, scoring must happen server-side with secured item content.
-			const player = new Player({
-				itemXml,
-				role: 'scorer',
-			});
-
-			// Set responses using setResponses (plural)
-			player.setResponses(responses);
-
-			// Process and score
-			const result = player.processResponses();
-
-			return {
-				itemIdentifier,
-				score: result.score,
-				maxScore: result.maxScore,
-				completed: result.completed,
-				outcomeValues: result.outcomeValues,
-			};
-		} catch (error) {
-			console.error('Scoring error:', error);
-			return {
-				itemIdentifier: 'unknown',
-				score: 0,
-				maxScore: 1,
-				completed: false,
-				outcomeValues: {},
-			};
-		}
 	}
 
 	/**
