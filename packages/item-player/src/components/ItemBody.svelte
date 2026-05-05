@@ -8,6 +8,9 @@
 	import { glossaryAction } from '../catalog/glossaryAction';
 	import { assignProps } from './utils/assignProps';
 	import { getRoleCapabilities } from '../core/rolePolicy';
+	import InlineChoice from '../interactions/inline-choice/InlineChoice.svelte';
+	import InlineTextEntry from '../interactions/text-entry/InlineTextEntry.svelte';
+	import { createInlineRenderPlan, isInlineInteractionTagName, isInlineInteractionType } from '../interactions/inline/render-plan';
 
 	interface Props {
 		player: Player;
@@ -58,8 +61,7 @@
 		interactions
 			.filter(
 				(interaction) =>
-					interaction.type !== 'textEntryInteraction' &&
-					interaction.type !== 'inlineChoiceInteraction'
+					!isInlineInteractionType(interaction.type)
 			)
 			.map((interaction) => {
 				try {
@@ -110,30 +112,6 @@
 			}
 		}
 
-		// Replace inline interactions with placeholders (they need to be rendered in-flow).
-		// Handles both QTI 2.x camelCase and QTI 3.0 kebab-case element names.
-		html = html
-			// QTI 2.x: <textEntryInteraction responseIdentifier="..." />
-			.replace(
-				/<textEntryInteraction[^>]*responseIdentifier="([^"]+)"[^>]*?(?:\/>|><\/textEntryInteraction>)/gi,
-				'[TEXTENTRY:$1]'
-			)
-			// QTI 3.0: <qti-text-entry-interaction response-identifier="..." />
-			.replace(
-				/<qti-text-entry-interaction[^>]*response-identifier="([^"]+)"[^>]*?(?:\/>|><\/qti-text-entry-interaction>)/gi,
-				'[TEXTENTRY:$1]'
-			)
-			// QTI 2.x: <inlineChoiceInteraction responseIdentifier="...">...</inlineChoiceInteraction>
-			.replace(
-				/<inlineChoiceInteraction[^>]*responseIdentifier="([^"]+)"[^>]*>[\s\S]*?<\/inlineChoiceInteraction>/gi,
-				'[INLINECHOICE:$1]'
-			)
-			// QTI 3.0: <qti-inline-choice-interaction response-identifier="...">...</qti-inline-choice-interaction>
-			.replace(
-				/<qti-inline-choice-interaction[^>]*response-identifier="([^"]+)"[^>]*>[\s\S]*?<\/qti-inline-choice-interaction>/gi,
-				'[INLINECHOICE:$1]'
-			);
-
 		// Process feedbackInline elements - conditionally show/hide based on outcome values
 		html = processFeedbackInline(html, {
 			outcomeValues,
@@ -147,9 +125,8 @@
 			/<(\w+Interaction|qti-[\w-]+-interaction)(\s[^>]*)?>[\s\S]*?<\/\1>/gi,
 			(match, tagName) => {
 				const lower = tagName.toLowerCase();
-				// Skip inline interactions (already replaced with placeholders above)
-				if (lower === 'textentryinteraction' || lower === 'inlinechoiceinteraction' ||
-				    lower === 'qti-text-entry-interaction' || lower === 'qti-inline-choice-interaction') {
+				// Inline interactions are rendered in-flow by the inline render plan.
+				if (isInlineInteractionTagName(lower)) {
 					return match;
 				}
 				// Wrap block interactions with a hidden span
@@ -160,91 +137,10 @@
 		return html;
 	});
 
-	// Inline interaction parsing (textEntry, inlineChoice) — kept local to avoid TS issues
-	// around component props inference in runes mode.
-	interface ParsedSegment {
-		type: 'html' | 'textEntry' | 'inlineChoice';
-		content?: string;
-		interaction?: any;
-	}
-
-	const inlineSegments = $derived.by(() => {
-		const html = itemBodyHtml;
-		const result: ParsedSegment[] = [];
-
-		let lastIndex = 0;
-		let match: RegExpExecArray | null;
-
-		// Find placeholders in order.
-		const combinedPattern = /\[TEXTENTRY:([^\]]+)\]|\[INLINECHOICE:([^\]]+)\]/g;
-
-		while ((match = combinedPattern.exec(html)) !== null) {
-			if (match.index > lastIndex) {
-				result.push({ type: 'html', content: html.substring(lastIndex, match.index) });
-			}
-
-			if (match[0].startsWith('[TEXTENTRY:')) {
-				const responseId = match[1];
-				const interaction = (interactions as any[]).find((i) => i.responseId === responseId);
-				if (interaction) result.push({ type: 'textEntry', interaction });
-			} else if (match[0].startsWith('[INLINECHOICE:')) {
-				const responseId = match[2];
-				const interaction = (interactions as any[]).find((i) => i.responseId === responseId);
-				if (interaction) result.push({ type: 'inlineChoice', interaction });
-			}
-
-			lastIndex = match.index + match[0].length;
-		}
-
-		if (lastIndex < html.length) {
-			result.push({ type: 'html', content: html.substring(lastIndex) });
-		}
-
-		if (result.length === 0) {
-			result.push({ type: 'html', content: html });
-		}
-
-		return result;
-	});
+	const inlineSegments = $derived(createInlineRenderPlan(itemBodyHtml, interactions));
 
 	function handleResponseChange(responseId: string, value: any) {
 		onResponseChange(responseId, value);
-	}
-
-	let textEntryErrors = $state<Map<string, string>>(new Map());
-
-	function handleTextEntryInput(responseId: string, e: Event) {
-		const input = e.currentTarget as HTMLInputElement | null;
-		const value = input?.value ?? '';
-		handleResponseChange(responseId, value);
-		if (input?.validity.valid) {
-			const m = new Map(textEntryErrors);
-			m.delete(responseId);
-			textEntryErrors = m;
-		}
-	}
-
-	function handleTextEntryInvalid(responseId: string, e: Event, customMessage?: string | null) {
-		e.preventDefault();
-		const msg = customMessage
-			?? i18n?.t('interactions.textEntry.patternError', 'Please match the required format')
-			?? 'Please match the required format';
-		textEntryErrors = new Map(textEntryErrors).set(responseId, msg);
-	}
-
-	function handleTextEntryBlur(e: Event) {
-		(e.currentTarget as HTMLInputElement | null)?.checkValidity();
-	}
-
-	function handleInlineChoiceChange(responseId: string, e: Event) {
-		const value = (e.currentTarget as HTMLSelectElement | null)?.value ?? '';
-		handleResponseChange(responseId, value);
-	}
-
-	// Helper to find correct choice for inline choice interactions
-	function findCorrectChoice(choices: any[], correctAnswer: string | null): any {
-		if (!correctAnswer) return null;
-		return choices.find((c: any) => c.identifier === correctAnswer) || null;
 	}
 
 	// Handle qti:change events from web components
@@ -318,68 +214,24 @@
 					{@html segment.content}
 				{:else if segment.type === 'textEntry'}
 					{@const correctAnswer = roleCapabilities.canViewCorrectResponses ? (correctResponses[segment.interaction.responseId] ?? null) : null}
-					{@const displayValue = roleCapabilities.canViewCorrectResponses && correctAnswer !== null ? correctAnswer : (responses[segment.interaction.responseId] || '')}
-					{@const inputWidthClass = (segment.interaction.interactionClasses ?? []).find((c: string) => c.startsWith('qti-input-width-'))}
-					{@const extraClasses = (segment.interaction.interactionClasses ?? []).filter((c: string) => !c.startsWith('qti-input-width-')).join(' ')}
-					<input
-						type="text"
-						class={['input input-bordered input-sm inline-input', inputWidthClass ?? '', extraClasses].filter(Boolean).join(' ')}
-						class:border-success={correctAnswer !== null}
-						class:bg-success={correctAnswer !== null}
-						class:bg-opacity-10={correctAnswer !== null}
-						style={inputWidthClass ? 'min-width: 100px; display: inline-block; margin: 0 4px;' : `width: ${segment.interaction.expectedLength * 8}px; min-width: 100px; display: inline-block; margin: 0 4px;`}
-						placeholder={segment.interaction.placeholderText || '...'}
-						pattern={segment.interaction.patternMask || undefined}
-						title={segment.interaction.patternMask ? `Format: ${segment.interaction.patternMask}` : undefined}
-						data-format={segment.interaction.format || undefined}
-						aria-label={`Text entry ${segment.interaction.responseId}${correctAnswer ? '. Correct answer: ' + correctAnswer : ''}`}
-						aria-invalid={textEntryErrors.has(segment.interaction.responseId) ? 'true' : undefined}
-						aria-describedby={textEntryErrors.has(segment.interaction.responseId) ? `${segment.interaction.responseId}-error` : undefined}
-						value={displayValue}
-						oninput={(e) => handleTextEntryInput(segment.interaction.responseId, e)}
-						oninvalid={(e) => handleTextEntryInvalid(segment.interaction.responseId, e, segment.interaction.patternMaskMessage)}
-						onblur={handleTextEntryBlur}
+					<InlineTextEntry
+						interaction={segment.interaction}
+						response={responses[segment.interaction.responseId] || ''}
+						correctAnswer={roleCapabilities.canViewCorrectResponses ? correctAnswer : null}
 						disabled={effectiveDisabled}
+						{i18n}
+						onResponseChange={handleResponseChange}
 					/>
-					{#if textEntryErrors.has(segment.interaction.responseId)}
-						<span
-							id="{segment.interaction.responseId}-error"
-							role="alert"
-							class="qti-text-entry-error text-error text-xs"
-							style="display: block;"
-						>{textEntryErrors.get(segment.interaction.responseId)}</span>
-					{/if}
 				{:else if segment.type === 'inlineChoice'}
 					{@const correctAnswer = roleCapabilities.canViewCorrectResponses ? (correctResponses[segment.interaction.responseId] ?? null) : null}
-					{@const userResponse = responses[segment.interaction.responseId] || ''}
-					{@const displayValue = roleCapabilities.canViewCorrectResponses && correctAnswer !== null ? correctAnswer : userResponse}
-					{@const correctChoice = findCorrectChoice(segment.interaction.choices, correctAnswer)}
-					<span class="inline-choice-wrapper" style="display: inline-block; position: relative;">
-						<select
-							class="select select-bordered select-sm inline-select"
-							class:border-success={correctAnswer !== null}
-							class:bg-success={correctAnswer !== null}
-							class:bg-opacity-10={correctAnswer !== null}
-							style="display: inline-block; margin: 0 4px; width: auto; min-width: 120px;"
-							aria-label={`Inline choice ${segment.interaction.responseId}${correctAnswer && correctChoice ? '. Correct answer: ' + (correctChoice as any).text : ''}`}
-							value={displayValue}
-							onchange={(e) => handleInlineChoiceChange(segment.interaction.responseId, e)}
-							disabled={effectiveDisabled}
-						>
-							<option value="">{segment.interaction.label ?? i18n?.t('interactions.inline.selectPlaceholder', 'Select...')}</option>
-							{#each segment.interaction.choices as choice}
-								{@const isCorrect = correctAnswer === choice.identifier}
-								<option value={choice.identifier}>
-									{choice.text}{isCorrect ? ' ✓' : ''}
-								</option>
-							{/each}
-						</select>
-						{#if correctAnswer !== null && correctChoice}
-							<span class="badge badge-success badge-sm" style="position: absolute; top: -1.5rem; left: 0; white-space: nowrap; font-size: 0.7rem;">
-								{i18n?.t('interactions.choice.correct', 'Correct') ?? 'Correct'}: {(correctChoice as any).text}
-							</span>
-						{/if}
-					</span>
+					<InlineChoice
+						interaction={segment.interaction}
+						response={responses[segment.interaction.responseId] || ''}
+						correctAnswer={roleCapabilities.canViewCorrectResponses ? correctAnswer : null}
+						disabled={effectiveDisabled}
+						{i18n}
+						onResponseChange={handleResponseChange}
+					/>
 				{/if}
 			{/each}
 		</div>

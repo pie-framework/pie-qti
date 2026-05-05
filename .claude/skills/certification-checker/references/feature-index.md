@@ -1,7 +1,7 @@
 # QTI Conformance Feature Index
 
-Conformance repo root: `../../../qti-conformance/` (relative to pie-qti project root)
-Absolute path: `/Users/eelco.hillenius/dev/prj/pie/qti-conformance/`
+Conformance repo root: set `QTI_CONFORMANCE_REPO` or use a private sibling
+checkout outside this repository.
 
 For each feature ID, the path below is relative to the conformance repo root.
 All paths contain a `README.md` with acceptance criteria split by capability (EXPORT / IMPORT / DELIVERY / AUTHORING).

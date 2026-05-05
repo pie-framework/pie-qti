@@ -229,7 +229,7 @@
 									response: responses[interaction.responseId],
 									onresponse: (e: CustomEvent) => handleQtiChange(e)
 								}}
-							/>
+							></pie-qti-choice-interaction>
 						{:else if interaction.type === 'qti-text-entry-interaction' || interaction.type === 'textEntryInteraction'}
 							<pie-qti-text-entry-interaction
 								use:setElementProps={{
@@ -237,7 +237,7 @@
 									response: responses[interaction.responseId],
 									onresponse: (e: CustomEvent) => handleQtiChange(e)
 								}}
-							/>
+							></pie-qti-text-entry-interaction>
 						{:else if interaction.type === 'qti-extended-text-interaction' || interaction.type === 'extendedTextInteraction'}
 							<pie-qti-extended-text-interaction
 								use:setElementProps={{
@@ -245,7 +245,7 @@
 									response: responses[interaction.responseId],
 									onresponse: (e: CustomEvent) => handleQtiChange(e)
 								}}
-							/>
+							></pie-qti-extended-text-interaction>
 						{:else if interaction.type === 'qti-match-interaction' || interaction.type === 'matchInteraction'}
 							<pie-qti-match-interaction
 								use:setElementProps={{
@@ -253,7 +253,7 @@
 									response: responses[interaction.responseId],
 									onresponse: (e: CustomEvent) => handleQtiChange(e)
 								}}
-							/>
+							></pie-qti-match-interaction>
 						{:else}
 							<div class="alert alert-warning">
 								<span>Unsupported interaction type: {interaction.type}</span>

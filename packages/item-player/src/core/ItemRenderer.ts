@@ -12,6 +12,7 @@ import type { ComponentRegistry } from './ComponentRegistry.js';
 import type { Player } from './Player.js';
 import { htmlToString, toTrustedHtml } from './trustedTypes.js';
 import { applyGlossaryTriggers } from '../catalog/applyGlossaryTriggers.js';
+import { createInlinePlaceholderHtml, isInlineInteractionType } from '../interactions/inline/render-plan.js';
 
 /**
  * Configuration for ItemRenderer
@@ -87,10 +88,7 @@ export class ItemRenderer {
 		const interactions: InteractionData[] = this.player.getInteractionData();
 
 		// Filter block vs inline interactions
-		const blockInteractions = interactions.filter(
-			(i) =>
-				i.type !== 'textEntryInteraction' && i.type !== 'inlineChoiceInteraction'
-		);
+		const blockInteractions = interactions.filter((interaction) => !isInlineInteractionType(interaction.type));
 
 		// Get item body HTML with interactions removed
 		const itemBodyHtml = this.getProcessedItemBodyHtml();
@@ -185,35 +183,9 @@ export class ItemRenderer {
 		html: string,
 		interactions: InteractionData[]
 	): string {
-		// Replace textEntry with placeholder
-		html = html.replace(
-			/<textEntryInteraction[^>]*responseIdentifier="([^"]+)"[^>]*?(?:\/>|><\/textEntryInteraction>)/gi,
-			(match, responseId) => {
-				const interaction = interactions.find(
-					(i) => i.responseId === responseId && i.type === 'textEntryInteraction'
-				);
-				if (interaction) {
-					return `<span data-inline-interaction="${responseId}" data-type="textEntry"></span>`;
-				}
-				return match;
-			}
-		);
-
-		// Replace inlineChoice with placeholder
-		html = html.replace(
-			/<inlineChoiceInteraction[^>]*responseIdentifier="([^"]+)"[^>]*>[\s\S]*?<\/inlineChoiceInteraction>/gi,
-			(match, responseId) => {
-				const interaction = interactions.find(
-					(i) => i.responseId === responseId && i.type === 'inlineChoiceInteraction'
-				);
-				if (interaction) {
-					return `<span data-inline-interaction="${responseId}" data-type="inlineChoice"></span>`;
-				}
-				return match;
-			}
-		);
-
-		return html;
+		return createInlinePlaceholderHtml(html, interactions)
+			.replace(/\[TEXTENTRY:([^\]]+)\]/g, '<span data-inline-interaction="$1" data-type="textEntry"></span>')
+			.replace(/\[INLINECHOICE:([^\]]+)\]/g, '<span data-inline-interaction="$1" data-type="inlineChoice"></span>');
 	}
 
 	/**

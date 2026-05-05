@@ -116,12 +116,14 @@ Only suggest official package execution as a private-project follow-up, never as
   guessing. The goal is an honest readiness assessment, not a rubber stamp.
 - If a gap is found, reference the corresponding entry in `docs/SPEC-GAPS-PLAN.md` if one
   exists (G-01 through G-15 and beyond).
-- After completing the check, offer to update `docs/certification/PROGRESS.md` with the
-  findings.
+- After completing the check, offer to update the private conformance project's
+  `docs/CERTIFICATION_PROGRESS.md` with the findings when the result affects
+  official certification readiness.
 
 ## Additional resources
 
 - **`references/feature-index.md`** — maps every feature ID to its conformance repo directory
   and its implementation files in the codebase
-- **`docs/certification/PROGRESS.md`** — live progress tracker and certification source of truth to update after each check
+- **`docs/certification/public-coverage-matrix.json`** — public clean-room coverage source of truth
+- **private `pie-qti-conformance/docs/CERTIFICATION_PROGRESS.md`** — official certification progress source of truth
 - **`docs/SPEC-GAPS-PLAN.md`** — existing implementation gap plan

@@ -32,6 +32,7 @@ export {
 } from './core/Plugin.js';
 export { PluginManager } from './core/PluginManager.js';
 // Export extraction system (PUBLIC API)
+export * from './interactions/index.js';
 export type {
 	ElementExtractor,
 	ExtractionContext,

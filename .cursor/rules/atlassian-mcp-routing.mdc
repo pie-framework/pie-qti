@@ -1,0 +1,11 @@
+---
+description: Correct MCP server routing for Atlassian/Jira operations
+alwaysApply: true
+---
+
+# Atlassian MCP Server Routing
+
+- The `user-renaissance-atlassian` MCP server requires OAuth auth that consistently fails. Do NOT use it.
+- Use `plugin-engineer-buddy-renaissance-atlassian` for all Jira and Confluence operations. It has the full tool set (`getJiraIssue`, `editJiraIssue`, `searchJiraIssuesUsingJql`, `getConfluencePage`, etc.) and works without a separate auth step.
+- CloudId for the illuminate site: `6b6fffef-32f8-44d1-82ea-ad3773ab29c8`. You can also call `getAccessibleAtlassianResources` to retrieve it.
+- When editing Jira issue descriptions, use `contentFormat: "markdown"` and `responseContentFormat: "markdown"` for readability.

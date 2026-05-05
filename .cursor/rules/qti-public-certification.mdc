@@ -1,0 +1,12 @@
+---
+description: Keep public QTI certification coverage clean-room and CI-safe.
+alwaysApply: true
+---
+
+# Public QTI Certification
+
+- Public certification coverage in this repository must use clean-room fixtures, public sample items, and the `bun run test:certification:public` gate.
+- Do not copy official 1EdTech conformance ZIP/XML assets into this repository or add tests that require a private sibling checkout such as `../qti-conformance`.
+- Official conformance package execution belongs in the private `pie-qti-conformance` project and must consume published `@pie-qti/*` packages.
+- When changing QTI extraction, assessment delivery, response processing, MathML rendering, or browser-visible interaction behavior, update `docs/certification/public-coverage-matrix.json` and run `bun run test:certification:public`.
+- Keep public CI, default build scripts, and contributor workflows runnable without private credentials or member-only assets.

@@ -74,6 +74,7 @@
 	role="dialog"
 	aria-label={label}
 	aria-modal="true"
+	tabindex="-1"
 	class="qti-catalog-popup"
 	onkeydown={handleKeyDown}
 >
