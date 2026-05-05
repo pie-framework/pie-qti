@@ -311,6 +311,8 @@ export interface AssessmentSessionState {
 	itemResponses: Record<string, Record<string, ResponseValue>>;
 	/** Scoring results per item (populated after submission) */
 	itemScores?: Record<string, AssessmentScoringResult>;
+	/** ItemSession lifecycle hints per item, used to restore attempt/review UI state */
+	itemSessionStates?: Record<string, AssessmentItemSessionState>;
 	/** Time tracking */
 	timing: {
 		/** Session start time */
@@ -320,6 +322,14 @@ export interface AssessmentSessionState {
 		/** Total elapsed time (ms) */
 		totalTime: number;
 	};
+}
+
+export interface AssessmentItemSessionState {
+	itemIdentifier: string;
+	attemptCount: number;
+	isAnswered: boolean;
+	isSubmitted: boolean;
+	lastSubmissionTime?: number;
 }
 
 // ============================================================================

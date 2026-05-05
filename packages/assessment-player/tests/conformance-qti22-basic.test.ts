@@ -16,7 +16,7 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
 import { ReferenceBackendAdapter } from '../src/integration/ReferenceBackendAdapter.js';
 import { AssessmentPlayer } from '../src/core/AssessmentPlayer.js';
-import type { SecureAssessment } from '../src/integration/api-contract.js';
+import type { AssessmentScoringResult, AssessmentSessionState, SecureAssessment } from '../src/integration/api-contract.js';
 
 // DOM stubs are provided by packages/assessment-player/tests/setup.ts (preloaded
 // when running tests within this package). When running `bun test` from the repo
@@ -82,6 +82,29 @@ const T4_T7_ASSESSMENT: SecureAssessment = {
 	],
 };
 
+const LIMITED_ATTEMPTS_ASSESSMENT: SecureAssessment = {
+	...T4_T7_ASSESSMENT,
+	identifier: 'qti22-basic-item-session-control',
+	testParts: [
+		{
+			...T4_T7_ASSESSMENT.testParts[0],
+			itemSessionControl: {
+				maxAttempts: 1,
+				showFeedback: true,
+				allowReview: false,
+			},
+		},
+	],
+};
+
+const SUBMITTED_SCORE: AssessmentScoringResult = {
+	itemIdentifier: 'item-choice-single',
+	score: 1,
+	maxScore: 1,
+	completed: true,
+	outcomeValues: { SCORE: 1 },
+};
+
 // -------------------------------------------------------------------------
 // Helpers
 // -------------------------------------------------------------------------
@@ -90,6 +113,13 @@ function makeAdapter(): ReferenceBackendAdapter {
 	localStorage.clear();
 	const adapter = new ReferenceBackendAdapter();
 	adapter.registerAssessment(T4_T7_ASSESSMENT.identifier, T4_T7_ASSESSMENT);
+	return adapter;
+}
+
+function makeLimitedAttemptsAdapter(): ReferenceBackendAdapter {
+	localStorage.clear();
+	const adapter = new ReferenceBackendAdapter();
+	adapter.registerAssessment(LIMITED_ATTEMPTS_ASSESSMENT.identifier, LIMITED_ATTEMPTS_ASSESSMENT);
 	return adapter;
 }
 
@@ -104,6 +134,19 @@ async function createPlayer(): Promise<AssessmentPlayer> {
 	});
 	// The constructor fires navigateTo(startId) as fire-and-forget. Await it
 	// explicitly so that currentItemIndex is set before our tests run.
+	await player.navigateTo(0);
+	return player;
+}
+
+async function createLimitedAttemptsPlayer(): Promise<AssessmentPlayer> {
+	const adapter = makeLimitedAttemptsAdapter();
+	const player = await AssessmentPlayer.create({
+		backend: adapter,
+		initSession: {
+			assessmentId: LIMITED_ATTEMPTS_ASSESSMENT.identifier,
+			candidateId: 'test-candidate',
+		},
+	});
 	await player.navigateTo(0);
 	return player;
 }
@@ -211,5 +254,62 @@ describe('T14-L1-D1: record and restore responses', () => {
 		const state = player.getState();
 		expect(state.itemResponses['item-choice-single']).toEqual({ RESPONSE: 'A' });
 		expect(state.itemResponses['item-choice-multiple']).toEqual({ RESPONSE: ['A', 'B'] });
+	});
+});
+
+describe('ItemSession restore hints', () => {
+	function submittedState(overrides: Partial<AssessmentSessionState> = {}): AssessmentSessionState {
+		return {
+			currentItemIdentifier: 'item-choice-single',
+			visitedItems: ['item-choice-single'],
+			itemResponses: {
+				'item-choice-single': { RESPONSE: 'A' },
+			},
+			itemScores: {
+				'item-choice-single': SUBMITTED_SCORE,
+			},
+			timing: {
+				startedAt: Date.now(),
+				itemTimes: {},
+				totalTime: 0,
+			},
+			...overrides,
+		};
+	}
+
+	it('restores persisted ItemSession attempt and review state', async () => {
+		const player = await createLimitedAttemptsPlayer();
+		await player.restoreState(
+			submittedState({
+				itemSessionStates: {
+					'item-choice-single': {
+						itemIdentifier: 'item-choice-single',
+						attemptCount: 1,
+						isAnswered: true,
+						isSubmitted: true,
+						lastSubmissionTime: 123,
+					},
+				},
+			})
+		);
+
+		const info = player.getItemSessionInfo();
+		expect(info?.attemptCount).toBe(1);
+		expect(info?.remainingAttempts).toBe(0);
+		expect(info?.canSubmit).toBe(false);
+		expect(info?.showFeedback).toBe(true);
+		expect(info?.canReview).toBe(false);
+		expect(player.getState().itemSessionStates?.['item-choice-single']?.lastSubmissionTime).toBe(123);
+	});
+
+	it('derives submitted ItemSession state from legacy scores when no snapshot exists', async () => {
+		const player = await createLimitedAttemptsPlayer();
+		await player.restoreState(submittedState());
+
+		const info = player.getItemSessionInfo();
+		expect(info?.attemptCount).toBe(1);
+		expect(info?.remainingAttempts).toBe(0);
+		expect(info?.canSubmit).toBe(false);
+		expect(info?.showFeedback).toBe(true);
 	});
 });

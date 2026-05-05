@@ -29,7 +29,7 @@ import type {
 	ItemResult,
 	NavigationState,
 } from '../types/index.js';
-import { ItemSessionController } from './ItemSessionController.js';
+import { ItemSessionController, type ItemSessionState } from './ItemSessionController.js';
 import { NavigationManager } from './NavigationManager.js';
 import { TimeManager } from './TimeManager.js';
 
@@ -151,6 +151,7 @@ export class AssessmentPlayer {
 		for (const q of this.items) {
 			this.sessionController.initializeItem(q.identifier);
 		}
+		this.restoreItemSessionsFromState(this.state);
 
 		// Initialize time manager if time limits exist
 		if (this.assessment.timeLimits?.maxTime) {
@@ -168,7 +169,7 @@ export class AssessmentPlayer {
 		const startId = this.state.currentItemIdentifier;
 		const idx = startId ? this.items.findIndex((q) => q.identifier === startId) : -1;
 		if (idx >= 0) {
-			this.navigateTo(idx).catch(() => {});
+			this.navigateTo(idx, { restoring: true }).catch(() => {});
 		}
 	}
 
@@ -210,6 +211,42 @@ export class AssessmentPlayer {
 			return true;
 		}
 		return false;
+	}
+
+	private restoreItemSessionsFromState(state: AssessmentSessionState): void {
+		const restoredStates = new Map<string, ItemSessionState>();
+		for (const item of this.items) {
+			const persisted = state.itemSessionStates?.[item.identifier];
+			if (persisted) {
+				restoredStates.set(item.identifier, {
+					itemIdentifier: item.identifier,
+					attemptCount: Math.max(0, persisted.attemptCount),
+					isAnswered: persisted.isAnswered,
+					isSubmitted: persisted.isSubmitted,
+					lastSubmissionTime: persisted.lastSubmissionTime,
+				});
+				continue;
+			}
+
+			const responses = state.itemResponses?.[item.identifier] ?? {};
+			const isSubmitted = Boolean(state.itemScores?.[item.identifier]);
+			restoredStates.set(item.identifier, {
+				itemIdentifier: item.identifier,
+				attemptCount: isSubmitted ? 1 : 0,
+				isAnswered: this.hasAnyResponse(responses),
+				isSubmitted,
+			});
+		}
+		this.sessionController.restoreStates(restoredStates);
+	}
+
+	private getItemSessionStateSnapshot(): Record<string, ItemSessionState> {
+		return Object.fromEntries(
+			[...this.sessionController.getAllStates().entries()].map(([itemIdentifier, state]) => [
+				itemIdentifier,
+				{ ...state },
+			])
+		);
 	}
 
 	private flattenItems(assessment: SecureAssessment): FlatItem[] {
@@ -325,12 +362,12 @@ export class AssessmentPlayer {
 		const prev = (this.state.itemResponses?.[itemIdentifier] || {}) as Record<string, unknown>;
 		const next = { ...prev, [responseId]: value };
 		this.state.itemResponses[itemIdentifier] = next as any;
+		this.sessionController.markAnswered(itemIdentifier, this.hasAnyResponse(next));
 
 		// If this is the active item, keep the live response state + UI hints in sync.
 		const active = this.items[this.currentItemIndex];
 		if (active?.identifier === itemIdentifier) {
 			this.responses = next;
-			this.sessionController.markAnswered(itemIdentifier, this.hasAnyResponse(this.responses));
 			this.currentItemPlayer?.setResponses(this.responses as any);
 			this.notifyResponseChange();
 		}
@@ -355,6 +392,7 @@ export class AssessmentPlayer {
 			visitedItems: [...this.state.visitedItems],
 			itemResponses: { ...this.state.itemResponses },
 			itemScores: this.state.itemScores ? { ...this.state.itemScores } : undefined,
+			itemSessionStates: this.getItemSessionStateSnapshot(),
 			timing: {
 				...this.state.timing,
 				itemTimes: { ...this.state.timing.itemTimes },
@@ -373,6 +411,7 @@ export class AssessmentPlayer {
 			.map((id) => this.items.findIndex((q) => q.identifier === id))
 			.filter((i) => i >= 0);
 		this.navigationManager.restoreState(visitedIdx);
+		this.restoreItemSessionsFromState(state);
 
 		// Rehydrate itemResults from scores if present, so submit() can behave sensibly.
 		this.itemResults.clear();
@@ -390,24 +429,24 @@ export class AssessmentPlayer {
 		const currentId = state.currentItemIdentifier;
 		const idx = currentId ? this.items.findIndex((q) => q.identifier === currentId) : -1;
 		if (idx >= 0) {
-			await this.navigateTo(idx);
+			await this.navigateTo(idx, { restoring: true });
 		} else if (this.items.length > 0) {
-			await this.navigateTo(0);
+			await this.navigateTo(0, { restoring: true });
 		}
 	}
 
-	public async navigateTo(index: number): Promise<void> {
+	public async navigateTo(index: number, options: { restoring?: boolean } = {}): Promise<void> {
 		if (index < 0 || index >= this.items.length) throw new Error(`Invalid item index: ${index}`);
 
 		// Enforce navigation rules (UI hints, still backend-authoritative for real deployments).
-		if (this.currentItemIndex >= 0 && !this.navigationManager.canNavigateTo(index, this.currentItemIndex)) {
+		if (!options.restoring && this.currentItemIndex >= 0 && !this.navigationManager.canNavigateTo(index, this.currentItemIndex)) {
 			if (this.navigationManager.getMode() === 'linear' && index > this.currentItemIndex + 1) {
 				throw new Error('In linear navigation mode, you can only move to the next question.');
 			}
 			throw new Error('Navigation is not allowed.');
 		}
 		const target = this.items[index];
-		if (target && !this.sessionController.canReview(target.identifier)) {
+		if (!options.restoring && target && !this.sessionController.canReview(target.identifier)) {
 			throw new Error('You cannot go back to previous questions in this assessment.');
 		}
 

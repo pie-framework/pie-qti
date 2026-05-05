@@ -142,6 +142,22 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 		return this.registeredAssessments.get(assessmentId) ?? this.createDemoAssessment(assessmentId);
 	}
 
+	private hasAnyResponse(responses: Record<string, unknown>): boolean {
+		for (const value of Object.values(responses)) {
+			if (value == null) continue;
+			if (Array.isArray(value)) {
+				if (value.length > 0) return true;
+				continue;
+			}
+			if (typeof value === 'string') {
+				if (value.trim().length > 0) return true;
+				continue;
+			}
+			return true;
+		}
+		return false;
+	}
+
 	/**
 	 * Initialize a new assessment session
 	 */
@@ -237,6 +253,17 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			session.state.itemScores = {};
 		}
 		session.state.itemScores[request.itemIdentifier] = result;
+		const previousItemSession = session.state.itemSessionStates?.[request.itemIdentifier];
+		session.state.itemSessionStates = {
+			...(session.state.itemSessionStates ?? {}),
+			[request.itemIdentifier]: {
+				itemIdentifier: request.itemIdentifier,
+				attemptCount: (previousItemSession?.attemptCount ?? 0) + 1,
+				isAnswered: this.hasAnyResponse(request.responses),
+				isSubmitted: true,
+				lastSubmissionTime: request.submittedAt,
+			},
+		};
 
 		// Update timing
 		if (request.timeSpent) {
