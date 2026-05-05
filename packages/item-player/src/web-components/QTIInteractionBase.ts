@@ -26,6 +26,7 @@
 import type { HtmlContent } from '../types/index.js';
 import type { InteractionData } from '../types/interactions.js';
 import {
+	type InteractionResponseValue,
 	QTIChangeEvent,
 	QTIErrorEvent,
 	type QTIInteractionElement,
@@ -34,10 +35,10 @@ import {
 
 export abstract class QTIInteractionBase<TData extends InteractionData = InteractionData>
 	extends HTMLElement
-	implements QTIInteractionElement
+	implements QTIInteractionElement<TData>
 {
 	private _interaction: TData | null = null;
-	private _response: any = null;
+	private _response: InteractionResponseValue<TData> | null = null;
 	private _disabled = false;
 	private _typeset?: (element: HTMLElement) => void;
 
@@ -77,11 +78,11 @@ export abstract class QTIInteractionBase<TData extends InteractionData = Interac
 	 * Current response value (type depends on interaction type)
 	 * May be null if no response has been provided yet
 	 */
-	get response(): any {
+	get response(): InteractionResponseValue<TData> | null {
 		return this._response;
 	}
 
-	set response(value: any) {
+	set response(value: InteractionResponseValue<TData> | null) {
 		if (this._response !== value) {
 			this._response = value;
 			this.requestUpdate();
@@ -189,7 +190,7 @@ export abstract class QTIInteractionBase<TData extends InteractionData = Interac
 	 * Emit a qti-change event when the user response changes
 	 * @param value - The new response value
 	 */
-	protected emitChange(value: any): void {
+	protected emitChange(value: InteractionResponseValue<TData> | null): void {
 		if (!this._interaction) {
 			console.warn(`${this.tagName}: Cannot emit change without interaction data`);
 			return;
