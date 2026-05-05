@@ -12,17 +12,14 @@ import {
 	type DeclarationMap,
 	evalExpr,
 	execProgram,
-	findAssessmentItem,
 	findDescendants,
 	findFirstDescendant,
 	getAttr,
 	OperatorRegistry,
 	type ProcessingProgram,
-	parseXml,
 	type QtiValue,
 	qtiNull,
 	qtiValue,
-	serializeXml,
 	toBoolean,
 	toNumber,
 	toStringValue,
@@ -35,17 +32,12 @@ import {
 	Qti3AttributeNameMapper,
 	detectQtiVersion,
 } from '@pie-qti/qti-common';
-import { parse } from 'node-html-parser';
+import type { AssessmentItemDocument } from '../document/AssessmentItemDocument.js';
+import { parseAssessmentItemDocument } from '../document/AssessmentItemDocument.js';
 import type { ExtractionRegistry } from '../extraction/ExtractionRegistry.js';
 import { createExtractionRegistry } from '../extraction/ExtractionRegistry.js';
-import { createExtractionContext } from '../extraction/index.js';
-import { applyInteractionSecurity } from '../extraction/interactionSecurity.js';
-import type { VariableDeclaration as ExtractionVariableDeclaration } from '../extraction/types.js';
-import {
-	getStandardInteractionElementTypes,
-	getStandardInteractionExtractors,
-	normalizeInteractionTypeFromTagName,
-} from '../interactions/modules.js';
+import { extractInteractionData } from '../extraction/interactionExtractionPipeline.js';
+import { getStandardInteractionExtractors } from '../interactions/modules.js';
 import type {
 	AdaptiveAttemptResult,
 	CompletionStatus,
@@ -58,11 +50,10 @@ import type {
 	RubricBlock,
 	ScoringResult,
 } from '../types/index.js';
-import type { InteractionData, QTIElement } from '../types/interactions.js';
+import type { InteractionData } from '../types/interactions.js';
 import type { ResponseValidationResult } from '../types/responseValidation.js';
 import type { ComponentRegistry } from './ComponentRegistry.js';
 import { createComponentRegistry } from './ComponentRegistry.js';
-import { enforceItemXmlLimits } from './parsingLimits.js';
 import { createSeededRng } from './random.js';
 import { sanitizeHtml } from './sanitizer.js';
 import { toTrustedHtml } from './trustedTypes.js';
@@ -80,7 +71,7 @@ export class Player {
 	private role: QTIRole;
 	private config: PlayerConfig;
 	private itemXml: string;
-	private doc: Document;
+	private itemDocument: AssessmentItemDocument;
 	private assessmentItem: Element;
 	private decls: DeclarationMap;
 	private ctx: DeclarationContext;
@@ -125,15 +116,23 @@ export class Player {
 			}
 		} else {
 			this.mapper = config.elementNameMapper as ElementNameMapper;
+			if (!config.attributeNameMapper) {
+				(config as any).attributeNameMapper =
+					this.mapper.version === '3.0'
+						? new Qti3AttributeNameMapper()
+						: new Qti2xAttributeNameMapper();
+			}
 		}
 
-		// Optional DoS guardrails for untrusted content (compat-by-default; disabled unless enabled).
-		enforceItemXmlLimits(this.itemXml, this.config.security);
+		this.itemDocument = parseAssessmentItemDocument({
+			itemXml: this.itemXml,
+			elementNameMapper: this.mapper,
+			attributeNameMapper: config.attributeNameMapper as AttributeNameMapper,
+			security: this.config.security,
+		});
+		this.assessmentItem = this.itemDocument.getAssessmentItem();
 
-		this.doc = parseXml(this.itemXml);
-		this.assessmentItem = findAssessmentItem(this.doc);
-
-		this.decls = this.buildDeclarations(this.assessmentItem);
+		this.decls = this.buildDeclarations();
 		this.ensureBuiltinDeclarations(this.decls);
 		this.ctx = new DeclarationContext(this.decls);
 		this.ops = new OperatorRegistry();
@@ -171,7 +170,7 @@ export class Player {
 		}
 
 		// Build ASTs once.
-		const templateProcessing = findFirstDescendant(this.assessmentItem, this.mapper.toNative('templateprocessing'));
+		const templateProcessing = this.itemDocument.getProcessingElement('template');
 		if (templateProcessing) {
 			this.templateProcessingProgram = buildTemplateProcessingAst(templateProcessing, {
 				elementNameMapper: this.mapper,
@@ -179,14 +178,14 @@ export class Player {
 			this.execTemplateProcessing();
 		}
 
-		const responseProcessing = findFirstDescendant(this.assessmentItem, this.mapper.toNative('responseprocessing'));
+		const responseProcessing = this.itemDocument.getProcessingElement('response');
 		if (responseProcessing) {
 			this.responseProcessingProgram = buildResponseProcessingAst(responseProcessing, {
 				elementNameMapper: this.mapper,
 			});
 		}
 
-		const outcomeProcessing = findFirstDescendant(this.assessmentItem, this.mapper.toNative('outcomeprocessing'));
+		const outcomeProcessing = this.itemDocument.getProcessingElement('outcome');
 		if (outcomeProcessing) {
 			this.outcomeProcessingProgram = buildOutcomeProcessingAst(outcomeProcessing, {
 				elementNameMapper: this.mapper,
@@ -346,7 +345,7 @@ export class Player {
 		this.resetOutcomesToDefault();
 
 		// Execute response processing if present
-		const rpEl = findFirstDescendant(this.assessmentItem, this.mapper.toNative('responseprocessing'));
+		const rpEl = this.itemDocument.getProcessingElement('response');
 		if (rpEl) {
 			// If responseProcessing has explicit statements, run the compiled program.
 			// Otherwise, fall back to template-based processing (responseProcessing@template).
@@ -497,11 +496,9 @@ export class Player {
 	}
 
 	public getItemBodyHtml(): HtmlContent {
-		const itemBody = findFirstDescendant(this.assessmentItem, this.mapper.toNative('itembody'));
-		if (!itemBody) return '';
+		const inner = this.itemDocument.serializeItemBodyChildren();
+		if (!inner) return '';
 
-		// Serialize children rather than the container tag itself.
-		const inner = childElements(itemBody).map((c) => serializeXml(c)).join('');
 		const printed = this.renderPrintedVariables(inner);
 		const sanitized = sanitizeHtml(printed, { security: this.config.security });
 		return toTrustedHtml(sanitized, this.config.security?.trustedTypesPolicyName);
@@ -515,7 +512,7 @@ export class Player {
 	 */
 	public getRubrics(): RubricBlock[] {
 		const role = this.role;
-		const rubricEls = findDescendants(this.assessmentItem, this.mapper.toNative('rubricblock'));
+		const rubricEls = this.itemDocument.findRubricElements();
 		if (rubricEls.length === 0) return [];
 
 		const blocks: RubricBlock[] = [];
@@ -526,8 +523,7 @@ export class Player {
 			// If view is specified, show only when it includes the current role.
 			if (view.length > 0 && role && !view.includes(role)) continue;
 
-			// Serialize children rather than the container tag itself.
-			const contentRaw = childElements(el).map((c) => serializeXml(c)).join('') || (el.textContent || '');
+			const contentRaw = this.itemDocument.serializeChildren(el) || (el.textContent || '');
 			const printed = this.renderPrintedVariables(contentRaw);
 			const sanitized = sanitizeHtml(printed, { security: this.config.security });
 			const html = toTrustedHtml(sanitized, this.config.security?.trustedTypesPolicyName);
@@ -550,74 +546,12 @@ export class Player {
 	 * Canonical interaction API (new): extracted, typed interaction data.
 	 */
 	public getInteractionData(): InteractionData[] {
-		const itemBody = findFirstDescendant(this.assessmentItem, this.mapper.toNative('itembody'));
-		if (!itemBody) return [];
-
-		// Parse the original item XML with node-html-parser (extractors depend on its HTMLElement API).
-		// Important: using the original XML avoids namespace/serialization artifacts from XMLSerializer.
-		enforceItemXmlLimits(this.itemXml, this.config.security);
-		const docRoot = parse(this.itemXml, { lowerCaseTagName: false, comment: false }) as any as QTIElement;
-		// node-html-parser's CSS selectors match lowercase tag names.
-		// Search for itemBody in the native form for this QTI version (itembody for 2.x, qti-item-body for 3.0)
-		const itemBodyTag = this.mapper.toNative('itembody').toLowerCase();
-		const parsedItemBody = (docRoot.querySelector?.(itemBodyTag) as any as QTIElement | null) ?? null;
-		const root = parsedItemBody ?? docRoot;
-
-		const declMap = new Map<string, ExtractionVariableDeclaration>();
-		for (const d of Object.values(this.decls)) {
-			declMap.set(d.identifier, {
-				identifier: d.identifier,
-				cardinality: d.cardinality as any,
-				baseType: d.baseType,
-			});
-		}
-
-		// Discover all elements that match any standard interaction elementType.
-		// Extractors specify element types in QTI 2.x form (e.g., 'choiceInteraction').
-		// We use the mapper to convert to the appropriate form for this QTI version
-		// (e.g., 'choiceInteraction' for QTI 2.x, 'qti-choice-interaction' for QTI 3.0).
-		const tagSet = new Set<string>();
-		for (const elementType of getStandardInteractionElementTypes()) {
-			// Convert to canonical form (lowercase), then to native form using mapper
-			const native = this.mapper.toNative(elementType.toLowerCase());
-			tagSet.add(native.toLowerCase());
-		}
-
-		const elements: QTIElement[] = [];
-		for (const tag of tagSet) {
-			try {
-				elements.push(...(root.querySelectorAll(tag) as any));
-			} catch {
-				// ignore selector errors
-			}
-		}
-
-		const interactions: InteractionData[] = [];
-		for (const el of elements) {
-			// Try both QTI 2.x (responseIdentifier) and QTI 3.0 (response-identifier) attribute names
-			const responseId = el.getAttribute?.('responseIdentifier') ||
-			                   el.getAttribute?.('response-identifier') ||
-			                   el.getAttribute?.('responseidentifier') ||
-			                   '';
-			if (!responseId) continue;
-
-			const ctx = createExtractionContext(el, responseId, root, declMap, this.config);
-			const res = this.extractionRegistry.extract<any>(el, ctx);
-			if (!res.success) continue;
-
-			// Normalize raw tag to QTI 2.x camelCase for ComponentRegistry compatibility.
-			// QTI 3.0 elements use kebab-case with 'qti-' prefix:
-			//   'qti-choice-interaction' → 'choiceInteraction'
-			const normalizedType = normalizeInteractionTypeFromTagName(el.rawTagName);
-
-			interactions.push({
-				type: normalizedType as any,
-				responseId,
-				...res.data,
-			});
-		}
-
-		return applyInteractionSecurity(interactions, this.config.security);
+		return extractInteractionData({
+			document: this.itemDocument,
+			extractionRegistry: this.extractionRegistry,
+			declarations: this.decls,
+			config: this.config,
+		});
 	}
 
 	/**
@@ -649,7 +583,7 @@ export class Player {
 	}
 
 	public isAdaptive(): boolean {
-		return (getAttr(this.assessmentItem, 'adaptive') || '').toLowerCase() === 'true';
+		return (this.itemDocument.getAssessmentItemAttribute('adaptive') || '').toLowerCase() === 'true';
 	}
 
 	public getNumAttempts(): number {
@@ -1016,7 +950,7 @@ export class Player {
 	// Declarations
 	// ----------------------------------------------------------------------------
 
-	private buildDeclarations(root: Element): DeclarationMap {
+	private buildDeclarations(): DeclarationMap {
 		const decls: DeclarationMap = {};
 
 		const addDecl = (kind: DeclKind, el: Element) => {
@@ -1070,9 +1004,9 @@ export class Player {
 			}
 		};
 
-		for (const el of findDescendants(root, this.mapper.toNative('responsedeclaration'))) addDecl('response', el);
-		for (const el of findDescendants(root, this.mapper.toNative('outcomedeclaration'))) addDecl('outcome', el);
-		for (const el of findDescendants(root, this.mapper.toNative('templatedeclaration'))) addDecl('template', el);
+		for (const el of this.itemDocument.findDeclarationElements('response')) addDecl('response', el);
+		for (const el of this.itemDocument.findDeclarationElements('outcome')) addDecl('outcome', el);
+		for (const el of this.itemDocument.findDeclarationElements('template')) addDecl('template', el);
 
 		return decls;
 	}
@@ -1341,16 +1275,16 @@ export class Player {
 	}
 
 	private getModalFeedback(outcomes: Record<string, any>): ModalFeedback[] {
-		const feedbackEls = findDescendants(this.assessmentItem, this.mapper.toNative('modalfeedback'));
+		const feedbackEls = this.itemDocument.findModalFeedbackElements();
 		const active: ModalFeedback[] = [];
 
 		for (const el of feedbackEls) {
-			const identifier = getAttr(el, 'identifier') || '';
-			const outcomeIdentifier = getAttr(el, 'outcomeIdentifier') || '';
-			const showHide = (getAttr(el, 'showHide') || 'show') as 'show' | 'hide';
-			const title = getAttr(el, 'title') || undefined;
+			const identifier = this.getAttrMapped(el, 'identifier') || '';
+			const outcomeIdentifier = this.getAttrMapped(el, 'outcomeIdentifier') || '';
+			const showHide = (this.getAttrMapped(el, 'showHide') || 'show') as 'show' | 'hide';
+			const title = this.getAttrMapped(el, 'title') || undefined;
 
-			const contentRaw = childElements(el).map((c) => serializeXml(c)).join('') || (el.textContent || '');
+			const contentRaw = this.itemDocument.serializeChildren(el) || (el.textContent || '');
 			const sanitized = sanitizeHtml(contentRaw, { security: this.config.security });
 			const content = toTrustedHtml(sanitized, this.config.security?.trustedTypesPolicyName);
 
