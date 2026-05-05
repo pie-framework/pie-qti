@@ -1,5 +1,14 @@
 # @pie-qti/pie-to-qti2
 
+## 0.1.6
+
+### Patch Changes
+
+- Temporary release changeset: patch all publishable packages to keep lockstep versions.
+- Updated dependencies
+  - @pie-qti/transform-core@0.1.6
+  - @pie-qti/transform-types@0.1.6
+
 ## 0.1.5
 
 ### Patch Changes

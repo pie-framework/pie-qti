@@ -1,5 +1,11 @@
 # @pie-qti/logger
 
+## 0.1.6
+
+### Patch Changes
+
+- Temporary release changeset: patch all publishable packages to keep lockstep versions.
+
 ## 0.1.5
 
 ### Patch Changes
