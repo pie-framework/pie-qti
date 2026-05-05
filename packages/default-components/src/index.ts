@@ -6,8 +6,6 @@
  * framework-agnostic @pie-qti/item-player core.
  */
 
-import type { ComponentRegistry } from '@pie-qti/item-player';
-
 // Export shared utilities and helpers
 export * from './shared/index.js';
 
@@ -15,6 +13,10 @@ interface DefaultComponentRegistration {
 	name: string;
 	description: string;
 	tagName: string;
+}
+
+interface DefaultComponentRegistry {
+	register(type: string, component: DefaultComponentRegistration): void;
 }
 
 const DEFAULT_COMPONENTS_BY_TYPE = {
@@ -126,20 +128,14 @@ export function getDefaultComponentTypes(): string[] {
  * block interaction components available to the player. Inline interactions are
  * rendered in-flow by @pie-qti/item-player.
  */
-export function registerDefaultComponents(registry: ComponentRegistry): void {
+export function registerDefaultComponents(registry: DefaultComponentRegistry): void {
 	for (const [type, component] of Object.entries(DEFAULT_COMPONENTS_BY_TYPE)) {
-		registry.register(type, {
-			...component,
-			priority: 0,
-			canHandle: () => true,
-		});
+		registry.register(type, component);
 	}
 
 	registry.register('catalogPopup', {
 		name: 'default-catalog-popup',
-		priority: 0,
 		description: 'Default Svelte-based catalog popup dialog',
-		canHandle: () => true,
 		tagName: 'pie-qti-catalog-popup',
 	});
 }

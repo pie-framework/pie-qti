@@ -21,8 +21,9 @@ export interface ComponentConfig<TData extends InteractionData = InteractionData
 	 * - 50: Moderately specific custom renderers
 	 * - 10: Generic custom renderers
 	 * - 0: Default fallback renderers
+	 * Default: 0
 	 */
-	priority: number;
+	priority?: number;
 
 	/** Optional description for debugging/error messages */
 	description?: string;
@@ -31,8 +32,9 @@ export interface ComponentConfig<TData extends InteractionData = InteractionData
 	 * Predicate to determine if this component can handle the interaction
 	 * Evaluated in priority order (highest first)
 	 * @returns true if this component should be used
+	 * Default: always true
 	 */
-	canHandle: (data: TData) => boolean;
+	canHandle?: (data: TData) => boolean;
 
 	/**
 	 * Web component tag name (must contain a hyphen per web component spec)
@@ -57,7 +59,10 @@ export interface ComponentConfig<TData extends InteractionData = InteractionData
  * Internal registered component with metadata
  */
 interface RegisteredComponent<TData extends InteractionData = InteractionData> {
-	config: ComponentConfig<TData>;
+	config: ComponentConfig<TData> & {
+		priority: number;
+		canHandle: (data: TData) => boolean;
+	};
 }
 
 /**
@@ -88,8 +93,6 @@ export class ComponentRegistry {
 	 * // Default choice component
 	 * registry.register('choiceInteraction', {
 	 *   name: 'standard-choice',
-	 *   priority: 0,
-	 *   canHandle: () => true,
 	 *   tagName: 'qti-choice-interaction'
 	 * });
 	 */
@@ -122,9 +125,21 @@ export class ComponentRegistry {
 			this.components.set(type, components);
 		}
 
-		// Add component and sort by priority (highest first)
-		components.push({ config } as RegisteredComponent);
+		// Add normalized component and sort by priority (highest first)
+		components.push(this.createRegisteredComponent(config) as RegisteredComponent);
 		components.sort((a, b) => b.config.priority - a.config.priority);
+	}
+
+	private createRegisteredComponent<TData extends InteractionData>(
+		config: ComponentConfig<TData>
+	): RegisteredComponent<TData> {
+		return {
+			config: {
+				...config,
+				priority: config.priority ?? 0,
+				canHandle: config.canHandle ?? (() => true),
+			},
+		};
 	}
 
 	/**
