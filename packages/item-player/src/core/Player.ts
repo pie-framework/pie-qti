@@ -38,8 +38,13 @@ import {
 import { parse } from 'node-html-parser';
 import type { ExtractionRegistry } from '../extraction/ExtractionRegistry.js';
 import { createExtractionRegistry } from '../extraction/ExtractionRegistry.js';
-import { ALL_STANDARD_EXTRACTORS, createExtractionContext } from '../extraction/index.js';
+import { createExtractionContext } from '../extraction/index.js';
 import type { VariableDeclaration as ExtractionVariableDeclaration } from '../extraction/types.js';
+import {
+	getStandardInteractionElementTypes,
+	getStandardInteractionExtractors,
+	normalizeInteractionTypeFromTagName,
+} from '../interactions/modules.js';
 import type {
 	AdaptiveAttemptResult,
 	CompletionStatus,
@@ -146,8 +151,8 @@ export class Player {
 		// I18n provider (defaults to a simple fallback if not provided)
 		this.i18nProvider = config.i18nProvider ?? this.createDefaultI18nProvider();
 
-		// Register standard extractors (idempotent per-registry instance)
-		for (const ex of ALL_STANDARD_EXTRACTORS) {
+		// Register standard interaction extractors (idempotent per-registry instance)
+		for (const ex of getStandardInteractionExtractors()) {
 			try {
 				this.extractionRegistry.register(ex as any);
 			} catch {
@@ -264,7 +269,7 @@ export class Player {
 
 	/**
 	 * Create a PciHost for an extracted PCI and register it for response tracking.
-	 * The caller (typically ItemRenderer) is responsible for calling host.load() and
+	 * The caller is responsible for calling host.load() and
 	 * host.initialize(domNode) once the DOM element is available.
 	 */
 	public createPciHost(data: ExtractedPci): PciHost {
@@ -567,18 +572,15 @@ export class Player {
 			});
 		}
 
-		// Discover all elements that match any standard extractor elementType.
+		// Discover all elements that match any standard interaction elementType.
 		// Extractors specify element types in QTI 2.x form (e.g., 'choiceInteraction').
 		// We use the mapper to convert to the appropriate form for this QTI version
 		// (e.g., 'choiceInteraction' for QTI 2.x, 'qti-choice-interaction' for QTI 3.0).
 		const tagSet = new Set<string>();
-		for (const ex of ALL_STANDARD_EXTRACTORS) {
-			for (const t of ex.elementTypes ?? []) {
-				// Convert to canonical form (lowercase), then to native form using mapper
-				const canonical = t.toLowerCase();
-				const native = this.mapper.toNative(canonical);
-				tagSet.add(native.toLowerCase());
-			}
+		for (const elementType of getStandardInteractionElementTypes()) {
+			// Convert to canonical form (lowercase), then to native form using mapper
+			const native = this.mapper.toNative(elementType.toLowerCase());
+			tagSet.add(native.toLowerCase());
 		}
 
 		const elements: QTIElement[] = [];
@@ -606,10 +608,7 @@ export class Player {
 			// Normalize raw tag to QTI 2.x camelCase for ComponentRegistry compatibility.
 			// QTI 3.0 elements use kebab-case with 'qti-' prefix:
 			//   'qti-choice-interaction' → 'choiceInteraction'
-			const rawTag = el.rawTagName;
-			const normalizedType = rawTag.startsWith('qti-')
-				? rawTag.slice(4).replace(/-([a-z])/g, (_: string, c: string) => c.toUpperCase())
-				: rawTag;
+			const normalizedType = normalizeInteractionTypeFromTagName(el.rawTagName);
 
 			interactions.push({
 				type: normalizedType as any,

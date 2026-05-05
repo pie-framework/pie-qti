@@ -15,12 +15,6 @@ export * from './core/constants.js';
 export * from './core/declarations.js';
 // Export drawing utilities
 export * from './utils/drawingUtils.js';
-// Export ItemRenderer for framework-agnostic rendering
-export {
-	createItemRenderer,
-	ItemRenderer,
-	type ItemRendererConfig,
-} from './core/ItemRenderer.js';
 export { Player } from './core/Player.js';
 export { getRoleCapabilities, type RoleCapabilities } from './core/rolePolicy.js';
 // Plugin system (new extraction-based plugins)
@@ -51,7 +45,7 @@ export {
 	isSuccessResult,
 } from './extraction/index.js';
 // NOTE:
-// The player’s primary rendering contract is via web components (`ComponentRegistry` + `ItemRenderer`).
+// The player’s primary rendering contract is via web components and the Svelte component entrypoint.
 // If you need non-web-component rendering, build it externally against the public extraction APIs.
 // Export all types including adaptive item types
 export * from './types/index.js';

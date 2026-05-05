@@ -139,7 +139,7 @@ Parsing limits (`ParsingLimitsConfig`) are opt-in rather than default because th
 | Custom QTI operators | `customOperators` in `PlayerConfig` | Pass a map of operator `class` → implementation function | Used for `<customOperator class="...">` in response processing |
 | Full plugin | `QTIPlugin` interface in `Plugin.ts` | Pass in `plugins[]` array; plugin calls `registerExtractors()` and `registerComponents()` | `packages/acme-likert-plugin/src/plugin.ts` |
 | i18n | `I18nProvider` from `@pie-qti/i18n` | Pass `i18nProvider` to `PlayerConfig` | Used for player UI strings in web components |
-| Math typesetting | `typeset(root: Element) => void` | Passed to `ItemRenderer`; called after DOM update | `@pie-qti/typeset-katex` provides `typesetMathInElement` |
+| Math typesetting | `typeset(root: Element) => void` | Passed through Svelte rendering surfaces; called after DOM update | `@pie-qti/typeset-katex` provides `typesetMathInElement` |
 | Iframe isolation | `IFramePlayerHost` at `@pie-qti/item-player/iframe` | Import from the `/iframe` entry point; construct with container + runtime URL | See `packages/item-player/docs/iframe-mode.md` |
 
 ---

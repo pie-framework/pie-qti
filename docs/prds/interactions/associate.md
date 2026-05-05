@@ -41,7 +41,7 @@ The QTI spec defines `maxAssociations=0` as "no upper bound". This is the same f
 
 Unlike `choiceInteraction` where each click is a complete act, associating requires two clicks: one to "select" a choice (marking it as awaiting a partner) and a second to "complete" the pair. The component manages a `selectedForPairing` state variable to track the pending choice. This two-step model works without drag-and-drop, making it keyboard- and touch-accessible without requiring complex pointer event handling.
 
-The `selectedForPairing` state lives in `ItemRenderer` (not in the component itself) when the component is rendered by the item player, so a full re-render preserves the partial selection. When the component is used standalone (outside the item player), state is internal to the component.
+The `selectedForPairing` state lives in the associate component. When the component is used standalone (outside the item player), the same internal state model applies.
 
 ### Pair canonicalization at scoring time
 
@@ -185,12 +185,12 @@ RTL layout is inherited from the page/shadow root's `dir` attribute; no special 
 **Alternatives considered:** Enforcing `matchMax` in the UI — would require counting per-choice usage and updating button enabled state after every pair change; adds complexity and a new class of UI state bug.  
 **Consequences:** A student can technically create more pairs than `matchMax` allows for a given choice. Response processing will still score correctly (or zero) because the engine evaluates the mapping against the actual response. This is a known limitation documented as out-of-scope until a compelling real-world item requires it.
 
-### Decision: selectedForPairing state lives in ItemRenderer, not in the component
+### Decision: selectedForPairing state lives in the component
 
-**Decision:** When rendered by the item player, the `selectedForPairing` state is owned by `ItemRenderer` and passed down as a prop. The component also has internal state as a fallback for standalone use.  
-**Rationale:** `ItemRenderer` manages a single instance of `selectedForPairing` across the item. If the item body is partially re-rendered (e.g., after typesetting), the in-progress selection would be lost if state lived only in the component. Lifting it to the renderer preserves the pending selection across re-renders. The component supports both modes via the `externalSelectedForPairing` prop — if truthy, it is used; otherwise internal state applies.  
-**Alternatives considered:** Always internal state — simpler component API but loses selection on re-render; Redux/store for selection state — overkill for a single boolean+string value.  
-**Consequences:** When integrating `pie-qti-associate` outside the item player (e.g., in a custom host), the host is responsible for managing `selectedForPairing` and `onSelectionChange` if it needs cross-component coordination. For simple standalone use, the internal state works transparently.
+**Decision:** The `selectedForPairing` state is owned by the associate component.  
+**Rationale:** The item-player rendering path no longer maintains a separate vanilla renderer state object for pairing selection. Keeping this transient UI state inside the component keeps the item rendering seam smaller.  
+**Alternatives considered:** Lifting pairing state into the item-player renderer — rejected because it expands the renderer contract for one interaction-specific behavior.  
+**Consequences:** When integrating `pie-qti-associate` outside the item player, the component still works with its internal selection state.
 
 ---
 
@@ -465,7 +465,7 @@ AC-E7: HTML content in choice text
 - Svelte component: `packages/default-components/src/plugins/associate/AssociateInteraction.svelte`
 - Extractor: `packages/item-player/src/extraction/extractors/associateExtractor.ts`
 - Type definitions: `packages/item-player/src/types/interactions.ts` (`AssociateInteractionData`, `AssociableChoice`)
-- Item renderer (selection state management): `packages/item-player/src/core/ItemRenderer.ts`
+- Item body renderer: `packages/item-player/src/components/ItemBody.svelte`
 - Pair normalization (scoring): `packages/item-player/src/core/Player.ts` `parseMapping()` and `packages/qti-processing/src/eval/evaluator.ts` `normalizeScalarForCompare()`
 - Integration test: `packages/item-player/tests/core/interaction-plumbing.test.ts`
 - Eval scenarios: `docs/evals/default-components/associate/evals.yaml`

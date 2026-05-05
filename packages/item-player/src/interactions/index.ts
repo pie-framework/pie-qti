@@ -5,8 +5,6 @@
  * type exports. Legacy extractor and type paths re-export from this module layer.
  */
 
-import type { ElementExtractor } from '../extraction/types.js';
-
 export type {
 	AssociableChoice,
 	AssociableHotspot,
@@ -37,6 +35,7 @@ export * from './inline/index.js';
 export * from './inline-choice/index.js';
 export * from './match/index.js';
 export * from './media/index.js';
+export * from './modules.js';
 export * from './order/index.js';
 export * from './portable-custom/index.js';
 export * from './position-object/index.js';
@@ -51,51 +50,3 @@ export type {
 	InteractionType,
 	InteractionValueMap,
 } from './shared/types.js';
-
-import { standardAssociateExtractor } from './associate/index.js';
-import { standardChoiceExtractor } from './choice/index.js';
-import { standardCustomExtractor } from './custom/index.js';
-import { standardDrawingExtractor } from './drawing/index.js';
-import { standardEndAttemptExtractor } from './end-attempt/index.js';
-import { standardExtendedTextExtractor } from './extended-text/index.js';
-import { standardGapMatchExtractor } from './gap-match/index.js';
-import { standardGraphicAssociateExtractor } from './graphic-associate/index.js';
-import { standardGraphicGapMatchExtractor } from './graphic-gap-match/index.js';
-import { standardGraphicOrderExtractor } from './graphic-order/index.js';
-import { standardHotspotExtractor } from './hotspot/index.js';
-import { standardHottextExtractor } from './hottext/index.js';
-import { standardInlineChoiceExtractor } from './inline-choice/index.js';
-import { standardMatchExtractor } from './match/index.js';
-import { standardMediaExtractor } from './media/index.js';
-import { standardOrderExtractor } from './order/index.js';
-import { portableCustomExtractor } from './portable-custom/index.js';
-import { standardPositionObjectExtractor } from './position-object/index.js';
-import { standardSelectPointExtractor } from './select-point/index.js';
-import { standardSliderExtractor } from './slider/index.js';
-import { standardTextEntryExtractor } from './text-entry/index.js';
-import { standardUploadExtractor } from './upload/index.js';
-
-export const ALL_STANDARD_EXTRACTORS: ElementExtractor[] = [
-	portableCustomExtractor,
-	standardChoiceExtractor,
-	standardTextEntryExtractor,
-	standardExtendedTextExtractor,
-	standardInlineChoiceExtractor,
-	standardOrderExtractor,
-	standardMatchExtractor,
-	standardAssociateExtractor,
-	standardGapMatchExtractor,
-	standardSliderExtractor,
-	standardHotspotExtractor,
-	standardGraphicGapMatchExtractor,
-	standardUploadExtractor,
-	standardDrawingExtractor,
-	standardCustomExtractor,
-	standardMediaExtractor,
-	standardHottextExtractor,
-	standardSelectPointExtractor,
-	standardGraphicOrderExtractor,
-	standardGraphicAssociateExtractor,
-	standardPositionObjectExtractor,
-	standardEndAttemptExtractor,
-];

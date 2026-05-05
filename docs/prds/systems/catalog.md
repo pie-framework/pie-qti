@@ -161,7 +161,7 @@ All eight types defined in QTI 3.0 §6.3 are parsed and stored in `CatalogIndex`
 
 **Decision:** The in-player popup for on-screen catalog usages is a vanilla-JS `mountPopup()` function in `packages/item-player/src/catalog/applyGlossaryTriggers.ts`. `CatalogPopup.svelte` in `packages/default-components/src/catalog/` is a separate Svelte component provided for host applications, not used internally by the player.
 
-**Rationale:** `item-player` has no Svelte dependency — it is called from `ItemRenderer.ts`, which is framework-agnostic. A vanilla-JS popup (`document.createElement`, `role="dialog"`, Tab-trap event listener) satisfies the accessibility requirements with no new package dependency and no compilation step. This was simpler to implement correctly than importing a Svelte component into a non-Svelte context or introducing a component registry indirection. `CatalogPopup.svelte` is provided as a convenience for host applications that want a declaratively-mountable Svelte component with the same UX.
+**Rationale:** `applyGlossaryTriggers.ts` lives in the framework-agnostic item-player layer. A vanilla-JS popup (`document.createElement`, `role="dialog"`, Tab-trap event listener) satisfies the accessibility requirements with no direct dependency on the default Svelte component package. `CatalogPopup.svelte` is provided as a convenience for host applications that want a declaratively-mountable Svelte component with the same UX.
 
 **Alternatives considered:** Instantiating `CatalogPopup.svelte` from `item-player` via the component registry — rejected because `item-player` deliberately has no Svelte dependency; introducing one via the registry would couple the framework package to a UI framework.
 

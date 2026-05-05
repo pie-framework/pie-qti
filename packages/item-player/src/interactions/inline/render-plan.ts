@@ -1,6 +1,10 @@
 import type { InlineChoiceInteractionData } from '../inline-choice/types.js';
 import type { TextEntryInteractionData } from '../text-entry/types.js';
 import type { InteractionData } from '../shared/types.js';
+import {
+	isStandardInlineInteractionTagName,
+	isStandardInlineInteractionType,
+} from '../modules.js';
 
 export type InlineInteractionData = TextEntryInteractionData | InlineChoiceInteractionData;
 
@@ -10,17 +14,11 @@ export type InlineRenderSegment =
 	| { type: 'inlineChoice'; interaction: InlineChoiceInteractionData };
 
 export function isInlineInteractionType(type: string): type is InlineInteractionData['type'] {
-	return type === 'textEntryInteraction' || type === 'inlineChoiceInteraction';
+	return isStandardInlineInteractionType(type);
 }
 
 export function isInlineInteractionTagName(tagName: string): boolean {
-	const lower = tagName.toLowerCase();
-	return (
-		lower === 'textentryinteraction' ||
-		lower === 'inlinechoiceinteraction' ||
-		lower === 'qti-text-entry-interaction' ||
-		lower === 'qti-inline-choice-interaction'
-	);
+	return isStandardInlineInteractionTagName(tagName);
 }
 
 export function createInlinePlaceholderHtml(html: string, interactions: InteractionData[]): string {

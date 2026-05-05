@@ -200,7 +200,7 @@ Until this is implemented, this interaction does not satisfy WCAG 2.2 SC 2.1.1 f
 ### Security
 
 - Background image and stage object `src` URLs are passed directly to `<img src>` and SVG `data:` references. The host platform is responsible for ensuring these URLs are trusted.
-- Inline SVG content from `positionObjectStage` `object` elements is rendered via `{@html}`. Content MUST be sanitized before extraction; the extractor does not sanitize. The `ItemRenderer` pipeline should apply sanitization before this component receives data.
+- Inline SVG content from `positionObjectStage` `object` elements is rendered via `{@html}`. Content MUST be sanitized before extraction; the item-player rendering pipeline should apply sanitization before this component receives data.
 
 ---
 

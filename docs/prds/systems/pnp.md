@@ -155,7 +155,7 @@ Removing an eliminated choice from the DOM would change the response set silentl
 
 **Rationale:** G-09 (PNP trigger UI) and G-10 (catalog parsing) were implemented together in the same milestone. The on-screen usages (`glossary-on-screen`, `keyword-translation`) have everything they need in-player: the catalog index is available, the content is HTML or an image URL, and a vanilla popup requires no external framework dependency. Platform-level usages (`tts-pronunciation`, signing, braille, audio) require capabilities the player cannot assume — TTS engines, braille hardware, video players — so an event is the correct boundary.
 
-**Why vanilla JS, not `CatalogPopup.svelte`:** `item-player` has no Svelte dependency. `applyGlossaryTriggers.ts` is called from `ItemRenderer.ts`, which is framework-agnostic. A vanilla-JS popup satisfies the requirement with no new package dependency. `CatalogPopup.svelte` exists in `default-components` as a separate offering for host applications that want a declaratively-mounted Svelte component with the same behavior.
+**Why vanilla JS, not `CatalogPopup.svelte`:** `applyGlossaryTriggers.ts` lives in the framework-agnostic item-player layer. A vanilla-JS popup satisfies the requirement without depending on the default Svelte component package. `CatalogPopup.svelte` exists in `default-components` as a separate offering for host applications that want a declaratively-mounted Svelte component with the same behavior.
 
 **Alternatives considered:** Coupling trigger to event-only and relying on G-10 to render the popup — was the original plan but rejected when G-09 and G-10 were implemented together, since the event-only path would leave the on-screen usages inoperable until a host listener was added.
 

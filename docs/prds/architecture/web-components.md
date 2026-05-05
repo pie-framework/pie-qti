@@ -324,7 +324,7 @@ AC-E3: QtiItemPlayerElement disconnectedCallback cleans up
 
 ## Open questions
 
-- [ ] `textEntryInteraction` and `inlineChoiceInteraction` are currently handled as inline renderers inside `ItemRenderer` rather than as separate custom elements. Should they be promoted to standalone web components for consistency? What are the implications for inline-within-content rendering?
+- [ ] `textEntryInteraction` and `inlineChoiceInteraction` are currently handled as inline renderers inside `ItemBody.svelte` rather than as separate custom elements. Should they be promoted to standalone web components for consistency? What are the implications for inline-within-content rendering?
 - [ ] The `ShadowBaseStyles` component duplicates a subset of DaisyUI class definitions. When DaisyUI 5 changes its class names (it is moving to `btn-primary` → `btn btn-primary` semantics in some versions), these need to be kept in sync. Is there a test or CI check that catches this drift?
 - [ ] `QtiAssessmentPlayerElement` attributes and events are not documented here (the source was not fully read). This PRD should be extended with that element's contract once reviewed.
 

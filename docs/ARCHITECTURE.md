@@ -122,7 +122,7 @@ Key references:
 
 - `packages/typeset-katex/README.md`
 - `packages/item-player/src/components/actions/typesetAction.ts`
-- `packages/item-player/src/core/ItemRenderer.ts` (applies `typeset` to the rendered wrapper)
+- `packages/item-player/src/components/ItemBody.svelte` (applies `typeset` to the rendered wrapper)
 
 ##### 4) Custom operators (`customOperators`)
 

@@ -45,7 +45,7 @@ Additional hardening implemented after `a87ca31`:
 
 #### Where HTML hits the DOM
 
-- `ItemRenderer` injects processed HTML using `innerHTML`.
+- `ItemBody.svelte` injects processed HTML using Svelte's HTML rendering.
 - Many Svelte components render QTI-derived strings via `{@html ...}` (choice labels, prompts, inline SVG, feedback, etc.).
 
 #### Core sanitizer implementation (pre-`a87ca31`)

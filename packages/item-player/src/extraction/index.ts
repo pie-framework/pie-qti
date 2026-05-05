@@ -69,9 +69,8 @@ export type {
 	UploadData,
 } from './extractors/index.js';
 
-// Standard extractors (all 21 extractors)
+// Standard extractors
 export {
-	ALL_STANDARD_EXTRACTORS,
 	standardAssociateExtractor,
 	standardChoiceExtractor,
 	standardCustomExtractor,

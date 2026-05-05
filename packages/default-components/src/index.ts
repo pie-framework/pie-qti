@@ -11,207 +11,130 @@ import type { ComponentRegistry } from '@pie-qti/item-player';
 // Export shared utilities and helpers
 export * from './shared/index.js';
 
+interface DefaultComponentRegistration {
+	name: string;
+	description: string;
+	tagName: string;
+}
+
+const DEFAULT_COMPONENTS_BY_TYPE = {
+	choiceInteraction: {
+		name: 'default-choice',
+		description: 'Default Svelte-based choice interaction',
+		tagName: 'pie-qti-choice',
+	},
+	sliderInteraction: {
+		name: 'default-slider',
+		description: 'Default Svelte-based slider interaction',
+		tagName: 'pie-qti-slider',
+	},
+	orderInteraction: {
+		name: 'default-order',
+		description: 'Default Svelte-based order interaction',
+		tagName: 'pie-qti-order',
+	},
+	matchInteraction: {
+		name: 'default-match',
+		description: 'Default Svelte-based match interaction',
+		tagName: 'pie-qti-match',
+	},
+	associateInteraction: {
+		name: 'default-associate',
+		description: 'Default Svelte-based associate interaction',
+		tagName: 'pie-qti-associate',
+	},
+	gapMatchInteraction: {
+		name: 'default-gap-match',
+		description: 'Default Svelte-based gap match interaction',
+		tagName: 'pie-qti-gap-match',
+	},
+	hotspotInteraction: {
+		name: 'default-hotspot',
+		description: 'Default Svelte-based hotspot interaction',
+		tagName: 'pie-qti-hotspot',
+	},
+	hottextInteraction: {
+		name: 'default-hottext',
+		description: 'Default Svelte-based hottext interaction',
+		tagName: 'pie-qti-hottext',
+	},
+	mediaInteraction: {
+		name: 'default-media',
+		description: 'Default Svelte-based media interaction',
+		tagName: 'pie-qti-media',
+	},
+	customInteraction: {
+		name: 'default-custom',
+		description: 'Default Svelte-based custom interaction',
+		tagName: 'pie-qti-custom',
+	},
+	endAttemptInteraction: {
+		name: 'default-end-attempt',
+		description: 'Default Svelte-based end attempt interaction',
+		tagName: 'pie-qti-end-attempt',
+	},
+	positionObjectInteraction: {
+		name: 'default-position-object',
+		description: 'Default Svelte-based position object interaction',
+		tagName: 'pie-qti-position-object',
+	},
+	graphicGapMatchInteraction: {
+		name: 'default-graphic-gap-match',
+		description: 'Default Svelte-based graphic gap match interaction',
+		tagName: 'pie-qti-graphic-gap-match',
+	},
+	graphicOrderInteraction: {
+		name: 'default-graphic-order',
+		description: 'Default Svelte-based graphic order interaction',
+		tagName: 'pie-qti-graphic-order',
+	},
+	graphicAssociateInteraction: {
+		name: 'default-graphic-associate',
+		description: 'Default Svelte-based graphic associate interaction',
+		tagName: 'pie-qti-graphic-associate',
+	},
+	selectPointInteraction: {
+		name: 'default-select-point',
+		description: 'Default Svelte-based select point interaction',
+		tagName: 'pie-qti-select-point',
+	},
+	extendedTextInteraction: {
+		name: 'default-extended-text',
+		description: 'Default Svelte-based extended text interaction',
+		tagName: 'pie-qti-extended-text',
+	},
+	uploadInteraction: {
+		name: 'default-upload',
+		description: 'Default Svelte-based upload interaction',
+		tagName: 'pie-qti-upload',
+	},
+	drawingInteraction: {
+		name: 'default-drawing',
+		description: 'Default Svelte-based drawing interaction',
+		tagName: 'pie-qti-drawing',
+	},
+} satisfies Record<string, DefaultComponentRegistration>;
+
+export function getDefaultComponentTypes(): string[] {
+	return Object.keys(DEFAULT_COMPONENTS_BY_TYPE);
+}
+
 /**
- * Register all default components with the ComponentRegistry
+ * Register all default components with the ComponentRegistry.
  *
- * This function should be called once at application startup to make
- * all default interaction components available to the player.
- *
- * IMPORTANT: Before calling this function, you MUST import the plugin loader:
- * ```typescript
- * import '@pie-qti/default-components/plugins';
- * ```
- * This import triggers web component registration via Svelte's customElement option.
- *
- * @param registry - The ComponentRegistry instance from the Player
- *
- * @example
- * ```typescript
- * import { Player } from '@pie-qti/item-player';
- * import '@pie-qti/default-components/plugins'; // Load web components
- * import { registerDefaultComponents } from '@pie-qti/default-components';
- *
- * const player = new Player(qtiXml);
- * registerDefaultComponents(player.getComponentRegistry());
- * ```
+ * This function should be called once at application startup to make all default
+ * block interaction components available to the player. Inline interactions are
+ * rendered in-flow by @pie-qti/item-player.
  */
 export function registerDefaultComponents(registry: ComponentRegistry): void {
-	// ChoiceInteraction - Radio buttons or checkboxes
-	registry.register('choiceInteraction', {
-		name: 'default-choice',
-		priority: 0,
-		description: 'Default Svelte-based choice interaction',
-		canHandle: () => true,
-		tagName: 'pie-qti-choice',
-		// No componentClass needed - Svelte already registered it
-	});
+	for (const [type, component] of Object.entries(DEFAULT_COMPONENTS_BY_TYPE)) {
+		registry.register(type, {
+			...component,
+			priority: 0,
+			canHandle: () => true,
+		});
+	}
 
-	// SliderInteraction - Range slider
-	registry.register('sliderInteraction', {
-		name: 'default-slider',
-		priority: 0,
-		description: 'Default Svelte-based slider interaction',
-		canHandle: () => true,
-		tagName: 'pie-qti-slider',
-	});
-
-	// OrderInteraction - Sortable list
-	registry.register('orderInteraction', {
-		name: 'default-order',
-		priority: 0,
-		description: 'Default Svelte-based order interaction',
-		canHandle: () => true,
-		tagName: 'pie-qti-order',
-	});
-
-	// MatchInteraction - Match source to target
-	registry.register('matchInteraction', {
-		name: 'default-match',
-		priority: 0,
-		description: 'Default Svelte-based match interaction',
-		canHandle: () => true,
-		tagName: 'pie-qti-match',
-	});
-
-	// AssociateInteraction - Create associations between choices
-	registry.register('associateInteraction', {
-		name: 'default-associate',
-		priority: 0,
-		description: 'Default Svelte-based associate interaction',
-		canHandle: () => true,
-		tagName: 'pie-qti-associate',
-	});
-
-	// GapMatchInteraction - Fill gaps with words
-	registry.register('gapMatchInteraction', {
-		name: 'default-gap-match',
-		priority: 0,
-		description: 'Default Svelte-based gap match interaction',
-		canHandle: () => true,
-		tagName: 'pie-qti-gap-match',
-	});
-
-	// HotspotInteraction - Click on image hotspots
-	registry.register('hotspotInteraction', {
-		name: 'default-hotspot',
-		priority: 0,
-		description: 'Default Svelte-based hotspot interaction',
-		canHandle: () => true,
-		tagName: 'pie-qti-hotspot',
-	});
-
-	// HottextInteraction - Select text within content
-	registry.register('hottextInteraction', {
-		name: 'default-hottext',
-		priority: 0,
-		description: 'Default Svelte-based hottext interaction',
-		canHandle: () => true,
-		tagName: 'pie-qti-hottext',
-	});
-
-	// MediaInteraction - Audio/video playback with tracking
-	registry.register('mediaInteraction', {
-		name: 'default-media',
-		priority: 0,
-		description: 'Default Svelte-based media interaction',
-		canHandle: () => true,
-		tagName: 'pie-qti-media',
-	});
-
-	// CustomInteraction - Fallback for custom interactions
-	registry.register('customInteraction', {
-		name: 'default-custom',
-		priority: 0,
-		description: 'Default Svelte-based custom interaction',
-		canHandle: () => true,
-		tagName: 'pie-qti-custom',
-	});
-
-	// EndAttemptInteraction - End attempt button
-	registry.register('endAttemptInteraction', {
-		name: 'default-end-attempt',
-		priority: 0,
-		description: 'Default Svelte-based end attempt interaction',
-		canHandle: () => true,
-		tagName: 'pie-qti-end-attempt',
-	});
-
-	// PositionObjectInteraction - Drag objects onto canvas
-	registry.register('positionObjectInteraction', {
-		name: 'default-position-object',
-		priority: 0,
-		description: 'Default Svelte-based position object interaction',
-		canHandle: () => true,
-		tagName: 'pie-qti-position-object',
-	});
-
-	// GraphicGapMatchInteraction - Drag labels onto image hotspots
-	registry.register('graphicGapMatchInteraction', {
-		name: 'default-graphic-gap-match',
-		priority: 0,
-		description: 'Default Svelte-based graphic gap match interaction',
-		canHandle: () => true,
-		tagName: 'pie-qti-graphic-gap-match',
-	});
-
-	// GraphicOrderInteraction - Order items with graphic reference
-	registry.register('graphicOrderInteraction', {
-		name: 'default-graphic-order',
-		priority: 0,
-		description: 'Default Svelte-based graphic order interaction',
-		canHandle: () => true,
-		tagName: 'pie-qti-graphic-order',
-	});
-
-	// GraphicAssociateInteraction - Create associations on image
-	registry.register('graphicAssociateInteraction', {
-		name: 'default-graphic-associate',
-		priority: 0,
-		description: 'Default Svelte-based graphic associate interaction',
-		canHandle: () => true,
-		tagName: 'pie-qti-graphic-associate',
-	});
-
-	// SelectPointInteraction - Select points on image
-	registry.register('selectPointInteraction', {
-		name: 'default-select-point',
-		priority: 0,
-		description: 'Default Svelte-based select point interaction',
-		canHandle: () => true,
-		tagName: 'pie-qti-select-point',
-	});
-
-	// ExtendedTextInteraction - Rich text editor
-	registry.register('extendedTextInteraction', {
-		name: 'default-extended-text',
-		priority: 0,
-		description: 'Default Svelte-based extended text interaction',
-		canHandle: () => true,
-		tagName: 'pie-qti-extended-text',
-	});
-
-	// UploadInteraction - File upload
-	registry.register('uploadInteraction', {
-		name: 'default-upload',
-		priority: 0,
-		description: 'Default Svelte-based upload interaction',
-		canHandle: () => true,
-		tagName: 'pie-qti-upload',
-	});
-
-	// DrawingInteraction - Canvas drawing
-	registry.register('drawingInteraction', {
-		name: 'default-drawing',
-		priority: 0,
-		description: 'Default Svelte-based drawing interaction',
-		canHandle: () => true,
-		tagName: 'pie-qti-drawing',
-	});
-
-	// Note: TextEntryInteraction and InlineChoiceInteraction are handled
-	// by ItemRenderer as inline interactions, not as separate components
-
-	// CatalogPopup - focus-trapped dialog for glossary/keyword-translation entries
 	registry.register('catalogPopup', {
 		name: 'default-catalog-popup',
 		priority: 0,
