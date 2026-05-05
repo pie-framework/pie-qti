@@ -77,3 +77,12 @@ export {
   preserveVendorAttributes,
   preserveVendorClasses,
 } from './utils/vendor-helpers.js';
+export type {
+  ExtractCssClassesWithHooksInput,
+  ResolveAssetWithHooksInput,
+  VendorCssClassExtraction,
+} from './vendor-extension-runtime.js';
+export {
+  extractCssClassesWithHooks,
+  resolveAssetWithHooks,
+} from './vendor-extension-runtime.js';

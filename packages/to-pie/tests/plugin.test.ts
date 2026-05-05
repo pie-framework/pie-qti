@@ -14,6 +14,7 @@ import {
 	expectValidPieModel,
 } from '@pie-qti/test-utils';
 import { QtiToPiePlugin } from '../src/plugin';
+import type { CssClassExtractor, VendorDetector } from '../src/types/vendor-extensions';
 
 // Create sample QTI using test utilities
 const sampleQtiXml = createQtiWrapper(
@@ -185,5 +186,55 @@ describe('QtiToPiePlugin', () => {
     });
 
     expect(plugin.id).toBe('qti22-to-pie');
+  });
+
+  test('should apply registered CSS class extractors for detected vendor content', async () => {
+    const detector: VendorDetector = {
+      name: 'acme-detector',
+      detect: () => ({ vendor: 'acme', confidence: 0.95 }),
+    };
+    const cssExtractor: CssClassExtractor = {
+      vendor: 'acme',
+      extract(element) {
+        const classes = element.getAttribute('class')?.split(/\s+/) ?? [];
+        return {
+          behavioral: classes.filter((className) => className === 'acme-input-large'),
+          styling: classes.filter((className) => className === 'acme-theme-blue'),
+          semantic: [],
+          unknown: [],
+        };
+      },
+    };
+    const plugin = new QtiToPiePlugin({
+      vendorDetectors: [detector],
+      cssClassExtractors: [cssExtractor],
+    });
+    const qtiWithVendorClasses = createQtiWrapper(
+      `
+  ${createResponseDeclaration('RESPONSE', 'single', ['choiceA'])}
+  <itemBody>
+    <div class="acme-input-large acme-theme-blue">
+      ${createChoiceInteraction('RESPONSE', [
+        { id: 'choiceA', text: '4' },
+        { id: 'choiceB', text: '3' },
+      ])}
+    </div>
+  </itemBody>
+`,
+      'choice-vendor-css',
+      'Vendor CSS Choice',
+    );
+
+    const output = await plugin.transform(
+      { content: qtiWithVendorClasses },
+      { logger: new SilentLogger() }
+    );
+    const cssClasses = output.items[0].content.metadata.vendorExtensions.cssClasses;
+
+    expect(cssClasses).toHaveLength(1);
+    expect(cssClasses[0].vendor).toBe('acme');
+    expect(cssClasses[0].classes).toEqual(['acme-input-large', 'acme-theme-blue']);
+    expect(cssClasses[0].categorized.behavioral).toEqual(['acme-input-large']);
+    expect(cssClasses[0].categorized.styling).toEqual(['acme-theme-blue']);
   });
 });

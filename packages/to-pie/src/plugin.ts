@@ -42,6 +42,7 @@ import { extractPieExtension, hasPieExtension } from './utils/pie-extension.js';
 import { embedQtiSourceInPie } from './utils/qti-extension-embedder.js';
 import { validateQti } from './utils/qti-validator.js';
 import { createStandardMetadataExtractor } from './extractors/standard-metadata-extractor.js';
+import { extractCssClassesWithHooks } from './vendor-extension-runtime.js';
 
 /**
  * Configuration options for the QtiToPiePlugin
@@ -407,6 +408,23 @@ export class QtiToPiePlugin implements TransformPlugin {
             ...(pieItem.metadata?.searchMetaData || {}),
           };
         }
+      }
+
+      const cssClassExtractions = extractCssClassesWithHooks({
+        extractors: this.vendorExtensions.cssClassExtractors,
+        root: doc,
+        vendorInfo,
+      });
+
+      if (cssClassExtractions.length > 0) {
+        logger?.info(`Extracted vendor CSS classes from ${cssClassExtractions.length} element(s)`);
+        pieItem.metadata = {
+          ...(pieItem.metadata || {}),
+          vendorExtensions: {
+            ...(pieItem.metadata?.vendorExtensions || {}),
+            cssClasses: cssClassExtractions,
+          },
+        };
       }
 
       // Embed original QTI XML for lossless round-trip
