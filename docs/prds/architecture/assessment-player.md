@@ -7,9 +7,9 @@
   Last reviewed: 2026-04-27
 -->
 
-**Status:** draft  
-**Type:** architecture  
-**Packages:** `@pie-qti/assessment-player`  
+**Status:** draft
+**Type:** architecture
+**Packages:** `@pie-qti/assessment-player`
 **Last reviewed:** 2026-04-27
 
 ---
@@ -17,6 +17,8 @@
 ## Summary
 
 `@pie-qti/assessment-player` is the multi-item test shell that sits above `@pie-qti/item-player`. It orchestrates an entire QTI `assessmentTest` — managing navigation across items and sections, enforcing submission modes, collecting candidate responses, delegating all scoring to a backend adapter, and displaying test-level feedback after finalization. By itself it never scores anything; it is a secure delivery shell whose only job is to present items in the right order, collect responses, and coordinate with a backend that holds the authoritative item XML and scoring logic.
+
+LTI launch, identity, roster, and grade-passback flows are host-application responsibilities. This package provides an embeddable assessment runtime, not an LTI platform implementation.
 
 ---
 
@@ -127,44 +129,44 @@ State is persisted to `localStorage` → `sessionStorage` → memory (in degrada
 
 ### BackendAdapter as mandatory constructor dependency (not optional)
 
-**Decision:** `AssessmentPlayer.create()` requires a `BackendAdapter`. There is no "no-backend mode" in `AssessmentPlayer`.  
-**Rationale:** Making the backend optional at the class level would mean the same code path has two very different security profiles with no structural signal about which is in use. The `ReferenceBackendAdapter` already provides a client-side implementation for demos; hosts choose the security level by which adapter they instantiate.  
-**Alternatives considered:** Optional `backend` field with automatic fallback to a built-in reference adapter. Rejected because it makes the insecure path the default.  
+**Decision:** `AssessmentPlayer.create()` requires a `BackendAdapter`. There is no "no-backend mode" in `AssessmentPlayer`.
+**Rationale:** Making the backend optional at the class level would mean the same code path has two very different security profiles with no structural signal about which is in use. The `ReferenceBackendAdapter` already provides a client-side implementation for demos; hosts choose the security level by which adapter they instantiate.
+**Alternatives considered:** Optional `backend` field with automatic fallback to a built-in reference adapter. Rejected because it makes the insecure path the default.
 **Consequences:** All integrations must provide at least a `ReferenceBackendAdapter`. Code that used the old `AssessmentPlayer` constructor (non-backend flavour) cannot use this class directly.
 
 ### Flat item list at construction, not lazy tree walk
 
-**Decision:** All items are flattened into `FlatItem[]` in the constructor, indexed 0-N.  
-**Rationale:** Navigation, visited-item tracking, and section boundary detection are all simpler and faster over a flat array. QTI selection/ordering is resolved server-side before the client receives the structure.  
-**Alternatives considered:** Keeping the tree structure and walking it on each navigation call. Rejected because section-crossing navigation (jumping from item 3 in section 1 to item 1 in section 2) becomes ambiguous without a flat index.  
+**Decision:** All items are flattened into `FlatItem[]` in the constructor, indexed 0-N.
+**Rationale:** Navigation, visited-item tracking, and section boundary detection are all simpler and faster over a flat array. QTI selection/ordering is resolved server-side before the client receives the structure.
+**Alternatives considered:** Keeping the tree structure and walking it on each navigation call. Rejected because section-crossing navigation (jumping from item 3 in section 1 to item 1 in section 2) becomes ambiguous without a flat index.
 **Consequences:** `SecureAssessment` must arrive fully-resolved from the server. If the server uses lazy item loading (item pools resolved on demand), it must resolve and include all selected items in `InitSessionResponse` before the client constructs its flat list. Dynamic item insertion mid-session is not supported.
 
-### itemSessionControl settings are read from the first testPart only
+### itemSessionControl has testPart defaults with section overrides
 
-**Decision:** In the constructor, `ItemSessionController` is initialized from `assessment.testParts?.[0]?.itemSessionControl`.  
-**Rationale:** The current data model has one `ItemSessionController` for the whole session. Per-testPart or per-section control settings would require switching the controller on section transitions.  
-**Alternatives considered:** Per-section `ItemSessionController` instances. Deferred because the common case is one set of control settings per test.  
-**Consequences:** Assessments with different `itemSessionControl` settings on different testParts will apply only the first part's settings. `ItemSessionController.updateSettings()` exists for manual override but is not currently wired to section transitions.
+**Decision:** In the constructor, `ItemSessionController` starts from the first `testPart` defaults; navigation then applies effective item-session settings for the current item/section when available.
+**Rationale:** QTI allows testPart, section, and item-level control settings. The runtime needs a stable controller object, but its settings must follow the current item's effective context.
+**Alternatives considered:** Per-section `ItemSessionController` instances. Deferred because updating the active controller settings is simpler and keeps existing session state intact.
+**Consequences:** Multi-section assessments can express section-level `allowSkipping` / `allowReview` differences, while multi-testPart assessments still need additional work if each part has materially different control policy.
 
 ### Navigation mode is read from `assessment.navigationMode`, not per-testPart
 
-**Decision:** `NavigationManager` is constructed with `assessment.navigationMode || 'nonlinear'`, which is a top-level field on `SecureAssessment`, not per `SecureTestPart`.  
-**Rationale:** The QTI spec places `navigationMode` on `testPart`. `SecureAssessment` flattens this because the current data model only exposes a single top-level `navigationMode`. Multi-part assessments with different navigation modes per part would require `NavigationManager` to be per-part.  
-**Alternatives considered:** Per-testPart `NavigationManager` instances. Deferred pending a real use case.  
+**Decision:** `NavigationManager` is constructed with `assessment.navigationMode || 'nonlinear'`, which is a top-level field on `SecureAssessment`, not per `SecureTestPart`.
+**Rationale:** The QTI spec places `navigationMode` on `testPart`. `SecureAssessment` flattens this because the current data model only exposes a single top-level `navigationMode`. Multi-part assessments with different navigation modes per part would require `NavigationManager` to be per-part.
+**Alternatives considered:** Per-testPart `NavigationManager` instances. Deferred pending a real use case.
 **Consequences:** Multi-testPart assessments with mixed navigation modes will use only the top-level mode. The server should set `SecureAssessment.navigationMode` to the most restrictive mode if the parts differ.
 
 ### Event listeners use `Set<listener>`, not an event emitter library
 
-**Decision:** Each event type is backed by a `Set<ListenerFn>` maintained on the player instance.  
-**Rationale:** Avoids a runtime dependency, keeps the subscription model explicit and type-safe, and makes memory leak prevention obvious (each `on*()` call returns an unsubscribe function).  
-**Alternatives considered:** EventEmitter, RxJS, Svelte stores. Rejected — unnecessary dependencies for a headless player.  
+**Decision:** Each event type is backed by a `Set<ListenerFn>` maintained on the player instance.
+**Rationale:** Avoids a runtime dependency, keeps the subscription model explicit and type-safe, and makes memory leak prevention obvious (each `on*()` call returns an unsubscribe function).
+**Alternatives considered:** EventEmitter, RxJS, Svelte stores. Rejected — unnecessary dependencies for a headless player.
 **Consequences:** No wildcard subscriptions, no once() helper, no error event. These can be added if needed without breaking the existing API.
 
 ### `submit()` preserves client response map during simultaneous-mode item loop
 
-**Decision:** In simultaneous mode, `submit()` captures `allItemResponses = { ...this.state.itemResponses }` before the loop and restores it after each backend state update.  
-**Rationale:** Some backend adapters return `updatedState` in their `submitResponses` response. This `updatedState` may only contain responses for items submitted so far, which would silently erase responses for items not yet submitted. The client-side capture prevents data loss.  
-**Alternatives considered:** Requiring backends not to return `updatedState` during simultaneous-mode submission. Rejected — the contract allows it and it's better to be defensive.  
+**Decision:** In simultaneous mode, `submit()` captures `allItemResponses = { ...this.state.itemResponses }` before the loop and restores it after each backend state update.
+**Rationale:** Some backend adapters return `updatedState` in their `submitResponses` response. This `updatedState` may only contain responses for items submitted so far, which would silently erase responses for items not yet submitted. The client-side capture prevents data loss.
+**Alternatives considered:** Requiring backends not to return `updatedState` during simultaneous-mode submission. Rejected — the contract allows it and it's better to be defensive.
 **Consequences:** If the backend intentionally modifies responses server-side (e.g. normalizing values), those modifications will be overwritten by the client capture. Backends that need to modify responses should do so only at finalization.
 
 ---
@@ -174,8 +176,8 @@ State is persisted to `localStorage` → `sessionStorage` → memory (in degrada
 | Extension point | Interface/type | How to use | Example |
 |---|---|---|---|
 | Backend adapter | `BackendAdapter` in `src/integration/api-contract.ts` | Implement all four required methods; pass instance to `AssessmentPlayer.create()` | `class MyBackendAdapter implements BackendAdapter { ... }` |
-| Item rendering | `QTIPlugin` (via `@pie-qti/item-player`) | Pass plugin to `Player` constructor inside `navigateTo()`. Currently threaded via `BackendAssessmentPlayerConfig.i18nProvider` and `security`. | Custom extractor + web component for a vendor interaction type |
-| Custom outcome processing | `outcomeProcessor` field on the non-backend `AssessmentPlayer` config | Extend `OutcomeProcessor` or implement from scratch | `config.outcomeProcessor = new MyOutcomeProcessor(assessment)` |
+| Item rendering | `QTIPlugin` (via `@pie-qti/item-player`) | Host shells can pass item-player plugins/security/i18n into the item renderer layer; the headless assessment player only constructs the core `Player` needed for state/scoring. | Custom extractor + web component for a vendor interaction type |
+| Custom outcome processing | Backend adapter / host application | Implement assessment-level outcome policy in the backend or host integration. | Compute aggregate outcomes before returning updated assessment state |
 | Time management callbacks | `onWarning`, `onExpired`, `onTick` in `BackendAssessmentPlayerConfig` | Provide callbacks at construction | Display a countdown banner or auto-submit |
 | Extended text editor hint | `extendedTextEditor` in `BackendAssessmentPlayerConfig` | Pass `'tiptap'` or `'textarea'`; plumbed through to item renderers | `config.extendedTextEditor = 'tiptap'` |
 | Persistence backend | `BackendAdapter.saveState()` | Implement `saveState()` on your adapter; the player calls it during auto-save | Persist to PostgreSQL session table |

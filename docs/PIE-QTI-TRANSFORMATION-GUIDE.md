@@ -56,7 +56,7 @@ bun add @pie-qti/to-pie
 
 ```typescript
 import { PieToQti2Plugin } from '@pie-qti/pie-to-qti2';
-import { Qti22ToPiePlugin } from '@pie-qti/to-pie';
+import { QtiToPiePlugin } from '@pie-qti/to-pie';
 
 // PIE item
 const pieItem = {
@@ -86,7 +86,7 @@ const qtiResult = await pieToQti.transform(
 const qtiXml = qtiResult.items[0].content;
 
 // QTI → PIE (lossless round-trip)
-const qtiToPie = new Qti22ToPiePlugin();
+const qtiToPie = new QtiToPiePlugin();
 const pieResult = await qtiToPie.transform(
   { content: qtiXml },
   { logger: console }
@@ -486,11 +486,11 @@ async function exportPieItems(pieItems: any[], outputDir: string) {
 ### Pattern 2: Content Migration
 
 ```typescript
-import { Qti22ToPiePlugin } from '@pie-qti/to-pie';
+import { QtiToPiePlugin } from '@pie-qti/to-pie';
 import { PieToQti2Plugin } from '@pie-qti/pie-to-qti2';
 
 async function migrateQtiToPie(qtiXml: string): Promise<any> {
-  const qtiToPie = new Qti22ToPiePlugin();
+  const qtiToPie = new QtiToPiePlugin();
 
   // Import QTI
   const result = await qtiToPie.transform({ content: qtiXml });
@@ -510,7 +510,7 @@ async function migrateQtiToPie(qtiXml: string): Promise<any> {
 ```typescript
 async function validateRoundTrip(pieItem: any): Promise<boolean> {
   const pieToQti = new PieToQti2Plugin();
-  const qtiToPie = new Qti22ToPiePlugin();
+  const qtiToPie = new QtiToPiePlugin();
 
   try {
     // PIE → QTI

@@ -101,7 +101,7 @@ The component is included via `<ShadowBaseStyles />` at the top of each interact
 - **FR-9:** `QtiItemPlayerElement` SHALL expose JS property setters and getters for `itemXml`, `identifier`, `title`, `role`, `responses`, `security`, and `extendedTextEditor`, in addition to the equivalent kebab-case HTML attributes.
 - **FR-10:** `QtiItemPlayerElement` SHALL dispatch a `response-change` event with `{ responseId, value, responses }` when the mounted player reports a response change.
 - **FR-11:** `QtiItemPlayerElement` SHALL dispatch a `ready` event (microtask-queued) after `connectedCallback`.
-- **FR-12:** `loadPieQtiPlayerElements()` SHALL be idempotent: calling it N times SHALL result in exactly one dynamic import and SHALL resolve only after both `pie-qti-item-player` and `pie-qti-assessment-player` custom elements are defined.
+- **FR-12:** `loadPieQtiPlayerElements()` SHALL be idempotent: calling it N times SHALL result in exactly one dynamic import and SHALL resolve only after both `pie-qti-item-player` and `pie-assessment-player` custom elements are defined.
 - **FR-13:** Interaction components SHALL use `typesetAction` to trigger host-provided math typesetting after render and on DOM mutations.
 - **FR-14:** Interaction components in `disabled` state SHALL render non-interactive (native input elements with `disabled`, no `qti-change` events).
 

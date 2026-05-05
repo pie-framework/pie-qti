@@ -45,21 +45,14 @@ Available themes:
 ### Run all settings UI evals
 ```bash
 cd apps/demo
-bun run test:e2e -- docs/evals/qti-settings-ui
+bun run test:e2e -- tests/playwright/settings-ui-evals.pw.ts
 ```
 
-### Run specific category
-```bash
-# Settings menu tests
-bun run test:e2e -- docs/evals/qti-settings-ui/settings-menu
-
-# Theme switching tests
-bun run test:e2e -- docs/evals/qti-settings-ui/theme-switching
-```
+The runner reads all `docs/evals/settings-ui/**/evals.yaml` files.
 
 ### Run with UI mode (for debugging)
 ```bash
-bun run test:e2e:ui -- docs/evals/qti-settings-ui
+bun run test:e2e:ui -- tests/playwright/settings-ui-evals.pw.ts
 ```
 
 ## Implementation Details

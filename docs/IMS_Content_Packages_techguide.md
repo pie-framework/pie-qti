@@ -2,9 +2,11 @@
 
 The IMS Content Packaging (IMS CP) specification provides the foundational framework for exchanging e-learning content between authoring tools, learning management systems, and digital repositories. Developed by IMS Global Learning Consortium (now 1EdTech), this standard enables **self-contained, platform-independent content packages** that preserve both resources and structural organization. This documentation covers specification versions 1.1.x through 1.2, technical implementation details, metadata integration with IEEE LOM, and critical QTI assessment packaging requirements across versions 2.0 through 3.0.
 
-## Spec snapshots (local)
+## Reference Scope
 
-For QTI packaging details, see [SPEC_SNAPSHOTS.md](./SPEC_SNAPSHOTS.md) (QTI **2.2.2** primary reference; supports QTI **2.1–2.2.x** input).
+For QTI packaging details, see [`QTI_techguide.md`](QTI_techguide.md). Public
+certification coverage is tracked separately in
+[`certification/README.md`](certification/README.md).
 
 ---
 

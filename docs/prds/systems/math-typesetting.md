@@ -16,7 +16,7 @@
 
 ## Summary
 
-The PIE-QTI math typesetting system renders mathematical expressions inside assessment items without bundling a math engine into the player itself. `@pie-qti/item-player` exposes an optional `typeset?: (element: HTMLElement) => void` hook in `PlayerConfig` and its `ItemPlayer.svelte` props surface; host applications wire this hook to whichever renderer they choose. `@pie-qti/typeset-katex` provides the recommended default implementation: a KaTeX-based function that scans the DOM for LaTeX delimiters, pre-converts QTI 2.2 MathML to LaTeX on the fly, lazy-loads KaTeX's auto-render module on demand, and protects `contenteditable` regions from DOM mutation. The hook is optional — items that contain no math impose zero KaTeX cost on the page.
+The PIE-QTI math typesetting system renders mathematical expressions inside assessment items without bundling a math engine into the player itself. `@pie-qti/item-player` exposes an optional `typeset?: (element: HTMLElement) => void` hook through its Svelte/web-component rendering surfaces and `ItemRenderer`; host applications wire this hook to whichever renderer they choose. `@pie-qti/typeset-katex` provides the recommended default implementation: a KaTeX-based function that scans the DOM for LaTeX delimiters, pre-converts QTI MathML to LaTeX on the fly, lazy-loads KaTeX's auto-render module on demand, and protects `contenteditable` regions from DOM mutation. The hook is optional — items that contain no math impose zero KaTeX cost on the page.
 
 ---
 
@@ -55,7 +55,7 @@ This approach is intentionally minimal. The converter handles the eight MathML e
 
 ## Functional requirements
 
-- **FR-1:** `@pie-qti/item-player` must expose `typeset?: (element: HTMLElement) => void` as an optional prop on `ItemPlayer.svelte` and as an optional field on `PlayerConfig`. The player must not declare a dependency on any math rendering library.
+- **FR-1:** `@pie-qti/item-player` must expose `typeset?: (element: HTMLElement) => void` as an optional rendering-surface prop/configuration field. The player must not declare a dependency on any math rendering library.
 - **FR-2:** When `typeset` is provided, the player must call it on the item body container element after the item HTML has been rendered into the DOM.
 - **FR-3:** When `typeset` is provided, the player must call it again whenever item content re-renders due to a response change, state change, or `outcomeValues` update (e.g. feedback visibility toggling).
 - **FR-4:** Calls to `typeset` must be scheduled with `requestAnimationFrame` so that the DOM is fully painted before the function runs; errors thrown by `typeset` must be caught and swallowed (raw text remains; no exception propagates).
@@ -476,7 +476,7 @@ AC-E6: Converter error does not corrupt the item body
 - Implementation: `packages/item-player/src/components/actions/typesetAction.ts` — Svelte action that wires the hook to the DOM lifecycle
 - Implementation: `packages/item-player/src/components/ItemBody.svelte` — `use:typesetAction` binding and `typeset` prop threading
 - Implementation: `packages/item-player/src/components/ItemPlayer.svelte` — top-level `typeset` prop surface
-- Types: `packages/item-player/src/types/index.ts` — `PlayerConfig.typeset` (via `ItemPlayer` props, not yet a top-level `PlayerConfig` field)
+- Types: `packages/item-player/src/core/ItemRenderer.ts` and Svelte component props — `typeset` rendering hook wiring
 - CSS entry point: `packages/typeset-katex/src/css.ts` — re-exports `katex/dist/katex.min.css`
 - Adjacent PRDs: `docs/prds/systems/theming.md` — Shadow DOM CSS isolation rationale; explains why KaTeX CSS cannot be bundled inside shadow roots
 - KaTeX documentation: https://katex.org/docs/autorender

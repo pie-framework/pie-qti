@@ -80,7 +80,7 @@ Subsystem-level PRDs covering how major packages work and how to extend them.
 |------|-----------|----------|--------|
 | `architecture/item-player.md` | QTI Item Player | `@pie-qti/item-player` | draft |
 | `architecture/assessment-player.md` | Assessment Shell | `@pie-qti/assessment-player` | draft |
-| `architecture/transform-engine.md` | Transform Engine & Plugin System | `@pie-qti/core`, `@pie-qti/types` | draft |
+| `architecture/transform-engine.md` | Transform Engine & Plugin System | `@pie-qti/transform-core`, `@pie-qti/transform-types` | draft |
 | `architecture/qti-to-pie.md` | QTI → PIE Transform | `@pie-qti/to-pie` | draft |
 | `architecture/pie-to-qti.md` | PIE → QTI Transform | `@pie-qti/pie-to-qti2` | draft |
 | `architecture/response-processing.md` | Response Processing Engine | `@pie-qti/qti-processing` | draft |
@@ -115,7 +115,7 @@ Cross-cutting concerns that span multiple packages.
 | `systems/navigation-modes.md` | QTI navigation modes (linear/nonlinear) and submission modes | current |
 | `systems/math-typesetting.md` | Math rendering (KaTeX adapter, host-provided `typeset()`) | current |
 | `systems/cli.md` | CLI tool (batch transform, analyze, discover) | current |
-| `systems/transform-app.md` | Transform web app (upload → analyze → transform → preview) | current |
+| `systems/transform-app.md` | Internal/reference transform harness (upload → analyze → transform → preview) | reference |
 
 ---
 

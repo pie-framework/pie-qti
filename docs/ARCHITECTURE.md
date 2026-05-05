@@ -441,7 +441,7 @@ Key references:
    - reference: `apps/transform/src/routes/api/upload/+server.ts`
 2) **Analyze**: `POST /api/sessions/[id]/analyze` extracts and analyzes the session
    - reference: `apps/transform/src/routes/api/sessions/[id]/analyze/+server.ts`
-3) **Transform**: `POST /api/sessions/[id]/transform` uses `TransformEngine` + `Qti22ToPiePlugin`
+3) **Transform**: `POST /api/sessions/[id]/transform` uses `TransformEngine` + `QtiToPiePlugin`
    - reference: `apps/transform/src/routes/api/sessions/[id]/transform/+server.ts`
 
 ### Preview model
@@ -535,7 +535,7 @@ You’ll likely want multiple layers:
 ## Further reading (key docs)
 
 - Transformation overview: `docs/PIE-QTI-TRANSFORMATION-GUIDE.md`
-- QTI 2.2 notes: `docs/QTI_2.2_techguide.md`
+- QTI 2.2 notes: `docs/QTI_techguide.md`
 - IMS Content Package notes: `docs/IMS_Content_Packages_techguide.md`
 - QTI item player: `packages/item-player/README.md`
 - Iframe mode reference: `packages/item-player/docs/iframe-mode.md`

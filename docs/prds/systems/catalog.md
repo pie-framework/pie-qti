@@ -110,9 +110,9 @@ All eight types defined in QTI 3.0 §6.3 are parsed and stored in `CatalogIndex`
 
 ### Known gaps
 
-**G-10 — Catalog system (Open, Tier 2):** This PRD defines the full G-10 scope. See `docs/SPEC-GAPS-PLAN.md §G-10` for the complete action list.
+**G-10 — Catalog system (Done, Tier 2):** The core catalog parser, lookup API, glossary/keyword-translation popup path, and platform-level lookup events are implemented. See `docs/SPEC-GAPS-PLAN.md §G-10` for the historical action list and remaining deferred items.
 
-**G-15 — Shared/external catalog files from IMS manifest (Deferred, Tier 3):** `PlayerConfig.catalogXml` is a planned stub. Manifest-level catalog resolution is not implemented.
+**G-15 — Shared/external catalog files from IMS manifest (Deferred, Tier 3):** `PlayerConfig.catalogXml` is supported for host-provided shared catalog XML. Manifest-level catalog discovery and resolution are not implemented.
 
 ---
 
@@ -586,7 +586,7 @@ AC-E5: QTI 2.x items with no catalog are unaffected
 ## Related
 
 - QTI spec: `docs/QTI_techguide.md` §6.3 (Catalog)
-- Spec gap: `docs/SPEC-GAPS-PLAN.md` §G-10 (Open, Tier 2)
+- Spec gap: `docs/SPEC-GAPS-PLAN.md` §G-10 (Done, Tier 2)
 - Spec gap: `docs/SPEC-GAPS-PLAN.md` §G-15 (shared catalog, Deferred, Tier 3)
 - Implementation plan: `docs/development/ACCESSIBILITY-PNP-CATALOG-PLAN.md`
 - Element mappings (already in place): `packages/qti-common/src/element-mapper/qti3-element-mappings.ts` — `CATALOG_ELEMENTS`

@@ -16,7 +16,7 @@
 
 ## Summary
 
-`@pie-qti/pie-to-qti2` transforms PIE (Platform for Interactive Education) assessment items and assessments into QTI 2.2 XML. It implements the `TransformPlugin` interface from `@pie-qti/transform-types` and integrates with the transform engine in `@pie-qti/core`. The package supports the full PIE item model: single interactions, multi-model items (passage + interaction + rubric), and full `assessmentTest` documents with sections, branch rules, and scoring logic. Every forward transformation embeds the original PIE source in a `<pie:sourceModel>` extension, enabling a lossless round-trip back to PIE via `@pie-qti/to-pie`.
+`@pie-qti/pie-to-qti2` transforms PIE (Platform for Interactive Education) assessment items and assessments into QTI 2.2 XML. It implements the `TransformPlugin` interface from `@pie-qti/transform-types` and integrates with the transform engine in `@pie-qti/transform-core`. The package supports the full PIE item model: single interactions, multi-model items (passage + interaction + rubric), and full `assessmentTest` documents with sections, branch rules, and scoring logic. Every forward transformation embeds the original PIE source in a `<pie:sourceModel>` extension, enabling a lossless round-trip back to PIE via `@pie-qti/to-pie`.
 
 ---
 

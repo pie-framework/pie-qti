@@ -67,7 +67,7 @@ export const BUILTIN_DECLARATIONS: Record<string, VariableDeclaration> = {
 
 ### Variable Properties
 
-Each variable has ([types/index.ts:21-29](../packages/item-player/src/types/index.ts#L21-L29)):
+Each variable has ([types/index.ts](../packages/item-player/src/types/index.ts)):
 
 ```typescript
 export interface VariableDeclaration {
@@ -81,7 +81,7 @@ export interface VariableDeclaration {
 }
 ```
 
-**BaseType** values ([types/index.ts:5-17](../packages/item-player/src/types/index.ts#L5-L17)):
+**BaseType** values ([types/index.ts](../packages/item-player/src/types/index.ts)):
 
 - `boolean`, `integer`, `float`, `string`
 - `identifier` (most common for choice responses)
@@ -103,7 +103,7 @@ export interface VariableDeclaration {
 
 ### Step 1: User Interacts
 
-When a student clicks/types/drags, the interaction processor updates the response variable ([declarations.ts:90-100](../packages/item-player/src/core/declarations.ts#L90-L100)):
+When a student clicks/types/drags, the interaction processor updates the response variable ([declarations.ts](../packages/item-player/src/core/declarations.ts)):
 
 ```typescript
 /**
@@ -121,7 +121,7 @@ export function setVariableValue(
 }
 ```
 
-Example from [choiceProcessor.ts](../packages/item-player/src/processors/choiceProcessor.ts):
+Example conceptually matching the current `choiceInteraction` flow:
 
 ```typescript
 // When user selects "choiceA" in a multiple choice
@@ -148,7 +148,7 @@ setVariableValue(player.declarations, '$dirty', true);
 
 ### Step 2: Submit
 
-When student clicks "Submit", the player processes responses ([Player.ts:446-497](../packages/item-player/src/core/Player.ts#L446-L497)):
+When student clicks "Submit", the player processes responses ([Player.ts](../packages/item-player/src/core/Player.ts)):
 
 ```typescript
 /**
@@ -426,7 +426,7 @@ player.declarations = {
 
 ### Serialization
 
-The player provides methods to get/set all variable state ([Player.ts:380-442](../packages/item-player/src/core/Player.ts#L380-L442)):
+The player provides methods to get/set all variable state ([Player.ts](../packages/item-player/src/core/Player.ts)):
 
 ```typescript
 // Get current responses
@@ -461,7 +461,7 @@ Our player is designed to integrate with web applications:
 ```typescript
 import { Player } from '@pie-qti/item-player';
 
-const player = new Player(qtiXml, config);
+const player = new Player({ itemXml: qtiXml, ...config });
 
 // After user interacts with the item
 const responses = player.getResponses();

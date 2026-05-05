@@ -87,7 +87,7 @@
 
 - **`minChoices`/`maxChoices` not extracted (unimplemented):** Items that require the candidate to rank a subset of choices (e.g., "order the top 3 from this list of 6") cannot be represented. Both constraints are absent from `OrderInteractionData`. When present in QTI XML, they are silently ignored and all choices are treated as required.
 
-- **G-09 (PNP elimination tool):** When `pnp.cognitive.eliminationTool` is enabled, an eliminate/dismiss button should appear per choice. Not implemented. Tracked in `docs/SPEC-GAPS-PLAN.md`.
+- **G-09 (PNP elimination tool):** Implemented for `orderInteraction`; when `pnp.cognitive.eliminationTool` is enabled, an eliminate/dismiss button appears per choice without changing the response value.
 
 ---
 
@@ -241,7 +241,7 @@ interface OrderInteractionData extends BaseInteractionData {
 
 **Response type:**
 ```typescript
-// In InteractionResponseMap (packages/item-player/src/types/interactions.ts)
+// In InteractionValueMap (packages/item-player/src/interactions/shared/types.ts)
 orderInteraction: string[]
 // An ordered array of simpleChoice identifiers in candidate-selected order.
 // Null-equivalent: null before confirmation, [] after response clear.

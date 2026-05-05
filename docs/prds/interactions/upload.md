@@ -228,7 +228,7 @@ interface QTIFileResponse {
 
 ### Response variable in session
 
-The player's session snapshot stores the `QTIFileResponse` object directly under the `responseIdentifier` key. The response map type in `interactions.ts` declares this as `QTIFileResponse[]` (plural), which is a known mismatch — `uploadInteraction` is always `cardinality="single"` and should store one `QTIFileResponse`, not an array. This discrepancy is an artifact of how the response map was generated and should be corrected (see Open questions).
+The player's session snapshot stores the `QTIFileResponse` object directly under the `responseIdentifier` key. `InteractionValueMap.uploadInteraction` is declared in `packages/item-player/src/interactions/shared/types.ts` as `QTIFileResponse | null`, matching the QTI `cardinality="single"` behavior.
 
 ---
 
@@ -457,7 +457,7 @@ AC-E5: Zero-byte file
 
 - [ ] **Wildcard MIME matching** — `fileTypes: ['image/*']` sets `accept="image/*"` on the input (which the OS picker respects) but the client-side JS check does not currently match `image/png` against `image/*`. Should the component implement RFC 2045-style wildcard subtype matching?
 - [ ] **`type` attribute migration** — Should the extractor parse the QTI 2.x `type` attribute and use it when no `<fileType>` children are present? This would fix AC-E3 and improve QTI 2.x content compatibility.
-- [ ] **Response map type mismatch** — `InteractionResponseMap.uploadInteraction` is typed as `QTIFileResponse[]` (array) but `uploadInteraction` has `cardinality="single"` and should be `QTIFileResponse | null`. Should this be corrected? Check whether any consumers depend on the array form before changing.
+- [x] **Response map type mismatch** — `InteractionValueMap.uploadInteraction` is now typed as `QTIFileResponse | null`, matching `cardinality="single"`.
 - [ ] **File size limit API** — Should a `maxBytes` prop (or a QTI extension attribute) be added to support deployment-specific size caps with a user-facing error message? This would address the silent performance degradation described in the storage decision.
 - [ ] **Live region for success states** — After a successful file selection, screen readers should announce the selected filename. An `aria-live="polite"` region wrapping the selected-file display is the standard pattern. Should this be added?
 

@@ -2,9 +2,10 @@
 
 This directory contains **AI-oriented eval sets** for each QTI interaction implementation in `@pie-qti/default-components`.
 
-## Spec snapshots (local)
+## Reference Scope
 
-See [SPEC_SNAPSHOTS.md](../../SPEC_SNAPSHOTS.md) (QTI **2.2.2** primary reference; supports QTI **2.1–2.2.x** input).
+These evals are local, AI-oriented checks for default component behavior. For
+QTI terminology and spec context, see [`../../QTI_techguide.md`](../../QTI_techguide.md).
 
 The evals are designed to be:
 
@@ -34,7 +35,7 @@ Each interaction has one `evals.yaml` containing multiple eval cases:
 
 To create a new eval set, start from the template:
 
-- `docs/evals/default-components/evals.yaml`
+- `docs/evals/default-components/evals.template.yaml`
 
 The schema is intentionally simple and AI-friendly:
 
@@ -62,4 +63,7 @@ This directory includes eval sets for:
 - `endAttemptInteraction` (`pie-qti-end-attempt`)
 - `customInteraction` (`pie-qti-custom`)
 - `extendedTextInteraction` (`pie-qti-extended-text`)
+- `textEntryInteraction` (`pie-qti-text-entry`)
+- `inlineChoiceInteraction` (inline item-body rendering)
 - `mediaInteraction` (`pie-qti-media`)
+- edge cases under `docs/evals/default-components/edge-cases/`

@@ -3,20 +3,20 @@
 <!--
   Status: draft
   Type: architecture
-  Packages: @pie-qti/core, @pie-qti/types
+  Packages: @pie-qti/transform-core, @pie-qti/transform-types
   Last reviewed: 2026-04-27
 -->
 
 **Status:** draft
 **Type:** architecture
-**Packages:** `@pie-qti/core`, `@pie-qti/types`
+**Packages:** `@pie-qti/transform-core`, `@pie-qti/transform-types`
 **Last reviewed:** 2026-04-27
 
 ---
 
 ## Summary
 
-The Transform Engine is the central orchestration layer for all content format conversions in the PIE-QTI framework. It accepts content in a source format, detects or validates that format, selects the highest-priority registered plugin that handles the source→target pair, and executes the transformation through a workflow. The engine is format-agnostic: `TransformFormat` is a plain string, so any new format pair can be added by registering a new plugin without modifying the engine. The engine lives in `@pie-qti/core`; all shared type contracts live in `@pie-qti/types` (published as `@pie-qti/transform-types`).
+The Transform Engine is the central orchestration layer for all content format conversions in the PIE-QTI framework. It accepts content in a source format, detects or validates that format, selects the highest-priority registered plugin that handles the source→target pair, and executes the transformation through a workflow. The engine is format-agnostic: `TransformFormat` is a plain string, so any new format pair can be added by registering a new plugin without modifying the engine. The engine lives in `@pie-qti/transform-core`; all shared type contracts live in `@pie-qti/transform-types` (published as `@pie-qti/transform-types`).
 
 ---
 
@@ -115,7 +115,7 @@ The framework grew from a need to move content bidirectionally between the PIE a
 | Extension point | Interface/type | How to register | Notes |
 |----------------|---------------|----------------|-------|
 | New transform plugin (new format pair or vendor override) | `TransformPlugin` (`@pie-qti/transform-types`) | `engine.use(plugin)` | Priority 500–999 for vendor overrides; 100–499 for normal plugins |
-| Custom format detector | `FormatDetector` (`@pie-qti/core`) | `engine.registerFormatDetector(detector)` | Higher `priority` value runs first |
+| Custom format detector | `FormatDetector` (`@pie-qti/transform-core`) | `engine.registerFormatDetector(detector)` | Higher `priority` value runs first |
 | Custom workflow orchestrator | `WorkflowOrchestrator` (`@pie-qti/transform-types`) | Pass to `new TransformEngine(orchestrator, storage)` | Must implement full interface including `on/off` event subscription |
 | Custom storage backend | `StorageBackend` (`@pie-qti/transform-types`) | `engine.setStorage(backend)` or constructor | Required for batch; optional for single transforms |
 | Plugin lifecycle hooks | Optional methods on `TransformPlugin` | Implement `initialize`, `validate`, `dispose` | Called by the engine at the appropriate lifecycle points |

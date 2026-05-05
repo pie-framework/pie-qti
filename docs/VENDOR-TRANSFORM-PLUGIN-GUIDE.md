@@ -64,7 +64,7 @@ Create `src/index.ts`:
 
 ```typescript
 import type { TransformPlugin, TransformInput, TransformOutput, TransformContext } from '@pie-qti/transform-types';
-import { Qti22ToPiePlugin } from '@pie-qti/to-pie';
+import { QtiToPiePlugin } from '@pie-qti/to-pie';
 
 export class VendorAcmePlugin implements TransformPlugin {
   readonly id = 'vendor-acme-qti22-to-pie';
@@ -74,7 +74,7 @@ export class VendorAcmePlugin implements TransformPlugin {
   readonly targetFormat = 'pie' as const;
   readonly priority = 500; // Override default plugin
 
-  private defaultPlugin = new Qti22ToPiePlugin();
+  private defaultPlugin = new QtiToPiePlugin();
 
   /**
    * Check if this plugin can handle the input
@@ -768,7 +768,7 @@ The priority system allows multiple plugins to support the same format pair, wit
 
 ```typescript
 // Default QTI plugin (priority: 100)
-export class Qti22ToPiePlugin implements TransformPlugin {
+export class QtiToPiePlugin implements TransformPlugin {
   readonly priority = 100; // Or omit for default
   // ...
 }
@@ -1200,7 +1200,7 @@ import type {
   TransformContext,
 } from '@pie-qti/transform-types';
 import { ErrorCategory } from '@pie-qti/transform-types';
-import { Qti22ToPiePlugin } from '@pie-qti/to-pie';
+import { QtiToPiePlugin } from '@pie-qti/to-pie';
 import { parse } from 'node-html-parser';
 
 export interface AcmePluginConfig {
@@ -1220,10 +1220,10 @@ export class VendorAcmePlugin implements TransformPlugin {
   readonly priority = 500;
 
   // Dependencies
-  private defaultPlugin: Qti22ToPiePlugin;
+  private defaultPlugin: QtiToPiePlugin;
 
   constructor(private config: AcmePluginConfig) {
-    this.defaultPlugin = new Qti22ToPiePlugin();
+    this.defaultPlugin = new QtiToPiePlugin();
   }
 
   /**

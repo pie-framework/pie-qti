@@ -38,7 +38,7 @@ This is distinct from the lossless PIE extension: the PIE extension carries the 
 
 ### Why vendor hooks are on the plugin, not the engine
 
-The `TransformEngine` is format-agnostic. It knows nothing about QTI namespaces, vendor CSS classes, or asset URL schemes. Vendor customization for QTI→PIE transformations is inherently QTI-specific knowledge, so it belongs in the QTI plugin rather than the generic engine. Placing vendor hooks on the plugin also means a vendor package can depend only on `@pie-qti/to-pie` (a focused dependency) rather than on `@pie-qti/core` (the entire engine infrastructure).
+The `TransformEngine` is format-agnostic. It knows nothing about QTI namespaces, vendor CSS classes, or asset URL schemes. Vendor customization for QTI→PIE transformations is inherently QTI-specific knowledge, so it belongs in the QTI plugin rather than the generic engine. Placing vendor hooks on the plugin also means a vendor package can depend only on `@pie-qti/to-pie` (a focused dependency) rather than on `@pie-qti/transform-core` (the entire engine infrastructure).
 
 An alternative considered was a global vendor registry on the engine, queryable by any plugin. This was rejected because it would create implicit coupling between plugins that share a vendor namespace, and would make it impossible to run two independent instances of the same engine with different vendor configurations.
 

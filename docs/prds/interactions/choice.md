@@ -82,7 +82,7 @@
 
 ### Known gaps
 
-- **G-09 (PNP elimination tool):** When `pnp.cognitive.eliminationTool` is enabled, each choice should render a dismissal button that visually crosses out the choice without removing it from the response pool. Not implemented. Tracked in `docs/SPEC-GAPS-PLAN.md`.
+- **G-09 (PNP elimination tool):** Implemented for `choiceInteraction`; when `pnp.cognitive.eliminationTool` is enabled, each choice can be visually eliminated without removing it from the response pool.
 - **G-13 (PNP structural labels):** When `pnp.structuredLabelSupport` is enabled, interaction prompts should carry additional ARIA group role and label markup for screen-reader clarity. Not implemented. Tracked in `docs/SPEC-GAPS-PLAN.md`.
 - **`minChoices` not enforced:** The spec requires the player to treat the response as incomplete if fewer than `minChoices` identifiers are selected. Not extracted or validated.
 - **`fixed` on `simpleChoice` not honoured:** When `shuffle=true` and any choice has `fixed=true`, those choices should remain in their authored position. Currently all choices are eligible for shuffling.

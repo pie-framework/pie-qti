@@ -3,13 +3,13 @@
 <!--
   Status: draft
   Type: architecture
-  Packages: @pie-qti/storage, @pie-qti/types
+  Packages: @pie-qti/storage, @pie-qti/transform-types
   Last reviewed: 2026-04-27
 -->
 
-**Status:** draft  
-**Type:** architecture  
-**Packages:** `@pie-qti/storage`, `@pie-qti/types`  
+**Status:** draft
+**Type:** architecture
+**Packages:** `@pie-qti/storage`, `@pie-qti/transform-types`
 **Last reviewed:** 2026-04-27
 
 ---
@@ -141,45 +141,45 @@ Not applicable. This subsystem is infrastructure; it has no QTI spec alignment r
 
 ### Plain-string path API over URI objects
 
-**Decision:** All backend methods accept and return `string` paths.  
+**Decision:** All backend methods accept and return `string` paths.
 **Rationale:** The three backends each have a different native address space (OS path, S3 Key,
 DB row key). A unified URI type would add parse/serialize overhead and force every backend to
-map between representations. Plain strings are the lowest-friction common denominator.  
-**Alternatives considered:** `URL` objects; a custom `StorageUri` tagged type.  
+map between representations. Plain strings are the lowest-friction common denominator.
+**Alternatives considered:** `URL` objects; a custom `StorageUri` tagged type.
 **Consequences:** Callers must not construct paths by hand from user input; they should use
 `SessionStorageImpl`'s path helpers, which are the only place paths are assembled.
 
 ### Module-level registry singleton
 
 **Decision:** `storageBackendRegistry` is a module-level singleton exported from `index.ts`.
-Built-in backends are registered at module import time.  
+Built-in backends are registered at module import time.
 **Rationale:** Allows applications to register a custom backend once (at startup) and then
 use `storageBackendRegistry.create('my-backend', opts)` anywhere. Avoids passing a registry
-instance through every call site.  
+instance through every call site.
 **Alternatives considered:** Exporting only the `StorageBackendRegistry` class and letting
-applications instantiate their own. Retained as an option via the class export.  
+applications instantiate their own. Retained as an option via the class export.
 **Consequences:** Unit tests that exercise registry registration must call
 `registry.unregister(name)` in teardown or use a fresh `new StorageBackendRegistry()` to
 avoid "already registered" errors.
 
 ### `enforceSecurity` defaults to `true`
 
-**Decision:** `FilesystemBackend` blocks path traversal by default.  
+**Decision:** `FilesystemBackend` blocks path traversal by default.
 **Rationale:** User-supplied filenames in a web server context are attacker-controlled. A
-safe-by-default posture means a developer must explicitly opt out rather than opt in to safety.  
-**Alternatives considered:** Require callers to sanitize paths before calling the backend.  
+safe-by-default posture means a developer must explicitly opt out rather than opt in to safety.
+**Alternatives considered:** Require callers to sanitize paths before calling the backend.
 **Consequences:** Developer tooling that intentionally operates across a directory boundary
 (e.g. CLI tools reading from a project root) must pass `enforceSecurity: false`.
 
 ### Dynamic AWS SDK loading via `Function` constructor
 
-**Decision:** AWS SDK modules are imported at runtime via `new Function('s', 'return import(s)')`.  
+**Decision:** AWS SDK modules are imported at runtime via `new Function('s', 'return import(s)')`.
 **Rationale:** TypeScript's static `import()` in a non-SDK-installed workspace would fail
 type-checking or tree-shaking. The `Function` trick bypasses the TypeScript compiler's module
-resolution entirely, making the SDK a true optional peer dep.  
+resolution entirely, making the SDK a true optional peer dep.
 **Alternatives considered:** Using `/* @vite-ignore */ import(...)` (build-tool-specific);
 wrapping in a try/catch on a dynamic `import()` with `@ts-ignore` (still caught by some
-bundlers).  
+bundlers).
 **Consequences:** No static type safety for AWS SDK types; they are typed as `any`. IDE
 autocomplete for SDK internals is lost. This is acceptable because the S3 backend is a thin
 adapter; the SDK surface used is narrow and well-tested.
@@ -187,22 +187,22 @@ adapter; the SDK surface used is narrow and well-tested.
 ### Session file split (metadata / analysis / transformation)
 
 **Decision:** Status lives in `session.json`; analysis results in `analysis.json`;
-transformation results in `transformation.json`.  
+transformation results in `transformation.json`.
 **Rationale:** Reduces write amplification. Dashboard list views read only `session.json`
 per session. Analysis and transformation blobs can grow large (hundreds of extracted items);
-writing them on every status update would be wasteful and error-prone.  
+writing them on every status update would be wasteful and error-prone.
 **Alternatives considered:** Single monolithic `session.json` with all fields; separate DB
-table per concern.  
+table per concern.
 **Consequences:** Reading a full `AppSession` requires three backend reads. The
 `AppSessionStorage.getSession()` method absorbs this via parallel `Promise.all`.
 
 ### Database backend as stub only
 
-**Decision:** `DatabaseBackend` throws on every operation except `createDirectory` (no-op).  
+**Decision:** `DatabaseBackend` throws on every operation except `createDirectory` (no-op).
 **Rationale:** A real implementation would require committing to a specific DB client and
 schema. That decision belongs to the embedding application. The stub documents the interface
-and the expected schema; a future implementor creates a concrete subclass.  
-**Alternatives considered:** Providing a Knex-based generic implementation.  
+and the expected schema; a future implementor creates a concrete subclass.
+**Alternatives considered:** Providing a Knex-based generic implementation.
 **Consequences:** Any application that passes `storageBackendRegistry.create('database', ...)`
 will see `initialize()` throw. This is intentional and expected.
 
@@ -212,7 +212,7 @@ will see `initialize()` throw. This is intentional and expected.
 
 | Extension point | Interface/type | How to use | Example |
 |---|---|---|---|
-| Custom backend | `StorageBackend` (`@pie-qti/types`) | Implement all required methods; optionally add batch/directory methods. | `class GCSBackend implements StorageBackend { ... }` |
+| Custom backend | `StorageBackend` (`@pie-qti/transform-types`) | Implement all required methods; optionally add batch/directory methods. | `class GCSBackend implements StorageBackend { ... }` |
 | Registry registration | `storageBackendRegistry.register(name, factory)` | Call at application startup before any `create()` call. | `storageBackendRegistry.register('gcs', opts => new GCSBackend(opts))` |
 | Custom factory | `StorageBackendFactory` type | Export from your module; pass to `register()`. | `export const gcsFactory: StorageBackendFactory = (opts) => new GCSBackend(opts)` |
 | Session path customization | `SessionStorageOptions.basePath` | Change the root directory for sessions (default: `'sessions'`). | `new SessionStorageImpl(backend, { basePath: 'transform-sessions' })` |
@@ -252,7 +252,7 @@ interface Session {
 
 The transform reference harness defines an `AppSession` in `apps/transform/src/lib/server/storage/app-types.ts` that extends
 `Session` with optional `analysis: AnalysisResult` and `transformation: TransformationResult`.
-These are not present in the core `@pie-qti/types` package because they contain
+These are not present in the core `@pie-qti/transform-types` package because they contain
 application-specific transform output shapes.
 
 ### Session directory layout

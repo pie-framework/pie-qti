@@ -30,7 +30,7 @@ The plugin system was designed with two constraints: (1) plugins must not be abl
 
 ### Why extraction and component registration are separate concerns
 
-When the player encounters a `<choiceInteraction>` containing vendor-specific markup, it needs to answer two independent questions: (1) "what data does this element contain?" (extraction) and (2) "which web component should render this data?" (component selection). These questions have different answers at different layers of the stack:
+When the player encounters a `<choiceInteraction>` containing vendor-specific markup, it needs to answer two independent questions: (1) "what data does this element contain?" (extraction) and (2) "which web component should render this data?" (component selection). Standard extractors and interaction contracts live in `packages/item-player/src/interactions/<interaction>/`; the older `extraction/extractors/*` files are compatibility barrels. These questions have different answers at different layers of the stack:
 
 - A vendor plugin might register a custom extractor that reads `<likertChoice>` children and produces a `LikertInteractionData` shape. That same plugin might register a custom `acme-likert-element` web component to render it. This is the common case.
 - A host might want to use the standard QTI extractor for a `choiceInteraction` but replace the default rendering component with a custom-styled one. In this case, extraction is standard but component selection is overridden.

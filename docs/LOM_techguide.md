@@ -2,9 +2,9 @@
 
 IEEE Learning Object Metadata (LOM) provides the foundational framework for describing assessment items, with IMS QTI extending this through specialized metadata elements for question and test interoperability. The **IEEE 1484.12.1-2002** standard defines nine metadata categories containing 76 elements that enable discovery, management, and exchange of educational resources—including assessment content. QTI's `qtiMetadata` element adds **11 assessment-specific fields** covering interaction types, scoring modes, and feedback characteristics that LOM cannot express. Together, these standards enable interoperable item banks supporting automated test assembly, standards alignment, and cross-platform content exchange.
 
-## Spec snapshots (local)
+## Reference Scope
 
-For the QTI-side of this mapping, see [SPEC_SNAPSHOTS.md](./SPEC_SNAPSHOTS.md) (QTI **2.2.2** primary reference; supports QTI **2.1–2.2.x** input).
+For the QTI side of this mapping, see [`QTI_techguide.md`](QTI_techguide.md).
 
 ---
 

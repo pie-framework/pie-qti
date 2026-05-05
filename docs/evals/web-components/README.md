@@ -31,12 +31,12 @@ Configuration methods tested:
 ### Run all web component evals
 ```bash
 cd apps/demo
-bun run test:e2e -- docs/evals/web-components
+bun run test:e2e -- tests/playwright/web-components-evals.pw.ts
 ```
 
 ### Run with UI mode (for debugging)
 ```bash
-bun run test:e2e:ui -- docs/evals/web-components
+bun run test:e2e:ui -- tests/playwright/web-components-evals.pw.ts
 ```
 
 ## Implementation Details

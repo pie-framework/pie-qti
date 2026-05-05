@@ -98,30 +98,14 @@ Tests graceful degradation:
 ### Run all i18n evals
 ```bash
 cd apps/demo
-bun run test:e2e -- docs/evals/qti-i18n
+bun run test:e2e -- tests/playwright/i18n-evals.pw.ts
 ```
 
-### Run specific category
-```bash
-# Locale switching tests
-bun run test:e2e -- docs/evals/i18n/locale-switching
-
-# Multilingual items tests
-bun run test:e2e -- docs/evals/i18n/multilingual-items
-
-# UI translations tests
-bun run test:e2e -- docs/evals/i18n/ui-translations
-
-# RTL support tests
-bun run test:e2e -- docs/evals/i18n/rtl-support
-
-# Fallback tests
-bun run test:e2e -- docs/evals/i18n/locale-fallback
-```
+The runner reads all `docs/evals/i18n/**/evals.yaml` files.
 
 ### Run with UI mode (for debugging)
 ```bash
-bun run test:e2e:ui -- docs/evals/qti-i18n
+bun run test:e2e:ui -- tests/playwright/i18n-evals.pw.ts
 ```
 
 ## Implementation Details
@@ -169,7 +153,7 @@ These evals use proposed YAML schema extensions:
 - **`localStorage` assertions**: Validate localStorage values in `expected` block
 - **`pressKey`**: Simulate keyboard navigation
 
-The Playwright runner may need updates to support these features.
+The Playwright runner in `apps/demo/tests/playwright/i18n-evals.pw.ts` supports these features.
 
 ### Potential Flakiness
 - **Page reloads**: Locale switching triggers full reload; use `waitForLoadState()`

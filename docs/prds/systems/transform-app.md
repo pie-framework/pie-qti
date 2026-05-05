@@ -302,12 +302,12 @@ Then: up to 5 sessions are shown in the recent sessions table with ID, status ba
       package count, and relative creation time; each row has an "Open" link
 ```
 
-**AC-10: Sample package loads**
+**AC-10: Historical sample package path remains documented**
 ```
-Given: the home page shows a sample package card
-When: the user clicks "Load Sample"
-Then: a session is created from the sample content, analysis runs automatically,
-      and the browser navigates to the new session detail page
+Given: reusable sample packages live outside the app boundary
+When: a framework developer needs transform sample content
+Then: the app documentation points to packages/to-pie/tests/fixtures/qti-samples
+      rather than treating samples as a supported app feature
 ```
 
 **AC-11: Admin plugins page shows installed plugins**

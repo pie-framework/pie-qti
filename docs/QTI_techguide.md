@@ -4,9 +4,11 @@
 
 *Covers QTI 2.1, 2.2, and 3.0*
 
-## Spec snapshots (local)
+## Reference Scope
 
-This repo keeps local, greppable spec snapshots for QTI work. See [SPEC_SNAPSHOTS.md](./SPEC_SNAPSHOTS.md) (QTI **2.2.2** primary reference; supports QTI **2.1–2.2.x** input).
+This guide is the local, greppable QTI reference for implementation work. It
+covers QTI **2.1**, **2.2**, and **3.0** concepts; certification-specific
+coverage is tracked separately in [`certification/README.md`](certification/README.md).
 
 ---
 
@@ -1528,7 +1530,7 @@ Key implementation principles apply across all versions:
 
 ## References
 
-- **Local snapshot (preferred)**: [SPEC_SNAPSHOTS.md](./SPEC_SNAPSHOTS.md)
+- **Project certification coverage**: [`certification/README.md`](certification/README.md)
 - **QTI 2.2 canonical source**: [`https://www.imsglobal.org/content/question-and-test-interoperability-v222-final`](https://www.imsglobal.org/content/question-and-test-interoperability-v222-final)
 - **QTI 3.0 specification**: [`https://www.imsglobal.org/spec/qti/v3p0/`](https://www.imsglobal.org/spec/qti/v3p0/)
 - **1EdTech standards landing**: [`https://www.1edtech.org/standards/qti/index`](https://www.1edtech.org/standards/qti/index)

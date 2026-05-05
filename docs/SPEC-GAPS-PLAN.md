@@ -162,8 +162,7 @@ Test signal
 
 ### G-05: `testFeedback` visibility only handles boolean outcomes
 
-Scope       — `packages/assessment-player/src/core/AssessmentPlayer.ts` (or
-              `OutcomeProcessor.ts` wherever `getVisibleFeedback()` lives)
+Scope       — `packages/assessment-player/src/core/AssessmentPlayer.ts`
 Status      — Done (already implemented; no code change needed)
 Effort      — S
 Spec ref    — §2.1 (Assessment Architecture — testFeedback)
@@ -180,9 +179,7 @@ fb.identifier` — string equality for all outcome types. Boolean outcomes still
 `true`/`false` are coerced to `"true"`/`"false"` before comparison.
 
 Action
-1. Locate `getVisibleFeedback()` (likely `AssessmentPlayer.ts` or `OutcomeProcessor.ts`).
-2. Replace the boolean coercion with a string equality check: get the string value of the named outcome variable; show the feedback when it equals `identifier` (for `showHide="show"`) or does not equal it (for `showHide="hide"`). Boolean `true`/`false` values still work because they compare as strings `"true"`/`"false"`.
-3. Add unit tests covering: boolean outcome (existing behaviour preserved), string outcome, `showHide="hide"` variant.
+Done. `AssessmentPlayer.getVisibleFeedback()` uses string equality for the named outcome variable; keep regression coverage for boolean outcomes, string outcomes, and `showHide="hide"`.
 
 Test signal
 - Assessment with `outcomeIdentifier="GRADE"` and three feedback blocks for `identifier="A"`, `"B"`, `"C"` shows only the correct block after scoring.
@@ -326,22 +323,10 @@ initialisation. It controls:
 - **Structured label support** — adds supplementary ARIA markup to interaction prompts
 
 Current
-No PNP support. `PlayerConfig` has no `pnp` field. Color schemes, elimination tool, extended time,
-and glossary triggers are all absent.
+PNP support is implemented for the current delivery scope: `PlayerConfig.pnp`, `player.updatePnp()`, color schemes, elimination tool, extended time, and glossary/keyword-translation trigger UI are shipped. Specialist features such as structured labels, braille routing, and sign-language video remain deferred under G-13/G-14.
 
 Action
-1. Define a `PnpProfile` TypeScript interface in `packages/item-player/src/pnp/types.ts` matching the §6.2 schema. Export it from the package index.
-2. Add `pnp?: PnpProfile` to `PlayerConfig`.
-3. Create `packages/item-player/src/pnp/applyPnp.ts` with a pure function `applyPnpToRoot(rootEl: HTMLElement, pnp: PnpProfile): void` that:
-   - Sets/removes a `qti-pnp-colorscheme-{scheme}` class on `rootEl`
-   - Sets CSS custom properties (see §6.2 color scheme table) directly on `rootEl` when a non-default scheme is active
-4. Call `applyPnpToRoot` in `Player.ts` immediately after parsing, before first render. Expose `player.updatePnp(partial: Partial<PnpProfile>)` for mid-session updates.
-5. Elimination tool: in `choiceInteraction` (and `orderInteraction`) default components, when `pnp.cognitive.eliminationTool` is truthy, render an "eliminate" button per choice. Eliminated choices get a CSS class and `aria-disabled`; the underlying response value is unchanged.
-6. Extended time: in `AssessmentPlayer`, when applying `timeLimits`, multiply by `pnp.content.extendedTime.multiplier` if present and active.
-7. Glossary trigger (prerequisite for full glossary: G-10, but the trigger UI can be built independently): when `pnp.content.glossaryOnScreen` is true, scan the rendered item body for elements with `data-catalog-idref` and add a visual indicator + accessible button that, when activated, emits a `qti-catalog-lookup` custom event with the `catalogIdref` value. The host (or G-10) handles the popup content.
-8. Add `player.updatePnp()` to the iframe postMessage protocol.
-9. Write unit tests for `applyPnpToRoot` and `extendedTime` multiplication.
-10. Add eval cases for color schemes and elimination tool.
+Done for G-09. Future PNP work is tracked under G-13/G-14 and package-level catalog discovery under G-15.
 
 Test signal
 - Player constructed with `pnp: { display: { colorScheme: 'blackwhite' } }` applies the correct CSS custom properties.
@@ -353,7 +338,7 @@ Test signal
 
 ### G-10: Catalog system — `qti-catalog` parsing and glossary rendering
 
-Scope       — `packages/item-player/src/extraction/` (new catalog extractor);
+Scope       — `packages/item-player/src/catalog/`;
               `packages/item-player/src/core/Player.ts`;
               `packages/default-components/src/` (new `CatalogPopup` component);
               `packages/item-player/src/pnp/` (integration with G-09)
@@ -371,23 +356,10 @@ translations. In the item body, `<span data-catalog-idref="cat-id">term</span>` 
 catalog card.
 
 Current
-`qti-catalog`, `qti-card`, and `qti-card-entry` elements are in the QTI 3.0 element name mappings
-but are not parsed or surfaced. `data-catalog-idref` attributes in rendered HTML are ignored.
+Catalog parsing, `player.getCatalogEntry()`, inline glossary/keyword-translation popup support, and platform-level catalog lookup events are implemented. Manifest-level shared catalog discovery remains deferred under G-15.
 
 Action
-1. Create `packages/item-player/src/extraction/extractors/catalogExtractor.ts`. In `Player.ts`, after parsing the assessmentItem, call this extractor on the root to build a `CatalogIndex`:
-   ```
-   type CatalogIndex = Map<string, CatalogCard>;
-   type CatalogCard = { entries: CatalogEntry[] };
-   type CatalogEntry = { usage: string; lang?: string; html: string };
-   ```
-2. Expose `player.getCatalogEntry(idref: string, usage: string, lang?: string): string | null` for host access.
-3. In the item body renderer, when `pnp.content.glossaryOnScreen` is true, wrap each `[data-catalog-idref]` span with an accessible button that opens a `CatalogPopup` component populated from `getCatalogEntry()`.
-4. When `pnp.content.keywordTranslation.active` is true, the same mechanism applies but uses `usage="keyword-translation"` with the configured `languageCode`.
-5. Create a `CatalogPopup` web component (or Svelte component) in `default-components` that renders the HTML content of a catalog entry in an accessible tooltip/dialog pattern (focus-managed, dismissable with Escape).
-6. Support the "shared catalog" pattern: if the player is given a `catalogXml` string in `PlayerConfig`, parse it as a standalone catalog and merge into the item's catalog index.
-7. Add unit tests for catalog parsing (all usage types, `xml:lang` filtering).
-8. Add eval cases for glossary popup visibility based on PNP state.
+Done for G-10. Keep G-15 open for manifest-level shared catalog discovery.
 
 Test signal
 - `player.getCatalogEntry('cat-photosynthesis', 'glossary-on-screen')` returns the correct HTML.
@@ -552,23 +524,23 @@ Quick lookup of which source files are touched by each gap item.
 
 | File | Gap items |
 |------|-----------|
-| `packages/item-player/src/extraction/extractors/associateExtractor.ts` | G-01 |
-| `packages/item-player/src/extraction/extractors/matchExtractor.ts` | G-01 |
-| `packages/item-player/src/extraction/extractors/gapMatchExtractor.ts` | G-01 |
-| `packages/item-player/src/extraction/extractors/graphicGapMatchExtractor.ts` | G-01 |
-| `packages/item-player/src/extraction/extractors/inlineChoiceExtractor.ts` | G-02 |
-| `packages/item-player/src/extraction/extractors/textEntryExtractor.ts` | G-03 |
+| `packages/item-player/src/interactions/associate/` | G-01 |
+| `packages/item-player/src/interactions/match/` | G-01 |
+| `packages/item-player/src/interactions/gap-match/` | G-01 |
+| `packages/item-player/src/interactions/graphic-gap-match/` | G-01 |
+| `packages/item-player/src/interactions/inline-choice/` | G-02 |
+| `packages/item-player/src/interactions/text-entry/` | G-03 |
 | `packages/default-components/src/plugins/text-entry/` | G-04 |
 | `packages/default-components/src/plugins/extended-text/` | G-04 |
 | `packages/assessment-player/src/core/` | G-05, G-09, G-11 |
 | `packages/item-player/src/utils/responseUtils.ts` | G-06 |
 | `STATUS.md`, `README.md` | G-07 |
-| `packages/item-player/src/extraction/extractors/customExtractor.ts` | G-08 |
-| `packages/item-player/src/pci/` (new) | G-08 |
-| `packages/item-player/src/pnp/` (new) | G-09, G-13, G-14 |
+| `packages/item-player/src/interactions/custom/` | G-08 |
+| `packages/item-player/src/pci/` | G-08 |
+| `packages/item-player/src/pnp/` | G-09, G-13, G-14 |
 | `packages/default-components/src/plugins/choice/` | G-09 |
-| `packages/item-player/src/extraction/` (catalog extractor, new) | G-10 |
-| `packages/default-components/src/` (CatalogPopup, new) | G-10 |
+| `packages/item-player/src/catalog/` | G-10 |
+| `packages/default-components/src/catalog/` | G-10 |
 | `packages/qti-processing/` | G-11 |
 | `packages/ims-cp-browser/` | G-15 |
 

@@ -197,7 +197,7 @@ Plugins are selected based on priority when multiple plugins support the same fo
 
 ```typescript
 // Default QTI plugin (priority: 100)
-export class Qti22ToPiePlugin implements TransformPlugin {
+export class QtiToPiePlugin implements TransformPlugin {
   readonly priority = 100;
   // Handles all standard QTI content
 }
@@ -216,7 +216,7 @@ export class VendorAcmePlugin implements TransformPlugin {
 When both plugins are registered:
 1. Engine checks VendorAcmePlugin first (higher priority)
 2. If `canHandle()` returns true, uses VendorAcmePlugin
-3. Otherwise, falls back to Qti22ToPiePlugin
+3. Otherwise, falls back to QtiToPiePlugin
 
 ### Plugin Registration
 
@@ -226,14 +226,14 @@ In `tools/cli/src/index.ts`:
 
 ```typescript
 import { TransformEngine } from '@pie-qti/transform-core';
-import { Qti22ToPiePlugin } from '@pie-qti/to-pie';
+import { QtiToPiePlugin } from '@pie-qti/to-pie';
 import { PieToQti2Plugin } from '@pie-qti/pie-to-qti2';
 import { vendorAcmePlugin } from '@vendor/acme-plugin';
 
 const engine = new TransformEngine();
 
 // Register default plugins
-engine.use(new Qti22ToPiePlugin());
+engine.use(new QtiToPiePlugin());
 engine.use(new PieToQti2Plugin());
 
 // Register vendor plugins (higher priority)
@@ -646,7 +646,7 @@ export async function transformCommand(args: TransformArgs) {
   const engine = new TransformEngine();
 
   // Load core plugins
-  engine.use(new Qti22ToPiePlugin());
+  engine.use(new QtiToPiePlugin());
   engine.use(new PieToQti2Plugin());
 
   // Load vendor plugins if configured

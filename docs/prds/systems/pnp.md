@@ -65,8 +65,8 @@ Removing an eliminated choice from the DOM would change the response set silentl
 | Color scheme | `display.colorScheme` | Six named values from spec table; `'default'` removes the attribute |
 | Elimination tool | `cognitive.eliminationTool` | Applied to `choiceInteraction` and `orderInteraction` |
 | Extended time | `content.extendedTime` | Multiplies `timeLimits.maxTime`; `Infinity` removes limit |
-| Glossary on screen trigger | `content.glossaryOnScreen` | Fires `qti-catalog-lookup` event; no popup rendered by player |
-| Keyword translation trigger | `content.keywordTranslation` | Same event mechanism; carries `languageCode` |
+| Glossary on screen trigger | `content.glossaryOnScreen` | Opens an inline popup with catalog content |
+| Keyword translation trigger | `content.keywordTranslation` | Opens an inline popup using the requested language |
 
 ### Deliberately omitted / deferred features
 
@@ -95,7 +95,7 @@ Removing an eliminated choice from the DOM would change the response set silentl
 - **FR-7:** When `pnp.content.extendedTime.active` is `true`, the assessment player must multiply `timeLimits.maxTime` by `pnp.content.extendedTime.multiplier` before initialising `TimeManager`. A multiplier of `Infinity` must result in no time limit being set at all (equivalent to `maxTime` absent).
 - **FR-8:** When `pnp.content.glossaryOnScreen` is `true`, the item body renderer must locate every element carrying `data-catalog-idref` and decorate it with an accessible trigger button. Activating the trigger must look up the catalog entry via `getCatalogEntry(idref, 'glossary-on-screen')` and open an inline focus-trapped popup containing the catalog HTML. For `illustrated-glossary` entries the popup renders an `<img>`.
 - **FR-9:** When `pnp.content.keywordTranslation.active` is `true`, the same trigger-plus-popup mechanism applies using `usage = 'keyword-translation'` and `lang = pnp.content.keywordTranslation.languageCode`.
-- **FR-10:** For `tts-pronunciation`, `signing-definition`, `braille-text`, and `audio-description` entries, the player must fire a `qti-catalog-lookup` `CustomEvent` on the root player element with `{ bubbles: true, composed: true }` and `detail: { idref: string; usage: string; html: string | null }`. The player must not render any popup for these platform-level usages.
+- **FR-10:** For `tts-pronunciation`, `signing-definition`, `braille-text`, `audio-description`, and `extended-description` entries, the player must fire a `qti-catalog-lookup` `CustomEvent` on the root player element with `{ bubbles: true, composed: true }` and `detail: { idref: string; usage: string; html: string | null }`. The player must not render any popup for these platform-level usages.
 - **FR-11:** The iframe postMessage protocol must be extended with a `SET_PNP` message type so that hosts using the iframe embedding mode can push PNP updates mid-session.
 - **FR-12:** `parsePnpXml` must silently ignore unknown child elements; it must not throw on forward-compatible QTI 3.0 PNP features not yet defined in `PnpProfile`.
 
@@ -171,7 +171,7 @@ Removing an eliminated choice from the DOM would change the response set silentl
 | `player.updatePnp()` | `(partial: Partial<PnpProfile>) => void` | Call at any point during the session to update accommodations | Update color scheme when student changes preference |
 | `applyPnpToRoot()` | `(rootEl: HTMLElement, pnp: PnpProfile) => void` | Exported utility; call directly if embedding the player root in a custom shell | Apply scheme to a custom outer wrapper element |
 | `parsePnpXml()` | `(xml: string \| Element) => PnpProfile \| null` | Parse `<personalNeedsProfile>` from QTI 3.0 assessment XML | Feed parsed profile into `PlayerConfig.pnp` |
-| `qti-catalog-lookup` event | `CustomEvent<{ idref: string; usage: string; languageCode?: string }>` | Listen on the player root element to handle catalog lookups in the host | Open a custom glossary dialog |
+| `qti-catalog-lookup` event | `CustomEvent<{ idref: string; usage: string; html: string \| null }>` | Listen on the player root element to handle platform-level catalog lookups in the host | Route TTS, signing, braille, audio, or extended-description content |
 | Iframe `SET_PNP` message | `QtiIframeEnvelope<'SET_PNP', { pnp: PnpProfile }>` | Send from host to iframe runtime to update PNP mid-session | Push PNP from a student settings panel in the host |
 
 ---
@@ -492,7 +492,7 @@ Then: Width and height are each ≥ 44px
 ```
 Given: A glossary trigger button is rendered on a term
 When: A keyboard user tabs to the button and presses Enter or Space
-Then: The qti-catalog-lookup event fires
+Then: The inline popup opens with the catalog content
   AND focus remains on or returns to the trigger button
 ```
 
@@ -529,7 +529,7 @@ Then: No data-qti-colorscheme is set
 Given: An item with three data-catalog-idref spans and glossaryOnScreen: true
 When: The item renders
 Then: Three separate trigger buttons are rendered, one per span
-  AND each fires the correct idref in its qti-catalog-lookup event
+  AND each opens the catalog entry for the correct idref
 ```
 
 ---
@@ -545,7 +545,7 @@ Then: Three separate trigger buttons are rendered, one per span
 ## Related
 
 - QTI spec: `docs/QTI_techguide.md` §6.2 (PNP profile)
-- Spec gap: `docs/SPEC-GAPS-PLAN.md` §G-09 (Open, Tier 2)
+- Spec gap: `docs/SPEC-GAPS-PLAN.md` §G-09 (Done, Tier 2)
 - Implementation plan: `docs/development/ACCESSIBILITY-PNP-CATALOG-PLAN.md`
 - Adjacent PRD: `docs/prds/systems/accessibility.md` — WCAG 2.2 AA baseline (PNP builds on top of it)
 - Adjacent PRD: `docs/prds/systems/catalog.md` — catalog content for glossary/keyword-translation triggers

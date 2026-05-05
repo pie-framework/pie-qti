@@ -10,13 +10,13 @@
 **Status:** current
 **Type:** system
 **Packages:** `@pie-qti/item-player`, `@pie-qti/assessment-player`, `@pie-qti/default-components`
-**Last reviewed:** 2026-04-27
+**Last reviewed:** 2026-05-04
 
 ---
 
 ## Summary
 
-The accessibility system is a cross-cutting set of patterns, components, and conventions that together satisfy WCAG 2.2 Level AA for K-12 standardized assessments delivered by the PIE-QTI framework. It covers screen reader announcement of dynamic state changes (`AccessibilityAnnouncer`), focus management across item navigation, ARIA attribute patterns inside Shadow DOM, visually-hidden text for assistive technology, keyboard navigation across every interaction type, minimum touch-target sizing, and high-contrast theme support. A subset of QTI 3.0 accessibility features — specifically the Personal Needs and Preferences (PNP) profile (G-09) and structured-label/braille support (G-13) — are tracked as known gaps with no current implementation.
+The accessibility system is a cross-cutting set of patterns, components, and conventions that together satisfy WCAG 2.2 Level AA for K-12 standardized assessments delivered by the PIE-QTI framework. It covers screen reader announcement of dynamic state changes (`AccessibilityAnnouncer`), focus management across item navigation, ARIA attribute patterns inside Shadow DOM, visually-hidden text for assistive technology, keyboard navigation across every interaction type, minimum touch-target sizing, high-contrast theme support, and the implemented QTI 3.0 Personal Needs and Preferences (PNP) subset. Structured-label and braille support remain deferred under G-13.
 
 ---
 
