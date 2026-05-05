@@ -2,8 +2,12 @@
 	// @ts-expect-error - Svelte-check can't resolve workspace subpath exports, but runtime works correctly
 	import { ItemBody } from '@pie-qti/item-player/components';
 	import { Player } from '@pie-qti/item-player';
+	import type { InteractionResponseValue } from '@pie-qti/item-player/web-components';
 	import { registerDefaultComponents } from '@pie-qti/default-components';
 	import { onMount } from 'svelte';
+
+	type FixtureResponseValue = InteractionResponseValue | null;
+	type FixtureResponseMap = Record<string, FixtureResponseValue>;
 
 	// QTI 2.2 hotspot interaction XML with image map
 	const qtiXml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -34,7 +38,7 @@
 </assessmentItem>`;
 
 	let player = $state<Player | null>(null);
-	let responses = $state<Record<string, any>>({ RESPONSE: [] });
+	let responses = $state<FixtureResponseMap>({ RESPONSE: [] });
 	let mounted = $state(false);
 
 	onMount(() => {
@@ -60,7 +64,7 @@
 				{player}
 				{responses}
 				disabled={false}
-				onResponseChange={(id: string, value: any) => (responses = { ...responses, [id]: value })}
+				onResponseChange={(id: string, value: FixtureResponseValue) => (responses = { ...responses, [id]: value })}
 			/>
 		</div>
 	{/if}

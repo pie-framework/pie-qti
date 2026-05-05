@@ -21,7 +21,7 @@
 	import { exportToCsv, exportToJson } from './lib/export-utils';
 	import * as PanelResize from './lib/panel-resize';
 	import { loadSessionFromServer, saveSessionToServer } from './lib/session-api';
-	import type { SessionData } from './lib/types';
+	import type { DemoResponseMap, DemoResponseValue, SessionData } from './lib/types';
 
 	// Get i18n provider from context (set in root layout)
 	const i18nContext = getContext<{ value: SvelteI18nProvider | null }>('i18n');
@@ -31,8 +31,8 @@
 	let selectedSampleId = $state('simple-choice');
 	let xmlContent = $state('');
 	let player = $state<Player | null>(null);
-	let responses = $state<Record<string, any>>({});
-	let scoringResult = $state<any>(null);
+	let responses = $state<DemoResponseMap>({});
+	let scoringResult = $state<SessionData['scoringResult']>(null);
 	let errorMessage = $state('');
 	let useBackendScoring = $state(false);
 	let sessionId = $state<string | null>(null);
@@ -81,7 +81,7 @@
 
 			// Initialize responses for response interactions (delegated to Player APIs)
 			const interactions = newPlayer.getResponseInteractions();
-			const newResponses: Record<string, any> = {};
+			const newResponses: DemoResponseMap = {};
 			for (const interaction of interactions) {
 				if (interaction?.responseIdentifier) {
 					newResponses[interaction.responseIdentifier] = null;
@@ -112,7 +112,7 @@
 		}
 	}
 
-	function handleResponseChange(responseId: string, value: any) {
+	function handleResponseChange(responseId: string, value: DemoResponseValue) {
 		console.log('[Demo] Response changed:', { responseId, value });
 		responses = { ...responses, [responseId]: value };
 		console.log('[Demo] All responses:', responses);
@@ -161,7 +161,7 @@
 		if (!player) return;
 
 		const interactions = player.getResponseInteractions();
-		const newResponses: Record<string, any> = {};
+		const newResponses: DemoResponseMap = {};
 		for (const interaction of interactions) {
 			if (interaction?.responseIdentifier) {
 				newResponses[interaction.responseIdentifier] = null;

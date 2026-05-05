@@ -3,11 +3,23 @@
  * Component to render HTML with inline interactive elements (textEntry, inlineChoice)
  * Uses a custom parsing approach to embed Svelte components within HTML
  */
+interface InlineRendererInteraction {
+	responseId: string;
+	interactionClasses?: string[];
+	expectedLength?: number;
+	placeholderText?: string | null;
+	dataPrompt?: string | null;
+	label?: string | null;
+	choices?: Array<{ identifier: string; text: string }>;
+}
+
+type InlineResponseMap = Record<string, string | null>;
+
 interface Props {
 	html: string;
-	interactions: any[];
-	responses: Record<string, any>;
-	onResponseChange: (responseId: string, value: any) => void;
+	interactions: InlineRendererInteraction[];
+	responses: InlineResponseMap;
+	onResponseChange: (responseId: string, value: string) => void;
 }
 
 let { html, interactions, responses, onResponseChange }: Props = $props();
@@ -16,7 +28,7 @@ let { html, interactions, responses, onResponseChange }: Props = $props();
 interface ParsedSegment {
 	type: 'html' | 'textEntry' | 'inlineChoice';
 	content?: string;
-	interaction?: any;
+	interaction?: InlineRendererInteraction;
 }
 
 const segments = $derived.by(() => {
@@ -109,7 +121,7 @@ const segments = $derived.by(() => {
 				onchange={(e) => onResponseChange(segment.interaction.responseId, e.currentTarget.value)}
 			>
 				<option value="" disabled>{placeholder}</option>
-				{#each segment.interaction.choices as choice}
+				{#each segment.interaction.choices ?? [] as choice}
 					<option value={choice.identifier}>{choice.text}</option>
 				{/each}
 			</select>

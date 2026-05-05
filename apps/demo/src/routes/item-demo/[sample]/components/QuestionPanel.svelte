@@ -3,15 +3,16 @@
 	import { typesetAction } from '@pie-qti/default-components/shared';
 	// @ts-expect-error - Svelte-check can't resolve workspace subpath exports, but runtime works correctly
 	import { ItemBody } from '@pie-qti/item-player/components';
-	import type { Player, QTIRole, RubricBlock } from '@pie-qti/item-player';
+	import type { Player, QTIRole, RubricBlock, ScoringResult } from '@pie-qti/item-player';
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import { typesetMathInElement } from '@pie-qti/typeset-katex';
+	import type { DemoResponseMap, DemoResponseValue } from '../lib/types';
 
 	interface Props {
 		player: Player;
 		rubrics: RubricBlock[];
-		responses: Record<string, any>;
-		scoringResult: any | null;
+		responses: DemoResponseMap;
+		scoringResult: ScoringResult | null;
 		answeredCount: number;
 		totalInteractions: number;
 		progressPercentage: number;
@@ -19,7 +20,7 @@
 		disabled: boolean;
 		i18n?: I18nProvider | null;
 		role: QTIRole;
-		onResponseChange: (responseId: string, value: any) => void;
+		onResponseChange: (responseId: string, value: DemoResponseValue) => void;
 		onSubmit: () => void;
 		onReset: () => void;
 	}

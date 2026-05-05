@@ -7,18 +7,23 @@
 		Player,
 		type QTIRole,
 	} from '@pie-qti/item-player';
+	import type { InteractionResponseValue, QTIChangeEventDetail } from '@pie-qti/item-player/web-components';
 	import { typesetMathInElement } from '@pie-qti/typeset-katex';
 	import { untrack } from 'svelte';
 	import { SAMPLE_ITEMS } from '$lib/sample-items';
 	import { getSecurityConfig } from '$lib/player-config';
 	import { assignProps } from '$lib/utils/assignProps';
 
+	type FixtureResponseValue = InteractionResponseValue | null;
+	type FixtureResponseMap = Record<string, FixtureResponseValue>;
+	type QtiChangeDomEvent = CustomEvent<QTIChangeEventDetail<FixtureResponseValue>>;
+
 	let selectedSampleId = $state('simple-choice');
 	let xmlContent = $state('');
 	let player = $state<Player | null>(null);
 	let interactions = $state<any[]>([]);
 	let itemBodyHtml = $state('');
-	let responses = $state<Record<string, any>>({});
+	let responses = $state<FixtureResponseMap>({});
 	let selectedRole = $state<QTIRole>('candidate');
 
 	function loadPlayer(xml: string) {
@@ -51,7 +56,7 @@
 		itemBodyHtml = rawItemBodyHtml;
 		interactions = newPlayer.getInteractionData();
 
-		const newResponses: Record<string, any> = {};
+		const newResponses: FixtureResponseMap = {};
 		for (const interaction of interactions) {
 			if (interaction) {
 				newResponses[interaction.responseId] = null;
@@ -69,11 +74,11 @@
 		});
 	});
 
-	function handleResponseChange(responseId: string, value: any) {
+	function handleResponseChange(responseId: string, value: FixtureResponseValue) {
 		responses = { ...responses, [responseId]: value };
 	}
 
-	function handleQtiChange(event: CustomEvent) {
+	function handleQtiChange(event: QtiChangeDomEvent) {
 		const { responseId, value } = event.detail;
 		handleResponseChange(responseId, value);
 	}

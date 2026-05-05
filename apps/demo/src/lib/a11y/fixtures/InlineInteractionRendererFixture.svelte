@@ -15,7 +15,7 @@
 		},
 	];
 
-	let responses = $state<Record<string, any>>({ R1: '', R2: '' });
+	let responses = $state<Record<string, string | null>>({ R1: '', R2: '' });
 </script>
 
 <div class="space-y-3">

@@ -1,12 +1,13 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
 	import type { SvelteI18nProvider } from '@pie-qti/i18n';
+	import type { ScoringResult } from '@pie-qti/item-player';
 
 	const i18nContext = getContext<{ value: SvelteI18nProvider | null }>('i18n');
 	const i18n = $derived(i18nContext?.value);
 
 	interface Props {
-		scoringResult: any;
+		scoringResult: ScoringResult | null;
 	}
 
 	let { scoringResult }: Props = $props();

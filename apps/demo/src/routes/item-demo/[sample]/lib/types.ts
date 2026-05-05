@@ -1,4 +1,8 @@
-import type { Player, QTIRole, RubricBlock } from '@pie-qti/item-player';
+import type { Player, QTIRole, RubricBlock, ScoringResult } from '@pie-qti/item-player';
+import type { InteractionResponseValue } from '@pie-qti/item-player/web-components';
+
+export type DemoResponseValue = InteractionResponseValue | null;
+export type DemoResponseMap = Record<string, DemoResponseValue>;
 
 export interface DemoState {
 	// XML and Player
@@ -10,8 +14,8 @@ export interface DemoState {
 	rubrics: RubricBlock[];
 
 	// Response State
-	responses: Record<string, any>;
-	scoringResult: any | null;
+	responses: DemoResponseMap;
+	scoringResult: ScoringResult | null;
 	selectedForPairing: string | null;
 
 	// Settings
@@ -32,13 +36,13 @@ export interface DemoState {
 export interface ExportData {
 	timestamp: string;
 	sampleId: string;
-	responses: Record<string, any>;
-	scoringResult: any | null;
+	responses: DemoResponseMap;
+	scoringResult: ScoringResult | null;
 }
 
 export interface SessionData {
 	selectedSampleId: string;
 	itemXml: string;
-	responses: Record<string, any>;
-	scoringResult: any | null;
+	responses: DemoResponseMap;
+	scoringResult: ScoringResult | null;
 }

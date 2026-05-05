@@ -1,10 +1,14 @@
 <script lang="ts">
 	import { Player } from '../core/Player';
-	import type { AdaptiveAttemptResult, ModalFeedback, PlayerSecurityConfig, QTIRole } from '../types';
+	import type { AdaptiveAttemptResult, ModalFeedback, PlayerSecurityConfig, QTIRole, ScoringResult } from '../types';
+	import type { InteractionResponseValue } from '../web-components';
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import { typesetMathInElement } from '@pie-qti/typeset-katex';
 	import ItemBody from './ItemBody.svelte';
 	import ModalFeedbackDisplay from './ModalFeedbackDisplay.svelte';
+
+	type ItemResponseValue = InteractionResponseValue | null;
+	type ItemResponseMap = Record<string, ItemResponseValue>;
 
 	interface Props {
 		itemXml: string;
@@ -14,8 +18,8 @@
 		disabled?: boolean;
 		typeset?: (element: HTMLElement) => void;
 		i18n?: I18nProvider;
-		onResponseChange?: (responseId: string, value: any) => void;
-		onSubmit?: (responses: Record<string, any>, scoringResult: any) => void;
+		onResponseChange?: (responseId: string, value: ItemResponseValue) => void;
+		onSubmit?: (responses: ItemResponseMap, scoringResult: ScoringResult) => void;
 		/** Called when adaptive item completes (all attempts exhausted) */
 		onComplete?: (finalResult: AdaptiveAttemptResult) => void;
 	}
@@ -37,7 +41,7 @@
 
 	// Create player instance
 	let player = $state<Player | null>(null);
-	let responses = $state<Record<string, any>>({});
+	let responses = $state<ItemResponseMap>({});
 	let error = $state<string | null>(null);
 	let modalFeedback = $state<ModalFeedback[]>([]);
 	let outcomeValues = $state<Record<string, any>>({});
@@ -63,7 +67,7 @@
 		}
 	});
 
-	function handleResponseChange(responseId: string, value: any) {
+	function handleResponseChange(responseId: string, value: ItemResponseValue) {
 		responses = { ...responses, [responseId]: value };
 		onResponseChange?.(responseId, value);
 	}

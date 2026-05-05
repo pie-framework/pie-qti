@@ -1,10 +1,15 @@
 <script lang="ts">
 	import { Player, type QTIRole } from '@pie-qti/item-player';
+	import type { InteractionResponseValue, QTIChangeEventDetail } from '@pie-qti/item-player/web-components';
 	import { Qti3ElementNameMapper } from '@pie-qti/qti-common';
 	import { untrack } from 'svelte';
 	import { QTI3_SAMPLE_ITEMS, getQti3Categories, type Qti3SampleItem } from '$lib/sample-items-qti3';
 	import { getSecurityConfig } from '$lib/player-config';
 	import { assignProps } from '$lib/utils/assignProps';
+
+	type DemoResponseValue = InteractionResponseValue | null;
+	type DemoResponseMap = Record<string, DemoResponseValue>;
+	type QtiChangeDomEvent = CustomEvent<QTIChangeEventDetail<DemoResponseValue>>;
 
 	let selectedCategory = $state('core');
 	let selectedSampleId = $state('qti3-choice-simple');
@@ -12,7 +17,7 @@
 	let player = $state<Player | null>(null);
 	let interactions = $state<any[]>([]);
 	let itemBodyHtml = $state('');
-	let responses = $state<Record<string, any>>({});
+	let responses = $state<DemoResponseMap>({});
 	let selectedRole = $state<QTIRole>('candidate');
 	let error = $state<string | null>(null);
 
@@ -61,7 +66,7 @@
 			itemBodyHtml = rawItemBodyHtml;
 			interactions = newPlayer.getInteractionData();
 
-			const newResponses: Record<string, any> = {};
+			const newResponses: DemoResponseMap = {};
 			for (const interaction of interactions) {
 				if (interaction) {
 					newResponses[interaction.responseId] = null;
@@ -86,11 +91,11 @@
 		});
 	});
 
-	function handleResponseChange(responseId: string, value: any) {
+	function handleResponseChange(responseId: string, value: DemoResponseValue) {
 		responses = { ...responses, [responseId]: value };
 	}
 
-	function handleQtiChange(event: CustomEvent) {
+	function handleQtiChange(event: QtiChangeDomEvent) {
 		const { responseId, value } = event.detail;
 		handleResponseChange(responseId, value);
 	}
@@ -227,7 +232,7 @@
 								use:setElementProps={{
 									interaction,
 									response: responses[interaction.responseId],
-									onresponse: (e: CustomEvent) => handleQtiChange(e)
+									onresponse: (e: QtiChangeDomEvent) => handleQtiChange(e)
 								}}
 							></pie-qti-choice-interaction>
 						{:else if interaction.type === 'qti-text-entry-interaction' || interaction.type === 'textEntryInteraction'}
@@ -235,7 +240,7 @@
 								use:setElementProps={{
 									interaction,
 									response: responses[interaction.responseId],
-									onresponse: (e: CustomEvent) => handleQtiChange(e)
+									onresponse: (e: QtiChangeDomEvent) => handleQtiChange(e)
 								}}
 							></pie-qti-text-entry-interaction>
 						{:else if interaction.type === 'qti-extended-text-interaction' || interaction.type === 'extendedTextInteraction'}
@@ -243,7 +248,7 @@
 								use:setElementProps={{
 									interaction,
 									response: responses[interaction.responseId],
-									onresponse: (e: CustomEvent) => handleQtiChange(e)
+									onresponse: (e: QtiChangeDomEvent) => handleQtiChange(e)
 								}}
 							></pie-qti-extended-text-interaction>
 						{:else if interaction.type === 'qti-match-interaction' || interaction.type === 'matchInteraction'}
@@ -251,7 +256,7 @@
 								use:setElementProps={{
 									interaction,
 									response: responses[interaction.responseId],
-									onresponse: (e: CustomEvent) => handleQtiChange(e)
+									onresponse: (e: QtiChangeDomEvent) => handleQtiChange(e)
 								}}
 							></pie-qti-match-interaction>
 						{:else}

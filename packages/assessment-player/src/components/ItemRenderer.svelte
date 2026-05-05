@@ -4,9 +4,13 @@
 	// @ts-expect-error - Svelte-check can't resolve workspace subpath exports, but runtime works correctly
 	import { ItemBody } from '@pie-qti/item-player/components';
 	import { Player, type PlayerSecurityConfig, type QTIRole } from '@pie-qti/item-player';
+	import type { InteractionResponseValue } from '@pie-qti/item-player/web-components';
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import { onMount } from 'svelte';
 	import type { ItemRef } from '../types/index.js';
+
+	type ItemResponseValue = InteractionResponseValue | null;
+	type ItemResponseMap = Record<string, ItemResponseValue>;
 
 	/**
 	 * Ensure default interaction web components are registered (browser-only).
@@ -34,8 +38,8 @@
 		role?: QTIRole;
 		extendedTextEditor?: string;
 		/** Responses for the current item (keyed by responseIdentifier). */
-		responses?: Record<string, any>;
-		onResponseChange?: (responseId: string, value: unknown) => void;
+		responses?: ItemResponseMap;
+		onResponseChange?: (responseId: string, value: ItemResponseValue) => void;
 		/** Math typesetting function (KaTeX, MathJax, etc.) */
 		typeset?: (root: HTMLElement) => void | Promise<void>;
 		/** I18n provider for translations */
@@ -86,7 +90,7 @@
 	});
 
 	// Handle response changes
-	function handleResponseChange(responseId: string, value: any) {
+	function handleResponseChange(responseId: string, value: ItemResponseValue) {
 		onResponseChange?.(responseId, value);
 	}
 </script>

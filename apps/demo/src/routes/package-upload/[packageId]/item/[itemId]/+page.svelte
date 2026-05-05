@@ -5,6 +5,7 @@
 	import { goto } from '$app/navigation';
 	import { base } from '$app/paths';
 	import { Player, normalizeHeuristicsConfig, shouldAutoPopulateFeedbackOutcome, type QtiHeuristicsConfig } from '@pie-qti/item-player';
+	import type { InteractionResponseValue } from '@pie-qti/item-player/web-components';
 	// @ts-expect-error - Svelte-check can't resolve workspace subpath exports, but runtime works correctly
 	import { ItemBody } from '@pie-qti/item-player/components';
 	import { registerDefaultComponents } from '@pie-qti/default-components';
@@ -22,6 +23,8 @@
 	 * Some templates use 'FEEDBACK', others may use different identifiers.
 	 */
 	const FEEDBACK_OUTCOME_ID = 'FEEDBACK';
+	type ItemResponseValue = InteractionResponseValue | null;
+	type ItemResponseMap = Record<string, ItemResponseValue>;
 
 	/**
 	 * QTI Heuristics configuration
@@ -48,7 +51,7 @@
 
 	// Player state
 	let player = $state<Player | null>(null);
-	let responses = $state<Record<string, any>>({});
+	let responses = $state<ItemResponseMap>({});
 	let outcomeValues = $state<Record<string, any>>({});
 	let stimulusContent = $state<Record<string, string>>({});
 
@@ -175,7 +178,7 @@
 		goto(`${base}/package-upload`);
 	}
 
-	function handleResponseChange(responseId: string, value: any) {
+	function handleResponseChange(responseId: string, value: ItemResponseValue) {
 		responses = { ...responses, [responseId]: value };
 		// Process responses to get outcome values for feedback visibility
 		if (player) {

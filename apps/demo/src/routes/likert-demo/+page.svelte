@@ -5,10 +5,14 @@
 	// @ts-expect-error - Svelte-check can't resolve workspace subpath exports, but runtime works correctly
 	import { ItemBody } from '@pie-qti/item-player/components';
 	import { Player } from '@pie-qti/item-player';
+	import type { InteractionResponseValue } from '@pie-qti/item-player/web-components';
 	import { typesetMathInElement } from '@pie-qti/typeset-katex';
 	import { browser } from '$app/environment';
 	import { ALL_LIKERT_ITEMS } from '$lib/sample-likert-items';
 	import { getSecurityConfig } from '$lib/player-config';
+
+	type LikertResponseValue = InteractionResponseValue | null;
+	type LikertResponseMap = Record<string, LikertResponseValue>;
 
 	let selectedItemIndex = $state(0);
 	let currentItem = $derived(ALL_LIKERT_ITEMS[selectedItemIndex]);
@@ -28,7 +32,7 @@
 		return p;
 	});
 
-	let responses = $state<Record<string, any>>({});
+	let responses = $state<LikertResponseMap>({});
 
 	let interactionInfo = $derived.by(() => {
 		if (!browser) return { count: 0, types: [], debug: null };
@@ -70,7 +74,7 @@
 		responses = {};
 	}
 
-	function handleResponseChange(responseId: string, value: any) {
+	function handleResponseChange(responseId: string, value: LikertResponseValue) {
 		responses = { ...responses, [responseId]: value };
 	}
 </script>

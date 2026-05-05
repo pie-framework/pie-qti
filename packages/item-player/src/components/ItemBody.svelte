@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { InteractionData } from '../types';
 	import type { Player } from '../core/Player';
+	import type { InteractionResponseValue, QTIChangeEventDetail } from '../web-components';
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import { normalizeHeuristicsConfig, type QtiHeuristicsConfig } from '@pie-qti/ims-cp-core';
 	import { processFeedbackInline } from './utils/feedbackUtils';
@@ -12,14 +13,18 @@
 	import InlineTextEntry from '../interactions/text-entry/InlineTextEntry.svelte';
 	import { createInlineRenderPlan, isInlineInteractionTagName, isInlineInteractionType } from '../interactions/inline/render-plan';
 
+	type ItemResponseValue = InteractionResponseValue | null;
+	type ItemResponseMap = Record<string, ItemResponseValue>;
+	type QtiChangeDomEvent = CustomEvent<QTIChangeEventDetail<ItemResponseValue>>;
+
 	interface Props {
 		player: Player;
-		responses?: Record<string, any>;
+		responses?: ItemResponseMap;
 		disabled?: boolean;
 		role?: 'candidate' | 'scorer' | 'author' | 'tutor' | 'proctor' | 'testConstructor';
 		i18n?: I18nProvider;
 		typeset?: (element: HTMLElement) => void;
-		onResponseChange?: (responseId: string, value: any) => void;
+		onResponseChange?: (responseId: string, value: ItemResponseValue) => void;
 		outcomeValues?: Record<string, any>; // Needed for feedbackInline visibility
 		heuristicsConfig?: QtiHeuristicsConfig; // Optional heuristics configuration
 		/** QTI 3.0 shared stimulus content: map of stimulus identifier → HTML string */
@@ -139,12 +144,17 @@
 
 	const inlineSegments = $derived(createInlineRenderPlan(itemBodyHtml, interactions));
 
-	function handleResponseChange(responseId: string, value: any) {
+	function getStringResponse(responseId: string): string {
+		const response = responses[responseId];
+		return typeof response === 'string' ? response : '';
+	}
+
+	function handleResponseChange(responseId: string, value: ItemResponseValue) {
 		onResponseChange(responseId, value);
 	}
 
 	// Handle qti:change events from web components
-	function handleQtiChange(event: CustomEvent) {
+	function handleQtiChange(event: QtiChangeDomEvent) {
 		const { responseId, value } = event.detail;
 		handleResponseChange(responseId, value);
 	}
@@ -154,7 +164,7 @@
 	let rootEl: HTMLDivElement | null = $state(null);
 	$effect(() => {
 		if (!rootEl) return;
-		const handler = (e: Event) => handleQtiChange(e as CustomEvent);
+		const handler = (e: Event) => handleQtiChange(e as QtiChangeDomEvent);
 		const el = rootEl; // Capture reference for cleanup
 		el.addEventListener('qti-change', handler as EventListener);
 		return () => {
@@ -216,7 +226,7 @@
 					{@const correctAnswer = roleCapabilities.canViewCorrectResponses ? (correctResponses[segment.interaction.responseId] ?? null) : null}
 					<InlineTextEntry
 						interaction={segment.interaction}
-						response={responses[segment.interaction.responseId] || ''}
+						response={getStringResponse(segment.interaction.responseId)}
 						correctAnswer={roleCapabilities.canViewCorrectResponses ? correctAnswer : null}
 						disabled={effectiveDisabled}
 						{i18n}
@@ -226,7 +236,7 @@
 					{@const correctAnswer = roleCapabilities.canViewCorrectResponses ? (correctResponses[segment.interaction.responseId] ?? null) : null}
 					<InlineChoice
 						interaction={segment.interaction}
-						response={responses[segment.interaction.responseId] || ''}
+						response={getStringResponse(segment.interaction.responseId)}
 						correctAnswer={roleCapabilities.canViewCorrectResponses ? correctAnswer : null}
 						disabled={effectiveDisabled}
 						{i18n}
