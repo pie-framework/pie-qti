@@ -168,13 +168,6 @@
 					<li>
 						<a href="{base}/iframe-demo" class:active={currentPath === `${base}/iframe-demo`}>{i18n?.t('demo.iframeDemo') ?? 'Iframe Demo'}</a>
 					</li>
-					<li>
-						<a
-							href="{base}/conformance"
-							class:active={currentPath.startsWith(`${base}/conformance`)}
-							>Conformance</a
-						>
-					</li>
 				</ul>
 				<!-- Settings Menu -->
 				<SettingsMenu
