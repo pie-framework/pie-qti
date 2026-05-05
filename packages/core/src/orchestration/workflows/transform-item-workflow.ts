@@ -160,6 +160,7 @@ export const TransformItemWorkflow: WorkflowDefinition<TransformItemInput, Trans
     const { pieConfig, warnings } = await ctx.executeActivity(TransformQtiToPieActivity, {
       xml,
       itemId: input.itemId,
+      sourceFormat,
       vendorInfo,
       plugin: input.plugin,
       context: input.context,

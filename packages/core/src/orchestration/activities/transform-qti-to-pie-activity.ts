@@ -4,12 +4,13 @@
  * Core transformation activity that converts QTI content to PIE format
  */
 
-import type { Activity, TransformPlugin, TransformInput, TransformContext } from '@pie-qti/transform-types';
+import type { Activity, TransformPlugin, TransformInput, TransformContext, TransformFormat } from '@pie-qti/transform-types';
 import type { VendorInfo } from './detect-vendor-activity.js';
 
 export interface TransformQtiToPieInput {
   xml: string;
   itemId: string;
+  sourceFormat: TransformFormat;
   vendorInfo: VendorInfo | null;
   plugin: TransformPlugin;
   context: TransformContext;
@@ -38,7 +39,7 @@ export const TransformQtiToPieActivity: Activity<TransformQtiToPieInput, Transfo
     try {
       const transformInput: TransformInput = {
         content: input.xml,
-        format: 'qti22',
+        format: input.sourceFormat,
       };
 
       const result = await input.plugin.transform(transformInput, input.context);
