@@ -39,6 +39,7 @@ import { parse } from 'node-html-parser';
 import type { ExtractionRegistry } from '../extraction/ExtractionRegistry.js';
 import { createExtractionRegistry } from '../extraction/ExtractionRegistry.js';
 import { createExtractionContext } from '../extraction/index.js';
+import { applyInteractionSecurity } from '../extraction/interactionSecurity.js';
 import type { VariableDeclaration as ExtractionVariableDeclaration } from '../extraction/types.js';
 import {
 	getStandardInteractionElementTypes,
@@ -65,7 +66,6 @@ import { enforceItemXmlLimits } from './parsingLimits.js';
 import { createSeededRng } from './random.js';
 import { sanitizeHtml } from './sanitizer.js';
 import { toTrustedHtml } from './trustedTypes.js';
-import { sanitizeResourceUrl } from './urlPolicy.js';
 import type { PnpProfile } from '../pnp/types.js';
 import { applyPnpToRoot } from '../pnp/applyPnp.js';
 import type { CatalogIndex } from '../catalog/types.js';
@@ -617,55 +617,7 @@ export class Player {
 			});
 		}
 
-		// Apply URL policy + embed allowances to standard extracted URL fields.
-		const policy = this.config.security?.urlPolicy;
-		const allowObjectEmbeds = this.config.security?.allowObjectEmbeds === true;
-		const ttPolicyName = this.config.security?.trustedTypesPolicyName;
-
-		for (const i of interactions as any[]) {
-			// Wrap known HTML injection fields in TrustedHTML (when enabled).
-			// Important: do NOT wrap fields that are rendered as plain text in our Svelte components
-			// (e.g. prompt) to avoid "[object Object]" rendering.
-			if (i.type === 'choiceInteraction' && Array.isArray(i.choices)) {
-				for (const c of i.choices) {
-					if (typeof c?.text === 'string') c.text = toTrustedHtml(c.text, ttPolicyName);
-				}
-			}
-
-			// Shared ImageData shape
-			if (i.imageData?.src) {
-				i.imageData.src = sanitizeResourceUrl(i.imageData.src, policy, 'img') ?? '';
-			}
-			if (i.imageData?.content && typeof i.imageData.content === 'string') {
-				i.imageData.content = toTrustedHtml(i.imageData.content, ttPolicyName);
-			}
-
-			// positionObject stages
-			if (Array.isArray(i.positionObjectStages)) {
-				for (const st of i.positionObjectStages) {
-					if (st?.objectData?.src) {
-						st.objectData.src = sanitizeResourceUrl(st.objectData.src, policy, 'img') ?? '';
-					}
-					if (st?.objectData?.content && typeof st.objectData.content === 'string') {
-						st.objectData.content = toTrustedHtml(st.objectData.content, ttPolicyName);
-					}
-				}
-			}
-
-			// mediaInteraction
-			if (i.type === 'mediaInteraction' && i.mediaElement?.src) {
-				const kind = i.mediaElement.type === 'object' ? 'object' : 'media';
-				i.mediaElement.src = sanitizeResourceUrl(i.mediaElement.src, policy, kind) ?? '';
-				i.allowObjectEmbeds = allowObjectEmbeds;
-			}
-
-			// hottextInteraction content is injected via {@html}
-			if (i.type === 'hottextInteraction' && typeof i.contentHtml === 'string') {
-				i.contentHtml = toTrustedHtml(i.contentHtml, ttPolicyName);
-			}
-		}
-
-		return interactions;
+		return applyInteractionSecurity(interactions, this.config.security);
 	}
 
 	/**
