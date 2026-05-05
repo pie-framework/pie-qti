@@ -96,6 +96,7 @@
 		initTimeout = setTimeout(() => {
 			if (!hasFirstItem && !error) {
 				error = contextI18n?.t('assessment.loadingError') ?? 'assessment.loadingError';
+				announcer?.announce(error, 3000, 'assertive');
 			}
 		}, 10000);
 
@@ -143,6 +144,7 @@
 		})().catch((err) => {
 			console.error('Failed to initialize assessment player:', err);
 			error = err instanceof Error ? err.message : (contextI18n?.t('assessment.loadingError') ?? 'assessment.loadingError');
+			announcer?.announce(error, 3000, 'assertive');
 		});
 
 		return () => {
@@ -176,7 +178,8 @@
 			announceCurrentQuestion();
 		} catch (err) {
 			console.error('Previous navigation failed:', err);
-			navError = err instanceof Error ? err.message : (i18n?.t('assessment.errors.navigationFailed') ?? 'assessment.errors.navigationFailed');
+			const message = err instanceof Error ? err.message : (i18n?.t('assessment.errors.navigationFailed') ?? 'assessment.errors.navigationFailed');
+			navError = message;
 		}
 	}
 
@@ -189,7 +192,8 @@
 			announceCurrentQuestion();
 		} catch (err) {
 			console.error('Next navigation failed:', err);
-			navError = err instanceof Error ? err.message : (i18n?.t('assessment.errors.navigationFailed') ?? 'assessment.errors.navigationFailed');
+			const message = err instanceof Error ? err.message : (i18n?.t('assessment.errors.navigationFailed') ?? 'assessment.errors.navigationFailed');
+			navError = message;
 		}
 	}
 
@@ -251,7 +255,9 @@
 			// Or show results modal
 		} catch (err) {
 			console.error('Failed to submit assessment:', err);
-			error = err instanceof Error ? err.message : (i18n?.t('assessment.errors.submitFailed') ?? 'assessment.errors.submitFailed');
+			const message = err instanceof Error ? err.message : (i18n?.t('assessment.errors.submitFailed') ?? 'assessment.errors.submitFailed');
+			error = message;
+			announcer?.announce(message, 3000, 'assertive');
 		}
 	}
 
@@ -305,7 +311,7 @@
 
 {#if error}
 	<div class="assessment-error">
-		<div class="alert alert-error">
+		<div class="alert alert-error" role="alert" aria-live="assertive">
 			<svg
 				xmlns="http://www.w3.org/2000/svg"
 				class="stroke-current shrink-0 h-6 w-6"
@@ -324,13 +330,13 @@
 	</div>
 {:else if !player || navState.currentIndex < 0}
 	<div class="assessment-loading">
-		<div class="flex items-center justify-center p-8">
+		<div class="flex items-center justify-center p-8" role="status" aria-live="polite">
 			<span class="loading loading-spinner loading-lg"></span>
 			<span class="ml-4">{contextI18n?.t('assessment.loading') ?? 'assessment.loading'}</span>
 		</div>
 	</div>
 {:else}
-	<div bind:this={rootEl} class="assessment-shell" role="application" aria-label="Assessment player">
+	<div bind:this={rootEl} class="assessment-shell" role="region" aria-label="Assessment player">
 		<!-- Header with title and section menu -->
 		<AssessmentHeader
 			title={initSession.assessmentId || (i18n?.t('assessment.title') ?? 'Assessment')}
@@ -348,7 +354,7 @@
 
 		{#if navError}
 			<div class="assessment-nav-error">
-				<div class="alert alert-warning">
+				<div class="alert alert-warning" role="alert" aria-live="assertive">
 					<svg
 						xmlns="http://www.w3.org/2000/svg"
 						class="stroke-current shrink-0 h-6 w-6"
@@ -374,7 +380,6 @@
 			tabindex="-1"
 			role="region"
 			aria-label={i18n?.t('accessibility.itemBody') ?? 'Question content'}
-			aria-live="polite"
 		>
 			{#if hasPassage}
 				<SplitPaneResizer

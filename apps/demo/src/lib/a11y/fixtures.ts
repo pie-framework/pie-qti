@@ -11,9 +11,13 @@ export type A11yFixtureId =
 	| 'hotspot-interaction'
 	| 'hottext-interaction'
 	| 'extended-text-interaction'
+	| 'associate-interaction'
+	| 'media-interaction'
+	| 'modal-feedback'
 	| 'assessment-navigation-bar'
 	| 'assessment-section-menu'
 	| 'assessment-rubric-display'
+	| 'assessment-timer'
 	| 'assessment-shell';
 
 export interface A11yFixture {
@@ -34,9 +38,13 @@ export const A11Y_FIXTURES: A11yFixture[] = [
 	{ id: 'hotspot-interaction', title: 'HotspotInteraction (item-player)' },
 	{ id: 'hottext-interaction', title: 'HottextInteraction (item-player)' },
 	{ id: 'extended-text-interaction', title: 'ExtendedTextInteraction (item-player)' },
+	{ id: 'associate-interaction', title: 'AssociateInteraction (item-player)' },
+	{ id: 'media-interaction', title: 'MediaInteraction (item-player)' },
+	{ id: 'modal-feedback', title: 'ModalFeedbackDisplay (item-player)' },
 	{ id: 'assessment-navigation-bar', title: 'NavigationBar (assessment-player)' },
 	{ id: 'assessment-section-menu', title: 'SectionMenu (assessment-player)' },
 	{ id: 'assessment-rubric-display', title: 'RubricDisplay (assessment-player)' },
+	{ id: 'assessment-timer', title: 'AssessmentTimer (assessment-player)' },
 	{ id: 'assessment-shell', title: 'AssessmentShell (assessment-player)' },
 ];
 

@@ -24,7 +24,14 @@
 	const { priority = 'polite' }: Props = $props();
 
 	let announcement = $state('');
+	let currentPriority = $state<'polite' | 'assertive'>('polite');
 	let announceTimeout: ReturnType<typeof setTimeout> | null = null;
+
+	$effect(() => {
+		if (!announcement) {
+			currentPriority = priority;
+		}
+	});
 
 	// Clean up timeout on destroy to prevent memory leaks
 	onDestroy(() => {
@@ -39,8 +46,9 @@
 	 *
 	 * @param message - Text to announce
 	 * @param clearAfter - Milliseconds to wait before clearing (default: 1000)
+	 * @param nextPriority - Announcement priority for this message
 	 */
-	export function announce(message: string, clearAfter = 1000): void {
+	export function announce(message: string, clearAfter = 1000, nextPriority: 'polite' | 'assertive' = priority): void {
 		// Clear any existing announcement timeout
 		if (announceTimeout) {
 			clearTimeout(announceTimeout);
@@ -48,12 +56,14 @@
 		}
 
 		// Set the new announcement
+		currentPriority = nextPriority;
 		announcement = message;
 
 		// Clear after delay to allow screen readers to announce
 		// and prepare for next announcement
 		announceTimeout = setTimeout(() => {
 			announcement = '';
+			currentPriority = priority;
 			announceTimeout = null;
 		}, clearAfter);
 	}
@@ -67,6 +77,7 @@
 			announceTimeout = null;
 		}
 		announcement = '';
+		currentPriority = priority;
 	}
 </script>
 
@@ -80,7 +91,7 @@
 <div
 	class="sr-only"
 	role="status"
-	aria-live={priority}
+	aria-live={currentPriority}
 	aria-atomic="true"
 >
 	{announcement}

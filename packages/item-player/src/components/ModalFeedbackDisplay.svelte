@@ -14,6 +14,8 @@
 
 	// Show modal if there's feedback
 	const hasActiveFeedback = $derived(feedback.length > 0);
+	const modalTitleId = 'item-player-modal-feedback-title';
+	const firstTitle = $derived(feedback.find((item) => item.title)?.title);
 
 	function handleClose() {
 		onClose?.();
@@ -29,13 +31,21 @@
 
 {#if hasActiveFeedback}
 	<!-- DaisyUI Modal -->
-	<dialog class="modal modal-open" onclick={handleBackdropClick}>
+	<dialog
+		open
+		class="modal modal-open"
+		aria-modal="true"
+		aria-labelledby={firstTitle ? modalTitleId : undefined}
+		aria-label={firstTitle ? undefined : (i18n?.t('feedback.title') ?? 'Feedback')}
+		onclick={handleBackdropClick}
+	>
 		<div class="modal-box max-w-3xl">
 			<!-- Close button -->
 			<button
 				class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
+				type="button"
 				onclick={handleClose}
-				aria-label={i18n?.t('feedback.closeFeedback') ?? 'feedback.closeFeedback'}
+				aria-label={i18n?.t('feedback.closeFeedback') ?? 'Close feedback'}
 			>
 				✕
 			</button>
@@ -44,7 +54,7 @@
 			{#each feedback as item, index}
 				<div class="mb-4 {index < feedback.length - 1 ? 'border-b pb-4' : ''}">
 					{#if item.title}
-						<h3 class="font-bold text-lg mb-2">{item.title}</h3>
+						<h3 id={index === 0 ? modalTitleId : undefined} class="font-bold text-lg mb-2">{item.title}</h3>
 					{/if}
 
 					<!-- Render HTML content with MathJax support -->
@@ -65,8 +75,8 @@
 
 			<!-- Action buttons -->
 			<div class="modal-action">
-				<button class="btn btn-primary" onclick={handleClose}>
-					{i18n?.t('common.continue') ?? 'common.continue'}
+				<button class="btn btn-primary" type="button" onclick={handleClose}>
+					{i18n?.t('common.continue') ?? 'Continue'}
 				</button>
 			</div>
 		</div>

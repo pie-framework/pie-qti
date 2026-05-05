@@ -6,20 +6,22 @@ This directory contains the CI/CD automation workflows for the pie-qti project.
 
 ### CI (`ci.yml`)
 
-Runs on every push to `main` and on all pull requests.
+Runs on every push to `master` and `develop`, and on pull requests targeting those branches.
 
 **Jobs:**
 
-1. **Lint & Format** - Runs Biome linting, Svelte checks, and TypeScript type checking
-2. **Unit Tests** - Runs all unit tests (459 tests across packages)
-3. **E2E Tests** - Runs Playwright end-to-end tests (174 tests)
-4. **Accessibility Tests** - Runs dedicated accessibility test suite (199 tests, WCAG 2.2 AA)
-5. **Build** - Builds all packages on Ubuntu, macOS, and Windows
-6. **All Checks** - Summary job that ensures all checks pass
+1. **Lint & Typecheck** - Runs Biome linting, Svelte checks, and TypeScript type checking
+2. **Translation Coverage** - Verifies locale coverage
+3. **Hardcoded String Scan** - Informational i18n scan
+4. **Unit Tests** - Runs package test suites through `bun run test`
+5. **QTI Public Certification Gate** - Runs clean-room public certification coverage
+6. **Accessibility Verification** - Runs `bun run verify:a11y` with Playwright Chromium
+7. **Deployability (Apps)** - Builds deployable demo/docs apps and smoke-checks outputs
+8. **Publish Readiness** - Builds packages and runs package publishing readiness checks
+9. **All Checks** - Summary job that ensures required checks pass
 
 **Artifacts:**
-- Playwright reports (retained for 30 days)
-- Accessibility reports (retained for 30 days)
+- Package build outputs from the publish-readiness job
 
 ### Release (`release.yml`)
 
@@ -102,6 +104,7 @@ bun run typecheck
 
 # Testing
 bun run test
+bun run verify:a11y
 
 # Building
 bun run build

@@ -19,6 +19,8 @@
 	let elapsedSeconds = $state(0);
 	let isWarning = $state(false);
 	let isExpired = $state(false);
+	let announcement = $state('');
+	let announcementPriority = $state<'polite' | 'assertive'>('polite');
 
 	// Initialize state and subscribe to timer events
 	$effect(() => {
@@ -31,11 +33,17 @@
 		const unsubscribeWarning = player.onTimeWarning((remaining) => {
 			isWarning = true;
 			remainingSeconds = remaining;
+			announcementPriority = 'polite';
+			announcement =
+				i18n?.t('assessment.timer.timeRemaining', { time: TimeManager.formatTime(remaining) }) ??
+				`Time remaining: ${TimeManager.formatTime(remaining)}`;
 		});
 
 		const unsubscribeExpired = player.onTimeExpired(() => {
 			isExpired = true;
 			remainingSeconds = 0;
+			announcementPriority = 'assertive';
+			announcement = i18n?.t('assessment.timer.expired') ?? 'Time expired';
 		});
 
 		const unsubscribeTick = player.onTimeTick((remaining, elapsed) => {
@@ -106,6 +114,9 @@
 			<div class="timer-label">{timerLabel()}</div>
 			<div class="timer-value">{displayTime()}</div>
 		</div>
+		<div class="sr-only" role={announcementPriority === 'assertive' ? 'alert' : 'status'} aria-live={announcementPriority} aria-atomic="true">
+			{announcement}
+		</div>
 	</div>
 {/if}
 
@@ -168,6 +179,18 @@
 		font-weight: 700;
 		font-variant-numeric: tabular-nums;
 		color: hsl(var(--bc));
+	}
+
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border-width: 0;
 	}
 
 	.assessment-timer.warning .timer-value {

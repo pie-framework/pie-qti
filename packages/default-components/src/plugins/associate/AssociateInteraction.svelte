@@ -46,6 +46,7 @@
 
 	// Ensure response is always an array
 	const pairs = $derived(parsedResponse || []);
+	const helperId = $derived(`associate-helper-${parsedInteraction?.responseId ?? 'unknown'}`);
 
 	function emitChange(newPairs: string[]) {
 		response = newPairs;
@@ -127,6 +128,19 @@
 		);
 	}
 
+	function toPlainText(html: string): string {
+		return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+	}
+
+	function getChoiceLabel(choice: { identifier: string; text: string }): string {
+		const text = toPlainText(choice.text);
+		return text ? `${choice.identifier}: ${text}` : choice.identifier;
+	}
+
+	function getPairLabel(choice1: { identifier: string; text: string }, choice2: { identifier: string; text: string }): string {
+		return `${getChoiceLabel(choice1)} and ${getChoiceLabel(choice2)}`;
+	}
+
 	const correctPairs = $derived(
 		isShowingCorrect && parsedCorrectResponse ? parsedCorrectResponse : []
 	);
@@ -154,7 +168,11 @@
 				class="btn btn-outline {isSelected ? 'btn-accent' : inPair ? 'btn-primary' : isCorrect ? 'btn-success' : 'btn-neutral'}"
 				class:opacity-40={isBlocked}
 				class:cursor-not-allowed={isBlocked}
+				type="button"
+				aria-label={getChoiceLabel(choice)}
+				aria-pressed={isSelected}
 				aria-disabled={isBlocked ? 'true' : undefined}
+				aria-describedby={helperId}
 				onclick={() => handleChoiceClick(choice.identifier)}
 				{disabled}
 			>
@@ -225,6 +243,8 @@
 						<button
 							part="pair-remove"
 							class="btn btn-sm btn-ghost btn-circle"
+							type="button"
+							aria-label={`Remove association between ${getPairLabel(choice1, choice2)}`}
 							onclick={() => removePair(index)}
 							{disabled}
 						>
@@ -238,14 +258,14 @@
 
 		<!-- Selection helper - Hide when showing correct answers -->
 		{#if !isShowingCorrect}
-			<div part="helper" class="qti-associate-helper alert alert-info">
+			<div id={helperId} part="helper" class="qti-associate-helper alert alert-info" role="status" aria-live="polite">
 				<span class="text-sm">
 					{#if selectedForPairing}
 						{i18n?.t('interactions.associate.clickAnotherOrDeselect') ??
-							'Click another item to create an association (or click again to deselect)'}
+							'Select another item to create an association, or select this item again to deselect it.'}
 					{:else}
 						{i18n?.t('interactions.associate.clickToAssociate') ??
-							'Click two items to create an association between them'}
+							'Select two items to create an association between them. Keyboard users can tab to each item and press Enter or Space.'}
 					{/if}
 				</span>
 			</div>

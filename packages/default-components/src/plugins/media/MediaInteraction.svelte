@@ -43,6 +43,7 @@
 	 * Check if the minimum play requirement has been met
 	 */
 	const hasMetMinPlays = $derived(parsedInteraction && playCount >= parsedInteraction.minPlays);
+	const mediaLabel = $derived(i18n?.t('interactions.media.ariaLabel') ?? 'Media content');
 
 	/**
 	 * Handle media ended event.
@@ -99,6 +100,7 @@
 				bind:this={mediaElement}
 				class="w-full"
 				controls
+				aria-label={mediaLabel}
 				autoplay={parsedInteraction.autostart}
 				loop={parsedInteraction.loop && parsedInteraction.maxPlays === 0}
 				onended={handleEnded}
@@ -112,6 +114,7 @@
 				bind:this={mediaElement}
 				class="w-full rounded-lg"
 				controls
+				aria-label={mediaLabel}
 				autoplay={parsedInteraction.autostart}
 				loop={parsedInteraction.loop && parsedInteraction.maxPlays === 0}
 				width={parsedInteraction.mediaElement.width}
@@ -136,7 +139,7 @@
 		{/if}
 	</div>
 
-	<div class="qti-media-stats flex items-center justify-between text-sm text-base-content/70" part="stats">
+	<div class="qti-media-stats flex items-center justify-between text-sm text-base-content/70" part="stats" role="status" aria-live="polite">
 		<div>
 			<span class="font-medium">Play count:</span>
 			<span class="ml-2">{playCount}</span>
@@ -163,7 +166,7 @@
 	</div>
 
 		{#if hasReachedMaxPlays}
-			<div class="alert alert-info">
+			<div class="alert alert-info" role="status" aria-live="polite">
 				<svg
 					xmlns="http://www.w3.org/2000/svg"
 					fill="none"

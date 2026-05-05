@@ -58,10 +58,10 @@ KaTeX is configured with `throwOnError: false` and is set to produce MathML outp
 - **FR-4:** Every interaction component must carry sufficient ARIA attributes to communicate its role, current state, and accessible name to screen readers without relying on elements outside its shadow root.
 - **FR-5:** The `NavigationBar` must provide Previous, Next, and Submit buttons that are keyboard-operable with no additional configuration by the host.
 - **FR-6:** The navigation progress indicator ("Question N of M") must be accessible as both a visible text label and an ARIA-accessible region.
-- **FR-7:** The `AssessmentTimer` must use `role="timer"` with `aria-live="polite"` and `aria-atomic="true"`, and must announce remaining time at the 5-minute, 1-minute, and 30-second thresholds via `AccessibilityAnnouncer`.
+- **FR-7:** The `AssessmentTimer` must use `role="timer"` with `aria-live="polite"` and `aria-atomic="true"`, must expose the visible time through an accessible name, must announce the configured warning threshold politely, and must announce time expiry assertively. Multi-threshold warning schedules are a future enhancement unless the host supplies separate timer policy.
 - **FR-8:** All ARIA label text that varies by locale must be sourced from the `@pie-qti/i18n` system. Hardcoded English strings are acceptable only as `??` fallbacks; they may not be the sole source of an ARIA label.
-- **FR-9:** Visually-hidden but screen-reader-visible text must be implemented with the `.sr-only` utility class defined in `packages/default-components/src/shared/styles/shared.css`. Components must not define local variations of this pattern.
-- **FR-10:** All interactive elements must have a minimum touch target of 44×44 CSS pixels.
+- **FR-9:** Visually-hidden but screen-reader-visible text must use the project `.sr-only` pattern. Shared packages may define a local copy only when they cannot safely import `packages/default-components/src/shared/styles/shared.css`.
+- **FR-10:** WCAG 2.2 AA requires pointer targets of at least 24×24 CSS pixels for SC 2.5.8. This project additionally aims for 44×44 CSS pixels for learner-facing assessment controls where layout and item geometry make that reasonably possible.
 - **FR-11:** Color must not be the sole visual differentiator for any state (selected, correct, incorrect, disabled). A non-color cue (icon, label, border pattern, shape) must accompany any color-based state indication.
 - **FR-12:** The `choiceInteraction` component must expose the correct-answer badge and ARIA annotation only when `role === 'scorer'`.
 - **FR-13:** Each drag-and-order interaction (`SortableList`, `OrderInteraction`) must provide a keyboard alternative using Space/Enter to grab an item and arrow keys to move it, with `aria-grabbed` state communicated to screen readers.
@@ -75,7 +75,7 @@ KaTeX is configured with `throwOnError: false` and is set to produce MathML outp
 
 - **Accessibility:** WCAG 2.2 Level AA across all interaction types, navigation, timer, and feedback components. Screen reader support must be verified against NVDA+Chrome and VoiceOver+Safari as the minimum matrix. Keyboard navigation must be fully operable with no mouse dependency.
 - **Performance:** The `AccessibilityAnnouncer` DOM node must always be present in the document (not conditionally rendered) to avoid the common screen reader bug where a late-mounted live region is not announced. The `clearAfter` timeout (default 1000 ms) must be long enough for slow screen readers to complete the announcement; reducing it below 800 ms is not recommended.
-- **Cross-platform:** Touch targets (44×44 px) must be verified on a 375px-wide viewport (iPhone SE form factor). Focus rings must be visible on both light and high-contrast themes; the default DaisyUI `focus-visible` outline must not be overridden without providing an equivalent.
+- **Cross-platform:** Touch targets must meet WCAG 2.2 AA's 24×24 px requirement and should meet the project's 44×44 px learner-friendly target on a 375px-wide viewport where feasible. Focus rings must be visible on both light and high-contrast themes; the default DaisyUI `focus-visible` outline must not be overridden without providing an equivalent.
 - **Security:** ARIA labels that expose correct-answer data must be gated behind `role === 'scorer'` at the component level, not at the host level. The component must not trust the host to suppress this; it must suppress it internally.
 - **i18n:** All ARIA-facing strings must be declared in the `accessibility.*` namespace of the `@pie-qti/i18n` locale files. See the i18n PRD (`docs/prds/systems/i18n.md`) for the key naming convention. Interaction-specific ARIA strings (e.g., "Reorderable list of choices") belong in the `interactions.*` namespace.
 
@@ -136,7 +136,7 @@ KaTeX is configured with `throwOnError: false` and is set to produce MathML outp
 | Extension point | Interface/type | How to use | Example |
 |----------------|---------------|------------|---------|
 | Announcement API | `AccessibilityAnnouncer` (exported from `@pie-qti/assessment-player`) | Call `announcer.announce(message, clearAfter?)` from shell-level code; pass announcer ref to child components that need it | Announce "Session restored from previous attempt" on state-restore |
-| Announcement priority | `priority?: 'polite' \| 'assertive'` prop on `AccessibilityAnnouncer` | Mount a second announcer instance with `priority="assertive"` for time-critical messages if the shell needs separate channels | Separate timer-expiry announcer |
+| Announcement priority | `priority?: 'polite' \| 'assertive'` prop and per-message priority on `AccessibilityAnnouncer.announce()` | Use polite for routine orientation and assertive for time-critical errors or expiry | `announcer.announce(message, 3000, 'assertive')` |
 | Custom ARIA label for interaction | `aria-label` or `aria-labelledby` prop accepted by some components | Pass a descriptive label derived from surrounding item content | Pass the question stem text as the choiceInteraction's group label |
 | `sr-only` utility | `.sr-only` class in `shared.css` | Import `shared.css` in any component that needs visually-hidden accessible text | Add a screen-reader-only hint explaining how to use a custom interaction |
 | High-contrast theme | DaisyUI `data-theme="high-contrast"` on the root element | Set the attribute on the `<html>` or player shell element based on PNP or OS preference | Host reads `prefers-contrast: more` media query and applies the theme |
@@ -186,8 +186,10 @@ Then: The choice matching the correct response has an accessible name that inclu
 **AC-5: Timer announces expiry assertively**
 ```
 Given: An assessment with a time limit
+When: The configured warning threshold is reached
+Then: The AssessmentTimer exposes a polite warning announcement
 When: The time limit reaches zero
-Then: The accessibility announcer fires with priority "assertive"
+Then: The expiry message is announced assertively
   and the AssessmentTimer component carries role="timer" and aria-live="polite"
 ```
 
@@ -335,22 +337,24 @@ Then: The element is announced as a combobox or select control
 ```
 Given: The NavigationBar is rendered on a 375px viewport
 When: The bounding rect of the Previous and Next (or Submit) buttons is measured
-Then: Each button's width and height are each at least 44px
+Then: Each button's width and height meet WCAG 2.2 AA target size
+  and should be at least 44px where the layout allows
 ```
 
 **AC-T2: Choice options meet minimum touch target**
 ```
 Given: A choiceInteraction is rendered
 When: The bounding rect of each choice label (the entire tappable row) is measured
-Then: Each option's height is at least 44px
+Then: Each option's height meets WCAG 2.2 AA target size
+  and should be at least 44px where the interaction design allows
 ```
 
 **AC-T3: Hotspot regions meet minimum touch target on mobile**
 ```
 Given: A hotspotInteraction is rendered
 When: A hotspot region's bounding rect is measured on a 375px viewport
-Then: The tappable area is at least 44×44px
-  Notes: If the SVG/image hotspot region is smaller than 44px, an invisible touch-target overlay must expand it
+Then: The tappable area meets WCAG 2.2 AA target size
+  Notes: If the SVG/image hotspot region is smaller than the learner-friendly 44px target, an invisible touch-target overlay should expand it where that does not change item meaning
 ```
 
 ---
