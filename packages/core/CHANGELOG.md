@@ -1,5 +1,15 @@
 # @pie-qti/transform-core
 
+## 0.1.7
+
+### Patch Changes
+
+- Temporary release changeset: patch all publishable packages to keep lockstep versions.
+- Updated dependencies
+  - @pie-qti/element-schemas@0.1.7
+  - @pie-qti/logger@0.1.7
+  - @pie-qti/transform-types@0.1.7
+
 ## 0.1.6
 
 ### Patch Changes

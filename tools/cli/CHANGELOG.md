@@ -1,5 +1,15 @@
 # @pie-qti/transform-cli
 
+## 0.1.7
+
+### Patch Changes
+
+- Updated dependencies
+  - @pie-qti/logger@0.1.7
+  - @pie-qti/to-pie@0.1.7
+  - @pie-qti/transform-core@0.1.7
+  - @pie-qti/transform-types@0.1.7
+
 ## 0.1.6
 
 ### Patch Changes

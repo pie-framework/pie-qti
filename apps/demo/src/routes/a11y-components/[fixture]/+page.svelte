@@ -21,6 +21,7 @@
 	import ExtendedTextInteractionFixture from '$lib/a11y/fixtures/ExtendedTextInteractionFixture.svelte';
 	import MediaInteractionFixture from '$lib/a11y/fixtures/MediaInteractionFixture.svelte';
 	import ModalFeedbackFixture from '$lib/a11y/fixtures/ModalFeedbackFixture.svelte';
+	import PnpCatalogStimulusFixture from '$lib/a11y/fixtures/PnpCatalogStimulusFixture.svelte';
 
 	interface Props {
 		data: { fixture: string };
@@ -87,6 +88,8 @@
 				<AssessmentTimerFixture />
 			{:else if fixture === 'assessment-shell'}
 				<AssessmentShellFixture />
+			{:else if fixture === 'pnp-catalog-stimulus'}
+				<PnpCatalogStimulusFixture />
 			{:else}
 				<div class="alert alert-error">
 					Unknown fixture: <code class="font-mono">{data.fixture}</code>

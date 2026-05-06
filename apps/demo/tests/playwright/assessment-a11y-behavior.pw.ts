@@ -62,11 +62,33 @@ test.describe('assessment accessibility behavior', () => {
 
 		await expect(page.getByRole('timer')).toHaveAttribute('aria-label', /remaining/i);
 
-		await page.getByRole('button', { name: /simulate warning/i }).click();
+		const warningButton = page.getByRole('button', { name: /simulate warning/i });
+		await warningButton.focus();
+		await page.keyboard.press('Enter');
 		await expect(page.getByRole('status').filter({ hasText: /time remaining/i })).toBeAttached();
+		await expect(warningButton).toBeFocused();
 
-		await page.getByRole('button', { name: /simulate expiry/i }).click();
+		const expiryButton = page.getByRole('button', { name: /simulate expiry/i });
+		await expiryButton.focus();
+		await page.keyboard.press('Enter');
 		await expect(page.getByRole('alert').filter({ hasText: /time expired/i })).toBeAttached();
+		await expect(expiryButton).toBeFocused();
+	});
+
+	test('timer controls remain reachable in a narrow reflow viewport', async ({ page }) => {
+		await page.setViewportSize({ width: 320, height: 800 });
+		await page.goto('a11y-components/assessment-timer');
+
+		const root = page.locator('[data-testid="a11y-fixture-root"]');
+		await expect(root).toBeVisible();
+		await expect(page.getByRole('timer')).toBeVisible();
+
+		for (const name of [/simulate tick/i, /simulate warning/i, /simulate expiry/i]) {
+			const button = page.getByRole('button', { name });
+			await expect(button).toBeVisible();
+			await button.focus();
+			await expect(button).toBeFocused();
+		}
 	});
 
 	test('composed assessment demo shell has no automated WCAG AA violations', async ({ page }) => {

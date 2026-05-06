@@ -59,6 +59,18 @@
 			"description": "Targeted Playwright coverage for browser-visible certification behaviors",
 			"cwd": "apps/demo",
 			"args": ["run", "test:e2e", "--", "tests/playwright/public-certification.pw.ts"]
+		},
+		{
+			"id": "browser-a11y-stage5",
+			"description": "Targeted browser accessibility evidence for QTI 3 PNP/catalog/stimulus behavior",
+			"cwd": "apps/demo",
+			"args": ["run", "test:e2e", "--", "tests/playwright/qti3-stage5-a11y.pw.ts"]
+		},
+		{
+			"id": "browser-a11y-assessment",
+			"description": "Targeted browser accessibility evidence for assessment shell and timer behavior",
+			"cwd": "apps/demo",
+			"args": ["run", "test:e2e", "--", "tests/playwright/assessment-a11y-behavior.pw.ts"]
 		}
 	],
 	"rows": [
@@ -336,11 +348,11 @@
 			"level": "Advanced",
 			"feature": "I4 Shared Stimulus",
 			"officialPath": "qti3.0/Advanced/I4 Shared Stimulus/",
-			"publicTests": ["packages/item-player/src/extraction/extractors/conformance-qti3-advanced.test.ts", "packages/ims-cp-core/tests/qti3-shared-content.test.ts", "packages/item-player/tests/core/delivery-context.test.ts", "packages/item-player/tests/core/stimulusRender.test.ts", "packages/item-player/tests/core/stylesheetRender.test.ts", "apps/demo/tests/playwright/public-certification.pw.ts"],
+			"publicTests": ["packages/item-player/src/extraction/extractors/conformance-qti3-advanced.test.ts", "packages/ims-cp-core/tests/qti3-shared-content.test.ts", "packages/item-player/tests/core/delivery-context.test.ts", "packages/item-player/tests/core/stimulusRender.test.ts", "packages/item-player/tests/core/stylesheetRender.test.ts", "apps/demo/tests/playwright/public-certification.pw.ts", "apps/demo/tests/playwright/qti3-stage5-a11y.pw.ts"],
 			"fixturePackages": [],
 			"e2eRequired": true,
-			"commandIds": ["item-clean-room", "package-clean-room", "item-runtime-clean-room", "browser-visible"],
-			"notes": "Covers stimulus reference preservation, structured qti-assessment-stimulus parsing, stylesheet/catalog extraction, package-relative stylesheet/stimulus path gates, unsafe relative asset/catalog file-href removal, item-runtime consumption of resolved stimulus/catalog context, tested stimulus insertion/override behavior, scoped catalog lookup for stimulus ID collisions, and instance-isolated/stimulus-local scoped runtime stylesheet CSS. Browser-visible shared stimulus rendering evidence is tracked in docs/certification/qti3-remaining-parity-evidence.md."
+			"commandIds": ["item-clean-room", "package-clean-room", "item-runtime-clean-room", "browser-visible", "browser-a11y-stage5"],
+			"notes": "Covers stimulus reference preservation, structured qti-assessment-stimulus parsing, stylesheet/catalog extraction, package-relative stylesheet/stimulus path gates, unsafe relative asset/catalog file-href removal, item-runtime consumption of resolved stimulus/catalog context, tested stimulus insertion/override behavior, scoped catalog lookup for stimulus ID collisions, instance-isolated/stimulus-local scoped runtime stylesheet CSS, and browser-visible PNP/catalog/stimulus accessibility behavior. Manual AT checklist: docs/certification/qti3-stage5-manual-a11y-checklist.md."
 		},
 		{
 			"id": "qti30-advanced-i17",
@@ -384,11 +396,11 @@
 			"level": "Advanced",
 			"feature": "A13 captions and A15 glossary",
 			"officialPath": "qti3.0/Advanced/A13captions_A15glossary/",
-			"publicTests": ["packages/item-player/src/extraction/extractors/conformance-qti3-advanced.test.ts", "packages/item-player/tests/core/pnp.test.ts", "packages/item-player/tests/core/glossaryTriggers.test.ts", "apps/demo/tests/playwright/public-certification.pw.ts"],
+			"publicTests": ["packages/item-player/src/extraction/extractors/conformance-qti3-advanced.test.ts", "packages/item-player/tests/core/pnp.test.ts", "packages/item-player/tests/core/glossaryTriggers.test.ts", "apps/demo/tests/playwright/public-certification.pw.ts", "apps/demo/tests/playwright/qti3-stage5-a11y.pw.ts"],
 			"fixturePackages": [],
 			"e2eRequired": true,
-			"commandIds": ["item-clean-room", "item-runtime-clean-room", "browser-visible"],
-			"notes": "Covers caption track preservation plus item-runtime PNP/catalog coverage for glossary, keyword translation, illustrated glossary triggers, dynamic rebinding cleanup, known and host-defined catalog support events, and unsafe usage-name rejection. Browser-visible catalog affordances, access-for-all, and manual AT evidence is tracked in docs/certification/qti3-remaining-parity-evidence.md."
+			"commandIds": ["item-clean-room", "item-runtime-clean-room", "browser-visible", "browser-a11y-stage5"],
+			"notes": "Covers caption track preservation plus item-runtime PNP/catalog coverage for glossary, keyword translation, illustrated glossary triggers, dynamic rebinding cleanup, known and host-defined catalog support events, unsafe usage-name rejection, and browser-visible catalog affordance behavior. Manual AT checklist: docs/certification/qti3-stage5-manual-a11y-checklist.md."
 		},
 		{
 			"id": "qti30-advanced-s3-s4",
@@ -408,7 +420,7 @@
 			"level": "Advanced",
 			"feature": "S5 rubricBlock in sections",
 			"officialPath": "qti3.0/Advanced/S5 - Rubric Block in Sections/",
-			"publicTests": ["packages/assessment-player/tests/conformance-qti30-advanced.test.ts", "apps/demo/tests/playwright/public-certification.pw.ts"],
+			"publicTests": ["packages/assessment-player/tests/conformance-qti30-advanced.test.ts", "apps/demo/tests/playwright/public-certification.pw.ts", "apps/demo/tests/playwright/assessment-a11y-behavior.pw.ts"],
 			"fixturePackages": [],
 			"e2eRequired": true,
 			"commandIds": ["assessment-clean-room", "browser-visible"],
@@ -447,8 +459,8 @@
 			"publicTests": ["packages/assessment-player/tests/conformance-qti30-advanced.test.ts", "apps/demo/tests/playwright/public-certification.pw.ts"],
 			"fixturePackages": [],
 			"e2eRequired": true,
-			"commandIds": ["assessment-clean-room", "browser-visible"],
-			"notes": "Covers qti-assessment-section, qti-time-limits, allow-skipping, and qti-assessment-section-ref. Remaining item/section/test timing precedence, restoration, expiry, and accessible timer UI evidence is tracked in docs/certification/qti3-remaining-parity-evidence.md."
+			"commandIds": ["assessment-clean-room", "browser-visible", "browser-a11y-assessment"],
+			"notes": "Covers qti-assessment-section, qti-time-limits, allow-skipping, qti-assessment-section-ref, and browser-visible accessible timer warning/expiry behavior including focus preservation and narrow viewport reachability. Manual AT checklist: docs/certification/qti3-stage5-manual-a11y-checklist.md."
 		}
 	]
 }

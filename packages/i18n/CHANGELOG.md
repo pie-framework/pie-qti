@@ -1,5 +1,11 @@
 # @pie-qti/i18n
 
+## 0.1.7
+
+### Patch Changes
+
+- Temporary release changeset: patch all publishable packages to keep lockstep versions.
+
 ## 0.1.6
 
 ### Patch Changes

@@ -1,5 +1,17 @@
 # @pie-qti/assessment-player
 
+## 0.1.7
+
+### Patch Changes
+
+- Temporary release changeset: patch all publishable packages to keep lockstep versions.
+- Updated dependencies
+  - @pie-qti/default-components@0.1.7
+  - @pie-qti/i18n@0.1.7
+  - @pie-qti/ims-cp-core@0.1.7
+  - @pie-qti/item-player@0.1.7
+  - @pie-qti/qti-processing@0.1.7
+
 ## 0.1.6
 
 ### Patch Changes

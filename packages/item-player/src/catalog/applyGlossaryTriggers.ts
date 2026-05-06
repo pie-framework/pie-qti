@@ -165,6 +165,8 @@ function createTriggerButton(termText: string, usage: string, labelPrefix: strin
 	const btn = document.createElement('button');
 	btn.type = 'button';
 	btn.className = 'qti-catalog-trigger';
+	btn.style.cssText =
+		'display:inline-flex;align-items:center;justify-content:center;min-width:1.75rem;min-height:1.75rem;margin-inline:0.25rem;line-height:1;';
 	btn.setAttribute('aria-label', `${labelPrefix}: ${termText}`);
 	btn.setAttribute('data-catalog-usage', usage);
 	btn.textContent = text ?? (usage === 'keyword-translation' ? 'T' : usage === ILLUSTRATED_GLOSSARY_USAGE ? 'I' : '?');
