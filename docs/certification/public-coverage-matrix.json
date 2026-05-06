@@ -44,6 +44,7 @@
 				"packages/item-player/tests/core/pnp.test.ts",
 				"packages/item-player/tests/core/delivery-context.test.ts",
 				"packages/item-player/tests/core/stimulusRender.test.ts",
+				"packages/item-player/tests/core/stylesheetRender.test.ts",
 				"packages/item-player/tests/core/glossaryTriggers.test.ts"
 			]
 		},
@@ -335,11 +336,11 @@
 			"level": "Advanced",
 			"feature": "I4 Shared Stimulus",
 			"officialPath": "qti3.0/Advanced/I4 Shared Stimulus/",
-			"publicTests": ["packages/item-player/src/extraction/extractors/conformance-qti3-advanced.test.ts", "packages/ims-cp-core/tests/qti3-shared-content.test.ts", "packages/item-player/tests/core/delivery-context.test.ts", "packages/item-player/tests/core/stimulusRender.test.ts", "apps/demo/tests/playwright/public-certification.pw.ts"],
+			"publicTests": ["packages/item-player/src/extraction/extractors/conformance-qti3-advanced.test.ts", "packages/ims-cp-core/tests/qti3-shared-content.test.ts", "packages/item-player/tests/core/delivery-context.test.ts", "packages/item-player/tests/core/stimulusRender.test.ts", "packages/item-player/tests/core/stylesheetRender.test.ts", "apps/demo/tests/playwright/public-certification.pw.ts"],
 			"fixturePackages": [],
 			"e2eRequired": true,
 			"commandIds": ["item-clean-room", "package-clean-room", "item-runtime-clean-room", "browser-visible"],
-			"notes": "Covers stimulus reference preservation, structured qti-assessment-stimulus parsing, stylesheet/catalog extraction, package-relative stylesheet/stimulus path gates, unsafe relative asset/catalog file-href removal, item-runtime consumption of resolved stimulus/catalog context, and tested stimulus insertion/override behavior. Browser-visible shared stimulus rendering and runtime CSS scoping evidence is tracked in docs/certification/qti3-remaining-parity-evidence.md."
+			"notes": "Covers stimulus reference preservation, structured qti-assessment-stimulus parsing, stylesheet/catalog extraction, package-relative stylesheet/stimulus path gates, unsafe relative asset/catalog file-href removal, item-runtime consumption of resolved stimulus/catalog context, tested stimulus insertion/override behavior, scoped catalog lookup for stimulus ID collisions, and instance-isolated/stimulus-local scoped runtime stylesheet CSS. Browser-visible shared stimulus rendering evidence is tracked in docs/certification/qti3-remaining-parity-evidence.md."
 		},
 		{
 			"id": "qti30-advanced-i17",

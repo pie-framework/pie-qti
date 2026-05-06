@@ -61,6 +61,7 @@ export function applyGlossaryTriggers(container: HTMLElement, player: Player): (
 	for (const termEl of Array.from(terms)) {
 		const idref = termEl.getAttribute('data-catalog-idref');
 		if (!idref) continue;
+		const stimulusIdentifier = getStimulusIdentifier(termEl);
 
 		// Wrap term in a relative-positioned span so we can position popup against it
 		const wrapper = document.createElement('span');
@@ -80,7 +81,7 @@ export function applyGlossaryTriggers(container: HTMLElement, player: Player): (
 					currentCleanup = null;
 					return;
 				}
-				const html = player.getCatalogEntry(idref, 'glossary-on-screen');
+				const html = player.getCatalogEntry(idref, 'glossary-on-screen', undefined, { stimulusIdentifier });
 				if (html !== null) {
 					currentCleanup = mountPopup(wrapper, termEl.textContent ?? idref, html, btn, player, () => {
 						currentCleanup = null;
@@ -100,7 +101,7 @@ export function applyGlossaryTriggers(container: HTMLElement, player: Player): (
 					currentCleanup = null;
 					return;
 				}
-				const html = player.getCatalogEntry(idref, 'keyword-translation', lang);
+				const html = player.getCatalogEntry(idref, 'keyword-translation', lang, { stimulusIdentifier });
 				if (html !== null) {
 					currentCleanup = mountPopup(wrapper, termEl.textContent ?? idref, html, btn, player, () => {
 						currentCleanup = null;
@@ -119,7 +120,7 @@ export function applyGlossaryTriggers(container: HTMLElement, player: Player): (
 					currentCleanup = null;
 					return;
 				}
-				const html = player.getCatalogEntry(idref, ILLUSTRATED_GLOSSARY_USAGE);
+				const html = player.getCatalogEntry(idref, ILLUSTRATED_GLOSSARY_USAGE, undefined, { stimulusIdentifier });
 				if (html !== null) {
 					currentCleanup = mountPopup(wrapper, termEl.textContent ?? idref, html, btn, player, () => {
 						currentCleanup = null;
@@ -134,11 +135,11 @@ export function applyGlossaryTriggers(container: HTMLElement, player: Player): (
 			addHostCatalogSupportButton(wrapper, termEl, idref, {
 				...support,
 				languageCode: getSupportLanguageCode(preference),
-			}, player);
+			}, player, stimulusIdentifier);
 		}
 
 		for (const support of hostSupports) {
-			addHostCatalogSupportButton(wrapper, termEl, idref, support, player);
+			addHostCatalogSupportButton(wrapper, termEl, idref, support, player, stimulusIdentifier);
 		}
 	}
 
@@ -175,9 +176,10 @@ function addHostCatalogSupportButton(
 	termEl: HTMLElement,
 	idref: string,
 	support: HostCatalogSupport,
-	player: Player
+	player: Player,
+	stimulusIdentifier?: string
 ): void {
-	const html = player.getCatalogEntry(idref, support.usage, support.languageCode);
+	const html = player.getCatalogEntry(idref, support.usage, support.languageCode, { stimulusIdentifier });
 	if (html === null) return;
 	const btn = createTriggerButton(termEl.textContent ?? idref, support.usage, support.label, support.text);
 	wrapper.appendChild(btn);
@@ -190,6 +192,12 @@ function addHostCatalogSupportButton(
 			})
 		);
 	});
+}
+
+function getStimulusIdentifier(termEl: HTMLElement): string | undefined {
+	const scopeEl = termEl.closest?.('[data-stimulus-idref]');
+	const identifier = scopeEl?.getAttribute?.('data-stimulus-idref')?.trim();
+	return identifier || undefined;
 }
 
 function getHostCatalogSupports(platformSupports: Record<string, CatalogSupportPreference | undefined>): HostCatalogSupport[] {

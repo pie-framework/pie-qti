@@ -113,7 +113,12 @@ describe('QTI 3 shared content parsing', () => {
 		const context = createResolvedItemDeliveryContext({
 			itemXml,
 			itemHref: 'items/unit/item.xml',
-			readText: (path) => (path === 'items/stimuli/passage.xml' ? stimulusXml : null),
+			readText: (path) => {
+				if (path === 'items/stimuli/passage.xml') return stimulusXml;
+				if (path === 'items/unit/item.css') return '.item-term { font-weight: bold; }';
+				if (path === 'items/stimuli/passage.css') return '.stimulus-term { color: blue; }';
+				return null;
+			},
 			resolveAssetUrl: (path) => `asset://${path}`,
 		});
 
@@ -123,8 +128,38 @@ describe('QTI 3 shared content parsing', () => {
 			'items/unit/item.css',
 			'items/stimuli/passage.css',
 		]);
+		expect(context.stylesheets.map((style) => style.cssText)).toEqual([
+			'.item-term { font-weight: bold; }',
+			'.stimulus-term { color: blue; }',
+		]);
 		expect(context.catalogSources.map((source) => source.scope)).toEqual(['item', 'stimulus']);
 		expect(context.validationMessages).toEqual([]);
+	});
+
+	test('blocks unsafe stylesheet CSS text while preserving safe stylesheet metadata', () => {
+		const itemXml = `<qti-assessment-item identifier="item-1">
+  <qti-stylesheet href="safe.css"/>
+  <qti-stylesheet href="unsafe.css"/>
+  <qti-item-body><p>Question body.</p></qti-item-body>
+</qti-assessment-item>`;
+
+		const context = createResolvedItemDeliveryContext({
+			itemXml,
+			itemHref: 'items/unit/item.xml',
+			readText: (path) => {
+				if (path === 'items/unit/safe.css') return '.term { color: #123456; }';
+				if (path === 'items/unit/unsafe.css') return '@import "https://evil.example/unsafe.css"; .term { color: red; }';
+				return null;
+			},
+		});
+
+		expect(context.stylesheets.map((style) => style.resolvedHref)).toEqual([
+			'items/unit/safe.css',
+			'items/unit/unsafe.css',
+		]);
+		expect(context.stylesheets[0].cssText).toBe('.term { color: #123456; }');
+		expect(context.stylesheets[1].cssText).toBeUndefined();
+		expect(context.validationMessages.join(' ')).toContain('Stylesheet blocked by policy: items/unit/unsafe.css');
 	});
 
 	test('blocks unsafe stimulus and stylesheet package references', () => {

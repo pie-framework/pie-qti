@@ -1,3 +1,7 @@
+<script lang="ts" module>
+	let nextItemBodyScopeId = 0;
+</script>
+
 <script lang="ts">
 	import type { InteractionData } from '../types';
 	import type { Player } from '../core/Player';
@@ -12,6 +16,7 @@
 	import { typesetAction } from './actions/typesetAction';
 	import { glossaryAction } from '../catalog/glossaryAction';
 	import { assignProps } from './utils/assignProps';
+	import { buildScopedStylesheetCss } from './utils/stylesheetRender';
 	import { buildEffectiveStimulusContent, injectStimulusContent } from './utils/stimulusRender';
 	import { getRoleCapabilities } from '../core/rolePolicy';
 	import InlineChoice from '../interactions/inline-choice/InlineChoice.svelte';
@@ -51,6 +56,8 @@
 		stimulusContent = {},
 		deliveryContext,
 	}: Props = $props();
+	const itemBodyScope = `qti-item-body-${++nextItemBodyScopeId}`;
+	const itemBodyScopeSelector = `[data-qti-item-body-scope="${itemBodyScope}"]`;
 
 	// Normalize heuristics configuration with defaults
 	const heuristics = $derived(normalizeHeuristicsConfig(heuristicsConfig));
@@ -98,6 +105,7 @@
 	const itemBodyHtml = $derived.by(() => {
 		let html = player.getItemBodyHtml();
 		const resolvedDeliveryContext = deliveryContext ?? player.getDeliveryContext();
+		const stylesheetCss = buildScopedStylesheetCss(resolvedDeliveryContext, itemBodyScopeSelector);
 		const effectiveStimulusContent = buildEffectiveStimulusContent(
 			resolvedDeliveryContext,
 			stimulusContent,
@@ -105,6 +113,9 @@
 		);
 
 		html = injectStimulusContent(html, effectiveStimulusContent);
+		if (stylesheetCss) {
+			html = `<style data-qti-stylesheets="resolved">${stylesheetCss}</style>${html}`;
+		}
 
 		// Process feedbackInline elements - conditionally show/hide based on outcome values
 		html = processFeedbackInline(html, {
@@ -205,7 +216,13 @@
 	}
 </script>
 
-<div bind:this={rootEl} class="qti-item-body" use:typesetAction={{ typeset }} use:glossaryAction={{ player }}>
+<div
+	bind:this={rootEl}
+	class="qti-item-body"
+	data-qti-item-body-scope={itemBodyScope}
+	use:typesetAction={{ typeset }}
+	use:glossaryAction={{ player }}
+>
 	<!-- Item body with inline interactions -->
 	<div class="prose max-w-none mb-4">
 		<div class="inline-interaction-container">

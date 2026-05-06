@@ -80,6 +80,15 @@ class FakeElement {
 		return true;
 	}
 
+	closest(selector: string): FakeElement | null {
+		let current: FakeElement | null = this;
+		while (current) {
+			if (matchesSelector(current, selector)) return current;
+			current = current.parent;
+		}
+		return null;
+	}
+
 	focus() {}
 
 	querySelectorAll(selector: string): FakeElement[] {
@@ -132,6 +141,9 @@ function matchesSelector(el: FakeElement, selector: string): boolean {
 	if (selector === '[data-catalog-idref]') {
 		return el.getAttribute('data-catalog-idref') !== null;
 	}
+	if (selector === '[data-stimulus-idref]') {
+		return el.getAttribute('data-stimulus-idref') !== null;
+	}
 	if (selector === '.qti-catalog-term') {
 		return el.className.split(/\s+/).includes('qti-catalog-term');
 	}
@@ -166,7 +178,7 @@ function clearEnv() {
 function makeMockPlayer(pnp: any, catalog: Record<string, Record<string, string | null>> = {}) {
 	return {
 		getPnp: () => pnp,
-		getCatalogEntry: (idref: string, usage: string, _lang?: string) => {
+		getCatalogEntry: (idref: string, usage: string, _lang?: string, _options?: any) => {
 			return catalog[idref]?.[usage] ?? null;
 		},
 		getComponentRegistry: () => ({
@@ -553,5 +565,39 @@ describe('applyGlossaryTriggers', () => {
 		expect(container.children.length).toBe(2);
 		expect(container.children[0].className).toBe('qti-catalog-term');
 		expect(container.children[1].className).toBe('qti-catalog-term');
+	});
+
+	it('passes stimulus scope when a catalog term is inside a rendered stimulus wrapper', () => {
+		const container = new FakeElement('div') as any;
+		const stimulus = new FakeElement('section') as any;
+		stimulus.setAttribute('data-stimulus-idref', 'passage_1');
+		const term = new FakeElement('span') as any;
+		term.setAttribute('data-catalog-idref', 'term_delta');
+		term.textContent = 'delta';
+		stimulus.appendChild(term);
+		container.appendChild(stimulus);
+		const lookupCalls: any[] = [];
+		const player = {
+			getPnp: () => ({ content: { glossaryOnScreen: true } }),
+			getCatalogEntry: (idref: string, usage: string, lang?: string, options?: any) => {
+				lookupCalls.push({ idref, usage, lang, options });
+				return options?.stimulusIdentifier === 'passage_1' ? 'Stimulus definition' : 'Item definition';
+			},
+			getComponentRegistry: () => ({
+				getTagNameForType: (_type: string) => null,
+			}),
+		} as any;
+
+		applyGlossaryTriggers(container, player);
+		const wrapper = stimulus.children[0];
+		const btn = wrapper.children.find((child: FakeElement) => child.tagName === 'BUTTON');
+		btn!.dispatchEvent(new FakeEvent('click', {}));
+
+		expect(lookupCalls[0]).toEqual({
+			idref: 'term_delta',
+			usage: 'glossary-on-screen',
+			lang: undefined,
+			options: { stimulusIdentifier: 'passage_1' },
+		});
 	});
 });

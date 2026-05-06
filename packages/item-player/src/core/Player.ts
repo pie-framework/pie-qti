@@ -94,6 +94,7 @@ export class Player {
 	private _pnp: PnpProfile | undefined;
 	private _rootEl: HTMLElement | undefined;
 	private _catalogIndex: CatalogIndex = new Map();
+	private _stimulusCatalogIndexes: Map<string, CatalogIndex> = new Map();
 	private _pciHosts: Map<string, PciHost> = new Map();
 	private _pnpChangeListeners = new Set<(pnp: PnpProfile | undefined) => void>();
 	private sessionGuid: string;
@@ -228,10 +229,17 @@ export class Player {
 		this._pnp = config.pnp;
 
 		// Build catalog index from resolved delivery context, legacy shared catalog XML, and item XML.
-		// Shared/context entries are merged first; item-level entries win on collisions.
+		// Item/global entries are merged first; item-level entries win on global collisions.
+		// Stimulus entries are kept separately so rendered stimulus terms can avoid ID collisions.
 		let mergedCatalog: CatalogIndex = new Map();
 		for (const source of config.deliveryContext?.catalogSources ?? []) {
-			mergedCatalog = mergeCatalogs(mergedCatalog, extractCatalog(source.xml));
+			const sourceCatalog = extractCatalog(source.xml);
+			if (source.scope === 'stimulus' && source.stimulusIdentifier) {
+				const existing = this._stimulusCatalogIndexes.get(source.stimulusIdentifier) ?? new Map();
+				this._stimulusCatalogIndexes.set(source.stimulusIdentifier, mergeCatalogs(existing, sourceCatalog));
+			} else {
+				mergedCatalog = mergeCatalogs(mergedCatalog, sourceCatalog);
+			}
 		}
 		if (config.catalogXml) {
 			mergedCatalog = mergeCatalogs(mergedCatalog, extractCatalogFromItemXml(config.catalogXml));
@@ -289,8 +297,16 @@ export class Player {
 	 *
 	 * Language fallback: exact match → prefix match → no-lang entry → null.
 	 */
-	public getCatalogEntry(idref: string, usage: string, lang?: string): string | null {
-		const html = getCatalogEntry(this._catalogIndex, idref, usage, lang);
+	public getCatalogEntry(
+		idref: string,
+		usage: string,
+		lang?: string,
+		options?: { stimulusIdentifier?: string }
+	): string | null {
+		const stimulusHtml = options?.stimulusIdentifier
+			? getCatalogEntry(this._stimulusCatalogIndexes.get(options.stimulusIdentifier) ?? new Map(), idref, usage, lang)
+			: null;
+		const html = stimulusHtml ?? getCatalogEntry(this._catalogIndex, idref, usage, lang);
 		if (html === null) return null;
 		if (looksLikeCatalogUrl(html)) {
 			return sanitizeResourceUrl(html.trim(), this.config.security?.urlPolicy, 'img');

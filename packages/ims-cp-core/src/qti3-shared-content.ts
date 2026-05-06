@@ -29,6 +29,8 @@ export interface ResolvedQtiStylesheetRef extends QtiStylesheetRef {
 	/** Source scope for precedence and diagnostics. */
 	source: 'item' | 'stimulus';
 	stimulusIdentifier?: string;
+	/** Sanitized stylesheet text when the package stylesheet was readable and safe. */
+	cssText?: string;
 }
 
 export interface ResolvedQtiCatalogSource {
@@ -146,7 +148,8 @@ export function createResolvedItemDeliveryContext(
 		extractQtiStylesheets(options.itemXml),
 		itemHref,
 		'item',
-		validationMessages
+		validationMessages,
+		options.readText
 	);
 
 	for (const itemCatalogXml of extractCatalogInfoXml(options.itemXml)) {
@@ -173,6 +176,7 @@ export function createResolvedItemDeliveryContext(
 			resolvedHref,
 			'stimulus',
 			validationMessages,
+			options.readText,
 			ref.identifier
 		);
 		const catalogSource = parsed.catalogInfoXml
@@ -279,6 +283,7 @@ function resolveStylesheetRefs(
 	baseHref: string,
 	source: 'item' | 'stimulus',
 	validationMessages: string[],
+	readText?: ResolveItemDeliveryContextOptions['readText'],
 	stimulusIdentifier?: string
 ): ResolvedQtiStylesheetRef[] {
 	const resolved: ResolvedQtiStylesheetRef[] = [];
@@ -290,14 +295,29 @@ function resolveStylesheetRefs(
 			`${source === 'item' ? 'Item' : `Stimulus ${stimulusIdentifier ?? ''}`} stylesheet`
 		);
 		if (!resolvedHref) continue;
+		const cssText = readText ? readText(resolvedHref) : undefined;
+		const safeCssText = cssText === undefined || cssText === null
+			? undefined
+			: sanitizeStylesheetCss(cssText, validationMessages, resolvedHref);
 		resolved.push({
 			...style,
 			resolvedHref,
 			source,
 			stimulusIdentifier,
+			...(safeCssText ? { cssText: safeCssText } : {}),
 		});
 	}
 	return resolved;
+}
+
+function sanitizeStylesheetCss(css: string, validationMessages: string[], resolvedHref: string): string | null {
+	if (!css.trim()) return '';
+	const blockedPattern = /@import\b|url\s*\(|<\/style|expression\s*\(|javascript\s*:|vbscript\s*:|data\s*:/i;
+	if (blockedPattern.test(css)) {
+		validationMessages.push(`Stylesheet blocked by policy: ${resolvedHref}.`);
+		return null;
+	}
+	return css;
 }
 
 function isPackageRelativeHref(href: string): boolean {

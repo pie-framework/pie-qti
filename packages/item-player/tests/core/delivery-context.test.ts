@@ -44,6 +44,48 @@ describe('resolved item delivery context', () => {
 		expect(player.getCatalogEntry('term_delta', 'glossary-on-screen')).toBe('Item-local definition');
 	});
 
+	test('resolves stimulus-scoped catalog entries before item entries for stimulus terms', () => {
+		const itemXml = `<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="item-1">
+  <qti-item-body>
+    <p data-catalog-idref="term_delta">delta</p>
+  </qti-item-body>
+  <qti-catalog-info>
+    <qti-card identifier="term_delta">
+      <qti-card-entry usage="glossary-on-screen">
+        <qti-html-content>Item-local definition</qti-html-content>
+      </qti-card-entry>
+    </qti-card>
+  </qti-catalog-info>
+</qti-assessment-item>`;
+		const deliveryContext: ResolvedItemDeliveryContext = {
+			itemHref: 'items/item.xml',
+			stimuli: {},
+			stylesheets: [],
+			catalogSources: [
+				{
+					scope: 'stimulus',
+					baseHref: 'stimuli/passage.xml',
+					stimulusIdentifier: 'passage_1',
+					xml: `<qti-catalog-info>
+  <qti-card identifier="term_delta">
+    <qti-card-entry usage="glossary-on-screen">
+      <qti-html-content>Stimulus definition</qti-html-content>
+    </qti-card-entry>
+  </qti-card>
+</qti-catalog-info>`,
+				},
+			],
+			validationMessages: [],
+		};
+
+		const player = new Player({ itemXml, deliveryContext });
+
+		expect(player.getCatalogEntry('term_delta', 'glossary-on-screen')).toBe('Item-local definition');
+		expect(player.getCatalogEntry('term_delta', 'glossary-on-screen', undefined, { stimulusIdentifier: 'passage_1' })).toBe(
+			'Stimulus definition'
+		);
+	});
+
 	test('exposes resolved stimulus body content to item rendering callers', () => {
 		const deliveryContext: ResolvedItemDeliveryContext = {
 			itemHref: 'items/item.xml',
