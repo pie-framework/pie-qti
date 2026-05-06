@@ -227,9 +227,22 @@ export function resolveRelativePath(baseHref: string, relativePath: string): str
 	for (const part of combined.split('/')) {
 		if (!part || part === '.') continue;
 		if (part === '..') {
-			if (resolved.length === 0) {
-				throw new Error(`Path escapes package root: ${relativePath}`);
-			}
+			if (resolved.length > 0) resolved.pop();
+		} else {
+			resolved.push(part);
+		}
+	}
+	return resolved.join('/');
+}
+
+function resolveCheckedRelativePath(baseHref: string, relativePath: string): string | null {
+	const baseDir = baseHref.includes('/') ? baseHref.substring(0, baseHref.lastIndexOf('/') + 1) : '';
+	const combined = baseDir + relativePath;
+	const resolved: string[] = [];
+	for (const part of combined.split('/')) {
+		if (!part || part === '.') continue;
+		if (part === '..') {
+			if (resolved.length === 0) return null;
 			resolved.pop();
 		} else {
 			resolved.push(part);
@@ -238,11 +251,9 @@ export function resolveRelativePath(baseHref: string, relativePath: string): str
 	return resolved.join('/');
 }
 
-function resolvePackagePath(baseHref: string, href: string): string {
-	if (/^(https?:|data:|blob:|\/)/i.test(href)) {
-		return href;
-	}
-	return resolveRelativePath(baseHref, href);
+function resolveCheckedPackagePath(baseHref: string, href: string): string | null {
+	if (!isPackageRelativeHref(href)) return null;
+	return resolveCheckedRelativePath(baseHref, href);
 }
 
 function resolvePackageHref(
@@ -255,12 +266,12 @@ function resolvePackageHref(
 		validationMessages.push(`${label} href is not a package-relative path: ${href}.`);
 		return null;
 	}
-	try {
-		return resolvePackagePath(baseHref, href);
-	} catch (error) {
+	const resolved = resolveCheckedPackagePath(baseHref, href);
+	if (!resolved) {
 		validationMessages.push(`${label} href escapes the package root: ${href}.`);
 		return null;
 	}
+	return resolved;
 }
 
 function resolveStylesheetRefs(
@@ -306,27 +317,47 @@ function rewriteHtmlAssetRefs(
 	});
 	const wrapper = root.querySelector('root') ?? root;
 	for (const el of findElements(wrapper, new Set(['img', 'audio', 'video', 'source', 'track', 'object', 'embed', 'a']))) {
-		for (const attr of ['src', 'href', 'data']) {
+		for (const attr of ['src', 'href', 'data', 'poster']) {
 			const raw = readAttr(el, attr);
-			if (!raw || /^(https?:|data:|blob:|mailto:|#|\/)/i.test(raw)) continue;
-			if (!isPackageRelativeHref(raw)) {
-				el.removeAttribute(attr);
-				continue;
-			}
-			let resolvedPath: string;
-			try {
-				resolvedPath = resolvePackagePath(baseHref, raw);
-			} catch {
+			if (!raw || raw.trim().startsWith('#')) continue;
+			const resolvedPath = resolveCheckedPackagePath(baseHref, raw);
+			if (!resolvedPath) {
 				el.removeAttribute(attr);
 				continue;
 			}
 			const resolvedUrl = resolveAssetUrl(resolvedPath);
 			if (resolvedUrl) {
 				el.setAttribute(attr, resolvedUrl);
+			} else {
+				el.removeAttribute(attr);
 			}
+		}
+		const srcset = readAttr(el, 'srcset');
+		if (srcset) {
+			const rewritten = rewriteSrcset(srcset, baseHref, resolveAssetUrl);
+			if (rewritten) el.setAttribute('srcset', rewritten);
+			else el.removeAttribute('srcset');
 		}
 	}
 	return serializeChildren(wrapper);
+}
+
+function rewriteSrcset(
+	value: string,
+	baseHref: string,
+	resolveAssetUrl: NonNullable<ResolveItemDeliveryContextOptions['resolveAssetUrl']>
+): string | null {
+	const rewritten: string[] = [];
+	for (const candidate of value.split(',').map((part) => part.trim()).filter(Boolean)) {
+		const [rawUrl, ...descriptors] = candidate.split(/\s+/).filter(Boolean);
+		if (!rawUrl) return null;
+		const resolvedPath = resolveCheckedPackagePath(baseHref, rawUrl);
+		if (!resolvedPath) return null;
+		const resolvedUrl = resolveAssetUrl(resolvedPath);
+		if (!resolvedUrl) return null;
+		rewritten.push([resolvedUrl, ...descriptors].join(' '));
+	}
+	return rewritten.length > 0 ? rewritten.join(', ') : null;
 }
 
 function resolveCatalogFileHrefs(xml: string, baseHref: string): string {
@@ -337,20 +368,30 @@ function resolveCatalogFileHrefs(xml: string, baseHref: string): string {
 	});
 	const wrapper = root.querySelector('root') ?? root;
 	for (const fileHref of findElements(wrapper, new Set(['filehref']))) {
-		const src = readAttr(fileHref, 'src');
-		if (src && !/^(https?:|data:|blob:|\/)/i.test(src)) {
-			if (!isPackageRelativeHref(src)) {
-				fileHref.removeAttribute('src');
-				continue;
-			}
-			try {
-				fileHref.setAttribute('src', resolvePackagePath(baseHref, src));
-			} catch {
-				fileHref.removeAttribute('src');
-			}
+		const raw = readAttr(fileHref, 'src') ?? fileHref.text?.trim() ?? '';
+		const resolvedPath = resolveCheckedPackagePath(baseHref, raw);
+		if (resolvedPath) {
+			fileHref.setAttribute('src', resolvedPath);
+		} else {
+			fileHref.removeAttribute('src');
 		}
+		clearElementContent(fileHref);
 	}
 	return serializeChildren(wrapper);
+}
+
+function clearElementContent(el: HTMLElement): void {
+	const mutable = el as HTMLElement & {
+		set_content?: (content: string) => void;
+		innerHTML?: string;
+		textContent?: string;
+	};
+	if (typeof mutable.set_content === 'function') {
+		mutable.set_content('');
+		return;
+	}
+	mutable.innerHTML = '';
+	mutable.textContent = '';
 }
 
 function parseXml(xml: string): HTMLElement {

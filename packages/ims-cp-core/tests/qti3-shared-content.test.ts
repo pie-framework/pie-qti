@@ -12,8 +12,9 @@ import {
 describe('QTI 3 shared content parsing', () => {
 	test('extracts qti-assessment-stimulus-ref values with QTI 3 attributes', () => {
 		const itemXml = `<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="item-1">
+  <qti-assessment-stimulus-ref identifier="passage_1" href="../stimuli/passage.xml" title="River passage"/>
   <qti-item-body>
-    <qti-assessment-stimulus-ref identifier="passage_1" href="../stimuli/passage.xml" title="River passage"/>
+    <p>Question body.</p>
   </qti-item-body>
 </qti-assessment-item>`;
 
@@ -78,10 +79,8 @@ describe('QTI 3 shared content parsing', () => {
 		expect(resolveRelativePath('items/unit/item.xml', '../../shared/passage.xml')).toBe('shared/passage.xml');
 	});
 
-	test('rejects paths that escape the package root', () => {
-		expect(() => resolveRelativePath('items/unit/item.xml', '../../../outside.xml')).toThrow(
-			'Path escapes package root'
-		);
+	test('keeps exported relative path resolution non-throwing for legacy callers', () => {
+		expect(resolveRelativePath('items/unit/item.xml', '../../../outside.xml')).toBe('outside.xml');
 	});
 
 	test('creates a resolved item delivery context without package traversal', () => {
@@ -89,8 +88,9 @@ describe('QTI 3 shared content parsing', () => {
 		// stimulus/package-relative resolution without official conformance assets.
 		const itemXml = `<qti-assessment-item identifier="item-1">
   <qti-stylesheet href="item.css"/>
+  <qti-assessment-stimulus-ref identifier="passage_1" href="../stimuli/passage.xml" title="River passage"/>
   <qti-item-body>
-    <qti-assessment-stimulus-ref identifier="passage_1" href="../stimuli/passage.xml" title="River passage"/>
+    <p>Question body.</p>
   </qti-item-body>
   <qti-catalog-info>
     <qti-card identifier="term_delta" support="glossary-on-screen">
@@ -131,9 +131,10 @@ describe('QTI 3 shared content parsing', () => {
 		const itemXml = `<qti-assessment-item identifier="item-1">
   <qti-stylesheet href="javascript:alert"/>
   <qti-stylesheet href="../../../outside.css"/>
+  <qti-assessment-stimulus-ref identifier="remote" href="https://example.test/passage.xml"/>
+  <qti-assessment-stimulus-ref identifier="escape" href="../../../outside.xml"/>
   <qti-item-body>
-    <qti-assessment-stimulus-ref identifier="remote" href="https://example.test/passage.xml"/>
-    <qti-assessment-stimulus-ref identifier="escape" href="../../../outside.xml"/>
+    <p>Question body.</p>
   </qti-item-body>
 </qti-assessment-item>`;
 
@@ -153,20 +154,28 @@ describe('QTI 3 shared content parsing', () => {
 
 	test('removes unsafe relative asset and catalog file references during context resolution', () => {
 		const itemXml = `<qti-assessment-item identifier="item-1">
+  <qti-assessment-stimulus-ref identifier="passage_1" href="../stimuli/passage.xml"/>
   <qti-item-body>
-    <qti-assessment-stimulus-ref identifier="passage_1" href="../stimuli/passage.xml"/>
+    <p>Question body.</p>
   </qti-item-body>
   <qti-catalog-info>
     <qti-card identifier="term_1">
       <qti-card-entry usage="illustrated-glossary">
         <qti-file-href src="../../../private.png"/>
       </qti-card-entry>
+      <qti-card-entry usage="audio-description">
+        <qti-file-href>/private-audio.mp3</qti-file-href>
+      </qti-card-entry>
     </qti-card>
   </qti-catalog-info>
 </qti-assessment-item>`;
 		const stimulusXml = `<qti-assessment-stimulus identifier="passage_1">
   <qti-stimulus-body>
-    <p><img src="../../../private.png"/> Shared passage.</p>
+    <p>
+      <img src="../../../private.png" srcset="images/river-small.png 1x, https://evil.example/river.png 2x"/>
+      <video poster="/poster.png"><source src="https://evil.example/video.mp4"/></video>
+      Shared passage.
+    </p>
   </qti-stimulus-body>
 </qti-assessment-stimulus>`;
 
@@ -178,6 +187,11 @@ describe('QTI 3 shared content parsing', () => {
 		});
 
 		expect(context.stimuli.passage_1.bodyHtml).not.toContain('private.png');
+		expect(context.stimuli.passage_1.bodyHtml).not.toContain('evil.example');
+		expect(context.stimuli.passage_1.bodyHtml).not.toContain('/poster.png');
+		expect(context.stimuli.passage_1.bodyHtml).not.toContain('srcset=');
 		expect(context.catalogSources[0].xml).not.toContain('private.png');
+		expect(context.catalogSources[0].xml).not.toContain('/private-audio.mp3');
+		expect(context.catalogSources[0].xml).not.toContain('private-audio');
 	});
 });

@@ -36,24 +36,25 @@ export function injectStimulusContent(itemBodyHtml: string, stimulusContent: Rec
 
 	const docked = new Set<string>();
 	let html = itemBodyHtml.replace(
-		/<qti-assessment-stimulus-ref\b([^>]*)\/?>\s*(?:<\/qti-assessment-stimulus-ref>)?/gi,
-		(match, attrs) => {
-			const identifier = extractAttribute(attrs, 'identifier');
-			if (!identifier) return match;
-			const content = stimulusContent[identifier];
-			if (!content) return match;
-			docked.add(identifier);
-			return `<div data-stimulus-idref="${escapeHtmlAttribute(identifier)}" class="qti-stimulus-dock">${content}</div>`;
-		}
-	);
-
-	html = html.replace(
 		/<([a-z][\w:-]*)([^>]*\bdata-stimulus-idref=(["'])([^"']+)\3[^>]*)>\s*<\/\1>/gi,
 		(match, tagName, attrs, _quote, identifier) => {
 			const content = stimulusContent[identifier];
 			if (!content) return match;
 			docked.add(identifier);
 			return `<${tagName}${mergeClassAttribute(attrs, 'qti-stimulus-dock')}>${content}</${tagName}>`;
+		}
+	);
+
+	html = html.replace(
+		/<qti-assessment-stimulus-ref\b([^>]*)\/?>\s*(?:<\/qti-assessment-stimulus-ref>)?/gi,
+		(match, attrs) => {
+			const identifier = extractAttribute(attrs, 'identifier');
+			if (!identifier) return match;
+			if (docked.has(identifier)) return '';
+			const content = stimulusContent[identifier];
+			if (!content) return match;
+			docked.add(identifier);
+			return `<div data-stimulus-idref="${escapeHtmlAttribute(identifier)}" class="qti-stimulus-dock">${content}</div>`;
 		}
 	);
 
