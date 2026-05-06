@@ -22,6 +22,8 @@
 	import * as PanelResize from './lib/panel-resize';
 	import { loadSessionFromServer, saveSessionToServer } from './lib/session-api';
 	import type { DemoResponseMap, DemoResponseValue, SessionData } from './lib/types';
+	import QtiDiagnosticsPanel from '$lib/components/QtiDiagnosticsPanel.svelte';
+	import { analyzeQtiItemCompatibility, type QtiCompatibilityReport } from '$lib/qti-diagnostics';
 
 	// Get i18n provider from context (set in root layout)
 	const i18nContext = getContext<{ value: SvelteI18nProvider | null }>('i18n');
@@ -40,6 +42,7 @@
 	let isSubmitting = $state(false);
 	let selectedRole = $state<QTIRole>('candidate');
 	let rubrics = $state<RubricBlock[]>([]);
+	let diagnostics = $state<QtiCompatibilityReport | null>(null);
 	let templateVariables = $derived(player ? player.getTemplateVariables() : {});
 	let hasLoadedCustomUpload = false; // Track if we've loaded a custom upload in this effect cycle
 
@@ -64,6 +67,7 @@
 			if (!xml.trim()) {
 				player = null;
 				responses = {};
+				diagnostics = null;
 				return;
 			}
 
@@ -78,6 +82,7 @@
 
 			player = newPlayer;
 			rubrics = player.getRubrics();
+			diagnostics = analyzeQtiItemCompatibility(xml, { player: newPlayer });
 
 			// Initialize responses for response interactions (delegated to Player APIs)
 			const interactions = newPlayer.getResponseInteractions();
@@ -91,6 +96,7 @@
 		} catch (err: any) {
 			player = null;
 			responses = {};
+			diagnostics = analyzeQtiItemCompatibility(xml);
 			errorMessage = err.message;
 		}
 	}
@@ -462,6 +468,8 @@
 					<span>{errorMessage}</span>
 				</div>
 			{/if}
+
+			<QtiDiagnosticsPanel report={diagnostics} />
 
 			{#if player && !errorMessage}
 				<QuestionPanel

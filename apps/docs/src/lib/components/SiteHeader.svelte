@@ -1,10 +1,9 @@
 <script lang="ts">
-	import { dev } from '$app/environment';
 	import { base } from '$app/paths';
 
 	// Note: docs-site is prerendered; avoid creating an internal prerender-crawled link to /examples
 	// (that path is served by a separate app, merged into the final Pages artifact).
-	const examplesHref = `${base}/examples/`;
+	const examplesHref = 'https://qti.pie-framework.org/examples/';
 </script>
 
 <header class="border-b border-base-200 bg-base-100/80 backdrop-blur">

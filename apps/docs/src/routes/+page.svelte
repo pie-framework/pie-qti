@@ -1,10 +1,9 @@
 <script lang="ts">
-	import { dev } from '$app/environment';
 	import { base } from '$app/paths';
 
 	// Note: docs-site is prerendered; avoid creating an internal prerender-crawled link to /examples
 	// (that path is served by a separate app, merged into the final Pages artifact).
-	const examplesHref = `${base}/examples/`;
+	const examplesHref = 'https://qti.pie-framework.org/examples/';
 </script>
 
 <svelte:head>
@@ -86,6 +85,59 @@
 					<p class="mt-3 text-sm opacity-70">
 						Try the item demo (all interactions) or the assessment demo (navigation, sections, scoring).
 					</p>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<section class="py-10">
+		<div class="card bg-base-100 shadow">
+			<div class="card-body">
+				<div class="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+					<div class="max-w-2xl">
+						<p class="text-xs uppercase tracking-wide opacity-60">Quickstart</p>
+						<h2 class="card-title text-2xl">Load, inspect, and verify QTI content</h2>
+						<p class="mt-3 opacity-80">
+							Start with the examples app: paste a single item into the item demo, upload an IMS content
+							package in the package browser, then use compatibility diagnostics to see the detected
+							QTI version, interactions, response variables, asset references, and public certification
+							coverage.
+						</p>
+					</div>
+					<div class="flex flex-wrap gap-3">
+						<a class="btn btn-primary" href={`${examplesHref}item-demo`} data-sveltekit-reload rel="noreferrer">
+							Item Demo
+						</a>
+						<a class="btn btn-outline" href={`${examplesHref}package-upload`} data-sveltekit-reload rel="noreferrer">
+							Package Upload
+						</a>
+					</div>
+				</div>
+
+				<div class="divider"></div>
+
+				<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+					<div class="rounded-box bg-base-200 p-4">
+						<h3 class="font-semibold">1. Render</h3>
+						<p class="mt-2 text-sm opacity-75">
+							`@pie-qti/item-player` parses the XML, maps QTI 2.x/3.0 names, extracts interactions, and
+							renders through standard components.
+						</p>
+					</div>
+					<div class="rounded-box bg-base-200 p-4">
+						<h3 class="font-semibold">2. Score</h3>
+						<p class="mt-2 text-sm opacity-75">
+							`@pie-qti/qti-processing` builds response, outcome, and template processing into a shared
+							AST that runs in browser or server contexts.
+						</p>
+					</div>
+					<div class="rounded-box bg-base-200 p-4">
+						<h3 class="font-semibold">3. Package</h3>
+						<p class="mt-2 text-sm opacity-75">
+							IMS content package helpers open ZIPs, resolve manifests, list tests/items/assets, and keep
+							public workflows clean-room friendly.
+						</p>
+					</div>
 				</div>
 			</div>
 		</div>

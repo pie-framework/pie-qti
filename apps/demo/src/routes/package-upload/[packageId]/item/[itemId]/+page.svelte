@@ -12,10 +12,12 @@
 	import { typesetAction } from '@pie-qti/default-components/shared';
 	import { typesetMathInElement } from '@pie-qti/typeset-katex';
 	import type { SvelteI18nProvider } from '@pie-qti/i18n';
-	import { loadPackageDataAsync, getItemXml, resolveImagesInXml, extractStimulusRefsFromItemXml, loadStimulusContent } from '$lib/package-processor';
+	import { loadPackageDataAsync, getItemXml, resolveImagesInXml, extractStimulusRefsFromItemXml, loadStimulusContent, listFiles } from '$lib/package-processor';
 	import type { PackageStructure } from '$lib/package-processor';
 	import { getSecurityConfig } from '$lib/player-config';
 	import XmlEditor from '$lib/components/XmlEditor.svelte';
+	import QtiDiagnosticsPanel from '$lib/components/QtiDiagnosticsPanel.svelte';
+	import { analyzeQtiItemCompatibility, type QtiCompatibilityReport } from '$lib/qti-diagnostics';
 
 	/**
 	 * Default outcome identifier for feedback display
@@ -54,6 +56,7 @@
 	let responses = $state<ItemResponseMap>({});
 	let outcomeValues = $state<Record<string, any>>({});
 	let stimulusContent = $state<Record<string, string>>({});
+	let diagnostics = $state<QtiCompatibilityReport | null>(null);
 
 	// Get i18n provider from context
 	const i18nContext = getContext<{ value: SvelteI18nProvider | null }>('i18n');
@@ -75,6 +78,7 @@
 		responses = {};
 		outcomeValues = {};
 		stimulusContent = {};
+		diagnostics = null;
 
 		// Load item asynchronously
 		(async () => {
@@ -110,13 +114,19 @@
 					throw new Error('Package data not loaded');
 				}
 
-				itemXml = getItemXml(packageData, urlItemId);
-				if (!itemXml) {
+				const currentItem2 = packageData.items.find((item) => item.identifier === urlItemId);
+				const rawItemXml = getItemXml(packageData, urlItemId);
+				if (!rawItemXml) {
 					throw new Error(`Item ${urlItemId} not found in package`);
 				}
 
+				diagnostics = analyzeQtiItemCompatibility(rawItemXml, {
+					sourcePath: currentItem2?.href,
+					packageFiles: listFiles(packageData).map((file) => file.path),
+				});
+				itemXml = rawItemXml;
+
 				// Resolve image paths from ZIP assets to inline data URLs
-				const currentItem2 = packageData.items.find((item) => item.identifier === urlItemId);
 				if (currentItem2?.href) {
 					itemXml = await resolveImagesInXml(itemXml, packageData, currentItem2.href);
 				}
@@ -146,6 +156,11 @@
 
 				// Register default components
 				registerDefaultComponents(player.getComponentRegistry());
+				diagnostics = analyzeQtiItemCompatibility(rawItemXml, {
+					player,
+					sourcePath: currentItem2?.href,
+					packageFiles: listFiles(packageData).map((file) => file.path),
+				});
 			} catch (err) {
 				error = err instanceof Error ? err.message : 'Failed to load item';
 				console.error('Error loading item:', err);
@@ -300,6 +315,8 @@
 			<p class="text-base-content/70">Loading item...</p>
 		</div>
 	{:else if player && itemXml}
+		<QtiDiagnosticsPanel report={diagnostics} />
+
 		<!-- QTI Item Player -->
 		<div class="card bg-base-100 shadow-xl" use:typesetAction={{ typeset: (el) => typesetMathInElement(el) }}>
 			<div class="card-body">
