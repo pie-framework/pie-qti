@@ -21,6 +21,8 @@
 			"cwd": ".",
 			"args": [
 				"test",
+				"--preload",
+				"./packages/assessment-player/tests/setup.ts",
 				"packages/assessment-player/tests/conformance-qti22-basic.test.ts",
 				"packages/assessment-player/tests/conformance-qti22-advanced.test.ts",
 				"packages/assessment-player/tests/conformance-qti30-advanced.test.ts"
