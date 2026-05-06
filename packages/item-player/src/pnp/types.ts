@@ -39,13 +39,7 @@ export interface PnpProfile {
 		/** Show illustrated glossary supports when catalog entries provide them. */
 		illustratedGlossary?: boolean;
 		/** Enable user-initiated host-routed catalog supports. */
-		catalogSupports?: {
-			ttsPronunciation?: boolean;
-			signingDefinition?: boolean;
-			brailleText?: boolean;
-			audioDescription?: boolean;
-			extendedDescription?: boolean;
-		};
+		catalogSupports?: CatalogSupportPreferences;
 		/**
 		 * Scale assessment time limits. multiplier: 1.5 means 50% extra time.
 		 * multiplier: Infinity removes the time limit entirely.
@@ -56,4 +50,26 @@ export interface PnpProfile {
 		/** Render per-choice elimination toggle buttons in choiceInteraction and orderInteraction. */
 		eliminationTool?: boolean;
 	};
+}
+
+export interface CatalogSupportPreferences {
+	ttsPronunciation?: CatalogSupportPreference;
+	signingDefinition?: CatalogSupportPreference;
+	brailleText?: CatalogSupportPreference;
+	audioDescription?: CatalogSupportPreference;
+	extendedDescription?: CatalogSupportPreference;
+	/**
+	 * Host-defined catalog usage names. Use QTI/catalog usage strings such as
+	 * "custom-audio" rather than DOM event names or implementation-specific APIs.
+	 */
+	[usage: string]: CatalogSupportPreference | undefined;
+}
+
+export type CatalogSupportPreference = boolean | CatalogSupportPreferenceOptions;
+
+export interface CatalogSupportPreferenceOptions {
+	/** Defaults to true when omitted. */
+	active?: boolean;
+	/** Preferred catalog entry language for this support, such as "en-US" or "es". */
+	languageCode?: string;
 }

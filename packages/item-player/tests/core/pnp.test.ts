@@ -123,6 +123,30 @@ describe('parsePnpXml', () => {
 		});
 	});
 
+	it('parses generic host-defined catalog support usage names', () => {
+		const profile = parsePnpXml(`
+			<personalNeedsProfile>
+				<content>
+					<catalogSupport usage="custom-audio" enabled="true" languageCode="es"/>
+					<catalog-support usage="signing-definition" enabled="false"/>
+				</content>
+			</personalNeedsProfile>
+		`);
+		expect(profile.content?.catalogSupports?.['custom-audio']).toEqual({ active: true, languageCode: 'es' });
+		expect(profile.content?.catalogSupports?.signingDefinition).toBe(false);
+	});
+
+	it('ignores unsafe generic catalog support usage names', () => {
+		const profile = parsePnpXml(`
+			<personalNeedsProfile>
+				<content>
+					<catalogSupport usage="javascript:alert" enabled="true"/>
+				</content>
+			</personalNeedsProfile>
+		`);
+		expect(profile.content?.catalogSupports).toBeUndefined();
+	});
+
 	it('parses access-for-all illustrated glossary aliases', () => {
 		const profile = parsePnpXml(`
 			<personalNeedsProfile>

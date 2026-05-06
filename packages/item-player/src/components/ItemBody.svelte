@@ -12,6 +12,7 @@
 	import { typesetAction } from './actions/typesetAction';
 	import { glossaryAction } from '../catalog/glossaryAction';
 	import { assignProps } from './utils/assignProps';
+	import { buildEffectiveStimulusContent, injectStimulusContent } from './utils/stimulusRender';
 	import { getRoleCapabilities } from '../core/rolePolicy';
 	import InlineChoice from '../interactions/inline-choice/InlineChoice.svelte';
 	import InlineTextEntry from '../interactions/text-entry/InlineTextEntry.svelte';
@@ -97,57 +98,13 @@
 	const itemBodyHtml = $derived.by(() => {
 		let html = player.getItemBodyHtml();
 		const resolvedDeliveryContext = deliveryContext ?? player.getDeliveryContext();
-		const resolvedStimulusContent = Object.fromEntries(
-			Object.entries(resolvedDeliveryContext?.stimuli ?? {}).map(([identifier, stimulus]) => [
-				identifier,
-				player.sanitizeHtmlContent(stimulus.bodyHtml),
-			])
+		const effectiveStimulusContent = buildEffectiveStimulusContent(
+			resolvedDeliveryContext,
+			stimulusContent,
+			(content) => player.sanitizeHtmlContent(content)
 		);
-		const explicitStimulusContent = Object.fromEntries(
-			Object.entries(stimulusContent).map(([identifier, content]) => [
-				identifier,
-				player.sanitizeHtmlContent(content),
-			])
-		);
-		const effectiveStimulusContent = { ...resolvedStimulusContent, ...explicitStimulusContent };
 
-		// QTI 3.0 Shared Stimulus: inject stimulus HTML at data-stimulus-idref docking points.
-		// Any stimulus identifier that has no docking div is prepended to the body.
-		if (Object.keys(effectiveStimulusContent).length > 0) {
-			const docked = new Set<string>();
-			html = html.replace(
-				/<qti-assessment-stimulus-ref\b([^>]*)\/?>\s*(?:<\/qti-assessment-stimulus-ref>)?/gi,
-				(match, attrs) => {
-					const identifier = extractAttribute(attrs, 'identifier');
-					if (!identifier) return match;
-					const content = effectiveStimulusContent[identifier];
-					if (!content) return match;
-					docked.add(identifier);
-					return `<div data-stimulus-idref="${escapeHtmlAttribute(identifier)}" class="qti-stimulus-dock">${content}</div>`;
-				}
-			);
-			// Replace docking divs: <div ... data-stimulus-idref="ID" ...></div>
-			html = html.replace(
-				/<div([^>]*)\bdata-stimulus-idref="([^"]+)"([^>]*)>\s*<\/div>/gi,
-				(match, before, identifier, after) => {
-					const content = effectiveStimulusContent[identifier];
-					if (content) {
-						docked.add(identifier);
-						// Preserve any other attributes on the docking div
-						return `<div${before} data-stimulus-idref="${identifier}"${after} class="qti-stimulus-dock">${content}</div>`;
-					}
-					return match; // no content found — leave as-is
-				}
-			);
-			// Prepend any stimuli that had no docking div
-			const undocked = Object.entries(effectiveStimulusContent)
-				.filter(([id]) => !docked.has(id))
-				.map(([, content]) => `<div class="qti-stimulus-block">${content}</div>`)
-				.join('');
-			if (undocked) {
-				html = undocked + html;
-			}
-		}
+		html = injectStimulusContent(html, effectiveStimulusContent);
 
 		// Process feedbackInline elements - conditionally show/hide based on outcome values
 		html = processFeedbackInline(html, {
@@ -183,19 +140,6 @@
 
 	function handleResponseChange(responseId: string, value: ItemResponseValue) {
 		onResponseChange(responseId, value);
-	}
-
-	function extractAttribute(attrs: string, name: string): string | null {
-		const match = attrs.match(new RegExp(`\\b${name}\\s*=\\s*["']([^"']+)["']`, 'i'));
-		return match?.[1] ?? null;
-	}
-
-	function escapeHtmlAttribute(value: string): string {
-		return value
-			.replace(/&/g, '&amp;')
-			.replace(/"/g, '&quot;')
-			.replace(/</g, '&lt;')
-			.replace(/>/g, '&gt;');
 	}
 
 	// Handle qti:change events from web components

@@ -1,4 +1,5 @@
 import type { Player } from '../core/Player.js';
+import type { CatalogSupportPreference } from '../pnp/types.js';
 
 const PLATFORM_USAGES = [
 	{ usage: 'tts-pronunciation', flag: 'ttsPronunciation', label: 'Request pronunciation', text: 'P' },
@@ -8,6 +9,21 @@ const PLATFORM_USAGES = [
 	{ usage: 'extended-description', flag: 'extendedDescription', label: 'Request extended description', text: 'D' },
 ] as const;
 const ILLUSTRATED_GLOSSARY_USAGE = 'illustrated-glossary';
+const BUILT_IN_POPUP_USAGES = new Set<string>([
+	'glossary-on-screen',
+	'keyword-translation',
+	ILLUSTRATED_GLOSSARY_USAGE,
+]);
+const RESERVED_PLATFORM_FLAGS = new Set<string>(PLATFORM_USAGES.map((support) => support.flag));
+const RESERVED_PLATFORM_USAGES = new Set<string>(PLATFORM_USAGES.map((support) => support.usage));
+const SAFE_CATALOG_USAGE = /^[a-z][a-z0-9._-]*$/;
+
+interface HostCatalogSupport {
+	usage: string;
+	label: string;
+	text: string;
+	languageCode?: string;
+}
 
 /**
  * Inject glossary/keyword-translation trigger buttons into a rendered item container.
@@ -31,9 +47,10 @@ export function applyGlossaryTriggers(container: HTMLElement, player: Player): (
 	const kwOn = kwTranslation?.active === true && !!kwTranslation.languageCode;
 	const illustratedOn = pnp.content?.illustratedGlossary === true;
 	const platformSupports = pnp.content?.catalogSupports ?? {};
+	const hostSupports = getHostCatalogSupports(platformSupports);
 
-	const anyPlatformOn = PLATFORM_USAGES.some((support) => platformSupports[support.flag] === true);
-	if (!glossaryOn && !kwOn && !illustratedOn && !anyPlatformOn) return () => cleanupGlossaryTriggers(container);
+	const anyPlatformOn = PLATFORM_USAGES.some((support) => isSupportActive(getPlatformSupportPreference(platformSupports, support)));
+	if (!glossaryOn && !kwOn && !illustratedOn && !anyPlatformOn && hostSupports.length === 0) return () => cleanupGlossaryTriggers(container);
 
 	const terms = container.querySelectorAll<HTMLElement>('[data-catalog-idref]');
 	if (terms.length === 0) return () => cleanupGlossaryTriggers(container);
@@ -112,20 +129,16 @@ export function applyGlossaryTriggers(container: HTMLElement, player: Player): (
 		}
 
 		for (const support of PLATFORM_USAGES) {
-			if (platformSupports[support.flag] !== true) continue;
-			const html = player.getCatalogEntry(idref, support.usage);
-			if (html === null) continue;
-			const btn = createTriggerButton(termEl.textContent ?? idref, support.usage, support.label, support.text);
-			wrapper.appendChild(btn);
-			btn.addEventListener('click', () => {
-				btn.dispatchEvent(
-					new CustomEvent('qti-catalog-lookup', {
-						bubbles: true,
-						composed: true,
-						detail: { idref, usage: support.usage, languageCode: kwTranslation?.languageCode },
-					})
-				);
-			});
+			const preference = getPlatformSupportPreference(platformSupports, support);
+			if (!isSupportActive(preference)) continue;
+			addHostCatalogSupportButton(wrapper, termEl, idref, {
+				...support,
+				languageCode: getSupportLanguageCode(preference),
+			}, player);
+		}
+
+		for (const support of hostSupports) {
+			addHostCatalogSupportButton(wrapper, termEl, idref, support, player);
 		}
 	}
 
@@ -155,6 +168,70 @@ function createTriggerButton(termText: string, usage: string, labelPrefix: strin
 	btn.setAttribute('data-catalog-usage', usage);
 	btn.textContent = text ?? (usage === 'keyword-translation' ? 'T' : usage === ILLUSTRATED_GLOSSARY_USAGE ? 'I' : '?');
 	return btn;
+}
+
+function addHostCatalogSupportButton(
+	wrapper: HTMLElement,
+	termEl: HTMLElement,
+	idref: string,
+	support: HostCatalogSupport,
+	player: Player
+): void {
+	const html = player.getCatalogEntry(idref, support.usage, support.languageCode);
+	if (html === null) return;
+	const btn = createTriggerButton(termEl.textContent ?? idref, support.usage, support.label, support.text);
+	wrapper.appendChild(btn);
+	btn.addEventListener('click', () => {
+		btn.dispatchEvent(
+			new CustomEvent('qti-catalog-lookup', {
+				bubbles: true,
+				composed: true,
+				detail: { idref, usage: support.usage, html, content: html, languageCode: support.languageCode },
+			})
+		);
+	});
+}
+
+function getHostCatalogSupports(platformSupports: Record<string, CatalogSupportPreference | undefined>): HostCatalogSupport[] {
+	return Object.entries(platformSupports)
+		.map(([usage, preference]) => ({ usage: normalizeCatalogUsage(usage), preference }))
+		.filter(({ usage, preference }) => usage !== null && isSupportActive(preference) && !isReservedCatalogUsage(usage))
+		.map(({ usage, preference }) => ({
+			usage: usage!,
+			label: `Request ${usage!.replace(/[-_]+/g, ' ')}`,
+			text: usage!.slice(0, 1).toUpperCase(),
+			languageCode: getSupportLanguageCode(preference),
+		}));
+}
+
+function getPlatformSupportPreference(
+	platformSupports: Record<string, CatalogSupportPreference | undefined>,
+	support: (typeof PLATFORM_USAGES)[number]
+): CatalogSupportPreference | undefined {
+	return platformSupports[support.flag] ?? platformSupports[support.usage];
+}
+
+function isSupportActive(preference: CatalogSupportPreference | undefined): boolean {
+	if (preference === undefined) return false;
+	if (typeof preference === 'boolean') return preference;
+	return preference.active !== false;
+}
+
+function getSupportLanguageCode(preference: CatalogSupportPreference | undefined): string | undefined {
+	if (!preference || typeof preference === 'boolean') return undefined;
+	const languageCode = preference.languageCode?.trim();
+	if (!languageCode || !/^[a-zA-Z]{2,8}(?:-[a-zA-Z0-9]{1,8})*$/.test(languageCode)) return undefined;
+	return languageCode;
+}
+
+function normalizeCatalogUsage(value: string): string | null {
+	const usage = value.trim().toLowerCase();
+	if (!SAFE_CATALOG_USAGE.test(usage)) return null;
+	return usage;
+}
+
+function isReservedCatalogUsage(usage: string): boolean {
+	return RESERVED_PLATFORM_FLAGS.has(usage) || RESERVED_PLATFORM_USAGES.has(usage) || BUILT_IN_POPUP_USAGES.has(usage);
 }
 
 /**

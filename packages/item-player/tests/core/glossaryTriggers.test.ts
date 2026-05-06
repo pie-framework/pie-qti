@@ -401,7 +401,129 @@ describe('applyGlossaryTriggers', () => {
 		expect(btn).toBeDefined();
 		btn!.dispatchEvent(new FakeEvent('click', { bubbles: true, composed: true }));
 
-		expect(firedEvents[0]?.detail).toEqual({ idref: 'word-osmosis', usage: 'tts-pronunciation', languageCode: undefined });
+		expect(firedEvents[0]?.detail).toEqual({
+			idref: 'word-osmosis',
+			usage: 'tts-pronunciation',
+			html: 'oz-MOH-sis',
+			content: 'oz-MOH-sis',
+			languageCode: undefined,
+		});
+	});
+
+	it('emits host-defined catalog support events with sanitized player-provided content', () => {
+		const container = new FakeElement('div') as any;
+		const term = new FakeElement('span') as any;
+		term.setAttribute('data-catalog-idref', 'word-osmosis');
+		term.textContent = 'osmosis';
+		container.appendChild(term);
+		const firedEvents: any[] = [];
+		container.addEventListener('qti-catalog-lookup', (e: any) => firedEvents.push(e));
+		const player = makeMockPlayer(
+			{ content: { catalogSupports: { 'custom-audio': true } } },
+			{ 'word-osmosis': { 'custom-audio': '<audio src="safe.mp3"></audio>' } }
+		);
+
+		applyGlossaryTriggers(container, player);
+		expect(firedEvents.length).toBe(0);
+		const wrapper = container.children[0];
+		const btn = wrapper.children.find((c: FakeElement) => c.getAttribute('data-catalog-usage') === 'custom-audio');
+		expect(btn).toBeDefined();
+		expect(btn!.getAttribute('aria-label')).toBe('Request custom audio: osmosis');
+
+		btn!.dispatchEvent(new FakeEvent('click', { bubbles: true, composed: true }));
+
+		expect(firedEvents[0]?.detail).toEqual({
+			idref: 'word-osmosis',
+			usage: 'custom-audio',
+			html: '<audio src="safe.mp3"></audio>',
+			content: '<audio src="safe.mp3"></audio>',
+			languageCode: undefined,
+		});
+	});
+
+	it('passes host-defined catalog support language preferences into lookup', () => {
+		const container = new FakeElement('div') as any;
+		const term = new FakeElement('span') as any;
+		term.setAttribute('data-catalog-idref', 'word-osmosis');
+		term.textContent = 'osmosis';
+		container.appendChild(term);
+		const firedEvents: any[] = [];
+		container.addEventListener('qti-catalog-lookup', (e: any) => firedEvents.push(e));
+		const lookupCalls: any[] = [];
+		const player = {
+			getPnp: () => ({ content: { catalogSupports: { 'custom-audio': { active: true, languageCode: 'es' } } } }),
+			getCatalogEntry: (idref: string, usage: string, lang?: string) => {
+				lookupCalls.push({ idref, usage, lang });
+				return lang === 'es' ? '<audio src="osmosis-es.mp3"></audio>' : null;
+			},
+			getComponentRegistry: () => ({
+				getTagNameForType: (_type: string) => null,
+			}),
+		} as any;
+
+		applyGlossaryTriggers(container, player);
+		const wrapper = container.children[0];
+		const btn = wrapper.children.find((c: FakeElement) => c.getAttribute('data-catalog-usage') === 'custom-audio');
+
+		expect(btn).toBeDefined();
+		expect(lookupCalls[0]).toEqual({ idref: 'word-osmosis', usage: 'custom-audio', lang: 'es' });
+		btn!.dispatchEvent(new FakeEvent('click', { bubbles: true, composed: true }));
+		expect(firedEvents[0]?.detail.languageCode).toBe('es');
+		expect(firedEvents[0]?.detail.html).toBe('<audio src="osmosis-es.mp3"></audio>');
+	});
+
+	it('does not expose host-defined catalog support UI for unsafe usage names', () => {
+		const container = new FakeElement('div') as any;
+		const term = new FakeElement('span') as any;
+		term.setAttribute('data-catalog-idref', 'word-osmosis');
+		term.textContent = 'osmosis';
+		container.appendChild(term);
+		const player = makeMockPlayer(
+			{ content: { catalogSupports: { 'javascript:alert(1)': true } } },
+			{ 'word-osmosis': { 'javascript:alert(1)': 'unsafe' } }
+		);
+
+		applyGlossaryTriggers(container, player);
+
+		expect(container.children.length).toBe(1);
+		expect(container.children[0]).toBe(term);
+	});
+
+	it('does not route built-in popup usages as host-defined catalog supports', () => {
+		const container = new FakeElement('div') as any;
+		const term = new FakeElement('span') as any;
+		term.setAttribute('data-catalog-idref', 'word-osmosis');
+		term.textContent = 'osmosis';
+		container.appendChild(term);
+		const player = makeMockPlayer(
+			{ content: { catalogSupports: { 'glossary-on-screen': true } } },
+			{ 'word-osmosis': { 'glossary-on-screen': 'Definition.' } }
+		);
+
+		applyGlossaryTriggers(container, player);
+
+		expect(container.children.length).toBe(1);
+		expect(container.children[0]).toBe(term);
+	});
+
+	it('does not duplicate standard support buttons when dashed and camelCase keys are both present', () => {
+		const container = new FakeElement('div') as any;
+		const term = new FakeElement('span') as any;
+		term.setAttribute('data-catalog-idref', 'word-osmosis');
+		term.textContent = 'osmosis';
+		container.appendChild(term);
+		const player = makeMockPlayer(
+			{ content: { catalogSupports: { ttsPronunciation: true, 'tts-pronunciation': true } } },
+			{ 'word-osmosis': { 'tts-pronunciation': 'oz-MOH-sis' } }
+		);
+
+		applyGlossaryTriggers(container, player);
+		const wrapper = container.children[0];
+		const buttons = wrapper.children.filter(
+			(c: FakeElement) => c.getAttribute('data-catalog-usage') === 'tts-pronunciation'
+		);
+
+		expect(buttons.length).toBe(1);
 	});
 
 	it('handles multiple catalog terms independently', () => {

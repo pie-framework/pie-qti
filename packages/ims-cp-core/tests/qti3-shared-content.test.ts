@@ -78,6 +78,12 @@ describe('QTI 3 shared content parsing', () => {
 		expect(resolveRelativePath('items/unit/item.xml', '../../shared/passage.xml')).toBe('shared/passage.xml');
 	});
 
+	test('rejects paths that escape the package root', () => {
+		expect(() => resolveRelativePath('items/unit/item.xml', '../../../outside.xml')).toThrow(
+			'Path escapes package root'
+		);
+	});
+
 	test('creates a resolved item delivery context without package traversal', () => {
 		// Clean-room fixture authored for this repository: exercises QTI 3 shared
 		// stimulus/package-relative resolution without official conformance assets.
@@ -119,5 +125,59 @@ describe('QTI 3 shared content parsing', () => {
 		]);
 		expect(context.catalogSources.map((source) => source.scope)).toEqual(['item', 'stimulus']);
 		expect(context.validationMessages).toEqual([]);
+	});
+
+	test('blocks unsafe stimulus and stylesheet package references', () => {
+		const itemXml = `<qti-assessment-item identifier="item-1">
+  <qti-stylesheet href="javascript:alert"/>
+  <qti-stylesheet href="../../../outside.css"/>
+  <qti-item-body>
+    <qti-assessment-stimulus-ref identifier="remote" href="https://example.test/passage.xml"/>
+    <qti-assessment-stimulus-ref identifier="escape" href="../../../outside.xml"/>
+  </qti-item-body>
+</qti-assessment-item>`;
+
+		const context = createResolvedItemDeliveryContext({
+			itemXml,
+			itemHref: 'items/unit/item.xml',
+			readText: () => null,
+		});
+
+		expect(context.stylesheets).toEqual([]);
+		expect(context.stimuli).toEqual({});
+		expect(context.validationMessages.join(' ')).toContain('Item stylesheet href is not a package-relative path');
+		expect(context.validationMessages.join(' ')).toContain('Item stylesheet href escapes the package root');
+		expect(context.validationMessages.join(' ')).toContain('Stimulus remote href is not a package-relative path');
+		expect(context.validationMessages.join(' ')).toContain('Stimulus escape href escapes the package root');
+	});
+
+	test('removes unsafe relative asset and catalog file references during context resolution', () => {
+		const itemXml = `<qti-assessment-item identifier="item-1">
+  <qti-item-body>
+    <qti-assessment-stimulus-ref identifier="passage_1" href="../stimuli/passage.xml"/>
+  </qti-item-body>
+  <qti-catalog-info>
+    <qti-card identifier="term_1">
+      <qti-card-entry usage="illustrated-glossary">
+        <qti-file-href src="../../../private.png"/>
+      </qti-card-entry>
+    </qti-card>
+  </qti-catalog-info>
+</qti-assessment-item>`;
+		const stimulusXml = `<qti-assessment-stimulus identifier="passage_1">
+  <qti-stimulus-body>
+    <p><img src="../../../private.png"/> Shared passage.</p>
+  </qti-stimulus-body>
+</qti-assessment-stimulus>`;
+
+		const context = createResolvedItemDeliveryContext({
+			itemXml,
+			itemHref: 'items/unit/item.xml',
+			readText: (path) => (path === 'items/stimuli/passage.xml' ? stimulusXml : null),
+			resolveAssetUrl: (path) => `asset://${path}`,
+		});
+
+		expect(context.stimuli.passage_1.bodyHtml).not.toContain('private.png');
+		expect(context.catalogSources[0].xml).not.toContain('private.png');
 	});
 });

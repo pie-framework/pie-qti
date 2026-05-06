@@ -142,18 +142,20 @@ export function createResolvedItemDeliveryContext(
 	const validationMessages: string[] = [];
 	const stimuli: Record<string, ResolvedAssessmentStimulus> = {};
 	const catalogSources: ResolvedQtiCatalogSource[] = [];
-	const stylesheets: ResolvedQtiStylesheetRef[] = extractQtiStylesheets(options.itemXml).map((style) => ({
-		...style,
-		resolvedHref: resolvePackagePath(itemHref, style.href),
-		source: 'item',
-	}));
+	const stylesheets: ResolvedQtiStylesheetRef[] = resolveStylesheetRefs(
+		extractQtiStylesheets(options.itemXml),
+		itemHref,
+		'item',
+		validationMessages
+	);
 
 	for (const itemCatalogXml of extractCatalogInfoXml(options.itemXml)) {
 		catalogSources.push({ scope: 'item', xml: resolveCatalogFileHrefs(itemCatalogXml, itemHref), baseHref: itemHref });
 	}
 
 	for (const ref of extractAssessmentStimulusRefs(options.itemXml)) {
-		const resolvedHref = resolvePackagePath(itemHref, ref.href);
+		const resolvedHref = resolvePackageHref(itemHref, ref.href, validationMessages, `Stimulus ${ref.identifier}`);
+		if (!resolvedHref) continue;
 		const stimulusXml = options.readText(resolvedHref);
 		if (!stimulusXml) {
 			validationMessages.push(`Stimulus file not found: ${resolvedHref}.`);
@@ -166,12 +168,13 @@ export function createResolvedItemDeliveryContext(
 		const bodyHtml = options.resolveAssetUrl
 			? rewriteHtmlAssetRefs(parsed.bodyHtml, resolvedHref, options.resolveAssetUrl)
 			: parsed.bodyHtml;
-		const stimulusStylesheets = parsed.stylesheets.map((style) => ({
-			...style,
-			resolvedHref: resolvePackagePath(resolvedHref, style.href),
-			source: 'stimulus' as const,
-			stimulusIdentifier: ref.identifier,
-		}));
+		const stimulusStylesheets = resolveStylesheetRefs(
+			parsed.stylesheets,
+			resolvedHref,
+			'stimulus',
+			validationMessages,
+			ref.identifier
+		);
 		const catalogSource = parsed.catalogInfoXml
 			? {
 					scope: 'stimulus' as const,
@@ -224,6 +227,9 @@ export function resolveRelativePath(baseHref: string, relativePath: string): str
 	for (const part of combined.split('/')) {
 		if (!part || part === '.') continue;
 		if (part === '..') {
+			if (resolved.length === 0) {
+				throw new Error(`Path escapes package root: ${relativePath}`);
+			}
 			resolved.pop();
 		} else {
 			resolved.push(part);
@@ -237,6 +243,55 @@ function resolvePackagePath(baseHref: string, href: string): string {
 		return href;
 	}
 	return resolveRelativePath(baseHref, href);
+}
+
+function resolvePackageHref(
+	baseHref: string,
+	href: string,
+	validationMessages: string[],
+	label: string
+): string | null {
+	if (!isPackageRelativeHref(href)) {
+		validationMessages.push(`${label} href is not a package-relative path: ${href}.`);
+		return null;
+	}
+	try {
+		return resolvePackagePath(baseHref, href);
+	} catch (error) {
+		validationMessages.push(`${label} href escapes the package root: ${href}.`);
+		return null;
+	}
+}
+
+function resolveStylesheetRefs(
+	stylesheets: QtiStylesheetRef[],
+	baseHref: string,
+	source: 'item' | 'stimulus',
+	validationMessages: string[],
+	stimulusIdentifier?: string
+): ResolvedQtiStylesheetRef[] {
+	const resolved: ResolvedQtiStylesheetRef[] = [];
+	for (const style of stylesheets) {
+		const resolvedHref = resolvePackageHref(
+			baseHref,
+			style.href,
+			validationMessages,
+			`${source === 'item' ? 'Item' : `Stimulus ${stimulusIdentifier ?? ''}`} stylesheet`
+		);
+		if (!resolvedHref) continue;
+		resolved.push({
+			...style,
+			resolvedHref,
+			source,
+			stimulusIdentifier,
+		});
+	}
+	return resolved;
+}
+
+function isPackageRelativeHref(href: string): boolean {
+	const value = href.trim();
+	return Boolean(value) && !value.startsWith('/') && !value.startsWith('//') && !/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(value);
 }
 
 function rewriteHtmlAssetRefs(
@@ -254,7 +309,17 @@ function rewriteHtmlAssetRefs(
 		for (const attr of ['src', 'href', 'data']) {
 			const raw = readAttr(el, attr);
 			if (!raw || /^(https?:|data:|blob:|mailto:|#|\/)/i.test(raw)) continue;
-			const resolvedPath = resolvePackagePath(baseHref, raw);
+			if (!isPackageRelativeHref(raw)) {
+				el.removeAttribute(attr);
+				continue;
+			}
+			let resolvedPath: string;
+			try {
+				resolvedPath = resolvePackagePath(baseHref, raw);
+			} catch {
+				el.removeAttribute(attr);
+				continue;
+			}
 			const resolvedUrl = resolveAssetUrl(resolvedPath);
 			if (resolvedUrl) {
 				el.setAttribute(attr, resolvedUrl);
@@ -274,7 +339,15 @@ function resolveCatalogFileHrefs(xml: string, baseHref: string): string {
 	for (const fileHref of findElements(wrapper, new Set(['filehref']))) {
 		const src = readAttr(fileHref, 'src');
 		if (src && !/^(https?:|data:|blob:|\/)/i.test(src)) {
-			fileHref.setAttribute('src', resolvePackagePath(baseHref, src));
+			if (!isPackageRelativeHref(src)) {
+				fileHref.removeAttribute('src');
+				continue;
+			}
+			try {
+				fileHref.setAttribute('src', resolvePackagePath(baseHref, src));
+			} catch {
+				fileHref.removeAttribute('src');
+			}
 		}
 	}
 	return serializeChildren(wrapper);

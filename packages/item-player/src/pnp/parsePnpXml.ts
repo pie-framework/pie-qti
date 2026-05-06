@@ -1,6 +1,6 @@
 import { parse as parseHtml } from 'node-html-parser';
 import type { HTMLElement as NhpElement } from 'node-html-parser';
-import type { PnpProfile } from './types.js';
+import type { CatalogSupportPreference, PnpProfile } from './types.js';
 
 /**
  * Parse a QTI 3.0 <personalNeedsProfile> element (or legacy <pnp> element) into a PnpProfile.
@@ -86,10 +86,18 @@ function extractProfile(root: NhpElement): PnpProfile {
 			const el = findChild(contentEl, names);
 			if (el) {
 				profile.content.catalogSupports ??= {};
-				profile.content.catalogSupports[key] = parseBool(
-					el.getAttribute('enabled') ?? el.getAttribute('active') ?? el.text ?? 'true'
-				);
+				profile.content.catalogSupports[key] = parseCatalogSupportPreference(el);
 			}
+		}
+
+		for (const el of findChildren(contentEl, ['catalogsupport', 'catalog-support', 'qti-catalog-support'])) {
+			const usage = normalizeCatalogUsage(
+				el.getAttribute('usage') ?? el.getAttribute('support') ?? el.getAttribute('name') ?? ''
+			);
+			if (!usage) continue;
+			const key = catalogSupportPreferenceKey(usage);
+			profile.content.catalogSupports ??= {};
+			profile.content.catalogSupports[key] = parseCatalogSupportPreference(el);
 		}
 
 		const etEl = findChild(contentEl, ['extendedtime', 'extended-time']);
@@ -126,18 +134,31 @@ function extractProfile(root: NhpElement): PnpProfile {
 // ---------------------------------------------------------------------------
 
 function findChild(parent: NhpElement, names: readonly string[]): NhpElement | null {
+	return findChildren(parent, names)[0] ?? null;
+}
+
+function findChildren(parent: NhpElement, names: readonly string[]): NhpElement[] {
+	const matches: NhpElement[] = [];
 	for (const child of parent.childNodes) {
 		if (child.nodeType !== 1) continue; // element nodes only
 		const el = child as NhpElement;
 		const tag = (el.rawTagName ?? '').toLowerCase();
-		if (names.includes(tag)) return el;
+		if (names.includes(tag)) matches.push(el);
 	}
-	return null;
+	return matches;
 }
 
 function parseBool(value: string): boolean {
 	const v = (value ?? '').trim().toLowerCase();
 	return v !== 'false' && v !== '0' && v !== 'no';
+}
+
+function parseCatalogSupportPreference(el: NhpElement): CatalogSupportPreference {
+	const active = parseBool(el.getAttribute('enabled') ?? el.getAttribute('active') ?? el.text ?? 'true');
+	const languageCode = normalizeLanguageCode(
+		el.getAttribute('languagecode') ?? el.getAttribute('language-code') ?? el.getAttribute('lang') ?? ''
+	);
+	return languageCode ? { active, languageCode } : active;
 }
 
 type ColorScheme = PnpProfile['display'] extends { colorScheme?: infer C } ? Exclude<C, undefined> : never;
@@ -161,4 +182,34 @@ const COLOR_SCHEMES = new Set<string>([
 ]);
 function isColorScheme(v: string): v is ColorScheme {
 	return COLOR_SCHEMES.has(v);
+}
+
+function normalizeCatalogUsage(value: string): string | null {
+	const usage = value.trim().toLowerCase();
+	if (!/^[a-z][a-z0-9._-]*$/.test(usage)) return null;
+	return usage;
+}
+
+function normalizeLanguageCode(value: string): string | undefined {
+	const languageCode = value.trim();
+	if (!languageCode) return undefined;
+	if (!/^[a-zA-Z]{2,8}(?:-[a-zA-Z0-9]{1,8})*$/.test(languageCode)) return undefined;
+	return languageCode;
+}
+
+function catalogSupportPreferenceKey(usage: string): string {
+	switch (usage) {
+		case 'tts-pronunciation':
+			return 'ttsPronunciation';
+		case 'signing-definition':
+			return 'signingDefinition';
+		case 'braille-text':
+			return 'brailleText';
+		case 'audio-description':
+			return 'audioDescription';
+		case 'extended-description':
+			return 'extendedDescription';
+		default:
+			return usage;
+	}
 }
