@@ -3,7 +3,7 @@
 	import { registerDefaultComponents } from '@pie-qti/default-components';
 	// @ts-expect-error - Svelte-check can't resolve workspace subpath exports, but runtime works correctly
 	import { ItemBody } from '@pie-qti/item-player/components';
-	import { Player, type PlayerSecurityConfig, type QTIRole } from '@pie-qti/item-player';
+	import { Player, type PlayerSecurityConfig, type PnpProfile, type QTIRole } from '@pie-qti/item-player';
 	import type { InteractionResponseValue } from '@pie-qti/item-player/web-components';
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import { onMount } from 'svelte';
@@ -46,6 +46,8 @@
 		i18n?: I18nProvider;
 		/** Security configuration for URL policy and content restrictions */
 		security?: PlayerSecurityConfig;
+		/** QTI 3.0 Personal Needs and Preferences profile */
+		pnp?: PnpProfile;
 	}
 
 	const {
@@ -57,6 +59,7 @@
 		typeset,
 		i18n,
 		security,
+		pnp,
 	}: Props = $props();
 
 	// Derive player from itemRef
@@ -70,6 +73,8 @@
 				itemXml: itemRef.itemXml,
 				role,
 				security,
+				pnp,
+				deliveryContext: itemRef.deliveryContext,
 			});
 
 			// Ensure the item player can actually render interactions by registering the
@@ -133,6 +138,7 @@
 				{role}
 				{typeset}
 				{i18n}
+				deliveryContext={itemRef.deliveryContext}
 				onResponseChange={handleResponseChange}
 			/>
 		</div>

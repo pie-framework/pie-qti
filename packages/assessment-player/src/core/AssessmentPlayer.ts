@@ -8,7 +8,7 @@
  * - Apply backend navigation decisions + session state
  */
 
-import type { QTIRole, PnpProfile } from '@pie-qti/item-player';
+import type { QTIRole, PnpProfile, SerializedItemSessionState } from '@pie-qti/item-player';
 import { Player } from '@pie-qti/item-player';
 import type {
 	AssessmentRubricBlock,
@@ -28,6 +28,7 @@ import type {
 	AssessmentResults,
 	ItemResult,
 	NavigationState,
+	TimeLimits,
 } from '../types/index.js';
 import { ItemSessionController, type ItemSessionState } from './ItemSessionController.js';
 import { NavigationManager } from './NavigationManager.js';
@@ -54,6 +55,12 @@ export interface BackendAssessmentPlayerConfig {
 	 * If provided, this will be passed to all item players in the assessment.
 	 */
 	security?: any; // Will be PlayerSecurityConfig from @pie-qti/item-player
+	/**
+	 * Demo/reference-only escape hatch. When false (default), rich item-session
+	 * variables stay client-local and are not submitted because template variables
+	 * can contain answer keys. Production backends should own this state server-side.
+	 */
+	sendItemSessionToBackend?: boolean;
 	// UI options
 	showSections?: boolean;
 	allowSectionNavigation?: boolean;
@@ -88,6 +95,22 @@ type CurrentItemView = {
 	title?: string;
 	required?: boolean;
 	itemXml: string;
+	deliveryContext?: SecureItemRef['deliveryContext'];
+};
+
+export interface EffectiveItemTimeLimits {
+	timeLimits?: TimeLimits;
+	source?: 'item' | 'section' | 'testPart' | 'assessment';
+}
+
+type ItemSessionCapablePlayer = Player & {
+	suspendAttempt(): { sessionState: SerializedItemSessionState; duration: number };
+	endAttempt(options?: { countAttempt?: boolean; validateResponses?: boolean }): {
+		sessionState: SerializedItemSessionState;
+		duration: number;
+		validation?: { valid: boolean; issues: Array<{ message: string }> };
+	};
+	restoreItemSession(state: SerializedItemSessionState): void;
 };
 
 export class AssessmentPlayer {
@@ -134,6 +157,7 @@ export class AssessmentPlayer {
 				visitedItems: [],
 				itemResponses: {},
 				itemScores: {},
+				itemSessions: {},
 				timing: { startedAt: Date.now(), itemTimes: {}, totalTime: 0 },
 			} as AssessmentSessionState);
 
@@ -153,23 +177,22 @@ export class AssessmentPlayer {
 		}
 		this.restoreItemSessionsFromState(this.state);
 
-		// Initialize time manager if time limits exist
-		if (this.assessment.timeLimits?.maxTime) {
-			this.timeManager = new TimeManager({
-				assessmentTimeLimits: this.assessment.timeLimits,
-				warningThreshold: config.timeWarningThreshold || 60,
-				extendedTime: config.pnp?.content?.extendedTime,
-				onWarning: (remainingSeconds) => this.notifyTimeWarning(remainingSeconds),
-				onExpired: () => this.notifyTimeExpired(),
-				onTick: (remainingSeconds, elapsedSeconds) => this.notifyTimeTick(remainingSeconds, elapsedSeconds),
-			});
-		}
+		this.timeManager = new TimeManager({
+			assessmentTimeLimits: this.assessment.timeLimits,
+			warningThreshold: config.timeWarningThreshold || 60,
+			extendedTime: config.pnp?.content?.extendedTime,
+			onWarning: (remainingSeconds) => this.notifyTimeWarning(remainingSeconds),
+			onExpired: () => this.notifyTimeExpired(),
+			onTick: (remainingSeconds, elapsedSeconds) => this.notifyTimeTick(remainingSeconds, elapsedSeconds),
+		});
 
 		// Restore to backend-provided current item if present
 		const startId = this.state.currentItemIdentifier;
 		const idx = startId ? this.items.findIndex((q) => q.identifier === startId) : -1;
 		if (idx >= 0) {
 			this.navigateTo(idx, { restoring: true }).catch(() => {});
+		} else if (this.items.length > 0) {
+			this.navigateTo(0, { restoring: true }).catch(() => {});
 		}
 	}
 
@@ -193,6 +216,70 @@ export class AssessmentPlayer {
 			allowComment: sectionControl.allowComment ?? testPartControl.allowComment,
 			allowSkipping: sectionControl.allowSkipping ?? testPartControl.allowSkipping,
 			validateResponses: sectionControl.validateResponses ?? testPartControl.validateResponses,
+		};
+	}
+
+	private getEffectiveItemTimeLimits(flat: FlatItem): EffectiveItemTimeLimits {
+		const scopes: Array<{ source: EffectiveItemTimeLimits['source']; limits?: TimeLimits }> = [
+			{ source: 'assessment', limits: this.assessment.timeLimits },
+			{ source: 'testPart', limits: flat.testPart.timeLimits },
+			{ source: 'section', limits: flat.section.timeLimits },
+			{ source: 'item', limits: flat.item.timeLimits },
+		];
+		let source: EffectiveItemTimeLimits['source'];
+		let minTime: number | undefined;
+		let maxTime: number | undefined;
+		let allowLateSubmission: boolean | undefined;
+		for (const scope of scopes) {
+			if (!scope.limits) continue;
+			if (scope.limits.minTime !== undefined) {
+				minTime = minTime === undefined ? scope.limits.minTime : Math.max(minTime, scope.limits.minTime);
+			}
+			if (scope.limits.maxTime !== undefined) {
+				const extended = this.config.pnp?.content?.extendedTime;
+				const scopedMaxTime = extended?.active
+					? extended.multiplier === Infinity
+						? undefined
+						: scope.limits.maxTime * extended.multiplier
+					: scope.limits.maxTime;
+				if (scopedMaxTime !== undefined && (maxTime === undefined || scopedMaxTime < maxTime)) {
+					maxTime = scopedMaxTime;
+					source = scope.source;
+					allowLateSubmission = scope.limits.allowLateSubmission;
+				}
+			} else if (scope.limits.allowLateSubmission !== undefined && maxTime === undefined) {
+				allowLateSubmission = scope.limits.allowLateSubmission;
+				source = scope.source;
+			}
+		}
+
+		if (maxTime === undefined && minTime === undefined && allowLateSubmission === undefined) {
+			return {};
+		}
+		return { source, timeLimits: { minTime, maxTime, allowLateSubmission } };
+	}
+
+	public getCurrentEffectiveTimeLimits(): EffectiveItemTimeLimits {
+		const q = this.items[this.currentItemIndex];
+		return q ? this.getEffectiveItemTimeLimits(q) : {};
+	}
+
+	private getSubmitTimingEvidence(q: FlatItem, elapsedMs: number): import('../integration/api-contract.js').SubmitTimingEvidence | undefined {
+		const effective = this.getEffectiveItemTimeLimits(q);
+		const limitSeconds = effective.timeLimits?.maxTime;
+		if (!effective.source || limitSeconds === undefined) return undefined;
+		if (effective.source !== 'item' && effective.source !== 'assessment') {
+			return undefined;
+		}
+		const scopedElapsedMs = effective.source === 'assessment'
+			? (this.timeManager?.getElapsedSeconds() ?? 0) * 1000
+			: elapsedMs;
+		return {
+			scope: effective.source,
+			elapsedMs: scopedElapsedMs,
+			limitSeconds,
+			expired: scopedElapsedMs >= limitSeconds * 1000,
+			allowLateSubmission: effective.timeLimits?.allowLateSubmission,
 		};
 	}
 
@@ -329,6 +416,7 @@ export class AssessmentPlayer {
 			title: q.section.title,
 			required: q.item.required,
 			itemXml: q.item.itemXml,
+			deliveryContext: q.item.deliveryContext,
 		};
 	}
 
@@ -381,17 +469,53 @@ export class AssessmentPlayer {
 		return { ...this.responses };
 	}
 
+	public saveCurrentItemSession(): SerializedItemSessionState | null {
+		const q = this.items[this.currentItemIndex];
+		if (!q || !this.currentItemPlayer) return null;
+		this.currentItemPlayer.setResponses(this.responses as any);
+		const result = (this.currentItemPlayer as ItemSessionCapablePlayer).suspendAttempt();
+		this.state.itemSessions = {
+			...(this.state.itemSessions ?? {}),
+			[q.identifier]: result.sessionState,
+		};
+		this.state.itemResponses[q.identifier] = this.responses as any;
+		this.state.timing.itemTimes[q.identifier] = result.duration;
+		this.sessionController.markAnswered(q.identifier, this.hasAnyResponse(this.responses));
+		return result.sessionState;
+	}
+
+	private endItemSessionForSubmit(
+		q: FlatItem,
+		responses: Record<string, unknown>,
+		itemSession?: SerializedItemSessionState
+	): SerializedItemSessionState {
+		const player = new Player({
+			itemXml: q.item.itemXml,
+			role: q.item.role,
+			i18nProvider: this.i18nProvider,
+			pnp: this.config.pnp,
+			security: this.config.security,
+			deliveryContext: q.item.deliveryContext,
+		}) as ItemSessionCapablePlayer;
+		if (itemSession) {
+			player.restoreItemSession(itemSession);
+		}
+		player.setResponses(responses as any);
+		return player.endAttempt().sessionState;
+	}
+
 	/**
 	 * Get the current session state snapshot (client-side view).
 	 * Note: backend remains authoritative; this is intended for simple save/resume.
 	 */
-	public getState(): AssessmentSessionState {
+	public getState(options: { includeItemSessions?: boolean } = {}): AssessmentSessionState {
 		// Shallow clone to avoid accidental external mutation.
 		return {
 			...this.state,
 			visitedItems: [...this.state.visitedItems],
 			itemResponses: { ...this.state.itemResponses },
 			itemScores: this.state.itemScores ? { ...this.state.itemScores } : undefined,
+			itemSessions: options.includeItemSessions && this.state.itemSessions ? { ...this.state.itemSessions } : undefined,
 			itemSessionStates: this.getItemSessionStateSnapshot(),
 			timing: {
 				...this.state.timing,
@@ -450,9 +574,25 @@ export class AssessmentPlayer {
 			throw new Error('You cannot go back to previous questions in this assessment.');
 		}
 
+		const currentItem = this.items[this.currentItemIndex];
+		const currentSessionStatus = currentItem ? this.state.itemSessions?.[currentItem.identifier]?.lifecycleStatus : undefined;
+		if (
+			!options.restoring &&
+			this.currentItemIndex >= 0 &&
+			this.currentItemIndex !== index &&
+			currentSessionStatus !== 'closed'
+		) {
+			this.saveCurrentItemSession();
+		}
+		if (currentItem && this.currentItemIndex !== index) {
+			this.timeManager?.endItem(currentItem.identifier);
+		}
+
 		this.currentItemIndex = index;
 		const q = this.items[index]!;
 		this.state.currentItemIdentifier = q.identifier;
+		this.timeManager?.startSection(q.section.identifier);
+		this.timeManager?.startItem(q.identifier);
 
 		// Apply three-level itemSessionControl fallback for this item's section (S1).
 		const effectiveControl = this.getEffectiveItemSessionControl(q);
@@ -464,12 +604,21 @@ export class AssessmentPlayer {
 		this.responses = { ...(this.state.itemResponses[q.identifier] || {}) };
 
 		// Create item player
+		this.currentItemPlayer?.destroy();
 		this.currentItemPlayer = new Player({
 			itemXml: q.item.itemXml,
 			role: q.item.role,
 			i18nProvider: this.i18nProvider,
+			pnp: this.config.pnp,
+			security: this.config.security,
+			deliveryContext: q.item.deliveryContext,
 		});
-		this.currentItemPlayer.setResponses(this.responses as any);
+		const restoredItemSession = this.state.itemSessions?.[q.identifier];
+		if (restoredItemSession) {
+			(this.currentItemPlayer as ItemSessionCapablePlayer).restoreItemSession(restoredItemSession);
+		} else {
+			this.currentItemPlayer.setResponses(this.responses as any);
+		}
 
 		this.notifyItemChange();
 		this.notifySectionChange();
@@ -518,11 +667,29 @@ export class AssessmentPlayer {
 		if (!q) throw new Error('No current item');
 
 		const submittedAt = Date.now();
+		let itemSession: SerializedItemSessionState | undefined;
+		if (this.currentItemPlayer) {
+			this.currentItemPlayer.setResponses(this.responses as any);
+			const attempt = (this.currentItemPlayer as ItemSessionCapablePlayer).endAttempt({
+				validateResponses: this.sessionController.mustValidateResponses(),
+			});
+			if (attempt.validation && !attempt.validation.valid) {
+				throw new Error(attempt.validation.issues[0]?.message || 'Submit failed: invalid response');
+			}
+			itemSession = attempt.sessionState;
+			this.state.itemSessions = {
+				...(this.state.itemSessions ?? {}),
+				[q.identifier]: itemSession,
+			};
+		}
 		const res = await this.backend.submitResponses({
 			sessionId: this.sessionId,
 			itemIdentifier: q.identifier,
 			responses: this.responses as any,
 			submittedAt,
+			timeSpent: itemSession?.duration,
+			timing: this.getSubmitTimingEvidence(q, itemSession?.duration ?? 0),
+			itemSession: this.config.sendItemSessionToBackend ? itemSession : undefined,
 		});
 
 		if (!res.success || !res.result) {
@@ -530,13 +697,20 @@ export class AssessmentPlayer {
 		}
 
 		if (res.updatedState) {
+			const localItemSessions = this.state.itemSessions;
 			this.state = res.updatedState;
+			if (localItemSessions) {
+				this.state.itemSessions = { ...(this.state.itemSessions ?? {}), ...localItemSessions };
+			}
 		} else {
 			// Minimal state update when backend doesn't return full state.
 			this.state.itemScores = this.state.itemScores || {};
 			this.state.itemScores[q.identifier] = res.result;
 			if (!this.state.visitedItems.includes(q.identifier)) this.state.visitedItems.push(q.identifier);
 			this.state.itemResponses[q.identifier] = this.responses as any;
+			if (itemSession) {
+				this.state.itemSessions = { ...(this.state.itemSessions ?? {}), [q.identifier]: itemSession };
+			}
 		}
 
 		const itemResult: ItemResult = {
@@ -614,21 +788,28 @@ export class AssessmentPlayer {
 		// For simultaneous submission, ensure all items are submitted before finalize so
 		// the backend can compute a complete test score.
 		if (this.assessment.submissionMode === 'simultaneous') {
+			this.saveCurrentItemSession();
 			// Preserve client-collected responses across backend state updates.
 			// Some backend adapters return an updatedState snapshot that may only include
 			// responses for items that have been submitted so far, which would otherwise
 			// wipe out responses for later items during this loop.
 			const allItemResponses = { ...(this.state.itemResponses || {}) } as any;
+			const allItemSessions = { ...(this.state.itemSessions || {}) };
 
 			for (const q of this.items) {
 				if (this.itemResults.has(q.identifier)) continue;
 				const submittedAt = Date.now();
 				const responsesForItem = (allItemResponses?.[q.identifier] || {}) as any;
+				const itemSession = this.endItemSessionForSubmit(q, responsesForItem, allItemSessions[q.identifier]);
+				allItemSessions[q.identifier] = itemSession;
 				const res = await this.backend.submitResponses({
 					sessionId: this.sessionId,
 					itemIdentifier: q.identifier,
 					responses: responsesForItem,
 					submittedAt,
+					timeSpent: itemSession?.duration,
+					timing: this.getSubmitTimingEvidence(q, itemSession?.duration ?? 0),
+					itemSession: this.config.sendItemSessionToBackend ? itemSession : undefined,
 				});
 				if (!res.success || !res.result) {
 					throw new Error(res.error || `Submit failed for item ${q.identifier}`);
@@ -637,11 +818,15 @@ export class AssessmentPlayer {
 					this.state = res.updatedState;
 					// Restore full response map captured on the client.
 					this.state.itemResponses = allItemResponses;
+					this.state.itemSessions = allItemSessions;
 				} else {
 					this.state.itemScores = this.state.itemScores || {};
 					this.state.itemScores[q.identifier] = res.result;
 					if (!this.state.visitedItems.includes(q.identifier)) this.state.visitedItems.push(q.identifier);
 					this.state.itemResponses[q.identifier] = responsesForItem;
+					if (itemSession) {
+						this.state.itemSessions = { ...(this.state.itemSessions ?? {}), [q.identifier]: itemSession };
+					}
 				}
 				this.itemResults.set(q.identifier, {
 					itemIdentifier: q.identifier,
@@ -790,6 +975,8 @@ export class AssessmentPlayer {
 	}
 
 	public destroy(): void {
+		this.timeManager?.destroy();
+		this.currentItemPlayer?.destroy();
 		this.itemChangeListeners.clear();
 		this.sectionChangeListeners.clear();
 		this.responseChangeListeners.clear();

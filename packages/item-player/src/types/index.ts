@@ -7,6 +7,8 @@ import type {
 	Cardinality as ProcessingCardinality,
 	QtiValue,
 } from '@pie-qti/qti-processing';
+import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
+import type { ResponseValidationResult } from './responseValidation.js';
 
 /**
  * QTI base type identifier
@@ -76,6 +78,51 @@ export interface OutcomeDeclaration extends VariableDeclaration {
 
 export interface ItemSessionState {
 	[variableId: string]: any;
+}
+
+export type ItemLifecycleStatus = 'initial' | 'interacting' | 'suspended' | 'closed' | 'review' | 'solution' | 'answer';
+
+export type SerializedVariableKind = 'response' | 'outcome' | 'template' | 'context';
+
+export interface SerializedItemSessionVariable {
+	identifier: string;
+	kind: SerializedVariableKind;
+	baseType: VariableBaseType;
+	cardinality: VariableCardinality;
+	value: any;
+	defaultValue?: any;
+}
+
+export interface SerializedItemSessionState {
+	itemIdentifier?: string;
+	sessionGuid: string;
+	lifecycleStatus: ItemLifecycleStatus;
+	completionStatus: CompletionStatus;
+	numAttempts: number;
+	/**
+	 * Time-on-task in milliseconds, stored as the QTI built-in duration variable value.
+	 */
+	duration: number;
+	responseVariables: Record<string, SerializedItemSessionVariable>;
+	outcomeVariables: Record<string, SerializedItemSessionVariable>;
+	templateVariables: Record<string, SerializedItemSessionVariable>;
+	contextVariables: Record<string, SerializedItemSessionVariable>;
+	validationMessages: ResponseValidationResult['issues'];
+	savedAt: string;
+}
+
+export type ItemSessionAction = 'suspendAttempt' | 'endAttempt' | 'scoreAttempt' | 'newTemplate';
+
+export interface ItemSessionActionResult {
+	action: ItemSessionAction;
+	lifecycleStatus: ItemLifecycleStatus;
+	completionStatus: CompletionStatus;
+	numAttempts: number;
+	duration: number;
+	completed: boolean;
+	sessionState: SerializedItemSessionState;
+	validation?: ResponseValidationResult;
+	scoring?: ScoringResult;
 }
 
 export interface InteractionResponse {
@@ -190,6 +237,12 @@ export interface PlayerConfig {
 	 * Deferred: external catalog files from IMS manifest (G-15) are not yet supported.
 	 */
 	catalogXml?: string;
+	/**
+	 * Optional resolved delivery context produced by IMS package/assessment layers.
+	 * This is additive to catalogXml: shared catalog sources are merged first, then
+	 * catalogXml, then item-embedded catalog entries so item-local entries win.
+	 */
+	deliveryContext?: ResolvedItemDeliveryContext;
 	sessionState?: ItemSessionState;
 	responses?: InteractionResponse;
 	role?: QTIRole;

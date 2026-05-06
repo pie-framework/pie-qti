@@ -17,7 +17,7 @@
  * that demonstrates the API contract without requiring a real backend.
  */
 
-import type { QTIRole } from '@pie-qti/item-player';
+import type { QTIRole, ResolvedItemDeliveryContext, SerializedItemSessionState } from '@pie-qti/item-player';
 
 // ============================================================================
 // SESSION MANAGEMENT
@@ -73,6 +73,12 @@ export interface TestFeedbackItem {
 	content: string;
 }
 
+export interface SecureTimeLimits {
+	minTime?: number;
+	maxTime?: number;
+	allowLateSubmission?: boolean;
+}
+
 export interface SecureAssessment {
 	identifier: string;
 	title: string;
@@ -83,10 +89,7 @@ export interface SecureAssessment {
 	/** Test parts contain sections */
 	testParts: SecureTestPart[];
 	/** Overall time limit in seconds (optional) */
-	timeLimits?: {
-		maxTime?: number; // seconds
-		allowLateSubmission?: boolean;
-	};
+	timeLimits?: SecureTimeLimits;
 	/** QTI outcomeDeclarations for test-level variables */
 	outcomeDeclarations?: Array<{
 		identifier: string;
@@ -106,6 +109,8 @@ export interface SecureTestPart {
 	identifier: string;
 	/** Sections contain items */
 	sections: SecureSection[];
+	/** TestPart-level time limit. */
+	timeLimits?: SecureTimeLimits;
 	/** Candidate instructions (safe for display) */
 	rubricBlocks?: AssessmentRubricBlock[];
 	/**
@@ -131,9 +136,7 @@ export interface SecureSection {
 	/** Assessment item references (order reflects selection/ordering already applied server-side) */
 	assessmentItemRefs: SecureItemRef[];
 	/** Section-level time limit */
-	timeLimits?: {
-		maxTime?: number;
-	};
+	timeLimits?: SecureTimeLimits;
 	/** Candidate instructions (safe for display) */
 	rubricBlocks?: AssessmentRubricBlock[];
 	/**
@@ -176,6 +179,10 @@ export interface SecureItemRef {
 	role: QTIRole;
 	/** Required=true means item must be attempted */
 	required?: boolean;
+	/** Item-ref-level time limit. */
+	timeLimits?: SecureTimeLimits;
+	/** Optional resolved QTI 3 delivery context. Additive; itemXml remains the compatibility path. */
+	deliveryContext?: ResolvedItemDeliveryContext;
 	/**
 	 * QTI branchRule: ordered list of branch rules on this item.
 	 * The backend evaluates these after scoring and returns nextItemIdentifier in SubmitResponsesResponse.
@@ -220,6 +227,21 @@ export interface SubmitResponsesRequest {
 	submittedAt: number;
 	/** Time spent on item (ms) for analytics */
 	timeSpent?: number;
+	/** Optional client timing evidence; production backends remain authoritative. */
+	timing?: SubmitTimingEvidence;
+	/**
+	 * Serialized item session used by backends to restore template/context variables while scoring.
+	 * Production backends should treat this as a client save format and validate against server-owned state.
+	 */
+	itemSession?: SerializedItemSessionState;
+}
+
+export interface SubmitTimingEvidence {
+	scope: 'assessment' | 'testPart' | 'section' | 'item';
+	elapsedMs: number;
+	limitSeconds?: number;
+	expired?: boolean;
+	allowLateSubmission?: boolean;
 }
 
 /**
@@ -299,9 +321,6 @@ export interface SaveAssessmentStateResponse {
 	savedAt: number;
 }
 
-/**
- * Session state for persistence
- */
 export interface AssessmentSessionState {
 	/** Current item identifier */
 	currentItemIdentifier: string;
@@ -313,6 +332,8 @@ export interface AssessmentSessionState {
 	itemScores?: Record<string, AssessmentScoringResult>;
 	/** ItemSession lifecycle hints per item, used to restore attempt/review UI state */
 	itemSessionStates?: Record<string, AssessmentItemSessionState>;
+	/** Rich QTI item session snapshots, used to restore variables and score saved sessions. */
+	itemSessions?: Record<string, SerializedItemSessionState>;
 	/** Time tracking */
 	timing: {
 		/** Session start time */

@@ -179,6 +179,7 @@
       "dependencies": {
         "@pie-qti/default-components": "workspace:*",
         "@pie-qti/i18n": "workspace:*",
+        "@pie-qti/ims-cp-core": "workspace:*",
         "@pie-qti/item-player": "workspace:*",
         "@pie-qti/qti-processing": "workspace:*",
         "node-html-parser": "^7.0.2",

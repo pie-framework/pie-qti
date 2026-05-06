@@ -1,14 +1,5 @@
-/**
- * Tests for applyGlossaryTriggers using a minimal DOM mock.
- * We set up a lightweight global DOM before each test so the module
- * can call document.createElement, querySelectorAll, etc.
- */
-import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
-import { applyGlossaryTriggers } from '../catalog/applyGlossaryTriggers.js';
-
-// ---------------------------------------------------------------------------
-// Minimal DOM bootstrap (no external deps)
-// ---------------------------------------------------------------------------
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
+import { applyGlossaryTriggers } from '../../src/catalog/applyGlossaryTriggers.js';
 
 type Attrs = Record<string, string>;
 type EventMap = Record<string, ((...args: any[]) => void)[]>;
@@ -28,13 +19,23 @@ class FakeElement {
 		this.tagName = tag.toUpperCase();
 	}
 
-	setAttribute(name: string, value: string) { this.attrs[name] = value; }
-	getAttribute(name: string) { return this.attrs[name] ?? null; }
-	removeAttribute(name: string) { delete this.attrs[name]; }
-	hasAttribute(name: string) { return name in this.attrs; }
+	setAttribute(name: string, value: string) {
+		this.attrs[name] = value;
+	}
+
+	getAttribute(name: string) {
+		return this.attrs[name] ?? null;
+	}
+
+	removeAttribute(name: string) {
+		delete this.attrs[name];
+	}
+
+	hasAttribute(name: string) {
+		return name in this.attrs;
+	}
 
 	appendChild<T extends FakeElement>(child: T): T {
-		// Detach from previous parent (matches real DOM behavior)
 		if (child.parent && child.parent !== this) {
 			child.parent.children = child.parent.children.filter((c) => c !== child);
 		}
@@ -48,6 +49,9 @@ class FakeElement {
 	insertBefore<T extends FakeElement>(newChild: T, ref: FakeElement | null): T {
 		if (ref === null || !this.children.includes(ref)) {
 			return this.appendChild(newChild);
+		}
+		if (newChild.parent) {
+			newChild.parent.children = newChild.parent.children.filter((c) => c !== newChild);
 		}
 		const idx = this.children.indexOf(ref);
 		newChild.parent = this;
@@ -78,7 +82,6 @@ class FakeElement {
 
 	focus() {}
 
-	// querySelectorAll for [data-catalog-idref] and focusable selectors
 	querySelectorAll(selector: string): FakeElement[] {
 		const results: FakeElement[] = [];
 		const visit = (el: FakeElement) => {
@@ -89,10 +92,13 @@ class FakeElement {
 		return results;
 	}
 
-	// offsetParent: fake non-null so focusable elements are considered visible
-	get offsetParent(): FakeElement | null { return this.parent ?? new FakeElement('body'); }
+	get offsetParent(): FakeElement | null {
+		return this.parent ?? new FakeElement('body');
+	}
 
-	get parentNode() { return this.parent; }
+	get parentNode() {
+		return this.parent;
+	}
 }
 
 class FakeEvent {
@@ -111,7 +117,9 @@ class FakeEvent {
 		this.detail = opts.detail ?? {};
 	}
 
-	preventDefault() { this.defaultPrevented = true; }
+	preventDefault() {
+		this.defaultPrevented = true;
+	}
 }
 
 class FakeDocument {
@@ -120,13 +128,13 @@ class FakeDocument {
 	}
 }
 
-// Simple CSS selector matching for our tests
 function matchesSelector(el: FakeElement, selector: string): boolean {
-	// [data-catalog-idref]
 	if (selector === '[data-catalog-idref]') {
 		return el.getAttribute('data-catalog-idref') !== null;
 	}
-	// focusable selector used by the focus trap
+	if (selector === '.qti-catalog-term') {
+		return el.className.split(/\s+/).includes('qti-catalog-term');
+	}
 	if (selector.includes('button:not([disabled])')) {
 		return el.tagName === 'BUTTON' && el.getAttribute('disabled') === null;
 	}
@@ -141,8 +149,7 @@ function makeEnv() {
 	savedDocument = (globalThis as any).document;
 	savedCustomEvent = (globalThis as any).CustomEvent;
 	savedEvent = (globalThis as any).Event;
-	const doc = new FakeDocument();
-	(globalThis as any).document = doc;
+	(globalThis as any).document = new FakeDocument();
 	(globalThis as any).CustomEvent = FakeEvent;
 	(globalThis as any).Event = FakeEvent;
 }
@@ -156,41 +163,6 @@ function clearEnv() {
 	else delete (globalThis as any).Event;
 }
 
-// ---------------------------------------------------------------------------
-// Test helpers
-// ---------------------------------------------------------------------------
-
-const CATALOG_XML = `
-<qti-catalog-info>
-  <qti-card identifier="word-osmosis">
-    <qti-card-entry usage="glossary-on-screen" xml:lang="en">
-      <qti-html-content>Movement of water through a membrane.</qti-html-content>
-    </qti-card-entry>
-    <qti-card-entry usage="keyword-translation" xml:lang="es">
-      <qti-html-content>ósmosis</qti-html-content>
-    </qti-card-entry>
-    <qti-card-entry usage="tts-pronunciation">
-      <qti-html-content>oz-MOH-sis</qti-html-content>
-    </qti-card-entry>
-  </qti-card>
-</qti-catalog-info>
-`;
-
-const ITEM_XML = `<?xml version="1.0" encoding="UTF-8"?>
-<qti-assessment-item
-  xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0"
-  identifier="glossary-test" title="Glossary Test" adaptive="false" time-dependent="false">
-  <qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="identifier"/>
-  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float"/>
-  ${CATALOG_XML}
-  <qti-item-body>
-    <p>The process of <span data-catalog-idref="word-osmosis">osmosis</span> is important.</p>
-    <qti-choice-interaction response-identifier="RESPONSE" max-choices="1">
-      <qti-simple-choice identifier="A">True</qti-simple-choice>
-    </qti-choice-interaction>
-  </qti-item-body>
-</qti-assessment-item>`;
-
 function makeMockPlayer(pnp: any, catalog: Record<string, Record<string, string | null>> = {}) {
 	return {
 		getPnp: () => pnp,
@@ -202,10 +174,6 @@ function makeMockPlayer(pnp: any, catalog: Record<string, Record<string, string 
 		}),
 	} as any;
 }
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe('applyGlossaryTriggers', () => {
 	beforeEach(() => makeEnv());
@@ -219,7 +187,6 @@ describe('applyGlossaryTriggers', () => {
 		container.appendChild(term);
 
 		applyGlossaryTriggers(container, makeMockPlayer(undefined));
-		// No wrapper or button children should have been added
 		expect(container.children.length).toBe(1);
 		expect(container.children[0]).toBe(term);
 	});
@@ -248,15 +215,37 @@ describe('applyGlossaryTriggers', () => {
 
 		applyGlossaryTriggers(container, player);
 
-		// The container's first child should now be the wrapper
 		const wrapper = container.children[0];
 		expect(wrapper.className).toBe('qti-catalog-term');
-		// Wrapper should contain the original term + 1 trigger button
 		expect(wrapper.children.length).toBe(2);
 		const btn = wrapper.children[1];
 		expect(btn.tagName).toBe('BUTTON');
 		expect(btn.getAttribute('aria-label')).toBe('Show definition: osmosis');
 		expect(btn.getAttribute('data-catalog-usage')).toBe('glossary-on-screen');
+	});
+
+	it('cleans previously injected triggers before rebinding', () => {
+		const container = new FakeElement('div') as any;
+		const term = new FakeElement('span') as any;
+		term.setAttribute('data-catalog-idref', 'word-osmosis');
+		term.textContent = 'osmosis';
+		container.appendChild(term);
+
+		applyGlossaryTriggers(
+			container,
+			makeMockPlayer({ content: { glossaryOnScreen: true } }, { 'word-osmosis': { 'glossary-on-screen': 'Definition.' } })
+		);
+		applyGlossaryTriggers(
+			container,
+			makeMockPlayer({ content: { keywordTranslation: { active: true, languageCode: 'es' } } }, { 'word-osmosis': { 'keyword-translation': 'osmosis' } })
+		);
+
+		expect(container.children.length).toBe(1);
+		const wrapper = container.children[0];
+		expect(wrapper.className).toBe('qti-catalog-term');
+		const buttons = wrapper.children.filter((child: FakeElement) => child.tagName === 'BUTTON');
+		expect(buttons.length).toBe(1);
+		expect(buttons[0].getAttribute('data-catalog-usage')).toBe('keyword-translation');
 	});
 
 	it('adds a keyword-translation trigger when keywordTranslation is active', () => {
@@ -268,16 +257,36 @@ describe('applyGlossaryTriggers', () => {
 
 		const player = makeMockPlayer(
 			{ content: { keywordTranslation: { active: true, languageCode: 'es' } } },
-			{ 'word-osmosis': { 'keyword-translation': 'ósmosis' } }
+			{ 'word-osmosis': { 'keyword-translation': 'osmosis' } }
 		);
 
 		applyGlossaryTriggers(container, player);
 
 		const wrapper = container.children[0];
-		// Should have term + 1 kw-translation button
 		const btn = wrapper.children.find((c: FakeElement) => c.getAttribute('data-catalog-usage') === 'keyword-translation');
 		expect(btn).toBeDefined();
-		expect((btn as FakeElement).getAttribute('aria-label')).toBe('Show definition: osmosis');
+		expect((btn as FakeElement).getAttribute('aria-label')).toBe('Show translation: osmosis');
+	});
+
+	it('adds an illustrated glossary trigger when illustratedGlossary is active', () => {
+		const container = new FakeElement('div') as any;
+		const term = new FakeElement('span') as any;
+		term.setAttribute('data-catalog-idref', 'word-osmosis');
+		term.textContent = 'osmosis';
+		container.appendChild(term);
+
+		const player = makeMockPlayer(
+			{ content: { illustratedGlossary: true } },
+			{ 'word-osmosis': { 'illustrated-glossary': '<img src="osmosis.png" alt="Osmosis diagram">' } }
+		);
+
+		applyGlossaryTriggers(container, player);
+
+		const wrapper = container.children[0];
+		const btn = wrapper.children.find((c: FakeElement) => c.getAttribute('data-catalog-usage') === 'illustrated-glossary');
+		expect(btn).toBeDefined();
+		expect((btn as FakeElement).getAttribute('aria-label')).toBe('Show illustrated glossary: osmosis');
+		expect((btn as FakeElement).textContent).toBe('I');
 	});
 
 	it('clicking a glossary trigger creates a popup with the entry HTML', () => {
@@ -296,11 +305,8 @@ describe('applyGlossaryTriggers', () => {
 
 		const wrapper = container.children[0];
 		const btn = wrapper.children[1];
-
-		// Click opens popup
 		btn.dispatchEvent(new FakeEvent('click', {}));
 
-		// Wrapper should now have: term + triggerBtn + popup
 		const popup = wrapper.children.find((c: FakeElement) => c.getAttribute('role') === 'dialog');
 		expect(popup).toBeDefined();
 		expect(popup!.getAttribute('aria-label')).toBe('osmosis');
@@ -347,7 +353,7 @@ describe('applyGlossaryTriggers', () => {
 		expect(wrapper.children.some((c: FakeElement) => c.getAttribute('role') === 'dialog')).toBe(false);
 	});
 
-	it('fires qti-catalog-lookup CustomEvent for platform usages (tts-pronunciation)', () => {
+	it('does not auto-emit platform catalog supports on render', () => {
 		const container = new FakeElement('div') as any;
 		const term = new FakeElement('span') as any;
 		term.setAttribute('data-catalog-idref', 'word-osmosis');
@@ -356,7 +362,6 @@ describe('applyGlossaryTriggers', () => {
 
 		const firedEvents: any[] = [];
 		container.addEventListener('qti-catalog-lookup', (e: any) => firedEvents.push(e));
-		// Override addEventListener to track bubbled events from term
 		const origDispatch = term.dispatchEvent.bind(term);
 		term.dispatchEvent = (e: any) => {
 			if (e.type === 'qti-catalog-lookup') firedEvents.push(e);
@@ -371,12 +376,32 @@ describe('applyGlossaryTriggers', () => {
 		applyGlossaryTriggers(container, player);
 
 		const ttsFired = firedEvents.find((e) => e.detail?.usage === 'tts-pronunciation');
-		expect(ttsFired).toBeDefined();
-		expect(ttsFired.detail.idref).toBe('word-osmosis');
-		expect(ttsFired.detail.html).toBe('oz-MOH-sis');
-		// No popup was created for tts-pronunciation
+		expect(ttsFired).toBeUndefined();
 		const wrapper = container.children[0];
 		expect(wrapper.children.some((c: FakeElement) => c.getAttribute('role') === 'dialog')).toBe(false);
+	});
+
+	it('emits host catalog events only from active user-triggered support buttons', () => {
+		const container = new FakeElement('div') as any;
+		const term = new FakeElement('span') as any;
+		term.setAttribute('data-catalog-idref', 'word-osmosis');
+		term.textContent = 'osmosis';
+		container.appendChild(term);
+		const firedEvents: any[] = [];
+		container.addEventListener('qti-catalog-lookup', (e: any) => firedEvents.push(e));
+		const player = makeMockPlayer(
+			{ content: { catalogSupports: { ttsPronunciation: true } } },
+			{ 'word-osmosis': { 'tts-pronunciation': 'oz-MOH-sis' } }
+		);
+
+		applyGlossaryTriggers(container, player);
+		expect(firedEvents.length).toBe(0);
+		const wrapper = container.children[0];
+		const btn = wrapper.children.find((c: FakeElement) => c.getAttribute('data-catalog-usage') === 'tts-pronunciation');
+		expect(btn).toBeDefined();
+		btn!.dispatchEvent(new FakeEvent('click', { bubbles: true, composed: true }));
+
+		expect(firedEvents[0]?.detail).toEqual({ idref: 'word-osmosis', usage: 'tts-pronunciation', languageCode: undefined });
 	});
 
 	it('handles multiple catalog terms independently', () => {
@@ -403,7 +428,6 @@ describe('applyGlossaryTriggers', () => {
 
 		applyGlossaryTriggers(container, player);
 
-		// Two wrappers should exist
 		expect(container.children.length).toBe(2);
 		expect(container.children[0].className).toBe('qti-catalog-term');
 		expect(container.children[1].className).toBe('qti-catalog-term');

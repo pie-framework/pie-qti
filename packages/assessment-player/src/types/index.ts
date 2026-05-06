@@ -6,6 +6,7 @@
  */
 
 export type QTIRole = import('@pie-qti/item-player').QTIRole;
+export type ResolvedItemDeliveryContext = import('@pie-qti/item-player').ResolvedItemDeliveryContext;
 
 /**
  * Minimal item reference shape used by the UI renderer.
@@ -16,6 +17,8 @@ export interface ItemRef {
 	required?: boolean;
 	/** Client-safe item XML (backend filtered by role). */
 	itemXml?: string;
+	/** Optional resolved QTI 3 delivery context produced by package/assessment layers. */
+	deliveryContext?: ResolvedItemDeliveryContext;
 }
 
 /**

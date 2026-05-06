@@ -1,6 +1,13 @@
 import type { Player } from '../core/Player.js';
 
-const PLATFORM_USAGES = new Set(['tts-pronunciation', 'signing-definition', 'braille-text', 'audio-description']);
+const PLATFORM_USAGES = [
+	{ usage: 'tts-pronunciation', flag: 'ttsPronunciation', label: 'Request pronunciation', text: 'P' },
+	{ usage: 'signing-definition', flag: 'signingDefinition', label: 'Request signing definition', text: 'S' },
+	{ usage: 'braille-text', flag: 'brailleText', label: 'Request braille text', text: 'B' },
+	{ usage: 'audio-description', flag: 'audioDescription', label: 'Request audio description', text: 'A' },
+	{ usage: 'extended-description', flag: 'extendedDescription', label: 'Request extended description', text: 'D' },
+] as const;
+const ILLUSTRATED_GLOSSARY_USAGE = 'illustrated-glossary';
 
 /**
  * Inject glossary/keyword-translation trigger buttons into a rendered item container.
@@ -14,18 +21,22 @@ const PLATFORM_USAGES = new Set(['tts-pronunciation', 'signing-definition', 'bra
  * audio-description) the player fires a `qti-catalog-lookup` CustomEvent instead of
  * mounting a popup — the host application handles those usages.
  */
-export function applyGlossaryTriggers(container: HTMLElement, player: Player): void {
+export function applyGlossaryTriggers(container: HTMLElement, player: Player): () => void {
+	cleanupGlossaryTriggers(container);
 	const pnp = player.getPnp();
-	if (!pnp) return;
+	if (!pnp) return () => cleanupGlossaryTriggers(container);
 
 	const glossaryOn = pnp.content?.glossaryOnScreen === true;
 	const kwTranslation = pnp.content?.keywordTranslation;
 	const kwOn = kwTranslation?.active === true && !!kwTranslation.languageCode;
+	const illustratedOn = pnp.content?.illustratedGlossary === true;
+	const platformSupports = pnp.content?.catalogSupports ?? {};
 
-	if (!glossaryOn && !kwOn) return;
+	const anyPlatformOn = PLATFORM_USAGES.some((support) => platformSupports[support.flag] === true);
+	if (!glossaryOn && !kwOn && !illustratedOn && !anyPlatformOn) return () => cleanupGlossaryTriggers(container);
 
 	const terms = container.querySelectorAll<HTMLElement>('[data-catalog-idref]');
-	if (terms.length === 0) return;
+	if (terms.length === 0) return () => cleanupGlossaryTriggers(container);
 
 	// Track open popup so only one is open at a time
 	let currentCleanup: (() => void) | null = null;
@@ -43,7 +54,7 @@ export function applyGlossaryTriggers(container: HTMLElement, player: Player): v
 		wrapper.appendChild(termEl);
 
 		if (glossaryOn) {
-			const btn = createTriggerButton(termEl.textContent ?? idref, 'glossary-on-screen');
+			const btn = createTriggerButton(termEl.textContent ?? idref, 'glossary-on-screen', 'Show definition');
 			wrapper.appendChild(btn);
 
 			btn.addEventListener('click', () => {
@@ -63,7 +74,7 @@ export function applyGlossaryTriggers(container: HTMLElement, player: Player): v
 
 		if (kwOn) {
 			const lang = kwTranslation!.languageCode;
-			const btn = createTriggerButton(termEl.textContent ?? idref, 'keyword-translation');
+			const btn = createTriggerButton(termEl.textContent ?? idref, 'keyword-translation', 'Show translation');
 			wrapper.appendChild(btn);
 
 			btn.addEventListener('click', () => {
@@ -81,29 +92,68 @@ export function applyGlossaryTriggers(container: HTMLElement, player: Player): v
 			});
 		}
 
-		// Platform-level usages: fire event, no popup
-		for (const usage of PLATFORM_USAGES) {
-			const html = player.getCatalogEntry(idref, usage);
-			if (html !== null) {
-				termEl.dispatchEvent(
+		if (illustratedOn) {
+			const btn = createTriggerButton(termEl.textContent ?? idref, ILLUSTRATED_GLOSSARY_USAGE, 'Show illustrated glossary');
+			wrapper.appendChild(btn);
+
+			btn.addEventListener('click', () => {
+				if (currentCleanup) {
+					currentCleanup();
+					currentCleanup = null;
+					return;
+				}
+				const html = player.getCatalogEntry(idref, ILLUSTRATED_GLOSSARY_USAGE);
+				if (html !== null) {
+					currentCleanup = mountPopup(wrapper, termEl.textContent ?? idref, html, btn, player, () => {
+						currentCleanup = null;
+					});
+				}
+			});
+		}
+
+		for (const support of PLATFORM_USAGES) {
+			if (platformSupports[support.flag] !== true) continue;
+			const html = player.getCatalogEntry(idref, support.usage);
+			if (html === null) continue;
+			const btn = createTriggerButton(termEl.textContent ?? idref, support.usage, support.label, support.text);
+			wrapper.appendChild(btn);
+			btn.addEventListener('click', () => {
+				btn.dispatchEvent(
 					new CustomEvent('qti-catalog-lookup', {
 						bubbles: true,
 						composed: true,
-						detail: { idref, usage, html },
+						detail: { idref, usage: support.usage, languageCode: kwTranslation?.languageCode },
 					})
 				);
-			}
+			});
 		}
+	}
+
+	return () => {
+		currentCleanup?.();
+		cleanupGlossaryTriggers(container);
+	};
+}
+
+export function cleanupGlossaryTriggers(container: HTMLElement): void {
+	for (const wrapper of Array.from(container.querySelectorAll<HTMLElement>('.qti-catalog-term'))) {
+		const term = Array.from(wrapper.children).find((child) =>
+			(child as HTMLElement).getAttribute?.('data-catalog-idref') !== null
+		) as HTMLElement | undefined;
+		if (term && wrapper.parentNode) {
+			wrapper.parentNode.insertBefore(term, wrapper);
+		}
+		wrapper.remove();
 	}
 }
 
-function createTriggerButton(termText: string, usage: string): HTMLButtonElement {
+function createTriggerButton(termText: string, usage: string, labelPrefix: string, text?: string): HTMLButtonElement {
 	const btn = document.createElement('button');
 	btn.type = 'button';
 	btn.className = 'qti-catalog-trigger';
-	btn.setAttribute('aria-label', `Show definition: ${termText}`);
+	btn.setAttribute('aria-label', `${labelPrefix}: ${termText}`);
 	btn.setAttribute('data-catalog-usage', usage);
-	btn.textContent = usage === 'keyword-translation' ? 'T' : '?';
+	btn.textContent = text ?? (usage === 'keyword-translation' ? 'T' : usage === ILLUSTRATED_GLOSSARY_USAGE ? 'I' : '?');
 	return btn;
 }
 
@@ -123,6 +173,15 @@ function mountPopup(
 	const registry = player.getComponentRegistry();
 
 	let popupEl: HTMLElement;
+	let closed = false;
+
+	function cleanup() {
+		if (closed) return;
+		closed = true;
+		popupEl.remove();
+		triggerBtn.focus();
+		onClose();
+	}
 
 	const catalogPopupTag = registry.getTagNameForType('catalogPopup');
 	if (catalogPopupTag !== null) {
@@ -138,14 +197,8 @@ function mountPopup(
 		popupEl = el;
 	} else {
 		// Minimal fallback for environments without default-components
-		popupEl = buildFallbackPopup(label, html);
+		popupEl = buildFallbackPopup(label, html, cleanup);
 		anchor.appendChild(popupEl);
-	}
-
-	function cleanup() {
-		popupEl.remove();
-		triggerBtn.focus();
-		onClose();
 	}
 
 	return cleanup;
@@ -155,7 +208,7 @@ function mountPopup(
  * Minimal accessible fallback popup used when no catalogPopup component is registered.
  * Uses DaisyUI card classes where available; degrades gracefully without them.
  */
-function buildFallbackPopup(label: string, html: string): HTMLElement {
+function buildFallbackPopup(label: string, html: string, close: () => void): HTMLElement {
 	const popup = document.createElement('div');
 	popup.className = 'card card-bordered bg-base-100 shadow-lg qti-catalog-popup';
 	popup.setAttribute('role', 'dialog');
@@ -223,7 +276,7 @@ function buildFallbackPopup(label: string, html: string): HTMLElement {
 	}
 
 	popup.addEventListener('keydown', handleKeyDown);
-	closeBtn.addEventListener('click', () => popup.remove());
+	closeBtn.addEventListener('click', () => close());
 
 	// Move focus in on next tick
 	setTimeout(() => closeBtn.focus(), 0);

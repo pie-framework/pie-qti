@@ -1,7 +1,7 @@
 {
 	"$schema": "./public-coverage-matrix.schema.json",
 	"scope": "QTI 2.2 Advanced and QTI 3.0 Advanced DELIVERY public clean-room coverage",
-	"updated": "2026-05-04",
+	"updated": "2026-05-05",
 	"commands": [
 		{
 			"id": "item-clean-room",
@@ -24,6 +24,24 @@
 				"packages/assessment-player/tests/conformance-qti22-basic.test.ts",
 				"packages/assessment-player/tests/conformance-qti22-advanced.test.ts",
 				"packages/assessment-player/tests/conformance-qti30-advanced.test.ts"
+			]
+		},
+		{
+			"id": "package-clean-room",
+			"description": "Clean-room IMS CP and QTI 3 shared content parsing coverage",
+			"cwd": ".",
+			"args": ["test", "packages/ims-cp-core/tests/qti3-shared-content.test.ts"]
+		},
+		{
+			"id": "item-runtime-clean-room",
+			"description": "Clean-room item runtime session, PNP, and catalog behavior coverage",
+			"cwd": ".",
+			"args": [
+				"test",
+				"packages/item-player/tests/core/item-session-lifecycle.test.ts",
+				"packages/item-player/tests/core/pnp.test.ts",
+				"packages/item-player/tests/core/delivery-context.test.ts",
+				"packages/item-player/tests/core/glossaryTriggers.test.ts"
 			]
 		},
 		{
@@ -314,11 +332,11 @@
 			"level": "Advanced",
 			"feature": "I4 Shared Stimulus",
 			"officialPath": "qti3.0/Advanced/I4 Shared Stimulus/",
-			"publicTests": ["packages/item-player/src/extraction/extractors/conformance-qti3-advanced.test.ts", "apps/demo/tests/playwright/public-certification.pw.ts"],
+			"publicTests": ["packages/item-player/src/extraction/extractors/conformance-qti3-advanced.test.ts", "packages/ims-cp-core/tests/qti3-shared-content.test.ts", "packages/item-player/tests/core/delivery-context.test.ts", "apps/demo/tests/playwright/public-certification.pw.ts"],
 			"fixturePackages": [],
 			"e2eRequired": true,
-			"commandIds": ["item-clean-room", "browser-visible"],
-			"notes": "Covers stimulus reference preservation and browser-visible shared stimulus rendering."
+			"commandIds": ["item-clean-room", "package-clean-room", "item-runtime-clean-room", "browser-visible"],
+			"notes": "Covers stimulus reference preservation, structured qti-assessment-stimulus parsing, stylesheet/catalog extraction, and item-runtime consumption of resolved stimulus/catalog context. Scoped stylesheet/catalog and browser-visible shared stimulus rendering evidence is tracked in docs/certification/qti3-remaining-parity-evidence.md."
 		},
 		{
 			"id": "qti30-advanced-i17",
@@ -362,11 +380,11 @@
 			"level": "Advanced",
 			"feature": "A13 captions and A15 glossary",
 			"officialPath": "qti3.0/Advanced/A13captions_A15glossary/",
-			"publicTests": ["packages/item-player/src/extraction/extractors/conformance-qti3-advanced.test.ts", "apps/demo/tests/playwright/public-certification.pw.ts"],
+			"publicTests": ["packages/item-player/src/extraction/extractors/conformance-qti3-advanced.test.ts", "packages/item-player/tests/core/pnp.test.ts", "packages/item-player/tests/core/glossaryTriggers.test.ts", "apps/demo/tests/playwright/public-certification.pw.ts"],
 			"fixturePackages": [],
 			"e2eRequired": true,
-			"commandIds": ["item-clean-room", "browser-visible"],
-			"notes": "Covers caption track preservation, catalog references, and glossary lookup."
+			"commandIds": ["item-clean-room", "item-runtime-clean-room", "browser-visible"],
+			"notes": "Covers caption track preservation plus item-runtime PNP/catalog coverage for glossary, keyword translation, and illustrated glossary triggers. Browser-visible catalog affordances, access-for-all, dynamic rebinding, host-routed support, and manual AT evidence is tracked in docs/certification/qti3-remaining-parity-evidence.md."
 		},
 		{
 			"id": "qti30-advanced-s3-s4",
@@ -413,8 +431,8 @@
 			"publicTests": ["packages/assessment-player/tests/conformance-qti30-advanced.test.ts"],
 			"fixturePackages": [],
 			"e2eRequired": false,
-			"commandIds": ["assessment-clean-room"],
-			"notes": "Covers qti-item-session-control and max-attempts=0 as unlimited."
+			"commandIds": ["assessment-clean-room", "item-runtime-clean-room"],
+			"notes": "Covers qti-item-session-control, max-attempts=0 as unlimited, and individual/simultaneous item session behavior. Remaining item-ref/section/testPart precedence evidence is tracked in docs/certification/qti3-remaining-parity-evidence.md."
 		},
 		{
 			"id": "qti30-advanced-t12",
@@ -426,7 +444,7 @@
 			"fixturePackages": [],
 			"e2eRequired": true,
 			"commandIds": ["assessment-clean-room", "browser-visible"],
-			"notes": "Covers qti-assessment-section, qti-time-limits, allow-skipping, and qti-assessment-section-ref."
+			"notes": "Covers qti-assessment-section, qti-time-limits, allow-skipping, and qti-assessment-section-ref. Remaining item/section/test timing precedence, restoration, expiry, and accessible timer UI evidence is tracked in docs/certification/qti3-remaining-parity-evidence.md."
 		}
 	]
 }

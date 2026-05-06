@@ -1,12 +1,8 @@
-import { describe, it, expect } from 'bun:test';
-import { parsePnpXml } from '../pnp/parsePnpXml.js';
-import { applyPnpToRoot } from '../pnp/applyPnp.js';
-import { Player } from '../core/Player.js';
-import type { PnpProfile } from '../pnp/types.js';
-
-// ---------------------------------------------------------------------------
-// parsePnpXml
-// ---------------------------------------------------------------------------
+import { describe, expect, it } from 'bun:test';
+import { Player } from '../../src/core/Player.js';
+import { applyPnpToRoot } from '../../src/pnp/applyPnp.js';
+import { parsePnpXml } from '../../src/pnp/parsePnpXml.js';
+import type { PnpProfile } from '../../src/pnp/types.js';
 
 describe('parsePnpXml', () => {
 	it('parses default color scheme', () => {
@@ -20,19 +16,31 @@ describe('parsePnpXml', () => {
 		expect(profile.display?.colorScheme).toBe('default');
 	});
 
-	it.each(['blackwhite', 'whitenav', 'blackcream', 'yellowblue', 'medgray'] as const)(
-		'parses color scheme "%s"',
-		(scheme) => {
-			const profile = parsePnpXml(`
-				<personalNeedsProfile>
-					<display>
-						<colorScheme value="${scheme}"/>
-					</display>
-				</personalNeedsProfile>
-			`);
-			expect(profile.display?.colorScheme).toBe(scheme);
-		}
-	);
+	it.each([
+		'blackwhite',
+		'whiteblack',
+		'blackrose',
+		'roseblack',
+		'yellowblue',
+		'blueyellow',
+		'mgraydgray',
+		'dgraymgray',
+		'blackcyan',
+		'cyanblack',
+		'blackcream',
+		'creamblack',
+		'whitenav',
+		'medgray',
+	] as const)('parses color scheme "%s"', (scheme) => {
+		const profile = parsePnpXml(`
+			<personalNeedsProfile>
+				<display>
+					<colorScheme value="${scheme}"/>
+				</display>
+			</personalNeedsProfile>
+		`);
+		expect(profile.display?.colorScheme).toBe(scheme);
+	});
 
 	it('ignores unknown color scheme values', () => {
 		const profile = parsePnpXml(`
@@ -89,6 +97,43 @@ describe('parsePnpXml', () => {
 		expect(profile.content?.keywordTranslation).toEqual({ active: true, languageCode: 'es' });
 	});
 
+	it('parses illustratedGlossary', () => {
+		const profile = parsePnpXml(`
+			<personalNeedsProfile>
+				<content>
+					<illustratedGlossary enabled="true"/>
+				</content>
+			</personalNeedsProfile>
+		`);
+		expect(profile.content?.illustratedGlossary).toBe(true);
+	});
+
+	it('parses host-routed catalog support preferences', () => {
+		const profile = parsePnpXml(`
+			<personalNeedsProfile>
+				<content>
+					<ttsPronunciation enabled="true"/>
+					<audioDescription active="true"/>
+				</content>
+			</personalNeedsProfile>
+		`);
+		expect(profile.content?.catalogSupports).toEqual({
+			ttsPronunciation: true,
+			audioDescription: true,
+		});
+	});
+
+	it('parses access-for-all illustrated glossary aliases', () => {
+		const profile = parsePnpXml(`
+			<personalNeedsProfile>
+				<content>
+					<ext:sbac-glossary-illustration active="true"/>
+				</content>
+			</personalNeedsProfile>
+		`);
+		expect(profile.content?.illustratedGlossary).toBe(true);
+	});
+
 	it('parses eliminationTool', () => {
 		const profile = parsePnpXml(`
 			<personalNeedsProfile>
@@ -121,23 +166,26 @@ describe('parsePnpXml', () => {
 	});
 
 	it('returns empty profile when no recognized root element', () => {
-		// parsePnpXml with an unrecognised root gracefully returns {}
 		const profile = parsePnpXml('<somethingElse><display/></somethingElse>');
 		expect(profile).toEqual({});
 	});
 });
 
-// ---------------------------------------------------------------------------
-// applyPnpToRoot — uses a minimal object that satisfies the HTMLElement contract
-// ---------------------------------------------------------------------------
-
 function makeEl(): HTMLElement {
 	const attrs: Record<string, string> = {};
 	return {
-		setAttribute(k: string, v: string) { attrs[k] = v; },
-		removeAttribute(k: string) { delete attrs[k]; },
-		hasAttribute(k: string) { return k in attrs; },
-		getAttribute(k: string) { return attrs[k] ?? null; },
+		setAttribute(k: string, v: string) {
+			attrs[k] = v;
+		},
+		removeAttribute(k: string) {
+			delete attrs[k];
+		},
+		hasAttribute(k: string) {
+			return k in attrs;
+		},
+		getAttribute(k: string) {
+			return attrs[k] ?? null;
+		},
 	} as unknown as HTMLElement;
 }
 
@@ -169,7 +217,13 @@ describe('applyPnpToRoot', () => {
 		expect(el.hasAttribute('data-qti-colorscheme')).toBe(false);
 	});
 
-	it.each(['blackwhite', 'whitenav', 'blackcream', 'yellowblue', 'medgray'] as const)(
+	it('sets magnification metadata for host stylesheets', () => {
+		const el = makeEl();
+		applyPnpToRoot(el, { display: { magnification: 1.5 } });
+		expect(el.getAttribute('data-qti-magnification')).toBe('1.5');
+	});
+
+	it.each(['blackwhite', 'whiteblack', 'blackrose', 'yellowblue', 'blueyellow', 'blackcream', 'creamblack', 'medgray'] as const)(
 		'sets correct attribute value for scheme "%s"',
 		(scheme) => {
 			const el = makeEl();
@@ -178,10 +232,6 @@ describe('applyPnpToRoot', () => {
 		}
 	);
 });
-
-// ---------------------------------------------------------------------------
-// Player.applyPnp / Player.updatePnp
-// ---------------------------------------------------------------------------
 
 const MINIMAL_ITEM_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"

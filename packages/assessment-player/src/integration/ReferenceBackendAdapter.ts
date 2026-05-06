@@ -41,6 +41,11 @@ import {
 	qtiNull,
 	qtiValue,
 } from '@pie-qti/qti-processing';
+import {
+	createResolvedItemDeliveryContext,
+	extractAssessmentStimulusRefs,
+	resolveRelativePath as resolveQtiRelativePath,
+} from '@pie-qti/ims-cp-core';
 import { parse } from 'node-html-parser';
 import type {
 	AssessmentSessionState,
@@ -190,6 +195,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			visitedItems: [],
 			itemResponses: {},
 			itemScores: {},
+			itemSessions: {},
 			timing: {
 				startedAt: Date.now(),
 				itemTimes: {},
@@ -234,6 +240,34 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			};
 		}
 
+		const receivedAt = Date.now();
+		const assessmentLimit = session.assessment.timeLimits;
+		const effectiveAssessmentLimitSeconds =
+			request.timing?.scope === 'assessment' && request.timing.limitSeconds !== undefined
+				? request.timing.limitSeconds
+				: assessmentLimit?.maxTime;
+		const assessmentAllowsLate = assessmentLimit?.allowLateSubmission ?? request.timing?.allowLateSubmission;
+		if (
+			effectiveAssessmentLimitSeconds !== undefined &&
+			assessmentAllowsLate !== true &&
+			receivedAt - session.createdAt > effectiveAssessmentLimitSeconds * 1000
+		) {
+			return {
+				success: false,
+				error: 'Assessment time limit expired',
+			};
+		}
+
+		const evidenceExpired =
+			request.timing?.limitSeconds !== undefined &&
+			request.timing.elapsedMs >= request.timing.limitSeconds * 1000;
+		if (evidenceExpired && request.timing?.allowLateSubmission !== true) {
+			return {
+				success: false,
+				error: 'Time limit expired',
+			};
+		}
+
 		// Find the item XML
 		const itemXml = this.findItemXml(session.assessment, request.itemIdentifier);
 		if (!itemXml) {
@@ -245,7 +279,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 
 		// **SECURITY WARNING**: Client-side scoring is INSECURE
 		// In production, this MUST be done server-side
-		const result = scoreAssessmentItem({ itemXml, responses: request.responses });
+		const result = scoreAssessmentItem({ itemXml, responses: request.responses, itemSession: request.itemSession });
 
 		// Store responses and result
 		session.state.itemResponses[request.itemIdentifier] = request.responses;
@@ -253,6 +287,12 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			session.state.itemScores = {};
 		}
 		session.state.itemScores[request.itemIdentifier] = result;
+		if (request.itemSession) {
+			session.state.itemSessions = {
+				...(session.state.itemSessions ?? {}),
+				[request.itemIdentifier]: request.itemSession,
+			};
+		}
 		const previousItemSession = session.state.itemSessionStates?.[request.itemIdentifier];
 		session.state.itemSessionStates = {
 			...(session.state.itemSessionStates ?? {}),
@@ -761,14 +801,83 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			};
 		};
 
+		const parseTimeLimits = (el: Element): SecureAssessment['timeLimits'] | undefined => {
+			const limitsEl = childrenByTag(el, 'timeLimit')[0] ?? childrenByTag(el, 'timeLimits')[0];
+			if (!limitsEl) return undefined;
+			const numberAttr = (name: string): number | undefined => {
+				const value = getAttr(limitsEl, name);
+				if (value === undefined) return undefined;
+				const parsed = Number(value);
+				return Number.isFinite(parsed) ? parsed : undefined;
+			};
+			const boolAttr = (name: string): boolean | undefined => {
+				const value = getAttr(limitsEl, name);
+				return value === undefined ? undefined : value === 'true';
+			};
+			return {
+				minTime: numberAttr('minTime'),
+				maxTime: numberAttr('maxTime'),
+				allowLateSubmission: boolAttr('allowLateSubmission'),
+			};
+		};
+
+		const resolveAgainstBase = (href: string | undefined): string | undefined => {
+			if (!href) return undefined;
+			return baseUrl ? resolveQtiRelativePath(baseUrl, href) : href;
+		};
+
+		const loadText = async (href: string | undefined): Promise<string | undefined> => {
+			if (!href) return undefined;
+			const candidates = [href, resolveAgainstBase(href)].filter((value, index, all): value is string =>
+				Boolean(value) && all.indexOf(value) === index
+			);
+			for (const candidate of candidates) {
+				if (itemXmlMap[candidate] !== undefined) {
+					return itemXmlMap[candidate];
+				}
+			}
+			if (!fileResolver) return undefined;
+			for (const candidate of candidates) {
+				try {
+					return await fileResolver(candidate);
+				} catch {
+					// Try the next candidate before giving up.
+				}
+			}
+			return undefined;
+		};
+
+		const buildDeliveryContext = async (
+			itemXml: string,
+			itemHref: string | undefined
+		): Promise<SecureItemRef['deliveryContext'] | undefined> => {
+			if (!itemHref || extractAssessmentStimulusRefs(itemXml).length === 0) {
+				return undefined;
+			}
+			const stimulusXmlByPath: Record<string, string> = {};
+			for (const ref of extractAssessmentStimulusRefs(itemXml)) {
+				const stimulusPath = resolveQtiRelativePath(itemHref, ref.href);
+				const stimulusXml = await loadText(stimulusPath);
+				if (stimulusXml) {
+					stimulusXmlByPath[stimulusPath] = stimulusXml;
+				}
+			}
+			return createResolvedItemDeliveryContext({
+				itemXml,
+				itemHref,
+				readText: (path) => stimulusXmlByPath[path] ?? itemXmlMap[path],
+			});
+		};
+
 		// Parse a single assessmentSection element
-		const parseSection = (sectionEl: Element): SecureSection => {
+		const parseSection = async (sectionEl: Element): Promise<SecureSection> => {
 			const identifier = getAttr(sectionEl, 'identifier') ?? 'section';
 			const title = getAttr(sectionEl, 'title');
 			const visibleRaw = getAttr(sectionEl, 'visible');
 			const visible = visibleRaw === undefined ? true : visibleRaw !== 'false';
 
 			const itemSessionControl = parseItemSessionControl(sectionEl);
+			const timeLimits = parseTimeLimits(sectionEl);
 
 			// rubricBlocks
 			const rubricBlockEls = childrenByTag(sectionEl, 'rubricBlock');
@@ -783,20 +892,24 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 
 			// assessmentItemRefs
 			const itemRefEls = childrenByTag(sectionEl, 'assessmentItemRef');
-			const assessmentItemRefs: SecureItemRef[] = itemRefEls.map((ref) => {
+			const assessmentItemRefs: SecureItemRef[] = [];
+			for (const ref of itemRefEls) {
 				const itemId = getAttr(ref, 'identifier') ?? 'item';
 				const href = getAttr(ref, 'href');
+				const itemHref = resolveAgainstBase(href) ?? href;
 				// Look up pre-loaded XML by identifier or href
-				const resolvedXml = itemXmlMap[itemId] ?? (href ? itemXmlMap[href] : undefined) ?? '';
+				const resolvedXml = itemXmlMap[itemId] ?? (href ? itemXmlMap[href] : undefined) ?? (itemHref ? itemXmlMap[itemHref] : undefined) ?? (await loadText(href)) ?? '';
 				const requiredRaw = getAttr(ref, 'required');
 				const required = requiredRaw === undefined ? undefined : requiredRaw !== 'false';
-				return {
+				assessmentItemRefs.push({
 					identifier: itemId,
 					itemXml: resolvedXml,
 					role,
 					required,
-				};
-			});
+					timeLimits: parseTimeLimits(ref),
+					deliveryContext: await buildDeliveryContext(resolvedXml, itemHref),
+				});
+			}
 
 			return {
 				identifier,
@@ -805,6 +918,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 				assessmentItemRefs,
 				rubricBlocks,
 				itemSessionControl,
+				timeLimits,
 			};
 		};
 
@@ -848,7 +962,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			const sections: SecureSection[] = [];
 			for (const child of childElements(testPartEl)) {
 				if (toCanonicalQtiName(child.localName) === 'assessmentSection') {
-					sections.push(parseSection(child));
+					sections.push(await parseSection(child));
 				} else if (toCanonicalQtiName(child.localName) === 'assessmentSectionRef') {
 					const resolved = await resolveSectionRef(child);
 					if (resolved) sections.push(resolved);
@@ -910,16 +1024,8 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			? serializeXml(outcomeProcessingEl)
 			: undefined;
 
-		// Extract timeLimits
-		const timeLimitsEl = childrenByTag(root, 'timeLimit')[0] ?? childrenByTag(root, 'timeLimits')[0];
-		const timeLimits = timeLimitsEl
-			? {
-				maxTime: getAttr(timeLimitsEl, 'maxTime')
-					? Number(getAttr(timeLimitsEl, 'maxTime'))
-					: undefined,
-				allowLateSubmission: getAttr(timeLimitsEl, 'allowLateSubmission') === 'true',
-			}
-			: undefined;
+		// Extract assessment-level timeLimits.
+		const timeLimits = parseTimeLimits(root);
 
 		// Parse testParts
 		const testPartEls = childrenByTag(root, 'testPart');
@@ -937,6 +1043,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 		for (const tp of testPartEls) {
 			const tpIdentifier = getAttr(tp, 'identifier') ?? 'part-1';
 			const tpItemSessionControl = parseTestPartItemSessionControl(tp);
+			const tpTimeLimits = parseTimeLimits(tp);
 			const tpRubricBlockEls = childrenByTag(tp, 'rubricBlock');
 			const tpRubricBlocks = tpRubricBlockEls.length > 0
 				? tpRubricBlockEls.map((b, idx) => ({
@@ -953,6 +1060,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 				sections,
 				rubricBlocks: tpRubricBlocks,
 				itemSessionControl: tpItemSessionControl,
+				timeLimits: tpTimeLimits,
 			});
 		}
 
@@ -961,7 +1069,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			const topSections: SecureSection[] = [];
 			for (const child of childElements(root)) {
 				if (toCanonicalQtiName(child.localName) === 'assessmentSection') {
-					topSections.push(parseSection(child));
+					topSections.push(await parseSection(child));
 				} else if (toCanonicalQtiName(child.localName) === 'assessmentSectionRef') {
 					const resolved = await resolveSectionRef(child);
 					if (resolved) topSections.push(resolved);

@@ -61,37 +61,8 @@
 	const nonPassageRubricBlocks = $derived(currentRubricBlocks.filter((b) => b?.use !== 'passage'));
 	const hasPassage = $derived(passageBlocks.length > 0);
 
-	// Fallback: listen at the shell root for any `qti-change` custom events from nested
-	// web components. Use a reactive effect so we attach even if `rootEl` is set after mount.
-	function handleRootQtiChange(e: Event) {
-		const ce = e as CustomEvent;
-		const detail = (ce as any).detail;
-		if (!detail) return;
-		const { responseId, value } = detail;
-		if (responseId) {
-			handleResponseChange(responseId, value);
-		}
-	}
-
-	$effect(() => {
-		if (!rootEl) return;
-		rootEl.addEventListener('qti-change', handleRootQtiChange as EventListener);
-		return () => rootEl?.removeEventListener('qti-change', handleRootQtiChange as EventListener);
-	});
-
 	// Initialize player
 	onMount(() => {
-		// Capture bubbled `qti-change` events at the document level as a safety net.
-		// This ensures responses are recorded even if an intermediate renderer misses the event.
-		const handleDocumentQtiChange = (e: Event) => {
-			const ce = e as CustomEvent;
-			const detail = (ce as any).detail;
-			if (!detail) return;
-			const { responseId, value } = detail;
-			if (responseId) handleResponseChange(responseId, value);
-		};
-		document.addEventListener('qti-change', handleDocumentQtiChange as EventListener);
-
 		// Never allow infinite "Loading assessment..." state
 		initTimeout = setTimeout(() => {
 			if (!hasFirstItem && !error) {
@@ -140,6 +111,13 @@
 			// If backend did not restore a current item, start at index 0.
 			if (player.getNavigationState().currentIndex < 0) {
 				await player.navigateTo(0);
+			} else {
+				updateState();
+				hasFirstItem = true;
+				if (initTimeout) {
+					clearTimeout(initTimeout);
+					initTimeout = null;
+				}
 			}
 		})().catch((err) => {
 			console.error('Failed to initialize assessment player:', err);
@@ -148,8 +126,6 @@
 		});
 
 		return () => {
-			document.removeEventListener('qti-change', handleDocumentQtiChange as EventListener);
-			rootEl?.removeEventListener('qti-change', handleRootQtiChange as EventListener);
 			if (initTimeout) {
 				clearTimeout(initTimeout);
 				initTimeout = null;
@@ -402,6 +378,7 @@
 							{typeset}
 							{i18n}
 							security={config.security}
+							pnp={config.pnp}
 						/>
 					{/if}
 				</SplitPaneResizer>
@@ -421,6 +398,7 @@
 						{typeset}
 						{i18n}
 						security={config.security}
+						pnp={config.pnp}
 					/>
 				{/if}
 			{/if}

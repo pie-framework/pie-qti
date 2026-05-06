@@ -11,7 +11,14 @@ import {
 	tryResolveImagePath
 } from '@pie-qti/ims-cp-browser';
 import type { VirtualPackage } from '@pie-qti/ims-cp-browser';
-import { extractQtiItemMetadata, type QtiItemMetadata } from '@pie-qti/ims-cp-core';
+import {
+	createResolvedItemDeliveryContext,
+	extractAssessmentStimulusRefs,
+	extractQtiItemMetadata,
+	type AssessmentStimulusRef,
+	type QtiItemMetadata,
+	type ResolvedItemDeliveryContext
+} from '@pie-qti/ims-cp-core';
 import { createLogger } from '@pie-qti/logger/browser';
 
 // Storage key for the current package ID
@@ -364,63 +371,14 @@ function resolveMediaReferencesInXml(xml: string, pkg: PackageStructure, itemHre
 	return new XMLSerializer().serializeToString(doc);
 }
 
-/**
- * Stimulus reference extracted from a QTI item's qti-assessment-stimulus-ref element.
- */
-export interface StimulusRef {
-	identifier: string;
-	href: string;
-	title?: string;
-}
+export type StimulusRef = AssessmentStimulusRef;
 
 /**
  * Extract qti-assessment-stimulus-ref elements from QTI 3.0 item XML.
  * Returns an array of stimulus references found in the item.
  */
 export function extractStimulusRefsFromItemXml(xml: string): StimulusRef[] {
-	const pattern = /<qti-assessment-stimulus-ref([^>]+)>/gi;
-	const refs: StimulusRef[] = [];
-	let match: RegExpExecArray | null;
-	while ((match = pattern.exec(xml)) !== null) {
-		const attrs = match[1];
-		const identifier = attrs.match(/\bidentifier="([^"]+)"/i)?.[1];
-		const href = attrs.match(/\bhref="([^"]+)"/i)?.[1];
-		const title = attrs.match(/\btitle="([^"]+)"/i)?.[1];
-		if (identifier && href) {
-			refs.push({ identifier, href, title });
-		}
-	}
-	return refs;
-}
-
-/**
- * Extract inner HTML of the <qti-stimulus-body> element from a QTI 3.0 stimulus XML file.
- */
-function extractStimulusBodyHtml(stimulusXml: string): string {
-	const match = stimulusXml.match(/<qti-stimulus-body[^>]*>([\s\S]*?)<\/qti-stimulus-body>/i);
-	return match ? match[1].trim() : '';
-}
-
-/**
- * Resolve a path relative to a base file href within the package.
- * e.g. href="Items/Item-1/item.xml", relativePath="../../Passages/file.xml"
- * returns "Passages/file.xml"
- */
-function resolveRelativePath(baseHref: string, relativePath: string): string {
-	// Build a base by stripping the filename from the item href
-	const baseDir = baseHref.includes('/') ? baseHref.substring(0, baseHref.lastIndexOf('/') + 1) : '';
-	// Combine and resolve ../ sequences
-	const combined = baseDir + relativePath;
-	const parts = combined.split('/');
-	const resolved: string[] = [];
-	for (const part of parts) {
-		if (part === '..') {
-			resolved.pop();
-		} else if (part !== '.') {
-			resolved.push(part);
-		}
-	}
-	return resolved.join('/');
+	return extractAssessmentStimulusRefs(xml);
 }
 
 /**
@@ -438,32 +396,30 @@ export async function loadStimulusContent(
 	itemHref: string,
 	refs: StimulusRef[]
 ): Promise<Record<string, string>> {
-	const result: Record<string, string> = {};
+	const itemXml = pkg._pkg.readText(itemHref) ?? '';
+	const deliveryContext = await loadItemDeliveryContext(pkg, itemHref, itemXml);
+	return Object.fromEntries(
+		refs
+			.map((ref) => [ref.identifier, deliveryContext.stimuli[ref.identifier]?.bodyHtml] as const)
+			.filter((entry): entry is readonly [string, string] => Boolean(entry[1]))
+	);
+}
 
-	for (const ref of refs) {
-		const stimulusPath = resolveRelativePath(itemHref, ref.href);
-		const stimulusXml = pkg._pkg.readText(stimulusPath);
-		if (!stimulusXml) {
-			logger.warn(`Stimulus file not found in package: ${stimulusPath}`);
-			continue;
-		}
+export async function loadItemDeliveryContext(
+	pkg: PackageStructure,
+	itemHref: string,
+	itemXml: string
+): Promise<ResolvedItemDeliveryContext> {
+	const context = createResolvedItemDeliveryContext({
+		itemXml,
+		itemHref,
+		readText: (path) => pkg._pkg.readText(path),
+		resolveAssetUrl: (path) => pkg._pkg.getDataUrl(path),
+	});
 
-		// Extract the body HTML
-		let bodyHtml = extractStimulusBodyHtml(stimulusXml);
-		if (!bodyHtml) {
-			logger.warn(`No qti-stimulus-body found in stimulus: ${stimulusPath}`);
-			continue;
-		}
-
-		// Resolve images in the stimulus body using the stimulus file path as base
-		try {
-			bodyHtml = await resolveImagesInXmlCore(bodyHtml, pkg._pkg, stimulusPath, { logger });
-		} catch (err) {
-			logger.warn(`Failed to resolve images in stimulus ${ref.identifier}:`, err);
-		}
-
-		result[ref.identifier] = bodyHtml;
+	for (const message of context.validationMessages) {
+		logger.warn(message);
 	}
 
-	return result;
+	return context;
 }

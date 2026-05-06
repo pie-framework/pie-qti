@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import { Player } from '@pie-qti/item-player';
 import {
 	getAssessmentItemIdentifier,
 	scoreAssessmentItem,
@@ -21,6 +22,37 @@ const MATCH_CORRECT_ITEM = `<assessmentItem xmlns="http://www.imsglobal.org/xsd/
     </choiceInteraction>
   </itemBody>
   <responseProcessing template="http://www.imsglobal.org/question/qti_v2p2/rptemplates/match_correct"/>
+</assessmentItem>`;
+
+const RANDOM_TEMPLATE_ITEM = `<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="random-template" title="Random Template" adaptive="false" timeDependent="false">
+  <templateDeclaration identifier="ANSWER" cardinality="single" baseType="integer">
+    <defaultValue><value>1</value></defaultValue>
+  </templateDeclaration>
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="integer"/>
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+  <itemBody>
+    <textEntryInteraction responseIdentifier="RESPONSE"/>
+  </itemBody>
+  <templateProcessing>
+    <setTemplateValue identifier="ANSWER">
+      <randomInteger min="1" max="2"/>
+    </setTemplateValue>
+  </templateProcessing>
+  <responseProcessing>
+    <responseCondition>
+      <responseIf>
+        <match>
+          <variable identifier="RESPONSE"/>
+          <variable identifier="ANSWER"/>
+        </match>
+        <setOutcomeValue identifier="SCORE">
+          <baseValue baseType="float">1</baseValue>
+        </setOutcomeValue>
+      </responseIf>
+    </responseCondition>
+  </responseProcessing>
 </assessmentItem>`;
 
 describe('assessment item scorer', () => {
@@ -52,5 +84,28 @@ describe('assessment item scorer', () => {
 		expect(result.maxScore).toBe(1);
 		expect(result.completed).toBe(true);
 		expect(result.outcomeValues.SCORE).toBe(0);
+	});
+
+	it('scores against restored template variables from serialized item sessions', () => {
+		const originalRandom = Math.random;
+		try {
+			Math.random = () => 0;
+			const candidatePlayer = new Player({ itemXml: RANDOM_TEMPLATE_ITEM });
+			expect(candidatePlayer.getTemplateVariables().ANSWER).toBe(1);
+			candidatePlayer.setResponses({ RESPONSE: 1 });
+			const itemSession = candidatePlayer.endAttempt().sessionState;
+
+			Math.random = () => 0.99;
+			const result = scoreAssessmentItem({
+				itemXml: RANDOM_TEMPLATE_ITEM,
+				responses: { RESPONSE: 1 },
+				itemSession,
+			});
+
+			expect(result.score).toBe(1);
+			expect(result.completed).toBe(true);
+		} finally {
+			Math.random = originalRandom;
+		}
 	});
 });

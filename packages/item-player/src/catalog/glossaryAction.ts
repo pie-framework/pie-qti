@@ -14,15 +14,25 @@ export interface GlossaryActionParams {
  * so the walk always runs on fresh markup.
  */
 export function glossaryAction(node: HTMLElement, params: GlossaryActionParams) {
-	applyGlossaryTriggers(node, params.player);
+	let cleanup = applyGlossaryTriggers(node, params.player);
+	let unsubscribePnp = params.player.onPnpChange?.(() => {
+		cleanup();
+		cleanup = applyGlossaryTriggers(node, params.player);
+	}) ?? (() => {});
 
 	return {
 		update(newParams: GlossaryActionParams) {
-			// {@html} replacement already wiped any previously injected wrappers.
-			applyGlossaryTriggers(node, newParams.player);
+			cleanup();
+			unsubscribePnp();
+			cleanup = applyGlossaryTriggers(node, newParams.player);
+			unsubscribePnp = newParams.player.onPnpChange?.(() => {
+				cleanup();
+				cleanup = applyGlossaryTriggers(node, newParams.player);
+			}) ?? (() => {});
 		},
 		destroy() {
-			// Node is being removed from DOM — no cleanup needed.
+			unsubscribePnp();
+			cleanup();
 		},
 	};
 }

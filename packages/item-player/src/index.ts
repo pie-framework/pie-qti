@@ -69,6 +69,7 @@ export { parsePnpXml } from './pnp/parsePnpXml.js';
 export type { CatalogIndex, CatalogCard, CatalogEntry } from './catalog/types.js';
 export { extractCatalog, extractCatalogFromItemXml, mergeCatalogs } from './catalog/catalogExtractor.js';
 export { getCatalogEntry } from './catalog/catalogLookup.js';
+export type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
 
 // PCI — Portable Custom Interaction (QTI 3.0 §6.1)
 export type { PciModule, PciBoundTo, ExtractedPci } from './pci/types.js';

@@ -5,6 +5,7 @@
 	import { goto } from '$app/navigation';
 	import { base } from '$app/paths';
 	import { Player, normalizeHeuristicsConfig, shouldAutoPopulateFeedbackOutcome, type QtiHeuristicsConfig } from '@pie-qti/item-player';
+	import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
 	import type { InteractionResponseValue } from '@pie-qti/item-player/web-components';
 	// @ts-expect-error - Svelte-check can't resolve workspace subpath exports, but runtime works correctly
 	import { ItemBody } from '@pie-qti/item-player/components';
@@ -12,7 +13,7 @@
 	import { typesetAction } from '@pie-qti/default-components/shared';
 	import { typesetMathInElement } from '@pie-qti/typeset-katex';
 	import type { SvelteI18nProvider } from '@pie-qti/i18n';
-	import { loadPackageDataAsync, getItemXml, resolveImagesInXml, extractStimulusRefsFromItemXml, loadStimulusContent, listFiles } from '$lib/package-processor';
+	import { loadPackageDataAsync, getItemXml, resolveImagesInXml, extractStimulusRefsFromItemXml, loadStimulusContent, loadItemDeliveryContext, listFiles } from '$lib/package-processor';
 	import type { PackageStructure } from '$lib/package-processor';
 	import { getSecurityConfig } from '$lib/player-config';
 	import XmlEditor from '$lib/components/XmlEditor.svelte';
@@ -56,6 +57,7 @@
 	let responses = $state<ItemResponseMap>({});
 	let outcomeValues = $state<Record<string, any>>({});
 	let stimulusContent = $state<Record<string, string>>({});
+	let deliveryContext = $state<ResolvedItemDeliveryContext | undefined>(undefined);
 	let diagnostics = $state<QtiCompatibilityReport | null>(null);
 
 	// Get i18n provider from context
@@ -78,6 +80,7 @@
 		responses = {};
 		outcomeValues = {};
 		stimulusContent = {};
+		deliveryContext = undefined;
 		diagnostics = null;
 
 		// Load item asynchronously
@@ -135,6 +138,7 @@
 				if (currentItem2?.href) {
 					const stimulusRefs = extractStimulusRefsFromItemXml(itemXml);
 					if (stimulusRefs.length > 0) {
+						deliveryContext = await loadItemDeliveryContext(packageData, currentItem2.href, itemXml);
 						stimulusContent = await loadStimulusContent(packageData, currentItem2.href, stimulusRefs);
 					}
 				}
@@ -145,6 +149,7 @@
 				player = new Player({
 					itemXml: itemXml,
 					role: 'candidate',
+					deliveryContext,
 					security: {
 						...getSecurityConfig(),
 						urlPolicy: {
@@ -330,6 +335,7 @@
 					typeset={typesetMathInElement}
 					onResponseChange={handleResponseChange}
 					{heuristicsConfig}
+					{deliveryContext}
 					{stimulusContent}
 				/>
 			</div>

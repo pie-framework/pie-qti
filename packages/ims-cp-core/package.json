@@ -21,6 +21,10 @@
     "./passage-reusability": {
       "types": "./dist/passage-reusability.d.ts",
       "import": "./dist/passage-reusability.js"
+    },
+    "./qti3-shared-content": {
+      "types": "./dist/qti3-shared-content.d.ts",
+      "import": "./dist/qti3-shared-content.js"
     }
   },
   "dependencies": {

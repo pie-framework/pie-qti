@@ -3,7 +3,11 @@
 	import type { Player } from '../core/Player';
 	import type { InteractionResponseValue, QTIChangeEventDetail } from '../web-components';
 	import type { I18nProvider } from '@pie-qti/i18n';
-	import { normalizeHeuristicsConfig, type QtiHeuristicsConfig } from '@pie-qti/ims-cp-core';
+	import {
+		normalizeHeuristicsConfig,
+		type QtiHeuristicsConfig,
+		type ResolvedItemDeliveryContext
+	} from '@pie-qti/ims-cp-core';
 	import { processFeedbackInline } from './utils/feedbackUtils';
 	import { typesetAction } from './actions/typesetAction';
 	import { glossaryAction } from '../catalog/glossaryAction';
@@ -29,6 +33,8 @@
 		heuristicsConfig?: QtiHeuristicsConfig; // Optional heuristics configuration
 		/** QTI 3.0 shared stimulus content: map of stimulus identifier → HTML string */
 		stimulusContent?: Record<string, string>;
+		/** Package/assessment-resolved QTI 3 delivery context. */
+		deliveryContext?: ResolvedItemDeliveryContext;
 	}
 
 	let {
@@ -42,6 +48,7 @@
 		outcomeValues = {},
 		heuristicsConfig,
 		stimulusContent = {},
+		deliveryContext,
 	}: Props = $props();
 
 	// Normalize heuristics configuration with defaults
@@ -89,16 +96,41 @@
 	// Inline interactions are replaced with placeholders
 	const itemBodyHtml = $derived.by(() => {
 		let html = player.getItemBodyHtml();
+		const resolvedDeliveryContext = deliveryContext ?? player.getDeliveryContext();
+		const resolvedStimulusContent = Object.fromEntries(
+			Object.entries(resolvedDeliveryContext?.stimuli ?? {}).map(([identifier, stimulus]) => [
+				identifier,
+				player.sanitizeHtmlContent(stimulus.bodyHtml),
+			])
+		);
+		const explicitStimulusContent = Object.fromEntries(
+			Object.entries(stimulusContent).map(([identifier, content]) => [
+				identifier,
+				player.sanitizeHtmlContent(content),
+			])
+		);
+		const effectiveStimulusContent = { ...resolvedStimulusContent, ...explicitStimulusContent };
 
 		// QTI 3.0 Shared Stimulus: inject stimulus HTML at data-stimulus-idref docking points.
 		// Any stimulus identifier that has no docking div is prepended to the body.
-		if (stimulusContent && Object.keys(stimulusContent).length > 0) {
+		if (Object.keys(effectiveStimulusContent).length > 0) {
 			const docked = new Set<string>();
+			html = html.replace(
+				/<qti-assessment-stimulus-ref\b([^>]*)\/?>\s*(?:<\/qti-assessment-stimulus-ref>)?/gi,
+				(match, attrs) => {
+					const identifier = extractAttribute(attrs, 'identifier');
+					if (!identifier) return match;
+					const content = effectiveStimulusContent[identifier];
+					if (!content) return match;
+					docked.add(identifier);
+					return `<div data-stimulus-idref="${escapeHtmlAttribute(identifier)}" class="qti-stimulus-dock">${content}</div>`;
+				}
+			);
 			// Replace docking divs: <div ... data-stimulus-idref="ID" ...></div>
 			html = html.replace(
 				/<div([^>]*)\bdata-stimulus-idref="([^"]+)"([^>]*)>\s*<\/div>/gi,
 				(match, before, identifier, after) => {
-					const content = stimulusContent[identifier];
+					const content = effectiveStimulusContent[identifier];
 					if (content) {
 						docked.add(identifier);
 						// Preserve any other attributes on the docking div
@@ -108,7 +140,7 @@
 				}
 			);
 			// Prepend any stimuli that had no docking div
-			const undocked = Object.entries(stimulusContent)
+			const undocked = Object.entries(effectiveStimulusContent)
 				.filter(([id]) => !docked.has(id))
 				.map(([, content]) => `<div class="qti-stimulus-block">${content}</div>`)
 				.join('');
@@ -153,6 +185,19 @@
 		onResponseChange(responseId, value);
 	}
 
+	function extractAttribute(attrs: string, name: string): string | null {
+		const match = attrs.match(new RegExp(`\\b${name}\\s*=\\s*["']([^"']+)["']`, 'i'));
+		return match?.[1] ?? null;
+	}
+
+	function escapeHtmlAttribute(value: string): string {
+		return value
+			.replace(/&/g, '&amp;')
+			.replace(/"/g, '&quot;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;');
+	}
+
 	// Handle qti:change events from web components
 	function handleQtiChange(event: QtiChangeDomEvent) {
 		const { responseId, value } = event.detail;
@@ -164,6 +209,7 @@
 	let rootEl: HTMLDivElement | null = $state(null);
 	$effect(() => {
 		if (!rootEl) return;
+		player.applyPnp(rootEl);
 		const handler = (e: Event) => handleQtiChange(e as QtiChangeDomEvent);
 		const el = rootEl; // Capture reference for cleanup
 		el.addEventListener('qti-change', handler as EventListener);
@@ -258,6 +304,8 @@
 				interaction,
 				response: responses[interaction.responseId] ?? null,
 				correctResponse: roleCapabilities.canViewCorrectResponses ? correctRespForInteraction : null,
+				pnp: player.getPnp(),
+				eliminationTool: player.getPnp()?.cognitive?.eliminationTool === true,
 				disabled: effectiveDisabled,
 				// Avoid invalid ARIA role values on custom-element hosts.
 				// Components default to candidate when role is omitted.

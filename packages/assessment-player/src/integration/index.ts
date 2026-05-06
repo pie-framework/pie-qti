@@ -61,7 +61,9 @@ export type {
 	SecureItemRef,
 	SecureSection,
 	SecureTestPart,
+	SecureTimeLimits,
 	SessionId,
+	SubmitTimingEvidence,
 	SubmitResponsesRequest,
 	SubmitResponsesResponse,
 } from './api-contract.js';

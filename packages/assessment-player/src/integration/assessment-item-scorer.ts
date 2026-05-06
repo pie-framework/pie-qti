@@ -1,9 +1,10 @@
-import { Player } from '@pie-qti/item-player';
+import { Player, type SerializedItemSessionState } from '@pie-qti/item-player';
 import type { AssessmentScoringResult, ResponseValue } from './api-contract.js';
 
 export interface AssessmentItemScoringInput {
 	itemXml: string;
 	responses: Record<string, ResponseValue>;
+	itemSession?: SerializedItemSessionState;
 }
 
 export function getAssessmentItemIdentifier(itemXml: string): string {
@@ -18,6 +19,7 @@ export function getAssessmentItemIdentifier(itemXml: string): string {
 export function scoreAssessmentItem({
 	itemXml,
 	responses,
+	itemSession,
 }: AssessmentItemScoringInput): AssessmentScoringResult {
 	const itemIdentifier = getAssessmentItemIdentifier(itemXml);
 
@@ -30,8 +32,11 @@ export function scoreAssessmentItem({
 			role: 'scorer',
 		});
 
+		if (itemSession) {
+			player.restoreItemSession(itemSession);
+		}
 		player.setResponses(responses);
-		const result = player.processResponses();
+		const result = itemSession ? (player.scoreAttempt().scoring ?? player.processResponses()) : player.processResponses();
 
 		return {
 			itemIdentifier,

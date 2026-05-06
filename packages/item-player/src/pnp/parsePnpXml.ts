@@ -63,6 +63,35 @@ function extractProfile(root: NhpElement): PnpProfile {
 			if (languageCode) profile.content.keywordTranslation = { active, languageCode };
 		}
 
+		const illustratedEl = findChild(contentEl, [
+			'illustratedglossary',
+			'illustrated-glossary',
+			'ext:sbacglossaryillustration',
+			'ext:sbac-glossary-illustration',
+		]);
+		if (illustratedEl) {
+			profile.content.illustratedGlossary = parseBool(
+				illustratedEl.getAttribute('enabled') ?? illustratedEl.getAttribute('active') ?? illustratedEl.text ?? 'true'
+			);
+		}
+
+		const catalogSupportMap = [
+			['ttsPronunciation', ['ttspronunciation', 'tts-pronunciation']],
+			['signingDefinition', ['signingdefinition', 'signing-definition']],
+			['brailleText', ['brailletext', 'braille-text']],
+			['audioDescription', ['audiodescription', 'audio-description']],
+			['extendedDescription', ['extendeddescription', 'extended-description']],
+		] as const;
+		for (const [key, names] of catalogSupportMap) {
+			const el = findChild(contentEl, names);
+			if (el) {
+				profile.content.catalogSupports ??= {};
+				profile.content.catalogSupports[key] = parseBool(
+					el.getAttribute('enabled') ?? el.getAttribute('active') ?? el.text ?? 'true'
+				);
+			}
+		}
+
 		const etEl = findChild(contentEl, ['extendedtime', 'extended-time']);
 		if (etEl) {
 			const active = parseBool(etEl.getAttribute('active') ?? 'true');
@@ -96,7 +125,7 @@ function extractProfile(root: NhpElement): PnpProfile {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function findChild(parent: NhpElement, names: string[]): NhpElement | null {
+function findChild(parent: NhpElement, names: readonly string[]): NhpElement | null {
 	for (const child of parent.childNodes) {
 		if (child.nodeType !== 1) continue; // element nodes only
 		const el = child as NhpElement;
@@ -112,7 +141,24 @@ function parseBool(value: string): boolean {
 }
 
 type ColorScheme = PnpProfile['display'] extends { colorScheme?: infer C } ? Exclude<C, undefined> : never;
-const COLOR_SCHEMES = new Set<string>(['default', 'blackwhite', 'whitenav', 'blackcream', 'yellowblue', 'medgray']);
+const COLOR_SCHEMES = new Set<string>([
+	'default',
+	'defaultreverse',
+	'blackwhite',
+	'whiteblack',
+	'blackrose',
+	'roseblack',
+	'yellowblue',
+	'blueyellow',
+	'mgraydgray',
+	'dgraymgray',
+	'blackcyan',
+	'cyanblack',
+	'blackcream',
+	'creamblack',
+	'whitenav',
+	'medgray',
+]);
 function isColorScheme(v: string): v is ColorScheme {
 	return COLOR_SCHEMES.has(v);
 }

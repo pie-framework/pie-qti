@@ -25,6 +25,7 @@ import {
 	toStringValue,
 } from '@pie-qti/qti-processing';
 import type { ElementNameMapper, AttributeNameMapper } from '@pie-qti/qti-common';
+import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
 import {
 	Qti2xElementNameMapper,
 	Qti2xAttributeNameMapper,
@@ -42,6 +43,8 @@ import type {
 	AdaptiveAttemptResult,
 	CompletionStatus,
 	HtmlContent,
+	ItemLifecycleStatus,
+	ItemSessionActionResult,
 	ItemSessionState,
 	ModalFeedback,
 	PlayerConfig,
@@ -49,6 +52,8 @@ import type {
 	QTIRole,
 	RubricBlock,
 	ScoringResult,
+	SerializedItemSessionState,
+	SerializedItemSessionVariable,
 } from '../types/index.js';
 import type { InteractionData } from '../types/interactions.js';
 import type { ResponseValidationResult } from '../types/responseValidation.js';
@@ -57,10 +62,11 @@ import { createComponentRegistry } from './ComponentRegistry.js';
 import { createSeededRng } from './random.js';
 import { sanitizeHtml } from './sanitizer.js';
 import { toTrustedHtml } from './trustedTypes.js';
+import { sanitizeResourceUrl } from './urlPolicy.js';
 import type { PnpProfile } from '../pnp/types.js';
 import { applyPnpToRoot } from '../pnp/applyPnp.js';
 import type { CatalogIndex } from '../catalog/types.js';
-import { extractCatalogFromItemXml, mergeCatalogs } from '../catalog/catalogExtractor.js';
+import { extractCatalog, extractCatalogFromItemXml, mergeCatalogs } from '../catalog/catalogExtractor.js';
 import { getCatalogEntry } from '../catalog/catalogLookup.js';
 import { PciHost } from '../pci/PciHost.js';
 import type { ExtractedPci } from '../pci/types.js';
@@ -89,11 +95,18 @@ export class Player {
 	private _rootEl: HTMLElement | undefined;
 	private _catalogIndex: CatalogIndex = new Map();
 	private _pciHosts: Map<string, PciHost> = new Map();
+	private _pnpChangeListeners = new Set<(pnp: PnpProfile | undefined) => void>();
+	private sessionGuid: string;
+	private lifecycleStatus: ItemLifecycleStatus = 'initial';
+	private sessionStartedAt: number;
+	private accumulatedDurationMs = 0;
 
 	constructor(config: PlayerConfig) {
 		this.config = config;
 		this.itemXml = config.itemXml ?? '';
 		this.role = config.role ?? 'candidate';
+		this.sessionGuid = createSessionGuid();
+		this.sessionStartedAt = Date.now();
 		this.rng = config.rng ?? (typeof config.seed === 'number' ? createSeededRng(config.seed) : Math.random);
 
 		// Auto-detect QTI version and create appropriate mappers if not provided
@@ -214,15 +227,16 @@ export class Player {
 		// Store PNP profile for later use (applyPnpToRoot is called once a root element is available).
 		this._pnp = config.pnp;
 
-		// Build catalog index from item XML and optional shared catalog.
-		const itemCatalog = extractCatalogFromItemXml(this.itemXml);
-		if (config.catalogXml) {
-			const sharedCatalog = extractCatalogFromItemXml(config.catalogXml);
-			// Item-level wins on collision: merge shared first, then override with item entries.
-			this._catalogIndex = mergeCatalogs(sharedCatalog, itemCatalog);
-		} else {
-			this._catalogIndex = itemCatalog;
+		// Build catalog index from resolved delivery context, legacy shared catalog XML, and item XML.
+		// Shared/context entries are merged first; item-level entries win on collisions.
+		let mergedCatalog: CatalogIndex = new Map();
+		for (const source of config.deliveryContext?.catalogSources ?? []) {
+			mergedCatalog = mergeCatalogs(mergedCatalog, extractCatalog(source.xml));
 		}
+		if (config.catalogXml) {
+			mergedCatalog = mergeCatalogs(mergedCatalog, extractCatalogFromItemXml(config.catalogXml));
+		}
+		this._catalogIndex = mergeCatalogs(mergedCatalog, extractCatalogFromItemXml(this.itemXml));
 
 		// Check strict compliance if enabled
 		if (this.config.strictQtiCompliance?.enabled) {
@@ -249,11 +263,24 @@ export class Player {
 		if (this._rootEl) {
 			applyPnpToRoot(this._rootEl, this._pnp);
 		}
+		for (const listener of this._pnpChangeListeners) {
+			listener(this._pnp);
+		}
 	}
 
 	/** Return the current resolved PNP profile. */
 	public getPnp(): PnpProfile | undefined {
 		return this._pnp;
+	}
+
+	public onPnpChange(listener: (pnp: PnpProfile | undefined) => void): () => void {
+		this._pnpChangeListeners.add(listener);
+		return () => this._pnpChangeListeners.delete(listener);
+	}
+
+	/** Return the package/assessment-resolved delivery context, if one was supplied. */
+	public getDeliveryContext(): ResolvedItemDeliveryContext | undefined {
+		return this.config.deliveryContext;
 	}
 
 	/**
@@ -263,7 +290,17 @@ export class Player {
 	 * Language fallback: exact match → prefix match → no-lang entry → null.
 	 */
 	public getCatalogEntry(idref: string, usage: string, lang?: string): string | null {
-		return getCatalogEntry(this._catalogIndex, idref, usage, lang);
+		const html = getCatalogEntry(this._catalogIndex, idref, usage, lang);
+		if (html === null) return null;
+		if (looksLikeCatalogUrl(html)) {
+			return sanitizeResourceUrl(html.trim(), this.config.security?.urlPolicy, 'img');
+		}
+		return this.sanitizeHtmlContent(html);
+	}
+
+	/** Sanitize externally resolved item-adjacent HTML before it reaches a rendering sink. */
+	public sanitizeHtmlContent(html: string): string {
+		return sanitizeHtml(html, { security: this.config.security });
 	}
 
 	/**
@@ -340,50 +377,121 @@ export class Player {
 	}
 
 	public processResponses(): ScoringResult {
-		// Spec-aligned behavior: each processing run starts from outcome defaults.
-		// This prevents stale outcomes when response/outcome processing doesn't set every variable.
-		this.resetOutcomesToDefault();
+		return this.runResponseProcessing({ finalizeNonAdaptiveAttempt: true });
+	}
 
-		// Execute response processing if present
-		const rpEl = this.itemDocument.getProcessingElement('response');
-		if (rpEl) {
-			// If responseProcessing has explicit statements, run the compiled program.
-			// Otherwise, fall back to template-based processing (responseProcessing@template).
-			const hasStatements = childElements(rpEl).length > 0;
-			if (hasStatements) {
-				this.execResponseProcessingProgram();
-			} else {
-				const templateUrl = getAttr(rpEl, 'template');
-				if (templateUrl) this.execResponseProcessingTemplate(templateUrl);
-			}
-		}
+	public saveItemSession(): SerializedItemSessionState {
+		this.freezeDuration();
+		return this.serializeItemSession();
+	}
 
-		
-		// Execute outcome processing if present (runs after responseProcessing)
-		this.execOutcomeProcessingProgram();
+	public restoreItemSession(state: SerializedItemSessionState): void {
+		this.sessionGuid = state.sessionGuid;
+		this.lifecycleStatus = state.lifecycleStatus;
+		this.accumulatedDurationMs = Math.max(0, Number(state.duration) || 0);
+		this.sessionStartedAt = Date.now();
+		this.applySerializedVariables(state.responseVariables);
+		this.applySerializedVariables(state.outcomeVariables);
+		this.applySerializedVariables(state.templateVariables);
+		this.applySerializedVariables(state.contextVariables);
+		this.updateDuration();
+	}
 
-		// For non-adaptive items, update completionStatus and numAttempts after processing
-		if (!this.isAdaptive()) {
-			// Set completionStatus to 'completed' for non-adaptive items (single submission)
-			this.ctx.setValue('completionStatus', qtiValue('identifier', 'single', 'completed'));
-			// Increment numAttempts for non-adaptive items (tracks total submissions, including retries)
-			const currentAttempts = this.getNumAttempts();
-			this.ctx.setValue('numAttempts', qtiValue('integer', 'single', currentAttempts + 1));
-		}
-
-		const outcomes = this.collectOutcomes();
-		
-		const score = Number(outcomes.SCORE ?? 0);
-		const maxScore = Number(outcomes.MAXSCORE ?? 1);
-		const completionStatus = (outcomes.completionStatus as CompletionStatus | undefined) ?? 'not_attempted';
-		const completed = completionStatus === 'completed' || !this.isAdaptive();
+	public suspendAttempt(): ItemSessionActionResult {
+		const validation = this.validateResponses(this.getResponses());
+		this.lifecycleStatus = 'suspended';
+		const sessionState = this.saveItemSession();
 
 		return {
-			score,
-			maxScore,
-			completed,
-			outcomeValues: outcomes,
-			modalFeedback: this.getModalFeedback(outcomes),
+			action: 'suspendAttempt',
+			lifecycleStatus: this.lifecycleStatus,
+			completionStatus: this.getCompletionStatus(),
+			numAttempts: this.getNumAttempts(),
+			duration: sessionState.duration,
+			completed: this.isCompleted(),
+			sessionState,
+			validation,
+		};
+	}
+
+	public endAttempt(options: { countAttempt?: boolean; validateResponses?: boolean } = {}): ItemSessionActionResult {
+		const validate = options.validateResponses ?? false;
+		const validation = validate ? this.validateResponses(this.getResponses()) : undefined;
+		if (validation && !validation.valid) {
+			const sessionState = this.saveItemSession();
+			return {
+				action: 'endAttempt',
+				lifecycleStatus: this.lifecycleStatus,
+				completionStatus: this.getCompletionStatus(),
+				numAttempts: this.getNumAttempts(),
+				duration: sessionState.duration,
+				completed: this.isCompleted(),
+				sessionState,
+				validation,
+			};
+		}
+
+		const scoring = this.isAdaptive()
+			? this.submitAttempt(options.countAttempt ?? true)
+			: this.runResponseProcessing({
+					finalizeNonAdaptiveAttempt: true,
+					countAttempt: options.countAttempt ?? true,
+				});
+		this.lifecycleStatus = scoring.completed ? 'closed' : 'interacting';
+		const sessionState = this.saveItemSession();
+
+		return {
+			action: 'endAttempt',
+			lifecycleStatus: this.lifecycleStatus,
+			completionStatus: this.getCompletionStatus(),
+			numAttempts: this.getNumAttempts(),
+			duration: sessionState.duration,
+			completed: scoring.completed,
+			sessionState,
+			validation,
+			scoring,
+		};
+	}
+
+	public scoreAttempt(): ItemSessionActionResult {
+		const scoring = this.runResponseProcessing({ finalizeNonAdaptiveAttempt: false });
+		const sessionState = this.saveItemSession();
+
+		return {
+			action: 'scoreAttempt',
+			lifecycleStatus: this.lifecycleStatus,
+			completionStatus: this.getCompletionStatus(),
+			numAttempts: this.getNumAttempts(),
+			duration: sessionState.duration,
+			completed: scoring.completed,
+			sessionState,
+			scoring,
+		};
+	}
+
+	public newTemplate(options: { resetResponses?: boolean } = {}): ItemSessionActionResult {
+		this.resetOutcomesToDefault();
+		if (options.resetResponses ?? true) {
+			this.resetResponsesToDefault();
+		}
+		this.resetTemplatesToDefault();
+		this.ctx.setValue('completionStatus', qtiValue('identifier', 'single', 'not_attempted'));
+		this.ctx.setValue('numAttempts', qtiValue('integer', 'single', 0));
+		this.execTemplateProcessing();
+		this.lifecycleStatus = 'initial';
+		this.accumulatedDurationMs = 0;
+		this.sessionStartedAt = Date.now();
+		this.updateDuration();
+		const sessionState = this.serializeItemSession();
+
+		return {
+			action: 'newTemplate',
+			lifecycleStatus: this.lifecycleStatus,
+			completionStatus: this.getCompletionStatus(),
+			numAttempts: this.getNumAttempts(),
+			duration: sessionState.duration,
+			completed: this.isCompleted(),
+			sessionState,
 		};
 	}
 
@@ -490,9 +598,76 @@ export class Player {
 			if ((d as any).__kind !== 'outcome') continue;
 			// Built-in stateful variables must survive across processing runs.
 			// They are updated by the runtime (adaptive attempt tracking), not by outcome defaults.
-			if (d.identifier === 'numAttempts' || d.identifier === 'completionStatus') continue;
+			if (d.identifier === 'numAttempts' || d.identifier === 'completionStatus' || d.identifier === 'duration') continue;
 			this.ctx.resetToDefault(d.identifier);
 		}
+	}
+
+	private resetResponsesToDefault(): void {
+		for (const d of Object.values(this.decls)) {
+			if ((d as any).__kind !== 'response') continue;
+			this.ctx.resetToDefault(d.identifier);
+			this.setPciResponse(d.identifier, d.value.kind === 'value' ? d.value.value : null);
+		}
+	}
+
+	private resetTemplatesToDefault(): void {
+		for (const d of Object.values(this.decls)) {
+			if (!d.isTemplate) continue;
+			this.ctx.resetToDefault(d.identifier);
+		}
+	}
+
+	private runResponseProcessing(options: {
+		finalizeNonAdaptiveAttempt: boolean;
+		countAttempt?: boolean;
+	}): ScoringResult {
+		this.updateDuration();
+		// Spec-aligned behavior: each processing run starts from outcome defaults.
+		// This prevents stale outcomes when response/outcome processing doesn't set every variable.
+		this.resetOutcomesToDefault();
+
+		// Execute response processing if present
+		const rpEl = this.itemDocument.getProcessingElement('response');
+		if (rpEl) {
+			// If responseProcessing has explicit statements, run the compiled program.
+			// Otherwise, fall back to template-based processing (responseProcessing@template).
+			const hasStatements = childElements(rpEl).length > 0;
+			if (hasStatements) {
+				this.execResponseProcessingProgram();
+			} else {
+				const templateUrl = getAttr(rpEl, 'template');
+				if (templateUrl) this.execResponseProcessingTemplate(templateUrl);
+			}
+		}
+
+		// Execute outcome processing if present (runs after responseProcessing)
+		this.execOutcomeProcessingProgram();
+
+		// Compatibility: processResponses() has historically finalized non-adaptive items.
+		// New scoreAttempt() uses this same engine with finalization disabled.
+		if (!this.isAdaptive() && options.finalizeNonAdaptiveAttempt) {
+			this.ctx.setValue('completionStatus', qtiValue('identifier', 'single', 'completed'));
+			if (options.countAttempt ?? true) {
+				const currentAttempts = this.getNumAttempts();
+				this.ctx.setValue('numAttempts', qtiValue('integer', 'single', currentAttempts + 1));
+			}
+		}
+
+		const outcomes = this.collectOutcomes();
+
+		const score = Number(outcomes.SCORE ?? 0);
+		const maxScore = Number(outcomes.MAXSCORE ?? 1);
+		const completionStatus = (outcomes.completionStatus as CompletionStatus | undefined) ?? 'not_attempted';
+		const completed = completionStatus === 'completed' || (!this.isAdaptive() && options.finalizeNonAdaptiveAttempt);
+
+		return {
+			score,
+			maxScore,
+			completed,
+			outcomeValues: outcomes,
+			modalFeedback: this.getModalFeedback(outcomes),
+		};
 	}
 
 	public getItemBodyHtml(): HtmlContent {
@@ -1061,7 +1236,21 @@ export class Player {
 				identifier: 'numAttempts',
 				baseType: 'integer',
 				cardinality: 'single',
+				defaultValue: qtiValue('integer', 'single', 0),
 				value: qtiValue('integer', 'single', 0),
+				isTemplate: false,
+				// @ts-expect-error internal marker
+				__kind: 'outcome',
+			};
+		}
+
+		if (!decls.duration) {
+			decls.duration = {
+				identifier: 'duration',
+				baseType: 'duration',
+				cardinality: 'single',
+				defaultValue: qtiValue('duration', 'single', 0),
+				value: qtiValue('duration', 'single', 0),
 				isTemplate: false,
 				// @ts-expect-error internal marker
 				__kind: 'outcome',
@@ -1099,6 +1288,95 @@ export class Player {
 			if (!d) continue;
 			d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, raw);
 		}
+		const restoredDuration = Number(state.duration);
+		if (Number.isFinite(restoredDuration) && restoredDuration >= 0) {
+			this.accumulatedDurationMs = restoredDuration;
+			this.sessionStartedAt = Date.now();
+			this.updateDuration();
+		}
+	}
+
+	private applySerializedVariables(vars: Record<string, SerializedItemSessionVariable>): void {
+		for (const v of Object.values(vars)) {
+			const d = this.decls[v.identifier];
+			if (!d) continue;
+			d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, v.value);
+			if ((d as any).__kind === 'response') {
+				this.setPciResponse(d.identifier, v.value);
+			}
+		}
+	}
+
+	private serializeItemSession(): SerializedItemSessionState {
+		const responseVariables: Record<string, SerializedItemSessionVariable> = {};
+		const outcomeVariables: Record<string, SerializedItemSessionVariable> = {};
+		const templateVariables: Record<string, SerializedItemSessionVariable> = {};
+		const contextVariables: Record<string, SerializedItemSessionVariable> = {};
+		const contextIds = new Set(['completionStatus', 'numAttempts', 'duration']);
+
+		for (const d of Object.values(this.decls)) {
+			const variable = this.serializeVariable(d);
+			if (d.isTemplate) {
+				templateVariables[d.identifier] = { ...variable, kind: 'template' };
+			} else if (contextIds.has(d.identifier)) {
+				contextVariables[d.identifier] = { ...variable, kind: 'context' };
+			} else if ((d as any).__kind === 'response') {
+				responseVariables[d.identifier] = { ...variable, kind: 'response' };
+			} else if ((d as any).__kind === 'outcome') {
+				outcomeVariables[d.identifier] = { ...variable, kind: 'outcome' };
+			}
+		}
+
+		const validation = this.validateResponses(this.getResponses());
+		return {
+			itemIdentifier: this.itemDocument.getAssessmentItemAttribute('identifier') ?? undefined,
+			sessionGuid: this.sessionGuid,
+			lifecycleStatus: this.lifecycleStatus,
+			completionStatus: this.getCompletionStatus(),
+			numAttempts: this.getNumAttempts(),
+			duration: this.getDuration(),
+			responseVariables,
+			outcomeVariables,
+			templateVariables,
+			contextVariables,
+			validationMessages: validation.issues,
+			savedAt: new Date().toISOString(),
+		};
+	}
+
+	private serializeVariable(d: DeclarationMap[string]): SerializedItemSessionVariable {
+		return {
+			identifier: d.identifier,
+			kind: ((d as any).__kind ?? (d.isTemplate ? 'template' : 'context')) as SerializedItemSessionVariable['kind'],
+			baseType: d.baseType,
+			cardinality: d.cardinality,
+			value: this.qtiValueToSerializable(d.value),
+			defaultValue: this.qtiValueToSerializable(d.defaultValue),
+		};
+	}
+
+	private qtiValueToSerializable(value: QtiValue | undefined): any {
+		if (!value || value.kind !== 'value') return null;
+		return value.value;
+	}
+
+	private updateDuration(): void {
+		const elapsedMs = Math.max(0, Date.now() - this.sessionStartedAt);
+		const durationMs = this.accumulatedDurationMs + elapsedMs;
+		this.ctx.setValue('duration', qtiValue('duration', 'single', durationMs));
+	}
+
+	private freezeDuration(): number {
+		this.updateDuration();
+		const duration = this.getDuration();
+		this.accumulatedDurationMs = duration;
+		this.sessionStartedAt = Date.now();
+		return duration;
+	}
+
+	private getDuration(): number {
+		const value = this.ctx.getValue('duration');
+		return Math.max(0, Math.floor(toNumber(value) || 0));
 	}
 
 	private parseDefaultValue(declEl: Element, baseType: BaseType, cardinality: Cardinality): QtiValue {
@@ -1308,4 +1586,17 @@ function mergePnp(base: PnpProfile | undefined, partial: Partial<PnpProfile>): P
 		content: { ...(base?.content ?? {}), ...(partial.content ?? {}) },
 		cognitive: { ...(base?.cognitive ?? {}), ...(partial.cognitive ?? {}) },
 	};
+}
+
+function createSessionGuid(): string {
+	if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+		return crypto.randomUUID();
+	}
+	return `item-session-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
+
+function looksLikeCatalogUrl(value: string): boolean {
+	const trimmed = value.trim();
+	return /^(https?:\/\/|\/\/|\/|\.{0,2}\/|data:|blob:)/i.test(trimmed) ||
+		/\.(png|jpe?g|gif|webp|svg|mp3|wav|ogg|mp4|webm|pdf)(\?.*)?$/i.test(trimmed);
 }

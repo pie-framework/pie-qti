@@ -1,6 +1,7 @@
 import type { PnpProfile } from './types.js';
 
 const ATTR = 'data-qti-colorscheme';
+const MAGNIFICATION_ATTR = 'data-qti-magnification';
 
 /**
  * Apply a PNP profile to the player root element.
@@ -17,7 +18,12 @@ export function applyPnpToRoot(rootEl: HTMLElement, pnp: PnpProfile | undefined)
 		rootEl.setAttribute(ATTR, scheme);
 	}
 
-	if (pnp?.display?.magnification !== undefined) {
-		console.warn('[QTI Player] PnpProfile.display.magnification is not yet applied by the player. Use browser zoom or a host stylesheet instead.');
+	const magnification = pnp?.display?.magnification;
+	if (magnification !== undefined && Number.isFinite(magnification) && magnification > 0) {
+		rootEl.setAttribute(MAGNIFICATION_ATTR, String(magnification));
+		rootEl.style?.setProperty?.('--qti-magnification', String(magnification));
+	} else {
+		rootEl.removeAttribute(MAGNIFICATION_ATTR);
+		rootEl.style?.removeProperty?.('--qti-magnification');
 	}
 }
