@@ -43,6 +43,7 @@ const runAttw = (dir) => {
 			cwd: dir,
 			stdio: "pipe",
 			encoding: "utf8",
+			maxBuffer: 32 * 1024 * 1024,
 		});
 	} catch (error) {
 		const stdout = error.stdout?.toString?.() ?? "";

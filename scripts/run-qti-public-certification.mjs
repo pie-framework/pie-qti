@@ -9,6 +9,8 @@ const repoRoot = resolve(__dirname, '..');
 const matrixPath = join(repoRoot, 'docs/certification/public-coverage-matrix.json');
 
 const skipE2e = process.env.PIE_QTI_PUBLIC_CERT_SKIP_E2E === '1' || process.argv.includes('--skip-e2e');
+const skipPrebuild =
+	process.env.PIE_QTI_PUBLIC_CERT_SKIP_PREBUILD === '1' || process.argv.includes('--skip-prebuild');
 const listOnly = process.argv.includes('--list');
 
 function fail(message) {
@@ -110,6 +112,27 @@ console.log(`[public-certification] Commands: ${commands.map((command) => comman
 if (skipE2e) console.log('[public-certification] Browser-visible command skipped by request.');
 
 if (!listOnly) {
+	if (!skipPrebuild) {
+		await runCommand({
+			id: 'workspace-prebuild',
+			description: 'Build workspace packages needed by certification tests',
+			args: [
+				'x',
+				'turbo',
+				'build',
+				'--filter=@pie-qti/logger',
+				'--filter=@pie-qti/qti-common',
+				'--filter=@pie-qti/qti-processing',
+				'--filter=@pie-qti/ims-cp-core',
+				'--filter=@pie-qti/ims-cp-browser',
+				'--filter=@pie-qti/i18n',
+				'--filter=@pie-qti/typeset-katex',
+				'--filter=@pie-qti/item-player',
+				'--filter=@pie-qti/default-components',
+				'--filter=@pie-qti/assessment-player',
+			],
+		});
+	}
 	for (const command of commands) {
 		await runCommand(command);
 	}
