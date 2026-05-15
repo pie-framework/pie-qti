@@ -5,7 +5,9 @@ import { defineConfig, devices } from '@playwright/test';
  * Tests target WCAG 2.2 Level AA compliance for player components
  */
 // Use IPv4 explicitly to avoid environments where IPv6 ::1 binding is restricted.
-const ORIGIN = 'http://127.0.0.1:5173';
+const PLAYWRIGHT_PORT = process.env.PLAYWRIGHT_PORT ?? '5201';
+const ORIGIN = `http://127.0.0.1:${PLAYWRIGHT_PORT}`;
+const REUSE_EXISTING_SERVER = process.env.PLAYWRIGHT_REUSE_EXISTING_SERVER === 'true';
 // SvelteKit `paths.base` is configured for GitHub Pages-style hosting.
 // In dev, we serve at `/`. In production/static builds, the app is typically served under `/pie-qti/`.
 // If you need to run Playwright against a non-root base path, set PLAYWRIGHT_BASE_PATH (e.g. "/pie-qti").
@@ -37,9 +39,9 @@ export default defineConfig({
 
 	// Start dev server before tests
 	webServer: {
-		command: 'bun run dev -- --host 127.0.0.1 --port 5173 --strictPort',
+		command: `bun run dev -- --host 127.0.0.1 --port ${PLAYWRIGHT_PORT} --strictPort`,
 		url: BASE_URL,
-		reuseExistingServer: !process.env.CI,
+		reuseExistingServer: REUSE_EXISTING_SERVER,
 		timeout: 120 * 1000
 	}
 });
