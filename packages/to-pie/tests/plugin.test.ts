@@ -75,6 +75,11 @@ describe('QtiToPiePlugin', () => {
     expectSuccessfulTransform(output, 1);
     expect(output.items[0].content.id).toBe('choice-001');
     expect(output.items[0].content.metadata?.searchMetaData.title).toBe('Sample Multiple Choice');
+    expect(
+      output.metadata.conversionTrace?.events.some(
+        (event) => event.kind === 'handler-selected' && event.handlerId === 'builtin.choice'
+      )
+    ).toBe(true);
   });
 
   test('should include source profile matches and conversion trace in metadata', async () => {
@@ -108,6 +113,19 @@ describe('QtiToPiePlugin', () => {
           ],
         };
       },
+      decorators: [
+        {
+          id: 'test-profile.annotate-item',
+          phase: 'beforeFinalize',
+          apply(_context, item) {
+            const pieItem = item as { metadata?: Record<string, unknown> };
+            pieItem.metadata = {
+              ...(pieItem.metadata ?? {}),
+              sourceProfileDecorated: true,
+            };
+          },
+        },
+      ],
     };
     const plugin = new QtiToPiePlugin({ sourceProfiles: [sourceProfile] });
 
@@ -118,8 +136,10 @@ describe('QtiToPiePlugin', () => {
 
     expect(output.metadata.sourceProfiles?.[0].profileId).toBe('test-profile');
     expect((output.metadata as any).standardCandidates?.[0].rawValue).toBe('TEST.1');
+    expect(output.items[0].content.metadata.sourceProfileDecorated).toBe(true);
     expect(output.metadata.conversionTrace?.profiles?.[0].profileId).toBe('test-profile');
     expect(output.metadata.conversionTrace?.events.some((event) => event.kind === 'profile-detected')).toBe(true);
+    expect(output.metadata.conversionTrace?.events.some((event) => event.kind === 'finalizer-applied')).toBe(true);
   });
 
   test('should preserve QTI 2.1 source version in metadata and embedded source', async () => {

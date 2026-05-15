@@ -10,11 +10,23 @@ export { transformQtiPackageToPie } from './package-transformer.js';
 export type { QtiPackageTransformInput, QtiPackageTransformResult } from './package-transformer.js';
 export {
   addTraceEvent,
+  applyItemDecorators,
   createConversionTrace,
   detectItemProfiles,
   detectPackageProfiles,
 } from './source-profile-runtime.js';
-export type { ProfileRuntimeResult } from './source-profile-runtime.js';
+export type { ItemDecoratorPhase, ProfileRuntimeResult } from './source-profile-runtime.js';
+export {
+  createDefaultQtiToPieRegistry,
+  QtiToPieRegistry,
+} from './registry/qti-to-pie-registry.js';
+export type {
+  BuiltInTransformContext,
+  BuiltInTransformDelegate,
+  BuiltInTransformKind,
+  BuiltInTransformResult,
+  QtiBuiltInTransformHandler,
+} from './registry/qti-to-pie-registry.js';
 export type {
   AccessibilityCatalog,
   AssessmentSection,

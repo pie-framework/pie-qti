@@ -1,5 +1,6 @@
 import type {
 	ConversionTrace,
+	QtiItemDecorator,
 	QtiSourceProfile,
 	QtiSourceProfileItemContext,
 	QtiSourceProfilePackageContext,
@@ -12,6 +13,8 @@ export interface ProfileRuntimeResult {
 	matches: SourceProfileMatch[];
 	extraction: SourceProfileExtractionResult;
 }
+
+export type ItemDecoratorPhase = NonNullable<QtiItemDecorator['phase']>;
 
 export function createConversionTrace(traceId = `qti-trace-${Date.now()}`): ConversionTrace {
 	return {
@@ -96,6 +99,45 @@ export function detectPackageProfiles(
 		matches,
 		extraction: extractFromPackageProfiles(profiles, context, trace),
 	};
+}
+
+export async function applyItemDecorators(
+	profiles: readonly QtiSourceProfile[],
+	runtime: ProfileRuntimeResult,
+	context: QtiSourceProfileItemContext,
+	item: unknown,
+	phase: ItemDecoratorPhase,
+	trace?: ConversionTrace
+): Promise<void> {
+	const activeProfileIds = new Set(runtime.matches.map((match) => match.profileId));
+	const decorators = profiles
+		.filter((profile) => activeProfileIds.has(profile.id))
+		.flatMap((profile) =>
+			(profile.decorators ?? []).map((decorator) => ({
+				profile,
+				decorator,
+			}))
+		)
+		.filter(({ decorator }) => (decorator.phase ?? 'beforeFinalize') === phase)
+		.sort((left, right) => (right.decorator.priority ?? 0) - (left.decorator.priority ?? 0));
+
+	for (const { profile, decorator } of decorators) {
+		if (decorator.canApply && !decorator.canApply(context, item)) {
+			continue;
+		}
+		await decorator.apply(context, item);
+		addTraceEvent(trace ?? createConversionTrace(), {
+			kind: 'finalizer-applied',
+			scope: 'item',
+			profileId: profile.id,
+			handlerId: decorator.id,
+			itemId: context.itemId,
+			resourceId: context.resourceId,
+			sourcePath: context.sourcePath,
+			message: `Applied item decorator ${decorator.id} from source profile ${profile.id}.`,
+			data: { phase },
+		});
+	}
 }
 
 function extractFromProfiles(

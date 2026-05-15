@@ -18,21 +18,6 @@ import type {
 } from '@pie-qti/transform-types';
 import type { HTMLElement } from 'node-html-parser';
 import { parse } from 'node-html-parser';
-import { transformAssessmentTest } from './transformers/assessment-test.js';
-import { transformAssociateToCategorize } from './transformers/associate-to-categorize.js';
-import { transformDragInTheBlank } from './transformers/drag-in-the-blank.js';
-import { transformEbsr } from './transformers/ebsr.js';
-import { transformExplicitConstructedResponse } from './transformers/explicit-constructed-response.js';
-import { transformExtendedResponse } from './transformers/extended-response.js';
-import { transformHotspot } from './transformers/hotspot.js';
-import { transformImageClozeAssociation } from './transformers/image-cloze-association.js';
-import { transformInlineDropdown } from './transformers/inline-dropdown.js';
-import { transformMatch } from './transformers/match.js';
-import { transformMatchList } from './transformers/match-list.js';
-import { transformMultipleChoice } from './transformers/multiple-choice.js';
-import { transformPassage } from './transformers/passage.js';
-import { transformPlacementOrdering } from './transformers/placement-ordering.js';
-import { transformSelectText } from './transformers/select-text.js';
 import type {
   AssetResolver,
   CssClassExtractor,
@@ -50,10 +35,15 @@ import { createStandardMetadataExtractor } from './extractors/standard-metadata-
 import { extractCssClassesWithHooks } from './vendor-extension-runtime.js';
 import {
   addTraceEvent,
+  applyItemDecorators,
   createConversionTrace,
   detectItemProfiles,
   type ProfileRuntimeResult,
 } from './source-profile-runtime.js';
+import {
+  createDefaultQtiToPieRegistry,
+  type QtiToPieRegistry,
+} from './registry/qti-to-pie-registry.js';
 
 /**
  * Configuration options for the QtiToPiePlugin
@@ -92,6 +82,12 @@ export interface QtiToPiePluginOptions {
   sourceProfiles?: QtiSourceProfile[];
 
   /**
+   * Optional transform registry. Primarily useful for tests or hosts that need
+   * to register alternate built-in handlers during pre-1.0 API development.
+   */
+  registry?: QtiToPieRegistry;
+
+  /**
    * Config-based registration - vendor extensions configuration
    * Note: This is typically used by the config loader, not directly by users
    */
@@ -118,6 +114,8 @@ export class QtiToPiePlugin implements TransformPlugin {
 
   private sourceProfiles: QtiSourceProfile[] = [];
 
+  private registry: QtiToPieRegistry;
+
   /**
    * Create a new QtiToPiePlugin instance
    *
@@ -143,6 +141,8 @@ export class QtiToPiePlugin implements TransformPlugin {
    * });
    */
   constructor(options: QtiToPiePluginOptions = {}) {
+    this.registry = options.registry ?? createDefaultQtiToPieRegistry();
+
     // Register standard metadata extractor by default (can be overridden by vendors)
     this.registerMetadataExtractor(createStandardMetadataExtractor());
 
@@ -269,19 +269,20 @@ export class QtiToPiePlugin implements TransformPlugin {
 
     const assessmentItem = doc.querySelector('assessmentItem') || doc.getElementsByTagName('assessmentItem')[0];
     const interactionAnalysis = assessmentItem ? analyzeAssessmentItemInteractions(assessmentItem) : null;
+    const itemContext = {
+      itemId,
+      resourceId: (input.metadata?.resourceId as string | undefined) ?? itemId,
+      sourcePath: input.metadata?.sourcePath as string | undefined,
+      xml: qtiXml,
+      qtiVersion,
+      interactionTypes: interactionAnalysis?.standardTypes ?? [],
+      responseProcessingXml: assessmentItem ? directChildXml(assessmentItem, 'responseProcessing') : undefined,
+      package: input.metadata?.packageContext as any,
+      metadata: input.metadata,
+    };
     const profileRuntime = detectItemProfiles(
       this.sourceProfiles,
-      {
-        itemId,
-        resourceId: (input.metadata?.resourceId as string | undefined) ?? itemId,
-        sourcePath: input.metadata?.sourcePath as string | undefined,
-        xml: qtiXml,
-        qtiVersion,
-        interactionTypes: interactionAnalysis?.standardTypes ?? [],
-        responseProcessingXml: assessmentItem ? directChildXml(assessmentItem, 'responseProcessing') : undefined,
-        package: input.metadata?.packageContext as any,
-        metadata: input.metadata,
-      },
+      itemContext,
       trace
     );
     warnings.push(...(profileRuntime.extraction.warnings ?? []));
@@ -344,116 +345,49 @@ export class QtiToPiePlugin implements TransformPlugin {
     let pieItem;
 
     try {
-      switch (interactionType) {
-        case 'choiceInteraction':
-          if (!assessmentItem) throw new Error('No assessmentItem found');
-          pieItem = await transformMultipleChoice(assessmentItem, itemId, { baseId });
-          break;
-
-        case 'extendedTextInteraction':
-          if (!assessmentItem) throw new Error('No assessmentItem found');
-          pieItem = await transformExtendedResponse(assessmentItem, itemId, { baseId });
-          break;
-
-        case 'orderInteraction':
-          pieItem = transformPlacementOrdering(qtiXml, itemId);
-          break;
-
-        case 'matchInteraction':
-          // Check if it's a match-list or match (pairs)
-          if (this.isMatchList(qtiXml)) {
-            pieItem = transformMatchList(qtiXml, itemId);
-          } else {
-            pieItem = transformMatch(qtiXml, itemId);
-          }
-          break;
-
-        case 'textEntryInteraction':
-          pieItem = transformExplicitConstructedResponse(qtiXml, itemId);
-          break;
-
-        case 'selectPointInteraction':
-        case 'hottextInteraction':
-          pieItem = transformSelectText(qtiXml, itemId);
-          break;
-
-        case 'inlineChoiceInteraction':
-          pieItem = transformInlineDropdown(qtiXml, itemId);
-          break;
-
-        case 'gapMatchInteraction':
-          pieItem = transformDragInTheBlank(qtiXml, itemId);
-          break;
-
-        case 'ebsr':
-          pieItem = transformEbsr(qtiXml, itemId);
-          break;
-
-        case 'hotspotInteraction':
-          pieItem = transformHotspot(qtiXml, itemId);
-          break;
-
-        case 'graphicGapMatchInteraction':
-          pieItem = transformImageClozeAssociation(qtiXml, itemId);
-          break;
-
-        case 'passage':
-          pieItem = transformPassage(qtiXml, itemId);
-          break;
-
-        case 'associateInteraction':
-          logger?.warn(
-            `Transforming associateInteraction to categorize (experimental). ` +
-            `Original any-to-any pairing semantics may not be fully preserved. ` +
-            `Item: ${itemId}`
-          );
-          pieItem = transformAssociateToCategorize(qtiXml, itemId);
-          break;
-
-        case 'assessmentTest': {
-          logger?.info(`Transforming assessmentTest: ${itemId}`);
-          const assessment = transformAssessmentTest(qtiXml, itemId, {
-            includeTimeLimits: true,
-            includeBranchRules: true,
-            includeItemControls: true,
-          });
-
-          const processingTimeTest = Date.now() - startTime;
-          logger?.info(`Assessment transformation complete in ${processingTimeTest}ms`);
-
-          // Count total items across all testParts and sections
-          const itemCount = assessment.testParts.reduce(
-            (total: number, testPart) =>
-              total +
-              testPart.sections.reduce(
-                (sectionTotal: number, section) => sectionTotal + section.itemRefs.length,
-                0
-              ),
-            0
-          );
-
-          return {
-            items: [{ content: assessment, format: 'pie' as const }], // Return assessment wrapped
-            format: 'pie',
-            metadata: {
-              sourceFormat,
-              targetFormat: 'pie',
-              pluginId: this.id,
-              timestamp: new Date(),
-              itemCount,
-              processingTime: processingTimeTest,
-              qtiVersion,
-              ...metadataFromProfileRuntime(profileRuntime),
-              conversionTrace: finalizeTrace(trace, profileRuntime),
-            } as any,
-            warnings: warnings.length > 0 ? warnings : undefined,
-          };
-        }
-
-        default:
-          logger?.warn(`Unsupported interaction type: ${interactionType} for item ${itemId}`);
-          throw new Error(`Unsupported interaction type: ${interactionType}`);
+      const builtInHandler = this.registry.getHandlerForInteraction(interactionType);
+      if (!builtInHandler) {
+        logger?.warn(`Unsupported interaction type: ${interactionType} for item ${itemId}`);
+        throw new Error(`Unsupported interaction type: ${interactionType}`);
       }
+      addTraceEvent(trace, {
+        kind: 'handler-selected',
+        scope: 'item',
+        itemId,
+        handlerId: builtInHandler.id,
+        message: `Selected built-in QTI transform handler ${builtInHandler.id}.`,
+      });
+      const transformResult = await builtInHandler.transform({
+        interactionType,
+        qtiXml,
+        itemId,
+        assessmentItem,
+        baseId,
+        logger,
+      });
+
+      if (transformResult.kind === 'assessment') {
+        const processingTimeTest = Date.now() - startTime;
+        logger?.info(`Assessment transformation complete in ${processingTimeTest}ms`);
+        return {
+          items: [{ content: transformResult.content, format: 'pie' as const }], // Return assessment wrapped
+          format: 'pie',
+          metadata: {
+            sourceFormat,
+            targetFormat: 'pie',
+            pluginId: this.id,
+            timestamp: new Date(),
+            itemCount: transformResult.itemCount ?? 0,
+            processingTime: processingTimeTest,
+            qtiVersion,
+            ...metadataFromProfileRuntime(profileRuntime),
+            conversionTrace: finalizeTrace(trace, profileRuntime),
+          } as any,
+          warnings: warnings.length > 0 ? warnings : undefined,
+        };
+      }
+      pieItem = transformResult.content;
+      await applyItemDecorators(this.sourceProfiles, profileRuntime, itemContext, pieItem, 'afterModel', trace);
 
       const processingTime = Date.now() - startTime;
       logger?.info(`Transformation complete in ${processingTime}ms (type: ${interactionType})`);
@@ -518,6 +452,8 @@ export class QtiToPiePlugin implements TransformPlugin {
         };
       }
 
+      await applyItemDecorators(this.sourceProfiles, profileRuntime, itemContext, pieItem, 'beforeFinalize', trace);
+
       // Embed original QTI XML for lossless round-trip
       const pieItemWithSource = embedQtiSourceInPie(pieItem, qtiXml, {
         generator: {
@@ -527,6 +463,7 @@ export class QtiToPiePlugin implements TransformPlugin {
         timestamp: new Date(),
         qtiVersion,
       });
+      await applyItemDecorators(this.sourceProfiles, profileRuntime, itemContext, pieItemWithSource, 'afterFinalize', trace);
 
       return {
         items: [{ content: pieItemWithSource, format: 'pie' as const }],
@@ -610,14 +547,6 @@ export class QtiToPiePlugin implements TransformPlugin {
     // EBSR has two choiceInteraction elements
     const matches = qtiXml.match(/<choiceInteraction/g);
     return matches ? matches.length === 2 : false;
-  }
-
-  /**
-   * Check if matchInteraction is a match-list (has two simpleMatchSet)
-   */
-  private isMatchList(qtiXml: string): boolean {
-    const matches = qtiXml.match(/<simpleMatchSet/g);
-    return matches ? matches.length >= 2 : false;
   }
 
   /**
