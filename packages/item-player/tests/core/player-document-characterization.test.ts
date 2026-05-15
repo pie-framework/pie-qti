@@ -150,6 +150,33 @@ describe('Player document characterization', () => {
 		expect(String(interaction.choices[0].text)).toContain('<span class="unit">meter</span>');
 	});
 
+	test('unwraps CDATA-wrapped item body XHTML before rendering and extraction', () => {
+		const player = new Player({
+			itemXml: qti22Item(
+				`<![CDATA[
+					<p class="passage">And with Jessica sitting there on her bed, smiling at me.</p>
+					<choiceInteraction responseIdentifier="RESPONSE" shuffle="false" maxChoices="1">
+						<prompt>Consider the narrator&rsquo;s word choices.</prompt>
+						<simpleChoice identifier="A">hopeful</simpleChoice>
+						<simpleChoice identifier="B">resentful with <em>admiration</em></simpleChoice>
+					</choiceInteraction>
+				]]>`,
+				`<responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier"/>`
+			),
+		});
+
+		const html = String(player.getItemBodyHtml());
+		const [interaction] = player.getInteractionData() as any[];
+
+		expect(html).toContain('<p class="passage">');
+		expect(html).toContain('<choiceInteraction');
+		expect(html).not.toContain('<![CDATA[');
+		expect(html).not.toContain(']]>');
+		expect(interaction.responseId).toBe('RESPONSE');
+		expect(interaction.prompt).toContain('narrator&rsquo;s word choices');
+		expect(String(interaction.choices[1].text)).toContain('<em>admiration</em>');
+	});
+
 	test('projects response, outcome, and template declarations into extraction context', () => {
 		let capturedContext: ExtractionContext | null = null;
 		const capturingExtractor: ElementExtractor = {

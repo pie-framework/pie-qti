@@ -19,13 +19,13 @@
   },
   "dependencies": {
     "@acme/likert-scale-plugin": "workspace:*",
-    "@pie-qti/logger": "workspace:*",
-    "@pie-qti/ims-cp-browser": "workspace:*",
-    "@pie-qti/ims-cp-core": "workspace:*",
     "@pie-qti/assessment-player": "workspace:*",
     "@pie-qti/default-components": "workspace:*",
     "@pie-qti/i18n": "workspace:*",
+    "@pie-qti/ims-cp-browser": "workspace:*",
+    "@pie-qti/ims-cp-core": "workspace:*",
     "@pie-qti/item-player": "workspace:*",
+    "@pie-qti/logger": "workspace:*",
     "@pie-qti/pie-to-qti2": "workspace:*",
     "@pie-qti/player-elements": "workspace:*",
     "@pie-qti/qti-common": "workspace:*",
@@ -43,6 +43,7 @@
     "jszip": "^3.10.1",
     "lowlight": "^3.3.0",
     "unzipper": "^0.12.3",
+    "xml-formatter": "^3.7.0",
     "xml2js": "^0.6.2"
   },
   "devDependencies": {

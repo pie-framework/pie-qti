@@ -20,6 +20,7 @@
     "dev": "turbo dev --filter=!@pie-qti/app-transform",
     "pie-qti": "node tools/cli/bin/run.js",
     "dev:demo": "bun scripts/dev-app.ts demo",
+    "dev:transform": "bun run --cwd apps/transform dev",
     "dev:apps": "turbo dev --filter=@pie-qti/app-demo...",
     "dev:pages": "cd apps/demo && bun run dev",
     "build:pages": "bun run build && cd apps/demo && NODE_ENV=production bun run build",

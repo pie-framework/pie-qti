@@ -1,6 +1,5 @@
 import type { AttributeNameMapper, ElementNameMapper } from '@pie-qti/qti-common';
 import {
-	childElements,
 	findAssessmentItem,
 	findDescendants,
 	findFirstDescendant,
@@ -70,10 +69,7 @@ export class AssessmentItemDocument {
 	}
 
 	serializeItemBodyChildren(): string {
-		const itemBody = findFirstDescendant(
-			this.assessmentItem,
-			this.elementNameMapper.toNative('itembody')
-		);
+		const itemBody = this.getItemBodyElement();
 		if (!itemBody) return '';
 		return this.serializeChildren(itemBody);
 	}
@@ -101,7 +97,7 @@ export class AssessmentItemDocument {
 	}
 
 	serializeChildren(element: Element): string {
-		return childElements(element).map((child) => serializeXml(child)).join('');
+		return unwrapCdataSections(this.serializeChildNodes(element));
 	}
 
 	findExtractionElements(elementTypes: Iterable<string>): DiscoveredInteractionElement[] {
@@ -144,12 +140,42 @@ export class AssessmentItemDocument {
 	private getExtractionDocument(): QTIElement {
 		if (!this.extractionDocument) {
 			enforceItemXmlLimits(this.itemXml, this.security);
-			this.extractionDocument = parse(this.itemXml, {
+			this.extractionDocument = parse(this.serializeItemBodyForExtraction(), {
 				lowerCaseTagName: false,
 				comment: false,
 			}) as unknown as QTIElement;
 		}
 		return this.extractionDocument;
+	}
+
+	private getItemBodyElement(): Element | null {
+		return findFirstDescendant(
+			this.assessmentItem,
+			this.elementNameMapper.toNative('itembody')
+		);
+	}
+
+	private serializeItemBodyForExtraction(): string {
+		const itemBodyTag = this.elementNameMapper.toNative('itembody');
+		const itemBody = this.getItemBodyElement();
+		const itemBodyChildren = itemBody ? this.serializeChildren(itemBody) : '';
+
+		return `<assessmentItem><${itemBodyTag}>${itemBodyChildren}</${itemBodyTag}></assessmentItem>`;
+	}
+
+	private serializeChildNodes(element: Element): string {
+		const children = (element as any).childNodes as NodeListOf<Node> | undefined;
+		if (!children) return '';
+
+		const serialized: string[] = [];
+		for (let index = 0; index < children.length; index++) {
+			const child = children[index];
+			if (child) {
+				serialized.push(serializeXml(child));
+			}
+		}
+
+		return serialized.join('');
 	}
 
 	private walkExtractionChildren(root: QTIElement, visit: (element: QTIElement) => void): void {
@@ -175,4 +201,8 @@ export class AssessmentItemDocument {
 
 export function parseAssessmentItemDocument(input: AssessmentItemDocumentInput): AssessmentItemDocument {
 	return new AssessmentItemDocument(input);
+}
+
+function unwrapCdataSections(xml: string): string {
+	return xml.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (_match, content: string) => content);
 }

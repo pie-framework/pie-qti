@@ -8,6 +8,7 @@
 	import type { InteractionResponseValue } from '@pie-qti/item-player/web-components';
 	import { typesetMathInElement } from '@pie-qti/typeset-katex';
 	import { browser } from '$app/environment';
+	import XmlEditor from '$lib/components/XmlEditor.svelte';
 	import { ALL_LIKERT_ITEMS } from '$lib/sample-likert-items';
 	import { getSecurityConfig } from '$lib/player-config';
 
@@ -160,7 +161,9 @@
 					<summary class="cursor-pointer font-semibold text-gray-700 hover:text-gray-900 mb-2">
 						View XML Source
 					</summary>
-					<pre class="mt-2 bg-gray-900 text-gray-100 p-4 rounded text-xs overflow-auto max-h-96"><code>{currentItem.xml}</code></pre>
+					<div class="mt-2">
+						<XmlEditor content={currentItem.xml} readOnly={true} />
+					</div>
 				</details>
 
 				<div class="space-y-4">
@@ -229,10 +232,6 @@
 
 <style>
 	code {
-		font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-	}
-
-	pre {
 		font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
 	}
 </style>

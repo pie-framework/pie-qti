@@ -46,6 +46,7 @@
 	import { all, createLowlight } from 'lowlight';
 	import { onDestroy, onMount, getContext } from 'svelte';
 	import type { SvelteI18nProvider } from '@pie-qti/i18n';
+	import xmlFormat from 'xml-formatter';
 
 	const lowlight = createLowlight(all);
 	const i18nContext = getContext<{ value: SvelteI18nProvider | null }>('i18n');
@@ -68,6 +69,8 @@
 	let editor: Editor | null = $state(null);
 	let editorElement: HTMLDivElement | null = $state(null);
 	let isUpdatingFromProp = false;
+	const previewContent = $derived(readOnly && language === 'xml' ? formatXmlForPreview(content) : content);
+	const cdataExpanded = $derived(readOnly && language === 'xml' && content.includes('<![CDATA['));
 
 	// Helper to escape HTML entities
 	function escapeHtml(text: string): string {
@@ -98,6 +101,36 @@
 		return `<pre><code data-language="${language}">${escapeHtml(text)}</code></pre>`;
 	}
 
+	function expandCdataForHighlighting(text: string): string {
+		return text.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (_match, cdataContent: string) => {
+			const trimmedContent = cdataContent.trim();
+			if (!trimmedContent) {
+				return '<!-- CDATA: empty -->';
+			}
+
+			return `<!-- CDATA expanded for source preview -->\n${trimmedContent}\n<!-- /CDATA -->`;
+		});
+	}
+
+	function formatXmlForPreview(text: string): string {
+		if (!text.trim()) return '';
+
+		return expandCdataForHighlighting(text)
+			.split(/\n{2,}/)
+			.map((fragment) => fragment.trim())
+			.filter(Boolean)
+			.map((fragment) =>
+				xmlFormat(fragment, {
+					collapseContent: true,
+					indentation: '  ',
+					lineSeparator: '\n',
+					throwOnFailure: false,
+					ignoredPaths: ['math', 'm:math', 'pre', 'code', 'script', 'style'],
+				}),
+			)
+			.join('\n\n');
+	}
+
 	// Extract plain text from Tiptap HTML
 	function extractTextFromHtml(html: string): string {
 		// Extract text from code blocks
@@ -112,7 +145,7 @@
 	onMount(() => {
 		if (!editorElement) return;
 
-		const htmlContent = formatContentAsHtml(content);
+		const htmlContent = formatContentAsHtml(previewContent);
 
 		editor = new Editor({
 			element: editorElement,
@@ -133,6 +166,7 @@
 				},
 			},
 			onUpdate: ({ editor }) => {
+				if (readOnly) return;
 				if (isUpdatingFromProp) {
 					isUpdatingFromProp = false;
 					return;
@@ -144,7 +178,7 @@
 			onCreate: ({ editor }) => {
 				// Check if content was properly set during init
 				const initialContent = extractTextFromHtml(editor.getHTML());
-				if (initialContent !== content) {
+				if (initialContent !== previewContent) {
 					setTimeout(() => {
 						isUpdatingFromProp = true;
 						editor.commands.setContent(htmlContent);
@@ -158,9 +192,9 @@
 	$effect(() => {
 		if (editor) {
 			const currentContent = extractTextFromHtml(editor.getHTML());
-			if (currentContent !== content && !isUpdatingFromProp) {
+			if (currentContent !== previewContent && !isUpdatingFromProp) {
 				isUpdatingFromProp = true;
-				editor.commands.setContent(formatContentAsHtml(content));
+				editor.commands.setContent(formatContentAsHtml(previewContent));
 				// Reset flag in next tick to allow the update to propagate
 				queueMicrotask(() => {
 					isUpdatingFromProp = false;
@@ -185,6 +219,11 @@
 </script>
 
 <div class="xml-editor-container">
+	{#if cdataExpanded}
+		<div class="source-preview-note">
+			CDATA content is expanded for readability; the stored QTI source is unchanged.
+		</div>
+	{/if}
 	<!-- Editor -->
 	<div class="editor-wrapper">
 		<div bind:this={editorElement} class="editor-content"></div>
@@ -197,6 +236,15 @@
 		border-radius: 8px;
 		overflow: hidden;
 		background: hsl(var(--b1));
+	}
+
+	.source-preview-note {
+		border-bottom: 1px solid hsl(var(--bc) / 0.15);
+		background: hsl(var(--in, 198 93% 60%) / 0.12);
+		color: hsl(var(--inc, var(--bc)));
+		font-size: 0.75rem;
+		line-height: 1.4;
+		padding: 0.5rem 0.75rem;
 	}
 
 	.editor-wrapper {
