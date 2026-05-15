@@ -14,6 +14,8 @@ export type ProfileCapability =
 	| 'package-assembly'
 	| string;
 
+export type SourceProfileFallbackPolicy = 'allow-generic' | 'block-generic';
+
 export interface DetectionEvidence {
 	type: string;
 	message: string;
@@ -36,6 +38,20 @@ export interface SourceProfileMatch {
 	qtiVersions?: string[];
 	capabilities?: ProfileCapability[];
 	evidence: DetectionEvidence[];
+	metadata?: Record<string, unknown>;
+}
+
+export interface SourceProfileDiagnostic {
+	code: string;
+	severity: 'info' | 'warning' | 'error';
+	message: string;
+	scope: QtiProfileScope;
+	profileId?: string;
+	handlerId?: string;
+	resourceId?: string;
+	itemId?: string;
+	sourcePath?: string;
+	evidence?: DetectionEvidence[];
 	metadata?: Record<string, unknown>;
 }
 
@@ -134,6 +150,7 @@ export interface ConversionTrace {
 	traceId: string;
 	events: TransformTraceEvent[];
 	profiles?: SourceProfileMatch[];
+	diagnostics?: SourceProfileDiagnostic[];
 	standardCandidates?: StandardCandidate[];
 	rubricCandidates?: RubricCandidate[];
 	sidecars?: SidecarArtifact[];
@@ -168,6 +185,7 @@ export interface SourceProfileExtractionResult {
 	standardCandidates?: StandardCandidate[];
 	rubricCandidates?: RubricCandidate[];
 	sidecars?: SidecarArtifact[];
+	diagnostics?: SourceProfileDiagnostic[];
 	warnings?: TransformWarning[];
 	traceEvents?: TransformTraceEvent[];
 	metadata?: Record<string, unknown>;
@@ -181,6 +199,7 @@ export interface QtiTransformDelegate {
 export interface QtiItemHandler {
 	id: string;
 	priority?: number;
+	fallbackPolicy?: SourceProfileFallbackPolicy;
 	canHandle(context: QtiSourceProfileItemContext): boolean | SourceProfileMatch;
 	transform(
 		context: QtiSourceProfileItemContext,
@@ -202,6 +221,7 @@ export interface QtiSourceProfile {
 	vendor?: string;
 	product?: string;
 	priority?: number;
+	fallbackPolicy?: SourceProfileFallbackPolicy;
 	capabilities?: ProfileCapability[];
 	detectPackage?(context: QtiSourceProfilePackageContext): SourceProfileMatch | null;
 	detectResource?(context: QtiSourceProfileResourceContext): SourceProfileMatch | null;

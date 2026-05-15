@@ -2,6 +2,7 @@ import type {
 	ConversionTrace,
 	QtiSourceProfile,
 	SidecarArtifact,
+	SourceProfileDiagnostic,
 	SourceProfileMatch,
 	StandardCandidate,
 	TransformContext,
@@ -38,6 +39,7 @@ export interface QtiPackageTransformResult {
 	itemOutputs: TransformOutput[];
 	sidecars: SidecarArtifact[];
 	sourceProfiles: SourceProfileMatch[];
+	sourceDiagnostics: SourceProfileDiagnostic[];
 	standardCandidates: StandardCandidate[];
 	warnings: TransformWarning[];
 	conversionTrace: ConversionTrace;
@@ -136,8 +138,17 @@ export async function transformQtiPackageToPie({
 			message: diagnostic.message,
 			itemId: diagnostic.resourceId,
 		})),
+		...(packageRuntime.extraction.diagnostics ?? [])
+			.filter((diagnostic) => diagnostic.severity !== 'info')
+			.map(sourceDiagnosticToWarning),
 		...(packageRuntime.extraction.warnings ?? []),
 		...itemOutputs.flatMap((output) => output.warnings ?? []),
+	];
+	const sourceDiagnostics = [
+		...(packageRuntime.extraction.diagnostics ?? []),
+		...itemOutputs.flatMap(
+			(output) => (((output.metadata as any).sourceDiagnostics ?? []) as SourceProfileDiagnostic[])
+		),
 	];
 	const standardCandidates = [
 		...(packageRuntime.extraction.standardCandidates ?? []),
@@ -153,11 +164,16 @@ export async function transformQtiPackageToPie({
 		itemOutputs,
 		sidecars,
 		sourceProfiles: packageRuntime.matches,
+		sourceDiagnostics,
 		standardCandidates,
 		warnings,
 		conversionTrace: {
 			...trace,
 			profiles: packageRuntime.matches,
+			diagnostics: [
+				...(trace.diagnostics ?? []),
+				...sourceDiagnostics,
+			],
 			standardCandidates,
 			sidecars,
 		},
@@ -178,4 +194,12 @@ function assetSidecars(packageGraph: AnalyzedContentPackage): SidecarArtifact[] 
 			sourceAttribute: asset.sourceAttribute,
 		},
 	}));
+}
+
+function sourceDiagnosticToWarning(diagnostic: SourceProfileDiagnostic): TransformWarning {
+	return {
+		itemId: diagnostic.itemId ?? diagnostic.resourceId,
+		code: diagnostic.code,
+		message: diagnostic.message,
+	};
 }

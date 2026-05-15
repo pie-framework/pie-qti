@@ -272,6 +272,159 @@ describe('QtiToPiePlugin', () => {
     ).toBe(false);
   });
 
+  test('should emit source diagnostics when a matched handler falls back to generic transform', async () => {
+    const sourceProfile: QtiSourceProfile = {
+      id: 'fallback-profile',
+      fallbackPolicy: 'allow-generic',
+      detectItem() {
+        return {
+          profileId: 'fallback-profile',
+          scope: 'item',
+          confidence: 0.9,
+          capabilities: ['interactions'],
+          evidence: [{ type: 'test', scope: 'item', message: 'Test fallback profile.' }],
+        };
+      },
+      itemHandlers: [
+        {
+          id: 'fallback-profile.choice',
+          canHandle(context) {
+            return context.interactionTypes?.includes('choiceInteraction') ?? false;
+          },
+          async transform() {
+            return null;
+          },
+        },
+      ],
+    };
+    const plugin = new QtiToPiePlugin({ sourceProfiles: [sourceProfile] });
+
+    const output = await plugin.transform(
+      { content: sampleQtiXml },
+      { logger: new SilentLogger() }
+    );
+
+    expect(output.items[0].content.id).toBe('choice-001');
+    expect(output.metadata.sourceDiagnostics?.[0].code).toBe('QTI_PROFILE_HANDLER_NO_OUTPUT');
+    expect(output.warnings?.some((warning) => warning.code === 'QTI_PROFILE_HANDLER_NO_OUTPUT')).toBe(true);
+    expect(output.metadata.conversionTrace?.diagnostics?.[0].code).toBe('QTI_PROFILE_HANDLER_NO_OUTPUT');
+    expect(
+      output.metadata.conversionTrace?.events.some(
+        (event) => event.kind === 'fallback' && event.handlerId === 'fallback-profile.choice'
+      )
+    ).toBe(true);
+    expect(
+      output.metadata.conversionTrace?.events.some(
+        (event) => event.kind === 'handler-selected' && event.handlerId === 'builtin.choice'
+      )
+    ).toBe(true);
+  });
+
+  test('should preserve fallback warnings when a later source-profile handler returns output', async () => {
+    const sourceProfile: QtiSourceProfile = {
+      id: 'multi-handler-profile',
+      detectItem() {
+        return {
+          profileId: 'multi-handler-profile',
+          scope: 'item',
+          confidence: 0.9,
+          capabilities: ['interactions'],
+          evidence: [{ type: 'test', scope: 'item', message: 'Test multi-handler profile.' }],
+        };
+      },
+      itemHandlers: [
+        {
+          id: 'multi-handler-profile.no-output',
+          priority: 10,
+          canHandle() {
+            return true;
+          },
+          async transform() {
+            return null;
+          },
+        },
+        {
+          id: 'multi-handler-profile.output',
+          priority: 1,
+          canHandle() {
+            return true;
+          },
+          async transform(context) {
+            return {
+              items: [
+                {
+                  content: {
+                    id: context.itemId,
+                    element: 'profile-owned-output',
+                  },
+                  format: 'pie',
+                },
+              ],
+              format: 'pie',
+              metadata: {
+                sourceFormat: 'qti22',
+                targetFormat: 'pie',
+                pluginId: 'multi-handler-profile.output',
+                timestamp: new Date(),
+                itemCount: 1,
+              },
+            };
+          },
+        },
+      ],
+    };
+    const plugin = new QtiToPiePlugin({ sourceProfiles: [sourceProfile] });
+
+    const output = await plugin.transform(
+      { content: sampleQtiXml },
+      { logger: new SilentLogger() }
+    );
+
+    expect(output.items[0].content.element).toBe('profile-owned-output');
+    expect(output.metadata.sourceDiagnostics?.[0].code).toBe('QTI_PROFILE_HANDLER_NO_OUTPUT');
+    expect(output.warnings?.some((warning) => warning.code === 'QTI_PROFILE_HANDLER_NO_OUTPUT')).toBe(true);
+  });
+
+  test('should block generic fallback when a matched source profile requires explicit handling', async () => {
+    const customQti = `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="blocked-custom" title="Blocked Custom" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="identifier"/>
+  <itemBody>
+    <customInteraction responseIdentifier="RESPONSE" class="tei-texthighlighter"/>
+  </itemBody>
+</assessmentItem>`;
+    const sourceProfile: QtiSourceProfile = {
+      id: 'blocking-profile',
+      fallbackPolicy: 'block-generic',
+      detectItem(context) {
+        return context.xml?.includes('tei-texthighlighter')
+          ? {
+              profileId: 'blocking-profile',
+              scope: 'item',
+              confidence: 1,
+              capabilities: ['interactions'],
+              evidence: [
+                {
+                  type: 'class',
+                  scope: 'item',
+                  value: 'tei-texthighlighter',
+                  message: 'Matched highlighter custom interaction.',
+                },
+              ],
+            }
+          : null;
+      },
+    };
+    const plugin = new QtiToPiePlugin({ sourceProfiles: [sourceProfile] });
+
+    await expect(
+      plugin.transform(
+        { content: customQti },
+        { logger: new SilentLogger() }
+      )
+    ).rejects.toThrow(/generic fallback is disabled/i);
+  });
+
   test('should preserve QTI 2.1 source version in metadata and embedded source', async () => {
     const plugin = new QtiToPiePlugin();
     const qti21Xml = `<?xml version="1.0" encoding="UTF-8"?>

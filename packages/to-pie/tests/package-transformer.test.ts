@@ -38,6 +38,14 @@ describe('transformQtiPackageToPie', () => {
 					evidence: [{ type: 'test', message: 'test package' }],
 				};
 			},
+			detectItem() {
+				return {
+					profileId: 'package-test-profile',
+					scope: 'item',
+					confidence: 0.7,
+					evidence: [{ type: 'test', message: 'test item' }],
+				};
+			},
 			extractPackage() {
 				return {
 					standardCandidates: [
@@ -49,6 +57,17 @@ describe('transformQtiPackageToPie', () => {
 					],
 				};
 			},
+			itemHandlers: [
+				{
+					id: 'package-test-profile.no-output',
+					canHandle() {
+						return true;
+					},
+					async transform() {
+						return null;
+					},
+				},
+			],
 		};
 
 		const result = await transformQtiPackageToPie({
@@ -64,6 +83,9 @@ describe('transformQtiPackageToPie', () => {
 		expect(result.items).toHaveLength(1);
 		expect(result.sidecars.some((sidecar) => sidecar.id === 'asset:items/chart.png')).toBe(true);
 		expect(result.sourceProfiles[0].profileId).toBe('package-test-profile');
+		expect(result.sourceDiagnostics[0].code).toBe('QTI_PROFILE_HANDLER_NO_OUTPUT');
+		expect(result.warnings.some((warning) => warning.code === 'QTI_PROFILE_HANDLER_NO_OUTPUT')).toBe(true);
+		expect(result.conversionTrace.diagnostics?.[0].code).toBe('QTI_PROFILE_HANDLER_NO_OUTPUT');
 		expect(result.standardCandidates[0].rawValue).toBe('PKG.1');
 		expect(result.conversionTrace.events.some((event) => event.kind === 'package-analyzed')).toBe(true);
 	});

@@ -6,6 +6,8 @@ import type {
 	QtiSourceProfileItemContext,
 	QtiSourceProfilePackageContext,
 	QtiTransformDelegate,
+	SourceProfileDiagnostic,
+	SourceProfileFallbackPolicy,
 	SourceProfileExtractionResult,
 	SourceProfileMatch,
 	TransformOutput,
@@ -25,6 +27,12 @@ export interface RunItemHandlersInput {
 	context: QtiSourceProfileItemContext;
 	delegate: QtiTransformDelegate;
 	trace?: ConversionTrace;
+}
+
+export interface ItemHandlerRuntimeResult {
+	output: TransformOutput | null;
+	allowGenericFallback: boolean;
+	diagnostics: SourceProfileDiagnostic[];
 }
 
 export function createConversionTrace(traceId = `qti-trace-${Date.now()}`): ConversionTrace {
@@ -157,8 +165,9 @@ export async function runItemHandlers({
 	context,
 	delegate,
 	trace,
-}: RunItemHandlersInput): Promise<TransformOutput | null> {
+}: RunItemHandlersInput): Promise<ItemHandlerRuntimeResult> {
 	const activeProfileIds = new Set(runtime.matches.map((match) => match.profileId));
+	const diagnostics: SourceProfileDiagnostic[] = [];
 	const handlers = profiles
 		.filter((profile) => activeProfileIds.has(profile.id))
 		.flatMap((profile) =>
@@ -168,6 +177,19 @@ export async function runItemHandlers({
 			}))
 		)
 		.sort((left, right) => (right.handler.priority ?? 0) - (left.handler.priority ?? 0));
+
+	if (runtime.matches.length > 0 && handlers.length === 0) {
+		for (const match of runtime.matches) {
+			const profile = profiles.find((candidate) => candidate.id === match.profileId);
+			const policy = profile?.fallbackPolicy ?? 'allow-generic';
+			const diagnostic = createNoHandlerDiagnostic(match, profile?.fallbackPolicy, context);
+			diagnostics.push(diagnostic);
+			addDiagnostic(trace, diagnostic);
+			if (policy === 'block-generic') {
+				return { output: null, allowGenericFallback: false, diagnostics };
+			}
+		}
+	}
 
 	for (const { profile, handler } of handlers) {
 		const canHandle = evaluateItemHandler(profile.id, handler, context, trace);
@@ -213,8 +235,12 @@ export async function runItemHandlers({
 					sourcePath: context.sourcePath,
 					message: `Source profile item handler ${handler.id} produced a transform output.`,
 				});
-				return output;
+				return { output, allowGenericFallback: false, diagnostics };
 			}
+			const policy = handler.fallbackPolicy ?? profile.fallbackPolicy ?? 'allow-generic';
+			const diagnostic = createNoOutputDiagnostic(profile.id, handler.id, policy, context);
+			diagnostics.push(diagnostic);
+			addDiagnostic(trace, diagnostic);
 			addTraceEvent(trace ?? createConversionTrace(), {
 				kind: 'fallback',
 				scope: 'item',
@@ -223,24 +249,38 @@ export async function runItemHandlers({
 				itemId: context.itemId,
 				resourceId: context.resourceId,
 				sourcePath: context.sourcePath,
-				message: `Source profile item handler ${handler.id} returned no output; continuing handler selection.`,
+				message:
+					policy === 'block-generic'
+						? `Source profile item handler ${handler.id} returned no output and blocks generic fallback.`
+						: `Source profile item handler ${handler.id} returned no output; continuing handler selection.`,
 			});
+			if (policy === 'block-generic') {
+				return { output: null, allowGenericFallback: false, diagnostics };
+			}
 		} catch (error) {
-			addTraceEvent(trace ?? createConversionTrace(), {
-				kind: 'error',
-				scope: 'item',
-				profileId: profile.id,
-				handlerId: handler.id,
-				itemId: context.itemId,
-				resourceId: context.resourceId,
-				sourcePath: context.sourcePath,
-				message: `Source profile item handler ${handler.id} failed: ${(error as Error).message}`,
-			});
+			const diagnostic = createHandlerErrorDiagnostic(profile.id, handler.id, context, error as Error);
+			diagnostics.push(diagnostic);
+			addDiagnostic(trace, diagnostic);
 			throw error;
 		}
 	}
 
-	return null;
+	if (runtime.matches.length > 0) {
+		const blockingMatches = runtime.matches.filter((match) => {
+			const profile = profiles.find((candidate) => candidate.id === match.profileId);
+			return profile?.fallbackPolicy === 'block-generic';
+		});
+		for (const match of blockingMatches) {
+			const diagnostic = createUnhandledProfileDiagnostic(match, context);
+			diagnostics.push(diagnostic);
+			addDiagnostic(trace, diagnostic);
+		}
+		if (blockingMatches.length > 0) {
+			return { output: null, allowGenericFallback: false, diagnostics };
+		}
+	}
+
+	return { output: null, allowGenericFallback: true, diagnostics };
 }
 
 function extractFromProfiles(
@@ -298,6 +338,9 @@ function mergeExtraction(target: SourceProfileExtractionResult, source: SourcePr
 	if (source.sidecars?.length) {
 		target.sidecars = [...(target.sidecars ?? []), ...source.sidecars];
 	}
+	if (source.diagnostics?.length) {
+		target.diagnostics = [...(target.diagnostics ?? []), ...source.diagnostics];
+	}
 	if (source.warnings?.length) {
 		target.warnings = [...(target.warnings ?? []), ...source.warnings];
 	}
@@ -317,6 +360,7 @@ function extractionCounts(extracted: SourceProfileExtractionResult): Record<stri
 		standardCandidates: extracted.standardCandidates?.length ?? 0,
 		rubricCandidates: extracted.rubricCandidates?.length ?? 0,
 		sidecars: extracted.sidecars?.length ?? 0,
+		diagnostics: extracted.diagnostics?.length ?? 0,
 		warnings: extracted.warnings?.length ?? 0,
 	};
 }
@@ -383,5 +427,119 @@ function createTracedDelegate(
 			});
 			return delegate.transformWithBuiltIn(builtInHandlerId, overrides);
 		},
+	};
+}
+
+function addDiagnostic(trace: ConversionTrace | undefined, diagnostic: SourceProfileDiagnostic): void {
+	if (!trace) return;
+	trace.diagnostics = [...(trace.diagnostics ?? []), diagnostic];
+	addTraceEvent(trace, {
+		kind:
+			diagnostic.severity === 'error'
+				? 'error'
+				: diagnostic.severity === 'warning'
+					? 'warning'
+					: 'diagnostic',
+		scope: diagnostic.scope,
+		profileId: diagnostic.profileId,
+		handlerId: diagnostic.handlerId,
+		itemId: diagnostic.itemId,
+		resourceId: diagnostic.resourceId,
+		sourcePath: diagnostic.sourcePath,
+		message: diagnostic.message,
+		data: {
+			code: diagnostic.code,
+			severity: diagnostic.severity,
+			metadata: diagnostic.metadata,
+		},
+	});
+}
+
+function createNoHandlerDiagnostic(
+	match: SourceProfileMatch,
+	policy: SourceProfileFallbackPolicy | undefined,
+	context: QtiSourceProfileItemContext
+): SourceProfileDiagnostic {
+	const fallbackPolicy = policy ?? 'allow-generic';
+	return {
+		code:
+			fallbackPolicy === 'block-generic'
+				? 'QTI_PROFILE_REQUIRES_HANDLER'
+				: 'QTI_PROFILE_GENERIC_FALLBACK',
+		severity: fallbackPolicy === 'block-generic' ? 'error' : 'info',
+		scope: 'item',
+		profileId: match.profileId,
+		itemId: context.itemId,
+		resourceId: context.resourceId,
+		sourcePath: context.sourcePath,
+		message:
+			fallbackPolicy === 'block-generic'
+				? `Source profile ${match.profileId} matched this item but did not provide an item handler, and generic fallback is disabled.`
+				: `Source profile ${match.profileId} matched this item but did not provide an item handler; generic fallback remains allowed.`,
+		evidence: match.evidence,
+		metadata: { fallbackPolicy },
+	};
+}
+
+function createNoOutputDiagnostic(
+	profileId: string,
+	handlerId: string,
+	policy: SourceProfileFallbackPolicy,
+	context: QtiSourceProfileItemContext
+): SourceProfileDiagnostic {
+	return {
+		code:
+			policy === 'block-generic'
+				? 'QTI_PROFILE_HANDLER_BLOCKED_FALLBACK'
+				: 'QTI_PROFILE_HANDLER_NO_OUTPUT',
+		severity: policy === 'block-generic' ? 'error' : 'warning',
+		scope: 'item',
+		profileId,
+		handlerId,
+		itemId: context.itemId,
+		resourceId: context.resourceId,
+		sourcePath: context.sourcePath,
+		message:
+			policy === 'block-generic'
+				? `Source profile item handler ${handlerId} returned no output, and generic fallback is disabled.`
+				: `Source profile item handler ${handlerId} returned no output; generic fallback remains allowed.`,
+		metadata: { fallbackPolicy: policy },
+	};
+}
+
+function createUnhandledProfileDiagnostic(
+	match: SourceProfileMatch,
+	context: QtiSourceProfileItemContext
+): SourceProfileDiagnostic {
+	return {
+		code: 'QTI_PROFILE_UNHANDLED_BLOCKED_FALLBACK',
+		severity: 'error',
+		scope: 'item',
+		profileId: match.profileId,
+		itemId: context.itemId,
+		resourceId: context.resourceId,
+		sourcePath: context.sourcePath,
+		message: `Source profile ${match.profileId} matched this item, but no source-profile handler produced output and generic fallback is disabled.`,
+		evidence: match.evidence,
+		metadata: { fallbackPolicy: 'block-generic' },
+	};
+}
+
+function createHandlerErrorDiagnostic(
+	profileId: string,
+	handlerId: string,
+	context: QtiSourceProfileItemContext,
+	error: Error
+): SourceProfileDiagnostic {
+	return {
+		code: 'QTI_PROFILE_HANDLER_ERROR',
+		severity: 'error',
+		scope: 'item',
+		profileId,
+		handlerId,
+		itemId: context.itemId,
+		resourceId: context.resourceId,
+		sourcePath: context.sourcePath,
+		message: `Source profile item handler ${handlerId} failed: ${error.message}`,
 	};
 }

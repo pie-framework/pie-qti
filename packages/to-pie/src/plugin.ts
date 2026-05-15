@@ -491,7 +491,7 @@ export class QtiToPiePlugin implements TransformPlugin {
       }
     };
 
-    const handlerOutput = await runItemHandlers({
+    const handlerRuntime = await runItemHandlers({
       profiles: this.sourceProfiles,
       runtime: profileRuntime,
       context: itemContext,
@@ -504,9 +504,30 @@ export class QtiToPiePlugin implements TransformPlugin {
       },
       trace,
     });
+    if (handlerRuntime.diagnostics.length > 0) {
+      profileRuntime.extraction.diagnostics = [
+        ...(profileRuntime.extraction.diagnostics ?? []),
+        ...handlerRuntime.diagnostics,
+      ];
+      warnings.push(
+        ...handlerRuntime.diagnostics
+          .filter(diagnostic => diagnostic.severity !== 'info')
+          .map(sourceDiagnosticToWarning)
+      );
+    }
 
-    if (handlerOutput) {
-      return withTraceMetadata(handlerOutput, trace, profileRuntime);
+    if (handlerRuntime.output) {
+      return withTraceMetadata(handlerRuntime.output, trace, profileRuntime, warnings);
+    }
+
+    if (!handlerRuntime.allowGenericFallback) {
+      const blockingDiagnostic = handlerRuntime.diagnostics.find(
+        diagnostic => diagnostic.severity === 'error'
+      );
+      throw new Error(
+        blockingDiagnostic?.message ??
+        `Generic QTI fallback is disabled for source-profile matched item ${itemId}.`
+      );
     }
 
     return runGenericTransform();
@@ -926,7 +947,8 @@ function directChildXml(parent: HTMLElement, tagName: string): string | undefine
 function withTraceMetadata(
   output: TransformOutput,
   trace: ConversionTrace,
-  profileRuntime: ProfileRuntimeResult
+  profileRuntime: ProfileRuntimeResult,
+  warnings?: TransformWarning[]
 ): TransformOutput {
   return {
     ...output,
@@ -935,18 +957,23 @@ function withTraceMetadata(
       ...metadataFromProfileRuntime(profileRuntime),
       conversionTrace: finalizeTrace(trace, profileRuntime),
     } as any,
+    warnings: mergeWarnings(output.warnings, warnings),
   };
 }
 
 function metadataFromProfileRuntime(
   profileRuntime: ProfileRuntimeResult
 ): Pick<TransformOutput['metadata'], 'sourceProfiles'> & {
+  sourceDiagnostics?: SourceProfileExtractionResult['diagnostics'];
   standardCandidates?: SourceProfileExtractionResult['standardCandidates'];
   rubricCandidates?: SourceProfileExtractionResult['rubricCandidates'];
   sidecars?: SourceProfileExtractionResult['sidecars'];
 } {
   return {
     ...(profileRuntime.matches.length > 0 && { sourceProfiles: profileRuntime.matches }),
+    ...(profileRuntime.extraction.diagnostics?.length && {
+      sourceDiagnostics: profileRuntime.extraction.diagnostics,
+    }),
     ...(profileRuntime.extraction.standardCandidates?.length && {
       standardCandidates: profileRuntime.extraction.standardCandidates,
     }),
@@ -966,6 +993,9 @@ function finalizeTrace(
   return {
     ...trace,
     ...(profileRuntime.matches.length > 0 && { profiles: profileRuntime.matches }),
+    ...(profileRuntime.extraction.diagnostics?.length && {
+      diagnostics: profileRuntime.extraction.diagnostics,
+    }),
     ...(profileRuntime.extraction.standardCandidates?.length && {
       standardCandidates: profileRuntime.extraction.standardCandidates,
     }),
@@ -976,4 +1006,22 @@ function finalizeTrace(
       sidecars: profileRuntime.extraction.sidecars,
     }),
   };
+}
+
+function sourceDiagnosticToWarning(
+  diagnostic: NonNullable<SourceProfileExtractionResult['diagnostics']>[number]
+): TransformWarning {
+  return {
+    itemId: diagnostic.itemId,
+    code: diagnostic.code,
+    message: diagnostic.message,
+  };
+}
+
+function mergeWarnings(
+  outputWarnings: TransformWarning[] | undefined,
+  accumulatedWarnings: TransformWarning[] | undefined
+): TransformWarning[] | undefined {
+  const merged = [...(outputWarnings ?? []), ...(accumulatedWarnings ?? [])];
+  return merged.length > 0 ? merged : undefined;
 }

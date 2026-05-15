@@ -179,6 +179,9 @@ export interface TransformMetadata {
 
   /** Source profiles detected while analyzing or transforming the source content. */
   sourceProfiles?: import('../source-profile.js').SourceProfileMatch[];
+
+  /** Structured diagnostics emitted by source-profile detection or handling. */
+  sourceDiagnostics?: import('../source-profile.js').SourceProfileDiagnostic[];
 }
 
 /**
