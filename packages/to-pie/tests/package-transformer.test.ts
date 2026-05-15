@@ -57,6 +57,21 @@ describe('transformQtiPackageToPie', () => {
 					],
 				};
 			},
+			extractItem(context) {
+				return {
+					sidecars: [
+						{
+							id: `rubric:${context.itemId}`,
+							kind: 'rubric',
+							sourceResourceId: context.resourceId,
+							referencedBy: [context.resourceId ?? context.itemId ?? 'unknown'],
+							metadata: {
+								sourceProfile: 'package-test-profile',
+							},
+						},
+					],
+				};
+			},
 			itemHandlers: [
 				{
 					id: 'package-test-profile.no-output',
@@ -79,14 +94,67 @@ describe('transformQtiPackageToPie', () => {
 				},
 			},
 		});
+		const repeatedResult = await transformQtiPackageToPie({
+			manifestXml,
+			sourceProfiles: [sourceProfile],
+			fileAccess: {
+				readText(path) {
+					return path === 'items/item.xml' ? itemXml : null;
+				},
+			},
+		});
 
 		expect(result.items).toHaveLength(1);
-		expect(result.sidecars.some((sidecar) => sidecar.id === 'asset:items/chart.png')).toBe(true);
+		expect(result.sidecars.map((sidecar) => sidecar.id)).toEqual(
+			repeatedResult.sidecars.map((sidecar) => sidecar.id)
+		);
+		expect(
+			result.sidecars.some(
+				(sidecar) =>
+					sidecar.kind === 'asset' &&
+					sidecar.sourcePath === 'items/chart.png' &&
+					sidecar.id.startsWith('image:items-chart-png:')
+			)
+		).toBe(true);
+		expect(
+			result.sidecars.some(
+				(sidecar) =>
+					sidecar.kind === 'source-qti' &&
+					sidecar.sourcePath === 'items/item.xml' &&
+					sidecar.id.startsWith('source-qti:items-item-xml:')
+			)
+		).toBe(true);
+		expect(result.sidecars.some((sidecar) => sidecar.id === 'rubric:item1')).toBe(true);
+		const sidecarEvents = result.conversionTrace.events.filter((event) => event.kind === 'sidecar-emitted');
+		expect(sidecarEvents).toHaveLength(result.sidecars.length);
+		expect(
+			sidecarEvents.some(
+				(event) =>
+					event.data?.sidecarId === 'rubric:item1' &&
+					event.data?.kind === 'rubric' &&
+					Array.isArray(event.data?.referencedBy)
+			)
+		).toBe(true);
 		expect(result.sourceProfiles[0].profileId).toBe('package-test-profile');
 		expect(result.sourceDiagnostics[0].code).toBe('QTI_PROFILE_HANDLER_NO_OUTPUT');
 		expect(result.warnings.some((warning) => warning.code === 'QTI_PROFILE_HANDLER_NO_OUTPUT')).toBe(true);
 		expect(result.conversionTrace.diagnostics?.[0].code).toBe('QTI_PROFILE_HANDLER_NO_OUTPUT');
 		expect(result.standardCandidates[0].rawValue).toBe('PKG.1');
 		expect(result.conversionTrace.events.some((event) => event.kind === 'package-analyzed')).toBe(true);
+	});
+
+	test('does not emit source QTI sidecars for unreadable item XML', async () => {
+		const result = await transformQtiPackageToPie({
+			manifestXml,
+			fileAccess: {
+				readText() {
+					return null;
+				},
+			},
+		});
+
+		expect(result.items).toHaveLength(0);
+		expect(result.warnings.some((warning) => warning.code === 'IMS_CP_MISSING_FILE')).toBe(true);
+		expect(result.sidecars.some((sidecar) => sidecar.kind === 'source-qti')).toBe(false);
 	});
 });

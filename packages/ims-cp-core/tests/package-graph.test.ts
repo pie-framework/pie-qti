@@ -14,6 +14,11 @@ const manifestXml = `<?xml version="1.0" encoding="UTF-8"?>
       <file href="items/images/chart.png"/>
       <dependency identifierref="passage1"/>
     </resource>
+    <resource identifier="item2" type="imsqti_item_xmlv2p1" href="items/item2.xml">
+      <file href="items/item2.xml"/>
+      <file href="items/images/chart.png"/>
+      <file href="items/audio/missing.mp3"/>
+    </resource>
     <resource identifier="passage1" type="webcontent" href="passages/passage.html">
       <file href="passages/passage.html"/>
     </resource>
@@ -34,7 +39,25 @@ describe('analyzeContentPackage', () => {
               </itemBody>
             </assessmentItem>`;
 					}
+					if (path === 'items/item2.xml') {
+						return `<assessmentItem>
+              <itemBody>
+                <p><img src="images/chart.png"/></p>
+                <p><img src="images/missing.png"/></p>
+              </itemBody>
+            </assessmentItem>`;
+					}
 					return null;
+				},
+				listFiles() {
+					return [
+						'tests/test.xml',
+						'items/item.xml',
+						'items/item2.xml',
+						'items/images/chart.png',
+						'styles/item.css',
+						'passages/passage.html',
+					];
 				},
 			},
 		});
@@ -43,15 +66,36 @@ describe('analyzeContentPackage', () => {
 		expect(analyzed.entrypoints.map((entrypoint) => entrypoint.resourceId)).toEqual([
 			'test1',
 			'item1',
+			'item2',
 			'passage1',
 		]);
 		expect(analyzed.diagnostics.some((diagnostic) => diagnostic.code === 'IMS_CP_DANGLING_DEPENDENCY')).toBe(true);
+		expect(analyzed.diagnostics.some((diagnostic) => diagnostic.code === 'IMS_CP_MISSING_FILE')).toBe(true);
+		expect(analyzed.diagnostics.some((diagnostic) => diagnostic.code === 'IMS_CP_MISSING_ASSET')).toBe(true);
 		expect(analyzed.assets.has('items/images/chart.png')).toBe(true);
 		expect(analyzed.assets.has('styles/item.css')).toBe(true);
+		expect(analyzed.assets.get('items/images/chart.png')?.ownerResourceIds).toEqual(['item1', 'item2']);
 
 		const closure = analyzed.closures.get('test1');
 		expect(closure?.resourceIds).toEqual(['test1', 'item1', 'passage1']);
 		expect(closure?.filePaths).toContain('items/images/chart.png');
 		expect(closure?.assetPaths).toContain('items/images/chart.png');
+	});
+
+	test('treats an empty file listing as authoritative', async () => {
+		const analyzed = await analyzeContentPackage({
+			manifestXml,
+			fileAccess: {
+				readText() {
+					return null;
+				},
+				listFiles() {
+					return [];
+				},
+			},
+		});
+
+		expect(analyzed.diagnostics.some((diagnostic) => diagnostic.code === 'IMS_CP_MISSING_FILE')).toBe(true);
+		expect(analyzed.diagnostics.some((diagnostic) => diagnostic.code === 'IMS_CP_MISSING_ASSET')).toBe(false);
 	});
 });

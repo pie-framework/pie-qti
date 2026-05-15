@@ -49,7 +49,9 @@ export interface PackageAssetRef {
 	resolvedPath: string;
 	usage: 'image' | 'stylesheet' | 'audio' | 'video' | 'html' | 'catalog' | 'source-qti' | 'other';
 	ownerResourceId?: string;
+	ownerResourceIds?: string[];
 	sourcePath?: string;
+	sourcePaths?: string[];
 	sourceElement?: string;
 	sourceAttribute?: string;
 }
@@ -121,6 +123,7 @@ export async function analyzeContentPackage({
 	const references = new Map<string, PackageReference[]>();
 	const assets = new Map<string, PackageAssetRef>();
 	const files = fileAccess?.listFiles ? await fileAccess.listFiles() : [];
+	const listedFiles = fileAccess?.listFiles ? new Set(files) : undefined;
 
 	for (const resource of manifest.resources.values()) {
 		const node = toResourceNode(resource, manifest);
@@ -130,6 +133,16 @@ export async function analyzeContentPackage({
 				ownerResourceId: node.identifier,
 				sourcePath: node.resolvedHref,
 			});
+			if (fileAccess && !(await packagePathExists(filePath, fileAccess, listedFiles))) {
+				diagnostics.push({
+					severity: 'warning',
+					code: 'IMS_CP_MISSING_FILE',
+					message: `Resource ${node.identifier} declares missing package file ${filePath}.`,
+					resourceId: node.identifier,
+					sourcePath: node.resolvedHref,
+					reference: filePath,
+				});
+			}
 		}
 	}
 
@@ -159,8 +172,27 @@ export async function analyzeContentPackage({
 				const discovered = discoverReferences(xml, node);
 				resourceReferences.push(...discovered.references);
 				for (const asset of discovered.assets) {
-					assets.set(asset.resolvedPath, asset);
+					registerAsset(assets, asset);
+					if (!(await packagePathExists(asset.resolvedPath, fileAccess, listedFiles))) {
+						diagnostics.push({
+							severity: 'warning',
+							code: 'IMS_CP_MISSING_ASSET',
+							message: `Resource ${node.identifier} references missing package asset ${asset.resolvedPath}.`,
+							resourceId: node.identifier,
+							sourcePath: node.resolvedHref,
+							reference: asset.rawHref,
+						});
+					}
 				}
+			} else if (!hasMissingFileDiagnostic(diagnostics, node.identifier, node.resolvedHref)) {
+				diagnostics.push({
+					severity: 'warning',
+					code: 'IMS_CP_MISSING_FILE',
+					message: `Resource ${node.identifier} could not read package XML file ${node.resolvedHref}.`,
+					resourceId: node.identifier,
+					sourcePath: node.resolvedHref,
+					reference: node.resolvedHref,
+				});
 			}
 		}
 
@@ -363,11 +395,44 @@ function maybeRegisterAsset(
 ) {
 	const usage = classifyAssetUsage(path);
 	if (usage === 'source-qti' || usage === 'other') return;
-	assets.set(path, {
+	registerAsset(assets, {
 		rawHref: path,
 		resolvedPath: path,
 		usage,
 		...context,
+	});
+}
+
+function registerAsset(assets: Map<string, PackageAssetRef>, asset: PackageAssetRef): void {
+	const existing = assets.get(asset.resolvedPath);
+	if (!existing) {
+		assets.set(asset.resolvedPath, {
+			...asset,
+			ownerResourceIds: asset.ownerResourceId ? [asset.ownerResourceId] : [],
+			sourcePaths: asset.sourcePath ? [asset.sourcePath] : [],
+		});
+		return;
+	}
+
+	const ownerResourceIds = new Set([
+		...(existing.ownerResourceIds ?? (existing.ownerResourceId ? [existing.ownerResourceId] : [])),
+		...(asset.ownerResourceIds ?? (asset.ownerResourceId ? [asset.ownerResourceId] : [])),
+	]);
+	const sourcePaths = new Set([
+		...(existing.sourcePaths ?? (existing.sourcePath ? [existing.sourcePath] : [])),
+		...(asset.sourcePaths ?? (asset.sourcePath ? [asset.sourcePath] : [])),
+	]);
+
+	assets.set(asset.resolvedPath, {
+		...existing,
+		rawHref: existing.rawHref || asset.rawHref,
+		usage: existing.usage === 'other' ? asset.usage : existing.usage,
+		ownerResourceId: existing.ownerResourceId ?? asset.ownerResourceId,
+		ownerResourceIds: [...ownerResourceIds],
+		sourcePath: existing.sourcePath ?? asset.sourcePath,
+		sourcePaths: [...sourcePaths],
+		sourceElement: existing.sourceElement ?? asset.sourceElement,
+		sourceAttribute: existing.sourceAttribute ?? asset.sourceAttribute,
 	});
 }
 
@@ -413,4 +478,27 @@ function dirname(path: string): string {
 	const normalized = path.replaceAll('\\', '/');
 	const index = normalized.lastIndexOf('/');
 	return index === -1 ? '' : normalized.slice(0, index);
+}
+
+async function packagePathExists(
+	path: string,
+	fileAccess: PackageFileAccess,
+	listedFiles?: Set<string>
+): Promise<boolean> {
+	if (listedFiles) return listedFiles.has(path);
+	if (fileAccess.exists) return Boolean(await fileAccess.exists(path));
+	return true;
+}
+
+function hasMissingFileDiagnostic(
+	diagnostics: PackageDiagnostic[],
+	resourceId: string,
+	path: string
+): boolean {
+	return diagnostics.some(
+		(diagnostic) =>
+			diagnostic.code === 'IMS_CP_MISSING_FILE' &&
+			diagnostic.resourceId === resourceId &&
+			diagnostic.reference === path
+	);
 }
