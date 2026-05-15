@@ -6,6 +6,15 @@
 
 export { QtiToPiePlugin } from './plugin.js';
 export type { QtiToPiePluginOptions } from './plugin.js';
+export { transformQtiPackageToPie } from './package-transformer.js';
+export type { QtiPackageTransformInput, QtiPackageTransformResult } from './package-transformer.js';
+export {
+  addTraceEvent,
+  createConversionTrace,
+  detectItemProfiles,
+  detectPackageProfiles,
+} from './source-profile-runtime.js';
+export type { ProfileRuntimeResult } from './source-profile-runtime.js';
 export type {
   AccessibilityCatalog,
   AssessmentSection,

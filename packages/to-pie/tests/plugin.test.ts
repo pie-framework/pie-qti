@@ -15,6 +15,7 @@ import {
 } from '@pie-qti/test-utils';
 import { QtiToPiePlugin } from '../src/plugin';
 import type { CssClassExtractor, VendorDetector } from '../src/types/vendor-extensions';
+import type { QtiSourceProfile } from '@pie-qti/transform-types';
 
 // Create sample QTI using test utilities
 const sampleQtiXml = createQtiWrapper(
@@ -74,6 +75,51 @@ describe('QtiToPiePlugin', () => {
     expectSuccessfulTransform(output, 1);
     expect(output.items[0].content.id).toBe('choice-001');
     expect(output.items[0].content.metadata?.searchMetaData.title).toBe('Sample Multiple Choice');
+  });
+
+  test('should include source profile matches and conversion trace in metadata', async () => {
+    const sourceProfile: QtiSourceProfile = {
+      id: 'test-profile',
+      detectItem(context) {
+        return {
+          profileId: 'test-profile',
+          scope: 'item',
+          confidence: 0.9,
+          capabilities: ['metadata'],
+          evidence: [
+            {
+              type: 'item-id',
+              scope: 'item',
+              itemId: context.itemId,
+              message: 'Matched test item identifier.',
+            },
+          ],
+        };
+      },
+      extractItem() {
+        return {
+          standardCandidates: [
+            {
+              id: 'standard:test',
+              rawValue: 'TEST.1',
+              namespace: 'test',
+              profileId: 'test-profile',
+            },
+          ],
+        };
+      },
+    };
+    const plugin = new QtiToPiePlugin({ sourceProfiles: [sourceProfile] });
+
+    const output = await plugin.transform(
+      { content: sampleQtiXml },
+      { logger: new SilentLogger() }
+    );
+
+    expect(output.metadata.sourceProfiles?.[0].profileId).toBe('test-profile');
+    expect((output.metadata as any).standardCandidates?.[0].rawValue).toBe('TEST.1');
+    expect(output.metadata.conversionTrace?.profiles?.[0].profileId).toBe('test-profile');
+    expect(output.metadata.conversionTrace?.events.some((event) => event.kind === 'profile-detected')).toBe(true);
   });
 
   test('should preserve QTI 2.1 source version in metadata and embedded source', async () => {

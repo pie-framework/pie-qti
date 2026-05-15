@@ -173,6 +173,12 @@ export interface TransformMetadata {
 
   /** Source QTI version when the source format is a QTI variant */
   qtiVersion?: string;
+
+  /** Structured explanation of profile matches, custom handling, and transform steps. */
+  conversionTrace?: import('../source-profile.js').ConversionTrace;
+
+  /** Source profiles detected while analyzing or transforming the source content. */
+  sourceProfiles?: import('../source-profile.js').SourceProfileMatch[];
 }
 
 /**

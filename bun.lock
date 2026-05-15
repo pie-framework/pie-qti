@@ -394,6 +394,16 @@
         "typescript": "^5.9.3",
       },
     },
+    "packages/source-profiles": {
+      "name": "@pie-qti/source-profiles",
+      "version": "0.1.7",
+      "dependencies": {
+        "@pie-qti/transform-types": "workspace:*",
+      },
+      "devDependencies": {
+        "typescript": "^5.9.3",
+      },
+    },
     "packages/storage": {
       "name": "@pie-qti/storage",
       "version": "0.1.7",
@@ -849,6 +859,8 @@
     "@pie-qti/qti-common": ["@pie-qti/qti-common@workspace:packages/qti-common"],
 
     "@pie-qti/qti-processing": ["@pie-qti/qti-processing@workspace:packages/qti-processing"],
+
+    "@pie-qti/source-profiles": ["@pie-qti/source-profiles@workspace:packages/source-profiles"],
 
     "@pie-qti/storage": ["@pie-qti/storage@workspace:packages/storage"],
 

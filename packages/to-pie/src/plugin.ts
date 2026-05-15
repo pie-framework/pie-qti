@@ -5,6 +5,9 @@
  */
 
 import type {
+  ConversionTrace,
+  QtiSourceProfile,
+  SourceProfileExtractionResult,
   TransformContext,
   TransformInput,
   TransformOutput,
@@ -45,6 +48,12 @@ import { embedQtiSourceInPie } from './utils/qti-extension-embedder.js';
 import { validateQti } from './utils/qti-validator.js';
 import { createStandardMetadataExtractor } from './extractors/standard-metadata-extractor.js';
 import { extractCssClassesWithHooks } from './vendor-extension-runtime.js';
+import {
+  addTraceEvent,
+  createConversionTrace,
+  detectItemProfiles,
+  type ProfileRuntimeResult,
+} from './source-profile-runtime.js';
 
 /**
  * Configuration options for the QtiToPiePlugin
@@ -76,6 +85,13 @@ export interface QtiToPiePluginOptions {
   metadataExtractors?: MetadataExtractor[];
 
   /**
+   * Source profiles are the preferred pre-1.0 extension model. They can detect
+   * package/item features, emit traceable evidence, and contribute candidates
+   * without taking over the generic QTI-to-PIE transform.
+   */
+  sourceProfiles?: QtiSourceProfile[];
+
+  /**
    * Config-based registration - vendor extensions configuration
    * Note: This is typically used by the config loader, not directly by users
    */
@@ -99,6 +115,8 @@ export class QtiToPiePlugin implements TransformPlugin {
     cssClassExtractors: [],
     metadataExtractors: [],
   };
+
+  private sourceProfiles: QtiSourceProfile[] = [];
 
   /**
    * Create a new QtiToPiePlugin instance
@@ -144,6 +162,7 @@ export class QtiToPiePlugin implements TransformPlugin {
     options.metadataExtractors?.forEach((extractor) =>
       this.registerMetadataExtractor(extractor)
     );
+    this.sourceProfiles = [...(options.sourceProfiles ?? [])];
 
     // Note: vendorExtensions config is handled by VendorExtensionRegistry
     // after plugin instantiation, not in the constructor
@@ -220,11 +239,26 @@ export class QtiToPiePlugin implements TransformPlugin {
     const qtiVersion = detectQtiVersion(qtiXml);
     const sourceFormat = qtiVersionToSourceFormat(qtiVersion);
     const warnings: TransformWarning[] = [];
+    const itemId = this.extractItemId(qtiXml);
+    const trace = createConversionTrace(`qti-to-pie-${itemId}-${startTime}`);
+    addTraceEvent(trace, {
+      kind: 'handler-selected',
+      scope: 'item',
+      itemId,
+      message: 'Started QTI to PIE item transform.',
+      data: { sourceFormat, qtiVersion },
+    });
 
     // Check for PIE extension first for lossless round-trip
     if (hasPieExtension(qtiXml)) {
       logger?.info('Detected PIE extension - using lossless extraction');
-      return this.extractFromPieExtension(qtiXml, startTime, logger, sourceFormat);
+      addTraceEvent(trace, {
+        kind: 'handler-selected',
+        scope: 'item',
+        itemId,
+        message: 'Detected embedded PIE extension; using lossless extraction.',
+      });
+      return this.extractFromPieExtension(qtiXml, startTime, logger, sourceFormat, trace, qtiVersion);
     }
 
     // Parse XML once for all detection and transformation
@@ -232,6 +266,25 @@ export class QtiToPiePlugin implements TransformPlugin {
       lowerCaseTagName: false,
       comment: false,
     });
+
+    const assessmentItem = doc.querySelector('assessmentItem') || doc.getElementsByTagName('assessmentItem')[0];
+    const interactionAnalysis = assessmentItem ? analyzeAssessmentItemInteractions(assessmentItem) : null;
+    const profileRuntime = detectItemProfiles(
+      this.sourceProfiles,
+      {
+        itemId,
+        resourceId: (input.metadata?.resourceId as string | undefined) ?? itemId,
+        sourcePath: input.metadata?.sourcePath as string | undefined,
+        xml: qtiXml,
+        qtiVersion,
+        interactionTypes: interactionAnalysis?.standardTypes ?? [],
+        responseProcessingXml: assessmentItem ? directChildXml(assessmentItem, 'responseProcessing') : undefined,
+        package: input.metadata?.packageContext as any,
+        metadata: input.metadata,
+      },
+      trace
+    );
+    warnings.push(...(profileRuntime.extraction.warnings ?? []));
 
     // Check for vendor-specific QTI and use vendor transformer if available
     const vendorInfo = this.detectVendor(qtiXml, doc);
@@ -246,23 +299,33 @@ export class QtiToPiePlugin implements TransformPlugin {
       if (vendorTransformer) {
         logger?.info(`Using vendor transformer for: ${vendorInfo.vendor}`);
         try {
-          return await vendorTransformer.transform(qtiXml, vendorInfo, context, doc);
+          addTraceEvent(trace, {
+            kind: 'handler-selected',
+            scope: 'item',
+            itemId,
+            handlerId: `legacy-vendor-transformer:${vendorTransformer.vendor}`,
+            message: `Using legacy vendor transformer for ${vendorTransformer.vendor}.`,
+          });
+          const output = await vendorTransformer.transform(qtiXml, vendorInfo, context, doc);
+          return withTraceMetadata(output, trace, profileRuntime);
         } catch (error) {
           logger?.warn(
             `Vendor transformer failed for ${vendorInfo.vendor}: ${(error as Error).message}. ` +
             'Falling back to standard transformation.'
           );
+          addTraceEvent(trace, {
+            kind: 'fallback',
+            scope: 'item',
+            itemId,
+            handlerId: `legacy-vendor-transformer:${vendorTransformer.vendor}`,
+            message: `Legacy vendor transformer failed and generic fallback will be attempted: ${(error as Error).message}`,
+          });
           // Fall through to standard transformation
         }
       }
     }
 
     // Detect item type and use appropriate transformer
-    const itemId = this.extractItemId(qtiXml);
-
-    // Get assessmentItem element (already parsed above)
-    const assessmentItem = doc.querySelector('assessmentItem') || doc.getElementsByTagName('assessmentItem')[0];
-    const interactionAnalysis = assessmentItem ? analyzeAssessmentItemInteractions(assessmentItem) : null;
     const interactionType = this.detectInteractionType(qtiXml, interactionAnalysis);
 
     if (interactionAnalysis) {
@@ -380,6 +443,8 @@ export class QtiToPiePlugin implements TransformPlugin {
               itemCount,
               processingTime: processingTimeTest,
               qtiVersion,
+              ...metadataFromProfileRuntime(profileRuntime),
+              conversionTrace: finalizeTrace(trace, profileRuntime),
             } as any,
             warnings: warnings.length > 0 ? warnings : undefined,
           };
@@ -474,6 +539,8 @@ export class QtiToPiePlugin implements TransformPlugin {
           itemCount: 1,
           processingTime,
           qtiVersion,
+          ...metadataFromProfileRuntime(profileRuntime),
+          conversionTrace: finalizeTrace(trace, profileRuntime),
         } as any,
         warnings: warnings.length > 0 ? warnings : undefined,
       };
@@ -654,7 +721,9 @@ export class QtiToPiePlugin implements TransformPlugin {
     qtiXml: string,
     startTime: number,
     logger?: any,
-    sourceFormat = 'qti22'
+    sourceFormat = 'qti22',
+    trace?: ConversionTrace,
+    qtiVersion?: string
   ): TransformOutput {
     const extensionData = extractPieExtension(qtiXml);
 
@@ -681,6 +750,8 @@ export class QtiToPiePlugin implements TransformPlugin {
           : 1,
         processingTime,
         losslessRoundTrip: true,
+        ...(qtiVersion && { qtiVersion }),
+        ...(trace && { conversionTrace: trace }),
         ...(extensionData.metadata && {
           pieExtension: extensionData.metadata,
         }),
@@ -896,4 +967,59 @@ function directChildrenXml(parent: HTMLElement, tagName: string): string[] {
 
 function directChildXml(parent: HTMLElement, tagName: string): string | undefined {
   return directChildrenXml(parent, tagName)[0];
+}
+
+function withTraceMetadata(
+  output: TransformOutput,
+  trace: ConversionTrace,
+  profileRuntime: ProfileRuntimeResult
+): TransformOutput {
+  return {
+    ...output,
+    metadata: {
+      ...output.metadata,
+      ...metadataFromProfileRuntime(profileRuntime),
+      conversionTrace: finalizeTrace(trace, profileRuntime),
+    } as any,
+  };
+}
+
+function metadataFromProfileRuntime(
+  profileRuntime: ProfileRuntimeResult
+): Pick<TransformOutput['metadata'], 'sourceProfiles'> & {
+  standardCandidates?: SourceProfileExtractionResult['standardCandidates'];
+  rubricCandidates?: SourceProfileExtractionResult['rubricCandidates'];
+  sidecars?: SourceProfileExtractionResult['sidecars'];
+} {
+  return {
+    ...(profileRuntime.matches.length > 0 && { sourceProfiles: profileRuntime.matches }),
+    ...(profileRuntime.extraction.standardCandidates?.length && {
+      standardCandidates: profileRuntime.extraction.standardCandidates,
+    }),
+    ...(profileRuntime.extraction.rubricCandidates?.length && {
+      rubricCandidates: profileRuntime.extraction.rubricCandidates,
+    }),
+    ...(profileRuntime.extraction.sidecars?.length && {
+      sidecars: profileRuntime.extraction.sidecars,
+    }),
+  };
+}
+
+function finalizeTrace(
+  trace: ConversionTrace,
+  profileRuntime: ProfileRuntimeResult
+): ConversionTrace {
+  return {
+    ...trace,
+    ...(profileRuntime.matches.length > 0 && { profiles: profileRuntime.matches }),
+    ...(profileRuntime.extraction.standardCandidates?.length && {
+      standardCandidates: profileRuntime.extraction.standardCandidates,
+    }),
+    ...(profileRuntime.extraction.rubricCandidates?.length && {
+      rubricCandidates: profileRuntime.extraction.rubricCandidates,
+    }),
+    ...(profileRuntime.extraction.sidecars?.length && {
+      sidecars: profileRuntime.extraction.sidecars,
+    }),
+  };
 }
