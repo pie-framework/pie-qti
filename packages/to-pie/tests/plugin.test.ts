@@ -142,6 +142,136 @@ describe('QtiToPiePlugin', () => {
     expect(output.metadata.conversionTrace?.events.some((event) => event.kind === 'finalizer-applied')).toBe(true);
   });
 
+  test('should let a source profile item handler delegate to the generic transform', async () => {
+    const sourceProfile: QtiSourceProfile = {
+      id: 'delegating-profile',
+      detectItem() {
+        return {
+          profileId: 'delegating-profile',
+          scope: 'item',
+          confidence: 0.9,
+          capabilities: ['interactions'],
+          evidence: [{ type: 'test', scope: 'item', message: 'Test delegation profile.' }],
+        };
+      },
+      itemHandlers: [
+        {
+          id: 'delegating-profile.choice',
+          canHandle(context) {
+            return context.interactionTypes?.includes('choiceInteraction') ?? false;
+          },
+          async transform(_context, delegate) {
+            const output = await delegate.continue();
+            output.metadata = {
+              ...output.metadata,
+              delegatedByProfile: true,
+            };
+            return output;
+          },
+        },
+      ],
+    };
+    const plugin = new QtiToPiePlugin({ sourceProfiles: [sourceProfile] });
+
+    const output = await plugin.transform(
+      { content: sampleQtiXml },
+      { logger: new SilentLogger() }
+    );
+
+    expect(output.items[0].content.id).toBe('choice-001');
+    expect((output.metadata as any).delegatedByProfile).toBe(true);
+    expect(
+      output.metadata.conversionTrace?.events.some(
+        (event) => event.kind === 'handler-selected' && event.handlerId === 'delegating-profile.choice'
+      )
+    ).toBe(true);
+    expect(
+      output.metadata.conversionTrace?.events.some(
+        (event) => event.kind === 'handler-delegated' && event.handlerId === 'delegating-profile.choice'
+      )
+    ).toBe(true);
+    expect(
+      output.metadata.conversionTrace?.events.some(
+        (event) => event.kind === 'handler-selected' && event.handlerId === 'builtin.choice'
+      )
+    ).toBe(true);
+  });
+
+  test('should let a source profile item handler transform proprietary content before generic rejection', async () => {
+    const customQti = `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="custom-profiled" title="Custom" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="identifier"/>
+  <itemBody>
+    <customInteraction responseIdentifier="RESPONSE" class="tei-texthighlighter"/>
+  </itemBody>
+</assessmentItem>`;
+    const sourceProfile: QtiSourceProfile = {
+      id: 'custom-profile',
+      detectItem(context) {
+        return context.xml?.includes('tei-texthighlighter')
+          ? {
+              profileId: 'custom-profile',
+              scope: 'item',
+              confidence: 1,
+              capabilities: ['interactions'],
+              evidence: [{ type: 'class', scope: 'item', value: 'tei-texthighlighter', message: 'Matched highlighter custom interaction.' }],
+            }
+          : null;
+      },
+      itemHandlers: [
+        {
+          id: 'custom-profile.highlighter',
+          canHandle(context) {
+            return context.xml?.includes('tei-texthighlighter') ?? false;
+          },
+          async transform(context) {
+            return {
+              items: [
+                {
+                  content: {
+                    id: context.itemId,
+                    element: 'tei-texthighlighter-placeholder',
+                    metadata: {
+                      sourceProfile: 'custom-profile',
+                    },
+                  },
+                  format: 'pie',
+                },
+              ],
+              format: 'pie',
+              metadata: {
+                sourceFormat: 'qti22',
+                targetFormat: 'pie',
+                pluginId: 'custom-profile.highlighter',
+                timestamp: new Date(),
+                itemCount: 1,
+              },
+            };
+          },
+        },
+      ],
+    };
+    const plugin = new QtiToPiePlugin({ sourceProfiles: [sourceProfile] });
+
+    const output = await plugin.transform(
+      { content: customQti },
+      { logger: new SilentLogger() }
+    );
+
+    expect(output.items[0].content.id).toBe('custom-profiled');
+    expect(output.items[0].content.metadata.sourceProfile).toBe('custom-profile');
+    expect(
+      output.metadata.conversionTrace?.events.some(
+        (event) => event.kind === 'handler-selected' && event.handlerId === 'custom-profile.highlighter'
+      )
+    ).toBe(true);
+    expect(
+      output.metadata.conversionTrace?.events.some(
+        (event) => event.kind === 'handler-selected' && event.handlerId === 'builtin.choice'
+      )
+    ).toBe(false);
+  });
+
   test('should preserve QTI 2.1 source version in metadata and embedded source', async () => {
     const plugin = new QtiToPiePlugin();
     const qti21Xml = `<?xml version="1.0" encoding="UTF-8"?>

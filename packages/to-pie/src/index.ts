@@ -14,8 +14,13 @@ export {
   createConversionTrace,
   detectItemProfiles,
   detectPackageProfiles,
+  runItemHandlers,
 } from './source-profile-runtime.js';
-export type { ItemDecoratorPhase, ProfileRuntimeResult } from './source-profile-runtime.js';
+export type {
+  ItemDecoratorPhase,
+  ProfileRuntimeResult,
+  RunItemHandlersInput,
+} from './source-profile-runtime.js';
 export {
   createDefaultQtiToPieRegistry,
   QtiToPieRegistry,

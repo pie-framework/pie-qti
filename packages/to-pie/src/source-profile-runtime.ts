@@ -1,11 +1,14 @@
 import type {
 	ConversionTrace,
 	QtiItemDecorator,
+	QtiItemHandler,
 	QtiSourceProfile,
 	QtiSourceProfileItemContext,
 	QtiSourceProfilePackageContext,
+	QtiTransformDelegate,
 	SourceProfileExtractionResult,
 	SourceProfileMatch,
+	TransformOutput,
 	TransformTraceEvent,
 } from '@pie-qti/transform-types';
 
@@ -15,6 +18,14 @@ export interface ProfileRuntimeResult {
 }
 
 export type ItemDecoratorPhase = NonNullable<QtiItemDecorator['phase']>;
+
+export interface RunItemHandlersInput {
+	profiles: readonly QtiSourceProfile[];
+	runtime: ProfileRuntimeResult;
+	context: QtiSourceProfileItemContext;
+	delegate: QtiTransformDelegate;
+	trace?: ConversionTrace;
+}
 
 export function createConversionTrace(traceId = `qti-trace-${Date.now()}`): ConversionTrace {
 	return {
@@ -140,6 +151,98 @@ export async function applyItemDecorators(
 	}
 }
 
+export async function runItemHandlers({
+	profiles,
+	runtime,
+	context,
+	delegate,
+	trace,
+}: RunItemHandlersInput): Promise<TransformOutput | null> {
+	const activeProfileIds = new Set(runtime.matches.map((match) => match.profileId));
+	const handlers = profiles
+		.filter((profile) => activeProfileIds.has(profile.id))
+		.flatMap((profile) =>
+			(profile.itemHandlers ?? []).map((handler) => ({
+				profile,
+				handler,
+			}))
+		)
+		.sort((left, right) => (right.handler.priority ?? 0) - (left.handler.priority ?? 0));
+
+	for (const { profile, handler } of handlers) {
+		const canHandle = evaluateItemHandler(profile.id, handler, context, trace);
+		if (!canHandle) {
+			addTraceEvent(trace ?? createConversionTrace(), {
+				kind: 'handler-skipped',
+				scope: 'item',
+				profileId: profile.id,
+				handlerId: handler.id,
+				itemId: context.itemId,
+				resourceId: context.resourceId,
+				sourcePath: context.sourcePath,
+				message: `Source profile item handler ${handler.id} did not match this item.`,
+			});
+			continue;
+		}
+
+		addTraceEvent(trace ?? createConversionTrace(), {
+			kind: 'handler-selected',
+			scope: 'item',
+			profileId: profile.id,
+			handlerId: handler.id,
+			itemId: context.itemId,
+			resourceId: context.resourceId,
+			sourcePath: context.sourcePath,
+			message: `Selected source profile item handler ${handler.id}.`,
+			data: typeof canHandle === 'object' ? { match: canHandle } : undefined,
+		});
+
+		try {
+			const output = await handler.transform(
+				context,
+				createTracedDelegate(profile.id, handler.id, context, delegate, trace)
+			);
+			if (output) {
+				addTraceEvent(trace ?? createConversionTrace(), {
+					kind: 'handler-selected',
+					scope: 'item',
+					profileId: profile.id,
+					handlerId: handler.id,
+					itemId: context.itemId,
+					resourceId: context.resourceId,
+					sourcePath: context.sourcePath,
+					message: `Source profile item handler ${handler.id} produced a transform output.`,
+				});
+				return output;
+			}
+			addTraceEvent(trace ?? createConversionTrace(), {
+				kind: 'fallback',
+				scope: 'item',
+				profileId: profile.id,
+				handlerId: handler.id,
+				itemId: context.itemId,
+				resourceId: context.resourceId,
+				sourcePath: context.sourcePath,
+				message: `Source profile item handler ${handler.id} returned no output; continuing handler selection.`,
+			});
+		} catch (error) {
+			addTraceEvent(trace ?? createConversionTrace(), {
+				kind: 'error',
+				scope: 'item',
+				profileId: profile.id,
+				handlerId: handler.id,
+				itemId: context.itemId,
+				resourceId: context.resourceId,
+				sourcePath: context.sourcePath,
+				message: `Source profile item handler ${handler.id} failed: ${(error as Error).message}`,
+			});
+			throw error;
+		}
+	}
+
+	return null;
+}
+
 function extractFromProfiles(
 	profiles: readonly QtiSourceProfile[],
 	context: QtiSourceProfileItemContext,
@@ -220,4 +323,65 @@ function extractionCounts(extracted: SourceProfileExtractionResult): Record<stri
 
 function compareMatches(left: SourceProfileMatch, right: SourceProfileMatch) {
 	return right.confidence - left.confidence || left.profileId.localeCompare(right.profileId);
+}
+
+function evaluateItemHandler(
+	profileId: string,
+	handler: QtiItemHandler,
+	context: QtiSourceProfileItemContext,
+	trace?: ConversionTrace
+): boolean | SourceProfileMatch {
+	try {
+		return handler.canHandle(context);
+	} catch (error) {
+		addTraceEvent(trace ?? createConversionTrace(), {
+			kind: 'error',
+			scope: 'item',
+			profileId,
+			handlerId: handler.id,
+			itemId: context.itemId,
+			resourceId: context.resourceId,
+			sourcePath: context.sourcePath,
+			message: `Source profile item handler ${handler.id} canHandle failed: ${(error as Error).message}`,
+		});
+		throw error;
+	}
+}
+
+function createTracedDelegate(
+	profileId: string,
+	handlerId: string,
+	context: QtiSourceProfileItemContext,
+	delegate: QtiTransformDelegate,
+	trace?: ConversionTrace
+): QtiTransformDelegate {
+	return {
+		continue: async () => {
+			addTraceEvent(trace ?? createConversionTrace(), {
+				kind: 'handler-delegated',
+				scope: 'item',
+				profileId,
+				handlerId,
+				itemId: context.itemId,
+				resourceId: context.resourceId,
+				sourcePath: context.sourcePath,
+				message: `Source profile item handler ${handlerId} delegated to the generic QTI transform.`,
+			});
+			return delegate.continue();
+		},
+		transformWithBuiltIn: async (builtInHandlerId, overrides) => {
+			addTraceEvent(trace ?? createConversionTrace(), {
+				kind: 'handler-delegated',
+				scope: 'item',
+				profileId,
+				handlerId,
+				itemId: context.itemId,
+				resourceId: context.resourceId,
+				sourcePath: context.sourcePath,
+				message: `Source profile item handler ${handlerId} delegated to built-in handler ${builtInHandlerId}.`,
+				data: { builtInHandlerId, overrideKeys: Object.keys(overrides ?? {}) },
+			});
+			return delegate.transformWithBuiltIn(builtInHandlerId, overrides);
+		},
+	};
 }

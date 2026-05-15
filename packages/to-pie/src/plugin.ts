@@ -38,6 +38,7 @@ import {
   applyItemDecorators,
   createConversionTrace,
   detectItemProfiles,
+  runItemHandlers,
   type ProfileRuntimeResult,
 } from './source-profile-runtime.js';
 import {
@@ -329,22 +330,32 @@ export class QtiToPiePlugin implements TransformPlugin {
     // Detect item type and use appropriate transformer
     const interactionType = this.detectInteractionType(qtiXml, interactionAnalysis);
 
-    if (interactionAnalysis) {
-      validateInteractionShape(interactionAnalysis, itemId);
-    }
-
-    if (assessmentItem) {
-      warnings.push(...createProcessingWarnings(assessmentItem, itemId));
-    }
-
     // Extract baseId for round-trip compatibility
     const baseId = this.extractBaseId(assessmentItem);
 
     logger?.debug(`Processing item: ${itemId} (type: ${interactionType})${baseId ? ` [baseId: ${baseId}]` : ''}`);
 
-    let pieItem;
+    const builtInContext = {
+      interactionType,
+      qtiXml,
+      itemId,
+      assessmentItem,
+      baseId,
+      logger,
+    };
 
-    try {
+    const runGenericTransform = async (): Promise<TransformOutput> => {
+      if (interactionAnalysis) {
+        validateInteractionShape(interactionAnalysis, itemId);
+      }
+
+      if (assessmentItem) {
+        warnings.push(...createProcessingWarnings(assessmentItem, itemId));
+      }
+
+      let pieItem;
+
+      try {
       const builtInHandler = this.registry.getHandlerForInteraction(interactionType);
       if (!builtInHandler) {
         logger?.warn(`Unsupported interaction type: ${interactionType} for item ${itemId}`);
@@ -357,14 +368,7 @@ export class QtiToPiePlugin implements TransformPlugin {
         handlerId: builtInHandler.id,
         message: `Selected built-in QTI transform handler ${builtInHandler.id}.`,
       });
-      const transformResult = await builtInHandler.transform({
-        interactionType,
-        qtiXml,
-        itemId,
-        assessmentItem,
-        baseId,
-        logger,
-      });
+      const transformResult = await builtInHandler.transform(builtInContext);
 
       if (transformResult.kind === 'assessment') {
         const processingTimeTest = Date.now() - startTime;
@@ -481,10 +485,31 @@ export class QtiToPiePlugin implements TransformPlugin {
         } as any,
         warnings: warnings.length > 0 ? warnings : undefined,
       };
-    } catch (error) {
-      logger?.error(`Transformation failed: ${(error as Error).message}`);
-      throw error;
+      } catch (error) {
+        logger?.error(`Transformation failed: ${(error as Error).message}`);
+        throw error;
+      }
+    };
+
+    const handlerOutput = await runItemHandlers({
+      profiles: this.sourceProfiles,
+      runtime: profileRuntime,
+      context: itemContext,
+      delegate: {
+        continue: runGenericTransform,
+        transformWithBuiltIn: async (handlerId, overrides) =>
+          this.registry
+            .createDelegate(builtInContext)
+            .transformWithBuiltIn(handlerId, overrides as any),
+      },
+      trace,
+    });
+
+    if (handlerOutput) {
+      return withTraceMetadata(handlerOutput, trace, profileRuntime);
     }
+
+    return runGenericTransform();
   }
 
   /**
