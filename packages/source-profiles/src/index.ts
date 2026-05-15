@@ -1,4 +1,5 @@
 export { commonCartridgeCsmProfile, extractCsmStandardCandidates } from './common-cartridge-csm.js';
+export { gcaProfile } from './gca.js';
 export { savvasMyPerspectivesProfile } from './savvas-myperspectives.js';
 export type {
 	DetectionEvidence,
@@ -8,9 +9,11 @@ export type {
 } from '@pie-qti/transform-types';
 
 import { commonCartridgeCsmProfile } from './common-cartridge-csm.js';
+import { gcaProfile } from './gca.js';
 import { savvasMyPerspectivesProfile } from './savvas-myperspectives.js';
 
 export const defaultSourceProfiles = [
 	commonCartridgeCsmProfile,
+	gcaProfile,
 	savvasMyPerspectivesProfile,
 ] as const;

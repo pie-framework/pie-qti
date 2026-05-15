@@ -14,6 +14,10 @@
       "types": "./dist/common-cartridge-csm.d.ts",
       "import": "./dist/common-cartridge-csm.js"
     },
+    "./gca": {
+      "types": "./dist/gca.d.ts",
+      "import": "./dist/gca.js"
+    },
     "./savvas-myperspectives": {
       "types": "./dist/savvas-myperspectives.d.ts",
       "import": "./dist/savvas-myperspectives.js"
