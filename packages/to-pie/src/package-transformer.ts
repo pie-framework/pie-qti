@@ -15,7 +15,11 @@ import {
 	type PackageFileAccess,
 	analyzeContentPackage,
 } from '@pie-qti/ims-cp-core';
-import { QtiToPiePlugin, type QtiToPiePluginOptions } from './plugin.js';
+import {
+	QtiSourceProfileTransformError,
+	QtiToPiePlugin,
+	type QtiToPiePluginOptions,
+} from './plugin.js';
 import {
 	addTraceEvent,
 	createConversionTrace,
@@ -73,6 +77,11 @@ export async function transformQtiPackageToPie({
 	});
 
 	const profiles = sourceProfiles ?? pluginOptions?.sourceProfiles ?? [];
+	if (plugin && profiles.length > 0) {
+		throw new Error(
+			'transformQtiPackageToPie cannot combine a preconfigured plugin instance with sourceProfiles/pluginOptions.sourceProfiles. Construct the plugin with profiles and omit sourceProfiles, or let the package transformer create the plugin.'
+		);
+	}
 	const packageRuntime = detectPackageProfiles(
 		profiles,
 		{
@@ -92,6 +101,7 @@ export async function transformQtiPackageToPie({
 		});
 
 	const itemOutputs: TransformOutput[] = [];
+	const failedItemDiagnostics: SourceProfileDiagnostic[] = [];
 	for (const item of packageGraph.manifest.items) {
 		const node = packageGraph.resources.get(item.identifier);
 		if (!node?.resolvedHref) {
@@ -108,24 +118,42 @@ export async function transformQtiPackageToPie({
 			sourcePath: node.resolvedHref,
 			message: `Transforming package item resource ${node.identifier}.`,
 		});
-		const output = await transformer.transform(
-			{
-				content: itemXml,
-				format: 'qti',
-				metadata: {
-					resourceId: node.identifier,
-					sourcePath: node.resolvedHref,
-					packageContext: {
-						packageId: packageGraph.packageId,
-						manifest: packageGraph.manifest,
-						packageGraph,
-						files: packageGraph.files,
+		try {
+			const output = await transformer.transform(
+				{
+					content: itemXml,
+					format: 'qti',
+					metadata: {
+						resourceId: node.identifier,
+						sourcePath: node.resolvedHref,
+						packageContext: {
+							packageId: packageGraph.packageId,
+							manifest: packageGraph.manifest,
+							packageGraph,
+							files: packageGraph.files,
+						},
 					},
 				},
-			},
-			context ?? {}
-		);
-		itemOutputs.push(output);
+				context ?? {}
+			);
+			itemOutputs.push(output);
+		} catch (error) {
+			if (!(error instanceof QtiSourceProfileTransformError)) {
+				throw error;
+			}
+			failedItemDiagnostics.push(...(error.sourceDiagnostics ?? []));
+			addTraceEvent(trace, {
+				kind: 'error',
+				scope: 'item',
+				resourceId: node.identifier,
+				sourcePath: node.resolvedHref,
+				message: error.message,
+				data: {
+					diagnostics: error.sourceDiagnostics,
+					itemTraceId: error.conversionTrace.traceId,
+				},
+			});
+		}
 	}
 
 	const sidecars = dedupeSidecars([
@@ -163,12 +191,16 @@ export async function transformQtiPackageToPie({
 			.map(sourceDiagnosticToWarning),
 		...(packageRuntime.extraction.warnings ?? []),
 		...itemOutputs.flatMap((output) => output.warnings ?? []),
+		...failedItemDiagnostics
+			.filter((diagnostic) => diagnostic.severity !== 'info')
+			.map(sourceDiagnosticToWarning),
 	];
 	const sourceDiagnostics = [
 		...(packageRuntime.extraction.diagnostics ?? []),
 		...itemOutputs.flatMap(
 			(output) => (((output.metadata as any).sourceDiagnostics ?? []) as SourceProfileDiagnostic[])
 		),
+		...failedItemDiagnostics,
 	];
 	const standardCandidates = [
 		...(packageRuntime.extraction.standardCandidates ?? []),
@@ -206,7 +238,7 @@ function assetSidecars(packageGraph: AnalyzedContentPackage): SidecarArtifact[] 
 		kind: sidecarKindForUsage(asset.usage),
 		sourcePath: asset.resolvedPath,
 		sourceResourceId: asset.ownerResourceId,
-		mimeType: asset.usage,
+		mimeType: mimeTypeForPath(asset.resolvedPath),
 		referencedBy: asset.ownerResourceIds?.length
 			? asset.ownerResourceIds
 			: asset.ownerResourceId
@@ -289,6 +321,26 @@ function sidecarKindForUsage(usage: string): SidecarArtifact['kind'] {
 		default:
 			return 'asset';
 	}
+}
+
+function mimeTypeForPath(path: string): string | undefined {
+	const lower = path.toLowerCase();
+	if (lower.endsWith('.css')) return 'text/css';
+	if (lower.endsWith('.html') || lower.endsWith('.htm')) return 'text/html';
+	if (lower.endsWith('.svg')) return 'image/svg+xml';
+	if (lower.endsWith('.png')) return 'image/png';
+	if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+	if (lower.endsWith('.gif')) return 'image/gif';
+	if (lower.endsWith('.webp')) return 'image/webp';
+	if (lower.endsWith('.avif')) return 'image/avif';
+	if (lower.endsWith('.mp3')) return 'audio/mpeg';
+	if (lower.endsWith('.m4a')) return 'audio/mp4';
+	if (lower.endsWith('.ogg')) return 'audio/ogg';
+	if (lower.endsWith('.wav')) return 'audio/wav';
+	if (lower.endsWith('.mp4')) return 'video/mp4';
+	if (lower.endsWith('.mov')) return 'video/quicktime';
+	if (lower.endsWith('.webm')) return 'video/webm';
+	return undefined;
 }
 
 function stableSidecarId(kind: string, path: string): string {

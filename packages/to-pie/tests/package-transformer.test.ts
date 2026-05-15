@@ -113,6 +113,7 @@ describe('transformQtiPackageToPie', () => {
 				(sidecar) =>
 					sidecar.kind === 'asset' &&
 					sidecar.sourcePath === 'items/chart.png' &&
+					sidecar.mimeType === 'image/png' &&
 					sidecar.id.startsWith('image:items-chart-png:')
 			)
 		).toBe(true);
@@ -156,5 +157,78 @@ describe('transformQtiPackageToPie', () => {
 		expect(result.items).toHaveLength(0);
 		expect(result.warnings.some((warning) => warning.code === 'IMS_CP_MISSING_FILE')).toBe(true);
 		expect(result.sidecars.some((sidecar) => sidecar.kind === 'source-qti')).toBe(false);
+	});
+
+	test('rejects ambiguous plugin and source profile composition', async () => {
+		await expect(
+			transformQtiPackageToPie({
+				manifestXml,
+				sourceProfiles: [
+					{
+						id: 'test-profile',
+					},
+				],
+				plugin: {
+					transform: async () => ({
+						items: [],
+						format: 'pie',
+						metadata: {
+							sourceFormat: 'qti',
+							targetFormat: 'pie',
+							pluginId: 'test',
+							timestamp: new Date(),
+							itemCount: 0,
+							processingTime: 0,
+						},
+					}),
+				} as any,
+				fileAccess: {
+					readText(path) {
+						return path === 'items/item.xml' ? itemXml : null;
+					},
+				},
+			})
+		).rejects.toThrow(/preconfigured plugin instance/);
+	});
+
+	test('keeps package diagnostics when a profile blocks item fallback', async () => {
+		const result = await transformQtiPackageToPie({
+			manifestXml,
+			sourceProfiles: [
+				{
+					id: 'blocking-profile',
+					detectItem() {
+						return {
+							profileId: 'blocking-profile',
+							scope: 'item',
+							confidence: 0.9,
+							evidence: [{ type: 'test', message: 'test block' }],
+						};
+					},
+					itemHandlers: [
+						{
+							id: 'blocking-profile.no-output',
+							fallbackPolicy: 'block-generic',
+							canHandle() {
+								return true;
+							},
+							async transform() {
+								return null;
+							},
+						},
+					],
+				},
+			],
+			fileAccess: {
+				readText(path) {
+					return path === 'items/item.xml' ? itemXml : null;
+				},
+			},
+		});
+
+		expect(result.items).toHaveLength(0);
+		expect(result.sourceDiagnostics.some((diagnostic) => diagnostic.severity === 'error')).toBe(true);
+		expect(result.warnings.some((warning) => warning.code === 'QTI_PROFILE_HANDLER_BLOCKED_FALLBACK')).toBe(true);
+		expect(result.conversionTrace.events.some((event) => event.kind === 'error')).toBe(true);
 	});
 });

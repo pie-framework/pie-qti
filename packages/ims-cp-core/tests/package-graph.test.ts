@@ -31,6 +31,15 @@ describe('analyzeContentPackage', () => {
 			manifestXml,
 			fileAccess: {
 				readText(path) {
+					if (path === 'tests/test.xml') {
+						return `<assessmentTest>
+              <testPart>
+                <assessmentSection>
+                  <assessmentItemRef identifier="item-ref-2" href="../items/item2.xml"/>
+                </assessmentSection>
+              </testPart>
+            </assessmentTest>`;
+					}
 					if (path === 'items/item.xml') {
 						return `<assessmentItem>
               <itemBody>
@@ -77,7 +86,7 @@ describe('analyzeContentPackage', () => {
 		expect(analyzed.assets.get('items/images/chart.png')?.ownerResourceIds).toEqual(['item1', 'item2']);
 
 		const closure = analyzed.closures.get('test1');
-		expect(closure?.resourceIds).toEqual(['test1', 'item1', 'passage1']);
+		expect(closure?.resourceIds).toEqual(['test1', 'item1', 'passage1', 'item2']);
 		expect(closure?.filePaths).toContain('items/images/chart.png');
 		expect(closure?.assetPaths).toContain('items/images/chart.png');
 	});

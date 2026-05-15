@@ -53,6 +53,23 @@ describe('source profiles', () => {
 		expect(extracted?.warnings?.[0].code).toBe('SAVVAS_TEI_TEXTHIGHLIGHTER_REVIEW_REQUIRED');
 	});
 
+	test('does not tag generic QTI 2.1 CSM packages as Savvas', () => {
+		const genericManifest = `
+      <manifest identifier="GENERIC_QTI21">
+        <resources>
+          <resource identifier="item1" type="imsqti_item_xmlv2p1" href="items/item1.xml">
+            <metadata>
+              <csm:curriculumStandardsMetadataSet>
+                <csm:GUID>ELA.6.RI.1</csm:GUID>
+              </csm:curriculumStandardsMetadataSet>
+            </metadata>
+          </resource>
+        </resources>
+      </manifest>`;
+
+		expect(savvasMyPerspectivesProfile.detectPackage?.({ manifestXml: genericManifest })).toBeNull();
+	});
+
 	test('detects GCA/UGA package and passage-style item evidence', () => {
 		const packageMatch = gcaProfile.detectPackage?.({
 			manifestXml: `

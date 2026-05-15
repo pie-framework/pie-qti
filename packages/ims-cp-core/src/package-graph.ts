@@ -170,7 +170,24 @@ export async function analyzeContentPackage({
 			const xml = await fileAccess.readText(node.resolvedHref);
 			if (xml) {
 				const discovered = discoverReferences(xml, node);
-				resourceReferences.push(...discovered.references);
+				for (const reference of discovered.references) {
+					if (reference.kind === 'assessment-item-ref' && reference.resolvedPath) {
+						const target = findResourceByResolvedHref(resources, reference.resolvedPath);
+						if (target) {
+							reference.targetResourceId = target.identifier;
+						} else {
+							diagnostics.push({
+								severity: 'warning',
+								code: 'IMS_CP_DANGLING_ITEM_REF',
+								message: `Resource ${node.identifier} references missing assessment item ${reference.rawHref}.`,
+								resourceId: node.identifier,
+								sourcePath: node.resolvedHref,
+								reference: reference.rawHref,
+							});
+						}
+					}
+					resourceReferences.push(reference);
+				}
 				for (const asset of discovered.assets) {
 					registerAsset(assets, asset);
 					if (!(await packagePathExists(asset.resolvedPath, fileAccess, listedFiles))) {
@@ -434,6 +451,13 @@ function registerAsset(assets: Map<string, PackageAssetRef>, asset: PackageAsset
 		sourceElement: existing.sourceElement ?? asset.sourceElement,
 		sourceAttribute: existing.sourceAttribute ?? asset.sourceAttribute,
 	});
+}
+
+function findResourceByResolvedHref(
+	resources: Map<string, PackageResourceNode>,
+	resolvedHref: string
+): PackageResourceNode | undefined {
+	return [...resources.values()].find((resource) => resource.resolvedHref === resolvedHref);
 }
 
 function classifyAssetUsage(path: string): PackageAssetRef['usage'] {

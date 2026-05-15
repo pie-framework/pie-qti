@@ -4,7 +4,7 @@
  * QTI 2.2 to PIE transformation plugin
  */
 
-export { QtiToPiePlugin } from './plugin.js';
+export { QtiSourceProfileTransformError, QtiToPiePlugin } from './plugin.js';
 export type { QtiToPiePluginOptions } from './plugin.js';
 export { transformQtiPackageToPie } from './package-transformer.js';
 export type { QtiPackageTransformInput, QtiPackageTransformResult } from './package-transformer.js';

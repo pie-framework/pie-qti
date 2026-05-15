@@ -95,6 +95,21 @@ export interface QtiToPiePluginOptions {
   vendorExtensions?: VendorExtensionConfig;
 }
 
+export class QtiSourceProfileTransformError extends Error {
+  readonly sourceDiagnostics: SourceProfileExtractionResult['diagnostics'];
+  readonly conversionTrace: ConversionTrace;
+
+  constructor(message: string, options: {
+    sourceDiagnostics: SourceProfileExtractionResult['diagnostics'];
+    conversionTrace: ConversionTrace;
+  }) {
+    super(message);
+    this.name = 'QtiSourceProfileTransformError';
+    this.sourceDiagnostics = options.sourceDiagnostics;
+    this.conversionTrace = options.conversionTrace;
+  }
+}
+
 export class QtiToPiePlugin implements TransformPlugin {
   readonly id = 'qti22-to-pie';
   readonly version = '1.0.0';
@@ -524,9 +539,13 @@ export class QtiToPiePlugin implements TransformPlugin {
       const blockingDiagnostic = handlerRuntime.diagnostics.find(
         diagnostic => diagnostic.severity === 'error'
       );
-      throw new Error(
+      throw new QtiSourceProfileTransformError(
         blockingDiagnostic?.message ??
-        `Generic QTI fallback is disabled for source-profile matched item ${itemId}.`
+        `Generic QTI fallback is disabled for source-profile matched item ${itemId}.`,
+        {
+          sourceDiagnostics: profileRuntime.extraction.diagnostics,
+          conversionTrace: trace,
+        }
       );
     }
 

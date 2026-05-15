@@ -16,6 +16,7 @@ export const savvasMyPerspectivesProfile: QtiSourceProfile = {
 	capabilities: ['detect', 'standards', 'assets', 'interactions', 'package-assembly'],
 	detectPackage(context) {
 		const evidence = collectPackageEvidence(context);
+		if (!hasSavvasPackageSignal(evidence)) return null;
 		if (evidence.length < 2) return null;
 		return {
 			profileId: PROFILE_ID,
@@ -124,6 +125,10 @@ function collectItemEvidence(context: QtiSourceProfileItemContext): DetectionEvi
 		});
 	}
 	return evidence;
+}
+
+function hasSavvasPackageSignal(evidence: DetectionEvidence[]) {
+	return evidence.some((item) => item.type === 'examview-assessment-file' || item.type === 'quad-item-file');
 }
 
 function containsHighlighter(xml: string) {

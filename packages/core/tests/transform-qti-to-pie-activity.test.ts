@@ -48,6 +48,7 @@ class FormatCapturingPlugin implements TransformPlugin {
         timestamp: new Date(),
         itemCount: 1,
         processingTime: 0,
+        qtiVersion: '3.0',
       },
     };
   }
@@ -74,5 +75,6 @@ describe('TransformQtiToPieActivity', () => {
       },
       format: 'pie',
     });
+    expect(result.metadata.qtiVersion).toBe('3.0');
   });
 });
