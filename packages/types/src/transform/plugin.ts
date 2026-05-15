@@ -170,6 +170,9 @@ export interface TransformMetadata {
 
   /** Processing time in milliseconds */
   processingTime: number;
+
+  /** Source QTI version when the source format is a QTI variant */
+  qtiVersion?: string;
 }
 
 /**

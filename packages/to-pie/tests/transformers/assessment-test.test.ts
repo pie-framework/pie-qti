@@ -21,7 +21,7 @@ describe('transformAssessmentTest', () => {
 			expect(assessment).toBeDefined();
 			expect(assessment.identifier).toBe('test001');
 			expect(assessment.title).toBe('Basic Mathematics Test');
-			expect(assessment.qtiVersion).toBe('3.0');
+			expect(assessment.qtiVersion).toBe('2.2');
 			expect(assessment.testParts).toHaveLength(1);
 		});
 

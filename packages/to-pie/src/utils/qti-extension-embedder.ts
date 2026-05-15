@@ -15,7 +15,7 @@ export interface QtiExtensionMetadata {
     version: string;
   };
   timestamp?: Date;
-  qtiVersion?: '2.2';
+  qtiVersion?: string;
 }
 
 /**
@@ -38,7 +38,7 @@ export function embedQtiSourceInPie(
             version: '1.0.0',
           },
           timestamp: metadata?.timestamp || new Date(),
-          qtiVersion: '2.2',
+          qtiVersion: metadata?.qtiVersion || '2.2',
         },
       },
     },
