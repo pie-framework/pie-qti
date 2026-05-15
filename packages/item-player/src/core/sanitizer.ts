@@ -40,6 +40,19 @@ function allowIframes(options?: SanitizeHtmlOptions): boolean {
 	return options?.security?.allowIframes === true;
 }
 
+function escapeAttr(value: string): string {
+	return value
+		.replace(/&/g, '&amp;')
+		.replace(/"/g, '&quot;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;');
+}
+
+function getOptionalAttr(element: HTMLElement, attrName: string): string {
+	const value = element.getAttribute(attrName);
+	return value ? ` ${attrName}="${escapeAttr(value)}"` : '';
+}
+
 function sanitizeUrlAttr(value: string, policy: UrlPolicyConfig | undefined, kind: 'img' | 'media' | 'object' | 'link' | 'any'): string {
 	return sanitizeResourceUrl(value, policy, kind) ?? '#';
 }
@@ -99,6 +112,11 @@ function sanitizeElement(
 		return;
 	}
 	if ((tagName === 'object' || tagName === 'embed') && !allowObjectEmbeds(options)) {
+		const replacementHtml = getSafeObjectReplacementHtml(element, policyFromOptions(options));
+		if (replacementHtml) {
+			element.replaceWith(replacementHtml);
+			return;
+		}
 		element.remove();
 		return;
 	}
@@ -232,4 +250,56 @@ export function sanitizeTextContent(text: string, options?: SanitizeHtmlOptions)
 
 	// Plain text - return as-is
 	return text;
+}
+
+function getSafeObjectReplacementHtml(element: HTMLElement, policy: UrlPolicyConfig | undefined): string | null {
+	if ((element as any).rawTagName?.toLowerCase() !== 'object') {
+		return null;
+	}
+
+	const rawType = element.getAttribute('type')?.trim().toLowerCase() ?? '';
+	const rawData = element.getAttribute('data')?.trim() ?? '';
+	if (!rawType || !rawData) {
+		return null;
+	}
+
+	const dimensions = `${getOptionalAttr(element, 'width')}${getOptionalAttr(element, 'height')}`;
+	const classes = getOptionalAttr(element, 'class');
+	const id = getOptionalAttr(element, 'id');
+
+	if (rawType.startsWith('image/')) {
+		const src = sanitizeResourceUrl(rawData, policy, 'img');
+		if (!src) {
+			return null;
+		}
+		const alt =
+			element.getAttribute('aria-label') ??
+			element.getAttribute('title') ??
+			element.textContent?.trim() ??
+			'';
+		return `<img src="${escapeAttr(src)}" alt="${escapeAttr(alt)}"${dimensions}${classes}${id}>`;
+	}
+
+	if (rawType.startsWith('audio/')) {
+		const src = sanitizeResourceUrl(rawData, policy, 'media');
+		if (!src) {
+			return null;
+		}
+		return `<audio controls${classes}${id}><source src="${escapeAttr(src)}" type="${escapeAttr(rawType)}"></audio>`;
+	}
+
+	if (rawType.startsWith('video/')) {
+		const src = sanitizeResourceUrl(rawData, policy, 'media');
+		if (!src) {
+			return null;
+		}
+		const rawPoster = element.getAttribute('poster')?.trim() ?? '';
+		const poster = rawPoster
+			? sanitizeResourceUrl(rawPoster, policy, 'img')
+			: null;
+		const posterAttr = poster ? ` poster="${escapeAttr(poster)}"` : '';
+		return `<video controls${dimensions}${classes}${id}${posterAttr}><source src="${escapeAttr(src)}" type="${escapeAttr(rawType)}"></video>`;
+	}
+
+	return null;
 }

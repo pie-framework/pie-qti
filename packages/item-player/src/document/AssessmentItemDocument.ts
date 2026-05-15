@@ -31,6 +31,7 @@ export interface AssessmentItemDocumentInput {
 export class AssessmentItemDocument {
 	private readonly itemXml: string;
 	private readonly security?: PlayerSecurityConfig;
+	private readonly mathMlPrefixes: Set<string>;
 	readonly elementNameMapper: ElementNameMapper;
 	readonly attributeNameMapper: AttributeNameMapper;
 	private readonly xmlDocument: Document;
@@ -46,6 +47,7 @@ export class AssessmentItemDocument {
 	}: AssessmentItemDocumentInput) {
 		this.itemXml = itemXml;
 		this.security = security;
+		this.mathMlPrefixes = findMathMlPrefixes(itemXml);
 		this.elementNameMapper = elementNameMapper;
 		this.attributeNameMapper = attributeNameMapper;
 
@@ -97,7 +99,10 @@ export class AssessmentItemDocument {
 	}
 
 	serializeChildren(element: Element): string {
-		return unwrapCdataSections(this.serializeChildNodes(element));
+		return normalizeMathMlPrefixes(
+			unwrapCdataSections(this.serializeChildNodes(element)),
+			this.mathMlPrefixes
+		);
 	}
 
 	findExtractionElements(elementTypes: Iterable<string>): DiscoveredInteractionElement[] {
@@ -205,4 +210,38 @@ export function parseAssessmentItemDocument(input: AssessmentItemDocumentInput):
 
 function unwrapCdataSections(xml: string): string {
 	return xml.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (_match, content: string) => content);
+}
+
+function findMathMlPrefixes(xml: string): Set<string> {
+	const prefixes = new Set<string>();
+	for (const match of xml.matchAll(
+		/\sxmlns:([A-Za-z_][\w.-]*)=(["'])http:\/\/www\.w3\.org\/1998\/Math\/MathML\2/g
+	)) {
+		const prefix = match[1];
+		if (prefix) {
+			prefixes.add(prefix);
+		}
+	}
+	return prefixes;
+}
+
+function normalizeMathMlPrefixes(xml: string, prefixes: Set<string>): string {
+	let normalized = xml;
+	for (const prefix of prefixes) {
+		const escapedPrefix = escapeRegExp(prefix);
+		normalized = normalized
+			.replace(new RegExp(`(<\\/?)${escapedPrefix}:([A-Za-z][\\w.-]*)(?=[\\s>/])`, 'g'), '$1$2')
+			.replace(
+				new RegExp(
+					`\\sxmlns:${escapedPrefix}=(["'])http:\\/\\/www\\.w3\\.org\\/1998\\/Math\\/MathML\\1`,
+					'g'
+				),
+				''
+			);
+	}
+	return normalized;
+}
+
+function escapeRegExp(value: string): string {
+	return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

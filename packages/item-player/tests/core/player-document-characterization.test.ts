@@ -46,6 +46,29 @@ describe('Player document characterization', () => {
 		expect(html).toContain('<strong>A</strong>');
 	});
 
+	test('normalizes prefixed MathML for browser rendering', () => {
+		const player = new Player({
+			itemXml: `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem ${QTI22_NS} xmlns:m="http://www.w3.org/1998/Math/MathML" identifier="prefixed-math" title="Prefixed Math" adaptive="false" timeDependent="false">
+	<responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier"/>
+	<itemBody>
+		<p>Solve <m:math><m:mi>x</m:mi><m:mo>+</m:mo><m:mn>1</m:mn></m:math>.</p>
+		<choiceInteraction responseIdentifier="RESPONSE" shuffle="false" maxChoices="1">
+			<simpleChoice identifier="A">A</simpleChoice>
+		</choiceInteraction>
+	</itemBody>
+</assessmentItem>`,
+		});
+
+		const html = String(player.getItemBodyHtml());
+
+		expect(html).toContain('<math>');
+		expect(html).toContain('<mi>x</mi>');
+		expect(html).toContain('<mo>+</mo>');
+		expect(html).not.toContain('m:math');
+		expect(html).not.toContain('m:mi');
+	});
+
 	test('preserves QTI 3.0 visible itemBody structure and kebab-case attributes', () => {
 		const player = new Player({
 			itemXml: qti3Item(
@@ -175,6 +198,50 @@ describe('Player document characterization', () => {
 		expect(interaction.responseId).toBe('RESPONSE');
 		expect(interaction.prompt).toContain('narrator&rsquo;s word choices');
 		expect(String(interaction.choices[1].text)).toContain('<em>admiration</em>');
+	});
+
+	test('renders safe image object tags as images instead of dropping visible media', () => {
+		const player = new Player({
+			itemXml: qti22Item(
+				`<p>Use the diagram.</p>
+				<object type="image/png" data="images/diagram.png" width="320" height="180">Diagram alt text</object>
+				<choiceInteraction responseIdentifier="RESPONSE" shuffle="false" maxChoices="1">
+					<simpleChoice identifier="A">A</simpleChoice>
+				</choiceInteraction>`,
+				`<responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier"/>`
+			),
+		});
+
+		const html = String(player.getItemBodyHtml());
+
+		expect(html).toContain('<img');
+		expect(html).toContain('src="images/diagram.png"');
+		expect(html).toContain('alt="Diagram alt text"');
+		expect(html).toContain('width="320"');
+		expect(html).not.toContain('<object');
+	});
+
+	test('renders safe audio and video object tags as native media', () => {
+		const player = new Player({
+			itemXml: qti22Item(
+				`<object type="audio/mpeg" data="media/prompt.mp3">Audio prompt</object>
+				<object type="video/mp4" data="media/clip.mp4" poster="images/poster.png" width="640" height="360">Video prompt</object>
+				<choiceInteraction responseIdentifier="RESPONSE" shuffle="false" maxChoices="1">
+					<simpleChoice identifier="A">A</simpleChoice>
+				</choiceInteraction>`,
+				`<responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier"/>`
+			),
+		});
+
+		const html = String(player.getItemBodyHtml());
+
+		expect(html).toContain('<audio controls');
+		expect(html).toContain('src="media/prompt.mp3"');
+		expect(html).toContain('type="audio/mpeg"');
+		expect(html).toContain('<video controls');
+		expect(html).toContain('src="media/clip.mp4"');
+		expect(html).toContain('poster="images/poster.png"');
+		expect(html).not.toContain('<object');
 	});
 
 	test('projects response, outcome, and template declarations into extraction context', () => {
