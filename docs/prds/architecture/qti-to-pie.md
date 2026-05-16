@@ -4,19 +4,26 @@
   Status: draft
   Type: architecture
   Packages: @pie-qti/to-pie
-  Last reviewed: 2026-04-27
+  Last reviewed: 2026-05-15
 -->
 
 **Status:** draft
 **Type:** architecture
 **Packages:** `@pie-qti/to-pie`
-**Last reviewed:** 2026-04-27
+**Last reviewed:** 2026-05-15
 
 ---
 
 ## Summary
 
-`@pie-qti/to-pie` contains `QtiToPiePlugin`, the standard transform plugin that converts QTI 2.2 assessment items and assessment tests into the PIE model format. The plugin implements two distinct paths: a **lossless path** for QTI that originated from PIE (detected by the presence of a `pie:sourceModel` namespace extension) and a **best-effort path** for arbitrary third-party QTI (which embeds the original QTI XML in the output for future round-trip use). The plugin is also the host for a five-hook vendor extension system — detectors, transformers, asset resolvers, CSS extractors, and metadata extractors — that allows vendor packages to customize transformation without modifying or subclassing the plugin.
+`@pie-qti/to-pie` contains `QtiToPiePlugin`, the standard transform plugin that converts QTI 2.2 assessment items and assessment tests into the PIE model format. The plugin implements two distinct paths: a **lossless path** for QTI that originated from PIE (detected by the presence of a `pie:sourceModel` namespace extension) and a **best-effort path** for arbitrary third-party QTI (which embeds the original QTI XML in the output for future round-trip use).
+
+Two complementary extension surfaces sit on the best-effort path:
+
+- The original five-hook **vendor extension** system — detectors, transformers, asset resolvers, CSS extractors, and metadata extractors — for whole-pipeline replacement and asset/CSS/metadata interception.
+- The **source-profile** mechanism (`@pie-qti/source-profiles`, `QtiToPieRegistry`, item handlers, decorators, fallback diagnostics, conversion trace, package sidecars) for real-world QTI imports that are mostly standards-shaped but carry source-specific package conventions, metadata, proprietary interactions, sidecars, or repair needs. Source profiles are the preferred extension model for QTI imports; the five vendor hooks remain for the cases they were designed for. See `docs/SOURCE-PROFILES.md` for the source-profile authoring reference.
+
+Package-level transforms (whole IMS Content Package in, PIE items + sidecars + diagnostics out) are handled by `transformQtiPackageToPie`, which composes `@pie-qti/ims-cp-core`'s package graph analysis with the plugin's item-level transform and source-profile runtime.
 
 ---
 
@@ -136,6 +143,18 @@ QTI `associateInteraction` models arbitrary many-to-many pairings: any source co
 
 ---
 
+### Source profiles are the preferred path for real-world QTI imports
+
+**Decision:** Source-specific behaviour for QTI → PIE imports is expressed as `QtiSourceProfile` entries (with optional item handlers, decorators, and fallback policy) registered into `QtiToPiePlugin` and `transformQtiPackageToPie` via `sourceProfiles`. Built-in interaction transforms live behind a `QtiToPieRegistry` so handlers can delegate to them via `delegate.continue()`.
+
+**Rationale:** Real-world QTI packages from external content sources mix generic spec-compliant content with proprietary interactions, package conventions, identity markers, and metadata schemas. Modeling that as scored profile detection plus composable handlers / decorators keeps the generic path intact for spec-compliant content, allows multiple profiles to apply to the same package (e.g. `common-cartridge-csm` plus a publisher-specific profile), records every match and decision in `ConversionTrace`, and lets proprietary items fail closed with structured diagnostics instead of silently producing lossy conversions.
+
+**Alternatives considered:** Use the five-hook `VendorExtensionHooks` API for everything — still supported and the right tool for whole-pipeline replacement and asset/CSS/metadata interception, but doesn't carry package-level analysis, sidecars, conversion trace, or fallback policy, and forces wide vendor branches instead of scored evidence. Inline source-specific code in the plugin — rejected because it doesn't compose, hides which behaviour fired for which item, and pollutes the open-source package with proprietary handling.
+
+**Consequences:** Item handlers can replace, decorate, delegate to, or block the built-in transforms. `fallbackPolicy: 'block-generic'` causes a `QtiSourceProfileTransformError` carrying structured `SourceProfileDiagnostic`s and the `ConversionTrace` when matched content has no successful handler. `transformQtiPackageToPie` rejects ambiguous composition of a `plugin` instance together with `sourceProfiles` so the matching path is unambiguous. Host applications consume `result.metadata.sourceProfiles`, `result.metadata.sourceDiagnostics`, and `result.metadata.conversionTrace` to surface which extension fired and why. Authoring guidance and the architecture diagram live in `docs/SOURCE-PROFILES.md`.
+
+---
+
 ### assessmentTest path returns early without QTI source embedding
 
 **Decision:** The `assessmentTest` branch returns a `TransformOutput` immediately after building the PIE assessment object, bypassing the `embedQtiSourceInPie` call that all other paths go through.
@@ -149,6 +168,11 @@ QTI `associateInteraction` models arbitrary many-to-many pairings: any source co
 
 | Extension point | Interface | How to register | When it runs |
 |----------------|-----------|----------------|-------------|
+| Source profile | `QtiSourceProfile` | `sourceProfiles` option on `QtiToPiePlugin` or `transformQtiPackageToPie`; defaults from `@pie-qti/source-profiles` | Scored detection at package and item level; matches flow into the rest of the source-profile runtime |
+| Item handler | `QtiItemHandler` (on a profile) | Declared on a matched `QtiSourceProfile` | Before built-in interaction transforms; may return PIE content, return `null` with a diagnostic, or call `delegate.continue()` to run the built-in handler |
+| Item decorator | `QtiItemDecorator` (on a profile) | Declared on a matched `QtiSourceProfile` | After the generic PIE model is produced, at `afterModel` / `beforeFinalize` / `afterFinalize` phases |
+| Built-in transform | `QtiBuiltInTransformHandler` | Registered into `QtiToPieRegistry` (default registry seeded by `createDefaultQtiToPieRegistry`) | Selected by interaction kind; reachable from item handlers via `delegate.continue('built-in-name')` |
+| Fallback policy | `SourceProfileFallbackPolicy` (`allow-generic` / `block-generic`) | Declared on a `QtiItemHandler` or `QtiSourceProfile` | When a matched handler returns `null`; `block-generic` raises `QtiSourceProfileTransformError` instead of falling through to generic transforms |
 | Vendor detector | `VendorDetector` | `plugin.registerVendorDetector(detector)` or constructor `vendorDetectors` option | Before every non-lossless transform; all detectors run, highest confidence wins |
 | Vendor transformer | `VendorTransformer` | `plugin.registerVendorTransformer(transformer)` or constructor option | After vendor detection, if detected vendor matches `transformer.vendor` and `canHandle` returns true |
 | Asset resolver | `AssetResolver` | `plugin.registerAssetResolver(resolver)` or constructor option | Called by vendor transformers via `plugin.getAssetResolvers()`; not invoked by the plugin itself |
@@ -157,12 +181,19 @@ QTI `associateInteraction` models arbitrary many-to-many pairings: any source co
 
 **Note on asset resolvers and CSS class extractors:** The plugin stores them and exposes them via `getAssetResolvers()` / `getCssClassExtractors()` so that vendor transformers can retrieve them by calling back into the plugin instance. The plugin itself does not invoke these hooks — it is the vendor transformer's responsibility to call them.
 
+**Note on choosing an extension point:** Prefer source profiles + item handlers + decorators for QTI import work — they carry detection evidence, conversion trace, fallback policy, package sidecars, and structured diagnostics. Use the five vendor hooks for whole-pipeline replacement, asset URL rewriting, CSS-class interception, or vendor-keyed metadata extraction that doesn't fit the source-profile model.
+
 ---
 
 ## Data model / contracts
 
 Key source files:
-- `packages/to-pie/src/plugin.ts` — `QtiToPiePlugin`, `QtiToPiePluginOptions`
+- `packages/to-pie/src/plugin.ts` — `QtiToPiePlugin`, `QtiToPiePluginOptions`, `QtiSourceProfileTransformError`
+- `packages/to-pie/src/registry/qti-to-pie-registry.ts` — `QtiToPieRegistry`, `createDefaultQtiToPieRegistry`, `QtiBuiltInTransformHandler`, `BuiltInTransformDelegate`
+- `packages/to-pie/src/source-profile-runtime.ts` — `runItemHandlers`, `applyItemDecorators`, `ItemHandlerRuntimeResult`, source-profile diagnostic aggregation
+- `packages/to-pie/src/package-transformer.ts` — `transformQtiPackageToPie`, sidecar emission, package-level diagnostic rollup, MIME inference
+- `packages/types/src/source-profile.ts` — `QtiSourceProfile`, `QtiItemHandler`, `QtiItemDecorator`, `SourceProfileMatch`, `SourceProfileDiagnostic`, `SourceProfileFallbackPolicy`, `ConversionTrace`, `TransformTraceEvent`
+- `packages/source-profiles/src/` — default `QtiSourceProfile` implementations (`common-cartridge-csm`, `savvas.myperspectives.examview.qti21`, `partner.gca`)
 - `packages/to-pie/src/types/vendor-extensions.ts` — `VendorDetector`, `VendorTransformer`, `VendorInfo`, `AssetResolver`, `CssClassExtractor`, `MetadataExtractor`, `VendorClasses`, `ResolvedAsset`, `VendorExtensionHooks`
 - `packages/to-pie/src/utils/pie-extension.ts` — `hasPieExtension`, `extractPieExtension`, `PieExtensionData`, `PIE_NAMESPACE`, `PIE_PREFIX`
 - `packages/to-pie/src/utils/qti-extension-embedder.ts` — `embedQtiSourceInPie`, `extractQtiSourceFromPie`, `hasQtiSource`
@@ -297,6 +328,6 @@ AC-E5: Inline stimulus is not treated as standalone passage
 
 - QTI spec: http://www.imsglobal.org/question/qtiv2p2/imsqti_v2p2.html §4 (assessment items), §6 (assessment test structure)
 - Implementation: `packages/to-pie/src/`
-- Adjacent PRDs: `architecture/transform-engine.md`, `architecture/pie-to-qti.md`, `architecture/vendor-extensions.md`
-- Existing docs: `docs/PIE-QTI-TRANSFORMATION-GUIDE.md`, `docs/VENDOR-TRANSFORM-PLUGIN-GUIDE.md`
+- Adjacent PRDs: `architecture/transform-engine.md`, `architecture/pie-to-qti.md`, `architecture/vendor-extensions.md`, `architecture/ims-content-packages.md`
+- Existing docs: `docs/PIE-QTI-TRANSFORMATION-GUIDE.md`, `docs/VENDOR-TRANSFORM-PLUGIN-GUIDE.md`, `docs/SOURCE-PROFILES.md`
 - Demo vendor extensions: `packages/demo-vendor-extensions/src/`

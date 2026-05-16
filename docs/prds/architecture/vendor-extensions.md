@@ -18,6 +18,8 @@
 
 The vendor extension system lets external packages customise the QTI-to-PIE transform pipeline and the item-player extraction pipeline without forking or modifying framework code. On the transform side (`@pie-qti/to-pie`), five typed hook interfaces — `VendorDetector`, `VendorTransformer`, `AssetResolver`, `CssClassExtractor`, and `MetadataExtractor` — are composed into a `VendorExtensionHooks` bag and injected at plugin-construction time. On the player side (`@pie-qti/item-player`), vendor-supplied `ElementExtractor` implementations with a priority above 500 can intercept extraction of any element type before the built-in extractors run. The ACME demo (`@pie-qti/demo-vendor-extensions`, `@acme/likert-scale-plugin`) provides a working reference for both surfaces.
 
+> **Note (PIE-569):** For package-aware QTI → PIE imports — source detection, sidecars, standards candidates, item handlers, decorators, fallback policy, and conversion traces — prefer the **source-profile** mechanism documented in [`docs/SOURCE-PROFILES.md`](../../SOURCE-PROFILES.md). The five vendor hooks described in this PRD remain the right tool for whole-pipeline replacement, asset URL rewriting, and player-side extractor priority overrides; they do not duplicate the source-profile pipeline.
+
 ---
 
 ## Background and rationale

@@ -143,6 +143,7 @@ The `getLocaleFallbackChain()` function deduplicates entries, so requesting `en-
 | Passage ID strategy | `generateStablePassageId(options)` | Pass whichever of `qtiIdentifier`, `filePath`, or `content` is available | `packages/ims-cp-core/src/passage-reusability.ts` |
 | Locale selection | `selectLocalizedResource(group, locale, defaultLocale)` | Call after `buildLocalizedManifest()` to pick the best variant | `packages/ims-cp-core/src/localized-resources.ts` |
 | Heuristics config | `QtiHeuristicsConfig` | Pass `STRICT_QTI_CONFIG` for spec-only mode; `DEFAULT_HEURISTICS_CONFIG` otherwise | `packages/ims-cp-core/src/qti-heuristics.ts` |
+| Package graph | `buildPackageGraph({ manifest, fileAccess })` → `{ resources, assets, closures, diagnostics }` | Call after `loadResolvedManifest` to get a resource graph keyed by identifier, an asset inventory with `ownerResourceIds` / `sourcePaths`, per-test/passage closures, and structured diagnostics (`IMS_CP_MISSING_FILE`, `IMS_CP_MISSING_ASSET`, `IMS_CP_DANGLING_ITEM_REF`). `assessmentItemRef` paths are resolved back to `PackageResourceNode`s. | Consumed by `transformQtiPackageToPie` in `@pie-qti/to-pie` to feed source-profile detection, sidecar emission, and package-level diagnostic rollup |
 
 ---
 

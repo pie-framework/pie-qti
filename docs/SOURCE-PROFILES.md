@@ -4,6 +4,20 @@ Source profiles are the preferred extension model for real-world QTI imports tha
 
 They replace broad vendor branches with scored, traceable feature detection. A package can match more than one profile, for example generic Common Cartridge CSM standards plus a publisher-specific profile for proprietary interaction handling.
 
+## Architecture Overview
+
+![QTI Source Profile Extension Mechanism](images/qti-source-profile-extensions.jpg)
+
+The diagram shows the end-to-end extension surface introduced by PIE-569:
+
+- **Inputs and analysis** (top row): the IMS package is parsed by `@pie-qti/ims-cp-core` into a resource graph (closures, `assessmentItemRef` resolution, asset inventory, missing-file diagnostics), then offered to source profiles for `detectPackage` / `detectItem`.
+- **Pipeline** (middle row, inside `@pie-qti/to-pie`): `QtiToPieRegistry` holds the built-in handlers; **source profile item handlers** can transform proprietary content, return `null`, or call `delegate.continue()` to reuse a built-in handler; **item decorators** patch the generic PIE model at `afterModel` / `beforeFinalize` / `afterFinalize`; **fallback / diagnostics** enforce `allow-generic` vs `block-generic` policy with structured `SourceProfileDiagnostic`s.
+- **Trace bar**: every decision is recorded as `ConversionTrace` events for host-side review.
+- **Source profiles** (bottom-left): `@pie-qti/source-profiles` ships `common-cartridge-csm`, `savvas.myperspectives.examview.qti21`, and `partner.gca`. New profiles register without modifying the pipeline.
+- **Outputs** (right): PIE items, stable sidecars, source-profile matches, standard candidates, and structured diagnostics + trace, all consumable by host UIs.
+
+Host policy (CDN URLs, private standards crosswalks, storage destinations) deliberately stays outside `pie-qti`.
+
 ## Design Principles
 
 - Keep generic QTI transforms as the default path. Source profiles should decorate, delegate to, or block generic handling only where the source evidence requires it.

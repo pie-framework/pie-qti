@@ -86,8 +86,10 @@ Subsystem-level PRDs covering how major packages work and how to extend them.
 | `architecture/response-processing.md` | Response Processing Engine | `@pie-qti/qti-processing` | draft |
 | `architecture/web-components.md` | Web Component Infrastructure | `@pie-qti/default-components`, `@pie-qti/player-elements` | draft |
 | `architecture/item-player-plugin-system.md` | Item Player Plugin / Extension API | `@pie-qti/item-player` | draft |
-| `architecture/vendor-extensions.md` | Vendor Transform Extensions | `@pie-qti/to-pie` vendor hooks | draft |
+| `architecture/vendor-extensions.md` | Vendor Transform Extensions (five-hook system; for whole-pipeline replacement and player-side extractors) | `@pie-qti/to-pie` vendor hooks | draft |
 | `architecture/ims-content-packages.md` | IMS Content Package Support | `@pie-qti/ims-cp-*` | draft |
+
+The QTI → PIE **source-profile** mechanism (preferred extension model for real-world third-party QTI imports — scored detection, item handlers, decorators, fallback policy, package sidecars, conversion trace) is documented in [`../SOURCE-PROFILES.md`](../SOURCE-PROFILES.md). It is treated as a developer/authoring guide rather than a separate PRD; the rationale lives in `architecture/qti-to-pie.md`.
 | `architecture/storage.md` | Pluggable Storage Backends | `@pie-qti/storage` | draft |
 | `architecture/security.md` | Security Model (sanitization, iframe isolation, Trusted Types) | `@pie-qti/item-player` | draft |
 
