@@ -29,13 +29,18 @@ export interface DetectionEvidence {
 
 export interface SourceProfileMatch {
 	profileId: string;
+	profileVersion?: string;
 	confidence: number;
 	scope: QtiProfileScope;
+	resourceId?: string;
+	itemId?: string;
+	sourcePath?: string;
 	vendor?: string;
 	product?: string;
 	authoringTool?: string;
 	packageFamily?: string;
 	qtiVersions?: string[];
+	fallbackPolicy?: SourceProfileFallbackPolicy;
 	capabilities?: ProfileCapability[];
 	evidence: DetectionEvidence[];
 	metadata?: Record<string, unknown>;
@@ -217,6 +222,7 @@ export interface QtiItemDecorator {
 
 export interface QtiSourceProfile {
 	id: string;
+	version?: string;
 	label?: string;
 	vendor?: string;
 	product?: string;

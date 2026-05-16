@@ -256,7 +256,7 @@ export class QtiToPiePlugin implements TransformPlugin {
     const sourceFormat = qtiVersionToSourceFormat(qtiVersion);
     const warnings: TransformWarning[] = [];
     const itemId = this.extractItemId(qtiXml);
-    const trace = createConversionTrace(`qti-to-pie-${itemId}-${startTime}`);
+    const trace = createConversionTrace(`qti-to-pie-${itemId}`);
     addTraceEvent(trace, {
       kind: 'handler-selected',
       scope: 'item',
@@ -620,7 +620,7 @@ export class QtiToPiePlugin implements TransformPlugin {
   private extractItemId(qtiXml: string): string {
     // Try to extract identifier attribute
     const match = qtiXml.match(/identifier=["']([^"']+)["']/);
-    return match ? match[1] : `item-${Date.now()}`;
+    return match ? match[1] : `item-${shortHash(qtiXml)}`;
   }
 
   /**
@@ -1035,6 +1035,14 @@ function sourceDiagnosticToWarning(
     code: diagnostic.code,
     message: diagnostic.message,
   };
+}
+
+function shortHash(value: string): string {
+  let hash = 5381;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = ((hash << 5) + hash) ^ value.charCodeAt(index);
+  }
+  return (hash >>> 0).toString(36);
 }
 
 function mergeWarnings(

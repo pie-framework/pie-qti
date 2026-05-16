@@ -63,7 +63,7 @@ export function detectItemProfiles(
 	const matches = profiles
 		.flatMap((profile) => {
 			const match = profile.detectItem?.(context) ?? null;
-			return match ? [{ ...match, profileId: match.profileId || profile.id }] : [];
+			return match ? [normalizeProfileMatch(match, profile)] : [];
 		})
 		.sort(compareMatches);
 
@@ -79,6 +79,8 @@ export function detectItemProfiles(
 			data: {
 				confidence: match.confidence,
 				evidenceCount: match.evidence.length,
+				profileVersion: match.profileVersion,
+				fallbackPolicy: match.fallbackPolicy,
 			},
 		});
 	}
@@ -97,7 +99,7 @@ export function detectPackageProfiles(
 	const matches = profiles
 		.flatMap((profile) => {
 			const match = profile.detectPackage?.(context) ?? null;
-			return match ? [{ ...match, profileId: match.profileId || profile.id }] : [];
+			return match ? [normalizeProfileMatch(match, profile)] : [];
 		})
 		.sort(compareMatches);
 
@@ -110,6 +112,8 @@ export function detectPackageProfiles(
 			data: {
 				confidence: match.confidence,
 				evidenceCount: match.evidence.length,
+				profileVersion: match.profileVersion,
+				fallbackPolicy: match.fallbackPolicy,
 			},
 		});
 	}
@@ -367,6 +371,16 @@ function extractionCounts(extracted: SourceProfileExtractionResult): Record<stri
 
 function compareMatches(left: SourceProfileMatch, right: SourceProfileMatch) {
 	return right.confidence - left.confidence || left.profileId.localeCompare(right.profileId);
+}
+
+function normalizeProfileMatch(match: SourceProfileMatch, profile: QtiSourceProfile): SourceProfileMatch {
+	return {
+		...match,
+		profileId: match.profileId || profile.id,
+		profileVersion: match.profileVersion ?? profile.version,
+		fallbackPolicy: match.fallbackPolicy ?? profile.fallbackPolicy ?? 'allow-generic',
+		capabilities: match.capabilities ?? profile.capabilities,
+	};
 }
 
 function evaluateItemHandler(

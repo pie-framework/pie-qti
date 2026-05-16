@@ -475,7 +475,7 @@ Source profiles target the specific extension surface that real-world QTI import
 
 **Use Cases:**
 
-- Recognise a known source/vintage of QTI (publisher format, partner package convention, internal export) and apply tailored handling.
+- Recognise a known source/vintage of QTI and apply tailored handling. Generic source-neutral profiles can live in `@pie-qti/source-profiles`; partner/publisher profiles should live in host packages and register through the same API.
 - Replace built-in interaction transforms for proprietary item types — or delegate back to a built-in handler via `delegate.continue()` and only adjust outputs through decorators.
 - Fail closed (`fallbackPolicy: 'block-generic'`) for proprietary content that would otherwise produce a lossy generic conversion.
 - Emit package-level sidecars (source XML, catalogs, rubrics, stylesheets, assets) with stable IDs and inferred MIME types.

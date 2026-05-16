@@ -2,7 +2,7 @@
 
 Source profiles are the preferred extension model for real-world QTI imports that are mostly standards-shaped but carry source-specific package conventions, metadata, proprietary interactions, sidecars, or repair needs.
 
-They replace broad vendor branches with scored, traceable feature detection. A package can match more than one profile, for example generic Common Cartridge CSM standards plus a publisher-specific profile for proprietary interaction handling.
+They replace broad vendor branches with scored, traceable feature detection. A package can match more than one profile, for example generic Common Cartridge CSM standards plus a host-owned profile for proprietary interaction handling.
 
 ## Architecture Overview
 
@@ -13,7 +13,7 @@ The diagram shows the end-to-end extension surface introduced by PIE-569:
 - **Inputs and analysis** (top row): the IMS package is parsed by `@pie-qti/ims-cp-core` into a resource graph (closures, `assessmentItemRef` resolution, asset inventory, missing-file diagnostics), then offered to source profiles for `detectPackage` / `detectItem`.
 - **Pipeline** (middle row, inside `@pie-qti/to-pie`): `QtiToPieRegistry` holds the built-in handlers; **source profile item handlers** can transform proprietary content, return `null`, or call `delegate.continue()` to reuse a built-in handler; **item decorators** patch the generic PIE model at `afterModel` / `beforeFinalize` / `afterFinalize`; **fallback / diagnostics** enforce `allow-generic` vs `block-generic` policy with structured `SourceProfileDiagnostic`s.
 - **Trace bar**: every decision is recorded as `ConversionTrace` events for host-side review.
-- **Source profiles** (bottom-left): `@pie-qti/source-profiles` ships `common-cartridge-csm`, `savvas.myperspectives.examview.qti21`, and `partner.gca`. New profiles register without modifying the pipeline.
+- **Source profiles**: generic, source-neutral profiles can ship from `@pie-qti/source-profiles`; partner/publisher-specific profiles should register from host packages using the same `QtiSourceProfile` API.
 - **Outputs** (right): PIE items, stable sidecars, source-profile matches, standard candidates, and structured diagnostics + trace, all consumable by host UIs.
 
 Host policy (CDN URLs, private standards crosswalks, storage destinations) deliberately stays outside `pie-qti`.
@@ -21,7 +21,7 @@ Host policy (CDN URLs, private standards crosswalks, storage destinations) delib
 ## Design Principles
 
 - Keep generic QTI transforms as the default path. Source profiles should decorate, delegate to, or block generic handling only where the source evidence requires it.
-- Put reusable source handling in `@pie-qti/source-profiles`; keep host policy such as S3 paths, private standards crosswalks, item-bank writes, and allowlists outside `pie-qti`.
+- Put reusable, source-neutral handling in `@pie-qti/source-profiles`; keep partner/publisher profiles, S3 paths, private standards crosswalks, item-bank writes, and allowlists outside `pie-qti`.
 - Prefer diagnostics over lossy conversion. If matched content is proprietary or ambiguous, emit a structured diagnostic or use `fallbackPolicy: 'block-generic'` instead of silently reducing the item.
 - Make every custom decision visible through `ConversionTrace`, `SourceProfileMatch`, sidecars, warnings, and source diagnostics.
 - Use product-neutral language in code. Model the technical concept as a source profile even when a business workflow later distinguishes partners from publishers.
@@ -56,7 +56,7 @@ Package transforms aggregate item outputs into a host-facing result. Package-lev
 
 ## Authoring A Profile
 
-Create one module per source profile in `packages/source-profiles/src/`. Keep detection and extraction small and evidence-driven.
+Create one module per source profile. Use `packages/source-profiles/src/` for generic, source-neutral profiles only; use a host package for partner/publisher profiles. Keep detection and extraction small and evidence-driven.
 
 ```ts
 import type { QtiSourceProfile } from '@pie-qti/transform-types';
@@ -84,13 +84,13 @@ export const examplePublisherProfile: QtiSourceProfile = {
 };
 ```
 
-Add the profile to `packages/source-profiles/src/index.ts` only when false positives are controlled with negative tests. Root exports are useful for defaults; subpath exports in `packages/source-profiles/package.json` keep direct imports stable:
+Add a generic profile to `packages/source-profiles/src/index.ts` only when false positives are controlled with negative tests and the behaviour is not tied to a private partner/publisher contract. Host-owned profiles should export from the host package instead:
 
 ```ts
-import { examplePublisherProfile } from '@pie-qti/source-profiles/example-publisher';
+import { examplePublisherProfile } from '@example/qti-source-profiles';
 ```
 
-Shared extraction should stay shared. For example, do not re-extract Common Cartridge CSM standards in a publisher or partner profile if `common-cartridge-csm` already emits those candidates; source-specific profiles should add only source-specific candidates, metadata, sidecars, diagnostics, or handlers.
+Shared extraction should stay shared. For example, do not re-extract Common Cartridge CSM standards in a host-owned publisher or partner profile if `common-cartridge-csm` already emits those candidates; source-specific profiles should add only source-specific candidates, metadata, sidecars, diagnostics, or handlers.
 
 ## Handlers, Decorators, And Fallback
 
@@ -145,10 +145,9 @@ Package transformation emits stable sidecar IDs for package artifacts. Profiles 
 
 Preview URLs, CDN rewrites, storage destinations, and publish fan-out are host concerns and should not be encoded in source profiles.
 
-## Current Built-In Profiles
+## Built-In And Host-Owned Profiles
 
-- `common-cartridge-csm`: extracts CSM standard candidates from manifest metadata.
-- `savvas.myperspectives.examview.qti21`: detects Savvas/myPerspectives ExamView package and item signatures, including `tei-texthighlighter` review warnings.
-- `partner.gca`: detects GCA/UGA package and item evidence around source identity, CSM presence, passages/stimuli, and rubrics.
+- Built into `@pie-qti/source-profiles`: `common-cartridge-csm`, which extracts CSM standard candidates from manifest metadata.
+- Host-owned packages can register partner/publisher profiles such as Savvas, GCA/UGA, Progress Learning, HMH/Amplify, or McGraw Hill/MHE using the same `QtiSourceProfile` API.
 
-These profiles are intentionally incremental. Add source-specific conversion behavior only when fixtures and fidelity expectations are clear; otherwise prefer precise diagnostics and reviewable trace output.
+Host-owned profiles should be intentionally incremental. Add source-specific conversion behavior only when fixtures and fidelity expectations are clear; otherwise prefer precise diagnostics and reviewable trace output.

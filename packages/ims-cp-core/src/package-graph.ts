@@ -11,6 +11,25 @@ export interface PackageDiagnostic {
 	reference?: string;
 }
 
+export type QtiPackageVersion = '2.1' | '2.2' | '3.0' | 'unknown' | 'conflicting';
+export type QtiVersionConfidence = 'high' | 'medium' | 'low' | 'none' | 'conflicting';
+
+export interface QtiVersionSignal {
+	source: 'manifest' | 'qti_xml' | 'schema_location' | 'package_metadata';
+	version: Exclude<QtiPackageVersion, 'unknown' | 'conflicting'>;
+	confidence: Exclude<QtiVersionConfidence, 'none' | 'conflicting'>;
+	evidence: string;
+	resourceId?: string;
+	sourcePath?: string;
+}
+
+export interface QtiPackageVersionDiagnostic {
+	version: QtiPackageVersion;
+	confidence: QtiVersionConfidence;
+	signals: QtiVersionSignal[];
+	diagnostics: PackageDiagnostic[];
+}
+
 export interface PackageFileAccess {
 	readText(path: string): Promise<string | null | undefined> | string | null | undefined;
 	readBuffer?(path: string): Promise<Uint8Array | null | undefined> | Uint8Array | null | undefined;
@@ -70,6 +89,20 @@ export interface PackageEntrypoint {
 	href?: string;
 }
 
+export type PackageRelationshipKind = 'manifest-dependency' | 'assessment-item-ref' | 'shared-asset';
+
+export interface PackageRelationshipHint {
+	kind: PackageRelationshipKind;
+	sourceResourceId?: string;
+	sourceResourceIds?: string[];
+	targetResourceId?: string;
+	targetPath?: string;
+	rawHref?: string;
+	sourcePath?: string;
+	sourceElement?: string;
+	sourceAttribute?: string;
+}
+
 export interface AnalyzedContentPackage {
 	packageId: string;
 	manifest: ParsedManifest;
@@ -78,6 +111,21 @@ export interface AnalyzedContentPackage {
 	references: Map<string, PackageReference[]>;
 	closures: Map<string, PackageResourceClosure>;
 	assets: Map<string, PackageAssetRef>;
+	qtiVersion: QtiPackageVersionDiagnostic;
+	diagnostics: PackageDiagnostic[];
+	files: string[];
+}
+
+export interface SerializedContentPackageEvidence {
+	packageId: string;
+	manifestIdentifier?: string;
+	entrypoints: PackageEntrypoint[];
+	resources: PackageResourceNode[];
+	references: Array<PackageReference & { resourceId: string }>;
+	closures: PackageResourceClosure[];
+	assets: PackageAssetRef[];
+	relationshipHints: PackageRelationshipHint[];
+	qtiVersion: QtiPackageVersionDiagnostic;
 	diagnostics: PackageDiagnostic[];
 	files: string[];
 }
@@ -124,6 +172,10 @@ export async function analyzeContentPackage({
 	const assets = new Map<string, PackageAssetRef>();
 	const files = fileAccess?.listFiles ? await fileAccess.listFiles() : [];
 	const listedFiles = fileAccess?.listFiles ? new Set(files) : undefined;
+	const versionSignals: QtiVersionSignal[] = [
+		...detectManifestVersionSignals(manifestXml),
+		...detectResourceTypeVersionSignals(manifest.resources.values()),
+	];
 
 	for (const resource of manifest.resources.values()) {
 		const node = toResourceNode(resource, manifest);
@@ -169,6 +221,7 @@ export async function analyzeContentPackage({
 		if (fileAccess && node.resolvedHref && isXmlLike(node.resolvedHref)) {
 			const xml = await fileAccess.readText(node.resolvedHref);
 			if (xml) {
+				versionSignals.push(...detectQtiXmlVersionSignals(xml, node));
 				const discovered = discoverReferences(xml, node);
 				for (const reference of discovered.references) {
 					if (reference.kind === 'assessment-item-ref' && reference.resolvedPath) {
@@ -220,6 +273,8 @@ export async function analyzeContentPackage({
 	for (const entrypoint of [...manifest.tests, ...manifest.items, ...manifest.passages]) {
 		closures.set(entrypoint.identifier, buildClosure(entrypoint.identifier, resources, references, diagnostics));
 	}
+	const qtiVersion = summarizeQtiVersion(versionSignals);
+	const packageDiagnostics = [...diagnostics, ...qtiVersion.diagnostics];
 
 	return {
 		packageId: packageId ?? manifest.identifier ?? 'qti-package',
@@ -233,8 +288,61 @@ export async function analyzeContentPackage({
 		references,
 		closures,
 		assets,
-		diagnostics,
+		qtiVersion,
+		diagnostics: packageDiagnostics,
 		files,
+	};
+}
+
+export function serializeContentPackageEvidence(
+	packageGraph: AnalyzedContentPackage
+): SerializedContentPackageEvidence {
+	const resources = [...packageGraph.resources.values()]
+		.map((resource) => ({
+			...resource,
+			files: sortStrings(resource.files),
+			resolvedFiles: sortStrings(resource.resolvedFiles),
+			dependencies: sortStrings(resource.dependencies),
+		}))
+		.sort(compareBy((resource) => resource.identifier));
+	const references = [...packageGraph.references.entries()]
+		.flatMap(([resourceId, resourceReferences]) =>
+			resourceReferences.map((reference) => ({ resourceId, ...reference }))
+		)
+		.sort(compareReferenceEvidence);
+	const assets = [...packageGraph.assets.values()]
+		.map((asset) => ({
+			...asset,
+			ownerResourceIds: asset.ownerResourceIds ? sortStrings(asset.ownerResourceIds) : undefined,
+			sourcePaths: asset.sourcePaths ? sortStrings(asset.sourcePaths) : undefined,
+		}))
+		.sort(compareBy((asset) => asset.resolvedPath));
+	const closures = [...packageGraph.closures.values()]
+		.map((closure) => ({
+			...closure,
+			resourceIds: sortStrings(closure.resourceIds),
+			filePaths: sortStrings(closure.filePaths),
+			assetPaths: sortStrings(closure.assetPaths),
+			diagnostics: sortDiagnostics(closure.diagnostics),
+		}))
+		.sort(compareBy((closure) => closure.resourceId));
+
+	return {
+		packageId: packageGraph.packageId,
+		manifestIdentifier: packageGraph.manifest.identifier,
+		entrypoints: [...packageGraph.entrypoints].sort(compareBy((entrypoint) => entrypoint.resourceId)),
+		resources,
+		references,
+		closures,
+		assets,
+		relationshipHints: buildRelationshipHints(references, assets),
+		qtiVersion: {
+			...packageGraph.qtiVersion,
+			signals: [...packageGraph.qtiVersion.signals].sort(compareVersionSignal),
+			diagnostics: sortDiagnostics(packageGraph.qtiVersion.diagnostics),
+		},
+		diagnostics: sortDiagnostics(packageGraph.diagnostics),
+		files: sortStrings(packageGraph.files),
 	};
 }
 
@@ -524,5 +632,258 @@ function hasMissingFileDiagnostic(
 			diagnostic.code === 'IMS_CP_MISSING_FILE' &&
 			diagnostic.resourceId === resourceId &&
 			diagnostic.reference === path
+	);
+}
+
+function detectManifestVersionSignals(manifestXml: string): QtiVersionSignal[] {
+	return [
+		...detectVersionPatterns(manifestXml, {
+			source: 'schema_location',
+			confidence: 'medium',
+			includeResourceTypes: false,
+		}),
+		...detectVersionPatterns(manifestXml, {
+			source: 'package_metadata',
+			confidence: 'low',
+			includeResourceTypes: false,
+		}),
+	];
+}
+
+function detectResourceTypeVersionSignals(resources: Iterable<ManifestResource>): QtiVersionSignal[] {
+	const signals: QtiVersionSignal[] = [];
+	for (const resource of resources) {
+		signals.push(
+			...detectVersionPatterns(resource.type, {
+				source: 'manifest',
+				confidence: 'high',
+				resourceId: resource.identifier,
+			})
+		);
+	}
+	return dedupeVersionSignals(signals);
+}
+
+function detectQtiXmlVersionSignals(xml: string, node: PackageResourceNode): QtiVersionSignal[] {
+	return dedupeVersionSignals(
+		detectVersionPatterns(xml, {
+			source: 'qti_xml',
+			confidence: 'high',
+			resourceId: node.identifier,
+			sourcePath: node.resolvedHref,
+		})
+	);
+}
+
+function detectVersionPatterns(
+	value: string,
+	context: {
+		source: QtiVersionSignal['source'];
+		confidence: QtiVersionSignal['confidence'];
+		resourceId?: string;
+		sourcePath?: string;
+		includeResourceTypes?: boolean;
+	}
+): QtiVersionSignal[] {
+	const includeResourceTypes = context.includeResourceTypes ?? true;
+	const patterns: Array<{
+		version: Exclude<QtiPackageVersion, 'unknown' | 'conflicting'>;
+		patterns: RegExp[];
+	}> = [
+		{
+			version: '3.0',
+			patterns: [
+				/imsqtiasi_v3p0/i,
+				/imsqti_v3p0/i,
+				/qti[_-]?v?3p0/i,
+				/qti[_\s-]?3\.0/i,
+			],
+		},
+		{
+			version: '2.2',
+			patterns: [
+				/imsqti_v2p2/i,
+				/qti[_-]?v?2p2/i,
+				/qti[_\s-]?2\.2/i,
+				...(includeResourceTypes ? [/xmlv2p2/i] : []),
+			],
+		},
+		{
+			version: '2.1',
+			patterns: [
+				/imsqti_v2p1/i,
+				/qti[_-]?v?2p1/i,
+				/qti[_\s-]?2\.1/i,
+				...(includeResourceTypes ? [/xmlv2p1/i] : []),
+			],
+		},
+	];
+	const signals: QtiVersionSignal[] = [];
+	for (const { version, patterns: versionPatterns } of patterns) {
+		for (const pattern of versionPatterns) {
+			const match = value.match(pattern);
+			if (!match) continue;
+			signals.push({
+				source: context.source,
+				version,
+				confidence: context.confidence,
+				evidence: match[0],
+				resourceId: context.resourceId,
+				sourcePath: context.sourcePath,
+			});
+			break;
+		}
+	}
+	return dedupeVersionSignals(signals);
+}
+
+function summarizeQtiVersion(signals: QtiVersionSignal[]): QtiPackageVersionDiagnostic {
+	const dedupedSignals = dedupeVersionSignals(signals);
+	const versions = [...new Set(dedupedSignals.map((signal) => signal.version))].sort();
+	if (versions.length === 0) {
+		return {
+			version: 'unknown',
+			confidence: 'none',
+			signals: [],
+			diagnostics: [
+				{
+					severity: 'warning',
+					code: 'QTI_VERSION_UNKNOWN',
+					message: 'Could not determine the QTI package version from manifest, schema, metadata, or readable QTI XML.',
+				},
+			],
+		};
+	}
+	if (versions.length > 1) {
+		return {
+			version: 'conflicting',
+			confidence: 'conflicting',
+			signals: dedupedSignals,
+			diagnostics: [
+				{
+					severity: 'warning',
+					code: 'QTI_VERSION_CONFLICT',
+					message: `Conflicting QTI package version signals were found: ${versions.join(', ')}.`,
+					reference: versions.join(','),
+				},
+			],
+		};
+	}
+	return {
+		version: versions[0],
+		confidence: strongestConfidence(dedupedSignals),
+		signals: dedupedSignals,
+		diagnostics: [],
+	};
+}
+
+function strongestConfidence(signals: QtiVersionSignal[]): QtiVersionConfidence {
+	if (signals.some((signal) => signal.confidence === 'high')) return 'high';
+	if (signals.some((signal) => signal.confidence === 'medium')) return 'medium';
+	if (signals.some((signal) => signal.confidence === 'low')) return 'low';
+	return 'none';
+}
+
+function dedupeVersionSignals(signals: QtiVersionSignal[]): QtiVersionSignal[] {
+	const byKey = new Map<string, QtiVersionSignal>();
+	for (const signal of signals) {
+		const key = [
+			signal.source,
+			signal.version,
+			signal.confidence,
+			signal.resourceId ?? '',
+			signal.sourcePath ?? '',
+			signal.evidence,
+		].join('|');
+		byKey.set(key, signal);
+	}
+	return [...byKey.values()];
+}
+
+function buildRelationshipHints(
+	references: Array<PackageReference & { resourceId: string }>,
+	assets: PackageAssetRef[]
+): PackageRelationshipHint[] {
+	const hints: PackageRelationshipHint[] = [];
+	for (const reference of references) {
+		if (reference.kind !== 'manifest-dependency' && reference.kind !== 'assessment-item-ref') continue;
+		hints.push({
+			kind: reference.kind,
+			sourceResourceId: reference.resourceId,
+			targetResourceId: reference.targetResourceId,
+			targetPath: reference.resolvedPath,
+			rawHref: reference.rawHref,
+			sourcePath: reference.sourcePath,
+			sourceElement: reference.sourceElement,
+			sourceAttribute: reference.sourceAttribute,
+		});
+	}
+	for (const asset of assets) {
+		const ownerResourceIds = asset.ownerResourceIds ?? (asset.ownerResourceId ? [asset.ownerResourceId] : []);
+		if (ownerResourceIds.length < 2) continue;
+		hints.push({
+			kind: 'shared-asset',
+			sourceResourceIds: sortStrings(ownerResourceIds),
+			targetPath: asset.resolvedPath,
+			rawHref: asset.rawHref,
+			sourcePath: asset.sourcePath,
+			sourceElement: asset.sourceElement,
+			sourceAttribute: asset.sourceAttribute,
+		});
+	}
+	return hints.sort(compareRelationshipHint);
+}
+
+function sortStrings(values: string[]): string[] {
+	return [...values].sort((left, right) => left.localeCompare(right));
+}
+
+function sortDiagnostics(diagnostics: PackageDiagnostic[]): PackageDiagnostic[] {
+	return [...diagnostics].sort(
+		(left, right) =>
+			left.severity.localeCompare(right.severity) ||
+			left.code.localeCompare(right.code) ||
+			(left.resourceId ?? '').localeCompare(right.resourceId ?? '') ||
+			(left.sourcePath ?? '').localeCompare(right.sourcePath ?? '') ||
+			(left.reference ?? '').localeCompare(right.reference ?? '') ||
+			left.message.localeCompare(right.message)
+	);
+}
+
+function compareBy<T>(select: (value: T) => string | undefined): (left: T, right: T) => number {
+	return (left, right) => (select(left) ?? '').localeCompare(select(right) ?? '');
+}
+
+function compareReferenceEvidence(
+	left: PackageReference & { resourceId: string },
+	right: PackageReference & { resourceId: string }
+): number {
+	return (
+		left.resourceId.localeCompare(right.resourceId) ||
+		left.kind.localeCompare(right.kind) ||
+		(left.targetResourceId ?? '').localeCompare(right.targetResourceId ?? '') ||
+		(left.resolvedPath ?? '').localeCompare(right.resolvedPath ?? '') ||
+		left.rawHref.localeCompare(right.rawHref)
+	);
+}
+
+function compareVersionSignal(left: QtiVersionSignal, right: QtiVersionSignal): number {
+	return (
+		left.version.localeCompare(right.version) ||
+		left.source.localeCompare(right.source) ||
+		(left.resourceId ?? '').localeCompare(right.resourceId ?? '') ||
+		(left.sourcePath ?? '').localeCompare(right.sourcePath ?? '') ||
+		left.evidence.localeCompare(right.evidence)
+	);
+}
+
+function compareRelationshipHint(left: PackageRelationshipHint, right: PackageRelationshipHint): number {
+	return (
+		left.kind.localeCompare(right.kind) ||
+		(left.sourceResourceId ?? '').localeCompare(right.sourceResourceId ?? '') ||
+		(left.sourceResourceIds?.join(',') ?? '').localeCompare(right.sourceResourceIds?.join(',') ?? '') ||
+		(left.targetResourceId ?? '').localeCompare(right.targetResourceId ?? '') ||
+		(left.targetPath ?? '').localeCompare(right.targetPath ?? '') ||
+		(left.rawHref ?? '').localeCompare(right.rawHref ?? '')
 	);
 }
