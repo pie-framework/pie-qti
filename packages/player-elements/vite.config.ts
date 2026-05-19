@@ -1,4 +1,5 @@
 import { svelte } from '@sveltejs/vite-plugin-svelte';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
@@ -8,6 +9,13 @@ export default defineConfig({
 			// Keep this config minimal and Vite-specific.
 		}),
 	],
+	resolve: {
+		alias: {
+			'@pie-qti/item-player/components': fileURLToPath(
+				new URL('../item-player/src/components/index.ts', import.meta.url),
+			),
+		},
+	},
 	build: {
 		lib: {
 			entry: {

@@ -3,6 +3,10 @@
 	"compilerOptions": {
 		"declaration": false,
 		"declarationMap": false,
+		"rootDir": "..",
+		"paths": {
+			"@pie-qti/item-player/components": ["../item-player/src/components/index.ts"]
+		},
 		"types": ["svelte"]
 	},
 	"include": ["src/**/*.ts", "src/**/*.svelte", "src/**/*.d.ts"],

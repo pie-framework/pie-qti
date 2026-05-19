@@ -5,6 +5,7 @@ const packageJson = JSON.parse(
 	readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
 ) as {
 	exports?: Record<string, unknown>;
+	files?: string[];
 	sideEffects?: unknown;
 };
 
@@ -13,12 +14,9 @@ describe('item-player package metadata', () => {
 		expect(packageJson.sideEffects).toContain('./dist/element.js');
 	});
 
-	test('exposes component exports with non-Svelte fallback conditions', () => {
-		expect(packageJson.exports?.['./components']).toMatchObject({
-			types: './src/components/index.ts',
-			import: './src/components/index.ts',
-			default: './src/components/index.ts',
-			svelte: './src/components/index.ts',
-		});
+	test('keeps Svelte source components out of the public package contract', () => {
+		expect(packageJson.exports?.['./components']).toBeUndefined();
+		expect(JSON.stringify(packageJson.exports)).not.toContain('./src/');
+		expect(packageJson.files).not.toContain('src');
 	});
 });
