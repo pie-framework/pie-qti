@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/app-transform",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "Web interface for testing QTI to PIE transformations",
   "type": "module",
   "private": true,

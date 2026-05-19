@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { Player } from '../core/Player';
+	import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
 	import type { AdaptiveAttemptResult, ModalFeedback, PlayerSecurityConfig, QTIRole, ScoringResult } from '../types';
+	import type { PnpProfile } from '../pnp/types';
 	import type { InteractionResponseValue } from '../web-components';
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import { typesetMathInElement } from '@pie-qti/typeset-katex';
@@ -15,6 +17,12 @@
 		role?: QTIRole;
 		/** Optional security config (URL policy, embed allowances, Trusted Types). */
 		security?: PlayerSecurityConfig;
+		/** QTI 3.0 Personal Needs and Preferences profile */
+		pnp?: PnpProfile;
+		/** Package/assessment-resolved delivery context */
+		deliveryContext?: ResolvedItemDeliveryContext;
+		/** Controlled/current responses, keyed by response identifier */
+		responses?: ItemResponseMap;
 		disabled?: boolean;
 		typeset?: (element: HTMLElement) => void;
 		i18n?: I18nProvider;
@@ -28,6 +36,9 @@
 		itemXml,
 		role = 'candidate',
 		security,
+		pnp,
+		deliveryContext,
+		responses: responseValues = {},
 		disabled = false,
 		typeset,
 		i18n,
@@ -41,7 +52,7 @@
 
 	// Create player instance
 	let player = $state<Player | null>(null);
-	let responses = $state<ItemResponseMap>({});
+	let currentResponses = $state<ItemResponseMap>({});
 	let error = $state<string | null>(null);
 	let modalFeedback = $state<ModalFeedback[]>([]);
 	let outcomeValues = $state<Record<string, any>>({});
@@ -52,10 +63,10 @@
 	// Initialize player when XML changes
 	$effect(() => {
 		try {
-			player = new Player({ itemXml, role, security });
+			player = new Player({ itemXml, role, security, pnp, deliveryContext });
 			error = null;
 			// Reset state when XML changes
-			responses = {};
+			currentResponses = { ...responseValues };
 			modalFeedback = [];
 			outcomeValues = {};
 			isAdaptive = player.isAdaptive();
@@ -67,8 +78,12 @@
 		}
 	});
 
+	$effect(() => {
+		currentResponses = { ...responseValues };
+	});
+
 	function handleResponseChange(responseId: string, value: ItemResponseValue) {
-		responses = { ...responses, [responseId]: value };
+		currentResponses = { ...currentResponses, [responseId]: value };
 		onResponseChange?.(responseId, value);
 	}
 
@@ -77,7 +92,7 @@
 
 		try {
 			// Set responses in player
-			player.setResponses(responses);
+			player.setResponses(currentResponses);
 
 			// For adaptive items, use submitAttempt()
 			if (isAdaptive && !isCompleted) {
@@ -90,7 +105,7 @@
 				outcomeValues = result.outcomeValues || {};
 
 				// Notify parent
-				onSubmit?.(responses, result);
+				onSubmit?.(currentResponses, result);
 
 				// If completed, notify parent
 				if (result.completed && onComplete) {
@@ -101,7 +116,7 @@
 				const result = player.processResponses();
 				modalFeedback = result.modalFeedback || [];
 				outcomeValues = result.outcomeValues || {};
-				onSubmit?.(responses, result);
+				onSubmit?.(currentResponses, result);
 			}
 		} catch (e) {
 			error = e instanceof Error ? e.message : (i18n?.t('item.processingError') ?? 'item.processingError');
@@ -121,17 +136,18 @@
 	{:else if player}
 		<ItemBody
 			{player}
-			{responses}
+			responses={currentResponses}
 			{disabled}
 			{role}
 			typeset={effectiveTypeset}
 			{i18n}
+			{deliveryContext}
 			{outcomeValues}
 			onResponseChange={handleResponseChange}
 		/>
 
 		{#if role === 'candidate' && !disabled && onSubmit}
-			{@const canSubmit = player.canSubmitResponses(responses)}
+			{@const canSubmit = player.canSubmitResponses(currentResponses)}
 			<div class="mt-6 flex items-center gap-4">
 				<button
 					class="btn btn-primary"

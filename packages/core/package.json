@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/transform-core",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "Core transformation engine and plugin system for PIE Transform",
   "type": "module",
   "main": "./dist/index.js",

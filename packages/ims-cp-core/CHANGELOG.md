@@ -1,5 +1,13 @@
 # @pie-qti/ims-cp-core
 
+## 0.1.10
+
+### Patch Changes
+
+- Temporary release changeset: patch all publishable packages to keep lockstep versions.
+- Updated dependencies
+  - @pie-qti/logger@0.1.10
+
 ## 0.1.9
 
 ### Patch Changes

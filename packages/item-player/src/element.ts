@@ -11,10 +11,13 @@
 
 import { mount, unmount } from 'svelte';
 import ItemPlayer from './components/ItemPlayer.svelte';
+import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
 import type { AdaptiveAttemptResult, PlayerSecurityConfig, QTIRole } from './types/index.js';
 import type { I18nProvider } from '@pie-qti/i18n';
+import type { PnpProfile } from './pnp/types.js';
 
 const TAG = 'pie-qti-item-player';
+type ItemResponseMap = Record<string, unknown>;
 
 class PieQtiItemPlayerElement extends HTMLElement {
 	static observedAttributes = ['item-xml', 'role', 'disabled'];
@@ -31,11 +34,23 @@ class PieQtiItemPlayerElement extends HTMLElement {
 	#typeset: ((el: HTMLElement) => void) | undefined;
 	#i18n: I18nProvider | undefined;
 	#security: PlayerSecurityConfig | undefined;
+	#pnp: PnpProfile | undefined;
+	#deliveryContext: ResolvedItemDeliveryContext | undefined;
+	#responses: ItemResponseMap | undefined;
 	#onResponseChange: ((id: string, value: unknown) => void) | undefined;
 	#onSubmit: ((responses: Record<string, unknown>, result: unknown) => void) | undefined;
 	#onComplete: ((result: AdaptiveAttemptResult) => void) | undefined;
 
 	// --- JS-only property accessors ---
+
+	get itemXml() { return this.#itemXml; }
+	set itemXml(v: string | undefined) { this.#itemXml = v ?? ''; this.#update(); }
+
+	get role(): string | null { return this.#role; }
+	set role(v: string | null) { this.#role = (v ?? 'candidate') as QTIRole; this.#update(); }
+
+	get disabled() { return this.#disabled; }
+	set disabled(v: boolean | undefined) { this.#disabled = Boolean(v); this.#update(); }
 
 	get typeset() { return this.#typeset; }
 	set typeset(v: ((el: HTMLElement) => void) | undefined) { this.#typeset = v; this.#update(); }
@@ -45,6 +60,15 @@ class PieQtiItemPlayerElement extends HTMLElement {
 
 	get security() { return this.#security; }
 	set security(v: PlayerSecurityConfig | undefined) { this.#security = v; this.#update(); }
+
+	get pnp() { return this.#pnp; }
+	set pnp(v: PnpProfile | undefined) { this.#pnp = v; this.#update(); }
+
+	get deliveryContext() { return this.#deliveryContext; }
+	set deliveryContext(v: ResolvedItemDeliveryContext | undefined) { this.#deliveryContext = v; this.#update(); }
+
+	get responses() { return this.#responses; }
+	set responses(v: ItemResponseMap | undefined) { this.#responses = v; this.#update(); }
 
 	get onResponseChange() { return this.#onResponseChange; }
 	set onResponseChange(v: ((id: string, value: unknown) => void) | undefined) { this.#onResponseChange = v; this.#update(); }
@@ -82,6 +106,9 @@ class PieQtiItemPlayerElement extends HTMLElement {
 			typeset: this.#typeset,
 			i18n: this.#i18n,
 			security: this.#security,
+			pnp: this.#pnp,
+			deliveryContext: this.#deliveryContext,
+			responses: this.#responses,
 			onResponseChange: this.#onResponseChange,
 			onSubmit: this.#onSubmit,
 			onComplete: this.#onComplete,
