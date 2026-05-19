@@ -9,8 +9,8 @@
 
 import type { GraphicGapMatchInteractionData } from '@pie-qti/item-player';
 import type { I18nProvider } from '@pie-qti/i18n';
+import { touchDrag } from '@pie-qti/qti-common';
 import { createQtiChangeEvent } from '../../shared/utils/eventHelpers.js';
-import { touchDrag } from '../../shared/utils/touchDragHelper.js';
 import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
 
 import '../../shared/styles/shared.css';

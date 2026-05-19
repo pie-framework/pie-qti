@@ -5,7 +5,7 @@
  */
 
 import type { I18nProvider } from '@pie-qti/i18n';
-import { touchDrag } from '../utils/touchDragHelper.js';
+import { touchDrag } from '@pie-qti/qti-common';
 import DragHandle from './DragHandle.svelte';
 import '../styles/shared.css';
 

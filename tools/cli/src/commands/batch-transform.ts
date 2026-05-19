@@ -12,7 +12,7 @@
  */
 
 import { QtiToPiePlugin } from '@pie-qti/to-pie';
-import { extractZipToDirSafe, loadResolvedManifest } from '@pie-qti/to-pie/ims-cp';
+import { extractZipToDirSafe, loadResolvedManifest } from '@pie-qti/ims-cp-node';
 import * as fs from 'fs';
 import { parse as parseHtml } from 'node-html-parser';
 import * as path from 'path';

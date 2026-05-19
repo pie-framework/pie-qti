@@ -2,7 +2,6 @@
  * Utilities for QTI item component rendering
  */
 
-export { assignProps } from './assignProps.js';
 export {
 	cleanFeedbackText,
 	processFeedbackInline,

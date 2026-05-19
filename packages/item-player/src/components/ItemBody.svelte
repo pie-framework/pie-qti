@@ -16,7 +16,7 @@
 	import { processFeedbackInline } from './utils/feedbackUtils';
 	import { typesetAction } from './actions/typesetAction';
 	import { glossaryAction } from '../catalog/glossaryAction';
-	import { assignProps } from './utils/assignProps';
+	import { assignProps } from '@pie-qti/qti-common';
 	import { buildScopedStylesheetCss } from './utils/stylesheetRender';
 	import { buildEffectiveStimulusContent, injectStimulusContent } from './utils/stimulusRender';
 	import { getRoleCapabilities } from '../core/rolePolicy';

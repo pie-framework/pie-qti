@@ -592,7 +592,7 @@ AC-E10: Rapid successive drops on same hotspot
 - Component: `packages/default-components/src/plugins/graphic-gap-match/GraphicGapMatchInteraction.svelte`
 - Extractor: `packages/item-player/src/extraction/extractors/graphicGapMatchExtractor.ts`
 - Types: `packages/item-player/src/types/interactions.ts` — `GraphicGapMatchInteractionData`, `AssociableHotspot`
-- Touch drag action: `packages/default-components/src/shared/utils/touchDragHelper.ts` (re-export from `@pie-qti/qti-common`)
+- Touch drag action: `@pie-qti/qti-common` — `touchDrag`
 - Evals: `docs/evals/default-components/graphic-gap-match/evals.yaml`
 - Sample XML (spec-standard, uses gapImg): `packages/to-pie/tests/fixtures/qti-samples/graphic-interactions/graphic_gap_match.xml`
 - Sample XML (demo, uses gapText): `apps/demo/src/lib/sample-items.ts` (GRAPHIC_GAP_MATCH_SOLAR_SYSTEM)

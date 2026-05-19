@@ -3,7 +3,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { DOMParser } from '@xmldom/xmldom';
 import { createQtiParser, isQti3 } from '../parser-factory.js';
-import { getAttribute, getBooleanAttribute, getNumberAttribute } from '../xml/index.js';
+import { getAttribute, getBooleanAttribute, getNumberAttribute } from '../xml/attributes.js';
 
 function loadFixture(filename: string): string {
 	const path = join(__dirname, 'fixtures', filename);

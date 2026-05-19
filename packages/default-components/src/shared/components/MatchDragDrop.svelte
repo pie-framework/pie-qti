@@ -7,8 +7,8 @@
 
 import type { AssociableChoice } from '@pie-qti/item-player';
 import type { I18nProvider } from '@pie-qti/i18n';
+import { touchDrag } from '@pie-qti/qti-common';
 import { createOrUpdatePair, getSourceForTarget, getTargetsForSource, removePairBySource } from '../utils/pairHelpers.js';
-import { touchDrag } from '../utils/touchDragHelper.js';
 import { isCompatibleMatchGroup } from '../utils/matchGroupUtils.js';
 import DragHandle from './DragHandle.svelte';
 import '../styles/shared.css';

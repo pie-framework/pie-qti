@@ -22,6 +22,7 @@
     "@pie-qti/default-components": "workspace:*",
     "@pie-qti/demo-vendor-extensions": "workspace:*",
     "@pie-qti/i18n": "workspace:*",
+    "@pie-qti/ims-cp-node": "workspace:*",
     "@pie-qti/item-player": "workspace:*",
     "@pie-qti/player-elements": "workspace:*",
     "@pie-qti/qti-common": "workspace:*",

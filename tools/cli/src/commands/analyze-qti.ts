@@ -8,7 +8,7 @@
  * - Potential transformation issues
  */
 
-import { extractZipToDirSafe, loadResolvedManifest, type ResolvedManifest } from '@pie-qti/to-pie/ims-cp';
+import { extractZipToDirSafe, loadResolvedManifest, type ResolvedManifest } from '@pie-qti/ims-cp-node';
 import * as fs from 'fs';
 import type { HTMLElement } from 'node-html-parser';
 import { parse } from 'node-html-parser';

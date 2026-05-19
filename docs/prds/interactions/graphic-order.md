@@ -117,7 +117,7 @@ Coordinates are in the natural (un-scaled) image pixel space. When the image is 
 - **FR-3:** Display a numeric sequence badge (1-based) on each list item, updated live as the candidate reorders.
 - **FR-4:** Support mouse drag-and-drop reordering of list items.
 - **FR-5:** Support keyboard reordering: Tab to reach the list; Space/Enter to pick up an item; Arrow keys to move it; Space/Enter to drop; Escape to cancel.
-- **FR-6:** Support touch drag-and-drop reordering (via `touchDragHelper`).
+- **FR-6:** Support touch drag-and-drop reordering via the `touchDrag` action from `@pie-qti/qti-common`.
 - **FR-7:** On drag completion, auto-confirm the response and emit a `qti-change` CustomEvent with `{ responseIdentifier, value: string[] }` from the root element. The event must bubble.
 - **FR-8:** When the response has not been confirmed, show a "Confirm Order" button. Show "Confirm Order (No Changes)" if the candidate has not yet reordered from the default sequence.
 - **FR-9:** On button click, confirm the response and emit `qti-change`.
@@ -152,7 +152,7 @@ Coordinates are in the natural (un-scaled) image pixel space. When the image is 
 
 ### Cross-platform
 
-- Drag-and-drop must be operable via touch on iOS Safari and Chrome for Android using the `touchDragHelper` utility.
+- Drag-and-drop must be operable via touch on iOS Safari and Chrome for Android using the `touchDrag` action from `@pie-qti/qti-common`.
 - The layout must be usable on 375px viewport width (portrait phone) without horizontal scrolling.
 - The image container must scale down proportionally when the viewport is narrower than the image's natural width.
 

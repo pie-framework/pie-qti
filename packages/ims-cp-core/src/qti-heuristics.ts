@@ -17,7 +17,7 @@
  * @see https://www.imsglobal.org/question/ for QTI specifications
  */
 
-import type { Logger } from './utils/logger.js';
+import type { Logger } from '@pie-qti/logger';
 
 /**
  * Configuration for QTI content heuristics

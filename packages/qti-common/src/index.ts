@@ -20,10 +20,11 @@ export {
 	hasAttribute,
 	toCamelCase,
 	toKebabCase,
-} from './xml/index.js';
+} from './xml/attributes.js';
 
 // DOM utility helpers shared across player packages
-export { assignProps, type AssignPropsOptions, touchDrag, touchDragStyles } from './dom/index.js';
+export { assignProps, type AssignPropsOptions } from './dom/assignProps.js';
+export { touchDrag, touchDragStyles } from './dom/touchDrag.js';
 
 // Parser factory
 export {

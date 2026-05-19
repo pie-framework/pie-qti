@@ -6,8 +6,8 @@
  */
 
 import type { I18nProvider } from '@pie-qti/i18n';
+import { touchDrag } from '@pie-qti/qti-common';
 import { createOrUpdatePair, getSourceForTarget, getTargetForSource, removePairBySource } from '../utils/pairHelpers.js';
-import { touchDrag } from '../utils/touchDragHelper.js';
 import '../styles/shared.css';
 
 interface GapText {

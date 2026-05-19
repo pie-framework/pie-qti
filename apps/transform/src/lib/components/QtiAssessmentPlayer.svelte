@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { assignProps } from '../utils/assignProps';
+	import { assignProps } from '@pie-qti/qti-common';
 
 	const {
 		assessmentTestXml,

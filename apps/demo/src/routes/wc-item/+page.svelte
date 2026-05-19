@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { SAMPLE_ITEMS } from '$lib/sample-items';
 	import { getSecurityConfig } from '$lib/player-config';
-	import { assignProps } from '$lib/utils/assignProps';
+	import { assignProps } from '@pie-qti/qti-common';
 
 	let status = $state<'booting' | 'registering' | 'registered' | 'rendered' | 'error'>('booting');
 	let message = $state<string>('Starting…');

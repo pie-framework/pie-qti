@@ -111,7 +111,7 @@ The component is included via `<ShadowBaseStyles />` at the top of each interact
 
 - **Accessibility:** All interaction components must meet WCAG 2.2 Level AA. Keyboard navigation must follow ARIA patterns for the interaction type (radio group for single-choice, checkbox group for multiple-choice, etc.). Focus management must survive Svelte reactivity updates without losing focus. Touch targets must be at minimum 44×44 CSS pixels.
 - **Performance:** Components must not block the main thread during render. Math typesetting is deferred to `requestAnimationFrame` via `typesetAction`. Shadow DOM construction is handled by the browser natively. Components should not import large dependencies beyond what Vite tree-shakes.
-- **Cross-platform:** Must work on desktop (mouse + keyboard) and mobile (touch). `touchDragHelper` provides mobile-compatible drag support for drag-and-drop interactions.
+- **Cross-platform:** Must work on desktop (mouse + keyboard) and mobile (touch). The `touchDrag` action from `@pie-qti/qti-common` provides mobile-compatible drag support for drag-and-drop interactions.
 - **Security:** HTML content from QTI item bodies (prompts, choice text) is rendered via `{@html ...}`. The item player's sanitiser is responsible for cleaning this content before it reaches the component; components do not re-sanitise.
 - **i18n:** Component UI strings are sourced from the `I18nProvider` prop. All user-visible labels must go through `i18n.t(key)` with a hardcoded English fallback string.
 
