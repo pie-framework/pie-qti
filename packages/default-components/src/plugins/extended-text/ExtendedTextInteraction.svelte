@@ -4,6 +4,7 @@
 	import type { ExtendedTextInteractionData } from '@pie-qti/item-player';
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import RichTextEditor from '../../shared/components/RichTextEditor.svelte';
+	import { typesetAction } from '../../shared/actions/typesetAction';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
@@ -63,6 +64,11 @@
 	{#if !parsedInteraction}
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
+		{#if parsedInteraction.prompt}
+			<div part="prompt" class="qti-extended-text-prompt font-semibold" use:typesetAction={{ typeset }}>
+				{@html parsedInteraction.prompt}
+			</div>
+		{/if}
 		<div part="editor">
 			<RichTextEditor
 			value={parsedResponse || ''}
@@ -98,6 +104,18 @@
 	.qti-extended-text-interaction {
 		display: grid;
 		gap: 0.75rem;
+	}
+
+	.qti-extended-text-prompt {
+		line-height: 1.5;
+	}
+
+	.qti-extended-text-prompt :global(:first-child) {
+		margin-top: 0;
+	}
+
+	.qti-extended-text-prompt :global(:last-child) {
+		margin-bottom: 0;
 	}
 
 	/* QTI 3.0 Shared Vocabulary: qti-height-lines-N sets minimum textarea height.

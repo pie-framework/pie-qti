@@ -12,6 +12,7 @@ import type { ElementExtractor } from '../../extraction/types.js';
 export interface ExtendedTextData {
 	expectedLines: number;
 	expectedLength: number;
+	prompt: string | null;
 	placeholderText: string;
 	format: string;
 }
@@ -46,10 +47,12 @@ export const standardExtendedTextExtractor: ElementExtractor<ExtendedTextData> =
 		const patternMask = utils.getAttribute(element, 'patternMask', '') || null;
 		const patternMaskMessage = utils.getAttribute(element, 'patternMaskMessage', '') || null;
 		const interactionClasses = utils.getClasses(element);
+		const prompt = utils.getPrompt(element);
 
 		return {
 			expectedLines,
 			expectedLength,
+			prompt,
 			placeholderText,
 			format,
 			...(patternMask ? { patternMask } : {}),

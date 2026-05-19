@@ -173,6 +173,22 @@ describe('Player document characterization', () => {
 		expect(String(interaction.choices[0].text)).toContain('<span class="unit">meter</span>');
 	});
 
+	test('extracts extended text prompts for block renderers', () => {
+		const player = new Player({
+			itemXml: qti22Item(
+				`<extendedTextInteraction responseIdentifier="RESPONSE" expectedLines="5" expectedLength="500">
+					<prompt>Read the passage and <strong>explain</strong> your answer.</prompt>
+				</extendedTextInteraction>`,
+				`<responseDeclaration identifier="RESPONSE" cardinality="single" baseType="string"/>`
+			),
+		});
+
+		const [interaction] = player.getInteractionData() as any[];
+
+		expect(interaction.type).toBe('extendedTextInteraction');
+		expect(interaction.prompt).toContain('<strong>explain</strong>');
+	});
+
 	test('unwraps CDATA-wrapped item body XHTML before rendering and extraction', () => {
 		const player = new Player({
 			itemXml: qti22Item(

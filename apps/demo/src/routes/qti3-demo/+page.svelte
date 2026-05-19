@@ -1,22 +1,23 @@
 <script lang="ts">
+	import { registerDefaultComponents } from '@pie-qti/default-components';
+	// @ts-expect-error - Svelte-check can't resolve workspace subpath exports, but runtime works correctly
+	import { ItemBody } from '@pie-qti/item-player/components';
 	import { Player, type QTIRole } from '@pie-qti/item-player';
-	import type { InteractionResponseValue, QTIChangeEventDetail } from '@pie-qti/item-player/web-components';
+	import type { InteractionResponseValue } from '@pie-qti/item-player/web-components';
 	import { Qti3ElementNameMapper } from '@pie-qti/qti-common';
+	import { typesetMathInElement } from '@pie-qti/typeset-katex';
 	import { untrack } from 'svelte';
-	import { QTI3_SAMPLE_ITEMS, getQti3Categories, type Qti3SampleItem } from '$lib/sample-items-qti3';
+	import { QTI3_SAMPLE_ITEMS, getQti3Categories } from '$lib/sample-items-qti3';
 	import { getSecurityConfig } from '$lib/player-config';
-	import { assignProps } from '$lib/utils/assignProps';
 
 	type DemoResponseValue = InteractionResponseValue | null;
 	type DemoResponseMap = Record<string, DemoResponseValue>;
-	type QtiChangeDomEvent = CustomEvent<QTIChangeEventDetail<DemoResponseValue>>;
 
 	let selectedCategory = $state('core');
 	let selectedSampleId = $state('qti3-choice-simple');
 	let xmlContent = $state('');
 	let player = $state<Player | null>(null);
 	let interactions = $state<any[]>([]);
-	let itemBodyHtml = $state('');
 	let responses = $state<DemoResponseMap>({});
 	let selectedRole = $state<QTIRole>('candidate');
 	let error = $state<string | null>(null);
@@ -36,7 +37,6 @@
 		if (!xml.trim()) {
 			player = null;
 			interactions = [];
-			itemBodyHtml = '';
 			responses = {};
 			return;
 		}
@@ -49,21 +49,9 @@
 				security: getSecurityConfig(),
 				elementNameMapper: new Qti3ElementNameMapper(),
 			});
+			registerDefaultComponents(newPlayer.getComponentRegistry());
 
 			player = newPlayer;
-			let rawItemBodyHtml = player.getItemBodyHtml();
-
-			// Remove interaction elements from itemBodyHtml (QTI 3.0 element names)
-			rawItemBodyHtml = rawItemBodyHtml
-				.replace(/<qti-choice-interaction[\s\S]*?<\/qti-choice-interaction>/gi, '')
-				.replace(/<qti-text-entry-interaction[^>]*response-identifier="([^"]+)"[^>]*?(?:\/>|><\/qti-text-entry-interaction>)/gi, '[TEXTENTRY:$1]')
-				.replace(/<qti-extended-text-interaction[\s\S]*?<\/qti-extended-text-interaction>/gi, '')
-				.replace(/<qti-inline-choice-interaction[^>]*response-identifier="([^"]+)"[^>]*>[\s\S]*?<\/qti-inline-choice-interaction>/gi, '[INLINECHOICE:$1]')
-				.replace(/<qti-hotspot-interaction[\s\S]*?<\/qti-hotspot-interaction>/gi, '')
-				.replace(/<qti-match-interaction[\s\S]*?<\/qti-match-interaction>/gi, '')
-				.replace(/<qti-graphic-gap-match-interaction[\s\S]*?<\/qti-graphic-gap-match-interaction>/gi, '');
-
-			itemBodyHtml = rawItemBodyHtml;
 			interactions = newPlayer.getInteractionData();
 
 			const newResponses: DemoResponseMap = {};
@@ -77,7 +65,6 @@
 			error = err instanceof Error ? err.message : String(err);
 			player = null;
 			interactions = [];
-			itemBodyHtml = '';
 			responses = {};
 		}
 	}
@@ -93,25 +80,6 @@
 
 	function handleResponseChange(responseId: string, value: DemoResponseValue) {
 		responses = { ...responses, [responseId]: value };
-	}
-
-	function handleQtiChange(event: QtiChangeDomEvent) {
-		const { responseId, value } = event.detail;
-		handleResponseChange(responseId, value);
-	}
-
-	function setElementProps(node: HTMLElement, props: Record<string, unknown>) {
-		queueMicrotask(() => {
-			if (!node) return;
-			assignProps(node, props);
-		});
-
-		return {
-			update(next: Record<string, unknown>) {
-				assignProps(node, next);
-			},
-			destroy() {}
-		};
 	}
 
 	function submitResponses() {
@@ -219,53 +187,15 @@
 			<div class="card-body">
 				<h2 class="card-title">Item Preview</h2>
 
-				<!-- Item Body -->
-				<div class="prose max-w-none">
-					{@html itemBodyHtml}
+				<div class="qti-question-body">
+					<ItemBody
+						{player}
+						{responses}
+						role={selectedRole}
+						typeset={typesetMathInElement}
+						onResponseChange={handleResponseChange}
+					/>
 				</div>
-
-				<!-- Interactions -->
-				{#each interactions as interaction}
-					<div class="mt-4">
-						{#if interaction.type === 'qti-choice-interaction' || interaction.type === 'choiceInteraction'}
-							<pie-qti-choice-interaction
-								use:setElementProps={{
-									interaction,
-									response: responses[interaction.responseId],
-									onresponse: (e: QtiChangeDomEvent) => handleQtiChange(e)
-								}}
-							></pie-qti-choice-interaction>
-						{:else if interaction.type === 'qti-text-entry-interaction' || interaction.type === 'textEntryInteraction'}
-							<pie-qti-text-entry-interaction
-								use:setElementProps={{
-									interaction,
-									response: responses[interaction.responseId],
-									onresponse: (e: QtiChangeDomEvent) => handleQtiChange(e)
-								}}
-							></pie-qti-text-entry-interaction>
-						{:else if interaction.type === 'qti-extended-text-interaction' || interaction.type === 'extendedTextInteraction'}
-							<pie-qti-extended-text-interaction
-								use:setElementProps={{
-									interaction,
-									response: responses[interaction.responseId],
-									onresponse: (e: QtiChangeDomEvent) => handleQtiChange(e)
-								}}
-							></pie-qti-extended-text-interaction>
-						{:else if interaction.type === 'qti-match-interaction' || interaction.type === 'matchInteraction'}
-							<pie-qti-match-interaction
-								use:setElementProps={{
-									interaction,
-									response: responses[interaction.responseId],
-									onresponse: (e: QtiChangeDomEvent) => handleQtiChange(e)
-								}}
-							></pie-qti-match-interaction>
-						{:else}
-							<div class="alert alert-warning">
-								<span>Unsupported interaction type: {interaction.type}</span>
-							</div>
-						{/if}
-					</div>
-				{/each}
 
 				<!-- Submit Button -->
 				<div class="card-actions justify-end mt-6">
@@ -301,3 +231,12 @@
 		</div>
 	{/if}
 </div>
+
+<style>
+	.qti-question-body {
+		max-width: 100%;
+		min-width: 0;
+		overflow-x: auto;
+		overflow-y: visible;
+	}
+</style>

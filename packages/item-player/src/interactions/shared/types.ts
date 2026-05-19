@@ -50,6 +50,7 @@ export interface ExtendedTextInteractionData extends BaseInteractionData {
 	type: 'extendedTextInteraction';
 	expectedLines: number;
 	expectedLength: number;
+	prompt: string | null;
 	placeholderText: string;
 	format: string;
 	patternMask?: string | null;
