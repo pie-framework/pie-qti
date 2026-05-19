@@ -1,5 +1,4 @@
 <script lang="ts">
-	// @ts-expect-error - Svelte-check can't resolve workspace subpath exports, but runtime works correctly
 	import { ItemBody } from '@pie-qti/item-player/components';
 	import { Player, type PnpProfile } from '@pie-qti/item-player';
 	import type { InteractionResponseValue } from '@pie-qti/item-player/web-components';

@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { registerDefaultComponents } from '@pie-qti/default-components';
-	// @ts-expect-error - Svelte-check can't resolve workspace subpath exports, but runtime works correctly
 	import { ItemBody } from '@pie-qti/item-player/components';
 	import { Player, type QTIRole } from '@pie-qti/item-player';
 	import type { InteractionResponseValue } from '@pie-qti/item-player/web-components';

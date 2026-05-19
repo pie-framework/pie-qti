@@ -3,8 +3,9 @@
 </script>
 
 <script lang="ts">
-	import type { InteractionData } from '../types';
-	import type { Player } from '../core/Player';
+	import type { InteractionData, HtmlContent } from '../types';
+	import type { PnpProfile } from '../pnp/types';
+	import type { GlossaryPlayer } from '../catalog/applyGlossaryTriggers';
 	import type { InteractionResponseValue, QTIChangeEventDetail } from '../web-components';
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import {
@@ -27,8 +28,25 @@
 	type ItemResponseMap = Record<string, ItemResponseValue>;
 	type QtiChangeDomEvent = CustomEvent<QTIChangeEventDetail<ItemResponseValue>>;
 
+	interface ItemBodyComponentRegistry {
+		getTagName(interaction: InteractionData): string;
+		getTagNameForType(type: string): string | null;
+	}
+
+	interface ItemBodyPlayer extends GlossaryPlayer {
+		getComponentRegistry(): ItemBodyComponentRegistry;
+		getInteractionData(): InteractionData[];
+		getCorrectResponses(): Record<string, any>;
+		getItemBodyHtml(): HtmlContent;
+		getDeliveryContext(): ResolvedItemDeliveryContext | undefined;
+		sanitizeHtmlContent(html: string): string;
+		applyPnp(rootEl: HTMLElement): void;
+		getPnp(): PnpProfile | undefined;
+		onPnpChange?: (listener: () => void) => () => void;
+	}
+
 	interface Props {
-		player: Player;
+		player: ItemBodyPlayer;
 		responses?: ItemResponseMap;
 		disabled?: boolean;
 		role?: 'candidate' | 'scorer' | 'author' | 'tutor' | 'proctor' | 'testConstructor';

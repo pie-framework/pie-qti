@@ -1,8 +1,9 @@
-import type { Player } from '../core/Player.js';
-import { applyGlossaryTriggers } from './applyGlossaryTriggers.js';
+import { applyGlossaryTriggers, type GlossaryPlayer } from './applyGlossaryTriggers.js';
 
 export interface GlossaryActionParams {
-	player: Player;
+	player: GlossaryPlayer & {
+		onPnpChange?: (listener: () => void) => () => void;
+	};
 }
 
 /**

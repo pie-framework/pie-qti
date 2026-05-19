@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/player-elements",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "QTI (2.x and 3.0) player web components (custom elements) for framework-agnostic embedding",
   "type": "module",
   "main": "./dist/index.js",
@@ -48,11 +48,15 @@
   "publishConfig": {
     "access": "public"
   },
-  "sideEffects": false,
+  "sideEffects": [
+    "./dist/register.js"
+  ],
   "engines": {
     "node": ">=20.19.0"
   },
   "files": [
     "dist"
-  ]
+  ],
+  "unpkg": "./dist/register.js",
+  "jsdelivr": "./dist/register.js"
 }

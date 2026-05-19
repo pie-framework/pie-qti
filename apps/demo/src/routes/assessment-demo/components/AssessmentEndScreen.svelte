@@ -2,7 +2,6 @@
 	import type { AssessmentResults } from '@pie-qti/assessment-player';
 	import { registerDefaultComponents } from '@pie-qti/default-components';
 	import { typesetMathInElement } from '@pie-qti/typeset-katex';
-	// @ts-expect-error - Svelte-check can't resolve workspace subpath exports, but runtime works correctly
 	import { ItemBody } from '@pie-qti/item-player/components';
 	import { Player } from '@pie-qti/item-player';
 	import type { SampleAssessment } from '$lib/sample-assessments';

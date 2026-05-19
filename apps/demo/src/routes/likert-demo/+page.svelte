@@ -2,7 +2,6 @@
 	import { likertScalePlugin } from '@acme/likert-scale-plugin';
 	import '@pie-qti/default-components/plugins'; // Load web components
 	import { registerDefaultComponents } from '@pie-qti/default-components';
-	// @ts-expect-error - Svelte-check can't resolve workspace subpath exports, but runtime works correctly
 	import { ItemBody } from '@pie-qti/item-player/components';
 	import { Player } from '@pie-qti/item-player';
 	import type { InteractionResponseValue } from '@pie-qti/item-player/web-components';

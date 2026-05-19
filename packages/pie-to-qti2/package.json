@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/pie-to-qti2",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "PIE to QTI 2.2 transformation plugin",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -56,7 +56,9 @@
   "publishConfig": {
     "access": "public"
   },
-  "sideEffects": false,
+  "sideEffects": [
+    "./dist/generators/index.js"
+  ],
   "engines": {
     "node": ">=20.19.0"
   },
