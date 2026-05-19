@@ -26,6 +26,9 @@ const config = {
 					? '/examples'
 					: ''
 		},
+		alias: {
+			'@pie-qti/item-player/components': '../../packages/item-player/src/components/index.ts'
+		},
 		prerender: {
 			handleMissingId: 'warn',
 			handleUnseenRoutes: 'ignore' // Ignore dynamic routes like /a11y-components/[fixture]

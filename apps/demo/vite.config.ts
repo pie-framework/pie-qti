@@ -1,5 +1,6 @@
 import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
@@ -9,6 +10,13 @@ export default defineConfig({
 		tailwindcss({ optimize: false }),
 		sveltekit(),
 	],
+	resolve: {
+		alias: {
+			'@pie-qti/item-player/components': fileURLToPath(
+				new URL('../../packages/item-player/src/components/index.ts', import.meta.url),
+			),
+		},
+	},
 	server: {
 		port: 5200,
 		fs: {

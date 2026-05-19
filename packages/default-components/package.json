@@ -1,12 +1,12 @@
 {
   "name": "@pie-qti/default-components",
-  "version": "0.1.7",
+  "version": "0.1.10",
   "description": "Default Svelte-based component implementations for QTI (2.x and 3.0) player",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && vite build",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
     "check": "svelte-check --tsconfig ./tsconfig.json",
@@ -44,7 +44,9 @@
     "@types/node": "^25.0.3",
     "svelte": "^5.54.0",
     "svelte-check": "^4.3.5",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "@sveltejs/vite-plugin-svelte": "^7.0.0",
+    "vite": "^8.0.10"
   },
   "exports": {
     ".": {
@@ -57,9 +59,9 @@
       "default": "./src/shared/components/MathContent.svelte"
     },
     "./plugins": {
-      "svelte": "./src/plugins/index.ts",
-      "import": "./src/plugins/index.ts",
-      "default": "./src/plugins/index.ts"
+      "types": "./dist/plugins/index.d.ts",
+      "import": "./dist/plugins.js",
+      "default": "./dist/plugins.js"
     },
     "./shared": {
       "types": "./dist/shared/index.d.ts",
@@ -108,12 +110,20 @@
   "publishConfig": {
     "access": "public"
   },
-  "sideEffects": false,
+  "sideEffects": [
+    "./dist/plugins.js",
+    "./src/plugins/index.ts",
+    "./src/plugins/**/*.svelte",
+    "./src/catalog/*.svelte",
+    "./src/shared/styles/*.css"
+  ],
   "engines": {
     "node": ">=20.19.0"
   },
   "files": [
     "dist",
     "src"
-  ]
+  ],
+  "unpkg": "./dist/plugins.js",
+  "jsdelivr": "./dist/plugins.js"
 }

@@ -28,6 +28,23 @@ npm install @pie-qti/item-player
 
 ## Quick Start
 
+### Web Component Host Integration
+
+For browser applications, the public rendering boundary is the custom element:
+
+```typescript
+import '@pie-qti/default-components/plugins';
+import '@pie-qti/item-player/element';
+```
+
+```html
+<pie-qti-item-player item-xml="<assessmentItem ...></assessmentItem>" role="author"></pie-qti-item-player>
+```
+
+The package does not require hosts to import Svelte components. Internal Svelte
+components are compiled into the custom element bundle and are not part of the
+public package contract.
+
 ### Core Player (Framework-Agnostic)
 
 ```typescript

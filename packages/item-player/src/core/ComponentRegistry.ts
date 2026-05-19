@@ -65,6 +65,29 @@ interface RegisteredComponent<TData extends InteractionData = InteractionData> {
 	};
 }
 
+const DEFAULT_COMPONENT_TAGS_BY_TYPE = {
+	choiceInteraction: { name: 'default-choice', tagName: 'pie-qti-choice' },
+	sliderInteraction: { name: 'default-slider', tagName: 'pie-qti-slider' },
+	orderInteraction: { name: 'default-order', tagName: 'pie-qti-order' },
+	matchInteraction: { name: 'default-match', tagName: 'pie-qti-match' },
+	associateInteraction: { name: 'default-associate', tagName: 'pie-qti-associate' },
+	gapMatchInteraction: { name: 'default-gap-match', tagName: 'pie-qti-gap-match' },
+	hotspotInteraction: { name: 'default-hotspot', tagName: 'pie-qti-hotspot' },
+	hottextInteraction: { name: 'default-hottext', tagName: 'pie-qti-hottext' },
+	mediaInteraction: { name: 'default-media', tagName: 'pie-qti-media' },
+	customInteraction: { name: 'default-custom', tagName: 'pie-qti-custom' },
+	endAttemptInteraction: { name: 'default-end-attempt', tagName: 'pie-qti-end-attempt' },
+	positionObjectInteraction: { name: 'default-position-object', tagName: 'pie-qti-position-object' },
+	graphicGapMatchInteraction: { name: 'default-graphic-gap-match', tagName: 'pie-qti-graphic-gap-match' },
+	graphicOrderInteraction: { name: 'default-graphic-order', tagName: 'pie-qti-graphic-order' },
+	graphicAssociateInteraction: { name: 'default-graphic-associate', tagName: 'pie-qti-graphic-associate' },
+	selectPointInteraction: { name: 'default-select-point', tagName: 'pie-qti-select-point' },
+	extendedTextInteraction: { name: 'default-extended-text', tagName: 'pie-qti-extended-text' },
+	uploadInteraction: { name: 'default-upload', tagName: 'pie-qti-upload' },
+	drawingInteraction: { name: 'default-drawing', tagName: 'pie-qti-drawing' },
+	catalogPopup: { name: 'default-catalog-popup', tagName: 'pie-qti-catalog-popup' },
+} satisfies Record<string, { name: string; tagName: string }>;
+
 /**
  * Registry for web components that render QTI interactions
  */
@@ -224,7 +247,27 @@ export class ComponentRegistry {
  * Create a new component registry
  */
 export function createComponentRegistry(): ComponentRegistry {
-	return new ComponentRegistry();
+	const registry = new ComponentRegistry();
+	registerDefaultComponentTags(registry);
+	return registry;
+}
+
+/**
+ * Register the default QTI interaction tag names without importing their implementations.
+ *
+ * Hosts still choose the implementation bundle, typically by importing
+ * `@pie-qti/default-components/plugins` in the browser. Keeping only tag metadata here lets
+ * the item-player custom element remain the public rendering boundary without depending on
+ * Svelte-authored default components.
+ */
+export function registerDefaultComponentTags(registry: ComponentRegistry): void {
+	for (const [type, component] of Object.entries(DEFAULT_COMPONENT_TAGS_BY_TYPE)) {
+		registry.register(type, {
+			...component,
+			description: `Default web component tag for ${type}`,
+			priority: -100,
+		});
+	}
 }
 
 /**

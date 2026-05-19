@@ -45,6 +45,18 @@ Developer guide for building vendor-specific transform plugins. Includes:
 **Status:** Active developer guide
 **Last Updated:** 2025-12-31
 
+### [SOURCE-PROFILES.md](./SOURCE-PROFILES.md)
+
+Architecture and authoring guide for QTI source profiles. Covers:
+
+- Package and item profile detection
+- Handler, decorator, fallback, and diagnostic patterns
+- Stable sidecar and conversion trace expectations
+- Current built-in source profiles
+
+**Status:** Active developer guide
+**Last Updated:** 2026-05-15
+
 ### Other active docs in this folder
 
 - `QTI_techguide.md` (technical reference — covers QTI 2.1, 2.2, and 3.0)

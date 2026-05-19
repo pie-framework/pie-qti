@@ -1,6 +1,9 @@
 # Vendor Transform Plugin Developer Guide
 
-This guide provides comprehensive instructions for building vendor-specific transform plugins for the PIE-QTI framework. Vendor plugins allow you to handle proprietary QTI extensions and transformations specific to your assessment vendor.
+This guide provides comprehensive instructions for building vendor-specific transform plugins for the PIE-QTI framework. Vendor plugins allow you to replace or wrap transform pipelines for proprietary formats and independent transform packages.
+
+> [!NOTE]
+> For package-aware QTI -> PIE imports, prefer source profiles for source detection, metadata extraction, sidecars, diagnostics, and composable item handling. See [QTI Source Profiles](./SOURCE-PROFILES.md). Full vendor plugins are a lower-level escape hatch for independent formats or cases that truly need to replace the generic pipeline. Host policy such as CDN/S3 URLs, private standards crosswalks, and publish destinations belongs in the host application, not in reusable `pie-qti` source profiles.
 
 ## Table of Contents
 

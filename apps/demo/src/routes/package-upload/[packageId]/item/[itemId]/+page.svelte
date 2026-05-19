@@ -7,7 +7,6 @@
 	import { Player, normalizeHeuristicsConfig, shouldAutoPopulateFeedbackOutcome, type QtiHeuristicsConfig } from '@pie-qti/item-player';
 	import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
 	import type { InteractionResponseValue } from '@pie-qti/item-player/web-components';
-	// @ts-expect-error - Svelte-check can't resolve workspace subpath exports, but runtime works correctly
 	import { ItemBody } from '@pie-qti/item-player/components';
 	import { registerDefaultComponents } from '@pie-qti/default-components';
 	import { typesetAction } from '@pie-qti/default-components/shared';

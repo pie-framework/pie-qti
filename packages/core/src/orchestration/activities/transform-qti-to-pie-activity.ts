@@ -4,7 +4,7 @@
  * Core transformation activity that converts QTI content to PIE format
  */
 
-import type { Activity, TransformPlugin, TransformInput, TransformContext, TransformFormat } from '@pie-qti/transform-types';
+import type { Activity, TransformPlugin, TransformInput, TransformContext, TransformFormat, TransformMetadata } from '@pie-qti/transform-types';
 import type { VendorInfo } from './detect-vendor-activity.js';
 
 export interface TransformQtiToPieInput {
@@ -19,6 +19,7 @@ export interface TransformQtiToPieInput {
 export interface TransformQtiToPieOutput {
   pieConfig: unknown;
   warnings: unknown[];
+  metadata: TransformMetadata;
 }
 
 /**
@@ -49,6 +50,7 @@ export const TransformQtiToPieActivity: Activity<TransformQtiToPieInput, Transfo
       return {
         pieConfig: result.items.length === 1 ? result.items[0] : result.items,
         warnings: result.warnings || [],
+        metadata: result.metadata,
       };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);

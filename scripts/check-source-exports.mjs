@@ -11,6 +11,7 @@ const readJson = (filePath) => JSON.parse(readFileSync(filePath, "utf8"));
 
 const policy = existsSync(POLICY_PATH) ? readJson(POLICY_PATH) : {};
 const allowedSourceExportPackages = new Set(policy.allowedSourceExportPackages ?? []);
+const forbiddenPackageExports = policy.forbiddenPackageExports ?? {};
 
 const getWorkspaceDirs = () => {
 	const rootPkg = readJson(ROOT_PACKAGE_JSON);
@@ -61,6 +62,21 @@ for (const dir of getWorkspaceDirs()) {
 	const name = pkg.name || path.basename(dir);
 	const targets = new Set();
 	collectTargets(pkg.exports, targets);
+	const exportKeys =
+		pkg.exports && typeof pkg.exports === "object" && !Array.isArray(pkg.exports)
+			? Object.keys(pkg.exports)
+			: [];
+
+	const forbiddenExports = forbiddenPackageExports[name] ?? [];
+	for (const exportKey of forbiddenExports) {
+		if (exportKeys.includes(exportKey)) {
+			violations.push({
+				name,
+				dir,
+				sourceTargets: [`forbidden export ${exportKey}`],
+			});
+		}
+	}
 
 	const sourceTargets = [...targets]
 		.filter((target) => typeof target === "string" && target.startsWith("./src/"))

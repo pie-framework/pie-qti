@@ -1,5 +1,5 @@
-import type { Player } from '../core/Player.js';
 import type { CatalogSupportPreference } from '../pnp/types.js';
+import type { PnpProfile } from '../pnp/types.js';
 
 const PLATFORM_USAGES = [
 	{ usage: 'tts-pronunciation', flag: 'ttsPronunciation', label: 'Request pronunciation', text: 'P' },
@@ -25,6 +25,21 @@ interface HostCatalogSupport {
 	languageCode?: string;
 }
 
+interface CatalogComponentRegistry {
+	getTagNameForType(type: string): string | null;
+}
+
+export interface GlossaryPlayer {
+	getPnp(): PnpProfile | undefined;
+	getCatalogEntry(
+		idref: string,
+		usage: string,
+		lang?: string,
+		options?: { stimulusIdentifier?: string }
+	): string | null;
+	getComponentRegistry(): CatalogComponentRegistry;
+}
+
 /**
  * Inject glossary/keyword-translation trigger buttons into a rendered item container.
  *
@@ -37,7 +52,7 @@ interface HostCatalogSupport {
  * audio-description) the player fires a `qti-catalog-lookup` CustomEvent instead of
  * mounting a popup — the host application handles those usages.
  */
-export function applyGlossaryTriggers(container: HTMLElement, player: Player): () => void {
+export function applyGlossaryTriggers(container: HTMLElement, player: GlossaryPlayer): () => void {
 	cleanupGlossaryTriggers(container);
 	const pnp = player.getPnp();
 	if (!pnp) return () => cleanupGlossaryTriggers(container);
@@ -178,7 +193,7 @@ function addHostCatalogSupportButton(
 	termEl: HTMLElement,
 	idref: string,
 	support: HostCatalogSupport,
-	player: Player,
+	player: GlossaryPlayer,
 	stimulusIdentifier?: string
 ): void {
 	const html = player.getCatalogEntry(idref, support.usage, support.languageCode, { stimulusIdentifier });
@@ -254,7 +269,7 @@ function mountPopup(
 	label: string,
 	html: string,
 	triggerBtn: HTMLButtonElement,
-	player: Player,
+	player: GlossaryPlayer,
 	onClose: () => void
 ): () => void {
 	const registry = player.getComponentRegistry();

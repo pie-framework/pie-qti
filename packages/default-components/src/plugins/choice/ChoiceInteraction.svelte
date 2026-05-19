@@ -142,6 +142,10 @@
 <ShadowBaseStyles />
 
 <div bind:this={rootElement} part="root" class={['qti-choice-interaction space-y-2', ...(parsedInteraction?.interactionClasses ?? [])].join(' ')} use:typesetAction={{ typeset }}>
+	{#if parsedInteraction?.prompt}
+		<div part="prompt" class="qti-choice-prompt font-semibold">{@html parsedInteraction.prompt}</div>
+	{/if}
+
 	{#if !parsedInteraction}
 		<div class="alert alert-error">{i18n?.t('common.errorNoData') ?? 'No interaction data provided'}</div>
 	{:else if parsedInteraction.maxChoices === 1}
@@ -242,6 +246,9 @@
 	.qti-choice-interaction {
 		display: grid;
 		gap: 0.5rem;
+	}
+	.qti-choice-prompt {
+		margin: 0 0 0.25rem;
 	}
 	.qti-choice-option {
 		display: block;

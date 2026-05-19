@@ -53,4 +53,16 @@ test.describe('public QTI certification browser coverage', () => {
 		await page.locator('#sample-select').selectOption('math-inline');
 		await expect(page.locator('.katex').first()).toBeVisible({ timeout: 10000 });
 	});
+
+	test('renders QTI 2 and QTI 3 choice prompts through the item player', async ({ page }) => {
+		await page.goto('/fixtures/item-player');
+		const qti2Choice = page.locator('pie-qti-choice').first();
+		await expect(qti2Choice).toBeVisible({ timeout: 10000 });
+		await expect(qti2Choice.locator('[part="prompt"]')).toContainText('Select the correct answer:');
+
+		await page.goto('/qti3-demo');
+		const qti3Choice = page.locator('pie-qti-choice').first();
+		await expect(qti3Choice).toBeVisible({ timeout: 10000 });
+		await expect(qti3Choice.locator('[part="prompt"]')).toContainText('Select the correct answer:');
+	});
 });

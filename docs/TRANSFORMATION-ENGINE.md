@@ -27,6 +27,7 @@ The PIE-QTI transformation framework provides a flexible, plugin-based architect
 - **Format Agnostic** — Support for multiple source and target formats
 - **Asset Resolution** — Handle vendor-specific asset URLs and CDN integration
 - **Vendor Extensions** — Custom transformers for proprietary QTI extensions
+- **Source Profiles** — Scored, traceable detection of real-world QTI sources with composable item handlers, decorators, fallback policy, package sidecars, and structured conversion trace (see [SOURCE-PROFILES.md](SOURCE-PROFILES.md))
 - **Storage Abstraction** — Pluggable storage backends (filesystem, S3, database)
 
 ### Architecture Diagram
@@ -40,6 +41,8 @@ The diagram illustrates:
 - **Transform Plugins** — Format-specific transformers (QTI→PIE, PIE→QTI)
 - **Vendor Extensions** — Custom plugins for vendor-specific content
 - **Storage Backends** — Abstraction for file storage (local, S3, etc.)
+
+For the dedicated QTI → PIE extension surface introduced for real-world third-party imports (source profiles, item handlers, decorators, fallback policy, package sidecars, conversion trace), see the diagram in [SOURCE-PROFILES.md](SOURCE-PROFILES.md).
 
 ---
 
@@ -77,6 +80,8 @@ The diagram illustrates:
 │  │  - Custom transformers                               │  │
 │  │  - Asset resolvers                                   │  │
 │  │  - Vendor-specific handlers                          │  │
+│  │  - Source profiles, item handlers, decorators        │  │
+│  │  - Built-in transform registry (QtiToPieRegistry)    │  │
 │  │  - Response processing extensions                    │  │
 │  └──────────────────────────────────────────────────────┘  │
 │                          │                                   │
@@ -464,7 +469,39 @@ export class AcmeCDNResolver implements AssetResolver {
 }
 ```
 
-### 4. Storage Backends
+### 4. Source Profiles (preferred for QTI → PIE imports)
+
+Source profiles target the specific extension surface that real-world QTI imports need: scored detection at package and item level, composable item handlers that can delegate to built-in transforms, decorators that patch the generic PIE model, structured fallback policy and diagnostics, package sidecars, and a `ConversionTrace` of every decision.
+
+**Use Cases:**
+
+- Recognise a known source/vintage of QTI and apply tailored handling. Generic source-neutral profiles can live in `@pie-qti/source-profiles`; partner/publisher profiles should live in host packages and register through the same API.
+- Replace built-in interaction transforms for proprietary item types — or delegate back to a built-in handler via `delegate.continue()` and only adjust outputs through decorators.
+- Fail closed (`fallbackPolicy: 'block-generic'`) for proprietary content that would otherwise produce a lossy generic conversion.
+- Emit package-level sidecars (source XML, catalogs, rubrics, stylesheets, assets) with stable IDs and inferred MIME types.
+- Expose source-profile matches, source diagnostics, and conversion trace through `result.metadata` so host applications can show "which extension fired and why".
+
+**Example:**
+
+```typescript
+import { transformQtiPackageToPie } from '@pie-qti/to-pie';
+import { defaultSourceProfiles } from '@pie-qti/source-profiles';
+
+const result = await transformQtiPackageToPie(input, {
+  sourceProfiles: [...defaultSourceProfiles, myCustomProfile],
+});
+
+result.metadata.sourceProfiles;        // matched profiles (package-level)
+result.metadata.sourceDiagnostics;     // structured diagnostics (info/warn/error)
+result.metadata.conversionTrace;       // ordered trace events
+result.sidecars;                       // source XML, catalogs, rubrics, assets, ...
+```
+
+See [SOURCE-PROFILES.md](SOURCE-PROFILES.md) for the full authoring reference (detection, item handlers, decorators, fallback policy, sidecars, conversion trace) and the architecture diagram. The five vendor hooks above remain available for whole-pipeline replacement, asset URL rewriting, CSS-class interception, and vendor-keyed metadata extraction.
+
+---
+
+### 5. Storage Backends
 
 Implement custom storage for packages and transformed content.
 

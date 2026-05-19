@@ -1,5 +1,38 @@
 # @pie-qti/test-utils
 
+## 0.1.10
+
+### Patch Changes
+
+- Temporary release changeset: patch all publishable packages to keep lockstep versions.
+- Updated dependencies
+  - @pie-qti/logger@0.1.10
+  - @pie-qti/storage@0.1.10
+  - @pie-qti/transform-core@0.1.10
+  - @pie-qti/transform-types@0.1.10
+
+## 0.1.9
+
+### Patch Changes
+
+- Temporary release changeset: patch all publishable packages to keep lockstep versions.
+- Updated dependencies
+  - @pie-qti/logger@0.1.9
+  - @pie-qti/storage@0.1.9
+  - @pie-qti/transform-core@0.1.9
+  - @pie-qti/transform-types@0.1.9
+
+## 0.1.8
+
+### Patch Changes
+
+- Temporary release changeset: patch all publishable packages to keep lockstep versions.
+- Updated dependencies
+  - @pie-qti/logger@0.1.8
+  - @pie-qti/storage@0.1.8
+  - @pie-qti/transform-core@0.1.8
+  - @pie-qti/transform-types@0.1.8
+
 ## 0.1.7
 
 ### Patch Changes
