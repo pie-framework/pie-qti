@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/ims-cp-core",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Core IMS Content Package manifest parsing utilities (browser + Node.js)",
   "type": "module",
   "main": "./dist/index.js",

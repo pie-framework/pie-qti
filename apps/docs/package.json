@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/app-docs",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "PIE-QTI Documentation Site",
   "type": "module",
   "private": true,

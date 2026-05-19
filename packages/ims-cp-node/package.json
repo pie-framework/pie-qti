@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/ims-cp-node",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Node.js-specific IMS Content Package utilities for server-side QTI processing",
   "type": "module",
   "main": "./dist/index.js",
