@@ -111,7 +111,19 @@ export interface SerializedItemSessionState {
 	savedAt: string;
 }
 
-export type ItemSessionAction = 'suspendAttempt' | 'endAttempt' | 'scoreAttempt' | 'newTemplate';
+export type ItemSessionAction =
+	| 'suspendAttempt'
+	| 'endAttempt'
+	| 'scoreAttempt'
+	| 'newTemplate'
+	| 'submitAttempt';
+
+export type ItemSessionActionCommand =
+	| { action: 'suspendAttempt' }
+	| { action: 'endAttempt'; countAttempt?: boolean; validateResponses?: boolean }
+	| { action: 'scoreAttempt' }
+	| { action: 'newTemplate'; resetResponses?: boolean }
+	| { action: 'submitAttempt'; countAttempt?: boolean };
 
 export interface ItemSessionActionResult {
 	action: ItemSessionAction;

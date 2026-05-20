@@ -43,6 +43,8 @@ import type {
 	AdaptiveAttemptResult,
 	CompletionStatus,
 	HtmlContent,
+	ItemSessionAction,
+	ItemSessionActionCommand,
 	ItemLifecycleStatus,
 	ItemSessionActionResult,
 	ItemSessionState,
@@ -414,78 +416,74 @@ export class Player {
 	}
 
 	public suspendAttempt(): ItemSessionActionResult {
-		const validation = this.validateResponses(this.getResponses());
-		this.lifecycleStatus = 'suspended';
-		const sessionState = this.saveItemSession();
-
-		return {
-			action: 'suspendAttempt',
-			lifecycleStatus: this.lifecycleStatus,
-			completionStatus: this.getCompletionStatus(),
-			numAttempts: this.getNumAttempts(),
-			duration: sessionState.duration,
-			completed: this.isCompleted(),
-			sessionState,
-			validation,
-		};
+		return this.runItemSessionAction({ action: 'suspendAttempt' });
 	}
 
 	public endAttempt(options: { countAttempt?: boolean; validateResponses?: boolean } = {}): ItemSessionActionResult {
+		return this.runItemSessionAction({ action: 'endAttempt', ...options });
+	}
+
+	public scoreAttempt(): ItemSessionActionResult {
+		return this.runItemSessionAction({ action: 'scoreAttempt' });
+	}
+
+	public newTemplate(options: { resetResponses?: boolean } = {}): ItemSessionActionResult {
+		return this.runItemSessionAction({ action: 'newTemplate', ...options });
+	}
+
+	public runItemSessionAction(command: ItemSessionActionCommand): ItemSessionActionResult {
+		switch (command.action) {
+			case 'suspendAttempt':
+				return this.runSuspendAttemptAction();
+			case 'endAttempt':
+				return this.runEndAttemptAction(command);
+			case 'scoreAttempt':
+				return this.runScoreAttemptAction();
+			case 'newTemplate':
+				return this.runNewTemplateAction(command);
+			case 'submitAttempt':
+				return this.runSubmitAttemptAction(command.countAttempt ?? true);
+		}
+	}
+
+	private runSuspendAttemptAction(): ItemSessionActionResult {
+		const validation = this.validateResponses(this.getResponses());
+		this.lifecycleStatus = 'suspended';
+		const sessionState = this.saveItemSession();
+		return this.createItemSessionActionResult('suspendAttempt', sessionState, { validation });
+	}
+
+	private runEndAttemptAction(options: { countAttempt?: boolean; validateResponses?: boolean }): ItemSessionActionResult {
 		const validate = options.validateResponses ?? false;
 		const validation = validate ? this.validateResponses(this.getResponses()) : undefined;
 		if (validation && !validation.valid) {
-			const sessionState = this.saveItemSession();
-			return {
-				action: 'endAttempt',
-				lifecycleStatus: this.lifecycleStatus,
-				completionStatus: this.getCompletionStatus(),
-				numAttempts: this.getNumAttempts(),
-				duration: sessionState.duration,
-				completed: this.isCompleted(),
-				sessionState,
-				validation,
-			};
+			return this.createItemSessionActionResult('endAttempt', this.saveItemSession(), { validation });
 		}
 
 		const scoring = this.isAdaptive()
-			? this.submitAttempt(options.countAttempt ?? true)
+			? this.runAdaptiveSubmitAttempt(options.countAttempt ?? true)
 			: this.runResponseProcessing({
 					finalizeNonAdaptiveAttempt: true,
 					countAttempt: options.countAttempt ?? true,
 				});
 		this.lifecycleStatus = scoring.completed ? 'closed' : 'interacting';
-		const sessionState = this.saveItemSession();
 
-		return {
-			action: 'endAttempt',
-			lifecycleStatus: this.lifecycleStatus,
-			completionStatus: this.getCompletionStatus(),
-			numAttempts: this.getNumAttempts(),
-			duration: sessionState.duration,
+		return this.createItemSessionActionResult('endAttempt', this.saveItemSession(), {
 			completed: scoring.completed,
-			sessionState,
 			validation,
 			scoring,
-		};
+		});
 	}
 
-	public scoreAttempt(): ItemSessionActionResult {
+	private runScoreAttemptAction(): ItemSessionActionResult {
 		const scoring = this.runResponseProcessing({ finalizeNonAdaptiveAttempt: false });
-		const sessionState = this.saveItemSession();
-
-		return {
-			action: 'scoreAttempt',
-			lifecycleStatus: this.lifecycleStatus,
-			completionStatus: this.getCompletionStatus(),
-			numAttempts: this.getNumAttempts(),
-			duration: sessionState.duration,
+		return this.createItemSessionActionResult('scoreAttempt', this.saveItemSession(), {
 			completed: scoring.completed,
-			sessionState,
 			scoring,
-		};
+		});
 	}
 
-	public newTemplate(options: { resetResponses?: boolean } = {}): ItemSessionActionResult {
+	private runNewTemplateAction(options: { resetResponses?: boolean }): ItemSessionActionResult {
 		this.resetOutcomesToDefault();
 		if (options.resetResponses ?? true) {
 			this.resetResponsesToDefault();
@@ -498,16 +496,37 @@ export class Player {
 		this.accumulatedDurationMs = 0;
 		this.sessionStartedAt = Date.now();
 		this.updateDuration();
-		const sessionState = this.serializeItemSession();
 
+		return this.createItemSessionActionResult('newTemplate', this.serializeItemSession());
+	}
+
+	private runSubmitAttemptAction(countAttempt: boolean): ItemSessionActionResult {
+		const scoring = this.runAdaptiveSubmitAttempt(countAttempt);
+		return this.createItemSessionActionResult('submitAttempt', this.saveItemSession(), {
+			completed: scoring.completed,
+			scoring,
+		});
+	}
+
+	private createItemSessionActionResult(
+		action: ItemSessionAction,
+		sessionState: SerializedItemSessionState,
+		options: {
+			completed?: boolean;
+			validation?: ResponseValidationResult;
+			scoring?: ScoringResult;
+		} = {}
+	): ItemSessionActionResult {
 		return {
-			action: 'newTemplate',
+			action,
 			lifecycleStatus: this.lifecycleStatus,
 			completionStatus: this.getCompletionStatus(),
 			numAttempts: this.getNumAttempts(),
 			duration: sessionState.duration,
-			completed: this.isCompleted(),
+			completed: options.completed ?? this.isCompleted(),
 			sessionState,
+			validation: options.validation,
+			scoring: options.scoring,
 		};
 	}
 
@@ -791,6 +810,11 @@ export class Player {
 	}
 
 	public submitAttempt(countAttempt: boolean = true): AdaptiveAttemptResult {
+		const result = this.runItemSessionAction({ action: 'submitAttempt', countAttempt });
+		return result.scoring as AdaptiveAttemptResult;
+	}
+
+	private runAdaptiveSubmitAttempt(countAttempt: boolean = true): AdaptiveAttemptResult {
 		if (this.isCompleted()) {
 			throw new Error('Cannot submit: item is already completed');
 		}
