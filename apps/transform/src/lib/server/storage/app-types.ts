@@ -3,6 +3,17 @@
  * Extends core storage types with app-specific metadata
  */
 
+import type {
+	ConversionTrace,
+	QtiSourceProfile,
+	SidecarArtifact,
+	SourceProfileDiagnostic,
+	SourceProfileMatch,
+} from '@pie-qti/transform-types';
+import type {
+	QtiPackageItemTransformResult,
+	QtiPackageTransformResult as QtiPackageNativeTransformResult,
+} from '@pie-qti/to-pie';
 import type { Session } from '@pie-qti/transform-types';
 
 /**
@@ -97,6 +108,15 @@ export interface TransformationSummary {
  */
 export interface PackageTransformResult {
 	packageName: string;
+	packageId?: string;
+	qtiVersion?: QtiPackageNativeTransformResult['qtiVersion'];
+	packageEvidence?: QtiPackageNativeTransformResult['packageEvidence'];
+	itemResults?: QtiPackageItemTransformResult[];
+	sidecars?: SidecarArtifact[];
+	sourceProfiles?: SourceProfileMatch[];
+	sourceDiagnostics?: SourceProfileDiagnostic[];
+	sourceProfileDefinitions?: QtiSourceProfile[];
+	conversionTrace?: ConversionTrace;
 	items: TransformedItem[];
 	errors: TransformError[];
 }

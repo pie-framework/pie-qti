@@ -116,6 +116,7 @@
         "@pie-qti/default-components": "workspace:*",
         "@pie-qti/demo-vendor-extensions": "workspace:*",
         "@pie-qti/i18n": "workspace:*",
+        "@pie-qti/ims-cp-core": "workspace:*",
         "@pie-qti/ims-cp-node": "workspace:*",
         "@pie-qti/item-player": "workspace:*",
         "@pie-qti/player-elements": "workspace:*",
@@ -449,6 +450,7 @@
       "version": "0.1.10",
       "dependencies": {
         "@pie-qti/ims-cp-core": "workspace:*",
+        "@pie-qti/ims-cp-node": "workspace:*",
         "@pie-qti/transform-core": "workspace:*",
         "@pie-qti/transform-types": "workspace:*",
         "image-size": "^2.0.2",

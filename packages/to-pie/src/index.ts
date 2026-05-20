@@ -7,7 +7,11 @@
 export { QtiSourceProfileTransformError, QtiToPiePlugin } from './plugin.js';
 export type { QtiToPiePluginOptions } from './plugin.js';
 export { transformQtiPackageToPie } from './package-transformer.js';
-export type { QtiPackageTransformInput, QtiPackageTransformResult } from './package-transformer.js';
+export type {
+  QtiPackageItemTransformResult,
+  QtiPackageTransformInput,
+  QtiPackageTransformResult,
+} from './package-transformer.js';
 export {
   addTraceEvent,
   applyItemDecorators,
