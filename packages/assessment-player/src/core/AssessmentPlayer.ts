@@ -30,7 +30,7 @@ import type {
 	NavigationState,
 	TimeLimits,
 } from '../types/index.js';
-import { ItemSessionController, type ItemSessionState } from './ItemSessionController.js';
+import { AssessmentSessionCoordinator } from './AssessmentSessionCoordinator.js';
 import { NavigationManager } from './NavigationManager.js';
 import { TimeManager } from './TimeManager.js';
 
@@ -122,18 +122,15 @@ export class AssessmentPlayer {
 	private backend: BackendAdapter;
 	private sessionId: SessionId;
 	private assessment: SecureAssessment;
-	private state: AssessmentSessionState;
 	private i18nProvider: any; // I18nProvider from @pie-qti/i18n
 
 	private navigationManager: NavigationManager;
-	private sessionController: ItemSessionController;
+	private sessionCoordinator!: AssessmentSessionCoordinator;
 	private timeManager: TimeManager | null = null;
 
 	private items: FlatItem[] = [];
 	private currentItemIndex = -1;
 	private currentItemPlayer: Player | null = null;
-	private responses: Record<string, unknown> = {};
-	private itemResults: Map<string, ItemResult> = new Map();
 	private visibleFeedback: Array<{ identifier: string; content: string; access: string }> = [];
 
 	// Event listeners
@@ -150,7 +147,7 @@ export class AssessmentPlayer {
 		this.sessionId = init.sessionId;
 		this.assessment = init.assessment;
 		this.i18nProvider = config.i18nProvider ?? this.createDefaultI18nProvider();
-		this.state =
+		const initialState =
 			init.restoredState ??
 			({
 				currentItemIdentifier: '',
@@ -169,13 +166,11 @@ export class AssessmentPlayer {
 		// Item session control is a UI hint; backend remains authoritative.
 		// Start with testPart-level defaults; section-level overrides are applied per item in navigateTo().
 		const itemSessionControl = this.assessment.testParts?.[0]?.itemSessionControl;
-		this.sessionController = new ItemSessionController(itemSessionControl);
-
-		// Initialize per-item session state so itemSessionControl checks work immediately.
-		for (const q of this.items) {
-			this.sessionController.initializeItem(q.identifier);
-		}
-		this.restoreItemSessionsFromState(this.state);
+		this.sessionCoordinator = new AssessmentSessionCoordinator({
+			state: initialState,
+			itemIdentifiers: this.items.map((q) => q.identifier),
+			itemSessionControl,
+		});
 
 		this.timeManager = new TimeManager({
 			assessmentTimeLimits: this.assessment.timeLimits,
@@ -194,6 +189,14 @@ export class AssessmentPlayer {
 		} else if (this.items.length > 0) {
 			this.navigateTo(0, { restoring: true }).catch(() => {});
 		}
+	}
+
+	private get state(): AssessmentSessionState {
+		return this.sessionCoordinator.state;
+	}
+
+	private set state(state: AssessmentSessionState) {
+		this.sessionCoordinator.restoreState(state);
 	}
 
 	/**
@@ -281,59 +284,6 @@ export class AssessmentPlayer {
 			expired: scopedElapsedMs >= limitSeconds * 1000,
 			allowLateSubmission: effective.timeLimits?.allowLateSubmission,
 		};
-	}
-
-	private hasAnyResponse(responses: Record<string, unknown>): boolean {
-		for (const v of Object.values(responses)) {
-			if (v == null) continue;
-			if (Array.isArray(v)) {
-				if (v.length > 0) return true;
-				continue;
-			}
-			if (typeof v === 'string') {
-				if (v.trim().length > 0) return true;
-				continue;
-			}
-			// object / number / boolean etc.
-			return true;
-		}
-		return false;
-	}
-
-	private restoreItemSessionsFromState(state: AssessmentSessionState): void {
-		const restoredStates = new Map<string, ItemSessionState>();
-		for (const item of this.items) {
-			const persisted = state.itemSessionStates?.[item.identifier];
-			if (persisted) {
-				restoredStates.set(item.identifier, {
-					itemIdentifier: item.identifier,
-					attemptCount: Math.max(0, persisted.attemptCount),
-					isAnswered: persisted.isAnswered,
-					isSubmitted: persisted.isSubmitted,
-					lastSubmissionTime: persisted.lastSubmissionTime,
-				});
-				continue;
-			}
-
-			const responses = state.itemResponses?.[item.identifier] ?? {};
-			const isSubmitted = Boolean(state.itemScores?.[item.identifier]);
-			restoredStates.set(item.identifier, {
-				itemIdentifier: item.identifier,
-				attemptCount: isSubmitted ? 1 : 0,
-				isAnswered: this.hasAnyResponse(responses),
-				isSubmitted,
-			});
-		}
-		this.sessionController.restoreStates(restoredStates);
-	}
-
-	private getItemSessionStateSnapshot(): Record<string, ItemSessionState> {
-		return Object.fromEntries(
-			[...this.sessionController.getAllStates().entries()].map(([itemIdentifier, state]) => [
-				itemIdentifier,
-				{ ...state },
-			])
-		);
 	}
 
 	private flattenItems(assessment: SecureAssessment): FlatItem[] {
@@ -431,12 +381,7 @@ export class AssessmentPlayer {
 	}
 
 	public updateResponse(responseId: string, value: unknown): void {
-		this.responses = { ...this.responses, [responseId]: value };
-		const q = this.items[this.currentItemIndex];
-		if (q) {
-			this.state.itemResponses[q.identifier] = this.responses as any;
-			this.sessionController.markAnswered(q.identifier, this.hasAnyResponse(this.responses));
-		}
+		this.sessionCoordinator.updateActiveResponse(responseId, value);
 		this.notifyResponseChange();
 	}
 
@@ -447,16 +392,12 @@ export class AssessmentPlayer {
 	 * the same responseIdentifier like "RESPONSE" across items).
 	 */
 	public updateResponseForItem(itemIdentifier: string, responseId: string, value: unknown): void {
-		const prev = (this.state.itemResponses?.[itemIdentifier] || {}) as Record<string, unknown>;
-		const next = { ...prev, [responseId]: value };
-		this.state.itemResponses[itemIdentifier] = next as any;
-		this.sessionController.markAnswered(itemIdentifier, this.hasAnyResponse(next));
+		const next = this.sessionCoordinator.updateResponseForItem(itemIdentifier, responseId, value);
 
 		// If this is the active item, keep the live response state + UI hints in sync.
 		const active = this.items[this.currentItemIndex];
 		if (active?.identifier === itemIdentifier) {
-			this.responses = next;
-			this.currentItemPlayer?.setResponses(this.responses as any);
+			this.currentItemPlayer?.setResponses(next as any);
 			this.notifyResponseChange();
 		}
 	}
@@ -466,21 +407,16 @@ export class AssessmentPlayer {
 	 * (Useful for host integrations / web components.)
 	 */
 	public getResponses(): Record<string, unknown> {
-		return { ...this.responses };
+		return this.sessionCoordinator.getActiveResponses();
 	}
 
 	public saveCurrentItemSession(): SerializedItemSessionState | null {
 		const q = this.items[this.currentItemIndex];
 		if (!q || !this.currentItemPlayer) return null;
-		this.currentItemPlayer.setResponses(this.responses as any);
+		const responses = this.sessionCoordinator.getActiveResponses();
+		this.currentItemPlayer.setResponses(responses as any);
 		const result = (this.currentItemPlayer as ItemSessionCapablePlayer).suspendAttempt();
-		this.state.itemSessions = {
-			...(this.state.itemSessions ?? {}),
-			[q.identifier]: result.sessionState,
-		};
-		this.state.itemResponses[q.identifier] = this.responses as any;
-		this.state.timing.itemTimes[q.identifier] = result.duration;
-		this.sessionController.markAnswered(q.identifier, this.hasAnyResponse(this.responses));
+		this.sessionCoordinator.saveItemSession(q.identifier, responses, result.sessionState, result.duration);
 		return result.sessionState;
 	}
 
@@ -509,19 +445,7 @@ export class AssessmentPlayer {
 	 * Note: backend remains authoritative; this is intended for simple save/resume.
 	 */
 	public getState(options: { includeItemSessions?: boolean } = {}): AssessmentSessionState {
-		// Shallow clone to avoid accidental external mutation.
-		return {
-			...this.state,
-			visitedItems: [...this.state.visitedItems],
-			itemResponses: { ...this.state.itemResponses },
-			itemScores: this.state.itemScores ? { ...this.state.itemScores } : undefined,
-			itemSessions: options.includeItemSessions && this.state.itemSessions ? { ...this.state.itemSessions } : undefined,
-			itemSessionStates: this.getItemSessionStateSnapshot(),
-			timing: {
-				...this.state.timing,
-				itemTimes: { ...this.state.timing.itemTimes },
-			},
-		};
+		return this.sessionCoordinator.snapshot(options);
 	}
 
 	/**
@@ -535,20 +459,6 @@ export class AssessmentPlayer {
 			.map((id) => this.items.findIndex((q) => q.identifier === id))
 			.filter((i) => i >= 0);
 		this.navigationManager.restoreState(visitedIdx);
-		this.restoreItemSessionsFromState(state);
-
-		// Rehydrate itemResults from scores if present, so submit() can behave sensibly.
-		this.itemResults.clear();
-		if (state.itemScores) {
-			for (const [itemIdentifier, scoring] of Object.entries(state.itemScores)) {
-				this.itemResults.set(itemIdentifier, {
-					itemIdentifier,
-					score: scoring.score,
-					maxScore: scoring.maxScore,
-					responses: state.itemResponses?.[itemIdentifier] || {},
-				});
-			}
-		}
 
 		const currentId = state.currentItemIdentifier;
 		const idx = currentId ? this.items.findIndex((q) => q.identifier === currentId) : -1;
@@ -570,7 +480,7 @@ export class AssessmentPlayer {
 			throw new Error('Navigation is not allowed.');
 		}
 		const target = this.items[index];
-		if (!options.restoring && target && !this.sessionController.canReview(target.identifier)) {
+		if (!options.restoring && target && !this.sessionCoordinator.canReview(target.identifier)) {
 			throw new Error('You cannot go back to previous questions in this assessment.');
 		}
 
@@ -597,11 +507,11 @@ export class AssessmentPlayer {
 		// Apply three-level itemSessionControl fallback for this item's section (S1).
 		const effectiveControl = this.getEffectiveItemSessionControl(q);
 		if (effectiveControl) {
-			this.sessionController.updateSettings(effectiveControl);
+			this.sessionCoordinator.updateItemSessionControl(effectiveControl);
 		}
 
 		// Restore responses
-		this.responses = { ...(this.state.itemResponses[q.identifier] || {}) };
+		const responses = this.sessionCoordinator.activateItem(q.identifier);
 
 		// Create item player
 		this.currentItemPlayer?.destroy();
@@ -617,7 +527,7 @@ export class AssessmentPlayer {
 		if (restoredItemSession) {
 			(this.currentItemPlayer as ItemSessionCapablePlayer).restoreItemSession(restoredItemSession);
 		} else {
-			this.currentItemPlayer.setResponses(this.responses as any);
+			this.currentItemPlayer.setResponses(responses as any);
 		}
 
 		this.notifyItemChange();
@@ -635,10 +545,10 @@ export class AssessmentPlayer {
 
 		const q = this.items[this.currentItemIndex];
 		if (q) {
-			const hasResponses = this.hasAnyResponse(this.responses);
-			this.sessionController.markAnswered(q.identifier, hasResponses);
+			const responses = this.sessionCoordinator.getActiveResponses();
+			this.sessionCoordinator.markAnswered(q.identifier, responses);
 
-			const navAway = this.sessionController.canNavigateAway(q.identifier, hasResponses);
+			const navAway = this.sessionCoordinator.canNavigateAway(q.identifier, responses);
 			if (!navAway.allowed) {
 				throw new Error(navAway.reason || 'You must answer this question before continuing.');
 			}
@@ -668,24 +578,22 @@ export class AssessmentPlayer {
 
 		const submittedAt = Date.now();
 		let itemSession: SerializedItemSessionState | undefined;
+		const responses = this.sessionCoordinator.getActiveResponses();
 		if (this.currentItemPlayer) {
-			this.currentItemPlayer.setResponses(this.responses as any);
+			this.currentItemPlayer.setResponses(responses as any);
 			const attempt = (this.currentItemPlayer as ItemSessionCapablePlayer).endAttempt({
-				validateResponses: this.sessionController.mustValidateResponses(),
+				validateResponses: this.sessionCoordinator.mustValidateResponses(),
 			});
 			if (attempt.validation && !attempt.validation.valid) {
 				throw new Error(attempt.validation.issues[0]?.message || 'Submit failed: invalid response');
 			}
 			itemSession = attempt.sessionState;
-			this.state.itemSessions = {
-				...(this.state.itemSessions ?? {}),
-				[q.identifier]: itemSession,
-			};
+			this.sessionCoordinator.setItemSession(q.identifier, itemSession);
 		}
 		const res = await this.backend.submitResponses({
 			sessionId: this.sessionId,
 			itemIdentifier: q.identifier,
-			responses: this.responses as any,
+			responses: responses as any,
 			submittedAt,
 			timeSpent: itemSession?.duration,
 			timing: this.getSubmitTimingEvidence(q, itemSession?.duration ?? 0),
@@ -697,19 +605,15 @@ export class AssessmentPlayer {
 		}
 
 		if (res.updatedState) {
-			const localItemSessions = this.state.itemSessions;
-			this.state = res.updatedState;
-			if (localItemSessions) {
-				this.state.itemSessions = { ...(this.state.itemSessions ?? {}), ...localItemSessions };
-			}
+			this.sessionCoordinator.replaceStatePreservingItemSessions(res.updatedState);
 		} else {
 			// Minimal state update when backend doesn't return full state.
 			this.state.itemScores = this.state.itemScores || {};
 			this.state.itemScores[q.identifier] = res.result;
-			if (!this.state.visitedItems.includes(q.identifier)) this.state.visitedItems.push(q.identifier);
-			this.state.itemResponses[q.identifier] = this.responses as any;
+			this.sessionCoordinator.markVisited(q.identifier);
+			this.state.itemResponses[q.identifier] = responses as any;
 			if (itemSession) {
-				this.state.itemSessions = { ...(this.state.itemSessions ?? {}), [q.identifier]: itemSession };
+				this.sessionCoordinator.setItemSession(q.identifier, itemSession);
 			}
 		}
 
@@ -717,17 +621,17 @@ export class AssessmentPlayer {
 			itemIdentifier: q.identifier,
 			score: res.result.score,
 			maxScore: res.result.maxScore,
-			responses: { ...this.responses },
+			responses: { ...responses },
 		};
-		this.itemResults.set(q.identifier, itemResult);
+		this.sessionCoordinator.setItemResult(itemResult);
 
 		// Track item session rules (review/attempts) and visited items for navigation hints.
 		try {
-			this.sessionController.recordAttempt(q.identifier);
+			this.sessionCoordinator.recordAttempt(q.identifier);
 		} catch {
 			// ignore
 		}
-		this.sessionController.markAnswered(q.identifier, this.hasAnyResponse(this.responses));
+		this.sessionCoordinator.markAnswered(q.identifier, responses);
 		this.navigationManager.markVisited(this.currentItemIndex);
 
 		// Apply backend branching decision if provided.
@@ -771,7 +675,7 @@ export class AssessmentPlayer {
 		const prev = this.items[this.currentItemIndex - 1];
 		if (!prev) return false;
 		if (!this.navigationManager.canNavigateTo(this.currentItemIndex - 1, this.currentItemIndex)) return false;
-		return this.sessionController.canReview(prev.identifier);
+		return this.sessionCoordinator.canReview(prev.identifier);
 	}
 
 	private canNext(): boolean {
@@ -797,7 +701,7 @@ export class AssessmentPlayer {
 			const allItemSessions = { ...(this.state.itemSessions || {}) };
 
 			for (const q of this.items) {
-				if (this.itemResults.has(q.identifier)) continue;
+				if (this.sessionCoordinator.hasItemResult(q.identifier)) continue;
 				const submittedAt = Date.now();
 				const responsesForItem = (allItemResponses?.[q.identifier] || {}) as any;
 				const itemSession = this.endItemSessionForSubmit(q, responsesForItem, allItemSessions[q.identifier]);
@@ -815,20 +719,21 @@ export class AssessmentPlayer {
 					throw new Error(res.error || `Submit failed for item ${q.identifier}`);
 				}
 				if (res.updatedState) {
-					this.state = res.updatedState;
-					// Restore full response map captured on the client.
-					this.state.itemResponses = allItemResponses;
-					this.state.itemSessions = allItemSessions;
+					this.sessionCoordinator.replaceStatePreservingResponsesAndSessions(
+						res.updatedState,
+						allItemResponses,
+						allItemSessions
+					);
 				} else {
 					this.state.itemScores = this.state.itemScores || {};
 					this.state.itemScores[q.identifier] = res.result;
-					if (!this.state.visitedItems.includes(q.identifier)) this.state.visitedItems.push(q.identifier);
+					this.sessionCoordinator.markVisited(q.identifier);
 					this.state.itemResponses[q.identifier] = responsesForItem;
 					if (itemSession) {
-						this.state.itemSessions = { ...(this.state.itemSessions ?? {}), [q.identifier]: itemSession };
+						this.sessionCoordinator.setItemSession(q.identifier, itemSession);
 					}
 				}
-				this.itemResults.set(q.identifier, {
+				this.sessionCoordinator.setItemResult({
 					itemIdentifier: q.identifier,
 					score: res.result.score,
 					maxScore: res.result.maxScore,
@@ -838,7 +743,7 @@ export class AssessmentPlayer {
 		} else {
 			// Ensure current item is submitted (individual submission mode)
 			const q = this.items[this.currentItemIndex];
-			if (q && !this.itemResults.has(q.identifier)) {
+			if (q && !this.sessionCoordinator.hasItemResult(q.identifier)) {
 				await this.submitCurrentItem();
 			}
 		}
@@ -906,20 +811,7 @@ export class AssessmentPlayer {
 		if (!q) return null;
 		const id = q.identifier;
 
-		const state = this.sessionController.getItemState(id);
-		if (!state) {
-			this.sessionController.initializeItem(id);
-		}
-		const st = this.sessionController.getItemState(id);
-		return {
-			canSubmit: this.sessionController.canSubmit(id),
-			remainingAttempts: this.sessionController.getRemainingAttempts(id),
-			attemptCount: st?.attemptCount ?? 0,
-			showFeedback: this.sessionController.shouldShowFeedback(id),
-			showSolution: this.sessionController.shouldShowSolution(id),
-			canReview: this.sessionController.canReview(id),
-			canSkip: this.sessionController.canSkip(id),
-		};
+		return this.sessionCoordinator.getItemSessionInfo(id);
 	}
 
 	public getRemainingTime(): number {
@@ -1005,8 +897,9 @@ export class AssessmentPlayer {
 	}
 
 	private notifyResponseChange(): void {
-		for (const l of this.responseChangeListeners) l(this.responses);
-		this.config.onResponseChange?.(this.responses);
+		const responses = this.sessionCoordinator.getActiveResponses();
+		for (const l of this.responseChangeListeners) l(responses);
+		this.config.onResponseChange?.(responses);
 	}
 
 	private notifyComplete(): void {

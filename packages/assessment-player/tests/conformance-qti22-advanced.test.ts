@@ -259,16 +259,11 @@ describe('QTI 2.2 Advanced — T5 Item Session Control (maxAttempts=0)', () => {
 		expect(testPart.itemSessionControl?.maxAttempts).toBe(0);
 	});
 
-	it('T5-L2-D1: ItemSessionController with maxAttempts=0 allows unlimited submissions', async () => {
+	it('T5-L2-D1: session info reports unlimited submissions when maxAttempts=0', async () => {
 		const player = await createPlayer(T5_ASSESSMENT);
-		// Access the private sessionController via cast to any
-		const ctrl = (player as any).sessionController;
-		ctrl.initializeItem('t5-item-1');
-		// Record 100 attempts — canSubmit must still return true
-		for (let i = 0; i < 100; i++) {
-			ctrl.recordAttempt('t5-item-1');
-		}
-		expect(ctrl.canSubmit('t5-item-1')).toBe(true);
+		const info = player.getItemSessionInfo();
+		expect(info?.canSubmit).toBe(true);
+		expect(info?.remainingAttempts).toBeNull();
 	});
 
 	it('T5-L2-D1: unlimited attempts — multiple submitResponses calls succeed', async () => {
@@ -383,14 +378,13 @@ describe('QTI 2.2 Advanced — S1 Section-level itemSessionControl', () => {
 		expect(assessment.testParts[0].sections[1].itemSessionControl?.allowSkipping).toBe(false);
 	});
 
-	it('S1-L2-D1: navigating to section-1 item sets sessionController allowSkipping=true', async () => {
+	it('S1-L2-D1: navigating to section-1 item applies allowSkipping=true', async () => {
 		// Item 0 is in section 1 (allowSkipping=true)
 		await player.navigateTo(0);
-		const ctrl = (player as any).sessionController;
-		expect(ctrl.canSkip('t12-item-1')).toBe(true);
+		expect(player.getItemSessionInfo()?.canSkip).toBe(true);
 	});
 
-	it('S1-L2-D2: navigating to section-2 item sets sessionController allowSkipping=false', async () => {
+	it('S1-L2-D2: navigating to section-2 item applies allowSkipping=false', async () => {
 		// In linear mode we must navigate sequentially through section 1 first.
 		// Navigate to items 1–3 (advance through section 1)
 		for (let i = 1; i <= 4; i++) {
@@ -399,8 +393,7 @@ describe('QTI 2.2 Advanced — S1 Section-level itemSessionControl', () => {
 			await player.navigateTo(i);
 		}
 		// Now at index 4 (t12-item-5, section 2)
-		const ctrl = (player as any).sessionController;
-		expect(ctrl.canSkip('t12-item-5')).toBe(false);
+		expect(player.getItemSessionInfo()?.canSkip).toBe(false);
 	});
 });
 
