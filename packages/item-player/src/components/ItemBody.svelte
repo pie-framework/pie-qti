@@ -3,39 +3,34 @@
 </script>
 
 <script lang="ts">
-	import type { InteractionData, HtmlContent } from '../types';
+	import type { HtmlContent } from '../types';
 	import type { PnpProfile } from '../pnp/types';
 	import type { GlossaryPlayer } from '../catalog/applyGlossaryTriggers';
 	import type { InteractionResponseValue, QTIChangeEventDetail } from '../web-components';
 	import type { I18nProvider } from '@pie-qti/i18n';
-	import {
-		normalizeHeuristicsConfig,
-		type QtiHeuristicsConfig,
-		type ResolvedItemDeliveryContext
-	} from '@pie-qti/ims-cp-core';
-	import { processFeedbackInline } from './utils/feedbackUtils';
+	import type { QtiHeuristicsConfig, ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
 	import { typesetAction } from './actions/typesetAction';
 	import { glossaryAction } from '../catalog/glossaryAction';
 	import { assignProps } from '@pie-qti/qti-common';
-	import { buildScopedStylesheetCss } from './utils/stylesheetRender';
-	import { buildEffectiveStimulusContent, injectStimulusContent } from './utils/stimulusRender';
-	import { getRoleCapabilities } from '../core/rolePolicy';
 	import InlineChoice from '../interactions/inline-choice/InlineChoice.svelte';
 	import InlineTextEntry from '../interactions/text-entry/InlineTextEntry.svelte';
-	import { createInlineRenderPlan, isInlineInteractionTagName, isInlineInteractionType } from '../interactions/inline/render-plan';
+	import {
+		createItemPresentationPlan,
+		type ItemPresentationPlayer
+	} from '../presentation/itemPresentationPlan';
 
 	type ItemResponseValue = InteractionResponseValue | null;
 	type ItemResponseMap = Record<string, ItemResponseValue>;
 	type QtiChangeDomEvent = CustomEvent<QTIChangeEventDetail<ItemResponseValue>>;
 
 	interface ItemBodyComponentRegistry {
-		getTagName(interaction: InteractionData): string;
+		getTagName(interaction: ReturnType<ItemPresentationPlayer['getInteractionData']>[number]): string;
 		getTagNameForType(type: string): string | null;
 	}
 
 	interface ItemBodyPlayer extends GlossaryPlayer {
 		getComponentRegistry(): ItemBodyComponentRegistry;
-		getInteractionData(): InteractionData[];
+		getInteractionData(): ReturnType<ItemPresentationPlayer['getInteractionData']>;
 		getCorrectResponses(): Record<string, any>;
 		getItemBodyHtml(): HtmlContent;
 		getDeliveryContext(): ResolvedItemDeliveryContext | undefined;
@@ -76,91 +71,21 @@
 	}: Props = $props();
 	const itemBodyScope = `qti-item-body-${++nextItemBodyScopeId}`;
 	const itemBodyScopeSelector = `[data-qti-item-body-scope="${itemBodyScope}"]`;
-
-	// Normalize heuristics configuration with defaults
-	const heuristics = $derived(normalizeHeuristicsConfig(heuristicsConfig));
-
-	// Get the component registry from the player
-	const componentRegistry = $derived(player.getComponentRegistry());
-	const roleCapabilities = $derived(getRoleCapabilities(role));
-	const effectiveDisabled = $derived(disabled || roleCapabilities.isReadOnly);
-
-	// Process interactions
-	const interactions = $derived<InteractionData[]>(player.getInteractionData());
-
-	// Get correct responses for roles allowed by policy.
-	const correctResponses = $derived.by(() => {
-		return roleCapabilities.canViewCorrectResponses ? player.getCorrectResponses() : {};
-	});
-
-	// Get components for block-level interactions only (not inline interactions).
-	// Type is always normalized to QTI 2.x camelCase by Player (qti-text-entry-interaction → textEntryInteraction).
-	const interactionComponents = $derived(
-		interactions
-			.filter(
-				(interaction) =>
-					!isInlineInteractionType(interaction.type)
-			)
-			.map((interaction) => {
-				try {
-					// Get the web component tag name from the registry
-					const tagName = componentRegistry.getTagName(interaction);
-					return {
-						interaction,
-						tagName,
-					};
-				} catch (error) {
-					console.error(`Failed to get tag name for ${interaction.type}:`, error);
-					return null;
-				}
-			})
-			.filter((item): item is NonNullable<typeof item> => item !== null)
-	);
-
-	// Get item body HTML and process interactions
-	// Block interactions are kept in HTML but wrapped with a hidden marker (see styles below)
-	// Inline interactions are replaced with placeholders
-	const itemBodyHtml = $derived.by(() => {
-		let html = player.getItemBodyHtml();
-		const resolvedDeliveryContext = deliveryContext ?? player.getDeliveryContext();
-		const stylesheetCss = buildScopedStylesheetCss(resolvedDeliveryContext, itemBodyScopeSelector);
-		const effectiveStimulusContent = buildEffectiveStimulusContent(
-			resolvedDeliveryContext,
-			stimulusContent,
-			(content) => player.sanitizeHtmlContent(content)
-		);
-
-		html = injectStimulusContent(html, effectiveStimulusContent);
-		if (stylesheetCss) {
-			html = `<style data-qti-stylesheets="resolved">${stylesheetCss}</style>${html}`;
-		}
-
-		// Process feedbackInline elements - conditionally show/hide based on outcome values
-		html = processFeedbackInline(html, {
+	const presentation = $derived.by(() =>
+		createItemPresentationPlan({
+			player: player as ItemPresentationPlayer,
+			responses,
+			disabled,
+			role,
 			outcomeValues,
-			applyHeuristics: heuristics.feedbackTextFormatting,
-			wrapWithSpan: false
-		});
-
-		// Wrap all block-level interaction elements with a hidden marker.
-		// Matches both QTI 2.x camelCase (*Interaction) and QTI 3.0 kebab-case (qti-*-interaction).
-		html = html.replace(
-			/<(\w+Interaction|qti-[\w-]+-interaction)(\s[^>]*)?>[\s\S]*?<\/\1>/gi,
-			(match, tagName) => {
-				const lower = tagName.toLowerCase();
-				// Inline interactions are rendered in-flow by the inline render plan.
-				if (isInlineInteractionTagName(lower)) {
-					return match;
-				}
-				// Wrap block interactions with a hidden span
-				return `<span class="qti-hidden-interaction">${match}</span>`;
-			}
-		);
-
-		return html;
-	});
-
-	const inlineSegments = $derived(createInlineRenderPlan(itemBodyHtml, interactions));
+			heuristicsConfig,
+			stimulusContent,
+			deliveryContext,
+			itemBodyScopeSelector,
+			onComponentError: (interaction, error) =>
+				console.error(`Failed to get tag name for ${interaction.type}:`, error)
+		})
+	);
 
 	function getStringResponse(responseId: string): string {
 		const response = responses[responseId];
@@ -190,19 +115,6 @@
 			el.removeEventListener('qti-change', handler as EventListener);
 		};
 	});
-
-	// Ensure web-component instances are not accidentally reused across items when
-	// different items share the same responseId (common in QTI demos: "RESPONSE").
-	function interactionKey(interaction: InteractionData): string {
-		const anyInteraction = interaction as any;
-		const ids =
-			Array.isArray(anyInteraction?.choices) && anyInteraction.choices.length > 0
-				? anyInteraction.choices.map((c: any) => c?.identifier).filter(Boolean).join(',')
-				: '';
-		// Include prompt if present to further reduce accidental reuse.
-		const prompt = typeof anyInteraction?.prompt === 'string' ? anyInteraction.prompt : '';
-		return `${interaction.type}|${interaction.responseId}|${ids}|${prompt}`;
-	}
 
 	// Action to set typeset and i18n on web components when they mount
 	function setWebComponentProps(
@@ -244,26 +156,26 @@
 	<!-- Item body with inline interactions -->
 	<div class="prose max-w-none mb-4">
 		<div class="inline-interaction-container">
-			{#each inlineSegments as segment}
+			{#each presentation.inlineSegments as segment}
 				{#if segment.type === 'html'}
 					{@html segment.content}
 				{:else if segment.type === 'textEntry'}
-					{@const correctAnswer = roleCapabilities.canViewCorrectResponses ? (correctResponses[segment.interaction.responseId] ?? null) : null}
+					{@const correctAnswer = (presentation.roleCapabilities.canViewCorrectResponses ? (presentation.correctResponses[segment.interaction.responseId] ?? null) : null) as string | null}
 					<InlineTextEntry
 						interaction={segment.interaction}
 						response={getStringResponse(segment.interaction.responseId)}
-						correctAnswer={roleCapabilities.canViewCorrectResponses ? correctAnswer : null}
-						disabled={effectiveDisabled}
+						correctAnswer={presentation.roleCapabilities.canViewCorrectResponses ? correctAnswer : null}
+						disabled={presentation.effectiveDisabled}
 						{i18n}
 						onResponseChange={handleResponseChange}
 					/>
 				{:else if segment.type === 'inlineChoice'}
-					{@const correctAnswer = roleCapabilities.canViewCorrectResponses ? (correctResponses[segment.interaction.responseId] ?? null) : null}
+					{@const correctAnswer = (presentation.roleCapabilities.canViewCorrectResponses ? (presentation.correctResponses[segment.interaction.responseId] ?? null) : null) as string | null}
 					<InlineChoice
 						interaction={segment.interaction}
 						response={getStringResponse(segment.interaction.responseId)}
-						correctAnswer={roleCapabilities.canViewCorrectResponses ? correctAnswer : null}
-						disabled={effectiveDisabled}
+						correctAnswer={presentation.roleCapabilities.canViewCorrectResponses ? correctAnswer : null}
+						disabled={presentation.effectiveDisabled}
 						{i18n}
 						onResponseChange={handleResponseChange}
 					/>
@@ -273,22 +185,21 @@
 	</div>
 
 	<!-- Block interactions rendered dynamically as web components -->
-	{#each interactionComponents as { interaction, tagName } (interactionKey(interaction))}
-		{@const correctRespForInteraction = correctResponses[interaction.responseId] ?? null}
+	{#each presentation.blockInteractions as block (block.key)}
 		<svelte:element
-			this={tagName}
+			this={block.tagName}
 			use:setWebComponentProps={{
 				i18n,
 				typeset,
-				interaction,
-				response: responses[interaction.responseId] ?? null,
-				correctResponse: roleCapabilities.canViewCorrectResponses ? correctRespForInteraction : null,
-				pnp: player.getPnp(),
-				eliminationTool: player.getPnp()?.cognitive?.eliminationTool === true,
-				disabled: effectiveDisabled,
+				interaction: block.interaction,
+				response: block.response,
+				correctResponse: block.correctResponse,
+				pnp: block.pnp,
+				eliminationTool: block.eliminationTool,
+				disabled: block.disabled,
 				// Avoid invalid ARIA role values on custom-element hosts.
 				// Components default to candidate when role is omitted.
-				role: roleCapabilities.canViewCorrectResponses ? 'scorer' : undefined,
+				role: block.componentRole,
 			}}
 		/>
 	{/each}
