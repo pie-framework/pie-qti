@@ -11,6 +11,7 @@
 
 import { mount, unmount } from 'svelte';
 import ItemPlayer from './components/ItemPlayer.svelte';
+import { createSvelteMountController } from '@pie-qti/qti-common';
 import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
 import type { AdaptiveAttemptResult, PlayerSecurityConfig, QTIRole } from './types/index.js';
 import type { I18nProvider } from '@pie-qti/i18n';
@@ -18,13 +19,30 @@ import type { PnpProfile } from './pnp/types.js';
 
 const TAG = 'pie-qti-item-player';
 type ItemResponseMap = Record<string, unknown>;
+type ItemPlayerElementProps = {
+	itemXml: string;
+	role: QTIRole;
+	disabled: boolean;
+	typeset: ((el: HTMLElement) => void) | undefined;
+	i18n: I18nProvider | undefined;
+	security: PlayerSecurityConfig | undefined;
+	pnp: PnpProfile | undefined;
+	deliveryContext: ResolvedItemDeliveryContext | undefined;
+	responses: ItemResponseMap | undefined;
+	onResponseChange: ((id: string, value: unknown) => void) | undefined;
+	onSubmit: ((responses: Record<string, unknown>, result: unknown) => void) | undefined;
+	onComplete: ((result: AdaptiveAttemptResult) => void) | undefined;
+};
 
 class PieQtiItemPlayerElement extends HTMLElement {
 	static observedAttributes = ['item-xml', 'role', 'disabled'];
 
-	#container: HTMLDivElement | null = null;
-	#instance: any = null;
-	#pendingRemount = false;
+	#mountController = createSvelteMountController({
+		host: this,
+		mount: (target, props: ItemPlayerElementProps) =>
+			mount(ItemPlayer, { target, props }),
+		unmount,
+	});
 
 	// Attribute-backed props
 	#itemXml = '';
@@ -83,11 +101,11 @@ class PieQtiItemPlayerElement extends HTMLElement {
 	// --- Lifecycle ---
 
 	connectedCallback() {
-		this.#mount();
+		this.#mountController.mountOrUpdate(this.#getProps());
 	}
 
 	disconnectedCallback() {
-		this.#teardown();
+		this.#mountController.teardown({ removeContainer: true });
 	}
 
 	attributeChangedCallback(name: string, _old: string | null, value: string | null) {
@@ -99,7 +117,7 @@ class PieQtiItemPlayerElement extends HTMLElement {
 
 	// --- Private helpers ---
 
-	#getProps() {
+	#getProps(): ItemPlayerElementProps {
 		return {
 			itemXml: this.#itemXml,
 			role: this.#role,
@@ -116,45 +134,8 @@ class PieQtiItemPlayerElement extends HTMLElement {
 		};
 	}
 
-	#mount() {
-		if (this.#instance) return;
-		if (!this.#container) {
-			this.#container = document.createElement('div');
-			this.#container.style.display = 'contents';
-			this.appendChild(this.#container);
-		}
-		this.#instance = mount(ItemPlayer, { target: this.#container, props: this.#getProps() });
-	}
-
 	#update() {
-		if (!this.#instance) return;
-		if (typeof this.#instance.$set === 'function') {
-			this.#instance.$set(this.#getProps());
-		} else {
-			this.#scheduleRemount();
-		}
-	}
-
-	#scheduleRemount() {
-		if (this.#pendingRemount) return;
-		this.#pendingRemount = true;
-		queueMicrotask(() => {
-			this.#pendingRemount = false;
-			if (!this.isConnected) return;
-			this.#teardown();
-			this.#mount();
-		});
-	}
-
-	#teardown() {
-		if (this.#instance) {
-			try { unmount(this.#instance); } catch { /* ignore */ }
-			this.#instance = null;
-		}
-		if (this.#container) {
-			this.#container.remove();
-			this.#container = null;
-		}
+		this.#mountController.update(this.#getProps());
 	}
 }
 

@@ -24,6 +24,11 @@ export {
 
 // DOM utility helpers shared across player packages
 export { assignProps, type AssignPropsOptions } from './dom/assignProps.js';
+export {
+	createSvelteMountController,
+	type SvelteMountController,
+	type SvelteMountControllerOptions,
+} from './dom/svelteMountController.js';
 export { touchDrag, touchDragStyles } from './dom/touchDrag.js';
 
 // Parser factory
