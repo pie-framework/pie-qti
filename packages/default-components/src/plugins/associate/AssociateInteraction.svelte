@@ -4,7 +4,8 @@
 	import type { AssociateInteractionData } from '@pie-qti/item-player';
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
-	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
+	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
+	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
 	import { isCompatibleMatchGroup } from '../../shared/utils/matchGroupUtils';
 
 	interface Props {
@@ -31,11 +32,18 @@
 		onChange,
 	}: Props = $props();
 
-	// Parse props that may be JSON strings (web component usage)
-	const parsedInteraction = $derived(parseJsonProp<AssociateInteractionData>(interaction));
-	const parsedResponse = $derived(parseJsonProp<string[]>(response));
-	const parsedCorrectResponse = $derived(parseJsonProp<string[]>(correctResponse));
-	const isShowingCorrect = $derived(role === 'scorer' && parsedCorrectResponse !== null);
+	const shell = $derived(
+		createInteractionShell<AssociateInteractionData, string[], string[]>({
+			interaction,
+			response,
+			correctResponse,
+			role,
+		})
+	);
+	const parsedInteraction = $derived(shell.interaction);
+	const parsedResponse = $derived(shell.response);
+	const parsedCorrectResponse = $derived(shell.correctResponse);
+	const isShowingCorrect = $derived(shell.isShowingCorrect);
 
 	// Get reference to the root element for event dispatching
 	let rootElement: HTMLDivElement | undefined = $state();
@@ -50,21 +58,7 @@
 
 	function emitChange(newPairs: string[]) {
 		response = newPairs;
-		// Call onChange callback if provided (for Svelte component usage)
-		onChange?.(newPairs);
-		// Dispatch custom event for web component usage - event will bubble up to the host element
-		if (rootElement) {
-			const event = new CustomEvent('qti-change', {
-				detail: {
-					responseId: parsedInteraction?.responseId,
-					value: newPairs,
-					timestamp: Date.now(),
-				},
-				bubbles: true,
-				composed: true,
-			});
-			rootElement.dispatchEvent(event);
-		}
+		emitInteractionChange({ target: rootElement, responseId: shell.responseId, value: newPairs, onChange });
 	}
 
 	function setSelectedForPairing(value: string | null) {

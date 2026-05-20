@@ -50,3 +50,20 @@ export function emitQtiChange(
 	const event = createQtiChangeEvent(responseId, value);
 	element.dispatchEvent(event);
 }
+
+export function emitInteractionChange<TValue>({
+	target,
+	responseId,
+	value,
+	onChange,
+}: {
+	target: HTMLElement | EventTarget | undefined;
+	responseId: string | undefined;
+	value: TValue;
+	onChange?: (value: TValue) => void;
+}): void {
+	onChange?.(value);
+	if (target) {
+		emitQtiChange(target, responseId, value);
+	}
+}

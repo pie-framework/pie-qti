@@ -7,8 +7,8 @@
 	import { processFeedbackInline } from '@pie-qti/item-player/components/utils';
 	import { typesetAction } from '../../shared/actions/typesetAction';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
-	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
-	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
+	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
+	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
 
 	interface Props {
 		interaction?: ChoiceInteractionData | string;
@@ -50,11 +50,18 @@
 		return !v || v === key ? fallback : v;
 	});
 
-	// Parse props that may be JSON strings (web component usage)
-	const parsedInteraction = $derived(parseJsonProp<ChoiceInteractionData>(interaction));
-	const parsedResponse = $derived(parseJsonProp<string | string[]>(response));
-	const parsedCorrectResponse = $derived(parseJsonProp<string | string[]>(correctResponse));
-	const isShowingCorrect = $derived(role === 'scorer' && parsedCorrectResponse !== null);
+	const shell = $derived(
+		createInteractionShell<ChoiceInteractionData, string | string[], string | string[]>({
+			interaction,
+			response,
+			correctResponse,
+			role,
+		})
+	);
+	const parsedInteraction = $derived(shell.interaction);
+	const parsedResponse = $derived(shell.response);
+	const parsedCorrectResponse = $derived(shell.correctResponse);
+	const isShowingCorrect = $derived(shell.isShowingCorrect);
 
 	// Helper function to check if a choice is correct
 	function isCorrectChoice(identifier: string): boolean {
@@ -101,12 +108,7 @@
 
 	function handleRadioChange(identifier: string) {
 		response = identifier;
-		// Call onChange callback if provided (for Svelte component usage)
-		onChange?.(identifier);
-		// Dispatch event for web component usage - event will bubble up to the host element
-		if (rootElement) {
-			rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction?.responseId, identifier));
-		}
+		emitInteractionChange({ target: rootElement, responseId: shell.responseId, value: identifier, onChange });
 	}
 
 	function handleCheckboxChange(identifier: string, checked: boolean) {
@@ -123,12 +125,7 @@
 		}
 
 		response = newValues;
-		// Call onChange callback if provided (for Svelte component usage)
-		onChange?.(newValues);
-		// Dispatch event for web component usage - event will bubble up to the host element
-		if (rootElement) {
-			rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction?.responseId, newValues));
-		}
+		emitInteractionChange({ target: rootElement, responseId: shell.responseId, value: newValues, onChange });
 	}
 
 	// Selection limit message: show max message when at/over limit; min message is for submit time
