@@ -1,7 +1,7 @@
 {
 	"$schema": "./public-coverage-matrix.schema.json",
 	"scope": "QTI 2.2 Advanced and QTI 3.0 Advanced DELIVERY public clean-room coverage",
-	"updated": "2026-05-05",
+	"updated": "2026-05-19",
 	"commands": [
 		{
 			"id": "item-clean-room",

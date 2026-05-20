@@ -250,7 +250,7 @@ Keys `interactions.drawing.undo`, `interactions.drawing.redo`, `interactions.dra
 ### `DrawingInteractionData` (from `@pie-qti/item-player`)
 
 ```typescript
-// packages/item-player/src/types/interactions.ts
+// packages/item-player/src/interactions/shared/types.ts
 
 interface DrawingInteractionData extends BaseInteractionData {
   type: 'drawingInteraction';
@@ -558,7 +558,7 @@ AC-E5: Response cleared mid-session, then drawn again
 - Spec gaps: `docs/SPEC-GAPS-PLAN.md` — no gap item currently covers `drawingInteraction`; the undo/eraser/colour-picker gap described above is implementation-internal
 - Component: `packages/default-components/src/plugins/drawing/DrawingInteraction.svelte`
 - Shared canvas component: `packages/default-components/src/shared/components/DrawingCanvas.svelte`
-- Extractor: `packages/item-player/src/extraction/extractors/drawingExtractor.ts`
+- Extractor: `packages/item-player/src/interactions/drawing/extractor.ts`
 - Drawing analysis utilities: `packages/item-player/src/utils/drawingUtils.ts` (`hasLine`, `analyzeDrawing`, `getImageDataFromResponse`)
-- Types: `packages/item-player/src/types/interactions.ts` — `DrawingInteractionData`, `ImageData`; `packages/item-player/src/types/index.ts` — `QTIFileResponse`
+- Types: `packages/item-player/src/interactions/shared/types.ts` — `DrawingInteractionData`, `ImageData`; `packages/item-player/src/types/index.ts` — `QTIFileResponse`
 - Adjacent PRDs: [upload.md](upload.md) (same `file` baseType response; different interaction — file picker vs. canvas); [hotspot.md](hotspot.md) (same background-image `<object>` extraction pattern)

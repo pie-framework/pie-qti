@@ -55,7 +55,7 @@ import type {
 	SerializedItemSessionState,
 	SerializedItemSessionVariable,
 } from '../types/index.js';
-import type { InteractionData } from '../types/interactions.js';
+import type { InteractionData } from '../interactions/index.js';
 import type { ResponseValidationResult } from '../types/responseValidation.js';
 import type { ComponentRegistry } from './ComponentRegistry.js';
 import { createComponentRegistry } from './ComponentRegistry.js';

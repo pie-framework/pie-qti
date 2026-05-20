@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { standardMatchExtractor } from '../../../src/extraction/extractors/matchExtractor.js';
+import { standardMatchExtractor } from '../../../src/interactions/match/extractor.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
 describe('standardMatchExtractor', () => {

@@ -2,7 +2,7 @@ import { describe, it, expect, mock } from 'bun:test';
 import { PciHost } from '../pci/PciHost.js';
 import { PciLoadError } from '../pci/types.js';
 import type { ExtractedPci, PciModule } from '../pci/types.js';
-import { portableCustomExtractor } from '../extraction/extractors/portableCustomExtractor.js';
+import { portableCustomExtractor } from '../interactions/portable-custom/extractor.js';
 import { createExtractionUtils } from '../extraction/index.js';
 import { Qti3AttributeNameMapper, Qti3ElementNameMapper } from '@pie-qti/qti-common';
 import { parse } from 'node-html-parser';

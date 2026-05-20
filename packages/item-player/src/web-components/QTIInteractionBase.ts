@@ -24,7 +24,7 @@
  */
 
 import type { HtmlContent } from '../types/index.js';
-import type { InteractionData } from '../types/interactions.js';
+import type { InteractionData } from '../interactions/index.js';
 import {
 	type InteractionResponseValue,
 	QTIChangeEvent,

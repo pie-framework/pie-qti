@@ -6,7 +6,7 @@
 
 import type { ElementNameMapper, AttributeNameMapper } from '@pie-qti/qti-common';
 import type { PlayerConfig } from '../types/index.js';
-import type { QTIElement } from '../types/interactions.js';
+import type { QTIElement } from '../interactions/index.js';
 import type { ExtractionContext, VariableDeclaration } from './types.js';
 import { createExtractionUtils } from './utils.js';
 

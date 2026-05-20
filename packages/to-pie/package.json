@@ -9,18 +9,6 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    },
-    "./ims-cp": {
-      "types": "./dist/utils/ims-cp/index.d.ts",
-      "import": "./dist/utils/ims-cp/index.js"
-    },
-    "./utils/localized-resources": {
-      "types": "./dist/utils/localized-resources.d.ts",
-      "import": "./dist/utils/localized-resources.js"
-    },
-    "./utils/manifest-parser": {
-      "types": "./dist/utils/manifest-parser.d.ts",
-      "import": "./dist/utils/manifest-parser.js"
     }
   },
   "scripts": {
@@ -42,7 +30,6 @@
   "license": "MIT",
   "dependencies": {
     "@pie-qti/ims-cp-core": "workspace:*",
-    "@pie-qti/ims-cp-node": "workspace:*",
     "@pie-qti/transform-core": "workspace:*",
     "@pie-qti/transform-types": "workspace:*",
     "image-size": "^2.0.2",

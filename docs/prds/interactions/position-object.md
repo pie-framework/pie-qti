@@ -260,7 +260,7 @@ Until this is implemented, this interaction does not satisfy WCAG 2.2 SC 2.1.1 f
 
 ## Data model / contracts
 
-The extracted interaction data type is `PositionObjectInteractionData` from `packages/item-player/src/types/interactions.ts`:
+The extracted interaction data type is `PositionObjectInteractionData` from `packages/item-player/src/interactions/shared/types.ts`:
 
 ```typescript
 interface PositionObjectInteractionData extends BaseInteractionData {
@@ -598,8 +598,8 @@ Then: A validation warning is emitted reminding the author to verify dimensions
 - QTI spec: §3.3.6 positionObjectInteraction — `docs/QTI_techguide.md`
 - Response processing: `map_response_point` template — `docs/QTI-RESPONSE-TRACKING-AND-SCORING.md`
 - Implementation: `packages/default-components/src/plugins/position-object/`
-- Extractor: `packages/item-player/src/extraction/extractors/positionObjectExtractor.ts`
-- Types: `packages/item-player/src/types/interactions.ts` — `PositionObjectInteractionData`, `PositionObjectStage`
+- Extractor: `packages/item-player/src/interactions/position-object/extractor.ts`
+- Types: `packages/item-player/src/interactions/shared/types.ts` — `PositionObjectInteractionData`, `PositionObjectStage`
 - Plugin README with limitation notes: `packages/default-components/src/plugins/position-object/README.md`
 - Eval scenarios: `docs/evals/default-components/position-object/evals.yaml`
 - Spec gaps plan: `docs/SPEC-GAPS-PLAN.md` (no position-object specific items; keyboard gap is analogous to the accessibility baseline)

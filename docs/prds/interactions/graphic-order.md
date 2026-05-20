@@ -490,8 +490,8 @@ AC-E9: Response reflects confirmed drag order on subsequent re-render
 - Spec gaps: `docs/SPEC-GAPS-PLAN.md` — no gap items currently assigned to graphicOrderInteraction; the `maxChoices`/`minChoices`/`fixed` gaps documented above are not yet tracked
 - Component: `packages/default-components/src/plugins/graphic-order/GraphicOrderInteraction.svelte`
 - Shared component: `packages/default-components/src/shared/components/SortableList.svelte`
-- Extractor: `packages/item-player/src/extraction/extractors/graphicOrderExtractor.ts`
-- Type: `packages/item-player/src/types/interactions.ts` — `GraphicOrderInteractionData`, `GraphicOrderChoice`
+- Extractor: `packages/item-player/src/interactions/graphic-order/extractor.ts`
+- Type: `packages/item-player/src/interactions/shared/types.ts` — `GraphicOrderInteractionData`, `GraphicOrderChoice`
 - Extractor tests: `packages/item-player/tests/extraction/extractors/graphicOrderExtractor.test.ts`
 - Eval fixture: `docs/evals/default-components/graphic-order/evals.yaml`
 - Adjacent PRDs: [choice.md](choice.md) (shares shadow DOM / web component / parseJsonProp patterns), [order.md](order.md) (identical response cardinality, identical confirmation pattern, shares `SortableList`), [hotspot.md](hotspot.md) (shares image + hotspot coordinate model)

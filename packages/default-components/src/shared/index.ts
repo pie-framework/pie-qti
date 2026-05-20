@@ -13,5 +13,3 @@ export * from './extensions/MathLiveEditor.js';
 export * from './utils/eventHelpers.js';
 // Pair helpers for matching/association interactions
 export * from './utils/pairHelpers.js';
-// Touch drag helper for mobile-friendly drag-and-drop
-export * from './utils/touchDragHelper.js';

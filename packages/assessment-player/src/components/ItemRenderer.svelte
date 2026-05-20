@@ -2,6 +2,7 @@
 	import type { PlayerSecurityConfig, PnpProfile, QTIRole } from '@pie-qti/item-player';
 	import type { InteractionResponseValue } from '@pie-qti/item-player/web-components';
 	import type { I18nProvider } from '@pie-qti/i18n';
+	import { assignProps } from '@pie-qti/qti-common';
 	import { onMount } from 'svelte';
 	import type { ItemRef } from '../types/index.js';
 
@@ -49,7 +50,6 @@
 		pnp,
 	}: Props = $props();
 
-	let playerEl = $state<PieQtiItemPlayerElement | null>(null);
 	let playerLoaded = $state(false);
 	let errorMessage = $state<string | null>(null);
 
@@ -80,23 +80,15 @@
 		onResponseChange?.(responseId, value);
 	}
 
-	$effect(() => {
-		if (!playerEl || !playerLoaded || !itemRef.itemXml) {
-			return;
-		}
+	function itemPlayerProps(node: PieQtiItemPlayerElement, props: Record<string, unknown>) {
+		assignProps(node, props);
 
-		playerEl.itemXml = itemRef.itemXml;
-		playerEl.role = role;
-		playerEl.disabled = role !== 'candidate';
-		playerEl.responses = responses;
-		playerEl.typeset = typeset;
-		playerEl.i18n = i18n;
-		playerEl.security = security;
-		playerEl.pnp = pnp;
-		playerEl.deliveryContext = itemRef.deliveryContext;
-		playerEl.onResponseChange = handleResponseChange;
-		errorMessage = null;
-	});
+		return {
+			update(next: Record<string, unknown>) {
+				assignProps(node, next);
+			},
+		};
+	}
 </script>
 
 {#if errorMessage}
@@ -134,7 +126,20 @@
 		{/if}
 
 		<div class="item-content">
-			<pie-qti-item-player bind:this={playerEl}></pie-qti-item-player>
+			<pie-qti-item-player
+				use:itemPlayerProps={{
+					itemXml: itemRef.itemXml,
+					role,
+					disabled: role !== 'candidate',
+					responses,
+					typeset,
+					i18n,
+					security,
+					pnp,
+					deliveryContext: itemRef.deliveryContext,
+					onResponseChange: handleResponseChange,
+				}}
+			></pie-qti-item-player>
 		</div>
 	</div>
 {/if}

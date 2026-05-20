@@ -216,7 +216,7 @@ The spec defines the following formats (all coordinates are in natural image pix
 ### `HotspotInteractionData` (from `@pie-qti/item-player`)
 
 ```typescript
-// packages/item-player/src/types/interactions.ts
+// packages/item-player/src/interactions/shared/types.ts
 
 interface HotspotChoice {
   identifier: string;
@@ -508,8 +508,8 @@ AC-E7: maxChoices=0 (unlimited) in extractor
 - Response processing: `docs/QTI-RESPONSE-TRACKING-AND-SCORING.md`
 - Spec gaps: `docs/SPEC-GAPS-PLAN.md` (no existing gap item for hotspot; the `rect` coordinate bug and multi-select gap described above are new)
 - Component: `packages/default-components/src/plugins/hotspot/HotspotInteraction.svelte`
-- Extractor: `packages/item-player/src/extraction/extractors/hotspotExtractor.ts`
-- Types: `packages/item-player/src/types/interactions.ts` — `HotspotInteractionData`, `HotspotChoice`, `ImageData`
+- Extractor: `packages/item-player/src/interactions/hotspot/extractor.ts`
+- Types: `packages/item-player/src/interactions/shared/types.ts` — `HotspotInteractionData`, `HotspotChoice`, `ImageData`
 - To-PIE transformer: `packages/to-pie/src/transformers/hotspot.ts` (note: uses correct `rect` coord interpretation)
 - Eval YAML: `docs/evals/default-components/hotspot/evals.yaml`
 - Sample XML: `packages/to-pie/tests/fixtures/qti-samples/graphic-interactions/hotspot.xml`

@@ -41,7 +41,7 @@ item banks. Work here should be prioritised before any QTI 3.0 work.
 
 ### G-01: `matchGroup` attribute not extracted for associable-choice interactions
 
-Scope       — `packages/item-player/src/extraction/extractors/associateExtractor.ts`,
+Scope       — `packages/item-player/src/interactions/associate/extractor.ts`,
               `matchExtractor.ts`, `gapMatchExtractor.ts`, `graphicGapMatchExtractor.ts`;
               corresponding default-components UI components
 Status      — Done (commit e2660fb, 2026-04-29)
@@ -75,7 +75,7 @@ Test signal
 
 ### G-02: `label` element on `inlineChoiceInteraction` not extracted
 
-Scope       — `packages/item-player/src/extraction/extractors/inlineChoiceExtractor.ts`;
+Scope       — `packages/item-player/src/interactions/inline-choice/extractor.ts`;
               `packages/default-components/src/plugins/inline-choice/`
 Status      — Done (already implemented; no code change needed)
 Effort      — S
@@ -105,7 +105,7 @@ Test signal
 
 ### G-03: `format` attribute on `textEntryInteraction` not extracted
 
-Scope       — `packages/item-player/src/extraction/extractors/textEntryExtractor.ts`;
+Scope       — `packages/item-player/src/interactions/text-entry/extractor.ts`;
               `packages/default-components/src/plugins/text-entry/`
 Status      — Done (commit e2660fb, 2026-04-29)
 Effort      — S
@@ -253,7 +253,7 @@ already in place. What follows is the application-level work.
 
 ### G-08: PCI — Portable Custom Interaction module lifecycle
 
-Scope       — `packages/item-player/src/extraction/extractors/customExtractor.ts`;
+Scope       — `packages/item-player/src/interactions/custom/extractor.ts`;
               new `packages/item-player/src/pci/` module;
               `packages/item-player/src/core/Player.ts`
 Status      — Done (commit fa8fa97, 2026-04-28)

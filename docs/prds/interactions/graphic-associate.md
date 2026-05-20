@@ -246,7 +246,7 @@ The `i18n` provider is injected as a prop. When absent, the English defaults are
 
 ## Data model / contracts
 
-Key types are defined in `packages/item-player/src/types/interactions.ts`:
+Key types are defined in `packages/item-player/src/interactions/shared/types.ts`:
 
 ```typescript
 interface GraphicAssociateHotspot {
@@ -570,8 +570,8 @@ Then: No prompt element is rendered (no empty paragraph or whitespace);
 - Spec gaps: `docs/SPEC-GAPS-PLAN.md` §G-01 (`matchGroup`), §G-06 (`matchMin` enforcement)
 - Response tracking: `docs/QTI-RESPONSE-TRACKING-AND-SCORING.md`
 - Component: `packages/default-components/src/plugins/graphic-associate/GraphicAssociateInteraction.svelte`
-- Extractor: `packages/item-player/src/extraction/extractors/graphicAssociateExtractor.ts`
-- Type definitions: `packages/item-player/src/types/interactions.ts` (`GraphicAssociateInteractionData`, `GraphicAssociateHotspot`)
+- Extractor: `packages/item-player/src/interactions/graphic-associate/extractor.ts`
+- Type definitions: `packages/item-player/src/interactions/shared/types.ts` (`GraphicAssociateInteractionData`, `GraphicAssociateHotspot`)
 - Extractor tests: `packages/item-player/tests/extraction/extractors/graphicAssociateExtractor.test.ts`
 - Eval scenarios: `docs/evals/default-components/graphic-associate/evals.yaml`
 - Demo item XML: `apps/demo/src/lib/sample-items.ts` (`GRAPHIC_ASSOCIATE_INTERACTION` export)

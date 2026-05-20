@@ -384,5 +384,5 @@ export interface InteractionContext {
 
 // Interaction data shapes for the component/plugin system.
 // Exported here so consumers can import them from `@pie-qti/item-player`.
-export * from './interactions.js';
+export type * from '../interactions/index.js';
 export * from './responseValidation.js';

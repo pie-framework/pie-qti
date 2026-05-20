@@ -227,7 +227,7 @@ Inline interactions present a unique accessibility challenge: unlike standalone 
 
 ### `TextEntryInteractionData`
 
-Defined in `packages/item-player/src/types/interactions.ts`:
+Defined in `packages/item-player/src/interactions/shared/types.ts`:
 
 ```ts
 interface TextEntryInteractionData extends BaseInteractionData {
@@ -463,9 +463,9 @@ AC-E8: Missing interaction data for placeholder
 - Spec gaps: G-02, G-03, G-04 — `docs/SPEC-GAPS-PLAN.md`
 - Response tracking and scoring: `docs/QTI-RESPONSE-TRACKING-AND-SCORING.md`
 - Rendering implementation: `packages/item-player/src/components/ItemBody.svelte`
-- Extractor — text entry: `packages/item-player/src/extraction/extractors/textEntryExtractor.ts`
-- Extractor — inline choice: `packages/item-player/src/extraction/extractors/inlineChoiceExtractor.ts`
-- Type definitions: `packages/item-player/src/types/interactions.ts` (`TextEntryInteractionData`, `InlineChoiceInteractionData`)
+- Extractor — text entry: `packages/item-player/src/interactions/text-entry/extractor.ts`
+- Extractor — inline choice: `packages/item-player/src/interactions/inline-choice/extractor.ts`
+- Type definitions: `packages/item-player/src/interactions/shared/types.ts` (`TextEntryInteractionData`, `InlineChoiceInteractionData`)
 - Standalone renderer (secondary, used in demos): `packages/default-components/src/shared/components/InlineInteractionRenderer.svelte`
 - Existing eval: `docs/evals/default-components/text-entry/evals.yaml`
 - Adjacent PRD: `docs/prds/interactions/choice.md` (for comparison with a block-level interaction)

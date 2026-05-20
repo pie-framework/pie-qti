@@ -332,7 +332,7 @@ Visible glossary UI; depends on PR 1 (PNP) and PR 3 (catalog).
 - Module path resolution: resolves relative to `baseUrl`; absolute URLs
   used as-is.
 
-**`packages/item-player/src/extraction/extractors/portableCustomExtractor.ts`**
+**`packages/item-player/src/interactions/portable-custom/extractor.ts`**
 (higher priority than `standardCustomExtractor` for QTI 3.0 items)
 - Detects `qti-portable-custom-interaction` (via element mapper).
 - Extracts: `responseIdentifier`, `customInteractionTypeIdentifier`,

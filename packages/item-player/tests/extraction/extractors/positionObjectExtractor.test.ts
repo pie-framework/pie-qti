@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { standardPositionObjectExtractor } from '../../../src/extraction/extractors/positionObjectExtractor.js';
+import { standardPositionObjectExtractor } from '../../../src/interactions/position-object/extractor.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
 describe('standardPositionObjectExtractor', () => {

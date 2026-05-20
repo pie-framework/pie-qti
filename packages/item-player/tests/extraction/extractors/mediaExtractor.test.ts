@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { standardMediaExtractor } from '../../../src/extraction/extractors/mediaExtractor.js';
+import { standardMediaExtractor } from '../../../src/interactions/media/extractor.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
 describe('standardMediaExtractor', () => {

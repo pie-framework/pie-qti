@@ -178,7 +178,7 @@ WCAG 2.2 Level AA compliance is mandatory. The native `<input type="range">` pro
 
 ## Data model / contracts
 
-The extractor produces `SliderData` (in `sliderExtractor.ts`), which the player maps to `SliderInteractionData` (in `packages/item-player/src/types/interactions.ts`):
+The extractor produces `SliderData` (in `sliderExtractor.ts`), which the player maps to `SliderInteractionData` (in `packages/item-player/src/interactions/shared/types.ts`):
 
 ```typescript
 export interface SliderInteractionData extends BaseInteractionData {
@@ -438,8 +438,8 @@ AC-E10: mapResponse with float values — string key precision risk
 - QTI spec: `docs/QTI_techguide.md` §3.4.1
 - Response tracking and scoring: `docs/QTI-RESPONSE-TRACKING-AND-SCORING.md`
 - Component implementation: `packages/default-components/src/plugins/slider/SliderInteraction.svelte`
-- Extractor: `packages/item-player/src/extraction/extractors/sliderExtractor.ts`
-- Types: `packages/item-player/src/types/interactions.ts` (`SliderInteractionData`)
+- Extractor: `packages/item-player/src/interactions/slider/extractor.ts`
+- Types: `packages/item-player/src/interactions/shared/types.ts` (`SliderInteractionData`)
 - Eval scenarios: `docs/evals/default-components/slider/evals.yaml`
 - Sample items (main): `apps/demo/src/lib/sample-items.ts` (`SLIDER_INTERACTION`)
 - Sample items (edge cases): `apps/demo/src/lib/sample-items-edge-cases.ts` (`SLIDER_NEGATIVE_RANGE`, `SLIDER_DECIMAL_STEPS`, `SLIDER_LARGE_RANGE`, `SLIDER_REVERSE_RANGE`)

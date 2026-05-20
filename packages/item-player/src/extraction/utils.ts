@@ -8,7 +8,7 @@ import type { ElementNameMapper, AttributeNameMapper } from '@pie-qti/qti-common
 import { Qti2xElementNameMapper, Qti2xAttributeNameMapper } from '@pie-qti/qti-common';
 import { sanitizeTextContent } from '../core/sanitizer.js';
 import type { PlayerSecurityConfig } from '../types/index.js';
-import type { QTIElement } from '../types/interactions.js';
+import type { QTIElement } from '../interactions/index.js';
 import type { ExtractionUtils } from './types.js';
 
 /**

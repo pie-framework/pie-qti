@@ -5,7 +5,7 @@ import { applyInteractionSecurity } from './interactionSecurity.js';
 import type { VariableDeclaration as ExtractionVariableDeclaration } from './types.js';
 import type { DeclarationMap } from '@pie-qti/qti-processing';
 import type { PlayerConfig } from '../types/index.js';
-import type { InteractionData } from '../types/interactions.js';
+import type { InteractionData } from '../interactions/index.js';
 
 export interface InteractionExtractionPipelineInput {
 	document: AssessmentItemDocument;

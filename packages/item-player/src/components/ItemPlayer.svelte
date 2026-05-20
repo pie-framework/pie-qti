@@ -63,15 +63,16 @@
 	// Initialize player when XML changes
 	$effect(() => {
 		try {
-			player = new Player({ itemXml, role, security, pnp, deliveryContext });
+			const newPlayer = new Player({ itemXml, role, security, pnp, deliveryContext });
+			player = newPlayer;
 			error = null;
 			// Reset state when XML changes
 			currentResponses = { ...responseValues };
 			modalFeedback = [];
 			outcomeValues = {};
-			isAdaptive = player.isAdaptive();
-			isCompleted = player.isCompleted();
-			numAttempts = player.getNumAttempts();
+			isAdaptive = newPlayer.isAdaptive();
+			isCompleted = newPlayer.isCompleted();
+			numAttempts = newPlayer.getNumAttempts();
 		} catch (e) {
 			error = e instanceof Error ? e.message : (i18n?.t('item.parsingError') ?? 'item.parsingError');
 			player = null;

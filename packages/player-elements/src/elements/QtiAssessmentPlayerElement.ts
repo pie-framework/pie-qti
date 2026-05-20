@@ -82,8 +82,8 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 	}
 
 	protected override _mountOrUpdate() {
-		// Prevent mounting until assessment is loaded or no XML is provided
-		if (!this.#allowMount && this.#assessmentTestXml) {
+		// Pure-QTI assessment elements need their XML resolved before the Svelte shell mounts.
+		if (!this.#allowMount) {
 			return;
 		}
 		super._mountOrUpdate();
@@ -130,9 +130,8 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 	}
 	set config(value: Partial<BackendAssessmentPlayerConfig>) {
 		this.#config = value ?? {};
-		// Don't call _mountOrUpdate here - let #syncFromQti handle it when done
-		// If assessment is not being loaded (no XML), then update immediately
-		if (!this.#assessmentTestXml) {
+		// Let #syncFromQti mount once the assessment backend is ready.
+		if (this.#allowMount) {
 			this._mountOrUpdate();
 		}
 	}
@@ -142,9 +141,8 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 	}
 	set security(value: PlayerSecurityConfig | undefined) {
 		this.#security = value;
-		// Don't call _mountOrUpdate here - let #syncFromQti handle it when done
-		// If assessment is not being loaded (no XML), then update immediately
-		if (!this.#assessmentTestXml) {
+		// Let #syncFromQti mount once the assessment backend is ready.
+		if (this.#allowMount) {
 			this._mountOrUpdate();
 		}
 	}

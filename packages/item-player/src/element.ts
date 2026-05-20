@@ -24,6 +24,7 @@ class PieQtiItemPlayerElement extends HTMLElement {
 
 	#container: HTMLDivElement | null = null;
 	#instance: any = null;
+	#pendingRemount = false;
 
 	// Attribute-backed props
 	#itemXml = '';
@@ -130,10 +131,19 @@ class PieQtiItemPlayerElement extends HTMLElement {
 		if (typeof this.#instance.$set === 'function') {
 			this.#instance.$set(this.#getProps());
 		} else {
-			// Svelte 5 runes components: remount with new props
+			this.#scheduleRemount();
+		}
+	}
+
+	#scheduleRemount() {
+		if (this.#pendingRemount) return;
+		this.#pendingRemount = true;
+		queueMicrotask(() => {
+			this.#pendingRemount = false;
+			if (!this.isConnected) return;
 			this.#teardown();
 			this.#mount();
-		}
+		});
 	}
 
 	#teardown() {

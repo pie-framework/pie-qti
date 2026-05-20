@@ -180,7 +180,7 @@ The QTI 3.0 tag name is `qti-extended-text-interaction` (kebab-case) with attrib
 
 ### `ExtendedTextInteractionData` (item-player types)
 
-Defined in `packages/item-player/src/types/interactions.ts`:
+Defined in `packages/item-player/src/interactions/shared/types.ts`:
 
 ```typescript
 export interface ExtendedTextInteractionData extends BaseInteractionData {
@@ -196,7 +196,7 @@ Note: `patternMask` is absent from this interface — it is a known gap (G-04). 
 
 ### `ExtendedTextData` (extractor output)
 
-Defined in `packages/item-player/src/extraction/extractors/extendedTextExtractor.ts`. Structurally identical to `ExtendedTextInteractionData` minus the `type` and `responseId` fields (those are added by the base extraction machinery). The extractor's `validate()` enforces:
+Defined in `packages/item-player/src/interactions/extended-text/extractor.ts`. Structurally identical to `ExtendedTextInteractionData` minus the `type` and `responseId` fields (those are added by the base extraction machinery). The extractor's `validate()` enforces:
 
 - `expectedLines >= 1` (error if violated)
 - `expectedLength >= 1` (error if violated)
@@ -446,8 +446,8 @@ AC-E6: format="xhtml" — same editor as plain
 - Spec gap: `docs/SPEC-GAPS-PLAN.md` §G-04 (`patternMask` not enforced)
 - Component: `packages/default-components/src/plugins/extended-text/ExtendedTextInteraction.svelte`
 - Shared editor: `packages/default-components/src/shared/components/RichTextEditor.svelte`
-- Extractor: `packages/item-player/src/extraction/extractors/extendedTextExtractor.ts`
-- Type definition: `packages/item-player/src/types/interactions.ts` (`ExtendedTextInteractionData`)
+- Extractor: `packages/item-player/src/interactions/extended-text/extractor.ts`
+- Type definition: `packages/item-player/src/interactions/shared/types.ts` (`ExtendedTextInteractionData`)
 - QTI→PIE transformer: `packages/to-pie/src/transformers/extended-response.ts`
 - Eval fixtures: `docs/evals/default-components/extended-text/evals.yaml`
 - Adjacent PRD: `docs/prds/interactions/choice.md` (reference PRD for the same framework)

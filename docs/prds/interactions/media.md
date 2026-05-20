@@ -236,7 +236,7 @@ No items from `docs/SPEC-GAPS-PLAN.md` (G-01 through G-15) directly affect `medi
 
 ### `MediaInteractionData` (extracted data passed to component)
 
-Defined in `packages/item-player/src/types/interactions.ts`:
+Defined in `packages/item-player/src/interactions/shared/types.ts`:
 
 ```typescript
 interface MediaElement {
@@ -535,8 +535,8 @@ Then:  An error is thrown: "object element must have data attribute"
 - **Spec gaps:** `docs/SPEC-GAPS-PLAN.md` — no current gap items affect this interaction
 - **Implementation:**
   - `packages/default-components/src/plugins/media/MediaInteraction.svelte`
-  - `packages/item-player/src/extraction/extractors/mediaExtractor.ts`
-  - `packages/item-player/src/types/interactions.ts` — `MediaInteractionData`, `MediaElement`
+  - `packages/item-player/src/interactions/media/extractor.ts`
+  - `packages/item-player/src/interactions/shared/types.ts` — `MediaInteractionData`, `MediaElement`
   - `packages/item-player/src/core/Player.ts` — `allowObjectEmbeds` injection, `canSubmitResponses` logic
   - `packages/item-player/src/core/sanitizer.ts` — `object` blocking
 - **Evals:** `docs/evals/default-components/media/evals.yaml`

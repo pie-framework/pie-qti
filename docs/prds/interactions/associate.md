@@ -96,7 +96,7 @@ Impact: Items that use `matchMin` to enforce mandatory choice usage (e.g., "each
 
 ### Type-system gap
 
-`AssociateInteractionData` (in `packages/item-player/src/types/interactions.ts`) does not include `minAssociations` or per-choice `matchMin`/`matchGroup` fields, even though the extractor reads and returns them. The runtime type used by the component is narrower than the extractor's `AssociateData` type. If these fields are needed by the UI, the shared type must be updated in the same PR.
+`AssociateInteractionData` (in `packages/item-player/src/interactions/shared/types.ts`) does not include `minAssociations` or per-choice `matchMin`/`matchGroup` fields, even though the extractor reads and returns them. The runtime type used by the component is narrower than the extractor's `AssociateData` type. If these fields are needed by the UI, the shared type must be updated in the same PR.
 
 ---
 
@@ -196,7 +196,7 @@ RTL layout is inherited from the page/shadow root's `dir` attribute; no special 
 
 ## Data model / contracts
 
-### `AssociateData` (extractor output, `packages/item-player/src/extraction/extractors/associateExtractor.ts`)
+### `AssociateData` (extractor output, `packages/item-player/src/interactions/associate/extractor.ts`)
 
 ```typescript
 interface AssociateData {
@@ -216,7 +216,7 @@ interface AssociateData {
 
 Note: `matchGroup` is absent (G-01 gap). `minAssociations` is extracted but absent from `AssociateInteractionData` in `interactions.ts` — it does not reach the component.
 
-### `AssociateInteractionData` (component input, `packages/item-player/src/types/interactions.ts`)
+### `AssociateInteractionData` (component input, `packages/item-player/src/interactions/shared/types.ts`)
 
 ```typescript
 interface AssociateInteractionData extends BaseInteractionData {
@@ -463,8 +463,8 @@ AC-E7: HTML content in choice text
 - Spec gaps: `docs/SPEC-GAPS-PLAN.md` §G-01 (matchGroup), §G-06 (matchMin validation)
 - Response tracking and scoring: `docs/QTI-RESPONSE-TRACKING-AND-SCORING.md`
 - Svelte component: `packages/default-components/src/plugins/associate/AssociateInteraction.svelte`
-- Extractor: `packages/item-player/src/extraction/extractors/associateExtractor.ts`
-- Type definitions: `packages/item-player/src/types/interactions.ts` (`AssociateInteractionData`, `AssociableChoice`)
+- Extractor: `packages/item-player/src/interactions/associate/extractor.ts`
+- Type definitions: `packages/item-player/src/interactions/shared/types.ts` (`AssociateInteractionData`, `AssociableChoice`)
 - Item body renderer: `packages/item-player/src/components/ItemBody.svelte`
 - Pair normalization (scoring): `packages/item-player/src/core/Player.ts` `parseMapping()` and `packages/qti-processing/src/eval/evaluator.ts` `normalizeScalarForCompare()`
 - Integration test: `packages/item-player/tests/core/interaction-plumbing.test.ts`

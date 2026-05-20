@@ -443,7 +443,7 @@ AC-E6: HTML content in stimulus preserves formatting after gap injection
 - Response processing and scoring: `docs/QTI-RESPONSE-TRACKING-AND-SCORING.md`
 - Spec gaps: `docs/SPEC-GAPS-PLAN.md` — G-01 (`matchGroup`), G-06 (`matchMin` validation)
 - Component: `packages/default-components/src/plugins/gap-match/GapMatchInteraction.svelte`
-- Extractor: `packages/item-player/src/extraction/extractors/gapMatchExtractor.ts`
-- Types: `packages/item-player/src/types/interactions.ts` — `GapMatchInteractionData`
+- Extractor: `packages/item-player/src/interactions/gap-match/extractor.ts`
+- Types: `packages/item-player/src/interactions/shared/types.ts` — `GapMatchInteractionData`
 - Evals: `docs/evals/default-components/gap-match/evals.yaml`
 - Adjacent PRDs: [match.md](match.md) (shares `matchGroup`/`matchMin` gaps), [associate.md](associate.md) (shares `directedPair`/`pair` semantics), [graphic-gap-match.md](graphic-gap-match.md) (image-based variant; uses `gapImg`)

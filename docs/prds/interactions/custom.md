@@ -275,7 +275,7 @@ export interface PciModule {
 
 ### `CustomInteractionData`
 
-Defined in `packages/item-player/src/types/interactions.ts`:
+Defined in `packages/item-player/src/interactions/shared/types.ts`:
 
 ```typescript
 export interface CustomInteractionData extends BaseInteractionData {
@@ -596,10 +596,10 @@ Then: module.destroy() is called (if the method is present)
 - Response tracking: `docs/QTI-RESPONSE-TRACKING-AND-SCORING.md`
 - Implementation — PCI host: `packages/item-player/src/pci/PciHost.ts`
 - Implementation — PCI types: `packages/item-player/src/pci/types.ts`
-- Implementation — PCI extractor: `packages/item-player/src/extraction/extractors/portableCustomExtractor.ts`
+- Implementation — PCI extractor: `packages/item-player/src/interactions/portable-custom/extractor.ts`
 - Implementation — component: `packages/default-components/src/plugins/custom/CustomInteraction.svelte`
 - Implementation — fallback: `packages/default-components/src/shared/components/CustomInteractionFallback.svelte`
-- Implementation — QTI 2.x extractor: `packages/item-player/src/extraction/extractors/customExtractor.ts`
-- Implementation — types: `packages/item-player/src/types/interactions.ts` (`CustomInteractionData`)
+- Implementation — QTI 2.x extractor: `packages/item-player/src/interactions/custom/extractor.ts`
+- Implementation — types: `packages/item-player/src/interactions/shared/types.ts` (`CustomInteractionData`)
 - Evals: `docs/evals/default-components/custom/evals.yaml`
 - Adjacent PRDs: `docs/prds/architecture/item-player-plugin-system.md`, `docs/prds/architecture/security.md`

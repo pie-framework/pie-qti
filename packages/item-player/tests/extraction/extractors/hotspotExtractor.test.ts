@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { standardHotspotExtractor } from '../../../src/extraction/extractors/hotspotExtractor.js';
+import { standardHotspotExtractor } from '../../../src/interactions/hotspot/extractor.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
 describe('standardHotspotExtractor', () => {

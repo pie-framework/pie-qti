@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { standardTextEntryExtractor } from '../../../src/extraction/extractors/textEntryExtractor.js';
+import { standardTextEntryExtractor } from '../../../src/interactions/text-entry/extractor.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
 describe('standardTextEntryExtractor', () => {

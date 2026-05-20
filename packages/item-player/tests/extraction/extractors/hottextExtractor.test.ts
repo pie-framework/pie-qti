@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { standardHottextExtractor } from '../../../src/extraction/extractors/hottextExtractor.js';
+import { standardHottextExtractor } from '../../../src/interactions/hottext/extractor.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
 describe('standardHottextExtractor', () => {

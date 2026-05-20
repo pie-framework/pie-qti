@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { standardAssociateExtractor } from '../../../src/extraction/extractors/associateExtractor.js';
+import { standardAssociateExtractor } from '../../../src/interactions/associate/extractor.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
 describe('standardAssociateExtractor', () => {

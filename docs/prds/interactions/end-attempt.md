@@ -241,7 +241,7 @@ There are no open spec-gap items in `docs/SPEC-GAPS-PLAN.md` that apply directly
 
 ### `EndAttemptInteractionData` (from `@pie-qti/item-player`)
 
-Source: `packages/item-player/src/types/interactions.ts`
+Source: `packages/item-player/src/interactions/shared/types.ts`
 
 ```typescript
 interface EndAttemptInteractionData extends BaseInteractionData {
@@ -502,7 +502,7 @@ AC-E5: Interaction data absent (null/undefined interaction prop)
 - Spec gaps plan: `docs/SPEC-GAPS-PLAN.md` (no direct gap items for this interaction)
 - Evals: `docs/evals/default-components/end-attempt/evals.yaml`
 - Implementation — Svelte component: `packages/default-components/src/plugins/end-attempt/EndAttemptInteraction.svelte`
-- Implementation — extractor: `packages/item-player/src/extraction/extractors/endAttemptExtractor.ts`
-- Implementation — types: `packages/item-player/src/types/interactions.ts` (`EndAttemptInteractionData`)
+- Implementation — extractor: `packages/item-player/src/interactions/end-attempt/extractor.ts`
+- Implementation — types: `packages/item-player/src/interactions/shared/types.ts` (`EndAttemptInteractionData`)
 - Implementation — player: `packages/item-player/src/core/Player.ts` (`submitAttempt`, `isAdaptive`, `getHintEndAttemptIdentifiers`)
 - Adjacent PRDs: `docs/prds/architecture/response-processing.md`, `docs/prds/architecture/item-player.md`

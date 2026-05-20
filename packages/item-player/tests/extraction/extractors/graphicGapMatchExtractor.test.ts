@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { standardGraphicGapMatchExtractor } from '../../../src/extraction/extractors/graphicGapMatchExtractor.js';
+import { standardGraphicGapMatchExtractor } from '../../../src/interactions/graphic-gap-match/extractor.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
 describe('standardGraphicGapMatchExtractor', () => {

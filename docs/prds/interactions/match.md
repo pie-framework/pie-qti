@@ -183,7 +183,7 @@ The `matchGroup` attribute on `simpleAssociableChoice` is a space-separated list
 
 ### `MatchInteractionData` (from `@pie-qti/item-player`)
 
-Source: `packages/item-player/src/types/interactions.ts`
+Source: `packages/item-player/src/interactions/shared/types.ts`
 
 ```typescript
 interface AssociableChoice {
@@ -484,7 +484,7 @@ AC-E7: Response prop is null or undefined
 - Component: `packages/default-components/src/plugins/match/MatchInteraction.svelte`
 - Shared UI: `packages/default-components/src/shared/components/MatchDragDrop.svelte`
 - Pair utilities: `packages/default-components/src/shared/utils/pairHelpers.ts`
-- Extractor: `packages/item-player/src/extraction/extractors/matchExtractor.ts`
-- Types: `packages/item-player/src/types/interactions.ts` — `MatchInteractionData`, `AssociableChoice`
+- Extractor: `packages/item-player/src/interactions/match/extractor.ts`
+- Types: `packages/item-player/src/interactions/shared/types.ts` — `MatchInteractionData`, `AssociableChoice`
 - Evals: `docs/evals/default-components/match/evals.yaml`
 - Adjacent PRDs: `docs/prds/interactions/choice.md` (shuffle pattern, maxChoices=0 zero-means-unlimited analogy), associate.md (single-pool pairing — not yet written)

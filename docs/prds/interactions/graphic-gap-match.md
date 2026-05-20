@@ -253,7 +253,7 @@ The following string keys must be provided via the `i18n` prop or fall back to t
 
 ### `GraphicGapMatchInteractionData` (from `@pie-qti/item-player`)
 
-Source: `packages/item-player/src/types/interactions.ts`
+Source: `packages/item-player/src/interactions/shared/types.ts`
 
 ```typescript
 interface AssociableHotspot {
@@ -590,8 +590,8 @@ AC-E10: Rapid successive drops on same hotspot
 - Response processing: `docs/QTI-RESPONSE-TRACKING-AND-SCORING.md` — directedPair semantics, map_response template
 - Spec gaps: `docs/SPEC-GAPS-PLAN.md` — G-01 (matchGroup not extracted)
 - Component: `packages/default-components/src/plugins/graphic-gap-match/GraphicGapMatchInteraction.svelte`
-- Extractor: `packages/item-player/src/extraction/extractors/graphicGapMatchExtractor.ts`
-- Types: `packages/item-player/src/types/interactions.ts` — `GraphicGapMatchInteractionData`, `AssociableHotspot`
+- Extractor: `packages/item-player/src/interactions/graphic-gap-match/extractor.ts`
+- Types: `packages/item-player/src/interactions/shared/types.ts` — `GraphicGapMatchInteractionData`, `AssociableHotspot`
 - Touch drag action: `@pie-qti/qti-common` — `touchDrag`
 - Evals: `docs/evals/default-components/graphic-gap-match/evals.yaml`
 - Sample XML (spec-standard, uses gapImg): `packages/to-pie/tests/fixtures/qti-samples/graphic-interactions/graphic_gap_match.xml`

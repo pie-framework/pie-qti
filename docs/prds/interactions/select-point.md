@@ -498,9 +498,9 @@ AC-E6: Point placed exactly on a shared areaMapEntry boundary
 - Response processing: `docs/QTI-RESPONSE-TRACKING-AND-SCORING.md` §3 (map_response_point and inside operator)
 - Spec gaps: `docs/SPEC-GAPS-PLAN.md`
 - Component: `packages/default-components/src/plugins/select-point/SelectPointInteraction.svelte`
-- Extractor: `packages/item-player/src/extraction/extractors/selectPointExtractor.ts`
+- Extractor: `packages/item-player/src/interactions/select-point/extractor.ts`
 - Extractor tests: `packages/item-player/tests/extraction/extractors/selectPointExtractor.test.ts`
-- Interaction types: `packages/item-player/src/types/interactions.ts` — `SelectPointInteractionData`, `Point`
+- Interaction types: `packages/item-player/src/interactions/shared/types.ts` — `SelectPointInteractionData`, `Point`
 - Scoring evaluator: `packages/qti-processing/src/eval/evaluator.ts` — `expr.mapResponsePoint`, `expr.inside`
 - Response variable types: `packages/item-player/src/types/index.ts` — `AreaMapping`, `AreaMapEntry`
 - Sample item: `apps/demo/src/lib/sample-items.ts` — `SELECT_POINT_INTERACTION`

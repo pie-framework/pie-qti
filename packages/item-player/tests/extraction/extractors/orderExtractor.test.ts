@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { standardOrderExtractor } from '../../../src/extraction/extractors/orderExtractor.js';
+import { standardOrderExtractor } from '../../../src/interactions/order/extractor.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
 describe('standardOrderExtractor', () => {

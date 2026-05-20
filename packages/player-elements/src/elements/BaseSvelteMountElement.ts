@@ -7,6 +7,7 @@ export abstract class BaseSvelteMountElement<TProps extends Record<string, unkno
 
 	#container: HTMLDivElement | null = null;
 	protected _instance: any = null;
+	#pendingRemount = false;
 
 	connectedCallback() {
 		this._mountOrUpdate();
@@ -38,14 +39,23 @@ export abstract class BaseSvelteMountElement<TProps extends Record<string, unkno
 			return;
 		}
 
-		// Svelte 5 `mount` returns an instance that may or may not have `$set`.
-		// If it doesn't, remount.
 		if (typeof this._instance?.$set === 'function') {
 			this._instance.$set(props);
-		} else {
+			return;
+		}
+
+		this.#scheduleRemount();
+	}
+
+	#scheduleRemount() {
+		if (this.#pendingRemount) return;
+		this.#pendingRemount = true;
+		queueMicrotask(() => {
+			this.#pendingRemount = false;
+			if (!this.isConnected || !this.#container) return;
 			this._teardownInstance();
 			this._mountOrUpdate();
-		}
+		});
 	}
 
 	protected _teardownInstance() {

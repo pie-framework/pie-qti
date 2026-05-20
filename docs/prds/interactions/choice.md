@@ -314,6 +314,6 @@ AC-E6: Candidate role does not reveal correct answers
 - Response processing: `docs/QTI-RESPONSE-TRACKING-AND-SCORING.md`
 - Spec gaps: `docs/SPEC-GAPS-PLAN.md` — G-09 (PNP elimination tool), G-13 (structural labels)
 - Component: `packages/default-components/src/plugins/choice/ChoiceInteraction.svelte`
-- Extractor: `packages/item-player/src/extraction/extractors/choiceExtractor.ts`
-- Type: `packages/item-player/src/types/interactions.ts` — `ChoiceInteractionData`
+- Extractor: `packages/item-player/src/interactions/choice/extractor.ts`
+- Type: `packages/item-player/src/interactions/shared/types.ts` — `ChoiceInteractionData`
 - Adjacent PRDs: [order.md](order.md) (shares shuffle pattern), [hottext.md](hottext.md) (similar selection mechanics), [match.md](match.md) (matchGroup/matchMin gaps)

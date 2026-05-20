@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { standardUploadExtractor } from '../../../src/extraction/extractors/uploadExtractor.js';
+import { standardUploadExtractor } from '../../../src/interactions/upload/extractor.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
 describe('standardUploadExtractor', () => {

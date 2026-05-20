@@ -129,17 +129,17 @@ All paths contain a `README.md` with acceptance criteria split by capability (EX
 
 | Feature | Extractor | Component |
 |---------|-----------|-----------|
-| Q2 choiceInteraction | `packages/item-player/src/extraction/extractors/choiceExtractor.ts` | `packages/default-components/src/plugins/choice/` |
-| Q5 extendedTextInteraction | `packages/item-player/src/extraction/extractors/extendedTextExtractor.ts` | `packages/default-components/src/plugins/extended-text/` |
-| Q6 gapMatchInteraction | `packages/item-player/src/extraction/extractors/gapMatchExtractor.ts` | `packages/default-components/src/plugins/gap-match/` |
-| Q8 graphicGapMatchInteraction | `packages/item-player/src/extraction/extractors/graphicGapMatchExtractor.ts` | `packages/default-components/src/plugins/graphic-gap-match/` |
-| Q10 hotspotInteraction | `packages/item-player/src/extraction/extractors/hotspotExtractor.ts` | `packages/default-components/src/plugins/hotspot/` |
-| Q11 hottextInteraction | `packages/item-player/src/extraction/extractors/hottextExtractor.ts` | `packages/default-components/src/plugins/hottext/` |
-| Q12 inlineChoiceInteraction | `packages/item-player/src/extraction/extractors/inlineChoiceExtractor.ts` | `packages/default-components/src/plugins/inline-choice/` |
-| Q13 matchInteraction | `packages/item-player/src/extraction/extractors/matchExtractor.ts` | `packages/default-components/src/plugins/match/` |
-| Q15 orderInteraction | `packages/item-player/src/extraction/extractors/orderExtractor.ts` | `packages/default-components/src/plugins/order/` |
-| Q19 sliderInteraction | `packages/item-player/src/extraction/extractors/sliderExtractor.ts` | `packages/default-components/src/plugins/slider/` |
-| Q20 textEntryInteraction | `packages/item-player/src/extraction/extractors/textEntryExtractor.ts` | `packages/default-components/src/plugins/text-entry/` |
+| Q2 choiceInteraction | `packages/item-player/src/interactions/choice/extractor.ts` | `packages/default-components/src/plugins/choice/` |
+| Q5 extendedTextInteraction | `packages/item-player/src/interactions/extended-text/extractor.ts` | `packages/default-components/src/plugins/extended-text/` |
+| Q6 gapMatchInteraction | `packages/item-player/src/interactions/gap-match/extractor.ts` | `packages/default-components/src/plugins/gap-match/` |
+| Q8 graphicGapMatchInteraction | `packages/item-player/src/interactions/graphic-gap-match/extractor.ts` | `packages/default-components/src/plugins/graphic-gap-match/` |
+| Q10 hotspotInteraction | `packages/item-player/src/interactions/hotspot/extractor.ts` | `packages/default-components/src/plugins/hotspot/` |
+| Q11 hottextInteraction | `packages/item-player/src/interactions/hottext/extractor.ts` | `packages/default-components/src/plugins/hottext/` |
+| Q12 inlineChoiceInteraction | `packages/item-player/src/interactions/inline-choice/extractor.ts` | `packages/default-components/src/plugins/inline-choice/` |
+| Q13 matchInteraction | `packages/item-player/src/interactions/match/extractor.ts` | `packages/default-components/src/plugins/match/` |
+| Q15 orderInteraction | `packages/item-player/src/interactions/order/extractor.ts` | `packages/default-components/src/plugins/order/` |
+| Q19 sliderInteraction | `packages/item-player/src/interactions/slider/extractor.ts` | `packages/default-components/src/plugins/slider/` |
+| Q20 textEntryInteraction | `packages/item-player/src/interactions/text-entry/extractor.ts` | `packages/default-components/src/plugins/text-entry/` |
 | I17 composite | `packages/item-player/src/extraction/` (multi-interaction support in item body) | — |
 
 ### Test/assessment features → assessment player

@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { standardSliderExtractor } from '../../../src/extraction/extractors/sliderExtractor.js';
+import { standardSliderExtractor } from '../../../src/interactions/slider/extractor.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
 describe('standardSliderExtractor', () => {

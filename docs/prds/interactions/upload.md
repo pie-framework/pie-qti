@@ -188,7 +188,7 @@ RTL layout is not explicitly tested. The component uses standard CSS flow and Da
 
 ### `UploadInteractionData`
 
-Defined in `packages/item-player/src/types/interactions.ts`:
+Defined in `packages/item-player/src/interactions/shared/types.ts`:
 
 ```typescript
 interface UploadInteractionData extends BaseInteractionData {
@@ -471,7 +471,7 @@ AC-E5: Zero-byte file
 - Implementation:
   - Component: `packages/default-components/src/plugins/upload/UploadInteraction.svelte`
   - Shared sub-component: `packages/default-components/src/shared/components/FileUpload.svelte`
-  - Extractor: `packages/item-player/src/extraction/extractors/uploadExtractor.ts`
+  - Extractor: `packages/item-player/src/interactions/upload/extractor.ts`
   - Response type: `packages/item-player/src/types/index.ts` (`QTIFileResponse`)
-  - Interaction data type: `packages/item-player/src/types/interactions.ts` (`UploadInteractionData`)
+  - Interaction data type: `packages/item-player/src/interactions/shared/types.ts` (`UploadInteractionData`)
 - Adjacent PRDs: `docs/prds/interactions/extended-text.md` (the other "human-scored, open-ended" interaction)

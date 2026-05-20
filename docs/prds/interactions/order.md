@@ -35,7 +35,7 @@
 
 **Why `minChoices` and `maxChoices` are not extracted into `OrderInteractionData`**: The QTI spec allows `orderInteraction` to have fewer choices in the response than are presented — `minChoices` sets the lower bound, `maxChoices` the upper bound, on the number of items the candidate must place. Both are absent from `OrderInteractionData` (the type used by the component) and are not extracted by `standardOrderExtractor`. This is an unimplemented gap. In the common case all choices must be ordered (no `minChoices`/`maxChoices` constraints), which is why this was not prioritised. Items that use these attributes to present a "pick and rank" UI (e.g., "select and rank the top 3 from this list of 6") will silently ignore the constraints and require all choices to be placed.
 
-**Why a separate `OrderData` extractor type exists alongside `OrderInteractionData`**: The extractor produces `OrderData` (from `packages/item-player/src/extraction/extractors/orderExtractor.ts`), which includes `fixed` per choice and `orientation`. The component uses `OrderInteractionData` (from `packages/item-player/src/types/interactions.ts`), which does not declare `fixed` or `orientation`. `Player.getInteractions()` spreads the extracted data onto the base type at line 489 of `Player.ts`, so `fixed` and `orientation` are present at runtime on the object the component receives — they are just not in the TypeScript type. This means `fixed` is silently passed to the component but the component does not use it: `SortableList` treats all choices as shuffleable regardless of their `fixed` flag.
+**Why a separate `OrderData` extractor type exists alongside `OrderInteractionData`**: The extractor produces `OrderData` (from `packages/item-player/src/interactions/order/extractor.ts`), which includes `fixed` per choice and `orientation`. The component uses `OrderInteractionData` (from `packages/item-player/src/interactions/shared/types.ts`), which does not declare `fixed` or `orientation`. `Player.getInteractions()` spreads the extracted data onto the base type at line 489 of `Player.ts`, so `fixed` and `orientation` are present at runtime on the object the component receives — they are just not in the TypeScript type. This means `fixed` is silently passed to the component but the component does not use it: `SortableList` treats all choices as shuffleable regardless of their `fixed` flag.
 
 **Why `ordered` cardinality response is `string[]` not a QTI container type**: The component emits and accepts `string[]` (an array of identifiers). The item player's `Player` class knows the response variable has `ordered` cardinality and serialises/deserialises accordingly. This keeps the component interface simple and avoids coupling the component to the QTI variable system.
 
@@ -467,9 +467,9 @@ AC-E10: Fractions-order sample (math content, no shuffle)
 - Component: `packages/default-components/src/plugins/order/OrderInteraction.svelte`
 - Shared subcomponent: `packages/default-components/src/shared/components/SortableList.svelte`
 - Touch drag utility: `packages/qti-common/src/dom/touchDrag.ts`
-- Extractor: `packages/item-player/src/extraction/extractors/orderExtractor.ts`
-- Type (component-facing): `packages/item-player/src/types/interactions.ts` — `OrderInteractionData`
-- Extractor type: `packages/item-player/src/extraction/extractors/orderExtractor.ts` — `OrderData`
+- Extractor: `packages/item-player/src/interactions/order/extractor.ts`
+- Type (component-facing): `packages/item-player/src/interactions/shared/types.ts` — `OrderInteractionData`
+- Extractor type: `packages/item-player/src/interactions/order/extractor.ts` — `OrderData`
 - i18n keys: `packages/i18n/src/locales/en-US.ts` — `interactions.order.*`
 - Eval scenarios: `docs/evals/default-components/order/evals.yaml`
 - QTI 3.0 fixture: `packages/qti-common/src/__tests__/fixtures/qti3-order-interaction.xml`

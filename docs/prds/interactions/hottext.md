@@ -88,7 +88,7 @@
 
 ### Known gaps
 
-- **`minChoices` not surfaced to the component**: `minChoices` is extracted by `standardHottextExtractor` and present in the local `HottextData` type (in the extractor file), but `HottextInteractionData` (in `packages/item-player/src/types/interactions.ts`) does not include the field. The component therefore cannot render a "Select at least N" hint or gate submission. This is analogous to the `choiceInteraction` `minChoices` gap. Not tracked under a named gap item in `docs/SPEC-GAPS-PLAN.md` but consistent with the pattern described by G-06.
+- **`minChoices` not surfaced to the component**: `minChoices` is extracted by `standardHottextExtractor` and present in the local `HottextData` type (in the extractor file), but `HottextInteractionData` (in `packages/item-player/src/interactions/shared/types.ts`) does not include the field. The component therefore cannot render a "Select at least N" hint or gate submission. This is analogous to the `choiceInteraction` `minChoices` gap. Not tracked under a named gap item in `docs/SPEC-GAPS-PLAN.md` but consistent with the pattern described by G-06.
 - **`fixed` on `<hottext>` not extracted**: As noted above, this is a deliberate no-op because `hottextInteraction` has no shuffle.
 - **`templateIdentifier`/`showHide` not implemented**: Template-variable-driven conditional span visibility is not supported (consistent with all other interactions in this codebase).
 - **G-09 (PNP)**: When `pnp.cognitive.eliminationTool` is enabled, candidates should be able to dismiss non-selectable spans from consideration. Not implemented.
@@ -459,8 +459,8 @@ AC-E9: Response synced to external state change
 - Response processing: `docs/QTI-RESPONSE-TRACKING-AND-SCORING.md`
 - Spec gaps: `docs/SPEC-GAPS-PLAN.md` — G-09 (PNP), G-13 (PNP structural labels)
 - Component: `packages/default-components/src/plugins/hottext/HottextInteraction.svelte`
-- Extractor: `packages/item-player/src/extraction/extractors/hottextExtractor.ts`
-- Type: `packages/item-player/src/types/interactions.ts` — `HottextInteractionData`, `HottextChoice`
+- Extractor: `packages/item-player/src/interactions/hottext/extractor.ts`
+- Type: `packages/item-player/src/interactions/shared/types.ts` — `HottextInteractionData`, `HottextChoice`
 - Extractor tests: `packages/item-player/tests/extraction/extractors/hottextExtractor.test.ts`
 - Eval fixtures: `docs/evals/default-components/hottext/evals.yaml`
 - Sample items: `apps/demo/src/lib/sample-items.ts` — `HOTTEXT_INTERACTION_SINGLE`, `HOTTEXT_INTERACTION_MULTIPLE`

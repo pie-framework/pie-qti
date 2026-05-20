@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { standardSelectPointExtractor } from '../../../src/extraction/extractors/selectPointExtractor.js';
+import { standardSelectPointExtractor } from '../../../src/interactions/select-point/extractor.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
 describe('standardSelectPointExtractor', () => {

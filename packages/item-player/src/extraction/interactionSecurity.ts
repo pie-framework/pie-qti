@@ -1,4 +1,4 @@
-import type { InteractionData } from '../types/interactions.js';
+import type { InteractionData } from '../interactions/index.js';
 import type { PlayerSecurityConfig } from '../types/index.js';
 import { toTrustedHtml } from '../core/trustedTypes.js';
 import { sanitizeResourceUrl } from '../core/urlPolicy.js';
