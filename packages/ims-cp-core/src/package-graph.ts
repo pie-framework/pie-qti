@@ -1,4 +1,10 @@
 import { type ManifestResource, type ParsedManifest, parseManifest } from './manifest-parser.js';
+import {
+	dirnamePackagePath,
+	isExternalPackageHref,
+	joinPackagePath,
+	resolvePackagePath,
+} from './package-path.js';
 
 export type PackageDiagnosticSeverity = 'info' | 'warning' | 'error';
 
@@ -385,7 +391,7 @@ function discoverReferences(xml: string, owner: PackageResourceNode): {
 } {
 	const references: PackageReference[] = [];
 	const assets: PackageAssetRef[] = [];
-	const basePath = owner.resolvedHref ? dirname(owner.resolvedHref) : '';
+	const basePath = owner.resolvedHref ? dirnamePackagePath(owner.resolvedHref) : '';
 
 	for (const match of findAttributeReferences(xml)) {
 		const resolvedPath = resolvePackagePath(basePath, match.rawHref);
@@ -433,7 +439,7 @@ function findAttributeReferences(xml: string): Array<{
 		const attrs = match.groups?.attrs ?? '';
 		const attribute = element === 'object' ? 'data' : element === 'img' ? 'src' : 'href';
 		const rawHref = readAttribute(attrs, attribute) ?? readAttribute(attrs, 'src') ?? readAttribute(attrs, 'href');
-		if (!rawHref || isExternalHref(rawHref)) continue;
+		if (!rawHref || isExternalPackageHref(rawHref)) continue;
 		refs.push({
 			kind: kindFromElement(element),
 			element,
@@ -581,35 +587,6 @@ function isXmlLike(path: string): boolean {
 function readAttribute(attrs: string, name: string): string | undefined {
 	const match = attrs.match(new RegExp(`\\b${name}\\s*=\\s*["']([^"']+)["']`, 'i'));
 	return match?.[1];
-}
-
-function isExternalHref(href: string): boolean {
-	return /^(?:[a-z][a-z0-9+.-]*:|\/\/|#)/i.test(href);
-}
-
-function joinPackagePath(...parts: Array<string | undefined>): string {
-	return parts.filter(Boolean).join('/');
-}
-
-function resolvePackagePath(basePath: string | undefined, href: string): string {
-	const raw = href.replaceAll('\\', '/');
-	const combined = raw.startsWith('/') ? raw.slice(1) : joinPackagePath(basePath, raw);
-	const normalized: string[] = [];
-	for (const part of combined.split('/')) {
-		if (!part || part === '.') continue;
-		if (part === '..') {
-			normalized.pop();
-			continue;
-		}
-		normalized.push(part);
-	}
-	return normalized.join('/');
-}
-
-function dirname(path: string): string {
-	const normalized = path.replaceAll('\\', '/');
-	const index = normalized.lastIndexOf('/');
-	return index === -1 ? '' : normalized.slice(0, index);
 }
 
 async function packagePathExists(

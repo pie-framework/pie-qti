@@ -4,6 +4,7 @@
  */
 
 export * from './manifest-parser.js';
+export * from './package-path.js';
 export * from './package-graph.js';
 export * from './localized-resources.js';
 export * from './passage-reusability.js';

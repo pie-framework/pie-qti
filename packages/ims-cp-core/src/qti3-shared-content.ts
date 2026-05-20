@@ -1,4 +1,9 @@
 import { parse, type HTMLElement, type Node } from 'node-html-parser';
+import {
+	isPackageRelativeHref,
+	resolveCheckedPackagePathFromFile,
+	resolvePackagePathFromFile,
+} from './package-path.js';
 
 export interface AssessmentStimulusRef {
 	identifier: string;
@@ -225,39 +230,12 @@ export function extractCatalogInfoXml(xml: string): string[] {
 }
 
 export function resolveRelativePath(baseHref: string, relativePath: string): string {
-	const baseDir = baseHref.includes('/') ? baseHref.substring(0, baseHref.lastIndexOf('/') + 1) : '';
-	const combined = baseDir + relativePath;
-	const resolved: string[] = [];
-	for (const part of combined.split('/')) {
-		if (!part || part === '.') continue;
-		if (part === '..') {
-			if (resolved.length > 0) resolved.pop();
-		} else {
-			resolved.push(part);
-		}
-	}
-	return resolved.join('/');
-}
-
-function resolveCheckedRelativePath(baseHref: string, relativePath: string): string | null {
-	const baseDir = baseHref.includes('/') ? baseHref.substring(0, baseHref.lastIndexOf('/') + 1) : '';
-	const combined = baseDir + relativePath;
-	const resolved: string[] = [];
-	for (const part of combined.split('/')) {
-		if (!part || part === '.') continue;
-		if (part === '..') {
-			if (resolved.length === 0) return null;
-			resolved.pop();
-		} else {
-			resolved.push(part);
-		}
-	}
-	return resolved.join('/');
+	return resolvePackagePathFromFile(baseHref, relativePath);
 }
 
 function resolveCheckedPackagePath(baseHref: string, href: string): string | null {
 	if (!isPackageRelativeHref(href)) return null;
-	return resolveCheckedRelativePath(baseHref, href);
+	return resolveCheckedPackagePathFromFile(baseHref, href);
 }
 
 function resolvePackageHref(
@@ -318,11 +296,6 @@ function sanitizeStylesheetCss(css: string, validationMessages: string[], resolv
 		return null;
 	}
 	return css;
-}
-
-function isPackageRelativeHref(href: string): boolean {
-	const value = href.trim();
-	return Boolean(value) && !value.startsWith('/') && !value.startsWith('//') && !/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(value);
 }
 
 function rewriteHtmlAssetRefs(
