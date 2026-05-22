@@ -1,7 +1,7 @@
 import type { AssessmentResults, BackendAdapter, BackendAssessmentPlayerConfig, InitSessionRequest, SecureAssessment } from '@pie-qti/assessment-player';
 import { ReferenceBackendAdapter } from '@pie-qti/assessment-player';
-import AssessmentShell from '@pie-qti/assessment-player/components/AssessmentShell.svelte';
 import type { PlayerSecurityConfig } from '@pie-qti/item-player';
+import AssessmentShell from '../../../assessment-player/src/components/AssessmentShell.svelte';
 import { QTI_ASSESSMENT_PLAYER_TAG } from '../constants.js';
 import { parseAssessmentTestXml } from '../qti/parseAssessmentTest.js';
 import { type QtiItemMap, resolveItemsForAssessment } from '../qti/resolveItems.js';
@@ -42,7 +42,7 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 		];
 	}
 
-	protected Component = AssessmentShell;
+	protected Component: any = AssessmentShell;
 
 	#assessmentTestXml: string | null = null;
 	#assessmentId: string | undefined;

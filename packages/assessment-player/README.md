@@ -29,50 +29,20 @@ bun add @pie-qti/assessment-player
 
 ## Usage
 
-### Basic Usage with Svelte
+### Basic Usage with Web Components
 
-```svelte
-<script lang="ts">
-	import AssessmentShell from '@pie-qti/assessment-player/components/AssessmentShell.svelte';
-	import type { QtiAssessmentTest } from '@pie-qti/assessment-player';
+```typescript
+import '@pie-qti/player-elements/register';
 
-	const assessment: QtiAssessmentTest = {
-		identifier: 'my-assessment',
-		title: 'Sample Assessment',
-		testParts: [
-			{
-				identifier: 'part-1',
-				navigationMode: 'nonlinear',
-				submissionMode: 'simultaneous',
-				sections: [
-					{
-						identifier: 'section-1',
-						title: 'Section 1',
-						questionRefs: [
-							{
-								identifier: 'q1',
-								itemXml: '...' // QTI item XML
-							}
-						]
-					}
-				]
-			}
-		]
-	};
-</script>
-
-<AssessmentShell
-	{assessment}
-	config={{
-		role: 'candidate',
-		showSections: true,
-		allowSectionNavigation: true,
-		showProgress: true,
-		onComplete: () => {
-			console.log('Assessment completed!');
-		}
-	}}
-/>
+const player = document.createElement('qti-assessment-player');
+player.config = {
+	role: 'candidate',
+	showSections: true,
+	allowSectionNavigation: true,
+	showProgress: true,
+};
+player.assessmentTestXml = '<qti-assessment-test>...</qti-assessment-test>';
+document.body.append(player);
 ```
 
 ### Programmatic Usage (JavaScript/TypeScript)
@@ -281,26 +251,11 @@ const elapsed = player.getElapsedTime(); // seconds
 const isExpired = player.isTimeExpired(); // boolean
 ```
 
-### AssessmentTimer Component
+### Assessment Timer UI
 
-Visual timer component that displays countdown:
-
-```svelte
-<script>
-	import { AssessmentTimer } from '@pie-qti/assessment-player/components';
-</script>
-
-<AssessmentTimer
-	{player}
-	showElapsed={false}
-	position="top-right"
-/>
-```
-
-**Props:**
-- `player: AssessmentPlayer` - The assessment player instance
-- `showElapsed?: boolean` - Show elapsed time instead of remaining (default: false)
-- `position?: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left'` - Timer position
+The packaged UI is exposed through `@pie-qti/player-elements/register`.
+`@pie-qti/assessment-player` does not publish raw Svelte component entrypoints;
+use the `AssessmentPlayer` time APIs directly for custom UI.
 
 ## Item Session Control
 
@@ -344,26 +299,11 @@ console.log(`Show feedback: ${info.showFeedback}`);
 console.log(`Can skip: ${info.canSkip}`);
 ```
 
-### ItemSessionInfo Component
+### Item Session UI
 
-Visual display of session control information:
-
-```svelte
-<script>
-	import { ItemSessionInfo } from '@pie-qti/assessment-player/components';
-</script>
-
-<ItemSessionInfo
-	{player}
-	position="inline"
-	showDetails={true}
-/>
-```
-
-**Props:**
-- `player: AssessmentPlayer` - The assessment player instance
-- `position?: 'inline' | 'floating'` - Display mode (default: 'inline')
-- `showDetails?: boolean` - Show detailed session information (default: false)
+The packaged UI is exposed through `@pie-qti/player-elements/register`.
+`@pie-qti/assessment-player` keeps item-session state APIs public, but does
+not publish Svelte component entrypoints.
 
 ## State Persistence
 

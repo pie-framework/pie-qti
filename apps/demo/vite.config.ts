@@ -15,6 +15,15 @@ export default defineConfig({
 			'@pie-qti/item-player/components': fileURLToPath(
 				new URL('../../packages/item-player/src/components/index.ts', import.meta.url),
 			),
+			'@pie-qti/assessment-player/components': fileURLToPath(
+				new URL('../../packages/assessment-player/src/components/index.ts', import.meta.url),
+			),
+			'@pie-qti/default-components/shared/components': fileURLToPath(
+				new URL('../../packages/default-components/src/shared/components/index.ts', import.meta.url),
+			),
+			'@pie-qti/i18n/components': fileURLToPath(
+				new URL('../../packages/i18n/src/components/index.ts', import.meta.url),
+			),
 		},
 	},
 	server: {

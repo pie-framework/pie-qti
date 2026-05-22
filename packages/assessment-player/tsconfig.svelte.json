@@ -1,14 +1,26 @@
 {
 	"extends": "./tsconfig.json",
 	"compilerOptions": {
-		"declaration": false,
+		"declaration": true,
 		"declarationMap": false,
 		"rootDir": "..",
 		"paths": {
-			"@pie-qti/item-player/components": ["../item-player/src/components/index.ts"]
+			"@pie-qti/item-player/components": [
+				"../item-player/src/components/index.ts"
+			]
 		},
-		"types": ["svelte"]
+		"types": [
+			"svelte"
+		]
 	},
-	"include": ["src/**/*.ts", "src/**/*.svelte", "src/**/*.d.ts"],
-	"exclude": ["node_modules", "dist", "**/*.test.ts"]
+	"include": [
+		"src/**/*.ts",
+		"src/**/*.svelte",
+		"src/**/*.d.ts"
+	],
+	"exclude": [
+		"node_modules",
+		"dist",
+		"**/*.test.ts"
+	]
 }

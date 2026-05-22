@@ -1,6 +1,6 @@
 <script lang="ts">
 	
-	import DrawingCanvas from '@pie-qti/default-components/shared/components/DrawingCanvas.svelte';
+	import { DrawingCanvas } from '@pie-qti/default-components/shared/components';
 import type { QTIFileResponse } from '@pie-qti/item-player';
 
 	const imageData = {

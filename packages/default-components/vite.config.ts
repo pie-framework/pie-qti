@@ -23,6 +23,7 @@ export default defineConfig({
 		target: 'es2020',
 		sourcemap: true,
 		rollupOptions: {
+			treeshake: false,
 			output: {
 				entryFileNames: '[name].js',
 				chunkFileNames: 'chunks/[name]-[hash].js',

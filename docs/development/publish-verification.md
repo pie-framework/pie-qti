@@ -11,10 +11,12 @@ This monorepo mirrors the [pie-players](https://github.com/pie-framework/pie-pla
 | `bun run check:package-metadata` | Enforces [`scripts/publish-policy.json`](../../scripts/publish-policy.json) on publishable workspaces under `packages/*` and `tools/*`. |
 | `bun run check:publint` | Runs [publint](https://github.com/publint/publint) per package; includes a static runtime import-closure pass over published `.js` entrypoints. |
 | `bun run check:types-publish` | Runs [@arethetypeswrong/cli](https://github.com/arethetypeswrong/arethetypeswrong.github.io) (`attw --pack`) for publishable `@pie-qti/*` packages. |
-| `bun run check:pack-exports` | Ensures `npm pack --dry-run` includes every file referenced by `exports` / `main` / `types` / `svelte`. |
+| `bun run check:pack-exports` | Ensures `npm pack --dry-run` includes every file referenced by `exports` / `main` / `types`. |
 | `bun run check:pack-smoke` | Creates a real tarball per package and asserts declared files are present. |
 | `bun run check:deps` | Flags undeclared imports and hoist-reliant `node_modules/.bin` script paths. |
-| `bun run check:source-exports` | Ensures `./src/...` export paths only appear in packages allowlisted in `publish-policy.json`. |
+| `bun run check:publish-surface` | Rejects raw source package APIs: `src`, root `.ts`/`.tsx`, `.svelte`, `.svelte.ts`, and source-backed `development`/`svelte` conditions. |
+| `bun run check:sourcemaps` | Ensures packed `.js.map` files embed source content or reference files that are actually in the tarball. |
+| `bun run check:source-exports` | Compatibility alias for `check:publish-surface`. |
 | `bun run check:fixed-versioning` | Lockstep workspace versions, Changesets `fixed` group, `workspace:*` internal deps (npm patch check **skipped**; see below). |
 | `bun run check:fixed-versioning:full` | Same as above **and** validates npm patch sequence against the registry when packages are published. |
 
@@ -25,9 +27,10 @@ This monorepo mirrors the [pie-players](https://github.com/pie-framework/pie-pla
 
 ## Policy
 
+Publishable packages expose generated `dist` artifacts as their public API. Raw source files are not a supported package API; debugging comes from sourcemaps with source content, not from shipping importable `src` trees or Svelte source subpaths.
+
 Edit [`scripts/publish-policy.json`](../../scripts/publish-policy.json) for:
 
 - Required `package.json` fields and `repository.directory`
-- `allowedSourceExportPackages` (packages that legitimately export `./src/...`)
 - `allowedUndeclaredRuntimeImports` (escape hatch for publint’s import-closure check)
 - `attwSuppressInternalResolutionPackages` (packages where ATTW has known declaration-graph limitations)

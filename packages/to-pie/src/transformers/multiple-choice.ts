@@ -8,6 +8,7 @@ import type { PieItem, PieMultipleChoiceModel } from '@pie-qti/transform-types';
 import type { HTMLElement } from 'node-html-parser';
 import { v4 as uuidv4 } from 'uuid';
 import { extractInlineStimulus, extractObjectPassages } from '../utils/passage-extraction.js';
+import { cleanTransformHtml, extractPromptForInteraction } from '../utils/prompt-extraction.js';
 import { createMissingElementError, createMissingInteractionError } from '../utils/qti-errors.js';
 
 export interface MultipleChoiceOptions {
@@ -61,31 +62,12 @@ export async function transformMultipleChoice(
   // Get shuffle setting
   const shuffle = choiceInteraction.getAttribute('shuffle') === 'true';
 
-  // Get prompt/stem - skip any content inside <stimulus> tags
-  let promptElement = null;
-  const allParagraphs = itemBody.getElementsByTagName('p');
-  for (const p of Array.from(allParagraphs)) {
-    // Check if this paragraph is inside a stimulus element
-    let parent = p.parentNode;
-    let insideStimulus = false;
-    while (parent) {
-      if (parent.rawTagName === 'stimulus') {
-        insideStimulus = true;
-        break;
-      }
-      parent = parent.parentNode;
-    }
-    if (!insideStimulus) {
-      promptElement = p;
-      break;
-    }
-  }
-  const prompt = promptElement ? cleanHtml(promptElement.innerHTML) : '';
+  const prompt = extractPromptForInteraction(itemBody, choiceInteraction);
 
   // Get choices
   const simpleChoices = choiceInteraction.getElementsByTagName('simpleChoice');
   const choices = Array.from(simpleChoices).map((choice) => ({
-    label: cleanHtml(choice.innerHTML),
+    label: cleanTransformHtml(choice.innerHTML),
     value: choice.getAttribute('identifier') || '',
   }));
 
@@ -176,12 +158,3 @@ export async function transformMultipleChoice(
   return pieItem;
 }
 
-/**
- * Clean HTML content - remove extra whitespace, trim
- */
-function cleanHtml(html: string): string {
-  return html
-    .trim()
-    .replace(/\s+/g, ' ')
-    .replace(/>\s+</g, '><');
-}

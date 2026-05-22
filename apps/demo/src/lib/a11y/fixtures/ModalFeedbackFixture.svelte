@@ -1,5 +1,5 @@
 <script lang="ts">
-	import ModalFeedbackDisplay from '@pie-qti/default-components/shared/components/ModalFeedbackDisplay.svelte';
+	import { ModalFeedbackDisplay } from '@pie-qti/default-components/shared/components';
 	import type { ModalFeedback } from '@pie-qti/item-player';
 
 	let feedback = $state<ModalFeedback[]>([

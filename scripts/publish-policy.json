@@ -16,20 +16,11 @@
 		"tools"
 	],
 	"publishablePackageNamePrefix": "@pie-qti/",
-	"allowedSourceExportPackages": [
-		"@pie-qti/assessment-player",
-		"@pie-qti/default-components",
-		"@pie-qti/i18n"
-	],
 	"allowedUndeclaredRuntimeImports": {},
 	"attwSuppressInternalResolutionPackages": [],
 	"requiredPackageSideEffects": {
 		"@pie-qti/default-components": [
-			"./dist/plugins.js",
-			"./src/plugins/index.ts",
-			"./src/plugins/**/*.svelte",
-			"./src/catalog/*.svelte",
-			"./src/shared/styles/*.css"
+			"./dist/plugins.js"
 		],
 		"@pie-qti/player-elements": [
 			"./dist/register.js"
@@ -41,8 +32,17 @@
 			"./dist/generators/index.js"
 		]
 	},
-	"forbiddenPackageExports": {
+	"forbiddenPublicExports": {
 		"@pie-qti/item-player": [
+			"./components"
+		],
+		"@pie-qti/assessment-player": [
+			"./components"
+		],
+		"@pie-qti/default-components": [
+			"./shared/components"
+		],
+		"@pie-qti/i18n": [
 			"./components"
 		]
 	}

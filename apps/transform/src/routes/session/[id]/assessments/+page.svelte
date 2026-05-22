@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, getContext } from 'svelte';
 	import { ReferenceBackendAdapter } from '@pie-qti/assessment-player';
-	import AssessmentShell from '@pie-qti/assessment-player/components/AssessmentShell.svelte';
+	import { AssessmentShell } from '@pie-qti/assessment-player/components';
 	import { parseAssessmentTestXml, resolveItemsForAssessment } from '@pie-qti/player-elements';
 	import { typesetMathInElement } from '@pie-qti/typeset-katex';
 	import type { PageData } from './$types';

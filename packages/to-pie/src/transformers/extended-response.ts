@@ -8,6 +8,10 @@ import type { PieExtendedTextModel, PieItem } from '@pie-qti/transform-types';
 import type { HTMLElement } from 'node-html-parser';
 import { v4 as uuidv4 } from 'uuid';
 import { extractInlineStimulus, extractObjectPassages, extractRubricBlock } from '../utils/passage-extraction.js';
+import {
+  extractItemBodyPromptBeforeInteraction,
+  extractPromptForInteraction,
+} from '../utils/prompt-extraction.js';
 import { createMissingInteractionError } from '../utils/qti-errors.js';
 
 export interface ExtendedResponseOptions {
@@ -55,18 +59,9 @@ export async function transformExtendedResponse(
   // Check for rubric block (scoring guide)
   const rubricModel = extractRubricBlock(itemElement);
 
-  // Get prompt/stem from itemBody > p (main question) or prompt element (within interaction)
-  // Priority: itemBody > p first, then fallback to prompt within interaction
-  let promptElement = itemBody.querySelector('p') ||
-                     itemBody.getElementsByTagName('p')[0];
-
-  // If no p element in itemBody, check for prompt within the interaction
-  if (!promptElement || !promptElement.innerHTML.trim()) {
-    promptElement = extendedTextInteraction.querySelector('prompt') ||
-                   extendedTextInteraction.getElementsByTagName('prompt')[0];
-  }
-
-  const prompt = promptElement ? cleanHtml(promptElement.innerHTML) : '';
+  const prompt =
+    extractItemBodyPromptBeforeInteraction(itemBody, extendedTextInteraction) ||
+    extractPromptForInteraction(itemBody, extendedTextInteraction);
 
   // Get expectedLines for height calculation
   const expectedLines = parseInt(extendedTextInteraction.getAttribute('expectedLines') || '0', 10);
@@ -172,12 +167,3 @@ export async function transformExtendedResponse(
   return pieItem;
 }
 
-/**
- * Clean HTML content - remove extra whitespace, trim
- */
-function cleanHtml(html: string): string {
-  return html
-    .trim()
-    .replace(/\s+/g, ' ')
-    .replace(/>\s+</g, '><');
-}

@@ -10,7 +10,7 @@
     ".": "./dist/index.js"
   },
   "files": [
-    "bin",
+    "bin/run.js",
     "dist",
     "oclif.manifest.json"
   ],

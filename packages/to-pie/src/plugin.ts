@@ -6,6 +6,7 @@
 
 import type {
   ConversionTrace,
+  PieItem,
   QtiSourceProfile,
   SourceProfileExtractionResult,
   TransformContext,
@@ -28,6 +29,7 @@ import type {
   VendorTransformer,
 } from './types/vendor-extensions.js';
 import { extractSearchMetadata } from './utils/metadata-extraction.js';
+import { makePieItemPlayerReady } from './utils/player-config.js';
 import { extractPieExtension, hasPieExtension } from './utils/pie-extension.js';
 import { embedQtiSourceInPie } from './utils/qti-extension-embedder.js';
 import { validateQti } from './utils/qti-validator.js';
@@ -473,8 +475,10 @@ export class QtiToPiePlugin implements TransformPlugin {
 
       await applyItemDecorators(this.sourceProfiles, profileRuntime, itemContext, pieItem, 'beforeFinalize', trace);
 
+      const playerReadyPieItem = makePieItemPlayerReady(pieItem);
+
       // Embed original QTI XML for lossless round-trip
-      const pieItemWithSource = embedQtiSourceInPie(pieItem, qtiXml, {
+      const pieItemWithSource = embedQtiSourceInPie(playerReadyPieItem, qtiXml, {
         generator: {
           package: '@pie-qti/to-pie',
           version: this.version,
@@ -971,6 +975,11 @@ function withTraceMetadata(
 ): TransformOutput {
   return {
     ...output,
+    items: output.items.map(item =>
+      item.format === 'pie' && isPieItem(item.content)
+        ? { ...item, content: makePieItemPlayerReady(item.content) }
+        : item
+    ),
     metadata: {
       ...output.metadata,
       ...metadataFromProfileRuntime(profileRuntime),
@@ -978,6 +987,10 @@ function withTraceMetadata(
     } as any,
     warnings: mergeWarnings(output.warnings, warnings),
   };
+}
+
+function isPieItem(value: unknown): value is PieItem {
+  return typeof value === 'object' && value !== null && 'config' in value;
 }
 
 function metadataFromProfileRuntime(

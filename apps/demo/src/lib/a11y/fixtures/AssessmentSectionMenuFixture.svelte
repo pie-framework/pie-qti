@@ -1,5 +1,5 @@
 <script lang="ts">
-	import SectionMenu from '@pie-qti/assessment-player/components/SectionMenu.svelte';
+	import { SectionMenu } from '@pie-qti/assessment-player/components';
 
 	const sections = [
 		{ id: 'sec-1', index: 0, title: 'Section 1' },

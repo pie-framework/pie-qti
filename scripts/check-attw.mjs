@@ -77,13 +77,11 @@ const shouldSuppressProblem = (problem, packageName) => {
 
 	if (problem.kind === "NoResolution") {
 		if (resolutionKind === "node10") return true;
-		if (entrypoint.endsWith(".css") || entrypoint.endsWith(".svelte")) return true;
+		if (entrypoint.endsWith(".css")) return true;
 		if (entrypoint === "./css") return true;
-		if (entrypoint === "./components") return true;
 	}
 
 	if (problem.kind === "InternalResolutionError") {
-		if (moduleSpecifier.endsWith(".svelte")) return true;
 		if (
 			typeof packageName === "string" &&
 			attwSuppressInternalResolutionPackages.has(packageName)

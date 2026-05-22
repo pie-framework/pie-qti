@@ -9,6 +9,7 @@ import type { PieItem } from '@pie-qti/transform-types';
 import type { HTMLElement } from 'node-html-parser';
 import { parse } from 'node-html-parser';
 import { v4 as uuid } from 'uuid';
+import { extractPromptForInteraction } from '../utils/prompt-extraction.js';
 import { createMissingInteractionError } from '../utils/qti-errors.js';
 
 export interface PlacementOrderingOptions {
@@ -48,7 +49,8 @@ export function transformPlacementOrdering(
   const orientation = orderInteraction.getAttribute('orientation');
 
   // Extract prompt
-  const prompt = extractPrompt(document);
+  const itemBody = document.getElementsByTagName('itemBody')[0];
+  const prompt = itemBody ? extractPromptForInteraction(itemBody, orderInteraction) : '';
 
   // Extract choices
   const choices = extractChoices(orderInteraction);
@@ -96,36 +98,6 @@ export function transformPlacementOrdering(
   };
 
   return pieItem;
-}
-
-/**
- * Extract prompt from QTI itemBody
- */
-function extractPrompt(document: HTMLElement): string | null {
-  const itemBody = document.getElementsByTagName('itemBody')[0];
-  if (!itemBody) return null;
-
-  const promptElement = itemBody.getElementsByTagName('prompt')[0];
-  if (promptElement) {
-    return promptElement.innerHTML.trim();
-  }
-
-  // If no prompt element, look for content before orderInteraction
-  let promptHtml = '';
-  const orderInteraction = itemBody.getElementsByTagName('orderInteraction')[0];
-
-  for (const child of itemBody.childNodes) {
-    if (child === orderInteraction) break;
-
-    if (child.nodeType === 3) { // Text node
-      const text = child.textContent?.trim();
-      if (text) promptHtml += text;
-    } else if ((child as HTMLElement).tagName) {
-      promptHtml += (child as HTMLElement).outerHTML;
-    }
-  }
-
-  return promptHtml.trim() || null;
 }
 
 /**

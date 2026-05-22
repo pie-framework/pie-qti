@@ -61,7 +61,7 @@
           "required": true
         }
       },
-      "description": "Batch transform QTI packages (directories/ZIPs) to PIE. Supports nested ZIP extraction + manifest-aware resolution.",
+      "description": "Batch transform QTI packages (directories/ZIPs) to package-native PIE artifacts.",
       "examples": [
         "<%= config.bin %> <%= command.id %> ./some-package.zip -o ./out",
         "<%= config.bin %> <%= command.id %> ./dir-a ./dir-b -o ./out --no-cleanupTemp"
@@ -69,7 +69,7 @@
       "flags": {
         "outputDir": {
           "char": "o",
-          "description": "Output directory for transformed PIE items",
+          "description": "Output directory for transformed PIE package artifacts",
           "name": "outputDir",
           "required": true,
           "hasDynamicHelp": false,
@@ -77,7 +77,7 @@
           "type": "option"
         },
         "maxParallel": {
-          "description": "Max parallel transformations",
+          "description": "Max parallel package transformations",
           "name": "maxParallel",
           "default": 10,
           "hasDynamicHelp": false,
@@ -91,13 +91,13 @@
           "type": "boolean"
         },
         "loadPassageContent": {
-          "description": "Load passage content from external files",
+          "description": "Deprecated; package transforms preserve passage evidence as sidecars",
           "name": "loadPassageContent",
           "allowNo": false,
           "type": "boolean"
         },
         "copyMediaAssets": {
-          "description": "Copy media assets into output directory",
+          "description": "Copy sidecar source assets into output directory",
           "name": "copyMediaAssets",
           "allowNo": false,
           "type": "boolean"

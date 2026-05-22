@@ -5,4 +5,4 @@
 @import 'daisyui/themes.css';
 
 /* QTI 3.0 Shared Vocabulary CSS classes (I20) */
-@import '@pie-qti/default-components/src/shared/styles/qti-shared-vocabulary.css';
+@import '@pie-qti/default-components/shared/styles/qti-shared-vocabulary.css';

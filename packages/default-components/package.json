@@ -6,7 +6,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsc && vite build",
+    "build": "rm -rf dist && tsc && vite build && mkdir -p dist/shared/styles && cp src/shared/styles/qti-shared-vocabulary.css dist/shared/styles/qti-shared-vocabulary.css",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
     "check": "svelte-check --tsconfig ./tsconfig.json",
@@ -36,9 +36,6 @@
     "@tiptap/starter-kit": "^3.15.3",
     "mathlive": "^0.108.2"
   },
-  "peerDependencies": {
-    "svelte": "^5.54.0"
-  },
   "devDependencies": {
     "@biomejs/biome": "^2.4.8",
     "@types/node": "^25.0.3",
@@ -53,13 +50,8 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./MathContent.svelte": {
-      "svelte": "./src/shared/components/MathContent.svelte",
-      "import": "./src/shared/components/MathContent.svelte",
-      "default": "./src/shared/components/MathContent.svelte"
-    },
     "./plugins": {
-      "types": "./dist/plugins/index.d.ts",
+      "types": "./dist/plugins/public-types.d.ts",
       "import": "./dist/plugins.js",
       "default": "./dist/plugins.js"
     },
@@ -67,19 +59,9 @@
       "types": "./dist/shared/index.d.ts",
       "import": "./dist/shared/index.js"
     },
-    "./plugins/*/*.svelte": {
-      "svelte": "./src/plugins/*/*.svelte",
-      "import": "./src/plugins/*/*.svelte",
-      "default": "./src/plugins/*/*.svelte"
-    },
     "./plugins/*/index": {
       "types": "./dist/plugins/*/index.d.ts",
       "import": "./dist/plugins/*/index.js"
-    },
-    "./shared/components/*.svelte": {
-      "svelte": "./src/shared/components/*.svelte",
-      "import": "./src/shared/components/*.svelte",
-      "default": "./src/shared/components/*.svelte"
     },
     "./shared/utils/*": {
       "types": "./dist/shared/utils/*.d.ts",
@@ -93,9 +75,9 @@
       "types": "./dist/shared/extensions/*.d.ts",
       "import": "./dist/shared/extensions/*.js"
     },
-    "./src/shared/styles/qti-shared-vocabulary.css": {
-      "style": "./src/shared/styles/qti-shared-vocabulary.css",
-      "default": "./src/shared/styles/qti-shared-vocabulary.css"
+    "./shared/styles/qti-shared-vocabulary.css": {
+      "style": "./dist/shared/styles/qti-shared-vocabulary.css",
+      "default": "./dist/shared/styles/qti-shared-vocabulary.css"
     }
   },
   "repository": {
@@ -112,17 +94,13 @@
   },
   "sideEffects": [
     "./dist/plugins.js",
-    "./src/plugins/index.ts",
-    "./src/plugins/**/*.svelte",
-    "./src/catalog/*.svelte",
-    "./src/shared/styles/*.css"
+    "./dist/shared/styles/*.css"
   ],
   "engines": {
     "node": ">=20.19.0"
   },
   "files": [
-    "dist",
-    "src"
+    "dist"
   ],
   "unpkg": "./dist/plugins.js",
   "jsdelivr": "./dist/plugins.js"
