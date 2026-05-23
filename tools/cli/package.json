@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/transform-cli",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "description": "CLI tool for QTI ↔ PIE transformations",
   "type": "module",
   "bin": {
@@ -10,7 +10,7 @@
     ".": "./dist/index.js"
   },
   "files": [
-    "bin",
+    "bin/run.js",
     "dist",
     "oclif.manifest.json"
   ],

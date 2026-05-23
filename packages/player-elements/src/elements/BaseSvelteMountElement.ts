@@ -1,9 +1,8 @@
-import type { Component } from 'svelte';
 import { mount, unmount } from 'svelte';
 import { createSvelteMountController, type SvelteMountController } from '@pie-qti/qti-common';
 
 export abstract class BaseSvelteMountElement<TProps extends Record<string, unknown>> extends HTMLElement {
-	protected abstract Component: Component<any>;
+	protected abstract Component: any;
 	protected abstract getProps(): TProps;
 
 	#mountController: SvelteMountController<TProps, any> | null = null;

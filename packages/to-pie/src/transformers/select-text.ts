@@ -9,6 +9,7 @@ import type { PieItem } from '@pie-qti/transform-types';
 import type { HTMLElement } from 'node-html-parser';
 import { parse } from 'node-html-parser';
 import { v4 as uuid } from 'uuid';
+import { extractPromptForInteraction } from '../utils/prompt-extraction.js';
 import { createMissingInteractionError } from '../utils/qti-errors.js';
 
 export interface SelectTextOptions {
@@ -51,7 +52,8 @@ export function transformSelectText(
   const maxChoices = hottextInteraction.getAttribute('maxChoices');
 
   // Extract prompt
-  const prompt = extractPrompt(document);
+  const itemBody = document.getElementsByTagName('itemBody')[0];
+  const prompt = itemBody ? extractPromptForInteraction(itemBody, hottextInteraction) : '';
 
   // Extract correct answers
   const correctAnswers = extractCorrectAnswers(document, responseIdentifier);
@@ -105,37 +107,6 @@ export function transformSelectText(
   };
 
   return pieItem;
-}
-
-/**
- * Extract prompt from QTI itemBody
- */
-function extractPrompt(document: HTMLElement): string | null {
-  const itemBody = document.getElementsByTagName('itemBody')[0];
-  if (!itemBody) return null;
-
-  const promptElement = itemBody.getElementsByTagName('prompt')[0];
-  if (promptElement) {
-    return promptElement.innerHTML.trim();
-  }
-
-  // If no prompt element, look for content before hottextInteraction
-  let promptHtml = '';
-  const hottextInteraction = itemBody.getElementsByTagName('hottextInteraction')[0];
-
-  for (const child of itemBody.childNodes) {
-    if (child === hottextInteraction) break;
-
-    if (child.nodeType === 3) {
-      // Text node
-      const text = child.textContent?.trim();
-      if (text) promptHtml += text;
-    } else if ((child as HTMLElement).tagName) {
-      promptHtml += (child as HTMLElement).outerHTML;
-    }
-  }
-
-  return promptHtml.trim() || null;
 }
 
 /**

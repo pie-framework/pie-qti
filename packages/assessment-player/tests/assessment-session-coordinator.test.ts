@@ -102,11 +102,6 @@ function createState(state: Partial<AssessmentSessionState> = {}): AssessmentSes
 		itemResponses: {},
 		itemScores: {},
 		itemSessions: {},
-		timing: {
-			startedAt: 1,
-			itemTimes: {},
-			totalTime: 0,
-		},
 		...state,
 		timing: {
 			startedAt: 1,

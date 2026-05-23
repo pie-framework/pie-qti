@@ -1,5 +1,5 @@
 <script lang="ts">
-	import SortableList from '@pie-qti/default-components/shared/components/SortableList.svelte';
+	import { SortableList } from '@pie-qti/default-components/shared/components';
 
 	const items = [
 		{ id: 'a', text: 'Alpha' },

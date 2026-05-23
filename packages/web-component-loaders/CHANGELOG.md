@@ -1,5 +1,13 @@
 # @pie-qti/web-component-loaders
 
+## 0.1.11
+
+### Patch Changes
+
+- Temporary release changeset: patch all publishable packages to keep lockstep versions.
+- Updated dependencies
+  - @pie-qti/player-elements@0.1.11
+
 ## 0.1.10
 
 ### Patch Changes

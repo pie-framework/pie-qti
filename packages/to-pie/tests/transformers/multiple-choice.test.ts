@@ -122,6 +122,32 @@ describe('transformMultipleChoice', () => {
     expect(model.choices[1].correct).toBe(true);
   });
 
+  test('should prefer choiceInteraction prompt over empty itemBody paragraphs', async () => {
+    const qtiWithInteractionPrompt = createQtiWrapper(`
+      ${createResponseDeclaration('RESPONSE', 'multiple', ['choiceA', 'choiceC'])}
+      <itemBody>
+        <p></p>
+        <choiceInteraction responseIdentifier="RESPONSE" maxChoices="0">
+          <prompt>
+            <p>An unmanned aircraft system includes which of the following? Select all that apply. (1.C)</p>
+          </prompt>
+          <simpleChoice identifier="choiceA"><p>Pilot</p></simpleChoice>
+          <simpleChoice identifier="choiceB"><p>Human passenger</p></simpleChoice>
+          <simpleChoice identifier="choiceC"><p>Controllers and sensors</p></simpleChoice>
+        </choiceInteraction>
+      </itemBody>
+    `, 'mc-interaction-prompt-001', 'Interaction Prompt');
+
+    const itemElement = parseQtiItem(qtiWithInteractionPrompt);
+    const result = await transformMultipleChoice(itemElement, 'mc-interaction-prompt-001');
+    const model = result.config.models[0];
+
+    expect(model.prompt).toBe(
+      '<p>An unmanned aircraft system includes which of the following? Select all that apply. (1.C)</p>'
+    );
+    expect(model.choiceMode).toBe('checkbox');
+  });
+
   test('should support partial scoring option', async () => {
     const itemElement = parseQtiItem(sampleMultipleSelectQti);
 

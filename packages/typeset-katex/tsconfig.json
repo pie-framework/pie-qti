@@ -6,6 +6,7 @@
     "declaration": true,
     "declarationMap": false,
     "sourceMap": false,
+    "inlineSources": false,
     "lib": ["ES2022", "DOM"]
   },
   "include": ["src/**/*"]

@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/assessment-player",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "description": "QTI Assessment Player supporting QTI 2.2 and 3.0 - Multi-item test player with navigation, sections, and rubric blocks",
   "type": "module",
   "main": "./dist/index.js",
@@ -36,9 +36,6 @@
     "@pie-qti/qti-processing": "workspace:*",
     "node-html-parser": "^7.0.2"
   },
-  "peerDependencies": {
-    "svelte": "^5.54.0"
-  },
   "devDependencies": {
     "@biomejs/biome": "^2.4.8",
     "@types/node": "^25.0.3",
@@ -54,31 +51,6 @@
     "./integration": {
       "types": "./dist/integration/index.d.ts",
       "import": "./dist/integration/index.js"
-    },
-    "./components": {
-      "types": "./src/components/index.ts",
-      "import": "./src/components/index.ts",
-      "svelte": "./src/components/index.ts"
-    },
-    "./components/AssessmentShell.svelte": {
-      "import": "./src/components/AssessmentShell.svelte",
-      "svelte": "./src/components/AssessmentShell.svelte"
-    },
-    "./components/NavigationBar.svelte": {
-      "import": "./src/components/NavigationBar.svelte",
-      "svelte": "./src/components/NavigationBar.svelte"
-    },
-    "./components/SectionMenu.svelte": {
-      "import": "./src/components/SectionMenu.svelte",
-      "svelte": "./src/components/SectionMenu.svelte"
-    },
-    "./components/RubricDisplay.svelte": {
-      "import": "./src/components/RubricDisplay.svelte",
-      "svelte": "./src/components/RubricDisplay.svelte"
-    },
-    "./components/ItemRenderer.svelte": {
-      "import": "./src/components/ItemRenderer.svelte",
-      "svelte": "./src/components/ItemRenderer.svelte"
     }
   },
   "repository": {
@@ -98,7 +70,6 @@
     "node": ">=20.19.0"
   },
   "files": [
-    "dist",
-    "src"
+    "dist"
   ]
 }

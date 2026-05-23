@@ -1,5 +1,5 @@
 <script lang="ts">
-	import GraphicGapMatch from '@pie-qti/default-components/shared/components/GraphicGapMatch.svelte';
+	import { GraphicGapMatch } from '@pie-qti/default-components/shared/components';
 
 	const gapTexts = [
 		{ identifier: 'g1', text: 'Label A', matchMax: 1 },

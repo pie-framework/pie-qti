@@ -85,7 +85,6 @@ export function createItemPresentationPlan({
 	const correctResponses = roleCapabilities.canViewCorrectResponses ? player.getCorrectResponses() : {};
 	const itemBodyHtml = buildItemBodyPresentationHtml({
 		player,
-		interactions,
 		outcomeValues,
 		heuristicsConfig,
 		stimulusContent,
@@ -113,7 +112,6 @@ export function createItemPresentationPlan({
 
 function buildItemBodyPresentationHtml({
 	player,
-	interactions,
 	outcomeValues,
 	heuristicsConfig,
 	stimulusContent,
@@ -121,7 +119,6 @@ function buildItemBodyPresentationHtml({
 	itemBodyScopeSelector,
 }: {
 	player: ItemPresentationPlayer;
-	interactions: InteractionData[];
 	outcomeValues: Record<string, unknown>;
 	heuristicsConfig: QtiHeuristicsConfig | undefined;
 	stimulusContent: Record<string, string>;

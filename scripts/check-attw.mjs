@@ -36,22 +36,72 @@ const getWorkspaceDirs = () => {
 	return [...dirs].filter((dir) => existsSync(path.join(dir, "package.json")));
 };
 
-const runAttw = (dir) => {
-	const cmd = "bunx attw --pack --ignore-rules cjs-resolves-to-esm --format json -- .";
+const runCommand = (cmd, dir) => {
 	try {
-		return execSync(cmd, {
+		const stdout = execSync(cmd, {
 			cwd: dir,
 			stdio: "pipe",
 			encoding: "utf8",
 			maxBuffer: 256 * 1024 * 1024,
 		});
+		return { failed: false, stdout };
 	} catch (error) {
 		const stdout = error.stdout?.toString?.() ?? "";
 		if (!stdout.trim()) {
 			const stderr = error.stderr?.toString?.() ?? "";
 			throw new Error([stderr, error.message].filter(Boolean).join("\n"));
 		}
-		return stdout;
+		return { failed: true, stdout };
+	}
+};
+
+const runAttw = (dir) =>
+	runCommand(
+		"bunx attw --pack --ignore-rules cjs-resolves-to-esm --format json -- .",
+		dir,
+	);
+
+const runAttwText = (dir) =>
+	runCommand("bunx attw --pack --ignore-rules cjs-resolves-to-esm -- .", dir);
+
+const isSuppressedTextReport = (stdout) => {
+	const resolutionFailureLines = stdout
+		.split(/\r?\n/)
+		.filter((line) => line.includes("Resolution failed"));
+
+	if (resolutionFailureLines.length === 0) {
+		return false;
+	}
+
+	return resolutionFailureLines.every((line) => {
+		const rest = line.slice(
+			line.indexOf("Resolution failed") + "Resolution failed".length,
+		);
+		const successfulModernResolutions =
+			(rest.match(/\((?:ESM|CJS|JSON|types)\)/g) ?? []).length >= 2;
+		return !rest.includes("Resolution failed") && successfulModernResolutions;
+	});
+};
+
+const parseAttwReport = ({ stdout, failed }, packageName, dir) => {
+	try {
+		return JSON.parse(stdout);
+	} catch (error) {
+		const textReport = runAttwText(dir);
+		if (textReport.failed) {
+			if (isSuppressedTextReport(textReport.stdout)) {
+				console.warn(
+					`[check-attw] ${packageName}: ATTW JSON report was malformed; text-mode ATTW reported only suppressed node10 resolution failures.`,
+				);
+				return { problems: {} };
+			}
+			throw new Error(textReport.stdout || error.message);
+		}
+
+		console.warn(
+			`[check-attw] ${packageName}: ATTW JSON report was malformed; text-mode ATTW exited cleanly, treating that as authoritative.`,
+		);
+		return { problems: {} };
 	}
 };
 
@@ -77,13 +127,11 @@ const shouldSuppressProblem = (problem, packageName) => {
 
 	if (problem.kind === "NoResolution") {
 		if (resolutionKind === "node10") return true;
-		if (entrypoint.endsWith(".css") || entrypoint.endsWith(".svelte")) return true;
+		if (entrypoint.endsWith(".css")) return true;
 		if (entrypoint === "./css") return true;
-		if (entrypoint === "./components") return true;
 	}
 
 	if (problem.kind === "InternalResolutionError") {
-		if (moduleSpecifier.endsWith(".svelte")) return true;
 		if (
 			typeof packageName === "string" &&
 			attwSuppressInternalResolutionPackages.has(packageName)
@@ -112,8 +160,7 @@ const run = () => {
 		}
 		checked += 1;
 		try {
-			const raw = runAttw(dir);
-			const report = JSON.parse(raw);
+			const report = parseAttwReport(runAttw(dir), pkg.name, dir);
 			const problems = flattenProblems(report.problems);
 			const actionable = problems.filter(
 				(problem) => !shouldSuppressProblem(problem, pkg.name),

@@ -75,6 +75,11 @@ describe('QtiToPiePlugin', () => {
     expectSuccessfulTransform(output, 1);
     expect(output.items[0].content.id).toBe('choice-001');
     expect(output.items[0].content.metadata?.searchMetaData.title).toBe('Sample Multiple Choice');
+    expect(output.items[0].content.config.markup).toContain('<multiple-choice ');
+    expect(output.items[0].content.config.models[0]?.element).toBe('multiple-choice');
+    expect(output.items[0].content.config.markup).toContain(
+      `id="${output.items[0].content.config.models[0]?.id}"`
+    );
     expect(
       output.metadata.conversionTrace?.events.some(
         (event) => event.kind === 'handler-selected' && event.handlerId === 'builtin.choice'

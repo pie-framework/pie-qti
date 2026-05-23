@@ -27,7 +27,10 @@ const config = {
 					: ''
 		},
 		alias: {
-			'@pie-qti/item-player/components': '../../packages/item-player/src/components/index.ts'
+			'@pie-qti/item-player/components': '../../packages/item-player/src/components/index.ts',
+			'@pie-qti/assessment-player/components': '../../packages/assessment-player/src/components/index.ts',
+			'@pie-qti/default-components/shared/components': '../../packages/default-components/src/shared/components/index.ts',
+			'@pie-qti/i18n/components': '../../packages/i18n/src/components/index.ts'
 		},
 		prerender: {
 			handleMissingId: 'warn',

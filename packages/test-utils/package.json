@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/test-utils",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "description": "Shared test utilities for PIE-QTI packages",
   "type": "module",
   "main": "./dist/index.js",
@@ -13,7 +13,7 @@
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "rm -rf dist tsconfig.build.tsbuildinfo && tsc -p tsconfig.build.json",
     "test": "bun test"
   },
   "dependencies": {

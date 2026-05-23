@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/logger",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "main": "./dist/index.js",
   "devDependencies": {
     "typescript": "^5.9.3"
@@ -25,7 +25,6 @@
   "description": "Universal logging utilities for PIE QTI (browser + Node.js)",
   "files": [
     "dist",
-    "src",
     "README.md"
   ],
   "keywords": [

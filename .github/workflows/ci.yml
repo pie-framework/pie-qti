@@ -195,6 +195,9 @@ jobs:
           cd apps/demo
           bunx playwright install --with-deps chromium
 
+      - name: Build packages
+        run: bun run build
+
       - name: Run accessibility verification
         run: bun run verify:a11y
 

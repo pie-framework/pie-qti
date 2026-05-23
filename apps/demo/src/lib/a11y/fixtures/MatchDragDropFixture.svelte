@@ -1,5 +1,5 @@
 <script lang="ts">
-	import MatchDragDrop from '@pie-qti/default-components/shared/components/MatchDragDrop.svelte';
+	import { MatchDragDrop } from '@pie-qti/default-components/shared/components';
 
 	const sourceSet = [
 		{ identifier: 's1', text: 'Dog', matchMax: 1 },
