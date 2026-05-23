@@ -37,10 +37,8 @@ describe('default-components', () => {
 		}
 	});
 
-	it('marks plugin registration entrypoints as side-effectful for package consumers', () => {
+	it('marks compiled plugin and style entrypoints as side-effectful for package consumers', () => {
 		expect(packageJson.sideEffects).toContain('./dist/plugins.js');
-		expect(packageJson.sideEffects).toContain('./src/plugins/index.ts');
-		expect(packageJson.sideEffects).toContain('./src/plugins/**/*.svelte');
-		expect(packageJson.sideEffects).toContain('./src/catalog/*.svelte');
+		expect(packageJson.sideEffects).toContain('./dist/shared/styles/*.css');
 	});
 });

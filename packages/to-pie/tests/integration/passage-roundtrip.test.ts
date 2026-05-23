@@ -62,7 +62,7 @@ describe('QTI → PIE with External Passage References', () => {
 
     // Should also have passage model in config.models
     expect(pieItem.config.models.length).toBe(2); // passage + mc
-    expect(pieItem.config.models[0].element).toBe('@pie-element/passage');
+    expect(pieItem.config.models[0].element).toBe('passage');
   });
 
   test('should handle QTI with baseId in passage reference', async () => {
@@ -136,7 +136,7 @@ describe('QTI → PIE with External Passage References', () => {
     expect(pieItem.passage).toBeUndefined();
 
     // But should have passage model
-    const passageModel = pieItem.config.models.find(m => m.element === '@pie-element/passage');
+    const passageModel = pieItem.config.models.find(m => m.element === 'passage');
     expect(passageModel).toBeTruthy();
   });
 

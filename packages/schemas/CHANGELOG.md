@@ -1,5 +1,11 @@
 # @pie-qti/element-schemas
 
+## 0.1.11
+
+### Patch Changes
+
+- Temporary release changeset: patch all publishable packages to keep lockstep versions.
+
 ## 0.1.10
 
 ### Patch Changes

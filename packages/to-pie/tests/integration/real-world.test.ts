@@ -51,7 +51,7 @@ describe('Real-World QTI Integration Tests', () => {
       expect(item.config.models).toHaveLength(1);
 
       const model = item.config.models[0];
-      expect(model.element).toBe('@pie-element/multiple-choice');
+      expect(model.element).toBe('multiple-choice');
       expect(model.choices).toBeDefined();
       expect(model.choices.length).toBeGreaterThanOrEqual(3);
 
@@ -66,7 +66,7 @@ describe('Real-World QTI Integration Tests', () => {
       const result = await plugin.transform(input, context);
       const model = result.items[0].content.config.models[0];
 
-      expect(model.element).toBe('@pie-element/multiple-choice');
+      expect(model.element).toBe('multiple-choice');
       expect(model.choiceMode).toBe('checkbox');
     });
   });
@@ -81,7 +81,7 @@ describe('Real-World QTI Integration Tests', () => {
       const result = await plugin.transform(input, context);
       const model = result.items[0].content.config.models[0];
 
-      expect(model.element).toBe('@pie-element/extended-text-entry');
+      expect(model.element).toBe('extended-text-entry');
       expect(model.prompt).toBeDefined();
     });
   });
@@ -114,7 +114,7 @@ describe('Real-World QTI Integration Tests', () => {
       const result = await plugin.transform(input, context);
       const model = result.items[0].content.config.models[0];
 
-      expect(model.element).toBe('@pie-element/placement-ordering');
+      expect(model.element).toBe('placement-ordering');
       expect(model.choices).toBeDefined();
       expect(model.correctResponse).toBeDefined();
     });
@@ -131,7 +131,7 @@ describe('Real-World QTI Integration Tests', () => {
       const model = result.items[0].content.config.models[0];
 
       // match.xml has 2 simpleMatchSet elements, so it's detected as match-list
-      expect(model.element).toBe('@pie-element/match-list');
+      expect(model.element).toBe('match-list');
       expect(model.prompts).toBeDefined();
       expect(model.answers).toBeDefined();
 
@@ -150,7 +150,7 @@ describe('Real-World QTI Integration Tests', () => {
       const result = await plugin.transform(input, context);
       const model = result.items[0].content.config.models[0];
 
-      expect(model.element).toBe('@pie-element/explicit-constructed-response');
+      expect(model.element).toBe('explicit-constructed-response');
       expect(model.markup).toBeDefined();
       expect(model.choices).toBeDefined();
       expect(typeof model.choices).toBe('object');
@@ -167,7 +167,7 @@ describe('Real-World QTI Integration Tests', () => {
       const result = await plugin.transform(input, context);
       const model = result.items[0].content.config.models[0];
 
-      expect(model.element).toBe('@pie-element/inline-dropdown');
+      expect(model.element).toBe('inline-dropdown');
       expect(model.markup).toBeDefined();
       expect(model.choices).toBeDefined();
     });
@@ -183,7 +183,7 @@ describe('Real-World QTI Integration Tests', () => {
       const result = await plugin.transform(input, context);
       const model = result.items[0].content.config.models[0];
 
-      expect(model.element).toBe('@pie-element/drag-in-the-blank');
+      expect(model.element).toBe('drag-in-the-blank');
       expect(model.choices).toBeDefined();
       expect(model.markup).toBeDefined();
     });
@@ -199,7 +199,7 @@ describe('Real-World QTI Integration Tests', () => {
       const result = await plugin.transform(input, context);
       const model = result.items[0].content.config.models[0];
 
-      expect(model.element).toBe('@pie-element/hotspot');
+      expect(model.element).toBe('hotspot');
       expect(model.imageUrl).toBeDefined();
       expect(model.dimensions).toBeDefined();
       expect(model.shapes).toBeDefined();
@@ -216,7 +216,7 @@ describe('Real-World QTI Integration Tests', () => {
       const result = await plugin.transform(input, context);
       const model = result.items[0].content.config.models[0];
 
-      expect(model.element).toBe('@pie-element/image-cloze-association');
+      expect(model.element).toBe('image-cloze-association');
       expect(model.image).toBeDefined();
       expect(model.image.src).toBeDefined();
       expect(model.responseContainers).toBeDefined();
@@ -236,7 +236,7 @@ describe('Real-World QTI Integration Tests', () => {
       const result = await plugin.transform(input, context);
       const model = result.items[0].content.config.models[0];
 
-      expect(model.element).toBe('@pie-element/categorize');
+      expect(model.element).toBe('categorize');
       expect(model.categories).toBeDefined();
       expect(model.choices).toBeDefined();
       expect(model.correctResponse).toBeDefined();
@@ -383,13 +383,13 @@ describe('Real-World QTI Integration Tests', () => {
 
       // First model should be passage
       const passageModel = item.config.models[0];
-      expect(passageModel.element).toBe('@pie-element/passage');
+      expect(passageModel.element).toBe('passage');
       expect(passageModel.passages).toBeDefined();
       expect(passageModel.passages[0].text).toBeTruthy();
 
       // Second model should be multiple-choice
       const mcModel = item.config.models[1];
-      expect(mcModel.element).toBe('@pie-element/multiple-choice');
+      expect(mcModel.element).toBe('multiple-choice');
       expect(mcModel.prompt).toContain('According to the passage');
 
       // Should have both elements registered
@@ -409,12 +409,12 @@ describe('Real-World QTI Integration Tests', () => {
 
       // First model should be extended-text-entry
       const erModel = item.config.models[0];
-      expect(erModel.element).toBe('@pie-element/extended-text-entry');
+      expect(erModel.element).toBe('extended-text-entry');
       expect(erModel.prompt).toBeTruthy();
 
       // Second model should be rubric
       const rubricModel = item.config.models[1];
-      expect(rubricModel.element).toBe('@pie-element/rubric');
+      expect(rubricModel.element).toBe('rubric');
       expect(rubricModel.rubric).toBeDefined();
       expect(rubricModel.rubric.points).toContain('0');
       expect(rubricModel.rubric.points).toContain('4');
@@ -451,14 +451,14 @@ describe('Real-World QTI Integration Tests', () => {
 
       // First model should be passage
       const passageModel = item.config.models[0];
-      expect(passageModel.element).toBe('@pie-element/passage');
+      expect(passageModel.element).toBe('passage');
       expect(passageModel.passages).toBeDefined();
 
       expect(passageModel.id).toBeTruthy();
 
       // Second model should be multiple-choice
       const mcModel = item.config.models[1];
-      expect(mcModel.element).toBe('@pie-element/multiple-choice');
+      expect(mcModel.element).toBe('multiple-choice');
       // Prompt extraction can vary depending on how the passage/object is embedded.
       expect(mcModel.prompt).toBeDefined();
 
