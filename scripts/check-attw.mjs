@@ -36,8 +36,7 @@ const getWorkspaceDirs = () => {
 	return [...dirs].filter((dir) => existsSync(path.join(dir, "package.json")));
 };
 
-const runAttw = (dir) => {
-	const cmd = "bunx attw --pack --ignore-rules cjs-resolves-to-esm --format json -- .";
+const runCommand = (cmd, dir) => {
 	try {
 		const stdout = execSync(cmd, {
 			cwd: dir,
@@ -56,16 +55,26 @@ const runAttw = (dir) => {
 	}
 };
 
-const parseAttwReport = ({ stdout, failed }, packageName) => {
+const runAttw = (dir) =>
+	runCommand(
+		"bunx attw --pack --ignore-rules cjs-resolves-to-esm --format json -- .",
+		dir,
+	);
+
+const runAttwText = (dir) =>
+	runCommand("bunx attw --pack --ignore-rules cjs-resolves-to-esm -- .", dir);
+
+const parseAttwReport = ({ stdout, failed }, packageName, dir) => {
 	try {
 		return JSON.parse(stdout);
 	} catch (error) {
-		if (failed) {
-			throw error;
+		const textReport = runAttwText(dir);
+		if (textReport.failed) {
+			throw new Error(textReport.stdout || error.message);
 		}
 
 		console.warn(
-			`[check-attw] ${packageName}: ATTW exited cleanly but emitted malformed JSON; treating the clean exit status as authoritative.`,
+			`[check-attw] ${packageName}: ATTW JSON report was malformed; text-mode ATTW exited cleanly, treating that as authoritative.`,
 		);
 		return { problems: {} };
 	}
@@ -126,7 +135,7 @@ const run = () => {
 		}
 		checked += 1;
 		try {
-			const report = parseAttwReport(runAttw(dir), pkg.name);
+			const report = parseAttwReport(runAttw(dir), pkg.name, dir);
 			const problems = flattenProblems(report.problems);
 			const actionable = problems.filter(
 				(problem) => !shouldSuppressProblem(problem, pkg.name),
