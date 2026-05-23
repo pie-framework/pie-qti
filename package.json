@@ -51,7 +51,7 @@
     "check:fixed-versioning:full": "node scripts/check-fixed-versioning.mjs",
     "check:package-metadata": "bun ./scripts/check-package-metadata.mjs",
     "check:publint": "bun ./scripts/check-publint.mjs",
-    "check:types-publish": "bun ./scripts/check-attw.mjs",
+    "check:types-publish": "node ./scripts/check-attw.mjs",
     "check:pack-exports": "bun ./scripts/check-pack-exports.mjs",
     "check:pack-smoke": "bun ./scripts/check-pack-smoke.mjs",
     "check:sourcemaps": "bun ./scripts/check-sourcemap-sources.mjs",
