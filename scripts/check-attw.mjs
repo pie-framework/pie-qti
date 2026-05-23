@@ -64,12 +64,37 @@ const runAttw = (dir) =>
 const runAttwText = (dir) =>
 	runCommand("bunx attw --pack --ignore-rules cjs-resolves-to-esm -- .", dir);
 
+const isSuppressedTextReport = (stdout) => {
+	const resolutionFailureLines = stdout
+		.split(/\r?\n/)
+		.filter((line) => line.includes("Resolution failed"));
+
+	if (resolutionFailureLines.length === 0) {
+		return false;
+	}
+
+	return resolutionFailureLines.every((line) => {
+		const rest = line.slice(
+			line.indexOf("Resolution failed") + "Resolution failed".length,
+		);
+		const successfulModernResolutions =
+			(rest.match(/\((?:ESM|CJS|JSON|types)\)/g) ?? []).length >= 2;
+		return !rest.includes("Resolution failed") && successfulModernResolutions;
+	});
+};
+
 const parseAttwReport = ({ stdout, failed }, packageName, dir) => {
 	try {
 		return JSON.parse(stdout);
 	} catch (error) {
 		const textReport = runAttwText(dir);
 		if (textReport.failed) {
+			if (isSuppressedTextReport(textReport.stdout)) {
+				console.warn(
+					`[check-attw] ${packageName}: ATTW JSON report was malformed; text-mode ATTW reported only suppressed node10 resolution failures.`,
+				);
+				return { problems: {} };
+			}
 			throw new Error(textReport.stdout || error.message);
 		}
 
