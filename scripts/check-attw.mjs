@@ -39,19 +39,35 @@ const getWorkspaceDirs = () => {
 const runAttw = (dir) => {
 	const cmd = "bunx attw --pack --ignore-rules cjs-resolves-to-esm --format json -- .";
 	try {
-		return execSync(cmd, {
+		const stdout = execSync(cmd, {
 			cwd: dir,
 			stdio: "pipe",
 			encoding: "utf8",
 			maxBuffer: 256 * 1024 * 1024,
 		});
+		return { failed: false, stdout };
 	} catch (error) {
 		const stdout = error.stdout?.toString?.() ?? "";
 		if (!stdout.trim()) {
 			const stderr = error.stderr?.toString?.() ?? "";
 			throw new Error([stderr, error.message].filter(Boolean).join("\n"));
 		}
-		return stdout;
+		return { failed: true, stdout };
+	}
+};
+
+const parseAttwReport = ({ stdout, failed }, packageName) => {
+	try {
+		return JSON.parse(stdout);
+	} catch (error) {
+		if (failed) {
+			throw error;
+		}
+
+		console.warn(
+			`[check-attw] ${packageName}: ATTW exited cleanly but emitted malformed JSON; treating the clean exit status as authoritative.`,
+		);
+		return { problems: {} };
 	}
 };
 
@@ -110,8 +126,7 @@ const run = () => {
 		}
 		checked += 1;
 		try {
-			const raw = runAttw(dir);
-			const report = JSON.parse(raw);
+			const report = parseAttwReport(runAttw(dir), pkg.name);
 			const problems = flattenProblems(report.problems);
 			const actionable = problems.filter(
 				(problem) => !shouldSuppressProblem(problem, pkg.name),
