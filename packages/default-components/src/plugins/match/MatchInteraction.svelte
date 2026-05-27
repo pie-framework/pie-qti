@@ -76,7 +76,7 @@
 <style>
 	.qti-selection-message {
 		font-size: 0.875rem;
-		color: var(--color-warning, oklch(77% 0.194 82));
+		color: var(--pie-qti-warning, oklch(77% 0.194 82));
 		margin-top: 0.5rem;
 	}
 </style>

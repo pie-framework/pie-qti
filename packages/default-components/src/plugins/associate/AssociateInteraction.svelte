@@ -298,7 +298,7 @@
 		border-radius: 0.75rem;
 	}
 	.qti-associate-helper {
-		border: 1px solid var(--color-base-300, oklch(95% 0 0));
-		background: var(--color-base-200, oklch(98% 0 0));
+		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		background: var(--pie-qti-base-200, oklch(98% 0 0));
 	}
 </style>

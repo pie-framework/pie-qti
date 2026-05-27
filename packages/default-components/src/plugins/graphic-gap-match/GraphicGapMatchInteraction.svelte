@@ -545,8 +545,8 @@ function handleRootKeyDown(event: KeyboardEvent) {
 		gap: 0.5rem;
 		padding: 1rem;
 		border-radius: 0.75rem;
-		border: 2px solid var(--color-base-300, oklch(95% 0 0));
-		background: var(--color-base-200, oklch(98% 0 0));
+		border: 2px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		background: var(--pie-qti-base-200, oklch(98% 0 0));
 	}
 	.qti-ggm-labels-title {
 		width: 100%;
@@ -558,7 +558,7 @@ function handleRootKeyDown(event: KeyboardEvent) {
 		display: inline-block;
 		border-radius: 0.75rem;
 		overflow: hidden;
-		border: 2px solid var(--color-base-300, oklch(95% 0 0));
+		border: 2px solid var(--pie-qti-base-300, oklch(95% 0 0));
 	}
 	.qti-ggm-overlay {
 		position: absolute;
@@ -574,10 +574,10 @@ function handleRootKeyDown(event: KeyboardEvent) {
 
 	/* Label button in "held" (picked-up) state */
 	:global(.qti-ggm-label-held) {
-		outline: 3px solid var(--color-accent, oklch(65% 0.2 320));
+		outline: 3px solid var(--pie-qti-accent, oklch(65% 0.2 320));
 		outline-offset: 2px;
-		background-color: var(--color-accent, oklch(65% 0.2 320)) !important;
-		color: var(--color-accent-content, #fff) !important;
+		background-color: var(--pie-qti-accent, oklch(65% 0.2 320)) !important;
+		color: var(--pie-qti-accent-content, #fff) !important;
 		box-shadow: 0 0 0 4px oklch(65% 0.2 320 / 0.25);
 	}
 

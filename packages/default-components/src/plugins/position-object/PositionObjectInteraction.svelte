@@ -805,8 +805,8 @@
 		position: relative;
 		border-radius: 0.75rem;
 		overflow: hidden;
-		border: 2px solid var(--color-base-300, oklch(95% 0 0));
-		background: var(--color-base-200, oklch(98% 0 0));
+		border: 2px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		background: var(--pie-qti-base-200, oklch(98% 0 0));
 		width: 100%;
 	}
 	/* Critical: positioned items must be absolutely positioned even without Tailwind's `absolute` utility */
@@ -815,14 +815,14 @@
 	}
 
 	.qti-po-placed-correct {
-		border: 3px solid var(--color-success, oklch(76% 0.177 163.223));
+		border: 3px solid var(--pie-qti-success, oklch(76% 0.177 163.223));
 		border-radius: 4px;
-		box-shadow: 0 0 0 2px var(--color-success, oklch(76% 0.177 163.223)) inset;
+		box-shadow: 0 0 0 2px var(--pie-qti-success, oklch(76% 0.177 163.223)) inset;
 	}
 
 	.qti-po-placed-ghost {
 		opacity: 0.6;
-		border: 3px dashed var(--color-success, oklch(76% 0.177 163.223));
+		border: 3px dashed var(--pie-qti-success, oklch(76% 0.177 163.223));
 		border-radius: 4px;
 	}
 	.qti-po-palette {
@@ -830,9 +830,9 @@
 		min-width: 18rem;
 	}
 	.qti-po-card {
-		border: 1px solid var(--color-base-300, oklch(95% 0 0));
+		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
 		border-radius: 0.75rem;
-		background: var(--color-base-100, oklch(100% 0 0));
+		background: var(--pie-qti-base-100, oklch(100% 0 0));
 		height: 100%;
 	}
 	.qti-po-card-body {
@@ -844,25 +844,25 @@
 		gap: 0.75rem;
 		padding: 0.75rem;
 		border-radius: 0.75rem;
-		border: 1px solid var(--color-base-300, oklch(95% 0 0));
-		background: var(--color-base-200, oklch(98% 0 0));
+		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		background: var(--pie-qti-base-200, oklch(98% 0 0));
 	}
 
 	/* Selected palette item (K-04) */
 	.qti-po-palette-item-selected {
-		border-color: var(--color-primary, oklch(49.12% 0.3096 275.75));
-		background: var(--color-primary, oklch(49.12% 0.3096 275.75));
-		color: var(--color-primary-content, oklch(89.824% 0.06192 275.75));
-		box-shadow: 0 0 0 3px color-mix(in oklch, var(--color-primary, oklch(49.12% 0.3096 275.75)) 40%, transparent);
+		border-color: var(--pie-qti-primary, oklch(49.12% 0.3096 275.75));
+		background: var(--pie-qti-primary, oklch(49.12% 0.3096 275.75));
+		color: var(--pie-qti-primary-content, oklch(89.824% 0.06192 275.75));
+		box-shadow: 0 0 0 3px color-mix(in oklch, var(--pie-qti-primary, oklch(49.12% 0.3096 275.75)) 40%, transparent);
 	}
 
 	/* Canvas active state ring (K-04) */
 	.qti-po-canvas-active {
-		outline: 3px solid var(--color-primary, oklch(49.12% 0.3096 275.75));
+		outline: 3px solid var(--pie-qti-primary, oklch(49.12% 0.3096 275.75));
 		outline-offset: 2px;
 	}
 	.qti-po-canvas-active:focus {
-		outline: 3px solid var(--color-primary, oklch(49.12% 0.3096 275.75));
+		outline: 3px solid var(--pie-qti-primary, oklch(49.12% 0.3096 275.75));
 		outline-offset: 2px;
 	}
 
@@ -876,13 +876,13 @@
 		z-index: 100;
 	}
 	.qti-po-crosshair-line {
-		stroke: var(--color-primary, oklch(49.12% 0.3096 275.75));
+		stroke: var(--pie-qti-primary, oklch(49.12% 0.3096 275.75));
 		stroke-width: 1.5;
 		stroke-dasharray: 6 4;
 		opacity: 0.85;
 	}
 	.qti-po-crosshair-dot {
-		fill: var(--color-primary, oklch(49.12% 0.3096 275.75));
+		fill: var(--pie-qti-primary, oklch(49.12% 0.3096 275.75));
 		stroke: white;
 		stroke-width: 2;
 		opacity: 0.95;

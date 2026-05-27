@@ -1,4 +1,4 @@
-# Styling Contract (Option A: Shadow DOM + CSS Variables + ::part)
+# Styling Contract (Shadow DOM + QTI Theme Tokens + ::part)
 
 This package ships QTI interaction renderers as **web components** (Svelte custom elements). They render in **Shadow DOM** for encapsulation and portability.
 
@@ -8,22 +8,28 @@ To make them themeable by the host (e.g. a QTI player shell using DaisyUI) while
 - Components **consume theme tokens via CSS variables** (so the host controls colors/typography/radii).
 - Components expose stable **`part="..."` hooks** so host pages can refine styling via `::part(...)` without breaking encapsulation.
 
-## Theme tokens (CSS variables)
+## Theme Tokens
 
-The components use CSS variables in the form:
+The components consume canonical PIE QTI CSS variables:
 
-- `hsl(var(--p))`: primary
-- `hsl(var(--a))`: accent
-- `hsl(var(--b1))`, `hsl(var(--b2))`, `hsl(var(--b3))`: base surfaces
-- `hsl(var(--bc))`: base/content text
-- `hsl(var(--su))`: success
+- `--pie-qti-primary`: primary / interactive accent
+- `--pie-qti-accent`: accent
+- `--pie-qti-base-100`, `--pie-qti-base-200`, `--pie-qti-base-300`: base surfaces
+- `--pie-qti-base-content`: primary text
+- `--pie-qti-success`: correct answer / positive feedback
+- `--pie-qti-warning`: warning states
+- `--pie-qti-error`: error / incorrect states
+- `--pie-qti-info`: informational states
+- `--pie-qti-focus`: focus indicator
 
-These align with DaisyUI’s variable scheme. If the host does not provide them, components fall back to safe defaults via `var(--token, fallback)`.
+These variables are exported as defaults by `@pie-qti/theme/tokens.css`. DaisyUI hosts should import `@pie-qti/theme-daisyui/bridge.css` once to map the active DaisyUI `--color-*` theme into the QTI token contract.
+
+If the host does not provide QTI tokens, components fall back to safe oklch defaults via `var(--pie-qti-*, fallback)`.
 
 ### Host responsibilities (recommended)
 
-- Load your theme (DaisyUI or any other system) and set variables on `:root` (or any ancestor of the web component).
-- Optionally set `data-theme="..."` if you’re using DaisyUI themes.
+- Load your theme and set `--pie-qti-*` variables on `:root` or any ancestor of the web component.
+- If you use DaisyUI, import `@pie-qti/theme-daisyui/bridge.css` and set `data-theme="..."` normally.
 
 ## `::part` hooks
 

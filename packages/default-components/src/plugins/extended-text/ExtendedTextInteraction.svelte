@@ -144,7 +144,7 @@
 
 	.qti-character-counter {
 		font-size: 0.8125rem;
-		color: var(--color-base-content, #374151);
+		color: var(--pie-qti-base-content, #374151);
 		opacity: 0.7;
 		margin-top: 0.25rem;
 		text-align: right;

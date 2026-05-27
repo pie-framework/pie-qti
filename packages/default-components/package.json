@@ -78,6 +78,10 @@
     "./shared/styles/qti-shared-vocabulary.css": {
       "style": "./dist/shared/styles/qti-shared-vocabulary.css",
       "default": "./dist/shared/styles/qti-shared-vocabulary.css"
+    },
+    "./qti-shared-vocabulary.css": {
+      "style": "./dist/shared/styles/qti-shared-vocabulary.css",
+      "default": "./dist/shared/styles/qti-shared-vocabulary.css"
     }
   },
   "repository": {

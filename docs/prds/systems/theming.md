@@ -3,20 +3,20 @@
 <!--
   Status: current
   Type: system
-  Packages: @pie-qti/default-components, @pie-qti/player-elements
+  Packages: @pie-qti/default-components, @pie-qti/player-elements, @pie-qti/theme, @pie-qti/theme-daisyui
   Last reviewed: 2026-04-27
 -->
 
 **Status:** current  
 **Type:** system  
-**Packages:** `@pie-qti/default-components`, `@pie-qti/player-elements`  
+**Packages:** `@pie-qti/default-components`, `@pie-qti/player-elements`, `@pie-qti/theme`, `@pie-qti/theme-daisyui`  
 **Last reviewed:** 2026-04-27
 
 ---
 
 ## Summary
 
-The PIE-QTI theming system enables interaction web components — which render inside Shadow DOM — to participate in host-page theming without requiring the host to inject CSS into each shadow root. The mechanism has two layers: CSS custom properties (inherited through shadow boundaries) carry palette and surface colors from the host into each component, and `ShadowBaseStyles.svelte` provides a frozen set of DaisyUI-compatible class definitions (`.btn`, `.badge`, `.card`, etc.) bound to those custom properties, so that components render with coherent, readable styling regardless of whether the host loads DaisyUI at all. A `::part()` API exposes named structural elements for host overrides that cannot be expressed via custom properties alone.
+The PIE-QTI theming system enables interaction web components — which render inside Shadow DOM — to participate in host-page theming without requiring the host to inject CSS into each shadow root. The mechanism has three layers: canonical `--pie-qti-*` CSS custom properties carry palette and surface colors, `@pie-qti/theme-daisyui/bridge.css` maps DaisyUI `--color-*` variables into that QTI token contract, and `ShadowBaseStyles.svelte` provides a frozen set of DaisyUI-compatible class definitions (`.btn`, `.badge`, `.card`, etc.) bound to those QTI tokens. A `::part()` API exposes named structural elements for host overrides that cannot be expressed via custom properties alone.
 
 ---
 
@@ -35,7 +35,7 @@ The consequence is that without a solution, components would render with the bro
 
 CSS custom properties (a.k.a. CSS variables) are inherited values. The cascade does not stop at a Shadow DOM boundary: a custom property set on `:root` or any ancestor in the light DOM is visible to `var()` expressions inside every shadow root on the page. This is the only standards-compliant mechanism for host-to-shadow styling that does not require scripted style injection.
 
-DaisyUI v5 expresses its entire palette through custom properties (`--color-primary`, `--color-base-100`, `--color-success`, etc.) defined on `:root` by the active theme. Because these properties inherit into shadow roots automatically, components bound to `var(--color-primary, <fallback>)` respond to theme switching without any additional code.
+DaisyUI v5 expresses its entire palette through custom properties (`--color-primary`, `--color-base-100`, `--color-success`, etc.) defined on `:root` by the active theme. `@pie-qti/theme-daisyui/bridge.css` translates those variables to canonical QTI variables such as `--pie-qti-primary`, `--pie-qti-base-100`, and `--pie-qti-success`. Because custom properties inherit into shadow roots automatically, components bound to `var(--pie-qti-primary, <fallback>)` respond to theme switching without additional JavaScript.
 
 ### Why ShadowBaseStyles bundles class stubs instead of importing DaisyUI
 
@@ -51,7 +51,7 @@ The chosen approach — `ShadowBaseStyles.svelte`, a Svelte component containing
 
 ### Why oklch fallback values
 
-DaisyUI v5 uses the oklch color space throughout. Fallback values in `var(--color-primary, oklch(45% 0.24 277))` are chosen to match the DaisyUI v5 default "light" theme's palette in oklch. This means components remain visually coherent even when the host loads no DaisyUI at all — the fallback palette is not generic grey but a reasonable default resembling the framework's own theme. Because oklch is perceptually uniform, color-mix operations used in hover and active states also produce predictable results in the fallback path.
+DaisyUI v5 uses the oklch color space throughout. Fallback values in `var(--pie-qti-primary, oklch(45% 0.24 277))` are chosen to match the DaisyUI v5 default "light" theme's palette in oklch. This means components remain visually coherent even when the host loads no bridge or token stylesheet at all — the fallback palette is not generic grey but a reasonable default resembling the framework's own theme. Because oklch is perceptually uniform, color-mix operations used in hover and active states also produce predictable results in the fallback path.
 
 ### Why `::part()` is a public API
 
@@ -68,10 +68,10 @@ The assessment player and item player applications are not web components. They 
 ## Functional requirements
 
 - **FR-1:** Components in `@pie-qti/default-components` must render with coherent, readable styling when no DaisyUI or Tailwind stylesheet is loaded by the host.
-- **FR-2:** When the host loads DaisyUI v5 and sets `data-theme` on `<html>`, all interaction components must visually reflect the active theme's palette without any additional host configuration.
+- **FR-2:** When the host loads DaisyUI v5, imports `@pie-qti/theme-daisyui/bridge.css`, and sets `data-theme` on `<html>`, all interaction components must visually reflect the active theme's palette without additional JavaScript.
 - **FR-3:** Every interaction component must include `<ShadowBaseStyles />` at the top of its template before any styled markup.
 - **FR-4:** `ShadowBaseStyles.svelte` must provide class definitions for at minimum: `.btn` (all variants and sizes), `.badge` (all variants), `.alert` (all variants), `.card`, `.card-body`, `.divider`, `.select`, `.textarea`, `.radio`, `.checkbox`, `.file-input`, `.label`, `.label-text`, `.form-control`, `.sr-only`, and the Tailwind utilities required by interaction layout.
-- **FR-5:** Every CSS declaration in `ShadowBaseStyles.svelte` that references a color must use a `var(--color-*, <fallback>)` expression; no color value may be hardcoded.
+- **FR-5:** Every CSS declaration in `ShadowBaseStyles.svelte` that references a color must use a `var(--pie-qti-*, <fallback>)` expression; no color value may be hardcoded without a QTI token fallback.
 - **FR-6:** Every interaction component must expose a `part="root"` on its outermost container element.
 - **FR-7:** Interaction components that render repeated items (choices, associations, gap slots, etc.) must expose `part="option"` on each item's wrapper.
 - **FR-8:** Part names must follow the vocabulary defined in the extension points table; component-specific deviations must be documented as additions, not replacements.
@@ -82,7 +82,7 @@ The assessment player and item player applications are not web components. They 
 
 ## Non-functional requirements
 
-- **Accessibility:** Focus-visible outlines inside shadow roots must use `var(--color-primary, oklch(45% 0.24 277))` so they inherit the host's brand color and meet WCAG 2.2 AA contrast requirements when DaisyUI is active. The fallback oklch value must satisfy a minimum 3:1 contrast ratio against the default background.
+- **Accessibility:** Focus-visible outlines inside shadow roots must use `var(--pie-qti-focus, var(--pie-qti-primary, oklch(45% 0.24 277)))` so they inherit the host's brand color and meet WCAG 2.2 AA contrast requirements when a bridge or explicit QTI theme is active. The fallback oklch value must satisfy a minimum 3:1 contrast ratio against the default background.
 - **Performance:** `ShadowBaseStyles.svelte` is included once per component shadow root. The compiled size of `ShadowBaseStyles` must not exceed 8 KB minified. Components should not import DaisyUI's full CSS bundle.
 - **Cross-platform:** CSS custom properties and `::part()` are supported in all Chromium, Firefox, and Safari versions released after 2021. No polyfills are required.
 - **Security:** `ShadowBaseStyles.svelte` does not accept any props and does not render any user-supplied content; it is a pure style component. Host stylesheets that target `::part()` are subject to the host's CSP, not the shadow root's.
@@ -92,18 +92,18 @@ The assessment player and item player applications are not web components. They 
 
 ## Design decisions
 
-### CSS custom properties as the sole host-to-shadow color channel
+### PIE QTI CSS custom properties as the host-to-shadow color channel
 
-**Decision:** All color values in `ShadowBaseStyles.svelte` and in component-specific `<style>` blocks are expressed as `var(--color-*, <oklch-fallback>)`. No color is hardcoded without a `var()` wrapper.
+**Decision:** All color values in `ShadowBaseStyles.svelte` and in component-specific `<style>` blocks are expressed as `var(--pie-qti-*, <oklch-fallback>)`. No color is hardcoded without a `var()` wrapper.
 
-**Rationale:** CSS custom properties are the only values that the CSS cascade propagates through the Shadow DOM boundary. Class names, Tailwind utilities, and DaisyUI component styles defined in the host document cannot enter a shadow root. Custom properties can. Standardizing on DaisyUI v5's `--color-*` naming means that any host loading DaisyUI v5 gets automatic theme integration at zero additional configuration cost.
+**Rationale:** CSS custom properties are the only values that the CSS cascade propagates through the Shadow DOM boundary. Class names, Tailwind utilities, and DaisyUI component styles defined in the host document cannot enter a shadow root. Custom properties can. Standardizing on `--pie-qti-*` gives QTI a stable package-owned contract, while `@pie-qti/theme-daisyui/bridge.css` lets DaisyUI hosts feed that contract from their existing `--color-*` theme.
 
 **Alternatives considered:**
 - Scripted style injection (`element.shadowRoot.adoptedStyleSheets`): requires JavaScript, creates a coupling between the host and each component's shadow root reference, and complicates component teardown.
 - Attribute-based theme selection (component reads `data-theme` attribute and applies its own theme map): duplicates DaisyUI's theme data inside the component bundle; does not respond to host-side theme switches without explicit prop updates.
 - CSS `@layer` sharing: not available across Shadow DOM in current browser implementations.
 
-**Consequences:** Hosts that do not use DaisyUI must set `--color-primary`, `--color-base-100`, `--color-base-content`, and related properties on `:root` (or on a container wrapping the components) to achieve brand-aligned theming. The full list of required properties is in the Data model / contracts section.
+**Consequences:** Hosts that do not use DaisyUI must set `--pie-qti-primary`, `--pie-qti-base-100`, `--pie-qti-base-content`, and related properties on `:root` (or on a container wrapping the components) to achieve brand-aligned theming. DaisyUI hosts should import `@pie-qti/theme-daisyui/bridge.css` once.
 
 ---
 
@@ -154,10 +154,10 @@ The assessment player and item player applications are not web components. They 
 
 | Extension point | Interface / type | How to use | Example |
 |----------------|-----------------|------------|---------|
-| Host palette | CSS custom properties on `:root` | Set `--color-primary`, `--color-base-100`, etc. before components mount | Provide brand colors without loading DaisyUI |
-| DaisyUI theme switching | `data-theme` attribute on `<html>` | Change attribute value; CSS custom properties re-evaluate automatically | `document.documentElement.dataset.theme = 'dark'` |
+| Host palette | CSS custom properties on `:root` | Set `--pie-qti-primary`, `--pie-qti-base-100`, etc. before components mount | Provide brand colors without loading DaisyUI |
+| DaisyUI theme switching | `@pie-qti/theme-daisyui/bridge.css` + `data-theme` attribute on `<html>` | Import the bridge once, then change `data-theme`; CSS custom properties re-evaluate automatically | `document.documentElement.dataset.theme = 'dark'` |
 | Structural overrides | `::part(<name>)` selector in host stylesheet | Target exposed part names to override layout, border, spacing | `pie-qti-choice::part(option) { border: 2px solid blue; }` |
-| Additional class stubs | `ShadowBaseStyles.svelte` | Add a new `:global(.<class>)` block bound to `var(--color-*)` | Add `.tooltip` definition when a new component needs it |
+| Additional class stubs | `ShadowBaseStyles.svelte` | Add a new `:global(.<class>)` block bound to `var(--pie-qti-*)` | Add `.tooltip` definition when a new component needs it |
 | App-level brand palette | `tailwind.config.ts` `daisyui.themes` block | Override `primary`, `secondary`, and other tokens per app | Set `primary: '#ee4923'` for PIE brand orange |
 
 ---
@@ -166,21 +166,21 @@ The assessment player and item player applications are not web components. They 
 
 ### CSS custom properties contract
 
-The following custom properties are referenced by `ShadowBaseStyles.svelte` and by component-level `<style>` blocks. When DaisyUI v5 is loaded, all of these are defined by the active theme on `:root`. When DaisyUI is absent, the `var()` fallback values are used. Hosts that want brand-aligned theming without DaisyUI must set these properties on `:root` (or a containing element).
+The following custom properties are referenced by `ShadowBaseStyles.svelte` and by component-level `<style>` blocks. `@pie-qti/theme/tokens.css` provides default values, and `@pie-qti/theme-daisyui/bridge.css` maps DaisyUI v5's active `--color-*` theme variables onto the same contract. When no token stylesheet or bridge is present, the component-level `var()` fallback values are used.
 
 | Property | Fallback value | Role |
 |----------|---------------|------|
-| `--color-primary` | `oklch(45% 0.24 277)` | Brand / interactive accent color |
-| `--color-secondary` | `oklch(65% 0.241 354.308)` | Secondary accent |
-| `--color-accent` | `oklch(77% 0.152 181.912)` | Tertiary accent |
-| `--color-base-100` | `oklch(100% 0 0)` | Page / component background |
-| `--color-base-200` | `oklch(98% 0 0)` | Slightly off-white surface (cards, inputs) |
-| `--color-base-300` | `oklch(95% 0 0)` | Border and divider color |
-| `--color-base-content` | `oklch(21% 0 0)` | Primary text color |
-| `--color-success` | `oklch(76% 0.177 163.223)` | Correct answer / positive feedback |
-| `--color-warning` | `oklch(82% 0.189 84.429)` | Warning / attention |
-| `--color-error` | `oklch(71% 0.194 13.428)` | Error / incorrect answer |
-| `--color-info` | `oklch(74% 0.16 232.661)` | Informational state |
+| `--pie-qti-primary` | `oklch(45% 0.24 277)` | Brand / interactive accent color |
+| `--pie-qti-secondary` | `oklch(65% 0.241 354.308)` | Secondary accent |
+| `--pie-qti-accent` | `oklch(77% 0.152 181.912)` | Tertiary accent |
+| `--pie-qti-base-100` | `oklch(100% 0 0)` | Page / component background |
+| `--pie-qti-base-200` | `oklch(98% 0 0)` | Slightly off-white surface (cards, inputs) |
+| `--pie-qti-base-300` | `oklch(95% 0 0)` | Border and divider color |
+| `--pie-qti-base-content` | `oklch(21% 0 0)` | Primary text color |
+| `--pie-qti-success` | `oklch(76% 0.177 163.223)` | Correct answer / positive feedback |
+| `--pie-qti-warning` | `oklch(82% 0.189 84.429)` | Warning / attention |
+| `--pie-qti-error` | `oklch(71% 0.194 13.428)` | Error / incorrect answer |
+| `--pie-qti-info` | `oklch(74% 0.16 232.661)` | Informational state |
 
 All `color-mix` expressions in the codebase use `in oklch` interpolation. Hosts providing custom values should supply oklch literals or values in a color space that browsers can convert to oklch; sRGB hex values are accepted by the browser but `color-mix` blending results may differ slightly from the oklch-native calculations.
 
@@ -234,8 +234,8 @@ AC-1: Components render usably with no host stylesheet
 AC-2: Active DaisyUI theme colors appear in interaction components
   Given: A host page with DaisyUI v5 loaded and data-theme="dark" on <html>
   When: A pie-qti-choice component is mounted
-  Then: The component's background color matches --color-base-100 from the dark theme
-        and focus rings use --color-primary from the dark theme
+  Then: The component's background color matches --pie-qti-base-100 from the dark theme
+        and focus rings use --pie-qti-primary from the dark theme
 ```
 
 **AC-3: Theme switch without page reload**
@@ -260,9 +260,9 @@ AC-4: ::part() selector targets a named element in the shadow root
 
 **AC-5: Custom color properties respected**
 ```
-AC-5: Custom --color-primary on :root overrides fallback
+AC-5: Custom --pie-qti-primary on :root overrides fallback
   Given: A host page with no DaisyUI
-    and :root { --color-primary: oklch(50% 0.3 30); } in the host stylesheet
+    and :root { --pie-qti-primary: oklch(50% 0.3 30); } in the host stylesheet
   When: A pie-qti-choice component is mounted
     and a radio input is focused
   Then: The focus ring color resolves to oklch(50% 0.3 30)
@@ -274,7 +274,7 @@ AC-5: Custom --color-primary on :root overrides fallback
 AC-6: App tailwind.config.ts primary override propagates to all components
   Given: The demo app is built with primary brand tokens in tailwind.config.ts
   When: The demo app is loaded in a browser
-  Then: --color-primary resolves to a value corresponding to #ee4923 in oklch
+  Then: --pie-qti-primary resolves to a value corresponding to #ee4923 in oklch
         and all DaisyUI primary-colored elements (primary buttons, focus rings) use this color
 ```
 
@@ -290,13 +290,13 @@ AC-7: .btn class is available inside every interaction component's shadow root
 
 **AC-8: Correct-answer highlighting uses success color**
 ```
-AC-8: Correct-answer state uses --color-success
+AC-8: Correct-answer state uses --pie-qti-success
   Given: A pie-qti-choice component mounted with role="scorer"
     and a correctResponse that matches one of the choices
   When: The component renders
   Then: The correct choice's wrapper has a background-color
-        derived from --color-success (or its oklch fallback)
-        and a border-color matching --color-success
+        derived from --pie-qti-success (or its oklch fallback)
+        and a border-color matching --pie-qti-success
 ```
 
 ---
@@ -308,7 +308,7 @@ AC-8: Correct-answer state uses --color-success
 AC-A1: Focus outline meets minimum contrast in every DaisyUI theme
   Given: DaisyUI v5 is loaded with any of its 32 built-in themes
   When: A radio or checkbox input inside a shadow root receives keyboard focus
-  Then: The :focus-visible outline is rendered using var(--color-primary)
+  Then: The :focus-visible outline is rendered using var(--pie-qti-focus)
         and the color contrast between the outline and the adjacent background
         meets WCAG 2.2 AA non-text contrast (3:1 minimum)
   Notes: Verify for at minimum: light, dark, cupcake, dracula, high-contrast themes
@@ -356,12 +356,12 @@ AC-E2: Late-mounted component reads current custom properties
   Then: It renders with the dark theme palette, not the light theme fallbacks
 ```
 
-**AC-E3: Missing --color-* property falls back gracefully**
+**AC-E3: Missing --pie-qti-* property falls back gracefully**
 ```
 AC-E3: Partial custom property set does not break rendering
-  Given: A host page that sets --color-primary but not --color-base-100
+  Given: A host page that sets --pie-qti-primary but not --pie-qti-base-100
   When: Any pie-qti-* component is mounted
-  Then: Elements that depend on --color-base-100 render with the oklch(100% 0 0) fallback
+  Then: Elements that depend on --pie-qti-base-100 render with the oklch(100% 0 0) fallback
         and no element renders invisibly or with a CSS parsing error
 ```
 
@@ -377,9 +377,9 @@ AC-E4: Nonexistent part name in host CSS is silently ignored
 **AC-E5: color-mix with oklch fallbacks does not produce invalid color**
 ```
 AC-E5: color-mix fallback expressions produce valid rendered colors
-  Given: A host page with no DaisyUI and no custom --color-* properties
+  Given: A host page with no DaisyUI and no custom --pie-qti-* properties
   When: A choice component renders a correct-answer highlighted option
-        (which uses color-mix(in oklch, var(--color-success, oklch(76% 0.177 163.223)) 8%, transparent))
+        (which uses color-mix(in oklch, var(--pie-qti-success, oklch(76% 0.177 163.223)) 8%, transparent))
   Then: The element has a visually distinct tinted background
         and browser DevTools computed styles show a valid color value, not an error
 ```

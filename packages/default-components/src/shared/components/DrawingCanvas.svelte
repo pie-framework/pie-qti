@@ -240,7 +240,7 @@
 			onpointermove={pointerMove}
 			onpointerup={pointerUp}
 			onpointercancel={pointerUp}
-			style="cursor: {disabled ? 'not-allowed' : 'crosshair'}; pointer-events: auto; border: 1px solid var(--color-base-300, #d1d5db); border-radius: 0.25rem;"
+			style="cursor: {disabled ? 'not-allowed' : 'crosshair'}; pointer-events: auto; border: 1px solid var(--pie-qti-base-300, #d1d5db); border-radius: 0.25rem;"
 		></canvas>
 	</div>
 

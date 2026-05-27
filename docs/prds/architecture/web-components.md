@@ -20,7 +20,7 @@ Three packages form the web component layer of the QTI player:
 
 - **`@pie-qti/default-components`** — Svelte 5 components compiled as custom elements (`customElement: true`), one per QTI interaction type. Each component lives in `src/plugins/<type>/`. The package also exports `registerDefaultComponents(registry)` to wire the custom element tag names into the item player's `ComponentRegistry`.
 - **`@pie-qti/player-elements`** — Vanilla custom elements (`QtiItemPlayerElement`, `QtiAssessmentPlayerElement`) that mount and manage Svelte player components. These are the public-facing HTML elements that host applications drop into a page.
-- **`@pie-qti/web-component-loaders`** — A single idempotent loader function (`loadPieQtiPlayerElements`) that dynamically imports and awaits registration of the player elements. Safe to call from multiple entry points without double-registering.
+- **`@pie-qti/web-component-loaders`** — A single idempotent loader function (`loadPieQtiPlayerElements`) that dynamically imports and awaits registration of the player elements and bundled default interaction elements. Safe to call from multiple entry points without double-registering.
 
 ---
 
@@ -101,7 +101,7 @@ The component is included via `<ShadowBaseStyles />` at the top of each interact
 - **FR-9:** `QtiItemPlayerElement` SHALL expose JS property setters and getters for `itemXml`, `identifier`, `title`, `role`, `responses`, `security`, and `extendedTextEditor`, in addition to the equivalent kebab-case HTML attributes.
 - **FR-10:** `QtiItemPlayerElement` SHALL dispatch a `response-change` event with `{ responseId, value, responses }` when the mounted player reports a response change.
 - **FR-11:** `QtiItemPlayerElement` SHALL dispatch a `ready` event (microtask-queued) after `connectedCallback`.
-- **FR-12:** `loadPieQtiPlayerElements()` SHALL be idempotent: calling it N times SHALL result in exactly one dynamic import and SHALL resolve only after both `pie-qti-item-player` and `pie-assessment-player` custom elements are defined.
+- **FR-12:** `loadPieQtiPlayerElements()` SHALL be idempotent: calling it N times SHALL result in exactly one dynamic load and SHALL resolve only after `pie-qti-item-player`, `pie-assessment-player`, and bundled default interaction custom elements are defined.
 - **FR-13:** Interaction components SHALL use `typesetAction` to trigger host-provided math typesetting after render and on DOM mutations.
 - **FR-14:** Interaction components in `disabled` state SHALL render non-interactive (native input elements with `disabled`, no `qti-change` events).
 
@@ -126,14 +126,12 @@ The component is included via `<ShadowBaseStyles />` at the top of each interact
 **Alternatives considered:** Compile everything as Svelte custom elements. Rejected because the player components have complex async state sync that does not map cleanly to attribute-change callbacks.
 **Consequences:** Player elements manage their own `<div style="display:contents">` container and are responsible for calling `unmount()` on `disconnectedCallback` to avoid memory leaks.
 
-### Two-step loading: import side-effect + registry registration
+### Browser loading: default loader plus lower-level imports
 
-**Decision:** Loading default components requires two separate steps:
-  1. Import `@pie-qti/default-components/plugins` (side effect: registers custom elements with `customElements`).
-  2. Call `registerDefaultComponents(registry)` (associates tag names with interaction types in the player's `ComponentRegistry`).
-**Rationale:** The `customElements.define()` call is a browser-global side effect. Separating it from the `ComponentRegistry` call keeps the registry logic testable in Node.js (no browser globals needed) and allows the component bundle to be loaded lazily while the registry is configured eagerly.
-**Alternatives considered:** Single-call registration that does both steps; auto-registration on import of the main entry point.
-**Consequences:** Callers who forget either step get different failure modes: missing `customElements.define` → browser throws "unknown element" warnings; missing `registerDefaultComponents` → player falls back to its default element selection (which may be nothing, since no components are registered).
+**Decision:** Host applications should use `loadPieQtiPlayerElements()` from `@pie-qti/web-component-loaders` for the bundled browser runtime. The loader imports `@pie-qti/player-elements/register` and `@pie-qti/default-components/plugins`, dedupes concurrent calls, and waits for the player and default interaction custom elements to be defined.
+**Rationale:** The common host contract should be one loader call, not a list of internal packages the host must remember to import. The lower-level side-effect imports remain available for advanced consumers that supply custom interaction implementations or control registration order.
+**Alternatives considered:** Auto-registration on import of the main package entry point. Rejected because server-side transforms and headless consumers should not trigger browser custom-element registration.
+**Consequences:** Apps embedding the bundled runtime no longer need to import `@pie-qti/default-components/plugins` directly. Custom renderer hosts can still import lower-level entries and register alternative components intentionally.
 
 ### `parseJsonProp` as explicit call, not an automatic Svelte transform
 
@@ -244,7 +242,7 @@ AC-5: ShadowBaseStyles provides usable rendering without DaisyUI
   Then: Buttons are visible with borders, choices have legible text, no unstyled raw HTML
 
 AC-6: Host theming via CSS custom properties
-  Given: The host sets --color-primary: oklch(55% 0.24 142) on :root (green primary)
+  Given: The host sets --pie-qti-primary: oklch(55% 0.24 142) on :root (green primary)
   When: A <pie-qti-choice> renders
   Then: The focused radio button accent color reflects the custom primary color
 
@@ -269,7 +267,8 @@ AC-10: loadPieQtiPlayerElements idempotency
   Given: loadPieQtiPlayerElements() is called three times concurrently from three modules
   When: All three promises resolve
   Then: customElements.get('pie-qti-item-player') is defined exactly once
-        AND the dynamic import for '@pie-qti/player-elements/register' is executed exactly once
+        AND customElements.get('pie-qti-choice') is defined exactly once
+        AND the dynamic load for player and default interaction registration is executed exactly once
 
 AC-11: response-change event from player element
   Given: A <pie-qti-item-player> with a valid QTI item XML

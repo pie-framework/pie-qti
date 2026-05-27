@@ -263,26 +263,26 @@
 	}
 
 	.tiptap-editor-container {
-		background: var(--color-base-100, oklch(100% 0 0));
-		border: 1px solid var(--color-base-300, oklch(95% 0 0));
+		background: var(--pie-qti-base-100, oklch(100% 0 0));
+		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
 		border-radius: 0.5rem;
 		padding: 0.75rem;
 	}
 
 	.tiptap-editor-container:focus-within {
-		border-color: var(--color-primary, oklch(45% 0.24 277));
-		box-shadow: 0 0 0 2px color-mix(in oklch, var(--color-primary, oklch(45% 0.24 277)) 20%, transparent);
+		border-color: var(--pie-qti-primary, oklch(45% 0.24 277));
+		box-shadow: 0 0 0 2px color-mix(in oklch, var(--pie-qti-primary, oklch(45% 0.24 277)) 20%, transparent);
 	}
 
 	.richtext-editor[data-readonly='true'] .tiptap-editor-container {
-		background: var(--color-base-200, oklch(98% 0 0));
+		background: var(--pie-qti-base-200, oklch(98% 0 0));
 		cursor: not-allowed;
 	}
 
 	/* Prose content styling (scoped to our stable hook) */
 	:global(.pie-tiptap) {
 		outline: none;
-		color: var(--color-base-content, oklch(21% 0 0));
+		color: var(--pie-qti-base-content, oklch(21% 0 0));
 	}
 
 	:global(.pie-tiptap p) {
@@ -297,7 +297,7 @@
 	:global(.pie-tiptap p.is-editor-empty:first-child::before) {
 		content: attr(data-placeholder);
 		float: left;
-		color: color-mix(in oklch, var(--color-base-content, oklch(21% 0 0)) 45%, transparent);
+		color: color-mix(in oklch, var(--pie-qti-base-content, oklch(21% 0 0)) 45%, transparent);
 		pointer-events: none;
 		height: 0;
 	}

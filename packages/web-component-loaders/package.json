@@ -3,27 +3,41 @@
   "version": "0.1.11",
   "main": "./dist/index.js",
   "devDependencies": {
+    "@pie-qti/default-components": "workspace:*",
     "@pie-qti/player-elements": "workspace:*",
+    "@pie-qti/theme-daisyui": "workspace:*",
     "typescript": "^5.9.3"
   },
   "peerDependencies": {
-    "@pie-qti/player-elements": "workspace:*"
+    "@pie-qti/default-components": "workspace:*",
+    "@pie-qti/player-elements": "workspace:*",
+    "@pie-qti/theme-daisyui": "workspace:*"
   },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./default-runtime.css": {
+      "style": "./dist/default-runtime.css",
+      "default": "./dist/default-runtime.css"
     }
   },
   "description": "Shared, idempotent client-side loaders for QTI-related web components used across apps",
   "license": "MIT",
   "peerDependenciesMeta": {
+    "@pie-qti/default-components": {
+      "optional": true
+    },
     "@pie-qti/player-elements": {
+      "optional": true
+    },
+    "@pie-qti/theme-daisyui": {
       "optional": true
     }
   },
   "scripts": {
-    "build": "rm -rf dist tsconfig.tsbuildinfo && tsc -p ./tsconfig.json"
+    "build": "rm -rf dist tsconfig.tsbuildinfo && tsc -p ./tsconfig.json && cp src/*.css dist/"
   },
   "type": "module",
   "types": "./dist/index.d.ts",
@@ -39,7 +53,9 @@
   "publishConfig": {
     "access": "public"
   },
-  "sideEffects": false,
+  "sideEffects": [
+    "./dist/*.css"
+  ],
   "engines": {
     "node": ">=20.19.0"
   },

@@ -131,7 +131,7 @@
 
 <div class="qti-item-player">
 	{#if error}
-		<div class="alert alert-error">
+		<div class="qti-player-alert qti-player-alert-error">
 			<span>{error}</span>
 		</div>
 	{:else if player}
@@ -149,9 +149,9 @@
 
 		{#if role === 'candidate' && !disabled && onSubmit}
 			{@const canSubmit = player.canSubmitResponses(currentResponses)}
-			<div class="mt-6 flex items-center gap-4">
+			<div class="qti-player-actions">
 				<button
-					class="btn btn-primary"
+					class="qti-player-button qti-player-button-primary"
 					onclick={() => handleSubmit(true)}
 					disabled={isCompleted || !canSubmit}
 				>
@@ -159,9 +159,9 @@
 				</button>
 
 				{#if isAdaptive}
-					<div class="text-sm text-base-content/70">
+					<div class="qti-player-attempt-status">
 						{#if isCompleted}
-							<span class="badge badge-success">{i18n?.t('item.complete') ?? 'item.complete'}</span>
+							<span class="qti-player-badge qti-player-badge-success">{i18n?.t('item.complete') ?? 'item.complete'}</span>
 						{:else}
 							<span>{i18n?.t('item.attempt', { numAttempts: numAttempts + 1 }) ?? `item.attempt (${numAttempts + 1})`}</span>
 						{/if}
@@ -173,8 +173,94 @@
 		<!-- Modal feedback display -->
 		<ModalFeedbackDisplay feedback={modalFeedback} onClose={closeFeedback} typeset={effectiveTypeset} {i18n} />
 	{:else}
-		<div class="alert alert-info">
+		<div class="qti-player-alert qti-player-alert-info">
 			<span>{i18n?.t('item.loading') ?? 'item.loading'}</span>
 		</div>
 	{/if}
 </div>
+
+<style>
+	.qti-item-player {
+		color: var(--pie-qti-base-content, oklch(21% 0 0));
+	}
+
+	.qti-player-alert {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.75rem 1rem;
+		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		border-radius: 0.75rem;
+		background: var(--pie-qti-base-200, oklch(98% 0 0));
+		color: var(--pie-qti-base-content, oklch(21% 0 0));
+	}
+
+	.qti-player-alert-error {
+		border-color: var(--pie-qti-error, oklch(71% 0.194 13.428));
+		background: color-mix(in oklch, var(--pie-qti-error, oklch(71% 0.194 13.428)) 8%, transparent);
+	}
+
+	.qti-player-alert-info {
+		border-color: var(--pie-qti-info, oklch(74% 0.16 232.661));
+		background: color-mix(in oklch, var(--pie-qti-info, oklch(74% 0.16 232.661)) 8%, transparent);
+	}
+
+	.qti-player-actions {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+		margin-top: 1.5rem;
+	}
+
+	.qti-player-button {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem;
+		padding: 0.5rem 0.75rem;
+		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		border-radius: 0.75rem;
+		background: var(--pie-qti-base-200, oklch(98% 0 0));
+		color: var(--pie-qti-base-content, oklch(21% 0 0));
+		font: inherit;
+		line-height: 1.1;
+		cursor: pointer;
+	}
+
+	.qti-player-button-primary {
+		border-color: var(--pie-qti-primary, oklch(45% 0.24 277));
+		background: color-mix(in oklch, var(--pie-qti-primary, oklch(45% 0.24 277)) 12%, transparent);
+	}
+
+	.qti-player-button:disabled {
+		opacity: 0.55;
+		cursor: not-allowed;
+	}
+
+	.qti-player-button:focus-visible {
+		outline: 2px solid var(--pie-qti-focus, var(--pie-qti-primary, oklch(45% 0.24 277)));
+		outline-offset: 2px;
+	}
+
+	.qti-player-attempt-status {
+		color: color-mix(in oklch, var(--pie-qti-base-content, oklch(21% 0 0)) 70%, transparent);
+		font-size: 0.875rem;
+	}
+
+	.qti-player-badge {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-height: 1.25rem;
+		padding: 0 0.5rem;
+		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		border-radius: 9999px;
+		font-size: 0.75rem;
+		font-weight: 600;
+	}
+
+	.qti-player-badge-success {
+		border-color: var(--pie-qti-success, oklch(76% 0.177 163.223));
+		background: color-mix(in oklch, var(--pie-qti-success, oklch(76% 0.177 163.223)) 12%, transparent);
+	}
+</style>

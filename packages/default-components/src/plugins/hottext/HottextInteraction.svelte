@@ -264,7 +264,7 @@
 <style>
 	.qti-selection-message {
 		font-size: 0.875rem;
-		color: var(--color-warning, oklch(77% 0.194 82));
+		color: var(--pie-qti-warning, oklch(77% 0.194 82));
 		margin-top: 0.25rem;
 	}
 
@@ -300,24 +300,24 @@
 	}
 
 	:global(.hottext-content hottext.selectable) {
-		background-color: hsl(var(--bc) / 0.1);
-		border: 1px solid hsl(var(--bc) / 0.2);
+		background-color: color-mix(in oklch, var(--pie-qti-base-content, oklch(21% 0 0)) 10%, transparent);
+		border: 1px solid color-mix(in oklch, var(--pie-qti-base-content, oklch(21% 0 0)) 20%, transparent);
 	}
 
 	:global(.hottext-content hottext.selectable:hover) {
-		background-color: hsl(var(--p) / 0.2);
-		border-color: hsl(var(--p) / 0.4);
+		background-color: color-mix(in oklch, var(--pie-qti-primary, oklch(45% 0.24 277)) 20%, transparent);
+		border-color: color-mix(in oklch, var(--pie-qti-primary, oklch(45% 0.24 277)) 40%, transparent);
 	}
 
 	:global(.hottext-content hottext.selected) {
-		background-color: hsl(var(--p) / 0.3);
-		border: 2px solid hsl(var(--p));
+		background-color: color-mix(in oklch, var(--pie-qti-primary, oklch(45% 0.24 277)) 30%, transparent);
+		border: 2px solid var(--pie-qti-primary, oklch(45% 0.24 277));
 		font-weight: 600;
 	}
 
 	:global(.hottext-content hottext.correct) {
-		background-color: color-mix(in oklch, var(--color-success, oklch(76% 0.177 163.223)) 8%, transparent);
-		border: 1px solid var(--color-success, oklch(76% 0.177 163.223));
+		background-color: color-mix(in oklch, var(--pie-qti-success, oklch(76% 0.177 163.223)) 8%, transparent);
+		border: 1px solid var(--pie-qti-success, oklch(76% 0.177 163.223));
 		border-radius: 0.25rem;
 		padding: 2px 4px;
 		margin: -2px -4px;

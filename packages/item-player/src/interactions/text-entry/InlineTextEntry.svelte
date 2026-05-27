@@ -50,10 +50,7 @@
 
 <input
 	type="text"
-	class={['input input-bordered input-sm inline-input', inputWidthClass ?? '', extraClasses].filter(Boolean).join(' ')}
-	class:border-success={correctAnswer !== null}
-	class:bg-success={correctAnswer !== null}
-	class:bg-opacity-10={correctAnswer !== null}
+	class={['qti-inline-input', correctAnswer !== null ? 'qti-inline-input-correct' : '', inputWidthClass ?? '', extraClasses].filter(Boolean).join(' ')}
 	style={inputWidthClass ? 'min-width: 100px; display: inline-block; margin: 0 4px;' : `width: ${interaction.expectedLength * 8}px; min-width: 100px; display: inline-block; margin: 0 4px;`}
 	placeholder={interaction.placeholderText || '...'}
 	pattern={interaction.patternMask || undefined}
@@ -69,7 +66,35 @@
 	{disabled}
 />
 {#if validationError}
-	<span id={errorId} role="alert" class="qti-text-entry-error text-error text-xs" style="display: block;">
+	<span id={errorId} role="alert" class="qti-text-entry-error">
 		{validationError}
 	</span>
 {/if}
+
+<style>
+	.qti-inline-input {
+		box-sizing: border-box;
+		padding: 0.25rem 0.5rem;
+		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		border-radius: 0.5rem;
+		background: var(--pie-qti-base-100, oklch(100% 0 0));
+		color: var(--pie-qti-base-content, oklch(21% 0 0));
+		font: inherit;
+	}
+
+	.qti-inline-input:focus-visible {
+		outline: 2px solid var(--pie-qti-focus, var(--pie-qti-primary, oklch(45% 0.24 277)));
+		outline-offset: 2px;
+	}
+
+	.qti-inline-input-correct {
+		border-color: var(--pie-qti-success, oklch(76% 0.177 163.223));
+		background: color-mix(in oklch, var(--pie-qti-success, oklch(76% 0.177 163.223)) 10%, transparent);
+	}
+
+	.qti-text-entry-error {
+		display: block;
+		color: var(--pie-qti-error, oklch(71% 0.194 13.428));
+		font-size: 0.75rem;
+	}
+</style>

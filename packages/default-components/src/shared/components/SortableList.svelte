@@ -252,25 +252,25 @@ function moveItem(fromIndex: number, toIndex: number) {
 		width: 100%;
 		padding: 0.75rem;
 		border-radius: 0.5rem;
-		border: 1px solid var(--color-base-300, oklch(95% 0 0));
-		background: var(--color-base-200, oklch(98% 0 0));
-		color: var(--color-base-content, oklch(21% 0 0));
+		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		background: var(--pie-qti-base-200, oklch(98% 0 0));
+		color: var(--pie-qti-base-content, oklch(21% 0 0));
 		text-align: left;
 		user-select: none;
 		transition: background-color 120ms ease, border-color 120ms ease, outline-color 120ms ease,
 			opacity 120ms ease;
 	}
 	.qti-sortable-item:focus-visible {
-		outline: 2px solid var(--color-primary, oklch(45% 0.24 277));
+		outline: 2px solid var(--pie-qti-primary, oklch(45% 0.24 277));
 		outline-offset: 2px;
 	}
 	.qti-sortable-item[data-grabbed='true'] {
-		border-color: var(--color-primary, oklch(45% 0.24 277));
-		background: color-mix(in oklch, var(--color-primary, oklch(45% 0.24 277)) 8%, transparent);
+		border-color: var(--pie-qti-primary, oklch(45% 0.24 277));
+		background: color-mix(in oklch, var(--pie-qti-primary, oklch(45% 0.24 277)) 8%, transparent);
 	}
 	.qti-sortable-item[data-correct='true'] {
-		border-color: var(--color-success, oklch(76% 0.177 163.223));
-		background: color-mix(in oklch, var(--color-success, oklch(76% 0.177 163.223)) 8%, transparent);
+		border-color: var(--pie-qti-success, oklch(76% 0.177 163.223));
+		background: color-mix(in oklch, var(--pie-qti-success, oklch(76% 0.177 163.223)) 8%, transparent);
 	}
 	.qti-sortable-item[data-disabled='true'] {
 		opacity: 0.55;
@@ -286,9 +286,9 @@ function moveItem(fromIndex: number, toIndex: number) {
 		border-radius: 9999px;
 		font-size: 0.75rem;
 		font-weight: 600;
-		border: 1px solid var(--color-base-300, oklch(95% 0 0));
-		background: var(--color-base-100, oklch(100% 0 0));
-		color: var(--color-base-content, oklch(21% 0 0));
+		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		background: var(--pie-qti-base-100, oklch(100% 0 0));
+		color: var(--pie-qti-base-content, oklch(21% 0 0));
 	}
 	.qti-sortable-text {
 		flex: 1 1 auto;

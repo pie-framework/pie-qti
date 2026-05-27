@@ -455,15 +455,15 @@
 		gap: 0.5rem;
 		padding: 1rem;
 		border-radius: 0.75rem;
-		border: 2px solid var(--color-base-300, oklch(95% 0 0));
-		background: var(--color-base-200, oklch(98% 0 0));
+		border: 2px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		background: var(--pie-qti-base-200, oklch(98% 0 0));
 		align-items: center;
 	}
 	.qti-gm-text {
 		padding: 1rem;
 		border-radius: 0.75rem;
-		border: 1px solid var(--color-base-300, oklch(95% 0 0));
-		background: var(--color-base-100, oklch(100% 0 0));
+		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		background: var(--pie-qti-base-100, oklch(100% 0 0));
 	}
 	/* K-02: visually hidden live region */
 	.qti-gm-live-region {
@@ -498,8 +498,8 @@
 		border-style: dashed;
 		border-color: color-mix(
 			in oklch,
-			var(--color-base-content, oklch(21% 0 0)) 18%,
-			var(--color-base-300, oklch(95% 0 0))
+			var(--pie-qti-base-content, oklch(21% 0 0)) 18%,
+			var(--pie-qti-base-300, oklch(95% 0 0))
 		);
 	}
 	:global(.qti-gm-gap-target[data-empty='true']::before) {
@@ -507,35 +507,35 @@
 		content: '\00a0';
 	}
 	:global(.qti-gm-gap-target.is-dragover) {
-		border-color: var(--color-primary, oklch(45% 0.24 277));
+		border-color: var(--pie-qti-primary, oklch(45% 0.24 277));
 		box-shadow:
-			0 0 0 3px color-mix(in oklch, var(--color-primary, oklch(45% 0.24 277)) 28%, transparent),
-			inset 0 -2px 0 var(--color-base-300, oklch(95% 0 0));
-		background: color-mix(in oklch, var(--color-primary, oklch(45% 0.24 277)) 8%, transparent);
+			0 0 0 3px color-mix(in oklch, var(--pie-qti-primary, oklch(45% 0.24 277)) 28%, transparent),
+			inset 0 -2px 0 var(--pie-qti-base-300, oklch(95% 0 0));
+		background: color-mix(in oklch, var(--pie-qti-primary, oklch(45% 0.24 277)) 8%, transparent);
 	}
 	:global(.qti-gm-gap-target[aria-disabled='true']) {
 		opacity: 0.6;
 		cursor: not-allowed;
 	}
 	:global(.qti-gm-gap-target.qti-gm-gap-correct) {
-		border-color: var(--color-success, oklch(76% 0.177 163.223));
-		background: color-mix(in oklch, var(--color-success, oklch(76% 0.177 163.223)) 8%, transparent);
+		border-color: var(--pie-qti-success, oklch(76% 0.177 163.223));
+		background: color-mix(in oklch, var(--pie-qti-success, oklch(76% 0.177 163.223)) 8%, transparent);
 	}
 	/* K-02: "ready to receive" visual for gap targets when a word is held */
 	:global(.qti-gm-gap-target.qti-gm-gap-ready) {
 		border-style: dashed;
-		border-color: var(--color-primary, oklch(45% 0.24 277));
-		box-shadow: 0 0 0 2px color-mix(in oklch, var(--color-primary, oklch(45% 0.24 277)) 22%, transparent);
+		border-color: var(--pie-qti-primary, oklch(45% 0.24 277));
+		box-shadow: 0 0 0 2px color-mix(in oklch, var(--pie-qti-primary, oklch(45% 0.24 277)) 22%, transparent);
 	}
 	:global(.qti-gm-gap-target:focus-visible) {
-		outline: 2px solid hsl(var(--p, 240 100% 50%) / 0.5);
+		outline: 2px solid color-mix(in oklch, var(--pie-qti-primary, oklch(45% 0.24 277)) 50%, transparent);
 		outline-offset: 2px;
 	}
 	:global(.qti-gm-gap-target:hover) {
 		border-color: color-mix(
 			in oklch,
-			var(--color-primary, oklch(45% 0.24 277)) 22%,
-			var(--color-base-300, oklch(95% 0 0))
+			var(--pie-qti-primary, oklch(45% 0.24 277)) 22%,
+			var(--pie-qti-base-300, oklch(95% 0 0))
 		);
 	}
 	.qti-gm-palette [part='word'][aria-disabled='true'] {
@@ -550,7 +550,7 @@
 	}
 	/* K-02: "held" visual for the picked-up word button */
 	:global(.qti-gm-word-held) {
-		outline: 3px solid var(--color-warning, oklch(84% 0.2 85));
+		outline: 3px solid var(--pie-qti-warning, oklch(84% 0.2 85));
 		outline-offset: 2px;
 	}
 </style>

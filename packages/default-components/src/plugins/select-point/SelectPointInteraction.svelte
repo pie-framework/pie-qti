@@ -477,7 +477,7 @@
 	.image-container {
 		position: relative;
 		display: inline-block;
-		border: 2px solid hsl(var(--bc) / 0.2);
+		border: 2px solid color-mix(in oklch, var(--pie-qti-base-content, oklch(21% 0 0)) 20%, transparent);
 		border-radius: 8px;
 		overflow: hidden;
 	}
@@ -487,8 +487,8 @@
 		width: 32px;
 		height: 32px;
 		transform: translate(-50%, -50%);
-		background-color: hsl(var(--p));
-		border: 3px solid white;
+		background-color: var(--pie-qti-primary, oklch(45% 0.24 277));
+		border: 3px solid var(--pie-qti-primary-content, oklch(98% 0.01 277));
 		border-radius: 50%;
 		display: flex;
 		align-items: center;
@@ -499,7 +499,7 @@
 	}
 
 	.point-marker:hover {
-		background-color: hsl(var(--er));
+		background-color: var(--pie-qti-error, oklch(71% 0.194 13.428));
 		transform: translate(-50%, -50%) scale(1.1);
 	}
 
@@ -509,11 +509,11 @@
 	}
 
 	.point-marker-correct {
-		background-color: #10b981 !important;
-		border-color: white !important;
+		background-color: var(--pie-qti-success, oklch(76% 0.177 163.223)) !important;
+		border-color: var(--pie-qti-success-content, oklch(98% 0.01 163.223)) !important;
 		border-width: 4px !important;
 		cursor: default;
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 0 0 0 4px #10b981 !important;
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 0 0 0 4px var(--pie-qti-success, oklch(76% 0.177 163.223)) !important;
 		width: 50px !important;
 		height: 50px !important;
 		z-index: 200 !important;
@@ -527,24 +527,24 @@
 	.point-marker-correct .point-number {
 		font-size: 28px !important;
 		font-weight: 900 !important;
-		color: white !important;
+		color: var(--pie-qti-success-content, oklch(98% 0.01 163.223)) !important;
 		line-height: 1 !important;
 		display: block !important;
 	}
 
 	.point-marker-correct:hover {
-		background-color: var(--color-success, oklch(76% 0.177 163.223));
+		background-color: var(--pie-qti-success, oklch(76% 0.177 163.223));
 		transform: translate(-50%, -50%);
 	}
 
 	.point-number {
-		color: white;
+		color: var(--pie-qti-primary-content, oklch(98% 0.01 277));
 		font-weight: 700;
 		font-size: 14px;
 	}
 
 	.no-image-placeholder {
-		border: 2px dashed hsl(var(--bc) / 0.2);
+		border: 2px dashed color-mix(in oklch, var(--pie-qti-base-content, oklch(21% 0 0)) 20%, transparent);
 		border-radius: 8px;
 	}
 

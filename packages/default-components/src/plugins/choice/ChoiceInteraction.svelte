@@ -267,7 +267,7 @@
 
 	/* Correct answer highlighting */
 	.qti-choice-correct {
-		background-color: color-mix(in oklch, var(--color-success, oklch(76% 0.177 163.223)) 8%, transparent);
+		background-color: color-mix(in oklch, var(--pie-qti-success, oklch(76% 0.177 163.223)) 8%, transparent);
 		border-radius: 0.5rem;
 		padding: 0.25rem 0.5rem;
 		margin: -0.25rem -0.5rem;
@@ -275,7 +275,7 @@
 
 	.radio-success,
 	.checkbox-success {
-		accent-color: var(--color-success, oklch(76% 0.177 163.223));
+		accent-color: var(--pie-qti-success, oklch(76% 0.177 163.223));
 	}
 
 	/* Elimination tool */
@@ -316,7 +316,7 @@
 
 	[data-eliminated] .qti-eliminate-btn {
 		opacity: 1;
-		color: var(--color-error, oklch(63% 0.237 25.331));
+		color: var(--pie-qti-error, oklch(63% 0.237 25.331));
 	}
 
 	/* ── QTI Shared Vocabulary behavioral classes ─────────────────────────── */
@@ -349,7 +349,7 @@
 	/* Selection limit messages */
 	.qti-selection-message {
 		font-size: 0.875rem;
-		color: var(--color-warning, oklch(77% 0.194 82));
+		color: var(--pie-qti-warning, oklch(77% 0.194 82));
 		margin-top: 0.5rem;
 	}
 </style>

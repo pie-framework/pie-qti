@@ -29,13 +29,10 @@
 	}
 </script>
 
-<span class="inline-choice-wrapper" style="display: inline-block; position: relative;">
+<span class="inline-choice-wrapper">
 	<select
-		class="select select-bordered select-sm inline-select"
-		class:border-success={correctAnswer !== null}
-		class:bg-success={correctAnswer !== null}
-		class:bg-opacity-10={correctAnswer !== null}
-		style="display: inline-block; margin: 0 4px; width: auto; min-width: 120px;"
+		class:qti-inline-select={true}
+		class:qti-inline-select-correct={correctAnswer !== null}
 		aria-label={`Inline choice ${interaction.responseId}${correctAnswer && correctChoice ? '. Correct answer: ' + correctChoice.text : ''}`}
 		value={displayValue}
 		onchange={handleChange}
@@ -50,8 +47,55 @@
 		{/each}
 	</select>
 	{#if correctAnswer !== null && correctChoice}
-		<span class="badge badge-success badge-sm" style="position: absolute; top: -1.5rem; left: 0; white-space: nowrap; font-size: 0.7rem;">
+		<span class="qti-inline-choice-correct-badge">
 			{i18n?.t('interactions.choice.correct', 'Correct') ?? 'Correct'}: {correctChoice.text}
 		</span>
 	{/if}
 </span>
+
+<style>
+	.inline-choice-wrapper {
+		position: relative;
+		display: inline-block;
+	}
+
+	.qti-inline-select {
+		display: inline-block;
+		width: auto;
+		min-width: 120px;
+		margin: 0 4px;
+		padding: 0.25rem 1.75rem 0.25rem 0.5rem;
+		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		border-radius: 0.5rem;
+		background: var(--pie-qti-base-100, oklch(100% 0 0));
+		color: var(--pie-qti-base-content, oklch(21% 0 0));
+		font: inherit;
+	}
+
+	.qti-inline-select:focus-visible {
+		outline: 2px solid var(--pie-qti-focus, var(--pie-qti-primary, oklch(45% 0.24 277)));
+		outline-offset: 2px;
+	}
+
+	.qti-inline-select-correct {
+		border-color: var(--pie-qti-success, oklch(76% 0.177 163.223));
+		background: color-mix(in oklch, var(--pie-qti-success, oklch(76% 0.177 163.223)) 10%, transparent);
+	}
+
+	.qti-inline-choice-correct-badge {
+		position: absolute;
+		top: -1.5rem;
+		left: 0;
+		display: inline-flex;
+		align-items: center;
+		white-space: nowrap;
+		min-height: 1.1rem;
+		padding: 0 0.5rem;
+		border: 1px solid var(--pie-qti-success, oklch(76% 0.177 163.223));
+		border-radius: 9999px;
+		background: color-mix(in oklch, var(--pie-qti-success, oklch(76% 0.177 163.223)) 12%, transparent);
+		color: var(--pie-qti-base-content, oklch(21% 0 0));
+		font-size: 0.7rem;
+		font-weight: 600;
+	}
+</style>

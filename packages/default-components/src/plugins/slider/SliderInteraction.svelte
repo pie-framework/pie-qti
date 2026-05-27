@@ -126,8 +126,8 @@
 		display: inline-block;
 		padding: 0.75rem 1rem;
 		border-radius: 0.75rem;
-		border: 1px solid var(--color-base-300, oklch(95% 0 0));
-		background: var(--color-base-200, oklch(98% 0 0));
+		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		background: var(--pie-qti-base-200, oklch(98% 0 0));
 	}
 	.qti-slider-stat-title {
 		font-size: 0.8rem;
@@ -136,6 +136,6 @@
 	.qti-slider-stat-value {
 		font-weight: 700;
 		font-size: 1.25rem;
-		color: var(--color-primary, oklch(45% 0.24 277));
+		color: var(--pie-qti-primary, oklch(45% 0.24 277));
 	}
 </style>

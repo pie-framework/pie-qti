@@ -21,6 +21,8 @@
       "@pie-qti/source-profiles",
       "@pie-qti/storage",
       "@pie-qti/test-utils",
+      "@pie-qti/theme",
+      "@pie-qti/theme-daisyui",
       "@pie-qti/to-pie",
       "@pie-qti/transform-cli",
       "@pie-qti/transform-core",

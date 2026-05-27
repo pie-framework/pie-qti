@@ -102,8 +102,8 @@
 	.qti-catalog-popup {
 		position: absolute;
 		z-index: 1000;
-		background: var(--color-base-100, #fff);
-		border: 1px solid var(--color-base-300, #d1d5db);
+		background: var(--pie-qti-base-100, #fff);
+		border: 1px solid var(--pie-qti-base-300, #d1d5db);
 		border-radius: 0.5rem;
 		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
 		min-width: 16rem;
@@ -118,15 +118,15 @@
 		align-items: center;
 		justify-content: space-between;
 		padding: 0.5rem 0.75rem;
-		border-bottom: 1px solid var(--color-base-300, #d1d5db);
-		background: var(--color-base-200, #f9fafb);
+		border-bottom: 1px solid var(--pie-qti-base-300, #d1d5db);
+		background: var(--pie-qti-base-200, #f9fafb);
 		border-radius: 0.5rem 0.5rem 0 0;
 	}
 
 	.qti-catalog-popup__title {
 		font-weight: 600;
 		font-size: 0.85rem;
-		color: var(--color-base-content, #111);
+		color: var(--pie-qti-base-content, #111);
 	}
 
 	.qti-catalog-popup__close {
@@ -137,21 +137,21 @@
 		line-height: 1;
 		padding: 0.2rem 0.4rem;
 		border-radius: 0.25rem;
-		color: var(--color-base-content, #111);
+		color: var(--pie-qti-base-content, #111);
 		opacity: 0.6;
 	}
 
 	.qti-catalog-popup__close:hover,
 	.qti-catalog-popup__close:focus-visible {
 		opacity: 1;
-		background: var(--color-base-300, #e5e7eb);
-		outline: 2px solid var(--color-primary, #4f46e5);
+		background: var(--pie-qti-base-300, #e5e7eb);
+		outline: 2px solid var(--pie-qti-primary, #4f46e5);
 		outline-offset: 1px;
 	}
 
 	.qti-catalog-popup__body {
 		padding: 0.75rem;
-		color: var(--color-base-content, #111);
+		color: var(--pie-qti-base-content, #111);
 	}
 
 	.qti-catalog-popup__img {

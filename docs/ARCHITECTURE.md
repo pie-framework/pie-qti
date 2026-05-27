@@ -199,17 +199,20 @@ The theming system balances three goals:
 
 #### CSS variables (theme tokens)
 
-Components consume DaisyUI-compatible variables:
+Components consume package-owned PIE QTI theme variables. DaisyUI hosts can import
+`@pie-qti/theme-daisyui/bridge.css` to map their active `--color-*` theme into
+these variables.
 
 | Variable | Purpose |
 |----------|---------|
-| `--p` | Primary color |
-| `--a` | Accent color |
-| `--b1`, `--b2`, `--b3` | Base surface colors |
-| `--bc` | Base content (text) color |
-| `--su` | Success color |
+| `--pie-qti-primary` | Primary color |
+| `--pie-qti-accent` | Accent color |
+| `--pie-qti-base-100`, `--pie-qti-base-200`, `--pie-qti-base-300` | Base surface colors |
+| `--pie-qti-base-content` | Base content (text) color |
+| `--pie-qti-success` | Success color |
 
-Usage in components: `hsl(var(--p))`, `hsl(var(--bc))`, etc.
+Usage in components: `var(--pie-qti-primary, <fallback>)`,
+`var(--pie-qti-base-content, <fallback>)`, etc.
 
 If the host doesn't provide these variables, components fall back to safe defaults via `var(--token, fallback)`.
 

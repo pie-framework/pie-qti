@@ -275,6 +275,6 @@
 	.qti-eliminate-btn:hover,
 	.qti-eliminate-btn[data-eliminated] {
 		opacity: 1;
-		color: var(--color-error, oklch(63% 0.237 25.331));
+		color: var(--pie-qti-error, oklch(63% 0.237 25.331));
 	}
 </style>

@@ -154,7 +154,7 @@
 	use:glossaryAction={{ player }}
 >
 	<!-- Item body with inline interactions -->
-	<div class="prose max-w-none mb-4">
+	<div class="qti-item-body-content">
 		<div class="inline-interaction-container">
 			{#each presentation.inlineSegments as segment}
 				{#if segment.type === 'html'}
@@ -212,6 +212,11 @@
 		min-width: 0;
 	}
 
+	.qti-item-body-content {
+		max-width: none;
+		margin-bottom: 1rem;
+	}
+
 	/*
 	 * Custom elements default to inline; force them to be block-level and width-contained.
 	 * This prevents wide interactions (SVGs, tables, canvases) from spilling outside panels.
@@ -263,7 +268,7 @@
 		display: inline-block;
 		margin-left: 0.5rem;
 		padding-left: 0.5rem;
-		border-left: 2px solid var(--color-base-content, currentColor);
+		border-left: 2px solid var(--pie-qti-base-content, currentColor);
 		opacity: 0.8;
 	}
 

@@ -216,7 +216,7 @@
 									y1={center1.y}
 									x2={center2.x}
 									y2={center2.y}
-									stroke={isCorrect ? 'var(--color-success, oklch(76% 0.177 163.223))' : 'var(--color-primary, oklch(45% 0.24 277))'}
+									stroke={isCorrect ? 'var(--pie-qti-success, oklch(76% 0.177 163.223))' : 'var(--pie-qti-primary, oklch(45% 0.24 277))'}
 									stroke-width="3"
 									stroke-linecap="round"
 								/>
@@ -236,7 +236,7 @@
 										y1={center1.y}
 										x2={center2.x}
 										y2={center2.y}
-										stroke="var(--color-success, oklch(76% 0.177 163.223))"
+										stroke="var(--pie-qti-success, oklch(76% 0.177 163.223))"
 										stroke-width="2"
 										stroke-dasharray="4,4"
 										stroke-linecap="round"
@@ -476,8 +476,8 @@
 		position: relative;
 		border-radius: 0.75rem;
 		overflow: hidden;
-		border: 2px solid var(--color-base-300, oklch(95% 0 0));
-		background: var(--color-base-200, oklch(98% 0 0));
+		border: 2px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		background: var(--pie-qti-base-200, oklch(98% 0 0));
 	}
 	/* Critical: overlay must be absolutely positioned even without Tailwind utilities */
 	.qti-ga-overlay {
@@ -493,9 +493,9 @@
 		min-width: 18rem;
 	}
 	.qti-ga-card {
-		border: 1px solid var(--color-base-300, oklch(95% 0 0));
+		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
 		border-radius: 0.75rem;
-		background: var(--color-base-100, oklch(100% 0 0));
+		background: var(--pie-qti-base-100, oklch(100% 0 0));
 	}
 	.qti-ga-card-body {
 		padding: 1rem;

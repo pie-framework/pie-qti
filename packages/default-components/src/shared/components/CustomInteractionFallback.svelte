@@ -105,18 +105,18 @@
 		display: grid;
 		gap: 0.75rem;
 		/* Ensure readable defaults even if the host sets a dark foreground color */
-		color: var(--color-base-content, oklch(21% 0 0));
+		color: var(--pie-qti-base-content, oklch(21% 0 0));
 	}
 	.qti-custom-warning,
 	.qti-custom-details,
 	.qti-custom-manual {
-		border: 1px solid var(--color-base-300, oklch(95% 0 0));
+		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
 		border-radius: 0.75rem;
-		background: var(--color-base-200, oklch(98% 0 0));
+		background: var(--pie-qti-base-200, oklch(98% 0 0));
 		padding: 0.75rem;
 	}
 	.qti-custom-details {
-		background: var(--color-base-100, oklch(100% 0 0));
+		background: var(--pie-qti-base-100, oklch(100% 0 0));
 	}
 	.qti-custom-manual-label {
 		display: block;
@@ -124,16 +124,16 @@
 	}
 	/* Override ShadowBaseStyles' DaisyUI-ish label text color to meet WCAG contrast. */
 	.qti-custom-manual .label-text {
-		color: var(--color-base-content, oklch(21% 0 0));
+		color: var(--pie-qti-base-content, oklch(21% 0 0));
 	}
 	.qti-custom-manual-input {
 		width: 100%;
 		min-height: 4.5rem;
 		padding: 0.5rem 0.75rem;
 		border-radius: 0.5rem;
-		border: 1px solid var(--color-base-300, oklch(95% 0 0));
-		background: var(--color-base-100, oklch(100% 0 0));
-		color: var(--color-base-content, oklch(21% 0 0));
+		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		background: var(--pie-qti-base-100, oklch(100% 0 0));
+		color: var(--pie-qti-base-content, oklch(21% 0 0));
 	}
 	.qti-custom-toggle {
 		align-self: start;
@@ -142,9 +142,9 @@
 		padding: 0.75rem;
 	}
 	.qti-custom-pre {
-		background: var(--color-base-200, oklch(98% 0 0));
+		background: var(--pie-qti-base-200, oklch(98% 0 0));
 		border-radius: 0.5rem;
-		border: 1px solid var(--color-base-300, oklch(95% 0 0));
+		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
 		padding: 0.5rem;
 		overflow: auto;
 	}

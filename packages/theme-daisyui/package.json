@@ -1,0 +1,62 @@
+{
+  "name": "@pie-qti/theme-daisyui",
+  "version": "0.1.11",
+  "description": "DaisyUI token bridge for PIE QTI theme variables",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc && cp src/*.css dist/",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write ."
+  },
+  "keywords": [
+    "qti",
+    "qti2",
+    "qti3",
+    "assessment",
+    "theme",
+    "daisyui"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.8",
+    "typescript": "^5.9.3"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./bridge.css": {
+      "style": "./dist/bridge.css",
+      "default": "./dist/bridge.css"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pie-framework/pie-qti.git",
+    "directory": "packages/theme-daisyui"
+  },
+  "homepage": "https://github.com/pie-framework/pie-qti/tree/master/packages/theme-daisyui",
+  "bugs": {
+    "url": "https://github.com/pie-framework/pie-qti/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": [
+    "./dist/*.css"
+  ],
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ]
+}

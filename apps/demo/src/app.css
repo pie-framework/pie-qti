@@ -3,6 +3,4 @@
 /* Import DaisyUI v5 styles and themes */
 @import 'daisyui/daisyui.css';
 @import 'daisyui/themes.css';
-
-/* QTI 3.0 Shared Vocabulary CSS classes (I20) */
-@import '@pie-qti/default-components/shared/styles/qti-shared-vocabulary.css';
+@import '@pie-qti/web-component-loaders/default-runtime.css';
