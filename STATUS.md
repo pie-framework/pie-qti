@@ -12,8 +12,8 @@ workflows are the authoritative sources for detailed behavior.
 The core player packages are pre-1.0 but considered production-ready for the
 supported QTI delivery scope.
 
-- `@pie-qti/item-player` renders single QTI items and supports all standard QTI
-  2.2 item interaction types.
+- `@pie-qti/item-player` renders single QTI items and supports standard QTI
+  item interaction types across the supported delivery scope.
 - `@pie-qti/assessment-player` sequences QTI assessment tests, sections, item
   refs, item session control, rubric blocks, and response submission.
 - `@pie-qti/default-components` supplies the default web-component renderers.
@@ -77,6 +77,9 @@ The current high-signal verification commands are:
 - `bun run typecheck`
 - `bun run build`
 - `bun run test:certification:public`
+- `bun run verify:a11y`
+- `bun run verify:apps:deploy`
+- `bun run verify:publish:quick`
 
 The full suite was last run successfully as part of the interaction module
 refactor on 2026-05-04.

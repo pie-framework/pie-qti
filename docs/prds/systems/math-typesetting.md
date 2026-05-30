@@ -22,11 +22,11 @@ The PIE-QTI math typesetting system renders mathematical expressions inside asse
 
 ## Background and rationale
 
-### Why QTI 2.2 assessments require math rendering
+### Why QTI assessments require math rendering
 
-QTI 2.2 is the dominant content format for K-12 standardized assessments. Item authors express mathematical notation in two ways:
+QTI item authors express mathematical notation in two ways:
 
-1. **MathML** — the XML-native representation that QTI 2.2 endorses (`<math>`, `<mfrac>`, `<msup>`, etc.). It is structurally precise and round-trips through authoring tools, but browser MathML rendering has historically been inconsistent, and KaTeX does not render MathML directly.
+1. **MathML** — the XML-native representation that QTI endorses (`<math>`, `<mfrac>`, `<msup>`, etc.). It is structurally precise and round-trips through authoring tools, but browser MathML rendering has historically been inconsistent, and KaTeX does not render MathML directly.
 2. **LaTeX delimiters** — inline `\( … \)`, display `\[ … \]`, or `$$ … $$` strings embedded in item body prose or prompt text. Many QTI authoring tools emit LaTeX when exporting to HTML or when a content author writes math by hand.
 
 A player that renders neither will display raw `\frac{x}{2}` strings and MathML element text alongside multiple-choice options — unacceptable for a K-12 test-taker.
@@ -47,9 +47,9 @@ KaTeX renders synchronously and is an order of magnitude faster at initial rende
 
 ### Why MathML must be pre-converted to LaTeX
 
-KaTeX's `auto-render` extension scans text for LaTeX delimiters. It does not parse HTML MathML element trees. QTI 2.2 content that uses `<math>` tags would be ignored entirely if rendered directly through KaTeX. The pre-conversion step in `typesetMathInElement` bridges this gap by walking the DOM, finding `<math>` / `<m:math>` elements, recursively converting them to a LaTeX string, replacing the element with a text node wrapped in `\( … \)` or `\[ … \]` delimiters, and then letting KaTeX's auto-render process everything in one pass.
+KaTeX's `auto-render` extension scans text for LaTeX delimiters. It does not parse HTML MathML element trees. QTI content that uses `<math>` tags would be ignored entirely if rendered directly through KaTeX. The pre-conversion step in `typesetMathInElement` bridges this gap by walking the DOM, finding `<math>` / `<m:math>` elements, recursively converting them to a LaTeX string, replacing the element with a text node wrapped in `\( … \)` or `\[ … \]` delimiters, and then letting KaTeX's auto-render process everything in one pass.
 
-This approach is intentionally minimal. The converter handles the eight MathML element types that appear in the majority of QTI 2.2 item content; it does not attempt to be a general-purpose MathML→LaTeX translator.
+This approach is intentionally minimal. The converter handles the eight MathML element types that appear in the majority of QTI item content; it does not attempt to be a general-purpose MathML→LaTeX translator.
 
 ---
 
@@ -118,13 +118,13 @@ This approach is intentionally minimal. The converter handles the eight MathML e
 
 **Decision:** Before calling KaTeX auto-render, `typesetMathInElement` walks the DOM to find `<math>` and `<m:math>` elements and recursively converts them to LaTeX-delimited text nodes. The converter handles eight element types; unknown types fall back to `textContent`. The converted text nodes are then processed by KaTeX's standard delimiter scanning.
 
-**Rationale:** KaTeX's `auto-render` extension does not parse native MathML. QTI 2.2 content frequently contains MathML (it is the QTI-endorsed format for structured math). Without pre-conversion, all `<math>` content would be silently ignored by KaTeX. The alternative — using a dedicated MathML→LaTeX library — would add a substantial dependency for what is, in practice, a limited subset of MathML element types that appear in K-12 assessment items. The eight element types handled (`mrow`, `mi`, `mn`, `mo`, `msup`, `msub`, `mfrac`, `msqrt`, `mroot`, `mfenced`) cover the arithmetic, algebra, and fraction notation used in elementary through high school math assessments.
+**Rationale:** KaTeX's `auto-render` extension does not parse native MathML. QTI content frequently contains MathML (it is the QTI-endorsed format for structured math). Without pre-conversion, all `<math>` content would be silently ignored by KaTeX. The alternative — using a dedicated MathML→LaTeX library — would add a substantial dependency for what is, in practice, a limited subset of MathML element types that appear in K-12 assessment items. The eight element types handled (`mrow`, `mi`, `mn`, `mo`, `msup`, `msub`, `mfrac`, `msqrt`, `mroot`, `mfenced`) cover the arithmetic, algebra, and fraction notation used in elementary through high school math assessments.
 
 The converter is explicitly documented in the source as intentionally minimal. Host apps that need comprehensive MathML support (nested tables, semantics annotations, custom operators) can replace the entire `typeset` hook with a MathJax-based implementation or a dedicated MathML library.
 
 **Alternatives considered:**
 - Use MathJax instead of KaTeX — MathJax v3 handles MathML natively. Rejected for the reference implementation because MathJax's async rendering pipeline and larger bundle size are disadvantageous for the assessment player's synchronous-render-then-typeset flow.
-- Integrate a dedicated MathML→LaTeX library (e.g. `mathml-to-latex`). Rejected because it adds a third-party dependency for a conversion that covers only a small subset of MathML; the bespoke converter handles the QTI 2.2 subset at near-zero bundle cost.
+- Integrate a dedicated MathML→LaTeX library (e.g. `mathml-to-latex`). Rejected because it adds a third-party dependency for a conversion that covers only a small subset of MathML; the bespoke converter handles the QTI MathML subset at near-zero bundle cost.
 - Leave MathML in place and rely on native browser MathML rendering. Rejected because browser MathML support was inconsistent across the browser matrix targeted by this framework and does not apply KaTeX's visual styling.
 
 **Consequences:** MathML that uses element types outside the converter's handled set will degrade: the unknown element's `textContent` is inserted literally into the LaTeX string. For example, `<menclose notation="box">x</menclose>` would produce `x` in the LaTeX string rather than a boxed expression. This is a graceful degradation (the math is readable as plain text) rather than an error. The converter boundary is the public contract: hosts that require `menclose`, `mtable`, or advanced MathML must provide their own `typeset` implementation.
@@ -480,4 +480,4 @@ AC-E6: Converter error does not corrupt the item body
 - CSS entry point: `packages/typeset-katex/src/css.ts` — re-exports `katex/dist/katex.min.css`
 - Adjacent PRDs: `docs/prds/systems/theming.md` — Shadow DOM CSS isolation rationale; explains why KaTeX CSS cannot be bundled inside shadow roots
 - KaTeX documentation: https://katex.org/docs/autorender
-- QTI 2.2 MathML usage: IMS QTI 2.2 spec §6.3 (mathML content model)
+- QTI MathML usage: see the relevant QTI spec content model for the target version

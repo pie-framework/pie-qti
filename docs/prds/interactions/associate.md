@@ -469,5 +469,5 @@ AC-E7: HTML content in choice text
 - Pair normalization (scoring): `packages/item-player/src/core/Player.ts` `parseMapping()` and `packages/qti-processing/src/eval/evaluator.ts` `normalizeScalarForCompare()`
 - Integration test: `packages/item-player/tests/core/interaction-plumbing.test.ts`
 - Eval scenarios: `docs/evals/default-components/associate/evals.yaml`
-- Adjacent interaction PRD (matchInteraction, directedPair): `docs/prds/interactions/match.md` (planned)
-- Adjacent interaction PRD (graphicAssociateInteraction): `docs/prds/interactions/graphic-associate.md` (planned)
+- Adjacent interaction PRD (matchInteraction, directedPair): `docs/prds/interactions/match.md`
+- Adjacent interaction PRD (graphicAssociateInteraction): `docs/prds/interactions/graphic-associate.md`

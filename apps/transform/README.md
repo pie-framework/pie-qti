@@ -10,7 +10,7 @@ Shared clean-room QTI samples live under `packages/to-pie/tests/fixtures/qti-sam
 
 - **Upload** — Single XML files or ZIP packages (including nested ZIPs and IMS Content Packages)
 - **Analyze** — Discover items/tests, count interactions, identify issues
-- **Transform** — Batch convert QTI 2.2 → PIE with progress reporting
+- **Transform** — Batch convert QTI → PIE with progress reporting
 - **Preview** — Side-by-side QTI player and PIE player rendering
 - **Validation** — Schema validation and transformation pipeline feedback
 
@@ -167,13 +167,12 @@ Or for local development with [pie-players](https://github.com/pie-framework/pie
 
 ## Related Packages
 
-- [@pie-qti/transform-cli](../cli) — Command-line transforms
-- [@pie-qti/transform-core](../core) — Transform engine
-- [@pie-qti/to-pie](../to-pie) — QTI → PIE transformer
-- [@pie-qti/item-player](../item-player) — QTI player for preview
-- [@pie-qti/assessment-player](../assessment-player) — Assessment player
+- [@pie-qti/transform-cli](../../tools/cli) — Command-line transforms
+- [@pie-qti/transform-core](../../packages/core) — Transform engine
+- [@pie-qti/to-pie](../../packages/to-pie) — QTI → PIE transformer
+- [@pie-qti/item-player](../../packages/item-player) — QTI player for preview
+- [@pie-qti/assessment-player](../../packages/assessment-player) — Assessment player
 
 ## License
 
 ISC
-

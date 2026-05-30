@@ -13,7 +13,7 @@ High-level architecture overview for PIE-QTI.
 
 ### Transformations
 
-- **QTI → PIE**: parse QTI 2.2 content and produce PIE JSON, with a lossless round-trip path when the source originated from PIE.
+- **QTI → PIE**: parse QTI content and produce PIE JSON, with a lossless round-trip path when the source originated from PIE.
 - **PIE → QTI**: generate QTI 2.2 XML from PIE JSON, including IMS Content Package support and a lossless round-trip path.
 
 ### Tools
@@ -23,8 +23,8 @@ High-level architecture overview for PIE-QTI.
 
 ### Version support (important boundary)
 
-- **Transforms**: target **QTI 2.2** (`imsqti_v2p2`) for transformation. Treat other namespaces/variants as “ingest-time compatibility work” and validate early.
-- **Players**: designed for **QTI 2.2 and 3.0** content (role/view-aware rendering, response processing, optional backend scoring patterns). For highest interoperability in legacy ecosystems, keep content aligned to QTI 2.2.
+- **Transforms**: ingest QTI content and emit **QTI 2.2** (`imsqti_v2p2`) from PIE. Treat unsupported namespaces/variants as ingest-time compatibility work and validate early.
+- **Players**: designed for QTI content across the supported delivery scope (role/view-aware rendering, response processing, optional backend scoring patterns). For highest interoperability in legacy ecosystems, keep content aligned to the relevant QTI profile.
 
 ---
 
@@ -63,7 +63,7 @@ Everything lives under `packages/` and `apps/`:
 
 ## QTI players: architecture & extensibility
 
-> **Status**: Production-ready
+> **Status**: Production-ready for the supported QTI delivery scope
 
 ![Item player extensibility](images/item_player_extensibility.jpeg)
 
@@ -251,7 +251,7 @@ Key references:
 
 ## Internationalization (i18n)
 
-> **Status**: Production-ready
+> **Status**: Production-ready for the supported QTI delivery scope
 > **Package**: `@pie-qti/i18n`
 
 ### Overview
@@ -436,7 +436,7 @@ Key references:
 - Storage types: `packages/types/src/storage/index.ts`
 - Storage package: `packages/storage/src/`
 - App storage wrapper: `apps/transform/src/lib/server/storage/app-session-storage.ts`
-- Configuration: `docs/CONFIGURATION.md`
+- Source profile configuration: `docs/SOURCE-PROFILES.md`
 
 ### Server-side flow (sessioned)
 
@@ -538,7 +538,7 @@ You’ll likely want multiple layers:
 ## Further reading (key docs)
 
 - Transformation overview: `docs/PIE-QTI-TRANSFORMATION-GUIDE.md`
-- QTI 2.2 notes: `docs/QTI_techguide.md`
+- QTI technical reference: `docs/QTI_techguide.md`
 - IMS Content Package notes: `docs/IMS_Content_Packages_techguide.md`
 - QTI item player: `packages/item-player/README.md`
 - Iframe mode reference: `packages/item-player/docs/iframe-mode.md`

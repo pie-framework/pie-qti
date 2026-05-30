@@ -30,15 +30,15 @@ This project provides two major capabilities:
 
 Many Renaissance partners exchange content in **QTI format**, so bidirectional QTI ↔ PIE transformation is essential. This project **open sources that transformation framework** for partners and the broader community.
 
-We also built a **spec-complete QTI player** because a modern, open-source option was missing—and we needed one for previewing, analysis, and "convert then render" workflows.
+We also built a **standards-oriented QTI player** because a modern, open-source option was missing—and we needed one for previewing, analysis, and "convert then render" workflows.
 
 ---
 
-## Part 1: QTI Players (2.2 & 3.0)
+## Part 1: QTI Players
 
-> **Status**: Production-ready (QTI 2.2); QTI 3.0 infrastructure complete; PCI/PNP/Catalog implemented (see STATUS.md)
+> **Status**: Production-ready for the supported QTI delivery scope; QTI 3.0 infrastructure, PCI, PNP, and Catalog support are implemented (see STATUS.md)
 
-Full-featured players for rendering QTI 2.2 and 3.0 assessment content in the browser.
+Full-featured players for rendering QTI assessment content in the browser.
 
 ### Version-Agnostic Architecture
 
@@ -55,7 +55,7 @@ See [`@pie-qti/qti-common`](packages/qti-common/README.md) for the version abstr
 
 Renders and scores individual QTI items:
 
-- **21 interaction types** — All QTI 2.2 interactions supported
+- **21 standard interaction types** — Standard QTI interactions supported through the shared extraction/rendering path
 - **45 response processing operators** — Complete client-side scoring
 - **Role/view-aware rendering** — candidate, scorer, author, tutor, proctor, testConstructor
 - **Adaptive items** — Multi-attempt workflows with progressive feedback
@@ -90,7 +90,7 @@ See the [ACME Likert plugin](packages/acme-likert-plugin/) for a complete extens
 
 Components render via web components (Shadow DOM) with a CSS variable contract:
 
-- **Theme tokens** — DaisyUI-compatible variables (`--p`, `--a`, `--b1`, `--bc`, etc.)
+- **Theme tokens** — PIE-QTI CSS variables (`--pie-qti-*`) with DaisyUI bridge support
 - **`::part()` hooks** — Stable part names for host-side style refinement
 - **Zero-CSS fallback** — Components render correctly with no host styles
 
@@ -113,7 +113,7 @@ See [`@pie-qti/i18n`](packages/i18n/) for the complete i18n API and [custom tran
 
 > **Status**: Under active development
 
-Bidirectional transformation between QTI 2.2 XML and PIE JSON.
+Bidirectional transformation between QTI XML and PIE JSON: QTI → PIE ingest, plus PIE → QTI 2.2 export.
 
 ### Architecture Overview
 
@@ -138,7 +138,7 @@ See [Transformation Engine Documentation](docs/TRANSFORMATION-ENGINE.md) for com
 - Best-effort semantic transformation otherwise
 - Vendor extension system for custom QTI variants
 
-**PIE → QTI** (`@pie-qti/pie-to-qti`)
+**PIE → QTI** (`@pie-qti/pie-to-qti2`)
 
 - Lossless reconstruction when PIE contains embedded QTI
 - Generator registry for custom PIE model handling
@@ -172,7 +172,7 @@ Command-line tool for batch operations:
 bun run pie-qti -- transform input.xml --format qti22:pie --output output.json
 
 # Analyze QTI content
-bun run pie-qti -- analyze ./content-package/
+bun run pie-qti -- analyze-qti ./content-package/
 
 # See all commands
 bun run pie-qti -- --help
@@ -206,10 +206,13 @@ bun run verify:apps:deploy
 bun run verify:publish
 ```
 
-CI uses two required quality lanes on PRs:
+CI runs the main quality gates on PRs:
 
-- **Deployability lane:** `verify:apps:deploy` (apps/docs and apps/demo production buildability)
-- **Publishability lane:** `verify:publish:quick` (metadata, exports, publint, attw, pack, deps, source exports)
+- **Lint/type gates:** Biome, Svelte checks, TypeScript, translation coverage, and unit tests
+- **Certification gate:** `test:certification:public`
+- **Accessibility gate:** `verify:a11y`
+- **Deployability gate:** `verify:apps:deploy` (apps/docs and apps/demo production buildability)
+- **Publishability gate:** `verify:publish:quick` (metadata, exports, publint, attw, pack, deps, source exports)
 
 Release behavior is lockstep and patch-only for publishable `packages/*`:
 
@@ -225,9 +228,10 @@ To test with [pie-players](https://github.com/pie-framework/pie-players) locally
 ### GitHub Pages Preview
 
 ```bash
-bun run build:pages
+bun run verify:apps:deploy
+bun run docs:preview
+# In another shell, preview the examples app if needed:
 bun run preview:pages
-# Open http://localhost:4173/pie-qti/
 ```
 
 ---
@@ -237,6 +241,8 @@ bun run preview:pages
 ### Architecture & Project Layout
 
 - **[Architecture Guide](docs/ARCHITECTURE.md)** — System design, package map, extensibility, theming, and security
+- **[PRD Inventory](docs/prds/INVENTORY.md)** — Canonical rationale and acceptance criteria map
+- **[Documentation Review](docs/DOCUMENTATION-REVIEW.md)** — Documentation inventory, review findings, and maintenance rules
 
 ### Players
 
@@ -251,17 +257,16 @@ bun run preview:pages
 - **[Transformation Engine](docs/TRANSFORMATION-ENGINE.md)** — Architecture, plugin system, and extensibility
 - **[Transformation Guide](docs/PIE-QTI-TRANSFORMATION-GUIDE.md)** — Bidirectional transform overview
 - **[Vendor Plugin Guide](docs/VENDOR-TRANSFORM-PLUGIN-GUIDE.md)** — Building custom vendor plugins
-- **[Configuration Guide](docs/CONFIGURATION.md)** — Storage backends, plugins, and environment setup
-- **[Migration Guide](docs/MIGRATION_GUIDE.md)** — Upgrading from legacy storage to new architecture
+- **[Source Profiles](docs/SOURCE-PROFILES.md)** — Real-world QTI source detection and import adaptation
 - **[Transform Reference Harness](apps/transform/README.md)** — Internal playground for transformation experiments
 - **[CLI](tools/cli/README.md)** — Command-line batch operations
 - **[QTI → PIE](packages/to-pie/README.md)** — QTI to PIE transformer
-- **[PIE → QTI](packages/pie-to-qti/README.md)** — PIE to QTI transformer
-- **[IMS Content Packages](packages/pie-to-qti/docs/MANIFEST-GENERATION.md)** — Manifest generation
+- **[PIE → QTI](packages/pie-to-qti2/README.md)** — PIE to QTI transformer
+- **[IMS Content Packages](packages/pie-to-qti2/docs/MANIFEST-GENERATION.md)** — Manifest generation
 
 ### Extensibility
 
-- **[Custom Generators](packages/pie-to-qti/CUSTOM-GENERATORS.md)** — Adding PIE model support
+- **[Custom Generators](packages/pie-to-qti2/CUSTOM-GENERATORS.md)** — Adding PIE model support
 - **[ACME Likert Plugin](packages/acme-likert-plugin/README.md)** — Player extensibility example
 
 ---

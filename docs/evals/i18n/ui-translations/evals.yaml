@@ -10,7 +10,7 @@ component:
   tagName: pie-qti-choice
 
 examplesApp:
-  app: "@pie-qti/qti-example"
+  app: "@pie-qti/app-demo"
   routeTemplate: "/item-demo/{sampleId}"
 
 evals:
@@ -21,7 +21,7 @@ evals:
     intent: "Verify that UI elements (like submit button) are translated to French."
 
     notes:
-      - "Tests @pie-qti/qti-i18n translation system"
+      - "Tests @pie-qti/i18n translation system"
       - "Validates that button labels use fr-FR translations"
 
     steps:

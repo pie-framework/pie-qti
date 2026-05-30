@@ -66,7 +66,7 @@ if (!result.valid) {
 Plugins can implement the optional `validate()` method:
 
 ```typescript
-export class Qti22ToPiePlugin implements TransformPlugin {
+export class QtiToPiePlugin implements TransformPlugin {
   private validator: PieItemValidator;
 
   constructor() {
@@ -169,12 +169,12 @@ For testing transformations with validation:
 
 ```typescript
 import { describe, test, expect } from 'bun:test';
-import { Qti22ToPiePlugin } from '@pie-qti/to-pie';
+import { QtiToPiePlugin } from '@pie-qti/to-pie';
 import { PieItemValidator } from '@pie-qti/transform-core';
 
 describe('QTI to PIE transformation', () => {
   test('should produce valid PIE output', async () => {
-    const plugin = new Qti22ToPiePlugin();
+    const plugin = new QtiToPiePlugin();
     const validator = new PieItemValidator();
 
     // Load schemas for elements you're testing

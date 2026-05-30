@@ -35,16 +35,14 @@ bun add @pie-qti/pie-to-qti2
 ### Basic Transformation
 
 ```typescript
-import { PieToQti2Plugin } from '@pie-qti/pie-to-qti2';
-import { TransformEngine } from '@pie-qti/transform-core';
+import { PieToQtiPlugin } from '@pie-qti/pie-to-qti2';
 
-const engine = new TransformEngine();
-engine.registerPlugin(new PieToQti2Plugin());
+const plugin = new PieToQtiPlugin();
 
-const result = await engine.transform({
-  content: pieItem,
-  format: 'pie'
-});
+const result = await plugin.transform(
+  { content: pieItem, format: 'pie' },
+  { logger: console }
+);
 
 const qtiXml = result.items[0].content;
 ```
@@ -52,20 +50,24 @@ const qtiXml = result.items[0].content;
 ### Round-Trip Example
 
 ```typescript
-import { PieToQti2Plugin } from '@pie-qti/pie-to-qti2';
-import { Qti22ToPiePlugin } from '@pie-qti/to-pie';
-import { TransformEngine } from '@pie-qti/transform-core';
+import { PieToQtiPlugin } from '@pie-qti/pie-to-qti2';
+import { QtiToPiePlugin } from '@pie-qti/to-pie';
 
-const engine = new TransformEngine();
-engine.registerPlugin(new PieToQti2Plugin());
-engine.registerPlugin(new Qti22ToPiePlugin());
+const pieToQti = new PieToQtiPlugin();
+const qtiToPie = new QtiToPiePlugin();
 
 // PIE → QTI
-const qtiResult = await engine.transform({ content: originalPie, format: 'pie' });
+const qtiResult = await pieToQti.transform(
+  { content: originalPie, format: 'pie' },
+  { logger: console }
+);
 const qtiXml = qtiResult.items[0].content;
 
 // QTI → PIE (reconstructs original perfectly)
-const pieResult = await engine.transform({ content: qtiXml, format: 'qti22' });
+const pieResult = await qtiToPie.transform(
+  { content: qtiXml, format: 'qti22' },
+  { logger: console }
+);
 const reconstructedPie = pieResult.items[0];
 ```
 
@@ -74,7 +76,7 @@ const reconstructedPie = pieResult.items[0];
 Transform multi-item assessments (tests) to QTI assessmentTest format:
 
 ```typescript
-import { PieToQti2Plugin } from '@pie-qti/pie-to-qti2';
+import { PieToQtiPlugin } from '@pie-qti/pie-to-qti2';
 
 const pieAssessment = {
   id: 'final-exam',
@@ -114,7 +116,7 @@ const pieAssessment = {
   }
 };
 
-const plugin = new PieToQti2Plugin();
+const plugin = new PieToQtiPlugin();
 const result = await plugin.transform({ content: pieAssessment }, { logger: console });
 const qtiAssessmentTest = result.items[0].content;
 
@@ -128,7 +130,7 @@ See [Assessment Transformations](./docs/ASSESSMENT-TRANSFORMATIONS.md) for compl
 For PIE items that reference external passages (via `passage` property), the plugin can resolve and generate separate passage files:
 
 ```typescript
-import { PieToQti2Plugin } from '@pie-qti/pie-to-qti2';
+import { PieToQtiPlugin } from '@pie-qti/pie-to-qti2';
 
 // Define passage resolver
 const resolver = async (passageId: string) => {
@@ -142,7 +144,7 @@ const resolver = async (passageId: string) => {
 };
 
 // Create plugin with resolver
-const plugin = new PieToQti2Plugin({
+const plugin = new PieToQtiPlugin({
   passageResolver: resolver
 });
 
@@ -164,9 +166,9 @@ See [docs/EXTERNAL-PASSAGES.md](./docs/EXTERNAL-PASSAGES.md) for complete docume
 Generate IMS Content Package manifests for distributable QTI packages:
 
 ```typescript
-import { PieToQti2Plugin } from '@pie-qti/pie-to-qti2';
+import { PieToQtiPlugin } from '@pie-qti/pie-to-qti2';
 
-const plugin = new PieToQti2Plugin({
+const plugin = new PieToQtiPlugin({
   generatePackage: true,  // Enable manifest generation
   passageStrategy: 'external',
   passageResolver: async (passageId) => {
@@ -314,12 +316,12 @@ PIE-specific features that don't map directly to QTI are preserved using `data-p
 
 ## API Reference
 
-### PieToQti2Plugin
+### PieToQtiPlugin
 
 Main plugin class implementing the `TransformPlugin` interface.
 
 ```typescript
-class PieToQti2Plugin implements TransformPlugin {
+class PieToQtiPlugin implements TransformPlugin {
   readonly id = 'pie-to-qti2';
   readonly version = '1.0.0';
   readonly name = 'PIE to QTI 2.2';

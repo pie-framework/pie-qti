@@ -1,7 +1,7 @@
 {
   "name": "@pie-qti/qti-processing",
   "version": "0.1.11",
-  "description": "Shared QTI 2.x processing engine (AST builder + evaluator + executor + runtime types)",
+  "description": "Shared QTI processing engine for 2.x and 3.0 (AST builder + evaluator + executor + runtime types)",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

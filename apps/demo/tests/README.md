@@ -1,6 +1,6 @@
 # E2E Tests
 
-This directory contains end-to-end tests for the QTI 2.2 Player components.
+This directory contains end-to-end tests for the QTI Player components.
 
 ## Test Types
 

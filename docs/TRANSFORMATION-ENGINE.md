@@ -18,7 +18,7 @@ Comprehensive guide to the PIE-QTI transformation framework architecture, plugin
 
 ## Overview
 
-The PIE-QTI transformation framework provides a flexible, plugin-based architecture for bidirectional content transformation between assessment formats (primarily QTI 2.2 ↔ PIE).
+The PIE-QTI transformation framework provides a flexible, plugin-based architecture for bidirectional content transformation between assessment formats: QTI → PIE ingest and PIE → QTI 2.2 export.
 
 ### Key Features
 
@@ -67,7 +67,7 @@ For the dedicated QTI → PIE extension surface introduced for real-world third-
 │  ┌──────────────────────────────────────────────────────┐  │
 │  │          Transform Plugins                           │  │
 │  │                                                       │  │
-│  │  QTI 2.2 → PIE Plugin (priority: 100)                │  │
+│  │  QTI → PIE Plugin (priority: 100)                    │  │
 │  │  PIE → QTI 2.2 Plugin (priority: 100)                │  │
 │  │  Vendor Plugin A (priority: 500)                     │  │
 │  │  Vendor Plugin B (priority: 600)                     │  │
@@ -145,7 +145,7 @@ for (const plugin of candidates) {
 #### Transform Plugins
 
 **Packages:**
-- `@pie-qti/to-pie` — QTI 2.2 → PIE
+- `@pie-qti/to-pie` — QTI → PIE
 - `@pie-qti/pie-to-qti2` — PIE → QTI 2.2
 - Vendor-specific plugins (custom)
 
@@ -232,14 +232,14 @@ In `tools/cli/src/index.ts`:
 ```typescript
 import { TransformEngine } from '@pie-qti/transform-core';
 import { QtiToPiePlugin } from '@pie-qti/to-pie';
-import { PieToQti2Plugin } from '@pie-qti/pie-to-qti2';
+import { PieToQtiPlugin } from '@pie-qti/pie-to-qti2';
 import { vendorAcmePlugin } from '@vendor/acme-plugin';
 
 const engine = new TransformEngine();
 
 // Register default plugins
 engine.use(new QtiToPiePlugin());
-engine.use(new PieToQti2Plugin());
+engine.use(new PieToQtiPlugin());
 
 // Register vendor plugins (higher priority)
 engine.use(vendorAcmePlugin);
@@ -352,7 +352,8 @@ interface TransformError {
 
 ```typescript
 try {
-  const result = await engine.transform(input);
+  const handle = await engine.transform(input, { targetFormat: 'pie' });
+  const result = await handle.result();
 
   if (result.errors && result.errors.length > 0) {
     const fatal = result.errors.filter(e => e.fatal);
@@ -588,9 +589,10 @@ describe('VendorCustomPlugin', () => {
     const engine = new TransformEngine();
     engine.use(new VendorCustomPlugin());
 
-    const result = await engine.transform({
-      content: qtiXml,
+    const handle = await engine.transform(qtiXml, {
+      targetFormat: 'pie',
     });
+    const result = await handle.result();
 
     expect(result.errors).toHaveLength(0);
     expect(result.items).toHaveLength(1);
@@ -684,16 +686,17 @@ export async function transformCommand(args: TransformArgs) {
 
   // Load core plugins
   engine.use(new QtiToPiePlugin());
-  engine.use(new PieToQti2Plugin());
+  engine.use(new PieToQtiPlugin());
 
   // Load vendor plugins if configured
   const vendorPlugins = await loadVendorPlugins();
   vendorPlugins.forEach(p => engine.use(p));
 
   // Execute transformation
-  const result = await engine.transform({
-    content: await readFile(args.input),
+  const handle = await engine.transform(await readFile(args.input), {
+    targetFormat: 'pie',
   });
+  const result = await handle.result();
 
   // Write results
   await writeResults(result, args.output);

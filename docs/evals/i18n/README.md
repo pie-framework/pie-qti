@@ -1,6 +1,6 @@
 # i18n (Internationalization) Evaluation Suite
 
-This evaluation suite tests the internationalization (i18n) system across all 8 supported locales in the PIE QTI 2.2 Player.
+This evaluation suite tests the internationalization (i18n) system across all 8 supported locales in the PIE-QTI item and assessment players.
 
 ## Overview
 

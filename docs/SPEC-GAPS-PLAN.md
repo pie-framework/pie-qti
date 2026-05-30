@@ -32,10 +32,11 @@ verbatim into the task brief. The agent should also read the **Spec ref** sectio
 
 ---
 
-## Tier 1 — QTI 2.x gaps (highest priority)
+## Tier 1 — Cross-version interaction and assessment gaps
 
-These are deficiencies in the production-ready QTI 2.x player. They affect real content from real
-item banks. Work here should be prioritised before any QTI 3.0 work.
+These gaps were identified from QTI 2.x-authored content, but several affect the shared delivery
+path used for QTI content after name mapping. QTI 3.0-specific work is tracked separately in Tier 2
+and Tier 3 below.
 
 ---
 
@@ -275,9 +276,9 @@ The player must: (a) load the module at `primary-path` (falling back to `fallbac
 (f) call `module.destroy()` on unmount.
 
 Current
-`standardCustomExtractor` treats QTI 2.x `customInteraction` and QTI 3.0
-`qti-portable-custom-interaction` identically: it serialises the raw XML and provides a fallback
-display. No module is loaded; the lifecycle interface is not called.
+Implemented. The player now distinguishes QTI 2.x `customInteraction` from QTI 3.0
+`qti-portable-custom-interaction` and supports the PCI lifecycle. The text above is retained as
+historical context for the original gap.
 
 Action
 1. Create `packages/item-player/src/pci/PciHost.ts` that:

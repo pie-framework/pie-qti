@@ -34,9 +34,9 @@ The framework grew from a need to move content bidirectionally between the PIE a
 
 ## QTI specification alignment
 
-- **Spec versions:** QTI 2.0, 2.1, 2.2 (input detection); QTI 2.2 (primary transformation target); QTI 3.0 (future plugin target)
+- **Spec versions:** QTI input detection across supported versions; QTI 2.2 remains the primary PIE → QTI export target; QTI 3.0 participates through detection and plugin routing where supported
 - **Spec sections:** The engine itself is not QTI-specific; it is a generic plugin bus. QTI compliance is enforced within individual plugins (see `architecture/qti-to-pie.md` and `architecture/pie-to-qti.md`).
-- **Known divergences:** The `QtiDetector` maps all QTI 2.x namespace variants (`imsqti_v2p0`, `imsqti_v2p1`, `imsqti_v2p2`) to the single format string `"qti22"`. This is intentional: the differences between 2.0 and 2.2 do not warrant separate plugin pairs for current use cases. A future QTI 3.0 plugin would register `sourceFormat: "qti30"`.
+- **Known divergences:** The `QtiDetector` maps all QTI 2.x namespace variants (`imsqti_v2p0`, `imsqti_v2p1`, `imsqti_v2p2`) to the single format string `"qti22"`. This is intentional: the differences between 2.0 and 2.2 do not warrant separate plugin pairs for current use cases. QTI 3.0-capable plugins register `sourceFormat: "qti30"` as needed.
 
 ---
 

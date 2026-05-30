@@ -1,6 +1,6 @@
-# QTI2 Assessment Player — AI Evals
+# PIE-QTI Assessment Player — AI Evals
 
-This directory contains **AI-oriented eval sets** for the multi-item assessment player (`@pie-qti/assessment-player`).
+This directory contains **AI-oriented eval sets** for the multi-item assessment player (`@pie-qti/assessment-player`) across supported QTI assessment behavior.
 
 These evals complement `docs/evals/default-components`:
 

@@ -17,7 +17,7 @@
 
 ## Summary
 
-`mediaInteraction` is a QTI 2.x interaction that embeds audio or video content and tracks whether the candidate has played it. Unlike most QTI interactions, it does not collect a content-based answer — it tracks engagement. The response variable records the number of times the candidate has completed a full play-through. `minPlays` is the primary enforcement mechanism: the item player blocks submission until the candidate has met the required viewing or listening count. `maxPlays` limits how many times the candidate may re-watch or re-listen after a threshold, which matters for timed or high-stakes contexts where unlimited replays would be unfair.
+`mediaInteraction` / `qti-media-interaction` is a QTI interaction that embeds audio or video content and tracks whether the candidate has played it. Unlike most QTI interactions, it does not collect a content-based answer — it tracks engagement. The response variable records the number of times the candidate has completed a full play-through. `minPlays` is the primary enforcement mechanism: the item player blocks submission until the candidate has met the required viewing or listening count. `maxPlays` limits how many times the candidate may re-watch or re-listen after a threshold, which matters for timed or high-stakes contexts where unlimited replays would be unfair.
 
 ---
 

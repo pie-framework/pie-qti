@@ -17,7 +17,7 @@
 
 ## Summary
 
-`graphicOrderInteraction` is a QTI 2.x interaction type that asks a candidate to arrange labelled regions of an image into a specific sequence. The candidate is shown a background image overlaid with `associableHotspot` regions; they interact with those regions (by clicking/tapping or dragging in the reorder list) to establish an order. The response is an `ordered`-cardinality variable of `identifier` baseType — a ranked list of hotspot identifiers. This interaction is the graphical counterpart of `orderInteraction`: the choices are spatial regions on an image rather than plain text labels.
+`graphicOrderInteraction` / `qti-graphic-order-interaction` is a QTI interaction type that asks a candidate to arrange labelled regions of an image into a specific sequence. The candidate is shown a background image overlaid with `associableHotspot` regions; they interact with those regions (by clicking/tapping or dragging in the reorder list) to establish an order. The response is an `ordered`-cardinality variable of `identifier` baseType — a ranked list of hotspot identifiers. This interaction is the graphical counterpart of `orderInteraction`: the choices are spatial regions on an image rather than plain text labels.
 
 In this implementation, the hotspot coordinates are used by the extractor to record spatial metadata but the primary candidate-facing UI is a sortable list panel rendered beside (or below) the image. Candidates drag list items or use keyboard controls to establish the sequence; sequence numbers (1, 2, …) are shown as badges on each list item. The image serves as the visual context that motivates the ordering task but is not itself the interactive surface.
 

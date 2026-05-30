@@ -2,13 +2,13 @@
 
 ## Project Context
 
-This is an educational assessment framework implementing QTI 2.x standards for K-12 assessments.
+This is an educational assessment framework implementing QTI standards for K-12 assessments.
 
 **Critical Requirements**:
 
 - **Accessibility**: WCAG 2.2 Level AA compliance is mandatory
 - **Cross-platform**: Components must work on desktop and mobile (touch-friendly)
-- **Standards compliance**: Must adhere to QTI 2.x specification
+- **Standards compliance**: Must adhere to the relevant QTI specification version
 - **Type safety**: TypeScript strict mode is enforced
 - **Modern Svelte**: Using Svelte 5 with runes
 

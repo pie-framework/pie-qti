@@ -6,7 +6,7 @@ This directory contains Product Requirements Documents (PRDs) for the PIE-QTI fr
 
 PRDs are the canonical source of *why* — why a feature works the way it does, what constraints shaped it, what the acceptance criteria are, and how it fits the broader system. They complement the code (which says *what*) and the QTI spec (which says *what the standard requires*).
 
-They are the successor to `docs/evals/`, which was too lean and required an AI runner to be useful. PRDs carry the full context: rationale, constraints, edge cases, and testable acceptance criteria that can feed manual QA, Playwright tests, or AI-assisted verification.
+They are the successor to `docs/evals/` as the source of rationale and acceptance criteria. Eval YAML files remain executable or semi-executable behavioral scenarios where they are wired to demo routes or Playwright runners; PRDs carry the full context: rationale, constraints, edge cases, and testable acceptance criteria that can feed manual QA, Playwright tests, or AI-assisted verification.
 
 ## Directory structure
 
@@ -22,13 +22,13 @@ docs/prds/
 │   ├── item-player.md
 │   ├── assessment-player.md
 │   ├── transform-engine.md
+│   ├── ims-content-packages.md
 │   ├── response-processing.md
 │   └── ...
 └── systems/              ← cross-cutting concerns and integrations
     ├── i18n.md
     ├── theming.md
     ├── accessibility.md
-    ├── ims-content-packages.md
     └── ...
 ```
 
@@ -88,10 +88,15 @@ Subsystem-level PRDs covering how major packages work and how to extend them.
 | `architecture/item-player-plugin-system.md` | Item Player Plugin / Extension API | `@pie-qti/item-player` | draft |
 | `architecture/vendor-extensions.md` | Vendor Transform Extensions (five-hook system; for whole-pipeline replacement and player-side extractors) | `@pie-qti/to-pie` vendor hooks | draft |
 | `architecture/ims-content-packages.md` | IMS Content Package Support | `@pie-qti/ims-cp-*` | draft |
-
-The QTI → PIE **source-profile** mechanism (preferred extension model for real-world third-party QTI imports — scored detection, item handlers, decorators, fallback policy, package sidecars, conversion trace) is documented in [`../SOURCE-PROFILES.md`](../SOURCE-PROFILES.md). It is treated as a developer/authoring guide rather than a separate PRD; the rationale lives in `architecture/qti-to-pie.md`.
 | `architecture/storage.md` | Pluggable Storage Backends | `@pie-qti/storage` | draft |
 | `architecture/security.md` | Security Model (sanitization, iframe isolation, Trusted Types) | `@pie-qti/item-player` | draft |
+
+IMS Content Package support is listed under architecture because the implementation spans the `@pie-qti/ims-cp-*` packages and transform/load pipelines rather than a runtime system concern like i18n or theming.
+
+### Related Non-PRD Authorities
+
+- [`../SOURCE-PROFILES.md`](../SOURCE-PROFILES.md) documents the QTI → PIE source-profile authoring model: scored detection, item handlers, decorators, fallback policy, package sidecars, and conversion trace. The rationale lives in `architecture/qti-to-pie.md`.
+- [`../TRANSFORMATION-ENGINE.md`](../TRANSFORMATION-ENGINE.md), [`../PIE-QTI-TRANSFORMATION-GUIDE.md`](../PIE-QTI-TRANSFORMATION-GUIDE.md), and [`../VENDOR-TRANSFORM-PLUGIN-GUIDE.md`](../VENDOR-TRANSFORM-PLUGIN-GUIDE.md) are how-to and onboarding guides. When those guides disagree with PRDs or code, use code for behavior and the PRD for rationale.
 
 Each architecture PRD answers:
 - What problem does this subsystem solve?
@@ -131,4 +136,4 @@ Cross-cutting concerns that span multiple packages.
 
 - When implementation changes in a way that affects acceptance criteria or design rationale, update the PRD in the same PR.
 - Use the `prd-reviewer` skill to catch stale PRDs during code review.
-- Status column: `planned` → `draft` → `current` → `needs-update`.
+- Status column: `planned` → `draft` → `current` → `needs-update`; use `reference` for historical or internal harness docs that are intentionally not supported product surfaces.

@@ -149,7 +149,7 @@ All eight types defined in QTI 3.0 §6.3 are parsed and stored in `CatalogIndex`
 
 **Decision:** For `tts-pronunciation`, `signing-definition`, `braille-text`, `audio-description`, and `extended-description`, the player fires a `qti-catalog-lookup` event and renders no UI. The host provides the delivery capability.
 
-**Rationale:** TTS engines, braille hardware drivers, and video players are platform-level capabilities that vary by deployment context. A school district might use a specific TTS vendor; an assessment platform might have its own sign-language video infrastructure. The player cannot and should not bundle or assume any of these. Emitting an event with the catalog content passes the data to whoever is equipped to act on it. This is design principle P3 from `ACCESSIBILITY-PNP-CATALOG-PLAN.md`: event-driven extension points for host capabilities.
+**Rationale:** TTS engines, braille hardware drivers, and video players are platform-level capabilities that vary by deployment context. A school district might use a specific TTS vendor; an assessment platform might have its own sign-language video infrastructure. The player cannot and should not bundle or assume any of these. Emitting an event with the catalog content passes the data to whoever is equipped to act on it; event-driven extension points are the boundary for host-owned capabilities.
 
 **Alternatives considered:** Bundling a basic audio player for `tts-pronunciation` — rejected because it would force a TTS engine dependency into the player, increasing bundle size, and would likely be replaced by the host anyway.
 
@@ -588,7 +588,6 @@ AC-E5: QTI 2.x items with no catalog are unaffected
 - QTI spec: `docs/QTI_techguide.md` §6.3 (Catalog)
 - Spec gap: `docs/SPEC-GAPS-PLAN.md` §G-10 (Done, Tier 2)
 - Spec gap: `docs/SPEC-GAPS-PLAN.md` §G-15 (shared catalog, Deferred, Tier 3)
-- Implementation plan: `docs/development/ACCESSIBILITY-PNP-CATALOG-PLAN.md`
 - Element mappings (already in place): `packages/qti-common/src/element-mapper/qti3-element-mappings.ts` — `CATALOG_ELEMENTS`
 - Adjacent PRD: `docs/prds/systems/pnp.md` — PNP profile; `glossaryOnScreen` and `keywordTranslation` flags gate catalog trigger UI
 - Adjacent PRD: `docs/prds/systems/accessibility.md` — WCAG 2.2 AA baseline; CatalogPopup accessibility requirements derive from it

@@ -1,7 +1,7 @@
 {
 	"$schema": "./public-coverage-matrix.schema.json",
 	"scope": "QTI 2.2 Advanced and QTI 3.0 Advanced DELIVERY public clean-room coverage",
-	"updated": "2026-05-19",
+	"updated": "2026-05-30",
 	"commands": [
 		{
 			"id": "item-clean-room",
@@ -32,7 +32,10 @@
 			"id": "package-clean-room",
 			"description": "Clean-room IMS CP and QTI 3 shared content parsing coverage",
 			"cwd": ".",
-			"args": ["test", "packages/ims-cp-core/tests/qti3-shared-content.test.ts"]
+			"args": [
+				"test",
+				"packages/ims-cp-core/tests/qti3-shared-content.test.ts"
+			]
 		},
 		{
 			"id": "item-runtime-clean-room",
@@ -52,25 +55,43 @@
 			"id": "mathml-clean-room",
 			"description": "MathML rendering coverage",
 			"cwd": ".",
-			"args": ["test", "packages/typeset-katex/tests/mathml.test.ts"]
+			"args": [
+				"test",
+				"packages/typeset-katex/tests/mathml.test.ts"
+			]
 		},
 		{
 			"id": "browser-visible",
 			"description": "Targeted Playwright coverage for browser-visible certification behaviors",
 			"cwd": "apps/demo",
-			"args": ["run", "test:e2e", "--", "tests/playwright/public-certification.pw.ts"]
+			"args": [
+				"run",
+				"test:e2e",
+				"--",
+				"tests/playwright/public-certification.pw.ts"
+			]
 		},
 		{
 			"id": "browser-a11y-stage5",
 			"description": "Targeted browser accessibility evidence for QTI 3 PNP/catalog/stimulus behavior",
 			"cwd": "apps/demo",
-			"args": ["run", "test:e2e", "--", "tests/playwright/qti3-stage5-a11y.pw.ts"]
+			"args": [
+				"run",
+				"test:e2e",
+				"--",
+				"tests/playwright/qti3-stage5-a11y.pw.ts"
+			]
 		},
 		{
 			"id": "browser-a11y-assessment",
 			"description": "Targeted browser accessibility evidence for assessment shell and timer behavior",
 			"cwd": "apps/demo",
-			"args": ["run", "test:e2e", "--", "tests/playwright/assessment-a11y-behavior.pw.ts"]
+			"args": [
+				"run",
+				"test:e2e",
+				"--",
+				"tests/playwright/assessment-a11y-behavior.pw.ts"
+			]
 		}
 	],
 	"rows": [
@@ -80,10 +101,14 @@
 			"level": "Advanced",
 			"feature": "Q2 Advanced choiceInteraction validation",
 			"officialPath": "qti2.2/Advanced Level/Q2 - Choice Interaction/single-cardinality/",
-			"publicTests": ["packages/item-player/src/extraction/extractors/conformance.test.ts"],
-			"fixturePackages": ["packages/item-player/tests/conformance/fixtures/qti22_advanced_q8_graphic_gap_match"],
+			"publicTests": [
+				"packages/item-player/src/extraction/extractors/conformance.test.ts"
+			],
+			"fixturePackages": [],
 			"e2eRequired": false,
-			"commandIds": ["item-clean-room"],
+			"commandIds": [
+				"item-clean-room"
+			],
 			"notes": "DELIVERY behavior covered by clean-room choice extraction and QTI 2.2 Basic choice runtime fixtures; official invalid IMPORT-only cases are not public DELIVERY gates."
 		},
 		{
@@ -97,9 +122,14 @@
 				"packages/item-player/src/extraction/extractors/conformance.test.ts",
 				"apps/demo/tests/playwright/public-certification.pw.ts"
 			],
-			"fixturePackages": ["packages/item-player/tests/conformance/fixtures/qti22_advanced_q6_gap_match"],
+			"fixturePackages": [
+				"packages/item-player/tests/conformance/fixtures/qti22_advanced_q6_gap_match"
+			],
 			"e2eRequired": true,
-			"commandIds": ["item-clean-room", "browser-visible"],
+			"commandIds": [
+				"item-clean-room",
+				"browser-visible"
+			],
 			"notes": "Covers gap choices, gaps, matchMax, scoring, and visible interaction rendering."
 		},
 		{
@@ -108,10 +138,19 @@
 			"level": "Advanced",
 			"feature": "Q8 graphicGapMatchInteraction",
 			"officialPath": "qti2.2/Advanced Level/Q8 - Graphic Gap Match Interaction/",
-			"publicTests": ["packages/item-player/tests/conformance/run-fixtures.test.ts", "packages/item-player/src/extraction/extractors/conformance.test.ts", "apps/demo/tests/playwright/public-certification.pw.ts"],
-			"fixturePackages": ["packages/item-player/tests/conformance/fixtures/qti22_advanced_q10_hotspot"],
+			"publicTests": [
+				"packages/item-player/tests/conformance/run-fixtures.test.ts",
+				"packages/item-player/src/extraction/extractors/conformance.test.ts",
+				"apps/demo/tests/playwright/public-certification.pw.ts"
+			],
+			"fixturePackages": [
+				"packages/item-player/tests/conformance/fixtures/qti22_advanced_q8_graphic_gap_match"
+			],
 			"e2eRequired": true,
-			"commandIds": ["item-clean-room", "browser-visible"],
+			"commandIds": [
+				"item-clean-room",
+				"browser-visible"
+			],
 			"notes": "Covers background object extraction, gapText/gapImg choices, hotspots, and browser-visible graphic gap rendering."
 		},
 		{
@@ -120,10 +159,19 @@
 			"level": "Advanced",
 			"feature": "Q10 hotspotInteraction",
 			"officialPath": "qti2.2/Advanced Level/Q10 - Hotspot/",
-			"publicTests": ["packages/item-player/tests/conformance/run-fixtures.test.ts", "packages/item-player/src/extraction/extractors/conformance.test.ts", "apps/demo/tests/playwright/public-certification.pw.ts"],
-			"fixturePackages": ["packages/item-player/tests/conformance/fixtures/qti22_advanced_q11_hottext"],
+			"publicTests": [
+				"packages/item-player/tests/conformance/run-fixtures.test.ts",
+				"packages/item-player/src/extraction/extractors/conformance.test.ts",
+				"apps/demo/tests/playwright/public-certification.pw.ts"
+			],
+			"fixturePackages": [
+				"packages/item-player/tests/conformance/fixtures/qti22_advanced_q10_hotspot"
+			],
 			"e2eRequired": true,
-			"commandIds": ["item-clean-room", "browser-visible"],
+			"commandIds": [
+				"item-clean-room",
+				"browser-visible"
+			],
 			"notes": "Covers single and multiple hotspot selection metadata plus visible hotspot rendering."
 		},
 		{
@@ -132,10 +180,19 @@
 			"level": "Advanced",
 			"feature": "Q11 hottextInteraction",
 			"officialPath": "qti2.2/Advanced Level/Q11 - Hot-text Interaction/",
-			"publicTests": ["packages/item-player/tests/conformance/run-fixtures.test.ts", "packages/item-player/src/extraction/extractors/conformance.test.ts", "apps/demo/tests/playwright/public-certification.pw.ts"],
-			"fixturePackages": [],
+			"publicTests": [
+				"packages/item-player/tests/conformance/run-fixtures.test.ts",
+				"packages/item-player/src/extraction/extractors/conformance.test.ts",
+				"apps/demo/tests/playwright/public-certification.pw.ts"
+			],
+			"fixturePackages": [
+				"packages/item-player/tests/conformance/fixtures/qti22_advanced_q11_hottext"
+			],
 			"e2eRequired": true,
-			"commandIds": ["item-clean-room", "browser-visible"],
+			"commandIds": [
+				"item-clean-room",
+				"browser-visible"
+			],
 			"notes": "Covers single/multiple hottext extraction and browser-visible selected state."
 		},
 		{
@@ -144,10 +201,17 @@
 			"level": "Advanced",
 			"feature": "Q12 inlineChoiceInteraction",
 			"officialPath": "qti2.2/Advanced Level/Q12 - Inline Choice Interaction/",
-			"publicTests": ["packages/item-player/tests/conformance/run-fixtures.test.ts", "packages/item-player/src/extraction/extractors/conformance.test.ts"],
-			"fixturePackages": ["packages/item-player/tests/conformance/fixtures/qti22_advanced_q12_inline_choice"],
+			"publicTests": [
+				"packages/item-player/tests/conformance/run-fixtures.test.ts",
+				"packages/item-player/src/extraction/extractors/conformance.test.ts"
+			],
+			"fixturePackages": [
+				"packages/item-player/tests/conformance/fixtures/qti22_advanced_q12_inline_choice"
+			],
 			"e2eRequired": false,
-			"commandIds": ["item-clean-room"],
+			"commandIds": [
+				"item-clean-room"
+			],
 			"notes": "Covers inline choice extraction, item body placeholder rendering, and scoring."
 		},
 		{
@@ -156,10 +220,17 @@
 			"level": "Advanced",
 			"feature": "Q13 matchInteraction",
 			"officialPath": "qti2.2/Advanced Level/Q13 - Match Interaction/",
-			"publicTests": ["packages/item-player/tests/conformance/run-fixtures.test.ts", "packages/item-player/src/extraction/extractors/conformance.test.ts"],
-			"fixturePackages": ["packages/item-player/tests/conformance/fixtures/qti22_advanced_q13_match"],
+			"publicTests": [
+				"packages/item-player/tests/conformance/run-fixtures.test.ts",
+				"packages/item-player/src/extraction/extractors/conformance.test.ts"
+			],
+			"fixturePackages": [
+				"packages/item-player/tests/conformance/fixtures/qti22_advanced_q13_match"
+			],
 			"e2eRequired": false,
-			"commandIds": ["item-clean-room"],
+			"commandIds": [
+				"item-clean-room"
+			],
 			"notes": "Covers match sets, maxAssociations, pair cardinality, and scoring."
 		},
 		{
@@ -168,10 +239,17 @@
 			"level": "Advanced",
 			"feature": "I17 composite item with full responseProcessing",
 			"officialPath": "qti2.2/Advanced Level/I17 - Composite Item/",
-			"publicTests": ["packages/item-player/tests/conformance/run-fixtures.test.ts", "packages/item-player/src/extraction/extractors/conformance.test.ts"],
-			"fixturePackages": ["packages/item-player/tests/conformance/fixtures/qti22_advanced_i17_i9a_composite"],
+			"publicTests": [
+				"packages/item-player/tests/conformance/run-fixtures.test.ts",
+				"packages/item-player/src/extraction/extractors/conformance.test.ts"
+			],
+			"fixturePackages": [
+				"packages/item-player/tests/conformance/fixtures/qti22_advanced_i17_i9a_composite"
+			],
 			"e2eRequired": false,
-			"commandIds": ["item-clean-room"],
+			"commandIds": [
+				"item-clean-room"
+			],
 			"notes": "Covers multiple interactions in one item and custom response processing."
 		},
 		{
@@ -179,11 +257,15 @@
 			"version": "QTI 2.2",
 			"level": "Advanced",
 			"feature": "P7 QTI metadata",
-			"officialPath": "qti2.2/Advanced Level/P7 – QTI Metadata/",
-			"publicTests": ["packages/item-player/src/extraction/extractors/conformance.test.ts"],
+			"officialPath": "qti2.2/Advanced Level/P7 \u2013 QTI Metadata/",
+			"publicTests": [
+				"packages/item-player/src/extraction/extractors/conformance.test.ts"
+			],
 			"fixturePackages": [],
 			"e2eRequired": false,
-			"commandIds": ["item-clean-room"],
+			"commandIds": [
+				"item-clean-room"
+			],
 			"notes": "No specific DELIVERY criteria; clean-room package metadata passthrough is tracked so the row cannot disappear."
 		},
 		{
@@ -192,10 +274,14 @@
 			"level": "Advanced",
 			"feature": "S3/S4 selection and ordering",
 			"officialPath": "qti2.2/Advanced Level/S3 and S4/",
-			"publicTests": ["packages/assessment-player/tests/conformance-qti22-advanced.test.ts"],
+			"publicTests": [
+				"packages/assessment-player/tests/conformance-qti22-advanced.test.ts"
+			],
 			"fixturePackages": [],
 			"e2eRequired": false,
-			"commandIds": ["assessment-clean-room"],
+			"commandIds": [
+				"assessment-clean-room"
+			],
 			"notes": "No DELIVERY criteria in the official README, but parser/runtime coverage remains mapped for assessment structure changes."
 		},
 		{
@@ -204,10 +290,16 @@
 			"level": "Advanced",
 			"feature": "S5 rubricBlock in sections",
 			"officialPath": "qti2.2/Advanced Level/S5 - Rubric Block in Sections/",
-			"publicTests": ["packages/assessment-player/tests/conformance-qti22-advanced.test.ts", "apps/demo/tests/playwright/public-certification.pw.ts"],
+			"publicTests": [
+				"packages/assessment-player/tests/conformance-qti22-advanced.test.ts",
+				"apps/demo/tests/playwright/public-certification.pw.ts"
+			],
 			"fixturePackages": [],
 			"e2eRequired": true,
-			"commandIds": ["assessment-clean-room", "browser-visible"],
+			"commandIds": [
+				"assessment-clean-room",
+				"browser-visible"
+			],
 			"notes": "Covers section rubric parsing and visible candidate rubric display."
 		},
 		{
@@ -216,10 +308,14 @@
 			"level": "Advanced",
 			"feature": "T1 outcomeDeclaration",
 			"officialPath": "qti2.2/Advanced Level/T1 - Outcome Declaration/",
-			"publicTests": ["packages/assessment-player/tests/conformance-qti22-advanced.test.ts"],
+			"publicTests": [
+				"packages/assessment-player/tests/conformance-qti22-advanced.test.ts"
+			],
 			"fixturePackages": [],
 			"e2eRequired": false,
-			"commandIds": ["assessment-clean-room"],
+			"commandIds": [
+				"assessment-clean-room"
+			],
 			"notes": "Covers SCORE_TOTAL default initialization and declaration parsing."
 		},
 		{
@@ -228,10 +324,14 @@
 			"level": "Advanced",
 			"feature": "T5 itemSessionControl",
 			"officialPath": "qti2.2/Advanced Level/T5 - Test Parts - Item Session Control/",
-			"publicTests": ["packages/assessment-player/tests/conformance-qti22-advanced.test.ts"],
+			"publicTests": [
+				"packages/assessment-player/tests/conformance-qti22-advanced.test.ts"
+			],
 			"fixturePackages": [],
 			"e2eRequired": false,
-			"commandIds": ["assessment-clean-room"],
+			"commandIds": [
+				"assessment-clean-room"
+			],
 			"notes": "Covers maxAttempts=0 as unlimited and repeated submission behavior."
 		},
 		{
@@ -240,10 +340,16 @@
 			"level": "Advanced",
 			"feature": "T12 sections with T2/S1/S9",
 			"officialPath": "qti2.2/Advanced Level/T12 - Sections/",
-			"publicTests": ["packages/assessment-player/tests/conformance-qti22-advanced.test.ts", "apps/demo/tests/playwright/public-certification.pw.ts"],
+			"publicTests": [
+				"packages/assessment-player/tests/conformance-qti22-advanced.test.ts",
+				"apps/demo/tests/playwright/public-certification.pw.ts"
+			],
 			"fixturePackages": [],
 			"e2eRequired": true,
-			"commandIds": ["assessment-clean-room", "browser-visible"],
+			"commandIds": [
+				"assessment-clean-room",
+				"browser-visible"
+			],
 			"notes": "Covers sections, time limits, section-level allowSkipping, and external section refs."
 		},
 		{
@@ -252,10 +358,16 @@
 			"level": "Advanced",
 			"feature": "Q2 Advanced choiceInteraction Shared Vocabulary",
 			"officialPath": "qti3.0/Advanced/Q2 - Choice Interaction/",
-			"publicTests": ["packages/item-player/src/extraction/extractors/conformance-qti3-basic.test.ts", "apps/demo/tests/playwright/public-certification.pw.ts"],
+			"publicTests": [
+				"packages/item-player/src/extraction/extractors/conformance-qti3-basic.test.ts",
+				"apps/demo/tests/playwright/public-certification.pw.ts"
+			],
 			"fixturePackages": [],
 			"e2eRequired": true,
-			"commandIds": ["item-clean-room", "browser-visible"],
+			"commandIds": [
+				"item-clean-room",
+				"browser-visible"
+			],
 			"notes": "Covers QTI 3 element/attribute mapping and Shared Vocabulary choice classes."
 		},
 		{
@@ -264,10 +376,15 @@
 			"level": "Advanced",
 			"feature": "Q5 Advanced extendedTextInteraction Shared Vocabulary",
 			"officialPath": "qti3.0/Advanced/Q5 - Extended Text Entry Interaction/",
-			"publicTests": ["packages/item-player/src/extraction/extractors/conformance-qti3-basic.test.ts", "packages/item-player/src/extraction/extractors/conformance-qti3-advanced.test.ts"],
+			"publicTests": [
+				"packages/item-player/src/extraction/extractors/conformance-qti3-basic.test.ts",
+				"packages/item-player/src/extraction/extractors/conformance-qti3-advanced.test.ts"
+			],
 			"fixturePackages": [],
 			"e2eRequired": false,
-			"commandIds": ["item-clean-room"],
+			"commandIds": [
+				"item-clean-room"
+			],
 			"notes": "Covers counter and qti-height-lines classes."
 		},
 		{
@@ -276,10 +393,16 @@
 			"level": "Advanced",
 			"feature": "Q6 gapMatchInteraction Shared Vocabulary",
 			"officialPath": "qti3.0/Advanced/Q6 - Gap Match Interaction/",
-			"publicTests": ["packages/item-player/src/extraction/extractors/conformance-qti3-advanced.test.ts", "apps/demo/tests/playwright/public-certification.pw.ts"],
+			"publicTests": [
+				"packages/item-player/src/extraction/extractors/conformance-qti3-advanced.test.ts",
+				"apps/demo/tests/playwright/public-certification.pw.ts"
+			],
 			"fixturePackages": [],
 			"e2eRequired": true,
-			"commandIds": ["item-clean-room", "browser-visible"],
+			"commandIds": [
+				"item-clean-room",
+				"browser-visible"
+			],
 			"notes": "Covers QTI 3 gap-match extraction, selection messages, and visible gap-match behavior."
 		},
 		{
@@ -288,10 +411,16 @@
 			"level": "Advanced",
 			"feature": "Q8 graphicGapMatchInteraction",
 			"officialPath": "qti3.0/Advanced/Q8 - Graphic Gap Match Interaction/",
-			"publicTests": ["packages/item-player/src/extraction/extractors/conformance-qti3-advanced.test.ts", "apps/demo/tests/playwright/public-certification.pw.ts"],
+			"publicTests": [
+				"packages/item-player/src/extraction/extractors/conformance-qti3-advanced.test.ts",
+				"apps/demo/tests/playwright/public-certification.pw.ts"
+			],
 			"fixturePackages": [],
 			"e2eRequired": true,
-			"commandIds": ["item-clean-room", "browser-visible"],
+			"commandIds": [
+				"item-clean-room",
+				"browser-visible"
+			],
 			"notes": "Covers QTI 3 graphic gap extraction and visible browser behavior."
 		},
 		{
@@ -300,10 +429,16 @@
 			"level": "Advanced",
 			"feature": "Q10 hotspotInteraction",
 			"officialPath": "qti3.0/Advanced/Q10 - Hotspot/",
-			"publicTests": ["packages/item-player/src/extraction/extractors/conformance-qti3-advanced.test.ts", "apps/demo/tests/playwright/public-certification.pw.ts"],
+			"publicTests": [
+				"packages/item-player/src/extraction/extractors/conformance-qti3-advanced.test.ts",
+				"apps/demo/tests/playwright/public-certification.pw.ts"
+			],
 			"fixturePackages": [],
 			"e2eRequired": true,
-			"commandIds": ["item-clean-room", "browser-visible"],
+			"commandIds": [
+				"item-clean-room",
+				"browser-visible"
+			],
 			"notes": "Covers QTI 3 hotspot extraction and visible hotspot selection."
 		},
 		{
@@ -312,10 +447,16 @@
 			"level": "Advanced",
 			"feature": "Q11 hottextInteraction",
 			"officialPath": "qti3.0/Advanced/Q11 - Hot-text Interaction/",
-			"publicTests": ["packages/item-player/src/extraction/extractors/conformance-qti3-advanced.test.ts", "apps/demo/tests/playwright/public-certification.pw.ts"],
+			"publicTests": [
+				"packages/item-player/src/extraction/extractors/conformance-qti3-advanced.test.ts",
+				"apps/demo/tests/playwright/public-certification.pw.ts"
+			],
 			"fixturePackages": [],
 			"e2eRequired": true,
-			"commandIds": ["item-clean-room", "browser-visible"],
+			"commandIds": [
+				"item-clean-room",
+				"browser-visible"
+			],
 			"notes": "Covers QTI 3 hottext extraction and visible selected state."
 		},
 		{
@@ -324,10 +465,16 @@
 			"level": "Advanced",
 			"feature": "Q12 inlineChoiceInteraction with MathML",
 			"officialPath": "qti3.0/Advanced/Q12 - Inline Choice Interaction/",
-			"publicTests": ["packages/item-player/src/extraction/extractors/conformance-qti3-advanced.test.ts", "packages/typeset-katex/tests/mathml.test.ts"],
+			"publicTests": [
+				"packages/item-player/src/extraction/extractors/conformance-qti3-advanced.test.ts",
+				"packages/typeset-katex/tests/mathml.test.ts"
+			],
 			"fixturePackages": [],
 			"e2eRequired": false,
-			"commandIds": ["item-clean-room", "mathml-clean-room"],
+			"commandIds": [
+				"item-clean-room",
+				"mathml-clean-room"
+			],
 			"notes": "Covers QTI 3 inline choices and MathML rendering adapter behavior."
 		},
 		{
@@ -336,10 +483,14 @@
 			"level": "Advanced",
 			"feature": "Q13 matchInteraction Shared Vocabulary",
 			"officialPath": "qti3.0/Advanced/Q13 - Match Interaction/",
-			"publicTests": ["packages/item-player/src/extraction/extractors/conformance-qti3-advanced.test.ts"],
+			"publicTests": [
+				"packages/item-player/src/extraction/extractors/conformance-qti3-advanced.test.ts"
+			],
 			"fixturePackages": [],
 			"e2eRequired": false,
-			"commandIds": ["item-clean-room"],
+			"commandIds": [
+				"item-clean-room"
+			],
 			"notes": "Covers qti-match-tabular and header hiding classes."
 		},
 		{
@@ -348,11 +499,25 @@
 			"level": "Advanced",
 			"feature": "I4 Shared Stimulus",
 			"officialPath": "qti3.0/Advanced/I4 Shared Stimulus/",
-			"publicTests": ["packages/item-player/src/extraction/extractors/conformance-qti3-advanced.test.ts", "packages/ims-cp-core/tests/qti3-shared-content.test.ts", "packages/item-player/tests/core/delivery-context.test.ts", "packages/item-player/tests/core/stimulusRender.test.ts", "packages/item-player/tests/core/stylesheetRender.test.ts", "apps/demo/tests/playwright/public-certification.pw.ts", "apps/demo/tests/playwright/qti3-stage5-a11y.pw.ts"],
+			"publicTests": [
+				"packages/item-player/src/extraction/extractors/conformance-qti3-advanced.test.ts",
+				"packages/ims-cp-core/tests/qti3-shared-content.test.ts",
+				"packages/item-player/tests/core/delivery-context.test.ts",
+				"packages/item-player/tests/core/stimulusRender.test.ts",
+				"packages/item-player/tests/core/stylesheetRender.test.ts",
+				"apps/demo/tests/playwright/public-certification.pw.ts",
+				"apps/demo/tests/playwright/qti3-stage5-a11y.pw.ts"
+			],
 			"fixturePackages": [],
 			"e2eRequired": true,
-			"commandIds": ["item-clean-room", "package-clean-room", "item-runtime-clean-room", "browser-visible", "browser-a11y-stage5"],
-			"notes": "Covers stimulus reference preservation, structured qti-assessment-stimulus parsing, stylesheet/catalog extraction, package-relative stylesheet/stimulus path gates, unsafe relative asset/catalog file-href removal, item-runtime consumption of resolved stimulus/catalog context, tested stimulus insertion/override behavior, scoped catalog lookup for stimulus ID collisions, instance-isolated/stimulus-local scoped runtime stylesheet CSS, and browser-visible PNP/catalog/stimulus accessibility behavior. Manual AT checklist: docs/certification/qti3-stage5-manual-a11y-checklist.md."
+			"commandIds": [
+				"item-clean-room",
+				"package-clean-room",
+				"item-runtime-clean-room",
+				"browser-visible",
+				"browser-a11y-stage5"
+			],
+			"notes": "Covers stimulus reference preservation, structured qti-assessment-stimulus parsing, stylesheet/catalog extraction, package-relative stylesheet/stimulus path gates, unsafe relative asset/catalog file-href removal, item-runtime consumption of resolved stimulus/catalog context, tested stimulus insertion/override behavior, scoped catalog lookup for stimulus ID collisions, instance-isolated/stimulus-local scoped runtime stylesheet CSS, and browser-visible PNP/catalog/stimulus accessibility behavior. Manual assistive-technology signoff is deferred outside the public gate."
 		},
 		{
 			"id": "qti30-advanced-i17",
@@ -360,10 +525,14 @@
 			"level": "Advanced",
 			"feature": "I17 composite item",
 			"officialPath": "qti3.0/Advanced/I17 - Composite Item/",
-			"publicTests": ["packages/item-player/src/extraction/extractors/conformance-qti3-advanced.test.ts"],
+			"publicTests": [
+				"packages/item-player/src/extraction/extractors/conformance-qti3-advanced.test.ts"
+			],
 			"fixturePackages": [],
 			"e2eRequired": false,
-			"commandIds": ["item-clean-room"],
+			"commandIds": [
+				"item-clean-room"
+			],
 			"notes": "Covers multiple QTI 3 interactions in one item."
 		},
 		{
@@ -372,10 +541,16 @@
 			"level": "Advanced",
 			"feature": "I19b/I20 Shared Vocabulary FULL CSS",
 			"officialPath": "qti3.0/Advanced/I20 Shared Vocabulary CSS/",
-			"publicTests": ["packages/item-player/src/extraction/extractors/conformance-qti3-advanced.test.ts", "apps/demo/tests/playwright/public-certification.pw.ts"],
+			"publicTests": [
+				"packages/item-player/src/extraction/extractors/conformance-qti3-advanced.test.ts",
+				"apps/demo/tests/playwright/public-certification.pw.ts"
+			],
 			"fixturePackages": [],
 			"e2eRequired": true,
-			"commandIds": ["item-clean-room", "browser-visible"],
+			"commandIds": [
+				"item-clean-room",
+				"browser-visible"
+			],
 			"notes": "Covers class preservation and browser-applied Shared Vocabulary utility classes."
 		},
 		{
@@ -384,10 +559,14 @@
 			"level": "Advanced",
 			"feature": "P7 QTI metadata",
 			"officialPath": "qti3.0/Advanced/P7 - QTI Metadata/",
-			"publicTests": ["packages/item-player/src/extraction/extractors/conformance-qti3-advanced.test.ts"],
+			"publicTests": [
+				"packages/item-player/src/extraction/extractors/conformance-qti3-advanced.test.ts"
+			],
 			"fixturePackages": [],
 			"e2eRequired": false,
-			"commandIds": ["item-clean-room"],
+			"commandIds": [
+				"item-clean-room"
+			],
 			"notes": "No specific DELIVERY criteria; public row tracks metadata passthrough coverage."
 		},
 		{
@@ -396,11 +575,22 @@
 			"level": "Advanced",
 			"feature": "A13 captions and A15 glossary",
 			"officialPath": "qti3.0/Advanced/A13captions_A15glossary/",
-			"publicTests": ["packages/item-player/src/extraction/extractors/conformance-qti3-advanced.test.ts", "packages/item-player/tests/core/pnp.test.ts", "packages/item-player/tests/core/glossaryTriggers.test.ts", "apps/demo/tests/playwright/public-certification.pw.ts", "apps/demo/tests/playwright/qti3-stage5-a11y.pw.ts"],
+			"publicTests": [
+				"packages/item-player/src/extraction/extractors/conformance-qti3-advanced.test.ts",
+				"packages/item-player/tests/core/pnp.test.ts",
+				"packages/item-player/tests/core/glossaryTriggers.test.ts",
+				"apps/demo/tests/playwright/public-certification.pw.ts",
+				"apps/demo/tests/playwright/qti3-stage5-a11y.pw.ts"
+			],
 			"fixturePackages": [],
 			"e2eRequired": true,
-			"commandIds": ["item-clean-room", "item-runtime-clean-room", "browser-visible", "browser-a11y-stage5"],
-			"notes": "Covers caption track preservation plus item-runtime PNP/catalog coverage for glossary, keyword translation, illustrated glossary triggers, dynamic rebinding cleanup, known and host-defined catalog support events, unsafe usage-name rejection, and browser-visible catalog affordance behavior. Manual AT checklist: docs/certification/qti3-stage5-manual-a11y-checklist.md."
+			"commandIds": [
+				"item-clean-room",
+				"item-runtime-clean-room",
+				"browser-visible",
+				"browser-a11y-stage5"
+			],
+			"notes": "Covers caption track preservation plus item-runtime PNP/catalog coverage for glossary, keyword translation, illustrated glossary triggers, dynamic rebinding cleanup, known and host-defined catalog support events, unsafe usage-name rejection, and browser-visible catalog affordance behavior. Manual assistive-technology signoff is deferred outside the public gate."
 		},
 		{
 			"id": "qti30-advanced-s3-s4",
@@ -408,10 +598,14 @@
 			"level": "Advanced",
 			"feature": "S3/S4 selection and ordering",
 			"officialPath": "qti3.0/Advanced/S3 and S4/",
-			"publicTests": ["packages/assessment-player/tests/conformance-qti30-advanced.test.ts"],
+			"publicTests": [
+				"packages/assessment-player/tests/conformance-qti30-advanced.test.ts"
+			],
 			"fixturePackages": [],
 			"e2eRequired": false,
-			"commandIds": ["assessment-clean-room"],
+			"commandIds": [
+				"assessment-clean-room"
+			],
 			"notes": "No DELIVERY criteria in the official README, but assessment parser coverage remains mapped."
 		},
 		{
@@ -420,10 +614,17 @@
 			"level": "Advanced",
 			"feature": "S5 rubricBlock in sections",
 			"officialPath": "qti3.0/Advanced/S5 - Rubric Block in Sections/",
-			"publicTests": ["packages/assessment-player/tests/conformance-qti30-advanced.test.ts", "apps/demo/tests/playwright/public-certification.pw.ts", "apps/demo/tests/playwright/assessment-a11y-behavior.pw.ts"],
+			"publicTests": [
+				"packages/assessment-player/tests/conformance-qti30-advanced.test.ts",
+				"apps/demo/tests/playwright/public-certification.pw.ts",
+				"apps/demo/tests/playwright/assessment-a11y-behavior.pw.ts"
+			],
 			"fixturePackages": [],
 			"e2eRequired": true,
-			"commandIds": ["assessment-clean-room", "browser-visible"],
+			"commandIds": [
+				"assessment-clean-room",
+				"browser-visible"
+			],
 			"notes": "Covers QTI 3 rubric parsing and visible candidate rubric display."
 		},
 		{
@@ -432,10 +633,14 @@
 			"level": "Advanced",
 			"feature": "T1 outcomeDeclaration",
 			"officialPath": "qti3.0/Advanced/T1 - Outcome Declaration/",
-			"publicTests": ["packages/assessment-player/tests/conformance-qti30-advanced.test.ts"],
+			"publicTests": [
+				"packages/assessment-player/tests/conformance-qti30-advanced.test.ts"
+			],
 			"fixturePackages": [],
 			"e2eRequired": false,
-			"commandIds": ["assessment-clean-room"],
+			"commandIds": [
+				"assessment-clean-room"
+			],
 			"notes": "Covers qti-outcome-declaration default value parsing."
 		},
 		{
@@ -444,11 +649,16 @@
 			"level": "Advanced",
 			"feature": "T5 itemSessionControl",
 			"officialPath": "qti3.0/Advanced/T5 - Test Parts - Item Session Control/",
-			"publicTests": ["packages/assessment-player/tests/conformance-qti30-advanced.test.ts"],
+			"publicTests": [
+				"packages/assessment-player/tests/conformance-qti30-advanced.test.ts"
+			],
 			"fixturePackages": [],
 			"e2eRequired": false,
-			"commandIds": ["assessment-clean-room", "item-runtime-clean-room"],
-			"notes": "Covers qti-item-session-control, max-attempts=0 as unlimited, and individual/simultaneous item session behavior. Remaining item-ref/section/testPart precedence evidence is tracked in docs/certification/qti3-remaining-parity-evidence.md."
+			"commandIds": [
+				"assessment-clean-room",
+				"item-runtime-clean-room"
+			],
+			"notes": "Covers qti-item-session-control, max-attempts=0 as unlimited, and individual/simultaneous item session behavior. Additional item-ref/section/testPart precedence evidence is tracked by the private conformance workflow when needed."
 		},
 		{
 			"id": "qti30-advanced-t12",
@@ -456,11 +666,18 @@
 			"level": "Advanced",
 			"feature": "T12 sections with T2/S1/S9",
 			"officialPath": "qti3.0/Advanced/T12 - Sections/",
-			"publicTests": ["packages/assessment-player/tests/conformance-qti30-advanced.test.ts", "apps/demo/tests/playwright/public-certification.pw.ts"],
+			"publicTests": [
+				"packages/assessment-player/tests/conformance-qti30-advanced.test.ts",
+				"apps/demo/tests/playwright/public-certification.pw.ts"
+			],
 			"fixturePackages": [],
 			"e2eRequired": true,
-			"commandIds": ["assessment-clean-room", "browser-visible", "browser-a11y-assessment"],
-			"notes": "Covers qti-assessment-section, qti-time-limits, allow-skipping, qti-assessment-section-ref, and browser-visible accessible timer warning/expiry behavior including focus preservation and narrow viewport reachability. Manual AT checklist: docs/certification/qti3-stage5-manual-a11y-checklist.md."
+			"commandIds": [
+				"assessment-clean-room",
+				"browser-visible",
+				"browser-a11y-assessment"
+			],
+			"notes": "Covers qti-assessment-section, qti-time-limits, allow-skipping, qti-assessment-section-ref, and browser-visible accessible timer warning/expiry behavior including focus preservation and narrow viewport reachability. Manual assistive-technology signoff is deferred outside the public gate."
 		}
 	]
 }

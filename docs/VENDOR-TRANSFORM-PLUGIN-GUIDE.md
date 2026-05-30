@@ -26,7 +26,7 @@ This guide provides comprehensive instructions for building vendor-specific tran
 ### Prerequisites
 
 - Node.js 20.19+ or Bun runtime
-- Basic understanding of QTI 2.2 specification
+- Basic understanding of QTI for ingest and QTI 2.2 for export targets
 - Familiarity with PIE model format
 
 ### Project Setup
@@ -919,7 +919,8 @@ describe('ACME Plugin Integration', () => {
     const qtiXml = loadFixture('vendor-acme-plugin', 'drag-sequence.xml');
 
     // Transform
-    const result = await engine.transform({ content: qtiXml });
+    const handle = await engine.transform(qtiXml, { targetFormat: 'pie' });
+    const result = await handle.result();
 
     // Validate result
     expectSuccessfulTransform(result, 1);
@@ -935,7 +936,8 @@ describe('ACME Plugin Integration', () => {
     engine.use(vendorAcmePlugin);
 
     const qtiXml = loadFixture('vendor-acme-plugin', 'with-assets.xml');
-    const result = await engine.transform({ content: qtiXml });
+    const handle = await engine.transform(qtiXml, { targetFormat: 'pie' });
+    const result = await handle.result();
 
     const item = result.items[0];
     const stimulusImg = item.content.stimulus.match(/src="([^"]*)"/)?.[1];

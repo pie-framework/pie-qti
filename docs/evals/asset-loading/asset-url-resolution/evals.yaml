@@ -11,7 +11,7 @@ component:
   tagName: pie-qti-media
 
 examplesApp:
-  app: "@pie-qti/qti-example"
+  app: "@pie-qti/app-demo"
   routeTemplate: "/item-demo/{sampleId}"
 
 evals:

@@ -69,10 +69,10 @@ export class MyCustomGenerator extends BaseGenerator {
 #### Option A: Register with Plugin Instance
 
 ```typescript
-import { PieToQti2Plugin } from '@pie-qti/pie-to-qti2';
+import { PieToQtiPlugin } from '@pie-qti/pie-to-qti2';
 import { MyCustomGenerator } from './my-custom-generator.js';
 
-const plugin = new PieToQti2Plugin();
+const plugin = new PieToQtiPlugin();
 const generator = new MyCustomGenerator();
 
 plugin.registerGenerator(
@@ -99,7 +99,7 @@ defaultRegistry.register({
 
 ```typescript
 import {
-  PieToQti2Plugin,
+  PieToQtiPlugin,
   GeneratorRegistry,
   registerBuiltInGenerators
 } from '@pie-qti/pie-to-qti2';
@@ -118,7 +118,7 @@ registry.register({
 });
 
 // Create plugin with custom registry
-const plugin = new PieToQti2Plugin({ registry });
+const plugin = new PieToQtiPlugin({ registry });
 ```
 
 ---
@@ -249,10 +249,10 @@ export function createCalculatorGenerator(): CalculatorGenerator {
 ### Using the Calculator Generator
 
 ```typescript
-import { PieToQti2Plugin } from '@pie-qti/pie-to-qti2';
+import { PieToQtiPlugin } from '@pie-qti/pie-to-qti2';
 import { CalculatorGenerator } from './calculator-generator.js';
 
-const plugin = new PieToQti2Plugin();
+const plugin = new PieToQtiPlugin();
 plugin.registerGenerator(new CalculatorGenerator(), 100);
 
 // Now the plugin can transform calculator elements
@@ -270,7 +270,7 @@ You can override built-in generators to customize their behavior:
 
 ```typescript
 import {
-  PieToQti2Plugin,
+  PieToQtiPlugin,
   BaseGenerator,
   GeneratorContext,
   GeneratorResult,
@@ -291,7 +291,7 @@ class VendorMultipleChoiceGenerator extends BaseGenerator {
   }
 }
 
-const plugin = new PieToQti2Plugin();
+const plugin = new PieToQtiPlugin();
 plugin.registerGenerator(
   new VendorMultipleChoiceGenerator(),
   200, // Higher priority than built-in (100)
@@ -398,16 +398,16 @@ describe('CalculatorGenerator', () => {
 
 ```typescript
 import { describe, test, expect } from 'bun:test';
-import { PieToQti2Plugin } from '@pie-qti/pie-to-qti2';
-import { Qti22ToPiePlugin } from '@pie-qti/to-pie';
+import { PieToQtiPlugin } from '@pie-qti/pie-to-qti2';
+import { QtiToPiePlugin } from '@pie-qti/to-pie';
 import { CalculatorGenerator } from './calculator-generator.js';
 
 describe('Calculator Round-Trip', () => {
   test('PIE → QTI → PIE preserves calculator data', async () => {
     // Setup
-    const pieToQti = new PieToQti2Plugin();
+    const pieToQti = new PieToQtiPlugin();
     pieToQti.registerGenerator(new CalculatorGenerator(), 100);
-    const qtiToPie = new Qti22ToPiePlugin();
+    const qtiToPie = new QtiToPiePlugin();
 
     const originalPie = { /* calculator PIE item */ };
 
@@ -484,8 +484,8 @@ class GeneratorRegistry {
 ### Plugin Methods
 
 ```typescript
-class PieToQti2Plugin {
-  constructor(options?: PieToQti2PluginOptions);
+class PieToQtiPlugin {
+  constructor(options?: PieToQtiPluginOptions);
   getRegistry(): GeneratorRegistry;
   registerGenerator(generator: PieToQtiGenerator, priority?: number, override?: boolean): void;
   // ... TransformPlugin methods

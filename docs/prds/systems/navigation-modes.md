@@ -55,7 +55,7 @@ The QTI spec defines `assessmentSection` as a structural container that can carr
 
 ## QTI specification alignment
 
-- **Spec version(s):** QTI 2.1, QTI 2.2
+- **Spec version(s):** QTI 2.1, QTI 2.2, QTI 3.0
 - **Spec section(s):** §2.1 (assessmentTest, testPart, assessmentSection), §2.2 (timeLimits), §2.3 (itemSessionControl)
 
 ### Supported attributes

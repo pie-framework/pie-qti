@@ -1,7 +1,7 @@
 # PRD: [Title]
 
 <!--
-  Status: planned | draft | current | needs-update
+  Status: planned | draft | current | needs-update | reference
   Type: interaction | architecture | system
   Packages: @pie-qti/...
   QTI type (interactions only): e.g. choiceInteraction
@@ -34,6 +34,7 @@ This section is the most important one for future maintainers — it's the conte
 *(Interaction and architecture PRDs only. Omit for purely system PRDs.)*
 
 - **Spec version(s):** QTI 2.1 / 2.2 / 3.0
+  - Use “primary” for the spec edition that owns the section references; supported QTI content is version-normalized unless the PRD states otherwise.
 - **Spec section(s):** e.g. §4.1.1 choiceInteraction
 - **Supported attributes:** list them
 - **Deliberately omitted attributes:** list with reason

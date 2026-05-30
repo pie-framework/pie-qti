@@ -1,6 +1,6 @@
-# QTI2 Default Components — AI Evals
+# PIE-QTI Default Components — AI Evals
 
-This directory contains **AI-oriented eval sets** for each QTI interaction implementation in `@pie-qti/default-components`.
+This directory contains **AI-oriented eval sets** for each QTI interaction implementation in `@pie-qti/default-components`. Evals target the demo app with QTI item content normalized by the player.
 
 ## Reference Scope
 

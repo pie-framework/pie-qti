@@ -239,7 +239,7 @@ export class Player {
 ### 7. Framework-Specific Considerations
 
 **For QTI/Educational Assessment Projects:**
-- Does the API respect QTI 2.2 standard terminology?
+- Does the API respect QTI standard terminology for the relevant version?
 - Are QTI roles (candidate, scorer, author, etc.) properly typed?
 - Is response processing type-safe?
 - Are interaction types properly discriminated?

@@ -25,7 +25,7 @@ Invoke this skill when:
 This skill performs both **technical validation** and **content quality review**:
 
 ### Technical Validation
-- QTI 2.x specification compliance
+- QTI specification compliance for the relevant version
 - Well-formed XML structure
 - Correct response processing logic
 - Proper interaction configuration
@@ -498,7 +498,7 @@ bun --filter @pie-qti/to-pie test
 
 ## QTI/PIE Knowledge Base
 
-### QTI 2.2 Interaction Types (21 total)
+### Standard QTI Interaction Types (21 total)
 
 1. **choiceInteraction** - Multiple choice (single or multiple response)
 2. **orderInteraction** - Order/sequence items
@@ -524,7 +524,7 @@ bun --filter @pie-qti/to-pie test
 
 ### Response Processing Templates
 
-**QTI 2.2 Standard Templates:**
+**Standard Response Processing Templates:**
 1. `MATCH_CORRECT` - All-or-nothing scoring
 2. `MAP_RESPONSE` - Partial credit via response mapping
 3. `MAP_RESPONSE_POINT` - Partial credit for coordinates
@@ -550,7 +550,7 @@ PIE extends QTI with modern, JavaScript-based elements:
 
 ## References
 
-- **QTI 2.2 Specification**: http://www.imsglobal.org/question/qtiv2p2/imsqti_v2p2.html
+- **QTI Specifications**: https://www.1edtech.org/standards/qti
 - **PIE Documentation**: https://github.com/pie-framework/pie-elements
 - **Item Writing Best Practices**: Educational measurement literature
 - **Accessible Assessment**: WCAG 2.2 + assessment-specific guidelines

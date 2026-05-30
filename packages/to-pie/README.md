@@ -1,6 +1,6 @@
 # @pie-qti/to-pie
 
-QTI 2.2 to PIE transformation plugin with vendor extension support.
+QTI to PIE transformation plugin with vendor extension support.
 
 ## Installation
 
@@ -13,21 +13,16 @@ npm install @pie-qti/to-pie
 ### Transform QTI Items
 
 ```typescript
-import { Qti22ToPiePlugin } from '@pie-qti/to-pie';
-import { TransformEngine } from '@pie-qti/transform-core';
+import { QtiToPiePlugin } from '@pie-qti/to-pie';
 
 // Create plugin instance
-const plugin = new Qti22ToPiePlugin();
-
-// Register with transform engine
-const engine = new TransformEngine();
-engine.registerPlugin(plugin);
+const plugin = new QtiToPiePlugin();
 
 // Transform QTI item to PIE
-const result = await engine.transform({
-  content: qtiItemXmlString,
-  format: 'qti22'
-});
+const result = await plugin.transform(
+  { content: qtiItemXmlString, format: 'qti22' },
+  { logger: console }
+);
 
 console.log(result.items); // PIE items
 ```
@@ -37,7 +32,7 @@ console.log(result.items); // PIE items
 Transform QTI assessmentTest (multi-item tests) to PIE assessment format:
 
 ```typescript
-import { Qti22ToPiePlugin } from '@pie-qti/to-pie';
+import { QtiToPiePlugin } from '@pie-qti/to-pie';
 
 const qtiAssessmentTest = `<?xml version="1.0" encoding="UTF-8"?>
 <assessmentTest xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
@@ -58,7 +53,7 @@ const qtiAssessmentTest = `<?xml version="1.0" encoding="UTF-8"?>
   </outcomeProcessing>
 </assessmentTest>`;
 
-const plugin = new Qti22ToPiePlugin();
+const plugin = new QtiToPiePlugin();
 const result = await plugin.transform({ content: qtiAssessmentTest }, { logger: console });
 const pieAssessment = result.items[0].content;
 
@@ -80,10 +75,10 @@ This package supports vendor-specific QTI transformations through a flexible ext
 ### Quick Start with Vendor Extensions
 
 ```typescript
-import { Qti22ToPiePlugin } from '@pie-qti/to-pie';
+import { QtiToPiePlugin } from '@pie-qti/to-pie';
 import { vendorDetector, vendorTransformer } from '@acme/qti-vendor-extensions';
 
-const plugin = new Qti22ToPiePlugin();
+const plugin = new QtiToPiePlugin();
 
 // Register vendor extensions
 plugin.registerVendorDetector(vendorDetector);
@@ -245,7 +240,11 @@ applyBehavioralClasses(pieModel, classes.behavioral);
 
 ## Supported QTI Versions
 
-- QTI 2.2
+- QTI 3.0 (items and assessments; auto-detected)
+- QTI 2.2 (primary compatibility baseline)
+- QTI 2.1 / 2.0 (compatibility; warnings are emitted for legacy versions)
+
+The plugin format id remains `qti22` for registry compatibility, but input XML is version-detected at runtime.
 
 ## Supported Interaction Types
 
@@ -310,16 +309,16 @@ Both transformation directions use a consistent wrapped output format:
 interface TransformOutput {
   items: Array<{
     content: any;           // PIE object or QTI XML string
-    format: 'pie' | 'qti22'; // Explicit format tag
+    format: 'pie' | 'qti22' | 'qti30'; // Explicit format tag
   }>;
-  format: 'pie' | 'qti22';   // Primary output format
+  format: 'pie' | 'qti22' | 'qti30';   // Primary output format
   metadata: TransformMetadata;
   warnings?: TransformWarning[];
   errors?: TransformError[];
 }
 
 // QTI → PIE
-const qtiToPieResult = await qti22ToPiePlugin.transform({ content: qtiXml });
+const qtiToPieResult = await plugin.transform({ content: qtiXml });
 console.log(qtiToPieResult.items[0].format); // 'pie'
 const pieItem = qtiToPieResult.items[0].content; // PIE object
 
@@ -381,7 +380,7 @@ const pieItem = {
   metadata: {
     searchMetaData: {
       itemType: 'MC',
-      source: 'qti22'
+      source: 'qti'
     }
   }
 };

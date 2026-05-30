@@ -546,7 +546,6 @@ Then: Three separate trigger buttons are rendered, one per span
 
 - QTI spec: `docs/QTI_techguide.md` §6.2 (PNP profile)
 - Spec gap: `docs/SPEC-GAPS-PLAN.md` §G-09 (Done, Tier 2)
-- Implementation plan: `docs/development/ACCESSIBILITY-PNP-CATALOG-PLAN.md`
 - Adjacent PRD: `docs/prds/systems/accessibility.md` — WCAG 2.2 AA baseline (PNP builds on top of it)
 - Adjacent PRD: `docs/prds/systems/catalog.md` — catalog content for glossary/keyword-translation triggers
 - Adjacent PRD: `docs/prds/interactions/choice.md` — elimination tool UI lives in the choice interaction component

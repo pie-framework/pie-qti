@@ -4,7 +4,7 @@
   Status: current
   Type: system
   Packages: @pie-qti/item-player, @pie-qti/assessment-player, @pie-qti/default-components
-  Last reviewed: 2026-04-28
+  Last reviewed: 2026-05-04
 -->
 
 **Status:** current

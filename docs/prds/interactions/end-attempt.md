@@ -106,7 +106,7 @@ In the PIE-QTI player, `countAttempt` is surfaced through the `getHintEndAttempt
 
 ### Why `endAttemptInteraction` is not a content interaction
 
-The QTI spec distinguishes content interactions (which collect responses used in scoring) from control interactions. `endAttemptInteraction` is the only control interaction in QTI 2.x. Its `responseIdentifier` binds to a `boolean` response variable, but the variable's value is not scored directly — it is a signal that response processing reads to decide how to score the _other_ response variables. `getResponseInteractions()` on the player explicitly filters out `endAttemptInteraction` elements, which means response completeness checks and validation do not apply to it.
+The QTI spec distinguishes content interactions (which collect responses used in scoring) from control interactions. `endAttemptInteraction` is the standard control interaction in the QTI delivery profiles covered here. Its `responseIdentifier` binds to a `boolean` response variable, but the variable's value is not scored directly — it is a signal that response processing reads to decide how to score the _other_ response variables. `getResponseInteractions()` on the player explicitly filters out `endAttemptInteraction` elements, which means response completeness checks and validation do not apply to it.
 
 ### How this differs from the player's submit button
 

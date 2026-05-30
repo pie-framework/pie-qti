@@ -143,8 +143,9 @@ bun run test:e2e tests/e2e/theme-cascade.spec.ts
 ## Architecture
 
 ### Components
+
 - **[XmlEditor.svelte](src/lib/components/XmlEditor.svelte)** - Syntax-highlighted XML editor with TipTap
-- **[AssessmentShell](../../assessment-player/src/components/AssessmentShell.svelte)** - Assessment player shell (imported)
+- **[AssessmentShell](../../packages/assessment-player/src/components/AssessmentShell.svelte)** - Assessment player shell (imported)
 
 ### Routes
 
@@ -162,9 +163,9 @@ bun run test:e2e tests/e2e/theme-cascade.spec.ts
 
 ## Related Packages
 
-- [@pie-qti/item-player](../item-player) - Core item rendering engine
-- [@pie-qti/assessment-player](../assessment-player) - Assessment orchestration
-- [@pie-qti/to-pie](../to-pie) - QTI XML → PIE JSON transformer
+- [@pie-qti/item-player](../../packages/item-player) - Core item rendering engine
+- [@pie-qti/assessment-player](../../packages/assessment-player) - Assessment orchestration
+- [@pie-qti/to-pie](../../packages/to-pie) - QTI XML → PIE JSON transformer
 
 ## License
 

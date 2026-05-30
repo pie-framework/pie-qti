@@ -15,7 +15,7 @@ This package provides a ready-to-use **KaTeX implementation** of that `typeset` 
   - Inline: `\\( ... \\)`
   - Display: `\\[ ... \\]` and `$$ ... $$`
 - Optionally supports single-dollar inline math `$...$` (off by default).
-- **Preprocesses MathML** (`<math>` / `<m:math>`) by converting common QTI 2.2 MathML patterns to LaTeX, then rendering with KaTeX.
+- **Preprocesses MathML** (`<math>` / `<m:math>`) by converting common QTI MathML patterns to LaTeX, then rendering with KaTeX.
 - Avoids mutating editable content (`contenteditable="true"`) to prevent breaking editors.
 
 ### Install (workspace)

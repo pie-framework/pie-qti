@@ -1,4 +1,4 @@
-# Public QTI Advanced DELIVERY Coverage Matrix
+# Public QTI 2.2 and 3.0 Advanced DELIVERY Coverage Matrix
 
 This matrix is the public, redistributable certification gate for `pie-qti`.
 It intentionally uses clean-room fixtures and project-authored tests only.

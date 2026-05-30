@@ -83,7 +83,7 @@ The canvas is sized in physical pixels (width/height attributes set to integer v
 
 ## QTI specification alignment
 
-**Spec version(s):** QTI 2.1, 2.2 (primary)  
+**Spec version(s):** QTI 2.1, QTI 2.2, QTI 3.0; QTI 2.2 is the primary edition for section references
 **Spec section:** §3.4.3 drawingInteraction (`docs/QTI_techguide.md`)
 
 ### Supported attributes on `drawingInteraction`

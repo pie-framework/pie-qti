@@ -25,7 +25,7 @@ This composes the QTI DaisyUI theme bridge and QTI shared vocabulary stylesheet.
 
 ## Usage
 
-### Load PIE QTI 2 player elements once (safe to call multiple times)
+### Load PIE QTI player elements once (safe to call multiple times)
 
 ```ts
 import { loadPieQtiPlayerElements } from '@pie-qti/web-component-loaders';

@@ -530,7 +530,7 @@ if (result.canContinue) {
 
 ---
 
-## 6. What Our QTI 2.2 Player Provides
+## 6. What Our QTI Player Provides
 
 Our **item-player** implementation provides a complete client-side scoring system:
 
@@ -645,7 +645,7 @@ Our implementation includes a growing set of QTI operators (see the AST engine i
 - ✅ **Adaptive items** - Multi-attempt support with `completionStatus` tracking
 - ✅ **Template variables** - Full support for randomization
 - ✅ **Modal feedback** - Outcome-based feedback display
-- ✅ **21 interaction types** - Complete QTI 2.2 interaction coverage
+- ✅ **21 standard interaction types** - Standard QTI interaction coverage
 
 ### Architecture Benefits
 
@@ -659,7 +659,7 @@ Our implementation includes a growing set of QTI operators (see the AST engine i
 
 ## References
 
-- **QTI 2.2 spec (local snapshot)**: `docs/specs/qti2.2.2/qtiv2p2/`
+- **QTI 2.2.2 spec:** [1EdTech QTI v2.2.2 Final](https://www.imsglobal.org/content/question-and-test-interoperability-v222-final)
 - Key Implementation Files:
   - [Player.ts](../packages/item-player/src/core/Player.ts) - Main player class with response processing
   - [AST builder](../packages/qti-processing/src/ast/build.ts) - XML → AST

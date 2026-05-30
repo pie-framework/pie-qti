@@ -29,7 +29,7 @@ The QTI `directedPair` baseType encodes an ordered tuple: the first identifier i
 
 ### Why two distinct sets instead of one pool
 
-`matchInteraction` always has exactly two `simpleMatchSet` elements. Each choice lives in exactly one set. This structural constraint prevents candidates from pairing two items from the same set (e.g., two capital cities), which would be meaningless for the common "capitals to countries" use case. `associateInteraction` is the correct interaction when any-to-any pairing from a single pool is desired (see `docs/prds/interactions/associate.md` when written).
+`matchInteraction` always has exactly two `simpleMatchSet` elements. Each choice lives in exactly one set. This structural constraint prevents candidates from pairing two items from the same set (e.g., two capital cities), which would be meaningless for the common "capitals to countries" use case. `associateInteraction` is the correct interaction when any-to-any pairing from a single pool is desired (see `docs/prds/interactions/associate.md`).
 
 ### Why even pool sizes reduce guessing
 
@@ -487,4 +487,4 @@ AC-E7: Response prop is null or undefined
 - Extractor: `packages/item-player/src/interactions/match/extractor.ts`
 - Types: `packages/item-player/src/interactions/shared/types.ts` — `MatchInteractionData`, `AssociableChoice`
 - Evals: `docs/evals/default-components/match/evals.yaml`
-- Adjacent PRDs: `docs/prds/interactions/choice.md` (shuffle pattern, maxChoices=0 zero-means-unlimited analogy), associate.md (single-pool pairing — not yet written)
+- Adjacent PRDs: `docs/prds/interactions/choice.md` (shuffle pattern, maxChoices=0 zero-means-unlimited analogy), `docs/prds/interactions/associate.md` (single-pool pairing)

@@ -16,7 +16,7 @@
 
 ## Summary
 
-The IMS CP subsystem opens, parses, and navigates IMS Content Package v1.1.4 ZIP archives that contain QTI 2.x assessment items. It is split across three packages: `ims-cp-core` (isomorphic parse logic, zero platform APIs), `ims-cp-browser` (ZIP extraction via JSZip, `VirtualPackage` with pluggable storage), and `ims-cp-node` (ZIP extraction via unzipper, filesystem resolution). All three share the same `ParsedManifest` and `ResolvedManifest` data models from core. The subsystem also provides passage reusability detection (`PassageRegistry`, `generateStablePassageId`), BCP 47 locale grouping with four-step fallback, and a `QtiHeuristicsConfig` opt-in layer for content from authoring tools that diverge from the spec. The open gap G-15 (shared external catalog files) is tracked in `docs/SPEC-GAPS-PLAN.md`.
+The IMS CP subsystem opens, parses, and navigates IMS Content Package v1.1.4 ZIP archives that contain QTI assessment resources. It is split across three packages: `ims-cp-core` (isomorphic parse logic, zero platform APIs), `ims-cp-browser` (ZIP extraction via JSZip, `VirtualPackage` with pluggable storage), and `ims-cp-node` (ZIP extraction via unzipper, filesystem resolution). All three share the same `ParsedManifest` and `ResolvedManifest` data models from core. The subsystem also provides passage reusability detection (`PassageRegistry`, `generateStablePassageId`), BCP 47 locale grouping with four-step fallback, and a `QtiHeuristicsConfig` opt-in layer for content from authoring tools that diverge from the spec. The open gap G-15 (shared external catalog files) is tracked in `docs/SPEC-GAPS-PLAN.md`.
 
 ---
 

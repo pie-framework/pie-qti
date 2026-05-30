@@ -49,7 +49,7 @@ QTI 3.0 restructures graphic interactions to include object identity in the resp
 
 ### Why this interaction exists at all
 
-The framework is a QTI 2.2 player. When a content package contains `positionObjectInteraction` elements, they must render and collect responses — refusing to render would break real items. The implementation provides a working player-side experience so that item authors and platform integrators who have single-object items (the spec's intended use case) get correct behavior. It does not attempt to solve the multi-object scoring gap because any solution would require extending the response format beyond QTI 2.2.
+The framework is a QTI player. When a content package contains `positionObjectInteraction` elements, they must render and collect responses — refusing to render would break real items. The implementation provides a working player-side experience so that item authors and platform integrators who have single-object items (the spec's intended use case) get correct behavior. It does not attempt to solve the multi-object scoring gap because any solution would require extending the response format beyond QTI 2.2.
 
 ### Why the spec example is narrow
 

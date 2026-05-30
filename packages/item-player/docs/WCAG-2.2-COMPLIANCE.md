@@ -1,4 +1,4 @@
-# WCAG 2.2 Accessibility Analysis - QTI 2.2 Player Components
+# WCAG 2.2 Accessibility Analysis - QTI Player Components
 
 **Package:** `@pie-qti/item-player`
 **Target:** WCAG 2.2 Level AA Guidelines
@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-The QTI 2.2 Player package provides reusable, framework-agnostic components for rendering QTI assessment interactions. The current implementation **aims to follow WCAG 2.2 Level AA guidelines** with keyboard support, ARIA implementation, and screen reader announcements. Automated tests are a regression net, not proof of full assistive-technology behavior.
+The QTI player package provides reusable, framework-agnostic components for rendering QTI assessment interactions. The current implementation **aims to follow WCAG 2.2 Level AA guidelines** with keyboard support, ARIA implementation, and screen reader announcements. Automated tests are a regression net, not proof of full assistive-technology behavior.
 
 > **Note:** This analysis represents internal testing against WCAG guidelines. It is not a formal third-party accessibility audit or certification. Manual keyboard and screen-reader checks remain required for release confidence.
 
@@ -410,7 +410,7 @@ test('SortableList is accessible', async ({ page }) => {
 
 ## Conclusion
 
-**Overall Status:** QTI 2.2 Player components aim to follow WCAG 2.2 Level AA guidelines, with several behaviors requiring targeted automated and manual verification:
+**Overall Status:** QTI Player components aim to follow WCAG 2.2 Level AA guidelines, with several behaviors requiring targeted automated and manual verification:
 
 ### Components Following Guidelines (3/4):
 - ✅ **SortableList.svelte** - Follows WCAG 2.2 Level AA guidelines

@@ -296,5 +296,5 @@ AC-E4: Likert extractor validate catches scale too small
 - Demo implementations: `packages/demo-vendor-extensions/src/`
 - Player-side Likert plugin: `packages/acme-likert-plugin/src/`
 - Developer guide: `docs/VENDOR-TRANSFORM-PLUGIN-GUIDE.md`
-- Transform plugin system (coarser granularity): `docs/prds/architecture/transform-engine.md` (planned)
-- Item player plugin system: `docs/prds/architecture/item-player-plugin-system.md` (planned)
+- Transform plugin system (coarser granularity): `docs/prds/architecture/transform-engine.md`
+- Item player plugin system: `docs/prds/architecture/item-player-plugin-system.md`

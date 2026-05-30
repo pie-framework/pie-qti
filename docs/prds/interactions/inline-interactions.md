@@ -469,4 +469,4 @@ AC-E8: Missing interaction data for placeholder
 - Standalone renderer (secondary, used in demos): `packages/default-components/src/shared/components/InlineInteractionRenderer.svelte`
 - Existing eval: `docs/evals/default-components/text-entry/evals.yaml`
 - Adjacent PRD: `docs/prds/interactions/choice.md` (for comparison with a block-level interaction)
-- Adjacent PRD: `docs/prds/interactions/extended-text.md` (planned — shares `patternMask` gap G-04)
+- Adjacent PRD: `docs/prds/interactions/extended-text.md` (shares `patternMask` gap G-04)

@@ -56,7 +56,7 @@ Parsing limits (`ParsingLimitsConfig`) are opt-in rather than default because th
 
 ## QTI specification alignment
 
-- **Spec version(s):** QTI 2.1 (compatibility), QTI 2.2 (primary), QTI 3.0 (supported)
+- **Spec version(s):** QTI 2.1, QTI 2.2, QTI 3.0; QTI 2.2 is the primary edition for section references
 - **Spec sections:** QTI 2.2 §4 (assessmentItem), §5 (interactions), §6 (response processing), §7 (outcome processing), §8 (template processing), §9 (adaptive items), §13 (view/rubric)
 - **Supported attributes:** `adaptive`, `timeDependent` (tracked), `view` (rubricBlock filtering), all `responseDeclaration`/`outcomeDeclaration`/`templateDeclaration` attributes including `defaultValue`, `correctResponse`, `mapping`, `areaMapping`, `matchTable`, `interpolationTable`
 - **Deliberately omitted attributes:** `timeDependent` does not gate submission (the player has no built-in timer; time tracking is the assessment shell's responsibility)

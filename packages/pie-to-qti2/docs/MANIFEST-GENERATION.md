@@ -23,9 +23,9 @@ The manifest generator creates IMS Content Package v1.1 compliant `imsmanifest.x
 Enable manifest generation by setting `generatePackage: true` in plugin options:
 
 ```typescript
-import { PieToQti2Plugin } from '@pie-qti/pie-to-qti2';
+import { PieToQtiPlugin } from '@pie-qti/pie-to-qti2';
 
-const plugin = new PieToQti2Plugin({
+const plugin = new PieToQtiPlugin({
   generatePackage: true,
   passageStrategy: 'external',
   passageResolver: async (passageId) => {
@@ -303,7 +303,7 @@ const pieItem = {
 };
 
 // Plugin automatically uses baseId in manifest
-const plugin = new PieToQti2Plugin({
+const plugin = new PieToQtiPlugin({
   generatePackage: true,
   passageStrategy: 'external',
   passageResolver: async (id) => ({

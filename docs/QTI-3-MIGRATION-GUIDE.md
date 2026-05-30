@@ -333,43 +333,6 @@ bun test packages/item-player -- --grep "QTI 3.0"
 QTI 3.0 test fixtures are available in:
 - `packages/qti-common/src/__tests__/fixtures/qti3-*.xml`
 
-## Roadmap
-
-### Phase 1: Parser Infrastructure ✅ (Complete)
-
-- [x] Element name mapper abstraction
-- [x] Version detection
-- [x] Smart attribute accessors
-- [x] QTI 3.0 sample fixtures
-- [x] Integration tests
-- [x] Package renames
-
-### Phase 2: Player Enhancements ✅ (Complete)
-
-- [x] Update extractors for QTI 3.0 element discovery
-- [x] Test standard interactions with QTI 3.0 content
-- [x] Add PCI extractor and loader
-- [x] Implement PNP manager
-- [x] Add catalog system support
-
-### Phase 3: Assessment Player ✅ (Complete for current certification scope)
-
-- [x] QTI 3.0 test structure parsing
-- [x] Navigation with QTI 3.0 tests
-- [x] Outcome processing coverage
-
-### Phase 4: Components & Styling ✅ (Implemented for current scope)
-
-- [x] QTI PNP color schemes
-- [x] PCI component wrapper
-- [x] Catalog popup/dialog support
-
-### Phase 5: Testing & Validation (Ongoing)
-
-- [ ] Comprehensive E2E tests
-- [ ] Performance benchmarking
-- [ ] 1EdTech certification prep
-
 ## References
 
 - **QTI 2.2 Specification**: [IMS QTI 2.2](https://www.imsglobal.org/question/qtiv2p2/imsqti_v2p2.html)

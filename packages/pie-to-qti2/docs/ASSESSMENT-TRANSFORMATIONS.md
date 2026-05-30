@@ -59,8 +59,8 @@ All features are preserved through:
 ### Simple Assessment Transformation
 
 ```typescript
-import { PieToQti2Plugin } from '@pie-qti/pie-to-qti2';
-import { Qti22ToPiePlugin } from '@pie-qti/to-pie';
+import { PieToQtiPlugin } from '@pie-qti/pie-to-qti2';
+import { QtiToPiePlugin } from '@pie-qti/to-pie';
 
 // Define PIE assessment
 const pieAssessment = {
@@ -118,7 +118,7 @@ const pieAssessment = {
 };
 
 // Transform PIE → QTI
-const pieToQti = new PieToQti2Plugin();
+const pieToQti = new PieToQtiPlugin();
 const qtiResult = await pieToQti.transform(
   { content: pieAssessment },
   { logger: console }
@@ -129,7 +129,7 @@ const qtiXml = qtiResult.items[0].content;
 await fs.writeFile('final-exam.xml', qtiXml);
 
 // Transform QTI → PIE (lossless round-trip)
-const qtiToPie = new Qti22ToPiePlugin();
+const qtiToPie = new QtiToPiePlugin();
 const pieResult = await qtiToPie.transform(
   { content: qtiXml },
   { logger: console }
@@ -960,11 +960,11 @@ console.log('Generated QTI assessmentTest:', result.items[0].content);
 Verify that assessment transformations preserve all features:
 
 ```typescript
-import { PieToQti2Plugin } from '@pie-qti/pie-to-qti2';
-import { Qti22ToPiePlugin } from '@pie-qti/to-pie';
+import { PieToQtiPlugin } from '@pie-qti/pie-to-qti2';
+import { QtiToPiePlugin } from '@pie-qti/to-pie';
 
-const pieToQti = new PieToQti2Plugin();
-const qtiToPie = new Qti22ToPiePlugin();
+const pieToQti = new PieToQtiPlugin();
+const qtiToPie = new QtiToPiePlugin();
 
 // Original assessment
 const original = {
@@ -1227,7 +1227,7 @@ const xml = `<outcomeProcessing>
 </outcomeProcessing>`;
 
 // Test by parsing before using
-import { parseXml } from '@pie-qti/xml-utils';
+import { parseXml } from '@pie-qti/qti-processing';
 const parsed = parseXml(xml);  // Validates structure
 ```
 

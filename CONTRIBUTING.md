@@ -6,34 +6,39 @@ Thank you for your interest in contributing to the PIE-QTI project! This documen
 
 ### Prerequisites
 
-- **Bun** ≥1.1.0 (package manager and runtime)
+- **Bun** ≥1.3.11 (package manager and runtime)
 - **Node.js** ≥20.19.0 (for compatibility)
 - **Git** for version control
 
 ### Getting Started
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/pie-framework/pie-qti.git
    cd pie-qti
    ```
 
 2. **Install dependencies**
+
    ```bash
    bun install
    ```
 
 3. **Build all packages**
+
    ```bash
    bun run build
    ```
 
 4. **Run tests**
+
    ```bash
-   bun test
+   bun run test
    ```
 
 5. **Start development server**
+
    ```bash
    cd apps/demo
    bun run dev
@@ -45,8 +50,13 @@ This is a monorepo with multiple packages:
 
 - **`packages/item-player/`** - Core item player (21 interaction types)
 - **`packages/assessment-player/`** - Multi-item assessment player
+- **`packages/default-components/`** - Default web-component renderers for QTI interactions
+- **`packages/qti-common/`** - QTI 2.x / 3.0 version abstraction utilities
+- **`packages/to-pie/`**, **`packages/pie-to-qti2/`**, **`packages/core/`** - Transformation packages
 - **`packages/player-elements/`** - Web component wrappers
+- **`tools/cli/`** - Transform and analysis CLI
 - **`apps/demo/`** - Demo application
+- **`apps/docs/`** - Published docs site
 - **`apps/transform/`** - Internal transform reference harness; not part of supported app CI
 
 ## Code Standards
@@ -67,9 +77,9 @@ This is a monorepo with multiple packages:
 
 - Write tests for new features
 - Maintain existing test coverage
-- Run tests with `bun test`
+- Run tests with `bun run test`
 - For QTI certification-facing changes, run `bun run test:certification:public`
-- E2E tests: `bun run test:e2e` (requires dev server running)
+- E2E tests: `bun run test:e2e` (Playwright starts the demo server unless `PLAYWRIGHT_REUSE_EXISTING_SERVER=true`)
 
 ### Commits
 
@@ -79,7 +89,7 @@ This is a monorepo with multiple packages:
 
 ## Pull Request Process
 
-1. **Fork the repository** and create a branch from `main`
+1. **Fork the repository** and create a branch from `master`
 
 2. **Make your changes**
    - Follow code standards
@@ -87,9 +97,10 @@ This is a monorepo with multiple packages:
    - Update documentation as needed
 
 3. **Test your changes**
+
    ```bash
    bun run build
-   bun test
+   bun run test
    bun run test:certification:public  # Required for QTI delivery behavior changes
    bun run test:e2e  # If applicable
    ```
@@ -108,11 +119,11 @@ This is a monorepo with multiple packages:
 
 ### Adding New Interaction Types
 
-1. Create processor in `packages/item-player/src/processors/`
-2. Add Svelte component in `packages/item-player/src/components/`
-3. Update `InlineInteractionRenderer.svelte` or `BlockInteractionRenderer.svelte`
-4. Add tests in `packages/item-player/tests/processors/`
-5. Update documentation in README
+1. Add extraction and data-model support under `packages/item-player/src/interactions/<interaction>/`.
+2. Add the default Svelte custom element under `packages/default-components/src/plugins/<interaction>/`.
+3. Register the interaction in the item-player interaction modules and the default-components plugin index.
+4. Add extractor, component, and browser-visible tests that cover the interaction's QTI attributes and response semantics.
+5. Update the relevant README, PRD, eval YAML, and certification matrix entries when behavior or coverage changes.
 
 ### Fixing Bugs
 
@@ -129,7 +140,7 @@ This is a monorepo with multiple packages:
 
 ## Security
 
-If you discover a security vulnerability, please follow our [Security Policy](SECURITY.md) for responsible disclosure.
+If you discover a security vulnerability, please follow the security model in [docs/prds/architecture/security.md](docs/prds/architecture/security.md) and contact the maintainers privately before opening a public issue.
 
 ## Questions?
 
