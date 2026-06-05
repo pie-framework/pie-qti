@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/theme-daisyui",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "description": "DaisyUI token bridge for PIE QTI theme variables",
   "type": "module",
   "main": "./dist/index.js",

@@ -1,5 +1,26 @@
 # @pie-qti/app-transform
 
+## 0.1.12
+
+### Patch Changes
+
+- Updated dependencies [abe0be5]
+  - @pie-qti/default-components@0.1.12
+  - @pie-qti/item-player@0.1.12
+  - @pie-qti/web-component-loaders@0.1.12
+  - @pie-qti/assessment-player@0.1.12
+  - @pie-qti/player-elements@0.1.12
+  - @pie-qti/demo-vendor-extensions@0.1.12
+  - @pie-qti/i18n@0.1.12
+  - @pie-qti/ims-cp-core@0.1.12
+  - @pie-qti/ims-cp-node@0.1.12
+  - @pie-qti/qti-common@0.1.12
+  - @pie-qti/storage@0.1.12
+  - @pie-qti/to-pie@0.1.12
+  - @pie-qti/transform-core@0.1.12
+  - @pie-qti/transform-types@0.1.12
+  - @pie-qti/typeset-katex@0.1.12
+
 ## 0.1.11
 
 ### Patch Changes

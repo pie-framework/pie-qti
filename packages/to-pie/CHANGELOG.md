@@ -1,5 +1,14 @@
 # @pie-qti/to-pie
 
+## 0.1.12
+
+### Patch Changes
+
+- @pie-qti/ims-cp-core@0.1.12
+- @pie-qti/ims-cp-node@0.1.12
+- @pie-qti/transform-core@0.1.12
+- @pie-qti/transform-types@0.1.12
+
 ## 0.1.11
 
 ### Patch Changes

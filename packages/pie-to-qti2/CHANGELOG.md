@@ -1,5 +1,12 @@
 # @pie-qti/pie-to-qti2
 
+## 0.1.12
+
+### Patch Changes
+
+- @pie-qti/transform-core@0.1.12
+- @pie-qti/transform-types@0.1.12
+
 ## 0.1.11
 
 ### Patch Changes

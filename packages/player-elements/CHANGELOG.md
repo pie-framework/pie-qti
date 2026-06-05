@@ -1,5 +1,14 @@
 # @pie-qti/player-elements
 
+## 0.1.12
+
+### Patch Changes
+
+- Updated dependencies [abe0be5]
+  - @pie-qti/item-player@0.1.12
+  - @pie-qti/assessment-player@0.1.12
+  - @pie-qti/qti-common@0.1.12
+
 ## 0.1.11
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/test-utils",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "description": "Shared test utilities for PIE-QTI packages",
   "type": "module",
   "main": "./dist/index.js",

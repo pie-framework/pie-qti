@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/i18n",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "description": "Internationalization (i18n) package for PIE-QTI player ecosystem",
   "type": "module",
   "main": "./dist/index.js",
