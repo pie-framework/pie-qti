@@ -152,7 +152,6 @@ bun run batch-transform -- ./path/to/content/ -o ./output/
 - [@pie-qti/transform-core](../../packages/core) — Transform engine
 - [@pie-qti/to-pie](../../packages/to-pie) — QTI → PIE transformer
 - [@pie-qti/pie-to-qti2](../../packages/pie-to-qti2) — PIE → QTI transformer
-- [apps/transform](../../apps/transform) — Internal reference harness for transform host integration
 
 ## License
 

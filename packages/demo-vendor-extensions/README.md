@@ -119,7 +119,7 @@ const qtiPlugin = new QtiToPiePlugin({
 
 ### Host Registration Example
 
-Host applications can wire these extensions into `QtiToPiePlugin` during bootstrap. The internal transform reference harness contains one example at [apps/transform/src/hooks.server.ts](../../apps/transform/src/hooks.server.ts#L48-L66), but production import hosts should register vendor extensions inside their own application boundary.
+Host applications can wire these extensions into `QtiToPiePlugin` during bootstrap. Production import hosts should register vendor extensions inside their own application boundary.
 
 ## Testing the Extensions
 

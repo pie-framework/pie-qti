@@ -154,10 +154,53 @@ elements and attributes that have no legitimate use in QTI item bodies.
 - **Cross-platform:** The sanitizer uses `node-html-parser` which runs in both browser and
   server (SSR) contexts. `IFramePlayerHost` is browser-only and must not be imported in SSR
   contexts (it is excluded from the main package entrypoint for this reason).
-- **Security:** No `eval` or `new Function` in the core rendering path (verified in audit).
+- **Security:** No `eval` or `new Function` in the core rendering path (verified).
   `PlayerConfig.customOperators` is the only intentional eval-equivalent surface and is
   integrator-controlled trusted code.
 - **i18n:** Not applicable.
+
+---
+
+## Deployment guidance (CSP and supply chain)
+
+Sanitization and URL policy reduce DOM XSS risk in the common case, but same-DOM embedding of
+untrusted QTI is ultimately an architectural exposure. Hosts that render untrusted content
+should layer the following operational controls on top of the player's defaults; for fully
+untrusted content, prefer iframe mode (`@pie-qti/item-player/iframe`).
+
+### Content Security Policy
+
+Because the player injects sanitized, QTI-derived HTML into the DOM (`innerHTML` /
+`{@html ...}`), a host CSP provides valuable defense-in-depth:
+
+- `object-src 'none'` — especially important if `allowObjectEmbeds` is enabled.
+- Tight `img-src` / `media-src` — restrict remote hosts; disallow `data:` unless explicitly required.
+- `base-uri 'none'` — prevents `<base>` from redirecting relative URLs.
+- `frame-src` / `child-src` restrictions — apply when iframe support is enabled.
+
+For strict deployments, enable Trusted Types via CSP and set a matching policy name through
+`PlayerSecurityConfig.trustedTypesPolicyName`:
+
+```text
+Content-Security-Policy: require-trusted-types-for 'script'; trusted-types <policyName>;
+```
+
+Trusted Types is host-controlled defense-in-depth, not a sandbox — it only takes effect when
+the host enables it via CSP. For the strongest isolation of untrusted QTI, use iframe mode.
+
+### Supply chain
+
+`MathLiveEditor` loads a stylesheet from a CDN (`cdn.jsdelivr.net`) at runtime, which can
+break under strict CSP and carries supply-chain risk (no SRI pinning). The CDN URL is
+configurable; hosts with strict CSP should point it at a self-hosted/bundled stylesheet and
+add the chosen origin to `style-src`.
+
+### Untrusted structured values
+
+The `record` baseType parses JSON via `JSON.parse`. Current cloning/merging patterns do not
+reproduce global prototype pollution in tests, but hosts should avoid merging
+attacker-provided objects into shared/global objects and prefer structured cloning or shape
+validation for record values.
 
 ---
 
@@ -233,7 +276,7 @@ The player cannot know whether the host has enabled TT without the config.
 **Alternatives considered:** Auto-detect TT support and always wrap. Rejected because TT
 policy creation can be blocked by CSP and would throw unexpectedly.  
 **Consequences:** Trusted Types protection requires coordinated opt-in from both the host CSP
-and the `PlayerSecurityConfig`. This is documented in the security audit.
+and the `PlayerSecurityConfig`. See the deployment guidance above (CSP and Trusted Types).
 
 ### Origin locking on first valid message
 
@@ -500,7 +543,6 @@ AC-E6: Protocol envelope version mismatch rejected
 
 ## Related
 
-- Security audit: `packages/item-player/docs/security-audit.md`
 - Iframe mode reference: `packages/item-player/docs/iframe-mode.md`
 - Implementation: `packages/item-player/src/core/sanitizer.ts`, `urlPolicy.ts`,
   `trustedTypes.ts`, `parsingLimits.ts`

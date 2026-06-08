@@ -474,6 +474,5 @@ Notes: The discover-qti command uses openContentPackage which manages its own te
 - Transform engine: `packages/core/` (`@pie-qti/transform-core`)
 - QTI-to-PIE transformer: `packages/to-pie/` (`@pie-qti/to-pie`)
 - PIE-to-QTI transformer: `packages/pie-to-qti2/` (`@pie-qti/pie-to-qti2`)
-- Transform reference harness: `apps/transform/` (`@pie-qti/app-transform`) — historical host integration example, not a supported deployable app
 - Config types: `@pie-qti/transform-types` (`TransformConfig`, `TransformPlugin`, `FormatDetector`)
 - Adjacent PRDs: none yet; a `transform-core` architecture PRD would document the engine, plugin contract, and config loader that this CLI depends on

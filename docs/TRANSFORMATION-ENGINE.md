@@ -602,14 +602,14 @@ describe('VendorCustomPlugin', () => {
 
 ---
 
-## Reference Harness Integration
+## Host Integration
 
-The web application ([apps/transform](../apps/transform/)) is an internal reference harness for the transformation engine. It is not a supported deployable app or the intended home for CMS import workflows; Composer CMS owns production import orchestration, persistence, permissions, and editorial state.
+Product import workflows belong in host applications such as Composer CMS, which owns production import orchestration, persistence, permissions, and editorial state. This repository ships the reusable transform packages; hosts compose them.
 
-### App Architecture
+### Suggested module breakdown
 
 ```
-Transform Reference Harness
+Host import surface
 ├── Upload Interface
 │   ├── File upload (ZIP, XML, JSON)
 │   ├── Package extraction
@@ -635,14 +635,13 @@ Transform Reference Harness
 
 ### Plugin Integration
 
-Plugin and vendor-extension support is a package-level contract. The reference harness demonstrates one host integration in `apps/transform/src/hooks.server.ts`; production hosts should register the same extension types in their own application bootstrap code.
+Plugin and vendor-extension support is a package-level contract. Production hosts should register the extension types in their own application bootstrap code.
 
 ### Storage Integration
 
-The harness uses configurable storage backends:
+Hosts can use configurable storage backends, for example:
 
 ```typescript
-// apps/transform/src/lib/server/config/index.ts
 export function createStorageBackend(config: StorageConfig): StorageBackend {
   switch (config.type) {
     case 'filesystem':

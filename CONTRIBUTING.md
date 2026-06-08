@@ -57,7 +57,6 @@ This is a monorepo with multiple packages:
 - **`tools/cli/`** - Transform and analysis CLI
 - **`apps/demo/`** - Demo application
 - **`apps/docs/`** - Published docs site
-- **`apps/transform/`** - Internal transform reference harness; not part of supported app CI
 
 ## Code Standards
 

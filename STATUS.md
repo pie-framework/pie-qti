@@ -50,11 +50,10 @@ The public repository uses clean-room certification coverage only.
 
 ### Transformation
 
-The transformation engine remains useful, but the web transform app is no longer
-treated as a supported product surface.
+The transformation engine remains useful, but is consumed as packages and CLI
+tooling rather than a bundled web app.
 
 - Core transformation packages and CLI tooling remain part of the project.
-- `apps/transform` is an internal/reference harness for transformation flows.
 - New product import workflows should be built in host applications, such as a
   CMS, using the transformation packages directly.
 
@@ -87,7 +86,7 @@ refactor on 2026-05-04.
 ## Intentional Non-Goals
 
 - Implementing an LMS, CMS, or LTI platform in this repository.
-- Shipping `apps/transform` as a supported end-user import product.
+- Shipping a supported end-user import product; import workflows belong in host applications such as a CMS.
 - Copying official 1EdTech member-only conformance assets into this public repo.
 - Treating public clean-room coverage as a substitute for formal certification.
 

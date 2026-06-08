@@ -63,7 +63,6 @@ Architecture and authoring guide for QTI source profiles. Covers:
 
 ### Other active docs in this folder
 
-- `DOCUMENTATION-REVIEW.md` (project-wide documentation inventory, findings, and maintenance rule)
 - `QTI_techguide.md` (technical reference — covers QTI 2.1, 2.2, and 3.0)
 - `IMS_Content_Packages_techguide.md` (IMS Content Packaging)
 - `LOM_techguide.md` (IEEE LOM metadata)

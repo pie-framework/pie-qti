@@ -144,20 +144,9 @@ See [Transformation Engine Documentation](docs/TRANSFORMATION-ENGINE.md) for com
 - Generator registry for custom PIE model handling
 - IMS Content Package generation (`imsmanifest.xml`)
 
-### Transform Reference Harness (`apps/transform`)
+### Extension Points
 
-![QTI Player Examples](docs/images/transform-app-screenshot-1.png)
-
-`apps/transform` is retained as an internal/reference harness for exploring the transformation pipeline. It is no longer a supported deployable app or the intended home for CMS import workflows. New import product work belongs in Composer CMS; this repository supports the reusable transform packages and examples.
-
-The harness demonstrates:
-
-- **Upload** — Single files or ZIP packages (including nested ZIPs)
-- **Analyze** — Discover items, count interactions, report issues
-- **Transform** — Batch convert with progress reporting
-- **Preview** — Side-by-side QTI and PIE rendering
-
-Supported extension points live in the packages, not in the app:
+The transform pipeline is extensible at the package level. Production import workflows belong in host applications such as Composer CMS; this repository ships the reusable transform packages and examples:
 
 - **Transform Plugins** — Add support for custom formats or vendor-specific QTI variants
 - **Vendor Extensions** — Customize transformation behavior (detectors, transformers, asset resolvers)
@@ -242,7 +231,6 @@ bun run preview:pages
 
 - **[Architecture Guide](docs/ARCHITECTURE.md)** — System design, package map, extensibility, theming, and security
 - **[PRD Inventory](docs/prds/INVENTORY.md)** — Canonical rationale and acceptance criteria map
-- **[Documentation Review](docs/DOCUMENTATION-REVIEW.md)** — Documentation inventory, review findings, and maintenance rules
 
 ### Players
 
@@ -258,7 +246,6 @@ bun run preview:pages
 - **[Transformation Guide](docs/PIE-QTI-TRANSFORMATION-GUIDE.md)** — Bidirectional transform overview
 - **[Vendor Plugin Guide](docs/VENDOR-TRANSFORM-PLUGIN-GUIDE.md)** — Building custom vendor plugins
 - **[Source Profiles](docs/SOURCE-PROFILES.md)** — Real-world QTI source detection and import adaptation
-- **[Transform Reference Harness](apps/transform/README.md)** — Internal playground for transformation experiments
 - **[CLI](tools/cli/README.md)** — Command-line batch operations
 - **[QTI → PIE](packages/to-pie/README.md)** — QTI to PIE transformer
 - **[PIE → QTI](packages/pie-to-qti2/README.md)** — PIE to QTI transformer

@@ -36,7 +36,7 @@ The consequence is that the `ComponentRegistry` maps `InteractionData` to a tag 
 
 Iframe isolation adds meaningful complexity: a versioned postMessage protocol, a host helper, and an integrator-owned runtime page. For the common case — trusted QTI authored in-house or from a known vendor — that complexity has no payoff. Forcing isolation on all deployments would be paternalistic and would break patterns like same-DOM typesetting, custom scrolling behavior, and CSS theming through the host document.
 
-The player instead ships conservative same-DOM guardrails by default (HTML sanitization, URL policy, `<object>`/`<iframe>` disabled) and provides iframe mode as `@pie-qti/item-player/iframe`, a separate entry point that avoids any runtime cost when not used. The security audit at `packages/item-player/docs/security-audit.md` documents the residual risk of same-DOM embedding and makes clear that origin isolation is the only complete mitigation for untrusted third-party QTI.
+The player instead ships conservative same-DOM guardrails by default (HTML sanitization, URL policy, `<object>`/`<iframe>` disabled) and provides iframe mode as `@pie-qti/item-player/iframe`, a separate entry point that avoids any runtime cost when not used. The security model PRD (`docs/prds/architecture/security.md`) documents the residual risk of same-DOM embedding and makes clear that origin isolation is the only complete mitigation for untrusted third-party QTI.
 
 ### Why the AST response processor
 
@@ -322,7 +322,7 @@ AC-E3: Malformed <mapping> defaults mapEntry to zero without throwing
 - QTI spec: QTI 2.2.2 Final — https://www.imsglobal.org/content/question-and-test-interoperability-v222-final
 - QTI spec: QTI 3.0 — https://www.imsglobal.org/spec/qti/v3p0/
 - Implementation: `packages/item-player/src/core/Player.ts`
-- Security model: `packages/item-player/docs/security-audit.md`
+- Security model: `docs/prds/architecture/security.md`
 - Iframe mode: `packages/item-player/docs/iframe-mode.md`
 - Response processing: `docs/QTI-RESPONSE-TRACKING-AND-SCORING.md`
 - Adjacent PRDs: `architecture/item-player-plugin-system.md`, `architecture/response-processing.md`, `architecture/security.md`

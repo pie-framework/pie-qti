@@ -250,8 +250,8 @@ interface Session {
 }
 ```
 
-The transform reference harness defines an `AppSession` in `apps/transform/src/lib/server/storage/app-types.ts` that extends
-`Session` with optional `analysis: AnalysisResult` and `transformation: TransformationResult`.
+A host application can extend `Session` with an `AppSession` type that adds optional
+`analysis: AnalysisResult` and `transformation: TransformationResult` fields.
 These are not present in the core `@pie-qti/transform-types` package because they contain
 application-specific transform output shapes.
 
@@ -374,5 +374,4 @@ AC-E4: readBatch skips missing files without throwing
 
 - Implementation: `packages/storage/src/`
 - Type definitions: `packages/types/src/storage/index.ts`
-- Reference harness app-layer extension: `apps/transform/src/lib/server/storage/`
 - Adjacent PRDs: `architecture/transform-engine.md` (how the transform pipeline calls storage)

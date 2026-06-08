@@ -193,7 +193,7 @@
 					<ul class="mt-2 space-y-1 opacity-80">
 						<li><strong>QTI → PIE</strong>: lossless when QTI originated from PIE, best-effort otherwise</li>
 						<li><strong>PIE → QTI</strong>: rebuild QTI, generate IMS content packages</li>
-						<li><strong>Tooling</strong>: CLI + web app for upload/analyze/transform/preview</li>
+						<li><strong>Tooling</strong>: CLI for batch upload/analyze/transform</li>
 					</ul>
 					<div class="card-actions justify-end mt-4">
 						<a
@@ -218,12 +218,6 @@
 					<p class="opacity-80">
 						Reusable QTI/PIE transform packages, CLI workflows, and reference examples.
 					</p>
-					<img
-						alt="QTI transform workflow screenshot"
-						class="mt-4 rounded-lg border border-base-200"
-						src={`${base}/images/transform-app-screenshot-1.png`}
-						loading="lazy"
-					/>
 				</div>
 			</div>
 

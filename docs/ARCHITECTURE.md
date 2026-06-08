@@ -57,7 +57,6 @@ Everything lives under `packages/` and `apps/`:
 ### Apps
 
 - `apps/demo`: example app + fixtures + reference iframe runtime page
-- `apps/transform`: internal transform reference harness, excluded from supported app CI
 
 ---
 
@@ -162,7 +161,7 @@ Key references:
 - `packages/item-player/src/types/index.ts` (`PlayerSecurityConfig`)
 - `packages/item-player/src/core/sanitizer.ts`
 - `packages/item-player/src/core/urlPolicy.ts`
-- `packages/item-player/docs/security-audit.md`
+- Security model PRD: `docs/prds/architecture/security.md`
 
 ---
 
@@ -399,13 +398,11 @@ Key reference:
 
 ---
 
-## Transform reference harness (`apps/transform`)
+## Host integration pattern (composing the transform packages)
 
-> **Status**: Internal reference harness. Composer CMS is the intended home for product import workflows.
+> **Status**: Composer CMS is the intended home for product import workflows. This repository ships reusable packages; host applications compose them.
 
-![Transform app workflow](images/transform_app_workflow.jpeg)
-
-The transform harness is a SvelteKit web UI that demonstrates how the reusable packages can be wired together:
+A product import surface can wire the reusable packages together along these lines:
 
 - upload and extraction (pluggable storage backend with session management),
 - analysis (discover items/tests, count interactions, record issues),
@@ -414,12 +411,12 @@ The transform harness is a SvelteKit web UI that demonstrates how the reusable p
 
 ### Storage architecture
 
-The harness uses a **pluggable storage system** (`@pie-qti/storage`) that abstracts storage backends:
+Use the **pluggable storage system** (`@pie-qti/storage`) that abstracts storage backends:
 
-- **Default**: Filesystem backend (stores sessions in `./uploads/sessions/`)
+- **Default**: Filesystem backend
 - **Optional**: S3, database, or custom backends via configuration
 
-Sessions are stored with separate metadata files:
+Sessions are typically stored with separate metadata files:
 
 - `metadata.json` - Core session state (id, status, timestamps)
 - `analysis.json` - Analysis results (packages, items, interactions)
@@ -435,30 +432,22 @@ Key references:
 
 - Storage types: `packages/types/src/storage/index.ts`
 - Storage package: `packages/storage/src/`
-- App storage wrapper: `apps/transform/src/lib/server/storage/app-session-storage.ts`
 - Source profile configuration: `docs/SOURCE-PROFILES.md`
 
 ### Server-side flow (sessioned)
 
-1) **Upload**: `POST /api/upload` stores ZIP(s) in a new session
-   - reference: `apps/transform/src/routes/api/upload/+server.ts`
-2) **Analyze**: `POST /api/sessions/[id]/analyze` extracts and analyzes the session
-   - reference: `apps/transform/src/routes/api/sessions/[id]/analyze/+server.ts`
-3) **Transform**: `POST /api/sessions/[id]/transform` uses `TransformEngine` + `QtiToPiePlugin`
-   - reference: `apps/transform/src/routes/api/sessions/[id]/transform/+server.ts`
+A sessioned host flow can follow this shape:
+
+1) **Upload**: store ZIP(s) in a new session
+2) **Analyze**: extract and analyze the session content
+3) **Transform**: run `TransformEngine` + `QtiToPiePlugin` over the session
 
 ### Preview model
 
-- **QTI preview**: uses the QTI players + typesetting adapter to render XML directly.
-- **PIE preview**: uses PIE web components (`pie-iife-player` / `pie-esm-player`) to render the transformed PIE config.
+- **QTI preview**: use the QTI players + typesetting adapter to render XML directly.
+- **PIE preview**: use PIE web components (`pie-iife-player` / `pie-esm-player`) to render the transformed PIE config.
 
-Product import implementations should compose the same package-level pieces (`@pie-qti/to-pie`, `@pie-qti/transform-core`, QTI players, PIE players) inside their own persistence, workflow, and authorization boundaries instead of depending on this app.
-
-Key references:
-
-- QTI item preview component: `apps/transform/src/lib/components/QtiItemPlayer.svelte`
-- QTI assessment preview component: `apps/transform/src/lib/components/QtiAssessmentPlayer.svelte`
-- PIE preview component: `apps/transform/src/lib/components/PieItemPlayer.svelte`
+Product import implementations should compose the package-level pieces (`@pie-qti/to-pie`, `@pie-qti/transform-core`, QTI players, PIE players) inside their own persistence, workflow, and authorization boundaries.
 
 ---
 
@@ -542,7 +531,7 @@ You’ll likely want multiple layers:
 - IMS Content Package notes: `docs/IMS_Content_Packages_techguide.md`
 - QTI item player: `packages/item-player/README.md`
 - Iframe mode reference: `packages/item-player/docs/iframe-mode.md`
-- Security audit notes: `packages/item-player/docs/security-audit.md`
+- Security model PRD: `docs/prds/architecture/security.md`
 - QTI assessment player: `packages/assessment-player/README.md`
 - Backend integration: `packages/assessment-player/BACKEND-INTEGRATION.md`
 - IMS Content Packages: `packages/pie-to-qti2/docs/MANIFEST-GENERATION.md`

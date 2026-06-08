@@ -122,7 +122,6 @@ Cross-cutting concerns that span multiple packages.
 | `systems/navigation-modes.md` | QTI navigation modes (linear/nonlinear) and submission modes | current |
 | `systems/math-typesetting.md` | Math rendering (KaTeX adapter, host-provided `typeset()`) | current |
 | `systems/cli.md` | CLI tool (batch transform, analyze, discover) | current |
-| `systems/transform-app.md` | Internal/reference transform harness (upload → analyze → transform → preview) | reference |
 
 ---
 

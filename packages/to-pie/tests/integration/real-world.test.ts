@@ -88,7 +88,7 @@ describe('Real-World QTI Integration Tests', () => {
 
   describe('Order Interaction', () => {
     test('should transform order interaction (order.xml)', async () => {
-      // No order sample in transform-app samples currently; keep a minimal inlined item here.
+      // No order sample in the shared QTI samples currently; keep a minimal inlined item here.
       const qtiXml = `
         <assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p1" identifier="order_minimal">
           <responseDeclaration identifier="RESPONSE" cardinality="ordered" baseType="identifier">
@@ -425,7 +425,7 @@ describe('Real-World QTI Integration Tests', () => {
     });
 
     test('should extract object tag passage as passage model', async () => {
-      // No object-tag external passage sample in transform-app samples currently; keep a minimal inlined object example.
+      // No object-tag external passage sample in the shared QTI samples currently; keep a minimal inlined object example.
       const qtiXml = `
         <assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p1" identifier="choice_with_object_passage">
           <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier">
