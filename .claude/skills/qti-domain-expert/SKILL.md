@@ -159,3 +159,7 @@ When local documentation (`docs/QTI_techguide.md`, `docs/QTI-RESPONSE-TRACKING-A
 - Validating assessment content quality (use the `assessment-content-validator` skill)
 - Accessibility review (use the `accessibility-reviewer-assessments` skill)
 - PIE-specific questions about Controllers, Sessions, or Environment (use the `pie-domain-expert` skill)
+
+## QTI version deltas & PCI (reference)
+
+For **version detection signals**, the **QTI 3.0 camelCase→kebab `qti-` rename** (with full 2.x↔3.0 element mapping tables), the 2.x→3.0 structural changes, QTI 2.2 deltas, and **PCI (Portable Custom Interactions)** structure, consult `references/version-deltas-and-pci.md` in this skill directory. It is the canonical normalization map for handling 2.1 / 2.2 / 3.0 in one code path and for QTI↔PIE conversion — use it before reasoning about version differences or custom interactions.
