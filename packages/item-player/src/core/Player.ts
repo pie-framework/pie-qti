@@ -53,6 +53,7 @@ import type {
 	PlayerSecurityConfig,
 	QTIRole,
 	RubricBlock,
+	RubricBlockOptions,
 	ScoringResult,
 	SerializedItemSessionState,
 	SerializedItemSessionVariable,
@@ -709,26 +710,30 @@ export class Player {
 		const inner = this.itemDocument.serializeItemBodyChildren();
 		if (!inner) return '';
 
-		const printed = this.renderPrintedVariables(inner);
-		const sanitized = sanitizeHtml(printed, { security: this.config.security });
-		return toTrustedHtml(sanitized, this.config.security?.trustedTypesPolicyName);
+		return this.renderHtmlContent(inner);
 	}
 
 	/**
 	 * Extract rubric blocks for the current role.
 	 *
 	 * QTI uses `<rubricBlock view="...">` to provide role-specific guidance.
-	 * We return sanitized HTML for direct rendering.
+	 * We return sanitized HTML for host rendering. `scope: "direct"` rubrics
+	 * are assessmentItem children; `scope: "itemBody"` rubrics are authored in
+	 * the rendered item body flow.
 	 */
-	public getRubrics(): RubricBlock[] {
+	public getRubrics(options: RubricBlockOptions = {}): RubricBlock[] {
 		const role = this.role;
 		const rubricEls = this.itemDocument.findRubricElements();
 		if (rubricEls.length === 0) return [];
 
 		const blocks: RubricBlock[] = [];
 		for (const el of rubricEls) {
+			const scope = this.itemDocument.rubricElementScope(el);
+			if (options.scope && options.scope !== 'all' && scope !== options.scope) continue;
+
 			const viewRaw = (getAttr(el, 'view') || '').trim();
-			const view = viewRaw ? viewRaw.split(/\s+/).filter(Boolean) : [];
+			const view = viewRaw ? viewRaw.split(/[\s,]+/).filter(Boolean) : [];
+			const use = (getAttr(el, 'use') || '').trim() || undefined;
 
 			// If view is specified, show only when it includes the current role.
 			if (view.length > 0 && role && !view.includes(role)) continue;
@@ -738,7 +743,7 @@ export class Player {
 			const sanitized = sanitizeHtml(printed, { security: this.config.security });
 			const html = toTrustedHtml(sanitized, this.config.security?.trustedTypesPolicyName);
 
-			blocks.push({ view, html });
+			blocks.push({ view, html, scope, use });
 		}
 
 		return blocks;
@@ -1590,6 +1595,12 @@ export class Player {
 		);
 		out = out.replace(/<printedVariable\b([^>]*)\/>/gi, (_m, attrs) => renderId(readIdentifier(String(attrs))));
 		return out;
+	}
+
+	private renderHtmlContent(html: string): HtmlContent {
+		const printed = this.renderPrintedVariables(html);
+		const sanitized = sanitizeHtml(printed, { security: this.config.security });
+		return toTrustedHtml(sanitized, this.config.security?.trustedTypesPolicyName);
 	}
 
 	private getModalFeedback(outcomes: Record<string, any>): ModalFeedback[] {

@@ -3,6 +3,8 @@ import {
 	normalizeHeuristicsConfig,
 	type QtiHeuristicsConfig,
 } from '@pie-qti/ims-cp-core';
+import { parse } from 'node-html-parser';
+import type { HTMLElement as ParsedHtmlElement } from 'node-html-parser';
 import type { PnpProfile } from '../pnp/types.js';
 import { getRoleCapabilities, type RoleCapabilities } from '../core/rolePolicy.js';
 import type { InteractionData, HtmlContent, QTIRole } from '../types/index.js';
@@ -43,6 +45,7 @@ export interface CreateItemPresentationPlanOptions {
 	stimulusContent?: Record<string, string>;
 	deliveryContext?: ResolvedItemDeliveryContext;
 	itemBodyScopeSelector?: string;
+	renderItemBodyRubrics?: boolean;
 	onComponentError?: (interaction: InteractionData, error: unknown) => void;
 }
 
@@ -77,6 +80,7 @@ export function createItemPresentationPlan({
 	stimulusContent = {},
 	deliveryContext,
 	itemBodyScopeSelector = '[data-qti-item-body-scope]',
+	renderItemBodyRubrics = true,
 	onComponentError,
 }: CreateItemPresentationPlanOptions): ItemPresentationPlan {
 	const interactions = player.getInteractionData();
@@ -85,11 +89,13 @@ export function createItemPresentationPlan({
 	const correctResponses = roleCapabilities.canViewCorrectResponses ? player.getCorrectResponses() : {};
 	const itemBodyHtml = buildItemBodyPresentationHtml({
 		player,
+		role,
 		outcomeValues,
 		heuristicsConfig,
 		stimulusContent,
 		deliveryContext,
 		itemBodyScopeSelector,
+		renderItemBodyRubrics,
 	});
 
 	return {
@@ -112,18 +118,22 @@ export function createItemPresentationPlan({
 
 function buildItemBodyPresentationHtml({
 	player,
+	role,
 	outcomeValues,
 	heuristicsConfig,
 	stimulusContent,
 	deliveryContext,
 	itemBodyScopeSelector,
+	renderItemBodyRubrics,
 }: {
 	player: ItemPresentationPlayer;
+	role: QTIRole;
 	outcomeValues: Record<string, unknown>;
 	heuristicsConfig: QtiHeuristicsConfig | undefined;
 	stimulusContent: Record<string, string>;
 	deliveryContext: ResolvedItemDeliveryContext | undefined;
 	itemBodyScopeSelector: string;
+	renderItemBodyRubrics: boolean;
 }): string {
 	let html = String(player.getItemBodyHtml());
 	const resolvedDeliveryContext = deliveryContext ?? player.getDeliveryContext();
@@ -138,6 +148,7 @@ function buildItemBodyPresentationHtml({
 	if (stylesheetCss) {
 		html = `<style data-qti-stylesheets="resolved">${stylesheetCss}</style>${html}`;
 	}
+	html = renderRubricBlocksForRole(html, role, { renderRubrics: renderItemBodyRubrics });
 
 	const heuristics = normalizeHeuristicsConfig(heuristicsConfig);
 	html = processFeedbackInline(html, {
@@ -147,6 +158,92 @@ function buildItemBodyPresentationHtml({
 	});
 
 	return hideBlockInteractionMarkup(html);
+}
+
+function renderRubricBlocksForRole(
+	html: string,
+	role: QTIRole,
+	{ renderRubrics }: { renderRubrics: boolean }
+): string {
+	if (!html || !/rubric-?block/i.test(html)) {
+		return html;
+	}
+
+	try {
+		const root = parse(html, { lowerCaseTagName: false, comment: false });
+		renderRubricBlockChildren(root as unknown as ParsedHtmlElement, role, { renderRubrics });
+		return root.toString();
+	} catch {
+		return html;
+	}
+}
+
+function renderRubricBlockChildren(
+	element: ParsedHtmlElement,
+	role: QTIRole,
+	{ renderRubrics }: { renderRubrics: boolean }
+): void {
+	const children = [...element.childNodes] as unknown as ParsedHtmlElement[];
+	for (const child of children) {
+		const tagName = child.rawTagName?.toLowerCase();
+		if (
+			tagName &&
+			isRubricBlockTag(tagName) &&
+			(!renderRubrics || !rubricBlockVisibleToRole(child, role))
+		) {
+			child.remove();
+			continue;
+		}
+		if (child.childNodes?.length) {
+			renderRubricBlockChildren(child, role, { renderRubrics });
+		}
+		if (tagName && isRubricBlockTag(tagName)) {
+			child.replaceWith(renderRubricBlockWrapper(child));
+		}
+	}
+}
+
+function isRubricBlockTag(tagName: string): boolean {
+	return tagName === 'rubricblock' || tagName === 'qti-rubric-block';
+}
+
+function rubricBlockVisibleToRole(element: ParsedHtmlElement, role: QTIRole): boolean {
+	const view = element.getAttribute('view')?.trim();
+	if (!view) {
+		return true;
+	}
+	return splitRubricView(view).includes(role);
+}
+
+function renderRubricBlockWrapper(element: ParsedHtmlElement): string {
+	const view = element.getAttribute('view')?.trim();
+	const use = element.getAttribute('use')?.trim();
+	const attrs = [
+		'class="qti-rubric-block"',
+		view ? `data-qti-rubric-view="${escapeHtmlAttribute(view)}"` : '',
+		use ? `data-qti-rubric-use="${escapeHtmlAttribute(use)}"` : '',
+	]
+		.filter(Boolean)
+		.join(' ');
+	return `<div ${attrs}>${serializeHtmlChildren(element)}</div>`;
+}
+
+function splitRubricView(view: string): string[] {
+	return view.split(/[\s,]+/).filter(Boolean);
+}
+
+function serializeHtmlChildren(element: ParsedHtmlElement): string {
+	return ([...element.childNodes] as unknown as ParsedHtmlElement[])
+		.map((child) => child.toString())
+		.join('');
+}
+
+function escapeHtmlAttribute(value: string): string {
+	return value
+		.replace(/&/g, '&amp;')
+		.replace(/"/g, '&quot;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;');
 }
 
 function hideBlockInteractionMarkup(html: string): string {

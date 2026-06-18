@@ -54,6 +54,8 @@
 		stimulusContent?: Record<string, string>;
 		/** Package/assessment-resolved QTI 3 delivery context. */
 		deliveryContext?: ResolvedItemDeliveryContext;
+		/** Render role-visible rubricBlock content authored inside itemBody. */
+		renderItemBodyRubrics?: boolean;
 	}
 
 	let {
@@ -68,6 +70,7 @@
 		heuristicsConfig,
 		stimulusContent = {},
 		deliveryContext,
+		renderItemBodyRubrics = true,
 	}: Props = $props();
 	const itemBodyScope = `qti-item-body-${++nextItemBodyScopeId}`;
 	const itemBodyScopeSelector = `[data-qti-item-body-scope="${itemBodyScope}"]`;
@@ -82,6 +85,7 @@
 			stimulusContent,
 			deliveryContext,
 			itemBodyScopeSelector,
+			renderItemBodyRubrics,
 			onComponentError: (interaction, error) =>
 				console.error(`Failed to get tag name for ${interaction.type}:`, error)
 		})
@@ -275,6 +279,40 @@
 	/* QTI 3.0 Shared Stimulus: stimulus blocks that were prepended before the item body */
 	:global(.qti-stimulus-block) {
 		margin-bottom: 1rem;
+	}
+
+	/* QTI rubricBlock / qti-rubric-block content rendered in item-body source order. */
+	:global(.qti-item-body .qti-rubric-block) {
+		display: block;
+		max-width: 100%;
+		min-width: 0;
+		margin: 1rem 0;
+		padding: 1rem;
+		overflow-x: auto;
+		border: 1px solid var(--pie-qti-base-300, #d1d5db);
+		border-inline-start: 4px solid var(--pie-qti-primary, #2563eb);
+		border-radius: 0.5rem;
+		background: var(--pie-qti-base-200, #f8fafc);
+	}
+
+	:global(.qti-item-body .qti-rubric-block > :first-child) {
+		margin-top: 0;
+	}
+
+	:global(.qti-item-body .qti-rubric-block > :last-child) {
+		margin-bottom: 0;
+	}
+
+	:global(.qti-item-body .qti-rubric-block table) {
+		max-width: 100%;
+		border-collapse: collapse;
+	}
+
+	:global(.qti-item-body .qti-rubric-block th),
+	:global(.qti-item-body .qti-rubric-block td) {
+		padding: 0.5rem;
+		border: 1px solid var(--pie-qti-base-300, #d1d5db);
+		vertical-align: top;
 	}
 
 	/* QTI 3.0 Shared Vocabulary: qti-input-width-N sets minimum input width in character units. */

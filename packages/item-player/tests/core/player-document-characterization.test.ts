@@ -139,6 +139,55 @@ describe('Player document characterization', () => {
 		]);
 	});
 
+	test('ignores interaction-looking markup inside itemBody rubric blocks', () => {
+		const player = new Player({
+			itemXml: qti22Item(
+				`<p>Answer the item.</p>
+				<rubricBlock view="candidate">
+					<choiceInteraction responseIdentifier="RUBRIC_RESPONSE" shuffle="false" maxChoices="1">
+						<simpleChoice identifier="B">B</simpleChoice>
+					</choiceInteraction>
+				</rubricBlock>
+				<choiceInteraction responseIdentifier="BODY_RESPONSE" shuffle="false" maxChoices="1">
+					<simpleChoice identifier="A">A</simpleChoice>
+				</choiceInteraction>`,
+				`<responseDeclaration identifier="BODY_RESPONSE" cardinality="single" baseType="identifier"/>
+				<responseDeclaration identifier="RUBRIC_RESPONSE" cardinality="single" baseType="identifier"/>`
+			),
+		});
+
+		expect(player.getInteractionData().map((interaction) => interaction.responseId)).toEqual([
+			'BODY_RESPONSE',
+		]);
+	});
+
+	test('keeps direct item rubric blocks out of itemBody HTML while exposing them through rubric API', () => {
+		const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem ${QTI22_NS} identifier="direct-rubrics" title="Direct Rubrics" adaptive="false" timeDependent="false">
+	<rubricBlock view="candidate"><p>Before body rubric</p></rubricBlock>
+	<itemBody>
+		<p>Body stem</p>
+		<choiceInteraction responseIdentifier="RESPONSE" shuffle="false" maxChoices="1">
+			<simpleChoice identifier="A">A</simpleChoice>
+		</choiceInteraction>
+	</itemBody>
+	<rubricBlock view="scorer"><p>After body rubric</p></rubricBlock>
+	<responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier"/>
+</assessmentItem>`;
+		const player = new Player({ itemXml: xml, role: 'candidate' });
+
+		const html = String(player.getItemBodyHtml());
+		const rubrics = player.getRubrics({ scope: 'direct' });
+
+		expect(html).toContain('Body stem');
+		expect(html).not.toContain('Before body rubric');
+		expect(html).not.toContain('After body rubric');
+		expect(html).not.toContain('responseDeclaration');
+		expect(rubrics).toHaveLength(1);
+		expect(rubrics[0].scope).toBe('direct');
+		expect(String(rubrics[0].html)).toContain('Before body rubric');
+	});
+
 	test('keeps self-closing inline interactions from swallowing following text', () => {
 		const player = new Player({
 			itemXml: qti22Item(

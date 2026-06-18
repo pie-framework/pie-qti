@@ -214,9 +214,21 @@ export interface AdaptiveAttemptResult extends ScoringResult {
  */
 export type QTIRole = 'candidate' | 'scorer' | 'proctor' | 'testConstructor' | 'tutor' | 'author';
 
+export type RubricBlockScope = 'direct' | 'itemBody';
+
+export interface RubricBlockOptions {
+	/**
+	 * `direct` rubrics are assessment-item children and are intended for host placement.
+	 * `itemBody` rubrics are authored in the visible item body flow.
+	 */
+	scope?: RubricBlockScope | 'all';
+}
+
 export interface RubricBlock {
 	view: string[]; // Array of role strings that can see this rubric
 	html: HtmlContent; // HTML content of the rubric
+	scope: RubricBlockScope;
+	use?: string;
 }
 
 /**

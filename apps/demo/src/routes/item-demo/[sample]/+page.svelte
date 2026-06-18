@@ -41,7 +41,7 @@
 	let isSaving = $state(false);
 	let isSubmitting = $state(false);
 	let selectedRole = $state<QTIRole>('candidate');
-	let rubrics = $state<RubricBlock[]>([]);
+	let sidePanelRubrics = $state<RubricBlock[]>([]);
 	let diagnostics = $state<QtiCompatibilityReport | null>(null);
 	let templateVariables = $derived(player ? player.getTemplateVariables() : {});
 	let hasLoadedCustomUpload = false; // Track if we've loaded a custom upload in this effect cycle
@@ -67,6 +67,7 @@
 			if (!xml.trim()) {
 				player = null;
 				responses = {};
+				sidePanelRubrics = [];
 				diagnostics = null;
 				return;
 			}
@@ -81,7 +82,7 @@
 			registerDefaultComponents(newPlayer.getComponentRegistry());
 
 			player = newPlayer;
-			rubrics = player.getRubrics();
+			sidePanelRubrics = newPlayer.getRubrics({ scope: selectedRole === 'candidate' ? 'direct' : 'all' });
 			diagnostics = analyzeQtiItemCompatibility(xml, { player: newPlayer });
 
 			// Initialize responses for response interactions (delegated to Player APIs)
@@ -96,6 +97,7 @@
 		} catch (err: any) {
 			player = null;
 			responses = {};
+			sidePanelRubrics = [];
 			diagnostics = analyzeQtiItemCompatibility(xml);
 			errorMessage = err.message;
 		}
@@ -474,7 +476,7 @@
 			{#if player && !errorMessage}
 				<QuestionPanel
 					{player}
-					{rubrics}
+					{sidePanelRubrics}
 					{responses}
 					{scoringResult}
 					{answeredCount}

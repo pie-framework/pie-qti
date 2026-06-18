@@ -11,7 +11,7 @@ export interface DemoState {
 	player: Player | null;
 	interactions: any[];
 	itemBodyHtml: string;
-	rubrics: RubricBlock[];
+	sidePanelRubrics: RubricBlock[];
 
 	// Response State
 	responses: DemoResponseMap;

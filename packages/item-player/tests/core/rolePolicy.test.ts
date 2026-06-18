@@ -57,5 +57,45 @@ describe('role policy', () => {
 		expect(testConstructor.length).toBe(1);
 		expect(String(testConstructor[0].html)).toContain('Privileged rubric');
 	});
+
+	test('accepts comma-separated role lists in rubric views', () => {
+		const itemXml = `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="comma-roles">
+  <itemBody>
+    <rubricBlock view="candidate, scorer"><p>Shared review rubric</p></rubricBlock>
+  </itemBody>
+</assessmentItem>`;
+
+		const candidate = new Player({ itemXml, role: 'candidate' }).getRubrics();
+		const scorer = new Player({ itemXml, role: 'scorer' }).getRubrics();
+
+		expect(String(candidate[0]?.html)).toContain('Shared review rubric');
+		expect(String(scorer[0]?.html)).toContain('Shared review rubric');
+	});
+
+	test('can return only direct assessment-item rubrics for host placement', () => {
+		const itemXml = `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="scoped-rubrics">
+  <rubricBlock view="scorer" use="rubric"><p>Direct scoring guide</p></rubricBlock>
+  <itemBody>
+    <rubricBlock view="scorer" use="instructions"><p>Inline scorer instruction</p></rubricBlock>
+    <p>Stem</p>
+  </itemBody>
+</assessmentItem>`;
+
+		const player = new Player({ itemXml, role: 'scorer' });
+		const allRubrics = player.getRubrics();
+		const directRubrics = player.getRubrics({ scope: 'direct' });
+		const itemBodyRubrics = player.getRubrics({ scope: 'itemBody' });
+
+		expect(allRubrics.map((rubric) => rubric.scope)).toEqual(['direct', 'itemBody']);
+		expect(directRubrics).toHaveLength(1);
+		expect(directRubrics[0].scope).toBe('direct');
+		expect(directRubrics[0].use).toBe('rubric');
+		expect(String(directRubrics[0].html)).toContain('Direct scoring guide');
+		expect(String(directRubrics[0].html)).not.toContain('Inline scorer instruction');
+		expect(itemBodyRubrics).toHaveLength(1);
+		expect(itemBodyRubrics[0].scope).toBe('itemBody');
+	});
 });
 

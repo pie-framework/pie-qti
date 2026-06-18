@@ -67,6 +67,29 @@ describe('AssessmentItemDocument', () => {
 		).toEqual(['PLUGIN', 'CHOICE', 'TEXT']);
 	});
 
+	test('does not discover interactions nested inside item body rubric blocks', () => {
+		const document = parseAssessmentItemDocument({
+			itemXml: `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="doc" title="Doc" adaptive="false" timeDependent="false">
+	<itemBody>
+		<p>Answer the visible item.</p>
+		<rubricBlock view="candidate">
+			<choiceInteraction responseIdentifier="RUBRIC"><simpleChoice identifier="B">B</simpleChoice></choiceInteraction>
+		</rubricBlock>
+		<choiceInteraction responseIdentifier="BODY"><simpleChoice identifier="A">A</simpleChoice></choiceInteraction>
+	</itemBody>
+</assessmentItem>`,
+			elementNameMapper: new Qti2xElementNameMapper(),
+			attributeNameMapper: new Qti2xAttributeNameMapper(),
+		});
+
+		expect(
+			document
+				.findExtractionElements(['choiceInteraction'])
+				.map((element) => element.responseIdentifier)
+		).toEqual(['BODY']);
+	});
+
 	test('uses QTI 3 response-identifier attributes during extraction discovery', () => {
 		const document = parseAssessmentItemDocument({
 			itemXml: `<?xml version="1.0" encoding="UTF-8"?>

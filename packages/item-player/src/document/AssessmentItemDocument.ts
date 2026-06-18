@@ -80,6 +80,19 @@ export class AssessmentItemDocument {
 		return findDescendants(this.assessmentItem, this.elementNameMapper.toNative('rubricblock'));
 	}
 
+	rubricElementScope(element: Element): 'direct' | 'itemBody' {
+		const itemBodyTag = this.elementNameMapper.toNative('itembody').toLowerCase();
+		let parent = element.parentNode;
+		while (parent && parent !== this.assessmentItem) {
+			const parentTag = (parent as Element).tagName?.toLowerCase();
+			if (parentTag === itemBodyTag) {
+				return 'itemBody';
+			}
+			parent = parent.parentNode;
+		}
+		return 'direct';
+	}
+
 	findModalFeedbackElements(): Element[] {
 		return findDescendants(this.assessmentItem, this.elementNameMapper.toNative('modalfeedback'));
 	}
@@ -187,6 +200,7 @@ export class AssessmentItemDocument {
 		for (const child of root.childNodes ?? []) {
 			const element = child as QTIElement;
 			if (!element.rawTagName) continue;
+			if (isRubricBlockTagName(element.rawTagName)) continue;
 			visit(element);
 			this.walkExtractionChildren(element, visit);
 		}
@@ -202,6 +216,11 @@ export class AssessmentItemDocument {
 			''
 		);
 	}
+}
+
+function isRubricBlockTagName(tagName: string): boolean {
+	const lower = tagName.toLowerCase();
+	return lower === 'rubricblock' || lower === 'qti-rubric-block';
 }
 
 export function parseAssessmentItemDocument(input: AssessmentItemDocumentInput): AssessmentItemDocument {

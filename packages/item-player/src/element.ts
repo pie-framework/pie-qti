@@ -23,6 +23,7 @@ type ItemPlayerElementProps = {
 	itemXml: string;
 	role: QTIRole;
 	disabled: boolean;
+	renderItemBodyRubrics: boolean;
 	typeset: ((el: HTMLElement) => void) | undefined;
 	i18n: I18nProvider | undefined;
 	security: PlayerSecurityConfig | undefined;
@@ -48,6 +49,7 @@ class PieQtiItemPlayerElement extends HTMLElement {
 	#itemXml = '';
 	#role: QTIRole = 'candidate';
 	#disabled = false;
+	#renderItemBodyRubrics = true;
 
 	// JS-only props
 	#typeset: ((el: HTMLElement) => void) | undefined;
@@ -70,6 +72,9 @@ class PieQtiItemPlayerElement extends HTMLElement {
 
 	get disabled() { return this.#disabled; }
 	set disabled(v: boolean | undefined) { this.#disabled = Boolean(v); this.#update(); }
+
+	get renderItemBodyRubrics() { return this.#renderItemBodyRubrics; }
+	set renderItemBodyRubrics(v: boolean | undefined) { this.#renderItemBodyRubrics = v !== false; this.#update(); }
 
 	get typeset() { return this.#typeset; }
 	set typeset(v: ((el: HTMLElement) => void) | undefined) { this.#typeset = v; this.#update(); }
@@ -122,6 +127,7 @@ class PieQtiItemPlayerElement extends HTMLElement {
 			itemXml: this.#itemXml,
 			role: this.#role,
 			disabled: this.#disabled,
+			renderItemBodyRubrics: this.#renderItemBodyRubrics,
 			typeset: this.#typeset,
 			i18n: this.#i18n,
 			security: this.#security,

@@ -24,6 +24,7 @@
 		/** Controlled/current responses, keyed by response identifier */
 		responses?: ItemResponseMap;
 		disabled?: boolean;
+		renderItemBodyRubrics?: boolean;
 		typeset?: (element: HTMLElement) => void;
 		i18n?: I18nProvider;
 		onResponseChange?: (responseId: string, value: ItemResponseValue) => void;
@@ -40,6 +41,7 @@
 		deliveryContext,
 		responses: responseValues = {},
 		disabled = false,
+		renderItemBodyRubrics = true,
 		typeset,
 		i18n,
 		onResponseChange,
@@ -144,6 +146,7 @@
 			{i18n}
 			{deliveryContext}
 			{outcomeValues}
+			{renderItemBodyRubrics}
 			onResponseChange={handleResponseChange}
 		/>
 
