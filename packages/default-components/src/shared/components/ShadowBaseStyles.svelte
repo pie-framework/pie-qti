@@ -191,6 +191,33 @@
 		color: var(--pie-qti-success, oklch(76% 0.177 163.223));
 	}
 
+	/* Rich QTI XHTML injected from prompts, choices, and vendor wrappers. */
+	:global(.qti-rich-content) {
+		display: block;
+		min-width: 0;
+		line-height: 1.5;
+	}
+	:global(.qti-rich-inline-content) {
+		min-width: 0;
+		line-height: 1.35;
+	}
+	:global(.qti-rich-content > :first-child),
+	:global(.qti-rich-inline-content > :first-child) {
+		margin-top: 0;
+	}
+	:global(.qti-rich-content > :last-child),
+	:global(.qti-rich-inline-content > :last-child) {
+		margin-bottom: 0;
+	}
+	:global(.qti-rich-content :is(p, ul, ol, blockquote, pre, table):first-child),
+	:global(.qti-rich-inline-content :is(p, ul, ol, blockquote, pre, table):first-child) {
+		margin-top: 0;
+	}
+	:global(.qti-rich-content :is(p, ul, ol, blockquote, pre, table):last-child),
+	:global(.qti-rich-inline-content :is(p, ul, ol, blockquote, pre, table):last-child) {
+		margin-bottom: 0;
+	}
+
 	/* Cards */
 	:global(.card) {
 		border-radius: 0.75rem;

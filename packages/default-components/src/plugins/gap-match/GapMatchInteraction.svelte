@@ -373,7 +373,9 @@
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
 		{#if parsedInteraction.prompt}
-			<p part="prompt" class="qti-gm-prompt font-semibold">{@html parsedInteraction.prompt}</p>
+			<div part="prompt" class="qti-gm-prompt qti-rich-content font-semibold">
+				{@html parsedInteraction.prompt}
+			</div>
 		{/if}
 
 		<!-- Available gap texts (draggable words) -->
@@ -434,7 +436,7 @@
 		</div>
 
 	<!-- Render the text with gaps as drop targets, preserving original HTML structure -->
-	<div part="text" class="qti-gm-text p-4 bg-base-100 border border-base-300 rounded">
+	<div part="text" class="qti-gm-text qti-rich-content p-4 bg-base-100 border border-base-300 rounded">
 		<div bind:this={promptContainer} class="qti-gm-inline"></div>
 	</div>
 	{/if}

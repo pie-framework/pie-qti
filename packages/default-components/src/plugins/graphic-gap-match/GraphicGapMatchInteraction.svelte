@@ -270,7 +270,9 @@ function handleRootKeyDown(event: KeyboardEvent) {
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
 		{#if parsedInteraction.prompt}
-			<p part="prompt" class="qti-ggm-prompt font-semibold mb-3">{@html parsedInteraction.prompt}</p>
+			<div part="prompt" class="qti-ggm-prompt qti-rich-content font-semibold mb-3">
+				{@html parsedInteraction.prompt}
+			</div>
 		{/if}
 
 		<!-- Visually-hidden live region for screen reader announcements -->

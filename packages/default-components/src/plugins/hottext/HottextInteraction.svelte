@@ -205,13 +205,15 @@
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
 		{#if parsedInteraction.prompt}
-			<p part="prompt" class="qti-hottext-prompt font-semibold">{@html parsedInteraction.prompt}</p>
+			<div part="prompt" class="qti-hottext-prompt qti-rich-content font-semibold">
+				{@html parsedInteraction.prompt}
+			</div>
 		{/if}
 
 		<div
 			bind:this={contentElement}
 			part="content"
-			class="hottext-content qti-hottext-content prose max-w-none"
+			class="hottext-content qti-hottext-content qti-rich-content prose max-w-none"
 			role="group"
 			aria-label={i18n?.t('interactions.hottext.ariaLabel') ?? 'Text selection interaction'}
 		>

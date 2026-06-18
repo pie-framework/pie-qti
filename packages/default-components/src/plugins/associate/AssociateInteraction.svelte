@@ -147,7 +147,9 @@
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
 		{#if parsedInteraction.prompt}
-			<p part="prompt" class="qti-associate-prompt font-semibold">{@html parsedInteraction.prompt}</p>
+			<div part="prompt" class="qti-associate-prompt qti-rich-content font-semibold">
+				{@html parsedInteraction.prompt}
+			</div>
 		{/if}
 
 		<!-- Display choices as buttons that can be clicked to form pairs -->
@@ -170,7 +172,9 @@
 				onclick={() => handleChoiceClick(choice.identifier)}
 				{disabled}
 			>
-				{@html choice.text}
+				<span class="qti-associate-choice-text qti-rich-inline-content">
+					{@html choice.text}
+				</span>
 				{#if isSelected}
 					<span class="ml-2">◉</span>
 				{:else if inPair}

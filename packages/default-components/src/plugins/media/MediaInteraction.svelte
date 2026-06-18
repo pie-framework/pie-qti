@@ -91,7 +91,9 @@
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
 		{#if parsedInteraction.prompt}
-			<p class="font-semibold">{@html parsedInteraction.prompt}</p>
+			<div part="prompt" class="qti-media-prompt qti-rich-content font-semibold">
+				{@html parsedInteraction.prompt}
+			</div>
 		{/if}
 
 		<div class="qti-media-container media-container" part="media">

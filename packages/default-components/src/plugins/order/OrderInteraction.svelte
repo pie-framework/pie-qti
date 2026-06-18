@@ -160,7 +160,7 @@
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
 		{#if parsedInteraction.prompt}
-			<div class="mb-3 text-sm text-base-content/70">
+			<div part="prompt" class="qti-order-prompt qti-rich-content mb-3 text-sm text-base-content/70">
 				{@html parsedInteraction.prompt}
 			</div>
 		{/if}

@@ -67,7 +67,7 @@
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
 		{#if parsedInteraction.prompt}
-			<div part="prompt" class="qti-extended-text-prompt font-semibold" use:typesetAction={{ typeset }}>
+			<div part="prompt" class="qti-extended-text-prompt qti-rich-content font-semibold" use:typesetAction={{ typeset }}>
 				{@html parsedInteraction.prompt}
 			</div>
 		{/if}

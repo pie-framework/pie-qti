@@ -128,6 +128,11 @@
 		emitInteractionChange({ target: rootElement, responseId: shell.responseId, value: newValues, onChange });
 	}
 
+	function choiceTextId(responseId: string, identifier: string): string {
+		const token = `${responseId}-${identifier}`.replace(/[^A-Za-z0-9_-]/g, '-');
+		return `qti-choice-text-${token}`;
+	}
+
 	// Selection limit message: show max message when at/over limit; min message is for submit time
 	const selectionCount = $derived(Array.isArray(parsedResponse) ? parsedResponse.length : (parsedResponse ? 1 : 0));
 	const maxChoices = $derived(parsedInteraction?.maxChoices ?? 0);
@@ -140,7 +145,7 @@
 
 <div bind:this={rootElement} part="root" class={['qti-choice-interaction space-y-2', ...(parsedInteraction?.interactionClasses ?? [])].join(' ')} use:typesetAction={{ typeset }}>
 	{#if parsedInteraction?.prompt}
-		<div part="prompt" class="qti-choice-prompt font-semibold">{@html parsedInteraction.prompt}</div>
+		<div part="prompt" class="qti-choice-prompt qti-rich-content font-semibold">{@html parsedInteraction.prompt}</div>
 	{/if}
 
 	{#if !parsedInteraction}
@@ -148,6 +153,7 @@
 	{:else if parsedInteraction.maxChoices === 1}
 		<!-- Single choice (radio buttons) -->
 		{#each parsedInteraction.choices as choice}
+			{@const textId = choiceTextId(parsedInteraction.responseId, choice.identifier)}
 			<div
 				part="option"
 				class="qti-choice-option form-control"
@@ -165,13 +171,14 @@
 						class="radio radio-primary"
 						class:radio-success={isCorrectChoice(choice.identifier)}
 						value={choice.identifier}
+						aria-labelledby={textId}
 						checked={parsedResponse === choice.identifier}
 						onchange={() => handleRadioChange(choice.identifier)}
 						{disabled}
 					/>
-					<span part="text" class="qti-choice-text label-text">
+					<div id={textId} part="text" class="qti-choice-text qti-rich-content label-text">
 						{@html choice.text}
-					</span>
+					</div>
 					{#if isCorrectChoice(choice.identifier)}
 						<span class="badge badge-success badge-sm">{t('interactions.choice.correct', 'Correct')}</span>
 					{/if}
@@ -191,6 +198,7 @@
 		<!-- Multiple choice (checkboxes) -->
 		{@const currentValues = Array.isArray(parsedResponse) ? parsedResponse : []}
 		{#each parsedInteraction.choices as choice}
+			{@const textId = choiceTextId(parsedInteraction.responseId, choice.identifier)}
 			<div
 				part="option"
 				class="qti-choice-option form-control"
@@ -207,6 +215,7 @@
 						class="checkbox checkbox-primary"
 						class:checkbox-success={isCorrectChoice(choice.identifier)}
 						value={choice.identifier}
+						aria-labelledby={textId}
 						checked={currentValues.includes(choice.identifier)}
 						onchange={(e: Event) => {
 							const checked = (e.currentTarget as HTMLInputElement).checked;
@@ -214,9 +223,9 @@
 						}}
 						{disabled}
 					/>
-					<span part="text" class="qti-choice-text label-text">
+					<div id={textId} part="text" class="qti-choice-text qti-rich-content label-text">
 						{@html choice.text}
-					</span>
+					</div>
 					{#if isCorrectChoice(choice.identifier)}
 						<span class="badge badge-success badge-sm">{t('interactions.choice.correct', 'Correct')}</span>
 					{/if}
@@ -251,14 +260,28 @@
 		display: block;
 	}
 	.qti-choice-label {
-		display: flex;
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr) auto;
 		align-items: flex-start;
 		gap: 0.75rem;
 		cursor: pointer;
 	}
 	.qti-choice-text {
-		display: inline-block;
+		display: block;
 		line-height: 1.35;
+		min-width: 0;
+	}
+	.qti-choice-text > :global(:first-child) {
+		margin-top: 0;
+	}
+	.qti-choice-text > :global(:last-child) {
+		margin-bottom: 0;
+	}
+	.qti-choice-text :global(:is(p, ul, ol, blockquote, pre, table):first-child) {
+		margin-top: 0;
+	}
+	.qti-choice-text :global(:is(p, ul, ol, blockquote, pre, table):last-child) {
+		margin-bottom: 0;
 	}
 	.qti-choice-interaction input[type='radio'],
 	.qti-choice-interaction input[type='checkbox'] {
