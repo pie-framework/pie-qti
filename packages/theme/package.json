@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/theme",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "description": "Shared PIE QTI theme tokens and CSS variable contracts",
   "type": "module",
   "main": "./dist/index.js",

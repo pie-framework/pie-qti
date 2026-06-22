@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/storage",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "description": "Storage abstraction layer for PIE Transform framework",
   "type": "module",
   "main": "./dist/index.js",

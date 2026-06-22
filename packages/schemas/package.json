@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/element-schemas",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "devDependencies": {

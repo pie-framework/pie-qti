@@ -1,5 +1,17 @@
 # @pie-qti/item-player
 
+## 0.1.13
+
+### Patch Changes
+
+- Temporary release changeset: patch all publishable packages to keep lockstep versions.
+- Updated dependencies
+  - @pie-qti/i18n@0.1.13
+  - @pie-qti/ims-cp-core@0.1.13
+  - @pie-qti/qti-common@0.1.13
+  - @pie-qti/qti-processing@0.1.13
+  - @pie-qti/typeset-katex@0.1.13
+
 ## 0.1.12
 
 ### Patch Changes

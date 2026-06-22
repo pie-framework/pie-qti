@@ -1,5 +1,11 @@
 # @pie-qti/typeset-katex
 
+## 0.1.13
+
+### Patch Changes
+
+- Temporary release changeset: patch all publishable packages to keep lockstep versions.
+
 ## 0.1.12
 
 ## 0.1.11

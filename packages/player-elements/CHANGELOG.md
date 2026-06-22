@@ -1,5 +1,15 @@
 # @pie-qti/player-elements
 
+## 0.1.13
+
+### Patch Changes
+
+- Temporary release changeset: patch all publishable packages to keep lockstep versions.
+- Updated dependencies
+  - @pie-qti/assessment-player@0.1.13
+  - @pie-qti/item-player@0.1.13
+  - @pie-qti/qti-common@0.1.13
+
 ## 0.1.12
 
 ### Patch Changes

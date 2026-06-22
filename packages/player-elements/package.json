@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/player-elements",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "description": "QTI (2.x and 3.0) player web components (custom elements) for framework-agnostic embedding",
   "type": "module",
   "main": "./dist/index.js",
