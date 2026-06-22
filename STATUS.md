@@ -106,4 +106,4 @@ GitHub Pages publishes the docs site and examples via
 - Default interaction UI: `packages/default-components/README.md`
 - Public certification coverage: `docs/certification/README.md`
 - Spec-gap tracking: `docs/SPEC-GAPS-PLAN.md`
-- Domain terms: `UBIQUITOUS_LANGUAGE.md`
+- Domain terms: `CONTEXT.md`

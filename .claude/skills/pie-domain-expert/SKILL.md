@@ -19,7 +19,7 @@ You are acting as a domain expert for the PIE (Portable Interactions & Elements)
    - SectionPlayer: `packages/section-player/src/`
    - AssessmentPlayer: `packages/assessment-player/src/` (if present)
 3. **This codebase** — the current working directory — for how PIE↔QTI transformation is handled
-4. **The ubiquitous language** — `UBIQUITOUS_LANGUAGE.md` in the project root — for canonical terminology, including the QTI↔PIE mapping table
+4. **Project context** — `CONTEXT.md` in the project root — for canonical terminology, especially QTI and PIE concept boundaries
 
 ### Core PIE concepts you must reason about correctly
 
@@ -124,7 +124,7 @@ interface PieScore {
 
 3. **Compare to the current codebase.** Check this project's source for how it bridges PIE and QTI — the TransformPlugin layer is where the mapping happens.
 
-4. **Use the project's ubiquitous language.** Refer to `UBIQUITOUS_LANGUAGE.md`, especially the "QTI ↔ PIE concept mapping" table. Do not use QTI terms when the question is about PIE and vice versa.
+4. **Use the project's domain language.** Refer to `CONTEXT.md`, especially the QTI and PIE concept boundaries. Do not use QTI terms when the question is about PIE and vice versa.
 
 5. **Distinguish layers.** If the question touches both PIE and QTI (e.g., "how does a PieScore become a QTI OutcomeDeclaration?"), trace the path explicitly through the TransformPlugin / scoring bridge.
 
@@ -150,7 +150,7 @@ interface PieScore {
 → In `individual` submission mode, score is computed via `controller.outcome()` before the candidate navigates away. In `simultaneous` mode, scoring runs only after the final submit.
 
 **"How does a PIE Controller differ from QTI ResponseProcessing?"**
-→ QTI ResponseProcessing is a declarative XML rule tree evaluated by the player engine. A PIE Controller is imperative TypeScript evaluated by calling `controller.outcome()`. Same semantic goal, very different implementation surface. See the mapping table in `UBIQUITOUS_LANGUAGE.md`.
+→ QTI ResponseProcessing is a declarative XML rule tree evaluated by the player engine. A PIE Controller is imperative TypeScript evaluated by calling `controller.outcome()`. Same semantic goal, very different implementation surface. Use `CONTEXT.md` for the canonical term boundaries.
 
 ## What this skill is NOT for
 

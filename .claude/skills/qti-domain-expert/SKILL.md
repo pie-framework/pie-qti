@@ -17,7 +17,7 @@ You are acting as a QTI (Question and Test Interoperability) specification exper
    - `../qti-sdk` — QTI SDK
    - `../QTI.JS` — QTI.JS reference implementation
 2. **This codebase** — the current working directory — for how the project currently implements spec concepts
-3. **The ubiquitous language** — `UBIQUITOUS_LANGUAGE.md` in the project root — for canonical project terminology
+3. **Project context** — `CONTEXT.md` in the project root — for canonical project terminology
 
 ### Core QTI concepts you must reason about correctly
 
@@ -84,7 +84,7 @@ You are acting as a QTI (Question and Test Interoperability) specification exper
 
 3. **Compare to the current implementation.** Note any gaps, deviations, or correct alignments.
 
-4. **Use the project's ubiquitous language.** Use terms from `UBIQUITOUS_LANGUAGE.md` when they exist. Do not introduce synonyms.
+4. **Use the project's domain language.** Use terms from `CONTEXT.md` when they exist. Do not introduce synonyms.
 
 5. **Flag compliance risks.** If the question involves a corner case that the current implementation may not handle, say so explicitly.
 

@@ -1,6 +1,8 @@
-# Ubiquitous Language
+# Project Context
 
-## Assessment Content
+## Domain Language
+
+### Assessment Content
 
 | Term | Definition | Aliases to avoid |
 | ---- | ---------- | ---------------- |
@@ -13,7 +15,7 @@
 | **RubricBlock** | Role-filtered instructional or grading content attached to an item or section. | Instructions, Grading guide |
 | **Metadata** | Descriptive package or item information used for discovery, cataloging, or certification review. | Data, Tags |
 
-## Variables And Scoring
+### Variables And Scoring
 
 | Term | Definition | Aliases to avoid |
 | ---- | ---------- | ---------------- |
@@ -28,7 +30,7 @@
 | **ResponseProcessing** | The QTI rule set that evaluates responses and writes outcome values. | Scoring engine, Scoring rules |
 | **ScoringResult** | The runtime result of scoring an item, including score, max score, completion, and outcomes. | Score result |
 
-## Interactions
+### Interactions
 
 | Term | Definition | Aliases to avoid |
 | ---- | ---------- | ---------------- |
@@ -44,7 +46,7 @@
 | **Response** | The candidate's current value for one Interaction. | Answer, User input |
 | **InteractionData** | The typed runtime model extracted from QTI XML for rendering an Interaction. | Interaction config, Extracted data |
 
-## Sessions And Delivery
+### Sessions And Delivery
 
 | Term | Definition | Aliases to avoid |
 | ---- | ---------- | ---------------- |
@@ -60,7 +62,7 @@
 | **Author** | The role representing an item or test creator. | TestConstructor |
 | **RolePolicy** | Runtime rules that determine what a role may see or do. | Permission model |
 
-## Formats And Transformation
+### Formats And Transformation
 
 | Term | Definition | Aliases to avoid |
 | ---- | ---------- | ---------------- |
@@ -80,7 +82,7 @@
 | **AssetResolver** | A component that resolves external resources referenced by transformed content. | Resource loader |
 | **TransformHarness** | The internal reference app used to exercise transformation flows. | Transform app, Import app |
 
-## Player Architecture
+### Player Architecture
 
 | Term | Definition | Aliases to avoid |
 | ---- | ---------- | ---------------- |
@@ -95,7 +97,7 @@
 | **HostApplication** | The application embedding the players and integrating them with its own backend or platform. | LMS, Consumer app |
 | **BackendAdapter** | The integration boundary used by a host to persist state and scoring. | API adapter, Server adapter |
 
-## Certification
+### Certification
 
 | Term | Definition | Aliases to avoid |
 | ---- | ---------- | ---------------- |
@@ -108,7 +110,7 @@
 | **CoverageMatrix** | A mapping from certification criteria to fixtures and tests that exercise them. | Checklist, Test matrix |
 | **CertificationScope** | The deliberately chosen set of QTI features and 1EdTech certifications this project targets. | Roadmap, Compliance list |
 
-## Platform Boundaries
+### Platform Boundaries
 
 | Term | Definition | Aliases to avoid |
 | ---- | ---------- | ---------------- |

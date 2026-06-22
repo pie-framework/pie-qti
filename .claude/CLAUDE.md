@@ -56,6 +56,8 @@ This project has custom Claude skills available. Use them proactively when relev
 - **prd-author**: Use when writing a new PRD for an interaction, architecture subsystem, or cross-cutting system concern. It reads the relevant source, asks targeted questions to fill gaps, and produces a complete draft aligned to `docs/prds/TEMPLATE.md`. Also invoke proactively when a significant new feature is complete and lacks a PRD.
 - **prd-reviewer**: Use when reviewing an existing PRD for accuracy, completeness, and staleness. Invoke proactively when opening a PR that touches a package covered by a PRD — check whether the PRD needs updating before merging.
 - **certification-checker**: Use when evaluating a specific QTI feature ID (e.g. Q2, T9, A-8, I19a) against the 1EdTech DELIVERY acceptance criteria. Public work must use clean-room fixtures and `bun run test:certification:public`; official 1EdTech package execution and readiness tracking belong in the private conformance project.
+- **grill-with-docs**: Use when stress-testing a plan or design. It asks one decision question at a time, checks code/docs before asking, and updates `CONTEXT.md`, PRDs, or certification docs only when durable terminology or decisions crystallize.
+- **releases-and-changesets**: Use when authoring changesets, adding publishable packages, or preparing a fixed-version release for the `@pie-qti/*` packages.
 
 ## Monorepo Structure
 
