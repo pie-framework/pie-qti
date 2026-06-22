@@ -132,6 +132,14 @@ The `getLocaleFallbackChain()` function deduplicates entries, so requesting `en-
 **Alternatives considered:** Silent heuristics (always on, no config) were rejected because they would hide spec deviations from operators and make debugging harder.  
 **Consequences:** Tools that want strict QTI validation must pass `STRICT_QTI_CONFIG` explicitly. The default mode produces "better" output at the cost of hiding authoring errors.
 
+### Package file resolution is shared and provenance-bearing
+
+**Decision:** Package-relative file lookup is centralised in `package-file-resolver.ts`. The resolver first tries strict source-relative and package-root paths, then uses explicit heuristics for unambiguous path-segment suffix matches and media-asset basename matches. Unsafe paths, root escapes, absolute package paths, and ambiguous suffix/basename matches are terminal diagnostics and never fall through to a looser match.
+
+**Rationale:** Real-world QTI packages often contain media and stylesheet references that drift from strict XML-local paths, while still shipping the referenced files elsewhere in the package. A shared resolver lets the package graph, QTI 3 delivery context, and browser image resolver recover those generic cases consistently without importing Composer-specific asset rewrites.
+
+**Consequences:** `PackageReference` and `PackageAssetRef` can carry `resolutionStrategy`, `heuristic`, and `renderHref` provenance. Strict callers disable these heuristics through `STRICT_QTI_CONFIG`. Source XML resources remain stricter than media assets: `assessmentItemRef` and stimulus references use manifest/resource evidence for suffix recovery and never use basename-only matching.
+
 ---
 
 ## Extension points
@@ -143,7 +151,8 @@ The `getLocaleFallbackChain()` function deduplicates entries, so requesting `en-
 | Passage ID strategy | `generateStablePassageId(options)` | Pass whichever of `qtiIdentifier`, `filePath`, or `content` is available | `packages/ims-cp-core/src/passage-reusability.ts` |
 | Locale selection | `selectLocalizedResource(group, locale, defaultLocale)` | Call after `buildLocalizedManifest()` to pick the best variant | `packages/ims-cp-core/src/localized-resources.ts` |
 | Heuristics config | `QtiHeuristicsConfig` | Pass `STRICT_QTI_CONFIG` for spec-only mode; `DEFAULT_HEURISTICS_CONFIG` otherwise | `packages/ims-cp-core/src/qti-heuristics.ts` |
-| Package graph | `buildPackageGraph({ manifest, fileAccess })` → `{ resources, assets, closures, diagnostics }` | Call after `loadResolvedManifest` to get a resource graph keyed by identifier, an asset inventory with `ownerResourceIds` / `sourcePaths`, per-test/passage closures, and structured diagnostics (`IMS_CP_MISSING_FILE`, `IMS_CP_MISSING_ASSET`, `IMS_CP_DANGLING_ITEM_REF`). `assessmentItemRef` paths are resolved back to `PackageResourceNode`s. | Consumed by `transformQtiPackageToPie` in `@pie-qti/to-pie` to feed source-profile detection, sidecar emission, and package-level diagnostic rollup |
+| Package file resolver | `buildPackageFileIndex(paths)` + `resolvePackageReference(input)` | Build a canonical package file index, then resolve XML-local media, stylesheets, catalog file refs, and manifest-backed source refs with diagnostics/provenance | `packages/ims-cp-core/src/package-file-resolver.ts` |
+| Package graph | `analyzeContentPackage({ manifestXml, fileAccess, heuristicsConfig })` + `serializeContentPackageEvidence(graph)` | Call with manifest XML and optional file access to get a resource graph keyed by identifier, an asset inventory with `ownerResourceIds` / `sourcePaths`, per-test/passage closures, and structured diagnostics (`IMS_CP_MISSING_FILE`, `IMS_CP_MISSING_ASSET`, `IMS_CP_DANGLING_ITEM_REF`). `assessmentItemRef` paths are resolved back to `PackageResourceNode`s. | Consumed by `transformQtiPackageToPie` in `@pie-qti/to-pie` to feed source-profile detection, sidecar emission, and package-level diagnostic rollup |
 
 ---
 
@@ -173,6 +182,12 @@ All key types are in `packages/ims-cp-core/src/`. Key invariants:
 - `itemGroups`, `passageGroups`, `testGroups` all use the same `baseId` extraction: the identifier with any trailing `[._-][a-z]{2}([_-][A-Z]{2})?` suffix stripped.
 - `availableLocales` is the union across all groups; a locale appears here even if only one item has that locale.
 - Non-localized resources (no locale suffix, no LOM language metadata) are assigned the `defaultLocale` passed to `buildLocalizedManifest()`, making them visible in all locale-aware lookups.
+
+**`PackageFileIndex`**
+- `exactPaths` contains canonical package-relative POSIX paths only. Absolute paths and paths that escape package root are rejected with diagnostics.
+- `pathsBySuffix` indexes path-segment suffixes, not arbitrary substrings, so `graphics/diagram.png` may match `shared/graphics/diagram.png` but `diagram.png` does not match `big-diagram.png`.
+- `pathsByBasename` is used only for media-like asset references and only when exactly one candidate exists.
+- Query strings and fragments are stripped for package lookup and preserved separately as render metadata when a consuming layer can safely use them.
 
 ---
 

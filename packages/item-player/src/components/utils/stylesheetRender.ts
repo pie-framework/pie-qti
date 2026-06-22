@@ -1,6 +1,5 @@
 import type { ResolvedItemDeliveryContext, ResolvedQtiStylesheetRef } from '@pie-qti/ims-cp-core';
-
-const BLOCKED_CSS = /@import\b|url\s*\(|<\/style|expression\s*\(|javascript\s*:|vbscript\s*:|data\s*:/i;
+import { isBlockedStylesheetCss } from '@pie-qti/ims-cp-core';
 
 export function buildScopedStylesheetCss(
 	deliveryContext: ResolvedItemDeliveryContext | undefined,
@@ -15,7 +14,7 @@ export function buildScopedStylesheetCss(
 
 function stylesheetToScopedCss(stylesheet: ResolvedQtiStylesheetRef, scopeSelector: string): string {
 	const css = stylesheet.cssText?.trim();
-	if (!css || BLOCKED_CSS.test(css)) return '';
+	if (!css || isBlockedStylesheetCss(css)) return '';
 	const stylesheetScope = getStylesheetScopeSelector(stylesheet, scopeSelector);
 	const scoped = scopeCssRules(css, stylesheetScope);
 	if (!scoped) return '';

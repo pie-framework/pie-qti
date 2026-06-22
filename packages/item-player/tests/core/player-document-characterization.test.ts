@@ -286,6 +286,97 @@ describe('Player document characterization', () => {
 		expect(html).not.toContain('<object');
 	});
 
+	test('renders raster data image references and raster image objects', () => {
+		const dataPng = 'data:image/png;base64,iVBORw0KGgo=';
+		const player = new Player({
+			itemXml: qti22Item(
+				`<p>Use the inline image.</p>
+				<img src="${dataPng}" alt="Inline diagram"/>
+				<object type="image/png" data="${dataPng}" width="24" height="24">Object diagram</object>
+				<choiceInteraction responseIdentifier="RESPONSE" shuffle="false" maxChoices="1">
+					<simpleChoice identifier="A">A</simpleChoice>
+				</choiceInteraction>`,
+				`<responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier"/>`
+			),
+		});
+
+		const html = String(player.getItemBodyHtml());
+
+		expect(html).toContain(`src="${dataPng}"`);
+		expect(html).toContain('alt="Inline diagram"');
+		expect(html).toContain('alt="Object diagram"');
+		expect(html).not.toContain('<object');
+	});
+
+	test('preserves raster data image candidates in sanitized srcset attributes', () => {
+		const dataPng = 'data:image/png;base64,AAAA';
+		const player = new Player({
+			itemXml: qti22Item(
+				`<p>Use the responsive image.</p>
+				<img srcset="${dataPng} 1x, images/large.png 2x" alt="Responsive diagram"/>
+				<choiceInteraction responseIdentifier="RESPONSE" shuffle="false" maxChoices="1">
+					<simpleChoice identifier="A">A</simpleChoice>
+				</choiceInteraction>`,
+				`<responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier"/>`
+			),
+		});
+
+		const html = String(player.getItemBodyHtml());
+
+		expect(html).toContain(`${dataPng} 1x`);
+		expect(html).toContain('images/large.png 2x');
+	});
+
+	test('blocks SVG data images by default and renders them only with explicit opt-in', () => {
+		const dataSvg = 'data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%2F%3E';
+		const itemXml = qti22Item(
+			`<p>Use the inline SVG.</p>
+			<img src="${dataSvg}" alt="Inline SVG"/>
+			<object type="image/svg+xml" data="${dataSvg}" width="24" height="24">Object SVG</object>
+			<choiceInteraction responseIdentifier="RESPONSE" shuffle="false" maxChoices="1">
+				<simpleChoice identifier="A">A</simpleChoice>
+			</choiceInteraction>`,
+			`<responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier"/>`
+		);
+
+		const defaultHtml = String(new Player({ itemXml }).getItemBodyHtml());
+		const optInHtml = String(
+			new Player({
+				itemXml,
+				security: { urlPolicy: { allowSvgDataImages: true } },
+			}).getItemBodyHtml()
+		);
+
+		expect(defaultHtml).not.toContain(dataSvg);
+		expect(defaultHtml).not.toContain('Object SVG');
+		expect(optInHtml).toContain(`src="${dataSvg}"`);
+		expect(optInHtml).toContain('alt="Inline SVG"');
+		expect(optInHtml).toContain('alt="Object SVG"');
+	});
+
+	test('blocks blob image URLs by default and renders them only with explicit opt-in', () => {
+		const blobUrl = 'blob:https://player.example/package-svg';
+		const itemXml = qti22Item(
+			`<p>Use the package SVG.</p>
+			<img src="${blobUrl}" alt="Package SVG"/>
+			<choiceInteraction responseIdentifier="RESPONSE" shuffle="false" maxChoices="1">
+				<simpleChoice identifier="A">A</simpleChoice>
+			</choiceInteraction>`,
+			`<responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier"/>`
+		);
+
+		const defaultHtml = String(new Player({ itemXml }).getItemBodyHtml());
+		const optInHtml = String(
+			new Player({
+				itemXml,
+				security: { urlPolicy: { allowBlobImages: true } },
+			}).getItemBodyHtml()
+		);
+
+		expect(defaultHtml).not.toContain(blobUrl);
+		expect(optInHtml).toContain(`src="${blobUrl}"`);
+	});
+
 	test('renders safe audio and video object tags as native media', () => {
 		const player = new Player({
 			itemXml: qti22Item(

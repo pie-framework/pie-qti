@@ -18,6 +18,10 @@
       "types": "./dist/package-graph.d.ts",
       "import": "./dist/package-graph.js"
     },
+    "./package-file-resolver": {
+      "types": "./dist/package-file-resolver.d.ts",
+      "import": "./dist/package-file-resolver.js"
+    },
     "./localized-resources": {
       "types": "./dist/localized-resources.d.ts",
       "import": "./dist/localized-resources.js"
@@ -40,6 +44,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "test": "bun test",
     "typecheck": "tsc --noEmit"
   },
   "license": "MIT",

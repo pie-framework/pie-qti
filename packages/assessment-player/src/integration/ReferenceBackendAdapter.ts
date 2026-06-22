@@ -44,6 +44,10 @@ import {
 import {
 	createResolvedItemDeliveryContext,
 	extractAssessmentStimulusRefs,
+	extractQtiStylesheets,
+	parseAssessmentStimulusXml,
+	resolveCheckedPackagePath,
+	resolveCheckedPackagePathFromFile,
 	resolveRelativePath as resolveQtiRelativePath,
 } from '@pie-qti/ims-cp-core';
 import { parse } from 'node-html-parser';
@@ -826,6 +830,13 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			return baseUrl ? resolveQtiRelativePath(baseUrl, href) : href;
 		};
 
+		const resolveCheckedHref = (href: string | undefined): string | undefined => {
+			if (!href) return undefined;
+			return baseUrl
+				? resolveCheckedPackagePathFromFile(baseUrl, href) ?? undefined
+				: resolveCheckedPackagePath(undefined, href) ?? undefined;
+		};
+
 		const loadText = async (href: string | undefined): Promise<string | undefined> => {
 			if (!href) return undefined;
 			const candidates = [href, resolveAgainstBase(href)].filter((value, index, all): value is string =>
@@ -851,21 +862,37 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			itemXml: string,
 			itemHref: string | undefined
 		): Promise<SecureItemRef['deliveryContext'] | undefined> => {
-			if (!itemHref || extractAssessmentStimulusRefs(itemXml).length === 0) {
+			if (!itemHref) {
 				return undefined;
 			}
 			const stimulusXmlByPath: Record<string, string> = {};
+			const packageTextByPath: Record<string, string> = {};
+			const preloadText = async (baseHref: string, href: string): Promise<void> => {
+				const resolvedPath = resolveCheckedPackagePathFromFile(baseHref, href);
+				if (!resolvedPath) return;
+				const text = await loadText(resolvedPath);
+				if (text !== undefined) {
+					packageTextByPath[resolvedPath] = text;
+				}
+			};
+			for (const stylesheet of extractQtiStylesheets(itemXml)) {
+				await preloadText(itemHref, stylesheet.href);
+			}
 			for (const ref of extractAssessmentStimulusRefs(itemXml)) {
-				const stimulusPath = resolveQtiRelativePath(itemHref, ref.href);
+				const stimulusPath = resolveCheckedPackagePathFromFile(itemHref, ref.href);
+				if (!stimulusPath) continue;
 				const stimulusXml = await loadText(stimulusPath);
 				if (stimulusXml) {
 					stimulusXmlByPath[stimulusPath] = stimulusXml;
+					for (const stylesheet of parseAssessmentStimulusXml(stimulusXml).stylesheets) {
+						await preloadText(stimulusPath, stylesheet.href);
+					}
 				}
 			}
 			return createResolvedItemDeliveryContext({
 				itemXml,
 				itemHref,
-				readText: (path) => stimulusXmlByPath[path] ?? itemXmlMap[path],
+				readText: (path) => packageTextByPath[path] ?? stimulusXmlByPath[path] ?? itemXmlMap[path],
 			});
 		};
 
@@ -896,9 +923,15 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			for (const ref of itemRefEls) {
 				const itemId = getAttr(ref, 'identifier') ?? 'item';
 				const href = getAttr(ref, 'href');
-				const itemHref = resolveAgainstBase(href) ?? href;
+				const itemHref = resolveCheckedHref(href);
 				// Look up pre-loaded XML by identifier or href
-				const resolvedXml = itemXmlMap[itemId] ?? (href ? itemXmlMap[href] : undefined) ?? (itemHref ? itemXmlMap[itemHref] : undefined) ?? (await loadText(href)) ?? '';
+				const resolvedXml = href && !itemHref
+					? ''
+					: itemXmlMap[itemId] ??
+						(href ? itemXmlMap[href] : undefined) ??
+						(itemHref ? itemXmlMap[itemHref] : undefined) ??
+						(await loadText(itemHref)) ??
+						'';
 				const requiredRaw = getAttr(ref, 'required');
 				const required = requiredRaw === undefined ? undefined : requiredRaw !== 'false';
 				assessmentItemRefs.push({
@@ -938,7 +971,12 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			}
 
 			try {
-				const sectionXml = await fileResolver(href);
+				const resolvedHref = resolveCheckedHref(href);
+				if (!resolvedHref) {
+					console.warn(`[ReferenceBackendAdapter] assessmentSectionRef href="${href}" is unsafe, skipping`);
+					return null;
+				}
+				const sectionXml = await fileResolver(resolvedHref);
 				const secDoc = parseXml(sectionXml);
 				const secRoot = secDoc.documentElement;
 				if (!secRoot || toCanonicalQtiName(secRoot.localName) !== 'assessmentSection') {

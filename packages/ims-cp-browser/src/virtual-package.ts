@@ -71,7 +71,7 @@ export function createVirtualPackage(
 			if (file.type === 'text') {
 				// Create data URL from text
 				const encoded = encodeURIComponent(file.content as string);
-				return `data:text/plain;charset=utf-8,${encoded}`;
+				return `data:${getTextMimeType(path)};charset=utf-8,${encoded}`;
 			} else {
 				// Create blob URL for binary files
 				const blob = file.content as Blob;
@@ -131,6 +131,18 @@ export function createVirtualPackage(
 			}
 		},
 	};
+}
+
+function getTextMimeType(path: string): string {
+	const ext = path.split('.').pop()?.toLowerCase();
+	const mimeTypes: Record<string, string> = {
+		css: 'text/css',
+		html: 'text/html',
+		htm: 'text/html',
+		svg: 'image/svg+xml',
+		xml: 'application/xml',
+	};
+	return mimeTypes[ext ?? ''] ?? 'text/plain';
 }
 
 /**

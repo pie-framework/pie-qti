@@ -337,6 +337,10 @@ export interface UrlPolicyConfig {
 	allowDataImages?: boolean;
 	/** Allow data:image/svg+xml (default false) */
 	allowSvgDataImages?: boolean;
+	/** Allow blob: URLs for package-resolved images (default false). */
+	allowBlobImages?: boolean;
+	/** Allow blob: URLs for package-resolved audio/video media (default false). */
+	allowBlobMedia?: boolean;
 	/** Optional allowlist of hostnames for absolute URLs (exact match). */
 	allowedHosts?: string[];
 }

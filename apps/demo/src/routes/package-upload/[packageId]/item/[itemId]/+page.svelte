@@ -133,18 +133,16 @@
 					itemXml = await resolveImagesInXml(itemXml, packageData, currentItem2.href);
 				}
 
-				// Load QTI 3.0 shared stimulus content (if any qti-assessment-stimulus-ref elements exist)
+				// Load QTI 3.0 delivery context for stimuli, item stylesheets, and catalogs.
 				if (currentItem2?.href) {
+					deliveryContext = await loadItemDeliveryContext(packageData, currentItem2.href, itemXml);
 					const stimulusRefs = extractStimulusRefsFromItemXml(itemXml);
 					if (stimulusRefs.length > 0) {
-						deliveryContext = await loadItemDeliveryContext(packageData, currentItem2.href, itemXml);
 						stimulusContent = await loadStimulusContent(packageData, currentItem2.href, stimulusRefs);
 					}
 				}
 
 				// Initialize player
-				// allowSvgDataImages: images were already resolved from the ZIP by resolveImagesInXml,
-				// so data:image/svg+xml URLs here are trusted (not from raw author XML).
 				player = new Player({
 					itemXml: itemXml,
 					role: 'candidate',
@@ -153,7 +151,8 @@
 						...getSecurityConfig(),
 						urlPolicy: {
 							...getSecurityConfig().urlPolicy,
-							allowSvgDataImages: true,
+							allowBlobImages: true,
+							allowBlobMedia: true,
 						},
 					}
 				});

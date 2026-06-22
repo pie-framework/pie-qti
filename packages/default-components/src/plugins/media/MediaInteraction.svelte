@@ -127,7 +127,7 @@
 				<source src={parsedInteraction.mediaElement.src} type={parsedInteraction.mediaElement.mimeType} />
 				Your browser does not support the video element.
 			</video>
-		{:else if parsedInteraction.mediaElement.type === 'object'}
+		{:else if parsedInteraction.mediaElement.type === 'object' && parsedInteraction.allowObjectEmbeds}
 			<object
 				data={parsedInteraction.mediaElement.src}
 				type={parsedInteraction.mediaElement.mimeType}

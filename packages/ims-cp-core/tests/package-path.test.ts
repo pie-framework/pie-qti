@@ -24,6 +24,9 @@ describe('IMS CP package path resolution', () => {
 	test('checked resolution rejects hrefs that escape the package root', () => {
 		expect(resolveCheckedPackagePathFromFile('items/item.xml', '../shared/passage.xml')).toBe('shared/passage.xml');
 		expect(resolveCheckedPackagePathFromFile('item.xml', '../outside.xml')).toBeNull();
+		expect(resolveCheckedPackagePathFromFile('%252e%252e/item.xml', 'inside.xml')).toBeNull();
+		expect(resolveCheckedPackagePathFromFile('item.xml', '%252e%252e/outside.xml')).toBeNull();
+		expect(resolveCheckedPackagePathFromFile('item.xml', '..%2foutside.xml')).toBeNull();
 		expect(resolveCheckedPackagePathFromFile('item.xml', 'http://example.com/item.xml')).toBeNull();
 	});
 

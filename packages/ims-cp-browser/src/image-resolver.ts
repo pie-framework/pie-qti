@@ -6,6 +6,13 @@
  * displayed in browsers needs image resolution.
  */
 
+import {
+	buildPackageFileIndex,
+	decodeXmlAttribute,
+	parseSrcsetCandidates,
+	resolvePackageReference,
+	type QtiHeuristicsConfig,
+} from '@pie-qti/ims-cp-core';
 import type { VirtualPackage } from './virtual-package.js';
 
 /**
@@ -21,18 +28,30 @@ function getMimeType(path: string): string {
 		'svg': 'image/svg+xml',
 		'webp': 'image/webp',
 	};
-	return mimeTypes[ext] || 'image/jpeg';
+	return mimeTypes[ext] ?? '';
+}
+
+function isSupportedImagePath(path: string): boolean {
+	return Boolean(getMimeType(path));
 }
 
 /**
  * Convert Blob to data URL with correct MIME type
  */
 async function blobToDataUrl(blob: Blob, filePath: string): Promise<string> {
+	const correctMimeType = getMimeType(filePath);
+	if (typeof FileReader === 'undefined') {
+		const bytes = new Uint8Array(await blob.arrayBuffer());
+		let binary = '';
+		for (const byte of bytes) {
+			binary += String.fromCharCode(byte);
+		}
+		return `data:${correctMimeType};base64,${btoa(binary)}`;
+	}
 	return new Promise((resolve, reject) => {
 		const reader = new FileReader();
 		reader.onloadend = () => {
 			let dataUrl = reader.result as string;
-			const correctMimeType = getMimeType(filePath);
 
 			// Replace incorrect MIME types (e.g., application/octet-stream)
 			if (dataUrl.startsWith('data:application/octet-stream') ||
@@ -56,6 +75,8 @@ async function blobToDataUrl(blob: Blob, filePath: string): Promise<string> {
  * @param imagePath The image path from the XML (may be relative or absolute)
  * @param itemDir The directory containing the item file
  * @returns Array of resolved paths to try
+ * @deprecated Use `buildPackageFileIndex` and `resolvePackageReference` from
+ * `@pie-qti/ims-cp-core` so resolution follows the shared safety/provenance rules.
  */
 export function tryResolveImagePath(imagePath: string, itemDir: string): string[] {
 	// Remove query strings and fragments
@@ -125,14 +146,6 @@ export interface LoggerLike {
 }
 
 /**
- * QTI Heuristics Config interface (minimal subset needed here)
- */
-export interface QtiHeuristicsConfig {
-	enabled?: boolean;
-	lenientImagePaths?: boolean;
-}
-
-/**
  * Options for image resolution
  */
 export interface ResolveImagesOptions {
@@ -167,7 +180,8 @@ export async function resolveImagesInXml(
 	itemHref: string,
 	options: ResolveImagesOptions = {}
 ): Promise<string> {
-	const { logger, heuristicsConfig = { enabled: true, lenientImagePaths: true } } = options;
+	const { logger } = options;
+	const heuristicsConfig = normalizeImageHeuristicsConfig(options.heuristicsConfig);
 
 	// Check if lenient image path resolution is enabled
 	const useLenientPaths = heuristicsConfig.enabled !== false && heuristicsConfig.lenientImagePaths !== false;
@@ -179,158 +193,209 @@ export async function resolveImagesInXml(
 		);
 	}
 
-	// Create a DOMParser to parse and modify the XML
-	const parser = new DOMParser();
-	const doc = parser.parseFromString(itemXml, 'text/xml');
-
-	// Check for parse errors using multiple detection methods for better browser compatibility
-	// Different browsers may format parse errors differently:
-	// - Firefox: <parsererror xmlns="http://www.mozilla.org/newlayout/xml/parsererror.xml">
-	// - Chrome/Safari: Different structure
-	const parseError = doc.querySelector('parsererror');
-	const isParseError = parseError !== null || doc.documentElement.nodeName === 'parsererror';
-
-	if (isParseError) {
-		const errorMessage = parseError?.textContent || 'Unknown XML parse error';
-		logger?.warn('XML parse error in resolveImagesInXml:', errorMessage);
-		return itemXml; // Return original if parsing fails
-	}
-
-	// Get the directory containing the item file for resolving relative paths
-	const itemDir = itemHref.substring(0, itemHref.lastIndexOf('/') + 1);
-	logger?.debug(`[Image Resolution] Item directory: ${itemDir}`);
-
-	// Get list of available images in package
-	const availableImages = Array.from(pkg.files.keys()).filter(path => {
-		const ext = path.split('.').pop()?.toLowerCase() || '';
-		return ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'].includes(ext);
-	});
-
-	logger?.debug(`[Image Resolution] Available images (${availableImages.length})`, availableImages);
+	const fileIndex = buildPackageFileIndex([...pkg.files.keys()]);
+	logger?.debug(`[Image Resolution] Available package files (${pkg.files.size})`, [...pkg.files.keys()]);
 
 	/**
 	 * Resolve a single image reference
 	 */
-	const resolveImageReference = async (imagePath: string): Promise<string | null> => {
-		// Try multiple path resolution strategies
-		const resolvedPaths = tryResolveImagePath(imagePath, itemDir);
+	const resolveImageReference = async (
+		imagePath: string,
+		tag: string,
+		attr: string
+	): Promise<ImageRewriteDecision> => {
+		const resolution = resolvePackageReference({
+			fileIndex,
+			sourcePath: itemHref,
+			rawHref: imagePath,
+			referenceKind: 'media-asset',
+			heuristicsConfig,
+		});
 
-		for (const path of resolvedPaths) {
-			const file = pkg.getFile(path);
-			if (!file) continue;
-			if (file.type === 'binary') {
-				const blob = file.content as Blob;
-				try {
-					const dataUrl = await blobToDataUrl(blob, path);
-					logger?.debug(`✓ Resolved image: ${imagePath} -> ${path}`);
-					return dataUrl;
-				} catch (err) {
-					logger?.warn(`Failed to convert blob to data URL for: ${path}`, err);
-				}
-			} else if (file.type === 'text' && path.toLowerCase().endsWith('.svg')) {
-				// SVGs are stored as text strings; encode as data URL directly
-				const encoded = encodeURIComponent(file.content as string);
-				logger?.debug(`✓ Resolved SVG (text): ${imagePath} -> ${path}`);
-				return `data:image/svg+xml,${encoded}`;
-			}
+		if (resolution.status !== 'resolved') {
+			logger?.warn(
+				`[QTI Heuristic] Could not resolve image reference: ${imagePath}`,
+				{ status: resolution.status, diagnostics: resolution.diagnostics }
+			);
+			return { action: resolution.status === 'skipped' && isAllowedRawUrl(imagePath, tag, attr) ? 'preserve' : 'remove' };
 		}
 
-		// Lenient fallback (heuristic): Try to find image by filename in all available images
-		// This helps with non-standard QTI content where image paths don't follow strict conventions
-		if (!useLenientPaths) {
-			// Strict mode: if standard resolution failed, give up
-			logger?.warn(`Could not resolve image (strict mode): ${imagePath}`);
-			return null;
+		const file = pkg.getFile(resolution.resolvedPath);
+		if (!file) {
+			logger?.warn(`Resolved image path is not readable: ${resolution.resolvedPath}`);
+			return { action: 'remove' };
 		}
-
-		const filename = imagePath.split('/').pop() || imagePath.split('\\').pop() || imagePath;
-		if (filename) {
-			const lowerFilename = filename.toLowerCase();
-
-			// Try exact filename match (case-insensitive)
-			for (const availableImage of availableImages) {
-				const lowerAvailable = availableImage.toLowerCase();
-				if (lowerAvailable.endsWith('/' + lowerFilename) ||
-				    lowerAvailable.endsWith('\\' + lowerFilename) ||
-				    lowerAvailable === lowerFilename) {
-					const file = pkg.getFile(availableImage);
-					if (!file) continue;
-					if (file.type === 'text' && availableImage.toLowerCase().endsWith('.svg')) {
-						const encoded = encodeURIComponent(file.content as string);
-						logger?.debug(`✓ Resolved SVG by filename: ${imagePath} -> ${availableImage}`);
-						return `data:image/svg+xml,${encoded}`;
-					} else if (file.type === 'binary') {
-						try {
-							const dataUrl = await blobToDataUrl(file.content as Blob, availableImage);
-							logger?.debug(`✓ Resolved image by filename: ${imagePath} -> ${availableImage}`);
-							return dataUrl;
-						} catch (err) {
-							logger?.warn(`Failed to convert blob to data URL for: ${availableImage}`, err);
-						}
-					}
-				}
+		if (!isSupportedImagePath(resolution.resolvedPath)) {
+			if (tag === 'object' && attr === 'data') {
+				return { action: 'preserve' };
 			}
-
-			// Try partial match (filename appears anywhere in path)
-			for (const availableImage of availableImages) {
-				if (availableImage.toLowerCase().includes(lowerFilename)) {
-					const file = pkg.getFile(availableImage);
-					if (!file) continue;
-					if (file.type === 'text' && availableImage.toLowerCase().endsWith('.svg')) {
-						const encoded = encodeURIComponent(file.content as string);
-						logger?.debug(`✓ Resolved SVG by partial match: ${imagePath} -> ${availableImage}`);
-						return `data:image/svg+xml,${encoded}`;
-					} else if (file.type === 'binary') {
-						try {
-							const dataUrl = await blobToDataUrl(file.content as Blob, availableImage);
-							logger?.debug(`✓ Resolved image by partial match: ${imagePath} -> ${availableImage}`);
-							return dataUrl;
-						} catch (err) {
-							logger?.warn(`Failed to convert blob to data URL for: ${availableImage}`, err);
-						}
-					}
-				}
+			logger?.warn(`Resolved image file is not a supported image type: ${resolution.resolvedPath}`);
+			return { action: 'remove' };
+		}
+		if (file.type === 'binary') {
+			const blob = file.content as Blob;
+			try {
+				const dataUrl = await blobToDataUrl(blob, resolution.resolvedPath);
+				logger?.debug(`✓ Resolved image: ${imagePath} -> ${resolution.resolvedPath}`);
+				return { action: 'replace', value: dataUrl };
+			} catch (err) {
+				logger?.warn(`Failed to convert blob to data URL for: ${resolution.resolvedPath}`, err);
 			}
 		}
+		if (file.type === 'text' && resolution.resolvedPath.toLowerCase().endsWith('.svg')) {
+			const resolvedUrl = svgTextToBrowserUrl(file.content as string);
+			logger?.debug(`✓ Resolved SVG (text): ${imagePath} -> ${resolution.resolvedPath}`);
+			return { action: 'replace', value: resolvedUrl };
+		}
 
-		logger?.warn(`[QTI Heuristic] Could not resolve image even with lenient path resolution: ${imagePath}`);
-		return null;
+		logger?.warn(`Resolved image file is not a supported image type: ${resolution.resolvedPath}`);
+		return { action: 'remove' };
 	};
 
-	// Find all <object> tags with data attributes (image references)
-	const objectElements = doc.getElementsByTagName('object');
-	for (const obj of Array.from(objectElements)) {
-		const dataAttr = obj.getAttribute('data');
-		if (!dataAttr) continue;
-
-		// Skip if it's already a data URL or blob URL
-		if (dataAttr.startsWith('data:') || dataAttr.startsWith('blob:')) {
-			continue;
-		}
-
-		const dataUrl = await resolveImageReference(dataAttr);
-		if (dataUrl) {
-			obj.setAttribute('data', dataUrl);
-		}
-	}
-
-	// Find all <img> tags with src attributes
-	const imgElements = doc.getElementsByTagName('img');
-	for (const img of Array.from(imgElements)) {
-		const srcAttr = img.getAttribute('src');
-		if (!srcAttr) continue;
-
-		// Skip if it's already a data URL or blob URL
-		if (srcAttr.startsWith('data:') || srcAttr.startsWith('blob:')) {
-			continue;
-		}
-
-		const dataUrl = await resolveImageReference(srcAttr);
-		if (dataUrl) {
-			img.setAttribute('src', dataUrl);
-		}
-	}
-
-	// Serialize back to XML string
-	return new XMLSerializer().serializeToString(doc);
+	return rewriteImageReferences(itemXml, resolveImageReference);
 }
+
+function svgTextToBrowserUrl(svg: string): string {
+	if (
+		typeof window !== 'undefined' &&
+		typeof URL !== 'undefined' &&
+		typeof URL.createObjectURL === 'function' &&
+		typeof Blob !== 'undefined'
+	) {
+		return URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+	}
+	return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
+function normalizeImageHeuristicsConfig(config: QtiHeuristicsConfig | undefined): QtiHeuristicsConfig {
+	if (config?.lenientImagePaths === false) {
+		return {
+			...config,
+			lenientPackageResourcePaths: false,
+			lenientAssetBasenames: false,
+		};
+	}
+	return config ?? { enabled: true, lenientImagePaths: true };
+}
+
+const IMAGE_TAG_PATTERN = /<(?<tag>object|img|video)\b(?<attrs>(?:[^>"']+|"[^"]*"|'[^']*')*)>/gis;
+const IMAGE_ATTRIBUTE_PATTERN = /\s(?<attr>data|srcset|src|poster)\s*=\s*(?<quote>["'])(?<value>.*?)\k<quote>/gis;
+
+type ImageRewriteDecision =
+	| { action: 'replace'; value: string }
+	| { action: 'remove' }
+	| { action: 'preserve' };
+
+async function rewriteImageReferences(
+	xml: string,
+	resolveImageReference: (imagePath: string, tag: string, attr: string) => Promise<ImageRewriteDecision>
+): Promise<string> {
+	let output = '';
+	let lastIndex = 0;
+	for (const match of xml.matchAll(IMAGE_TAG_PATTERN)) {
+		const rawTag = match.groups?.tag ?? '';
+		const tag = rawTag.toLowerCase();
+		const attrs = match.groups?.attrs ?? '';
+		const start = match.index ?? 0;
+		output += xml.slice(lastIndex, start);
+		lastIndex = start + match[0].length;
+
+		output += `<${rawTag}${await rewriteTagAttributes(tag, attrs, resolveImageReference)}>`;
+	}
+	output += xml.slice(lastIndex);
+	return output;
+}
+
+async function rewriteTagAttributes(
+	tag: string,
+	attrs: string,
+	resolveImageReference: (imagePath: string, tag: string, attr: string) => Promise<ImageRewriteDecision>
+): Promise<string> {
+	let output = '';
+	let lastIndex = 0;
+	for (const match of attrs.matchAll(IMAGE_ATTRIBUTE_PATTERN)) {
+		const attr = match.groups?.attr.toLowerCase() ?? '';
+		const value = decodeXmlAttribute(match.groups?.value ?? '');
+		const start = match.index ?? 0;
+		output += attrs.slice(lastIndex, start);
+		lastIndex = start + match[0].length;
+
+		if (!isImageRewriteAttribute(tag, attr)) {
+			output += match[0];
+			continue;
+		}
+		if (attr === 'srcset') {
+			const rewritten = await rewriteSrcsetAttribute(value, resolveImageReference);
+			if (rewritten) {
+				output += ` ${attr}="${escapeAttribute(rewritten)}"`;
+			}
+			continue;
+		}
+		if (isSchemeUrl(value)) {
+			if (isAllowedRawUrl(value, tag, attr)) {
+				output += match[0];
+			}
+			continue;
+		}
+
+		const decision = await resolveImageReference(value, tag, attr);
+		if (decision.action === 'preserve') {
+			output += match[0];
+		} else if (decision.action === 'replace') {
+			output += ` ${attr}="${escapeAttribute(decision.value)}"`;
+		}
+	}
+	output += attrs.slice(lastIndex);
+	return output;
+}
+
+function isImageRewriteAttribute(tag: string, attr: string): boolean {
+	return (
+		(tag === 'img' && (attr === 'src' || attr === 'srcset')) ||
+		(tag === 'object' && attr === 'data') ||
+		(tag === 'video' && attr === 'poster')
+	);
+}
+
+async function rewriteSrcsetAttribute(
+	value: string,
+	resolveImageReference: (imagePath: string, tag: string, attr: string) => Promise<ImageRewriteDecision>
+): Promise<string | null> {
+	const rewritten: string[] = [];
+	for (const candidate of parseSrcsetCandidates(value)) {
+		const decodedUrl = decodeXmlAttribute(candidate.url);
+		if (isSchemeUrl(decodedUrl)) {
+			if (isAllowedRawUrl(decodedUrl, 'img', 'src')) {
+				rewritten.push(candidate.raw);
+			}
+			continue;
+		}
+		const decision = await resolveImageReference(decodedUrl, 'img', 'src');
+		if (decision.action === 'replace') {
+			rewritten.push([decision.value, candidate.descriptors].filter(Boolean).join(' '));
+		} else if (decision.action === 'preserve') {
+			rewritten.push(candidate.raw);
+		}
+	}
+	return rewritten.length > 0 ? rewritten.join(', ') : null;
+}
+
+function isSchemeUrl(value: string): boolean {
+	return /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(value.trim());
+}
+
+function isAllowedRawUrl(value: string, tag: string, attr: string): boolean {
+	const trimmed = value.trim();
+	if ((tag === 'img' || tag === 'video') && (attr === 'src' || attr === 'poster') && /^data:image\/(?:png|jpe?g|gif|webp)(?:[;,]|$)/i.test(trimmed)) {
+		return true;
+	}
+	if ((tag === 'img' && attr === 'src') || (tag === 'video' && attr === 'poster') || (tag === 'object' && attr === 'data')) {
+		return /^(?:https?:|blob:)/i.test(trimmed);
+	}
+	return false;
+}
+
+function escapeAttribute(value: string): string {
+	return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+}
+

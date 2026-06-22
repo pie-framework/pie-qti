@@ -10,6 +10,7 @@
  */
 
 import { type HTMLElement, parse } from 'node-html-parser';
+import { parseSrcsetCandidates } from '@pie-qti/ims-cp-core';
 import type { PlayerSecurityConfig, UrlPolicyConfig } from '../types/index.js';
 import { normalizeParsingLimits } from './parsingLimits.js';
 import { sanitizeResourceUrl } from './urlPolicy.js';
@@ -58,21 +59,11 @@ function sanitizeUrlAttr(value: string, policy: UrlPolicyConfig | undefined, kin
 }
 
 function sanitizeSrcset(value: string, policy: UrlPolicyConfig | undefined): string {
-	// srcset grammar is complex; we implement a conservative filter:
-	// split by commas into candidate strings; sanitize the URL portion of each candidate.
-	const parts = value
-		.split(',')
-		.map((p) => p.trim())
-		.filter(Boolean);
 	const out: string[] = [];
-	for (const part of parts) {
-		// URL is the first token; the rest are descriptors (e.g., 1x, 320w).
-		const tokens = part.split(/\s+/).filter(Boolean);
-		if (tokens.length === 0) continue;
-		const url = tokens[0]!;
-		const sanitized = sanitizeResourceUrl(url, policy, 'img');
+	for (const candidate of parseSrcsetCandidates(value)) {
+		const sanitized = sanitizeResourceUrl(candidate.url, policy, 'img');
 		if (!sanitized) continue;
-		out.push([sanitized, ...tokens.slice(1)].join(' '));
+		out.push([sanitized, candidate.descriptors].filter(Boolean).join(' '));
 	}
 	return out.join(', ');
 }

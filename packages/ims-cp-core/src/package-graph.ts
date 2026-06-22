@@ -1,10 +1,20 @@
 import { type ManifestResource, type ParsedManifest, parseManifest } from './manifest-parser.js';
 import {
+	buildPackageFileIndex,
+	type PackageFileIndex,
+	type PackageReferenceKind as ResolvablePackageReferenceKind,
+	type PackageReferenceResolutionStrategy,
+	resolvePackageReference,
+} from './package-file-resolver.js';
+import type { QtiHeuristicsConfig } from './qti-heuristics.js';
+import {
 	dirnamePackagePath,
 	isExternalPackageHref,
 	joinPackagePath,
+	resolveCheckedPackagePath,
 	resolvePackagePath,
 } from './package-path.js';
+import { decodeXmlAttribute, parseSrcsetCandidates } from './security-parsing.js';
 
 export type PackageDiagnosticSeverity = 'info' | 'warning' | 'error';
 
@@ -60,13 +70,16 @@ export interface PackageResourceNode {
 }
 
 export interface PackageReference {
-	kind: 'manifest-dependency' | 'assessment-item-ref' | 'asset' | 'stylesheet' | 'object' | 'catalog';
+	kind: 'manifest-dependency' | 'assessment-item-ref' | 'asset' | 'stylesheet' | 'object' | 'catalog' | 'stimulus';
 	rawHref: string;
 	resolvedPath?: string;
 	sourcePath?: string;
 	sourceElement?: string;
 	sourceAttribute?: string;
 	targetResourceId?: string;
+	resolutionStrategy?: PackageReferenceResolutionStrategy;
+	heuristic?: boolean;
+	renderHref?: string;
 }
 
 export interface PackageAssetRef {
@@ -79,6 +92,9 @@ export interface PackageAssetRef {
 	sourcePaths?: string[];
 	sourceElement?: string;
 	sourceAttribute?: string;
+	resolutionStrategy?: PackageReferenceResolutionStrategy;
+	heuristic?: boolean;
+	renderHref?: string;
 }
 
 export interface PackageResourceClosure {
@@ -95,7 +111,11 @@ export interface PackageEntrypoint {
 	href?: string;
 }
 
-export type PackageRelationshipKind = 'manifest-dependency' | 'assessment-item-ref' | 'shared-asset';
+export type PackageRelationshipKind =
+	| 'manifest-dependency'
+	| 'assessment-item-ref'
+	| 'assessment-stimulus-ref'
+	| 'shared-asset';
 
 export interface PackageRelationshipHint {
 	kind: PackageRelationshipKind;
@@ -141,6 +161,7 @@ export interface AnalyzeContentPackageInput {
 	manifestXml: string;
 	basePath?: string;
 	fileAccess?: PackageFileAccess;
+	heuristicsConfig?: QtiHeuristicsConfig;
 }
 
 const ASSET_EXTENSIONS: Record<string, PackageAssetRef['usage']> = {
@@ -170,6 +191,7 @@ export async function analyzeContentPackage({
 	manifestXml,
 	basePath,
 	fileAccess,
+	heuristicsConfig,
 }: AnalyzeContentPackageInput): Promise<AnalyzedContentPackage> {
 	const manifest = parseManifest(manifestXml, basePath);
 	const diagnostics: PackageDiagnostic[] = [];
@@ -178,6 +200,7 @@ export async function analyzeContentPackage({
 	const assets = new Map<string, PackageAssetRef>();
 	const files = fileAccess?.listFiles ? await fileAccess.listFiles() : [];
 	const listedFiles = fileAccess?.listFiles ? new Set(files) : undefined;
+	const fileIndexPaths = new Set(files);
 	const versionSignals: QtiVersionSignal[] = [
 		...detectManifestVersionSignals(manifestXml),
 		...detectResourceTypeVersionSignals(manifest.resources.values()),
@@ -186,7 +209,12 @@ export async function analyzeContentPackage({
 	for (const resource of manifest.resources.values()) {
 		const node = toResourceNode(resource, manifest);
 		resources.set(node.identifier, node);
+		diagnostics.push(...unsafeManifestPathDiagnostics(resource, manifest));
+		if (node.resolvedHref) {
+			fileIndexPaths.add(node.resolvedHref);
+		}
 		for (const filePath of node.resolvedFiles) {
+			fileIndexPaths.add(filePath);
 			maybeRegisterAsset(assets, filePath, {
 				ownerResourceId: node.identifier,
 				sourcePath: node.resolvedHref,
@@ -203,6 +231,14 @@ export async function analyzeContentPackage({
 			}
 		}
 	}
+	const fileIndex = buildPackageFileIndex([...fileIndexPaths]);
+	diagnostics.push(...fileIndex.diagnostics);
+	const manifestEvidencePaths = new Set(
+		[...resources.values()].flatMap((resource) => [
+			...(resource.resolvedHref ? [resource.resolvedHref] : []),
+			...resource.resolvedFiles,
+		])
+	);
 
 	for (const node of resources.values()) {
 		const resourceReferences: PackageReference[] = [];
@@ -228,17 +264,25 @@ export async function analyzeContentPackage({
 			const xml = await fileAccess.readText(node.resolvedHref);
 			if (xml) {
 				versionSignals.push(...detectQtiXmlVersionSignals(xml, node));
-				const discovered = discoverReferences(xml, node);
+				const discovered = discoverReferences(xml, node, fileIndex, manifestEvidencePaths, heuristicsConfig);
+				diagnostics.push(
+					...discovered.diagnostics.map((diagnostic) => ({
+						...diagnostic,
+						resourceId: node.identifier,
+					}))
+				);
 				for (const reference of discovered.references) {
-					if (reference.kind === 'assessment-item-ref' && reference.resolvedPath) {
+					if ((reference.kind === 'assessment-item-ref' || reference.kind === 'stimulus') && reference.resolvedPath) {
 						const target = findResourceByResolvedHref(resources, reference.resolvedPath);
 						if (target) {
 							reference.targetResourceId = target.identifier;
-						} else {
+						} else if (!(await packagePathExists(reference.resolvedPath, fileAccess, listedFiles))) {
 							diagnostics.push({
 								severity: 'warning',
-								code: 'IMS_CP_DANGLING_ITEM_REF',
-								message: `Resource ${node.identifier} references missing assessment item ${reference.rawHref}.`,
+								code: reference.kind === 'stimulus' ? 'IMS_CP_DANGLING_STIMULUS_REF' : 'IMS_CP_DANGLING_ITEM_REF',
+								message: `Resource ${node.identifier} references missing ${
+									reference.kind === 'stimulus' ? 'assessment stimulus' : 'assessment item'
+								} ${reference.rawHref}.`,
 								resourceId: node.identifier,
 								sourcePath: node.resolvedHref,
 								reference: reference.rawHref,
@@ -354,18 +398,44 @@ export function serializeContentPackageEvidence(
 
 function toResourceNode(resource: ManifestResource, manifest: ParsedManifest): PackageResourceNode {
 	const base = joinPackagePath(manifest.xmlBase, resource.xmlBase);
+	const resolvedHref = resource.href ? resolveCheckedPackagePath(base, resource.href) ?? undefined : undefined;
 	return {
 		identifier: resource.identifier,
 		type: resource.type,
 		kind: classifyResource(resource),
 		href: resource.href,
-		resolvedHref: resource.href ? resolvePackagePath(base, resource.href) : undefined,
+		resolvedHref,
 		xmlBase: resource.xmlBase,
 		files: resource.files,
-		resolvedFiles: resource.files.map((file) => resolvePackagePath(base, file)),
+		resolvedFiles: resource.files.flatMap((file) => {
+			const resolved = resolveCheckedPackagePath(base, file);
+			return resolved ? [resolved] : [];
+		}),
 		dependencies: resource.dependencies,
 		metadata: resource.metadata,
 	};
+}
+
+function unsafeManifestPathDiagnostics(resource: ManifestResource, manifest: ParsedManifest): PackageDiagnostic[] {
+	const base = joinPackagePath(manifest.xmlBase, resource.xmlBase);
+	const diagnostics: PackageDiagnostic[] = [];
+	const candidates = [
+		...(manifest.xmlBase ? [{ href: manifest.xmlBase, kind: 'manifest xml:base', basePath: undefined }] : []),
+		...(resource.xmlBase ? [{ href: resource.xmlBase, kind: 'resource xml:base', basePath: manifest.xmlBase }] : []),
+		...(resource.href ? [{ href: resource.href, kind: 'resource href' }] : []),
+		...resource.files.map((href) => ({ href, kind: 'file href' })),
+	];
+	for (const candidate of candidates) {
+		if (resolveCheckedPackagePath(candidate.basePath ?? base, candidate.href)) continue;
+		diagnostics.push({
+			severity: 'error',
+			code: 'IMS_CP_UNSAFE_MANIFEST_PATH',
+			message: `Resource ${resource.identifier} declares unsafe manifest ${candidate.kind} ${candidate.href}.`,
+			resourceId: resource.identifier,
+			reference: candidate.href,
+		});
+	}
+	return diagnostics;
 }
 
 function toEntrypoint(resource: ManifestResource, kind: PackageEntrypoint['kind']): PackageEntrypoint {
@@ -385,16 +455,41 @@ function classifyResource(resource: ManifestResource): PackageResourceKind {
 	return 'other';
 }
 
-function discoverReferences(xml: string, owner: PackageResourceNode): {
+function discoverReferences(
+	xml: string,
+	owner: PackageResourceNode,
+	fileIndex: PackageFileIndex,
+	manifestEvidencePaths: ReadonlySet<string>,
+	heuristicsConfig: QtiHeuristicsConfig | undefined
+): {
 	references: PackageReference[];
 	assets: PackageAssetRef[];
+	diagnostics: PackageDiagnostic[];
 } {
 	const references: PackageReference[] = [];
 	const assets: PackageAssetRef[] = [];
+	const diagnostics: PackageDiagnostic[] = [];
 	const basePath = owner.resolvedHref ? dirnamePackagePath(owner.resolvedHref) : '';
 
 	for (const match of findAttributeReferences(xml)) {
-		const resolvedPath = resolvePackagePath(basePath, match.rawHref);
+		const resolution = resolvePackageReference({
+			fileIndex,
+			sourcePath: owner.resolvedHref,
+			rawHref: match.rawHref,
+			referenceKind: referenceKindForMatch(match.kind),
+			manifestEvidencePaths,
+			heuristicsConfig,
+		});
+		diagnostics.push(...resolution.diagnostics);
+		if (resolution.status === 'skipped') {
+			continue;
+		}
+		if (resolution.status === 'unsafe' || resolution.status === 'ambiguous') {
+			continue;
+		}
+		const resolvedPath = resolution.status === 'resolved'
+			? resolution.resolvedPath
+			: resolvePackagePath(basePath, match.rawHref);
 		const reference: PackageReference = {
 			kind: match.kind,
 			rawHref: match.rawHref,
@@ -402,9 +497,16 @@ function discoverReferences(xml: string, owner: PackageResourceNode): {
 			sourcePath: owner.resolvedHref,
 			sourceElement: match.element,
 			sourceAttribute: match.attribute,
+			...(resolution.status === 'resolved'
+				? {
+						resolutionStrategy: resolution.strategy,
+						heuristic: resolution.heuristic,
+						renderHref: resolution.renderHref,
+					}
+				: {}),
 		};
 		references.push(reference);
-		if (match.kind !== 'assessment-item-ref') {
+		if (match.kind !== 'assessment-item-ref' && match.kind !== 'stimulus') {
 			assets.push({
 				rawHref: match.rawHref,
 				resolvedPath,
@@ -413,11 +515,18 @@ function discoverReferences(xml: string, owner: PackageResourceNode): {
 				sourcePath: owner.resolvedHref,
 				sourceElement: match.element,
 				sourceAttribute: match.attribute,
+				...(resolution.status === 'resolved'
+					? {
+							resolutionStrategy: resolution.strategy,
+							heuristic: resolution.heuristic,
+							renderHref: resolution.renderHref,
+						}
+					: {}),
 			});
 		}
 	}
 
-	return { references, assets };
+	return { references, assets, diagnostics };
 }
 
 function findAttributeReferences(xml: string): Array<{
@@ -433,34 +542,111 @@ function findAttributeReferences(xml: string): Array<{
 		rawHref: string;
 	}> = [];
 	const pattern =
-		/<(?<element>assessmentItemRef|img|object|audio|video|source|stylesheet|link|file)\b(?<attrs>[^>]*)>/gi;
+		/<(?<element>assessmentItemRef|qti-assessment-item-ref|assessmentStimulusRef|qti-assessment-stimulus-ref|img|object|audio|video|source|track|embed|stylesheet|qti-stylesheet|link|file|fileHref|qti-file-href)\b(?<attrs>(?:[^>"']+|"[^"]*"|'[^']*')*)>/gi;
 	for (const match of xml.matchAll(pattern)) {
 		const element = match.groups?.element ?? '';
 		const attrs = match.groups?.attrs ?? '';
-		const attribute = element === 'object' ? 'data' : element === 'img' ? 'src' : 'href';
-		const rawHref = readAttribute(attrs, attribute) ?? readAttribute(attrs, 'src') ?? readAttribute(attrs, 'href');
+		for (const attribute of referenceAttributesForElement(element)) {
+			const rawValue = readAttribute(attrs, attribute);
+			if (!rawValue) continue;
+			const hrefs = attribute === 'srcset' ? parseSrcsetHrefs(rawValue) : [rawValue];
+			for (const rawHref of hrefs) {
+				const decodedHref = decodeXmlAttribute(rawHref);
+				if (!decodedHref || isExternalPackageHref(decodedHref)) continue;
+				refs.push({
+					kind: kindFromElement(element),
+					element,
+					attribute,
+					rawHref: decodedHref,
+				});
+			}
+		}
+	}
+	const catalogTextPattern = /<(?<element>fileHref|filehref|qti-file-href)\b[^>]*>(?<rawHref>[^<]+)<\/(?:fileHref|filehref|qti-file-href)>/gi;
+	for (const match of xml.matchAll(catalogTextPattern)) {
+		const element = match.groups?.element ?? '';
+		const rawHref = decodeXmlAttribute(match.groups?.rawHref?.trim() ?? '');
 		if (!rawHref || isExternalPackageHref(rawHref)) continue;
 		refs.push({
-			kind: kindFromElement(element),
+			kind: 'catalog',
 			element,
-			attribute: rawHref === readAttribute(attrs, 'data') ? 'data' : rawHref === readAttribute(attrs, 'src') ? 'src' : 'href',
+			attribute: 'text',
 			rawHref,
 		});
 	}
 	return refs;
 }
 
+function referenceAttributesForElement(element: string): string[] {
+	switch (element.toLowerCase()) {
+		case 'object':
+			return ['data'];
+		case 'img':
+			return ['src', 'srcset'];
+		case 'video':
+			return ['src', 'poster'];
+		case 'audio':
+		case 'source':
+		case 'track':
+		case 'embed':
+			return ['src'];
+		case 'assessmentitemref':
+		case 'qti-assessment-item-ref':
+		case 'assessmentstimulusref':
+		case 'qti-assessment-stimulus-ref':
+		case 'stylesheet':
+		case 'qti-stylesheet':
+		case 'link':
+		case 'file':
+			return ['href', 'src'];
+		case 'filehref':
+		case 'qti-file-href':
+			return ['src', 'href'];
+		default:
+			return ['href', 'src', 'poster'];
+	}
+}
+
+function parseSrcsetHrefs(value: string): string[] {
+	return parseSrcsetCandidates(value).map((candidate) => candidate.url);
+}
+
 function kindFromElement(element: string): PackageReference['kind'] {
-	switch (element) {
-		case 'assessmentItemRef':
+	switch (element.toLowerCase()) {
+		case 'assessmentitemref':
+		case 'qti-assessment-item-ref':
 			return 'assessment-item-ref';
 		case 'stylesheet':
+		case 'qti-stylesheet':
 		case 'link':
 			return 'stylesheet';
+		case 'assessmentstimulusref':
+		case 'qti-assessment-stimulus-ref':
+			return 'stimulus';
+		case 'filehref':
+		case 'qti-file-href':
+			return 'catalog';
 		case 'object':
 			return 'object';
 		default:
 			return 'asset';
+	}
+}
+
+function referenceKindForMatch(kind: PackageReference['kind']): ResolvablePackageReferenceKind {
+	switch (kind) {
+		case 'assessment-item-ref':
+		case 'stimulus':
+			return 'source-xml';
+		case 'stylesheet':
+			return 'stylesheet';
+		case 'catalog':
+			return 'catalog-file';
+		case 'asset':
+		case 'object':
+			return 'media-asset';
+		default:
+			return 'other-asset';
 	}
 }
 
@@ -502,20 +688,26 @@ function buildClosure(
 		}
 		for (const reference of references.get(id) ?? []) {
 			if (reference.targetResourceId) visit(reference.targetResourceId);
-			if (reference.resolvedPath && reference.kind !== 'assessment-item-ref') {
+			if (reference.resolvedPath && reference.kind !== 'assessment-item-ref' && reference.kind !== 'stimulus') {
 				assetPaths.add(reference.resolvedPath);
+				filePaths.add(reference.resolvedPath);
+			} else if (reference.resolvedPath && !reference.targetResourceId) {
 				filePaths.add(reference.resolvedPath);
 			}
 		}
 	}
 
 	visit(resourceId);
+	const visitedResourceIds = new Set(visited);
 	return {
 		resourceId,
 		resourceIds: [...visited],
 		filePaths: [...filePaths],
 		assetPaths: [...assetPaths],
-		diagnostics: [...diagnostics, ...packageDiagnostics.filter((diagnostic) => diagnostic.resourceId === resourceId)],
+		diagnostics: [
+			...diagnostics,
+			...packageDiagnostics.filter((diagnostic) => diagnostic.resourceId && visitedResourceIds.has(diagnostic.resourceId)),
+		],
 	};
 }
 
@@ -564,6 +756,9 @@ function registerAsset(assets: Map<string, PackageAssetRef>, asset: PackageAsset
 		sourcePaths: [...sourcePaths],
 		sourceElement: existing.sourceElement ?? asset.sourceElement,
 		sourceAttribute: existing.sourceAttribute ?? asset.sourceAttribute,
+		resolutionStrategy: existing.resolutionStrategy ?? asset.resolutionStrategy,
+		heuristic: existing.heuristic ?? asset.heuristic,
+		renderHref: existing.renderHref ?? asset.renderHref,
 	});
 }
 
@@ -783,9 +978,15 @@ function buildRelationshipHints(
 ): PackageRelationshipHint[] {
 	const hints: PackageRelationshipHint[] = [];
 	for (const reference of references) {
-		if (reference.kind !== 'manifest-dependency' && reference.kind !== 'assessment-item-ref') continue;
+		if (
+			reference.kind !== 'manifest-dependency' &&
+			reference.kind !== 'assessment-item-ref' &&
+			reference.kind !== 'stimulus'
+		) {
+			continue;
+		}
 		hints.push({
-			kind: reference.kind,
+			kind: reference.kind === 'stimulus' ? 'assessment-stimulus-ref' : reference.kind,
 			sourceResourceId: reference.resourceId,
 			targetResourceId: reference.targetResourceId,
 			targetPath: reference.resolvedPath,

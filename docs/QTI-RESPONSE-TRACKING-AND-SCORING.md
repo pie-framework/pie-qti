@@ -235,6 +235,13 @@ Equivalent to:
 </responseProcessing>
 ```
 
+Compatibility note: some third-party exports store values in outcome defaults
+named like `${responseIdentifier}.CORRECT`. The player treats those as source
+content quirks, not as a generic alternate answer-key store. Default scoring uses
+`responseDeclaration/correctResponse` for `MATCH_CORRECT`; wiring outcome-default
+compatibility into scoring would require a separate audited design in
+`qti-processing` / declaration context rather than a hidden `Player` fallback.
+
 #### 2. `map_response`
 
 Uses a scoring map for partial credit:

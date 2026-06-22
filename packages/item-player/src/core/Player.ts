@@ -231,23 +231,25 @@ export class Player {
 		// Store PNP profile for later use (applyPnpToRoot is called once a root element is available).
 		this._pnp = config.pnp;
 
-		// Build catalog index from resolved delivery context, legacy shared catalog XML, and item XML.
-		// Item/global entries are merged first; item-level entries win on global collisions.
+		// Build catalog index from legacy shared catalog XML, item XML, and resolved delivery context.
+		// Sanitized item-level delivery context entries win over raw item XML on collisions.
 		// Stimulus entries are kept separately so rendered stimulus terms can avoid ID collisions.
 		let mergedCatalog: CatalogIndex = new Map();
+		let deliveryItemCatalog: CatalogIndex = new Map();
 		for (const source of config.deliveryContext?.catalogSources ?? []) {
 			const sourceCatalog = extractCatalog(source.xml);
 			if (source.scope === 'stimulus' && source.stimulusIdentifier) {
 				const existing = this._stimulusCatalogIndexes.get(source.stimulusIdentifier) ?? new Map();
 				this._stimulusCatalogIndexes.set(source.stimulusIdentifier, mergeCatalogs(existing, sourceCatalog));
 			} else {
-				mergedCatalog = mergeCatalogs(mergedCatalog, sourceCatalog);
+				deliveryItemCatalog = mergeCatalogs(deliveryItemCatalog, sourceCatalog);
 			}
 		}
 		if (config.catalogXml) {
 			mergedCatalog = mergeCatalogs(mergedCatalog, extractCatalogFromItemXml(config.catalogXml));
 		}
-		this._catalogIndex = mergeCatalogs(mergedCatalog, extractCatalogFromItemXml(this.itemXml));
+		mergedCatalog = mergeCatalogs(mergedCatalog, extractCatalogFromItemXml(this.itemXml));
+		this._catalogIndex = mergeCatalogs(mergedCatalog, deliveryItemCatalog);
 
 		// Check strict compliance if enabled
 		if (this.config.strictQtiCompliance?.enabled) {

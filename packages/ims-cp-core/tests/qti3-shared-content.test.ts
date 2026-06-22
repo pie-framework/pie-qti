@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { buildPackageFileIndex } from '../src/package-file-resolver.js';
 import {
 	createResolvedItemDeliveryContext,
 	extractAssessmentStimulusRefs,
@@ -136,10 +137,60 @@ describe('QTI 3 shared content parsing', () => {
 		expect(context.validationMessages).toEqual([]);
 	});
 
+	test('uses package file resolver evidence for stimuli, stylesheets, catalog files, and stimulus media', () => {
+		const itemXml = `<qti-assessment-item identifier="item-1">
+  <qti-stylesheet href="styles/theme.css"/>
+  <qti-assessment-stimulus-ref identifier="passage_1" href="shared/passage.xml"/>
+  <qti-item-body><p>Question body.</p></qti-item-body>
+  <qti-catalog-info>
+    <qti-card identifier="term_1">
+      <qti-card-entry usage="illustrated-glossary">
+        <qti-file-href src="icons/term.png"/>
+      </qti-card-entry>
+    </qti-card>
+  </qti-catalog-info>
+</qti-assessment-item>`;
+		const stimulusXml = `<qti-assessment-stimulus identifier="passage_1">
+  <qti-stimulus-body>
+    <p><img src="graphics/diagram.png" alt="Diagram"/> Shared passage.</p>
+  </qti-stimulus-body>
+</qti-assessment-stimulus>`;
+		const fileIndex = buildPackageFileIndex([
+			'content/items/item.xml',
+			'content/shared/passage.xml',
+			'shared/styles/theme.css',
+			'assets/graphics/diagram.png',
+			'shared/icons/term.png',
+		]);
+
+		const context = createResolvedItemDeliveryContext({
+			itemXml,
+			itemHref: 'content/items/item.xml',
+			fileIndex,
+			manifestEvidencePaths: new Set(['content/shared/passage.xml']),
+			readText: (path) => {
+				if (path === 'content/shared/passage.xml') return stimulusXml;
+				if (path === 'shared/styles/theme.css') return '.stem { color: red; }';
+				return null;
+			},
+			resolveAssetUrl: (path) => `asset://${path}`,
+		});
+
+		expect(context.stimuli.passage_1.resolvedHref).toBe('content/shared/passage.xml');
+		expect(context.stylesheets[0].resolvedHref).toBe('shared/styles/theme.css');
+		expect(context.stylesheets[0].cssText).toBe('.stem { color: red; }');
+		expect(context.stimuli.passage_1.bodyHtml).toContain('asset://assets/graphics/diagram.png');
+		expect(context.catalogSources[0].xml).toContain('src="shared/icons/term.png"');
+		expect(context.validationMessages).toEqual([]);
+	});
+
 	test('blocks unsafe stylesheet CSS text while preserving safe stylesheet metadata', () => {
 		const itemXml = `<qti-assessment-item identifier="item-1">
   <qti-stylesheet href="safe.css"/>
   <qti-stylesheet href="unsafe.css"/>
+  <qti-stylesheet href="comment-bypass.css"/>
+  <qti-stylesheet href="escaped-bypass.css"/>
+  <qti-stylesheet href="image-set-bypass.css"/>
   <qti-item-body><p>Question body.</p></qti-item-body>
 </qti-assessment-item>`;
 
@@ -149,6 +200,9 @@ describe('QTI 3 shared content parsing', () => {
 			readText: (path) => {
 				if (path === 'items/unit/safe.css') return '.term { color: #123456; }';
 				if (path === 'items/unit/unsafe.css') return '@import "https://evil.example/unsafe.css"; .term { color: red; }';
+				if (path === 'items/unit/comment-bypass.css') return '.term { background-image: u/**/rl("https://evil.example/a.png"); }';
+				if (path === 'items/unit/escaped-bypass.css') return '.term { background-image: \\75 rl("https://evil.example/a.png"); }';
+				if (path === 'items/unit/image-set-bypass.css') return '.term { background-image: image-set("https://evil.example/a.png" 1x); }';
 				return null;
 			},
 		});
@@ -156,10 +210,19 @@ describe('QTI 3 shared content parsing', () => {
 		expect(context.stylesheets.map((style) => style.resolvedHref)).toEqual([
 			'items/unit/safe.css',
 			'items/unit/unsafe.css',
+			'items/unit/comment-bypass.css',
+			'items/unit/escaped-bypass.css',
+			'items/unit/image-set-bypass.css',
 		]);
 		expect(context.stylesheets[0].cssText).toBe('.term { color: #123456; }');
 		expect(context.stylesheets[1].cssText).toBeUndefined();
+		expect(context.stylesheets[2].cssText).toBeUndefined();
+		expect(context.stylesheets[3].cssText).toBeUndefined();
+		expect(context.stylesheets[4].cssText).toBeUndefined();
 		expect(context.validationMessages.join(' ')).toContain('Stylesheet blocked by policy: items/unit/unsafe.css');
+		expect(context.validationMessages.join(' ')).toContain('Stylesheet blocked by policy: items/unit/comment-bypass.css');
+		expect(context.validationMessages.join(' ')).toContain('Stylesheet blocked by policy: items/unit/escaped-bypass.css');
+		expect(context.validationMessages.join(' ')).toContain('Stylesheet blocked by policy: items/unit/image-set-bypass.css');
 	});
 
 	test('blocks unsafe stimulus and stylesheet package references', () => {
@@ -222,11 +285,35 @@ describe('QTI 3 shared content parsing', () => {
 		});
 
 		expect(context.stimuli.passage_1.bodyHtml).not.toContain('private.png');
-		expect(context.stimuli.passage_1.bodyHtml).not.toContain('evil.example');
+		expect(context.stimuli.passage_1.bodyHtml).toContain('https://evil.example/video.mp4');
 		expect(context.stimuli.passage_1.bodyHtml).not.toContain('/poster.png');
-		expect(context.stimuli.passage_1.bodyHtml).not.toContain('srcset=');
+		expect(context.stimuli.passage_1.bodyHtml).toContain(
+			'srcset="asset://items/stimuli/images/river-small.png 1x, https://evil.example/river.png 2x"'
+		);
 		expect(context.catalogSources[0].xml).not.toContain('private.png');
 		expect(context.catalogSources[0].xml).not.toContain('/private-audio.mp3');
 		expect(context.catalogSources[0].xml).not.toContain('private-audio');
+	});
+
+	test('preserves external catalog file refs for player URL policy', () => {
+		const itemXml = `<qti-assessment-item identifier="item-1">
+  <qti-item-body><p>Question body.</p></qti-item-body>
+  <qti-catalog-info>
+    <qti-card identifier="term_1">
+      <qti-card-entry usage="illustrated-glossary">
+        <qti-file-href src="https://cdn.example/card.png"/>
+      </qti-card-entry>
+    </qti-card>
+  </qti-catalog-info>
+</qti-assessment-item>`;
+
+		const context = createResolvedItemDeliveryContext({
+			itemXml,
+			itemHref: 'items/unit/item.xml',
+			readText: () => null,
+		});
+
+		expect(context.catalogSources[0].xml).toContain('https://cdn.example/card.png');
+		expect(context.validationMessages).toEqual([]);
 	});
 });

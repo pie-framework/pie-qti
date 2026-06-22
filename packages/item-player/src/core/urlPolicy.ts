@@ -1,3 +1,4 @@
+import { decodeXmlAttribute } from '@pie-qti/ims-cp-core';
 import type { UrlPolicyConfig } from '../types/index.js';
 
 export type UrlKind = 'img' | 'media' | 'object' | 'link' | 'any';
@@ -9,12 +10,16 @@ const DEFAULT_POLICY: Required<Pick<
 	| 'allowProtocolRelative'
 	| 'allowDataImages'
 	| 'allowSvgDataImages'
+	| 'allowBlobImages'
+	| 'allowBlobMedia'
 >> = {
 	allowHttps: true,
 	allowHttp: false,
 	allowProtocolRelative: false,
 	allowDataImages: true,
 	allowSvgDataImages: false,
+	allowBlobImages: false,
+	allowBlobMedia: false,
 };
 
 function normalizePolicy(policy?: UrlPolicyConfig): UrlPolicyConfig & typeof DEFAULT_POLICY {
@@ -50,38 +55,49 @@ export function sanitizeResourceUrl(raw: string, policy?: UrlPolicyConfig, kind:
 	const p = normalizePolicy(policy);
 	const s = String(raw ?? '').trim();
 	if (!s) return null;
+	const decoded = decodeXmlAttribute(s);
+	const compact = stripUrlControlsAndWhitespace(decoded);
+	const safeValue = stripUrlControls(decoded).trim();
+	if (!compact || !safeValue) return null;
 
-	if (isDangerousScheme(s)) return null;
+	if (isDangerousScheme(compact)) return null;
 
 	// data: URLs (context-sensitive)
-	const dataOk = sanitizeDataUrl(s, kind, p);
+	const dataOk = sanitizeDataUrl(compact, kind, p);
 	if (dataOk) return dataOk;
-	if (s.toLowerCase().trim().startsWith('data:')) return null;
+	if (compact.toLowerCase().startsWith('data:')) return null;
 
 	// Protocol-relative URLs are treated as network loads and blocked by default.
-	if (s.startsWith('//')) return p.allowProtocolRelative ? `https:${s}` : null;
+	if (safeValue.startsWith('//')) return p.allowProtocolRelative ? `https:${safeValue}` : null;
 
+	if (compact.toLowerCase().startsWith('blob:')) {
+		if (kind === 'img' && p.allowBlobImages) return compact;
+		if (kind === 'media' && p.allowBlobMedia) return compact;
+		return null;
+	}
+
+	const hasScheme = /^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(compact);
 	// Relative/absolute-path URLs: allow and optionally resolve.
 	// Bare relative paths (e.g. "images/foo.png" from IMS CP manifests) are treated
 	// the same as "./" paths — they have no scheme and are safe to pass through.
-	if (s.startsWith('/') || s.startsWith('./') || s.startsWith('../') || !/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(s)) {
+	if (safeValue.startsWith('/') || safeValue.startsWith('./') || safeValue.startsWith('../') || !hasScheme) {
 		if (p.assetBaseUrl) {
 			try {
 				// Strip leading '/' to make URL constructor resolve relative to base path, not origin
-				const relativePath = s.startsWith('/') ? s.slice(1) : s;
+				const relativePath = safeValue.startsWith('/') ? safeValue.slice(1) : safeValue;
 				return new URL(relativePath, p.assetBaseUrl).toString();
 			} catch {
 				// assetBaseUrl resolution failed; return the raw relative path as-is
-				return s;
+				return safeValue;
 			}
 		}
-		return s;
+		return safeValue;
 	}
 
 	// Absolute URLs: allow only http/https (by policy) and optional host allowlist.
 	let u: URL;
 	try {
-		u = new URL(s);
+		u = new URL(compact);
 	} catch {
 		return null;
 	}
@@ -95,4 +111,11 @@ export function sanitizeResourceUrl(raw: string, policy?: UrlPolicyConfig, kind:
 	return u.toString();
 }
 
+function stripUrlControls(value: string): string {
+	return value.replace(/[\u0000-\u001F\u007F]+/g, '');
+}
+
+function stripUrlControlsAndWhitespace(value: string): string {
+	return value.replace(/[\u0000-\u001F\u007F\s]+/g, '');
+}
 

@@ -22,6 +22,8 @@ export function resolvePackagePathFromFile(baseHref: string, href: string): stri
 
 export function resolveCheckedPackagePath(basePath: string | undefined, href: string): string | null {
 	if (!isPackageRelativeHref(href)) return null;
+	if (hasUnsafeEncodedPathToken(href)) return null;
+	if (!isSafePackageBasePath(basePath)) return null;
 	const result = resolvePackagePathInternal(basePath, href, { rejectRootEscape: true });
 	return result.escapedRoot ? null : result.path;
 }
@@ -37,6 +39,13 @@ export function isPackageRelativeHref(href: string): boolean {
 
 export function isExternalPackageHref(href: string): boolean {
 	return /^(?:[a-z][a-z0-9+.-]*:|\/\/|#)/i.test(href);
+}
+
+function isSafePackageBasePath(basePath: string | undefined): boolean {
+	if (!basePath) return true;
+	if (!isPackageRelativeHref(basePath)) return false;
+	if (hasUnsafeEncodedPathToken(basePath)) return false;
+	return !resolvePackagePathInternal(undefined, basePath, { rejectRootEscape: true }).escapedRoot;
 }
 
 function resolvePackagePathInternal(
@@ -64,4 +73,27 @@ function resolvePackagePathInternal(
 	}
 
 	return { path: normalized.join('/'), escapedRoot };
+}
+
+function hasUnsafeEncodedPathToken(href: string): boolean {
+	let current = href;
+	for (let i = 0; i < 3; i += 1) {
+		if (/%(?:2e|2f|5c)/i.test(current)) {
+			return true;
+		}
+		const decoded = safeDecodeURIComponent(current);
+		if (decoded === current) {
+			return false;
+		}
+		current = decoded;
+	}
+	return /%(?:2e|2f|5c)/i.test(current);
+}
+
+function safeDecodeURIComponent(value: string): string {
+	try {
+		return decodeURIComponent(value);
+	} catch {
+		return value;
+	}
 }

@@ -8,13 +8,14 @@ import {
 	loadPackageFromStorage as loadPackage,
 	SessionStorageBackend,
 	resolveImagesInXml as resolveImagesInXmlCore,
-	tryResolveImagePath
 } from '@pie-qti/ims-cp-browser';
 import type { VirtualPackage } from '@pie-qti/ims-cp-browser';
 import {
+	buildPackageFileIndex,
 	createResolvedItemDeliveryContext,
 	extractAssessmentStimulusRefs,
 	extractQtiItemMetadata,
+	resolvePackageReference,
 	type AssessmentStimulusRef,
 	type QtiItemMetadata,
 	type ResolvedItemDeliveryContext
@@ -353,22 +354,39 @@ function resolveMediaReferencesInXml(xml: string, pkg: PackageStructure, itemHre
 		return xml;
 	}
 
-	const itemDir = itemHref.substring(0, itemHref.lastIndexOf('/') + 1);
-	for (const el of Array.from(doc.querySelectorAll('video[src], audio[src], source[src], track[src]'))) {
-		const src = el.getAttribute('src');
-		if (!src || src.startsWith('data:') || src.startsWith('blob:') || /^https?:\/\//i.test(src)) {
+	const fileIndex = buildPackageFileIndex([...pkg._pkg.files.keys()]);
+	for (const el of Array.from(doc.querySelectorAll('video[src], audio[src], source[src], track[src], embed[src], object[data]'))) {
+		const attr = el.hasAttribute('data') ? 'data' : 'src';
+		const raw = el.getAttribute(attr);
+		if (!raw) {
+			continue;
+		}
+		if (raw.startsWith('data:') || raw.startsWith('blob:') || /^https?:\/\//i.test(raw)) {
+			continue;
+		}
+		if (el.tagName.toLowerCase() === 'object' && !isResolvableMediaObject(el.getAttribute('type'))) {
 			continue;
 		}
 
-		const resolvedUrl = tryResolveImagePath(src, itemDir)
-			.map((path) => pkg._pkg.getDataUrl(path))
-			.find((url): url is string => !!url);
+		const resolved = resolvePackageReference({
+			fileIndex,
+			sourcePath: itemHref,
+			rawHref: raw,
+			referenceKind: 'media-asset',
+		});
+		const resolvedUrl = resolved.status === 'resolved' ? pkg._pkg.getDataUrl(resolved.resolvedPath) : null;
 		if (resolvedUrl) {
-			el.setAttribute('src', resolvedUrl);
+			el.setAttribute(attr, resolvedUrl);
+		} else {
+			el.removeAttribute(attr);
 		}
 	}
 
 	return new XMLSerializer().serializeToString(doc);
+}
+
+function isResolvableMediaObject(type: string | null): boolean {
+	return !type || /^(?:image|audio|video)\//i.test(type);
 }
 
 export type StimulusRef = AssessmentStimulusRef;
@@ -410,9 +428,12 @@ export async function loadItemDeliveryContext(
 	itemHref: string,
 	itemXml: string
 ): Promise<ResolvedItemDeliveryContext> {
+	const filePaths = [...pkg._pkg.files.keys()];
 	const context = createResolvedItemDeliveryContext({
 		itemXml,
 		itemHref,
+		fileIndex: buildPackageFileIndex(filePaths),
+		manifestEvidencePaths: manifestEvidencePaths(pkg),
 		readText: (path) => pkg._pkg.readText(path),
 		resolveAssetUrl: (path) => pkg._pkg.getDataUrl(path),
 	});
@@ -422,4 +443,17 @@ export async function loadItemDeliveryContext(
 	}
 
 	return context;
+}
+
+function manifestEvidencePaths(pkg: PackageStructure): Set<string> {
+	const paths = new Set<string>();
+	for (const resource of pkg._pkg.manifest.resources.values()) {
+		if (resource.hrefResolved) {
+			paths.add(resource.hrefResolved);
+		}
+		for (const filePath of resource.filesResolved) {
+			paths.add(filePath);
+		}
+	}
+	return paths;
 }

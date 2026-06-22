@@ -174,4 +174,41 @@ describe('resolved item delivery context', () => {
 
 		expect(player.getCatalogEntry('term_1', 'illustrated-glossary')).toBeNull();
 	});
+
+	test('resolved item catalog entries override raw item catalog entries', () => {
+		const player = new Player({
+			itemXml: `<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="item-1">
+  <qti-item-body><p data-catalog-idref="term_1">term</p></qti-item-body>
+  <qti-catalog-info>
+    <qti-card identifier="term_1">
+      <qti-card-entry usage="illustrated-glossary">
+        <qti-file-href src="https://evil.example/image.png"/>
+      </qti-card-entry>
+    </qti-card>
+  </qti-catalog-info>
+</qti-assessment-item>`,
+			security: { urlPolicy: { allowHttps: true, allowedHosts: ['good.example'] } },
+			deliveryContext: {
+				itemHref: 'items/item.xml',
+				stimuli: {},
+				stylesheets: [],
+				catalogSources: [
+					{
+						scope: 'item',
+						baseHref: 'items/item.xml',
+						xml: `<qti-catalog-info>
+  <qti-card identifier="term_1">
+    <qti-card-entry usage="illustrated-glossary">
+      <qti-file-href src="https://good.example/image.png"/>
+    </qti-card-entry>
+  </qti-card>
+</qti-catalog-info>`,
+					},
+				],
+				validationMessages: [],
+			},
+		});
+
+		expect(player.getCatalogEntry('term_1', 'illustrated-glossary')).toBe('https://good.example/image.png');
+	});
 });

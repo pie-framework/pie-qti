@@ -174,6 +174,91 @@ describe('QTI 3.0 Advanced — I4 shared stimulus delivery context', () => {
 		expect(itemRef.deliveryContext?.stimuli.passage_1.bodyHtml).toContain('Shared river passage');
 		expect(itemRef.deliveryContext?.stylesheets[0].resolvedHref).toBe('stimuli/passage.css');
 	});
+
+	it('resolves item-level stylesheet delivery context without a shared stimulus', async () => {
+		const testXml = `<qti-assessment-test xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="style-test" title="Styles">
+  <qti-test-part identifier="part-1" navigation-mode="linear" submission-mode="individual">
+    <qti-assessment-section identifier="section-1" visible="true">
+      <qti-assessment-item-ref identifier="item-1" href="items/item-1.xml"/>
+    </qti-assessment-section>
+  </qti-test-part>
+</qti-assessment-test>`;
+		const itemXml = `<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="item-1">
+  <qti-stylesheet href="item.css"/>
+  <qti-item-body><p>Styled question.</p></qti-item-body>
+</qti-assessment-item>`;
+
+		const assessment = await parseAssessment(testXml, {
+			itemXmlMap: {
+				'items/item-1.xml': itemXml,
+				'items/item.css': '.stem { color: blue; }',
+			},
+		});
+		const itemRef = assessment.testParts[0].sections[0].assessmentItemRefs[0];
+
+		expect(itemRef.deliveryContext?.stylesheets[0].resolvedHref).toBe('items/item.css');
+		expect(itemRef.deliveryContext?.stylesheets[0].cssText).toBe('.stem { color: blue; }');
+	});
+
+	it('does not call fileResolver for unsafe delivery-context refs', async () => {
+		const testXml = `<qti-assessment-test xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="unsafe-style-test" title="Unsafe Styles">
+  <qti-test-part identifier="part-1" navigation-mode="linear" submission-mode="individual">
+    <qti-assessment-section identifier="section-1" visible="true">
+      <qti-assessment-item-ref identifier="item-1" href="items/item-1.xml"/>
+    </qti-assessment-section>
+  </qti-test-part>
+</qti-assessment-test>`;
+		const itemXml = `<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="item-1">
+  <qti-stylesheet href="../../../outside.css"/>
+  <qti-item-body>
+    <qti-assessment-stimulus-ref identifier="passage_1" href="%252e%252e/passage.xml"/>
+  </qti-item-body>
+</qti-assessment-item>`;
+		const resolverCalls: string[] = [];
+
+		const assessment = await parseAssessment(testXml, {
+			itemXmlMap: {
+				'items/item-1.xml': itemXml,
+			},
+			fileResolver: async (href) => {
+				resolverCalls.push(href);
+				return '';
+			},
+		});
+		const itemRef = assessment.testParts[0].sections[0].assessmentItemRefs[0];
+
+		expect(resolverCalls).toEqual([]);
+		expect(itemRef.deliveryContext?.stylesheets).toEqual([]);
+		expect(itemRef.deliveryContext?.validationMessages.join(' ')).toContain('Item stylesheet href escapes the package root');
+		expect(itemRef.deliveryContext?.validationMessages.join(' ')).toContain('Stimulus passage_1 href escapes the package root');
+	});
+
+	it('does not call fileResolver for unsafe item or section refs', async () => {
+		const testXml = `<qti-assessment-test xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="unsafe-ref-test" title="Unsafe Refs">
+  <qti-test-part identifier="part-1" navigation-mode="linear" submission-mode="individual">
+    <qti-assessment-section identifier="section-1" visible="true">
+      <qti-assessment-item-ref identifier="unsafe-item" href="%252e%252e/item.xml"/>
+    </qti-assessment-section>
+    <qti-assessment-section-ref href="../../../sections/section.xml"/>
+  </qti-test-part>
+</qti-assessment-test>`;
+		const resolverCalls: string[] = [];
+
+		const assessment = await parseAssessment(testXml, {
+			itemXmlMap: {
+				'unsafe-item': makeChoiceItem('unsafe-item'),
+				'%252e%252e/item.xml': makeChoiceItem('unsafe-item-by-href'),
+			},
+			fileResolver: async (href) => {
+				resolverCalls.push(href);
+				return '';
+			},
+		});
+
+		expect(resolverCalls).toEqual([]);
+		expect(assessment.testParts[0].sections[0].assessmentItemRefs[0].itemXml).toBe('');
+		expect(assessment.testParts[0].sections).toHaveLength(1);
+	});
 });
 
 describe('QTI 3.0 Advanced — T5 Item Session Control', () => {

@@ -97,4 +97,51 @@ describe('QTI stylesheet runtime rendering helpers', () => {
 
 		expect(buildScopedStylesheetCss(deliveryContext)).toBe('');
 	});
+
+	test('drops comment-split and escaped unsafe CSS at render time', () => {
+		const deliveryContext: ResolvedItemDeliveryContext = {
+			itemHref: 'items/item.xml',
+			stimuli: {},
+			stylesheets: [
+				{
+					href: 'comment-bypass.css',
+					xml: '<qti-stylesheet href="comment-bypass.css"/>',
+					resolvedHref: 'items/comment-bypass.css',
+					source: 'item',
+					cssText: '.term { background-image: u/**/rl("https://evil.example/a.png"); }',
+				},
+				{
+					href: 'escaped-bypass.css',
+					xml: '<qti-stylesheet href="escaped-bypass.css"/>',
+					resolvedHref: 'items/escaped-bypass.css',
+					source: 'item',
+					cssText: '.term { background-image: \\75 rl("https://evil.example/a.png"); }',
+				},
+			],
+			catalogSources: [],
+			validationMessages: [],
+		};
+
+		expect(buildScopedStylesheetCss(deliveryContext)).toBe('');
+	});
+
+	test('drops CSS image-set external loads at render time', () => {
+		const deliveryContext: ResolvedItemDeliveryContext = {
+			itemHref: 'items/item.xml',
+			stimuli: {},
+			stylesheets: [
+				{
+					href: 'image-set.css',
+					xml: '<qti-stylesheet href="image-set.css"/>',
+					resolvedHref: 'items/image-set.css',
+					source: 'item',
+					cssText: '.term { background-image: image-set("https://evil.example/a.png" 1x); }',
+				},
+			],
+			catalogSources: [],
+			validationMessages: [],
+		};
+
+		expect(buildScopedStylesheetCss(deliveryContext)).toBe('');
+	});
 });
