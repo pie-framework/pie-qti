@@ -6,6 +6,8 @@
 	 * Shows feedback when QTI outcome conditions are met.
 	 */
 	import type { I18nProvider } from '@pie-qti/i18n';
+	import type { PlayerSecurityConfig } from '@pie-qti/item-player';
+	import SanitizedHtml from '../../../section-player/src/components/SanitizedHtml.svelte';
 
 	interface FeedbackItem {
 		identifier: string;
@@ -23,6 +25,8 @@
 		/** CSS class for custom styling */
 		class?: string;
 		i18n?: I18nProvider;
+		security?: PlayerSecurityConfig;
+		typeset?: (root: HTMLElement) => void | Promise<void>;
 	}
 
 	let {
@@ -30,7 +34,9 @@
 		onDismiss,
 		dismissable = false,
 		class: className = '',
-		i18n
+		i18n,
+		security,
+		typeset
 	}: Props = $props();
 
 	// Track dismissed items
@@ -51,9 +57,13 @@
 	<div class="test-feedback {className}" role="region" aria-label={i18n?.t('feedback.testFeedback') ?? 'Test feedback'}>
 		{#each visibleFeedback as item (item.identifier)}
 			<div class="feedback-item" data-identifier={item.identifier}>
-				<div class="feedback-content">
-					{@html item.content}
-				</div>
+				<SanitizedHtml
+					rawHtml={item.content}
+					{security}
+					sanitizeContext={{ kind: 'test-feedback', source: item.identifier }}
+					class="feedback-content"
+					{typeset}
+				/>
 				{#if dismissable}
 					<button
 						class="feedback-dismiss"

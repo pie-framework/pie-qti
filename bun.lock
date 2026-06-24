@@ -134,6 +134,7 @@
         "@pie-qti/item-player": "workspace:*",
         "@pie-qti/qti-common": "workspace:*",
         "@pie-qti/qti-processing": "workspace:*",
+        "@pie-qti/section-player": "workspace:*",
         "node-html-parser": "^7.0.2",
       },
       "devDependencies": {

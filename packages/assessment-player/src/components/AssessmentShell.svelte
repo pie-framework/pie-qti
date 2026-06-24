@@ -1,17 +1,16 @@
 <script lang="ts">
 	import { onMount, tick, getContext } from 'svelte';
 	import type { SvelteI18nProvider } from '@pie-qti/i18n';
+	import type { QtiSharedHtmlBlock } from '@pie-qti/section-player';
+	import { SectionPlayerSplitPane, SectionPlayerVertical, TestFeedback as SectionTestFeedback } from '../../../section-player/src/components/index.js';
 	import type { BackendAssessmentPlayerConfig } from '../core/AssessmentPlayer.js';
 	import { AssessmentPlayer } from '../core/AssessmentPlayer.js';
 	import type { BackendAdapter, InitSessionRequest } from '../integration/api-contract.js';
+	import { toSectionComposition } from '../integration/toSectionComposition.js';
 	import type { AssessmentResults, NavigationState } from '../types/index.js';
 	import AccessibilityAnnouncer from './AccessibilityAnnouncer.svelte';
 	import AssessmentHeader from './AssessmentHeader.svelte';
-	import ItemRenderer from './ItemRenderer.svelte';
 	import NavigationBar from './NavigationBar.svelte';
-	import RubricDisplay from './RubricDisplay.svelte';
-	import SplitPaneResizer from './SplitPaneResizer.svelte';
-	import TestFeedback from './TestFeedback.svelte';
 
 	interface Props {
 		backend: BackendAdapter;
@@ -49,17 +48,36 @@
 	let sections = $state<any[]>([]);
 	let error = $state<string | null>(null);
 	let navError = $state<string | null>(null);
-	let itemPaneEl = $state<HTMLDivElement | null>(null);
+	let itemPaneEl = $state<HTMLElement | null>(null);
 	let rootEl = $state<HTMLElement | null>(null);
 	let testFeedback = $state<Array<{ identifier: string; content: string; access: string }>>([]);
 	let isComplete = $state(false);
 	let initTimeout: ReturnType<typeof setTimeout> | null = null;
 	let hasFirstItem = $state(false);
 	let announcer = $state<AccessibilityAnnouncer | null>(null);
+	let responseVersion = $state(0);
+	let stateVersion = $state(0);
 
-	const passageBlocks = $derived(currentRubricBlocks.filter((b) => b?.use === 'passage'));
-	const nonPassageRubricBlocks = $derived(currentRubricBlocks.filter((b) => b?.use !== 'passage'));
-	const hasPassage = $derived(passageBlocks.length > 0);
+	const sectionComposition = $derived.by(() => {
+		responseVersion;
+		stateVersion;
+		return player ? toSectionComposition(player, config) : null;
+	});
+	const hasSplitPane = $derived(sectionComposition?.layout === 'split-pane');
+	const sectionRole = $derived(config.role ?? 'candidate');
+	const extendedTextEditor = $derived(
+		config.extendedTextEditor === 'textarea' || config.extendedTextEditor === 'tiptap'
+			? config.extendedTextEditor
+			: undefined
+	);
+	const testFeedbackBlocks = $derived<QtiSharedHtmlBlock[]>(
+		testFeedback.map((item) => ({
+			identifier: item.identifier,
+			kind: 'test-feedback',
+			scope: 'assessment',
+			rawHtml: item.content,
+		}))
+	);
 
 	// Initialize player
 	onMount(() => {
@@ -106,6 +124,7 @@
 
 			player.onResponseChange((responses) => {
 				currentResponses = responses;
+				responseVersion += 1;
 			});
 
 			// If backend did not restore a current item, start at index 0.
@@ -143,6 +162,7 @@
 		currentItem = player.getCurrentItem();
 		currentRubricBlocks = player.getCurrentRubricBlocks();
 		currentResponses = player.getResponses();
+		stateVersion += 1;
 	}
 
 	async function handlePrevious() {
@@ -237,13 +257,9 @@
 		}
 	}
 
-	function handleResponseChange(responseId: string, value: unknown) {
-		if (!player) return;
-		if (currentItem?.identifier) {
-			player.updateResponseForItem(currentItem.identifier, responseId, value);
-		} else {
-			player.updateResponse(responseId, value);
-		}
+	function handleSectionResponseChange(itemIdentifier: string, responseIdentifier: string, value: unknown) {
+		player?.updateResponseForItem(itemIdentifier, responseIdentifier, value);
+		responseVersion += 1;
 	}
 
 	/**
@@ -325,7 +341,13 @@
 
 		<!-- Test Feedback (shown after completion) -->
 		{#if isComplete && testFeedback.length > 0}
-			<TestFeedback feedback={testFeedback} />
+			<SectionTestFeedback
+				feedback={testFeedbackBlocks}
+				role={sectionRole}
+				{i18n}
+				security={config.security}
+				{typeset}
+			/>
 		{/if}
 
 		{#if navError}
@@ -351,54 +373,34 @@
 
 		<!-- Main content area -->
 		<div
-			class:has-passage={hasPassage}
+			class:has-passage={hasSplitPane}
 			class="assessment-content"
 			tabindex="-1"
 			role="region"
 			aria-label={i18n?.t('accessibility.itemBody') ?? 'Question content'}
 		>
-			{#if hasPassage}
-				<SplitPaneResizer
-					leftContent={passageBlocks}
-					{typeset}
-					storageKey="pie-qti22-assessment-player.splitLeftPct"
-					onRightPaneReady={(el) => itemPaneEl = el}
-				>
-					{#if nonPassageRubricBlocks.length > 0}
-						<RubricDisplay blocks={nonPassageRubricBlocks} {typeset} />
-					{/if}
-
-					{#if currentItem}
-						<ItemRenderer
-							itemRef={currentItem}
-							responses={currentResponses}
-							role={config.role || 'candidate'}
-							extendedTextEditor={config.extendedTextEditor || 'tiptap'}
-							onResponseChange={handleResponseChange}
-							{typeset}
-							{i18n}
-							security={config.security}
-							pnp={config.pnp}
-						/>
-					{/if}
-				</SplitPaneResizer>
-			{:else}
-				<!-- Rubric blocks (passages, instructions) -->
-				{#if currentRubricBlocks.length > 0}
-					<RubricDisplay blocks={currentRubricBlocks} {typeset} />
-				{/if}
-
-				<!-- Current item -->
-				{#if currentItem}
-					<ItemRenderer
-						itemRef={currentItem}
-						responses={currentResponses}
-						role={config.role || 'candidate'}
-						onResponseChange={handleResponseChange}
-						{typeset}
+			{#if sectionComposition}
+				{#if sectionComposition.layout === 'split-pane'}
+					<SectionPlayerSplitPane
+						composition={sectionComposition}
 						{i18n}
 						security={config.security}
 						pnp={config.pnp}
+						extendedTextEditor={extendedTextEditor}
+						{typeset}
+						onResponseChange={handleSectionResponseChange}
+						onItemPaneReady={(el) => (itemPaneEl = el)}
+					/>
+				{:else}
+					<SectionPlayerVertical
+						composition={sectionComposition}
+						{i18n}
+						security={config.security}
+						pnp={config.pnp}
+						extendedTextEditor={extendedTextEditor}
+						{typeset}
+						onResponseChange={handleSectionResponseChange}
+						onItemPaneReady={(el) => (itemPaneEl = el)}
 					/>
 				{/if}
 			{/if}

@@ -19,6 +19,7 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
 import { AssessmentPlayer } from '../src/core/AssessmentPlayer.js';
 import { ReferenceBackendAdapter } from '../src/integration/ReferenceBackendAdapter.js';
+import { toSectionComposition } from '../src/integration/toSectionComposition.js';
 import type { SecureAssessment } from '../src/integration/api-contract.js';
 
 // ---------------------------------------------------------------------------
@@ -183,6 +184,77 @@ async function createPlayer(assessment: SecureAssessment): Promise<AssessmentPla
 	});
 	await player.navigateTo(0);
 	return player;
+}
+
+async function createPlayerWithSectionRubrics(
+	sectionRubricBlocks: NonNullable<SecureAssessment['testParts'][number]['sections'][number]['rubricBlocks']> = [
+		{
+			identifier: 'section-passage',
+			use: 'passage',
+			content: '<p>Shared section passage</p>',
+			view: ['candidate'],
+		},
+	]
+): Promise<AssessmentPlayer> {
+	return createPlayer({
+		identifier: 'task-5-section-rubrics',
+		title: 'Task 5 Section Rubrics',
+		navigationMode: 'nonlinear',
+		submissionMode: 'individual',
+		testParts: [
+			{
+				identifier: 'testPart-1',
+				rubricBlocks: [
+					{
+						identifier: 'testpart-directions',
+						use: 'instructions',
+						content: '<p>Read all directions before answering.</p>',
+						view: ['candidate'],
+					},
+				],
+				sections: [
+					{
+						identifier: 'section-1',
+						title: 'Section 1',
+						visible: true,
+						rubricBlocks: sectionRubricBlocks,
+						assessmentItemRefs: [
+							{
+								identifier: 'rubric-item-1',
+								role: 'candidate',
+								itemXml: makeSimpleChoiceItem('rubric-item-1'),
+							},
+						],
+					},
+				],
+			},
+		],
+	});
+}
+
+async function createTwoItemPlayerWithRepeatedResponseIdentifier(): Promise<AssessmentPlayer> {
+	return createPlayer({
+		identifier: 'task-5-repeated-response-identifiers',
+		title: 'Task 5 Repeated Response Identifiers',
+		navigationMode: 'nonlinear',
+		submissionMode: 'individual',
+		testParts: [
+			{
+				identifier: 'testPart-1',
+				sections: [
+					{
+						identifier: 'section-1',
+						title: 'Section 1',
+						visible: true,
+						assessmentItemRefs: [
+							{ identifier: 'item-1', role: 'candidate', itemXml: makeSimpleChoiceItem('item-1') },
+							{ identifier: 'item-2', role: 'candidate', itemXml: makeSimpleChoiceItem('item-2') },
+						],
+					},
+				],
+			},
+		],
+	});
 }
 
 // ---------------------------------------------------------------------------
@@ -580,5 +652,45 @@ describe('QTI 2.2 Advanced — S5 Rubric Block in Sections (clean-room XML)', ()
 		const rubrics3 = player.getCurrentRubricBlocks();
 		expect(rubrics3).toHaveLength(1);
 		expect(rubrics3[0].content).toContain('Section 3');
+	});
+});
+
+describe('Task 5 — assessment player section composition delegation', () => {
+	it('maps current section passage rubric blocks into section composition', async () => {
+		const player = await createPlayerWithSectionRubrics();
+		await player.navigateTo(0);
+
+		const composition = toSectionComposition(player);
+
+		expect(composition.layout).toBe('split-pane');
+		expect(composition.sharedContext.passages[0]?.rawHtml).toContain('passage');
+		expect(composition.sharedContext.rubricBlocks.map((block) => block.identifier)).toContain('testpart-directions');
+		expect(composition.activeItem.identifier).toBe(player.getCurrentItem()?.identifier);
+	});
+
+	it('does not expose scorer-only section rubric blocks to candidate section composition', async () => {
+		const player = await createPlayerWithSectionRubrics([
+			{ identifier: 'candidate-rubric', use: 'rubric', content: '<p>Candidate</p>', view: ['candidate'] },
+			{ identifier: 'scorer-rubric', use: 'rubric', content: '<p>Scorer secret</p>', view: ['scorer'] },
+		]);
+
+		const composition = toSectionComposition(player, { role: 'candidate' });
+
+		expect(composition.sharedContext.rubricBlocks.map((block) => block.identifier)).toContain('candidate-rubric');
+		expect(composition.sharedContext.rubricBlocks.map((block) => block.identifier)).not.toContain('scorer-rubric');
+	});
+
+	it('preserves active item responses by item identifier when response identifiers repeat', async () => {
+		const player = await createTwoItemPlayerWithRepeatedResponseIdentifier();
+
+		player.updateResponseForItem('item-1', 'RESPONSE', 'A');
+		player.updateResponseForItem('item-2', 'RESPONSE', 'B');
+		await player.navigateTo(0);
+
+		const composition = toSectionComposition(player, { role: 'candidate' });
+
+		expect(composition.snapshot.responses['item-1']?.RESPONSE).toBe('A');
+		expect(composition.snapshot.responses['item-2']?.RESPONSE).toBe('B');
+		expect(composition.activeItem.responses?.RESPONSE).toBe('A');
 	});
 });

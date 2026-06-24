@@ -98,6 +98,14 @@ type CurrentItemView = {
 	deliveryContext?: SecureItemRef['deliveryContext'];
 };
 
+type SectionItemRefView = {
+	identifier: string;
+	href?: string;
+	title?: string;
+	itemXml: string;
+	deliveryContext?: SecureItemRef['deliveryContext'];
+};
+
 export interface EffectiveItemTimeLimits {
 	timeLimits?: TimeLimits;
 	source?: 'item' | 'section' | 'testPart' | 'assessment';
@@ -370,6 +378,38 @@ export class AssessmentPlayer {
 		};
 	}
 
+	public getCurrentSectionItemRefs(): SectionItemRefView[] {
+		const current = this.items[this.currentItemIndex];
+		if (!current) return [];
+
+		return this.items
+			.filter((item) => item.section === current.section)
+			.map((item) => {
+				const itemRef = item.item as SecureItemRef & { href?: string; title?: string };
+				return {
+					identifier: itemRef.identifier,
+					href: itemRef.href,
+					title: itemRef.title,
+					itemXml: itemRef.itemXml,
+					deliveryContext: cloneData(itemRef.deliveryContext),
+				};
+			});
+	}
+
+	public getResponsesForItem(itemIdentifier: string): Record<string, unknown> {
+		return this.sessionCoordinator.getResponses(itemIdentifier);
+	}
+
+	public getCurrentSharedRubricBlocks(): AssessmentRubricBlock[] {
+		const q = this.items[this.currentItemIndex];
+		if (!q) return [];
+
+		return [
+			...(q.testPart.rubricBlocks ?? []),
+			...(q.section.rubricBlocks ?? []),
+		].map((block) => ({ ...block, view: [...block.view] }));
+	}
+
 	public getCurrentRubricBlocks(): AssessmentRubricBlock[] {
 		const q = this.items[this.currentItemIndex];
 		if (!q) return [];
@@ -377,7 +417,7 @@ export class AssessmentPlayer {
 	}
 
 	public getVisibleFeedback(): Array<{ identifier: string; content: string; access: string }> {
-		return this.visibleFeedback;
+		return this.visibleFeedback.map((item) => ({ ...item }));
 	}
 
 	public updateResponse(responseId: string, value: unknown): void {
@@ -949,4 +989,8 @@ function shuffleArray<T>(arr: T[], rng: () => number): T[] {
 		[out[i], out[j]] = [out[j], out[i]];
 	}
 	return out;
+}
+
+function cloneData<T>(value: T | undefined): T | undefined {
+	return value === undefined ? undefined : structuredClone(value);
 }

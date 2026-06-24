@@ -75,3 +75,4 @@ export {
 	scoreAssessmentItem,
 	type AssessmentItemScoringInput,
 } from './assessment-item-scorer.js';
+export { toSectionComposition } from './toSectionComposition.js';
