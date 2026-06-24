@@ -18,6 +18,7 @@
       "@pie-qti/player-elements",
       "@pie-qti/qti-common",
       "@pie-qti/qti-processing",
+      "@pie-qti/section-player",
       "@pie-qti/source-profiles",
       "@pie-qti/storage",
       "@pie-qti/test-utils",

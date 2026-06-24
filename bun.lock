@@ -340,6 +340,19 @@
         "typescript": "^5.9.3",
       },
     },
+    "packages/section-player": {
+      "name": "@pie-qti/section-player",
+      "version": "0.1.13",
+      "dependencies": {
+        "@pie-qti/ims-cp-core": "workspace:*",
+        "@pie-qti/item-player": "workspace:*",
+      },
+      "devDependencies": {
+        "@biomejs/biome": "^2.4.8",
+        "@types/node": "^25.0.3",
+        "typescript": "^5.9.3",
+      },
+    },
     "packages/source-profiles": {
       "name": "@pie-qti/source-profiles",
       "version": "0.1.13",
@@ -826,6 +839,8 @@
     "@pie-qti/qti-common": ["@pie-qti/qti-common@workspace:packages/qti-common"],
 
     "@pie-qti/qti-processing": ["@pie-qti/qti-processing@workspace:packages/qti-processing"],
+
+    "@pie-qti/section-player": ["@pie-qti/section-player@workspace:packages/section-player"],
 
     "@pie-qti/source-profiles": ["@pie-qti/source-profiles@workspace:packages/source-profiles"],
 

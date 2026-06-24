@@ -44,6 +44,9 @@
 		],
 		"@pie-qti/i18n": [
 			"./components"
+		],
+		"@pie-qti/section-player": [
+			"./components"
 		]
 	}
 }
