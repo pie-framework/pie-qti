@@ -42,9 +42,9 @@
 	);
 
 	let itemPaneElement = $state<HTMLElement | null>(null);
-	let reportedItemPaneElement = $state<HTMLElement | null>(null);
-	let reportedActiveItemKey = $state<string | null>(null);
-	let reportedSnapshot = $state<ResolvedQtiSectionComposition['snapshot'] | null>(null);
+	let reportedItemPaneElement: HTMLElement | null = null;
+	let reportedActiveItemKey: string | null = null;
+	let reportedSnapshot: ResolvedQtiSectionComposition['snapshot'] | null = null;
 
 	$effect(() => {
 		if (itemPaneElement && itemPaneElement !== reportedItemPaneElement) {

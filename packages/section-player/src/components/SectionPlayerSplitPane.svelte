@@ -42,8 +42,8 @@
 		composition.snapshot.responses[composition.activeItem.identifier] ?? composition.activeItem.responses ?? {}
 	);
 
-	let reportedActiveItemKey = $state<string | null>(null);
-	let reportedSnapshot = $state<ResolvedQtiSectionComposition['snapshot'] | null>(null);
+	let reportedActiveItemKey: string | null = null;
+	let reportedSnapshot: ResolvedQtiSectionComposition['snapshot'] | null = null;
 
 	$effect(() => {
 		const activeItemKey = `${composition.section.identifier}:${composition.activeItem.identifier}:${composition.activeItemIndex}:${composition.section.itemRefs.length}`;
