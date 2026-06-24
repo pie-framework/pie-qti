@@ -59,6 +59,8 @@ export interface QtiSharedStimulus {
 export interface QtiResolvedStylesheetRef {
   href: string;
   resolvedHref?: string;
+  renderHref?: string;
+  browserHref?: string;
   source?: string;
 }
 
