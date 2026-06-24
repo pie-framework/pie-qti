@@ -48,11 +48,34 @@
 		onFrameworkError,
 	}: Props = $props();
 
+	const defaultInteractionTags = [
+		'pie-qti-choice',
+		'pie-qti-slider',
+		'pie-qti-order',
+		'pie-qti-match',
+		'pie-qti-associate',
+		'pie-qti-gap-match',
+		'pie-qti-hotspot',
+		'pie-qti-hottext',
+		'pie-qti-media',
+		'pie-qti-custom',
+		'pie-qti-end-attempt',
+		'pie-qti-position-object',
+		'pie-qti-graphic-gap-match',
+		'pie-qti-graphic-order',
+		'pie-qti-graphic-associate',
+		'pie-qti-select-point',
+		'pie-qti-extended-text',
+		'pie-qti-upload',
+		'pie-qti-drawing',
+		'pie-qti-catalog-popup',
+	] as const;
+
 	let playerLoaded = $state(false);
 	let errorMessage = $state<string | null>(null);
 
 	async function loadItemPlayerElement() {
-		if (!customElements.get('pie-qti-choice')) {
+		if (defaultInteractionTags.some((tagName) => !customElements.get(tagName))) {
 			await import('@pie-qti/default-components/plugins');
 		}
 		if (!customElements.get('pie-qti-item-player')) {

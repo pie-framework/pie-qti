@@ -6,11 +6,15 @@ import { join, relative } from 'node:path';
 const repoRoot = new URL('..', import.meta.url).pathname;
 const routeRoot = join(repoRoot, 'apps/demo/src/routes');
 
-const allowedDirectPlayerRoutes = new Set([
+const allowedUncheckedDirectPlayerRoutes = new Set([
 	'apps/demo/src/routes/wc-item/+page.svelte',
 	'apps/demo/src/routes/wc-assessment/+page.svelte',
-	'apps/demo/src/routes/wc-section-splitpane/+page.svelte',
-	'apps/demo/src/routes/wc-section-vertical/+page.svelte',
+]);
+
+const globallyAllowedPlayerTags = new Set(['pie-qti-item-player', 'pie-qti-assessment-player']);
+const allowedPlayerTagsByRoute = new Map([
+	['apps/demo/src/routes/wc-section-splitpane/+page.svelte', new Set(['pie-qti-section-player-splitpane'])],
+	['apps/demo/src/routes/wc-section-vertical/+page.svelte', new Set(['pie-qti-section-player-vertical'])],
 ]);
 
 const forbiddenPatterns = [
@@ -26,11 +30,9 @@ const forbiddenPatterns = [
 		label: 'manual interaction type render branch',
 		pattern: /interaction\.type\s*={2,3}/,
 	},
-	{
-		label: 'direct interaction custom element',
-		pattern: /<pie-qti-(?!item-player|assessment-player|section-player-splitpane|section-player-vertical)[a-z0-9-]+(?:\s|>)/,
-	},
 ];
+
+const playerTagPattern = /<(pie-qti-[a-z0-9-]+)(?:\s|>)/g;
 
 function walk(dir) {
 	const entries = [];
@@ -50,7 +52,7 @@ const failures = [];
 
 for (const path of walk(routeRoot)) {
 	const rel = relative(repoRoot, path);
-	if (allowedDirectPlayerRoutes.has(rel)) {
+	if (allowedUncheckedDirectPlayerRoutes.has(rel)) {
 		continue;
 	}
 
@@ -59,6 +61,14 @@ for (const path of walk(routeRoot)) {
 		if (pattern.test(source)) {
 			failures.push(`${rel}: ${label}`);
 		}
+	}
+
+	const routeAllowedTags = allowedPlayerTagsByRoute.get(rel) ?? new Set();
+	for (const [, tagName] of source.matchAll(playerTagPattern)) {
+		if (globallyAllowedPlayerTags.has(tagName) || routeAllowedTags.has(tagName)) {
+			continue;
+		}
+		failures.push(`${rel}: direct interaction custom element`);
 	}
 }
 

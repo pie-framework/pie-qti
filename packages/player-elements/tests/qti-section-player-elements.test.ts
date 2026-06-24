@@ -120,14 +120,27 @@ describe('section player custom elements', () => {
 		const security: PlayerSecurityConfig = { allowIframes: false };
 		const element = document.createElement('test-qti-section-player-splitpane') as TestSplitPaneElement;
 		const events: QtiSectionResponseDeltaDetail[] = [];
+		const eventOptions: Array<Pick<CustomEventInit<QtiSectionResponseDeltaDetail>, 'bubbles' | 'composed'>> = [];
 		element.addEventListener('qti-section-response-delta', (event) => {
-			events.push((event as CustomEvent<QtiSectionResponseDeltaDetail>).detail);
+			const customEvent = event as CustomEvent<QtiSectionResponseDeltaDetail>;
+			events.push(customEvent.detail);
 		});
 
 		element.composition = createComposition(security);
 		element.security = undefined;
 		const props = element.exposeProps();
-		props.onResponseChange('item-1', 'RESPONSE', ['A']);
+		const OriginalCustomEvent = globalThis.CustomEvent;
+		globalThis.CustomEvent = class extends OriginalCustomEvent {
+			constructor(type: string, init?: CustomEventInit<QtiSectionResponseDeltaDetail>) {
+				eventOptions.push({ bubbles: init?.bubbles, composed: init?.composed });
+				super(type, init);
+			}
+		} as typeof CustomEvent;
+		try {
+			props.onResponseChange('item-1', 'RESPONSE', ['A']);
+		} finally {
+			globalThis.CustomEvent = OriginalCustomEvent;
+		}
 
 		expect(props.security).toBe(security);
 		expect(events).toEqual([
@@ -138,5 +151,6 @@ describe('section player custom elements', () => {
 				value: ['A'],
 			},
 		]);
+		expect(eventOptions).toEqual([{ bubbles: true, composed: true }]);
 	});
 });
