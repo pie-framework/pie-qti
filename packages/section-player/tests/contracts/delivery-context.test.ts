@@ -16,6 +16,8 @@ describe('QtiSectionItemRef', () => {
             {
               href: 'stimuli/stim1.css',
               resolvedHref: 'stimuli/stim1.css',
+              source: 'stimulus',
+              xml: '<qti-stylesheet href="stimuli/stim1.css" />',
             },
           ],
           validationMessages: [],
