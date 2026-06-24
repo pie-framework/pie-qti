@@ -90,6 +90,7 @@ Subsystem-level PRDs covering how major packages work and how to extend them.
 | `architecture/ims-content-packages.md` | IMS Content Package Support | `@pie-qti/ims-cp-*` | draft |
 | `architecture/storage.md` | Pluggable Storage Backends | `@pie-qti/storage` | draft |
 | `architecture/security.md` | Security Model (sanitization, iframe isolation, Trusted Types) | `@pie-qti/item-player` | draft |
+| `architecture/pie-projection-adapters.md` | PIE Projection Adapters | `@pie-qti/to-pie`, `@pie-qti/pie-to-qti2`, `@pie-qti/transform-core` | draft |
 | `architecture/qti-section-player-and-toolkit.md` | QTI Section Player & Assessment Toolkit | `@pie-qti/section-player`, `@pie-qti/assessment-toolkit` | draft |
 
 IMS Content Package support is listed under architecture because the implementation spans the `@pie-qti/ims-cp-*` packages and transform/load pipelines rather than a runtime system concern like i18n or theming.
