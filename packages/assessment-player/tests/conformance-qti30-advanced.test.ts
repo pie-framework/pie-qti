@@ -3,6 +3,7 @@ import './setup.js';
 import { describe, expect, it } from 'bun:test';
 import { AssessmentPlayer } from '../src/core/AssessmentPlayer.js';
 import { ReferenceBackendAdapter } from '../src/integration/ReferenceBackendAdapter.js';
+import { toSectionComposition } from '../src/integration/toSectionComposition.js';
 import type { SecureAssessment, SubmitResponsesRequest } from '../src/integration/api-contract.js';
 
 function makeAdapter(assessment: SecureAssessment): ReferenceBackendAdapter {
@@ -175,6 +176,40 @@ describe('QTI 3.0 Advanced — I4 shared stimulus delivery context', () => {
 		expect(itemRef.deliveryContext?.stylesheets[0].resolvedHref).toBe('stimuli/passage.css');
 	});
 
+	it('preserves shared stimulus delivery context through section composition', async () => {
+		const testXml = `<qti-assessment-test xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="i4-composition-test" title="I4 Composition">
+  <qti-test-part identifier="part-1" navigation-mode="linear" submission-mode="individual">
+    <qti-assessment-section identifier="section-1" visible="true">
+      <qti-assessment-item-ref identifier="item-1" href="items/item-1.xml"/>
+    </qti-assessment-section>
+  </qti-test-part>
+</qti-assessment-test>`;
+		const itemXml = `<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="item-1">
+  <qti-item-body>
+    <qti-assessment-stimulus-ref identifier="passage_1" href="../stimuli/passage.xml"/>
+    <p>Question after passage.</p>
+  </qti-item-body>
+</qti-assessment-item>`;
+		const stimulusXml = `<qti-assessment-stimulus xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="passage_1">
+  <qti-stimulus-body><p>Shared river passage.</p></qti-stimulus-body>
+</qti-assessment-stimulus>`;
+		const assessment = await parseAssessment(testXml, {
+			itemXmlMap: {
+				'items/item-1.xml': itemXml,
+				'stimuli/passage.xml': stimulusXml,
+			},
+		});
+		const player = await AssessmentPlayer.create({
+			backend: makeAdapter(assessment),
+			initSession: { assessmentId: assessment.identifier, candidateId: 'candidate-1' },
+		});
+
+		const composition = toSectionComposition(player, { role: 'candidate' });
+
+		expect(composition.activeItem.deliveryContext?.stimuli.passage_1.bodyHtml).toContain('Shared river passage');
+		expect(composition.section.itemRefs[0]?.deliveryContext?.stimuli.passage_1.bodyHtml).toContain('Shared river passage');
+	});
+
 	it('resolves item-level stylesheet delivery context without a shared stimulus', async () => {
 		const testXml = `<qti-assessment-test xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="style-test" title="Styles">
   <qti-test-part identifier="part-1" navigation-mode="linear" submission-mode="individual">
@@ -291,6 +326,40 @@ describe('QTI 3.0 Advanced — T5 Item Session Control', () => {
 			});
 			expect(res.success).toBe(true);
 		}
+	});
+
+	it('returns deep-cloned response values for item-specific public snapshots', async () => {
+		const assessment = await parseAssessment(`<qti-assessment-test xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0"
+  identifier="t5-response-snapshot" title="T5 Response Snapshot">
+  <qti-test-part identifier="part-1" navigation-mode="nonlinear" submission-mode="individual">
+    <qti-item-session-control max-attempts="0" allow-skipping="true"/>
+    <qti-assessment-section identifier="section-1" title="Section 1" visible="true">
+      <qti-assessment-item-ref identifier="t5-item-1" href="items/item-1.xml"/>
+    </qti-assessment-section>
+  </qti-test-part>
+</qti-assessment-test>`, {
+			itemXmlMap: { 'items/item-1.xml': makeChoiceItem('t5-item-1') },
+		});
+		const player = await AssessmentPlayer.create({
+			backend: makeAdapter(assessment),
+			initSession: { assessmentId: assessment.identifier, candidateId: 'candidate-1' },
+		});
+		player.updateResponseForItem('t5-item-1', 'RESPONSE', {
+			choices: ['choice-1'],
+			meta: { source: 'candidate' },
+		});
+
+		const firstSnapshot = player.getResponsesForItem('t5-item-1') as {
+			RESPONSE: { choices: string[]; meta: { source: string } };
+		};
+		firstSnapshot.RESPONSE.choices.push('choice-2');
+		firstSnapshot.RESPONSE.meta.source = 'mutated';
+
+		const secondSnapshot = player.getResponsesForItem('t5-item-1') as {
+			RESPONSE: { choices: string[]; meta: { source: string } };
+		};
+		expect(secondSnapshot.RESPONSE.choices).toEqual(['choice-1']);
+		expect(secondSnapshot.RESPONSE.meta.source).toBe('candidate');
 	});
 });
 

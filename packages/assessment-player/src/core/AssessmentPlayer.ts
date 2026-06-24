@@ -397,7 +397,7 @@ export class AssessmentPlayer {
 	}
 
 	public getResponsesForItem(itemIdentifier: string): Record<string, unknown> {
-		return this.sessionCoordinator.getResponses(itemIdentifier);
+		return cloneData(this.sessionCoordinator.getResponses(itemIdentifier)) ?? {};
 	}
 
 	public getCurrentSharedRubricBlocks(): AssessmentRubricBlock[] {

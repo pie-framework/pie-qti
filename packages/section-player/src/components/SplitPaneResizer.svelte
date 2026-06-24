@@ -7,6 +7,7 @@
 		storageKey?: string;
 		leftPane?: Snippet;
 		children?: Snippet;
+		onRightPaneReady?: (element: HTMLElement) => void;
 	}
 
 	const {
@@ -14,6 +15,7 @@
 		storageKey = 'pie-qti22-assessment-player.splitLeftPct',
 		leftPane,
 		children,
+		onRightPaneReady,
 	}: Props = $props();
 
 	const minLeftPct = 25;
@@ -21,6 +23,8 @@
 	const initialSplitPct = 50;
 
 	let splitContainerEl = $state<HTMLDivElement | null>(null);
+	let rightPaneEl = $state<HTMLElement | null>(null);
+	let reportedRightPaneEl = $state<HTMLElement | null>(null);
 	let splitLeftPct = $state<number>(50);
 	let isResizing = $state(false);
 	let hasInitializedFromProps = $state(false);
@@ -125,6 +129,13 @@
 		splitLeftPct = clampPct(initialSplitPct);
 		hasInitializedFromProps = true;
 	});
+
+	$effect(() => {
+		if (rightPaneEl && rightPaneEl !== reportedRightPaneEl) {
+			reportedRightPaneEl = rightPaneEl;
+			onRightPaneReady?.(rightPaneEl);
+		}
+	});
 </script>
 
 <div
@@ -155,7 +166,14 @@
 		<div class="splitter-grip" aria-hidden="true"></div>
 	</div>
 
-	<section id="section-player-right-pane" class="pane pane-right" aria-label={i18n?.t('sectionPlayer.itemPane', 'Item pane') ?? 'Item pane'}>
+	<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+	<section
+		id="section-player-right-pane"
+		class="pane pane-right"
+		tabindex="-1"
+		bind:this={rightPaneEl}
+		aria-label={i18n?.t('sectionPlayer.itemPane', 'Item pane') ?? 'Item pane'}
+	>
 		{#if children}
 			{@render children()}
 		{/if}
@@ -178,6 +196,11 @@
 		min-height: 0;
 		overflow: auto;
 		padding: 0 1rem;
+	}
+
+	.pane-right:focus-visible {
+		outline: 2px solid var(--color-primary);
+		outline-offset: -2px;
 	}
 
 	.splitter {

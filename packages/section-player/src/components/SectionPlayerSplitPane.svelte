@@ -36,18 +36,9 @@
 		composition.snapshot.responses[composition.activeItem.identifier] ?? composition.activeItem.responses ?? {}
 	);
 
-	let itemPaneElement = $state<HTMLElement | null>(null);
-	let reportedItemPaneElement = $state<HTMLElement | null>(null);
-
-	$effect(() => {
-		if (itemPaneElement && itemPaneElement !== reportedItemPaneElement) {
-			reportedItemPaneElement = itemPaneElement;
-			onItemPaneReady?.(itemPaneElement);
-		}
-	});
 </script>
 
-<SplitPaneResizer storageKey="pie-qti22-assessment-player.splitLeftPct" {i18n}>
+<SplitPaneResizer storageKey="pie-qti22-assessment-player.splitLeftPct" {i18n} onRightPaneReady={onItemPaneReady}>
 	{#snippet leftPane()}
 		<RubricDisplay
 			passages={composition.sharedContext.passages}
@@ -61,8 +52,6 @@
 
 	<div
 		class="section-player-right-pane"
-		tabindex="-1"
-		bind:this={itemPaneElement}
 		role="region"
 		aria-label={i18n?.t('sectionPlayer.activeItem', 'Active item') ?? 'Active item'}
 	>
