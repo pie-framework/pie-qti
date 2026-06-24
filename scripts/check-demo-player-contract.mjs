@@ -9,6 +9,8 @@ const routeRoot = join(repoRoot, 'apps/demo/src/routes');
 const allowedDirectPlayerRoutes = new Set([
 	'apps/demo/src/routes/wc-item/+page.svelte',
 	'apps/demo/src/routes/wc-assessment/+page.svelte',
+	'apps/demo/src/routes/wc-section-splitpane/+page.svelte',
+	'apps/demo/src/routes/wc-section-vertical/+page.svelte',
 ]);
 
 const forbiddenPatterns = [
@@ -26,7 +28,7 @@ const forbiddenPatterns = [
 	},
 	{
 		label: 'direct interaction custom element',
-		pattern: /<pie-qti-(?!item-player|assessment-player)[a-z0-9-]+(?:\s|>)/,
+		pattern: /<pie-qti-(?!item-player|assessment-player|section-player-splitpane|section-player-vertical)[a-z0-9-]+(?:\s|>)/,
 	},
 ];
 

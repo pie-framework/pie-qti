@@ -51,12 +51,19 @@
 	let playerLoaded = $state(false);
 	let errorMessage = $state<string | null>(null);
 
+	async function loadItemPlayerElement() {
+		if (!customElements.get('pie-qti-choice')) {
+			await import('@pie-qti/default-components/plugins');
+		}
+		if (!customElements.get('pie-qti-item-player')) {
+			await import('@pie-qti/item-player/element');
+		}
+		await customElements.whenDefined('pie-qti-item-player');
+	}
+
 	onMount(() => {
 		let cancelled = false;
-		void Promise.all([
-			import('@pie-qti/default-components/plugins'),
-			import('@pie-qti/item-player/element'),
-		])
+		void loadItemPlayerElement()
 			.then(() => {
 				if (!cancelled) {
 					playerLoaded = true;

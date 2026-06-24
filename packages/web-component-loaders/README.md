@@ -35,6 +35,8 @@ await loadPieQtiPlayerElements();
 // At this point the register module was imported and we waited for:
 // - <pie-qti-item-player>
 // - <pie-qti-assessment-player>
+// - <pie-qti-section-player-splitpane>
+// - <pie-qti-section-player-vertical>
 // - the bundled default QTI interaction elements
 ```
 

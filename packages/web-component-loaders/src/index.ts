@@ -51,6 +51,8 @@ export async function loadPieQtiPlayerElements(): Promise<void> {
 		await Promise.allSettled([
 			win.customElements.whenDefined('pie-qti-item-player'),
 			win.customElements.whenDefined('pie-qti-assessment-player'),
+			win.customElements.whenDefined('pie-qti-section-player-splitpane'),
+			win.customElements.whenDefined('pie-qti-section-player-vertical'),
 			...DEFAULT_INTERACTION_TAGS.map((tagName) => win.customElements!.whenDefined(tagName)),
 		]);
 	});
