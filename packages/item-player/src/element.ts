@@ -18,6 +18,7 @@ import type { I18nProvider } from '@pie-qti/i18n';
 import type { PnpProfile } from './pnp/types.js';
 
 const TAG = 'pie-qti-item-player';
+const HTMLElementBase: typeof HTMLElement = globalThis.HTMLElement ?? (class {} as typeof HTMLElement);
 type ItemResponseMap = Record<string, unknown>;
 type ItemPlayerElementProps = {
 	itemXml: string;
@@ -35,8 +36,10 @@ type ItemPlayerElementProps = {
 	onComplete: ((result: AdaptiveAttemptResult) => void) | undefined;
 };
 
-class PieQtiItemPlayerElement extends HTMLElement {
-	static observedAttributes = ['item-xml', 'role', 'disabled'];
+class PieQtiItemPlayerElement extends HTMLElementBase {
+	static get observedAttributes() {
+		return ['item-xml', 'role', 'disabled'];
+	}
 
 	#mountController = createSvelteMountController({
 		host: this,
@@ -145,7 +148,7 @@ class PieQtiItemPlayerElement extends HTMLElement {
 	}
 }
 
-if (!customElements.get(TAG)) {
+if (globalThis.customElements && !customElements.get(TAG)) {
 	customElements.define(TAG, PieQtiItemPlayerElement);
 }
 

@@ -112,10 +112,15 @@ export function sanitizeResourceUrl(raw: string, policy?: UrlPolicyConfig, kind:
 }
 
 function stripUrlControls(value: string): string {
-	return value.replace(/[\u0000-\u001F\u007F]+/g, '');
+	return Array.from(value).filter((char) => !isUrlControl(char)).join('');
 }
 
 function stripUrlControlsAndWhitespace(value: string): string {
-	return value.replace(/[\u0000-\u001F\u007F\s]+/g, '');
+	return Array.from(value).filter((char) => !isUrlControl(char) && !/\s/.test(char)).join('');
+}
+
+function isUrlControl(char: string): boolean {
+	const code = char.charCodeAt(0);
+	return code <= 0x1F || code === 0x7F;
 }
 

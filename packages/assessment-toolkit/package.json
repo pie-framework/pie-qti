@@ -6,7 +6,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
+    "build": "rm -rf dist tsconfig.tsbuildinfo && tsc",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",

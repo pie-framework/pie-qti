@@ -8,11 +8,20 @@ import { defineConfig, devices } from '@playwright/test';
 const PLAYWRIGHT_PORT = process.env.PLAYWRIGHT_PORT ?? '5201';
 const ORIGIN = `http://127.0.0.1:${PLAYWRIGHT_PORT}`;
 const REUSE_EXISTING_SERVER = process.env.PLAYWRIGHT_REUSE_EXISTING_SERVER === 'true';
+const CHROMIUM_EXECUTABLE_PATH = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
 // SvelteKit `paths.base` is configured for GitHub Pages-style hosting.
 // In dev, we serve at `/`. In production/static builds, the app is typically served under `/pie-qti/`.
 // If you need to run Playwright against a non-root base path, set PLAYWRIGHT_BASE_PATH (e.g. "/pie-qti").
 const BASE_PATH = process.env.PLAYWRIGHT_BASE_PATH ?? '';
 const BASE_URL = `${ORIGIN}${BASE_PATH ? BASE_PATH.replace(/\/?$/, '/') : '/'}`;
+const chromiumUse = CHROMIUM_EXECUTABLE_PATH
+	? {
+			...devices['Desktop Chrome'],
+			launchOptions: {
+				executablePath: CHROMIUM_EXECUTABLE_PATH
+			}
+		}
+	: devices['Desktop Chrome'];
 
 export default defineConfig({
 	testDir: './tests/playwright',
@@ -33,7 +42,7 @@ export default defineConfig({
 	projects: [
 		{
 			name: 'chromium',
-			use: { ...devices['Desktop Chrome'] }
+			use: chromiumUse
 		}
 	],
 
