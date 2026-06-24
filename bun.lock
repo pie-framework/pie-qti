@@ -128,6 +128,7 @@
       "name": "@pie-qti/assessment-player",
       "version": "0.1.13",
       "dependencies": {
+        "@pie-qti/assessment-toolkit": "workspace:*",
         "@pie-qti/default-components": "workspace:*",
         "@pie-qti/i18n": "workspace:*",
         "@pie-qti/ims-cp-core": "workspace:*",
@@ -142,6 +143,19 @@
         "@types/node": "^25.0.3",
         "svelte": "^5.54.0",
         "svelte-check": "^4.3.5",
+        "typescript": "^5.9.3",
+      },
+    },
+    "packages/assessment-toolkit": {
+      "name": "@pie-qti/assessment-toolkit",
+      "version": "0.1.13",
+      "dependencies": {
+        "@pie-qti/ims-cp-core": "workspace:*",
+        "@pie-qti/section-player": "workspace:*",
+      },
+      "devDependencies": {
+        "@biomejs/biome": "^2.4.8",
+        "@types/node": "^25.0.3",
         "typescript": "^5.9.3",
       },
     },
@@ -821,6 +835,8 @@
     "@pie-qti/app-docs": ["@pie-qti/app-docs@workspace:apps/docs"],
 
     "@pie-qti/assessment-player": ["@pie-qti/assessment-player@workspace:packages/assessment-player"],
+
+    "@pie-qti/assessment-toolkit": ["@pie-qti/assessment-toolkit@workspace:packages/assessment-toolkit"],
 
     "@pie-qti/default-components": ["@pie-qti/default-components@workspace:packages/default-components"],
 

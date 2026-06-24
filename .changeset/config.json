@@ -5,6 +5,7 @@
   "fixed": [
     [
       "@pie-qti/assessment-player",
+      "@pie-qti/assessment-toolkit",
       "@pie-qti/default-components",
       "@pie-qti/demo-vendor-extensions",
       "@pie-qti/element-schemas",

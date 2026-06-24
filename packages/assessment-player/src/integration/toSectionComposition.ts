@@ -1,10 +1,8 @@
+import { normalizeQtiSharedContext } from '@pie-qti/assessment-toolkit';
 import {
-	isQtiViewVisibleForRole,
 	resolveQtiSectionComposition,
 	type QtiSectionItemRef,
 	type QtiSectionRole,
-	type QtiSharedContext,
-	type QtiSharedHtmlBlock,
 	type ResolvedQtiSectionComposition,
 } from '@pie-qti/section-player';
 import type { AssessmentPlayer, BackendAssessmentPlayerConfig } from '../core/AssessmentPlayer.js';
@@ -23,48 +21,6 @@ function toSectionRole(role: BackendAssessmentPlayerConfig['role']): QtiSectionR
 	}
 }
 
-function toSharedHtmlBlock(
-	block: ReturnType<AssessmentPlayer['getCurrentSharedRubricBlocks']>[number],
-	index: number
-): QtiSharedHtmlBlock {
-	return {
-		identifier: block.identifier ?? `${block.use ?? 'rubric'}-${index}`,
-		kind: block.use === 'passage' ? 'passage' : block.use === 'instructions' ? 'instructions' : 'rubric',
-		scope: 'section',
-		view: block.view,
-		rawHtml: block.content,
-	};
-}
-
-function normalizeRubricBlocks(
-	rubricBlocks: ReturnType<AssessmentPlayer['getCurrentSharedRubricBlocks']>,
-	role: QtiSectionRole
-): QtiSharedContext {
-	const passages: QtiSharedHtmlBlock[] = [];
-	const sharedRubrics: QtiSharedHtmlBlock[] = [];
-
-	for (const [index, block] of rubricBlocks.entries()) {
-		const normalized = toSharedHtmlBlock(block, index);
-		if (!isQtiViewVisibleForRole(normalized.view, role)) continue;
-
-		if (normalized.kind === 'passage') {
-			passages.push(normalized);
-		} else {
-			sharedRubrics.push(normalized);
-		}
-	}
-
-	return {
-		passages,
-		stimuli: [],
-		rubricBlocks: sharedRubrics,
-		testFeedback: [],
-		stylesheets: [],
-		catalogSources: [],
-		assetDiagnostics: [],
-	};
-}
-
 export function toSectionComposition(
 	player: AssessmentPlayer,
 	config: Partial<BackendAssessmentPlayerConfig> = {}
@@ -72,7 +28,10 @@ export function toSectionComposition(
 	const navState = player.getNavigationState();
 	const currentItem = player.getCurrentItem();
 	const role = toSectionRole(config.role);
-	const sharedContext = normalizeRubricBlocks(player.getCurrentSharedRubricBlocks(), role);
+	const sharedContext = normalizeQtiSharedContext({
+		rubricBlocks: player.getCurrentSharedRubricBlocks(),
+		role,
+	});
 	const sectionItems: QtiSectionItemRef[] = player.getCurrentSectionItemRefs().map((item) => ({
 		identifier: item.identifier,
 		href: item.href,

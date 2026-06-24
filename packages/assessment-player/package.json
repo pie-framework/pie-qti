@@ -28,6 +28,7 @@
   ],
   "license": "MIT",
   "dependencies": {
+    "@pie-qti/assessment-toolkit": "workspace:*",
     "@pie-qti/default-components": "workspace:*",
     "@pie-qti/i18n": "workspace:*",
     "@pie-qti/ims-cp-core": "workspace:*",
