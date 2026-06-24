@@ -69,6 +69,10 @@
 			"types": "./dist/iframe/index.d.ts",
 			"import": "./dist/iframe/index.js"
 		},
+		"./security": {
+			"types": "./dist/security/index.d.ts",
+			"import": "./dist/security/index.js"
+		},
 		"./components/utils": {
 			"types": "./dist/components/utils/index.d.ts",
 			"import": "./dist/components/utils/index.js"

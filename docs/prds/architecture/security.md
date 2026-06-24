@@ -142,6 +142,10 @@ elements and attributes that have no legitimate use in QTI item bodies.
 - **FR-23:** `isQtiIframeEnvelope` must reject any message where `protocol` is not
   `'pie-qti-iframe'` or `version` is not the current protocol version constant.
 
+### Public shared-content API
+
+`@pie-qti/item-player/security` exposes the sanitizer, URL policy, parsing-limit helpers, Trusted Types bridge, and `sanitizeSharedHtml(html, security?)` facade for QTI-derived shared content outside item bodies. Section-player and assessment-player shared passage, rubric, stimulus, and test-feedback render sinks must use this API instead of deep-importing `item-player/src/core/*`.
+
 ---
 
 ## Non-functional requirements
