@@ -191,4 +191,24 @@ describe('resolveQtiSectionComposition', () => {
 			browserHref: 'https://assets.example.test/pkg/styles/section.css',
 		});
 	});
+
+	test('blocks unsafe shared stylesheet URLs returned by the host asset hook', () => {
+		const composition = resolveQtiSectionComposition({
+			section: {
+				...section,
+				sharedContext: {
+					...emptySharedContext,
+					stylesheets: [{ href: 'styles/section.css' }],
+				},
+			},
+			activeItemIndex: 0,
+			host: {
+				resolvePackageUrl: (href) => `https://assets.example.test/pkg/${href}`,
+				sanitizeAssetUrl: () => 'javascript:alert(1)',
+			},
+		});
+
+		expect(composition.sharedContext.stylesheets[0]?.renderHref).toBeUndefined();
+		expect(composition.diagnostics.some((diagnostic) => diagnostic.code === 'shared-asset-url-blocked')).toBe(true);
+	});
 });

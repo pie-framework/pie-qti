@@ -9,5 +9,10 @@ export function sanitizeSectionSharedHtml(
 	host?: QtiSectionRuntimeHostContract
 ): HtmlContent {
 	const hostResult = host?.sanitizeSharedHtml?.(html, context);
-	return sanitizeItemPlayerSharedHtml(hostResult ?? html, security);
+	return sanitizeItemPlayerSharedHtml(hostResult ?? html, security, {
+		sanitizeUrl: (href, kind) => {
+			if (!host?.sanitizeAssetUrl) return href;
+			return host.sanitizeAssetUrl(href, { source: context.source, kind });
+		},
+	});
 }

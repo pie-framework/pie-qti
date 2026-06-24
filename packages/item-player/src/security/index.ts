@@ -20,7 +20,15 @@ export type {
 	UrlPolicyConfig,
 } from '../types/index.js';
 
-export function sanitizeSharedHtml(html: string, security?: PlayerSecurityConfig): HtmlContent {
-	const sanitized = sanitizeHtml(html, { security });
+export interface SanitizeSharedHtmlOptions {
+	sanitizeUrl?: SanitizeHtmlOptions['sanitizeUrl'];
+}
+
+export function sanitizeSharedHtml(
+	html: string,
+	security?: PlayerSecurityConfig,
+	options?: SanitizeSharedHtmlOptions
+): HtmlContent {
+	const sanitized = sanitizeHtml(html, { security, sanitizeUrl: options?.sanitizeUrl });
 	return toTrustedHtml(sanitized, security?.trustedTypesPolicyName);
 }

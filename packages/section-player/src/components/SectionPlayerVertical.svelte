@@ -2,6 +2,12 @@
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import type { PlayerSecurityConfig, PnpProfile } from '@pie-qti/item-player';
 	import type { QtiSectionFrameworkError, ResolvedQtiSectionComposition } from '../contracts/index.js';
+	import {
+		notifyActiveItemChange,
+		notifyFrameworkError,
+		notifyResponseDelta,
+		notifySnapshotChange,
+	} from '../runtime/notifyRuntimeHost.js';
 	import ItemRenderer from './ItemRenderer.svelte';
 	import RubricDisplay from './RubricDisplay.svelte';
 
@@ -37,6 +43,8 @@
 
 	let itemPaneElement = $state<HTMLElement | null>(null);
 	let reportedItemPaneElement = $state<HTMLElement | null>(null);
+	let reportedActiveItemKey = $state<string | null>(null);
+	let reportedSnapshot = $state<ResolvedQtiSectionComposition['snapshot'] | null>(null);
 
 	$effect(() => {
 		if (itemPaneElement && itemPaneElement !== reportedItemPaneElement) {
@@ -44,6 +52,31 @@
 			onItemPaneReady?.(itemPaneElement);
 		}
 	});
+
+	$effect(() => {
+		const activeItemKey = `${composition.section.identifier}:${composition.activeItem.identifier}:${composition.activeItemIndex}:${composition.section.itemRefs.length}`;
+		if (activeItemKey !== reportedActiveItemKey) {
+			reportedActiveItemKey = activeItemKey;
+			notifyActiveItemChange(composition);
+		}
+	});
+
+	$effect(() => {
+		if (composition.snapshot !== reportedSnapshot) {
+			reportedSnapshot = composition.snapshot;
+			notifySnapshotChange(composition);
+		}
+	});
+
+	function handleResponseChange(itemIdentifier: string, responseIdentifier: string, value: unknown) {
+		notifyResponseDelta(composition, itemIdentifier, responseIdentifier, value);
+		onResponseChange?.(itemIdentifier, responseIdentifier, value);
+	}
+
+	function handleFrameworkError(error: QtiSectionFrameworkError) {
+		const event = notifyFrameworkError(composition, error);
+		onFrameworkError?.(event);
+	}
 </script>
 
 <div class="section-player-vertical">
@@ -81,8 +114,8 @@
 			{pnp}
 			{extendedTextEditor}
 			{typeset}
-			{onResponseChange}
-			{onFrameworkError}
+			onResponseChange={handleResponseChange}
+			onFrameworkError={handleFrameworkError}
 		/>
 	</div>
 </div>

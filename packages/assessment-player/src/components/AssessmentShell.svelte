@@ -346,6 +346,7 @@
 				role={sectionRole}
 				{i18n}
 				security={config.security}
+				host={config.sectionHost}
 				{typeset}
 			/>
 		{/if}

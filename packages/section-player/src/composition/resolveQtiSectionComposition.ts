@@ -116,10 +116,16 @@ function resolveSharedStylesheetRef(
 		return evidence;
 	}
 
+	const finalBrowserHref = sanitizeResourceUrl(hostSanitizedHref, options.security?.urlPolicy, 'link');
+	if (!finalBrowserHref) {
+		diagnostics.push(sharedAssetDiagnostic(hostSanitizedHref, path));
+		return evidence;
+	}
+
 	return {
 		...evidence,
-		renderHref: hostSanitizedHref,
-		browserHref: hostSanitizedHref,
+		renderHref: finalBrowserHref,
+		browserHref: finalBrowserHref,
 	};
 }
 

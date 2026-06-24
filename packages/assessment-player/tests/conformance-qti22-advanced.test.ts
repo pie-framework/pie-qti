@@ -17,6 +17,7 @@
  */
 
 import { beforeEach, describe, expect, it } from 'bun:test';
+import type { QtiSectionRuntimeHostContract } from '@pie-qti/section-player';
 import { AssessmentPlayer } from '../src/core/AssessmentPlayer.js';
 import { ReferenceBackendAdapter } from '../src/integration/ReferenceBackendAdapter.js';
 import { toSectionComposition } from '../src/integration/toSectionComposition.js';
@@ -692,5 +693,16 @@ describe('Task 5 — assessment player section composition delegation', () => {
 		expect(composition.snapshot.responses['item-1']?.RESPONSE).toBe('A');
 		expect(composition.snapshot.responses['item-2']?.RESPONSE).toBe('B');
 		expect(composition.activeItem.responses?.RESPONSE).toBe('A');
+	});
+
+	it('forwards section host hooks into delegated section compositions', async () => {
+		const player = await createPlayerWithSectionRubrics();
+		const sectionHost: QtiSectionRuntimeHostContract = {
+			sanitizeAssetUrl: (href) => href,
+		};
+
+		const composition = toSectionComposition(player, { role: 'candidate', sectionHost });
+
+		expect(composition.host).toBe(sectionHost);
 	});
 });

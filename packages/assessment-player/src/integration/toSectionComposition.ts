@@ -57,5 +57,6 @@ export function toSectionComposition(
 		canPrevious: navState.canPrevious,
 		canNext: navState.canNext,
 		security: config.security,
+		host: config.sectionHost,
 	});
 }
