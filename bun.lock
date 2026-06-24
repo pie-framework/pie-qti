@@ -344,12 +344,18 @@
       "name": "@pie-qti/section-player",
       "version": "0.1.13",
       "dependencies": {
+        "@pie-qti/default-components": "workspace:*",
+        "@pie-qti/i18n": "workspace:*",
         "@pie-qti/ims-cp-core": "workspace:*",
         "@pie-qti/item-player": "workspace:*",
+        "@pie-qti/qti-common": "workspace:*",
       },
       "devDependencies": {
         "@biomejs/biome": "^2.4.8",
+        "@sveltejs/vite-plugin-svelte": "^7.0.0",
         "@types/node": "^25.0.3",
+        "svelte": "^5.54.0",
+        "svelte-check": "^4.3.5",
         "typescript": "^5.9.3",
       },
     },
