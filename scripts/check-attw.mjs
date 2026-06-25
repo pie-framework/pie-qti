@@ -83,7 +83,7 @@ const isSuppressedTextReport = (stdout) => {
 	});
 };
 
-const parseAttwReport = ({ stdout, failed }, packageName, dir) => {
+const parseAttwReport = ({ stdout }, packageName, dir) => {
 	try {
 		return JSON.parse(stdout);
 	} catch (error) {

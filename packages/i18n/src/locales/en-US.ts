@@ -533,6 +533,7 @@ export default {
 		homeMetaDescription: 'Modern QTI player with optional backend integration',
 		tryItems: 'Try Items',
 		tryAssessments: 'Try Assessments',
+		trySectionPlayer: 'Section Player',
 		pluginDemo: 'Plugin Demo',
 		dropQtiFile: 'Drop QTI XML file here',
 		orClickToSelect: 'or click to select a file',

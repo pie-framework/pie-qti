@@ -520,6 +520,7 @@ export default {
 		homeMetaDescription: 'Player QTI modern cu integrare backend opțională',
 		tryItems: 'Încearcă Elemente',
 		tryAssessments: 'Încearcă Evaluări',
+		trySectionPlayer: 'Player de Secțiune',
 		pluginDemo: 'Demo Plugin',
 		dropQtiFile: 'Plasați fișierul QTI XML aici',
 		orClickToSelect: 'sau faceți clic pentru a selecta un fișier',

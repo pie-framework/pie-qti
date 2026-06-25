@@ -1,6 +1,14 @@
 import { expect, test } from '@playwright/test';
 
 test.describe('section player web components', () => {
+	test('regular demo homepage links to the section player passage demo', async ({ page }) => {
+		await page.goto('/');
+
+		const link = page.getByRole('link', { name: /section player/i });
+		await expect(link).toBeVisible();
+		await expect(link).toHaveAttribute('href', /\/wc-section-splitpane$/);
+	});
+
 	test('split-pane route renders shared passage and nested item player', async ({ page }) => {
 		await page.goto('/wc-section-splitpane');
 
