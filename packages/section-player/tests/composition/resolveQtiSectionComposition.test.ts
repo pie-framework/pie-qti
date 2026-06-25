@@ -135,6 +135,83 @@ describe('resolveQtiSectionComposition', () => {
 		expect(composition.section.sharedContext?.testFeedback.map((block) => block.identifier)).toEqual(['candidate-feedback']);
 	});
 
+	test('preserves item and passage tool config in resolved composition', () => {
+		const composition = resolveQtiSectionComposition({
+			section: {
+				...section,
+				tools: [{ toolId: 'section-notes', label: 'Section Notes' }],
+				itemRefs: [
+					{
+						identifier: 'item-1',
+						itemXml: '<assessmentItem identifier="item-1" />',
+						tools: [
+							{ toolId: 'textToSpeech', label: 'Read question' },
+							{ toolId: 'calculator', label: 'Calculator', renderParams: { calculatorType: 'scientific' } },
+						],
+					},
+				],
+				sharedContext: {
+					...emptySharedContext,
+					passages: [
+						{
+							identifier: 'passage-1',
+							kind: 'passage',
+							scope: 'section',
+							rawHtml: '<p>Passage</p>',
+							tools: [{ toolId: 'textToSpeech', label: 'Read passage' }],
+						},
+					],
+				},
+			},
+		});
+
+		expect(composition.section.tools?.map((tool) => tool.toolId)).toEqual(['section-notes']);
+		expect(composition.activeItem.tools?.map((tool) => tool.toolId)).toEqual(['textToSpeech', 'calculator']);
+		expect(composition.sharedContext.passages[0]?.tools?.map((tool) => tool.toolId)).toEqual(['textToSpeech']);
+	});
+
+	test('filters role-scoped tools from sections, passages, and items', () => {
+		const composition = resolveQtiSectionComposition({
+			section: {
+				...section,
+				role: 'candidate',
+				tools: [
+					{ toolId: 'candidate-section-tool', view: ['candidate'] },
+					{ toolId: 'scorer-section-tool', view: ['scorer'] },
+				],
+				itemRefs: [
+					{
+						identifier: 'item-1',
+						itemXml: '<assessmentItem identifier="item-1" />',
+						tools: [
+							{ toolId: 'textToSpeech', view: ['candidate'] },
+							{ toolId: 'scorer-notes', view: ['scorer'] },
+						],
+					},
+				],
+				sharedContext: {
+					...emptySharedContext,
+					passages: [
+						{
+							identifier: 'passage-1',
+							kind: 'passage',
+							scope: 'section',
+							rawHtml: '<p>Passage</p>',
+							tools: [
+								{ toolId: 'textToSpeech', view: ['candidate'] },
+								{ toolId: 'scorer-passage-notes', view: ['scorer'] },
+							],
+						},
+					],
+				},
+			},
+		});
+
+		expect(composition.section.tools?.map((tool) => tool.toolId)).toEqual(['candidate-section-tool']);
+		expect(composition.activeItem.tools?.map((tool) => tool.toolId)).toEqual(['textToSpeech']);
+		expect(composition.sharedContext.passages[0]?.tools?.map((tool) => tool.toolId)).toEqual(['textToSpeech']);
+	});
+
 	test('emits diagnostics for shared asset URLs blocked by host policy', () => {
 		const composition = resolveQtiSectionComposition({
 			section: {

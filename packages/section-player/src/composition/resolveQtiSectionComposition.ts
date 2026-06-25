@@ -4,7 +4,9 @@ import type {
 	QtiSectionDiagnostic,
 	QtiSectionModel,
 	QtiSectionSnapshot,
+	QtiSectionToolConfig,
 	QtiSharedContext,
+	QtiSharedHtmlBlock,
 	QtiSharedStimulus,
 	ResolveQtiSectionCompositionOptions,
 	ResolvedQtiSectionComposition,
@@ -51,6 +53,21 @@ function resolveLayout(section: QtiSectionModel, sharedContext: QtiSharedContext
 	if (section.layoutPreference === 'split-pane') return 'split-pane';
 	if (section.layoutPreference === 'vertical') return 'vertical';
 	return sharedContext.passages.length > 0 ? 'split-pane' : 'vertical';
+}
+
+function filterToolsForRole(tools: QtiSectionToolConfig[] | undefined, role: QtiSectionModel['role']): QtiSectionToolConfig[] | undefined {
+	const filtered = (tools ?? []).filter((tool) => tool.enabled !== false && isQtiViewVisibleForRole(tool.view, role ?? 'candidate'));
+	return filtered.length > 0 ? filtered : undefined;
+}
+
+function resolveSharedHtmlBlockTools(block: QtiSharedHtmlBlock, role: QtiSectionModel['role']): QtiSharedHtmlBlock {
+	const tools = filterToolsForRole(block.tools, role);
+	return tools === block.tools ? block : { ...block, tools };
+}
+
+function resolveItemTools(item: QtiSectionModel['itemRefs'][number], role: QtiSectionModel['role']): QtiSectionModel['itemRefs'][number] {
+	const tools = filterToolsForRole(item.tools, role);
+	return tools === item.tools ? item : { ...item, tools };
 }
 
 function sharedAssetDiagnostic(href: string, path: string): QtiSectionDiagnostic {
@@ -161,12 +178,12 @@ function resolveSharedContext(
 
 	return {
 		...sharedContext,
-		passages: sharedContext.passages.filter(filterBlock),
+		passages: sharedContext.passages.filter(filterBlock).map((block) => resolveSharedHtmlBlockTools(block, role)),
 		stimuli: sharedContext.stimuli.map((stimulus, stimulusIndex) =>
 			resolveStimulusStylesheets(stimulus, options, diagnostics, stimulusIndex),
 		),
-		rubricBlocks: sharedContext.rubricBlocks.filter(filterBlock),
-		testFeedback: sharedContext.testFeedback.filter(filterBlock),
+		rubricBlocks: sharedContext.rubricBlocks.filter(filterBlock).map((block) => resolveSharedHtmlBlockTools(block, role)),
+		testFeedback: sharedContext.testFeedback.filter(filterBlock).map((block) => resolveSharedHtmlBlockTools(block, role)),
 		stylesheets: sharedContext.stylesheets.map((stylesheet, index) =>
 			resolveSharedStylesheetRef(stylesheet, options, diagnostics, `sharedContext.stylesheets[${index}].href`),
 		),
@@ -198,22 +215,27 @@ export function resolveQtiSectionComposition(
 	}
 
 	const activeItemIndex = resolveActiveIndex(options, diagnostics);
-	const activeItem = options.section.itemRefs[activeItemIndex] ?? {
+	const role = options.section.role ?? 'candidate';
+	const itemRefs = options.section.itemRefs.map((item) => resolveItemTools(item, role));
+	const activeItem = itemRefs[activeItemIndex] ?? {
 		identifier: '',
 		itemXml: '',
 	};
 	const sharedContext = resolveSharedContext(options, diagnostics);
+	const tools = filterToolsForRole(options.section.tools, role);
 	const snapshot: QtiSectionSnapshot = {
 		sectionIdentifier: options.section.identifier,
 		activeItemIdentifier: activeItem.identifier,
 		activeItemIndex,
-		itemCount: options.section.itemRefs.length,
+		itemCount: itemRefs.length,
 		responses: resolveResponsesByItemIdentifier(options),
 	};
 
 	return {
 		section: {
 			...options.section,
+			tools,
+			itemRefs,
 			sharedContext,
 		},
 		activeItem,

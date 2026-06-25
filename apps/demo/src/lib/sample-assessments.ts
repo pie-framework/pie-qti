@@ -695,7 +695,7 @@ export const SAMPLE_ASSESSMENTS: SampleAssessment[] = [
 								{
 									identifier: 'q-passage-choice',
 									role: 'candidate',
-									itemXml: READING_COMPREHENSION_ASSESSMENT.assessment.testParts[0].sections[0].assessmentItemRefs[0].itemXml,
+									itemXml: SAMPLE_ITEMS.find((i) => i.id === 'math-inline')?.xml ?? '',
 								},
 							],
 						},

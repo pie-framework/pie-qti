@@ -8,6 +8,7 @@
 		QtiSharedHtmlSanitizeContext,
 	} from '../contracts/index.js';
 	import { isQtiViewVisibleForRole } from '../visibility/role-view.js';
+	import QtiToolButtonBar from './QtiToolButtonBar.svelte';
 	import SanitizedHtml from './SanitizedHtml.svelte';
 
 	interface Props {
@@ -33,6 +34,7 @@
 	}: Props = $props();
 
 	let isCollapsed = $state(false);
+	let passageScopeElements = $state<Record<string, HTMLElement>>({});
 
 	const isVisibleForRole = (block: QtiSharedHtmlBlock) => isQtiViewVisibleForRole(block.view, role);
 	const visiblePassages = $derived(passages.filter(isVisibleForRole));
@@ -46,6 +48,17 @@
 
 	function toggleCollapse() {
 		isCollapsed = !isCollapsed;
+	}
+
+	function passageScope(node: HTMLElement, identifier: string) {
+		passageScopeElements = { ...passageScopeElements, [identifier]: node };
+		return {
+			destroy() {
+				const next = { ...passageScopeElements };
+				delete next[identifier];
+				passageScopeElements = next;
+			},
+		};
 	}
 
 	function sanitizeKind(block: QtiSharedHtmlBlock): QtiSharedHtmlSanitizeContext['kind'] {
@@ -63,35 +76,46 @@
 							<h4 id={`passage-heading-${index}`} class="font-semibold text-base">
 								{i18n?.t('assessment.readingPassage') ?? 'Reading Passage'}
 							</h4>
-							<button
-								type="button"
-								class="btn btn-ghost btn-sm passage-toggle"
-								onclick={toggleCollapse}
-								aria-expanded={!isCollapsed}
-								aria-label={isCollapsed ? (i18n?.t('assessment.expandPassage') ?? 'Expand passage') : (i18n?.t('assessment.collapsePassage') ?? 'Collapse passage')}
-							>
-								{#if isCollapsed}
-									<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-									</svg>
-								{:else}
-									<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
-									</svg>
-								{/if}
-							</button>
+							<div class="passage-header-actions">
+								<QtiToolButtonBar
+									tools={passage.tools}
+									scopeId={passage.identifier}
+									scopeLabel="passage"
+									sourceText={passage.rawHtml}
+									scopeElement={passageScopeElements[passage.identifier] ?? null}
+								/>
+								<button
+									type="button"
+									class="btn btn-ghost btn-sm passage-toggle"
+									onclick={toggleCollapse}
+									aria-expanded={!isCollapsed}
+									aria-label={isCollapsed ? (i18n?.t('assessment.expandPassage') ?? 'Expand passage') : (i18n?.t('assessment.collapsePassage') ?? 'Collapse passage')}
+								>
+									{#if isCollapsed}
+										<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+										</svg>
+									{:else}
+										<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+										</svg>
+									{/if}
+								</button>
+							</div>
 						</div>
 
 						{#if !isCollapsed}
-							<SanitizedHtml
-								rawHtml={passage.rawHtml}
-								html={passage.html}
-								{security}
-								{host}
-								sanitizeContext={{ kind: 'passage', source: passage.source }}
-								class="passage-content prose max-w-none"
-								{typeset}
-							/>
+							<div use:passageScope={passage.identifier}>
+								<SanitizedHtml
+									rawHtml={passage.rawHtml}
+									html={passage.html}
+									{security}
+									{host}
+									sanitizeContext={{ kind: 'passage', source: passage.source }}
+									class="passage-content prose max-w-none"
+									{typeset}
+								/>
+							</div>
 						{/if}
 					</article>
 				{/each}
@@ -159,6 +183,12 @@
 		align-items: center;
 		gap: 1rem;
 		margin-bottom: 0.5rem;
+	}
+
+	.passage-header-actions {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
 	}
 
 	.passage-toggle {

@@ -10,7 +10,7 @@
 
 import type { QTIRole, PnpProfile, SerializedItemSessionState } from '@pie-qti/item-player';
 import { Player } from '@pie-qti/item-player';
-import type { QtiSectionRuntimeHostContract } from '@pie-qti/section-player';
+import type { QtiSectionRuntimeHostContract, QtiSectionToolConfig } from '@pie-qti/section-player';
 import type {
 	AssessmentRubricBlock,
 	AssessmentSessionState,
@@ -61,6 +61,12 @@ export interface BackendAssessmentPlayerConfig {
 	 * Used for section shared-content URL policy and runtime callbacks.
 	 */
 	sectionHost?: QtiSectionRuntimeHostContract;
+	/** Optional section-scoped tools rendered by delegated section players. */
+	sectionTools?: QtiSectionToolConfig[];
+	/** Optional tools rendered in passage/rubric headers. */
+	passageTools?: QtiSectionToolConfig[];
+	/** Optional tools rendered in item headers. */
+	itemTools?: QtiSectionToolConfig[];
 	/**
 	 * Demo/reference-only escape hatch. When false (default), rich item-session
 	 * variables stay client-local and are not submitted because template variables

@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@acme/likert-scale-plugin": "workspace:*",
+    "@pie-players/tts-server-polly": "^0.3.51",
     "@pie-qti/assessment-player": "workspace:*",
     "@pie-qti/default-components": "workspace:*",
     "@pie-qti/i18n": "workspace:*",
@@ -29,6 +30,7 @@
     "@pie-qti/pie-to-qti2": "workspace:*",
     "@pie-qti/player-elements": "workspace:*",
     "@pie-qti/qti-common": "workspace:*",
+    "@pie-qti/section-player": "workspace:*",
     "@pie-qti/theme-daisyui": "workspace:*",
     "@pie-qti/typeset-katex": "workspace:*",
     "@pie-qti/web-component-loaders": "workspace:*",

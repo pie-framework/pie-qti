@@ -14,12 +14,14 @@ export type QtiSectionResponseDeltaDetail = {
 type SectionPlayerElementProps = {
 	composition: ResolvedQtiSectionComposition;
 	security?: PlayerSecurityConfig;
+	typeset?: (root: HTMLElement) => void | Promise<void>;
 	onResponseChange: (itemIdentifier: string, responseIdentifier: string, value: unknown) => void;
 };
 
 export abstract class QtiSectionPlayerElementBase extends BaseSvelteMountElement<SectionPlayerElementProps> {
 	#composition: ResolvedQtiSectionComposition | null = null;
 	#security: PlayerSecurityConfig | undefined;
+	#typeset: ((root: HTMLElement) => void | Promise<void>) | undefined;
 
 	get composition() {
 		return this.#composition;
@@ -43,6 +45,17 @@ export abstract class QtiSectionPlayerElementBase extends BaseSvelteMountElement
 		}
 	}
 
+	get typeset() {
+		return this.#typeset;
+	}
+
+	set typeset(value: ((root: HTMLElement) => void | Promise<void>) | undefined) {
+		this.#typeset = value;
+		if (this.isConnected) {
+			this._mountOrUpdate();
+		}
+	}
+
 	protected override _mountOrUpdate() {
 		if (!this.#composition) {
 			return;
@@ -59,6 +72,7 @@ export abstract class QtiSectionPlayerElementBase extends BaseSvelteMountElement
 		return {
 			composition,
 			security: this.#security ?? composition.security,
+			typeset: this.#typeset,
 			onResponseChange: (itemIdentifier, responseIdentifier, value) => {
 				const detail: QtiSectionResponseDeltaDetail = {
 					sectionIdentifier: composition.section.identifier,

@@ -3,6 +3,7 @@ import {
 	resolveQtiSectionComposition,
 	type QtiSectionItemRef,
 	type QtiSectionRole,
+	type QtiSectionToolConfig,
 	type ResolvedQtiSectionComposition,
 } from '@pie-qti/section-player';
 import type { AssessmentPlayer, BackendAssessmentPlayerConfig } from '../core/AssessmentPlayer.js';
@@ -21,6 +22,11 @@ function toSectionRole(role: BackendAssessmentPlayerConfig['role']): QtiSectionR
 	}
 }
 
+function scopedTools(tools: QtiSectionToolConfig[] | undefined, scope: QtiSectionToolConfig['scope']): QtiSectionToolConfig[] | undefined {
+	if (!tools || tools.length === 0) return undefined;
+	return tools.map((tool) => ({ ...tool, scope }));
+}
+
 export function toSectionComposition(
 	player: AssessmentPlayer,
 	config: Partial<BackendAssessmentPlayerConfig> = {}
@@ -31,6 +37,7 @@ export function toSectionComposition(
 	const sharedContext = normalizeQtiSharedContext({
 		rubricBlocks: player.getCurrentSharedRubricBlocks(),
 		role,
+		passageTools: scopedTools(config.passageTools, 'passage'),
 	});
 	const sectionItems: QtiSectionItemRef[] = player.getCurrentSectionItemRefs().map((item) => ({
 		identifier: item.identifier,
@@ -39,6 +46,7 @@ export function toSectionComposition(
 		itemXml: item.itemXml,
 		responses: player.getResponsesForItem(item.identifier),
 		deliveryContext: item.deliveryContext,
+		tools: scopedTools(config.itemTools, 'item'),
 	}));
 
 	return resolveQtiSectionComposition({
@@ -47,6 +55,7 @@ export function toSectionComposition(
 			title: navState.currentSection?.title ?? currentItem?.title,
 			role,
 			layoutPreference: sharedContext.passages.length > 0 ? 'split-pane' : 'vertical',
+			tools: scopedTools(config.sectionTools, 'section'),
 			itemRefs: sectionItems,
 			sharedContext,
 		},

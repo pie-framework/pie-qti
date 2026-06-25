@@ -435,6 +435,8 @@
 				onXmlChange={handleXmlChange}
 				onRoleChange={handleRoleChange}
 			/>
+
+			<QtiDiagnosticsPanel report={diagnostics} />
 		</div>
 
 		<!-- Draggable Divider (desktop only) -->
@@ -470,8 +472,6 @@
 					<span>{errorMessage}</span>
 				</div>
 			{/if}
-
-			<QtiDiagnosticsPanel report={diagnostics} />
 
 			{#if player && !errorMessage}
 				<QuestionPanel

@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { AssessmentPlayer, ReferenceBackendAdapter, toSectionComposition } from '@pie-qti/assessment-player';
 	import { assignProps } from '@pie-qti/qti-common';
+	import type { ResolvedQtiSectionComposition, QtiSectionToolConfig } from '@pie-qti/section-player';
 	import { SAMPLE_ASSESSMENTS } from '$lib/sample-assessments';
 	import { getSecurityConfig } from '$lib/player-config';
 
@@ -20,6 +21,23 @@
 
 	const sample = SAMPLE_ASSESSMENTS.find((assessment) => assessment.id === 'interaction-showcase-1');
 	const expectedText = 'Reading Passage';
+	const pollyTtsProvider = {
+		backend: 'polly',
+		serverProvider: 'polly',
+		apiEndpoint: '/api/tts',
+		transportMode: 'pie',
+		endpointMode: 'synthesizePath',
+		defaultVoice: 'Joanna',
+		language: 'en-US',
+		engine: 'standard',
+		format: 'mp3',
+		speechMarksMode: 'word',
+	};
+	const passageTools: QtiSectionToolConfig[] = [{ toolId: 'textToSpeech', label: 'Read passage', provider: pollyTtsProvider }];
+	const itemTools: QtiSectionToolConfig[] = [
+		{ toolId: 'textToSpeech', label: 'Read question', provider: pollyTtsProvider },
+		{ toolId: 'calculator', label: 'Calculator', renderParams: { calculatorType: 'scientific' } },
+	];
 
 	function deepText(root: Node | null | undefined): string {
 		if (!root) return '';
@@ -40,6 +58,28 @@
 		return false;
 	}
 
+	function withDemoTools(composition: ResolvedQtiSectionComposition): ResolvedQtiSectionComposition {
+		const activeItem = { ...composition.activeItem, tools: itemTools };
+		const itemRefs = composition.section.itemRefs.map((item) =>
+			item.identifier === activeItem.identifier ? { ...item, tools: itemTools } : item,
+		);
+		const sharedContext = {
+			...composition.sharedContext,
+			passages: composition.sharedContext.passages.map((passage) => ({ ...passage, tools: passageTools })),
+		};
+
+		return {
+			...composition,
+			activeItem,
+			sharedContext,
+			section: {
+				...composition.section,
+				itemRefs,
+				sharedContext,
+			},
+		};
+	}
+
 	async function buildComposition() {
 		if (!sample) throw new Error('Interaction showcase sample not found');
 
@@ -56,7 +96,12 @@
 			security,
 		});
 
-		return toSectionComposition(player, { role: 'candidate', security });
+		return withDemoTools(toSectionComposition(player, {
+			role: 'candidate',
+			security,
+			passageTools,
+			itemTools,
+		}));
 	}
 
 	onMount(async () => {
@@ -98,33 +143,19 @@
 	<title>Web Component: Section Player Split Pane</title>
 </svelte:head>
 
-<div class="max-w-6xl mx-auto px-6 py-8 space-y-6">
-	<div class="prose max-w-none">
-		<h1>Web Component: Section Player Split Pane</h1>
-		<p>
-			This route smoke-tests <code>&lt;pie-qti-section-player-splitpane&gt;</code> with shared passage content and
-			an embedded item player.
-		</p>
-	</div>
-
-	<div class="alert {status === 'error' ? 'alert-error' : status === 'rendered' ? 'alert-success' : 'alert-info'}">
-		<div class="flex-1">
-			<div class="font-semibold">Status: {status}</div>
-			<div class="text-sm">{message}</div>
-		</div>
-	</div>
-
-	{#if lastDelta}
-		<pre data-testid="section-delta" class="mockup-code whitespace-pre-wrap p-4">{JSON.stringify(lastDelta)}</pre>
-	{/if}
-
-	<div class="card bg-base-100 shadow-xl">
-		<div class="card-body">
-			<h2 class="card-title">Split-Pane Section</h2>
-			<p class="text-sm text-base-content/70">Expected passage text: <strong>{expectedText}</strong></p>
-			<div class="bg-base-200 rounded-lg p-4 min-h-[320px]">
-				<pie-qti-section-player-splitpane bind:this={el} class="block w-full"></pie-qti-section-player-splitpane>
+<div class="max-w-6xl mx-auto px-6 py-8">
+	{#if status === 'error'}
+		<div class="alert alert-error mb-4">
+			<div class="flex-1">
+				<div class="font-semibold">Section player failed to render</div>
+				<div class="text-sm">{message}</div>
 			</div>
 		</div>
-	</div>
+	{/if}
+
+	<pie-qti-section-player-splitpane bind:this={el} class="block w-full"></pie-qti-section-player-splitpane>
+
+	{#if lastDelta}
+		<pre data-testid="section-delta" class="hidden">{JSON.stringify(lastDelta)}</pre>
+	{/if}
 </div>

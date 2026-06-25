@@ -4,6 +4,8 @@
 	import { assignProps } from '@pie-qti/qti-common';
 	import { onMount } from 'svelte';
 	import type { QtiSectionFrameworkError, QtiSectionItemRef, QtiSectionRole } from '../contracts/index.js';
+	import { extractReadableInteractionSpeechHtml } from '../tts/readable-interaction-projection.js';
+	import QtiToolButtonBar from './QtiToolButtonBar.svelte';
 
 	type ItemResponseMap = Record<string, unknown>;
 	type PieQtiItemPlayerElement = HTMLElement & {
@@ -73,6 +75,10 @@
 
 	let playerLoaded = $state(false);
 	let errorMessage = $state<string | null>(null);
+	let itemScopeElement = $state<HTMLElement | null>(null);
+	const itemTitle = $derived(itemRef.title ?? 'Question');
+	const hasHeaderTools = $derived((itemRef.tools?.length ?? 0) > 0);
+	const interactionSpeechHtml = $derived(extractReadableInteractionSpeechHtml(itemRef.itemXml));
 
 	async function loadItemPlayerElement() {
 		if (defaultInteractionTags.some((tagName) => !customElements.get(tagName))) {
@@ -123,6 +129,7 @@
 			},
 		};
 	}
+
 </script>
 
 {#if errorMessage}
@@ -142,14 +149,21 @@
 		<span class="ml-4">{i18n?.t('item.loading', 'Loading item...')}</span>
 	</div>
 {:else}
-	<article class="item-container" aria-labelledby={itemRef.title ? `section-item-title-${itemRef.identifier}` : undefined}>
-		{#if itemRef.title}
+	<article class="item-container" aria-labelledby={itemRef.title || hasHeaderTools ? `section-item-title-${itemRef.identifier}` : undefined}>
+		{#if itemRef.title || hasHeaderTools}
 			<header class="item-header">
-				<h3 id={`section-item-title-${itemRef.identifier}`} class="text-lg font-semibold mb-4">{itemRef.title}</h3>
+				<h3 id={`section-item-title-${itemRef.identifier}`} class="text-lg font-semibold">{itemTitle}</h3>
+				<QtiToolButtonBar
+					tools={itemRef.tools}
+					scopeId={itemRef.identifier}
+					scopeLabel="question"
+					sourceXml={itemRef.itemXml}
+					scopeElement={itemScopeElement}
+				/>
 			</header>
 		{/if}
 
-		<div class="item-content">
+		<div class="item-content" bind:this={itemScopeElement}>
 			<pie-qti-item-player
 				use:itemPlayerProps={{
 					responses: responses ?? itemRef.responses ?? {},
@@ -165,6 +179,11 @@
 					onResponseChange: handleResponseChange,
 				}}
 			></pie-qti-item-player>
+			{#if interactionSpeechHtml}
+				<div class="qti-tts-interaction-projection" data-qti-tts-readable-projection>
+					{@html interactionSpeechHtml}
+				</div>
+			{/if}
 		</div>
 	</article>
 {/if}
@@ -175,7 +194,25 @@
 		padding: 1rem;
 	}
 
+	.item-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+		margin-bottom: 1rem;
+	}
+
 	.item-content {
 		width: 100%;
+		position: relative;
+	}
+
+	.qti-tts-interaction-projection {
+		position: absolute;
+		left: -10000px;
+		top: 0;
+		width: 1px;
+		opacity: 0.01;
+		pointer-events: none;
 	}
 </style>

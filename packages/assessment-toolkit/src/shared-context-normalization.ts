@@ -1,16 +1,20 @@
-import type { QtiSectionRole, QtiSharedContext, QtiSharedHtmlBlock, QtiSharedHtmlBlockKind } from '@pie-qti/section-player';
+import type { QtiSectionRole, QtiSectionToolConfig, QtiSharedContext, QtiSharedHtmlBlock, QtiSharedHtmlBlockKind } from '@pie-qti/section-player';
 import { isQtiViewVisibleForRole } from './role-view.js';
+import { normalizeQtiToolConfig } from './tool-normalization.js';
 
 export interface QtiRubricLikeBlock {
   identifier?: string;
   use?: string;
   view?: string[];
+  tools?: QtiSectionToolConfig[];
   content: string;
 }
 
 export interface NormalizeQtiSharedContextOptions {
   rubricBlocks?: QtiRubricLikeBlock[];
   role?: QtiSectionRole;
+  passageTools?: QtiSectionToolConfig[];
+  rubricTools?: QtiSectionToolConfig[];
 }
 
 export function normalizeQtiSharedContext(options: NormalizeQtiSharedContextOptions): QtiSharedContext {
@@ -18,7 +22,7 @@ export function normalizeQtiSharedContext(options: NormalizeQtiSharedContextOpti
   const rubricBlocks: QtiSharedHtmlBlock[] = [];
 
   for (const [index, block] of (options.rubricBlocks ?? []).entries()) {
-    const normalized = toSharedHtmlBlock(block, index);
+    const normalized = toSharedHtmlBlock(block, index, options);
     if (!isQtiViewVisibleForRole(normalized.view, options.role)) continue;
 
     if (normalized.kind === 'passage') {
@@ -39,12 +43,20 @@ export function normalizeQtiSharedContext(options: NormalizeQtiSharedContextOpti
   };
 }
 
-function toSharedHtmlBlock(block: QtiRubricLikeBlock, index: number): QtiSharedHtmlBlock {
+function toSharedHtmlBlock(
+  block: QtiRubricLikeBlock,
+  index: number,
+  options: NormalizeQtiSharedContextOptions,
+): QtiSharedHtmlBlock {
+  const kind = toSharedHtmlBlockKind(block.use);
+  const defaultTools = kind === 'passage' ? options.passageTools : options.rubricTools;
+  const tools = normalizeQtiToolConfig({ tools: block.tools ?? defaultTools, role: options.role });
   return {
     identifier: block.identifier ?? `${block.use ?? 'rubric'}-${index}`,
-    kind: toSharedHtmlBlockKind(block.use),
+    kind,
     scope: 'section',
     view: block.view,
+    ...(tools.length > 0 ? { tools } : {}),
     rawHtml: block.content,
   };
 }

@@ -9,6 +9,18 @@ export type QtiSectionNavigationMode = 'linear' | 'nonlinear';
 export type QtiSectionSubmissionMode = 'individual' | 'simultaneous';
 export type QtiSharedHtmlBlockKind = 'passage' | 'instructions' | 'rubric' | 'stimulus' | 'test-feedback';
 export type QtiSharedHtmlBlockScope = 'assessment' | 'testPart' | 'section' | 'item' | 'stimulus';
+export type QtiSectionToolId = 'textToSpeech' | 'calculator' | (string & {});
+export type QtiSectionToolScope = 'section' | 'passage' | 'item';
+
+export interface QtiSectionToolConfig {
+  toolId: QtiSectionToolId;
+  label?: string;
+  view?: string[];
+  enabled?: boolean;
+  scope?: QtiSectionToolScope;
+  provider?: Record<string, unknown>;
+  renderParams?: Record<string, unknown>;
+}
 
 export interface QtiSectionModel {
   identifier: string;
@@ -18,6 +30,7 @@ export interface QtiSectionModel {
   layoutPreference?: QtiSectionLayoutPreference;
   navigationMode?: QtiSectionNavigationMode;
   submissionMode?: QtiSectionSubmissionMode;
+  tools?: QtiSectionToolConfig[];
   itemRefs: QtiSectionItemRef[];
   sharedContext?: QtiSharedContext;
   diagnostics?: QtiSectionDiagnostic[];
@@ -32,6 +45,7 @@ export interface QtiSectionItemRef {
   responses?: Record<string, unknown>;
   sessionSnapshot?: SerializedItemSessionState;
   deliveryContext?: ResolvedItemDeliveryContext;
+  tools?: QtiSectionToolConfig[];
   diagnostics?: QtiSectionDiagnostic[];
 }
 
@@ -41,6 +55,7 @@ export interface QtiSharedHtmlBlock {
   scope: QtiSharedHtmlBlockScope;
   source?: string;
   view?: string[];
+  tools?: QtiSectionToolConfig[];
   rawHtml?: string;
   html?: HtmlContent;
 }

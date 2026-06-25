@@ -705,4 +705,20 @@ describe('Task 5 — assessment player section composition delegation', () => {
 
 		expect(composition.host).toBe(sectionHost);
 	});
+
+	it('maps configured item and passage tools into section composition', async () => {
+		const player = await createPlayerWithSectionRubrics();
+
+		const composition = toSectionComposition(player, {
+			role: 'candidate',
+			passageTools: [{ toolId: 'textToSpeech', label: 'Read passage' }],
+			itemTools: [
+				{ toolId: 'textToSpeech', label: 'Read question' },
+				{ toolId: 'calculator', label: 'Calculator', renderParams: { calculatorType: 'scientific' } },
+			],
+		});
+
+		expect(composition.sharedContext.passages[0]?.tools?.map((tool) => tool.toolId)).toEqual(['textToSpeech']);
+		expect(composition.activeItem.tools?.map((tool) => tool.toolId)).toEqual(['textToSpeech', 'calculator']);
+	});
 });

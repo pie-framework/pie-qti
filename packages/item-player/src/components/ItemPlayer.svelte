@@ -5,7 +5,6 @@
 	import type { PnpProfile } from '../pnp/types';
 	import type { InteractionResponseValue } from '../web-components';
 	import type { I18nProvider } from '@pie-qti/i18n';
-	import { typesetMathInElement } from '@pie-qti/typeset-katex';
 	import ItemBody from './ItemBody.svelte';
 	import ModalFeedbackDisplay from './ModalFeedbackDisplay.svelte';
 
@@ -48,9 +47,6 @@
 		onSubmit,
 		onComplete,
 	}: Props = $props();
-
-	// Use host-provided typeset if given, otherwise fall back to the built-in KaTeX typesetter.
-	const effectiveTypeset = $derived(typeset ?? typesetMathInElement);
 
 	// Create player instance
 	let player = $state<Player | null>(null);
@@ -142,7 +138,7 @@
 			responses={currentResponses}
 			{disabled}
 			{role}
-			typeset={effectiveTypeset}
+			{typeset}
 			{i18n}
 			{deliveryContext}
 			{outcomeValues}
@@ -174,7 +170,7 @@
 		{/if}
 
 		<!-- Modal feedback display -->
-		<ModalFeedbackDisplay feedback={modalFeedback} onClose={closeFeedback} typeset={effectiveTypeset} {i18n} />
+		<ModalFeedbackDisplay feedback={modalFeedback} onClose={closeFeedback} {typeset} {i18n} />
 	{:else}
 		<div class="qti-player-alert qti-player-alert-info">
 			<span>{i18n?.t('item.loading') ?? 'item.loading'}</span>
