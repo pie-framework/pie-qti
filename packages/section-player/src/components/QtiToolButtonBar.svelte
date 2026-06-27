@@ -22,6 +22,19 @@
 		scopeElement?: HTMLElement | null;
 	}
 
+	type TtsHighlightContext = {
+		scopeElement?: HTMLElement | null;
+	};
+
+	type TtsHighlightTargetResolver = {
+		resolveWordRange?: (range: Range, context: TtsHighlightContext) => Range | null | undefined;
+		resolveSentenceRanges?: (ranges: Range[], context: TtsHighlightContext) => Array<Range | HTMLElement> | null | undefined;
+	};
+
+	type QtiRegionScopeContext = AssessmentToolkitRegionScopeContext & {
+		ttsHighlightTargetResolver?: TtsHighlightTargetResolver | null;
+	};
+
 	const { tools = [], scopeId, scopeLabel, sourceText = '', sourceXml = '', scopeElement = null }: Props = $props();
 
 	let shellHost = $state<HTMLElement | null>(null);
@@ -109,9 +122,27 @@
 			contextVersion: Date.now(),
 		};
 	});
-	const regionScopeValue = $derived.by((): AssessmentToolkitRegionScopeContext | null => {
+	const ttsHighlightTargetResolver: TtsHighlightTargetResolver = {
+		resolveWordRange: (range, context) => {
+			const scope = context.scopeElement ?? effectiveScopeElement;
+			if (!scope) return range;
+			return resolveVisibleTrackingRange(range, scope);
+		},
+		resolveSentenceRanges: (ranges, context) => {
+			const scope = context.scopeElement ?? effectiveScopeElement;
+			if (!scope) return ranges;
+			const targets = ranges
+				.map((range) => resolveVisibleTrackingBlock(range, scope))
+				.filter((target): target is HTMLElement => target instanceof HTMLElement);
+			return targets.length > 0 ? targets : ranges;
+		},
+	};
+	const regionScopeValue = $derived.by((): QtiRegionScopeContext | null => {
 		if (!effectiveScopeElement) return null;
-		return { scopeElement: effectiveScopeElement };
+		return {
+			scopeElement: effectiveScopeElement,
+			ttsHighlightTargetResolver,
+		};
 	});
 
 	type TextPosition = { node: Text; offset: number };
@@ -227,102 +258,6 @@
 		const visibleBlock = findVisibleTrackingBlock(sourceBlock, scope);
 		if (!visibleBlock) return null;
 		return mapProjectionRangeToVisibleRange(range, sourceBlock, visibleBlock);
-	}
-
-	function clearTtsWordRangeFallbacks(highlightCoordinator: any) {
-		for (const element of highlightCoordinator.__qtiSectionWordRangeFallbacks ?? []) {
-			element.remove();
-		}
-		highlightCoordinator.__qtiSectionWordRangeFallbacks?.clear?.();
-	}
-
-	function renderTtsWordRangeFallback(highlightCoordinator: any, range: Range) {
-		const rect = Array.from(range.getClientRects()).find((candidate) => candidate.width > 0 && candidate.height > 0 && candidate.x >= 0 && candidate.y >= 0);
-		if (!rect) return;
-		const overlay = document.createElement('span');
-		overlay.setAttribute('data-pie-tts-word-element', 'true');
-		overlay.setAttribute('data-pie-qti-tts-word-range-fallback', 'true');
-		overlay.setAttribute('data-pie-qti-tts-word-text', normalizeTrackingText(range.toString()));
-		overlay.style.position = 'absolute';
-		overlay.style.left = `${rect.left + window.scrollX}px`;
-		overlay.style.top = `${rect.top + window.scrollY}px`;
-		overlay.style.width = `${rect.width}px`;
-		overlay.style.height = `${rect.height}px`;
-		overlay.style.backgroundColor = 'var(--pie-tts-word-highlight, rgba(255, 235, 59, 0.68))';
-		overlay.style.borderBottom = '2px solid var(--pie-tts-word-underline, rgba(17, 24, 39, 0.7))';
-		overlay.style.borderRadius = '0.12em';
-		overlay.style.boxSizing = 'border-box';
-		overlay.style.pointerEvents = 'none';
-		overlay.style.zIndex = '2147483647';
-		document.body.appendChild(overlay);
-		highlightCoordinator.__qtiSectionWordRangeFallbacks ??= new Set<HTMLElement>();
-		highlightCoordinator.__qtiSectionWordRangeFallbacks.add(overlay);
-	}
-
-	function createFirstWordRange(element: HTMLElement) {
-		const map = collectNormalizedTextMap(element);
-		const match = /\S+/.exec(map.text);
-		if (!match) return null;
-		return createRangeFromNormalizedSpan(map, match.index, match.index + match[0].length);
-	}
-
-	function installTtsElementHighlightFallback(coordinator: ToolkitCoordinator, scope: HTMLElement | null) {
-		if (!scope) return;
-		const highlightCoordinator = (coordinator as any).highlightCoordinator;
-		if (!highlightCoordinator) return;
-		highlightCoordinator.__qtiSectionFallbackScope = scope;
-		if (highlightCoordinator.__qtiSectionFallbackInstalled) return;
-		const originalHighlightWord = highlightCoordinator.highlightTTSWord?.bind(highlightCoordinator);
-		const originalHighlightSentence = highlightCoordinator.highlightTTSSentence?.bind(highlightCoordinator);
-		const originalClearTTSWord = highlightCoordinator.clearTTSWord?.bind(highlightCoordinator);
-		const originalClearTTS = highlightCoordinator.clearTTS?.bind(highlightCoordinator);
-		if (!originalHighlightSentence || !originalHighlightWord) return;
-
-		highlightCoordinator.clearTTSWord = () => {
-			clearTtsWordRangeFallbacks(highlightCoordinator);
-			originalClearTTSWord?.();
-		};
-
-		highlightCoordinator.clearTTS = () => {
-			clearTtsWordRangeFallbacks(highlightCoordinator);
-			originalClearTTS?.();
-		};
-
-		highlightCoordinator.highlightTTSWord = (textNode: Text, startOffset: number, endOffset: number) => {
-			originalHighlightWord(textNode, startOffset, endOffset);
-			const activeScope = highlightCoordinator.__qtiSectionFallbackScope as HTMLElement | null;
-			if (!activeScope) return;
-			try {
-				const range = document.createRange();
-				range.setStart(textNode, startOffset);
-				range.setEnd(textNode, endOffset);
-				const visibleRange = resolveVisibleTrackingRange(range, activeScope);
-				if (visibleRange) {
-					clearTtsWordRangeFallbacks(highlightCoordinator);
-					renderTtsWordRangeFallback(highlightCoordinator, visibleRange);
-				}
-			} catch {
-				// Continue with the toolkit's native highlight if fallback geometry fails.
-			}
-		};
-
-		highlightCoordinator.highlightTTSSentence = (ranges: Range[]) => {
-			originalHighlightSentence(ranges);
-			const activeScope = highlightCoordinator.__qtiSectionFallbackScope as HTMLElement | null;
-			if (!activeScope) return;
-			for (const range of ranges) {
-				const block = resolveVisibleTrackingBlock(range, activeScope);
-				if (!block) continue;
-				block.setAttribute('data-pie-tts-sentence-element', 'true');
-				highlightCoordinator.ttsSentenceElementHighlights?.add?.(block);
-				const firstWordRange = createFirstWordRange(block);
-				if (firstWordRange) {
-					clearTtsWordRangeFallbacks(highlightCoordinator);
-					renderTtsWordRangeFallback(highlightCoordinator, firstWordRange);
-				}
-			}
-		};
-		highlightCoordinator.__qtiSectionFallbackInstalled = true;
 	}
 
 	function ensureFontAwesomeFallbackMarker() {
@@ -557,11 +492,6 @@
 				},
 			}),
 		);
-	});
-
-	$effect(() => {
-		if (!toolkitCoordinator) return;
-		installTtsElementHighlightFallback(toolkitCoordinator, effectiveScopeElement);
 	});
 </script>
 

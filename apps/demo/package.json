@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@acme/likert-scale-plugin": "workspace:*",
-    "@pie-players/tts-server-polly": "^0.3.51",
+    "@pie-players/tts-server-polly": "^0.3.53",
     "@pie-qti/assessment-player": "workspace:*",
     "@pie-qti/default-components": "workspace:*",
     "@pie-qti/i18n": "workspace:*",

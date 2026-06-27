@@ -12,6 +12,7 @@ export const defaultSectionTtsProviderConfig = {
 	engine: 'standard',
 	format: 'mp3',
 	speechMarksMode: 'word',
+	validateEndpoint: false,
 	settings: defaultTtsSettings,
 };
 

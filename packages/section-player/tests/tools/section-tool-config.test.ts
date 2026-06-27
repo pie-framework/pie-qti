@@ -13,6 +13,7 @@ describe('resolveSectionTtsProviderConfig', () => {
 			engine: 'standard',
 			format: 'mp3',
 			speechMarksMode: 'word',
+			validateEndpoint: false,
 			settings: {
 				layoutMode: 'expanding-row',
 			},

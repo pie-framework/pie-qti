@@ -123,6 +123,13 @@ test.describe('section player web components', () => {
 		await page.addInitScript(() => {
 			HTMLMediaElement.prototype.play = function () {
 				this.dispatchEvent(new Event('play'));
+				let tick = 0;
+				const interval = window.setInterval(() => {
+					this.currentTime = tick * 0.08;
+					this.dispatchEvent(new Event('timeupdate'));
+					tick += 1;
+					if (tick > 6) window.clearInterval(interval);
+				}, 80);
 				return Promise.resolve();
 			};
 		});
@@ -147,16 +154,20 @@ test.describe('section player web components', () => {
 
 		await page.locator('pie-item-toolbar[item-id="passage-0"] pie-tool-tts-inline button').first().click();
 
-		await expect(page.locator('[data-pie-tts-sentence-element="true"]')).toContainText(/Reading Passage/i, { timeout: 10_000 });
-		await expect(page.locator('[data-pie-qti-tts-word-range-fallback="true"]').first()).toBeVisible({ timeout: 10_000 });
 		await expect
 			.poll(async () => {
-				return page.locator('[data-pie-qti-tts-word-range-fallback="true"]').evaluateAll((overlays) =>
-					overlays.some((overlay) => {
-						const rect = overlay.getBoundingClientRect();
-						return rect.width > 0 && rect.height > 0 && rect.x >= 0 && rect.y >= 0;
-					}),
-				);
+				return page.evaluate(() => {
+					const highlights = (CSS as unknown as { highlights?: { get(name: string): Iterable<Range> | undefined } }).highlights;
+					return Array.from(highlights?.get('tts-sentence') ?? []).some((range) => /Reading Passage/i.test(range.toString()));
+				});
+			}, { timeout: 10_000 })
+			.toBe(true);
+		await expect
+			.poll(async () => {
+				return page.evaluate(() => {
+					const highlights = (CSS as unknown as { highlights?: { get(name: string): Iterable<Range> | undefined } }).highlights;
+					return Array.from(highlights?.get('tts-word') ?? []).some((range) => /Reading|Passage/i.test(range.toString()));
+				});
 			})
 			.toBe(true);
 	});
@@ -206,15 +217,20 @@ test.describe('section player web components', () => {
 			const inspect = () => {
 				const roots = collectRoots(document);
 				const query = (selector: string) => roots.flatMap((root) => Array.from(root.querySelectorAll(selector)));
-				state.prompt ||= query('.qti-choice-prompt[data-pie-tts-sentence-element="true"]').length > 0;
-				state.choice ||= query('.qti-choice-text[data-pie-tts-sentence-element="true"]').some((element) => element.textContent?.includes('x=-2 or x=-3'));
+				const highlightedRanges = (name: string) => {
+					const highlights = (CSS as unknown as { highlights?: { get(name: string): Iterable<Range> | undefined } }).highlights;
+					return Array.from(highlights?.get(name) ?? []);
+				};
+				const rangeIsInside = (range: Range, element: Element) => {
+					const container = range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE ? (range.commonAncestorContainer as Element) : range.commonAncestorContainer.parentElement;
+					return !!container && element.contains(container) && range.toString().trim().length > 0;
+				};
+				const prompt = query('.qti-choice-prompt')[0];
 				const choice = query('.qti-choice-text').find((element) => element.textContent?.includes('x=-2 or x=-3'));
-				const choiceRect = choice?.getBoundingClientRect();
-				if (choiceRect) {
-					state.choiceWord ||= query('[data-pie-qti-tts-word-range-fallback="true"]').some((overlay) => {
-						const rect = overlay.getBoundingClientRect();
-						return rect.width > 0 && rect.height > 0 && rect.x >= choiceRect.x && rect.x <= choiceRect.x + choiceRect.width && rect.y >= choiceRect.y && rect.y <= choiceRect.y + choiceRect.height;
-					});
+				state.prompt ||= !!prompt && (prompt.hasAttribute('data-pie-tts-sentence-element') || highlightedRanges('tts-sentence').some((range) => rangeIsInside(range, prompt)));
+				state.choice ||= !!choice && (choice.hasAttribute('data-pie-tts-sentence-element') || highlightedRanges('tts-sentence').some((range) => rangeIsInside(range, choice)));
+				if (choice) {
+					state.choiceWord ||= choice.hasAttribute('data-pie-tts-word-element') || highlightedRanges('tts-word').some((range) => rangeIsInside(range, choice));
 				}
 			};
 			window.setInterval(inspect, 50);
