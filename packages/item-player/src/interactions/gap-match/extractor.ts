@@ -6,6 +6,32 @@
 
 import type { ElementExtractor } from '../../extraction/types.js';
 
+const GAP_ELEMENT_PATTERN = /<(?:qti-gap|gap)(?=[\s/>])([^>]*)\/?>/gi;
+const GAP_CLOSE_PATTERN = /<\/(?:qti-gap|gap)>/gi;
+const GAP_TEXT_PATTERN = /<(?:qti-gap-text|gapText)\b[\s\S]*?<\/(?:qti-gap-text|gapText)>/gi;
+const GAP_MATCH_OPEN_PATTERN = /<(?:qti-gap-match-interaction|gapMatchInteraction)\b[^>]*>/i;
+const GAP_MATCH_CLOSE_PATTERN = /<\/(?:qti-gap-match-interaction|gapMatchInteraction)>/i;
+const PROMPT_PATTERN = /<(?:qti-prompt|prompt)\b[\s\S]*?<\/(?:qti-prompt|prompt)>/gi;
+
+function extractAttribute(attrs: string, name: string): string {
+	const match = new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`, 'i').exec(attrs);
+	return (match?.[1] ?? match?.[2] ?? '').trim();
+}
+
+function promptTextFromInteractionBody(interactionHtml: string): string {
+	return interactionHtml
+		.replace(GAP_MATCH_OPEN_PATTERN, '')
+		.replace(GAP_MATCH_CLOSE_PATTERN, '')
+		.replace(PROMPT_PATTERN, '')
+		.replace(GAP_TEXT_PATTERN, '')
+		.replace(GAP_ELEMENT_PATTERN, (_match, attrs: string) => {
+			const id = extractAttribute(attrs, 'identifier');
+			return id ? `[GAP:${id}]` : '';
+		})
+		.replace(GAP_CLOSE_PATTERN, '')
+		.trim();
+}
+
 /**
  * Gap match data extracted from gapMatchInteraction elements
  */
@@ -87,9 +113,11 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 			promptText = promptHtml
 				.replace(/<qti-prompt[^>]*>|<prompt[^>]*>/, '')
 				.replace(/<\/qti-prompt>|<\/prompt>/, '')
-				.replace(/<(?:qti-)?gap\s+identifier="([^"]+)"[^>]*>/g, '[GAP:$1]')
-				.replace(/<(?:qti-)?gap\s+identifier='([^']+)'[^>]*>/g, '[GAP:$1]')
-				.replace(/<\/(?:qti-)?gap>/g, '')
+				.replace(GAP_ELEMENT_PATTERN, (_match, attrs: string) => {
+					const id = extractAttribute(attrs, 'identifier');
+					return id ? `[GAP:${id}]` : '';
+				})
+				.replace(GAP_CLOSE_PATTERN, '')
 				.trim();
 		}
 
@@ -97,25 +125,15 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 		// This handles items where <gap> elements appear in <p>/<blockquote> siblings of <prompt>.
 		if (gaps.length === 0) {
 			const interactionHtml = element.outerHTML || element.toString();
-			const gapIdMatches = Array.from(
-				interactionHtml.matchAll(/<(?:qti-)?gap\s+identifier=(?:"([^"]+)"|'([^']+)')[^>]*\/?>/gi)
-			);
+			const gapIdMatches = Array.from(interactionHtml.matchAll(GAP_ELEMENT_PATTERN));
 			for (const m of gapIdMatches) {
-				const id = (m[1] || m[2] || '').trim();
+				const id = extractAttribute(m[1] ?? '', 'identifier');
 				if (id) gaps.push(id);
 			}
 
-			if (!promptText) {
-				// No prompt element either: build promptText from full interaction content.
-				const interactionHtml2 = element.outerHTML || element.toString();
-				promptText = interactionHtml2
-					.replace(/<(?:qti-)?gap-match-interaction[^>]*>|<gapMatchInteraction[^>]*>/, '')
-					.replace(/<\/(?:qti-)?gap-match-interaction>|<\/gapMatchInteraction>/, '')
-					.replace(/<(?:qti-)?gap-text[\s\S]*?<\/(?:qti-)?gap-text>|<gapText[\s\S]*?<\/gapText>/g, '')
-					.replace(/<(?:qti-)?gap\s+identifier="([^"]+)"[^>]*\/?>/g, '[GAP:$1]')
-					.replace(/<(?:qti-)?gap\s+identifier='([^']+)'[^>]*\/?>/g, '[GAP:$1]')
-					.replace(/<\/(?:qti-)?gap>/g, '')
-					.trim();
+			if (gaps.length > 0 && (!promptText || !promptText.includes('[GAP:'))) {
+				// Build promptText from the interaction body when gaps are authored outside the prompt.
+				promptText = promptTextFromInteractionBody(interactionHtml);
 			}
 		}
 

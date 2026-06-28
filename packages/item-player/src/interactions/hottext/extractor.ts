@@ -151,7 +151,9 @@ export const standardHottextExtractor: ElementExtractor<HottextData> = {
 			data.maxChoices > 0 &&
 			data.minChoices > data.maxChoices
 		) {
-			errors.push('minChoices cannot exceed maxChoices');
+			warnings.push(
+				`minChoices (${data.minChoices}) exceeds maxChoices (${data.maxChoices}); rendering interaction with authoring constraint warning`
+			);
 		}
 
 		return {
