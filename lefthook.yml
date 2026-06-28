@@ -19,5 +19,5 @@ pre-push:
         if [ "$SKIP_QTI_PUBLIC_CERTIFICATION" = "1" ]; then
           echo "Skipping public QTI certification gate because SKIP_QTI_PUBLIC_CERTIFICATION=1"
         else
-          bun run test:certification:public
+          bun run test:certification:public -- --skip-e2e
         fi

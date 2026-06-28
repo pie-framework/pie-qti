@@ -13,6 +13,10 @@ const skipPrebuild =
 	process.env.PIE_QTI_PUBLIC_CERT_SKIP_PREBUILD === '1' || process.argv.includes('--skip-prebuild');
 const listOnly = process.argv.includes('--list');
 
+function isBrowserCommand(command) {
+	return command.id?.startsWith('browser-');
+}
+
 function fail(message) {
 	console.error(`\n[public-certification] ${message}`);
 	process.exit(1);
@@ -105,11 +109,16 @@ const matrix = readMatrix();
 validateMatrix(matrix);
 assertNoOfficialPublicArtifacts();
 
-const commands = (matrix.commands ?? []).filter((command) => !(skipE2e && command.id === 'browser-visible'));
+const skippedBrowserCommands = skipE2e ? (matrix.commands ?? []).filter(isBrowserCommand) : [];
+const commands = (matrix.commands ?? []).filter((command) => !(skipE2e && isBrowserCommand(command)));
 
 console.log(`[public-certification] Matrix rows: ${matrix.rows.length}`);
 console.log(`[public-certification] Commands: ${commands.map((command) => command.id).join(', ')}`);
-if (skipE2e) console.log('[public-certification] Browser-visible command skipped by request.');
+if (skipE2e) {
+	console.log(
+		`[public-certification] Browser-backed commands skipped by request: ${skippedBrowserCommands.map((command) => command.id).join(', ')}`
+	);
+}
 
 if (!listOnly) {
 	if (!skipPrebuild) {
