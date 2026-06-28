@@ -4,7 +4,7 @@
 	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
 	import { base } from '$app/paths';
-	import { Player, normalizeHeuristicsConfig, shouldAutoPopulateFeedbackOutcome, type QtiHeuristicsConfig } from '@pie-qti/item-player';
+	import { Player, normalizeHeuristicsConfig, shouldAutoPopulateFeedbackOutcome, type QtiHeuristicsConfig, type QTIRole } from '@pie-qti/item-player';
 	import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
 	import type { InteractionResponseValue } from '@pie-qti/item-player/web-components';
 	import { ItemBody } from '@pie-qti/item-player/components';
@@ -41,6 +41,7 @@
 	const heuristics = normalizeHeuristicsConfig(heuristicsConfig);
 
 	let itemXml = $state<string | null>(null);
+	let sourceItemXml = $state<string | null>(null);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
 
@@ -58,10 +59,46 @@
 	let stimulusContent = $state<Record<string, string>>({});
 	let deliveryContext = $state<ResolvedItemDeliveryContext | undefined>(undefined);
 	let diagnostics = $state<QtiCompatibilityReport | null>(null);
+	let selectedRole = $state<QTIRole>('candidate');
 
 	// Get i18n provider from context
 	const i18nContext = getContext<{ value: SvelteI18nProvider | null }>('i18n');
 	const i18n = i18nContext?.value ?? null;
+
+	function createPlayer(xml: string, context: ResolvedItemDeliveryContext | undefined) {
+		const nextPlayer = new Player({
+			itemXml: xml,
+			role: selectedRole,
+			deliveryContext: context,
+			security: {
+				...getSecurityConfig(),
+				urlPolicy: {
+					...getSecurityConfig().urlPolicy,
+					allowBlobImages: true,
+					allowBlobMedia: true,
+				},
+			}
+		});
+		registerDefaultComponents(nextPlayer.getComponentRegistry());
+		return nextPlayer;
+	}
+
+	function resetItemResponses() {
+		responses = {};
+		outcomeValues = {};
+	}
+
+	function refreshPlayerForRole() {
+		if (!itemXml) return;
+
+		player = createPlayer(itemXml, deliveryContext);
+		resetItemResponses();
+		diagnostics = analyzeQtiItemCompatibility(sourceItemXml ?? itemXml, {
+			player,
+			sourcePath: packageData?.items.find((item) => item.identifier === $page.params.itemId)?.href,
+			packageFiles: packageData ? listFiles(packageData).map((file) => file.path) : [],
+		});
+	}
 
 	// React to URL parameter changes
 	$effect(() => {
@@ -75,6 +112,7 @@
 		loading = true;
 		error = null;
 		itemXml = null;
+		sourceItemXml = null;
 		player = null;
 		responses = {};
 		outcomeValues = {};
@@ -126,6 +164,7 @@
 					sourcePath: currentItem2?.href,
 					packageFiles: listFiles(packageData).map((file) => file.path),
 				});
+				sourceItemXml = rawItemXml;
 				itemXml = rawItemXml;
 
 				// Resolve image paths from ZIP assets to inline data URLs
@@ -142,23 +181,7 @@
 					}
 				}
 
-				// Initialize player
-				player = new Player({
-					itemXml: itemXml,
-					role: 'candidate',
-					deliveryContext,
-					security: {
-						...getSecurityConfig(),
-						urlPolicy: {
-							...getSecurityConfig().urlPolicy,
-							allowBlobImages: true,
-							allowBlobMedia: true,
-						},
-					}
-				});
-
-				// Register default components
-				registerDefaultComponents(player.getComponentRegistry());
+				player = createPlayer(itemXml, deliveryContext);
 				diagnostics = analyzeQtiItemCompatibility(rawItemXml, {
 					player,
 					sourcePath: currentItem2?.href,
@@ -194,6 +217,10 @@
 
 	function goBack() {
 		goto(`${base}/package-upload`);
+	}
+
+	function handleRoleChange() {
+		refreshPlayerForRole();
 	}
 
 	function handleResponseChange(responseId: string, value: ItemResponseValue) {
@@ -292,6 +319,25 @@
 		{/if}
 	</div>
 
+	<div class="card bg-base-100 shadow">
+		<div class="card-body py-4">
+			<div class="form-control w-full max-w-xs">
+				<label class="label" for="role-select">
+					<span class="label-text font-medium">View as</span>
+				</label>
+				<select
+					id="role-select"
+					class="select select-bordered w-full"
+					bind:value={selectedRole}
+					onchange={handleRoleChange}
+				>
+					<option value="candidate">Student</option>
+					<option value="scorer">Evaluator</option>
+				</select>
+			</div>
+		</div>
+	</div>
+
 	{#if error}
 		<div class="alert alert-error">
 			<svg
@@ -328,7 +374,7 @@
 					{responses}
 					{outcomeValues}
 					disabled={false}
-					role="candidate"
+					role={selectedRole}
 					i18n={i18n ?? undefined}
 					typeset={typesetMathInElement}
 					onResponseChange={handleResponseChange}
