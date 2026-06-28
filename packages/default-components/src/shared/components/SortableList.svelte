@@ -85,7 +85,7 @@ function handleKeyDown(event: KeyboardEvent, id: string) {
 
 	const currentIndex = orderedIds.indexOf(id);
 	const item = items.find((i) => i.id === id);
-	const itemName = item?.text || 'Item';
+	const itemName = item ? itemLabel(item) : 'Item';
 
 	// Space or Enter: Pick up or drop item
 	if (event.key === ' ' || event.key === 'Enter') {
@@ -164,6 +164,19 @@ function moveItem(fromIndex: number, toIndex: number) {
 	newOrder.splice(toIndex, 0, movedItem);
 	onReorder(newOrder);
 }
+
+function itemLabel(item: Item): string {
+	return toPlainText(item.text) || 'Item';
+}
+
+function toPlainText(html: string): string {
+	if (typeof document !== 'undefined') {
+		const template = document.createElement('template');
+		template.innerHTML = html;
+		return (template.content.textContent ?? '').replace(/\s+/g, ' ').trim();
+	}
+	return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+}
 </script>
 
 <!-- Screen reader announcements -->
@@ -192,6 +205,7 @@ function moveItem(fromIndex: number, toIndex: number) {
 			{@const isGrabbed = keyboardSelectedId === id}
 			{@const correctIndex = correctOrder.indexOf(id)}
 			{@const isCorrect = correctIndex !== -1 && correctIndex === index}
+			{@const label = itemLabel(item)}
 			<div role="listitem">
 				<button
 					type="button"
@@ -204,7 +218,7 @@ function moveItem(fromIndex: number, toIndex: number) {
 					ondragend={handleDragEnd}
 					onkeydown={(e) => handleKeyDown(e, id)}
 					disabled={disabled}
-					aria-label="{item.text}. Position {index + 1} of {orderedIds.length}{isGrabbed ? '. Grabbed. Use arrow keys to move.' : ''}{isCorrect ? '. Correct position' : ''}"
+					aria-label="{label}. Position {index + 1} of {orderedIds.length}{isGrabbed ? '. Grabbed. Use arrow keys to move.' : ''}{isCorrect ? '. Correct position' : ''}"
 					aria-grabbed={isGrabbed}
 					data-grabbed={isGrabbed}
 					data-correct={isCorrect}
@@ -223,7 +237,7 @@ function moveItem(fromIndex: number, toIndex: number) {
 				>
 					<span part="index" class="qti-sortable-index badge {isCorrect ? 'badge-success' : 'badge-neutral'}">{index + 1}</span>
 					<DragHandle size={1} opacity={0.5} class="text-base-content" />
-					<span part="text" class="qti-sortable-text flex-1">{item.text}</span>
+					<span part="text" class="qti-sortable-text qti-rich-content flex-1">{@html item.text}</span>
 					{#if isCorrect}
 						<span class="badge badge-success badge-sm">{i18n?.t('interactions.choice.correct', 'Correct') ?? 'Correct'}</span>
 					{/if}

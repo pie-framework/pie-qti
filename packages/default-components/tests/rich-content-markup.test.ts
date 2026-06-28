@@ -58,4 +58,14 @@ describe('rich QTI content markup', () => {
 			'class="qti-gm-text qti-rich-content'
 		);
 	});
+
+	it('renders sortable labels as rich content while keeping accessible labels plain', () => {
+		const component = source('src/shared/components/SortableList.svelte');
+
+		expect(component).toContain('function itemLabel(item: Item): string');
+		expect(component).toContain('aria-label="{label}. Position');
+		expect(component).toContain('class="qti-sortable-text qti-rich-content flex-1"');
+		expect(component).toContain('{@html item.text}');
+		expect(component).not.toContain('aria-label="{item.text}. Position');
+	});
 });
