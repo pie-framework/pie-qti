@@ -104,25 +104,32 @@ export function processFeedbackInline(
 	if (!html) return html;
 
 	return html.replace(
-		/<feedbackInline[^>]*outcomeIdentifier="([^"]+)"[^>]*identifier="([^"]+)"[^>]*showHide="([^"]+)"[^>]*>([\s\S]*?)<\/feedbackInline>/gi,
-		(match, outcomeId, feedbackId, showHide) => {
-			const outcomeValue = outcomeValues[outcomeId];
+		/<feedbackInline\b([^>]*)>([\s\S]*?)<\/feedbackInline>/gi,
+		(_match, attrs, content) => {
+			const outcomeId = feedbackInlineAttr(attrs, 'outcomeIdentifier');
+			const feedbackId = feedbackInlineAttr(attrs, 'identifier');
+			const showHide = feedbackInlineAttr(attrs, 'showHide') ?? 'show';
+			const outcomeValue = outcomeId ? outcomeValues[outcomeId] : undefined;
 
 			// If outcome value is not set (undefined, null, empty string), hide feedback
-			if (outcomeValue === undefined || outcomeValue === null || outcomeValue === '') {
+			if (
+				outcomeId === null ||
+				feedbackId === null ||
+				outcomeValue === undefined ||
+				outcomeValue === null ||
+				outcomeValue === ''
+			) {
 				return '';
 			}
 
 			// Determine if feedback should be shown based on showHide attribute
+			const matchesFeedback = Array.isArray(outcomeValue)
+				? outcomeValue.includes(feedbackId)
+				: outcomeValue === feedbackId;
 			const shouldShow =
-				showHide.toLowerCase() === 'show'
-					? outcomeValue === feedbackId
-					: outcomeValue !== feedbackId;
+				showHide.toLowerCase() === 'show' ? matchesFeedback : !matchesFeedback;
 
 			if (!shouldShow) return '';
-
-			// Extract content from feedbackInline tags
-			let content = match.replace(/<feedbackInline[^>]*>/, '').replace(/<\/feedbackInline>/, '');
 
 			// Apply text cleaning heuristics if enabled
 			if (applyHeuristics) {
@@ -137,4 +144,11 @@ export function processFeedbackInline(
 			return content;
 		}
 	);
+}
+
+function feedbackInlineAttr(attrs: string, name: string): string | null {
+	const match =
+		new RegExp(`\\b${name}\\s*=\\s*"([^"]*)"`, 'i').exec(attrs) ??
+		new RegExp(`\\b${name}\\s*=\\s*'([^']*)'`, 'i').exec(attrs);
+	return match?.[1] ?? null;
 }
