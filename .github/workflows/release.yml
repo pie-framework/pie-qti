@@ -110,10 +110,24 @@ jobs:
           # Require both removed and added "version" lines to avoid treating metadata-only
           # package.json edits as publish intents.
           if echo "$version_diff" | grep -Eq '^-[[:space:]]*"version"[[:space:]]*:' && echo "$version_diff" | grep -Eq '^\+[[:space:]]*"version"[[:space:]]*:'; then
-            echo "has_version_bumps=true" >> "$GITHUB_OUTPUT"
+            has_version_bumps=true
           else
-            echo "has_version_bumps=false" >> "$GITHUB_OUTPUT"
+            has_version_bumps=false
           fi
+          echo "has_version_bumps=${has_version_bumps}" >> "$GITHUB_OUTPUT"
+
+          should_publish="${has_version_bumps}"
+          if [ "${{ github.event_name }}" != "workflow_dispatch" ] && [ "$has_version_bumps" = "true" ]; then
+            local_version="$(node -e 'const fs = require("node:fs"); console.log(JSON.parse(fs.readFileSync("packages/assessment-player/package.json", "utf8")).version);')"
+            published_json="$(npm view @pie-qti/assessment-player version --json 2>/dev/null || true)"
+            published_version="$(PUBLISHED_JSON="$published_json" node -e 'const raw = process.env.PUBLISHED_JSON?.trim(); if (!raw) process.exit(0); const parsed = JSON.parse(raw); console.log(Array.isArray(parsed) ? parsed.at(-1) : parsed);')"
+
+            if [ -n "$published_version" ] && [ "$local_version" = "$published_version" ]; then
+              echo "Version ${local_version} is already published on npm; skipping automatic publish."
+              should_publish=false
+            fi
+          fi
+          echo "should_publish=${should_publish}" >> "$GITHUB_OUTPUT"
 
       - name: Validate manual release intent prerequisites
         if: github.event_name == 'workflow_dispatch'
@@ -144,19 +158,19 @@ jobs:
           echo "created=true" >> "$GITHUB_OUTPUT"
 
       - name: Run full publish readiness checks (publish runs only)
-        if: (github.event_name == 'workflow_dispatch' && inputs.release_intent == 'publish') || (github.event_name != 'workflow_dispatch' && steps.detect.outputs.has_version_bumps == 'true')
+        if: (github.event_name == 'workflow_dispatch' && inputs.release_intent == 'publish') || (github.event_name != 'workflow_dispatch' && steps.detect.outputs.should_publish == 'true')
         run: bun run verify:publish
 
       - name: Run tests (publish runs only)
-        if: (github.event_name == 'workflow_dispatch' && inputs.release_intent == 'publish') || (github.event_name != 'workflow_dispatch' && steps.detect.outputs.has_version_bumps == 'true')
+        if: (github.event_name == 'workflow_dispatch' && inputs.release_intent == 'publish') || (github.event_name != 'workflow_dispatch' && steps.detect.outputs.should_publish == 'true')
         run: bun run test
 
       - name: Check fixed monorepo versioning invariants (publish runs only)
-        if: (github.event_name == 'workflow_dispatch' && inputs.release_intent == 'publish') || (github.event_name != 'workflow_dispatch' && steps.detect.outputs.has_version_bumps == 'true')
+        if: (github.event_name == 'workflow_dispatch' && inputs.release_intent == 'publish') || (github.event_name != 'workflow_dispatch' && steps.detect.outputs.should_publish == 'true')
         run: bun run check:fixed-versioning:full
 
       - name: Resolve npm publish auth mode
-        if: (github.event_name == 'workflow_dispatch' && inputs.release_intent == 'publish') || (github.event_name != 'workflow_dispatch' && steps.detect.outputs.has_version_bumps == 'true')
+        if: (github.event_name == 'workflow_dispatch' && inputs.release_intent == 'publish') || (github.event_name != 'workflow_dispatch' && steps.detect.outputs.should_publish == 'true')
         id: npm_auth
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -209,7 +223,7 @@ jobs:
           echo "PUBLISH_NODE_AUTH_TOKEN=" >> "$GITHUB_ENV"
 
       - name: Create Release Pull Request or Publish to NPM
-        if: github.event_name == 'workflow_dispatch' || steps.detect.outputs.has_changesets == 'true' || steps.detect.outputs.has_version_bumps == 'true' || steps.temp_changeset.outputs.created == 'true'
+        if: github.event_name == 'workflow_dispatch' || steps.detect.outputs.has_changesets == 'true' || steps.detect.outputs.should_publish == 'true' || steps.temp_changeset.outputs.created == 'true'
         id: changesets
         uses: changesets/action@v1
         with:

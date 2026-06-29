@@ -1,5 +1,11 @@
 # @pie-qti/qti-processing
 
+## 0.1.14
+
+### Patch Changes
+
+- @pie-qti/qti-common@0.1.14
+
 ## 0.1.13
 
 ### Patch Changes
