@@ -1,0 +1,10 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "QTI 2.2 Basic Level orderInteraction fixture. Verifies ordered cardinality values are preserved by the player response-processing path.",
+  "covers": [
+    "Q4-orderInteraction",
+    "ordered-cardinality",
+    "variable"
+  ]
+}
