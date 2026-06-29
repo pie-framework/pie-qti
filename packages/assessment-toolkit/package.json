@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/assessment-toolkit",
-  "version": "0.1.14",
+  "version": "0.1.15",
   "description": "Pure TypeScript helpers for composing QTI assessment player shared section context",
   "type": "module",
   "main": "./dist/index.js",

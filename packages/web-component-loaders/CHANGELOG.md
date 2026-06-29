@@ -1,5 +1,15 @@
 # @pie-qti/web-component-loaders
 
+## 0.1.15
+
+### Patch Changes
+
+- Temporary release changeset: patch all publishable packages to keep lockstep versions.
+- Updated dependencies
+  - @pie-qti/default-components@0.1.15
+  - @pie-qti/player-elements@0.1.15
+  - @pie-qti/theme-daisyui@0.1.15
+
 ## 0.1.14
 
 ### Patch Changes
