@@ -7,8 +7,9 @@ This feature allows users to upload complete QTI package ZIP files and browse al
 ## Implementation
 
 ✅ **Client-Side Package Processing**
+
 - Upload ZIP file via drag-and-drop or file browser
-- Extract ZIP contents in the browser using JSZip
+- Extract ZIP contents in the browser using the shared IMS CP browser loader
 - Parse `imsmanifest.xml` client-side
 - Extract all items and tests from package
 - Identify assets (images, styles, audio, video, passages)
@@ -19,13 +20,16 @@ This feature allows users to upload complete QTI package ZIP files and browse al
 ## Architecture
 
 ### Client-Side Processing
+
 All package processing happens in the browser:
+
 - **No server upload** — files stay on your machine
 - **Privacy-first** — package data never leaves your browser
 - **Works offline** — once loaded, no network required
 - **Static deployment** — works on GitHub Pages
 
 ### Browser Storage
+
 - **localStorage**: Package metadata (items list, structure)
 - **sessionStorage**: File contents (XML files)
 - **Data URLs**: Binary assets (images, etc.) for demo purposes
@@ -33,13 +37,16 @@ All package processing happens in the browser:
 ## Files
 
 ### Library
+
 - `src/lib/package-processor.ts` - Client-side ZIP processing and storage utilities
 
 ### Pages
+
 - `src/routes/package-upload/+page.svelte` - Main upload page
 - `src/routes/package-upload/[packageId]/item/[itemId]/+page.svelte` - Item viewer
 
 ### Components
+
 - `src/routes/package-upload/components/PackageUploader.svelte` - File upload UI with drag-and-drop
 - `src/routes/package-upload/components/PackageBrowser.svelte` - Package contents browser
 - `src/routes/package-upload/components/ItemList.svelte` - List of items in package
@@ -59,7 +66,8 @@ All package processing happens in the browser:
 ## Package Structure Supported
 
 The uploader expects IMS Content Package format:
-```
+
+```text
 package.zip
 ├── imsmanifest.xml
 ├── items/
@@ -105,7 +113,7 @@ The `processPackage()` function returns:
 To test the feature:
 
 1. Start the dev server: `bun run dev`
-2. Navigate to http://localhost:5173/package-upload
+2. Navigate to <http://localhost:5173/package-upload>
 3. Upload a QTI package ZIP file
 4. Verify package contents are displayed correctly
 5. Click an item to view it
