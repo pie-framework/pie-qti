@@ -139,6 +139,10 @@ if (!listOnly) {
 				'--filter=@pie-qti/item-player',
 				'--filter=@pie-qti/default-components',
 				'--filter=@pie-qti/assessment-player',
+				'--filter=@pie-qti/player-elements',
+				'--filter=@pie-qti/theme-daisyui',
+				'--filter=@pie-qti/web-component-loaders',
+				'--filter=@acme/likert-scale-plugin',
 			],
 		});
 	}

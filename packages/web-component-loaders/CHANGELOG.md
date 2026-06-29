@@ -1,5 +1,16 @@
 # @pie-qti/web-component-loaders
 
+## 0.1.14
+
+### Patch Changes
+
+- da6892f: Add section-player contracts, assessment toolkit helpers, and expose the shared item-player security surface for QTI shared content.
+- Updated dependencies [da6892f]
+- Updated dependencies [a27cc3c]
+  - @pie-qti/player-elements@0.1.14
+  - @pie-qti/default-components@0.1.14
+  - @pie-qti/theme-daisyui@0.1.14
+
 ## 0.1.13
 
 ### Patch Changes

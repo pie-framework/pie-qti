@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/assessment-toolkit",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "description": "Pure TypeScript helpers for composing QTI assessment player shared section context",
   "type": "module",
   "main": "./dist/index.js",
@@ -13,7 +13,13 @@
     "lint:fix": "biome check --write .",
     "format": "biome format --write ."
   },
-  "keywords": ["qti", "qti2", "qti3", "assessment", "toolkit"],
+  "keywords": [
+    "qti",
+    "qti2",
+    "qti3",
+    "assessment",
+    "toolkit"
+  ],
   "license": "MIT",
   "dependencies": {
     "@pie-qti/ims-cp-core": "workspace:*",
@@ -46,5 +52,7 @@
   "engines": {
     "node": ">=20.19.0"
   },
-  "files": ["dist"]
+  "files": [
+    "dist"
+  ]
 }

@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/transform-cli",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "description": "CLI tool for QTI ↔ PIE transformations",
   "type": "module",
   "bin": {
@@ -30,9 +30,7 @@
     "@pie-qti/to-pie": "workspace:*",
     "@pie-qti/transform-core": "workspace:*",
     "@pie-qti/transform-types": "workspace:*",
-    "@types/unzipper": "^0.10.11",
-    "node-html-parser": "^7.0.1",
-    "unzipper": "^0.12.3"
+    "node-html-parser": "^7.0.1"
   },
   "devDependencies": {
     "@types/node": "^25.0.3",

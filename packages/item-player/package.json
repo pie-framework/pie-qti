@@ -1,6 +1,6 @@
 {
 	"name": "@pie-qti/item-player",
-	"version": "0.1.13",
+	"version": "0.1.14",
 	"description": "Modern QTI player supporting QTI 2.2 and 3.0 - Client-side with optional backend hooks",
 	"type": "module",
 	"main": "./dist/index.js",
@@ -31,13 +31,6 @@
 		"@pie-qti/ims-cp-core": "workspace:*",
 		"@pie-qti/qti-common": "workspace:*",
 		"@pie-qti/qti-processing": "workspace:*",
-		"@tiptap/core": "^3.15.3",
-		"@tiptap/extension-mathematics": "^3.15.3",
-		"@tiptap/extension-placeholder": "^3.15.3",
-		"@tiptap/starter-kit": "^3.15.3",
-		"@xmldom/xmldom": "^0.8.11",
-		"decimal.js": "^10.6.0",
-		"katex": "^0.16.27",
 		"mathlive": "^0.108.2",
 		"node-html-parser": "^7.0.2"
 	},

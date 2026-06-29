@@ -29,7 +29,7 @@ export default defineConfig({
 		rollupOptions: {
 			// Bundle svelte runtime so the CE works standalone (no host Svelte needed).
 			// Externalise all @pie-qti/* workspace packages — host app provides them.
-			external: [/^@pie-qti\//, 'node-html-parser', '@xmldom/xmldom'],
+			external: [/^@pie-qti\//, 'node-html-parser'],
 		},
 	},
 });
