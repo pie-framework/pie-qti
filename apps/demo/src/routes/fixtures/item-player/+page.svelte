@@ -1,31 +1,27 @@
 <script lang="ts">
-	import { typesetAction } from '@pie-qti/default-components/shared';
-	import GraphicGapMatch from '@pie-qti/default-components/shared/components/GraphicGapMatch.svelte';
-	import InlineInteractionRenderer from '@pie-qti/default-components/shared/components/InlineInteractionRenderer.svelte';
-	import RichTextEditor from '@pie-qti/default-components/shared/components/RichTextEditor.svelte';
-	import {
-		Player,
-		type QTIRole,
-	} from '@pie-qti/item-player';
+	import { registerDefaultComponents } from '@pie-qti/default-components';
+	import { ItemBody } from '@pie-qti/item-player/components';
+	import { Player, type QTIRole } from '@pie-qti/item-player';
+	import type { InteractionResponseValue } from '@pie-qti/item-player/web-components';
 	import { typesetMathInElement } from '@pie-qti/typeset-katex';
 	import { untrack } from 'svelte';
 	import { SAMPLE_ITEMS } from '$lib/sample-items';
 	import { getSecurityConfig } from '$lib/player-config';
-	import { assignProps } from '$lib/utils/assignProps';
+
+	type FixtureResponseValue = InteractionResponseValue | null;
+	type FixtureResponseMap = Record<string, FixtureResponseValue>;
 
 	let selectedSampleId = $state('simple-choice');
 	let xmlContent = $state('');
 	let player = $state<Player | null>(null);
 	let interactions = $state<any[]>([]);
-	let itemBodyHtml = $state('');
-	let responses = $state<Record<string, any>>({});
+	let responses = $state<FixtureResponseMap>({});
 	let selectedRole = $state<QTIRole>('candidate');
 
 	function loadPlayer(xml: string) {
 		if (!xml.trim()) {
 			player = null;
 			interactions = [];
-			itemBodyHtml = '';
 			responses = {};
 			return;
 		}
@@ -35,23 +31,12 @@
 			role: selectedRole,
 			security: getSecurityConfig(),
 		});
+		registerDefaultComponents(newPlayer.getComponentRegistry());
 
 		player = newPlayer;
-		let rawItemBodyHtml = player.getItemBodyHtml();
-
-		// Remove interaction elements from itemBodyHtml
-		rawItemBodyHtml = rawItemBodyHtml
-			.replace(/<choiceInteraction[\s\S]*?<\/choiceInteraction>/gi, '')
-			.replace(/<textEntryInteraction[^>]*responseIdentifier="([^"]+)"[^>]*?(?:\/>|><\/textEntryInteraction>)/gi, '[TEXTENTRY:$1]')
-			.replace(/<extendedTextInteraction[\s\S]*?<\/extendedTextInteraction>/gi, '')
-			.replace(/<inlineChoiceInteraction[^>]*responseIdentifier="([^"]+)"[^>]*>[\s\S]*?<\/inlineChoiceInteraction>/gi, '[INLINECHOICE:$1]')
-			.replace(/<hotspotInteraction[\s\S]*?<\/hotspotInteraction>/gi, '')
-			.replace(/<graphicGapMatchInteraction[\s\S]*?<\/graphicGapMatchInteraction>/gi, '');
-
-		itemBodyHtml = rawItemBodyHtml;
 		interactions = newPlayer.getInteractionData();
 
-		const newResponses: Record<string, any> = {};
+		const newResponses: FixtureResponseMap = {};
 		for (const interaction of interactions) {
 			if (interaction) {
 				newResponses[interaction.responseId] = null;
@@ -69,27 +54,8 @@
 		});
 	});
 
-	function handleResponseChange(responseId: string, value: any) {
+	function handleResponseChange(responseId: string, value: FixtureResponseValue) {
 		responses = { ...responses, [responseId]: value };
-	}
-
-	function handleQtiChange(event: CustomEvent) {
-		const { responseId, value } = event.detail;
-		handleResponseChange(responseId, value);
-	}
-
-	function setElementProps(node: HTMLElement, props: Record<string, unknown>) {
-		queueMicrotask(() => {
-			if (!node) return;
-			assignProps(node, props);
-		});
-
-		return {
-			update(next: Record<string, unknown>) {
-				assignProps(node, next);
-			},
-			destroy() {}
-		};
 	}
 </script>
 
@@ -116,110 +82,29 @@
 
 	<!-- Player area -->
 	{#if player}
-		<div class="card bg-base-100 shadow-xl" use:typesetAction={{ typeset: (el) => typesetMathInElement(el) }}>
+		<div class="card bg-base-100 shadow-xl">
 			<div class="card-body">
 				<h2 class="card-title">Question</h2>
 
-				<!-- Item Body -->
-				<div class="prose max-w-none mb-4">
-					<InlineInteractionRenderer
-						html={itemBodyHtml}
-						{interactions}
+				<div class="qti-question-body">
+					<ItemBody
+						{player}
 						{responses}
+						role={selectedRole}
+						typeset={typesetMathInElement}
 						onResponseChange={handleResponseChange}
 					/>
 				</div>
-
-				<!-- Interactive Controls -->
-				{#each interactions as interaction}
-					{#if interaction.type === 'choiceInteraction'}
-						<div class="space-y-2">
-							{#if interaction.maxChoices === 1}
-								{#each interaction.choices as choice}
-									<div class="form-control">
-										<label class="label cursor-pointer justify-start gap-4">
-											<input
-												type="radio"
-												name={interaction.responseId}
-												class="radio radio-primary"
-												value={choice.identifier}
-												checked={responses[interaction.responseId] === choice.identifier}
-												onchange={() => handleResponseChange(interaction.responseId, choice.identifier)}
-											/>
-											<span class="label-text">{choice.text}</span>
-										</label>
-									</div>
-								{/each}
-							{:else}
-								{@const currentValues = Array.isArray(responses[interaction.responseId])
-									? responses[interaction.responseId]
-									: []}
-								{#each interaction.choices as choice}
-									<div class="form-control">
-										<label class="label cursor-pointer justify-start gap-4">
-											<input
-												type="checkbox"
-												class="checkbox checkbox-primary"
-												value={choice.identifier}
-												checked={currentValues.includes(choice.identifier)}
-												onchange={(e: Event) => {
-													const checked = (e.currentTarget as HTMLInputElement).checked;
-													let newValues = [...currentValues];
-													if (checked) {
-														newValues.push(choice.identifier);
-													} else {
-														newValues = newValues.filter((v) => v !== choice.identifier);
-													}
-													handleResponseChange(interaction.responseId, newValues);
-												}}
-											/>
-											<span class="label-text">{choice.text}</span>
-										</label>
-									</div>
-								{/each}
-							{/if}
-						</div>
-					{/if}
-
-					{#if interaction.type === 'extendedTextInteraction'}
-						<div class="form-control w-full">
-							<RichTextEditor
-								value={responses[interaction.responseId] || ''}
-								editable={true}
-								placeholder={interaction.placeholderText || ''}
-								minHeight={(interaction.expectedLines || 6) * 24}
-								onChange={(html: string) => handleResponseChange(interaction.responseId, html)}
-							/>
-						</div>
-					{/if}
-
-					{#if interaction.type === 'hotspotInteraction'}
-						<svelte:element
-							this={'pie-qti-hotspot'}
-							use:setElementProps={{
-								interaction,
-								response: responses[interaction.responseId] ?? null,
-								disabled: false,
-							}}
-							onqti-change={handleQtiChange}
-						/>
-					{/if}
-
-					{#if interaction.type === 'graphicGapMatchInteraction'}
-						{@const pairs = Array.isArray(responses[interaction.responseId]) ? responses[interaction.responseId] : []}
-						<GraphicGapMatch
-							gapTexts={interaction.gapTexts}
-							hotspots={interaction.hotspots}
-							imageData={interaction.imageData?.content || ''}
-							imageWidth={interaction.imageData?.width || '600'}
-							imageHeight={interaction.imageData?.height || '500'}
-							{pairs}
-							disabled={false}
-							onPairsChange={(newPairs) => handleResponseChange(interaction.responseId, newPairs)}
-						/>
-					{/if}
-				{/each}
 			</div>
 		</div>
 	{/if}
 </div>
+
+<style>
+	.qti-question-body {
+		max-width: 100%;
+		min-width: 0;
+		overflow-x: auto;
+		overflow-y: visible;
+	}
+</style>

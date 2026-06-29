@@ -1,0 +1,44 @@
+{
+  "id": "qti22_advanced_q13_match",
+  "cases": [
+    {
+      "name": "Q13-D2/D4: no associations -> SCORE=0",
+      "responses": { "RESPONSE": [] },
+      "expect": {
+        "score": 0,
+        "outcomes": { "SCORE": 0 }
+      }
+    },
+    {
+      "name": "Q13-D2/D4: all 3 correct -> SCORE=1 (match_correct)",
+      "responses": { "RESPONSE": ["process_evaporation description_liquid_to_gas", "process_condensation description_gas_to_liquid", "process_precipitation description_falls_to_ground"] },
+      "expect": {
+        "score": 1,
+        "outcomes": { "SCORE": 1 }
+      }
+    },
+    {
+      "name": "Q13-D2/D4: partial correct -> SCORE=0",
+      "responses": { "RESPONSE": ["process_evaporation description_liquid_to_gas"] },
+      "expect": {
+        "score": 0,
+        "outcomes": { "SCORE": 0 }
+      }
+    },
+    {
+      "name": "Q13-D2/D4: wrong associations -> SCORE=0",
+      "responses": { "RESPONSE": ["process_evaporation description_gas_to_liquid", "process_condensation description_falls_to_ground"] },
+      "expect": {
+        "score": 0,
+        "outcomes": { "SCORE": 0 }
+      }
+    },
+    {
+      "name": "Q13-D4: directedPair response variable accepted (baseType=directedPair)",
+      "responses": { "RESPONSE": ["process_evaporation description_liquid_to_gas", "process_condensation description_gas_to_liquid", "process_precipitation description_falls_to_ground"] },
+      "expect": {
+        "score": 1
+      }
+    }
+  ]
+}

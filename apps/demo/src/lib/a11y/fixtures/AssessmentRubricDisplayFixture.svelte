@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { AssessmentRubricBlock } from '@pie-qti/assessment-player';
-	import RubricDisplay from '@pie-qti/assessment-player/components/RubricDisplay.svelte';
+	import { RubricDisplay } from '@pie-qti/assessment-player/components';
 
 	const blocks: AssessmentRubricBlock[] = [
 		{

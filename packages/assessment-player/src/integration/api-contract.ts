@@ -17,7 +17,7 @@
  * that demonstrates the API contract without requiring a real backend.
  */
 
-import type { QTIRole } from '@pie-qti/item-player';
+import type { QTIRole, ResolvedItemDeliveryContext, SerializedItemSessionState } from '@pie-qti/item-player';
 
 // ============================================================================
 // SESSION MANAGEMENT
@@ -61,6 +61,24 @@ export interface InitSessionResponse {
  *
  * Security: NO correct answers, NO scoring rules, NO sensitive rubrics
  */
+export interface TestFeedbackItem {
+	identifier: string;
+	/** Outcome variable name to evaluate (e.g. "PASS", "GRADE") */
+	outcomeIdentifier: string;
+	/** 'show' = show when outcome equals identifier; 'hide' = show when it does not */
+	showHide: 'show' | 'hide';
+	/** 'atEnd' = only after submission; 'during' = also during attempt */
+	access: 'atEnd' | 'during';
+	/** HTML content to display */
+	content: string;
+}
+
+export interface SecureTimeLimits {
+	minTime?: number;
+	maxTime?: number;
+	allowLateSubmission?: boolean;
+}
+
 export interface SecureAssessment {
 	identifier: string;
 	title: string;
@@ -71,16 +89,28 @@ export interface SecureAssessment {
 	/** Test parts contain sections */
 	testParts: SecureTestPart[];
 	/** Overall time limit in seconds (optional) */
-	timeLimits?: {
-		maxTime?: number; // seconds
-		allowLateSubmission?: boolean;
-	};
+	timeLimits?: SecureTimeLimits;
+	/** QTI outcomeDeclarations for test-level variables */
+	outcomeDeclarations?: Array<{
+		identifier: string;
+		baseType: string;
+		cardinality: string;
+		defaultValue?: unknown;
+	}>;
+	/** Raw <outcomeProcessing> XML string, if present */
+	outcomeProcessingXml?: string;
+	/** Base URL/path for resolving relative hrefs (e.g. assessmentSectionRef) */
+	baseUrl?: string;
+	/** QTI testFeedback blocks for post-submission display */
+	testFeedback?: TestFeedbackItem[];
 }
 
 export interface SecureTestPart {
 	identifier: string;
 	/** Sections contain items */
 	sections: SecureSection[];
+	/** TestPart-level time limit. */
+	timeLimits?: SecureTimeLimits;
 	/** Candidate instructions (safe for display) */
 	rubricBlocks?: AssessmentRubricBlock[];
 	/**
@@ -103,14 +133,41 @@ export interface SecureSection {
 	title?: string;
 	/** Visible determines if section appears in navigation */
 	visible: boolean;
-	/** Assessment item references */
+	/** Assessment item references (order reflects selection/ordering already applied server-side) */
 	assessmentItemRefs: SecureItemRef[];
 	/** Section-level time limit */
-	timeLimits?: {
-		maxTime?: number;
-	};
+	timeLimits?: SecureTimeLimits;
 	/** Candidate instructions (safe for display) */
 	rubricBlocks?: AssessmentRubricBlock[];
+	/**
+	 * QTI selection: how many items to present from this section.
+	 * When present the server has already applied selection; client uses this for progress display.
+	 */
+	selection?: {
+		/** Number of items selected for this session */
+		select: number;
+		withReplacement?: boolean;
+	};
+	/**
+	 * QTI ordering: whether items were shuffled.
+	 * When true the server has already shuffled assessmentItemRefs.
+	 */
+	ordering?: {
+		shuffle: boolean;
+	};
+	/**
+	 * Item session control (QTI assessmentSection/itemSessionControl).
+	 * Section-level values take precedence over testPart-level when present.
+	 */
+	itemSessionControl?: {
+		maxAttempts?: number;
+		showFeedback?: boolean;
+		allowReview?: boolean;
+		showSolution?: boolean;
+		allowComment?: boolean;
+		allowSkipping?: boolean;
+		validateResponses?: boolean;
+	};
 }
 
 export interface SecureItemRef {
@@ -122,6 +179,22 @@ export interface SecureItemRef {
 	role: QTIRole;
 	/** Required=true means item must be attempted */
 	required?: boolean;
+	/** Item-ref-level time limit. */
+	timeLimits?: SecureTimeLimits;
+	/** Optional resolved QTI 3 delivery context. Additive; itemXml remains the compatibility path. */
+	deliveryContext?: ResolvedItemDeliveryContext;
+	/**
+	 * QTI branchRule: ordered list of branch rules on this item.
+	 * The backend evaluates these after scoring and returns nextItemIdentifier in SubmitResponsesResponse.
+	 * Carried here so reference/demo adapters can evaluate them client-side.
+	 */
+	branchRule?: Array<{
+		/** Identifier of the target item, section, testPart, or one of the special values:
+		 *  EXIT_TEST | EXIT_TESTPART | EXIT_SECTION */
+		target: string;
+		/** Serialised QTI expression XML (the child of <branchRule>). Absent means unconditional. */
+		conditionXml?: string;
+	}>;
 }
 
 export interface AssessmentRubricBlock {
@@ -154,6 +227,21 @@ export interface SubmitResponsesRequest {
 	submittedAt: number;
 	/** Time spent on item (ms) for analytics */
 	timeSpent?: number;
+	/** Optional client timing evidence; production backends remain authoritative. */
+	timing?: SubmitTimingEvidence;
+	/**
+	 * Serialized item session used by backends to restore template/context variables while scoring.
+	 * Production backends should treat this as a client save format and validate against server-owned state.
+	 */
+	itemSession?: SerializedItemSessionState;
+}
+
+export interface SubmitTimingEvidence {
+	scope: 'assessment' | 'testPart' | 'section' | 'item';
+	elapsedMs: number;
+	limitSeconds?: number;
+	expired?: boolean;
+	allowLateSubmission?: boolean;
 }
 
 /**
@@ -233,9 +321,6 @@ export interface SaveAssessmentStateResponse {
 	savedAt: number;
 }
 
-/**
- * Session state for persistence
- */
 export interface AssessmentSessionState {
 	/** Current item identifier */
 	currentItemIdentifier: string;
@@ -245,6 +330,10 @@ export interface AssessmentSessionState {
 	itemResponses: Record<string, Record<string, ResponseValue>>;
 	/** Scoring results per item (populated after submission) */
 	itemScores?: Record<string, AssessmentScoringResult>;
+	/** ItemSession lifecycle hints per item, used to restore attempt/review UI state */
+	itemSessionStates?: Record<string, AssessmentItemSessionState>;
+	/** Rich QTI item session snapshots, used to restore variables and score saved sessions. */
+	itemSessions?: Record<string, SerializedItemSessionState>;
 	/** Time tracking */
 	timing: {
 		/** Session start time */
@@ -254,6 +343,14 @@ export interface AssessmentSessionState {
 		/** Total elapsed time (ms) */
 		totalTime: number;
 	};
+}
+
+export interface AssessmentItemSessionState {
+	itemIdentifier: string;
+	attemptCount: number;
+	isAnswered: boolean;
+	isSubmitted: boolean;
+	lastSubmissionTime?: number;
 }
 
 // ============================================================================
@@ -277,8 +374,14 @@ export interface FinalizeAssessmentResponse {
 	maxScore: number;
 	/** Per-item results */
 	itemScores: Record<string, AssessmentScoringResult>;
-	/** Assessment-level feedback */
+	/** Assessment-level feedback (legacy: single string; prefer outcomes + assessment.testFeedback) */
 	feedback?: string;
+	/**
+	 * Test-level outcome variable values after outcomeProcessing.
+	 * Used to evaluate testFeedback visibility via string equality.
+	 * Keys are outcome identifiers (e.g. "PASS", "GRADE"); values are their string representations.
+	 */
+	outcomes?: Record<string, string>;
 	/** Server timestamp */
 	finalizedAt: number;
 }

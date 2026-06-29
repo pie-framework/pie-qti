@@ -219,10 +219,10 @@ QTI:
 
 ### Schema Validation
 
-Generated QTI can be validated against official XSD:
+Generated QTI can be validated against the official QTI 2.2.2 XSD when you have a local copy available:
 
 ```bash
-xmllint --schema docs/specs/qti2.2.2/qtiv2p2/xsds/imsqti_v2p2p2.xsd generated-item.xml
+xmllint --schema /path/to/imsqti_v2p2p2.xsd generated-item.xml
 ```
 
 **Expected Result:** Validation passes with warnings about `pie:` namespace (expected behavior)
@@ -258,7 +258,7 @@ Applications can consume searchMetaData via:
 ## References
 
 - **QTI 2.2.2 Specification:** https://www.imsglobal.org/question/qtiv2p2p2/imsqti_v2p2p2.html
-- **QTI 2.2 Implementation Guide:** [docs/specs/qti2.2.2/qtiv2p2/imsqti_v2p2_impl.md](../../../docs/specs/qti2.2.2/qtiv2p2/imsqti_v2p2_impl.md)
+- **QTI 2.2.2 Specification:** https://www.imsglobal.org/content/question-and-test-interoperability-v222-final
 - **IMS Content Packaging 1.2:** https://www.imsglobal.org/content/packaging/
 - **PIE Framework:** https://github.com/pie-framework/pie-elements
 

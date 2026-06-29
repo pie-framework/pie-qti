@@ -2,7 +2,6 @@
  * Utilities for QTI item component rendering
  */
 
-export { assignProps } from './assignProps';
 export {
 	cleanFeedbackText,
 	processFeedbackInline,
@@ -10,4 +9,4 @@ export {
 	DEFAULT_FEEDBACK_TRANSFORMS,
 	type FeedbackTransform,
 	type ProcessFeedbackInlineOptions,
-} from './feedbackUtils';
+} from './feedbackUtils.js';

@@ -1,0 +1,42 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"title": "Public QTI Certification Coverage Matrix",
+	"type": "object",
+	"required": ["scope", "updated", "commands", "rows"],
+	"properties": {
+		"scope": { "type": "string" },
+		"updated": { "type": "string" },
+		"commands": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"required": ["id", "description", "cwd", "args"],
+				"properties": {
+					"id": { "type": "string" },
+					"description": { "type": "string" },
+					"cwd": { "type": "string" },
+					"args": { "type": "array", "items": { "type": "string" } }
+				}
+			}
+		},
+		"rows": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"required": ["id", "version", "level", "feature", "officialPath", "publicTests", "fixturePackages", "e2eRequired", "commandIds"],
+				"properties": {
+					"id": { "type": "string" },
+					"version": { "type": "string" },
+					"level": { "type": "string" },
+					"feature": { "type": "string" },
+					"officialPath": { "type": "string" },
+					"publicTests": { "type": "array", "items": { "type": "string" } },
+					"fixturePackages": { "type": "array", "items": { "type": "string" } },
+					"e2eRequired": { "type": "boolean" },
+					"commandIds": { "type": "array", "items": { "type": "string" } },
+					"notes": { "type": "string" }
+				}
+			}
+		}
+	}
+}

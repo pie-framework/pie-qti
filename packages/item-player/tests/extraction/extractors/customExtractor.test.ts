@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { standardCustomExtractor } from '../../../src/extraction/extractors/customExtractor.js';
+import { standardCustomExtractor } from '../../../src/interactions/custom/extractor.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
 describe('standardCustomExtractor', () => {

@@ -1,7 +1,7 @@
-import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
 import { A11Y_FIXTURES } from '../../src/lib/a11y/fixtures';
+import { logA11yViolations, scanA11yFixture } from './a11y-utils';
 
 test.describe('A11y component fixtures', () => {
 	for (const fixture of A11Y_FIXTURES) {
@@ -12,15 +12,8 @@ test.describe('A11y component fixtures', () => {
 			const root = page.locator('[data-testid="a11y-fixture-root"]');
 			await expect(root).toBeVisible();
 
-			const results = await new AxeBuilder({ page })
-				.include('[data-testid="a11y-fixture-root"]')
-				.withTags(['wcag2a', 'wcag2aa', 'wcag22aa'])
-				.analyze();
-
-			if (results.violations.length > 0) {
-				// Helpful local output when iterating on fixtures
-				console.log(`A11y violations for ${fixture.id}:`, JSON.stringify(results.violations, null, 2));
-			}
+			const results = await scanA11yFixture(page);
+			logA11yViolations(fixture.id, results.violations);
 
 			expect(results.violations).toEqual([]);
 		});
@@ -34,7 +27,7 @@ test.describe('A11y component fixtures', () => {
 
 			const focusable = root
 				.locator(
-					'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]):not([disabled])',
+					'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), audio[controls], video[controls], [tabindex]:not([tabindex="-1"]):not([disabled])',
 				)
 				.first();
 

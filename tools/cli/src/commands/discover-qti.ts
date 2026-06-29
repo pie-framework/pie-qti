@@ -9,7 +9,7 @@
  * - Media assets
  */
 
-import { loadResolvedManifest, openContentPackage, type ResolvedManifest, toAbsolutePath } from '@pie-qti/to-pie/ims-cp';
+import { loadResolvedManifest, openContentPackage, type ResolvedManifest, toAbsolutePath } from '@pie-qti/ims-cp-node';
 import * as fs from 'fs';
 import type { HTMLElement } from 'node-html-parser';
 import { parse } from 'node-html-parser';

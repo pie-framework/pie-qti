@@ -1,11 +1,11 @@
 # @pie-qti/item-player
 
-A modern, QTI 2.x compliant assessment item player with role-based rendering and optional backend scoring support.
+A modern assessment item player for QTI 2.2 and QTI 3.0 content, with role/view-aware rendering and optional backend scoring support.
 
 ## Features
 
-- ✅ **21 QTI Interaction Types Supported** - All QTI 2.2 interactions
-- ✅ **QTI 2.x Standard Roles** - Candidate, scorer, author, tutor, proctor, testConstructor
+- ✅ **21 QTI Interaction Types Supported** - QTI standard interaction set across 2.2/3.0 naming variants
+- ✅ **QTI Role/View Actors** - candidate, scorer, author, tutor, proctor, testConstructor
 - ✅ **Adaptive Items** - Multi-attempt workflow with progressive feedback
 - ✅ **Full Keyboard Accessibility** (follows WCAG 2.2 Level AA guidelines)
 - ✅ **Client-Side Response Processing** with 45/45 QTI operators
@@ -28,6 +28,23 @@ npm install @pie-qti/item-player
 
 ## Quick Start
 
+### Web Component Host Integration
+
+For browser applications, the public rendering boundary is the custom element:
+
+```typescript
+import '@pie-qti/default-components/plugins';
+import '@pie-qti/item-player/element';
+```
+
+```html
+<pie-qti-item-player item-xml="<assessmentItem ...></assessmentItem>" role="author"></pie-qti-item-player>
+```
+
+The package does not require hosts to import Svelte components. Internal Svelte
+components are compiled into the custom element bundle and are not part of the
+public package contract.
+
 ### Core Player (Framework-Agnostic)
 
 ```typescript
@@ -37,7 +54,7 @@ import { Player } from '@pie-qti/item-player';
 const qtiXml = `<assessmentItem ...>...</assessmentItem>`;
 const player = new Player({
   itemXml: qtiXml,
-  role: 'candidate' // QTI 2.x standard role
+  role: 'candidate' // QTI role/view actor
 });
 
 // Get interactions
@@ -60,18 +77,19 @@ For deployments that need stronger isolation for **untrusted** QTI, you can run 
 - Docs: `docs/iframe-mode.md`
 - Import: `@pie-qti/item-player/iframe` (browser-only)
 
-## QTI 2.x Standard Roles
+## QTI Role/View Actors
 
-The player implements QTI 2.x standard roles to control rendering behavior:
+QTI roles are primarily audience markers for `view`-controlled content (for example rubric visibility).
+This player applies the following runtime behavior policy on top of that:
 
 | Role | Behavior |
 |------|----------|
 | `candidate` | Test-taker - inputs editable, no correct answers shown |
-| `scorer` | Grader - inputs readonly, correct answers shown |
-| `author` | Content author - inputs readonly, correct answers shown |
-| `tutor` | Instructional mode - inputs readonly, correct answers shown |
-| `proctor` | Test administrator - inputs readonly, limited feedback |
-| `testConstructor` | Test developer - inputs readonly, correct answers shown |
+| `scorer` | Grader/reviewer - inputs readonly, correct answers shown |
+| `author` | Content authoring review - inputs readonly, correct answers shown |
+| `tutor` | Instructional review - inputs readonly, correct answers shown |
+| `proctor` | Test administration view - inputs readonly, no correct answers shown |
+| `testConstructor` | Test construction review - inputs readonly, correct answers shown |
 
 ### Role-Based Rendering
 
@@ -116,9 +134,10 @@ const player = new Player({
 
 ## QTI Version Support
 
-This player is designed for **QTI 2.2** but provides best-effort support for QTI 2.0 and 2.1:
+The player supports **QTI 3.0** and **QTI 2.2**, with compatibility support for QTI 2.0/2.1 content:
 
-- **QTI 2.2**: Full support (recommended)
+- **QTI 3.0**: Supported (kebab-case `qti-` element/attribute forms)
+- **QTI 2.2**: Full support (recommended baseline for legacy 2.x ecosystems)
 - **QTI 2.1**: Supported with CC2 template aliases (`cc2_match`, `cc2_map_response`, etc.)
 - **QTI 2.0**: Limited support - core interactions work, but some features may be unsupported
 
@@ -129,24 +148,24 @@ The player automatically detects QTI version from:
 1. Namespace URI (`xmlns="http://www.imsglobal.org/xsd/imsqti_v2pX"`)
 2. Version attribute (`<assessmentItem version="2.X">`)
 
-Warnings are logged for older versions or when version cannot be detected.
+Warnings are logged for legacy versions or when version cannot be detected.
 
 ### Template Processing
 
 Response processing templates are namespace-agnostic. The player supports:
 
-- Standard QTI 2.2 templates: `match_correct`, `map_response`, etc.
+- Standard templates: `match_correct`, `map_response`, etc.
 - QTI 2.1 CC2 aliases: `cc2_match`, `cc2_map_response`, etc.
 
 ### Strict Compliance Mode
 
-For strict QTI 2.2 validation, enable strict compliance:
+For strict QTI 2.2 validation (legacy interoperability mode), enable strict compliance:
 
 ```typescript
 const player = new Player({
   itemXml: qtiXml,
   strictQtiCompliance: {
-    enabled: true,                    // Enable strict QTI 2.2 validation
+    enabled: true,                    // Enable strict QTI 2.2 validation mode
     rejectUnknownExtensions: true,    // Throw errors on non-2.2 versions
     logDeviations: true               // Log warnings for spec deviations
   }
@@ -461,6 +480,7 @@ Contributions are welcome! Please read our contributing guidelines and submit pu
 
 ## Resources
 
-- [QTI 2.x Specification](http://www.imsglobal.org/question/qtiv2p2/imsqti_v2p2.html)
+- [QTI 3.0 Specification](https://www.imsglobal.org/spec/qti/v3p0/)
+- [QTI 2.2.2 Final](https://www.imsglobal.org/content/question-and-test-interoperability-v222-final)
 - [WCAG 2.1 Guidelines](https://www.w3.org/WAI/WCAG21/quickref/)
 - [PIE Framework](https://github.com/pie-framework)

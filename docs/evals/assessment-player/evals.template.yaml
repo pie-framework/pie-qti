@@ -2,16 +2,16 @@ version: 1
 
 # Copy this file into a new assessment directory as `evals.yaml`, then customize.
 # Example target location:
-# - docs/evals/qti-assessment-player/{assessment-slug}/evals.yaml
+# - docs/evals/assessment-player/{assessment-slug}/evals.yaml
 #
 # These evals are designed to be:
 # - AI-actionable (explicit steps + explicit expected results)
 # - Human-readable enough for review
-# - Validated against `@pie-qti/qti-example` via `/assessment-demo`
+# - Validated against `@pie-qti/app-demo` via `/assessment-demo`
 #
-# Scope (vs qti-default-components):
-# - qti-default-components evals focus on a single interaction on `/item-demo/{sampleId}`
-# - qti-assessment-player evals focus on assessment behaviors on `/assessment-demo`
+# Scope (vs default-components):
+# - default-components evals focus on a single interaction on `/item-demo/{sampleId}`
+# - assessment-player evals focus on assessment behaviors on `/assessment-demo`
 #   (navigation rules, section switching, submission modes, end screen, response persistence)
 
 component:
@@ -21,7 +21,7 @@ component:
   tagName: "AssessmentShell"
 
 examplesApp:
-  app: "@pie-qti/qti-example"
+  app: "@pie-qti/app-demo"
   routeTemplate: "/assessment-demo"
 
 evals:

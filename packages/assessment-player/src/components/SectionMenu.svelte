@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import type { I18nProvider } from '@pie-qti/i18n';
 
 	interface Section {
@@ -18,9 +19,50 @@
 	const { sections, currentSectionIndex, i18n, onSectionSelect, disabled = false }: Props = $props();
 
 	let isOpen = $state(false);
+	let toggleButton = $state<HTMLButtonElement | null>(null);
+	let dropdownContent = $state<HTMLDivElement | null>(null);
+	const menuId = 'assessment-section-menu';
+
+	async function openMenu() {
+		if (disabled) return;
+		isOpen = true;
+		await tick();
+		const active = dropdownContent?.querySelector<HTMLButtonElement>('.section-item.active');
+		const first = dropdownContent?.querySelector<HTMLButtonElement>('.section-item:not(:disabled)');
+		(active ?? first)?.focus();
+	}
+
+	function closeMenu({ restoreFocus = true } = {}) {
+		isOpen = false;
+		if (restoreFocus) {
+			toggleButton?.focus();
+		}
+	}
 
 	function toggleMenu() {
-		isOpen = !isOpen;
+		if (isOpen) {
+			closeMenu();
+			return;
+		}
+		void openMenu();
+	}
+
+	function handleMenuKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape') {
+			event.preventDefault();
+			closeMenu();
+		}
+	}
+
+	function handleToggleKeydown(event: KeyboardEvent) {
+		if (event.key === 'ArrowDown') {
+			event.preventDefault();
+			void openMenu();
+		}
+	}
+
+	function handleBackdropClick() {
+		closeMenu();
 	}
 
 	function selectSection(sectionIndex: number) {
@@ -28,13 +70,22 @@
 		if (onSectionSelect) {
 			onSectionSelect(sectionIndex);
 		}
-		isOpen = false;
+		closeMenu();
 	}
 </script>
 
 {#if sections.length > 1}
 	<div class="section-menu">
-		<button class="btn btn-outline btn-sm" onclick={() => toggleMenu?.()} disabled={disabled}>
+		<button
+			bind:this={toggleButton}
+			class="btn btn-outline btn-sm"
+			type="button"
+			aria-expanded={isOpen}
+			aria-controls={menuId}
+			onclick={() => toggleMenu?.()}
+			onkeydown={handleToggleKeydown}
+			disabled={disabled}
+		>
 			<svg
 				xmlns="http://www.w3.org/2000/svg"
 				class="h-5 w-5"
@@ -54,12 +105,23 @@
 
 		{#if isOpen}
 			<div class="section-dropdown">
-				<div class="section-dropdown-content">
+				<div
+					bind:this={dropdownContent}
+					id={menuId}
+					class="section-dropdown-content"
+					role="menu"
+					tabindex="-1"
+					aria-label={i18n?.t('assessment.sections.title') ?? 'Sections'}
+					onkeydown={handleMenuKeydown}
+				>
 					<div class="section-list">
 						{#each sections as section}
 							<button
 								class="section-item"
 								class:active={currentSectionIndex === section.index}
+								type="button"
+								role="menuitemradio"
+								aria-checked={currentSectionIndex === section.index}
 								onclick={() => selectSection(section.index)}
 								disabled={disabled}
 							>
@@ -103,7 +165,12 @@
 						{/each}
 					</div>
 				</div>
-				<button class="section-backdrop" onclick={() => toggleMenu?.()} aria-label={i18n?.t('assessment.closeMenu') ?? 'Close menu'}></button>
+				<button
+					class="section-backdrop"
+					type="button"
+					onclick={handleBackdropClick}
+					aria-label={i18n?.t('assessment.closeMenu') ?? 'Close menu'}
+				></button>
 			</div>
 		{/if}
 	</div>

@@ -616,7 +616,7 @@ let visible = $state(true);
 
 ```svelte
 <script lang="ts">
-import { touchDrag } from '../utils/touchDragHelper.js';
+import { touchDrag } from '@pie-qti/qti-common';
 
 let draggedItem = $state<string | null>(null);
 let hoveredZone = $state<string | null>(null);

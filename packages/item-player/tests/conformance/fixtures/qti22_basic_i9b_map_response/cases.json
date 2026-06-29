@@ -1,0 +1,101 @@
+{
+  "id": "qti22_basic_i9b_map_response",
+  "cases": [
+    {
+      "name": "I9-L1-D1: RESPONSE=NULL -> SCORE=0",
+      "responses": { "RESPONSE": null },
+      "expect": {
+        "score": 0,
+        "outcomes": { "SCORE": 0 }
+      }
+    },
+    {
+      "name": "I9-L1-D1b: RESPONSE=[] (empty Multiple Container) -> SCORE=0",
+      "responses": { "RESPONSE": [] },
+      "expect": {
+        "score": 0,
+        "outcomes": { "SCORE": 0 }
+      }
+    },
+    {
+      "name": "I9l1-D2: RESPONSE=[choice_a] -> SCORE=1",
+      "responses": { "RESPONSE": ["choice_a"] },
+      "expect": {
+        "score": 1,
+        "outcomes": { "SCORE": 1 }
+      }
+    },
+    {
+      "name": "I9l1-D3: RESPONSE=[choice_b] -> SCORE=2",
+      "responses": { "RESPONSE": ["choice_b"] },
+      "expect": {
+        "score": 2,
+        "outcomes": { "SCORE": 2 }
+      }
+    },
+    {
+      "name": "I9l1-D4: RESPONSE=[choice_c] -> SCORE=5",
+      "responses": { "RESPONSE": ["choice_c"] },
+      "expect": {
+        "score": 5,
+        "outcomes": { "SCORE": 5 }
+      }
+    },
+    {
+      "name": "I9l1-D5: RESPONSE=[choice_d] -> SCORE=0 (lowerBound clamp: -1 -> 0)",
+      "responses": { "RESPONSE": ["choice_d"] },
+      "expect": {
+        "score": 0,
+        "outcomes": { "SCORE": 0 }
+      }
+    },
+    {
+      "name": "I9l1-D6: RESPONSE=[choice_e] -> SCORE=0 (lowerBound clamp: -2 -> 0)",
+      "responses": { "RESPONSE": ["choice_e"] },
+      "expect": {
+        "score": 0,
+        "outcomes": { "SCORE": 0 }
+      }
+    },
+    {
+      "name": "I9l1-D7: RESPONSE=[choice_a, choice_b] -> SCORE=3 (1+2=3)",
+      "responses": { "RESPONSE": ["choice_a", "choice_b"] },
+      "expect": {
+        "score": 3,
+        "outcomes": { "SCORE": 3 }
+      }
+    },
+    {
+      "name": "I9l1-D8: RESPONSE=[choice_b, choice_c] -> SCORE=6 (2+5=7, clamped to upperBound=6)",
+      "responses": { "RESPONSE": ["choice_b", "choice_c"] },
+      "expect": {
+        "score": 6,
+        "outcomes": { "SCORE": 6 }
+      }
+    },
+    {
+      "name": "I9l1-D9: RESPONSE=[choice_c, choice_d] -> SCORE=4 (5+(-1)=4)",
+      "responses": { "RESPONSE": ["choice_c", "choice_d"] },
+      "expect": {
+        "score": 4,
+        "outcomes": { "SCORE": 4 }
+      }
+    },
+    {
+      "name": "I9l1-D10: RESPONSE=[choice_d, choice_e, choice_f] -> SCORE=0 (-1+-2+-5=-8, lowerBound clamp -> 0)",
+      "responses": { "RESPONSE": ["choice_d", "choice_e", "choice_f"] },
+      "expect": {
+        "score": 0,
+        "outcomes": { "SCORE": 0 }
+      }
+    },
+    {
+      "name": "I9l1-D11: RESPONSE=[all six] -> SCORE=0 (1+2+5-1-2-5=0)",
+      "responses": { "RESPONSE": ["choice_a", "choice_b", "choice_c", "choice_d", "choice_e", "choice_f"] },
+      "expect": {
+        "score": 0,
+        "outcomes": { "SCORE": 0 }
+      }
+    }
+  ]
+}

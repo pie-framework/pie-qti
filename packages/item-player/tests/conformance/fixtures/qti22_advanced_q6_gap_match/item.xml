@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  adaptive="false" identifier="gap-match-energy-cycle" timeDependent="false" title="Gap Match Energy Cycle">
+  <responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="directedPair">
+    <correctResponse>
+      <value>sunlight gap_1</value>
+      <value>plants gap_2</value>
+    </correctResponse>
+    <mapping defaultValue="-1" lowerBound="0">
+      <mapEntry mapKey="sunlight gap_1" mappedValue="1"/>
+      <mapEntry mapKey="plants gap_2" mappedValue="2"/>
+    </mapping>
+  </responseDeclaration>
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float"/>
+  <itemBody>
+    <gapMatchInteraction responseIdentifier="RESPONSE">
+      <prompt>Drag the correct words into the gaps.</prompt>
+      <gapText identifier="sunlight" matchMax="1">sunlight</gapText>
+      <gapText identifier="plants" matchMax="1">plants</gapText>
+      <gapText identifier="animals" matchMax="1">animals</gapText>
+      <gapText identifier="minerals" matchMax="1">minerals</gapText>
+      <p><gap identifier="gap_1"/> is captured by <gap identifier="gap_2"/> during photosynthesis.</p>
+    </gapMatchInteraction>
+  </itemBody>
+  <responseProcessing template="http://www.imsglobal.org/question/qti_v2p2/rptemplates/map_response"/>
+</assessmentItem>
+

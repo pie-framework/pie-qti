@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/to-pie",
-  "version": "0.1.1",
+  "version": "0.1.13",
   "description": "QTI to PIE transformation plugin",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -10,17 +10,9 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./ims-cp": {
-      "types": "./dist/utils/ims-cp/index.d.ts",
-      "import": "./dist/utils/ims-cp/index.js"
-    },
-    "./utils/localized-resources": {
-      "types": "./dist/utils/localized-resources.d.ts",
-      "import": "./dist/utils/localized-resources.js"
-    },
-    "./utils/manifest-parser": {
-      "types": "./dist/utils/manifest-parser.d.ts",
-      "import": "./dist/utils/manifest-parser.js"
+    "./node": {
+      "types": "./dist/node-package-transformer.d.ts",
+      "import": "./dist/node-package-transformer.js"
     }
   },
   "scripts": {

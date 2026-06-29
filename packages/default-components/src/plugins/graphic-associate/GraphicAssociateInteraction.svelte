@@ -6,6 +6,7 @@
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
 	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
+	import { isCompatibleMatchGroup } from '../../shared/utils/matchGroupUtils';
 
 	interface Props {
 		interaction?: GraphicAssociateInteractionData | string;
@@ -38,6 +39,19 @@
 	const canInteract = $derived(!disabled);
 	const canAddMore = $derived(!parsedInteraction || pairs.length < parsedInteraction.maxAssociations);
 
+	// Hotspots incompatible with the currently selected hotspot due to matchGroup constraints
+	const blockedHotspots = $derived.by(() => {
+		if (!selectedHotspot || !parsedInteraction) return new Set<string>();
+		type WithMatchGroup = { identifier: string; matchGroup?: string[] };
+		const hotspots = parsedInteraction.associableHotspots as (typeof parsedInteraction.associableHotspots[number] & WithMatchGroup)[];
+		const src = hotspots.find((h) => h.identifier === selectedHotspot);
+		return new Set(
+			hotspots
+				.filter((h) => h.identifier !== selectedHotspot && !isCompatibleMatchGroup(src?.matchGroup, h.matchGroup))
+				.map((h) => h.identifier)
+		);
+	});
+
 	$effect(() => {
 		// Sync with parent response changes
 		pairs = parsedResponse ? [...parsedResponse] : [];
@@ -65,6 +79,7 @@
 		} else {
 			// Second selection - create a pair
 			if (!canAddMore) return;
+			if (blockedHotspots.has(hotspotId)) return;
 
 			const newPair = `${selectedHotspot} ${hotspotId}`;
 			pairs = [...pairs, newPair];
@@ -123,14 +138,22 @@
 	function getHotspotCenter(coords: string, shape: string): { x: number; y: number } {
 		const parts = coords.split(',').map(Number);
 		if (shape === 'rect') {
-			// rect: x1,y1,x2,y2
+			// rect: left,top,right,bottom
 			return {
 				x: (parts[0] + parts[2]) / 2,
 				y: (parts[1] + parts[3]) / 2,
 			};
-		} else if (shape === 'circle') {
-			// circle: cx,cy,r
+		} else if (shape === 'circle' || shape === 'ellipse') {
+			// circle: cx,cy,r  |  ellipse: cx,cy,rx,ry
 			return { x: parts[0], y: parts[1] };
+		} else if (shape === 'poly') {
+			// poly: x1,y1,x2,y2,... — centroid average
+			const xs = parts.filter((_, i) => i % 2 === 0);
+			const ys = parts.filter((_, i) => i % 2 !== 0);
+			return {
+				x: xs.reduce((a, b) => a + b, 0) / xs.length,
+				y: ys.reduce((a, b) => a + b, 0) / ys.length,
+			};
 		}
 		// Default fallback
 		return { x: parts[0] || 0, y: parts[1] || 0 };
@@ -144,7 +167,9 @@
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
 		{#if parsedInteraction.prompt}
-			<p part="prompt" class="qti-ga-prompt font-semibold mb-3">{@html parsedInteraction.prompt}</p>
+			<div part="prompt" class="qti-ga-prompt qti-rich-content font-semibold mb-3">
+				{@html parsedInteraction.prompt}
+			</div>
 		{/if}
 
 		<div part="layout" class="qti-ga-layout flex flex-col lg:flex-row gap-4">
@@ -193,7 +218,7 @@
 									y1={center1.y}
 									x2={center2.x}
 									y2={center2.y}
-									stroke={isCorrect ? 'var(--color-success, oklch(76% 0.177 163.223))' : 'var(--color-primary, oklch(45% 0.24 277))'}
+									stroke={isCorrect ? 'var(--pie-qti-success, oklch(76% 0.177 163.223))' : 'var(--pie-qti-primary, oklch(45% 0.24 277))'}
 									stroke-width="3"
 									stroke-linecap="round"
 								/>
@@ -213,7 +238,7 @@
 										y1={center1.y}
 										x2={center2.x}
 										y2={center2.y}
-										stroke="var(--color-success, oklch(76% 0.177 163.223))"
+										stroke="var(--pie-qti-success, oklch(76% 0.177 163.223))"
 										stroke-width="2"
 										stroke-dasharray="4,4"
 										stroke-linecap="round"
@@ -228,6 +253,7 @@
 					{#each parsedInteraction.associableHotspots as hotspot}
 						{@const isSelected = isHotspotSelected(hotspot.identifier)}
 						{@const isMaxed = isHotspotMaxed(hotspot.identifier)}
+						{@const isBlocked = blockedHotspots.has(hotspot.identifier)}
 						{@const usageCount = getHotspotUsageCount(hotspot.identifier)}
 						{@const isCorrect = isHotspotInCorrectPair(hotspot.identifier)}
 
@@ -239,8 +265,8 @@
 									? 'bg-primary/40 border-primary border-4'
 									: isCorrect
 										? 'bg-success/20 border-success'
-										: 'bg-primary/10 border-primary hover:bg-primary/20'} {isMaxed
-									? 'opacity-50 cursor-not-allowed'
+										: 'bg-primary/10 border-primary hover:bg-primary/20'} {isMaxed || isBlocked
+									? 'opacity-40 cursor-not-allowed'
 									: canInteract
 										? 'cursor-pointer'
 										: 'cursor-not-allowed opacity-70'}"
@@ -248,7 +274,8 @@
 									y1}px; z-index: 20;"
 								onclick={() => handleHotspotClick(hotspot.identifier)}
 								disabled={!canInteract || isMaxed}
-								aria-label="{hotspot.label} ({usageCount}/{hotspot.matchMax} connections){isCorrect ? '. Correct answer' : ''}"
+								aria-disabled={isBlocked ? 'true' : undefined}
+								aria-label="{hotspot.label} ({usageCount}/{hotspot.matchMax} connections){isCorrect ? '. Correct answer' : isBlocked ? '. Not available due to match group restriction' : ''}"
 							>
 								<span class="text-xs font-bold text-primary-content">{hotspot.label}</span>
 							</button>
@@ -260,8 +287,8 @@
 									? 'bg-primary/40 border-primary border-4'
 									: isCorrect
 										? 'bg-success/20 border-success'
-										: 'bg-primary/10 border-primary hover:bg-primary/20'} {isMaxed
-									? 'opacity-50 cursor-not-allowed'
+										: 'bg-primary/10 border-primary hover:bg-primary/20'} {isMaxed || isBlocked
+									? 'opacity-40 cursor-not-allowed'
 									: canInteract
 										? 'cursor-pointer'
 										: 'cursor-not-allowed opacity-70'}"
@@ -269,7 +296,58 @@
 									2}px; z-index: 20;"
 								onclick={() => handleHotspotClick(hotspot.identifier)}
 								disabled={!canInteract || isMaxed}
-								aria-label="{hotspot.label} ({usageCount}/{hotspot.matchMax} connections){isCorrect ? '. Correct answer' : ''}"
+								aria-disabled={isBlocked ? 'true' : undefined}
+								aria-label="{hotspot.label} ({usageCount}/{hotspot.matchMax} connections){isCorrect ? '. Correct answer' : isBlocked ? '. Not available due to match group restriction' : ''}"
+							>
+								<span class="text-xs font-bold text-primary-content">{hotspot.label}</span>
+							</button>
+						{:else if hotspot.shape === 'ellipse'}
+							<!-- Ellipse: QTI coords are cx,cy,rx,ry — use bounding box for hit target -->
+							{@const [cx, cy, rx, ry] = hotspot.coords.split(',').map(Number)}
+							<button
+								part="hotspot"
+								class="qti-ga-hotspot absolute border-2 flex items-center justify-center transition-all {isSelected
+									? 'bg-primary/40 border-primary border-4'
+									: isCorrect
+										? 'bg-success/20 border-success'
+										: 'bg-primary/10 border-primary hover:bg-primary/20'} {isMaxed || isBlocked
+									? 'opacity-40 cursor-not-allowed'
+									: canInteract
+										? 'cursor-pointer'
+										: 'cursor-not-allowed opacity-70'}"
+								style="left: {cx - rx}px; top: {cy - ry}px; width: {rx * 2}px; height: {ry * 2}px; border-radius: 50%; z-index: 20;"
+								onclick={() => handleHotspotClick(hotspot.identifier)}
+								disabled={!canInteract || isMaxed}
+								aria-disabled={isBlocked ? 'true' : undefined}
+								aria-label="{hotspot.label} ({usageCount}/{hotspot.matchMax} connections){isCorrect ? '. Correct answer' : isBlocked ? '. Not available due to match group restriction' : ''}"
+							>
+								<span class="text-xs font-bold text-primary-content">{hotspot.label}</span>
+							</button>
+						{:else if hotspot.shape === 'poly'}
+							<!-- Polygon: use axis-aligned bounding box of all vertices for hit target -->
+							{@const pts = hotspot.coords.split(',').map(Number)}
+							{@const xs = pts.filter((_, i) => i % 2 === 0)}
+							{@const ys = pts.filter((_, i) => i % 2 !== 0)}
+							{@const x1 = Math.min(...xs)}
+							{@const y1 = Math.min(...ys)}
+							{@const x2 = Math.max(...xs)}
+							{@const y2 = Math.max(...ys)}
+							<button
+								part="hotspot"
+								class="qti-ga-hotspot absolute border-2 flex items-center justify-center transition-all {isSelected
+									? 'bg-primary/40 border-primary border-4'
+									: isCorrect
+										? 'bg-success/20 border-success'
+										: 'bg-primary/10 border-primary hover:bg-primary/20'} {isMaxed || isBlocked
+									? 'opacity-40 cursor-not-allowed'
+									: canInteract
+										? 'cursor-pointer'
+										: 'cursor-not-allowed opacity-70'}"
+								style="left: {x1}px; top: {y1}px; width: {x2 - x1}px; height: {y2 - y1}px; z-index: 20;"
+								onclick={() => handleHotspotClick(hotspot.identifier)}
+								disabled={!canInteract || isMaxed}
+								aria-disabled={isBlocked ? 'true' : undefined}
+								aria-label="{hotspot.label} ({usageCount}/{hotspot.matchMax} connections){isCorrect ? '. Correct answer' : isBlocked ? '. Not available due to match group restriction' : ''}"
 							>
 								<span class="text-xs font-bold text-primary-content">{hotspot.label}</span>
 							</button>
@@ -400,8 +478,8 @@
 		position: relative;
 		border-radius: 0.75rem;
 		overflow: hidden;
-		border: 2px solid var(--color-base-300, oklch(95% 0 0));
-		background: var(--color-base-200, oklch(98% 0 0));
+		border: 2px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		background: var(--pie-qti-base-200, oklch(98% 0 0));
 	}
 	/* Critical: overlay must be absolutely positioned even without Tailwind utilities */
 	.qti-ga-overlay {
@@ -417,9 +495,9 @@
 		min-width: 18rem;
 	}
 	.qti-ga-card {
-		border: 1px solid var(--color-base-300, oklch(95% 0 0));
+		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
 		border-radius: 0.75rem;
-		background: var(--color-base-100, oklch(100% 0 0));
+		background: var(--pie-qti-base-100, oklch(100% 0 0));
 	}
 	.qti-ga-card-body {
 		padding: 1rem;

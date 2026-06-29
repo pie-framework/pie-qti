@@ -1,6 +1,6 @@
 ## Backend Integration Guide
 
-Complete guide for integrating the QTI 2.2 Assessment Player with secure backend services.
+Complete guide for integrating the QTI assessment player with secure backend services.
 
 ---
 
@@ -9,6 +9,7 @@ Complete guide for integrating the QTI 2.2 Assessment Player with secure backend
 - **By default**: Player runs 100% client-side, no backend required
 - **For production**: Optionally integrate backend for security and persistence
 - **Easy swap**: Provide a `BackendAdapter` implementation to enable backend mode
+- **LTI-friendly boundary**: LTI 1.3 launches, Deep Linking, AGS, and NRPS belong to the host tool; the player can run inside that tool via the same backend adapter contract
 
 ---
 
@@ -19,8 +20,9 @@ Complete guide for integrating the QTI 2.2 Assessment Player with secure backend
 3. [API Contract](#api-contract)
 4. [Quick Start](#quick-start)
 5. [Production Implementation](#production-implementation)
-6. [Server-Side Requirements](#server-side-requirements)
-7. [Example Implementations](#example-implementations)
+6. [LTI Tool Integration Boundary](#lti-tool-integration-boundary)
+7. [Server-Side Requirements](#server-side-requirements)
+8. [Example Implementations](#example-implementations)
 
 ---
 
@@ -28,7 +30,7 @@ Complete guide for integrating the QTI 2.2 Assessment Player with secure backend
 
 ### No Backend Required
 
-**The QTI 2.2 Assessment Player works completely standalone by default.**
+**The QTI assessment player works completely standalone by default.**
 
 Perfect for:
 - 🎨 **Demos and prototypes** - Quick integration without infrastructure
@@ -95,7 +97,7 @@ The assessment player follows a **zero-trust security model** where:
 
 ### Role-Based Data Filtering
 
-The server MUST filter data based on QTI 2.2 roles:
+The server MUST filter data based on QTI role/view actors:
 
 | Role | Can See Correct Answers | Can See Scores | Can See Solutions |
 |------|------------------------|----------------|-------------------|
@@ -322,6 +324,31 @@ export class MyBackendAdapter implements BackendAdapter {
   // ... implement other methods
 }
 ```
+
+---
+
+## LTI Tool Integration Boundary
+
+`@pie-qti/assessment-player` is suitable for use inside an LTI 1.3 / LTI Advantage tool, but it is not itself an LTI tool provider.
+
+An LTI host application should own:
+
+- OIDC login initiation and LTI launch validation
+- platform/deployment/client registration, JWKS, nonce, and state handling
+- LTI Deep Linking content selection
+- Assignment and Grade Services (AGS) score passback
+- Names and Roles Provisioning Services (NRPS) roster lookup
+- LMS-specific authorization, attempts, due dates, and release policies
+
+The player boundary remains QTI delivery. A typical LTI-backed flow is:
+
+1. The LMS launches the host tool.
+2. The host validates the launch and creates a server-side assessment session.
+3. The host renders `AssessmentShell`, `AssessmentPlayer`, or `pie-qti-assessment-player`.
+4. The player calls a host-provided `BackendAdapter` for `initSession`, `submitResponses`, `saveState`, and `finalizeAssessment`.
+5. The host maps final results to its persistence model and, when appropriate, posts scores to the LMS through AGS.
+
+This keeps LTI security and LMS interoperability in the product layer while preserving the player as a reusable QTI rendering and delivery engine.
 
 ---
 

@@ -1,0 +1,12 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "QTI 2.2 Basic Level Q2 – Choice Interaction single cardinality. Mirrors DELIVERY criteria Q2-L1-D51 through Q2-L1-D54. D55 (cannot select more than one) is enforced by UI radio semantics, not the Player API; verified via the live conformance runner only.",
+  "covers": [
+    "Q2-single-cardinality",
+    "Q2-L1-D51",
+    "Q2-L1-D52",
+    "Q2-L1-D53",
+    "Q2-L1-D54"
+  ]
+}

@@ -7,8 +7,9 @@
 
 import type { AssociableChoice } from '@pie-qti/item-player';
 import type { I18nProvider } from '@pie-qti/i18n';
+import { touchDrag } from '@pie-qti/qti-common';
 import { createOrUpdatePair, getSourceForTarget, getTargetsForSource, removePairBySource } from '../utils/pairHelpers.js';
-import { touchDrag } from '../utils/touchDragHelper.js';
+import { isCompatibleMatchGroup } from '../utils/matchGroupUtils.js';
 import DragHandle from './DragHandle.svelte';
 import '../styles/shared.css';
 
@@ -16,13 +17,29 @@ interface Props {
 	sourceSet: AssociableChoice[];
 	targetSet: AssociableChoice[];
 	pairs: string[]; // Array of "sourceId targetId" pairs
+	maxAssociations?: number; // 0 = unlimited per QTI spec
 	correctPairs?: string[]; // Array of correct "sourceId targetId" pairs
 	disabled?: boolean;
 	i18n?: I18nProvider;
 	onPairsChange: (newPairs: string[]) => void;
 }
 
-const { sourceSet, targetSet, pairs, correctPairs = [], disabled = false, i18n, onPairsChange }: Props = $props();
+const { sourceSet, targetSet, pairs, maxAssociations = 0, correctPairs = [], disabled = false, i18n, onPairsChange }: Props = $props();
+
+// maxAssociations=0 means unlimited; otherwise cap total pairs
+const canAddMorePairs = $derived(maxAssociations === 0 || pairs.length < maxAssociations);
+
+// Targets incompatible with the active source due to matchGroup constraints
+const blockedTargetIds = $derived.by(() => {
+	const activeSourceId = draggedSourceId ?? keyboardSelectedSourceId;
+	if (!activeSourceId) return new Set<string>();
+	const src = sourceSet.find((s) => s.identifier === activeSourceId);
+	return new Set(
+		targetSet
+			.filter((t) => !isCompatibleMatchGroup(src?.matchGroup, t.matchGroup))
+			.map((t) => t.identifier)
+	);
+});
 
 let draggedSourceId = $state<string | null>(null);
 let keyboardSelectedSourceId = $state<string | null>(null); // Source selected via keyboard
@@ -42,6 +59,18 @@ function handleDragOver(event: DragEvent) {
 function handleDrop(event: DragEvent, targetId: string) {
 	if (disabled || !draggedSourceId) return;
 	event.preventDefault();
+
+	if (blockedTargetIds.has(targetId)) {
+		draggedSourceId = null;
+		return;
+	}
+
+	// Allow replacing an existing pair for this source, but block new pairs when at limit
+	const existingPair = pairs.find((p) => p.startsWith(draggedSourceId + ' '));
+	if (!existingPair && !canAddMorePairs) {
+		draggedSourceId = null;
+		return;
+	}
 
 	createMatch(draggedSourceId, targetId);
 	draggedSourceId = null;
@@ -87,8 +116,21 @@ function handleTargetKeyDown(event: KeyboardEvent, targetId: string) {
 	if ((event.key === ' ' || event.key === 'Enter') && keyboardSelectedSourceId) {
 		event.preventDefault();
 
+		if (blockedTargetIds.has(targetId)) {
+			announceText = `This target cannot be matched with the selected source.`;
+			return;
+		}
+
 		const source = sourceSet.find((s) => s.identifier === keyboardSelectedSourceId);
 		const sourceName = source?.text || 'Item';
+
+		// Allow replacing an existing pair for this source, but block new pairs when at limit
+		const existingPair = pairs.find((p) => p.startsWith(keyboardSelectedSourceId + ' '));
+		if (!existingPair && !canAddMorePairs) {
+			announceText = `Maximum associations reached. Remove a pair to add a new one.`;
+			keyboardSelectedSourceId = null;
+			return;
+		}
 
 		createMatch(keyboardSelectedSourceId, targetId);
 		announceText = `${sourceName} matched with ${targetName}`;
@@ -219,6 +261,7 @@ function clearMatch(sourceId: string) {
 			{@const isHighlight = (draggedSourceId && !matchedSource) || (keyboardSelectedSourceId && !matchedSource)}
 			{@const correctSource = getSourceForTarget(correctPairs, target.identifier)}
 			{@const isCorrect = correctSource !== null}
+			{@const isBlocked = blockedTargetIds.has(target.identifier)}
 
 			<button
 				type="button"
@@ -226,7 +269,8 @@ function clearMatch(sourceId: string) {
 				ondrop={(e) => handleDrop(e, target.identifier)}
 				onkeydown={(e) => handleTargetKeyDown(e, target.identifier)}
 				disabled={disabled || !keyboardSelectedSourceId}
-				aria-label="{target.text}{matchedSource && sourceItem ? '. Matched with ' + sourceItem.text : '. Available for matching'}{isCorrect ? '. Correct answer' : ''}"
+				aria-disabled={isBlocked ? 'true' : undefined}
+				aria-label="{target.text}{matchedSource && sourceItem ? '. Matched with ' + sourceItem.text : '. Available for matching'}{isCorrect ? '. Correct answer' : ''}{isBlocked ? '. Not compatible with selected source' : ''}"
 				data-matched={!!matchedSource}
 				data-highlight={isHighlight}
 				data-correct={isCorrect}
@@ -243,6 +287,8 @@ function clearMatch(sourceId: string) {
 				class:border-accent={draggedSourceId && !matchedSource || (keyboardSelectedSourceId && !matchedSource)}
 				class:bg-accent={draggedSourceId && !matchedSource || (keyboardSelectedSourceId && !matchedSource)}
 				class:bg-opacity-5={draggedSourceId && !matchedSource || (keyboardSelectedSourceId && !matchedSource)}
+				class:opacity-40={isBlocked}
+				class:cursor-not-allowed={isBlocked}
 			>
 				<div class="qti-match-target-content flex flex-col gap-1">
 					<div class="qti-match-target-title font-medium text-base-content/70">{target.text}</div>
@@ -297,7 +343,7 @@ function clearMatch(sourceId: string) {
 		font-size: 0.875rem;
 		color: color-mix(
 			in oklch,
-			var(--color-base-content, oklch(21% 0 0)) 70%,
+			var(--pie-qti-base-content, oklch(21% 0 0)) 70%,
 			transparent
 		);
 	}
@@ -310,26 +356,26 @@ function clearMatch(sourceId: string) {
 		width: 100%;
 		padding: 0.75rem;
 		border-radius: 0.5rem;
-		border: 2px solid var(--color-base-300, oklch(95% 0 0));
-		background: var(--color-base-200, oklch(98% 0 0));
-		color: var(--color-base-content, oklch(21% 0 0));
+		border: 2px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		background: var(--pie-qti-base-200, oklch(98% 0 0));
+		color: var(--pie-qti-base-content, oklch(21% 0 0));
 		text-align: left;
 		user-select: none;
 		transition: background-color 120ms ease, border-color 120ms ease, outline-color 120ms ease,
 			opacity 120ms ease;
 	}
 	.qti-match-source:focus-visible {
-		outline: 2px solid var(--color-primary, oklch(45% 0.24 277));
+		outline: 2px solid var(--pie-qti-primary, oklch(45% 0.24 277));
 		outline-offset: 2px;
 	}
 	.qti-match-source[data-selected='true'] {
-		border-color: var(--color-primary, oklch(45% 0.24 277));
-		background: color-mix(in oklch, var(--color-primary, oklch(45% 0.24 277)) 8%, transparent);
+		border-color: var(--pie-qti-primary, oklch(45% 0.24 277));
+		background: color-mix(in oklch, var(--pie-qti-primary, oklch(45% 0.24 277)) 8%, transparent);
 	}
 	.qti-match-source[data-matched='true'],
 	.qti-match-source[data-correct='true'] {
-		border-color: var(--color-success, oklch(76% 0.177 163.223));
-		background: color-mix(in oklch, var(--color-success, oklch(76% 0.177 163.223)) 8%, transparent);
+		border-color: var(--pie-qti-success, oklch(76% 0.177 163.223));
+		background: color-mix(in oklch, var(--pie-qti-success, oklch(76% 0.177 163.223)) 8%, transparent);
 	}
 	.qti-match-source[data-dragging='true'] {
 		opacity: 0.55;
@@ -351,7 +397,7 @@ function clearMatch(sourceId: string) {
 	.qti-match-source-sub {
 		margin-top: 0.25rem;
 		font-size: 0.875rem;
-		color: var(--color-success, oklch(76% 0.177 163.223));
+		color: var(--pie-qti-success, oklch(76% 0.177 163.223));
 	}
 
 	.qti-match-clear {
@@ -370,36 +416,36 @@ function clearMatch(sourceId: string) {
 		cursor: pointer;
 	}
 	.qti-match-clear:hover {
-		background: color-mix(in oklch, var(--color-base-300, oklch(95% 0 0)) 35%, transparent);
+		background: color-mix(in oklch, var(--pie-qti-base-300, oklch(95% 0 0)) 35%, transparent);
 	}
 
 	.qti-match-target {
 		width: 100%;
 		padding: 0.75rem;
 		border-radius: 0.5rem;
-		border: 2px dashed var(--color-base-300, oklch(95% 0 0));
-		background: var(--color-base-100, oklch(100% 0 0));
-		color: var(--color-base-content, oklch(21% 0 0));
+		border: 2px dashed var(--pie-qti-base-300, oklch(95% 0 0));
+		background: var(--pie-qti-base-100, oklch(100% 0 0));
+		color: var(--pie-qti-base-content, oklch(21% 0 0));
 		text-align: left;
 		min-height: 60px;
 		transition: background-color 120ms ease, border-color 120ms ease, outline-color 120ms ease,
 			opacity 120ms ease;
 	}
 	.qti-match-target:focus-visible {
-		outline: 2px solid var(--color-primary, oklch(45% 0.24 277));
+		outline: 2px solid var(--pie-qti-primary, oklch(45% 0.24 277));
 		outline-offset: 2px;
 	}
 	.qti-match-target[data-matched='true'] {
-		border-color: var(--color-primary, oklch(45% 0.24 277));
-		background: color-mix(in oklch, var(--color-primary, oklch(45% 0.24 277)) 6%, transparent);
+		border-color: var(--pie-qti-primary, oklch(45% 0.24 277));
+		background: color-mix(in oklch, var(--pie-qti-primary, oklch(45% 0.24 277)) 6%, transparent);
 	}
 	.qti-match-target[data-correct='true'] {
-		border-color: var(--color-success, oklch(76% 0.177 163.223));
-		background: color-mix(in oklch, var(--color-success, oklch(76% 0.177 163.223)) 8%, transparent);
+		border-color: var(--pie-qti-success, oklch(76% 0.177 163.223));
+		background: color-mix(in oklch, var(--pie-qti-success, oklch(76% 0.177 163.223)) 8%, transparent);
 	}
 	.qti-match-target[data-highlight='true'] {
-		border-color: var(--color-accent, oklch(77% 0.152 181.912));
-		background: color-mix(in oklch, var(--color-accent, oklch(77% 0.152 181.912)) 6%, transparent);
+		border-color: var(--pie-qti-accent, oklch(77% 0.152 181.912));
+		background: color-mix(in oklch, var(--pie-qti-accent, oklch(77% 0.152 181.912)) 6%, transparent);
 	}
 	.qti-match-target:disabled {
 		opacity: 0.6;
@@ -414,21 +460,21 @@ function clearMatch(sourceId: string) {
 		font-weight: 600;
 		color: color-mix(
 			in oklch,
-			var(--color-base-content, oklch(21% 0 0)) 70%,
+			var(--pie-qti-base-content, oklch(21% 0 0)) 70%,
 			transparent
 		);
 	}
 	.qti-match-target-sub {
 		font-size: 0.875rem;
 		font-weight: 600;
-		color: hsl(var(--p, 240 100% 50%));
+		color: var(--pie-qti-primary, oklch(45% 0.24 277));
 	}
 	.qti-match-target-hint {
 		font-size: 0.75rem;
 		font-style: italic;
 		color: color-mix(
 			in oklch,
-			var(--color-base-content, oklch(21% 0 0)) 70%,
+			var(--pie-qti-base-content, oklch(21% 0 0)) 70%,
 			transparent
 		);
 	}

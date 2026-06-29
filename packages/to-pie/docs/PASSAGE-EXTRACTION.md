@@ -308,13 +308,4 @@ interface PieItem {
 ## Related Documentation
 
 - [External Passages (PIE → QTI)](../../pie-to-qti2/docs/EXTERNAL-PASSAGES.md) - Forward transformation
-- [Phase 2 Summary](../../pie-to-qti2/docs/PHASE2-SUMMARY.md) - Complete Phase 2 implementation
 - [BaseId Tests](../../pie-to-qti2/tests/unit/passage-baseid.test.ts) - BaseId support tests
-
-## Contributors
-
-**Phase 2 External Passage Support - QTI → PIE**
-Implemented: January 2026
-Tests: 275 passing (11 new passage tests)
-Files Modified: 3
-Files Created: 2

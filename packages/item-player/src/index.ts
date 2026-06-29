@@ -1,6 +1,6 @@
 /**
  * @pie-qti/item-player
- * Modern QTI 2.2 player - Framework-agnostic with web components
+ * Modern QTI player (2.2/3.0) - Framework-agnostic with web components
  */
 
 
@@ -15,13 +15,8 @@ export * from './core/constants.js';
 export * from './core/declarations.js';
 // Export drawing utilities
 export * from './utils/drawingUtils.js';
-// Export ItemRenderer for framework-agnostic rendering
-export {
-	createItemRenderer,
-	ItemRenderer,
-	type ItemRendererConfig,
-} from './core/ItemRenderer.js';
 export { Player } from './core/Player.js';
+export { getRoleCapabilities, type RoleCapabilities } from './core/rolePolicy.js';
 // Plugin system (new extraction-based plugins)
 export {
 	type PluginContext,
@@ -31,6 +26,7 @@ export {
 } from './core/Plugin.js';
 export { PluginManager } from './core/PluginManager.js';
 // Export extraction system (PUBLIC API)
+export * from './interactions/index.js';
 export type {
 	ElementExtractor,
 	ExtractionContext,
@@ -49,7 +45,7 @@ export {
 	isSuccessResult,
 } from './extraction/index.js';
 // NOTE:
-// The player’s primary rendering contract is via web components (`ComponentRegistry` + `ItemRenderer`).
+// The player’s primary rendering contract is via web components and the Svelte component entrypoint.
 // If you need non-web-component rendering, build it externally against the public extraction APIs.
 // Export all types including adaptive item types
 export * from './types/index.js';
@@ -63,6 +59,22 @@ export {
 } from './utils/PerformanceMonitor.js';
 
 export { isResponseEmpty } from './utils/responseUtils.js';
+
+// PNP profile (QTI 3.0 §6.2)
+export type { PnpProfile } from './pnp/types.js';
+export { applyPnpToRoot } from './pnp/applyPnp.js';
+export { parsePnpXml } from './pnp/parsePnpXml.js';
+
+// Catalog (QTI 3.0 §6.3)
+export type { CatalogIndex, CatalogCard, CatalogEntry } from './catalog/types.js';
+export { extractCatalog, extractCatalogFromItemXml, mergeCatalogs } from './catalog/catalogExtractor.js';
+export { getCatalogEntry } from './catalog/catalogLookup.js';
+export type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
+
+// PCI — Portable Custom Interaction (QTI 3.0 §6.1)
+export type { PciModule, PciBoundTo, ExtractedPci } from './pci/types.js';
+export { PciLoadError } from './pci/types.js';
+export { PciHost } from './pci/PciHost.js';
 
 // Re-export QTI heuristics from @pie-qti/ims-cp-core for convenience
 // (heuristics are now in the shared ingestion layer)

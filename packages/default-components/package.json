@@ -1,12 +1,12 @@
 {
   "name": "@pie-qti/default-components",
-  "version": "0.1.1",
+  "version": "0.1.13",
   "description": "Default Svelte-based component implementations for QTI (2.x and 3.0) player",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
+    "build": "rm -rf dist && tsc && vite build && mkdir -p dist/shared/styles && cp src/shared/styles/qti-shared-vocabulary.css dist/shared/styles/qti-shared-vocabulary.css",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
     "check": "svelte-check --tsconfig ./tsconfig.json",
@@ -36,48 +36,33 @@
     "@tiptap/starter-kit": "^3.15.3",
     "mathlive": "^0.108.2"
   },
-  "peerDependencies": {
-    "svelte": "^5.54.0"
-  },
   "devDependencies": {
     "@biomejs/biome": "^2.4.8",
+    "@sveltejs/vite-plugin-svelte": "7.0.0",
     "@types/node": "^25.0.3",
-    "svelte": "^5.54.0",
+    "linkedom": "^0.18.12",
+    "svelte": "5.54.0",
     "svelte-check": "^4.3.5",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vite": "8.0.10"
   },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./MathContent.svelte": {
-      "svelte": "./src/shared/components/MathContent.svelte",
-      "import": "./src/shared/components/MathContent.svelte",
-      "default": "./src/shared/components/MathContent.svelte"
-    },
     "./plugins": {
-      "svelte": "./src/plugins/index.ts",
-      "import": "./src/plugins/index.ts",
-      "default": "./src/plugins/index.ts"
+      "types": "./dist/plugins/public-types.d.ts",
+      "import": "./dist/plugins.js",
+      "default": "./dist/plugins.js"
     },
     "./shared": {
       "types": "./dist/shared/index.d.ts",
       "import": "./dist/shared/index.js"
     },
-    "./plugins/*/*.svelte": {
-      "svelte": "./src/plugins/*/*.svelte",
-      "import": "./src/plugins/*/*.svelte",
-      "default": "./src/plugins/*/*.svelte"
-    },
     "./plugins/*/index": {
       "types": "./dist/plugins/*/index.d.ts",
       "import": "./dist/plugins/*/index.js"
-    },
-    "./shared/components/*.svelte": {
-      "svelte": "./src/shared/components/*.svelte",
-      "import": "./src/shared/components/*.svelte",
-      "default": "./src/shared/components/*.svelte"
     },
     "./shared/utils/*": {
       "types": "./dist/shared/utils/*.d.ts",
@@ -90,6 +75,14 @@
     "./shared/extensions/*": {
       "types": "./dist/shared/extensions/*.d.ts",
       "import": "./dist/shared/extensions/*.js"
+    },
+    "./shared/styles/qti-shared-vocabulary.css": {
+      "style": "./dist/shared/styles/qti-shared-vocabulary.css",
+      "default": "./dist/shared/styles/qti-shared-vocabulary.css"
+    },
+    "./qti-shared-vocabulary.css": {
+      "style": "./dist/shared/styles/qti-shared-vocabulary.css",
+      "default": "./dist/shared/styles/qti-shared-vocabulary.css"
     }
   },
   "repository": {
@@ -104,12 +97,16 @@
   "publishConfig": {
     "access": "public"
   },
-  "sideEffects": false,
+  "sideEffects": [
+    "./dist/plugins.js",
+    "./dist/shared/styles/*.css"
+  ],
   "engines": {
     "node": ">=20.19.0"
   },
   "files": [
-    "dist",
-    "src"
-  ]
+    "dist"
+  ],
+  "unpkg": "./dist/plugins.js",
+  "jsdelivr": "./dist/plugins.js"
 }

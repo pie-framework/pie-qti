@@ -21,7 +21,9 @@
 	import { exportToCsv, exportToJson } from './lib/export-utils';
 	import * as PanelResize from './lib/panel-resize';
 	import { loadSessionFromServer, saveSessionToServer } from './lib/session-api';
-	import type { SessionData } from './lib/types';
+	import type { DemoResponseMap, DemoResponseValue, SessionData } from './lib/types';
+	import QtiDiagnosticsPanel from '$lib/components/QtiDiagnosticsPanel.svelte';
+	import { analyzeQtiItemCompatibility, type QtiCompatibilityReport } from '$lib/qti-diagnostics';
 
 	// Get i18n provider from context (set in root layout)
 	const i18nContext = getContext<{ value: SvelteI18nProvider | null }>('i18n');
@@ -31,15 +33,16 @@
 	let selectedSampleId = $state('simple-choice');
 	let xmlContent = $state('');
 	let player = $state<Player | null>(null);
-	let responses = $state<Record<string, any>>({});
-	let scoringResult = $state<any>(null);
+	let responses = $state<DemoResponseMap>({});
+	let scoringResult = $state<SessionData['scoringResult']>(null);
 	let errorMessage = $state('');
 	let useBackendScoring = $state(false);
 	let sessionId = $state<string | null>(null);
 	let isSaving = $state(false);
 	let isSubmitting = $state(false);
 	let selectedRole = $state<QTIRole>('candidate');
-	let rubrics = $state<RubricBlock[]>([]);
+	let sidePanelRubrics = $state<RubricBlock[]>([]);
+	let diagnostics = $state<QtiCompatibilityReport | null>(null);
 	let templateVariables = $derived(player ? player.getTemplateVariables() : {});
 	let hasLoadedCustomUpload = false; // Track if we've loaded a custom upload in this effect cycle
 
@@ -64,6 +67,8 @@
 			if (!xml.trim()) {
 				player = null;
 				responses = {};
+				sidePanelRubrics = [];
+				diagnostics = null;
 				return;
 			}
 
@@ -77,11 +82,12 @@
 			registerDefaultComponents(newPlayer.getComponentRegistry());
 
 			player = newPlayer;
-			rubrics = player.getRubrics();
+			sidePanelRubrics = newPlayer.getRubrics({ scope: selectedRole === 'candidate' ? 'direct' : 'all' });
+			diagnostics = analyzeQtiItemCompatibility(xml, { player: newPlayer });
 
 			// Initialize responses for response interactions (delegated to Player APIs)
 			const interactions = newPlayer.getResponseInteractions();
-			const newResponses: Record<string, any> = {};
+			const newResponses: DemoResponseMap = {};
 			for (const interaction of interactions) {
 				if (interaction?.responseIdentifier) {
 					newResponses[interaction.responseIdentifier] = null;
@@ -91,6 +97,8 @@
 		} catch (err: any) {
 			player = null;
 			responses = {};
+			sidePanelRubrics = [];
+			diagnostics = analyzeQtiItemCompatibility(xml);
 			errorMessage = err.message;
 		}
 	}
@@ -112,7 +120,7 @@
 		}
 	}
 
-	function handleResponseChange(responseId: string, value: any) {
+	function handleResponseChange(responseId: string, value: DemoResponseValue) {
 		console.log('[Demo] Response changed:', { responseId, value });
 		responses = { ...responses, [responseId]: value };
 		console.log('[Demo] All responses:', responses);
@@ -161,7 +169,7 @@
 		if (!player) return;
 
 		const interactions = player.getResponseInteractions();
-		const newResponses: Record<string, any> = {};
+		const newResponses: DemoResponseMap = {};
 		for (const interaction of interactions) {
 			if (interaction?.responseIdentifier) {
 				newResponses[interaction.responseIdentifier] = null;
@@ -427,6 +435,8 @@
 				onXmlChange={handleXmlChange}
 				onRoleChange={handleRoleChange}
 			/>
+
+			<QtiDiagnosticsPanel report={diagnostics} />
 		</div>
 
 		<!-- Draggable Divider (desktop only) -->
@@ -466,7 +476,7 @@
 			{#if player && !errorMessage}
 				<QuestionPanel
 					{player}
-					{rubrics}
+					{sidePanelRubrics}
 					{responses}
 					{scoringResult}
 					{answeredCount}

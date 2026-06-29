@@ -1,12 +1,12 @@
 # @pie-qti/app-demo
 
-Demo application showcasing the QTI 2.x item and assessment players with interactive examples.
+Demo application showcasing the QTI item and assessment players with interactive examples.
 
 ## Features
 
 ### Player Demos
 
-- **Item Demo** (`/item-demo`) - Render and interact with individual QTI 2.x items
+- **Item Demo** (`/item-demo`) - Render and interact with individual QTI items
 - **Assessment Demo** (`/assessment-demo`) - Full multi-item assessment experience with navigation
 
 ### XML Editor
@@ -89,18 +89,18 @@ Includes 20 sample QTI items covering all 18 interaction types:
 
 Upload your own QTI content:
 
-- **Single XML file**: Upload individual QTI 2.x item XML
+- **Single XML file**: Upload individual QTI item XML
 - **ZIP package**: Upload IMS content packages with manifest and resources
 
 ### Role Switching
 
-Test different QTI 2.x standard roles:
+Test different QTI role/view actors:
 
 - **Candidate** - Student taking the assessment (editable, no answers shown)
 - **Scorer** - Grader reviewing responses (readonly, correct answers shown)
 - **Tutor** - Teacher providing feedback (readonly, correct answers shown)
 - **Author** - Content creator preview (readonly, correct answers shown)
-- **Proctor** - Test administrator (readonly, limited feedback)
+- **Proctor** - Test administrator (readonly, no correct answers shown)
 - **Test Constructor** - Assessment builder (readonly, correct answers shown)
 
 ### Session Management
@@ -143,8 +143,9 @@ bun run test:e2e tests/e2e/theme-cascade.spec.ts
 ## Architecture
 
 ### Components
+
 - **[XmlEditor.svelte](src/lib/components/XmlEditor.svelte)** - Syntax-highlighted XML editor with TipTap
-- **[AssessmentShell](../../assessment-player/src/components/AssessmentShell.svelte)** - Assessment player shell (imported)
+- **[AssessmentShell](../../packages/assessment-player/src/components/AssessmentShell.svelte)** - Assessment player shell (imported)
 
 ### Routes
 
@@ -162,9 +163,9 @@ bun run test:e2e tests/e2e/theme-cascade.spec.ts
 
 ## Related Packages
 
-- [@pie-qti/item-player](../item-player) - Core item rendering engine
-- [@pie-qti/assessment-player](../assessment-player) - Assessment orchestration
-- [@pie-qti/to-pie](../to-pie) - QTI XML → PIE JSON transformer
+- [@pie-qti/item-player](../../packages/item-player) - Core item rendering engine
+- [@pie-qti/assessment-player](../../packages/assessment-player) - Assessment orchestration
+- [@pie-qti/to-pie](../../packages/to-pie) - QTI XML → PIE JSON transformer
 
 ## License
 

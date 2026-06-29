@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
 	import type { NavigationState } from '@pie-qti/assessment-player';
-	import NavigationBar from '@pie-qti/assessment-player/components/NavigationBar.svelte';
+	import { NavigationBar } from '@pie-qti/assessment-player/components';
 	import type { SvelteI18nProvider } from '@pie-qti/i18n';
 
 	// Get i18n from context (provided by layout)

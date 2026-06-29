@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { standardTextEntryExtractor } from '../../../src/extraction/extractors/textEntryExtractor.js';
+import { standardTextEntryExtractor } from '../../../src/interactions/text-entry/extractor.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
 describe('standardTextEntryExtractor', () => {
@@ -68,6 +68,26 @@ describe('standardTextEntryExtractor', () => {
 
 		expect(result.patternMask).toBeFalsy();
 		expect(result.placeholderText).toBe('');
+	});
+
+	test('extracts format attribute', () => {
+		const xml = `<textEntryInteraction responseIdentifier="RESPONSE" format="plain" />`;
+		const element = parseQTI(xml);
+		const context = createTestContext(element, 'RESPONSE');
+
+		const result = standardTextEntryExtractor.extract(element, context);
+
+		expect(result.format).toBe('plain');
+	});
+
+	test('omits format when absent', () => {
+		const xml = `<textEntryInteraction responseIdentifier="RESPONSE" />`;
+		const element = parseQTI(xml);
+		const context = createTestContext(element, 'RESPONSE');
+
+		const result = standardTextEntryExtractor.extract(element, context);
+
+		expect(result.format).toBeUndefined();
 	});
 
 	describe('canHandle predicate', () => {

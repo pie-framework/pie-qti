@@ -533,6 +533,7 @@ export default {
 		homeMetaDescription: '具有可选后端集成的现代 QTI 播放器',
 		tryItems: '尝试项目',
 		tryAssessments: '尝试评估',
+		trySectionPlayer: '章节播放器',
 		pluginDemo: '插件演示',
 		dropQtiFile: '将 QTI XML 文件拖放到此处',
 		orClickToSelect: '或点击选择文件',

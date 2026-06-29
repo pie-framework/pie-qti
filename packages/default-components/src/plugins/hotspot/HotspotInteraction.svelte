@@ -84,12 +84,14 @@
 
 <ShadowBaseStyles />
 
-<div bind:this={rootElement} class="qti-hotspot-interaction space-y-3">
+<div bind:this={rootElement} class={['qti-hotspot-interaction space-y-3', ...(parsedInteraction?.interactionClasses ?? [])].join(' ')}>
 	{#if !parsedInteraction}
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
 		{#if parsedInteraction.prompt}
-			<p part="prompt" class="qti-hotspot-prompt font-semibold">{@html parsedInteraction.prompt}</p>
+			<div part="prompt" class="qti-hotspot-prompt qti-rich-content font-semibold">
+				{@html parsedInteraction.prompt}
+			</div>
 		{/if}
 
 		<div part="stage" class="qti-hotspot-stage">
@@ -123,6 +125,9 @@
 						{@const isCorrectChoice = isCorrect(choice.identifier)}
 						{@const coords = choice.coords.split(',').map(Number)}
 
+						{@const shapeLabel = choice.hotspotLabel || `Hotspot ${choice.identifier}`}
+						{@const ariaLabel = `${shapeLabel}${isCorrectChoice ? '. Correct answer' : ''}`}
+
 						{#if choice.shape === 'circle'}
 							<!-- Circle: coords are cx, cy, radius -->
 							<circle
@@ -134,25 +139,43 @@
 								stroke-width="2"
 								class="qti-hotspot-shape hover:fill-[rgba(59,130,246,0.1)] transition-all"
 								role="button"
-								aria-label={`Select hotspot ${choice.identifier}${isCorrectChoice ? '. Correct answer' : ''}`}
+								aria-label={ariaLabel}
 								aria-pressed={isSelected ? 'true' : 'false'}
 								tabindex={disabled ? -1 : 0}
 								onclick={() => handleClick(choice.identifier)}
 								onkeydown={(e) => handleKeyDown(e, choice.identifier)}
 							/>
 						{:else if choice.shape === 'rect'}
-							<!-- Rectangle: coords are x, y, width, height -->
+							<!-- Rectangle: QTI coords are left,top,right,bottom -->
 							<rect
 								x={coords[0]}
 								y={coords[1]}
-								width={coords[2]}
-								height={coords[3]}
+								width={coords[2] - coords[0]}
+								height={coords[3] - coords[1]}
 								fill={isSelected ? 'rgba(59, 130, 246, 0.3)' : isCorrectChoice ? 'rgba(34, 197, 94, 0.3)' : 'rgba(0, 0, 0, 0)'}
 								stroke={isSelected ? '#3b82f6' : isCorrectChoice ? '#22c55e' : 'transparent'}
 								stroke-width="2"
 								class="qti-hotspot-shape hover:fill-[rgba(59,130,246,0.1)] transition-all"
 								role="button"
-								aria-label={`Select hotspot ${choice.identifier}${isCorrectChoice ? '. Correct answer' : ''}`}
+								aria-label={ariaLabel}
+								aria-pressed={isSelected ? 'true' : 'false'}
+								tabindex={disabled ? -1 : 0}
+								onclick={() => handleClick(choice.identifier)}
+								onkeydown={(e) => handleKeyDown(e, choice.identifier)}
+							/>
+						{:else if choice.shape === 'ellipse'}
+							<!-- Ellipse: QTI coords are cx,cy,rx,ry -->
+							<ellipse
+								cx={coords[0]}
+								cy={coords[1]}
+								rx={coords[2]}
+								ry={coords[3]}
+								fill={isSelected ? 'rgba(59, 130, 246, 0.3)' : isCorrectChoice ? 'rgba(34, 197, 94, 0.3)' : 'rgba(0, 0, 0, 0)'}
+								stroke={isSelected ? '#3b82f6' : isCorrectChoice ? '#22c55e' : 'transparent'}
+								stroke-width="2"
+								class="qti-hotspot-shape hover:fill-[rgba(59,130,246,0.1)] transition-all"
+								role="button"
+								aria-label={ariaLabel}
 								aria-pressed={isSelected ? 'true' : 'false'}
 								tabindex={disabled ? -1 : 0}
 								onclick={() => handleClick(choice.identifier)}
@@ -175,7 +198,7 @@
 								stroke-width="2"
 								class="qti-hotspot-shape hover:fill-[rgba(59,130,246,0.1)] transition-all"
 								role="button"
-								aria-label={`Select hotspot ${choice.identifier}${isCorrectChoice ? '. Correct answer' : ''}`}
+								aria-label={ariaLabel}
 								aria-pressed={isSelected ? 'true' : 'false'}
 								tabindex={disabled ? -1 : 0}
 								onclick={() => handleClick(choice.identifier)}
@@ -197,10 +220,32 @@
 				{/if}
 			</div>
 		{/if}
+		{#if parsedInteraction.maxSelectionsMessage}
+			{@const selected = Array.isArray(parsedResponse) ? parsedResponse : (parsedResponse ? [parsedResponse] : [])}
+			{#if selected.length >= parsedInteraction.maxChoices && parsedInteraction.maxChoices > 0}
+				<p class="qti-selection-message" role="alert">{parsedInteraction.maxSelectionsMessage}</p>
+			{/if}
+		{/if}
 	{/if}
 </div>
 
 <style>
+	.qti-selection-message {
+		font-size: 0.875rem;
+		color: var(--pie-qti-warning, oklch(77% 0.194 82));
+		margin-top: 0.25rem;
+	}
+
+	/* qti-selections-light / qti-selections-dark: hotspot overlay color theme */
+	.qti-selections-light .qti-hotspot-shape {
+		fill: rgba(255, 255, 255, 0.4);
+		stroke: rgba(255, 255, 255, 0.8);
+	}
+	.qti-selections-dark .qti-hotspot-shape {
+		fill: rgba(0, 0, 0, 0.4);
+		stroke: rgba(0, 0, 0, 0.8);
+	}
+
 	/* Minimal layout so this works without Tailwind utilities */
 	.qti-hotspot-interaction {
 		display: grid;

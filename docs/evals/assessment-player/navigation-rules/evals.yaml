@@ -5,7 +5,7 @@ component:
   tagName: AssessmentShell
 
 examplesApp:
-  app: "@pie-qti/qti-example"
+  app: "@pie-qti/app-demo"
   routeTemplate: "/assessment-demo"
 
 evals:

@@ -9,7 +9,7 @@
  */
 
 import { Qti2xElementNameMapper, type ElementNameMapper } from '@pie-qti/qti-common';
-import type { QTIElement } from '../types/interactions.js';
+import type { QTIElement } from '../interactions/index.js';
 import type {
 	ElementExtractor,
 	ExtractionContext,
@@ -179,7 +179,11 @@ export class ExtractionRegistry {
 		// Evaluate canHandle in priority order (O(M) where M = extractors for this type)
 		for (const extractor of extractors) {
 			try {
-				if (extractor.canHandle(element, context)) {
+				const canHandle = extractor.canHandle(element, context);
+				const typeMatchedThroughMapper = !!this.elementNameMapper && extractor.elementTypes.some(
+					(type) => this.qti2xMapper.toCanonical(type) === lookupKey
+				);
+				if (canHandle || typeMatchedThroughMapper) {
 					// Cache the result
 					this.extractorCache.set(element, extractor);
 					return extractor;

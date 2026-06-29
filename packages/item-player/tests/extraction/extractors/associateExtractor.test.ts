@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { standardAssociateExtractor } from '../../../src/extraction/extractors/associateExtractor.js';
+import { standardAssociateExtractor } from '../../../src/interactions/associate/extractor.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
 describe('standardAssociateExtractor', () => {
@@ -110,6 +110,54 @@ describe('standardAssociateExtractor', () => {
 			const context = createTestContext(element);
 
 			expect(standardAssociateExtractor.canHandle(element, context)).toBe(false);
+		});
+	});
+
+	describe('matchGroup extraction', () => {
+		test('extracts single matchGroup value', () => {
+			const xml = `
+				<associateInteraction responseIdentifier="RESPONSE" shuffle="false" maxAssociations="0">
+					<simpleAssociableChoice identifier="A" matchMax="1" matchGroup="animal">Cat</simpleAssociableChoice>
+					<simpleAssociableChoice identifier="B" matchMax="1" matchGroup="animal">Dog</simpleAssociableChoice>
+					<simpleAssociableChoice identifier="C" matchMax="1">Other</simpleAssociableChoice>
+				</associateInteraction>
+			`;
+			const element = parseQTI(xml);
+			const context = createTestContext(element, 'RESPONSE');
+
+			const result = standardAssociateExtractor.extract(element, context);
+
+			expect(result.choices[0].matchGroup).toEqual(['animal']);
+			expect(result.choices[1].matchGroup).toEqual(['animal']);
+		});
+
+		test('extracts multiple matchGroup values', () => {
+			const xml = `
+				<associateInteraction responseIdentifier="RESPONSE" shuffle="false" maxAssociations="0">
+					<simpleAssociableChoice identifier="A" matchMax="1" matchGroup="set-a set-b">Item A</simpleAssociableChoice>
+					<simpleAssociableChoice identifier="B" matchMax="1">Item B</simpleAssociableChoice>
+				</associateInteraction>
+			`;
+			const element = parseQTI(xml);
+			const context = createTestContext(element, 'RESPONSE');
+
+			const result = standardAssociateExtractor.extract(element, context);
+
+			expect(result.choices[0].matchGroup).toEqual(['set-a', 'set-b']);
+		});
+
+		test('omits matchGroup when absent', () => {
+			const xml = `
+				<associateInteraction responseIdentifier="RESPONSE" shuffle="false" maxAssociations="0">
+					<simpleAssociableChoice identifier="A" matchMax="1">Item A</simpleAssociableChoice>
+				</associateInteraction>
+			`;
+			const element = parseQTI(xml);
+			const context = createTestContext(element, 'RESPONSE');
+
+			const result = standardAssociateExtractor.extract(element, context);
+
+			expect(result.choices[0].matchGroup).toBeUndefined();
 		});
 	});
 

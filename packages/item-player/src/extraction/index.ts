@@ -67,11 +67,10 @@ export type {
 	SliderData,
 	TextEntryData,
 	UploadData,
-} from './extractors/index.js';
+} from '../interactions/index.js';
 
-// Standard extractors (all 21 extractors)
+// Standard extractors
 export {
-	ALL_STANDARD_EXTRACTORS,
 	standardAssociateExtractor,
 	standardChoiceExtractor,
 	standardCustomExtractor,
@@ -93,7 +92,7 @@ export {
 	standardSliderExtractor,
 	standardTextEntryExtractor,
 	standardUploadExtractor,
-} from './extractors/index.js';
+} from '../interactions/index.js';
 
 // Core types
 export type {

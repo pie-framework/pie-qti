@@ -1,4 +1,5 @@
-import type { ExportData } from './types';
+import type { DemoResponseMap, ExportData } from './types';
+import type { ScoringResult } from '@pie-qti/item-player';
 
 export function exportToJson(exportData: ExportData): void {
 	const blob = new Blob([JSON.stringify(exportData, null, 2)], {
@@ -13,8 +14,8 @@ export function exportToJson(exportData: ExportData): void {
 }
 
 export function exportToCsv(
-	responses: Record<string, any>,
-	scoringResult: any | null
+	responses: DemoResponseMap,
+	scoringResult: ScoringResult | null
 ): void {
 	let csv = 'Response ID,Value,Score\n';
 	for (const [responseId, value] of Object.entries(responses)) {

@@ -1,18 +1,52 @@
 {
 	"requiredPublishConfigAccess": "public",
-	"requiredFields": ["license", "homepage", "bugs", "files", "sideEffects"],
+	"requiredFields": [
+		"license",
+		"homepage",
+		"bugs",
+		"files",
+		"sideEffects"
+	],
 	"requireRepositoryDirectory": true,
 	"requireExportsOrMainTypes": true,
 	"requireNodeEngine": true,
 	"defaultNodeEngine": ">=20.19.0",
-	"workspaceRoots": ["packages", "tools"],
-	"publishablePackageNamePrefix": "@pie-qti/",
-	"allowedSourceExportPackages": [
-		"@pie-qti/item-player",
-		"@pie-qti/assessment-player",
-		"@pie-qti/default-components",
-		"@pie-qti/i18n"
+	"workspaceRoots": [
+		"packages",
+		"tools"
 	],
+	"publishablePackageNamePrefix": "@pie-qti/",
 	"allowedUndeclaredRuntimeImports": {},
-	"attwSuppressInternalResolutionPackages": ["@pie-qti/item-player"]
+	"attwSuppressInternalResolutionPackages": [],
+	"requiredPackageSideEffects": {
+		"@pie-qti/default-components": [
+			"./dist/plugins.js"
+		],
+		"@pie-qti/player-elements": [
+			"./dist/register.js"
+		],
+		"@pie-qti/item-player": [
+			"./dist/element.js"
+		],
+		"@pie-qti/pie-to-qti2": [
+			"./dist/generators/index.js"
+		]
+	},
+	"forbiddenPublicExports": {
+		"@pie-qti/item-player": [
+			"./components"
+		],
+		"@pie-qti/assessment-player": [
+			"./components"
+		],
+		"@pie-qti/default-components": [
+			"./shared/components"
+		],
+		"@pie-qti/i18n": [
+			"./components"
+		],
+		"@pie-qti/section-player": [
+			"./components"
+		]
+	}
 }

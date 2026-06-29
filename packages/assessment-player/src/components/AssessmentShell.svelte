@@ -1,17 +1,16 @@
 <script lang="ts">
 	import { onMount, tick, getContext } from 'svelte';
 	import type { SvelteI18nProvider } from '@pie-qti/i18n';
+	import type { QtiSharedHtmlBlock } from '@pie-qti/section-player';
+	import { SectionPlayerSplitPane, SectionPlayerVertical, TestFeedback as SectionTestFeedback } from '../../../section-player/src/components/index.js';
 	import type { BackendAssessmentPlayerConfig } from '../core/AssessmentPlayer.js';
 	import { AssessmentPlayer } from '../core/AssessmentPlayer.js';
 	import type { BackendAdapter, InitSessionRequest } from '../integration/api-contract.js';
+	import { toSectionComposition } from '../integration/toSectionComposition.js';
 	import type { AssessmentResults, NavigationState } from '../types/index.js';
 	import AccessibilityAnnouncer from './AccessibilityAnnouncer.svelte';
 	import AssessmentHeader from './AssessmentHeader.svelte';
-	import ItemRenderer from './ItemRenderer.svelte';
 	import NavigationBar from './NavigationBar.svelte';
-	import RubricDisplay from './RubricDisplay.svelte';
-	import SplitPaneResizer from './SplitPaneResizer.svelte';
-	import TestFeedback from './TestFeedback.svelte';
 
 	interface Props {
 		backend: BackendAdapter;
@@ -49,53 +48,44 @@
 	let sections = $state<any[]>([]);
 	let error = $state<string | null>(null);
 	let navError = $state<string | null>(null);
-	let itemPaneEl = $state<HTMLDivElement | null>(null);
+	let itemPaneEl = $state<HTMLElement | null>(null);
 	let rootEl = $state<HTMLElement | null>(null);
 	let testFeedback = $state<Array<{ identifier: string; content: string; access: string }>>([]);
 	let isComplete = $state(false);
 	let initTimeout: ReturnType<typeof setTimeout> | null = null;
 	let hasFirstItem = $state(false);
 	let announcer = $state<AccessibilityAnnouncer | null>(null);
+	let responseVersion = $state(0);
+	let stateVersion = $state(0);
 
-	const passageBlocks = $derived(currentRubricBlocks.filter((b) => b?.use === 'passage'));
-	const nonPassageRubricBlocks = $derived(currentRubricBlocks.filter((b) => b?.use !== 'passage'));
-	const hasPassage = $derived(passageBlocks.length > 0);
-
-	// Fallback: listen at the shell root for any `qti-change` custom events from nested
-	// web components. Use a reactive effect so we attach even if `rootEl` is set after mount.
-	function handleRootQtiChange(e: Event) {
-		const ce = e as CustomEvent;
-		const detail = (ce as any).detail;
-		if (!detail) return;
-		const { responseId, value } = detail;
-		if (responseId) {
-			handleResponseChange(responseId, value);
-		}
-	}
-
-	$effect(() => {
-		if (!rootEl) return;
-		rootEl.addEventListener('qti-change', handleRootQtiChange as EventListener);
-		return () => rootEl?.removeEventListener('qti-change', handleRootQtiChange as EventListener);
+	const sectionComposition = $derived.by(() => {
+		responseVersion;
+		stateVersion;
+		return player ? toSectionComposition(player, config) : null;
 	});
+	const hasSplitPane = $derived(sectionComposition?.layout === 'split-pane');
+	const sectionRole = $derived(config.role ?? 'candidate');
+	const extendedTextEditor = $derived(
+		config.extendedTextEditor === 'textarea' || config.extendedTextEditor === 'tiptap'
+			? config.extendedTextEditor
+			: undefined
+	);
+	const testFeedbackBlocks = $derived<QtiSharedHtmlBlock[]>(
+		testFeedback.map((item) => ({
+			identifier: item.identifier,
+			kind: 'test-feedback',
+			scope: 'assessment',
+			rawHtml: item.content,
+		}))
+	);
 
 	// Initialize player
 	onMount(() => {
-		// Capture bubbled `qti-change` events at the document level as a safety net.
-		// This ensures responses are recorded even if an intermediate renderer misses the event.
-		const handleDocumentQtiChange = (e: Event) => {
-			const ce = e as CustomEvent;
-			const detail = (ce as any).detail;
-			if (!detail) return;
-			const { responseId, value } = detail;
-			if (responseId) handleResponseChange(responseId, value);
-		};
-		document.addEventListener('qti-change', handleDocumentQtiChange as EventListener);
-
 		// Never allow infinite "Loading assessment..." state
 		initTimeout = setTimeout(() => {
 			if (!hasFirstItem && !error) {
 				error = contextI18n?.t('assessment.loadingError') ?? 'assessment.loadingError';
+				announcer?.announce(error, 3000, 'assertive');
 			}
 		}, 10000);
 
@@ -134,20 +124,27 @@
 
 			player.onResponseChange((responses) => {
 				currentResponses = responses;
+				responseVersion += 1;
 			});
 
 			// If backend did not restore a current item, start at index 0.
 			if (player.getNavigationState().currentIndex < 0) {
 				await player.navigateTo(0);
+			} else {
+				updateState();
+				hasFirstItem = true;
+				if (initTimeout) {
+					clearTimeout(initTimeout);
+					initTimeout = null;
+				}
 			}
 		})().catch((err) => {
 			console.error('Failed to initialize assessment player:', err);
 			error = err instanceof Error ? err.message : (contextI18n?.t('assessment.loadingError') ?? 'assessment.loadingError');
+			announcer?.announce(error, 3000, 'assertive');
 		});
 
 		return () => {
-			document.removeEventListener('qti-change', handleDocumentQtiChange as EventListener);
-			rootEl?.removeEventListener('qti-change', handleRootQtiChange as EventListener);
 			if (initTimeout) {
 				clearTimeout(initTimeout);
 				initTimeout = null;
@@ -165,6 +162,7 @@
 		currentItem = player.getCurrentItem();
 		currentRubricBlocks = player.getCurrentRubricBlocks();
 		currentResponses = player.getResponses();
+		stateVersion += 1;
 	}
 
 	async function handlePrevious() {
@@ -176,7 +174,8 @@
 			announceCurrentQuestion();
 		} catch (err) {
 			console.error('Previous navigation failed:', err);
-			navError = err instanceof Error ? err.message : (i18n?.t('assessment.errors.navigationFailed') ?? 'assessment.errors.navigationFailed');
+			const message = err instanceof Error ? err.message : (i18n?.t('assessment.errors.navigationFailed') ?? 'assessment.errors.navigationFailed');
+			navError = message;
 		}
 	}
 
@@ -189,7 +188,8 @@
 			announceCurrentQuestion();
 		} catch (err) {
 			console.error('Next navigation failed:', err);
-			navError = err instanceof Error ? err.message : (i18n?.t('assessment.errors.navigationFailed') ?? 'assessment.errors.navigationFailed');
+			const message = err instanceof Error ? err.message : (i18n?.t('assessment.errors.navigationFailed') ?? 'assessment.errors.navigationFailed');
+			navError = message;
 		}
 	}
 
@@ -251,17 +251,15 @@
 			// Or show results modal
 		} catch (err) {
 			console.error('Failed to submit assessment:', err);
-			error = err instanceof Error ? err.message : (i18n?.t('assessment.errors.submitFailed') ?? 'assessment.errors.submitFailed');
+			const message = err instanceof Error ? err.message : (i18n?.t('assessment.errors.submitFailed') ?? 'assessment.errors.submitFailed');
+			error = message;
+			announcer?.announce(message, 3000, 'assertive');
 		}
 	}
 
-	function handleResponseChange(responseId: string, value: unknown) {
-		if (!player) return;
-		if (currentItem?.identifier) {
-			player.updateResponseForItem(currentItem.identifier, responseId, value);
-		} else {
-			player.updateResponse(responseId, value);
-		}
+	function handleSectionResponseChange(itemIdentifier: string, responseIdentifier: string, value: unknown) {
+		player?.updateResponseForItem(itemIdentifier, responseIdentifier, value);
+		responseVersion += 1;
 	}
 
 	/**
@@ -305,7 +303,7 @@
 
 {#if error}
 	<div class="assessment-error">
-		<div class="alert alert-error">
+		<div class="alert alert-error" role="alert" aria-live="assertive">
 			<svg
 				xmlns="http://www.w3.org/2000/svg"
 				class="stroke-current shrink-0 h-6 w-6"
@@ -324,13 +322,13 @@
 	</div>
 {:else if !player || navState.currentIndex < 0}
 	<div class="assessment-loading">
-		<div class="flex items-center justify-center p-8">
+		<div class="flex items-center justify-center p-8" role="status" aria-live="polite">
 			<span class="loading loading-spinner loading-lg"></span>
 			<span class="ml-4">{contextI18n?.t('assessment.loading') ?? 'assessment.loading'}</span>
 		</div>
 	</div>
 {:else}
-	<div bind:this={rootEl} class="assessment-shell" role="application" aria-label="Assessment player">
+	<div bind:this={rootEl} class="assessment-shell" role="region" aria-label="Assessment player">
 		<!-- Header with title and section menu -->
 		<AssessmentHeader
 			title={initSession.assessmentId || (i18n?.t('assessment.title') ?? 'Assessment')}
@@ -343,12 +341,19 @@
 
 		<!-- Test Feedback (shown after completion) -->
 		{#if isComplete && testFeedback.length > 0}
-			<TestFeedback feedback={testFeedback} />
+			<SectionTestFeedback
+				feedback={testFeedbackBlocks}
+				role={sectionRole}
+				{i18n}
+				security={config.security}
+				host={config.sectionHost}
+				{typeset}
+			/>
 		{/if}
 
 		{#if navError}
 			<div class="assessment-nav-error">
-				<div class="alert alert-warning">
+				<div class="alert alert-warning" role="alert" aria-live="assertive">
 					<svg
 						xmlns="http://www.w3.org/2000/svg"
 						class="stroke-current shrink-0 h-6 w-6"
@@ -369,53 +374,34 @@
 
 		<!-- Main content area -->
 		<div
-			class:has-passage={hasPassage}
+			class:has-passage={hasSplitPane}
 			class="assessment-content"
 			tabindex="-1"
 			role="region"
 			aria-label={i18n?.t('accessibility.itemBody') ?? 'Question content'}
-			aria-live="polite"
 		>
-			{#if hasPassage}
-				<SplitPaneResizer
-					leftContent={passageBlocks}
-					{typeset}
-					storageKey="pie-qti22-assessment-player.splitLeftPct"
-					onRightPaneReady={(el) => itemPaneEl = el}
-				>
-					{#if nonPassageRubricBlocks.length > 0}
-						<RubricDisplay blocks={nonPassageRubricBlocks} {typeset} />
-					{/if}
-
-					{#if currentItem}
-						<ItemRenderer
-							itemRef={currentItem}
-							responses={currentResponses}
-							role={config.role || 'candidate'}
-							extendedTextEditor={config.extendedTextEditor || 'tiptap'}
-							onResponseChange={handleResponseChange}
-							{typeset}
-							{i18n}
-							security={config.security}
-						/>
-					{/if}
-				</SplitPaneResizer>
-			{:else}
-				<!-- Rubric blocks (passages, instructions) -->
-				{#if currentRubricBlocks.length > 0}
-					<RubricDisplay blocks={currentRubricBlocks} {typeset} />
-				{/if}
-
-				<!-- Current item -->
-				{#if currentItem}
-					<ItemRenderer
-						itemRef={currentItem}
-						responses={currentResponses}
-						role={config.role || 'candidate'}
-						onResponseChange={handleResponseChange}
-						{typeset}
+			{#if sectionComposition}
+				{#if sectionComposition.layout === 'split-pane'}
+					<SectionPlayerSplitPane
+						composition={sectionComposition}
 						{i18n}
 						security={config.security}
+						pnp={config.pnp}
+						extendedTextEditor={extendedTextEditor}
+						{typeset}
+						onResponseChange={handleSectionResponseChange}
+						onItemPaneReady={(el) => (itemPaneEl = el)}
+					/>
+				{:else}
+					<SectionPlayerVertical
+						composition={sectionComposition}
+						{i18n}
+						security={config.security}
+						pnp={config.pnp}
+						extendedTextEditor={extendedTextEditor}
+						{typeset}
+						onResponseChange={handleSectionResponseChange}
+						onItemPaneReady={(el) => (itemPaneEl = el)}
 					/>
 				{/if}
 			{/if}

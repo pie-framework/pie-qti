@@ -9,6 +9,7 @@ import type { PieItem } from '@pie-qti/transform-types';
 import type { HTMLElement } from 'node-html-parser';
 import { parse } from 'node-html-parser';
 import { v4 as uuid } from 'uuid';
+import { extractPromptForInteraction } from '../utils/prompt-extraction.js';
 import { createMissingElementError, createMissingInteractionError } from '../utils/qti-errors.js';
 
 export interface DragInTheBlankOptions {
@@ -61,7 +62,7 @@ export function transformDragInTheBlank(
   const responseIdentifier = gapMatchInteraction.getAttribute('responseIdentifier') || 'RESPONSE';
 
   // Extract prompt
-  const prompt = extractPrompt(document);
+  const prompt = extractPromptForInteraction(itemBody, gapMatchInteraction);
 
   // Determine shuffle/lockChoiceOrder
   const shuffle = gapMatchInteraction.getAttribute('shuffle');
@@ -121,39 +122,6 @@ export function transformDragInTheBlank(
   };
 
   return pieItem;
-}
-
-/**
- * Extract prompt from itemBody
- */
-function extractPrompt(document: HTMLElement): string | null {
-  const itemBody = document.getElementsByTagName('itemBody')[0];
-  if (!itemBody) return null;
-
-  // Look for prompt in gapMatchInteraction
-  const gapMatchInteraction = itemBody.getElementsByTagName('gapMatchInteraction')[0];
-  if (gapMatchInteraction) {
-    const promptElement = gapMatchInteraction.getElementsByTagName('prompt')[0];
-    if (promptElement) {
-      return promptElement.innerHTML.trim();
-    }
-  }
-
-  // Look for content before gapMatchInteraction
-  let promptHtml = '';
-  for (const child of itemBody.childNodes) {
-    if (child === gapMatchInteraction) break;
-
-    if (child.nodeType === 3) {
-      // Text node
-      const text = child.textContent?.trim();
-      if (text) promptHtml += text;
-    } else if ((child as HTMLElement).tagName) {
-      promptHtml += (child as HTMLElement).outerHTML;
-    }
-  }
-
-  return promptHtml.trim() || null;
 }
 
 /**

@@ -6,7 +6,7 @@
  * - Locate imsmanifest.xml (root or nested)
  * - Parse manifest (using @pie-qti/ims-cp-core) and resolve hrefs/files to paths within the package
  *
- * This is meant as a shared layer for server-side tools (CLI, transform-app).
+ * This is meant as a shared layer for server-side tools (CLI).
  */
 
 import { createReadStream, createWriteStream, existsSync } from 'node:fs';

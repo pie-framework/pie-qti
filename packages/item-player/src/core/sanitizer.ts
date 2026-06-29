@@ -10,9 +10,10 @@
  */
 
 import { type HTMLElement, parse } from 'node-html-parser';
+import { parseSrcsetCandidates } from '@pie-qti/ims-cp-core';
 import type { PlayerSecurityConfig, UrlPolicyConfig } from '../types/index.js';
 import { normalizeParsingLimits } from './parsingLimits.js';
-import { sanitizeResourceUrl } from './urlPolicy.js';
+import { sanitizeResourceUrl, type UrlKind } from './urlPolicy.js';
 
 export interface SanitizeHtmlOptions {
 	/**
@@ -20,6 +21,7 @@ export interface SanitizeHtmlOptions {
 	 * Defaults are conservative for same-DOM embedding.
 	 */
 	security?: PlayerSecurityConfig;
+	sanitizeUrl?: (href: string, kind: UrlKind) => string | null;
 }
 
 class HtmlLimitExceeded extends Error {
@@ -40,26 +42,42 @@ function allowIframes(options?: SanitizeHtmlOptions): boolean {
 	return options?.security?.allowIframes === true;
 }
 
-function sanitizeUrlAttr(value: string, policy: UrlPolicyConfig | undefined, kind: 'img' | 'media' | 'object' | 'link' | 'any'): string {
-	return sanitizeResourceUrl(value, policy, kind) ?? '#';
+function escapeAttr(value: string): string {
+	return value
+		.replace(/&/g, '&amp;')
+		.replace(/"/g, '&quot;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;');
 }
 
-function sanitizeSrcset(value: string, policy: UrlPolicyConfig | undefined): string {
-	// srcset grammar is complex; we implement a conservative filter:
-	// split by commas into candidate strings; sanitize the URL portion of each candidate.
-	const parts = value
-		.split(',')
-		.map((p) => p.trim())
-		.filter(Boolean);
+function getOptionalAttr(element: HTMLElement, attrName: string): string {
+	const value = element.getAttribute(attrName);
+	return value ? ` ${attrName}="${escapeAttr(value)}"` : '';
+}
+
+function sanitizeUrlForHtml(value: string, options: SanitizeHtmlOptions | undefined, kind: UrlKind): string | null {
+	const policy = policyFromOptions(options);
+	const sanitized = sanitizeResourceUrl(value, policy, kind);
+	if (!sanitized) return null;
+
+	if (!options?.sanitizeUrl) return sanitized;
+
+	const hostSanitized = options.sanitizeUrl(sanitized, kind);
+	if (!hostSanitized) return null;
+
+	return sanitizeResourceUrl(hostSanitized, policy, kind);
+}
+
+function sanitizeUrlAttr(value: string, options: SanitizeHtmlOptions | undefined, kind: UrlKind): string {
+	return sanitizeUrlForHtml(value, options, kind) ?? '#';
+}
+
+function sanitizeSrcset(value: string, options: SanitizeHtmlOptions | undefined): string {
 	const out: string[] = [];
-	for (const part of parts) {
-		// URL is the first token; the rest are descriptors (e.g., 1x, 320w).
-		const tokens = part.split(/\s+/).filter(Boolean);
-		if (tokens.length === 0) continue;
-		const url = tokens[0]!;
-		const sanitized = sanitizeResourceUrl(url, policy, 'img');
+	for (const candidate of parseSrcsetCandidates(value)) {
+		const sanitized = sanitizeUrlForHtml(candidate.url, options, 'img');
 		if (!sanitized) continue;
-		out.push([sanitized, ...tokens.slice(1)].join(' '));
+		out.push([sanitized, candidate.descriptors].filter(Boolean).join(' '));
 	}
 	return out.join(', ');
 }
@@ -99,6 +117,11 @@ function sanitizeElement(
 		return;
 	}
 	if ((tagName === 'object' || tagName === 'embed') && !allowObjectEmbeds(options)) {
+			const replacementHtml = getSafeObjectReplacementHtml(element, options);
+		if (replacementHtml) {
+			element.replaceWith(replacementHtml);
+			return;
+		}
 		element.remove();
 		return;
 	}
@@ -116,7 +139,6 @@ function sanitizeElement(
 	}
 
 	// Sanitize URL attributes
-	const policy = policyFromOptions(options);
 	for (const attrName of Object.keys(attrs)) {
 		const lower = attrName.toLowerCase();
 		const value = element.getAttribute(attrName);
@@ -129,7 +151,7 @@ function sanitizeElement(
 		}
 
 		if (lower === 'srcset') {
-			const sanitized = sanitizeSrcset(value, policy);
+			const sanitized = sanitizeSrcset(value, options);
 			if (!sanitized) element.removeAttribute(attrName);
 			else if (sanitized !== value) element.setAttribute(attrName, sanitized);
 			continue;
@@ -151,7 +173,7 @@ function sanitizeElement(
 				tagName === 'object' || tagName === 'embed' ? 'object' :
 				tagName === 'a' ? 'link' :
 				'any';
-			const sanitized = sanitizeUrlAttr(value, policy, kind);
+			const sanitized = sanitizeUrlAttr(value, options, kind);
 			if (sanitized !== value) element.setAttribute(attrName, sanitized);
 		}
 	}
@@ -232,4 +254,56 @@ export function sanitizeTextContent(text: string, options?: SanitizeHtmlOptions)
 
 	// Plain text - return as-is
 	return text;
+}
+
+function getSafeObjectReplacementHtml(element: HTMLElement, options: SanitizeHtmlOptions | undefined): string | null {
+	if ((element as any).rawTagName?.toLowerCase() !== 'object') {
+		return null;
+	}
+
+	const rawType = element.getAttribute('type')?.trim().toLowerCase() ?? '';
+	const rawData = element.getAttribute('data')?.trim() ?? '';
+	if (!rawType || !rawData) {
+		return null;
+	}
+
+	const dimensions = `${getOptionalAttr(element, 'width')}${getOptionalAttr(element, 'height')}`;
+	const classes = getOptionalAttr(element, 'class');
+	const id = getOptionalAttr(element, 'id');
+
+	if (rawType.startsWith('image/')) {
+		const src = sanitizeUrlForHtml(rawData, options, 'img');
+		if (!src) {
+			return null;
+		}
+		const alt =
+			element.getAttribute('aria-label') ??
+			element.getAttribute('title') ??
+			element.textContent?.trim() ??
+			'';
+		return `<img src="${escapeAttr(src)}" alt="${escapeAttr(alt)}"${dimensions}${classes}${id}>`;
+	}
+
+	if (rawType.startsWith('audio/')) {
+		const src = sanitizeUrlForHtml(rawData, options, 'media');
+		if (!src) {
+			return null;
+		}
+		return `<audio controls${classes}${id}><source src="${escapeAttr(src)}" type="${escapeAttr(rawType)}"></audio>`;
+	}
+
+	if (rawType.startsWith('video/')) {
+		const src = sanitizeUrlForHtml(rawData, options, 'media');
+		if (!src) {
+			return null;
+		}
+		const rawPoster = element.getAttribute('poster')?.trim() ?? '';
+		const poster = rawPoster
+			? sanitizeUrlForHtml(rawPoster, options, 'img')
+			: null;
+		const posterAttr = poster ? ` poster="${escapeAttr(poster)}"` : '';
+		return `<video controls${dimensions}${classes}${id}${posterAttr}><source src="${escapeAttr(src)}" type="${escapeAttr(rawType)}"></video>`;
+	}
+
+	return null;
 }

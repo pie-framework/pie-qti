@@ -1,17 +1,17 @@
 <script lang="ts">
 
 	import { typesetAction } from '@pie-qti/default-components/shared';
-	// @ts-expect-error - Svelte-check can't resolve workspace subpath exports, but runtime works correctly
 	import { ItemBody } from '@pie-qti/item-player/components';
-	import type { Player, QTIRole, RubricBlock } from '@pie-qti/item-player';
+	import type { Player, QTIRole, RubricBlock, ScoringResult } from '@pie-qti/item-player';
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import { typesetMathInElement } from '@pie-qti/typeset-katex';
+	import type { DemoResponseMap, DemoResponseValue } from '../lib/types';
 
 	interface Props {
 		player: Player;
-		rubrics: RubricBlock[];
-		responses: Record<string, any>;
-		scoringResult: any | null;
+		sidePanelRubrics: RubricBlock[];
+		responses: DemoResponseMap;
+		scoringResult: ScoringResult | null;
 		answeredCount: number;
 		totalInteractions: number;
 		progressPercentage: number;
@@ -19,14 +19,14 @@
 		disabled: boolean;
 		i18n?: I18nProvider | null;
 		role: QTIRole;
-		onResponseChange: (responseId: string, value: any) => void;
+		onResponseChange: (responseId: string, value: DemoResponseValue) => void;
 		onSubmit: () => void;
 		onReset: () => void;
 	}
 
 	let {
 		player,
-		rubrics,
+		sidePanelRubrics,
 		responses,
 		scoringResult,
 		answeredCount,
@@ -67,28 +67,37 @@
 	<div class="card-body min-w-0">
 		<h2 class="card-title">{t('common.question', 'Question')}</h2>
 
-		<!-- Rubrics (role-filtered) -->
-		{#if rubrics.length > 0}
-			{#each rubrics as rubric}
-				<div class="alert alert-info mb-4">
-					<div class="prose max-w-none">
-						{@html rubric.html}
-					</div>
-				</div>
-			{/each}
-		{/if}
+		<div class="qti-question-layout" class:qti-question-layout--with-rubrics={sidePanelRubrics.length > 0}>
+			<!-- ItemBody handles player-owned item-body rendering; direct rubrics are host-placed. -->
+			<div class="qti-question-body">
+				<ItemBody
+					{player}
+					{responses}
+					{disabled}
+					{role}
+					i18n={i18n ?? undefined}
+					typeset={typesetMathInElement}
+					renderItemBodyRubrics={role === 'candidate'}
+					{onResponseChange}
+				/>
+			</div>
 
-		<!-- ItemBody handles all rendering internally -->
-		<div class="qti-question-body">
-			<ItemBody
-				{player}
-				{responses}
-				{disabled}
-				{role}
-				i18n={i18n ?? undefined}
-				typeset={typesetMathInElement}
-				{onResponseChange}
-			/>
+			{#if sidePanelRubrics.length > 0}
+				<aside class="qti-direct-rubrics" aria-label="Rubric blocks">
+					<div class="text-xs font-bold uppercase tracking-wide text-base-content/50 mb-2">
+						Host-placed rubrics
+					</div>
+					<div class="space-y-3">
+						{#each sidePanelRubrics as rubric}
+							<section class="alert alert-info items-start">
+								<div class="prose max-w-none text-sm">
+									{@html rubric.html}
+								</div>
+							</section>
+						{/each}
+					</div>
+				</aside>
+			{/if}
 		</div>
 
 		<div class="card-actions justify-end mt-6">
@@ -120,6 +129,25 @@
 		min-width: 0;
 		overflow-x: auto;
 		overflow-y: visible;
+	}
+
+	.qti-question-layout--with-rubrics {
+		display: grid;
+		gap: 1rem;
+	}
+
+	@media (min-width: 1024px) {
+		.qti-question-layout--with-rubrics {
+			grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem);
+			align-items: start;
+		}
+
+		.qti-direct-rubrics {
+			position: sticky;
+			top: 1rem;
+			max-height: min(42rem, calc(100vh - 8rem));
+			overflow: auto;
+		}
 	}
 
 	/* Custom elements default to inline; force them to participate in layout and shrink to container. */

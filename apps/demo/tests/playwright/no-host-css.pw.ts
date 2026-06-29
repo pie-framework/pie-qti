@@ -434,6 +434,7 @@ test.describe('Web components without host CSS', () => {
 		await frame.locator('pie-qti-extended-text').waitFor({ state: 'attached' });
 
 		// Order: the drag-handle SVG should be small (not browser default 300x150).
+		await expect(frame.locator('pie-qti-order svg').first()).toBeVisible({ timeout: 10_000 });
 		const orderHandleSize = await frame.locator('pie-qti-order').evaluate((el) => {
 			const svg = (el as HTMLElement).shadowRoot?.querySelector('svg');
 			if (!svg) return null;

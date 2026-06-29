@@ -4,20 +4,24 @@
 	import '@pie-qti/default-components/plugins'; // Load web components
 	import { registerDefaultComponents } from '@pie-qti/default-components';
 	import { typesetAction } from '@pie-qti/default-components/shared';
-	// @ts-expect-error - Svelte-check can't resolve workspace subpath exports, but runtime works correctly
 	import { ItemBody } from '@pie-qti/item-player/components';
 	import {
 		Player,
 		type PlayerSecurityConfig,
 		type QTIRole,
+		type ScoringResult,
 	} from '@pie-qti/item-player';
 	import { createEnvelope, parseQtiIframeMessage } from '@pie-qti/item-player/iframe';
+	import type { InteractionResponseValue } from '@pie-qti/item-player/web-components';
 	import { typesetMathInElement } from '@pie-qti/typeset-katex';
 	import { onDestroy, onMount } from 'svelte';
 
+	type IframeResponseValue = InteractionResponseValue | null;
+	type IframeResponseMap = Record<string, IframeResponseValue>;
+
 	let player: Player | null = $state(null);
-	let responses = $state<Record<string, any>>({});
-	let scoringResult: any | null = $state(null);
+	let responses = $state<IframeResponseMap>({});
+	let scoringResult: ScoringResult | null = $state(null);
 	let errorMessage = $state<string | null>(null);
 	let disabled = $state(false);
 	let runtimeConfig = $state<Record<string, unknown> | null>(null);
@@ -97,7 +101,7 @@
 
 			// Initialize responses map.
 			const interactions = newPlayer.getResponseInteractions();
-			const next: Record<string, any> = {};
+			const next: IframeResponseMap = {};
 			for (const interaction of interactions) {
 				if (interaction?.responseIdentifier) {
 					next[interaction.responseIdentifier] = null;
@@ -105,7 +109,9 @@
 			}
 			// Apply any provided initial responses.
 			if (params.responses) {
-				for (const [k, v] of Object.entries(params.responses)) next[k] = v;
+				for (const [k, v] of Object.entries(params.responses)) {
+					next[k] = v as IframeResponseValue;
+				}
 			}
 			responses = next;
 		} catch (err: any) {
@@ -116,7 +122,7 @@
 		}
 	}
 
-	function onResponseChange(responseId: string, value: any) {
+	function onResponseChange(responseId: string, value: IframeResponseValue) {
 		responses = { ...responses, [responseId]: value };
 		postToParent('RESPONSE_CHANGE', { responses });
 	}

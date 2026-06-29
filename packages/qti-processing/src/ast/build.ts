@@ -233,6 +233,16 @@ function buildStatements(els: Element[], mode: StatementMode, options: BuildOpti
 				});
 				break;
 			}
+			case 'console': {
+				if (mode !== 'response') {
+					throw new Error(`Unknown processing statement tag: <${tag}> (mode=${mode})`);
+				}
+				if (childElements(el).length > 0) {
+					throw new Error('Unsupported processing statement tag: <console> with child elements');
+				}
+				// Diagnostic/vendor trace marker found in legacy fixtures; it has no QTI processing effect.
+				break;
+			}
 			default:
 				// Unknown statement tags in processing are almost always a correctness bug.
 				// Fail loudly so we surface missing QTI coverage via fixtures/tests.
@@ -548,6 +558,21 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 			return { kind: 'expr.containerSize', id, container: buildExpression(kids[0]!, options) };
 		}
 		case 'index': {
+			const indexAttr = attrAsExpr('n', 'integer');
+			if (indexAttr) {
+				if (kids.length !== 1) {
+					throw new Error('<index n="..."> requires exactly one child expression');
+				}
+				return {
+					kind: 'expr.index',
+					id,
+					container: buildExpression(kids[0]!, options),
+					index: indexAttr,
+				};
+			}
+			if (kids.length !== 2) {
+				throw new Error('<index> requires n attribute or two child expressions');
+			}
 			return {
 				kind: 'expr.index',
 				id,

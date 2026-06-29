@@ -5,18 +5,32 @@ import type { ParsedAssessmentItemRef, ParsedAssessmentSection, ParsedAssessment
 // Use native DOMParser in browser, linkedom in Node/Bun
 const DOMParserImpl = typeof DOMParser !== 'undefined' ? DOMParser : LinkedomDOMParser;
 
+function toCanonicalQtiName(name: string | null | undefined): string {
+	const withoutPrefix = (name ?? '').replace(/^qti-/, '');
+	return withoutPrefix.replace(/-([a-z])/g, (_, char: string) => char.toUpperCase());
+}
+
 function firstByLocalName(parent: ParentNode, localName: string): Element | null {
 	const all = (parent as any).getElementsByTagNameNS
 		? (parent as any).getElementsByTagNameNS('*', localName)
 		: (parent as any).getElementsByTagName?.(localName);
-	return all?.[0] ?? null;
+	const direct = all?.[0] ?? null;
+	if (direct) return direct;
+
+	const canonical = localName;
+	const allElements = (parent as any).getElementsByTagName?.('*') ?? [];
+	return Array.from(allElements).find((el) => toCanonicalQtiName((el as Element).localName) === canonical) as Element | null ?? null;
 }
 
 function childrenByLocalName(parent: ParentNode, localName: string): Element[] {
 	const all = (parent as any).getElementsByTagNameNS
 		? (parent as any).getElementsByTagNameNS('*', localName)
 		: (parent as any).getElementsByTagName?.(localName);
-	return all ? Array.from(all) : [];
+	const direct = all ? Array.from(all) as Element[] : [];
+	if (direct.length > 0) return direct;
+
+	const allElements = (parent as any).getElementsByTagName?.('*') ?? [];
+	return (Array.from(allElements) as Element[]).filter((el) => toCanonicalQtiName(el.localName) === localName);
 }
 
 function serializeInnerXml(el: Element): string {
@@ -35,7 +49,7 @@ function serializeInnerXml(el: Element): string {
 }
 
 function getAttr(el: Element, name: string): string | undefined {
-	const v = el.getAttribute(name);
+	const v = el.getAttribute(name) ?? el.getAttribute(name.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`));
 	return v === null ? undefined : v;
 }
 
@@ -63,7 +77,7 @@ function parseRubricBlocks(sectionEl: Element): AssessmentRubricBlock[] | undefi
 function parseAssessmentItemRefs(sectionEl: Element): ParsedAssessmentItemRef[] | undefined {
 	const itemRefs = Array.from(sectionEl.childNodes)
 		.filter((n): n is Element => n.nodeType === 1)
-		.filter((el) => (el as Element).localName === 'assessmentItemRef');
+		.filter((el) => toCanonicalQtiName((el as Element).localName) === 'assessmentItemRef');
 
 	if (itemRefs.length === 0) return undefined;
 
@@ -93,7 +107,7 @@ function parseSection(sectionEl: Element): ParsedAssessmentSection {
 	// Only parse direct child sections (not deep descendants)
 	const childSections = Array.from(sectionEl.childNodes)
 		.filter((n): n is Element => n.nodeType === 1)
-		.filter((el) => (el as Element).localName === 'assessmentSection')
+		.filter((el) => toCanonicalQtiName((el as Element).localName) === 'assessmentSection')
 		.map(parseSection);
 
 	return {
@@ -114,7 +128,7 @@ function parseTestPart(testPartEl: Element): ParsedTestPart {
 	// Only direct child sections
 	const sections = Array.from(testPartEl.childNodes)
 		.filter((n): n is Element => n.nodeType === 1)
-		.filter((el) => (el as Element).localName === 'assessmentSection')
+		.filter((el) => toCanonicalQtiName((el as Element).localName) === 'assessmentSection')
 		.map(parseSection);
 
 	return {
@@ -133,7 +147,7 @@ export function parseAssessmentTestXml(xml: string): ParsedAssessmentTest {
 	}
 
 	const assessmentTestEl = firstByLocalName(doc as ParentNode, 'assessmentTest') ?? doc.documentElement;
-	if (!assessmentTestEl || assessmentTestEl.localName !== 'assessmentTest') {
+	if (!assessmentTestEl || toCanonicalQtiName(assessmentTestEl.localName) !== 'assessmentTest') {
 		throw new Error('No <assessmentTest> root element found');
 	}
 
@@ -143,7 +157,7 @@ export function parseAssessmentTestXml(xml: string): ParsedAssessmentTest {
 	// Prefer explicit testPart(s); if missing, synthesize one from top-level sections
 	const testPartsEls = Array.from(assessmentTestEl.childNodes)
 		.filter((n): n is Element => (n as any).nodeType === 1)
-		.filter((el) => (el as Element).localName === 'testPart');
+		.filter((el) => toCanonicalQtiName((el as Element).localName) === 'testPart');
 
 	let testParts: ParsedTestPart[] | undefined;
 	if (testPartsEls.length > 0) {
@@ -151,7 +165,7 @@ export function parseAssessmentTestXml(xml: string): ParsedAssessmentTest {
 	} else {
 		const topSections = Array.from(assessmentTestEl.childNodes)
 			.filter((n): n is Element => (n as any).nodeType === 1)
-			.filter((el) => (el as Element).localName === 'assessmentSection')
+			.filter((el) => toCanonicalQtiName((el as Element).localName) === 'assessmentSection')
 			.map(parseSection);
 
 		testParts = [

@@ -55,8 +55,11 @@
 	/**
 	 * Check if selection limit has been reached
 	 */
+	// maxChoices=0 means unlimited per QTI spec
 	const canSelectMore = $derived(
-		parsedInteraction ? selectedIds.length < parsedInteraction.maxChoices : false
+		parsedInteraction
+			? parsedInteraction.maxChoices === 0 || selectedIds.length < parsedInteraction.maxChoices
+			: false
 	);
 
 	/**
@@ -197,18 +200,20 @@
 
 <ShadowBaseStyles />
 
-<div bind:this={rootElement} part="root" class="qti-hottext-interaction space-y-3">
+<div bind:this={rootElement} part="root" class={['qti-hottext-interaction space-y-3', ...(parsedInteraction?.interactionClasses ?? [])].join(' ')}>
 	{#if !parsedInteraction}
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
 		{#if parsedInteraction.prompt}
-			<p part="prompt" class="qti-hottext-prompt font-semibold">{@html parsedInteraction.prompt}</p>
+			<div part="prompt" class="qti-hottext-prompt qti-rich-content font-semibold">
+				{@html parsedInteraction.prompt}
+			</div>
 		{/if}
 
 		<div
 			bind:this={contentElement}
 			part="content"
-			class="hottext-content qti-hottext-content prose max-w-none"
+			class="hottext-content qti-hottext-content qti-rich-content prose max-w-none"
 			role="group"
 			aria-label={i18n?.t('interactions.hottext.ariaLabel') ?? 'Text selection interaction'}
 		>
@@ -217,8 +222,15 @@
 
 		<div part="footer" class="qti-hottext-footer flex items-center justify-between text-sm text-base-content/70">
 			<div>
-				<span class="font-medium">Selected:</span>
-				<span class="ml-2">{selectedIds.length} / {parsedInteraction.hottextChoices.length}</span>
+				<span class="font-medium">{i18n?.t('interactions.hottext.selected') ?? 'Selected'}:</span>
+				<span class="ml-2">{selectedIds.length} / {parsedInteraction.hottextChoices?.length ?? 0}</span>
+				{#if parsedInteraction.minChoices > 0}
+					{#if selectedIds.length >= parsedInteraction.minChoices}
+						<span class="badge badge-success badge-sm ml-2">✓ {i18n?.t('interactions.hottext.minimumMet') ?? 'Minimum met'}</span>
+					{:else}
+						<span class="badge badge-warning badge-sm ml-2">{i18n?.t('interactions.hottext.selectAtLeast', `Select at least ${parsedInteraction.minChoices}`) ?? `Select at least ${parsedInteraction.minChoices}`}</span>
+					{/if}
+				{/if}
 			</div>
 
 			{#if selectedIds.length > 0}
@@ -245,10 +257,29 @@
 				</button>
 			{/if}
 		</div>
+		{#if parsedInteraction.maxSelectionsMessage && selectedIds.length >= parsedInteraction.maxChoices && parsedInteraction.maxChoices > 0}
+			<p class="qti-selection-message" role="alert">{parsedInteraction.maxSelectionsMessage}</p>
+		{/if}
 	{/if}
 </div>
 
 <style>
+	.qti-selection-message {
+		font-size: 0.875rem;
+		color: var(--pie-qti-warning, oklch(77% 0.194 82));
+		margin-top: 0.25rem;
+	}
+
+	/* qti-input-control-hidden: hide visual selection indicators but keep keyboard-accessible */
+	.qti-input-control-hidden :global(hottext) {
+		cursor: pointer;
+		outline: none;
+	}
+	.qti-input-control-hidden :global(hottext[data-selected]) {
+		background-color: transparent;
+		text-decoration: underline;
+	}
+
 	/* Minimal layout so this works without Tailwind/DaisyUI */
 	.qti-hottext-interaction {
 		display: grid;
@@ -271,24 +302,24 @@
 	}
 
 	:global(.hottext-content hottext.selectable) {
-		background-color: hsl(var(--bc) / 0.1);
-		border: 1px solid hsl(var(--bc) / 0.2);
+		background-color: color-mix(in oklch, var(--pie-qti-base-content, oklch(21% 0 0)) 10%, transparent);
+		border: 1px solid color-mix(in oklch, var(--pie-qti-base-content, oklch(21% 0 0)) 20%, transparent);
 	}
 
 	:global(.hottext-content hottext.selectable:hover) {
-		background-color: hsl(var(--p) / 0.2);
-		border-color: hsl(var(--p) / 0.4);
+		background-color: color-mix(in oklch, var(--pie-qti-primary, oklch(45% 0.24 277)) 20%, transparent);
+		border-color: color-mix(in oklch, var(--pie-qti-primary, oklch(45% 0.24 277)) 40%, transparent);
 	}
 
 	:global(.hottext-content hottext.selected) {
-		background-color: hsl(var(--p) / 0.3);
-		border: 2px solid hsl(var(--p));
+		background-color: color-mix(in oklch, var(--pie-qti-primary, oklch(45% 0.24 277)) 30%, transparent);
+		border: 2px solid var(--pie-qti-primary, oklch(45% 0.24 277));
 		font-weight: 600;
 	}
 
 	:global(.hottext-content hottext.correct) {
-		background-color: color-mix(in oklch, var(--color-success, oklch(76% 0.177 163.223)) 8%, transparent);
-		border: 1px solid var(--color-success, oklch(76% 0.177 163.223));
+		background-color: color-mix(in oklch, var(--pie-qti-success, oklch(76% 0.177 163.223)) 8%, transparent);
+		border: 1px solid var(--pie-qti-success, oklch(76% 0.177 163.223));
 		border-radius: 0.25rem;
 		padding: 2px 4px;
 		margin: -2px -4px;

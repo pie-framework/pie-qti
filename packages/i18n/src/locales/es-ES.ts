@@ -521,6 +521,7 @@ export default {
 		homeMetaDescription: 'Reproductor QTI moderno con integración de backend opcional',
 		tryItems: 'Probar Ítems',
 		tryAssessments: 'Probar Evaluaciones',
+		trySectionPlayer: 'Reproductor de Sección',
 		pluginDemo: 'Demo de Plugin',
 		dropQtiFile: 'Suelte el archivo QTI XML aquí',
 		orClickToSelect: 'o haga clic para seleccionar un archivo',

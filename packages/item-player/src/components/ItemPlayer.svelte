@@ -1,20 +1,33 @@
 <script lang="ts">
 	import { Player } from '../core/Player';
-	import type { AdaptiveAttemptResult, ModalFeedback, PlayerSecurityConfig, QTIRole } from '../types';
+	import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
+	import type { AdaptiveAttemptResult, ModalFeedback, PlayerSecurityConfig, QTIRole, ScoringResult } from '../types';
+	import type { PnpProfile } from '../pnp/types';
+	import type { InteractionResponseValue } from '../web-components';
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import ItemBody from './ItemBody.svelte';
 	import ModalFeedbackDisplay from './ModalFeedbackDisplay.svelte';
+
+	type ItemResponseValue = InteractionResponseValue | null;
+	type ItemResponseMap = Record<string, ItemResponseValue>;
 
 	interface Props {
 		itemXml: string;
 		role?: QTIRole;
 		/** Optional security config (URL policy, embed allowances, Trusted Types). */
 		security?: PlayerSecurityConfig;
+		/** QTI 3.0 Personal Needs and Preferences profile */
+		pnp?: PnpProfile;
+		/** Package/assessment-resolved delivery context */
+		deliveryContext?: ResolvedItemDeliveryContext;
+		/** Controlled/current responses, keyed by response identifier */
+		responses?: ItemResponseMap;
 		disabled?: boolean;
+		renderItemBodyRubrics?: boolean;
 		typeset?: (element: HTMLElement) => void;
 		i18n?: I18nProvider;
-		onResponseChange?: (responseId: string, value: any) => void;
-		onSubmit?: (responses: Record<string, any>, scoringResult: any) => void;
+		onResponseChange?: (responseId: string, value: ItemResponseValue) => void;
+		onSubmit?: (responses: ItemResponseMap, scoringResult: ScoringResult) => void;
 		/** Called when adaptive item completes (all attempts exhausted) */
 		onComplete?: (finalResult: AdaptiveAttemptResult) => void;
 	}
@@ -23,7 +36,11 @@
 		itemXml,
 		role = 'candidate',
 		security,
+		pnp,
+		deliveryContext,
+		responses: responseValues = {},
 		disabled = false,
+		renderItemBodyRubrics = true,
 		typeset,
 		i18n,
 		onResponseChange,
@@ -33,7 +50,7 @@
 
 	// Create player instance
 	let player = $state<Player | null>(null);
-	let responses = $state<Record<string, any>>({});
+	let currentResponses = $state<ItemResponseMap>({});
 	let error = $state<string | null>(null);
 	let modalFeedback = $state<ModalFeedback[]>([]);
 	let outcomeValues = $state<Record<string, any>>({});
@@ -44,23 +61,28 @@
 	// Initialize player when XML changes
 	$effect(() => {
 		try {
-			player = new Player({ itemXml, role, security });
+			const newPlayer = new Player({ itemXml, role, security, pnp, deliveryContext });
+			player = newPlayer;
 			error = null;
 			// Reset state when XML changes
-			responses = {};
+			currentResponses = { ...responseValues };
 			modalFeedback = [];
 			outcomeValues = {};
-			isAdaptive = player.isAdaptive();
-			isCompleted = player.isCompleted();
-			numAttempts = player.getNumAttempts();
+			isAdaptive = newPlayer.isAdaptive();
+			isCompleted = newPlayer.isCompleted();
+			numAttempts = newPlayer.getNumAttempts();
 		} catch (e) {
 			error = e instanceof Error ? e.message : (i18n?.t('item.parsingError') ?? 'item.parsingError');
 			player = null;
 		}
 	});
 
-	function handleResponseChange(responseId: string, value: any) {
-		responses = { ...responses, [responseId]: value };
+	$effect(() => {
+		currentResponses = { ...responseValues };
+	});
+
+	function handleResponseChange(responseId: string, value: ItemResponseValue) {
+		currentResponses = { ...currentResponses, [responseId]: value };
 		onResponseChange?.(responseId, value);
 	}
 
@@ -69,7 +91,7 @@
 
 		try {
 			// Set responses in player
-			player.setResponses(responses);
+			player.setResponses(currentResponses);
 
 			// For adaptive items, use submitAttempt()
 			if (isAdaptive && !isCompleted) {
@@ -82,7 +104,7 @@
 				outcomeValues = result.outcomeValues || {};
 
 				// Notify parent
-				onSubmit?.(responses, result);
+				onSubmit?.(currentResponses, result);
 
 				// If completed, notify parent
 				if (result.completed && onComplete) {
@@ -93,7 +115,7 @@
 				const result = player.processResponses();
 				modalFeedback = result.modalFeedback || [];
 				outcomeValues = result.outcomeValues || {};
-				onSubmit?.(responses, result);
+				onSubmit?.(currentResponses, result);
 			}
 		} catch (e) {
 			error = e instanceof Error ? e.message : (i18n?.t('item.processingError') ?? 'item.processingError');
@@ -107,26 +129,28 @@
 
 <div class="qti-item-player">
 	{#if error}
-		<div class="alert alert-error">
+		<div class="qti-player-alert qti-player-alert-error">
 			<span>{error}</span>
 		</div>
 	{:else if player}
 		<ItemBody
 			{player}
-			{responses}
+			responses={currentResponses}
 			{disabled}
 			{role}
 			{typeset}
 			{i18n}
+			{deliveryContext}
 			{outcomeValues}
+			{renderItemBodyRubrics}
 			onResponseChange={handleResponseChange}
 		/>
 
 		{#if role === 'candidate' && !disabled && onSubmit}
-			{@const canSubmit = player.canSubmitResponses(responses)}
-			<div class="mt-6 flex items-center gap-4">
+			{@const canSubmit = player.canSubmitResponses(currentResponses)}
+			<div class="qti-player-actions">
 				<button
-					class="btn btn-primary"
+					class="qti-player-button qti-player-button-primary"
 					onclick={() => handleSubmit(true)}
 					disabled={isCompleted || !canSubmit}
 				>
@@ -134,9 +158,9 @@
 				</button>
 
 				{#if isAdaptive}
-					<div class="text-sm text-base-content/70">
+					<div class="qti-player-attempt-status">
 						{#if isCompleted}
-							<span class="badge badge-success">{i18n?.t('item.complete') ?? 'item.complete'}</span>
+							<span class="qti-player-badge qti-player-badge-success">{i18n?.t('item.complete') ?? 'item.complete'}</span>
 						{:else}
 							<span>{i18n?.t('item.attempt', { numAttempts: numAttempts + 1 }) ?? `item.attempt (${numAttempts + 1})`}</span>
 						{/if}
@@ -148,8 +172,94 @@
 		<!-- Modal feedback display -->
 		<ModalFeedbackDisplay feedback={modalFeedback} onClose={closeFeedback} {typeset} {i18n} />
 	{:else}
-		<div class="alert alert-info">
+		<div class="qti-player-alert qti-player-alert-info">
 			<span>{i18n?.t('item.loading') ?? 'item.loading'}</span>
 		</div>
 	{/if}
 </div>
+
+<style>
+	.qti-item-player {
+		color: var(--pie-qti-base-content, oklch(21% 0 0));
+	}
+
+	.qti-player-alert {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.75rem 1rem;
+		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		border-radius: 0.75rem;
+		background: var(--pie-qti-base-200, oklch(98% 0 0));
+		color: var(--pie-qti-base-content, oklch(21% 0 0));
+	}
+
+	.qti-player-alert-error {
+		border-color: var(--pie-qti-error, oklch(71% 0.194 13.428));
+		background: color-mix(in oklch, var(--pie-qti-error, oklch(71% 0.194 13.428)) 8%, transparent);
+	}
+
+	.qti-player-alert-info {
+		border-color: var(--pie-qti-info, oklch(74% 0.16 232.661));
+		background: color-mix(in oklch, var(--pie-qti-info, oklch(74% 0.16 232.661)) 8%, transparent);
+	}
+
+	.qti-player-actions {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+		margin-top: 1.5rem;
+	}
+
+	.qti-player-button {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem;
+		padding: 0.5rem 0.75rem;
+		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		border-radius: 0.75rem;
+		background: var(--pie-qti-base-200, oklch(98% 0 0));
+		color: var(--pie-qti-base-content, oklch(21% 0 0));
+		font: inherit;
+		line-height: 1.1;
+		cursor: pointer;
+	}
+
+	.qti-player-button-primary {
+		border-color: var(--pie-qti-primary, oklch(45% 0.24 277));
+		background: color-mix(in oklch, var(--pie-qti-primary, oklch(45% 0.24 277)) 12%, transparent);
+	}
+
+	.qti-player-button:disabled {
+		opacity: 0.55;
+		cursor: not-allowed;
+	}
+
+	.qti-player-button:focus-visible {
+		outline: 2px solid var(--pie-qti-focus, var(--pie-qti-primary, oklch(45% 0.24 277)));
+		outline-offset: 2px;
+	}
+
+	.qti-player-attempt-status {
+		color: color-mix(in oklch, var(--pie-qti-base-content, oklch(21% 0 0)) 70%, transparent);
+		font-size: 0.875rem;
+	}
+
+	.qti-player-badge {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-height: 1.25rem;
+		padding: 0 0.5rem;
+		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		border-radius: 9999px;
+		font-size: 0.75rem;
+		font-weight: 600;
+	}
+
+	.qti-player-badge-success {
+		border-color: var(--pie-qti-success, oklch(76% 0.177 163.223));
+		background: color-mix(in oklch, var(--pie-qti-success, oklch(76% 0.177 163.223)) 12%, transparent);
+	}
+</style>

@@ -1,0 +1,54 @@
+{
+  "id": "qti22_basic_q2_multiple",
+  "cases": [
+    {
+      "name": "Q2-L1-D1: no selection -> RESPONSE=NULL or empty Multiple container",
+      "responses": { "RESPONSE": [] },
+      "expect": {
+        "outcomes": { "ECHO": [] }
+      }
+    },
+    {
+      "name": "Q2-L1-D2: select choice_a -> Multiple container [choice_a]",
+      "responses": { "RESPONSE": ["choice_a"] },
+      "expect": {
+        "outcomes": { "ECHO": ["choice_a"] }
+      }
+    },
+    {
+      "name": "Q2-L1-D3: select choice_b -> Multiple container [choice_b]",
+      "responses": { "RESPONSE": ["choice_b"] },
+      "expect": {
+        "outcomes": { "ECHO": ["choice_b"] }
+      }
+    },
+    {
+      "name": "Q2-L1-D4: select choice_c -> Multiple container [choice_c]",
+      "responses": { "RESPONSE": ["choice_c"] },
+      "expect": {
+        "outcomes": { "ECHO": ["choice_c"] }
+      }
+    },
+    {
+      "name": "Q2-L1-D5: select choice_a + choice_b -> Multiple container [choice_a, choice_b]",
+      "responses": { "RESPONSE": ["choice_a", "choice_b"] },
+      "expect": {
+        "outcomes": { "ECHO": ["choice_a", "choice_b"] }
+      }
+    },
+    {
+      "name": "Q2-L1-D6: select choice_b + choice_c -> Multiple container [choice_b, choice_c]",
+      "responses": { "RESPONSE": ["choice_b", "choice_c"] },
+      "expect": {
+        "outcomes": { "ECHO": ["choice_b", "choice_c"] }
+      }
+    },
+    {
+      "name": "Q2-L1-D7: select all three -> Multiple container [choice_a, choice_b, choice_c]",
+      "responses": { "RESPONSE": ["choice_a", "choice_b", "choice_c"] },
+      "expect": {
+        "outcomes": { "ECHO": ["choice_a", "choice_b", "choice_c"] }
+      }
+    }
+  ]
+}

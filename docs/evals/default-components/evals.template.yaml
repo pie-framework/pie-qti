@@ -2,21 +2,21 @@ version: 1
 
 # Copy this file into a new interaction directory as `evals.yaml`, then customize.
 # Example target location:
-# - docs/evals/qti-default-components/{interaction-slug}/evals.yaml
+# - docs/evals/default-components/{interaction-slug}/evals.yaml
 #
 # These evals are designed to be:
 # - AI-actionable (explicit steps + explicit expected variable values)
 # - Human-readable enough for review
-# - Validated against `@pie-qti/qti-example` sample items via `/item-demo/{sampleId}`
+# - Validated against `@pie-qti/app-demo` sample items via `/item-demo/{sampleId}`
 
 component:
   # QTI interaction type, as produced by the player (e.g. choiceInteraction, matchInteraction, hotspotInteraction).
   interactionType: "<qtiInteractionType>"
-  # Web component tag used by qti-default-components (e.g. pie-qti-choice).
+  # Web component tag used by default-components (e.g. pie-qti-choice).
   tagName: "<pie-qti-tag-name>"
 
 examplesApp:
-  app: "@pie-qti/qti-example"
+  app: "@pie-qti/app-demo"
   # For most validations we use the item demo route.
   routeTemplate: "/item-demo/{sampleId}"
 

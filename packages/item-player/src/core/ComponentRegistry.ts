@@ -6,7 +6,7 @@
  * ExtractionRegistry, but for framework-agnostic web components.
  */
 
-import type { InteractionData } from '../types/interactions.js';
+import type { InteractionData } from '../interactions/index.js';
 
 /**
  * Configuration for registering a web component renderer
@@ -21,8 +21,9 @@ export interface ComponentConfig<TData extends InteractionData = InteractionData
 	 * - 50: Moderately specific custom renderers
 	 * - 10: Generic custom renderers
 	 * - 0: Default fallback renderers
+	 * Default: 0
 	 */
-	priority: number;
+	priority?: number;
 
 	/** Optional description for debugging/error messages */
 	description?: string;
@@ -31,8 +32,9 @@ export interface ComponentConfig<TData extends InteractionData = InteractionData
 	 * Predicate to determine if this component can handle the interaction
 	 * Evaluated in priority order (highest first)
 	 * @returns true if this component should be used
+	 * Default: always true
 	 */
-	canHandle: (data: TData) => boolean;
+	canHandle?: (data: TData) => boolean;
 
 	/**
 	 * Web component tag name (must contain a hyphen per web component spec)
@@ -57,8 +59,34 @@ export interface ComponentConfig<TData extends InteractionData = InteractionData
  * Internal registered component with metadata
  */
 interface RegisteredComponent<TData extends InteractionData = InteractionData> {
-	config: ComponentConfig<TData>;
+	config: ComponentConfig<TData> & {
+		priority: number;
+		canHandle: (data: TData) => boolean;
+	};
 }
+
+const DEFAULT_COMPONENT_TAGS_BY_TYPE = {
+	choiceInteraction: { name: 'default-choice', tagName: 'pie-qti-choice' },
+	sliderInteraction: { name: 'default-slider', tagName: 'pie-qti-slider' },
+	orderInteraction: { name: 'default-order', tagName: 'pie-qti-order' },
+	matchInteraction: { name: 'default-match', tagName: 'pie-qti-match' },
+	associateInteraction: { name: 'default-associate', tagName: 'pie-qti-associate' },
+	gapMatchInteraction: { name: 'default-gap-match', tagName: 'pie-qti-gap-match' },
+	hotspotInteraction: { name: 'default-hotspot', tagName: 'pie-qti-hotspot' },
+	hottextInteraction: { name: 'default-hottext', tagName: 'pie-qti-hottext' },
+	mediaInteraction: { name: 'default-media', tagName: 'pie-qti-media' },
+	customInteraction: { name: 'default-custom', tagName: 'pie-qti-custom' },
+	endAttemptInteraction: { name: 'default-end-attempt', tagName: 'pie-qti-end-attempt' },
+	positionObjectInteraction: { name: 'default-position-object', tagName: 'pie-qti-position-object' },
+	graphicGapMatchInteraction: { name: 'default-graphic-gap-match', tagName: 'pie-qti-graphic-gap-match' },
+	graphicOrderInteraction: { name: 'default-graphic-order', tagName: 'pie-qti-graphic-order' },
+	graphicAssociateInteraction: { name: 'default-graphic-associate', tagName: 'pie-qti-graphic-associate' },
+	selectPointInteraction: { name: 'default-select-point', tagName: 'pie-qti-select-point' },
+	extendedTextInteraction: { name: 'default-extended-text', tagName: 'pie-qti-extended-text' },
+	uploadInteraction: { name: 'default-upload', tagName: 'pie-qti-upload' },
+	drawingInteraction: { name: 'default-drawing', tagName: 'pie-qti-drawing' },
+	catalogPopup: { name: 'default-catalog-popup', tagName: 'pie-qti-catalog-popup' },
+} satisfies Record<string, { name: string; tagName: string }>;
 
 /**
  * Registry for web components that render QTI interactions
@@ -88,8 +116,6 @@ export class ComponentRegistry {
 	 * // Default choice component
 	 * registry.register('choiceInteraction', {
 	 *   name: 'standard-choice',
-	 *   priority: 0,
-	 *   canHandle: () => true,
 	 *   tagName: 'qti-choice-interaction'
 	 * });
 	 */
@@ -122,9 +148,21 @@ export class ComponentRegistry {
 			this.components.set(type, components);
 		}
 
-		// Add component and sort by priority (highest first)
-		components.push({ config } as RegisteredComponent);
+		// Add normalized component and sort by priority (highest first)
+		components.push(this.createRegisteredComponent(config) as RegisteredComponent);
 		components.sort((a, b) => b.config.priority - a.config.priority);
+	}
+
+	private createRegisteredComponent<TData extends InteractionData>(
+		config: ComponentConfig<TData>
+	): RegisteredComponent<TData> {
+		return {
+			config: {
+				...config,
+				priority: config.priority ?? 0,
+				canHandle: config.canHandle ?? (() => true),
+			},
+		};
 	}
 
 	/**
@@ -189,13 +227,47 @@ export class ComponentRegistry {
 	hasComponent(type: string): boolean {
 		return this.components.has(type) && this.components.get(type)!.length > 0;
 	}
+
+	/**
+	 * Get the tag name for a registered type by name (no canHandle evaluation).
+	 * Useful for non-interaction components like catalogPopup where the type string
+	 * is known and there is no InteractionData object to pass.
+	 *
+	 * Returns the highest-priority registered tag name for the type, or null if
+	 * the type is not registered.
+	 */
+	getTagNameForType(type: string): string | null {
+		const components = this.components.get(type);
+		if (!components || components.length === 0) return null;
+		return components[0].config.tagName;
+	}
 }
 
 /**
  * Create a new component registry
  */
 export function createComponentRegistry(): ComponentRegistry {
-	return new ComponentRegistry();
+	const registry = new ComponentRegistry();
+	registerDefaultComponentTags(registry);
+	return registry;
+}
+
+/**
+ * Register the default QTI interaction tag names without importing their implementations.
+ *
+ * Hosts still choose the implementation bundle, typically by importing
+ * `@pie-qti/default-components/plugins` in the browser. Keeping only tag metadata here lets
+ * the item-player custom element remain the public rendering boundary without depending on
+ * Svelte-authored default components.
+ */
+export function registerDefaultComponentTags(registry: ComponentRegistry): void {
+	for (const [type, component] of Object.entries(DEFAULT_COMPONENT_TAGS_BY_TYPE)) {
+		registry.register(type, {
+			...component,
+			description: `Default web component tag for ${type}`,
+			priority: -100,
+		});
+	}
 }
 
 /**

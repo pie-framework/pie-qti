@@ -1,0 +1,26 @@
+{
+  "id": "qti22_basic_q4_order_interaction",
+  "cases": [
+    {
+      "name": "Q4: no order submitted -> RESPONSE=NULL",
+      "responses": { "RESPONSE": null },
+      "expect": {
+        "outcomes": { "ECHO": null }
+      }
+    },
+    {
+      "name": "Q4: preserves authored ordered response values",
+      "responses": { "RESPONSE": ["step_1", "step_2", "step_3"] },
+      "expect": {
+        "outcomes": { "ECHO": ["step_1", "step_2", "step_3"] }
+      }
+    },
+    {
+      "name": "Q4: preserves reordered response values",
+      "responses": { "RESPONSE": ["step_3", "step_1", "step_2"] },
+      "expect": {
+        "outcomes": { "ECHO": ["step_3", "step_1", "step_2"] }
+      }
+    }
+  ]
+}

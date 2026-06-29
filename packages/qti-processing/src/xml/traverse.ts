@@ -32,7 +32,15 @@ export function firstChildElement(parent: Node): Element | null {
 }
 
 export function getAttr(el: Element, name: string): string | null {
-	return el.getAttribute(name);
+	const direct = el.getAttribute(name);
+	if (direct !== null && direct !== '') return direct;
+
+	// QTI 3.0 uses kebab-case attributes (for example base-type and variable-identifier)
+	// where QTI 2.x uses camelCase. Keep operator parsing version-neutral.
+	const kebab = name.replace(/[A-Z]/g, (char) => `-${char.toLowerCase()}`);
+	if (kebab === name) return null;
+	const mapped = el.getAttribute(kebab);
+	return mapped === '' ? null : mapped;
 }
 
 export function findFirstDescendant(parent: Node, wantedLocalName: string): Element | null {

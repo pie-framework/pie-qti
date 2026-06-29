@@ -64,7 +64,7 @@ Extractors are evaluated in priority order (highest first):
 | **1000+** | System-level | Reserved for internal use |
 | **500-999** | Vendor-specific | ACME custom interactions |
 | **100-499** | Third-party plugins | Community plugins |
-| **10-99** | Standard QTI | Built-in QTI 2.2 extractors |
+| **10-99** | Standard QTI | Built-in standard QTI extractors |
 | **0-9** | Fallback | Generic handlers |
 
 **Example:**

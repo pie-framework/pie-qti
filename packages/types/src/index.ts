@@ -9,6 +9,7 @@ export * from './pie/index.js';
 
 // Transform plugin types
 export * from './transform/plugin.js';
+export * from './source-profile.js';
 
 // Storage abstraction types
 export * from './storage/index.js';

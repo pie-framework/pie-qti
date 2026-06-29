@@ -61,10 +61,18 @@ export type {
 	SecureItemRef,
 	SecureSection,
 	SecureTestPart,
+	SecureTimeLimits,
 	SessionId,
+	SubmitTimingEvidence,
 	SubmitResponsesRequest,
 	SubmitResponsesResponse,
 } from './api-contract.js';
 
 // Export reference implementation (for development/demos)
 export { ReferenceBackendAdapter } from './ReferenceBackendAdapter.js';
+export {
+	getAssessmentItemIdentifier,
+	scoreAssessmentItem,
+	type AssessmentItemScoringInput,
+} from './assessment-item-scorer.js';
+export { toSectionComposition } from './toSectionComposition.js';

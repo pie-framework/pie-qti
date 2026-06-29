@@ -520,6 +520,7 @@ export default {
 		homeMetaDescription: 'Lecteur QTI moderne avec intégration backend optionnelle',
 		tryItems: 'Essayer les Éléments',
 		tryAssessments: 'Essayer les Évaluations',
+		trySectionPlayer: 'Lecteur de Section',
 		pluginDemo: 'Démo du Plugin',
 		dropQtiFile: 'Déposez le fichier QTI XML ici',
 		orClickToSelect: 'ou cliquez pour sélectionner un fichier',

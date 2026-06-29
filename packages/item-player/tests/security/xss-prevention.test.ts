@@ -382,6 +382,28 @@ describe('XSS Prevention - URL Validation', () => {
 		expect(hasJavascriptData).toBeFalsy();
 	});
 
+	test('should not convert image object tags with unsafe data URLs', () => {
+		const qtiXml = `<?xml version="1.0"?>
+		<assessmentItem ${NS} identifier="image-object-url-xss" title="Image Object URL XSS" adaptive="false" timeDependent="false">
+			<responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier">
+				<correctResponse><value>A</value></correctResponse>
+			</responseDeclaration>
+			<itemBody>
+				<object data="javascript:alert('XSS')" type="image/png">Diagram</object>
+				<choiceInteraction responseIdentifier="RESPONSE" shuffle="false" maxChoices="1">
+					<simpleChoice identifier="A">Choice A</simpleChoice>
+				</choiceInteraction>
+			</itemBody>
+		</assessmentItem>`;
+
+		const player = new Player({ itemXml: qtiXml });
+		const html = player.getItemBodyHtml();
+
+		expect(html.match(/src\s*=\s*["']javascript:/i)).toBeFalsy();
+		expect(html).not.toContain('<object');
+		expect(html).not.toContain('<img');
+	});
+
 	test('should validate iframe src attributes', () => {
 		const qtiXml = `<?xml version="1.0"?>
 		<assessmentItem ${NS} identifier="iframe-xss" title="iframe XSS" adaptive="false" timeDependent="false">

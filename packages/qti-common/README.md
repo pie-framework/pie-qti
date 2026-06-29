@@ -276,15 +276,21 @@ console.log(`Playing ${version} content`);
 ### Transform Integration
 
 ```typescript
-import { transformQtiToPie } from '@pie-qti/to-pie';
+import { TransformEngine } from '@pie-qti/transform-core';
+import { QtiToPiePlugin } from '@pie-qti/to-pie';
 import { createQtiParser } from '@pie-qti/qti-common';
 
 const xml = `...(QTI 2.x or 3.0)...`;
-const { mapper, version } = createQtiParser(xml);
+const { version } = createQtiParser(xml);
 
-const pieItem = await transformQtiToPie(xml, {
-  elementNameMapper: mapper
+const engine = new TransformEngine();
+engine.use(new QtiToPiePlugin());
+
+const handle = await engine.transform(xml, {
+  sourceFormat: version.startsWith('3') ? 'qti30' : 'qti22',
+  targetFormat: 'pie'
 });
+const result = await handle.result();
 ```
 
 ## Migration Guide
@@ -292,11 +298,13 @@ const pieItem = await transformQtiToPie(xml, {
 ### From QTI 2.x-only Code
 
 **Before** (QTI 2.x only):
+
 ```typescript
 const elements = doc.getElementsByTagName('choiceInteraction');
 ```
 
 **After** (QTI 2.x + 3.0):
+
 ```typescript
 import { createQtiParser } from '@pie-qti/qti-common';
 
@@ -306,6 +314,7 @@ const elements = doc.getElementsByTagName(tagName);
 ```
 
 **Even Better** (using existing extraction layer):
+
 ```typescript
 // No changes needed! Extraction layer already uses mappers internally
 const player = new Player(xml);  // Works with both QTI 2.x and 3.0
@@ -314,11 +323,13 @@ const player = new Player(xml);  // Works with both QTI 2.x and 3.0
 ### Attribute Handling Migration
 
 **Before** (QTI 2.x only):
+
 ```typescript
 const baseType = element.getAttribute('baseType');
 ```
 
 **After** (QTI 2.x + 3.0):
+
 ```typescript
 import { getAttribute } from '@pie-qti/qti-common';
 
@@ -336,6 +347,7 @@ bun test --coverage
 ```
 
 Test fixtures are available in `src/__tests__/fixtures/`:
+
 - `qti3-choice-single.xml` — Single-selection choice
 - `qti3-choice-multiple.xml` — Multiple-selection choice
 - `qti3-match-interaction.xml` — Match interaction

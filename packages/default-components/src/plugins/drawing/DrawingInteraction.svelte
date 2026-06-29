@@ -63,6 +63,15 @@
 		{#if parsedInteraction.prompt}
 			<p class="font-semibold mb-2">{parsedInteraction.prompt}</p>
 		{/if}
+		<!--
+			Accessibility note (WCAG 2.1 SC 2.1.1 exemption):
+			Free-form drawing is a path-dependent pointer input. WCAG 2.1.1 exempts inputs
+			"where the underlying function requires input that depends on the path of the
+			user's movement and not just the endpoints" (e.g. freehand drawing, handwriting).
+			Item authors MUST provide an accessible alternative form (e.g. an extended-text
+			response or upload interaction) so that keyboard-only and switch-access users
+			can submit equivalent evidence of their knowledge.
+		-->
 		<DrawingCanvas
 			responseId={parsedInteraction.responseId}
 			imageData={parsedInteraction.imageData}

@@ -1,0 +1,56 @@
+/*
+ * Canonical PIE QTI theme variables.
+ *
+ * These defaults keep QTI players readable in hosts that do not load a theme
+ * bridge. Host apps may override any --pie-qti-* variable on :root or on a
+ * container that wraps QTI player elements.
+ */
+
+:root,
+[data-qti-theme='light'] {
+	--pie-qti-primary: oklch(45% 0.24 277);
+	--pie-qti-primary-content: oklch(98% 0.01 277);
+	--pie-qti-secondary: oklch(65% 0.241 354.308);
+	--pie-qti-secondary-content: oklch(98% 0.01 354.308);
+	--pie-qti-accent: oklch(77% 0.152 181.912);
+	--pie-qti-accent-content: oklch(20% 0.03 181.912);
+	--pie-qti-neutral: oklch(32% 0 0);
+	--pie-qti-neutral-content: oklch(98% 0 0);
+	--pie-qti-base-100: oklch(100% 0 0);
+	--pie-qti-base-200: oklch(98% 0 0);
+	--pie-qti-base-300: oklch(95% 0 0);
+	--pie-qti-base-content: oklch(21% 0 0);
+	--pie-qti-info: oklch(74% 0.16 232.661);
+	--pie-qti-info-content: oklch(20% 0.03 232.661);
+	--pie-qti-success: oklch(76% 0.177 163.223);
+	--pie-qti-success-content: oklch(20% 0.03 163.223);
+	--pie-qti-warning: oklch(82% 0.189 84.429);
+	--pie-qti-warning-content: oklch(20% 0.04 84.429);
+	--pie-qti-error: oklch(71% 0.194 13.428);
+	--pie-qti-error-content: oklch(98% 0.01 13.428);
+	--pie-qti-focus: var(--pie-qti-primary);
+}
+
+[data-qti-theme='dark'] {
+	--pie-qti-primary: oklch(65% 0.24 277);
+	--pie-qti-primary-content: oklch(15% 0.04 277);
+	--pie-qti-secondary: oklch(75% 0.2 354.308);
+	--pie-qti-secondary-content: oklch(18% 0.04 354.308);
+	--pie-qti-accent: oklch(82% 0.14 181.912);
+	--pie-qti-accent-content: oklch(16% 0.04 181.912);
+	--pie-qti-neutral: oklch(70% 0 0);
+	--pie-qti-neutral-content: oklch(14% 0 0);
+	--pie-qti-base-100: oklch(25% 0.02 255);
+	--pie-qti-base-200: oklch(22% 0.02 255);
+	--pie-qti-base-300: oklch(18% 0.02 255);
+	--pie-qti-base-content: oklch(97% 0.01 255);
+	--pie-qti-info: oklch(74% 0.16 232.661);
+	--pie-qti-info-content: oklch(15% 0.04 232.661);
+	--pie-qti-success: oklch(76% 0.177 163.223);
+	--pie-qti-success-content: oklch(15% 0.04 163.223);
+	--pie-qti-warning: oklch(82% 0.189 84.429);
+	--pie-qti-warning-content: oklch(15% 0.04 84.429);
+	--pie-qti-error: oklch(71% 0.194 13.428);
+	--pie-qti-error-content: oklch(98% 0.01 13.428);
+	--pie-qti-focus: var(--pie-qti-primary);
+}

@@ -117,6 +117,23 @@
 						</svg>
 						{i18n?.t('demo.tryAssessments') ?? 'Try Assessments'}
 					</a>
+					<a href="{base}/wc-section-splitpane" class="btn btn-secondary btn-lg">
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							class="h-6 w-6"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M4 6h7v12H4zM13 6h7v12h-7z"
+							/>
+						</svg>
+						{i18n?.t('demo.trySectionPlayer') ?? 'Section Player'}
+					</a>
 					<a href="{base}/likert-demo" class="btn btn-secondary btn-lg">
 						<svg
 							xmlns="http://www.w3.org/2000/svg"

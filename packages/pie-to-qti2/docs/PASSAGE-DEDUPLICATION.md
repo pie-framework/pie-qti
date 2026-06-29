@@ -137,7 +137,7 @@ if (stats.sharedPassages.size > 0) {
 Here's a complete example of transforming multiple items with deduplication:
 
 ```typescript
-import { PieToQti2Plugin, PassageRegistry, analyzePassageUsage } from '@pie-qti/pie-to-qti2';
+import { PieToQtiPlugin, PassageRegistry, analyzePassageUsage } from '@pie-qti/pie-to-qti2';
 
 async function transformBatch(items: PieItem[]) {
   // Analyze passage usage
@@ -148,7 +148,7 @@ async function transformBatch(items: PieItem[]) {
   const passageRegistry = new PassageRegistry();
 
   // Configure plugin
-  const plugin = new PieToQti2Plugin({
+  const plugin = new PieToQtiPlugin({
     passageStrategy: 'external',
     passageResolver: async (passageId) => {
       // Load passage content

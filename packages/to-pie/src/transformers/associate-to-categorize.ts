@@ -17,6 +17,7 @@ import type { PieItem } from '@pie-qti/transform-types';
 import type { HTMLElement } from 'node-html-parser';
 import { parse } from 'node-html-parser';
 import { v4 as uuid } from 'uuid';
+import { cleanTransformHtml } from '../utils/prompt-extraction.js';
 import { createMissingElementError, createMissingInteractionError } from '../utils/qti-errors.js';
 
 export interface AssociateToCategorizeOptions {
@@ -149,7 +150,7 @@ export function transformAssociateToCategorize(
 function extractPrompt(interaction: HTMLElement): string | null {
   const promptElement = interaction.getElementsByTagName('prompt')[0];
   if (promptElement) {
-    return promptElement.innerHTML.trim();
+    return cleanTransformHtml(promptElement.innerHTML) || null;
   }
   return null;
 }

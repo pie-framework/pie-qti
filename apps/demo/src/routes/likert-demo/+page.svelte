@@ -2,13 +2,17 @@
 	import { likertScalePlugin } from '@acme/likert-scale-plugin';
 	import '@pie-qti/default-components/plugins'; // Load web components
 	import { registerDefaultComponents } from '@pie-qti/default-components';
-	// @ts-expect-error - Svelte-check can't resolve workspace subpath exports, but runtime works correctly
 	import { ItemBody } from '@pie-qti/item-player/components';
 	import { Player } from '@pie-qti/item-player';
+	import type { InteractionResponseValue } from '@pie-qti/item-player/web-components';
 	import { typesetMathInElement } from '@pie-qti/typeset-katex';
 	import { browser } from '$app/environment';
+	import XmlEditor from '$lib/components/XmlEditor.svelte';
 	import { ALL_LIKERT_ITEMS } from '$lib/sample-likert-items';
 	import { getSecurityConfig } from '$lib/player-config';
+
+	type LikertResponseValue = InteractionResponseValue | null;
+	type LikertResponseMap = Record<string, LikertResponseValue>;
 
 	let selectedItemIndex = $state(0);
 	let currentItem = $derived(ALL_LIKERT_ITEMS[selectedItemIndex]);
@@ -28,7 +32,7 @@
 		return p;
 	});
 
-	let responses = $state<Record<string, any>>({});
+	let responses = $state<LikertResponseMap>({});
 
 	let interactionInfo = $derived.by(() => {
 		if (!browser) return { count: 0, types: [], debug: null };
@@ -70,7 +74,7 @@
 		responses = {};
 	}
 
-	function handleResponseChange(responseId: string, value: any) {
+	function handleResponseChange(responseId: string, value: LikertResponseValue) {
 		responses = { ...responses, [responseId]: value };
 	}
 </script>
@@ -156,7 +160,9 @@
 					<summary class="cursor-pointer font-semibold text-gray-700 hover:text-gray-900 mb-2">
 						View XML Source
 					</summary>
-					<pre class="mt-2 bg-gray-900 text-gray-100 p-4 rounded text-xs overflow-auto max-h-96"><code>{currentItem.xml}</code></pre>
+					<div class="mt-2">
+						<XmlEditor content={currentItem.xml} readOnly={true} />
+					</div>
 				</details>
 
 				<div class="space-y-4">
@@ -225,10 +231,6 @@
 
 <style>
 	code {
-		font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-	}
-
-	pre {
 		font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
 	}
 </style>

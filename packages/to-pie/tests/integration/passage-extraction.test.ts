@@ -54,7 +54,7 @@ describe('Passage Extraction (QTI → PIE)', () => {
 
     // Should also add passage model to config.models
     expect(pieItem.config.models.length).toBe(2); // passage + mc
-    expect(pieItem.config.models[0].element).toBe('@pie-element/passage');
+    expect(pieItem.config.models[0].element).toBe('passage');
   });
 
   test('should handle object tag without data-pie-passage-id attribute', async () => {
@@ -129,7 +129,7 @@ describe('Passage Extraction (QTI → PIE)', () => {
 
     // But should still add passage model to config.models
     expect(pieItem.config.models.length).toBe(2); // passage + mc
-    expect(pieItem.config.models[0].element).toBe('@pie-element/passage');
+    expect(pieItem.config.models[0].element).toBe('passage');
   });
 
   test('should handle item without any passage', async () => {
@@ -162,7 +162,7 @@ describe('Passage Extraction (QTI → PIE)', () => {
 
     // Only MC model in config.models
     expect(pieItem.config.models.length).toBe(1);
-    expect(pieItem.config.models[0].element).toBe('@pie-element/multiple-choice');
+    expect(pieItem.config.models[0].element).toBe('multiple-choice');
   });
 
   test('should work with extended-response items', async () => {
@@ -195,8 +195,8 @@ describe('Passage Extraction (QTI → PIE)', () => {
 
     // Should have passage + ER models
     expect(pieItem.config.models.length).toBe(2);
-    expect(pieItem.config.models[0].element).toBe('@pie-element/passage');
-    expect(pieItem.config.models[1].element).toBe('@pie-element/extended-text-entry');
+    expect(pieItem.config.models[0].element).toBe('passage');
+    expect(pieItem.config.models[1].element).toBe('extended-text-entry');
   });
 
   test('should preserve object data path in passage model', async () => {
@@ -229,7 +229,7 @@ describe('Passage Extraction (QTI → PIE)', () => {
     expect(pieItem.passage).toBeTruthy();
 
     // Passage model should indicate it's external
-    const passageModel = pieItem.config.models.find(m => m.element === '@pie-element/passage');
+    const passageModel = pieItem.config.models.find(m => m.element === 'passage');
     expect(passageModel).toBeTruthy();
     expect(passageModel.passages[0].text).toContain('External passage');
   });

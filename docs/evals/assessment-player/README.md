@@ -1,11 +1,11 @@
-# QTI2 Assessment Player — AI Evals
+# PIE-QTI Assessment Player — AI Evals
 
-This directory contains **AI-oriented eval sets** for the multi-item assessment player (`@pie-qti/assessment-player`).
+This directory contains **AI-oriented eval sets** for the multi-item assessment player (`@pie-qti/assessment-player`) across supported QTI assessment behavior.
 
-These evals complement `docs/evals/qti-default-components`:
+These evals complement `docs/evals/default-components`:
 
-- `qti-default-components`: validates **individual interaction components** via `/item-demo/{sampleId}`
-- `qti-assessment-player`: validates **assessment-level behaviors** (navigation, section switching, submission modes) via `/assessment-demo`
+- `default-components`: validates **individual interaction components** via `/item-demo/{sampleId}`
+- `assessment-player`: validates **assessment-level behaviors** (navigation, section switching, submission modes) via `/assessment-demo`
 
 ## What’s covered here
 
@@ -33,16 +33,23 @@ Real eval sets live under `docs/evals/assessment-player/<slug>/evals.yaml`.
 
 ## Evals format (YAML)
 
-This directory follows the same convention as `qti-default-components`:
+This directory follows the same convention as `default-components`:
 
 - **Template**: `docs/evals/assessment-player/evals.template.yaml`
 - **Real eval sets**: `docs/evals/assessment-player/<assessment-slug>/evals.yaml`
 
-The YAML structure is similar to `qti-default-components` evals, but the `expected` section adds:
+The YAML structure is similar to `default-components` evals, but the `expected` section adds:
 
 - `assessmentResults.totalScore` / `assessmentResults.maxScore`
 - `assessmentResults.itemScoresByIdentifier` (per-question score assertions)
 
 These keys are intentionally AI-friendly; runners can validate them via the end screen UI or by reading the player’s stored session state (demo adapter persists to localStorage).
+
+## Automation status
+
+These YAML evals are currently human/AI-readable specifications. Unlike the
+default-components, i18n, settings UI, asset-loading, and web-components evals,
+there is not yet a dedicated Playwright runner that consumes
+`docs/evals/assessment-player/**/evals.yaml`.
 
 

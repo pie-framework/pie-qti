@@ -1,13 +1,13 @@
 # PIE ↔ QTI Transformation Guide
 
-Complete guide to bidirectional transformation between PIE (Platform for Interactive Education) and QTI 2.2 formats.
+Complete guide to bidirectional transformation between PIE (Platform for Interactive Education) and QTI formats.
 
 ## Overview
 
-The `pie-qti` ecosystem provides lossless bidirectional transformation between PIE and QTI 2.2 formats:
+The `pie-qti` ecosystem provides lossless bidirectional transformation between PIE and QTI, with QTI ingest and QTI 2.2 export:
 
 ```
-PIE Item/Assessment ←→ QTI 2.2 Item/AssessmentTest
+PIE Item/Assessment ←→ QTI Item/AssessmentTest
 ```
 
 ### Key Features
@@ -38,7 +38,7 @@ bun add @pie-qti/pie-to-qti2
 
 ### @pie-qti/to-pie
 
-Transforms QTI 2.2 content to PIE format.
+Transforms QTI content to PIE format.
 
 ```bash
 bun add @pie-qti/to-pie
@@ -55,8 +55,8 @@ bun add @pie-qti/to-pie
 ### 1. Transform Single Item
 
 ```typescript
-import { PieToQti2Plugin } from '@pie-qti/pie-to-qti2';
-import { Qti22ToPiePlugin } from '@pie-qti/to-pie';
+import { PieToQtiPlugin } from '@pie-qti/pie-to-qti2';
+import { QtiToPiePlugin } from '@pie-qti/to-pie';
 
 // PIE item
 const pieItem = {
@@ -78,7 +78,7 @@ const pieItem = {
 };
 
 // PIE → QTI
-const pieToQti = new PieToQti2Plugin();
+const pieToQti = new PieToQtiPlugin();
 const qtiResult = await pieToQti.transform(
   { content: pieItem },
   { logger: console }
@@ -86,7 +86,7 @@ const qtiResult = await pieToQti.transform(
 const qtiXml = qtiResult.items[0].content;
 
 // QTI → PIE (lossless round-trip)
-const qtiToPie = new Qti22ToPiePlugin();
+const qtiToPie = new QtiToPiePlugin();
 const pieResult = await qtiToPie.transform(
   { content: qtiXml },
   { logger: console }
@@ -99,7 +99,7 @@ const reconstructed = pieResult.items[0].content;
 ### 2. Transform Assessment
 
 ```typescript
-import { PieToQti2Plugin } from '@pie-qti/pie-to-qti2';
+import { PieToQtiPlugin } from '@pie-qti/pie-to-qti2';
 
 // PIE assessment
 const pieAssessment = {
@@ -141,7 +141,7 @@ const pieAssessment = {
 };
 
 // Transform to QTI assessmentTest
-const plugin = new PieToQti2Plugin();
+const plugin = new PieToQtiPlugin();
 const result = await plugin.transform({ content: pieAssessment });
 const qtiAssessmentTest = result.items[0].content;
 
@@ -209,7 +209,7 @@ const pieItem = {
 Reference external passage files:
 
 ```typescript
-const plugin = new PieToQti2Plugin({
+const plugin = new PieToQtiPlugin({
   passageStrategy: 'external',
   passageResolver: async (passageId) => {
     const passage = await database.getPassage(passageId);
@@ -341,7 +341,7 @@ const itemBankAssessment = {
 Generate complete IMS CP packages for distribution:
 
 ```typescript
-const plugin = new PieToQti2Plugin({
+const plugin = new PieToQtiPlugin({
   generatePackage: true,
   passageStrategy: 'external',
   passageResolver: async (passageId) => {
@@ -449,12 +449,12 @@ const pieItem = {
 ### Pattern 1: Bulk Content Export
 
 ```typescript
-import { PieToQti2Plugin } from '@pie-qti/pie-to-qti2';
+import { PieToQtiPlugin } from '@pie-qti/pie-to-qti2';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
 async function exportPieItems(pieItems: any[], outputDir: string) {
-  const plugin = new PieToQti2Plugin({
+  const plugin = new PieToQtiPlugin({
     generatePackage: true,
     passageStrategy: 'external'
   });
@@ -486,11 +486,11 @@ async function exportPieItems(pieItems: any[], outputDir: string) {
 ### Pattern 2: Content Migration
 
 ```typescript
-import { Qti22ToPiePlugin } from '@pie-qti/to-pie';
-import { PieToQti2Plugin } from '@pie-qti/pie-to-qti2';
+import { QtiToPiePlugin } from '@pie-qti/to-pie';
+import { PieToQtiPlugin } from '@pie-qti/pie-to-qti2';
 
 async function migrateQtiToPie(qtiXml: string): Promise<any> {
-  const qtiToPie = new Qti22ToPiePlugin();
+  const qtiToPie = new QtiToPiePlugin();
 
   // Import QTI
   const result = await qtiToPie.transform({ content: qtiXml });
@@ -509,8 +509,8 @@ async function migrateQtiToPie(qtiXml: string): Promise<any> {
 
 ```typescript
 async function validateRoundTrip(pieItem: any): Promise<boolean> {
-  const pieToQti = new PieToQti2Plugin();
-  const qtiToPie = new Qti22ToPiePlugin();
+  const pieToQti = new PieToQtiPlugin();
+  const qtiToPie = new QtiToPiePlugin();
 
   try {
     // PIE → QTI

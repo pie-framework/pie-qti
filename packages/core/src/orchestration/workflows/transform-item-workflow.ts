@@ -4,7 +4,7 @@
  * Orchestrates the transformation of a single QTI item to PIE format
  */
 
-import type { WorkflowDefinition, TransformFormat, TransformPlugin, TransformContext, StorageBackend } from '@pie-qti/transform-types';
+import type { WorkflowDefinition, TransformFormat, TransformPlugin, TransformContext, StorageBackend, TransformMetadata } from '@pie-qti/transform-types';
 import {
   DetectFormatActivity,
   DetectVendorActivity,
@@ -44,7 +44,7 @@ export interface TransformItemOutput {
   /** Validation errors (if any) */
   errors: string[];
   /** Transformation metadata */
-  metadata: {
+  metadata: TransformMetadata & {
     sourceFormat: TransformFormat;
     targetFormat: TransformFormat;
     itemId: string;
@@ -157,9 +157,10 @@ export const TransformItemWorkflow: WorkflowDefinition<TransformItemInput, Trans
       message: 'Transforming to PIE',
     });
 
-    const { pieConfig, warnings } = await ctx.executeActivity(TransformQtiToPieActivity, {
+    const { pieConfig, warnings, metadata: transformMetadata } = await ctx.executeActivity(TransformQtiToPieActivity, {
       xml,
       itemId: input.itemId,
+      sourceFormat,
       vendorInfo,
       plugin: input.plugin,
       context: input.context,
@@ -201,6 +202,7 @@ export const TransformItemWorkflow: WorkflowDefinition<TransformItemInput, Trans
       warnings,
       errors,
       metadata: {
+        ...transformMetadata,
         sourceFormat,
         targetFormat: input.targetFormat,
         itemId: input.itemId,

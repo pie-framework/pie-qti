@@ -1,0 +1,64 @@
+{
+  "name": "@pie-qti/section-player",
+  "version": "0.1.13",
+  "description": "QTI section renderer contracts and layouts for composing item players with shared section context",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "rm -rf dist tsconfig.tsbuildinfo && tsc",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit && tsc -p ./tsconfig.test.json --noEmit",
+    "check": "svelte-check --tsconfig ./tsconfig.svelte.json",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write ."
+  },
+  "keywords": ["qti", "qti2", "qti3", "assessment", "section", "player"],
+  "license": "MIT",
+  "dependencies": {
+    "@pie-players/pie-assessment-toolkit": "^0.3.53",
+    "@pie-players/pie-calculator-desmos": "^0.3.53",
+    "@pie-players/pie-context": "^0.3.53",
+    "@pie-players/pie-tool-calculator-desmos": "^0.3.53",
+    "@pie-players/pie-tool-tts-inline": "^0.3.53",
+    "@pie-players/tts-client-server": "^0.3.53",
+    "@pie-qti/default-components": "workspace:*",
+    "@pie-qti/i18n": "workspace:*",
+    "@pie-qti/ims-cp-core": "workspace:*",
+    "@pie-qti/item-player": "workspace:*",
+    "@pie-qti/qti-common": "workspace:*"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.8",
+    "@sveltejs/vite-plugin-svelte": "^7.0.0",
+    "@types/node": "^25.0.3",
+    "linkedom": "^0.18.12",
+    "svelte": "^5.54.0",
+    "svelte-check": "^4.3.5",
+    "typescript": "^5.9.3"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pie-framework/pie-qti.git",
+    "directory": "packages/section-player"
+  },
+  "homepage": "https://github.com/pie-framework/pie-qti/tree/master/packages/section-player",
+  "bugs": {
+    "url": "https://github.com/pie-framework/pie-qti/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "files": ["dist"]
+}

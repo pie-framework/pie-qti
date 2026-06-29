@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="inline-choice-science-composite"
+  title="Inline Choice Science Composite"
+  adaptive="false"
+  timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier">
+    <correctResponse><value>liquid</value></correctResponse>
+  </responseDeclaration>
+  <responseDeclaration identifier="RESPONSE_1" cardinality="single" baseType="identifier">
+    <correctResponse><value>evaporation</value></correctResponse>
+  </responseDeclaration>
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+  <itemBody>
+    <p>Complete the statements about states of matter and the water cycle.</p>
+    <p>
+      Water at room temperature is usually a
+      <inlineChoiceInteraction responseIdentifier="RESPONSE">
+        <inlineChoice identifier="solid">solid</inlineChoice>
+        <inlineChoice identifier="liquid">liquid</inlineChoice>
+        <inlineChoice identifier="gas">gas</inlineChoice>
+      </inlineChoiceInteraction>.
+    </p>
+    <p>
+      Liquid water changing into water vapor is called
+      <inlineChoiceInteraction responseIdentifier="RESPONSE_1">
+        <inlineChoice identifier="condensation">condensation</inlineChoice>
+        <inlineChoice identifier="evaporation">evaporation</inlineChoice>
+        <inlineChoice identifier="precipitation">precipitation</inlineChoice>
+      </inlineChoiceInteraction>.
+    </p>
+  </itemBody>
+  <responseProcessing>
+    <responseCondition>
+      <responseIf>
+        <match>
+          <variable identifier="RESPONSE"/>
+          <correct identifier="RESPONSE"/>
+        </match>
+        <setOutcomeValue identifier="SCORE">
+          <sum>
+            <variable identifier="SCORE"/>
+            <baseValue baseType="integer">1</baseValue>
+          </sum>
+        </setOutcomeValue>
+      </responseIf>
+    </responseCondition>
+    <responseCondition>
+      <responseIf>
+        <match>
+          <variable identifier="RESPONSE_1"/>
+          <correct identifier="RESPONSE_1"/>
+        </match>
+        <setOutcomeValue identifier="SCORE">
+          <sum>
+            <variable identifier="SCORE"/>
+            <baseValue baseType="integer">1</baseValue>
+          </sum>
+        </setOutcomeValue>
+      </responseIf>
+    </responseCondition>
+  </responseProcessing>
+</assessmentItem>

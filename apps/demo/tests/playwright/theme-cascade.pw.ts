@@ -10,8 +10,22 @@ async function setTheme(page: any, theme: string) {
 
 async function getColors(page: any) {
 	return page.evaluate(() => {
-		const editorContainer = document.querySelector('.tiptap-editor-container') as HTMLElement | null;
-		const prose = document.querySelector('.pie-tiptap') as HTMLElement | null;
+		function queryDeep(root: Document | ShadowRoot | Element, selector: string): HTMLElement | null {
+			const direct = root.querySelector(selector) as HTMLElement | null;
+			if (direct) return direct;
+
+			for (const el of Array.from(root.querySelectorAll('*'))) {
+				if (el.shadowRoot) {
+					const found = queryDeep(el.shadowRoot, selector);
+					if (found) return found;
+				}
+			}
+
+			return null;
+		}
+
+		const editorContainer = queryDeep(document, '.tiptap-editor-container');
+		const prose = queryDeep(document, '.pie-tiptap');
 		const assessmentShell = document.querySelector('.assessment-shell') as HTMLElement | null;
 
 		const bg = editorContainer ? getComputedStyle(editorContainer).backgroundColor : null;

@@ -3,7 +3,7 @@
 
   Purpose:
   - Provide minimal, readable styling when the host does NOT load DaisyUI/Tailwind CSS.
-  - Still allow host theming via DaisyUI-like CSS variables (e.g. --p, --b1, --bc).
+  - Still allow host theming via canonical --pie-qti-* CSS variables.
 
   Notes:
   - Uses :global(...) so these styles apply within the component's shadow root.
@@ -20,9 +20,9 @@
 		gap: 0.5rem;
 		padding: 0.5rem 0.75rem;
 		border-radius: 0.75rem;
-		border: 1px solid var(--color-base-300, oklch(95% 0 0));
-		background: var(--color-base-200, oklch(98% 0 0));
-		color: var(--color-base-content, oklch(21% 0 0));
+		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		background: var(--pie-qti-base-200, oklch(98% 0 0));
+		color: var(--pie-qti-base-content, oklch(21% 0 0));
 		font: inherit;
 		line-height: 1.1;
 		cursor: pointer;
@@ -30,14 +30,14 @@
 		transition: background-color 0.2s, border-color 0.2s, transform 0.1s;
 	}
 	:global(.btn:hover:not(:disabled)) {
-		background: var(--color-base-300, oklch(95% 0 0));
-		border-color: var(--color-base-content, oklch(21% 0 0));
+		background: var(--pie-qti-base-300, oklch(95% 0 0));
+		border-color: var(--pie-qti-base-content, oklch(21% 0 0));
 	}
 	:global(.btn:active:not(:disabled)) {
 		transform: scale(0.97);
 	}
 	:global(.btn:focus-visible) {
-		outline: 2px solid var(--color-primary, oklch(45% 0.24 277));
+		outline: 2px solid var(--pie-qti-primary, oklch(45% 0.24 277));
 		outline-offset: 2px;
 	}
 	:global(.btn:disabled),
@@ -46,36 +46,36 @@
 		cursor: not-allowed;
 	}
 	:global(.btn-primary) {
-		border-color: var(--color-primary, oklch(45% 0.24 277));
-		background: color-mix(in oklch, var(--color-primary, oklch(45% 0.24 277)) 12%, transparent);
+		border-color: var(--pie-qti-primary, oklch(45% 0.24 277));
+		background: color-mix(in oklch, var(--pie-qti-primary, oklch(45% 0.24 277)) 12%, transparent);
 	}
 	:global(.btn-secondary) {
-		border-color: var(--color-secondary, oklch(65% 0.241 354.308));
-		background: color-mix(in oklch, var(--color-secondary, oklch(65% 0.241 354.308)) 12%, transparent);
+		border-color: var(--pie-qti-secondary, oklch(65% 0.241 354.308));
+		background: color-mix(in oklch, var(--pie-qti-secondary, oklch(65% 0.241 354.308)) 12%, transparent);
 	}
 	:global(.btn-accent) {
-		border-color: var(--color-accent, oklch(77% 0.152 181.912));
-		background: color-mix(in oklch, var(--color-accent, oklch(77% 0.152 181.912)) 12%, transparent);
+		border-color: var(--pie-qti-accent, oklch(77% 0.152 181.912));
+		background: color-mix(in oklch, var(--pie-qti-accent, oklch(77% 0.152 181.912)) 12%, transparent);
 	}
 	:global(.btn-success) {
-		border-color: var(--color-success, oklch(76% 0.177 163.223));
-		background: color-mix(in oklch, var(--color-success, oklch(76% 0.177 163.223)) 12%, transparent);
+		border-color: var(--pie-qti-success, oklch(76% 0.177 163.223));
+		background: color-mix(in oklch, var(--pie-qti-success, oklch(76% 0.177 163.223)) 12%, transparent);
 	}
 	:global(.btn-warning) {
-		border-color: var(--color-warning, oklch(82% 0.189 84.429));
-		background: color-mix(in oklch, var(--color-warning, oklch(82% 0.189 84.429)) 12%, transparent);
+		border-color: var(--pie-qti-warning, oklch(82% 0.189 84.429));
+		background: color-mix(in oklch, var(--pie-qti-warning, oklch(82% 0.189 84.429)) 12%, transparent);
 	}
 	:global(.btn-error) {
-		border-color: var(--color-error, oklch(71% 0.194 13.428));
-		background: color-mix(in oklch, var(--color-error, oklch(71% 0.194 13.428)) 12%, transparent);
+		border-color: var(--pie-qti-error, oklch(71% 0.194 13.428));
+		background: color-mix(in oklch, var(--pie-qti-error, oklch(71% 0.194 13.428)) 12%, transparent);
 	}
 	:global(.btn-ghost) {
 		background: transparent;
 		border-color: transparent;
 	}
 	:global(.btn-ghost:hover:not(:disabled)) {
-		background: var(--color-base-200, oklch(98% 0 0));
-		border-color: var(--color-base-300, oklch(95% 0 0));
+		background: var(--pie-qti-base-200, oklch(98% 0 0));
+		border-color: var(--pie-qti-base-300, oklch(95% 0 0));
 	}
 	:global(.btn-outline) {
 		background: transparent;
@@ -105,9 +105,9 @@
 		padding: 0 0.5rem;
 		height: 1.25rem;
 		border-radius: 9999px;
-		border: 1px solid var(--color-base-300, oklch(95% 0 0));
-		background: var(--color-base-100, oklch(100% 0 0));
-		color: var(--color-base-content, oklch(21% 0 0));
+		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		background: var(--pie-qti-base-100, oklch(100% 0 0));
+		color: var(--pie-qti-base-content, oklch(21% 0 0));
 		font-size: 0.75rem;
 		font-weight: 600;
 	}
@@ -120,20 +120,20 @@
 		font-size: 0.85rem;
 	}
 	:global(.badge-primary) {
-		border-color: var(--color-primary, oklch(45% 0.24 277));
-		background: color-mix(in oklch, var(--color-primary, oklch(45% 0.24 277)) 12%, transparent);
+		border-color: var(--pie-qti-primary, oklch(45% 0.24 277));
+		background: color-mix(in oklch, var(--pie-qti-primary, oklch(45% 0.24 277)) 12%, transparent);
 	}
 	:global(.badge-success) {
-		border-color: var(--color-success, oklch(76% 0.177 163.223));
-		background: color-mix(in oklch, var(--color-success, oklch(76% 0.177 163.223)) 12%, transparent);
+		border-color: var(--pie-qti-success, oklch(76% 0.177 163.223));
+		background: color-mix(in oklch, var(--pie-qti-success, oklch(76% 0.177 163.223)) 12%, transparent);
 	}
 	:global(.badge-warning) {
-		border-color: var(--color-warning, oklch(82% 0.189 84.429));
-		background: color-mix(in oklch, var(--color-warning, oklch(82% 0.189 84.429)) 12%, transparent);
+		border-color: var(--pie-qti-warning, oklch(82% 0.189 84.429));
+		background: color-mix(in oklch, var(--pie-qti-warning, oklch(82% 0.189 84.429)) 12%, transparent);
 	}
 	:global(.badge-error) {
-		border-color: var(--color-error, oklch(71% 0.194 13.428));
-		background: color-mix(in oklch, var(--color-error, oklch(71% 0.194 13.428)) 12%, transparent);
+		border-color: var(--pie-qti-error, oklch(71% 0.194 13.428));
+		background: color-mix(in oklch, var(--pie-qti-error, oklch(71% 0.194 13.428)) 12%, transparent);
 	}
 
 	/* Alerts */
@@ -143,25 +143,25 @@
 		gap: 0.5rem;
 		padding: 0.75rem 1rem;
 		border-radius: 0.75rem;
-		border: 1px solid var(--color-base-300, oklch(95% 0 0));
-		background: var(--color-base-200, oklch(98% 0 0));
-		color: var(--color-base-content, oklch(21% 0 0));
+		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		background: var(--pie-qti-base-200, oklch(98% 0 0));
+		color: var(--pie-qti-base-content, oklch(21% 0 0));
 	}
 	:global(.alert-info) {
-		border-color: var(--color-info, oklch(74% 0.16 232.661));
-		background: color-mix(in oklch, var(--color-info, oklch(74% 0.16 232.661)) 8%, transparent);
+		border-color: var(--pie-qti-info, oklch(74% 0.16 232.661));
+		background: color-mix(in oklch, var(--pie-qti-info, oklch(74% 0.16 232.661)) 8%, transparent);
 	}
 	:global(.alert-success) {
-		border-color: var(--color-success, oklch(76% 0.177 163.223));
-		background: color-mix(in oklch, var(--color-success, oklch(76% 0.177 163.223)) 8%, transparent);
+		border-color: var(--pie-qti-success, oklch(76% 0.177 163.223));
+		background: color-mix(in oklch, var(--pie-qti-success, oklch(76% 0.177 163.223)) 8%, transparent);
 	}
 	:global(.alert-warning) {
-		border-color: var(--color-warning, oklch(82% 0.189 84.429));
-		background: color-mix(in oklch, var(--color-warning, oklch(82% 0.189 84.429)) 8%, transparent);
+		border-color: var(--pie-qti-warning, oklch(82% 0.189 84.429));
+		background: color-mix(in oklch, var(--pie-qti-warning, oklch(82% 0.189 84.429)) 8%, transparent);
 	}
 	:global(.alert-error) {
-		border-color: var(--color-error, oklch(71% 0.194 13.428));
-		background: color-mix(in oklch, var(--color-error, oklch(71% 0.194 13.428)) 8%, transparent);
+		border-color: var(--pie-qti-error, oklch(71% 0.194 13.428));
+		background: color-mix(in oklch, var(--pie-qti-error, oklch(71% 0.194 13.428)) 8%, transparent);
 	}
 
 	/* Correct answer indicators */
@@ -170,32 +170,59 @@
 		align-items: center;
 		gap: 0.25rem;
 		padding: 0.25rem 0.5rem;
-		background: color-mix(in oklch, var(--color-success, oklch(76% 0.177 163.223)) 8%, transparent);
-		border: 1px solid var(--color-success, oklch(76% 0.177 163.223));
+		background: color-mix(in oklch, var(--pie-qti-success, oklch(76% 0.177 163.223)) 8%, transparent);
+		border: 1px solid var(--pie-qti-success, oklch(76% 0.177 163.223));
 		border-radius: 0.5rem;
-		color: var(--color-base-content, oklch(21% 0 0));
+		color: var(--pie-qti-base-content, oklch(21% 0 0));
 		font-size: 0.875rem;
 	}
 
 	:global(.qti-correct-highlight) {
-		background-color: color-mix(in oklch, var(--color-success, oklch(76% 0.177 163.223)) 8%, transparent);
-		border: 2px solid var(--color-success, oklch(76% 0.177 163.223));
+		background-color: color-mix(in oklch, var(--pie-qti-success, oklch(76% 0.177 163.223)) 8%, transparent);
+		border: 2px solid var(--pie-qti-success, oklch(76% 0.177 163.223));
 		border-radius: 0.5rem;
 	}
 
 	:global(.border-success) {
-		border-color: var(--color-success, oklch(76% 0.177 163.223));
+		border-color: var(--pie-qti-success, oklch(76% 0.177 163.223));
 	}
 
 	:global(.text-success) {
-		color: var(--color-success, oklch(76% 0.177 163.223));
+		color: var(--pie-qti-success, oklch(76% 0.177 163.223));
+	}
+
+	/* Rich QTI XHTML injected from prompts, choices, and vendor wrappers. */
+	:global(.qti-rich-content) {
+		display: block;
+		min-width: 0;
+		line-height: 1.5;
+	}
+	:global(.qti-rich-inline-content) {
+		min-width: 0;
+		line-height: 1.35;
+	}
+	:global(.qti-rich-content > :first-child),
+	:global(.qti-rich-inline-content > :first-child) {
+		margin-top: 0;
+	}
+	:global(.qti-rich-content > :last-child),
+	:global(.qti-rich-inline-content > :last-child) {
+		margin-bottom: 0;
+	}
+	:global(.qti-rich-content :is(p, ul, ol, blockquote, pre, table):first-child),
+	:global(.qti-rich-inline-content :is(p, ul, ol, blockquote, pre, table):first-child) {
+		margin-top: 0;
+	}
+	:global(.qti-rich-content :is(p, ul, ol, blockquote, pre, table):last-child),
+	:global(.qti-rich-inline-content :is(p, ul, ol, blockquote, pre, table):last-child) {
+		margin-bottom: 0;
 	}
 
 	/* Cards */
 	:global(.card) {
 		border-radius: 0.75rem;
-		border: 1px solid var(--color-base-300, oklch(95% 0 0));
-		background: var(--color-base-100, oklch(100% 0 0));
+		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		background: var(--pie-qti-base-100, oklch(100% 0 0));
 	}
 	:global(.card-body) {
 		padding: 1rem;
@@ -210,7 +237,7 @@
 		align-items: center;
 		gap: 0.75rem;
 		margin: 0.75rem 0;
-		color: color-mix(in oklch, var(--color-base-content, oklch(21% 0 0)) 65%, transparent);
+		color: color-mix(in oklch, var(--pie-qti-base-content, oklch(21% 0 0)) 65%, transparent);
 		font-size: 0.875rem;
 	}
 	:global(.divider::before),
@@ -218,16 +245,16 @@
 		content: '';
 		flex: 1 1 auto;
 		height: 1px;
-		background: var(--color-base-300, oklch(95% 0 0));
+		background: var(--pie-qti-base-300, oklch(95% 0 0));
 	}
 
 	/* Form controls */
 	:global(.select),
 	:global(.textarea) {
 		border-radius: 0.6rem;
-		border: 1px solid var(--color-base-300, oklch(95% 0 0));
-		background: var(--color-base-100, oklch(100% 0 0));
-		color: var(--color-base-content, oklch(21% 0 0));
+		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		background: var(--pie-qti-base-100, oklch(100% 0 0));
+		color: var(--pie-qti-base-content, oklch(21% 0 0));
 		padding: 0.35rem 0.6rem;
 		font: inherit;
 	}
@@ -240,7 +267,7 @@
 	}
 	:global(.radio),
 	:global(.checkbox) {
-		accent-color: var(--color-primary, oklch(45% 0.24 277));
+		accent-color: var(--pie-qti-primary, oklch(45% 0.24 277));
 	}
 
 	/* Tailwind utilities for canvas drawing */
@@ -299,13 +326,13 @@
 		border-width: 1px;
 	}
 	:global(.border-base-300) {
-		border-color: var(--color-base-300, oklch(95% 0 0));
+		border-color: var(--pie-qti-base-300, oklch(95% 0 0));
 	}
 	:global(.bg-base-100) {
-		background-color: var(--color-base-100, oklch(100% 0 0));
+		background-color: var(--pie-qti-base-100, oklch(100% 0 0));
 	}
 	:global(.bg-base-content\/70) {
-		background-color: color-mix(in oklch, var(--color-base-content, oklch(21% 0 0)) 70%, transparent);
+		background-color: color-mix(in oklch, var(--pie-qti-base-content, oklch(21% 0 0)) 70%, transparent);
 	}
 	:global(.text-xs) {
 		font-size: 0.75rem;
@@ -319,7 +346,7 @@
 		font-weight: 600;
 	}
 	:global(.text-base-content\/70) {
-		color: color-mix(in oklch, var(--color-base-content, oklch(21% 0 0)) 70%, transparent);
+		color: color-mix(in oklch, var(--pie-qti-base-content, oklch(21% 0 0)) 70%, transparent);
 	}
 	:global(.mb-2) {
 		margin-bottom: 0.5rem;
@@ -363,14 +390,14 @@
 	/* Form inputs */
 	:global(.file-input) {
 		border-radius: 0.6rem;
-		border: 1px solid var(--color-base-300, oklch(95% 0 0));
-		background: var(--color-base-100, oklch(100% 0 0));
-		color: var(--color-base-content, oklch(21% 0 0));
+		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		background: var(--pie-qti-base-100, oklch(100% 0 0));
+		color: var(--pie-qti-base-content, oklch(21% 0 0));
 		padding: 0.35rem 0.6rem;
 		font: inherit;
 	}
 	:global(.file-input-bordered) {
-		border: 1px solid var(--color-base-300, oklch(95% 0 0));
+		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
 	}
 	:global(.label) {
 		display: flex;

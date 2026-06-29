@@ -1,26 +1,24 @@
 # E2E Tests
 
-This directory contains end-to-end tests for the QTI 2.2 Player components.
+This directory contains end-to-end tests for the QTI Player components.
 
 ## Test Types
 
-### Accessibility Tests (`e2e/accessibility.spec.ts`)
+### Accessibility Tests (`playwright/component-fixtures-a11y.pw.ts`)
 
 Automated WCAG 2.2 Level AA compliance testing using Playwright + axe-core.
 
 **What it tests:**
-- WCAG 2.2 Level AA compliance for player components
-- Keyboard navigation support
-- Screen reader compatibility (ARIA, live regions)
+- Axe rules tagged `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`, and `wcag22aa`
+- Component fixture scans under `/a11y-components/{fixture}`
+- Focusability smoke checks for each fixture
+- Targeted behavior checks in `playwright/assessment-a11y-behavior.pw.ts`
+- Selected keyboard, focus, live-region, and alert semantics
 - Color contrast ratios
-- Target sizes (24×24px minimum)
-- Focus management
+- Target size rules that axe can detect
 
 **Components tested:**
-1. SortableList (orderInteraction)
-2. MatchDragDrop (matchInteraction)
-3. InlineInteractionRenderer (textEntry, inlineChoice)
-4. GraphicGapMatch (graphicGapMatchInteraction)
+The fixture list is defined in `src/lib/a11y/fixtures.ts` and includes item-player/default-component interactions plus assessment-player shell, navigation, menu, timer, rubric, modal feedback, media, and upload surfaces.
 
 ## Running Tests
 
@@ -68,9 +66,8 @@ test.describe('Component Name', () => {
     await selectSampleItem(page, 'sample-id');
 
     const results = await new AxeBuilder({ page })
-      .include('[role="region"]')  // Focus on player area
-      .exclude('#demo-controls')    // Ignore demo app
-      .withTags(['wcag2a', 'wcag2aa', 'wcag22aa'])
+      .include('[data-testid="a11y-fixture-root"]')
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
       .analyze();
 
     expect(results.violations).toEqual([]);
@@ -109,25 +106,14 @@ bunx playwright show-report
 
 To test a new component:
 
-1. Add sample item to `sample-items.ts`
-2. Create test in `accessibility.spec.ts`:
+1. Add a fixture component under `src/lib/a11y/fixtures/`.
+2. Add the fixture id and title to `src/lib/a11y/fixtures.ts`.
+3. Wire the fixture into `src/routes/a11y-components/[fixture]/+page.svelte`.
+4. Add targeted behavior assertions to `playwright/assessment-a11y-behavior.pw.ts` when axe cannot cover the risk.
 
-```typescript
-test.describe('YourComponent', () => {
-  test('should not have WCAG violations', async ({ page }) => {
-    await selectSampleItem(page, 'your-sample-id');
+The generic fixture scan will pick it up automatically because it iterates over `A11Y_FIXTURES`.
 
-    const results = await new AxeBuilder({ page })
-      .include('[role="your-component-role"]')
-      .withTags(['wcag2a', 'wcag2aa', 'wcag22aa'])
-      .analyze();
-
-    expect(results.violations).toEqual([]);
-  });
-});
-```
-
-3. Run test: `bun run test:a11y`
+5. Run test: `bun run test:a11y`
 
 ## Limitations
 
@@ -150,8 +136,4 @@ Automated accessibility testing can only catch ~57% of WCAG issues.
 - [axe-core Rules](https://github.com/dequelabs/axe-core/blob/develop/doc/rule-descriptions.md)
 - [WCAG 2.2 Guidelines](https://www.w3.org/WAI/WCAG22/quickref/)
 - [Playwright Documentation](https://playwright.dev/docs/intro)
-- [WCAG-2.2-COMPLIANCE.md](../../../item-player/WCAG-2.2-COMPLIANCE.md) - Player component compliance analysis
-
-## Results
-
-See [ACCESSIBILITY-TEST-RESULTS.md](../ACCESSIBILITY-TEST-RESULTS.md) for latest test results and identified issues.
+- [WCAG-2.2-COMPLIANCE.md](../../../packages/item-player/docs/WCAG-2.2-COMPLIANCE.md) - Player component compliance analysis

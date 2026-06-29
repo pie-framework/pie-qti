@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+  xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="qti22-basic-q4-order-interaction"
+  title="Q4 Order Interaction"
+  adaptive="false"
+  timeDependent="false">
+
+  <responseDeclaration identifier="RESPONSE" cardinality="ordered" baseType="identifier">
+    <correctResponse>
+      <value>step_1</value>
+      <value>step_2</value>
+      <value>step_3</value>
+    </correctResponse>
+  </responseDeclaration>
+
+  <outcomeDeclaration identifier="ECHO" cardinality="ordered" baseType="identifier"/>
+
+  <itemBody>
+    <orderInteraction responseIdentifier="RESPONSE" shuffle="false">
+      <prompt>Put the steps in chronological order.</prompt>
+      <simpleChoice identifier="step_1">Step 1</simpleChoice>
+      <simpleChoice identifier="step_2">Step 2</simpleChoice>
+      <simpleChoice identifier="step_3">Step 3</simpleChoice>
+    </orderInteraction>
+  </itemBody>
+
+  <responseProcessing>
+    <setOutcomeValue identifier="ECHO">
+      <variable identifier="RESPONSE"/>
+    </setOutcomeValue>
+  </responseProcessing>
+</assessmentItem>

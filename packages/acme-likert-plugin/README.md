@@ -1,6 +1,6 @@
 # @acme/likert-scale-plugin
 
-A QTI 2.2 plugin that provides **Likert scale choice interactions** for educational assessments.
+A QTI player plugin that provides **Likert scale choice interactions** for educational assessments.
 
 This package currently provides **extraction + validation** for vendor-specific `<likertChoice>` markup. Rendering is still done by whatever **web component** is registered for `choiceInteraction` in your host app (typically `@pie-qti/default-components`).
 

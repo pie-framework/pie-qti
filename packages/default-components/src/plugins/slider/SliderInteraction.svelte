@@ -59,7 +59,9 @@
 		<div class="alert alert-error">{i18n?.t('common.errorNoData') ?? 'No interaction data provided'}</div>
 	{:else}
 		{#if parsedInteraction.prompt}
-			<p part="prompt" class="qti-slider-prompt font-semibold">{@html parsedInteraction.prompt}</p>
+			<div part="prompt" class="qti-slider-prompt qti-rich-content font-semibold">
+				{@html parsedInteraction.prompt}
+			</div>
 		{/if}
 
 		<div part="track" class="qti-slider-track flex items-center gap-4">
@@ -126,8 +128,8 @@
 		display: inline-block;
 		padding: 0.75rem 1rem;
 		border-radius: 0.75rem;
-		border: 1px solid var(--color-base-300, oklch(95% 0 0));
-		background: var(--color-base-200, oklch(98% 0 0));
+		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		background: var(--pie-qti-base-200, oklch(98% 0 0));
 	}
 	.qti-slider-stat-title {
 		font-size: 0.8rem;
@@ -136,6 +138,6 @@
 	.qti-slider-stat-value {
 		font-weight: 700;
 		font-size: 1.25rem;
-		color: var(--color-primary, oklch(45% 0.24 277));
+		color: var(--pie-qti-primary, oklch(45% 0.24 277));
 	}
 </style>

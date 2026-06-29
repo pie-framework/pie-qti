@@ -12,7 +12,7 @@ Complete architecture guide for the QTI transformation framework. Documents:
 - Plugin system with priority-based selection
 - Extensibility points (custom plugins, transformers, asset resolvers)
 - Transform process flow and error handling
-- Integration with transform app and CLI
+- Integration with host applications and the CLI
 - Best practices for plugin development
 
 **Includes:** Architecture diagram (`images/qti-transform-engine.png`)
@@ -45,6 +45,22 @@ Developer guide for building vendor-specific transform plugins. Includes:
 **Status:** Active developer guide
 **Last Updated:** 2025-12-31
 
+### [SOURCE-PROFILES.md](./SOURCE-PROFILES.md)
+
+Architecture and authoring guide for QTI source profiles. Covers:
+
+- Package and item profile detection
+- Handler, decorator, fallback, and diagnostic patterns
+- Stable sidecar and conversion trace expectations
+- Current built-in source profiles
+
+**Status:** Active developer guide
+**Last Updated:** 2026-05-15
+
+### PRDs
+
+[`prds/INVENTORY.md`](./prds/INVENTORY.md) is the canonical map of Product Requirements Documents. PRDs own the rationale, constraints, and acceptance criteria for implemented systems; the guides in this folder remain the entry points for onboarding and how-to material.
+
 ### Other active docs in this folder
 
 - `QTI_techguide.md` (technical reference — covers QTI 2.1, 2.2, and 3.0)
@@ -59,20 +75,17 @@ Developer guide for building vendor-specific transform plugins. Includes:
 ### For Developers
 
 - **Getting Started:** See main [README.md](../README.md) in repo root
-- **App deployability checks:** See root `verify:apps:deploy` command (builds docs/demo/transform production outputs)
+- **App deployability checks:** See root `verify:apps:deploy` command (builds docs/demo production outputs)
 - **Publish verification:** [development/publish-verification.md](./development/publish-verification.md) — `verify:publish`, publint, attw, pack checks
-- **CLI Tools:** See `tools/cli/README.md`
+- **CLI Tools:** See [`../tools/cli/README.md`](../tools/cli/README.md)
 
-### Specs (local snapshots for fast search / LLM use)
+### Specs
 
-We keep **local, greppable snapshots** of key specs so agents and devs can reference them without relying on external browsing:
+The canonical QTI source is 1EdTech. Do not assume a local `docs/specs/` tree exists in this repository; when a local spec snapshot is needed for private analysis, keep it out of public certification fixtures and do not commit official conformance package assets.
 
-- **QTI 2.2.2 (target) — extracted from official 1EdTech ZIP**:
-  - `docs/specs/qti2.2.2/qtiv2p2/imsqti_v2p2_oview.md` (overview, LLM-friendly)
-  - `docs/specs/qti2.2.2/qtiv2p2/imsqti_v2p2_impl.md` (implementation guide, LLM-friendly)
-  - Minimal local bundle: `docs/specs/qti2.2.2/` (keeps XSDs + standard response processing templates + LLM-friendly `.md` entry points)
-  - Original 1EdTech ZIP: `docs/specs/qti2.2.2/qtiv2p2p2.zip`
-  - Canonical source page: [`https://www.imsglobal.org/content/question-and-test-interoperability-v222-final`](https://www.imsglobal.org/content/question-and-test-interoperability-v222-final)
+- **QTI 2.2.2 target:** [`https://www.imsglobal.org/content/question-and-test-interoperability-v222-final`](https://www.imsglobal.org/content/question-and-test-interoperability-v222-final)
+- **QTI 3.0 target:** [`https://www.imsglobal.org/spec/qti/v3p0/`](https://www.imsglobal.org/spec/qti/v3p0/)
+- **QTI conformance:** [`https://www.1edtech.org/standards/qti/conformance`](https://www.1edtech.org/standards/qti/conformance)
 
 ### For Understanding the Codebase
 

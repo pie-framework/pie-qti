@@ -1,0 +1,285 @@
+<script lang="ts">
+	import { onMount, type Snippet } from 'svelte';
+	import type { I18nProvider } from '@pie-qti/i18n';
+
+	interface Props {
+		i18n?: I18nProvider;
+		storageKey?: string;
+		leftPane?: Snippet;
+		children?: Snippet;
+		onRightPaneReady?: (element: HTMLElement) => void;
+	}
+
+	const {
+		i18n,
+		storageKey = 'pie-qti22-assessment-player.splitLeftPct',
+		leftPane,
+		children,
+		onRightPaneReady,
+	}: Props = $props();
+
+	const minLeftPct = 25;
+	const maxLeftPct = 75;
+	const initialSplitPct = 50;
+
+	let splitContainerEl = $state<HTMLDivElement | null>(null);
+	let rightPaneEl = $state<HTMLElement | null>(null);
+	let reportedRightPaneEl = $state<HTMLElement | null>(null);
+	let splitLeftPct = $state<number>(50);
+	let isResizing = $state(false);
+	let hasInitializedFromProps = $state(false);
+
+	function clampPct(pct: number) {
+		return Math.min(maxLeftPct, Math.max(minLeftPct, pct));
+	}
+
+	function saveSplitPct(pct: number) {
+		try {
+			if (typeof window === 'undefined') return;
+			window.localStorage.setItem(storageKey, String(pct));
+		} catch {
+			// Ignore persistence failures in restricted browser contexts.
+		}
+	}
+
+	function loadSplitPct() {
+		try {
+			if (typeof window === 'undefined') return null;
+			const raw = window.localStorage.getItem(storageKey);
+			if (!raw) return null;
+			const n = Number(raw);
+			if (!Number.isFinite(n)) return null;
+			return clampPct(n);
+		} catch {
+			return null;
+		}
+	}
+
+	function updateSplitFromClientX(clientX: number) {
+		if (!splitContainerEl) return;
+		const rect = splitContainerEl.getBoundingClientRect();
+		if (rect.width <= 0) return;
+		const x = clientX - rect.left;
+		const pct = (x / rect.width) * 100;
+		splitLeftPct = clampPct(pct);
+	}
+
+	function onSplitterPointerDown(e: PointerEvent) {
+		if (!splitContainerEl) return;
+		isResizing = true;
+		(e.currentTarget as HTMLElement | null)?.setPointerCapture?.(e.pointerId);
+		updateSplitFromClientX(e.clientX);
+
+		const move = (ev: PointerEvent) => updateSplitFromClientX(ev.clientX);
+		const up = () => {
+			isResizing = false;
+			window.removeEventListener('pointermove', move);
+			window.removeEventListener('pointerup', up);
+			window.removeEventListener('pointercancel', up);
+			saveSplitPct(splitLeftPct);
+		};
+
+		window.addEventListener('pointermove', move);
+		window.addEventListener('pointerup', up, { once: true });
+		window.addEventListener('pointercancel', up, { once: true });
+	}
+
+	function onSplitterKeyDown(e: KeyboardEvent) {
+		if (e.key === 'ArrowLeft') {
+			e.preventDefault();
+			splitLeftPct = clampPct(splitLeftPct - 2);
+			saveSplitPct(splitLeftPct);
+		} else if (e.key === 'ArrowRight') {
+			e.preventDefault();
+			splitLeftPct = clampPct(splitLeftPct + 2);
+			saveSplitPct(splitLeftPct);
+		} else if (e.key === 'Home') {
+			e.preventDefault();
+			splitLeftPct = minLeftPct;
+			saveSplitPct(splitLeftPct);
+		} else if (e.key === 'End') {
+			e.preventDefault();
+			splitLeftPct = maxLeftPct;
+			saveSplitPct(splitLeftPct);
+		}
+	}
+
+	function splitterInteractions(node: HTMLElement) {
+		const pointerDown = (e: PointerEvent) => onSplitterPointerDown(e);
+		const keyDown = (e: KeyboardEvent) => onSplitterKeyDown(e);
+
+		node.addEventListener('pointerdown', pointerDown);
+		node.addEventListener('keydown', keyDown);
+
+		return {
+			destroy() {
+				node.removeEventListener('pointerdown', pointerDown);
+				node.removeEventListener('keydown', keyDown);
+			},
+		};
+	}
+
+	onMount(() => {
+		const loaded = loadSplitPct();
+		if (loaded !== null) splitLeftPct = loaded;
+	});
+
+	$effect(() => {
+		if (hasInitializedFromProps) return;
+		splitLeftPct = clampPct(initialSplitPct);
+		hasInitializedFromProps = true;
+	});
+
+	$effect(() => {
+		if (rightPaneEl && rightPaneEl !== reportedRightPaneEl) {
+			reportedRightPaneEl = rightPaneEl;
+			onRightPaneReady?.(rightPaneEl);
+		}
+	});
+</script>
+
+<div
+	class:resizing={isResizing}
+	class="split-layout"
+	bind:this={splitContainerEl}
+	style={`--split-left: ${splitLeftPct}%;`}
+>
+	<section id="section-player-left-pane" class="pane pane-left" aria-label={i18n?.t('sectionPlayer.sharedContext', 'Shared context') ?? 'Shared context'}>
+		{#if leftPane}
+			{@render leftPane()}
+		{/if}
+	</section>
+
+	<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+	<div
+		class="splitter"
+		role="separator"
+		aria-orientation="vertical"
+		aria-label={i18n?.t('accessibility.resizer', 'Resize passage and question panels')}
+		aria-controls="section-player-left-pane section-player-right-pane"
+		aria-valuemin={minLeftPct}
+		aria-valuemax={maxLeftPct}
+		aria-valuenow={Math.round(splitLeftPct)}
+		tabindex="0"
+		use:splitterInteractions
+	>
+		<div class="splitter-grip" aria-hidden="true"></div>
+	</div>
+
+	<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+	<section
+		id="section-player-right-pane"
+		class="pane pane-right"
+		tabindex="-1"
+		bind:this={rightPaneEl}
+		aria-label={i18n?.t('sectionPlayer.itemPane', 'Item pane') ?? 'Item pane'}
+	>
+		{#if children}
+			{@render children()}
+		{/if}
+	</section>
+</div>
+
+<style>
+	.split-layout {
+		display: grid;
+		--splitter-size: 24px;
+		grid-template-columns: minmax(320px, var(--split-left)) var(--splitter-size) minmax(320px, 1fr);
+		gap: 0;
+		height: 100%;
+		padding: 2rem;
+		max-width: 1400px;
+		margin: 0 auto;
+	}
+
+	.pane {
+		min-height: 0;
+		overflow: auto;
+		padding: 0 1rem;
+	}
+
+	.pane-right:focus-visible {
+		outline: 2px solid var(--color-primary);
+		outline-offset: -2px;
+	}
+
+	.splitter {
+		width: var(--splitter-size);
+		cursor: col-resize;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		align-self: stretch;
+		min-height: 44px;
+		height: 100%;
+		background: var(--color-base-200);
+		border-left: 1px solid var(--color-base-300);
+		border-right: 1px solid var(--color-base-300);
+		user-select: none;
+		touch-action: none;
+		position: relative;
+	}
+
+	.splitter:hover {
+		background: var(--color-base-300);
+		border-left-color: var(--color-base-300);
+		border-right-color: var(--color-base-300);
+	}
+
+	.splitter:focus-visible {
+		outline: 2px solid var(--color-primary);
+		outline-offset: 2px;
+	}
+
+	.splitter::before {
+		content: '';
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		left: 50%;
+		width: 2px;
+		transform: translateX(-50%);
+		background: color-mix(in oklab, var(--color-base-content) 55%, transparent);
+	}
+
+	.splitter-grip {
+		width: 6px;
+		height: 72px;
+		border-radius: 999px;
+		background: linear-gradient(
+			to bottom,
+			color-mix(in oklab, var(--color-base-content) 15%, transparent),
+			color-mix(in oklab, var(--color-base-content) 55%, transparent),
+			color-mix(in oklab, var(--color-base-content) 15%, transparent)
+		);
+	}
+
+	.split-layout.resizing .splitter {
+		background: color-mix(in oklab, var(--color-primary) 14%, transparent);
+		border-left-color: color-mix(in oklab, var(--color-primary) 60%, transparent);
+		border-right-color: color-mix(in oklab, var(--color-primary) 60%, transparent);
+	}
+
+	.split-layout.resizing {
+		user-select: none;
+	}
+
+	.split-layout :global(.rubric-container) {
+		margin-bottom: 0;
+	}
+
+	@media (max-width: 768px) {
+		.split-layout {
+			grid-template-columns: 1fr;
+			padding: 1rem;
+		}
+
+		.splitter {
+			display: none;
+		}
+
+		.pane-left {
+			max-height: 40vh;
+		}
+	}
+</style>

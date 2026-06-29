@@ -4,8 +4,38 @@
  * QTI 2.2 to PIE transformation plugin
  */
 
-export { QtiToPiePlugin } from './plugin.js';
+export { QtiSourceProfileTransformError, QtiToPiePlugin } from './plugin.js';
 export type { QtiToPiePluginOptions } from './plugin.js';
+export { transformQtiPackageToPie } from './package-transformer.js';
+export type {
+  QtiPackageItemTransformResult,
+  QtiPackageTransformInput,
+  QtiPackageTransformResult,
+} from './package-transformer.js';
+export {
+  addTraceEvent,
+  applyItemDecorators,
+  createConversionTrace,
+  detectItemProfiles,
+  detectPackageProfiles,
+  runItemHandlers,
+} from './source-profile-runtime.js';
+export type {
+  ItemDecoratorPhase,
+  ProfileRuntimeResult,
+  RunItemHandlersInput,
+} from './source-profile-runtime.js';
+export {
+  createDefaultQtiToPieRegistry,
+  QtiToPieRegistry,
+} from './registry/qti-to-pie-registry.js';
+export type {
+  BuiltInTransformContext,
+  BuiltInTransformDelegate,
+  BuiltInTransformKind,
+  BuiltInTransformResult,
+  QtiBuiltInTransformHandler,
+} from './registry/qti-to-pie-registry.js';
 export type {
   AccessibilityCatalog,
   AssessmentSection,
@@ -77,3 +107,12 @@ export {
   preserveVendorAttributes,
   preserveVendorClasses,
 } from './utils/vendor-helpers.js';
+export type {
+  ExtractCssClassesWithHooksInput,
+  ResolveAssetWithHooksInput,
+  VendorCssClassExtraction,
+} from './vendor-extension-runtime.js';
+export {
+  extractCssClassesWithHooks,
+  resolveAssetWithHooks,
+} from './vendor-extension-runtime.js';

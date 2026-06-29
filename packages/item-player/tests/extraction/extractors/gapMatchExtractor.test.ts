@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { standardGapMatchExtractor } from '../../../src/extraction/extractors/gapMatchExtractor.js';
+import { standardGapMatchExtractor } from '../../../src/interactions/gap-match/extractor.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
 describe('standardGapMatchExtractor', () => {
@@ -224,6 +224,78 @@ describe('standardGapMatchExtractor', () => {
 
 		expect(result.promptText).toContain('[GAP:G1]');
 		expect(result.promptText).toContain('[GAP:G2]');
+	});
+
+	test('extracts sibling gap content when prompt is separate and gap identifier is not first attribute', () => {
+		const xml = `
+			<gapMatchInteraction class="qti-choices-top" maxAssociations="0" responseIdentifier="RESPONSE">
+				<prompt>Demonstrates all gap element qti-input-width classes</prompt>
+				<gapText identifier="gt1" matchMax="1">M</gapText>
+				<gapText identifier="gt2" matchMax="1">MM</gapText>
+				<p>
+					qti-input-width-1: <gap class="qti-input-width-1" identifier="G1" /><br/>
+					qti-input-width-2: <gap class="qti-input-width-2" identifier="G2" />
+				</p>
+			</gapMatchInteraction>
+		`;
+		const element = parseQTI(xml);
+		const context = createTestContext(element, 'RESPONSE');
+
+		const result = standardGapMatchExtractor.extract(element, context);
+
+		expect(result.gaps).toEqual(['G1', 'G2']);
+		expect(result.prompt).toBe('Demonstrates all gap element qti-input-width classes');
+		expect(result.promptText).toContain('qti-input-width-1: [GAP:G1]');
+		expect(result.promptText).toContain('qti-input-width-2: [GAP:G2]');
+		expect(result.promptText).not.toContain('<gapText');
+	});
+
+	describe('matchGroup extraction', () => {
+		test('extracts single matchGroup value', () => {
+			const xml = `
+				<gapMatchInteraction responseIdentifier="RESPONSE" shuffle="false">
+					<prompt>Fill: <gap identifier="G1" /></prompt>
+					<gapText identifier="T1" matchMax="1" matchGroup="animal">Cat</gapText>
+					<gapText identifier="T2" matchMax="1">Other</gapText>
+				</gapMatchInteraction>
+			`;
+			const element = parseQTI(xml);
+			const context = createTestContext(element, 'RESPONSE');
+
+			const result = standardGapMatchExtractor.extract(element, context);
+
+			expect(result.gapTexts[0].matchGroup).toEqual(['animal']);
+		});
+
+		test('extracts multiple matchGroup values', () => {
+			const xml = `
+				<gapMatchInteraction responseIdentifier="RESPONSE" shuffle="false">
+					<prompt>Fill: <gap identifier="G1" /></prompt>
+					<gapText identifier="T1" matchMax="1" matchGroup="set-a set-b">Item</gapText>
+				</gapMatchInteraction>
+			`;
+			const element = parseQTI(xml);
+			const context = createTestContext(element, 'RESPONSE');
+
+			const result = standardGapMatchExtractor.extract(element, context);
+
+			expect(result.gapTexts[0].matchGroup).toEqual(['set-a', 'set-b']);
+		});
+
+		test('omits matchGroup when absent', () => {
+			const xml = `
+				<gapMatchInteraction responseIdentifier="RESPONSE" shuffle="false">
+					<prompt>Fill: <gap identifier="G1" /></prompt>
+					<gapText identifier="T1" matchMax="1">Item</gapText>
+				</gapMatchInteraction>
+			`;
+			const element = parseQTI(xml);
+			const context = createTestContext(element, 'RESPONSE');
+
+			const result = standardGapMatchExtractor.extract(element, context);
+
+			expect(result.gapTexts[0].matchGroup).toBeUndefined();
+		});
 	});
 
 	describe('canHandle predicate', () => {

@@ -12,22 +12,20 @@ import {
 	type DeclarationMap,
 	evalExpr,
 	execProgram,
-	findAssessmentItem,
 	findDescendants,
 	findFirstDescendant,
 	getAttr,
 	OperatorRegistry,
 	type ProcessingProgram,
-	parseXml,
 	type QtiValue,
 	qtiNull,
 	qtiValue,
-	serializeXml,
 	toBoolean,
 	toNumber,
 	toStringValue,
 } from '@pie-qti/qti-processing';
 import type { ElementNameMapper, AttributeNameMapper } from '@pie-qti/qti-common';
+import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
 import {
 	Qti2xElementNameMapper,
 	Qti2xAttributeNameMapper,
@@ -35,32 +33,46 @@ import {
 	Qti3AttributeNameMapper,
 	detectQtiVersion,
 } from '@pie-qti/qti-common';
-import { parse } from 'node-html-parser';
+import type { AssessmentItemDocument } from '../document/AssessmentItemDocument.js';
+import { parseAssessmentItemDocument } from '../document/AssessmentItemDocument.js';
 import type { ExtractionRegistry } from '../extraction/ExtractionRegistry.js';
 import { createExtractionRegistry } from '../extraction/ExtractionRegistry.js';
-import { ALL_STANDARD_EXTRACTORS, createExtractionContext } from '../extraction/index.js';
-import type { VariableDeclaration as ExtractionVariableDeclaration } from '../extraction/types.js';
+import { extractInteractionData } from '../extraction/interactionExtractionPipeline.js';
+import { getStandardInteractionExtractors } from '../interactions/modules.js';
 import type {
 	AdaptiveAttemptResult,
 	CompletionStatus,
 	HtmlContent,
+	ItemSessionAction,
+	ItemSessionActionCommand,
+	ItemLifecycleStatus,
+	ItemSessionActionResult,
 	ItemSessionState,
 	ModalFeedback,
 	PlayerConfig,
 	PlayerSecurityConfig,
 	QTIRole,
 	RubricBlock,
+	RubricBlockOptions,
 	ScoringResult,
+	SerializedItemSessionState,
+	SerializedItemSessionVariable,
 } from '../types/index.js';
-import type { InteractionData, QTIElement } from '../types/interactions.js';
+import type { InteractionData } from '../interactions/index.js';
 import type { ResponseValidationResult } from '../types/responseValidation.js';
 import type { ComponentRegistry } from './ComponentRegistry.js';
 import { createComponentRegistry } from './ComponentRegistry.js';
-import { enforceItemXmlLimits } from './parsingLimits.js';
 import { createSeededRng } from './random.js';
 import { sanitizeHtml } from './sanitizer.js';
 import { toTrustedHtml } from './trustedTypes.js';
 import { sanitizeResourceUrl } from './urlPolicy.js';
+import type { PnpProfile } from '../pnp/types.js';
+import { applyPnpToRoot } from '../pnp/applyPnp.js';
+import type { CatalogIndex } from '../catalog/types.js';
+import { extractCatalog, extractCatalogFromItemXml, mergeCatalogs } from '../catalog/catalogExtractor.js';
+import { getCatalogEntry } from '../catalog/catalogLookup.js';
+import { PciHost } from '../pci/PciHost.js';
+import type { ExtractedPci } from '../pci/types.js';
 
 type DeclKind = 'response' | 'outcome' | 'template';
 
@@ -68,7 +80,7 @@ export class Player {
 	private role: QTIRole;
 	private config: PlayerConfig;
 	private itemXml: string;
-	private doc: Document;
+	private itemDocument: AssessmentItemDocument;
 	private assessmentItem: Element;
 	private decls: DeclarationMap;
 	private ctx: DeclarationContext;
@@ -82,11 +94,23 @@ export class Player {
 	private responseProcessingProgram: ProcessingProgram | null = null;
 	private templateProcessingProgram: ProcessingProgram | null = null;
 	private outcomeProcessingProgram: ProcessingProgram | null = null;
+	private _pnp: PnpProfile | undefined;
+	private _rootEl: HTMLElement | undefined;
+	private _catalogIndex: CatalogIndex = new Map();
+	private _stimulusCatalogIndexes: Map<string, CatalogIndex> = new Map();
+	private _pciHosts: Map<string, PciHost> = new Map();
+	private _pnpChangeListeners = new Set<(pnp: PnpProfile | undefined) => void>();
+	private sessionGuid: string;
+	private lifecycleStatus: ItemLifecycleStatus = 'initial';
+	private sessionStartedAt: number;
+	private accumulatedDurationMs = 0;
 
 	constructor(config: PlayerConfig) {
 		this.config = config;
 		this.itemXml = config.itemXml ?? '';
 		this.role = config.role ?? 'candidate';
+		this.sessionGuid = createSessionGuid();
+		this.sessionStartedAt = Date.now();
 		this.rng = config.rng ?? (typeof config.seed === 'number' ? createSeededRng(config.seed) : Math.random);
 
 		// Auto-detect QTI version and create appropriate mappers if not provided
@@ -109,15 +133,23 @@ export class Player {
 			}
 		} else {
 			this.mapper = config.elementNameMapper as ElementNameMapper;
+			if (!config.attributeNameMapper) {
+				(config as any).attributeNameMapper =
+					this.mapper.version === '3.0'
+						? new Qti3AttributeNameMapper()
+						: new Qti2xAttributeNameMapper();
+			}
 		}
 
-		// Optional DoS guardrails for untrusted content (compat-by-default; disabled unless enabled).
-		enforceItemXmlLimits(this.itemXml, this.config.security);
+		this.itemDocument = parseAssessmentItemDocument({
+			itemXml: this.itemXml,
+			elementNameMapper: this.mapper,
+			attributeNameMapper: config.attributeNameMapper as AttributeNameMapper,
+			security: this.config.security,
+		});
+		this.assessmentItem = this.itemDocument.getAssessmentItem();
 
-		this.doc = parseXml(this.itemXml);
-		this.assessmentItem = findAssessmentItem(this.doc);
-
-		this.decls = this.buildDeclarations(this.assessmentItem);
+		this.decls = this.buildDeclarations();
 		this.ensureBuiltinDeclarations(this.decls);
 		this.ctx = new DeclarationContext(this.decls);
 		this.ops = new OperatorRegistry();
@@ -135,8 +167,8 @@ export class Player {
 		// I18n provider (defaults to a simple fallback if not provided)
 		this.i18nProvider = config.i18nProvider ?? this.createDefaultI18nProvider();
 
-		// Register standard extractors (idempotent per-registry instance)
-		for (const ex of ALL_STANDARD_EXTRACTORS) {
+		// Register standard interaction extractors (idempotent per-registry instance)
+		for (const ex of getStandardInteractionExtractors()) {
 			try {
 				this.extractionRegistry.register(ex as any);
 			} catch {
@@ -155,7 +187,7 @@ export class Player {
 		}
 
 		// Build ASTs once.
-		const templateProcessing = findFirstDescendant(this.assessmentItem, this.mapper.toNative('templateprocessing'));
+		const templateProcessing = this.itemDocument.getProcessingElement('template');
 		if (templateProcessing) {
 			this.templateProcessingProgram = buildTemplateProcessingAst(templateProcessing, {
 				elementNameMapper: this.mapper,
@@ -163,14 +195,14 @@ export class Player {
 			this.execTemplateProcessing();
 		}
 
-		const responseProcessing = findFirstDescendant(this.assessmentItem, this.mapper.toNative('responseprocessing'));
+		const responseProcessing = this.itemDocument.getProcessingElement('response');
 		if (responseProcessing) {
 			this.responseProcessingProgram = buildResponseProcessingAst(responseProcessing, {
 				elementNameMapper: this.mapper,
 			});
 		}
 
-		const outcomeProcessing = findFirstDescendant(this.assessmentItem, this.mapper.toNative('outcomeprocessing'));
+		const outcomeProcessing = this.itemDocument.getProcessingElement('outcome');
 		if (outcomeProcessing) {
 			this.outcomeProcessingProgram = buildOutcomeProcessingAst(outcomeProcessing, {
 				elementNameMapper: this.mapper,
@@ -196,10 +228,150 @@ export class Player {
 			);
 		}
 
+		// Store PNP profile for later use (applyPnpToRoot is called once a root element is available).
+		this._pnp = config.pnp;
+
+		// Build catalog index from legacy shared catalog XML, item XML, and resolved delivery context.
+		// Sanitized item-level delivery context entries win over raw item XML on collisions.
+		// Stimulus entries are kept separately so rendered stimulus terms can avoid ID collisions.
+		let mergedCatalog: CatalogIndex = new Map();
+		let deliveryItemCatalog: CatalogIndex = new Map();
+		for (const source of config.deliveryContext?.catalogSources ?? []) {
+			const sourceCatalog = extractCatalog(source.xml);
+			if (source.scope === 'stimulus' && source.stimulusIdentifier) {
+				const existing = this._stimulusCatalogIndexes.get(source.stimulusIdentifier) ?? new Map();
+				this._stimulusCatalogIndexes.set(source.stimulusIdentifier, mergeCatalogs(existing, sourceCatalog));
+			} else {
+				deliveryItemCatalog = mergeCatalogs(deliveryItemCatalog, sourceCatalog);
+			}
+		}
+		if (config.catalogXml) {
+			mergedCatalog = mergeCatalogs(mergedCatalog, extractCatalogFromItemXml(config.catalogXml));
+		}
+		mergedCatalog = mergeCatalogs(mergedCatalog, extractCatalogFromItemXml(this.itemXml));
+		this._catalogIndex = mergeCatalogs(mergedCatalog, deliveryItemCatalog);
+
 		// Check strict compliance if enabled
 		if (this.config.strictQtiCompliance?.enabled) {
 			this.validateStrictCompliance();
 		}
+	}
+
+	/**
+	 * Apply the PNP profile to a player root element.
+	 * Call this once the root DOM element is available (e.g. after mounting).
+	 * The player stores the element reference so updatePnp() can re-apply without re-parsing the item.
+	 */
+	public applyPnp(rootEl: HTMLElement): void {
+		this._rootEl = rootEl;
+		applyPnpToRoot(rootEl, this._pnp);
+	}
+
+	/**
+	 * Update the PNP profile mid-session without re-parsing the item XML.
+	 * Deep-merges the partial profile into the current profile and re-applies.
+	 */
+	public updatePnp(partial: Partial<PnpProfile>): void {
+		this._pnp = mergePnp(this._pnp, partial);
+		if (this._rootEl) {
+			applyPnpToRoot(this._rootEl, this._pnp);
+		}
+		for (const listener of this._pnpChangeListeners) {
+			listener(this._pnp);
+		}
+	}
+
+	/** Return the current resolved PNP profile. */
+	public getPnp(): PnpProfile | undefined {
+		return this._pnp;
+	}
+
+	public onPnpChange(listener: (pnp: PnpProfile | undefined) => void): () => void {
+		this._pnpChangeListeners.add(listener);
+		return () => this._pnpChangeListeners.delete(listener);
+	}
+
+	/** Return the package/assessment-resolved delivery context, if one was supplied. */
+	public getDeliveryContext(): ResolvedItemDeliveryContext | undefined {
+		return this.config.deliveryContext;
+	}
+
+	/**
+	 * Look up a catalog entry by card identifier, usage type, and optional language.
+	 * Returns the HTML string for the matched entry, or null if not found.
+	 *
+	 * Language fallback: exact match → prefix match → no-lang entry → null.
+	 */
+	public getCatalogEntry(
+		idref: string,
+		usage: string,
+		lang?: string,
+		options?: { stimulusIdentifier?: string }
+	): string | null {
+		const stimulusHtml = options?.stimulusIdentifier
+			? getCatalogEntry(this._stimulusCatalogIndexes.get(options.stimulusIdentifier) ?? new Map(), idref, usage, lang)
+			: null;
+		const html = stimulusHtml ?? getCatalogEntry(this._catalogIndex, idref, usage, lang);
+		if (html === null) return null;
+		if (looksLikeCatalogUrl(html)) {
+			return sanitizeResourceUrl(html.trim(), this.config.security?.urlPolicy, 'img');
+		}
+		return this.sanitizeHtmlContent(html);
+	}
+
+	/** Sanitize externally resolved item-adjacent HTML before it reaches a rendering sink. */
+	public sanitizeHtmlContent(html: string): string {
+		return sanitizeHtml(html, { security: this.config.security });
+	}
+
+	/**
+	 * Create a PciHost for an extracted PCI and register it for response tracking.
+	 * The caller is responsible for calling host.load() and
+	 * host.initialize(domNode) once the DOM element is available.
+	 */
+	public createPciHost(data: ExtractedPci): PciHost {
+		const baseUrl = this.config.pciBaseUrl ?? (typeof document !== 'undefined' ? document.baseURI : '');
+		const host = new PciHost(data, baseUrl);
+
+		// Wire response changes back into the player's declaration context
+		host.onResponseChange((responseId: string, value: unknown) => {
+			const d = this.decls[responseId];
+			if (d) {
+				d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, value);
+			}
+		});
+
+		this._pciHosts.set(data.responseIdentifier, host);
+		return host;
+	}
+
+	/**
+	 * Push a response value into the PCI identified by responseIdentifier.
+	 * Called from setResponses() so session restore reaches PCI modules.
+	 */
+	public setPciResponse(responseIdentifier: string, value: unknown): void {
+		this._pciHosts.get(responseIdentifier)?.setResponse(value);
+	}
+
+	/**
+	 * Disable/enable all PCI hosts based on role.
+	 * 'candidate' = enabled; any other role = disabled.
+	 */
+	public syncPciDisabledState(): void {
+		const disabled = this.role !== 'candidate';
+		for (const host of this._pciHosts.values()) {
+			if (disabled) host.disable(); else host.enable();
+		}
+	}
+
+	/**
+	 * Destroy all PCI hosts. Call on player teardown.
+	 */
+	public destroyPciHosts(): void {
+		for (const host of this._pciHosts.values()) {
+			host.destroy();
+		}
+		this._pciHosts.clear();
 	}
 
 	/** Breaking-change API: returns the typed declaration map */
@@ -212,54 +384,152 @@ export class Player {
 			const d = this.decls[id];
 			if (!d) continue;
 			d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, raw);
+			// Push restored responses into any mounted PCI modules
+			this.setPciResponse(id, raw);
 		}
 	}
 
+	/**
+	 * Destroy all resources owned by this player instance (PCI modules, etc.).
+	 * Call when unmounting to prevent memory leaks.
+	 */
+	public destroy(): void {
+		this.destroyPciHosts();
+	}
+
 	public processResponses(): ScoringResult {
-		// Spec-aligned behavior: each processing run starts from outcome defaults.
-		// This prevents stale outcomes when response/outcome processing doesn't set every variable.
+		return this.runResponseProcessing({ finalizeNonAdaptiveAttempt: true });
+	}
+
+	public saveItemSession(): SerializedItemSessionState {
+		this.freezeDuration();
+		return this.serializeItemSession();
+	}
+
+	public restoreItemSession(state: SerializedItemSessionState): void {
+		this.sessionGuid = state.sessionGuid;
+		this.lifecycleStatus = state.lifecycleStatus;
+		this.accumulatedDurationMs = Math.max(0, Number(state.duration) || 0);
+		this.sessionStartedAt = Date.now();
+		this.applySerializedVariables(state.responseVariables);
+		this.applySerializedVariables(state.outcomeVariables);
+		this.applySerializedVariables(state.templateVariables);
+		this.applySerializedVariables(state.contextVariables);
+		this.updateDuration();
+	}
+
+	public suspendAttempt(): ItemSessionActionResult {
+		return this.runItemSessionAction({ action: 'suspendAttempt' });
+	}
+
+	public endAttempt(options: { countAttempt?: boolean; validateResponses?: boolean } = {}): ItemSessionActionResult {
+		return this.runItemSessionAction({ action: 'endAttempt', ...options });
+	}
+
+	public scoreAttempt(): ItemSessionActionResult {
+		return this.runItemSessionAction({ action: 'scoreAttempt' });
+	}
+
+	public newTemplate(options: { resetResponses?: boolean } = {}): ItemSessionActionResult {
+		return this.runItemSessionAction({ action: 'newTemplate', ...options });
+	}
+
+	public runItemSessionAction(command: ItemSessionActionCommand): ItemSessionActionResult {
+		switch (command.action) {
+			case 'suspendAttempt':
+				return this.runSuspendAttemptAction();
+			case 'endAttempt':
+				return this.runEndAttemptAction(command);
+			case 'scoreAttempt':
+				return this.runScoreAttemptAction();
+			case 'newTemplate':
+				return this.runNewTemplateAction(command);
+			case 'submitAttempt':
+				return this.runSubmitAttemptAction(command.countAttempt ?? true);
+		}
+	}
+
+	private runSuspendAttemptAction(): ItemSessionActionResult {
+		const validation = this.validateResponses(this.getResponses());
+		this.lifecycleStatus = 'suspended';
+		const sessionState = this.saveItemSession();
+		return this.createItemSessionActionResult('suspendAttempt', sessionState, { validation });
+	}
+
+	private runEndAttemptAction(options: { countAttempt?: boolean; validateResponses?: boolean }): ItemSessionActionResult {
+		const validate = options.validateResponses ?? false;
+		const validation = validate ? this.validateResponses(this.getResponses()) : undefined;
+		if (validation && !validation.valid) {
+			return this.createItemSessionActionResult('endAttempt', this.saveItemSession(), { validation });
+		}
+
+		const scoring = this.isAdaptive()
+			? this.runAdaptiveSubmitAttempt(options.countAttempt ?? true)
+			: this.runResponseProcessing({
+					finalizeNonAdaptiveAttempt: true,
+					countAttempt: options.countAttempt ?? true,
+				});
+		this.lifecycleStatus = scoring.completed ? 'closed' : 'interacting';
+
+		return this.createItemSessionActionResult('endAttempt', this.saveItemSession(), {
+			completed: scoring.completed,
+			validation,
+			scoring,
+		});
+	}
+
+	private runScoreAttemptAction(): ItemSessionActionResult {
+		const scoring = this.runResponseProcessing({ finalizeNonAdaptiveAttempt: false });
+		return this.createItemSessionActionResult('scoreAttempt', this.saveItemSession(), {
+			completed: scoring.completed,
+			scoring,
+		});
+	}
+
+	private runNewTemplateAction(options: { resetResponses?: boolean }): ItemSessionActionResult {
 		this.resetOutcomesToDefault();
-
-		// Execute response processing if present
-		const rpEl = findFirstDescendant(this.assessmentItem, this.mapper.toNative('responseprocessing'));
-		if (rpEl) {
-			// If responseProcessing has explicit statements, run the compiled program.
-			// Otherwise, fall back to template-based processing (responseProcessing@template).
-			const hasStatements = childElements(rpEl).length > 0;
-			if (hasStatements) {
-				this.execResponseProcessingProgram();
-			} else {
-				const templateUrl = getAttr(rpEl, 'template');
-				if (templateUrl) this.execResponseProcessingTemplate(templateUrl);
-			}
+		if (options.resetResponses ?? true) {
+			this.resetResponsesToDefault();
 		}
+		this.resetTemplatesToDefault();
+		this.ctx.setValue('completionStatus', qtiValue('identifier', 'single', 'not_attempted'));
+		this.ctx.setValue('numAttempts', qtiValue('integer', 'single', 0));
+		this.execTemplateProcessing();
+		this.lifecycleStatus = 'initial';
+		this.accumulatedDurationMs = 0;
+		this.sessionStartedAt = Date.now();
+		this.updateDuration();
 
-		
-		// Execute outcome processing if present (runs after responseProcessing)
-		this.execOutcomeProcessingProgram();
+		return this.createItemSessionActionResult('newTemplate', this.serializeItemSession());
+	}
 
-		// For non-adaptive items, update completionStatus and numAttempts after processing
-		if (!this.isAdaptive()) {
-			// Set completionStatus to 'completed' for non-adaptive items (single submission)
-			this.ctx.setValue('completionStatus', qtiValue('identifier', 'single', 'completed'));
-			// Increment numAttempts for non-adaptive items (tracks total submissions, including retries)
-			const currentAttempts = this.getNumAttempts();
-			this.ctx.setValue('numAttempts', qtiValue('integer', 'single', currentAttempts + 1));
-		}
+	private runSubmitAttemptAction(countAttempt: boolean): ItemSessionActionResult {
+		const scoring = this.runAdaptiveSubmitAttempt(countAttempt);
+		return this.createItemSessionActionResult('submitAttempt', this.saveItemSession(), {
+			completed: scoring.completed,
+			scoring,
+		});
+	}
 
-		const outcomes = this.collectOutcomes();
-		
-		const score = Number(outcomes.SCORE ?? 0);
-		const maxScore = Number(outcomes.MAXSCORE ?? 1);
-		const completionStatus = (outcomes.completionStatus as CompletionStatus | undefined) ?? 'not_attempted';
-		const completed = completionStatus === 'completed' || !this.isAdaptive();
-
+	private createItemSessionActionResult(
+		action: ItemSessionAction,
+		sessionState: SerializedItemSessionState,
+		options: {
+			completed?: boolean;
+			validation?: ResponseValidationResult;
+			scoring?: ScoringResult;
+		} = {}
+	): ItemSessionActionResult {
 		return {
-			score,
-			maxScore,
-			completed,
-			outcomeValues: outcomes,
-			modalFeedback: this.getModalFeedback(outcomes),
+			action,
+			lifecycleStatus: this.lifecycleStatus,
+			completionStatus: this.getCompletionStatus(),
+			numAttempts: this.getNumAttempts(),
+			duration: sessionState.duration,
+			completed: options.completed ?? this.isCompleted(),
+			sessionState,
+			validation: options.validation,
+			scoring: options.scoring,
 		};
 	}
 
@@ -366,48 +636,116 @@ export class Player {
 			if ((d as any).__kind !== 'outcome') continue;
 			// Built-in stateful variables must survive across processing runs.
 			// They are updated by the runtime (adaptive attempt tracking), not by outcome defaults.
-			if (d.identifier === 'numAttempts' || d.identifier === 'completionStatus') continue;
+			if (d.identifier === 'numAttempts' || d.identifier === 'completionStatus' || d.identifier === 'duration') continue;
 			this.ctx.resetToDefault(d.identifier);
 		}
 	}
 
-	public getItemBodyHtml(): HtmlContent {
-		const itemBody = findFirstDescendant(this.assessmentItem, this.mapper.toNative('itembody'));
-		if (!itemBody) return '';
+	private resetResponsesToDefault(): void {
+		for (const d of Object.values(this.decls)) {
+			if ((d as any).__kind !== 'response') continue;
+			this.ctx.resetToDefault(d.identifier);
+			this.setPciResponse(d.identifier, d.value.kind === 'value' ? d.value.value : null);
+		}
+	}
 
-		// Serialize children rather than the container tag itself.
-		const inner = childElements(itemBody).map((c) => serializeXml(c)).join('');
-		const printed = this.renderPrintedVariables(inner);
-		const sanitized = sanitizeHtml(printed, { security: this.config.security });
-		return toTrustedHtml(sanitized, this.config.security?.trustedTypesPolicyName);
+	private resetTemplatesToDefault(): void {
+		for (const d of Object.values(this.decls)) {
+			if (!d.isTemplate) continue;
+			this.ctx.resetToDefault(d.identifier);
+		}
+	}
+
+	private runResponseProcessing(options: {
+		finalizeNonAdaptiveAttempt: boolean;
+		countAttempt?: boolean;
+	}): ScoringResult {
+		this.updateDuration();
+		// Spec-aligned behavior: each processing run starts from outcome defaults.
+		// This prevents stale outcomes when response/outcome processing doesn't set every variable.
+		this.resetOutcomesToDefault();
+
+		// Execute response processing if present
+		const rpEl = this.itemDocument.getProcessingElement('response');
+		if (rpEl) {
+			// If responseProcessing has explicit statements, run the compiled program.
+			// Otherwise, fall back to template-based processing (responseProcessing@template).
+			const hasStatements = childElements(rpEl).length > 0;
+			if (hasStatements) {
+				this.execResponseProcessingProgram();
+			} else {
+				const templateUrl = getAttr(rpEl, 'template');
+				if (templateUrl) this.execResponseProcessingTemplate(templateUrl);
+			}
+		}
+
+		// Execute outcome processing if present (runs after responseProcessing)
+		this.execOutcomeProcessingProgram();
+
+		// Compatibility: processResponses() has historically finalized non-adaptive items.
+		// New scoreAttempt() uses this same engine with finalization disabled.
+		if (!this.isAdaptive() && options.finalizeNonAdaptiveAttempt) {
+			this.ctx.setValue('completionStatus', qtiValue('identifier', 'single', 'completed'));
+			if (options.countAttempt ?? true) {
+				const currentAttempts = this.getNumAttempts();
+				this.ctx.setValue('numAttempts', qtiValue('integer', 'single', currentAttempts + 1));
+			}
+		}
+
+		const outcomes = this.collectOutcomes();
+
+		const score = Number(outcomes.SCORE ?? 0);
+		const maxScore = Number(outcomes.MAXSCORE ?? 1);
+		const completionStatus = (outcomes.completionStatus as CompletionStatus | undefined) ?? 'not_attempted';
+		const completed = completionStatus === 'completed' || (!this.isAdaptive() && options.finalizeNonAdaptiveAttempt);
+
+		return {
+			score,
+			maxScore,
+			completed,
+			outcomeValues: outcomes,
+			modalFeedback: this.getModalFeedback(outcomes),
+		};
+	}
+
+	public getItemBodyHtml(): HtmlContent {
+		const inner = this.itemDocument.serializeItemBodyChildren();
+		if (!inner) return '';
+
+		return this.renderHtmlContent(inner);
 	}
 
 	/**
 	 * Extract rubric blocks for the current role.
 	 *
 	 * QTI uses `<rubricBlock view="...">` to provide role-specific guidance.
-	 * We return sanitized HTML for direct rendering.
+	 * We return sanitized HTML for host rendering. `scope: "direct"` rubrics
+	 * are assessmentItem children; `scope: "itemBody"` rubrics are authored in
+	 * the rendered item body flow.
 	 */
-	public getRubrics(): RubricBlock[] {
+	public getRubrics(options: RubricBlockOptions = {}): RubricBlock[] {
 		const role = this.role;
-		const rubricEls = findDescendants(this.assessmentItem, this.mapper.toNative('rubricblock'));
+		const rubricEls = this.itemDocument.findRubricElements();
 		if (rubricEls.length === 0) return [];
 
 		const blocks: RubricBlock[] = [];
 		for (const el of rubricEls) {
+			const scope = this.itemDocument.rubricElementScope(el);
+			if (options.scope && options.scope !== 'all' && scope !== options.scope) continue;
+
 			const viewRaw = (getAttr(el, 'view') || '').trim();
-			const view = viewRaw ? viewRaw.split(/\s+/).filter(Boolean) : [];
+			const view = viewRaw ? viewRaw.split(/[\s,]+/).filter(Boolean) : [];
+			const use = (getAttr(el, 'use') || '').trim() || undefined;
 
 			// If view is specified, show only when it includes the current role.
 			if (view.length > 0 && role && !view.includes(role)) continue;
 
-			// Serialize children rather than the container tag itself.
-			const contentRaw = childElements(el).map((c) => serializeXml(c)).join('') || (el.textContent || '');
+			const contentRaw = this.itemDocument.serializeChildren(el) || (el.textContent || '');
 			const printed = this.renderPrintedVariables(contentRaw);
 			const sanitized = sanitizeHtml(printed, { security: this.config.security });
 			const html = toTrustedHtml(sanitized, this.config.security?.trustedTypesPolicyName);
 
-			blocks.push({ view, html });
+			blocks.push({ view, html, scope, use });
 		}
 
 		return blocks;
@@ -425,120 +763,12 @@ export class Player {
 	 * Canonical interaction API (new): extracted, typed interaction data.
 	 */
 	public getInteractionData(): InteractionData[] {
-		const itemBody = findFirstDescendant(this.assessmentItem, this.mapper.toNative('itembody'));
-		if (!itemBody) return [];
-
-		// Parse the original item XML with node-html-parser (extractors depend on its HTMLElement API).
-		// Important: using the original XML avoids namespace/serialization artifacts from XMLSerializer.
-		enforceItemXmlLimits(this.itemXml, this.config.security);
-		const docRoot = parse(this.itemXml, { lowerCaseTagName: false, comment: false }) as any as QTIElement;
-		// node-html-parser's CSS selectors match lowercase tag names.
-		// Search for itemBody in the native form for this QTI version (itembody for 2.x, qti-item-body for 3.0)
-		const itemBodyTag = this.mapper.toNative('itembody').toLowerCase();
-		const parsedItemBody = (docRoot.querySelector?.(itemBodyTag) as any as QTIElement | null) ?? null;
-		const root = parsedItemBody ?? docRoot;
-
-		const declMap = new Map<string, ExtractionVariableDeclaration>();
-		for (const d of Object.values(this.decls)) {
-			declMap.set(d.identifier, {
-				identifier: d.identifier,
-				cardinality: d.cardinality as any,
-				baseType: d.baseType,
-			});
-		}
-
-		// Discover all elements that match any standard extractor elementType.
-		// Extractors specify element types in QTI 2.x form (e.g., 'choiceInteraction').
-		// We use the mapper to convert to the appropriate form for this QTI version
-		// (e.g., 'choiceInteraction' for QTI 2.x, 'qti-choice-interaction' for QTI 3.0).
-		const tagSet = new Set<string>();
-		for (const ex of ALL_STANDARD_EXTRACTORS) {
-			for (const t of ex.elementTypes ?? []) {
-				// Convert to canonical form (lowercase), then to native form using mapper
-				const canonical = t.toLowerCase();
-				const native = this.mapper.toNative(canonical);
-				tagSet.add(native.toLowerCase());
-			}
-		}
-
-		const elements: QTIElement[] = [];
-		for (const tag of tagSet) {
-			try {
-				elements.push(...(root.querySelectorAll(tag) as any));
-			} catch {
-				// ignore selector errors
-			}
-		}
-
-		const interactions: InteractionData[] = [];
-		for (const el of elements) {
-			// Try both QTI 2.x (responseIdentifier) and QTI 3.0 (response-identifier) attribute names
-			const responseId = el.getAttribute?.('responseIdentifier') ||
-			                   el.getAttribute?.('response-identifier') ||
-			                   el.getAttribute?.('responseidentifier') ||
-			                   '';
-			if (!responseId) continue;
-
-			const ctx = createExtractionContext(el, responseId, root, declMap, this.config);
-			const res = this.extractionRegistry.extract<any>(el, ctx);
-			if (!res.success) continue;
-
-			interactions.push({
-				type: el.rawTagName as any,
-				responseId,
-				...res.data,
-			});
-		}
-
-		// Apply URL policy + embed allowances to standard extracted URL fields.
-		const policy = this.config.security?.urlPolicy;
-		const allowObjectEmbeds = this.config.security?.allowObjectEmbeds === true;
-		const ttPolicyName = this.config.security?.trustedTypesPolicyName;
-
-		for (const i of interactions as any[]) {
-			// Wrap known HTML injection fields in TrustedHTML (when enabled).
-			// Important: do NOT wrap fields that are rendered as plain text in our Svelte components
-			// (e.g. prompt) to avoid "[object Object]" rendering.
-			if (i.type === 'choiceInteraction' && Array.isArray(i.choices)) {
-				for (const c of i.choices) {
-					if (typeof c?.text === 'string') c.text = toTrustedHtml(c.text, ttPolicyName);
-				}
-			}
-
-			// Shared ImageData shape
-			if (i.imageData?.src) {
-				i.imageData.src = sanitizeResourceUrl(i.imageData.src, policy, 'img') ?? '';
-			}
-			if (i.imageData?.content && typeof i.imageData.content === 'string') {
-				i.imageData.content = toTrustedHtml(i.imageData.content, ttPolicyName);
-			}
-
-			// positionObject stages
-			if (Array.isArray(i.positionObjectStages)) {
-				for (const st of i.positionObjectStages) {
-					if (st?.objectData?.src) {
-						st.objectData.src = sanitizeResourceUrl(st.objectData.src, policy, 'img') ?? '';
-					}
-					if (st?.objectData?.content && typeof st.objectData.content === 'string') {
-						st.objectData.content = toTrustedHtml(st.objectData.content, ttPolicyName);
-					}
-				}
-			}
-
-			// mediaInteraction
-			if (i.type === 'mediaInteraction' && i.mediaElement?.src) {
-				const kind = i.mediaElement.type === 'object' ? 'object' : 'media';
-				i.mediaElement.src = sanitizeResourceUrl(i.mediaElement.src, policy, kind) ?? '';
-				i.allowObjectEmbeds = allowObjectEmbeds;
-			}
-
-			// hottextInteraction content is injected via {@html}
-			if (i.type === 'hottextInteraction' && typeof i.contentHtml === 'string') {
-				i.contentHtml = toTrustedHtml(i.contentHtml, ttPolicyName);
-			}
-		}
-
-		return interactions;
+		return extractInteractionData({
+			document: this.itemDocument,
+			extractionRegistry: this.extractionRegistry,
+			declarations: this.decls,
+			config: this.config,
+		});
 	}
 
 	/**
@@ -570,7 +800,7 @@ export class Player {
 	}
 
 	public isAdaptive(): boolean {
-		return (getAttr(this.assessmentItem, 'adaptive') || '').toLowerCase() === 'true';
+		return (this.itemDocument.getAssessmentItemAttribute('adaptive') || '').toLowerCase() === 'true';
 	}
 
 	public getNumAttempts(): number {
@@ -587,6 +817,11 @@ export class Player {
 	}
 
 	public submitAttempt(countAttempt: boolean = true): AdaptiveAttemptResult {
+		const result = this.runItemSessionAction({ action: 'submitAttempt', countAttempt });
+		return result.scoring as AdaptiveAttemptResult;
+	}
+
+	private runAdaptiveSubmitAttempt(countAttempt: boolean = true): AdaptiveAttemptResult {
 		if (this.isCompleted()) {
 			throw new Error('Cannot submit: item is already completed');
 		}
@@ -697,8 +932,40 @@ export class Player {
 				const minPlays = Number(i.minPlays || 0);
 				complete = Number(value || 0) >= minPlays;
 			} else if (required) {
-				if (Array.isArray(value)) complete = value.length > 0;
-				else complete = value !== null && value !== undefined && value !== '';
+				if (Array.isArray(value)) {
+					complete = value.length > 0;
+					// Enforce minChoices / minAssociations where applicable
+					const minChoices = Number(i.minChoices || i.minAssociations || 0);
+					if (complete && minChoices > 0) {
+						complete = value.length >= minChoices;
+					}
+					// Enforce matchMin per-choice: each pairing entry "id1 id2" in value must
+					// appear at least matchMin times for the relevant choice.
+					// Collect all choice arrays that can carry matchMin across all pairing interaction types.
+					const choices: Array<{ identifier: string; matchMin?: number }> = [
+						...(i.choices ?? []),
+						...(i.gapTexts ?? []),
+						...(i.gapImages ?? []),
+						...(i.sourceSet ?? []),
+						...(i.targetSet ?? []),
+						...(i.associableHotspots ?? []),
+					];
+					for (const choice of choices) {
+						const min = Number(choice.matchMin || 0);
+						if (min > 0) {
+							const count = (value as string[]).filter((p) => {
+								const parts = p.split(' ');
+								return parts[0] === choice.identifier || parts[1] === choice.identifier;
+							}).length;
+							if (count < min) {
+								complete = false;
+								break;
+							}
+						}
+					}
+				} else {
+					complete = value !== null && value !== undefined && value !== '';
+				}
 			}
 
 			const errors: string[] = [];
@@ -820,7 +1087,7 @@ export class Player {
 	}
 
 	private execResponseProcessingTemplate(templateUrl: string): void {
-		const name = templateUrl.split('/').pop()?.toLowerCase();
+		const name = templateUrl.split('/').pop()?.toLowerCase().replace(/\.xml$/, '');
 		if (!name) {
 			console.warn(`[QTI Player] Could not extract template name from URL: ${templateUrl}`);
 			return;
@@ -905,7 +1172,7 @@ export class Player {
 	// Declarations
 	// ----------------------------------------------------------------------------
 
-	private buildDeclarations(root: Element): DeclarationMap {
+	private buildDeclarations(): DeclarationMap {
 		const decls: DeclarationMap = {};
 
 		const addDecl = (kind: DeclKind, el: Element) => {
@@ -959,9 +1226,9 @@ export class Player {
 			}
 		};
 
-		for (const el of findDescendants(root, this.mapper.toNative('responsedeclaration'))) addDecl('response', el);
-		for (const el of findDescendants(root, this.mapper.toNative('outcomedeclaration'))) addDecl('outcome', el);
-		for (const el of findDescendants(root, this.mapper.toNative('templatedeclaration'))) addDecl('template', el);
+		for (const el of this.itemDocument.findDeclarationElements('response')) addDecl('response', el);
+		for (const el of this.itemDocument.findDeclarationElements('outcome')) addDecl('outcome', el);
+		for (const el of this.itemDocument.findDeclarationElements('template')) addDecl('template', el);
 
 		return decls;
 	}
@@ -1016,7 +1283,21 @@ export class Player {
 				identifier: 'numAttempts',
 				baseType: 'integer',
 				cardinality: 'single',
+				defaultValue: qtiValue('integer', 'single', 0),
 				value: qtiValue('integer', 'single', 0),
+				isTemplate: false,
+				// @ts-expect-error internal marker
+				__kind: 'outcome',
+			};
+		}
+
+		if (!decls.duration) {
+			decls.duration = {
+				identifier: 'duration',
+				baseType: 'duration',
+				cardinality: 'single',
+				defaultValue: qtiValue('duration', 'single', 0),
+				value: qtiValue('duration', 'single', 0),
 				isTemplate: false,
 				// @ts-expect-error internal marker
 				__kind: 'outcome',
@@ -1054,6 +1335,95 @@ export class Player {
 			if (!d) continue;
 			d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, raw);
 		}
+		const restoredDuration = Number(state.duration);
+		if (Number.isFinite(restoredDuration) && restoredDuration >= 0) {
+			this.accumulatedDurationMs = restoredDuration;
+			this.sessionStartedAt = Date.now();
+			this.updateDuration();
+		}
+	}
+
+	private applySerializedVariables(vars: Record<string, SerializedItemSessionVariable>): void {
+		for (const v of Object.values(vars)) {
+			const d = this.decls[v.identifier];
+			if (!d) continue;
+			d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, v.value);
+			if ((d as any).__kind === 'response') {
+				this.setPciResponse(d.identifier, v.value);
+			}
+		}
+	}
+
+	private serializeItemSession(): SerializedItemSessionState {
+		const responseVariables: Record<string, SerializedItemSessionVariable> = {};
+		const outcomeVariables: Record<string, SerializedItemSessionVariable> = {};
+		const templateVariables: Record<string, SerializedItemSessionVariable> = {};
+		const contextVariables: Record<string, SerializedItemSessionVariable> = {};
+		const contextIds = new Set(['completionStatus', 'numAttempts', 'duration']);
+
+		for (const d of Object.values(this.decls)) {
+			const variable = this.serializeVariable(d);
+			if (d.isTemplate) {
+				templateVariables[d.identifier] = { ...variable, kind: 'template' };
+			} else if (contextIds.has(d.identifier)) {
+				contextVariables[d.identifier] = { ...variable, kind: 'context' };
+			} else if ((d as any).__kind === 'response') {
+				responseVariables[d.identifier] = { ...variable, kind: 'response' };
+			} else if ((d as any).__kind === 'outcome') {
+				outcomeVariables[d.identifier] = { ...variable, kind: 'outcome' };
+			}
+		}
+
+		const validation = this.validateResponses(this.getResponses());
+		return {
+			itemIdentifier: this.itemDocument.getAssessmentItemAttribute('identifier') ?? undefined,
+			sessionGuid: this.sessionGuid,
+			lifecycleStatus: this.lifecycleStatus,
+			completionStatus: this.getCompletionStatus(),
+			numAttempts: this.getNumAttempts(),
+			duration: this.getDuration(),
+			responseVariables,
+			outcomeVariables,
+			templateVariables,
+			contextVariables,
+			validationMessages: validation.issues,
+			savedAt: new Date().toISOString(),
+		};
+	}
+
+	private serializeVariable(d: DeclarationMap[string]): SerializedItemSessionVariable {
+		return {
+			identifier: d.identifier,
+			kind: ((d as any).__kind ?? (d.isTemplate ? 'template' : 'context')) as SerializedItemSessionVariable['kind'],
+			baseType: d.baseType,
+			cardinality: d.cardinality,
+			value: this.qtiValueToSerializable(d.value),
+			defaultValue: this.qtiValueToSerializable(d.defaultValue),
+		};
+	}
+
+	private qtiValueToSerializable(value: QtiValue | undefined): any {
+		if (!value || value.kind !== 'value') return null;
+		return value.value;
+	}
+
+	private updateDuration(): void {
+		const elapsedMs = Math.max(0, Date.now() - this.sessionStartedAt);
+		const durationMs = this.accumulatedDurationMs + elapsedMs;
+		this.ctx.setValue('duration', qtiValue('duration', 'single', durationMs));
+	}
+
+	private freezeDuration(): number {
+		this.updateDuration();
+		const duration = this.getDuration();
+		this.accumulatedDurationMs = duration;
+		this.sessionStartedAt = Date.now();
+		return duration;
+	}
+
+	private getDuration(): number {
+		const value = this.ctx.getValue('duration');
+		return Math.max(0, Math.floor(toNumber(value) || 0));
 	}
 
 	private parseDefaultValue(declEl: Element, baseType: BaseType, cardinality: Cardinality): QtiValue {
@@ -1229,17 +1599,23 @@ export class Player {
 		return out;
 	}
 
+	private renderHtmlContent(html: string): HtmlContent {
+		const printed = this.renderPrintedVariables(html);
+		const sanitized = sanitizeHtml(printed, { security: this.config.security });
+		return toTrustedHtml(sanitized, this.config.security?.trustedTypesPolicyName);
+	}
+
 	private getModalFeedback(outcomes: Record<string, any>): ModalFeedback[] {
-		const feedbackEls = findDescendants(this.assessmentItem, this.mapper.toNative('modalfeedback'));
+		const feedbackEls = this.itemDocument.findModalFeedbackElements();
 		const active: ModalFeedback[] = [];
 
 		for (const el of feedbackEls) {
-			const identifier = getAttr(el, 'identifier') || '';
-			const outcomeIdentifier = getAttr(el, 'outcomeIdentifier') || '';
-			const showHide = (getAttr(el, 'showHide') || 'show') as 'show' | 'hide';
-			const title = getAttr(el, 'title') || undefined;
+			const identifier = this.getAttrMapped(el, 'identifier') || '';
+			const outcomeIdentifier = this.getAttrMapped(el, 'outcomeIdentifier') || '';
+			const showHide = (this.getAttrMapped(el, 'showHide') || 'show') as 'show' | 'hide';
+			const title = this.getAttrMapped(el, 'title') || undefined;
 
-			const contentRaw = childElements(el).map((c) => serializeXml(c)).join('') || (el.textContent || '');
+			const contentRaw = this.itemDocument.serializeChildren(el) || (el.textContent || '');
 			const sanitized = sanitizeHtml(contentRaw, { security: this.config.security });
 			const content = toTrustedHtml(sanitized, this.config.security?.trustedTypesPolicyName);
 
@@ -1253,4 +1629,27 @@ export class Player {
 	}
 }
 
+// ---------------------------------------------------------------------------
+// Module-level helpers
+// ---------------------------------------------------------------------------
 
+function mergePnp(base: PnpProfile | undefined, partial: Partial<PnpProfile>): PnpProfile {
+	return {
+		display: { ...(base?.display ?? {}), ...(partial.display ?? {}) },
+		content: { ...(base?.content ?? {}), ...(partial.content ?? {}) },
+		cognitive: { ...(base?.cognitive ?? {}), ...(partial.cognitive ?? {}) },
+	};
+}
+
+function createSessionGuid(): string {
+	if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+		return crypto.randomUUID();
+	}
+	return `item-session-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
+
+function looksLikeCatalogUrl(value: string): boolean {
+	const trimmed = value.trim();
+	return /^(https?:\/\/|\/\/|\/|\.{0,2}\/|data:|blob:)/i.test(trimmed) ||
+		/\.(png|jpe?g|gif|webp|svg|mp3|wav|ogg|mp4|webm|pdf)(\?.*)?$/i.test(trimmed);
+}

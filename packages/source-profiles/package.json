@@ -1,0 +1,58 @@
+{
+  "name": "@pie-qti/source-profiles",
+  "version": "0.1.13",
+  "description": "Source profile detectors and extraction helpers for real-world QTI packages",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./common-cartridge-csm": {
+      "types": "./dist/common-cartridge-csm.d.ts",
+      "import": "./dist/common-cartridge-csm.js"
+    },
+    "./gca": {
+      "types": "./dist/gca.d.ts",
+      "import": "./dist/gca.js"
+    },
+    "./savvas-myperspectives": {
+      "types": "./dist/savvas-myperspectives.d.ts",
+      "import": "./dist/savvas-myperspectives.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@pie-qti/transform-types": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pie-framework/pie-qti.git",
+    "directory": "packages/source-profiles"
+  },
+  "homepage": "https://github.com/pie-framework/pie-qti/tree/master/packages/source-profiles",
+  "bugs": {
+    "url": "https://github.com/pie-framework/pie-qti/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "files": [
+    "dist"
+  ]
+}

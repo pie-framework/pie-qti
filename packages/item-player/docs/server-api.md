@@ -1,10 +1,10 @@
 # Backend Scoring API Contract
 
-This document defines the API contract for implementing secure server-side scoring with the PIE QTI 2.2 Player.
+This document defines the API contract for implementing secure server-side scoring with the PIE QTI Player.
 
 ## Overview
 
-The PIE QTI 2.2 Player supports both client-side and server-side scoring. For production environments where security is critical, server-side scoring is recommended to:
+The PIE QTI Player supports both client-side and server-side scoring. For production environments where security is critical, server-side scoring is recommended to:
 
 1. **Prevent Answer Exposure** - Keep correct answers and scoring logic hidden from the client
 2. **Prevent Score Tampering** - Calculate scores on the server where they cannot be manipulated
@@ -28,7 +28,7 @@ Authorization: Bearer <token> (optional, recommended)
 **Request Body:**
 ```typescript
 {
-  itemXml: string;           // The QTI 2.2 XML for the item
+  itemXml: string;           // The QTI item XML
   responses: {               // The candidate's responses
     [responseIdentifier: string]: any;
   };
@@ -97,7 +97,7 @@ Authorization: Bearer <token> (optional, recommended)
 
 ### 2. Get Filtered Item Endpoint (Optional)
 
-**Purpose**: Return the QTI item XML with correct answers and sensitive information filtered based on the candidate's QTI 2.2 standard role.
+**Purpose**: Return the QTI item XML with correct answers and sensitive information filtered based on the candidate's QTI role.
 
 ```
 POST /api/qti/item/filter
@@ -108,7 +108,7 @@ Authorization: Bearer <token> (optional, recommended)
 **Request Body:**
 ```typescript
 {
-  itemXml: string;           // The full QTI 2.2 XML
+  itemXml: string;           // The full QTI XML
   role: QTIRole;             // 'candidate' | 'scorer' | 'author' | 'tutor' | 'proctor' | 'testConstructor'
   sessionId?: string;
 }
@@ -204,7 +204,7 @@ export async function POST({ request }: RequestEvent) {
 ```typescript
 function filterItemXml(xml: string, role: QTIRole): string {
   // Remove <correctResponse> elements for candidates
-  // QTI 2.2 role-based behavior: candidate role should not see correct answers
+  // Role-based behavior policy: candidate role should not see correct answers
   if (role === 'candidate') {
     // Use XML parser to remove correctResponse nodes
     return removeCorrectResponses(xml);
@@ -413,7 +413,7 @@ function filterOutcomes(
     filtered.completionStatus = outcomes.completionStatus;
   }
 
-  // Privileged roles can see all outcomes (QTI 2.2 standard roles)
+  // Privileged roles can see all outcomes (QTI standard roles)
   if (role === 'scorer' || role === 'author' || role === 'tutor' || role === 'testConstructor') {
     return outcomes;
   }
@@ -674,13 +674,13 @@ export async function DELETE({ request, params }: RequestEvent) {
 
 For questions or issues with backend scoring integration:
 
-- **Documentation**: See the main PIE QTI 2.2 Player README
+- **Documentation**: See the main PIE QTI Player README
 - **GitHub Issues**: https://github.com/pie-framework/pie-transform/issues
 - **Examples**: See the `example` package for working implementations
 
 ## Summary
 
-This API contract provides a secure foundation for server-side scoring with the PIE QTI 2.2 Player. Key features:
+This API contract provides a secure foundation for server-side scoring with the PIE QTI Player. Key features:
 
 - ✅ **Security**: JWT authentication, input validation, rate limiting
 - ✅ **Flexibility**: Customizable endpoints, middleware, and security policies

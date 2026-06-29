@@ -7,7 +7,7 @@
   Usage:
 
   <script>
-    import LocaleSwitcher from '@pie-qti/i18n/components/LocaleSwitcher.svelte';
+    import { LocaleSwitcher } from '@pie-qti/i18n/components';
     import { createI18n } from '@pie-qti/i18n';
 
     let locale = $state('en-US');

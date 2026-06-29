@@ -17,7 +17,7 @@
  * @see https://www.imsglobal.org/question/ for QTI specifications
  */
 
-import type { Logger } from './utils/logger.js';
+import type { Logger } from '@pie-qti/logger';
 
 /**
  * Configuration for QTI content heuristics
@@ -44,6 +44,21 @@ export interface QtiHeuristicsConfig {
 	lenientImagePaths?: boolean;
 
 	/**
+	 * Apply lenient package resource path resolution
+	 * Try unambiguous path-segment suffix matches for real-world packages whose
+	 * media or stylesheet references drift from the strict source-relative path.
+	 * (default: true when enabled)
+	 */
+	lenientPackageResourcePaths?: boolean;
+
+	/**
+	 * Apply lenient basename-only matching for media asset references.
+	 * This is narrower than suffix matching and is never used for source XML.
+	 * (default: true when enabled)
+	 */
+	lenientAssetBasenames?: boolean;
+
+	/**
 	 * Auto-populate FEEDBACK outcome for simple choice interactions
 	 * Some templates only set SCORE but not FEEDBACK, even though feedbackInline
 	 * elements reference the FEEDBACK outcome (default: true when enabled)
@@ -59,6 +74,8 @@ export const DEFAULT_HEURISTICS_CONFIG: Required<QtiHeuristicsConfig> = {
 	enabled: true,
 	feedbackTextFormatting: true,
 	lenientImagePaths: true,
+	lenientPackageResourcePaths: true,
+	lenientAssetBasenames: true,
 	autoPopulateFeedbackOutcome: true,
 };
 
@@ -69,6 +86,8 @@ export const STRICT_QTI_CONFIG: Required<QtiHeuristicsConfig> = {
 	enabled: false,
 	feedbackTextFormatting: false,
 	lenientImagePaths: false,
+	lenientPackageResourcePaths: false,
+	lenientAssetBasenames: false,
 	autoPopulateFeedbackOutcome: false,
 };
 
@@ -88,6 +107,10 @@ export function normalizeHeuristicsConfig(
 			config?.feedbackTextFormatting ?? DEFAULT_HEURISTICS_CONFIG.feedbackTextFormatting,
 		lenientImagePaths:
 			config?.lenientImagePaths ?? DEFAULT_HEURISTICS_CONFIG.lenientImagePaths,
+		lenientPackageResourcePaths:
+			config?.lenientPackageResourcePaths ?? DEFAULT_HEURISTICS_CONFIG.lenientPackageResourcePaths,
+		lenientAssetBasenames:
+			config?.lenientAssetBasenames ?? DEFAULT_HEURISTICS_CONFIG.lenientAssetBasenames,
 		autoPopulateFeedbackOutcome:
 			config?.autoPopulateFeedbackOutcome ??
 			DEFAULT_HEURISTICS_CONFIG.autoPopulateFeedbackOutcome,

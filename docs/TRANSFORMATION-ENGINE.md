@@ -10,7 +10,7 @@ Comprehensive guide to the PIE-QTI transformation framework architecture, plugin
 4. [Transform Engine](#transform-engine)
 5. [Extensibility Points](#extensibility-points)
 6. [Building Custom Plugins](#building-custom-plugins)
-7. [Transform App Integration](#transform-app-integration)
+7. [Reference Harness Integration](#reference-harness-integration)
 8. [CLI Integration](#cli-integration)
 9. [Best Practices](#best-practices)
 
@@ -18,7 +18,7 @@ Comprehensive guide to the PIE-QTI transformation framework architecture, plugin
 
 ## Overview
 
-The PIE-QTI transformation framework provides a flexible, plugin-based architecture for bidirectional content transformation between assessment formats (primarily QTI 2.2 ↔ PIE).
+The PIE-QTI transformation framework provides a flexible, plugin-based architecture for bidirectional content transformation between assessment formats: QTI → PIE ingest and PIE → QTI 2.2 export.
 
 ### Key Features
 
@@ -27,6 +27,7 @@ The PIE-QTI transformation framework provides a flexible, plugin-based architect
 - **Format Agnostic** — Support for multiple source and target formats
 - **Asset Resolution** — Handle vendor-specific asset URLs and CDN integration
 - **Vendor Extensions** — Custom transformers for proprietary QTI extensions
+- **Source Profiles** — Scored, traceable detection of real-world QTI sources with composable item handlers, decorators, fallback policy, package sidecars, and structured conversion trace (see [SOURCE-PROFILES.md](SOURCE-PROFILES.md))
 - **Storage Abstraction** — Pluggable storage backends (filesystem, S3, database)
 
 ### Architecture Diagram
@@ -40,6 +41,8 @@ The diagram illustrates:
 - **Transform Plugins** — Format-specific transformers (QTI→PIE, PIE→QTI)
 - **Vendor Extensions** — Custom plugins for vendor-specific content
 - **Storage Backends** — Abstraction for file storage (local, S3, etc.)
+
+For the dedicated QTI → PIE extension surface introduced for real-world third-party imports (source profiles, item handlers, decorators, fallback policy, package sidecars, conversion trace), see the diagram in [SOURCE-PROFILES.md](SOURCE-PROFILES.md).
 
 ---
 
@@ -64,7 +67,7 @@ The diagram illustrates:
 │  ┌──────────────────────────────────────────────────────┐  │
 │  │          Transform Plugins                           │  │
 │  │                                                       │  │
-│  │  QTI 2.2 → PIE Plugin (priority: 100)                │  │
+│  │  QTI → PIE Plugin (priority: 100)                    │  │
 │  │  PIE → QTI 2.2 Plugin (priority: 100)                │  │
 │  │  Vendor Plugin A (priority: 500)                     │  │
 │  │  Vendor Plugin B (priority: 600)                     │  │
@@ -77,6 +80,8 @@ The diagram illustrates:
 │  │  - Custom transformers                               │  │
 │  │  - Asset resolvers                                   │  │
 │  │  - Vendor-specific handlers                          │  │
+│  │  - Source profiles, item handlers, decorators        │  │
+│  │  - Built-in transform registry (QtiToPieRegistry)    │  │
 │  │  - Response processing extensions                    │  │
 │  └──────────────────────────────────────────────────────┘  │
 │                          │                                   │
@@ -140,7 +145,7 @@ for (const plugin of candidates) {
 #### Transform Plugins
 
 **Packages:**
-- `@pie-qti/to-pie` — QTI 2.2 → PIE
+- `@pie-qti/to-pie` — QTI → PIE
 - `@pie-qti/pie-to-qti2` — PIE → QTI 2.2
 - Vendor-specific plugins (custom)
 
@@ -197,7 +202,7 @@ Plugins are selected based on priority when multiple plugins support the same fo
 
 ```typescript
 // Default QTI plugin (priority: 100)
-export class Qti22ToPiePlugin implements TransformPlugin {
+export class QtiToPiePlugin implements TransformPlugin {
   readonly priority = 100;
   // Handles all standard QTI content
 }
@@ -216,7 +221,7 @@ export class VendorAcmePlugin implements TransformPlugin {
 When both plugins are registered:
 1. Engine checks VendorAcmePlugin first (higher priority)
 2. If `canHandle()` returns true, uses VendorAcmePlugin
-3. Otherwise, falls back to Qti22ToPiePlugin
+3. Otherwise, falls back to QtiToPiePlugin
 
 ### Plugin Registration
 
@@ -226,38 +231,38 @@ In `tools/cli/src/index.ts`:
 
 ```typescript
 import { TransformEngine } from '@pie-qti/transform-core';
-import { Qti22ToPiePlugin } from '@pie-qti/to-pie';
-import { PieToQti2Plugin } from '@pie-qti/pie-to-qti2';
+import { QtiToPiePlugin } from '@pie-qti/to-pie';
+import { PieToQtiPlugin } from '@pie-qti/pie-to-qti2';
 import { vendorAcmePlugin } from '@vendor/acme-plugin';
 
 const engine = new TransformEngine();
 
 // Register default plugins
-engine.use(new Qti22ToPiePlugin());
-engine.use(new PieToQti2Plugin());
+engine.use(new QtiToPiePlugin());
+engine.use(new PieToQtiPlugin());
 
 // Register vendor plugins (higher priority)
 engine.use(vendorAcmePlugin);
 ```
 
-#### Web App Registration
+#### Host Application Registration
 
-In `apps/transform/src/lib/transform/engine.ts`:
+Applications and CLIs register the core plugin and any vendor extensions directly with the engine:
 
 ```typescript
 import { TransformEngine } from '@pie-qti/transform-core';
-import { loadPlugins } from './plugin-loader';
+import { QtiToPiePlugin } from '@pie-qti/to-pie';
+import {
+  AcmeVendorDetector,
+  AcmeSliderTransformer,
+} from '@pie-qti/demo-vendor-extensions';
 
-export async function createEngine(): Promise<TransformEngine> {
+export function createEngine(): TransformEngine {
   const engine = new TransformEngine();
-
-  // Load core plugins
-  const corePlugins = await loadPlugins('core');
-  corePlugins.forEach(p => engine.use(p));
-
-  // Load vendor plugins from configuration
-  const vendorPlugins = await loadPlugins('vendor');
-  vendorPlugins.forEach(p => engine.use(p));
+  engine.use(new QtiToPiePlugin({
+    vendorDetectors: [new AcmeVendorDetector()],
+    vendorTransformers: [new AcmeSliderTransformer()],
+  }));
 
   return engine;
 }
@@ -347,7 +352,8 @@ interface TransformError {
 
 ```typescript
 try {
-  const result = await engine.transform(input);
+  const handle = await engine.transform(input, { targetFormat: 'pie' });
+  const result = await handle.result();
 
   if (result.errors && result.errors.length > 0) {
     const fatal = result.errors.filter(e => e.fatal);
@@ -464,7 +470,39 @@ export class AcmeCDNResolver implements AssetResolver {
 }
 ```
 
-### 4. Storage Backends
+### 4. Source Profiles (preferred for QTI → PIE imports)
+
+Source profiles target the specific extension surface that real-world QTI imports need: scored detection at package and item level, composable item handlers that can delegate to built-in transforms, decorators that patch the generic PIE model, structured fallback policy and diagnostics, package sidecars, and a `ConversionTrace` of every decision.
+
+**Use Cases:**
+
+- Recognise a known source/vintage of QTI and apply tailored handling. Generic source-neutral profiles can live in `@pie-qti/source-profiles`; partner/publisher profiles should live in host packages and register through the same API.
+- Replace built-in interaction transforms for proprietary item types — or delegate back to a built-in handler via `delegate.continue()` and only adjust outputs through decorators.
+- Fail closed (`fallbackPolicy: 'block-generic'`) for proprietary content that would otherwise produce a lossy generic conversion.
+- Emit package-level sidecars (source XML, catalogs, rubrics, stylesheets, assets) with stable IDs and inferred MIME types.
+- Expose source-profile matches, source diagnostics, and conversion trace through `result.metadata` so host applications can show "which extension fired and why".
+
+**Example:**
+
+```typescript
+import { transformQtiPackageToPie } from '@pie-qti/to-pie';
+import { defaultSourceProfiles } from '@pie-qti/source-profiles';
+
+const result = await transformQtiPackageToPie(input, {
+  sourceProfiles: [...defaultSourceProfiles, myCustomProfile],
+});
+
+result.metadata.sourceProfiles;        // matched profiles (package-level)
+result.metadata.sourceDiagnostics;     // structured diagnostics (info/warn/error)
+result.metadata.conversionTrace;       // ordered trace events
+result.sidecars;                       // source XML, catalogs, rubrics, assets, ...
+```
+
+See [SOURCE-PROFILES.md](SOURCE-PROFILES.md) for the full authoring reference (detection, item handlers, decorators, fallback policy, sidecars, conversion trace) and the architecture diagram. The five vendor hooks above remain available for whole-pipeline replacement, asset URL rewriting, CSS-class interception, and vendor-keyed metadata extraction.
+
+---
+
+### 5. Storage Backends
 
 Implement custom storage for packages and transformed content.
 
@@ -551,9 +589,10 @@ describe('VendorCustomPlugin', () => {
     const engine = new TransformEngine();
     engine.use(new VendorCustomPlugin());
 
-    const result = await engine.transform({
-      content: qtiXml,
+    const handle = await engine.transform(qtiXml, {
+      targetFormat: 'pie',
     });
+    const result = await handle.result();
 
     expect(result.errors).toHaveLength(0);
     expect(result.items).toHaveLength(1);
@@ -563,14 +602,14 @@ describe('VendorCustomPlugin', () => {
 
 ---
 
-## Transform App Integration
+## Host Integration
 
-The web application ([transform-app](../apps/transform/)) provides a UI for the transformation engine.
+Product import workflows belong in host applications such as Composer CMS, which owns production import orchestration, persistence, permissions, and editorial state. This repository ships the reusable transform packages; hosts compose them.
 
-### App Architecture
+### Suggested module breakdown
 
 ```
-Transform Web App
+Host import surface
 ├── Upload Interface
 │   ├── File upload (ZIP, XML, JSON)
 │   ├── Package extraction
@@ -596,36 +635,13 @@ Transform Web App
 
 ### Plugin Integration
 
-The app loads plugins dynamically based on configuration:
-
-```typescript
-// apps/transform/src/lib/transform/plugin-loader.ts
-export async function loadPlugins(category: 'core' | 'vendor'): Promise<TransformPlugin[]> {
-  const config = await loadConfig();
-  const plugins: TransformPlugin[] = [];
-
-  if (category === 'core') {
-    // Load core plugins
-    plugins.push(new Qti22ToPiePlugin());
-    plugins.push(new PieToQti2Plugin());
-  } else {
-    // Load vendor plugins from configuration
-    for (const vendorConfig of config.vendorPlugins || []) {
-      const plugin = await importVendorPlugin(vendorConfig);
-      plugins.push(plugin);
-    }
-  }
-
-  return plugins;
-}
-```
+Plugin and vendor-extension support is a package-level contract. Production hosts should register the extension types in their own application bootstrap code.
 
 ### Storage Integration
 
-The app uses configurable storage backends:
+Hosts can use configurable storage backends, for example:
 
 ```typescript
-// apps/transform/src/lib/storage/index.ts
 export function createStorageBackend(config: StorageConfig): StorageBackend {
   switch (config.type) {
     case 'filesystem':
@@ -668,17 +684,18 @@ export async function transformCommand(args: TransformArgs) {
   const engine = new TransformEngine();
 
   // Load core plugins
-  engine.use(new Qti22ToPiePlugin());
-  engine.use(new PieToQti2Plugin());
+  engine.use(new QtiToPiePlugin());
+  engine.use(new PieToQtiPlugin());
 
   // Load vendor plugins if configured
   const vendorPlugins = await loadVendorPlugins();
   vendorPlugins.forEach(p => engine.use(p));
 
   // Execute transformation
-  const result = await engine.transform({
-    content: await readFile(args.input),
+  const handle = await engine.transform(await readFile(args.input), {
+    targetFormat: 'pie',
   });
+  const result = await handle.result();
 
   // Write results
   await writeResults(result, args.output);

@@ -4,7 +4,9 @@
 	import type { AssociateInteractionData } from '@pie-qti/item-player';
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
-	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
+	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
+	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
+	import { isCompatibleMatchGroup } from '../../shared/utils/matchGroupUtils';
 
 	interface Props {
 		interaction?: AssociateInteractionData | string;
@@ -30,11 +32,18 @@
 		onChange,
 	}: Props = $props();
 
-	// Parse props that may be JSON strings (web component usage)
-	const parsedInteraction = $derived(parseJsonProp<AssociateInteractionData>(interaction));
-	const parsedResponse = $derived(parseJsonProp<string[]>(response));
-	const parsedCorrectResponse = $derived(parseJsonProp<string[]>(correctResponse));
-	const isShowingCorrect = $derived(role === 'scorer' && parsedCorrectResponse !== null);
+	const shell = $derived(
+		createInteractionShell<AssociateInteractionData, string[], string[]>({
+			interaction,
+			response,
+			correctResponse,
+			role,
+		})
+	);
+	const parsedInteraction = $derived(shell.interaction);
+	const parsedResponse = $derived(shell.response);
+	const parsedCorrectResponse = $derived(shell.correctResponse);
+	const isShowingCorrect = $derived(shell.isShowingCorrect);
 
 	// Get reference to the root element for event dispatching
 	let rootElement: HTMLDivElement | undefined = $state();
@@ -45,24 +54,11 @@
 
 	// Ensure response is always an array
 	const pairs = $derived(parsedResponse || []);
+	const helperId = $derived(`associate-helper-${parsedInteraction?.responseId ?? 'unknown'}`);
 
 	function emitChange(newPairs: string[]) {
 		response = newPairs;
-		// Call onChange callback if provided (for Svelte component usage)
-		onChange?.(newPairs);
-		// Dispatch custom event for web component usage - event will bubble up to the host element
-		if (rootElement) {
-			const event = new CustomEvent('qti-change', {
-				detail: {
-					responseId: parsedInteraction?.responseId,
-					value: newPairs,
-					timestamp: Date.now(),
-				},
-				bubbles: true,
-				composed: true,
-			});
-			rootElement.dispatchEvent(event);
-		}
+		emitInteractionChange({ target: rootElement, responseId: shell.responseId, value: newPairs, onChange });
 	}
 
 	function setSelectedForPairing(value: string | null) {
@@ -72,6 +68,17 @@
 			internalSelectedForPairing = value;
 		}
 	}
+
+	// Choices that cannot be paired with the currently selected choice due to matchGroup constraints
+	const blockedChoices = $derived.by(() => {
+		if (!selectedForPairing || !parsedInteraction) return new Set<string>();
+		const src = parsedInteraction.choices.find((c) => c.identifier === selectedForPairing);
+		return new Set(
+			parsedInteraction.choices
+				.filter((c) => c.identifier !== selectedForPairing && !isCompatibleMatchGroup(src?.matchGroup, c.matchGroup))
+				.map((c) => c.identifier)
+		);
+	});
 
 	function handleChoiceClick(choiceId: string) {
 		if (disabled) return;
@@ -84,8 +91,9 @@
 		else if (selectedForPairing === choiceId) {
 			setSelectedForPairing(null);
 		}
-		// If different item clicked, create a pair
+		// If different item clicked, check matchGroup compatibility then create a pair
 		else {
+			if (blockedChoices.has(choiceId)) return;
 			const newPair = `${selectedForPairing} ${choiceId}`;
 			const newPairs = [...pairs, newPair];
 			emitChange(newPairs);
@@ -114,6 +122,19 @@
 		);
 	}
 
+	function toPlainText(html: string): string {
+		return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+	}
+
+	function getChoiceLabel(choice: { identifier: string; text: string }): string {
+		const text = toPlainText(choice.text);
+		return text ? `${choice.identifier}: ${text}` : choice.identifier;
+	}
+
+	function getPairLabel(choice1: { identifier: string; text: string }, choice2: { identifier: string; text: string }): string {
+		return `${getChoiceLabel(choice1)} and ${getChoiceLabel(choice2)}`;
+	}
+
 	const correctPairs = $derived(
 		isShowingCorrect && parsedCorrectResponse ? parsedCorrectResponse : []
 	);
@@ -126,7 +147,9 @@
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
 		{#if parsedInteraction.prompt}
-			<p part="prompt" class="qti-associate-prompt font-semibold">{@html parsedInteraction.prompt}</p>
+			<div part="prompt" class="qti-associate-prompt qti-rich-content font-semibold">
+				{@html parsedInteraction.prompt}
+			</div>
 		{/if}
 
 		<!-- Display choices as buttons that can be clicked to form pairs -->
@@ -135,13 +158,23 @@
 			{@const isSelected = selectedForPairing === choice.identifier}
 			{@const inPair = isInPair(choice.identifier)}
 			{@const isCorrect = isCorrectPair(choice.identifier)}
+			{@const isBlocked = blockedChoices.has(choice.identifier)}
 			<button
 				part="choice"
 				class="btn btn-outline {isSelected ? 'btn-accent' : inPair ? 'btn-primary' : isCorrect ? 'btn-success' : 'btn-neutral'}"
+				class:opacity-40={isBlocked}
+				class:cursor-not-allowed={isBlocked}
+				type="button"
+				aria-label={getChoiceLabel(choice)}
+				aria-pressed={isSelected}
+				aria-disabled={isBlocked ? 'true' : undefined}
+				aria-describedby={helperId}
 				onclick={() => handleChoiceClick(choice.identifier)}
 				{disabled}
 			>
-				{@html choice.text}
+				<span class="qti-associate-choice-text qti-rich-inline-content">
+					{@html choice.text}
+				</span>
 				{#if isSelected}
 					<span class="ml-2">◉</span>
 				{:else if inPair}
@@ -208,6 +241,8 @@
 						<button
 							part="pair-remove"
 							class="btn btn-sm btn-ghost btn-circle"
+							type="button"
+							aria-label={`Remove association between ${getPairLabel(choice1, choice2)}`}
 							onclick={() => removePair(index)}
 							{disabled}
 						>
@@ -221,14 +256,14 @@
 
 		<!-- Selection helper - Hide when showing correct answers -->
 		{#if !isShowingCorrect}
-			<div part="helper" class="qti-associate-helper alert alert-info">
+			<div id={helperId} part="helper" class="qti-associate-helper alert alert-info" role="status" aria-live="polite">
 				<span class="text-sm">
 					{#if selectedForPairing}
 						{i18n?.t('interactions.associate.clickAnotherOrDeselect') ??
-							'Click another item to create an association (or click again to deselect)'}
+							'Select another item to create an association, or select this item again to deselect it.'}
 					{:else}
 						{i18n?.t('interactions.associate.clickToAssociate') ??
-							'Click two items to create an association between them'}
+							'Select two items to create an association between them. Keyboard users can tab to each item and press Enter or Space.'}
 					{/if}
 				</span>
 			</div>
@@ -267,7 +302,7 @@
 		border-radius: 0.75rem;
 	}
 	.qti-associate-helper {
-		border: 1px solid var(--color-base-300, oklch(95% 0 0));
-		background: var(--color-base-200, oklch(98% 0 0));
+		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		background: var(--pie-qti-base-200, oklch(98% 0 0));
 	}
 </style>

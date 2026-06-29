@@ -177,7 +177,7 @@ describe('QTI 3.0 Extraction', () => {
 			expect(interactions).toHaveLength(1);
 			const interaction = interactions[0];
 
-			expect(interaction.type).toBe('qti-choice-interaction'); // QTI 3.0 uses kebab-case
+			expect(interaction.type).toBe('choiceInteraction'); // normalized to QTI 2.x camelCase
 			expect(interaction.responseId).toBe('RESPONSE');
 			expect(interaction.maxChoices).toBe(1);
 			expect(interaction.shuffle).toBe(false);
@@ -194,7 +194,7 @@ describe('QTI 3.0 Extraction', () => {
 			const result = player.processResponses();
 
 			expect(result.score).toBe(1.0);
-			expect(result.outcomeValues.SCORE).toBe('1.0'); // outcomeValues are strings
+			expect(result.outcomeValues.SCORE).toBe(1.0);
 		});
 	});
 
@@ -206,7 +206,7 @@ describe('QTI 3.0 Extraction', () => {
 			expect(interactions).toHaveLength(1);
 			const interaction = interactions[0];
 
-			expect(interaction.type).toBe('qti-text-entry-interaction'); // QTI 3.0 uses kebab-case
+			expect(interaction.type).toBe('textEntryInteraction'); // normalized to QTI 2.x camelCase
 			expect(interaction.responseId).toBe('RESPONSE');
 			expect(interaction.expectedLength).toBe(15);
 		});
@@ -229,7 +229,7 @@ describe('QTI 3.0 Extraction', () => {
 			expect(interactions).toHaveLength(1);
 			const interaction = interactions[0];
 
-			expect(interaction.type).toBe('qti-extended-text-interaction'); // QTI 3.0 uses kebab-case
+			expect(interaction.type).toBe('extendedTextInteraction'); // normalized to QTI 2.x camelCase
 			expect(interaction.responseId).toBe('RESPONSE');
 			expect(interaction.expectedLines).toBe(5);
 			expect(interaction.expectedLength).toBe(500);
@@ -245,7 +245,7 @@ describe('QTI 3.0 Extraction', () => {
 			expect(interactions).toHaveLength(1);
 			const interaction = interactions[0];
 
-			expect(interaction.type).toBe('qti-match-interaction'); // QTI 3.0 uses kebab-case
+			expect(interaction.type).toBe('matchInteraction'); // normalized to QTI 2.x camelCase
 			expect(interaction.responseId).toBe('RESPONSE');
 			expect(interaction.maxAssociations).toBe(3);
 			expect(interaction.shuffle).toBe(false);

@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { standardHottextExtractor } from '../../../src/extraction/extractors/hottextExtractor.js';
+import { standardHottextExtractor } from '../../../src/interactions/hottext/extractor.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
 describe('standardHottextExtractor', () => {
@@ -235,6 +235,27 @@ describe('standardHottextExtractor', () => {
 
 			expect(validation.valid).toBe(true);
 			expect(validation.warnings).toContain('maxChoices (5) exceeds the number of hottext choices (2)');
+		});
+
+		test('warns instead of dropping hottext when minChoices exceeds the effective maxChoices', () => {
+			const data = {
+				hottextChoices: [
+					{ identifier: 'A', text: 'who bought' },
+					{ identifier: 'B', text: 'includes' },
+					{ identifier: 'C', text: 'at least' },
+				],
+				contentHtml: '<p><hottext identifier="A">who bought</hottext></p>',
+				maxChoices: 1,
+				minChoices: 2,
+				prompt: null,
+			};
+
+			const validation = standardHottextExtractor.validate!(data);
+
+			expect(validation.valid).toBe(true);
+			expect(validation.warnings).toContain(
+				'minChoices (2) exceeds maxChoices (1); rendering interaction with authoring constraint warning'
+			);
 		});
 	});
 });

@@ -19,6 +19,15 @@ const { interaction, response = null, disabled = false, typeset, onChange }: Pro
 // Transform response format: string[] to the pairs format GraphicGapMatch expects
 const pairs = $derived(response ?? []);
 
+// Build imageData HTML string: inline SVG content or an <img> tag for raster images
+const imageDataHtml = $derived.by(() => {
+	const img = interaction.imageData;
+	if (!img) return '';
+	if (img.content) return img.content as string;
+	if (img.src) return `<img src="${img.src}" alt="" style="width: 100%; height: 100%; display: block; position: absolute; top: 0; left: 0;" />`;
+	return '';
+});
+
 function handlePairsChange(newPairs: string[]) {
 	onChange(newPairs);
 }
@@ -28,7 +37,7 @@ function handlePairsChange(newPairs: string[]) {
 	gapTexts={interaction.gapTexts}
 	hotspots={interaction.hotspots}
 	{pairs}
-	imageData={interaction.imageData?.content ?? ''}
+	imageData={imageDataHtml}
 	imageWidth={interaction.imageData?.width ?? '600'}
 	imageHeight={interaction.imageData?.height ?? '500'}
 	{disabled}

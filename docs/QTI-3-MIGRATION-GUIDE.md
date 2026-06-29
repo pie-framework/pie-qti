@@ -43,6 +43,7 @@ This approach achieves **65-70% code reuse** between versions and ensures zero b
 ```typescript
 // Auto-detect version from XML
 import { createQtiParser, isQti3 } from '@pie-qti/qti-common';
+import { Player } from '@pie-qti/item-player';
 
 const xml = `<qti-assessment-item ...>...</qti-assessment-item>`;
 
@@ -50,8 +51,8 @@ const xml = `<qti-assessment-item ...>...</qti-assessment-item>`;
 const { mapper, version } = createQtiParser(xml);
 console.log(version); // "3.0"
 
-// Player automatically uses correct mapper
-const player = new Player(xml);  // Works for both 2.x and 3.0!
+// Player automatically uses the correct mapper
+const player = new Player({ itemXml: xml }); // Works for both 2.x and 3.0
 ```
 
 ### Version Detection Logic
@@ -76,10 +77,10 @@ The system checks (in order):
 The `ElementNameMapper` interface provides version-agnostic element handling:
 
 ```typescript
-import { Qti2ElementNameMapper, Qti3ElementNameMapper } from '@pie-qti/qti-common';
+import { Qti2xElementNameMapper, Qti3ElementNameMapper } from '@pie-qti/qti-common';
 
 // QTI 2.x mapper
-const qti2Mapper = new Qti2ElementNameMapper();
+const qti2Mapper = new Qti2xElementNameMapper();
 qti2Mapper.toCanonical('choiceInteraction');  // → "choiceinteraction"
 qti2Mapper.toNative('choiceinteraction');     // → "choiceInteraction"
 
@@ -137,11 +138,11 @@ import { Player } from '@pie-qti/item-player';
 
 // QTI 2.x XML
 const qti2Xml = `<assessmentItem ...>...</assessmentItem>`;
-const player1 = new Player(qti2Xml);  // ✓ Works
+const player1 = new Player({ itemXml: qti2Xml }); // ✓ Works
 
 // QTI 3.0 XML
 const qti3Xml = `<qti-assessment-item ...>...</qti-assessment-item>`;
-const player2 = new Player(qti3Xml);  // ✓ Works
+const player2 = new Player({ itemXml: qti3Xml }); // ✓ Works
 ```
 
 ### Scenario 2: You're Using the Transform API
@@ -149,10 +150,12 @@ const player2 = new Player(qti3Xml);  // ✓ Works
 **No changes needed!** Transformers auto-detect version:
 
 ```typescript
-import { transformQtiToPie } from '@pie-qti/to-pie';
+import { TransformEngine } from '@pie-qti/transform-core';
+import { QtiToPiePlugin } from '@pie-qti/to-pie';
 
-// Works with both QTI 2.x and 3.0
-const pieItem = await transformQtiToPie(xml);
+const engine = new TransformEngine().use(new QtiToPiePlugin());
+const handle = await engine.transform(xml, { targetFormat: 'pie' });
+const pieItem = await handle.result();
 ```
 
 ### Scenario 3: You're Directly Parsing QTI XML
@@ -175,8 +178,8 @@ const interactions = doc.getElementsByTagName(tagName);
 **Even Better** (use extraction layer):
 ```typescript
 // Extraction layer already handles this automatically
-const player = new Player(xml);
-console.log(player.interactions);  // Works for both versions
+const player = new Player({ itemXml: xml });
+console.log(player.getInteractionData()); // Works for both versions
 ```
 
 ### Scenario 4: You're Reading Attributes
@@ -247,10 +250,9 @@ This **common internal model** is what makes the unified architecture possible.
 
 ### Portable Custom Interactions (PCI)
 
-**Phase 2+ of QTI 3 support** will add:
+PCI support is implemented at the player layer:
 
-```typescript
-// Future API (not yet implemented)
+```xml
 <qti-portable-custom-interaction
   response-identifier="RESPONSE"
   custom-interaction-type-identifier="org.example.likert"
@@ -261,22 +263,24 @@ This **common internal model** is what makes the unified architecture possible.
 
 ### Personal Needs & Preferences (PNP)
 
-**Phase 2+ will add accessibility profiles:**
+PNP support is implemented for the core delivery accommodations:
 
 ```typescript
-// Future API
-const player = new Player(xml, {
-  pnpProfile: {
-    colorScheme: 'blackwhite',
-    glossaryOnScreen: true,
-    keywordTranslation: 'es'
+const player = new Player({
+  itemXml: xml,
+  pnp: {
+    display: { colorScheme: 'blackwhite' },
+    content: {
+      glossaryOnScreen: true,
+      keywordTranslation: { active: true, languageCode: 'es' }
+    }
   }
 });
 ```
 
 ### Catalog System
 
-**Phase 2+ will add glossary support:**
+Catalog parsing and glossary/keyword-translation popup support are implemented:
 
 ```xml
 <p>The capital of <span data-catalog-idref="glossary-france">France</span>.</p>
@@ -296,14 +300,14 @@ const player = new Player(xml, {
 | **Attribute handling** | ✅ | ✅ | Complete |
 | **Version detection** | ✅ | ✅ | Complete |
 | **Parser infrastructure** | ✅ | ✅ | Complete |
-| **Standard interactions (21)** | ✅ | 🚧 | QTI 3 parsing ready, player enhancements in progress |
+| **Standard interactions (21)** | ✅ | ✅ | Shared extraction/rendering path where semantics align |
 | **Response processing** | ✅ | ✅ | Shared logic |
-| **Assessment player** | ✅ | 🚧 | Test structure parsing needed |
-| **PCI support** | ❌ | 🚧 | Phase 2+ |
-| **PNP support** | ❌ | 🚧 | Phase 2+ |
-| **Catalog system** | ❌ | 🚧 | Phase 2+ |
+| **Assessment player** | ✅ | ✅ | QTI 2.2 and QTI 3.0 clean-room coverage |
+| **PCI support** | ✅ | ✅ | Player-layer PCI host/module lifecycle |
+| **PNP support** | ✅ | ✅ | Color schemes, elimination, extended time, glossary/translation triggers |
+| **Catalog system** | ✅ | ✅ | Item/shared catalog XML, lookup API, on-screen popup path |
 
-Legend: ✅ Complete | 🚧 In Progress | ❌ Not Started
+Legend: ✅ Complete for the current public certification scope
 
 ## Testing
 
@@ -328,43 +332,6 @@ bun test packages/item-player -- --grep "QTI 3.0"
 
 QTI 3.0 test fixtures are available in:
 - `packages/qti-common/src/__tests__/fixtures/qti3-*.xml`
-
-## Roadmap
-
-### Phase 1: Parser Infrastructure ✅ (Complete)
-
-- [x] Element name mapper abstraction
-- [x] Version detection
-- [x] Smart attribute accessors
-- [x] QTI 3.0 sample fixtures
-- [x] Integration tests
-- [x] Package renames
-
-### Phase 2: Player Enhancements (In Progress)
-
-- [ ] Update extractors for QTI 3.0 element discovery
-- [ ] Test all 21 interactions with QTI 3.0 content
-- [ ] Add PCI extractor and loader
-- [ ] Implement PNP manager
-- [ ] Add catalog system support
-
-### Phase 3: Assessment Player (Planned)
-
-- [ ] QTI 3.0 test structure parsing
-- [ ] Navigation with QTI 3.0 tests
-- [ ] Outcome processing
-
-### Phase 4: Components & Styling (Planned)
-
-- [ ] PNP color schemes (15+ accessibility themes)
-- [ ] PCI component wrapper
-- [ ] Catalog dialog component
-
-### Phase 5: Testing & Validation (Planned)
-
-- [ ] Comprehensive E2E tests
-- [ ] Performance benchmarking
-- [ ] 1EdTech certification prep
 
 ## References
 

@@ -37,6 +37,12 @@
 	let imageContainer: HTMLDivElement | null = $state(null);
 	let imageElement: HTMLElement | null = $state(null);
 
+	// Keyboard crosshair state (K-01)
+	let crosshairActive = $state(false);
+	let crosshairX = $state(0.5); // normalized 0-1
+	let crosshairY = $state(0.5); // normalized 0-1
+	let liveRegionText = $state('');
+
 	/**
 	 * Parse correct response points (same format as user response)
 	 */
@@ -126,7 +132,12 @@
 	/**
 	 * Check if selection limit has been reached
 	 */
-	const canSelectMore = $derived(!parsedInteraction || selectedPoints.length < parsedInteraction.maxChoices);
+	// maxChoices=0 means unlimited per QTI spec
+	const canSelectMore = $derived(
+		!parsedInteraction ||
+		parsedInteraction.maxChoices === 0 ||
+		selectedPoints.length < parsedInteraction.maxChoices
+	);
 
 	/**
 	 * Check if minimum selection requirement has been met
@@ -211,6 +222,79 @@
 			}
 		}
 	});
+
+	/**
+	 * Place a point at the current crosshair position (K-01).
+	 * Converts normalized crosshair coords to intrinsic pixel coords.
+	 */
+	function placePointAtCrosshair() {
+		if (!canSelectMore || !parsedInteraction?.imageData) return;
+
+		const intrinsicWidth = parseInt(parsedInteraction.imageData.width) || 500;
+		const intrinsicHeight = parseInt(parsedInteraction.imageData.height) || 300;
+
+		const x = Math.round(crosshairX * intrinsicWidth);
+		const y = Math.round(crosshairY * intrinsicHeight);
+
+		selectedPoints = [...selectedPoints, { x, y }];
+
+		const canonicalValue =
+			parsedInteraction.maxChoices === 1
+				? (selectedPoints[0] ? `${selectedPoints[0].x} ${selectedPoints[0].y}` : null)
+				: selectedPoints.map((p) => `${p.x} ${p.y}`);
+		response = canonicalValue;
+		onChange?.(canonicalValue);
+		rootElement?.dispatchEvent(createQtiChangeEvent(parsedInteraction?.responseId, canonicalValue));
+	}
+
+	/**
+	 * Handle keyboard events on the image container (K-01).
+	 * Arrow keys move the crosshair; Enter/Space place a point.
+	 */
+	function handleKeydown(e: KeyboardEvent) {
+		if (disabled) return;
+
+		const LARGE_STEP = 0.05; // 5% per arrow key press
+		const SMALL_STEP = 0.01; // 1% with Shift for fine control
+
+		switch (e.key) {
+			case 'ArrowLeft':
+			case 'ArrowRight':
+			case 'ArrowUp':
+			case 'ArrowDown': {
+				e.preventDefault();
+				const step = e.shiftKey ? SMALL_STEP : LARGE_STEP;
+				if (e.key === 'ArrowLeft')  crosshairX = Math.max(0, crosshairX - step);
+				if (e.key === 'ArrowRight') crosshairX = Math.min(1, crosshairX + step);
+				if (e.key === 'ArrowUp')    crosshairY = Math.max(0, crosshairY - step);
+				if (e.key === 'ArrowDown')  crosshairY = Math.min(1, crosshairY + step);
+
+				const xPct = Math.round(crosshairX * 100);
+				const yPct = Math.round(crosshairY * 100);
+				liveRegionText = `Position: ${xPct}%, ${yPct}%`;
+				break;
+			}
+			case 'Enter':
+			case ' ':
+				e.preventDefault();
+				if (canSelectMore) {
+					placePointAtCrosshair();
+				}
+				break;
+		}
+	}
+
+	function handleFocus() {
+		crosshairActive = true;
+		crosshairX = 0.5;
+		crosshairY = 0.5;
+		liveRegionText = 'Position: 50%, 50%';
+	}
+
+	function handleBlur() {
+		crosshairActive = false;
+		liveRegionText = '';
+	}
 </script>
 
 <ShadowBaseStyles />
@@ -220,10 +304,19 @@
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
 		{#if parsedInteraction.prompt}
-			<p class="font-semibold mb-3">{@html parsedInteraction.prompt}</p>
+			<div part="prompt" class="qti-select-point-prompt qti-rich-content font-semibold mb-3">
+				{@html parsedInteraction.prompt}
+			</div>
 		{/if}
 
 		<div class="space-y-3">
+
+	<!-- Visually-hidden live region announces crosshair position to screen readers -->
+	<span
+		aria-live="polite"
+		aria-atomic="true"
+		style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;"
+	>{liveRegionText}</span>
 
 	<div
 		bind:this={imageContainer}
@@ -231,13 +324,11 @@
 		style={disabled ? 'cursor: default;' : 'cursor: crosshair;'}
 		role="button"
 		tabindex={disabled ? -1 : 0}
-		aria-label={i18n?.t('interactions.selectPoint.instructionAria') ?? 'Click to select points on the image'}
+		aria-label={i18n?.t('interactions.selectPoint.instructionAria') ?? 'Click or use arrow keys to position crosshair, then press Enter or Space to select a point on the image'}
 		onclick={handleImageClick}
-		onkeydown={(e) => {
-			if (e.key === 'Enter' || e.key === ' ') {
-				e.preventDefault();
-			}
-		}}
+		onkeydown={handleKeydown}
+		onfocus={handleFocus}
+		onblur={handleBlur}
 	>
 		{#if parsedInteraction.imageData}
 			{#if parsedInteraction.imageData.type === 'svg'}
@@ -306,6 +397,28 @@
 				<p class="text-base-content/50">{i18n?.t('interactions.selectPoint.noImage') ?? 'No image provided'}</p>
 			</div>
 		{/if}
+
+		<!-- Keyboard crosshair overlay (K-01) — visible only when container has focus -->
+		{#if crosshairActive && !disabled && parsedInteraction?.imageData}
+			{@const imgW = parseInt(parsedInteraction.imageData.width) || 500}
+			{@const imgH = parseInt(parsedInteraction.imageData.height) || 300}
+			{@const cx = crosshairX * imgW}
+			{@const cy = crosshairY * imgH}
+			<svg
+				aria-hidden="true"
+				class="crosshair-overlay"
+				style="width: {imgW}px; height: {imgH}px;"
+				viewBox="0 0 {imgW} {imgH}"
+				xmlns="http://www.w3.org/2000/svg"
+			>
+				<!-- Horizontal line -->
+				<line x1="0" y1={cy} x2={imgW} y2={cy} class="crosshair-line" />
+				<!-- Vertical line -->
+				<line x1={cx} y1="0" x2={cx} y2={imgH} class="crosshair-line" />
+				<!-- Centre dot -->
+				<circle cx={cx} cy={cy} r="5" class="crosshair-dot" />
+			</svg>
+		{/if}
 	</div>
 
 	<div class="flex items-center justify-between text-sm text-base-content/70">
@@ -366,7 +479,7 @@
 	.image-container {
 		position: relative;
 		display: inline-block;
-		border: 2px solid hsl(var(--bc) / 0.2);
+		border: 2px solid color-mix(in oklch, var(--pie-qti-base-content, oklch(21% 0 0)) 20%, transparent);
 		border-radius: 8px;
 		overflow: hidden;
 	}
@@ -376,8 +489,8 @@
 		width: 32px;
 		height: 32px;
 		transform: translate(-50%, -50%);
-		background-color: hsl(var(--p));
-		border: 3px solid white;
+		background-color: var(--pie-qti-primary, oklch(45% 0.24 277));
+		border: 3px solid var(--pie-qti-primary-content, oklch(98% 0.01 277));
 		border-radius: 50%;
 		display: flex;
 		align-items: center;
@@ -388,7 +501,7 @@
 	}
 
 	.point-marker:hover {
-		background-color: hsl(var(--er));
+		background-color: var(--pie-qti-error, oklch(71% 0.194 13.428));
 		transform: translate(-50%, -50%) scale(1.1);
 	}
 
@@ -398,11 +511,11 @@
 	}
 
 	.point-marker-correct {
-		background-color: #10b981 !important;
-		border-color: white !important;
+		background-color: var(--pie-qti-success, oklch(76% 0.177 163.223)) !important;
+		border-color: var(--pie-qti-success-content, oklch(98% 0.01 163.223)) !important;
 		border-width: 4px !important;
 		cursor: default;
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 0 0 0 4px #10b981 !important;
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 0 0 0 4px var(--pie-qti-success, oklch(76% 0.177 163.223)) !important;
 		width: 50px !important;
 		height: 50px !important;
 		z-index: 200 !important;
@@ -416,24 +529,45 @@
 	.point-marker-correct .point-number {
 		font-size: 28px !important;
 		font-weight: 900 !important;
-		color: white !important;
+		color: var(--pie-qti-success-content, oklch(98% 0.01 163.223)) !important;
 		line-height: 1 !important;
 		display: block !important;
 	}
 
 	.point-marker-correct:hover {
-		background-color: var(--color-success, oklch(76% 0.177 163.223));
+		background-color: var(--pie-qti-success, oklch(76% 0.177 163.223));
 		transform: translate(-50%, -50%);
 	}
 
 	.point-number {
-		color: white;
+		color: var(--pie-qti-primary-content, oklch(98% 0.01 277));
 		font-weight: 700;
 		font-size: 14px;
 	}
 
 	.no-image-placeholder {
-		border: 2px dashed hsl(var(--bc) / 0.2);
+		border: 2px dashed color-mix(in oklch, var(--pie-qti-base-content, oklch(21% 0 0)) 20%, transparent);
 		border-radius: 8px;
+	}
+
+	/* K-01 keyboard crosshair overlay */
+	.crosshair-overlay {
+		position: absolute;
+		top: 0;
+		left: 0;
+		pointer-events: none;
+		z-index: 150;
+	}
+
+	.crosshair-line {
+		stroke: #2563eb;
+		stroke-width: 1.5;
+		stroke-dasharray: 4 3;
+		opacity: 0.85;
+	}
+
+	.crosshair-dot {
+		fill: #2563eb;
+		opacity: 0.9;
 	}
 </style>

@@ -1,6 +1,9 @@
 # Vendor Transform Plugin Developer Guide
 
-This guide provides comprehensive instructions for building vendor-specific transform plugins for the PIE-QTI framework. Vendor plugins allow you to handle proprietary QTI extensions and transformations specific to your assessment vendor.
+This guide provides comprehensive instructions for building vendor-specific transform plugins for the PIE-QTI framework. Vendor plugins allow you to replace or wrap transform pipelines for proprietary formats and independent transform packages.
+
+> [!NOTE]
+> For package-aware QTI -> PIE imports, prefer source profiles for source detection, metadata extraction, sidecars, diagnostics, and composable item handling. See [QTI Source Profiles](./SOURCE-PROFILES.md). Full vendor plugins are a lower-level escape hatch for independent formats or cases that truly need to replace the generic pipeline. Host policy such as CDN/S3 URLs, private standards crosswalks, and publish destinations belongs in the host application, not in reusable `pie-qti` source profiles.
 
 ## Table of Contents
 
@@ -23,7 +26,7 @@ This guide provides comprehensive instructions for building vendor-specific tran
 ### Prerequisites
 
 - Node.js 20.19+ or Bun runtime
-- Basic understanding of QTI 2.2 specification
+- Basic understanding of QTI for ingest and QTI 2.2 for export targets
 - Familiarity with PIE model format
 
 ### Project Setup
@@ -64,7 +67,7 @@ Create `src/index.ts`:
 
 ```typescript
 import type { TransformPlugin, TransformInput, TransformOutput, TransformContext } from '@pie-qti/transform-types';
-import { Qti22ToPiePlugin } from '@pie-qti/to-pie';
+import { QtiToPiePlugin } from '@pie-qti/to-pie';
 
 export class VendorAcmePlugin implements TransformPlugin {
   readonly id = 'vendor-acme-qti22-to-pie';
@@ -74,7 +77,7 @@ export class VendorAcmePlugin implements TransformPlugin {
   readonly targetFormat = 'pie' as const;
   readonly priority = 500; // Override default plugin
 
-  private defaultPlugin = new Qti22ToPiePlugin();
+  private defaultPlugin = new QtiToPiePlugin();
 
   /**
    * Check if this plugin can handle the input
@@ -768,7 +771,7 @@ The priority system allows multiple plugins to support the same format pair, wit
 
 ```typescript
 // Default QTI plugin (priority: 100)
-export class Qti22ToPiePlugin implements TransformPlugin {
+export class QtiToPiePlugin implements TransformPlugin {
   readonly priority = 100; // Or omit for default
   // ...
 }
@@ -916,7 +919,8 @@ describe('ACME Plugin Integration', () => {
     const qtiXml = loadFixture('vendor-acme-plugin', 'drag-sequence.xml');
 
     // Transform
-    const result = await engine.transform({ content: qtiXml });
+    const handle = await engine.transform(qtiXml, { targetFormat: 'pie' });
+    const result = await handle.result();
 
     // Validate result
     expectSuccessfulTransform(result, 1);
@@ -932,7 +936,8 @@ describe('ACME Plugin Integration', () => {
     engine.use(vendorAcmePlugin);
 
     const qtiXml = loadFixture('vendor-acme-plugin', 'with-assets.xml');
-    const result = await engine.transform({ content: qtiXml });
+    const handle = await engine.transform(qtiXml, { targetFormat: 'pie' });
+    const result = await handle.result();
 
     const item = result.items[0];
     const stimulusImg = item.content.stimulus.match(/src="([^"]*)"/)?.[1];
@@ -1200,7 +1205,7 @@ import type {
   TransformContext,
 } from '@pie-qti/transform-types';
 import { ErrorCategory } from '@pie-qti/transform-types';
-import { Qti22ToPiePlugin } from '@pie-qti/to-pie';
+import { QtiToPiePlugin } from '@pie-qti/to-pie';
 import { parse } from 'node-html-parser';
 
 export interface AcmePluginConfig {
@@ -1220,10 +1225,10 @@ export class VendorAcmePlugin implements TransformPlugin {
   readonly priority = 500;
 
   // Dependencies
-  private defaultPlugin: Qti22ToPiePlugin;
+  private defaultPlugin: QtiToPiePlugin;
 
   constructor(private config: AcmePluginConfig) {
-    this.defaultPlugin = new Qti22ToPiePlugin();
+    this.defaultPlugin = new QtiToPiePlugin();
   }
 
   /**

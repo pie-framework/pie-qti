@@ -565,6 +565,7 @@ export default {
 		homeMetaDescription: 'مشغل QTI حديث مع تكامل اختياري للخلفية',
 		tryItems: 'تجربة العناصر',
 		tryAssessments: 'تجربة التقييمات',
+		trySectionPlayer: 'مشغل القسم',
 		pluginDemo: 'عرض المكون الإضافي',
 		dropQtiFile: 'أسقط ملف QTI XML هنا',
 		orClickToSelect: 'أو انقر لاختيار ملف',

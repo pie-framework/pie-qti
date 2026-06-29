@@ -1,0 +1,53 @@
+{
+  "id": "qti22_advanced_q6_gap_match",
+  "cases": [
+    {
+      "name": "Q6-D1/D2: no response -> SCORE=0 (lowerBound=0 enforced)",
+      "responses": { "RESPONSE": [] },
+      "expect": {
+        "score": 0,
+        "outcomes": { "SCORE": 0 }
+      }
+    },
+    {
+      "name": "Q6-D1/D2: both correct -> SCORE=3",
+      "responses": { "RESPONSE": ["sunlight gap_1", "plants gap_2"] },
+      "expect": {
+        "score": 3,
+        "outcomes": { "SCORE": 3 }
+      }
+    },
+    {
+      "name": "Q6-D1/D2: only first gap correct -> SCORE=1",
+      "responses": { "RESPONSE": ["sunlight gap_1"] },
+      "expect": {
+        "score": 1,
+        "outcomes": { "SCORE": 1 }
+      }
+    },
+    {
+      "name": "Q6-D1/D2: only second gap correct -> SCORE=2",
+      "responses": { "RESPONSE": ["plants gap_2"] },
+      "expect": {
+        "score": 2,
+        "outcomes": { "SCORE": 2 }
+      }
+    },
+    {
+      "name": "Q6-D1/D2: wrong pair -> SCORE=0 (defaultValue=-1 but lowerBound=0)",
+      "responses": { "RESPONSE": ["animals gap_1"] },
+      "expect": {
+        "score": 0,
+        "outcomes": { "SCORE": 0 }
+      }
+    },
+    {
+      "name": "Q6-D1/D2: correct + wrong pair -> clamps at 0 due to lowerBound",
+      "responses": { "RESPONSE": ["sunlight gap_1", "animals gap_2"] },
+      "expect": {
+        "score": 0,
+        "outcomes": { "SCORE": 0 }
+      }
+    }
+  ]
+}

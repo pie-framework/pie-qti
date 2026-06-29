@@ -32,12 +32,12 @@ Asset types tested:
 ### Run all asset loading evals
 ```bash
 cd apps/demo
-bun run test:e2e -- docs/evals/qti-asset-loading
+bun run test:e2e -- tests/playwright/asset-loading-evals.pw.ts
 ```
 
 ### Run with UI mode (for debugging)
 ```bash
-bun run test:e2e:ui -- docs/evals/qti-asset-loading
+bun run test:e2e:ui -- tests/playwright/asset-loading-evals.pw.ts
 ```
 
 ## Implementation Details

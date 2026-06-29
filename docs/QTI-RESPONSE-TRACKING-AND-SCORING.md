@@ -67,7 +67,7 @@ export const BUILTIN_DECLARATIONS: Record<string, VariableDeclaration> = {
 
 ### Variable Properties
 
-Each variable has ([types/index.ts:21-29](../packages/item-player/src/types/index.ts#L21-L29)):
+Each variable has ([types/index.ts](../packages/item-player/src/types/index.ts)):
 
 ```typescript
 export interface VariableDeclaration {
@@ -81,7 +81,7 @@ export interface VariableDeclaration {
 }
 ```
 
-**BaseType** values ([types/index.ts:5-17](../packages/item-player/src/types/index.ts#L5-L17)):
+**BaseType** values ([types/index.ts](../packages/item-player/src/types/index.ts)):
 
 - `boolean`, `integer`, `float`, `string`
 - `identifier` (most common for choice responses)
@@ -103,7 +103,7 @@ export interface VariableDeclaration {
 
 ### Step 1: User Interacts
 
-When a student clicks/types/drags, the interaction processor updates the response variable ([declarations.ts:90-100](../packages/item-player/src/core/declarations.ts#L90-L100)):
+When a student clicks/types/drags, the interaction processor updates the response variable ([declarations.ts](../packages/item-player/src/core/declarations.ts)):
 
 ```typescript
 /**
@@ -121,7 +121,7 @@ export function setVariableValue(
 }
 ```
 
-Example from [choiceProcessor.ts](../packages/item-player/src/processors/choiceProcessor.ts):
+Example conceptually matching the current `choiceInteraction` flow:
 
 ```typescript
 // When user selects "choiceA" in a multiple choice
@@ -148,7 +148,7 @@ setVariableValue(player.declarations, '$dirty', true);
 
 ### Step 2: Submit
 
-When student clicks "Submit", the player processes responses ([Player.ts:446-497](../packages/item-player/src/core/Player.ts#L446-L497)):
+When student clicks "Submit", the player processes responses ([Player.ts](../packages/item-player/src/core/Player.ts)):
 
 ```typescript
 /**
@@ -234,6 +234,13 @@ Equivalent to:
   </responseCondition>
 </responseProcessing>
 ```
+
+Compatibility note: some third-party exports store values in outcome defaults
+named like `${responseIdentifier}.CORRECT`. The player treats those as source
+content quirks, not as a generic alternate answer-key store. Default scoring uses
+`responseDeclaration/correctResponse` for `MATCH_CORRECT`; wiring outcome-default
+compatibility into scoring would require a separate audited design in
+`qti-processing` / declaration context rather than a hidden `Player` fallback.
 
 #### 2. `map_response`
 
@@ -426,7 +433,7 @@ player.declarations = {
 
 ### Serialization
 
-The player provides methods to get/set all variable state ([Player.ts:380-442](../packages/item-player/src/core/Player.ts#L380-L442)):
+The player provides methods to get/set all variable state ([Player.ts](../packages/item-player/src/core/Player.ts)):
 
 ```typescript
 // Get current responses
@@ -461,7 +468,7 @@ Our player is designed to integrate with web applications:
 ```typescript
 import { Player } from '@pie-qti/item-player';
 
-const player = new Player(qtiXml, config);
+const player = new Player({ itemXml: qtiXml, ...config });
 
 // After user interacts with the item
 const responses = player.getResponses();
@@ -530,7 +537,7 @@ if (result.canContinue) {
 
 ---
 
-## 6. What Our QTI 2.2 Player Provides
+## 6. What Our QTI Player Provides
 
 Our **item-player** implementation provides a complete client-side scoring system:
 
@@ -645,7 +652,7 @@ Our implementation includes a growing set of QTI operators (see the AST engine i
 - ✅ **Adaptive items** - Multi-attempt support with `completionStatus` tracking
 - ✅ **Template variables** - Full support for randomization
 - ✅ **Modal feedback** - Outcome-based feedback display
-- ✅ **21 interaction types** - Complete QTI 2.2 interaction coverage
+- ✅ **21 standard interaction types** - Standard QTI interaction coverage
 
 ### Architecture Benefits
 
@@ -659,7 +666,7 @@ Our implementation includes a growing set of QTI operators (see the AST engine i
 
 ## References
 
-- **QTI 2.2 spec (local snapshot)**: `docs/specs/qti2.2.2/qtiv2p2/`
+- **QTI 2.2.2 spec:** [1EdTech QTI v2.2.2 Final](https://www.imsglobal.org/content/question-and-test-interoperability-v222-final)
 - Key Implementation Files:
   - [Player.ts](../packages/item-player/src/core/Player.ts) - Main player class with response processing
   - [AST builder](../packages/qti-processing/src/ast/build.ts) - XML → AST

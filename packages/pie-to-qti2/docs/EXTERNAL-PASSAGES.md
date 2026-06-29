@@ -72,7 +72,7 @@ const pieItem = {
 ### Basic External Passage Resolution
 
 ```typescript
-import { PieToQti2Plugin } from '@pie-qti/pie-to-qti2';
+import { PieToQtiPlugin } from '@pie-qti/pie-to-qti2';
 import type { PassageResolver } from '@pie-qti/pie-to-qti2';
 
 // Define passage resolver
@@ -89,7 +89,7 @@ const resolver: PassageResolver = async (passageId: string) => {
 };
 
 // Create plugin with resolver
-const plugin = new PieToQti2Plugin({
+const plugin = new PieToQtiPlugin({
   passageResolver: resolver
 });
 
@@ -125,7 +125,7 @@ const pieItem = {
 };
 
 // No resolver needed - passage content is already provided
-const plugin = new PieToQti2Plugin();
+const plugin = new PieToQtiPlugin();
 const result = await plugin.transform(input, context);
 ```
 
@@ -134,7 +134,7 @@ const result = await plugin.transform(input, context);
 You can override the automatic strategy detection:
 
 ```typescript
-const plugin = new PieToQti2Plugin({
+const plugin = new PieToQtiPlugin({
   passageResolver: resolver,
   passageStrategy: 'inline' // Force inline even if external passage exists
 });
@@ -248,7 +248,7 @@ If a PIE item has a string passage reference but no resolver is provided:
 
 ```typescript
 // ❌ This will throw
-const plugin = new PieToQti2Plugin(); // No resolver
+const plugin = new PieToQtiPlugin(); // No resolver
 const pieItem = { passage: 'passage-abc', ... };
 
 await plugin.transform(input, context);
@@ -286,7 +286,7 @@ When transforming multiple items that reference the same passage:
 ### 2. IMS Content Package Generation (Future)
 
 ```typescript
-const plugin = new PieToQti2Plugin({
+const plugin = new PieToQtiPlugin({
   passageResolver: resolver,
   generatePackage: true // Phase 2: Generate IMS CP manifest
 });
@@ -349,7 +349,7 @@ interface GeneratedPassageFile {
 ### Plugin Options
 
 ```typescript
-interface PieToQti2PluginOptions {
+interface PieToQtiPluginOptions {
   registry?: GeneratorRegistry;
 
   // External passage support (Phase 2)

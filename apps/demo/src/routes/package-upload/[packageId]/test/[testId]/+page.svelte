@@ -6,10 +6,16 @@
 	import { loadPackageDataAsync, getTestXml } from '$lib/package-processor';
 	import type { PackageStructure } from '$lib/package-processor';
 	import XmlEditor from '$lib/components/XmlEditor.svelte';
+	import AssessmentTestStructurePreview from '$lib/components/AssessmentTestStructurePreview.svelte';
+	import {
+		analyzeAssessmentTestStructure,
+		type AssessmentTestStructure,
+	} from '$lib/qti-test-structure';
 
 	let testXml = $state<string | null>(null);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
+	let testStructure = $state<AssessmentTestStructure | null>(null);
 
 	// Get package data from browser storage
 	let packageData = $state<PackageStructure | null>(null);
@@ -26,6 +32,7 @@
 		loading = true;
 		error = null;
 		testXml = null;
+		testStructure = null;
 
 		// Load test asynchronously
 		(async () => {
@@ -55,6 +62,12 @@
 				if (!testXml) {
 					throw new Error(`Test ${urlTestId} not found in package`);
 				}
+
+				const currentTest = packageData.tests.find((test) => test.identifier === urlTestId);
+				testStructure = analyzeAssessmentTestStructure(testXml, {
+					testHref: currentTest?.href,
+					items: packageData.items,
+				});
 			} catch (err) {
 				error = err instanceof Error ? err.message : 'Failed to load test';
 				console.error('Error loading test:', err);
@@ -111,6 +124,8 @@
 			<p class="text-base-content/70">Loading test...</p>
 		</div>
 	{:else if testXml}
+		<AssessmentTestStructurePreview structure={testStructure} />
+
 		<!-- Test Information -->
 		<div class="alert alert-info">
 			<svg
@@ -129,8 +144,8 @@
 			<div>
 				<h3 class="font-bold">QTI Assessment/Test</h3>
 				<div class="text-sm">
-					Full test player functionality is not yet implemented. Below is the raw QTI test XML which
-					defines the assessment structure and item ordering.
+					Full test playback is still separate from this package preview. Use the structure summary above
+					to verify item references, sections, and navigation settings, then inspect the raw XML below.
 				</div>
 			</div>
 		</div>

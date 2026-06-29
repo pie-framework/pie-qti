@@ -5,7 +5,7 @@
  */
 
 import type { I18nProvider } from '@pie-qti/i18n';
-import { touchDrag } from '../utils/touchDragHelper.js';
+import { touchDrag } from '@pie-qti/qti-common';
 import DragHandle from './DragHandle.svelte';
 import '../styles/shared.css';
 
@@ -85,7 +85,7 @@ function handleKeyDown(event: KeyboardEvent, id: string) {
 
 	const currentIndex = orderedIds.indexOf(id);
 	const item = items.find((i) => i.id === id);
-	const itemName = item?.text || 'Item';
+	const itemName = item ? itemLabel(item) : 'Item';
 
 	// Space or Enter: Pick up or drop item
 	if (event.key === ' ' || event.key === 'Enter') {
@@ -164,6 +164,19 @@ function moveItem(fromIndex: number, toIndex: number) {
 	newOrder.splice(toIndex, 0, movedItem);
 	onReorder(newOrder);
 }
+
+function itemLabel(item: Item): string {
+	return toPlainText(item.text) || 'Item';
+}
+
+function toPlainText(html: string): string {
+	if (typeof document !== 'undefined') {
+		const template = document.createElement('template');
+		template.innerHTML = html;
+		return (template.content.textContent ?? '').replace(/\s+/g, ' ').trim();
+	}
+	return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+}
 </script>
 
 <!-- Screen reader announcements -->
@@ -192,6 +205,7 @@ function moveItem(fromIndex: number, toIndex: number) {
 			{@const isGrabbed = keyboardSelectedId === id}
 			{@const correctIndex = correctOrder.indexOf(id)}
 			{@const isCorrect = correctIndex !== -1 && correctIndex === index}
+			{@const label = itemLabel(item)}
 			<div role="listitem">
 				<button
 					type="button"
@@ -204,7 +218,7 @@ function moveItem(fromIndex: number, toIndex: number) {
 					ondragend={handleDragEnd}
 					onkeydown={(e) => handleKeyDown(e, id)}
 					disabled={disabled}
-					aria-label="{item.text}. Position {index + 1} of {orderedIds.length}{isGrabbed ? '. Grabbed. Use arrow keys to move.' : ''}{isCorrect ? '. Correct position' : ''}"
+					aria-label="{label}. Position {index + 1} of {orderedIds.length}{isGrabbed ? '. Grabbed. Use arrow keys to move.' : ''}{isCorrect ? '. Correct position' : ''}"
 					aria-grabbed={isGrabbed}
 					data-grabbed={isGrabbed}
 					data-correct={isCorrect}
@@ -223,7 +237,7 @@ function moveItem(fromIndex: number, toIndex: number) {
 				>
 					<span part="index" class="qti-sortable-index badge {isCorrect ? 'badge-success' : 'badge-neutral'}">{index + 1}</span>
 					<DragHandle size={1} opacity={0.5} class="text-base-content" />
-					<span part="text" class="qti-sortable-text flex-1">{item.text}</span>
+					<span part="text" class="qti-sortable-text qti-rich-content flex-1">{@html item.text}</span>
 					{#if isCorrect}
 						<span class="badge badge-success badge-sm">{i18n?.t('interactions.choice.correct', 'Correct') ?? 'Correct'}</span>
 					{/if}
@@ -252,25 +266,25 @@ function moveItem(fromIndex: number, toIndex: number) {
 		width: 100%;
 		padding: 0.75rem;
 		border-radius: 0.5rem;
-		border: 1px solid var(--color-base-300, oklch(95% 0 0));
-		background: var(--color-base-200, oklch(98% 0 0));
-		color: var(--color-base-content, oklch(21% 0 0));
+		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		background: var(--pie-qti-base-200, oklch(98% 0 0));
+		color: var(--pie-qti-base-content, oklch(21% 0 0));
 		text-align: left;
 		user-select: none;
 		transition: background-color 120ms ease, border-color 120ms ease, outline-color 120ms ease,
 			opacity 120ms ease;
 	}
 	.qti-sortable-item:focus-visible {
-		outline: 2px solid var(--color-primary, oklch(45% 0.24 277));
+		outline: 2px solid var(--pie-qti-primary, oklch(45% 0.24 277));
 		outline-offset: 2px;
 	}
 	.qti-sortable-item[data-grabbed='true'] {
-		border-color: var(--color-primary, oklch(45% 0.24 277));
-		background: color-mix(in oklch, var(--color-primary, oklch(45% 0.24 277)) 8%, transparent);
+		border-color: var(--pie-qti-primary, oklch(45% 0.24 277));
+		background: color-mix(in oklch, var(--pie-qti-primary, oklch(45% 0.24 277)) 8%, transparent);
 	}
 	.qti-sortable-item[data-correct='true'] {
-		border-color: var(--color-success, oklch(76% 0.177 163.223));
-		background: color-mix(in oklch, var(--color-success, oklch(76% 0.177 163.223)) 8%, transparent);
+		border-color: var(--pie-qti-success, oklch(76% 0.177 163.223));
+		background: color-mix(in oklch, var(--pie-qti-success, oklch(76% 0.177 163.223)) 8%, transparent);
 	}
 	.qti-sortable-item[data-disabled='true'] {
 		opacity: 0.55;
@@ -286,9 +300,9 @@ function moveItem(fromIndex: number, toIndex: number) {
 		border-radius: 9999px;
 		font-size: 0.75rem;
 		font-weight: 600;
-		border: 1px solid var(--color-base-300, oklch(95% 0 0));
-		background: var(--color-base-100, oklch(100% 0 0));
-		color: var(--color-base-content, oklch(21% 0 0));
+		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		background: var(--pie-qti-base-100, oklch(100% 0 0));
+		color: var(--pie-qti-base-content, oklch(21% 0 0));
 	}
 	.qti-sortable-text {
 		flex: 1 1 auto;

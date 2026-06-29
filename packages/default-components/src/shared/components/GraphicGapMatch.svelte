@@ -6,8 +6,8 @@
  */
 
 import type { I18nProvider } from '@pie-qti/i18n';
+import { touchDrag } from '@pie-qti/qti-common';
 import { createOrUpdatePair, getSourceForTarget, getTargetForSource, removePairBySource } from '../utils/pairHelpers.js';
-import { touchDrag } from '../utils/touchDragHelper.js';
 import '../styles/shared.css';
 
 interface GapText {
@@ -149,8 +149,8 @@ function parseCoords(hotspot: Hotspot): { x: number; y: number; width: number; h
 		const [cx, cy, r] = coords;
 		return { x: cx - r, y: cy - r, width: r * 2, height: r * 2 };
 	} else if (hotspot.shape === 'rect') {
-		const [x, y, width, height] = coords;
-		return { x, y, width, height };
+		const [x, y, right, bottom] = coords;
+		return { x, y, width: right - x, height: bottom - y };
 	}
 	// For poly, use bounding box (simplified)
 	return { x: coords[0], y: coords[1], width: 40, height: 40 };
@@ -256,7 +256,9 @@ function parseCoords(hotspot: Hotspot): { x: number; y: number; width: number; h
 							onkeydown={(e) => handleHotspotKeyDown(e, hotspot.identifier)}
 						/>
 					{:else if hotspot.shape === 'rect'}
-						{@const [x, y, width, height] = hotspot.coords.split(',').map(Number)}
+						{@const [x, y, right, bottom] = hotspot.coords.split(',').map(Number)}
+						{@const width = right - x}
+						{@const height = bottom - y}
 						{@const hotspotIndex = hotspots.findIndex((h) => h.identifier === hotspot.identifier)}
 						<rect
 							role="button"

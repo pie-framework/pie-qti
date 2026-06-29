@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { standardChoiceExtractor } from '../../../src/extraction/extractors/choiceExtractor.js';
+import { standardChoiceExtractor } from '../../../src/interactions/choice/extractor.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
 describe('standardChoiceExtractor', () => {

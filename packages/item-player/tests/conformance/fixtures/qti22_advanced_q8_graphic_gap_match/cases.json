@@ -1,0 +1,20 @@
+{
+  "id": "qti22_advanced_q8_graphic_gap_match",
+  "cases": [
+    {
+      "name": "Q8: no labels -> SCORE=0",
+      "responses": { "RESPONSE": [] },
+      "expect": { "score": 0, "outcomes": { "SCORE": 0 } }
+    },
+    {
+      "name": "Q8: both labels correct -> SCORE=2",
+      "responses": { "RESPONSE": ["nucleus A", "membrane B"] },
+      "expect": { "score": 2, "outcomes": { "SCORE": 2 } }
+    },
+    {
+      "name": "Q8: one correct and one wrong clamps at 0",
+      "responses": { "RESPONSE": ["nucleus A", "mitochondrion B"] },
+      "expect": { "score": 0, "outcomes": { "SCORE": 0 } }
+    }
+  ]
+}

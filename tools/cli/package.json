@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/transform-cli",
-  "version": "0.1.1",
+  "version": "0.1.13",
   "description": "CLI tool for QTI ↔ PIE transformations",
   "type": "module",
   "bin": {
@@ -10,7 +10,7 @@
     ".": "./dist/index.js"
   },
   "files": [
-    "bin",
+    "bin/run.js",
     "dist",
     "oclif.manifest.json"
   ],
@@ -25,6 +25,7 @@
   "dependencies": {
     "@oclif/core": "^4.0.0",
     "@oclif/plugin-help": "^6.2.0",
+    "@pie-qti/ims-cp-node": "workspace:*",
     "@pie-qti/logger": "workspace:*",
     "@pie-qti/to-pie": "workspace:*",
     "@pie-qti/transform-core": "workspace:*",

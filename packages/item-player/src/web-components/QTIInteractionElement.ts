@@ -5,17 +5,24 @@
  * interface and emit QTIChangeEvent when the user response changes.
  */
 
-import type { InteractionData } from '../types/interactions.js';
+import type { InteractionData, InteractionValueMap } from '../interactions/index.js';
+
+export type InteractionResponseValue<TData extends InteractionData = InteractionData> =
+	TData extends { type: infer TType }
+		? TType extends keyof InteractionValueMap
+			? InteractionValueMap[TType]
+			: unknown
+		: unknown;
 
 /**
  * Standard interface that all QTI interaction web components must implement
  */
-export interface QTIInteractionElement extends HTMLElement {
+export interface QTIInteractionElement<TData extends InteractionData = InteractionData> extends HTMLElement {
 	/** The processed interaction data from the QTI XML */
-	interaction: InteractionData;
+	interaction: TData;
 
 	/** The current response value (type depends on interaction type) */
-	response: any;
+	response: InteractionResponseValue<TData> | null;
 
 	/** Whether the interaction is in read-only/disabled mode */
 	disabled: boolean;
@@ -27,12 +34,12 @@ export interface QTIInteractionElement extends HTMLElement {
 /**
  * Detail payload for the qti-change event
  */
-export interface QTIChangeEventDetail {
+export interface QTIChangeEventDetail<TValue = InteractionResponseValue | null> {
 	/** The response identifier for this interaction */
 	responseId: string;
 
 	/** The new response value */
-	value: any;
+	value: TValue;
 
 	/** Timestamp when the change occurred */
 	timestamp: number;
@@ -51,8 +58,8 @@ export interface QTIChangeEventDetail {
  * });
  * ```
  */
-export class QTIChangeEvent extends CustomEvent<QTIChangeEventDetail> {
-	constructor(detail: QTIChangeEventDetail) {
+export class QTIChangeEvent<TValue = InteractionResponseValue | null> extends CustomEvent<QTIChangeEventDetail<TValue>> {
+	constructor(detail: QTIChangeEventDetail<TValue>) {
 		super('qti-change', {
 			detail,
 			bubbles: true, // Bubble up through DOM tree

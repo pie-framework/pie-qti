@@ -1,5 +1,5 @@
 <script lang="ts">
-	import CustomInteractionFallback from '@pie-qti/default-components/shared/components/CustomInteractionFallback.svelte';
+	import { CustomInteractionFallback } from '@pie-qti/default-components/shared/components';
 
 	let value = $state<string | null>(null);
 </script>

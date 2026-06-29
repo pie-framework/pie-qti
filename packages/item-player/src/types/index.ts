@@ -7,6 +7,8 @@ import type {
 	Cardinality as ProcessingCardinality,
 	QtiValue,
 } from '@pie-qti/qti-processing';
+import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
+import type { ResponseValidationResult } from './responseValidation.js';
 
 /**
  * QTI base type identifier
@@ -52,7 +54,7 @@ export interface AreaMapping {
 	defaultValue?: number;
 	lowerBound?: number;
 	upperBound?: number;
-	entries: Record<string, AreaMapEntry>;
+	entries: AreaMapEntry[];
 }
 
 export interface AreaMapEntry {
@@ -76,6 +78,63 @@ export interface OutcomeDeclaration extends VariableDeclaration {
 
 export interface ItemSessionState {
 	[variableId: string]: any;
+}
+
+export type ItemLifecycleStatus = 'initial' | 'interacting' | 'suspended' | 'closed' | 'review' | 'solution' | 'answer';
+
+export type SerializedVariableKind = 'response' | 'outcome' | 'template' | 'context';
+
+export interface SerializedItemSessionVariable {
+	identifier: string;
+	kind: SerializedVariableKind;
+	baseType: VariableBaseType;
+	cardinality: VariableCardinality;
+	value: any;
+	defaultValue?: any;
+}
+
+export interface SerializedItemSessionState {
+	itemIdentifier?: string;
+	sessionGuid: string;
+	lifecycleStatus: ItemLifecycleStatus;
+	completionStatus: CompletionStatus;
+	numAttempts: number;
+	/**
+	 * Time-on-task in milliseconds, stored as the QTI built-in duration variable value.
+	 */
+	duration: number;
+	responseVariables: Record<string, SerializedItemSessionVariable>;
+	outcomeVariables: Record<string, SerializedItemSessionVariable>;
+	templateVariables: Record<string, SerializedItemSessionVariable>;
+	contextVariables: Record<string, SerializedItemSessionVariable>;
+	validationMessages: ResponseValidationResult['issues'];
+	savedAt: string;
+}
+
+export type ItemSessionAction =
+	| 'suspendAttempt'
+	| 'endAttempt'
+	| 'scoreAttempt'
+	| 'newTemplate'
+	| 'submitAttempt';
+
+export type ItemSessionActionCommand =
+	| { action: 'suspendAttempt' }
+	| { action: 'endAttempt'; countAttempt?: boolean; validateResponses?: boolean }
+	| { action: 'scoreAttempt' }
+	| { action: 'newTemplate'; resetResponses?: boolean }
+	| { action: 'submitAttempt'; countAttempt?: boolean };
+
+export interface ItemSessionActionResult {
+	action: ItemSessionAction;
+	lifecycleStatus: ItemLifecycleStatus;
+	completionStatus: CompletionStatus;
+	numAttempts: number;
+	duration: number;
+	completed: boolean;
+	sessionState: SerializedItemSessionState;
+	validation?: ResponseValidationResult;
+	scoring?: ScoringResult;
 }
 
 export interface InteractionResponse {
@@ -149,19 +208,27 @@ export interface AdaptiveAttemptResult extends ScoringResult {
 }
 
 /**
- * QTI 2.2 standard roles
- * - candidate: Student/test-taker
- * - scorer: Automated or human scoring system
- * - proctor: Test administrator/invigilator
- * - testConstructor: Test author/developer
- * - tutor: Instructional/learning mode
- * - author: Content author
+ * QTI role/view actors used for audience filtering (for example rubric/outcome visibility).
+ * Runtime interaction behavior (readonly vs editable, correct-answer visibility) is a player
+ * policy layered on top of these roles.
  */
 export type QTIRole = 'candidate' | 'scorer' | 'proctor' | 'testConstructor' | 'tutor' | 'author';
+
+export type RubricBlockScope = 'direct' | 'itemBody';
+
+export interface RubricBlockOptions {
+	/**
+	 * `direct` rubrics are assessment-item children and are intended for host placement.
+	 * `itemBody` rubrics are authored in the visible item body flow.
+	 */
+	scope?: RubricBlockScope | 'all';
+}
 
 export interface RubricBlock {
 	view: string[]; // Array of role strings that can see this rubric
 	html: HtmlContent; // HTML content of the rubric
+	scope: RubricBlockScope;
+	use?: string;
 }
 
 /**
@@ -181,6 +248,25 @@ export interface QTIComplianceConfig {
 
 export interface PlayerConfig {
 	itemXml?: string;
+	/**
+	 * QTI 3.0 §6.2 Personal Needs and Preferences profile.
+	 * Color scheme is applied immediately as data-qti-colorscheme on the player root.
+	 * Use player.updatePnp() to change mid-session without re-parsing the item.
+	 */
+	pnp?: import('../pnp/types.js').PnpProfile;
+	/**
+	 * Optional shared catalog XML string (QTI 3.0 §6.3).
+	 * Parsed and merged with any catalog embedded in the item XML.
+	 * Item-level catalog entries take precedence over shared entries with the same identifier.
+	 * Deferred: external catalog files from IMS manifest (G-15) are not yet supported.
+	 */
+	catalogXml?: string;
+	/**
+	 * Optional resolved delivery context produced by IMS package/assessment layers.
+	 * This is additive to catalogXml: shared catalog sources are merged first, then
+	 * catalogXml, then item-embedded catalog entries so item-local entries win.
+	 */
+	deliveryContext?: ResolvedItemDeliveryContext;
 	sessionState?: ItemSessionState;
 	responses?: InteractionResponse;
 	role?: QTIRole;
@@ -216,6 +302,11 @@ export interface PlayerConfig {
 	 * Keyed by operator `class` (preferred) or `definition` URI.
 	 */
 	customOperators?: Record<string, (args: QtiValue[], meta: { class?: string; definition?: string }) => QtiValue>;
+	/**
+	 * Optional base URL for resolving relative PCI module paths.
+	 * Defaults to document.baseURI when running in a browser.
+	 */
+	pciBaseUrl?: string;
 
 	/**
 	 * Security-related controls for untrusted QTI rendered into the host DOM.
@@ -246,6 +337,10 @@ export interface UrlPolicyConfig {
 	allowDataImages?: boolean;
 	/** Allow data:image/svg+xml (default false) */
 	allowSvgDataImages?: boolean;
+	/** Allow blob: URLs for package-resolved images (default false). */
+	allowBlobImages?: boolean;
+	/** Allow blob: URLs for package-resolved audio/video media (default false). */
+	allowBlobMedia?: boolean;
 	/** Optional allowlist of hostnames for absolute URLs (exact match). */
 	allowedHosts?: string[];
 }
@@ -317,5 +412,5 @@ export interface InteractionContext {
 
 // Interaction data shapes for the component/plugin system.
 // Exported here so consumers can import them from `@pie-qti/item-player`.
-export * from './interactions.js';
+export type * from '../interactions/index.js';
 export * from './responseValidation.js';

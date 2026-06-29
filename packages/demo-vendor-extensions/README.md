@@ -117,9 +117,9 @@ const qtiPlugin = new QtiToPiePlugin({
 });
 ```
 
-### Already Integrated
+### Host Registration Example
 
-The demo extensions are already wired up in the transform app at [apps/transform/src/hooks.server.ts](../../apps/transform/src/hooks.server.ts#L48-L66).
+Host applications can wire these extensions into `QtiToPiePlugin` during bootstrap. Production import hosts should register vendor extensions inside their own application boundary.
 
 ## Testing the Extensions
 
@@ -144,7 +144,7 @@ Create a QTI file with `data-vendor="acme"` and a `sliderInteraction`:
 </assessmentItem>
 ```
 
-Upload this to the transform app and watch the console for:
+Run this through a host that registered the demo extensions and watch the console for:
 - `[AcmeVendorDetector]` detection logs
 - `[AcmeSliderTransformer]` transformation logs
 - Generated placeholder PIE item

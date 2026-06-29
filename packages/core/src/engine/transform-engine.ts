@@ -5,9 +5,6 @@
  */
 
 import type {
-  TransformContext,
-  TransformFormat,
-  TransformInput,
   TransformPlugin,
   WorkflowOrchestrator,
   WorkflowHandle,
@@ -23,23 +20,9 @@ import { PieDetector } from '../detectors/pie-detector.js';
 import { InMemoryOrchestrator } from '../orchestration/in-memory-orchestrator.js';
 import { TransformItemWorkflow, type TransformItemInput, type TransformItemOutput } from '../orchestration/workflows/transform-item-workflow.js';
 import { BatchTransformWorkflow, type BatchTransformInput, type BatchTransformOutput } from '../orchestration/workflows/batch-transform-workflow.js';
+import { prepareTransformPrelude, type TransformOptions } from './transform-prelude.js';
 
-export interface TransformOptions {
-  /** Source format (will be auto-detected if not provided) */
-  sourceFormat?: TransformFormat;
-
-  /** Target format */
-  targetFormat: TransformFormat;
-
-  /** Vendor-specific options */
-  vendor?: string;
-
-  /** Logger instance */
-  logger?: ServerLogger;
-
-  /** Additional options */
-  [key: string]: any;
-}
+export type { TransformOptions } from './transform-prelude.js';
 
 export class TransformEngine {
   private registry: PluginRegistry;
@@ -84,51 +67,24 @@ export class TransformEngine {
     input: string | object,
     options: TransformOptions
   ): Promise<WorkflowHandle<TransformItemOutput>> {
-    const logger = options.logger || this.defaultLogger;
-
-    // Prepare input
-    const transformInput: TransformInput = {
-      content: input,
-      format: options.sourceFormat,
-    };
-
-    // Detect format if not provided
-    const sourceFormat = options.sourceFormat || (await this.detectFormat(transformInput));
-
-    logger.info(`Transforming from ${sourceFormat} to ${options.targetFormat}`);
-
-    // Find appropriate plugin
-    const plugin = this.registry.findPlugin(sourceFormat, options.targetFormat);
-
-    if (!plugin) {
-      throw new Error(
-        `No plugin found for transformation: ${sourceFormat} → ${options.targetFormat}`
-      );
-    }
-
-    logger.debug(`Using plugin: ${plugin.name} (${plugin.id})`);
-
-    // Initialize plugin if needed
-    if (plugin.initialize) {
-      logger.debug('Initializing plugin...');
-      await plugin.initialize(options);
-    }
-
-    // Create context
-    const context: TransformContext = {
-      logger,
-      vendor: options.vendor,
+    const prelude = await prepareTransformPrelude({
+      input,
       options,
-    };
+      registry: this.registry,
+      formatDetectorRegistry: this.formatDetectorRegistry,
+      defaultLogger: this.defaultLogger,
+    });
+
+    prelude.logger.info(`Transforming from ${prelude.sourceFormat} to ${prelude.targetFormat}`);
 
     // Prepare workflow input
     const workflowInput: TransformItemInput = {
       content: typeof input === 'string' ? input : JSON.stringify(input),
       itemId: 'item-' + Date.now(),
-      sourceFormat,
-      targetFormat: options.targetFormat,
-      plugin,
-      context,
+      sourceFormat: prelude.sourceFormat,
+      targetFormat: prelude.targetFormat,
+      plugin: prelude.plugin,
+      context: prelude.context,
       storage: this.storage,
     };
 
@@ -144,37 +100,15 @@ export class TransformEngine {
     inputs: Array<string | object>,
     options: TransformOptions & { parallel?: number }
   ): Promise<WorkflowHandle<BatchTransformOutput>> {
-    const logger = options.logger || this.defaultLogger;
-
-    // Detect format if not provided
-    const sourceFormat = options.sourceFormat || (await this.detectFormat({
-      content: inputs[0],
-      format: options.sourceFormat,
-    }));
-
-    logger.info(`Batch transforming ${inputs.length} items`);
-
-    // Find appropriate plugin
-    const plugin = this.registry.findPlugin(sourceFormat, options.targetFormat);
-
-    if (!plugin) {
-      throw new Error(
-        `No plugin found for transformation: ${sourceFormat} → ${options.targetFormat}`
-      );
-    }
-
-    // Initialize plugin if needed
-    if (plugin.initialize) {
-      logger.debug('Initializing plugin...');
-      await plugin.initialize(options);
-    }
-
-    // Create context
-    const context: TransformContext = {
-      logger,
-      vendor: options.vendor,
+    const prelude = await prepareTransformPrelude({
+      input: inputs[0],
       options,
-    };
+      registry: this.registry,
+      formatDetectorRegistry: this.formatDetectorRegistry,
+      defaultLogger: this.defaultLogger,
+    });
+
+    prelude.logger.info(`Batch transforming ${inputs.length} items`);
 
     if (!this.storage) {
       throw new Error('Storage backend required for batch transformation');
@@ -186,31 +120,16 @@ export class TransformEngine {
         itemId: `item-${Date.now()}-${index}`,
         contentUri: typeof input === 'string' ? input : `memory://item-${index}`,
       })),
-      sourceFormat,
-      targetFormat: options.targetFormat,
-      plugin,
-      context,
+      sourceFormat: prelude.sourceFormat,
+      targetFormat: prelude.targetFormat,
+      plugin: prelude.plugin,
+      context: prelude.context,
       storage: this.storage,
       maxConcurrent: options.parallel || 5,
     };
 
     // Start workflow
     return this.orchestrator.startWorkflow(BatchTransformWorkflow, workflowInput);
-  }
-
-  /**
-   * Auto-detect input format using registered format detectors
-   */
-  private async detectFormat(input: TransformInput): Promise<TransformFormat> {
-    const detected = await this.formatDetectorRegistry.detectFormat(input.content);
-
-    if (!detected) {
-      throw new Error(
-        'Could not detect input format. Please specify sourceFormat explicitly.'
-      );
-    }
-
-    return detected;
   }
 
   /**

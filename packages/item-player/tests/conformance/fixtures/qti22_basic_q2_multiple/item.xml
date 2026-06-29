@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+  xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="qti22-basic-q2-multiple"
+  title="Q2 Choice Interaction - Multiple Cardinality"
+  adaptive="false"
+  timeDependent="false">
+
+  <responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="identifier"/>
+
+  <!-- ECHO outcome copies RESPONSE so fixture cases can assert its container value -->
+  <outcomeDeclaration identifier="ECHO" cardinality="multiple" baseType="identifier"/>
+
+  <itemBody>
+    <choiceInteraction responseIdentifier="RESPONSE" shuffle="false" maxChoices="3">
+      <prompt>Select one or more choices.</prompt>
+      <simpleChoice identifier="choice_a">Choice A</simpleChoice>
+      <simpleChoice identifier="choice_b">Choice B</simpleChoice>
+      <simpleChoice identifier="choice_c">Choice C</simpleChoice>
+    </choiceInteraction>
+  </itemBody>
+
+  <responseProcessing>
+    <setOutcomeValue identifier="ECHO">
+      <variable identifier="RESPONSE"/>
+    </setOutcomeValue>
+  </responseProcessing>
+
+</assessmentItem>

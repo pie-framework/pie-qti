@@ -13,7 +13,7 @@ High-level architecture overview for PIE-QTI.
 
 ### Transformations
 
-- **QTI → PIE**: parse QTI 2.2 content and produce PIE JSON, with a lossless round-trip path when the source originated from PIE.
+- **QTI → PIE**: parse QTI content and produce PIE JSON, with a lossless round-trip path when the source originated from PIE.
 - **PIE → QTI**: generate QTI 2.2 XML from PIE JSON, including IMS Content Package support and a lossless round-trip path.
 
 ### Tools
@@ -23,8 +23,8 @@ High-level architecture overview for PIE-QTI.
 
 ### Version support (important boundary)
 
-- **Transforms**: target **QTI 2.2** (`imsqti_v2p2`) for transformation. Treat other namespaces/variants as “ingest-time compatibility work” and validate early.
-- **Players**: designed for **QTI 2.x** content in practice (role-based rendering, response processing, optional backend scoring patterns). For highest interoperability, keep content aligned to QTI 2.2.
+- **Transforms**: ingest QTI content and emit **QTI 2.2** (`imsqti_v2p2`) from PIE. Treat unsupported namespaces/variants as ingest-time compatibility work and validate early.
+- **Players**: designed for QTI content across the supported delivery scope (role/view-aware rendering, response processing, optional backend scoring patterns). For highest interoperability in legacy ecosystems, keep content aligned to the relevant QTI profile.
 
 ---
 
@@ -56,14 +56,13 @@ Everything lives under `packages/` and `apps/`:
 
 ### Apps
 
-- `apps/transform`: web conversion UI
 - `apps/demo`: example app + fixtures + reference iframe runtime page
 
 ---
 
 ## QTI players: architecture & extensibility
 
-> **Status**: Production-ready
+> **Status**: Production-ready for the supported QTI delivery scope
 
 ![Item player extensibility](images/item_player_extensibility.jpeg)
 
@@ -122,7 +121,7 @@ Key references:
 
 - `packages/typeset-katex/README.md`
 - `packages/item-player/src/components/actions/typesetAction.ts`
-- `packages/item-player/src/core/ItemRenderer.ts` (applies `typeset` to the rendered wrapper)
+- `packages/item-player/src/components/ItemBody.svelte` (applies `typeset` to the rendered wrapper)
 
 ##### 4) Custom operators (`customOperators`)
 
@@ -162,7 +161,7 @@ Key references:
 - `packages/item-player/src/types/index.ts` (`PlayerSecurityConfig`)
 - `packages/item-player/src/core/sanitizer.ts`
 - `packages/item-player/src/core/urlPolicy.ts`
-- `packages/item-player/docs/security-audit.md`
+- Security model PRD: `docs/prds/architecture/security.md`
 
 ---
 
@@ -199,17 +198,20 @@ The theming system balances three goals:
 
 #### CSS variables (theme tokens)
 
-Components consume DaisyUI-compatible variables:
+Components consume package-owned PIE QTI theme variables. DaisyUI hosts can import
+`@pie-qti/theme-daisyui/bridge.css` to map their active `--color-*` theme into
+these variables.
 
 | Variable | Purpose |
 |----------|---------|
-| `--p` | Primary color |
-| `--a` | Accent color |
-| `--b1`, `--b2`, `--b3` | Base surface colors |
-| `--bc` | Base content (text) color |
-| `--su` | Success color |
+| `--pie-qti-primary` | Primary color |
+| `--pie-qti-accent` | Accent color |
+| `--pie-qti-base-100`, `--pie-qti-base-200`, `--pie-qti-base-300` | Base surface colors |
+| `--pie-qti-base-content` | Base content (text) color |
+| `--pie-qti-success` | Success color |
 
-Usage in components: `hsl(var(--p))`, `hsl(var(--bc))`, etc.
+Usage in components: `var(--pie-qti-primary, <fallback>)`,
+`var(--pie-qti-base-content, <fallback>)`, etc.
 
 If the host doesn't provide these variables, components fall back to safe defaults via `var(--token, fallback)`.
 
@@ -248,7 +250,7 @@ Key references:
 
 ## Internationalization (i18n)
 
-> **Status**: Production-ready
+> **Status**: Production-ready for the supported QTI delivery scope
 > **Package**: `@pie-qti/i18n`
 
 ### Overview
@@ -396,13 +398,11 @@ Key reference:
 
 ---
 
-## Transform app (`apps/transform`): conversion + preview pipeline
+## Host integration pattern (composing the transform packages)
 
-> **Status**: Under active development
+> **Status**: Composer CMS is the intended home for product import workflows. This repository ships reusable packages; host applications compose them.
 
-![Transform app workflow](images/transform_app_workflow.jpeg)
-
-The transform app is a SvelteKit web UI that wires together:
+A product import surface can wire the reusable packages together along these lines:
 
 - upload and extraction (pluggable storage backend with session management),
 - analysis (discover items/tests, count interactions, record issues),
@@ -411,12 +411,12 @@ The transform app is a SvelteKit web UI that wires together:
 
 ### Storage architecture
 
-The transform app uses a **pluggable storage system** (`@pie-qti/storage`) that abstracts storage backends:
+Use the **pluggable storage system** (`@pie-qti/storage`) that abstracts storage backends:
 
-- **Default**: Filesystem backend (stores sessions in `./uploads/sessions/`)
+- **Default**: Filesystem backend
 - **Optional**: S3, database, or custom backends via configuration
 
-Sessions are stored with separate metadata files:
+Sessions are typically stored with separate metadata files:
 
 - `metadata.json` - Core session state (id, status, timestamps)
 - `analysis.json` - Analysis results (packages, items, interactions)
@@ -432,28 +432,22 @@ Key references:
 
 - Storage types: `packages/types/src/storage/index.ts`
 - Storage package: `packages/storage/src/`
-- App storage wrapper: `apps/transform/src/lib/server/storage/app-session-storage.ts`
-- Configuration: `docs/CONFIGURATION.md`
+- Source profile configuration: `docs/SOURCE-PROFILES.md`
 
 ### Server-side flow (sessioned)
 
-1) **Upload**: `POST /api/upload` stores ZIP(s) in a new session
-   - reference: `apps/transform/src/routes/api/upload/+server.ts`
-2) **Analyze**: `POST /api/sessions/[id]/analyze` extracts and analyzes the session
-   - reference: `apps/transform/src/routes/api/sessions/[id]/analyze/+server.ts`
-3) **Transform**: `POST /api/sessions/[id]/transform` uses `TransformEngine` + `Qti22ToPiePlugin`
-   - reference: `apps/transform/src/routes/api/sessions/[id]/transform/+server.ts`
+A sessioned host flow can follow this shape:
+
+1) **Upload**: store ZIP(s) in a new session
+2) **Analyze**: extract and analyze the session content
+3) **Transform**: run `TransformEngine` + `QtiToPiePlugin` over the session
 
 ### Preview model
 
-- **QTI preview**: uses the QTI players + typesetting adapter to render XML directly.
-- **PIE preview**: uses PIE web components (`pie-iife-player` / `pie-esm-player`) to render the transformed PIE config.
+- **QTI preview**: use the QTI players + typesetting adapter to render XML directly.
+- **PIE preview**: use PIE web components (`pie-iife-player` / `pie-esm-player`) to render the transformed PIE config.
 
-Key references:
-
-- QTI item preview component: `apps/transform/src/lib/components/QtiItemPlayer.svelte`
-- QTI assessment preview component: `apps/transform/src/lib/components/QtiAssessmentPlayer.svelte`
-- PIE preview component: `apps/transform/src/lib/components/PieItemPlayer.svelte`
+Product import implementations should compose the package-level pieces (`@pie-qti/to-pie`, `@pie-qti/transform-core`, QTI players, PIE players) inside their own persistence, workflow, and authorization boundaries.
 
 ---
 
@@ -467,6 +461,7 @@ This section combines “deployment guidance” with “security boundary clarif
 - **Plugins/custom components are integrator-owned**: any `QTIPlugin` and any custom web components run as host code. Treat them as trusted application code (review, test, pin).
 - **Client-side scoring is not secure**: for high-stakes assessment, you must do **server-side scoring** and avoid sending correct answers / scoring logic to the candidate.
 - **Best isolation is origin isolation**: for untrusted QTI, prefer iframe mode and run the runtime on a separate origin with strict postMessage allowlists.
+- **LTI is a host integration concern**: the player can run inside an LTI 1.3 / LTI Advantage tool, but launch validation, Deep Linking, AGS grade passback, NRPS roster lookup, and LMS policy enforcement belong to the host application.
 
 ### Recommended deployment modes
 
@@ -532,11 +527,11 @@ You’ll likely want multiple layers:
 ## Further reading (key docs)
 
 - Transformation overview: `docs/PIE-QTI-TRANSFORMATION-GUIDE.md`
-- QTI 2.2 notes: `docs/QTI_2.2_techguide.md`
+- QTI technical reference: `docs/QTI_techguide.md`
 - IMS Content Package notes: `docs/IMS_Content_Packages_techguide.md`
 - QTI item player: `packages/item-player/README.md`
 - Iframe mode reference: `packages/item-player/docs/iframe-mode.md`
-- Security audit notes: `packages/item-player/docs/security-audit.md`
+- Security model PRD: `docs/prds/architecture/security.md`
 - QTI assessment player: `packages/assessment-player/README.md`
 - Backend integration: `packages/assessment-player/BACKEND-INTEGRATION.md`
 - IMS Content Packages: `packages/pie-to-qti2/docs/MANIFEST-GENERATION.md`

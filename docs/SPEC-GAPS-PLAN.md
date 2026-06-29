@@ -1,7 +1,7 @@
 # PIE-QTI Specification Gaps — Implementation Plan
 
 **Status**: Living document
-**Last reviewed**: 2026-03-14
+**Last reviewed**: 2026-04-29
 **Source analysis**: Comparison of `docs/QTI_techguide.md` against the codebase
 
 This document is the authoritative meta-plan for closing gaps between the QTI specification and the
@@ -32,19 +32,20 @@ verbatim into the task brief. The agent should also read the **Spec ref** sectio
 
 ---
 
-## Tier 1 — QTI 2.x gaps (highest priority)
+## Tier 1 — Cross-version interaction and assessment gaps
 
-These are deficiencies in the production-ready QTI 2.x player. They affect real content from real
-item banks. Work here should be prioritised before any QTI 3.0 work.
+These gaps were identified from QTI 2.x-authored content, but several affect the shared delivery
+path used for QTI content after name mapping. QTI 3.0-specific work is tracked separately in Tier 2
+and Tier 3 below.
 
 ---
 
 ### G-01: `matchGroup` attribute not extracted for associable-choice interactions
 
-Scope       — `packages/item-player/src/extraction/extractors/associateExtractor.ts`,
+Scope       — `packages/item-player/src/interactions/associate/extractor.ts`,
               `matchExtractor.ts`, `gapMatchExtractor.ts`, `graphicGapMatchExtractor.ts`;
               corresponding default-components UI components
-Status      — Open
+Status      — Done (commit e2660fb, 2026-04-29)
 Effort      — M
 Spec ref    — §3.1.3 (associateInteraction), §3.1.4 (matchInteraction), §3.1.5 (gapMatchInteraction),
               §3.3.5 (graphicGapMatchInteraction)
@@ -75,9 +76,9 @@ Test signal
 
 ### G-02: `label` element on `inlineChoiceInteraction` not extracted
 
-Scope       — `packages/item-player/src/extraction/extractors/inlineChoiceExtractor.ts`;
+Scope       — `packages/item-player/src/interactions/inline-choice/extractor.ts`;
               `packages/default-components/src/plugins/inline-choice/`
-Status      — Open
+Status      — Done (already implemented; no code change needed)
 Effort      — S
 Spec ref    — §3.2.1
 
@@ -87,7 +88,9 @@ displayed in the dropdown before the candidate makes a selection (a placeholder/
 dropdown UIs typically show a blank or the first choice, which can confuse candidates.
 
 Current
-`InlineChoiceData` has `choices` and `shuffle` only. The extractor does not look for a `<label>` child.
+`InlineChoiceData.label: string | null` exists in `inlineChoiceExtractor.ts`; the extractor reads
+the `<label>` child element; `ItemBody.svelte:290` uses it as the placeholder `<option>` with i18n
+fallback to `'Select...'`.
 
 Action
 1. Add `label?: string` to `InlineChoiceData`.
@@ -103,9 +106,9 @@ Test signal
 
 ### G-03: `format` attribute on `textEntryInteraction` not extracted
 
-Scope       — `packages/item-player/src/extraction/extractors/textEntryExtractor.ts`;
+Scope       — `packages/item-player/src/interactions/text-entry/extractor.ts`;
               `packages/default-components/src/plugins/text-entry/`
-Status      — Open
+Status      — Done (commit e2660fb, 2026-04-29)
 Effort      — S
 Spec ref    — §3.2.2
 
@@ -133,7 +136,7 @@ Test signal
 ### G-04: `patternMask` not enforced as live input constraint
 
 Scope       — `packages/default-components/src/plugins/text-entry/`
-Status      — Open
+Status      — Done (commit e2660fb, 2026-04-29)
 Effort      — S
 Spec ref    — §3.2.2, §3.2.3
 
@@ -160,9 +163,8 @@ Test signal
 
 ### G-05: `testFeedback` visibility only handles boolean outcomes
 
-Scope       — `packages/assessment-player/src/core/AssessmentPlayer.ts` (or
-              `OutcomeProcessor.ts` wherever `getVisibleFeedback()` lives)
-Status      — Open
+Scope       — `packages/assessment-player/src/core/AssessmentPlayer.ts`
+Status      — Done (already implemented; no code change needed)
 Effort      — S
 Spec ref    — §2.1 (Assessment Architecture — testFeedback)
 
@@ -173,14 +175,12 @@ is shown when the outcome variable named by `outcomeIdentifier` equals `identifi
 can be any type, not just boolean.
 
 Current
-The assessment player's feedback resolution reads `showHide: 'show'` as "show when `PASSED` is
-truthy" (treating the outcome as a boolean). Non-boolean cases — e.g. `outcomeIdentifier="GRADE"`
-+ `identifier="A"` should show when `GRADE === "A"` — are not handled.
+`AssessmentPlayer.ts:574-576` already performs `String(outcomes[fb.outcomeIdentifier] ?? '') ===
+fb.identifier` — string equality for all outcome types. Boolean outcomes still work because
+`true`/`false` are coerced to `"true"`/`"false"` before comparison.
 
 Action
-1. Locate `getVisibleFeedback()` (likely `AssessmentPlayer.ts` or `OutcomeProcessor.ts`).
-2. Replace the boolean coercion with a string equality check: get the string value of the named outcome variable; show the feedback when it equals `identifier` (for `showHide="show"`) or does not equal it (for `showHide="hide"`). Boolean `true`/`false` values still work because they compare as strings `"true"`/`"false"`.
-3. Add unit tests covering: boolean outcome (existing behaviour preserved), string outcome, `showHide="hide"` variant.
+Done. `AssessmentPlayer.getVisibleFeedback()` uses string equality for the named outcome variable; keep regression coverage for boolean outcomes, string outcomes, and `showHide="hide"`.
 
 Test signal
 - Assessment with `outcomeIdentifier="GRADE"` and three feedback blocks for `identifier="A"`, `"B"`, `"C"` shows only the correct block after scoring.
@@ -190,7 +190,7 @@ Test signal
 ### G-06: `matchMin` usage constraint not validated at submission time
 
 Scope       — `packages/item-player/src/utils/responseUtils.ts` or `Player.ts`
-Status      — Open
+Status      — Done (commit e2660fb + followup, 2026-04-29 — matchMin extracted and validated at runtime)
 Effort      — S
 Spec ref    — §3.1.3, §3.1.4, §3.1.5, §3.3.4, §3.3.5
 
@@ -219,7 +219,7 @@ Test signal
 ### G-07: STATUS.md and README.md are inconsistent about QTI 3.0 scope
 
 Scope       — `STATUS.md`, `README.md`
-Status      — Open
+Status      — Done (commit e2660fb, 2026-04-29)
 Effort      — S
 Spec ref    — N/A
 
@@ -254,10 +254,10 @@ already in place. What follows is the application-level work.
 
 ### G-08: PCI — Portable Custom Interaction module lifecycle
 
-Scope       — `packages/item-player/src/extraction/extractors/customExtractor.ts`;
+Scope       — `packages/item-player/src/interactions/custom/extractor.ts`;
               new `packages/item-player/src/pci/` module;
               `packages/item-player/src/core/Player.ts`
-Status      — Open
+Status      — Done (commit fa8fa97, 2026-04-28)
 Effort      — L
 Spec ref    — §6.1
 
@@ -276,9 +276,9 @@ The player must: (a) load the module at `primary-path` (falling back to `fallbac
 (f) call `module.destroy()` on unmount.
 
 Current
-`standardCustomExtractor` treats QTI 2.x `customInteraction` and QTI 3.0
-`qti-portable-custom-interaction` identically: it serialises the raw XML and provides a fallback
-display. No module is loaded; the lifecycle interface is not called.
+Implemented. The player now distinguishes QTI 2.x `customInteraction` from QTI 3.0
+`qti-portable-custom-interaction` and supports the PCI lifecycle. The text above is retained as
+historical context for the original gap.
 
 Action
 1. Create `packages/item-player/src/pci/PciHost.ts` that:
@@ -307,7 +307,7 @@ Scope       — `packages/item-player/src/core/Player.ts`;
               new `packages/item-player/src/pnp/` module;
               `packages/default-components/src/` (individual component changes);
               `packages/assessment-player/src/core/AssessmentPlayer.ts`
-Status      — Open
+Status      — Done (commit fa8fa97, 2026-04-28)
 Effort      — L
 Spec ref    — §6.2
 
@@ -324,22 +324,10 @@ initialisation. It controls:
 - **Structured label support** — adds supplementary ARIA markup to interaction prompts
 
 Current
-No PNP support. `PlayerConfig` has no `pnp` field. Color schemes, elimination tool, extended time,
-and glossary triggers are all absent.
+PNP support is implemented for the current delivery scope: `PlayerConfig.pnp`, `player.updatePnp()`, color schemes, elimination tool, extended time, and glossary/keyword-translation trigger UI are shipped. Specialist features such as structured labels, braille routing, and sign-language video remain deferred under G-13/G-14.
 
 Action
-1. Define a `PnpProfile` TypeScript interface in `packages/item-player/src/pnp/types.ts` matching the §6.2 schema. Export it from the package index.
-2. Add `pnp?: PnpProfile` to `PlayerConfig`.
-3. Create `packages/item-player/src/pnp/applyPnp.ts` with a pure function `applyPnpToRoot(rootEl: HTMLElement, pnp: PnpProfile): void` that:
-   - Sets/removes a `qti-pnp-colorscheme-{scheme}` class on `rootEl`
-   - Sets CSS custom properties (see §6.2 color scheme table) directly on `rootEl` when a non-default scheme is active
-4. Call `applyPnpToRoot` in `Player.ts` immediately after parsing, before first render. Expose `player.updatePnp(partial: Partial<PnpProfile>)` for mid-session updates.
-5. Elimination tool: in `choiceInteraction` (and `orderInteraction`) default components, when `pnp.cognitive.eliminationTool` is truthy, render an "eliminate" button per choice. Eliminated choices get a CSS class and `aria-disabled`; the underlying response value is unchanged.
-6. Extended time: in `AssessmentPlayer`, when applying `timeLimits`, multiply by `pnp.content.extendedTime.multiplier` if present and active.
-7. Glossary trigger (prerequisite for full glossary: G-10, but the trigger UI can be built independently): when `pnp.content.glossaryOnScreen` is true, scan the rendered item body for elements with `data-catalog-idref` and add a visual indicator + accessible button that, when activated, emits a `qti-catalog-lookup` custom event with the `catalogIdref` value. The host (or G-10) handles the popup content.
-8. Add `player.updatePnp()` to the iframe postMessage protocol.
-9. Write unit tests for `applyPnpToRoot` and `extendedTime` multiplication.
-10. Add eval cases for color schemes and elimination tool.
+Done for G-09. Future PNP work is tracked under G-13/G-14 and package-level catalog discovery under G-15.
 
 Test signal
 - Player constructed with `pnp: { display: { colorScheme: 'blackwhite' } }` applies the correct CSS custom properties.
@@ -351,11 +339,11 @@ Test signal
 
 ### G-10: Catalog system — `qti-catalog` parsing and glossary rendering
 
-Scope       — `packages/item-player/src/extraction/` (new catalog extractor);
+Scope       — `packages/item-player/src/catalog/`;
               `packages/item-player/src/core/Player.ts`;
               `packages/default-components/src/` (new `CatalogPopup` component);
               `packages/item-player/src/pnp/` (integration with G-09)
-Status      — Open
+Status      — Done (commit fa8fa97, 2026-04-28)
 Effort      — L
 Spec ref    — §6.3
 Depends on  — G-09 (glossary trigger UI is part of PNP; catalog provides the content)
@@ -369,23 +357,10 @@ translations. In the item body, `<span data-catalog-idref="cat-id">term</span>` 
 catalog card.
 
 Current
-`qti-catalog`, `qti-card`, and `qti-card-entry` elements are in the QTI 3.0 element name mappings
-but are not parsed or surfaced. `data-catalog-idref` attributes in rendered HTML are ignored.
+Catalog parsing, `player.getCatalogEntry()`, inline glossary/keyword-translation popup support, and platform-level catalog lookup events are implemented. Manifest-level shared catalog discovery remains deferred under G-15.
 
 Action
-1. Create `packages/item-player/src/extraction/extractors/catalogExtractor.ts`. In `Player.ts`, after parsing the assessmentItem, call this extractor on the root to build a `CatalogIndex`:
-   ```
-   type CatalogIndex = Map<string, CatalogCard>;
-   type CatalogCard = { entries: CatalogEntry[] };
-   type CatalogEntry = { usage: string; lang?: string; html: string };
-   ```
-2. Expose `player.getCatalogEntry(idref: string, usage: string, lang?: string): string | null` for host access.
-3. In the item body renderer, when `pnp.content.glossaryOnScreen` is true, wrap each `[data-catalog-idref]` span with an accessible button that opens a `CatalogPopup` component populated from `getCatalogEntry()`.
-4. When `pnp.content.keywordTranslation.active` is true, the same mechanism applies but uses `usage="keyword-translation"` with the configured `languageCode`.
-5. Create a `CatalogPopup` web component (or Svelte component) in `default-components` that renders the HTML content of a catalog entry in an accessible tooltip/dialog pattern (focus-managed, dismissable with Escape).
-6. Support the "shared catalog" pattern: if the player is given a `catalogXml` string in `PlayerConfig`, parse it as a standalone catalog and merge into the item's catalog index.
-7. Add unit tests for catalog parsing (all usage types, `xml:lang` filtering).
-8. Add eval cases for glossary popup visibility based on PNP state.
+Done for G-10. Keep G-15 open for manifest-level shared catalog discovery.
 
 Test signal
 - `player.getCatalogEntry('cat-photosynthesis', 'glossary-on-screen')` returns the correct HTML.
@@ -550,23 +525,23 @@ Quick lookup of which source files are touched by each gap item.
 
 | File | Gap items |
 |------|-----------|
-| `packages/item-player/src/extraction/extractors/associateExtractor.ts` | G-01 |
-| `packages/item-player/src/extraction/extractors/matchExtractor.ts` | G-01 |
-| `packages/item-player/src/extraction/extractors/gapMatchExtractor.ts` | G-01 |
-| `packages/item-player/src/extraction/extractors/graphicGapMatchExtractor.ts` | G-01 |
-| `packages/item-player/src/extraction/extractors/inlineChoiceExtractor.ts` | G-02 |
-| `packages/item-player/src/extraction/extractors/textEntryExtractor.ts` | G-03 |
+| `packages/item-player/src/interactions/associate/` | G-01 |
+| `packages/item-player/src/interactions/match/` | G-01 |
+| `packages/item-player/src/interactions/gap-match/` | G-01 |
+| `packages/item-player/src/interactions/graphic-gap-match/` | G-01 |
+| `packages/item-player/src/interactions/inline-choice/` | G-02 |
+| `packages/item-player/src/interactions/text-entry/` | G-03 |
 | `packages/default-components/src/plugins/text-entry/` | G-04 |
 | `packages/default-components/src/plugins/extended-text/` | G-04 |
 | `packages/assessment-player/src/core/` | G-05, G-09, G-11 |
 | `packages/item-player/src/utils/responseUtils.ts` | G-06 |
 | `STATUS.md`, `README.md` | G-07 |
-| `packages/item-player/src/extraction/extractors/customExtractor.ts` | G-08 |
-| `packages/item-player/src/pci/` (new) | G-08 |
-| `packages/item-player/src/pnp/` (new) | G-09, G-13, G-14 |
+| `packages/item-player/src/interactions/custom/` | G-08 |
+| `packages/item-player/src/pci/` | G-08 |
+| `packages/item-player/src/pnp/` | G-09, G-13, G-14 |
 | `packages/default-components/src/plugins/choice/` | G-09 |
-| `packages/item-player/src/extraction/` (catalog extractor, new) | G-10 |
-| `packages/default-components/src/` (CatalogPopup, new) | G-10 |
+| `packages/item-player/src/catalog/` | G-10 |
+| `packages/default-components/src/catalog/` | G-10 |
 | `packages/qti-processing/` | G-11 |
 | `packages/ims-cp-browser/` | G-15 |
 

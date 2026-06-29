@@ -45,7 +45,8 @@
 	);
 
 	const i18nItems = $derived(sortedItems.filter(item => hasMultilingualVariants(item.id)));
-	const nonI18nItems = $derived(sortedItems.filter(item => !hasMultilingualVariants(item.id)));
+	const conformanceItems = $derived(sortedItems.filter(item => item.group === 'conformance-qti22-advanced'));
+	const nonI18nItems = $derived(sortedItems.filter(item => !hasMultilingualVariants(item.id) && item.group !== 'conformance-qti22-advanced'));
 </script>
 
 <div class="card bg-base-100 shadow-xl">
@@ -76,6 +77,15 @@
 				{#if nonI18nItems.length > 0}
 					<optgroup label="Other Items">
 						{#each nonI18nItems as item}
+							<option value={item.id}>
+								{item.title}
+							</option>
+						{/each}
+					</optgroup>
+				{/if}
+				{#if conformanceItems.length > 0}
+					<optgroup label="QTI 2.2 Advanced Conformance">
+						{#each conformanceItems as item}
 							<option value={item.id}>
 								{item.title}
 							</option>

@@ -1,0 +1,6 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "Clean-room QTI 2.2 Advanced Q10 hotspotInteraction fixture covering circle, rect, poly choices and match_correct scoring.",
+  "covers": ["Q10", "hotspotInteraction", "match_correct"]
+}

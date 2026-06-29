@@ -51,6 +51,9 @@
 	let error = $state<string>('');
 
 	const acceptAttr = $derived(fileTypes.length > 0 ? fileTypes.join(',') : undefined);
+	const allowedTypesId = $derived(fileTypes.length > 0 ? `upload-${responseId}-allowed-types` : undefined);
+	const errorId = $derived(error ? `upload-${responseId}-error` : undefined);
+	const describedBy = $derived([allowedTypesId, errorId].filter(Boolean).join(' ') || undefined);
 
 	async function fileToResponse(file: File): Promise<QTIFileResponse> {
 		const dataUrl = await new Promise<string>((resolve, reject) => {
@@ -118,18 +121,20 @@
 		class="file-input file-input-bordered w-full"
 		type="file"
 		accept={acceptAttr}
+		aria-describedby={describedBy}
+		aria-invalid={error ? 'true' : undefined}
 		disabled={disabled}
 		onchange={handleFileChange}
 	/>
 
 	{#if fileTypes.length > 0}
-		<div class="text-xs text-base-content/70">
+		<div id={allowedTypesId} class="text-xs text-base-content/70">
 			{translations.allowedTypes} {fileTypes.join(', ')}
 		</div>
 	{/if}
 
 	{#if error}
-		<div class="alert alert-error py-2">
+		<div id={errorId} class="alert alert-error py-2" role="alert" aria-live="assertive">
 			<span class="text-sm">{error}</span>
 		</div>
 	{/if}

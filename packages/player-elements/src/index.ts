@@ -1,4 +1,9 @@
-export { QTI_ASSESSMENT_PLAYER_TAG, QTI_ITEM_PLAYER_TAG } from './constants.js';
+export {
+	QTI_ASSESSMENT_PLAYER_TAG,
+	QTI_ITEM_PLAYER_TAG,
+	QTI_SECTION_PLAYER_SPLITPANE_TAG,
+	QTI_SECTION_PLAYER_VERTICAL_TAG,
+} from './constants.js';
 export { defineQtiPlayerElements } from './define.js';
 export {
 	defineQtiAssessmentPlayerElement,
@@ -13,6 +18,15 @@ export {
 	QtiItemPlayerElement,
 	type QtiItemPlayerResponseChangeDetail,
 } from './elements/QtiItemPlayerElement.js';
+export {
+	defineQtiSectionPlayerSplitPaneElement,
+	QtiSectionPlayerSplitPaneElement,
+	type QtiSectionResponseDeltaDetail,
+} from './elements/QtiSectionPlayerSplitPaneElement.js';
+export {
+	defineQtiSectionPlayerVerticalElement,
+	QtiSectionPlayerVerticalElement,
+} from './elements/QtiSectionPlayerVerticalElement.js';
 export type { QtiItemMap } from './qti/resolveItems.js';
 export { parseAssessmentTestXml } from './qti/parseAssessmentTest.js';
 export { resolveItemsForAssessment } from './qti/resolveItems.js';

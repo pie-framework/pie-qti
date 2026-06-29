@@ -43,6 +43,7 @@
 	 * Check if the minimum play requirement has been met
 	 */
 	const hasMetMinPlays = $derived(parsedInteraction && playCount >= parsedInteraction.minPlays);
+	const mediaLabel = $derived(i18n?.t('interactions.media.ariaLabel') ?? 'Media content');
 
 	/**
 	 * Handle media ended event.
@@ -90,7 +91,9 @@
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
 		{#if parsedInteraction.prompt}
-			<p class="font-semibold">{@html parsedInteraction.prompt}</p>
+			<div part="prompt" class="qti-media-prompt qti-rich-content font-semibold">
+				{@html parsedInteraction.prompt}
+			</div>
 		{/if}
 
 		<div class="qti-media-container media-container" part="media">
@@ -99,6 +102,7 @@
 				bind:this={mediaElement}
 				class="w-full"
 				controls
+				aria-label={mediaLabel}
 				autoplay={parsedInteraction.autostart}
 				loop={parsedInteraction.loop && parsedInteraction.maxPlays === 0}
 				onended={handleEnded}
@@ -112,6 +116,7 @@
 				bind:this={mediaElement}
 				class="w-full rounded-lg"
 				controls
+				aria-label={mediaLabel}
 				autoplay={parsedInteraction.autostart}
 				loop={parsedInteraction.loop && parsedInteraction.maxPlays === 0}
 				width={parsedInteraction.mediaElement.width}
@@ -122,7 +127,7 @@
 				<source src={parsedInteraction.mediaElement.src} type={parsedInteraction.mediaElement.mimeType} />
 				Your browser does not support the video element.
 			</video>
-		{:else if parsedInteraction.mediaElement.type === 'object'}
+		{:else if parsedInteraction.mediaElement.type === 'object' && parsedInteraction.allowObjectEmbeds}
 			<object
 				data={parsedInteraction.mediaElement.src}
 				type={parsedInteraction.mediaElement.mimeType}
@@ -136,7 +141,7 @@
 		{/if}
 	</div>
 
-	<div class="qti-media-stats flex items-center justify-between text-sm text-base-content/70" part="stats">
+	<div class="qti-media-stats flex items-center justify-between text-sm text-base-content/70" part="stats" role="status" aria-live="polite">
 		<div>
 			<span class="font-medium">Play count:</span>
 			<span class="ml-2">{playCount}</span>
@@ -163,7 +168,7 @@
 	</div>
 
 		{#if hasReachedMaxPlays}
-			<div class="alert alert-info">
+			<div class="alert alert-info" role="status" aria-live="polite">
 				<svg
 					xmlns="http://www.w3.org/2000/svg"
 					fill="none"

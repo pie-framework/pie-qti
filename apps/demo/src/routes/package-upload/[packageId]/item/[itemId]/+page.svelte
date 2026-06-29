@@ -4,17 +4,20 @@
 	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
 	import { base } from '$app/paths';
-	import { Player, normalizeHeuristicsConfig, shouldAutoPopulateFeedbackOutcome, type QtiHeuristicsConfig } from '@pie-qti/item-player';
-	// @ts-expect-error - Svelte-check can't resolve workspace subpath exports, but runtime works correctly
+	import { Player, normalizeHeuristicsConfig, shouldAutoPopulateFeedbackOutcome, type QtiHeuristicsConfig, type QTIRole } from '@pie-qti/item-player';
+	import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
+	import type { InteractionResponseValue } from '@pie-qti/item-player/web-components';
 	import { ItemBody } from '@pie-qti/item-player/components';
 	import { registerDefaultComponents } from '@pie-qti/default-components';
 	import { typesetAction } from '@pie-qti/default-components/shared';
 	import { typesetMathInElement } from '@pie-qti/typeset-katex';
 	import type { SvelteI18nProvider } from '@pie-qti/i18n';
-	import { loadPackageDataAsync, getItemXml } from '$lib/package-processor';
+	import { loadPackageDataAsync, getItemXml, resolveImagesInXml, extractStimulusRefsFromItemXml, loadStimulusContent, loadItemDeliveryContext, listFiles } from '$lib/package-processor';
 	import type { PackageStructure } from '$lib/package-processor';
 	import { getSecurityConfig } from '$lib/player-config';
 	import XmlEditor from '$lib/components/XmlEditor.svelte';
+	import QtiDiagnosticsPanel from '$lib/components/QtiDiagnosticsPanel.svelte';
+	import { analyzeQtiItemCompatibility, type QtiCompatibilityReport } from '$lib/qti-diagnostics';
 
 	/**
 	 * Default outcome identifier for feedback display
@@ -22,6 +25,8 @@
 	 * Some templates use 'FEEDBACK', others may use different identifiers.
 	 */
 	const FEEDBACK_OUTCOME_ID = 'FEEDBACK';
+	type ItemResponseValue = InteractionResponseValue | null;
+	type ItemResponseMap = Record<string, ItemResponseValue>;
 
 	/**
 	 * QTI Heuristics configuration
@@ -36,6 +41,7 @@
 	const heuristics = normalizeHeuristicsConfig(heuristicsConfig);
 
 	let itemXml = $state<string | null>(null);
+	let sourceItemXml = $state<string | null>(null);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
 
@@ -48,12 +54,51 @@
 
 	// Player state
 	let player = $state<Player | null>(null);
-	let responses = $state<Record<string, any>>({});
+	let responses = $state<ItemResponseMap>({});
 	let outcomeValues = $state<Record<string, any>>({});
+	let stimulusContent = $state<Record<string, string>>({});
+	let deliveryContext = $state<ResolvedItemDeliveryContext | undefined>(undefined);
+	let diagnostics = $state<QtiCompatibilityReport | null>(null);
+	let selectedRole = $state<QTIRole>('candidate');
 
 	// Get i18n provider from context
 	const i18nContext = getContext<{ value: SvelteI18nProvider | null }>('i18n');
 	const i18n = i18nContext?.value ?? null;
+
+	function createPlayer(xml: string, context: ResolvedItemDeliveryContext | undefined) {
+		const nextPlayer = new Player({
+			itemXml: xml,
+			role: selectedRole,
+			deliveryContext: context,
+			security: {
+				...getSecurityConfig(),
+				urlPolicy: {
+					...getSecurityConfig().urlPolicy,
+					allowBlobImages: true,
+					allowBlobMedia: true,
+				},
+			}
+		});
+		registerDefaultComponents(nextPlayer.getComponentRegistry());
+		return nextPlayer;
+	}
+
+	function resetItemResponses() {
+		responses = {};
+		outcomeValues = {};
+	}
+
+	function refreshPlayerForRole() {
+		if (!itemXml) return;
+
+		player = createPlayer(itemXml, deliveryContext);
+		resetItemResponses();
+		diagnostics = analyzeQtiItemCompatibility(sourceItemXml ?? itemXml, {
+			player,
+			sourcePath: packageData?.items.find((item) => item.identifier === $page.params.itemId)?.href,
+			packageFiles: packageData ? listFiles(packageData).map((file) => file.path) : [],
+		});
+	}
 
 	// React to URL parameter changes
 	$effect(() => {
@@ -67,9 +112,13 @@
 		loading = true;
 		error = null;
 		itemXml = null;
+		sourceItemXml = null;
 		player = null;
 		responses = {};
 		outcomeValues = {};
+		stimulusContent = {};
+		deliveryContext = undefined;
+		diagnostics = null;
 
 		// Load item asynchronously
 		(async () => {
@@ -105,20 +154,39 @@
 					throw new Error('Package data not loaded');
 				}
 
-				itemXml = getItemXml(packageData, urlItemId);
-				if (!itemXml) {
+				const currentItem2 = packageData.items.find((item) => item.identifier === urlItemId);
+				const rawItemXml = getItemXml(packageData, urlItemId);
+				if (!rawItemXml) {
 					throw new Error(`Item ${urlItemId} not found in package`);
 				}
 
-				// Initialize player
-				player = new Player({
-					itemXml: itemXml,
-					role: 'candidate',
-					security: getSecurityConfig()
+				diagnostics = analyzeQtiItemCompatibility(rawItemXml, {
+					sourcePath: currentItem2?.href,
+					packageFiles: listFiles(packageData).map((file) => file.path),
 				});
+				sourceItemXml = rawItemXml;
+				itemXml = rawItemXml;
 
-				// Register default components
-				registerDefaultComponents(player.getComponentRegistry());
+				// Resolve image paths from ZIP assets to inline data URLs
+				if (currentItem2?.href) {
+					itemXml = await resolveImagesInXml(itemXml, packageData, currentItem2.href);
+				}
+
+				// Load QTI 3.0 delivery context for stimuli, item stylesheets, and catalogs.
+				if (currentItem2?.href) {
+					deliveryContext = await loadItemDeliveryContext(packageData, currentItem2.href, itemXml);
+					const stimulusRefs = extractStimulusRefsFromItemXml(itemXml);
+					if (stimulusRefs.length > 0) {
+						stimulusContent = await loadStimulusContent(packageData, currentItem2.href, stimulusRefs);
+					}
+				}
+
+				player = createPlayer(itemXml, deliveryContext);
+				diagnostics = analyzeQtiItemCompatibility(rawItemXml, {
+					player,
+					sourcePath: currentItem2?.href,
+					packageFiles: listFiles(packageData).map((file) => file.path),
+				});
 			} catch (err) {
 				error = err instanceof Error ? err.message : 'Failed to load item';
 				console.error('Error loading item:', err);
@@ -151,7 +219,11 @@
 		goto(`${base}/package-upload`);
 	}
 
-	function handleResponseChange(responseId: string, value: any) {
+	function handleRoleChange() {
+		refreshPlayerForRole();
+	}
+
+	function handleResponseChange(responseId: string, value: ItemResponseValue) {
 		responses = { ...responses, [responseId]: value };
 		// Process responses to get outcome values for feedback visibility
 		if (player) {
@@ -247,6 +319,25 @@
 		{/if}
 	</div>
 
+	<div class="card bg-base-100 shadow">
+		<div class="card-body py-4">
+			<div class="form-control w-full max-w-xs">
+				<label class="label" for="role-select">
+					<span class="label-text font-medium">View as</span>
+				</label>
+				<select
+					id="role-select"
+					class="select select-bordered w-full"
+					bind:value={selectedRole}
+					onchange={handleRoleChange}
+				>
+					<option value="candidate">Student</option>
+					<option value="scorer">Evaluator</option>
+				</select>
+			</div>
+		</div>
+	</div>
+
 	{#if error}
 		<div class="alert alert-error">
 			<svg
@@ -273,6 +364,8 @@
 			<p class="text-base-content/70">Loading item...</p>
 		</div>
 	{:else if player && itemXml}
+		<QtiDiagnosticsPanel report={diagnostics} />
+
 		<!-- QTI Item Player -->
 		<div class="card bg-base-100 shadow-xl" use:typesetAction={{ typeset: (el) => typesetMathInElement(el) }}>
 			<div class="card-body">
@@ -281,11 +374,13 @@
 					{responses}
 					{outcomeValues}
 					disabled={false}
-					role="candidate"
+					role={selectedRole}
 					i18n={i18n ?? undefined}
 					typeset={typesetMathInElement}
 					onResponseChange={handleResponseChange}
 					{heuristicsConfig}
+					{deliveryContext}
+					{stimulusContent}
 				/>
 			</div>
 		</div>

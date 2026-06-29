@@ -5,6 +5,8 @@
 	import AssessmentRubricDisplayFixture from '$lib/a11y/fixtures/AssessmentRubricDisplayFixture.svelte';
 	import AssessmentSectionMenuFixture from '$lib/a11y/fixtures/AssessmentSectionMenuFixture.svelte';
 	import AssessmentShellFixture from '$lib/a11y/fixtures/AssessmentShellFixture.svelte';
+	import AssessmentTimerFixture from '$lib/a11y/fixtures/AssessmentTimerFixture.svelte';
+	import AssociateInteractionFixture from '$lib/a11y/fixtures/AssociateInteractionFixture.svelte';
 	import CustomInteractionFallbackFixture from '$lib/a11y/fixtures/CustomInteractionFallbackFixture.svelte';
 	import DrawingCanvasFixture from '$lib/a11y/fixtures/DrawingCanvasFixture.svelte';
 	import FileUploadFixture from '$lib/a11y/fixtures/FileUploadFixture.svelte';
@@ -17,6 +19,9 @@
 	import HotspotInteractionFixture from '$lib/a11y/fixtures/HotspotInteractionFixture.svelte';
 	import HottextInteractionFixture from '$lib/a11y/fixtures/HottextInteractionFixture.svelte';
 	import ExtendedTextInteractionFixture from '$lib/a11y/fixtures/ExtendedTextInteractionFixture.svelte';
+	import MediaInteractionFixture from '$lib/a11y/fixtures/MediaInteractionFixture.svelte';
+	import ModalFeedbackFixture from '$lib/a11y/fixtures/ModalFeedbackFixture.svelte';
+	import PnpCatalogStimulusFixture from '$lib/a11y/fixtures/PnpCatalogStimulusFixture.svelte';
 
 	interface Props {
 		data: { fixture: string };
@@ -67,14 +72,24 @@
 				<HottextInteractionFixture />
 			{:else if fixture === 'extended-text-interaction'}
 				<ExtendedTextInteractionFixture />
+			{:else if fixture === 'associate-interaction'}
+				<AssociateInteractionFixture />
+			{:else if fixture === 'media-interaction'}
+				<MediaInteractionFixture />
+			{:else if fixture === 'modal-feedback'}
+				<ModalFeedbackFixture />
 			{:else if fixture === 'assessment-navigation-bar'}
 				<AssessmentNavigationBarFixture />
 			{:else if fixture === 'assessment-section-menu'}
 				<AssessmentSectionMenuFixture />
 			{:else if fixture === 'assessment-rubric-display'}
 				<AssessmentRubricDisplayFixture />
+			{:else if fixture === 'assessment-timer'}
+				<AssessmentTimerFixture />
 			{:else if fixture === 'assessment-shell'}
 				<AssessmentShellFixture />
+			{:else if fixture === 'pnp-catalog-stimulus'}
+				<PnpCatalogStimulusFixture />
 			{:else}
 				<div class="alert alert-error">
 					Unknown fixture: <code class="font-mono">{data.fixture}</code>

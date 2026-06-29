@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  adaptive="false" identifier="match-water-cycle" timeDependent="false" title="Match Water Cycle">
+<responseDeclaration baseType="directedPair" cardinality="multiple" identifier="RESPONSE">
+  <correctResponse>
+    <value>process_evaporation description_liquid_to_gas</value>
+    <value>process_condensation description_gas_to_liquid</value>
+    <value>process_precipitation description_falls_to_ground</value>
+  </correctResponse>
+</responseDeclaration>
+<outcomeDeclaration baseType="float" cardinality="single" identifier="SCORE">
+  <defaultValue>
+    <value>0</value>
+  </defaultValue>
+</outcomeDeclaration>
+<itemBody>
+  <div>
+    <p>Match each water cycle process to its description.</p>
+
+    <matchInteraction maxAssociations="3" responseIdentifier="RESPONSE">
+      <simpleMatchSet>
+        <simpleAssociableChoice identifier="process_evaporation" matchMax="1">
+          <p>Evaporation</p>
+        </simpleAssociableChoice>
+        <simpleAssociableChoice identifier="process_condensation" matchMax="1">
+          <p>Condensation</p>
+        </simpleAssociableChoice>
+        <simpleAssociableChoice identifier="process_precipitation" matchMax="1">
+          <p>Precipitation</p>
+        </simpleAssociableChoice>
+      </simpleMatchSet>
+      <simpleMatchSet>
+        <simpleAssociableChoice identifier="description_liquid_to_gas" matchMax="1">Liquid water changes to water vapor.</simpleAssociableChoice>
+        <simpleAssociableChoice identifier="description_gas_to_liquid" matchMax="1">Water vapor forms liquid droplets.</simpleAssociableChoice>
+        <simpleAssociableChoice identifier="description_falls_to_ground" matchMax="1">Water falls from clouds to the ground.</simpleAssociableChoice>
+      </simpleMatchSet>
+    </matchInteraction>
+  </div>
+  <p>Select all matching pairs.</p>
+</itemBody>
+<responseProcessing template="http://www.imsglobal.org/question/qti_v2p2/rptemplates/match_correct"/>
+</assessmentItem>

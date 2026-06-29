@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { standardSelectPointExtractor } from '../../../src/extraction/extractors/selectPointExtractor.js';
+import { standardSelectPointExtractor } from '../../../src/interactions/select-point/extractor.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
 describe('standardSelectPointExtractor', () => {
@@ -183,7 +183,21 @@ describe('standardSelectPointExtractor', () => {
 			expect(validation.errors).toContain('minChoices (3) must be less than or equal to maxChoices (1)');
 		});
 
-		test('reports error for non-positive maxChoices', () => {
+		test('reports error for negative maxChoices', () => {
+			const data = {
+				maxChoices: -1,
+				minChoices: 0,
+				imageData: { type: 'image', src: 'test.png', width: '500', height: '400' },
+				prompt: null,
+			};
+
+			const validation = standardSelectPointExtractor.validate!(data);
+
+			expect(validation.valid).toBe(false);
+			expect(validation.errors).toContain('maxChoices must be non-negative');
+		});
+
+		test('allows maxChoices=0 (means unlimited per QTI spec)', () => {
 			const data = {
 				maxChoices: 0,
 				minChoices: 0,
@@ -193,8 +207,7 @@ describe('standardSelectPointExtractor', () => {
 
 			const validation = standardSelectPointExtractor.validate!(data);
 
-			expect(validation.valid).toBe(false);
-			expect(validation.errors).toContain('maxChoices must be at least 1');
+			expect(validation.valid).toBe(true);
 		});
 
 		test('reports warning for missing image data', () => {

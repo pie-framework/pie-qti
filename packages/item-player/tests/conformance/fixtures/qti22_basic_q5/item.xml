@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+  xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="qti22-basic-q5"
+  title="Q5 Extended Text Interaction - BaseType String"
+  adaptive="false"
+  timeDependent="false">
+
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="string"/>
+
+  <!-- ECHO outcome copies RESPONSE so fixture cases can assert its string value -->
+  <outcomeDeclaration identifier="ECHO" cardinality="single" baseType="string"/>
+
+  <itemBody>
+    <extendedTextInteraction responseIdentifier="RESPONSE" expectedLength="200">
+      <prompt>Write a haiku about the autumn wind.</prompt>
+    </extendedTextInteraction>
+  </itemBody>
+
+  <responseProcessing>
+    <setOutcomeValue identifier="ECHO">
+      <variable identifier="RESPONSE"/>
+    </setOutcomeValue>
+  </responseProcessing>
+
+</assessmentItem>

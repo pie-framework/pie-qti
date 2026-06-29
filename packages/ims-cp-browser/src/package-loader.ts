@@ -5,7 +5,8 @@
 import JSZip from 'jszip';
 import { parseManifest } from '@pie-qti/ims-cp-core/manifest-parser';
 import type { ParsedManifest } from '@pie-qti/ims-cp-core/manifest-parser';
-import { toPosixPath, joinPosix, applyXmlBase, dirname } from './path-utils.js';
+import { resolveCheckedPackagePath } from '@pie-qti/ims-cp-core';
+import { toPosixPath, dirname } from './path-utils.js';
 import type { VirtualFile, ExtractOptions } from './types.js';
 
 /**
@@ -27,38 +28,46 @@ export async function extractPackage(
 	const files = new Map<string, VirtualFile>();
 
 	let fileCount = 0;
-	const { maxFiles } = options;
-	// Note: maxFileSize check disabled - JSZip doesn't provide direct access to uncompressed size
+	const { maxFiles, maxFileSize = Number.POSITIVE_INFINITY } = options;
 
 	// Extract all files
 	for (const [relativePath, zipEntry] of Object.entries(zip.files)) {
 		if (zipEntry.dir) continue;
+
+		const posixPath = toPosixPath(relativePath);
+		if (!resolveCheckedPackagePath(undefined, posixPath)) {
+			continue;
+		}
 
 		fileCount++;
 		if (fileCount > maxFiles) {
 			throw new Error(`Package exceeds maximum file count (${maxFiles})`);
 		}
 
-		// Check file size (JSZip doesn't provide direct access to uncompressed size)
-		// We'll check size after extraction if needed
-		// const size = zipEntry._data?.uncompressedSize ?? 0;
-		// if (size > maxFileSize) {
-		// 	throw new Error(`File ${relativePath} exceeds maximum size (${maxFileSize} bytes)`);
-		// }
+		const advertisedSize = getZipEntryUncompressedSize(zipEntry);
+		if (advertisedSize !== null && advertisedSize > maxFileSize) {
+			throw new Error(`File ${posixPath} exceeds maximum file size (${maxFileSize} bytes)`);
+		}
 
-		const posixPath = toPosixPath(relativePath);
 		const isText = isTextFile(posixPath);
 
 		if (isText) {
 			const content = await zipEntry.async('string');
+			const size = new TextEncoder().encode(content).byteLength;
+			if (size > maxFileSize) {
+				throw new Error(`File ${posixPath} exceeds maximum file size (${maxFileSize} bytes)`);
+			}
 			files.set(posixPath, {
 				path: posixPath,
 				content,
 				type: 'text',
-				size: content.length,
+				size,
 			});
 		} else {
 			const blob = await zipEntry.async('blob');
+			if (blob.size > maxFileSize) {
+				throw new Error(`File ${posixPath} exceeds maximum file size (${maxFileSize} bytes)`);
+			}
 			files.set(posixPath, {
 				path: posixPath,
 				content: blob,
@@ -82,6 +91,11 @@ export async function extractPackage(
 	const manifestXml = manifestFile.content as string;
 
 	return { files, manifestXml, manifestPath };
+}
+
+function getZipEntryUncompressedSize(zipEntry: JSZip.JSZipObject): number | null {
+	const data = (zipEntry as unknown as { _data?: { uncompressedSize?: unknown } })._data;
+	return typeof data?.uncompressedSize === 'number' ? data.uncompressedSize : null;
 }
 
 /**
@@ -172,13 +186,17 @@ export async function loadResolvedManifest(
 
 	// Calculate base path for the manifest
 	const manifestRelDir = dirname(manifestPath === 'imsmanifest.xml' ? '' : manifestPath);
-	const baseManifest = applyXmlBase(manifestRelDir === '.' ? '' : manifestRelDir, parsed.xmlBase);
+	const manifestBase = manifestRelDir === '.' ? '' : manifestRelDir;
+	const baseManifest = checkedBase(manifestBase, parsed.xmlBase);
 
 	// Resolve resource paths
 	const resolveResource = (r: any): ResolvedManifestResource => {
-		const baseResource = applyXmlBase(baseManifest, r.xmlBase);
-		const hrefResolved = r.href ? joinPosix(baseResource, r.href) : undefined;
-		const filesResolved = (r.files ?? []).map((f: string) => joinPosix(baseResource, f));
+		const baseResource = baseManifest === null ? null : checkedBase(baseManifest, r.xmlBase);
+		const hrefResolved = checkedJoin(baseResource, r.href);
+		const filesResolved = (r.files ?? []).flatMap((filePath: string) => {
+			const resolved = checkedJoin(baseResource, filePath);
+			return resolved ? [resolved] : [];
+		});
 
 		return {
 			identifier: r.identifier,
@@ -208,4 +226,16 @@ export async function loadResolvedManifest(
 		passages,
 		tests,
 	};
+}
+
+function checkedBase(basePath: string, href: string | undefined): string | null {
+	if (!basePath) return href ? checkedJoin('', href) ?? null : '';
+	if (!href) return basePath;
+	return checkedJoin(basePath, href) ?? null;
+}
+
+function checkedJoin(basePath: string | null, href: string | undefined): string | undefined {
+	if (basePath === null) return undefined;
+	if (!href) return undefined;
+	return resolveCheckedPackagePath(basePath, href) ?? undefined;
 }

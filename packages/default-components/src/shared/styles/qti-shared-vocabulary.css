@@ -1,0 +1,320 @@
+/**
+ * QTI 3.0 Shared Vocabulary CSS Classes
+ *
+ * Implementation of the 1EdTech QTI 3.0 Standardized Shared Vocabulary and CSS Classes.
+ * Reference: https://www.imsglobal.org/spec/qti/v3p0/vocab
+ *
+ * These classes are applied by item authors to elements within qti-item-body.
+ * The sanitizer passes class attributes through unchanged, so no code changes
+ * are needed — this stylesheet alone provides the required visual behavior.
+ */
+
+/* =============================================================================
+   Text Formatting
+   ============================================================================= */
+
+.qti-underline {
+	text-decoration: underline;
+}
+
+.qti-italic {
+	font-style: italic;
+}
+
+.qti-bordered {
+	border: 1px solid currentColor;
+	padding: 0.25em 0.5em;
+}
+
+/* =============================================================================
+   Text Alignment
+   ============================================================================= */
+
+.qti-align-left {
+	text-align: left;
+}
+
+.qti-align-center {
+	text-align: center;
+}
+
+.qti-align-right {
+	text-align: right;
+}
+
+/* =============================================================================
+   Vertical Alignment
+   ============================================================================= */
+
+.qti-valign-top {
+	vertical-align: top;
+}
+
+.qti-valign-middle {
+	vertical-align: middle;
+}
+
+.qti-valign-baseline {
+	vertical-align: baseline;
+}
+
+.qti-valign-bottom {
+	vertical-align: bottom;
+}
+
+/* =============================================================================
+   Well (boxed content)
+   ============================================================================= */
+
+.qti-well {
+	padding: 1em;
+	border: 1px solid #ccc;
+	border-radius: 4px;
+	background-color: #f9f9f9;
+}
+
+/* =============================================================================
+   Layout Grid (12-column flex grid)
+   ============================================================================= */
+
+.qti-layout-row {
+	display: flex;
+	flex-wrap: wrap;
+	margin-left: -0.5rem;
+	margin-right: -0.5rem;
+}
+
+.qti-layout-row > * {
+	padding-left: 0.5rem;
+	padding-right: 0.5rem;
+	box-sizing: border-box;
+}
+
+.qti-layout-col1  { width: 8.3333%; }
+.qti-layout-col2  { width: 16.6667%; }
+.qti-layout-col3  { width: 25%; }
+.qti-layout-col4  { width: 33.3333%; }
+.qti-layout-col5  { width: 41.6667%; }
+.qti-layout-col6  { width: 50%; }
+.qti-layout-col7  { width: 58.3333%; }
+.qti-layout-col8  { width: 66.6667%; }
+.qti-layout-col9  { width: 75%; }
+.qti-layout-col10 { width: 83.3333%; }
+.qti-layout-col11 { width: 91.6667%; }
+.qti-layout-col12 { width: 100%; }
+
+.qti-layout-offset1  { margin-left: 8.3333%; }
+.qti-layout-offset2  { margin-left: 16.6667%; }
+.qti-layout-offset3  { margin-left: 25%; }
+.qti-layout-offset4  { margin-left: 33.3333%; }
+.qti-layout-offset5  { margin-left: 41.6667%; }
+.qti-layout-offset6  { margin-left: 50%; }
+.qti-layout-offset7  { margin-left: 58.3333%; }
+.qti-layout-offset8  { margin-left: 66.6667%; }
+.qti-layout-offset9  { margin-left: 75%; }
+.qti-layout-offset10 { margin-left: 83.3333%; }
+.qti-layout-offset11 { margin-left: 91.6667%; }
+
+/* =============================================================================
+   Padding (0–5 scale; ~4px per unit)
+   ============================================================================= */
+
+.qti-padding-0 { padding: 0; }
+.qti-padding-1 { padding: 0.25rem; }
+.qti-padding-2 { padding: 0.5rem; }
+.qti-padding-3 { padding: 0.75rem; }
+.qti-padding-4 { padding: 1rem; }
+.qti-padding-5 { padding: 1.25rem; }
+
+.qti-padding-x-0 { padding-left: 0; padding-right: 0; }
+.qti-padding-x-1 { padding-left: 0.25rem; padding-right: 0.25rem; }
+.qti-padding-x-2 { padding-left: 0.5rem; padding-right: 0.5rem; }
+.qti-padding-x-3 { padding-left: 0.75rem; padding-right: 0.75rem; }
+.qti-padding-x-4 { padding-left: 1rem; padding-right: 1rem; }
+.qti-padding-x-5 { padding-left: 1.25rem; padding-right: 1.25rem; }
+
+.qti-padding-y-0 { padding-top: 0; padding-bottom: 0; }
+.qti-padding-y-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+.qti-padding-y-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+.qti-padding-y-3 { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+.qti-padding-y-4 { padding-top: 1rem; padding-bottom: 1rem; }
+.qti-padding-y-5 { padding-top: 1.25rem; padding-bottom: 1.25rem; }
+
+.qti-padding-t-0 { padding-top: 0; }
+.qti-padding-t-1 { padding-top: 0.25rem; }
+.qti-padding-t-2 { padding-top: 0.5rem; }
+.qti-padding-t-3 { padding-top: 0.75rem; }
+.qti-padding-t-4 { padding-top: 1rem; }
+.qti-padding-t-5 { padding-top: 1.25rem; }
+
+.qti-padding-b-0 { padding-bottom: 0; }
+.qti-padding-b-1 { padding-bottom: 0.25rem; }
+.qti-padding-b-2 { padding-bottom: 0.5rem; }
+.qti-padding-b-3 { padding-bottom: 0.75rem; }
+.qti-padding-b-4 { padding-bottom: 1rem; }
+.qti-padding-b-5 { padding-bottom: 1.25rem; }
+
+/* qti-padding-s/e = logical inline-start/end (LTR = left/right) */
+.qti-padding-s-0 { padding-inline-start: 0; }
+.qti-padding-s-1 { padding-inline-start: 0.25rem; }
+.qti-padding-s-2 { padding-inline-start: 0.5rem; }
+.qti-padding-s-3 { padding-inline-start: 0.75rem; }
+.qti-padding-s-4 { padding-inline-start: 1rem; }
+.qti-padding-s-5 { padding-inline-start: 1.25rem; }
+
+.qti-padding-e-0 { padding-inline-end: 0; }
+.qti-padding-e-1 { padding-inline-end: 0.25rem; }
+.qti-padding-e-2 { padding-inline-end: 0.5rem; }
+.qti-padding-e-3 { padding-inline-end: 0.75rem; }
+.qti-padding-e-4 { padding-inline-end: 1rem; }
+.qti-padding-e-5 { padding-inline-end: 1.25rem; }
+
+/* =============================================================================
+   Margin (0–5 scale + auto)
+   ============================================================================= */
+
+.qti-margin-0    { margin: 0; }
+.qti-margin-1    { margin: 0.25rem; }
+.qti-margin-2    { margin: 0.5rem; }
+.qti-margin-3    { margin: 0.75rem; }
+.qti-margin-4    { margin: 1rem; }
+.qti-margin-5    { margin: 1.25rem; }
+.qti-margin-auto { margin: auto; }
+
+.qti-margin-x-0    { margin-left: 0; margin-right: 0; }
+.qti-margin-x-1    { margin-left: 0.25rem; margin-right: 0.25rem; }
+.qti-margin-x-2    { margin-left: 0.5rem; margin-right: 0.5rem; }
+.qti-margin-x-3    { margin-left: 0.75rem; margin-right: 0.75rem; }
+.qti-margin-x-4    { margin-left: 1rem; margin-right: 1rem; }
+.qti-margin-x-5    { margin-left: 1.25rem; margin-right: 1.25rem; }
+.qti-margin-x-auto { margin-left: auto; margin-right: auto; }
+
+.qti-margin-y-0    { margin-top: 0; margin-bottom: 0; }
+.qti-margin-y-1    { margin-top: 0.25rem; margin-bottom: 0.25rem; }
+.qti-margin-y-2    { margin-top: 0.5rem; margin-bottom: 0.5rem; }
+.qti-margin-y-3    { margin-top: 0.75rem; margin-bottom: 0.75rem; }
+.qti-margin-y-4    { margin-top: 1rem; margin-bottom: 1rem; }
+.qti-margin-y-5    { margin-top: 1.25rem; margin-bottom: 1.25rem; }
+.qti-margin-y-auto { margin-top: auto; margin-bottom: auto; }
+
+.qti-margin-t-0    { margin-top: 0; }
+.qti-margin-t-1    { margin-top: 0.25rem; }
+.qti-margin-t-2    { margin-top: 0.5rem; }
+.qti-margin-t-3    { margin-top: 0.75rem; }
+.qti-margin-t-4    { margin-top: 1rem; }
+.qti-margin-t-5    { margin-top: 1.25rem; }
+.qti-margin-t-auto { margin-top: auto; }
+
+.qti-margin-b-0    { margin-bottom: 0; }
+.qti-margin-b-1    { margin-bottom: 0.25rem; }
+.qti-margin-b-2    { margin-bottom: 0.5rem; }
+.qti-margin-b-3    { margin-bottom: 0.75rem; }
+.qti-margin-b-4    { margin-bottom: 1rem; }
+.qti-margin-b-5    { margin-bottom: 1.25rem; }
+.qti-margin-b-auto { margin-bottom: auto; }
+
+.qti-margin-s-0    { margin-inline-start: 0; }
+.qti-margin-s-1    { margin-inline-start: 0.25rem; }
+.qti-margin-s-2    { margin-inline-start: 0.5rem; }
+.qti-margin-s-3    { margin-inline-start: 0.75rem; }
+.qti-margin-s-4    { margin-inline-start: 1rem; }
+.qti-margin-s-5    { margin-inline-start: 1.25rem; }
+.qti-margin-s-auto { margin-inline-start: auto; }
+
+.qti-margin-e-0    { margin-inline-end: 0; }
+.qti-margin-e-1    { margin-inline-end: 0.25rem; }
+.qti-margin-e-2    { margin-inline-end: 0.5rem; }
+.qti-margin-e-3    { margin-inline-end: 0.75rem; }
+.qti-margin-e-4    { margin-inline-end: 1rem; }
+.qti-margin-e-5    { margin-inline-end: 1.25rem; }
+.qti-margin-e-auto { margin-inline-end: auto; }
+
+/* =============================================================================
+   Display
+   ============================================================================= */
+
+.qti-display-block        { display: block; }
+.qti-display-inherit      { display: inherit; }
+.qti-display-inline       { display: inline; }
+.qti-display-inline-block { display: inline-block; }
+.qti-display-none         { display: none; }
+.qti-hidden               { display: none; }
+.qti-display-flex         { display: flex; }
+.qti-display-inline-flex  { display: inline-flex; }
+.qti-display-grid         { display: grid; }
+.qti-display-inline-grid  { display: inline-grid; }
+.qti-display-table        { display: table; }
+.qti-display-table-row    { display: table-row; }
+.qti-display-list-item    { display: list-item; }
+
+/* Visually hidden but available to screen readers */
+.qti-visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
+
+/* =============================================================================
+   Width (Tailwind-like numeric scale — rem-based)
+   ============================================================================= */
+
+.qti-width-0    { width: 0; }
+.qti-width-px   { width: 1px; }
+.qti-width-0p5  { width: 0.125rem; }
+.qti-width-1    { width: 0.25rem; }
+.qti-width-1p5  { width: 0.375rem; }
+.qti-width-2    { width: 0.5rem; }
+.qti-width-2p5  { width: 0.625rem; }
+.qti-width-3    { width: 0.75rem; }
+.qti-width-3p5  { width: 0.875rem; }
+.qti-width-4    { width: 1rem; }
+.qti-width-5    { width: 1.25rem; }
+.qti-width-6    { width: 1.5rem; }
+.qti-width-7    { width: 1.75rem; }
+.qti-width-8    { width: 2rem; }
+.qti-width-9    { width: 2.25rem; }
+.qti-width-10   { width: 2.5rem; }
+.qti-width-11   { width: 2.75rem; }
+.qti-width-12   { width: 3rem; }
+.qti-width-14   { width: 3.5rem; }
+.qti-width-16   { width: 4rem; }
+.qti-width-20   { width: 5rem; }
+.qti-width-24   { width: 6rem; }
+.qti-width-28   { width: 7rem; }
+.qti-width-32   { width: 8rem; }
+.qti-width-36   { width: 9rem; }
+.qti-width-40   { width: 10rem; }
+.qti-width-44   { width: 11rem; }
+.qti-width-48   { width: 12rem; }
+.qti-width-52   { width: 13rem; }
+.qti-width-56   { width: 14rem; }
+.qti-width-60   { width: 15rem; }
+.qti-width-64   { width: 16rem; }
+.qti-width-72   { width: 18rem; }
+.qti-width-80   { width: 20rem; }
+.qti-width-96   { width: 24rem; }
+
+/* Fractional widths */
+.qti-width-1-2  { width: 50%; }
+.qti-width-1-3  { width: 33.3333%; }
+.qti-width-2-3  { width: 66.6667%; }
+.qti-width-1-4  { width: 25%; }
+.qti-width-2-4  { width: 50%; }
+.qti-width-3-4  { width: 75%; }
+.qti-width-1-5  { width: 20%; }
+.qti-width-2-5  { width: 40%; }
+.qti-width-3-5  { width: 60%; }
+.qti-width-4-5  { width: 80%; }
+.qti-width-1-6  { width: 16.6667%; }
+.qti-width-2-6  { width: 33.3333%; }
+.qti-width-3-6  { width: 50%; }
+.qti-width-4-6  { width: 66.6667%; }
+.qti-width-5-6  { width: 83.3333%; }
+.qti-width-full { width: 100%; }
+.qti-width-auto { width: auto; }

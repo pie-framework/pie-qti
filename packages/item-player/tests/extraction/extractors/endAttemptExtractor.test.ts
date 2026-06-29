@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { standardEndAttemptExtractor } from '../../../src/extraction/extractors/endAttemptExtractor.js';
+import { standardEndAttemptExtractor } from '../../../src/interactions/end-attempt/extractor.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
 describe('standardEndAttemptExtractor', () => {

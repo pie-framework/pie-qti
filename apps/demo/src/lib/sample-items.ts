@@ -190,6 +190,7 @@ export interface SampleItem {
   title: string;
   description: string;
   xml: string;
+  group?: string;
 }
 
 export const TEXT_ENTRY = `<?xml version="1.0" encoding="UTF-8"?>
@@ -3158,4 +3159,5 @@ export const SAMPLE_ITEMS: SampleItem[] = [
         xml: data!.xml,
       }))
   ),
+
 ];

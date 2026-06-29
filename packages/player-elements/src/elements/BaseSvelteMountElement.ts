@@ -1,12 +1,17 @@
-import type { Component } from 'svelte';
 import { mount, unmount } from 'svelte';
+import { createSvelteMountController, type SvelteMountController } from '@pie-qti/qti-common';
 
-export abstract class BaseSvelteMountElement<TProps extends Record<string, unknown>> extends HTMLElement {
-	protected abstract Component: Component<any>;
+const HTMLElementBase: typeof HTMLElement = globalThis.HTMLElement ?? (class {} as typeof HTMLElement);
+
+export abstract class BaseSvelteMountElement<TProps extends Record<string, unknown>> extends HTMLElementBase {
+	protected abstract Component: any;
 	protected abstract getProps(): TProps;
 
-	#container: HTMLDivElement | null = null;
-	protected _instance: any = null;
+	#mountController: SvelteMountController<TProps, any> | null = null;
+
+	protected get _instance() {
+		return this.#mountController?.instance ?? null;
+	}
 
 	connectedCallback() {
 		this._mountOrUpdate();
@@ -14,49 +19,29 @@ export abstract class BaseSvelteMountElement<TProps extends Record<string, unkno
 
 	disconnectedCallback() {
 		this._teardownInstance();
-
-		if (this.#container) {
-			this.#container.remove();
-			this.#container = null;
-		}
 	}
 
 	protected _mountOrUpdate() {
-		if (!this.#container) {
-			this.#container = document.createElement('div');
-			this.#container.style.display = 'contents';
-			this.appendChild(this.#container);
-		}
-
-		const props = this.getProps();
-
-		if (!this._instance) {
-			this._instance = mount(this.Component, {
-				target: this.#container as HTMLDivElement,
-				props,
-			});
-			return;
-		}
-
-		// Svelte 5 `mount` returns an instance that may or may not have `$set`.
-		// If it doesn't, remount.
-		if (typeof this._instance?.$set === 'function') {
-			this._instance.$set(props);
-		} else {
-			this._teardownInstance();
-			this._mountOrUpdate();
-		}
+		this.#controller().mountOrUpdate(this.getProps());
 	}
 
 	protected _teardownInstance() {
-		if (this._instance) {
-			try {
-				unmount(this._instance);
-			} catch {
-				// ignore
-			}
-			this._instance = null;
+		this.#mountController?.teardown({ removeContainer: true });
+	}
+
+	#controller() {
+		if (!this.#mountController) {
+			this.#mountController = createSvelteMountController({
+				host: this,
+				mount: (target, props) =>
+					mount(this.Component, {
+						target,
+						props,
+					}),
+				unmount,
+			});
 		}
+		return this.#mountController;
 	}
 }
 

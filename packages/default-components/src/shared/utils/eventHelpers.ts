@@ -17,7 +17,14 @@ function requireResponseId(responseId: string | undefined): string {
 	return responseId;
 }
 
-export function createQtiChangeEvent(responseId: string | undefined, value: unknown): CustomEvent<QTIChangeEventDetail> {
+type TypedQtiChangeEventDetail<TValue> = Omit<QTIChangeEventDetail, 'value'> & {
+	value: TValue;
+};
+
+export function createQtiChangeEvent<TValue = unknown>(
+	responseId: string | undefined,
+	value: TValue
+): CustomEvent<TypedQtiChangeEventDetail<TValue>> {
 	return new CustomEvent('qti-change', {
 		detail: {
 			responseId: requireResponseId(responseId),
@@ -42,4 +49,21 @@ export function emitQtiChange(
 ): void {
 	const event = createQtiChangeEvent(responseId, value);
 	element.dispatchEvent(event);
+}
+
+export function emitInteractionChange<TValue>({
+	target,
+	responseId,
+	value,
+	onChange,
+}: {
+	target: HTMLElement | EventTarget | undefined;
+	responseId: string | undefined;
+	value: TValue;
+	onChange?: (value: TValue) => void;
+}): void {
+	onChange?.(value);
+	if (target) {
+		emitQtiChange(target, responseId, value);
+	}
 }

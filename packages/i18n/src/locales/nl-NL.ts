@@ -520,6 +520,7 @@ export default {
 		homeMetaDescription: 'Moderne QTI speler met optionele backend-integratie',
 		tryItems: 'Items Proberen',
 		tryAssessments: 'Toetsen Proberen',
+		trySectionPlayer: 'Sectiespeler',
 		pluginDemo: 'Plugin Demo',
 		dropQtiFile: 'Sleep QTI XML bestand hier',
 		orClickToSelect: 'of klik om een bestand te selecteren',

@@ -9,6 +9,7 @@ import type { PieItem } from '@pie-qti/transform-types';
 import type { HTMLElement } from 'node-html-parser';
 import { parse } from 'node-html-parser';
 import { v4 as uuid } from 'uuid';
+import { extractPromptForInteraction } from '../utils/prompt-extraction.js';
 import { createMissingElementError, createMissingInteractionError } from '../utils/qti-errors.js';
 
 export interface MatchListOptions {
@@ -113,29 +114,7 @@ export function transformMatchList(
  * Extract prompt from itemBody or interaction
  */
 function extractPrompt(itemBody: HTMLElement, interaction: HTMLElement): string | null {
-  // Look for prompt inside interaction first
-  const promptElement = interaction.getElementsByTagName('prompt')[0];
-  if (promptElement) {
-    return promptElement.innerHTML.trim();
-  }
-
-  // Look for content before interaction in itemBody
-  let promptHtml = '';
-  for (const child of itemBody.childNodes) {
-    if (child === interaction) break;
-
-    if (child.nodeType === 3) {
-      // Text node
-      const text = child.textContent?.trim();
-      if (text) promptHtml += text;
-    } else if ((child as HTMLElement).tagName) {
-      const element = child as HTMLElement;
-      if (element.tagName === 'matchInteraction') break;
-      promptHtml += element.outerHTML;
-    }
-  }
-
-  return promptHtml.trim() || null;
+  return extractPromptForInteraction(itemBody, interaction) || null;
 }
 
 /**

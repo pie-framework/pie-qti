@@ -1,6 +1,6 @@
 # @pie-qti/assessment-player
 
-QTI 2.x Assessment Player - Multi-item test player with navigation, sections, and rubric blocks.
+QTI Assessment Player (QTI 2.2/3.0 compatible item delivery) - Multi-item test player with navigation, sections, and rubric blocks.
 
 ## Features
 
@@ -10,13 +10,13 @@ QTI 2.x Assessment Player - Multi-item test player with navigation, sections, an
 - ✅ **Rubric blocks** - Reading passages, instructions, and rubrics
 - ✅ **Progress tracking** - Visual progress indicators
 - ✅ **Section menu** - Quick navigation between sections
-- ✅ **Outcome Processing** - QTI 2.x scoring with total/weighted/percentage/pass-fail templates
+- ✅ **Outcome Processing** - QTI-aligned scoring with total/weighted/percentage/pass-fail templates
 - ✅ **Test Feedback** - Conditional feedback based on outcome variables
 - ✅ **Time Limits** - Assessment-level countdown timers with warnings and auto-submission
 - ✅ **Item Session Control** - Max attempts, review/skip controls, response validation
 - ✅ **State Persistence** - Auto-save with resume capability and optional backend integration
-- ✅ **Selection & Ordering** - Random item selection and shuffling per QTI 2.x spec
-- ✅ **QTI 2.x Standard Roles** - Candidate, scorer, tutor, author, proctor, testConstructor
+- ✅ **Selection & Ordering** - Random item selection and shuffling per QTI spec
+- ✅ **QTI Role/View Actors** - candidate, scorer, tutor, author, proctor, testConstructor
 - ✅ **Backend Integration** - Optional secure backend API (client-side by default)
 - ✅ **Svelte 5 components** - Modern reactive UI
 - ✅ **TypeScript** - Full type safety
@@ -29,50 +29,20 @@ bun add @pie-qti/assessment-player
 
 ## Usage
 
-### Basic Usage with Svelte
+### Basic Usage with Web Components
 
-```svelte
-<script lang="ts">
-	import AssessmentShell from '@pie-qti/assessment-player/components/AssessmentShell.svelte';
-	import type { QtiAssessmentTest } from '@pie-qti/assessment-player';
+```typescript
+import '@pie-qti/player-elements/register';
 
-	const assessment: QtiAssessmentTest = {
-		identifier: 'my-assessment',
-		title: 'Sample Assessment',
-		testParts: [
-			{
-				identifier: 'part-1',
-				navigationMode: 'nonlinear',
-				submissionMode: 'simultaneous',
-				sections: [
-					{
-						identifier: 'section-1',
-						title: 'Section 1',
-						questionRefs: [
-							{
-								identifier: 'q1',
-								itemXml: '...' // QTI item XML
-							}
-						]
-					}
-				]
-			}
-		]
-	};
-</script>
-
-<AssessmentShell
-	{assessment}
-	config={{
-		role: 'candidate',
-		showSections: true,
-		allowSectionNavigation: true,
-		showProgress: true,
-		onComplete: () => {
-			console.log('Assessment completed!');
-		}
-	}}
-/>
+const player = document.createElement('qti-assessment-player');
+player.config = {
+	role: 'candidate',
+	showSections: true,
+	allowSectionNavigation: true,
+	showProgress: true,
+};
+player.assessmentTestXml = '<qti-assessment-test>...</qti-assessment-test>';
+document.body.append(player);
 ```
 
 ### Programmatic Usage (JavaScript/TypeScript)
@@ -112,7 +82,7 @@ console.log('Total score:', results.totalScore, '/', results.maxScore);
 
 ## Assessment Format
 
-The player uses a QTI 2.x-compliant JSON format:
+The player uses a QTI-aligned JSON format:
 
 ```typescript
 interface QtiAssessmentTest {
@@ -156,10 +126,13 @@ interface RubricBlock {
 **By default**, the player runs 100% client-side with no backend required. This is perfect for demos, development, and non-critical assessments.
 
 **For production**, integrate with a secure backend for:
+
 - Server-side scoring (prevent score manipulation)
 - Role-based data filtering (hide correct answers from candidates)
 - Persistent session storage
 - Authentication and authorization
+
+The player can be embedded inside an LTI 1.3 / LTI Advantage tool, but LTI launch validation, Deep Linking, AGS grade passback, and NRPS roster lookup are host-application responsibilities. Use the `BackendAdapter` boundary to connect player sessions and submissions to the host tool's LTI-aware backend.
 
 ### Quick Start
 
@@ -208,18 +181,18 @@ class MyBackendAdapter implements BackendAdapter {
 
 **See [BACKEND-INTEGRATION.md](./BACKEND-INTEGRATION.md) for complete implementation guide.**
 
-## QTI 2.x Standard Roles
+## QTI Role/View Actors
 
-The player implements QTI 2.x standard roles to control behavior:
+QTI roles are audience markers for `view`-controlled content. This player applies the runtime policy below:
 
 | Role | Behavior |
 |------|----------|
 | `candidate` | Test-taker - inputs editable, no correct answers shown |
-| `scorer` | Grader - inputs readonly, correct answers shown |
-| `author` | Content author - inputs readonly, correct answers shown |
-| `tutor` | Instructional mode - inputs readonly, correct answers shown |
-| `proctor` | Test administrator - inputs readonly, limited feedback |
-| `testConstructor` | Test developer - inputs readonly, correct answers shown |
+| `scorer` | Grader/reviewer - inputs readonly, correct answers shown |
+| `author` | Content authoring review - inputs readonly, correct answers shown |
+| `tutor` | Instructional review - inputs readonly, correct answers shown |
+| `proctor` | Test administration view - inputs readonly, no correct answers shown |
+| `testConstructor` | Test construction review - inputs readonly, correct answers shown |
 
 ```typescript
 // For test-takers
@@ -231,7 +204,7 @@ The player implements QTI 2.x standard roles to control behavior:
 
 ## Time Limits
 
-QTI 2.x supports time limits at assessment, test part, section, and item levels. The player provides:
+QTI supports time limits at assessment, test part, section, and item levels. The player provides:
 
 - **Countdown timer** - Displays remaining time to candidates
 - **Warning threshold** - Alert before time expires (default: 60 seconds)
@@ -278,26 +251,11 @@ const elapsed = player.getElapsedTime(); // seconds
 const isExpired = player.isTimeExpired(); // boolean
 ```
 
-### AssessmentTimer Component
+### Assessment Timer UI
 
-Visual timer component that displays countdown:
-
-```svelte
-<script>
-	import { AssessmentTimer } from '@pie-qti/assessment-player/components';
-</script>
-
-<AssessmentTimer
-	{player}
-	showElapsed={false}
-	position="top-right"
-/>
-```
-
-**Props:**
-- `player: AssessmentPlayer` - The assessment player instance
-- `showElapsed?: boolean` - Show elapsed time instead of remaining (default: false)
-- `position?: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left'` - Timer position
+The packaged UI is exposed through `@pie-qti/player-elements/register`.
+`@pie-qti/assessment-player` does not publish raw Svelte component entrypoints;
+use the `AssessmentPlayer` time APIs directly for custom UI.
 
 ## Item Session Control
 
@@ -341,26 +299,11 @@ console.log(`Show feedback: ${info.showFeedback}`);
 console.log(`Can skip: ${info.canSkip}`);
 ```
 
-### ItemSessionInfo Component
+### Item Session UI
 
-Visual display of session control information:
-
-```svelte
-<script>
-	import { ItemSessionInfo } from '@pie-qti/assessment-player/components';
-</script>
-
-<ItemSessionInfo
-	{player}
-	position="inline"
-	showDetails={true}
-/>
-```
-
-**Props:**
-- `player: AssessmentPlayer` - The assessment player instance
-- `position?: 'inline' | 'floating'` - Display mode (default: 'inline')
-- `showDetails?: boolean` - Show detailed session information (default: false)
+The packaged UI is exposed through `@pie-qti/player-elements/register`.
+`@pie-qti/assessment-player` keeps item-session state APIs public, but does
+not publish Svelte component entrypoints.
 
 ## State Persistence
 
@@ -502,7 +445,7 @@ interface PersistableState {
 
 ## Selection & Ordering
 
-The assessment player supports QTI 2.x selection and ordering rules for creating randomized assessments and item pools.
+The assessment player supports QTI selection and ordering rules for creating randomized assessments and item pools.
 
 ### Selection Rules
 
@@ -699,7 +642,7 @@ ordering: { shuffle: true }
 
 ## Outcome Processing & Scoring
 
-The assessment player implements QTI 2.x outcome processing for aggregating item scores into assessment-level outcomes.
+The assessment player implements QTI outcome processing patterns for aggregating item scores into assessment-level outcomes.
 
 ### Scoring Templates
 
@@ -1051,7 +994,7 @@ Renders individual QTI items within the assessment.
 
 **Props:**
 - `questionRef: QuestionRef` - Question reference with item XML
-- `role?: QTIRole` - QTI 2.x standard role (default: 'candidate')
+- `role?: QTIRole` - QTI role/view actor (default: 'candidate')
 - `extendedTextEditor?: 'tiptap' | 'textarea'` - Editor type for extended text
 - `responses?: Record<string, unknown>` - Response data
 - `onResponseChange?: (responseId: string, value: unknown) => void` - Response handler

@@ -8,6 +8,7 @@
 export { QTIInteractionBase } from './QTIInteractionBase.js';
 export {
 	QTIChangeEvent,
+	type InteractionResponseValue,
 	type QTIChangeEventDetail,
 	QTIErrorEvent,
 	type QTIErrorEventDetail,

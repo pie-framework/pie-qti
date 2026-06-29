@@ -14,21 +14,24 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
-    "test:a11y": "playwright test tests/playwright/component-fixtures-a11y.pw.ts",
-    "test:a11y:ui": "playwright test tests/playwright/component-fixtures-a11y.pw.ts --ui"
+    "test:a11y": "playwright test tests/playwright/component-fixtures-a11y.pw.ts tests/playwright/assessment-a11y-behavior.pw.ts tests/playwright/qti3-stage5-a11y.pw.ts",
+    "test:a11y:ui": "playwright test tests/playwright/component-fixtures-a11y.pw.ts tests/playwright/assessment-a11y-behavior.pw.ts tests/playwright/qti3-stage5-a11y.pw.ts --ui"
   },
   "dependencies": {
     "@acme/likert-scale-plugin": "workspace:*",
-    "@pie-qti/logger": "workspace:*",
-    "@pie-qti/ims-cp-browser": "workspace:*",
-    "@pie-qti/ims-cp-core": "workspace:*",
+    "@pie-players/tts-server-polly": "^0.3.53",
     "@pie-qti/assessment-player": "workspace:*",
     "@pie-qti/default-components": "workspace:*",
     "@pie-qti/i18n": "workspace:*",
+    "@pie-qti/ims-cp-browser": "workspace:*",
+    "@pie-qti/ims-cp-core": "workspace:*",
     "@pie-qti/item-player": "workspace:*",
+    "@pie-qti/logger": "workspace:*",
     "@pie-qti/pie-to-qti2": "workspace:*",
     "@pie-qti/player-elements": "workspace:*",
     "@pie-qti/qti-common": "workspace:*",
+    "@pie-qti/section-player": "workspace:*",
+    "@pie-qti/theme-daisyui": "workspace:*",
     "@pie-qti/typeset-katex": "workspace:*",
     "@pie-qti/web-component-loaders": "workspace:*",
     "@tiptap/core": "^3.18.0",
@@ -43,6 +46,7 @@
     "jszip": "^3.10.1",
     "lowlight": "^3.3.0",
     "unzipper": "^0.12.3",
+    "xml-formatter": "^3.7.0",
     "xml2js": "^0.6.2"
   },
   "devDependencies": {

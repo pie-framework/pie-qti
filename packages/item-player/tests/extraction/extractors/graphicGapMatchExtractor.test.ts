@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { standardGraphicGapMatchExtractor } from '../../../src/extraction/extractors/graphicGapMatchExtractor.js';
+import { standardGraphicGapMatchExtractor } from '../../../src/interactions/graphic-gap-match/extractor.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
 describe('standardGraphicGapMatchExtractor', () => {
@@ -211,6 +211,58 @@ describe('standardGraphicGapMatchExtractor', () => {
 		expect(result.hotspots).toHaveLength(4);
 	});
 
+	describe('matchGroup extraction', () => {
+		test('extracts single matchGroup value on gapTexts', () => {
+			const xml = `
+				<graphicGapMatchInteraction responseIdentifier="RESPONSE">
+					<object type="image/png" data="diagram.png" />
+					<gapText identifier="T1" matchMax="1" matchGroup="animal">Cat</gapText>
+					<gapText identifier="T2" matchMax="1">Other</gapText>
+					<associableHotspot identifier="H1" shape="rect" coords="0,0,100,100" matchMax="1" />
+				</graphicGapMatchInteraction>
+			`;
+			const element = parseQTI(xml);
+			const context = createTestContext(element, 'RESPONSE');
+
+			const result = standardGraphicGapMatchExtractor.extract(element, context);
+
+			expect(result.gapTexts[0].matchGroup).toEqual(['animal']);
+			expect(result.gapTexts[1].matchGroup).toBeUndefined();
+		});
+
+		test('extracts multiple matchGroup values on gapTexts', () => {
+			const xml = `
+				<graphicGapMatchInteraction responseIdentifier="RESPONSE">
+					<object type="image/png" data="diagram.png" />
+					<gapText identifier="T1" matchMax="1" matchGroup="set-a set-b">Item</gapText>
+					<associableHotspot identifier="H1" shape="rect" coords="0,0,100,100" matchMax="1" />
+				</graphicGapMatchInteraction>
+			`;
+			const element = parseQTI(xml);
+			const context = createTestContext(element, 'RESPONSE');
+
+			const result = standardGraphicGapMatchExtractor.extract(element, context);
+
+			expect(result.gapTexts[0].matchGroup).toEqual(['set-a', 'set-b']);
+		});
+
+		test('omits matchGroup when absent', () => {
+			const xml = `
+				<graphicGapMatchInteraction responseIdentifier="RESPONSE">
+					<object type="image/png" data="diagram.png" />
+					<gapText identifier="T1" matchMax="1">Item</gapText>
+					<associableHotspot identifier="H1" shape="rect" coords="0,0,100,100" matchMax="1" />
+				</graphicGapMatchInteraction>
+			`;
+			const element = parseQTI(xml);
+			const context = createTestContext(element, 'RESPONSE');
+
+			const result = standardGraphicGapMatchExtractor.extract(element, context);
+
+			expect(result.gapTexts[0].matchGroup).toBeUndefined();
+		});
+	});
+
 	describe('canHandle predicate', () => {
 		test('handles graphicGapMatchInteraction element', () => {
 			const xml = `
@@ -266,7 +318,7 @@ describe('standardGraphicGapMatchExtractor', () => {
 			const validation = standardGraphicGapMatchExtractor.validate!(data);
 
 			expect(validation.valid).toBe(false);
-			expect(validation.errors).toContain('graphicGapMatchInteraction must have at least one gapText');
+			expect(validation.errors).toContain('graphicGapMatchInteraction must have at least one gapText or gapImg');
 		});
 
 		test('reports error for empty hotspots', () => {

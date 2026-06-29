@@ -1,6 +1,6 @@
 <script lang="ts">
 	
-	import FileUpload from '@pie-qti/default-components/shared/components/FileUpload.svelte';
+	import { FileUpload } from '@pie-qti/default-components/shared/components';
 import type { QTIFileResponse } from '@pie-qti/item-player';
 
 	let value = $state<QTIFileResponse | null>(null);

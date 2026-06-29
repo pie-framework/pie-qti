@@ -101,7 +101,9 @@
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
 		{#if parsedInteraction.prompt}
-			<p part="prompt" class="qti-go-prompt font-semibold mb-3">{@html parsedInteraction.prompt}</p>
+			<div part="prompt" class="qti-go-prompt qti-rich-content font-semibold mb-3">
+				{@html parsedInteraction.prompt}
+			</div>
 		{/if}
 
 		<div part="layout" class="qti-go-layout flex flex-col gap-4">
@@ -222,19 +224,19 @@
 		position: relative;
 		border-radius: 0.75rem;
 		overflow: hidden;
-		border: 2px solid var(--color-base-300, oklch(95% 0 0));
-		background: var(--color-base-200, oklch(98% 0 0));
+		border: 2px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		background: var(--pie-qti-base-200, oklch(98% 0 0));
 	}
 	.qti-go-card {
-		border: 1px solid var(--color-base-300, oklch(95% 0 0));
+		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
 		border-radius: 0.75rem;
-		background: var(--color-base-100, oklch(100% 0 0));
+		background: var(--pie-qti-base-100, oklch(100% 0 0));
 	}
 	.qti-go-card-body {
 		padding: 1rem;
 	}
 	.qti-go-confirm {
-		border-top: 1px solid var(--color-base-300, oklch(95% 0 0));
+		border-top: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
 		padding-top: 0.75rem;
 		margin-top: 1rem;
 	}

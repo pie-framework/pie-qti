@@ -1,0 +1,10 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "QTI 2.2 Basic Level Q5 – Extended Text Interaction baseType string. Mirrors DELIVERY criteria Q5-L1-D1 and Q5-L1-D2. Item XML is internally authored to comply with FIXTURE_POLICY.",
+  "covers": [
+    "Q5-extended-text",
+    "Q5-L1-D1",
+    "Q5-L1-D2"
+  ]
+}

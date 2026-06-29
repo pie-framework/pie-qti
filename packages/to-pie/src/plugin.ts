@@ -5,29 +5,20 @@
  */
 
 import type {
+  ConversionTrace,
+  PieItem,
+  QtiSourceProfile,
+  SourceProfileExtractionResult,
   TransformContext,
   TransformInput,
   TransformOutput,
   TransformPlugin,
+  TransformWarning,
   ValidationResult,
   VendorExtensionConfig,
 } from '@pie-qti/transform-types';
+import type { HTMLElement } from 'node-html-parser';
 import { parse } from 'node-html-parser';
-import { transformAssessmentTest } from './transformers/assessment-test.js';
-import { transformAssociateToCategorize } from './transformers/associate-to-categorize.js';
-import { transformDragInTheBlank } from './transformers/drag-in-the-blank.js';
-import { transformEbsr } from './transformers/ebsr.js';
-import { transformExplicitConstructedResponse } from './transformers/explicit-constructed-response.js';
-import { transformExtendedResponse } from './transformers/extended-response.js';
-import { transformHotspot } from './transformers/hotspot.js';
-import { transformImageClozeAssociation } from './transformers/image-cloze-association.js';
-import { transformInlineDropdown } from './transformers/inline-dropdown.js';
-import { transformMatch } from './transformers/match.js';
-import { transformMatchList } from './transformers/match-list.js';
-import { transformMultipleChoice } from './transformers/multiple-choice.js';
-import { transformPassage } from './transformers/passage.js';
-import { transformPlacementOrdering } from './transformers/placement-ordering.js';
-import { transformSelectText } from './transformers/select-text.js';
 import type {
   AssetResolver,
   CssClassExtractor,
@@ -38,10 +29,24 @@ import type {
   VendorTransformer,
 } from './types/vendor-extensions.js';
 import { extractSearchMetadata } from './utils/metadata-extraction.js';
+import { makePieItemPlayerReady } from './utils/player-config.js';
 import { extractPieExtension, hasPieExtension } from './utils/pie-extension.js';
 import { embedQtiSourceInPie } from './utils/qti-extension-embedder.js';
 import { validateQti } from './utils/qti-validator.js';
 import { createStandardMetadataExtractor } from './extractors/standard-metadata-extractor.js';
+import { extractCssClassesWithHooks } from './vendor-extension-runtime.js';
+import {
+  addTraceEvent,
+  applyItemDecorators,
+  createConversionTrace,
+  detectItemProfiles,
+  runItemHandlers,
+  type ProfileRuntimeResult,
+} from './source-profile-runtime.js';
+import {
+  createDefaultQtiToPieRegistry,
+  type QtiToPieRegistry,
+} from './registry/qti-to-pie-registry.js';
 
 /**
  * Configuration options for the QtiToPiePlugin
@@ -73,10 +78,38 @@ export interface QtiToPiePluginOptions {
   metadataExtractors?: MetadataExtractor[];
 
   /**
+   * Source profiles are the preferred pre-1.0 extension model. They can detect
+   * package/item features, emit traceable evidence, and contribute candidates
+   * without taking over the generic QTI-to-PIE transform.
+   */
+  sourceProfiles?: QtiSourceProfile[];
+
+  /**
+   * Optional transform registry. Primarily useful for tests or hosts that need
+   * to register alternate built-in handlers during pre-1.0 API development.
+   */
+  registry?: QtiToPieRegistry;
+
+  /**
    * Config-based registration - vendor extensions configuration
    * Note: This is typically used by the config loader, not directly by users
    */
   vendorExtensions?: VendorExtensionConfig;
+}
+
+export class QtiSourceProfileTransformError extends Error {
+  readonly sourceDiagnostics: SourceProfileExtractionResult['diagnostics'];
+  readonly conversionTrace: ConversionTrace;
+
+  constructor(message: string, options: {
+    sourceDiagnostics: SourceProfileExtractionResult['diagnostics'];
+    conversionTrace: ConversionTrace;
+  }) {
+    super(message);
+    this.name = 'QtiSourceProfileTransformError';
+    this.sourceDiagnostics = options.sourceDiagnostics;
+    this.conversionTrace = options.conversionTrace;
+  }
 }
 
 export class QtiToPiePlugin implements TransformPlugin {
@@ -96,6 +129,10 @@ export class QtiToPiePlugin implements TransformPlugin {
     cssClassExtractors: [],
     metadataExtractors: [],
   };
+
+  private sourceProfiles: QtiSourceProfile[] = [];
+
+  private registry: QtiToPieRegistry;
 
   /**
    * Create a new QtiToPiePlugin instance
@@ -122,6 +159,8 @@ export class QtiToPiePlugin implements TransformPlugin {
    * });
    */
   constructor(options: QtiToPiePluginOptions = {}) {
+    this.registry = options.registry ?? createDefaultQtiToPieRegistry();
+
     // Register standard metadata extractor by default (can be overridden by vendors)
     this.registerMetadataExtractor(createStandardMetadataExtractor());
 
@@ -141,6 +180,7 @@ export class QtiToPiePlugin implements TransformPlugin {
     options.metadataExtractors?.forEach((extractor) =>
       this.registerMetadataExtractor(extractor)
     );
+    this.sourceProfiles = [...(options.sourceProfiles ?? [])];
 
     // Note: vendorExtensions config is handled by VendorExtensionRegistry
     // after plugin instantiation, not in the constructor
@@ -214,11 +254,29 @@ export class QtiToPiePlugin implements TransformPlugin {
     logger?.info('Starting QTI 2.2 to PIE transformation');
 
     const qtiXml = typeof input.content === 'string' ? input.content : JSON.stringify(input.content);
+    const qtiVersion = detectQtiVersion(qtiXml);
+    const sourceFormat = qtiVersionToSourceFormat(qtiVersion);
+    const warnings: TransformWarning[] = [];
+    const itemId = this.extractItemId(qtiXml);
+    const trace = createConversionTrace(`qti-to-pie-${itemId}`);
+    addTraceEvent(trace, {
+      kind: 'handler-selected',
+      scope: 'item',
+      itemId,
+      message: 'Started QTI to PIE item transform.',
+      data: { sourceFormat, qtiVersion },
+    });
 
     // Check for PIE extension first for lossless round-trip
     if (hasPieExtension(qtiXml)) {
       logger?.info('Detected PIE extension - using lossless extraction');
-      return this.extractFromPieExtension(qtiXml, startTime, logger);
+      addTraceEvent(trace, {
+        kind: 'handler-selected',
+        scope: 'item',
+        itemId,
+        message: 'Detected embedded PIE extension; using lossless extraction.',
+      });
+      return this.extractFromPieExtension(qtiXml, startTime, logger, sourceFormat, trace, qtiVersion);
     }
 
     // Parse XML once for all detection and transformation
@@ -226,6 +284,26 @@ export class QtiToPiePlugin implements TransformPlugin {
       lowerCaseTagName: false,
       comment: false,
     });
+
+    const assessmentItem = doc.querySelector('assessmentItem') || doc.getElementsByTagName('assessmentItem')[0];
+    const interactionAnalysis = assessmentItem ? analyzeAssessmentItemInteractions(assessmentItem) : null;
+    const itemContext = {
+      itemId,
+      resourceId: (input.metadata?.resourceId as string | undefined) ?? itemId,
+      sourcePath: input.metadata?.sourcePath as string | undefined,
+      xml: qtiXml,
+      qtiVersion,
+      interactionTypes: interactionAnalysis?.standardTypes ?? [],
+      responseProcessingXml: assessmentItem ? directChildXml(assessmentItem, 'responseProcessing') : undefined,
+      package: input.metadata?.packageContext as any,
+      metadata: input.metadata,
+    };
+    const profileRuntime = detectItemProfiles(
+      this.sourceProfiles,
+      itemContext,
+      trace
+    );
+    warnings.push(...(profileRuntime.extraction.warnings ?? []));
 
     // Check for vendor-specific QTI and use vendor transformer if available
     const vendorInfo = this.detectVendor(qtiXml, doc);
@@ -240,141 +318,110 @@ export class QtiToPiePlugin implements TransformPlugin {
       if (vendorTransformer) {
         logger?.info(`Using vendor transformer for: ${vendorInfo.vendor}`);
         try {
-          return await vendorTransformer.transform(qtiXml, vendorInfo, context, doc);
+          addTraceEvent(trace, {
+            kind: 'handler-selected',
+            scope: 'item',
+            itemId,
+            handlerId: `legacy-vendor-transformer:${vendorTransformer.vendor}`,
+            message: `Using legacy vendor transformer for ${vendorTransformer.vendor}.`,
+          });
+          const output = await vendorTransformer.transform(qtiXml, vendorInfo, context, doc);
+          return withTraceMetadata(output, trace, profileRuntime);
         } catch (error) {
           logger?.warn(
             `Vendor transformer failed for ${vendorInfo.vendor}: ${(error as Error).message}. ` +
             'Falling back to standard transformation.'
           );
+          addTraceEvent(trace, {
+            kind: 'fallback',
+            scope: 'item',
+            itemId,
+            handlerId: `legacy-vendor-transformer:${vendorTransformer.vendor}`,
+            message: `Legacy vendor transformer failed and generic fallback will be attempted: ${(error as Error).message}`,
+          });
           // Fall through to standard transformation
         }
       }
     }
 
     // Detect item type and use appropriate transformer
-    const interactionType = this.detectInteractionType(qtiXml);
-    const itemId = this.extractItemId(qtiXml);
-
-    // Get assessmentItem element (already parsed above)
-    const assessmentItem = doc.querySelector('assessmentItem') || doc.getElementsByTagName('assessmentItem')[0];
+    const interactionType = this.detectInteractionType(qtiXml, interactionAnalysis);
 
     // Extract baseId for round-trip compatibility
     const baseId = this.extractBaseId(assessmentItem);
 
     logger?.debug(`Processing item: ${itemId} (type: ${interactionType})${baseId ? ` [baseId: ${baseId}]` : ''}`);
 
-    let pieItem;
+    const builtInContext = {
+      interactionType,
+      qtiXml,
+      itemId,
+      assessmentItem,
+      baseId,
+      logger,
+    };
 
-    try {
-      switch (interactionType) {
-        case 'choiceInteraction':
-          if (!assessmentItem) throw new Error('No assessmentItem found');
-          pieItem = await transformMultipleChoice(assessmentItem, itemId, { baseId });
-          break;
-
-        case 'extendedTextInteraction':
-          if (!assessmentItem) throw new Error('No assessmentItem found');
-          pieItem = await transformExtendedResponse(assessmentItem, itemId, { baseId });
-          break;
-
-        case 'orderInteraction':
-          pieItem = transformPlacementOrdering(qtiXml, itemId);
-          break;
-
-        case 'matchInteraction':
-          // Check if it's a match-list or match (pairs)
-          if (this.isMatchList(qtiXml)) {
-            pieItem = transformMatchList(qtiXml, itemId);
-          } else {
-            pieItem = transformMatch(qtiXml, itemId);
-          }
-          break;
-
-        case 'textEntryInteraction':
-          pieItem = transformExplicitConstructedResponse(qtiXml, itemId);
-          break;
-
-        case 'selectPointInteraction':
-        case 'hottextInteraction':
-          pieItem = transformSelectText(qtiXml, itemId);
-          break;
-
-        case 'inlineChoiceInteraction':
-          pieItem = transformInlineDropdown(qtiXml, itemId);
-          break;
-
-        case 'gapMatchInteraction':
-          pieItem = transformDragInTheBlank(qtiXml, itemId);
-          break;
-
-        case 'ebsr':
-          pieItem = transformEbsr(qtiXml, itemId);
-          break;
-
-        case 'hotspotInteraction':
-          pieItem = transformHotspot(qtiXml, itemId);
-          break;
-
-        case 'graphicGapMatchInteraction':
-          pieItem = transformImageClozeAssociation(qtiXml, itemId);
-          break;
-
-        case 'passage':
-          pieItem = transformPassage(qtiXml, itemId);
-          break;
-
-        case 'associateInteraction':
-          logger?.warn(
-            `Transforming associateInteraction to categorize (experimental). ` +
-            `Original any-to-any pairing semantics may not be fully preserved. ` +
-            `Item: ${itemId}`
-          );
-          pieItem = transformAssociateToCategorize(qtiXml, itemId);
-          break;
-
-        case 'assessmentTest': {
-          logger?.info(`Transforming assessmentTest: ${itemId}`);
-          const assessment = transformAssessmentTest(qtiXml, itemId, {
-            includeTimeLimits: true,
-            includeBranchRules: true,
-            includeItemControls: true,
-          });
-
-          const processingTimeTest = Date.now() - startTime;
-          logger?.info(`Assessment transformation complete in ${processingTimeTest}ms`);
-
-          // Count total items across all testParts and sections
-          const itemCount = assessment.testParts.reduce(
-            (total: number, testPart) =>
-              total +
-              testPart.sections.reduce(
-                (sectionTotal: number, section) => sectionTotal + section.itemRefs.length,
-                0
-              ),
-            0
-          );
-
-          return {
-            items: [{ content: assessment, format: 'pie' as const }], // Return assessment wrapped
-            format: 'pie',
-            metadata: {
-              sourceFormat: 'qti3',
-              targetFormat: 'pie',
-              pluginId: this.id,
-              timestamp: new Date(),
-              itemCount,
-              processingTime: processingTimeTest,
-            },
-          };
-        }
-
-        default:
-          logger?.warn(`Unsupported interaction type: ${interactionType} for item ${itemId}`);
-          throw new Error(`Unsupported interaction type: ${interactionType}`);
+    const runGenericTransform = async (): Promise<TransformOutput> => {
+      if (interactionAnalysis) {
+        validateInteractionShape(interactionAnalysis, itemId);
       }
+
+      if (assessmentItem) {
+        warnings.push(...createProcessingWarnings(assessmentItem, itemId));
+      }
+
+      let pieItem;
+
+      try {
+      const builtInHandler = this.registry.getHandlerForInteraction(interactionType);
+      if (!builtInHandler) {
+        logger?.warn(`Unsupported interaction type: ${interactionType} for item ${itemId}`);
+        throw new Error(`Unsupported interaction type: ${interactionType}`);
+      }
+      addTraceEvent(trace, {
+        kind: 'handler-selected',
+        scope: 'item',
+        itemId,
+        handlerId: builtInHandler.id,
+        message: `Selected built-in QTI transform handler ${builtInHandler.id}.`,
+      });
+      const transformResult = await builtInHandler.transform(builtInContext);
+
+      if (transformResult.kind === 'assessment') {
+        const processingTimeTest = Date.now() - startTime;
+        logger?.info(`Assessment transformation complete in ${processingTimeTest}ms`);
+        return {
+          items: [{ content: transformResult.content, format: 'pie' as const }], // Return assessment wrapped
+          format: 'pie',
+          metadata: {
+            sourceFormat,
+            targetFormat: 'pie',
+            pluginId: this.id,
+            timestamp: new Date(),
+            itemCount: transformResult.itemCount ?? 0,
+            processingTime: processingTimeTest,
+            qtiVersion,
+            ...metadataFromProfileRuntime(profileRuntime),
+            conversionTrace: finalizeTrace(trace, profileRuntime),
+          } as any,
+          warnings: warnings.length > 0 ? warnings : undefined,
+        };
+      }
+      pieItem = transformResult.content;
+      await applyItemDecorators(this.sourceProfiles, profileRuntime, itemContext, pieItem, 'afterModel', trace);
 
       const processingTime = Date.now() - startTime;
       logger?.info(`Transformation complete in ${processingTime}ms (type: ${interactionType})`);
+
+      if (assessmentItem) {
+        const processingMetadata = collectQtiProcessingMetadata(assessmentItem);
+        if (processingMetadata) {
+          pieItem.metadata = {
+            ...(pieItem.metadata || {}),
+            qtiProcessing: processingMetadata,
+          };
+        }
+      }
 
       // Extract metadata using registered metadata extractors
       // Priority: vendor-specific extractor > standard extractor
@@ -409,38 +456,110 @@ export class QtiToPiePlugin implements TransformPlugin {
         }
       }
 
+      const cssClassExtractions = extractCssClassesWithHooks({
+        extractors: this.vendorExtensions.cssClassExtractors,
+        root: doc,
+        vendorInfo,
+      });
+
+      if (cssClassExtractions.length > 0) {
+        logger?.info(`Extracted vendor CSS classes from ${cssClassExtractions.length} element(s)`);
+        pieItem.metadata = {
+          ...(pieItem.metadata || {}),
+          vendorExtensions: {
+            ...(pieItem.metadata?.vendorExtensions || {}),
+            cssClasses: cssClassExtractions,
+          },
+        };
+      }
+
+      await applyItemDecorators(this.sourceProfiles, profileRuntime, itemContext, pieItem, 'beforeFinalize', trace);
+
+      const playerReadyPieItem = makePieItemPlayerReady(pieItem);
+
       // Embed original QTI XML for lossless round-trip
-      const pieItemWithSource = embedQtiSourceInPie(pieItem, qtiXml, {
+      const pieItemWithSource = embedQtiSourceInPie(playerReadyPieItem, qtiXml, {
         generator: {
           package: '@pie-qti/to-pie',
           version: this.version,
         },
         timestamp: new Date(),
-        qtiVersion: '2.2',
+        qtiVersion,
       });
+      await applyItemDecorators(this.sourceProfiles, profileRuntime, itemContext, pieItemWithSource, 'afterFinalize', trace);
 
       return {
         items: [{ content: pieItemWithSource, format: 'pie' as const }],
         format: 'pie',
         metadata: {
-          sourceFormat: 'qti22',
+          sourceFormat,
           targetFormat: 'pie',
           pluginId: this.id,
           timestamp: new Date(),
           itemCount: 1,
           processingTime,
-        },
+          qtiVersion,
+          ...metadataFromProfileRuntime(profileRuntime),
+          conversionTrace: finalizeTrace(trace, profileRuntime),
+        } as any,
+        warnings: warnings.length > 0 ? warnings : undefined,
       };
-    } catch (error) {
-      logger?.error(`Transformation failed: ${(error as Error).message}`);
-      throw error;
+      } catch (error) {
+        logger?.error(`Transformation failed: ${(error as Error).message}`);
+        throw error;
+      }
+    };
+
+    const handlerRuntime = await runItemHandlers({
+      profiles: this.sourceProfiles,
+      runtime: profileRuntime,
+      context: itemContext,
+      delegate: {
+        continue: runGenericTransform,
+        transformWithBuiltIn: async (handlerId, overrides) =>
+          this.registry
+            .createDelegate(builtInContext)
+            .transformWithBuiltIn(handlerId, overrides as any),
+      },
+      trace,
+    });
+    if (handlerRuntime.diagnostics.length > 0) {
+      profileRuntime.extraction.diagnostics = [
+        ...(profileRuntime.extraction.diagnostics ?? []),
+        ...handlerRuntime.diagnostics,
+      ];
+      warnings.push(
+        ...handlerRuntime.diagnostics
+          .filter(diagnostic => diagnostic.severity !== 'info')
+          .map(sourceDiagnosticToWarning)
+      );
     }
+
+    if (handlerRuntime.output) {
+      return withTraceMetadata(handlerRuntime.output, trace, profileRuntime, warnings);
+    }
+
+    if (!handlerRuntime.allowGenericFallback) {
+      const blockingDiagnostic = handlerRuntime.diagnostics.find(
+        diagnostic => diagnostic.severity === 'error'
+      );
+      throw new QtiSourceProfileTransformError(
+        blockingDiagnostic?.message ??
+        `Generic QTI fallback is disabled for source-profile matched item ${itemId}.`,
+        {
+          sourceDiagnostics: profileRuntime.extraction.diagnostics,
+          conversionTrace: trace,
+        }
+      );
+    }
+
+    return runGenericTransform();
   }
 
   /**
    * Detect the type of QTI interaction
    */
-  private detectInteractionType(qtiXml: string): string {
+  private detectInteractionType(qtiXml: string, analysis?: InteractionAnalysis | null): string {
     // Check for assessmentTest (test definition)
     if (qtiXml.includes('<assessmentTest')) {
       return 'assessmentTest';
@@ -455,6 +574,14 @@ export class QtiToPiePlugin implements TransformPlugin {
     // Check for EBSR pattern (two choiceInteractions with specific structure)
     if (this.isEbsr(qtiXml)) {
       return 'ebsr';
+    }
+
+    if (analysis?.standardTypes.length) {
+      return analysis.standardTypes[0]!;
+    }
+
+    if (analysis?.customInteractionCount) {
+      return 'customInteraction';
     }
 
     // Check for specific interactions
@@ -492,20 +619,12 @@ export class QtiToPiePlugin implements TransformPlugin {
   }
 
   /**
-   * Check if matchInteraction is a match-list (has two simpleMatchSet)
-   */
-  private isMatchList(qtiXml: string): boolean {
-    const matches = qtiXml.match(/<simpleMatchSet/g);
-    return matches ? matches.length >= 2 : false;
-  }
-
-  /**
    * Extract item ID from QTI XML
    */
   private extractItemId(qtiXml: string): string {
     // Try to extract identifier attribute
     const match = qtiXml.match(/identifier=["']([^"']+)["']/);
-    return match ? match[1] : `item-${Date.now()}`;
+    return match ? match[1] : `item-${shortHash(qtiXml)}`;
   }
 
   /**
@@ -599,7 +718,10 @@ export class QtiToPiePlugin implements TransformPlugin {
   private extractFromPieExtension(
     qtiXml: string,
     startTime: number,
-    logger?: any
+    logger?: any,
+    sourceFormat = 'qti22',
+    trace?: ConversionTrace,
+    qtiVersion?: string
   ): TransformOutput {
     const extensionData = extractPieExtension(qtiXml);
 
@@ -617,7 +739,7 @@ export class QtiToPiePlugin implements TransformPlugin {
       items: [{ content: extensionData.sourceModel, format: 'pie' as const }],
       format: 'pie',
       metadata: {
-        sourceFormat: 'qti22' as const,
+        sourceFormat,
         targetFormat: 'pie' as const,
         pluginId: this.id,
         timestamp: new Date(),
@@ -626,6 +748,8 @@ export class QtiToPiePlugin implements TransformPlugin {
           : 1,
         processingTime,
         losslessRoundTrip: true,
+        ...(qtiVersion && { qtiVersion }),
+        ...(trace && { conversionTrace: trace }),
         ...(extensionData.metadata && {
           pieExtension: extensionData.metadata,
         }),
@@ -681,4 +805,263 @@ export class QtiToPiePlugin implements TransformPlugin {
   getMetadataExtractors(): MetadataExtractor[] {
     return [...this.vendorExtensions.metadataExtractors];
   }
+}
+
+type QtiVersion = '2.1' | '2.2' | '3.0' | 'unknown';
+
+interface InteractionAnalysis {
+  standardTypes: string[];
+  customInteractionCount: number;
+}
+
+interface QtiProcessingMetadata {
+  responseDeclarationsXml?: string[];
+  outcomeDeclarationsXml?: string[];
+  responseProcessingXml?: string;
+}
+
+const STANDARD_ITEM_INTERACTIONS = [
+  'choiceInteraction',
+  'extendedTextInteraction',
+  'orderInteraction',
+  'matchInteraction',
+  'textEntryInteraction',
+  'selectPointInteraction',
+  'hottextInteraction',
+  'inlineChoiceInteraction',
+  'gapMatchInteraction',
+  'hotspotInteraction',
+  'graphicGapMatchInteraction',
+  'associateInteraction',
+] as const;
+
+function detectQtiVersion(qtiXml: string): QtiVersion {
+  if (qtiXml.includes('imsqtiasi_v3p0') || qtiXml.includes('imsqti_v3p0')) return '3.0';
+  if (qtiXml.includes('imsqti_v2p2')) return '2.2';
+  if (qtiXml.includes('imsqti_v2p1')) return '2.1';
+  return 'unknown';
+}
+
+function qtiVersionToSourceFormat(version: QtiVersion): string {
+  switch (version) {
+    case '2.1':
+      return 'qti21';
+    case '2.2':
+      return 'qti22';
+    case '3.0':
+      return 'qti30';
+    default:
+      return 'qti';
+  }
+}
+
+function analyzeAssessmentItemInteractions(assessmentItem: HTMLElement): InteractionAnalysis {
+  const itemBody = assessmentItem.getElementsByTagName('itemBody')[0];
+  if (!itemBody) {
+    return { standardTypes: [], customInteractionCount: 0 };
+  }
+
+  const standardTypes = STANDARD_ITEM_INTERACTIONS.filter(
+    interactionType => itemBody.getElementsByTagName(interactionType).length > 0
+  );
+
+  return {
+    standardTypes,
+    customInteractionCount: itemBody.getElementsByTagName('customInteraction').length,
+  };
+}
+
+function validateInteractionShape(analysis: InteractionAnalysis, itemId: string): void {
+  if (analysis.customInteractionCount > 0) {
+    const standardPart = analysis.standardTypes.length > 0
+      ? ` with standard interaction(s): ${analysis.standardTypes.join(', ')}`
+      : '';
+    throw new Error(
+      `Unsupported customInteraction${standardPart} in item ${itemId}. ` +
+      'Use a vendor transformer for proprietary interactions instead of reducing the item to a generic PIE model.'
+    );
+  }
+
+  if (analysis.standardTypes.length > 1) {
+    if (
+      analysis.standardTypes.length === 2 &&
+      analysis.standardTypes.includes('choiceInteraction') &&
+      analysis.standardTypes.every(type => type === 'choiceInteraction')
+    ) {
+      return;
+    }
+
+    throw new Error(
+      `Unsupported composite QTI item ${itemId}: ${analysis.standardTypes.join(', ')}. ` +
+      'Generic QTI to PIE conversion does not silently reduce multi-interaction items to the first interaction.'
+    );
+  }
+}
+
+function createProcessingWarnings(assessmentItem: HTMLElement, itemId: string): TransformWarning[] {
+  const warnings: TransformWarning[] = [];
+  const responseProcessing = assessmentItem.getElementsByTagName('responseProcessing')[0];
+
+  if (responseProcessing) {
+    const template = responseProcessing.getAttribute('template') || '';
+    const hasInlineRules = responseProcessing.childNodes.some(
+      child => Boolean((child as any).rawTagName)
+    );
+
+    if (hasInlineRules) {
+      warnings.push({
+        itemId,
+        code: 'QTI_RESPONSE_PROCESSING_PRESERVED',
+        message:
+          'Inline QTI responseProcessing was preserved in metadata, but generic PIE scoring may not fully represent the rule tree.',
+      });
+    } else if (/map_response/i.test(template)) {
+      warnings.push({
+        itemId,
+        code: 'QTI_MAP_RESPONSE_TEMPLATE',
+        message:
+          'QTI map_response scoring was detected. Verify the resulting PIE model preserves intended partial-credit behavior.',
+      });
+    }
+  }
+
+  if (assessmentItem.getElementsByTagName('mapping').length > 0) {
+    warnings.push({
+      itemId,
+      code: 'QTI_MAPPING_DECLARATION',
+      message:
+        'QTI responseDeclaration mapping was detected. Verify the resulting PIE model preserves intended partial-credit behavior.',
+    });
+  }
+
+  return warnings;
+}
+
+function collectQtiProcessingMetadata(assessmentItem: HTMLElement): QtiProcessingMetadata | null {
+  const responseDeclarationsXml = directChildrenXml(assessmentItem, 'responseDeclaration');
+  const outcomeDeclarationsXml = directChildrenXml(assessmentItem, 'outcomeDeclaration');
+  const responseProcessingXml = directChildXml(assessmentItem, 'responseProcessing');
+
+  if (
+    responseDeclarationsXml.length === 0 &&
+    outcomeDeclarationsXml.length === 0 &&
+    !responseProcessingXml
+  ) {
+    return null;
+  }
+
+  return {
+    ...(responseDeclarationsXml.length > 0 && { responseDeclarationsXml }),
+    ...(outcomeDeclarationsXml.length > 0 && { outcomeDeclarationsXml }),
+    ...(responseProcessingXml && { responseProcessingXml }),
+  };
+}
+
+function directChildrenXml(parent: HTMLElement, tagName: string): string[] {
+  return Array.from(parent.getElementsByTagName(tagName))
+    .filter(element => element.parentNode === parent)
+    .map(element => element.toString());
+}
+
+function directChildXml(parent: HTMLElement, tagName: string): string | undefined {
+  return directChildrenXml(parent, tagName)[0];
+}
+
+function withTraceMetadata(
+  output: TransformOutput,
+  trace: ConversionTrace,
+  profileRuntime: ProfileRuntimeResult,
+  warnings?: TransformWarning[]
+): TransformOutput {
+  return {
+    ...output,
+    items: output.items.map(item =>
+      item.format === 'pie' && isPieItem(item.content)
+        ? { ...item, content: makePieItemPlayerReady(item.content) }
+        : item
+    ),
+    metadata: {
+      ...output.metadata,
+      ...metadataFromProfileRuntime(profileRuntime),
+      conversionTrace: finalizeTrace(trace, profileRuntime),
+    } as any,
+    warnings: mergeWarnings(output.warnings, warnings),
+  };
+}
+
+function isPieItem(value: unknown): value is PieItem {
+  return typeof value === 'object' && value !== null && 'config' in value;
+}
+
+function metadataFromProfileRuntime(
+  profileRuntime: ProfileRuntimeResult
+): Pick<TransformOutput['metadata'], 'sourceProfiles'> & {
+  sourceDiagnostics?: SourceProfileExtractionResult['diagnostics'];
+  standardCandidates?: SourceProfileExtractionResult['standardCandidates'];
+  rubricCandidates?: SourceProfileExtractionResult['rubricCandidates'];
+  sidecars?: SourceProfileExtractionResult['sidecars'];
+} {
+  return {
+    ...(profileRuntime.matches.length > 0 && { sourceProfiles: profileRuntime.matches }),
+    ...(profileRuntime.extraction.diagnostics?.length && {
+      sourceDiagnostics: profileRuntime.extraction.diagnostics,
+    }),
+    ...(profileRuntime.extraction.standardCandidates?.length && {
+      standardCandidates: profileRuntime.extraction.standardCandidates,
+    }),
+    ...(profileRuntime.extraction.rubricCandidates?.length && {
+      rubricCandidates: profileRuntime.extraction.rubricCandidates,
+    }),
+    ...(profileRuntime.extraction.sidecars?.length && {
+      sidecars: profileRuntime.extraction.sidecars,
+    }),
+  };
+}
+
+function finalizeTrace(
+  trace: ConversionTrace,
+  profileRuntime: ProfileRuntimeResult
+): ConversionTrace {
+  return {
+    ...trace,
+    ...(profileRuntime.matches.length > 0 && { profiles: profileRuntime.matches }),
+    ...(profileRuntime.extraction.diagnostics?.length && {
+      diagnostics: profileRuntime.extraction.diagnostics,
+    }),
+    ...(profileRuntime.extraction.standardCandidates?.length && {
+      standardCandidates: profileRuntime.extraction.standardCandidates,
+    }),
+    ...(profileRuntime.extraction.rubricCandidates?.length && {
+      rubricCandidates: profileRuntime.extraction.rubricCandidates,
+    }),
+    ...(profileRuntime.extraction.sidecars?.length && {
+      sidecars: profileRuntime.extraction.sidecars,
+    }),
+  };
+}
+
+function sourceDiagnosticToWarning(
+  diagnostic: NonNullable<SourceProfileExtractionResult['diagnostics']>[number]
+): TransformWarning {
+  return {
+    itemId: diagnostic.itemId,
+    code: diagnostic.code,
+    message: diagnostic.message,
+  };
+}
+
+function shortHash(value: string): string {
+  let hash = 5381;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = ((hash << 5) + hash) ^ value.charCodeAt(index);
+  }
+  return (hash >>> 0).toString(36);
+}
+
+function mergeWarnings(
+  outputWarnings: TransformWarning[] | undefined,
+  accumulatedWarnings: TransformWarning[] | undefined
+): TransformWarning[] | undefined {
+  const merged = [...(outputWarnings ?? []), ...(accumulatedWarnings ?? [])];
+  return merged.length > 0 ? merged : undefined;
 }

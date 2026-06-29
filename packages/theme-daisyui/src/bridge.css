@@ -1,0 +1,26 @@
+/* Maps DaisyUI v5 CSS variables to PIE QTI theme variables. */
+
+:root,
+[data-theme] {
+	--pie-qti-primary: var(--color-primary);
+	--pie-qti-primary-content: var(--color-primary-content);
+	--pie-qti-secondary: var(--color-secondary);
+	--pie-qti-secondary-content: var(--color-secondary-content);
+	--pie-qti-accent: var(--color-accent);
+	--pie-qti-accent-content: var(--color-accent-content);
+	--pie-qti-neutral: var(--color-neutral);
+	--pie-qti-neutral-content: var(--color-neutral-content);
+	--pie-qti-base-100: var(--color-base-100);
+	--pie-qti-base-200: var(--color-base-200);
+	--pie-qti-base-300: var(--color-base-300);
+	--pie-qti-base-content: var(--color-base-content);
+	--pie-qti-info: var(--color-info);
+	--pie-qti-info-content: var(--color-info-content);
+	--pie-qti-success: var(--color-success);
+	--pie-qti-success-content: var(--color-success-content);
+	--pie-qti-warning: var(--color-warning);
+	--pie-qti-warning-content: var(--color-warning-content);
+	--pie-qti-error: var(--color-error);
+	--pie-qti-error-content: var(--color-error-content);
+	--pie-qti-focus: var(--color-primary);
+}

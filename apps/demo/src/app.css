@@ -3,3 +3,4 @@
 /* Import DaisyUI v5 styles and themes */
 @import 'daisyui/daisyui.css';
 @import 'daisyui/themes.css';
+@import '@pie-qti/web-component-loaders/default-runtime.css';

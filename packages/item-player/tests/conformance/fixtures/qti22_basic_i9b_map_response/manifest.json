@@ -1,0 +1,19 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "QTI 2.2 Basic Level I9b – Response Processing Fixed Template map_response with identifier baseType, lowerBound=0, upperBound=6. Mirrors all DELIVERY acceptance criteria I9-L1-D1 through I9l1-D11. Item XML is internally authored to comply with FIXTURE_POLICY.",
+  "covers": [
+    "I9b-map-response",
+    "I9-L1-D1",
+    "I9l1-D2",
+    "I9l1-D3",
+    "I9l1-D4",
+    "I9l1-D5",
+    "I9l1-D6",
+    "I9l1-D7",
+    "I9l1-D8",
+    "I9l1-D9",
+    "I9l1-D10",
+    "I9l1-D11"
+  ]
+}

@@ -29,16 +29,27 @@
 
 import {
 	buildExpression,
+	buildOutcomeProcessingAst,
 	DeclarationContext,
 	type DeclarationMap,
 	evalExpr,
+	execProgram,
 	OperatorRegistry,
 	parseXml,
+	serializeXml,
 	type QtiValue,
 	qtiNull,
 	qtiValue,
 } from '@pie-qti/qti-processing';
-import { Player } from '@pie-qti/item-player';
+import {
+	createResolvedItemDeliveryContext,
+	extractAssessmentStimulusRefs,
+	extractQtiStylesheets,
+	parseAssessmentStimulusXml,
+	resolveCheckedPackagePath,
+	resolveCheckedPackagePathFromFile,
+	resolveRelativePath as resolveQtiRelativePath,
+} from '@pie-qti/ims-cp-core';
 import { parse } from 'node-html-parser';
 import type {
 	AssessmentSessionState,
@@ -54,10 +65,13 @@ import type {
 	SaveAssessmentStateResponse,
 	SecureAssessment,
 	SecureItemRef,
+	SecureSection,
+	SecureTestPart,
 	SessionId,
 	SubmitResponsesRequest,
 	SubmitResponsesResponse,
 } from './api-contract.js';
+import { scoreAssessmentItem } from './assessment-item-scorer.js';
 
 /**
  * Storage key prefix for localStorage
@@ -68,6 +82,18 @@ const STORAGE_PREFIX = 'qti_session_';
  * Cache key for item bank queries
  */
 const BANK_CACHE_PREFIX = 'qti_bank_cache_';
+
+function toCanonicalQtiName(name: string | null | undefined): string {
+	const withoutPrefix = (name ?? '').replace(/^qti-/, '');
+	return withoutPrefix.replace(/-([a-z])/g, (_, char: string) => char.toUpperCase());
+}
+
+const qtiElementNameMapper = {
+	version: 'qti2x-or-qti3',
+	toCanonical: (elementName: string) => toCanonicalQtiName(elementName).toLowerCase(),
+	toNative: (canonicalName: string) => canonicalName,
+	isValidElementName: () => true,
+};
 
 /**
  * Cache entry for item bank queries
@@ -125,6 +151,22 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 		return this.registeredAssessments.get(assessmentId) ?? this.createDemoAssessment(assessmentId);
 	}
 
+	private hasAnyResponse(responses: Record<string, unknown>): boolean {
+		for (const value of Object.values(responses)) {
+			if (value == null) continue;
+			if (Array.isArray(value)) {
+				if (value.length > 0) return true;
+				continue;
+			}
+			if (typeof value === 'string') {
+				if (value.trim().length > 0) return true;
+				continue;
+			}
+			return true;
+		}
+		return false;
+	}
+
 	/**
 	 * Initialize a new assessment session
 	 */
@@ -157,6 +199,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			visitedItems: [],
 			itemResponses: {},
 			itemScores: {},
+			itemSessions: {},
 			timing: {
 				startedAt: Date.now(),
 				itemTimes: {},
@@ -201,6 +244,34 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			};
 		}
 
+		const receivedAt = Date.now();
+		const assessmentLimit = session.assessment.timeLimits;
+		const effectiveAssessmentLimitSeconds =
+			request.timing?.scope === 'assessment' && request.timing.limitSeconds !== undefined
+				? request.timing.limitSeconds
+				: assessmentLimit?.maxTime;
+		const assessmentAllowsLate = assessmentLimit?.allowLateSubmission ?? request.timing?.allowLateSubmission;
+		if (
+			effectiveAssessmentLimitSeconds !== undefined &&
+			assessmentAllowsLate !== true &&
+			receivedAt - session.createdAt > effectiveAssessmentLimitSeconds * 1000
+		) {
+			return {
+				success: false,
+				error: 'Assessment time limit expired',
+			};
+		}
+
+		const evidenceExpired =
+			request.timing?.limitSeconds !== undefined &&
+			request.timing.elapsedMs >= request.timing.limitSeconds * 1000;
+		if (evidenceExpired && request.timing?.allowLateSubmission !== true) {
+			return {
+				success: false,
+				error: 'Time limit expired',
+			};
+		}
+
 		// Find the item XML
 		const itemXml = this.findItemXml(session.assessment, request.itemIdentifier);
 		if (!itemXml) {
@@ -212,7 +283,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 
 		// **SECURITY WARNING**: Client-side scoring is INSECURE
 		// In production, this MUST be done server-side
-		const result = this.scoreItem(itemXml, request.responses);
+		const result = scoreAssessmentItem({ itemXml, responses: request.responses, itemSession: request.itemSession });
 
 		// Store responses and result
 		session.state.itemResponses[request.itemIdentifier] = request.responses;
@@ -220,6 +291,23 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			session.state.itemScores = {};
 		}
 		session.state.itemScores[request.itemIdentifier] = result;
+		if (request.itemSession) {
+			session.state.itemSessions = {
+				...(session.state.itemSessions ?? {}),
+				[request.itemIdentifier]: request.itemSession,
+			};
+		}
+		const previousItemSession = session.state.itemSessionStates?.[request.itemIdentifier];
+		session.state.itemSessionStates = {
+			...(session.state.itemSessionStates ?? {}),
+			[request.itemIdentifier]: {
+				itemIdentifier: request.itemIdentifier,
+				attemptCount: (previousItemSession?.attemptCount ?? 0) + 1,
+				isAnswered: this.hasAnyResponse(request.responses),
+				isSubmitted: true,
+				lastSubmissionTime: request.submittedAt,
+			},
+		};
 
 		// Update timing
 		if (request.timeSpent) {
@@ -235,15 +323,27 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 
 		const order = this.getItemOrder(session.assessment);
 		const idx = order.indexOf(request.itemIdentifier);
-		let nextItemIdentifier = idx >= 0 ? order[idx + 1] : undefined;
+		let nextItemIdentifier: string | undefined = idx >= 0 ? order[idx + 1] : undefined;
 
-		// Demo branching using qti-processing (backend-authoritative). If SCORE > 0, go to item2.
-		if (request.itemIdentifier === 'item1') {
-			const condXml = `<gt><variable identifier="SCORE" /><baseValue baseType="float">0</baseValue></gt>`;
-			if (this.evaluateConditionXml(condXml, { SCORE: result.score })) {
-				nextItemIdentifier = 'item2';
-			} else {
-				nextItemIdentifier = undefined;
+		// QTI branchRule evaluation (backend-authoritative).
+		// Evaluate each rule in order; the first matching rule determines the next item.
+		// Special targets EXIT_TEST / EXIT_TESTPART / EXIT_SECTION are returned as-is for
+		// the client to interpret.
+		const itemRef = this.findItemRef(session.assessment, request.itemIdentifier);
+		if (itemRef?.branchRule && itemRef.branchRule.length > 0) {
+			const outcomeVars: Record<string, unknown> = {
+				...result.outcomeValues,
+				SCORE: result.score,
+			};
+			nextItemIdentifier = undefined; // reset — branch rules take full control
+			for (const rule of itemRef.branchRule) {
+				const matches = rule.conditionXml
+					? this.evaluateConditionXml(rule.conditionXml, outcomeVars)
+					: true; // unconditional branch
+				if (matches) {
+					nextItemIdentifier = rule.target;
+					break;
+				}
 			}
 		}
 
@@ -300,8 +400,12 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 
 		// Compute total score
 		const itemScores = session.state.itemScores || {};
-		const totalScore = Object.values(itemScores).reduce((sum, result) => sum + result.score, 0);
+		const fallbackTotal = Object.values(itemScores).reduce((sum, result) => sum + result.score, 0);
 		const maxScore = Object.values(itemScores).reduce((sum, result) => sum + result.maxScore, 0);
+
+		// Execute test-level outcome processing if available
+		const outcomes = this.runOutcomeProcessing(session.assessment, itemScores);
+		const totalScore = outcomes !== null ? (outcomes['SCORE_TOTAL'] ?? outcomes['SCORE'] ?? fallbackTotal) as number : fallbackTotal;
 
 		return {
 			success: true,
@@ -310,6 +414,94 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			itemScores,
 			finalizedAt: Date.now(),
 		};
+	}
+
+	/**
+	 * Execute test-level outcome processing (T9/T1).
+	 * Returns a map of outcome variable values, or null if no outcomeProcessing is defined.
+	 */
+	private runOutcomeProcessing(
+		assessment: SecureAssessment,
+		itemScores: Record<string, AssessmentScoringResult>
+	): Record<string, unknown> | null {
+		if (!assessment.outcomeProcessingXml) {
+			return null;
+		}
+
+		try {
+			// Build declaration map from outcomeDeclarations
+			const decls: DeclarationMap = {};
+			for (const d of assessment.outcomeDeclarations || []) {
+				const baseType = d.baseType as any;
+				const cardinality = d.cardinality as any;
+				let defaultQtiValue: QtiValue;
+				if (d.defaultValue !== undefined) {
+					defaultQtiValue = qtiValue(baseType, cardinality, d.defaultValue);
+				} else if (baseType === 'float' || baseType === 'integer') {
+					defaultQtiValue = qtiValue(baseType, 'single', 0);
+				} else {
+					defaultQtiValue = qtiNull();
+				}
+				decls[d.identifier] = {
+					identifier: d.identifier,
+					baseType,
+					cardinality,
+					defaultValue: defaultQtiValue,
+					value: { ...defaultQtiValue },
+				};
+			}
+
+			const ctx = new DeclarationContext(decls);
+			const ops = new OperatorRegistry();
+
+			// Build test items array for testVariables expression
+			const testItems = Object.entries(itemScores).map(([id, scoring]) => ({
+				identifier: id,
+				variables: {
+					SCORE: qtiValue('float', 'single', scoring.score),
+					// Add any other outcome values from the scoring result
+					...Object.fromEntries(
+						Object.entries(scoring.outcomeValues || {}).map(([k, v]) => [
+							k,
+							typeof v === 'number'
+								? qtiValue('float', 'single', v)
+								: qtiValue('string', 'single', String(v)),
+						])
+					),
+				},
+			}));
+
+			// Parse and execute outcome processing
+			const opEl = parseXml(assessment.outcomeProcessingXml).documentElement;
+			if (!opEl) return null;
+
+			const program = buildOutcomeProcessingAst(opEl, {
+				scope: 'test',
+				elementNameMapper: qtiElementNameMapper,
+			});
+			execProgram(
+				{
+					ctx,
+					ops,
+					rng: Math.random,
+					test: { items: testItems },
+				},
+				program
+			);
+
+			// Extract outcome values
+			const result: Record<string, unknown> = {};
+			for (const d of assessment.outcomeDeclarations || []) {
+				const v = ctx.getValue(d.identifier);
+				if (v.kind === 'value') {
+					result[d.identifier] = v.value;
+				}
+			}
+			return result;
+		} catch (err) {
+			console.warn('[ReferenceBackendAdapter] outcomeProcessing failed:', err);
+			return null;
+		}
 	}
 
 	/**
@@ -410,49 +602,17 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 		return null;
 	}
 
-	/**
-	 * Score an item using the Player
-	 *
-	 * **SECURITY WARNING**: This is done CLIENT-SIDE for demo purposes only.
-	 * Production implementations MUST perform scoring SERVER-SIDE.
-	 */
-	private scoreItem(itemXml: string, responses: Record<string, any>): AssessmentScoringResult {
-		try {
-			// Extract identifier from XML using regex (more reliable than DOM parsing)
-			const identifierMatch = itemXml.match(/assessmentItem[^>]+identifier=["']([^"']+)["']/);
-			const itemIdentifier = identifierMatch?.[1] || 'unknown';
-
-			// Use a scorer-grade view of the item for accurate scoring.
-			// NOTE: This reference adapter is intentionally insecure and runs client-side.
-			// In production, scoring must happen server-side with secured item content.
-			const player = new Player({
-				itemXml,
-				role: 'scorer',
-			});
-
-			// Set responses using setResponses (plural)
-			player.setResponses(responses);
-
-			// Process and score
-			const result = player.processResponses();
-
-			return {
-				itemIdentifier,
-				score: result.score,
-				maxScore: result.maxScore,
-				completed: result.completed,
-				outcomeValues: result.outcomeValues,
-			};
-		} catch (error) {
-			console.error('Scoring error:', error);
-			return {
-				itemIdentifier: 'unknown',
-				score: 0,
-				maxScore: 1,
-				completed: false,
-				outcomeValues: {},
-			};
+	private findItemRef(assessment: SecureAssessment, itemIdentifier: string): SecureItemRef | null {
+		for (const part of assessment.testParts) {
+			for (const section of part.sections) {
+				for (const item of section.assessmentItemRefs) {
+					if (item.identifier === itemIdentifier) {
+						return item;
+					}
+				}
+			}
 		}
+		return null;
 	}
 
 	/**
@@ -572,6 +732,405 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 					],
 				},
 			],
+		};
+	}
+
+	// =========================================================================
+	// STATIC: QTI TEST XML PARSER
+	// =========================================================================
+
+	/**
+	 * Parse a QTI assessmentTest XML string into a SecureAssessment structure.
+	 *
+	 * Handles:
+	 * - S1: section-level itemSessionControl
+	 * - S9: assessmentSectionRef href resolution (requires fileResolver)
+	 * - T9/T1: outcomeDeclarations + outcomeProcessing extraction
+	 *
+	 * @param testXml - Raw QTI assessmentTest XML string
+	 * @param options.role - Role to assign to items (default: 'candidate')
+	 * @param options.itemXmlMap - Map of item identifier -> itemXml for pre-loaded items
+	 * @param options.fileResolver - Async function to load external files by relative href
+	 * @param options.baseUrl - Base URL for resolving relative hrefs
+	 */
+	static async parseAssessmentTestXml(
+		testXml: string,
+		options: {
+			role?: SecureItemRef['role'];
+			itemXmlMap?: Record<string, string>;
+			fileResolver?: (href: string) => Promise<string>;
+			baseUrl?: string;
+		} = {}
+	): Promise<SecureAssessment> {
+		const { role = 'candidate', itemXmlMap = {}, fileResolver, baseUrl } = options;
+		const doc = parseXml(testXml);
+		const root = doc.documentElement;
+		if (!root) throw new Error('Empty assessmentTest XML');
+
+		const getAttr = (el: Element, name: string): string | undefined => {
+			const direct = el.getAttribute(name);
+			if (direct !== null && direct !== '') return direct;
+			const mapped = el.getAttribute(name.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`));
+			return mapped === null || mapped === '' ? undefined : mapped;
+		};
+
+		const childElements = (el: Element): Element[] =>
+			Array.from(el.childNodes).filter((n): n is Element => n.nodeType === 1);
+
+		const childrenByTag = (el: Element, tag: string): Element[] =>
+			childElements(el).filter((c) => toCanonicalQtiName(c.localName) === tag);
+
+		// Parse itemSessionControl element
+		const parseItemSessionControl = (
+			el: Element
+		): SecureSection['itemSessionControl'] | undefined => {
+			const isc = childrenByTag(el, 'itemSessionControl')[0];
+			if (!isc) return undefined;
+			const boolAttr = (name: string): boolean | undefined => {
+				const v = getAttr(isc, name);
+				return v === undefined ? undefined : v !== 'false';
+			};
+			const intAttr = (name: string): number | undefined => {
+				const v = getAttr(isc, name);
+				return v === undefined ? undefined : parseInt(v, 10);
+			};
+			return {
+				maxAttempts: intAttr('maxAttempts'),
+				showFeedback: boolAttr('showFeedback') ?? boolAttr('show-feedback'),
+				allowReview: boolAttr('allowReview') ?? boolAttr('allow-review'),
+				showSolution: boolAttr('showSolution') ?? boolAttr('show-solution'),
+				allowComment: boolAttr('allowComment') ?? boolAttr('allow-comment'),
+				allowSkipping: boolAttr('allowSkipping') ?? boolAttr('allow-skipping'),
+				validateResponses: boolAttr('validateResponses') ?? boolAttr('validate-responses'),
+			};
+		};
+
+		const parseTimeLimits = (el: Element): SecureAssessment['timeLimits'] | undefined => {
+			const limitsEl = childrenByTag(el, 'timeLimit')[0] ?? childrenByTag(el, 'timeLimits')[0];
+			if (!limitsEl) return undefined;
+			const numberAttr = (name: string): number | undefined => {
+				const value = getAttr(limitsEl, name);
+				if (value === undefined) return undefined;
+				const parsed = Number(value);
+				return Number.isFinite(parsed) ? parsed : undefined;
+			};
+			const boolAttr = (name: string): boolean | undefined => {
+				const value = getAttr(limitsEl, name);
+				return value === undefined ? undefined : value === 'true';
+			};
+			return {
+				minTime: numberAttr('minTime'),
+				maxTime: numberAttr('maxTime'),
+				allowLateSubmission: boolAttr('allowLateSubmission'),
+			};
+		};
+
+		const resolveAgainstBase = (href: string | undefined): string | undefined => {
+			if (!href) return undefined;
+			return baseUrl ? resolveQtiRelativePath(baseUrl, href) : href;
+		};
+
+		const resolveCheckedHref = (href: string | undefined): string | undefined => {
+			if (!href) return undefined;
+			return baseUrl
+				? resolveCheckedPackagePathFromFile(baseUrl, href) ?? undefined
+				: resolveCheckedPackagePath(undefined, href) ?? undefined;
+		};
+
+		const loadText = async (href: string | undefined): Promise<string | undefined> => {
+			if (!href) return undefined;
+			const candidates = [href, resolveAgainstBase(href)].filter((value, index, all): value is string =>
+				Boolean(value) && all.indexOf(value) === index
+			);
+			for (const candidate of candidates) {
+				if (itemXmlMap[candidate] !== undefined) {
+					return itemXmlMap[candidate];
+				}
+			}
+			if (!fileResolver) return undefined;
+			for (const candidate of candidates) {
+				try {
+					return await fileResolver(candidate);
+				} catch {
+					// Try the next candidate before giving up.
+				}
+			}
+			return undefined;
+		};
+
+		const buildDeliveryContext = async (
+			itemXml: string,
+			itemHref: string | undefined
+		): Promise<SecureItemRef['deliveryContext'] | undefined> => {
+			if (!itemHref) {
+				return undefined;
+			}
+			const stimulusXmlByPath: Record<string, string> = {};
+			const packageTextByPath: Record<string, string> = {};
+			const preloadText = async (baseHref: string, href: string): Promise<void> => {
+				const resolvedPath = resolveCheckedPackagePathFromFile(baseHref, href);
+				if (!resolvedPath) return;
+				const text = await loadText(resolvedPath);
+				if (text !== undefined) {
+					packageTextByPath[resolvedPath] = text;
+				}
+			};
+			for (const stylesheet of extractQtiStylesheets(itemXml)) {
+				await preloadText(itemHref, stylesheet.href);
+			}
+			for (const ref of extractAssessmentStimulusRefs(itemXml)) {
+				const stimulusPath = resolveCheckedPackagePathFromFile(itemHref, ref.href);
+				if (!stimulusPath) continue;
+				const stimulusXml = await loadText(stimulusPath);
+				if (stimulusXml) {
+					stimulusXmlByPath[stimulusPath] = stimulusXml;
+					for (const stylesheet of parseAssessmentStimulusXml(stimulusXml).stylesheets) {
+						await preloadText(stimulusPath, stylesheet.href);
+					}
+				}
+			}
+			return createResolvedItemDeliveryContext({
+				itemXml,
+				itemHref,
+				readText: (path) => packageTextByPath[path] ?? stimulusXmlByPath[path] ?? itemXmlMap[path],
+			});
+		};
+
+		// Parse a single assessmentSection element
+		const parseSection = async (sectionEl: Element): Promise<SecureSection> => {
+			const identifier = getAttr(sectionEl, 'identifier') ?? 'section';
+			const title = getAttr(sectionEl, 'title');
+			const visibleRaw = getAttr(sectionEl, 'visible');
+			const visible = visibleRaw === undefined ? true : visibleRaw !== 'false';
+
+			const itemSessionControl = parseItemSessionControl(sectionEl);
+			const timeLimits = parseTimeLimits(sectionEl);
+
+			// rubricBlocks
+			const rubricBlockEls = childrenByTag(sectionEl, 'rubricBlock');
+			const rubricBlocks = rubricBlockEls.length > 0
+				? rubricBlockEls.map((b, idx) => ({
+					identifier: getAttr(b, 'identifier') ?? `${identifier}-rubric-${idx + 1}`,
+					view: (getAttr(b, 'view') ?? 'candidate').split(/\s+/).filter(Boolean) as any[],
+					use: getAttr(b, 'use'),
+					content: serializeXml(b),
+				}))
+				: undefined;
+
+			// assessmentItemRefs
+			const itemRefEls = childrenByTag(sectionEl, 'assessmentItemRef');
+			const assessmentItemRefs: SecureItemRef[] = [];
+			for (const ref of itemRefEls) {
+				const itemId = getAttr(ref, 'identifier') ?? 'item';
+				const href = getAttr(ref, 'href');
+				const itemHref = resolveCheckedHref(href);
+				// Look up pre-loaded XML by identifier or href
+				const resolvedXml = href && !itemHref
+					? ''
+					: itemXmlMap[itemId] ??
+						(href ? itemXmlMap[href] : undefined) ??
+						(itemHref ? itemXmlMap[itemHref] : undefined) ??
+						(await loadText(itemHref)) ??
+						'';
+				const requiredRaw = getAttr(ref, 'required');
+				const required = requiredRaw === undefined ? undefined : requiredRaw !== 'false';
+				assessmentItemRefs.push({
+					identifier: itemId,
+					itemXml: resolvedXml,
+					role,
+					required,
+					timeLimits: parseTimeLimits(ref),
+					deliveryContext: await buildDeliveryContext(resolvedXml, itemHref),
+				});
+			}
+
+			return {
+				identifier,
+				title,
+				visible,
+				assessmentItemRefs,
+				rubricBlocks,
+				itemSessionControl,
+				timeLimits,
+			};
+		};
+
+		// Resolve assessmentSectionRef: load and parse referenced section file
+		const resolveSectionRef = async (sectionRefEl: Element): Promise<SecureSection | null> => {
+			const href = getAttr(sectionRefEl, 'href');
+			if (!href) {
+				console.warn('[ReferenceBackendAdapter] assessmentSectionRef missing href, skipping');
+				return null;
+			}
+
+			if (!fileResolver) {
+				console.warn(
+					`[ReferenceBackendAdapter] assessmentSectionRef href="${href}" found but no fileResolver provided, skipping`
+				);
+				return null;
+			}
+
+			try {
+				const resolvedHref = resolveCheckedHref(href);
+				if (!resolvedHref) {
+					console.warn(`[ReferenceBackendAdapter] assessmentSectionRef href="${href}" is unsafe, skipping`);
+					return null;
+				}
+				const sectionXml = await fileResolver(resolvedHref);
+				const secDoc = parseXml(sectionXml);
+				const secRoot = secDoc.documentElement;
+				if (!secRoot || toCanonicalQtiName(secRoot.localName) !== 'assessmentSection') {
+					console.warn(
+						`[ReferenceBackendAdapter] assessmentSectionRef href="${href}": root element is not <assessmentSection>, skipping`
+					);
+					return null;
+				}
+				return parseSection(secRoot);
+			} catch (err) {
+				console.warn(
+					`[ReferenceBackendAdapter] Failed to load assessmentSectionRef href="${href}":`,
+					err
+				);
+				return null;
+			}
+		};
+
+		// Parse testPart children (sections + sectionRefs)
+		const parseSectionsForTestPart = async (testPartEl: Element): Promise<SecureSection[]> => {
+			const sections: SecureSection[] = [];
+			for (const child of childElements(testPartEl)) {
+				if (toCanonicalQtiName(child.localName) === 'assessmentSection') {
+					sections.push(await parseSection(child));
+				} else if (toCanonicalQtiName(child.localName) === 'assessmentSectionRef') {
+					const resolved = await resolveSectionRef(child);
+					if (resolved) sections.push(resolved);
+				}
+			}
+			return sections;
+		};
+
+		// Parse testPart-level itemSessionControl
+		const parseTestPartItemSessionControl = (
+			testPartEl: Element
+		): SecureTestPart['itemSessionControl'] | undefined => {
+			const isc = childrenByTag(testPartEl, 'itemSessionControl')[0];
+			if (!isc) return undefined;
+			const boolAttr = (name: string): boolean | undefined => {
+				const v = getAttr(isc, name);
+				return v === undefined ? undefined : v !== 'false';
+			};
+			const intAttr = (name: string): number | undefined => {
+				const v = getAttr(isc, name);
+				return v === undefined ? undefined : parseInt(v, 10);
+			};
+			return {
+				maxAttempts: intAttr('maxAttempts'),
+				showFeedback: boolAttr('showFeedback') ?? boolAttr('show-feedback'),
+				allowReview: boolAttr('allowReview') ?? boolAttr('allow-review'),
+				showSolution: boolAttr('showSolution') ?? boolAttr('show-solution'),
+				allowComment: boolAttr('allowComment') ?? boolAttr('allow-comment'),
+				allowSkipping: boolAttr('allowSkipping') ?? boolAttr('allow-skipping'),
+				validateResponses: boolAttr('validateResponses') ?? boolAttr('validate-responses'),
+			};
+		};
+
+		// Extract outcomeDeclarations
+		const outcomeDeclarations = childrenByTag(root, 'outcomeDeclaration').map((d) => {
+			const identifier = getAttr(d, 'identifier') ?? 'OUTCOME';
+			const baseType = getAttr(d, 'baseType') ?? 'float';
+			const cardinality = getAttr(d, 'cardinality') ?? 'single';
+			// Parse defaultValue if present
+			const defaultValueEl = childrenByTag(d, 'defaultValue')[0];
+			let defaultValue: unknown = undefined;
+			if (defaultValueEl) {
+				const valueEl = childrenByTag(defaultValueEl, 'value')[0];
+				if (valueEl) {
+					const text = valueEl.textContent?.trim() ?? '0';
+					if (baseType === 'float' || baseType === 'integer') {
+						defaultValue = Number(text);
+					} else {
+						defaultValue = text;
+					}
+				}
+			}
+			return { identifier, baseType, cardinality, defaultValue };
+		});
+
+		// Extract outcomeProcessing XML
+		const outcomeProcessingEl = childrenByTag(root, 'outcomeProcessing')[0];
+		const outcomeProcessingXml = outcomeProcessingEl
+			? serializeXml(outcomeProcessingEl)
+			: undefined;
+
+		// Extract assessment-level timeLimits.
+		const timeLimits = parseTimeLimits(root);
+
+		// Parse testParts
+		const testPartEls = childrenByTag(root, 'testPart');
+		const firstTestPart = testPartEls[0];
+
+		// Navigation/submission mode from first testPart (QTI 2.2 spec)
+		const navigationMode = (getAttr(firstTestPart ?? root, 'navigationMode') ?? 'nonlinear') as
+			| 'linear'
+			| 'nonlinear';
+		const submissionMode = (getAttr(firstTestPart ?? root, 'submissionMode') ?? 'simultaneous') as
+			| 'individual'
+			| 'simultaneous';
+
+		const testParts: SecureTestPart[] = [];
+		for (const tp of testPartEls) {
+			const tpIdentifier = getAttr(tp, 'identifier') ?? 'part-1';
+			const tpItemSessionControl = parseTestPartItemSessionControl(tp);
+			const tpTimeLimits = parseTimeLimits(tp);
+			const tpRubricBlockEls = childrenByTag(tp, 'rubricBlock');
+			const tpRubricBlocks = tpRubricBlockEls.length > 0
+				? tpRubricBlockEls.map((b, idx) => ({
+					identifier: getAttr(b, 'identifier') ?? `${tpIdentifier}-rubric-${idx + 1}`,
+					view: (getAttr(b, 'view') ?? 'candidate').split(/\s+/).filter(Boolean) as any[],
+					use: getAttr(b, 'use'),
+					content: serializeXml(b),
+				}))
+				: undefined;
+
+			const sections = await parseSectionsForTestPart(tp);
+			testParts.push({
+				identifier: tpIdentifier,
+				sections,
+				rubricBlocks: tpRubricBlocks,
+				itemSessionControl: tpItemSessionControl,
+				timeLimits: tpTimeLimits,
+			});
+		}
+
+		// If no testParts, try top-level sections
+		if (testParts.length === 0) {
+			const topSections: SecureSection[] = [];
+			for (const child of childElements(root)) {
+				if (toCanonicalQtiName(child.localName) === 'assessmentSection') {
+					topSections.push(await parseSection(child));
+				} else if (toCanonicalQtiName(child.localName) === 'assessmentSectionRef') {
+					const resolved = await resolveSectionRef(child);
+					if (resolved) topSections.push(resolved);
+				}
+			}
+			if (topSections.length > 0) {
+				testParts.push({
+					identifier: 'part-1',
+					sections: topSections,
+				});
+			}
+		}
+
+		return {
+			identifier: getAttr(root, 'identifier') ?? 'assessment',
+			title: getAttr(root, 'title') ?? 'Assessment',
+			navigationMode,
+			submissionMode,
+			testParts,
+			timeLimits,
+			outcomeDeclarations: outcomeDeclarations.length > 0 ? outcomeDeclarations : undefined,
+			outcomeProcessingXml,
+			baseUrl,
 		};
 	}
 

@@ -59,6 +59,9 @@ export interface PieItemConfig {
   /** Element versions used in this item */
   elements: Record<string, string>;
 
+  /** Markup containing the PIE custom element tags referenced by the models. */
+  markup?: string;
+
   /** Optional resources (vendor-specific) */
   resources?: any;
 }

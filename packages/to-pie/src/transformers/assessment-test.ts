@@ -56,8 +56,8 @@ export interface PieAssessment {
   identifier: string;
   description?: string;
 
-  /** QTI version - always '3.0' */
-  qtiVersion: '3.0';
+  /** QTI version detected from the source assessmentTest. */
+  qtiVersion: '2.1' | '2.2' | '3.0' | 'unknown';
 
   /** QTI 3.0 test structure: testParts → sections → items */
   testParts: TestPart[];
@@ -199,6 +199,7 @@ export function transformAssessmentTest(
 
   const identifier = assessmentTest.getAttribute('identifier') || assessmentId;
   const title = assessmentTest.getAttribute('title') || identifier;
+  const qtiVersion = detectQtiVersion(qtiXml);
 
   // Extract outcome processing
   const outcomeProcessingEl =
@@ -277,7 +278,7 @@ export function transformAssessmentTest(
     id: uuid(),
     title,
     identifier,
-    qtiVersion: '3.0',
+    qtiVersion,
     testParts,
     contextDeclarations: contextDeclarations.length > 0 ? contextDeclarations : undefined,
     accessibilityCatalogs: accessibilityCatalogs.length > 0 ? accessibilityCatalogs : undefined,
@@ -291,6 +292,13 @@ export function transformAssessmentTest(
   };
 
   return assessment;
+}
+
+function detectQtiVersion(qtiXml: string): PieAssessment['qtiVersion'] {
+  if (qtiXml.includes('imsqtiasi_v3p0') || qtiXml.includes('imsqti_v3p0')) return '3.0';
+  if (qtiXml.includes('imsqti_v2p2')) return '2.2';
+  if (qtiXml.includes('imsqti_v2p1')) return '2.1';
+  return 'unknown';
 }
 
 /**

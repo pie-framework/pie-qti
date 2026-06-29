@@ -7,10 +7,19 @@ import {
 	openPackage,
 	loadPackageFromStorage as loadPackage,
 	SessionStorageBackend,
-	resolveImagesInXml as resolveImagesInXmlCore
+	resolveImagesInXml as resolveImagesInXmlCore,
 } from '@pie-qti/ims-cp-browser';
 import type { VirtualPackage } from '@pie-qti/ims-cp-browser';
-import { extractQtiItemMetadata, type QtiItemMetadata } from '@pie-qti/ims-cp-core';
+import {
+	buildPackageFileIndex,
+	createResolvedItemDeliveryContext,
+	extractAssessmentStimulusRefs,
+	extractQtiItemMetadata,
+	resolvePackageReference,
+	type AssessmentStimulusRef,
+	type QtiItemMetadata,
+	type ResolvedItemDeliveryContext
+} from '@pie-qti/ims-cp-core';
 import { createLogger } from '@pie-qti/logger/browser';
 
 // Storage key for the current package ID
@@ -107,6 +116,25 @@ export async function processPackage(file: File): Promise<PackageStructure> {
 	packageCache.set(pkg.packageId, packageStructure);
 
 	return packageStructure;
+}
+
+/**
+ * Load a conformance package ZIP from a URL and process it.
+ *
+ * Fetches the ZIP, wraps it in a File, and passes it through the standard
+ * processPackage() pipeline — identical to user-uploaded packages.
+ *
+ * @param zipUrl Absolute URL to a .zip IMS Content Package
+ */
+export async function loadConformancePackageFromUrl(zipUrl: string): Promise<PackageStructure> {
+	const response = await fetch(zipUrl);
+	if (!response.ok) {
+		throw new Error(`Failed to fetch conformance package: ${response.status} ${zipUrl}`);
+	}
+	const blob = await response.blob();
+	const filename = zipUrl.split('/').pop() ?? 'package.zip';
+	const file = new File([blob], filename, { type: 'application/zip' });
+	return processPackage(file);
 }
 
 /**
@@ -315,5 +343,117 @@ export async function resolveImagesInXml(
 	itemHref: string
 ): Promise<string> {
 	// Use the core implementation from ims-cp-browser with our logger
-	return resolveImagesInXmlCore(itemXml, pkg._pkg, itemHref, { logger });
+	const resolvedImages = await resolveImagesInXmlCore(itemXml, pkg._pkg, itemHref, { logger });
+	return resolveMediaReferencesInXml(resolvedImages, pkg, itemHref);
+}
+
+function resolveMediaReferencesInXml(xml: string, pkg: PackageStructure, itemHref: string): string {
+	const parser = new DOMParser();
+	const doc = parser.parseFromString(xml, 'text/xml');
+	if (doc.querySelector('parsererror') || doc.documentElement.nodeName === 'parsererror') {
+		return xml;
+	}
+
+	const fileIndex = buildPackageFileIndex([...pkg._pkg.files.keys()]);
+	for (const el of Array.from(doc.querySelectorAll('video[src], audio[src], source[src], track[src], embed[src], object[data]'))) {
+		const attr = el.hasAttribute('data') ? 'data' : 'src';
+		const raw = el.getAttribute(attr);
+		if (!raw) {
+			continue;
+		}
+		if (raw.startsWith('data:') || raw.startsWith('blob:') || /^https?:\/\//i.test(raw)) {
+			continue;
+		}
+		if (el.tagName.toLowerCase() === 'object' && !isResolvableMediaObject(el.getAttribute('type'))) {
+			continue;
+		}
+
+		const resolved = resolvePackageReference({
+			fileIndex,
+			sourcePath: itemHref,
+			rawHref: raw,
+			referenceKind: 'media-asset',
+		});
+		const resolvedUrl = resolved.status === 'resolved' ? pkg._pkg.getDataUrl(resolved.resolvedPath) : null;
+		if (resolvedUrl) {
+			el.setAttribute(attr, resolvedUrl);
+		} else {
+			el.removeAttribute(attr);
+		}
+	}
+
+	return new XMLSerializer().serializeToString(doc);
+}
+
+function isResolvableMediaObject(type: string | null): boolean {
+	return !type || /^(?:image|audio|video)\//i.test(type);
+}
+
+export type StimulusRef = AssessmentStimulusRef;
+
+/**
+ * Extract qti-assessment-stimulus-ref elements from QTI 3.0 item XML.
+ * Returns an array of stimulus references found in the item.
+ */
+export function extractStimulusRefsFromItemXml(xml: string): StimulusRef[] {
+	return extractAssessmentStimulusRefs(xml);
+}
+
+/**
+ * Load stimulus HTML content for a set of stimulus references.
+ * Reads each stimulus file from the package, extracts the qti-stimulus-body content,
+ * and resolves embedded image paths to data URLs.
+ *
+ * @param pkg PackageStructure containing the stimulus files
+ * @param itemHref The href path of the item file (for resolving relative stimulus paths)
+ * @param refs Array of stimulus references from the item XML
+ * @returns Record mapping stimulus identifier → rendered HTML string
+ */
+export async function loadStimulusContent(
+	pkg: PackageStructure,
+	itemHref: string,
+	refs: StimulusRef[]
+): Promise<Record<string, string>> {
+	const itemXml = pkg._pkg.readText(itemHref) ?? '';
+	const deliveryContext = await loadItemDeliveryContext(pkg, itemHref, itemXml);
+	return Object.fromEntries(
+		refs
+			.map((ref) => [ref.identifier, deliveryContext.stimuli[ref.identifier]?.bodyHtml] as const)
+			.filter((entry): entry is readonly [string, string] => Boolean(entry[1]))
+	);
+}
+
+export async function loadItemDeliveryContext(
+	pkg: PackageStructure,
+	itemHref: string,
+	itemXml: string
+): Promise<ResolvedItemDeliveryContext> {
+	const filePaths = [...pkg._pkg.files.keys()];
+	const context = createResolvedItemDeliveryContext({
+		itemXml,
+		itemHref,
+		fileIndex: buildPackageFileIndex(filePaths),
+		manifestEvidencePaths: manifestEvidencePaths(pkg),
+		readText: (path) => pkg._pkg.readText(path),
+		resolveAssetUrl: (path) => pkg._pkg.getDataUrl(path),
+	});
+
+	for (const message of context.validationMessages) {
+		logger.warn(message);
+	}
+
+	return context;
+}
+
+function manifestEvidencePaths(pkg: PackageStructure): Set<string> {
+	const paths = new Set<string>();
+	for (const resource of pkg._pkg.manifest.resources.values()) {
+		if (resource.hrefResolved) {
+			paths.add(resource.hrefResolved);
+		}
+		for (const filePath of resource.filesResolved) {
+			paths.add(filePath);
+		}
+	}
+	return paths;
 }

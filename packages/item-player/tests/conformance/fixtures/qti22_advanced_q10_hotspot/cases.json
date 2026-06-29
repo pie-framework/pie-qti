@@ -1,0 +1,20 @@
+{
+  "id": "qti22_advanced_q10_hotspot",
+  "cases": [
+    {
+      "name": "Q10: no hotspot -> SCORE=0",
+      "responses": { "RESPONSE": null },
+      "expect": { "score": 0, "outcomes": { "SCORE": 0 } }
+    },
+    {
+      "name": "Q10: correct hotspot -> SCORE=1",
+      "responses": { "RESPONSE": "evaporation" },
+      "expect": { "score": 1, "outcomes": { "SCORE": 1 } }
+    },
+    {
+      "name": "Q10: wrong hotspot -> SCORE=0",
+      "responses": { "RESPONSE": "condensation" },
+      "expect": { "score": 0, "outcomes": { "SCORE": 0 } }
+    }
+  ]
+}

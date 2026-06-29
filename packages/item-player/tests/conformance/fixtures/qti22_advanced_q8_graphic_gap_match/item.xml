@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="graphic-gap-match-cell" title="Graphic Gap Match Cell" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="directedPair">
+    <mapping defaultValue="-1" lowerBound="0">
+      <mapEntry mapKey="nucleus A" mappedValue="1"/>
+      <mapEntry mapKey="membrane B" mappedValue="1"/>
+    </mapping>
+  </responseDeclaration>
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float"/>
+  <itemBody>
+    <graphicGapMatchInteraction responseIdentifier="RESPONSE">
+      <prompt>Label two parts of the cell diagram.</prompt>
+      <object data="images/cell-diagram.svg" type="image/svg+xml" width="400" height="260">Cell diagram</object>
+      <gapText identifier="nucleus" matchMax="1">nucleus</gapText>
+      <gapText identifier="membrane" matchMax="1">cell membrane</gapText>
+      <gapText identifier="mitochondrion" matchMax="1">mitochondrion</gapText>
+      <associableHotspot identifier="A" matchMax="1" shape="rect" coords="145,90,230,160"/>
+      <associableHotspot identifier="B" matchMax="1" shape="circle" coords="300,120,35"/>
+    </graphicGapMatchInteraction>
+  </itemBody>
+  <responseProcessing template="http://www.imsglobal.org/question/qti_v2p2/rptemplates/map_response"/>
+</assessmentItem>

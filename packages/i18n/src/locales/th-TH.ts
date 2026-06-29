@@ -521,6 +521,7 @@ export default {
 		homeMetaDescription: 'เครื่องเล่น QTI ที่ทันสมัยพร้อมการผสานรวมแบ็กเอนด์แบบเลือกได้',
 		tryItems: 'ทดลองรายการ',
 		tryAssessments: 'ทดลองการประเมิน',
+		trySectionPlayer: 'เครื่องเล่นส่วน',
 		pluginDemo: 'ตัวอย่างปลั๊กอิน',
 		dropQtiFile: 'วางไฟล์ QTI XML ที่นี่',
 		orClickToSelect: 'หรือคลิกเพื่อเลือกไฟล์',

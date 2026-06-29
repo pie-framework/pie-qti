@@ -29,6 +29,7 @@
 		previous: i18n?.t('common.previous') ?? 'Previous',
 		next: i18n?.t('common.next') ?? 'Next',
 		submit: i18n?.t('assessment.navigation.submit') ?? 'Submit',
+		progress: `${i18n?.t('assessment.navigation.progress', { percent: Math.round(progressPercentage) }) ?? `Progress: ${Math.round(progressPercentage)}%`}: ${i18n?.t('assessment.question', { current: navState.currentIndex + 1, total: navState.totalItems }) ?? `Question ${navState.currentIndex + 1} of ${navState.totalItems}`}`,
 	});
 </script>
 
@@ -48,6 +49,7 @@
 				class="progress progress-primary w-full"
 				value={progressPercentage}
 				max="100"
+				aria-label={translations.progress}
 			></progress>
 		</div>
 	{/if}

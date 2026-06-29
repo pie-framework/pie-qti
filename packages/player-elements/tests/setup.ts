@@ -6,6 +6,12 @@ import { parseHTML } from 'linkedom';
 const dom = parseHTML('<!DOCTYPE html><html><body></body></html>');
 
 // Make DOMParser and other DOM APIs globally available in tests
+(globalThis as any).window = dom.window;
+(globalThis as any).document = dom.document;
+(globalThis as any).HTMLElement = dom.HTMLElement;
+(globalThis as any).CustomEvent = dom.CustomEvent;
+(globalThis as any).Event = dom.Event;
+(globalThis as any).customElements = dom.customElements;
 (globalThis as any).DOMParser = dom.DOMParser;
 (globalThis as any).Document = dom.Document;
 (globalThis as any).Element = dom.Element;

@@ -9,7 +9,7 @@ import { describe, it, expect } from 'bun:test';
 import { parse } from 'node-html-parser';
 import { createQtiParser } from '@pie-qti/qti-common';
 import { createExtractionUtils } from '../extraction/utils.js';
-import type { QTIElement } from '../types/interactions.js';
+import type { QTIElement } from '../interactions/index.js';
 
 describe('QTI 3.0 Attribute Extraction', () => {
 	it('should extract max-choices attribute (kebab-case) from QTI 3.0 element', () => {

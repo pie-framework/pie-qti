@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+  xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="qti22-basic-i9b-map-response"
+  title="I9b Response Processing Fixed Template - Map Response Identifier"
+  adaptive="false"
+  timeDependent="false">
+
+  <responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="identifier">
+    <correctResponse>
+      <value>choice_a</value>
+      <value>choice_b</value>
+      <value>choice_c</value>
+    </correctResponse>
+    <mapping lowerBound="0" upperBound="6" defaultValue="0">
+      <mapEntry mapKey="choice_a" mappedValue="1"/>
+      <mapEntry mapKey="choice_b" mappedValue="2"/>
+      <mapEntry mapKey="choice_c" mappedValue="5"/>
+      <mapEntry mapKey="choice_d" mappedValue="-1"/>
+      <mapEntry mapKey="choice_e" mappedValue="-2"/>
+      <mapEntry mapKey="choice_f" mappedValue="-5"/>
+    </mapping>
+  </responseDeclaration>
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float"/>
+
+  <itemBody>
+    <choiceInteraction responseIdentifier="RESPONSE" shuffle="false" minChoices="0" maxChoices="6">
+      <prompt>Select choices to test map_response scoring.</prompt>
+      <simpleChoice identifier="choice_a">Mapped Value = 1</simpleChoice>
+      <simpleChoice identifier="choice_b">Mapped Value = 2</simpleChoice>
+      <simpleChoice identifier="choice_c">Mapped Value = 5</simpleChoice>
+      <simpleChoice identifier="choice_d">Mapped Value = -1</simpleChoice>
+      <simpleChoice identifier="choice_e">Mapped Value = -2</simpleChoice>
+      <simpleChoice identifier="choice_f">Mapped Value = -5</simpleChoice>
+    </choiceInteraction>
+  </itemBody>
+
+  <responseProcessing template="http://www.imsglobal.org/question/qti_v2p2/rptemplates/map_response"/>
+
+</assessmentItem>

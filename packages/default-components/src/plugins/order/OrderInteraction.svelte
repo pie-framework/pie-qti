@@ -18,9 +18,11 @@
 		i18n?: I18nProvider;
 		typeset?: (element: HTMLElement) => void;
 		onChange?: (value: string[]) => void;
+		/** When true, renders an elimination toggle button per choice (QTI 3.0 PNP §6.2). */
+		eliminationTool?: boolean;
 	}
 
-	let { interaction = $bindable(), response = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), typeset, onChange }: Props = $props();
+	let { interaction = $bindable(), response = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), typeset, onChange, eliminationTool = false }: Props = $props();
 
 	// Parse props that may be JSON strings (web component usage)
 	const parsedInteraction = $derived(parseJsonProp<OrderInteractionData>(interaction));
@@ -34,11 +36,54 @@
 	// Track whether user has confirmed their order
 	let hasConfirmed = $state(false);
 
-	// Get ordered IDs from response, or use original order
+	// Shuffle choices on first render when shuffle=true, respecting fixed=true per choice.
+	// Uses a simple seeded shuffle keyed to the responseId so the order is stable within a session.
+	const shuffledChoiceIds = $derived.by(() => {
+		const choices = parsedInteraction?.choices;
+		if (!choices || !parsedInteraction?.shuffle) {
+			return choices?.map((c) => c.identifier) ?? [];
+		}
+
+		// Separate fixed and non-fixed choices
+		const fixedSlots = new Map<number, string>(); // index → identifier
+		const movable: string[] = [];
+		for (let i = 0; i < choices.length; i++) {
+			if (choices[i].fixed) {
+				fixedSlots.set(i, choices[i].identifier);
+			} else {
+				movable.push(choices[i].identifier);
+			}
+		}
+
+		// Fisher-Yates shuffle with a simple deterministic seed
+		const seed = (parsedInteraction.responseId ?? 'order').split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+		const rng = (n: number) => {
+			// LCG: good enough for presentation shuffle
+			return ((seed * 1664525 + 1013904223 + n * 22695477) & 0x7fffffff) / 0x7fffffff;
+		};
+		for (let i = movable.length - 1; i > 0; i--) {
+			const j = Math.floor(rng(i) * (i + 1));
+			[movable[i], movable[j]] = [movable[j], movable[i]];
+		}
+
+		// Reconstruct full array, inserting fixed choices back into their original slots
+		const result: string[] = new Array(choices.length);
+		let movableIdx = 0;
+		for (let i = 0; i < choices.length; i++) {
+			if (fixedSlots.has(i)) {
+				result[i] = fixedSlots.get(i)!;
+			} else {
+				result[i] = movable[movableIdx++];
+			}
+		}
+		return result;
+	});
+
+	// Get ordered IDs from response, or use shuffled/original order
 	const orderedIds = $derived(
 		parsedResponse && parsedResponse.length > 0
 			? parsedResponse
-			: parsedInteraction?.choices.map((c) => c.identifier) ?? []
+			: shuffledChoiceIds
 	);
 
 	// Track initial order to detect if user has made changes
@@ -87,6 +132,25 @@
 			hasConfirmed = false;
 		}
 	});
+
+	// Elimination tool state
+	let eliminatedChoices = $state(new Set<string>());
+
+	function toggleElimination(identifier: string) {
+		const next = new Set(eliminatedChoices);
+		if (next.has(identifier)) {
+			next.delete(identifier);
+		} else {
+			next.add(identifier);
+		}
+		eliminatedChoices = next;
+	}
+
+	function eliminationLabel(identifier: string): string {
+		return eliminatedChoices.has(identifier)
+			? (i18n?.t('interactions.choice.restoreChoice') ?? 'Restore')
+			: (i18n?.t('interactions.choice.eliminateChoice') ?? 'Eliminate');
+	}
 </script>
 
 <ShadowBaseStyles />
@@ -96,19 +160,36 @@
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
 		{#if parsedInteraction.prompt}
-			<div class="mb-3 text-sm text-base-content/70">
+			<div part="prompt" class="qti-order-prompt qti-rich-content mb-3 text-sm text-base-content/70">
 				{@html parsedInteraction.prompt}
 			</div>
 		{/if}
 
-		<SortableList
-			items={parsedInteraction.choices.map(c => ({ id: c.identifier, text: c.text }))}
-			{orderedIds}
-			correctOrder={isShowingCorrect ? (parsedCorrectResponse || []) : []}
-			orientation="vertical"
-			{disabled}
-			onReorder={handleReorder}
-		/>
+		<div class="qti-order-sortable-wrapper" class:qti-order-with-elimination={eliminationTool}>
+			<SortableList
+				items={parsedInteraction.choices.map(c => ({ id: c.identifier, text: c.text }))}
+				{orderedIds}
+				correctOrder={isShowingCorrect ? (parsedCorrectResponse || []) : []}
+				orientation="vertical"
+				{disabled}
+				onReorder={handleReorder}
+			/>
+			{#if eliminationTool}
+				<div class="qti-order-elimination-col" aria-hidden="true">
+					{#each orderedIds as id (id)}
+						<button
+							type="button"
+							class="qti-eliminate-btn"
+							aria-label={eliminationLabel(id)}
+							aria-pressed={eliminatedChoices.has(id)}
+							aria-hidden="false"
+							onclick={() => toggleElimination(id)}
+							data-eliminated={eliminatedChoices.has(id) ? '' : undefined}
+						>✕</button>
+					{/each}
+				</div>
+			{/if}
+		</div>
 
 		<!-- Confirmation button for WCAG 2.2 SC 3.3.4 compliance -->
 		<div class="mt-4 flex items-center gap-3">
@@ -155,5 +236,45 @@
 		width: 1rem;
 		height: 1rem;
 		flex: 0 0 auto;
+	}
+
+	/* Elimination tool layout */
+	.qti-order-sortable-wrapper {
+		position: relative;
+	}
+
+	.qti-order-with-elimination {
+		display: grid;
+		grid-template-columns: 1fr auto;
+		gap: 0.25rem;
+		align-items: start;
+	}
+
+	.qti-order-elimination-col {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.qti-eliminate-btn {
+		background: none;
+		border: 1px solid currentColor;
+		border-radius: 50%;
+		width: 1.75rem;
+		height: 1.75rem;
+		font-size: 0.75rem;
+		cursor: pointer;
+		opacity: 0.4;
+		padding: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+	}
+
+	.qti-eliminate-btn:hover,
+	.qti-eliminate-btn[data-eliminated] {
+		opacity: 1;
+		color: var(--pie-qti-error, oklch(63% 0.237 25.331));
 	}
 </style>

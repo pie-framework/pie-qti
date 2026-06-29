@@ -1,47 +1,41 @@
 <script lang="ts">
-
-	import { registerDefaultComponents } from '@pie-qti/default-components';
-	// @ts-expect-error - Svelte-check can't resolve workspace subpath exports, but runtime works correctly
-	import { ItemBody } from '@pie-qti/item-player/components';
-	import { Player, type PlayerSecurityConfig, type QTIRole } from '@pie-qti/item-player';
+	import type { PlayerSecurityConfig, PnpProfile, QTIRole } from '@pie-qti/item-player';
+	import type { InteractionResponseValue } from '@pie-qti/item-player/web-components';
 	import type { I18nProvider } from '@pie-qti/i18n';
+	import { assignProps } from '@pie-qti/qti-common';
 	import { onMount } from 'svelte';
 	import type { ItemRef } from '../types/index.js';
 
-	/**
-	 * Ensure default interaction web components are registered (browser-only).
-	 *
-	 * NOTE: `@pie-qti/default-components/plugins` has side effects (customElements.define),
-	 * so we only load it on the client to remain SSR-safe.
-	 */
-	let pluginsLoadPromise: Promise<void> | null = null;
-	function ensureDefaultPluginsLoaded() {
-		if (pluginsLoadPromise) return pluginsLoadPromise;
-		pluginsLoadPromise = import('@pie-qti/default-components/plugins')
-			.then(() => {})
-			.catch((err) => {
-				console.warn('Failed to load default QTI web components:', err);
-			});
-		return pluginsLoadPromise;
-	}
-
-	onMount(() => {
-		void ensureDefaultPluginsLoaded();
-	});
+	type ItemResponseValue = InteractionResponseValue | null;
+	type ItemResponseMap = Record<string, ItemResponseValue>;
+	type PieQtiItemPlayerElement = HTMLElement & {
+		itemXml?: string;
+		role?: QTIRole;
+		disabled?: boolean;
+		responses?: ItemResponseMap;
+		typeset?: (root: HTMLElement) => void | Promise<void>;
+		i18n?: I18nProvider;
+		security?: PlayerSecurityConfig;
+		pnp?: PnpProfile;
+		deliveryContext?: ItemRef['deliveryContext'];
+		onResponseChange?: (responseId: string, value: ItemResponseValue) => void;
+	};
 
 	interface Props {
 		itemRef: ItemRef;
 		role?: QTIRole;
 		extendedTextEditor?: string;
 		/** Responses for the current item (keyed by responseIdentifier). */
-		responses?: Record<string, any>;
-		onResponseChange?: (responseId: string, value: unknown) => void;
+		responses?: ItemResponseMap;
+		onResponseChange?: (responseId: string, value: ItemResponseValue) => void;
 		/** Math typesetting function (KaTeX, MathJax, etc.) */
 		typeset?: (root: HTMLElement) => void | Promise<void>;
 		/** I18n provider for translations */
 		i18n?: I18nProvider;
 		/** Security configuration for URL policy and content restrictions */
 		security?: PlayerSecurityConfig;
+		/** QTI 3.0 Personal Needs and Preferences profile */
+		pnp?: PnpProfile;
 	}
 
 	const {
@@ -53,45 +47,51 @@
 		typeset,
 		i18n,
 		security,
+		pnp,
 	}: Props = $props();
 
-	// Derive player from itemRef
-	let playerData = $derived.by(() => {
-		if (!itemRef.itemXml) {
-			return { player: null, error: 'No item XML provided' };
-		}
+	let playerLoaded = $state(false);
+	let errorMessage = $state<string | null>(null);
 
-		try {
-			const newPlayer = new Player({
-				itemXml: itemRef.itemXml,
-				role,
-				security,
+	onMount(() => {
+		let cancelled = false;
+		void Promise.all([
+			import('@pie-qti/default-components/plugins'),
+			import('@pie-qti/item-player/element'),
+		])
+			.then(() => {
+				if (!cancelled) {
+					playerLoaded = true;
+				}
+			})
+			.catch((error) => {
+				if (!cancelled) {
+					errorMessage =
+						error instanceof Error ? error.message : 'Unable to load the QTI item player.';
+				}
 			});
 
-			// Ensure the item player can actually render interactions by registering the
-			// default component set into this player's component registry.
-			registerDefaultComponents(newPlayer.getComponentRegistry());
-
-			return {
-				player: newPlayer,
-				error: null,
-			};
-		} catch (err) {
-			console.error('Failed to initialize item player:', err);
-			return {
-				player: null,
-				error: err instanceof Error ? err.message : (i18n?.t('item.loadingError') ?? 'Failed to load item'),
-			};
-		}
+		return () => {
+			cancelled = true;
+		};
 	});
 
-	// Handle response changes
-	function handleResponseChange(responseId: string, value: any) {
+	function handleResponseChange(responseId: string, value: ItemResponseValue) {
 		onResponseChange?.(responseId, value);
+	}
+
+	function itemPlayerProps(node: PieQtiItemPlayerElement, props: Record<string, unknown>) {
+		assignProps(node, props);
+
+		return {
+			update(next: Record<string, unknown>) {
+				assignProps(node, next);
+			},
+		};
 	}
 </script>
 
-{#if playerData.error}
+{#if errorMessage}
 	<div class="alert alert-error">
 		<svg
 			xmlns="http://www.w3.org/2000/svg"
@@ -106,9 +106,13 @@
 				d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
 			/>
 		</svg>
-		<span>{i18n?.t('item.loadError', 'Error loading item: {error}', { error: playerData.error })}</span>
+		<span>{i18n?.t('item.loadError', 'Error loading item: {error}', { error: errorMessage })}</span>
 	</div>
-{:else if !playerData.player}
+{:else if !itemRef.itemXml}
+	<div class="alert alert-error">
+		<span>{i18n?.t('item.loadingError') ?? 'No item XML provided'}</span>
+	</div>
+{:else if !playerLoaded}
 	<div class="flex items-center justify-center p-8">
 		<span class="loading loading-spinner loading-lg"></span>
 		<span class="ml-4">{i18n?.t('item.loading', 'Loading item...')}</span>
@@ -122,15 +126,20 @@
 		{/if}
 
 		<div class="item-content">
-			<ItemBody
-				player={playerData.player}
-				{responses}
-				disabled={role !== 'candidate'}
-				{role}
-				{typeset}
-				{i18n}
-				onResponseChange={handleResponseChange}
-			/>
+			<pie-qti-item-player
+				use:itemPlayerProps={{
+					itemXml: itemRef.itemXml,
+					role,
+					disabled: role !== 'candidate',
+					responses,
+					typeset,
+					i18n,
+					security,
+					pnp,
+					deliveryContext: itemRef.deliveryContext,
+					onResponseChange: handleResponseChange,
+				}}
+			></pie-qti-item-player>
 		</div>
 	</div>
 {/if}
