@@ -2,16 +2,13 @@
   "name": "@pie-qti/web-component-loaders",
   "version": "0.1.15",
   "main": "./dist/index.js",
+  "dependencies": {
+    "@pie-qti/player-elements": "workspace:*"
+  },
   "devDependencies": {
     "@pie-qti/default-components": "workspace:*",
-    "@pie-qti/player-elements": "workspace:*",
     "@pie-qti/theme-daisyui": "workspace:*",
     "typescript": "^5.9.3"
-  },
-  "peerDependencies": {
-    "@pie-qti/default-components": "workspace:*",
-    "@pie-qti/player-elements": "workspace:*",
-    "@pie-qti/theme-daisyui": "workspace:*"
   },
   "exports": {
     ".": {
@@ -25,19 +22,9 @@
   },
   "description": "Shared, idempotent client-side loaders for QTI-related web components used across apps",
   "license": "MIT",
-  "peerDependenciesMeta": {
-    "@pie-qti/default-components": {
-      "optional": true
-    },
-    "@pie-qti/player-elements": {
-      "optional": true
-    },
-    "@pie-qti/theme-daisyui": {
-      "optional": true
-    }
-  },
   "scripts": {
-    "build": "rm -rf dist tsconfig.tsbuildinfo && tsc -p ./tsconfig.json && cp src/*.css dist/"
+    "build": "rm -rf dist tsconfig.tsbuildinfo && tsc -p ./tsconfig.json && cp src/*.css dist/ && cp ../theme-daisyui/src/bridge.css dist/theme-bridge.css && cp ../default-components/src/shared/styles/qti-shared-vocabulary.css dist/qti-shared-vocabulary.css",
+    "test": "bun test"
   },
   "type": "module",
   "types": "./dist/index.d.ts",

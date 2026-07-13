@@ -6,6 +6,7 @@
  */
 
 import type { HTMLElement } from 'node-html-parser';
+import type { ExtractedPci } from '../../pci/types.js';
 import type { HtmlContent, QTIFileResponse } from '../../types/index.js';
 
 /**
@@ -48,6 +49,13 @@ export interface TextEntryInteractionData extends BaseInteractionData {
 
 export interface ExtendedTextInteractionData extends BaseInteractionData {
 	type: 'extendedTextInteraction';
+	cardinality: 'single' | 'multiple' | 'ordered' | 'record';
+	baseType?: string;
+	base: number;
+	stringIdentifier?: string;
+	minStrings: number;
+	/** Zero means no authored upper bound. */
+	maxStrings: number;
 	expectedLines: number;
 	expectedLength: number;
 	prompt: string | null;
@@ -227,6 +235,11 @@ export interface CustomInteractionData extends BaseInteractionData {
 	xml: string;
 }
 
+/** Canonical interaction data for QTI 2.x and 3.0 Portable Custom Interactions. */
+export interface PortableCustomInteractionData extends BaseInteractionData, ExtractedPci {
+	type: 'portableCustomInteraction';
+}
+
 export interface MediaElement {
 	type: 'audio' | 'video' | 'object';
 	src: string;
@@ -359,6 +372,7 @@ export type InteractionData =
 	| UploadInteractionData
 	| DrawingInteractionData
 	| CustomInteractionData
+	| PortableCustomInteractionData
 	| MediaInteractionData
 	| HottextInteractionData
 	| SelectPointInteractionData
@@ -392,6 +406,7 @@ export interface InteractionDataMap {
 	uploadInteraction: UploadInteractionData;
 	drawingInteraction: DrawingInteractionData;
 	customInteraction: CustomInteractionData;
+	portableCustomInteraction: PortableCustomInteractionData;
 	mediaInteraction: MediaInteractionData;
 	hottextInteraction: HottextInteractionData;
 	selectPointInteraction: SelectPointInteractionData;
@@ -420,6 +435,7 @@ export interface InteractionValueMap {
 	uploadInteraction: QTIFileResponse | null;
 	drawingInteraction: string;
 	customInteraction: any;
+	portableCustomInteraction: unknown;
 	mediaInteraction: any;
 	hottextInteraction: string[];
 	selectPointInteraction: Array<{ x: number; y: number }>;

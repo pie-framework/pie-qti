@@ -1,11 +1,12 @@
 import { describe, it, expect, mock } from 'bun:test';
 import { PciHost } from '../pci/PciHost.js';
-import { PciLoadError } from '../pci/types.js';
-import type { ExtractedPci, PciModule } from '../pci/types.js';
+import { PciLoadError, PciModuleResolverRequiredError } from '../pci/types.js';
+import type { ExtractedPci, PciModule, PciModuleResolver } from '../pci/types.js';
 import { portableCustomExtractor } from '../interactions/portable-custom/extractor.js';
 import { createExtractionUtils } from '../extraction/index.js';
 import { Qti3AttributeNameMapper, Qti3ElementNameMapper } from '@pie-qti/qti-common';
 import { parse } from 'node-html-parser';
+import { Player } from '../core/Player.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -35,6 +36,10 @@ function makeModule(overrides: Partial<PciModule> = {}): PciModule {
 	};
 }
 
+function resolverReturning(module: PciModule): PciModuleResolver {
+	return mock(async () => ({ default: module }));
+}
+
 /** Fake DOM node (minimal — just needs appendChild) */
 function makeDomNode() {
 	return {
@@ -48,55 +53,62 @@ function makeDomNode() {
 
 describe('PciHost', () => {
 	it('instantiates without throwing', () => {
-		expect(() => new PciHost(makeData(), 'https://host.example.com')).not.toThrow();
+		expect(() =>
+			new PciHost(makeData(), {
+				baseUrl: 'https://host.example.com',
+				moduleResolver: resolverReturning(makeModule()),
+			})
+		).not.toThrow();
 	});
 
 	// ---------------------------------------------------------------------------
 	// PciHost.load()
 	// ---------------------------------------------------------------------------
 
-	it('load() resolves when dynamic import succeeds with default export', async () => {
+	it('load() resolves through the host resolver with a default export', async () => {
 		const module = makeModule();
-		const host = new PciHost(makeData({ primaryPath: 'https://cdn.example.com/good.js' }), '');
-
-		// Patch import to resolve with default export
-		(host as any).resolveUrl = () => 'mocked';
-		(host as any).dynamicImport = mock(async (_url: string) => ({ default: module }));
+		const resolver = resolverReturning(module);
+		const host = new PciHost(makeData({ primaryPath: 'https://cdn.example.com/good.js' }), {
+			moduleResolver: resolver,
+		});
 
 		await host.load();
-		// Should not throw — module is loaded
+		expect(resolver).toHaveBeenCalledWith(
+			'https://cdn.example.com/good.js',
+			expect.objectContaining({ kind: 'primary', responseIdentifier: 'RESPONSE' })
+		);
 	});
 
-	it('load() falls back to fallbackPath when primary import throws', async () => {
+	it('load() falls back to fallbackPath when primary resolution throws', async () => {
 		const module = makeModule();
-		const host = new PciHost(makeData(), '');
-
 		let callCount = 0;
-		(host as any).dynamicImport = mock(async (_url: string) => {
+		const resolver = mock(async (_url: string) => {
 			callCount++;
 			if (callCount === 1) throw new Error('primary failed');
 			return { default: module };
 		});
+		const host = new PciHost(makeData(), { moduleResolver: resolver });
 
 		await host.load();
 		expect(callCount).toBe(2);
+		expect((resolver as any).mock.calls[1][1].kind).toBe('fallback');
 	});
 
 	it('load() throws PciLoadError when both primary and fallback fail', async () => {
-		const host = new PciHost(makeData(), '');
-
-		(host as any).dynamicImport = mock(async () => {
-			throw new Error('not found');
+		const host = new PciHost(makeData(), {
+			moduleResolver: async () => {
+				throw new Error('not found');
+			},
 		});
 
 		await expect(host.load()).rejects.toBeInstanceOf(PciLoadError);
 	});
 
 	it('load() throws PciLoadError when only primary fails and no fallback', async () => {
-		const host = new PciHost(makeData({ fallbackPath: undefined }), '');
-
-		(host as any).dynamicImport = mock(async () => {
-			throw new Error('not found');
+		const host = new PciHost(makeData({ fallbackPath: undefined }), {
+			moduleResolver: async () => {
+				throw new Error('not found');
+			},
 		});
 
 		await expect(host.load()).rejects.toBeInstanceOf(PciLoadError);
@@ -104,10 +116,10 @@ describe('PciHost', () => {
 
 	it('PciLoadError includes primaryPath and fallbackPath', async () => {
 		const data = makeData();
-		const host = new PciHost(data, '');
-
-		(host as any).dynamicImport = mock(async () => {
-			throw new Error('not found');
+		const host = new PciHost(data, {
+			moduleResolver: async () => {
+				throw new Error('not found');
+			},
 		});
 
 		let err: PciLoadError | null = null;
@@ -120,6 +132,28 @@ describe('PciHost', () => {
 		expect(err).toBeInstanceOf(PciLoadError);
 		expect(err!.primaryPath).toBe(data.primaryPath);
 		expect(err!.fallbackPath).toBe(data.fallbackPath);
+	});
+
+	it('load() refuses authored code when no host resolver is configured', async () => {
+		const host = new PciHost(makeData(), { baseUrl: 'https://host.example.com/items/' });
+		await expect(host.load()).rejects.toBeInstanceOf(PciModuleResolverRequiredError);
+		await expect(host.load()).rejects.toThrow('moduleResolver');
+	});
+
+	it('destroys a module that resolves after its host was destroyed', async () => {
+		const module = makeModule();
+		let resolveModule: ((value: unknown) => void) | undefined;
+		const deferred = new Promise<unknown>((resolve) => {
+			resolveModule = resolve;
+		});
+		const host = new PciHost(makeData(), { moduleResolver: () => deferred });
+
+		const loading = host.load();
+		host.destroy();
+		resolveModule?.({ default: module });
+
+		await expect(loading).rejects.toThrow('destroyed before its module finished loading');
+		expect(module.destroy).toHaveBeenCalledTimes(1);
 	});
 
 	// ---------------------------------------------------------------------------
@@ -146,6 +180,20 @@ describe('PciHost', () => {
 		const host = new PciHost(makeData(), '');
 		// Should not throw even though module is null
 		expect(() => host.initialize(makeDomNode())).not.toThrow();
+	});
+
+	it('destroys a module when initialize() throws', () => {
+		const module = makeModule({
+			initialize: mock(() => {
+				throw new Error('initialization failed');
+			}),
+		});
+		const host = new PciHost(makeData());
+		(host as any).module = module;
+
+		expect(() => host.initialize(makeDomNode())).toThrow('initialization failed');
+		expect(module.destroy).toHaveBeenCalledTimes(1);
+		expect((host as any).module).toBeNull();
 	});
 
 	// ---------------------------------------------------------------------------
@@ -270,6 +318,43 @@ const PCI_XML = `
 </qti-portable-custom-interaction>
 `;
 
+const QTI2_PCI_ITEM = `
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  xmlns:pci="http://www.imsglobal.org/xsd/portableCustomInteraction"
+  identifier="pci-2" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="PCI_RESPONSE" cardinality="single" baseType="string"/>
+  <itemBody>
+    <customInteraction responseIdentifier="PCI_RESPONSE" id="echo">
+      <pci:portableCustomInteraction customInteractionIdentifierType="urn:example:qti2-echo">
+        <pci:instance>
+          <script type="text/javascript" src="pci/qti2-echo.js"></script>
+          <script type="text/javascript">window.shouldNeverRun = true;</script>
+          <div class="qti2-echo-container">Enter text here</div>
+        </pci:instance>
+      </pci:portableCustomInteraction>
+    </customInteraction>
+  </itemBody>
+</assessmentItem>`;
+
+const QTI3_PCI_ITEM = `
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0"
+  identifier="pci-3" adaptive="false" time-dependent="false">
+  <qti-response-declaration identifier="PCI_RESPONSE" cardinality="single" base-type="string"/>
+  <qti-item-body>${PCI_XML}</qti-item-body>
+</qti-assessment-item>`;
+
+const ORDINARY_CUSTOM_ITEM = `
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="custom" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="CUSTOM_RESPONSE" cardinality="single" baseType="string"/>
+  <itemBody>
+    <customInteraction responseIdentifier="CUSTOM_RESPONSE" class="vendor-control">
+      <prompt>Vendor interaction</prompt>
+      <vendorControl />
+    </customInteraction>
+  </itemBody>
+</assessmentItem>`;
+
 function parseEl(xml: string) {
 	const doc = parse(xml.trim(), { lowerCaseTagName: false, comment: false });
 	return (doc.firstChild ?? doc) as any;
@@ -349,5 +434,64 @@ describe('portableCustomExtractor', () => {
 
 	it('has higher priority than standardCustomExtractor (10)', () => {
 		expect(portableCustomExtractor.priority).toBeGreaterThan(10);
+	});
+
+	it('discovers a QTI 2.x PCI nested in customInteraction', () => {
+		const interaction = new Player({ itemXml: QTI2_PCI_ITEM }).getInteractionData()[0] as any;
+
+		expect(interaction.type).toBe('portableCustomInteraction');
+		expect(interaction.responseId).toBe('PCI_RESPONSE');
+		expect(interaction.responseIdentifier).toBe('PCI_RESPONSE');
+		expect(interaction.customInteractionTypeIdentifier).toBe('urn:example:qti2-echo');
+		expect(interaction.primaryPath).toBe('pci/qti2-echo.js');
+		expect(interaction.markup).toContain('qti2-echo-container');
+		expect(interaction.markup).not.toContain('<script');
+		expect(interaction.markup).not.toContain('shouldNeverRun');
+	});
+
+	it('routes a native QTI 3.0 PCI through the production extraction inventory', () => {
+		const interaction = new Player({ itemXml: QTI3_PCI_ITEM }).getInteractionData()[0] as any;
+
+		expect(interaction.type).toBe('portableCustomInteraction');
+		expect(interaction.primaryPath).toBe('pci/echo.js');
+		expect(interaction.fallbackPath).toBe('pci/echo-fallback.js');
+	});
+
+	it('preserves the ordinary customInteraction fallback path', () => {
+		const interaction = new Player({ itemXml: ORDINARY_CUSTOM_ITEM }).getInteractionData()[0] as any;
+
+		expect(interaction.type).toBe('customInteraction');
+		expect(interaction.responseId).toBe('CUSTOM_RESPONSE');
+		expect(interaction.rawAttributes.class).toBe('vendor-control');
+	});
+});
+
+describe('Player PCI integration', () => {
+	it('threads resolver config, restores responses, queries getResponse, and tears down', async () => {
+		const module = makeModule({ getResponse: mock(() => 'module-answer') });
+		const resolver = resolverReturning(module);
+		const player = new Player({
+			itemXml: QTI3_PCI_ITEM,
+			pci: {
+				baseUrl: 'https://packages.example/items/item-1/',
+				moduleResolver: resolver,
+			},
+		});
+		const interaction = player.getInteractionData()[0] as ExtractedPci;
+		const host = player.createPciHost(interaction);
+
+		player.setResponses({ PCI_RESPONSE: 'restored-answer' });
+		await host.load();
+		host.initialize(makeDomNode());
+
+		expect(resolver).toHaveBeenCalledWith(
+			'https://packages.example/items/item-1/pci/echo.js',
+			expect.objectContaining({ kind: 'primary', responseIdentifier: 'PCI_RESPONSE' })
+		);
+		expect(module.setResponse).toHaveBeenCalledWith('restored-answer');
+		expect(player.getResponses().PCI_RESPONSE).toBe('module-answer');
+
+		player.destroy();
+		expect(module.destroy).toHaveBeenCalledTimes(1);
 	});
 });

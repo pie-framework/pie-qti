@@ -1,6 +1,6 @@
 import './setup';
 import { describe, expect, test } from 'bun:test';
-import type { PlayerSecurityConfig } from '@pie-qti/item-player';
+import type { PciModuleResolver, PlayerSecurityConfig } from '@pie-qti/item-player';
 import type { ResolvedQtiSectionComposition } from '@pie-qti/section-player';
 import { QTI_SECTION_PLAYER_SPLITPANE_TAG, QTI_SECTION_PLAYER_VERTICAL_TAG } from '../src/constants.js';
 import {
@@ -118,6 +118,7 @@ describe('section player custom elements', () => {
 			customElements.define('test-qti-section-player-splitpane', TestSplitPaneElement);
 		}
 		const security: PlayerSecurityConfig = { allowIframes: false };
+		const moduleResolver: PciModuleResolver = () => ({});
 		const element = document.createElement('test-qti-section-player-splitpane') as TestSplitPaneElement;
 		const events: QtiSectionResponseDeltaDetail[] = [];
 		const eventOptions: Array<Pick<CustomEventInit<QtiSectionResponseDeltaDetail>, 'bubbles' | 'composed'>> = [];
@@ -128,6 +129,7 @@ describe('section player custom elements', () => {
 
 		element.composition = createComposition(security);
 		element.security = undefined;
+		element.pci = { baseUrl: 'https://packages.example/items/', moduleResolver };
 		const props = element.exposeProps();
 		const OriginalCustomEvent = globalThis.CustomEvent;
 		globalThis.CustomEvent = class extends OriginalCustomEvent {
@@ -143,6 +145,7 @@ describe('section player custom elements', () => {
 		}
 
 		expect(props.security).toBe(security);
+		expect(props.pci).toEqual({ baseUrl: 'https://packages.example/items/', moduleResolver });
 		expect(events).toEqual([
 			{
 				sectionIdentifier: 'section-1',

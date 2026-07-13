@@ -18,11 +18,24 @@ export interface OpenPackageOptions {
 	storage?: import('./storage.js').StorageBackend;
 	/** Maximum file size in bytes (default: 50MB) */
 	maxFileSize?: number;
-	/** Maximum number of files (default: 1000) */
+	/** Maximum compressed archive input size in bytes (default: 100MB) */
+	maxCompressedSize?: number;
+	/** Maximum cumulative uncompressed size in bytes (default: 250MB) */
+	maxTotalUncompressedSize?: number;
+	/** Maximum number of ZIP entries, including directories (default: 1000) */
+	maxEntries?: number;
+	/** Maximum advertised uncompressed/compressed ratio per entry (default: 200) */
+	maxCompressionRatio?: number;
+	/** Maximum number of safe files extracted from the package (default: 1000) */
 	maxFiles?: number;
 }
 
 export interface ExtractOptions {
-	maxFileSize: number;
-	maxFiles: number;
+	maxFileSize?: number;
+	maxCompressedSize?: number;
+	maxTotalUncompressedSize?: number;
+	maxEntries?: number;
+	maxCompressionRatio?: number;
+	/** Maximum number of safe files extracted from the package (default: 1000) */
+	maxFiles?: number;
 }

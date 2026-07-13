@@ -65,21 +65,27 @@ const runAttwText = (dir) =>
 	runCommand("bunx attw --pack --ignore-rules cjs-resolves-to-esm -- .", dir);
 
 const isSuppressedTextReport = (stdout) => {
-	const resolutionFailureLines = stdout
-		.split(/\r?\n/)
-		.filter((line) => line.includes("Resolution failed"));
+	let entrypoint = "";
+	const failedRows = [];
+	for (const rawLine of stdout.split(/\r?\n/)) {
+		const line = rawLine.trim();
+		if (line.startsWith('"') && line.endsWith('"')) {
+			entrypoint = line.slice(1, -1);
+			continue;
+		}
+		if (!/^(?:node10|node16|bundler)\b/.test(line)) continue;
+		if (line.includes("💀") || line.includes("Resolution failed")) {
+			failedRows.push({ entrypoint, line });
+		}
+	}
 
-	if (resolutionFailureLines.length === 0) {
+	if (failedRows.length === 0) {
 		return false;
 	}
 
-	return resolutionFailureLines.every((line) => {
-		const rest = line.slice(
-			line.indexOf("Resolution failed") + "Resolution failed".length,
-		);
-		const successfulModernResolutions =
-			(rest.match(/\((?:ESM|CJS|JSON|types)\)/g) ?? []).length >= 2;
-		return !rest.includes("Resolution failed") && successfulModernResolutions;
+	return failedRows.every(({ entrypoint, line }) => {
+		if (line.startsWith("node10:") && line.includes("Resolution failed")) return true;
+		return entrypoint.endsWith(".css") || entrypoint.endsWith("/css");
 	});
 };
 

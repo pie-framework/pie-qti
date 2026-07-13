@@ -180,7 +180,7 @@ export class ExtractionRegistry {
 		for (const extractor of extractors) {
 			try {
 				const canHandle = extractor.canHandle(element, context);
-				const typeMatchedThroughMapper = !!this.elementNameMapper && extractor.elementTypes.some(
+				const typeMatchedThroughMapper = extractors.length === 1 && !!this.elementNameMapper && extractor.elementTypes.some(
 					(type) => this.qti2xMapper.toCanonical(type) === lookupKey
 				);
 				if (canHandle || typeMatchedThroughMapper) {

@@ -27,6 +27,7 @@ export { SessionStorageImpl } from './session-storage.js';
 export type { SessionStorageOptions } from './session-storage.js';
 
 export { StorageZipExtractor } from './zip-extractor.js';
+export type { StorageZipExtractorOptions } from './zip-extractor.js';
 
 // Export registry
 export {

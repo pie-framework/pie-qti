@@ -12,6 +12,7 @@ const EXPECTED_PLUGIN_TAGS = [
 	'pie-qti-hottext',
 	'pie-qti-media',
 	'pie-qti-custom',
+	'pie-qti-portable-custom',
 	'pie-qti-end-attempt',
 	'pie-qti-position-object',
 	'pie-qti-graphic-gap-match',

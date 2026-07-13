@@ -11,7 +11,10 @@ Rather than building separate players for QTI 2.x and 3.0, PIE-QTI uses a **vers
 3. **Processes** content using the same internal logic
 4. **Renders** using the same UI components
 
-This approach achieves **65-70% code reuse** between versions and ensures zero breaking changes for existing QTI 2.x code.
+This approach keeps most extraction, rendering, and processing logic shared. It is an architectural
+normalization strategy, not a claim that every schema-valid QTI 2.x or 3.0 assessment is currently
+deliverable. See [`SPEC-GAPS-PLAN.md`](SPEC-GAPS-PLAN.md) for the remaining assessment-level and
+package-integration gaps.
 
 ## Key Differences Between QTI 2.x and 3.0
 
@@ -36,7 +39,11 @@ This approach achieves **65-70% code reuse** between versions and ensures zero b
 1. **Portable Custom Interactions (PCI)** — `<qti-portable-custom-interaction>`
 2. **Personal Needs & Preferences (PNP)** — Accessibility profiles, color schemes
 3. **Catalog System** — Glossary entries linked via `data-catalog-idref`
-4. **Composite Interactions** — New interaction types
+4. **Shared Vocabulary and HTML5-oriented content** — standardized presentation classes and a wider
+   web content model
+
+In QTI terminology, a **composite item** is an assessment item containing multiple interactions.
+There is no `qti-composite-interaction` element.
 
 ## Architecture: How Version Detection Works
 
@@ -99,6 +106,11 @@ All element names are converted to a **canonical form** (lowercase, no hyphens):
 
 This allows processing logic to work identically for both versions.
 
+Only QTI-defined elements participate in this mapping. Native HTML (`object`, `param`, `audio`,
+`video`, `source`, and so on), MathML, SVG, and extension-vocabulary elements retain their own names
+and namespaces. The mapper uses an explicit QTI vocabulary table rather than inventing `qti-`
+prefixed names for unknown elements.
+
 ## Attribute Handling
 
 The smart attribute accessors handle both naming conventions automatically:
@@ -131,7 +143,8 @@ This means your code works with **both QTI 2.x and 3.0 attributes** without chan
 
 ### Scenario 1: You're Using the Player API
 
-**No changes needed!** The player auto-detects QTI version:
+The player auto-detects the QTI version; callers do not select a mapper manually. This applies to
+the implemented delivery profile and does not erase the open assessment/package gaps:
 
 ```typescript
 import { Player } from '@pie-qti/item-player';
@@ -147,7 +160,8 @@ const player2 = new Player({ itemXml: qti3Xml }); // ✓ Works
 
 ### Scenario 2: You're Using the Transform API
 
-**No changes needed!** Transformers auto-detect version:
+Transformers auto-detect supported input versions. Transformation coverage is plugin-specific and
+must be checked separately from player delivery coverage:
 
 ```typescript
 import { TransformEngine } from '@pie-qti/transform-core';
@@ -202,13 +216,13 @@ const maxChoices = getNumberAttribute(element, 'maxChoices', 1);
 
 ### For Users
 
-- **No breaking changes** — Existing QTI 2.x code continues to work
+- **Compatible entry points** — Existing QTI 2.x player entry points continue to use the same API
 - **Automatic version detection** — No need to specify version
 - **Future-proof** — New QTI versions can be added via new mappers
 
 ### For Developers
 
-- **65-70% code reuse** — Operators, evaluation, navigation, rendering all shared
+- **Shared core** — Operators, evaluation, extraction, and rendering are reused where semantics align
 - **Single test suite** — Most tests work for both versions
 - **Cleaner codebase** — No duplication of business logic
 
@@ -250,14 +264,18 @@ This **common internal model** is what makes the unified architecture possible.
 
 ### Portable Custom Interactions (PCI)
 
-PCI support is implemented at the player layer:
+PCI extraction and lifecycle support are implemented at the player layer. Authored module paths are
+never imported automatically: the embedding host must provide a resolver that makes the trust and
+package/origin decision. Resolved PCI code runs with page authority unless the host adds isolation.
 
 ```xml
 <qti-portable-custom-interaction
   response-identifier="RESPONSE"
-  custom-interaction-type-identifier="org.example.likert"
-  module="/pci-modules/likert-scale.js">
-  ...
+  custom-interaction-type-identifier="org.example.likert">
+  <qti-interaction-modules>
+    <qti-interaction-module primary-path="modules/likert-scale.js"/>
+  </qti-interaction-modules>
+  <qti-interaction-markup><div class="likert-root"></div></qti-interaction-markup>
 </qti-portable-custom-interaction>
 ```
 
@@ -296,18 +314,29 @@ Catalog parsing and glossary/keyword-translation popup support are implemented:
 
 | Component | QTI 2.x | QTI 3.0 | Notes |
 |-----------|---------|---------|-------|
-| **Element name mapping** | ✅ | ✅ | Complete |
-| **Attribute handling** | ✅ | ✅ | Complete |
-| **Version detection** | ✅ | ✅ | Complete |
-| **Parser infrastructure** | ✅ | ✅ | Complete |
-| **Standard interactions (21)** | ✅ | ✅ | Shared extraction/rendering path where semantics align |
-| **Response processing** | ✅ | ✅ | Shared logic |
-| **Assessment player** | ✅ | ✅ | QTI 2.2 and QTI 3.0 clean-room coverage |
-| **PCI support** | ✅ | ✅ | Player-layer PCI host/module lifecycle |
-| **PNP support** | ✅ | ✅ | Color schemes, elimination, extended time, glossary/translation triggers |
-| **Catalog system** | ✅ | ✅ | Item/shared catalog XML, lookup API, on-screen popup path |
+| **Element name mapping** | Implemented | Implemented | Explicit QTI map; HTML/MathML/SVG/extensions pass through |
+| **Attribute handling** | Implemented | Implemented | Camel/kebab accessors |
+| **Version detection** | Implemented | Implemented | Namespace first, root-name fallback |
+| **Standard interactions (21 names)** | Broad coverage | Broad coverage | Includes schema-valid position-object hierarchy and extended-text cardinalities; browser evidence varies by interaction |
+| **Record cardinality** | Implemented | Implemented | Named typed fields; no declaration-level BaseType |
+| **Response processing** | Broad coverage | Broad coverage | Canonical fixed templates covered; external fragments require a host resolver |
+| **Assessment player** | Partial | Partial | Per-part modes and ordered hierarchy retained; dynamic controls below remain |
+| **PCI support** | Implemented for PCI payloads | Implemented | Explicit host resolver required; not a sandbox |
+| **PNP support** | N/A / host profile | Current delivery scope | Color schemes, elimination, extended time, glossary/translation triggers |
+| **Catalog system** | Limited extensions | Current item scope | Inline/provided catalog XML; manifest-level shared discovery remains open |
 
-Legend: ✅ Complete for the current public certification scope
+### Remaining delivery boundaries
+
+- Dynamic `preCondition` evaluation is not yet applied while walking an AssessmentTest.
+- `branchRule` execution is implemented for item refs, not for sections or test parts.
+- `selection withReplacement="true"` does not yet materialize distinct, sequence-indexed ItemSessions.
+- Processing-fragment resolution is available on ItemPlayer, but assessment/package delivery does not
+  yet construct and pass the item-relative resolver automatically.
+- Formal official-suite evidence for current source changes is unavailable until a new NPM candidate
+  is published: the private runner deliberately consumes published packages only.
+
+These boundaries are why the project remains pre-1.0 and must not be described as fully conformant
+or certified.
 
 ## Testing
 

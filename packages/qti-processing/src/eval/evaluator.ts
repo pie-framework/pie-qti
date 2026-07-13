@@ -106,7 +106,7 @@ export function applyLookupTable(source: QtiValue, table: LookupTableTable): Qti
 export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 	const inferBaseType = (values: QtiValue[], fallback: BaseType = 'string'): BaseType => {
 		for (const v of values) {
-			if (v.kind === 'value') return v.baseType;
+			if (v.kind === 'value' && v.baseType) return v.baseType;
 		}
 		return fallback;
 	};
@@ -155,6 +155,57 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 		return normalizeForCompare(v);
 	};
 
+	const qtiValuesMatch = (left: QtiValue, right: QtiValue): boolean => {
+		if (left.kind === 'invalid' || right.kind === 'invalid') return false;
+		if (left.kind === 'null' || right.kind === 'null') {
+			return left.kind === 'null' && right.kind === 'null';
+		}
+		if (left.cardinality !== right.cardinality || left.baseType !== right.baseType) return false;
+
+		if (left.cardinality === 'record') {
+			const leftRecord = left.value as Record<string, QtiValue>;
+			const rightRecord = right.value as Record<string, QtiValue>;
+			const leftFields = Object.keys(leftRecord).sort();
+			const rightFields = Object.keys(rightRecord).sort();
+			if (leftFields.length !== rightFields.length) return false;
+			return leftFields.every((fieldIdentifier, index) => {
+				if (fieldIdentifier !== rightFields[index]) return false;
+				return qtiValuesMatch(leftRecord[fieldIdentifier]!, rightRecord[fieldIdentifier]!);
+			});
+		}
+
+		const leftValue = left.value;
+		const rightValue = right.value;
+		if (Array.isArray(leftValue) || Array.isArray(rightValue)) {
+			if (!Array.isArray(leftValue) || !Array.isArray(rightValue)) return false;
+			if (leftValue.length !== rightValue.length) return false;
+			if (left.cardinality === 'multiple') {
+				const counts = new Map<string, number>();
+				for (const value of rightValue) {
+					const key = normalizeScalarForCompare(value, right.baseType);
+					counts.set(key, (counts.get(key) ?? 0) + 1);
+				}
+				for (const value of leftValue) {
+					const key = normalizeScalarForCompare(value, left.baseType);
+					const count = counts.get(key) ?? 0;
+					if (count === 0) return false;
+					counts.set(key, count - 1);
+				}
+				return true;
+			}
+			return leftValue.every(
+				(value, index) =>
+					normalizeScalarForCompare(value, left.baseType) ===
+					normalizeScalarForCompare(rightValue[index], right.baseType),
+			);
+		}
+
+		return (
+			normalizeScalarForCompare(leftValue, left.baseType) ===
+			normalizeScalarForCompare(rightValue, right.baseType)
+		);
+	};
+
 	const asBaseType = (raw: string | undefined): BaseType | undefined => {
 		const s = (raw || '').trim() as BaseType;
 		const allowed: BaseType[] = [
@@ -169,7 +220,6 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			'point',
 			'duration',
 			'file',
-			'record',
 		];
 		return allowed.includes(s) ? s : undefined;
 	};
@@ -363,39 +413,8 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			if (a.kind === 'invalid' || b.kind === 'invalid') return qtiInvalid('match invalid');
 			if (a.kind === 'null' || b.kind === 'null') return qtiValue('boolean', 'single', false);
 
-			// Cardinality-aware match: ordered arrays must match in order; multiple is unordered multiset
 			if (a.kind === 'value' && b.kind === 'value') {
-				const av = a.value;
-				const bv = b.value;
-				if (Array.isArray(av) && Array.isArray(bv)) {
-					if (av.length !== bv.length) return qtiValue('boolean', 'single', false);
-					if (a.cardinality === 'multiple' || b.cardinality === 'multiple') {
-						const counts = new Map<string, number>();
-						for (const v of bv) {
-							const k = normalizeScalarForCompare(v, b.baseType);
-							counts.set(k, (counts.get(k) || 0) + 1);
-						}
-						for (const v of av) {
-							const k = normalizeScalarForCompare(v, a.baseType);
-							const n = counts.get(k) || 0;
-							if (n <= 0) return qtiValue('boolean', 'single', false);
-							counts.set(k, n - 1);
-						}
-						return qtiValue('boolean', 'single', true);
-					}
-					// ordered
-					for (let i = 0; i < av.length; i++) {
-						if (normalizeScalarForCompare(av[i], a.baseType) !== normalizeScalarForCompare(bv[i], b.baseType)) {
-							return qtiValue('boolean', 'single', false);
-						}
-					}
-					return qtiValue('boolean', 'single', true);
-				}
-				return qtiValue(
-					'boolean',
-					'single',
-					normalizeScalarForCompare(av, a.baseType) === normalizeScalarForCompare(bv, b.baseType)
-				);
+				return qtiValue('boolean', 'single', qtiValuesMatch(a, b));
 			}
 			return qtiValue('boolean', 'single', false);
 		}
@@ -569,7 +588,7 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 
 			const outBaseType: BaseType =
 				container.kind === 'value'
-					? container.baseType
+					? (container.baseType ?? 'string')
 					: index.kind === 'value'
 						? // index operand doesn't tell us the output type; fall back to string
 							'string'
@@ -607,7 +626,11 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			if (container.kind === 'invalid' || value.kind === 'invalid') return qtiInvalid('delete invalid');
 
 			const baseType: BaseType =
-				container.kind === 'value' ? container.baseType : value.kind === 'value' ? value.baseType : 'string';
+				container.kind === 'value'
+					? (container.baseType ?? 'string')
+					: value.kind === 'value'
+						? (value.baseType ?? 'string')
+						: 'string';
 
 			const needle =
 				value.kind === 'value'
@@ -660,7 +683,7 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 					// propagate invalid
 					throw new Error('repeat invalid');
 				}
-				outBaseType = v.baseType;
+				outBaseType = v.baseType ?? 'string';
 				if (Array.isArray(v.value)) {
 					for (const item of v.value) {
 						if (item === null || item === undefined) continue;
@@ -832,11 +855,11 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			for (const f of expr.fields) {
 				record[f.fieldIdentifier] = evalExpr(env, f.value);
 			}
-			return qtiValue('record', 'single', record);
+			return qtiValue(undefined, 'record', record);
 		}
 		case 'expr.fieldValue': {
 			const rec = evalExpr(env, expr.record);
-			if (rec.kind !== 'value' || rec.baseType !== 'record') return qtiNull();
+			if (rec.kind !== 'value' || rec.cardinality !== 'record') return qtiNull();
 			const obj = rec.value as Record<string, QtiValue> | undefined;
 			return obj?.[expr.fieldIdentifier] ?? qtiNull();
 		}
@@ -923,7 +946,11 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			const v = evalExpr(env, expr.value);
 			const baseType = toStringValue(evalExpr(env, expr.baseType)).trim();
 			if (!baseType) return qtiValue('boolean', 'single', false);
-			return qtiValue('boolean', 'single', v.kind === 'value' && v.baseType.toLowerCase() === baseType.toLowerCase());
+			return qtiValue(
+				'boolean',
+				'single',
+				v.kind === 'value' && v.baseType?.toLowerCase() === baseType.toLowerCase(),
+			);
 		}
 		case 'expr.stringMatch': {
 			const a = evalExpr(env, expr.a);
@@ -1516,5 +1543,3 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 		}
 	}
 }
-
-

@@ -2,7 +2,7 @@
  * NavigationManager
  *
  * Handles navigation logic for linear and nonlinear assessment modes.
- * - Linear: Sequential navigation only (can go back, but can't skip forward)
+ * - Linear: Sequential forward navigation only; once left, an item cannot be revisited
  * - Nonlinear: Free navigation (can jump to any item)
  */
 
@@ -33,19 +33,9 @@ export class NavigationManager {
 			return true;
 		}
 
-		// In linear mode:
-		// - Can go back to any visited item
-		// - Can only go forward to the next unvisited item
-		if (targetIndex <= currentIndex) {
-			return true; // Can always go back
-		}
-
-		if (targetIndex === currentIndex + 1) {
-			return true; // Can advance to next item
-		}
-
-		// Can't skip ahead in linear mode
-		return false;
+		// Linear mode permits staying on the current item or advancing exactly
+		// one item. QTI forbids returning after the candidate moves on.
+		return targetIndex === currentIndex || targetIndex === currentIndex + 1;
 	}
 
 	/**
@@ -59,7 +49,7 @@ export class NavigationManager {
 	 * Check if "previous" navigation is allowed
 	 */
 	canPrevious(currentIndex: number): boolean {
-		return currentIndex > 0;
+		return this.mode === 'nonlinear' && currentIndex > 0;
 	}
 
 	/**

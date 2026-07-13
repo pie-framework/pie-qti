@@ -21,9 +21,9 @@
   <qti-item-body>
     <qti-hotspot-interaction response-identifier="RESPONSE" max-choices="1">
       <qti-prompt>Click on the location of Paris on the map of France.</qti-prompt>
-      <qti-object data="images/france-map.png" type="image/png" width="400" height="300">
+      <object data="images/france-map.png" type="image/png" width="400" height="300">
         <span>Map of France</span>
-      </qti-object>
+      </object>
       <qti-hotspot-choice identifier="hotspot_paris" shape="circle" coords="200,150,20"/>
       <qti-hotspot-choice identifier="hotspot_marseille" shape="circle" coords="220,250,20"/>
       <qti-hotspot-choice identifier="hotspot_lyon" shape="circle" coords="230,180,20"/>

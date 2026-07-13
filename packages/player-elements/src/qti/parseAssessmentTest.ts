@@ -4,6 +4,7 @@ import type { ParsedAssessmentItemRef, ParsedAssessmentSection, ParsedAssessment
 
 // Use native DOMParser in browser, linkedom in Node/Bun
 const DOMParserImpl = typeof DOMParser !== 'undefined' ? DOMParser : LinkedomDOMParser;
+const DEFAULT_MAX_SECTION_DEPTH = 32;
 
 function toCanonicalQtiName(name: string | null | undefined): string {
 	const withoutPrefix = (name ?? '').replace(/^qti-/, '');
@@ -95,7 +96,15 @@ function parseAssessmentItemRefs(sectionEl: Element): ParsedAssessmentItemRef[] 
 	});
 }
 
-function parseSection(sectionEl: Element): ParsedAssessmentSection {
+function parseSection(
+	sectionEl: Element,
+	depth: number,
+	maxSectionDepth: number,
+): ParsedAssessmentSection {
+	if (depth > maxSectionDepth) {
+		throw new Error(`assessmentSection nesting exceeds maxSectionDepth (${maxSectionDepth})`);
+	}
+
 	const identifier = getAttr(sectionEl, 'identifier') ?? 'section';
 	const title = getAttr(sectionEl, 'title') ?? undefined;
 	const visibleRaw = getAttr(sectionEl, 'visible');
@@ -108,7 +117,7 @@ function parseSection(sectionEl: Element): ParsedAssessmentSection {
 	const childSections = Array.from(sectionEl.childNodes)
 		.filter((n): n is Element => n.nodeType === 1)
 		.filter((el) => toCanonicalQtiName((el as Element).localName) === 'assessmentSection')
-		.map(parseSection);
+		.map((child) => parseSection(child, depth + 1, maxSectionDepth));
 
 	return {
 		identifier,
@@ -120,7 +129,7 @@ function parseSection(sectionEl: Element): ParsedAssessmentSection {
 	};
 }
 
-function parseTestPart(testPartEl: Element): ParsedTestPart {
+function parseTestPart(testPartEl: Element, maxSectionDepth: number): ParsedTestPart {
 	const identifier = getAttr(testPartEl, 'identifier') ?? 'part-1';
 	const navigationMode = (getAttr(testPartEl, 'navigationMode') ?? 'nonlinear') as ParsedTestPart['navigationMode'];
 	const submissionMode = (getAttr(testPartEl, 'submissionMode') ?? 'simultaneous') as ParsedTestPart['submissionMode'];
@@ -129,7 +138,7 @@ function parseTestPart(testPartEl: Element): ParsedTestPart {
 	const sections = Array.from(testPartEl.childNodes)
 		.filter((n): n is Element => n.nodeType === 1)
 		.filter((el) => toCanonicalQtiName((el as Element).localName) === 'assessmentSection')
-		.map(parseSection);
+		.map((section) => parseSection(section, 1, maxSectionDepth));
 
 	return {
 		identifier,
@@ -139,7 +148,15 @@ function parseTestPart(testPartEl: Element): ParsedTestPart {
 	};
 }
 
-export function parseAssessmentTestXml(xml: string): ParsedAssessmentTest {
+export function parseAssessmentTestXml(
+	xml: string,
+	options: { maxSectionDepth?: number } = {},
+): ParsedAssessmentTest {
+	const maxSectionDepth = options.maxSectionDepth ?? DEFAULT_MAX_SECTION_DEPTH;
+	if (!Number.isInteger(maxSectionDepth) || maxSectionDepth < 1) {
+		throw new Error('maxSectionDepth must be a positive integer');
+	}
+
 	const doc = new DOMParserImpl().parseFromString(xml, 'application/xml' as any);
 	const parserError = firstByLocalName(doc as ParentNode, 'parsererror');
 	if (parserError) {
@@ -161,12 +178,12 @@ export function parseAssessmentTestXml(xml: string): ParsedAssessmentTest {
 
 	let testParts: ParsedTestPart[] | undefined;
 	if (testPartsEls.length > 0) {
-		testParts = testPartsEls.map(parseTestPart);
+		testParts = testPartsEls.map((testPart) => parseTestPart(testPart, maxSectionDepth));
 	} else {
 		const topSections = Array.from(assessmentTestEl.childNodes)
 			.filter((n): n is Element => (n as any).nodeType === 1)
 			.filter((el) => toCanonicalQtiName((el as Element).localName) === 'assessmentSection')
-			.map(parseSection);
+			.map((section) => parseSection(section, 1, maxSectionDepth));
 
 		testParts = [
 			{
@@ -184,5 +201,4 @@ export function parseAssessmentTestXml(xml: string): ParsedAssessmentTest {
 		testParts,
 	};
 }
-
 

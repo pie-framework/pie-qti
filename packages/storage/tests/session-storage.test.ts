@@ -59,6 +59,27 @@ describe('SessionStorageImpl', () => {
 		);
 	});
 
+	test('should reject session IDs that can escape or create nested session paths', async () => {
+		const invalidIds = [
+			'',
+			'.',
+			'..',
+			'../escape',
+			'..\\escape',
+			'/absolute',
+			'session/child',
+			'session:alternate-stream',
+			'a'.repeat(129),
+		];
+
+		for (const sessionId of invalidIds) {
+			expect(() => sessionStorage.getSessionPath(sessionId)).toThrow('Session ID must be');
+			await expect(sessionStorage.readSessionMetadata(sessionId)).rejects.toThrow(
+				'Session ID must be',
+			);
+		}
+	});
+
 	test('should write and read session metadata', async () => {
 		const sessionId = 'session-123';
 		const session: Session = {

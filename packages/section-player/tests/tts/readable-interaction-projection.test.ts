@@ -72,4 +72,51 @@ describe('extractReadableInteractionSpeechHtml', () => {
 
 		expect(html).toBe('');
 	});
+
+	test('enforces item XML limits before invoking the TTS DOM parser', () => {
+		let parserInvocations = 0;
+		class TrackingDOMParser {
+			parseFromString(_xml: string, _mimeType: string): Document {
+				parserInvocations++;
+				return new DOMParser().parseFromString('<assessmentItem />', 'text/xml') as unknown as Document;
+			}
+		}
+
+		expect(() =>
+			extractReadableInteractionSpeechHtml('<!DOCTYPE assessmentItem><assessmentItem />', {
+				DOMParserImpl: TrackingDOMParser,
+				security: { parsingLimits: { enabled: true, rejectDoctype: true } },
+			}),
+		).toThrow('itemXml contains <!DOCTYPE>');
+		expect(parserInvocations).toBe(0);
+	});
+
+	test('does not project executable authored markup into the host document', () => {
+		const html = extractReadableInteractionSpeechHtml(
+			`<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="sample">
+				<itemBody>
+					<choiceInteraction responseIdentifier="CHOICE">
+						<prompt>
+							<span onclick="alert('xss')" style="background:url(https://tracker.invalid/pixel)">Choose</span>
+							<img src="https://tracker.invalid/duplicate.png" onerror="alert('xss')" alt="the described image" />
+							<host-privileged-widget secret="value">carefully</host-privileged-widget>
+						</prompt>
+						<simpleChoice identifier="A"><math onclick="alert('xss')"><mi>x</mi></math></simpleChoice>
+					</choiceInteraction>
+				</itemBody>
+			</assessmentItem>`,
+			{ DOMParserImpl: parser },
+		);
+
+		expect(html).toContain('Choose');
+		expect(html).toContain('the described image');
+		expect(html).toContain('carefully');
+		expect(html).toContain('<math><mi>x</mi></math>');
+		expect(html).not.toContain('onclick');
+		expect(html).not.toContain('onerror');
+		expect(html).not.toContain('style=');
+		expect(html).not.toContain('tracker.invalid');
+		expect(html).not.toContain('host-privileged-widget');
+		expect(html).not.toContain('secret=');
+	});
 });

@@ -40,6 +40,36 @@ describe('createItemPresentationPlan', () => {
 		});
 	});
 
+	it('passes an extended-text stringIdentifier response back as its lexical companion', () => {
+		const player = fakePlayer({
+			interactions: [{
+				type: 'extendedTextInteraction',
+				responseId: 'RESPONSE',
+				cardinality: 'single',
+				baseType: 'integer',
+				base: 16,
+				stringIdentifier: 'RAW',
+				minStrings: 0,
+				maxStrings: 1,
+				expectedLines: 1,
+				expectedLength: 0,
+				prompt: null,
+				placeholderText: '',
+				format: 'plain',
+			}],
+		});
+
+		const plan = createItemPresentationPlan({
+			player,
+			responses: { RESPONSE: 255, RAW: '00FF' },
+		});
+
+		expect(plan.blockInteractions[0]).toMatchObject({
+			response: 255,
+			stringResponse: '00FF',
+		});
+	});
+
 	it('injects delivery-context styles and stimulus content before rendering inline segments', () => {
 		const deliveryContext: ResolvedItemDeliveryContext = {
 			itemHref: 'items/item.xml',

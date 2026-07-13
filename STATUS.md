@@ -14,9 +14,11 @@ The core player packages are pre-1.0 and have broad clean-room coverage, but the
 "all valid QTI" or certification-ready claim. See `docs/SPEC-GAPS-PLAN.md`.
 
 - `@pie-qti/item-player` registers extractors for all 21 standard QTI 2.2
-  interaction names. Schema-valid position-object delivery, parts of QTI 3 HTML
-  vocabulary handling, PCI lifecycle integration, record cardinality, and exact
-  standard response-template semantics remain open.
+  interaction names. The current tree includes schema-valid position-object
+  extraction, QTI 3 foreign-vocabulary pass-through, host-resolved PCI lifecycle,
+  typed record cardinality, complete extended-text response shapes, and canonical
+  fixed-template behavior for the supported URI set. This is broad coverage, not
+  proof that every interaction is candidate-operable in every browser/profile.
 - `@pie-qti/assessment-player` sequences QTI assessment tests, sections, item
   refs, item session control, rubric blocks, and response submission.
 - `@pie-qti/default-components` supplies the default web-component renderers.
@@ -37,8 +39,11 @@ QTI 3.0 naming infrastructure and broad standard interaction delivery are implem
   semantics align.
 - QTI 3.0 Shared Vocabulary classes are preserved for rendering behavior.
 - Personal Needs and Preferences and Catalog / Glossary support are implemented
-  at the player layer. Portable Custom Interaction extraction/host primitives
-  exist, but the production renderer and response lifecycle are not connected.
+  at the player layer. Portable Custom Interaction extraction and the production
+  lifecycle are connected, but module execution remains disabled until the host
+  supplies a resolver; accepted PCI code is trusted page-authority code, not sandboxed.
+- Remaining assessment semantics include dynamic preconditions, section/testPart
+  branch rules, and sequence-indexed clone materialization for selection with replacement.
 
 ### Certification Readiness
 
@@ -49,6 +54,9 @@ The public repository uses clean-room certification coverage only.
   package test fixtures.
 - Official 1EdTech conformance package execution is intentionally outside this
   public repository and belongs in the private conformance runner.
+- That runner consumes published NPM candidates only. Current working-tree fixes
+  cannot be exercised by the official suite until a new candidate is published and
+  pinned; prior green evidence applies to the previously published candidate.
 - The current private runner is useful smoke coverage, not semantic proof: several
   paths pass on construction/no-throw, permit manual-required results, or bypass
   browser interaction through direct response APIs.
@@ -87,10 +95,10 @@ The current high-signal verification commands are:
 - `bun run verify:apps:deploy`
 - `bun run verify:publish:quick`
 
-The non-browser public certification gate passed on 2026-07-13. The browser gate
-could not run in that review environment because Playwright's managed Chromium
-binary was absent; this was an environment launch failure, not a product assertion
-result. `verify:publish:quick` also exposed a Node-10-only ATTW reporting/gate issue.
+The complete public certification gate passed on 2026-07-13, including the targeted
+Chromium interaction and accessibility suites. `verify:publish:quick` also passes;
+its ATTW fallback now handles the same known Node-10 and CSS-resolution diagnostics
+as the structured-report path.
 
 ## Intentional Non-Goals
 

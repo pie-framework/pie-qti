@@ -100,9 +100,6 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 			const promptElement = promptElements[0];
 			prompt = utils.getHtmlContent(promptElement);
 
-			// Get the raw HTML content and extract gaps
-			const promptHtml = promptElement.outerHTML || promptElement.toString();
-
 			// Extract gap elements from prompt children
 			const gapElements = utils.getChildrenByTag(promptElement, 'gap');
 			for (const gap of gapElements) {
@@ -110,9 +107,10 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 			}
 
 			// Replace gap elements with placeholders in the text
-			promptText = promptHtml
-				.replace(/<qti-prompt[^>]*>|<prompt[^>]*>/, '')
-				.replace(/<\/qti-prompt>|<\/prompt>/, '')
+			// Derive renderable content only from the already-sanitized prompt. Using
+			// outerHTML here would reintroduce event handlers and unsafe URLs that
+			// getHtmlContent deliberately removed.
+			promptText = prompt
 				.replace(GAP_ELEMENT_PATTERN, (_match, attrs: string) => {
 					const id = extractAttribute(attrs, 'identifier');
 					return id ? `[GAP:${id}]` : '';
@@ -124,7 +122,8 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 		// If gaps were not found inside a <prompt>, search the full interaction body.
 		// This handles items where <gap> elements appear in <p>/<blockquote> siblings of <prompt>.
 		if (gaps.length === 0) {
-			const interactionHtml = element.outerHTML || element.toString();
+			// Keep the fallback on the same sanitization boundary as prompt content.
+			const interactionHtml = utils.getHtmlContent(element);
 			const gapIdMatches = Array.from(interactionHtml.matchAll(GAP_ELEMENT_PATTERN));
 			for (const m of gapIdMatches) {
 				const id = extractAttribute(m[1] ?? '', 'identifier');

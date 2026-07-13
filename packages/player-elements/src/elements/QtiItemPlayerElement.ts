@@ -1,17 +1,19 @@
 import { QTI_ITEM_PLAYER_TAG } from '../constants.js';
-import '@pie-qti/item-player/element';
-export { PieQtiItemPlayerElement as QtiItemPlayerElement } from '@pie-qti/item-player/element';
+import { PieQtiItemPlayerElement } from '@pie-qti/item-player/element-class';
 
-export type QtiItemPlayerResponseChangeDetail = {
-	responseId: string;
-	value: unknown;
-	responses: Record<string, unknown>;
-};
+export { PieQtiItemPlayerElement as QtiItemPlayerElement } from '@pie-qti/item-player/element-class';
+export type {
+	PieQtiItemPlayerCompleteDetail as QtiItemPlayerCompleteDetail,
+	PieQtiItemPlayerEventMap as QtiItemPlayerEventMap,
+	PieQtiItemPlayerResponseChangeDetail as QtiItemPlayerResponseChangeDetail,
+	PieQtiItemPlayerResponseMap as QtiItemPlayerResponseMap,
+	PieQtiItemPlayerSubmissionResult as QtiItemPlayerSubmissionResult,
+	PieQtiItemPlayerSubmitDetail as QtiItemPlayerSubmitDetail,
+} from '@pie-qti/item-player/element-class';
 
 export function defineQtiItemPlayerElement() {
 	if (!customElements.get(QTI_ITEM_PLAYER_TAG)) {
-		throw new Error('@pie-qti/item-player/element did not register <pie-qti-item-player>.');
+		customElements.define(QTI_ITEM_PLAYER_TAG, PieQtiItemPlayerElement);
 	}
 }
-
 

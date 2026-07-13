@@ -30,6 +30,7 @@
 		"**/*.spec.ts",
 		"**/*.svelte",
 		"src/components/index.ts",
-		"src/element.ts"
+		"src/element.ts",
+		"src/element-class.ts"
 	]
 }

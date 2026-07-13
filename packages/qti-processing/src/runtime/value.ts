@@ -8,8 +8,10 @@ export function qtiInvalid(message: string, baseType?: BaseType, cardinality?: C
 	return { kind: 'invalid', message, baseType, cardinality };
 }
 
-export function qtiValue(baseType: BaseType, cardinality: Cardinality, value: unknown): QtiValue {
-	return { kind: 'value', baseType, cardinality, value };
+export function qtiValue(baseType: BaseType | undefined, cardinality: Cardinality, value: unknown): QtiValue {
+	return baseType === undefined
+		? { kind: 'value', cardinality, value }
+		: { kind: 'value', baseType, cardinality, value };
 }
 
 export function isNull(v: QtiValue): boolean {
@@ -136,17 +138,6 @@ export function coerceBaseValue(baseType: BaseType, text: string): QtiValue {
 		case 'file':
 			// Minimal representation for now: a string reference (e.g. file name, URI, etc).
 			return qtiValue('file', 'single', t);
-		case 'record': {
-			// Records are typically constructed with <record/>; if provided as text, accept JSON.
-			if (t.startsWith('{') && t.endsWith('}')) {
-				try {
-					return qtiValue('record', 'single', JSON.parse(t));
-				} catch {
-					return qtiInvalid(`invalid record json: ${t}`, 'record', 'single');
-				}
-			}
-			return qtiValue('record', 'single', t);
-		}
 		case 'identifier':
 		case 'string':
 		case 'uri':
@@ -167,5 +158,4 @@ export function normalizeForCompare(v: unknown): string {
 		return String(v);
 	}
 }
-
 

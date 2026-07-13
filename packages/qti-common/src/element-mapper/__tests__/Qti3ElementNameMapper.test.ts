@@ -28,12 +28,19 @@ describe('Qti3ElementNameMapper', () => {
 			expect(mapper.toCanonical('qti-outcome-processing')).toBe('outcomeprocessing');
 		});
 
+		it('should normalize internal QTI 2.x-style names', () => {
+			expect(mapper.toCanonical('choiceInteraction')).toBe('choiceinteraction');
+			expect(mapper.toCanonical('positionObjectStage')).toBe('positionobjectstage');
+		});
+
 		it('should handle empty string', () => {
 			expect(mapper.toCanonical('')).toBe('');
 		});
 
-		it('should handle names without qti- prefix', () => {
-			expect(mapper.toCanonical('choice-interaction')).toBe('choiceinteraction');
+		it('should preserve non-QTI vocabulary names', () => {
+			expect(mapper.toCanonical('object')).toBe('object');
+			expect(mapper.toCanonical('annotation-xml')).toBe('annotation-xml');
+			expect(mapper.toCanonical('linearGradient')).toBe('linearGradient');
 		});
 	});
 
@@ -66,8 +73,18 @@ describe('Qti3ElementNameMapper', () => {
 			expect(mapper.toNative('itembody')).toBe('qti-item-body');
 		});
 
+		it('should preserve HTML, MathML, SVG, and extension vocabulary names', () => {
+			for (const name of ['object', 'param', 'audio', 'video', 'source', 'math', 'linearGradient', 'vendor-widget']) {
+				expect(mapper.toNative(name)).toBe(name);
+			}
+		});
+
+		it('should map positionObjectStage as QTI vocabulary', () => {
+			expect(mapper.toNative('positionobjectstage')).toBe('qti-position-object-stage');
+		});
+
 		it('should handle empty string', () => {
-			expect(mapper.toNative('')).toBe('qti-');
+			expect(mapper.toNative('')).toBe('');
 		});
 	});
 

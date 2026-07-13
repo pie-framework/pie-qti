@@ -37,6 +37,48 @@ describe('@pie-qti/item-player/security public API', () => {
 		expect(sanitizeResourceUrl('javascript:alert(1)', undefined, 'img')).toBeNull();
 	});
 
+	test('sanitizeResourceUrl blocks backslash protocol-relative URLs', () => {
+		const policy = {
+			allowProtocolRelative: false,
+			allowedHosts: ['safe.example'],
+		};
+
+		expect(
+			sanitizeResourceUrl(String.raw`\\\\tracker.example\pixel`, policy, 'img')
+		).toBeNull();
+		expect(
+			sanitizeResourceUrl(
+				String.raw`/\\tracker.example/pixel`,
+				{ ...policy, assetBaseUrl: 'https://safe.example/items/' },
+				'img'
+			)
+		).toBeNull();
+	});
+
+	test('sanitizeResourceUrl revalidates URLs resolved through assetBaseUrl', () => {
+		expect(
+			sanitizeResourceUrl(
+				'item.xml',
+				{ assetBaseUrl: 'http://unsafe.example/qti/', allowHttp: false },
+				'any'
+			)
+		).toBeNull();
+		expect(
+			sanitizeResourceUrl(
+				'item.xml',
+				{ assetBaseUrl: 'https://unsafe.example/qti/', allowedHosts: ['safe.example'] },
+				'any'
+			)
+		).toBeNull();
+		expect(
+			sanitizeResourceUrl(
+				'item.xml',
+				{ assetBaseUrl: 'https://safe.example/qti/', allowedHosts: ['safe.example'] },
+				'any'
+			)
+		).toBe('https://safe.example/qti/item.xml');
+	});
+
 	test('enforceItemXmlLimits remains opt-in through parsingLimits', () => {
 		expect(() => enforceItemXmlLimits('<!DOCTYPE qti><assessmentItem />')).not.toThrow();
 		expect(() =>

@@ -5,9 +5,11 @@
 import type {
 	BaseType as ProcessingBaseType,
 	Cardinality as ProcessingCardinality,
+	ProcessingFragmentResolver,
 	QtiValue,
 } from '@pie-qti/qti-processing';
 import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
+import type { PciConfiguration } from '../pci/types.js';
 import type { ResponseValidationResult } from './responseValidation.js';
 
 /**
@@ -24,7 +26,8 @@ export type VariableCardinality = ProcessingCardinality;
 
 export interface VariableDeclaration {
 	identifier: string;
-	baseType: VariableBaseType;
+	/** Omitted for record cardinality. */
+	baseType?: VariableBaseType;
 	cardinality: VariableCardinality;
 	value: any;
 	defaultValue?: any;
@@ -87,7 +90,8 @@ export type SerializedVariableKind = 'response' | 'outcome' | 'template' | 'cont
 export interface SerializedItemSessionVariable {
 	identifier: string;
 	kind: SerializedVariableKind;
-	baseType: VariableBaseType;
+	/** Omitted for record cardinality. */
+	baseType?: VariableBaseType;
 	cardinality: VariableCardinality;
 	value: any;
 	defaultValue?: any;
@@ -303,8 +307,26 @@ export interface PlayerConfig {
 	 */
 	customOperators?: Record<string, (args: QtiValue[], meta: { class?: string; definition?: string }) => QtiValue>;
 	/**
-	 * Optional base URL for resolving relative PCI module paths.
-	 * Defaults to document.baseURI when running in a browser.
+	 * Host-controlled resolver for xi:include processing fragments.
+	 * The player never fetches an authored href directly; package hosts must resolve
+	 * and containment-check it, then return XML synchronously.
+	 */
+	resolveProcessingFragment?: ProcessingFragmentResolver;
+	/** Resource limits applied cumulatively while compiling external processing fragments. */
+	processingFragmentLimits?: {
+		/** Maximum nested xi:include depth. Default: 16. */
+		maxDepth?: number;
+		/** Maximum cumulative XML characters. Default: 2 MiB. */
+		maxCharacters?: number;
+	};
+	/**
+	 * Portable Custom Interaction runtime configuration.
+	 * A moduleResolver is required before any authored PCI code can execute.
+	 */
+	pci?: PciConfiguration;
+	/**
+	 * @deprecated Use pci.baseUrl. Retained as a resolution-only compatibility alias;
+	 * it never enables module loading without pci.moduleResolver.
 	 */
 	pciBaseUrl?: string;
 

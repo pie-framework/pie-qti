@@ -9,28 +9,26 @@ Framework-agnostic **Web Components (Custom Elements)** for the QTI players in t
 
 ## Install
 
-The current default runtime is split across the player-element and interaction-component packages:
-
 ```bash
-npm install @pie-qti/player-elements @pie-qti/default-components
+npm install @pie-qti/player-elements
 ```
 
 ## Register elements
 
 ```js
-import '@pie-qti/default-components/plugins';
 import '@pie-qti/player-elements/register';
 ```
 
-`@pie-qti/player-elements/register` defines the player and section custom elements only. Importing
-`@pie-qti/default-components/plugins` is currently required for the standard QTI interactions to
-render. Without it, block interactions such as `choiceInteraction` are emitted as undefined custom
-elements and are not usable.
+`@pie-qti/player-elements/register` is the complete default browser runtime. It defines the player,
+section, and standard QTI interaction custom elements. Svelte and the default interaction
+implementation are bundled behind this entry and are not application imports. The published
+package has no runtime dependencies, and its public declarations use framework-neutral browser
+contracts rather than exposing Svelte or internal workspace packages.
 
-Alternatively, install the loader and both of its runtime peers, then make one idempotent load call:
+Alternatively, install the loader and make one idempotent load call:
 
 ```bash
-npm install @pie-qti/web-component-loaders @pie-qti/player-elements @pie-qti/default-components
+npm install @pie-qti/web-component-loaders
 ```
 
 ```js
@@ -39,13 +37,16 @@ import { loadPieQtiPlayerElements } from '@pie-qti/web-component-loaders';
 await loadPieQtiPlayerElements();
 ```
 
-The split install is a known packaging gap. Consumers do not need to install Svelte; the published
-JavaScript bundles its implementation runtime.
+The main `@pie-qti/player-elements` entry is registration-free and safe to import during SSR; it
+retains the item element class without defining its tag. Import all browser constructors and
+definition helpers from `@pie-qti/player-elements/elements` when you need manual registration.
+Advanced hosts that provide their own interaction elements can import
+`@pie-qti/player-elements/register-players`, which registers only the player and section elements.
 
-> **Security notice (2026-07-13):** same-DOM delivery currently has confirmed sanitizer bypasses
-> in gap-match prompt reconstruction and the section/assessment TTS projection. Do not render
-> untrusted QTI in the host origin until those sinks are fixed; use a cross-origin sandbox and
-> enable parsing limits as defense in depth.
+> **Security boundary (2026-07-13):** the former gap-match and section-TTS raw-markup paths now use
+> the shared sanitizer, and custom-element parsing/resource limits are enabled by default. Same-DOM
+> sanitization is not a JavaScript sandbox; content that is not trusted to run in the host origin
+> should still be delivered through a suitably sandboxed, cross-origin iframe.
 
 ## `pie-qti-item-player`
 
@@ -54,7 +55,6 @@ JavaScript bundles its implementation runtime.
 Prefer setting the XML via property (attributes are awkward for large XML strings):
 
 ```js
-import '@pie-qti/default-components/plugins';
 import '@pie-qti/player-elements/register';
 
 const el = document.querySelector('pie-qti-item-player');
@@ -63,21 +63,51 @@ el.role = 'candidate'; // QTI role/view actor
 ```
 
 Attribute-backed properties are `itemXml`, `role`, and `disabled`. JS-only properties currently
-include `renderItemBodyRubrics`, `typeset`, `i18n`, `security`, `pnp`, `deliveryContext`, and
-`responses`.
+include `renderItemBodyRubrics`, `typeset`, `i18n`, `security`, `pnp`, `deliveryContext`,
+`resolveProcessingFragment`, `processingFragmentLimits`, `pci`, and `responses`.
+
+Portable Custom Interaction execution is disabled by default. Opt in with a host-owned allow-list;
+the player does not import authored module paths itself:
+
+```js
+const trustedPciModules = new Map([
+  ['modules/chem-editor.js', () => import('./trusted-pci/chem-editor.js')]
+]);
+
+el.pci = {
+  baseUrl: 'https://content.example/items/item-1/',
+  moduleResolver(_resolvedUrl, { authoredPath }) {
+    const load = trustedPciModules.get(authoredPath);
+    if (!load) throw new Error(`Untrusted PCI module: ${authoredPath}`);
+    return load();
+  }
+};
+```
 
 ### Listen for interactions/responses
 
 ```js
-el.onResponseChange = (responseId, value) => console.log(responseId, value);
-el.onSubmit = (responses, result) => console.log(responses, result);
-el.onComplete = (result) => console.log(result);
+el.addEventListener('ready', () => console.log('ready'));
+el.addEventListener('response-change', (event) => console.log(event.detail));
+el.addEventListener('submit', (event) => console.log(event.detail));
+el.addEventListener('complete', (event) => console.log(event.detail));
 ```
 
-The item element does not currently aggregate these callbacks into `response-change`, `submit`, or
-`complete` DOM events, and it does not expose an imperative `submit()` method. Some block
-interaction components emit bubbling `qti-change` events, but inline interactions do not, so use
-the callback properties until the custom-element facade is completed.
+These custom events are typed, bubbling, and composed. Existing `onResponseChange`, `onSubmit`, and
+`onComplete` callback properties remain available for compatibility.
+
+Score the current responses imperatively when the host owns the submit UI:
+
+```js
+const result = el.submit();
+```
+
+TypeScript users get `HTMLElementTagNameMap` inference for all four player element tag names. Import
+runtime constructors from the browser-only entry when needed:
+
+```ts
+import { QtiItemPlayerElement } from '@pie-qti/player-elements/elements';
+```
 
 ## `pie-qti-assessment-player`
 
@@ -87,6 +117,7 @@ the callback properties until the custom-element facade is completed.
 import '@pie-qti/player-elements/register';
 
 const el = document.querySelector('pie-qti-assessment-player');
+el.referenceMode = true; // explicit preview/offline mode; see security boundary below
 el.assessmentTestXml = assessmentTestXmlString; // QTI <assessmentTest>...</assessmentTest>
 el.itemBaseUrl = 'https://my-cdn.example.com/qti/'; // used to resolve assessmentItemRef@href
 ```
@@ -97,6 +128,7 @@ el.itemBaseUrl = 'https://my-cdn.example.com/qti/'; // used to resolve assessmen
 import '@pie-qti/player-elements/register';
 
 const el = document.querySelector('pie-qti-assessment-player');
+el.referenceMode = true; // explicit preview/offline mode
 el.assessmentTestXml = assessmentTestXmlString;
 
 // Map keys can be either the assessmentItemRef@href value OR the assessmentItemRef@identifier
@@ -115,14 +147,26 @@ el.config = {
 };
 ```
 
+The assessment element also exposes the same JS-only `.pci` property. It is propagated through
+section rendering to every item player, so no Svelte API or implementation package is required:
+
+```js
+el.pci = {
+  baseUrl: 'https://content.example/assessment/',
+  moduleResolver: trustedPciResolver
+};
+```
+
+The standalone split-pane and vertical section elements expose `.pci` with the same shape.
+
 Navigation and submission modes are read from the `assessmentTest` XML; setting them in `config`
 does not override the document.
 
-> **Reference/demo boundary:** this element currently parses a limited subset of
-> `assessmentTest` and always creates the client-side `ReferenceBackendAdapter`. Correct responses,
-> scoring rules, and item XML therefore reach the browser. It is suitable for demos and low-stakes
-> trusted content, not authoritative or high-stakes delivery. Use `@pie-qti/assessment-player`
-> directly with a production `BackendAdapter` until the custom element supports backend injection.
+> **Reference/demo boundary:** raw `assessmentTest` XML is accepted only after explicitly enabling
+> `referenceMode`; that mode uses the client-side `ReferenceBackendAdapter`, so correct responses,
+> scoring rules, and item XML reach the browser. For authoritative delivery, set the element's
+> `backend` and `initSession` properties (or `assessmentId` plus `candidateId`) instead. The local
+> XML facade still parses only a limited subset of `assessmentTest` semantics.
 
 ### Listen for lifecycle + state events
 

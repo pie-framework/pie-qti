@@ -76,6 +76,7 @@ const DEFAULT_COMPONENT_TAGS_BY_TYPE = {
 	hottextInteraction: { name: 'default-hottext', tagName: 'pie-qti-hottext' },
 	mediaInteraction: { name: 'default-media', tagName: 'pie-qti-media' },
 	customInteraction: { name: 'default-custom', tagName: 'pie-qti-custom' },
+	portableCustomInteraction: { name: 'default-portable-custom', tagName: 'pie-qti-portable-custom' },
 	endAttemptInteraction: { name: 'default-end-attempt', tagName: 'pie-qti-end-attempt' },
 	positionObjectInteraction: { name: 'default-position-object', tagName: 'pie-qti-position-object' },
 	graphicGapMatchInteraction: { name: 'default-graphic-gap-match', tagName: 'pie-qti-graphic-gap-match' },
