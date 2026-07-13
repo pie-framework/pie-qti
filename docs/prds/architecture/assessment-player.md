@@ -1,16 +1,16 @@
 # PRD: Assessment Player
 
 <!--
-  Status: draft
+  Status: needs-update
   Type: architecture
   Packages: @pie-qti/assessment-player
-  Last reviewed: 2026-04-27
+  Last reviewed: 2026-07-13
 -->
 
-**Status:** draft
+**Status:** needs-update
 **Type:** architecture
 **Packages:** `@pie-qti/assessment-player`
-**Last reviewed:** 2026-04-27
+**Last reviewed:** 2026-07-13
 
 ---
 
@@ -133,6 +133,11 @@ State is persisted to `localStorage` → `sessionStorage` → memory (in degrada
 **Rationale:** Making the backend optional at the class level would mean the same code path has two very different security profiles with no structural signal about which is in use. The `ReferenceBackendAdapter` already provides a client-side implementation for demos; hosts choose the security level by which adapter they instantiate.
 **Alternatives considered:** Optional `backend` field with automatic fallback to a built-in reference adapter. Rejected because it makes the insecure path the default.
 **Consequences:** All integrations must provide at least a `ReferenceBackendAdapter`. Code that used the old `AssessmentPlayer` constructor (non-backend flavour) cannot use this class directly.
+
+**Current integration divergence (2026-07-13):** `QtiAssessmentPlayerElement` does not expose a
+backend property or resolver contract. It always constructs `ReferenceBackendAdapter` after
+parsing the supplied XML, making the insecure reference path the custom element's only path. The
+custom element is therefore demo/low-stakes only and does not satisfy this architecture decision.
 
 ### Flat item list at construction, not lazy tree walk
 

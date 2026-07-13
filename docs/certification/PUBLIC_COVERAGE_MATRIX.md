@@ -8,6 +8,11 @@ The machine-readable source of truth is `public-coverage-matrix.json`.
 `bun run test:certification:public` validates that every row below has public
 evidence and runs the mapped tests.
 
+This is a traceability matrix, not a conformance certificate. A cited test may
+cover only construction, extraction, or an adjacent runtime model. The 2026-07-13
+review found that the cited S3/S4 tests do not assert selection/ordering through
+the raw assessment XML ingestion paths.
+
 | Version | Feature | Public evidence | Browser required |
 | --- | --- | --- | --- |
 | QTI 2.2 Advanced | Q2 Advanced choiceInteraction validation | `packages/item-player/src/extraction/extractors/conformance.test.ts` | No |

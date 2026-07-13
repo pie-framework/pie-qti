@@ -5,6 +5,13 @@ docs for `pie-qti`. Official 1EdTech package execution, private evidence
 bundles, checklist work, and submission planning live in the private
 `pie-qti-conformance` project.
 
+> **Evidence boundary (reviewed 2026-07-13):** a matrix row means the mapped
+> project-authored command/test exists and passes. It does not by itself prove
+> schema validation, candidate-operable browser delivery, or exact scoring
+> semantics. In particular, the current S3/S4 rows do not assert raw-XML
+> selection/ordering ingestion. Formal claims require current official-package
+> evidence plus interaction and score assertions against the packed NPM artifacts.
+
 ## Files
 
 | File | Purpose | Update when… |

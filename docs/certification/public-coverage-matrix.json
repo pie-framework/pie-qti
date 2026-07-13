@@ -282,7 +282,7 @@
 			"commandIds": [
 				"assessment-clean-room"
 			],
-			"notes": "No DELIVERY criteria in the official README, but parser/runtime coverage remains mapped for assessment structure changes."
+			"notes": "Tracking row only: the cited test does not currently assert selection or ordering through raw assessment XML ingestion. Do not treat this row as behavioral parser evidence."
 		},
 		{
 			"id": "qti22-advanced-s5",
@@ -606,7 +606,7 @@
 			"commandIds": [
 				"assessment-clean-room"
 			],
-			"notes": "No DELIVERY criteria in the official README, but assessment parser coverage remains mapped."
+			"notes": "Tracking row only: the cited test does not currently assert selection or ordering through raw assessment XML ingestion. Do not treat this row as behavioral parser evidence."
 		},
 		{
 			"id": "qti30-advanced-s5",

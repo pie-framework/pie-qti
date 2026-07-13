@@ -1,16 +1,16 @@
 # PRD: Security Model (sanitization, iframe isolation, Trusted Types)
 
 <!--
-  Status: draft
+  Status: needs-update
   Type: architecture
-  Packages: @pie-qti/item-player
-  Last reviewed: 2026-04-27
+  Packages: @pie-qti/item-player, @pie-qti/default-components, @pie-qti/section-player, @pie-qti/player-elements, @pie-qti/qti-processing, @pie-qti/storage
+  Last reviewed: 2026-07-13
 -->
 
-**Status:** draft  
+**Status:** needs-update
 **Type:** architecture  
-**Packages:** `@pie-qti/item-player`  
-**Last reviewed:** 2026-04-27
+**Packages:** `@pie-qti/item-player`, `@pie-qti/default-components`, `@pie-qti/section-player`, `@pie-qti/player-elements`, `@pie-qti/qti-processing`, `@pie-qti/storage`
+**Last reviewed:** 2026-07-13
 
 ---
 
@@ -23,8 +23,40 @@ URL policy that restricts which schemes and hosts may appear in resource attribu
 optional Trusted Types integration that lets the player emit `TrustedHTML` values for strict
 CSP environments, and an iframe isolation mode that moves the entire item render into a
 cross-origin sandbox. The layers are independently configurable via `PlayerSecurityConfig`.
-Conservative defaults are active without any configuration; riskier capabilities require
-explicit opt-in.
+Conservative defaults are active in the central sanitizer and URL policy without any
+configuration; riskier capabilities require explicit opt-in. The end-to-end rendering pipeline
+currently has two known sanitizer bypasses documented below, so same-DOM rendering of untrusted
+QTI must not be treated as safe until they are closed.
+
+### Current implementation audit (2026-07-13)
+
+- **Critical — section TTS projection:** `extractReadableInteractionSpeechHtml()` serializes
+  prompts and choices directly from the original item XML. `ItemRenderer.svelte` inserts that
+  string with `{@html}` without calling the shared sanitizer. Event-handler markup such as an
+  `img onerror` therefore executes in the host origin.
+- **Critical — gap-match prompt reconstruction:** the gap-match extractor builds `promptText`
+  from raw `outerHTML`; `GapMatchInteraction.svelte` assigns it to `template.innerHTML`. This path
+  bypasses the sanitized `prompt` value and preserves event-handler attributes.
+- **Availability:** parsing limits remain opt-in. Hosts processing untrusted XML must enable them
+  and apply upstream request/package size limits until safe default limits can be enabled.
+- **High — filesystem containment:** `FilesystemBackend` checks
+  `resolved.startsWith(rootDir)`. A sibling path whose name shares the root prefix passes this
+  check, and session identifiers are concatenated without validation. User-influenced paths can
+  therefore escape the configured storage root.
+- **High — XML dependency advisories:** the lockfile pins `@xmldom/xmldom@0.8.11`, used by Node
+  parsing/serialization. The current production audit reports multiple high-severity XML
+  serialization/injection advisories, including recursive traversal/serialization DoS
+  (GHSA-2v35-w6hq-6mfw); upgrade to at least 0.8.13 and refresh the lockfile.
+- **Network boundary:** assessment item-ref fetching accepts hrefs that override the configured
+  base and does not apply `security.urlPolicy`, origin/path containment, timeout, content-type,
+  byte, item-count, or concurrency limits.
+- **Sanitizer hardening:** the denylist preserves inline CSS URL loads and arbitrary host custom
+  elements. A QTI/HTML/MathML/SVG allowlist and a CSS declaration policy are still needed for
+  robust same-DOM handling of hostile content.
+
+Both raw sinks must pass their content through the same `PlayerSecurityConfig`-aware sanitizer and
+receive regression tests with executable event-handler payloads. Prefer constructing the TTS
+projection from already-sanitized presentation data rather than reparsing the original XML.
 
 ---
 
@@ -141,6 +173,18 @@ elements and attributes that have no legitimate use in QTI item bodies.
 - **FR-22:** `IFramePlayerHost` must throw at construction if `allowedOrigins` is empty.
 - **FR-23:** `isQtiIframeEnvelope` must reject any message where `protocol` is not
   `'pie-qti-iframe'` or `version` is not the current protocol version constant.
+- **FR-24 (unmet):** Every QTI-derived HTML sink in item, section, and assessment rendering,
+  including accessibility/TTS projections and interaction-specific prompt reconstruction, must
+  use the shared `PlayerSecurityConfig`-aware sanitizer before `innerHTML` or `{@html}` insertion.
+- **FR-25 (unmet):** Filesystem storage containment must use segment-aware `path.relative()`
+  checks, reject invalid session identifiers, and document the residual symlink race boundary.
+- **FR-26 (unmet):** Assessment item resolution must use a host-configurable resolver with URL
+  policy, same-origin/base containment defaults, abort timeout, response byte/content-type limits,
+  and bounded item count/concurrency.
+- **FR-27 (unmet):** Direct runtime parser/serializer dependencies with known high-severity
+  resource-exhaustion advisories must be upgraded to a patched release before publication.
+- **FR-28 (unmet):** ZIP extraction and upload paths must enforce compressed-input, cumulative
+  decompressed-byte, compression-ratio, file-count, and selected-upload-size limits.
 
 ### Public shared-content API
 

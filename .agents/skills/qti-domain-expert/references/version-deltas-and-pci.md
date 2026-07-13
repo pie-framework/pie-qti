@@ -5,7 +5,7 @@ Distilled, citable reference for reasoning about QTI versions in pie-qti — a Q
 1. **DETECT** which QTI version a package/item is.
 2. Know the **NORMALIZATION / rename mapping** needed so one code path can handle 2.x and 3.0 (and convert between QTI and PIE).
 
-Sources: the 1EdTech QTI 3.0 Final Release migration guide, overview, ASI info model, shared vocabulary, and PCI v1.0 Candidate Final. Items marked `[inferred]` are not stated outright. Cross-check against the sibling reference players (`../qti3-item-player`, `../qti-components`, `../qti-scoring-engine`) for how each construct is actually handled.
+Sources: the 1EdTech QTI 3.0 Final Release migration guide, overview, ASI info model, shared vocabulary, and PCI v1.0 Candidate Final. Items marked `[inferred]` are not stated outright. When sibling reference players such as `../qti3-item-player`, `../qti-components`, or `../qti-scoring-engine` are present, they may be used as non-normative implementation comparisons.
 
 > The migration guide is specifically **APIP → QTI 3.0** (PNP/accessibility) and notes it does not cover changes outside `itemBody`/`apipAccessibility`. It is authoritative for the **naming-convention rule and element sequence**; the full interaction rename table is grounded in the **ASI info model**.
 
@@ -67,6 +67,10 @@ Content Packaging manifests still use camelCase (CP standard, not QTI):
 - **Attributes:** camelCase → kebab-case **but no `qti-` prefix**. `timeDependent` → `time-dependent`, `responseIdentifier` → `response-identifier`, `baseType` → `base-type`, `maxChoices` → `max-choices`.
 - **Vocabulary / enumerated attribute *values* stay camelCase.** e.g. `cardinality="single"`, `base-type="point"`, `view="candidate"`, mapping/operator vocab values are unchanged. Only element & attribute *names* change.
 - **HTML elements are not prefixed** (`<p>`, `<span>`, `<img>`, `<table>` stay as-is); only QTI-defined elements get `qti-`.
+- This also applies to resource elements used inside QTI interactions: `<object>`, `<param>`,
+  `<audio>`, `<video>`, and `<source>` remain HTML names. Do not invent `qti-object` or
+  `qti-param` mappings. MathML, SVG, and other foreign vocabularies likewise retain their native
+  names/namespaces.
 
 Because the transform is mechanical and reversible, one name map normalizes 3.0 ↔ a canonical camelCase shape (or 2.x → canonical kebab); everything else below is the list of cases where the mapping is *not* purely mechanical.
 
@@ -94,6 +98,10 @@ Declarations / structure:
 | _(new in 3.0)_ | `qti-assessment-stimulus-ref`, `qti-companion-materials-info` |
 
 Interactions:
+
+> **Terminology:** a QTI **composite item** is an assessment item that contains more than one
+> interaction. It is not a distinct interaction type, and there is no standard
+> `qti-composite-interaction` element.
 
 | 2.x | 3.0 |
 |---|---|
@@ -141,6 +149,11 @@ Response / outcome / template processing:
 
 ## 3. Other structural/semantic 2.x → 3.0 changes that affect rendering/conversion
 
+- **Position-object hierarchy is unchanged in the important direction.** A
+  `positionObjectStage` / `qti-position-object-stage` is the parent containing the background
+  `<object>` and one or more child `positionObjectInteraction` /
+  `qti-position-object-interaction` elements; each interaction contains its draggable `<object>`.
+  Do not model the stage as a child of the interaction.
 - **Element sequence in the item changed.** The 3.0 `qti-assessment-item` child order is: `qti-context-declaration` → `qti-response-declaration` → `qti-outcome-declaration` → `qti-template-declaration` → `qti-template-processing` → `qti-assessment-stimulus-ref` → `qti-companion-materials-info` → `qti-stylesheet` → `qti-item-body` → `qti-catalog-info` → `qti-response-processing` → `qti-modal-feedback`. `qti-context-declaration` and `qti-catalog-info` are **new in 3.0** with no 2.x equivalent.
 - **Accessibility model rebuilt (APIP → catalogs).** 2.x APIP `apipAccessibility`/`access` elements with **inclusion orders** are replaced by `qti-catalog-info` → `qti-catalog` → `qti-card`. Direction reverses: the body **points to** catalogs by id, and **inclusion orders are removed** — presentation order is just document (DOM) order. Accessibility variants are re-associated by reference, not by ordered include lists.
 - **Stimulus is first-class in 3.0.** `qti-assessment-stimulus-ref` references a separate stimulus object (resource type `imsqti_stimulus_xmlv3p0`). In 2.1 a shared passage was an idiom (shared content / `<object>` references); QTI 2.2 introduces a stimulus object too. Resolve stimulus refs to the actual content before rendering/conversion. _[inferred: exact 2.1 stimulus idiom varies by authoring tool, e.g. ExamView duplicates content]_

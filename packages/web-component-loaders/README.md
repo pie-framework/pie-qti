@@ -10,8 +10,16 @@ This package provides small helper functions that:
 
 ## Install / dependency expectations
 
-It declares `@pie-qti/player-elements` and `@pie-qti/default-components` as optional peer dependencies, because the loader imports their browser registration modules at runtime.
-It also declares `@pie-qti/theme-daisyui` as an optional peer dependency for the default runtime stylesheet.
+It declares `@pie-qti/player-elements` and `@pie-qti/default-components` as optional peer dependencies,
+because the loader imports their browser registration modules at runtime. They are not installed
+with the loader, so a complete default-runtime install currently requires:
+
+```bash
+npm install @pie-qti/web-component-loaders @pie-qti/player-elements @pie-qti/default-components
+```
+
+It also declares `@pie-qti/theme-daisyui` as an optional peer dependency for consumers that import
+the default runtime stylesheet. Install that package too when using the CSS export.
 
 ## CSS
 
@@ -60,3 +68,4 @@ export function QtiPlayerBoot() {
 
 - **SSR**: `loadPieQtiPlayerElements()` returns immediately when `window` is not available.
 - **Idempotency**: load promises are stored on `globalThis.__pieQtiWebComponentLoaders__` to prevent duplicate imports.
+- **Missing peers**: in a browser, the load promise rejects if either runtime peer is absent.
