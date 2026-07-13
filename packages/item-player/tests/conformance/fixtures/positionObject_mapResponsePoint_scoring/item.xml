@@ -27,13 +27,12 @@
 
   <itemBody>
     <p>Position Object interaction with mapResponsePoint scoring test</p>
-    <positionObjectInteraction responseIdentifier="RESPONSE" maxChoices="3">
+    <positionObjectStage id="scoring-stage">
       <object type="image/png" data="test-canvas.png" width="300" height="300"/>
-      <positionObjectStage identifier="OBJ1" matchMax="3">
-        <object type="image/png" data="marker.png" width="20" height="20"/>
-        Marker
-      </positionObjectStage>
-    </positionObjectInteraction>
+      <positionObjectInteraction responseIdentifier="RESPONSE" maxChoices="3">
+        <object type="image/png" data="marker.png" width="20" height="20">Marker</object>
+      </positionObjectInteraction>
+    </positionObjectStage>
   </itemBody>
 
   <responseProcessing>

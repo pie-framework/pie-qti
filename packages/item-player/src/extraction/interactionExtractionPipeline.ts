@@ -36,7 +36,10 @@ export function extractInteractionData({
 		if (!result.success) continue;
 
 		interactions.push({
-			type: discovered.normalizedType as any,
+			// A QTI 2.x portableCustomInteraction is nested in customInteraction. Its
+			// extractor supplies the canonical renderer type so it does not hit the
+			// generic unsupported-custom fallback.
+			type: (result.data?.type ?? discovered.normalizedType) as any,
 			responseId: discovered.responseIdentifier,
 			...result.data,
 		});

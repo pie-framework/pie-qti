@@ -4,15 +4,21 @@ A modern assessment item player for QTI 2.2 and QTI 3.0 content, with role/view-
 
 ## Features
 
-- ✅ **21 QTI Interaction Types Supported** - QTI standard interaction set across 2.2/3.0 naming variants
+- **21 standard interaction extractors** across QTI 2.2/3.0 naming variants; known rendering and conformance gaps are tracked in `docs/SPEC-GAPS-PLAN.md`
 - ✅ **QTI Role/View Actors** - candidate, scorer, author, tutor, proctor, testConstructor
 - ✅ **Adaptive Items** - Multi-attempt workflow with progressive feedback
 - ✅ **Full Keyboard Accessibility** (follows WCAG 2.2 Level AA guidelines)
 - ✅ **Client-Side Response Processing** with 45/45 QTI operators
 - ✅ **Framework-Agnostic Core** with a **Web Component interaction layer** (default implementations authored in Svelte)
 - ✅ **TypeScript** with full type definitions
-- ✅ **Minimal Dependencies** (node-html-parser for XML parsing)
+- **No Svelte dependency for consumers of the framework-agnostic core**
 - ✅ **Iframe mode (reference)** - Optional host helper + postMessage protocol for iframe-isolated deployments
+
+> **Security boundary (2026-07-13):** QTI-derived same-DOM sinks, including gap-match prompts and
+> section TTS projections, use the shared sanitizer and have executable-markup regression coverage.
+> The item custom element enables parsing limits by default. Sanitization is not a JavaScript
+> sandbox: for content that is not trusted to run in the host origin, prefer a cross-origin
+> sandboxed iframe. See `docs/prds/architecture/security.md` in the repository.
 
 ## Installation
 
@@ -30,7 +36,12 @@ npm install @pie-qti/item-player
 
 ### Web Component Host Integration
 
-For browser applications, the public rendering boundary is the custom element:
+For browser applications, the public rendering boundary is the custom element. The default
+interaction implementations are a separate package, so install both packages:
+
+```bash
+npm install @pie-qti/item-player @pie-qti/default-components
+```
 
 ```typescript
 import '@pie-qti/default-components/plugins';
@@ -41,9 +52,10 @@ import '@pie-qti/item-player/element';
 <pie-qti-item-player item-xml="<assessmentItem ...></assessmentItem>" role="author"></pie-qti-item-player>
 ```
 
-The package does not require hosts to import Svelte components. Internal Svelte
-components are compiled into the custom element bundle and are not part of the
-public package contract.
+The package does not require hosts to import Svelte components or install Svelte. Internal Svelte
+components are compiled into the custom element bundle. Importing
+`@pie-qti/default-components/plugins` is currently required; `@pie-qti/default-components` is not a
+dependency of this package.
 
 ### Core Player (Framework-Agnostic)
 

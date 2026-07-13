@@ -527,7 +527,7 @@ describe('ReferenceBackendAdapter', () => {
 			expect(player1.getNavigationState().totalItems).toBe(5);
 		});
 
-		it('selection + ordering: shuffles first then slices to correct count', async () => {
+		it('selection + ordering: selects in source order before applying ordering', async () => {
 			const { AssessmentPlayer } = await import('../src/core/AssessmentPlayer.js');
 			const assessment = makeSelectAssessment(3, true, 5);
 			adapter.registerAssessment('select-test', assessment);
@@ -538,6 +538,61 @@ describe('ReferenceBackendAdapter', () => {
 			});
 
 			expect(player.getNavigationState().totalItems).toBe(3);
+		});
+
+		it('selection always includes required children', async () => {
+			const { AssessmentPlayer } = await import('../src/core/AssessmentPlayer.js');
+			const assessment = makeSelectAssessment(2, false, 5);
+			assessment.navigationMode = 'nonlinear';
+			assessment.testParts[0]!.navigationMode = 'nonlinear';
+			assessment.testParts[0]!.sections[0]!.assessmentItemRefs[4]!.required = true;
+			adapter.registerAssessment('select-test', assessment);
+			const player = await AssessmentPlayer.create({
+				backend: adapter,
+				initSession: { assessmentId: 'select-test', candidateId: 'required' },
+				rng: () => 0,
+			});
+
+			const selected: string[] = [];
+			for (let index = 0; index < player.getNavigationState().totalItems; index++) {
+				await player.navigateTo(index);
+				selected.push(player.getCurrentItem()!.identifier);
+			}
+			expect(selected).toContain('item5');
+			player.destroy();
+		});
+
+		it('ordering retains fixed children at their post-selection positions', async () => {
+			const { AssessmentPlayer } = await import('../src/core/AssessmentPlayer.js');
+			const assessment = makeSelectAssessment(5, true, 5);
+			assessment.navigationMode = 'nonlinear';
+			assessment.testParts[0]!.navigationMode = 'nonlinear';
+			assessment.testParts[0]!.sections[0]!.assessmentItemRefs[1]!.fixed = true;
+			adapter.registerAssessment('select-test', assessment);
+			const player = await AssessmentPlayer.create({
+				backend: adapter,
+				initSession: { assessmentId: 'select-test', candidateId: 'fixed' },
+				rng: () => 0,
+			});
+
+			await player.navigateTo(1);
+			expect(player.getCurrentItem()?.identifier).toBe('item2');
+			player.destroy();
+		});
+
+		it('rejects a selection smaller than its required child count', async () => {
+			const { AssessmentPlayer } = await import('../src/core/AssessmentPlayer.js');
+			const assessment = makeSelectAssessment(1, false, 3);
+			assessment.testParts[0]!.sections[0]!.assessmentItemRefs[0]!.required = true;
+			assessment.testParts[0]!.sections[0]!.assessmentItemRefs[1]!.required = true;
+			adapter.registerAssessment('select-test', assessment);
+
+			await expect(
+				AssessmentPlayer.create({
+					backend: adapter,
+					initSession: { assessmentId: 'select-test', candidateId: 'invalid-required' },
+				}),
+			).rejects.toThrow('required components');
 		});
 	});
 });

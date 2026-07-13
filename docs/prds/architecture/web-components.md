@@ -1,16 +1,16 @@
 # PRD: Web Component Infrastructure
 
 <!--
-  Status: draft
+  Status: needs-update
   Type: architecture
   Packages: @pie-qti/default-components, @pie-qti/player-elements, @pie-qti/web-component-loaders
-  Last reviewed: 2026-04-27
+  Last reviewed: 2026-07-13
 -->
 
-**Status:** draft
+**Status:** needs-update
 **Type:** architecture
 **Packages:** `@pie-qti/default-components`, `@pie-qti/player-elements`, `@pie-qti/web-component-loaders`
-**Last reviewed:** 2026-04-27
+**Last reviewed:** 2026-07-13
 
 ---
 
@@ -20,7 +20,27 @@ Three packages form the web component layer of the QTI player:
 
 - **`@pie-qti/default-components`** — Svelte 5 components compiled as custom elements (`customElement: true`), one per QTI interaction type. Each component lives in `src/plugins/<type>/`. The package also exports `registerDefaultComponents(registry)` to wire the custom element tag names into the item player's `ComponentRegistry`.
 - **`@pie-qti/player-elements`** — Vanilla custom elements (`QtiItemPlayerElement`, `QtiAssessmentPlayerElement`) that mount and manage Svelte player components. These are the public-facing HTML elements that host applications drop into a page.
-- **`@pie-qti/web-component-loaders`** — A single idempotent loader function (`loadPieQtiPlayerElements`) that dynamically imports and awaits registration of the player elements and bundled default interaction elements. Safe to call from multiple entry points without double-registering.
+- **`@pie-qti/web-component-loaders`** — A single idempotent loader function (`loadPieQtiPlayerElements`) that dynamically imports and awaits the self-contained default runtime. Safe to call from multiple entry points without double-registering.
+
+### Current implementation audit (2026-07-13)
+
+This PRD describes the intended public contract. The following implementation gaps remain:
+
+- `@pie-qti/player-elements/register` now owns a complete default runtime, including the player and
+  default interaction elements. Its main entry is registration-free and SSR-safe; manual/custom
+  interaction hosts use the explicitly browser-only `elements` or `register-players` subpaths.
+- Svelte is bundled into the published JavaScript and is not installed by consumers. The public
+  declaration graph nevertheless exposes implementation packages and `BaseSvelteMountElement`, so
+  the type/API boundary is not yet implementation-independent.
+- The item element now exposes typed, bubbling/composed `ready`, `response-change`, `submit`, and
+  `complete` events plus imperative `submit()`. The remaining FR-9 gap is the `identifier`, `title`,
+  and `extendedTextEditor` facade.
+- The assessment element now accepts an injected authoritative backend/session and requires
+  explicit `referenceMode` before constructing `ReferenceBackendAdapter`. Its local XML parser still
+  preserves only a small subset of `assessmentTest` and silently drops valid test semantics such as
+  selection, ordering, branching, timing, and assessment-level outcome processing.
+
+Resolve the package boundary and facade contract before promoting this PRD to `current`.
 
 ---
 
@@ -82,7 +102,7 @@ The component is included via `<ShadowBaseStyles />` at the top of each interact
 
 ## QTI specification alignment
 
-- **Spec version(s):** QTI 2.2 / 3.0
+- **Spec version(s):** QTI 2.1 / 2.2 / 3.0
 - **Spec section(s):** §4 assessmentItem interaction rendering; QTI 3.0 §7 web component rendering model
 - **Known divergences:** QTI 3.0 defines a `qti-change` event contract with specific detail shape; this implementation follows that contract (`{ responseId, value, timestamp }`). The `composed: true` flag is not mentioned in QTI 2.2 but is required for Shadow DOM use.
 
@@ -98,10 +118,10 @@ The component is included via `<ShadowBaseStyles />` at the top of each interact
 - **FR-6:** `qti-change` SHALL not be dispatched when `role !== 'candidate'` (e.g., scorer or preview mode where the interaction is display-only).
 - **FR-7:** Every interaction component SHALL include `<ShadowBaseStyles />` to provide usable styling when the host does not load DaisyUI.
 - **FR-8:** Every interaction component SHALL expose a `part="root"` on its outermost element, and `part="option"`, `part="label"`, `part="input"`, `part="text"` (or equivalent semantic part names) for host-side CSS customisation via `::part()`.
-- **FR-9:** `QtiItemPlayerElement` SHALL expose JS property setters and getters for `itemXml`, `identifier`, `title`, `role`, `responses`, `security`, and `extendedTextEditor`, in addition to the equivalent kebab-case HTML attributes.
+- **FR-9 (partially met):** `QtiItemPlayerElement` SHALL expose JS property setters and getters for `itemXml`, `identifier`, `title`, `role`, `responses`, `security`, and `extendedTextEditor`, in addition to the equivalent kebab-case HTML attributes. `itemXml`, `role`, `responses`, and `security` are implemented; `identifier`, `title`, and `extendedTextEditor` remain.
 - **FR-10:** `QtiItemPlayerElement` SHALL dispatch a `response-change` event with `{ responseId, value, responses }` when the mounted player reports a response change.
 - **FR-11:** `QtiItemPlayerElement` SHALL dispatch a `ready` event (microtask-queued) after `connectedCallback`.
-- **FR-12:** `loadPieQtiPlayerElements()` SHALL be idempotent: calling it N times SHALL result in exactly one dynamic load and SHALL resolve only after `pie-qti-item-player`, `pie-assessment-player`, and bundled default interaction custom elements are defined.
+- **FR-12:** `loadPieQtiPlayerElements()` SHALL be idempotent: calling it N times SHALL result in exactly one dynamic load and SHALL resolve only after `pie-qti-item-player`, `pie-qti-assessment-player`, and default interaction custom elements are defined.
 - **FR-13:** Interaction components SHALL use `typesetAction` to trigger host-provided math typesetting after render and on DOM mutations.
 - **FR-14:** Interaction components in `disabled` state SHALL render non-interactive (native input elements with `disabled`, no `qti-change` events).
 
@@ -128,10 +148,10 @@ The component is included via `<ShadowBaseStyles />` at the top of each interact
 
 ### Browser loading: default loader plus lower-level imports
 
-**Decision:** Host applications should use `loadPieQtiPlayerElements()` from `@pie-qti/web-component-loaders` for the bundled browser runtime. The loader imports `@pie-qti/player-elements/register` and `@pie-qti/default-components/plugins`, dedupes concurrent calls, and waits for the player and default interaction custom elements to be defined.
+**Decision:** Host applications should use `loadPieQtiPlayerElements()` from `@pie-qti/web-component-loaders` for the bundled browser runtime. The loader imports the self-contained `@pie-qti/player-elements/register` entry, dedupes concurrent calls, and waits for the player and default interaction custom elements to be defined.
 **Rationale:** The common host contract should be one loader call, not a list of internal packages the host must remember to import. The lower-level side-effect imports remain available for advanced consumers that supply custom interaction implementations or control registration order.
 **Alternatives considered:** Auto-registration on import of the main package entry point. Rejected because server-side transforms and headless consumers should not trigger browser custom-element registration.
-**Consequences:** Apps embedding the bundled runtime no longer need to import `@pie-qti/default-components/plugins` directly. Custom renderer hosts can still import lower-level entries and register alternative components intentionally.
+**Consequences:** Apps embedding the default runtime do not import `@pie-qti/default-components/plugins` directly. Custom renderer hosts use `@pie-qti/player-elements/elements` or `@pie-qti/player-elements/register-players` and register alternative components intentionally. The main package entry remains registration-free for SSR and non-browser tooling.
 
 ### `parseJsonProp` as explicit call, not an automatic Svelte transform
 
@@ -193,13 +213,17 @@ Every interaction component exposes at minimum:
 | `typeset` | `(el: HTMLElement) => void` | Host math typesetting callback |
 | `outcomeValues` | `Record<string, any>` | Used by `processFeedbackInline` for inline feedback display |
 
-### `BaseSvelteMountElement` lifecycle contract
+### Player-element mount lifecycle contract
 
-`QtiItemPlayerElement` and `QtiAssessmentPlayerElement` extend this class.
+`QtiAssessmentPlayerElement` and the section elements share `BaseSvelteMountElement`.
+`QtiItemPlayerElement` owns the equivalent mount controller directly so its registration-free class
+can also back the legacy `@pie-qti/item-player/element` entry.
 
-- `connectedCallback()` → `_mountOrUpdate()` → `mount(this.Component, { target: container, props: getProps() })`
-- `attributeChangedCallback()` → updates private fields → `#syncState()` → `_mountOrUpdate()`
-- `disconnectedCallback()` → `unmount(instance)` → removes container div
+- Assessment/section `connectedCallback()` → `_mountOrUpdate()` →
+  `mount(this.Component, { target: container, props: getProps() })`.
+- Item `connectedCallback()` → its `SvelteMountController.mountOrUpdate()`; property/attribute changes
+  update controller props and coalesce a remount when the Svelte instance has no `$set`.
+- Every player element's `disconnectedCallback()` unmounts its instance and removes the container.
 
 The container `div` uses `display: contents` so it does not affect layout.
 
@@ -325,7 +349,10 @@ AC-E3: QtiItemPlayerElement disconnectedCallback cleans up
 
 - [ ] `textEntryInteraction` and `inlineChoiceInteraction` are currently handled as inline renderers inside `ItemBody.svelte` rather than as separate custom elements. Should they be promoted to standalone web components for consistency? What are the implications for inline-within-content rendering?
 - [ ] The `ShadowBaseStyles` component duplicates a subset of DaisyUI class definitions. When DaisyUI 5 changes its class names (it is moving to `btn-primary` → `btn btn-primary` semantics in some versions), these need to be kept in sync. Is there a test or CI check that catches this drift?
-- [ ] `QtiAssessmentPlayerElement` attributes and events are not documented here (the source was not fully read). This PRD should be extended with that element's contract once reviewed.
+- [x] `@pie-qti/player-elements/register` owns complete default-runtime registration;
+  `elements` and `register-players` retain lower-level custom-renderer paths. The loader owns the
+  optional host stylesheet export.
+- [ ] Define a facade-owned assessment config and secure backend/resolver injection contract without exposing `BackendAssessmentPlayerConfig` or other implementation-package types.
 
 ---
 

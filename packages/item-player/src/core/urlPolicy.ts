@@ -37,6 +37,25 @@ function allowHost(hostname: string, policy: UrlPolicyConfig): boolean {
 	return allow.includes(hostname);
 }
 
+function sanitizeAbsoluteHttpUrl(
+	raw: string,
+	policy: UrlPolicyConfig & typeof DEFAULT_POLICY
+): string | null {
+	let url: URL;
+	try {
+		url = new URL(raw);
+	} catch {
+		return null;
+	}
+
+	const protocol = url.protocol.toLowerCase();
+	if (protocol === 'https:' && !policy.allowHttps) return null;
+	if (protocol === 'http:' && !policy.allowHttp) return null;
+	if (protocol !== 'https:' && protocol !== 'http:') return null;
+	if (!allowHost(url.hostname, policy)) return null;
+	return url.toString();
+}
+
 function sanitizeDataUrl(raw: string, kind: UrlKind, policy: UrlPolicyConfig & typeof DEFAULT_POLICY): string | null {
 	const s = raw.toLowerCase().trim();
 	if (!s.startsWith('data:')) return null;
@@ -67,8 +86,14 @@ export function sanitizeResourceUrl(raw: string, policy?: UrlPolicyConfig, kind:
 	if (dataOk) return dataOk;
 	if (compact.toLowerCase().startsWith('data:')) return null;
 
-	// Protocol-relative URLs are treated as network loads and blocked by default.
-	if (safeValue.startsWith('//')) return p.allowProtocolRelative ? `https:${safeValue}` : null;
+	// URL parsers treat any two leading slash/backslash characters as a
+	// protocol-relative network URL (for example `\\\\tracker.example\\pixel`).
+	// Normalize that form before applying the protocol and host policy.
+	if (/^[\\/]{2}/.test(safeValue)) {
+		if (!p.allowProtocolRelative) return null;
+		const protocolRelative = safeValue.replace(/\\/g, '/');
+		return sanitizeAbsoluteHttpUrl(`https:${protocolRelative}`, p);
+	}
 
 	if (compact.toLowerCase().startsWith('blob:')) {
 		if (kind === 'img' && p.allowBlobImages) return compact;
@@ -85,30 +110,19 @@ export function sanitizeResourceUrl(raw: string, policy?: UrlPolicyConfig, kind:
 			try {
 				// Strip leading '/' to make URL constructor resolve relative to base path, not origin
 				const relativePath = safeValue.startsWith('/') ? safeValue.slice(1) : safeValue;
-				return new URL(relativePath, p.assetBaseUrl).toString();
+				const resolved = new URL(relativePath, p.assetBaseUrl).toString();
+				// A base URL is part of the policy boundary: resolving a relative
+				// value must not bypass scheme or allowed-host checks.
+				return sanitizeAbsoluteHttpUrl(resolved, p);
 			} catch {
-				// assetBaseUrl resolution failed; return the raw relative path as-is
-				return safeValue;
+				return null;
 			}
 		}
 		return safeValue;
 	}
 
 	// Absolute URLs: allow only http/https (by policy) and optional host allowlist.
-	let u: URL;
-	try {
-		u = new URL(compact);
-	} catch {
-		return null;
-	}
-
-	const proto = u.protocol.toLowerCase();
-	if (proto === 'https:' && !p.allowHttps) return null;
-	if (proto === 'http:' && !p.allowHttp) return null;
-	if (proto !== 'https:' && proto !== 'http:') return null;
-
-	if (!allowHost(u.hostname, p)) return null;
-	return u.toString();
+	return sanitizeAbsoluteHttpUrl(compact, p);
 }
 
 function stripUrlControls(value: string): string {
@@ -123,4 +137,3 @@ function isUrlControl(char: string): boolean {
 	const code = char.charCodeAt(0);
 	return code <= 0x1F || code === 0x7F;
 }
-

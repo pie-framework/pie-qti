@@ -8,6 +8,11 @@ The machine-readable source of truth is `public-coverage-matrix.json`.
 `bun run test:certification:public` validates that every row below has public
 evidence and runs the mapped tests.
 
+This is a traceability matrix, not a conformance certificate. A cited test may
+cover only construction, extraction, or an adjacent runtime model. QTI 2.2 S3/S4
+now includes raw assessment-XML ingestion coverage; the QTI 3.0 row remains
+model-level evidence pending an equivalent raw-XML case.
+
 | Version | Feature | Public evidence | Browser required |
 | --- | --- | --- | --- |
 | QTI 2.2 Advanced | Q2 Advanced choiceInteraction validation | `packages/item-player/src/extraction/extractors/conformance.test.ts` | No |
@@ -19,7 +24,7 @@ evidence and runs the mapped tests.
 | QTI 2.2 Advanced | Q13 matchInteraction | `packages/item-player/tests/conformance/run-fixtures.test.ts`, `packages/item-player/src/extraction/extractors/conformance.test.ts` | No |
 | QTI 2.2 Advanced | I17 composite item | `packages/item-player/tests/conformance/run-fixtures.test.ts`, `packages/item-player/src/extraction/extractors/conformance.test.ts` | No |
 | QTI 2.2 Advanced | P7 QTI metadata | `packages/item-player/src/extraction/extractors/conformance.test.ts` | No |
-| QTI 2.2 Advanced | S3/S4 selection and ordering | `packages/assessment-player/tests/conformance-qti22-advanced.test.ts` | No |
+| QTI 2.2 Advanced | S3/S4 selection and ordering | `packages/assessment-player/tests/conformance-qti22-advanced.test.ts`, `packages/assessment-player/tests/assessment-xml-structure.test.ts` | No |
 | QTI 2.2 Advanced | S5 rubricBlock in sections | `packages/assessment-player/tests/conformance-qti22-advanced.test.ts`, `apps/demo/tests/playwright/public-certification.pw.ts` | Yes |
 | QTI 2.2 Advanced | T1 outcomeDeclaration | `packages/assessment-player/tests/conformance-qti22-advanced.test.ts` | No |
 | QTI 2.2 Advanced | T5 itemSessionControl | `packages/assessment-player/tests/conformance-qti22-advanced.test.ts` | No |

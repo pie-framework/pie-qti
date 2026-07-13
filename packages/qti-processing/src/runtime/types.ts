@@ -1,4 +1,4 @@
-export type Cardinality = 'single' | 'multiple' | 'ordered';
+export type Cardinality = 'single' | 'multiple' | 'ordered' | 'record';
 
 export type BaseType =
 	| 'boolean'
@@ -11,8 +11,7 @@ export type BaseType =
 	| 'directedPair'
 	| 'point'
 	| 'duration'
-	| 'file'
-	| 'record';
+	| 'file';
 
 export type QtiValue =
 	| {
@@ -22,7 +21,7 @@ export type QtiValue =
 	  }
 	| {
 			kind: 'value';
-			baseType: BaseType;
+			baseType?: BaseType;
 			cardinality: Cardinality;
 			value: unknown;
 	  }
@@ -52,7 +51,8 @@ export interface Mapping {
 
 export interface Declaration {
 	identifier: string;
-	baseType: BaseType;
+	/** Omitted for record cardinality, as required by QTI. */
+	baseType?: BaseType;
 	cardinality: Cardinality;
 	/**
 	 * Parsed <defaultValue> from the declaration. Used by <setDefaultValue> to reset the variable.
@@ -99,5 +99,4 @@ export interface AreaMapping {
 	lowerBound?: number;
 	upperBound?: number;
 }
-
 

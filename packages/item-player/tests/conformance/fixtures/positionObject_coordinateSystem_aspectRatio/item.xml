@@ -35,14 +35,13 @@
 
   <itemBody>
     <p>Coordinate system test with 300x200 (non-square) canvas</p>
-    <positionObjectInteraction responseIdentifier="RESPONSE" maxChoices="3">
+    <positionObjectStage id="coordinate-stage">
       <!-- CRITICAL: These dimensions define the coordinate space -->
       <object type="image/png" data="canvas-300x200.png" width="300" height="200"/>
-      <positionObjectStage identifier="MARKER" matchMax="3">
-        <object type="image/png" data="marker.png" width="15" height="15"/>
-        Marker
-      </positionObjectStage>
-    </positionObjectInteraction>
+      <positionObjectInteraction responseIdentifier="RESPONSE" maxChoices="3">
+        <object type="image/png" data="marker.png" width="15" height="15">Marker</object>
+      </positionObjectInteraction>
+    </positionObjectStage>
   </itemBody>
 
   <responseProcessing>

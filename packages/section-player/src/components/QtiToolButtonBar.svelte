@@ -1,6 +1,4 @@
 <script lang="ts">
-	import '@pie-players/pie-assessment-toolkit/components/item-toolbar-element';
-	import '@pie-players/pie-assessment-toolkit/components/pie-assessment-toolkit-element';
 	import {
 		assessmentToolkitRegionScopeContext,
 		assessmentToolkitShellContext,
@@ -44,6 +42,7 @@
 	let regionScopeRoot: ContextRoot | null = null;
 	let toolkitElement = $state<HTMLElement | null>(null);
 	let toolkitCoordinator = $state<ToolkitCoordinator | null>(null);
+	let toolkitElementsReady = $state(false);
 	const visibleTools = $derived(tools.filter((tool) => tool.enabled !== false));
 	const hasTts = $derived(visibleTools.some((tool) => tool.toolId === 'textToSpeech'));
 	const calculatorTool = $derived(visibleTools.find((tool) => tool.toolId === 'calculator'));
@@ -137,6 +136,24 @@
 			return targets.length > 0 ? targets : ranges;
 		},
 	};
+
+	$effect(() => {
+		if (visibleTools.length === 0 || toolkitElementsReady) return;
+		let cancelled = false;
+		void Promise.all([
+			import('@pie-players/pie-assessment-toolkit/components/item-toolbar-element'),
+			import('@pie-players/pie-assessment-toolkit/components/pie-assessment-toolkit-element'),
+		])
+			.then(() => {
+				if (!cancelled) toolkitElementsReady = true;
+			})
+			.catch((error) => {
+				if (!cancelled) console.error('Unable to load assessment toolkit elements:', error);
+			});
+		return () => {
+			cancelled = true;
+		};
+	});
 	const regionScopeValue = $derived.by((): QtiRegionScopeContext | null => {
 		if (!effectiveScopeElement) return null;
 		return {
@@ -495,7 +512,7 @@
 	});
 </script>
 
-{#if visibleTools.length > 0}
+{#if visibleTools.length > 0 && toolkitElementsReady}
 	<span bind:this={shellHost} class="qti-pie-tool-shell">
 		{#if toolkitCoordinator}
 			<pie-assessment-toolkit

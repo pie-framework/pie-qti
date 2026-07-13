@@ -15,8 +15,31 @@ import type {
 } from './types.js';
 import type { ElementNameMapper } from '@pie-qti/qti-common';
 import { Qti2xElementNameMapper } from '@pie-qti/qti-common';
+import { parseXml, serializeXml } from '../xml/parse.js';
 
 export type ProcessingScope = 'item' | 'test';
+export type ProcessingMode = 'template' | 'response' | 'outcome';
+
+export interface ProcessingFragmentRequest {
+	/** The href exactly as authored on xi:include. */
+	href: string;
+	mode: ProcessingMode;
+	scope: ProcessingScope;
+	/** Zero-based include nesting depth. */
+	depth: number;
+}
+
+/**
+ * Resolves an external QTI processing fragment from a host-controlled package source.
+ *
+ * The processing engine deliberately does not fetch URLs itself. Package/browser hosts
+ * should resolve the href against the current item, enforce package containment, and
+ * return the fragment XML (or a parsed document/element). Returning null allows an
+ * authored xi:fallback to be used.
+ */
+export type ProcessingFragmentResolver = (
+	request: ProcessingFragmentRequest,
+) => string | Document | Element | null | undefined;
 
 /**
  * Options for building AST from QTI processing XML.
@@ -28,56 +51,73 @@ export interface BuildOptions {
 	 * Defaults to Qti2xElementNameMapper (primary supported QTI format).
 	 */
 	elementNameMapper?: ElementNameMapper;
+	/** Host-owned resolver for external xi:include processing fragments. */
+	resolveProcessingFragment?: ProcessingFragmentResolver;
+	/** Maximum nested xi:include depth. Default: 16. */
+	maxProcessingFragmentDepth?: number;
+	/** Maximum cumulative XML characters returned by the resolver. Default: 2 MiB. */
+	maxProcessingFragmentCharacters?: number;
+}
+
+export interface ProcessingBuildOptions {
+	elementNameMapper?: ElementNameMapper;
+	resolveProcessingFragment?: ProcessingFragmentResolver;
+	maxProcessingFragmentDepth?: number;
+	maxProcessingFragmentCharacters?: number;
 }
 
 export function buildTemplateProcessingAst(
 	templateProcessingEl: Element,
-	options?: { elementNameMapper?: ElementNameMapper }
+	options?: ProcessingBuildOptions,
 ): ProcessingProgram {
 	const scope: ProcessingScope = 'item';
+	const buildOptions = { scope, ...options };
 	return {
 		kind: 'program',
 		id: newAstId('program'),
-		statements: buildStatements(childElements(templateProcessingEl), 'template', {
-			scope,
-			elementNameMapper: options?.elementNameMapper,
-		}),
+		statements: buildStatements(childElements(templateProcessingEl), 'template', buildOptions),
 	};
 }
 
 export function buildResponseProcessingAst(
 	responseProcessingEl: Element,
-	options?: { elementNameMapper?: ElementNameMapper }
+	options?: ProcessingBuildOptions,
 ): ProcessingProgram {
 	const scope: ProcessingScope = 'item';
+	const buildOptions = { scope, ...options };
 	return {
 		kind: 'program',
 		id: newAstId('program'),
-		statements: buildStatements(childElements(responseProcessingEl), 'response', {
-			scope,
-			elementNameMapper: options?.elementNameMapper,
-		}),
+		statements: buildStatements(childElements(responseProcessingEl), 'response', buildOptions),
 	};
 }
 
 export function buildOutcomeProcessingAst(
 	outcomeProcessingEl: Element,
-	options?: { scope?: ProcessingScope; elementNameMapper?: ElementNameMapper }
+	options?: ProcessingBuildOptions & { scope?: ProcessingScope },
 ): ProcessingProgram {
 	const scope: ProcessingScope = options?.scope ?? 'item';
+	const buildOptions = { ...options, scope };
 	return {
 		kind: 'program',
 		id: newAstId('program'),
-		statements: buildStatements(childElements(outcomeProcessingEl), 'outcome', {
-			scope,
-			elementNameMapper: options?.elementNameMapper,
-		}),
+		statements: buildStatements(childElements(outcomeProcessingEl), 'outcome', buildOptions),
 	};
 }
 
-type StatementMode = 'template' | 'response' | 'outcome';
+type StatementMode = ProcessingMode;
 
-function buildStatements(els: Element[], mode: StatementMode, options: BuildOptions): StatementNode[] {
+interface ProcessingFragmentState {
+	stack: string[];
+	totalCharacters: number;
+}
+
+function buildStatements(
+	els: Element[],
+	mode: StatementMode,
+	options: BuildOptions,
+	fragmentState: ProcessingFragmentState = { stack: [], totalCharacters: 0 },
+): StatementNode[] {
 	const mapper = options.elementNameMapper ?? new Qti2xElementNameMapper();
 	const out: StatementNode[] = [];
 	for (const el of els) {
@@ -88,22 +128,19 @@ function buildStatements(els: Element[], mode: StatementMode, options: BuildOpti
 				// Inline fragments are equivalent to a grouped list of response rules.
 				// Spec: ResponseProcessingFragment.Type (QTI 2.2.2) allows the same rule set as responseProcessing.
 				if (mode !== 'response') break;
-				out.push(...buildStatements(childElements(el), mode, options));
+				out.push(...buildStatements(childElements(el), mode, options, fragmentState));
 				break;
 			}
 				case 'outcomeprocessingfragment': {
 					// Inline fragments are equivalent to a grouped list of outcome rules.
 					// Spec: OutcomeProcessingFragment.Type (QTI 2.2.2) allows the same rule set as outcomeProcessing.
 					if (mode !== 'outcome') break;
-					out.push(...buildStatements(childElements(el), mode, options));
+					out.push(...buildStatements(childElements(el), mode, options, fragmentState));
 					break;
 				}
 			case 'include': {
-				// xi:include (XInclude) - we currently don't resolve external resources for item-only processing.
-				// Fail fast with a helpful error rather than silently ignoring processing rules.
-				throw new Error(
-					'xi:include is not supported in processing (responseProcessing/templateProcessing/outcomeProcessing). Inline the rules instead.',
-				);
+				out.push(...buildIncludedStatements(el, mode, options, fragmentState));
+				break;
 			}
 			case 'setoutcomevalue': {
 				const identifier = getAttr(el, 'identifier');
@@ -207,17 +244,17 @@ function buildStatements(els: Element[], mode: StatementMode, options: BuildOpti
 			}
 			case 'responsecondition': {
 				if (mode !== 'response') break;
-				out.push(buildResponseCondition(el, options));
+				out.push(buildResponseCondition(el, options, fragmentState));
 				break;
 			}
 			case 'outcomecondition': {
 				if (mode !== 'outcome') break;
-				out.push(buildOutcomeCondition(el, options));
+				out.push(buildOutcomeCondition(el, options, fragmentState));
 				break;
 			}
 			case 'templatecondition': {
 				if (mode !== 'template') break;
-				out.push(buildTemplateCondition(el, options));
+				out.push(buildTemplateCondition(el, options, fragmentState));
 				break;
 			}
 			case 'templateconstraint': {
@@ -252,7 +289,103 @@ function buildStatements(els: Element[], mode: StatementMode, options: BuildOpti
 	return out;
 }
 
-function buildResponseCondition(el: Element, options: BuildOptions): ResponseConditionStmt {
+function buildIncludedStatements(
+	includeElement: Element,
+	mode: StatementMode,
+	options: BuildOptions,
+	state: ProcessingFragmentState,
+): StatementNode[] {
+	const href = getAttr(includeElement, 'href')?.trim();
+	if (!href) {
+		throw new Error('xi:include in processing requires a non-empty href');
+	}
+
+	const parseMode = getAttr(includeElement, 'parse')?.trim().toLowerCase();
+	if (parseMode && parseMode !== 'xml') {
+		throw new Error(`xi:include parse="${parseMode}" is not supported for QTI processing fragments`);
+	}
+
+	const maxDepth = options.maxProcessingFragmentDepth ?? 16;
+	if (!Number.isSafeInteger(maxDepth) || maxDepth < 0) {
+		throw new Error('maxProcessingFragmentDepth must be a non-negative safe integer');
+	}
+	if (state.stack.length >= maxDepth) {
+		throw new Error(`QTI processing fragment include depth exceeds ${maxDepth}`);
+	}
+	if (state.stack.includes(href)) {
+		throw new Error(`Circular QTI processing fragment include: ${[...state.stack, href].join(' -> ')}`);
+	}
+
+	const resolver = options.resolveProcessingFragment;
+	let resolved: string | Document | Element | null | undefined;
+	if (resolver) {
+		resolved = resolver({
+			href,
+			mode,
+			scope: options.scope,
+			depth: state.stack.length,
+		});
+	}
+
+	if (resolved == null) {
+		const fallback = childElements(includeElement).find(
+			(child) => (localName(child) ?? '').toLowerCase() === 'fallback',
+		);
+		if (fallback) {
+			return buildStatements(childElements(fallback), mode, options, state);
+		}
+		if (!resolver) {
+			throw new Error(
+				`Cannot resolve QTI processing fragment '${href}': no resolveProcessingFragment host callback was provided`,
+			);
+		}
+		throw new Error(`QTI processing fragment resolver returned no content for '${href}'`);
+	}
+
+	const xml = typeof resolved === 'string' ? resolved : serializeXml(resolved);
+	const maxCharacters = options.maxProcessingFragmentCharacters ?? 2 * 1024 * 1024;
+	if (!Number.isSafeInteger(maxCharacters) || maxCharacters < 0) {
+		throw new Error('maxProcessingFragmentCharacters must be a non-negative safe integer');
+	}
+	state.totalCharacters += xml.length;
+	if (state.totalCharacters > maxCharacters) {
+		throw new Error(`QTI processing fragments exceed ${maxCharacters} cumulative characters`);
+	}
+
+	const root = typeof resolved === 'string'
+		? parseXml(resolved).documentElement
+		: (resolved as Document).documentElement ?? (resolved as Element);
+	if (!root) {
+		throw new Error(`QTI processing fragment '${href}' has no document element`);
+	}
+
+	const mapper = options.elementNameMapper ?? new Qti2xElementNameMapper();
+	const rootTag = mapper.toCanonical(localName(root) ?? '');
+	const processingRoot = `${mode}processing`;
+	const fragmentRoot = `${mode}processingfragment`;
+	const isAnyFragmentRoot = rootTag.endsWith('processingfragment');
+	if (isAnyFragmentRoot && rootTag !== fragmentRoot) {
+		throw new Error(
+			`QTI processing fragment '${href}' has <${rootTag}> but is included from ${mode}Processing`,
+		);
+	}
+	const statements = rootTag === processingRoot || rootTag === fragmentRoot
+		? childElements(root)
+		: [root];
+
+	state.stack.push(href);
+	try {
+		return buildStatements(statements, mode, options, state);
+	} finally {
+		state.stack.pop();
+	}
+}
+
+function buildResponseCondition(
+	el: Element,
+	options: BuildOptions,
+	fragmentState: ProcessingFragmentState,
+): ResponseConditionStmt {
 	const mapper = options.elementNameMapper ?? new Qti2xElementNameMapper();
 	const children = childElements(el);
 	const id = newAstId('stmt');
@@ -261,9 +394,9 @@ function buildResponseCondition(el: Element, options: BuildOptions): ResponseCon
 	const elseIfEls = children.filter((c) => mapper.toCanonical(localName(c) || '') === 'responseelseif');
 	const elseEl = children.find((c) => mapper.toCanonical(localName(c) || '') === 'responseelse') || null;
 
-	const ifBranch = ifEl ? buildConditionalBranch(ifEl, 'response', options) : undefined;
-	const elseIfBranches = elseIfEls.map((e) => buildConditionalBranch(e, 'response', options)).filter(Boolean) as any;
-	const elseBranch = elseEl ? buildElseBranch(elseEl, 'response', options) : undefined;
+	const ifBranch = ifEl ? buildConditionalBranch(ifEl, 'response', options, fragmentState) : undefined;
+	const elseIfBranches = elseIfEls.map((e) => buildConditionalBranch(e, 'response', options, fragmentState)).filter(Boolean) as any;
+	const elseBranch = elseEl ? buildElseBranch(elseEl, 'response', options, fragmentState) : undefined;
 
 	return {
 		kind: 'stmt.responseCondition',
@@ -274,7 +407,11 @@ function buildResponseCondition(el: Element, options: BuildOptions): ResponseCon
 	};
 }
 
-function buildTemplateCondition(el: Element, options: BuildOptions): TemplateConditionStmt {
+function buildTemplateCondition(
+	el: Element,
+	options: BuildOptions,
+	fragmentState: ProcessingFragmentState,
+): TemplateConditionStmt {
 	const mapper = options.elementNameMapper ?? new Qti2xElementNameMapper();
 	const children = childElements(el);
 	const id = newAstId('stmt');
@@ -283,9 +420,9 @@ function buildTemplateCondition(el: Element, options: BuildOptions): TemplateCon
 	const elseIfEls = children.filter((c) => mapper.toCanonical(localName(c) || '') === 'templateelseif');
 	const elseEl = children.find((c) => mapper.toCanonical(localName(c) || '') === 'templateelse') || null;
 
-	const ifBranch = ifEl ? buildConditionalBranch(ifEl, 'template', options) : undefined;
-	const elseIfBranches = elseIfEls.map((e) => buildConditionalBranch(e, 'template', options)).filter(Boolean) as any;
-	const elseBranch = elseEl ? buildElseBranch(elseEl, 'template', options) : undefined;
+	const ifBranch = ifEl ? buildConditionalBranch(ifEl, 'template', options, fragmentState) : undefined;
+	const elseIfBranches = elseIfEls.map((e) => buildConditionalBranch(e, 'template', options, fragmentState)).filter(Boolean) as any;
+	const elseBranch = elseEl ? buildElseBranch(elseEl, 'template', options, fragmentState) : undefined;
 
 	return {
 		kind: 'stmt.templateCondition',
@@ -296,7 +433,11 @@ function buildTemplateCondition(el: Element, options: BuildOptions): TemplateCon
 	};
 }
 
-function buildOutcomeCondition(el: Element, options: BuildOptions): OutcomeConditionStmt {
+function buildOutcomeCondition(
+	el: Element,
+	options: BuildOptions,
+	fragmentState: ProcessingFragmentState,
+): OutcomeConditionStmt {
 	const mapper = options.elementNameMapper ?? new Qti2xElementNameMapper();
 	const children = childElements(el);
 	const id = newAstId('stmt');
@@ -305,9 +446,9 @@ function buildOutcomeCondition(el: Element, options: BuildOptions): OutcomeCondi
 	const elseIfEls = children.filter((c) => mapper.toCanonical(localName(c) || '') === 'outcomeelseif');
 	const elseEl = children.find((c) => mapper.toCanonical(localName(c) || '') === 'outcomeelse') || null;
 
-	const ifBranch = ifEl ? buildConditionalBranch(ifEl, 'outcome', options) : undefined;
-	const elseIfBranches = elseIfEls.map((e) => buildConditionalBranch(e, 'outcome', options)).filter(Boolean) as any;
-	const elseBranch = elseEl ? buildElseBranch(elseEl, 'outcome', options) : undefined;
+	const ifBranch = ifEl ? buildConditionalBranch(ifEl, 'outcome', options, fragmentState) : undefined;
+	const elseIfBranches = elseIfEls.map((e) => buildConditionalBranch(e, 'outcome', options, fragmentState)).filter(Boolean) as any;
+	const elseBranch = elseEl ? buildElseBranch(elseEl, 'outcome', options, fragmentState) : undefined;
 
 	return {
 		kind: 'stmt.outcomeCondition',
@@ -318,20 +459,30 @@ function buildOutcomeCondition(el: Element, options: BuildOptions): OutcomeCondi
 	};
 }
 
-function buildConditionalBranch(el: Element, mode: StatementMode, options: BuildOptions) {
+function buildConditionalBranch(
+	el: Element,
+	mode: StatementMode,
+	options: BuildOptions,
+	fragmentState: ProcessingFragmentState,
+) {
 	const condEl = firstChildElement(el);
 	if (!condEl) return undefined;
 	const cond = buildExpression(condEl, options);
 
 	// Remaining child elements after condition are statements
 	const els = childElements(el).slice(1);
-	const statements = buildStatements(els, mode, options);
+	const statements = buildStatements(els, mode, options, fragmentState);
 
 	return { condition: cond, statements };
 }
 
-function buildElseBranch(el: Element, mode: StatementMode, options: BuildOptions) {
-	const statements = buildStatements(childElements(el), mode, options);
+function buildElseBranch(
+	el: Element,
+	mode: StatementMode,
+	options: BuildOptions,
+	fragmentState: ProcessingFragmentState,
+) {
+	const statements = buildStatements(childElements(el), mode, options, fragmentState);
 	return { statements };
 }
 
@@ -918,5 +1069,3 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 		}
 	}
 }
-
-

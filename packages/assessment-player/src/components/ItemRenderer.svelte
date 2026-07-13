@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { PlayerSecurityConfig, PnpProfile, QTIRole } from '@pie-qti/item-player';
+	import type { PciConfiguration, PlayerSecurityConfig, PnpProfile, QTIRole } from '@pie-qti/item-player';
 	import type { InteractionResponseValue } from '@pie-qti/item-player/web-components';
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import { assignProps } from '@pie-qti/qti-common';
@@ -16,6 +16,7 @@
 		typeset?: (root: HTMLElement) => void | Promise<void>;
 		i18n?: I18nProvider;
 		security?: PlayerSecurityConfig;
+		pci?: PciConfiguration;
 		pnp?: PnpProfile;
 		deliveryContext?: ItemRef['deliveryContext'];
 		onResponseChange?: (responseId: string, value: ItemResponseValue) => void;
@@ -34,6 +35,8 @@
 		i18n?: I18nProvider;
 		/** Security configuration for URL policy and content restrictions */
 		security?: PlayerSecurityConfig;
+		/** Explicit host trust configuration for Portable Custom Interactions. */
+		pci?: PciConfiguration;
 		/** QTI 3.0 Personal Needs and Preferences profile */
 		pnp?: PnpProfile;
 	}
@@ -47,6 +50,7 @@
 		typeset,
 		i18n,
 		security,
+		pci,
 		pnp,
 	}: Props = $props();
 
@@ -55,10 +59,7 @@
 
 	onMount(() => {
 		let cancelled = false;
-		void Promise.all([
-			import('@pie-qti/default-components/plugins'),
-			import('@pie-qti/item-player/element'),
-		])
+		void import('@pie-qti/item-player/element')
 			.then(() => {
 				if (!cancelled) {
 					playerLoaded = true;
@@ -135,6 +136,7 @@
 					typeset,
 					i18n,
 					security,
+					pci,
 					pnp,
 					deliveryContext: itemRef.deliveryContext,
 					onResponseChange: handleResponseChange,

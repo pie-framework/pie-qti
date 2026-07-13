@@ -54,6 +54,8 @@ export interface BlockInteractionPresentation {
 	tagName: string;
 	key: string;
 	response: ItemPresentationResponseValue | null;
+	/** Lexical companion value used by extendedTextInteraction stringIdentifier. */
+	stringResponse?: ItemPresentationResponseValue | null;
 	correctResponse: unknown;
 	pnp: PnpProfile | undefined;
 	eliminationTool: boolean;
@@ -279,11 +281,18 @@ function createBlockInteractionPresentations({
 		.filter((interaction) => !isInlineInteractionType(interaction.type))
 		.map((interaction) => {
 			try {
+				const stringIdentifier =
+					'stringIdentifier' in interaction && typeof interaction.stringIdentifier === 'string'
+						? interaction.stringIdentifier
+						: undefined;
 				const block: BlockInteractionPresentation = {
 					interaction,
 					tagName: componentRegistry.getTagName(interaction),
 					key: interactionKey(interaction),
 					response: responses[interaction.responseId] ?? null,
+					...(stringIdentifier
+						? { stringResponse: responses[stringIdentifier] ?? null }
+						: {}),
 					correctResponse: roleCapabilities.canViewCorrectResponses
 						? (correctResponses[interaction.responseId] ?? null)
 						: null,

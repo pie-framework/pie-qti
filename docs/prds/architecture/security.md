@@ -1,16 +1,16 @@
 # PRD: Security Model (sanitization, iframe isolation, Trusted Types)
 
 <!--
-  Status: draft
+  Status: current
   Type: architecture
-  Packages: @pie-qti/item-player
-  Last reviewed: 2026-04-27
+  Packages: @pie-qti/item-player, @pie-qti/default-components, @pie-qti/section-player, @pie-qti/player-elements, @pie-qti/qti-processing, @pie-qti/storage
+  Last reviewed: 2026-07-13
 -->
 
-**Status:** draft  
+**Status:** current
 **Type:** architecture  
-**Packages:** `@pie-qti/item-player`  
-**Last reviewed:** 2026-04-27
+**Packages:** `@pie-qti/item-player`, `@pie-qti/default-components`, `@pie-qti/section-player`, `@pie-qti/player-elements`, `@pie-qti/qti-processing`, `@pie-qti/storage`
+**Last reviewed:** 2026-07-13
 
 ---
 
@@ -23,8 +23,45 @@ URL policy that restricts which schemes and hosts may appear in resource attribu
 optional Trusted Types integration that lets the player emit `TrustedHTML` values for strict
 CSP environments, and an iframe isolation mode that moves the entire item render into a
 cross-origin sandbox. The layers are independently configurable via `PlayerSecurityConfig`.
-Conservative defaults are active without any configuration; riskier capabilities require
-explicit opt-in.
+Conservative defaults are active in the central sanitizer and URL policy without any
+configuration; riskier capabilities require explicit opt-in. Same-DOM sanitization is a
+defense-in-depth boundary rather than a JavaScript sandbox. Content that is not trusted to run in
+the host origin should still be delivered through a suitably sandboxed, cross-origin iframe.
+
+### Current implementation audit (2026-07-13 remediation)
+
+- Section TTS projection and gap-match prompt reconstruction now use sanitized/text-only content;
+  TTS enforces configured item-XML limits before its secondary DOM parse, and executable-attribute
+  regression payloads cover both former sanitizer bypasses.
+- The item and assessment custom-element boundaries enable parsing limits by default. The lower
+  level framework API retains its compatibility default, and an explicit `enabled: false` remains
+  available to hosts with an equivalent upstream policy.
+- Filesystem storage canonicalizes its root and rejects pre-existing symbolic links that resolve
+  outside it; Node archive extraction additionally rejects a symbolic link used as the extraction
+  root and contains each existing output path to the canonical target. Segment-aware containment
+  and validated session identifiers remain in place. A caller that can mutate those trees
+  concurrently can still create a time-of-check/time-of-use race, so output roots must not be
+  writable by unrelated principals.
+- Direct XML parser dependencies require `@xmldom/xmldom@^0.8.13` and the lockfile is refreshed.
+- Assessment resource resolution enforces URL policy, base path/origin containment, redirect
+  rejection, timeout, content type, per-resource and aggregate byte budgets, canonical caching,
+  bounded count/concurrency, cancellation, external-section cycle detection, and one shared
+  inline/external Section-depth limit.
+- ZIP loaders enforce compressed/decompressed totals, entry count, and compression ratio; upload
+  interactions have a default selected-file cap with an explicit host override. Raw archive bytes
+  are capped before constructing JSZip, unzipper, or AdmZip parsers. Those libraries still parse
+  the central directory before the post-parse entry-count check, so the compressed-byte cap is the
+  only pre-parse resource bound. JSZip also collapses duplicate entry names in its object model,
+  meaning the browser count covers retained unique names rather than every raw directory record.
+  Hosts ingesting hostile archives should lower `maxCompressedSize` and isolate parsing when a
+  strict CPU/memory boundary is required.
+- Inline CSS resource functions and non-literal positioning, external SVG paint/filter URLs and
+  active SMIL mutation elements, link ping/background loads, customized built-ins, and arbitrary
+  host custom elements are removed or unwrapped. Only the closed QTI 3 vocabulary may retain a
+  `qti-*` custom-element-shaped name; document-local SVG fragment references remain supported.
+- Revoking or replacing a raw-XML assessment tears down its local reference backend. A session
+  request synthesized for that preview backend is cleared before any injected production backend
+  can mount.
 
 ---
 
@@ -55,16 +92,17 @@ well-known, host-trusted iframes (for example, embedded video players with known
 It does not constitute consent to allow arbitrary inline HTML documents. `srcdoc` is therefore
 always removed regardless of `allowIframes`.
 
-### Why `parsingLimits` defaults to disabled
+### Why lower-level `parsingLimits` defaults to disabled
 
 The framework pre-dates the `parsingLimits` feature. Enabling limits by default would break
 existing integrations that pass large `itemXml` payloads or deeply nested HTML content.
 The limit defaults (10 MB XML, 5 MB HTML, 200 000 nodes, depth 200) were chosen to be
 generous enough for all known legitimate QTI items while still protecting against pathological
 inputs. Because the existing item corpus was not audited against these thresholds before
-shipping, the feature is opt-in: integrators who process untrusted content should enable it
-explicitly, and integrators who already have their own size/rate-limiting layer upstream may
-find it redundant.
+shipping, the lower-level framework feature is opt-in: integrators who process untrusted content
+should enable it explicitly, and integrators who already have their own size/rate-limiting layer
+upstream may find it redundant. The public item and assessment custom elements are newer trust
+boundaries and enable the generous defaults unless the host explicitly opts out.
 
 ### Why origin locking on first valid message
 
@@ -126,7 +164,8 @@ elements and attributes that have no legitimate use in QTI item bodies.
   input exceeds `maxHtmlBytes` (UTF-8), if traversal exceeds `maxHtmlNodes`, or if traversal
   exceeds `maxHtmlDepth`.
 - **FR-16:** When `parsingLimits.enabled` is `true`, `enforceItemXmlLimits` must throw if
-  `itemXml` exceeds `maxItemXmlBytes` or contains a `<!DOCTYPE` declaration.
+  `itemXml` exceeds `maxItemXmlBytes` or contains a `<!DOCTYPE` declaration. Any secondary parser,
+  including the TTS readable projection, must call it before reparsing item XML.
 - **FR-17:** `toTrustedHtml(html, policyName)` must return a `TrustedHTML` value when
   Trusted Types is available and the policy name is found/created. It must fall back to the
   plain string when Trusted Types is unavailable.
@@ -141,6 +180,32 @@ elements and attributes that have no legitimate use in QTI item bodies.
 - **FR-22:** `IFramePlayerHost` must throw at construction if `allowedOrigins` is empty.
 - **FR-23:** `isQtiIframeEnvelope` must reject any message where `protocol` is not
   `'pie-qti-iframe'` or `version` is not the current protocol version constant.
+- **FR-24:** Every QTI-derived HTML sink in item, section, and assessment rendering,
+  including accessibility/TTS projections and interaction-specific prompt reconstruction, must
+  use the shared `PlayerSecurityConfig`-aware sanitizer before `innerHTML` or `{@html}` insertion.
+- **FR-25:** Filesystem storage containment must use segment-aware `path.relative()`
+  checks, reject invalid session identifiers, contain pre-existing symbolic links to the canonical
+  root, reject links that escape it, and document the residual concurrent-mutation race boundary.
+- **FR-26:** Assessment item resolution must use a host-configurable resolver with URL
+  policy, same-origin/base containment defaults, abort timeout, response byte/content-type limits,
+  and bounded item count/concurrency.
+- **FR-27:** Direct runtime parser/serializer dependencies with known high-severity
+  resource-exhaustion advisories must be upgraded to a patched release before publication.
+- **FR-28:** ZIP extraction and upload paths must enforce compressed-input, cumulative
+  decompressed-byte, compression-ratio, file-count, and selected-upload-size limits.
+- **FR-29:** Assessment resources must share a cumulative decoded-byte budget and canonical cache,
+  and superseded custom-element loads must abort their outstanding requests.
+- **FR-30:** Inline CSS and SVG presentation attributes must not initiate external resource loads;
+  non-literal positioning and active SVG mutation elements must be removed, while document-local
+  SVG fragment references may be retained.
+- **FR-31:** Assessment Section parsing must enforce one total inline/external nesting budget.
+  Direct assessment parsing and the reference backend default to 32 levels; an explicitly enabled
+  custom-element `parsingLimits.maxHtmlDepth` override must reach both parser stages.
+- **FR-32:** Custom-element-shaped authored markup must be limited to the closed QTI 3 vocabulary;
+  arbitrary `qti-*`, third-party custom elements, and customized built-ins must not invoke host
+  element lifecycle code.
+- **FR-33:** Switching away from the local reference assessment backend must revoke mounted local
+  content and any locally synthesized initialization request before a host backend can mount.
 
 ### Public shared-content API
 
@@ -259,16 +324,17 @@ The conservative default avoids relying on browser-version-specific behavior.
 **Consequences:** Items that legitimately embed SVG diagrams as data URIs will have those
 images blocked unless the integrator opts in.
 
-### `parsingLimits` disabled by default
+### `parsingLimits` compatibility default and custom-element boundary default
 
-**Decision:** `parsingLimits.enabled` defaults to `false`; limits apply only when explicitly
-set to `true`.  
+**Decision:** The lower-level `Player` compatibility default remains `false`; the public item and
+assessment custom elements set `enabled: true` unless the host explicitly supplies `false`.
 **Rationale:** Enabling limits retroactively would break existing integrations that pass
 large items or deeply nested content. The limit defaults were sized for safety, not for
 compatibility with the full production item corpus. Opt-in allows staged rollout.  
 **Alternatives considered:** Enable by default with high thresholds; add a migration path.  
-**Consequences:** Applications processing untrusted QTI must explicitly enable limits.
-Documentation must make this prominent.
+**Consequences:** Existing direct `Player` integrations retain their behavior. NPM consumers using
+the custom-element boundary receive finite parsing limits without extra configuration, while hosts
+with an equivalent upstream policy can opt out explicitly.
 
 ### Trusted Types as opt-in defense-in-depth
 
@@ -339,7 +405,8 @@ Key invariants:
 - `urlPolicy.allowDataImages` defaults to `true` (data images are common in QTI); 
   `allowSvgDataImages` defaults to `false`.
 - `urlPolicy.allowProtocolRelative` defaults to `false`.
-- `parsingLimits.enabled` defaults to `false`.
+- `parsingLimits.enabled` defaults to `false` in the lower-level `Player`; item and assessment
+  custom elements default it to `true` unless explicitly disabled.
 - `trustedTypesPolicyName` has no default; TT wrapping is inactive when absent.
 
 ### `ParsingLimitsConfig` defaults (when enabled)
@@ -351,6 +418,10 @@ Key invariants:
 | `maxHtmlNodes` | 200 000 |
 | `maxHtmlDepth` | 200 |
 | `rejectDoctype` | `true` |
+
+Assessment Section recursion has a separate always-on default of 32 levels. At the assessment
+custom-element boundary, an explicitly enabled `maxHtmlDepth` value also becomes the Section-depth
+override so that the preliminary and reference-backend parsers enforce the same budget.
 
 ### iframe protocol versioning
 

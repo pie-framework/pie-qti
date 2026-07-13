@@ -1,1 +1,1 @@
-export type { CustomInteractionData } from '../shared/types.js';
+export type { PortableCustomInteractionData } from '../shared/types.js';

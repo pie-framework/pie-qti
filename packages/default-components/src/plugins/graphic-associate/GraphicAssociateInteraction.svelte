@@ -124,6 +124,18 @@
 		return getHotspotUsageCount(id) >= hotspot.matchMax;
 	}
 
+	function getSelectedHotspotAnnouncement(id: string): string {
+		const label = getHotspotById(id)?.label ?? id;
+		const localized =
+			i18n?.t('interactions.associate.selectAnotherHotspot', { label }) ??
+			`Selected: <strong>${label}</strong>. Click another hotspot to create an association.`;
+
+		// This announcement is rendered as a Svelte text node. Remove the legacy
+		// catalog's presentation-only markup so neither the translation nor a QTI
+		// hotspot label is ever passed to an {@html} sink.
+		return localized.replace(/<\/?strong>/gi, '');
+	}
+
 	function isCorrectPair(id1: string, id2: string): boolean {
 		if (!isShowingCorrect) return false;
 		return correctPairs.some((p) => p === `${id1} ${id2}` || p === `${id2} ${id1}`);
@@ -371,9 +383,7 @@
 								d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
 							></path>
 						</svg>
-						<span>
-							{@html i18n?.t('interactions.associate.selectAnotherHotspot', { label: getHotspotById(selectedHotspot)?.label }) ?? `Selected: <strong>${getHotspotById(selectedHotspot)?.label}</strong>. Click another hotspot to create an association.`}
-						</span>
+						<span>{getSelectedHotspotAnnouncement(selectedHotspot)}</span>
 					</div>
 				{/if}
 			</div>

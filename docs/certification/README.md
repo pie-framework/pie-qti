@@ -5,6 +5,18 @@ docs for `pie-qti`. Official 1EdTech package execution, private evidence
 bundles, checklist work, and submission planning live in the private
 `pie-qti-conformance` project.
 
+> **Evidence boundary (reviewed 2026-07-13):** a matrix row means the mapped
+> project-authored command/test exists and passes. It does not by itself prove
+> schema validation, candidate-operable browser delivery, or exact scoring
+> semantics. QTI 2.2 S3/S4 now has a raw-XML structure/runtime test; the QTI 3.0
+> row remains model-level evidence until an equivalent raw-XML case is added.
+> Formal claims require current official-package evidence plus interaction and
+> score assertions against published NPM artifacts.
+
+The private runner deliberately installs published package versions only. It cannot validate an
+unpublished working tree, workspace link, or local tarball, so the current remediation must first
+be released as a candidate and pinned there before official-suite results can be attributed to it.
+
 ## Files
 
 | File | Purpose | Update when… |

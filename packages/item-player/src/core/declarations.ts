@@ -34,7 +34,7 @@ export function addDeclaration(
 	cardinality: VariableDeclaration['cardinality'],
 	defaultValue?: any
 ): void {
-	const value = cardinality === 'multiple' ? [] : null;
+	const value = cardinality === 'multiple' || cardinality === 'ordered' ? [] : null;
 
 	declarations[identifier] = {
 		identifier,
@@ -121,7 +121,9 @@ export function setVariableValue(
 			return v;
 		};
 
-		if (decl.cardinality === 'multiple' || decl.cardinality === 'ordered') {
+		if (decl.cardinality === 'record') {
+			decl.value = value && typeof value === 'object' && !Array.isArray(value) ? value : null;
+		} else if (decl.cardinality === 'multiple' || decl.cardinality === 'ordered') {
 			if (Array.isArray(value)) {
 				decl.value = value.map(coerceScalar);
 			} else if (value === null || value === undefined) {
@@ -142,7 +144,7 @@ export function resetDeclarations(declarations: Record<string, VariableDeclarati
 	Object.values(declarations).forEach((decl) => {
 		if (decl.defaultValue !== undefined) {
 			decl.value = decl.defaultValue;
-		} else if (decl.cardinality === 'multiple') {
+		} else if (decl.cardinality === 'multiple' || decl.cardinality === 'ordered') {
 			decl.value = [];
 		} else {
 			decl.value = null;
@@ -163,7 +165,11 @@ export function cloneDeclarations(
 		result[id] = {
 			...decl,
 			value:
-				decl.cardinality === 'multiple' && Array.isArray(decl.value) ? [...decl.value] : decl.value,
+				(decl.cardinality === 'multiple' || decl.cardinality === 'ordered') && Array.isArray(decl.value)
+					? [...decl.value]
+					: decl.cardinality === 'record' && decl.value && typeof decl.value === 'object'
+						? { ...decl.value }
+						: decl.value,
 		};
 	});
 

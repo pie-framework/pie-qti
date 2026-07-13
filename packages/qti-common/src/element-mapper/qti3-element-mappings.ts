@@ -74,8 +74,6 @@ export const INTERACTION_ELEMENTS = {
 	'qti-text-entry-interaction': 'textentryinteraction',
 	'qti-inline-choice-interaction': 'inlinechoiceinteraction',
 
-	// Composite interaction (QTI 3.0 advanced feature)
-	'qti-composite-interaction': 'compositeinteraction',
 } as const;
 
 /**
@@ -94,8 +92,7 @@ export const INTERACTION_CHILD_ELEMENTS = {
 	'qti-associable-hotspot': 'associablehotspot',
 	'qti-hottext': 'hottext',
 	'qti-inline-choice': 'inlinechoice',
-	'qti-object': 'object',
-	'qti-param': 'param',
+	'qti-position-object-stage': 'positionobjectstage',
 } as const;
 
 /**

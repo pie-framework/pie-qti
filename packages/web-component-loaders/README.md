@@ -8,10 +8,14 @@ This package provides small helper functions that:
 - **Dedupe** loads across multiple calls (the underlying dynamic `import()` runs once per page)
 - Optionally **wait until custom elements are defined** before continuing
 
-## Install / dependency expectations
+## Install
 
-It declares `@pie-qti/player-elements` and `@pie-qti/default-components` as optional peer dependencies, because the loader imports their browser registration modules at runtime.
-It also declares `@pie-qti/theme-daisyui` as an optional peer dependency for the default runtime stylesheet.
+The loader installs its complete browser runtime through `@pie-qti/player-elements`; applications
+do not install or import Svelte or `@pie-qti/default-components` themselves:
+
+```bash
+npm install @pie-qti/web-component-loaders
+```
 
 ## CSS
 
@@ -21,7 +25,8 @@ Import the default browser runtime stylesheet once from your host app:
 import '@pie-qti/web-component-loaders/default-runtime.css';
 ```
 
-This composes the QTI DaisyUI theme bridge and QTI shared vocabulary stylesheet.
+This self-contained export composes the QTI DaisyUI theme bridge and QTI shared vocabulary
+stylesheet; no CSS peer package is required.
 
 ## Usage
 
@@ -37,7 +42,8 @@ await loadPieQtiPlayerElements();
 // - <pie-qti-assessment-player>
 // - <pie-qti-section-player-splitpane>
 // - <pie-qti-section-player-vertical>
-// - the bundled default QTI interaction elements
+// - the bundled default QTI interaction elements, including
+//   <pie-qti-portable-custom> for QTI Portable Custom Interactions
 ```
 
 ### Using in React (example)
@@ -60,3 +66,5 @@ export function QtiPlayerBoot() {
 
 - **SSR**: `loadPieQtiPlayerElements()` returns immediately when `window` is not available.
 - **Idempotency**: load promises are stored on `globalThis.__pieQtiWebComponentLoaders__` to prevent duplicate imports.
+- **Runtime ownership**: `@pie-qti/player-elements/register` owns both player and default interaction
+  registration; the loader does not import implementation packages separately.

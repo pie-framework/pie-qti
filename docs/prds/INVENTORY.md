@@ -79,17 +79,17 @@ Subsystem-level PRDs covering how major packages work and how to extend them.
 | File | Subsystem | Packages | Status |
 |------|-----------|----------|--------|
 | `architecture/item-player.md` | QTI Item Player | `@pie-qti/item-player` | draft |
-| `architecture/assessment-player.md` | Assessment Shell | `@pie-qti/assessment-player` | draft |
+| `architecture/assessment-player.md` | Assessment Shell | `@pie-qti/assessment-player` | needs-update |
 | `architecture/transform-engine.md` | Transform Engine & Plugin System | `@pie-qti/transform-core`, `@pie-qti/transform-types` | draft |
 | `architecture/qti-to-pie.md` | QTI → PIE Transform | `@pie-qti/to-pie` | draft |
 | `architecture/pie-to-qti.md` | PIE → QTI Transform | `@pie-qti/pie-to-qti2` | draft |
-| `architecture/response-processing.md` | Response Processing Engine | `@pie-qti/qti-processing` | draft |
-| `architecture/web-components.md` | Web Component Infrastructure | `@pie-qti/default-components`, `@pie-qti/player-elements` | draft |
+| `architecture/response-processing.md` | Response Processing Engine | `@pie-qti/qti-processing` | needs-update |
+| `architecture/web-components.md` | Web Component Infrastructure | `@pie-qti/default-components`, `@pie-qti/player-elements`, `@pie-qti/web-component-loaders` | needs-update |
 | `architecture/item-player-plugin-system.md` | Item Player Plugin / Extension API | `@pie-qti/item-player` | draft |
 | `architecture/vendor-extensions.md` | Vendor Transform Extensions (five-hook system; for whole-pipeline replacement and player-side extractors) | `@pie-qti/to-pie` vendor hooks | draft |
 | `architecture/ims-content-packages.md` | IMS Content Package Support | `@pie-qti/ims-cp-*` | draft |
 | `architecture/storage.md` | Pluggable Storage Backends | `@pie-qti/storage` | draft |
-| `architecture/security.md` | Security Model (sanitization, iframe isolation, Trusted Types) | `@pie-qti/item-player` | draft |
+| `architecture/security.md` | Security Model (sanitization, iframe isolation, Trusted Types) | `@pie-qti/item-player`, `@pie-qti/default-components`, `@pie-qti/section-player`, `@pie-qti/player-elements`, `@pie-qti/qti-processing`, `@pie-qti/storage` | needs-update |
 | `architecture/pie-projection-adapters.md` | PIE Projection Adapters | `@pie-qti/to-pie`, `@pie-qti/pie-to-qti2`, `@pie-qti/transform-core` | draft |
 | `architecture/qti-section-player-and-toolkit.md` | QTI Section Player & Assessment Toolkit | `@pie-qti/section-player`, `@pie-qti/assessment-toolkit` | draft |
 

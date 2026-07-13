@@ -10,6 +10,12 @@ import type { ElementExtractor } from '../../extraction/types.js';
  * Extended text data extracted from extendedTextInteraction elements
  */
 export interface ExtendedTextData {
+	cardinality: 'single' | 'multiple' | 'ordered' | 'record';
+	baseType?: string;
+	base: number;
+	stringIdentifier?: string;
+	minStrings: number;
+	maxStrings: number;
 	expectedLines: number;
 	expectedLength: number;
 	prompt: string | null;
@@ -38,8 +44,18 @@ export const standardExtendedTextExtractor: ElementExtractor<ExtendedTextData> =
 
 	extract(element, context) {
 		const { utils } = context;
+		const declaration = context.declarations.get(context.responseId);
 
 		// Extract attributes
+		const cardinality = declaration?.cardinality ?? 'single';
+		const base = utils.getNumberAttribute(element, 'base', 10);
+		const stringIdentifier = utils.getAttribute(element, 'stringIdentifier', '') || undefined;
+		const minStrings = utils.getNumberAttribute(element, 'minStrings', 0);
+		const maxStrings = utils.getNumberAttribute(
+			element,
+			'maxStrings',
+			cardinality === 'single' || cardinality === 'record' ? 1 : 0,
+		);
 		const expectedLines = utils.getNumberAttribute(element, 'expectedLines', 3);
 		const expectedLength = utils.getNumberAttribute(element, 'expectedLength', 200);
 		const placeholderText = utils.getAttribute(element, 'placeholderText', '');
@@ -50,6 +66,12 @@ export const standardExtendedTextExtractor: ElementExtractor<ExtendedTextData> =
 		const prompt = utils.getPrompt(element);
 
 		return {
+			cardinality,
+			baseType: declaration?.baseType,
+			base,
+			...(stringIdentifier ? { stringIdentifier } : {}),
+			minStrings,
+			maxStrings,
 			expectedLines,
 			expectedLength,
 			prompt,
@@ -64,22 +86,42 @@ export const standardExtendedTextExtractor: ElementExtractor<ExtendedTextData> =
 	validate(data) {
 		const errors: string[] = [];
 		const warnings: string[] = [];
+		if (data.cardinality === 'record') {
+			if (data.baseType) errors.push('record cardinality must not declare a baseType');
+			if (data.minStrings > 1 || data.maxStrings > 1) {
+				errors.push('record cardinality captures exactly one numeric string');
+			}
+		} else if (!['string', 'integer', 'float'].includes(data.baseType ?? '')) {
+			errors.push('extendedTextInteraction baseType must be string, integer, or float');
+		}
+		if (!Number.isInteger(data.base) || data.base < 2 || data.base > 36) {
+			errors.push('base must be an integer from 2 through 36');
+		}
+		if (!Number.isInteger(data.minStrings) || data.minStrings < 0) {
+			errors.push('minStrings must be a non-negative integer');
+		}
+		if (!Number.isInteger(data.maxStrings) || data.maxStrings < 0) {
+			errors.push('maxStrings must be a non-negative integer');
+		}
+		if (data.maxStrings > 0 && data.minStrings > data.maxStrings) {
+			errors.push('minStrings must not exceed maxStrings');
+		}
 
 		// Validate expectedLines
-		if (data.expectedLines < 1) {
-			errors.push('expectedLines must be at least 1');
+		if (!Number.isInteger(data.expectedLines) || data.expectedLines < 0) {
+			errors.push('expectedLines must be a non-negative integer');
 		}
 
 		// Validate expectedLength
-		if (data.expectedLength < 1) {
-			errors.push('expectedLength must be positive');
+		if (!Number.isInteger(data.expectedLength) || data.expectedLength < 0) {
+			errors.push('expectedLength must be a non-negative integer');
 		}
 
 		// Validate format
-		const validFormats = ['plain', 'preFormatted', 'xhtml'];
+		const validFormats = ['plain', 'preFormatted', 'preformatted', 'xhtml'];
 		if (!validFormats.includes(data.format)) {
 			warnings.push(
-				`Unrecognized format "${data.format}" - expected plain, preFormatted, or xhtml`
+				`Unrecognized format "${data.format}" - expected plain, preformatted, preFormatted, or xhtml`
 			);
 		}
 

@@ -72,8 +72,18 @@ export { getCatalogEntry } from './catalog/catalogLookup.js';
 export type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
 
 // PCI — Portable Custom Interaction (QTI 3.0 §6.1)
-export type { PciModule, PciBoundTo, ExtractedPci } from './pci/types.js';
-export { PciLoadError } from './pci/types.js';
+export type {
+	ExtractedPci,
+	PciBoundTo,
+	PciConfiguration,
+	PciHostController,
+	PciHostOptions,
+	PciModule,
+	PciModulePathKind,
+	PciModuleResolutionContext,
+	PciModuleResolver,
+} from './pci/types.js';
+export { PciLoadError, PciModuleResolverRequiredError } from './pci/types.js';
 export { PciHost } from './pci/PciHost.js';
 
 // Re-export QTI heuristics from @pie-qti/ims-cp-core for convenience

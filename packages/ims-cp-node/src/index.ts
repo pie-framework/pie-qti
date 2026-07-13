@@ -9,15 +9,28 @@
  * This is meant as a shared layer for server-side tools (CLI).
  */
 
-import { createReadStream, createWriteStream, existsSync } from 'node:fs';
-import { mkdir, readdir, readFile, rm } from 'node:fs/promises';
+import { createWriteStream, existsSync } from 'node:fs';
+import { lstat, mkdir, readdir, readFile, realpath, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { Transform } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import * as unzipper from 'unzipper';
 import { type ManifestResource, type ParsedManifest, parseManifest } from '@pie-qti/ims-cp-core/manifest-parser';
 import { type LocalizedManifest, buildLocalizedManifest } from '@pie-qti/ims-cp-core/localized-resources';
 
-export type OpenContentPackageOptions = {
+export type ArchiveExtractionLimits = {
+  /** Maximum compressed ZIP input size in bytes (default: 100MB). */
+  maxCompressedSize?: number;
+  /** Maximum cumulative uncompressed size in bytes (default: 250MB). */
+  maxTotalUncompressedSize?: number;
+  /** Maximum number of ZIP entries, including directories (default: 1000). */
+  maxEntries?: number;
+  /** Maximum advertised uncompressed/compressed ratio per file (default: 200). */
+  maxCompressionRatio?: number;
+};
+
+export type OpenContentPackageOptions = ArchiveExtractionLimits & {
   /**
    * Optional directory where temporary extractions should be created.
    * Defaults to OS temp dir.
@@ -28,6 +41,15 @@ export type OpenContentPackageOptions = {
    * When set, `close()` is a no-op and `isTemporary` is false.
    */
   extractToDir?: string;
+};
+
+type ResolvedArchiveLimits = Required<ArchiveExtractionLimits>;
+
+const DEFAULT_ARCHIVE_LIMITS: ResolvedArchiveLimits = {
+  maxCompressedSize: 100 * 1024 * 1024,
+  maxTotalUncompressedSize: 250 * 1024 * 1024,
+  maxEntries: 1000,
+  maxCompressionRatio: 200,
 };
 
 export type OpenContentPackage = {
@@ -89,14 +111,140 @@ function assertPathWithinDir(rootDir: string, candidatePath: string) {
   }
 }
 
+async function assertNoSymlinkEscape(rootDir: string, candidatePath: string): Promise<void> {
+  let existingPath = path.resolve(candidatePath);
+
+  while (true) {
+    try {
+      await lstat(existingPath);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+
+      const parentPath = path.dirname(existingPath);
+      if (parentPath === existingPath) throw error;
+      existingPath = parentPath;
+      continue;
+    }
+
+    let realExistingPath: string;
+    try {
+      realExistingPath = await realpath(existingPath);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+      throw new Error(`Zip entry path contains an unresolved symbolic link: ${candidatePath}`);
+    }
+
+    assertPathWithinDir(rootDir, realExistingPath);
+    return;
+  }
+}
+
+function resolveArchiveLimits(options: ArchiveExtractionLimits): ResolvedArchiveLimits {
+  return {
+    maxCompressedSize: resolveLimit(
+      options.maxCompressedSize,
+      DEFAULT_ARCHIVE_LIMITS.maxCompressedSize,
+      'maxCompressedSize',
+    ),
+    maxTotalUncompressedSize: resolveLimit(
+      options.maxTotalUncompressedSize,
+      DEFAULT_ARCHIVE_LIMITS.maxTotalUncompressedSize,
+      'maxTotalUncompressedSize',
+    ),
+    maxEntries: resolveLimit(
+      options.maxEntries,
+      DEFAULT_ARCHIVE_LIMITS.maxEntries,
+      'maxEntries',
+      true,
+    ),
+    maxCompressionRatio: resolveLimit(
+      options.maxCompressionRatio,
+      DEFAULT_ARCHIVE_LIMITS.maxCompressionRatio,
+      'maxCompressionRatio',
+    ),
+  };
+}
+
+function resolveLimit(
+  value: number | undefined,
+  fallback: number,
+  name: string,
+  requireInteger = false,
+): number {
+  const resolved = value ?? fallback;
+  if (
+    resolved !== Number.POSITIVE_INFINITY &&
+    (!Number.isFinite(resolved) || resolved < 0 || (requireInteger && !Number.isInteger(resolved)))
+  ) {
+    throw new Error(`${name} must be a non-negative ${requireInteger ? 'integer' : 'number'}`);
+  }
+  return resolved;
+}
+
+function exceedsCompressionRatio(uncompressed: number, compressed: number, maximum: number): boolean {
+  if (uncompressed === 0 || maximum === Number.POSITIVE_INFINITY) return false;
+  if (compressed <= 0) return true;
+  return uncompressed / compressed > maximum;
+}
+
+function assertArchiveMetadata(
+  files: unzipper.File[],
+  limits: ResolvedArchiveLimits,
+): void {
+  if (files.length > limits.maxEntries) {
+    throw new Error(`Package exceeds maximum entry count (${limits.maxEntries})`);
+  }
+
+  let advertisedTotalSize = 0;
+  for (const file of files) {
+    if (file.type === 'Directory') continue;
+
+    const uncompressedSize = file.uncompressedSize;
+    const compressedSize = file.compressedSize;
+    if (!Number.isSafeInteger(uncompressedSize) || uncompressedSize < 0) {
+      throw new Error(`Zip entry has an invalid uncompressed size: ${file.path}`);
+    }
+    if (!Number.isSafeInteger(compressedSize) || compressedSize < 0) {
+      throw new Error(`Zip entry has an invalid compressed size: ${file.path}`);
+    }
+
+    advertisedTotalSize += uncompressedSize;
+    if (advertisedTotalSize > limits.maxTotalUncompressedSize) {
+      throw new Error(
+        `Package exceeds maximum total uncompressed size (${limits.maxTotalUncompressedSize} bytes)`,
+      );
+    }
+    if (exceedsCompressionRatio(uncompressedSize, compressedSize, limits.maxCompressionRatio)) {
+      throw new Error(`File ${file.path} exceeds maximum compression ratio (${limits.maxCompressionRatio})`);
+    }
+  }
+}
+
 /**
  * Safe zip extractor with path traversal protection.
  * Returns simple stats (file count + total uncompressed size).
  */
-export async function extractZipToDirSafe(zipPath: string, targetDir: string): Promise<ExtractZipResult> {
-  await ensureDir(targetDir);
+export async function extractZipToDirSafe(
+  zipPath: string,
+  targetDir: string,
+  options: ArchiveExtractionLimits = {},
+): Promise<ExtractZipResult> {
+  const limits = resolveArchiveLimits(options);
+  const archiveStat = await stat(zipPath);
+  if (archiveStat.size > limits.maxCompressedSize) {
+    throw new Error(`Package exceeds maximum compressed size (${limits.maxCompressedSize} bytes)`);
+  }
 
   const directory = await unzipper.Open.file(zipPath);
+  assertArchiveMetadata(directory.files, limits);
+  await ensureDir(targetDir);
+
+  const targetStat = await lstat(targetDir);
+  if (targetStat.isSymbolicLink()) {
+    throw new Error(`Zip extraction target must not be a symbolic link: ${targetDir}`);
+  }
+  const realTargetDir = await realpath(targetDir);
+
   let fileCount = 0;
   let totalSize = 0;
 
@@ -106,23 +254,42 @@ export async function extractZipToDirSafe(zipPath: string, targetDir: string): P
 
     const outPath = path.join(targetDir, entryPath);
     assertPathWithinDir(targetDir, outPath);
+    await assertNoSymlinkEscape(realTargetDir, outPath);
 
     if (file.type === 'Directory') {
       await ensureDir(outPath);
+      await assertNoSymlinkEscape(realTargetDir, outPath);
       continue;
     }
 
     await ensureDir(path.dirname(outPath));
-    await new Promise<void>((resolve, reject) => {
-      file
-        .stream()
-        .pipe(createWriteStream(outPath))
-        .on('finish', resolve)
-        .on('error', reject);
+    await assertNoSymlinkEscape(realTargetDir, path.dirname(outPath));
+    await assertNoSymlinkEscape(realTargetDir, outPath);
+    let entrySize = 0;
+    const byteLimiter = new Transform({
+      transform(chunk: Buffer, _encoding, callback) {
+        entrySize += chunk.byteLength;
+        if (totalSize + entrySize > limits.maxTotalUncompressedSize) {
+          callback(
+            new Error(
+              `Package exceeds maximum total uncompressed size (${limits.maxTotalUncompressedSize} bytes)`,
+            ),
+          );
+          return;
+        }
+        callback(null, chunk);
+      },
     });
 
+    try {
+      await pipeline(file.stream(), byteLimiter, createWriteStream(outPath));
+    } catch (error) {
+      await rm(outPath, { force: true });
+      throw error;
+    }
+
     fileCount += 1;
-    totalSize += file.uncompressedSize ?? 0;
+    totalSize += entrySize;
   }
 
   return { fileCount, totalSize };
@@ -149,7 +316,7 @@ export async function openContentPackage(
 
   if (options.extractToDir) {
     const targetDir = path.resolve(options.extractToDir);
-    await extractZipToDirSafe(abs, targetDir);
+    await extractZipToDirSafe(abs, targetDir, options);
     return {
       packageRoot: targetDir,
       isTemporary: false,
@@ -163,7 +330,12 @@ export async function openContentPackage(
   const targetDir = path.join(tmpRoot, `qti-cp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
   await ensureDir(targetDir);
 
-  await extractZipToDirSafe(abs, targetDir);
+  try {
+    await extractZipToDirSafe(abs, targetDir, options);
+  } catch (error) {
+    await rm(targetDir, { recursive: true, force: true });
+    throw error;
+  }
 
   return {
     packageRoot: targetDir,
@@ -300,20 +472,23 @@ export async function loadResolvedManifest(packageRoot: string): Promise<Resolve
  * Utility: quickly extract a zip to a directory (stream-based) when you need progress reporting.
  * Most callers can just use `openContentPackage` which uses unzipper's Open.file().extract().
  */
-export async function extractZipToDir(zipPath: string, targetDir: string): Promise<void> {
-  await ensureDir(targetDir);
-  await extractZipToDirSafe(zipPath, targetDir);
+export async function extractZipToDir(
+	zipPath: string,
+	targetDir: string,
+	options: ArchiveExtractionLimits = {},
+): Promise<void> {
+	await extractZipToDirSafe(zipPath, targetDir, options);
 }
 
 /**
- * Stream-safe extractor variant (kept for very large packages).
+ * Stream-safe extractor variant retained for API compatibility.
  */
-export async function extractZipToDirStream(zipPath: string, targetDir: string): Promise<void> {
-  await ensureDir(targetDir);
-
-  await createReadStream(zipPath)
-    .pipe(unzipper.Extract({ path: targetDir }))
-    .promise();
+export async function extractZipToDirStream(
+	zipPath: string,
+	targetDir: string,
+	options: ArchiveExtractionLimits = {},
+): Promise<void> {
+	await extractZipToDirSafe(zipPath, targetDir, options);
 }
 
 /**

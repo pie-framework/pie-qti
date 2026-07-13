@@ -1,16 +1,16 @@
 # PRD: Assessment Player
 
 <!--
-  Status: draft
+  Status: current
   Type: architecture
   Packages: @pie-qti/assessment-player
-  Last reviewed: 2026-04-27
+  Last reviewed: 2026-07-13
 -->
 
-**Status:** draft
+**Status:** current
 **Type:** architecture
 **Packages:** `@pie-qti/assessment-player`
-**Last reviewed:** 2026-04-27
+**Last reviewed:** 2026-07-13
 
 ---
 
@@ -37,8 +37,14 @@ In any assessment with academic stakes, the correct responses and scoring rules 
 After `initSession` returns, `AssessmentPlayer` immediately flattens all `SecureTestPart → SecureSection → SecureItemRef` references into a single ordered `FlatItem[]` array. This is because:
 
 1. Navigation arithmetic (next/previous, index-to-section mapping) is simpler over a flat sequence than over a nested tree, especially when sections may be empty.
-2. Selection and ordering (random item pools, shuffle) happen at session-init time on the server — the client receives the already-resolved ordered list, not raw pool definitions.
-3. The flat list is stable for the lifetime of a session. Resuming a session restores the same list by restoring the `currentItemIdentifier` from `AssessmentSessionState`, not by re-running selection.
+2. The runtime applies a preserved section's direct-child selection and ordering once while building
+   the session's flat sequence. Required children are retained and fixed children keep their slots.
+   An authoritative backend may instead return an already-resolved structure.
+3. The flat list is stable for the lifetime of a session. Resuming a session restores the same list
+   by restoring the `currentItemIdentifier` from `AssessmentSessionState`; a production backend must
+   persist/replay the selected structure or its deterministic seed rather than silently reselecting.
+   Replacement selection is not materialized yet because duplicate instances require distinct
+   sequence identity and independent ItemSessions.
 
 ### Why individual and simultaneous submission modes differ
 
@@ -70,43 +76,53 @@ State is persisted to `localStorage` → `sessionStorage` → memory (in degrada
 | `testPart.submissionMode` (individual / simultaneous) | Full |
 | `assessmentSection.visible` | Full (hidden sections omitted from section menu) |
 | `assessmentSection.rubricBlock` (view-filtered) | Full |
-| `timeLimits.maxTime` (assessment level) | Full |
+| `timeLimits.minTime` / `maxTime` (assessment, testPart, section, item) | Runtime enforcement with independent persisted clocks; edge/browser coverage remains |
 | `timeLimits.allowLateSubmission` | Full |
 | `itemSessionControl.maxAttempts` | UI hint (server-authoritative) |
 | `itemSessionControl.allowReview` | UI hint |
 | `itemSessionControl.allowSkipping` | UI hint |
 | `itemSessionControl.showFeedback` | UI hint |
 | `itemSessionControl.validateResponses` | UI hint |
-| `testFeedback` (outcome-based) | Partial — see G-05 below |
-| `assessmentSection.selection` (item pools) | Server-side only; client receives resolved list |
-| `assessmentSection.ordering` (shuffle) | Server-side only; client receives resolved list |
-| `outcomeDeclaration` (test-level) | Via server finalization response |
+| `testFeedback` (outcome-based) | Full for preserved structured feedback and finalized backend feedback |
+| `assessmentSection.selection` (direct children) | Implemented without replacement; replacement clones remain open |
+| `assessmentSection.ordering` (shuffle/fixed) | Implemented during session-sequence construction |
+| `outcomeDeclaration` / `outcomeProcessing` (test-level) | Parsed/executed by the reference adapter; production backend remains authoritative |
 
-### Deliberately omitted attributes
+### Deliberately incomplete assessment semantics
 
-- `testPart.timeLimits` and `assessmentSection.timeLimits` — only assessment-level time limits are enforced client-side. Part- and section-level limits require server enforcement.
-- `assessmentItemRef.weight` — weights are applied during server-side outcome processing, not on the client.
-- `branchRule`, `preCondition` — branching is driven by `SubmitResponsesResponse.nextItemIdentifier` returned from the server, not parsed from the QTI XML on the client.
+- Parsed `preCondition` expressions are retained but are not evaluated dynamically while walking
+  test parts, sections, and item refs.
+- Item-ref branch rules can be evaluated by the reference backend; section and testPart branch rules
+  are not yet represented/executed. A production backend may return `nextItemIdentifier` as its
+  authoritative branch decision.
+- `selection withReplacement="true"` does not materialize distinct sequence-indexed item instances;
+  the runtime rejects selections that require more instances than source children.
+- `assessmentSectionRef` resolution needs explicit cycle/depth limits in addition to its package-path checks.
 
 ### Known divergences from spec
 
-- **testFeedback visibility (G-05):** The spec says a `testFeedback` element is shown when the outcome variable named by `outcomeIdentifier` equals `identifier` (string equality). The current implementation maps backend feedback to a single feedback block identified only by `'testFeedback'`. Arbitrary `outcomeIdentifier`/`identifier` combinations for client-driven feedback display are not fully implemented. See G-05.
-- **outcomeProcessing XML (G-11):** The client assessment player uses a TypeScript template system (`total_score`, `weighted_score`, `percentage_score`, `pass_fail`) rather than interpreting `<outcomeProcessing>` XML. Full XML-driven test-level outcome processing is deferred. See G-11.
-- **Section-level timeLimits:** Not enforced client-side.
+- **Dynamic structure rules (G-16):** preconditions, section/testPart branches, and replacement
+  instances remain the material assessment-level conformance gap.
+- **Timing evidence (G-22):** scoped clocks and `minTime`/`maxTime` enforcement exist, but direct
+  integration coverage for every minimum-time scope and simultaneous expiry combination remains.
 
 ---
 
 ## Functional requirements
 
 - **FR-1:** `AssessmentPlayer.create(config)` must call `BackendAdapter.initSession()` before constructing the player, and must use the `SecureAssessment` returned from the server — not any locally-held QTI XML — as the authoritative item list.
-- **FR-2:** In linear navigation mode, `navigateTo(index)` must reject any forward skip (index > currentIndex + 1) with an error. Backward navigation to visited items must always be allowed.
+- **FR-2:** In a linear testPart, `navigateTo(index)` must permit only the current item or immediate
+  next item; once the candidate advances, earlier items in that part cannot be revisited.
 - **FR-3:** In nonlinear navigation mode, `navigateTo(index)` must allow any in-bounds index.
 - **FR-4:** In `individual` submission mode, `next()` must call `submitCurrentItem()` and await its result before advancing the index. If the backend returns a `nextItemIdentifier`, the player must navigate to that item instead of `currentIndex + 1`.
 - **FR-5:** In `simultaneous` submission mode, `submit()` must send all unsubmitted items to the backend before calling `finalizeAssessment()`. Client-collected responses must survive across backend state-update responses during the submission loop.
-- **FR-6:** `getNavigationState()` must return `canPrevious: false` when `ItemSessionController.canReview()` returns false for the previous item, regardless of navigation mode.
+- **FR-6:** `getNavigationState()` must return `canPrevious: false` throughout a linear testPart and
+  when review policy forbids the previous item in nonlinear delivery.
 - **FR-7:** When `itemSessionControl.allowSkipping` is false and the current item has no response, `next()` must throw before calling `submitCurrentItem()`.
 - **FR-8:** `getCurrentRubricBlocks()` must return the section-level rubric blocks for the current item, falling back to test-part-level blocks if the section has none.
-- **FR-9:** When a `timeLimits.maxTime` is set on the assessment, `TimeManager` must start on construction, fire `onWarning` callbacks at `timeWarningThreshold` seconds remaining, fire `onExpired` when the clock reaches zero, and return correct values from `getRemainingTime()` and `getElapsedTime()`.
+- **FR-9:** `TimeManager` must independently accumulate and persist assessment, testPart, section,
+  and item clocks; enforce the shortest active hard maximum and every applicable minimum transition;
+  and fire warning/expiry callbacks for the active limiting scope.
 - **FR-10:** `getState()` must return a shallow clone; mutations to the returned object must not affect internal state.
 - **FR-11:** `restoreState(state)` must navigate to the item identified by `state.currentItemIdentifier`, restore `visitedItems` into `NavigationManager`, and rehydrate `itemResults` from `state.itemScores` so that `submit()` can skip already-submitted items.
 - **FR-12:** `destroy()` must clear all event listener sets and null the current item player to avoid memory leaks.
@@ -134,12 +150,22 @@ State is persisted to `localStorage` → `sessionStorage` → memory (in degrada
 **Alternatives considered:** Optional `backend` field with automatic fallback to a built-in reference adapter. Rejected because it makes the insecure path the default.
 **Consequences:** All integrations must provide at least a `ReferenceBackendAdapter`. Code that used the old `AssessmentPlayer` constructor (non-backend flavour) cannot use this class directly.
 
+**Current integration (2026-07-13):** `QtiAssessmentPlayerElement` exposes a JS-only backend plus
+`initSession` for production-authoritative delivery. Raw answer-bearing assessment XML is refused
+unless the host explicitly enables `referenceMode`; that local adapter path remains suitable only
+for preview, offline, and trusted low-stakes use.
+
 ### Flat item list at construction, not lazy tree walk
 
 **Decision:** All items are flattened into `FlatItem[]` in the constructor, indexed 0-N.
-**Rationale:** Navigation, visited-item tracking, and section boundary detection are all simpler and faster over a flat array. QTI selection/ordering is resolved server-side before the client receives the structure.
+**Rationale:** Navigation, visited-item tracking, and section boundary detection are all simpler and
+faster over a flat array. The source tree is retained through XML ingestion, and direct-child
+selection/ordering is applied once while constructing the per-session flat sequence.
 **Alternatives considered:** Keeping the tree structure and walking it on each navigation call. Rejected because section-crossing navigation (jumping from item 3 in section 1 to item 1 in section 2) becomes ambiguous without a flat index.
-**Consequences:** `SecureAssessment` must arrive fully-resolved from the server. If the server uses lazy item loading (item pools resolved on demand), it must resolve and include all selected items in `InitSessionResponse` before the client constructs its flat list. Dynamic item insertion mid-session is not supported.
+**Consequences:** `SecureAssessment` must contain all source children or an already-resolved
+sequence before construction. Dynamic insertion is not supported. `withReplacement` cannot safely
+reuse identifier-keyed state and therefore remains rejected until distinct runtime instance keys,
+sequence indexes, ItemSessions, and results are materialized.
 
 ### itemSessionControl has testPart defaults with section overrides
 
@@ -148,12 +174,17 @@ State is persisted to `localStorage` → `sessionStorage` → memory (in degrada
 **Alternatives considered:** Per-section `ItemSessionController` instances. Deferred because updating the active controller settings is simpler and keeps existing session state intact.
 **Consequences:** Multi-section assessments can express section-level `allowSkipping` / `allowReview` differences, while multi-testPart assessments still need additional work if each part has materially different control policy.
 
-### Navigation mode is read from `assessment.navigationMode`, not per-testPart
+### Navigation and submission modes are testPart-scoped
 
-**Decision:** `NavigationManager` is constructed with `assessment.navigationMode || 'nonlinear'`, which is a top-level field on `SecureAssessment`, not per `SecureTestPart`.
-**Rationale:** The QTI spec places `navigationMode` on `testPart`. `SecureAssessment` flattens this because the current data model only exposes a single top-level `navigationMode`. Multi-part assessments with different navigation modes per part would require `NavigationManager` to be per-part.
-**Alternatives considered:** Per-testPart `NavigationManager` instances. Deferred pending a real use case.
-**Consequences:** Multi-testPart assessments with mixed navigation modes will use only the top-level mode. The server should set `SecureAssessment.navigationMode` to the most restrictive mode if the parts differ.
+**Decision:** Every `SecureTestPart` retains its own navigation and submission modes. Navigation
+checks consult the active item's part; the top-level fields remain compatibility fallbacks only.
+**Rationale:** QTI scopes both modes to the testPart, and mixed-mode assessments must not inherit the
+first part's behavior.
+**Alternatives considered:** Collapsing all modes to one top-level pair. Rejected because it changes
+valid mixed-part delivery semantics.
+**Consequences:** Linear parts allow only the immediate forward transition and cannot be re-entered.
+Nonlinear parts permit in-part navigation subject to ItemSessionControl. Dynamic part/section branch
+targets remain backend/G-16 work.
 
 ### Event listeners use `Set<listener>`, not an event emitter library
 

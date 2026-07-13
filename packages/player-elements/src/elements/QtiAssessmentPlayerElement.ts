@@ -1,10 +1,16 @@
-import type { AssessmentResults, BackendAdapter, BackendAssessmentPlayerConfig, InitSessionRequest, SecureAssessment } from '@pie-qti/assessment-player';
+import type { AssessmentResults, BackendAdapter, BackendAssessmentPlayerConfig, InitSessionRequest } from '@pie-qti/assessment-player';
 import { ReferenceBackendAdapter } from '@pie-qti/assessment-player';
-import type { PlayerSecurityConfig } from '@pie-qti/item-player';
+import type { PciConfiguration, PlayerSecurityConfig } from '@pie-qti/item-player';
+import { enforceItemXmlLimits } from '@pie-qti/item-player/security';
 import AssessmentShell from '../../../assessment-player/src/components/AssessmentShell.svelte';
 import { QTI_ASSESSMENT_PLAYER_TAG } from '../constants.js';
 import { parseAssessmentTestXml } from '../qti/parseAssessmentTest.js';
-import { type QtiItemMap, resolveItemsForAssessment } from '../qti/resolveItems.js';
+import {
+	createAssessmentResourceResolver,
+	type QtiItemFetchPolicy,
+	type QtiItemMap,
+	resolveItemsForAssessment,
+} from '../qti/resolveItems.js';
 import type { ParsedAssessmentSection, ParsedAssessmentTest } from '../qti/types.js';
 import { safeJsonParse } from '../utils/json.js';
 import { BaseSvelteMountElement } from './BaseSvelteMountElement.js';
@@ -27,11 +33,28 @@ export type QtiAssessmentSubmitDetail = {
 	results: AssessmentResults;
 };
 
+export type QtiAssessmentLoadErrorDetail = {
+	message: string;
+};
+
+export interface QtiAssessmentPlayerEventMap {
+	ready: CustomEvent<void>;
+	'load-start': CustomEvent<void>;
+	'load-end': CustomEvent<void>;
+	'load-error': CustomEvent<QtiAssessmentLoadErrorDetail>;
+	'item-change': CustomEvent<QtiAssessmentItemChangeDetail>;
+	'section-change': CustomEvent<QtiAssessmentSectionChangeDetail>;
+	'response-change': CustomEvent<QtiAssessmentResponseChangeDetail>;
+	submit: CustomEvent<QtiAssessmentSubmitDetail>;
+	complete: CustomEvent<void>;
+}
+
 export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<string, unknown>> {
 	static get observedAttributes() {
 		return [
 			// Pure-QTI inputs
 			'assessment-test-xml',
+			'reference-mode',
 			'assessment-id',
 			'candidate-id',
 			'item-base-url',
@@ -49,36 +72,38 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 	#candidateId: string | undefined;
 	#itemBaseUrl: string | undefined;
 	#items: QtiItemMap | undefined;
+	#itemFetchPolicy: QtiItemFetchPolicy | undefined;
 	#config: Partial<BackendAssessmentPlayerConfig> = {};
 	#security: PlayerSecurityConfig | undefined;
-
-	#backend: BackendAdapter = {
-		async initSession(_request) {
-			throw new Error('No assessment loaded. Provide `assessment-test-xml`.');
-		},
-		async submitResponses(_request) {
-			return { success: false, error: 'No assessment loaded.' };
-		},
-		async finalizeAssessment(_request) {
-			return { success: false, totalScore: 0, maxScore: 0, itemScores: {}, finalizedAt: Date.now() };
-		},
-		async saveState(_request) {
-			return { success: false, savedAt: Date.now() };
-		},
-		async queryItemBank(_request) {
-			return { items: [], selectedAt: Date.now() };
-		},
-	};
-	#initSession: InitSessionRequest = { assessmentId: 'assessment', candidateId: 'candidate' };
+	#pci: PciConfiguration | undefined;
+	#referenceMode = false;
+	#backend: BackendAdapter | undefined;
+	#hostBackend: BackendAdapter | undefined;
+	#initSession: InitSessionRequest | undefined;
+	#initSessionSource: 'host' | 'local' | undefined;
 
 	#loadSeq = 0;
 	#allowMount = false;
+	#resourceLoadController: AbortController | undefined;
 
 	connectedCallback() {
 		super.connectedCallback();
 		queueMicrotask(() => {
+			if (this.#hostBackend && !this.#initSession) {
+				this.#dispatchLoadError(
+					'Set `initSession`, or both `assessmentId` and `candidateId`, before using an injected assessment backend.',
+				);
+			}
 			this.dispatchEvent(new CustomEvent('ready', { bubbles: true, composed: true }));
+			void this.#syncFromQti();
 		});
+	}
+
+	disconnectedCallback() {
+		this.#loadSeq++;
+		this.#resourceLoadController?.abort();
+		this.#resourceLoadController = undefined;
+		super.disconnectedCallback();
 	}
 
 	protected override _mountOrUpdate() {
@@ -94,12 +119,18 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 			this.#assessmentTestXml = newValue;
 		}
 
+		if (name === 'reference-mode') {
+			this.#referenceMode = newValue !== null && newValue !== 'false';
+		}
+
 		if (name === 'assessment-id') {
 			this.#assessmentId = newValue ?? undefined;
+			this.#syncInitSessionFromIds();
 		}
 
 		if (name === 'candidate-id') {
 			this.#candidateId = newValue ?? undefined;
+			this.#syncInitSessionFromIds();
 		}
 
 		if (name === 'item-base-url') {
@@ -148,6 +179,90 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 	}
 
 	/**
+	 * Portable Custom Interaction trust configuration. Set as a JavaScript property;
+	 * the required resolver function cannot be represented safely as an attribute.
+	 */
+	get pci(): PciConfiguration | undefined {
+		return this.#pci ?? this.#config.pci;
+	}
+	set pci(value: PciConfiguration | undefined) {
+		this.#pci = value;
+		if (this.#allowMount) {
+			this._mountOrUpdate();
+		}
+	}
+
+	/**
+	 * Production backend boundary. The backend must return candidate-safe item XML
+	 * and remain authoritative for scoring, timing, navigation, and persistence.
+	 */
+	get backend(): BackendAdapter | undefined {
+		return this.#hostBackend;
+	}
+	set backend(value: BackendAdapter | undefined) {
+		this.#loadSeq++;
+		this.#resourceLoadController?.abort();
+		this.#resourceLoadController = undefined;
+		this.#allowMount = false;
+		this._teardownInstance();
+		// A session synthesized for the answer-bearing preview backend is not an
+		// authorization decision for a subsequently injected production backend.
+		if (this.#initSessionSource === 'local') {
+			this.#initSession = undefined;
+			this.#initSessionSource = undefined;
+		}
+		this.#hostBackend = value;
+		this.#backend = value;
+		if (!value) {
+			void this.#syncFromQti();
+			return;
+		}
+		this.#syncSecureBackendMount();
+	}
+
+	get initSession(): InitSessionRequest | undefined {
+		return this.#initSession ? { ...this.#initSession } : undefined;
+	}
+	set initSession(value: InitSessionRequest | undefined) {
+		this.#initSession = value ? { ...value } : undefined;
+		this.#initSessionSource = value ? 'host' : undefined;
+		this.#assessmentId = value?.assessmentId;
+		this.#candidateId = value?.candidateId;
+		this.#syncSecureBackendMount();
+	}
+
+	get assessmentId(): string | undefined {
+		return this.#assessmentId;
+	}
+	set assessmentId(value: string | undefined) {
+		this.#assessmentId = value;
+		this.#syncInitSessionFromIds();
+	}
+
+	get candidateId(): string | undefined {
+		return this.#candidateId;
+	}
+	set candidateId(value: string | undefined) {
+		this.#candidateId = value;
+		this.#syncInitSessionFromIds();
+	}
+
+	/**
+	 * Explicitly enables the local ReferenceBackendAdapter. This mode exposes item
+	 * XML and answer/scoring data to the browser and is only suitable for previews,
+	 * demos, and trusted low-stakes content.
+	 */
+	get referenceMode(): boolean {
+		return this.#referenceMode;
+	}
+	set referenceMode(value: boolean) {
+		this.#referenceMode = value === true;
+		if (this.#referenceMode) this.setAttribute('reference-mode', '');
+		else this.removeAttribute('reference-mode');
+		void this.#syncFromQti();
+	}
+
+	/**
 	 * Pure-QTI API (preferred): supply an assessmentTest XML string and let the element
 	 * resolve itemRefs via either an item map (A) or base URL fetching (B).
 	 */
@@ -178,6 +293,14 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 		// Don't call _mountOrUpdate here - let #syncFromQti handle it when done
 	}
 
+	get itemFetchPolicy(): QtiItemFetchPolicy | undefined {
+		return this.#itemFetchPolicy;
+	}
+	set itemFetchPolicy(value: QtiItemFetchPolicy | undefined) {
+		this.#itemFetchPolicy = value ? { ...value } : undefined;
+		void this.#syncFromQti();
+	}
+
 	/**
 	 * Imperative API (proxied through `AssessmentShell` exports)
 	 */
@@ -206,29 +329,99 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 		return this._instance?.restoreState?.(state);
 	}
 
-	async #syncFromQti() {
-		if (!this.#assessmentTestXml) return;
+	addEventListener<K extends keyof QtiAssessmentPlayerEventMap>(
+		type: K,
+		listener: (this: QtiAssessmentPlayerElement, event: QtiAssessmentPlayerEventMap[K]) => unknown,
+		options?: boolean | AddEventListenerOptions,
+	): void;
+	addEventListener(
+		type: string,
+		listener: EventListenerOrEventListenerObject,
+		options?: boolean | AddEventListenerOptions,
+	): void;
+	addEventListener(
+		type: string,
+		listener: EventListenerOrEventListenerObject,
+		options?: boolean | AddEventListenerOptions,
+	): void {
+		super.addEventListener(type, listener, options);
+	}
 
+	async #syncFromQti() {
 		const seq = ++this.#loadSeq;
+		this.#resourceLoadController?.abort();
+		this.#resourceLoadController = undefined;
+		if (this.#hostBackend) {
+			this.#syncSecureBackendMount();
+			return;
+		}
+		if (!this.#assessmentTestXml) {
+			this.#deactivateLocalBackend();
+			return;
+		}
+		if (!this.#referenceMode) {
+			this.#deactivateLocalBackend();
+			this.#dispatchLoadError(
+				'Raw assessment XML uses the local answer-bearing backend. Set `referenceMode = true` for explicit preview/offline delivery, or inject `backend` and `initSession` for authoritative delivery.',
+			);
+			return;
+		}
+
+		// Revoke the previous local player before resolving a replacement. If the
+		// replacement fails, stale answer-bearing content must not remain usable.
+		this.#deactivateLocalBackend();
+
+		const resourceLoadController = new AbortController();
+		this.#resourceLoadController = resourceLoadController;
 		this.dispatchEvent(new CustomEvent('load-start', { bubbles: true, composed: true }));
 
 		try {
-			const parsed = parseAssessmentTestXml(this.#assessmentTestXml);
+			const security = this.#effectiveSecurity();
+			enforceItemXmlLimits(this.#assessmentTestXml, security);
+			const configuredSectionDepth = security.parsingLimits?.enabled
+				? security.parsingLimits.maxHtmlDepth
+				: undefined;
+			const parsed = parseAssessmentTestXml(
+				this.#assessmentTestXml,
+				configuredSectionDepth === undefined
+					? undefined
+					: { maxSectionDepth: configuredSectionDepth },
+			);
+			const resolverItems = this.#resourceItemsForParsedAssessment(parsed);
+			const resourceResolver = createAssessmentResourceResolver({
+				itemBaseUrl: this.#itemBaseUrl,
+				items: resolverItems,
+				security,
+				fetchPolicy: this.#itemFetchPolicy,
+				signal: resourceLoadController.signal,
+			});
 			await resolveItemsForAssessment({
 				assessment: parsed,
 				itemBaseUrl: this.#itemBaseUrl,
-				items: this.#items,
+				items: resolverItems,
+				security,
+				fetchPolicy: this.#itemFetchPolicy,
+				signal: resourceLoadController.signal,
+				resourceResolver,
 			});
 
 			if (seq !== this.#loadSeq) return; // superseded
 			const assessmentId = this.#assessmentId ?? parsed.identifier ?? 'assessment';
 			const candidateId = this.#candidateId ?? 'candidate';
 
-			const secure = this.#toSecureAssessment(parsed, this.#config.role ?? 'candidate');
+			const secure = await ReferenceBackendAdapter.parseAssessmentTestXml(this.#assessmentTestXml, {
+				role: this.#config.role ?? 'candidate',
+				itemXmlMap: this.#resolvedItemXmlMap(parsed),
+				fileResolver: resourceResolver,
+				...(configuredSectionDepth === undefined
+					? {}
+					: { sectionReferenceLimits: { maxDepth: configuredSectionDepth } }),
+			});
 			const backend = new ReferenceBackendAdapter();
 			backend.registerAssessment(assessmentId, secure);
 			this.#backend = backend;
 			this.#initSession = { assessmentId, candidateId };
+			this.#initSessionSource = 'local';
 
 			this.dispatchEvent(new CustomEvent('load-end', { bubbles: true, composed: true }));
 
@@ -236,88 +429,121 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 			this.#allowMount = true;
 			this._mountOrUpdate();
 		} catch (e) {
-			if (seq !== this.#loadSeq) return;
-			// Keep current backend/initSession; component will display error.
-			this.dispatchEvent(
-				new CustomEvent('load-error', {
-					detail: { message: e instanceof Error ? e.message : String(e) },
-					bubbles: true,
-					composed: true,
-				}),
-			);
-			this._mountOrUpdate(); // Mount/update even on error (will show fallback)
+			if (seq !== this.#loadSeq || resourceLoadController.signal.aborted) return;
+			this.#deactivateLocalBackend();
+			this.#dispatchLoadError(e instanceof Error ? e.message : String(e));
+		} finally {
+			if (this.#resourceLoadController === resourceLoadController) {
+				this.#resourceLoadController = undefined;
+			}
 		}
 	}
 
-	#toSecureAssessment(parsed: ParsedAssessmentTest, role: BackendAssessmentPlayerConfig['role']): SecureAssessment {
-		const testParts = parsed.testParts ?? [];
-		const first = testParts[0];
-
-		if (!first) {
-			return {
-				identifier: parsed.identifier ?? 'assessment',
-				title: parsed.title ?? 'Assessment',
-				navigationMode: 'nonlinear',
-				submissionMode: 'simultaneous',
-				testParts: [],
-			};
-		}
-
-		const flattenSections = (roots: ParsedAssessmentSection[]): ParsedAssessmentSection[] => {
-			const out: ParsedAssessmentSection[] = [];
-			const stack = [...roots].reverse();
-			while (stack.length) {
-				const s = stack.pop()!;
-				out.push(s);
-				if (s.sections && s.sections.length) {
-					// depth-first, preserve original order
-					for (const child of [...s.sections].reverse()) stack.push(child);
-				}
-			}
-			return out;
-		};
-
-		const mapSection = (s: ParsedAssessmentSection) => {
-			const items =
-				s.assessmentItemRefs?.map((q) => {
-					if (!q.itemXml) {
-						throw new Error(`Missing itemXml for item "${q.identifier}" (provide items-json or item-base-url).`);
-					}
-					return {
-						identifier: q.identifier,
-						itemXml: q.itemXml,
-						role: role ?? 'candidate',
-						required: q.required,
-					};
-				}) ?? [];
-
-			return {
-				identifier: s.identifier,
-				title: s.title,
-				visible: s.visible ?? true,
-				assessmentItemRefs: items,
-				rubricBlocks: s.rubricBlocks,
-			};
-		};
-
+	#effectiveSecurity(): PlayerSecurityConfig {
 		return {
-			identifier: parsed.identifier ?? 'assessment',
-			title: parsed.title ?? 'Assessment',
-			navigationMode: first.navigationMode ?? 'nonlinear',
-			submissionMode: first.submissionMode ?? 'simultaneous',
-			testParts: testParts.map((p) => ({
-				identifier: p.identifier,
-				sections: flattenSections(p.sections).map(mapSection),
-			})),
+			...(this.#security ?? {}),
+			parsingLimits: {
+				enabled: true,
+				...(this.#security?.parsingLimits ?? {}),
+			},
 		};
+	}
+
+	#dispatchLoadError(message: string): void {
+		this.dispatchEvent(
+			new CustomEvent<QtiAssessmentLoadErrorDetail>('load-error', {
+				detail: { message },
+				bubbles: true,
+				composed: true,
+			}),
+		);
+	}
+
+	#syncInitSessionFromIds(): void {
+		if (this.#assessmentId && this.#candidateId) {
+			this.#initSession = {
+				...(this.#initSession?.resumeSessionId
+					? { resumeSessionId: this.#initSession.resumeSessionId }
+					: {}),
+				assessmentId: this.#assessmentId,
+				candidateId: this.#candidateId,
+			};
+			this.#initSessionSource = 'host';
+		} else if (this.#hostBackend) {
+			this.#initSession = undefined;
+			this.#initSessionSource = undefined;
+		}
+		this.#syncSecureBackendMount();
+	}
+
+	#syncSecureBackendMount(): void {
+		if (!this.#hostBackend || !this.#initSession) {
+			if (this.#hostBackend) {
+				this.#allowMount = false;
+				this._teardownInstance();
+			}
+			return;
+		}
+		this.#backend = this.#hostBackend;
+		this.#allowMount = true;
+		if (this.isConnected) this._mountOrUpdate();
+	}
+
+	#deactivateLocalBackend(): void {
+		this.#allowMount = false;
+		this._teardownInstance();
+		if (!this.#hostBackend) {
+			this.#backend = undefined;
+			this.#initSession = undefined;
+			this.#initSessionSource = undefined;
+		}
+	}
+
+	#resourceItemsForParsedAssessment(parsed: ParsedAssessmentTest): QtiItemMap | undefined {
+		if (!this.#items) return undefined;
+		const map = { ...this.#items };
+		const visit = (sections: ParsedAssessmentSection[]): void => {
+			for (const section of sections) {
+				for (const item of section.assessmentItemRefs ?? []) {
+					if (item.href && map[item.href] === undefined && map[item.identifier] !== undefined) {
+						map[item.href] = map[item.identifier]!;
+					}
+				}
+				visit(section.sections ?? []);
+			}
+		};
+		for (const part of parsed.testParts ?? []) visit(part.sections ?? []);
+		return map;
+	}
+
+	#resolvedItemXmlMap(parsed: ParsedAssessmentTest): Record<string, string> {
+		const map: Record<string, string> = {};
+		const visit = (sections: ParsedAssessmentSection[]): void => {
+			for (const section of sections) {
+				for (const item of section.assessmentItemRefs ?? []) {
+					if (!item.itemXml) {
+						throw new Error(`Missing itemXml for item "${item.identifier}" (provide items or itemBaseUrl).`);
+					}
+					map[item.identifier] = item.itemXml;
+					if (item.href) map[item.href] = item.itemXml;
+				}
+				visit(section.sections ?? []);
+			}
+		};
+		for (const part of parsed.testParts ?? []) visit(part.sections ?? []);
+		return map;
 	}
 
 	getProps() {
+		if (!this.#backend || !this.#initSession) {
+			throw new Error('Assessment backend and initSession must be configured before mounting.');
+		}
 		// Ensure we never expose callback-style config as the public API.
 		// Consumers should listen to DOM events instead.
 		const baseConfig: Partial<BackendAssessmentPlayerConfig> = {
 			...this.#config,
-			security: this.#security,
+			security: this.#effectiveSecurity(),
+			pci: this.#pci ?? this.#config.pci,
 			onItemChange: (itemIndex: number, totalItems: number) => {
 				const detail: QtiAssessmentItemChangeDetail = { itemIndex, totalItems };
 				this.dispatchEvent(
@@ -378,5 +604,3 @@ export function defineQtiAssessmentPlayerElement() {
 		customElements.define(QTI_ASSESSMENT_PLAYER_TAG, QtiAssessmentPlayerElement);
 	}
 }
-
-

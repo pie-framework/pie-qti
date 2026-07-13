@@ -1,6 +1,6 @@
 # PIE QTI Project Status
 
-**Last updated**: 2026-05-04
+**Last updated**: 2026-07-13
 
 This is the short project snapshot. Package READMEs, `docs/`, and the CI
 workflows are the authoritative sources for detailed behavior.
@@ -9,11 +9,16 @@ workflows are the authoritative sources for detailed behavior.
 
 ### QTI Players
 
-The core player packages are pre-1.0 but considered production-ready for the
-supported QTI delivery scope.
+The core player packages are pre-1.0 and have broad clean-room coverage, but the
+2026-07 architecture/conformance review found blockers that prevent a general
+"all valid QTI" or certification-ready claim. See `docs/SPEC-GAPS-PLAN.md`.
 
-- `@pie-qti/item-player` renders single QTI items and supports standard QTI
-  item interaction types across the supported delivery scope.
+- `@pie-qti/item-player` registers extractors for all 21 standard QTI 2.2
+  interaction names. The current tree includes schema-valid position-object
+  extraction, QTI 3 foreign-vocabulary pass-through, host-resolved PCI lifecycle,
+  typed record cardinality, complete extended-text response shapes, and canonical
+  fixed-template behavior for the supported URI set. This is broad coverage, not
+  proof that every interaction is candidate-operable in every browser/profile.
 - `@pie-qti/assessment-player` sequences QTI assessment tests, sections, item
   refs, item session control, rubric blocks, and response submission.
 - `@pie-qti/default-components` supplies the default web-component renderers.
@@ -25,7 +30,7 @@ supported QTI delivery scope.
 
 ### QTI 3.0
 
-QTI 3.0 infrastructure and standard interaction delivery are implemented.
+QTI 3.0 naming infrastructure and broad standard interaction delivery are implemented.
 
 - Version detection supports QTI 2.x and QTI 3.0 item/test roots.
 - Element and attribute mapping handles QTI 3.0 kebab-case names and `qti-`
@@ -33,8 +38,12 @@ QTI 3.0 infrastructure and standard interaction delivery are implemented.
 - Standard item interactions share the QTI 2.2 extraction/rendering path where
   semantics align.
 - QTI 3.0 Shared Vocabulary classes are preserved for rendering behavior.
-- Portable Custom Interactions, Personal Needs and Preferences, and Catalog /
-  Glossary support are implemented at the player layer.
+- Personal Needs and Preferences and Catalog / Glossary support are implemented
+  at the player layer. Portable Custom Interaction extraction and the production
+  lifecycle are connected, but module execution remains disabled until the host
+  supplies a resolver; accepted PCI code is trusted page-authority code, not sandboxed.
+- Remaining assessment semantics include dynamic preconditions, section/testPart
+  branch rules, and sequence-indexed clone materialization for selection with replacement.
 
 ### Certification Readiness
 
@@ -45,6 +54,12 @@ The public repository uses clean-room certification coverage only.
   package test fixtures.
 - Official 1EdTech conformance package execution is intentionally outside this
   public repository and belongs in the private conformance runner.
+- That runner consumes published NPM candidates only. Current working-tree fixes
+  cannot be exercised by the official suite until a new candidate is published and
+  pinned; prior green evidence applies to the previously published candidate.
+- The current private runner is useful smoke coverage, not semantic proof: several
+  paths pass on construction/no-throw, permit manual-required results, or bypass
+  browser interaction through direct response APIs.
 - The project should remain pre-1.0 until the relevant QTI certification path is
   complete.
 
@@ -80,8 +95,10 @@ The current high-signal verification commands are:
 - `bun run verify:apps:deploy`
 - `bun run verify:publish:quick`
 
-The full suite was last run successfully as part of the interaction module
-refactor on 2026-05-04.
+The complete public certification gate passed on 2026-07-13, including the targeted
+Chromium interaction and accessibility suites. `verify:publish:quick` also passes;
+its ATTW fallback now handles the same known Node-10 and CSS-resolution diagnostics
+as the structured-report path.
 
 ## Intentional Non-Goals
 

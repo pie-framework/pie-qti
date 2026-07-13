@@ -43,7 +43,11 @@ export async function openPackage(file: File, options: OpenPackageOptions = {}):
 	const {
 		storage = new SessionStorageBackend(),
 		maxFileSize = 50 * 1024 * 1024, // 50MB
+		maxCompressedSize = 100 * 1024 * 1024, // 100MB
+		maxTotalUncompressedSize = 250 * 1024 * 1024, // 250MB
+		maxEntries = 1000,
 		maxFiles = 1000,
+		maxCompressionRatio = 200,
 	} = options;
 
 	// Generate package ID from file name and timestamp
@@ -52,7 +56,11 @@ export async function openPackage(file: File, options: OpenPackageOptions = {}):
 	// Extract ZIP contents
 	const { files, manifestXml, manifestPath } = await extractPackage(file, {
 		maxFileSize,
+		maxCompressedSize,
+		maxTotalUncompressedSize,
+		maxEntries,
 		maxFiles,
+		maxCompressionRatio,
 	});
 
 	// Parse and resolve manifest

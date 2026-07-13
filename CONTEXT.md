@@ -23,7 +23,7 @@
 | **OutcomeDeclaration** | A QTI variable that stores a computed result such as score or feedback state. | Score variable, Result variable |
 | **TemplateDeclaration** | A QTI variable used to parameterize an item before delivery. | Template, Randomization field |
 | **BaseType** | The scalar type of a QTI variable value. | Data type, Type |
-| **Cardinality** | The multiplicity of a QTI variable value: `single`, `multiple`, or `ordered`. | Multiplicity |
+| **Cardinality** | The multiplicity of a QTI variable value: `single`, `multiple`, `ordered`, or `record`. A record has named fields with field-level BaseTypes and no declaration-level BaseType. | Multiplicity |
 | **CorrectResponse** | The authoritative expected response declared for scoring or review. | Answer key, Correct answer |
 | **Mapping** | A lookup table that maps response values to partial scores. | Scoring table, Score map |
 | **AreaMapping** | A spatial Mapping that maps coordinate regions to scores. | Hotspot scoring map |

@@ -17,6 +17,7 @@ import { standardMatchExtractor } from './match/index.js';
 import { standardMediaExtractor } from './media/index.js';
 import { standardOrderExtractor } from './order/index.js';
 import { standardPositionObjectExtractor } from './position-object/index.js';
+import { portableCustomExtractor } from './portable-custom/index.js';
 import { standardSelectPointExtractor } from './select-point/index.js';
 import { standardSliderExtractor } from './slider/index.js';
 import { standardTextEntryExtractor } from './text-entry/index.js';
@@ -46,6 +47,7 @@ export const STANDARD_INTERACTION_MODULES = [
 	{ type: 'uploadInteraction', extractor: standardUploadExtractor, placement: 'block' },
 	{ type: 'drawingInteraction', extractor: standardDrawingExtractor, placement: 'block' },
 	{ type: 'customInteraction', extractor: standardCustomExtractor, placement: 'block' },
+	{ type: 'portableCustomInteraction', extractor: portableCustomExtractor, placement: 'block' },
 	{ type: 'mediaInteraction', extractor: standardMediaExtractor, placement: 'block' },
 	{ type: 'hottextInteraction', extractor: standardHottextExtractor, placement: 'block' },
 	{ type: 'selectPointInteraction', extractor: standardSelectPointExtractor, placement: 'block' },

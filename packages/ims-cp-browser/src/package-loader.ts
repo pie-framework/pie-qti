@@ -22,13 +22,76 @@ function isTextFile(path: string): boolean {
  */
 export async function extractPackage(
 	file: File,
-	options: ExtractOptions
+	options: ExtractOptions = {},
 ): Promise<{ files: Map<string, VirtualFile>; manifestXml: string; manifestPath: string }> {
+	const maxFileSize = resolveLimit(options.maxFileSize, 50 * 1024 * 1024, 'maxFileSize');
+	const maxCompressedSize = resolveLimit(
+		options.maxCompressedSize,
+		100 * 1024 * 1024,
+		'maxCompressedSize',
+	);
+	const maxTotalUncompressedSize = resolveLimit(
+		options.maxTotalUncompressedSize,
+		250 * 1024 * 1024,
+		'maxTotalUncompressedSize',
+	);
+	const maxEntries = resolveLimit(options.maxEntries, 1000, 'maxEntries', true);
+	const maxFiles = resolveLimit(options.maxFiles, 1000, 'maxFiles', true);
+	const maxCompressionRatio = resolveLimit(
+		options.maxCompressionRatio,
+		200,
+		'maxCompressionRatio',
+	);
+	const compressedInputSize = getInputSize(file);
+	if (compressedInputSize !== null && compressedInputSize > maxCompressedSize) {
+		throw new Error(`Package exceeds maximum compressed size (${maxCompressedSize} bytes)`);
+	}
+
 	const zip = await JSZip.loadAsync(file);
 	const files = new Map<string, VirtualFile>();
 
+	let entryCount = 0;
 	let fileCount = 0;
-	const { maxFiles, maxFileSize = Number.POSITIVE_INFINITY } = options;
+	let advertisedTotalSize = 0;
+	let actualTotalSize = 0;
+
+	// Reject from central-directory metadata before inflating any entry. Actual
+	// output is checked again below because metadata must not be trusted alone.
+	for (const zipEntry of Object.values(zip.files)) {
+		entryCount++;
+		if (entryCount > maxEntries) {
+			throw new Error(`Package exceeds maximum entry count (${maxEntries})`);
+		}
+		if (zipEntry.dir) continue;
+
+		const sizes = getZipEntrySizes(zipEntry);
+		if (
+			(sizes.uncompressed !== null &&
+				(!Number.isSafeInteger(sizes.uncompressed) || sizes.uncompressed < 0)) ||
+			(sizes.compressed !== null &&
+				(!Number.isSafeInteger(sizes.compressed) || sizes.compressed < 0))
+		) {
+			throw new Error(`Zip entry has invalid size metadata: ${toPosixPath(zipEntry.name)}`);
+		}
+		if (sizes.uncompressed !== null) {
+			if (sizes.uncompressed > maxFileSize) {
+				throw new Error(`File ${toPosixPath(zipEntry.name)} exceeds maximum file size (${maxFileSize} bytes)`);
+			}
+			advertisedTotalSize += sizes.uncompressed;
+			if (advertisedTotalSize > maxTotalUncompressedSize) {
+				throw new Error(
+					`Package exceeds maximum total uncompressed size (${maxTotalUncompressedSize} bytes)`,
+				);
+			}
+		}
+		if (
+			sizes.uncompressed !== null &&
+			sizes.compressed !== null &&
+			exceedsCompressionRatio(sizes.uncompressed, sizes.compressed, maxCompressionRatio)
+		) {
+			throw new Error(`File ${toPosixPath(zipEntry.name)} exceeds maximum compression ratio (${maxCompressionRatio})`);
+		}
+	}
 
 	// Extract all files
 	for (const [relativePath, zipEntry] of Object.entries(zip.files)) {
@@ -44,7 +107,7 @@ export async function extractPackage(
 			throw new Error(`Package exceeds maximum file count (${maxFiles})`);
 		}
 
-		const advertisedSize = getZipEntryUncompressedSize(zipEntry);
+		const advertisedSize = getZipEntrySizes(zipEntry).uncompressed;
 		if (advertisedSize !== null && advertisedSize > maxFileSize) {
 			throw new Error(`File ${posixPath} exceeds maximum file size (${maxFileSize} bytes)`);
 		}
@@ -57,6 +120,12 @@ export async function extractPackage(
 			if (size > maxFileSize) {
 				throw new Error(`File ${posixPath} exceeds maximum file size (${maxFileSize} bytes)`);
 			}
+			actualTotalSize += size;
+			if (actualTotalSize > maxTotalUncompressedSize) {
+				throw new Error(
+					`Package exceeds maximum total uncompressed size (${maxTotalUncompressedSize} bytes)`,
+				);
+			}
 			files.set(posixPath, {
 				path: posixPath,
 				content,
@@ -67,6 +136,12 @@ export async function extractPackage(
 			const blob = await zipEntry.async('blob');
 			if (blob.size > maxFileSize) {
 				throw new Error(`File ${posixPath} exceeds maximum file size (${maxFileSize} bytes)`);
+			}
+			actualTotalSize += blob.size;
+			if (actualTotalSize > maxTotalUncompressedSize) {
+				throw new Error(
+					`Package exceeds maximum total uncompressed size (${maxTotalUncompressedSize} bytes)`,
+				);
 			}
 			files.set(posixPath, {
 				path: posixPath,
@@ -93,9 +168,49 @@ export async function extractPackage(
 	return { files, manifestXml, manifestPath };
 }
 
-function getZipEntryUncompressedSize(zipEntry: JSZip.JSZipObject): number | null {
-	const data = (zipEntry as unknown as { _data?: { uncompressedSize?: unknown } })._data;
-	return typeof data?.uncompressedSize === 'number' ? data.uncompressedSize : null;
+function getInputSize(input: unknown): number | null {
+	if (typeof (input as { size?: unknown })?.size === 'number') {
+		return (input as { size: number }).size;
+	}
+	if (typeof (input as { byteLength?: unknown })?.byteLength === 'number') {
+		return (input as { byteLength: number }).byteLength;
+	}
+	return null;
+}
+
+function resolveLimit(
+	value: number | undefined,
+	fallback: number,
+	name: string,
+	requireInteger = false,
+): number {
+	const resolved = value ?? fallback;
+	if (
+		resolved !== Number.POSITIVE_INFINITY &&
+		(!Number.isFinite(resolved) || resolved < 0 || (requireInteger && !Number.isInteger(resolved)))
+	) {
+		throw new Error(`${name} must be a non-negative ${requireInteger ? 'integer' : 'number'}`);
+	}
+	return resolved;
+}
+
+function getZipEntrySizes(zipEntry: JSZip.JSZipObject): {
+	compressed: number | null;
+	uncompressed: number | null;
+} {
+	const data = (zipEntry as unknown as {
+		_data?: { compressedSize?: unknown; uncompressedSize?: unknown };
+	})._data;
+	return {
+		compressed: typeof data?.compressedSize === 'number' ? data.compressedSize : null,
+		uncompressed: typeof data?.uncompressedSize === 'number' ? data.uncompressedSize : null,
+	};
+}
+
+function exceedsCompressionRatio(uncompressed: number, compressed: number, maximum: number): boolean {
+	if (uncompressed === 0 || maximum === Number.POSITIVE_INFINITY) return false;
+	if (compressed <= 0) return true;
+	return uncompressed / compressed > maximum;
 }
 
 /**

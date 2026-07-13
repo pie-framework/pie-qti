@@ -8,6 +8,8 @@
 	import type { QTIFileResponse } from '@pie-qti/item-player';
 	import type { I18nProvider } from '@pie-qti/i18n';
 
+	const DEFAULT_MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
+
 	interface Props {
 		/** Optional label shown above the input */
 		label?: string;
@@ -15,6 +17,8 @@
 		responseId: string;
 		/** Allowed file types (MIME types and/or extensions); empty means accept any */
 		fileTypes?: string[];
+		/** Maximum accepted file size in bytes; use Infinity to disable the cap */
+		maxFileSizeBytes?: number;
 		disabled?: boolean;
 		value?: QTIFileResponse | null;
 		onChange: (value: QTIFileResponse | null) => void;
@@ -28,6 +32,7 @@
 		label,
 		responseId,
 		fileTypes = [],
+		maxFileSizeBytes = DEFAULT_MAX_FILE_SIZE_BYTES,
 		disabled = false,
 		value = null,
 		onChange,
@@ -43,10 +48,22 @@
 		unknownType: i18n?.t('interactions.upload.unknownType') ?? 'interactions.upload.unknownType',
 		removeFile: i18n?.t('interactions.upload.removeFile') ?? 'interactions.upload.removeFile',
 		errorInvalidType: (types: string) => i18n?.t('interactions.upload.errorInvalidType', { types }) ?? `interactions.upload.errorInvalidType ${types}`,
+		errorFileTooLarge: (filename: string, maxBytes: number) =>
+			i18n?.t(
+				'interactions.upload.errorFileTooLarge',
+				'File {filename} is too large. Maximum size is {maxBytes} bytes.',
+				{ filename, maxBytes },
+			) ?? `File ${filename} is too large. Maximum size is ${maxBytes} bytes.`,
 	});
 
 	// Use label prop or fallback to translated text
 	const displayLabel = $derived(label || translations.label);
+	const effectiveMaxFileSizeBytes = $derived(
+		maxFileSizeBytes === Number.POSITIVE_INFINITY ||
+			(Number.isFinite(maxFileSizeBytes) && maxFileSizeBytes >= 0)
+			? maxFileSizeBytes
+			: DEFAULT_MAX_FILE_SIZE_BYTES,
+	);
 
 	let error = $state<string>('');
 
@@ -77,6 +94,15 @@
 		const input = e.currentTarget as HTMLInputElement;
 		const file = input.files?.[0];
 		if (!file) {
+			onChange(null);
+			return;
+		}
+
+		// Reject before FileReader/base64 conversion, which otherwise creates an
+		// additional in-memory copy roughly one third larger than the source file.
+		if (file.size > effectiveMaxFileSizeBytes) {
+			error = translations.errorFileTooLarge(file.name, effectiveMaxFileSizeBytes);
+			input.value = '';
 			onChange(null);
 			return;
 		}
@@ -154,5 +180,3 @@
 		</div>
 	{/if}
 </div>
-
-

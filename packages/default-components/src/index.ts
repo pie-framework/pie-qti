@@ -70,6 +70,11 @@ const DEFAULT_COMPONENTS_BY_TYPE = {
 		description: 'Default Svelte-based custom interaction',
 		tagName: 'pie-qti-custom',
 	},
+	portableCustomInteraction: {
+		name: 'default-portable-custom',
+		description: 'Default Portable Custom Interaction host',
+		tagName: 'pie-qti-portable-custom',
+	},
 	endAttemptInteraction: {
 		name: 'default-end-attempt',
 		description: 'Default Svelte-based end attempt interaction',

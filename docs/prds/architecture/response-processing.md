@@ -1,16 +1,16 @@
 # PRD: Response Processing Engine
 
 <!--
-  Status: draft
+  Status: needs-update
   Type: architecture
   Packages: @pie-qti/qti-processing
-  Last reviewed: 2026-04-27
+  Last reviewed: 2026-07-13
 -->
 
-**Status:** draft  
+**Status:** needs-update
 **Type:** architecture  
 **Packages:** `@pie-qti/qti-processing`  
-**Last reviewed:** 2026-04-27
+**Last reviewed:** 2026-07-13
 
 ---
 
@@ -145,7 +145,7 @@ The QTI processing model is inherently stateful: `setOutcomeValue` and `setTempl
 
 ### Known divergences from spec
 
-- **`outcomeProcessing` XML at assessment level (G-11):** `buildOutcomeProcessingAst()` and the full test-level expression set (`testVariables`, `numberCorrect`, etc.) are implemented and pass tests. However, the assessment player does not currently wire the XML path: it uses TypeScript scoring templates instead of parsing the `<outcomeProcessing>` element from the `assessmentTest` document. See G-11.
+- **`outcomeProcessing` XML at assessment level (G-11):** `buildOutcomeProcessingAst()` and the full test-level expression set (`testVariables`, `numberCorrect`, etc.) are implemented and pass tests. `ReferenceBackendAdapter` now parses and executes the assessment XML path. However, `QtiAssessmentPlayerElement` uses a separate, lossy `assessmentTest` parser and drops outcome declarations and processing before registering the assessment. See G-11.
 - **`xi:include` is a parse error, not a no-op:** The spec implies `xi:include` should be resolved. The engine throws instead of silently ignoring it, to surface content authoring errors early.
 
 ---

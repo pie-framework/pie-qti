@@ -16,6 +16,12 @@ const dom = parseHTML('<!DOCTYPE html><html><body></body></html>');
 (globalThis as any).Document = dom.Document;
 (globalThis as any).Element = dom.Element;
 (globalThis as any).Node = dom.Node;
+(globalThis as any).Text = dom.window.Text;
+(globalThis as any).Comment = dom.window.Comment;
+(globalThis as any).ShadowRoot = dom.window.ShadowRoot;
+(globalThis as any).DocumentFragment = dom.window.DocumentFragment;
+(globalThis as any).navigator = dom.window.navigator;
+(globalThis as any).CSSStyleSheet = class CSSStyleSheet {};
 
 // Polyfill XMLSerializer since linkedom doesn't provide it
 // Use the innerHTML/outerHTML properties instead

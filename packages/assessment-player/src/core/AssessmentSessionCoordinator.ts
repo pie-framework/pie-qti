@@ -62,6 +62,12 @@ export class AssessmentSessionCoordinator {
 			timing: {
 				...this.#state.timing,
 				itemTimes: { ...this.#state.timing.itemTimes },
+				sectionTimes: this.#state.timing.sectionTimes
+					? { ...this.#state.timing.sectionTimes }
+					: undefined,
+				testPartTimes: this.#state.timing.testPartTimes
+					? { ...this.#state.timing.testPartTimes }
+					: undefined,
 			},
 		};
 	}
@@ -271,4 +277,3 @@ function hasAnyResponse(responses: Record<string, unknown>): boolean {
 	}
 	return false;
 }
-

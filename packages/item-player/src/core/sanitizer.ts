@@ -10,7 +10,12 @@
  */
 
 import { type HTMLElement, parse } from 'node-html-parser';
-import { parseSrcsetCandidates } from '@pie-qti/ims-cp-core';
+import {
+	isBlockedStylesheetCss,
+	normalizeCssForPolicy,
+	parseSrcsetCandidates,
+} from '@pie-qti/ims-cp-core';
+import { Qti3ElementNameMapper } from '@pie-qti/qti-common';
 import type { PlayerSecurityConfig, UrlPolicyConfig } from '../types/index.js';
 import { normalizeParsingLimits } from './parsingLimits.js';
 import { sanitizeResourceUrl, type UrlKind } from './urlPolicy.js';
@@ -82,6 +87,72 @@ function sanitizeSrcset(value: string, options: SanitizeHtmlOptions | undefined)
 	return out.join(', ');
 }
 
+function isBlockedInlineStyle(css: string): boolean {
+	if (isBlockedStylesheetCss(css)) return true;
+
+	const normalized = normalizeCssForPolicy(css);
+	for (const match of normalized.matchAll(/(?:^|;)position:([^;]*)/gi)) {
+		const value = (match[1] ?? '').replace(/!important$/i, '');
+		// Keep the small set of literal values needed by authored QTI layouts.
+		// CSS variables, vendor values, and CSS-wide inheritance keywords can all
+		// resolve to fixed/sticky positioning after this static policy pass.
+		if (!/^(?:static|relative|absolute)$/i.test(value)) return true;
+	}
+	return false;
+}
+
+const qti3ElementNameMapper = new Qti3ElementNameMapper();
+
+function isKnownQti3Element(tagName: string): boolean {
+	if (!tagName.startsWith('qti-')) return false;
+	const canonical = qti3ElementNameMapper.toCanonical(tagName);
+	return qti3ElementNameMapper.toNative(canonical) === tagName;
+}
+
+const SVG_RESOURCE_ATTRIBUTES = new Set([
+	'clip-path',
+	'color-profile',
+	'cursor',
+	'fill',
+	'filter',
+	'marker',
+	'marker-end',
+	'marker-mid',
+	'marker-start',
+	'mask',
+	'stroke',
+]);
+
+// SVG SMIL elements can mutate href and other URL-bearing attributes after the
+// static attribute pass has completed. Removing the active animation vocabulary
+// is the only robust same-DOM policy across browser-specific SMIL recovery rules.
+const ACTIVE_SVG_ELEMENTS = new Set([
+	'animate',
+	'animatecolor',
+	'animatemotion',
+	'animatetransform',
+	'discard',
+	'set',
+]);
+
+function hasBlockedSvgResourceUrl(value: string): boolean {
+	const normalized = normalizeCssForPolicy(value);
+	if (!/url\(/i.test(normalized)) return false;
+
+	let foundUrl = false;
+	let blocked = false;
+	const remainder = normalized.replace(/url\(([^)]*)\)/gi, (_match, rawUrl: string) => {
+		foundUrl = true;
+		const unquoted = rawUrl.replace(/^(['"])(.*)\1$/, '$2');
+		if (!/^#[^'"()\s]+$/.test(unquoted)) blocked = true;
+		return '';
+	});
+
+	// Malformed/nested url() syntax is safer to drop than to let the browser
+	// recover it differently from this policy parser.
+	return blocked || !foundUrl || /url\(/i.test(remainder);
+}
+
 /**
  * Recursively sanitize an HTML element and its children
  */
@@ -110,6 +181,10 @@ function sanitizeElement(
 		element.remove();
 		return;
 	}
+	if (tagName && ACTIVE_SVG_ELEMENTS.has(tagName)) {
+		element.remove();
+		return;
+	}
 
 	// Remove high-risk elements by default (same-DOM embedding).
 	if (tagName === 'iframe' && !allowIframes(options)) {
@@ -127,6 +202,23 @@ function sanitizeElement(
 	}
 	if (tagName === 'base' || tagName === 'meta' || tagName === 'link' || tagName === 'style' || tagName === 'foreignobject') {
 		element.remove();
+		return;
+	}
+
+	// Only the closed QTI 3 vocabulary may retain a custom-element-shaped name.
+	// A prefix check alone would let assessment content invoke any host-registered
+	// `qti-*` lifecycle hook. Other hyphenated elements are unwrapped while their
+	// already-sanitized readable child content is preserved.
+	if (tagName?.includes('-') && !isKnownQti3Element(tagName)) {
+		const children = [...element.childNodes];
+		for (const child of children) {
+			if ((child as any).rawTagName) {
+				sanitizeElement(child as HTMLElement, options, limitsState, depth + 1);
+			}
+		}
+		// Re-read childNodes because sanitization may have removed or replaced
+		// entries from the original snapshot.
+		element.replaceWith(...element.childNodes);
 		return;
 	}
 
@@ -150,8 +242,46 @@ function sanitizeElement(
 			continue;
 		}
 
+		// The ping attribute is a space-separated tracking endpoint list. It is
+		// not needed for QTI content and should never cause assessment-authored
+		// background requests when a candidate follows a link.
+		if (lower === 'ping') {
+			element.removeAttribute(attrName);
+			continue;
+		}
+
+		// Customized built-in elements (`<button is="x-widget">`) can execute the
+		// same host-registered lifecycle code as autonomous custom elements.
+		if (lower === 'is') {
+			element.removeAttribute(attrName);
+			continue;
+		}
+
+		// Inline CSS is allowed for QTI presentation, but CSS resource functions
+		// must not bypass the URL policy or trigger external tracking requests.
+		if (lower === 'style' && isBlockedInlineStyle(value)) {
+			element.removeAttribute(attrName);
+			continue;
+		}
+
 		if (lower === 'srcset') {
 			const sanitized = sanitizeSrcset(value, options);
+			if (!sanitized) element.removeAttribute(attrName);
+			else if (sanitized !== value) element.setAttribute(attrName, sanitized);
+			continue;
+		}
+
+		// SVG presentation attributes can load external paint servers, filters,
+		// masks, markers, and cursors via CSS url(). Preserve document-local
+		// fragment references while removing network-capable forms.
+		if (SVG_RESOURCE_ATTRIBUTES.has(lower) && hasBlockedSvgResourceUrl(value)) {
+			element.removeAttribute(attrName);
+			continue;
+		}
+
+		// Deprecated HTML background attributes are still fetched by browsers.
+		if (lower === 'background') {
+			const sanitized = sanitizeUrlForHtml(value, options, 'img');
 			if (!sanitized) element.removeAttribute(attrName);
 			else if (sanitized !== value) element.setAttribute(attrName, sanitized);
 			continue;

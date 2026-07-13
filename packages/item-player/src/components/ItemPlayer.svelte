@@ -1,10 +1,11 @@
 <script lang="ts">
 	import { Player } from '../core/Player';
 	import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
-	import type { AdaptiveAttemptResult, ModalFeedback, PlayerSecurityConfig, QTIRole, ScoringResult } from '../types';
+	import type { AdaptiveAttemptResult, ModalFeedback, PlayerConfig, PlayerSecurityConfig, QTIRole, ScoringResult } from '../types';
 	import type { PnpProfile } from '../pnp/types';
 	import type { InteractionResponseValue } from '../web-components';
 	import type { I18nProvider } from '@pie-qti/i18n';
+	import { untrack } from 'svelte';
 	import ItemBody from './ItemBody.svelte';
 	import ModalFeedbackDisplay from './ModalFeedbackDisplay.svelte';
 
@@ -20,6 +21,11 @@
 		pnp?: PnpProfile;
 		/** Package/assessment-resolved delivery context */
 		deliveryContext?: ResolvedItemDeliveryContext;
+		/** Host-owned resolver for package-local xi:include processing fragments. */
+		resolveProcessingFragment?: PlayerConfig['resolveProcessingFragment'];
+		processingFragmentLimits?: PlayerConfig['processingFragmentLimits'];
+		/** Explicit opt-in and host resolver for Portable Custom Interaction modules. */
+		pci?: PlayerConfig['pci'];
 		/** Controlled/current responses, keyed by response identifier */
 		responses?: ItemResponseMap;
 		disabled?: boolean;
@@ -28,6 +34,8 @@
 		i18n?: I18nProvider;
 		onResponseChange?: (responseId: string, value: ItemResponseValue) => void;
 		onSubmit?: (responses: ItemResponseMap, scoringResult: ScoringResult) => void;
+		/** Controls the built-in submit action independently from the submission callback. */
+		showSubmit?: boolean;
 		/** Called when adaptive item completes (all attempts exhausted) */
 		onComplete?: (finalResult: AdaptiveAttemptResult) => void;
 	}
@@ -38,6 +46,9 @@
 		security,
 		pnp,
 		deliveryContext,
+		resolveProcessingFragment,
+		processingFragmentLimits,
+		pci,
 		responses: responseValues = {},
 		disabled = false,
 		renderItemBodyRubrics = true,
@@ -45,8 +56,10 @@
 		i18n,
 		onResponseChange,
 		onSubmit,
+		showSubmit,
 		onComplete,
 	}: Props = $props();
+	const shouldShowSubmit = $derived(showSubmit ?? Boolean(onSubmit));
 
 	// Create player instance
 	let player = $state<Player | null>(null);
@@ -61,16 +74,31 @@
 	// Initialize player when XML changes
 	$effect(() => {
 		try {
-			const newPlayer = new Player({ itemXml, role, security, pnp, deliveryContext });
+			const initialResponses = untrack(() => responseValues);
+			const newPlayer = new Player({
+				itemXml,
+				role,
+				security,
+				pnp,
+				deliveryContext,
+				resolveProcessingFragment,
+				processingFragmentLimits,
+				pci,
+				responses: initialResponses,
+			});
 			player = newPlayer;
 			error = null;
 			// Reset state when XML changes
-			currentResponses = { ...responseValues };
+			currentResponses = { ...initialResponses };
 			modalFeedback = [];
 			outcomeValues = {};
 			isAdaptive = newPlayer.isAdaptive();
 			isCompleted = newPlayer.isCompleted();
 			numAttempts = newPlayer.getNumAttempts();
+			return () => {
+				newPlayer.destroy();
+				if (player === newPlayer) player = null;
+			};
 		} catch (e) {
 			error = e instanceof Error ? e.message : (i18n?.t('item.parsingError') ?? 'item.parsingError');
 			player = null;
@@ -86,7 +114,7 @@
 		onResponseChange?.(responseId, value);
 	}
 
-	function handleSubmit(countAttempt: boolean = true) {
+	export function submit(countAttempt: boolean = true): ScoringResult | AdaptiveAttemptResult | undefined {
 		if (!player) return;
 
 		try {
@@ -110,12 +138,14 @@
 				if (result.completed && onComplete) {
 					onComplete(result);
 				}
+				return result;
 			} else {
 				// Non-adaptive item: use standard processResponses()
 				const result = player.processResponses();
 				modalFeedback = result.modalFeedback || [];
 				outcomeValues = result.outcomeValues || {};
 				onSubmit?.(currentResponses, result);
+				return result;
 			}
 		} catch (e) {
 			error = e instanceof Error ? e.message : (i18n?.t('item.processingError') ?? 'item.processingError');
@@ -146,12 +176,12 @@
 			onResponseChange={handleResponseChange}
 		/>
 
-		{#if role === 'candidate' && !disabled && onSubmit}
+		{#if role === 'candidate' && !disabled && shouldShowSubmit}
 			{@const canSubmit = player.canSubmitResponses(currentResponses)}
 			<div class="qti-player-actions">
 				<button
 					class="qti-player-button qti-player-button-primary"
-					onclick={() => handleSubmit(true)}
+					onclick={() => submit(true)}
 					disabled={isCompleted || !canSubmit}
 				>
 					{isAdaptive && isCompleted ? (i18n?.t('item.completed') ?? 'item.completed') : (i18n?.t('item.submit') ?? 'item.submit')}

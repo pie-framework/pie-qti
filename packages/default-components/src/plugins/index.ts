@@ -20,6 +20,7 @@ import './hotspot/HotspotInteraction.svelte';
 import './hottext/HottextInteraction.svelte';
 import './media/MediaInteraction.svelte';
 import './custom/CustomInteraction.svelte';
+import './portable-custom/PortableCustomInteraction.svelte';
 import './end-attempt/EndAttemptInteraction.svelte';
 import './position-object/PositionObjectInteraction.svelte';
 import './graphic-gap-match/GraphicGapMatchInteraction.svelte';

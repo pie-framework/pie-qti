@@ -1,26 +1,26 @@
 # PIE-QTI
 
-![QTI 2.2 & 3.0 Support](https://img.shields.io/badge/QTI%202.2%20%26%203.0-Supported-success)
-![Interactions](https://img.shields.io/badge/Interactions-21%2F21-success)
+![QTI 2.1, 2.2 & 3.0 Coverage](https://img.shields.io/badge/QTI%202.1%2C%202.2%20%26%203.0-Partial-orange)
+![Interactions](https://img.shields.io/badge/Interaction%20extractors-21-blue)
 ![Tests](https://img.shields.io/badge/Tests-1112%2B-success)
 ![Accessibility](https://img.shields.io/badge/Accessibility-Tested-blue)
 ![TypeScript](https://img.shields.io/badge/TypeScript-Strict-blue)
 
 This project provides two major capabilities:
 
-1. **QTI 2.2 & 3.0 Players** — Production-ready item and assessment players with unified version-agnostic architecture
+1. **QTI 2.1, 2.2 & 3.0 Players** — Standards-oriented item and assessment players with a shared version-normalization architecture
 2. **PIE ↔ QTI Transformation Framework** — Bidirectional transforms between QTI and PIE, with CLI, web app, and IMS Content Package support
 
 📚 **[Live Examples](https://qti.pie-framework.org/examples/)**
 
 ![QTI Player Examples](docs/images/examples-screenshot-1.png)
 
-> **Project Status**: QTI players are production-ready. Transform framework is under active development. See [STATUS.md](STATUS.md) for details.
+> **Project Status**: The players have broad clean-room coverage but are not yet fully conformant or certified. Several delivery blockers are tracked in [SPEC-GAPS-PLAN.md](docs/SPEC-GAPS-PLAN.md). The transform framework is under active development. See [STATUS.md](STATUS.md) for details.
 
 ---
 
 > [!WARNING]
-> While I believe the QTI player is production ready, we're still sticking to 0.1.x for a while, and we may make API changes between versions. I don't foresee a lot of that, but nevertheless, until this project has been used in the wild for a while, we may need some tweaks here and there to make the API good and meanwhile it's best to keep the code clean and unbothered with shims and other backwards compatibility constructs. Once we're at 1.0.0, we'll make stronger commitments for the API. But, let us know if you plan to use this for a non-trivial/ production system, and we can move such commitments forward.
+> This project is pre-1.0: APIs may change, formal QTI certification is still in progress, and the current review found conformance and security blockers for arbitrary untrusted/high-stakes delivery. Evaluate the documented gaps for your content profile, use a backend-authoritative assessment integration, and contact the maintainers before adopting it for a non-trivial production system.
 
 ---
 
@@ -36,7 +36,7 @@ We also built a **standards-oriented QTI player** because a modern, open-source 
 
 ## Part 1: QTI Players
 
-> **Status**: Production-ready for the supported QTI delivery scope; QTI 3.0 infrastructure, PCI, PNP, and Catalog support are implemented (see STATUS.md)
+> **Status**: Pre-1.0 with broad item-delivery coverage. Do not interpret the registered interaction count or clean-room certification matrix as a claim that every schema-valid QTI item/test is playable. See [STATUS.md](STATUS.md) and the [spec-gap plan](docs/SPEC-GAPS-PLAN.md).
 
 Full-featured players for rendering QTI assessment content in the browser.
 
@@ -47,7 +47,7 @@ The players use a unified architecture that supports both QTI 2.2 and 3.0 throug
 - **QTI 2.2 syntax family** — camelCase elements (`choiceInteraction`, `itemBody`)
 - **QTI 3.0** — kebab-case with `qti-` prefix (`qti-choice-interaction`, `qti-item-body`)
 - **Common Internal Model** — Both versions convert to the same canonical representation
-- **Zero Breaking Changes** — Existing QTI 2.2 code continues to work unchanged
+- **Compatible player entry points** — Existing QTI 2.2 callers use the same version-agnostic API
 
 See [`@pie-qti/qti-common`](packages/qti-common/README.md) for the version abstraction layer.
 
@@ -55,8 +55,8 @@ See [`@pie-qti/qti-common`](packages/qti-common/README.md) for the version abstr
 
 Renders and scores individual QTI items:
 
-- **21 standard interaction types** — Standard QTI interactions supported through the shared extraction/rendering path
-- **45 response processing operators** — Complete client-side scoring
+- **Standard and portable interaction extraction** — Broad QTI 2.x/3.0 rendering coverage, including host-resolved QTI 2.x and 3.0 PCI; remaining conformance work is tracked in the spec-gap plan
+- **Response processing AST/evaluator** — Broad operator coverage, typed record fields, canonical fixed-template behavior for the supported URI set, and explicit host-resolved processing fragments
 - **Role/view-aware rendering** — candidate, scorer, author, tutor, proctor, testConstructor
 - **Adaptive items** — Multi-attempt workflows with progressive feedback
 - **Accessible** — Full keyboard navigation and screen reader support (follows WCAG 2.2 Level AA guidelines)
@@ -66,14 +66,14 @@ Renders and scores individual QTI items:
 
 Orchestrates multi-item assessments:
 
-- **Navigation modes** — Linear (sequential) and nonlinear (free navigation)
-- **Sections & hierarchy** — Nested sections with rubric blocks
-- **Selection & ordering** — Random item selection and shuffling per QTI spec
-- **Time limits** — Countdown timers with warnings and auto-submission
+- **Navigation mode model** — Per-testPart linear/nonlinear and individual/simultaneous modes are preserved; linear parts prohibit return after advancing
+- **Sections & hierarchy runtime** — Ordered nested sections, external section refs, controls, rubrics, weights, and feedback are retained from raw XML; dynamic preconditions and section/testPart branch execution remain open
+- **Selection & ordering runtime** — Raw XML selection, required/fixed children, and shuffle are preserved; `withReplacement` still requires distinct sequence-indexed clone materialization
+- **Time-limit runtime** — Independent item/section/testPart/assessment clocks, save/resume, maximums, and `minTime` enforcement exist; timing edge/browser evidence is still being expanded
 - **Item session control** — Max attempts, review/skip, response validation
 - **State persistence** — Auto-save with resume capability
 - **Outcome processing** — Scoring templates (total, weighted, percentage, pass/fail)
-- **Backend adapter** — Optional server-side scoring and secure data handling
+- **Backend adapter** — Mandatory boundary for authoritative scoring in production; raw answer-bearing assessment XML uses the local reference adapter only after explicit `referenceMode` opt-in for preview/offline delivery
 
 ### Extensibility (Docs)
 

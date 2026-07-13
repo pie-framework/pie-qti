@@ -1,33 +1,6 @@
-/**
- * Standard QTI positionObjectInteraction extractor
- *
- * Extracts data from positionObjectInteraction elements (drag objects to positions)
- *
- * ⚠️ IMPORTANT: QTI 2.2 positionObjectInteraction Limitations
- *
- * This interaction has severe limitations that make it impractical for most educational scenarios:
- *
- * 1. Response format is baseType="point" - only stores coordinates ["158 168"]
- * 2. NO way to track which specific object was placed where
- * 3. Designed ONLY for placing multiple copies of the SAME object (e.g., airport icons)
- * 4. Cannot support "place labeled objects on map" use cases
- *
- * The official QTI 2.2 spec example shows:
- * - ONE positionObjectStage (container) with background image
- * - ONE positionObjectInteraction with ONE draggable object
- * - maxChoices determines how many times the object can be placed
- * - Scoring uses areaMapping to check if ANY placement hits target zones
- *
- * This extractor supports a NON-STANDARD extension with multiple positionObjectStage
- * elements (each with identifiers), but the response format cannot preserve object identity.
- * For labeled-object placement, use graphicGapMatchInteraction instead.
- */
-
 import type { ElementExtractor } from '../../extraction/types.js';
+import type { QTIElement } from '../index.js';
 
-/**
- * Image data for position object interaction
- */
 export interface ImageData {
 	type: 'image' | 'svg';
 	src?: string;
@@ -36,16 +9,17 @@ export interface ImageData {
 	height?: string;
 }
 
-/**
- * Position object data extracted from positionObjectInteraction elements
- */
 export interface PositionObjectData {
 	imageData: ImageData | null;
+	/**
+	 * Compatibility shape consumed by the existing renderer. Each extracted
+	 * interaction contributes its one draggable object here; the actual QTI
+	 * positionObjectStage is the interaction's parent and supplies imageData.
+	 */
 	positionObjectStages: Array<{
 		identifier: string;
 		label: string;
 		matchMax: number;
-		matchMin?: number;
 		objectData: ImageData | null;
 		classes?: string[];
 	}>;
@@ -55,123 +29,73 @@ export interface PositionObjectData {
 	prompt: string | null;
 }
 
-/**
- * Standard QTI position object interaction extractor
- * Handles positionObjectInteraction elements (dragging an object to a position)
- */
+function imageDataFromObject(
+	objectElement: QTIElement | undefined,
+	utils: Parameters<ElementExtractor<PositionObjectData>['extract']>[1]['utils'],
+	defaultWidth: string,
+	defaultHeight: string,
+): ImageData | null {
+	if (!objectElement) return null;
+
+	const type = utils.getAttribute(objectElement, 'type', '');
+	const data = utils.getAttribute(objectElement, 'data', '');
+	const width = utils.getAttribute(objectElement, 'width', defaultWidth);
+	const height = utils.getAttribute(objectElement, 'height', defaultHeight);
+	const content = utils.getHtmlContent(objectElement);
+
+	if (type.startsWith('image/svg') && /<svg[\s>]/i.test(content)) {
+		return { type: 'svg', content, width, height };
+	}
+
+	return { type: 'image', src: data, width, height };
+}
+
 export const standardPositionObjectExtractor: ElementExtractor<PositionObjectData> = {
 	id: 'qti:position-object-interaction',
 	name: 'QTI Standard Position Object Interaction',
 	priority: 10,
 	elementTypes: ['positionObjectInteraction'],
-	description: 'Extracts standard QTI positionObjectInteraction (drag object to position)',
+	description: 'Extracts a positionObjectInteraction from its parent positionObjectStage',
 
-	canHandle(element, _context) {
-		// All positionObjectInteraction elements are standard
-		return element.rawTagName === 'positionObjectInteraction';
+	canHandle(element) {
+		const tagName = element.rawTagName?.toLowerCase();
+		return tagName === 'positionobjectinteraction' || tagName === 'qti-position-object-interaction';
 	},
 
 	extract(element, context) {
-		const { utils } = context;
+		const { utils, responseId } = context;
+		const parent = element.parentNode as QTIElement | undefined;
+		const parentTagName = parent?.rawTagName?.toLowerCase();
+		const isPositionObjectStage =
+			parentTagName === 'positionobjectstage' || parentTagName === 'qti-position-object-stage';
+		const stage = parent && isPositionObjectStage && utils.getChildrenByTag(parent, 'positionObjectInteraction').includes(element)
+			? parent
+			: undefined;
 
-		// Extract background image data from object element (direct child)
-		const objectElements = utils.getChildrenByTag(element, 'object');
-		let imageData: ImageData | null = null;
-
-		if (objectElements.length > 0) {
-			const objectElement = objectElements[0];
-			const type = utils.getAttribute(objectElement, 'type', '');
-			const data = utils.getAttribute(objectElement, 'data', '');
-			const width = utils.getAttribute(objectElement, 'width', '500');
-			const height = utils.getAttribute(objectElement, 'height', '300');
-
-			if (type.startsWith('image/svg')) {
-				// Extract inline SVG content - get full content including <svg> tag
-				const content = utils.getHtmlContent(objectElement);
-				imageData = {
-					type: 'svg',
-					content,
-					width,
-					height,
-				};
-			} else {
-				// External image reference
-				imageData = {
-					type: 'image',
-					src: data,
-					width,
-					height,
-				};
-			}
-		}
-
-		// Extract positionObjectStage children
-		const stageElements = utils.getChildrenByTag(element, 'positionObjectStage');
-		const positionObjectStages = stageElements.map((stage) => {
-			const classes = utils.getClasses(stage);
-			const identifier = utils.getAttribute(stage, 'identifier', '');
-			const matchMax = utils.getNumberAttribute(stage, 'matchMax', 1);
-			const matchMin = utils.getNumberAttribute(stage, 'matchMin', 0);
-
-			// Get text content as label, use identifier as fallback
-			const textContent = utils.getTextContent(stage).trim();
-			const label = textContent || identifier;
-
-			// Extract object data from nested object element
-			const stageObjectElements = utils.getChildrenByTag(stage, 'object');
-			let objectData: ImageData | null = null;
-
-			if (stageObjectElements.length > 0) {
-				const objElement = stageObjectElements[0];
-				const objType = utils.getAttribute(objElement, 'type', '');
-				const objData = utils.getAttribute(objElement, 'data', '');
-				const objWidth = utils.getAttribute(objElement, 'width', '50');
-				const objHeight = utils.getAttribute(objElement, 'height', '50');
-
-				if (objType.startsWith('image/svg')) {
-					// Extract inline SVG content
-					const content = utils.getHtmlContent(objElement);
-					objectData = {
-						type: 'svg',
-						content,
-						width: objWidth,
-						height: objHeight,
-					};
-				} else {
-					// External image reference
-					objectData = {
-						type: 'image',
-						src: objData,
-						width: objWidth,
-						height: objHeight,
-					};
-				}
-			}
-
-			return {
-				identifier,
-				label,
-				matchMax,
-				...(matchMin > 0 ? { matchMin } : {}),
-				objectData,
-				...(classes.length > 0 ? { classes } : {}),
-			};
-		});
-
-		// Extract attributes
-		// centerPoint defaults to true when not specified
-		const centerPoint = utils.getBooleanAttribute(element, 'centerPoint', true);
-		const maxChoices = utils.getNumberAttribute(element, 'maxChoices', 0);
+		const backgroundObject = stage ? utils.getChildrenByTag(stage, 'object')[0] : undefined;
+		const draggableObject = utils.getChildrenByTag(element, 'object')[0];
+		const imageData = imageDataFromObject(backgroundObject, utils, '500', '300');
+		const objectData = imageDataFromObject(draggableObject, utils, '50', '50');
+		const maxChoices = utils.getNumberAttribute(element, 'maxChoices', 1);
 		const minChoices = utils.getNumberAttribute(element, 'minChoices', 0);
-
-		// Extract prompt (optional)
-		const promptElements = utils.getChildrenByTag(element, 'prompt');
-		const prompt = promptElements.length > 0 ? utils.getHtmlContent(promptElements[0]) : null;
+		const label = utils.getTextContent(draggableObject).trim() || responseId;
+		const classes = utils.getClasses(element);
+		const prompt = utils.getPrompt(element);
 
 		return {
 			imageData,
-			positionObjectStages,
-			centerPoint,
+			positionObjectStages: [
+				{
+					identifier: responseId,
+					label,
+					matchMax: maxChoices,
+					objectData,
+					...(classes.length > 0 ? { classes } : {}),
+				},
+			],
+			// The renderer currently represents the QTI default (the object's centre)
+			// as a boolean. Explicit centre coordinates remain a follow-up API change.
+			centerPoint: true,
 			maxChoices,
 			minChoices,
 			prompt,
@@ -182,56 +106,32 @@ export const standardPositionObjectExtractor: ElementExtractor<PositionObjectDat
 		const errors: string[] = [];
 		const warnings: string[] = [];
 
-		// Validate image data
 		if (!data.imageData) {
-			warnings.push('positionObjectInteraction has no background image');
+			errors.push('positionObjectInteraction must have a parent positionObjectStage with a background object');
 		} else if (data.imageData.type === 'image' && !data.imageData.src) {
-			errors.push('positionObjectInteraction must have an image URL');
+			errors.push('positionObjectStage background object must have a data URL');
 		} else if (data.imageData.type === 'svg' && !data.imageData.content) {
-			errors.push('positionObjectInteraction must have SVG content');
+			errors.push('positionObjectStage background object must have SVG content');
 		}
 
-		// Warn about dimension consistency (cannot verify actual file dimensions at extraction time)
-		if (data.imageData && data.imageData.type === 'image') {
-			warnings.push(
-				'IMPORTANT: Ensure declared width/height match actual image file dimensions. ' +
-					'Mismatched dimensions cause coordinate system errors in mapResponsePoint scoring. ' +
-					`Declared: ${data.imageData.width || 'unspecified'}×${data.imageData.height || 'unspecified'}`
-			);
+		const draggable = data.positionObjectStages[0];
+		if (!draggable?.objectData) {
+			errors.push('positionObjectInteraction must contain one draggable object');
+		} else if (draggable.objectData.type === 'image' && !draggable.objectData.src) {
+			errors.push('positionObjectInteraction draggable object must have a data URL');
 		}
 
-		// Validate positionObjectStages exist
-		if (!data.positionObjectStages || data.positionObjectStages.length === 0) {
-			errors.push('positionObjectInteraction must have at least one positionObjectStage');
-		}
-
-		// Validate positionObjectStage identifiers
-		if (data.positionObjectStages) {
-			const identifiers = new Set<string>();
-			for (const stage of data.positionObjectStages) {
-				if (!stage.identifier) {
-					errors.push('All positionObjectStages must have an identifier');
-				} else if (identifiers.has(stage.identifier)) {
-					errors.push(`Duplicate positionObjectStage identifier: ${stage.identifier}`);
-				} else {
-					identifiers.add(stage.identifier);
-				}
-			}
-		}
-
-		// Validate maxChoices
-		if (data.maxChoices < 0) {
-			errors.push('maxChoices must be non-negative');
-		}
-
-		// Validate minChoices
-		if (data.minChoices < 0) {
-			errors.push('minChoices must be non-negative');
-		}
-
-		// Validate minChoices <= maxChoices
+		if (data.maxChoices < 0) errors.push('maxChoices must be non-negative');
+		if (data.minChoices < 0) errors.push('minChoices must be non-negative');
 		if (data.maxChoices > 0 && data.minChoices > data.maxChoices) {
 			errors.push('minChoices cannot exceed maxChoices');
+		}
+
+		if (data.imageData?.type === 'image') {
+			warnings.push(
+				'Ensure the declared positionObjectStage width/height match the image dimensions. ' +
+					`Declared: ${data.imageData.width || 'unspecified'}×${data.imageData.height || 'unspecified'}`,
+			);
 		}
 
 		return {
