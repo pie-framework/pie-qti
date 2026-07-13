@@ -29,6 +29,7 @@ export class FilesystemBackend implements StorageBackend {
 	readonly name = 'filesystem';
 	private rootDir: string;
 	private enforceSecurity: boolean;
+	private realRootDir: string | undefined;
 
 	constructor(options: FilesystemBackendOptions) {
 		this.rootDir = path.resolve(options.rootDir);
@@ -38,6 +39,9 @@ export class FilesystemBackend implements StorageBackend {
 	async initialize(): Promise<void> {
 		// Ensure root directory exists
 		await fs.mkdir(this.rootDir, { recursive: true });
+		if (this.enforceSecurity) {
+			this.realRootDir = await fs.realpath(this.rootDir);
+		}
 	}
 
 	/**
@@ -48,7 +52,11 @@ export class FilesystemBackend implements StorageBackend {
 		const resolved = path.resolve(this.rootDir, filePath);
 
 		// Security check: ensure resolved path is within root directory
-		if (this.enforceSecurity && !resolved.startsWith(this.rootDir)) {
+		const relative = path.relative(this.rootDir, resolved);
+		if (
+			this.enforceSecurity &&
+			(relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative))
+		) {
 			throw new Error(
 				`Path security violation: ${filePath} resolves outside root directory`,
 			);
@@ -57,24 +65,95 @@ export class FilesystemBackend implements StorageBackend {
 		return resolved;
 	}
 
-	async readText(filePath: string): Promise<string> {
+	/**
+	 * Resolve a path for filesystem access and verify that existing path
+	 * components do not escape the configured root through a symbolic link.
+	 *
+	 * The lexical check in resolvePath catches `..` traversal. This canonical
+	 * check is also needed for paths such as `root/link/file`, where `link`
+	 * already points outside `root`.
+	 */
+	private async resolvePathForAccess(filePath: string): Promise<string> {
 		const resolved = this.resolvePath(filePath);
+		if (!this.enforceSecurity) return resolved;
+
+		let realRoot: string;
+		try {
+			realRoot = this.realRootDir ?? (await fs.realpath(this.rootDir));
+			this.realRootDir ??= realRoot;
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+
+			// A missing root cannot contain a pre-existing symlink. Preserve the
+			// existing behavior that allows initialize()/writes to create it.
+			try {
+				await fs.lstat(this.rootDir);
+			} catch (lstatError) {
+				if ((lstatError as NodeJS.ErrnoException).code === 'ENOENT') return resolved;
+				throw lstatError;
+			}
+
+			throw new Error(
+				`Path security violation: storage root contains an unresolved symbolic link`,
+			);
+		}
+
+		let existingPath = resolved;
+		while (true) {
+			try {
+				await fs.lstat(existingPath);
+			} catch (error) {
+				if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+
+				const parentPath = path.dirname(existingPath);
+				if (parentPath === existingPath) throw error;
+				existingPath = parentPath;
+				continue;
+			}
+
+			let realExistingPath: string;
+			try {
+				realExistingPath = await fs.realpath(existingPath);
+			} catch (error) {
+				if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+				throw new Error(
+					`Path security violation: ${filePath} contains an unresolved symbolic link`,
+				);
+			}
+
+			const relative = path.relative(realRoot, realExistingPath);
+			if (
+				relative === '..' ||
+				relative.startsWith(`..${path.sep}`) ||
+				path.isAbsolute(relative)
+			) {
+				throw new Error(
+					`Path security violation: ${filePath} resolves outside root directory through a symbolic link`,
+				);
+			}
+
+			return resolved;
+		}
+	}
+
+	async readText(filePath: string): Promise<string> {
+		const resolved = await this.resolvePathForAccess(filePath);
 		return fs.readFile(resolved, 'utf-8');
 	}
 
 	async writeText(filePath: string, content: string): Promise<void> {
-		const resolved = this.resolvePath(filePath);
+		const resolved = await this.resolvePathForAccess(filePath);
 		await fs.mkdir(path.dirname(resolved), { recursive: true });
 		await fs.writeFile(resolved, content, 'utf-8');
 	}
 
 	async readBuffer(filePath: string): Promise<Buffer> {
-		const resolved = this.resolvePath(filePath);
+		const resolved = await this.resolvePathForAccess(filePath);
 		return fs.readFile(resolved);
 	}
 
 	async writeBuffer(filePath: string, content: Buffer): Promise<void> {
-		const resolved = this.resolvePath(filePath);
+		const resolved = await this.resolvePathForAccess(filePath);
 		await fs.mkdir(path.dirname(resolved), { recursive: true });
 		await fs.writeFile(resolved, content);
 	}
@@ -89,13 +168,13 @@ export class FilesystemBackend implements StorageBackend {
 
 	async createReadStream(filePath: string): Promise<import('stream').Readable> {
 		const { createReadStream } = await import('node:fs');
-		const resolved = this.resolvePath(filePath);
+		const resolved = await this.resolvePathForAccess(filePath);
 		return createReadStream(resolved);
 	}
 
 	async createWriteStream(filePath: string): Promise<import('stream').Writable> {
 		const { createWriteStream } = await import('node:fs');
-		const resolved = this.resolvePath(filePath);
+		const resolved = await this.resolvePathForAccess(filePath);
 		await fs.mkdir(path.dirname(resolved), { recursive: true });
 		return createWriteStream(resolved);
 	}
@@ -103,7 +182,7 @@ export class FilesystemBackend implements StorageBackend {
 	async list(pattern: string): Promise<import('@pie-qti/transform-types').ResourceInfo[]> {
 		// Simple glob-like pattern matching (basic implementation)
 		const dirPath = pattern.includes('*') ? path.dirname(pattern) : pattern;
-		const resolved = this.resolvePath(dirPath);
+		const resolved = await this.resolvePathForAccess(dirPath);
 
 		try {
 			const entries = await fs.readdir(resolved, { withFileTypes: true });
@@ -111,7 +190,7 @@ export class FilesystemBackend implements StorageBackend {
 
 			for (const entry of entries) {
 				const fullPath = path.join(dirPath, entry.name);
-				const stat = await fs.stat(this.resolvePath(fullPath));
+				const stat = await fs.stat(await this.resolvePathForAccess(fullPath));
 
 				results.push({
 					uri: fullPath,
@@ -132,7 +211,7 @@ export class FilesystemBackend implements StorageBackend {
 
 	async exists(filePath: string): Promise<boolean> {
 		try {
-			const resolved = this.resolvePath(filePath);
+			const resolved = await this.resolvePathForAccess(filePath);
 			await fs.access(resolved);
 			return true;
 		} catch {
@@ -141,7 +220,7 @@ export class FilesystemBackend implements StorageBackend {
 	}
 
 	async listFiles(dirPath: string): Promise<string[]> {
-		const resolved = this.resolvePath(dirPath);
+		const resolved = await this.resolvePathForAccess(dirPath);
 		try {
 			const entries = await fs.readdir(resolved, { withFileTypes: true });
 			// Return all entries (files and directories)
@@ -157,7 +236,7 @@ export class FilesystemBackend implements StorageBackend {
 	}
 
 	async delete(filePath: string): Promise<void> {
-		const resolved = this.resolvePath(filePath);
+		const resolved = await this.resolvePathForAccess(filePath);
 		try {
 			const stat = await fs.stat(resolved);
 			if (stat.isDirectory()) {
@@ -174,27 +253,28 @@ export class FilesystemBackend implements StorageBackend {
 	}
 
 	async copy(sourcePath: string, destPath: string): Promise<void> {
-		const resolvedSource = this.resolvePath(sourcePath);
-		const resolvedDest = this.resolvePath(destPath);
+		const resolvedSource = await this.resolvePathForAccess(sourcePath);
+		const resolvedDest = await this.resolvePathForAccess(destPath);
 		await fs.mkdir(path.dirname(resolvedDest), { recursive: true });
 		await fs.copyFile(resolvedSource, resolvedDest);
 	}
 
 	async getSize(filePath: string): Promise<number> {
-		const resolved = this.resolvePath(filePath);
+		const resolved = await this.resolvePathForAccess(filePath);
 		const stat = await fs.stat(resolved);
 		return stat.size;
 	}
 
 	async createDirectory(dirPath: string): Promise<void> {
-		const resolved = this.resolvePath(dirPath);
+		const resolved = await this.resolvePathForAccess(dirPath);
 		await fs.mkdir(resolved, { recursive: true });
 	}
 
 	async getDirectorySize(dirPath: string): Promise<number> {
-		const resolved = this.resolvePath(dirPath);
+		const resolved = await this.resolvePathForAccess(dirPath);
 
-		async function calculateSize(currentPath: string): Promise<number> {
+		const calculateSize = async (currentPath: string): Promise<number> => {
+			await this.resolvePathForAccess(path.relative(this.rootDir, currentPath));
 			const stat = await fs.stat(currentPath);
 
 			if (stat.isFile()) {
@@ -214,7 +294,7 @@ export class FilesystemBackend implements StorageBackend {
 			}
 
 			return 0;
-		}
+		};
 
 		try {
 			return await calculateSize(resolved);
@@ -266,7 +346,7 @@ export class FilesystemBackend implements StorageBackend {
 		// Ensure all parent directories exist
 		const dirPaths = new Set<string>();
 		for (const { uri } of writes) {
-			const resolved = this.resolvePath(uri);
+			const resolved = await this.resolvePathForAccess(uri);
 			dirPaths.add(path.dirname(resolved));
 		}
 

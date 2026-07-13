@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { I18nProvider } from '@pie-qti/i18n';
-	import type { PlayerSecurityConfig, PnpProfile } from '@pie-qti/item-player';
+	import type { PciConfiguration, PlayerSecurityConfig, PnpProfile } from '@pie-qti/item-player';
 	import { assignProps } from '@pie-qti/qti-common';
 	import { onMount } from 'svelte';
 	import type { QtiSectionFrameworkError, QtiSectionItemRef, QtiSectionRole } from '../contracts/index.js';
@@ -15,6 +15,7 @@
 		responses?: ItemResponseMap;
 		deliveryContext?: QtiSectionItemRef['deliveryContext'];
 		security?: PlayerSecurityConfig;
+		pci?: PciConfiguration;
 		pnp?: PnpProfile;
 		typeset?: (root: HTMLElement) => void | Promise<void>;
 		i18n?: I18nProvider;
@@ -29,6 +30,7 @@
 		disabled?: boolean;
 		i18n?: I18nProvider;
 		security?: PlayerSecurityConfig;
+		pci?: PciConfiguration;
 		pnp?: PnpProfile;
 		extendedTextEditor?: 'tiptap' | 'textarea';
 		typeset?: (root: HTMLElement) => void | Promise<void>;
@@ -43,6 +45,7 @@
 		disabled = false,
 		i18n,
 		security,
+		pci,
 		pnp,
 		extendedTextEditor,
 		typeset,
@@ -50,40 +53,16 @@
 		onFrameworkError,
 	}: Props = $props();
 
-	const defaultInteractionTags = [
-		'pie-qti-choice',
-		'pie-qti-slider',
-		'pie-qti-order',
-		'pie-qti-match',
-		'pie-qti-associate',
-		'pie-qti-gap-match',
-		'pie-qti-hotspot',
-		'pie-qti-hottext',
-		'pie-qti-media',
-		'pie-qti-custom',
-		'pie-qti-end-attempt',
-		'pie-qti-position-object',
-		'pie-qti-graphic-gap-match',
-		'pie-qti-graphic-order',
-		'pie-qti-graphic-associate',
-		'pie-qti-select-point',
-		'pie-qti-extended-text',
-		'pie-qti-upload',
-		'pie-qti-drawing',
-		'pie-qti-catalog-popup',
-	] as const;
-
 	let playerLoaded = $state(false);
 	let errorMessage = $state<string | null>(null);
 	let itemScopeElement = $state<HTMLElement | null>(null);
 	const itemTitle = $derived(itemRef.title ?? 'Question');
 	const hasHeaderTools = $derived((itemRef.tools?.length ?? 0) > 0);
-	const interactionSpeechHtml = $derived(extractReadableInteractionSpeechHtml(itemRef.itemXml));
+	const interactionSpeechHtml = $derived(
+		extractReadableInteractionSpeechHtml(itemRef.itemXml, { security }),
+	);
 
 	async function loadItemPlayerElement() {
-		if (defaultInteractionTags.some((tagName) => !customElements.get(tagName))) {
-			await import('@pie-qti/default-components/plugins');
-		}
 		if (!customElements.get('pie-qti-item-player')) {
 			await import('@pie-qti/item-player/element');
 		}
@@ -170,6 +149,7 @@
 					deliveryContext: itemRef.deliveryContext,
 					itemXml: itemRef.itemXml,
 					security,
+					pci,
 					pnp,
 					role,
 					disabled,

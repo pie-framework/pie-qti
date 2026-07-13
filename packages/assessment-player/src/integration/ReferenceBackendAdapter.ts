@@ -48,7 +48,6 @@ import {
 	parseAssessmentStimulusXml,
 	resolveCheckedPackagePath,
 	resolveCheckedPackagePathFromFile,
-	resolveRelativePath as resolveQtiRelativePath,
 } from '@pie-qti/ims-cp-core';
 import { parse } from 'node-html-parser';
 import type {
@@ -82,6 +81,8 @@ const STORAGE_PREFIX = 'qti_session_';
  * Cache key for item bank queries
  */
 const BANK_CACHE_PREFIX = 'qti_bank_cache_';
+
+class AssessmentSectionReferenceLimitError extends Error {}
 
 function toCanonicalQtiName(name: string | null | undefined): string {
 	const withoutPrefix = (name ?? '').replace(/^qti-/, '');
@@ -193,9 +194,10 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 		//
 		// For reference implementation, we'll use demo data
 		const assessment = this.getAssessment(request.assessmentId);
+		const firstItemIdentifier = this.getItemOrder(assessment)[0] ?? '';
 
 		const state: AssessmentSessionState = {
-			currentItemIdentifier: assessment.testParts[0].sections[0].assessmentItemRefs[0].identifier,
+			currentItemIdentifier: firstItemIdentifier,
 			visitedItems: [],
 			itemResponses: {},
 			itemScores: {},
@@ -590,26 +592,40 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 	}
 
 	private findItemXml(assessment: SecureAssessment, itemIdentifier: string): string | null {
+		const findInSection = (section: SecureSection): string | null => {
+			for (const item of section.assessmentItemRefs) {
+				if (item.identifier === itemIdentifier) return item.itemXml;
+			}
+			for (const child of section.sections ?? []) {
+				const found = findInSection(child);
+				if (found !== null) return found;
+			}
+			return null;
+		};
 		for (const part of assessment.testParts) {
 			for (const section of part.sections) {
-				for (const item of section.assessmentItemRefs) {
-					if (item.identifier === itemIdentifier) {
-						return item.itemXml;
-					}
-				}
+				const found = findInSection(section);
+				if (found !== null) return found;
 			}
 		}
 		return null;
 	}
 
 	private findItemRef(assessment: SecureAssessment, itemIdentifier: string): SecureItemRef | null {
+		const findInSection = (section: SecureSection): SecureItemRef | null => {
+			for (const item of section.assessmentItemRefs) {
+				if (item.identifier === itemIdentifier) return item;
+			}
+			for (const child of section.sections ?? []) {
+				const found = findInSection(child);
+				if (found) return found;
+			}
+			return null;
+		};
 		for (const part of assessment.testParts) {
 			for (const section of part.sections) {
-				for (const item of section.assessmentItemRefs) {
-					if (item.identifier === itemIdentifier) {
-						return item;
-					}
-				}
+				const found = findInSection(section);
+				if (found) return found;
 			}
 		}
 		return null;
@@ -760,9 +776,17 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			itemXmlMap?: Record<string, string>;
 			fileResolver?: (href: string) => Promise<string>;
 			baseUrl?: string;
+			sectionReferenceLimits?: {
+				/** Maximum total inline and external assessmentSection nesting. Defaults to 32. */
+				maxDepth?: number;
+			};
 		} = {}
 	): Promise<SecureAssessment> {
 		const { role = 'candidate', itemXmlMap = {}, fileResolver, baseUrl } = options;
+		const maxSectionDepth = options.sectionReferenceLimits?.maxDepth ?? 32;
+		if (!Number.isInteger(maxSectionDepth) || maxSectionDepth < 1) {
+			throw new Error('sectionReferenceLimits.maxDepth must be a positive integer');
+		}
 		const doc = parseXml(testXml);
 		const root = doc.documentElement;
 		if (!root) throw new Error('Empty assessmentTest XML');
@@ -825,21 +849,61 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			};
 		};
 
-		const resolveAgainstBase = (href: string | undefined): string | undefined => {
-			if (!href) return undefined;
-			return baseUrl ? resolveQtiRelativePath(baseUrl, href) : href;
+		const parseConditionExpressions = (el: Element, tag: string): string[] | undefined => {
+			const expressions = childrenByTag(el, tag)
+				.map((condition) => childElements(condition)[0])
+				.filter((expression): expression is Element => Boolean(expression))
+				.map((expression) => serializeXml(expression));
+			return expressions.length > 0 ? expressions : undefined;
 		};
 
-		const resolveCheckedHref = (href: string | undefined): string | undefined => {
+		const parseBranchRules = (el: Element): SecureItemRef['branchRule'] => {
+			const rules = childrenByTag(el, 'branchRule').flatMap((rule) => {
+				const target = getAttr(rule, 'target');
+				if (!target) return [];
+				const expression = childElements(rule)[0];
+				return [{ target, conditionXml: expression ? serializeXml(expression) : undefined }];
+			});
+			return rules.length > 0 ? rules : undefined;
+		};
+
+		const parseSelection = (el: Element): SecureSection['selection'] => {
+			const selection = childrenByTag(el, 'selection')[0];
+			if (!selection) return undefined;
+			const select = Number.parseInt(getAttr(selection, 'select') ?? '', 10);
+			if (!Number.isInteger(select) || select < 0) return undefined;
+			const withReplacementRaw = getAttr(selection, 'withReplacement');
+			return {
+				select,
+				withReplacement: withReplacementRaw === undefined ? undefined : withReplacementRaw === 'true',
+			};
+		};
+
+		const parseOrdering = (el: Element): SecureSection['ordering'] => {
+			const ordering = childrenByTag(el, 'ordering')[0];
+			if (!ordering) return undefined;
+			return { shuffle: getAttr(ordering, 'shuffle') === 'true' };
+		};
+
+		const resolveCheckedHref = (
+			href: string | undefined,
+			sourceHref?: string,
+		): string | undefined => {
 			if (!href) return undefined;
+			if (sourceHref) {
+				return resolveCheckedPackagePathFromFile(sourceHref, href) ?? undefined;
+			}
 			return baseUrl
 				? resolveCheckedPackagePathFromFile(baseUrl, href) ?? undefined
 				: resolveCheckedPackagePath(undefined, href) ?? undefined;
 		};
 
-		const loadText = async (href: string | undefined): Promise<string | undefined> => {
+		const loadText = async (
+			href: string | undefined,
+			sourceHref?: string,
+		): Promise<string | undefined> => {
 			if (!href) return undefined;
-			const candidates = [href, resolveAgainstBase(href)].filter((value, index, all): value is string =>
+			const candidates = [href, resolveCheckedHref(href, sourceHref)].filter((value, index, all): value is string =>
 				Boolean(value) && all.indexOf(value) === index
 			);
 			for (const candidate of candidates) {
@@ -896,12 +960,63 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			});
 		};
 
-		// Parse a single assessmentSection element
-		const parseSection = async (sectionEl: Element): Promise<SecureSection> => {
+		let resolveSectionRef: (
+			sectionRefEl: Element,
+			sourceHref?: string,
+			ancestorHrefs?: readonly string[],
+			depth?: number,
+		) => Promise<SecureSection | null>;
+
+		const parseItemRef = async (ref: Element, sourceHref?: string): Promise<SecureItemRef> => {
+			const itemId = getAttr(ref, 'identifier') ?? 'item';
+			const href = getAttr(ref, 'href');
+			const itemHref = resolveCheckedHref(href, sourceHref);
+			const resolvedXml = href && !itemHref
+				? ''
+				: itemXmlMap[itemId] ??
+					(href ? itemXmlMap[href] : undefined) ??
+					(itemHref ? itemXmlMap[itemHref] : undefined) ??
+					(await loadText(itemHref)) ??
+					'';
+			const requiredRaw = getAttr(ref, 'required');
+			const fixedRaw = getAttr(ref, 'fixed');
+			const weights = childrenByTag(ref, 'weight').flatMap((weight) => {
+				const identifier = getAttr(weight, 'identifier');
+				const value = Number(getAttr(weight, 'value'));
+				return identifier && Number.isFinite(value) ? [{ identifier, value }] : [];
+			});
+			return {
+				identifier: itemId,
+				itemXml: resolvedXml,
+				role,
+				required: requiredRaw === undefined ? undefined : requiredRaw !== 'false',
+				fixed: fixedRaw === undefined ? undefined : fixedRaw !== 'false',
+				timeLimits: parseTimeLimits(ref),
+				deliveryContext: await buildDeliveryContext(resolvedXml, itemHref),
+				branchRule: parseBranchRules(ref),
+				preConditions: parseConditionExpressions(ref, 'preCondition'),
+				weights: weights.length > 0 ? weights : undefined,
+			};
+		};
+
+		// Parse a single assessmentSection element without flattening nested sections.
+		const parseSection = async (
+			sectionEl: Element,
+			sourceHref?: string,
+			ancestorHrefs: readonly string[] = [],
+			depth = 1,
+		): Promise<SecureSection> => {
 			const identifier = getAttr(sectionEl, 'identifier') ?? 'section';
+			if (depth > maxSectionDepth) {
+				throw new AssessmentSectionReferenceLimitError(
+					`assessmentSection nesting exceeds maxDepth (${maxSectionDepth}) at "${identifier}"`,
+				);
+			}
 			const title = getAttr(sectionEl, 'title');
 			const visibleRaw = getAttr(sectionEl, 'visible');
 			const visible = visibleRaw === undefined ? true : visibleRaw !== 'false';
+			const requiredRaw = getAttr(sectionEl, 'required');
+			const fixedRaw = getAttr(sectionEl, 'fixed');
 
 			const itemSessionControl = parseItemSessionControl(sectionEl);
 			const timeLimits = parseTimeLimits(sectionEl);
@@ -917,46 +1032,53 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 				}))
 				: undefined;
 
-			// assessmentItemRefs
-			const itemRefEls = childrenByTag(sectionEl, 'assessmentItemRef');
 			const assessmentItemRefs: SecureItemRef[] = [];
-			for (const ref of itemRefEls) {
-				const itemId = getAttr(ref, 'identifier') ?? 'item';
-				const href = getAttr(ref, 'href');
-				const itemHref = resolveCheckedHref(href);
-				// Look up pre-loaded XML by identifier or href
-				const resolvedXml = href && !itemHref
-					? ''
-					: itemXmlMap[itemId] ??
-						(href ? itemXmlMap[href] : undefined) ??
-						(itemHref ? itemXmlMap[itemHref] : undefined) ??
-						(await loadText(itemHref)) ??
-						'';
-				const requiredRaw = getAttr(ref, 'required');
-				const required = requiredRaw === undefined ? undefined : requiredRaw !== 'false';
-				assessmentItemRefs.push({
-					identifier: itemId,
-					itemXml: resolvedXml,
-					role,
-					required,
-					timeLimits: parseTimeLimits(ref),
-					deliveryContext: await buildDeliveryContext(resolvedXml, itemHref),
-				});
+			const sections: SecureSection[] = [];
+			const children: NonNullable<SecureSection['children']> = [];
+			for (const child of childElements(sectionEl)) {
+				const name = toCanonicalQtiName(child.localName);
+				if (name === 'assessmentItemRef') {
+					const item = await parseItemRef(child, sourceHref);
+					assessmentItemRefs.push(item);
+					children.push({ type: 'item', item });
+				} else if (name === 'assessmentSection') {
+					const section = await parseSection(child, sourceHref, ancestorHrefs, depth + 1);
+					sections.push(section);
+					children.push({ type: 'section', section });
+				} else if (name === 'assessmentSectionRef') {
+					const section = await resolveSectionRef(child, sourceHref, ancestorHrefs, depth + 1);
+					if (section) {
+						sections.push(section);
+						children.push({ type: 'section', section });
+					}
+				}
 			}
 
 			return {
 				identifier,
 				title,
 				visible,
+				required: requiredRaw === undefined ? undefined : requiredRaw !== 'false',
+				fixed: fixedRaw === undefined ? undefined : fixedRaw !== 'false',
 				assessmentItemRefs,
+				sections: sections.length > 0 ? sections : undefined,
+				children: children.length > 0 ? children : undefined,
 				rubricBlocks,
 				itemSessionControl,
 				timeLimits,
+				selection: parseSelection(sectionEl),
+				ordering: parseOrdering(sectionEl),
+				preConditions: parseConditionExpressions(sectionEl, 'preCondition'),
 			};
 		};
 
 		// Resolve assessmentSectionRef: load and parse referenced section file
-		const resolveSectionRef = async (sectionRefEl: Element): Promise<SecureSection | null> => {
+		resolveSectionRef = async (
+			sectionRefEl: Element,
+			sourceHref?: string,
+			ancestorHrefs: readonly string[] = [],
+			depth = 1,
+		): Promise<SecureSection | null> => {
 			const href = getAttr(sectionRefEl, 'href');
 			if (!href) {
 				console.warn('[ReferenceBackendAdapter] assessmentSectionRef missing href, skipping');
@@ -971,10 +1093,20 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			}
 
 			try {
-				const resolvedHref = resolveCheckedHref(href);
+				const resolvedHref = resolveCheckedHref(href, sourceHref);
 				if (!resolvedHref) {
 					console.warn(`[ReferenceBackendAdapter] assessmentSectionRef href="${href}" is unsafe, skipping`);
 					return null;
+				}
+				if (ancestorHrefs.includes(resolvedHref)) {
+					throw new AssessmentSectionReferenceLimitError(
+						`Cyclic assessmentSectionRef detected: ${[...ancestorHrefs, resolvedHref].join(' -> ')}`,
+					);
+				}
+				if (depth > maxSectionDepth) {
+					throw new AssessmentSectionReferenceLimitError(
+						`assessmentSectionRef nesting exceeds maxDepth (${maxSectionDepth}) at "${resolvedHref}"`,
+					);
 				}
 				const sectionXml = await fileResolver(resolvedHref);
 				const secDoc = parseXml(sectionXml);
@@ -985,8 +1117,9 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 					);
 					return null;
 				}
-				return parseSection(secRoot);
+				return parseSection(secRoot, resolvedHref, [...ancestorHrefs, resolvedHref], depth);
 			} catch (err) {
+				if (err instanceof AssessmentSectionReferenceLimitError) throw err;
 				console.warn(
 					`[ReferenceBackendAdapter] Failed to load assessmentSectionRef href="${href}":`,
 					err
@@ -1061,6 +1194,18 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 		const outcomeProcessingXml = outcomeProcessingEl
 			? serializeXml(outcomeProcessingEl)
 			: undefined;
+		const testFeedback = childrenByTag(root, 'testFeedback').flatMap((feedback, index) => {
+			const outcomeIdentifier = getAttr(feedback, 'outcomeIdentifier');
+			if (!outcomeIdentifier) return [];
+			const content = Array.from(feedback.childNodes).map((node) => serializeXml(node)).join('');
+			return [{
+				identifier: getAttr(feedback, 'identifier') ?? `test-feedback-${index + 1}`,
+				outcomeIdentifier,
+				showHide: (getAttr(feedback, 'showHide') ?? 'show') as 'show' | 'hide',
+				access: (getAttr(feedback, 'access') ?? 'atEnd') as 'atEnd' | 'during',
+				content,
+			}];
+		});
 
 		// Extract assessment-level timeLimits.
 		const timeLimits = parseTimeLimits(root);
@@ -1069,7 +1214,8 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 		const testPartEls = childrenByTag(root, 'testPart');
 		const firstTestPart = testPartEls[0];
 
-		// Navigation/submission mode from first testPart (QTI 2.2 spec)
+		// Retain top-level compatibility fields while preserving the authoritative
+		// mode on every testPart below.
 		const navigationMode = (getAttr(firstTestPart ?? root, 'navigationMode') ?? 'nonlinear') as
 			| 'linear'
 			| 'nonlinear';
@@ -1080,6 +1226,10 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 		const testParts: SecureTestPart[] = [];
 		for (const tp of testPartEls) {
 			const tpIdentifier = getAttr(tp, 'identifier') ?? 'part-1';
+			const tpNavigationMode = (getAttr(tp, 'navigationMode') ?? 'nonlinear') as 'linear' | 'nonlinear';
+			const tpSubmissionMode = (getAttr(tp, 'submissionMode') ?? 'simultaneous') as
+				| 'individual'
+				| 'simultaneous';
 			const tpItemSessionControl = parseTestPartItemSessionControl(tp);
 			const tpTimeLimits = parseTimeLimits(tp);
 			const tpRubricBlockEls = childrenByTag(tp, 'rubricBlock');
@@ -1095,6 +1245,8 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			const sections = await parseSectionsForTestPart(tp);
 			testParts.push({
 				identifier: tpIdentifier,
+				navigationMode: tpNavigationMode,
+				submissionMode: tpSubmissionMode,
 				sections,
 				rubricBlocks: tpRubricBlocks,
 				itemSessionControl: tpItemSessionControl,
@@ -1116,6 +1268,8 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			if (topSections.length > 0) {
 				testParts.push({
 					identifier: 'part-1',
+					navigationMode,
+					submissionMode,
 					sections: topSections,
 				});
 			}
@@ -1130,6 +1284,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			timeLimits,
 			outcomeDeclarations: outcomeDeclarations.length > 0 ? outcomeDeclarations : undefined,
 			outcomeProcessingXml,
+			testFeedback: testFeedback.length > 0 ? testFeedback : undefined,
 			baseUrl,
 		};
 	}
@@ -1164,11 +1319,19 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 
 	private getItemOrder(assessment: SecureAssessment): string[] {
 		const out: string[] = [];
+		const visit = (section: SecureSection): void => {
+			const components = section.children ?? [
+				...(section.assessmentItemRefs ?? []).map((item) => ({ type: 'item' as const, item })),
+				...(section.sections ?? []).map((child) => ({ type: 'section' as const, section: child })),
+			];
+			for (const component of components) {
+				if (component.type === 'item') out.push(component.item.identifier);
+				else visit(component.section);
+			}
+		};
 		for (const part of assessment.testParts || []) {
 			for (const section of part.sections || []) {
-				for (const item of section.assessmentItemRefs || []) {
-					out.push(item.identifier);
-				}
+				visit(section);
 			}
 		}
 		return out;

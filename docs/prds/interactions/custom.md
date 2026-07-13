@@ -5,13 +5,13 @@
   Type: interaction
   Packages: @pie-qti/default-components, @pie-qti/item-player
   QTI type (interactions only): customInteraction / qti-portable-custom-interaction
-  Last reviewed: 2026-04-29
+  Last reviewed: 2026-07-13
 -->
 
 **Status:** current
 **Type:** interaction
 **Packages:** `@pie-qti/default-components`, `@pie-qti/item-player`
-**Last reviewed:** 2026-04-29
+**Last reviewed:** 2026-07-13
 
 ---
 
@@ -21,8 +21,9 @@
 
 PIE-QTI supports both forms:
 
-- **QTI 2.x `customInteraction`** — rendered by `CustomInteractionFallback.svelte` with a warning banner and manual textarea for best-effort response collection. The raw XML and all attributes are preserved for debugging.
-- **QTI 3.0 `qti-portable-custom-interaction`** — handled by `portableCustomExtractor` (priority 20, runs before the QTI 2.x extractor) and executed by `PciHost`, which dynamically imports the ES module at `primary-path`, falls back to `fallback-path` on failure, and manages the full `initialize` / `getResponse` / `setResponse` / `disable` / `enable` / `destroy` lifecycle. (Implemented in G-08, commit `fa8fa97`, 2026-04-28.)
+- **Opaque QTI 2.x `customInteraction`** — rendered by `CustomInteractionFallback.svelte` with a warning banner and manual textarea for best-effort response collection. The raw XML and all attributes are preserved for debugging.
+- **QTI 2.x PCI** — a `customInteraction` wrapping a namespaced `pci:portableCustomInteraction` is detected and routed to the portable renderer. The first external script in `pci:instance` is exposed to the host resolver, while the script-free instance markup is used as the DOM scaffold.
+- **QTI 3.0 `qti-portable-custom-interaction`** — handled by `portableCustomExtractor` and rendered by `pie-qti-portable-custom`. `PciHost` asks an explicit host-supplied resolver for the primary or fallback module and manages the full `initialize` / `getResponse` / `setResponse` / `disable` / `enable` / `destroy` lifecycle. The player never imports an authored URL on its own.
 
 ---
 
@@ -51,11 +52,11 @@ The alternative — rendering an error state or skipping the element — would b
 - Drag-and-arrange UIs with domain rules that go beyond `orderInteraction` or `matchInteraction`
 - Interactive multimedia responses (video annotation, audio recording)
 
-Authors using QTI 2.x `customInteraction` must accept the fallback warning UI since there is no module interface to dispatch to. For a fully portable working custom interaction, package as a QTI 3.0 PCI module — PIE-QTI will load and execute it via `PciHost`.
+Authors using an opaque QTI 2.x `customInteraction` must accept the fallback warning UI since there is no module interface to dispatch to. QTI 2.x PCI wrappers and QTI 3.0 PCI elements can execute when the embedding host supplies an explicit trusted module resolver.
 
 ### Why two extractors rather than one
 
-`standardCustomExtractor` (priority 10) handles the opaque QTI 2.x case: it captures raw XML, attributes, and prompt but does nothing with the content. `portableCustomExtractor` (priority 20) handles `qti-portable-custom-interaction` and produces a structured `ExtractedPci` with module paths, markup, and config. The higher priority means `portableCustomExtractor` runs first when both would match, so QTI 3.0 items are never silently downgraded to the fallback path.
+`standardCustomExtractor` (priority 10) handles only the opaque QTI 2.x case: it captures raw XML, attributes, and prompt but does nothing with the content. `portableCustomExtractor` (priority 20) handles both a direct QTI 3.0 `qti-portable-custom-interaction` and a QTI 2.x `customInteraction` containing a namespaced PCI payload. Extractor dispatch respects `canHandle()`, so the wrapper is routed to PCI while an ordinary custom interaction keeps the generic fallback.
 
 ---
 
@@ -87,29 +88,38 @@ Extracted by `portableCustomExtractor` (priority 20) into `ExtractedPci`. `PciHo
 | `<qti-interaction-markup>` | Supported | Inner HTML extracted as `markup`; passed to `PciHost.initialize()` as the DOM scaffold |
 | `<qti-pci-properties>` / `<qti-pci-property>` | Supported | Key/value pairs parsed into `config: Record<string, string>`; passed to `module.initialize()` |
 
+### QTI 2.x Portable Custom Interaction wrapper
+
+| Attribute / child | Support | Notes |
+| ----------------- | ------- | ----- |
+| Outer `customInteraction@responseIdentifier` | Supported | Retained as the response-variable binding |
+| Inner `pci:portableCustomInteraction@customInteractionIdentifierType` | Supported | Stored as `customInteractionTypeIdentifier` |
+| `<pci:instance>` | Supported | Script elements are removed from the mounted scaffold before it reaches `innerHTML` |
+| First external `<script src>` in `<pci:instance>` | Supported | Passed as an authored path to the host resolver; inline scripts are never executed |
+
 ### PCI module lifecycle
 
 `PciHost` (`packages/item-player/src/pci/PciHost.ts`) manages the full QTI 3.0 PCI contract:
 
-1. `load()` — dynamically imports the module at `primary-path`, falling back to `fallback-path` on network error or missing interface. Throws `PciLoadError` if both fail.
+1. `load()` — passes the resolved primary path and authored-path context to the host's `moduleResolver`, falling back to `fallback-path` when present. Throws `PciModuleResolverRequiredError` when execution has not been explicitly enabled and `PciLoadError` if resolution or interface validation fails.
 2. `initialize(dom)` — calls `module.initialize(dom, config, boundTo)` once the DOM scaffold is mounted. `boundTo.onResponseChange` fires whenever the module reports a new response value.
 3. `getResponse()` — delegates to `module.getResponse()`.
 4. `setResponse(value)` — delegates to `module.setResponse(value)` (session restore).
 5. `disable()` / `enable()` — called on role/state transitions.
 6. `destroy()` — called on player teardown; releases the module reference.
 
-The player (`Player.ts`) instantiates a `PciHost` for each extracted PCI, calls `load()`, and wires `onResponseChange` into its internal response map.
+The portable renderer mounts the sanitized scaffold, asks the owning `Player` to create a `PciHost`, calls `load()`/`initialize()`, and wires responses into the normal item-player lifecycle. The same `PlayerConfig.pci` object is available as a JS-only `.pci` property on the item and assessment custom elements and is propagated through assessment and section rendering.
 
 ### Known gaps
 
-No open gaps for this interaction. G-08 (PCI module lifecycle) is Done — commit `fa8fa97`, 2026-04-28. See `docs/SPEC-GAPS-PLAN.md §G-08`.
+No known disconnected delivery path remains for G-08. PCI execution is deliberately disabled until a host supplies a resolver; that resolver is responsible for package-manifest validation, URL/origin policy, and returning a compatible module. PCI code runs in the page realm, so deployments requiring stronger isolation must host the player in an appropriately sandboxed, cross-origin frame.
 
 ---
 
 ## Functional requirements
 
 - **FR-1:** When a QTI item contains a `customInteraction` element, the extractor must capture the element's `responseIdentifier`, all attributes as a flat key/value map, the `<prompt>` child content (if present) as HTML, and the complete `outerHTML` of the element as a raw XML string.
-- **FR-2:** The fallback component must render a visible warning that identifies the interaction as unsupported. The warning must not be dismissible until the G-08 PCI host is installed and executing the module successfully.
+- **FR-2:** The fallback component must render a visible warning that identifies an opaque, unsupported `customInteraction`. A QTI 2.x wrapper containing a portable payload must not be routed to this fallback.
 - **FR-3:** The fallback component must render the `<prompt>` content (if present) adjacent to the warning so the candidate can read the question context.
 - **FR-4:** When an `onChange` callback is provided, the fallback component must render a textarea that allows manual text entry.
 - **FR-5:** Text entered in the fallback textarea must propagate through `onChange` and the `qti-change` custom event with the correct `responseId`.
@@ -118,8 +128,8 @@ No open gaps for this interaction. G-08 (PCI module lifecycle) is Done — commi
 - **FR-8:** When `disabled` is `true`, the fallback textarea must be non-interactive (HTML `disabled` attribute set). The warning banner and details panel remain visible.
 - **FR-9:** The component must dispatch a `qti-change` CustomEvent on the host element (not on the inner `<div>`) so the event propagates up the shadow-DOM boundary to the item player.
 - **FR-10:** The extractor's `validate()` must return a warning (not an error) when the extracted `xml` is empty. Extraction must not fail — an empty custom interaction is unusual but not necessarily malformed at the item level.
-- **FR-11:** For QTI 3.0 `qti-portable-custom-interaction`, the player must instantiate a `PciHost`, call `load()` to dynamically import the module, call `initialize(dom)` once the DOM scaffold is mounted, and wire `onResponseChange` to the player's response variable map. The fallback warning UI must not be shown when a module loads successfully.
-- **FR-12:** When module loading fails (network error, invalid module, missing `initialize` export), `PciHost.load()` throws `PciLoadError`. The player must catch this, log the error, and fall back to rendering the `CustomInteractionFallback` UI so the item remains usable.
+- **FR-11:** For QTI 2.x or 3.0 PCI content, the player must instantiate a `PciHost`, call the host-provided resolver from `load()`, call `initialize(dom)` once the sanitized DOM scaffold is mounted, and wire `onResponseChange` to the player's response variable map. No authored module may execute without that explicit resolver.
+- **FR-12:** When module resolution or interface validation fails, the portable renderer must catch the error and expose an accessible `role="alert"` error without throwing out the rest of the item. The ordinary `customInteraction` fallback remains available only for non-PCI content.
 
 ---
 
@@ -144,7 +154,7 @@ When a PCI module is loaded, the module is responsible for its own internal acce
 
 - The fallback component must add no external asset loads. All styling is via CSS custom properties and scoped `<style>` blocks.
 - PCI module loading must not block the rendering of other interactions in the item. `PciHost.load()` is async; the PCI container must show a loading skeleton until `initialize()` resolves.
-- PCI modules are third-party code and may be arbitrarily large. The item player must not inline module content; always load via URL reference.
+- PCI modules are third-party code and may be arbitrarily large. The item player delegates module acquisition to the host resolver rather than embedding or fetching authored code itself.
 
 ### Cross-platform
 
@@ -157,10 +167,10 @@ When a PCI module is loaded, the module is responsible for its own internal acce
 `customInteraction` and PCI are the primary security boundary in the QTI item model. Key constraints:
 
 - **Current (fallback):** The `xml` string is displayed in a `<pre>` block, not injected as HTML. No XSS risk in the fallback path.
-- **G-08 (module loading):** PCI modules are third-party JavaScript loaded from URLs in the content package. This is fundamentally equivalent to executing untrusted code. The player must:
-  - Only load modules from URLs within the content package's declared resource list (manifest-validated paths), not from arbitrary external origins.
-  - Document clearly that PCI module execution is equivalent in trust to script inclusion — delivery platforms that require stronger isolation must wrap the item player in a sandboxed `<iframe>`.
-  - Not execute PCI modules in a `Content-Security-Policy` context that disallows `import()` unless the content package base URL is explicitly allow-listed.
+- **PCI module loading:** PCI modules are third-party JavaScript and execute with the authority of the realm that returns them. The player never performs an ambient `import()` of an authored path. The embedding host must:
+  - supply `PlayerConfig.pci.moduleResolver` as an explicit opt-in;
+  - validate the authored path against the content package manifest and enforce its URL/origin policy before returning a module;
+  - understand that returning a module is equivalent to script inclusion; delivery platforms requiring stronger isolation must wrap the player in a sandboxed, preferably cross-origin `<iframe>`.
 - **`rawAttributes` display:** JSON-serialised attributes are rendered as text content, not innerHTML; no sanitisation is required for the fallback display path.
 
 ### i18n
@@ -184,11 +194,11 @@ The `i18n` prop is optional; all strings have English defaults. RTL layout is ha
 
 **Decision:** The extractor captures `element.outerHTML` as an opaque string rather than recursively parsing the custom element's children into a typed structure.
 
-**Rationale:** The child content of a `customInteraction` is intentionally undefined by the spec. Any attempt to parse it into a typed model would either be too restrictive (failing on vendor-specific markup) or too permissive (a pass-through that adds no value over the raw string). The raw XML is sufficient for the fallback display and provides the complete input for G-08's `portableCustomExtractor`, which will parse the QTI 3.0 children into `qti-interaction-markup`, `qti-interaction-modules`, and `qti-pci-properties` sub-structures.
+**Rationale:** The child content of an opaque `customInteraction` is intentionally undefined by the spec. Any attempt to parse it into a typed model would either be too restrictive (failing on vendor-specific markup) or too permissive (a pass-through that adds no value over the raw string). A separate portable extractor handles the defined QTI 2.x PCI and QTI 3.0 PCI structures.
 
 **Alternatives considered:** Recursive HTML parsing into a generic tree; JSON serialisation of the DOM node. Both were rejected as adding complexity with no benefit given the opaque semantics.
 
-**Consequences:** The `xml` field on `CustomInteractionData` is a best-effort debug string, not a contract. Consumers must not parse it programmatically. The G-08 extractor will produce a richer type (`PortableCustomInteractionData`) with structured sub-fields; `CustomInteractionData` will remain for QTI 2.x items.
+**Consequences:** The `xml` field on `CustomInteractionData` is a best-effort debug string, not a contract. Consumers must not parse it programmatically. `PortableCustomInteractionData` is the structured model used for both supported PCI syntaxes.
 
 ### Fallback display rather than error state
 
@@ -208,7 +218,7 @@ The `i18n` prop is optional; all strings have English defaults. RTL layout is ha
 
 **Alternatives considered:** Read-only fallback with no input (rejected — response variable always null, preventing completion); pre-populated placeholder value (rejected — fabricated responses corrupt scoring data).
 
-**Consequences:** Any manual response will fail standard response processing (since correct response templates are unlikely to match a free-text string). The MAXSCORE for items relying solely on `customInteraction` is effectively 0 until G-08 is implemented.
+**Consequences:** Any manual response may fail standard response processing when it does not match the declared response type. Opaque custom interactions that require specialized behavior still need platform-specific support or external scoring.
 
 ### Attributes stored as a flat `Record<string, string>`
 
@@ -225,7 +235,7 @@ The `i18n` prop is optional; all strings have English defaults. RTL layout is ha
 | Extension point | Interface | How to use | Notes |
 | --------------- | --------- | ---------- | ----- |
 | PCI module interface | `PciModule` in `packages/item-player/src/pci/types.ts` | Export a default object (or named `getInstance` export) with `initialize`, `getResponse`, `setResponse`, `disable`, `enable`, `destroy` | Every PCI module must implement this interface; `PciHost` calls it at defined lifecycle points |
-| `PlayerConfig.pciBaseUrl` | `string` | Set to the base URL for resolving `primary-path`/`fallback-path` module references | Defaults to `document.baseURI`; required when content is served from a path prefix |
+| `PlayerConfig.pci` / custom-element `.pci` | `PciConfiguration` | Supply `{ baseUrl?, moduleResolver }` as a JavaScript property on `pie-qti-item-player` or `pie-qti-assessment-player` | Secure default is disabled; there is no ambient import or `document.baseURI` default |
 | Custom extractor (higher priority) | `ElementExtractor<ExtractedPci>` | Register an extractor with `priority > 20` for `qti-portable-custom-interaction` element type | `portableCustomExtractor` itself follows this pattern; plugin system docs in `docs/prds/architecture/item-player-plugin-system.md` |
 
 ### `PciHost` contract
@@ -234,11 +244,11 @@ The `i18n` prop is optional; all strings have English defaults. RTL layout is ha
 // packages/item-player/src/pci/PciHost.ts
 
 export class PciHost {
-  constructor(data: ExtractedPci, baseUrl: string);
-  /** Load the module from primaryPath, falling back to fallbackPath. Throws PciLoadError if both fail. */
+  constructor(data: ExtractedPci, options?: PciHostOptions);
+  /** Resolve the primary/fallback module through the host hook. */
   load(): Promise<void>;
   /** Wire a callback to fire when the module reports a response change. */
-  onResponseChange(callback: (responseId: string, value: unknown) => void): void;
+  onResponseChange(callback: (responseId: string, value: unknown) => void): () => void;
   /** Mount the PCI inside the given DOM element. Must be called after load() resolves. */
   initialize(dom: HTMLElement): void;
   getResponse(): unknown;
@@ -304,7 +314,7 @@ The response variable type for `customInteraction` is **not fixed by the spec**.
 | External scored (PCI) | `string` | `single` |
 | Numeric result | `float` or `integer` | `single` |
 
-The fallback manual textarea always produces a `string | null` value regardless of the declared baseType. This will fail type-checked response processing. For items where scoring matters before G-08 ships, the item must set `externalScored="externalMachine"` on the `outcomeDeclaration`.
+The fallback manual textarea always produces a `string | null` value regardless of the declared baseType. This can fail type-checked response processing; opaque custom interactions commonly need an external-scoring workflow.
 
 ### `qti-change` event
 
@@ -420,12 +430,12 @@ Then: valid is true (not false)
   AND warnings contains a string mentioning "no XML content"
 ```
 
-**AC-13: QTI 3.0 PCI element routes to PciHost**
+**AC-13: QTI 2.x and 3.0 PCI content routes to PciHost**
 ```
 Given: An item containing a <qti-portable-custom-interaction> element with a valid primary-path module URL
 When: The item is loaded and rendered
 Then: portableCustomExtractor produces an ExtractedPci (not a CustomInteractionData)
-  AND PciHost.load() is called, dynamically importing the module
+  AND PciHost.load() calls the configured host resolver
   AND PciHost.initialize() is called with the interaction's DOM container
   AND the fallback warning UI is NOT shown
 ```
@@ -516,13 +526,13 @@ Then: parseJsonProp deserialises the string
 
 ### PCI acceptance criteria
 
-These criteria cover the QTI 3.0 `qti-portable-custom-interaction` path through `PciHost`.
+These criteria cover the QTI 3.0 `qti-portable-custom-interaction` and the QTI 2.x portable wrapper paths through `PciHost`.
 
 AC-G1: Module loading
 ```
-Given: An item with a qti-portable-custom-interaction carrying a valid primary-path module URL
+Given: An item with portable custom interaction content carrying a valid authored module path
 When: The item is loaded by the player
-Then: The ES module at primary-path is dynamically imported
+Then: The configured resolver is called with the resolved URL and authored-path context
   AND initialize(domScaffold, config, boundTo) is called once DOM is ready
   AND the fallback warning UI is NOT shown
 ```
@@ -536,12 +546,11 @@ Then: The fallback-path module is loaded instead
   AND no error UI is shown if the fallback load succeeds
 ```
 
-AC-G3: Module fallback to warning UI
+AC-G3: Module failure is contained
 ```
 Given: Both primary-path and fallback-path fail to load
 When: The player handles the error
-Then: The standard warning + textarea fallback UI is shown
-  AND the error is logged (console.error or player error event)
+Then: The portable renderer exposes an accessible error message
   AND no uncaught exception is thrown
 ```
 
@@ -585,18 +594,19 @@ Then: module.destroy() is called (if the method is present)
 
 - [ ] Should `CustomInteractionData.xml` be renamed `rawXml` to make the "debug/best-effort" semantics clearer now that `ExtractedPci` is the structured type for QTI 3.0? Renaming avoids confusion between the two types.
 - [ ] Should the fallback warning be suppressible via a `suppressFallback` prop for delivery contexts where showing an unsupported-interaction warning would be confusing to candidates? (e.g. an embedded preview that only wants to test other interactions in the item.)
-- [ ] What is the approved sandboxing strategy for PCI modules? Options: same-origin dynamic import (current plan, implemented in `PciHost`), `<iframe sandbox>` host, or Trusted Types policy. The security model PRD (`docs/prds/architecture/security.md`) should drive this decision.
+- [ ] Should a future resolver adapter provide per-PCI iframe isolation? The current contract deliberately leaves acquisition to the host but executes the returned module in the player realm. Whole-player cross-origin framing remains the supported stronger-isolation boundary.
 
 ---
 
 ## Related
 
 - QTI spec: `docs/QTI_techguide.md` §3.4.6 (customInteraction), §6.1 (PCI)
-- Spec gap: `docs/SPEC-GAPS-PLAN.md` §G-08 — PCI module lifecycle (Done, commit `fa8fa97`, 2026-04-28)
+- Spec gap: `docs/SPEC-GAPS-PLAN.md` §G-08 — PCI module lifecycle
 - Response tracking: `docs/QTI-RESPONSE-TRACKING-AND-SCORING.md`
 - Implementation — PCI host: `packages/item-player/src/pci/PciHost.ts`
 - Implementation — PCI types: `packages/item-player/src/pci/types.ts`
 - Implementation — PCI extractor: `packages/item-player/src/interactions/portable-custom/extractor.ts`
+- Implementation — PCI renderer: `packages/default-components/src/plugins/portable-custom/PortableCustomInteraction.svelte`
 - Implementation — component: `packages/default-components/src/plugins/custom/CustomInteraction.svelte`
 - Implementation — fallback: `packages/default-components/src/shared/components/CustomInteractionFallback.svelte`
 - Implementation — QTI 2.x extractor: `packages/item-player/src/interactions/custom/extractor.ts`

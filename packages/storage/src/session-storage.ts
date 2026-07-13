@@ -17,6 +17,20 @@ export interface SessionStorageOptions {
 	basePath?: string;
 }
 
+const SESSION_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
+
+function isValidSessionId(sessionId: string): boolean {
+	return SESSION_ID_PATTERN.test(sessionId);
+}
+
+function assertValidSessionId(sessionId: string): void {
+	if (!isValidSessionId(sessionId)) {
+		throw new Error(
+			'Session ID must be 1-128 characters and contain only letters, numbers, underscores, or hyphens',
+		);
+	}
+}
+
 /**
  * Session storage implementation
  * Manages session-scoped file operations
@@ -31,6 +45,7 @@ export class SessionStorageImpl implements SessionStorage {
 	}
 
 	getSessionPath(sessionId: string): string {
+		assertValidSessionId(sessionId);
 		return `${this.basePath}/${sessionId}`;
 	}
 
@@ -51,6 +66,9 @@ export class SessionStorageImpl implements SessionStorage {
 	}
 
 	async readSessionMetadata(sessionId: string): Promise<Session | null> {
+		// Validate outside the recovery block so traversal attempts are rejected
+		// rather than being indistinguishable from a missing session.
+		assertValidSessionId(sessionId);
 		try {
 			const metadataPath = this.getMetadataPath(sessionId);
 			const exists = await this.storage.exists(metadataPath);
@@ -90,7 +108,9 @@ export class SessionStorageImpl implements SessionStorage {
 
 			// Read metadata for each session
 			const sessions = await Promise.all(
-				entries.map((sessionId: string) => this.readSessionMetadata(sessionId)),
+				entries
+					.filter((sessionId: string) => isValidSessionId(sessionId))
+					.map((sessionId: string) => this.readSessionMetadata(sessionId)),
 			);
 
 			// Filter out null results (sessions without metadata)

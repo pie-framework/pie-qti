@@ -168,6 +168,42 @@ describe('FilesystemBackend', () => {
 		);
 	});
 
+	test('should reject a sibling directory whose path shares the root prefix', async () => {
+		const siblingDir = `${tempDir}-escape`;
+		const outsideFile = path.join(siblingDir, 'owned.txt');
+		const traversalPath = path.relative(tempDir, outsideFile);
+
+		try {
+			await expect(backend.writeText(traversalPath, 'hacked')).rejects.toThrow(
+				'Path security violation',
+			);
+		} finally {
+			await fs.rm(siblingDir, { recursive: true, force: true });
+		}
+	});
+
+	test('should reject reads and writes through a symlink that escapes the root', async () => {
+		const outsideDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fs-backend-outside-'));
+		const outsideSecret = path.join(outsideDir, 'secret.txt');
+		const escapedWrite = path.join(outsideDir, 'escaped.txt');
+		await fs.writeFile(outsideSecret, 'outside secret', 'utf8');
+		await fs.symlink(outsideDir, path.join(tempDir, 'escape'), 'dir');
+
+		try {
+			await expect(backend.readText('escape/secret.txt')).rejects.toThrow(
+				'Path security violation',
+			);
+			await expect(backend.writeText('escape/escaped.txt', 'hacked')).rejects.toThrow(
+				'Path security violation',
+			);
+			await expect(fs.readFile(escapedWrite, 'utf8')).rejects.toMatchObject({
+				code: 'ENOENT',
+			});
+		} finally {
+			await fs.rm(outsideDir, { recursive: true, force: true });
+		}
+	});
+
 	test('should allow disabling path security', async () => {
 		const insecureBackend = new FilesystemBackend({
 			rootDir: tempDir,

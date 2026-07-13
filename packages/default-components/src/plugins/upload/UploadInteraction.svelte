@@ -13,12 +13,14 @@
 		interaction?: UploadInteractionData | string;
 		response?: QTIFileResponse | string | null;
 		disabled?: boolean;
+		/** Maximum accepted upload size in bytes; use Infinity to disable the cap */
+		maxFileSizeBytes?: number;
 		i18n?: I18nProvider;
 		typeset?: (element: HTMLElement) => void;
 		onChange?: (value: QTIFileResponse | null) => void;
 	}
 
-	let { interaction = $bindable(), response = $bindable(), disabled = false, i18n = $bindable(), typeset, onChange }: Props = $props();
+	let { interaction = $bindable(), response = $bindable(), disabled = false, maxFileSizeBytes, i18n = $bindable(), typeset, onChange }: Props = $props();
 
 	// Parse props that may be JSON strings (web component usage)
 	const parsedInteraction = $derived(parseJsonProp<UploadInteractionData>(interaction));
@@ -50,6 +52,7 @@
 			label={parsedInteraction.prompt || i18n?.t('interactions.upload.label', 'Upload a file')}
 			responseId={parsedInteraction.responseId}
 			fileTypes={parsedInteraction.fileTypes}
+			{maxFileSizeBytes}
 			{disabled}
 			{i18n}
 			value={parsedResponse}

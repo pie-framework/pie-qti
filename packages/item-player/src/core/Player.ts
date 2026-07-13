@@ -73,6 +73,10 @@ import { extractCatalog, extractCatalogFromItemXml, mergeCatalogs } from '../cat
 import { getCatalogEntry } from '../catalog/catalogLookup.js';
 import { PciHost } from '../pci/PciHost.js';
 import type { ExtractedPci } from '../pci/types.js';
+import {
+	createExtendedTextNumericRecord,
+	EXTENDED_TEXT_RECORD_FIELD_TYPES,
+} from '../interactions/extended-text/response.js';
 
 type DeclKind = 'response' | 'outcome' | 'template';
 
@@ -187,26 +191,26 @@ export class Player {
 		}
 
 		// Build ASTs once.
+		const processingBuildOptions = {
+			elementNameMapper: this.mapper,
+			resolveProcessingFragment: config.resolveProcessingFragment,
+			maxProcessingFragmentDepth: config.processingFragmentLimits?.maxDepth,
+			maxProcessingFragmentCharacters: config.processingFragmentLimits?.maxCharacters,
+		};
 		const templateProcessing = this.itemDocument.getProcessingElement('template');
 		if (templateProcessing) {
-			this.templateProcessingProgram = buildTemplateProcessingAst(templateProcessing, {
-				elementNameMapper: this.mapper,
-			});
+			this.templateProcessingProgram = buildTemplateProcessingAst(templateProcessing, processingBuildOptions);
 			this.execTemplateProcessing();
 		}
 
 		const responseProcessing = this.itemDocument.getProcessingElement('response');
 		if (responseProcessing) {
-			this.responseProcessingProgram = buildResponseProcessingAst(responseProcessing, {
-				elementNameMapper: this.mapper,
-			});
+			this.responseProcessingProgram = buildResponseProcessingAst(responseProcessing, processingBuildOptions);
 		}
 
 		const outcomeProcessing = this.itemDocument.getProcessingElement('outcome');
 		if (outcomeProcessing) {
-			this.outcomeProcessingProgram = buildOutcomeProcessingAst(outcomeProcessing, {
-				elementNameMapper: this.mapper,
-			});
+			this.outcomeProcessingProgram = buildOutcomeProcessingAst(outcomeProcessing, processingBuildOptions);
 		}
 
 		// Apply initial responses after templateProcessing (so template vars are ready).
@@ -330,14 +334,16 @@ export class Player {
 	 * host.initialize(domNode) once the DOM element is available.
 	 */
 	public createPciHost(data: ExtractedPci): PciHost {
-		const baseUrl = this.config.pciBaseUrl ?? (typeof document !== 'undefined' ? document.baseURI : '');
-		const host = new PciHost(data, baseUrl);
+		const host = new PciHost(data, {
+			baseUrl: this.config.pci?.baseUrl ?? this.config.pciBaseUrl,
+			moduleResolver: this.config.pci?.moduleResolver,
+		});
 
 		// Wire response changes back into the player's declaration context
 		host.onResponseChange((responseId: string, value: unknown) => {
 			const d = this.decls[responseId];
 			if (d) {
-				d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, value);
+				d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, value, d.identifier);
 			}
 		});
 
@@ -383,7 +389,7 @@ export class Player {
 		for (const [id, raw] of Object.entries(responses)) {
 			const d = this.decls[id];
 			if (!d) continue;
-			d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, raw);
+			d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, raw, d.identifier);
 			// Push restored responses into any mounted PCI modules
 			this.setPciResponse(id, raw);
 		}
@@ -854,7 +860,17 @@ export class Player {
 		const out: Record<string, any> = {};
 		for (const d of Object.values(this.decls)) {
 			if ((d as any).__kind !== 'response') continue;
-			out[d.identifier] = d.value.kind === 'value' ? d.value.value : null;
+			const pciHost = this._pciHosts.get(d.identifier);
+			if (pciHost) {
+				const currentResponse = pciHost.getResponse();
+				d.value = this.coerceToDeclarationValue(
+					d.baseType,
+					d.cardinality,
+					currentResponse,
+					d.identifier
+				);
+			}
+			out[d.identifier] = this.qtiValueToPublic(d.value);
 		}
 		return out;
 	}
@@ -870,7 +886,7 @@ export class Player {
 		const respDecl = decl as any; // ResponseDeclaration from qti-processing
 		if (!respDecl.correctResponse) return undefined;
 		if (respDecl.correctResponse.kind !== 'value') return undefined;
-		return respDecl.correctResponse.value;
+		return this.qtiValueToPublic(respDecl.correctResponse);
 	}
 
 	/**
@@ -883,7 +899,7 @@ export class Player {
 			if ((d as any).__kind !== 'response') continue;
 			const respDecl = d as any;
 			if (!respDecl.correctResponse || respDecl.correctResponse.kind !== 'value') continue;
-			out[d.identifier] = respDecl.correctResponse.value;
+			out[d.identifier] = this.qtiValueToPublic(respDecl.correctResponse);
 		}
 		return out;
 	}
@@ -892,7 +908,7 @@ export class Player {
 		const out: Record<string, any> = {};
 		for (const d of Object.values(this.decls)) {
 			if (!d.isTemplate) continue;
-			out[d.identifier] = d.value.kind === 'value' ? d.value.value : null;
+			out[d.identifier] = this.qtiValueToPublic(d.value);
 		}
 		return out;
 	}
@@ -901,14 +917,14 @@ export class Player {
 		for (const [id, raw] of Object.entries(vars)) {
 			const d = this.decls[id];
 			if (!d?.isTemplate) continue;
-			d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, raw);
+			d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, raw, d.identifier);
 		}
 	}
 
 	public getSessionState(): ItemSessionState {
 		const out: ItemSessionState = {};
 		for (const d of Object.values(this.decls)) {
-			out[d.identifier] = d.value.kind === 'value' ? d.value.value : null;
+			out[d.identifier] = this.qtiValueToPublic(d.value);
 		}
 		return out;
 	}
@@ -922,10 +938,33 @@ export class Player {
 			const responseId = i.responseIdentifier;
 			const decl = this.decls[responseId];
 			const value = responses[responseId];
+			const isMeaningfulEntry = (entry: unknown): boolean => {
+				if (entry === null || entry === undefined) return false;
+				if (typeof entry !== 'string') return true;
+				const comparable = i.type === 'extendedTextInteraction' && i.format === 'xhtml'
+					? entry.replace(/<[^>]*>/g, '').replace(/&nbsp;|&#160;/gi, ' ')
+					: entry;
+				return comparable.trim().length > 0;
+			};
 
+			const constrainedChoices: Array<{ identifier: string; matchMin?: number }> = [
+				...(i.choices ?? []),
+				...(i.gapTexts ?? []),
+				...(i.gapImages ?? []),
+				...(i.sourceSet ?? []),
+				...(i.targetSet ?? []),
+				...(i.associableHotspots ?? []),
+			];
+			const minimum = Math.max(
+				0,
+				Number(i.minChoices ?? 0),
+				Number(i.minAssociations ?? 0),
+				Number(i.minStrings ?? 0),
+				Number(i.minPlays ?? 0),
+			);
 			const required =
 				i.type !== 'endAttemptInteraction' &&
-				(i.type !== 'mediaInteraction' || (typeof i.minPlays === 'number' && i.minPlays > 0));
+				(minimum > 0 || constrainedChoices.some((choice) => Number(choice.matchMin ?? 0) > 0));
 
 			let complete = !required;
 			if (i.type === 'mediaInteraction' && required) {
@@ -933,24 +972,21 @@ export class Player {
 				complete = Number(value || 0) >= minPlays;
 			} else if (required) {
 				if (Array.isArray(value)) {
-					complete = value.length > 0;
+					const nonEmptyValues = value.filter(isMeaningfulEntry);
+					complete = nonEmptyValues.length > 0;
 					// Enforce minChoices / minAssociations where applicable
-					const minChoices = Number(i.minChoices || i.minAssociations || 0);
+						const minChoices = Math.max(
+							Number(i.minChoices ?? 0),
+							Number(i.minAssociations ?? 0),
+							Number(i.minStrings ?? 0),
+						);
 					if (complete && minChoices > 0) {
-						complete = value.length >= minChoices;
+						complete = nonEmptyValues.length >= minChoices;
 					}
 					// Enforce matchMin per-choice: each pairing entry "id1 id2" in value must
 					// appear at least matchMin times for the relevant choice.
 					// Collect all choice arrays that can carry matchMin across all pairing interaction types.
-					const choices: Array<{ identifier: string; matchMin?: number }> = [
-						...(i.choices ?? []),
-						...(i.gapTexts ?? []),
-						...(i.gapImages ?? []),
-						...(i.sourceSet ?? []),
-						...(i.targetSet ?? []),
-						...(i.associableHotspots ?? []),
-					];
-					for (const choice of choices) {
+						for (const choice of constrainedChoices) {
 						const min = Number(choice.matchMin || 0);
 						if (min > 0) {
 							const count = (value as string[]).filter((p) => {
@@ -963,8 +999,13 @@ export class Player {
 							}
 						}
 					}
+				} else if (decl?.cardinality === 'record') {
+					const stringValue = value && typeof value === 'object'
+						? (value as Record<string, unknown>).stringValue
+						: undefined;
+					complete = isMeaningfulEntry(stringValue);
 				} else {
-					complete = value !== null && value !== undefined && value !== '';
+					complete = isMeaningfulEntry(value);
 				}
 			}
 
@@ -976,11 +1017,23 @@ export class Player {
 					if (!(value === null || value === undefined || Array.isArray(value))) {
 						errors.push(`Expected an array for ${decl.cardinality} response '${responseId}'`);
 					}
+				} else if (decl.cardinality === 'record') {
+					if (!(value === null || value === undefined || (typeof value === 'object' && !Array.isArray(value)))) {
+						errors.push(`Expected an object for record response '${responseId}'`);
+					}
 				} else {
 					if (Array.isArray(value)) {
 						errors.push(`Expected a single value for response '${responseId}'`);
 					}
 				}
+			}
+			if (
+				i.type === 'extendedTextInteraction' &&
+				Array.isArray(value) &&
+				Number(i.maxStrings ?? 0) > 0 &&
+				value.filter(isMeaningfulEntry).length > Number(i.maxStrings)
+			) {
+				errors.push(`Response '${responseId}' exceeds maxStrings=${i.maxStrings}`);
 			}
 
 			const valid = errors.length === 0;
@@ -1030,15 +1083,30 @@ export class Player {
 		for (const i of this.getResponseInteractions()) {
 			const id = i.responseIdentifier;
 			const v = responses[id];
+			const isMeaningful = (entry: unknown): boolean => {
+				if (entry === null || entry === undefined) return false;
+				if (typeof entry !== 'string') return true;
+				const comparable = i.type === 'extendedTextInteraction' && i.format === 'xhtml'
+					? entry.replace(/<[^>]*>/g, '').replace(/&nbsp;|&#160;/gi, ' ')
+					: entry;
+				return comparable.trim().length > 0;
+			};
 			if (i.type === 'mediaInteraction') {
 				if (Number(v || 0) > 0) return true;
 				continue;
 			}
 			if (Array.isArray(v)) {
-				if (v.length > 0) return true;
+				if (v.some(isMeaningful)) return true;
 				continue;
 			}
-			if (v !== null && v !== undefined && v !== '') return true;
+			if (v && typeof v === 'object') {
+				const record = v as Record<string, unknown>;
+				if (
+					Object.values(record).some(isMeaningful)
+				) return true;
+				continue;
+			}
+			if (isMeaningful(v)) return true;
 		}
 		return false;
 	}
@@ -1093,26 +1161,61 @@ export class Player {
 			return;
 		}
 
-		const responseDeclIds = Object.values(this.decls)
-			.filter((d) => (d as any).__kind === 'response')
-			.map((d) => d.identifier);
+		const responseMatchesCorrect = (): boolean => {
+			const expression = {
+				kind: 'expr.match',
+				id: 'fixed-template-match',
+				a: { kind: 'expr.variable', id: 'fixed-template-response', identifier: 'RESPONSE' },
+				b: { kind: 'expr.correct', id: 'fixed-template-correct', identifier: 'RESPONSE' },
+			} as any;
+			return toBoolean(
+				evalExpr(
+					{ ctx: this.ctx, ops: this.ops, rng: this.rng, customOperators: this.config.customOperators },
+					expression,
+				),
+			);
+		};
+
+		const setScore = (value: number): void => {
+			this.ctx.setValue('SCORE', qtiValue('float', 'single', value));
+		};
+
+		const setIdentifierOutcome = (identifier: string, value: string): void => {
+			this.ctx.setValue(identifier, qtiValue('identifier', 'single', value));
+		};
+
+		const mapResponse = (point: boolean): number => {
+			const response = this.ctx.getValue('RESPONSE');
+			if (response.kind === 'null') return 0;
+			const mapped = evalExpr(
+				{ ctx: this.ctx, ops: this.ops, rng: this.rng, customOperators: this.config.customOperators },
+				{
+					kind: point ? 'expr.mapResponsePoint' : 'expr.mapResponse',
+					id: point ? 'fixed-template-map-response-point' : 'fixed-template-map-response',
+					identifier: 'RESPONSE',
+				} as any,
+			);
+			const value = toNumber(mapped);
+			return Number.isFinite(value) ? value : 0;
+		};
 
 		switch (name) {
 			case 'match_correct':
-			case 'cc2_match': { // CC2_match is an alias for match_correct (QTI 2.1 compatibility)
-				const allCorrect = responseDeclIds.every((id) => {
-					const expr = { kind: 'expr.match', id: 'tmp', a: { kind: 'expr.variable', id: 'tmp', identifier: id }, b: { kind: 'expr.correct', id: 'tmp', identifier: id } } as any;
-					// Use evaluator match semantics by evaluating a constructed MatchExpr
-					return toBoolean(
-						evalExpr(
-							{ ctx: this.ctx, ops: this.ops, rng: this.rng, customOperators: this.config.customOperators },
-							expr
-						)
+			case 'cc2_match': {
+				setScore(responseMatchesCorrect() ? 1 : 0);
+				return;
+			}
+			case 'cc2_match_basic': {
+				if (responseMatchesCorrect()) {
+					const maxScore = toNumber(this.ctx.getValue('MAXSCORE'));
+					this.ctx.setValue(
+						'SCORE',
+						Number.isFinite(maxScore) ? qtiValue('float', 'single', maxScore) : qtiNull('float', 'single'),
 					);
-				});
-
-				const max = toNumber(this.ctx.getValue('MAXSCORE'));
-				this.ctx.setValue('SCORE', qtiValue('float', 'single', allCorrect ? (Number.isFinite(max) ? max : 1) : 0));
+					setIdentifierOutcome('FEEDBACKBASIC', 'correct');
+				} else {
+					setIdentifierOutcome('FEEDBACKBASIC', 'incorrect');
+				}
 				return;
 			}
 			case 'match_nothing':
@@ -1127,39 +1230,28 @@ export class Player {
 					return false;
 				};
 
-				const allEmpty = responseDeclIds.every((id) => isEmptyResponse(this.ctx.getValue(id)));
+				const allEmpty = isEmptyResponse(this.ctx.getValue('RESPONSE'));
 				const max = toNumber(this.ctx.getValue('MAXSCORE'));
 				this.ctx.setValue('SCORE', qtiValue('float', 'single', allEmpty ? (Number.isFinite(max) ? max : 1) : 0));
 				return;
 			}
-			case 'map_response':
-			case 'cc2_map_response': { // QTI 2.1 compatibility
-				let total = 0;
-				for (const id of responseDeclIds) {
-					const d = this.decls[id];
-					if (!d.mapping) continue;
-					const v = evalExpr(
-						{ ctx: this.ctx, ops: this.ops, rng: this.rng },
-						{ kind: 'expr.mapResponse', id: 'tmp', identifier: id } as any
-					);
-					total += toNumber(v) || 0;
-				}
-				this.ctx.setValue('SCORE', qtiValue('float', 'single', total));
+			case 'map_response': {
+				setScore(mapResponse(false));
+				return;
+			}
+			case 'cc2_map_response': {
+				const score = mapResponse(false);
+				setScore(score);
+				const maxScore = toNumber(this.ctx.getValue('MAXSCORE'));
+				setIdentifierOutcome(
+					'FEEDBACK',
+					Number.isFinite(maxScore) && score === maxScore ? 'correct' : 'incorrect',
+				);
 				return;
 			}
 			case 'map_response_point':
 			case 'cc2_map_response_point': { // QTI 2.1 compatibility
-				let total = 0;
-				for (const id of responseDeclIds) {
-					const d = this.decls[id];
-					if (!d.areaMapping) continue;
-					const v = evalExpr(
-						{ ctx: this.ctx, ops: this.ops, rng: this.rng },
-						{ kind: 'expr.mapResponsePoint', id: 'tmp', identifier: id } as any
-					);
-					total += toNumber(v) || 0;
-				}
-				this.ctx.setValue('SCORE', qtiValue('float', 'single', total));
+				setScore(mapResponse(true));
 				return;
 			}
 			default:
@@ -1178,13 +1270,15 @@ export class Player {
 		const addDecl = (kind: DeclKind, el: Element) => {
 			const identifier = this.getAttrMapped(el, 'identifier');
 			const cardinality = (this.getAttrMapped(el, 'cardinality') || 'single') as Cardinality;
-			const baseType = (this.getAttrMapped(el, 'baseType') || 'string') as BaseType;
+			const baseType = cardinality === 'record'
+				? undefined
+				: (this.getAttrMapped(el, 'baseType') || 'string') as BaseType;
 			if (!identifier) return;
 
 			const defaultValue = this.parseDefaultValue(el, baseType, cardinality);
 			decls[identifier] = {
 				identifier,
-				baseType,
+				...(baseType ? { baseType } : {}),
 				cardinality,
 				defaultValue,
 				value: defaultValue,
@@ -1197,7 +1291,7 @@ export class Player {
 			// (Templates do not participate in mapping.)
 			if (kind === 'response' || kind === 'outcome') {
 				const mappingEl = findFirstDescendant(el, this.mapper.toNative('mapping'));
-				if (mappingEl) {
+				if (mappingEl && baseType) {
 					decls[identifier].mapping = this.parseMapping(mappingEl, baseType);
 				}
 			}
@@ -1333,7 +1427,7 @@ export class Player {
 		for (const [id, raw] of Object.entries(state)) {
 			const d = this.decls[id];
 			if (!d) continue;
-			d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, raw);
+			d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, raw, d.identifier);
 		}
 		const restoredDuration = Number(state.duration);
 		if (Number.isFinite(restoredDuration) && restoredDuration >= 0) {
@@ -1347,7 +1441,7 @@ export class Player {
 		for (const v of Object.values(vars)) {
 			const d = this.decls[v.identifier];
 			if (!d) continue;
-			d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, v.value);
+			d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, v.value, d.identifier);
 			if ((d as any).__kind === 'response') {
 				this.setPciResponse(d.identifier, v.value);
 			}
@@ -1395,7 +1489,7 @@ export class Player {
 		return {
 			identifier: d.identifier,
 			kind: ((d as any).__kind ?? (d.isTemplate ? 'template' : 'context')) as SerializedItemSessionVariable['kind'],
-			baseType: d.baseType,
+			...(d.baseType ? { baseType: d.baseType } : {}),
 			cardinality: d.cardinality,
 			value: this.qtiValueToSerializable(d.value),
 			defaultValue: this.qtiValueToSerializable(d.defaultValue),
@@ -1404,7 +1498,28 @@ export class Player {
 
 	private qtiValueToSerializable(value: QtiValue | undefined): any {
 		if (!value || value.kind !== 'value') return null;
-		return value.value;
+		if (value.cardinality !== 'record') return value.value;
+
+		const serialized: Record<string, unknown> = {};
+		for (const [fieldIdentifier, fieldValue] of Object.entries(value.value as Record<string, QtiValue>)) {
+			serialized[fieldIdentifier] = {
+				...(fieldValue.baseType ? { baseType: fieldValue.baseType } : {}),
+				cardinality: fieldValue.cardinality ?? 'single',
+				value: this.qtiValueToSerializable(fieldValue),
+			};
+		}
+		return serialized;
+	}
+
+	private qtiValueToPublic(value: QtiValue | undefined): any {
+		if (!value || value.kind !== 'value') return null;
+		if (value.cardinality !== 'record') return value.value;
+
+		const record: Record<string, unknown> = {};
+		for (const [fieldIdentifier, fieldValue] of Object.entries(value.value as Record<string, QtiValue>)) {
+			record[fieldIdentifier] = this.qtiValueToPublic(fieldValue);
+		}
+		return record;
 	}
 
 	private updateDuration(): void {
@@ -1426,25 +1541,41 @@ export class Player {
 		return Math.max(0, Math.floor(toNumber(value) || 0));
 	}
 
-	private parseDefaultValue(declEl: Element, baseType: BaseType, cardinality: Cardinality): QtiValue {
+	private parseDefaultValue(declEl: Element, baseType: BaseType | undefined, cardinality: Cardinality): QtiValue {
 		const defaultEl = findFirstDescendant(declEl, this.mapper.toNative('defaultvalue'));
 		if (!defaultEl) return qtiNull(baseType, cardinality);
-		const values = findDescendants(defaultEl, this.mapper.toNative('value')).map((v) => (v.textContent || '').trim());
-		if (cardinality === 'multiple' || cardinality === 'ordered') {
-			return qtiValue(
-				baseType,
-				cardinality,
-				values.map((t) => {
-					const v = coerceBaseValue(baseType, t);
-					return v.kind === 'value' ? v.value : null;
-				})
-			);
-		}
-		return coerceBaseValue(baseType, values[0] ?? '');
+		return this.parseDeclarationValues(defaultEl, baseType, cardinality);
 	}
 
-	private parseCorrectResponse(correctEl: Element, baseType: BaseType, cardinality: Cardinality): QtiValue {
-		const values = findDescendants(correctEl, this.mapper.toNative('value')).map((v) => (v.textContent || '').trim());
+	private parseCorrectResponse(
+		correctEl: Element,
+		baseType: BaseType | undefined,
+		cardinality: Cardinality,
+	): QtiValue {
+		return this.parseDeclarationValues(correctEl, baseType, cardinality);
+	}
+
+	private parseDeclarationValues(
+		container: Element,
+		baseType: BaseType | undefined,
+		cardinality: Cardinality,
+	): QtiValue {
+		const valueElements = findDescendants(container, this.mapper.toNative('value'));
+		if (cardinality === 'record') {
+			const record: Record<string, QtiValue> = {};
+			for (const valueElement of valueElements) {
+				const fieldIdentifier = this.getAttrMapped(valueElement, 'fieldIdentifier');
+				const fieldBaseType = this.getAttrMapped(valueElement, 'baseType') as BaseType | null;
+				if (!fieldIdentifier || !fieldBaseType) continue;
+				record[fieldIdentifier] = coerceBaseValue(fieldBaseType, valueElement.textContent || '');
+			}
+			return Object.keys(record).length > 0
+				? qtiValue(undefined, 'record', record)
+				: qtiNull(undefined, 'record');
+		}
+
+		if (!baseType) return qtiNull(undefined, cardinality);
+		const values = valueElements.map((value) => (value.textContent || '').trim());
 		if (cardinality === 'multiple' || cardinality === 'ordered') {
 			return qtiValue(
 				baseType,
@@ -1522,13 +1653,25 @@ export class Player {
 		return { defaultValue, lowerBound, upperBound, entries };
 	}
 
-	private coerceToDeclarationValue(baseType: BaseType, cardinality: Cardinality, raw: unknown): QtiValue {
+	private coerceToDeclarationValue(
+		baseType: BaseType | undefined,
+		cardinality: Cardinality,
+		raw: unknown,
+		identifier?: string,
+	): QtiValue {
 		if (raw === null || raw === undefined) return qtiNull(baseType, cardinality);
 
 		// Allow callers to pass fully-formed QtiValue (e.g. session restore).
 		if (typeof raw === 'object' && raw && 'kind' in raw) {
 			return raw as QtiValue;
 		}
+
+		const extendedTextBase = identifier ? this.getExtendedTextBase(identifier) : undefined;
+		if (cardinality === 'record') {
+			return this.coerceRecordValue(raw, extendedTextBase ?? 10);
+		}
+
+		if (!baseType) return qtiNull(undefined, cardinality);
 
 		// For file types, preserve QTIFileResponse objects directly
 		if (baseType === 'file') {
@@ -1547,6 +1690,10 @@ export class Player {
 				.map((v) => String(v ?? '').trim())
 				.filter((s) => s.length > 0)
 				.map((t) => {
+					if (extendedTextBase && (baseType === 'integer' || baseType === 'float')) {
+						const numeric = createExtendedTextNumericRecord(t, extendedTextBase);
+						return baseType === 'integer' ? numeric.integerValue : numeric.floatValue;
+					}
 					const v = coerceBaseValue(baseType, t);
 					return v.kind === 'value' ? v.value : null;
 				})
@@ -1557,14 +1704,89 @@ export class Player {
 
 		const t = String(raw ?? '').trim();
 		if (t.length === 0) return qtiNull(baseType, cardinality);
+		if (extendedTextBase && (baseType === 'integer' || baseType === 'float')) {
+			const numeric = createExtendedTextNumericRecord(t, extendedTextBase);
+			const value = baseType === 'integer' ? numeric.integerValue : numeric.floatValue;
+			return value === null ? qtiNull(baseType, 'single') : qtiValue(baseType, 'single', value);
+		}
 		return coerceBaseValue(baseType, t);
+	}
+
+	private getExtendedTextBase(responseIdentifier: string): number | undefined {
+		const interaction = this.itemDocument
+			.findExtractionElements(['extendedTextInteraction'])
+			.find((candidate) => candidate.responseIdentifier === responseIdentifier);
+		if (!interaction) return undefined;
+		const base = Number(interaction.element.getAttribute?.('base') ?? 10);
+		return Number.isInteger(base) && base >= 2 && base <= 36 ? base : 10;
+	}
+
+	private coerceRecordValue(raw: unknown, base: number): QtiValue {
+		let source = raw;
+		if (typeof source === 'string') {
+			const stringSource = source;
+			if (stringSource.trim().length === 0) return qtiNull(undefined, 'record');
+			if (stringSource.trimStart().startsWith('{')) {
+				try {
+					source = JSON.parse(stringSource);
+				} catch {
+					return qtiNull(undefined, 'record');
+				}
+			} else {
+				source = createExtendedTextNumericRecord(stringSource, base);
+			}
+		}
+		if (!source || typeof source !== 'object' || Array.isArray(source)) {
+			return qtiNull(undefined, 'record');
+		}
+
+		const fields: Record<string, QtiValue> = {};
+		for (const [fieldIdentifier, rawField] of Object.entries(source)) {
+			if (rawField && typeof rawField === 'object' && 'kind' in rawField) {
+				fields[fieldIdentifier] = rawField as QtiValue;
+				continue;
+			}
+
+			let fieldBaseType = EXTENDED_TEXT_RECORD_FIELD_TYPES[
+				fieldIdentifier as keyof typeof EXTENDED_TEXT_RECORD_FIELD_TYPES
+			] as BaseType | undefined;
+			let fieldValue = rawField;
+			if (rawField && typeof rawField === 'object' && !Array.isArray(rawField) && 'value' in rawField) {
+				const serializedField = rawField as {
+					baseType?: BaseType;
+					cardinality?: Cardinality;
+					value: unknown;
+				};
+				fieldBaseType = serializedField.baseType ?? fieldBaseType;
+				fieldValue = serializedField.value;
+			}
+
+			if (!fieldBaseType) {
+				fieldBaseType = typeof fieldValue === 'boolean'
+					? 'boolean'
+					: typeof fieldValue === 'number'
+						? (Number.isInteger(fieldValue) ? 'integer' : 'float')
+						: 'string';
+			}
+			if (fieldValue === null || fieldValue === undefined) {
+				fields[fieldIdentifier] = qtiNull(fieldBaseType, 'single');
+			} else if (fieldBaseType === 'file' && typeof fieldValue === 'object') {
+				fields[fieldIdentifier] = qtiValue('file', 'single', fieldValue);
+			} else {
+				fields[fieldIdentifier] = coerceBaseValue(fieldBaseType, String(fieldValue));
+			}
+		}
+
+		return Object.keys(fields).length > 0
+			? qtiValue(undefined, 'record', fields)
+			: qtiNull(undefined, 'record');
 	}
 
 	private collectOutcomes(): Record<string, unknown> {
 		const out: Record<string, unknown> = {};
 		for (const d of Object.values(this.decls)) {
 			if ((d as any).__kind !== 'outcome') continue;
-			if (d.value.kind === 'value') out[d.identifier] = d.value.value;
+			if (d.value.kind === 'value') out[d.identifier] = this.qtiValueToPublic(d.value);
 			else if (d.value.kind === 'null') out[d.identifier] = null;
 		}
 		// Ensure MAXSCORE always has a value (fallback to 1.0 if null or missing)

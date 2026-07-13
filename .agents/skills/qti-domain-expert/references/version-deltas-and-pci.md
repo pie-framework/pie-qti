@@ -163,6 +163,23 @@ Response / outcome / template processing:
 - **MathML** is carried as embedded MathML markup in both 2.x and 3.0 bodies; no QTI rename applies (MathML is not QTI-namespaced). Treat as pass-through content. _[inferred from the naming rule: only QTI elements are prefixed]_
 - **CAT (computer-adaptive testing)** is natively supported in 3.0; flag at test level if encountered.
 
+### Record cardinality and extended-text normalization
+
+- `record` is a **cardinality**, never a BaseType. A record declaration omits its own `baseType` /
+  `base-type`; each contained `value` / `qti-value` identifies a field and its BaseType with
+  `fieldIdentifier` + `baseType` in 2.x or `field-identifier` + `base-type` in 3.0.
+- `extendedTextInteraction` / `qti-extended-text-interaction` can bind `single`, `multiple`,
+  `ordered`, or `record` response cardinality. Non-record responses use string, integer, or float
+  BaseType. `base` controls numeric lexical conversion, and `stringIdentifier` /
+  `string-identifier` names a companion response that preserves the authored string.
+- Extended-text record cardinality is the defined numeric-detail record, not arbitrary JSON. Its
+  fields are `stringValue` (string), `floatValue` (float), and `integerValue`, `leftDigits`,
+  `rightDigits`, `ndp`, `nsf`, and `exponent` (integer). Missing/inapplicable numeric fields are
+  NULL; do not coerce the entire record through one declaration-level type.
+- `minStrings` / `min-strings` defaults to zero, so an extended-text response is optional unless an
+  authored minimum or another applicable constraint makes it required. `maxStrings` controls the
+  number of separately captured strings for container cardinalities; it is not a character limit.
+
 ---
 
 ## 4. QTI 2.2 additions over 2.1
@@ -219,6 +236,19 @@ Key parts (from the PCI v1.0 xsd):
 - The **response value shape** is defined by the JS, so scoring/response binding is only as portable as the PCI author made it.
 - It depends on a **runtime context object** (`qtiCustomInteractionContext`) and external module files; those assets must travel with the package and be hostable.
 - There is **no canonical PIE equivalent** for an arbitrary PCI — at best it maps to a PIE custom/embedded element, at worst it cannot be auto-converted. Treat PCI items as needing an explicit mapping or manual handling rather than silently dropping/guessing their semantics.
+
+### pie-qti PCI delivery boundary (reviewed 2026-07-13)
+
+The current player registers the QTI 2.x/3.0 portable extractor and drives module initialization,
+response restoration/change collection, enable/disable, primary/fallback loading, and destruction
+through the default portable renderer. Authored scaffold markup is sanitized before mounting.
+
+Module execution is intentionally **off by default**. The player never performs `import(authoredUrl)`
+on its own; an embedding host must supply a `PciModuleResolver` that maps an authored package path to
+an accepted module. This resolver is a trust decision, not a sandbox: a returned module executes
+with the authority of the page. For untrusted PCI, require package/origin/integrity validation and
+use stronger realm or iframe isolation at the host boundary. Do not describe lifecycle support as
+proof that arbitrary PCI is safe or formally conformant.
 
 ---
 

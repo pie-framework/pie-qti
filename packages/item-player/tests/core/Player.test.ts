@@ -290,7 +290,7 @@ describe('Player', () => {
   <responseDeclaration identifier="END" cardinality="single" baseType="identifier" />
 
   <itemBody>
-    <choiceInteraction responseIdentifier="RESPONSE" shuffle="false" maxChoices="1">
+    <choiceInteraction responseIdentifier="RESPONSE" shuffle="false" minChoices="1" maxChoices="1">
       <simpleChoice identifier="A">A</simpleChoice>
       <simpleChoice identifier="B">B</simpleChoice>
     </choiceInteraction>

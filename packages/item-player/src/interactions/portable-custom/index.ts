@@ -1,2 +1,2 @@
 export * from './extractor.js';
-export type { CustomInteractionData } from './types.js';
+export type { PortableCustomInteractionData } from './types.js';

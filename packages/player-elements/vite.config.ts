@@ -20,7 +20,9 @@ export default defineConfig({
 		lib: {
 			entry: {
 				index: './src/index.ts',
+				elements: './src/elements.ts',
 				register: './src/register.ts',
+				'register-players': './src/register-players.ts',
 			},
 			formats: ['es'],
 		},
@@ -29,5 +31,4 @@ export default defineConfig({
 		emptyOutDir: true,
 	},
 });
-
 

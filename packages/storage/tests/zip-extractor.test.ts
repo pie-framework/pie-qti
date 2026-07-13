@@ -7,6 +7,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import AdmZip from 'adm-zip';
+import { createRequire } from 'node:module';
 import { FilesystemBackend } from '../src/backends/filesystem-backend';
 import { StorageZipExtractor } from '../src/zip-extractor';
 
@@ -92,6 +93,40 @@ describe('StorageZipExtractor', () => {
 		);
 	});
 
+	test('does not ask adm-zip to recursively extract directory entries', async () => {
+		const zipPath = 'explicit-directories.zip';
+		const zip = new AdmZip();
+		zip.addFile('one/', Buffer.alloc(0));
+		zip.addFile('one/two/', Buffer.alloc(0));
+		zip.addFile('one/two/file.txt', Buffer.from('once'));
+		await backend.writeBuffer(zipPath, zip.toBuffer());
+
+		// AdmZip defines extraction methods on each returned object rather than on
+		// its prototype. Count its synchronous file opens instead: asking it
+		// to extract either explicit directory would recursively write the child
+		// file before the normal file-entry pass and make this count greater than 1.
+		type OpenSync = typeof import('node:fs').openSync;
+		const mutableFs = createRequire(import.meta.url)('node:fs') as { openSync: OpenSync };
+		const originalOpenSync = mutableFs.openSync;
+		const extractedFiles: string[] = [];
+		mutableFs.openSync = ((...args: Parameters<OpenSync>) => {
+			const outputPath = String(args[0]);
+			if (outputPath.endsWith(path.join('one', 'two', 'file.txt'))) {
+				extractedFiles.push(outputPath);
+			}
+			return Reflect.apply(originalOpenSync, mutableFs, args);
+		}) as OpenSync;
+
+		try {
+			const result = await extractor.extract(zipPath, 'explicit-output', backend);
+			expect(result.totalFiles).toBe(1);
+			expect(extractedFiles).toHaveLength(1);
+			expect(await backend.readText('explicit-output/one/two/file.txt')).toBe('once');
+		} finally {
+			mutableFs.openSync = originalOpenSync;
+		}
+	});
+
 	test('should handle binary files', async () => {
 		const zipPath = 'test.zip';
 		const targetPath = 'extracted';
@@ -161,5 +196,52 @@ describe('StorageZipExtractor', () => {
 		expect(await backend.readText('extracted/file0.txt')).toBe('Content 0');
 		expect(await backend.readText('extracted/file50.txt')).toBe('Content 50');
 		expect(await backend.readText('extracted/file99.txt')).toBe('Content 99');
+	});
+
+	test('should reject compressed input that exceeds the configured byte limit', async () => {
+		const zipPath = 'compressed-limit.zip';
+		await createTestZip(zipPath, { 'file.txt': 'content' });
+		const compressedSize = (await backend.readBuffer(zipPath)).byteLength;
+		const limitedExtractor = new StorageZipExtractor({
+			maxCompressedSize: compressedSize - 1,
+		});
+
+		await expect(
+			limitedExtractor.extract(zipPath, 'compressed-limit-output', backend),
+		).rejects.toThrow('maximum compressed size');
+	});
+
+	test('should reject archives that exceed cumulative size or entry count limits', async () => {
+		const zipPath = 'cumulative-limits.zip';
+		await createTestZip(zipPath, {
+			'one.txt': '12345',
+			'two.txt': '67890',
+		});
+
+		await expect(
+			new StorageZipExtractor({ maxEntries: 1 }).extract(zipPath, 'entry-output', backend),
+		).rejects.toThrow('maximum entry count');
+		await expect(
+			new StorageZipExtractor({ maxTotalUncompressedSize: 9 }).extract(
+				zipPath,
+				'size-output',
+				backend,
+			),
+		).rejects.toThrow('maximum total uncompressed size');
+	});
+
+	test('should reject entries that exceed the configured compression ratio', async () => {
+		const zipPath = 'ratio-limit.zip';
+		await createTestZip(zipPath, {
+			'repetitive.txt': 'A'.repeat(16 * 1024),
+		});
+
+		await expect(
+			new StorageZipExtractor({ maxCompressionRatio: 10 }).extract(
+				zipPath,
+				'ratio-output',
+				backend,
+			),
+		).rejects.toThrow('maximum compression ratio');
 	});
 });

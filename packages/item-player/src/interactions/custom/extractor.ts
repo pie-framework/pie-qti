@@ -27,8 +27,12 @@ export const standardCustomExtractor: ElementExtractor<CustomData> = {
 	description: 'Extracts standard QTI customInteraction (custom/portable interactions)',
 
 	canHandle(element, _context) {
-		// All customInteraction elements are handled by this extractor
-		return element.rawTagName === 'customInteraction';
+		const tag = element.rawTagName?.toLowerCase() ?? '';
+		if (tag !== 'custominteraction' && tag !== 'qti-custom-interaction') return false;
+
+		// A QTI 2.x customInteraction containing a namespaced PCI payload is handled
+		// by portableCustomExtractor. All other custom interactions keep this fallback.
+		return !containsPortableCustomInteraction(element);
 	},
 
 	extract(element, context) {
@@ -70,3 +74,19 @@ export const standardCustomExtractor: ElementExtractor<CustomData> = {
 		};
 	},
 };
+
+function containsPortableCustomInteraction(element: Parameters<typeof standardCustomExtractor.canHandle>[0]): boolean {
+	const visit = (parent: typeof element): boolean => {
+		for (const child of parent.childNodes ?? []) {
+			const candidate = child as typeof element;
+			const rawTag = candidate.rawTagName?.toLowerCase() ?? '';
+			const localTag = rawTag.includes(':') ? rawTag.slice(rawTag.lastIndexOf(':') + 1) : rawTag;
+			if (localTag === 'portablecustominteraction' || localTag === 'qti-portable-custom-interaction') {
+				return true;
+			}
+			if (candidate.rawTagName && visit(candidate)) return true;
+		}
+		return false;
+	};
+	return visit(element);
+}

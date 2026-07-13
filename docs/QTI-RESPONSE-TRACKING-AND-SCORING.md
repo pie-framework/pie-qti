@@ -95,7 +95,7 @@ export interface VariableDeclaration {
 - `single`: One value
 - `multiple`: Unordered array
 - `ordered`: Ordered array
-- `record`: Key-value pairs
+- `record`: Named fields with field-level BaseTypes; no declaration-level BaseType
 
 ---
 
@@ -203,7 +203,10 @@ Response processing transforms **response variables** → **outcome variables** 
 
 ### Standard Templates
 
-QTI defines 6 standard templates (all client-side scorable):
+1EdTech publishes three core QTI response-processing templates plus three Common Cartridge
+compatibility programs in the QTI 3 template set. A fixed-template URI denotes the exact XML
+program; it is not permission to aggregate every ResponseDeclaration or invent similarly named
+unordered/ordered variants.
 
 #### 1. `match_correct` (Most Common)
 
@@ -279,11 +282,16 @@ For graphical interactions (hotspots, click-on-image):
 </responseDeclaration>
 ```
 
-#### 4-6. Other Templates
+#### Common Cartridge compatibility templates
 
-- `match_correct_unordered` - For order-independent multiple responses
-- `match_correct_ordered` - For order-dependent responses
-- `map_response_unordered` - Partial credit for multiple selections
+- `CC2_match` — canonical compatibility form of one `RESPONSE` match program
+- `CC2_match_basic` — uses `MAXSCORE` and sets `FEEDBACKBASIC`
+- `CC2_map_response` — maps `RESPONSE` and sets the Common Cartridge feedback outcome
+
+The player regression-tests these fixed programs against their XML equivalents. Multiple
+cardinality is already unordered and ordered cardinality is order-sensitive through normal QTI
+value semantics; there are no standard `match_correct_unordered`, `match_correct_ordered`, or
+`map_response_unordered` template names.
 
 ### Custom Response Processing
 
@@ -598,7 +606,9 @@ interface ModalFeedback {
 
 Our player supports:
 
-1. ✅ **All 6 standard response processing templates** (`match_correct`, `map_response`, `map_response_point`, etc.)
+1. ✅ **Canonical fixed response templates currently accepted by the player** (`match_correct`,
+   `map_response`, `map_response_point`, `CC2_match`, `CC2_match_basic`, and `CC2_map_response`),
+   with XML-program oracle tests
 2. ✅ **Custom response processing rules** (implemented in the AST engine; see [`ast/types.ts`](../packages/qti-processing/src/ast/types.ts) and [`eval/evaluator.ts`](../packages/qti-processing/src/eval/evaluator.ts))
 3. ✅ **Outcome processing** for test-level scoring (in assessment player)
 4. ✅ **Feedback rules** (modalFeedback, inline feedback)
@@ -640,7 +650,7 @@ Our implementation includes a growing set of QTI operators (see the AST engine i
 2. **Variable-Based** - Three types (response, outcome, template) store all state
 3. **Declarative Scoring** - XML rules define how responses → scores
 4. **45+ Operators** - Rich expression language for complex scoring
-5. **Template System** - Standard templates cover 95% of use cases
+5. **Template System** - Canonical fixed templates cover common interoperable scoring patterns
 6. **TypeScript Implementation** - Modern, type-safe architecture
 
 ### What We Implemented
@@ -648,7 +658,8 @@ Our implementation includes a growing set of QTI operators (see the AST engine i
 - ✅ **Pure TypeScript** - Type-safe declarations, operators, and scoring
 - ✅ **Operators** - Implemented in the AST engine ([`ast/types.ts`](../packages/qti-processing/src/ast/types.ts), [`eval/evaluator.ts`](../packages/qti-processing/src/eval/evaluator.ts))
 - ✅ **Functional architecture** - Clean variable management ([declarations.ts](../packages/item-player/src/core/declarations.ts))
-- ✅ **All standard templates** - `match_correct`, `map_response`, `map_response_point`, etc.
+- ✅ **Supported canonical fixed templates** - exact behavior for the named QTI/Common Cartridge
+  programs above; unknown template names fail explicitly
 - ✅ **Adaptive items** - Multi-attempt support with `completionStatus` tracking
 - ✅ **Template variables** - Full support for randomization
 - ✅ **Modal feedback** - Outcome-based feedback display

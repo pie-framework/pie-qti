@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { I18nProvider } from '@pie-qti/i18n';
-	import type { PlayerSecurityConfig, PnpProfile } from '@pie-qti/item-player';
+	import type { PciConfiguration, PlayerSecurityConfig, PnpProfile } from '@pie-qti/item-player';
 	import type { QtiSectionFrameworkError, ResolvedQtiSectionComposition } from '../contracts/index.js';
 	import {
 		notifyActiveItemChange,
@@ -16,6 +16,7 @@
 		composition: ResolvedQtiSectionComposition;
 		i18n?: I18nProvider;
 		security?: PlayerSecurityConfig;
+		pci?: PciConfiguration;
 		pnp?: PnpProfile;
 		extendedTextEditor?: 'tiptap' | 'textarea';
 		typeset?: (root: HTMLElement) => void | Promise<void>;
@@ -28,6 +29,7 @@
 		composition,
 		i18n,
 		security,
+		pci,
 		pnp,
 		extendedTextEditor,
 		typeset,
@@ -103,6 +105,7 @@
 			disabled={role !== 'candidate'}
 			{i18n}
 			security={effectiveSecurity}
+			{pci}
 			{pnp}
 			{extendedTextEditor}
 			{typeset}

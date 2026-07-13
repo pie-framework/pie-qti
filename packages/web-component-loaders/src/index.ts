@@ -3,7 +3,7 @@ declare global {
 	var __pieQtiWebComponentLoaders__: undefined | Record<string, Promise<void>>;
 }
 
-const DEFAULT_INTERACTION_TAGS = [
+export const DEFAULT_INTERACTION_TAGS = [
 	'pie-qti-choice',
 	'pie-qti-slider',
 	'pie-qti-order',
@@ -14,6 +14,7 @@ const DEFAULT_INTERACTION_TAGS = [
 	'pie-qti-hottext',
 	'pie-qti-media',
 	'pie-qti-custom',
+	'pie-qti-portable-custom',
 	'pie-qti-end-attempt',
 	'pie-qti-position-object',
 	'pie-qti-graphic-gap-match',
@@ -42,10 +43,7 @@ export async function loadPieQtiPlayerElements(): Promise<void> {
 	if (typeof globalThis.window === 'undefined') return;
 	const store = getStore();
 
-	store.pieQtiPlayerElements ??= Promise.all([
-		import('@pie-qti/player-elements/register'),
-		import('@pie-qti/default-components/plugins'),
-	]).then(async () => {
+	store.pieQtiPlayerElements ??= import('@pie-qti/player-elements/register').then(async () => {
 		const win = globalThis.window as Window & { customElements?: CustomElementRegistry };
 		if (!win || typeof win.customElements === 'undefined') return;
 		await Promise.allSettled([
@@ -61,5 +59,3 @@ export async function loadPieQtiPlayerElements(): Promise<void> {
 }
 
 export type { };
-
-

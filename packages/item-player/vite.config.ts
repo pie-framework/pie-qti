@@ -13,17 +13,20 @@ export default defineConfig({
 			tsconfigPath: resolve(__dirname, 'tsconfig.svelte.json'),
 			outDir: 'dist',
 			insertTypesEntry: false,
-			include: ['src/element.ts'],
+			include: ['src/element.ts', 'src/element-class.ts'],
 		}),
 	],
 	build: {
 		lib: {
-			entry: resolve(__dirname, 'src/element.ts'),
+			entry: {
+				element: resolve(__dirname, 'src/element.ts'),
+				'element-class': resolve(__dirname, 'src/element-class.ts'),
+			},
 			formats: ['es'],
-			fileName: () => 'element.js',
+			fileName: (_format, entryName) => `${entryName}.js`,
 		},
 		outDir: 'dist',
-		emptyOutDir: false, // don't wipe the tsc output
+		emptyOutDir: true,
 		target: 'es2020',
 		sourcemap: true,
 		rollupOptions: {

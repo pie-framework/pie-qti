@@ -1,4 +1,4 @@
-import type { PlayerSecurityConfig } from '@pie-qti/item-player';
+import type { PciConfiguration, PlayerSecurityConfig } from '@pie-qti/item-player';
 import type { ResolvedQtiSectionComposition } from '@pie-qti/section-player';
 import SectionPlayerSplitPane from '../../../section-player/src/components/SectionPlayerSplitPane.svelte';
 import { QTI_SECTION_PLAYER_SPLITPANE_TAG } from '../constants.js';
@@ -11,9 +11,14 @@ export type QtiSectionResponseDeltaDetail = {
 	value: unknown;
 };
 
+export interface QtiSectionPlayerEventMap {
+	'qti-section-response-delta': CustomEvent<QtiSectionResponseDeltaDetail>;
+}
+
 type SectionPlayerElementProps = {
 	composition: ResolvedQtiSectionComposition;
 	security?: PlayerSecurityConfig;
+	pci?: PciConfiguration;
 	typeset?: (root: HTMLElement) => void | Promise<void>;
 	onResponseChange: (itemIdentifier: string, responseIdentifier: string, value: unknown) => void;
 };
@@ -21,6 +26,7 @@ type SectionPlayerElementProps = {
 export abstract class QtiSectionPlayerElementBase extends BaseSvelteMountElement<SectionPlayerElementProps> {
 	#composition: ResolvedQtiSectionComposition | null = null;
 	#security: PlayerSecurityConfig | undefined;
+	#pci: PciConfiguration | undefined;
 	#typeset: ((root: HTMLElement) => void | Promise<void>) | undefined;
 
 	get composition() {
@@ -45,6 +51,18 @@ export abstract class QtiSectionPlayerElementBase extends BaseSvelteMountElement
 		}
 	}
 
+	/** Portable Custom Interaction trust configuration. JS-only because it contains a resolver. */
+	get pci(): PciConfiguration | undefined {
+		return this.#pci;
+	}
+
+	set pci(value: PciConfiguration | undefined) {
+		this.#pci = value;
+		if (this.isConnected) {
+			this._mountOrUpdate();
+		}
+	}
+
 	get typeset() {
 		return this.#typeset;
 	}
@@ -63,6 +81,24 @@ export abstract class QtiSectionPlayerElementBase extends BaseSvelteMountElement
 		super._mountOrUpdate();
 	}
 
+	addEventListener<K extends keyof QtiSectionPlayerEventMap>(
+		type: K,
+		listener: (this: QtiSectionPlayerElementBase, event: QtiSectionPlayerEventMap[K]) => unknown,
+		options?: boolean | AddEventListenerOptions,
+	): void;
+	addEventListener(
+		type: string,
+		listener: EventListenerOrEventListenerObject,
+		options?: boolean | AddEventListenerOptions,
+	): void;
+	addEventListener(
+		type: string,
+		listener: EventListenerOrEventListenerObject,
+		options?: boolean | AddEventListenerOptions,
+	): void {
+		super.addEventListener(type, listener, options);
+	}
+
 	protected getProps(): SectionPlayerElementProps {
 		const composition = this.#composition;
 		if (!composition) {
@@ -72,6 +108,7 @@ export abstract class QtiSectionPlayerElementBase extends BaseSvelteMountElement
 		return {
 			composition,
 			security: this.#security ?? composition.security,
+			pci: this.#pci,
 			typeset: this.#typeset,
 			onResponseChange: (itemIdentifier, responseIdentifier, value) => {
 				const detail: QtiSectionResponseDeltaDetail = {

@@ -177,6 +177,8 @@ describe('T4-L1-D2: navigationMode=linear, submissionMode=individual', () => {
 		await player.navigateTo(1);
 		const state = player.getNavigationState();
 		expect(state.currentIndex).toBe(1);
+		expect(state.canPrevious).toBe(false);
+		await expect(player.navigateTo(0)).rejects.toThrow(/navigation is not allowed/i);
 	});
 });
 

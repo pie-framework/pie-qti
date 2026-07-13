@@ -7,6 +7,7 @@
 	import type { PnpProfile } from '../pnp/types';
 	import type { GlossaryPlayer } from '../catalog/applyGlossaryTriggers';
 	import type { InteractionResponseValue, QTIChangeEventDetail } from '../web-components';
+	import type { ExtractedPci, PciHostController } from '../pci/types';
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import type { QtiHeuristicsConfig, ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
 	import { typesetAction } from './actions/typesetAction';
@@ -34,6 +35,8 @@
 		getCorrectResponses(): Record<string, any>;
 		getItemBodyHtml(): HtmlContent;
 		getDeliveryContext(): ResolvedItemDeliveryContext | undefined;
+		getSecurityConfig(): import('../types').PlayerSecurityConfig | undefined;
+		createPciHost(data: ExtractedPci): PciHostController;
 		sanitizeHtmlContent(html: string): string;
 		applyPnp(rootEl: HTMLElement): void;
 		getPnp(): PnpProfile | undefined;
@@ -105,6 +108,8 @@
 		const { responseId, value } = event.detail;
 		handleResponseChange(responseId, value);
 	}
+
+	const createPciHost = (data: ExtractedPci) => player.createPciHost(data);
 
 	// In runes mode, prefer explicit DOM listener wiring to avoid edge cases with
 	// custom events bubbling out of shadow DOM (and to keep typing sane for dynamic elements).
@@ -197,6 +202,7 @@
 				typeset,
 				interaction: block.interaction,
 				response: block.response,
+				stringResponse: block.stringResponse,
 				correctResponse: block.correctResponse,
 				pnp: block.pnp,
 				eliminationTool: block.eliminationTool,
@@ -204,6 +210,8 @@
 				// Avoid invalid ARIA role values on custom-element hosts.
 				// Components default to candidate when role is omitted.
 				role: block.componentRole,
+				security: player.getSecurityConfig(),
+				createPciHost,
 			}}
 		/>
 	{/each}
@@ -236,6 +244,7 @@
 		pie-qti-hottext,
 		pie-qti-media,
 		pie-qti-custom,
+		pie-qti-portable-custom,
 		pie-qti-end-attempt,
 		pie-qti-position-object,
 		pie-qti-graphic-gap-match,

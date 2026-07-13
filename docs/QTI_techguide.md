@@ -436,7 +436,9 @@ Examples in this section use QTI 2.x syntax. For QTI 3.0, apply the naming conve
 
 **Purpose:** Provides a multi-line text area for essay-style responses. Supports rich text input and can be configured for multiple response strings.
 
-**Response Binding:** Bound to a response variable with baseType `string` and cardinality `single` or `multiple` (for multi-part responses).
+**Response Binding:** Supports `single`, `multiple`, `ordered`, and `record` cardinalities. A
+non-record declaration uses baseType `string`, `integer`, or `float`. A record declaration has no
+declaration-level baseType; it captures the numeric lexical response as named, typed fields.
 
 **Attributes:**
 
@@ -444,6 +446,7 @@ Examples in this section use QTI 2.x syntax. For QTI 3.0, apply the naming conve
 |-----------|----------|-------------|
 | `responseIdentifier` | Required | Identifier binding to responseDeclaration |
 | `base` | Optional | Numeric base for integer responses |
+| `stringIdentifier` | Optional | Identifier of a companion string response that preserves the lexical input |
 | `expectedLength` | Optional | Expected character count (for sizing) |
 | `expectedLines` | Optional | Expected line count (for sizing) |
 | `minStrings` | Optional | Minimum number of response strings required |
@@ -451,6 +454,11 @@ Examples in this section use QTI 2.x syntax. For QTI 3.0, apply the naming conve
 | `format` | Optional | 'plain', 'preFormatted', or 'xhtml' — indicates expected content type |
 | `patternMask` | Optional | Regular expression for validation |
 | `placeholderText` | Optional | Hint text displayed when empty |
+
+For record cardinality, the response uses the fields `stringValue` (`string`), `floatValue`
+(`float`), and the integer fields `integerValue`, `leftDigits`, `rightDigits`, `ndp`, `nsf`, and
+`exponent`. Field values are represented by `<value fieldIdentifier="..." baseType="...">` in QTI
+2.x and the corresponding kebab-case attributes in QTI 3.0.
 
 **Implementation Notes:** Essays typically require human scoring. Set `externalScored='human'` on the outcomeDeclaration. The `format` attribute guides whether to provide plain text, preserve formatting, or enable XHTML editing.
 
@@ -779,9 +787,12 @@ QTI defines strict typing for all variables through **cardinality** (how many va
 | `single` | Exactly one value |
 | `multiple` | Unordered set of values (like a mathematical set) |
 | `ordered` | Ordered list of values (sequence matters) |
-| `record` | Key-value pairs (rarely used) |
+| `record` | Named fields, each carrying its own BaseType; the declaration itself has no BaseType |
 
 ### Base Types
+
+BaseType applies to scalar/container members for `single`, `multiple`, and `ordered` declarations.
+It is omitted on a `record` declaration because every record field declares its own BaseType.
 
 | Type | Description | Common Use |
 |------|-------------|------------|

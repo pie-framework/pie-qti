@@ -107,6 +107,9 @@ export interface SecureAssessment {
 
 export interface SecureTestPart {
 	identifier: string;
+	/** Navigation and submission modes are scoped to each QTI testPart. */
+	navigationMode?: 'linear' | 'nonlinear';
+	submissionMode?: 'individual' | 'simultaneous';
 	/** Sections contain items */
 	sections: SecureSection[];
 	/** TestPart-level time limit. */
@@ -131,10 +134,19 @@ export interface SecureTestPart {
 export interface SecureSection {
 	identifier: string;
 	title?: string;
+	required?: boolean;
+	fixed?: boolean;
 	/** Visible determines if section appears in navigation */
 	visible: boolean;
 	/** Assessment item references (order reflects selection/ordering already applied server-side) */
 	assessmentItemRefs: SecureItemRef[];
+	/** Nested QTI sections, retained instead of being flattened during XML ingestion. */
+	sections?: SecureSection[];
+	/**
+	 * Direct delivery components in document order. When present, this is the
+	 * authoritative order for mixed item/section children.
+	 */
+	children?: SecureSectionComponent[];
 	/** Section-level time limit */
 	timeLimits?: SecureTimeLimits;
 	/** Candidate instructions (safe for display) */
@@ -155,6 +167,8 @@ export interface SecureSection {
 	ordering?: {
 		shuffle: boolean;
 	};
+	/** Serialized direct preCondition expressions, evaluated by the backend. */
+	preConditions?: string[];
 	/**
 	 * Item session control (QTI assessmentSection/itemSessionControl).
 	 * Section-level values take precedence over testPart-level when present.
@@ -170,6 +184,10 @@ export interface SecureSection {
 	};
 }
 
+export type SecureSectionComponent =
+	| { type: 'item'; item: SecureItemRef }
+	| { type: 'section'; section: SecureSection };
+
 export interface SecureItemRef {
 	/** Unique item identifier */
 	identifier: string;
@@ -179,6 +197,7 @@ export interface SecureItemRef {
 	role: QTIRole;
 	/** Required=true means item must be attempted */
 	required?: boolean;
+	fixed?: boolean;
 	/** Item-ref-level time limit. */
 	timeLimits?: SecureTimeLimits;
 	/** Optional resolved QTI 3 delivery context. Additive; itemXml remains the compatibility path. */
@@ -195,6 +214,10 @@ export interface SecureItemRef {
 		/** Serialised QTI expression XML (the child of <branchRule>). Absent means unconditional. */
 		conditionXml?: string;
 	}>;
+	/** Serialized direct preCondition expressions, evaluated by the backend. */
+	preConditions?: string[];
+	/** QTI item-ref weights, preserved for backend outcome processing. */
+	weights?: Array<{ identifier: string; value: number }>;
 }
 
 export interface AssessmentRubricBlock {
@@ -340,8 +363,17 @@ export interface AssessmentSessionState {
 		startedAt: number;
 		/** Time spent per item (ms) */
 		itemTimes: Record<string, number>;
+		/** Time spent per assessment section (ms). */
+		sectionTimes?: Record<string, number>;
+		/** Time spent per testPart (ms). */
+		testPartTimes?: Record<string, number>;
 		/** Total elapsed time (ms) */
 		totalTime: number;
+		/** Active scope identifiers retained for save/resume timing continuity. */
+		currentItemIdentifier?: string;
+		currentSectionIdentifier?: string;
+		currentTestPartIdentifier?: string;
+		isPaused?: boolean;
 	};
 }
 

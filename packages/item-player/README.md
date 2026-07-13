@@ -14,11 +14,11 @@ A modern assessment item player for QTI 2.2 and QTI 3.0 content, with role/view-
 - **No Svelte dependency for consumers of the framework-agnostic core**
 - ✅ **Iframe mode (reference)** - Optional host helper + postMessage protocol for iframe-isolated deployments
 
-> **Security notice (2026-07-13):** same-DOM rendering currently has a confirmed sanitizer bypass
-> in gap-match prompt reconstruction; section/assessment delivery also has one in its TTS
-> projection. Do not render untrusted QTI in the host origin until those sinks are fixed. Prefer a
-> cross-origin sandboxed iframe and enable parsing limits as defense in depth. See
-> `docs/prds/architecture/security.md` in the repository.
+> **Security boundary (2026-07-13):** QTI-derived same-DOM sinks, including gap-match prompts and
+> section TTS projections, use the shared sanitizer and have executable-markup regression coverage.
+> The item custom element enables parsing limits by default. Sanitization is not a JavaScript
+> sandbox: for content that is not trusted to run in the host origin, prefer a cross-origin
+> sandboxed iframe. See `docs/prds/architecture/security.md` in the repository.
 
 ## Installation
 

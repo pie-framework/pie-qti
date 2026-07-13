@@ -47,7 +47,7 @@ The players use a unified architecture that supports both QTI 2.2 and 3.0 throug
 - **QTI 2.2 syntax family** — camelCase elements (`choiceInteraction`, `itemBody`)
 - **QTI 3.0** — kebab-case with `qti-` prefix (`qti-choice-interaction`, `qti-item-body`)
 - **Common Internal Model** — Both versions convert to the same canonical representation
-- **Zero Breaking Changes** — Existing QTI 2.2 code continues to work unchanged
+- **Compatible player entry points** — Existing QTI 2.2 callers use the same version-agnostic API
 
 See [`@pie-qti/qti-common`](packages/qti-common/README.md) for the version abstraction layer.
 
@@ -55,8 +55,8 @@ See [`@pie-qti/qti-common`](packages/qti-common/README.md) for the version abstr
 
 Renders and scores individual QTI items:
 
-- **21 standard interaction extractors** — Broad shared extraction/rendering coverage; position-object, QTI 3 HTML vocabulary, PCI, record-cardinality, and extended-text cases remain open
-- **Response processing AST/evaluator** — Broad operator coverage; canonical template aliases and external processing fragments still have known gaps
+- **Standard and portable interaction extraction** — Broad QTI 2.x/3.0 rendering coverage, including host-resolved QTI 2.x and 3.0 PCI; remaining conformance work is tracked in the spec-gap plan
+- **Response processing AST/evaluator** — Broad operator coverage, typed record fields, canonical fixed-template behavior for the supported URI set, and explicit host-resolved processing fragments
 - **Role/view-aware rendering** — candidate, scorer, author, tutor, proctor, testConstructor
 - **Adaptive items** — Multi-attempt workflows with progressive feedback
 - **Accessible** — Full keyboard navigation and screen reader support (follows WCAG 2.2 Level AA guidelines)
@@ -66,14 +66,14 @@ Renders and scores individual QTI items:
 
 Orchestrates multi-item assessments:
 
-- **Navigation mode model** — Nonlinear delivery is available; irreversible back-navigation rules for linear test parts remain open
-- **Sections & hierarchy runtime** — Nested internal models and rubric blocks are available, but raw XML ingestion is not yet lossless
-- **Selection & ordering runtime** — Available for pre-resolved `SecureAssessment` models; raw `assessmentTest` XML ingestion does not yet preserve these rules
-- **Time-limit runtime** — Countdown and auto-submission support exists, but independent item/section/part/test clocks and `minTime` enforcement remain open
+- **Navigation mode model** — Per-testPart linear/nonlinear and individual/simultaneous modes are preserved; linear parts prohibit return after advancing
+- **Sections & hierarchy runtime** — Ordered nested sections, external section refs, controls, rubrics, weights, and feedback are retained from raw XML; dynamic preconditions and section/testPart branch execution remain open
+- **Selection & ordering runtime** — Raw XML selection, required/fixed children, and shuffle are preserved; `withReplacement` still requires distinct sequence-indexed clone materialization
+- **Time-limit runtime** — Independent item/section/testPart/assessment clocks, save/resume, maximums, and `minTime` enforcement exist; timing edge/browser evidence is still being expanded
 - **Item session control** — Max attempts, review/skip, response validation
 - **State persistence** — Auto-save with resume capability
 - **Outcome processing** — Scoring templates (total, weighted, percentage, pass/fail)
-- **Backend adapter** — Mandatory boundary for authoritative scoring in the core assessment player; the public assessment custom element currently uses the insecure reference adapter and is demo-only
+- **Backend adapter** — Mandatory boundary for authoritative scoring in production; raw answer-bearing assessment XML uses the local reference adapter only after explicit `referenceMode` opt-in for preview/offline delivery
 
 ### Extensibility (Docs)
 

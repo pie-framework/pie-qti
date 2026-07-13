@@ -36,7 +36,7 @@ describe('QTI 3.0 Advanced clean-room item extraction', () => {
 		const xml = qti3Item(
 			'qti3-graphic-gap',
 			`<qti-graphic-gap-match-interaction response-identifier="RESPONSE">
-        <qti-object data="images/food-web.svg" type="image/svg+xml" width="500" height="300">Food web</qti-object>
+	        <object data="images/food-web.svg" type="image/svg+xml" width="500" height="300">Food web</object>
         <qti-gap-text identifier="grass" match-max="1">Grass</qti-gap-text>
         <qti-gap-img identifier="hawk" match-max="1" src="images/hawk.svg"/>
         <qti-associable-hotspot identifier="A" match-max="1" shape="rect" coords="20,20,120,80"/>
@@ -57,7 +57,7 @@ describe('QTI 3.0 Advanced clean-room item extraction', () => {
 		const xml = qti3Item(
 			'qti3-hotspot',
 			`<qti-hotspot-interaction response-identifier="RESPONSE" max-choices="1">
-        <qti-object data="images/water-cycle.svg" type="image/svg+xml" width="400" height="300">Water cycle</qti-object>
+	        <object data="images/water-cycle.svg" type="image/svg+xml" width="400" height="300">Water cycle</object>
         <qti-hotspot-choice identifier="evaporation" shape="circle" coords="100,200,35"/>
         <qti-hotspot-choice identifier="condensation" shape="poly" coords="210,60,260,70,250,120,205,115"/>
       </qti-hotspot-interaction>`,

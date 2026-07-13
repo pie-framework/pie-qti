@@ -72,4 +72,48 @@ describe('loadResolvedManifest', () => {
 			'items/large.txt exceeds maximum file size'
 		);
 	});
+
+	test('rejects compressed input before parsing when its byte size exceeds the limit', async () => {
+		const zip = new JSZip();
+		zip.file('imsmanifest.xml', '<manifest identifier="safe"><resources/></manifest>');
+		const data = await zip.generateAsync({ type: 'arraybuffer' });
+
+		await expect(
+			extractPackage(data as unknown as File, { maxCompressedSize: data.byteLength - 1 }),
+		).rejects.toThrow('maximum compressed size');
+	});
+
+	test('rejects packages whose cumulative uncompressed size exceeds the limit', async () => {
+		const zip = new JSZip();
+		zip.file('imsmanifest.xml', '<manifest identifier="safe"><resources/></manifest>');
+		zip.file('items/one.txt', 'a'.repeat(100));
+		zip.file('items/two.txt', 'b'.repeat(100));
+		const data = await zip.generateAsync({ type: 'arraybuffer', compression: 'DEFLATE' });
+
+		await expect(
+			extractPackage(data as unknown as File, { maxTotalUncompressedSize: 150 }),
+		).rejects.toThrow('maximum total uncompressed size');
+	});
+
+	test('rejects packages that exceed the entry count limit', async () => {
+		const zip = new JSZip();
+		zip.file('imsmanifest.xml', '<manifest identifier="safe"><resources/></manifest>');
+		zip.file('items/item.xml', '<assessmentItem/>');
+		const data = await zip.generateAsync({ type: 'arraybuffer' });
+
+		await expect(extractPackage(data as unknown as File, { maxEntries: 1 })).rejects.toThrow(
+			'maximum entry count',
+		);
+	});
+
+	test('rejects highly compressed entries that exceed the ratio limit', async () => {
+		const zip = new JSZip();
+		zip.file('imsmanifest.xml', '<manifest identifier="safe"><resources/></manifest>');
+		zip.file('items/repetitive.txt', 'A'.repeat(16 * 1024));
+		const data = await zip.generateAsync({ type: 'arraybuffer', compression: 'DEFLATE' });
+
+		await expect(
+			extractPackage(data as unknown as File, { maxCompressionRatio: 10 }),
+		).rejects.toThrow('maximum compression ratio');
+	});
 });

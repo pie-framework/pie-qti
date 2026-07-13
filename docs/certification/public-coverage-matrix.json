@@ -1,7 +1,7 @@
 {
 	"$schema": "./public-coverage-matrix.schema.json",
 	"scope": "QTI 2.2 Advanced and QTI 3.0 Advanced DELIVERY public clean-room coverage",
-	"updated": "2026-05-30",
+	"updated": "2026-07-13",
 	"commands": [
 		{
 			"id": "item-clean-room",
@@ -25,7 +25,8 @@
 				"./packages/assessment-player/tests/setup.ts",
 				"packages/assessment-player/tests/conformance-qti22-basic.test.ts",
 				"packages/assessment-player/tests/conformance-qti22-advanced.test.ts",
-				"packages/assessment-player/tests/conformance-qti30-advanced.test.ts"
+				"packages/assessment-player/tests/conformance-qti30-advanced.test.ts",
+				"packages/assessment-player/tests/assessment-xml-structure.test.ts"
 			]
 		},
 		{
@@ -275,14 +276,15 @@
 			"feature": "S3/S4 selection and ordering",
 			"officialPath": "qti2.2/Advanced Level/S3 and S4/",
 			"publicTests": [
-				"packages/assessment-player/tests/conformance-qti22-advanced.test.ts"
+				"packages/assessment-player/tests/conformance-qti22-advanced.test.ts",
+				"packages/assessment-player/tests/assessment-xml-structure.test.ts"
 			],
 			"fixturePackages": [],
 			"e2eRequired": false,
 			"commandIds": [
 				"assessment-clean-room"
 			],
-			"notes": "Tracking row only: the cited test does not currently assert selection or ordering through raw assessment XML ingestion. Do not treat this row as behavioral parser evidence."
+			"notes": "Covers raw QTI 2.2 assessment XML preservation of ordered nested children, required/fixed flags, selection, ordering, and per-testPart modes. Replacement-clone materialization and dynamic precondition/section/testPart branch execution remain outside this row."
 		},
 		{
 			"id": "qti22-advanced-s5",

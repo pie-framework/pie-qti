@@ -6,5 +6,5 @@
  * shared vocabulary classes in authored item content.
  */
 
-@import '@pie-qti/theme-daisyui/bridge.css';
-@import '@pie-qti/default-components/qti-shared-vocabulary.css';
+@import './theme-bridge.css';
+@import './qti-shared-vocabulary.css';

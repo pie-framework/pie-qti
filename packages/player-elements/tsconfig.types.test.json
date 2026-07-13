@@ -1,0 +1,11 @@
+{
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"noEmit": true
+	},
+	"include": [
+		"src/**/*",
+		"tests/custom-element-types.ts",
+		"tests/public-facade-compatibility.ts"
+	]
+}

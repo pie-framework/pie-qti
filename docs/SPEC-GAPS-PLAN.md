@@ -8,6 +8,14 @@ This document is the authoritative meta-plan for closing gaps between the QTI sp
 PIE-QTI implementation. Each section maps to one or more concrete sub-tasks that can be handed to an
 AI agent or a human engineer. Sections are ordered by priority tier.
 
+> **Verification boundary:** statuses below describe the current source tree and its public,
+> clean-room tests. The private official-suite runner intentionally consumes published
+> `@pie-qti/*` packages only, never workspace source or local tarballs. The remediation reviewed on
+> 2026-07-13 therefore cannot receive official-package confirmation until a new candidate is
+> published and pinned by that runner. Earlier official-suite results are evidence for the earlier
+> published candidate, not for this working tree, and none of these statuses is a conformance or
+> certification claim.
+
 ---
 
 ## How to use this document
@@ -247,7 +255,7 @@ Test signal
 ### G-16: Lossless `assessmentTest` XML ingestion and one authoritative test model
 
 Scope       — `packages/assessment-player/`; `packages/player-elements/src/qti/`
-Status      — Open
+Status      — In-progress (ordered hierarchy and core controls preserved; dynamic control gaps remain)
 Effort      — L
 Spec ref    — QTI assessment-test information model
 
@@ -258,29 +266,42 @@ outcome declarations/processing, and test feedback. Delivery must preserve these
 XML ingestion rather than require hosts to preconstruct an internal model.
 
 Current
-There are multiple assessment parsers. The player-elements parser represents only a small subset,
-flattens nested sections, and adopts modes from the first part. The richer reference adapter still
-drops selection/ordering and several branching/feedback constructs. Runtime tests often construct
-`SecureAssessment` directly, bypassing both XML paths.
+`ReferenceBackendAdapter.parseAssessmentTestXml()` now preserves ordered nested sections and
+external section references; per-testPart navigation/submission modes; selection, ordering,
+`required`, and `fixed`; item-ref weights and branch rules; serialized section/item-ref
+preconditions; time limits; outcome processing; and test feedback. The raw-XML custom-element
+reference mode now uses that richer parser instead of converting through its former flattened
+`SecureAssessment` copy.
+
+The model is not yet lossless at execution time. Parsed preconditions are not evaluated dynamically;
+branch rules are executed only for `assessmentItemRef`, not `assessmentSection` or `testPart`; and
+`selection withReplacement="true"` does not materialize distinct item-session clones with sequence
+identity. External `assessmentSectionRef` recursion now rejects cycles and enforces a configurable
+depth limit (32 by default). A small discovery parser remains in player-elements to resolve
+referenced resources before the authoritative parse.
 
 Action
-1. Define one lossless, ordered assessment-test model owned by `@pie-qti/assessment-player`.
-2. Parse all test/part/section/item-ref control constructs into that model and preserve per-part
-   modes and hierarchy.
-3. Make the web component and reference adapter consume that parser instead of maintaining copies.
-4. Add schema-valid XML-to-delivery tests for selection, ordering, fixed items, nested sections,
-   preconditions, branching, weights, feedback, and multiple test parts.
+1. Evaluate ordered preconditions whenever their owning part/section/item-ref becomes eligible,
+   using current test/session variables rather than a one-time parse decision.
+2. Preserve and execute ordered branch rules on sections and test parts, including reserved exit
+   targets and target-validation rules.
+3. Materialize `withReplacement` selections as distinct runtime item instances with stable
+   sequence indexes and independent ItemSessions/results; do not duplicate one identifier-keyed
+   object in the current maps.
+4. Consolidate the remaining discovery parser with the assessment-owned model where practical.
+5. Add raw-XML delivery tests for each dynamic rule and replacement-instance result lookup.
 
 Test signal
-- Tests start from raw QTI 2.1, 2.2, and 3.0 assessment XML and assert the selected/ordered item
-  sequence and navigation/branch outcomes, not merely construction without an exception.
+- Tests start from raw QTI 2.1, 2.2, and 3.0 assessment XML and assert selected/ordered runtime
+  instances, dynamic precondition/branch outcomes, independent duplicate ItemSessions, and
+  sequence-indexed results rather than merely checking that XML parsed.
 
 ---
 
 ### G-17: `positionObjectStage` hierarchy is reversed
 
 Scope       — `packages/item-player/src/interactions/position-object/`; fixtures and renderer
-Status      — Open
+Status      — Done (schema-valid QTI 2.2/3.0 parent-stage extraction, 2026-07-13)
 Effort      — M
 Spec ref    — QTI positionObjectStage / positionObjectInteraction content model
 
@@ -289,12 +310,14 @@ QTI 2.2 and 3.0 define `positionObjectStage` as the parent containing the backgr
 or more `positionObjectInteraction` children. Each interaction owns its draggable object.
 
 Current
-The extractor expects a stage child inside each interaction, and internal fixtures encode that
-invalid structure. Schema-valid QTI 2.2 and 3.0 examples therefore extract no interaction.
+The extraction pipeline discovers each `positionObjectInteraction` below its parent
+`positionObjectStage`. The extractor reads the shared background from that parent and the draggable
+`object` from the child interaction. QTI 2.2 and QTI 3.0 fixtures cover multiple interactions under
+one stage and use native HTML `object` elements.
 
 Action
-Make extraction parent-stage-aware, share stage/background data across child interactions, update
-the renderer model, replace invalid fixtures, and add XSD-valid QTI 2.2/3.0 browser tests.
+Done for the hierarchy gap. Keep candidate-operability, mobile, keyboard, and accessibility
+verification in the interaction PRD/eval work; those are not implied by extraction coverage.
 
 Test signal
 - A stage with one background and multiple child interactions renders each draggable object and
@@ -305,7 +328,7 @@ Test signal
 ### G-18: QTI 3 mapper prefixes HTML/MathML/foreign vocabulary
 
 Scope       — `packages/qti-common/src/element-mapper/`; graphical/media extractors and fixtures
-Status      — Open
+Status      — Done (authoritative QTI map plus foreign-vocabulary pass-through, 2026-07-13)
 Effort      — M
 Spec ref    — QTI 3.0 naming convention and ASI content model
 
@@ -315,14 +338,14 @@ QTI-defined elements use `qti-` kebab-case names in 3.0. Embedded HTML (`object`
 `qti-` prefix.
 
 Current
-The fallback mapper prefixes every canonical name and the mapping table includes non-standard
-`qti-object`/`qti-param` entries. Several tests use those invalid names. Schema-valid QTI 3
-graphical interactions can extract with missing image/media data.
+`Qti3ElementNameMapper` now converts only known QTI vocabulary names. Unprefixed HTML, MathML, SVG,
+and extension names pass through unchanged; non-standard `qti-object`, `qti-param`, and
+`qti-composite-interaction` mappings were removed. Regression tests cover native resource elements
+and schema-valid QTI 3 position-object extraction.
 
 Action
-Separate authoritative QTI mappings from pass-through HTML/MathML/SVG vocabularies, remove invalid
-entries, replace fixtures, and audit every extractor that asks the mapper for an embedded-content
-element.
+Done for the mapper gap. Add new QTI names explicitly when the supported information model expands;
+do not restore a pattern fallback that invents `qti-` names for foreign vocabularies.
 
 Test signal
 - Valid QTI 3 hotspot, media, drawing, select-point, graphic-* and position-object examples using
@@ -333,7 +356,7 @@ Test signal
 ### G-19: Standard response-template aliases do not match canonical XML semantics
 
 Scope       — `packages/item-player/src/core/Player.ts`; response-processing fixtures
-Status      — Open
+Status      — Done for the supported fixed-template URI set (2026-07-13)
 Effort      — M
 Spec ref    — QTI 2.x standard response-processing templates; Common Cartridge 2 aliases
 
@@ -342,14 +365,15 @@ Template URIs identify canonical processing programs. Their named variables, con
 and feedback outcomes must behave exactly like the official XML templates.
 
 Current
-Filename switches implement invented aggregate behavior: `match_correct` can inspect every response
-and award `MAXSCORE`, mapping templates sum declarations, required Common Cartridge feedback is
-omitted, and `CC2_match_basic.xml` is unsupported.
+Fixed-template execution now follows the canonical `RESPONSE` program rather than aggregating all
+response declarations. `match_correct`, `CC2_match`, `CC2_match_basic`, `map_response`,
+`map_response_point`, and `CC2_map_response` are regression-tested against the corresponding XML
+programs, including `MAXSCORE`, null handling, and Common Cartridge feedback outcomes. Unknown
+fixed template names still fail explicitly.
 
 Action
-Prefer resolving/compiling the official template programs through the existing AST. If kept as
-built-ins, implement the exact canonical programs and add one regression fixture per supported URI,
-including output values and feedback.
+Done for the currently supported names. Any newly accepted template URI must be added together with
+an XML-program oracle test; URI filename similarity alone is not sufficient to alias behavior.
 
 Test signal
 - Canonical and built-in execution produce identical declaration values for correct, incorrect,
@@ -360,7 +384,7 @@ Test signal
 ### G-20: Linear navigation and modes must be test-part scoped
 
 Scope       — `packages/assessment-player/src/core/`; integration model and XML parser
-Status      — Open
+Status      — Done for current assessment delivery (2026-07-13)
 Effort      — L
 Spec ref    — QTI testPart navigationMode and submissionMode
 
@@ -369,12 +393,14 @@ After advancing in a linear test part, a candidate cannot return to an earlier i
 submission modes belong to each test part, not to the assessment globally.
 
 Current
-`NavigationManager` explicitly permits earlier targets and `canPrevious()` ignores linear mode.
-The secure assessment model collapses navigation/submission modes to one global pair.
+The secure model preserves navigation and submission modes on every test part. Linear delivery
+permits only the current item or the immediate next item and does not expose previous navigation;
+nonlinear parts retain free in-part navigation. Test parts are entered sequentially and cannot be
+re-entered after advancing. Individual submission is selected from the active test part.
 
 Action
-Preserve modes per test part, track the active part and irreversible linear transitions, and apply
-submission rules at part boundaries. Add candidate-facing control and imperative API tests.
+Done for this gap. Dynamic preconditions and section/testPart branch rules remain under G-16 and can
+change the next eligible target without weakening the irreversible linear rule.
 
 Test signal
 - Previous/back navigation is unavailable after advancing in a linear part, while nonlinear parts
@@ -385,7 +411,7 @@ Test signal
 ### G-21: Record is a cardinality, not a base type
 
 Scope       — `packages/qti-processing/src/runtime/`; declaration parsing and text interactions
-Status      — Open
+Status      — Done (typed record fields and round-trip coverage, 2026-07-13)
 Effort      — L
 Spec ref    — QTI variable declarations and record fieldValue semantics
 
@@ -394,13 +420,14 @@ Context
 type. A record declaration does not use one declaration-level base type.
 
 Current
-Runtime types model `record` as a base type and omit it from cardinality. Missing declaration base
-types default to string, and evaluator paths construct `qtiValue('record', 'single', ...)`, losing
-valid field structure.
+Runtime types model `record` as a cardinality with no declaration-level base type. Declaration
+parsing retains each value's `fieldIdentifier` and field-level `baseType`; public response coercion,
+default/correct values, evaluator `record`/`fieldValue`, equality, and ItemSession
+serialization/restoration preserve the typed fields across QTI 2.2 and QTI 3.0.
 
 Action
-Correct the value type model, declaration parser, field access, serialization, equality/null
-semantics, and interaction bindings. Add record response/outcome/template tests across versions.
+Done for the tracked gap. Continue adding record-shaped operator fixtures as additional processing
+operators are exercised; never introduce a synthetic `record` BaseType.
 
 Test signal
 - A valid record declaration round-trips named typed fields and works with `fieldValue` and
@@ -411,7 +438,7 @@ Test signal
 ### G-22: Time limits require independent scope clocks and `minTime` enforcement
 
 Scope       — `packages/assessment-player/src/core/TimeManager.ts`; assessment delivery model
-Status      — Open
+Status      — In-progress (scoped clocks and runtime enforcement implemented; edge coverage remains)
 Effort      — L
 Spec ref    — QTI timeLimits and duration variables
 
@@ -420,12 +447,15 @@ Item, section, test-part, and test time limits/durations are independent scopes.
 include navigation time, and minimum limits constrain when the candidate may advance/submit.
 
 Current
-The player collapses maximums to one shortest assessment timer, does not accumulate section/part
-evidence, and does not enforce `minTime`.
+The player now tracks assessment, testPart, section, and item clocks independently, persists them
+across save/resume, uses the shortest active hard maximum, and enforces each applicable `minTime`
+when leaving or submitting a scope. Deterministic clock tests cover independent accumulation,
+pause/resume, maximum selection, and restoration. More integration coverage is still needed for
+simultaneous expirations, minimum-time UI affordances, and browser save/resume transitions.
 
 Action
-Create independent nested clocks and evidence, preserve all XML scopes, enforce minimum and maximum
-transitions, and specify behavior when multiple scopes expire together.
+Add deterministic integration tests for each scope's `minTime`, simultaneous parent/child expiry,
+late-submission combinations, and candidate-facing controls before treating timing as fully closed.
 
 Test signal
 - Deterministic-clock tests independently exercise item, section, part, and test min/max limits and
@@ -438,7 +468,7 @@ Test signal
 Scope       — `packages/item-player/src/core/Player.ts`;
               `packages/item-player/src/interactions/extended-text/`;
               `packages/default-components/src/plugins/extended-text/`
-Status      — Open
+Status      — Done (QTI 2.2/3.0 response and rendering coverage, 2026-07-13)
 Effort      — M
 Spec ref    — Interaction response validity; extendedTextInteraction
 
@@ -448,13 +478,15 @@ Defaults such as omitted `minChoices` permit an empty response. Extended text al
 multiple response cardinalities and string-count/format constraints.
 
 Current
-Validation treats every response-bearing interaction as required. Extended text is bound to one
-string and omits `base`, `stringIdentifier`, `minStrings`, and `maxStrings` behavior.
+Response completeness now derives from authored minimum constraints rather than the mere presence of
+a ResponseDeclaration. Extended text supports `single`, `multiple`, `ordered`, and `record`, honors
+`base`, `stringIdentifier`, `minStrings`, `maxStrings`, and format, and preserves the exact numeric
+record fields (`stringValue`, `floatValue`, `integerValue`, `leftDigits`, `rightDigits`, `ndp`,
+`nsf`, `exponent`). Its lexical companion response is restored to the editor across remounts.
 
 Action
-Derive response completeness from each interaction's actual constraints/defaults, implement the
-complete extended-text response model, and add empty/partial/multiple/record browser and scoring
-tests.
+Done for the tracked runtime/model gap. Continue browser accessibility and mobile verification for
+the dynamic multi-string editor as release evidence rather than inferring it from unit tests.
 
 Test signal
 - Optional interactions submit empty successfully; required constraints fail accessibly; all valid
@@ -465,7 +497,7 @@ Test signal
 ### G-24: Resolve external processing fragments
 
 Scope       — package/resource resolution; `packages/qti-processing/src/ast/build.ts`
-Status      — Open
+Status      — In-progress (bounded ItemPlayer resolver implemented; package/assessment wiring remains)
 Effort      — M
 Spec ref    — QTI responseProcessingFragment / outcomeProcessingFragment and XInclude
 
@@ -474,16 +506,27 @@ QTI permits reusable external processing fragments referenced with `xi:include`.
 delivery engine must resolve and parse those resources before executing the program.
 
 Current
-The AST builder deliberately rejects `xi:include`, and the conformance fixture is marked expected
-failure.
+The processing AST and ItemPlayer accept an explicit host-owned resolver for response, template,
+and outcome fragments. They support XInclude fallback and reject missing resolvers, wrong fragment
+modes, cycles, excessive depth, and excessive cumulative XML size. The engine performs no implicit
+network or filesystem reads.
+
+The assessment/section rendering path does not yet derive and pass a package-relative resolver, so
+reference-mode assessment delivery cannot execute packaged fragments without host wiring. The AST
+builder also recognizes `include`/`fallback` by local name and should require the XInclude namespace
+to avoid interpreting unrelated vocabulary as processing inclusion.
 
 Action
-Resolve fragments through a host/package resource resolver with URL and size limits, detect cycles,
-then parse the resolved content with the same mapper and scope rules as inline processing.
+1. Build a package-contained resolver from the active item's source path and delivery context and
+   pass it through section/assessment rendering to ItemPlayer.
+2. Require the XInclude namespace for `include` and `fallback` recognition.
+3. Preserve the existing resolver, cycle, depth, character, mode, and fail-closed tests at the
+   public custom-element boundary.
 
 Test signal
-- Valid local fragments produce the same outcomes as equivalent inline programs; missing, cyclic,
-  oversized, or disallowed references fail safely with actionable errors.
+- Direct ItemPlayer tests already prove valid and rejected resolver cases. Completion additionally
+  requires a packaged assessment test whose item-relative fragment executes through the public
+  delivery path, plus a foreign-namespace `<include>` regression.
 
 ---
 
@@ -501,7 +544,7 @@ Scope       — `packages/item-player/src/interactions/portable-custom/extractor
               `packages/item-player/src/pci/`;
               `packages/item-player/src/core/Player.ts`;
               default interaction rendering
-Status      — In-progress (runtime primitives exist; delivery path is disconnected)
+Status      — Done (host resolver remains an explicit security opt-in)
 Effort      — L
 Spec ref    — §6.1
 
@@ -520,25 +563,25 @@ The player must: (a) load the module at `primary-path` (falling back to `fallbac
 (f) call `module.destroy()` on unmount.
 
 Current
-`portableCustomExtractor` and `PciHost` implement parsing and lifecycle primitives, and
-`Player.createPciHost()` can construct a host. However, the portable extractor is not included in
-`getStandardInteractionExtractors()`, no production renderer calls `createPciHost()`, and the
-default custom-interaction fallback reports unsupported content. A valid QTI 3.0 PCI therefore
-does not initialize, collect a response, or participate in the player lifecycle.
+The production extraction registry recognizes both QTI 3.0 portable elements and QTI 2.x
+`customInteraction` wrappers containing a namespaced PCI payload. The default portable renderer
+mounts sanitized scaffold markup and drives the full `PciHost` lifecycle. Item, section, and
+assessment custom-element delivery propagates a JS-only `pci` configuration to the renderer.
+Execution is disabled unless the embedding host supplies a module resolver; the player never
+imports an authored URL by itself. Ordinary non-PCI `customInteraction` content retains its generic
+fallback renderer. This resolver is a trust-decision boundary, not a JavaScript sandbox: accepted
+PCI code runs with the page's authority.
 
 Action
-1. Register `portableCustomExtractor` in the production extraction path with the intended priority.
-2. Add a renderer/host integration that creates `PciHost` after its markup is mounted and wires
-   `getResponse`, `setResponse`, enable/disable, and destroy into the normal response lifecycle.
-3. Require explicit host opt-in and a module-origin/URL policy. PCI executes third-party code and
-   must be treated as a stronger trust boundary than declarative QTI markup.
-4. Add a packed-browser integration test with a minimal PCI module; asserting extractor or host
-   classes in isolation is insufficient.
+Done for G-08. Keep the host resolver responsible for package-manifest, URL/origin, and integrity
+validation; use a stronger host isolation boundary when PCI code is not trusted to share the page's
+authority. Maintain packed-browser evidence for the default renderer in addition to focused
+extractor, host-lifecycle, Player-integration, and custom-element propagation tests.
 
 Test signal
-- Loading a QTI 3.0 item with a `qti-portable-custom-interaction` calls `initialize()` on the module.
-- `player.getResponse('RESPONSE')` delegates to the module's `getResponse()`.
-- `player.setResponse('RESPONSE', value)` calls the module's `setResponse()`.
+- Loading QTI 2.x or 3.0 PCI content calls `initialize()` on the resolver-returned module.
+- `player.getResponses()` delegates PCI values to the module's `getResponse()`.
+- `player.setResponses({ RESPONSE: value })` calls the module's `setResponse()`.
 - `disable()` is called when the player switches to a non-candidate role.
 - `destroy()` is called when the player is torn down.
 
@@ -623,7 +666,7 @@ clear record of what remains and so sub-tasks can be created when priorities shi
 ### G-11: Full QTI `<outcomeProcessing>` XML interpreter at assessment level
 
 Scope       — `packages/assessment-player/`; `packages/qti-processing/`
-Status      — In-progress (core adapter wired; public custom-element ingestion drops the XML)
+Status      — Done for the current assessment/reference ingestion path (2026-07-13)
 Effort      — L
 Spec ref    — §2.1 (Assessment Architecture), §4.3
 
@@ -634,19 +677,16 @@ processing support test-level expressions (`testVariables`, `numberCorrect`, and
 operators).
 
 Current
-`ReferenceBackendAdapter` parses outcome declarations and XML and executes it with a test context;
-the core path has regression coverage. `QtiAssessmentPlayerElement`, however, uses a second parser
-in `@pie-qti/player-elements` that omits those nodes and converts the result to a reduced
-`SecureAssessment`. The public NPM custom-element path therefore still ignores valid assessment
-outcome processing.
+`ReferenceBackendAdapter` parses outcome declarations and outcome-processing XML and executes it
+with a test context. The raw-XML custom element's explicit reference mode now resolves resources and
+delegates its authoritative `SecureAssessment` parse to that adapter, preserving outcome processing
+and test feedback. Production use remains backend-authoritative: an injected backend supplies the
+secure assessment/session model rather than exposing answer-bearing assessment XML in the browser.
 
 Action
-1. Remove or consolidate the duplicate parser in `@pie-qti/player-elements`; route custom-element XML
-   ingestion through the assessment package's complete parser/resolver.
-2. Preserve outcome declarations, outcome-processing XML, and test feedback in the secure
-   assessment representation used by the element.
-3. Add packed-browser tests that submit an assessment whose score can only be produced by custom
-   `<outcomeProcessing>`.
+Done for the original data-loss gap. Keep packed-artifact/browser outcome assertions in release
+verification, and track remaining dynamic assessment-structure semantics under G-16 rather than
+conflating them with outcome-processing execution.
 
 Test signal
 - An assessmentTest XML with `<setOutcomeValue>` using `<testVariables>` produces the correct `SCORE`.
@@ -778,17 +818,24 @@ Quick lookup of which source files are touched by each gap item.
 | `packages/item-player/src/interactions/inline-choice/` | G-02 |
 | `packages/item-player/src/interactions/text-entry/` | G-03 |
 | `packages/default-components/src/plugins/text-entry/` | G-04 |
-| `packages/default-components/src/plugins/extended-text/` | G-04 |
-| `packages/assessment-player/src/core/` | G-05, G-09, G-11 |
+| `packages/default-components/src/plugins/extended-text/` | G-04, G-23 |
+| `packages/assessment-player/src/core/` | G-05, G-09, G-11, G-16, G-20, G-22 |
+| `packages/assessment-player/src/integration/ReferenceBackendAdapter.ts` | G-11, G-16 |
+| `packages/player-elements/src/qti/` | G-16 |
 | `packages/item-player/src/utils/responseUtils.ts` | G-06 |
 | `STATUS.md`, `README.md` | G-07 |
 | `packages/item-player/src/interactions/custom/` | G-08 |
 | `packages/item-player/src/pci/` | G-08 |
 | `packages/item-player/src/pnp/` | G-09, G-13, G-14 |
 | `packages/default-components/src/plugins/choice/` | G-09 |
+| `packages/default-components/src/plugins/portable-custom/` | G-08 |
 | `packages/item-player/src/catalog/` | G-10 |
 | `packages/default-components/src/catalog/` | G-10 |
-| `packages/qti-processing/` | G-11 |
+| `packages/item-player/src/interactions/position-object/` | G-17 |
+| `packages/item-player/src/interactions/extended-text/` | G-23 |
+| `packages/item-player/src/core/Player.ts` | G-19, G-21, G-23, G-24 |
+| `packages/qti-common/src/element-mapper/` | G-18 |
+| `packages/qti-processing/` | G-11, G-19, G-21, G-24 |
 | `packages/ims-cp-browser/` | G-15 |
 
 ---

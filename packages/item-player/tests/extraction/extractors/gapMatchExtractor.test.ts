@@ -93,6 +93,23 @@ describe('standardGapMatchExtractor', () => {
 		expect(result.promptText).toBe('The [GAP:G1] is [GAP:G2].');
 	});
 
+	test('sanitizes prompt markup before building promptText', () => {
+		const xml = `
+			<gapMatchInteraction responseIdentifier="RESPONSE" shuffle="false">
+				<prompt><span onclick="alert('xss')">Fill</span> <gap identifier="G1" /></prompt>
+				<gapText identifier="T1" matchMax="1">safe</gapText>
+			</gapMatchInteraction>
+		`;
+		const element = parseQTI(xml);
+		const context = createTestContext(element, 'RESPONSE');
+
+		const result = standardGapMatchExtractor.extract(element, context);
+
+		expect(result.promptText).toContain('<span>Fill</span> [GAP:G1]');
+		expect(result.promptText).not.toContain('onclick');
+		expect(result.promptText).not.toContain('alert(');
+	});
+
 	test('handles interaction with shuffle enabled', () => {
 		const xml = `
 			<gapMatchInteraction responseIdentifier="RESPONSE" shuffle="true">
@@ -248,6 +265,27 @@ describe('standardGapMatchExtractor', () => {
 		expect(result.promptText).toContain('qti-input-width-1: [GAP:G1]');
 		expect(result.promptText).toContain('qti-input-width-2: [GAP:G2]');
 		expect(result.promptText).not.toContain('<gapText');
+	});
+
+	test('sanitizes sibling content before building fallback promptText', () => {
+		const xml = `
+			<gapMatchInteraction responseIdentifier="RESPONSE" shuffle="false">
+				<prompt>Fill the gap.</prompt>
+				<gapText identifier="T1" matchMax="1">safe</gapText>
+				<p onmouseover="alert('xss')">
+					<img src="javascript:alert('xss')" /> <gap identifier="G1" />
+				</p>
+			</gapMatchInteraction>
+		`;
+		const element = parseQTI(xml);
+		const context = createTestContext(element, 'RESPONSE');
+
+		const result = standardGapMatchExtractor.extract(element, context);
+
+		expect(result.promptText).toContain('[GAP:G1]');
+		expect(result.promptText).not.toContain('onmouseover');
+		expect(result.promptText).not.toContain('javascript:');
+		expect(result.promptText).not.toContain('alert(');
 	});
 
 	describe('matchGroup extraction', () => {

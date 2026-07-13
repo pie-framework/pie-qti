@@ -386,6 +386,7 @@
 						composition={sectionComposition}
 						{i18n}
 						security={config.security}
+						pci={config.pci}
 						pnp={config.pnp}
 						extendedTextEditor={extendedTextEditor}
 						{typeset}
@@ -397,6 +398,7 @@
 						composition={sectionComposition}
 						{i18n}
 						security={config.security}
+						pci={config.pci}
 						pnp={config.pnp}
 						extendedTextEditor={extendedTextEditor}
 						{typeset}

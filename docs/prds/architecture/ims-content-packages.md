@@ -4,13 +4,13 @@
   Status: draft
   Type: architecture
   Packages: @pie-qti/ims-cp-core, @pie-qti/ims-cp-browser, @pie-qti/ims-cp-node
-  Last reviewed: 2026-04-27
+  Last reviewed: 2026-07-13
 -->
 
 **Status:** draft  
 **Type:** architecture  
 **Packages:** `@pie-qti/ims-cp-core`, `@pie-qti/ims-cp-browser`, `@pie-qti/ims-cp-node`  
-**Last reviewed:** 2026-04-27
+**Last reviewed:** 2026-07-13
 
 ---
 
@@ -74,8 +74,8 @@ The `getLocaleFallbackChain()` function deduplicates entries, so requesting `en-
 - **FR-1:** `parseManifest(xml)` must parse any IMS CP v1.1.4 manifest and return a `ParsedManifest` with `resources`, `items`, `passages`, and `tests` populated. It must not throw for well-formed XML even if no resources are present.
 - **FR-2:** `ParsedManifest.resources` is a `Map<string, ManifestResource>` keyed by `identifier`. Duplicate identifiers in the manifest must not silently discard earlier entries — last-write wins is acceptable; a warning should be emitted.
 - **FR-3:** `loadResolvedManifest()` (both browser and node variants) must resolve all `href` and `file` attributes relative to `xml:base` attributes at the manifest and resource levels, producing package-relative POSIX paths.
-- **FR-4:** `openContentPackage()` (Node.js) must extract a `.zip` or `.imscc` file to a temporary directory with path traversal protection; entries with `..` in their path must be silently skipped.
-- **FR-5:** `extractPackage()` (browser) must reject packages exceeding `maxFiles` (default 1000) and read text files as `string`, binary files as `Blob`.
+- **FR-4:** `openContentPackage()` (Node.js) must extract a `.zip` or `.imscc` file to a temporary directory with path traversal protection; entries with `..` in their path must be silently skipped, the extraction root must not itself be a symbolic link, and every existing output path must resolve within that canonical root.
+- **FR-5:** `extractPackage()` (browser) must enforce compressed-input, total-uncompressed-size, entry-count, per-file-size, file-count, and compression-ratio limits, and read text files as `string` and binary files as `Blob`.
 - **FR-6:** `generateStablePassageId()` must return the `qtiIdentifier` verbatim (no prefix added) when one is provided, return a normalised `{prefix}-{path}` string when only a file path is provided, and return a `{prefix}-content-{12-char-sha256}` string when only content is provided.
 - **FR-7:** `PassageRegistry.registerReference()` must update `isReusable` to `true` on the existing `PassageReference` as soon as a second item references the same passage ID.
 - **FR-8:** `buildLocalizedManifest()` must group all resources (items, passages, tests) by their `baseId` (identifier with locale suffix stripped) and expose `availableLocales` as the union of all locales across all groups.
@@ -87,8 +87,8 @@ The `getLocaleFallbackChain()` function deduplicates entries, so requesting `en-
 ## Non-functional requirements
 
 - **Performance:** `parseManifest()` must complete in under 100 ms for manifests with up to 500 resources on a 2022 mid-range laptop. `openContentPackage()` and `extractPackage()` are I/O-bound; no performance target is specified, but they must not block the event loop in browser contexts (all async).
-- **Security (Node.js):** `extractZipToDirSafe()` must reject any zip entry whose path contains `..` or starts with `/` or `\`, and must verify that the resolved output path is under `targetDir` before writing. See `isUnsafeZipEntryPath()` and `assertPathWithinDir()` in `packages/ims-cp-node/src/index.ts`.
-- **Security (browser):** File size and file count limits on `extractPackage()` prevent memory exhaustion from maliciously large ZIP files. Default limits: 50 MB per file, 1000 files.
+- **Security (Node.js):** `extractZipToDirSafe()` rejects any zip entry whose path contains `..` or starts with `/` or `\`, rejects a symbolic-link extraction root, and verifies that every existing output path resolves within the canonical target before writing. Symbolic links that remain inside the target are contained rather than rejected. Concurrent mutation of a caller-controlled target tree remains a time-of-check/time-of-use boundary.
+- **Security (browser and Node.js):** Archive bytes are limited before constructing the ZIP parser (100 MB by default), followed by cumulative uncompressed size (250 MB), entry count (1000), and per-entry compression-ratio (200) checks. Browser extraction additionally caps each file at 50 MB and retained files at 1000. JSZip, unzipper, and AdmZip parse the central directory before the entry-count check, so `maxCompressedSize` is the only pre-parse memory/CPU bound. Browser JSZip collapses duplicate entry names, so its entry count covers unique retained names rather than every raw central-directory record. Lower `maxCompressedSize` or isolate parsing for fully hostile ingestion.
 - **Isomorphism:** No code in `ims-cp-core` may import from `node:fs`, `node:path`, `node:os`, or any browser-only global (e.g., `File`, `Blob`, `sessionStorage`). Violations break the package in one or both environments.
 - **Cross-platform paths:** All package-relative paths produced by the subsystem must use POSIX separators (`/`), regardless of the host OS. Absolute filesystem paths in `ims-cp-node` use the host OS separator via `path.resolve()` but are only ever passed to `toAbsolutePath()` or Node.js `fs` functions.
 - **i18n:** The locale system supports BCP 47 locale codes in the forms `ll`, `ll-RR`, and `ll_RR` (underscore normalised to hyphen). No RTL or number-format handling is performed; the subsystem only selects resources.
