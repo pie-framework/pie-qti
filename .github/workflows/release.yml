@@ -222,6 +222,29 @@ jobs:
           echo "PUBLISH_NPM_TOKEN=" >> "$GITHUB_ENV"
           echo "PUBLISH_NODE_AUTH_TOKEN=" >> "$GITHUB_ENV"
 
+      # Fail fast on a credential that npm will reject.
+      #
+      # "Resolve npm publish auth mode" above only checks that NPM_TOKEN is non-empty,
+      # never that npm accepts it. On 2026-07-29 that let an unusable token through: the
+      # run bumped all 27 packages to 0.1.16, committed it, then failed every publish with
+      # npm E404 (npm reports authorization failures on PUT as 404 rather than 403). The
+      # result was a version committed to master that was never published.
+      #
+      # scripts/check-npm-auth.mjs already performed exactly this check for the local
+      # release path (`bun run release:with-version`) but had never been wired into CI. It
+      # is safe here: its interactive `npm login` fallback requires a TTY and no token and
+      # CI != true, so under Actions it reports "provided but rejected by npm" and exits 1.
+      # Invoked directly rather than via `bun run check:npm-auth`, which wraps it in
+      # dotenvx for local .env loading that does not apply in CI.
+      #
+      # Token mode only — under OIDC there is deliberately no token for `npm whoami`.
+      - name: Verify npm publish credentials (token mode, publish runs only)
+        if: steps.npm_auth.outputs.mode == 'token' && ((github.event_name == 'workflow_dispatch' && inputs.release_intent == 'publish') || (github.event_name != 'workflow_dispatch' && steps.detect.outputs.should_publish == 'true'))
+        env:
+          NPM_TOKEN: ${{ env.PUBLISH_NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ env.PUBLISH_NODE_AUTH_TOKEN }}
+        run: node scripts/check-npm-auth.mjs
+
       - name: Create Release Pull Request or Publish to NPM
         if: github.event_name == 'workflow_dispatch' || steps.detect.outputs.has_changesets == 'true' || steps.detect.outputs.should_publish == 'true' || steps.temp_changeset.outputs.created == 'true'
         id: changesets
