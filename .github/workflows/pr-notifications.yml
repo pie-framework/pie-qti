@@ -9,6 +9,13 @@ on:
 jobs:
   notify:
     runs-on: ubuntu-latest
+    # Skip bot-authored PRs. Dependabot (and other bots) run `pull_request` with a
+    # separate secret store and receive no Actions secrets, so SLACK_PR_WEBHOOK_URL
+    # arrives empty and slack-github-action fails with "Need to provide at least one
+    # botToken or webhookUrl". Every Dependabot PR therefore showed a failing `notify`
+    # check even when CI itself passed. Slack notifications for dependency bumps are
+    # not wanted anyway — this repo can raise dozens in a single scheduled run.
+    if: github.actor != 'dependabot[bot]' && github.event.pull_request.user.login != 'dependabot[bot]'
     steps:
       - name: Notify Slack on PR Opened
         if: github.event.action == 'opened'
