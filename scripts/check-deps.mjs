@@ -127,6 +127,15 @@ function collectSpecifiers(content) {
 		/import\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
 		/export\s+[^'"`]*?\sfrom\s*['"]([^'"]+)['"]/g,
 		/require\(\s*['"]([^'"]+)['"]\s*\)/g,
+		// Bare side-effect import: `import "pkg";` with no binding and no `from`. The
+		// patterns above all require a binding or `from`, so registration-style imports
+		// (the dominant pattern for custom-element and plugin registration, e.g.
+		// player-elements/src/register.ts) were invisible to this check.
+		//
+		// Anchored to a whole line on purpose: an unanchored version also matches the word
+		// "import" inside string literals, which several tests contain when asserting on
+		// bundle output.
+		/^\s*import\s*['"]([^'"]+)['"]\s*;?\s*$/gm,
 	];
 
 	for (const re of patterns) {
@@ -197,7 +206,71 @@ function collectTsAliasPrefixes(pkgDir) {
 	return [...aliases];
 }
 
+/**
+ * Locate the `node_modules` entry a workspace would resolve `packageName` through.
+ *
+ * Returns `{ state, linkPath }` where state is:
+ *   "ok"       - entry exists and its target exists
+ *   "dangling" - a symlink is present but its target is gone (stale link, typically
+ *                left behind when a package was renamed or removed)
+ *   "missing"  - no entry at all
+ */
+function resolveWorkspaceLink(workspaceDir, packageName) {
+	const candidates = [
+		path.join(workspaceDir, "node_modules", packageName),
+		path.join(ROOT, "node_modules", packageName),
+	];
+	for (const linkPath of candidates) {
+		let stat;
+		try {
+			stat = fs.lstatSync(linkPath);
+		} catch {
+			continue;
+		}
+		// existsSync follows symlinks, so a dangling link reports false here.
+		if (fs.existsSync(linkPath)) return { state: "ok", linkPath };
+		if (stat.isSymbolicLink()) return { state: "dangling", linkPath };
+	}
+	return { state: "missing", linkPath: candidates[0] };
+}
+
+/** Stale `@scope/*` symlinks under any workspace, regardless of whether anything imports them. */
+function collectDanglingLinks(workspaceEntries) {
+	const dangling = [];
+	for (const workspace of workspaceEntries) {
+		const nodeModules = path.join(workspace.dir, "node_modules");
+		if (!fs.existsSync(nodeModules)) continue;
+		for (const entry of fs.readdirSync(nodeModules, { withFileTypes: true })) {
+			// Walk one level into scope directories (@pie-qti/foo), skip .bin and friends.
+			const scopeDirs = entry.name.startsWith("@")
+				? [path.join(nodeModules, entry.name)]
+				: [];
+			for (const scopeDir of scopeDirs) {
+				let children = [];
+				try {
+					children = fs.readdirSync(scopeDir, { withFileTypes: true });
+				} catch {
+					continue;
+				}
+				for (const child of children) {
+					const linkPath = path.join(scopeDir, child.name);
+					if (!child.isSymbolicLink()) continue;
+					if (fs.existsSync(linkPath)) continue;
+					dangling.push({
+						workspace: workspace.name,
+						packageName: `${entry.name}/${child.name}`,
+						linkPath: path.relative(ROOT, linkPath),
+					});
+				}
+			}
+		}
+	}
+	return dangling;
+}
+
 function main() {
+	const warnOnly = process.argv.includes("--warn-only");
+
 	if (!fs.existsSync(rootManifestPath)) {
 		fail("run from repository root (package.json not found).");
 	}
@@ -271,7 +344,36 @@ function main() {
 					manifest.name &&
 					(packageName === manifest.name || specifier.startsWith(`${manifest.name}/`));
 
-				if (isSelfImport || workspacePackageNames.has(packageName)) continue;
+				if (isSelfImport) continue;
+
+				// Cross-workspace imports were previously skipped outright, which hid a
+				// whole class of breakage: a stale or missing workspace symlink still
+				// resolves for `bun test` (which reads source) but fails the bundler with
+				// an opaque "failed to resolve import" naming the specifier, not the
+				// broken link.
+				if (workspacePackageNames.has(packageName)) {
+					const { state, linkPath } = resolveWorkspaceLink(workspace.dir, packageName);
+
+					if (state !== "ok") {
+						violations.push({
+							type: "unresolvable-workspace-import",
+							workspace: workspace.name,
+							file: path.relative(ROOT, filePath),
+							specifier,
+							packageName,
+							state,
+							linkPath: path.relative(ROOT, linkPath),
+						});
+					}
+					// Deliberately no export-map check on the subpath here. Several
+					// specifiers (e.g. "@pie-qti/item-player/components") are resolved by
+					// bundler aliases in vite.config.ts / svelte.config.js rather than by
+					// the exports map, so validating against exports reports false
+					// positives. The published export surface is already covered properly
+					// by check-pack-exports, check-publint and check-attw.
+					continue;
+				}
+
 				if (declared.has(packageName)) continue;
 
 				violations.push({
@@ -322,26 +424,64 @@ function main() {
 		}
 	}
 
+	// Stale links are reported even when nothing imports them: they are the fingerprint of
+	// a node_modules tree carried across a package rename, and they are what turns the next
+	// unrelated build failure into a confusing hunt.
+	const dangling = collectDanglingLinks(workspaceEntries);
+	if (dangling.length > 0) {
+		const shown = dangling.slice(0, 15);
+		console.warn(
+			`check-deps: ${dangling.length} stale workspace symlink(s) point at packages that no longer exist.`,
+		);
+		for (const entry of shown) {
+			console.warn(`  [stale-link] ${entry.workspace}: ${entry.linkPath} -> (missing)`);
+		}
+		if (dangling.length > shown.length) {
+			console.warn(`  ... and ${dangling.length - shown.length} more.`);
+		}
+		console.warn("  These are harmless but indicate a stale tree; 'rm -rf node_modules && bun install' clears them.");
+	}
+
 	if (violations.length === 0) {
 		console.log("check-deps: OK - no undeclared imports or hoist-reliant script usage found.");
 		return;
 	}
 
-	console.error(`check-deps: found ${violations.length} violation(s).`);
+	const logger = warnOnly ? console.warn : console.error;
+	logger(`check-deps: found ${violations.length} violation(s).`);
 	for (const violation of violations) {
 		if (violation.type === "missing-dependency") {
-			console.error(
+			logger(
 				`  [missing-dependency] ${violation.workspace}: ${violation.file} imports "${violation.specifier}" but "${violation.packageName}" is not declared.`,
 			);
+		} else if (violation.type === "unresolvable-workspace-import") {
+			const cause =
+				violation.state === "dangling"
+					? "the workspace symlink is stale (its target no longer exists)"
+					: "there is no workspace symlink for it";
+			logger(
+				`  [unresolvable-workspace-import] ${violation.workspace}: ${violation.file} imports "${violation.specifier}" but ${cause}.\n` +
+					`      expected link: ${violation.linkPath}\n` +
+					`      fix: run 'bun install' (or 'rm -rf node_modules && bun install' if that does not restore it).\n` +
+					`      left unfixed, the bundler fails with an opaque "failed to resolve import ${violation.specifier}".`,
+			);
 		} else if (violation.type === "hoist-reliant-script") {
-			console.error(
+			logger(
 				`  [hoist-reliant-script] ${violation.workspace}#${violation.scriptName}: ${violation.reason} -> ${violation.command}`,
 			);
 		} else if (violation.type === "undeclared-script-binary") {
-			console.error(
+			logger(
 				`  [undeclared-script-binary] ${violation.workspace}#${violation.scriptName}: "${violation.executable}" used but "${violation.expectedPackage}" is not declared locally.`,
 			);
 		}
+	}
+
+	// --warn-only is used from postinstall: surfacing a broken tree at install time is the
+	// earliest useful signal, but a non-zero exit there would fail `bun install` itself and
+	// make the situation harder to recover from rather than easier.
+	if (warnOnly) {
+		console.warn("check-deps: continuing despite the above (--warn-only).");
+		return;
 	}
 
 	process.exit(1);

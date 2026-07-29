@@ -14,7 +14,7 @@
     "tools/*"
   ],
   "scripts": {
-    "postinstall": "node scripts/setup-local-players.mjs",
+    "postinstall": "node scripts/setup-local-players.mjs && node scripts/check-deps.mjs --warn-only",
     "prepare": "lefthook install",
     "build": "bun run clean:outputs && turbo build",
     "dev": "turbo dev",
