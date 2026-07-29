@@ -1,5 +1,7 @@
 # @pie-qti/theme-daisyui
 
+## 0.1.16
+
 ## 0.1.15
 
 ### Patch Changes

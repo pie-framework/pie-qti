@@ -1,5 +1,14 @@
 # @pie-qti/qti-common
 
+## 0.1.16
+
+### Patch Changes
+
+- 22db6c6: Harden QTI content, package, upload, and assessment resource boundaries; make the player custom
+  elements self-contained and registration-safe for NPM consumers; and correct confirmed QTI
+  mapping, processing-template, record, extended-text, position-object, PCI, navigation, timing, and
+  assessment XML delivery behavior.
+
 ## 0.1.15
 
 ### Patch Changes

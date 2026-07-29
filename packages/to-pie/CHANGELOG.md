@@ -1,5 +1,15 @@
 # @pie-qti/to-pie
 
+## 0.1.16
+
+### Patch Changes
+
+- Updated dependencies [22db6c6]
+  - @pie-qti/ims-cp-node@0.1.16
+  - @pie-qti/ims-cp-core@0.1.16
+  - @pie-qti/transform-core@0.1.16
+  - @pie-qti/transform-types@0.1.16
+
 ## 0.1.15
 
 ### Patch Changes
