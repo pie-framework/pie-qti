@@ -1864,10 +1864,30 @@ function mergePnp(base: PnpProfile | undefined, partial: Partial<PnpProfile>): P
 }
 
 function createSessionGuid(): string {
-	if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-		return crypto.randomUUID();
+	// `Crypto` is typed as always providing `randomUUID`, but it is restricted to secure
+	// contexts and so is genuinely absent when the player is served over plain HTTP.
+	// Reading through a `Partial<Crypto>` keeps TypeScript from narrowing the fallback
+	// branch to `never` on the strength of a type that overstates what is available.
+	const webCrypto: Partial<Crypto> | undefined = typeof crypto !== 'undefined' ? crypto : undefined;
+
+	if (typeof webCrypto?.randomUUID === 'function') {
+		return webCrypto.randomUUID();
 	}
-	return `item-session-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+	// `getRandomValues` carries no secure-context restriction and offers the same entropy
+	// guarantee, so it covers the plain-HTTP case. The previous fallback here used
+	// `Math.random()`, which is not a CSPRNG and left session GUIDs predictable in
+	// exactly the environments that reached it.
+	if (typeof webCrypto?.getRandomValues === 'function') {
+		const bytes = new Uint8Array(16);
+		webCrypto.getRandomValues(bytes);
+		const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+		return `item-session-${hex}`;
+	}
+	throw new Error(
+		'No Web Crypto API available: cannot generate a session GUID. @pie-qti/item-player ' +
+			'requires crypto.randomUUID or crypto.getRandomValues (present in all supported ' +
+			'browsers and in Node >= 20).',
+	);
 }
 
 function looksLikeCatalogUrl(value: string): boolean {

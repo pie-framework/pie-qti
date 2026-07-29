@@ -1551,7 +1551,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 				return selected;
 			} else {
 				// No duplicates - shuffle and take first N
-				const shuffled = [...filteredItems].sort(() => Math.random() - 0.5);
+				const shuffled = shuffleArray(filteredItems, Math.random);
 				return shuffled.slice(0, Math.min(count, shuffled.length));
 			}
 		} catch (error) {
@@ -1580,4 +1580,21 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 	private delay(ms: number): Promise<void> {
 		return new Promise((resolve) => setTimeout(resolve, ms));
 	}
+}
+
+/**
+ * Fisher-Yates shuffle using a provided RNG (returns a new array).
+ *
+ * Mirrors the helper of the same name in `core/AssessmentPlayer.ts`. Replaces a
+ * `sort(() => Math.random() - 0.5)` comparator, which is not a uniform shuffle: the
+ * comparator is inconsistent, so the result depends on the sort algorithm and leaves
+ * elements biased toward their original positions.
+ */
+function shuffleArray<T>(arr: T[], rng: () => number): T[] {
+	const out = [...arr];
+	for (let i = out.length - 1; i > 0; i--) {
+		const j = Math.floor(rng() * (i + 1));
+		[out[i], out[j]] = [out[j], out[i]];
+	}
+	return out;
 }

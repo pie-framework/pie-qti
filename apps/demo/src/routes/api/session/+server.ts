@@ -12,10 +12,16 @@ import { json, type RequestEvent } from '@sveltejs/kit';
 const sessions = new Map<string, any>();
 
 /**
- * Generate a simple session ID
+ * Generate a session ID.
+ *
+ * Uses a CSPRNG: a session ID is the only thing guarding one candidate's stored
+ * session from another, so it must not be guessable. `Math.random()` is seeded from a
+ * small state space and is not cryptographically secure — combined with a `Date.now()`
+ * prefix it left these IDs largely predictable. Uses the global Web Crypto API rather
+ * than `node:crypto` so the route stays runtime-agnostic.
  */
 function generateSessionId(): string {
-	return `session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+	return `session_${crypto.randomUUID()}`;
 }
 
 /**
