@@ -1,20 +1,25 @@
 version: 2
 updates:
-  # Enable version updates for npm dependencies
-  - package-ecosystem: "npm"
-    # `directories` (plural) rather than `directory`, because this is a Bun workspace
-    # monorepo where every publishable package carries its own manifest. With only "/",
-    # Dependabot's view of the workspace packages went stale: alerts were filed in
-    # 2026-05 and 2026-07 against packages/qti2-to-pie and packages/transform-app,
-    # manifests deleted in 2026-01 and 2026-03 respectively, while the dependencies
-    # they named had simply moved into the renamed packages and stayed vulnerable.
-    #
-    # Only `directories` supports globbing, and the two keys are mutually exclusive.
-    directories:
-      - "/"
-      - "/packages/*"
-      - "/apps/*"
-      - "/tools/*"
+  # Enable version updates for JavaScript dependencies.
+  #
+  # `bun`, not `npm`. This repo installs with Bun and its only lockfile is the root
+  # bun.lock, which the npm ecosystem cannot write. Every PR Dependabot raised under
+  # `npm` therefore changed a package.json without touching bun.lock, and CI failed at
+  # the first step of every job with "lockfile had changes, but lockfile is frozen"
+  # (jobs run `bun install --frozen-lockfile`). That is why no Dependabot JavaScript PR
+  # in this repo has ever been mergeable. Dependabot supports Bun >= 1.1.39 as its own
+  # ecosystem, which does maintain bun.lock.
+  #
+  # Kept at directory "/" deliberately. Bun workspaces resolve every member through the
+  # single root lockfile, so the root entry covers all of packages/*, apps/* and
+  # tools/*. Fanning `directories` out across the workspace globs instead produced one
+  # PR per package per dependency — ~60 at once, including the same TypeScript bump
+  # filed separately for 20 packages — without improving coverage.
+  #
+  # Note this does not affect Dependabot *alerts*: those come from the repository
+  # dependency graph, which is built independently of this file.
+  - package-ecosystem: "bun"
+    directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
