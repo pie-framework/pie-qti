@@ -25,7 +25,7 @@
   },
   "devDependencies": {
     "linkedom": "^0.18.12",
-    "typescript": "^5.9.3"
+    "typescript": "^7.0.2"
   },
   "repository": {
     "type": "git",
