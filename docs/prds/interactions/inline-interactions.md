@@ -63,9 +63,9 @@ The `expectedLength` attribute is a QTI hint for how wide the input should appea
 
 The extractor reads and exposes `patternMask` as a string on `TextEntryInteractionData`. However, the renderer in `ItemBody.svelte` does not wire `patternMask` to the `pattern` attribute of the `<input>`, meaning browsers do not enforce it with their native `:invalid` state or block form submission. This is gap G-04 — see [Known gaps](#known-gaps). When this gap is closed, the fix must also surface an accessible validation message, not just activate CSS `:invalid`.
 
-### Why shuffle does not persist across re-renders for `inlineChoiceInteraction`
+### How shuffle persists for `inlineChoiceInteraction`
 
-`shuffle` is respected at extraction time (the choice order in `InlineChoiceInteractionData.choices` is shuffled once when the extractor runs). The order is then stable for the lifetime of that extracted data object. If the item is re-loaded from XML, the order will differ. This matches the approach used by `choiceInteraction` and is the correct behaviour for stateless rendering — the spec requires a consistent order within a session, not across sessions.
+`shuffle` is applied at extraction time: the choice order in `InlineChoiceInteractionData.choices` is permuted by a PRNG seeded from the item session GUID and the `responseIdentifier` (`packages/item-player/src/core/shuffle.ts`). Since `Player` persists and restores that GUID, re-extracting the same item in the same session reproduces the same order, while a different candidate or attempt gets a different one. This matches `choiceInteraction` and satisfies the spec requirement of a consistent order within a session but not across sessions.
 
 ---
 
@@ -107,7 +107,7 @@ The extractor reads and exposes `patternMask` as a string on `TextEntryInteracti
 | Attribute | Support | Behaviour |
 |-----------|---------|-----------|
 | `responseIdentifier` | ✅ Full | Extracted as `responseId` |
-| `shuffle` | ✅ Full | Shuffles `choices` array at extraction time; stable within the data object lifetime |
+| `shuffle` | ✅ Full | Shuffles `choices` at extraction time, seeded from the item session GUID; stable for the whole session, including across re-renders and reloads |
 | `required` | ❌ Not extracted | Spec says: if `true`, candidate must select an option before submission is valid. Not in `InlineChoiceInteractionData`. Unimplemented gap. |
 
 #### Supported child elements and their attributes
@@ -117,7 +117,7 @@ The extractor reads and exposes `patternMask` as a string on `TextEntryInteracti
 | `inlineChoice` (element) | ✅ Full | Each child becomes `{identifier, text}` in the `choices` array |
 | `inlineChoice/@identifier` | ✅ Full | Maps to `choice.identifier`; stored as the `value` of the `<option>` |
 | `inlineChoice/text()` | ✅ Full | Text content maps to `choice.text` / `<option>` label |
-| `inlineChoice/@fixed` | ❌ Not extracted | Prevents shuffle from repositioning this choice. Not extracted. Low-priority gap. |
+| `inlineChoice/@fixed` | ✅ Full | Extracted as `choice.fixed`; when `shuffle=true` the choice keeps its authored index. |
 | `inlineChoice/@templateIdentifier` | ❌ Not extracted | Template-variable-driven visibility. Not extracted. |
 | `inlineChoice/@showHide` | ❌ Not extracted | Template-driven show/hide. Not extracted. |
 | `label` (child element, QTI 2.2+) | ❌ Not extracted | Placeholder text shown before selection. Not extracted (G-02). |

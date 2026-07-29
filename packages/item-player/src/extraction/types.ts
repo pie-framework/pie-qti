@@ -30,6 +30,17 @@ export interface ExtractionContext {
 
 	/** Player configuration (role, typesetting, etc.) */
 	config: PlayerConfig;
+
+	/**
+	 * Seeded RNG for interactions honouring the QTI `shuffle` attribute, keyed to the
+	 * item session and this `responseId`. Stateful: successive calls advance the
+	 * sequence, so an extractor with two choice sets (e.g. `matchInteraction`) gets an
+	 * independent permutation for each set.
+	 *
+	 * Optional so that a hand-built context remains valid; extractors that find it
+	 * absent keep the authored order.
+	 */
+	shuffleRng?: () => number;
 }
 
 /**

@@ -51,7 +51,7 @@ This is distinct from `matchInteraction` (a grid of row-column pairings) and `as
 | Attribute | Support | Behaviour |
 |-----------|---------|-----------|
 | medallion`responseIdentifier` | ✅ Full | Extracted as `responseId`; used in `qti-change` event payload |
-| `shuffle` | ✅ Full | Shuffles the `gapTexts` palette order at extraction time; stable for the lifetime of the extracted object |
+| `shuffle` | ✅ Full | Shuffles the `gapTexts` palette order at extraction time, seeded from the item session GUID; stable for the whole session, including across re-renders and reloads |
 
 ### Supported attributes on `gapText`
 

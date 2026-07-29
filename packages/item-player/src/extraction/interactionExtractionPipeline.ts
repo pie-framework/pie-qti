@@ -12,6 +12,11 @@ export interface InteractionExtractionPipelineInput {
 	extractionRegistry: ExtractionRegistry;
 	declarations: DeclarationMap;
 	config: PlayerConfig;
+	/**
+	 * Item session GUID, used to seed `shuffle` for the interactions that support it.
+	 * Omit to keep the authored order.
+	 */
+	sessionGuid?: string;
 }
 
 export function extractInteractionData({
@@ -19,6 +24,7 @@ export function extractInteractionData({
 	extractionRegistry,
 	declarations,
 	config,
+	sessionGuid,
 }: InteractionExtractionPipelineInput): InteractionData[] {
 	const declMap = projectDeclarationsForExtraction(declarations);
 	const elements = document.findExtractionElements(getRegisteredElementTypes(extractionRegistry));
@@ -30,7 +36,8 @@ export function extractInteractionData({
 			discovered.responseIdentifier,
 			discovered.contextRoot,
 			declMap,
-			config
+			config,
+			sessionGuid
 		);
 		const result = extractionRegistry.extract<any>(discovered.element, context);
 		if (!result.success) continue;

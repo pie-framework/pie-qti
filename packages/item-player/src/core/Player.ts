@@ -774,6 +774,10 @@ export class Player {
 			extractionRegistry: this.extractionRegistry,
 			declarations: this.decls,
 			config: this.config,
+			// Seeds `shuffle`. The GUID is persisted in saved state and restored, so a
+			// resumed session reproduces the order the candidate already saw, while a
+			// different candidate or a new attempt gets a different one.
+			sessionGuid: this.sessionGuid,
 		});
 	}
 

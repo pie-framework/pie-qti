@@ -5,6 +5,7 @@
  */
 
 import type { ElementExtractor } from '../../extraction/types.js';
+import { maybeShuffle } from '../../core/shuffle.js';
 
 /**
  * Match data extracted from matchInteraction elements
@@ -121,8 +122,8 @@ export const standardMatchExtractor: ElementExtractor<MatchData> = {
 		const prompt = promptElements.length > 0 ? utils.getHtmlContent(promptElements[0]) : null;
 
 		return {
-			sourceSet,
-			targetSet,
+			sourceSet: maybeShuffle(sourceSet, shuffle, context.shuffleRng),
+			targetSet: maybeShuffle(targetSet, shuffle, context.shuffleRng),
 			shuffle,
 			maxAssociations,
 			...(minAssociations !== undefined ? { minAssociations } : {}),

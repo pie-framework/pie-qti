@@ -5,6 +5,7 @@
  */
 
 import type { ElementExtractor } from '../../extraction/types.js';
+import { maybeShuffle } from '../../core/shuffle.js';
 
 /**
  * Associate data extracted from associateInteraction elements
@@ -75,7 +76,7 @@ export const standardAssociateExtractor: ElementExtractor<AssociateData> = {
 		const prompt = promptElements.length > 0 ? utils.getHtmlContent(promptElements[0]) : null;
 
 		return {
-			choices,
+			choices: maybeShuffle(choices, shuffle, context.shuffleRng),
 			shuffle,
 			maxAssociations,
 			...(minAssociations > 0 ? { minAssociations } : {}),

@@ -65,7 +65,7 @@ The response array stored in `player.declarations` is NOT canonicalized when the
 | Attribute | Default | Behavior |
 |-----------|---------|----------|
 | `responseIdentifier` | — | Required. Binds to `responseDeclaration` with `baseType="pair"` `cardinality="multiple"`. |
-| `shuffle` | `false` | When `true`, choice order is randomized at extraction time. The shuffled order is fixed for the session. |
+| `shuffle` | `false` | When `true`, choice order is randomized at extraction time by a PRNG seeded from the item session GUID, so the order is fixed for the session (including across reloads). |
 | `maxAssociations` | `1` | Maximum number of pairs the candidate may form. `0` means unlimited. |
 | `minAssociations` | `0` | Minimum number of pairs required for a complete response. Extracted but **not enforced at submission time** (see G-06 below). |
 

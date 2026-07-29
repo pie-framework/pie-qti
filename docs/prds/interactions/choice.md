@@ -31,7 +31,7 @@
 
 **Why `minChoices` is not extracted or enforced**: The QTI spec defines `minChoices` as a validation hint — the number of choices the candidate must select before the response is considered complete. This attribute is present in the spec but is absent from `ChoiceInteractionData` and not extracted by the choice extractor. This is an unimplemented gap, not an intentional omission. See [Known gaps](#known-gaps). Other interactions (e.g. `selectPointInteraction`) do extract and surface `minChoices`.
 
-**Why `shuffle` does not re-randomize on each render**: The QTI spec requires `shuffle` to produce a consistent random order for a given item session — not a new random order each time the item is rendered. The current implementation shuffles at extraction time (when the item is first parsed), which means the order is stable for the lifetime of the extracted data object. If the item is re-loaded from XML, the order will differ. This is the correct approach for stateless rendering but means shuffle state is not persisted separately from the extracted data.
+**Why `shuffle` does not re-randomize on each render**: The QTI spec requires `shuffle` to produce a consistent random order for a given item session — not a new random order each time the item is rendered. Shuffling happens at extraction time using a PRNG seeded from the item session GUID (`packages/item-player/src/core/shuffle.ts`). Because `Player` persists that GUID in its saved state and restores it, the order is reproduced for the whole session — including after a reload — while a different candidate or a new attempt gets a different order. No separate shuffle state has to be serialised: the order is a pure function of the session GUID and the `responseIdentifier`.
 
 **Why `feedbackInline` is filtered through `heuristics`**: Some imported QTI content includes `feedbackInline` elements directly inside `simpleChoice` text. The QTI spec allows this, but the content was authored for a specific delivery engine that may have rendered it differently. The `heuristicsConfig.feedbackTextFormatting` flag enables a post-processing pass (`processFeedbackInline`) that strips or conditionally shows inline feedback based on `outcomeValues`. This is a best-effort compatibility feature for imported content, not a core spec requirement.
 
@@ -51,7 +51,7 @@
 | Attribute | Support | Behaviour |
 |-----------|---------|-----------|
 | `responseIdentifier` | ✅ Full | Extracted as `responseId`; used as radio `name` attribute and in `qti-change` event payload |
-| `shuffle` | ✅ Full | Shuffles choice order at extraction time; stable for the lifetime of the extracted object |
+| `shuffle` | ✅ Full | Shuffles choice order at extraction time, seeded from the item session GUID; stable for the whole session, including across re-renders and reloads |
 | `maxChoices` | ✅ Full | `1` → radio buttons; `>1` or `0` → checkboxes; `0` triggers a validator warning |
 | `minChoices` | ❌ Not extracted | Spec defines this as a completeness constraint. Not in `ChoiceInteractionData`; not enforced. See Known gaps. |
 | `orientation` | ❌ Not extracted | Visual hint (`horizontal`/`vertical`). Not in `ChoiceInteractionData`. The component always renders vertically. Low priority since most K-12 content doesn't use it. |
@@ -61,7 +61,7 @@
 | Attribute | Support | Behaviour |
 |-----------|---------|-----------|
 | `identifier` | ✅ Full | Required; deduplicated; used as radio/checkbox value and in response |
-| `fixed` | ❌ Not extracted | Spec: when `shuffle=true`, `fixed=true` choices retain their authored position. Not extracted or preserved. If `shuffle=true` and any choice is `fixed`, the fixed choice may be reordered. See Known gaps. |
+| `fixed` | ✅ Full | Extracted as `choice.fixed`. When `shuffle=true`, `fixed=true` choices keep their authored index and only the remaining choices are permuted around them. |
 | `templateIdentifier` | ❌ Not extracted | Links choice to a `TemplateDeclaration` for conditional visibility. Not implemented. |
 | `showHide` | ❌ Not extracted | Companion to `templateIdentifier`. Not implemented. |
 | class (CSS classes) | ✅ Partial | Extracted as `classes?: string[]` on each choice; passed through to host for custom renderer detection. Not rendered as CSS classes in the default component. |
@@ -85,7 +85,6 @@
 - **G-09 (PNP elimination tool):** Implemented for `choiceInteraction`; when `pnp.cognitive.eliminationTool` is enabled, each choice can be visually eliminated without removing it from the response pool.
 - **G-13 (PNP structural labels):** When `pnp.structuredLabelSupport` is enabled, interaction prompts should carry additional ARIA group role and label markup for screen-reader clarity. Not implemented. Tracked in `docs/SPEC-GAPS-PLAN.md`.
 - **`minChoices` not enforced:** The spec requires the player to treat the response as incomplete if fewer than `minChoices` identifiers are selected. Not extracted or validated.
-- **`fixed` on `simpleChoice` not honoured:** When `shuffle=true` and any choice has `fixed=true`, those choices should remain in their authored position. Currently all choices are eligible for shuffling.
 - **`templateIdentifier`/`showHide` not implemented:** Template-variable-driven conditional choice visibility is not supported.
 
 ---
