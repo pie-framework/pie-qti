@@ -43,7 +43,7 @@
   },
   "dependencies": {
     "@pie-qti/transform-types": "workspace:*",
-    "adm-zip": "^0.5.16"
+    "adm-zip": "^0.6.0"
   },
   "peerDependencies": {
     "@aws-sdk/client-s3": "^3.0.0",
