@@ -10,7 +10,7 @@
  */
 
 import { createWriteStream, existsSync } from 'node:fs';
-import { lstat, mkdir, readdir, readFile, realpath, rm, stat } from 'node:fs/promises';
+import { lstat, mkdir, mkdtemp, readdir, readFile, realpath, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { Transform } from 'node:stream';
@@ -327,8 +327,12 @@ export async function openContentPackage(
   const tmpRoot = options.tmpRootDir ? path.resolve(options.tmpRootDir) : tmpdir();
   await ensureDir(tmpRoot);
 
-  const targetDir = path.join(tmpRoot, `qti-cp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
-  await ensureDir(targetDir);
+  // `mkdtemp` picks the suffix itself and creates the directory atomically with mode
+  // 0700. The previous `Date.now()` + `Math.random()` name was predictable, so a local
+  // attacker could pre-create the path (or a symlink at it) and have the extracted
+  // package land somewhere of their choosing. Building the name separately from
+  // creating it also left a TOCTOU window that `mkdtemp` closes.
+  const targetDir = await mkdtemp(path.join(tmpRoot, 'qti-cp-'));
 
   try {
     await extractZipToDirSafe(abs, targetDir, options);

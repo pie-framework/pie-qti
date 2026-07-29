@@ -6,6 +6,7 @@
 
 import type { ChoiceInteractionData } from '../shared/types.js';
 import type { ElementExtractor, ExtractionContext } from '../../extraction/types.js';
+import { maybeShuffle } from '../../core/shuffle.js';
 
 /**
  * Choice data extracted from simpleChoice elements
@@ -63,7 +64,7 @@ export const standardChoiceExtractor: ElementExtractor<ChoiceData> = {
 		const minSelectionsMessage = utils.getAttribute(element, 'data-min-selections-message', '') || null;
 
 		return {
-			choices,
+			choices: maybeShuffle(choices, shuffle, context.shuffleRng),
 			shuffle,
 			maxChoices,
 			minChoices,

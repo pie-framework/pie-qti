@@ -49,7 +49,7 @@ Drag-and-drop is not accessible by default. The keyboard pattern is: Tab to a so
 
 ### Why shuffle applies to both sets but is not persisted separately
 
-When `shuffle=true`, the extractor returns `sourceSet` and `targetSet` in a shuffled order derived at parse time. The shuffle order is baked into the extracted data object and is stable for the lifetime of that object. If the item is re-parsed from XML, the order will differ. Shuffle state is not serialised as a separate field; the rendered order is whatever order `sourceSet`/`targetSet` carry. This is consistent with how `choiceInteraction` handles shuffle and is acceptable for stateless delivery.
+When `shuffle=true`, the extractor returns `sourceSet` and `targetSet` shuffled independently (successive draws from the same session-seeded PRNG, so the two sets do not share a permutation). Shuffle state is not serialised as a separate field: the order is a pure function of the item session GUID and the `responseIdentifier`, and `Player` persists and restores that GUID, so re-parsing the item within the same session reproduces the same order. This is consistent with how `choiceInteraction` handles shuffle.
 
 ### Why `minAssociations` on the interaction is not extracted
 
@@ -67,7 +67,7 @@ When `shuffle=true`, the extractor returns `sourceSet` and `targetSet` in a shuf
 | Attribute | Support | Behaviour |
 |-----------|---------|-----------|
 | `responseIdentifier` | ✅ Full | Extracted as `responseId`; used in `qti-change` event payload |
-| `shuffle` | ✅ Full | Shuffles choice order within each set at extraction time; stable for the lifetime of the extracted object |
+| `shuffle` | ✅ Full | Shuffles each set independently at extraction time, seeded from the item session GUID; stable for the whole session, including across re-renders and reloads |
 | `maxAssociations` | ✅ Full | Limits total pairs that can be formed; `0` = unlimited per spec; defaults to `1`; enforced in the UI via `matchMax` per source choice |
 | `minAssociations` | ❌ Not extracted | Spec: minimum total pairs required; not in `MatchInteractionData`; not enforced at submission |
 

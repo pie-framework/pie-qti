@@ -2,7 +2,19 @@ version: 2
 updates:
   # Enable version updates for npm dependencies
   - package-ecosystem: "npm"
-    directory: "/"
+    # `directories` (plural) rather than `directory`, because this is a Bun workspace
+    # monorepo where every publishable package carries its own manifest. With only "/",
+    # Dependabot's view of the workspace packages went stale: alerts were filed in
+    # 2026-05 and 2026-07 against packages/qti2-to-pie and packages/transform-app,
+    # manifests deleted in 2026-01 and 2026-03 respectively, while the dependencies
+    # they named had simply moved into the renamed packages and stayed vulnerable.
+    #
+    # Only `directories` supports globbing, and the two keys are mutually exclusive.
+    directories:
+      - "/"
+      - "/packages/*"
+      - "/apps/*"
+      - "/tools/*"
     schedule:
       interval: "weekly"
       day: "monday"

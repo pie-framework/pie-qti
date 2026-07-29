@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { mkdir, mkdtemp, readFile, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { deflateRawSync } from 'node:zlib';
@@ -106,6 +107,54 @@ describe('ims-cp-node', () => {
 		expect(pkg.isTemporary).toBe(false);
 		expect(path.resolve(pkg.packageRoot)).toBe(path.resolve(root));
 		await pkg.close();
+	});
+
+	test('openContentPackage(zip) extracts to a private, unpredictable temp dir', async () => {
+		const root = await mkdtemp(path.join(tmpdir(), 'ims-cp-tmpdir-'));
+		const zipPath = path.join(root, 'package.zip');
+		await writeFile(
+			zipPath,
+			createZip({
+				'imsmanifest.xml': `<?xml version="1.0" encoding="UTF-8"?>
+<manifest xmlns="http://www.imsglobal.org/xsd/imscp_v1p1" identifier="MANIFEST-TMP">
+  <organizations/>
+  <resources>
+    <resource identifier="ITEM-1" type="imsqti_item_xmlv2p2" href="item1.xml">
+      <file href="item1.xml"/>
+    </resource>
+  </resources>
+</manifest>`,
+				'item1.xml': '<assessmentItem/>',
+			}),
+		);
+
+		// Two opens of the same zip must not collide, and the directory name must not be
+		// derivable from the clock — otherwise a local attacker can pre-create the path (or
+		// plant a symlink at it) and capture or redirect the extracted package.
+		const first = await openContentPackage(zipPath, { tmpRootDir: root });
+		const second = await openContentPackage(zipPath, { tmpRootDir: root });
+
+		try {
+			expect(first.isTemporary).toBe(true);
+			expect(second.isTemporary).toBe(true);
+			expect(path.basename(first.packageRoot).startsWith('qti-cp-')).toBe(true);
+			expect(first.packageRoot).not.toBe(second.packageRoot);
+			expect(await readFile(path.join(first.packageRoot, 'item1.xml'), 'utf-8')).toBe(
+				'<assessmentItem/>',
+			);
+
+			// mkdtemp creates with mode 0700, so other local users cannot read the extraction.
+			const mode = (await stat(first.packageRoot)).mode & 0o777;
+			expect(mode).toBe(0o700);
+		} finally {
+			await first.close();
+			await second.close();
+		}
+
+		// close() must remove the temp directory it created.
+		expect(existsSync(first.packageRoot)).toBe(false);
+		expect(existsSync(second.packageRoot)).toBe(false);
+		await rm(root, { recursive: true, force: true });
 	});
 
 	test('extractZipToDirSafe enforces compressed input size before parsing', async () => {

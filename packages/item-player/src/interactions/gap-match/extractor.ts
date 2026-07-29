@@ -5,6 +5,7 @@
  */
 
 import type { ElementExtractor } from '../../extraction/types.js';
+import { maybeShuffle } from '../../core/shuffle.js';
 
 const GAP_ELEMENT_PATTERN = /<(?:qti-gap|gap)(?=[\s/>])([^>]*)\/?>/gi;
 const GAP_CLOSE_PATTERN = /<\/(?:qti-gap|gap)>/gi;
@@ -144,7 +145,7 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 		const minSelectionsMessage = utils.getAttribute(element, 'data-min-selections-message', '') || null;
 
 		return {
-			gapTexts,
+			gapTexts: maybeShuffle(gapTexts, shuffle, context.shuffleRng),
 			gaps,
 			shuffle,
 			prompt,

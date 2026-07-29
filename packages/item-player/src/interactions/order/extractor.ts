@@ -5,6 +5,7 @@
  */
 
 import type { ElementExtractor } from '../../extraction/types.js';
+import { maybeShuffle } from '../../core/shuffle.js';
 
 /**
  * Order data extracted from orderInteraction elements
@@ -62,7 +63,7 @@ export const standardOrderExtractor: ElementExtractor<OrderData> = {
 		const maxChoices = utils.getNumberAttribute(element, 'maxChoices', 0);
 
 		return {
-			choices,
+			choices: maybeShuffle(choices, shuffle, context.shuffleRng),
 			shuffle,
 			orientation,
 			minChoices,

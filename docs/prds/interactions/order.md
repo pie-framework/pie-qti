@@ -31,7 +31,7 @@
 
 **Why choices are presented as draggable `<button>` elements, not a `<ul>/<li>` list with a drag-handle role**: Each item must be keyboard-focusable and keyboard-operable as a first-class interactive control. `<button>` provides this natively (tab-focusable, activatable with Space/Enter, announced by screen readers as a button). The `role="list"` / `role="listitem"` wrapper around the buttons provides list semantics to screen readers without removing the button interactivity. An alternative using `role="listbox"` / `role="option"` with `aria-grabbed` was considered but `aria-grabbed` was deprecated in ARIA 1.2 and browser support is unreliable; the button-in-list pattern with live-region announcements is more robust.
 
-**Why `shuffle` is extracted but not applied by the component**: The `shuffle` attribute signals that the item author wants choices presented in a randomized initial order. The actual randomization must happen before the interaction data reaches the component, so that the shuffled order can be persisted in the session (the candidate must see the same shuffled order on resume). The item player's `Player` class owns an `rng` function (seeded or `Math.random`) and is the correct place to apply shuffling as a post-extraction transformation. Currently, no code path in the player applies `shuffle` to the `choices` array before rendering — `shuffle` is extracted and passed through but the array order is unchanged. This is a known gap. The `SortableList` component receives `orderedIds` (the display order), which is populated from the response on resume, so the resume path works correctly once an order has been confirmed.
+**Why `shuffle` is applied during extraction, not by the component**: The `shuffle` attribute signals that the author wants choices presented in a randomized initial order. That randomization has to happen before the data reaches the component, so the order can be reproduced on resume rather than re-rolled on every render. It is therefore applied at extraction time by `maybeShuffle` (`packages/item-player/src/core/shuffle.ts`), using a PRNG seeded from the item session GUID and the `responseIdentifier`. `Player` persists that GUID in its saved state and restores it, so the candidate sees the same order on resume while a different candidate or attempt gets a different one. `fixed=true` choices keep their authored index. The component deliberately does not shuffle: doing so would re-order on every re-render and double-shuffle the already-shuffled array. The `SortableList` component receives `orderedIds` (the display order), populated from the response on resume, so the resume path continues to work once an order has been confirmed.
 
 **Why `minChoices` and `maxChoices` are not extracted into `OrderInteractionData`**: The QTI spec allows `orderInteraction` to have fewer choices in the response than are presented — `minChoices` sets the lower bound, `maxChoices` the upper bound, on the number of items the candidate must place. Both are absent from `OrderInteractionData` (the type used by the component) and are not extracted by `standardOrderExtractor`. This is an unimplemented gap. In the common case all choices must be ordered (no `minChoices`/`maxChoices` constraints), which is why this was not prioritised. Items that use these attributes to present a "pick and rank" UI (e.g., "select and rank the top 3 from this list of 6") will silently ignore the constraints and require all choices to be placed.
 
@@ -51,7 +51,7 @@
 | Attribute | Support | Behaviour |
 |-----------|---------|-----------|
 | `responseIdentifier` | Full | Extracted as `responseId`; used in `qti-change` event payload |
-| `shuffle` | Partial | Extracted as `shuffle: boolean`; passed to component. **The component does not apply the shuffle** — choices are rendered in authored order regardless of this flag. See Known gaps. |
+| `shuffle` | ✅ Full | Extracted as `shuffle: boolean` and applied at extraction time, seeded from the item session GUID; stable for the whole session, including across re-renders and reloads. `fixed=true` choices keep their authored index. |
 | `orientation` | Partial | Extracted by `standardOrderExtractor` as `orientation` (`'vertical'` \| `'horizontal'`); defaults to `'vertical'`. Reached component via runtime spread but not in `OrderInteractionData` TypeScript type. The `SortableList` component reads `orientation` and adjusts arrow-key axis and flex layout direction accordingly. |
 | `minChoices` | Not extracted | Spec defines minimum number of choices in the response. Not in `OrderInteractionData`. Not enforced. All choices are always required. See Known gaps. |
 | `maxChoices` | Not extracted | Spec defines maximum number of choices in the response. Not in `OrderInteractionData`. Not enforced. See Known gaps. |
@@ -81,9 +81,8 @@
 
 ### Known gaps
 
-- **Shuffle not applied (unimplemented):** When `shuffle=true`, choices should be presented in a randomised order that is stable for the session. Currently no code path in the item player or component applies this shuffle. A future implementation should randomise `choices` in `Player.getInteractions()` after extraction, using the player's seeded `rng`, and respect `fixed=true` items (which must retain their authored index).
 
-- **`fixed` on `simpleChoice` not honoured (unimplemented):** When `shuffle=true`, choices with `fixed=true` should remain in their authored position while unfixed choices are shuffled around them. The `fixed` flag is extracted into `OrderData.choices[*].fixed` but `SortableList` does not use it — all items are draggable and can be repositioned.
+- **`fixed` does not restrict dragging:** `fixed=true` is honoured when the initial shuffle is applied (the choice keeps its authored index), but `SortableList` still lets the candidate drag it afterwards. The spec constrains the shuffle, not candidate interaction, so this is a deliberate limitation rather than a defect.
 
 - **`minChoices`/`maxChoices` not extracted (unimplemented):** Items that require the candidate to rank a subset of choices (e.g., "order the top 3 from this list of 6") cannot be represented. Both constraints are absent from `OrderInteractionData`. When present in QTI XML, they are silently ignored and all choices are treated as required.
 
@@ -219,7 +218,7 @@ Choice text is rendered via `{@html}` (via `SortableList`). Content is sanitized
 interface OrderInteractionData extends BaseInteractionData {
   type: 'orderInteraction';
   responseId: string;     // from responseIdentifier attribute
-  shuffle: boolean;       // authored shuffle preference (NOT applied by component; see Known gaps)
+  shuffle: boolean;       // authored shuffle preference (applied at extraction time)
   prompt: string | null;  // HTML content of <prompt> child, or null
   choices: Array<{
     identifier: string;   // from simpleChoice identifier attribute
@@ -231,7 +230,7 @@ interface OrderInteractionData extends BaseInteractionData {
 **Note on runtime-only fields:** The `standardOrderExtractor` produces additional fields that are spread onto the interaction object at runtime but are not declared in `OrderInteractionData`:
 
 - `orientation?: 'vertical' | 'horizontal'` — defaults to `'vertical'`; used by `SortableList` to orient the list and bind arrow keys
-- `choices[*].fixed?: boolean` — indicates a choice must not move during shuffle; currently unused by the component
+- `choices[*].fixed?: boolean` — indicates a choice must not move during shuffle; honoured by the extraction-time shuffle
 
 **Invariants enforced by `standardOrderExtractor.validate()`:**
 - `choices` has at least 2 entries (error if fewer)
@@ -268,7 +267,7 @@ AC-1: Initial render shows all choices
   Given: an orderInteraction with 4 simpleChoices (ChoiceA, ChoiceB, ChoiceC, ChoiceD)
   When: the item renders at /item-demo/order-interaction
   Then: all 4 choices are visible as draggable list items; each has a position badge (1–4)
-  Notes: choices appear in authored XML order (shuffle not yet applied by default component)
+  Notes: with shuffle="false" choices appear in authored XML order
 
 AC-2: Drag reorder updates displayed order and fires qti-change
   Given: the item from AC-1 with choices in order A, B, C, D
@@ -411,7 +410,7 @@ AC-E4: shuffle=true passes through to interaction data
   Given: an orderInteraction with shuffle="true"
   When: standardOrderExtractor.extract() is called
   Then: result.shuffle === true
-  Notes: the component does not apply this shuffle; authored order is preserved in rendering
+  Notes: the shuffle is applied at extraction time, seeded from the item session GUID
          until the shuffle gap is resolved
 
 AC-E5: fixed attribute is extracted on choices
@@ -453,7 +452,7 @@ AC-E10: Fractions-order sample (math content, no shuffle)
 
 ## Open questions
 
-- [ ] Should `shuffle` be applied by `Player.getInteractions()` as a post-extraction transformation, using the player's seeded `rng`? The `createSeededRng` infrastructure exists; wiring it to the choice array is the missing step. A seeded shuffle requires storing the seed (or the shuffled order) in the session so the candidate sees the same order on resume.
+- [x] Should `shuffle` be applied as a post-extraction transformation using a seeded RNG? Yes — implemented in `packages/item-player/src/core/shuffle.ts` and applied by the extractors. The seed is derived from the item session GUID, which `Player` already persists and restores, so no extra session field was needed.
 - [ ] Should `minChoices`/`maxChoices` be extracted into `OrderInteractionData` and surfaced as a partial-placement UI (where the candidate picks N items from a longer list to rank)? This is a significant UX change that affects `SortableList` — it would need a "placed" vs "available" pool UI.
 - [ ] Should `fixed` choices be rendered with a lock icon and prevented from being dragged once `shuffle` is honoured? This requires changes to both `SortableList` (conditional `draggable` per item) and the keyboard handler (skip fixed positions during arrow-key movement).
 

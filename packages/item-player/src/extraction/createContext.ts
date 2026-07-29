@@ -9,6 +9,7 @@ import type { PlayerConfig } from '../types/index.js';
 import type { QTIElement } from '../interactions/index.js';
 import type { ExtractionContext, VariableDeclaration } from './types.js';
 import { createExtractionUtils } from './utils.js';
+import { createShuffleRng } from '../core/shuffle.js';
 
 /**
  * Create an extraction context for an element
@@ -35,7 +36,8 @@ export function createExtractionContext(
 	responseId: string,
 	dom: QTIElement,
 	declarations: Map<string, VariableDeclaration>,
-	config: PlayerConfig
+	config: PlayerConfig,
+	sessionGuid?: string
 ): ExtractionContext {
 	// Pass both element and attribute name mappers for QTI version handling
 	const elementMapper = config.elementNameMapper as ElementNameMapper | undefined;
@@ -48,5 +50,8 @@ export function createExtractionContext(
 		declarations,
 		utils: createExtractionUtils(config.security, elementMapper, attributeMapper),
 		config,
+		// Without a session GUID there is nothing stable to seed from, so leave the RNG
+		// unset and let extractors keep the authored order.
+		...(sessionGuid ? { shuffleRng: createShuffleRng(sessionGuid, responseId) } : {}),
 	};
 }

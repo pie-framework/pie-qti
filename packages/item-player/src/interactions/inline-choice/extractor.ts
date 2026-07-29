@@ -5,6 +5,7 @@
  */
 
 import type { ElementExtractor } from '../../extraction/types.js';
+import { maybeShuffle } from '../../core/shuffle.js';
 
 /**
  * Inline choice data extracted from inlineChoiceInteraction elements
@@ -58,7 +59,7 @@ export const standardInlineChoiceExtractor: ElementExtractor<InlineChoiceData> =
 		const interactionClasses = utils.getClasses(element);
 
 		return {
-			choices,
+			choices: maybeShuffle(choices, shuffle, context.shuffleRng),
 			shuffle,
 			label,
 			...(dataPrompt ? { dataPrompt } : {}),
