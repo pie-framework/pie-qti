@@ -54,7 +54,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/pie-framework/pie-qti.git",
+    "url": "git+https://github.com/pie-framework/pie-qti.git",
     "directory": "tools/cli"
   },
   "homepage": "https://github.com/pie-framework/pie-qti/tree/master/tools/cli",
