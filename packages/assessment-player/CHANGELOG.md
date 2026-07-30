@@ -1,6 +1,6 @@
 # @pie-qti/assessment-player
 
-## 0.1.17
+## 0.1.16
 
 ### Patch Changes
 
@@ -33,35 +33,22 @@
   repository exactly when generating provenance attestations, so this is a prerequisite
   for moving publishing to trusted publishing (OIDC). No runtime or API change.
 
-- Updated dependencies [3c56bd9]
-- Updated dependencies [5a4e39a]
-- Updated dependencies [f4655e6]
-  - @pie-qti/item-player@0.1.17
-  - @pie-qti/assessment-toolkit@0.1.17
-  - @pie-qti/default-components@0.1.17
-  - @pie-qti/i18n@0.1.17
-  - @pie-qti/ims-cp-core@0.1.17
-  - @pie-qti/qti-common@0.1.17
-  - @pie-qti/qti-processing@0.1.17
-  - @pie-qti/section-player@0.1.17
-
-## 0.1.16
-
-### Patch Changes
-
 - 22db6c6: Harden QTI content, package, upload, and assessment resource boundaries; make the player custom
   elements self-contained and registration-safe for NPM consumers; and correct confirmed QTI
   mapping, processing-template, record, extended-text, position-object, PCI, navigation, timing, and
   assessment XML delivery behavior.
+- Updated dependencies [3c56bd9]
+- Updated dependencies [5a4e39a]
 - Updated dependencies [22db6c6]
-  - @pie-qti/default-components@0.1.16
+- Updated dependencies [f4655e6]
   - @pie-qti/item-player@0.1.16
+  - @pie-qti/assessment-toolkit@0.1.16
+  - @pie-qti/default-components@0.1.16
+  - @pie-qti/i18n@0.1.16
+  - @pie-qti/ims-cp-core@0.1.16
   - @pie-qti/qti-common@0.1.16
   - @pie-qti/qti-processing@0.1.16
   - @pie-qti/section-player@0.1.16
-  - @pie-qti/assessment-toolkit@0.1.16
-  - @pie-qti/i18n@0.1.16
-  - @pie-qti/ims-cp-core@0.1.16
 
 ## 0.1.15
 

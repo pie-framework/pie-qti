@@ -1,6 +1,6 @@
 # @pie-qti/storage
 
-## 0.1.17
+## 0.1.16
 
 ### Patch Changes
 
@@ -42,17 +42,11 @@
   Both dependencies are external to the published bundles — consumers resolve them from
   their own `node_modules` — so the updated ranges reach consumers directly.
 
-- Updated dependencies [5a4e39a]
-  - @pie-qti/transform-types@0.1.17
-
-## 0.1.16
-
-### Patch Changes
-
 - 22db6c6: Harden QTI content, package, upload, and assessment resource boundaries; make the player custom
   elements self-contained and registration-safe for NPM consumers; and correct confirmed QTI
   mapping, processing-template, record, extended-text, position-object, PCI, navigation, timing, and
   assessment XML delivery behavior.
+- Updated dependencies [5a4e39a]
   - @pie-qti/transform-types@0.1.16
 
 ## 0.1.15

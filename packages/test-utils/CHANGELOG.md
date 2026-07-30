@@ -1,6 +1,6 @@
 # @pie-qti/test-utils
 
-## 0.1.17
+## 0.1.16
 
 ### Patch Changes
 
@@ -18,18 +18,9 @@
 
 - Updated dependencies [5a4e39a]
 - Updated dependencies [9c6d374]
-  - @pie-qti/logger@0.1.17
-  - @pie-qti/storage@0.1.17
-  - @pie-qti/transform-core@0.1.17
-  - @pie-qti/transform-types@0.1.17
-
-## 0.1.16
-
-### Patch Changes
-
 - Updated dependencies [22db6c6]
-  - @pie-qti/storage@0.1.16
   - @pie-qti/logger@0.1.16
+  - @pie-qti/storage@0.1.16
   - @pie-qti/transform-core@0.1.16
   - @pie-qti/transform-types@0.1.16
 

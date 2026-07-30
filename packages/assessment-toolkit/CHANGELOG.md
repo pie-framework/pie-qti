@@ -1,6 +1,6 @@
 # @pie-qti/assessment-toolkit
 
-## 0.1.17
+## 0.1.16
 
 ### Patch Changes
 
@@ -17,16 +17,9 @@
   for moving publishing to trusted publishing (OIDC). No runtime or API change.
 
 - Updated dependencies [5a4e39a]
-  - @pie-qti/ims-cp-core@0.1.17
-  - @pie-qti/section-player@0.1.17
-
-## 0.1.16
-
-### Patch Changes
-
 - Updated dependencies [22db6c6]
-  - @pie-qti/section-player@0.1.16
   - @pie-qti/ims-cp-core@0.1.16
+  - @pie-qti/section-player@0.1.16
 
 ## 0.1.15
 

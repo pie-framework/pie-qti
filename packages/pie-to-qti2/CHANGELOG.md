@@ -1,6 +1,6 @@
 # @pie-qti/pie-to-qti2
 
-## 0.1.17
+## 0.1.16
 
 ### Patch Changes
 
@@ -43,15 +43,8 @@
   their own `node_modules` — so the updated ranges reach consumers directly.
 
 - Updated dependencies [5a4e39a]
-  - @pie-qti/transform-core@0.1.17
-  - @pie-qti/transform-types@0.1.17
-
-## 0.1.16
-
-### Patch Changes
-
-- @pie-qti/transform-core@0.1.16
-- @pie-qti/transform-types@0.1.16
+  - @pie-qti/transform-core@0.1.16
+  - @pie-qti/transform-types@0.1.16
 
 ## 0.1.15
 

@@ -1,6 +1,6 @@
 # @pie-qti/ims-cp-node
 
-## 0.1.17
+## 0.1.16
 
 ### Patch Changes
 
@@ -33,17 +33,11 @@
   repository exactly when generating provenance attestations, so this is a prerequisite
   for moving publishing to trusted publishing (OIDC). No runtime or API change.
 
-- Updated dependencies [5a4e39a]
-  - @pie-qti/ims-cp-core@0.1.17
-
-## 0.1.16
-
-### Patch Changes
-
 - 22db6c6: Harden QTI content, package, upload, and assessment resource boundaries; make the player custom
   elements self-contained and registration-safe for NPM consumers; and correct confirmed QTI
   mapping, processing-template, record, extended-text, position-object, PCI, navigation, timing, and
   assessment XML delivery behavior.
+- Updated dependencies [5a4e39a]
   - @pie-qti/ims-cp-core@0.1.16
 
 ## 0.1.15
