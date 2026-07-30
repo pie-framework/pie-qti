@@ -246,7 +246,13 @@ for (const pkg of packages) {
 			ok++;
 		} else {
 			console.log(`  ${pkg.padEnd(40)} FAILED (exit ${res.status})`);
-			problems.push([pkg, "see npm output above"]);
+			problems.push([
+				pkg,
+				mode === "apply"
+					? "see npm output above — note npm permits only ONE trusted publisher per package, " +
+						`so this is expected if it was already configured; confirm with: ${NPM.join(" ")} trust list ${pkg}`
+					: "see npm output above",
+			]);
 		}
 		continue;
 	}
