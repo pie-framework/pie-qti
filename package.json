@@ -63,6 +63,7 @@
     "verify:publish": "bun run build && bun run verify:publish:quick",
     "verify:publish:quick": "bun run check:fixed-versioning && bun run check:package-metadata && bun run check:publish-side-effects && bun run check:custom-elements && bun run check:publint && bun run check:types-publish && bun run check:pack-exports && bun run check:pack-smoke && bun run check:sourcemaps && bun run check:deps && bun run check:publish-surface && bun run check:ce-define-safety",
     "check:npm-auth": "dotenvx run -f .env -- node scripts/check-npm-auth.mjs",
+    "trusted-publishers": "node scripts/configure-trusted-publishers.mjs",
     "restore:workspace-ranges": "node scripts/restore-workspace-ranges.mjs",
     "pack:local": "bun run build && node scripts/pack-local.mjs",
     "changeset": "changeset",
