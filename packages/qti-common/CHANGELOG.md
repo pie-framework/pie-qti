@@ -1,6 +1,6 @@
 # @pie-qti/qti-common
 
-## 0.1.17
+## 0.1.16
 
 ### Patch Changes
 
@@ -15,10 +15,6 @@
   Beyond silencing that warning, npm requires `repository.url` to match the GitHub
   repository exactly when generating provenance attestations, so this is a prerequisite
   for moving publishing to trusted publishing (OIDC). No runtime or API change.
-
-## 0.1.16
-
-### Patch Changes
 
 - 22db6c6: Harden QTI content, package, upload, and assessment resource boundaries; make the player custom
   elements self-contained and registration-safe for NPM consumers; and correct confirmed QTI

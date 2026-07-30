@@ -1,6 +1,6 @@
 # @pie-qti/element-schemas
 
-## 0.1.17
+## 0.1.16
 
 ### Patch Changes
 
@@ -15,8 +15,6 @@
   Beyond silencing that warning, npm requires `repository.url` to match the GitHub
   repository exactly when generating provenance attestations, so this is a prerequisite
   for moving publishing to trusted publishing (OIDC). No runtime or API change.
-
-## 0.1.16
 
 ## 0.1.15
 

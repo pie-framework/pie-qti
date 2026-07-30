@@ -1,6 +1,6 @@
 # @pie-qti/transform-cli
 
-## 0.1.17
+## 0.1.16
 
 ### Patch Changes
 
@@ -19,20 +19,10 @@
 - Updated dependencies [3c56bd9]
 - Updated dependencies [5a4e39a]
 - Updated dependencies [9c6d374]
-  - @pie-qti/ims-cp-node@0.1.17
-  - @pie-qti/logger@0.1.17
-  - @pie-qti/to-pie@0.1.17
-  - @pie-qti/transform-core@0.1.17
-  - @pie-qti/transform-types@0.1.17
-
-## 0.1.16
-
-### Patch Changes
-
 - Updated dependencies [22db6c6]
   - @pie-qti/ims-cp-node@0.1.16
-  - @pie-qti/to-pie@0.1.16
   - @pie-qti/logger@0.1.16
+  - @pie-qti/to-pie@0.1.16
   - @pie-qti/transform-core@0.1.16
   - @pie-qti/transform-types@0.1.16
 
