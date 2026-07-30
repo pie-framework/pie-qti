@@ -40,6 +40,36 @@ import path from "node:path";
 const ROOT = process.cwd();
 const WORKFLOW = "release.yml";
 
+/**
+ * This is a local, one-time operator tool — never a CI step.
+ *
+ * Two reasons it cannot work in Actions:
+ *
+ * 1. Every `npm trust` operation, read or write, is 2FA-protected and prompts for an OTP
+ *    (npm does not reuse the authentication between invocations). There is no one to
+ *    answer that on a runner.
+ * 2. Per npm's 2026-07-08 changelog, tokens that bypass 2FA lose the ability to change
+ *    trusted publishing configuration from early August 2026, so a token cannot stand in
+ *    for the human either.
+ *
+ * That is also why it does not need to run in CI: configuring a trusted publisher happens
+ * once per package, after which the release workflow publishes via OIDC using the
+ * short-lived id-token GitHub mints for it — no npm credentials and no `npm trust` calls
+ * are involved in a release.
+ *
+ * Failing loudly here beats failing halfway through 27 packages at an invisible prompt.
+ */
+if (process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true") {
+	console.error(
+		"\n[trusted-publishers] this script is interactive and must not run in CI.\n" +
+			"  Every `npm trust` operation requires a one-time password, and from early August 2026\n" +
+			"  tokens that bypass 2FA can no longer change trusted publishing configuration.\n" +
+			"  Configure trusted publishers once from a local terminal; releases then publish via\n" +
+			"  OIDC without any npm credentials.",
+	);
+	process.exit(1);
+}
+
 const mode = process.argv.includes("--apply")
 	? "apply"
 	: process.argv.includes("--verify")
