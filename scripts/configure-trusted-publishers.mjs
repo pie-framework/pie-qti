@@ -149,11 +149,18 @@ if (Number(npmVersion.split(".")[0]) < 12) {
 	fail(`resolved npm ${npmVersion}, which does not provide \`npm trust\`; npm >= 12 is required.`);
 }
 
-/** Run the resolved npm 12, inheriting stdin so interactive 2FA prompts reach the user. */
-function npm(args, { capture = true } = {}) {
+/**
+ * Run the resolved npm 12.
+ *
+ * `interactive: true` inherits all three streams. This is required for anything
+ * 2FA-protected: npm prints the OTP prompt (and, for web auth, a URL to open) on stdout
+ * and waits for input. Capturing stdout swallows the prompt, so the user sees nothing to
+ * respond to and the command fails having appeared to just print its banner.
+ */
+function npm(args, { interactive = false } = {}) {
 	return spawnSync(NPM[0], [...NPM.slice(1), ...args], {
 		encoding: "utf8",
-		stdio: ["inherit", capture ? "pipe" : "inherit", capture ? "pipe" : "inherit"],
+		stdio: interactive ? "inherit" : ["inherit", "pipe", "pipe"],
 	});
 }
 
@@ -223,9 +230,35 @@ for (const pkg of packages) {
 					...(mode === "dry-run" ? ["--dry-run"] : []),
 				];
 
-	// stdio inherit for stdin so an interactive 2FA prompt still reaches the user.
+	// `apply` writes 2FA-protected configuration, so it must run interactively — npm's OTP
+	// prompt has to reach the terminal. Its output therefore cannot be captured, and
+	// success is taken from the exit status.
+	if (mode === "apply") {
+		console.log(`\n  --- ${pkg}`);
+		const res = npm(args, { interactive: true });
+		if (res.status === 0) {
+			console.log(`  ${pkg.padEnd(40)} configured`);
+			ok++;
+		} else {
+			console.log(`  ${pkg.padEnd(40)} FAILED (exit ${res.status})`);
+			problems.push([pkg, "see npm output above"]);
+		}
+		continue;
+	}
+
 	const res = npm(args);
 	const out = `${res.stdout ?? ""}${res.stderr ?? ""}`;
+
+	// `npm trust list` is also 2FA-protected. Detect that specifically rather than
+	// reporting it as "not configured", which would be actively misleading.
+	if (/EOTP|one-time password/i.test(out)) {
+		fail(
+			"npm requires a one-time password before it will read trusted publisher config.",
+			"Authenticate once, then re-run --verify:\n" +
+				`  ${NPM.join(" ")} trust list ${pkg}\n` +
+				"Follow the URL it prints; npm caches the session, so the remaining packages will not prompt.",
+		);
+	}
 
 	if (mode === "verify") {
 		const configured = out.includes(slug) && out.includes(WORKFLOW);
@@ -235,7 +268,7 @@ for (const pkg of packages) {
 	}
 
 	if (res.status === 0) {
-		console.log(`  ${pkg.padEnd(40)} ${mode === "dry-run" ? "dry-run ok" : "configured"}`);
+		console.log(`  ${pkg.padEnd(40)} dry-run ok`);
 		ok++;
 	} else {
 		console.log(`  ${pkg.padEnd(40)} FAILED`);
