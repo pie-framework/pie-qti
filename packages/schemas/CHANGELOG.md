@@ -1,5 +1,21 @@
 # @pie-qti/element-schemas
 
+## 0.1.16
+
+### Patch Changes
+
+- 5a4e39a: Normalize `repository.url` to the `git+https://` form.
+
+  npm was rewriting this field at publish time and warning about it:
+
+  ```
+  npm warn publish "repository.url" was normalized to "git+https://github.com/pie-framework/pie-qti.git"
+  ```
+
+  Beyond silencing that warning, npm requires `repository.url` to match the GitHub
+  repository exactly when generating provenance attestations, so this is a prerequisite
+  for moving publishing to trusted publishing (OIDC). No runtime or API change.
+
 ## 0.1.15
 
 ### Patch Changes

@@ -1,5 +1,64 @@
 # @pie-qti/default-components
 
+## 0.1.16
+
+### Patch Changes
+
+- 5a4e39a: Normalize `repository.url` to the `git+https://` form.
+
+  npm was rewriting this field at publish time and warning about it:
+
+  ```
+  npm warn publish "repository.url" was normalized to "git+https://github.com/pie-framework/pie-qti.git"
+  ```
+
+  Beyond silencing that warning, npm requires `repository.url` to match the GitHub
+  repository exactly when generating provenance attestations, so this is a prerequisite
+  for moving publishing to trusted publishing (OIDC). No runtime or API change.
+
+- 22db6c6: Harden QTI content, package, upload, and assessment resource boundaries; make the player custom
+  elements self-contained and registration-safe for NPM consumers; and correct confirmed QTI
+  mapping, processing-template, record, extended-text, position-object, PCI, navigation, timing, and
+  assessment XML delivery behavior.
+- f4655e6: Apply the QTI `shuffle` attribute with a session-seeded Fisher-Yates shuffle.
+
+  `shuffle` was parsed for `choiceInteraction`, `orderInteraction`, `matchInteraction`,
+  `associateInteraction`, `gapMatchInteraction` and `inlineChoiceInteraction`, but only
+  `orderInteraction` acted on it — and that implementation was effectively a no-op. It
+  seeded a non-iterated LCG from a sum of the `responseIdentifier`'s character codes; a
+  ±1 seed change moved the generator's output by less than one bucket width, so across
+  600 realistic identifiers it produced 3 distinct permutations out of 720, one of them
+  83% of the time. The character-code sum also collided on anagrams (`"AB"`/`"BA"`).
+
+  Shuffling now happens once at extraction time for all six interactions, using
+  `createSeededRng` (mulberry32) seeded from an FNV-1a hash of the item session GUID and
+  the `responseIdentifier`:
+
+  - Different candidates and different attempts get different orders, so `shuffle` again
+    serves its purpose of reducing position bias and answer copying. Previously every
+    candidate saw the same order for a given item.
+  - The order is stable for the whole session, including across re-renders and reloads,
+    because `Player` already persists and restores the session GUID — no new session
+    field was required.
+  - `fixed="true"` choices keep their authored index and only the remaining choices are
+    permuted around them. This was previously extracted but ignored.
+  - `matchInteraction`'s two sets are shuffled independently.
+
+  `OrderInteraction.svelte` no longer shuffles: doing so on top of the extraction-time
+  shuffle would re-order on every re-render.
+
+  Interaction PRDs have been corrected — several claimed "✅ Full … shuffles at
+  extraction time" when no shuffling occurred, and claimed `fixed` was not extracted when
+  it was.
+
+- Updated dependencies [3c56bd9]
+- Updated dependencies [5a4e39a]
+- Updated dependencies [22db6c6]
+- Updated dependencies [f4655e6]
+  - @pie-qti/item-player@0.1.16
+  - @pie-qti/i18n@0.1.16
+  - @pie-qti/qti-common@0.1.16
+
 ## 0.1.15
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/section-player",
-  "version": "0.1.15",
+  "version": "0.1.16",
   "description": "QTI section renderer contracts and layouts for composing item players with shared section context",
   "type": "module",
   "main": "./dist/index.js",
