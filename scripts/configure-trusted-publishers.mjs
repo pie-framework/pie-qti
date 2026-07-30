@@ -31,7 +31,8 @@
  */
 
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 
 const ROOT = process.cwd();
@@ -42,6 +43,25 @@ const mode = process.argv.includes("--apply")
 	: process.argv.includes("--verify")
 		? "verify"
 		: "dry-run";
+
+/**
+ * --only <pkg> limits the run to a single package.
+ *
+ * This exists because `--dry-run` is not the rehearsal it appears to be: `npm trust
+ * github --dry-run` exits 0 even for a package that does not exist, so a clean dry run
+ * across every package proves the command lines are well-formed and nothing more. It
+ * does not prove the packages exist, that you hold permission on them, or that npm will
+ * accept the configuration.
+ *
+ * Configuration, unlike publishing, can be done incrementally — so the real rehearsal is
+ * to apply to one package and read it back:
+ *
+ *   node scripts/configure-trusted-publishers.mjs --apply  --only @pie-qti/logger
+ *   node scripts/configure-trusted-publishers.mjs --verify --only @pie-qti/logger
+ */
+const onlyIndex = process.argv.indexOf("--only");
+const only = onlyIndex !== -1 ? process.argv[onlyIndex + 1] : null;
+if (onlyIndex !== -1 && !only) fail("--only requires a package name, e.g. --only @pie-qti/logger");
 
 function fail(msg, extra) {
 	console.error(`\n[trusted-publishers] ${msg}`);
@@ -93,28 +113,94 @@ if (!nodeSupportsNpm12(process.version)) {
 	);
 }
 
-const npmVersion = execFileSync("npm", ["--version"], { encoding: "utf8" }).trim();
+/**
+ * Resolve an npm >= 12 without touching the globally installed npm.
+ *
+ * `npm trust` needs npm 12, but npm 12 also changes install-time defaults (dependency
+ * lifecycle scripts, git deps and remote tarballs are all off by default). Forcing a
+ * global upgrade just to run a one-off configuration task would push that change onto
+ * everything else on the machine, so npm 12 is bootstrapped into a temp prefix and
+ * invoked directly instead.
+ */
+function resolveNpm12() {
+	const local = execFileSync("npm", ["--version"], { encoding: "utf8" }).trim();
+	if (Number(local.split(".")[0]) >= 12) return { argv: ["npm"], version: local };
+
+	const prefix = path.join(os.tmpdir(), "pie-qti-npm12");
+	const cli = path.join(prefix, "node_modules", "npm", "bin", "npm-cli.js");
+	if (!existsSync(cli)) {
+		console.log(`bootstrapping npm@^12 into ${prefix} (global npm ${local} left untouched) ...`);
+		mkdirSync(prefix, { recursive: true });
+		const res = spawnSync("npm", ["install", "npm@^12", "--silent", "--no-audit", "--no-fund"], {
+			cwd: prefix,
+			encoding: "utf8",
+			stdio: ["ignore", "pipe", "pipe"],
+		});
+		if (res.status !== 0 || !existsSync(cli)) {
+			fail("failed to bootstrap npm@^12.", `${res.stdout ?? ""}${res.stderr ?? ""}`);
+		}
+	}
+	const version = execFileSync(process.execPath, [cli, "--version"], { encoding: "utf8" }).trim();
+	return { argv: [process.execPath, cli], version };
+}
+
+const { argv: NPM, version: npmVersion } = resolveNpm12();
 if (Number(npmVersion.split(".")[0]) < 12) {
+	fail(`resolved npm ${npmVersion}, which does not provide \`npm trust\`; npm >= 12 is required.`);
+}
+
+/** Run the resolved npm 12, inheriting stdin so interactive 2FA prompts reach the user. */
+function npm(args, { capture = true } = {}) {
+	return spawnSync(NPM[0], [...NPM.slice(1), ...args], {
+		encoding: "utf8",
+		stdio: ["inherit", capture ? "pipe" : "inherit", capture ? "pipe" : "inherit"],
+	});
+}
+
+const whoami = npm(["whoami"]);
+if (whoami.status !== 0) {
 	fail(
-		`npm ${npmVersion} does not provide \`npm trust\`; npm >= 12 is required.`,
-		"Upgrade with `npm install -g npm@^12`.",
+		"not authenticated to npm. Run `npm login` first (this script does not handle credentials).",
+		`${whoami.stdout ?? ""}${whoami.stderr ?? ""}`.trim(),
 	);
 }
-
-let user;
-try {
-	user = execFileSync("npm", ["whoami"], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
-} catch {
-	fail("not authenticated to npm. Run `npm login` first (this script does not handle credentials).");
-}
+const user = (whoami.stdout ?? "").trim();
 
 const slug = repositorySlug();
-const packages = publishablePackages();
-if (packages.length === 0) fail("no publishable packages found.");
+const allPackages = publishablePackages();
+if (allPackages.length === 0) fail("no publishable packages found.");
+
+let packages = allPackages;
+if (only) {
+	if (!allPackages.includes(only)) {
+		fail(
+			`--only ${only} is not a publishable package in this workspace.`,
+			`Known packages:\n${allPackages.map((p) => `  ${p}`).join("\n")}`,
+		);
+	}
+	packages = [only];
+}
 
 console.log(`node: ${process.version}   npm: ${npmVersion}   user: ${user}`);
 console.log(`repo: ${slug}   workflow: ${WORKFLOW}`);
-console.log(`mode: ${mode}   packages: ${packages.length}\n`);
+console.log(`mode: ${mode}   packages: ${packages.length}${only ? ` (--only ${only})` : ""}`);
+
+if (mode === "dry-run") {
+	console.log(
+		"\n  note: `npm trust github --dry-run` exits 0 even for a nonexistent package, so a\n" +
+			"  clean dry run confirms the arguments are well-formed, not that the configuration\n" +
+			"  would be accepted. Rehearse with: --apply --only <pkg>, then --verify --only <pkg>.",
+	);
+}
+if (mode === "apply") {
+	console.log(
+		"\n  note: trusted publishing means anyone who can write to " +
+			`${slug} and trigger\n  ${WORKFLOW} can publish these packages. Consider gating the release job behind a\n` +
+			"  protected GitHub Environment (npm trust github --environment <name>) if that is\n" +
+			"  broader than you want.",
+	);
+}
+console.log("");
 
 let ok = 0;
 const problems = [];
@@ -138,7 +224,7 @@ for (const pkg of packages) {
 				];
 
 	// stdio inherit for stdin so an interactive 2FA prompt still reaches the user.
-	const res = spawnSync("npm", args, { encoding: "utf8", stdio: ["inherit", "pipe", "pipe"] });
+	const res = npm(args);
 	const out = `${res.stdout ?? ""}${res.stderr ?? ""}`;
 
 	if (mode === "verify") {
