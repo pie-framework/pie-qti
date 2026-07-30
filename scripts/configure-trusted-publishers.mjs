@@ -25,9 +25,11 @@
  *   warns on older Node, but this writes security configuration to a production account,
  *   so an unsupported runtime is treated as an error.
  * - An authenticated npm session (`npm login`). This script never handles credentials.
- * - Changing trusted publishing configuration is 2FA-protected, and per npm's
- *   2026-07-08 changelog, tokens that bypass 2FA lose that privilege from early August
- *   2026 — so run it interactively, not with an automation token.
+ * - Both reading and writing trusted publisher config are 2FA-protected, and npm does
+ *   not reuse the authentication between invocations, so expect an OTP prompt per
+ *   package. Per npm's 2026-07-08 changelog, tokens that bypass 2FA lose the ability to
+ *   change trusted publishing configuration from early August 2026, so this is
+ *   necessarily interactive rather than token-driven.
  */
 
 import { execFileSync, spawnSync } from "node:child_process";
@@ -230,14 +232,17 @@ for (const pkg of packages) {
 					...(mode === "dry-run" ? ["--dry-run"] : []),
 				];
 
-	// `apply` writes 2FA-protected configuration, so it must run interactively — npm's OTP
-	// prompt has to reach the terminal. Its output therefore cannot be captured, and
-	// success is taken from the exit status.
-	if (mode === "apply") {
+	// Both `trust github` and `trust list` are 2FA-protected, and npm does not carry the
+	// authentication across invocations — an apply and a list seven minutes apart each
+	// demanded their own OTP. So both modes must run interactively: npm's prompt (and web
+	// auth URL) has to reach the terminal, which means its output cannot be captured and
+	// success comes from the exit status. npm prints the stored configuration itself, so
+	// --verify shows you the authoritative record rather than a parsed summary.
+	if (mode === "apply" || mode === "verify") {
 		console.log(`\n  --- ${pkg}`);
 		const res = npm(args, { interactive: true });
 		if (res.status === 0) {
-			console.log(`  ${pkg.padEnd(40)} configured`);
+			console.log(`  ${pkg.padEnd(40)} ${mode === "apply" ? "configured" : "read ok (see above)"}`);
 			ok++;
 		} else {
 			console.log(`  ${pkg.padEnd(40)} FAILED (exit ${res.status})`);
@@ -248,25 +253,6 @@ for (const pkg of packages) {
 
 	const res = npm(args);
 	const out = `${res.stdout ?? ""}${res.stderr ?? ""}`;
-
-	// `npm trust list` is also 2FA-protected. Detect that specifically rather than
-	// reporting it as "not configured", which would be actively misleading.
-	if (/EOTP|one-time password/i.test(out)) {
-		fail(
-			"npm requires a one-time password before it will read trusted publisher config.",
-			"Authenticate once, then re-run --verify:\n" +
-				`  ${NPM.join(" ")} trust list ${pkg}\n` +
-				"Follow the URL it prints; npm caches the session, so the remaining packages will not prompt.",
-		);
-	}
-
-	if (mode === "verify") {
-		const configured = out.includes(slug) && out.includes(WORKFLOW);
-		console.log(`  ${pkg.padEnd(40)} ${configured ? "configured" : "NOT CONFIGURED"}`);
-		configured ? ok++ : problems.push([pkg, "no trusted publisher for this repo/workflow"]);
-		continue;
-	}
-
 	if (res.status === 0) {
 		console.log(`  ${pkg.padEnd(40)} dry-run ok`);
 		ok++;
