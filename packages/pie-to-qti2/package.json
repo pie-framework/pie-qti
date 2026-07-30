@@ -45,7 +45,7 @@
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "https://github.com/pie-framework/pie-qti.git",
+    "url": "git+https://github.com/pie-framework/pie-qti.git",
     "directory": "packages/pie-to-qti2"
   },
   "homepage": "https://github.com/pie-framework/pie-qti/tree/master/packages/pie-to-qti2",

@@ -64,9 +64,28 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20.19.0
+          node-version-file: .nvmrc
           registry-url: https://registry.npmjs.org
           always-auth: true
+
+      # npm trusted publishing (OIDC) requires npm >= 11.5.1, and Node 22.16 ships npm
+      # 10.x, so the bundled CLI is upgraded explicitly. Harmless for token publishes.
+      - name: Ensure npm supports trusted publishing
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "bundled npm: $(npm --version)"
+          npm install -g npm@^11.5.1
+          NPM_VERSION="$(npm --version)"
+          echo "npm now: ${NPM_VERSION}"
+          NPM_VERSION="$NPM_VERSION" node -e '
+            const [maj, min, pat] = process.env.NPM_VERSION.split(".").map(Number);
+            const ok = maj > 11 || (maj === 11 && (min > 5 || (min === 5 && pat >= 1)));
+            if (!ok) {
+              console.error(`npm ${process.env.NPM_VERSION} is below the 11.5.1 required for trusted publishing`);
+              process.exit(1);
+            }
+          '
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -216,11 +235,28 @@ jobs:
 
       - name: Configure OIDC auth for npm publish
         if: steps.npm_auth.outputs.mode == 'oidc'
+        shell: bash
         run: |
           set -euo pipefail
           echo "Using OIDC trusted publishing for npm publish."
           echo "PUBLISH_NPM_TOKEN=" >> "$GITHUB_ENV"
           echo "PUBLISH_NODE_AUTH_TOKEN=" >> "$GITHUB_ENV"
+
+          # actions/setup-node was called with registry-url + always-auth, so it wrote an
+          # .npmrc containing `//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}`. Under
+          # OIDC there is no token, so that line would expand to an empty credential and
+          # npm would attempt (and fail) token auth instead of falling through to trusted
+          # publishing. Strip the auth line, keep the registry line.
+          for candidate in "${NPM_CONFIG_USERCONFIG:-}" "${RUNNER_TEMP:-}/.npmrc" "$HOME/.npmrc"; do
+            [ -n "$candidate" ] || continue
+            [ -f "$candidate" ] || continue
+            if grep -q "_authToken" "$candidate"; then
+              sed -i.bak '/_authToken/d' "$candidate" && rm -f "$candidate.bak"
+              echo "Removed _authToken line from ${candidate}"
+            fi
+            echo "--- ${candidate} after scrub:"
+            sed 's/^/    /' "$candidate"
+          done
 
       # Fail fast on a credential that npm will reject.
       #
