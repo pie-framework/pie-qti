@@ -38,7 +38,7 @@
     "@pie-qti/item-player": "workspace:*",
     "@pie-qti/qti-common": "workspace:*",
     "@pie-qti/section-player": "workspace:*",
-    "@biomejs/biome": "^2.4.8",
+    "@biomejs/biome": "^2.5.6",
     "@sveltejs/vite-plugin-svelte": "^7.0.0",
     "linkedom": "^0.18.12",
     "svelte": "^5.54.0",
