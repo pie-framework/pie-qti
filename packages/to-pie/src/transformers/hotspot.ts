@@ -13,9 +13,15 @@ import { findRequiredImage } from '../utils/image-extraction.js';
 import { getImageDimensions, resolveImagePath } from '../utils/image-utils.js';
 import { extractPromptForInteraction } from '../utils/prompt-extraction.js';
 import { createMissingDimensionsError, createMissingElementError, createMissingInteractionError } from '../utils/qti-errors.js';
+import {
+  deriveItemScoring,
+  findResponseDeclaration,
+  readCorrectResponseValues,
+  readMapping,
+} from '../utils/response-scoring.js';
 
 export interface HotspotOptions {
-  /** Whether to enable partial scoring by default */
+  /** Overrides the partial scoring derived from the QTI source. */
   partialScoring?: boolean;
   /** Whether to allow multiple correct hotspots */
   multipleCorrect?: boolean;
@@ -80,7 +86,8 @@ export function transformHotspot(
   const prompt = extractPrompt(itemBody, hotspotInteraction);
 
   // Extract correct answers
-  const correctAnswers = extractCorrectAnswers(document);
+  const responseIdentifier = hotspotInteraction.getAttribute('responseIdentifier') || 'RESPONSE';
+  const correctAnswers = extractCorrectAnswers(document, responseIdentifier);
 
   // Determine if multiple correct
   const maxChoices = parseInt(hotspotInteraction.getAttribute('maxChoices') || '1', 10);
@@ -97,6 +104,7 @@ export function transformHotspot(
   const { rectangles, polygons } = extractHotspots(hotspotInteraction, dimensions, correctAnswers);
 
   const modelId = uuid();
+  const scoring = deriveItemScoring(document);
 
   const pieItem: PieItem = {
     id: itemId,
@@ -111,7 +119,7 @@ export function transformHotspot(
           prompt: prompt || '',
           imageUrl,
           multipleCorrect,
-          partialScoring: options?.partialScoring ?? false,
+          partialScoring: options?.partialScoring ?? scoring.partialScoring,
           hotspotColor: options?.hotspotColor || 'rgba(137, 183, 244, 0.65)',
           outlineColor: options?.outlineColor || 'blue',
           dimensions: {
@@ -133,6 +141,7 @@ export function transformHotspot(
         title: itemId,
         itemType: 'HS',
         source: 'qti22',
+        ...(scoring.weight !== undefined && { maxScore: scoring.weight }),
       },
     },
   };
@@ -150,7 +159,20 @@ function extractPrompt(itemBody: HTMLElement, interaction: HTMLElement): string 
 /**
  * Extract correct answers from responseDeclaration
  */
-function extractCorrectAnswers(document: HTMLElement): string[] {
+function extractCorrectAnswers(document: HTMLElement, responseIdentifier: string): string[] {
+  const responseDeclaration = findResponseDeclaration(document, responseIdentifier);
+
+  if (responseDeclaration) {
+    const declared = readCorrectResponseValues(responseDeclaration);
+    if (declared.length > 0) return declared;
+
+    // An item scored via map_response need not declare a correctResponse at
+    // all. Only strictly positive mappedValues mark a hotspot correct.
+    return readMapping(responseDeclaration)?.positiveKeys ?? [];
+  }
+
+  // No declaration matches the interaction's responseIdentifier; fall back to
+  // the first correctResponse in the document.
   const correctAnswers: string[] = [];
   const correctResponseElements = document.getElementsByTagName('correctResponse');
 

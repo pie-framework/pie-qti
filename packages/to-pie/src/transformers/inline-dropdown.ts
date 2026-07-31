@@ -10,9 +10,14 @@ import type { HTMLElement } from 'node-html-parser';
 import { parse } from 'node-html-parser';
 import { v4 as uuid } from 'uuid';
 import { createMissingElementError, createMissingInteractionError } from '../utils/qti-errors.js';
+import {
+  deriveItemScoring,
+  readCorrectResponseValues,
+  readMapping,
+} from '../utils/response-scoring.js';
 
 export interface InlineDropdownOptions {
-  /** Whether to enable partial scoring by default */
+  /** Overrides the partial scoring derived from the QTI source. */
   partialScoring?: boolean;
   /** Whether to lock choice order (disable shuffle) */
   lockChoiceOrder?: boolean;
@@ -76,6 +81,7 @@ export function transformInlineDropdown(
   const rationale = options?.rationale || extractRationale(itemBody);
 
   const modelId = uuid();
+  const scoring = deriveItemScoring(document);
 
   const pieItem: PieItem = {
     id: itemId,
@@ -90,7 +96,7 @@ export function transformInlineDropdown(
           prompt: prompt || '',
           rationale,
           lockChoiceOrder,
-          partialScoring: options?.partialScoring ?? false,
+          partialScoring: options?.partialScoring ?? scoring.partialScoring,
           scoringType: 'auto',
           markup,
           choices,
@@ -105,6 +111,7 @@ export function transformInlineDropdown(
         title: itemId,
         itemType: 'ID',
         source: 'qti22',
+        ...(scoring.weight !== undefined && { maxScore: scoring.weight }),
       },
     },
   };
@@ -156,15 +163,15 @@ function extractCorrectAnswers(document: HTMLElement): Set<string> {
   const responseDeclarations = document.getElementsByTagName('responseDeclaration');
 
   for (const responseDeclaration of Array.from(responseDeclarations)) {
-    const correctResponse = responseDeclaration.getElementsByTagName('correctResponse')[0];
-    if (!correctResponse) continue;
+    const declared = readCorrectResponseValues(responseDeclaration);
 
-    const values = correctResponse.getElementsByTagName('value');
-    for (const value of Array.from(values)) {
-      const text = value.textContent?.trim();
-      if (text) {
-        correctAnswers.add(text);
-      }
+    // An item scored via map_response need not declare a correctResponse at
+    // all. Fall back to the mapping per declaration, only when that
+    // declaration's key produced nothing, and only for positive mappedValues.
+    const keys = declared.length > 0 ? declared : (readMapping(responseDeclaration)?.positiveKeys ?? []);
+
+    for (const key of keys) {
+      correctAnswers.add(key);
     }
   }
 

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- graphicGapMatchInteraction keyed only by mapping; mapKey holds "gapImgId hotspotId". -->
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/qti/qtiv2p2/imsqti_v2p2.xsd"
+                identifier="cf-mapping-only-graphic-gap-match-001"
+                title="Mapping-only graphic gap match"
+                adaptive="false"
+                timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="directedPair">
+    <mapping defaultValue="0">
+      <mapEntry mapKey="IMG1 ZONE1" mappedValue="1"/>
+      <mapEntry mapKey="IMG2 ZONE2" mappedValue="1"/>
+    </mapping>
+  </responseDeclaration>
+  <itemBody>
+    <p>Drag each label onto the matching zone.</p>
+    <graphicGapMatchInteraction responseIdentifier="RESPONSE">
+      <img src="background.png" width="400" height="300"/>
+      <gapImg identifier="IMG1"><img src="image1.png"/></gapImg>
+      <gapImg identifier="IMG2"><img src="image2.png"/></gapImg>
+      <associableHotspot identifier="ZONE1" coords="50,50,150,100" matchMax="1"/>
+      <associableHotspot identifier="ZONE2" coords="200,100,300,150" matchMax="1"/>
+    </graphicGapMatchInteraction>
+  </itemBody>
+</assessmentItem>

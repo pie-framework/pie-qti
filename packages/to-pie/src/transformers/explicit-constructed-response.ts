@@ -10,9 +10,14 @@ import type { HTMLElement } from 'node-html-parser';
 import { parse } from 'node-html-parser';
 import { v4 as uuid } from 'uuid';
 import { createMissingElementError, createMissingInteractionError } from '../utils/qti-errors.js';
+import {
+  deriveItemScoring,
+  readCorrectResponseValues,
+  readMapping,
+} from '../utils/response-scoring.js';
 
 export interface ExplicitConstructedResponseOptions {
-  /** Whether to enable partial scoring by default */
+  /** Overrides the partial scoring derived from the QTI source. */
   partialScoring?: boolean;
   /** Custom note text for the element */
   note?: string;
@@ -68,6 +73,7 @@ export function transformExplicitConstructedResponse(
   const maxLengthPerChoice = extractMaxLengths(textEntryInteractions);
 
   const modelId = uuid();
+  const scoring = deriveItemScoring(document);
 
   const pieItem: PieItem = {
     id: itemId,
@@ -84,7 +90,7 @@ export function transformExplicitConstructedResponse(
             options?.note ||
             'The answer shown above is the most common correct answer for this item. One or more additional correct answers are also defined, and will also be recognized as correct.',
           markup,
-          partialScoring: options?.partialScoring ?? false,
+          partialScoring: options?.partialScoring ?? scoring.partialScoring,
           choices,
           maxLengthPerChoice,
         },
@@ -98,6 +104,7 @@ export function transformExplicitConstructedResponse(
         title: itemId,
         itemType: 'ECR',
         source: 'qti22',
+        ...(scoring.weight !== undefined && { maxScore: scoring.weight }),
       },
     },
   };
@@ -222,20 +229,18 @@ function extractChoices(
     const index = responseIdMap.get(identifier);
     if (index === undefined) continue;
 
-    choices[index] = [];
+    const declared = readCorrectResponseValues(responseDeclaration);
 
-    const correctResponse = responseDeclaration.getElementsByTagName('correctResponse')[0];
-    if (!correctResponse) continue;
+    // An item scored via map_response need not declare a correctResponse at
+    // all. For text entry a positive-mappedValue mapKey *is* an accepted
+    // answer, so the mapping supplies the same list. Zero-scoring entries are
+    // recorded misspellings, not answers.
+    const accepted = declared.length > 0 ? declared : (readMapping(responseDeclaration)?.positiveKeys ?? []);
 
-    const values = correctResponse.getElementsByTagName('value');
-    for (let i = 0; i < values.length; i++) {
-      const value = values[i];
-      const label = value.textContent?.trim() || '';
-      choices[index].push({
-        label,
-        value: String(i),
-      });
-    }
+    choices[index] = accepted.map((label, i) => ({
+      label,
+      value: String(i),
+    }));
   }
 
   return choices;

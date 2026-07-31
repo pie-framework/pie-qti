@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- gapMatchInteraction keyed only by mapping. Also guards the sign check: the existing fallback here admitted mappedValue="0". -->
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/qti/qtiv2p2/imsqti_v2p2.xsd"
+                identifier="cf-mapping-only-gap-match-001"
+                title="Mapping-only gap match"
+                adaptive="false"
+                timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="directedPair">
+    <mapping defaultValue="0">
+      <mapEntry mapKey="cat GAP1" mappedValue="1"/>
+      <mapEntry mapKey="salmon GAP2" mappedValue="1"/>
+    </mapping>
+  </responseDeclaration>
+  <itemBody>
+    <p>Drag each animal into the right blank.</p>
+    <gapMatchInteraction responseIdentifier="RESPONSE" shuffle="false">
+      <gapText identifier="cat" matchMax="1">cat</gapText>
+      <gapText identifier="salmon" matchMax="1">salmon</gapText>
+      <p>A <gap identifier="GAP1"/> is a mammal and a <gap identifier="GAP2"/> is a fish.</p>
+    </gapMatchInteraction>
+  </itemBody>
+</assessmentItem>

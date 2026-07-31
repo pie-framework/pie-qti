@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- orderInteraction keyed only by mapping. For an ordered response the mapEntry document order is the intended sequence. -->
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/qti/qtiv2p2/imsqti_v2p2.xsd"
+                identifier="cf-mapping-only-order-001"
+                title="Mapping-only ordering"
+                adaptive="false"
+                timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="ordered" baseType="identifier">
+    <mapping defaultValue="0">
+      <mapEntry mapKey="egg" mappedValue="1"/>
+      <mapEntry mapKey="larva" mappedValue="1"/>
+      <mapEntry mapKey="pupa" mappedValue="1"/>
+      <mapEntry mapKey="adult" mappedValue="1"/>
+    </mapping>
+  </responseDeclaration>
+  <itemBody>
+    <p>Put the butterfly life cycle in order.</p>
+    <orderInteraction responseIdentifier="RESPONSE" shuffle="true" orientation="vertical">
+      <simpleChoice identifier="pupa">Pupa</simpleChoice>
+      <simpleChoice identifier="adult">Adult</simpleChoice>
+      <simpleChoice identifier="egg">Egg</simpleChoice>
+      <simpleChoice identifier="larva">Larva</simpleChoice>
+    </orderInteraction>
+  </itemBody>
+</assessmentItem>

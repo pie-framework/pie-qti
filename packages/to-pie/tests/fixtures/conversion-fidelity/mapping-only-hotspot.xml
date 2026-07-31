@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- hotspotInteraction keyed only by mapping. Image carries width/height so only the answer key is under test. -->
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/qti/qtiv2p2/imsqti_v2p2.xsd"
+                identifier="cf-mapping-only-hotspot-001"
+                title="Mapping-only hotspot"
+                adaptive="false"
+                timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier">
+    <mapping defaultValue="0">
+      <mapEntry mapKey="hotspot2" mappedValue="1"/>
+    </mapping>
+  </responseDeclaration>
+  <itemBody>
+    <p>Click the nucleus.</p>
+    <hotspotInteraction responseIdentifier="RESPONSE">
+      <img src="cell.png" width="400" height="300"/>
+      <hotspotChoice shape="rect" coords="50,50,150,150" identifier="hotspot1"/>
+      <hotspotChoice shape="rect" coords="200,100,300,200" identifier="hotspot2"/>
+    </hotspotInteraction>
+  </itemBody>
+</assessmentItem>

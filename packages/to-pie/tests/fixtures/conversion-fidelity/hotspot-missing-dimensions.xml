@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The background image declares neither width nor height. hotspotChoice coords are in source-image pixel space, so there is no correct viewBox and no correct scaling: the transform must fail loudly rather than guess a size and silently misplace every region. -->
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/qti/qtiv2p2/imsqti_v2p2.xsd"
+                identifier="cf-hotspot-no-dimensions-001"
+                title="Hotspot image with no width/height"
+                adaptive="false"
+                timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier">
+    <correctResponse>
+      <value>hotspot1</value>
+    </correctResponse>
+  </responseDeclaration>
+  <itemBody>
+    <p>Click on the correct region:</p>
+    <hotspotInteraction responseIdentifier="RESPONSE">
+      <img src="diagram.png"/>
+      <hotspotChoice shape="rect" coords="50,50,150,150" identifier="hotspot1"/>
+      <hotspotChoice shape="rect" coords="200,100,300,200" identifier="hotspot2"/>
+    </hotspotInteraction>
+  </itemBody>
+</assessmentItem>

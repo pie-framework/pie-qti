@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- upperBound wins over both the MAXSCORE outcome and the summed mapEntry values. -->
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/qti/qtiv2p2/imsqti_v2p2.xsd"
+                identifier="cf-weight-upper-bound-001"
+                title="Weight from mapping/@upperBound"
+                adaptive="false"
+                timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="identifier">
+    <mapping defaultValue="0" upperBound="3">
+      <mapEntry mapKey="choiceA" mappedValue="2"/>
+      <mapEntry mapKey="choiceD" mappedValue="3"/>
+    </mapping>
+  </responseDeclaration>
+  <outcomeDeclaration identifier="MAXSCORE" cardinality="single" baseType="float">
+    <defaultValue>
+      <value>9</value>
+    </defaultValue>
+  </outcomeDeclaration>
+  <itemBody>
+    <p>Which process releases energy from glucose?</p>
+    <choiceInteraction responseIdentifier="RESPONSE" maxChoices="2" shuffle="false">
+      <simpleChoice identifier="choiceA">Photosynthesis</simpleChoice>
+      <simpleChoice identifier="choiceB">Respiration</simpleChoice>
+      <simpleChoice identifier="choiceC">Transpiration</simpleChoice>
+      <simpleChoice identifier="choiceD">Germination</simpleChoice>
+    </choiceInteraction>
+  </itemBody>
+</assessmentItem>

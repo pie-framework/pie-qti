@@ -205,6 +205,8 @@ export default {
 			selectArea: '在图像上选择区域',
 			ariaLabel: '热点交互',
 			altText: '热点交互',
+			unknownImageDimensions:
+				'无法显示此热点：其图像尺寸未知，因此无法定位可选区域。请为图像添加宽度和高度，或提供资源尺寸。',
 		},
 
 		selectPoint: {

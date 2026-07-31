@@ -195,6 +195,8 @@ export default {
 			selectArea: 'Selecciona áreas en la imagen',
 			ariaLabel: 'Interacción de zona activa',
 			altText: 'Interacción de zona activa',
+			unknownImageDimensions:
+				'Esta zona activa no se puede mostrar: se desconoce el tamaño de su imagen, por lo que no se pueden colocar las regiones seleccionables. Añade ancho y alto a la imagen o proporciona las dimensiones del archivo.',
 		},
 
 		selectPoint: {

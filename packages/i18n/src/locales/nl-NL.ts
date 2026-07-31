@@ -194,6 +194,8 @@ export default {
 			selectArea: 'Selecteer gebieden op de afbeelding',
 			ariaLabel: 'Hotspot-interactie',
 			altText: 'Hotspot-interactie',
+			unknownImageDimensions:
+				'Deze hotspot kan niet worden weergegeven: de afmetingen van de afbeelding zijn onbekend, waardoor de selecteerbare gebieden niet geplaatst kunnen worden. Voeg breedte en hoogte toe aan de afbeelding of geef de afmetingen van het bestand op.',
 		},
 
 		selectPoint: {

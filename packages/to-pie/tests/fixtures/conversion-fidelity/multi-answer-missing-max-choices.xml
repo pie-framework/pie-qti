@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- maxChoices is absent, so defaulting it to 1 would produce a single-select radio group that cannot express its own two-value answer key. The discovered answer count has to override. -->
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/qti/qtiv2p2/imsqti_v2p2.xsd"
+                identifier="cf-cardinality-missing-001"
+                title="Two correct answers, maxChoices absent"
+                adaptive="false"
+                timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="identifier">
+    <correctResponse>
+      <value>choiceA</value>
+      <value>choiceC</value>
+    </correctResponse>
+  </responseDeclaration>
+  <itemBody>
+    <p>Which of the following are prime numbers?</p>
+    <choiceInteraction responseIdentifier="RESPONSE" shuffle="false">
+      <simpleChoice identifier="choiceA">2</simpleChoice>
+      <simpleChoice identifier="choiceB">4</simpleChoice>
+      <simpleChoice identifier="choiceC">3</simpleChoice>
+      <simpleChoice identifier="choiceD">6</simpleChoice>
+    </choiceInteraction>
+  </itemBody>
+</assessmentItem>

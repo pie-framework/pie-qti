@@ -17,6 +17,10 @@ export interface PieMultipleChoiceModel extends PieModel {
   partialScoring?: boolean;
   shuffle?: boolean;
   choiceMode?: 'radio' | 'checkbox';
+  /** Layout of the choices, derived from QTI `orientation` */
+  choicesLayout?: 'grid' | 'horizontal' | 'vertical';
+  /** Column count for the `grid` layout */
+  gridColumns?: number;
 }
 
 /**

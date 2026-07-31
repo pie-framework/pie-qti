@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Two inlineChoiceInteractions, each keyed only by mapping/mapEntry. -->
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/qti/qtiv2p2/imsqti_v2p2.xsd"
+                identifier="cf-mapping-only-inline-choice-001"
+                title="Mapping-only inline choice"
+                adaptive="false"
+                timeDependent="false">
+  <responseDeclaration identifier="RESPONSE_1" cardinality="single" baseType="identifier">
+    <mapping defaultValue="0">
+      <mapEntry mapKey="warm" mappedValue="1"/>
+    </mapping>
+  </responseDeclaration>
+  <responseDeclaration identifier="RESPONSE_2" cardinality="single" baseType="identifier">
+    <mapping defaultValue="0">
+      <mapEntry mapKey="rises" mappedValue="1"/>
+    </mapping>
+  </responseDeclaration>
+  <itemBody>
+    <p>
+      When air is
+      <inlineChoiceInteraction responseIdentifier="RESPONSE_1" shuffle="false">
+        <inlineChoice identifier="warm">warm</inlineChoice>
+        <inlineChoice identifier="cool">cool</inlineChoice>
+      </inlineChoiceInteraction>
+      it
+      <inlineChoiceInteraction responseIdentifier="RESPONSE_2" shuffle="false">
+        <inlineChoice identifier="rises">rises</inlineChoice>
+        <inlineChoice identifier="sinks">sinks</inlineChoice>
+      </inlineChoiceInteraction>.
+    </p>
+  </itemBody>
+</assessmentItem>

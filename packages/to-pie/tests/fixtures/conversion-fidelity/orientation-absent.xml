@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- No orientation attribute, so no layout is emitted and the PIE element keeps its own default rather than being pinned to a guess. -->
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/qti/qtiv2p2/imsqti_v2p2.xsd"
+                identifier="cf-orientation-absent-001"
+                title="Choice orientation absent"
+                adaptive="false"
+                timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier">
+    <correctResponse>
+      <value>choiceC</value>
+    </correctResponse>
+  </responseDeclaration>
+  <itemBody>
+    <p>Which colour is a primary colour of light?</p>
+    <choiceInteraction responseIdentifier="RESPONSE" maxChoices="1" shuffle="false">
+      <simpleChoice identifier="choiceA">Red</simpleChoice>
+      <simpleChoice identifier="choiceB">Green</simpleChoice>
+      <simpleChoice identifier="choiceC">Blue</simpleChoice>
+      <simpleChoice identifier="choiceD">Yellow</simpleChoice>
+    </choiceInteraction>
+  </itemBody>
+</assessmentItem>

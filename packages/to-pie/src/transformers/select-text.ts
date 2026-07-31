@@ -11,9 +11,15 @@ import { parse } from 'node-html-parser';
 import { v4 as uuid } from 'uuid';
 import { extractPromptForInteraction } from '../utils/prompt-extraction.js';
 import { createMissingInteractionError } from '../utils/qti-errors.js';
+import {
+  deriveItemScoring,
+  findResponseDeclaration,
+  readCorrectResponseValues,
+  readMapping,
+} from '../utils/response-scoring.js';
 
 export interface SelectTextOptions {
-  /** Whether to enable partial scoring by default */
+  /** Overrides the partial scoring derived from the QTI source. */
   partialScoring?: boolean;
   /** Whether to highlight all selectable choices */
   highlightChoices?: boolean;
@@ -73,6 +79,7 @@ export function transformSelectText(
   }
 
   const modelId = uuid();
+  const scoring = deriveItemScoring(document);
 
   const pieItem: PieItem = {
     id: itemId,
@@ -89,7 +96,7 @@ export function transformSelectText(
           maxSelections,
           text,
           tokens,
-          partialScoring: options?.partialScoring ?? false,
+          partialScoring: options?.partialScoring ?? scoring.partialScoring,
           mode: '',
         },
       ],
@@ -102,6 +109,7 @@ export function transformSelectText(
         title: itemId,
         itemType: 'ST',
         source: 'qti22',
+        ...(scoring.weight !== undefined && { maxScore: scoring.weight }),
       },
     },
   };
@@ -116,35 +124,21 @@ function extractCorrectAnswers(
   document: HTMLElement,
   responseIdentifier: string
 ): Set<string> {
-  const correctAnswers = new Set<string>();
-  const responseDeclarations = document.getElementsByTagName('responseDeclaration');
-
-  let responseDeclaration: HTMLElement | null = null;
-  for (const rd of Array.from(responseDeclarations)) {
-    if (rd.getAttribute('identifier') === responseIdentifier) {
-      responseDeclaration = rd;
-      break;
-    }
-  }
+  const responseDeclaration = findResponseDeclaration(document, responseIdentifier);
 
   if (!responseDeclaration) {
-    return correctAnswers;
+    return new Set<string>();
   }
 
-  const correctResponse = responseDeclaration.getElementsByTagName('correctResponse')[0];
-  if (!correctResponse) {
-    return correctAnswers;
-  }
+  const declared = readCorrectResponseValues(responseDeclaration);
 
-  const values = correctResponse.getElementsByTagName('value');
-  for (const value of Array.from(values)) {
-    const text = value.textContent?.trim();
-    if (text) {
-      correctAnswers.add(text);
-    }
-  }
+  // An item scored via map_response need not declare a correctResponse at all.
+  // Fall back to the mapping only when the declared key produced nothing, and
+  // only for strictly positive mappedValues — a zero-scoring mapEntry is a
+  // distractor, not an answer.
+  const keys = declared.length > 0 ? declared : (readMapping(responseDeclaration)?.positiveKeys ?? []);
 
-  return correctAnswers;
+  return new Set(keys);
 }
 
 /**

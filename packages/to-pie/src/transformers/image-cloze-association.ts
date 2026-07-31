@@ -13,9 +13,15 @@ import { findRequiredImage } from '../utils/image-extraction.js';
 import { getImageDimensions, resolveImagePath } from '../utils/image-utils.js';
 import { extractPromptForInteraction } from '../utils/prompt-extraction.js';
 import { createMissingDimensionsError, createMissingElementError, createMissingInteractionError } from '../utils/qti-errors.js';
+import {
+  deriveItemScoring,
+  findResponseDeclaration,
+  readCorrectResponseValues,
+  readMapping,
+} from '../utils/response-scoring.js';
 
 export interface ImageClozeAssociationOptions {
-  /** Whether to enable partial scoring by default */
+  /** Overrides the partial scoring derived from the QTI source. */
   partialScoring?: boolean;
   /** Whether to allow duplicate responses */
   duplicateResponses?: boolean;
@@ -100,6 +106,7 @@ export function transformImageClozeAssociation(
   const validation = buildValidation(responseContainers, gapImageMap, correctAnswerMap);
 
   const modelId = uuid();
+  const scoring = deriveItemScoring(document);
 
   const pieItem: PieItem = {
     id: itemId,
@@ -126,7 +133,7 @@ export function transformImageClozeAssociation(
           possibleResponses,
           validation,
           duplicateResponses: options?.duplicateResponses ?? false,
-          partialScoring: options?.partialScoring ?? false,
+          partialScoring: options?.partialScoring ?? scoring.partialScoring,
           maxResponsePerZone: options?.maxResponsePerZone ?? 0,
           shuffleOptions: options?.shuffleOptions ?? true,
           answerChoiceTransparency: options?.answerChoiceTransparency ?? false,
@@ -142,6 +149,7 @@ export function transformImageClozeAssociation(
         title: itemId,
         itemType: 'ICA',
         source: 'qti22',
+        ...(scoring.weight !== undefined && { maxScore: scoring.weight }),
       },
     },
   };
@@ -162,29 +170,32 @@ function extractPrompt(itemBody: HTMLElement, interaction: HTMLElement): string 
  */
 function extractCorrectAnswers(document: HTMLElement, responseIdentifier: string): Map<string, string[]> {
   const correctAnswerMap = new Map<string, string[]>();
-  const responseDeclarations = document.getElementsByTagName('responseDeclaration');
+  const responseDeclaration = findResponseDeclaration(document, responseIdentifier);
 
-  for (const rd of Array.from(responseDeclarations)) {
-    if (rd.getAttribute('identifier') === responseIdentifier) {
-      const values = rd.getElementsByTagName('value');
+  if (!responseDeclaration) {
+    return correctAnswerMap;
+  }
 
-      // QTI format: "gapImgId hotspotId" (directed pair)
-      for (const value of Array.from(values)) {
-        const text = value.textContent?.trim();
-        if (!text) continue;
+  const declared = readCorrectResponseValues(responseDeclaration);
 
-        const parts = text.split(/\s+/);
-        if (parts.length >= 2) {
-          const gapImgId = parts[0];
-          const hotspotId = parts[1];
+  // An item scored via map_response need not declare a correctResponse at all.
+  // Fall back to the mapping only when the declared key produced nothing, and
+  // only for strictly positive mappedValues — a zero-scoring mapEntry is a
+  // distractor pair, not an answer.
+  const pairs = declared.length > 0 ? declared : (readMapping(responseDeclaration)?.positiveKeys ?? []);
 
-          const existing = correctAnswerMap.get(hotspotId);
-          if (existing) {
-            existing.push(gapImgId);
-          } else {
-            correctAnswerMap.set(hotspotId, [gapImgId]);
-          }
-        }
+  // QTI format: "gapImgId hotspotId" (directed pair)
+  for (const pair of pairs) {
+    const parts = pair.split(/\s+/);
+    if (parts.length >= 2) {
+      const gapImgId = parts[0];
+      const hotspotId = parts[1];
+
+      const existing = correctAnswerMap.get(hotspotId);
+      if (existing) {
+        existing.push(gapImgId);
+      } else {
+        correctAnswerMap.set(hotspotId, [gapImgId]);
       }
     }
   }

@@ -7,11 +7,14 @@
 import type { PieItem, PieMultipleChoiceModel } from '@pie-qti/transform-types';
 import type { HTMLElement } from 'node-html-parser';
 import { v4 as uuidv4 } from 'uuid';
+import { mapChoiceLayout } from '../utils/choice-layout.js';
 import { extractInlineStimulus, extractObjectPassages } from '../utils/passage-extraction.js';
 import { cleanTransformHtml, extractPromptForInteraction } from '../utils/prompt-extraction.js';
 import { createMissingElementError, createMissingInteractionError } from '../utils/qti-errors.js';
+import { deriveItemScoring, mappingAnswerKeys } from '../utils/response-scoring.js';
 
 export interface MultipleChoiceOptions {
+  /** Overrides the partial scoring derived from the QTI source. */
   partialScoring?: boolean;
   baseId?: string;  // Stable/public identifier for round-trip compatibility
 }
@@ -55,9 +58,12 @@ export async function transformMultipleChoice(
   // Get response identifier
   const responseId = choiceInteraction.getAttribute('responseIdentifier') || 'RESPONSE';
 
-  // Get maxChoices to determine if single or multiple select
+  // maxChoices tells us the intended cardinality, but it is not trusted on its
+  // own — see the choiceMode derivation below.
   const maxChoices = parseInt(choiceInteraction.getAttribute('maxChoices') || '1', 10);
-  const choiceMode = maxChoices === 1 ? 'radio' : 'checkbox';
+
+  // Carry the authored choice layout across
+  const layout = mapChoiceLayout(choiceInteraction.getAttribute('orientation'));
 
   // Get shuffle setting
   const shuffle = choiceInteraction.getAttribute('shuffle') === 'true';
@@ -82,9 +88,23 @@ export async function transformMultipleChoice(
                                    responseDeclaration.getElementsByTagName('correctResponse')[0];
     if (correctResponseElement) {
       const values = correctResponseElement.getElementsByTagName('value');
-      correctResponse = Array.from(values).map(v => v.text.trim());
+      correctResponse = Array.from(values).map(v => v.text.trim()).filter(v => v !== '');
     }
   }
+
+  // An item scored via map_response need not declare a correctResponse at all.
+  // Fall back to the mapping only when the declared key produced nothing, so a
+  // declared key is never overwritten.
+  if (correctResponse.length === 0) {
+    correctResponse = mappingAnswerKeys(itemElement, responseId);
+  }
+
+  // Cardinality is not maxChoices alone: the attribute is frequently missing or
+  // wrong, and defaulting it to 1 turns a multi-answer item into a radio group
+  // that cannot express its own answer key.
+  const choiceMode = maxChoices === 1 && correctResponse.length <= 1 ? 'radio' : 'checkbox';
+
+  const scoring = deriveItemScoring(itemElement);
 
   // Create PIE model
   const model: PieMultipleChoiceModel = {
@@ -96,9 +116,10 @@ export async function transformMultipleChoice(
       correct: correctResponse.includes(choice.value),
     })),
     correctResponse,
-    partialScoring: options.partialScoring || false,
+    partialScoring: options.partialScoring ?? scoring.partialScoring,
     shuffle,
     choiceMode,
+    ...layout,
   };
 
   // Get title from assessmentItem
@@ -141,8 +162,9 @@ export async function transformMultipleChoice(
       // Renaissance-specific search metadata
       searchMetaData: {
         title,
-        itemType: maxChoices === 1 ? 'MC' : 'MCA',
+        itemType: choiceMode === 'radio' ? 'MC' : 'MCA',
         source: 'qti22',
+        ...(scoring.weight !== undefined && { maxScore: scoring.weight }),
       },
     },
   };

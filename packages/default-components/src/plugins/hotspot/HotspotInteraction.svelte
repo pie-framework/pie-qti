@@ -61,6 +61,13 @@
 		return 'width: 100%;';
 	});
 
+	// Hotspot `coords` are in the source image's pixel space, so the overlay
+	// viewBox has to be the image's intrinsic dimensions. Without them there is
+	// no correct viewBox: any guess silently misplaces every region, which reads
+	// as a content error rather than the missing metadata it is. Refuse to draw
+	// the overlay and say why instead.
+	const hasImageDimensions = $derived(imageWidth !== null && imageHeight !== null);
+
 	function handleClick(identifier: string) {
 		if (!disabled) {
 			response = identifier;
@@ -94,6 +101,13 @@
 			</div>
 		{/if}
 
+		{#if !hasImageDimensions}
+			{@const unknownDimensionsMessage = i18n?.t('interactions.hotspot.unknownImageDimensions', 'This hotspot cannot be shown: the size of its image is unknown, so the selectable regions cannot be placed. Add width and height to the image, or supply the asset dimensions.') ?? 'This hotspot cannot be shown: the size of its image is unknown, so the selectable regions cannot be placed. Add width and height to the image, or supply the asset dimensions.'}
+			<div part="diagnostic" class="alert alert-error qti-hotspot-diagnostic" role="alert">
+				{unknownDimensionsMessage}
+			</div>
+		{/if}
+
 		<div part="stage" class="qti-hotspot-stage">
 			<div class="qti-hotspot-media" style={mediaStyle}>
 				<!-- Render the image/SVG -->
@@ -112,12 +126,15 @@
 					{/if}
 				{/if}
 
-				<!-- Overlay clickable areas using SVG -->
+				<!-- Overlay clickable areas using SVG.
+				     Only rendered when the image's intrinsic dimensions are known: the
+				     viewBox must match the pixel space the coords were authored in. -->
+				{#if hasImageDimensions}
 				<svg
 					part="overlay"
 					class="qti-hotspot-overlay"
 					style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"
-					viewBox="0 0 {parsedInteraction.imageData?.width || '800'} {parsedInteraction.imageData?.height || '600'}"
+					viewBox="0 0 {imageWidth} {imageHeight}"
 					xmlns="http://www.w3.org/2000/svg"
 				>
 					{#each parsedInteraction.hotspotChoices as choice}
@@ -207,6 +224,7 @@
 						{/if}
 					{/each}
 				</svg>
+				{/if}
 			</div>
 		</div>
 
@@ -262,6 +280,9 @@
 	}
 	.qti-hotspot-media {
 		position: relative;
+	}
+	.qti-hotspot-diagnostic {
+		font-size: 0.875rem;
 	}
 	.qti-hotspot-image {
 		display: block;

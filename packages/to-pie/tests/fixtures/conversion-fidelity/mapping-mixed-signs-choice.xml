@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Only strictly positive mappedValues are promoted to correct. choiceB scores 0 and choiceC scores -1: both are distractors, not answers. -->
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/qti/qtiv2p2/imsqti_v2p2.xsd"
+                identifier="cf-mapping-mixed-signs-001"
+                title="Mapping with mixed mappedValue signs"
+                adaptive="false"
+                timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="identifier">
+    <mapping defaultValue="0">
+      <mapEntry mapKey="choiceA" mappedValue="1"/>
+      <mapEntry mapKey="choiceB" mappedValue="0"/>
+      <mapEntry mapKey="choiceC" mappedValue="-1"/>
+      <mapEntry mapKey="choiceD" mappedValue="0.5"/>
+    </mapping>
+  </responseDeclaration>
+  <itemBody>
+    <p>Which process releases energy from glucose?</p>
+    <choiceInteraction responseIdentifier="RESPONSE" maxChoices="2" shuffle="false">
+      <simpleChoice identifier="choiceA">Photosynthesis</simpleChoice>
+      <simpleChoice identifier="choiceB">Respiration</simpleChoice>
+      <simpleChoice identifier="choiceC">Transpiration</simpleChoice>
+      <simpleChoice identifier="choiceD">Germination</simpleChoice>
+    </choiceInteraction>
+  </itemBody>
+</assessmentItem>

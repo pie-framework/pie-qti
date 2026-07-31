@@ -11,11 +11,17 @@ import { parse } from 'node-html-parser';
 import { v4 as uuid } from 'uuid';
 import { extractPromptForInteraction } from '../utils/prompt-extraction.js';
 import { createMissingInteractionError } from '../utils/qti-errors.js';
+import {
+  deriveItemScoring,
+  findResponseDeclaration,
+  readCorrectResponseValues,
+  readMapping,
+} from '../utils/response-scoring.js';
 
 export interface PlacementOrderingOptions {
   /** Default orientation if not specified in QTI */
   defaultOrientation?: 'horizontal' | 'vertical';
-  /** Whether to enable partial scoring by default */
+  /** Overrides the partial scoring derived from the QTI source. */
   partialScoring?: boolean;
   /** Stable/public identifier for round-trip compatibility */
   baseId?: string;
@@ -59,6 +65,7 @@ export function transformPlacementOrdering(
   const correctResponse = extractCorrectResponse(document, choices, responseIdentifier);
 
   const modelId = uuid();
+  const scoring = deriveItemScoring(document);
 
   const pieItem: PieItem = {
     id: itemId,
@@ -73,7 +80,7 @@ export function transformPlacementOrdering(
           prompt: prompt || '',
           lockChoiceOrder: shuffle === 'false', // shuffle=false means locked order
           orientation: (orientation as 'horizontal' | 'vertical') || options?.defaultOrientation || 'vertical',
-          partialScoring: options?.partialScoring ?? false,
+          partialScoring: options?.partialScoring ?? scoring.partialScoring,
           choiceLabel: '',
           choices: choices.map((c, index) => ({
             id: String(index),
@@ -93,6 +100,7 @@ export function transformPlacementOrdering(
         title: itemId,
         itemType: 'PO',
         source: 'qti22',
+        ...(scoring.weight !== undefined && { maxScore: scoring.weight }),
       },
     },
   };
@@ -120,32 +128,23 @@ function extractCorrectResponse(
   choices: Choice[],
   responseIdentifier: string
 ): number[] {
-  const responseDeclarations = document.getElementsByTagName('responseDeclaration');
-
-  let responseDeclaration: HTMLElement | null = null;
-  for (const rd of Array.from(responseDeclarations)) {
-    if (rd.getAttribute('identifier') === responseIdentifier) {
-      responseDeclaration = rd;
-      break;
-    }
-  }
+  const responseDeclaration = findResponseDeclaration(document, responseIdentifier);
 
   if (!responseDeclaration) {
     return [];
   }
 
-  const correctResponse = responseDeclaration.getElementsByTagName('correctResponse')[0];
-  if (!correctResponse) {
-    return [];
-  }
+  const declared = readCorrectResponseValues(responseDeclaration);
 
-  const values = correctResponse.getElementsByTagName('value');
+  // An item scored via map_response need not declare a correctResponse at all.
+  // Fall back to the mapping only when the declared key produced nothing, and
+  // only for strictly positive mappedValues. For an ordered response the
+  // mapEntry document order is the intended sequence.
+  const identifiers = declared.length > 0 ? declared : (readMapping(responseDeclaration)?.positiveKeys ?? []);
+
   const choiceMap = new Map(choices.map((c, i) => [c.id, i]));
 
-  return Array.from(values)
-    .map(v => {
-      const identifier = v.textContent?.trim() || '';
-      return choiceMap.get(identifier);
-    })
+  return identifiers
+    .map(identifier => choiceMap.get(identifier))
     .filter((id): id is number => id !== undefined);
 }

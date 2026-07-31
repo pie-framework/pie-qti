@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- maxChoices="1" is contradicted by a two-value correctResponse. The authored key is the stronger signal; honouring maxChoices here makes the item unanswerable. -->
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/qti/qtiv2p2/imsqti_v2p2.xsd"
+                identifier="cf-cardinality-contradicted-001"
+                title="Two correct answers, maxChoices="1""
+                adaptive="false"
+                timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="identifier">
+    <correctResponse>
+      <value>choiceA</value>
+      <value>choiceC</value>
+    </correctResponse>
+  </responseDeclaration>
+  <itemBody>
+    <p>Which of the following are prime numbers?</p>
+    <choiceInteraction responseIdentifier="RESPONSE" maxChoices="1" shuffle="false">
+      <simpleChoice identifier="choiceA">2</simpleChoice>
+      <simpleChoice identifier="choiceB">4</simpleChoice>
+      <simpleChoice identifier="choiceC">3</simpleChoice>
+      <simpleChoice identifier="choiceD">6</simpleChoice>
+    </choiceInteraction>
+  </itemBody>
+</assessmentItem>

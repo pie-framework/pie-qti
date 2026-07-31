@@ -10,7 +10,9 @@ import type { PieItem } from '@pie-qti/transform-types';
 import type { HTMLElement } from 'node-html-parser';
 import { parse } from 'node-html-parser';
 import { v4 as uuid } from 'uuid';
+import { type PieChoiceLayout, mapChoiceLayout } from '../utils/choice-layout.js';
 import { createInsufficientElementsError, createMissingElementError } from '../utils/qti-errors.js';
+import { deriveItemScoring, readMapping } from '../utils/response-scoring.js';
 
 export interface EbsrOptions {
   /** Whether to enable partial scoring by default */
@@ -30,7 +32,7 @@ interface Choice {
   feedback?: string;
 }
 
-interface EbsrPart {
+interface EbsrPart extends PieChoiceLayout {
   prompt?: string;
   choices: Choice[];
   choiceMode: 'radio' | 'checkbox';
@@ -94,6 +96,7 @@ export function transformEbsr(
   );
 
   const modelId = uuid();
+  const scoring = deriveItemScoring(document);
 
   const pieItem: PieItem = {
     id: itemId,
@@ -107,6 +110,8 @@ export function transformEbsr(
           element: '@pie-element/ebsr',
           partLabels: options?.partLabels ?? false,
           partLabelType: options?.partLabelType ?? 'Letters',
+          // EBSR is two-part by construction, so partial credit is always on;
+          // the source mapping can only confirm that, never contradict it.
           partialScoring: options?.partialScoring ?? true,
           partA,
           partB,
@@ -121,6 +126,7 @@ export function transformEbsr(
         title: itemId,
         itemType: 'EBSR',
         source: 'qti22',
+        ...(scoring.weight !== undefined && { maxScore: scoring.weight }),
       },
     },
   };
@@ -178,9 +184,7 @@ function buildPart(
     prompt += (prompt ? '\n' : '') + promptElement.innerHTML.trim();
   }
 
-  // Determine choice mode (radio vs checkbox)
   const maxChoices = parseInt(choiceInteraction.getAttribute('maxChoices') || '1', 10);
-  const choiceMode: 'radio' | 'checkbox' = maxChoices === 1 ? 'radio' : 'checkbox';
 
   // Determine shuffle/lockChoiceOrder
   const shuffle = choiceInteraction.getAttribute('shuffle');
@@ -189,6 +193,12 @@ function buildPart(
   // Extract choices
   const correctAnswers = correctAnswerMap.get(responseIdentifier) || [];
   const choices = extractChoices(choiceInteraction, correctAnswers);
+
+  // Cardinality is not maxChoices alone: the attribute is frequently missing or
+  // wrong, and defaulting it to 1 turns a multi-answer part into a radio group
+  // that cannot express its own answer key.
+  const choiceMode: 'radio' | 'checkbox' =
+    maxChoices === 1 && correctAnswers.length <= 1 ? 'radio' : 'checkbox';
 
   // Check for feedback
   const feedbackEnabled = choices.some(c => c.feedback);
@@ -200,6 +210,7 @@ function buildPart(
     lockChoiceOrder,
     choicePrefix: 'none',
     feedbackEnabled,
+    ...mapChoiceLayout(choiceInteraction.getAttribute('orientation')),
   };
 }
 
@@ -226,16 +237,11 @@ function extractCorrectAnswerMap(document: HTMLElement): Map<string, string[]> {
       }
     }
 
-    // If no correct responses, try mapEntry elements
+    // An item scored via map_response need not declare a correctResponse at
+    // all. Fall back to the mapping only when the declared key produced
+    // nothing, and only for strictly positive mappedValues.
     if (correctAnswers.length === 0) {
-      const mapEntries = responseDeclaration.getElementsByTagName('mapEntry');
-      for (const mapEntry of Array.from(mapEntries)) {
-        const mappedValue = parseFloat(mapEntry.getAttribute('mappedValue') || '0');
-        if (mappedValue > 0) {
-          const mapKey = mapEntry.getAttribute('mapKey');
-          if (mapKey) correctAnswers.push(mapKey);
-        }
-      }
+      correctAnswers.push(...(readMapping(responseDeclaration)?.positiveKeys ?? []));
     }
 
     map.set(identifier, correctAnswers);

@@ -194,6 +194,8 @@ export default {
 			selectArea: 'Selectează zone pe imagine',
 			ariaLabel: 'Interacțiune hotspot',
 			altText: 'Interacțiune hotspot',
+			unknownImageDimensions:
+				'Acest hotspot nu poate fi afișat: dimensiunea imaginii sale este necunoscută, așa că regiunile selectabile nu pot fi poziționate. Adăugați lățime și înălțime imaginii sau furnizați dimensiunile fișierului.',
 		},
 
 		selectPoint: {

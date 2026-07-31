@@ -11,6 +11,12 @@ import { parse } from 'node-html-parser';
 import { v4 as uuid } from 'uuid';
 import { extractPromptForInteraction } from '../utils/prompt-extraction.js';
 import { createMissingElementError, createMissingInteractionError } from '../utils/qti-errors.js';
+import {
+  deriveItemScoring,
+  findResponseDeclaration,
+  readCorrectResponseValues,
+  readMapping,
+} from '../utils/response-scoring.js';
 
 export interface MatchListOptions {
   /** Whether to lock the choice order (false = shuffle) */
@@ -59,11 +65,13 @@ export function transformMatchList(
     });
   }
 
+  const responseIdentifier = matchInteraction.getAttribute('responseIdentifier') || 'RESPONSE';
+
   // Extract prompt
   const prompt = extractPrompt(itemBody, matchInteraction);
 
   // Extract correct answers
-  const correctAnswers = extractCorrectAnswers(document);
+  const correctAnswers = extractCorrectAnswers(document, responseIdentifier);
 
   // Check for duplicates
   const hasDuplicates = options?.duplicates ?? checkForDuplicates(correctAnswers);
@@ -76,6 +84,9 @@ export function transformMatchList(
   const { prompts, answers } = extractMatchSets(matchInteraction, correctAnswers);
 
   const modelId = uuid();
+  // The match-list element has no partialScoring field, so only the item weight
+  // is carried across.
+  const scoring = deriveItemScoring(document);
 
   const pieItem: PieItem = {
     id: itemId,
@@ -103,6 +114,7 @@ export function transformMatchList(
         title: itemId,
         itemType: 'ML',
         source: 'qti22',
+        ...(scoring.weight !== undefined && { maxScore: scoring.weight }),
       },
     },
   };
@@ -121,37 +133,29 @@ function extractPrompt(itemBody: HTMLElement, interaction: HTMLElement): string 
  * Extract correct answers from responseDeclaration
  * Returns a map of prompt identifier -> answer identifier
  */
-function extractCorrectAnswers(document: HTMLElement): Map<string, string> {
+function extractCorrectAnswers(document: HTMLElement, responseIdentifier: string): Map<string, string> {
   const correctAnswers = new Map<string, string>();
-  const correctResponseElements = document.getElementsByTagName('correctResponse');
+  const responseDeclaration = findResponseDeclaration(document, responseIdentifier);
 
-  if (correctResponseElements.length > 0) {
-    const values = correctResponseElements[0].getElementsByTagName('value');
-    for (const value of Array.from(values)) {
-      const text = value.textContent?.trim();
-      if (!text) continue;
-
-      // QTI format: "promptId answerId" (directed pair)
-      const parts = text.split(/\s+/);
-      if (parts.length >= 2) {
-        correctAnswers.set(parts[0], parts[1]);
-      }
-    }
+  if (!responseDeclaration) {
     return correctAnswers;
   }
 
-  // Try mapping if no correctResponse
-  const mappings = document.getElementsByTagName('mapping');
-  if (mappings.length > 0) {
-    const mapEntries = mappings[0].getElementsByTagName('mapEntry');
-    for (const mapEntry of Array.from(mapEntries)) {
-      const mapKey = mapEntry.getAttribute('mapKey');
-      if (!mapKey) continue;
+  const declared = readCorrectResponseValues(responseDeclaration);
 
-      const parts = mapKey.split(/\s+/);
-      if (parts.length >= 2) {
-        correctAnswers.set(parts[0], parts[1]);
-      }
+  // An item scored via map_response need not declare a correctResponse at all.
+  // Fall back to the mapping only when the declared key produced nothing, and
+  // only for strictly positive mappedValues. The sign check is load-bearing:
+  // real publisher content ships mappings whose every mapEntry is
+  // mappedValue="0" while the real key sits in correctResponse, and an unsigned
+  // reading of those pairs up every listed prompt with a distractor.
+  const pairs = declared.length > 0 ? declared : (readMapping(responseDeclaration)?.positiveKeys ?? []);
+
+  for (const pair of pairs) {
+    // QTI format: "promptId answerId" (directed pair)
+    const parts = pair.split(/\s+/);
+    if (parts.length >= 2) {
+      correctAnswers.set(parts[0], parts[1]);
     }
   }
 
