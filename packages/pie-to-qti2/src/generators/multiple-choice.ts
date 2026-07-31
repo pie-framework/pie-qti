@@ -74,7 +74,16 @@ export class MultipleChoiceGenerator extends BaseGenerator {
 
     // Build item body
     const prompt = model.prompt ? QtiBuilder.createPrompt(model.prompt) : '';
-    const interaction = `<choiceInteraction responseIdentifier="${responseId}" shuffle="${shuffle}" maxChoices="${maxChoices}">
+
+    // Carry the choice layout back to QTI's orientation. `grid` has no QTI
+    // equivalent and is emitted as `grid`, which readers that don't know it
+    // treat as unspecified; the column count has no QTI home at all.
+    const orientation =
+      model.choicesLayout === 'horizontal' || model.choicesLayout === 'vertical' || model.choicesLayout === 'grid'
+        ? ` orientation="${model.choicesLayout}"`
+        : '';
+
+    const interaction = `<choiceInteraction responseIdentifier="${responseId}" shuffle="${shuffle}" maxChoices="${maxChoices}"${orientation}>
     ${choicesXml}
   </choiceInteraction>`;
 

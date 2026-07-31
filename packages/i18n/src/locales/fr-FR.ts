@@ -194,6 +194,8 @@ export default {
 			selectArea: 'Sélectionnez des zones sur l\'image',
 			ariaLabel: 'Interaction de zone sensible',
 			altText: 'Interaction de zone sensible',
+			unknownImageDimensions:
+				'Cette zone sensible ne peut pas être affichée : la taille de son image est inconnue, les régions sélectionnables ne peuvent donc pas être positionnées. Ajoutez une largeur et une hauteur à l\'image, ou fournissez les dimensions du fichier.',
 		},
 
 		selectPoint: {

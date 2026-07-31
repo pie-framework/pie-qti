@@ -11,9 +11,15 @@ import { parse } from 'node-html-parser';
 import { v4 as uuid } from 'uuid';
 import { extractPromptForInteraction } from '../utils/prompt-extraction.js';
 import { createMissingInteractionError } from '../utils/qti-errors.js';
+import {
+  deriveItemScoring,
+  findResponseDeclaration,
+  readCorrectResponseValues,
+  readMapping,
+} from '../utils/response-scoring.js';
 
 export interface MatchOptions {
-  /** Whether to enable partial scoring by default */
+  /** Overrides the partial scoring derived from the QTI source. */
   partialScoring?: boolean;
   /** Choice mode: radio (single selection) or checkbox (multiple) */
   choiceMode?: 'radio' | 'checkbox';
@@ -62,6 +68,7 @@ export function transformMatch(
   const rows = extractRows(matchInteraction, correctAnswers);
 
   const modelId = uuid();
+  const scoring = deriveItemScoring(document);
 
   const pieItem: PieItem = {
     id: itemId,
@@ -75,7 +82,7 @@ export function transformMatch(
           element: '@pie-element/match',
           prompt: prompt || '',
           lockChoiceOrder: shuffle === 'false',
-          partialScoring: options?.partialScoring ?? false,
+          partialScoring: options?.partialScoring ?? scoring.partialScoring,
           choiceMode: options?.choiceMode || 'radio',
           layout: headers.length - 1, // Exclude first empty header
           headers,
@@ -91,6 +98,7 @@ export function transformMatch(
         title: itemId,
         itemType: 'MA',
         source: 'qti22',
+        ...(scoring.weight !== undefined && { maxScore: scoring.weight }),
       },
     },
   };
@@ -107,30 +115,23 @@ function extractCorrectAnswers(
   responseIdentifier: string
 ): Map<string, string> {
   const correctAnswers = new Map<string, string>();
-  const responseDeclarations = document.getElementsByTagName('responseDeclaration');
-
-  let responseDeclaration: HTMLElement | null = null;
-  for (const rd of Array.from(responseDeclarations)) {
-    if (rd.getAttribute('identifier') === responseIdentifier) {
-      responseDeclaration = rd;
-      break;
-    }
-  }
+  const responseDeclaration = findResponseDeclaration(document, responseIdentifier);
 
   if (!responseDeclaration) {
     return correctAnswers;
   }
 
-  const correctResponse = responseDeclaration.getElementsByTagName('correctResponse')[0];
-  if (!correctResponse) {
-    return correctAnswers;
-  }
+  const declared = readCorrectResponseValues(responseDeclaration);
 
-  const values = correctResponse.getElementsByTagName('value');
-  for (const value of Array.from(values)) {
-    const text = value.textContent?.trim() || '';
-    // QTI format: "stemId optionId" (space-separated)
-    const [stemId, optionId] = text.split(/\s+/);
+  // An item scored via map_response need not declare a correctResponse at all.
+  // Fall back to the mapping only when the declared key produced nothing, and
+  // only for strictly positive mappedValues — a zero-scoring mapEntry is a
+  // distractor pair, not an answer.
+  const pairs = declared.length > 0 ? declared : (readMapping(responseDeclaration)?.positiveKeys ?? []);
+
+  for (const pair of pairs) {
+    // QTI format: "stemId optionId" (space-separated directed pair)
+    const [stemId, optionId] = pair.split(/\s+/);
     if (stemId && optionId) {
       correctAnswers.set(stemId, optionId);
     }

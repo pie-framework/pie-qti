@@ -19,11 +19,17 @@ import { parse } from 'node-html-parser';
 import { v4 as uuid } from 'uuid';
 import { cleanTransformHtml } from '../utils/prompt-extraction.js';
 import { createMissingElementError, createMissingInteractionError } from '../utils/qti-errors.js';
+import {
+  deriveItemScoring,
+  findResponseDeclaration,
+  readCorrectResponseValues,
+  readMapping,
+} from '../utils/response-scoring.js';
 
 export interface AssociateToCategorizeOptions {
   /** Whether to shuffle choices */
   lockChoiceOrder?: boolean;
-  /** Whether to allow partial scoring */
+  /** Overrides the partial scoring derived from the QTI source. */
   partialScoring?: boolean;
   /** Number of columns for categories */
   categoriesPerRow?: number;
@@ -93,6 +99,7 @@ export function transformAssociateToCategorize(
 
   // Build categorize model
   const modelId = uuid();
+  const scoring = deriveItemScoring(document);
 
   const pieItem: PieItem = {
     id: itemId,
@@ -107,7 +114,7 @@ export function transformAssociateToCategorize(
           prompt: prompt || '',
           promptEnabled: true,
           lockChoiceOrder: options?.lockChoiceOrder ?? false,
-          partialScoring: options?.partialScoring ?? false,
+          partialScoring: options?.partialScoring ?? scoring.partialScoring,
           categoriesPerRow: options?.categoriesPerRow ?? 2,
           choicesPosition: options?.choicesPosition || 'above',
           choicesLabel: 'Choices',
@@ -132,6 +139,7 @@ export function transformAssociateToCategorize(
         title: itemId,
         itemType: 'CAT',
         source: 'qti22',
+        ...(scoring.weight !== undefined && { maxScore: scoring.weight }),
       },
       transformationNotes: [
         'Transformed from associateInteraction (any-to-any pairing) to categorize (grouping)',
@@ -161,24 +169,28 @@ function extractPrompt(interaction: HTMLElement): string | null {
  */
 function extractCorrectPairs(document: HTMLElement, responseIdentifier: string): Pair[] {
   const pairs: Pair[] = [];
-  const responseDeclarations = document.getElementsByTagName('responseDeclaration');
+  const responseDeclaration = findResponseDeclaration(document, responseIdentifier);
 
-  for (const rd of Array.from(responseDeclarations)) {
-    if (rd.getAttribute('identifier') === responseIdentifier) {
-      const values = rd.getElementsByTagName('value');
+  if (!responseDeclaration) {
+    return pairs;
+  }
 
-      for (const value of Array.from(values)) {
-        const text = value.textContent?.trim();
-        if (!text) continue;
+  const declared = readCorrectResponseValues(responseDeclaration);
 
-        const parts = text.split(/\s+/);
-        if (parts.length >= 2) {
-          pairs.push({
-            item1: parts[0],
-            item2: parts[1],
-          });
-        }
-      }
+  // An item scored via map_response need not declare a correctResponse at all.
+  // Fall back to the mapping only when the declared key produced nothing, and
+  // only for strictly positive mappedValues — a zero-scoring mapEntry is a
+  // distractor pair, not an answer, and inferring a category from one would
+  // invent a category out of a wrong answer.
+  const values = declared.length > 0 ? declared : (readMapping(responseDeclaration)?.positiveKeys ?? []);
+
+  for (const value of values) {
+    const parts = value.split(/\s+/);
+    if (parts.length >= 2) {
+      pairs.push({
+        item1: parts[0],
+        item2: parts[1],
+      });
     }
   }
 

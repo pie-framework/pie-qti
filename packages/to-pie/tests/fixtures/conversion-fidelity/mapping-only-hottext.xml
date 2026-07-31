@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- hottextInteraction keyed only by mapping, two positive entries. -->
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/qti/qtiv2p2/imsqti_v2p2.xsd"
+                identifier="cf-mapping-only-hottext-001"
+                title="Mapping-only hottext"
+                adaptive="false"
+                timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="identifier">
+    <mapping defaultValue="0">
+      <mapEntry mapKey="H2" mappedValue="1"/>
+      <mapEntry mapKey="H4" mappedValue="1"/>
+    </mapping>
+  </responseDeclaration>
+  <itemBody>
+    <p>Select the verbs.</p>
+    <hottextInteraction responseIdentifier="RESPONSE" maxChoices="2">
+      <p>The <hottext identifier="H1">cat</hottext> <hottext identifier="H2">sat</hottext> on the <hottext identifier="H3">mat</hottext> and <hottext identifier="H4">slept</hottext>.</p>
+    </hottextInteraction>
+  </itemBody>
+</assessmentItem>

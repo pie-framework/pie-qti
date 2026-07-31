@@ -11,9 +11,10 @@ import { parse } from 'node-html-parser';
 import { v4 as uuid } from 'uuid';
 import { extractPromptForInteraction } from '../utils/prompt-extraction.js';
 import { createMissingElementError, createMissingInteractionError } from '../utils/qti-errors.js';
+import { deriveItemScoring, readMapping } from '../utils/response-scoring.js';
 
 export interface DragInTheBlankOptions {
-  /** Whether to enable partial scoring by default */
+  /** Overrides the partial scoring derived from the QTI source. */
   partialScoring?: boolean;
   /** Whether to lock choice order (disable shuffle) */
   lockChoiceOrder?: boolean;
@@ -86,6 +87,7 @@ export function transformDragInTheBlank(
   const rationale = options?.rationale || extractRationale(document);
 
   const modelId = uuid();
+  const scoring = deriveItemScoring(document);
 
   const pieItem: PieItem = {
     id: itemId,
@@ -101,7 +103,7 @@ export function transformDragInTheBlank(
           rationale,
           duplicates,
           lockChoiceOrder,
-          partialScoring: options?.partialScoring ?? false,
+          partialScoring: options?.partialScoring ?? scoring.partialScoring,
           choicesPosition: options?.choicesPosition || 'below',
           markup,
           choices,
@@ -117,6 +119,7 @@ export function transformDragInTheBlank(
         title: itemId,
         itemType: 'DITB',
         source: 'qti22',
+        ...(scoring.weight !== undefined && { maxScore: scoring.weight }),
       },
     },
   };
@@ -251,15 +254,12 @@ function extractCorrectResponse(
     }
   }
 
-  // If no correct responses found, try mapEntry elements
+  // An item scored via map_response need not declare a correctResponse at all.
+  // Fall back to the mapping only when the declared key produced nothing, and
+  // only for strictly positive mappedValues — a mapEntry scoring zero is a
+  // distractor pair, not an answer.
   if (Object.keys(correctResponse).length === 0) {
-    const mapEntries = responseDeclaration.getElementsByTagName('mapEntry');
-    for (const mapEntry of Array.from(mapEntries)) {
-      // Skip negative scores (incorrect responses)
-      const mappedValue = parseFloat(mapEntry.getAttribute('mappedValue') || '0');
-      if (mappedValue < 0) continue;
-
-      const mapKey = mapEntry.getAttribute('mapKey') || '';
+    for (const mapKey of readMapping(responseDeclaration)?.positiveKeys ?? []) {
       const [choiceId, gapId] = mapKey.split(/\s+/);
       if (choiceId && gapId) {
         const responseKey = responseMap.get(gapId);

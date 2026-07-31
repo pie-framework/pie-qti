@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- textEntryInteraction keyed only by mapping; a positive-mappedValue mapKey IS an accepted answer string. -->
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/qti/qtiv2p2/imsqti_v2p2.xsd"
+                identifier="cf-mapping-only-text-entry-001"
+                title="Mapping-only text entry"
+                adaptive="false"
+                timeDependent="false">
+  <responseDeclaration identifier="RESPONSE_1" cardinality="single" baseType="string">
+    <mapping defaultValue="0">
+      <mapEntry mapKey="Paris" mappedValue="1"/>
+      <mapEntry mapKey="paris" mappedValue="1"/>
+    </mapping>
+  </responseDeclaration>
+  <responseDeclaration identifier="RESPONSE_2" cardinality="single" baseType="string">
+    <mapping defaultValue="0">
+      <mapEntry mapKey="London" mappedValue="1"/>
+    </mapping>
+  </responseDeclaration>
+  <itemBody>
+    <p>The capital of France is <textEntryInteraction responseIdentifier="RESPONSE_1" expectedLength="20"/> and the capital of the UK is <textEntryInteraction responseIdentifier="RESPONSE_2" expectedLength="20"/>.</p>
+  </itemBody>
+</assessmentItem>

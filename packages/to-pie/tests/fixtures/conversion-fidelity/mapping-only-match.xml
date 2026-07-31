@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- matchInteraction keyed only by mapping; mapKey holds a directed pair. -->
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/qti/qtiv2p2/imsqti_v2p2.xsd"
+                identifier="cf-mapping-only-match-001"
+                title="Mapping-only match"
+                adaptive="false"
+                timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="directedPair">
+    <mapping defaultValue="0">
+      <mapEntry mapKey="dog mammal" mappedValue="1"/>
+      <mapEntry mapKey="salmon fish" mappedValue="1"/>
+    </mapping>
+  </responseDeclaration>
+  <itemBody>
+    <p>Match each animal to its category.</p>
+    <matchInteraction responseIdentifier="RESPONSE" shuffle="false">
+      <simpleMatchSet>
+        <simpleAssociableChoice identifier="dog" matchMax="1">Dog</simpleAssociableChoice>
+        <simpleAssociableChoice identifier="salmon" matchMax="1">Salmon</simpleAssociableChoice>
+      </simpleMatchSet>
+      <simpleMatchSet>
+        <simpleAssociableChoice identifier="mammal" matchMax="1">Mammal</simpleAssociableChoice>
+        <simpleAssociableChoice identifier="fish" matchMax="1">Fish</simpleAssociableChoice>
+      </simpleMatchSet>
+    </matchInteraction>
+  </itemBody>
+</assessmentItem>

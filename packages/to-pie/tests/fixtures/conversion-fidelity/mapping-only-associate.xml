@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- associateInteraction keyed only by mapping. The sign check matters doubly here: a category is inferred from each pair, so a zero-scoring entry would invent a category out of a wrong answer. -->
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/qti/qtiv2p2/imsqti_v2p2.xsd"
+                identifier="cf-mapping-only-associate-001"
+                title="Mapping-only associate"
+                adaptive="false"
+                timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="directedPair">
+    <mapping defaultValue="0">
+      <mapEntry mapKey="apple fruit" mappedValue="1"/>
+      <mapEntry mapKey="carrot vegetable" mappedValue="1"/>
+    </mapping>
+  </responseDeclaration>
+  <itemBody>
+    <p>Pair each food with its group.</p>
+    <associateInteraction responseIdentifier="RESPONSE" shuffle="false" maxAssociations="2">
+      <simpleAssociableChoice identifier="apple" matchMax="1">Apple</simpleAssociableChoice>
+      <simpleAssociableChoice identifier="carrot" matchMax="1">Carrot</simpleAssociableChoice>
+      <simpleAssociableChoice identifier="fruit" matchMax="1">Fruit</simpleAssociableChoice>
+      <simpleAssociableChoice identifier="vegetable" matchMax="1">Vegetable</simpleAssociableChoice>
+    </associateInteraction>
+  </itemBody>
+</assessmentItem>

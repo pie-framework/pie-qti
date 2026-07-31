@@ -419,6 +419,63 @@ describe('Round-Trip: PIE → QTI → PIE', () => {
     expect(reconstructedPie.config.models[0].correctResponse).toBeDefined();
   });
 
+  test('multiple-choice: choicesLayout is carried back to choiceInteraction/@orientation', async () => {
+    const layoutPie: PieItem = {
+      id: 'mc-layout-1',
+      uuid: '223e4567-e89b-12d3-a456-426614174000',
+      config: {
+        id: '223e4567-e89b-12d3-a456-426614174000',
+        models: [
+          {
+            id: '1',
+            element: '@pie-element/multiple-choice',
+            prompt: 'Pick one',
+            choiceMode: 'radio',
+            choicesLayout: 'horizontal',
+            choices: [
+              { label: 'Yes', value: 'a', correct: true },
+              { label: 'No', value: 'b', correct: false },
+            ],
+          },
+        ],
+        elements: { '@pie-element/multiple-choice': '1.0.0' },
+      },
+    };
+
+    const qtiResult = await pieToQti.transform({ content: layoutPie }, { logger });
+    const qtiXml = qtiResult.items[0].content as string;
+
+    expect(qtiXml).toContain('orientation="horizontal"');
+  });
+
+  test('multiple-choice: an absent choicesLayout emits no orientation attribute', async () => {
+    const noLayoutPie: PieItem = {
+      id: 'mc-no-layout-1',
+      uuid: '323e4567-e89b-12d3-a456-426614174000',
+      config: {
+        id: '323e4567-e89b-12d3-a456-426614174000',
+        models: [
+          {
+            id: '1',
+            element: '@pie-element/multiple-choice',
+            prompt: 'Pick one',
+            choiceMode: 'radio',
+            choices: [
+              { label: 'Yes', value: 'a', correct: true },
+              { label: 'No', value: 'b', correct: false },
+            ],
+          },
+        ],
+        elements: { '@pie-element/multiple-choice': '1.0.0' },
+      },
+    };
+
+    const qtiResult = await pieToQti.transform({ content: noLayoutPie }, { logger });
+    const qtiXml = qtiResult.items[0].content as string;
+
+    expect(qtiXml).not.toContain('orientation=');
+  });
+
   test('canHandle detects PIE items correctly', async () => {
     const pieItem: PieItem = {
       id: 'test',
