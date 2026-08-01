@@ -21,7 +21,7 @@
   },
   "license": "MIT",
   "dependencies": {
-    "katex": "^0.16.27"
+    "katex": "^0.18.1"
   },
   "devDependencies": {
     "linkedom": "^0.18.12",
