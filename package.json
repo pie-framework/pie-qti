@@ -76,7 +76,7 @@
     "check:publish-side-effects": "bun ./scripts/check-publish-side-effects.mjs"
   },
   "devDependencies": {
-    "@arethetypeswrong/cli": "^0.18.2",
+    "@arethetypeswrong/cli": "^0.18.5",
     "@biomejs/biome": "^2.5.6",
     "@changesets/cli": "^2.31.1",
     "@dotenvx/dotenvx": "^1.56.0",
