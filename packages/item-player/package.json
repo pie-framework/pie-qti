@@ -31,7 +31,7 @@
 		"@pie-qti/ims-cp-core": "workspace:*",
 		"@pie-qti/qti-common": "workspace:*",
 		"@pie-qti/qti-processing": "workspace:*",
-		"mathlive": "^0.108.2",
+		"mathlive": "^0.110.0",
 		"node-html-parser": "^7.0.2"
 	},
 	"devDependencies": {
