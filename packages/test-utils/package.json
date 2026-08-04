@@ -21,7 +21,7 @@
     "@pie-qti/storage": "workspace:*",
     "@pie-qti/transform-core": "workspace:*",
     "@pie-qti/transform-types": "workspace:*",
-    "node-html-parser": "^7.0.1"
+    "node-html-parser": "^9.0.1"
   },
   "devDependencies": {
     "@types/bun": "^1.3.14",

@@ -32,7 +32,7 @@
 		"@pie-qti/qti-common": "workspace:*",
 		"@pie-qti/qti-processing": "workspace:*",
 		"mathlive": "^0.110.0",
-		"node-html-parser": "^7.0.2"
+		"node-html-parser": "^9.0.1"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.5.6",

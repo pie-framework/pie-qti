@@ -36,7 +36,7 @@
     "@pie-qti/qti-common": "workspace:*",
     "@pie-qti/qti-processing": "workspace:*",
     "@pie-qti/section-player": "workspace:*",
-    "node-html-parser": "^7.0.2"
+    "node-html-parser": "^9.0.1"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.6",
