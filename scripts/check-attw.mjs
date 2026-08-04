@@ -1,7 +1,16 @@
 #!/usr/bin/env node
 
-import { execSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import {
+	closeSync,
+	existsSync,
+	mkdtempSync,
+	openSync,
+	readdirSync,
+	readFileSync,
+	rmSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 
 const ROOT = process.cwd();
@@ -36,38 +45,105 @@ const getWorkspaceDirs = () => {
 	return [...dirs].filter((dir) => existsSync(path.join(dir, "package.json")));
 };
 
-const runCommand = (cmd, dir) => {
+// Always run the ATTW pinned in the root devDependencies. A bare `bunx attw`
+// falls back to fetching the npm package literally named `attw`, which is a
+// dependency-confusion placeholder rather than the real CLI; when that happens
+// its banner lands on stdout and gets misread as a type-resolution report.
+const ATTW_BIN = path.join(ROOT, "node_modules", ".bin", "attw");
+const ATTW_BASE_ARGS = ["--pack", "--ignore-rules", "cjs-resolves-to-esm"];
+
+// ATTW exits non-zero whenever it reports anything, and a piped stdout is
+// capped at the 64KiB pipe buffer on that path, which silently truncates the
+// JSON report for larger packages. Redirect stdout to a file so the report is
+// always captured in full regardless of size.
+const runCommand = (args, dir) => {
+	const tmpDir = mkdtempSync(path.join(tmpdir(), "check-attw-"));
+	const outPath = path.join(tmpDir, "attw.out");
+	const outFd = openSync(outPath, "w");
+
+	let failed = false;
+	let stderr = "";
+	let spawnMessage = "";
+
 	try {
-		const stdout = execSync(cmd, {
-			cwd: dir,
-			stdio: "pipe",
-			encoding: "utf8",
-			maxBuffer: 256 * 1024 * 1024,
-		});
-		return { failed: false, stdout };
+		execFileSync(ATTW_BIN, args, { cwd: dir, stdio: ["ignore", outFd, "pipe"] });
 	} catch (error) {
-		const stdout = error.stdout?.toString?.() ?? "";
-		if (!stdout.trim()) {
-			const stderr = error.stderr?.toString?.() ?? "";
-			throw new Error([stderr, error.message].filter(Boolean).join("\n"));
-		}
-		return { failed: true, stdout };
+		failed = true;
+		stderr = error.stderr?.toString?.() ?? "";
+		spawnMessage = error.message ?? "";
+	} finally {
+		closeSync(outFd);
 	}
+
+	const stdout = readFileSync(outPath, "utf8");
+	rmSync(tmpDir, { recursive: true, force: true });
+
+	if (failed && !stdout.trim()) {
+		throw new Error([stderr, spawnMessage].filter(Boolean).join("\n"));
+	}
+
+	return { failed, stdout };
 };
 
 const runAttw = (dir) =>
-	runCommand(
-		"bunx attw --pack --ignore-rules cjs-resolves-to-esm --format json -- .",
-		dir,
-	);
+	runCommand([...ATTW_BASE_ARGS, "--format", "json", "--", "."], dir);
 
-const runAttwText = (dir) =>
-	runCommand("bunx attw --pack --ignore-rules cjs-resolves-to-esm -- .", dir);
+const runAttwText = (dir) => runCommand([...ATTW_BASE_ARGS, "--", "."], dir);
+
+const isCssEntrypoint = (entrypoint) =>
+	entrypoint.endsWith(".css") || entrypoint.endsWith("/css");
+
+// Wide rendering: a bordered grid with one row per entrypoint and one column
+// per resolution mode. A cell is only considered clean when it is blank or
+// carries the 🟢 marker, so unrecognised diagnostics stay actionable.
+const parseTableFailures = (lines) => {
+	let columns = null;
+	const failures = [];
+
+	for (const rawLine of lines) {
+		const line = rawLine.trim();
+		if (!line.startsWith("│")) continue;
+
+		const cells = line
+			.split("│")
+			.slice(1, -1)
+			.map((cell) => cell.trim());
+		if (cells.length < 2) continue;
+
+		if (columns === null) {
+			if (cells.some((cell) => cell.startsWith("node10"))) columns = cells;
+			continue;
+		}
+
+		const entrypoint = cells[0].replace(/^"|"$/g, "");
+		if (!entrypoint) continue;
+
+		for (let index = 1; index < cells.length; index += 1) {
+			const cell = cells[index];
+			if (!cell || cell.includes("🟢")) continue;
+			failures.push({ entrypoint, column: columns[index] ?? `column${index}` });
+		}
+	}
+
+	return { columns, failures };
+};
 
 const isSuppressedTextReport = (stdout) => {
+	const lines = stdout.split(/\r?\n/);
+
+	const table = parseTableFailures(lines);
+	if (table.columns) {
+		if (table.failures.length === 0) return false;
+		return table.failures.every(
+			({ entrypoint, column }) =>
+				column.startsWith("node10") || isCssEntrypoint(entrypoint),
+		);
+	}
+
+	// Narrow rendering: a quoted entrypoint followed by "<mode>: <status>" lines.
 	let entrypoint = "";
 	const failedRows = [];
-	for (const rawLine of stdout.split(/\r?\n/)) {
+	for (const rawLine of lines) {
 		const line = rawLine.trim();
 		if (line.startsWith('"') && line.endsWith('"')) {
 			entrypoint = line.slice(1, -1);
@@ -85,30 +161,51 @@ const isSuppressedTextReport = (stdout) => {
 
 	return failedRows.every(({ entrypoint, line }) => {
 		if (line.startsWith("node10:") && line.includes("Resolution failed")) return true;
-		return entrypoint.endsWith(".css") || entrypoint.endsWith("/css");
+		return isCssEntrypoint(entrypoint);
 	});
 };
 
-const parseAttwReport = ({ stdout }, packageName, dir) => {
+// ATTW's JSON report is the authoritative source, but stdout occasionally
+// carries extra framing around it, so recover the outermost JSON object rather
+// than assuming stdout is nothing but JSON.
+const extractJsonReport = (stdout) => {
+	const start = stdout.indexOf("{");
+	const end = stdout.lastIndexOf("}");
+	if (start === -1 || end <= start) return null;
 	try {
-		return JSON.parse(stdout);
-	} catch (error) {
-		const textReport = runAttwText(dir);
-		if (textReport.failed) {
-			if (isSuppressedTextReport(textReport.stdout)) {
-				console.warn(
-					`[check-attw] ${packageName}: ATTW JSON report was malformed; text-mode ATTW reported only suppressed node10 resolution failures.`,
-				);
-				return { problems: {} };
-			}
-			throw new Error(textReport.stdout || error.message);
-		}
-
-		console.warn(
-			`[check-attw] ${packageName}: ATTW JSON report was malformed; text-mode ATTW exited cleanly, treating that as authoritative.`,
-		);
-		return { problems: {} };
+		return JSON.parse(stdout.slice(start, end + 1));
+	} catch {
+		return null;
 	}
+};
+
+const describeStdout = (stdout) => {
+	const firstLine = stdout.split(/\r?\n/).find((line) => line.trim()) ?? "";
+	return `${stdout.length} byte(s), first line: ${firstLine.trim().slice(0, 200) || "<empty>"}`;
+};
+
+const parseAttwReport = ({ stdout }, packageName, dir) => {
+	const report = extractJsonReport(stdout);
+	if (report) return report;
+
+	const reason = `ATTW JSON report was unparseable (${describeStdout(stdout)})`;
+	console.warn(`[check-attw] ${packageName}: ${reason}; retrying in text mode.`);
+
+	const textReport = runAttwText(dir);
+	if (textReport.failed) {
+		if (isSuppressedTextReport(textReport.stdout)) {
+			console.warn(
+				`[check-attw] ${packageName}: text-mode ATTW reported only suppressed node10 resolution failures.`,
+			);
+			return { problems: {} };
+		}
+		throw new Error(textReport.stdout || reason);
+	}
+
+	console.warn(
+		`[check-attw] ${packageName}: text-mode ATTW exited cleanly, treating that as authoritative.`,
+	);
+	return { problems: {} };
 };
 
 const flattenProblems = (problemsByKind) => {
@@ -150,6 +247,13 @@ const shouldSuppressProblem = (problem, packageName) => {
 };
 
 const run = () => {
+	if (!existsSync(ATTW_BIN)) {
+		console.error(
+			`[check-attw] Missing ${path.relative(ROOT, ATTW_BIN)}. Run 'bun install' so the pinned @arethetypeswrong/cli devDependency is available.`,
+		);
+		process.exit(1);
+	}
+
 	const packageDirs = getWorkspaceDirs();
 	const failures = [];
 	let checked = 0;
