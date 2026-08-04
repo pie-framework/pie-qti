@@ -1,5 +1,12 @@
 # @pie-qti/source-profiles
 
+## 0.1.17
+
+### Patch Changes
+
+- Updated dependencies [9b1e118]
+  - @pie-qti/transform-types@0.1.17
+
 ## 0.1.16
 
 ### Patch Changes

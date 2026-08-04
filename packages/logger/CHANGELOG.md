@@ -1,5 +1,7 @@
 # @pie-qti/logger
 
+## 0.1.17
+
 ## 0.1.16
 
 ### Patch Changes
