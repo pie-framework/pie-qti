@@ -1,5 +1,13 @@
 # @pie-qti/app-docs
 
+## 0.1.17
+
+### Patch Changes
+
+- Updated dependencies [76311bb]
+  - @pie-qti/item-player@0.1.17
+  - @pie-qti/assessment-player@0.1.17
+
 ## 0.1.16
 
 ### Patch Changes

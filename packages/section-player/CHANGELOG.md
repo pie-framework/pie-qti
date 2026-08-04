@@ -1,5 +1,17 @@
 # @pie-qti/section-player
 
+## 0.1.17
+
+### Patch Changes
+
+- Updated dependencies [9b1e118]
+- Updated dependencies [76311bb]
+  - @pie-qti/default-components@0.1.17
+  - @pie-qti/i18n@0.1.17
+  - @pie-qti/item-player@0.1.17
+  - @pie-qti/ims-cp-core@0.1.17
+  - @pie-qti/qti-common@0.1.17
+
 ## 0.1.16
 
 ### Patch Changes
