@@ -1,9 +1,9 @@
 ---
-'@pie-qti/transform-core': minor
-'@pie-qti/to-pie': minor
-'@pie-qti/item-player': minor
-'@pie-qti/test-utils': minor
-'@pie-qti/demo-vendor-extensions': minor
+'@pie-qti/transform-core': patch
+'@pie-qti/to-pie': patch
+'@pie-qti/item-player': patch
+'@pie-qti/test-utils': patch
+'@pie-qti/demo-vendor-extensions': patch
 '@pie-qti/assessment-player': patch
 '@pie-qti/ims-cp-core': patch
 '@pie-qti/pie-to-qti2': patch
@@ -18,24 +18,22 @@ Update the third-party runtime dependencies that ship to consumers.
 `transform-core`, `to-pie`, `item-player`, `test-utils`, `demo-vendor-extensions`,
 `assessment-player`, `ims-cp-core`, `pie-to-qti2` and `transform-cli`.
 
-Five of those packages name the dependency in their published type declarations rather
-than wrapping it — `transform-core`, `to-pie`, `item-player`, `test-utils` and
-`demo-vendor-extensions` all emit `import type { HTMLElement } from 'node-html-parser'`
-into their `.d.ts`. Because the parser's own types are part of our public surface there,
-crossing three majors is a type-surface change for consumers and not an internal detail,
-so those packages take a `minor`.
+Worth knowing if you resolve `node-html-parser` yourself: five of those packages name it in
+their published type declarations rather than wrapping it — `transform-core`, `to-pie`,
+`item-player`, `test-utils` and `demo-vendor-extensions` all emit
+`import type { HTMLElement } from 'node-html-parser'` into their `.d.ts`, so the parser's
+own types are part of their public surface and this jump crosses three majors.
 
-If you resolve `node-html-parser` yourself and exchange parsed elements with these
-packages, move to `9.x`. Pinning an older major leaves two copies of `HTMLElement` in the
-type graph, and structurally incompatible ones will not assign to each other. Consumers
-that only pass QTI strings in and take converted output back out are unaffected.
+If you exchange parsed elements with those packages, move to `9.x`. Pinning an older major
+leaves two copies of `HTMLElement` in the type graph, and structurally incompatible ones
+will not assign to each other. Consumers that only pass QTI strings in and take converted
+output back out are unaffected.
 
 **`katex` moves from `^0.16.27` to `^0.18.1`** in `typeset-katex`, **`mathlive` from
 `^0.108.2` to `^0.110.0`** in `item-player` and `default-components`, and
 **`@tiptap/core` from `^3.15.3` to `^3.29.2`** in `default-components`. None of these
-appear in published declarations, so they carry no type-surface change and take a
-`patch`. Applications that load their own copy of KaTeX or MathLive alongside ours should
-still check the pairing, since both ship stylesheets and fonts.
+appear in published declarations. Applications that load their own copy of KaTeX or
+MathLive alongside ours should still check the pairing, since both ship stylesheets and
+fonts.
 
-All publishable packages release as one fixed-version set, so the whole set moves to the
-highest bump declared here.
+All publishable packages release as one fixed-version set, so the whole set moves together.
