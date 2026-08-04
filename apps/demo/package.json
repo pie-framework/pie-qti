@@ -38,7 +38,7 @@
     "@tiptap/extension-code-block": "^3.18.0",
     "@tiptap/extension-code-block-lowlight": "^3.18.0",
     "@tiptap/extension-document": "^3.18.0",
-    "@tiptap/extension-history": "^3.18.0",
+    "@tiptap/extension-history": "^3.29.2",
     "@tiptap/extension-text": "^3.18.0",
     "@tiptap/pm": "^3.18.0",
     "highlight.js": "^11.11.1",
