@@ -94,6 +94,32 @@ async function ensureDir(p: string) {
   await mkdir(p, { recursive: true });
 }
 
+/**
+ * ZIP stores entry paths with `/` as the separator (APPNOTE 4.4.17.1), but some
+ * Windows producers emit `\` instead. On POSIX `path.join` does not treat `\` as a
+ * separator, so `items\q1.xml` extracts to a *single file whose name contains a
+ * backslash* rather than to `items/q1.xml`.
+ *
+ * That silently breaks every href lookup: `@pie-qti/ims-cp-core` canonicalizes `\`
+ * to `/` before resolving (`normalizePackagePath`), so it asks for `items/q1.xml`,
+ * which is not what landed on disk — and the backslash form does not resolve either,
+ * because the same normalization rewrites it. Such a package extracts "successfully"
+ * with every resource unresolvable.
+ *
+ * Normalizing here makes the bytes on disk match the paths the resolver asks for,
+ * and matches what Info-ZIP's `unzip` does with the same archives. A `\` in an entry
+ * name is therefore read as a separator, not as a literal filename character — which
+ * is the spec reading, since `\` is neither a legal separator nor portable in a name.
+ *
+ * Applied *before* the traversal checks so they see the canonical form: `..\..\etc`
+ * becomes `../../etc` and still trips the `..` check, and `\etc` becomes `/etc` and
+ * still trips the absolute-path check. On Windows this is a no-op in effect, since
+ * `path.join` accepts `/` there too.
+ */
+function normalizeZipEntrySeparators(entryPath: string) {
+  return entryPath.replaceAll('\\', '/');
+}
+
 function isUnsafeZipEntryPath(entryPath: string) {
   // Basic traversal checks.
   if (!entryPath) return true;
@@ -249,7 +275,7 @@ export async function extractZipToDirSafe(
   let totalSize = 0;
 
   for (const file of directory.files) {
-    const entryPath = file.path;
+    const entryPath = normalizeZipEntrySeparators(file.path);
     if (isUnsafeZipEntryPath(entryPath)) continue;
 
     const outPath = path.join(targetDir, entryPath);

@@ -2,6 +2,8 @@
 
 This monorepo mirrors the [pie-players](https://github.com/pie-framework/pie-players) style of **npm-realistic** checks before release. CI aligns the Bun version with the root [`package.json`](../../package.json) `packageManager` field (via `bun-version-file` in GitHub Actions).
 
+For how a release authenticates to npm — and why a newly added package needs a trusted-publisher record claimed before its first release — see [trusted-publishing.md](./trusted-publishing.md).
+
 ## Commands
 
 | Command | Purpose |

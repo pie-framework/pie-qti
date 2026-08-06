@@ -90,6 +90,103 @@ async function createSamplePackage(): Promise<string> {
 }
 
 describe('ims-cp-node', () => {
+	// Real publisher deliveries (Windows-produced) store entry paths with `\`, which
+	// ZIP does not permit as a separator. Extracted literally on POSIX they become
+	// filenames containing a backslash, and since ims-cp-core canonicalizes `\` to `/`
+	// before resolving, every href in such a package silently fails to resolve.
+	test('extractZipToDirSafe treats a backslash entry path as a separator', async () => {
+		const root = await mkdtemp(path.join(tmpdir(), 'ims-cp-backslash-'));
+		const zipPath = path.join(root, 'package.zip');
+		const target = path.join(root, 'out');
+		await writeFile(
+			zipPath,
+			createZip({
+				'imsmanifest.xml': '<manifest/>',
+				'items\\q1.xml': '<assessmentItem/>',
+				'images\\pic.png': 'binary-ish',
+			}),
+		);
+
+		try {
+			const result = await extractZipToDirSafe(zipPath, target);
+			expect(result.fileCount).toBe(3);
+
+			// Real directories, not filenames with a backslash in them.
+			expect((await stat(path.join(target, 'items'))).isDirectory()).toBe(true);
+			expect(await readFile(path.join(target, 'items', 'q1.xml'), 'utf8')).toBe(
+				'<assessmentItem/>',
+			);
+			expect(await readFile(path.join(target, 'images', 'pic.png'), 'utf8')).toBe('binary-ish');
+
+			// The literal-backslash name must not also exist.
+			expect(existsSync(path.join(target, 'items\\q1.xml'))).toBe(false);
+		} finally {
+			await rm(root, { recursive: true, force: true });
+		}
+	});
+
+	// The normalization runs before the traversal checks, so it must not become a way
+	// to smuggle `..` past them using the other separator.
+	test('extractZipToDirSafe still rejects traversal written with backslashes', async () => {
+		const root = await mkdtemp(path.join(tmpdir(), 'ims-cp-backslash-escape-'));
+		const zipPath = path.join(root, 'package.zip');
+		const target = path.join(root, 'out');
+		const outside = path.join(root, 'outside.txt');
+		await writeFile(
+			zipPath,
+			createZip({
+				'good.txt': 'kept',
+				'..\\..\\outside.txt': 'hacked',
+				'\\absolute.txt': 'hacked',
+			}),
+		);
+
+		try {
+			const result = await extractZipToDirSafe(zipPath, target);
+			// Both unsafe entries are skipped; the safe one still extracts.
+			expect(result.fileCount).toBe(1);
+			expect(await readFile(path.join(target, 'good.txt'), 'utf8')).toBe('kept');
+			expect(existsSync(outside)).toBe(false);
+			expect(existsSync(path.join(target, 'absolute.txt'))).toBe(false);
+		} finally {
+			await rm(root, { recursive: true, force: true });
+		}
+	});
+
+	// The end-to-end property that matters: a backslash package resolves by href.
+	test('loadResolvedManifest resolves hrefs in a backslash-separator package', async () => {
+		const root = await mkdtemp(path.join(tmpdir(), 'ims-cp-backslash-manifest-'));
+		const zipPath = path.join(root, 'package.zip');
+		await writeFile(
+			zipPath,
+			createZip({
+				'imsmanifest.xml': `<?xml version="1.0" encoding="UTF-8"?>
+<manifest xmlns="http://www.imsglobal.org/xsd/imscp_v1p1" identifier="MANIFEST-BS">
+  <organizations/>
+  <resources>
+    <resource identifier="ITEM-1" type="imsqti_item_xmlv2p1" href="items/q1.xml">
+      <file href="items/q1.xml"/>
+    </resource>
+  </resources>
+</manifest>`,
+				'items\\q1.xml': '<assessmentItem identifier="q1"/>',
+			}),
+		);
+
+		const pkg = await openContentPackage(zipPath, { tmpRootDir: root });
+		try {
+			const resolved = await loadResolvedManifest(pkg.packageRoot);
+			expect(resolved.items.length).toBe(1);
+			expect(resolved.items[0].hrefResolved).toBe('items/q1.xml');
+			expect(await readFile(path.join(pkg.packageRoot, 'items', 'q1.xml'), 'utf8')).toBe(
+				'<assessmentItem identifier="q1"/>',
+			);
+		} finally {
+			await pkg.close();
+			await rm(root, { recursive: true, force: true });
+		}
+	});
+
 	test('loadResolvedManifest resolves resource hrefs relative to manifest location', async () => {
 		const root = await createSamplePackage();
 
