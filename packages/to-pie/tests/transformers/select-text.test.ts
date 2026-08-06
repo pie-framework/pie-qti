@@ -377,3 +377,149 @@ describe('transformSelectText', () => {
     expect(fourthToken!.correct).toBe(false);
   });
 });
+
+interface OffsetToken {
+  text: string;
+  start: number;
+  end: number;
+  correct?: boolean;
+}
+
+/**
+ * Build a model from an exact `hottextInteraction` body.
+ *
+ * The body is interpolated verbatim, with no added indentation, because these tests are
+ * about which string the token offsets index — a helper that normalized the passage for us
+ * would remove the very thing under test.
+ */
+function selectTextModel(interactionBody: string, correctValue = 'T2') {
+  const qtiXml = createQtiWrapper(
+    `${createResponseDeclaration('RESPONSE', 'multiple', [correctValue])}
+      <itemBody>
+        <hottextInteraction responseIdentifier="RESPONSE" maxChoices="1">${interactionBody}</hottextInteraction>
+      </itemBody>`,
+    'ht-1'
+  );
+
+  const model = transformSelectText(qtiXml, 'ht-1').config.models[0];
+  return model as unknown as { text: string; tokens: OffsetToken[] };
+}
+
+/**
+ * PIE's select-text model requires `start`/`end` and its controller scores by comparing them
+ * alone (`pie-elements` - `packages/select-text/controller/src/index.js`), so an offset that
+ * does not index the emitted `text` is a wrong answer key, not a cosmetic slip. The element's
+ * view currently masks bad offsets by re-resolving tokens with a string search — a separate
+ * defect in `pie-elements` — so the conversion must not lean on that forgiveness.
+ */
+describe('transformSelectText token offsets', () => {
+  /**
+   * The invariant is asserted across every shape rather than a few chosen ones, because the
+   * regression this guards was invisible on the obvious example: a `<prompt>` used to get the
+   * passage trimmed before offsets were measured, so a prompt-bearing probe passed while
+   * prompt-less items were broken. Any shape whose normalization moves the passage has to
+   * appear here, not in a comment.
+   */
+  test.each([
+    [
+      'no prompt, leading newline + indent',
+      '\n      <p>The <hottext identifier="T2">cat</hottext> sat.</p>\n    ',
+    ],
+    [
+      'prompt present',
+      '\n      <prompt>Pick one.</prompt>\n      <p>The <hottext identifier="T2">cat</hottext> sat.</p>\n    ',
+    ],
+    ['no surrounding whitespace at all', '<p>The <hottext identifier="T2">cat</hottext> sat.</p>'],
+    [
+      'leading text before any markup',
+      '\n  Bare text. <hottext identifier="T2">cat</hottext> tail.\n  ',
+    ],
+    ['token first, at position 0', '<hottext identifier="T2">cat</hottext> sat on the mat.'],
+    ['token last, at end of passage', '<p>It sat: <hottext identifier="T2">cat</hottext></p>'],
+    [
+      'duplicate token text, earlier plain-text twin',
+      '\n      <p>The cat is old. The <hottext identifier="T2">cat</hottext> is new.</p>\n    ',
+    ],
+    [
+      'duplicate token text, later plain-text twin',
+      '\n      <p>The <hottext identifier="T2">cat</hottext> is new. The cat is old.</p>\n    ',
+    ],
+    [
+      'entity before the token',
+      '\n      <p>Salt &amp; pepper, then <hottext identifier="T2">cat</hottext>.</p>\n    ',
+    ],
+    [
+      'nested markup inside the token',
+      '\n      <p>A <hottext identifier="T2"><em>cat</em></hottext> sat.</p>\n    ',
+    ],
+    [
+      'self-closed empty hottext before the token',
+      '\n      <p><hottext identifier="T0"/>A <hottext identifier="T2">cat</hottext> sat.</p>\n    ',
+    ],
+    ['single-quoted identifier', "\n      <p>A <hottext identifier='T2'>cat</hottext> sat.</p>\n    "],
+    [
+      'attribute value containing a bare >',
+      '\n      <p>A <hottext identifier="T2" title="a>b">cat</hottext> sat.</p>\n    ',
+    ],
+    [
+      'several tokens, some repeating',
+      '\n      <p>A <hottext identifier="T1">red</hottext> hat, a <hottext identifier="T2">red</hottext> ball, a <hottext identifier="T3">blue</hottext> hat.</p>\n    ',
+    ],
+  ])('offsets index the emitted text: %s', (_label, body) => {
+    const { text, tokens } = selectTextModel(body);
+
+    expect(tokens.length).toBeGreaterThan(0);
+    for (const token of tokens) {
+      expect(text.slice(token.start, token.end)).toBe(token.text);
+    }
+    // No leftover hottext markup, and offsets stay ordered and non-overlapping.
+    expect(text).not.toContain('<hottext');
+    expect(text).not.toContain('</hottext>');
+    for (const [index, token] of tokens.entries()) {
+      if (index > 0) expect(token.start).toBeGreaterThanOrEqual(tokens[index - 1]!.end);
+    }
+  });
+
+  test('a duplicated token resolves to its own occurrence, not the first', () => {
+    const { text, tokens } = selectTextModel(`
+      <p>The cat is old. The <hottext identifier="T2">cat</hottext> is new.</p>
+    `);
+
+    expect(text).toBe('<p>The cat is old. The cat is new.</p>');
+    expect(tokens).toHaveLength(1);
+    expect(tokens[0]!.start).toBe(text.lastIndexOf('cat'));
+  });
+
+  test('a hottext with no identifier does not inherit the next tag identifier', () => {
+    // Regression: the identifier was read from the whole remaining string, so an
+    // identifier-less tag picked up its neighbour's and was marked correct.
+    const { tokens } = selectTextModel(
+      `<p><hottext>alpha</hottext> and <hottext identifier="T2">beta</hottext></p>`
+    );
+
+    expect(tokens.map((token) => [token.text, token.correct])).toEqual([
+      ['alpha', false],
+      ['beta', true],
+    ]);
+  });
+
+  test('a single-quoted identifier is still matched', () => {
+    // Regression: only `identifier="` was recognised, so a single-quoted tag was never
+    // unwrapped — the raw markup stayed in the passage and no token was emitted.
+    const { text, tokens } = selectTextModel("<p>A <hottext identifier='T2'>cat</hottext> sat.</p>");
+
+    expect(text).toBe('<p>A cat sat.</p>');
+    expect(tokens.map((token) => [token.text, token.correct])).toEqual([['cat', true]]);
+  });
+
+  test('an attribute value containing > does not truncate the tag', () => {
+    // Regression: the tag was ended at the first `>`, mid-attribute, corrupting the passage
+    // with the attribute remainder as literal text.
+    const { text, tokens } = selectTextModel(
+      '<p>A <hottext identifier="T2" title="a>b">cat</hottext> sat.</p>'
+    );
+
+    expect(text).toBe('<p>A cat sat.</p>');
+    expect(tokens.map((token) => token.text)).toEqual(['cat']);
+  });
+});

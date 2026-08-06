@@ -125,6 +125,68 @@ describe('QTI stylesheet runtime rendering helpers', () => {
 		expect(buildScopedStylesheetCss(deliveryContext)).toBe('');
 	});
 
+	test('keeps the @media condition instead of hoisting its rules', () => {
+		// The previous regex could not match an at-rule as a unit, so the inner
+		// rules matched alone and were emitted without the condition — a
+		// print-only rule then applied on screen too.
+		const scoped = scopeCssRules(
+			'@media print { .term { color: black; } }',
+			'[data-qti-item-body-scope="item-a"]'
+		);
+
+		expect(scoped).toContain('@media print {');
+		expect(scoped).toContain('[data-qti-item-body-scope="item-a"] .term { color: black; }');
+		expect(scoped).not.toContain('[data-qti-item-body-scope="item-a"] @media');
+	});
+
+	test('keeps the @supports condition and scopes nested at-rules', () => {
+		const scoped = scopeCssRules(
+			'@supports (display: grid) { @media screen { .term { display: grid; } } }',
+			'[data-qti-item-body-scope="item-a"]'
+		);
+
+		expect(scoped).toContain('@supports (display: grid) {');
+		expect(scoped).toContain('@media screen {');
+		expect(scoped).toContain('[data-qti-item-body-scope="item-a"] .term { display: grid; }');
+	});
+
+	test('leaves @keyframes name and percentage selectors intact', () => {
+		const scoped = scopeCssRules(
+			'@keyframes term-fade { 0% { opacity: 0; } 100% { opacity: 1; } }',
+			'[data-qti-item-body-scope="item-a"]'
+		);
+
+		expect(scoped).toContain('@keyframes term-fade {');
+		expect(scoped).toContain('0% { opacity: 0; }');
+		expect(scoped).not.toContain('[data-qti-item-body-scope="item-a"] 0%');
+		expect(scoped).not.toContain('[data-qti-item-body-scope="item-a"] @keyframes');
+	});
+
+	test('scopes a leading pseudo as a descendant rather than onto the item body', () => {
+		// `:is(.a, .b) .c` means "some element matching .a or .b". Attaching it to
+		// the scope would require the item body itself to carry the authored
+		// class, which it never does.
+		const scoped = scopeCssRules(':is(.a, .b) .c { color: red; }', '[data-qti-item-body-scope="item-a"]');
+
+		expect(scoped).toContain('[data-qti-item-body-scope="item-a"] :is(.a, .b) .c { color: red; }');
+	});
+
+	test('does not split a selector list inside :is() or end a block inside a string', () => {
+		expect(scopeCssRules('.a { content: "{"; color: red; }', '[scope]')).toContain(
+			'[scope] .a { content: "{"; color: red; }'
+		);
+		// Stripping the comment leaves whitespace behind. A run of whitespace is
+		// one descendant combinator, so the selector is unchanged in meaning.
+		expect(scopeCssRules('.a /* note */ .b { color: red; }', '[scope]').replace(/\s+/g, ' ')).toContain(
+			'[scope] .a .b'
+		);
+	});
+
+	test('preserves a root selector compound when replacing it', () => {
+		expect(scopeCssRules('html.dark .term { color: red; }', '[scope]')).toContain('[scope].dark .term');
+		expect(scopeCssRules('body > .term { color: red; }', '[scope]')).toContain('[scope] > .term');
+	});
+
 	test('drops CSS image-set external loads at render time', () => {
 		const deliveryContext: ResolvedItemDeliveryContext = {
 			itemHref: 'items/item.xml',
