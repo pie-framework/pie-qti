@@ -1,5 +1,11 @@
 # @pie-qti/ims-cp-browser
 
+## 0.1.18
+
+### Patch Changes
+
+- @pie-qti/ims-cp-core@0.1.18
+
 ## 0.1.17
 
 ### Patch Changes
