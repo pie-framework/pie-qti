@@ -153,6 +153,36 @@ function hasBlockedSvgResourceUrl(value: string): boolean {
 	return blocked || !foundUrl || /url\(/i.test(remainder);
 }
 
+/** Whether an element sits inside an `<svg>` subtree, where SMIL animation applies. */
+function isInsideSvg(element: HTMLElement): boolean {
+	let ancestor = element.parentNode as HTMLElement | null;
+	while (ancestor) {
+		if ((ancestor as any).rawTagName?.toLowerCase() === 'svg') {
+			return true;
+		}
+		ancestor = ancestor.parentNode as HTMLElement | null;
+	}
+	return false;
+}
+
+/** Drop an element from the tree while keeping its sanitized child content. */
+function unwrapElement(
+	element: HTMLElement,
+	options: SanitizeHtmlOptions | undefined,
+	limitsState: { enabled: boolean; nodes: number; maxNodes: number; maxDepth: number },
+	depth: number
+): void {
+	const children = [...element.childNodes];
+	for (const child of children) {
+		if ((child as any).rawTagName) {
+			sanitizeElement(child as HTMLElement, options, limitsState, depth + 1);
+		}
+	}
+	// Re-read childNodes because sanitization may have removed or replaced
+	// entries from the original snapshot.
+	element.replaceWith(...element.childNodes);
+}
+
 /**
  * Recursively sanitize an HTML element and its children
  */
@@ -181,8 +211,16 @@ function sanitizeElement(
 		element.remove();
 		return;
 	}
+	// The SMIL vocabulary only animates inside an `<svg>` subtree, so that is where
+	// the removal policy applies. The same tag names in item HTML are inert unknown
+	// elements — `<set>` reaches real content as a wrapper in ExamView-style QTI 2.1
+	// exports — and removing them there destroys readable stem text for no gain.
 	if (tagName && ACTIVE_SVG_ELEMENTS.has(tagName)) {
-		element.remove();
+		if (isInsideSvg(element)) {
+			element.remove();
+			return;
+		}
+		unwrapElement(element, options, limitsState, depth);
 		return;
 	}
 
@@ -210,15 +248,7 @@ function sanitizeElement(
 	// `qti-*` lifecycle hook. Other hyphenated elements are unwrapped while their
 	// already-sanitized readable child content is preserved.
 	if (tagName?.includes('-') && !isKnownQti3Element(tagName)) {
-		const children = [...element.childNodes];
-		for (const child of children) {
-			if ((child as any).rawTagName) {
-				sanitizeElement(child as HTMLElement, options, limitsState, depth + 1);
-			}
-		}
-		// Re-read childNodes because sanitization may have removed or replaced
-		// entries from the original snapshot.
-		element.replaceWith(...element.childNodes);
+		unwrapElement(element, options, limitsState, depth);
 		return;
 	}
 
