@@ -1,5 +1,19 @@
 # @pie-qti/assessment-player
 
+## 0.1.19
+
+### Patch Changes
+
+- Updated dependencies [ffe996d]
+  - @pie-qti/item-player@0.1.19
+  - @pie-qti/default-components@0.1.19
+  - @pie-qti/section-player@0.1.19
+  - @pie-qti/assessment-toolkit@0.1.19
+  - @pie-qti/i18n@0.1.19
+  - @pie-qti/ims-cp-core@0.1.19
+  - @pie-qti/qti-common@0.1.19
+  - @pie-qti/qti-processing@0.1.19
+
 ## 0.1.18
 
 ### Patch Changes
