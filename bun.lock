@@ -347,7 +347,7 @@
         "@pie-players/pie-calculator-desmos": "^0.3.53",
         "@pie-players/pie-context": "^0.3.53",
         "@pie-players/pie-tool-calculator-desmos": "^0.3.53",
-        "@pie-players/pie-tool-tts-inline": "^0.3.53",
+        "@pie-players/pie-tool-tts-inline": "^0.3.63",
         "@pie-players/tts-client-server": "^0.3.53",
         "@pie-qti/default-components": "workspace:*",
         "@pie-qti/i18n": "workspace:*",
@@ -778,23 +778,23 @@
 
     "@oxc-project/types": ["@oxc-project/types@0.127.0", "", {}, "sha512-aIYXQBo4lCbO4z0R3FHeucQHpF46l2LbMdxRvqvuRuW2OxdnSkcng5B8+K12spgLDj93rtN3+J2Vac/TIO+ciQ=="],
 
-    "@pie-lib/math-rendering-module": ["@pie-lib/math-rendering-module@5.0.0", "", {}, "sha512-4gVC+N4RO16Qko3IoTOgrBREIaqMOS/jcx3hPB4bGY62DDUVunzHbZNut5g83bT8dHPZU1yjYsbNbY1vK3+juw=="],
+    "@pie-lib/math-rendering-module": ["@pie-lib/math-rendering-module@5.1.0", "", {}, "sha512-oCfuZsoqrUJYY7vboAKslazSxhNK+ad7eTurtIUkV4be1rHH0Iqoss4pmDCKxdDR8ku+Du/vA8BWYNAUA2nwmw=="],
 
-    "@pie-players/pie-assessment-toolkit": ["@pie-players/pie-assessment-toolkit@0.3.53", "", { "dependencies": { "@pie-players/pie-calculator": "0.3.53", "@pie-players/pie-context": "0.3.53", "@pie-players/pie-players-shared": "0.3.53", "@pie-players/pie-tts": "0.3.53", "speech-rule-engine": "^5.0.0-rc.1" }, "peerDependencies": { "@pie-players/pie-calculator-desmos": "0.3.53", "@pie-players/tts-client-server": "0.3.53" }, "optionalPeers": ["@pie-players/pie-calculator-desmos", "@pie-players/tts-client-server"] }, "sha512-DIFJnNFA+X75ByDEE+FghkJHU0NaGCsNwJptZGS01QkBYsXFEf6NjuPZzw2XX3qaHnNghCX8I2q+al3/0tsX1Q=="],
+    "@pie-players/pie-assessment-toolkit": ["@pie-players/pie-assessment-toolkit@0.3.63", "", { "dependencies": { "@pie-players/pie-calculator": "0.3.63", "@pie-players/pie-context": "0.3.63", "@pie-players/pie-players-shared": "0.3.63", "@pie-players/pie-tts": "0.3.63", "speech-rule-engine": "^5.0.0-rc.4" }, "peerDependencies": { "@pie-players/pie-calculator-desmos": "0.3.63", "@pie-players/tts-client-server": "0.3.63" }, "optionalPeers": ["@pie-players/pie-calculator-desmos", "@pie-players/tts-client-server"] }, "sha512-+19AZTw7yI7bk4BRPLx6X2TcKf33X2ZROResBAvJ94Y7dOgYdwRrbET0IRRRzXhJowYmWiQNojzdWoOo3tRqfQ=="],
 
-    "@pie-players/pie-calculator": ["@pie-players/pie-calculator@0.3.53", "", {}, "sha512-OHhbdUtOL79Wv9tbCOZgLtGl+7LTIekh6GmeMgXxpXtStNjgDdniGJkpclfBjAt31CJP5sEp/m2bqYxWfo2KtQ=="],
+    "@pie-players/pie-calculator": ["@pie-players/pie-calculator@0.3.63", "", {}, "sha512-C6o6lobc8BMWpGWcEw/vcANokhoG6noBaTC+gWOfEGDYW+KqT7d8tP7boQgQgZHzOwWrNj+ejxpT3jq9fGGJ9Q=="],
 
     "@pie-players/pie-calculator-desmos": ["@pie-players/pie-calculator-desmos@0.3.53", "", { "dependencies": { "@pie-players/pie-calculator": "0.3.53" } }, "sha512-LAnDhV81I/++mTXVAtl7cjlwPmXf5VUEGK8e24VEzZ7WHS0xyYH/gAZXZf/3QoC3qUrilPA1DV+2pkrp3hWnmw=="],
 
-    "@pie-players/pie-context": ["@pie-players/pie-context@0.3.53", "", {}, "sha512-aBGbMBtE+ljQG+s+W/divDcq3JjlxjfWgWcYMBzbpoo/O8MakZdmomegOkNnnrdAvWTSBkqX9yFnU9BBzNVeMg=="],
+    "@pie-players/pie-context": ["@pie-players/pie-context@0.3.63", "", {}, "sha512-Sk6IZgaNwsOcet5cFwCDe2XCYL8GzFJ57IG+iBSkVnXCCMAMtG6qyVPyql4Lh6djrKN7FfkvV5hjYsxEsbIrRw=="],
 
-    "@pie-players/pie-players-shared": ["@pie-players/pie-players-shared@0.3.53", "", { "dependencies": { "@pie-lib/math-rendering-module": "5.0.0", "dompurify": "^3.4.0", "semver": "^7.7.4" } }, "sha512-+kawkqatbNHF1Fkp1a9Zx+jSTWx4WOFZYj+DxQgtjliak9EjKgzg0SS7ocwQ4CRl7yXQu/T55K1CZBHffVtccA=="],
+    "@pie-players/pie-players-shared": ["@pie-players/pie-players-shared@0.3.63", "", { "dependencies": { "@pie-lib/math-rendering-module": "5.1.0", "dompurify": "^3.4.0", "semver": "^7.8.5" } }, "sha512-Qt+bjc6nDiy1sTWxQ0Bz3Y6N9DhwJXirvdjQSKqsqz2Q5dqeWBoI6O+hhY20AUnV1KSM9UpJPYeKHNqDRh7VVA=="],
 
     "@pie-players/pie-tool-calculator-desmos": ["@pie-players/pie-tool-calculator-desmos@0.3.53", "", { "dependencies": { "@pie-players/pie-assessment-toolkit": "0.3.53", "@pie-players/pie-context": "0.3.53", "@pie-players/pie-players-shared": "0.3.53" } }, "sha512-raLyK/O1zZr3ae+WOW3NqJ2hr+sPr5WdPxvYaNkHNDvh+SCnr6XJ7EwDQBhTJmchvJ6GQzIT5br96d0ZCV4Cvw=="],
 
-    "@pie-players/pie-tool-tts-inline": ["@pie-players/pie-tool-tts-inline@0.3.53", "", { "dependencies": { "@pie-players/pie-assessment-toolkit": "0.3.53", "@pie-players/pie-context": "0.3.53" } }, "sha512-KArvjrsI1yLQIn336S2BZiQYoLx7RWCfJAWnxZdkOdYThurSHL5YSKCtE+wEC4uZgI0BVMOpcxhdfyhVkejcVw=="],
+    "@pie-players/pie-tool-tts-inline": ["@pie-players/pie-tool-tts-inline@0.3.63", "", { "dependencies": { "@pie-players/pie-assessment-toolkit": "0.3.63", "@pie-players/pie-context": "0.3.63", "@pie-players/pie-players-shared": "0.3.63" } }, "sha512-QMvsnNqnerKAssFiffTmmtZ3PJGe3r84KFHZCxpx7LmZOJBuhKGBlU7GWjhC7wv7U7efw8JmUGxWB13UtQjzLQ=="],
 
-    "@pie-players/pie-tts": ["@pie-players/pie-tts@0.3.53", "", {}, "sha512-nzO21J6/ZGs4pES2wzaStpVZb+SA3PjQTaqYxVC9cXd1Ttbkz0IXzgsa8ZwnmtkNklGJHu5kfYX0OeXWODFQCw=="],
+    "@pie-players/pie-tts": ["@pie-players/pie-tts@0.3.63", "", {}, "sha512-WDvx50zigOyVkc7SYpsY7k5pYIkM7609KZ3lrORiS4GxQlS847nRq7Lf2HGcpFPs0ej/G0hGJbea67zpafuqrw=="],
 
     "@pie-players/tts-client-server": ["@pie-players/tts-client-server@0.3.53", "", { "dependencies": { "@pie-players/pie-tts": "0.3.53" } }, "sha512-k3a4OKfO8fUzto1Y+5h5wttN+t9HIvGlq4pDwesviIf56v7SPeQOjJDXCNQUlXdAaycFWeQszQzdl09gcufW3Q=="],
 
@@ -1866,7 +1866,7 @@
 
     "spdx-license-ids": ["spdx-license-ids@3.0.22", "", {}, "sha512-4PRT4nh1EImPbt2jASOKHX7PB7I+e4IWNLvkKFDxNhJlfjbYlleYQh285Z/3mPTHSAK/AvdMmw5BNNuYH8ShgQ=="],
 
-    "speech-rule-engine": ["speech-rule-engine@5.0.0-rc.3", "", { "dependencies": { "@xmldom/xmldom": "^0.9.10", "commander": "^14.0.3", "wicked-good-xpath": "^1.3.0" }, "bin": { "sre": "bin/sre" } }, "sha512-w8RXP1lZkGzOW6x299g0PzCjjaDCVRvO0CGtpUz788Y5KHqu7tJYEnY5p5MSY/pUBdhWYJshzKX0XJdGZYaxlQ=="],
+    "speech-rule-engine": ["speech-rule-engine@5.0.0-rc.4", "", { "dependencies": { "@xmldom/xmldom": "^0.9.10", "commander": "^14.0.3", "wicked-good-xpath": "^1.3.0" }, "bin": { "sre": "bin/sre" } }, "sha512-3dFcH2QtQNhtvUUc09TxoaEK4WG03B9Z57krFG9jocrKykKGu35BhIkWr0vgEAxZZomEWkeluff69y/EbYzP4Q=="],
 
     "sprintf-js": ["sprintf-js@1.0.3", "", {}, "sha512-D9cPgkvLlV3t3IzL0D0YLvGA9Ahk4PcvVwUbN0dSGr1aP0Nrt4AEnTUbuGvquEC0mA64Gqt1fzirlRs5ibXx8g=="],
 
@@ -2104,7 +2104,17 @@
 
     "@oclif/core/tinyglobby": ["tinyglobby@0.2.17", "", { "dependencies": { "fdir": "^6.5.0", "picomatch": "^4.0.4" } }, "sha512-wXR/dYpcqKmfWpEdZjiKJOwCNFndD0DMnrW/cYjVGttEkBfVgcLFHoNrlj47mjOVic9yyNu65alsgF4NQyTa2g=="],
 
-    "@pie-players/pie-players-shared/semver": ["semver@7.7.4", "", { "bin": { "semver": "bin/semver.js" } }, "sha512-vFKC2IEtQnVhpT78h1Yp8wzwrf8CM+MzKMHGJZfBtzhZNycRFnXsHk6E5TxIkkMsgNS7mdX3AGB7x2QM2di4lA=="],
+    "@pie-players/pie-calculator-desmos/@pie-players/pie-calculator": ["@pie-players/pie-calculator@0.3.53", "", {}, "sha512-OHhbdUtOL79Wv9tbCOZgLtGl+7LTIekh6GmeMgXxpXtStNjgDdniGJkpclfBjAt31CJP5sEp/m2bqYxWfo2KtQ=="],
+
+    "@pie-players/pie-players-shared/semver": ["semver@7.8.5", "", { "bin": { "semver": "bin/semver.js" } }, "sha512-Y7/KDsb8LjooZpwaqGyulO6DQlksgCncchHGk+sZIY4SBvUocMBEFH5Ur1fI4dV+Jvl0w6cjvucaIi40puRioA=="],
+
+    "@pie-players/pie-tool-calculator-desmos/@pie-players/pie-assessment-toolkit": ["@pie-players/pie-assessment-toolkit@0.3.53", "", { "dependencies": { "@pie-players/pie-calculator": "0.3.53", "@pie-players/pie-context": "0.3.53", "@pie-players/pie-players-shared": "0.3.53", "@pie-players/pie-tts": "0.3.53", "speech-rule-engine": "^5.0.0-rc.1" }, "peerDependencies": { "@pie-players/pie-calculator-desmos": "0.3.53", "@pie-players/tts-client-server": "0.3.53" }, "optionalPeers": ["@pie-players/pie-calculator-desmos", "@pie-players/tts-client-server"] }, "sha512-DIFJnNFA+X75ByDEE+FghkJHU0NaGCsNwJptZGS01QkBYsXFEf6NjuPZzw2XX3qaHnNghCX8I2q+al3/0tsX1Q=="],
+
+    "@pie-players/pie-tool-calculator-desmos/@pie-players/pie-context": ["@pie-players/pie-context@0.3.53", "", {}, "sha512-aBGbMBtE+ljQG+s+W/divDcq3JjlxjfWgWcYMBzbpoo/O8MakZdmomegOkNnnrdAvWTSBkqX9yFnU9BBzNVeMg=="],
+
+    "@pie-players/pie-tool-calculator-desmos/@pie-players/pie-players-shared": ["@pie-players/pie-players-shared@0.3.53", "", { "dependencies": { "@pie-lib/math-rendering-module": "5.0.0", "dompurify": "^3.4.0", "semver": "^7.7.4" } }, "sha512-+kawkqatbNHF1Fkp1a9Zx+jSTWx4WOFZYj+DxQgtjliak9EjKgzg0SS7ocwQ4CRl7yXQu/T55K1CZBHffVtccA=="],
+
+    "@pie-players/tts-client-server/@pie-players/pie-tts": ["@pie-players/pie-tts@0.3.53", "", {}, "sha512-nzO21J6/ZGs4pES2wzaStpVZb+SA3PjQTaqYxVC9cXd1Ttbkz0IXzgsa8ZwnmtkNklGJHu5kfYX0OeXWODFQCw=="],
 
     "@pnpm/network.ca-file/graceful-fs": ["graceful-fs@4.2.10", "", {}, "sha512-9ByhssR2fPVsNZj478qUUbKfmL0+t5BDVyjShtyZZLiK7ZDAArFFfopyOTj0M05wE2tJPisA4iTnnXl2YoPvOA=="],
 
@@ -2278,6 +2288,16 @@
 
     "@oclif/core/tinyglobby/picomatch": ["picomatch@4.0.4", "", {}, "sha512-QP88BAKvMam/3NxH6vj2o21R6MjxZUAd6nlwAS/pnGvN9IVLocLHxGYIzFhg6fUQ+5th6P4dv4eW9jX3DSIj7A=="],
 
+    "@pie-players/pie-tool-calculator-desmos/@pie-players/pie-assessment-toolkit/@pie-players/pie-calculator": ["@pie-players/pie-calculator@0.3.53", "", {}, "sha512-OHhbdUtOL79Wv9tbCOZgLtGl+7LTIekh6GmeMgXxpXtStNjgDdniGJkpclfBjAt31CJP5sEp/m2bqYxWfo2KtQ=="],
+
+    "@pie-players/pie-tool-calculator-desmos/@pie-players/pie-assessment-toolkit/@pie-players/pie-tts": ["@pie-players/pie-tts@0.3.53", "", {}, "sha512-nzO21J6/ZGs4pES2wzaStpVZb+SA3PjQTaqYxVC9cXd1Ttbkz0IXzgsa8ZwnmtkNklGJHu5kfYX0OeXWODFQCw=="],
+
+    "@pie-players/pie-tool-calculator-desmos/@pie-players/pie-assessment-toolkit/speech-rule-engine": ["speech-rule-engine@5.0.0-rc.3", "", { "dependencies": { "@xmldom/xmldom": "^0.9.10", "commander": "^14.0.3", "wicked-good-xpath": "^1.3.0" }, "bin": { "sre": "bin/sre" } }, "sha512-w8RXP1lZkGzOW6x299g0PzCjjaDCVRvO0CGtpUz788Y5KHqu7tJYEnY5p5MSY/pUBdhWYJshzKX0XJdGZYaxlQ=="],
+
+    "@pie-players/pie-tool-calculator-desmos/@pie-players/pie-players-shared/@pie-lib/math-rendering-module": ["@pie-lib/math-rendering-module@5.0.0", "", {}, "sha512-4gVC+N4RO16Qko3IoTOgrBREIaqMOS/jcx3hPB4bGY62DDUVunzHbZNut5g83bT8dHPZU1yjYsbNbY1vK3+juw=="],
+
+    "@pie-players/pie-tool-calculator-desmos/@pie-players/pie-players-shared/semver": ["semver@7.7.4", "", { "bin": { "semver": "bin/semver.js" } }, "sha512-vFKC2IEtQnVhpT78h1Yp8wzwrf8CM+MzKMHGJZfBtzhZNycRFnXsHk6E5TxIkkMsgNS7mdX3AGB7x2QM2di4lA=="],
+
     "@rushstack/node-core-library/fs-extra/jsonfile": ["jsonfile@6.2.0", "", { "dependencies": { "universalify": "^2.0.0" }, "optionalDependencies": { "graceful-fs": "^4.1.6" } }, "sha512-FGuPw30AdOIUTRMC2OMRtQV+jkVj2cfPqSeWXv1NEAJ1qZ5zb1X6z1mFhbfOB/iy3ssJCD+3KuZ8r8C3uVFlAg=="],
 
     "@rushstack/node-core-library/fs-extra/universalify": ["universalify@2.0.1", "", {}, "sha512-gptHNQghINnc/vTGIk0SOFGFNXw7JVrlRUtConJRlvaw6DuX0wO5Jeko9sWrMBhh+PsYAZ7oXAiOnf/UKogyiw=="],
@@ -2319,6 +2339,10 @@
     "@inquirer/prompts/@inquirer/select/@inquirer/core/mute-stream": ["mute-stream@2.0.0", "", {}, "sha512-WWdIxpyjEn+FhQJQQv9aQAYlHoNVdzIzUySNV1gHUPDSdZJ3yZn7pAAbQcV7B56Mvu881q9FZV+0Vx2xC44VWA=="],
 
     "@inquirer/prompts/@inquirer/select/@inquirer/core/wrap-ansi": ["wrap-ansi@6.2.0", "", { "dependencies": { "ansi-styles": "^4.0.0", "string-width": "^4.1.0", "strip-ansi": "^6.0.0" } }, "sha512-r6lPcBGxZXlIcymEu7InxDMhdW0KDxpLgoFLcguasxCaJ/SOIZwINatK9KY/tf+ZrlywOKU0UDj3ATXUBfxJXA=="],
+
+    "@pie-players/pie-tool-calculator-desmos/@pie-players/pie-assessment-toolkit/speech-rule-engine/@xmldom/xmldom": ["@xmldom/xmldom@0.9.10", "", {}, "sha512-A9gOqLdi6cV4ibazAjcQufGj0B1y/vDqYrcuP6d/6x8P27gRS8643Dj9o1dEKtB6O7fwxb2FgBmJS2mX7gpvdw=="],
+
+    "@pie-players/pie-tool-calculator-desmos/@pie-players/pie-assessment-toolkit/speech-rule-engine/commander": ["commander@14.0.3", "", {}, "sha512-H+y0Jo/T1RZ9qPP4Eh1pkcQcLRglraJaSLoyOtHxu6AapkjWVCy2Sit1QQ4x3Dng8qDlSsZEet7g5Pq06MvTgw=="],
 
     "@vue/language-core/minimatch/brace-expansion/balanced-match": ["balanced-match@1.0.2", "", {}, "sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw=="],
 
