@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/pie-to-qti2",
-  "version": "0.1.16",
+  "version": "0.1.19",
   "description": "PIE to QTI 2.2 transformation plugin",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -34,8 +34,8 @@
   "dependencies": {
     "@pie-qti/transform-core": "workspace:*",
     "@pie-qti/transform-types": "workspace:*",
-    "node-html-parser": "^6.1.13",
-    "uuid": "^11.1.1",
+    "node-html-parser": "^9.0.1",
+    "uuid": "^14.0.1",
     "xml-formatter": "^3.6.4"
   },
   "devDependencies": {

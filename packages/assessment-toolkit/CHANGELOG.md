@@ -1,5 +1,27 @@
 # @pie-qti/assessment-toolkit
 
+## 0.1.19
+
+### Patch Changes
+
+- @pie-qti/section-player@0.1.19
+- @pie-qti/ims-cp-core@0.1.19
+
+## 0.1.18
+
+### Patch Changes
+
+- @pie-qti/section-player@0.1.18
+- @pie-qti/ims-cp-core@0.1.18
+
+## 0.1.17
+
+### Patch Changes
+
+- Updated dependencies [76311bb]
+  - @pie-qti/ims-cp-core@0.1.17
+  - @pie-qti/section-player@0.1.17
+
 ## 0.1.16
 
 ### Patch Changes

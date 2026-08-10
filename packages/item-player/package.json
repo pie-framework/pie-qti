@@ -1,6 +1,6 @@
 {
 	"name": "@pie-qti/item-player",
-	"version": "0.1.16",
+	"version": "0.1.19",
 	"description": "Modern QTI player supporting QTI 2.2 and 3.0 - Client-side with optional backend hooks",
 	"type": "module",
 	"main": "./dist/index.js",
@@ -31,14 +31,14 @@
 		"@pie-qti/ims-cp-core": "workspace:*",
 		"@pie-qti/qti-common": "workspace:*",
 		"@pie-qti/qti-processing": "workspace:*",
-		"mathlive": "^0.108.2",
-		"node-html-parser": "^7.0.2"
+		"mathlive": "^0.110.0",
+		"node-html-parser": "^9.0.1"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^2.4.8",
+		"@biomejs/biome": "^2.5.6",
 		"@sveltejs/vite-plugin-svelte": "^7.0.0",
-		"@types/node": "^25.0.3",
-		"svelte": "^5.54.0",
+		"@types/node": "^26.2.0",
+		"svelte": "^5.56.8",
 		"svelte-check": "^4.3.5",
 		"typescript": "^5.9.3",
 		"vite": "^8.0.10",

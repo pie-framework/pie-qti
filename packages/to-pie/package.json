@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/to-pie",
-  "version": "0.1.16",
+  "version": "0.1.19",
   "description": "QTI to PIE transformation plugin",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -38,8 +38,8 @@
     "@pie-qti/transform-core": "workspace:*",
     "@pie-qti/transform-types": "workspace:*",
     "image-size": "^2.0.2",
-    "node-html-parser": "^6.1.13",
-    "uuid": "^11.1.1"
+    "node-html-parser": "^9.0.1",
+    "uuid": "^14.0.1"
   },
   "devDependencies": {
     "@pie-qti/test-utils": "workspace:*",

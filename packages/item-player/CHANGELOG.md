@@ -1,5 +1,124 @@
 # @pie-qti/item-player
 
+## 0.1.19
+
+### Patch Changes
+
+- ffe996d: Scope SMIL element removal to `<svg>` subtrees, so item HTML using those tag names keeps its text.
+
+  `ACTIVE_SVG_ELEMENTS` — `animate`, `animateColor`, `animateMotion`, `animateTransform`,
+  `discard`, `set` — was matched by tag name anywhere in the document, and matches were removed
+  along with their children. The policy exists because SMIL can mutate `href` and other
+  URL-bearing attributes after the static attribute pass, which is only true inside SVG.
+
+  Outside an `<svg>` subtree these are inert unknown elements, and `<set>` reaches real content:
+  ExamView-style QTI 2.1 exports wrap parts of a question stem in `<set bf="">`. Removing it
+  discarded the wrapped text, truncating a stem mid-sentence — a myPerspectives item asking
+  "Which evidence from paragraph 1 of Selection 1 **best** supports the inference that the
+  narrator enjoys playing outdoors?" rendered as "Which evidence from paragraph 1 of Selection 1".
+
+  These elements are now unwrapped outside SVG, preserving their sanitized children, which is
+  what non-QTI hyphenated elements already did — both paths now share one helper. Inside an
+  `<svg>` subtree they are still removed outright, so a `<set attributeName="href">` animation
+  cannot survive.
+
+  - @pie-qti/i18n@0.1.19
+  - @pie-qti/ims-cp-core@0.1.19
+  - @pie-qti/qti-common@0.1.19
+  - @pie-qti/qti-processing@0.1.19
+
+## 0.1.18
+
+### Patch Changes
+
+- 2ebee31: Scope QTI stylesheets with an at-rule-aware walker, so `@media` conditions are no longer dropped.
+
+  `scopeCssRules` matched rules with `([^{}@]+)\{([^{}]*)\}`. Excluding `@` from the selector
+  pattern kept the scope from being glued onto an at-rule, but it did not make the walker
+  understand at-rules, and the failure that remained is worse than a visibly broken selector.
+
+  An `@media` block never matched as a unit, so its inner rules matched on their own and were
+  emitted **without the condition**. A `@media print` rule therefore applied on screen as well,
+  and a narrow-viewport rule applied at every width — valid CSS that silently renders in the
+  wrong places, which is harder to notice than a rule that fails outright. `@supports` behaved
+  the same way. `@keyframes spin { 0% { … } }` had its percentage selectors scoped into
+  `[scope] 0%` and lost the animation name, so the animation could not run, and `@font-face`
+  became `[scope] font-face`.
+
+  Scoping now walks the stylesheet brace-by-brace:
+
+  - `@media`, `@supports`, `@container`, `@layer` and `@scope` keep their prelude and have
+    their inner rules scoped, recursively.
+  - `@font-face`, `@keyframes` (including vendor-prefixed), `@page`, `@property` and
+    `@counter-style` pass through untouched, as do at-rules the walker does not recognise.
+  - Parsing is string- and paren-aware, so a `{` inside `content: "{"` does not end a block and
+    a `,` inside `:is(a, b)` does not split a selector list. Comment stripping is string-aware
+    too, so a literal `content: "/*"` survives where the previous regex strip corrupted it.
+  - Style-rule blocks are emitted verbatim, which is what native CSS nesting needs: nested
+    selectors are relative to a parent that has already been scoped.
+
+  `:root`, `html` and `body` are still replaced by the scope selector rather than prefixed, and
+  now preserve whatever followed them — `html.dark .a` becomes `[scope].dark .a` instead of
+  discarding the `.dark` compound.
+
+  One deliberate behaviour change beyond at-rules: **a leading pseudo is now scoped as a
+  descendant rather than attached.** `:is(.a, .b) .c` becomes `[scope] :is(.a, .b) .c`, not
+  `[scope]:is(.a, .b) .c`. The authored selector means "some element matching `.a` or `.b`", so
+  attaching it required the item body itself to carry the authored class, which it does not.
+  The same applies to `:hover` and `::selection`.
+
+  **This both adds and removes rendering.** At-rules have never applied correctly, so some
+  styles start applying — but `@media` rules that currently apply unconditionally will now
+  apply only behind their real condition, so styles that render today may stop. That is the
+  fix, and it is worth eyeballing against real content: a print stylesheet that appeared to
+  work on screen was never meant to.
+
+  Flat selector rules scope exactly as before, and `isBlockedStylesheetCss` still rejects any
+  stylesheet containing `url(` or `@import` before scoping runs, so `@font-face` with a real
+  `src` never reaches this path in practice.
+
+  - @pie-qti/i18n@0.1.18
+  - @pie-qti/ims-cp-core@0.1.18
+  - @pie-qti/qti-common@0.1.18
+  - @pie-qti/qti-processing@0.1.18
+
+## 0.1.17
+
+### Patch Changes
+
+- 76311bb: Update the third-party runtime dependencies that ship to consumers.
+
+  **`node-html-parser` moves from `^6.1.13`/`^7.0.x` to `^9.0.1`.** This affects
+  `transform-core`, `to-pie`, `item-player`, `test-utils`, `demo-vendor-extensions`,
+  `assessment-player`, `ims-cp-core`, `pie-to-qti2` and `transform-cli`.
+
+  Worth knowing if you resolve `node-html-parser` yourself: five of those packages name it in
+  their published type declarations rather than wrapping it — `transform-core`, `to-pie`,
+  `item-player`, `test-utils` and `demo-vendor-extensions` all emit
+  `import type { HTMLElement } from 'node-html-parser'` into their `.d.ts`, so the parser's
+  own types are part of their public surface and this jump crosses three majors.
+
+  If you exchange parsed elements with those packages, move to `9.x`. Pinning an older major
+  leaves two copies of `HTMLElement` in the type graph, and structurally incompatible ones
+  will not assign to each other. Consumers that only pass QTI strings in and take converted
+  output back out are unaffected.
+
+  **`katex` moves from `^0.16.27` to `^0.18.1`** in `typeset-katex`, **`mathlive` from
+  `^0.108.2` to `^0.110.0`** in `item-player` and `default-components`, and
+  **`@tiptap/core` from `^3.15.3` to `^3.29.2`** in `default-components`. None of these
+  appear in published declarations. Applications that load their own copy of KaTeX or
+  MathLive alongside ours should still check the pairing, since both ship stylesheets and
+  fonts.
+
+  All publishable packages release as one fixed-version set, so the whole set moves together.
+
+- Updated dependencies [9b1e118]
+- Updated dependencies [76311bb]
+  - @pie-qti/i18n@0.1.17
+  - @pie-qti/ims-cp-core@0.1.17
+  - @pie-qti/qti-common@0.1.17
+  - @pie-qti/qti-processing@0.1.17
+
 ## 0.1.16
 
 ### Patch Changes

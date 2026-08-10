@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/default-components",
-  "version": "0.1.16",
+  "version": "0.1.19",
   "description": "Default Svelte-based component implementations for QTI (2.x and 3.0) player",
   "type": "module",
   "main": "./dist/index.js",
@@ -30,18 +30,18 @@
     "@pie-qti/i18n": "workspace:*",
     "@pie-qti/item-player": "workspace:*",
     "@pie-qti/qti-common": "workspace:*",
-    "@tiptap/core": "^3.15.3",
+    "@tiptap/core": "^3.29.2",
     "@tiptap/extension-mathematics": "^3.15.3",
-    "@tiptap/extension-placeholder": "^3.15.3",
+    "@tiptap/extension-placeholder": "^3.29.2",
     "@tiptap/starter-kit": "^3.15.3",
-    "mathlive": "^0.108.2"
+    "mathlive": "^0.110.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.8",
+    "@biomejs/biome": "^2.5.6",
     "@sveltejs/vite-plugin-svelte": "7.0.0",
-    "@types/node": "^25.0.3",
+    "@types/node": "^26.2.0",
     "linkedom": "^0.18.12",
-    "svelte": "5.54.0",
+    "svelte": "5.56.8",
     "svelte-check": "^4.3.5",
     "typescript": "^5.9.3",
     "vite": "8.0.10"

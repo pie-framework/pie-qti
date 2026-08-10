@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/transform-core",
-  "version": "0.1.16",
+  "version": "0.1.19",
   "description": "Core transformation engine and plugin system for PIE Transform",
   "type": "module",
   "main": "./dist/index.js",
@@ -42,12 +42,12 @@
     "@pie-qti/element-schemas": "workspace:*",
     "@pie-qti/logger": "workspace:*",
     "@pie-qti/transform-types": "workspace:*",
-    "ajv": "^8.17.1",
-    "node-html-parser": "^6.1.13"
+    "ajv": "^8.20.0",
+    "node-html-parser": "^9.0.1"
   },
   "devDependencies": {
     "typescript": "^5.9.3",
-    "vitest": "^3.0.0"
+    "vitest": "^4.1.10"
   },
   "repository": {
     "type": "git",

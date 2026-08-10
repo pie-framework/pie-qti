@@ -1,5 +1,29 @@
 # @pie-qti/app-docs
 
+## 0.1.19
+
+### Patch Changes
+
+- Updated dependencies [ffe996d]
+  - @pie-qti/item-player@0.1.19
+  - @pie-qti/assessment-player@0.1.19
+
+## 0.1.18
+
+### Patch Changes
+
+- Updated dependencies [2ebee31]
+  - @pie-qti/item-player@0.1.18
+  - @pie-qti/assessment-player@0.1.18
+
+## 0.1.17
+
+### Patch Changes
+
+- Updated dependencies [76311bb]
+  - @pie-qti/item-player@0.1.17
+  - @pie-qti/assessment-player@0.1.17
+
 ## 0.1.16
 
 ### Patch Changes
