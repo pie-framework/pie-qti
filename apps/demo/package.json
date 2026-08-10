@@ -35,7 +35,7 @@
     "@pie-qti/typeset-katex": "workspace:*",
     "@pie-qti/web-component-loaders": "workspace:*",
     "@tiptap/core": "^3.29.2",
-    "@tiptap/extension-code-block": "^3.18.0",
+    "@tiptap/extension-code-block": "^3.29.2",
     "@tiptap/extension-code-block-lowlight": "^3.29.2",
     "@tiptap/extension-document": "^3.29.2",
     "@tiptap/extension-history": "^3.29.2",
