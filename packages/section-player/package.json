@@ -29,7 +29,7 @@
     "@pie-players/pie-context": "^0.3.53",
     "@pie-players/pie-tool-calculator-desmos": "^0.3.53",
     "@pie-players/pie-tool-tts-inline": "^0.3.63",
-    "@pie-players/tts-client-server": "^0.3.53",
+    "@pie-players/tts-client-server": "^0.3.63",
     "@pie-qti/default-components": "workspace:*",
     "@pie-qti/i18n": "workspace:*",
     "@pie-qti/ims-cp-core": "workspace:*",
