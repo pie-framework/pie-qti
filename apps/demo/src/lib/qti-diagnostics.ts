@@ -1,7 +1,5 @@
 import {
 	createAssessmentItemDefinition,
-	getStandardInteractionModule,
-	normalizeInteractionTypeFromTagName,
 	type ItemSession,
 } from '@pie-qti/item-player';
 import { detectQtiVersion, type QtiVersion } from '@pie-qti/qti-common';
@@ -104,13 +102,13 @@ export function analyzeQtiItemCompatibility(
 	const extractedTypeCounts = getExtractedInteractionCounts(diagnostic.session, issues);
 	const interactions = [...scannedInteractions.entries()]
 		.map(([type, count]) => {
-			const supported = getStandardInteractionModule(type) !== null;
+			const extractedCount = extractedTypeCounts.get(type) ?? 0;
 			const certificationRows = getCertificationRowsForInteraction(type);
 			return {
 				type,
 				count,
-				supported,
-				extractedCount: extractedTypeCounts.get(type) ?? 0,
+				supported: extractedCount > 0,
+				extractedCount,
 				certificationRows,
 			};
 		})
@@ -121,7 +119,7 @@ export function analyzeQtiItemCompatibility(
 			issues.push({
 				severity: 'warning',
 				title: `Unsupported interaction: ${formatInteractionType(interaction.type)}`,
-				detail: `${interaction.count} element${interaction.count === 1 ? '' : 's'} will not render with the standard component registry.`,
+				detail: `${interaction.count} element${interaction.count === 1 ? '' : 's'} did not produce a delivered interaction renderer.`,
 				code: interaction.type,
 			});
 		} else if (interaction.extractedCount < interaction.count) {
@@ -235,7 +233,7 @@ function parseXml(xml: string, issues: QtiDiagnosticIssue[]): Document | null {
 function scanInteractionElements(doc: Document): Map<string, number> {
 	const counts = new Map<string, number>();
 	for (const element of Array.from(doc.getElementsByTagName('*'))) {
-		const type = normalizeInteractionTypeFromTagName(element.localName || element.tagName);
+		const type = normalizeQtiName(element.localName || element.tagName);
 		if (!isInteractionType(type)) continue;
 		counts.set(type, (counts.get(type) ?? 0) + 1);
 	}
@@ -254,9 +252,9 @@ function getExtractedInteractionCounts(
 			.present()
 			.flow.flatMap((node) =>
 				node.kind === 'interaction' ? [node.mount.interaction] : []
-			)) {
+		)) {
 			if (!interaction.type) continue;
-			const type = normalizeInteractionTypeFromTagName(interaction.type);
+			const type = normalizeQtiName(interaction.type);
 			counts.set(type, (counts.get(type) ?? 0) + 1);
 		}
 	} catch (error) {
@@ -413,7 +411,10 @@ function countDeclarations(doc: Document, kind: 'response' | 'outcome' | 'templa
 }
 
 function normalizeElementName(element: Element): string {
-	const raw = element.localName || element.tagName;
+	return normalizeQtiName(element.localName || element.tagName);
+}
+
+function normalizeQtiName(raw: string): string {
 	if (raw.startsWith('qti-')) {
 		return raw.slice(4).replace(/-([a-z])/g, (_match, letter: string) => letter.toUpperCase());
 	}

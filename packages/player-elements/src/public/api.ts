@@ -223,12 +223,6 @@ export interface QtiItemPlayerElement extends HTMLElement {
 	resolveProcessingFragment?: QtiProcessingFragmentResolver;
 	processingFragmentLimits?: QtiProcessingFragmentLimits;
 	responses?: QtiItemPlayerResponseMap;
-	onResponseChange?: (responseId: string, value: unknown) => void;
-	onSubmit?: (
-		responses: QtiItemPlayerResponseMap,
-		result: QtiItemPlayerSubmissionResult,
-	) => void;
-	onComplete?: (result: QtiAdaptiveAttemptResult) => void;
 	submit(countAttempt?: boolean): QtiItemPlayerSubmissionResult | undefined;
 	addEventListener<K extends keyof QtiItemPlayerEventMap>(
 		type: K,

@@ -8,7 +8,7 @@ import type { ExtractionConfig } from './types.js';
 import type {
 	BaseInteractionData,
 	DeliveredInteraction,
-} from '../interactions/index.js';
+} from '../interactions/shared/types.js';
 
 export interface InteractionExtractionPipelineInput {
 	document: AssessmentItemDocument;

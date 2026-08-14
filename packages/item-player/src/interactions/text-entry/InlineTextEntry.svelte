@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { I18nProvider } from '@pie-qti/i18n';
-	import type { TextEntryInteractionData } from './types.js';
+	import type { TextEntryInteractionData } from '../shared/types.js';
 
 	interface Props {
 		interaction: TextEntryInteractionData;

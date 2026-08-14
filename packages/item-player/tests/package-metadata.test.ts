@@ -28,4 +28,16 @@ describe('item-player package metadata', () => {
 		expect(serverDeclaration).not.toContain('class Player');
 		expect(serverDeclaration).not.toContain('HTMLElement');
 	});
+
+	test('does not publish refactor compatibility wrappers or standard extractors', () => {
+		const rootDeclaration = readFileSync(new URL('../dist/index.d.ts', import.meta.url), 'utf8');
+		const securityDeclaration = readFileSync(
+			new URL('../dist/security/index.d.ts', import.meta.url),
+			'utf8',
+		);
+
+		expect(rootDeclaration).not.toContain('standardChoiceExtractor');
+		expect(rootDeclaration).not.toContain("./interactions/index.js");
+		expect(securityDeclaration).not.toContain('applyInteractionSecurity');
+	});
 });

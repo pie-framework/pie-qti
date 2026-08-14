@@ -12,7 +12,7 @@ import { parse } from 'node-html-parser';
 import { enforceItemXmlLimits } from '../core/parsingLimits.js';
 import { normalizeInteractionTypeFromTagName } from '../interactions/modules.js';
 import type { PlayerSecurityConfig } from '../types/index.js';
-import type { QTIElement } from '../interactions/index.js';
+import type { QTIElement } from '../interactions/shared/types.js';
 
 export type ProcessingKind = 'template' | 'response' | 'outcome';
 

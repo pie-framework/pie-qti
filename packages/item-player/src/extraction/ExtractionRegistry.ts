@@ -9,7 +9,7 @@
  */
 
 import { Qti2xElementNameMapper, type ElementNameMapper } from '@pie-qti/qti-common';
-import type { QTIElement } from '../interactions/index.js';
+import type { QTIElement } from '../interactions/shared/types.js';
 import type {
 	ElementExtractor,
 	ExtractionContext,

@@ -1,6 +1,6 @@
 import type { ElementExtractor } from '../../extraction/types.js';
 import { normalizePixelDimension } from '../../security/styleValues.js';
-import type { QTIElement } from '../index.js';
+import type { QTIElement } from '../shared/types.js';
 
 export interface ImageData {
 	type: 'image' | 'svg';

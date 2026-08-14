@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
-import type { StandardInteractionData } from '../interactions/index.js';
+import type { StandardInteractionData } from '../interactions/shared/types.js';
 import {
 	createItemPresentation,
 	interactionKey,

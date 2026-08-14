@@ -66,8 +66,6 @@ item.addEventListener('submit', (event) => {});
 item.addEventListener('complete', (event) => {});
 ```
 
-Compatibility callback properties `onResponseChange`, `onSubmit`, and `onComplete` also remain.
-
 Portable Custom Interaction execution is disabled until the host supplies an allow-listed resolver:
 
 ```js

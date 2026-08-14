@@ -47,5 +47,8 @@ describe('player-elements package metadata', () => {
 		]) {
 			expect(declarationText).not.toContain(implementationDetail);
 		}
+		expect(declarationText).not.toContain('onResponseChange?:');
+		expect(declarationText).not.toContain('onSubmit?:');
+		expect(declarationText).not.toContain('onComplete?:');
 	});
 });

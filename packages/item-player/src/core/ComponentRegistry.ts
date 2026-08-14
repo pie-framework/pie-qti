@@ -6,7 +6,7 @@
  * ExtractionRegistry, but for framework-agnostic web components.
  */
 
-import type { BaseInteractionData } from '../interactions/index.js';
+import type { BaseInteractionData } from '../interactions/shared/types.js';
 
 /**
  * Configuration for registering a web component renderer

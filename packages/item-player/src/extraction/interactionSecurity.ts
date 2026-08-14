@@ -1,8 +1,7 @@
 import { sanitizeHtml } from '../core/sanitizer.js';
 import { toTrustedHtml } from '../core/trustedTypes.js';
 import { sanitizeResourceUrl, type UrlKind } from '../core/urlPolicy.js';
-import type { BaseInteractionData } from '../interactions/index.js';
-import { getStandardInteractionModule } from '../interactions/modules.js';
+import type { BaseInteractionData } from '../interactions/shared/types.js';
 import type { PlayerSecurityConfig } from '../types/index.js';
 import type {
 	InteractionDeliveryField,
@@ -56,27 +55,6 @@ export function finalizeInteractionDelivery<TData extends BaseInteractionData>(
 
 	return deepFreeze(output);
 }
-
-/**
- * Compatibility entry point for callers that already have an interaction data
- * array. New extraction code supplies the selected extractor's additional
- * schema directly to `finalizeInteractionDelivery`.
- */
-export function applyInteractionSecurity<TData extends BaseInteractionData>(
-	interactions: TData[],
-	security?: PlayerSecurityConfig
-): TData[] {
-	return Object.freeze(
-		interactions.map((interaction) =>
-			finalizeInteractionDelivery(
-				interaction,
-				getStandardInteractionModule(interaction.type)?.delivery ?? [],
-				security
-			)
-		)
-	) as unknown as TData[];
-}
-
 function visitField(
 	value: unknown,
 	path: readonly InteractionDeliveryPathSegment[],

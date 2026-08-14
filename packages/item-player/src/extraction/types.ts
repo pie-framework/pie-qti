@@ -7,7 +7,7 @@
 
 import type { AttributeNameMapper, ElementNameMapper } from '@pie-qti/qti-common';
 import type { PlayerSecurityConfig, QTIRole } from '../types/index.js';
-import type { QTIElement } from '../interactions/index.js';
+import type { QTIElement } from '../interactions/shared/types.js';
 import type { InteractionDeliverySchema } from './deliveryTypes.js';
 
 /** Configuration visible to extractor implementations. */

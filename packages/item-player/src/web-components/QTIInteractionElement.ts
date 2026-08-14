@@ -5,7 +5,7 @@
  * interface and emit QTIChangeEvent when the user response changes.
  */
 
-import type { BaseInteractionData, InteractionValueMap } from '../interactions/index.js';
+import type { BaseInteractionData, InteractionValueMap } from '../interactions/shared/types.js';
 
 export type InteractionResponseValue<TData extends BaseInteractionData = BaseInteractionData> =
 	TData extends { type: infer TType }

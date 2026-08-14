@@ -16,7 +16,6 @@ export {
 	normalizePixelDimension,
 	type CssPixelLength,
 } from './styleValues.js';
-export { applyInteractionSecurity } from '../extraction/interactionSecurity.js';
 export type {
 	HtmlContent,
 	ParsingLimitsConfig,

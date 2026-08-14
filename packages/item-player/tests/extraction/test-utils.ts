@@ -6,7 +6,7 @@ import { type HTMLElement, parse } from 'node-html-parser';
 import { createExtractionContext } from '../../src/extraction/createContext.js';
 import type { ExtractionContext, VariableDeclaration } from '../../src/extraction/types.js';
 import type { ItemSessionEngineConfig } from '../../src/types/index.js';
-import type { QTIElement } from '../../src/interactions/index.js';
+import type { QTIElement } from '../../src/interactions/shared/types.js';
 
 /**
  * Parse QTI XML and return the root element as a QTIElement

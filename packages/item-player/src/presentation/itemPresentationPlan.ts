@@ -24,9 +24,11 @@ import {
 	isInlineInteractionTagName,
 	isInlineInteractionType,
 } from '../interactions/inline/render-plan.js';
-import type { InlineChoiceInteractionData } from '../interactions/inline-choice/types.js';
-import type { TextEntryInteractionData } from '../interactions/text-entry/types.js';
-import type { BaseInteractionData } from '../interactions/shared/types.js';
+import type {
+	BaseInteractionData,
+	InlineChoiceInteractionData,
+	TextEntryInteractionData,
+} from '../interactions/shared/types.js';
 
 export type ItemPresentationResponseValue = unknown;
 export type ItemPresentationResponseMap = Record<string, ItemPresentationResponseValue>;

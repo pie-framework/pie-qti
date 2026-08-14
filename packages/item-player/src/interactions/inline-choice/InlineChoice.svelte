@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { I18nProvider } from '@pie-qti/i18n';
-	import type { InlineChoiceInteractionData } from './types.js';
+	import type { InlineChoiceInteractionData } from '../shared/types.js';
 
 	interface Props {
 		interaction: InlineChoiceInteractionData;

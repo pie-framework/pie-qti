@@ -20,8 +20,8 @@
 		pnp?: PnpProfile;
 		typeset?: (root: HTMLElement) => void | Promise<void>;
 		i18n?: I18nProvider;
-		onResponseChange?: (responseIdentifier: string, value: unknown) => void;
 	};
+	type ItemPlayerResponseChangeEvent = CustomEvent<{ responseId: string; value: unknown }>;
 
 	interface Props {
 		itemRef: QtiSectionItemRef;
@@ -98,11 +98,20 @@
 	}
 
 	function itemPlayerProps(node: PieQtiItemPlayerElement, props: Record<string, unknown>) {
+		const handleItemPlayerResponseChange = (event: Event) => {
+			const { responseId, value } = (event as ItemPlayerResponseChangeEvent).detail;
+			handleResponseChange(responseId, value);
+		};
+
+		node.addEventListener('response-change', handleItemPlayerResponseChange);
 		assignProps(node, props);
 
 		return {
 			update(next: Record<string, unknown>) {
 				assignProps(node, next);
+			},
+			destroy() {
+				node.removeEventListener('response-change', handleItemPlayerResponseChange);
 			},
 		};
 	}
@@ -154,7 +163,6 @@
 					disabled,
 					typeset,
 					i18n,
-					onResponseChange: handleResponseChange,
 				}}
 			></pie-qti-item-player>
 			{#if interactionSpeechHtml}

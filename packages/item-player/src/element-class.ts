@@ -106,9 +106,6 @@ export class PieQtiItemPlayerElement extends HTMLElementBase {
 	#plugins: readonly AssessmentItemDefinitionPlugin[] | undefined;
 	#session: ItemSession | undefined;
 	#responses: PieQtiItemPlayerResponseMap | undefined;
-	#onResponseChange: ((id: string, value: unknown) => void) | undefined;
-	#onSubmit: ((responses: PieQtiItemPlayerResponseMap, result: PieQtiItemPlayerSubmissionResult) => void) | undefined;
-	#onComplete: ((result: AdaptiveAttemptResult) => void) | undefined;
 
 	get itemXml() {
 		return this.#itemXml;
@@ -238,30 +235,6 @@ export class PieQtiItemPlayerElement extends HTMLElementBase {
 		this.#update();
 	}
 
-	get onResponseChange() {
-		return this.#onResponseChange;
-	}
-	set onResponseChange(value: ((id: string, response: unknown) => void) | undefined) {
-		this.#onResponseChange = value;
-	}
-
-	get onSubmit() {
-		return this.#onSubmit;
-	}
-	set onSubmit(
-		value: ((responses: PieQtiItemPlayerResponseMap, result: PieQtiItemPlayerSubmissionResult) => void) | undefined,
-	) {
-		this.#onSubmit = value;
-		this.#update();
-	}
-
-	get onComplete() {
-		return this.#onComplete;
-	}
-	set onComplete(value: ((result: AdaptiveAttemptResult) => void) | undefined) {
-		this.#onComplete = value;
-	}
-
 	connectedCallback() {
 		this.#mountController.mountOrUpdate(this.#getProps());
 		queueMicrotask(() => {
@@ -332,7 +305,6 @@ export class PieQtiItemPlayerElement extends HTMLElementBase {
 					? { ...this.#session.state().responses }
 					: { ...(this.#responses ?? {}), [responseId]: value };
 				this.#responses = responses;
-				this.#onResponseChange?.(responseId, value);
 				this.dispatchEvent(
 					new CustomEvent<PieQtiItemPlayerResponseChangeDetail>('response-change', {
 						detail: { responseId, value, responses: { ...responses } },
@@ -344,7 +316,6 @@ export class PieQtiItemPlayerElement extends HTMLElementBase {
 			onSubmit: (responses, result) => {
 				const snapshot = { ...responses };
 				this.#responses = snapshot;
-				this.#onSubmit?.(snapshot, result);
 				this.dispatchEvent(
 					new CustomEvent<PieQtiItemPlayerSubmitDetail>('submit', {
 						detail: { responses: snapshot, result },
@@ -353,9 +324,8 @@ export class PieQtiItemPlayerElement extends HTMLElementBase {
 					}),
 				);
 			},
-			showSubmit: Boolean(this.#onSubmit),
+			showSubmit: false,
 			onComplete: (result) => {
-				this.#onComplete?.(result);
 				this.dispatchEvent(
 					new CustomEvent<PieQtiItemPlayerCompleteDetail>('complete', {
 						detail: { result },

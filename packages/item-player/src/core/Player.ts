@@ -63,7 +63,7 @@ import type {
 	SerializedItemSessionState,
 	SerializedItemSessionVariable,
 } from '../types/index.js';
-import type { BaseInteractionData } from '../interactions/index.js';
+import type { BaseInteractionData } from '../interactions/shared/types.js';
 import type { ResponseValidationResult } from '../types/responseValidation.js';
 import type { ComponentRegistry } from './ComponentRegistry.js';
 import { createComponentRegistry } from './ComponentRegistry.js';

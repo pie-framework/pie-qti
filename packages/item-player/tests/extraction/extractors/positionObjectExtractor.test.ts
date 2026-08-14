@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { standardPositionObjectExtractor } from '../../../src/interactions/position-object/extractor.js';
-import type { QTIElement } from '../../../src/interactions/index.js';
+import type { QTIElement } from '../../../src/interactions/shared/types.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
 function extract(xml: string, responseId = 'RESPONSE') {

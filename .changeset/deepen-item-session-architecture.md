@@ -17,4 +17,6 @@ property, and item-player plugin/presentation contracts. Obsolete snapshot-drive
 rendering component exports are removed. Direct `Player` and managed lifecycle compatibility
 entries are removed; consumers migrate to the definition/session interface. Server scoring uses the
 DOM-free `createAssessmentItemDefinition()` export from
-`@pie-qti/item-player/server` and dispatches item-session commands.
+`@pie-qti/item-player/server` and dispatches item-session commands. Item-player custom elements now
+publish notifications only through typed DOM events, and standard extractor implementations and
+refactor-era interaction compatibility barrels are no longer part of the package interface.

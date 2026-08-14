@@ -66,6 +66,114 @@ function deliveredInteraction(
 }
 
 describe('vendor interaction delivery', () => {
+	test('sanitizes standard interaction resource URLs at the definition/session seam', () => {
+		const { interaction } = deliveredInteraction({
+			itemXml: `
+				<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+					identifier="unsafe-hotspot" title="Unsafe hotspot">
+					<responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier"/>
+					<itemBody>
+						<hotspotInteraction responseIdentifier="RESPONSE" maxChoices="1">
+							<object type="image/png" data="javascript:alert(1)" width="100" height="100"/>
+							<hotspotChoice identifier="A" shape="rect" coords="0,0,20,20"/>
+						</hotspotInteraction>
+					</itemBody>
+				</assessmentItem>`,
+			plugins: [
+				definitionPlugin(
+					'standard-hotspot-renderer',
+					() => {},
+					(registry) => registerTestComponent(registry, 'hotspotInteraction'),
+				),
+			],
+		});
+
+		expect(
+			(interaction as { imageData: { src?: string } | null }).imageData?.src,
+		).toBe('');
+	});
+
+	test('applies object-embed policy to standard media delivery', () => {
+		const { interaction } = deliveredInteraction({
+			itemXml: `
+				<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+					identifier="allowed-object" title="Allowed object">
+					<responseDeclaration identifier="MEDIA" cardinality="single" baseType="integer"/>
+					<itemBody>
+						<mediaInteraction responseIdentifier="MEDIA" autostart="false" minPlays="0">
+							<object type="application/x-shockwave-flash"
+								data="https://cdn.example.com/content.swf"/>
+						</mediaInteraction>
+					</itemBody>
+				</assessmentItem>`,
+			plugins: [
+				definitionPlugin(
+					'standard-media-renderer',
+					() => {},
+					(registry) => registerTestComponent(registry, 'mediaInteraction'),
+				),
+			],
+			security: {
+				allowObjectEmbeds: true,
+				urlPolicy: { allowedHosts: ['cdn.example.com'] },
+			},
+		});
+
+		const media = interaction as {
+			mediaElement: { src: string };
+			allowObjectEmbeds?: boolean;
+		};
+		expect(media.mediaElement.src).toBe('https://cdn.example.com/content.swf');
+		expect(media.allowObjectEmbeds).toBe(true);
+	});
+
+	test('fails closed for malformed values at authored standard sink fields', () => {
+		const extractor: ElementExtractor<
+			{
+				prompt: unknown;
+				choices: Array<{ identifier: string; text: unknown }>;
+			},
+			'acmeMalformedChoiceInteraction'
+		> = {
+			id: 'acme:malformed-choice',
+			name: 'ACME malformed choice interaction',
+			priority: 1000,
+			elementTypes: ['choiceInteraction'],
+			outputType: 'acmeMalformedChoiceInteraction',
+			canHandle: () => true,
+			extract: () => ({
+				prompt: { attackerControlled: '<img src=x onerror=bad()>' },
+				choices: [{ identifier: 'A', text: 42 }],
+			}),
+		};
+		const { interaction } = deliveredInteraction({
+			itemXml: `
+				<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+					identifier="malformed-choice" title="Malformed choice">
+					<responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier"/>
+					<itemBody>
+						<choiceInteraction responseIdentifier="RESPONSE" maxChoices="1">
+							<simpleChoice identifier="A">Choice A</simpleChoice>
+						</choiceInteraction>
+					</itemBody>
+				</assessmentItem>`,
+			plugins: [
+				definitionPlugin(
+					'acme-malformed-choice',
+					(registry) => registry.register(extractor),
+					(registry) => registerTestComponent(registry, 'acmeMalformedChoiceInteraction'),
+				),
+			],
+		});
+
+		const malformed = interaction as unknown as {
+			prompt: unknown;
+			choices: Array<{ text: unknown }>;
+		};
+		expect(malformed.prompt).toBe('');
+		expect(malformed.choices[0]?.text).toBe('');
+	});
+
 	test('selects, executes, and applies delivery policy from one extractor dispatch', () => {
 		let unstablePredicateCalls = 0;
 		let unstableExtractionCalls = 0;

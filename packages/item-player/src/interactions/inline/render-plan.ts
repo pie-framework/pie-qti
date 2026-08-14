@@ -1,6 +1,8 @@
-import type { InlineChoiceInteractionData } from '../inline-choice/types.js';
-import type { TextEntryInteractionData } from '../text-entry/types.js';
-import type { BaseInteractionData } from '../shared/types.js';
+import type {
+	BaseInteractionData,
+	InlineChoiceInteractionData,
+	TextEntryInteractionData,
+} from '../shared/types.js';
 import {
 	isStandardInlineInteractionTagName,
 	isStandardInlineInteractionType,

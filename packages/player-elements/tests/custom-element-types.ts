@@ -31,6 +31,13 @@ export function assertItemCustomElementTypes(element: HTMLElementTagNameMap['pie
 		void detail.result.numAttempts;
 	});
 
+	// @ts-expect-error item-player notifications are exposed only as DOM events
+	element.onResponseChange = () => {};
+	// @ts-expect-error item-player submission notifications are exposed only as DOM events
+	element.onSubmit = () => {};
+	// @ts-expect-error item-player completion notifications are exposed only as DOM events
+	element.onComplete = () => {};
+
 	const result = element.submit();
 	return result?.outcomeValues;
 }

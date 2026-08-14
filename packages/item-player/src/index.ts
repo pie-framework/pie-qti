@@ -38,8 +38,16 @@ export type {
 	ItemPresentationFlowNode,
 } from './presentation/itemPresentationPlan.js';
 export { getRoleCapabilities, type RoleCapabilities } from './core/rolePolicy.js';
-// Export extraction system (PUBLIC API)
-export * from './interactions/index.js';
+// Render-facing interaction contracts. Standard extractors remain implementation details.
+export type * from './interactions/shared/types.js';
+export {
+	createExtendedTextNumericRecord,
+	createExtendedTextResponse,
+	createExtendedTextStringResponse,
+	extendedTextResponseToStrings,
+	type ExtendedTextNumericRecord,
+	type ExtendedTextRecordField,
+} from './interactions/extended-text/response.js';
 export type {
 	ElementExtractor,
 	ExtractionContext,

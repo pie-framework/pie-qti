@@ -91,3 +91,20 @@ index dbdf7c0..6fa844e 100644
      expect(source).toContain('aria-label="QTI rubric side panel"');
      expect(source).toContain('Rubric');
      expect(source).toContain('{@html rubric.html}');
+diff --git a/tools/cli/src/utils/qti-player-corpus-browser.ts b/tools/cli/src/utils/qti-player-corpus-browser.ts
+--- a/tools/cli/src/utils/qti-player-corpus-browser.ts
++++ b/tools/cli/src/utils/qti-player-corpus-browser.ts
+@@ -52,9 +52,10 @@ window.__qtiCorpusHarness = {
+     player.security = { urlPolicy: { allowHttp: true } };
+     player.typeset = typesetMathInElement;
+     player.renderItemBodyRubrics = true;
+-    player.onResponseChange = (id, value) => {
+-      window.__qtiCorpusResponses[id] = value;
+-    };
++    player.addEventListener('response-change', (event) => {
++      const { responseId, value } = event.detail;
++      window.__qtiCorpusResponses[responseId] = value;
++    });
+     player.setAttribute('role', 'candidate');
+     player.itemXml = input.itemXml;
+     root.append(player);
