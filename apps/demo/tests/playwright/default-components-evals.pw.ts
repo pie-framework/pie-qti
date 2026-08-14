@@ -19,7 +19,12 @@ type EvalStep =
 	| { action: 'matchPairs'; target: { description?: string; hint?: string } }
 	| { action: 'clickPair'; target?: { description?: string; hint?: string }; pair?: string }
 	| { action: 'dragPair'; target?: { description?: string; hint?: string }; pair?: string }
-	| { action: 'dragToCanvas'; target: { description?: string; hint?: string } }
+	| {
+			action: 'dragToCanvas';
+			target: { description?: string; hint?: string };
+			/** Canonical QTI point value(s) to place, e.g. ["105 132"]. */
+			value?: string | string[];
+	  }
 	| { action: 'playUntilEnded'; target: { description?: string; hint?: string }; times: number };
 
 type EvalExpected = {
@@ -592,22 +597,18 @@ async function runStep(page: Page, file: EvalFile, step: EvalStep): Promise<{ su
 			return {};
 		}
 		case 'dragToCanvas': {
-			// Position object: set response via qti-change with three objects to satisfy scoring rule.
-			// (The sample item scoring checks containerSize >= 3.)
+			// Position object: set the response via qti-change rather than a real pointer drag,
+			// which is flaky across OS/browser. The value is canonical QTI baseType="point"
+			// form — "x y" strings — read from the item's own correctResponse so the placement
+			// lands inside whatever areaMapping tolerance the sample declares.
 			const host = page.locator(tagName);
 			await expect(host).toBeVisible();
 
-			const desc = (step.target.description ?? '').toLowerCase();
-			const all = [
-				{ stageId: 'SOFA', x: 80, y: 80 },
-				{ stageId: 'TABLE', x: 200, y: 120 },
-				{ stageId: 'CHAIR', x: 320, y: 160 },
-			];
-			const positions =
-				desc.includes('exactly two') || desc.includes('exactly 2') ? all.slice(0, 2)
-				: all;
-
-			await dispatchQtiChange(page, tagName, 'RESPONSE', positions);
+			const declared = (step as { value?: unknown }).value;
+			const points = (Array.isArray(declared) ? declared : declared ? [declared] : []).map((v) =>
+				String(v),
+			);
+			await dispatchQtiChange(page, tagName, 'RESPONSE', points.length > 0 ? points : ['0 0']);
 			return {};
 		}
 		case 'playUntilEnded': {
@@ -648,7 +649,16 @@ async function assertExpected(page: Page, expected: EvalExpected | undefined, su
 			}
 			if (matcher?.contains !== undefined) expect(String(actual)).toContain(matcher.contains);
 			if (matcher?.containsAll) {
-				for (const v of matcher.containsAll) expect(actual).toContain(v);
+				// QTI `pair` values are unordered, so "LIVER BLOOD" and "BLOOD LIVER" are the same
+				// association. Match those on their token set; anything else keeps the exact check.
+				const asPairKey = (value: string) => value.trim().split(/\s+/).sort().join(' ');
+				const actualPairKeys = new Set(
+					(Array.isArray(actual) ? actual : [actual]).map((v) => asPairKey(String(v))),
+				);
+				for (const v of matcher.containsAll) {
+					if (actualPairKeys.has(asPairKey(String(v)))) continue;
+					expect(actual).toContain(v);
+				}
 			}
 			if (matcher?.equalsOrdered) expect(actual).toEqual(matcher.equalsOrdered);
 			if (matcher?.notEqualsOrdered) expect(actual).not.toEqual(matcher.notEqualsOrdered);

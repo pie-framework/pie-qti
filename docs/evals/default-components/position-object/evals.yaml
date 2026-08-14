@@ -9,16 +9,16 @@ examplesApp:
   routeTemplate: "/item-demo/{sampleId}"
 
 evals:
-  - id: position-object/position-object/partial-correct
+  - id: position-object/position-object/correct-within-tolerance
     sampleId: position-object
     gradeBand: "K-12"
     subject: general
-    intent: "Position some furniture correctly to test partial credit scoring."
+    intent: "Place the star on Austin and verify areaMapping tolerance scoring via mapResponsePoint."
 
     notes:
       - "positionObjectInteraction uses baseType='point' with cardinality='multiple'"
-      - "Response format should be array of coordinate pairs like ['150 80', '250 200']"
-      - "Each positioned object contributes to the score based on matchObject rules"
+      - "Response format is an array of coordinate pairs like ['105 132']"
+      - "areaMapping accepts any point within a 25px radius of the target, so exact pixels do not matter"
 
     steps:
       - action: navigate
@@ -26,13 +26,10 @@ evals:
 
       - action: dragToCanvas
         target:
-          description: "Drag the Sofa icon from the palette to position (150, 80) on the canvas"
-          hint: "SOFA stage"
-
-      - action: dragToCanvas
-        target:
-          description: "Drag a Coffee Table icon to position (350, 120)"
-          hint: "TABLE stage"
+          description: "Drag the star marker onto Austin, Texas"
+          hint: "Single draggable object; maxChoices is 1"
+        # Within the 25px areaMapping radius of the declared correctResponse.
+        value: ["110 140"]
 
       - action: submit
         target:
@@ -42,15 +39,14 @@ evals:
     expected:
       responses:
         RESPONSE:
-          lengthGte: 2
+          lengthGte: 1
       outcomes:
         SCORE:
-          # Partial credit for some correct placements
-          gte: 0.0
+          equals: 1.0
         # No MAXSCORE in sample item
 
     spiritChecks:
-      - "Draggable objects are clearly visible with icons/images, not just text labels."
-      - "Objects snap to canvas and can be repositioned by dragging them again."
-      - "Usage counts (e.g., '1/2 used') update correctly as objects are placed."
-      - "Remove buttons on placed objects work and restore availability in palette."
+      - "The draggable star is clearly visible as an icon, not just a text label."
+      - "The star snaps onto the map and can be repositioned by dragging it again."
+      - "Usage count ('0/1 used') updates once the star is placed."
+      - "The remove button on a placed star restores it to the palette."
