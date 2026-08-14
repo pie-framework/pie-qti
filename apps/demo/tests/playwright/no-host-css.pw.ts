@@ -9,7 +9,7 @@
  * the custom elements via Vite's dev server module graph (`/ @id / ...`).
  */
 
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 const NO_CSS_SRC_DOC = String.raw`<!doctype html>
 <html lang="en">

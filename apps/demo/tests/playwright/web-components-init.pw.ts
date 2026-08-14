@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 test.describe('web component initialization', () => {
 	test('wc item player registers and renders', async ({ page }) => {

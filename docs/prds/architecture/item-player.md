@@ -177,9 +177,26 @@ Key types are exported from `@pie-qti/item-player`. The invariants that are not 
 - An injected browser session remains owned by its creator. A standalone item element creates and disposes its own session.
 - `getItemSessionBinding()` is an internal browser-adapter capability, not a general-purpose route back to `Player` or parser internals.
 
+**Outcome variable initialization:**
+- QTI 2.1 §5.2, carried into 2.2 and 3.0: an outcome declared without a `<defaultValue>` initializes
+  to NULL unless its base type is `integer` or `float`, in which case it initializes to 0. Applied at
+  parse time, so it also governs the reset before each response-processing run and the `<default>`
+  expression. Accumulating processing (`SCORE = sum(SCORE, 1)`) depends on it: from NULL the sum
+  propagates NULL and the item never scores.
+- Response and template variables are unaffected and keep NULL. An unanswered numeric response must
+  stay distinguishable from an answered zero.
+- The rule applies to `MAXSCORE` too, so a `MAXSCORE` declared without a default is 0 rather than
+  absent, and an item that never assigns it scores against a maximum of zero. That is the
+  spec-correct reading of under-specified content; substituting 1 inside response processing would
+  make this engine disagree with a conformant one. The player warns once per item, naming the item
+  and the remedy, instead of masking it. `@pie-qti/assessment-player` applies the same rule to
+  test-level outcome declarations.
+
 **`ScoringResult`:**
-- `score` is the raw value of the `SCORE` outcome variable (always a `number`; never `null` — defaults to `0`).
-- `maxScore` is the raw value of `MAXSCORE` (defaults to `1.0` if null or missing).
+- `score` is the raw value of the `SCORE` outcome variable (always a `number`; never `null`). For a
+  defaultless numeric `SCORE` the 0 now comes from the variable's own initialization.
+- `maxScore` is the raw value of `MAXSCORE`, falling back to `1.0` only when `MAXSCORE` is not
+  declared at all — the case the spec leaves open. A declared-but-defaultless `MAXSCORE` reports 0.
 - `completed` is `true` for non-adaptive items after any `processResponses()` call; for adaptive items it mirrors `completionStatus === 'completed'`.
 - `modalFeedback` contains only the feedback elements whose `showHide` logic evaluates to visible given the current outcome values; it is never null but may be an empty array.
 

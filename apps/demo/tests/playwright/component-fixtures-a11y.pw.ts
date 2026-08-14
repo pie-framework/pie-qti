@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 import { A11Y_FIXTURES } from '../../src/lib/a11y/fixtures';
 import { logA11yViolations, scanA11yFixture } from './a11y-utils';

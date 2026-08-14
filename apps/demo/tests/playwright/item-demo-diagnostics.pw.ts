@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 test.describe('item demo diagnostics panel', () => {
 	test('QTI diagnostics are collapsed by default and expandable', async ({ page }) => {

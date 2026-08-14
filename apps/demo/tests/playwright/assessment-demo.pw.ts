@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 test.describe('/assessment-demo', () => {
 	test('multiple choice is selectable (reading comprehension)', async ({ page }) => {

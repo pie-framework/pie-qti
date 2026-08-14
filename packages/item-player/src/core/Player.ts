@@ -144,6 +144,7 @@ export class Player {
 	private i18nProvider: any; // I18nProvider from @pie-qti/i18n
 	private mapper: ElementNameMapper;
 
+	private warnedImpliedZeroMaxScore = false;
 	private responseProcessingProgram: ProcessingProgram | null = null;
 	private responseProcessing: ResponseProcessingDescriptor;
 	private templateProcessingProgram: ProcessingProgram | null = null;
@@ -754,6 +755,24 @@ export class Player {
 		}
 	}
 
+	/**
+	 * A MAXSCORE declared without a <defaultValue> is 0 per the numeric outcome rule, so an item
+	 * that never assigns it scores against a maximum of zero. That is the spec-correct reading of
+	 * under-specified content, and silently substituting 1 would make this engine disagree with a
+	 * conformant one — so surface the authoring gap instead of masking it.
+	 */
+	private warnOnceOnImpliedZeroMaxScore(outcomes: Record<string, unknown>): void {
+		if (this.warnedImpliedZeroMaxScore) return;
+		if (!this.decls.MAXSCORE?.impliedNumericDefault) return;
+		if (outcomes.MAXSCORE !== 0) return;
+		this.warnedImpliedZeroMaxScore = true;
+		console.warn(
+			`[QTI Player] MAXSCORE is 0 for item "${this.itemDocument.getAssessmentItemAttribute('identifier') ?? 'unknown'}": its outcomeDeclaration ` +
+				'has no <defaultValue>, so QTI initializes it to 0 and response processing never assigned it. ' +
+				'Declare <defaultValue> on the MAXSCORE outcomeDeclaration to score against a real maximum.',
+		);
+	}
+
 	private runResponseProcessing(options: {
 		finalizeNonAdaptiveAttempt: boolean;
 		countAttempt?: boolean;
@@ -788,6 +807,8 @@ export class Player {
 		}
 
 		const outcomes = this.collectOutcomes();
+
+		this.warnOnceOnImpliedZeroMaxScore(outcomes);
 
 		const score = Number(outcomes.SCORE ?? 0);
 		const maxScore = Number(outcomes.MAXSCORE ?? 1);
@@ -1362,7 +1383,9 @@ export class Player {
 				: (this.getAttrMapped(el, 'baseType') || 'string') as BaseType;
 			if (!identifier) return;
 
-			const defaultValue = this.parseDefaultValue(el, baseType, cardinality);
+			const declaredDefault = this.parseDefaultValue(el, baseType, cardinality);
+			const impliedNumericDefault = !declaredDefault && this.hasImpliedNumericDefault(kind, baseType, cardinality);
+			const defaultValue = declaredDefault ?? this.impliedDefaultValue(kind, baseType, cardinality);
 			decls[identifier] = {
 				identifier,
 				...(baseType ? { baseType } : {}),
@@ -1370,6 +1393,7 @@ export class Player {
 				defaultValue,
 				value: defaultValue,
 				isTemplate: kind === 'template',
+				impliedNumericDefault,
 				// @ts-expect-error internal marker for templates
 				__kind: kind,
 			};
@@ -1628,9 +1652,40 @@ export class Player {
 		return Math.max(0, Math.floor(toNumber(value) || 0));
 	}
 
-	private parseDefaultValue(declEl: Element, baseType: BaseType | undefined, cardinality: Cardinality): QtiValue {
+	/**
+	 * QTI 2.1 §5.2, carried into 2.2 and 3.0: an outcome variable with no declared default is
+	 * initialized to NULL unless it is of a numeric type, in which case it is initialized to 0.
+	 * Response and template variables keep NULL — an unanswered numeric response must stay
+	 * distinguishable from an answered zero.
+	 */
+	private hasImpliedNumericDefault(
+		kind: DeclKind,
+		baseType: BaseType | undefined,
+		cardinality: Cardinality,
+	): boolean {
+		if (kind !== 'outcome' || cardinality !== 'single') return false;
+		return baseType === 'integer' || baseType === 'float';
+	}
+
+	private impliedDefaultValue(
+		kind: DeclKind,
+		baseType: BaseType | undefined,
+		cardinality: Cardinality,
+	): QtiValue {
+		if (this.hasImpliedNumericDefault(kind, baseType, cardinality)) {
+			return qtiValue(baseType as 'integer' | 'float', 'single', 0);
+		}
+		return qtiNull(baseType, cardinality);
+	}
+
+	/** Returns undefined when the declaration carries no <defaultValue> at all. */
+	private parseDefaultValue(
+		declEl: Element,
+		baseType: BaseType | undefined,
+		cardinality: Cardinality,
+	): QtiValue | undefined {
 		const defaultEl = findFirstDescendant(declEl, this.mapper.toNative('defaultvalue'));
-		if (!defaultEl) return qtiNull(baseType, cardinality);
+		if (!defaultEl) return undefined;
 		return this.parseDeclarationValues(defaultEl, baseType, cardinality);
 	}
 

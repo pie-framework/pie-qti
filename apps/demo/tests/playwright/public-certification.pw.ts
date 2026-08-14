@@ -1,4 +1,4 @@
-import { expect, type Page, test } from '@playwright/test';
+import { expect, type Page, test } from './fixtures';
 
 async function selectAssessmentSample(page: Page, sampleId: string) {
 	await page.goto('/assessment-demo');
