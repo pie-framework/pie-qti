@@ -1,5 +1,11 @@
 # @pie-qti/ims-cp-core
 
+## 0.1.21
+
+### Patch Changes
+
+- @pie-qti/logger@0.1.21
+
 ## 0.1.20
 
 ### Patch Changes

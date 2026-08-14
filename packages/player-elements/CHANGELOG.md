@@ -1,5 +1,13 @@
 # @pie-qti/player-elements
 
+## 0.1.21
+
+### Patch Changes
+
+- Updated dependencies [8836ebf]
+- Updated dependencies [2c00bd1]
+  - @pie-qti/item-player@0.1.21
+
 ## 0.1.20
 
 ### Patch Changes
