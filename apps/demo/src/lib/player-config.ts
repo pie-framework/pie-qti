@@ -32,9 +32,15 @@ export function getAssetBaseUrl(): string {
  * @returns PlayerSecurityConfig with urlPolicy.assetBaseUrl configured
  */
 export function getSecurityConfig(): PlayerSecurityConfig {
+	// Relative asset URLs are resolved against `assetBaseUrl` and then re-checked against the
+	// scheme allowlist, which rejects http by default. Over http — `bun run dev`, or a preview
+	// served without TLS — that silently blanks every relative asset in every item, so allow
+	// http exactly when the app itself is served over it.
+	const servedOverHttp = typeof window !== 'undefined' && window.location.protocol === 'http:';
 	return {
 		urlPolicy: {
 			assetBaseUrl: getAssetBaseUrl(),
+			...(servedOverHttp ? { allowHttp: true } : {}),
 		},
 	};
 }

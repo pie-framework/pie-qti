@@ -4,7 +4,9 @@ component:
   # Inline textEntryInteraction is rendered as a standard <input> inside the item body.
   interactionType: textEntryInteraction
   # For this eval runner we use a CSS selector instead of a web component tag.
-  tagName: ".inline-input"
+  # The item player renders inline text entry itself (InlineTextEntry), so the input
+  # carries the player's `qti-` prefixed class rather than a default-components one.
+  tagName: ".qti-inline-input"
 
 examplesApp:
   app: "@pie-qti/app-demo"

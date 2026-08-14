@@ -165,8 +165,13 @@
 					class: 'tiptap-editor',
 				},
 			},
-			onUpdate: ({ editor }) => {
+			onUpdate: ({ editor, transaction }) => {
 				if (readOnly) return;
+				// `setEditable()` emits `update` with an empty transaction, so an editability
+				// change arrives here looking like an edit. Propagating it feeds content back to
+				// the host, which reloads the item and re-runs the effect that called
+				// setEditable — an unbounded cycle. Only a real document change is an edit.
+				if (!transaction.docChanged) return;
 				if (isUpdatingFromProp) {
 					isUpdatingFromProp = false;
 					return;
@@ -203,10 +208,11 @@
 		}
 	});
 
-	// Update editor when readOnly changes
+	// Update editor when readOnly changes. `emitUpdate: false` keeps an editability
+	// change from masquerading as a content edit.
 	$effect(() => {
 		if (editor) {
-			editor.setEditable(!readOnly);
+			editor.setEditable(!readOnly, false);
 		}
 	});
 

@@ -335,8 +335,11 @@ function escapeHtmlAttribute(value: string): string {
 }
 
 function hideBlockInteractionMarkup(html: string): string {
+	// positionObjectStage is hidden as a unit: it owns the background object and wraps its
+	// interactions, all of which the component renders. Matching only the interaction inside it
+	// would leave the stage's background image visible in the item body as well.
 	return html.replace(
-		/<(\w+Interaction|qti-[\w-]+-interaction)(\s[^>]*)?>[\s\S]*?<\/\1>/gi,
+		/<(\w+Interaction|qti-[\w-]+-interaction|positionObjectStage|qti-position-object-stage)(\s[^>]*)?>[\s\S]*?<\/\1>/gi,
 		(match, tagName) => {
 			const lower = tagName.toLowerCase();
 			if (isInlineInteractionTagName(lower)) return match;

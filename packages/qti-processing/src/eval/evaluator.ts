@@ -1008,15 +1008,17 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 		}
 		case 'expr.sum': {
 			let acc = 0;
+			let allInteger = expr.values.length > 0;
 			for (const op of expr.values) {
 				const v = evalExpr(env, op);
 				if (v.kind === 'invalid') return qtiInvalid('sum operand invalid', 'float', 'single');
 				if (v.kind === 'null') return qtiNull('float', 'single');
 				const n = toNumber(v);
 				if (!Number.isFinite(n)) return qtiInvalid('sum operand is not a finite number', 'float', 'single');
+				if (v.baseType !== 'integer') allInteger = false;
 				acc += n;
 			}
-			return qtiValue('float', 'single', acc);
+			return qtiValue(allInteger ? 'integer' : 'float', 'single', acc);
 		}
 		case 'expr.subtract': {
 			const a = evalExpr(env, expr.a);
@@ -1027,19 +1029,24 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			const nb = toNumber(b);
 			if (!Number.isFinite(na) || !Number.isFinite(nb)) return qtiInvalid('subtract operand is not a finite number', 'float', 'single');
 			const out = na - nb;
-			return Number.isFinite(out) ? qtiValue('float', 'single', out) : qtiInvalid('subtract result is not finite', 'float', 'single');
+			const subtractBaseType = a.baseType === 'integer' && b.baseType === 'integer' ? 'integer' : 'float';
+			return Number.isFinite(out)
+				? qtiValue(subtractBaseType, 'single', out)
+				: qtiInvalid('subtract result is not finite', 'float', 'single');
 		}
 		case 'expr.product': {
 			let acc = 1;
+			let allInteger = expr.values.length > 0;
 			for (const op of expr.values) {
 				const v = evalExpr(env, op);
 				if (v.kind === 'invalid') return qtiInvalid('product operand invalid', 'float', 'single');
 				if (v.kind === 'null') return qtiNull('float', 'single');
 				const n = toNumber(v);
 				if (!Number.isFinite(n)) return qtiInvalid('product operand is not a finite number', 'float', 'single');
+				if (v.baseType !== 'integer') allInteger = false;
 				acc *= n;
 			}
-			return qtiValue('float', 'single', acc);
+			return qtiValue(allInteger ? 'integer' : 'float', 'single', acc);
 		}
 		case 'expr.divide': {
 			const a = evalExpr(env, expr.a);
@@ -1055,28 +1062,32 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 		case 'expr.max': {
 			if (expr.values.length === 0) return qtiInvalid('max requires at least one operand');
 			const nums: number[] = [];
+			let allInteger = true;
 			for (const op of expr.values) {
 				const v = evalExpr(env, op);
 				if (v.kind === 'invalid') return qtiInvalid('max operand invalid', 'float', 'single');
 				if (v.kind === 'null') return qtiNull('float', 'single');
 				const n = toNumber(v);
 				if (!Number.isFinite(n)) return qtiInvalid('max operand is not a finite number', 'float', 'single');
+				if (v.baseType !== 'integer') allInteger = false;
 				nums.push(n);
 			}
-			return qtiValue('float', 'single', Math.max(...nums));
+			return qtiValue(allInteger ? 'integer' : 'float', 'single', Math.max(...nums));
 		}
 		case 'expr.min': {
 			if (expr.values.length === 0) return qtiInvalid('min requires at least one operand');
 			const nums: number[] = [];
+			let allInteger = true;
 			for (const op of expr.values) {
 				const v = evalExpr(env, op);
 				if (v.kind === 'invalid') return qtiInvalid('min operand invalid', 'float', 'single');
 				if (v.kind === 'null') return qtiNull('float', 'single');
 				const n = toNumber(v);
 				if (!Number.isFinite(n)) return qtiInvalid('min operand is not a finite number', 'float', 'single');
+				if (v.baseType !== 'integer') allInteger = false;
 				nums.push(n);
 			}
-			return qtiValue('float', 'single', Math.min(...nums));
+			return qtiValue(allInteger ? 'integer' : 'float', 'single', Math.min(...nums));
 		}
 		case 'expr.round': {
 			const v = evalExpr(env, expr.value);
