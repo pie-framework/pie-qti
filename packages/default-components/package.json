@@ -30,10 +30,10 @@
     "@pie-qti/i18n": "workspace:*",
     "@pie-qti/item-player": "workspace:*",
     "@pie-qti/qti-common": "workspace:*",
-    "@tiptap/core": "^3.29.2",
-    "@tiptap/extension-mathematics": "^3.15.3",
-    "@tiptap/extension-placeholder": "^3.29.2",
-    "@tiptap/starter-kit": "^3.15.3",
+    "@tiptap/core": "3.30.1",
+    "@tiptap/extension-mathematics": "3.30.1",
+    "@tiptap/extension-placeholder": "3.30.1",
+    "@tiptap/starter-kit": "3.30.1",
     "mathlive": "^0.110.0"
   },
   "devDependencies": {
