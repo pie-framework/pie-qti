@@ -40,7 +40,7 @@
     "@pie-qti/default-components": "workspace:*",
     "@pie-qti/qti-common": "workspace:*",
     "@pie-qti/section-player": "workspace:*",
-    "@biomejs/biome": "^2.5.6",
+    "@biomejs/biome": "^2.5.7",
     "@sveltejs/vite-plugin-svelte": "^7.3.0",
     "linkedom": "^0.18.13",
     "svelte": "^5.56.8",
