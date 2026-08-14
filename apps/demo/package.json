@@ -40,7 +40,7 @@
     "@tiptap/extension-document": "^3.29.2",
     "@tiptap/extension-history": "^3.29.2",
     "@tiptap/extension-text": "^3.29.2",
-    "@tiptap/pm": "^3.18.0",
+    "@tiptap/pm": "^3.29.2",
     "highlight.js": "^11.11.1",
     "lowlight": "^3.3.0",
     "unzipper": "^0.12.3",
