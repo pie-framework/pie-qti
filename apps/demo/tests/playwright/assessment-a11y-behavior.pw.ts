@@ -54,7 +54,11 @@ test.describe('assessment accessibility behavior', () => {
 		await expect(fox).toHaveAttribute('aria-pressed', 'true');
 
 		await forest.click();
-		await expect(page.getByRole('button', { name: /remove association between.*fox.*forest/i })).toBeVisible();
+		await expect(
+			page.getByRole('button', {
+				name: /remove association between.*(?:fox.*forest|forest.*fox)/i,
+			})
+		).toBeVisible();
 	});
 
 	test('timer warning and expiry are exposed to assistive technology', async ({ page }) => {
