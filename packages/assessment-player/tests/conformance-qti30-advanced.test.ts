@@ -417,7 +417,9 @@ describe('QTI 3.0 Advanced — Submission mode item sessions', () => {
 		const suspended = player.getState({ includeItemSessions: true }).itemSessions?.['session-item-1'];
 		expect(suspended?.lifecycleStatus).toBe('suspended');
 		expect(suspended?.responseVariables.RESPONSE.value).toBe('correct');
-		expect(suspended?.outcomeVariables.SCORE.value).toBeNull();
+		// SCORE is a defaultless float outcome, so QTI initializes it to 0; the item being unscored
+		// at this point is what itemScores below proves, not a NULL outcome.
+		expect(suspended?.outcomeVariables.SCORE.value).toBe(0);
 		expect(player.getState().itemScores?.['session-item-1']).toBeUndefined();
 
 		player.updateResponse('RESPONSE', 'correct');

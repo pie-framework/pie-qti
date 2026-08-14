@@ -12,7 +12,6 @@ export {
 	createComponentRegistry,
 } from './core/ComponentRegistry.js';
 export * from './core/constants.js';
-export * from './core/declarations.js';
 // Export drawing utilities
 export * from './utils/drawingUtils.js';
 export {

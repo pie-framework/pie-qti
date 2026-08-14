@@ -68,6 +68,12 @@ export interface Declaration {
 	lookupTable?: LookupTableTable;
 	areaMapping?: AreaMapping;
 	isTemplate?: boolean;
+	/**
+	 * True when `defaultValue` is the 0 that QTI implies for a numeric outcome with no declared
+	 * `<defaultValue>`, rather than a value the author wrote. Lets callers tell "the author chose 0"
+	 * apart from "nothing was declared" when reporting on under-specified content.
+	 */
+	impliedNumericDefault?: boolean;
 }
 
 export type DeclarationMap = Record<string, Declaration>;

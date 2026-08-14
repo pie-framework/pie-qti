@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="outcome_numeric_default_zero_accumulating"
+  title="Accumulating SCORE with no declared default"
+  adaptive="false"
+  timeDependent="false">
+
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier">
+    <correctResponse><value>winter</value></correctResponse>
+  </responseDeclaration>
+  <responseDeclaration identifier="RESPONSE_1" cardinality="single" baseType="identifier">
+    <correctResponse><value>york</value></correctResponse>
+  </responseDeclaration>
+
+  <!-- No <defaultValue>: QTI 2.1 5.2 initializes a numeric outcome to 0, so the
+       accumulating sum below produces a score instead of propagating NULL. -->
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float"/>
+  <outcomeDeclaration identifier="TALLY" cardinality="single" baseType="integer"/>
+  <!-- Non-numeric outcomes keep the NULL default. -->
+  <outcomeDeclaration identifier="GRADE" cardinality="single" baseType="identifier"/>
+  <!-- An authored default still wins over the implied numeric default. -->
+  <outcomeDeclaration identifier="BONUS" cardinality="single" baseType="float">
+    <defaultValue><value>5</value></defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <p>
+      Now is the <inlineChoiceInteraction responseIdentifier="RESPONSE" shuffle="false">
+        <inlineChoice identifier="winter">winter</inlineChoice>
+        <inlineChoice identifier="summer">summer</inlineChoice>
+      </inlineChoiceInteraction> of our discontent,
+      made glorious summer by this sun of <inlineChoiceInteraction responseIdentifier="RESPONSE_1" shuffle="false">
+        <inlineChoice identifier="york">York</inlineChoice>
+        <inlineChoice identifier="lancaster">Lancaster</inlineChoice>
+      </inlineChoiceInteraction>.
+    </p>
+  </itemBody>
+
+  <responseProcessing>
+    <responseCondition>
+      <responseIf>
+        <match>
+          <variable identifier="RESPONSE"/>
+          <correct identifier="RESPONSE"/>
+        </match>
+        <setOutcomeValue identifier="SCORE">
+          <sum>
+            <variable identifier="SCORE"/>
+            <baseValue baseType="integer">1</baseValue>
+          </sum>
+        </setOutcomeValue>
+        <setOutcomeValue identifier="TALLY">
+          <sum>
+            <variable identifier="TALLY"/>
+            <baseValue baseType="integer">1</baseValue>
+          </sum>
+        </setOutcomeValue>
+      </responseIf>
+    </responseCondition>
+
+    <responseCondition>
+      <responseIf>
+        <match>
+          <variable identifier="RESPONSE_1"/>
+          <correct identifier="RESPONSE_1"/>
+        </match>
+        <setOutcomeValue identifier="SCORE">
+          <sum>
+            <variable identifier="SCORE"/>
+            <baseValue baseType="integer">1</baseValue>
+          </sum>
+        </setOutcomeValue>
+        <setOutcomeValue identifier="TALLY">
+          <sum>
+            <variable identifier="TALLY"/>
+            <baseValue baseType="integer">1</baseValue>
+          </sum>
+        </setOutcomeValue>
+      </responseIf>
+    </responseCondition>
+  </responseProcessing>
+</assessmentItem>

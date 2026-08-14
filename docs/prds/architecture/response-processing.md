@@ -255,6 +255,8 @@ Defined in `src/runtime/types.ts`. Three kinds: `'null'` (no value), `'value'` (
 
 Defined in `src/runtime/types.ts`. A variable declaration holds `identifier`, `baseType`, `cardinality`, `defaultValue`, `value`, and optionally `correctResponse`, `mapping`, `areaMapping`, `lookupTable`. Key invariant: `value` is always a `QtiValue` (never undefined). `defaultValue` is also a `QtiValue` (may be `kind: 'null'` if no default was declared).
 
+The engine does not synthesize defaults; whoever builds the `DeclarationMap` owns them. Callers must apply QTI 2.1 §5.2 — an outcome with no declared `<defaultValue>` initializes to NULL unless its base type is `integer` or `float`, where it initializes to 0 — otherwise accumulating rules such as `SCORE = sum(SCORE, 1)` propagate NULL and never score. `@pie-qti/item-player` applies it in `addDecl`, `@pie-qti/assessment-player` in `ReferenceBackendAdapter` for test-level declarations. `impliedNumericDefault` marks a `defaultValue` that came from that rule rather than from the author, so callers can report on under-specified content without re-parsing.
+
 ### `ProcessingProgram`
 
 Defined in `src/ast/types.ts`. A flat list of `StatementNode[]`. The scope (`response`/`outcome`/`template`) is enforced at build time, not stored in the program itself. The program is stateless; all state lives in `DeclarationContext`.
