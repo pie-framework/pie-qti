@@ -1,0 +1,15 @@
+{
+  "id": "outcome_numeric_default_zero_accumulating",
+  "type": "item",
+  "title": "Numeric outcomes with no declared default initialize to 0",
+  "notes": "Clean-room item. QTI 2.1 5.2 initializes a defaultless numeric outcome to 0; accumulating response processing (sum(SCORE, 1)) therefore scores instead of propagating NULL. Mirrors the shape of the 1EdTech Q12 composite inline-choice acceptance criteria without reproducing official content.",
+  "covers": [
+    "outcomeDeclaration",
+    "defaultValue",
+    "responseCondition",
+    "match",
+    "correct",
+    "setOutcomeValue",
+    "sum"
+  ]
+}
