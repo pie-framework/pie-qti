@@ -6,23 +6,17 @@ export type StimulusSanitizer = (html: string) => string;
  * Build the effective stimulus content map for an item render.
  *
  * Resolved delivery-context content is the package/assessment source of truth.
- * Explicit content remains as a compatibility override for older host wiring.
  */
 export function buildEffectiveStimulusContent(
 	deliveryContext: ResolvedItemDeliveryContext | undefined,
-	explicitStimulusContent: Record<string, string>,
 	sanitize: StimulusSanitizer
 ): Record<string, string> {
-	const resolved = Object.fromEntries(
+	return Object.fromEntries(
 		Object.entries(deliveryContext?.stimuli ?? {}).map(([identifier, stimulus]) => [
 			identifier,
 			sanitize(stimulus.bodyHtml),
 		])
 	);
-	const explicit = Object.fromEntries(
-		Object.entries(explicitStimulusContent).map(([identifier, content]) => [identifier, sanitize(content)])
-	);
-	return { ...resolved, ...explicit };
 }
 
 /**

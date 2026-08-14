@@ -4,13 +4,13 @@
   Status: current
   Type: system
   Packages: @pie-qti/item-player, @pie-qti/assessment-player, @pie-qti/default-components
-  Last reviewed: 2026-04-28
+  Last reviewed: 2026-08-13
 -->
 
 **Status:** current
 **Type:** system
 **Packages:** `@pie-qti/item-player`, `@pie-qti/assessment-player`, `@pie-qti/default-components`
-**Last reviewed:** 2026-04-28
+**Last reviewed:** 2026-08-13
 
 ---
 
@@ -86,8 +86,8 @@ Removing an eliminated choice from the DOM would change the response set silentl
 
 ## Functional requirements
 
-- **FR-1:** `PlayerConfig` must accept an optional `pnp?: PnpProfile` field. When absent, all PNP code paths must be completely inert — no DOM changes, no event listeners added, no effect on QTI 2.x items.
-- **FR-2:** `player.updatePnp(partial: Partial<PnpProfile>)` must merge the partial into the current profile and re-apply all PNP effects without re-parsing or re-rendering the item.
+- **FR-1:** `AssessmentItemDefinitionConfig` must accept an optional `pnp?: PnpProfile` field. When absent, all PNP code paths must be completely inert — no DOM changes, no event listeners added, no effect on QTI 2.x items.
+- **FR-2:** `session.dispatch({ action: 'updatePnp', profile })` must merge `profile` into the current PNP state and re-apply all PNP effects without re-parsing the item.
 - **FR-3:** `parsePnpXml(xml: string | Element): PnpProfile | null` must parse a `<personalNeedsProfile>` element from a QTI 3.0 assessment XML fragment and return a `PnpProfile`, or `null` if the element is absent.
 - **FR-4:** `applyPnpToRoot(rootEl: HTMLElement, pnp: PnpProfile): void` must set `data-qti-colorscheme` on `rootEl` to the active scheme name when a non-default scheme is present, and remove the attribute when `colorScheme` is `'default'` or absent.
 - **FR-5:** When `pnp.cognitive.eliminationTool` is `true`, every `simpleChoice` in a `choiceInteraction` and every orderable item in an `orderInteraction` must render a toggle button that marks/unmarks that choice as eliminated. The button must be visible, labelled, and keyboard-operable.
@@ -104,7 +104,7 @@ Removing an eliminated choice from the DOM would change the response set silentl
 ## Non-functional requirements
 
 - **Accessibility:** The elimination toggle button must have a visible label derived from the choice text (e.g. `aria-label="Eliminate: [choice text]"` when not eliminated; `"Restore: [choice text]"` when eliminated). The button must have a minimum touch target of 44×44 CSS pixels. The `data-eliminated` attribute must be reflected via `aria-disabled="true"` so screen readers announce the eliminated state. All six color scheme combinations must pass WCAG 1.4.3 minimum contrast (4.5:1 for normal text, 3:1 for large text) against their intended backgrounds — CSS for these schemes must be validated as part of the theming deliverable.
-- **Performance:** `applyPnpToRoot` performs a single DOM attribute write; it must not trigger a full component re-render. `updatePnp` must be callable repeatedly during an assessment session (e.g. on each item navigation) without accumulated cost.
+- **Performance:** `applyPnpToRoot` performs a single DOM attribute write. The `updatePnp` session command must be callable repeatedly during an assessment session (e.g. on each item navigation) without accumulated listeners or parsing work.
 - **Cross-platform:** The elimination toggle button must be usable on touch devices (tap target, no hover dependency). Color schemes must be verified on mobile viewports (375px minimum).
 - **Security:** `parsePnpXml` must not evaluate any script content from the XML input. It processes only named structural elements (`<personalNeedsProfile>`, `<colorScheme>`, etc.) and reads their text/attribute values; it must not `innerHTML`-inject any parsed content.
 - **i18n:** The elimination button label strings (`"Eliminate"` / `"Restore"`) must be sourced from the `@pie-qti/i18n` provider under keys `accessibility.pnp.eliminate` and `accessibility.pnp.restore`. English defaults are acceptable fallbacks.
@@ -167,10 +167,10 @@ Removing an eliminated choice from the DOM would change the response set silentl
 
 | Extension point | Interface/type | How to use | Example |
 |----------------|---------------|------------|---------|
-| `PlayerConfig.pnp` | `PnpProfile` | Pass at construction; provides initial PNP state | `new Player({ itemXml, pnp: { display: { colorScheme: 'blackwhite' } } })` |
-| `player.updatePnp()` | `(partial: Partial<PnpProfile>) => void` | Call at any point during the session to update accommodations | Update color scheme when student changes preference |
+| `AssessmentItemDefinitionConfig.pnp` | `PnpProfile` | Pass while compiling a definition; provides initial PNP state to its sessions | `createAssessmentItemDefinition({ itemXml, pnp: { display: { colorScheme: 'blackwhite' } } })` |
+| `ItemSession.dispatch()` | `{ action: 'updatePnp'; profile: Partial<PnpProfile> }` | Dispatch while a session is active to update accommodations | Update color scheme when a student changes preference |
 | `applyPnpToRoot()` | `(rootEl: HTMLElement, pnp: PnpProfile) => void` | Exported utility; call directly if embedding the player root in a custom shell | Apply scheme to a custom outer wrapper element |
-| `parsePnpXml()` | `(xml: string \| Element) => PnpProfile \| null` | Parse `<personalNeedsProfile>` from QTI 3.0 assessment XML | Feed parsed profile into `PlayerConfig.pnp` |
+| `parsePnpXml()` | `(xml: string \| Element) => PnpProfile \| null` | Parse `<personalNeedsProfile>` from QTI 3.0 assessment XML | Feed the parsed profile into `AssessmentItemDefinitionConfig.pnp` |
 | `qti-catalog-lookup` event | `CustomEvent<{ idref: string; usage: string; html: string \| null }>` | Listen on the player root element to handle platform-level catalog lookups in the host | Route TTS, signing, braille, audio, or extended-description content |
 | Iframe `SET_PNP` message | `QtiIframeEnvelope<'SET_PNP', { pnp: PnpProfile }>` | Send from host to iframe runtime to update PNP mid-session | Push PNP from a student settings panel in the host |
 
@@ -230,7 +230,7 @@ The event is dispatched with `{ bubbles: true, composed: true }` on the player r
 
 - `PnpProfile` is always a plain object (no class instance); it is safe to serialize to JSON and pass via `postMessage`.
 - All fields are optional; an empty `{}` profile is valid and has no effect.
-- `updatePnp` performs a shallow merge at the top level (`display`, `content`, `cognitive`) and a deep merge one level deeper (so `updatePnp({ content: { glossaryOnScreen: true } })` does not clear `content.extendedTime`).
+- The `updatePnp` command performs a shallow merge at the top level (`display`, `content`, `cognitive`) and a deep merge one level deeper (so dispatching `{ action: 'updatePnp', profile: { content: { glossaryOnScreen: true } } }` does not clear `content.extendedTime`).
 - The `data-qti-colorscheme` attribute must be the only PNP-owned attribute on the player root. Future PNP attributes must use the same `data-qti-` prefix.
 
 ---
@@ -241,21 +241,21 @@ The event is dispatched with `{ bubbles: true, composed: true }` on the player r
 
 **AC-1: Default scheme — no attribute**
 ```
-Given: A player is constructed with no pnp config (or pnp.display.colorScheme = 'default')
+Given: A definition/session is created with no pnp config (or pnp.display.colorScheme = 'default')
 When: The player root element is inspected
 Then: No data-qti-colorscheme attribute is present on the root element
 ```
 
 **AC-2: Named scheme applied**
 ```
-Given: A player is constructed with pnp: { display: { colorScheme: 'blackwhite' } }
+Given: A definition/session is created with pnp: { display: { colorScheme: 'blackwhite' } }
 When: The player root element is inspected
 Then: data-qti-colorscheme="blackwhite" is set on the root element
 ```
 
 **AC-3: All six named schemes accepted without error**
 ```
-Given: A player is constructed successively with each of the six named color schemes
+Given: Definitions/sessions are created successively with each of the six named color schemes
   ('blackwhite', 'whitenav', 'blackcream', 'yellowblue', 'medgray', 'default')
 When: Each instance's root element is inspected
 Then: Each instance has the corresponding data-qti-colorscheme attribute value
@@ -263,18 +263,18 @@ Then: Each instance has the corresponding data-qti-colorscheme attribute value
   AND no JavaScript error is thrown for any scheme name
 ```
 
-**AC-4: Mid-session scheme update via updatePnp**
+**AC-4: Mid-session scheme update via the session command**
 ```
-Given: A player is running with pnp: { display: { colorScheme: 'blackwhite' } }
-When: player.updatePnp({ display: { colorScheme: 'yellowblue' } }) is called
+Given: A session is running with pnp: { display: { colorScheme: 'blackwhite' } }
+When: session.dispatch({ action: 'updatePnp', profile: { display: { colorScheme: 'yellowblue' } } }) is called
 Then: data-qti-colorscheme="yellowblue" is set on the root element
   AND the item is not re-parsed or re-rendered (no flicker)
 ```
 
-**AC-5: Scheme cleared via updatePnp**
+**AC-5: Scheme cleared via the session command**
 ```
-Given: A player has data-qti-colorscheme="blackwhite" set
-When: player.updatePnp({ display: { colorScheme: 'default' } }) is called
+Given: A session presentation has data-qti-colorscheme="blackwhite" set
+When: session.dispatch({ action: 'updatePnp', profile: { display: { colorScheme: 'default' } } }) is called
 Then: The data-qti-colorscheme attribute is removed from the root element
 ```
 
@@ -460,7 +460,7 @@ Then: result.content.extendedTime = { active: true, multiplier: 1.5 }
 
 **AC-24: No PNP side-effects on QTI 2.x item without config**
 ```
-Given: A QTI 2.x assessmentItem is loaded with no pnp in PlayerConfig
+Given: A QTI 2.x assessmentItem is loaded with no pnp in AssessmentItemDefinitionConfig
 When: The item renders and responds normally
 Then: No data-qti-colorscheme attribute appears on any element
   AND no eliminate buttons are rendered
@@ -507,17 +507,17 @@ Then: The screen reader announces the choice as disabled (or similar indication 
 
 ### Edge cases
 
-**AC-E1: updatePnp partial merge preserves unspecified fields**
+**AC-E1: updatePnp command partial merge preserves unspecified fields**
 ```
-Given: A player with pnp: { display: { colorScheme: 'blackwhite' }, content: { extendedTime: { active: true, multiplier: 1.5 } } }
-When: player.updatePnp({ display: { colorScheme: 'yellowblue' } }) is called
+Given: A session with pnp: { display: { colorScheme: 'blackwhite' }, content: { extendedTime: { active: true, multiplier: 1.5 } } }
+When: session.dispatch({ action: 'updatePnp', profile: { display: { colorScheme: 'yellowblue' } } }) is called
 Then: data-qti-colorscheme is updated to 'yellowblue'
   AND content.extendedTime is unchanged (still active with multiplier 1.5)
 ```
 
 **AC-E2: Empty PnpProfile has no effect**
 ```
-Given: A player is constructed with pnp: {}
+Given: A definition/session is created with pnp: {}
 When: The item renders
 Then: No data-qti-colorscheme is set
   AND no eliminate buttons are rendered

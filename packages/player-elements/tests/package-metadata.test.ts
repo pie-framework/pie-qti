@@ -25,7 +25,9 @@ describe('player-elements package metadata', () => {
 		expect(Object.hasOwn(packageJson.exports ?? {}, './elements')).toBe(true);
 		expect(Object.hasOwn(packageJson.exports ?? {}, './register-players')).toBe(true);
 		expect(packageJson.types).toBe('./dist/public/index.d.ts');
-		expect(packageJson.dependencies).toBeUndefined();
+		expect(packageJson.dependencies).toEqual({
+			'@pie-qti/item-player': 'workspace:*',
+		});
 		expect(packageJson.devDependencies?.['@pie-qti/default-components']).toBe('workspace:*');
 	});
 
@@ -45,5 +47,8 @@ describe('player-elements package metadata', () => {
 		]) {
 			expect(declarationText).not.toContain(implementationDetail);
 		}
+		expect(declarationText).not.toContain('onResponseChange?:');
+		expect(declarationText).not.toContain('onSubmit?:');
+		expect(declarationText).not.toContain('onComplete?:');
 	});
 });

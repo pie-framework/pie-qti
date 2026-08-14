@@ -108,7 +108,7 @@ Extracted by `portableCustomExtractor` (priority 20) into `ExtractedPci`. `PciHo
 5. `disable()` / `enable()` — called on role/state transitions.
 6. `destroy()` — called on player teardown; releases the module reference.
 
-The portable renderer mounts the sanitized scaffold, asks the owning `Player` to create a `PciHost`, calls `load()`/`initialize()`, and wires responses into the normal item-player lifecycle. The same `PlayerConfig.pci` object is available as a JS-only `.pci` property on the item and assessment custom elements and is propagated through assessment and section rendering.
+The portable renderer mounts the sanitized scaffold, asks the owning item session binding to create a `PciHost`, calls `load()`/`initialize()`, and wires responses into the normal item-session lifecycle. The same `AssessmentItemDefinitionConfig.pci` object is available as a JS-only `.pci` property on the item and assessment custom elements and is propagated through assessment and section rendering.
 
 ### Known gaps
 
@@ -168,7 +168,7 @@ When a PCI module is loaded, the module is responsible for its own internal acce
 
 - **Current (fallback):** The `xml` string is displayed in a `<pre>` block, not injected as HTML. No XSS risk in the fallback path.
 - **PCI module loading:** PCI modules are third-party JavaScript and execute with the authority of the realm that returns them. The player never performs an ambient `import()` of an authored path. The embedding host must:
-  - supply `PlayerConfig.pci.moduleResolver` as an explicit opt-in;
+  - supply `AssessmentItemDefinitionConfig.pci.moduleResolver` as an explicit opt-in;
   - validate the authored path against the content package manifest and enforce its URL/origin policy before returning a module;
   - understand that returning a module is equivalent to script inclusion; delivery platforms requiring stronger isolation must wrap the player in a sandboxed, preferably cross-origin `<iframe>`.
 - **`rawAttributes` display:** JSON-serialised attributes are rendered as text content, not innerHTML; no sanitisation is required for the fallback display path.
@@ -235,7 +235,7 @@ The `i18n` prop is optional; all strings have English defaults. RTL layout is ha
 | Extension point | Interface | How to use | Notes |
 | --------------- | --------- | ---------- | ----- |
 | PCI module interface | `PciModule` in `packages/item-player/src/pci/types.ts` | Export a default object (or named `getInstance` export) with `initialize`, `getResponse`, `setResponse`, `disable`, `enable`, `destroy` | Every PCI module must implement this interface; `PciHost` calls it at defined lifecycle points |
-| `PlayerConfig.pci` / custom-element `.pci` | `PciConfiguration` | Supply `{ baseUrl?, moduleResolver }` as a JavaScript property on `pie-qti-item-player` or `pie-qti-assessment-player` | Secure default is disabled; there is no ambient import or `document.baseURI` default |
+| `AssessmentItemDefinitionConfig.pci` / custom-element `.pci` | `PciConfiguration` | Supply `{ baseUrl?, moduleResolver }` as a JavaScript property on `pie-qti-item-player` or `pie-qti-assessment-player` | Secure default is disabled; there is no ambient import or `document.baseURI` default |
 | Custom extractor (higher priority) | `ElementExtractor<ExtractedPci>` | Register an extractor with `priority > 20` for `qti-portable-custom-interaction` element type | `portableCustomExtractor` itself follows this pattern; plugin system docs in `docs/prds/architecture/item-player-plugin-system.md` |
 
 ### `PciHost` contract

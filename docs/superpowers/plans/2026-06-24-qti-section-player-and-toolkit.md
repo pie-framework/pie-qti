@@ -348,7 +348,7 @@ Create `packages/section-player/src/contracts/layout-contract.ts`:
 
 ```ts
 import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
-import type { HtmlContent, PlayerSecurityConfig, SerializedItemSessionState } from '@pie-qti/item-player';
+import type { HtmlContent, ItemSession, PlayerSecurityConfig } from '@pie-qti/item-player';
 import type { QtiSectionDiagnostic, QtiSectionRuntimeHostContract } from './runtime-host-contract.js';
 
 export type QtiSectionLayoutPreference = 'split-pane' | 'vertical' | 'auto';
@@ -379,7 +379,7 @@ export interface QtiSectionItemRef {
   title?: string;
   itemXml: string;
   responses?: Record<string, unknown>;
-  sessionSnapshot?: SerializedItemSessionState;
+  session?: ItemSession;
   deliveryContext?: ResolvedItemDeliveryContext;
   diagnostics?: QtiSectionDiagnostic[];
 }
@@ -1236,7 +1236,6 @@ interface Props {
   i18n?: I18nProvider;
   security?: PlayerSecurityConfig;
   pnp?: PnpProfile;
-  extendedTextEditor?: 'tiptap' | 'textarea';
   typeset?: (root: HTMLElement) => void | Promise<void>;
   onResponseChange?: (itemIdentifier: string, responseIdentifier: string, value: unknown) => void;
   onFrameworkError?: (error: QtiSectionFrameworkError) => void;
@@ -1284,13 +1283,12 @@ Create `packages/section-player/src/components/SectionPlayerSplitPane.svelte`:
     i18n?: I18nProvider;
     security?: PlayerSecurityConfig;
     pnp?: PnpProfile;
-    extendedTextEditor?: 'tiptap' | 'textarea';
     typeset?: (root: HTMLElement) => void | Promise<void>;
     onResponseChange?: (itemIdentifier: string, responseIdentifier: string, value: unknown) => void;
     onItemPaneReady?: (element: HTMLElement) => void;
   }
 
-  const { composition, i18n, security, pnp, extendedTextEditor, typeset, onResponseChange, onItemPaneReady }: Props = $props();
+  const { composition, i18n, security, pnp, typeset, onResponseChange, onItemPaneReady }: Props = $props();
   const role = $derived(composition.section.role ?? 'candidate');
   const effectiveSecurity = $derived(security ?? composition.security);
 </script>
@@ -1326,7 +1324,6 @@ Create `packages/section-player/src/components/SectionPlayerSplitPane.svelte`:
       {i18n}
       security={effectiveSecurity}
       {pnp}
-      {extendedTextEditor}
       {typeset}
       {onResponseChange}
     />
@@ -1670,7 +1667,6 @@ Replace only the existing passage/rubric/item middle-pane branch with section-pl
       {i18n}
       security={config.security}
       pnp={config.pnp}
-      extendedTextEditor={config.extendedTextEditor}
       {typeset}
       onResponseChange={handleSectionResponseChange}
       onItemPaneReady={(el) => (itemPaneEl = el)}
@@ -1681,7 +1677,6 @@ Replace only the existing passage/rubric/item middle-pane branch with section-pl
       {i18n}
       security={config.security}
       pnp={config.pnp}
-      extendedTextEditor={config.extendedTextEditor}
       {typeset}
       onResponseChange={handleSectionResponseChange}
       onItemPaneReady={(el) => (itemPaneEl = el)}

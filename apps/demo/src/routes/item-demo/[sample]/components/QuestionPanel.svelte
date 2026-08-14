@@ -2,15 +2,15 @@
 
 	import { typesetAction } from '@pie-qti/default-components/shared';
 	import { ItemBody } from '@pie-qti/item-player/components';
-	import type { Player, QTIRole, RubricBlock, ScoringResult } from '@pie-qti/item-player';
+	import type { ItemSession, RubricBlock, ScoringResult } from '@pie-qti/item-player';
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import { typesetMathInElement } from '@pie-qti/typeset-katex';
-	import type { DemoResponseMap, DemoResponseValue } from '../lib/types';
+	import type { DemoResponseValue } from '../lib/types';
 
 	interface Props {
-		player: Player;
-		sidePanelRubrics: RubricBlock[];
-		responses: DemoResponseMap;
+		session: ItemSession;
+		revision: number;
+		sidePanelRubrics: readonly RubricBlock[];
 		scoringResult: ScoringResult | null;
 		answeredCount: number;
 		totalInteractions: number;
@@ -18,16 +18,15 @@
 		isSubmitting: boolean;
 		disabled: boolean;
 		i18n?: I18nProvider | null;
-		role: QTIRole;
 		onResponseChange: (responseId: string, value: DemoResponseValue) => void;
 		onSubmit: () => void;
 		onReset: () => void;
 	}
 
 	let {
-		player,
+		session,
+		revision,
 		sidePanelRubrics,
-		responses,
 		scoringResult,
 		answeredCount,
 		totalInteractions,
@@ -35,7 +34,6 @@
 		isSubmitting,
 		disabled,
 		i18n,
-		role,
 		onResponseChange,
 		onSubmit,
 		onReset,
@@ -44,8 +42,10 @@
 	// Simplified translation helper - locale changes trigger page refresh
 	const t = $derived((key: string, fallback: string) => i18n?.t(key) ?? fallback);
 
-	// Delegate submission enablement to the player
-	const canSubmit = $derived(player ? player.canSubmitResponses(responses) : false);
+	const canSubmit = $derived.by(() => {
+		void revision;
+		return session.state().canSubmit;
+	});
 </script>
 
 <!-- Progress Indicator -->
@@ -71,13 +71,11 @@
 			<!-- ItemBody handles player-owned item-body rendering; direct rubrics are host-placed. -->
 			<div class="qti-question-body">
 				<ItemBody
-					{player}
-					{responses}
+					{session}
+					{revision}
 					{disabled}
-					{role}
 					i18n={i18n ?? undefined}
 					typeset={typesetMathInElement}
-					renderItemBodyRubrics={role === 'candidate'}
 					{onResponseChange}
 				/>
 			</div>

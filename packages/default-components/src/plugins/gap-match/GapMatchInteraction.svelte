@@ -1,7 +1,8 @@
 <svelte:options customElement="pie-qti-gap-match" />
 
 <script lang="ts">
-	import type { GapMatchInteractionData } from '@pie-qti/item-player';
+	import type { GapMatchInteractionData, PlayerSecurityConfig } from '@pie-qti/item-player';
+	import { normalizeCssPixelLength, sanitizeSharedHtml } from '@pie-qti/item-player/security';
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
@@ -15,16 +16,20 @@
 		disabled?: boolean;
 		role?: string;
 		i18n?: I18nProvider;
+		security?: PlayerSecurityConfig;
 		onChange?: (value: string[]) => void;
 	}
 
-	let { interaction = $bindable(), response = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), onChange }: Props = $props();
+	let { interaction = $bindable(), response = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), security, onChange }: Props = $props();
 
 	// Parse props that may be JSON strings (web component usage)
 	const parsedInteraction = $derived(parseJsonProp<GapMatchInteractionData>(interaction));
 	const parsedResponse = $derived(parseJsonProp<string[]>(response));
 	const parsedCorrectResponse = $derived(parseJsonProp<string[]>(correctResponse));
 	const isShowingCorrect = $derived(role === 'scorer' && parsedCorrectResponse !== null);
+	const choicesContainerWidth = $derived(
+		normalizeCssPixelLength(parsedInteraction?.choicesContainerWidth),
+	);
 
 	const pairs = $derived(Array.isArray(parsedResponse) ? parsedResponse : []);
 	const correctPairs = $derived(Array.isArray(parsedCorrectResponse) ? parsedCorrectResponse : []);
@@ -182,15 +187,17 @@
 		cleanupFunctions.forEach(cleanup => cleanup());
 		cleanupFunctions = [];
 
-		// Replace placeholders with marker spans so we can keep the original HTML structure.
-		const html = parsedInteraction.promptText.replace(/\[GAP:([^\]]+)\]/g, (_m, gapId) => {
-			const safe = String(gapId).replace(/"/g, '&quot;');
-			return `<span data-gap-placeholder="${safe}"></span>`;
-		});
-
 		const tpl = document.createElement('template');
-		tpl.innerHTML = html;
-		promptContainer.innerHTML = '';
+		const promptHtml =
+			typeof parsedInteraction.promptText === 'string'
+				? sanitizeSharedHtml(parsedInteraction.promptText, security)
+				: parsedInteraction.promptText;
+		// Preserve a TrustedHTML object all the way to the sink. Gap controls are
+		// composed afterwards with DOM operations, so no post-egress string rewrite
+		// can invalidate the security guarantee.
+		tpl.innerHTML = promptHtml as any;
+		replaceGapMarkers(tpl.content);
+		promptContainer.replaceChildren();
 		promptContainer.appendChild(tpl.content.cloneNode(true));
 
 		const placeholders = Array.from(
@@ -339,6 +346,32 @@
 		}
 	}
 
+	function replaceGapMarkers(root: DocumentFragment): void {
+		const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+		const textNodes: Text[] = [];
+		while (walker.nextNode()) textNodes.push(walker.currentNode as Text);
+
+		for (const textNode of textNodes) {
+			const text = textNode.data;
+			const pattern = /\[GAP:([^\]]+)\]/g;
+			let match: RegExpExecArray | null;
+			let offset = 0;
+			let replaced = false;
+			const fragment = document.createDocumentFragment();
+			while ((match = pattern.exec(text))) {
+				replaced = true;
+				if (match.index > offset) fragment.append(text.slice(offset, match.index));
+				const marker = document.createElement('span');
+				marker.dataset.gapPlaceholder = match[1] ?? '';
+				fragment.append(marker);
+				offset = match.index + match[0].length;
+			}
+			if (!replaced) continue;
+			if (offset < text.length) fragment.append(text.slice(offset));
+			textNode.replaceWith(fragment);
+		}
+	}
+
 	// Re-render prompt when interaction or response changes (keeps selected word labels in sync)
 	$effect(() => {
 		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
@@ -382,7 +415,7 @@
 		<div
 			part="palette"
 			class="qti-gm-palette flex flex-wrap gap-2 p-4 bg-base-200 rounded-lg border-2 border-base-300"
-			style={parsedInteraction.choicesContainerWidth ? `width: ${parsedInteraction.choicesContainerWidth}` : undefined}
+			style={choicesContainerWidth ? `width: ${choicesContainerWidth}` : undefined}
 			role="group"
 			aria-label={i18n?.t('interactions.gapMatch.availableLabel') ?? 'Available words to place'}
 		>

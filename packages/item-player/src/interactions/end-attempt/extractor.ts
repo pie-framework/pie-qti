@@ -26,9 +26,9 @@ export const standardEndAttemptExtractor: ElementExtractor<EndAttemptData> = {
 	elementTypes: ['endAttemptInteraction'],
 	description: 'Extracts standard QTI endAttemptInteraction (end attempt button)',
 
-	canHandle(element, _context) {
+	canHandle(element, context) {
 		// All endAttemptInteraction elements are standard
-		return element.rawTagName === 'endAttemptInteraction';
+		return context.utils.matchesTag(element, 'endAttemptInteraction');
 	},
 
 	extract(element, context) {

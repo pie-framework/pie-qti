@@ -79,6 +79,7 @@ export interface OutcomeDeclaration extends VariableDeclaration {
 	views?: string[];
 }
 
+/** @internal Private engine snapshot shape; use SerializedItemSessionState. */
 export interface ItemSessionState {
 	[variableId: string]: any;
 }
@@ -141,6 +142,7 @@ export interface ItemSessionActionResult {
 	scoring?: ScoringResult;
 }
 
+/** @internal Private engine response map. */
 export interface InteractionResponse {
 	[responseId: string]: any;
 }
@@ -220,6 +222,7 @@ export type QTIRole = 'candidate' | 'scorer' | 'proctor' | 'testConstructor' | '
 
 export type RubricBlockScope = 'direct' | 'itemBody';
 
+/** @internal Private engine rubric query. */
 export interface RubricBlockOptions {
 	/**
 	 * `direct` rubrics are assessment-item children and are intended for host placement.
@@ -250,8 +253,9 @@ export interface QTIComplianceConfig {
 	logDeviations?: boolean;
 }
 
-export interface PlayerConfig {
-	itemXml?: string;
+/** @internal Configuration for the private item-session engine. */
+export interface ItemSessionEngineConfig {
+	itemXml: string;
 	/**
 	 * QTI 3.0 §6.2 Personal Needs and Preferences profile.
 	 * Color scheme is applied immediately as data-qti-colorscheme on the player root.
@@ -271,8 +275,6 @@ export interface PlayerConfig {
 	 * catalogXml, then item-embedded catalog entries so item-local entries win.
 	 */
 	deliveryContext?: ResolvedItemDeliveryContext;
-	sessionState?: ItemSessionState;
-	responses?: InteractionResponse;
 	role?: QTIRole;
 	/** Optional seed for deterministic random operations (e.g. templateProcessing randomInteger) */
 	seed?: number;
@@ -294,8 +296,6 @@ export interface PlayerConfig {
 	componentRegistry?: any; // Will be ComponentRegistry, but avoiding circular dependency
 	/** Optional extraction registry for custom element extractors */
 	extractionRegistry?: any; // Will be ExtractionRegistry, but avoiding circular dependency
-	/** Optional plugins to extend player functionality */
-	plugins?: any[]; // Will be QTIPlugin[], but avoiding circular dependency
 	/**
 	 * Optional i18n provider for internationalization.
 	 * If not provided, defaults to DefaultI18nProvider with English messages.
@@ -324,12 +324,6 @@ export interface PlayerConfig {
 	 * A moduleResolver is required before any authored PCI code can execute.
 	 */
 	pci?: PciConfiguration;
-	/**
-	 * @deprecated Use pci.baseUrl. Retained as a resolution-only compatibility alias;
-	 * it never enables module loading without pci.moduleResolver.
-	 */
-	pciBaseUrl?: string;
-
 	/**
 	 * Security-related controls for untrusted QTI rendered into the host DOM.
 	 * Defaults are conservative for same-DOM embedding.
@@ -432,7 +426,4 @@ export interface InteractionContext {
 	orientation?: 'horizontal' | 'vertical';
 }
 
-// Interaction data shapes for the component/plugin system.
-// Exported here so consumers can import them from `@pie-qti/item-player`.
-export type * from '../interactions/index.js';
 export * from './responseValidation.js';

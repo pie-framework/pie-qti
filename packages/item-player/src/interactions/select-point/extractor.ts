@@ -5,6 +5,7 @@
  */
 
 import type { ElementExtractor } from '../../extraction/types.js';
+import { normalizePixelDimension } from '../../security/styleValues.js';
 
 /**
  * Image data for select point interaction
@@ -38,9 +39,9 @@ export const standardSelectPointExtractor: ElementExtractor<SelectPointData> = {
 	elementTypes: ['selectPointInteraction'],
 	description: 'Extracts standard QTI selectPointInteraction (click point on image)',
 
-	canHandle(element, _context) {
+	canHandle(element, context) {
 		// All selectPointInteraction elements are standard
-		return element.rawTagName === 'selectPointInteraction';
+		return context.utils.matchesTag(element, 'selectPointInteraction');
 	},
 
 	extract(element, context) {
@@ -55,8 +56,14 @@ export const standardSelectPointExtractor: ElementExtractor<SelectPointData> = {
 			const objectElement = objectElements[0];
 			const type = utils.getAttribute(objectElement, 'type', '');
 			const data = utils.getAttribute(objectElement, 'data', '');
-			const width = utils.getAttribute(objectElement, 'width', '500');
-			const height = utils.getAttribute(objectElement, 'height', '300');
+			const width = normalizePixelDimension(
+				utils.getAttribute(objectElement, 'width', ''),
+				'500',
+			);
+			const height = normalizePixelDimension(
+				utils.getAttribute(objectElement, 'height', ''),
+				'300',
+			);
 
 			if (type.startsWith('image/svg')) {
 				// Extract inline SVG content - get full content including <svg> tag
@@ -80,8 +87,14 @@ export const standardSelectPointExtractor: ElementExtractor<SelectPointData> = {
 			// Handle img element as fallback
 			const imgElement = imgElements[0];
 			const src = utils.getAttribute(imgElement, 'src', '');
-			const width = utils.getAttribute(imgElement, 'width', '500');
-			const height = utils.getAttribute(imgElement, 'height', '300');
+			const width = normalizePixelDimension(
+				utils.getAttribute(imgElement, 'width', ''),
+				'500',
+			);
+			const height = normalizePixelDimension(
+				utils.getAttribute(imgElement, 'height', ''),
+				'300',
+			);
 			imageData = {
 				type: 'image',
 				src,

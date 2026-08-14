@@ -61,7 +61,7 @@
 		</div>
 	{:else}
 		{#if parsedInteraction.prompt}
-			<p class="font-semibold mb-2">{parsedInteraction.prompt}</p>
+			<div class="font-semibold mb-2 qti-rich-content">{@html parsedInteraction.prompt}</div>
 		{/if}
 		<!--
 			Accessibility note (WCAG 2.1 SC 2.1.1 exemption):

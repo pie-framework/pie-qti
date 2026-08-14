@@ -4,10 +4,11 @@
  * Provides Likert scale choice interactions for QTI assessments.
  */
 
-import type { ExtractionRegistry, PluginContext, QTIPlugin, RenderContext } from '@pie-qti/item-player';
+import type { AssessmentItemDefinitionPlugin, ExtractionRegistry } from '@pie-qti/item-player';
 import { likertChoiceExtractor } from './extractors/index.js';
 
-export const likertScalePlugin: QTIPlugin = {
+export const likertScalePlugin: AssessmentItemDefinitionPlugin = {
+	kind: 'assessment-item-definition-plugin',
 	name: '@acme/likert-scale-plugin',
 	version: '1.0.0',
 	description: 'Likert scale choice interactions for QTI assessments',
@@ -17,26 +18,5 @@ export const likertScalePlugin: QTIPlugin = {
 	 */
 	registerExtractors(registry: ExtractionRegistry) {
 		registry.register(likertChoiceExtractor);
-	},
-
-	lifecycle: {
-		onRegister(_context: PluginContext) {
-			console.log('[ACME Likert Plugin] Registered successfully');
-			console.log('[ACME Likert Plugin] Likert choice extractor available with priority 500');
-		},
-
-		onBeforeRender(context: RenderContext) {
-			// Optional: Log when rendering starts with Likert interactions
-			const dom = context.dom;
-			if (dom) {
-				const likertChoices =
-					typeof dom.querySelectorAll === 'function'
-						? dom.querySelectorAll('likertChoice')
-						: [];
-				if (likertChoices.length > 0) {
-					console.log(`[ACME Likert Plugin] Rendering ${likertChoices.length} likert choices`);
-				}
-			}
-		},
 	},
 };

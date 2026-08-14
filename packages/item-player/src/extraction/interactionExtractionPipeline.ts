@@ -1,17 +1,20 @@
 import type { AssessmentItemDocument } from '../document/AssessmentItemDocument.js';
 import type { ExtractionRegistry } from './ExtractionRegistry.js';
 import { createExtractionContext } from './createContext.js';
-import { applyInteractionSecurity } from './interactionSecurity.js';
+import { finalizeInteractionDelivery } from './interactionSecurity.js';
 import type { VariableDeclaration as ExtractionVariableDeclaration } from './types.js';
 import type { DeclarationMap } from '@pie-qti/qti-processing';
-import type { PlayerConfig } from '../types/index.js';
-import type { InteractionData } from '../interactions/index.js';
+import type { ExtractionConfig } from './types.js';
+import type {
+	BaseInteractionData,
+	DeliveredInteraction,
+} from '../interactions/shared/types.js';
 
 export interface InteractionExtractionPipelineInput {
 	document: AssessmentItemDocument;
 	extractionRegistry: ExtractionRegistry;
 	declarations: DeclarationMap;
-	config: PlayerConfig;
+	config: ExtractionConfig;
 	/**
 	 * Item session GUID, used to seed `shuffle` for the interactions that support it.
 	 * Omit to keep the authored order.
@@ -25,11 +28,11 @@ export function extractInteractionData({
 	declarations,
 	config,
 	sessionGuid,
-}: InteractionExtractionPipelineInput): InteractionData[] {
+}: InteractionExtractionPipelineInput): readonly BaseInteractionData[] {
 	const declMap = projectDeclarationsForExtraction(declarations);
 	const elements = document.findExtractionElements(getRegisteredElementTypes(extractionRegistry));
 
-	const interactions: InteractionData[] = [];
+	const interactions: BaseInteractionData[] = [];
 	for (const discovered of elements) {
 		const context = createExtractionContext(
 			discovered.element,
@@ -39,20 +42,53 @@ export function extractInteractionData({
 			config,
 			sessionGuid
 		);
-		const result = extractionRegistry.extract<any>(discovered.element, context);
-		if (!result.success) continue;
+		const result = extractionRegistry.extract<Record<string, unknown>>(
+			discovered.element,
+			context
+		);
+		if (!result.success) throw result.error;
 
-		interactions.push({
-			// A QTI 2.x portableCustomInteraction is nested in customInteraction. Its
-			// extractor supplies the canonical renderer type so it does not hit the
-			// generic unsupported-custom fallback.
-			type: (result.data?.type ?? discovered.normalizedType) as any,
-			responseId: discovered.responseIdentifier,
+		const extractor = result.extractor;
+		const outputType = extractor?.outputType ?? discovered.normalizedType;
+		const interaction = {
 			...result.data,
-		});
+			// These are framework-owned routing fields. Applying them after the
+			// extractor payload prevents a plugin from redirecting a response or
+			// selecting an undeclared renderer through payload properties.
+			type: outputType,
+			responseId: discovered.responseIdentifier,
+		} satisfies DeliveredInteraction<string, Record<string, unknown>>;
+		// Sink policy follows the authored interaction kind, while outputType only
+		// selects a renderer. A plugin replacing a standard extractor must not be
+		// able to shed the standard prompt/choice/URL policy by renaming its output.
+		const standardFields = extractionRegistry.getDeliveryFieldsForType(
+			discovered.normalizedType,
+		);
+		const extractorFields = extractor.delivery?.fields ?? [];
+		interactions.push(
+			finalizeInteractionDelivery(
+				interaction,
+				mergeDeliveryFields(standardFields, extractorFields),
+				config.security,
+				discovered.normalizedType,
+			)
+		);
 	}
 
-	return applyInteractionSecurity(interactions, config.security);
+	return Object.freeze(interactions);
+}
+
+function mergeDeliveryFields<T extends { kind: string; path: readonly (string | '*')[] }>(
+	standard: readonly T[],
+	extension: readonly T[]
+): T[] {
+	const fields = new Map<string, T>();
+	for (const field of [...extension, ...standard]) {
+		// An output path has one sink meaning. Authored standard policy is
+		// authoritative even when a plugin tries to change the field kind itself.
+		fields.set(JSON.stringify(field.path), field);
+	}
+	return [...fields.values()];
 }
 
 function getRegisteredElementTypes(extractionRegistry: ExtractionRegistry): string[] {

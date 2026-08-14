@@ -4,19 +4,19 @@
   Status: draft
   Type: architecture
   Packages: @pie-qti/item-player
-  Last reviewed: 2026-04-27
+  Last reviewed: 2026-08-13
 -->
 
 **Status:** draft  
 **Type:** architecture  
 **Packages:** `@pie-qti/item-player`  
-**Last reviewed:** 2026-04-27
+**Last reviewed:** 2026-08-13
 
 ---
 
 ## Summary
 
-The item player plugin system is a set of three coordinated extension mechanisms inside `@pie-qti/item-player`: the `QTIPlugin` interface, the `ExtractionRegistry`, and the `ComponentRegistry`. Together they allow third-party code to teach the player how to recognize and render vendor-specific QTI markup without modifying the player core. The primary entry point is the `plugins` array in `PlayerConfig`; a plugin declares what it can extract and what web components it provides, and the player calls the plugin's registration methods at construction time. `ExtractionRegistry` and `ComponentRegistry` are also available as standalone injection points for callers who do not need full plugin packaging.
+The item player plugin system coordinates `AssessmentItemDefinitionPlugin`, `ExtractionRegistry`, and `ComponentRegistry` inside `@pie-qti/item-player`. Together they allow third-party code to teach the player how to recognize, safely deliver, and render vendor-specific QTI markup without modifying the core. The entry point is the immutable `plugins` array in `AssessmentItemDefinitionConfig`; definition construction freezes the list, validates its entries and dependency order, builds the registries once, installs standard `InteractionModule` extractors and plugins, and seals both registries before any session can open. Plugin objects remain trusted executable adapters rather than deep-frozen plain data.
 
 ---
 
@@ -36,7 +36,7 @@ When the player encounters a `<choiceInteraction>` containing vendor-specific ma
 - A host might want to use the standard QTI extractor for a `choiceInteraction` but replace the default rendering component with a custom-styled one. In this case, extraction is standard but component selection is overridden.
 - In a server-side scoring context (no DOM), extraction is needed but component registration is irrelevant.
 
-If extraction and component registration were a single concern (e.g., a single "renderer" object that both parses and renders), the server-side use case would require importing browser-specific code, and the style-override-only use case would require duplicating extraction logic. Keeping them separate lets each dimension be composed independently.
+If extraction and component registration were a single concern (e.g., a single "renderer" object that both parses and renders), the server-side use case would require importing browser-specific code, and the style-override-only use case would require duplicating extraction logic. Keeping them separate lets each dimension be composed independently. Field meaning remains local, however: a standard `InteractionModule` owns its extractor, placement, and delivery-field classification; a plugin extractor owns the equivalent `delivery` schema for fields it adds.
 
 ### Why priority-based dispatch
 
@@ -61,7 +61,7 @@ The alternative — a last-registered-wins or first-registered-wins rule — wou
 
 ## Functional requirements
 
-- **FR-1:** A plugin implementing `registerExtractors()` must be called with the `ExtractionRegistry` before the first `getInteractionData()` call, so that its extractor is available when the player processes interactions.
+- **FR-1:** A plugin implementing `registerExtractors()` must be called with the definition-owned `ExtractionRegistry` before any session can open.
 - **FR-2:** A plugin implementing `registerComponents()` must be called with the `ComponentRegistry` before the first render, so that its component is available when the player resolves tag names.
 - **FR-3:** An extractor's `canHandle()` must be evaluated in descending priority order among all extractors registered for the same element type. The first extractor whose `canHandle()` returns `true` is used.
 - **FR-4:** If no registered extractor's `canHandle()` returns `true` for a given element, `ExtractionRegistry.extract()` must return `{ success: false, error: ExtractionError }`, not throw.
@@ -69,28 +69,44 @@ The alternative — a last-registered-wins or first-registered-wins rule — wou
 - **FR-6:** If an extractor provides a `validate()` method, it must be called after a successful `extract()`. Validation errors must convert the result to `{ success: false }`. Validation warnings must be surfaced as `{ success: true, warnings: [...] }`.
 - **FR-7:** Registering two extractors with the same `id` must throw synchronously with a message identifying the duplicate id. This makes duplicate registration errors fail fast during development.
 - **FR-8:** `ExtractionRegistry.unregister(id)` must remove the extractor from both the id map and the type buckets and return `true`; calling it with an unknown id must return `false`.
-- **FR-9:** Plugin errors in `lifecycle.onRegister` must roll back the plugin registration (remove from `plugins` map) and re-throw, so a failed plugin leaves no partial state.
-- **FR-10:** A plugin with unsatisfied `dependencies` must throw before `lifecycle.onRegister` is called.
+- **FR-9:** If plugin registration throws, definition construction must fail; no partially compiled definition may be returned.
+- **FR-10:** A plugin with unsatisfied `dependencies` must throw before either of its registration methods is called.
+- **FR-11:** Definition construction must register standard extractors and definition plugins before sealing its registries. All sessions opened from that definition share the sealed, immutable registry descriptors. After `seal()`, `register`, `unregister`, and `clear` must throw; changing the plugin/module set requires a new definition.
+- **FR-12:** `ElementExtractor.delivery` must classify plugin-produced HTML and URL fields by path
+  and URL use. The delivery pipeline must merge that schema with the standard delivery fields for the
+  authored interaction kind (independent of `outputType`), enforce the configured sanitizer/URL
+  policy, freeze the delivered graph, and memoize it for the session.
+- **FR-13:** `ExtractionUtils.getHtmlContent()` and `getPrompt()` must apply the active `PlayerSecurityConfig` at extraction ingress. They return sanitized strings; only the final delivery pipeline may optionally create `TrustedHTML`.
 
 ---
 
 ## Non-functional requirements
 
-- **Performance:** `ExtractionRegistry.findExtractor()` must check a `WeakMap` cache for repeat lookups (O(1)). Type-based indexing must limit the `canHandle()` scan to extractors registered for the element's type rather than all registered extractors (O(M) where M is extractors for that type, not O(N) total).
-- **Security:** Plugin code runs with the same trust level as application code — plugins are integrator-owned. The framework does not sandbox plugin extractors. Extractors that inject HTML into returned data must use the same sanitizer and URL policy utilities available in `ExtractionContext` to avoid creating new XSS injection paths.
-- **Cross-platform:** `ExtractionRegistry` and `ComponentRegistry` have no DOM dependencies and work in Node.js/Bun/Deno. `ComponentRegistry.register()` calls `customElements.define()` when `autoRegister` is true and `componentClass` is provided; this path is browser-only and will throw in non-browser environments. Plugins that target server-side scoring should not pass `componentClass` in their `ComponentConfig`.
+- **Performance:** Type-based indexing limits the `canHandle()` scan to extractors registered for the authored element type. The live session memoizes the finalized `BaseInteractionData[]`, so repeat presentation does not repeat parsing, extraction, or delivery finalization.
+- **Security:** Plugin code runs with the same trust level as application code — plugins are integrator-owned. The framework does not sandbox it. Extractors use configured `getHtmlContent()` / `getPrompt()` for ingress and declare rich/URL fields in `delivery`; the common finalizer owns sanitizer, URL policy, optional Trusted Types creation, and freezing.
+- **Cross-platform:** `ExtractionRegistry` has no browser DOM dependency. `ComponentRegistry` can store tag mappings in Node.js/Bun/Deno; when `autoRegister` is enabled with a `componentClass`, it defines the element only if `globalThis.customElements` exists and otherwise safely defers registration. Server-side scoring plugins normally omit component registration because no renderer is needed.
 - **i18n:** No i18n requirements specific to the plugin system. Individual extractors and components are responsible for internationalizing their own output if needed.
 
 ---
 
 ## Design decisions
 
-### Registration timing: constructor-time, not render-time
+### Registration timing: definition/session construction, not render-time
 
-**Decision:** Plugins' `registerExtractors()` and `registerComponents()` are called inside the `Player` constructor, before any parsing or extraction takes place.  
-**Rationale:** `getInteractionData()` needs all extractors available on its first call — there is no lazy registration phase. Similarly, a component registry must be complete before the first `getTagName()` call. Deferring registration to render time would require callers to explicitly sequence plugin initialization before each render, which is error-prone.  
+**Decision:** The plugin list is frozen in `AssessmentItemDefinitionConfig`. Definition construction installs its entries into definition-owned registries, snapshots registered extractor/component descriptors, seals the registries, and only then permits a session to open. Registration errors propagate from definition construction. Sessions share those immutable registries while keeping all extracted, shuffled, response, and lifecycle state session-local. The plugin objects themselves remain trusted executable adapters.
+**Rationale:** Delivery must be stable for the lifetime of a live session so its memoized interaction graph, shuffled order, and component selection cannot drift between renders.
 **Alternatives considered:** Lazy plugin loading (plugins loaded on first `canHandle()` check) — rejected because it requires async APIs in a synchronous dispatch loop.  
-**Consequences:** Plugins are registered synchronously; async plugin initialization (e.g., loading a remote component definition) is not supported in the base `QTIPlugin` interface. Plugins that need async setup should complete it before passing the plugin instance to `PlayerConfig`.
+**Consequences:** Definition plugins are registered synchronously once per definition. Plugins that need async setup complete it before definition creation. Registry mutation after sealing throws and requires a new definition.
+
+### Delivery schema is part of the extractor contract
+
+**Decision:** `ElementExtractor.delivery` declares every plugin field that crosses an HTML or
+resource-URL sink. Standard classification remains beside each authored `InteractionModule`; the
+pipeline merges the authored-type schema with the selected extractor's schema even when
+`outputType` routes to a different renderer.
+**Rationale:** Plugin authors know the meaning and shape of their fields, while the framework owns the security implementation. This keeps classification local without duplicating sanitizer or URL-policy code.
+**Alternatives considered:** A central field-name switch, renderer-side heuristics, or requiring plugins to return `TrustedHTML`.
+**Consequences:** `getHtmlContent()` and `getPrompt()` provide configured ingress sanitation, but rich output fields still require a delivery declaration. The finalizer sanitizes/validates again at egress, optionally creates `TrustedHTML`, freezes the graph, and the live session memoizes it.
 
 ### Extractor IDs are globally unique within a registry instance
 
@@ -104,11 +120,15 @@ The alternative — a last-registered-wins or first-registered-wins rule — wou
 **Decision:** The priority field is a number with documented bands: 1000+ for system-reserved, 500–999 for vendor-specific, 100–499 for third-party plugins, 10–99 for standard QTI, 0–9 for fallbacks.  
 **Rationale:** Using exact numbers would require all plugin authors to coordinate to avoid collisions, which is impossible in a distributed ecosystem. Bands give each tier a large enough space that two independently-developed vendor plugins (both in the 500–999 range) can coexist if their `canHandle()` predicates are disjoint. When two extractors at the same priority both return `canHandle()` = `true`, the dispatch is first-registered-wins within that priority level; this is documented as undefined behavior and the situation should be avoided by making predicates more specific.  
 **Alternatives considered:** A string-based priority tier (`'vendor' | 'plugin' | 'standard' | 'fallback'`) — rejected because it provides no way to order within a tier; two vendors would have no way to express relative precedence.  
-**Consequences:** Plugin authors should document their intended priority in their plugin README so hosts can reason about ordering. If two plugins conflict, the host can adjust by passing pre-configured registries rather than plugin arrays.
+**Consequences:** Plugin authors should document their intended priority in their plugin README so
+hosts can reason about ordering. The primary definition API does not accept preconfigured mutable
+registries; resolving a conflict requires changing plugin IDs/priorities or the immutable plugin list,
+then compiling a new definition. Direct registries remain public for focused extractor tests and
+tooling, not for mutating a compiled definition.
 
-### ComponentRegistry uses the InteractionData shape, not the element type, for canHandle
+### ComponentRegistry uses delivered interaction data, not parser elements, for canHandle
 
-**Decision:** `ComponentConfig.canHandle` receives the fully-extracted `InteractionData` object, not the raw QTI element or element type string.  
+**Decision:** `ComponentConfig.canHandle` receives the fully delivered `BaseInteractionData` object, including vendor payload fields, not the raw QTI element or element type string.
 **Rationale:** Component selection often depends on extracted metadata that is not in the element type alone. For example, selecting a star-rating component instead of the standard choice component requires knowing that the interaction's choices have a `isLikert: true` flag — information only available after extraction. Passing the raw element to `canHandle` would require component-level re-parsing of the XML.  
 **Alternatives considered:** Passing `(elementType, data)` to allow filtering by type before inspecting data — the type is already available as `data.type`, so the separate argument is redundant.  
 **Consequences:** `ComponentRegistry` dispatch runs after extraction, not before. An interaction that fails extraction is never routed to any component. This is the correct behavior — there is nothing renderable for a failed extraction.
@@ -126,27 +146,28 @@ The alternative — a last-registered-wins or first-registered-wins rule — wou
 
 | Extension point | Interface/type | Location | Notes |
 |----------------|---------------|----------|-------|
-| Full plugin entry point | `QTIPlugin` | `packages/item-player/src/core/Plugin.ts` | Implement `registerExtractors` and/or `registerComponents`. Pass in `PlayerConfig.plugins[]`. |
-| Element extractor | `ElementExtractor<TData>` | `packages/item-player/src/extraction/types.ts` | Implement `id`, `name`, `priority`, `elementTypes`, `canHandle`, `extract`. Optional `validate`. |
-| Extraction context utilities | `ExtractionUtils` | `packages/item-player/src/extraction/types.ts` | Provided to extractors via `context.utils`; do not re-implement DOM traversal manually. |
+| Definition plugin entry point | `AssessmentItemDefinitionPlugin` | `packages/item-player/src/core/AssessmentItemDefinition.ts` | Implement synchronous `registerExtractors` and/or `registerComponents`. Pass in `AssessmentItemDefinitionConfig.plugins[]`; dependencies must precede dependents. |
+| Element extractor | `ElementExtractor<TPayload, TOutputType>` | `packages/item-player/src/extraction/types.ts` | Implement `id`, `name`, `priority`, `elementTypes`, `canHandle`, `extract`, optional `outputType`, and `delivery` for rich/URL fields. Optional `validate`. |
+| Extraction context utilities | `ExtractionUtils` | `packages/item-player/src/extraction/types.ts` | Use configured `getHtmlContent()` / `getPrompt()` for rich fields and parser-neutral helpers for traversal. |
+| Delivery schema | `InteractionDeliverySchema` | `packages/item-player/src/extraction/deliveryTypes.ts` | Declare paths with `htmlField(...)` and `urlField(use, ...)`; shared finalization enforces them. |
 | Web component renderer | `ComponentConfig<TData>` | `packages/item-player/src/core/ComponentRegistry.ts` | Register per interaction type with a tag name and optional auto-registration. |
-| Plugin lifecycle hooks | `PluginLifecycle` | `packages/item-player/src/core/Plugin.ts` | `onRegister`, `onBeforeRender`, `onAfterRender`, `onUnregister`. Use for telemetry and setup. |
 
 ---
 
 ## Data model / contracts
 
-### `QTIPlugin`
+### `AssessmentItemDefinitionPlugin`
 
 ```
-packages/item-player/src/core/Plugin.ts
+packages/item-player/src/core/AssessmentItemDefinition.ts
 ```
 
-- `name` and `version` are required; version must match semver format `\d+\.\d+\.\d+`.
-- `dependencies` is an array of other plugin names that must already be registered in the `PluginManager` when this plugin is registered. The player's `Player` constructor does not use `PluginManager` directly — it calls `registerExtractors`/`registerComponents` in a simple loop. `PluginManager` is available separately for hosts that need lifecycle management beyond what the Player constructor provides.
-- `registerExtractors` and `registerComponents` are called synchronously and must not be async. If they throw, the error propagates to the `Player` constructor but does not prevent other plugins from registering (each plugin is wrapped in a try/catch in the Player constructor loop).
+- `kind: 'assessment-item-definition-plugin'`, `name`, and semantic `version` are required.
+- `dependencies` names must refer to plugins that occur earlier in the definition's immutable plugin list. Missing, duplicate, and malformed plugins fail definition construction.
+- `registerExtractors` and `registerComponents` are synchronous and run exactly once per compiled definition before both registries are sealed.
+- The contract is synchronous. Complete asynchronous setup before definition construction.
 
-### `ElementExtractor<TData>`
+### `ElementExtractor<TPayload, TOutputType>`
 
 ```
 packages/item-player/src/extraction/types.ts
@@ -154,7 +175,11 @@ packages/item-player/src/extraction/types.ts
 
 - `elementTypes` must use QTI 2.x camelCase element names (e.g., `'choiceInteraction'`, not `'qti-choice-interaction'`). The registry normalizes to canonical lowercase form internally and maps QTI 3.0 kebab-case names during lookup, so a single extractor registration covers both QTI 2.x and 3.0.
 - `canHandle()` must be fast. The registry calls it in a tight loop for every element of the matching type. Avoid DOM queries inside `canHandle`; use `context.utils.hasChildWithTag()` (O(direct-children)) not `querySelectorAll` (O(subtree)).
-- `extract()` must return a plain object. It must not mutate the element. It may call any `context.utils` method.
+- `extract()` returns a plain payload object and must not mutate the element. The payload excludes framework-owned identity; after extraction the pipeline creates `DeliveredInteraction<TOutputType, TPayload>` by writing `type` and the authored `responseId` last.
+- `outputType` optionally selects a renderer-facing interaction type different from the authored
+  element name. It does not change which standard delivery schema applies. Payload-provided `type`
+  and `responseId` values cannot override framework routing.
+- `delivery?: InteractionDeliverySchema` declares output fields that reach HTML or URL sinks. Paths may contain `'*'` to visit array items or record values. HTML fields use `htmlField(...)`; URL fields use `urlField(use, ...)`, where `use` selects the URL-policy context.
 - `validate()` receives the return value of `extract()`. Returning `{ valid: false }` causes the registry to return a failure result without calling any other handler for the same element. Returning `{ valid: true, warnings: [...] }` surfaces warnings without blocking the extraction result.
 - The id convention is `namespace:element-type`, e.g. `acme:likert-choice`, `qti:choice-interaction`. The standard extractors all use the `qti:` prefix.
 
@@ -166,8 +191,8 @@ packages/item-player/src/extraction/types.ts
 
 - `dom` is the root parsed document element (from node-html-parser). It is used for document-wide queries inside extractors.
 - `declarations` is a snapshot of the item's `responseDeclaration` / `outcomeDeclaration` map at extraction time, keyed by identifier. Extractors use it to read `cardinality` and `baseType` for their response variable.
-- `utils` wraps node-html-parser's DOM API with a stable, version-agnostic helper surface. Extractors must use `utils` rather than calling node-html-parser APIs directly, to remain compatible with future parser changes.
-- `config` is the full `PlayerConfig`. Extractors should read only the fields they need (role, security, QTI version mappers). They must not mutate config.
+- `utils` wraps parser traversal with a stable, version-agnostic helper surface. Extractors must use it rather than calling parser-specific APIs directly. `getHtmlContent()` and `getPrompt()` use `config.security` and return ingress-sanitized strings; `getTextContent()` is for fields that are semantically plain text.
+- `config` is the narrow immutable `ExtractionConfig` (role, security, and QTI version mappers). Extractors must not mutate it.
 
 ### `ComponentConfig<TData>`
 
@@ -177,30 +202,18 @@ packages/item-player/src/core/ComponentRegistry.ts
 
 - `tagName` must contain a hyphen (web component spec requirement). The registry validates this at registration time and throws if violated.
 - `componentClass` is optional. When provided with `autoRegister !== false`, the registry calls `customElements.define(tagName, componentClass)` at registration time. If the tag name is already defined in `customElements`, registration is skipped silently.
-- `canHandle(data)` receives `InteractionData` which always has a `type` field matching the interaction element name (e.g., `'choiceInteraction'`). A vendor component that handles a specific subtype should check for vendor-specific fields on the data object.
+- `canHandle(data)` receives delivered interaction data whose `type` is the extractor's `outputType`, or the normalized authored type when `outputType` is omitted. A vendor component that handles a specific subtype should check the declared output type and vendor-specific fields on the data object.
 - `priority` 0 is the intended priority for default/fallback renderers. The standard default components (`@pie-qti/default-components`) use priority 0. Vendor components should use priority > 0.
-
-### `PluginLifecycle`
-
-```
-packages/item-player/src/core/Plugin.ts
-```
-
-- `onRegister(context: PluginContext)` is called by `PluginManager.register()` after the plugin is stored. `PluginContext` provides `extractionRegistry`, `componentRegistry`, `dom` (if available), and `config`. The `Player` instance is NOT available here — use `onBeforeRender` if Player access is needed.
-- `onBeforeRender(context: RenderContext)` and `onAfterRender(context: RenderContext)` are called by `PluginManager` around render cycles. `RenderContext` extends `PluginContext` with `player: Player`. These hooks are async-safe.
-- Lifecycle hooks are not called by the `Player` constructor's plugin loop — that loop only calls `registerExtractors` and `registerComponents`. Lifecycle hooks are only triggered when a `PluginManager` instance is explicitly used and its `callBeforeRenderHooks` / `callAfterRenderHooks` methods are called by the host rendering layer.
-
----
 
 ## Acceptance criteria
 
 ### Functional
 
 ```
-AC-1: Plugin extractor registered before getInteractionData() is called
-  Given: A Player constructed with plugins: [acmeLikertPlugin]
+AC-1: Definition plugin is registered before session delivery
+  Given: An AssessmentItemDefinition created with plugins: [acmeLikertPlugin]
          and an itemXml containing a choiceInteraction with likertChoice children
-  When: player.getInteractionData() is called
+  When: definition.openSession().present() is called
   Then: Returns one interaction with the extracted LikertInteractionData shape
         (including metadata.isLikert === true)
         The standard choice extractor (priority 10) is not used
@@ -276,11 +289,31 @@ AC-9: canHandle() error in ExtractionRegistry is logged but does not propagate
 ```
 
 ```
-AC-10: Plugin with unsatisfied dependency throws at PluginManager.register()
-  Given: pluginB with dependencies: ['pluginA'] and pluginA not yet registered in PluginManager
-  When: pluginManager.register(pluginB, context) is called
+AC-10: Definition plugin with unsatisfied dependency fails compilation
+  Given: pluginB with dependencies: ['pluginA'] and pluginA absent from the earlier plugin list
+  When: createAssessmentItemDefinition({ plugins: [pluginB] }) is called
   Then: Throws with a message listing the missing dependency 'pluginA'
-        pluginB is not added to the plugin map
+        neither registration method is called
+```
+
+```
+AC-11: Definition registries seal before sessions open
+  Given: A definition with standard and plugin extractors
+  When: definition construction succeeds
+  Then: its extraction and component registries are sealed before any session opens
+        register(), unregister(), and clear() throw after sealing
+        repeat present() calls reuse the same frozen delivered interaction graph
+```
+
+```
+AC-12: Plugin rich and URL fields follow its delivery schema
+  Given: A plugin extractor whose extract() uses context.utils.getPrompt()
+         and returns { prompt, image: { src } }
+         with delivery.fields=[htmlField('prompt'), urlField('img', 'image', 'src')]
+  When: the prompt contains an event handler and src uses a blocked scheme
+  Then: ingress and final egress sanitation remove unsafe markup
+        the URL is neutralized by the configured policy
+        optional TrustedHTML appears only in the finalized frozen result
 ```
 
 ### Edge cases
@@ -312,18 +345,10 @@ AC-E3: ComponentRegistry throws when no component matches any canHandle()
 
 ---
 
-## Open questions
-
-- [ ] The Player constructor calls `plugin.registerExtractors` and `plugin.registerComponents` in a try/catch that silently swallows errors (to prevent one bad plugin from blocking others). Should plugin errors be surfaced to the caller as warnings rather than being completely silent? There is currently no mechanism to report them short of inspecting the browser console.
-- [ ] `ExtractionUtils.getHtmlContent()` returns unsanitized HTML from the element. Plugins that use this to populate fields injected via `{@html}` in Svelte must sanitize the result themselves. Should `getHtmlContent()` accept an optional security config parameter to apply the same sanitizer pipeline used by the Player?
-- [ ] The `PluginManager` class is available for hosts that need managed lifecycle, but it is not wired into the `Player` constructor — plugins in `PlayerConfig.plugins[]` have their `registerExtractors`/`registerComponents` methods called directly, bypassing `PluginManager.register()`. This means `lifecycle.onRegister` is never called when plugins are passed through `PlayerConfig`. Clarify or align: either the Player should instantiate a `PluginManager` internally, or the lifecycle docs should prominently note this gap.
-
----
-
 ## Related
 
 - QTI spec: QTI 2.2 §14 (customInteraction extension model)
-- Implementation: `packages/item-player/src/core/Plugin.ts`, `PluginManager.ts`, `ComponentRegistry.ts`
+- Implementation: `packages/item-player/src/core/AssessmentItemDefinition.ts`, `ComponentRegistry.ts`
 - Implementation: `packages/item-player/src/extraction/ExtractionRegistry.ts`, `types.ts`
 - Example plugin: `packages/acme-likert-plugin/`
 - Extractor how-to guide: `packages/item-player/docs/custom-extractors.md`

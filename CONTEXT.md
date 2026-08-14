@@ -51,6 +51,8 @@
 | Term | Definition | Aliases to avoid |
 | ---- | ---------- | ---------------- |
 | **ItemSession** | Runtime state for one candidate's attempt at one AssessmentItem. | Item state |
+| **Live ItemSession** | The single authoritative mutable ItemSession for an active AssessmentItem. Rendering and assessment lifecycle operations must reach this same state. | Session snapshot, Item snapshot |
+| **SerializedItemSessionState** | A handoff, restoration, or persistence value derived from a Live ItemSession; it is never a second live authority. | Live session, Session model |
 | **AssessmentSession** | Runtime state for a candidate working through an AssessmentTest. | Test session, Attempt |
 | **NavigationMode** | The rule that determines whether navigation is linear or nonlinear. | Nav mode |
 | **SubmissionMode** | The rule that determines whether responses are submitted per item or all at once. | Submit mode |
@@ -92,7 +94,6 @@
 | **ExtractionRegistry** | The registry that chooses extractors for QTI XML elements. | Extractor map |
 | **Extractor** | A parser that converts one QTI element into typed InteractionData. | Parser, Reader |
 | **InteractionModule** | The internal home for one interaction type's contract, extractor, and rendering helpers. | Interaction folder |
-| **CompatibilityBarrel** | A re-export file that preserves an older import path during refactors. | Shim, Legacy path |
 | **DefaultComponent** | A packaged renderer web component supplied by `@pie-qti/default-components`. | Built-in renderer |
 | **HostApplication** | The application embedding the players and integrating them with its own backend or platform. | LMS, Consumer app |
 | **BackendAdapter** | The integration boundary used by a host to persist state and scoring. | API adapter, Server adapter |
@@ -132,7 +133,6 @@
 - An **ItemPlayer** renders one **AssessmentItem** using **InteractionData** extracted by **Extractors**.
 - An **AssessmentPlayer** coordinates many **ItemSessions** inside one **AssessmentSession**.
 - An **InteractionModule** owns the domain contract and extractor for one **InteractionType**.
-- A **CompatibilityBarrel** preserves old imports while canonical code moves into **InteractionModules**.
 - A **HostApplication** may use an **LTIHost**, but this project owns only the **EmbeddingBoundary**.
 - The **PublicCertificationGate** uses **CleanRoomFixtures**; the **PrivateConformanceRunner** uses **OfficialConformancePackages**.
 - An **EvidenceRecord** summarizes results; an **EvidenceBundle** contains generated raw artifacts.

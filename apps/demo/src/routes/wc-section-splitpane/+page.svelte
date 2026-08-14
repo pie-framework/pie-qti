@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { AssessmentPlayer, ReferenceBackendAdapter, toSectionComposition } from '@pie-qti/assessment-player';
 	import { assignProps } from '@pie-qti/qti-common';
-	import type { ResolvedQtiSectionComposition, QtiSectionToolConfig } from '@pie-qti/section-player';
+	import type { QtiSectionToolConfig } from '@pie-qti/section-player';
 	import { SAMPLE_ASSESSMENTS } from '$lib/sample-assessments';
 	import { getSecurityConfig } from '$lib/player-config';
 
@@ -58,28 +58,6 @@
 		return false;
 	}
 
-	function withDemoTools(composition: ResolvedQtiSectionComposition): ResolvedQtiSectionComposition {
-		const activeItem = { ...composition.activeItem, tools: itemTools };
-		const itemRefs = composition.section.itemRefs.map((item) =>
-			item.identifier === activeItem.identifier ? { ...item, tools: itemTools } : item,
-		);
-		const sharedContext = {
-			...composition.sharedContext,
-			passages: composition.sharedContext.passages.map((passage) => ({ ...passage, tools: passageTools })),
-		};
-
-		return {
-			...composition,
-			activeItem,
-			sharedContext,
-			section: {
-				...composition.section,
-				itemRefs,
-				sharedContext,
-			},
-		};
-	}
-
 	async function buildComposition() {
 		if (!sample) throw new Error('Interaction showcase sample not found');
 
@@ -96,12 +74,12 @@
 			security,
 		});
 
-		return withDemoTools(toSectionComposition(player, {
+		return toSectionComposition(player, {
 			role: 'candidate',
 			security,
 			passageTools,
 			itemTools,
-		}));
+		});
 	}
 
 	onMount(async () => {

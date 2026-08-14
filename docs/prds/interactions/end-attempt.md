@@ -35,7 +35,7 @@ A QTI `assessmentItem` carries an `adaptive` attribute (boolean, default `false`
 The item is submitted once. The player runs response processing, sets `completionStatus` to `"completed"`, and the session closes. There is no opportunity for the candidate to modify their answer after submission.
 
 **Adaptive (`adaptive="true"`):**
-The item session remains open until response processing itself sets `completionStatus` to `"completed"`. Between that moment and the initial `"not_attempted"` state, the session can cycle through `"unknown"` and `"incomplete"` as many times as the item XML permits. Each call to `submitAttempt()` runs response processing again. Response processing reads the current response variables — including the `endAttemptInteraction` boolean — and decides what to do: award partial credit, set an outcome variable that controls hint visibility, increment a scoring tier, or finally set `completionStatus = "completed"` to close the session.
+The item session remains open until response processing itself sets `completionStatus` to `"completed"`. Between that moment and the initial `"not_attempted"` state, the session can cycle through `"unknown"` and `"incomplete"` as many times as the item XML permits. Each dispatched `{ action: 'submitAttempt' }` runs response processing again. Response processing reads the current response variables — including the `endAttemptInteraction` boolean — and decides what to do: award partial credit, set an outcome variable that controls hint visibility, increment a scoring tier, or finally set `completionStatus = "completed"` to close the session.
 
 This architecture gives item authors full programmatic control over branching without requiring any player-specific extension. The entire multi-attempt, hint-granting, score-tiering logic lives in the item XML. The player only needs to implement the session contract faithfully.
 
@@ -56,14 +56,14 @@ Every item session, adaptive or not, has four built-in variables initialised bef
 
 The lifecycle states are ordered: `not_attempted` → `unknown` → `incomplete` → `completed`. Transitions are:
 
-- On the first `submitAttempt()` call, the player promotes `completionStatus` from `"not_attempted"` to `"unknown"` before running response processing (if response processing does not set it explicitly).
+- On the first `{ action: 'submitAttempt' }` dispatch, the session promotes `completionStatus` from `"not_attempted"` to `"unknown"` before running response processing (if response processing does not set it explicitly).
 - Response processing can explicitly set `completionStatus` to any value via `<setOutcomeValue identifier="completionStatus">`.
-- Setting `completionStatus = "completed"` closes the session. Calling `submitAttempt()` on a completed session throws an error; the player must check `isCompleted()` before exposing submit controls.
+- Setting `completionStatus = "completed"` closes the session. Dispatching `{ action: 'submitAttempt' }` on a completed session throws an error; the UI must use session state before exposing submit controls.
 - Setting `completionStatus = "incomplete"` signals "processed, but not done yet" — the candidate may continue. This is the value item authors use to keep the session open after a hint request or a failed attempt.
 
 ### The role of `endAttemptInteraction` in this lifecycle
 
-`endAttemptInteraction` does not change `completionStatus` by itself. It merely sets a `boolean` response variable to `true` when clicked, which becomes visible to response processing when `submitAttempt()` is called. Response processing then branches on it:
+`endAttemptInteraction` does not change `completionStatus` by itself. It merely sets a `boolean` response variable to `true` when clicked, which becomes visible to response processing when `{ action: 'submitAttempt' }` is dispatched. Response processing then branches on it:
 
 ```xml
 <!-- Check whether the candidate clicked the "I don't know" button -->
@@ -102,7 +102,7 @@ Crucially, the `endAttemptInteraction` button is not a "submit answer" button �
 
 The `countAttempt` attribute (default `true`) controls whether clicking the `endAttemptInteraction` increments `numAttempts`. Item authors use `countAttempt="false"` for hint requests or "show me an example" buttons where the click should not penalise the candidate. With `countAttempt=true` (the default and most common case), the click is treated as a full attempt submission. With `countAttempt=false`, the click triggers scoring without incrementing the attempt counter. This allows authors to offer multiple hints before the first "real" scored attempt.
 
-In the PIE-QTI player, `countAttempt` is surfaced through the `getHintEndAttemptIdentifiers()` method on `Player`, which returns the `responseIdentifier` values of all `endAttemptInteraction` elements with `countAttempt=false`. The item player UI layer uses this to decide whether to call `submitAttempt(true)` or `submitAttempt(false)`.
+In PIE-QTI, `countAttempt` is part of the delivered `EndAttemptInteractionData`. The item-session adapter passes that value in `{ action: 'submitAttempt', countAttempt }` when the control triggers submission.
 
 ### Why `endAttemptInteraction` is not a content interaction
 
@@ -114,7 +114,7 @@ A regular submit button in the player chrome submits all interactions at once, r
 
 1. It lives inside the item XML, authored by the item author, not added by the delivery player. The label and position are part of the item content.
 2. It fires a `qti-change` event for _its own_ response variable (the `boolean`) without submitting any other interaction response.
-3. The actual submission (calling `submitAttempt()`) is still triggered by the player infrastructure in response to the `qti-change` event. The button click sets the response variable to `true` and signals the player to process.
+3. The actual submission (dispatching `{ action: 'submitAttempt' }`) is still triggered by the player infrastructure in response to the `qti-change` event. The button click sets the response variable to `true` and signals the session to process.
 
 ---
 
@@ -171,10 +171,10 @@ There are no open spec-gap items in `docs/SPEC-GAPS-PLAN.md` that apply directly
 - **FR-5:** When the `response` prop is updated to `true` externally (e.g. session restore), reflect the activated/disabled visual state without requiring a button click.
 - **FR-6:** When the `response` prop is updated to `null` or `false` externally (e.g. attempt reset), restore the button to its pre-click interactive state.
 - **FR-7:** When `countAttempt=true` (default), the player must increment `numAttempts` before running response processing when this button triggers submission.
-- **FR-8:** When `countAttempt=false`, the player must call `submitAttempt(false)` so `numAttempts` is not incremented.
+- **FR-8:** When `countAttempt=false`, the player must dispatch `{ action: 'submitAttempt', countAttempt: false }` so `numAttempts` is not incremented.
 - **FR-9:** When the `prompt` child element is present, render its HTML content above the button.
 - **FR-10:** When `countAttempt=true` and the button has been clicked, display an inline warning message that communicates the attempt cannot be modified.
-- **FR-11:** The interaction must only trigger one scoring pass per click. Rapid double-clicks must not result in two calls to `submitAttempt()`.
+- **FR-11:** The interaction must only trigger one scoring pass per click. Rapid double-clicks must not result in two submit-attempt dispatches.
 - **FR-12:** For adaptive items, after `endAttemptInteraction` triggers a scoring pass that leaves `completionStatus = "incomplete"`, the rest of the item interactions (e.g. a `choiceInteraction`) must remain interactive for the next attempt.
 
 ---
@@ -203,7 +203,7 @@ There are no open spec-gap items in `docs/SPEC-GAPS-PLAN.md` that apply directly
 ### Once-and-done activation within a single attempt
 
 **Decision:** Once the button is clicked, `hasEnded` is set to `true` and the button is permanently disabled for the current attempt. There is no undo.  
-**Rationale:** `endAttemptInteraction` in QTI is semantically a one-way gate: clicking it means "end this attempt now." Allowing it to be clicked again would either fire two `submitAttempt()` calls (breaking the adaptive lifecycle) or require complex deduplication logic. The spec does not define a way to "un-end" an attempt.  
+**Rationale:** `endAttemptInteraction` in QTI is semantically a one-way gate: clicking it means "end this attempt now." Allowing it to be clicked again would either dispatch two submit-attempt commands (breaking the adaptive lifecycle) or require complex deduplication logic. The spec does not define a way to "un-end" an attempt.
 **Alternatives considered:** Allowing the button to toggle (clicking again reverts to `null` state). Rejected: not specced, confusing UX, creates lifecycle bugs.  
 **Consequences:** Item authors must not design items that require the candidate to click `endAttemptInteraction` more than once per attempt. If a session is reset for a new attempt, the button must be reset to its pre-click state by passing `response=null` from the player.
 
@@ -214,12 +214,12 @@ There are no open spec-gap items in `docs/SPEC-GAPS-PLAN.md` that apply directly
 **Alternatives considered:** Treating `hasEnded` as purely internal state. Rejected: breaks session restore.  
 **Consequences:** The `$effect` runs on every `parsedResponse` change, including redundant re-syncs where the value hasn't changed. This is harmless but means external code that sets `response` to `true` will trigger the activated visual state even if the button was never clicked in the current session.
 
-### `countAttempt` controls the player's `submitAttempt()` call, not the component's event
+### `countAttempt` controls the session's submit-attempt command, not the component's event
 
-**Decision:** The component always emits `qti-change` with `value=true` regardless of `countAttempt`. The `countAttempt` flag is metadata on the extracted interaction data that the player uses when deciding how to call `submitAttempt()`.  
+**Decision:** The component always emits `qti-change` with `value=true` regardless of `countAttempt`. The `countAttempt` flag is metadata on the extracted interaction data that the session adapter uses when dispatching `{ action: 'submitAttempt', countAttempt }`.
 **Rationale:** The component's responsibility is to faithfully represent the interaction state and fire the change event. Deciding whether the submission counts as an attempt is a player-level concern; conflating it with the component event would require the component to know about the player's scoring lifecycle, violating separation of concerns.  
 **Alternatives considered:** Emit a different event or a flag in the event payload for `countAttempt=false`. Rejected: unnecessary coupling; the player already has access to `getHintEndAttemptIdentifiers()` to determine which interactions should not increment `numAttempts`.  
-**Consequences:** The player must implement `getHintEndAttemptIdentifiers()` correctly and check it before calling `submitAttempt()`.
+**Consequences:** The delivery module must identify hint-style end-attempt interactions correctly and pass their `countAttempt` value in the session command.
 
 ### `endAttemptInteraction` is excluded from response completeness checks
 
@@ -277,7 +277,7 @@ interface EndAttemptInteractionData extends BaseInteractionData {
 
 The `correctResponse` element is not meaningful on a `boolean` response bound to `endAttemptInteraction` and must not be present. The value `true` is not "correct" — it is a signal. Response processing determines the outcome.
 
-### `AdaptiveAttemptResult` (returned by `player.submitAttempt()`)
+### `AdaptiveAttemptResult` (returned on the submit-attempt transition)
 
 Source: `packages/item-player/src/core/Player.ts`
 
@@ -351,14 +351,14 @@ AC-9: Session closes when completionStatus=completed after scoring
 AC-10: numAttempts increments when countAttempt=true
   Given: an adaptive item with endAttemptInteraction countAttempt="true" (default)
          at initial numAttempts=0
-  When: the button is clicked and submitAttempt() is called
-  Then: player.getNumAttempts() returns 1 after the scoring pass
+  When: the button is clicked and the submitAttempt action is dispatched
+  Then: session.state().numAttempts returns 1 after the scoring pass
 
 AC-11: numAttempts does not increment when countAttempt=false
   Given: an adaptive item with endAttemptInteraction countAttempt="false"
          at initial numAttempts=0
-  When: the button is clicked and submitAttempt(false) is called
-  Then: player.getNumAttempts() returns 0 after the scoring pass
+  When: the button is clicked and the submitAttempt action is dispatched with countAttempt=false
+  Then: session.state().numAttempts returns 0 after the scoring pass
 
 AC-12: Response prop restore reflects activated state without click
   Given: an item where the endAttemptInteraction response variable is restored to true
@@ -489,7 +489,7 @@ AC-E5: Interaction data absent (null/undefined interaction prop)
 
 ## Open questions
 
-- [ ] **Response variable reset protocol between attempts:** The spec is clear that response variables bound to `endAttemptInteraction` should be reset to `null` at the start of each new attempt so the prior-click state does not bleed into the next scoring pass. The current player code (`submitAttempt()`) does not appear to explicitly reset `boolean` response variables before running response processing. Verify that the adaptive attempt cycle resets the `endAttemptInteraction` response variable; add a regression test if it does not.
+- [ ] **Response variable reset protocol between attempts:** The spec is clear that response variables bound to `endAttemptInteraction` should be reset to `null` at the start of each new attempt so the prior-click state does not bleed into the next scoring pass. The current submit-attempt action does not appear to explicitly reset `boolean` response variables before running response processing. Verify that the adaptive attempt cycle resets the `endAttemptInteraction` response variable; add a regression test if it does not.
 - [ ] **i18n coverage for the hard-coded confirmation message:** "Your attempt has been ended and can no longer be modified." is not covered by an i18n key. A follow-up should add `interactions.endAttempt.endedMessage` to the i18n framework and use it in the component.
 - [ ] **Non-adaptive item warning:** Should the extractor or the player emit a warning when `endAttemptInteraction` appears in an item where `adaptive="false"`? Currently silent. Decide whether this is a validation error, a warning, or intentionally permitted.
 
@@ -504,5 +504,5 @@ AC-E5: Interaction data absent (null/undefined interaction prop)
 - Implementation — Svelte component: `packages/default-components/src/plugins/end-attempt/EndAttemptInteraction.svelte`
 - Implementation — extractor: `packages/item-player/src/interactions/end-attempt/extractor.ts`
 - Implementation — types: `packages/item-player/src/interactions/shared/types.ts` (`EndAttemptInteractionData`)
-- Implementation — player: `packages/item-player/src/core/Player.ts` (`submitAttempt`, `isAdaptive`, `getHintEndAttemptIdentifiers`)
+- Implementation — item session: `packages/item-player/src/core/ItemSession.ts`
 - Adjacent PRDs: `docs/prds/architecture/response-processing.md`, `docs/prds/architecture/item-player.md`

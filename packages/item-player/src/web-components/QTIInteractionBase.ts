@@ -24,7 +24,7 @@
  */
 
 import type { HtmlContent } from '../types/index.js';
-import type { InteractionData } from '../interactions/index.js';
+import type { BaseInteractionData } from '../interactions/shared/types.js';
 import {
 	type InteractionResponseValue,
 	QTIChangeEvent,
@@ -33,7 +33,9 @@ import {
 	QTIReadyEvent,
 } from './QTIInteractionElement.js';
 
-export abstract class QTIInteractionBase<TData extends InteractionData = InteractionData>
+export abstract class QTIInteractionBase<
+	TData extends BaseInteractionData = BaseInteractionData,
+>
 	extends HTMLElement
 	implements QTIInteractionElement<TData>
 {

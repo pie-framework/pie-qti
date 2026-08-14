@@ -68,6 +68,37 @@ describe('dom utils', () => {
 		expect(unmountCount).toBe(1);
 		expect(controller.instance).toEqual({ props: { value: 3 } });
 	});
+
+	test('createSvelteMountController remounts when Svelte 5 exposes a throwing $set shim', async () => {
+		let mountCount = 0;
+		let unmountCount = 0;
+		const host = fakeHost();
+		const controller = createSvelteMountController({
+			host,
+			createContainer: fakeContainer,
+			mount: (_target, props: Record<string, unknown>) => {
+				mountCount += 1;
+				return {
+					$set() {
+						throw new Error('https://svelte.dev/e/component_api_changed');
+					},
+					props,
+				};
+			},
+			unmount: () => {
+				unmountCount += 1;
+			},
+		});
+
+		controller.mountOrUpdate({ value: 1 });
+		controller.update({ value: 2 });
+		controller.update({ value: 3 });
+		await Promise.resolve();
+
+		expect(mountCount).toBe(2);
+		expect(unmountCount).toBe(1);
+		expect(controller.instance?.props).toEqual({ value: 3 });
+	});
 });
 
 function fakeHost() {

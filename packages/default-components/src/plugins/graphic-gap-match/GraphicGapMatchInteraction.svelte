@@ -8,6 +8,7 @@
  */
 
 import type { GraphicGapMatchInteractionData } from '@pie-qti/item-player';
+import { normalizeCssPixelLength, normalizePixelDimension } from '@pie-qti/item-player/security';
 import type { I18nProvider } from '@pie-qti/i18n';
 import { touchDrag } from '@pie-qti/qti-common';
 import { createQtiChangeEvent } from '../../shared/utils/eventHelpers.js';
@@ -34,6 +35,21 @@ const parsedResponse = $derived(parseJsonProp<string | string[]>(response));
 const parsedCorrectResponse = $derived(parseJsonProp<string[]>(correctResponse));
 const isShowingCorrect = $derived(role === 'scorer' && parsedCorrectResponse !== null);
 const correctPairs = $derived(Array.isArray(parsedCorrectResponse) ? parsedCorrectResponse : []);
+const choicesContainerWidth = $derived(
+	normalizeCssPixelLength(parsedInteraction?.choicesContainerWidth),
+);
+const imageWidth = $derived(normalizePixelDimension(parsedInteraction?.imageData?.width));
+const imageHeight = $derived(normalizePixelDimension(parsedInteraction?.imageData?.height));
+const stageStyle = $derived(
+	[
+		'position: relative',
+		'display: inline-block',
+		imageWidth ? `width: ${imageWidth}px` : '',
+		imageHeight ? `height: ${imageHeight}px` : '',
+	]
+		.filter(Boolean)
+		.join('; '),
+);
 
 let pairs = $state<string[]>([]);
 let draggedTextId = $state<string | null>(null);
@@ -296,7 +312,7 @@ function handleRootKeyDown(event: KeyboardEvent) {
 				<div
 					part="labels"
 					class="qti-ggm-labels flex flex-wrap gap-2 p-4 bg-base-200 rounded-lg border-2 border-base-300"
-					style={parsedInteraction.choicesContainerWidth ? `width: ${parsedInteraction.choicesContainerWidth}` : undefined}
+					style={choicesContainerWidth ? `width: ${choicesContainerWidth}` : undefined}
 					role="group"
 					aria-label={i18n?.t('interactions.graphicGapMatch.availableLabel') ?? 'Available labels to place'}
 				>
@@ -405,7 +421,7 @@ function handleRootKeyDown(event: KeyboardEvent) {
 			<div
 				part="stage"
 				class="qti-ggm-stage relative inline-block border-2 border-base-300 rounded-lg"
-				style="position: relative; display: inline-block; width: {parsedInteraction.imageData?.width}px; height: {parsedInteraction.imageData?.height}px;"
+				style={stageStyle}
 			>
 				<!-- SVG image or raster image -->
 				{#if parsedInteraction.imageData?.content}
@@ -423,7 +439,7 @@ function handleRootKeyDown(event: KeyboardEvent) {
 					part="overlay"
 					class="qti-ggm-overlay absolute top-0 left-0 w-full h-full pointer-events-none"
 					style="position: absolute; width: 100%; height: 100%; pointer-events: none; top: 0; left: 0;"
-					viewBox="0 0 {parsedInteraction.imageData?.width} {parsedInteraction.imageData?.height}"
+					viewBox="0 0 {imageWidth} {imageHeight}"
 				>
 					{#each parsedInteraction.hotspots as hotspot (hotspot.identifier)}
 						{@const matchedGapText = getMatchedGapText(hotspot.identifier)}

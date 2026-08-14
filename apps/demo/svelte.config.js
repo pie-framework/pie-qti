@@ -27,8 +27,15 @@ const config = {
 					: ''
 		},
 		alias: {
+			'@pie-qti/item-player/security': '../../packages/item-player/src/security/index.ts',
+			'@pie-qti/item-player/element': '../../packages/item-player/src/element.ts',
 			'@pie-qti/item-player/components': '../../packages/item-player/src/components/index.ts',
-			'@pie-qti/assessment-player/components': '../../packages/assessment-player/src/components/index.ts',
+			'@pie-qti/item-player/web-components': '../../packages/item-player/src/web-components/index.ts',
+			'@pie-qti/item-player/iframe': '../../packages/item-player/src/iframe/index.ts',
+			'@pie-qti/item-player/server': '../../packages/item-player/src/server.ts',
+			'@pie-qti/item-player': '../../packages/item-player/src/index.ts',
+			'$assessment-components': '../../packages/assessment-player/src/components/index.ts',
+			'@pie-qti/section-player/components': '../../packages/section-player/src/components/index.ts',
 			'@pie-qti/default-components/shared/components': '../../packages/default-components/src/shared/components/index.ts',
 			'@pie-qti/i18n/components': '../../packages/i18n/src/components/index.ts'
 		},

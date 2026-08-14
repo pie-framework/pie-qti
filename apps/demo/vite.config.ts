@@ -12,11 +12,32 @@ export default defineConfig({
 	],
 	resolve: {
 		alias: {
+			'@pie-qti/item-player/security': fileURLToPath(
+				new URL('../../packages/item-player/src/security/index.ts', import.meta.url),
+			),
+			'@pie-qti/item-player/element': fileURLToPath(
+				new URL('../../packages/item-player/src/element.ts', import.meta.url),
+			),
 			'@pie-qti/item-player/components': fileURLToPath(
 				new URL('../../packages/item-player/src/components/index.ts', import.meta.url),
 			),
-			'@pie-qti/assessment-player/components': fileURLToPath(
+			'@pie-qti/item-player/web-components': fileURLToPath(
+				new URL('../../packages/item-player/src/web-components/index.ts', import.meta.url),
+			),
+			'@pie-qti/item-player/iframe': fileURLToPath(
+				new URL('../../packages/item-player/src/iframe/index.ts', import.meta.url),
+			),
+			'@pie-qti/item-player/server': fileURLToPath(
+				new URL('../../packages/item-player/src/server.ts', import.meta.url),
+			),
+			'@pie-qti/item-player': fileURLToPath(
+				new URL('../../packages/item-player/src/index.ts', import.meta.url),
+			),
+			'$assessment-components': fileURLToPath(
 				new URL('../../packages/assessment-player/src/components/index.ts', import.meta.url),
+			),
+			'@pie-qti/section-player/components': fileURLToPath(
+				new URL('../../packages/section-player/src/components/index.ts', import.meta.url),
 			),
 			'@pie-qti/default-components/shared/components': fileURLToPath(
 				new URL('../../packages/default-components/src/shared/components/index.ts', import.meta.url),

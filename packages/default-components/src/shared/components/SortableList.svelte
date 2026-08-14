@@ -5,13 +5,15 @@
  */
 
 import type { I18nProvider } from '@pie-qti/i18n';
+import type { HtmlContent } from '@pie-qti/item-player';
+import { htmlToString } from '@pie-qti/item-player/security';
 import { touchDrag } from '@pie-qti/qti-common';
 import DragHandle from './DragHandle.svelte';
 import '../styles/shared.css';
 
 interface Item {
 	id: string;
-	text: string;
+	text: HtmlContent;
 }
 
 interface Props {
@@ -169,13 +171,15 @@ function itemLabel(item: Item): string {
 	return toPlainText(item.text) || 'Item';
 }
 
-function toPlainText(html: string): string {
+function toPlainText(html: HtmlContent): string {
 	if (typeof document !== 'undefined') {
 		const template = document.createElement('template');
-		template.innerHTML = html;
+		// Passing the value through unchanged preserves TrustedHTML identity at
+		// this parsing sink; the resulting text is used only for accessibility.
+		template.innerHTML = html as any;
 		return (template.content.textContent ?? '').replace(/\s+/g, ' ').trim();
 	}
-	return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+	return htmlToString(html).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 }
 </script>
 

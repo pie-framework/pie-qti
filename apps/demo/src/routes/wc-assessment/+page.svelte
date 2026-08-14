@@ -78,6 +78,7 @@
 			if (!host) throw new Error('Element not mounted');
 
 			assignProps(host, {
+				referenceMode: true,
 				assessmentTestXml,
 				items,
 				config: { role: 'candidate', navigationMode: 'nonlinear', showSections: true },
@@ -145,5 +146,3 @@
 		</div>
 	</div>
 </div>
-
-

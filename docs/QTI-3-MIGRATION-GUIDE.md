@@ -50,7 +50,7 @@ There is no `qti-composite-interaction` element.
 ```typescript
 // Auto-detect version from XML
 import { createQtiParser, isQti3 } from '@pie-qti/qti-common';
-import { Player } from '@pie-qti/item-player';
+import { createAssessmentItemDefinition } from '@pie-qti/item-player';
 
 const xml = `<qti-assessment-item ...>...</qti-assessment-item>`;
 
@@ -58,8 +58,9 @@ const xml = `<qti-assessment-item ...>...</qti-assessment-item>`;
 const { mapper, version } = createQtiParser(xml);
 console.log(version); // "3.0"
 
-// Player automatically uses the correct mapper
-const player = new Player({ itemXml: xml }); // Works for both 2.x and 3.0
+// Definition compilation automatically uses the correct mapper
+const definition = createAssessmentItemDefinition({ itemXml: xml });
+const session = definition.openSession(); // Works for both 2.x and 3.0
 ```
 
 ### Version Detection Logic
@@ -89,13 +90,16 @@ import { Qti2xElementNameMapper, Qti3ElementNameMapper } from '@pie-qti/qti-comm
 // QTI 2.x mapper
 const qti2Mapper = new Qti2xElementNameMapper();
 qti2Mapper.toCanonical('choiceInteraction');  // → "choiceinteraction"
-qti2Mapper.toNative('choiceinteraction');     // → "choiceInteraction"
+qti2Mapper.toNative('choiceinteraction');     // → "choiceinteraction"
 
 // QTI 3.0 mapper
 const qti3Mapper = new Qti3ElementNameMapper();
 qti3Mapper.toCanonical('qti-choice-interaction');  // → "choiceinteraction"
 qti3Mapper.toNative('choiceinteraction');          // → "qti-choice-interaction"
 ```
+
+The QTI 2.x mapper cannot recover original camelCase after canonicalization; its native conversion
+returns the lowercase canonical spelling used by the case-insensitive parser.
 
 ### Canonical Form (Internal Representation)
 
@@ -147,15 +151,15 @@ The player auto-detects the QTI version; callers do not select a mapper manually
 the implemented delivery profile and does not erase the open assessment/package gaps:
 
 ```typescript
-import { Player } from '@pie-qti/item-player';
+import { createAssessmentItemDefinition } from '@pie-qti/item-player';
 
 // QTI 2.x XML
 const qti2Xml = `<assessmentItem ...>...</assessmentItem>`;
-const player1 = new Player({ itemXml: qti2Xml }); // ✓ Works
+const qti2 = createAssessmentItemDefinition({ itemXml: qti2Xml }); // ✓ Works
 
 // QTI 3.0 XML
 const qti3Xml = `<qti-assessment-item ...>...</qti-assessment-item>`;
-const player2 = new Player({ itemXml: qti3Xml }); // ✓ Works
+const qti3 = createAssessmentItemDefinition({ itemXml: qti3Xml }); // ✓ Works
 ```
 
 ### Scenario 2: You're Using the Transform API
@@ -192,8 +196,10 @@ const interactions = doc.getElementsByTagName(tagName);
 **Even Better** (use extraction layer):
 ```typescript
 // Extraction layer already handles this automatically
-const player = new Player({ itemXml: xml });
-console.log(player.getInteractionData()); // Works for both versions
+const definition = createAssessmentItemDefinition({ itemXml: xml });
+const session = definition.openSession(); // Works for both versions
+console.log(session.present().flow);
+session.dispose();
 ```
 
 ### Scenario 4: You're Reading Attributes
@@ -284,7 +290,7 @@ package/origin decision. Resolved PCI code runs with page authority unless the h
 PNP support is implemented for the core delivery accommodations:
 
 ```typescript
-const player = new Player({
+const definition = createAssessmentItemDefinition({
   itemXml: xml,
   pnp: {
     display: { colorScheme: 'blackwhite' },
@@ -294,6 +300,7 @@ const player = new Player({
     }
   }
 });
+const session = definition.openSession();
 ```
 
 ### Catalog System

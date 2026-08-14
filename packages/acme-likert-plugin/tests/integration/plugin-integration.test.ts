@@ -4,12 +4,32 @@
 
 import '../setup.js';
 import { describe, expect, test } from 'bun:test';
-import { Player } from '@pie-qti/item-player';
+import {
+	createAssessmentItemDefinition,
+	createExtractionRegistry,
+	type BaseInteractionData,
+} from '@pie-qti/item-player';
 import { parse } from 'node-html-parser';
 import { likertScalePlugin } from '../../src/index.js';
+import type { LikertInteractionData } from '../../src/index.js';
+
+function firstInteraction(itemXml: string, withPlugin = true): BaseInteractionData {
+	const definition = createAssessmentItemDefinition({
+		itemXml,
+		...(withPlugin ? { plugins: [likertScalePlugin] } : {}),
+	});
+	const session = definition.openSession();
+	try {
+		const node = session.present().flow.find((entry) => entry.kind === 'interaction');
+		if (!node || node.kind !== 'interaction') throw new Error('Expected an interaction');
+		return node.mount.interaction;
+	} finally {
+		session.dispose();
+	}
+}
 
 describe('Likert Scale Plugin Integration', () => {
-	test('plugin registers successfully with Player', () => {
+	test('definition plugin delivers a typed Likert interaction', () => {
 		const xml = `<?xml version="1.0" encoding="UTF-8"?>
 			<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
 				identifier="likert-test" title="Test">
@@ -22,24 +42,15 @@ describe('Likert Scale Plugin Integration', () => {
 				</itemBody>
 			</assessmentItem>`;
 
-		const player = new Player({
-			itemXml: xml,
-			plugins: [likertScalePlugin],
-		});
-
-		// Verify extractor was registered
-		const registry = player.getExtractionRegistry();
-		expect(registry.hasExtractor('acme:likert-choice')).toBe(true);
-
-		// Verify extractor has correct priority
-		const extractors = registry.getExtractorsForType('choiceInteraction');
-		const likertExtractor = extractors.find((e) => e.id === 'acme:likert-choice');
-		expect(likertExtractor).toBeDefined();
-		expect(likertExtractor!.priority).toBe(500);
+		const interaction = firstInteraction(xml) as LikertInteractionData;
+		const typedLikertMarker: true = interaction.metadata.isLikert;
+		expect(interaction.type).toBe('choiceInteraction');
+		expect(interaction.responseId).toBe('RESPONSE');
+		expect(typedLikertMarker).toBe(true);
+		expect(interaction.metadata.scalePoints).toBe(2);
 	});
 
 	test('extraction registry finds and uses Likert extractor', () => {
-		// Create player with plugin
 		const xml = `<?xml version="1.0" encoding="UTF-8"?>
 			<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
 				identifier="likert-5pt" title="5-Point Likert">
@@ -56,12 +67,14 @@ describe('Likert Scale Plugin Integration', () => {
 				</itemBody>
 			</assessmentItem>`;
 
-		const player = new Player({
-			itemXml: xml,
-			plugins: [likertScalePlugin],
+		void xml;
+		const registry = createExtractionRegistry({
+			version: '2.x',
+			toCanonical: (name) => name.toLowerCase(),
+			toNative: (name) => name,
+			isValidElementName: () => true,
 		});
-
-		const registry = player.getExtractionRegistry();
+		likertScalePlugin.registerExtractors?.(registry);
 
 		// Parse the choiceInteraction element
 		const interactionXml = `<choiceInteraction responseIdentifier="RESPONSE">
@@ -141,7 +154,7 @@ describe('Likert Scale Plugin Integration', () => {
 		}
 	});
 
-	test('extractor priority ensures Likert takes precedence over standard', () => {
+	test('higher-priority Likert extraction wins for authored choiceInteraction', () => {
 		const xml = `<?xml version="1.0" encoding="UTF-8"?>
 			<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
 				identifier="priority-test" title="Priority Test">
@@ -154,28 +167,12 @@ describe('Likert Scale Plugin Integration', () => {
 				</itemBody>
 			</assessmentItem>`;
 
-		const player = new Player({
-			itemXml: xml,
-			plugins: [likertScalePlugin],
-		});
-
-		const registry = player.getExtractionRegistry();
-		const extractors = registry.getExtractorsForType('choiceInteraction');
-
-		// Find both extractors
-		const likertExtractor = extractors.find((e) => e.id === 'acme:likert-choice');
-		const standardExtractor = extractors.find((e) => e.id === 'qti:choice-interaction');
-
-		expect(likertExtractor).toBeDefined();
-		expect(standardExtractor).toBeDefined();
-
-		// Likert should have higher priority (500 vs 10)
-		expect(likertExtractor!.priority).toBe(500);
-		expect(standardExtractor!.priority).toBe(10);
-		expect(likertExtractor!.priority).toBeGreaterThan(standardExtractor!.priority);
+		const interaction = firstInteraction(xml) as LikertInteractionData;
+		expect(interaction.metadata.isLikert).toBe(true);
+		expect(interaction.metadata.scalePoints).toBe(2);
 	});
 
-	test('player works without plugin (standard extractors only)', () => {
+	test('definition works without the plugin using standard extraction', () => {
 		const xml = `<?xml version="1.0" encoding="UTF-8"?>
 			<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
 				identifier="no-plugin" title="No Plugin">
@@ -188,14 +185,9 @@ describe('Likert Scale Plugin Integration', () => {
 				</itemBody>
 			</assessmentItem>`;
 
-		const player = new Player({
-			itemXml: xml,
-			// No plugins
-		});
-
-		const registry = player.getExtractionRegistry();
-		expect(registry.hasExtractor('acme:likert-choice')).toBe(false);
-		expect(registry.hasExtractor('qti:choice-interaction')).toBe(true);
+		const interaction = firstInteraction(xml, false);
+		expect(interaction.type).toBe('choiceInteraction');
+		expect(interaction).not.toHaveProperty('metadata.isLikert');
 	});
 
 	test('multiple plugins can be registered', () => {
@@ -211,16 +203,7 @@ describe('Likert Scale Plugin Integration', () => {
 				</itemBody>
 			</assessmentItem>`;
 
-		const player = new Player({
-			itemXml: xml,
-			plugins: [likertScalePlugin], // Could add more plugins here
-		});
-
-		const registry = player.getExtractionRegistry();
-
-		// All extractors should be registered
-		expect(registry.hasExtractor('acme:likert-choice')).toBe(true);
-		expect(registry.hasExtractor('qti:choice-interaction')).toBe(true);
-		expect(registry.hasExtractor('qti:text-entry-interaction')).toBe(true);
+		const interaction = firstInteraction(xml) as LikertInteractionData;
+		expect(interaction.metadata.isLikert).toBe(true);
 	});
 });

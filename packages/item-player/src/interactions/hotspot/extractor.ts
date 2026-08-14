@@ -5,6 +5,7 @@
  */
 
 import type { ElementExtractor } from '../../extraction/types.js';
+import { normalizePixelDimension } from '../../security/styleValues.js';
 
 /**
  * Image data for hotspot interaction
@@ -45,9 +46,9 @@ export const standardHotspotExtractor: ElementExtractor<HotspotData> = {
 	elementTypes: ['hotspotInteraction'],
 	description: 'Extracts standard QTI hotspotInteraction (clickable areas on image)',
 
-	canHandle(element, _context) {
+	canHandle(element, context) {
 		// All hotspotInteraction elements are standard
-		return element.rawTagName === 'hotspotInteraction';
+		return context.utils.matchesTag(element, 'hotspotInteraction');
 	},
 
 	extract(element, context) {
@@ -61,8 +62,8 @@ export const standardHotspotExtractor: ElementExtractor<HotspotData> = {
 			const objectElement = objectElements[0];
 			const type = utils.getAttribute(objectElement, 'type', '');
 			const data = utils.getAttribute(objectElement, 'data', '');
-			const width = utils.getAttribute(objectElement, 'width', 'auto');
-			const height = utils.getAttribute(objectElement, 'height', 'auto');
+			const width = normalizePixelDimension(utils.getAttribute(objectElement, 'width', ''));
+			const height = normalizePixelDimension(utils.getAttribute(objectElement, 'height', ''));
 
 			if (type.startsWith('image/svg')) {
 				// Inline SVG: <object type="image/svg+xml"><svg>...</svg></object>
@@ -74,16 +75,16 @@ export const standardHotspotExtractor: ElementExtractor<HotspotData> = {
 					imageData = {
 						type: 'svg',
 						content,
-						width,
-						height,
+						...(width ? { width } : {}),
+						...(height ? { height } : {}),
 					};
 				} else {
 					// External SVG file reference — render via <img src> (SVG renders in img tags)
 					imageData = {
 						type: 'image',
 						src: data,
-						width,
-						height,
+						...(width ? { width } : {}),
+						...(height ? { height } : {}),
 					};
 				}
 			} else {
@@ -91,8 +92,8 @@ export const standardHotspotExtractor: ElementExtractor<HotspotData> = {
 				imageData = {
 					type: 'image',
 					src: data,
-					width,
-					height,
+					...(width ? { width } : {}),
+					...(height ? { height } : {}),
 				};
 			}
 		}

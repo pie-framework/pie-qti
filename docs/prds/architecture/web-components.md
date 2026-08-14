@@ -4,13 +4,13 @@
   Status: needs-update
   Type: architecture
   Packages: @pie-qti/default-components, @pie-qti/player-elements, @pie-qti/web-component-loaders
-  Last reviewed: 2026-07-13
+  Last reviewed: 2026-08-13
 -->
 
 **Status:** needs-update
 **Type:** architecture
 **Packages:** `@pie-qti/default-components`, `@pie-qti/player-elements`, `@pie-qti/web-component-loaders`
-**Last reviewed:** 2026-07-13
+**Last reviewed:** 2026-08-13
 
 ---
 
@@ -19,10 +19,10 @@
 Three packages form the web component layer of the QTI player:
 
 - **`@pie-qti/default-components`** — Svelte 5 components compiled as custom elements (`customElement: true`), one per QTI interaction type. Each component lives in `src/plugins/<type>/`. The package also exports `registerDefaultComponents(registry)` to wire the custom element tag names into the item player's `ComponentRegistry`.
-- **`@pie-qti/player-elements`** — Vanilla custom elements (`QtiItemPlayerElement`, `QtiAssessmentPlayerElement`) that mount and manage Svelte player components. These are the public-facing HTML elements that host applications drop into a page.
+- **`@pie-qti/player-elements`** — Vanilla custom elements for item, section, and assessment rendering that mount and manage Svelte components. These are the public-facing HTML elements that host applications drop into a page. The item element can either own a standalone `ItemSession` or borrow the exact live session supplied by assessment-player through section composition.
 - **`@pie-qti/web-component-loaders`** — A single idempotent loader function (`loadPieQtiPlayerElements`) that dynamically imports and awaits the self-contained default runtime. Safe to call from multiple entry points without double-registering.
 
-### Current implementation audit (2026-07-13)
+### Current implementation audit (2026-08-13)
 
 This PRD describes the intended public contract. The following implementation gaps remain:
 
@@ -30,17 +30,23 @@ This PRD describes the intended public contract. The following implementation ga
   default interaction elements. Its main entry is registration-free and SSR-safe; manual/custom
   interaction hosts use the explicitly browser-only `elements` or `register-players` subpaths.
 - Svelte is bundled into the published JavaScript and is not installed by consumers. The public
-  declaration graph nevertheless exposes implementation packages and `BaseSvelteMountElement`, so
-  the type/API boundary is not yet implementation-independent.
-- The item element now exposes typed, bubbling/composed `ready`, `response-change`, `submit`, and
-  `complete` events plus imperative `submit()`. The remaining FR-9 gap is the `identifier`, `title`,
-  and `extendedTextEditor` facade.
+  declaration facade is framework-neutral and does not expose `BaseSvelteMountElement`; its one
+  deliberate package dependency is `@pie-qti/item-player`, which supplies the exact live
+  `ItemSession` and `HtmlContent` contracts used at runtime.
+- The item element exposes typed, bubbling/composed `ready`, `response-change`, `submit`, and
+  `complete` events plus imperative `submit()`. Its current JavaScript-only configuration includes
+  the authoritative `session`, definition `plugins`, security, PNP, PCI, i18n, delivery context,
+  processing-fragment resolver/limits, typesetting, rubric placement, and response snapshot inputs.
+- The item element exposes `session` only as a JavaScript property. An injected session is borrowed:
+  the element subscribes and dispatches against it but never restores, replaces, serializes, or
+  disposes it. Without that property, the standalone item path creates and owns a session from
+  `itemXml` through `createAssessmentItemDefinition(...).openSession()`.
 - The assessment element now accepts an injected authoritative backend/session and requires
   explicit `referenceMode` before constructing `ReferenceBackendAdapter`. Its local XML parser still
   preserves only a small subset of `assessmentTest` and silently drops valid test semantics such as
   selection, ordering, branching, timing, and assessment-level outcome processing.
 
-Resolve the package boundary and facade contract before promoting this PRD to `current`.
+Resolve the incomplete assessment-test XML facade before promoting this PRD to `current`.
 
 ---
 
@@ -118,12 +124,20 @@ The component is included via `<ShadowBaseStyles />` at the top of each interact
 - **FR-6:** `qti-change` SHALL not be dispatched when `role !== 'candidate'` (e.g., scorer or preview mode where the interaction is display-only).
 - **FR-7:** Every interaction component SHALL include `<ShadowBaseStyles />` to provide usable styling when the host does not load DaisyUI.
 - **FR-8:** Every interaction component SHALL expose a `part="root"` on its outermost element, and `part="option"`, `part="label"`, `part="input"`, `part="text"` (or equivalent semantic part names) for host-side CSS customisation via `::part()`.
-- **FR-9 (partially met):** `QtiItemPlayerElement` SHALL expose JS property setters and getters for `itemXml`, `identifier`, `title`, `role`, `responses`, `security`, and `extendedTextEditor`, in addition to the equivalent kebab-case HTML attributes. `itemXml`, `role`, `responses`, and `security` are implemented; `identifier`, `title`, and `extendedTextEditor` remain.
+- **FR-9:** `QtiItemPlayerElement` SHALL expose attribute-backed `itemXml`, `role`, and `disabled`
+  properties. It SHALL expose complex or identity-bearing values only as JavaScript properties,
+  including `session`, `plugins`, `responses`, `security`, `pnp`, `pci`, `i18n`, delivery context,
+  processing-fragment resolver/limits, `typeset`, and item-body-rubric placement.
 - **FR-10:** `QtiItemPlayerElement` SHALL dispatch a `response-change` event with `{ responseId, value, responses }` when the mounted player reports a response change.
 - **FR-11:** `QtiItemPlayerElement` SHALL dispatch a `ready` event (microtask-queued) after `connectedCallback`.
-- **FR-12:** `loadPieQtiPlayerElements()` SHALL be idempotent: calling it N times SHALL result in exactly one dynamic load and SHALL resolve only after `pie-qti-item-player`, `pie-qti-assessment-player`, and default interaction custom elements are defined.
+- **FR-12:** `loadPieQtiPlayerElements()` SHALL be idempotent: calling it N times SHALL result in
+  exactly one dynamic load and SHALL resolve only after `pie-qti-item-player`,
+  `pie-qti-assessment-player`, `pie-qti-section-player-splitpane`,
+  `pie-qti-section-player-vertical`, and the default interaction custom elements are defined.
 - **FR-13:** Interaction components SHALL use `typesetAction` to trigger host-provided math typesetting after render and on DOM mutations.
 - **FR-14:** Interaction components in `disabled` state SHALL render non-interactive (native input elements with `disabled`, no `qti-change` events).
+- **FR-15:** `QtiItemPlayerElement.session` SHALL be a JavaScript-property-only injection point for a live item session created by `@pie-qti/item-player`. It SHALL NOT be reflected to or parsed from an HTML attribute, because live object identity is not serializable.
+- **FR-16:** When `session` is supplied, the item element SHALL render and dispatch commands through that exact object, ignore `responses` as a synchronization source, and leave disposal to the owner. When no session is supplied, the standalone path SHALL create and dispose its own definition/session from `itemXml`.
 
 ---
 
@@ -132,7 +146,7 @@ The component is included via `<ShadowBaseStyles />` at the top of each interact
 - **Accessibility:** All interaction components must meet WCAG 2.2 Level AA. Keyboard navigation must follow ARIA patterns for the interaction type (radio group for single-choice, checkbox group for multiple-choice, etc.). Focus management must survive Svelte reactivity updates without losing focus. Touch targets must be at minimum 44×44 CSS pixels.
 - **Performance:** Components must not block the main thread during render. Math typesetting is deferred to `requestAnimationFrame` via `typesetAction`. Shadow DOM construction is handled by the browser natively. Components should not import large dependencies beyond what Vite tree-shakes.
 - **Cross-platform:** Must work on desktop (mouse + keyboard) and mobile (touch). The `touchDrag` action from `@pie-qti/qti-common` provides mobile-compatible drag support for drag-and-drop interactions.
-- **Security:** HTML content from QTI item bodies (prompts, choice text) is rendered via `{@html ...}`. The item player's sanitiser is responsible for cleaning this content before it reaches the component; components do not re-sanitise.
+- **Security:** HTML content from QTI item bodies and interaction delivery fields is rendered via `{@html ...}` only after the item-player's configured sanitizer and final egress handling. Components do not re-sanitize or mint `TrustedHTML`. Scoped stylesheet text is rendered through its separate style sink rather than concatenated into body HTML.
 - **i18n:** Component UI strings are sourced from the `I18nProvider` prop. All user-visible labels must go through `i18n.t(key)` with a hardcoded English fallback string.
 
 ---
@@ -167,6 +181,13 @@ The component is included via `<ShadowBaseStyles />` at the top of each interact
 **Alternatives considered:** `::slotted()` for host-provided content; CSS custom property API per component; open Shadow DOM (no encapsulation).
 **Consequences:** Host-side CSS customisation is limited to structural elements that have an explicit `part` attribute. Components must be careful not to rename or remove parts once published.
 
+### Live sessions cross player-element boundaries by property
+
+**Decision:** The item element accepts an optional live session as a JavaScript property. Assessment-player owns it, section-player forwards it, and the item element borrows it. HTML attributes and JSON props remain for serializable configuration only.
+**Rationale:** A live session has object identity, subscriptions, commands, and disposal ownership that cannot survive attribute serialization. Passing responses or serialized state through each layer would create parallel mutable authorities.
+**Alternatives considered:** A `session-json` attribute, reconstructing a player inside every element, or synchronizing `responses` in both directions.
+**Consequences:** Hosts that need assessment composition assign `element.session = assessment.getCurrentItemSession()`. Standalone hosts may continue to set `itemXml` and `responses`; in that mode the element owns the session it creates. Disconnecting the element never disposes an injected session.
+
 ---
 
 ## Extension points
@@ -179,6 +200,7 @@ The component is included via `<ShadowBaseStyles />` at the top of each interact
 | Host CSS theming | CSS custom properties on `:root` or ancestor | Set `--color-primary`, `--color-base-content`, etc. | DaisyUI theme switching via `data-theme` attribute |
 | Host CSS structural customisation | `::part()` | Write `pie-qti-choice::part(label) { ... }` | Custom border radius on choice labels |
 | Player element `security` prop | `PlayerSecurityConfig` | Set `security` property or `security-json` attribute on `<pie-qti-item-player>` | Configure HTML sanitisation and URL policy |
+| Borrowed live item session | `QtiItemPlayerElement.session` | Assign a session created by `createAssessmentItemDefinition(...).openSession()` as a JavaScript property | Assessment → section → item-element composition |
 
 ---
 
@@ -228,6 +250,13 @@ can also back the legacy `@pie-qti/item-player/element` entry.
 The container `div` uses `display: contents` so it does not affect layout.
 
 `#syncState()` is an async method with a sequence counter to drop superseded rapid attribute changes: if `syncState` is called twice before the first resolves, the first is discarded.
+
+`QtiItemPlayerElement.session` is intentionally absent from `observedAttributes`. The
+`@pie-qti/player-elements` facade aliases `QtiItemSessionReference` directly to the complete
+`@pie-qti/item-player` `ItemSession` contract. Consumers pass a session obtained from an
+`AssessmentItemDefinition` or assessment composition; it is not JSON data. The element
+subscribes to the injected session and emits its normal DOM events, but ownership and disposal stay
+with the injecting runtime.
 
 ---
 
@@ -301,6 +330,16 @@ AC-11: response-change event from player element
         AND event.detail.responses contains all current responses keyed by responseId
 ```
 
+```
+AC-12: JavaScript-only live session injection preserves identity and ownership
+  Given: A live ItemSession owned by AssessmentPlayer
+  When: element.session is assigned and the element is connected
+  Then: the mounted item component reads, presents, and dispatches through that same session
+        no session attribute is observed or serialized
+  When: the element disconnects
+  Then: the injected session remains active and is not disposed by the element
+```
+
 ### Accessibility
 
 ```
@@ -341,6 +380,8 @@ AC-E3: QtiItemPlayerElement disconnectedCallback cleans up
   When: The element is removed from the DOM
   Then: The Svelte component is unmounted (unmount() called)
         AND no residual event listeners remain from the mounted component
+        AND an element-owned standalone session is disposed
+        AND an injected session is not disposed
 ```
 
 ---
@@ -349,9 +390,6 @@ AC-E3: QtiItemPlayerElement disconnectedCallback cleans up
 
 - [ ] `textEntryInteraction` and `inlineChoiceInteraction` are currently handled as inline renderers inside `ItemBody.svelte` rather than as separate custom elements. Should they be promoted to standalone web components for consistency? What are the implications for inline-within-content rendering?
 - [ ] The `ShadowBaseStyles` component duplicates a subset of DaisyUI class definitions. When DaisyUI 5 changes its class names (it is moving to `btn-primary` → `btn btn-primary` semantics in some versions), these need to be kept in sync. Is there a test or CI check that catches this drift?
-- [x] `@pie-qti/player-elements/register` owns complete default-runtime registration;
-  `elements` and `register-players` retain lower-level custom-renderer paths. The loader owns the
-  optional host stylesheet export.
 - [ ] Define a facade-owned assessment config and secure backend/resolver injection contract without exposing `BackendAssessmentPlayerConfig` or other implementation-package types.
 
 ---

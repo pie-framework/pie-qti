@@ -1,48 +1,28 @@
 <script lang="ts">
-	import { registerDefaultComponents } from '@pie-qti/default-components';
 	import { ItemBody } from '@pie-qti/item-player/components';
-	import { Player, type QTIRole } from '@pie-qti/item-player';
-	import type { InteractionResponseValue } from '@pie-qti/item-player/web-components';
+	import type { QTIRole } from '@pie-qti/item-player';
 	import { typesetMathInElement } from '@pie-qti/typeset-katex';
-	import { untrack } from 'svelte';
+	import { onDestroy, untrack } from 'svelte';
+	import { DemoItemSessionController } from '$lib/item-session.svelte';
 	import { SAMPLE_ITEMS } from '$lib/sample-items';
 	import { getSecurityConfig } from '$lib/player-config';
 
-	type FixtureResponseValue = InteractionResponseValue | null;
-	type FixtureResponseMap = Record<string, FixtureResponseValue>;
-
 	let selectedSampleId = $state('simple-choice');
 	let xmlContent = $state('');
-	let player = $state<Player | null>(null);
-	let interactions = $state<any[]>([]);
-	let responses = $state<FixtureResponseMap>({});
+	const itemSession = new DemoItemSessionController();
 	let selectedRole = $state<QTIRole>('candidate');
 
 	function loadPlayer(xml: string) {
 		if (!xml.trim()) {
-			player = null;
-			interactions = [];
-			responses = {};
+			itemSession.dispose();
 			return;
 		}
 
-		const newPlayer = new Player({
+		itemSession.open({
 			itemXml: xml,
 			role: selectedRole,
 			security: getSecurityConfig(),
 		});
-		registerDefaultComponents(newPlayer.getComponentRegistry());
-
-		player = newPlayer;
-		interactions = newPlayer.getInteractionData();
-
-		const newResponses: FixtureResponseMap = {};
-		for (const interaction of interactions) {
-			if (interaction) {
-				newResponses[interaction.responseId] = null;
-			}
-		}
-		responses = newResponses;
 	}
 
 	$effect(() => {
@@ -54,9 +34,7 @@
 		});
 	});
 
-	function handleResponseChange(responseId: string, value: FixtureResponseValue) {
-		responses = { ...responses, [responseId]: value };
-	}
+	onDestroy(() => itemSession.dispose());
 </script>
 
 <div class="max-w-4xl mx-auto">
@@ -81,18 +59,16 @@
 	</div>
 
 	<!-- Player area -->
-	{#if player}
+	{#if itemSession.session}
 		<div class="card bg-base-100 shadow-xl">
 			<div class="card-body">
 				<h2 class="card-title">Question</h2>
 
 				<div class="qti-question-body">
 					<ItemBody
-						{player}
-						{responses}
-						role={selectedRole}
+						session={itemSession.session}
+						revision={itemSession.revision}
 						typeset={typesetMathInElement}
-						onResponseChange={handleResponseChange}
 					/>
 				</div>
 			</div>

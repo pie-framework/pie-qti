@@ -40,6 +40,7 @@
 
 <script lang="ts">
 	import type { PositionObjectInteractionData } from '@pie-qti/item-player';
+	import { normalizePixelDimension } from '@pie-qti/item-player/security';
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import DragHandle from '../../shared/components/DragHandle.svelte';
@@ -69,6 +70,16 @@
 	const parsedResponse = $derived(parseJsonProp<string[]>(response));
 	const parsedCorrectResponse = $derived(parseJsonProp<string[]>(correctResponse));
 	const isShowingCorrect = $derived(role === 'scorer' && parsedCorrectResponse !== null && parsedCorrectResponse !== undefined);
+	const imageWidth = $derived(
+		Number(normalizePixelDimension(parsedInteraction?.imageData?.width, '800') ?? '800'),
+	);
+	const imageHeight = $derived(
+		Number(normalizePixelDimension(parsedInteraction?.imageData?.height, '600') ?? '600'),
+	);
+
+	function objectDimension(value: unknown): number {
+		return Number(normalizePixelDimension(value, '50') ?? '50');
+	}
 
 	// Get reference to the root element for event dispatching
 	let rootElement: HTMLDivElement | undefined = $state();
@@ -94,10 +105,9 @@
 
 	// Calculate scale factor based on actual vs original image dimensions
 	const scaleFactor = $derived.by(() => {
-		if (!imageContainer || !parsedInteraction?.imageData?.width) return 1;
+		if (!imageContainer || !parsedInteraction?.imageData) return 1;
 		const actualWidth = imageContainer.offsetWidth;
-		const originalWidth = Number(parsedInteraction.imageData.width);
-		return actualWidth / originalWidth;
+		return actualWidth / imageWidth;
 	});
 
 	$effect(() => {
@@ -163,8 +173,8 @@
 			// Create a custom drag image at full size
 			const stage = getStageById(stageId);
 			if (stage?.objectData) {
-				const width = parseInt(stage.objectData.width || '50');
-				const height = parseInt(stage.objectData.height || '50');
+				const width = objectDimension(stage.objectData.width);
+				const height = objectDimension(stage.objectData.height);
 
 				// Create a temporary element for the drag image
 				const dragImage = document.createElement('div');
@@ -210,8 +220,8 @@
 		if (parsedInteraction?.centerPoint) {
 			const stage = parsedInteraction.positionObjectStages.find((s) => s.identifier === draggedStageId);
 			if (stage?.objectData) {
-				const width = parseInt(stage.objectData.width || '50');
-				const height = parseInt(stage.objectData.height || '50');
+				const width = objectDimension(stage.objectData.width);
+				const height = objectDimension(stage.objectData.height);
 				x -= width / 2;
 				y -= height / 2;
 			}
@@ -383,8 +393,8 @@
 		// Initialise crosshair to the stage's last placed position, or centre
 		const existing = [...positions].reverse().find((p: Position) => p.stageId === stageId);
 		if (existing && parsedInteraction?.imageData) {
-			const imgW = Number(parsedInteraction.imageData.width) || 1;
-			const imgH = Number(parsedInteraction.imageData.height) || 1;
+			const imgW = imageWidth;
+			const imgH = imageHeight;
 			crosshairX = Math.max(0, Math.min(1, existing.x / imgW));
 			crosshairY = Math.max(0, Math.min(1, existing.y / imgH));
 		} else {
@@ -414,8 +424,8 @@
 	function placeAtCrosshair() {
 		if (!selectedStageId || !parsedInteraction?.imageData) return;
 
-		const imgW = Number(parsedInteraction.imageData.width) || 800;
-		const imgH = Number(parsedInteraction.imageData.height) || 600;
+		const imgW = imageWidth;
+		const imgH = imageHeight;
 
 		let x = crosshairX * imgW;
 		let y = crosshairY * imgH;
@@ -424,8 +434,8 @@
 		if (parsedInteraction.centerPoint) {
 			const stage = getStageById(selectedStageId);
 			if (stage?.objectData) {
-				x -= parseInt(stage.objectData.width || '50') / 2;
-				y -= parseInt(stage.objectData.height || '50') / 2;
+				x -= objectDimension(stage.objectData.width) / 2;
+				y -= objectDimension(stage.objectData.height) / 2;
 			}
 		}
 
@@ -520,7 +530,7 @@
 					bind:this={imageContainer}
 					part="canvas"
 					class="qti-po-canvas relative border-2 border-base-300 rounded-lg overflow-hidden bg-base-200 {crosshairActive ? 'qti-po-canvas-active' : ''}"
-					style="width: 100%; aspect-ratio: {parsedInteraction.imageData?.width || 800} / {parsedInteraction.imageData?.height || 600}; box-sizing: border-box;"
+					style="width: 100%; aspect-ratio: {imageWidth} / {imageHeight}; box-sizing: border-box;"
 				ondrop={handleDrop}
 				ondragover={handleDragOver}
 				onkeydown={handleCanvasKeydown}
@@ -564,7 +574,7 @@
 							{#if stage.objectData}
 								{#if stage.objectData.type === 'svg' && stage.objectData.content}
 									<div
-										style="width: {(parseInt(stage.objectData.width || '50')) * scaleFactor}px; height: {(parseInt(stage.objectData.height || '50')) * scaleFactor}px;"
+										style="width: {objectDimension(stage.objectData.width) * scaleFactor}px; height: {objectDimension(stage.objectData.height) * scaleFactor}px;"
 									>
 										{@html stage.objectData.content}
 									</div>
@@ -572,7 +582,7 @@
 									<img
 										src={stage.objectData.src}
 										alt={stage.label}
-										style="width: {(parseInt(stage.objectData.width || '50')) * scaleFactor}px; height: {(parseInt(stage.objectData.height || '50')) * scaleFactor}px;"
+										style="width: {objectDimension(stage.objectData.width) * scaleFactor}px; height: {objectDimension(stage.objectData.height) * scaleFactor}px;"
 										class="pointer-events-none"
 									/>
 								{/if}
@@ -635,7 +645,7 @@
 								{#if stage.objectData}
 									{#if stage.objectData.type === 'svg' && stage.objectData.content}
 										<div
-											style="width: {(parseInt(stage.objectData.width || '50')) * scaleFactor}px; height: {(parseInt(stage.objectData.height || '50')) * scaleFactor}px;"
+											style="width: {objectDimension(stage.objectData.width) * scaleFactor}px; height: {objectDimension(stage.objectData.height) * scaleFactor}px;"
 										>
 											{@html stage.objectData.content}
 										</div>
@@ -643,7 +653,7 @@
 										<img
 											src={stage.objectData.src}
 											alt={stage.label}
-											style="width: {(parseInt(stage.objectData.width || '50')) * scaleFactor}px; height: {(parseInt(stage.objectData.height || '50')) * scaleFactor}px;"
+											style="width: {objectDimension(stage.objectData.width) * scaleFactor}px; height: {objectDimension(stage.objectData.height) * scaleFactor}px;"
 											class="pointer-events-none"
 										/>
 									{/if}

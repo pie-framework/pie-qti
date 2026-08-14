@@ -1,6 +1,8 @@
 <svelte:options customElement="pie-qti-catalog-popup" />
 
 <script lang="ts">
+	import type { HtmlContent, PlayerSecurityConfig } from '@pie-qti/item-player';
+	import { htmlToString, sanitizeResourceUrl, sanitizeSharedHtml } from '@pie-qti/item-player/security';
 	/**
 	 * CatalogPopup — accessible floating dialog for QTI 3.0 catalog entries.
 	 *
@@ -12,17 +14,27 @@
 
 	interface Props {
 		/** HTML content from CatalogEntry.html (or URL for illustrated-glossary). */
-		content: string;
+		content: HtmlContent;
+		/** Used only when a standalone caller supplies an unfinalized string. */
+		security?: PlayerSecurityConfig;
 		/** Accessible label for the dialog (the term text). */
 		label: string;
 		/** Callback when the popup is closed. */
 		onClose: () => void;
 	}
 
-	const { content, label, onClose }: Props = $props();
+	const { content, security, label, onClose }: Props = $props();
 
 	// Illustrated-glossary: if content looks like a URL, render as <img>
-	const isUrl = $derived(/^(https?:\/\/|\/)/i.test(content.trim()));
+	const contentString = $derived(htmlToString(content));
+	const imageUrl = $derived(
+		/^(https?:\/\/|\/)/i.test(contentString.trim())
+			? sanitizeResourceUrl(contentString.trim(), security?.urlPolicy, 'img')
+			: null
+	);
+	const safeContent = $derived(
+		typeof content === 'string' ? sanitizeSharedHtml(content, security) : content
+	);
 
 	let dialogEl: HTMLDivElement | undefined = $state();
 	let closeBtn: HTMLButtonElement | undefined = $state();
@@ -89,11 +101,11 @@
 		>✕</button>
 	</div>
 	<div class="qti-catalog-popup__body">
-		{#if isUrl}
-			<img src={content} alt={label} class="qti-catalog-popup__img" />
+		{#if imageUrl}
+			<img src={imageUrl} alt={label} class="qti-catalog-popup__img" />
 		{:else}
 			<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-			{@html content}
+			{@html safeContent}
 		{/if}
 	</div>
 </div>

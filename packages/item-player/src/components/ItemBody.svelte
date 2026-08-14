@@ -3,95 +3,69 @@
 </script>
 
 <script lang="ts">
-	import type { HtmlContent } from '../types';
-	import type { PnpProfile } from '../pnp/types';
-	import type { GlossaryPlayer } from '../catalog/applyGlossaryTriggers';
+	import { getItemSessionBinding, type ItemSession } from '../core/ItemSession';
 	import type { InteractionResponseValue, QTIChangeEventDetail } from '../web-components';
-	import type { ExtractedPci, PciHostController } from '../pci/types';
+	import type { ExtractedPci } from '../pci/types';
 	import type { I18nProvider } from '@pie-qti/i18n';
-	import type { QtiHeuristicsConfig, ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
+	import type { QtiHeuristicsConfig } from '@pie-qti/ims-cp-core';
 	import { typesetAction } from './actions/typesetAction';
 	import { glossaryAction } from '../catalog/glossaryAction';
 	import { assignProps } from '@pie-qti/qti-common';
 	import InlineChoice from '../interactions/inline-choice/InlineChoice.svelte';
 	import InlineTextEntry from '../interactions/text-entry/InlineTextEntry.svelte';
-	import {
-		createItemPresentationPlan,
-		type ItemPresentationPlayer
-	} from '../presentation/itemPresentationPlan';
 
 	type ItemResponseValue = InteractionResponseValue | null;
 	type ItemResponseMap = Record<string, ItemResponseValue>;
 	type QtiChangeDomEvent = CustomEvent<QTIChangeEventDetail<ItemResponseValue>>;
 
-	interface ItemBodyComponentRegistry {
-		getTagName(interaction: ReturnType<ItemPresentationPlayer['getInteractionData']>[number]): string;
-		getTagNameForType(type: string): string | null;
-	}
-
-	interface ItemBodyPlayer extends GlossaryPlayer {
-		getComponentRegistry(): ItemBodyComponentRegistry;
-		getInteractionData(): ReturnType<ItemPresentationPlayer['getInteractionData']>;
-		getCorrectResponses(): Record<string, any>;
-		getItemBodyHtml(): HtmlContent;
-		getDeliveryContext(): ResolvedItemDeliveryContext | undefined;
-		getSecurityConfig(): import('../types').PlayerSecurityConfig | undefined;
-		createPciHost(data: ExtractedPci): PciHostController;
-		sanitizeHtmlContent(html: string): string;
-		applyPnp(rootEl: HTMLElement): void;
-		getPnp(): PnpProfile | undefined;
-		onPnpChange?: (listener: () => void) => () => void;
-	}
-
 	interface Props {
-		player: ItemBodyPlayer;
-		responses?: ItemResponseMap;
+		session: ItemSession;
+		/** Makes session-internal transitions visible to Svelte's dependency tracking. */
+		revision: number;
 		disabled?: boolean;
-		role?: 'candidate' | 'scorer' | 'author' | 'tutor' | 'proctor' | 'testConstructor';
 		i18n?: I18nProvider;
 		typeset?: (element: HTMLElement) => void;
 		onResponseChange?: (responseId: string, value: ItemResponseValue) => void;
-		outcomeValues?: Record<string, any>; // Needed for feedbackInline visibility
+		onError?: (error: unknown) => void;
 		heuristicsConfig?: QtiHeuristicsConfig; // Optional heuristics configuration
-		/** QTI 3.0 shared stimulus content: map of stimulus identifier → HTML string */
-		stimulusContent?: Record<string, string>;
-		/** Package/assessment-resolved QTI 3 delivery context. */
-		deliveryContext?: ResolvedItemDeliveryContext;
 		/** Render role-visible rubricBlock content authored inside itemBody. */
 		renderItemBodyRubrics?: boolean;
 	}
 
 	let {
-		player,
-		responses = {},
+		session,
+		revision,
 		disabled = false,
-		role = 'candidate',
 		i18n,
 		typeset,
-		onResponseChange = () => {},
-		outcomeValues = {},
+		onResponseChange,
+		onError,
 		heuristicsConfig,
-		stimulusContent = {},
-		deliveryContext,
 		renderItemBodyRubrics = true,
 	}: Props = $props();
 	const itemBodyScope = `qti-item-body-${++nextItemBodyScopeId}`;
 	const itemBodyScopeSelector = `[data-qti-item-body-scope="${itemBodyScope}"]`;
-	const presentation = $derived.by(() =>
-		createItemPresentationPlan({
-			player: player as ItemPresentationPlayer,
-			responses,
+	const binding = $derived(getItemSessionBinding(session));
+	const sessionView = $derived.by(() => {
+		void revision;
+		return session.state();
+	});
+	const responses = $derived(sessionView.responses as ItemResponseMap);
+	const presentation = $derived.by(() => {
+		void revision;
+		return session.present({
 			disabled,
-			role,
-			outcomeValues,
 			heuristicsConfig,
-			stimulusContent,
-			deliveryContext,
 			itemBodyScopeSelector,
 			renderItemBodyRubrics,
 			onComponentError: (interaction, error) =>
 				console.error(`Failed to get tag name for ${interaction.type}:`, error)
-		})
+		});
+	});
+	const blockMounts = $derived.by(() =>
+		presentation.flow.flatMap((node) =>
+			node.kind === 'interaction' && node.mount.placement === 'block' ? [node.mount] : []
+		)
 	);
 
 	function getStringResponse(responseId: string): string {
@@ -100,7 +74,16 @@
 	}
 
 	function handleResponseChange(responseId: string, value: ItemResponseValue) {
-		onResponseChange(responseId, value);
+		try {
+			session.dispatch({ action: 'setResponse', responseIdentifier: responseId, value });
+			onResponseChange?.(responseId, value);
+		} catch (error) {
+			if (onError) {
+				onError(error);
+				return;
+			}
+			throw error;
+		}
 	}
 
 	// Handle qti:change events from web components
@@ -109,14 +92,15 @@
 		handleResponseChange(responseId, value);
 	}
 
-	const createPciHost = (data: ExtractedPci) => player.createPciHost(data);
+	const createPciHost = (data: ExtractedPci) => binding.createPciHost(data);
 
 	// In runes mode, prefer explicit DOM listener wiring to avoid edge cases with
 	// custom events bubbling out of shadow DOM (and to keep typing sane for dynamic elements).
 	let rootEl: HTMLDivElement | null = $state(null);
 	$effect(() => {
 		if (!rootEl) return;
-		player.applyPnp(rootEl);
+		void revision;
+		binding.applyPnp(rootEl);
 		const handler = (e: Event) => handleQtiChange(e as QtiChangeDomEvent);
 		const el = rootEl; // Capture reference for cleanup
 		el.addEventListener('qti-change', handler as EventListener);
@@ -160,31 +144,37 @@
 	class="qti-item-body"
 	data-qti-item-body-scope={itemBodyScope}
 	use:typesetAction={{ typeset }}
-	use:glossaryAction={{ player }}
+	use:glossaryAction={{ player: binding }}
 >
 	<!-- Item body with inline interactions -->
 	<div class="qti-item-body-content">
 		<div class="inline-interaction-container">
-			{#each presentation.inlineSegments as segment}
-				{#if segment.type === 'html'}
-					{@html segment.content}
-				{:else if segment.type === 'textEntry'}
-					{@const correctAnswer = (presentation.roleCapabilities.canViewCorrectResponses ? (presentation.correctResponses[segment.interaction.responseId] ?? null) : null) as string | null}
+			{#if presentation.scopedCss}
+				<svelte:element this={'style'} data-qti-stylesheets="resolved">
+					{presentation.scopedCss}
+				</svelte:element>
+			{/if}
+
+			{#each presentation.flow as node}
+				{#if node.kind === 'html'}
+					{@html node.html}
+				{:else if node.mount.renderer === 'text-entry'}
+					{@const correctAnswer = (presentation.capabilities.canViewCorrectResponses ? (presentation.correctResponses[node.mount.interaction.responseId] ?? null) : null) as string | null}
 					<InlineTextEntry
-						interaction={segment.interaction}
-						response={getStringResponse(segment.interaction.responseId)}
-						correctAnswer={presentation.roleCapabilities.canViewCorrectResponses ? correctAnswer : null}
-						disabled={presentation.effectiveDisabled}
+						interaction={node.mount.interaction}
+						response={getStringResponse(node.mount.interaction.responseId)}
+						correctAnswer={presentation.capabilities.canViewCorrectResponses ? correctAnswer : null}
+						disabled={presentation.disabled}
 						{i18n}
 						onResponseChange={handleResponseChange}
 					/>
-				{:else if segment.type === 'inlineChoice'}
-					{@const correctAnswer = (presentation.roleCapabilities.canViewCorrectResponses ? (presentation.correctResponses[segment.interaction.responseId] ?? null) : null) as string | null}
+				{:else if node.mount.renderer === 'inline-choice'}
+					{@const correctAnswer = (presentation.capabilities.canViewCorrectResponses ? (presentation.correctResponses[node.mount.interaction.responseId] ?? null) : null) as string | null}
 					<InlineChoice
-						interaction={segment.interaction}
-						response={getStringResponse(segment.interaction.responseId)}
-						correctAnswer={presentation.roleCapabilities.canViewCorrectResponses ? correctAnswer : null}
-						disabled={presentation.effectiveDisabled}
+						interaction={node.mount.interaction}
+						response={getStringResponse(node.mount.interaction.responseId)}
+						correctAnswer={presentation.capabilities.canViewCorrectResponses ? correctAnswer : null}
+						disabled={presentation.disabled}
 						{i18n}
 						onResponseChange={handleResponseChange}
 					/>
@@ -193,8 +183,8 @@
 		</div>
 	</div>
 
-	<!-- Block interactions rendered dynamically as web components -->
-	{#each presentation.blockInteractions as block (block.key)}
+	<!-- Block interactions retain their existing DOM placement and keyed lifecycle. -->
+	{#each blockMounts as block (block.key)}
 		<svelte:element
 			this={block.tagName}
 			use:setWebComponentProps={{
@@ -210,7 +200,7 @@
 				// Avoid invalid ARIA role values on custom-element hosts.
 				// Components default to candidate when role is omitted.
 				role: block.componentRole,
-				security: player.getSecurityConfig(),
+				security: binding.getSecurityConfig(),
 				createPciHost,
 			}}
 		/>

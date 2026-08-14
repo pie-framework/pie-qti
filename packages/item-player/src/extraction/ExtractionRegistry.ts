@@ -4,35 +4,42 @@
  * Manages a collection of ElementExtractor instances with:
  * - Priority-based dispatch (highest priority checked first)
  * - Type-based indexing for O(M) lookup instead of O(N) scanning
- * - WeakMap caching for O(1) repeat lookups
+ * - Context-correct priority lookup
  * - Validation and error handling
  */
 
 import { Qti2xElementNameMapper, type ElementNameMapper } from '@pie-qti/qti-common';
-import type { QTIElement } from '../interactions/index.js';
+import type { QTIElement } from '../interactions/shared/types.js';
 import type {
 	ElementExtractor,
 	ExtractionContext,
-	ExtractionResult,
-	ValidationResult,
+	ExtractionDispatchResult,
 } from './types.js';
-import { ExtractionError, isSuccessResult } from './types.js';
+import type { InteractionDeliveryField } from './deliveryTypes.js';
+import { ExtractionError } from './types.js';
+
+const REGISTER_FRAMEWORK_DELIVERY_FIELDS = Symbol('registerFrameworkDeliveryFields');
 
 /**
  * Registry for element extractors with priority-based dispatch
  */
 export class ExtractionRegistry {
 	/** All registered extractors by ID */
-	private extractorsById = new Map<string, ElementExtractor>();
+	private extractorsById = new Map<string, ElementExtractor<any, string>>();
 
 	/** Extractors indexed by element type for fast lookup */
-	private extractorsByType = new Map<string, ElementExtractor[]>();
-
-	/** Cache for element -> extractor lookups (WeakMap for automatic GC) */
-	private extractorCache = new WeakMap<QTIElement, ElementExtractor>();
+	private extractorsByType = new Map<string, ElementExtractor<any, string>[]>();
+	/** Plugin-owned additions to the delivery schema. */
+	private deliveryFieldsByType = new Map<string, readonly InteractionDeliveryField[]>();
+	/** Framework-owned authored sink policy, kept authoritative over plugin additions. */
+	private frameworkDeliveryFieldsByType = new Map<
+		string,
+		readonly InteractionDeliveryField[]
+	>();
 
 	/** Optional element name mapper for QTI version handling */
 	private elementNameMapper?: ElementNameMapper;
+	private sealed = false;
 
 	/** QTI 2.x mapper for converting canonical names to extractor registry keys */
 	private qti2xMapper = new Qti2xElementNameMapper();
@@ -57,9 +64,14 @@ export class ExtractionRegistry {
 	 *   extract: (element, context) => ({ choices: [...] })
 	 * });
 	 */
-	register<TData, TContext extends ExtractionContext = ExtractionContext>(
-		extractor: ElementExtractor<TData, TContext>
+	register<
+		TPayload extends object,
+		TOutputType extends string = string,
+		TContext extends ExtractionContext = ExtractionContext,
+	>(
+		extractor: ElementExtractor<TPayload, TOutputType, TContext>
 	): void {
+		this.assertMutable();
 		// Check for duplicate ID
 		if (this.extractorsById.has(extractor.id)) {
 			throw new Error(
@@ -82,13 +94,20 @@ export class ExtractionRegistry {
 		if (typeof extractor.priority !== 'number') {
 			throw new Error(`Extractor '${extractor.id}' must have a numeric priority`);
 		}
+		if (
+			extractor.outputType !== undefined &&
+			(typeof extractor.outputType !== 'string' || !extractor.outputType)
+		) {
+			throw new Error(`Extractor '${extractor.id}' must have a non-empty outputType`);
+		}
+		const registered = snapshotExtractor(extractor);
 
 		// Register by ID
-		this.extractorsById.set(extractor.id, extractor as ElementExtractor);
+		this.extractorsById.set(registered.id, registered);
 
 		// Register by type for fast lookup
 		// Normalize element types to canonical (lowercase) form for version-agnostic lookup
-		for (const type of extractor.elementTypes) {
+		for (const type of registered.elementTypes) {
 			// Convert to canonical form - extractors specify QTI 2.x names (e.g., 'choiceInteraction')
 			// but we store them in canonical form (e.g., 'choiceinteraction') for QTI version independence
 			const canonicalType = this.qti2xMapper.toCanonical(type);
@@ -99,7 +118,7 @@ export class ExtractionRegistry {
 				this.extractorsByType.set(canonicalType, extractors);
 			}
 
-			extractors.push(extractor as ElementExtractor);
+			extractors.push(registered);
 
 			// Keep sorted by priority (highest first)
 			extractors.sort((a, b) => b.priority - a.priority);
@@ -113,6 +132,7 @@ export class ExtractionRegistry {
 	 * @returns true if extractor was found and removed, false otherwise
 	 */
 	unregister(id: string): boolean {
+		this.assertMutable();
 		const extractor = this.extractorsById.get(id);
 		if (!extractor) return false;
 
@@ -140,7 +160,7 @@ export class ExtractionRegistry {
 
 	/**
 	 * Find an extractor that can handle the given element
-	 * Uses type-based indexing and caching for performance
+	 * Uses type-based indexing and evaluates the caller's extraction context.
 	 *
 	 * @param element - The element to find an extractor for
 	 * @param context - Extraction context
@@ -149,11 +169,7 @@ export class ExtractionRegistry {
 	findExtractor(
 		element: QTIElement,
 		context: ExtractionContext
-	): ElementExtractor | null {
-		// Check cache first (O(1) lookup)
-		const cached = this.extractorCache.get(element);
-		if (cached) return cached;
-
+	): ElementExtractor<any, string> | null {
 		// Get element type - normalize using mapper for QTI version handling
 		// Extractors are registered in canonical (lowercase) form for version independence.
 		// Convert any QTI version element name to canonical form for lookup.
@@ -163,8 +179,6 @@ export class ExtractionRegistry {
 		// Example for QTI 2.x:
 		//   'choiceInteraction' → 'choiceinteraction' (canonical)
 		let lookupKey = element.rawTagName || '';
-		const originalKey = lookupKey;
-
 		if (lookupKey && this.elementNameMapper) {
 			// Convert element's raw tag to canonical form using the document's mapper
 			lookupKey = this.elementNameMapper.toCanonical(lookupKey);
@@ -180,12 +194,7 @@ export class ExtractionRegistry {
 		for (const extractor of extractors) {
 			try {
 				const canHandle = extractor.canHandle(element, context);
-				const typeMatchedThroughMapper = extractors.length === 1 && !!this.elementNameMapper && extractor.elementTypes.some(
-					(type) => this.qti2xMapper.toCanonical(type) === lookupKey
-				);
-				if (canHandle || typeMatchedThroughMapper) {
-					// Cache the result
-					this.extractorCache.set(element, extractor);
+				if (canHandle) {
 					return extractor;
 				}
 			} catch (error) {
@@ -216,10 +225,10 @@ export class ExtractionRegistry {
 	 *   console.error('Extraction failed:', result.error.message);
 	 * }
 	 */
-	extract<TData>(
+	extract<TData extends object>(
 		element: QTIElement,
 		context: ExtractionContext
-	): ExtractionResult<TData> {
+	): ExtractionDispatchResult<TData> {
 		// Find appropriate extractor
 		const extractor = this.findExtractor(element, context);
 
@@ -252,11 +261,16 @@ export class ExtractionRegistry {
 
 				// Return with warnings if present
 				if (validation.warnings && validation.warnings.length > 0) {
-					return { success: true, data, warnings: validation.warnings };
+					return {
+						success: true,
+						data,
+						extractor,
+						warnings: validation.warnings,
+					};
 				}
 			}
 
-			return { success: true, data };
+			return { success: true, data, extractor };
 		} catch (error) {
 			const elementType = element.rawTagName || 'unknown';
 			const extractionError =
@@ -277,7 +291,7 @@ export class ExtractionRegistry {
 	 * Get all registered extractors
 	 * @returns Read-only array of extractors sorted by priority (highest first)
 	 */
-	getExtractors(): ReadonlyArray<ElementExtractor> {
+	getExtractors(): ReadonlyArray<ElementExtractor<any, string>> {
 		const all = Array.from(this.extractorsById.values());
 		all.sort((a, b) => b.priority - a.priority);
 		return all;
@@ -288,10 +302,51 @@ export class ExtractionRegistry {
 	 * @param elementType - The element type (e.g., 'choiceInteraction')
 	 * @returns Read-only array of extractors for this type, sorted by priority
 	 */
-	getExtractorsForType(elementType: string): ReadonlyArray<ElementExtractor> {
+	getExtractorsForType(elementType: string): ReadonlyArray<ElementExtractor<any, string>> {
 		// Convert to canonical form for lookup
 		const canonicalType = this.qti2xMapper.toCanonical(elementType);
-		return this.extractorsByType.get(canonicalType) || [];
+		return Object.freeze([...(this.extractorsByType.get(canonicalType) ?? [])]);
+	}
+
+	/**
+	 * Register additional plugin-owned sink policy for an interaction kind.
+	 *
+	 * The framework's authored schema is stored separately and remains authoritative
+	 * when both schemas classify the same output path.
+	 */
+	registerDeliveryFields(
+		elementType: string,
+		fields: readonly InteractionDeliveryField[],
+	): void {
+		this.assertMutable();
+		const canonicalType = this.qti2xMapper.toCanonical(elementType);
+		const existing = this.deliveryFieldsByType.get(canonicalType) ?? [];
+		this.deliveryFieldsByType.set(
+			canonicalType,
+			snapshotDeliveryFields([...existing, ...fields]),
+		);
+	}
+
+	[REGISTER_FRAMEWORK_DELIVERY_FIELDS](
+		elementType: string,
+		fields: readonly InteractionDeliveryField[],
+	): void {
+		this.assertMutable();
+		const canonicalType = this.qti2xMapper.toCanonical(elementType);
+		const existing = this.frameworkDeliveryFieldsByType.get(canonicalType) ?? [];
+		this.frameworkDeliveryFieldsByType.set(
+			canonicalType,
+			snapshotDeliveryFields([...existing, ...fields]),
+		);
+	}
+
+	/** Return the immutable sink policy compiled for an authored interaction kind. */
+	getDeliveryFieldsForType(elementType: string): readonly InteractionDeliveryField[] {
+		const canonicalType = this.qti2xMapper.toCanonical(elementType);
+		return mergeDeliveryFields(
+			this.deliveryFieldsByType.get(canonicalType) ?? EMPTY_DELIVERY_FIELDS,
+			this.frameworkDeliveryFieldsByType.get(canonicalType) ?? EMPTY_DELIVERY_FIELDS,
+		);
 	}
 
 	/**
@@ -308,8 +363,11 @@ export class ExtractionRegistry {
 	 * Useful for testing or resetting the registry
 	 */
 	clear(): void {
+		this.assertMutable();
 		this.extractorsById.clear();
 		this.extractorsByType.clear();
+		this.deliveryFieldsByType.clear();
+		this.frameworkDeliveryFieldsByType.clear();
 	}
 
 	/**
@@ -321,9 +379,41 @@ export class ExtractionRegistry {
 		for (const extractor of this.extractorsById.values()) {
 			cloned.register(extractor);
 		}
+		for (const [elementType, fields] of this.deliveryFieldsByType) {
+			cloned.deliveryFieldsByType.set(elementType, snapshotDeliveryFields(fields));
+		}
+		for (const [elementType, fields] of this.frameworkDeliveryFieldsByType) {
+			cloned.frameworkDeliveryFieldsByType.set(
+				elementType,
+				snapshotDeliveryFields(fields),
+			);
+		}
 		return cloned;
 	}
+
+	/**
+	 * Freeze the definition set used by a compiled AssessmentItem. Lookups and
+	 * extraction remain available; registration changes require a new definition.
+	 */
+	seal(): this {
+		this.sealed = true;
+		return this;
+	}
+
+	isSealed(): boolean {
+		return this.sealed;
+	}
+
+	private assertMutable(): void {
+		if (this.sealed) {
+			throw new Error(
+				'ExtractionRegistry is sealed for this AssessmentItem; create a new definition to change InteractionModules'
+			);
+		}
+	}
 }
+
+const EMPTY_DELIVERY_FIELDS = Object.freeze([]) as readonly InteractionDeliveryField[];
 
 /**
  * Create a new extraction registry
@@ -332,4 +422,76 @@ export class ExtractionRegistry {
  */
 export function createExtractionRegistry(elementNameMapper?: ElementNameMapper): ExtractionRegistry {
 	return new ExtractionRegistry(elementNameMapper);
+}
+
+/**
+ * Register immutable framework-owned policy without exposing that capability at
+ * the public plugin seam.
+ *
+ * @internal
+ */
+export function registerFrameworkDeliveryFields(
+	registry: ExtractionRegistry,
+	elementType: string,
+	fields: readonly InteractionDeliveryField[],
+): void {
+	registry[REGISTER_FRAMEWORK_DELIVERY_FIELDS](elementType, fields);
+}
+
+function snapshotExtractor<
+	TPayload extends object,
+	TOutputType extends string,
+	TContext extends ExtractionContext,
+>(
+	extractor: ElementExtractor<TPayload, TOutputType, TContext>,
+): ElementExtractor<any, string> {
+	const delivery = extractor.delivery
+		? Object.freeze({
+				fields: snapshotDeliveryFields(extractor.delivery.fields),
+			})
+		: undefined;
+
+	return Object.freeze({
+		id: extractor.id,
+		name: extractor.name,
+		priority: extractor.priority,
+		elementTypes: Object.freeze([...extractor.elementTypes]) as unknown as string[],
+		...(extractor.description ? { description: extractor.description } : {}),
+		...(extractor.outputType ? { outputType: extractor.outputType } : {}),
+		...(delivery ? { delivery } : {}),
+		canHandle: extractor.canHandle.bind(extractor) as ElementExtractor<any, string>['canHandle'],
+		extract: extractor.extract.bind(extractor) as ElementExtractor<any, string>['extract'],
+		...(extractor.validate
+			? {
+					validate: extractor.validate.bind(extractor) as NonNullable<
+						ElementExtractor<any, string>['validate']
+					>,
+				}
+			: {}),
+	});
+}
+
+function snapshotDeliveryFields(
+	fields: readonly InteractionDeliveryField[],
+): readonly InteractionDeliveryField[] {
+	return Object.freeze(
+		fields.map((field) =>
+			Object.freeze({ ...field, path: Object.freeze([...field.path]) }),
+		),
+	);
+}
+
+function mergeDeliveryFields(
+	extensions: readonly InteractionDeliveryField[],
+	framework: readonly InteractionDeliveryField[],
+): readonly InteractionDeliveryField[] {
+	if (extensions.length === 0 && framework.length === 0) return EMPTY_DELIVERY_FIELDS;
+
+	const fieldsByPath = new Map<string, InteractionDeliveryField>();
+	for (const field of [...extensions, ...framework]) {
+		// One output path has one sink meaning. Framework-authored meaning is applied
+		// last so a plugin can add new paths but cannot relabel a standard one.
+		fieldsByPath.set(JSON.stringify(field.path), field);
+	}
+	return snapshotDeliveryFields([...fieldsByPath.values()]);
 }

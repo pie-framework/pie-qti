@@ -1,13 +1,12 @@
 <script lang="ts">
 	import { likertScalePlugin } from '@acme/likert-scale-plugin';
-	import '@pie-qti/default-components/plugins'; // Load web components
-	import { registerDefaultComponents } from '@pie-qti/default-components';
 	import { ItemBody } from '@pie-qti/item-player/components';
-	import { Player } from '@pie-qti/item-player';
 	import type { InteractionResponseValue } from '@pie-qti/item-player/web-components';
 	import { typesetMathInElement } from '@pie-qti/typeset-katex';
 	import { browser } from '$app/environment';
+	import { onDestroy, untrack } from 'svelte';
 	import XmlEditor from '$lib/components/XmlEditor.svelte';
+	import { DemoItemSessionController } from '$lib/item-session.svelte';
 	import { ALL_LIKERT_ITEMS } from '$lib/sample-likert-items';
 	import { getSecurityConfig } from '$lib/player-config';
 
@@ -16,36 +15,36 @@
 
 	let selectedItemIndex = $state(0);
 	let currentItem = $derived(ALL_LIKERT_ITEMS[selectedItemIndex]);
-	let player = $derived.by(() => {
-		// Avoid creating the Player during SSR (it may need browser DOM APIs).
-		if (!browser) return null;
+	const itemSession = new DemoItemSessionController();
+	let responses = $derived((itemSession.view?.responses ?? {}) as LikertResponseMap);
 
-		const p = new Player({
-			itemXml: currentItem.xml,
-			plugins: [likertScalePlugin],
-			security: getSecurityConfig(),
+	$effect(() => {
+		if (!browser) return;
+		const item = currentItem;
+		untrack(() => {
+			itemSession.open({
+				itemXml: item.xml,
+				plugins: [likertScalePlugin],
+				security: getSecurityConfig(),
+			});
 		});
-
-		// Register default components with the player's registry so ItemBody can render interactions.
-		registerDefaultComponents(p.getComponentRegistry());
-
-		return p;
 	});
-
-	let responses = $state<LikertResponseMap>({});
 
 	let interactionInfo = $derived.by(() => {
 		if (!browser) return { count: 0, types: [], debug: null };
-		if (!player) return { count: 0, types: [], debug: null };
+		if (!itemSession.session) return { count: 0, types: [], debug: null };
 		try {
-			const interactions = player.getInteractions();
-			console.log('[Likert Demo] Raw interactions from player:', interactions);
+			void itemSession.revision;
+			const interactions = itemSession.session
+				.present()
+				.flow.flatMap((node) => (node.kind === 'interaction' ? [node.mount.interaction] : []));
+			console.log('[Likert Demo] Interactions from the live session:', interactions);
 
 			// Get first interaction for debugging
 			const first = interactions[0];
 			console.log('[Likert Demo] First interaction details:', {
 				type: first?.type,
-				responseId: first?.responseIdentifier,
+				responseId: first?.responseId,
 				hasChoices: !!(first as any)?.choices,
 				choicesLength: (first as any)?.choices?.length,
 				choicesData: (first as any)?.choices,
@@ -70,13 +69,9 @@
 
 	function selectItem(index: number) {
 		selectedItemIndex = index;
-		// Reset responses when switching items
-		responses = {};
 	}
 
-	function handleResponseChange(responseId: string, value: LikertResponseValue) {
-		responses = { ...responses, [responseId]: value };
-	}
+	onDestroy(() => itemSession.dispose());
 </script>
 
 <svelte:head>
@@ -119,14 +114,13 @@
 			<div class="bg-white rounded-lg shadow-md p-6">
 				<h2 class="text-xl font-semibold mb-4">Item Preview</h2>
 
-				{#if browser && player}
+				{#if browser && itemSession.session}
 					<div class="mb-6">
 						<ItemBody
-							{player}
-							{responses}
+							session={itemSession.session}
+							revision={itemSession.revision}
 							disabled={false}
 							typeset={typesetMathInElement}
-							onResponseChange={handleResponseChange}
 						/>
 					</div>
 

@@ -6,7 +6,6 @@ import {
 	buildResponseProcessingAst,
 	buildTemplateProcessingAst,
 	type Cardinality,
-	childElements,
 	coerceBaseValue,
 	DeclarationContext,
 	type DeclarationMap,
@@ -33,12 +32,18 @@ import {
 	Qti3AttributeNameMapper,
 	detectQtiVersion,
 } from '@pie-qti/qti-common';
-import type { AssessmentItemDocument } from '../document/AssessmentItemDocument.js';
+import type {
+	AssessmentItemDocument,
+	ResponseProcessingDescriptor,
+} from '../document/AssessmentItemDocument.js';
 import { parseAssessmentItemDocument } from '../document/AssessmentItemDocument.js';
-import type { ExtractionRegistry } from '../extraction/ExtractionRegistry.js';
-import { createExtractionRegistry } from '../extraction/ExtractionRegistry.js';
+import {
+	createExtractionRegistry,
+	registerFrameworkDeliveryFields,
+	type ExtractionRegistry,
+} from '../extraction/ExtractionRegistry.js';
 import { extractInteractionData } from '../extraction/interactionExtractionPipeline.js';
-import { getStandardInteractionExtractors } from '../interactions/modules.js';
+import { getStandardInteractionModules } from '../interactions/modules.js';
 import type {
 	AdaptiveAttemptResult,
 	CompletionStatus,
@@ -49,7 +54,7 @@ import type {
 	ItemSessionActionResult,
 	ItemSessionState,
 	ModalFeedback,
-	PlayerConfig,
+	ItemSessionEngineConfig,
 	PlayerSecurityConfig,
 	QTIRole,
 	RubricBlock,
@@ -58,7 +63,7 @@ import type {
 	SerializedItemSessionState,
 	SerializedItemSessionVariable,
 } from '../types/index.js';
-import type { InteractionData } from '../interactions/index.js';
+import type { BaseInteractionData } from '../interactions/shared/types.js';
 import type { ResponseValidationResult } from '../types/responseValidation.js';
 import type { ComponentRegistry } from './ComponentRegistry.js';
 import { createComponentRegistry } from './ComponentRegistry.js';
@@ -80,22 +85,67 @@ import {
 
 type DeclKind = 'response' | 'outcome' | 'template';
 
+/** Immutable source-derived artifacts shared by sessions from one definition. */
+interface PreparedPlayerDefinition {
+	readonly identifier: string;
+	readonly mapper: ElementNameMapper;
+	readonly attributeMapper: AttributeNameMapper;
+	readonly itemDocument: AssessmentItemDocument;
+	readonly declarations: DeclarationMap;
+	readonly responseProcessing: ResponseProcessingDescriptor;
+	readonly responseProcessingProgram: ProcessingProgram | null;
+	readonly templateProcessingProgram: ProcessingProgram | null;
+	readonly outcomeProcessingProgram: ProcessingProgram | null;
+	readonly catalogIndex: CatalogIndex;
+	readonly stimulusCatalogIndexes: Map<string, CatalogIndex>;
+}
+
+interface PlayerConstructionOptions {
+	/** Compile source-derived artifacts without starting an item attempt. */
+	readonly compileOnly?: boolean;
+	/** Restore supplies template variables, so avoid an observable throwaway template run. */
+	readonly skipTemplateProcessing?: boolean;
+}
+
+/** @internal Used by AssessmentItemDefinition; deliberately absent from the package root API. */
+export function preparePlayerDefinitionInternal(config: ItemSessionEngineConfig): unknown {
+	const compiler = new Player(config, undefined, { compileOnly: true });
+	try {
+		return compiler.capturePreparedDefinition();
+	} finally {
+		compiler.destroy();
+	}
+}
+
+/** @internal Used by ItemSession; deliberately absent from the package root API. */
+export function createPlayerFromPreparedInternal(
+	config: ItemSessionEngineConfig,
+	prepared: unknown,
+	skipTemplateProcessing = false,
+): Player {
+	return new Player(config, prepared as PreparedPlayerDefinition, {
+		skipTemplateProcessing,
+	});
+}
+
 export class Player {
 	private role: QTIRole;
-	private config: PlayerConfig;
+	private config: ItemSessionEngineConfig;
 	private itemXml: string;
 	private itemDocument: AssessmentItemDocument;
-	private assessmentItem: Element;
 	private decls: DeclarationMap;
+	private sourceDeclarations: DeclarationMap;
 	private ctx: DeclarationContext;
 	private rng: () => number;
 	private ops: OperatorRegistry;
 	private extractionRegistry: ExtractionRegistry;
+	private interactionDataCache: readonly BaseInteractionData[] | null = null;
 	private componentRegistry: ComponentRegistry;
 	private i18nProvider: any; // I18nProvider from @pie-qti/i18n
 	private mapper: ElementNameMapper;
 
 	private responseProcessingProgram: ProcessingProgram | null = null;
+	private responseProcessing: ResponseProcessingDescriptor;
 	private templateProcessingProgram: ProcessingProgram | null = null;
 	private outcomeProcessingProgram: ProcessingProgram | null = null;
 	private _pnp: PnpProfile | undefined;
@@ -109,7 +159,18 @@ export class Player {
 	private sessionStartedAt: number;
 	private accumulatedDurationMs = 0;
 
-	constructor(config: PlayerConfig) {
+	constructor(config: ItemSessionEngineConfig);
+	/** @internal Definition-backed sessions use the module-local factory above. */
+	constructor(
+		config: ItemSessionEngineConfig,
+		prepared: PreparedPlayerDefinition | undefined,
+		construction?: PlayerConstructionOptions,
+	);
+	constructor(
+		config: ItemSessionEngineConfig,
+		prepared?: PreparedPlayerDefinition,
+		construction: PlayerConstructionOptions = {},
+	) {
 		this.config = config;
 		this.itemXml = config.itemXml ?? '';
 		this.role = config.role ?? 'candidate';
@@ -117,109 +178,111 @@ export class Player {
 		this.sessionStartedAt = Date.now();
 		this.rng = config.rng ?? (typeof config.seed === 'number' ? createSeededRng(config.seed) : Math.random);
 
-		// Auto-detect QTI version and create appropriate mappers if not provided
-		if (!config.elementNameMapper) {
+		// Resolve QTI-version mappers without mutating caller-owned configuration.
+		if (prepared) {
+			this.mapper = prepared.mapper;
+		} else if (!config.elementNameMapper) {
 			const version = detectQtiVersion(this.itemXml);
 			if (version === '3.0') {
 				this.mapper = new Qti3ElementNameMapper();
-				// Set in config so it's available to extraction utils
-				(config as any).elementNameMapper = this.mapper;
-				// Also set attribute mapper if not provided
-				if (!config.attributeNameMapper) {
-					(config as any).attributeNameMapper = new Qti3AttributeNameMapper();
-				}
 			} else {
 				this.mapper = new Qti2xElementNameMapper();
-				(config as any).elementNameMapper = this.mapper;
-				if (!config.attributeNameMapper) {
-					(config as any).attributeNameMapper = new Qti2xAttributeNameMapper();
-				}
 			}
 		} else {
 			this.mapper = config.elementNameMapper as ElementNameMapper;
-			if (!config.attributeNameMapper) {
-				(config as any).attributeNameMapper =
-					this.mapper.version === '3.0'
-						? new Qti3AttributeNameMapper()
-						: new Qti2xAttributeNameMapper();
-			}
 		}
-
-		this.itemDocument = parseAssessmentItemDocument({
-			itemXml: this.itemXml,
+		const attributeMapper = prepared?.attributeMapper ??
+			config.attributeNameMapper ??
+			(this.mapper.version === '3.0'
+				? new Qti3AttributeNameMapper()
+				: new Qti2xAttributeNameMapper());
+		this.config = {
+			...config,
 			elementNameMapper: this.mapper,
-			attributeNameMapper: config.attributeNameMapper as AttributeNameMapper,
-			security: this.config.security,
-		});
-		this.assessmentItem = this.itemDocument.getAssessmentItem();
+			attributeNameMapper: attributeMapper,
+		};
 
-		this.decls = this.buildDeclarations();
-		this.ensureBuiltinDeclarations(this.decls);
+		if (prepared) {
+			this.itemDocument = prepared.itemDocument;
+			this.decls = cloneDeclarationMap(prepared.declarations);
+		} else {
+			this.itemDocument = parseAssessmentItemDocument({
+				itemXml: this.itemXml,
+				elementNameMapper: this.mapper,
+				attributeNameMapper: attributeMapper as AttributeNameMapper,
+				security: this.config.security,
+			});
+			this.decls = this.buildDeclarations();
+			this.ensureBuiltinDeclarations(this.decls);
+		}
+		this.sourceDeclarations = cloneDeclarationMap(this.decls);
 		this.ctx = new DeclarationContext(this.decls);
 		this.ops = new OperatorRegistry();
 
-		// Restore session state (outcomes + responses) before running templateProcessing.
-		if (config.sessionState) {
-			this.applySessionState(config.sessionState);
-		}
-
 		// Extraction + rendering registries (for interaction rendering)
 		// Pass the element name mapper to the extraction registry for QTI version handling
-		this.extractionRegistry = (config.extractionRegistry as ExtractionRegistry | undefined) ?? createExtractionRegistry(this.mapper);
-		this.componentRegistry = (config.componentRegistry as ComponentRegistry | undefined) ?? createComponentRegistry();
+		this.extractionRegistry =
+			(this.config.extractionRegistry as ExtractionRegistry | undefined) ??
+			createExtractionRegistry(this.mapper);
+		this.componentRegistry =
+			(this.config.componentRegistry as ComponentRegistry | undefined) ??
+			createComponentRegistry();
 
 		// I18n provider (defaults to a simple fallback if not provided)
-		this.i18nProvider = config.i18nProvider ?? this.createDefaultI18nProvider();
+		this.i18nProvider = this.config.i18nProvider ?? this.createDefaultI18nProvider();
 
-		// Register standard interaction extractors (idempotent per-registry instance)
-		for (const ex of getStandardInteractionExtractors()) {
-			try {
-				this.extractionRegistry.register(ex as any);
-			} catch {
-				// ignore duplicates if a caller pre-registered
+		if (!this.extractionRegistry.isSealed()) {
+			// Register standard interaction extractors.
+			for (const module of getStandardInteractionModules()) {
+				this.extractionRegistry.register(module.extractor as any);
+				registerFrameworkDeliveryFields(
+					this.extractionRegistry,
+					module.type,
+					module.delivery,
+				);
 			}
-		}
 
-		// Plugins can further extend registries
-		for (const p of (config.plugins ?? []) as any[]) {
-			try {
-				p?.registerExtractors?.(this.extractionRegistry);
-				p?.registerComponents?.(this.componentRegistry);
-			} catch {
-				// plugin errors shouldn't prevent core parsing
-			}
+			this.extractionRegistry.seal();
 		}
 
 		// Build ASTs once.
 		const processingBuildOptions = {
 			elementNameMapper: this.mapper,
-			resolveProcessingFragment: config.resolveProcessingFragment,
-			maxProcessingFragmentDepth: config.processingFragmentLimits?.maxDepth,
-			maxProcessingFragmentCharacters: config.processingFragmentLimits?.maxCharacters,
+			resolveProcessingFragment: this.config.resolveProcessingFragment,
+			maxProcessingFragmentDepth: this.config.processingFragmentLimits?.maxDepth,
+			maxProcessingFragmentCharacters: this.config.processingFragmentLimits?.maxCharacters,
 		};
-		const templateProcessing = this.itemDocument.getProcessingElement('template');
-		if (templateProcessing) {
-			this.templateProcessingProgram = buildTemplateProcessingAst(templateProcessing, processingBuildOptions);
+		const templateProcessing = prepared ? null : this.itemDocument.getProcessingElement('template');
+		this.templateProcessingProgram =
+			prepared?.templateProcessingProgram ??
+			(templateProcessing
+				? buildTemplateProcessingAst(templateProcessing, processingBuildOptions)
+				: null);
+		if (
+			this.templateProcessingProgram &&
+			!construction.compileOnly &&
+			!construction.skipTemplateProcessing
+		) {
 			this.execTemplateProcessing();
 		}
 
-		const responseProcessing = this.itemDocument.getProcessingElement('response');
-		if (responseProcessing) {
-			this.responseProcessingProgram = buildResponseProcessingAst(responseProcessing, processingBuildOptions);
-		}
+		const responseProcessing = prepared ? null : this.itemDocument.getProcessingElement('response');
+		this.responseProcessing = prepared?.responseProcessing ?? this.itemDocument.describeResponseProcessing();
+		this.responseProcessingProgram =
+			prepared?.responseProcessingProgram ??
+			(responseProcessing
+				? buildResponseProcessingAst(responseProcessing, processingBuildOptions)
+				: null);
 
-		const outcomeProcessing = this.itemDocument.getProcessingElement('outcome');
-		if (outcomeProcessing) {
-			this.outcomeProcessingProgram = buildOutcomeProcessingAst(outcomeProcessing, processingBuildOptions);
-		}
-
-		// Apply initial responses after templateProcessing (so template vars are ready).
-		if (config.responses) {
-			this.setResponses(config.responses as Record<string, unknown>);
-		}
+		const outcomeProcessing = prepared ? null : this.itemDocument.getProcessingElement('outcome');
+		this.outcomeProcessingProgram =
+			prepared?.outcomeProcessingProgram ??
+			(outcomeProcessing
+				? buildOutcomeProcessingAst(outcomeProcessing, processingBuildOptions)
+				: null);
 
 		// Detect and log QTI version for compatibility awareness
-		const detectedVersion = this.detectQTIVersion();
+		const detectedVersion = prepared ? null : this.detectQTIVersion();
 		if (detectedVersion === 'unknown') {
 			console.warn('[QTI Player] Could not detect QTI version. Assuming QTI 2.2 compatibility.');
 		} else if (detectedVersion === '2.0') {
@@ -233,32 +296,64 @@ export class Player {
 		}
 
 		// Store PNP profile for later use (applyPnpToRoot is called once a root element is available).
-		this._pnp = config.pnp;
+		this._pnp = this.config.pnp;
 
-		// Build catalog index from legacy shared catalog XML, item XML, and resolved delivery context.
+		// Build the catalog index from shared catalog XML, item XML, and resolved delivery context.
 		// Sanitized item-level delivery context entries win over raw item XML on collisions.
 		// Stimulus entries are kept separately so rendered stimulus terms can avoid ID collisions.
-		let mergedCatalog: CatalogIndex = new Map();
-		let deliveryItemCatalog: CatalogIndex = new Map();
-		for (const source of config.deliveryContext?.catalogSources ?? []) {
-			const sourceCatalog = extractCatalog(source.xml);
-			if (source.scope === 'stimulus' && source.stimulusIdentifier) {
-				const existing = this._stimulusCatalogIndexes.get(source.stimulusIdentifier) ?? new Map();
-				this._stimulusCatalogIndexes.set(source.stimulusIdentifier, mergeCatalogs(existing, sourceCatalog));
-			} else {
-				deliveryItemCatalog = mergeCatalogs(deliveryItemCatalog, sourceCatalog);
+		if (prepared) {
+			this._catalogIndex = prepared.catalogIndex;
+			this._stimulusCatalogIndexes = prepared.stimulusCatalogIndexes;
+		} else {
+			let mergedCatalog: CatalogIndex = new Map();
+			let deliveryItemCatalog: CatalogIndex = new Map();
+			for (const source of this.config.deliveryContext?.catalogSources ?? []) {
+				const sourceCatalog = extractCatalog(source.xml);
+				if (source.scope === 'stimulus' && source.stimulusIdentifier) {
+					const existing = this._stimulusCatalogIndexes.get(source.stimulusIdentifier) ?? new Map();
+					this._stimulusCatalogIndexes.set(
+						source.stimulusIdentifier,
+						mergeCatalogs(existing, sourceCatalog),
+					);
+				} else {
+					deliveryItemCatalog = mergeCatalogs(deliveryItemCatalog, sourceCatalog);
+				}
 			}
+			if (this.config.catalogXml) {
+				mergedCatalog = mergeCatalogs(
+					mergedCatalog,
+					extractCatalogFromItemXml(this.config.catalogXml),
+				);
+			}
+			mergedCatalog = mergeCatalogs(mergedCatalog, extractCatalogFromItemXml(this.itemXml));
+			this._catalogIndex = mergeCatalogs(mergedCatalog, deliveryItemCatalog);
 		}
-		if (config.catalogXml) {
-			mergedCatalog = mergeCatalogs(mergedCatalog, extractCatalogFromItemXml(config.catalogXml));
-		}
-		mergedCatalog = mergeCatalogs(mergedCatalog, extractCatalogFromItemXml(this.itemXml));
-		this._catalogIndex = mergeCatalogs(mergedCatalog, deliveryItemCatalog);
 
 		// Check strict compliance if enabled
-		if (this.config.strictQtiCompliance?.enabled) {
+		if (!prepared && this.config.strictQtiCompliance?.enabled) {
 			this.validateStrictCompliance();
 		}
+	}
+
+	/** @internal Definition compiler capture; parser artifacts remain module-private. */
+	capturePreparedDefinition(): PreparedPlayerDefinition {
+		const identifier = this.itemDocument.getAssessmentItemAttribute('identifier')?.trim();
+		if (!identifier) {
+			throw new Error('AssessmentItemDefinition requires an assessment-item identifier');
+		}
+		return Object.freeze({
+			identifier,
+			mapper: this.mapper,
+			attributeMapper: this.config.attributeNameMapper as AttributeNameMapper,
+			itemDocument: this.itemDocument,
+			declarations: cloneDeclarationMap(this.sourceDeclarations),
+			responseProcessing: this.responseProcessing,
+			responseProcessingProgram: this.responseProcessingProgram,
+			templateProcessingProgram: this.templateProcessingProgram,
+			outcomeProcessingProgram: this.outcomeProcessingProgram,
+			catalogIndex: this._catalogIndex,
+			stimulusCatalogIndexes: this._stimulusCatalogIndexes,
+		});
 	}
 
 	/**
@@ -311,7 +406,7 @@ export class Player {
 		usage: string,
 		lang?: string,
 		options?: { stimulusIdentifier?: string }
-	): string | null {
+	): HtmlContent | null {
 		const stimulusHtml = options?.stimulusIdentifier
 			? getCatalogEntry(this._stimulusCatalogIndexes.get(options.stimulusIdentifier) ?? new Map(), idref, usage, lang)
 			: null;
@@ -320,7 +415,10 @@ export class Player {
 		if (looksLikeCatalogUrl(html)) {
 			return sanitizeResourceUrl(html.trim(), this.config.security?.urlPolicy, 'img');
 		}
-		return this.sanitizeHtmlContent(html);
+		return toTrustedHtml(
+			this.sanitizeHtmlContent(html),
+			this.config.security?.trustedTypesPolicyName,
+		);
 	}
 
 	/** Sanitize externally resolved item-adjacent HTML before it reaches a rendering sink. */
@@ -335,12 +433,13 @@ export class Player {
 	 */
 	public createPciHost(data: ExtractedPci): PciHost {
 		const host = new PciHost(data, {
-			baseUrl: this.config.pci?.baseUrl ?? this.config.pciBaseUrl,
+			baseUrl: this.config.pci?.baseUrl,
 			moduleResolver: this.config.pci?.moduleResolver,
 		});
 
 		// Wire response changes back into the player's declaration context
 		host.onResponseChange((responseId: string, value: unknown) => {
+			if (this.lifecycleStatus !== 'initial' && this.lifecycleStatus !== 'interacting') return;
 			const d = this.decls[responseId];
 			if (d) {
 				d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, value, d.identifier);
@@ -391,7 +490,7 @@ export class Player {
 			if (!d) continue;
 			d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, raw, d.identifier);
 			// Push restored responses into any mounted PCI modules
-			this.setPciResponse(id, raw);
+			this.setPciResponse(id, this.qtiValueToPublic(d.value));
 		}
 	}
 
@@ -414,6 +513,7 @@ export class Player {
 
 	public restoreItemSession(state: SerializedItemSessionState): void {
 		this.sessionGuid = state.sessionGuid;
+		this.interactionDataCache = null;
 		this.lifecycleStatus = state.lifecycleStatus;
 		this.accumulatedDurationMs = Math.max(0, Number(state.duration) || 0);
 		this.sessionStartedAt = Date.now();
@@ -422,6 +522,16 @@ export class Player {
 		this.applySerializedVariables(state.templateVariables);
 		this.applySerializedVariables(state.contextVariables);
 		this.updateDuration();
+	}
+
+	/** @internal ItemSession uses this to activate a restored delivery handoff. */
+	public getLifecycleStatus(): ItemLifecycleStatus {
+		return this.lifecycleStatus;
+	}
+
+	/** @internal ItemSession uses this to resume a suspended delivery handoff. */
+	public activateAttempt(): void {
+		if (this.lifecycleStatus === 'suspended') this.lifecycleStatus = 'interacting';
 	}
 
 	public suspendAttempt(): ItemSessionActionResult {
@@ -595,25 +705,7 @@ export class Player {
 	 * @returns QTI version string ('2.0', '2.1', '2.2') or 'unknown'
 	 */
 	private detectQTIVersion(): string {
-		const ns = (this.assessmentItem as any).namespaceURI;
-		if (ns?.includes('v3p0') || ns?.includes('imsqtiasi_v3p0')) return '3.0';
-		if (ns?.includes('v2p2') || ns?.includes('imsqti_v2p2')) return '2.2';
-		if (ns?.includes('v2p1') || ns?.includes('imsqti_v2p1')) return '2.1';
-		if (ns?.includes('v2p0') || ns?.includes('imsqti_v2p0')) return '2.0';
-
-		// Check element name for QTI 3.0
-		const localName = (this.assessmentItem as any).localName || (this.assessmentItem as any).tagName;
-		if (localName === 'qti-assessment-item' || localName === 'qti-assessment-test') {
-			return '3.0';
-		}
-
-		const versionAttr = getAttr(this.assessmentItem, 'version');
-		if (versionAttr?.startsWith('3.')) return '3.0';
-		if (versionAttr === '2.0') return '2.0';
-		if (versionAttr === '2.1') return '2.1';
-		if (versionAttr === '2.2') return '2.2';
-
-		return 'unknown';
+		return this.itemDocument.detectVersion();
 	}
 
 	/**
@@ -672,16 +764,13 @@ export class Player {
 		this.resetOutcomesToDefault();
 
 		// Execute response processing if present
-		const rpEl = this.itemDocument.getProcessingElement('response');
-		if (rpEl) {
+		if (this.responseProcessing.present) {
 			// If responseProcessing has explicit statements, run the compiled program.
 			// Otherwise, fall back to template-based processing (responseProcessing@template).
-			const hasStatements = childElements(rpEl).length > 0;
-			if (hasStatements) {
+			if (this.responseProcessing.hasStatements) {
 				this.execResponseProcessingProgram();
-			} else {
-				const templateUrl = getAttr(rpEl, 'template');
-				if (templateUrl) this.execResponseProcessingTemplate(templateUrl);
+			} else if (this.responseProcessing.template) {
+				this.execResponseProcessingTemplate(this.responseProcessing.template);
 			}
 		}
 
@@ -731,27 +820,24 @@ export class Player {
 	 */
 	public getRubrics(options: RubricBlockOptions = {}): RubricBlock[] {
 		const role = this.role;
-		const rubricEls = this.itemDocument.findRubricElements();
-		if (rubricEls.length === 0) return [];
+		const rubrics = this.itemDocument.readRubricBlocks();
+		if (rubrics.length === 0) return [];
 
 		const blocks: RubricBlock[] = [];
-		for (const el of rubricEls) {
-			const scope = this.itemDocument.rubricElementScope(el);
+		for (const rubric of rubrics) {
+			const { scope } = rubric;
 			if (options.scope && options.scope !== 'all' && scope !== options.scope) continue;
 
-			const viewRaw = (getAttr(el, 'view') || '').trim();
-			const view = viewRaw ? viewRaw.split(/[\s,]+/).filter(Boolean) : [];
-			const use = (getAttr(el, 'use') || '').trim() || undefined;
+			const view = [...rubric.view];
 
 			// If view is specified, show only when it includes the current role.
 			if (view.length > 0 && role && !view.includes(role)) continue;
 
-			const contentRaw = this.itemDocument.serializeChildren(el) || (el.textContent || '');
-			const printed = this.renderPrintedVariables(contentRaw);
+			const printed = this.renderPrintedVariables(rubric.content);
 			const sanitized = sanitizeHtml(printed, { security: this.config.security });
 			const html = toTrustedHtml(sanitized, this.config.security?.trustedTypesPolicyName);
 
-			blocks.push({ view, html, scope, use });
+			blocks.push({ view, html, scope, use: rubric.use });
 		}
 
 		return blocks;
@@ -768,8 +854,9 @@ export class Player {
 	/**
 	 * Canonical interaction API (new): extracted, typed interaction data.
 	 */
-	public getInteractionData(): InteractionData[] {
-		return extractInteractionData({
+	public getInteractionData(): readonly BaseInteractionData[] {
+		if (this.interactionDataCache) return this.interactionDataCache;
+		this.interactionDataCache = extractInteractionData({
 			document: this.itemDocument,
 			extractionRegistry: this.extractionRegistry,
 			declarations: this.decls,
@@ -779,6 +866,7 @@ export class Player {
 			// different candidate or a new attempt gets a different one.
 			sessionGuid: this.sessionGuid,
 		});
+		return this.interactionDataCache;
 	}
 
 	/**
@@ -824,11 +912,6 @@ export class Player {
 
 	public isCompleted(): boolean {
 		return this.getCompletionStatus() === 'completed';
-	}
-
-	public submitAttempt(countAttempt: boolean = true): AdaptiveAttemptResult {
-		const result = this.runItemSessionAction({ action: 'submitAttempt', countAttempt });
-		return result.scoring as AdaptiveAttemptResult;
 	}
 
 	private runAdaptiveSubmitAttempt(countAttempt: boolean = true): AdaptiveAttemptResult {
@@ -1447,7 +1530,7 @@ export class Player {
 			if (!d) continue;
 			d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, v.value, d.identifier);
 			if ((d as any).__kind === 'response') {
-				this.setPciResponse(d.identifier, v.value);
+				this.setPciResponse(d.identifier, this.qtiValueToPublic(d.value));
 			}
 		}
 	}
@@ -1502,7 +1585,7 @@ export class Player {
 
 	private qtiValueToSerializable(value: QtiValue | undefined): any {
 		if (!value || value.kind !== 'value') return null;
-		if (value.cardinality !== 'record') return value.value;
+		if (value.cardinality !== 'record') return cloneRuntimeValue(value.value);
 
 		const serialized: Record<string, unknown> = {};
 		for (const [fieldIdentifier, fieldValue] of Object.entries(value.value as Record<string, QtiValue>)) {
@@ -1517,7 +1600,7 @@ export class Player {
 
 	private qtiValueToPublic(value: QtiValue | undefined): any {
 		if (!value || value.kind !== 'value') return null;
-		if (value.cardinality !== 'record') return value.value;
+		if (value.cardinality !== 'record') return cloneRuntimeValue(value.value);
 
 		const record: Record<string, unknown> = {};
 		for (const [fieldIdentifier, fieldValue] of Object.entries(value.value as Record<string, QtiValue>)) {
@@ -1667,7 +1750,7 @@ export class Player {
 
 		// Allow callers to pass fully-formed QtiValue (e.g. session restore).
 		if (typeof raw === 'object' && raw && 'kind' in raw) {
-			return raw as QtiValue;
+			return cloneRuntimeValue(raw as QtiValue);
 		}
 
 		const extendedTextBase = identifier ? this.getExtendedTextBase(identifier) : undefined;
@@ -1681,11 +1764,13 @@ export class Player {
 		if (baseType === 'file') {
 			if (cardinality === 'multiple' || cardinality === 'ordered') {
 				const arr = Array.isArray(raw) ? raw : [raw];
-				// For file types, preserve objects (QTIFileResponse) directly
-				return qtiValue(baseType, cardinality, arr.filter((v) => v !== null && v !== undefined));
+				return qtiValue(
+					baseType,
+					cardinality,
+					cloneRuntimeValue(arr.filter((v) => v !== null && v !== undefined)),
+				);
 			}
-			// For single file, preserve the object directly
-			return qtiValue(baseType, cardinality, raw);
+			return qtiValue(baseType, cardinality, cloneRuntimeValue(raw));
 		}
 
 		if (cardinality === 'multiple' || cardinality === 'ordered') {
@@ -1717,12 +1802,7 @@ export class Player {
 	}
 
 	private getExtendedTextBase(responseIdentifier: string): number | undefined {
-		const interaction = this.itemDocument
-			.findExtractionElements(['extendedTextInteraction'])
-			.find((candidate) => candidate.responseIdentifier === responseIdentifier);
-		if (!interaction) return undefined;
-		const base = Number(interaction.element.getAttribute?.('base') ?? 10);
-		return Number.isInteger(base) && base >= 2 && base <= 36 ? base : 10;
+		return this.itemDocument.getExtendedTextBase(responseIdentifier);
 	}
 
 	private coerceRecordValue(raw: unknown, base: number): QtiValue {
@@ -1832,17 +1912,11 @@ export class Player {
 	}
 
 	private getModalFeedback(outcomes: Record<string, any>): ModalFeedback[] {
-		const feedbackEls = this.itemDocument.findModalFeedbackElements();
 		const active: ModalFeedback[] = [];
 
-		for (const el of feedbackEls) {
-			const identifier = this.getAttrMapped(el, 'identifier') || '';
-			const outcomeIdentifier = this.getAttrMapped(el, 'outcomeIdentifier') || '';
-			const showHide = (this.getAttrMapped(el, 'showHide') || 'show') as 'show' | 'hide';
-			const title = this.getAttrMapped(el, 'title') || undefined;
-
-			const contentRaw = this.itemDocument.serializeChildren(el) || (el.textContent || '');
-			const sanitized = sanitizeHtml(contentRaw, { security: this.config.security });
+		for (const feedback of this.itemDocument.readModalFeedback()) {
+			const { identifier, outcomeIdentifier, showHide, title } = feedback;
+			const sanitized = sanitizeHtml(feedback.content, { security: this.config.security });
 			const content = toTrustedHtml(sanitized, this.config.security?.trustedTypesPolicyName);
 
 			const outcomeValue = outcomes[outcomeIdentifier];
@@ -1892,6 +1966,16 @@ function createSessionGuid(): string {
 			'requires crypto.randomUUID or crypto.getRandomValues (present in all supported ' +
 			'browsers and in Node >= 20).',
 	);
+}
+
+function cloneDeclarationMap(declarations: DeclarationMap): DeclarationMap {
+	return structuredClone(declarations);
+}
+
+/** Detach serializable runtime values from caller- and declaration-owned references. */
+function cloneRuntimeValue<T>(value: T): T {
+	if (!value || typeof value !== 'object') return value;
+	return structuredClone(value);
 }
 
 function looksLikeCatalogUrl(value: string): boolean {

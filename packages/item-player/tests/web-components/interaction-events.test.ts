@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import type { ChoiceInteractionData } from '../../src/interactions/choice/types.js';
+import type { ChoiceInteractionData } from '../../src/interactions/shared/types.js';
 import {
 	type InteractionResponseValue,
 	QTIChangeEvent,

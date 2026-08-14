@@ -1,7 +1,10 @@
 <script lang="ts">
-	import { Player } from '../core/Player';
+	import { createAssessmentItemDefinition } from '../core/AssessmentItemDefinition';
+	import type { AssessmentItemDefinitionConfig } from '../core/AssessmentItemDefinition';
+	import type { ItemSession, ItemSessionView } from '../core/ItemSession';
+	import type { AssessmentItemDefinitionPlugin } from '../core/AssessmentItemDefinition';
 	import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
-	import type { AdaptiveAttemptResult, ModalFeedback, PlayerConfig, PlayerSecurityConfig, QTIRole, ScoringResult } from '../types';
+	import type { AdaptiveAttemptResult, ModalFeedback, PlayerSecurityConfig, QTIRole, ScoringResult } from '../types';
 	import type { PnpProfile } from '../pnp/types';
 	import type { InteractionResponseValue } from '../web-components';
 	import type { I18nProvider } from '@pie-qti/i18n';
@@ -14,6 +17,8 @@
 
 	interface Props {
 		itemXml: string;
+		/** Externally owned live session. When present, itemXml is display metadata only. */
+		session?: ItemSession;
 		role?: QTIRole;
 		/** Optional security config (URL policy, embed allowances, Trusted Types). */
 		security?: PlayerSecurityConfig;
@@ -22,10 +27,12 @@
 		/** Package/assessment-resolved delivery context */
 		deliveryContext?: ResolvedItemDeliveryContext;
 		/** Host-owned resolver for package-local xi:include processing fragments. */
-		resolveProcessingFragment?: PlayerConfig['resolveProcessingFragment'];
-		processingFragmentLimits?: PlayerConfig['processingFragmentLimits'];
+		resolveProcessingFragment?: AssessmentItemDefinitionConfig['resolveProcessingFragment'];
+		processingFragmentLimits?: AssessmentItemDefinitionConfig['processingFragmentLimits'];
 		/** Explicit opt-in and host resolver for Portable Custom Interaction modules. */
-		pci?: PlayerConfig['pci'];
+		pci?: AssessmentItemDefinitionConfig['pci'];
+		/** Definition-lifetime extractor and renderer extensions for standalone delivery. */
+		plugins?: readonly AssessmentItemDefinitionPlugin[];
 		/** Controlled/current responses, keyed by response identifier */
 		responses?: ItemResponseMap;
 		disabled?: boolean;
@@ -42,6 +49,7 @@
 
 	let {
 		itemXml,
+		session,
 		role = 'candidate',
 		security,
 		pnp,
@@ -49,6 +57,7 @@
 		resolveProcessingFragment,
 		processingFragmentLimits,
 		pci,
+		plugins,
 		responses: responseValues = {},
 		disabled = false,
 		renderItemBodyRubrics = true,
@@ -61,92 +70,119 @@
 	}: Props = $props();
 	const shouldShowSubmit = $derived(showSubmit ?? Boolean(onSubmit));
 
-	// Create player instance
-	let player = $state<Player | null>(null);
-	let currentResponses = $state<ItemResponseMap>({});
+	let activeSession = $state<ItemSession | null>(null);
+	let sessionView = $state<ItemSessionView | null>(null);
 	let error = $state<string | null>(null);
 	let modalFeedback = $state<ModalFeedback[]>([]);
-	let outcomeValues = $state<Record<string, any>>({});
-	let isAdaptive = $state(false);
-	let isCompleted = $state(false);
-	let numAttempts = $state(0);
+	const isAdaptive = $derived(sessionView?.adaptive ?? false);
+	const isCompleted = $derived(sessionView?.completed ?? false);
+	const numAttempts = $derived(sessionView?.numAttempts ?? 0);
+	const canSubmit = $derived(sessionView?.canSubmit ?? false);
+	const effectiveRole = $derived(sessionView?.role ?? role);
 
-	// Initialize player when XML changes
+	function applySessionView(view: ItemSessionView) {
+		sessionView = view;
+	}
+
+	// Reuse an externally owned session verbatim, or own one for standalone delivery.
 	$effect(() => {
+		let nextSession: ItemSession | null = null;
+		let ownsSession = false;
 		try {
-			const initialResponses = untrack(() => responseValues);
-			const newPlayer = new Player({
-				itemXml,
-				role,
-				security,
-				pnp,
-				deliveryContext,
-				resolveProcessingFragment,
-				processingFragmentLimits,
-				pci,
-				responses: initialResponses,
-			});
-			player = newPlayer;
+			if (session) {
+				nextSession = session;
+			} else {
+				const initialResponses = untrack(() => responseValues);
+				const definition = createAssessmentItemDefinition({
+					itemXml,
+					role,
+					security,
+					pnp,
+					deliveryContext,
+					resolveProcessingFragment,
+					processingFragmentLimits,
+					pci,
+					plugins,
+				});
+				nextSession = definition.openSession({ responses: initialResponses });
+				ownsSession = true;
+			}
+
+			activeSession = nextSession;
+			applySessionView(nextSession.state());
 			error = null;
-			// Reset state when XML changes
-			currentResponses = { ...initialResponses };
 			modalFeedback = [];
-			outcomeValues = {};
-			isAdaptive = newPlayer.isAdaptive();
-			isCompleted = newPlayer.isCompleted();
-			numAttempts = newPlayer.getNumAttempts();
+			const unsubscribe = nextSession.subscribe(({ command, current }) => {
+				applySessionView(current);
+				if (current.disposed) {
+					if (activeSession === nextSession) activeSession = null;
+					return;
+				}
+				if (command.action === 'setResponse') {
+					onResponseChange?.(
+						command.responseIdentifier,
+						current.responses[command.responseIdentifier] as ItemResponseValue
+					);
+				}
+			});
 			return () => {
-				newPlayer.destroy();
-				if (player === newPlayer) player = null;
+				unsubscribe();
+				if (ownsSession) nextSession?.dispose();
+				if (activeSession === nextSession) {
+					activeSession = null;
+					sessionView = null;
+				}
 			};
 		} catch (e) {
+			if (ownsSession) nextSession?.dispose();
 			error = e instanceof Error ? e.message : (i18n?.t('item.parsingError') ?? 'item.parsingError');
-			player = null;
+			activeSession = null;
+			sessionView = null;
 		}
 	});
 
+	// Preserve the controlled-responses convenience only for standalone sessions.
+	// An injected session is authoritative and is never synchronized from snapshots.
 	$effect(() => {
-		currentResponses = { ...responseValues };
+		const controlledResponses = responseValues;
+		const currentSession = activeSession;
+		if (!currentSession || session) return;
+		const current = currentSession.state().responses;
+		const keys = new Set([...Object.keys(current), ...Object.keys(controlledResponses)]);
+		const changed = [...keys].some((key) => current[key] !== controlledResponses[key]);
+		if (!changed) return;
+		try {
+			currentSession.dispatch({ action: 'setResponses', responses: controlledResponses });
+		} catch (e) {
+			error = e instanceof Error ? e.message : (i18n?.t('item.processingError') ?? 'item.processingError');
+		}
 	});
 
-	function handleResponseChange(responseId: string, value: ItemResponseValue) {
-		currentResponses = { ...currentResponses, [responseId]: value };
-		onResponseChange?.(responseId, value);
+	function handleItemBodyError(cause: unknown) {
+		error = cause instanceof Error ? cause.message : (i18n?.t('item.processingError') ?? 'item.processingError');
 	}
 
 	export function submit(countAttempt: boolean = true): ScoringResult | AdaptiveAttemptResult | undefined {
-		if (!player) return;
+		if (!activeSession) return;
 
 		try {
-			// Set responses in player
-			player.setResponses(currentResponses);
+			const transition = activeSession.dispatch(
+				isAdaptive
+					? { action: 'submitAttempt', countAttempt }
+					: { action: 'endAttempt', countAttempt }
+			);
+			const result = transition.result?.scoring;
+			if (!result) throw new Error('Item session submission did not produce a scoring result');
+			modalFeedback = result.modalFeedback || [];
+			const responses = { ...transition.current.responses } as ItemResponseMap;
+			onSubmit?.(responses, result);
 
-			// For adaptive items, use submitAttempt()
-			if (isAdaptive && !isCompleted) {
-				const result = player.submitAttempt(countAttempt);
-
-				// Update state
-				numAttempts = result.numAttempts;
-				isCompleted = result.completed;
-				modalFeedback = result.modalFeedback || [];
-				outcomeValues = result.outcomeValues || {};
-
-				// Notify parent
-				onSubmit?.(currentResponses, result);
-
-				// If completed, notify parent
-				if (result.completed && onComplete) {
-					onComplete(result);
-				}
-				return result;
-			} else {
-				// Non-adaptive item: use standard processResponses()
-				const result = player.processResponses();
-				modalFeedback = result.modalFeedback || [];
-				outcomeValues = result.outcomeValues || {};
-				onSubmit?.(currentResponses, result);
-				return result;
+			if (isAdaptive) {
+				const adaptiveResult = result as AdaptiveAttemptResult;
+				if (adaptiveResult.completed) onComplete?.(adaptiveResult);
+				return adaptiveResult;
 			}
+			return result;
 		} catch (e) {
 			error = e instanceof Error ? e.message : (i18n?.t('item.processingError') ?? 'item.processingError');
 		}
@@ -162,22 +198,18 @@
 		<div class="qti-player-alert qti-player-alert-error">
 			<span>{error}</span>
 		</div>
-	{:else if player}
+	{:else if activeSession && sessionView}
 		<ItemBody
-			{player}
-			responses={currentResponses}
+			session={activeSession}
+			revision={sessionView.revision}
 			{disabled}
-			{role}
 			{typeset}
 			{i18n}
-			{deliveryContext}
-			{outcomeValues}
 			{renderItemBodyRubrics}
-			onResponseChange={handleResponseChange}
+			onError={handleItemBodyError}
 		/>
 
-		{#if role === 'candidate' && !disabled && shouldShowSubmit}
-			{@const canSubmit = player.canSubmitResponses(currentResponses)}
+		{#if effectiveRole === 'candidate' && !disabled && shouldShowSubmit}
 			<div class="qti-player-actions">
 				<button
 					class="qti-player-button qti-player-button-primary"

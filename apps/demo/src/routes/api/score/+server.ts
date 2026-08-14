@@ -5,7 +5,7 @@
 
 export const prerender = false;
 
-import { Player } from '@pie-qti/item-player/server';
+import { createAssessmentItemDefinition } from '@pie-qti/item-player/server';
 import { json, type RequestEvent } from '@sveltejs/kit';
 
 export async function POST({ request }: RequestEvent) {
@@ -21,15 +21,22 @@ export async function POST({ request }: RequestEvent) {
 			return json({ error: 'responses must be an object' }, { status: 400 });
 		}
 
-		// Create player instance
-		const player = new Player({
+		const definition = createAssessmentItemDefinition({
 			itemXml,
 			role: 'scorer',
-			responses,
 		});
-
-		// Process responses and get scoring result
-		const scoringResult = player.processResponses();
+		const session = definition.openSession({ responses });
+		let scoringResult;
+		try {
+			scoringResult = session.dispatch({
+				action: 'endAttempt',
+				countAttempt: false,
+				validateResponses: false,
+			}).result?.scoring;
+			if (!scoringResult) throw new Error('QTI scoring produced no result');
+		} finally {
+			session.dispose();
+		}
 
 		return json({
 			success: true,

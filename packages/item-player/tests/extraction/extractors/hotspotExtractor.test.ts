@@ -177,7 +177,7 @@ describe('standardHotspotExtractor', () => {
 		expect(result.maxChoices).toBe(1);
 	});
 
-	test('handles image with default dimensions', () => {
+	test('leaves missing image dimensions unknown', () => {
 		const xml = `
 			<hotspotInteraction responseIdentifier="RESPONSE" maxChoices="1">
 				<object type="image/png" data="image.png" />
@@ -189,8 +189,8 @@ describe('standardHotspotExtractor', () => {
 
 		const result = standardHotspotExtractor.extract(element, context);
 
-		expect(result.imageData?.width).toBe('auto');
-		expect(result.imageData?.height).toBe('auto');
+		expect(result.imageData?.width).toBeUndefined();
+		expect(result.imageData?.height).toBeUndefined();
 	});
 
 	describe('canHandle predicate', () => {

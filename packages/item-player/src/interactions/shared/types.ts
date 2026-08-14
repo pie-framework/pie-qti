@@ -15,17 +15,31 @@ import type { HtmlContent, QTIFileResponse } from '../../types/index.js';
  */
 export type QTIElement = HTMLElement;
 
-export interface BaseInteractionData {
-	type: string;
-	responseId: string;
+export interface BaseInteractionData<TType extends string = string> {
+	readonly type: TType;
+	readonly responseId: string;
 }
 
-export interface ChoiceInteractionData extends BaseInteractionData {
-	type: 'choiceInteraction';
+/**
+ * An extractor payload after the delivery pipeline has attached its authoritative
+ * renderer type and authored response identifier.
+ *
+ * Identity-looking properties in `TPayload` are deliberately omitted. The
+ * pipeline applies the same rule at runtime by spreading payload first and
+ * writing these two framework-owned fields last.
+ */
+export type DeliveredInteraction<
+	TType extends string,
+	TPayload extends object,
+> = Readonly<
+	Omit<TPayload, keyof BaseInteractionData> & BaseInteractionData<TType>
+>;
+
+export interface ChoiceInteractionData extends BaseInteractionData<'choiceInteraction'> {
 	shuffle: boolean;
 	maxChoices: number;
 	minChoices: number;
-	prompt: string | null;
+	prompt: HtmlContent | null;
 	choices: Array<{ identifier: string; text: HtmlContent; fixed?: boolean; classes?: string[] }>;
 	/** CSS classes from the choiceInteraction element for custom renderer detection */
 	interactionClasses?: string[];
@@ -35,8 +49,7 @@ export interface ChoiceInteractionData extends BaseInteractionData {
 	minSelectionsMessage?: string | null;
 }
 
-export interface TextEntryInteractionData extends BaseInteractionData {
-	type: 'textEntryInteraction';
+export interface TextEntryInteractionData extends BaseInteractionData<'textEntryInteraction'> {
 	expectedLength: number;
 	patternMask: string | null;
 	placeholderText: string;
@@ -47,8 +60,7 @@ export interface TextEntryInteractionData extends BaseInteractionData {
 	patternMaskMessage?: string | null;
 }
 
-export interface ExtendedTextInteractionData extends BaseInteractionData {
-	type: 'extendedTextInteraction';
+export interface ExtendedTextInteractionData extends BaseInteractionData<'extendedTextInteraction'> {
 	cardinality: 'single' | 'multiple' | 'ordered' | 'record';
 	baseType?: string;
 	base: number;
@@ -58,7 +70,7 @@ export interface ExtendedTextInteractionData extends BaseInteractionData {
 	maxStrings: number;
 	expectedLines: number;
 	expectedLength: number;
-	prompt: string | null;
+	prompt: HtmlContent | null;
 	placeholderText: string;
 	format: string;
 	patternMask?: string | null;
@@ -67,8 +79,7 @@ export interface ExtendedTextInteractionData extends BaseInteractionData {
 	interactionClasses?: string[];
 }
 
-export interface InlineChoiceInteractionData extends BaseInteractionData {
-	type: 'inlineChoiceInteraction';
+export interface InlineChoiceInteractionData extends BaseInteractionData<'inlineChoiceInteraction'> {
 	shuffle: boolean;
 	/** Placeholder label from the QTI <label> child element; shown as the unselected "Select…" option */
 	label: string | null;
@@ -79,18 +90,17 @@ export interface InlineChoiceInteractionData extends BaseInteractionData {
 	interactionClasses?: string[];
 }
 
-export interface OrderInteractionData extends BaseInteractionData {
-	type: 'orderInteraction';
+export interface OrderInteractionData extends BaseInteractionData<'orderInteraction'> {
 	shuffle: boolean;
 	minChoices: number;
 	maxChoices: number;
-	prompt: string | null;
-	choices: Array<{ identifier: string; text: string; fixed?: boolean }>;
+	prompt: HtmlContent | null;
+	choices: Array<{ identifier: string; text: HtmlContent; fixed?: boolean }>;
 }
 
 export interface AssociableChoice {
 	identifier: string;
-	text: string;
+	text: HtmlContent;
 	matchMax: number;
 	/** Minimum number of times this choice must appear in the response (QTI matchMin) */
 	matchMin?: number;
@@ -100,12 +110,11 @@ export interface AssociableChoice {
 	classes?: string[];
 }
 
-export interface MatchInteractionData extends BaseInteractionData {
-	type: 'matchInteraction';
+export interface MatchInteractionData extends BaseInteractionData<'matchInteraction'> {
 	shuffle: boolean;
 	maxAssociations: number;
 	minAssociations?: number;
-	prompt: string | null;
+	prompt: HtmlContent | null;
 	sourceSet: AssociableChoice[];
 	targetSet: AssociableChoice[];
 	/** CSS classes from the matchInteraction element (e.g. qti-choices-top, qti-match-tabular) */
@@ -118,22 +127,21 @@ export interface MatchInteractionData extends BaseInteractionData {
 	firstColumnHeader?: string | null;
 }
 
-export interface AssociateInteractionData extends BaseInteractionData {
-	type: 'associateInteraction';
+export interface AssociateInteractionData extends BaseInteractionData<'associateInteraction'> {
 	shuffle: boolean;
 	maxAssociations: number;
 	minAssociations?: number;
-	prompt: string | null;
+	prompt: HtmlContent | null;
 	choices: AssociableChoice[];
 }
 
-export interface GapMatchInteractionData extends BaseInteractionData {
-	type: 'gapMatchInteraction';
+export interface GapMatchInteractionData extends BaseInteractionData<'gapMatchInteraction'> {
 	shuffle: boolean;
-	prompt: string | null;
+	prompt: HtmlContent | null;
 	gapTexts: Array<{ identifier: string; text: string; matchMax: number; matchGroup?: string[]; inputWidth?: number }>;
 	gaps: Array<{ identifier: string; index: number }>;
-	promptText: string;
+	/** Finalized HTML template containing `[GAP:identifier]` text markers. */
+	promptText: HtmlContent;
 	/** CSS classes from the gapMatchInteraction element (e.g. qti-choices-top, qti-choices-bottom) */
 	interactionClasses?: string[];
 	/** Width of the choice container in px (data-choices-container-width) */
@@ -144,14 +152,13 @@ export interface GapMatchInteractionData extends BaseInteractionData {
 	minSelectionsMessage?: string | null;
 }
 
-export interface SliderInteractionData extends BaseInteractionData {
-	type: 'sliderInteraction';
+export interface SliderInteractionData extends BaseInteractionData<'sliderInteraction'> {
 	lowerBound: number;
 	upperBound: number;
 	step: number;
 	orientation: string;
 	reverse: boolean;
-	prompt: string | null;
+	prompt: HtmlContent | null;
 }
 
 export interface ImageData {
@@ -170,11 +177,10 @@ export interface HotspotChoice {
 	hotspotLabel?: string;
 }
 
-export interface HotspotInteractionData extends BaseInteractionData {
-	type: 'hotspotInteraction';
+export interface HotspotInteractionData extends BaseInteractionData<'hotspotInteraction'> {
 	maxChoices: number;
 	minChoices?: number;
-	prompt: string | null;
+	prompt: HtmlContent | null;
 	imageData: ImageData | null;
 	hotspotChoices: HotspotChoice[];
 	/** CSS classes from the hotspotInteraction element (e.g. qti-selections-light, qti-selections-dark) */
@@ -192,9 +198,8 @@ export interface AssociableHotspot {
 	matchMax: number;
 }
 
-export interface GraphicGapMatchInteractionData extends BaseInteractionData {
-	type: 'graphicGapMatchInteraction';
-	prompt: string | null;
+export interface GraphicGapMatchInteractionData extends BaseInteractionData<'graphicGapMatchInteraction'> {
+	prompt: HtmlContent | null;
 	imageData: ImageData | null;
 	maxAssociations: number;
 	gapTexts: Array<{ identifier: string; text: string; matchMax: number; matchGroup?: string[] }>;
@@ -211,34 +216,31 @@ export interface GraphicGapMatchInteractionData extends BaseInteractionData {
 	minSelectionsMessage?: string | null;
 }
 
-export interface UploadInteractionData extends BaseInteractionData {
-	type: 'uploadInteraction';
-	prompt: string | null;
+export interface UploadInteractionData extends BaseInteractionData<'uploadInteraction'> {
+	prompt: HtmlContent | null;
 	/** Allowed MIME types / extensions (vendor-dependent); empty = accept any */
 	fileTypes: string[];
 	rawAttributes: Record<string, string>;
 }
 
-export interface DrawingInteractionData extends BaseInteractionData {
-	type: 'drawingInteraction';
-	prompt: string | null;
+export interface DrawingInteractionData extends BaseInteractionData<'drawingInteraction'> {
+	prompt: HtmlContent | null;
 	/** Optional background image/SVG to draw on top of */
 	imageData: ImageData | null;
 	rawAttributes: Record<string, string>;
 }
 
-export interface CustomInteractionData extends BaseInteractionData {
-	type: 'customInteraction';
-	prompt: string | null;
+export interface CustomInteractionData extends BaseInteractionData<'customInteraction'> {
+	prompt: HtmlContent | null;
 	rawAttributes: Record<string, string>;
 	/** Outer XML snippet for debugging (best-effort) */
 	xml: string;
 }
 
 /** Canonical interaction data for QTI 2.x and 3.0 Portable Custom Interactions. */
-export interface PortableCustomInteractionData extends BaseInteractionData, ExtractedPci {
-	type: 'portableCustomInteraction';
-}
+export interface PortableCustomInteractionData
+	extends BaseInteractionData<'portableCustomInteraction'>,
+		ExtractedPci {}
 
 export interface MediaElement {
 	type: 'audio' | 'video' | 'object';
@@ -248,9 +250,8 @@ export interface MediaElement {
 	height?: number;
 }
 
-export interface MediaInteractionData extends BaseInteractionData {
-	type: 'mediaInteraction';
-	prompt: string | null;
+export interface MediaInteractionData extends BaseInteractionData<'mediaInteraction'> {
+	prompt: HtmlContent | null;
 	autostart: boolean;
 	minPlays: number;
 	maxPlays: number; // 0 = unlimited
@@ -265,9 +266,8 @@ export interface HottextChoice {
 	text: string;
 }
 
-export interface HottextInteractionData extends BaseInteractionData {
-	type: 'hottextInteraction';
-	prompt: string | null;
+export interface HottextInteractionData extends BaseInteractionData<'hottextInteraction'> {
+	prompt: HtmlContent | null;
 	maxChoices: number;
 	minChoices: number;
 	contentHtml: HtmlContent;
@@ -285,9 +285,8 @@ export interface Point {
 	y: number;
 }
 
-export interface SelectPointInteractionData extends BaseInteractionData {
-	type: 'selectPointInteraction';
-	prompt: string | null;
+export interface SelectPointInteractionData extends BaseInteractionData<'selectPointInteraction'> {
+	prompt: HtmlContent | null;
 	maxChoices: number;
 	minChoices: number;
 	imageData: ImageData | null;
@@ -300,9 +299,8 @@ export interface GraphicOrderChoice {
 	label: string;
 }
 
-export interface GraphicOrderInteractionData extends BaseInteractionData {
-	type: 'graphicOrderInteraction';
-	prompt: string | null;
+export interface GraphicOrderInteractionData extends BaseInteractionData<'graphicOrderInteraction'> {
+	prompt: HtmlContent | null;
 	imageData: ImageData | null;
 	hotspotChoices: GraphicOrderChoice[];
 }
@@ -317,9 +315,8 @@ export interface GraphicAssociateHotspot {
 	matchGroup?: string[];
 }
 
-export interface GraphicAssociateInteractionData extends BaseInteractionData {
-	type: 'graphicAssociateInteraction';
-	prompt: string | null;
+export interface GraphicAssociateInteractionData extends BaseInteractionData<'graphicAssociateInteraction'> {
+	prompt: HtmlContent | null;
 	maxAssociations: number;
 	minAssociations: number;
 	imageData: ImageData | null;
@@ -339,9 +336,8 @@ export interface PositionObjectStage {
 	label: string;
 }
 
-export interface PositionObjectInteractionData extends BaseInteractionData {
-	type: 'positionObjectInteraction';
-	prompt: string | null;
+export interface PositionObjectInteractionData extends BaseInteractionData<'positionObjectInteraction'> {
+	prompt: HtmlContent | null;
 	maxChoices: number;
 	minChoices: number;
 	centerPoint: boolean;
@@ -349,15 +345,15 @@ export interface PositionObjectInteractionData extends BaseInteractionData {
 	positionObjectStages: PositionObjectStage[];
 }
 
-export interface EndAttemptInteractionData extends BaseInteractionData {
-	type: 'endAttemptInteraction';
-	prompt: string | null;
+export interface EndAttemptInteractionData extends BaseInteractionData<'endAttemptInteraction'> {
+	prompt: HtmlContent | null;
 	title: string;
 	/** Whether this interaction counts as an attempt (default: true) */
 	countAttempt: boolean;
 }
 
-export type InteractionData =
+/** Closed union of the interaction shapes supplied by the standard modules. */
+export type StandardInteractionData =
 	| ChoiceInteractionData
 	| TextEntryInteractionData
 	| ExtendedTextInteractionData

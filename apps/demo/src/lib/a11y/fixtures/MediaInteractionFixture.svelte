@@ -1,12 +1,7 @@
 <script lang="ts">
 	import { ItemBody } from '@pie-qti/item-player/components';
-	import { Player } from '@pie-qti/item-player';
-	import type { InteractionResponseValue } from '@pie-qti/item-player/web-components';
-	import { registerDefaultComponents } from '@pie-qti/default-components';
+	import { DemoItemSessionController } from '$lib/item-session.svelte';
 	import { onMount } from 'svelte';
-
-	type FixtureResponseValue = InteractionResponseValue | null;
-	type FixtureResponseMap = Record<string, FixtureResponseValue>;
 
 	const qtiXml = `<?xml version="1.0" encoding="UTF-8"?>
 <assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
@@ -26,18 +21,16 @@
 	</itemBody>
 </assessmentItem>`;
 
-	let player = $state<Player | null>(null);
-	let responses = $state<FixtureResponseMap>({ RESPONSE: null });
+	const itemSession = new DemoItemSessionController();
 	let mounted = $state(false);
 
 	onMount(() => {
-		const newPlayer = new Player({
+		itemSession.open({
 			itemXml: qtiXml,
 			role: 'candidate',
 		});
-		registerDefaultComponents(newPlayer.getComponentRegistry());
-		player = newPlayer;
 		mounted = true;
+		return () => itemSession.dispose();
 	});
 </script>
 
@@ -46,13 +39,12 @@
 		Fixture for media interaction controls, accessible names, and playback status text.
 	</p>
 
-	{#if mounted && player}
+	{#if mounted && itemSession.session}
 		<div class="qti-item-player">
 			<ItemBody
-				{player}
-				{responses}
+				session={itemSession.session}
+				revision={itemSession.revision}
 				disabled={false}
-				onResponseChange={(id: string, value: FixtureResponseValue) => (responses = { ...responses, [id]: value })}
 			/>
 		</div>
 	{/if}

@@ -19,4 +19,25 @@ describe('item-player package metadata', () => {
 		expect(JSON.stringify(packageJson.exports)).not.toContain('./src/');
 		expect(packageJson.files).not.toContain('src');
 	});
+
+	test('publishes a narrowed DOM-free definition/session declaration', () => {
+		const serverDeclaration = readFileSync(new URL('../dist/server.d.ts', import.meta.url), 'utf8');
+		expect(serverDeclaration).toContain('interface ServerAssessmentItemDefinitionConfig');
+		expect(serverDeclaration).toContain('createAssessmentItemDefinition');
+		expect(serverDeclaration).not.toContain("from './core/Player.js'");
+		expect(serverDeclaration).not.toContain('class Player');
+		expect(serverDeclaration).not.toContain('HTMLElement');
+	});
+
+	test('does not publish refactor compatibility wrappers or standard extractors', () => {
+		const rootDeclaration = readFileSync(new URL('../dist/index.d.ts', import.meta.url), 'utf8');
+		const securityDeclaration = readFileSync(
+			new URL('../dist/security/index.d.ts', import.meta.url),
+			'utf8',
+		);
+
+		expect(rootDeclaration).not.toContain('standardChoiceExtractor');
+		expect(rootDeclaration).not.toContain("./interactions/index.js");
+		expect(securityDeclaration).not.toContain('applyInteractionSecurity');
+	});
 });

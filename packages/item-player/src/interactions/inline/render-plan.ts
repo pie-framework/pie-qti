@@ -1,6 +1,8 @@
-import type { InlineChoiceInteractionData } from '../inline-choice/types.js';
-import type { TextEntryInteractionData } from '../text-entry/types.js';
-import type { InteractionData } from '../shared/types.js';
+import type {
+	BaseInteractionData,
+	InlineChoiceInteractionData,
+	TextEntryInteractionData,
+} from '../shared/types.js';
 import {
 	isStandardInlineInteractionTagName,
 	isStandardInlineInteractionType,
@@ -21,7 +23,10 @@ export function isInlineInteractionTagName(tagName: string): boolean {
 	return isStandardInlineInteractionTagName(tagName);
 }
 
-export function createInlinePlaceholderHtml(html: string, interactions: InteractionData[]): string {
+export function createInlinePlaceholderHtml(
+	html: string,
+	interactions: readonly BaseInteractionData[],
+): string {
 	return html
 		.replace(
 			/<textEntryInteraction[^>]*responseIdentifier="([^"]+)"[^>]*?(?:\/>|><\/textEntryInteraction>)/gi,
@@ -53,7 +58,10 @@ export function createInlinePlaceholderHtml(html: string, interactions: Interact
 		);
 }
 
-export function createInlineRenderPlan(html: string, interactions: InteractionData[]): InlineRenderSegment[] {
+export function createInlineRenderPlan(
+	html: string,
+	interactions: readonly BaseInteractionData[],
+): InlineRenderSegment[] {
 	const placeholderHtml = createInlinePlaceholderHtml(html, interactions);
 	const result: InlineRenderSegment[] = [];
 	const combinedPattern = /\[TEXTENTRY:([^\]]+)\]|\[INLINECHOICE:([^\]]+)\]/g;
@@ -88,7 +96,7 @@ function placeholder(kind: 'textEntry' | 'inlineChoice', responseId: string): st
 }
 
 function hasInlineInteraction(
-	interactions: InteractionData[],
+	interactions: readonly BaseInteractionData[],
 	responseId: string,
 	type: InlineInteractionData['type']
 ): boolean {
@@ -96,7 +104,7 @@ function hasInlineInteraction(
 }
 
 function findInlineInteraction<T extends InlineInteractionData['type']>(
-	interactions: InteractionData[],
+	interactions: readonly BaseInteractionData[],
 	responseId: string,
 	type: T
 ): Extract<InlineInteractionData, { type: T }> | null {

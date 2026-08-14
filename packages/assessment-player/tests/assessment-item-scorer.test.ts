@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { Player } from '@pie-qti/item-player';
+import { createAssessmentItemDefinition } from '@pie-qti/item-player';
 import {
 	getAssessmentItemIdentifier,
 	scoreAssessmentItem,
@@ -90,16 +90,18 @@ describe('assessment item scorer', () => {
 		const originalRandom = Math.random;
 		try {
 			Math.random = () => 0;
-			const candidatePlayer = new Player({ itemXml: RANDOM_TEMPLATE_ITEM });
-			expect(candidatePlayer.getTemplateVariables().ANSWER).toBe(1);
-			candidatePlayer.setResponses({ RESPONSE: 1 });
-			const itemSession = candidatePlayer.endAttempt().sessionState;
+			const definition = createAssessmentItemDefinition({ itemXml: RANDOM_TEMPLATE_ITEM });
+			const candidateSession = definition.openSession({ responses: { RESPONSE: 1 } });
+			expect(candidateSession.state().templates.ANSWER).toBe(1);
+			const itemSession = candidateSession.dispatch({ action: 'endAttempt' }).result?.sessionState;
+			expect(itemSession).toBeDefined();
+			candidateSession.dispose();
 
 			Math.random = () => 0.99;
 			const result = scoreAssessmentItem({
 				itemXml: RANDOM_TEMPLATE_ITEM,
 				responses: { RESPONSE: 1 },
-				itemSession,
+				itemSession: itemSession!,
 			});
 
 			expect(result.score).toBe(1);

@@ -40,6 +40,29 @@ const section: QtiSectionModel = {
 };
 
 describe('resolveQtiSectionComposition', () => {
+	test('preserves the exact live session reference for the active item', () => {
+		const liveSession = {
+			state: () => ({ responses: { RESPONSE: 'LIVE' } }),
+		} as unknown as NonNullable<QtiSectionModel['itemRefs'][number]['session']>;
+		const composition = resolveQtiSectionComposition({
+			section: {
+				...section,
+				itemRefs: [
+					{
+						identifier: 'item-1',
+						itemXml: '<assessmentItem identifier="item-1" />',
+						session: liveSession,
+					},
+				],
+			},
+			responsesByItemIdentifier: { 'item-1': { RESPONSE: 'STALE' } },
+		});
+
+		expect(composition.activeItem.session).toBe(liveSession);
+		expect(composition.section.itemRefs[0]?.session).toBe(liveSession);
+		expect(composition.snapshot.responses['item-1']?.RESPONSE).toBe('LIVE');
+	});
+
 	test('selects active item by identifier and split-pane layout when passages exist', () => {
 		const composition = resolveQtiSectionComposition({
 			section,

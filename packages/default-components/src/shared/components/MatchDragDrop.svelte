@@ -6,6 +6,7 @@
  */
 
 import type { AssociableChoice } from '@pie-qti/item-player';
+import { htmlToString } from '@pie-qti/item-player/security';
 import type { I18nProvider } from '@pie-qti/i18n';
 import { touchDrag } from '@pie-qti/qti-common';
 import { createOrUpdatePair, getSourceForTarget, getTargetsForSource, removePairBySource } from '../utils/pairHelpers.js';
@@ -44,6 +45,16 @@ const blockedTargetIds = $derived.by(() => {
 let draggedSourceId = $state<string | null>(null);
 let keyboardSelectedSourceId = $state<string | null>(null); // Source selected via keyboard
 let announceText = $state<string>(''); // For screen reader announcements
+
+function choiceLabel(choice: AssociableChoice | null | undefined, fallback = 'Item'): string {
+	if (!choice) return fallback;
+	if (typeof document !== 'undefined') {
+		const template = document.createElement('template');
+		template.innerHTML = choice.text as any;
+		return (template.content.textContent ?? '').replace(/\s+/g, ' ').trim() || fallback;
+	}
+	return htmlToString(choice.text).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() || fallback;
+}
 
 // Mouse drag handlers
 function handleDragStart(sourceId: string) {
@@ -85,7 +96,7 @@ function handleSourceKeyDown(event: KeyboardEvent, sourceId: string) {
 	if (disabled) return;
 
 	const source = sourceSet.find((s) => s.identifier === sourceId);
-	const sourceName = source?.text || 'Item';
+	const sourceName = choiceLabel(source);
 
 	if (event.key === ' ' || event.key === 'Enter') {
 		event.preventDefault();
@@ -111,7 +122,7 @@ function handleTargetKeyDown(event: KeyboardEvent, targetId: string) {
 	if (disabled) return;
 
 	const target = targetSet.find((t) => t.identifier === targetId);
-	const targetName = target?.text || 'Target';
+	const targetName = choiceLabel(target, 'Target');
 
 	if ((event.key === ' ' || event.key === 'Enter') && keyboardSelectedSourceId) {
 		event.preventDefault();
@@ -122,7 +133,7 @@ function handleTargetKeyDown(event: KeyboardEvent, targetId: string) {
 		}
 
 		const source = sourceSet.find((s) => s.identifier === keyboardSelectedSourceId);
-		const sourceName = source?.text || 'Item';
+		const sourceName = choiceLabel(source);
 
 		// Allow replacing an existing pair for this source, but block new pairs when at limit
 		const existingPair = pairs.find((p) => p.startsWith(keyboardSelectedSourceId + ' '));
@@ -147,7 +158,7 @@ function createMatch(sourceId: string, targetId: string) {
 function clearMatch(sourceId: string) {
 	if (disabled) return;
 	const source = sourceSet.find((s) => s.identifier === sourceId);
-	const sourceName = source?.text || 'Item';
+	const sourceName = choiceLabel(source);
 
 	const newPairs = removePairBySource(pairs, sourceId);
 	onPairsChange(newPairs);
@@ -178,6 +189,7 @@ function clearMatch(sourceId: string) {
 			{i18n?.t('interactions.match.dragFromHere') ?? 'Drag from here:'}
 		</h3>
 		{#each sourceSet as source (source.identifier)}
+			{@const sourceLabel = choiceLabel(source)}
 			{@const matchedTargets = getTargetsForSource(pairs, source.identifier)}
 			{@const targetItems = matchedTargets.map((tid) => targetSet.find((t) => t.identifier === tid)).filter(Boolean)}
 			{@const isSelected = keyboardSelectedSourceId === source.identifier}
@@ -194,7 +206,7 @@ function clearMatch(sourceId: string) {
 					ondragend={handleDragEnd}
 					onkeydown={(e) => handleSourceKeyDown(e, source.identifier)}
 					disabled={disabled}
-					aria-label="{source.text}{targetItems.length ? '. Matched with ' + targetItems.map((t) => t?.text).join(', ') : ''}{isSelected ? '. Selected for matching' : ''}{isCorrect ? '. Correct answer' : ''}"
+					aria-label="{sourceLabel}{targetItems.length ? '. Matched with ' + targetItems.map((target) => choiceLabel(target, 'Target')).join(', ') : ''}{isSelected ? '. Selected for matching' : ''}{isCorrect ? '. Correct answer' : ''}"
 					aria-pressed={isSelected}
 					data-matched={matchedTargets.length > 0}
 					data-selected={isSelected}
@@ -217,13 +229,13 @@ function clearMatch(sourceId: string) {
 				>
 					<div class="qti-match-source-content flex items-center justify-between gap-2">
 						<div class="qti-match-source-text flex-1">
-							<div class="qti-match-source-title font-medium">{source.text}</div>
+							<div class="qti-match-source-title qti-rich-inline-content font-medium">{@html source.text}</div>
 							{#if targetItems.length > 0}
-								<div class="qti-match-source-sub text-sm text-success mt-1">→ {targetItems.map((t) => t?.text).join(', ')}</div>
+								<div class="qti-match-source-sub text-sm text-success mt-1">→ {targetItems.map((target) => choiceLabel(target, 'Target')).join(', ')}</div>
 							{:else if isCorrect && correctTargets.length > 0}
 								{@const correctTargetItems = correctTargets.map((tid) => targetSet.find((t) => t.identifier === tid)).filter(Boolean)}
 								{#if correctTargetItems.length > 0}
-									<div class="qti-match-source-sub text-sm text-success mt-1">→ {correctTargetItems.map((t) => t?.text).join(', ')}</div>
+									<div class="qti-match-source-sub text-sm text-success mt-1">→ {correctTargetItems.map((target) => choiceLabel(target, 'Target')).join(', ')}</div>
 								{/if}
 							{/if}
 							{#if isCorrect && matchedTargets.length === 0}
@@ -241,7 +253,7 @@ function clearMatch(sourceId: string) {
 						part="source-clear"
 						class="qti-match-clear btn btn-xs btn-ghost absolute top-2 right-2"
 						onclick={() => clearMatch(source.identifier)}
-						aria-label="Clear match for {source.text}"
+						aria-label="Clear match for {sourceLabel}"
 					>
 						✕
 					</button>
@@ -256,6 +268,7 @@ function clearMatch(sourceId: string) {
 			{i18n?.t('interactions.match.dropHere') ?? 'Drop here:'}
 		</h3>
 		{#each targetSet as target (target.identifier)}
+			{@const targetLabel = choiceLabel(target, 'Target')}
 			{@const matchedSource = getSourceForTarget(pairs, target.identifier)}
 			{@const sourceItem = matchedSource ? sourceSet.find((s) => s.identifier === matchedSource) : null}
 			{@const isHighlight = (draggedSourceId && !matchedSource) || (keyboardSelectedSourceId && !matchedSource)}
@@ -270,7 +283,7 @@ function clearMatch(sourceId: string) {
 				onkeydown={(e) => handleTargetKeyDown(e, target.identifier)}
 				disabled={disabled || !keyboardSelectedSourceId}
 				aria-disabled={isBlocked ? 'true' : undefined}
-				aria-label="{target.text}{matchedSource && sourceItem ? '. Matched with ' + sourceItem.text : '. Available for matching'}{isCorrect ? '. Correct answer' : ''}{isBlocked ? '. Not compatible with selected source' : ''}"
+				aria-label="{targetLabel}{matchedSource && sourceItem ? '. Matched with ' + choiceLabel(sourceItem) : '. Available for matching'}{isCorrect ? '. Correct answer' : ''}{isBlocked ? '. Not compatible with selected source' : ''}"
 				data-matched={!!matchedSource}
 				data-highlight={isHighlight}
 				data-correct={isCorrect}
@@ -291,13 +304,13 @@ function clearMatch(sourceId: string) {
 				class:cursor-not-allowed={isBlocked}
 			>
 				<div class="qti-match-target-content flex flex-col gap-1">
-					<div class="qti-match-target-title font-medium text-base-content/70">{target.text}</div>
+					<div class="qti-match-target-title qti-rich-inline-content font-medium text-base-content/70">{@html target.text}</div>
 					{#if matchedSource && sourceItem}
-						<div class="qti-match-target-sub text-sm text-primary font-medium">← {sourceItem.text}</div>
+						<div class="qti-match-target-sub text-sm text-primary font-medium">← {choiceLabel(sourceItem)}</div>
 					{:else if isCorrect && correctSource}
 						{@const correctSourceItem = sourceSet.find((s) => s.identifier === correctSource)}
 						{#if correctSourceItem}
-							<div class="qti-match-target-sub text-sm text-success font-medium">← {correctSourceItem.text}</div>
+							<div class="qti-match-target-sub text-sm text-success font-medium">← {choiceLabel(correctSourceItem)}</div>
 						{/if}
 					{:else if !disabled}
 						<div class="qti-match-target-hint text-xs text-base-content/70 italic">

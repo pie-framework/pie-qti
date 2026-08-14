@@ -46,7 +46,7 @@ bun run test:e2e:ui -- tests/playwright/asset-loading-evals.pw.ts
 **File**: `apps/demo/src/lib/player-config.ts`
 
 ```typescript
-export function getSecurityConfig(): NonNullable<PlayerConfig['security']> {
+export function getSecurityConfig(): PlayerSecurityConfig {
   return {
     urlPolicy: {
       assetBaseUrl: getAssetBaseUrl(),

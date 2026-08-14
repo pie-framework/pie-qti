@@ -1,5 +1,12 @@
 import { describe, expect, test } from 'bun:test';
 import { Player } from '../../src/core/Player.js';
+import type { AdaptiveAttemptResult } from '../../src/types/index.js';
+
+function submitAdaptiveAttempt(player: Player, countAttempt: boolean = true): AdaptiveAttemptResult {
+	const result = player.runItemSessionAction({ action: 'submitAttempt', countAttempt }).scoring;
+	if (!result) throw new Error('Adaptive submission did not produce a scoring result');
+	return result as AdaptiveAttemptResult;
+}
 
 describe('Adaptive Items', () => {
 	test('should detect adaptive="true" attribute', () => {
@@ -129,14 +136,14 @@ describe('Adaptive Items', () => {
 
 		// First attempt (incorrect)
 		player.setResponses({ RESPONSE: 'A' });
-		const attempt1 = player.submitAttempt();
+		const attempt1 = submitAdaptiveAttempt(player);
 		expect(attempt1.numAttempts).toBe(1);
 		expect(attempt1.completionStatus).toBe('unknown');
 		expect(attempt1.canContinue).toBe(true);
 
 		// Second attempt (incorrect)
 		player.setResponses({ RESPONSE: 'B' });
-		const attempt2 = player.submitAttempt();
+		const attempt2 = submitAdaptiveAttempt(player);
 		expect(attempt2.numAttempts).toBe(2);
 		expect(attempt2.canContinue).toBe(true);
 	});
@@ -192,7 +199,7 @@ describe('Adaptive Items', () => {
 
 		// Click hint button (countAttempt=false)
 		player.setResponses({ HINT: true });
-		const hintResult = player.submitAttempt(false);
+		const hintResult = submitAdaptiveAttempt(player, false);
 		expect(hintResult.numAttempts).toBe(0); // Not incremented
 		expect(hintResult.canContinue).toBe(true);
 	});
@@ -237,14 +244,14 @@ describe('Adaptive Items', () => {
 
 		// Submit correct answer
 		player.setResponses({ RESPONSE: 'C' });
-		const attempt1 = player.submitAttempt();
+		const attempt1 = submitAdaptiveAttempt(player);
 		expect(attempt1.completed).toBe(true);
 		expect(attempt1.canContinue).toBe(false);
 		expect(attempt1.completionStatus).toBe('completed');
 		expect(player.isCompleted()).toBe(true);
 
 		// Try to submit again
-		expect(() => player.submitAttempt()).toThrow('Cannot submit: item is already completed');
+		expect(() => submitAdaptiveAttempt(player)).toThrow('Cannot submit: item is already completed');
 	});
 
 	test('should show progressive feedback based on attempts', () => {
@@ -323,14 +330,14 @@ describe('Adaptive Items', () => {
 
 		// First incorrect attempt
 		player.setResponses({ RESPONSE: 'A' });
-		const attempt1 = player.submitAttempt();
+		const attempt1 = submitAdaptiveAttempt(player);
 		expect(attempt1.numAttempts).toBe(1);
 		expect(attempt1.modalFeedback?.[0]?.identifier).toBe('tryagain');
 		expect(attempt1.canContinue).toBe(true);
 
 		// Second incorrect attempt
 		player.setResponses({ RESPONSE: 'B' });
-		const attempt2 = player.submitAttempt();
+		const attempt2 = submitAdaptiveAttempt(player);
 		expect(attempt2.numAttempts).toBe(2);
 		expect(attempt2.modalFeedback?.[0]?.identifier).toBe('answer');
 		expect(attempt2.completed).toBe(true);
@@ -386,7 +393,7 @@ describe('Adaptive Items', () => {
 
 		// Correct answer on first attempt
 		player.setResponses({ RESPONSE: 'C' });
-		const attempt1 = player.submitAttempt();
+		const attempt1 = submitAdaptiveAttempt(player);
 		expect(attempt1.numAttempts).toBe(1);
 		expect(attempt1.score).toBe(1);
 		expect(attempt1.modalFeedback?.[0]?.identifier).toBe('correct');
@@ -434,7 +441,7 @@ describe('Adaptive Items', () => {
 
 		// First submission (doesn't set completionStatus to 'completed')
 		player.setResponses({ RESPONSE: 'A' });
-		const attempt1 = player.submitAttempt();
+		const attempt1 = submitAdaptiveAttempt(player);
 		expect(attempt1.completionStatus).toBe('unknown'); // Changed from not_attempted
 		expect(attempt1.completed).toBe(false);
 		expect(attempt1.canContinue).toBe(true);

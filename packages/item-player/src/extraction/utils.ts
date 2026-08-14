@@ -8,7 +8,7 @@ import type { ElementNameMapper, AttributeNameMapper } from '@pie-qti/qti-common
 import { Qti2xElementNameMapper, Qti2xAttributeNameMapper } from '@pie-qti/qti-common';
 import { sanitizeTextContent } from '../core/sanitizer.js';
 import type { PlayerSecurityConfig } from '../types/index.js';
-import type { QTIElement } from '../interactions/index.js';
+import type { QTIElement } from '../interactions/shared/types.js';
 import type { ExtractionUtils } from './types.js';
 
 /**
@@ -16,26 +16,6 @@ import type { ExtractionUtils } from './types.js';
  */
 function getTextContent(element: QTIElement | null | undefined): string {
 	return element?.textContent?.trim() || '';
-}
-
-/**
- * Extract HTML content from QTI elements (preserves MathML and other markup)
- * Content is sanitized to prevent XSS attacks
- */
-function getHtmlContent(element: QTIElement | null | undefined): string {
-	const html = element?.innerHTML?.trim() || '';
-	return sanitizeTextContent(html);
-}
-
-/**
- * Get children by tag name from QTI elements
- * Note: This version does NOT handle QTI version mapping - use the one in ExtractionUtils instead
- */
-function getChildrenByTag(
-	element: QTIElement | null | undefined,
-	tagName: string
-): QTIElement[] {
-	return (element?.childNodes?.filter((n) => n.rawTagName === tagName) as QTIElement[]) || [];
 }
 
 /**
@@ -164,6 +144,10 @@ export function createExtractionUtils(
 	const elementMapper = mapper || new Qti2xElementNameMapper();
 	const attrMapper = attributeMapper || new Qti2xAttributeNameMapper();
 	return {
+		matchesTag(element: QTIElement, tagName: string): boolean {
+			return matchesTagName(element.rawTagName, tagName, elementMapper);
+		},
+
 		getChildrenByTag(element: QTIElement, tagName: string): QTIElement[] {
 			return getChildrenByTagWithMapper(element, tagName, elementMapper);
 		},
@@ -233,7 +217,7 @@ export function createExtractionUtils(
 
 		getPrompt(element: QTIElement): string | null {
 			const promptElement = getChildrenByTagWithMapper(element, 'prompt', elementMapper)[0];
-			return promptElement ? getHtmlContent(promptElement) : null;
+			return promptElement ? this.getHtmlContent(promptElement) : null;
 		},
 
 		getClasses(element: QTIElement): string[] {

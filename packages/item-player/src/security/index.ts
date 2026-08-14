@@ -11,7 +11,11 @@ export {
 	type NormalizedParsingLimits,
 } from '../core/parsingLimits.js';
 export { toTrustedHtml, htmlToString };
-export { applyInteractionSecurity } from '../extraction/interactionSecurity.js';
+export {
+	normalizeCssPixelLength,
+	normalizePixelDimension,
+	type CssPixelLength,
+} from './styleValues.js';
 export type {
 	HtmlContent,
 	ParsingLimitsConfig,

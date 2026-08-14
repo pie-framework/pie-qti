@@ -24,7 +24,7 @@
     "katex": "^0.18.1"
   },
   "devDependencies": {
-    "linkedom": "^0.18.12",
+    "linkedom": "^0.18.13",
     "typescript": "^5.9.3"
   },
   "repository": {

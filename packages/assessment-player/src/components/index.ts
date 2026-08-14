@@ -1,19 +1,15 @@
 /**
  * QTI Assessment Player Components
  *
- * Reusable Svelte components for rendering assessments (multi-item tests).
+ * Internal Svelte components for this package's assessment shell.
  *
- * Import from '@pie-qti/assessment-player/components' in your Svelte app.
+ * This source barrel is not a published package subpath. Browser consumers use
+ * `@pie-qti/player-elements/register` (or its `/elements` manual-registration entry).
  */
 
 export { default as AssessmentHeader } from './AssessmentHeader.svelte';
 export { default as AssessmentShell } from './AssessmentShell.svelte';
 export { default as AssessmentTimer } from './AssessmentTimer.svelte';
-export { default as ItemRenderer } from './ItemRenderer.svelte';
 export { default as ItemSessionInfo } from './ItemSessionInfo.svelte';
 export { default as NavigationBar } from './NavigationBar.svelte';
-export { default as RubricDisplay } from './RubricDisplay.svelte';
 export { default as SectionMenu } from './SectionMenu.svelte';
-export { default as SplitPaneResizer } from './SplitPaneResizer.svelte';
-
-

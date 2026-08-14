@@ -32,15 +32,17 @@
     "format": "biome format --write ."
   },
   "license": "MIT",
+  "dependencies": {
+    "@pie-qti/item-player": "workspace:*"
+  },
   "devDependencies": {
     "@pie-qti/assessment-player": "workspace:*",
     "@pie-qti/default-components": "workspace:*",
-    "@pie-qti/item-player": "workspace:*",
     "@pie-qti/qti-common": "workspace:*",
     "@pie-qti/section-player": "workspace:*",
     "@biomejs/biome": "^2.5.7",
-    "@sveltejs/vite-plugin-svelte": "^7.0.0",
-    "linkedom": "^0.18.12",
+    "@sveltejs/vite-plugin-svelte": "^7.3.0",
+    "linkedom": "^0.18.13",
     "svelte": "^5.56.8",
     "typescript": "^5.9.3",
     "vite": "^8.0.1"

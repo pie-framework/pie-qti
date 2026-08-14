@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { standardPositionObjectExtractor } from '../../../src/interactions/position-object/extractor.js';
-import type { QTIElement } from '../../../src/interactions/index.js';
+import type { QTIElement } from '../../../src/interactions/shared/types.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
 function extract(xml: string, responseId = 'RESPONSE') {
@@ -60,6 +60,23 @@ describe('standardPositionObjectExtractor', () => {
 
 		expect(result.maxChoices).toBe(1);
 		expect(result.positionObjectStages[0].matchMax).toBe(1);
+	});
+
+	test('replaces authored CSS payloads in background and draggable dimensions', () => {
+		const result = extract(`
+			<positionObjectStage>
+				<object data="map.png" width="1; background: url(//tracker.test/map)" height="url(//tracker.test/map)"/>
+				<positionObjectInteraction responseIdentifier="RESPONSE">
+					<object data="marker.png" width="2; color: red" height="url(//tracker.test/marker)"/>
+				</positionObjectInteraction>
+			</positionObjectStage>
+		`);
+
+		expect(result.imageData?.width).toBe('500');
+		expect(result.imageData?.height).toBe('300');
+		expect(result.positionObjectStages[0].objectData?.width).toBe('50');
+		expect(result.positionObjectStages[0].objectData?.height).toBe('50');
+		expect(JSON.stringify(result)).not.toContain('tracker.test');
 	});
 
 	test('preserves inline SVG for both stage and draggable object', () => {

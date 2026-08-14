@@ -2,7 +2,7 @@
 	
 	import type { InitSessionRequest } from '@pie-qti/assessment-player';
 	import { ReferenceBackendAdapter } from '@pie-qti/assessment-player';
-import { AssessmentShell } from '@pie-qti/assessment-player/components';
+import { AssessmentShell } from '$assessment-components';
 	import { SAMPLE_ASSESSMENTS } from '$lib/sample-assessments';
 
 	const secureAssessment = SAMPLE_ASSESSMENTS[0]?.assessment ?? null;
@@ -37,5 +37,4 @@ import { AssessmentShell } from '@pie-qti/assessment-player/components';
 		<div class="alert alert-error">No sample assessments available.</div>
 	{/if}
 </div>
-
 

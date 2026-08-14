@@ -5,6 +5,7 @@
  */
 
 import type { ElementExtractor } from '../../extraction/types.js';
+import { normalizePixelDimension } from '../../security/styleValues.js';
 
 /**
  * Image data for graphic order interaction
@@ -44,9 +45,9 @@ export const standardGraphicOrderExtractor: ElementExtractor<GraphicOrderData> =
 	elementTypes: ['graphicOrderInteraction'],
 	description: 'Extracts standard QTI graphicOrderInteraction (order items on image)',
 
-	canHandle(element, _context) {
+	canHandle(element, context) {
 		// All graphicOrderInteraction elements are standard
-		return element.rawTagName === 'graphicOrderInteraction';
+		return context.utils.matchesTag(element, 'graphicOrderInteraction');
 	},
 
 	extract(element, context) {
@@ -60,8 +61,14 @@ export const standardGraphicOrderExtractor: ElementExtractor<GraphicOrderData> =
 			const objectElement = objectElements[0];
 			const type = utils.getAttribute(objectElement, 'type', '');
 			const data = utils.getAttribute(objectElement, 'data', '');
-			const width = utils.getAttribute(objectElement, 'width', '500');
-			const height = utils.getAttribute(objectElement, 'height', '300');
+			const width = normalizePixelDimension(
+				utils.getAttribute(objectElement, 'width', ''),
+				'500',
+			);
+			const height = normalizePixelDimension(
+				utils.getAttribute(objectElement, 'height', ''),
+				'300',
+			);
 
 			if (type.startsWith('image/svg')) {
 				// Extract inline SVG content - get full content including <svg> tag

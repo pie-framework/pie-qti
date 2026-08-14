@@ -135,7 +135,7 @@ KaTeX is configured with `throwOnError: false` and is set to produce MathML outp
 
 | Extension point | Interface/type | How to use | Example |
 |----------------|---------------|------------|---------|
-| Announcement API | `AccessibilityAnnouncer` (exported from `@pie-qti/assessment-player`) | Call `announcer.announce(message, clearAfter?)` from shell-level code; pass announcer ref to child components that need it | Announce "Session restored from previous attempt" on state-restore |
+| Announcement API | Internal `AccessibilityAnnouncer` used by `AssessmentShell`; not a published `@pie-qti/assessment-player` export | Internal shells call `announce(...)`; public web-component hosts listen to lifecycle/error events and own their live region | Announce "Session restored from previous attempt" on state restore |
 | Announcement priority | `priority?: 'polite' \| 'assertive'` prop and per-message priority on `AccessibilityAnnouncer.announce()` | Use polite for routine orientation and assertive for time-critical errors or expiry | `announcer.announce(message, 3000, 'assertive')` |
 | Custom ARIA label for interaction | `aria-label` or `aria-labelledby` prop accepted by some components | Pass a descriptive label derived from surrounding item content | Pass the question stem text as the choiceInteraction's group label |
 | `sr-only` utility | `.sr-only` class in `shared.css` | Import `shared.css` in any component that needs visually-hidden accessible text | Add a screen-reader-only hint explaining how to use a custom interaction |
@@ -415,7 +415,7 @@ Then: Focus is not moved away from the candidate's current position
 
 - [ ] **Drag interactions keyboard coverage audit:** `SortableList` (used by `orderInteraction`) has a keyboard alternative. It is not confirmed that all other drag-based interactions (`graphicGapMatchInteraction`, `graphicAssociateInteraction`, `positionObjectInteraction`) have keyboard alternatives meeting WCAG 2.1 SC 2.1.1. Each must be audited; gaps must be tracked as individual items.
 
-- [ ] **Timer announcement thresholds are hard-coded:** The 5-minute, 1-minute, and 30-second thresholds are documented intent but their implementation in `AssessmentTimer.svelte` / `TimeManager.ts` should be verified. If not present, they must be added. Whether these thresholds should be configurable via `PlayerConfig` has not been decided.
+- [ ] **Timer announcement thresholds are hard-coded:** The 5-minute, 1-minute, and 30-second thresholds are documented intent but their implementation in `AssessmentTimer.svelte` / `TimeManager.ts` should be verified. If not present, they must be added. Whether these thresholds should be configurable in assessment configuration has not been decided.
 
 - [ ] **Screen reader test matrix:** The required screen reader / browser pairs for QA sign-off are NVDA+Chrome and VoiceOver+Safari (macOS). There is no current automated test coverage for screen reader behavior; all AC-SR criteria require manual verification. The feasibility of axe-core or similar automated checks for a subset of criteria should be evaluated.
 

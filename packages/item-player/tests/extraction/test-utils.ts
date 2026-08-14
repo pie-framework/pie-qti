@@ -5,8 +5,8 @@
 import { type HTMLElement, parse } from 'node-html-parser';
 import { createExtractionContext } from '../../src/extraction/createContext.js';
 import type { ExtractionContext, VariableDeclaration } from '../../src/extraction/types.js';
-import type { PlayerConfig } from '../../src/types/index.js';
-import type { QTIElement } from '../../src/interactions/index.js';
+import type { ItemSessionEngineConfig } from '../../src/types/index.js';
+import type { QTIElement } from '../../src/interactions/shared/types.js';
 
 /**
  * Parse QTI XML and return the root element as a QTIElement
@@ -51,7 +51,7 @@ export function createTestContext(
 	responseId: string = 'RESPONSE',
 	dom: QTIElement = element,
 	declarations: Map<string, VariableDeclaration> = new Map(),
-	config: PlayerConfig = {} as PlayerConfig
+	config: ItemSessionEngineConfig = {} as ItemSessionEngineConfig
 ): ExtractionContext {
 	return createExtractionContext(element, responseId, dom, declarations, config);
 }

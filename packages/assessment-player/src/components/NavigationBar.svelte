@@ -1,10 +1,10 @@
 <script lang="ts">
 	import type { NavigationState } from '../types/index.js';
-	import type { SvelteI18nProvider } from '@pie-qti/i18n';
+	import type { I18nProvider } from '@pie-qti/i18n';
 
 	interface Props {
 		navState: NavigationState;
-		i18n?: SvelteI18nProvider;
+		i18n?: I18nProvider;
 		onPrevious?: () => void;
 		onNext?: () => void;
 		onSubmit?: () => void;

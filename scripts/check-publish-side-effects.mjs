@@ -3,6 +3,7 @@
 import { execSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import { getNpmPackEntry } from './npm-pack-json.mjs';
 
 const ROOT = process.cwd();
 const POLICY_PATH = path.join(ROOT, 'scripts', 'publish-policy.json');
@@ -30,15 +31,6 @@ const sideEffectsIncludes = (sideEffects, requiredEntry) => {
 	if (sideEffects === true) return true;
 	if (!Array.isArray(sideEffects)) return false;
 	return sideEffects.includes(requiredEntry);
-};
-
-const parsePackJson = (rawOutput) => {
-	const start = rawOutput.indexOf('[');
-	const end = rawOutput.lastIndexOf(']');
-	if (start < 0 || end < 0 || end < start) {
-		throw new Error('npm pack output did not include JSON payload');
-	}
-	return JSON.parse(rawOutput.slice(start, end + 1));
 };
 
 const globToRegex = (entry) => {
@@ -89,8 +81,8 @@ for (const packageDir of getWorkspaceDirs()) {
 			cwd: packageDir,
 			stdio: ['ignore', 'pipe', 'pipe'],
 		}).toString();
-		const packData = parsePackJson(rawOutput);
-		packedFiles = new Set((packData?.[0]?.files ?? []).map((entry) => toPosix(entry.path)));
+		const packedEntry = getNpmPackEntry(rawOutput, pkg.name);
+		packedFiles = new Set((packedEntry?.files ?? []).map((entry) => toPosix(entry.path)));
 	} catch (error) {
 		failures.push(
 			`${pkg.name}: failed to inspect packed sideEffects entries: ${

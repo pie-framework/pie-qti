@@ -1,21 +1,21 @@
 /**
  * QTI 2.2 Assessment Player - Backend Integration
  *
- * ## Default Behavior: Client-Side Only
+ * ## Reference/demo behavior
  *
- * By default, the assessment player runs entirely client-side:
- * - No backend required for demos, development, testing
- * - Uses ReferenceBackendAdapter with localStorage
- * - Scoring performed in-browser using the QTI Player
+ * AssessmentPlayer always requires an explicit BackendAdapter. Demos can opt in
+ * to ReferenceBackendAdapter, which stores and scores client-side.
  *
  * @example
  * ```typescript
  * import { AssessmentPlayer } from '@pie-qti/assessment-player';
+ * import { ReferenceBackendAdapter } from '@pie-qti/assessment-player/integration';
  *
- * // Client-only mode (default) - no backend needed
- * const player = new AssessmentPlayer({
- *   assessment: myAssessment,
- *   role: 'candidate'
+ * const backend = new ReferenceBackendAdapter();
+ * backend.registerAssessment('preview', secureAssessment);
+ * const player = await AssessmentPlayer.create({
+ *   backend,
+ *   initSession: { assessmentId: 'preview', candidateId: 'local' }
  * });
  * ```
  *
@@ -33,10 +33,9 @@
  * import { MyBackendAdapter } from './adapters/MyBackendAdapter';
  *
  * // Production mode with backend
- * const player = new AssessmentPlayer({
+ * const player = await AssessmentPlayer.create({
  *   backend: new MyBackendAdapter('https://api.example.com', authToken),
- *   assessmentId: 'test-001',
- *   candidateId: 'student-123'
+ *   initSession: { assessmentId: 'test-001', candidateId: 'student-123' }
  * });
  * ```
  *

@@ -7,4 +7,3 @@ export { AssessmentPlayer, NavigationManager } from './core/index.js';
 export * from './integration/index.js';
 // Public UI/data types
 export type { AssessmentResults, ItemRef, ItemResult, NavigationState, QTIRole } from './types/index.js';
-

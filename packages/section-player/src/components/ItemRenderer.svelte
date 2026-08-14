@@ -10,6 +10,7 @@
 	type ItemResponseMap = Record<string, unknown>;
 	type PieQtiItemPlayerElement = HTMLElement & {
 		itemXml?: string;
+		session?: QtiSectionItemRef['session'];
 		role?: QtiSectionRole;
 		disabled?: boolean;
 		responses?: ItemResponseMap;
@@ -19,9 +20,8 @@
 		pnp?: PnpProfile;
 		typeset?: (root: HTMLElement) => void | Promise<void>;
 		i18n?: I18nProvider;
-		extendedTextEditor?: 'tiptap' | 'textarea';
-		onResponseChange?: (responseIdentifier: string, value: unknown) => void;
 	};
+	type ItemPlayerResponseChangeEvent = CustomEvent<{ responseId: string; value: unknown }>;
 
 	interface Props {
 		itemRef: QtiSectionItemRef;
@@ -32,7 +32,6 @@
 		security?: PlayerSecurityConfig;
 		pci?: PciConfiguration;
 		pnp?: PnpProfile;
-		extendedTextEditor?: 'tiptap' | 'textarea';
 		typeset?: (root: HTMLElement) => void | Promise<void>;
 		onResponseChange?: (itemIdentifier: string, responseIdentifier: string, value: unknown) => void;
 		onFrameworkError?: (error: QtiSectionFrameworkError) => void;
@@ -47,7 +46,6 @@
 		security,
 		pci,
 		pnp,
-		extendedTextEditor,
 		typeset,
 		onResponseChange,
 		onFrameworkError,
@@ -100,11 +98,20 @@
 	}
 
 	function itemPlayerProps(node: PieQtiItemPlayerElement, props: Record<string, unknown>) {
+		const handleItemPlayerResponseChange = (event: Event) => {
+			const { responseId, value } = (event as ItemPlayerResponseChangeEvent).detail;
+			handleResponseChange(responseId, value);
+		};
+
+		node.addEventListener('response-change', handleItemPlayerResponseChange);
 		assignProps(node, props);
 
 		return {
 			update(next: Record<string, unknown>) {
 				assignProps(node, next);
+			},
+			destroy() {
+				node.removeEventListener('response-change', handleItemPlayerResponseChange);
 			},
 		};
 	}
@@ -145,7 +152,8 @@
 		<div class="item-content" bind:this={itemScopeElement}>
 			<pie-qti-item-player
 				use:itemPlayerProps={{
-					responses: responses ?? itemRef.responses ?? {},
+					session: itemRef.session,
+					responses: itemRef.session ? undefined : (responses ?? itemRef.responses ?? {}),
 					deliveryContext: itemRef.deliveryContext,
 					itemXml: itemRef.itemXml,
 					security,
@@ -155,8 +163,6 @@
 					disabled,
 					typeset,
 					i18n,
-					extendedTextEditor,
-					onResponseChange: handleResponseChange,
 				}}
 			></pie-qti-item-player>
 			{#if interactionSpeechHtml}

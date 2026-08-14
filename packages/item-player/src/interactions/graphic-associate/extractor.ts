@@ -5,6 +5,7 @@
  */
 
 import type { ElementExtractor } from '../../extraction/types.js';
+import { normalizePixelDimension } from '../../security/styleValues.js';
 
 /**
  * Image data for graphic associate interaction
@@ -48,9 +49,9 @@ export const standardGraphicAssociateExtractor: ElementExtractor<GraphicAssociat
 	elementTypes: ['graphicAssociateInteraction'],
 	description: 'Extracts standard QTI graphicAssociateInteraction (associate items on image)',
 
-	canHandle(element, _context) {
+	canHandle(element, context) {
 		// All graphicAssociateInteraction elements are standard
-		return element.rawTagName === 'graphicAssociateInteraction';
+		return context.utils.matchesTag(element, 'graphicAssociateInteraction');
 	},
 
 	extract(element, context) {
@@ -64,8 +65,14 @@ export const standardGraphicAssociateExtractor: ElementExtractor<GraphicAssociat
 			const objectElement = objectElements[0];
 			const type = utils.getAttribute(objectElement, 'type', '');
 			const data = utils.getAttribute(objectElement, 'data', '');
-			const width = utils.getAttribute(objectElement, 'width', '500');
-			const height = utils.getAttribute(objectElement, 'height', '300');
+			const width = normalizePixelDimension(
+				utils.getAttribute(objectElement, 'width', ''),
+				'500',
+			);
+			const height = normalizePixelDimension(
+				utils.getAttribute(objectElement, 'height', ''),
+				'300',
+			);
 
 			if (type.startsWith('image/svg')) {
 				// Extract inline SVG content - get full content including <svg> tag

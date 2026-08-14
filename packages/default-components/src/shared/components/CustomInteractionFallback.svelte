@@ -6,10 +6,11 @@
 	 */
 
 	import type { I18nProvider } from '@pie-qti/i18n';
+	import type { HtmlContent } from '@pie-qti/item-player';
 
 	interface Props {
 		responseId: string;
-		prompt?: string | null;
+		prompt?: HtmlContent | null;
 		rawAttributes?: Record<string, string>;
 		xml?: string;
 		disabled?: boolean;
@@ -52,7 +53,7 @@
 				This item contains a vendor-specific interaction. This player does not execute custom interactions.
 			</div>
 			{#if prompt}
-				<div class="text-sm mt-2"><strong>Prompt:</strong> {prompt}</div>
+				<div class="text-sm mt-2"><strong>Prompt:</strong> <span class="qti-rich-content">{@html prompt}</span></div>
 			{/if}
 		</div>
 	</div>
@@ -149,5 +150,4 @@
 		overflow: auto;
 	}
 </style>
-
 

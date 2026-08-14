@@ -2,6 +2,7 @@
 
 <script lang="ts">
 	import type { Point, SelectPointInteractionData } from '@pie-qti/item-player';
+	import { normalizePixelDimension } from '@pie-qti/item-player/security';
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
@@ -30,6 +31,12 @@
 	const parsedCorrectResponse = $derived(parseJsonProp<any>(correctResponse));
 	const isShowingCorrect = $derived(
 		role === 'scorer' && parsedCorrectResponse !== null && parsedCorrectResponse !== undefined
+	);
+	const imageWidth = $derived(
+		Number(normalizePixelDimension(parsedInteraction?.imageData?.width, '500') ?? '500'),
+	);
+	const imageHeight = $derived(
+		Number(normalizePixelDimension(parsedInteraction?.imageData?.height, '300') ?? '300'),
 	);
 
 	let selectedPoints = $state<Point[]>([]);
@@ -158,8 +165,8 @@
 
 		// Convert to absolute coordinates matching the SVG/image coordinate system
 		// The image is displayed at rect.width x rect.height but has intrinsic dimensions
-		const intrinsicWidth = parseInt(parsedInteraction.imageData.width) || rect.width;
-		const intrinsicHeight = parseInt(parsedInteraction.imageData.height) || rect.height;
+		const intrinsicWidth = imageWidth || rect.width;
+		const intrinsicHeight = imageHeight || rect.height;
 
 		const x = Math.round((clickX / rect.width) * intrinsicWidth);
 		const y = Math.round((clickY / rect.height) * intrinsicHeight);
@@ -230,8 +237,8 @@
 	function placePointAtCrosshair() {
 		if (!canSelectMore || !parsedInteraction?.imageData) return;
 
-		const intrinsicWidth = parseInt(parsedInteraction.imageData.width) || 500;
-		const intrinsicHeight = parseInt(parsedInteraction.imageData.height) || 300;
+		const intrinsicWidth = imageWidth;
+		const intrinsicHeight = imageHeight;
 
 		const x = Math.round(crosshairX * intrinsicWidth);
 		const y = Math.round(crosshairY * intrinsicHeight);
@@ -333,7 +340,7 @@
 		{#if parsedInteraction.imageData}
 			{#if parsedInteraction.imageData.type === 'svg'}
 				<div
-					style="width: {parsedInteraction.imageData.width}px; height: {parsedInteraction.imageData.height}px; position: relative;"
+					style="width: {imageWidth}px; height: {imageHeight}px; position: relative;"
 				>
 					{@html parsedInteraction.imageData.content}
 				</div>
@@ -341,15 +348,15 @@
 				<img
 					src={parsedInteraction.imageData.src}
 					alt={i18n?.t('interactions.selectPoint.canvas') ?? 'Selection canvas'}
-					style="width: {parsedInteraction.imageData.width}px; height: {parsedInteraction.imageData.height}px; position: relative; z-index: 1;"
+					style="width: {imageWidth}px; height: {imageHeight}px; position: relative; z-index: 1;"
 					class="block"
 				/>
 			{/if}
 
 			<!-- Render selected points as markers -->
 			{#each selectedPoints as point, index}
-				{@const intrinsicWidth = parseInt(parsedInteraction.imageData?.width || '500')}
-				{@const intrinsicHeight = parseInt(parsedInteraction.imageData?.height || '300')}
+				{@const intrinsicWidth = imageWidth}
+				{@const intrinsicHeight = imageHeight}
 				{@const xPercent = (point.x / intrinsicWidth) * 100}
 				{@const yPercent = (point.y / intrinsicHeight) * 100}
 				{@const isCorrect = isShowingCorrect && correctPoints.some((p) => Math.abs(p.x - point.x) < 1 && Math.abs(p.y - point.y) < 1)}
@@ -373,8 +380,8 @@
 			<!-- Render correct points as markers (when in scorer mode and not already selected) -->
 			{#if isShowingCorrect && correctPoints.length > 0}
 				{#each correctPoints as point, index}
-					{@const intrinsicWidth = parseInt(parsedInteraction.imageData?.width || '500')}
-					{@const intrinsicHeight = parseInt(parsedInteraction.imageData?.height || '300')}
+					{@const intrinsicWidth = imageWidth}
+					{@const intrinsicHeight = imageHeight}
 					{@const xPercent = (point.x / intrinsicWidth) * 100}
 					{@const yPercent = (point.y / intrinsicHeight) * 100}
 					{@const isAlreadySelected = selectedPoints.some((p) => Math.abs(p.x - point.x) < 1 && Math.abs(p.y - point.y) < 1)}
@@ -400,8 +407,8 @@
 
 		<!-- Keyboard crosshair overlay (K-01) — visible only when container has focus -->
 		{#if crosshairActive && !disabled && parsedInteraction?.imageData}
-			{@const imgW = parseInt(parsedInteraction.imageData.width) || 500}
-			{@const imgH = parseInt(parsedInteraction.imageData.height) || 300}
+			{@const imgW = imageWidth}
+			{@const imgH = imageHeight}
 			{@const cx = crosshairX * imgW}
 			{@const cy = crosshairY * imgH}
 			<svg

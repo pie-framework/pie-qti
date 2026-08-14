@@ -1,11 +1,11 @@
 <script lang="ts">
-	import { registerDefaultComponents } from '@pie-qti/default-components';
 	import { ItemBody } from '@pie-qti/item-player/components';
-	import { Player, type QTIRole } from '@pie-qti/item-player';
+	import type { QTIRole } from '@pie-qti/item-player';
 	import type { InteractionResponseValue } from '@pie-qti/item-player/web-components';
 	import { Qti3ElementNameMapper } from '@pie-qti/qti-common';
 	import { typesetMathInElement } from '@pie-qti/typeset-katex';
-	import { untrack } from 'svelte';
+	import { onDestroy, untrack } from 'svelte';
+	import { DemoItemSessionController } from '$lib/item-session.svelte';
 	import { QTI3_SAMPLE_ITEMS, getQti3Categories } from '$lib/sample-items-qti3';
 	import { getSecurityConfig } from '$lib/player-config';
 
@@ -15,10 +15,17 @@
 	let selectedCategory = $state('core');
 	let selectedSampleId = $state('qti3-choice-simple');
 	let xmlContent = $state('');
-	let player = $state<Player | null>(null);
-	let interactions = $state<any[]>([]);
-	let responses = $state<DemoResponseMap>({});
 	let selectedRole = $state<QTIRole>('candidate');
+	const itemSession = new DemoItemSessionController();
+	let interactions = $derived.by(() => {
+		void itemSession.revision;
+		return (
+			itemSession.session
+				?.present()
+				.flow.flatMap((node) => (node.kind === 'interaction' ? [node.mount.interaction] : [])) ?? []
+		);
+	});
+	let responses = $derived((itemSession.view?.responses ?? {}) as DemoResponseMap);
 	let error = $state<string | null>(null);
 
 	const categories = getQti3Categories();
@@ -34,37 +41,21 @@
 		error = null;
 
 		if (!xml.trim()) {
-			player = null;
-			interactions = [];
-			responses = {};
+			itemSession.dispose();
 			return;
 		}
 
 		try {
 			// Create player with QTI 3.0 element name mapper
-			const newPlayer = new Player({
+			itemSession.open({
 				itemXml: xml,
 				role: selectedRole,
 				security: getSecurityConfig(),
 				elementNameMapper: new Qti3ElementNameMapper(),
 			});
-			registerDefaultComponents(newPlayer.getComponentRegistry());
-
-			player = newPlayer;
-			interactions = newPlayer.getInteractionData();
-
-			const newResponses: DemoResponseMap = {};
-			for (const interaction of interactions) {
-				if (interaction) {
-					newResponses[interaction.responseId] = null;
-				}
-			}
-			responses = newResponses;
 		} catch (err) {
 			error = err instanceof Error ? err.message : String(err);
-			player = null;
-			interactions = [];
-			responses = {};
+			itemSession.dispose();
 		}
 	}
 
@@ -77,18 +68,17 @@
 		});
 	});
 
-	function handleResponseChange(responseId: string, value: DemoResponseValue) {
-		responses = { ...responses, [responseId]: value };
-	}
-
 	function submitResponses() {
-		if (!player) return;
+		if (!itemSession.session) return;
 
-		player.setResponses(responses);
-		const result = player.processResponses();
+		const result = itemSession.dispatch({ action: 'endAttempt' }).result?.scoring;
+		if (!result) return;
+		const correctResponses = itemSession.session.present().correctResponses;
 
-		alert(`Score: ${result.score} / ${result.maxScore}\n\nCorrect Responses:\n${JSON.stringify(player.getCorrectResponses(), null, 2)}`);
+		alert(`Score: ${result.score} / ${result.maxScore}\n\nCorrect Responses:\n${JSON.stringify(correctResponses, null, 2)}`);
 	}
+
+	onDestroy(() => itemSession.dispose());
 </script>
 
 <div class="max-w-6xl mx-auto p-4">
@@ -181,18 +171,16 @@
 	{/if}
 
 	<!-- Item Rendering -->
-	{#if player && !error}
+	{#if itemSession.session && !error}
 		<div class="card bg-base-100 shadow-xl mb-4">
 			<div class="card-body">
 				<h2 class="card-title">Item Preview</h2>
 
 				<div class="qti-question-body">
 					<ItemBody
-						{player}
-						{responses}
-						role={selectedRole}
+						session={itemSession.session}
+						revision={itemSession.revision}
 						typeset={typesetMathInElement}
-						onResponseChange={handleResponseChange}
 					/>
 				</div>
 

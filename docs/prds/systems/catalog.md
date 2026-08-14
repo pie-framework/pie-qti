@@ -103,7 +103,7 @@ All eight types defined in QTI 3.0 §6.3 are parsed and stored in `CatalogIndex`
 
 | Feature | Reason |
 |---------|--------|
-| Shared/external catalog files from IMS manifest (`catalogXml` with manifest resolution) | G-15, deferred; infrastructure is planned (`PlayerConfig.catalogXml`) but manifest-level linking requires IMS CP support |
+| Shared/external catalog files from IMS manifest (`catalogXml` with manifest resolution) | G-15, deferred; infrastructure is planned (`AssessmentItemDefinitionConfig.catalogXml`) but manifest-level linking requires IMS CP support |
 | Braille hardware routing | G-13, deferred; `getCatalogEntry()` exposes the `braille-text` content; host routes it |
 | Sign language video player | G-14, deferred; event fires; host provides player |
 | `qti-companion-materials-info` | Different from catalog; not in scope for G-10 |
@@ -112,7 +112,7 @@ All eight types defined in QTI 3.0 §6.3 are parsed and stored in `CatalogIndex`
 
 **G-10 — Catalog system (Done, Tier 2):** The core catalog parser, lookup API, glossary/keyword-translation popup path, and platform-level lookup events are implemented. See `docs/SPEC-GAPS-PLAN.md §G-10` for the historical action list and remaining deferred items.
 
-**G-15 — Shared/external catalog files from IMS manifest (Deferred, Tier 3):** `PlayerConfig.catalogXml` is supported for host-provided shared catalog XML. Manifest-level catalog discovery and resolution are not implemented.
+**G-15 — Shared/external catalog files from IMS manifest (Deferred, Tier 3):** `AssessmentItemDefinitionConfig.catalogXml` is supported for host-provided shared catalog XML. Manifest-level catalog discovery and resolution are not implemented.
 
 ---
 
@@ -123,7 +123,7 @@ All eight types defined in QTI 3.0 §6.3 are parsed and stored in `CatalogIndex`
 - **FR-3:** For each `<qti-card>`, all `<qti-card-entry>` children must be read. For each entry: `usage` from the `usage` attribute; `lang` from the `xml:lang` attribute (absent if not set); `html` from the inner HTML of a `<qti-html-content>` child, or from the `src` attribute of a `<qti-file-href>` child.
 - **FR-4:** All eight catalog usage types must be stored: `glossary-on-screen`, `keyword-translation`, `illustrated-glossary`, `tts-pronunciation`, `signing-definition`, `braille-text`, `audio-description`, `extended-description`. Unknown usage values must be stored as-is (forward-compatible).
 - **FR-5:** `player.getCatalogEntry(idref: string, usage: string, lang?: string): string | null` must be a public player method. It must apply the three-level language fallback: exact `xml:lang` match, then language-prefix match, then no-`xml:lang` entry. It must return `null` when the identifier is not found or when no entry matches the requested usage.
-- **FR-6:** If `PlayerConfig.catalogXml` is provided, the player must parse it as a standalone catalog XML string and merge it into the item-level `CatalogIndex`. Item-level entries must take precedence over shared entries when both define the same card identifier.
+- **FR-6:** If `AssessmentItemDefinitionConfig.catalogXml` is provided, the definition must parse it as a standalone catalog XML string and merge it into the item-level `CatalogIndex`. Item-level entries must take precedence over shared entries when both define the same card identifier.
 - **FR-7:** When `pnp.content.glossaryOnScreen` is true, the item body renderer must find every `[data-catalog-idref]` element in the rendered item body and mount an accessible trigger button. Activating the trigger must open a focus-trapped inline popup populated with the result of `getCatalogEntry(idref, 'glossary-on-screen')`.
 - **FR-8:** When `pnp.content.keywordTranslation.active` is true, the same trigger mechanism applies using `usage = 'keyword-translation'` and `lang = pnp.content.keywordTranslation.languageCode`. If no matching entry is found for the requested language, the trigger must still render (and the popup content may be empty or fall back to the no-lang entry).
 - **FR-9:** For `illustrated-glossary` entries, the popup must render the `html` value as an `<img src="...">` with an `alt` attribute derived from the term's visible text.
@@ -209,7 +209,7 @@ All eight types defined in QTI 3.0 §6.3 are parsed and stored in `CatalogIndex`
 
 | Extension point | Interface/type | How to use | Example |
 |----------------|---------------|------------|---------|
-| `PlayerConfig.catalogXml` | `string` (standalone catalog XML) | Pass a shared catalog XML string; merged with item-level catalog; item-level entries win on collision | Load an assessment-level glossary XML and pass it to each item player |
+| `AssessmentItemDefinitionConfig.catalogXml` | `string` (standalone catalog XML) | Pass a shared catalog XML string; merged with item-level catalog; item-level entries win on collision | Load an assessment-level glossary XML and pass it to each item definition |
 | `player.getCatalogEntry()` | `(idref: string, usage: string, lang?: string) => string \| null` | Call directly from host code to retrieve catalog content | Implement a custom glossary dialog that populates from `getCatalogEntry()` |
 | `qti-catalog-lookup` event | `CustomEvent<{ idref: string; usage: string; html: string \| null; languageCode?: string }>` | Listen on the player root for platform-level usages | Wire `tts-pronunciation` to the host TTS engine |
 | `CatalogPopup` host component | `packages/default-components/src/catalog/CatalogPopup.svelte` | Use in host app for declarative Svelte popup; or listen to `qti-catalog-lookup` events and mount any custom popup | Provide a branded popup with additional context information |

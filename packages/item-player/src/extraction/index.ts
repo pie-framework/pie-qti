@@ -41,63 +41,20 @@
  */
 
 export { createExtractionContext } from './createContext.js';
+export type {
+	InteractionDeliveryField,
+	InteractionDeliveryPathSegment,
+	InteractionDeliverySchema,
+} from './deliveryTypes.js';
+export { htmlField, urlField } from './deliveryTypes.js';
 // Registry
 export { createExtractionRegistry, ExtractionRegistry } from './ExtractionRegistry.js';
-
-// Standard extractor data types (all 21 extractors)
-export type {
-	AssociateData,
-	ChoiceData,
-	CustomData,
-	DrawingData,
-	EndAttemptData,
-	ExtendedTextData,
-	GapMatchData,
-	GraphicAssociateData,
-	GraphicGapMatchData,
-	GraphicOrderData,
-	HotspotData,
-	HottextData,
-	InlineChoiceData,
-	MatchData,
-	MediaData,
-	OrderData,
-	PositionObjectData,
-	SelectPointData,
-	SliderData,
-	TextEntryData,
-	UploadData,
-} from '../interactions/index.js';
-
-// Standard extractors
-export {
-	standardAssociateExtractor,
-	standardChoiceExtractor,
-	standardCustomExtractor,
-	standardDrawingExtractor,
-	standardEndAttemptExtractor,
-	standardExtendedTextExtractor,
-	standardGapMatchExtractor,
-	standardGraphicAssociateExtractor,
-	standardGraphicGapMatchExtractor,
-	standardGraphicOrderExtractor,
-	standardHotspotExtractor,
-	standardHottextExtractor,
-	standardInlineChoiceExtractor,
-	standardMatchExtractor,
-	standardMediaExtractor,
-	standardOrderExtractor,
-	standardPositionObjectExtractor,
-	standardSelectPointExtractor,
-	standardSliderExtractor,
-	standardTextEntryExtractor,
-	standardUploadExtractor,
-} from '../interactions/index.js';
 
 // Core types
 export type {
 	ElementExtractor,
 	ExtractionContext,
+	ExtractionDispatchResult,
 	ExtractionResult,
 	ExtractionUtils,
 	ValidationResult,

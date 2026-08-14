@@ -6,39 +6,68 @@
  */
 
 import type {
+	DeliveredInteraction,
 	ElementExtractor,
 	ExtractionContext,
+	HtmlContent,
 	ValidationResult,
 } from '@pie-qti/item-player';
+import { htmlField } from '@pie-qti/item-player';
+
+export type LikertScaleType =
+	| 'agreement'
+	| 'frequency'
+	| 'satisfaction'
+	| 'quality'
+	| 'importance'
+	| 'likelihood'
+	| 'unknown';
 
 export interface LikertChoiceData {
 	identifier: string;
-	text: string;
+	text: HtmlContent;
 	classes: string[];
 	fixed: boolean;
 	metadata: {
 		likertIndex: number;
 		scalePoints: number;
-		scaleType: 'agreement' | 'frequency' | 'satisfaction' | 'quality' | 'importance' | 'likelihood' | 'unknown';
+		scaleType: LikertScaleType;
 	};
 }
 
-export interface LikertInteractionData {
+/** Vendor-owned payload, intentionally independent of the standard interaction union. */
+export interface LikertInteractionPayload {
 	choices: LikertChoiceData[];
 	shuffle: boolean;
 	maxChoices: number;
-	prompt: string | null;
+	prompt: HtmlContent | null;
 	metadata: {
 		isLikert: true;
 		scalePoints: number;
-		scaleType: string;
+		scaleType: LikertScaleType;
 	};
+}
+
+/** Payload as delivered to a renderer after framework identity is attached. */
+export type LikertInteractionData = DeliveredInteraction<
+	'choiceInteraction',
+	LikertInteractionPayload
+>;
+
+interface LikertChoiceDraft extends Omit<LikertChoiceData, 'text'> {
+	text: string;
+}
+
+interface LikertInteractionDraftPayload
+	extends Omit<LikertInteractionPayload, 'choices' | 'prompt'> {
+	choices: LikertChoiceDraft[];
+	prompt: string | null;
 }
 
 /**
  * Detect the scale type based on choice text patterns
  */
-function detectScaleType(choices: LikertChoiceData[]): string {
+function detectScaleType(choices: LikertChoiceDraft[]): LikertScaleType {
 	const allText = choices.map((c) => c.text.toLowerCase()).join(' ');
 
 	// Agreement scale (most common)
@@ -156,11 +185,18 @@ function getDefaultLabel(identifier: string, index: number, scalePoints: number)
  * Priority 500 - Higher than standard choice extractor (10)
  * Handles <likertChoice> elements in choiceInteraction
  */
-export const likertChoiceExtractor: ElementExtractor<LikertInteractionData> = {
+export const likertChoiceExtractor: ElementExtractor<
+	LikertInteractionDraftPayload,
+	'choiceInteraction'
+> = {
 	id: 'acme:likert-choice',
 	name: 'ACME Likert Scale Choice',
+	outputType: 'choiceInteraction',
 	priority: 500,
 	elementTypes: ['choiceInteraction'],
+	delivery: {
+		fields: [htmlField('prompt')],
+	},
 
 	canHandle(element, context) {
 		// Check if interaction contains <likertChoice> children
@@ -171,7 +207,7 @@ export const likertChoiceExtractor: ElementExtractor<LikertInteractionData> = {
 		// Extract all likertChoice elements
 		const likertChoices = context.utils.getChildrenByTag(element, 'likertChoice');
 
-		const choices: LikertChoiceData[] = likertChoices.map((choice, index) => {
+		const choices: LikertChoiceDraft[] = likertChoices.map((choice, index) => {
 			const identifier = context.utils.getAttribute(choice, 'identifier', '');
 			let text = context.utils.getTextContent(choice);
 
@@ -198,7 +234,7 @@ export const likertChoiceExtractor: ElementExtractor<LikertInteractionData> = {
 
 		// Update metadata with detected scale type
 		for (const choice of choices) {
-			choice.metadata.scaleType = scaleType as any;
+			choice.metadata.scaleType = scaleType;
 		}
 
 		// Extract prompt

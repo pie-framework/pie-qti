@@ -1,5 +1,7 @@
 import type { CatalogSupportPreference } from '../pnp/types.js';
 import type { PnpProfile } from '../pnp/types.js';
+import { htmlToString } from '../core/trustedTypes.js';
+import type { HtmlContent } from '../types/index.js';
 
 const PLATFORM_USAGES = [
 	{ usage: 'tts-pronunciation', flag: 'ttsPronunciation', label: 'Request pronunciation', text: 'P' },
@@ -36,7 +38,7 @@ export interface GlossaryPlayer {
 		usage: string,
 		lang?: string,
 		options?: { stimulusIdentifier?: string }
-	): string | null;
+	): HtmlContent | null;
 	getComponentRegistry(): CatalogComponentRegistry;
 }
 
@@ -267,7 +269,7 @@ function isReservedCatalogUsage(usage: string): boolean {
 function mountPopup(
 	anchor: HTMLElement,
 	label: string,
-	html: string,
+	html: HtmlContent,
 	triggerBtn: HTMLButtonElement,
 	player: GlossaryPlayer,
 	onClose: () => void
@@ -288,7 +290,7 @@ function mountPopup(
 	const catalogPopupTag = registry.getTagNameForType('catalogPopup');
 	if (catalogPopupTag !== null) {
 		const el = document.createElement(catalogPopupTag) as HTMLElement & {
-			content: string;
+			content: HtmlContent;
 			label: string;
 			onClose: () => void;
 		};
@@ -310,7 +312,7 @@ function mountPopup(
  * Minimal accessible fallback popup used when no catalogPopup component is registered.
  * Uses DaisyUI card classes where available; degrades gracefully without them.
  */
-function buildFallbackPopup(label: string, html: string, close: () => void): HTMLElement {
+function buildFallbackPopup(label: string, html: HtmlContent, close: () => void): HTMLElement {
 	const popup = document.createElement('div');
 	popup.className = 'card card-bordered bg-base-100 shadow-lg qti-catalog-popup';
 	popup.setAttribute('role', 'dialog');
@@ -337,15 +339,16 @@ function buildFallbackPopup(label: string, html: string, close: () => void): HTM
 	const body = document.createElement('div');
 	body.className = 'card-body p-3';
 
-	const isUrl = /^(https?:\/\/|\/)/i.test(html.trim());
+	const htmlString = htmlToString(html);
+	const isUrl = /^(https?:\/\/|\/)/i.test(htmlString.trim());
 	if (isUrl) {
 		const img = document.createElement('img');
-		img.src = html.trim();
+		img.src = htmlString.trim();
 		img.alt = label;
 		img.className = 'max-w-full h-auto block mx-auto';
 		body.appendChild(img);
 	} else {
-		body.innerHTML = html;
+		body.innerHTML = html as any;
 	}
 
 	popup.appendChild(header);

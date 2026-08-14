@@ -610,14 +610,17 @@ initialisation. It controls:
 - **Structured label support** — adds supplementary ARIA markup to interaction prompts
 
 Current
-PNP support is implemented for the current delivery scope: `PlayerConfig.pnp`, `player.updatePnp()`, color schemes, elimination tool, extended time, and glossary/keyword-translation trigger UI are shipped. Specialist features such as structured labels, braille routing, and sign-language video remain deferred under G-13/G-14.
+PNP support is implemented for the current delivery scope: `AssessmentItemDefinitionConfig.pnp`,
+the `ItemSession` `updatePnp` command, color schemes, elimination tool, extended time, and
+glossary/keyword-translation trigger UI are shipped. Specialist features such as structured labels,
+braille routing, and sign-language video remain deferred under G-13/G-14.
 
 Action
 Done for G-09. Future PNP work is tracked under G-13/G-14 and package-level catalog discovery under G-15.
 
 Test signal
-- Player constructed with `pnp: { display: { colorScheme: 'blackwhite' } }` applies the correct CSS custom properties.
-- `player.updatePnp({ display: { colorScheme: 'yellowblue' } })` changes the scheme without re-parsing the item.
+- A definition/session created with `pnp: { display: { colorScheme: 'blackwhite' } }` applies the correct CSS custom properties.
+- `session.dispatch({ action: 'updatePnp', profile: { display: { colorScheme: 'yellowblue' } } })` changes the scheme without re-parsing the item.
 - Elimination tool buttons appear in `choiceInteraction` when `pnp.cognitive.eliminationTool` is true.
 - A 60-second time limit becomes 90 seconds when `extendedTime.multiplier` is 1.5.
 

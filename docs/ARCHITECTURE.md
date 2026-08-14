@@ -84,26 +84,34 @@ This lets you:
 
 #### Extensibility points (what you can plug in)
 
-##### 1) `QTIPlugin` (primary extension mechanism)
+##### 1) `AssessmentItemDefinitionPlugin` (primary extension mechanism)
 
-Plugins can register:
+Definition plugins can register:
 
 - **Extractors**: interpret/validate vendor markup, override standard extraction.
 - **Components**: map `InteractionData` → a custom element tag name (and optionally auto-register the element).
-- **Lifecycle hooks**: integrate with host telemetry or setup logic.
+
+Pass plugins through `createAssessmentItemDefinition({ plugins })`. The definition creates its own
+registries, applies each plugin once, and seals the registries before opening live sessions. Extractors
+declare an `outputType` delivery schema so rich HTML and URL fields are finalized at the delivery
+boundary. Plugins complete asynchronous setup before synchronous definition construction.
 
 Key references:
 
-- `packages/item-player/src/core/Plugin.ts`
-- `packages/item-player/src/core/PluginManager.ts`
+- `packages/item-player/src/core/AssessmentItemDefinition.ts`
+- `packages/item-player/src/extraction/ElementExtractor.ts`
 - Example plugin: `packages/acme-likert-plugin/`
 
 ![ACME Likert plugin architecture](images/acme_likert_plugin_architecture.jpeg)
 
-##### 2) Registries (explicit and composable)
+##### 2) Definition-owned registries
 
 - **ExtractionRegistry** (data extraction, priority-based)
 - **ComponentRegistry** (renderer selection, priority-based)
+
+The primary definition API does not accept mutable registry instances from the host. A definition
+plugin registers extensions synchronously during compilation; the resulting registries are then
+shared read-only by that definition's sessions. Hosts cannot inject mutable registries.
 
 Key reference:
 
@@ -458,7 +466,7 @@ This section combines “deployment guidance” with “security boundary clarif
 ### Trust boundaries (what this project does and does not do)
 
 - **Same-DOM is not a sandbox**: rendering attacker-controlled content into your application DOM is inherently risky. The player provides **guardrails** (sanitization, URL policy, optional parsing limits, Trusted Types support), but it does **not** provide a complete isolation boundary.
-- **Plugins/custom components are integrator-owned**: any `QTIPlugin` and any custom web components run as host code. Treat them as trusted application code (review, test, pin).
+- **Plugins/custom components are integrator-owned**: any `AssessmentItemDefinitionPlugin` and any custom web components run as host code. Treat them as trusted application code (review, test, pin).
 - **Client-side scoring is not secure**: for high-stakes assessment, you must do **server-side scoring** and avoid sending correct answers / scoring logic to the candidate.
 - **Best isolation is origin isolation**: for untrusted QTI, prefer iframe mode and run the runtime on a separate origin with strict postMessage allowlists.
 - **LTI is a host integration concern**: the player can run inside an LTI 1.3 / LTI Advantage tool, but launch validation, Deep Linking, AGS grade passback, NRPS roster lookup, and LMS policy enforcement belong to the host application.
