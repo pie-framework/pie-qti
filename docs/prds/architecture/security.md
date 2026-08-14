@@ -4,31 +4,33 @@
   Status: current
   Type: architecture
   Packages: @pie-qti/item-player, @pie-qti/default-components, @pie-qti/section-player, @pie-qti/player-elements, @pie-qti/qti-processing, @pie-qti/storage
-  Last reviewed: 2026-07-13
+  Last reviewed: 2026-08-13
 -->
 
 **Status:** current
 **Type:** architecture  
 **Packages:** `@pie-qti/item-player`, `@pie-qti/default-components`, `@pie-qti/section-player`, `@pie-qti/player-elements`, `@pie-qti/qti-processing`, `@pie-qti/storage`
-**Last reviewed:** 2026-07-13
+**Last reviewed:** 2026-08-13
 
 ---
 
 ## Summary
 
 `@pie-qti/item-player` renders QTI item XML — which may originate from untrusted third
-parties — directly into the host application DOM. The security subsystem consists of four
-interlocking layers: an HTML sanitizer that strips XSS vectors from QTI-derived markup, a
-URL policy that restricts which schemes and hosts may appear in resource attributes, an
-optional Trusted Types integration that lets the player emit `TrustedHTML` values for strict
-CSP environments, and an iframe isolation mode that moves the entire item render into a
-cross-origin sandbox. The layers are independently configurable via `PlayerSecurityConfig`.
+parties — directly into the host application DOM. The security subsystem combines HTML
+sanitization, URL policy, interaction-local delivery-field classification, optional Trusted
+Types integration, and iframe isolation. Rich extractor helpers sanitize at ingress; each
+`InteractionModule` (or plugin extractor) declares which output fields reach HTML or URL sinks;
+and the shared delivery/presentation pipelines enforce policy at final egress. `TrustedHTML` is
+created only after the last string transform before an HTML sink. Policy-checked scoped CSS stays
+separate from HTML and uses a dedicated style sink. The layers are configured through
+`PlayerSecurityConfig`.
 Conservative defaults are active in the central sanitizer and URL policy without any
 configuration; riskier capabilities require explicit opt-in. Same-DOM sanitization is a
 defense-in-depth boundary rather than a JavaScript sandbox. Content that is not trusted to run in
 the host origin should still be delivered through a suitably sandboxed, cross-origin iframe.
 
-### Current implementation audit (2026-07-13 remediation)
+### Current implementation audit (2026-08-13)
 
 - Section TTS projection and gap-match prompt reconstruction now use sanitized/text-only content;
   TTS enforces configured item-XML limits before its secondary DOM parse, and executable-attribute
@@ -62,6 +64,13 @@ the host origin should still be delivered through a suitably sandboxed, cross-or
 - Revoking or replacing a raw-XML assessment tears down its local reference backend. A session
   request synthesized for that preview backend is cleared before any injected production backend
   can mount.
+- `ExtractionUtils.getHtmlContent()` and `getPrompt()` apply the configured ingress sanitizer.
+  Standard `InteractionModule.delivery` metadata and plugin extractor `delivery` schemas classify
+  rich HTML and resource URL fields locally. The sealed extraction registry is evaluated once per
+  live item session; delivered interaction graphs are finalized, frozen, and memoized.
+- Item-body presentation keeps scoped stylesheet CSS separate, performs stimulus, rubric,
+  feedback, and inline-layout transforms first, and sanitizes/mints optional `TrustedHTML` only for
+  the final body flow nodes.
 
 ---
 
@@ -206,6 +215,18 @@ elements and attributes that have no legitimate use in QTI item bodies.
   element lifecycle code.
 - **FR-33:** Switching away from the local reference assessment backend must revoke mounted local
   content and any locally synthesized initialization request before a host backend can mount.
+- **FR-34:** `ExtractionUtils.getHtmlContent()` and `getPrompt()` must sanitize rich markup at
+  extraction ingress with the active `PlayerSecurityConfig` and return strings, never
+  `TrustedHTML`.
+- **FR-35:** Every standard `InteractionModule` must declare its HTML and URL sink fields beside the
+  interaction contract. A plugin extractor that adds rich or resource fields must declare them in
+  `ElementExtractor.delivery`; the delivery pipeline must merge standard and plugin schemas.
+- **FR-36:** Interaction delivery must sanitize declared HTML fields, apply `sanitizeResourceUrl`
+  with the declared URL use, optionally create `TrustedHTML` only at final delivery egress, and
+  freeze the returned graph so later mutation cannot invalidate the guarantee.
+- **FR-37:** Item-body presentation must perform all string-producing transforms before the final
+  sanitation and optional Trusted Types conversion. `scopedCss` must remain a separate,
+  policy-checked presentation field and must not be concatenated into trusted body HTML.
 
 ### Public shared-content API
 
@@ -224,7 +245,7 @@ elements and attributes that have no legitimate use in QTI item bodies.
   server (SSR) contexts. `IFramePlayerHost` is browser-only and must not be imported in SSR
   contexts (it is excluded from the main package entrypoint for this reason).
 - **Security:** No `eval` or `new Function` in the core rendering path (verified).
-  `PlayerConfig.customOperators` is the only intentional eval-equivalent surface and is
+  `AssessmentItemDefinitionConfig.customOperators` is the only intentional eval-equivalent surface and is
   integrator-controlled trusted code.
 - **i18n:** Not applicable.
 
@@ -324,16 +345,15 @@ The conservative default avoids relying on browser-version-specific behavior.
 **Consequences:** Items that legitimately embed SVG diagrams as data URIs will have those
 images blocked unless the integrator opts in.
 
-### `parsingLimits` compatibility default and custom-element boundary default
+### `parsingLimits` definition default and custom-element boundary default
 
-**Decision:** The lower-level `Player` compatibility default remains `false`; the public item and
+**Decision:** The lower-level definition default remains `false`; the public item and
 assessment custom elements set `enabled: true` unless the host explicitly supplies `false`.
-**Rationale:** Enabling limits retroactively would break existing integrations that pass
-large items or deeply nested content. The limit defaults were sized for safety, not for
-compatibility with the full production item corpus. Opt-in allows staged rollout.  
+**Rationale:** Definition callers may already enforce equivalent upstream resource limits, while
+custom-element callers commonly accept item XML at the browser edge.
 **Alternatives considered:** Enable by default with high thresholds; add a migration path.  
-**Consequences:** Existing direct `Player` integrations retain their behavior. NPM consumers using
-the custom-element boundary receive finite parsing limits without extra configuration, while hosts
+**Consequences:** NPM consumers using the custom-element boundary receive finite parsing limits
+without extra configuration, while definition hosts
 with an equivalent upstream policy can opt out explicitly.
 
 ### Trusted Types as opt-in defense-in-depth
@@ -347,6 +367,35 @@ The player cannot know whether the host has enabled TT without the config.
 policy creation can be blocked by CSP and would throw unexpectedly.  
 **Consequences:** Trusted Types protection requires coordinated opt-in from both the host CSP
 and the `PlayerSecurityConfig`. See the deployment guidance above (CSP and Trusted Types).
+
+### Field classification stays local; enforcement stays shared
+
+**Decision:** Standard interactions classify their HTML and URL fields in
+`InteractionModule.delivery`; plugin extractors extend that classification with
+`ElementExtractor.delivery`. Shared extraction utilities and the final delivery pipeline own the
+sanitizer, URL policy, Trusted Types bridge, freezing, and memoization mechanics.
+**Rationale:** A central switch over every `InteractionData` shape would repeatedly drift as
+plugins and standard interactions evolve. Conversely, asking each extractor to implement security
+would duplicate sensitive policy code. Local classification plus shared enforcement preserves both
+domain locality and security leverage.
+**Alternatives considered:** Field-name heuristics, renderer-side sanitization, or allowing each
+plugin to return pre-trusted markup.
+**Consequences:** New rich fields are incomplete until their delivery schema is declared. Plugin
+authors use configured `getHtmlContent()`/`getPrompt()` for ingress and declare final sink paths;
+renderers treat delivered values as terminal and do not transform or re-trust them.
+
+### Presentation owns the final HTML egress
+
+**Decision:** Final item-body presentation markup becomes trusted only after stimulus injection,
+rubric filtering, feedback expansion, and inline interaction planning are complete. Resolved
+stylesheet output is returned separately as `scopedCss`.
+**Rationale:** Any post-sanitation string transform can introduce or recompose markup, so an early
+Trusted Types value would overstate what has actually been checked. CSS has different parsing and
+policy rules from HTML.
+**Alternatives considered:** Trusting parser output immediately or prepending a `<style>` element to
+the body string.
+**Consequences:** Browser adapters receive final branded body flow nodes and a distinct style value;
+headless adapters receive the same presentation without needing a DOM or Trusted Types runtime.
 
 ### Origin locking on first valid message
 
@@ -382,11 +431,12 @@ documented as not recommended for production.
 
 | Extension point | Interface/type | How to use | Example |
 |---|---|---|---|
-| Custom URL policy | `UrlPolicyConfig` | Pass via `PlayerConfig.security.urlPolicy`. | `{ allowHttps: true, allowedHosts: ['cdn.myorg.com'] }` |
+| Custom URL policy | `UrlPolicyConfig` | Pass via `AssessmentItemDefinitionConfig.security.urlPolicy`. | `{ allowHttps: true, allowedHosts: ['cdn.myorg.com'] }` |
 | Object/embed allow | `PlayerSecurityConfig.allowObjectEmbeds` | Set `true` to permit `<object>` and `<embed>` elements. | `security: { allowObjectEmbeds: true }` |
 | Iframe allow | `PlayerSecurityConfig.allowIframes` | Set `true` to permit `<iframe>` elements (srcdoc always stripped). | `security: { allowIframes: true }` |
 | Trusted Types | `PlayerSecurityConfig.trustedTypesPolicyName` | Set to a CSP-allowed policy name; the player will create and use it. | `security: { trustedTypesPolicyName: 'pie-qti' }` |
-| Parsing limits | `ParsingLimitsConfig` | Enable and configure via `PlayerConfig.security.parsingLimits`. | `security: { parsingLimits: { enabled: true, maxItemXmlBytes: 1_000_000 } }` |
+| Parsing limits | `ParsingLimitsConfig` | Enable and configure via `AssessmentItemDefinitionConfig.security.parsingLimits`. | `security: { parsingLimits: { enabled: true, maxItemXmlBytes: 1_000_000 } }` |
+| Interaction delivery schema | `InteractionModule.delivery` / `ElementExtractor.delivery` | Declare each rich HTML or resource URL path with `htmlField(...)` / `urlField(...)`; shared code enforces the active policy. | `delivery: { fields: [htmlField('prompt'), urlField('img', 'image', 'src')] }` |
 | Iframe host | `IFramePlayerHost` | Import from `@pie-qti/item-player/iframe` (browser-only subpath). | See `packages/item-player/docs/iframe-mode.md` |
 | Custom iframe sandbox | `IFramePlayerHostConfig.sandbox` | Override the sandbox attribute string. | `sandbox: 'allow-scripts allow-same-origin'` |
 
@@ -561,6 +611,24 @@ AC-21: Trusted Types wrapping returns string when TT unavailable
   Then: Returns the plain string '<p>safe</p>'
 ```
 
+```
+AC-22: Plugin delivery fields use configured ingress and final egress policy
+  Given: A plugin extractor uses context.utils.getPrompt() and declares
+         delivery.fields=[htmlField('prompt'), urlField('img', 'image', 'src')]
+  When: its source contains an event handler and image.src uses a blocked scheme
+  Then: getPrompt() returns an ingress-sanitized string
+        final delivery removes unsafe markup, neutralizes the URL, and freezes the graph
+        TrustedHTML is created only at final delivery egress when configured
+```
+
+```
+AC-23: Item-body trust follows all transforms and excludes scoped CSS
+  Given: an item body with resolved stimulus, rubric, feedback, inline interactions, and stylesheet CSS
+  When: ItemSession.present() creates its flow
+  Then: each HTML flow node is sanitized after all body transforms and only then optionally trusted
+        presentation.scopedCss is separate and no <style> is concatenated into the trusted body HTML
+```
+
 ### Accessibility
 
 ```
@@ -620,7 +688,8 @@ AC-E6: Protocol envelope version mismatch rejected
 
 - Iframe mode reference: `packages/item-player/docs/iframe-mode.md`
 - Implementation: `packages/item-player/src/core/sanitizer.ts`, `urlPolicy.ts`,
-  `trustedTypes.ts`, `parsingLimits.ts`
+  `trustedTypes.ts`, `parsingLimits.ts`; `packages/item-player/src/extraction/interactionSecurity.ts`,
+  `deliveryTypes.ts`; `packages/item-player/src/presentation/itemPresentationPlan.ts`
 - Iframe host + protocol: `packages/item-player/src/iframe/IFramePlayerHost.ts`,
   `packages/item-player/src/iframe/protocol.ts`
 - Types: `packages/item-player/src/types/index.ts` (`PlayerSecurityConfig`,

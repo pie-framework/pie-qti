@@ -294,11 +294,13 @@
     "packages/player-elements": {
       "name": "@pie-qti/player-elements",
       "version": "0.1.19",
+      "dependencies": {
+        "@pie-qti/item-player": "workspace:*",
+      },
       "devDependencies": {
         "@biomejs/biome": "^2.5.6",
         "@pie-qti/assessment-player": "workspace:*",
         "@pie-qti/default-components": "workspace:*",
-        "@pie-qti/item-player": "workspace:*",
         "@pie-qti/qti-common": "workspace:*",
         "@pie-qti/section-player": "workspace:*",
         "@sveltejs/vite-plugin-svelte": "^7.0.0",

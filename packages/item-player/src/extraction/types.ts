@@ -5,8 +5,18 @@
  * priority-based dispatch, validation, and type safety.
  */
 
-import type { PlayerConfig } from '../types/index.js';
+import type { AttributeNameMapper, ElementNameMapper } from '@pie-qti/qti-common';
+import type { PlayerSecurityConfig, QTIRole } from '../types/index.js';
 import type { QTIElement } from '../interactions/index.js';
+import type { InteractionDeliverySchema } from './deliveryTypes.js';
+
+/** Configuration visible to extractor implementations. */
+export interface ExtractionConfig {
+	readonly role?: QTIRole;
+	readonly security?: PlayerSecurityConfig;
+	readonly elementNameMapper?: ElementNameMapper;
+	readonly attributeNameMapper?: AttributeNameMapper;
+}
 
 /**
  * Context provided to extractors during extraction
@@ -28,8 +38,8 @@ export interface ExtractionContext {
 	/** Utility functions for DOM manipulation and extraction */
 	utils: ExtractionUtils;
 
-	/** Player configuration (role, typesetting, etc.) */
-	config: PlayerConfig;
+	/** Immutable extraction-relevant configuration. */
+	config: ExtractionConfig;
 
 	/**
 	 * Seeded RNG for interactions honouring the QTI `shuffle` attribute, keyed to the
@@ -57,6 +67,9 @@ export interface VariableDeclaration {
  * Provides safe, consistent DOM manipulation and content extraction
  */
 export interface ExtractionUtils {
+	/** Check an element tag against a canonical QTI 2.x name across QTI versions. */
+	matchesTag(element: QTIElement, tagName: string): boolean;
+
 	/**
 	 * Get direct children with a specific tag name
 	 * @example utils.getChildrenByTag(element, 'simpleChoice')
@@ -167,7 +180,8 @@ export type ExtractionResult<TData> =
  * @template TContext - The extraction context type (defaults to ExtractionContext)
  */
 export interface ElementExtractor<
-	TData = unknown,
+	TPayload extends object = Record<string, unknown>,
+	TOutputType extends string = string,
 	TContext extends ExtractionContext = ExtractionContext,
 > {
 	/**
@@ -206,6 +220,19 @@ export interface ElementExtractor<
 	description?: string;
 
 	/**
+	 * Renderer-facing type attached by the framework after extraction. When
+	 * omitted, the normalized authored element type is used.
+	 */
+	readonly outputType?: TOutputType;
+
+	/**
+	 * HTML and resource fields produced by this extractor. The common delivery
+	 * pipeline enforces these rules after extraction, so plugin extractors can
+	 * safely add rich fields without teaching a central type switch their shape.
+	 */
+	delivery?: InteractionDeliverySchema;
+
+	/**
 	 * Predicate to determine if this extractor can handle the element
 	 * Evaluated in priority order (highest first)
 	 *
@@ -227,7 +254,7 @@ export interface ElementExtractor<
 	 * @throws ExtractionError if extraction fails
 	 * @returns Extracted data structure
 	 */
-	extract(element: QTIElement, context: TContext): TData;
+	extract(element: QTIElement, context: TContext): TPayload;
 
 	/**
 	 * Validate extracted data (optional)
@@ -235,8 +262,23 @@ export interface ElementExtractor<
 	 *
 	 * @returns Validation result with errors/warnings
 	 */
-	validate?(data: TData): ValidationResult;
+	validate?(data: TPayload): ValidationResult;
 }
+
+/**
+ * Result of one registry-owned dispatch. On success, `extractor` is the exact
+ * snapshotted handler whose predicate matched and whose `extract` method ran.
+ * Callers must use this descriptor for renderer and delivery-policy decisions
+ * instead of performing a second lookup.
+ */
+export type ExtractionDispatchResult<TData extends object> =
+	| {
+			success: true;
+			data: TData;
+			extractor: ElementExtractor<any, string>;
+			warnings?: string[];
+	  }
+	| { success: false; error: ExtractionError };
 
 /**
  * Type guard for successful extraction result

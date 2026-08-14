@@ -1,5 +1,5 @@
 import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
-import type { HtmlContent, PlayerSecurityConfig, SerializedItemSessionState } from '@pie-qti/item-player';
+import type { HtmlContent, ItemSession, PlayerSecurityConfig } from '@pie-qti/item-player';
 import type { QtiSectionDiagnostic, QtiSectionRuntimeHostContract } from './runtime-host-contract.js';
 
 export type QtiSectionLayoutPreference = 'split-pane' | 'vertical' | 'auto';
@@ -36,18 +36,31 @@ export interface QtiSectionModel {
   diagnostics?: QtiSectionDiagnostic[];
 }
 
-export interface QtiSectionItemRef {
+interface QtiSectionItemRefBase {
   identifier: string;
   sourcePath?: string;
   href?: string;
   title?: string;
   itemXml: string;
-  responses?: Record<string, unknown>;
-  sessionSnapshot?: SerializedItemSessionState;
   deliveryContext?: ResolvedItemDeliveryContext;
   tools?: QtiSectionToolConfig[];
   diagnostics?: QtiSectionDiagnostic[];
 }
+
+/**
+ * An item ref carries either one authoritative live session or a detached
+ * response snapshot. Supplying both would create two competing state inputs.
+ */
+export type QtiSectionItemRef =
+  | (QtiSectionItemRefBase & {
+      /** Exact live session owned by the assessment runtime for the active item. */
+      session: ItemSession;
+      responses?: never;
+    })
+  | (QtiSectionItemRefBase & {
+      session?: undefined;
+      responses?: Record<string, unknown>;
+    });
 
 export interface QtiSharedHtmlBlock {
   identifier: string;

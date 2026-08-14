@@ -65,19 +65,23 @@ export interface CreateParserOptions {
  *
  * @param xml - QTI XML content as string
  * @param options - Optional configuration
- * @returns Parser result with version and mapper
+ * @returns Parser result with version plus element and attribute mappers
  *
  * @example
  * ```typescript
  * // Auto-detect version and create appropriate parser
- * const { version, mapper } = createQtiParser(xml);
+ * const { version, mapper, attributeMapper } = createQtiParser(xml);
  * console.log(`Detected QTI ${version}`);
  *
  * // Use with qti-processing
  * const program = buildResponseProcessingAst(responseProcessing, { elementNameMapper: mapper });
  *
  * // Use with item-player
- * const player = new Player(xml, { elementNameMapper: mapper });
+ * const definition = createAssessmentItemDefinition({
+ *   itemXml: xml,
+ *   elementNameMapper: mapper,
+ *   attributeNameMapper: attributeMapper
+ * });
  * ```
  *
  * @example

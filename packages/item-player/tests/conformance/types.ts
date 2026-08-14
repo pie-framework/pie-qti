@@ -18,9 +18,9 @@ export interface ConformanceCase {
 	 */
 	xfail?: boolean;
 	xfailReason?: string;
-	/** If true, run `submitAttempt()` (adaptive) instead of `processResponses()` */
+	/** If true, dispatch the adaptive submitAttempt action instead of processing a non-adaptive response. */
 	useSubmitAttempt?: boolean;
-	/** Passed to `submitAttempt(countAttempt)` when `useSubmitAttempt` is true */
+	/** Passed to the submitAttempt action when `useSubmitAttempt` is true. */
 	countAttempt?: boolean;
 }
 
@@ -49,5 +49,4 @@ export interface ConformanceFixtureManifest {
 	 */
 	covers?: string[];
 }
-
 

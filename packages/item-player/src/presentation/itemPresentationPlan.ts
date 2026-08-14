@@ -5,9 +5,17 @@ import {
 } from '@pie-qti/ims-cp-core';
 import { parse } from 'node-html-parser';
 import type { HTMLElement as ParsedHtmlElement } from 'node-html-parser';
+import type { ComponentRegistry } from '../core/ComponentRegistry.js';
+import { sanitizeHtml } from '../core/sanitizer.js';
+import { htmlToString, toTrustedHtml } from '../core/trustedTypes.js';
 import type { PnpProfile } from '../pnp/types.js';
 import { getRoleCapabilities, type RoleCapabilities } from '../core/rolePolicy.js';
-import type { InteractionData, HtmlContent, QTIRole } from '../types/index.js';
+import type {
+	HtmlContent,
+	PlayerSecurityConfig,
+	QTIRole,
+	RubricBlock,
+} from '../types/index.js';
 import { processFeedbackInline } from '../components/utils/feedbackUtils.js';
 import { buildScopedStylesheetCss } from '../components/utils/stylesheetRender.js';
 import { buildEffectiveStimulusContent, injectStimulusContent } from '../components/utils/stimulusRender.js';
@@ -15,141 +23,210 @@ import {
 	createInlineRenderPlan,
 	isInlineInteractionTagName,
 	isInlineInteractionType,
-	type InlineRenderSegment,
 } from '../interactions/inline/render-plan.js';
+import type { InlineChoiceInteractionData } from '../interactions/inline-choice/types.js';
+import type { TextEntryInteractionData } from '../interactions/text-entry/types.js';
+import type { BaseInteractionData } from '../interactions/shared/types.js';
 
 export type ItemPresentationResponseValue = unknown;
 export type ItemPresentationResponseMap = Record<string, ItemPresentationResponseValue>;
 
-export interface ItemPresentationComponentRegistry {
-	getTagName(interaction: InteractionData): string;
+/**
+ * Immutable inputs captured from the live item session for one presentation pass.
+ *
+ * This deliberately contains data rather than a Player-shaped adapter. Presentation
+ * cannot reach back into the session midway through a render, and its only live seam
+ * is the real component registry used to resolve plugin renderers.
+ */
+export interface ItemPresentationSource {
+	itemBodyHtml: HtmlContent;
+	interactions: readonly BaseInteractionData[];
+	correctResponses: Record<string, unknown>;
+	componentRegistry: ComponentRegistry;
+	deliveryContext?: ResolvedItemDeliveryContext;
+	pnp?: PnpProfile;
+	security?: PlayerSecurityConfig;
+	/** Role-filtered, finalized direct rubrics for host placement. */
+	directRubrics?: readonly RubricBlock[];
 }
 
-export interface ItemPresentationPlayer {
-	getComponentRegistry(): ItemPresentationComponentRegistry;
-	getInteractionData(): InteractionData[];
-	getCorrectResponses(): Record<string, unknown>;
-	getItemBodyHtml(): HtmlContent;
-	getDeliveryContext(): ResolvedItemDeliveryContext | undefined;
-	sanitizeHtmlContent(html: string): string;
-	getPnp(): PnpProfile | undefined;
-}
-
-export interface CreateItemPresentationPlanOptions {
-	player: ItemPresentationPlayer;
+export interface CreateItemPresentationOptions {
+	source: ItemPresentationSource;
 	responses?: ItemPresentationResponseMap;
 	disabled?: boolean;
 	role?: QTIRole;
 	outcomeValues?: Record<string, unknown>;
 	heuristicsConfig?: QtiHeuristicsConfig;
-	stimulusContent?: Record<string, string>;
-	deliveryContext?: ResolvedItemDeliveryContext;
 	itemBodyScopeSelector?: string;
 	renderItemBodyRubrics?: boolean;
-	onComponentError?: (interaction: InteractionData, error: unknown) => void;
+	onComponentError?: (interaction: BaseInteractionData, error: unknown) => void;
 }
 
-export interface BlockInteractionPresentation {
-	interaction: InteractionData;
-	tagName: string;
-	key: string;
-	response: ItemPresentationResponseValue | null;
+export interface BlockInteractionMount {
+	readonly placement: 'block';
+	readonly renderer: 'web-component';
+	readonly interaction: BaseInteractionData;
+	readonly tagName: string;
+	readonly key: string;
+	readonly response: ItemPresentationResponseValue | null;
 	/** Lexical companion value used by extendedTextInteraction stringIdentifier. */
-	stringResponse?: ItemPresentationResponseValue | null;
-	correctResponse: unknown;
-	pnp: PnpProfile | undefined;
-	eliminationTool: boolean;
-	disabled: boolean;
-	componentRole: 'scorer' | undefined;
+	readonly stringResponse?: ItemPresentationResponseValue | null;
+	readonly correctResponse: unknown;
+	readonly pnp: PnpProfile | undefined;
+	readonly eliminationTool: boolean;
+	readonly disabled: boolean;
+	readonly componentRole: 'scorer' | undefined;
 }
 
-export interface ItemPresentationPlan {
-	roleCapabilities: RoleCapabilities;
-	effectiveDisabled: boolean;
-	correctResponses: Record<string, unknown>;
-	itemBodyHtml: string;
-	inlineSegments: InlineRenderSegment[];
-	blockInteractions: BlockInteractionPresentation[];
+export type InlineInteractionMount =
+	| {
+			readonly placement: 'inline';
+			readonly renderer: 'text-entry';
+			readonly interaction: TextEntryInteractionData;
+	  }
+	| {
+			readonly placement: 'inline';
+			readonly renderer: 'inline-choice';
+			readonly interaction: InlineChoiceInteractionData;
+	  };
+
+export type ItemInteractionMount = InlineInteractionMount | BlockInteractionMount;
+
+declare const finalItemBodyHtmlBrand: unique symbol;
+
+/** HTML that has completed every body transform, sanitation, and Trusted Types finalization. */
+export type FinalItemBodyHtml = HtmlContent & {
+	readonly [finalItemBodyHtmlBrand]: true;
+};
+
+export type ItemPresentationFlowNode =
+	| { readonly kind: 'html'; readonly html: FinalItemBodyHtml }
+	| { readonly kind: 'interaction'; readonly mount: ItemInteractionMount };
+
+export interface ItemPresentation {
+	readonly capabilities: RoleCapabilities;
+	readonly disabled: boolean;
+	readonly correctResponses: Readonly<Record<string, unknown>>;
+	/** Direct assessmentItem rubrics that remain outside the item-body flow. */
+	readonly directRubrics: readonly RubricBlock[];
+	/** Ordered, render-neutral body flow. Block mounts follow the authored body HTML. */
+	readonly flow: readonly ItemPresentationFlowNode[];
+	/** Policy-checked CSS is kept out of the HTML/Trusted Types pipeline. */
+	readonly scopedCss: string;
 }
 
-export function createItemPresentationPlan({
-	player,
+export function createItemPresentation({
+	source,
 	responses = {},
 	disabled = false,
 	role = 'candidate',
 	outcomeValues = {},
 	heuristicsConfig,
-	stimulusContent = {},
-	deliveryContext,
 	itemBodyScopeSelector = '[data-qti-item-body-scope]',
 	renderItemBodyRubrics = true,
 	onComponentError,
-}: CreateItemPresentationPlanOptions): ItemPresentationPlan {
-	const interactions = player.getInteractionData();
+}: CreateItemPresentationOptions): ItemPresentation {
 	const roleCapabilities = getRoleCapabilities(role);
 	const effectiveDisabled = disabled || roleCapabilities.isReadOnly;
-	const correctResponses = roleCapabilities.canViewCorrectResponses ? player.getCorrectResponses() : {};
-	const itemBodyHtml = buildItemBodyPresentationHtml({
-		player,
+	const correctResponses = roleCapabilities.canViewCorrectResponses ? source.correctResponses : {};
+	const { html, scopedCss } = buildItemBodyPresentation({
+		source,
 		role,
 		outcomeValues,
 		heuristicsConfig,
-		stimulusContent,
-		deliveryContext,
 		itemBodyScopeSelector,
 		renderItemBodyRubrics,
 	});
-
-	return {
+	const inlineFlow = createInlineRenderPlan(html, source.interactions).map(
+		(segment): ItemPresentationFlowNode => {
+			if (segment.type === 'html') {
+				// Inline planning parses and reserializes the composed body, so sanitation
+				// belongs after that final string transform and immediately before TT.
+				const sanitized = sanitizeHtml(segment.content, { security: source.security });
+				return {
+					kind: 'html',
+					html: finalizeItemBodyHtml(sanitized, source.security),
+				};
+			}
+			if (segment.type === 'textEntry') {
+				return {
+					kind: 'interaction',
+					mount: {
+						placement: 'inline',
+						renderer: 'text-entry',
+						interaction: segment.interaction,
+					},
+				};
+			}
+			return {
+				kind: 'interaction',
+				mount: {
+					placement: 'inline',
+					renderer: 'inline-choice',
+					interaction: segment.interaction,
+				},
+			};
+		}
+	);
+	const blockFlow = createBlockInteractionMounts({
+		interactions: source.interactions,
+		source,
+		responses,
+		correctResponses,
 		roleCapabilities,
 		effectiveDisabled,
+		onComponentError,
+	}).map(
+		(mount): ItemPresentationFlowNode => ({
+			kind: 'interaction',
+			mount,
+		})
+	);
+
+	return freezePresentation({
+		capabilities: roleCapabilities,
+		disabled: effectiveDisabled,
 		correctResponses,
-		itemBodyHtml,
-		inlineSegments: createInlineRenderPlan(itemBodyHtml, interactions),
-		blockInteractions: createBlockInteractionPresentations({
-			interactions,
-			player,
-			responses,
-			correctResponses,
-			roleCapabilities,
-			effectiveDisabled,
-			onComponentError,
-		}),
-	};
+		directRubrics: source.directRubrics ?? [],
+		flow: [...inlineFlow, ...blockFlow],
+		scopedCss,
+	});
 }
 
-function buildItemBodyPresentationHtml({
-	player,
+function freezePresentation<T>(value: T): T {
+	if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value;
+	const prototype = Object.getPrototypeOf(value);
+	if (!Array.isArray(value) && prototype !== Object.prototype && prototype !== null) return value;
+	Object.freeze(value);
+	for (const child of Object.values(value as Record<string, unknown>)) {
+		freezePresentation(child);
+	}
+	return value;
+}
+
+function buildItemBodyPresentation({
+	source,
 	role,
 	outcomeValues,
 	heuristicsConfig,
-	stimulusContent,
-	deliveryContext,
 	itemBodyScopeSelector,
 	renderItemBodyRubrics,
 }: {
-	player: ItemPresentationPlayer;
+	source: ItemPresentationSource;
 	role: QTIRole;
 	outcomeValues: Record<string, unknown>;
 	heuristicsConfig: QtiHeuristicsConfig | undefined;
-	stimulusContent: Record<string, string>;
-	deliveryContext: ResolvedItemDeliveryContext | undefined;
 	itemBodyScopeSelector: string;
 	renderItemBodyRubrics: boolean;
-}): string {
-	let html = String(player.getItemBodyHtml());
-	const resolvedDeliveryContext = deliveryContext ?? player.getDeliveryContext();
-	const stylesheetCss = buildScopedStylesheetCss(resolvedDeliveryContext, itemBodyScopeSelector);
+}): { html: string; scopedCss: string } {
+	let html = htmlToString(source.itemBodyHtml);
+	const scopedCss = buildScopedStylesheetCss(source.deliveryContext, itemBodyScopeSelector);
 	const effectiveStimulusContent = buildEffectiveStimulusContent(
-		resolvedDeliveryContext,
-		stimulusContent,
-		(content) => player.sanitizeHtmlContent(content)
+		source.deliveryContext,
+		(content) => sanitizeHtml(content, { security: source.security })
 	);
 
 	html = injectStimulusContent(html, effectiveStimulusContent);
-	if (stylesheetCss) {
-		html = `<style data-qti-stylesheets="resolved">${stylesheetCss}</style>${html}`;
-	}
 	html = renderRubricBlocksForRole(html, role, { renderRubrics: renderItemBodyRubrics });
 
 	const heuristics = normalizeHeuristicsConfig(heuristicsConfig);
@@ -159,7 +236,14 @@ function buildItemBodyPresentationHtml({
 		wrapWithSpan: false,
 	});
 
-	return hideBlockInteractionMarkup(html);
+	return { html: hideBlockInteractionMarkup(html), scopedCss };
+}
+
+function finalizeItemBodyHtml(
+	html: string,
+	security: PlayerSecurityConfig | undefined
+): FinalItemBodyHtml {
+	return toTrustedHtml(html, security?.trustedTypesPolicyName) as FinalItemBodyHtml;
 }
 
 function renderRubricBlocksForRole(
@@ -259,24 +343,23 @@ function hideBlockInteractionMarkup(html: string): string {
 	);
 }
 
-function createBlockInteractionPresentations({
+function createBlockInteractionMounts({
 	interactions,
-	player,
+	source,
 	responses,
 	correctResponses,
 	roleCapabilities,
 	effectiveDisabled,
 	onComponentError,
 }: {
-	interactions: InteractionData[];
-	player: ItemPresentationPlayer;
+	interactions: readonly BaseInteractionData[];
+	source: ItemPresentationSource;
 	responses: ItemPresentationResponseMap;
 	correctResponses: Record<string, unknown>;
 	roleCapabilities: RoleCapabilities;
 	effectiveDisabled: boolean;
-	onComponentError?: (interaction: InteractionData, error: unknown) => void;
-}): BlockInteractionPresentation[] {
-	const componentRegistry = player.getComponentRegistry();
+	onComponentError?: (interaction: BaseInteractionData, error: unknown) => void;
+}): BlockInteractionMount[] {
 	return interactions
 		.filter((interaction) => !isInlineInteractionType(interaction.type))
 		.map((interaction) => {
@@ -285,9 +368,11 @@ function createBlockInteractionPresentations({
 					'stringIdentifier' in interaction && typeof interaction.stringIdentifier === 'string'
 						? interaction.stringIdentifier
 						: undefined;
-				const block: BlockInteractionPresentation = {
+				const block: BlockInteractionMount = {
+					placement: 'block',
+					renderer: 'web-component',
 					interaction,
-					tagName: componentRegistry.getTagName(interaction),
+					tagName: source.componentRegistry.getTagName(interaction),
 					key: interactionKey(interaction),
 					response: responses[interaction.responseId] ?? null,
 					...(stringIdentifier
@@ -296,8 +381,8 @@ function createBlockInteractionPresentations({
 					correctResponse: roleCapabilities.canViewCorrectResponses
 						? (correctResponses[interaction.responseId] ?? null)
 						: null,
-					pnp: player.getPnp(),
-					eliminationTool: player.getPnp()?.cognitive?.eliminationTool === true,
+					pnp: source.pnp,
+					eliminationTool: source.pnp?.cognitive?.eliminationTool === true,
 					disabled: effectiveDisabled,
 					componentRole: roleCapabilities.canViewCorrectResponses ? 'scorer' : undefined,
 				};
@@ -307,10 +392,10 @@ function createBlockInteractionPresentations({
 				return null;
 			}
 		})
-		.filter((item): item is BlockInteractionPresentation => item !== null);
+		.filter((item): item is BlockInteractionMount => item !== null);
 }
 
-export function interactionKey(interaction: InteractionData): string {
+export function interactionKey(interaction: BaseInteractionData): string {
 	const anyInteraction = interaction as any;
 	const ids =
 		Array.isArray(anyInteraction?.choices) && anyInteraction.choices.length > 0

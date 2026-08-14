@@ -39,15 +39,20 @@ export function toSectionComposition(
 		role,
 		passageTools: scopedTools(config.passageTools, 'passage'),
 	});
-	const sectionItems: QtiSectionItemRef[] = player.getCurrentSectionItemRefs().map((item) => ({
-		identifier: item.identifier,
-		href: item.href,
-		title: item.title,
-		itemXml: item.itemXml,
-		responses: player.getResponsesForItem(item.identifier),
-		deliveryContext: item.deliveryContext,
-		tools: scopedTools(config.itemTools, 'item'),
-	}));
+	const activeSession = player.getCurrentItemSession();
+	const sectionItems: QtiSectionItemRef[] = player.getCurrentSectionItemRefs().map((item) => {
+		const common = {
+			identifier: item.identifier,
+			href: item.href,
+			title: item.title,
+			itemXml: item.itemXml,
+			deliveryContext: item.deliveryContext,
+			tools: scopedTools(config.itemTools, 'item'),
+		};
+		return item.identifier === currentItem?.identifier && activeSession
+			? { ...common, session: activeSession }
+			: { ...common, responses: player.getResponsesForItem(item.identifier) };
+	});
 
 	return resolveQtiSectionComposition({
 		section: {
@@ -60,9 +65,6 @@ export function toSectionComposition(
 			sharedContext,
 		},
 		activeItemIdentifier: currentItem?.identifier,
-		responsesByItemIdentifier: Object.fromEntries(
-			sectionItems.map((item) => [item.identifier, item.responses ?? {}])
-		),
 		canPrevious: navState.canPrevious,
 		canNext: navState.canNext,
 		security: config.security,

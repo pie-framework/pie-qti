@@ -12,9 +12,13 @@ import type { ExtractedPci } from '../../pci/types.js';
  * Priority 20 > standardCustomExtractor priority 10, so this runs first when
  * both would match the same element.
  */
-export const portableCustomExtractor: ElementExtractor<ExtractedPci> = {
+export const portableCustomExtractor: ElementExtractor<
+	ExtractedPci,
+	'portableCustomInteraction'
+> = {
 	id: 'qti:portable-custom-interaction',
 	name: 'QTI Portable Custom Interaction',
+	outputType: 'portableCustomInteraction',
 	priority: 20,
 	elementTypes: [
 		'customInteraction',
@@ -113,7 +117,6 @@ export const portableCustomExtractor: ElementExtractor<ExtractedPci> = {
 		}
 
 		return {
-			type: 'portableCustomInteraction',
 			responseIdentifier,
 			customInteractionTypeIdentifier,
 			primaryPath,

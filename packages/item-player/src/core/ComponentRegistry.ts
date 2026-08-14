@@ -6,12 +6,14 @@
  * ExtractionRegistry, but for framework-agnostic web components.
  */
 
-import type { InteractionData } from '../interactions/index.js';
+import type { BaseInteractionData } from '../interactions/index.js';
 
 /**
  * Configuration for registering a web component renderer
  */
-export interface ComponentConfig<TData extends InteractionData = InteractionData> {
+export interface ComponentConfig<
+	TData extends BaseInteractionData = BaseInteractionData,
+> {
 	/** Unique name for this renderer (e.g., 'rating-choice', 'standard-choice') */
 	name: string;
 
@@ -58,7 +60,9 @@ export interface ComponentConfig<TData extends InteractionData = InteractionData
 /**
  * Internal registered component with metadata
  */
-interface RegisteredComponent<TData extends InteractionData = InteractionData> {
+interface RegisteredComponent<
+	TData extends BaseInteractionData = BaseInteractionData,
+> {
 	config: ComponentConfig<TData> & {
 		priority: number;
 		canHandle: (data: TData) => boolean;
@@ -93,8 +97,9 @@ const DEFAULT_COMPONENT_TAGS_BY_TYPE = {
  * Registry for web components that render QTI interactions
  */
 export class ComponentRegistry {
-	private components = new Map<string, RegisteredComponent[]>();
+	private components = new Map<string, RegisteredComponent<any>[]>();
 	private definedElements = new Set<string>();
+	private sealed = false;
 
 	/**
 	 * Register a web component for an interaction type with priority-based dispatch
@@ -120,10 +125,11 @@ export class ComponentRegistry {
 	 *   tagName: 'qti-choice-interaction'
 	 * });
 	 */
-	register<TData extends InteractionData>(
+	register<TData extends BaseInteractionData>(
 		type: string,
 		config: ComponentConfig<TData>
 	): void {
+		this.assertMutable();
 		// Validate tag name
 		if (!config.tagName.includes('-')) {
 			throw new Error(
@@ -132,15 +138,10 @@ export class ComponentRegistry {
 			);
 		}
 
-		// Auto-register custom element if requested
-		if (config.componentClass && config.autoRegister !== false) {
-			if (!this.definedElements.has(config.tagName)) {
-				if (!customElements.get(config.tagName)) {
-					customElements.define(config.tagName, config.componentClass);
-				}
-				this.definedElements.add(config.tagName);
-			}
-		}
+		const registered = this.createRegisteredComponent(config);
+		// Define eagerly in a browser. In a headless compiler there is no custom
+		// element registry, so registration is deferred until the renderer is used.
+		this.ensureCustomElementDefined(registered.config);
 
 		// Get or create component array for this type
 		let components = this.components.get(type);
@@ -150,20 +151,39 @@ export class ComponentRegistry {
 		}
 
 		// Add normalized component and sort by priority (highest first)
-		components.push(this.createRegisteredComponent(config) as RegisteredComponent);
+		components.push(registered as RegisteredComponent);
 		components.sort((a, b) => b.config.priority - a.config.priority);
 	}
 
-	private createRegisteredComponent<TData extends InteractionData>(
+	private createRegisteredComponent<TData extends BaseInteractionData>(
 		config: ComponentConfig<TData>
 	): RegisteredComponent<TData> {
-		return {
-			config: {
+		return Object.freeze({
+			config: Object.freeze({
 				...config,
 				priority: config.priority ?? 0,
-				canHandle: config.canHandle ?? (() => true),
-			},
-		};
+				canHandle: config.canHandle?.bind(config) ?? (() => true),
+			}),
+		});
+	}
+
+	private ensureCustomElementDefined<TData extends BaseInteractionData>(
+		config: RegisteredComponent<TData>['config'],
+	): void {
+		if (
+			!config.componentClass ||
+			config.autoRegister === false ||
+			this.definedElements.has(config.tagName)
+		) {
+			return;
+		}
+
+		const registry = globalThis.customElements;
+		if (!registry) return;
+		if (!registry.get(config.tagName)) {
+			registry.define(config.tagName, config.componentClass);
+		}
+		this.definedElements.add(config.tagName);
 	}
 
 	/**
@@ -174,7 +194,7 @@ export class ComponentRegistry {
 	 * @returns Web component tag name (e.g., 'qti-choice-interaction')
 	 * @throws Error if no component matches
 	 */
-	getTagName<TData extends InteractionData>(data: TData): string {
+	getTagName<TData extends BaseInteractionData>(data: TData): string {
 		const components = this.components.get(data.type);
 
 		if (!components || components.length === 0) {
@@ -188,6 +208,7 @@ export class ComponentRegistry {
 		for (const { config } of components) {
 			try {
 				if (config.canHandle(data as any)) {
+					this.ensureCustomElementDefined(config);
 					return config.tagName;
 				}
 			} catch (error) {
@@ -232,7 +253,7 @@ export class ComponentRegistry {
 	/**
 	 * Get the tag name for a registered type by name (no canHandle evaluation).
 	 * Useful for non-interaction components like catalogPopup where the type string
-	 * is known and there is no InteractionData object to pass.
+	 * is known and there is no delivered interaction object to pass.
 	 *
 	 * Returns the highest-priority registered tag name for the type, or null if
 	 * the type is not registered.
@@ -240,7 +261,27 @@ export class ComponentRegistry {
 	getTagNameForType(type: string): string | null {
 		const components = this.components.get(type);
 		if (!components || components.length === 0) return null;
-		return components[0].config.tagName;
+		const config = components[0].config;
+		this.ensureCustomElementDefined(config);
+		return config.tagName;
+	}
+
+	/** Freeze renderer selection for a compiled AssessmentItem definition. */
+	seal(): this {
+		this.sealed = true;
+		return this;
+	}
+
+	isSealed(): boolean {
+		return this.sealed;
+	}
+
+	private assertMutable(): void {
+		if (this.sealed) {
+			throw new Error(
+				'ComponentRegistry is sealed for this AssessmentItem; create a new definition to change renderers',
+			);
+		}
 	}
 }
 

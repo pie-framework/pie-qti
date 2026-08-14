@@ -1,4 +1,5 @@
 import type { ElementExtractor } from '../../extraction/types.js';
+import { normalizePixelDimension } from '../../security/styleValues.js';
 import type { QTIElement } from '../index.js';
 
 export interface ImageData {
@@ -39,8 +40,14 @@ function imageDataFromObject(
 
 	const type = utils.getAttribute(objectElement, 'type', '');
 	const data = utils.getAttribute(objectElement, 'data', '');
-	const width = utils.getAttribute(objectElement, 'width', defaultWidth);
-	const height = utils.getAttribute(objectElement, 'height', defaultHeight);
+	const width = normalizePixelDimension(
+		utils.getAttribute(objectElement, 'width', ''),
+		defaultWidth,
+	);
+	const height = normalizePixelDimension(
+		utils.getAttribute(objectElement, 'height', ''),
+		defaultHeight,
+	);
 	const content = utils.getHtmlContent(objectElement);
 
 	if (type.startsWith('image/svg') && /<svg[\s>]/i.test(content)) {

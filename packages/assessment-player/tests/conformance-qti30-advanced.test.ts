@@ -1,6 +1,12 @@
 import './setup.js';
 
 import { describe, expect, it } from 'bun:test';
+import type {
+	AssessmentItemDefinitionPlugin,
+	ComponentRegistry,
+	ElementExtractor,
+	ExtractionRegistry,
+} from '@pie-qti/item-player';
 import { AssessmentPlayer } from '../src/core/AssessmentPlayer.js';
 import { ReferenceBackendAdapter } from '../src/integration/ReferenceBackendAdapter.js';
 import { toSectionComposition } from '../src/integration/toSectionComposition.js';
@@ -335,27 +341,31 @@ describe('QTI 3.0 Advanced — T5 Item Session Control', () => {
     <qti-item-session-control max-attempts="0" allow-skipping="true"/>
     <qti-assessment-section identifier="section-1" title="Section 1" visible="true">
       <qti-assessment-item-ref identifier="t5-item-1" href="items/item-1.xml"/>
+      <qti-assessment-item-ref identifier="t5-item-2" href="items/item-2.xml"/>
     </qti-assessment-section>
   </qti-test-part>
 </qti-assessment-test>`, {
-			itemXmlMap: { 'items/item-1.xml': makeChoiceItem('t5-item-1') },
+			itemXmlMap: {
+				'items/item-1.xml': makeChoiceItem('t5-item-1'),
+				'items/item-2.xml': makeChoiceItem('t5-item-2'),
+			},
 		});
 		const player = await AssessmentPlayer.create({
 			backend: makeAdapter(assessment),
 			initSession: { assessmentId: assessment.identifier, candidateId: 'candidate-1' },
 		});
-		player.updateResponseForItem('t5-item-1', 'RESPONSE', {
+		player.updateResponseForItem('t5-item-2', 'RESPONSE', {
 			choices: ['choice-1'],
 			meta: { source: 'candidate' },
 		});
 
-		const firstSnapshot = player.getResponsesForItem('t5-item-1') as {
+		const firstSnapshot = player.getResponsesForItem('t5-item-2') as {
 			RESPONSE: { choices: string[]; meta: { source: string } };
 		};
 		firstSnapshot.RESPONSE.choices.push('choice-2');
 		firstSnapshot.RESPONSE.meta.source = 'mutated';
 
-		const secondSnapshot = player.getResponsesForItem('t5-item-1') as {
+		const secondSnapshot = player.getResponsesForItem('t5-item-2') as {
 			RESPONSE: { choices: string[]; meta: { source: string } };
 		};
 		expect(secondSnapshot.RESPONSE.choices).toEqual(['choice-1']);
@@ -396,8 +406,12 @@ describe('QTI 3.0 Advanced — Submission mode item sessions', () => {
 			initSession: { assessmentId: assessment.identifier, candidateId: 'candidate-1' },
 		});
 
+		const firstLiveSession = player.getCurrentItemSession();
 		player.updateResponse('RESPONSE', 'correct');
+		expect(firstLiveSession?.state().responses.RESPONSE).toBe('correct');
 		await player.next();
+		expect(firstLiveSession?.state().disposed).toBe(true);
+		expect(player.getCurrentItemSession()).not.toBe(firstLiveSession);
 
 		expect(player.getState().itemSessions).toBeUndefined();
 		const suspended = player.getState({ includeItemSessions: true }).itemSessions?.['session-item-1'];
@@ -415,6 +429,95 @@ describe('QTI 3.0 Advanced — Submission mode item sessions', () => {
 		expect(finalState.itemSessions?.['session-item-1'].contextVariables.numAttempts.value).toBe(1);
 		expect(finalState.itemSessions?.['session-item-2'].lifecycleStatus).toBe('closed');
 		expect(finalState.itemSessions?.['session-item-2'].contextVariables.numAttempts.value).toBe(1);
+		const acceptedLiveSession = player.getCurrentItemSession();
+		expect(acceptedLiveSession?.state().lifecycleStatus).toBe('closed');
+		expect(acceptedLiveSession?.state().numAttempts).toBe(1);
+		expect(toSectionComposition(player).activeItem.session).toBe(acceptedLiveSession);
+		expect(() => player.updateResponse('RESPONSE', 'wrong')).toThrow(
+			'Cannot update responses while item session is closed',
+		);
+	});
+
+	it('restores the authoritative current session when simultaneous submission is rejected', async () => {
+		const assessment = makeTwoItemAssessment('simultaneous');
+		const adapter = makeAdapter(assessment);
+		const submit = adapter.submitResponses.bind(adapter);
+		let submitCalls = 0;
+		adapter.submitResponses = async (request) => {
+			submitCalls += 1;
+			if (submitCalls === 2) return { success: false, error: 'Transient batch rejection' };
+			return submit(request);
+		};
+		const player = await AssessmentPlayer.create({
+			backend: adapter,
+			initSession: { assessmentId: assessment.identifier, candidateId: 'candidate-1' },
+		});
+
+		player.updateResponse('RESPONSE', 'correct');
+		await player.next();
+		player.updateResponse('RESPONSE', 'correct');
+		const rejectedSession = player.getCurrentItemSession();
+		const before = rejectedSession?.state();
+
+		await expect(player.submit()).rejects.toThrow('Transient batch rejection');
+
+		const restoredSession = player.getCurrentItemSession();
+		expect(rejectedSession?.state().disposed).toBe(true);
+		expect(restoredSession).not.toBe(rejectedSession);
+		expect(restoredSession?.state().lifecycleStatus).toBe(before?.lifecycleStatus);
+		expect(restoredSession?.state().numAttempts).toBe(0);
+		expect(restoredSession?.state().responses.RESPONSE).toBe('correct');
+		expect(toSectionComposition(player).activeItem.session).toBe(restoredSession);
+		const partialState = player.getState({ includeItemSessions: true });
+		expect(partialState.itemScores?.['session-item-1']?.score).toBe(1);
+		expect(partialState.itemSessions?.['session-item-1']?.lifecycleStatus).toBe('closed');
+		expect(partialState.itemSessions?.['session-item-2']?.lifecycleStatus).toBe(
+			before?.lifecycleStatus,
+		);
+
+		player.updateResponse('RESPONSE', 'wrong');
+		expect(restoredSession?.state().responses.RESPONSE).toBe('wrong');
+		player.updateResponse('RESPONSE', 'correct');
+		const result = await player.submit();
+		expect(result.totalScore).toBe(2);
+		expect(submitCalls).toBe(3);
+		expect(player.getCurrentItemSession()?.state().lifecycleStatus).toBe('closed');
+	});
+
+	it('retries a rejected offscreen item without resubmitting an accepted current item', async () => {
+		const assessment = makeTwoItemAssessment('simultaneous');
+		const adapter = makeAdapter(assessment);
+		const submit = adapter.submitResponses.bind(adapter);
+		const submittedItems: string[] = [];
+		adapter.submitResponses = async (request) => {
+			submittedItems.push(request.itemIdentifier);
+			if (submittedItems.length === 2) {
+				return { success: false, error: 'Transient offscreen rejection' };
+			}
+			return submit(request);
+		};
+		const player = await AssessmentPlayer.create({
+			backend: adapter,
+			initSession: { assessmentId: assessment.identifier, candidateId: 'candidate-1' },
+		});
+
+		player.updateResponse('RESPONSE', 'correct');
+		player.updateResponseForItem('session-item-2', 'RESPONSE', 'correct');
+
+		await expect(player.submit()).rejects.toThrow('Transient offscreen rejection');
+		const partialState = player.getState({ includeItemSessions: true });
+		expect(partialState.itemScores?.['session-item-1']?.score).toBe(1);
+		expect(partialState.itemSessions?.['session-item-1']?.lifecycleStatus).toBe('closed');
+		expect(partialState.itemSessions?.['session-item-2']).toBeUndefined();
+		expect(player.getCurrentItemSession()?.state().lifecycleStatus).toBe('closed');
+
+		const result = await player.submit();
+		expect(result.totalScore).toBe(2);
+		expect(submittedItems).toEqual(['session-item-1', 'session-item-2', 'session-item-2']);
+		expect(
+			player.getState({ includeItemSessions: true }).itemSessions?.['session-item-2']
+				?.lifecycleStatus,
+		).toBe('closed');
 	});
 
 	it('ends and scores the current item before navigation in individual submission mode', async () => {
@@ -431,6 +534,67 @@ describe('QTI 3.0 Advanced — Submission mode item sessions', () => {
 		expect(ended?.lifecycleStatus).toBe('closed');
 		expect(ended?.contextVariables.numAttempts.value).toBe(1);
 		expect(player.getState().itemScores?.['session-item-1']?.score).toBe(1);
+	});
+
+	it('preserves local item responses when an individual-submit state omits them', async () => {
+		const assessment = makeTwoItemAssessment('individual');
+		const adapter = makeAdapter(assessment);
+		const submit = adapter.submitResponses.bind(adapter);
+		adapter.submitResponses = async (request) => {
+			const response = await submit(request);
+			if (response.updatedState) {
+				response.updatedState = { ...response.updatedState, itemResponses: {} };
+			}
+			return response;
+		};
+		const player = await AssessmentPlayer.create({
+			backend: adapter,
+			initSession: { assessmentId: assessment.identifier, candidateId: 'candidate-1' },
+		});
+
+		player.updateResponseForItem('session-item-2', 'RESPONSE', 'wrong');
+		player.updateResponse('RESPONSE', 'correct');
+		await player.submitCurrentItem();
+
+		expect(player.getResponsesForItem('session-item-1').RESPONSE).toBe('correct');
+		expect(player.getResponsesForItem('session-item-2').RESPONSE).toBe('wrong');
+	});
+
+	it('restores the authoritative live session after a rejected item submission', async () => {
+		const assessment = makeTwoItemAssessment('individual');
+		const adapter = makeAdapter(assessment);
+		const submit = adapter.submitResponses.bind(adapter);
+		let submitCalls = 0;
+		adapter.submitResponses = async (request) => {
+			submitCalls += 1;
+			if (submitCalls === 1) return { success: false, error: 'Transient rejection' };
+			return submit(request);
+		};
+		const player = await AssessmentPlayer.create({
+			backend: adapter,
+			initSession: { assessmentId: assessment.identifier, candidateId: 'candidate-1' },
+		});
+
+		player.updateResponse('RESPONSE', 'correct');
+		const rejectedSession = player.getCurrentItemSession();
+		const before = rejectedSession?.state();
+		await expect(player.submitCurrentItem()).rejects.toThrow('Transient rejection');
+
+		const restoredSession = player.getCurrentItemSession();
+		expect(rejectedSession?.state().disposed).toBe(true);
+		expect(restoredSession).not.toBe(rejectedSession);
+		expect(restoredSession?.state().lifecycleStatus).toBe(before?.lifecycleStatus);
+		expect(restoredSession?.state().numAttempts).toBe(0);
+		expect(restoredSession?.state().responses.RESPONSE).toBe('correct');
+		expect(toSectionComposition(player).activeItem.session).toBe(restoredSession);
+
+		await player.submitCurrentItem();
+		expect(submitCalls).toBe(2);
+		const accepted = player.getState({ includeItemSessions: true }).itemSessions?.[
+			'session-item-1'
+		];
+		expect(accepted?.lifecycleStatus).toBe('closed');
+		expect(accepted?.numAttempts).toBe(1);
 	});
 
 	it('does not submit rich item session variables by default', async () => {
@@ -478,6 +642,106 @@ describe('QTI 3.0 Advanced — Submission mode item sessions', () => {
 
 		expect(response.success).toBe(false);
 		expect(response.error).toBe('Time limit expired');
+	});
+
+	it('threads definition plugins through assessment-owned item sessions', async () => {
+		const vendorItem = `<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="vendor-item" title="Vendor item">
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="integer"/>
+  <itemBody><vendorInteraction responseIdentifier="RESPONSE"/></itemBody>
+</assessmentItem>`;
+		const extractor: ElementExtractor<{ scale: number }, 'vendorRatingInteraction'> = {
+			id: 'acme:vendor-rating',
+			name: 'Vendor rating',
+			priority: 100,
+			elementTypes: ['vendorInteraction'],
+			outputType: 'vendorRatingInteraction',
+			canHandle: () => true,
+			extract: () => ({ scale: 5 }),
+		};
+		const plugin: AssessmentItemDefinitionPlugin = {
+			kind: 'assessment-item-definition-plugin',
+			name: 'acme-assessment-vendor',
+			version: '1.0.0',
+			registerExtractors: (registry: ExtractionRegistry) => registry.register(extractor),
+			registerComponents: (registry: ComponentRegistry) =>
+				registry.register('vendorRatingInteraction', {
+					name: 'vendor-rating',
+					tagName: 'acme-vendor-rating',
+				}),
+		};
+		const assessment: SecureAssessment = {
+			identifier: 'vendor-assessment',
+			title: 'Vendor assessment',
+			navigationMode: 'nonlinear',
+			submissionMode: 'individual',
+			testParts: [
+				{
+					identifier: 'part-1',
+					sections: [
+						{
+							identifier: 'section-1',
+							visible: true,
+							assessmentItemRefs: [
+								{ identifier: 'vendor-item', role: 'candidate', itemXml: vendorItem },
+							],
+						},
+					],
+				},
+			],
+		};
+		const player = await AssessmentPlayer.create({
+			backend: makeAdapter(assessment),
+			initSession: { assessmentId: assessment.identifier, candidateId: 'candidate-1' },
+			plugins: [plugin],
+		});
+
+		const mount = player
+			.getCurrentItemSession()
+			?.present()
+			.flow.find((node) => node.kind === 'interaction')?.mount;
+		expect(mount?.placement).toBe('block');
+		expect(mount && 'tagName' in mount ? mount.tagName : undefined).toBe(
+			'acme-vendor-rating'
+		);
+		expect(mount?.interaction.type).toBe('vendorRatingInteraction');
+	});
+
+	it('uses the assessment host role as the authoritative item-session role', async () => {
+		const scorerItem = `<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+			identifier="scorer-item" title="Scorer item">
+			<responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier">
+				<correctResponse><value>A</value></correctResponse>
+			</responseDeclaration>
+			<rubricBlock view="scorer" use="rubric"><p>Scorer guide</p></rubricBlock>
+			<itemBody><choiceInteraction responseIdentifier="RESPONSE" maxChoices="1">
+				<simpleChoice identifier="A">A</simpleChoice>
+			</choiceInteraction></itemBody>
+		</assessmentItem>`;
+		const assessment: SecureAssessment = {
+			identifier: 'scorer-assessment',
+			title: 'Scorer assessment',
+			navigationMode: 'nonlinear',
+			submissionMode: 'individual',
+			testParts: [{
+				identifier: 'part-1',
+				sections: [{
+					identifier: 'section-1',
+					visible: true,
+					assessmentItemRefs: [{ identifier: 'scorer-item', role: 'candidate', itemXml: scorerItem }],
+				}],
+			}],
+		};
+		const player = await AssessmentPlayer.create({
+			backend: makeAdapter(assessment),
+			initSession: { assessmentId: assessment.identifier, candidateId: 'scorer-1' },
+			role: 'scorer',
+		});
+
+		const session = player.getCurrentItemSession();
+		expect(session?.state().role).toBe('scorer');
+		const presentation = session?.present();
+		expect(presentation?.capabilities.canViewCorrectResponses).toBe(true);
+		expect(presentation?.directRubrics).toHaveLength(1);
 	});
 });
 

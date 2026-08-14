@@ -1218,43 +1218,28 @@ PNP profiles are typically stored at the platform level (associated with a stude
 
 ### PNP Profile Structure
 
-A PNP profile is a structured document (typically delivered as JSON or XML) describing the candidate's needs. The profile is organized into categories:
+A PNP profile is structured data describing the candidate's needs. The current player accepts the
+implemented `PnpProfile` subset below; `parsePnpXml()` can produce the same shape from QTI XML.
+Other QTI 3.0 PNP fields remain host concerns or deferred work.
 
 ```json
 {
-  "pnp": {
-    "accessForAllUser": {
-      "userId": "student-12345",
-      "userIdType": "platform"
+  "display": {
+    "colorScheme": "blackwhite"
+  },
+  "content": {
+    "glossaryOnScreen": true,
+    "keywordTranslation": {
+      "active": true,
+      "languageCode": "es"
     },
-    "display": {
-      "increaseDefaultFontSize": false,
-      "colorOverlay": {
-        "active": true,
-        "colorScheme": "blackwhite"
-      },
-      "reverseContrast": false,
-      "magnification": false
-    },
-    "content": {
-      "glossaryOnScreen": true,
-      "keywordTranslation": {
-        "active": true,
-        "languageCode": "es"
-      },
-      "extendedTime": {
-        "active": true,
-        "multiplier": 1.5
-      }
-    },
-    "inputMethods": {
-      "keyboardNavigation": true,
-      "switchAccess": false
-    },
-    "cognitive": {
-      "structuredLabelSupport": true,
-      "eliminationTool": true
+    "extendedTime": {
+      "active": true,
+      "multiplier": 1.5
     }
+  },
+  "cognitive": {
+    "eliminationTool": true
   }
 }
 ```
@@ -1272,11 +1257,12 @@ QTI 3.0 defines a standard set of named color schemes that players must support:
 | `yellowblue` | Yellow text on dark blue background |
 | `medgray` | Dark text on medium gray background |
 
-Players apply color schemes via CSS class or custom property injection:
+The current player writes `data-qti-colorscheme` on its rendered root; shipped styles target that
+attribute and use CSS custom properties internally:
 
 ```css
 /* Example: blackwhite scheme */
-.qti-pnp-colorscheme-blackwhite {
+[data-qti-colorscheme="blackwhite"] {
   --qti-bg-color: #ffffff;
   --qti-text-color: #000000;
   --qti-border-color: #000000;
@@ -1290,7 +1276,9 @@ Players apply color schemes via CSS class or custom property injection:
 
 PNP controls which accessibility tools are available during item delivery:
 
-**Elimination Tool:** Allows candidates to mark and hide choices they've ruled out.
+**Elimination Tool:** Allows candidates to mark choices they have ruled out. It does not remove or
+disable the choice as a response option; candidates can reconsider it without changing scoring
+semantics.
 
 ```html
 <!-- Player renders an elimination button per choice when eliminationTool is active -->
@@ -1300,7 +1288,7 @@ PNP controls which accessibility tools are available during item delivery:
 </div>
 ```
 
-**Structured Labels:** Augments interaction prompts and choice labels with additional structural markup for screen reader clarity.
+**Structured Labels:** Part of the wider PNP model, but not implemented by the current player.
 
 **Keyword Translation:** When `keywordTranslation` is active, terms linked to catalog entries (see Section 6.3) are automatically presented with translations in the specified language.
 
@@ -1327,19 +1315,28 @@ Item authors should write items to be PNP-compatible from the start:
 ### PNP and the Player API
 
 ```typescript
-// Pass a PNP profile at session initialization
-const player = new Player(itemXml, {
+import { createAssessmentItemDefinition } from '@pie-qti/item-player';
+
+// Compile the initial PNP profile into the immutable definition
+const definition = createAssessmentItemDefinition({
+  itemXml,
   pnp: {
-    colorScheme: 'blackwhite',
-    glossaryOnScreen: true,
-    keywordTranslation: { active: true, languageCode: 'es' },
-    eliminationTool: true,
-    extendedTime: { active: true, multiplier: 1.5 }
+    display: { colorScheme: 'blackwhite' },
+    content: {
+      glossaryOnScreen: true,
+      keywordTranslation: { active: true, languageCode: 'es' },
+      extendedTime: { active: true, multiplier: 1.5 }
+    },
+    cognitive: { eliminationTool: true }
   }
 });
+const session = definition.openSession();
 
 // PNP profile can also be updated dynamically (e.g., mid-session adjustments)
-player.updatePnp({ colorScheme: 'yellowblue' });
+session.dispatch({
+  action: 'updatePnp',
+  profile: { display: { colorScheme: 'yellowblue' } }
+});
 ```
 
 ---
@@ -1430,15 +1427,21 @@ Players surface catalog content in several ways depending on PNP configuration a
 **Keyword translation panel:** When `keywordTranslation` is active, a side panel or overlay shows the translated definitions for all visible linked terms.
 
 ```typescript
-// Player surfaces catalog entries based on PNP
-const player = new Player(itemXml, {
+import { createAssessmentItemDefinition } from '@pie-qti/item-player';
+
+// The item session surfaces catalog entries based on PNP
+const definition = createAssessmentItemDefinition({
+  itemXml,
   pnp: {
-    glossaryOnScreen: true,
-    keywordTranslation: { active: true, languageCode: 'es' }
+    content: {
+      glossaryOnScreen: true,
+      keywordTranslation: { active: true, languageCode: 'es' }
+    }
   }
 });
+const session = definition.openSession();
 
-// The player will automatically:
+// The session presentation will:
 // 1. Identify all elements with data-catalog-idref in the item body
 // 2. For glossaryOnScreen: add tooltip triggers to linked terms
 // 3. For keywordTranslation: find qti-card-entry elements with usage="keyword-translation"

@@ -2,6 +2,7 @@
 
 <script lang="ts">
 	import type { GraphicAssociateInteractionData } from '@pie-qti/item-player';
+	import { normalizePixelDimension } from '@pie-qti/item-player/security';
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
@@ -26,6 +27,12 @@
 	const parsedCorrectResponse = $derived(parseJsonProp<string[]>(correctResponse));
 	const isShowingCorrect = $derived(role === 'scorer' && parsedCorrectResponse !== null);
 	const correctPairs = $derived(Array.isArray(parsedCorrectResponse) ? parsedCorrectResponse : []);
+	const imageWidth = $derived(
+		normalizePixelDimension(parsedInteraction?.imageData?.width, '500') ?? '500',
+	);
+	const imageHeight = $derived(
+		normalizePixelDimension(parsedInteraction?.imageData?.height, '300') ?? '300',
+	);
 
 	// Get reference to the root element for event dispatching
 	let rootElement: HTMLDivElement | undefined = $state();
@@ -191,7 +198,7 @@
 					bind:this={imageContainer}
 					part="stage"
 					class="qti-ga-stage relative border-2 border-base-300 rounded-lg overflow-hidden bg-base-200"
-					style="width: {parsedInteraction.imageData?.width}px; height: {parsedInteraction.imageData?.height}px;"
+					style="width: {imageWidth}px; height: {imageHeight}px;"
 				>
 					{#if parsedInteraction.imageData}
 						{#if parsedInteraction.imageData.type === 'svg' && parsedInteraction.imageData.content}

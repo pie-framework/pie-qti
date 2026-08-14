@@ -1,7 +1,7 @@
 <svelte:options customElement="pie-qti-custom" />
 
 <script lang="ts">
-	import type { CustomInteractionData, InteractionData } from '@pie-qti/item-player';
+	import type { CustomInteractionData } from '@pie-qti/item-player';
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import CustomInteractionFallback from '../../shared/components/CustomInteractionFallback.svelte';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
@@ -9,7 +9,7 @@
 	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
 
 	interface Props {
-		interaction?: InteractionData | string;
+		interaction?: CustomInteractionData | string;
 		response?: string | null;
 		disabled?: boolean;
 		i18n?: I18nProvider;
@@ -20,7 +20,7 @@
 	let { interaction = $bindable(), response = $bindable(), disabled = false, i18n = $bindable(), typeset, onChange }: Props = $props();
 
 	// Parse props that may be JSON strings (web component usage)
-	const parsedInteraction = $derived(parseJsonProp<InteractionData>(interaction));
+	const parsedInteraction = $derived(parseJsonProp<CustomInteractionData>(interaction));
 	const parsedResponse = $derived(parseJsonProp<string>(response));
 
 	// Get reference to the root element for event dispatching

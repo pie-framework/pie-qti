@@ -193,10 +193,13 @@ function resolveSharedContext(
 function resolveResponsesByItemIdentifier(
 	options: ResolveQtiSectionCompositionOptions,
 ): Record<string, Record<string, unknown>> {
-	if (options.responsesByItemIdentifier) return options.responsesByItemIdentifier;
-
 	return Object.fromEntries(
-		options.section.itemRefs.map((item) => [item.identifier, item.responses ?? {}]),
+		options.section.itemRefs.map((item) => [
+			item.identifier,
+			item.session
+				? item.session.state().responses
+				: (options.responsesByItemIdentifier?.[item.identifier] ?? item.responses ?? {}),
+		]),
 	) as Record<string, Record<string, unknown>>;
 }
 

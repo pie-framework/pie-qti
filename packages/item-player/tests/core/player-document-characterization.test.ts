@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'bun:test';
-import { Player } from '../../src/index.js';
+import { Qti2xElementNameMapper } from '@pie-qti/qti-common';
+import { Player } from '../../src/core/Player.js';
+import { createExtractionRegistry } from '../../src/extraction/ExtractionRegistry.js';
 import type { ElementExtractor, ExtractionContext } from '../../src/extraction/types.js';
 
 const QTI22_NS = 'xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"';
@@ -420,8 +422,10 @@ describe('Player document characterization', () => {
 			}),
 		};
 
+		const extractionRegistry = createExtractionRegistry(new Qti2xElementNameMapper());
+		extractionRegistry.register(capturingExtractor);
 		const player = new Player({
-			plugins: [{ registerExtractors: (registry: any) => registry.register(capturingExtractor) }],
+			extractionRegistry,
 			itemXml: qti22Item(
 				`<choiceInteraction responseIdentifier="RESPONSE" shuffle="false" maxChoices="1">
 					<simpleChoice identifier="A">A</simpleChoice>
@@ -460,8 +464,10 @@ describe('Player document characterization', () => {
 			extract: () => ({ prompt: null, rawAttributes: {}, xml: '<pluginInteraction />' }),
 		};
 
+		const extractionRegistry = createExtractionRegistry(new Qti2xElementNameMapper());
+		extractionRegistry.register(pluginExtractor);
 		const player = new Player({
-			plugins: [{ registerExtractors: (registry: any) => registry.register(pluginExtractor) }],
+			extractionRegistry,
 			itemXml: qti22Item(
 				`<pluginInteraction responseIdentifier="PLUGIN_RESPONSE" data-plugin="true"/>`,
 				`<responseDeclaration identifier="PLUGIN_RESPONSE" cardinality="single" baseType="string"/>`

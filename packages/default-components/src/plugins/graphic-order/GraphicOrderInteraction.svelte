@@ -2,6 +2,7 @@
 
 <script lang="ts">
 	import type { GraphicOrderInteractionData } from '@pie-qti/item-player';
+	import { normalizePixelDimension } from '@pie-qti/item-player/security';
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import SortableList from '../../shared/components/SortableList.svelte';
@@ -25,6 +26,12 @@
 	const parsedResponse = $derived(parseJsonProp<string[]>(response));
 	const parsedCorrectResponse = $derived(parseJsonProp<string[]>(correctResponse));
 	const isShowingCorrect = $derived(role === 'scorer' && parsedCorrectResponse !== null);
+	const imageWidth = $derived(
+		normalizePixelDimension(parsedInteraction?.imageData?.width, '500') ?? '500',
+	);
+	const imageHeight = $derived(
+		normalizePixelDimension(parsedInteraction?.imageData?.height, '300') ?? '300',
+	);
 
 	// Get reference to the root element for event dispatching
 	let rootElement: HTMLDivElement | undefined = $state();
@@ -119,7 +126,7 @@
 							<div
 								bind:this={imageElement}
 								class="w-full h-auto"
-								style="width: {parsedInteraction.imageData.width}px; height: {parsedInteraction.imageData.height}px;"
+								style="width: {imageWidth}px; height: {imageHeight}px;"
 							>
 								{@html parsedInteraction.imageData.content}
 							</div>
@@ -129,8 +136,7 @@
 								src={parsedInteraction.imageData.src}
 								alt={i18n?.t('interactions.graphicOrder.altText') ?? 'Ordering diagram'}
 								class="w-full h-auto"
-								style="width: {parsedInteraction.imageData.width}px; height: {parsedInteraction.imageData
-									.height}px;"
+								style="width: {imageWidth}px; height: {imageHeight}px;"
 							/>
 						{/if}
 					{/if}

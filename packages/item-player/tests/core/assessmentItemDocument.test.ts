@@ -23,8 +23,13 @@ describe('AssessmentItemDocument', () => {
 
 		expect(document.serializeItemBodyChildren()).toContain('<p class="stem"');
 		expect(document.serializeItemBodyChildren()).toContain('<math>');
-		expect(document.findRubricElements()).toHaveLength(1);
-		expect(document.serializeChildren(document.findRubricElements()[0])).toContain('Read carefully');
+		expect(document.readRubricBlocks()).toEqual([
+			expect.objectContaining({
+				view: ['candidate'],
+				scope: 'direct',
+				content: expect.stringContaining('Read carefully'),
+			}),
+		]);
 	});
 
 	test('finds processing elements through version-aware names', () => {

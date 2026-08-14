@@ -3,6 +3,7 @@
 	import '@pie-qti/typeset-katex/css';
 	import { onMount, setContext } from 'svelte';
 	import { browser } from '$app/environment';
+	import { loadPieQtiPlayerElements } from '@pie-qti/web-component-loaders';
 	import { base } from '$app/paths';
 	import { page } from '$app/stores';
 	import {
@@ -76,7 +77,7 @@
 		// Register QTI player web components on the client only.
 		// This module touches browser globals (customElements/window) and must not run during prerender/SSR.
 		if (browser) {
-			void import('@pie-qti/default-components/plugins');
+			await loadPieQtiPlayerElements();
 		}
 
 		// Load saved theme from localStorage

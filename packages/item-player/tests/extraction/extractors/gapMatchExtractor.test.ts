@@ -25,6 +25,41 @@ describe('standardGapMatchExtractor', () => {
 		expect(result.promptText).toContain('[GAP:G1]');
 	});
 
+	test('rejects declaration and URL payloads in the authored palette width', () => {
+		const xml = `
+			<gapMatchInteraction
+				responseIdentifier="RESPONSE"
+				data-choices-container-width="1px; background-image: url(//tracker.test/pixel)"
+			>
+				<prompt>Fill in <gap identifier="G1" />.</prompt>
+				<gapText identifier="T1" matchMax="1">safe</gapText>
+			</gapMatchInteraction>
+		`;
+		const element = parseQTI(xml);
+		const context = createTestContext(element, 'RESPONSE');
+
+		const result = standardGapMatchExtractor.extract(element, context);
+
+		expect((result as { choicesContainerWidth?: string }).choicesContainerWidth).toBeUndefined();
+	});
+
+	test('canonicalizes a numeric authored palette width to pixels', () => {
+		const xml = `
+			<gapMatchInteraction responseIdentifier="RESPONSE" data-choices-container-width="320">
+				<prompt>Fill in <gap identifier="G1" />.</prompt>
+				<gapText identifier="T1" matchMax="1">safe</gapText>
+			</gapMatchInteraction>
+		`;
+		const element = parseQTI(xml);
+
+		const result = standardGapMatchExtractor.extract(
+			element,
+			createTestContext(element, 'RESPONSE'),
+		);
+
+		expect((result as { choicesContainerWidth?: string }).choicesContainerWidth).toBe('320px');
+	});
+
 	test('extracts gapText elements with matchMax values', () => {
 		const xml = `
 			<gapMatchInteraction responseIdentifier="RESPONSE" shuffle="false">

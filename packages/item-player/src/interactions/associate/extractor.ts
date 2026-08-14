@@ -39,7 +39,7 @@ export const standardAssociateExtractor: ElementExtractor<AssociateData> = {
 	canHandle(element, context) {
 		// All associateInteraction elements with simpleAssociableChoice are standard
 		return (
-			element.rawTagName === 'associateInteraction' &&
+			context.utils.matchesTag(element, 'associateInteraction') &&
 			context.utils.hasChildWithTag(element, 'simpleAssociableChoice')
 		);
 	},

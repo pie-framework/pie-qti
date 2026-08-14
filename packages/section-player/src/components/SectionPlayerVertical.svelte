@@ -17,7 +17,6 @@
 		security?: PlayerSecurityConfig;
 		pci?: PciConfiguration;
 		pnp?: PnpProfile;
-		extendedTextEditor?: 'tiptap' | 'textarea';
 		typeset?: (root: HTMLElement) => void | Promise<void>;
 		onResponseChange?: (itemIdentifier: string, responseIdentifier: string, value: unknown) => void;
 		onItemPaneReady?: (element: HTMLElement) => void;
@@ -30,7 +29,6 @@
 		security,
 		pci,
 		pnp,
-		extendedTextEditor,
 		typeset,
 		onResponseChange,
 		onItemPaneReady,
@@ -40,7 +38,7 @@
 	const role = $derived(composition.section.role ?? 'candidate');
 	const effectiveSecurity = $derived(security ?? composition.security);
 	const activeResponses = $derived(
-		composition.snapshot.responses[composition.activeItem.identifier] ?? composition.activeItem.responses ?? {}
+		composition.snapshot.responses[composition.activeItem.identifier] ?? {}
 	);
 
 	let itemPaneElement = $state<HTMLElement | null>(null);
@@ -115,7 +113,6 @@
 			security={effectiveSecurity}
 			{pci}
 			{pnp}
-			{extendedTextEditor}
 			{typeset}
 			onResponseChange={handleResponseChange}
 			onFrameworkError={handleFrameworkError}

@@ -41,6 +41,12 @@
  */
 
 export { createExtractionContext } from './createContext.js';
+export type {
+	InteractionDeliveryField,
+	InteractionDeliveryPathSegment,
+	InteractionDeliverySchema,
+} from './deliveryTypes.js';
+export { htmlField, urlField } from './deliveryTypes.js';
 // Registry
 export { createExtractionRegistry, ExtractionRegistry } from './ExtractionRegistry.js';
 
@@ -98,6 +104,7 @@ export {
 export type {
 	ElementExtractor,
 	ExtractionContext,
+	ExtractionDispatchResult,
 	ExtractionResult,
 	ExtractionUtils,
 	ValidationResult,

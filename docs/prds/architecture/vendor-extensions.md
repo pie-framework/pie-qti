@@ -16,7 +16,7 @@
 
 ## Summary
 
-The vendor extension system lets external packages customise the QTI-to-PIE transform pipeline and the item-player extraction pipeline without forking or modifying framework code. On the transform side (`@pie-qti/to-pie`), five typed hook interfaces — `VendorDetector`, `VendorTransformer`, `AssetResolver`, `CssClassExtractor`, and `MetadataExtractor` — are composed into a `VendorExtensionHooks` bag and injected at plugin-construction time. On the player side (`@pie-qti/item-player`), vendor-supplied `ElementExtractor` implementations with a priority above 500 can intercept extraction of any element type before the built-in extractors run. The ACME demo (`@pie-qti/demo-vendor-extensions`, `@acme/likert-scale-plugin`) provides a working reference for both surfaces.
+The vendor extension system lets external packages customise the QTI-to-PIE transform pipeline and the item-player extraction pipeline without forking or modifying framework code. On the transform side (`@pie-qti/to-pie`), five typed hook interfaces — `VendorDetector`, `VendorTransformer`, `AssetResolver`, `CssClassExtractor`, and `MetadataExtractor` — are composed into a `VendorExtensionHooks` bag and injected at plugin-construction time. On the player side (`@pie-qti/item-player`), vendor-supplied `ElementExtractor` implementations are installed through an immutable `AssessmentItemDefinitionPlugin`; high priority lets them intercept an authored interaction before its built-in extractor. The extractor declares renderer identity with `outputType` and every rich/URL field with `delivery`. The ACME demo (`@pie-qti/demo-vendor-extensions`, `@acme/likert-scale-plugin`) provides a working reference for both surfaces.
 
 > **Note (PIE-569):** For package-aware QTI → PIE imports — source detection, sidecars, standards candidates, item handlers, decorators, fallback policy, and conversion traces — prefer the **source-profile** mechanism documented in [`docs/SOURCE-PROFILES.md`](../../SOURCE-PROFILES.md). The five vendor hooks described in this PRD remain the right tool for whole-pipeline replacement, asset URL rewriting, and player-side extractor priority overrides; they do not duplicate the source-profile pipeline.
 
@@ -125,7 +125,7 @@ Vendor metadata extracted by `MetadataExtractor` is attached to the output PIE i
 | Asset resolution | `AssetResolver` | Implement `canResolve(type, url)` and `resolve(type, url, baseDir)`; pass instance in `VendorExtensionHooks.assetResolvers[]` | `AcmeAssetResolver` in `packages/demo-vendor-extensions/src/acme-asset-resolver.ts` |
 | CSS class parsing | `CssClassExtractor` | Implement `extract(element): VendorClasses`; pass instance in `VendorExtensionHooks.cssClassExtractors[]` | `AcmeCssClassExtractor` in `packages/demo-vendor-extensions/src/acme-css-extractor.ts` |
 | Metadata extraction | `MetadataExtractor` | Implement `extract(qtiXml, parsedDoc, vendorInfo): Record<string, any>`; pass instance in `VendorExtensionHooks.metadataExtractors[]` | `AcmeMetadataExtractor` in `packages/demo-vendor-extensions/src/acme-metadata-extractor.ts` |
-| Player-side element extraction | `ElementExtractor<T>` | Implement with `priority >= 500`; register via `plugin.registerExtractors(registry)` | `likertChoiceExtractor` in `packages/acme-likert-plugin/src/extractors/likertChoiceExtractor.ts` |
+| Player-side element extraction | `ElementExtractor<TPayload, TOutputType>` | Implement with `priority >= 500`, `outputType`, and a `delivery` schema for rich/URL fields; register through `AssessmentItemDefinitionPlugin.registerExtractors()` | `likertChoiceExtractor` in `packages/acme-likert-plugin/src/extractors/likertChoiceExtractor.ts` |
 
 ---
 
@@ -157,10 +157,13 @@ All five hook interfaces are defined in `packages/to-pie/src/types/vendor-extens
 **`MetadataExtractor`**
 - Return value is merged shallowly onto the PIE item's `vendorMetadata` object. Keys from different extractors do not collide as long as each vendor uses its own prefixed keys (e.g., `acme:difficulty`).
 
-**`ElementExtractor<T>` (player-side)**
+**`ElementExtractor<TPayload, TOutputType>` (player-side)**
 - `elementTypes: string[]` declares which QTI element names this extractor handles.
 - `canHandle(element, context): boolean` is called first; return `false` to pass to the next extractor in priority order.
-- `extract()` must return a complete, valid data object of type `T`; partial objects will cause rendering failures downstream.
+- `extract()` returns only the vendor payload. The framework writes authoritative `type` and
+  `responseId` after extraction; `outputType` selects the renderer-facing type.
+- `delivery` declares every HTML and URL field using `htmlField(...)` and `urlField(use, ...)`. The
+  shared finalizer enforces these paths, optionally creates `TrustedHTML`, and freezes the result.
 - `validate(data): ValidationResult` is optional but strongly recommended; the player calls it after extraction and surfaces errors to the host.
 
 ---
@@ -227,12 +230,13 @@ AC-6: Metadata extractor output is merged onto PIE item
 
 ```
 AC-7: Player-side Likert extractor overrides built-in choice extractor
-  Given: @acme/likert-scale-plugin registered with an item-player Player
+  Given: @acme/likert-scale-plugin supplied to createAssessmentItemDefinition()
          AND a QTI document containing a choiceInteraction with <likertChoice> children
-  When: The item is parsed
+  When: definition.openSession().present() is called
   Then: The extracted interaction data has metadata.isLikert === true
         AND metadata.scalePoints equals the number of likertChoice elements
         AND shuffle === false (Likert scales must not shuffle)
+        AND prompt is finalized according to the extractor delivery schema
 ```
 
 ```

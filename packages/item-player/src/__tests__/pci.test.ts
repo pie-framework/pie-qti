@@ -7,6 +7,8 @@ import { createExtractionUtils } from '../extraction/index.js';
 import { Qti3AttributeNameMapper, Qti3ElementNameMapper } from '@pie-qti/qti-common';
 import { parse } from 'node-html-parser';
 import { Player } from '../core/Player.js';
+import { createAssessmentItemDefinition } from '../core/AssessmentItemDefinition.js';
+import { getItemSessionBinding } from '../core/ItemSession.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -493,5 +495,34 @@ describe('Player PCI integration', () => {
 
 		player.destroy();
 		expect(module.destroy).toHaveBeenCalledTimes(1);
+	});
+
+	it('ignores late PCI response events after the authoritative session closes', async () => {
+		const module = makeModule({ getResponse: mock(() => 'late-answer') });
+		const session = createAssessmentItemDefinition({
+			itemXml: QTI3_PCI_ITEM,
+			pci: { moduleResolver: resolverReturning(module) },
+		}).openSession({ responses: { PCI_RESPONSE: 'submitted-answer' } });
+		const interactionNode = session
+			.present()
+			.flow.find((node) => node.kind === 'interaction');
+		if (!interactionNode) throw new Error('Expected a PCI interaction mount');
+		const host = getItemSessionBinding(session).createPciHost(
+			interactionNode.mount.interaction as unknown as ExtractedPci,
+		);
+		const revisions: number[] = [];
+		session.subscribe(({ current }) => revisions.push(current.revision));
+
+		await host.load();
+		host.initialize(makeDomNode());
+		session.dispatch({ action: 'endAttempt' });
+		const revisionAfterClose = session.state().revision;
+		const boundTo = (module.initialize as any).mock.calls[0]?.[2];
+		boundTo.onResponseChange('late-answer');
+
+		expect(session.state().responses.PCI_RESPONSE).toBe('submitted-answer');
+		expect(session.state().revision).toBe(revisionAfterClose);
+		expect(revisions).toEqual([revisionAfterClose]);
+		session.dispose();
 	});
 });

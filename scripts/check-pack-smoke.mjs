@@ -3,6 +3,7 @@
 import { execSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import path from "node:path";
+import { getNpmPackEntry } from "./npm-pack-json.mjs";
 
 const ROOT = process.cwd();
 const ROOT_PACKAGE_JSON = path.join(ROOT, "package.json");
@@ -42,16 +43,6 @@ const collectExportTargets = (value, out) => {
 	if (typeof value === "object") {
 		Object.values(value).forEach((entry) => collectExportTargets(entry, out));
 	}
-};
-
-const parsePackJson = (rawOutput) => {
-	const start = rawOutput.indexOf("[");
-	const end = rawOutput.lastIndexOf("]");
-	if (start < 0 || end < 0 || end < start) {
-		throw new Error("npm pack output did not include JSON payload");
-	}
-	const jsonText = rawOutput.slice(start, end + 1);
-	return JSON.parse(jsonText);
 };
 
 const getWorkspaceDirs = () => {
@@ -104,8 +95,8 @@ const run = () => {
 				cwd: dir,
 				stdio: "pipe",
 			}).toString();
-			const packData = parsePackJson(rawOutput);
-			const tarballName = packData?.[0]?.filename;
+			const packedEntry = getNpmPackEntry(rawOutput, pkg.name);
+			const tarballName = packedEntry.filename;
 			if (!tarballName) {
 				throw new Error("npm pack did not return tarball filename");
 			}
@@ -114,7 +105,7 @@ const run = () => {
 				throw new Error(`tarball was not created: ${tarballName}`);
 			}
 			const packedFiles = new Set(
-				(packData?.[0]?.files ?? []).map((entry) => entry.path),
+				(packedEntry.files ?? []).map((entry) => entry.path),
 			);
 			for (const target of declaredTargets) {
 				if (!isPackedMatch(target, packedFiles)) {

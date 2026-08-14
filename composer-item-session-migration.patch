@@ -1,0 +1,93 @@
+diff --git a/apps/composer/src/lib/qti-preview-rubrics.ts b/apps/composer/src/lib/qti-preview-rubrics.ts
+index 88b5181..c61599b 100644
+--- a/apps/composer/src/lib/qti-preview-rubrics.ts
++++ b/apps/composer/src/lib/qti-preview-rubrics.ts
+@@ -1,4 +1,4 @@
+-import { Player } from '@pie-qti/item-player';
++import { createAssessmentItemDefinition } from '@pie-qti/item-player';
+
+ export type QtiPreviewRole = 'candidate' | 'scorer';
+
+@@ -14,15 +14,19 @@ export function qtiPreviewSidePanelRubrics(
+   role: QtiPreviewRole
+ ): QtiPreviewSidePanelRubric[] {
+   try {
+-    const player = new Player({ itemXml, role });
+-    const scope = role === 'scorer' ? 'all' : 'direct';
+-    return player.getRubrics({ scope }).map((rubric) => ({
+-      view: rubric.view,
+-      html: String(rubric.html),
+-      scope: rubric.scope,
+-      use: rubric.use ?? null,
+-    }));
++    const definition = createAssessmentItemDefinition({ itemXml, role });
++    const session = definition.openSession();
++    try {
++      return session.present().directRubrics.map((rubric) => ({
++        view: rubric.view,
++        html: String(rubric.html),
++        scope: rubric.scope,
++        use: rubric.use ?? null,
++      }));
++    } finally {
++      session.dispose();
++    }
+   } catch {
+     return [];
+   }
+ }
+diff --git a/apps/composer/src/lib/components/qti/QtiItemPreview.svelte b/apps/composer/src/lib/components/qti/QtiItemPreview.svelte
+index 28a1b29..3784d93 100644
+--- a/apps/composer/src/lib/components/qti/QtiItemPreview.svelte
++++ b/apps/composer/src/lib/components/qti/QtiItemPreview.svelte
+@@ -108,7 +108,7 @@ $effect(() => {
+     },
+   };
+   playerEl.typeset = typesetMathInElement;
+-  playerEl.renderItemBodyRubrics = role === 'candidate';
++  playerEl.renderItemBodyRubrics = true;
+   playerEl.setAttribute('role', role);
+   playerError = null;
+
+diff --git a/apps/composer/test/qti-preview-rubrics.test.ts b/apps/composer/test/qti-preview-rubrics.test.ts
+index ddc3f7a..fbbf09e 100644
+--- a/apps/composer/test/qti-preview-rubrics.test.ts
++++ b/apps/composer/test/qti-preview-rubrics.test.ts
+@@ -35,7 +35,7 @@ describe('QTI preview rubrics', () => {
+     expect(scorerRubric?.html).not.toContain('Student-facing instruction');
+   });
+
+-  test('moves scorer item-body rubrics to the side panel', () => {
++  test('keeps scorer item-body rubrics inline at their authored location', () => {
+     const itemBodyRubricXml = `<?xml version="1.0" encoding="UTF-8"?>
+ <assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="inline-scorer-rubric">
+   <itemBody>
+@@ -48,14 +48,7 @@ describe('QTI preview rubrics', () => {
+
+     const scorerRubrics = qtiPreviewSidePanelRubrics(itemBodyRubricXml, 'scorer');
+
+-    expect(scorerRubrics).toHaveLength(1);
+-    const scorerRubric = scorerRubrics[0];
+-    expect(scorerRubric).toMatchObject({
+-      scope: 'itemBody',
+-      use: 'rubric',
+-      view: ['scorer'],
+-    });
+-    expect(scorerRubric?.html).toContain('The correct answer is the star.');
++    expect(scorerRubrics).toEqual([]);
+   });
+
+   test('returns no side-panel rubrics when item XML cannot be parsed', () => {
+diff --git a/apps/composer/test/qti-explore-ui.test.ts b/apps/composer/test/qti-explore-ui.test.ts
+index dbdf7c0..6fa844e 100644
+--- a/apps/composer/test/qti-explore-ui.test.ts
++++ b/apps/composer/test/qti-explore-ui.test.ts
+@@ -619,7 +619,7 @@ describe('QTI explore UI', () => {
+     const source = await Bun.file(qtiItemPreviewSourcePath).text();
+
+     expect(source).toContain('qtiPreviewSidePanelRubrics');
+-    expect(source).toContain('playerEl.renderItemBodyRubrics = role ===');
++    expect(source).toContain('playerEl.renderItemBodyRubrics = true');
+     expect(source).toContain('aria-label="QTI rubric side panel"');
+     expect(source).toContain('Rubric');
+     expect(source).toContain('{@html rubric.html}');

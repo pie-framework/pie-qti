@@ -16,7 +16,7 @@ export type A11yFixtureId =
 	| 'modal-feedback'
 	| 'assessment-navigation-bar'
 	| 'assessment-section-menu'
-	| 'assessment-rubric-display'
+	| 'section-rubric-display'
 	| 'assessment-timer'
 	| 'assessment-shell'
 	| 'pnp-catalog-stimulus';
@@ -44,10 +44,9 @@ export const A11Y_FIXTURES: A11yFixture[] = [
 	{ id: 'modal-feedback', title: 'ModalFeedbackDisplay component fixture' },
 	{ id: 'assessment-navigation-bar', title: 'NavigationBar (assessment-player)' },
 	{ id: 'assessment-section-menu', title: 'SectionMenu (assessment-player)' },
-	{ id: 'assessment-rubric-display', title: 'RubricDisplay (assessment-player)' },
+	{ id: 'section-rubric-display', title: 'RubricDisplay (section-player)' },
 	{ id: 'assessment-timer', title: 'AssessmentTimer (assessment-player)' },
 	{ id: 'assessment-shell', title: 'AssessmentShell (assessment-player)' },
 	{ id: 'pnp-catalog-stimulus', title: 'PNP catalog and shared stimulus runtime' },
 ];
-
 

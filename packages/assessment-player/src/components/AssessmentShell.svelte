@@ -29,7 +29,7 @@
 
 	// Get i18n from context (set by +layout.svelte)
 	const contextI18nWrapper = getContext<{ value: SvelteI18nProvider | null } | undefined>('i18n');
-	const contextI18n = $derived(contextI18nWrapper?.value);
+	const contextI18n = $derived(contextI18nWrapper?.value ?? undefined);
 
 	let player = $state<AssessmentPlayer | null>(null);
 	const i18n = $derived(player?.getI18nProvider() ?? contextI18n);
@@ -65,11 +65,6 @@
 	});
 	const hasSplitPane = $derived(sectionComposition?.layout === 'split-pane');
 	const sectionRole = $derived(config.role ?? 'candidate');
-	const extendedTextEditor = $derived(
-		config.extendedTextEditor === 'textarea' || config.extendedTextEditor === 'tiptap'
-			? config.extendedTextEditor
-			: undefined
-	);
 	const testFeedbackBlocks = $derived<QtiSharedHtmlBlock[]>(
 		testFeedback.map((item) => ({
 			identifier: item.identifier,
@@ -257,11 +252,6 @@
 		}
 	}
 
-	function handleSectionResponseChange(itemIdentifier: string, responseIdentifier: string, value: unknown) {
-		player?.updateResponseForItem(itemIdentifier, responseIdentifier, value);
-		responseVersion += 1;
-	}
-
 	/**
 	 * Imperative API (useful for embedding in host frameworks / custom elements)
 	 */
@@ -388,9 +378,7 @@
 						security={config.security}
 						pci={config.pci}
 						pnp={config.pnp}
-						extendedTextEditor={extendedTextEditor}
 						{typeset}
-						onResponseChange={handleSectionResponseChange}
 						onItemPaneReady={(el) => (itemPaneEl = el)}
 					/>
 				{:else}
@@ -400,9 +388,7 @@
 						security={config.security}
 						pci={config.pci}
 						pnp={config.pnp}
-						extendedTextEditor={extendedTextEditor}
 						{typeset}
-						onResponseChange={handleSectionResponseChange}
 						onItemPaneReady={(el) => (itemPaneEl = el)}
 					/>
 				{/if}

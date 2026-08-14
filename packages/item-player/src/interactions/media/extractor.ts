@@ -40,9 +40,9 @@ export const standardMediaExtractor: ElementExtractor<MediaData> = {
 	elementTypes: ['mediaInteraction'],
 	description: 'Extracts standard QTI mediaInteraction (video/audio playback)',
 
-	canHandle(element, _context) {
+	canHandle(element, context) {
 		// All mediaInteraction elements are standard
-		return element.rawTagName === 'mediaInteraction';
+		return context.utils.matchesTag(element, 'mediaInteraction');
 	},
 
 	extract(element, context) {

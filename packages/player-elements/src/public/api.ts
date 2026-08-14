@@ -151,11 +151,14 @@ export interface QtiScoringResult {
 	modalFeedback?: QtiModalFeedback[];
 }
 
+/** HTML already finalized by the item player's configured content policy. */
+export type QtiHtmlContent = import('@pie-qti/item-player').HtmlContent;
+
 export interface QtiModalFeedback {
 	identifier: string;
 	outcomeIdentifier: string;
 	showHide: 'show' | 'hide';
-	content: string;
+	content: QtiHtmlContent;
 	title?: string;
 }
 
@@ -173,6 +176,14 @@ export interface QtiAdaptiveAttemptResult extends QtiScoringResult {
 
 export type QtiItemPlayerResponseMap = Record<string, unknown>;
 export type QtiItemPlayerSubmissionResult = QtiScoringResult | QtiAdaptiveAttemptResult;
+
+/**
+ * The authoritative live item session accepted by the item-player element.
+ * Create and control it through @pie-qti/item-player; the element never owns an injected session.
+ */
+export type QtiItemSessionReference = import('@pie-qti/item-player').ItemSession;
+export type QtiAssessmentItemDefinitionPlugin =
+	import('@pie-qti/item-player').AssessmentItemDefinitionPlugin;
 
 export interface QtiItemPlayerResponseChangeDetail {
 	responseId: string;
@@ -198,6 +209,7 @@ export interface QtiItemPlayerEventMap {
 
 export interface QtiItemPlayerElement extends HTMLElement {
 	itemXml: string | undefined;
+	session?: QtiItemSessionReference;
 	role: QtiRole | null;
 	disabled: boolean | undefined;
 	renderItemBodyRubrics: boolean | undefined;
@@ -207,6 +219,7 @@ export interface QtiItemPlayerElement extends HTMLElement {
 	pnp?: QtiPnpProfile;
 	deliveryContext?: QtiResolvedItemDeliveryContext;
 	pci?: QtiPciConfiguration;
+	plugins?: readonly QtiAssessmentItemDefinitionPlugin[];
 	resolveProcessingFragment?: QtiProcessingFragmentResolver;
 	processingFragmentLimits?: QtiProcessingFragmentLimits;
 	responses?: QtiItemPlayerResponseMap;
@@ -505,7 +518,7 @@ export interface QtiSectionRuntimeHost {
 export interface QtiAssessmentPlayerConfig {
 	role?: QtiRole;
 	rng?: () => number;
-	extendedTextEditor?: string;
+	plugins?: readonly QtiAssessmentItemDefinitionPlugin[];
 	i18nProvider?: QtiI18nProvider;
 	security?: QtiPlayerSecurityConfig;
 	pci?: QtiPciConfiguration;
@@ -624,18 +637,26 @@ export interface QtiAssessmentPlayerElementConstructor {
 	readonly observedAttributes: string[];
 }
 
-export interface QtiSectionItemRef {
+interface QtiSectionItemRefBase {
 	identifier: string;
 	sourcePath?: string;
 	href?: string;
 	title?: string;
 	itemXml: string;
-	responses?: Record<string, unknown>;
-	sessionSnapshot?: QtiSerializedItemSessionState;
 	deliveryContext?: QtiResolvedItemDeliveryContext;
 	tools?: QtiSectionToolConfig[];
 	diagnostics?: QtiSectionDiagnostic[];
 }
+
+export type QtiSectionItemRef =
+	| (QtiSectionItemRefBase & {
+			session: QtiItemSessionReference;
+			responses?: never;
+	  })
+	| (QtiSectionItemRefBase & {
+			session?: undefined;
+			responses?: Record<string, unknown>;
+	  });
 
 export interface QtiSerializedItemSessionVariable {
 	identifier: string;
@@ -661,9 +682,19 @@ export interface QtiSerializedItemSessionState {
 	savedAt: string;
 }
 
+export type QtiSectionDiagnosticSource =
+	| 'assessment-player'
+	| 'composer'
+	| 'manifest'
+	| 'assessment-test'
+	| 'item'
+	| 'stimulus'
+	| 'security'
+	| 'section-player';
+
 export interface QtiSectionDiagnostic {
 	severity: 'info' | 'warning' | 'error';
-	source: string;
+	source: QtiSectionDiagnosticSource;
 	code: string;
 	message: string;
 	path?: string;
@@ -677,14 +708,14 @@ export interface QtiSharedHtmlBlock {
 	view?: string[];
 	tools?: QtiSectionToolConfig[];
 	rawHtml?: string;
-	html?: unknown;
+	html?: QtiHtmlContent;
 }
 
 export interface QtiSharedStimulus {
 	identifier: string;
 	href?: string;
 	source?: string;
-	bodyHtml?: unknown;
+	bodyHtml?: QtiHtmlContent;
 	rawBodyHtml?: string;
 	stylesheets?: QtiSectionResolvedStylesheetRef[];
 	catalogSource?: QtiSectionResolvedCatalogSource;

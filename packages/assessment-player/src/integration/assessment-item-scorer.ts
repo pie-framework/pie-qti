@@ -1,4 +1,7 @@
-import { Player, type SerializedItemSessionState } from '@pie-qti/item-player';
+import {
+	createAssessmentItemDefinition,
+	type SerializedItemSessionState,
+} from '@pie-qti/item-player';
 import type { AssessmentScoringResult, ResponseValue } from './api-contract.js';
 
 export interface AssessmentItemScoringInput {
@@ -27,16 +30,24 @@ export function scoreAssessmentItem({
 		// Use a scorer-grade view of the item for accurate scoring.
 		// NOTE: This reference scorer is intentionally insecure and runs client-side.
 		// In production, scoring must happen server-side with secured item content.
-		const player = new Player({
+		const definition = createAssessmentItemDefinition({
 			itemXml,
 			role: 'scorer',
 		});
-
-		if (itemSession) {
-			player.restoreItemSession(itemSession);
+		const session = definition.openSession(
+			itemSession ? { restore: itemSession } : { responses },
+		);
+		let result;
+		try {
+			result = session.dispatch(
+				itemSession
+					? { action: 'scoreAttempt' }
+					: { action: 'endAttempt', countAttempt: false, validateResponses: false },
+			).result?.scoring;
+			if (!result) throw new Error('QTI scoring produced no result');
+		} finally {
+			session.dispose();
 		}
-		player.setResponses(responses);
-		const result = itemSession ? (player.scoreAttempt().scoring ?? player.processResponses()) : player.processResponses();
 
 		return {
 			itemIdentifier,

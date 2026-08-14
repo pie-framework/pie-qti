@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { AssessmentTimer } from '@pie-qti/assessment-player/components';
+	import { AssessmentTimer } from '$assessment-components';
 
 	type WarningListener = (remainingSeconds: number) => void;
 	type ExpiredListener = () => void;

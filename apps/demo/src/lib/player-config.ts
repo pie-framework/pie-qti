@@ -6,7 +6,7 @@
  */
 
 import { base } from '$app/paths';
-import type { PlayerConfig } from '@pie-qti/item-player';
+import type { PlayerSecurityConfig } from '@pie-qti/item-player';
 
 /**
  * Get the asset base URL for the current deployment.
@@ -31,7 +31,7 @@ export function getAssetBaseUrl(): string {
  *
  * @returns PlayerSecurityConfig with urlPolicy.assetBaseUrl configured
  */
-export function getSecurityConfig(): NonNullable<PlayerConfig['security']> {
+export function getSecurityConfig(): PlayerSecurityConfig {
 	return {
 		urlPolicy: {
 			assetBaseUrl: getAssetBaseUrl(),

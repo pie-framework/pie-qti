@@ -3,6 +3,8 @@
  * Based on IMS QTI 3.0 Portable Custom Interaction specification.
  */
 
+import type { HtmlContent } from '../types/index.js';
+
 /**
  * Callbacks the player provides to a PCI module so it can signal state changes.
  */
@@ -107,8 +109,6 @@ export interface PciHostController {
  * Extracted data from a <qti-portable-custom-interaction> element.
  */
 export interface ExtractedPci {
-	/** Canonical renderer type. Present on extractor output, optional for direct PciHost callers. */
-	type?: 'portableCustomInteraction';
 	/** responseIdentifier attribute value. */
 	responseIdentifier: string;
 	/** customInteractionTypeIdentifier attribute value (URN identifying the PCI type). */
@@ -118,7 +118,7 @@ export interface ExtractedPci {
 	/** Fallback JS module path (optional). */
 	fallbackPath?: string;
 	/** Inner HTML of the <qti-interaction-markup> element. */
-	markup: string;
+	markup: HtmlContent;
 	/** Key/value pairs from <qti-pci-properties>/<qti-pci-property>. */
 	config: Record<string, string>;
 }

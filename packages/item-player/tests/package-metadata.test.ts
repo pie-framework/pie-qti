@@ -19,4 +19,13 @@ describe('item-player package metadata', () => {
 		expect(JSON.stringify(packageJson.exports)).not.toContain('./src/');
 		expect(packageJson.files).not.toContain('src');
 	});
+
+	test('publishes a narrowed DOM-free definition/session declaration', () => {
+		const serverDeclaration = readFileSync(new URL('../dist/server.d.ts', import.meta.url), 'utf8');
+		expect(serverDeclaration).toContain('interface ServerAssessmentItemDefinitionConfig');
+		expect(serverDeclaration).toContain('createAssessmentItemDefinition');
+		expect(serverDeclaration).not.toContain("from './core/Player.js'");
+		expect(serverDeclaration).not.toContain('class Player');
+		expect(serverDeclaration).not.toContain('HTMLElement');
+	});
 });

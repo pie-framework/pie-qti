@@ -32,10 +32,12 @@
     "format": "biome format --write ."
   },
   "license": "MIT",
+  "dependencies": {
+    "@pie-qti/item-player": "workspace:*"
+  },
   "devDependencies": {
     "@pie-qti/assessment-player": "workspace:*",
     "@pie-qti/default-components": "workspace:*",
-    "@pie-qti/item-player": "workspace:*",
     "@pie-qti/qti-common": "workspace:*",
     "@pie-qti/section-player": "workspace:*",
     "@biomejs/biome": "^2.5.6",

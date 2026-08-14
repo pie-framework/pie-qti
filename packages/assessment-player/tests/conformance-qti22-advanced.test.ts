@@ -667,6 +667,8 @@ describe('Task 5 — assessment player section composition delegation', () => {
 		expect(composition.sharedContext.passages[0]?.rawHtml).toContain('passage');
 		expect(composition.sharedContext.rubricBlocks.map((block) => block.identifier)).toContain('testpart-directions');
 		expect(composition.activeItem.identifier).toBe(player.getCurrentItem()?.identifier);
+		expect(composition.activeItem.session).toBe(player.getCurrentItemSession());
+		expect(composition.section.itemRefs.filter((item) => item.session)).toHaveLength(1);
 	});
 
 	it('does not expose scorer-only section rubric blocks to candidate section composition', async () => {
@@ -692,7 +694,24 @@ describe('Task 5 — assessment player section composition delegation', () => {
 
 		expect(composition.snapshot.responses['item-1']?.RESPONSE).toBe('A');
 		expect(composition.snapshot.responses['item-2']?.RESPONSE).toBe('B');
-		expect(composition.activeItem.responses?.RESPONSE).toBe('A');
+		expect(composition.activeItem.responses).toBeUndefined();
+		expect(composition.activeItem.session?.state().responses.RESPONSE).toBe('A');
+	});
+
+	it('rejects offscreen writes to a closed persisted item session', async () => {
+		const player = await createTwoItemPlayerWithRepeatedResponseIdentifier();
+		player.updateResponseForItem('item-1', 'RESPONSE', 'A');
+		await player.submitCurrentItem();
+		await player.navigateTo(1);
+
+		expect(() => player.updateResponseForItem('item-1', 'RESPONSE', 'B')).toThrow(
+			'Cannot update responses while item session is closed',
+		);
+		expect(player.getResponsesForItem('item-1').RESPONSE).toBe('A');
+
+		await player.navigateTo(0);
+		expect(player.getCurrentItemSession()?.state().lifecycleStatus).toBe('closed');
+		expect(player.getCurrentItemSession()?.state().responses.RESPONSE).toBe('A');
 	});
 
 	it('forwards section host hooks into delegated section compositions', async () => {

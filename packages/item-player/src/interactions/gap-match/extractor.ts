@@ -6,6 +6,7 @@
 
 import type { ElementExtractor } from '../../extraction/types.js';
 import { maybeShuffle } from '../../core/shuffle.js';
+import { normalizeCssPixelLength } from '../../security/styleValues.js';
 
 const GAP_ELEMENT_PATTERN = /<(?:qti-gap|gap)(?=[\s/>])([^>]*)\/?>/gi;
 const GAP_CLOSE_PATTERN = /<\/(?:qti-gap|gap)>/gi;
@@ -62,9 +63,9 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 	elementTypes: ['gapMatchInteraction'],
 	description: 'Extracts standard QTI gapMatchInteraction (drag words into gaps)',
 
-	canHandle(element, _context) {
+	canHandle(element, context) {
 		// All gapMatchInteraction elements are standard
-		return element.rawTagName === 'gapMatchInteraction';
+		return context.utils.matchesTag(element, 'gapMatchInteraction');
 	},
 
 	extract(element, context) {
@@ -140,7 +141,9 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 		// Extract attributes
 		const shuffle = utils.getBooleanAttribute(element, 'shuffle');
 		const interactionClasses = utils.getClasses(element);
-		const choicesContainerWidth = utils.getAttribute(element, 'data-choices-container-width', '') || null;
+		const choicesContainerWidth = normalizeCssPixelLength(
+			utils.getAttribute(element, 'data-choices-container-width', ''),
+		);
 		const maxSelectionsMessage = utils.getAttribute(element, 'data-max-selections-message', '') || null;
 		const minSelectionsMessage = utils.getAttribute(element, 'data-min-selections-message', '') || null;
 

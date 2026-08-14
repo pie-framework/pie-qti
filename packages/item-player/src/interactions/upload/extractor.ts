@@ -26,9 +26,9 @@ export const standardUploadExtractor: ElementExtractor<UploadData> = {
 	elementTypes: ['uploadInteraction'],
 	description: 'Extracts standard QTI uploadInteraction (file upload)',
 
-	canHandle(element, _context) {
+	canHandle(element, context) {
 		// All uploadInteraction elements are standard
-		return element.rawTagName === 'uploadInteraction';
+		return context.utils.matchesTag(element, 'uploadInteraction');
 	},
 
 	extract(element, context) {

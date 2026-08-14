@@ -11,10 +11,14 @@ import type { I18nProvider } from '@pie-qti/i18n';
 import { createSvelteMountController } from '@pie-qti/qti-common';
 import { mount, unmount } from 'svelte';
 import ItemPlayer from './components/ItemPlayer.svelte';
+import type {
+	AssessmentItemDefinitionConfig,
+	AssessmentItemDefinitionPlugin,
+} from './core/AssessmentItemDefinition.js';
+import type { ItemSession } from './core/ItemSession.js';
 import type { PnpProfile } from './pnp/types.js';
 import type {
 	AdaptiveAttemptResult,
-	PlayerConfig,
 	PlayerSecurityConfig,
 	QTIRole,
 	ScoringResult,
@@ -49,6 +53,7 @@ export interface PieQtiItemPlayerEventMap {
 
 type ItemPlayerElementProps = {
 	itemXml: string;
+	session: ItemSession | undefined;
 	role: QTIRole;
 	disabled: boolean;
 	renderItemBodyRubrics: boolean;
@@ -57,9 +62,10 @@ type ItemPlayerElementProps = {
 	security: PlayerSecurityConfig | undefined;
 	pnp: PnpProfile | undefined;
 	deliveryContext: ResolvedItemDeliveryContext | undefined;
-	resolveProcessingFragment: PlayerConfig['resolveProcessingFragment'];
-	processingFragmentLimits: PlayerConfig['processingFragmentLimits'];
-	pci: PlayerConfig['pci'];
+	resolveProcessingFragment: AssessmentItemDefinitionConfig['resolveProcessingFragment'];
+	processingFragmentLimits: AssessmentItemDefinitionConfig['processingFragmentLimits'];
+	pci: AssessmentItemDefinitionConfig['pci'];
+	plugins: readonly AssessmentItemDefinitionPlugin[] | undefined;
 	responses: PieQtiItemPlayerResponseMap | undefined;
 	onResponseChange: (id: string, value: unknown) => void;
 	onSubmit: (responses: PieQtiItemPlayerResponseMap, result: PieQtiItemPlayerSubmissionResult) => void;
@@ -94,9 +100,11 @@ export class PieQtiItemPlayerElement extends HTMLElementBase {
 	#security: PlayerSecurityConfig | undefined;
 	#pnp: PnpProfile | undefined;
 	#deliveryContext: ResolvedItemDeliveryContext | undefined;
-	#resolveProcessingFragment: PlayerConfig['resolveProcessingFragment'];
-	#processingFragmentLimits: PlayerConfig['processingFragmentLimits'];
-	#pci: PlayerConfig['pci'];
+	#resolveProcessingFragment: AssessmentItemDefinitionConfig['resolveProcessingFragment'];
+	#processingFragmentLimits: AssessmentItemDefinitionConfig['processingFragmentLimits'];
+	#pci: AssessmentItemDefinitionConfig['pci'];
+	#plugins: readonly AssessmentItemDefinitionPlugin[] | undefined;
+	#session: ItemSession | undefined;
 	#responses: PieQtiItemPlayerResponseMap | undefined;
 	#onResponseChange: ((id: string, value: unknown) => void) | undefined;
 	#onSubmit: ((responses: PieQtiItemPlayerResponseMap, result: PieQtiItemPlayerSubmissionResult) => void) | undefined;
@@ -181,15 +189,23 @@ export class PieQtiItemPlayerElement extends HTMLElementBase {
 	get pci() {
 		return this.#pci;
 	}
-	set pci(value: PlayerConfig['pci']) {
+	set pci(value: AssessmentItemDefinitionConfig['pci']) {
 		this.#pci = value;
+		this.#update();
+	}
+
+	get plugins() {
+		return this.#plugins;
+	}
+	set plugins(value: readonly AssessmentItemDefinitionPlugin[] | undefined) {
+		this.#plugins = value ? Object.freeze([...value]) : undefined;
 		this.#update();
 	}
 
 	get resolveProcessingFragment() {
 		return this.#resolveProcessingFragment;
 	}
-	set resolveProcessingFragment(value: PlayerConfig['resolveProcessingFragment']) {
+	set resolveProcessingFragment(value: AssessmentItemDefinitionConfig['resolveProcessingFragment']) {
 		this.#resolveProcessingFragment = value;
 		this.#update();
 	}
@@ -197,13 +213,25 @@ export class PieQtiItemPlayerElement extends HTMLElementBase {
 	get processingFragmentLimits() {
 		return this.#processingFragmentLimits;
 	}
-	set processingFragmentLimits(value: PlayerConfig['processingFragmentLimits']) {
+	set processingFragmentLimits(value: AssessmentItemDefinitionConfig['processingFragmentLimits']) {
 		this.#processingFragmentLimits = value;
 		this.#update();
 	}
 
 	get responses() {
 		return this.#responses;
+	}
+
+	/**
+	 * Live session injection point for assessment/section composition.
+	 * Set as a JavaScript property; the element never owns or disposes an injected session.
+	 */
+	get session() {
+		return this.#session;
+	}
+	set session(value: ItemSession | undefined) {
+		this.#session = value;
+		this.#update();
 	}
 	set responses(value: PieQtiItemPlayerResponseMap | undefined) {
 		this.#responses = value ? { ...value } : undefined;
@@ -279,6 +307,7 @@ export class PieQtiItemPlayerElement extends HTMLElementBase {
 	#getProps(): ItemPlayerElementProps {
 		return {
 			itemXml: this.#itemXml,
+			session: this.#session,
 			role: this.#role,
 			disabled: this.#disabled,
 			renderItemBodyRubrics: this.#renderItemBodyRubrics,
@@ -296,9 +325,12 @@ export class PieQtiItemPlayerElement extends HTMLElementBase {
 			resolveProcessingFragment: this.#resolveProcessingFragment,
 			processingFragmentLimits: this.#processingFragmentLimits,
 			pci: this.#pci,
+			plugins: this.#plugins,
 			responses: this.#responses,
 			onResponseChange: (responseId, value) => {
-				const responses = { ...(this.#responses ?? {}), [responseId]: value };
+				const responses = this.#session
+					? { ...this.#session.state().responses }
+					: { ...(this.#responses ?? {}), [responseId]: value };
 				this.#responses = responses;
 				this.#onResponseChange?.(responseId, value);
 				this.dispatchEvent(

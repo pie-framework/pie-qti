@@ -126,17 +126,6 @@ describe('QTI item session lifecycle', () => {
 		expect(player.getNumAttempts()).toBe(1);
 	});
 
-	test('legacy submitAttempt delegates to the unified action protocol result', () => {
-		const player = new Player({ itemXml: QTI3_CHOICE_ITEM });
-
-		player.setResponses({ RESPONSE: 'choice_A' });
-		const result = player.submitAttempt();
-
-		expect(result.score).toBe(1);
-		expect(result.completed).toBe(true);
-		expect(player.getResponses().RESPONSE).toBe('choice_A');
-	});
-
 	test('restoreItemSession hydrates serialized variables for later scoring', () => {
 		const first = new Player({ itemXml: QTI3_CHOICE_ITEM });
 		first.setResponses({ RESPONSE: 'choice_A' });

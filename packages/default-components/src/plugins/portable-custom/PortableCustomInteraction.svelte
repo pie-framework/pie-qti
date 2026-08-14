@@ -9,7 +9,7 @@
 		PortableCustomInteractionData,
 	} from '@pie-qti/item-player';
 	import { PciHost } from '@pie-qti/item-player/pci';
-	import { sanitizeHtml } from '@pie-qti/item-player/security';
+	import { sanitizeSharedHtml } from '@pie-qti/item-player/security';
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
@@ -46,9 +46,10 @@
 		parseJsonProp<PortableCustomInteractionData>(interaction)
 	);
 	const parsedResponse = $derived(parseJsonProp<unknown>(response));
-	const safeMarkup = $derived(
-		sanitizeHtml(parsedInteraction?.markup ?? '', { security })
-	);
+	const safeMarkup = $derived.by(() => {
+		const markup = parsedInteraction?.markup ?? '';
+		return typeof markup === 'string' ? sanitizeSharedHtml(markup, security) : markup;
+	});
 
 	let mountElement: HTMLDivElement | undefined = $state();
 	let eventTarget: HTMLDivElement | undefined = $state();
@@ -59,7 +60,9 @@
 	function emitResponse(value: unknown) {
 		response = value;
 		onChange?.(value);
-		if (eventTarget) {
+		// A player-owned host publishes this same change through the authoritative
+		// ItemSession binding. Emitting qti-change as well would dispatch twice.
+		if (eventTarget && !createPciHost) {
 			eventTarget.dispatchEvent(
 				createQtiChangeEvent(parsedInteraction?.responseId, value)
 			);
@@ -74,7 +77,9 @@
 		const baseUrl = pci?.baseUrl;
 		const markup = safeMarkup;
 		if (!data || !target) return;
-		target.innerHTML = markup;
+		// Keep TrustedHTML opaque until the DOM sink. Raw standalone strings are
+		// sanitized and finalized by `safeMarkup` above.
+		target.innerHTML = markup as any;
 
 		let cancelled = false;
 		let currentHost: PciHostController;

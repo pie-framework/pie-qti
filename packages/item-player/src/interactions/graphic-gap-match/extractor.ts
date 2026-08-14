@@ -5,6 +5,10 @@
  */
 
 import type { ElementExtractor } from '../../extraction/types.js';
+import {
+	normalizeCssPixelLength,
+	normalizePixelDimension,
+} from '../../security/styleValues.js';
 
 /**
  * Image data for graphic gap match interaction
@@ -55,9 +59,9 @@ export const standardGraphicGapMatchExtractor: ElementExtractor<GraphicGapMatchD
 	elementTypes: ['graphicGapMatchInteraction'],
 	description: 'Extracts standard QTI graphicGapMatchInteraction (drag text/images into gaps)',
 
-	canHandle(element, _context) {
+	canHandle(element, context) {
 		// All graphicGapMatchInteraction elements are standard
-		return element.rawTagName === 'graphicGapMatchInteraction';
+		return context.utils.matchesTag(element, 'graphicGapMatchInteraction');
 	},
 
 	extract(element, context) {
@@ -71,8 +75,10 @@ export const standardGraphicGapMatchExtractor: ElementExtractor<GraphicGapMatchD
 			const objectElement = objectElements[0];
 			const type = utils.getAttribute(objectElement, 'type', '');
 			const data = utils.getAttribute(objectElement, 'data', '');
-			const width = utils.getNumberAttribute(objectElement, 'width', 0);
-			const height = utils.getNumberAttribute(objectElement, 'height', 0);
+			const normalizedWidth = normalizePixelDimension(utils.getAttribute(objectElement, 'width', ''));
+			const normalizedHeight = normalizePixelDimension(utils.getAttribute(objectElement, 'height', ''));
+			const width = normalizedWidth ? Number(normalizedWidth) : undefined;
+			const height = normalizedHeight ? Number(normalizedHeight) : undefined;
 
 			if (type.startsWith('image/svg')) {
 				// Inline SVG: <object type="image/svg+xml"><svg>...</svg></object>
@@ -84,16 +90,16 @@ export const standardGraphicGapMatchExtractor: ElementExtractor<GraphicGapMatchD
 					imageData = {
 						type: 'svg',
 						content,
-						...(width > 0 ? { width } : {}),
-						...(height > 0 ? { height } : {}),
+						...(width ? { width } : {}),
+						...(height ? { height } : {}),
 					};
 				} else {
 					// External SVG file reference — render via <img src>
 					imageData = {
 						type: 'image',
 						src: data,
-						...(width > 0 ? { width } : {}),
-						...(height > 0 ? { height } : {}),
+						...(width ? { width } : {}),
+						...(height ? { height } : {}),
 					};
 				}
 			} else {
@@ -101,8 +107,8 @@ export const standardGraphicGapMatchExtractor: ElementExtractor<GraphicGapMatchD
 				imageData = {
 					type: 'image',
 					src: data,
-					...(width > 0 ? { width } : {}),
-					...(height > 0 ? { height } : {}),
+					...(width ? { width } : {}),
+					...(height ? { height } : {}),
 				};
 			}
 		}
@@ -145,10 +151,10 @@ export const standardGraphicGapMatchExtractor: ElementExtractor<GraphicGapMatchD
 				const obj = objectChildren[0];
 				src = utils.getAttribute(obj, 'data', '');
 				alt = utils.getTextContent(obj);
-				const w = utils.getNumberAttribute(obj, 'width', 0);
-				const h = utils.getNumberAttribute(obj, 'height', 0);
-				if (w > 0) width = w;
-				if (h > 0) height = h;
+				const w = normalizePixelDimension(utils.getAttribute(obj, 'width', ''));
+				const h = normalizePixelDimension(utils.getAttribute(obj, 'height', ''));
+				if (w) width = Number(w);
+				if (h) height = Number(h);
 			}
 			return {
 				identifier: utils.getAttribute(gapImg, 'identifier', ''),
@@ -175,7 +181,9 @@ export const standardGraphicGapMatchExtractor: ElementExtractor<GraphicGapMatchD
 		const prompt = promptElements.length > 0 ? utils.getHtmlContent(promptElements[0]) : null;
 
 		const interactionClasses = utils.getClasses(element);
-		const choicesContainerWidth = utils.getAttribute(element, 'data-choices-container-width', '') || null;
+		const choicesContainerWidth = normalizeCssPixelLength(
+			utils.getAttribute(element, 'data-choices-container-width', ''),
+		);
 		const maxSelectionsMessage = utils.getAttribute(element, 'data-max-selections-message', '') || null;
 		const minSelectionsMessage = utils.getAttribute(element, 'data-min-selections-message', '') || null;
 

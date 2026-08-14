@@ -1,32 +1,25 @@
 <script lang="ts">
-	import { getContext } from 'svelte';
+	import { getContext, onDestroy } from 'svelte';
 	import { page } from '$app/stores';
 	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
 	import { base } from '$app/paths';
-	import { Player, normalizeHeuristicsConfig, shouldAutoPopulateFeedbackOutcome, type QtiHeuristicsConfig, type QTIRole } from '@pie-qti/item-player';
+	import type { QtiHeuristicsConfig, QTIRole } from '@pie-qti/item-player';
 	import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
 	import type { InteractionResponseValue } from '@pie-qti/item-player/web-components';
 	import { ItemBody } from '@pie-qti/item-player/components';
-	import { registerDefaultComponents } from '@pie-qti/default-components';
 	import { typesetAction } from '@pie-qti/default-components/shared';
 	import { typesetMathInElement } from '@pie-qti/typeset-katex';
 	import type { SvelteI18nProvider } from '@pie-qti/i18n';
-	import { loadPackageDataAsync, getItemXml, resolveImagesInXml, extractStimulusRefsFromItemXml, loadStimulusContent, loadItemDeliveryContext, listFiles } from '$lib/package-processor';
+	import { loadPackageDataAsync, getItemXml, resolveImagesInXml, loadItemDeliveryContext, listFiles } from '$lib/package-processor';
 	import type { PackageStructure } from '$lib/package-processor';
+	import { DemoItemSessionController } from '$lib/item-session.svelte';
 	import { getSecurityConfig } from '$lib/player-config';
 	import XmlEditor from '$lib/components/XmlEditor.svelte';
 	import QtiDiagnosticsPanel from '$lib/components/QtiDiagnosticsPanel.svelte';
 	import { analyzeQtiItemCompatibility, type QtiCompatibilityReport } from '$lib/qti-diagnostics';
 
-	/**
-	 * Default outcome identifier for feedback display
-	 * This is a common convention in QTI content but can vary by authoring tool.
-	 * Some templates use 'FEEDBACK', others may use different identifiers.
-	 */
-	const FEEDBACK_OUTCOME_ID = 'FEEDBACK';
 	type ItemResponseValue = InteractionResponseValue | null;
-	type ItemResponseMap = Record<string, ItemResponseValue>;
 
 	/**
 	 * QTI Heuristics configuration
@@ -38,8 +31,6 @@
 		lenientImagePaths: true,
 		autoPopulateFeedbackOutcome: true,
 	};
-	const heuristics = normalizeHeuristicsConfig(heuristicsConfig);
-
 	let itemXml = $state<string | null>(null);
 	let sourceItemXml = $state<string | null>(null);
 	let loading = $state(true);
@@ -52,11 +43,8 @@
 	let itemTitle = $state<string | null>(null);
 	let itemMetadata = $state<any>(null);
 
-	// Player state
-	let player = $state<Player | null>(null);
-	let responses = $state<ItemResponseMap>({});
-	let outcomeValues = $state<Record<string, any>>({});
-	let stimulusContent = $state<Record<string, string>>({});
+	// Item session state
+	const itemSession = new DemoItemSessionController();
 	let deliveryContext = $state<ResolvedItemDeliveryContext | undefined>(undefined);
 	let diagnostics = $state<QtiCompatibilityReport | null>(null);
 	let selectedRole = $state<QTIRole>('candidate');
@@ -65,8 +53,8 @@
 	const i18nContext = getContext<{ value: SvelteI18nProvider | null }>('i18n');
 	const i18n = i18nContext?.value ?? null;
 
-	function createPlayer(xml: string, context: ResolvedItemDeliveryContext | undefined) {
-		const nextPlayer = new Player({
+	function openItemSession(xml: string, context: ResolvedItemDeliveryContext | undefined) {
+		itemSession.open({
 			itemXml: xml,
 			role: selectedRole,
 			deliveryContext: context,
@@ -79,22 +67,14 @@
 				},
 			}
 		});
-		registerDefaultComponents(nextPlayer.getComponentRegistry());
-		return nextPlayer;
 	}
 
-	function resetItemResponses() {
-		responses = {};
-		outcomeValues = {};
-	}
-
-	function refreshPlayerForRole() {
+	function refreshSessionForRole() {
 		if (!itemXml) return;
 
-		player = createPlayer(itemXml, deliveryContext);
-		resetItemResponses();
+		openItemSession(itemXml, deliveryContext);
 		diagnostics = analyzeQtiItemCompatibility(sourceItemXml ?? itemXml, {
-			player,
+			session: itemSession.session ?? undefined,
 			sourcePath: packageData?.items.find((item) => item.identifier === $page.params.itemId)?.href,
 			packageFiles: packageData ? listFiles(packageData).map((file) => file.path) : [],
 		});
@@ -113,10 +93,7 @@
 		error = null;
 		itemXml = null;
 		sourceItemXml = null;
-		player = null;
-		responses = {};
-		outcomeValues = {};
-		stimulusContent = {};
+		itemSession.dispose();
 		deliveryContext = undefined;
 		diagnostics = null;
 
@@ -161,6 +138,7 @@
 				}
 
 				diagnostics = analyzeQtiItemCompatibility(rawItemXml, {
+					session: itemSession.session ?? undefined,
 					sourcePath: currentItem2?.href,
 					packageFiles: listFiles(packageData).map((file) => file.path),
 				});
@@ -175,15 +153,11 @@
 				// Load QTI 3.0 delivery context for stimuli, item stylesheets, and catalogs.
 				if (currentItem2?.href) {
 					deliveryContext = await loadItemDeliveryContext(packageData, currentItem2.href, itemXml);
-					const stimulusRefs = extractStimulusRefsFromItemXml(itemXml);
-					if (stimulusRefs.length > 0) {
-						stimulusContent = await loadStimulusContent(packageData, currentItem2.href, stimulusRefs);
-					}
 				}
 
-				player = createPlayer(itemXml, deliveryContext);
+				openItemSession(itemXml, deliveryContext);
 				diagnostics = analyzeQtiItemCompatibility(rawItemXml, {
-					player,
+					session: itemSession.session ?? undefined,
 					sourcePath: currentItem2?.href,
 					packageFiles: listFiles(packageData).map((file) => file.path),
 				});
@@ -220,40 +194,22 @@
 	}
 
 	function handleRoleChange() {
-		refreshPlayerForRole();
+		refreshSessionForRole();
 	}
 
 	function handleResponseChange(responseId: string, value: ItemResponseValue) {
-		responses = { ...responses, [responseId]: value };
-		// Process responses to get outcome values for feedback visibility
-		if (player) {
-			try {
-				player.setResponses(responses);
-				const result = player.processResponses();
-				outcomeValues = result.outcomeValues || {};
-
-				// QTI Heuristic: Auto-populate FEEDBACK outcome if missing
-				// This is a heuristic for templates that only set SCORE but have feedbackInline elements.
-				// Can be disabled by setting heuristicsConfig.autoPopulateFeedbackOutcome = false
-				if (shouldAutoPopulateFeedbackOutcome(heuristics, console as any)) {
-					if (!outcomeValues[FEEDBACK_OUTCOME_ID] && value && itemXml) {
-						// Check if the feedback outcome is declared in the XML
-						const hasFeedbackOutcome = itemXml.includes(`outcomeDeclaration identifier="${FEEDBACK_OUTCOME_ID}"`);
-						if (hasFeedbackOutcome) {
-							// Set feedback outcome to the selected choice identifier (for single choice)
-							// or first selected choice (for multiple choice)
-							const feedbackValue = Array.isArray(value) ? value[0] : value;
-							outcomeValues = { ...outcomeValues, [FEEDBACK_OUTCOME_ID]: feedbackValue };
-							console.debug('[QTI Heuristic] Auto-populated FEEDBACK outcome with value:', feedbackValue);
-						}
-					}
-				}
-			} catch (err) {
-				// If processing fails, clear outcome values (feedback will be hidden)
-				outcomeValues = {};
-			}
+		if (!itemSession.session) return;
+		try {
+			void responseId;
+			void value;
+			// Preview standards-based response outcomes without closing the live attempt.
+			itemSession.dispatch({ action: 'scoreAttempt' });
+		} catch (err) {
+			console.warn('Unable to preview response processing outcomes:', err);
 		}
 	}
+
+	onDestroy(() => itemSession.dispose());
 
 	function copyXmlToClipboard() {
 		if (itemXml) {
@@ -363,24 +319,20 @@
 			<span class="loading loading-spinner loading-lg text-primary"></span>
 			<p class="text-base-content/70">Loading item...</p>
 		</div>
-	{:else if player && itemXml}
+	{:else if itemSession.session && itemXml}
 		<QtiDiagnosticsPanel report={diagnostics} />
 
 		<!-- QTI Item Player -->
 		<div class="card bg-base-100 shadow-xl" use:typesetAction={{ typeset: (el) => typesetMathInElement(el) }}>
 			<div class="card-body">
 				<ItemBody
-					{player}
-					{responses}
-					{outcomeValues}
+					session={itemSession.session}
+					revision={itemSession.revision}
 					disabled={false}
-					role={selectedRole}
 					i18n={i18n ?? undefined}
 					typeset={typesetMathInElement}
 					onResponseChange={handleResponseChange}
 					{heuristicsConfig}
-					{deliveryContext}
-					{stimulusContent}
 				/>
 			</div>
 		</div>

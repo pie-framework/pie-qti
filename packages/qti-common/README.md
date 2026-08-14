@@ -36,7 +36,7 @@ const canonicalName = mapper.toCanonical('qti-choice-interaction');
 // → "choiceinteraction"
 
 const nativeName = mapper.toNative('choiceinteraction');
-// → "qti-choice-interaction" (QTI 3.0) or "choiceInteraction" (QTI 2.x)
+// → "qti-choice-interaction" (QTI 3.0) or "choiceinteraction" (QTI 2.x)
 ```
 
 ### Element Name Mapping
@@ -44,18 +44,22 @@ const nativeName = mapper.toNative('choiceinteraction');
 The package provides mappers for both QTI versions:
 
 ```typescript
-import { Qti2ElementNameMapper, Qti3ElementNameMapper } from '@pie-qti/qti-common';
+import { Qti2xElementNameMapper, Qti3ElementNameMapper } from '@pie-qti/qti-common';
 
 // QTI 2.x (camelCase)
-const qti2Mapper = new Qti2ElementNameMapper();
+const qti2Mapper = new Qti2xElementNameMapper();
 qti2Mapper.toCanonical('choiceInteraction'); // → "choiceinteraction"
-qti2Mapper.toNative('choiceinteraction');     // → "choiceInteraction"
+qti2Mapper.toNative('choiceinteraction');     // → "choiceinteraction"
 
 // QTI 3.0 (kebab-case with qti- prefix)
 const qti3Mapper = new Qti3ElementNameMapper();
 qti3Mapper.toCanonical('qti-choice-interaction'); // → "choiceinteraction"
 qti3Mapper.toNative('choiceinteraction');          // → "qti-choice-interaction"
 ```
+
+`Qti2xElementNameMapper.toNative()` returns the lowercase canonical spelling because the parser's
+QTI 2.x matching is case-insensitive; it cannot reconstruct the original camelCase from a lowercase
+name. Preserve the source spelling separately when exact XML serialization matters.
 
 ### Smart Attribute Accessors
 
@@ -114,7 +118,7 @@ getBooleanAttribute(element, 'shuffle');         // Returns boolean
 │   action>      │
 └────────┬───────┘
          │
-         ├──► Qti2ElementNameMapper
+         ├──► Qti2xElementNameMapper
          │    toCanonical('choiceInteraction')
          │         ↓
          │    "choiceinteraction"
@@ -171,14 +175,14 @@ The package auto-detects QTI version from:
 
 ### Parser Factory
 
-#### `createQtiParser(xml: string, options?: { version?: string })`
+#### `createQtiParser(xml: string, options?: CreateParserOptions)`
 
 Creates appropriate parser configuration for the given QTI XML.
 
-**Returns**: `{ mapper: ElementNameMapper, version: string }`
+**Returns**: `{ mapper: ElementNameMapper, attributeMapper: AttributeNameMapper, version: QtiVersion }`
 
 ```typescript
-const { mapper, version } = createQtiParser(xml);
+const { mapper, attributeMapper, version } = createQtiParser(xml);
 ```
 
 #### `isQti3(xml: string): boolean`
@@ -197,6 +201,9 @@ if (isQti3(xml)) {
 
 ```typescript
 interface ElementNameMapper {
+  /** QTI version represented by this mapper */
+  readonly version: string;
+
   /** Convert version-specific name to canonical form */
   toCanonical(elementName: string): string;
 
@@ -208,14 +215,14 @@ interface ElementNameMapper {
 }
 ```
 
-#### `Qti2ElementNameMapper`
+#### `Qti2xElementNameMapper`
 
 Handles QTI 2.x camelCase element names.
 
 ```typescript
-const mapper = new Qti2ElementNameMapper();
+const mapper = new Qti2xElementNameMapper();
 mapper.toCanonical('choiceInteraction'); // → "choiceinteraction"
-mapper.toNative('choiceinteraction');    // → "choiceInteraction"
+mapper.toNative('choiceinteraction');    // → "choiceinteraction"
 ```
 
 #### `Qti3ElementNameMapper`
@@ -260,17 +267,21 @@ const shuffle = getBooleanAttribute(element, 'shuffle', false);
 ### Item Player Integration
 
 ```typescript
-import { Player } from '@pie-qti/item-player';
+import { createAssessmentItemDefinition } from '@pie-qti/item-player';
 import { createQtiParser } from '@pie-qti/qti-common';
 
 const xml = `...(QTI 2.x or 3.0)...`;
-const { mapper, version } = createQtiParser(xml);
+const { mapper, attributeMapper, version } = createQtiParser(xml);
 
-const player = new Player(xml, {
-  elementNameMapper: mapper  // Optional - auto-detected if not provided
+const definition = createAssessmentItemDefinition({
+  itemXml: xml,
+  elementNameMapper: mapper,
+  attributeNameMapper: attributeMapper
 });
+const session = definition.openSession();
 
 console.log(`Playing ${version} content`);
+session.dispose();
 ```
 
 ### Transform Integration
@@ -317,7 +328,8 @@ const elements = doc.getElementsByTagName(tagName);
 
 ```typescript
 // No changes needed! Extraction layer already uses mappers internally
-const player = new Player(xml);  // Works with both QTI 2.x and 3.0
+const definition = createAssessmentItemDefinition({ itemXml: xml });
+const session = definition.openSession(); // Works with both QTI 2.x and 3.0
 ```
 
 ### Attribute Handling Migration

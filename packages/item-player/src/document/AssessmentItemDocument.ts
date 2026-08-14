@@ -1,8 +1,10 @@
 import type { AttributeNameMapper, ElementNameMapper } from '@pie-qti/qti-common';
 import {
+	childElements,
 	findAssessmentItem,
 	findDescendants,
 	findFirstDescendant,
+	getAttr,
 	parseXml,
 	serializeXml,
 } from '@pie-qti/qti-processing';
@@ -28,6 +30,27 @@ export interface AssessmentItemDocumentInput {
 	security?: PlayerSecurityConfig;
 }
 
+export interface ResponseProcessingDescriptor {
+	readonly present: boolean;
+	readonly hasStatements: boolean;
+	readonly template?: string;
+}
+
+export interface DocumentRubricBlock {
+	readonly view: readonly string[];
+	readonly use?: string;
+	readonly scope: 'direct' | 'itemBody';
+	readonly content: string;
+}
+
+export interface DocumentModalFeedback {
+	readonly identifier: string;
+	readonly outcomeIdentifier: string;
+	readonly showHide: 'show' | 'hide';
+	readonly title?: string;
+	readonly content: string;
+}
+
 export class AssessmentItemDocument {
 	private readonly itemXml: string;
 	private readonly security?: PlayerSecurityConfig;
@@ -36,8 +59,8 @@ export class AssessmentItemDocument {
 	readonly attributeNameMapper: AttributeNameMapper;
 	private readonly xmlDocument: Document;
 	private readonly assessmentItem: Element;
-	private extractionDocument: QTIElement | null = null;
-	private extractionRoot: QTIElement | null = null;
+	/** Immutable serialized source for session-local mutable extraction views. */
+	private readonly extractionSource: string;
 
 	constructor({
 		itemXml,
@@ -54,10 +77,23 @@ export class AssessmentItemDocument {
 		enforceItemXmlLimits(this.itemXml, this.security);
 		this.xmlDocument = parseXml(this.itemXml);
 		this.assessmentItem = findAssessmentItem(this.xmlDocument);
+		this.extractionSource = this.serializeItemBodyForExtraction();
 	}
 
-	getAssessmentItem(): Element {
-		return this.assessmentItem;
+	detectVersion(): '2.0' | '2.1' | '2.2' | '3.0' | 'unknown' {
+		const namespace = this.assessmentItem.namespaceURI;
+		if (namespace?.includes('v3p0') || namespace?.includes('imsqtiasi_v3p0')) return '3.0';
+		if (namespace?.includes('v2p2') || namespace?.includes('imsqti_v2p2')) return '2.2';
+		if (namespace?.includes('v2p1') || namespace?.includes('imsqti_v2p1')) return '2.1';
+		if (namespace?.includes('v2p0') || namespace?.includes('imsqti_v2p0')) return '2.0';
+
+		const localName = this.assessmentItem.localName || this.assessmentItem.tagName;
+		if (localName === 'qti-assessment-item' || localName === 'qti-assessment-test') return '3.0';
+
+		const version = this.assessmentItem.getAttribute('version');
+		if (version?.startsWith('3.')) return '3.0';
+		if (version === '2.2' || version === '2.1' || version === '2.0') return version;
+		return 'unknown';
 	}
 
 	getProcessingElement(kind: ProcessingKind): Element | null {
@@ -76,11 +112,60 @@ export class AssessmentItemDocument {
 		return this.serializeChildren(itemBody);
 	}
 
-	findRubricElements(): Element[] {
+	describeResponseProcessing(): ResponseProcessingDescriptor {
+		const element = this.getProcessingElement('response');
+		if (!element) return Object.freeze({ present: false, hasStatements: false });
+		const template = getAttr(element, 'template')?.trim() || undefined;
+		return Object.freeze({
+			present: true,
+			hasStatements: childElements(element).length > 0,
+			...(template ? { template } : {}),
+		});
+	}
+
+	readRubricBlocks(): readonly DocumentRubricBlock[] {
+		return this.findRubricElements().map((element) => {
+			const view = (getAttr(element, 'view') || '').trim().split(/[\s,]+/).filter(Boolean);
+			const use = (getAttr(element, 'use') || '').trim() || undefined;
+			return Object.freeze({
+				view: Object.freeze(view),
+				...(use ? { use } : {}),
+				scope: this.rubricElementScope(element),
+				content: this.serializeChildren(element) || element.textContent || '',
+			});
+		});
+	}
+
+	readModalFeedback(): readonly DocumentModalFeedback[] {
+		return this.findModalFeedbackElements().map((element) => {
+			const identifier = this.getMappedAttribute(element, 'identifier') || '';
+			const outcomeIdentifier = this.getMappedAttribute(element, 'outcomeIdentifier') || '';
+			const showHide = (this.getMappedAttribute(element, 'showHide') || 'show') as 'show' | 'hide';
+			const title = this.getMappedAttribute(element, 'title') || undefined;
+			return Object.freeze({
+				identifier,
+				outcomeIdentifier,
+				showHide,
+				...(title ? { title } : {}),
+				content: this.serializeChildren(element) || element.textContent || '',
+			});
+		});
+	}
+
+	getExtendedTextBase(responseIdentifier: string): number | undefined {
+		const interaction = this.findExtractionElements(['extendedTextInteraction']).find(
+			(candidate) => candidate.responseIdentifier === responseIdentifier,
+		);
+		if (!interaction) return undefined;
+		const base = Number(interaction.element.getAttribute?.('base') ?? 10);
+		return Number.isInteger(base) && base >= 2 && base <= 36 ? base : 10;
+	}
+
+	private findRubricElements(): Element[] {
 		return findDescendants(this.assessmentItem, this.elementNameMapper.toNative('rubricblock'));
 	}
 
-	rubricElementScope(element: Element): 'direct' | 'itemBody' {
+	private rubricElementScope(element: Element): 'direct' | 'itemBody' {
 		const itemBodyTag = this.elementNameMapper.toNative('itembody').toLowerCase();
 		let parent = element.parentNode;
 		while (parent && parent !== this.assessmentItem) {
@@ -93,7 +178,7 @@ export class AssessmentItemDocument {
 		return 'direct';
 	}
 
-	findModalFeedbackElements(): Element[] {
+	private findModalFeedbackElements(): Element[] {
 		return findDescendants(this.assessmentItem, this.elementNameMapper.toNative('modalfeedback'));
 	}
 
@@ -111,7 +196,11 @@ export class AssessmentItemDocument {
 		return this.assessmentItem.getAttribute(this.attributeNameMapper.toNative(name));
 	}
 
-	serializeChildren(element: Element): string {
+	private getMappedAttribute(element: Element, name: string): string | null {
+		return element.getAttribute(this.attributeNameMapper.toNative(name));
+	}
+
+	private serializeChildren(element: Element): string {
 		return normalizeMathMlPrefixes(
 			unwrapCdataSections(this.serializeChildNodes(element)),
 			this.mathMlPrefixes
@@ -119,7 +208,7 @@ export class AssessmentItemDocument {
 	}
 
 	findExtractionElements(elementTypes: Iterable<string>): DiscoveredInteractionElement[] {
-		const root = this.getExtractionRoot();
+		const root = this.createExtractionRoot();
 		if (!root) return [];
 
 		const canonicalTypes = new Set(
@@ -146,24 +235,16 @@ export class AssessmentItemDocument {
 		return elements;
 	}
 
-	private getExtractionRoot(): QTIElement | null {
-		if (this.extractionRoot) return this.extractionRoot;
-
-		const docRoot = this.getExtractionDocument();
+	private createExtractionRoot(): QTIElement | null {
+		// node-html-parser elements are intentionally mutable for plugin compatibility.
+		// Parse one private view for each extraction pass so a plugin cannot mutate
+		// the compiled document observed by a later item session.
+		const docRoot = parse(this.extractionSource, {
+			lowerCaseTagName: false,
+			comment: false,
+		}) as unknown as QTIElement;
 		const itemBodyTag = this.elementNameMapper.toNative('itembody').toLowerCase();
-		this.extractionRoot = (docRoot.querySelector?.(itemBodyTag) as QTIElement | null) ?? null;
-		return this.extractionRoot;
-	}
-
-	private getExtractionDocument(): QTIElement {
-		if (!this.extractionDocument) {
-			enforceItemXmlLimits(this.itemXml, this.security);
-			this.extractionDocument = parse(this.serializeItemBodyForExtraction(), {
-				lowerCaseTagName: false,
-				comment: false,
-			}) as unknown as QTIElement;
-		}
-		return this.extractionDocument;
+		return (docRoot.querySelector?.(itemBodyTag) as QTIElement | null) ?? null;
 	}
 
 	private getItemBodyElement(): Element | null {

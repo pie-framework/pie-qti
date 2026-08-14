@@ -85,6 +85,10 @@ export class AssessmentSessionCoordinator {
 		return { ...((this.#state.itemResponses?.[itemIdentifier] || {}) as Record<string, unknown>) };
 	}
 
+	getPersistedItemSession(itemIdentifier: string): SerializedItemSessionState | undefined {
+		return this.#state.itemSessions?.[itemIdentifier];
+	}
+
 	updateActiveResponse(responseId: string, value: unknown): Record<string, unknown> {
 		return this.updateResponseForItem(this.#state.currentItemIdentifier, responseId, value);
 	}
@@ -145,8 +149,11 @@ export class AssessmentSessionCoordinator {
 		itemSessions: AssessmentSessionState['itemSessions']
 	): void {
 		this.restoreState(updatedState);
-		this.#state.itemResponses = itemResponses;
-		this.#state.itemSessions = itemSessions;
+		// Own the accepted snapshots rather than retaining the submit loop's mutable
+		// working maps. Later provisional items must not appear committed until their
+		// backend request succeeds.
+		this.#state.itemResponses = { ...itemResponses };
+		this.#state.itemSessions = itemSessions ? { ...itemSessions } : undefined;
 	}
 
 	markVisited(itemIdentifier: string): void {

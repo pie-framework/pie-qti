@@ -28,6 +28,27 @@ describe('standardGraphicGapMatchExtractor', () => {
 		expect(result.hotspots).toHaveLength(2);
 	});
 
+	test('rejects declaration and URL payloads in the authored palette width', () => {
+		const xml = `
+			<graphicGapMatchInteraction
+				responseIdentifier="RESPONSE"
+				data-choices-container-width="2px; background-image: url(https://tracker.test/pixel)"
+			>
+				<object type="image/png" data="diagram.png" width="600" height="400" />
+				<gapText identifier="G1" matchMax="1">Label</gapText>
+				<associableHotspot identifier="H1" shape="rect" coords="0,0,100,100" matchMax="1" />
+			</graphicGapMatchInteraction>
+		`;
+		const element = parseQTI(xml);
+
+		const result = standardGraphicGapMatchExtractor.extract(
+			element,
+			createTestContext(element, 'RESPONSE'),
+		);
+
+		expect((result as { choicesContainerWidth?: string }).choicesContainerWidth).toBeUndefined();
+	});
+
 	test('extracts gapText elements correctly', () => {
 		const xml = `
 			<graphicGapMatchInteraction responseIdentifier="RESPONSE">

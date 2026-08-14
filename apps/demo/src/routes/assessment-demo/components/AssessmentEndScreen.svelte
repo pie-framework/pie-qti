@@ -1,12 +1,12 @@
 <script lang="ts">
-	import type { AssessmentResults } from '@pie-qti/assessment-player';
-	import { registerDefaultComponents } from '@pie-qti/default-components';
+	import type { AssessmentResults, ItemResult } from '@pie-qti/assessment-player';
 	import { typesetMathInElement } from '@pie-qti/typeset-katex';
 	import { ItemBody } from '@pie-qti/item-player/components';
-	import { Player } from '@pie-qti/item-player';
 	import type { SampleAssessment } from '$lib/sample-assessments';
 	import { typesetAction } from '@pie-qti/default-components/shared';
+	import { DemoItemSessionController } from '$lib/item-session.svelte';
 	import { getSecurityConfig } from '$lib/player-config';
+	import { untrack } from 'svelte';
 
 	type DisplayItemScore = {
 		id: string;
@@ -25,6 +25,11 @@
 	}
 
 	let { results, items, assessment, showCorrectAnswers = $bindable(), onRetake }: Props = $props();
+	type ReviewItem = {
+		result: ItemResult;
+		controller: DemoItemSessionController | null;
+	};
+	let reviewItems = $state<ReviewItem[]>([]);
 
 	const itemXmlById = $derived.by(() => {
 		const map = new Map<string, string>();
@@ -40,15 +45,36 @@
 
 	const itemResultsById = $derived.by(() => new Map(results.itemResults.map((r) => [r.itemIdentifier, r])));
 
-	function createScorerPlayer(itemXml: string) {
-		const p = new Player({
-			itemXml,
-			role: 'scorer',
-			security: getSecurityConfig(),
-		});
-		registerDefaultComponents(p.getComponentRegistry());
-		return p;
-	}
+	$effect(() => {
+		if (!showCorrectAnswers) {
+			reviewItems = [];
+			return;
+		}
+
+		const currentResults = results.itemResults;
+		const xmlById = itemXmlById;
+		const nextItems = untrack(() =>
+			currentResults.map((result): ReviewItem => {
+				const itemXml = xmlById.get(result.itemIdentifier);
+				if (!itemXml) return { result, controller: null };
+				const controller = new DemoItemSessionController();
+				controller.open(
+					{
+						itemXml,
+						role: 'scorer',
+						security: getSecurityConfig(),
+					},
+					{ responses: result.responses },
+				);
+				return { result, controller };
+			}),
+		);
+		reviewItems = nextItems;
+
+		return () => {
+			for (const item of nextItems) item.controller?.dispose();
+		};
+	});
 </script>
 
 <div class="card bg-base-100">
@@ -110,10 +136,9 @@
 
 		{#if showCorrectAnswers}
 			<div class="mt-4 space-y-6">
-				{#each results.itemResults as r (r.itemIdentifier)}
-					{@const itemXml = itemXmlById.get(r.itemIdentifier)}
-					{#if itemXml}
-						{@const player = createScorerPlayer(itemXml)}
+				{#each reviewItems as review (review.result.itemIdentifier)}
+					{@const r = review.result}
+					{#if review.controller?.session}
 						<div class="card bg-base-200" use:typesetAction={{ typeset: (el) => typesetMathInElement(el) }}>
 							<div class="card-body">
 								<div class="flex items-baseline justify-between gap-4">
@@ -124,10 +149,9 @@
 								</div>
 
 								<ItemBody
-									player={player}
-									responses={r.responses}
+									session={review.controller.session}
+									revision={review.controller.revision}
 									disabled={true}
-									role="scorer"
 									typeset={typesetMathInElement}
 								/>
 							</div>
@@ -146,5 +170,3 @@
 		</div>
 	</div>
 </div>
-
-

@@ -1,7 +1,8 @@
 import {
+	createAssessmentItemDefinition,
 	getStandardInteractionModule,
 	normalizeInteractionTypeFromTagName,
-	type Player,
+	type ItemSession,
 } from '@pie-qti/item-player';
 import { detectQtiVersion, type QtiVersion } from '@pie-qti/qti-common';
 import publicCoverageMatrix from '../../../../docs/certification/public-coverage-matrix.json';
@@ -47,7 +48,8 @@ export interface QtiCompatibilityReport {
 }
 
 interface AnalyzeOptions {
-	player?: Player;
+	/** Optional diagnostic-only session carrying the same definition plugins as the host. */
+	session?: ItemSession;
 	sourcePath?: string;
 	packageFiles?: string[];
 }
@@ -98,7 +100,8 @@ export function analyzeQtiItemCompatibility(
 	const itemIdentifier = root.getAttribute('identifier') ?? undefined;
 	const itemTitle = root.getAttribute('title') ?? undefined;
 	const scannedInteractions = scanInteractionElements(doc);
-	const extractedTypeCounts = getExtractedInteractionCounts(options.player, xml, issues);
+	const diagnostic = getDiagnosticSession(options.session, xml, issues);
+	const extractedTypeCounts = getExtractedInteractionCounts(diagnostic.session, issues);
 	const interactions = [...scannedInteractions.entries()]
 		.map(([type, count]) => {
 			const supported = getStandardInteractionModule(type) !== null;
@@ -142,9 +145,10 @@ export function analyzeQtiItemCompatibility(
 		}
 	}
 
-	validateResponseDeclarations(options.player, interactions, issues);
-	validateResponseProcessing(options.player, issues);
+	validateResponseDeclarations(diagnostic.session, interactions, issues);
+	validateResponseProcessing(diagnostic.session, diagnostic.owned, issues);
 	validateAssetReferences(doc, options, issues);
+	diagnostic.owned?.dispose();
 
 	const certificationRows = new Set(interactions.flatMap((interaction) => interaction.certificationRows));
 	if (interactions.length > 0 && certificationRows.size === 0) {
@@ -239,23 +243,18 @@ function scanInteractionElements(doc: Document): Map<string, number> {
 }
 
 function getExtractedInteractionCounts(
-	player: Player | undefined,
-	xml: string,
+	session: ItemSession | undefined,
 	issues: QtiDiagnosticIssue[]
 ): Map<string, number> {
 	const counts = new Map<string, number>();
-	if (!player) {
-		if (!xml.trim()) return counts;
-		issues.push({
-			severity: 'error',
-			title: 'Player initialization failed',
-			detail: 'The item could not be instantiated by @pie-qti/item-player.',
-		});
-		return counts;
-	}
+	if (!session) return counts;
 
 	try {
-		for (const interaction of player.getInteractionData() as Array<{ type?: string }>) {
+		for (const interaction of session
+			.present()
+			.flow.flatMap((node) =>
+				node.kind === 'interaction' ? [node.mount.interaction] : []
+			)) {
 			if (!interaction.type) continue;
 			const type = normalizeInteractionTypeFromTagName(interaction.type);
 			counts.set(type, (counts.get(type) ?? 0) + 1);
@@ -271,19 +270,20 @@ function getExtractedInteractionCounts(
 }
 
 function validateResponseDeclarations(
-	player: Player | undefined,
+	session: ItemSession | undefined,
 	interactions: QtiInteractionDiagnostic[],
 	issues: QtiDiagnosticIssue[]
 ): void {
-	if (!player) return;
-	const declarations = player.getDeclarations();
-	const responseInteractionIds = player
-		.getResponseInteractions()
-		.map((interaction) => interaction.responseIdentifier)
-		.filter(Boolean);
+	if (!session) return;
+	const responseIdentifiers = new Set(Object.keys(session.state().responses));
+	const responseInteractionIds = session
+		.present()
+		.flow.flatMap((node) =>
+			node.kind === 'interaction' ? [node.mount.interaction.responseId] : []
+		);
 
 	for (const responseId of responseInteractionIds) {
-		if (!declarations[responseId]) {
+		if (!responseIdentifiers.has(responseId)) {
 			issues.push({
 				severity: 'error',
 				title: `Missing response declaration: ${responseId}`,
@@ -301,20 +301,39 @@ function validateResponseDeclarations(
 	}
 }
 
-function validateResponseProcessing(player: Player | undefined, issues: QtiDiagnosticIssue[]): void {
-	if (!player) return;
+function validateResponseProcessing(
+	session: ItemSession | undefined,
+	owned: ItemSession | undefined,
+	issues: QtiDiagnosticIssue[]
+): void {
+	if (!session || !owned) return;
 	try {
-		const emptyResponses = Object.fromEntries(
-			player.getResponseIdentifiers().map((responseId) => [responseId, null])
-		);
-		player.setResponses(emptyResponses);
-		player.processResponses();
+		session.dispatch({ action: 'scoreAttempt' });
 	} catch (error) {
 		issues.push({
 			severity: 'error',
 			title: 'Response processing failed',
 			detail: error instanceof Error ? error.message : String(error),
 		});
+	}
+}
+
+function getDiagnosticSession(
+	provided: ItemSession | undefined,
+	xml: string,
+	issues: QtiDiagnosticIssue[]
+): { session?: ItemSession; owned?: ItemSession } {
+	if (provided) return { session: provided };
+	try {
+		const owned = createAssessmentItemDefinition({ itemXml: xml }).openSession();
+		return { session: owned, owned };
+	} catch (error) {
+		issues.push({
+			severity: 'error',
+			title: 'Item session initialization failed',
+			detail: error instanceof Error ? error.message : String(error),
+		});
+		return {};
 	}
 }
 

@@ -5,9 +5,8 @@
  */
 
 import type { ElementNameMapper, AttributeNameMapper } from '@pie-qti/qti-common';
-import type { PlayerConfig } from '../types/index.js';
 import type { QTIElement } from '../interactions/index.js';
-import type { ExtractionContext, VariableDeclaration } from './types.js';
+import type { ExtractionConfig, ExtractionContext, VariableDeclaration } from './types.js';
 import { createExtractionUtils } from './utils.js';
 import { createShuffleRng } from '../core/shuffle.js';
 
@@ -18,7 +17,7 @@ import { createShuffleRng } from '../core/shuffle.js';
  * @param responseId - Response identifier for this interaction
  * @param dom - Root DOM element for document-wide queries
  * @param declarations - Variable declarations from QTI
- * @param config - Player configuration
+ * @param config - Extraction-time role, security, and QTI name mapping
  * @returns Complete extraction context with utilities
  *
  * @example
@@ -27,7 +26,7 @@ import { createShuffleRng } from '../core/shuffle.js';
  *   'RESPONSE',
  *   rootElement,
  *   declarations,
- *   playerConfig
+ *   extractionConfig
  * );
  * const result = registry.extract<ChoiceData>(element, context);
  */
@@ -36,7 +35,7 @@ export function createExtractionContext(
 	responseId: string,
 	dom: QTIElement,
 	declarations: Map<string, VariableDeclaration>,
-	config: PlayerConfig,
+	config: ExtractionConfig,
 	sessionGuid?: string
 ): ExtractionContext {
 	// Pass both element and attribute name mappers for QTI version handling

@@ -53,7 +53,7 @@ describe('shared stimulus runtime rendering helpers', () => {
 		expect(rendered.indexOf('Question stem')).toBeLessThan(rendered.indexOf('Shared passage'));
 	});
 
-	test('explicit stimulus content overrides resolved delivery-context content after sanitization', () => {
+	test('uses sanitized resolved delivery-context content', () => {
 		const deliveryContext: ResolvedItemDeliveryContext = {
 			itemHref: 'items/item.xml',
 			stimuli: {
@@ -73,11 +73,10 @@ describe('shared stimulus runtime rendering helpers', () => {
 
 		const content = buildEffectiveStimulusContent(
 			deliveryContext,
-			{ passage_1: '<script></script><p>Explicit passage</p>' },
-			(html) => html.replace(/<script><\/script>/g, '')
+			(html) => html
 		);
 
-		expect(content.passage_1).toBe('<p>Explicit passage</p>');
+		expect(content.passage_1).toBe('<p>Resolved passage</p>');
 	});
 
 	test('leaves unresolved stimulus refs untouched for diagnostics', () => {

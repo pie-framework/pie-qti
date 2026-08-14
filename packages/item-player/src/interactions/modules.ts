@@ -1,4 +1,9 @@
 import type { ElementExtractor } from '../extraction/types.js';
+import {
+	htmlField,
+	type InteractionDeliveryField,
+	urlField,
+} from '../extraction/deliveryTypes.js';
 import type { InteractionDataMap } from './shared/types.js';
 import { standardAssociateExtractor } from './associate/index.js';
 import { standardChoiceExtractor } from './choice/index.js';
@@ -28,34 +33,170 @@ export type InteractionPlacement = 'block' | 'inline';
 
 export interface StandardInteractionModule {
 	type: StandardInteractionType;
-	extractor: ElementExtractor;
+	extractor: ElementExtractor<any, string>;
 	placement: InteractionPlacement;
+	/** Render-sink fields owned by this InteractionModule. */
+	delivery: readonly InteractionDeliveryField[];
 }
 
-export const STANDARD_INTERACTION_MODULES = [
-	{ type: 'choiceInteraction', extractor: standardChoiceExtractor, placement: 'block' },
-	{ type: 'textEntryInteraction', extractor: standardTextEntryExtractor, placement: 'inline' },
-	{ type: 'extendedTextInteraction', extractor: standardExtendedTextExtractor, placement: 'block' },
-	{ type: 'inlineChoiceInteraction', extractor: standardInlineChoiceExtractor, placement: 'inline' },
-	{ type: 'orderInteraction', extractor: standardOrderExtractor, placement: 'block' },
-	{ type: 'matchInteraction', extractor: standardMatchExtractor, placement: 'block' },
-	{ type: 'associateInteraction', extractor: standardAssociateExtractor, placement: 'block' },
-	{ type: 'gapMatchInteraction', extractor: standardGapMatchExtractor, placement: 'block' },
-	{ type: 'sliderInteraction', extractor: standardSliderExtractor, placement: 'block' },
-	{ type: 'hotspotInteraction', extractor: standardHotspotExtractor, placement: 'block' },
-	{ type: 'graphicGapMatchInteraction', extractor: standardGraphicGapMatchExtractor, placement: 'block' },
-	{ type: 'uploadInteraction', extractor: standardUploadExtractor, placement: 'block' },
-	{ type: 'drawingInteraction', extractor: standardDrawingExtractor, placement: 'block' },
-	{ type: 'customInteraction', extractor: standardCustomExtractor, placement: 'block' },
-	{ type: 'portableCustomInteraction', extractor: portableCustomExtractor, placement: 'block' },
-	{ type: 'mediaInteraction', extractor: standardMediaExtractor, placement: 'block' },
-	{ type: 'hottextInteraction', extractor: standardHottextExtractor, placement: 'block' },
-	{ type: 'selectPointInteraction', extractor: standardSelectPointExtractor, placement: 'block' },
-	{ type: 'graphicOrderInteraction', extractor: standardGraphicOrderExtractor, placement: 'block' },
-	{ type: 'graphicAssociateInteraction', extractor: standardGraphicAssociateExtractor, placement: 'block' },
-	{ type: 'positionObjectInteraction', extractor: standardPositionObjectExtractor, placement: 'block' },
-	{ type: 'endAttemptInteraction', extractor: standardEndAttemptExtractor, placement: 'block' },
+const prompt = htmlField('prompt');
+const image = [
+	htmlField('imageData', 'content'),
+	urlField('img', 'imageData', 'src'),
+] as const;
+
+const STANDARD_INTERACTION_MODULE_DEFINITIONS = [
+	{
+		type: 'choiceInteraction',
+		extractor: standardChoiceExtractor,
+		placement: 'block',
+		delivery: [prompt, htmlField('choices', '*', 'text')],
+	},
+	{
+		type: 'textEntryInteraction',
+		extractor: standardTextEntryExtractor,
+		placement: 'inline',
+		delivery: [],
+	},
+	{
+		type: 'extendedTextInteraction',
+		extractor: standardExtendedTextExtractor,
+		placement: 'block',
+		delivery: [prompt],
+	},
+	{
+		type: 'inlineChoiceInteraction',
+		extractor: standardInlineChoiceExtractor,
+		placement: 'inline',
+		delivery: [],
+	},
+	{
+		type: 'orderInteraction',
+		extractor: standardOrderExtractor,
+		placement: 'block',
+		delivery: [prompt, htmlField('choices', '*', 'text')],
+	},
+	{
+		type: 'matchInteraction',
+		extractor: standardMatchExtractor,
+		placement: 'block',
+		delivery: [
+			prompt,
+			htmlField('sourceSet', '*', 'text'),
+			htmlField('targetSet', '*', 'text'),
+		],
+	},
+	{
+		type: 'associateInteraction',
+		extractor: standardAssociateExtractor,
+		placement: 'block',
+		delivery: [prompt, htmlField('choices', '*', 'text')],
+	},
+	{
+		type: 'gapMatchInteraction',
+		extractor: standardGapMatchExtractor,
+		placement: 'block',
+		delivery: [prompt, htmlField('promptText')],
+	},
+	{
+		type: 'sliderInteraction',
+		extractor: standardSliderExtractor,
+		placement: 'block',
+		delivery: [prompt],
+	},
+	{
+		type: 'hotspotInteraction',
+		extractor: standardHotspotExtractor,
+		placement: 'block',
+		delivery: [prompt, ...image],
+	},
+	{
+		type: 'graphicGapMatchInteraction',
+		extractor: standardGraphicGapMatchExtractor,
+		placement: 'block',
+		delivery: [prompt, ...image, urlField('img', 'gapImages', '*', 'src')],
+	},
+	{
+		type: 'uploadInteraction',
+		extractor: standardUploadExtractor,
+		placement: 'block',
+		delivery: [prompt],
+	},
+	{
+		type: 'drawingInteraction',
+		extractor: standardDrawingExtractor,
+		placement: 'block',
+		delivery: [prompt, ...image],
+	},
+	{
+		type: 'customInteraction',
+		extractor: standardCustomExtractor,
+		placement: 'block',
+		delivery: [prompt],
+	},
+	{
+		type: 'portableCustomInteraction',
+		extractor: portableCustomExtractor,
+		placement: 'block',
+		delivery: [htmlField('markup')],
+	},
+	{
+		type: 'mediaInteraction',
+		extractor: standardMediaExtractor,
+		placement: 'block',
+		delivery: [prompt, urlField('media-or-object', 'mediaElement', 'src')],
+	},
+	{
+		type: 'hottextInteraction',
+		extractor: standardHottextExtractor,
+		placement: 'block',
+		delivery: [prompt, htmlField('contentHtml')],
+	},
+	{
+		type: 'selectPointInteraction',
+		extractor: standardSelectPointExtractor,
+		placement: 'block',
+		delivery: [prompt, ...image],
+	},
+	{
+		type: 'graphicOrderInteraction',
+		extractor: standardGraphicOrderExtractor,
+		placement: 'block',
+		delivery: [prompt, ...image],
+	},
+	{
+		type: 'graphicAssociateInteraction',
+		extractor: standardGraphicAssociateExtractor,
+		placement: 'block',
+		delivery: [prompt, ...image],
+	},
+	{
+		type: 'positionObjectInteraction',
+		extractor: standardPositionObjectExtractor,
+		placement: 'block',
+		delivery: [
+			prompt,
+			...image,
+			htmlField('positionObjectStages', '*', 'objectData', 'content'),
+			urlField('img', 'positionObjectStages', '*', 'objectData', 'src'),
+		],
+	},
+	{
+		type: 'endAttemptInteraction',
+		extractor: standardEndAttemptExtractor,
+		placement: 'block',
+		delivery: [prompt],
+	},
 ] as const satisfies readonly StandardInteractionModule[];
+
+/**
+ * Immutable process-wide inventory. Definitions still snapshot its delivery
+ * fields into their own sealed registry, so session behavior does not depend on
+ * later access to this exported catalog.
+ */
+export const STANDARD_INTERACTION_MODULES = freezeStandardInteractionModules(
+	STANDARD_INTERACTION_MODULE_DEFINITIONS,
+);
 
 export function getStandardInteractionModules(): readonly StandardInteractionModule[] {
 	return STANDARD_INTERACTION_MODULES;
@@ -69,7 +210,7 @@ export function getStandardInlineInteractionModules(): readonly StandardInteract
 	return STANDARD_INTERACTION_MODULES.filter((module) => module.placement === 'inline');
 }
 
-export function getStandardInteractionExtractors(): readonly ElementExtractor[] {
+export function getStandardInteractionExtractors(): readonly ElementExtractor<any, string>[] {
 	return STANDARD_INTERACTION_MODULES.map((module) => module.extractor);
 }
 
@@ -110,4 +251,24 @@ export function isStandardBlockInteractionType(type: string): boolean {
 
 export function isStandardInlineInteractionTagName(tagName: string): boolean {
 	return isStandardInlineInteractionType(normalizeInteractionTypeFromTagName(tagName));
+}
+
+function freezeStandardInteractionModules(
+	modules: readonly StandardInteractionModule[],
+): readonly StandardInteractionModule[] {
+	return Object.freeze(
+		modules.map((module) =>
+			Object.freeze({
+				...module,
+				delivery: Object.freeze(
+					module.delivery.map((field) =>
+						Object.freeze({
+							...field,
+							path: Object.freeze([...field.path]),
+						}),
+					),
+				),
+			}),
+		),
+	);
 }

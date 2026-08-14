@@ -8,7 +8,7 @@
 	"scripts": {
 		"build": "vite build && tsc",
 		"dev": "tsc --watch",
-		"test": "bun test",
+		"test": "bun test && tsc -p ./tsconfig.server-types.test.json",
 		"typecheck": "tsc --noEmit",
 		"check": "svelte-check --tsconfig ./tsconfig.svelte.json",
 		"lint": "biome check .",

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { SectionMenu } from '@pie-qti/assessment-player/components';
+	import { SectionMenu } from '$assessment-components';
 
 	const sections = [
 		{ id: 'sec-1', index: 0, title: 'Section 1' },
@@ -18,5 +18,4 @@
 		onSectionSelect={(idx) => (currentSectionIndex = idx)}
 	/>
 </div>
-
 

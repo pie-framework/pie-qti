@@ -3,6 +3,7 @@
 import { execSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { getNpmPackEntry } from "./npm-pack-json.mjs";
 
 const ROOT = process.cwd();
 const ROOT_PACKAGE_JSON = path.join(ROOT, "package.json");
@@ -37,15 +38,6 @@ const getWorkspaceDirs = () => {
 	}
 
 	return [...dirs].filter((dir) => existsSync(path.join(dir, "package.json")));
-};
-
-const parsePackJson = (rawOutput) => {
-	const start = rawOutput.indexOf("[");
-	const end = rawOutput.lastIndexOf("]");
-	if (start < 0 || end < 0 || end < start) {
-		throw new Error("npm pack output did not include JSON payload");
-	}
-	return JSON.parse(rawOutput.slice(start, end + 1));
 };
 
 const isVirtualSource = (sourcePath) =>
@@ -126,9 +118,9 @@ const run = () => {
 				cwd: dir,
 				stdio: ["ignore", "pipe", "pipe"],
 			}).toString();
-			const packData = parsePackJson(rawOutput);
+			const packedEntry = getNpmPackEntry(rawOutput, pkg.name);
 			const packedFiles = new Set(
-				(packData?.[0]?.files ?? []).map((entry) => toPosix(entry.path)),
+				(packedEntry.files ?? []).map((entry) => toPosix(entry.path)),
 			);
 			const missingSources = collectMissingSources(dir, packedFiles);
 			if (missingSources.length > 0) {

@@ -169,15 +169,6 @@ describe('Player', () => {
 			expect(responses.RESPONSE).toBe('ChoiceA');
 		});
 
-		test('should initialize with responses', () => {
-			const player = new Player({
-				itemXml: SIMPLE_CHOICE_XML,
-				responses: { RESPONSE: 'ChoiceB' },
-			});
-
-			const responses = player.getResponses();
-			expect(responses.RESPONSE).toBe('ChoiceB');
-		});
 	});
 
 	describe('Response Processing', () => {
@@ -240,21 +231,6 @@ describe('Player', () => {
 			expect(state.RESPONSE).toBe('ChoiceA');
 		});
 
-		test('should restore session state', () => {
-			const sessionState = {
-				RESPONSE: 'ChoiceB',
-				SCORE: 0.5,
-			};
-
-			const player = new Player({
-				itemXml: SIMPLE_CHOICE_XML,
-				sessionState,
-			});
-
-			const state = player.getSessionState();
-			expect(state.RESPONSE).toBe('ChoiceB');
-			expect(state.SCORE).toBe(0.5);
-		});
 	});
 
 	describe('Item Content', () => {

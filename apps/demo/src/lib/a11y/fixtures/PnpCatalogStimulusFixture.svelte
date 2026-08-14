@@ -1,12 +1,9 @@
 <script lang="ts">
 	import { ItemBody } from '@pie-qti/item-player/components';
-	import { Player, type PnpProfile } from '@pie-qti/item-player';
-	import type { InteractionResponseValue } from '@pie-qti/item-player/web-components';
+	import type { PnpProfile } from '@pie-qti/item-player';
 	import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
-	import { registerDefaultComponents } from '@pie-qti/default-components';
+	import { DemoItemSessionController } from '$lib/item-session.svelte';
 	import { onMount } from 'svelte';
-
-	type FixtureResponseValue = InteractionResponseValue | null;
 
 	// Clean-room QTI 3 fixture authored for Stage 5 public accessibility evidence.
 	// It exercises shared stimulus, scoped catalog lookup, PNP rebinding, and
@@ -104,28 +101,29 @@
 		},
 	};
 
-	let player = $state<Player | null>(null);
-	let responses = $state<Record<string, FixtureResponseValue>>({ RESPONSE: null });
+	const itemSession = new DemoItemSessionController();
 	let glossaryEnabled = $state(true);
 	let lastCatalogEvent = $state<string>('none');
 	let mounted = $state(false);
 	let fixtureRoot: HTMLDivElement | null = $state(null);
 
 	onMount(() => {
-		const newPlayer = new Player({
+		itemSession.open({
 			itemXml: qtiXml,
 			role: 'candidate',
 			pnp: initialPnp,
 			deliveryContext,
 		});
-		registerDefaultComponents(newPlayer.getComponentRegistry());
-		player = newPlayer;
 		mounted = true;
+		return () => itemSession.dispose();
 	});
 
 	function toggleGlossary() {
 		glossaryEnabled = !glossaryEnabled;
-		player?.updatePnp({ content: { glossaryOnScreen: glossaryEnabled } });
+		itemSession.dispatch({
+			action: 'updatePnp',
+			profile: { content: { glossaryOnScreen: glossaryEnabled } },
+		});
 	}
 
 	$effect(() => {
@@ -157,13 +155,12 @@
 		</div>
 	</div>
 
-	{#if mounted && player}
+	{#if mounted && itemSession.session}
 		<div class="qti-item-player">
 			<ItemBody
-				{player}
-				{responses}
+				session={itemSession.session}
+				revision={itemSession.revision}
 				disabled={false}
-				onResponseChange={(id: string, value: FixtureResponseValue) => (responses = { ...responses, [id]: value })}
 			/>
 		</div>
 	{/if}

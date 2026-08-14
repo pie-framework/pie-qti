@@ -5,6 +5,7 @@
  */
 
 import type { ElementExtractor } from '../../extraction/types.js';
+import { normalizePixelDimension } from '../../security/styleValues.js';
 
 /**
  * Image data for drawing interaction
@@ -37,9 +38,9 @@ export const standardDrawingExtractor: ElementExtractor<DrawingData> = {
 	elementTypes: ['drawingInteraction'],
 	description: 'Extracts standard QTI drawingInteraction (drawing on canvas)',
 
-	canHandle(element, _context) {
+	canHandle(element, context) {
 		// All drawingInteraction elements are standard
-		return element.rawTagName === 'drawingInteraction';
+		return context.utils.matchesTag(element, 'drawingInteraction');
 	},
 
 	extract(element, context) {
@@ -53,8 +54,8 @@ export const standardDrawingExtractor: ElementExtractor<DrawingData> = {
 			const objectElement = objectElements[0];
 			const type = utils.getAttribute(objectElement, 'type', '');
 			const data = utils.getAttribute(objectElement, 'data', '');
-			const width = utils.getAttribute(objectElement, 'width', '');
-			const height = utils.getAttribute(objectElement, 'height', '');
+			const width = normalizePixelDimension(utils.getAttribute(objectElement, 'width', ''));
+			const height = normalizePixelDimension(utils.getAttribute(objectElement, 'height', ''));
 
 			if (type.startsWith('image/svg')) {
 				// Extract inline SVG content

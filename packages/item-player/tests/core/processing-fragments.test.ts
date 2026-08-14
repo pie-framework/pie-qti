@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { Player } from '../../src/core/Player.js';
+import { createAssessmentItemDefinition as createServerDefinition } from '../../src/server.js';
 
 const ITEM_XML = `
 <assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
@@ -35,5 +36,30 @@ describe('Player processing fragment resolver', () => {
 		expect(() => new Player({ itemXml: ITEM_XML })).toThrow(
 			'no resolveProcessingFragment host callback was provided',
 		);
+	});
+});
+
+describe('server definition processing fragment resolver', () => {
+	it('passes the DOM-free processing request object through the definition interface', () => {
+		const requests: unknown[] = [];
+		const definition = createServerDefinition({
+			itemXml: ITEM_XML,
+			resolveProcessingFragment: (request) => {
+				requests.push(request);
+				return `
+          <responseProcessingFragment xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2">
+            <setOutcomeValue identifier="SCORE">
+              <baseValue baseType="float">2</baseValue>
+            </setOutcomeValue>
+          </responseProcessingFragment>`;
+			},
+		});
+
+		expect(requests).toEqual([
+			{ href: 'rules/score.xml', mode: 'response', scope: 'item', depth: 0 },
+		]);
+		const session = definition.openSession();
+		expect(session.dispatch({ action: 'scoreAttempt' }).result?.scoring?.score).toBe(2);
+		session.dispose();
 	});
 });

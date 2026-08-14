@@ -5,19 +5,25 @@
  *
  * @example
  * ```typescript
- * import { Player } from '@pie-qti/item-player';
+ * import { createAssessmentItemDefinition } from '@pie-qti/item-player';
  * import { likertScalePlugin } from '@acme/likert-scale-plugin';
  *
- * const player = new Player({
+ * const definition = createAssessmentItemDefinition({
  *   itemXml: qtiXml,
  *   plugins: [likertScalePlugin]
  * });
+ * const session = definition.openSession();
  * ```
  *
  * @packageDocumentation
  */
 
-export type { LikertChoiceData, LikertInteractionData } from './extractors/index.js';
+export type {
+	LikertChoiceData,
+	LikertInteractionData,
+	LikertInteractionPayload,
+	LikertScaleType,
+} from './extractors/index.js';
 
 // Extractor exports (for advanced use)
 export { likertChoiceExtractor } from './extractors/index.js';

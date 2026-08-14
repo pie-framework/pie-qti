@@ -9,6 +9,7 @@ export type {
 	AssociableChoice,
 	AssociableHotspot,
 	BaseInteractionData,
+	DeliveredInteraction,
 	GraphicAssociateHotspot,
 	GraphicOrderChoice,
 	HotspotChoice,
@@ -45,8 +46,8 @@ export * from './text-entry/index.js';
 export * from './upload/index.js';
 
 export type {
-	InteractionData,
 	InteractionDataMap,
 	InteractionType,
 	InteractionValueMap,
+	StandardInteractionData,
 } from './shared/types.js';

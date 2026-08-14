@@ -1,12 +1,9 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import { page } from '$app/stores';
-	import '@pie-qti/default-components/plugins'; // Load web components
-	import { registerDefaultComponents } from '@pie-qti/default-components';
 	import { typesetAction } from '@pie-qti/default-components/shared';
 	import { ItemBody } from '@pie-qti/item-player/components';
 	import {
-		Player,
 		type PlayerSecurityConfig,
 		type QTIRole,
 		type ScoringResult,
@@ -15,16 +12,26 @@
 	import type { InteractionResponseValue } from '@pie-qti/item-player/web-components';
 	import { typesetMathInElement } from '@pie-qti/typeset-katex';
 	import { onDestroy, onMount } from 'svelte';
+	import { DemoItemSessionController } from '$lib/item-session.svelte';
 
 	type IframeResponseValue = InteractionResponseValue | null;
 	type IframeResponseMap = Record<string, IframeResponseValue>;
+	type InitParams = {
+		itemXml: string;
+		role?: QTIRole;
+		seed?: number;
+		security?: PlayerSecurityConfig;
+		responses?: Record<string, unknown>;
+		runtimeConfig?: Record<string, unknown>;
+	};
 
-	let player: Player | null = $state(null);
-	let responses = $state<IframeResponseMap>({});
+	const itemSession = new DemoItemSessionController();
+	let responses = $derived((itemSession.view?.responses ?? {}) as IframeResponseMap);
 	let scoringResult: ScoringResult | null = $state(null);
 	let errorMessage = $state<string | null>(null);
 	let disabled = $state(false);
 	let runtimeConfig = $state<Record<string, unknown> | null>(null);
+	let initParams: InitParams | null = null;
 
 	let rootEl: HTMLElement | null = $state(null);
 
@@ -76,63 +83,42 @@
 		}
 	}
 
-	function loadPlayer(params: {
-		itemXml: string;
-		role?: QTIRole;
-		seed?: number;
-		security?: PlayerSecurityConfig;
-		responses?: Record<string, unknown>;
-		runtimeConfig?: Record<string, unknown>;
-	}) {
+	function loadPlayer(params: InitParams) {
 		try {
 			errorMessage = null;
 			scoringResult = null;
 			disabled = false;
 			runtimeConfig = params.runtimeConfig ?? null;
+			initParams = params;
 
-			const newPlayer = new Player({
+			itemSession.open(
+				{
 				itemXml: params.itemXml,
 				role: params.role ?? 'candidate',
 				seed: params.seed,
 				security: params.security,
-			});
-			registerDefaultComponents(newPlayer.getComponentRegistry());
-			player = newPlayer;
-
-			// Initialize responses map.
-			const interactions = newPlayer.getResponseInteractions();
-			const next: IframeResponseMap = {};
-			for (const interaction of interactions) {
-				if (interaction?.responseIdentifier) {
-					next[interaction.responseIdentifier] = null;
-				}
-			}
-			// Apply any provided initial responses.
-			if (params.responses) {
-				for (const [k, v] of Object.entries(params.responses)) {
-					next[k] = v as IframeResponseValue;
-				}
-			}
-			responses = next;
+				},
+				{ responses: params.responses },
+			);
 		} catch (err: any) {
-			player = null;
-			responses = {};
+			itemSession.dispose();
 			errorMessage = err?.message ?? String(err);
 			postToParent('ERROR', { message: errorMessage, code: 'INIT_FAILED' });
 		}
 	}
 
 	function onResponseChange(responseId: string, value: IframeResponseValue) {
-		responses = { ...responses, [responseId]: value };
+		void responseId;
+		void value;
 		postToParent('RESPONSE_CHANGE', { responses });
 	}
 
 	function submit() {
-		if (!player) return;
+		if (!itemSession.session) return;
 		try {
 			disabled = true;
-			player.setResponses(responses);
-			scoringResult = player.processResponses();
+			scoringResult = itemSession.dispatch({ action: 'endAttempt' }).result?.scoring ?? null;
+			if (!scoringResult) throw new Error('Item submission did not produce a scoring result');
 			postToParent('SUBMIT_RESULT', { result: scoringResult });
 		} catch (err: any) {
 			errorMessage = err?.message ?? String(err);
@@ -143,18 +129,16 @@
 	}
 
 	function reset() {
-		if (!player) return;
+		if (!initParams) return;
 		try {
 			scoringResult = null;
 			disabled = false;
-			const interactions = player.getResponseInteractions();
-			const next: Record<string, any> = {};
-			for (const interaction of interactions) {
-				if (interaction?.responseIdentifier) {
-					next[interaction.responseIdentifier] = null;
-				}
-			}
-			responses = next;
+			itemSession.open({
+				itemXml: initParams.itemXml,
+				role: initParams.role ?? 'candidate',
+				seed: initParams.seed,
+				security: initParams.security,
+			});
 			postToParent('RESPONSE_CHANGE', { responses });
 		} catch (err: any) {
 			errorMessage = err?.message ?? String(err);
@@ -163,10 +147,12 @@
 	}
 
 	function setResponses(next: Record<string, unknown>) {
-		// Best-effort overwrite only known keys.
-		const merged: Record<string, any> = { ...responses };
-		for (const [k, v] of Object.entries(next)) merged[k] = v;
-		responses = merged;
+		if (!itemSession.view) return;
+		const merged: Record<string, unknown> = { ...itemSession.view.responses };
+		for (const [key, value] of Object.entries(next)) {
+			if (key in merged) merged[key] = value;
+		}
+		itemSession.dispatch({ action: 'setResponses', responses: merged });
 		postToParent('RESPONSE_CHANGE', { responses });
 	}
 
@@ -226,12 +212,12 @@
 			window.removeEventListener('message', handleIncomingMessage);
 		}
 		resizeObserver?.disconnect();
+		itemSession.dispose();
 	});
 
 	$effect(() => {
 		// Re-emit size when key state changes
-		player;
-		responses;
+		itemSession.revision;
 		scoringResult;
 		errorMessage;
 		runtimeConfig;
@@ -244,12 +230,18 @@
 </svelte:head>
 
 <div class="runtime-root" bind:this={rootEl} use:typesetAction={{ typeset: (el) => typesetMathInElement(el) }}>
-	{#if !player}
+	{#if !itemSession.session}
 		<!-- Keep the runtime visually minimal: the host drives INIT quickly in normal usage. -->
 		<div class="text-sm opacity-60">Loading…</div>
 	{:else}
 		<div class="qti-question-body">
-			<ItemBody {player} {responses} {disabled} typeset={typesetMathInElement} {onResponseChange} />
+			<ItemBody
+				session={itemSession.session}
+				revision={itemSession.revision}
+				{disabled}
+				typeset={typesetMathInElement}
+				{onResponseChange}
+			/>
 		</div>
 	{/if}
 
@@ -323,5 +315,3 @@
 		max-width: 100%;
 	}
 </style>
-
-

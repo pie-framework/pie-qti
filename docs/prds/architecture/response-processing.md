@@ -198,7 +198,7 @@ The QTI processing model is inherently stateful: `setOutcomeValue` and `setTempl
 **Decision:** `setValue()` mutates in place. No immutable update pattern.  
 **Rationale:** See Background. QTI processing is inherently a sequence of mutations; making it functional would add significant complexity for marginal benefit.  
 **Alternatives considered:** Immutable context with structural sharing. Rejected.  
-**Consequences:** Callers that need snapshot/rollback semantics (e.g. adaptive items that retry) must clone the declarations before calling `execProgram`. The item player does this in `submitAttempt()`.
+**Consequences:** Callers that need snapshot/rollback semantics (e.g. adaptive items that retry) must clone the declarations before calling `execProgram`. The item session does this when dispatching `{ action: 'submitAttempt' }`.
 
 ### `OperatorRegistry` is a simple `Map<string, OperatorImpl>`, not a plugin system
 

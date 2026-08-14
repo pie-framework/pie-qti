@@ -5,9 +5,9 @@
  * interface and emit QTIChangeEvent when the user response changes.
  */
 
-import type { InteractionData, InteractionValueMap } from '../interactions/index.js';
+import type { BaseInteractionData, InteractionValueMap } from '../interactions/index.js';
 
-export type InteractionResponseValue<TData extends InteractionData = InteractionData> =
+export type InteractionResponseValue<TData extends BaseInteractionData = BaseInteractionData> =
 	TData extends { type: infer TType }
 		? TType extends keyof InteractionValueMap
 			? InteractionValueMap[TType]
@@ -17,7 +17,9 @@ export type InteractionResponseValue<TData extends InteractionData = Interaction
 /**
  * Standard interface that all QTI interaction web components must implement
  */
-export interface QTIInteractionElement<TData extends InteractionData = InteractionData> extends HTMLElement {
+export interface QTIInteractionElement<
+	TData extends BaseInteractionData = BaseInteractionData,
+> extends HTMLElement {
 	/** The processed interaction data from the QTI XML */
 	interaction: TData;
 

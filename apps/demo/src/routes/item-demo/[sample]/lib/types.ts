@@ -1,14 +1,13 @@
-import type { Player, QTIRole, RubricBlock, ScoringResult } from '@pie-qti/item-player';
+import type { QTIRole, RubricBlock, ScoringResult } from '@pie-qti/item-player';
 import type { InteractionResponseValue } from '@pie-qti/item-player/web-components';
 
 export type DemoResponseValue = InteractionResponseValue | null;
 export type DemoResponseMap = Record<string, DemoResponseValue>;
 
 export interface DemoState {
-	// XML and Player
+	// XML and session-derived presentation
 	selectedSampleId: string;
 	xmlContent: string;
-	player: Player | null;
 	interactions: any[];
 	itemBodyHtml: string;
 	sidePanelRubrics: RubricBlock[];

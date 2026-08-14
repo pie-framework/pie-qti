@@ -4,19 +4,19 @@
   Status: current
   Type: architecture
   Packages: @pie-qti/assessment-player
-  Last reviewed: 2026-07-13
+  Last reviewed: 2026-08-13
 -->
 
 **Status:** current
 **Type:** architecture
 **Packages:** `@pie-qti/assessment-player`
-**Last reviewed:** 2026-07-13
+**Last reviewed:** 2026-08-13
 
 ---
 
 ## Summary
 
-`@pie-qti/assessment-player` is the multi-item test shell that sits above `@pie-qti/item-player`. It orchestrates an entire QTI `assessmentTest` — managing navigation across items and sections, enforcing submission modes, collecting candidate responses, delegating all scoring to a backend adapter, and displaying test-level feedback after finalization. By itself it never scores anything; it is a secure delivery shell whose only job is to present items in the right order, collect responses, and coordinate with a backend that holds the authoritative item XML and scoring logic.
+`@pie-qti/assessment-player` is the multi-item test shell above `@pie-qti/item-player`. It orchestrates an entire QTI `assessmentTest` — managing navigation across items and sections, enforcing submission modes, collecting candidate responses, delegating authoritative scoring to a backend adapter, and displaying test-level feedback after finalization. For the active item it owns exactly one live `ItemSession`, created from a cached `AssessmentItemDefinition`, and passes that same session through section composition to the item element. Persisted `SerializedItemSessionState` is used only to hand off or restore an inactive item; it is never synchronized as a second mutable authority.
 
 LTI launch, identity, roster, and grade-passback flows are host-application responsibilities. This package provides an embeddable assessment runtime, not an LTI platform implementation.
 
@@ -26,7 +26,7 @@ LTI launch, identity, roster, and grade-passback flows are host-application resp
 
 ### Why a separate package instead of extending item-player
 
-The item-player is intentionally scoped to a single `assessmentItem`. It has no concept of section hierarchy, part-level navigation modes, inter-item state, or test-level outcomes. Adding those concerns to item-player would couple two very different lifetimes (item session vs. test session) and make item-player unusable in standalone embedding scenarios. The assessment player is therefore an orchestration layer that holds N item-player instances and adds the structural concerns.
+The item-player is intentionally scoped to a single `assessmentItem`. It has no concept of section hierarchy, part-level navigation modes, inter-item state, or test-level outcomes. Adding those concerns to item-player would couple two very different lifetimes (item session vs. test session) and make item-player unusable in standalone embedding scenarios. The assessment player therefore caches immutable item definitions, owns one live session for only the active item, and adds the assessment structural concerns. On navigation it serializes and disposes the outgoing session; returning to that item restores a new session from the serialized handoff.
 
 ### Why the client shell never scores
 
@@ -53,9 +53,13 @@ After `initSession` returns, `AssessmentPlayer` immediately flattens all `Secure
 - **`individual`**: The candidate submits each item independently as they navigate away. The backend scores each response immediately. The client calls `submitCurrentItem()` inside `next()` before navigating forward. This enables per-item branching decisions (`nextItemIdentifier` in `SubmitResponsesResponse`).
 - **`simultaneous`**: All responses are withheld until the candidate explicitly finalizes the assessment. In `submit()`, the player iterates over all items that have not yet been submitted, sends each response to the backend in sequence, then calls `finalizeAssessment()`. The distinction matters for backend scoring: simultaneous mode allows the server to apply test-wide scoring rules that depend on the full response set before producing any scores.
 
-### Why local-first persistence
+### Why persistence is host-driven
 
-State is persisted to `localStorage` → `sessionStorage` → memory (in degradation order) rather than requiring a dedicated persistence endpoint. This allows the player to function completely offline and reduces infrastructure requirements for low-stakes deployments. Backend-authoritative persistence is layered on top via the optional `BackendAdapter.saveState()` method. If the backend call fails, the client-side state is still preserved.
+`AssessmentPlayer` exposes `getState()`/`restoreState()` and requires `BackendAdapter.saveState()` in
+the adapter contract, but it does not start an auto-save loop or call `saveState()` implicitly. The
+host decides when a draft is durable and whether client storage is appropriate.
+`StatePersistenceManager` exists as an internal source utility but is not a published package export;
+`ReferenceBackendAdapter` uses local storage for explicit demo/reference delivery.
 
 ### Why itemSessionControl is a UI hint, not an enforcement boundary
 
@@ -119,22 +123,37 @@ State is persisted to `localStorage` → `sessionStorage` → memory (in degrada
 - **FR-6:** `getNavigationState()` must return `canPrevious: false` throughout a linear testPart and
   when review policy forbids the previous item in nonlinear delivery.
 - **FR-7:** When `itemSessionControl.allowSkipping` is false and the current item has no response, `next()` must throw before calling `submitCurrentItem()`.
-- **FR-8:** `getCurrentRubricBlocks()` must return the section-level rubric blocks for the current item, falling back to test-part-level blocks if the section has none.
+- **FR-8:** `getCurrentSharedRubricBlocks()` must return cloned test-part and section rubric blocks for
+  the active item in that order. The compatibility `getCurrentRubricBlocks()` method retains its
+  section-first/fallback behavior. Direct `assessmentItem` rubrics must remain on
+  `ItemSession.present().directRubrics` rather than being merged into shared section content.
 - **FR-9:** `TimeManager` must independently accumulate and persist assessment, testPart, section,
   and item clocks; enforce the shortest active hard maximum and every applicable minimum transition;
   and fire warning/expiry callbacks for the active limiting scope.
-- **FR-10:** `getState()` must return a shallow clone; mutations to the returned object must not affect internal state.
+- **FR-10:** `getState()` must return a save snapshot with cloned top-level collections and timing
+  maps. It is not a recursively immutable value; callers must treat nested response, score, and
+  serialized-session entries as read-only or clone them before mutation.
 - **FR-11:** `restoreState(state)` must navigate to the item identified by `state.currentItemIdentifier`, restore `visitedItems` into `NavigationManager`, and rehydrate `itemResults` from `state.itemScores` so that `submit()` can skip already-submitted items.
-- **FR-12:** `destroy()` must clear all event listener sets and null the current item player to avoid memory leaks.
-- **FR-13:** `getVisibleFeedback()` after a successful `submit()` must return the feedback provided by `FinalizeAssessmentResponse.feedback` if present.
+- **FR-12:** `destroy()` must unsubscribe and dispose the current live item session, clear cached definitions and all event listener sets, and release timer resources.
+- **FR-13:** `getVisibleFeedback()` after successful finalization must evaluate preserved structured
+  `testFeedback` against `FinalizeAssessmentResponse.outcomes`; when no structured feedback exists,
+  the legacy `FinalizeAssessmentResponse.feedback` string may be exposed as one compatibility item.
 - **FR-14:** `getAllSections()` must enumerate sections across all test parts in document order.
+- **FR-15:** `getCurrentItemSession()` must return the exact live session owned for the active item. `toSectionComposition()` must place that same reference on only the active `QtiSectionItemRef`; it must not create a renderer-side session or pass serialized state as a synchronization mechanism.
+- **FR-16:** Before leaving an active item, assessment-player must serialize its live session into `AssessmentSessionState.itemSessions`, dispose it, and later restore through `AssessmentItemDefinition.openSession({ restore, responses })`. A restored state with a different item identifier must be rejected.
+- **FR-17:** Each cached item definition must use `SecureItemRef.role` and the configured immutable
+  definition-plugin list. The resulting session role cannot be overridden by presentation callers.
+- **FR-18:** `submitCurrentItem()` must treat local `endAttempt` as provisional. If validation,
+  transport, backend acceptance, or result validation fails before commit, it must replace the closed
+  live session with a session restored from the exact pre-submit snapshot so the attempt remains
+  retryable and is not double-counted.
 
 ---
 
 ## Non-functional requirements
 
 - **Accessibility:** The assessment player provides the headless logic layer; accessibility responsibilities for navigation announcements, focus management, and ARIA live regions live in the Svelte shell components (`AssessmentShell`, `NavigationBar`). The PRD for those components covers WCAG 2.2 AA requirements. The `AssessmentPlayer` class itself exposes `onItemChange` and `onSectionChange` events that shell components must use to trigger screen-reader announcements.
-- **Performance:** `flattenItems()` runs once at construction; all subsequent navigation calls are O(1) array index lookups. Item players are created lazily on `navigateTo()`, not pre-created for all items.
+- **Performance:** `flattenItems()` runs once at construction; subsequent navigation calls use O(1) array index lookups. Immutable `AssessmentItemDefinition` instances are cached by item identifier, while only the active item has a live session.
 - **Cross-platform:** No DOM dependencies. The player class is framework-agnostic and can be used headlessly (e.g. server-side with Node.js for testing, or wrapped in a web component).
 - **Security:** The player trusts the `BackendAdapter` contract. It must never apply client-computed scores to `itemResults` in a way that could be finalized — all `ItemResult.score` values must come from `SubmitResponsesResponse.result` or `FinalizeAssessmentResponse.itemScores`, not from local computation.
 - **i18n:** The player accepts an `i18nProvider` from the host. If none is supplied, a no-op provider is created that returns translation keys as-is. String content (e.g. error messages thrown from navigation) should be keys, not hardcoded English.
@@ -193,12 +212,22 @@ targets remain backend/G-16 work.
 **Alternatives considered:** EventEmitter, RxJS, Svelte stores. Rejected — unnecessary dependencies for a headless player.
 **Consequences:** No wildcard subscriptions, no once() helper, no error event. These can be added if needed without breaking the existing API.
 
-### `submit()` preserves client response map during simultaneous-mode item loop
+### `submit()` preserves client response and item-session maps during simultaneous-mode item loop
 
-**Decision:** In simultaneous mode, `submit()` captures `allItemResponses = { ...this.state.itemResponses }` before the loop and restores it after each backend state update.
-**Rationale:** Some backend adapters return `updatedState` in their `submitResponses` response. This `updatedState` may only contain responses for items submitted so far, which would silently erase responses for items not yet submitted. The client-side capture prevents data loss.
+**Decision:** In simultaneous mode, `submit()` captures client response and serialized item-session
+maps before the loop and reapplies them after each backend state replacement.
+**Rationale:** Some backend adapters return `updatedState` containing only items submitted so far.
+Replacing local state directly would erase later response drafts or the template/context state needed
+to score them.
 **Alternatives considered:** Requiring backends not to return `updatedState` during simultaneous-mode submission. Rejected — the contract allows it and it's better to be defensive.
 **Consequences:** If the backend intentionally modifies responses server-side (e.g. normalizing values), those modifications will be overwritten by the client capture. Backends that need to modify responses should do so only at finalization.
+
+### Assessment owns the active Live ItemSession
+
+**Decision:** `AssessmentPlayer` creates the active item through `createAssessmentItemDefinition(...).openSession(...)` and remains its owner until navigation or destruction. Section-player and the item custom element receive that exact session reference.
+**Rationale:** Candidate response changes, QTI processing, attempt counters, lifecycle, presentation, and assessment persistence must observe one mutable authority. Mirroring response snapshots into another item runtime creates ordering races and can score state different from what was rendered.
+**Alternatives considered:** Constructing a second `Player` in the renderer, or feeding `SerializedItemSessionState`/response maps into each rendering layer and reconciling changes afterward.
+**Consequences:** The session subscription mirrors immutable response values into assessment state for persistence/events, but that mirror is not executable state. Section-player is composition-only. The item element never disposes an injected session; assessment-player serializes and disposes it when the active item changes.
 
 ---
 
@@ -207,11 +236,11 @@ targets remain backend/G-16 work.
 | Extension point | Interface/type | How to use | Example |
 |---|---|---|---|
 | Backend adapter | `BackendAdapter` in `src/integration/api-contract.ts` | Implement all four required methods; pass instance to `AssessmentPlayer.create()` | `class MyBackendAdapter implements BackendAdapter { ... }` |
-| Item rendering | `QTIPlugin` (via `@pie-qti/item-player`) | Host shells can pass item-player plugins/security/i18n into the item renderer layer; the headless assessment player only constructs the core `Player` needed for state/scoring. | Custom extractor + web component for a vendor interaction type |
+| Item rendering | `AssessmentItemDefinition` / `ItemSession` (via `@pie-qti/item-player`) | Assessment-player creates and owns the active live session; section and item-element adapters receive the same reference. Plugins/security/i18n are definition inputs. | Custom extractor + web component for a vendor interaction type |
+| Definition plugins | `AssessmentItemDefinitionPlugin[]` in `BackendAssessmentPlayerConfig.plugins` | Supply a fixed synchronous extractor/renderer plugin list; it is compiled into every cached item definition. | Vendor interaction extraction and tag mapping |
 | Custom outcome processing | Backend adapter / host application | Implement assessment-level outcome policy in the backend or host integration. | Compute aggregate outcomes before returning updated assessment state |
-| Time management callbacks | `onWarning`, `onExpired`, `onTick` in `BackendAssessmentPlayerConfig` | Provide callbacks at construction | Display a countdown banner or auto-submit |
-| Extended text editor hint | `extendedTextEditor` in `BackendAssessmentPlayerConfig` | Pass `'tiptap'` or `'textarea'`; plumbed through to item renderers | `config.extendedTextEditor = 'tiptap'` |
-| Persistence backend | `BackendAdapter.saveState()` | Implement `saveState()` on your adapter; the player calls it during auto-save | Persist to PostgreSQL session table |
+| Time events | `onTimeWarning()`, `onTimeExpired()`, `onTimeTick()` | Subscribe after construction and retain the returned unsubscribe function. | Display a countdown banner or request host-owned submission |
+| Persistence | `getState()` / `restoreState()` and `BackendAdapter.saveState()` | The host chooses save cadence and calls its adapter explicitly; any local draft fallback is host-owned. | Persist to a session table with an optional host storage fallback |
 
 ---
 
@@ -219,9 +248,10 @@ targets remain backend/G-16 work.
 
 Key types are in `packages/assessment-player/src/integration/api-contract.ts`. Invariants not obvious from the types:
 
-- **`SecureAssessment.navigationMode`** is a single top-level field, not per `SecureTestPart`. See the design decision above.
+- **`SecureTestPart.navigationMode` / `submissionMode`** are authoritative per part; top-level fields are compatibility fallbacks.
 - **`SecureItemRef.itemXml`** must be pre-filtered by the server. For `candidate` role, `<correctResponse>` and `<responseProcessing>` must be absent. The client does not validate this; it trusts the server.
 - **`AssessmentSessionState.itemResponses`** is keyed by item identifier, then by response variable identifier. The inner value type is `Record<string, ResponseValue>`. A missing outer key means the item has never been visited; an empty inner object means the item was visited but no response was entered.
+- **`AssessmentSessionState.itemSessions`** contains serialized handoff values for inactive/restorable items. It never contains or represents a second live session. `getCurrentItemSession()` is the sole live reference and is not persistence data.
 - **`SubmitResponsesResponse.nextItemIdentifier`** is the server's branching decision. When present, the client must navigate to that item. When absent, the client falls back to `currentIndex + 1` (individual mode) or stays in place (simultaneous mode). Servers that do not implement branching should omit this field entirely.
 - **`FinalizeAssessmentResponse.itemScores`** is the authoritative score record. Scores in `AssessmentSessionState.itemScores` accumulated during the session are discarded in favour of this.
 - **`AssessmentScoringResult.score`** is a normalized float (0.0–1.0 for most items, but not constrained by the type). `maxScore` is the denominator. `AssessmentResults.totalScore` is the raw sum, not a fraction.
@@ -239,10 +269,10 @@ AC-1: Linear navigation blocks forward skips
   Then: The call throws an error mentioning linear navigation
   Notes: navigateTo(1) must succeed
 
-AC-2: Linear navigation allows backward movement
+AC-2: Linear navigation blocks backward movement
   Given: An assessment with navigationMode 'linear', currently on item 2
   When: previous() is called
-  Then: currentItemIndex becomes 1 and onItemChange fires
+  Then: currentItemIndex remains 2 and onItemChange does not fire
 
 AC-3: Nonlinear navigation allows arbitrary jumps
   Given: An assessment with navigationMode 'nonlinear' and 5 items, currently on item 0
@@ -283,13 +313,17 @@ AC-10: Simultaneous submit preserves response data across backend state updates
   Given: An assessment with 3 items, all with responses, submissionMode 'simultaneous'
   And: The backend returns an updatedState after each item that only includes that item's responses
   When: submit() is called
-  Then: All three items' responses are present in the final submitResponses call for item 3
-  Notes: Regression test for the allItemResponses capture pattern
+  Then: Each item's own draft responses and serialized item session reach its submitResponses call
+        later item drafts survive every earlier updatedState replacement
+  Notes: Regression test for the response/session map capture pattern
 
-AC-11: RubricBlocks fall back to testPart level
-  Given: Section A has no rubricBlocks, but its parent testPart has rubricBlocks
-  When: getCurrentRubricBlocks() is called while on an item in section A
-  Then: The testPart-level rubricBlocks are returned
+AC-11: Shared and direct rubrics stay on their placement surfaces
+  Given: The active testPart and section have shared rubricBlocks
+         and the assessmentItem has a candidate-visible direct rubricBlock
+  When: getCurrentSharedRubricBlocks() and currentSession.present() are called
+  Then: Shared blocks contain cloned testPart blocks followed by section blocks
+        presentation.directRubrics contains the item block
+        the item block is not duplicated into shared content
 
 AC-12: Timer fires warning and expiry callbacks
   Given: An assessment with timeLimits.maxTime of 5 seconds and timeWarningThreshold of 3
@@ -297,6 +331,30 @@ AC-12: Timer fires warning and expiry callbacks
   Then: onTimeWarning fires with remainingSeconds approximately 3
   When: 5 seconds elapse
   Then: onTimeExpired fires and isTimeExpired() returns true
+```
+
+```
+AC-13: Assessment, section, and item element share one live item session
+  Given: AssessmentPlayer has navigated to item q1
+  When: toSectionComposition(player) is resolved and the active item is rendered
+  Then: composition.activeItem.session === player.getCurrentItemSession()
+        only q1 carries a session reference
+        a response event mutates that session once and assessment persistence observes its state
+
+AC-14: Failed individual submission restores the active attempt
+  Given: The active candidate session is writable and has not counted an attempt
+  And: BackendAdapter.submitResponses rejects or returns success=false
+  When: submitCurrentItem() provisionally ends the attempt
+  Then: The method rejects
+        getCurrentItemSession() is a restored writable session with the same pre-submit variables
+        retrying does not double-count the failed attempt
+
+AC-15: Secure item role and plugins are fixed in the definition
+  Given: SecureItemRef.role='scorer' and config.plugins=[vendorPlugin]
+  When: The item definition opens its active session and present() is called
+  Then: vendorPlugin extraction/component registration is available
+        scorer role policy is applied
+        present() exposes no role override
 ```
 
 ### Accessibility
@@ -325,8 +383,8 @@ AC-E1: submit() on an assessment with no items succeeds
 AC-E2: navigateTo() with the same index as current index is a no-op
   Given: currentItemIndex is 2
   When: navigateTo(2) is called
-  Then: The item player is re-initialized with the same item (or the call is a no-op — either is acceptable, but no error is thrown)
-  Notes: canNavigateTo(2, 2) returns true in both modes because targetIndex <= currentIndex in linear mode.
+  Then: The call is a no-op and the current live ItemSession identity is unchanged
+  Notes: the current index is permitted in both modes; a different earlier index is not permitted in a linear part.
 
 AC-E3: destroy() after submit() does not throw
   Given: An assessment that has been fully submitted
@@ -342,14 +400,6 @@ AC-E4: Backend returns updatedState after submitCurrentItem; responses are not l
 
 ---
 
-## Open questions
-
-- [ ] Should `ItemSessionController` be instantiated per `testPart` so that different parts can have different `maxAttempts` and `allowReview` settings? Currently only the first part's settings are used.
-- [ ] `G-05`: `testFeedback` visibility logic needs to be updated to perform string equality checks against arbitrary outcome variable values, not boolean coercion. When is this scheduled?
-- [ ] `G-11`: Full `<outcomeProcessing>` XML interpretation at the assessment level is deferred. The infrastructure in `@pie-qti/qti-processing` (`buildOutcomeProcessingAst`, `execProgram`) already exists; wiring it to the assessment player is the remaining work. When does this become a blocker for real content?
-
----
-
 ## Related
 
 - QTI spec: §2 (Assessment Architecture), §2.1–2.4
@@ -357,4 +407,3 @@ AC-E4: Backend returns updatedState after submitCurrentItem; responses are not l
 - API contract: `packages/assessment-player/src/integration/api-contract.ts`
 - Adjacent PRDs: `docs/prds/architecture/item-player.md`, `docs/prds/architecture/response-processing.md`
 - Existing docs: `packages/assessment-player/BACKEND-INTEGRATION.md`, `packages/assessment-player/EXTENSIBILITY.md`
-- Spec gaps: `docs/SPEC-GAPS-PLAN.md` §G-05, §G-11

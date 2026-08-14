@@ -113,6 +113,29 @@ describe('standardSelectPointExtractor', () => {
 			expect(result.imageData?.width).toBe('500');
 			expect(result.imageData?.height).toBe('300');
 		});
+
+		test('replaces authored CSS payloads in image dimensions with safe defaults', () => {
+			const xml = `
+				<selectPointInteraction responseIdentifier="RESPONSE">
+					<object
+						data="image.png"
+						type="image/png"
+						width="1; background-image: url(//tracker.test/pixel)"
+						height="url(https://tracker.test/pixel)"
+					/>
+				</selectPointInteraction>
+			`;
+
+			const element = parseQTI(xml);
+			const result = standardSelectPointExtractor.extract(
+				element,
+				createTestContext(element, 'RESPONSE'),
+			);
+
+			expect(result.imageData?.width).toBe('500');
+			expect(result.imageData?.height).toBe('300');
+			expect(JSON.stringify(result.imageData)).not.toContain('tracker.test');
+		});
 	});
 
 	describe('Edge Cases', () => {

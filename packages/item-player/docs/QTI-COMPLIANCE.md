@@ -57,9 +57,9 @@ Do not treat backward compatibility with the QTI 2.2 vocabulary as complete 2.1 
 validator and does not close the behavioral gaps listed above.
 
 ```typescript
-import { Player } from '@pie-qti/item-player';
+import { createAssessmentItemDefinition } from '@pie-qti/item-player';
 
-const player = new Player({
+const definition = createAssessmentItemDefinition({
   itemXml: qtiXml,
   strictQtiCompliance: {
     enabled: true,
@@ -67,6 +67,7 @@ const player = new Player({
     logDeviations: true
   }
 });
+const session = definition.openSession();
 ```
 
 ## Verification
@@ -77,9 +78,10 @@ const player = new Player({
 - Official package runner/evidence: sibling private `pie-qti-conformance` repository when available
 
 The current official-package runner is smoke-oriented: construction/no-throw or direct
-`setResponse()` paths do not prove that a candidate can render and operate every interaction or
-that the resulting score is exact. Certification evidence should therefore include packed-NPM
-browser interaction and score assertions.
+`ItemSession.dispatch({ action: 'setResponse', ... })` paths
+do not prove that a candidate can render and operate every interaction or that the resulting score
+is exact. Certification evidence should therefore include packed-NPM browser interaction and score
+assertions.
 
 ## Official resources
 

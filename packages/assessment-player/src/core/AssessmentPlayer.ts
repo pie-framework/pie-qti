@@ -8,8 +8,18 @@
  * - Apply backend navigation decisions + session state
  */
 
-import type { PciConfiguration, QTIRole, PnpProfile, SerializedItemSessionState } from '@pie-qti/item-player';
-import { Player } from '@pie-qti/item-player';
+import {
+	createAssessmentItemDefinition,
+	type AssessmentItemDefinition,
+	type AssessmentItemDefinitionPlugin,
+	type ItemSession,
+	type PciConfiguration,
+	type PnpProfile,
+	type PlayerSecurityConfig,
+	type QTIRole,
+	type SerializedItemSessionState,
+} from '@pie-qti/item-player';
+import type { I18nProvider } from '@pie-qti/i18n';
 import type { QtiSectionRuntimeHostContract, QtiSectionToolConfig } from '@pie-qti/section-player';
 import type {
 	AssessmentRubricBlock,
@@ -42,21 +52,18 @@ export interface BackendAssessmentPlayerConfig {
 	role?: QTIRole;
 	/** Optional RNG for deterministic shuffling in selection/ordering. Defaults to Math.random. */
 	rng?: () => number;
-	/**
-	 * Optional hint for item renderers that support multiple extended text editors.
-	 * (Plumbed through the shell; the item player remains authoritative for behavior.)
-	 */
-	extendedTextEditor?: string;
+	/** Definition-lifetime extractor and renderer extensions applied to every item. */
+	plugins?: readonly AssessmentItemDefinitionPlugin[];
 	/**
 	 * Optional i18n provider for internationalization.
 	 * If provided, this will be shared across all item players in the assessment.
 	 */
-	i18nProvider?: any; // Will be I18nProvider from @pie-qti/i18n
+	i18nProvider?: I18nProvider;
 	/**
 	 * Security configuration for URL policy and content restrictions.
 	 * If provided, this will be passed to all item players in the assessment.
 	 */
-	security?: any; // Will be PlayerSecurityConfig from @pie-qti/item-player
+	security?: PlayerSecurityConfig;
 	/**
 	 * Explicit host trust configuration for Portable Custom Interaction modules.
 	 * Without this resolver, authored PCI code remains disabled.
@@ -129,16 +136,6 @@ export interface EffectiveItemTimeLimits {
 	source?: 'item' | 'section' | 'testPart' | 'assessment';
 }
 
-type ItemSessionCapablePlayer = Player & {
-	suspendAttempt(): { sessionState: SerializedItemSessionState; duration: number };
-	endAttempt(options?: { countAttempt?: boolean; validateResponses?: boolean }): {
-		sessionState: SerializedItemSessionState;
-		duration: number;
-		validation?: { valid: boolean; issues: Array<{ message: string }> };
-	};
-	restoreItemSession(state: SerializedItemSessionState): void;
-};
-
 export class AssessmentPlayer {
 	public static async create(config: BackendAssessmentPlayerConfig): Promise<AssessmentPlayer> {
 		const init = await config.backend.initSession(config.initSession);
@@ -148,7 +145,7 @@ export class AssessmentPlayer {
 	private backend: BackendAdapter;
 	private sessionId: SessionId;
 	private assessment: SecureAssessment;
-	private i18nProvider: any; // I18nProvider from @pie-qti/i18n
+	private i18nProvider: I18nProvider;
 
 	private navigationManager: NavigationManager;
 	private sessionCoordinator!: AssessmentSessionCoordinator;
@@ -156,7 +153,9 @@ export class AssessmentPlayer {
 
 	private items: FlatItem[] = [];
 	private currentItemIndex = -1;
-	private currentItemPlayer: Player | null = null;
+	private readonly itemDefinitions = new Map<string, AssessmentItemDefinition>();
+	private currentItemSession: ItemSession | null = null;
+	private currentItemSessionUnsubscribe: (() => void) | null = null;
 	private visibleFeedback: Array<{ identifier: string; content: string; access: string }> = [];
 
 	// Event listeners
@@ -467,6 +466,17 @@ export class AssessmentPlayer {
 		};
 	}
 
+	/**
+	 * The one authoritative live session for the active item.
+	 *
+	 * Section and item renderers receive this exact instance. Serialized item-session
+	 * state is reserved for persistence and restore, never for synchronizing a second
+	 * live player.
+	 */
+	public getCurrentItemSession(): ItemSession | null {
+		return this.currentItemSession;
+	}
+
 	public getCurrentSectionItemRefs(): SectionItemRefView[] {
 		const current = this.items[this.currentItemIndex];
 		if (!current) return [];
@@ -510,7 +520,17 @@ export class AssessmentPlayer {
 	}
 
 	public updateResponse(responseId: string, value: unknown): void {
-		this.sessionCoordinator.updateActiveResponse(responseId, value);
+		const active = this.items[this.currentItemIndex];
+		if (!active) return;
+		if (this.currentItemSession) {
+			this.currentItemSession.dispatch({
+				action: 'setResponse',
+				responseIdentifier: responseId,
+				value,
+			});
+			return;
+		}
+		this.sessionCoordinator.updateResponseForItem(active.identifier, responseId, value);
 		this.notifyResponseChange();
 	}
 
@@ -521,14 +541,29 @@ export class AssessmentPlayer {
 	 * the same responseIdentifier like "RESPONSE" across items).
 	 */
 	public updateResponseForItem(itemIdentifier: string, responseId: string, value: unknown): void {
-		const next = this.sessionCoordinator.updateResponseForItem(itemIdentifier, responseId, value);
-
-		// If this is the active item, keep the live response state + UI hints in sync.
 		const active = this.items[this.currentItemIndex];
-		if (active?.identifier === itemIdentifier) {
-			this.currentItemPlayer?.setResponses(next as any);
-			this.notifyResponseChange();
+		if (active?.identifier === itemIdentifier && this.currentItemSession) {
+			const liveValue = this.currentItemSession.state().responses[responseId];
+			if (!responseValuesEqual(liveValue, value)) {
+				// Programmatic/host callers still enter through this API. Browser item
+				// adapters have already dispatched, so their equal value is not applied twice.
+				this.currentItemSession.dispatch({
+					action: 'setResponse',
+					responseIdentifier: responseId,
+					value,
+				});
+			}
+			return;
 		}
+		const persisted = this.sessionCoordinator.getPersistedItemSession(itemIdentifier);
+		if (persisted && !isWritableItemLifecycle(persisted.lifecycleStatus)) {
+			throw new Error(
+				`Cannot update responses while item session is ${persisted.lifecycleStatus}`,
+			);
+		}
+
+		this.sessionCoordinator.updateResponseForItem(itemIdentifier, responseId, value);
+		this.notifyResponseChange();
 	}
 
 	/**
@@ -536,38 +571,107 @@ export class AssessmentPlayer {
 	 * (Useful for host integrations / web components.)
 	 */
 	public getResponses(): Record<string, unknown> {
+		if (this.currentItemSession) {
+			return cloneData(this.currentItemSession.state().responses) ?? {};
+		}
 		return this.sessionCoordinator.getActiveResponses();
 	}
 
 	public saveCurrentItemSession(): SerializedItemSessionState | null {
 		const q = this.items[this.currentItemIndex];
-		if (!q || !this.currentItemPlayer) return null;
-		const responses = this.sessionCoordinator.getActiveResponses();
-		this.currentItemPlayer.setResponses(responses as any);
-		const result = (this.currentItemPlayer as ItemSessionCapablePlayer).suspendAttempt();
-		this.sessionCoordinator.saveItemSession(q.identifier, responses, result.sessionState, result.duration);
-		return result.sessionState;
+		if (!q || !this.currentItemSession) return null;
+
+		const currentView = this.currentItemSession.state();
+		const transition = isWritableItemLifecycle(currentView.lifecycleStatus)
+			? this.currentItemSession.dispatch({ action: 'suspendAttempt' })
+			: null;
+		const itemSession = transition?.result?.sessionState ?? this.currentItemSession.serialize();
+		const responses = cloneData(transition?.current.responses ?? currentView.responses) ?? {};
+		this.sessionCoordinator.saveItemSession(
+			q.identifier,
+			responses,
+			itemSession,
+			transition?.current.duration ?? currentView.duration,
+		);
+		return itemSession;
 	}
 
 	private endItemSessionForSubmit(
 		q: FlatItem,
 		responses: Record<string, unknown>,
-		itemSession?: SerializedItemSessionState
+		itemSession?: SerializedItemSessionState,
 	): SerializedItemSessionState {
-		const player = new Player({
+		const active = this.items[this.currentItemIndex];
+		if (
+			active === q &&
+			this.currentItemSession &&
+			this.currentItemSession.state().lifecycleStatus !== 'suspended'
+		) {
+			const transition = this.currentItemSession.dispatch({ action: 'endAttempt' });
+			return transition.result?.sessionState ?? this.currentItemSession.serialize();
+		}
+
+		const session = this.getItemDefinition(q).openSession({
+			restore: itemSession,
+			responses: itemSession ? undefined : responses,
+			activate: true,
+		});
+		try {
+			const transition = session.dispatch({ action: 'endAttempt' });
+			return transition.result?.sessionState ?? session.serialize();
+		} finally {
+			session.dispose();
+		}
+	}
+
+	private getItemDefinition(q: FlatItem): AssessmentItemDefinition {
+		const cached = this.itemDefinitions.get(q.identifier);
+		if (cached) return cached;
+
+		const definition = createAssessmentItemDefinition({
 			itemXml: q.item.itemXml,
-			role: q.item.role,
+			// The assessment host chooses the authorized delivery role. Item refs are
+			// content records and must not silently widen or narrow session capabilities.
+			role: this.config.role ?? 'candidate',
 			i18nProvider: this.i18nProvider,
 			pnp: this.config.pnp,
 			security: this.config.security,
 			pci: this.config.pci,
+			plugins: this.config.plugins,
 			deliveryContext: q.item.deliveryContext,
-		}) as ItemSessionCapablePlayer;
-		if (itemSession) {
-			player.restoreItemSession(itemSession);
-		}
-		player.setResponses(responses as any);
-		return player.endAttempt().sessionState;
+		});
+		this.itemDefinitions.set(q.identifier, definition);
+		return definition;
+	}
+
+	private mirrorSessionResponses(
+		itemIdentifier: string,
+		responses: Readonly<Record<string, unknown>>,
+	): boolean {
+		const current = this.sessionCoordinator.getResponses(itemIdentifier);
+		if (responseValuesEqual(current, responses)) return false;
+
+		const snapshot = cloneResponseRecord(responses);
+		this.state.itemResponses[itemIdentifier] = snapshot as any;
+		this.sessionCoordinator.markAnswered(itemIdentifier, snapshot);
+		return true;
+	}
+
+	private attachCurrentItemSession(q: FlatItem, session: ItemSession): void {
+		this.currentItemSession = session;
+		this.currentItemSessionUnsubscribe = session.subscribe((transition) => {
+			if (this.currentItemSession !== session) return;
+			if (this.mirrorSessionResponses(q.identifier, transition.current.responses)) {
+				this.notifyResponseChange();
+			}
+		});
+	}
+
+	private releaseCurrentItemSession(): void {
+		this.currentItemSessionUnsubscribe?.();
+		this.currentItemSessionUnsubscribe = null;
+		this.currentItemSession?.dispose();
+		this.currentItemSession = null;
 	}
 
 	/**
@@ -649,7 +753,13 @@ export class AssessmentPlayer {
 		if (!options.restoring && currentItem && target) {
 			this.assertTransitionMinimum(currentItem, target);
 		}
-		const currentSessionStatus = currentItem ? this.state.itemSessions?.[currentItem.identifier]?.lifecycleStatus : undefined;
+		if (!options.restoring && this.currentItemIndex === index && this.currentItemSession) {
+			return;
+		}
+		const currentSessionStatus = currentItem
+			? this.currentItemSession?.state().lifecycleStatus ??
+				this.state.itemSessions?.[currentItem.identifier]?.lifecycleStatus
+			: undefined;
 		if (
 			!options.restoring &&
 			this.currentItemIndex >= 0 &&
@@ -677,26 +787,17 @@ export class AssessmentPlayer {
 			this.sessionCoordinator.updateItemSessionControl(effectiveControl);
 		}
 
-		// Restore responses
+		// Restore responses into one live session owned by the assessment. The section
+		// composition and item renderer receive this exact object.
 		const responses = this.sessionCoordinator.activateItem(q.identifier);
-
-		// Create item player
-		this.currentItemPlayer?.destroy();
-		this.currentItemPlayer = new Player({
-			itemXml: q.item.itemXml,
-			role: q.item.role,
-			i18nProvider: this.i18nProvider,
-			pnp: this.config.pnp,
-			security: this.config.security,
-			pci: this.config.pci,
-			deliveryContext: q.item.deliveryContext,
-		});
 		const restoredItemSession = this.state.itemSessions?.[q.identifier];
-		if (restoredItemSession) {
-			(this.currentItemPlayer as ItemSessionCapablePlayer).restoreItemSession(restoredItemSession);
-		} else {
-			this.currentItemPlayer.setResponses(responses as any);
-		}
+		this.releaseCurrentItemSession();
+		const session = this.getItemDefinition(q).openSession({
+			restore: restoredItemSession,
+			responses: restoredItemSession ? undefined : responses,
+			activate: true,
+		});
+		this.attachCurrentItemSession(q, session);
 
 		this.notifyItemChange();
 		this.notifySectionChange();
@@ -747,34 +848,70 @@ export class AssessmentPlayer {
 
 		const submittedAt = Date.now();
 		let itemSession: SerializedItemSessionState | undefined;
-		const responses = this.sessionCoordinator.getActiveResponses();
-		if (this.currentItemPlayer) {
-			this.currentItemPlayer.setResponses(responses as any);
-			const attempt = (this.currentItemPlayer as ItemSessionCapablePlayer).endAttempt({
-				validateResponses: this.sessionCoordinator.mustValidateResponses(),
-			});
-			if (attempt.validation && !attempt.validation.valid) {
-				throw new Error(attempt.validation.issues[0]?.message || 'Submit failed: invalid response');
+		const submittedSession = this.currentItemSession;
+		const preSubmitSession = submittedSession?.serialize();
+		const responses = this.currentItemSession
+			? cloneResponseRecord(this.currentItemSession.state().responses)
+			: this.sessionCoordinator.getActiveResponses();
+		let res: Awaited<ReturnType<BackendAdapter['submitResponses']>>;
+		try {
+			if (submittedSession) {
+				const transition = submittedSession.dispatch({
+					action: 'endAttempt',
+					validateResponses: this.sessionCoordinator.mustValidateResponses(),
+				});
+				const attempt = transition.result;
+				if (!attempt) throw new Error('Item session did not produce an end-attempt result');
+				if (attempt.validation && !attempt.validation.valid) {
+					throw new Error(attempt.validation.issues[0]?.message || 'Submit failed: invalid response');
+				}
+				itemSession = attempt.sessionState;
 			}
-			itemSession = attempt.sessionState;
-			this.sessionCoordinator.setItemSession(q.identifier, itemSession);
-		}
-		const res = await this.backend.submitResponses({
-			sessionId: this.sessionId,
-			itemIdentifier: q.identifier,
-			responses: responses as any,
-			submittedAt,
-			timeSpent: itemSession?.duration,
-			timing: this.getSubmitTimingEvidence(q, itemSession?.duration ?? 0),
-			itemSession: this.config.sendItemSessionToBackend ? itemSession : undefined,
-		});
+			res = await this.backend.submitResponses({
+				sessionId: this.sessionId,
+				itemIdentifier: q.identifier,
+				responses: responses as any,
+				submittedAt,
+				timeSpent: itemSession?.duration,
+				timing: this.getSubmitTimingEvidence(q, itemSession?.duration ?? 0),
+				itemSession: this.config.sendItemSessionToBackend ? itemSession : undefined,
+			});
 
-		if (!res.success || !res.result) {
-			throw new Error(res.error || 'Submit failed');
+			if (!res.success || !res.result) {
+				throw new Error(res.error || 'Submit failed');
+			}
+		} catch (error) {
+			// Ending an attempt is a local provisional commit until the backend accepts
+			// it. Restore the exact pre-submit lifecycle so a transient failure can be
+			// retried without a closed item or a double-counted attempt.
+			if (
+				submittedSession &&
+				preSubmitSession &&
+				this.currentItemSession === submittedSession &&
+				this.items[this.currentItemIndex] === q
+			) {
+				this.releaseCurrentItemSession();
+				this.attachCurrentItemSession(
+					q,
+					this.getItemDefinition(q).openSession({ restore: preSubmitSession }),
+				);
+				this.notifyItemChange();
+			}
+			throw error;
+		}
+
+		if (itemSession) {
+			this.sessionCoordinator.setItemSession(q.identifier, itemSession);
 		}
 
 		if (res.updatedState) {
-			this.sessionCoordinator.replaceStatePreservingItemSessions(res.updatedState);
+			const localResponses = cloneData(this.state.itemResponses || {})!;
+			localResponses[q.identifier] = cloneResponseRecord(responses) as any;
+			this.sessionCoordinator.replaceStatePreservingResponsesAndSessions(
+				res.updatedState,
+				localResponses,
+				cloneData(this.state.itemSessions || {})!,
+			);
 		} else {
 			// Minimal state update when backend doesn't return full state.
 			this.state.itemScores = this.state.itemScores || {};
@@ -882,53 +1019,108 @@ export class AssessmentPlayer {
 		// For simultaneous submission, ensure all items are submitted before finalize so
 		// the backend can compute a complete test score.
 		if (this.assessment.submissionMode === 'simultaneous') {
-			this.saveCurrentItemSession();
-			// Preserve client-collected responses across backend state updates.
-			// Some backend adapters return an updatedState snapshot that may only include
-			// responses for items that have been submitted so far, which would otherwise
-			// wipe out responses for later items during this loop.
-			const allItemResponses = { ...(this.state.itemResponses || {}) } as any;
-			const allItemSessions = { ...(this.state.itemSessions || {}) };
+			const submittedItem = current;
+			const preSubmitSession = this.currentItemSession?.serialize();
+			let allItemSessions: NonNullable<AssessmentSessionState['itemSessions']> = {};
 
-			for (const q of this.items) {
-				if (this.sessionCoordinator.hasItemResult(q.identifier)) continue;
-				const submittedAt = Date.now();
-				const responsesForItem = (allItemResponses?.[q.identifier] || {}) as any;
-				const itemSession = this.endItemSessionForSubmit(q, responsesForItem, allItemSessions[q.identifier]);
-				allItemSessions[q.identifier] = itemSession;
-				const res = await this.backend.submitResponses({
-					sessionId: this.sessionId,
-					itemIdentifier: q.identifier,
-					responses: responsesForItem,
-					submittedAt,
-					timeSpent: itemSession?.duration,
-					timing: this.getSubmitTimingEvidence(q, itemSession?.duration ?? 0),
-					itemSession: this.config.sendItemSessionToBackend ? itemSession : undefined,
-				});
-				if (!res.success || !res.result) {
-					throw new Error(res.error || `Submit failed for item ${q.identifier}`);
-				}
-				if (res.updatedState) {
-					this.sessionCoordinator.replaceStatePreservingResponsesAndSessions(
-						res.updatedState,
-						allItemResponses,
-						allItemSessions
+			try {
+				// Suspending the rendered session gives the UI one non-writable state while
+				// backend submission is in flight. Detached sessions perform the provisional
+				// end-attempt work for every item.
+				this.saveCurrentItemSession();
+				// Preserve client-collected responses across backend state updates.
+				// Some backend adapters return an updatedState snapshot that may only include
+				// responses for items that have been submitted so far, which would otherwise
+				// wipe out responses for later items during this loop.
+				const allItemResponses = cloneData(this.state.itemResponses || {}) as any;
+				allItemSessions = cloneData(this.state.itemSessions || {})!;
+
+				for (const q of this.items) {
+					if (this.sessionCoordinator.hasItemResult(q.identifier)) continue;
+					const submittedAt = Date.now();
+					const responsesForItem = (allItemResponses?.[q.identifier] || {}) as any;
+					const itemSession = this.endItemSessionForSubmit(
+						q,
+						responsesForItem,
+						allItemSessions[q.identifier],
 					);
-				} else {
-					this.state.itemScores = this.state.itemScores || {};
-					this.state.itemScores[q.identifier] = res.result;
-					this.sessionCoordinator.markVisited(q.identifier);
-					this.state.itemResponses[q.identifier] = responsesForItem;
-					if (itemSession) {
+					allItemSessions[q.identifier] = itemSession;
+					const res = await this.backend.submitResponses({
+						sessionId: this.sessionId,
+						itemIdentifier: q.identifier,
+						responses: responsesForItem,
+						submittedAt,
+						timeSpent: itemSession.duration,
+						timing: this.getSubmitTimingEvidence(q, itemSession.duration),
+						itemSession: this.config.sendItemSessionToBackend ? itemSession : undefined,
+					});
+					if (!res.success || !res.result) {
+						throw new Error(res.error || `Submit failed for item ${q.identifier}`);
+					}
+					if (res.updatedState) {
+						this.sessionCoordinator.replaceStatePreservingResponsesAndSessions(
+							res.updatedState,
+							allItemResponses,
+							allItemSessions,
+						);
+					} else {
+						this.state.itemScores = this.state.itemScores || {};
+						this.state.itemScores[q.identifier] = res.result;
+						this.sessionCoordinator.markVisited(q.identifier);
+						this.state.itemResponses[q.identifier] = responsesForItem;
 						this.sessionCoordinator.setItemSession(q.identifier, itemSession);
+						this.sessionCoordinator.recordAttempt(q.identifier);
+					}
+					this.sessionCoordinator.setItemResult({
+						itemIdentifier: q.identifier,
+						score: res.result.score,
+						maxScore: res.result.maxScore,
+						responses: this.state.itemResponses[q.identifier] || {},
+					});
+				}
+
+				// The attached item must represent the same accepted lifecycle as persistence.
+				// Replace the provisional suspended object with one restored from the accepted
+				// closed state; no second live state owner remains.
+				if (submittedItem && this.items[this.currentItemIndex] === submittedItem) {
+					const accepted = allItemSessions[submittedItem.identifier];
+					if (accepted) {
+						this.releaseCurrentItemSession();
+						this.attachCurrentItemSession(
+							submittedItem,
+							this.getItemDefinition(submittedItem).openSession({ restore: accepted }),
+						);
+						this.notifyItemChange();
 					}
 				}
-				this.sessionCoordinator.setItemResult({
-					itemIdentifier: q.identifier,
-					score: res.result.score,
-					maxScore: res.result.maxScore,
-					responses: this.state.itemResponses[q.identifier] || {},
-				});
+			} catch (error) {
+				// The backend accepts simultaneous items one request at a time. Keep earlier
+				// accepted items committed so retry cannot double-submit them. If the rendered
+				// item was not accepted, restore only that item to its exact writable state.
+				if (submittedItem && this.items[this.currentItemIndex] === submittedItem) {
+					const accepted = this.sessionCoordinator.hasItemResult(submittedItem.identifier)
+						? allItemSessions[submittedItem.identifier]
+						: undefined;
+					const restored = accepted ?? preSubmitSession;
+					if (!accepted && preSubmitSession) {
+						this.sessionCoordinator.saveItemSession(
+							submittedItem.identifier,
+							cloneResponseRecord(valuesFromItemSession(preSubmitSession)),
+							preSubmitSession,
+							preSubmitSession.duration,
+						);
+					}
+					this.releaseCurrentItemSession();
+					if (restored) {
+						this.attachCurrentItemSession(
+							submittedItem,
+							this.getItemDefinition(submittedItem).openSession({ restore: restored }),
+						);
+						this.notifyItemChange();
+						this.notifyResponseChange();
+					}
+				}
+				throw error;
 			}
 		} else {
 			// Ensure current item is submitted (individual submission mode)
@@ -1058,7 +1250,8 @@ export class AssessmentPlayer {
 
 	public destroy(): void {
 		this.timeManager?.destroy();
-		this.currentItemPlayer?.destroy();
+		this.releaseCurrentItemSession();
+		this.itemDefinitions.clear();
 		this.itemChangeListeners.clear();
 		this.sectionChangeListeners.clear();
 		this.responseChangeListeners.clear();
@@ -1066,7 +1259,6 @@ export class AssessmentPlayer {
 		this.timeWarningListeners.clear();
 		this.timeExpiredListeners.clear();
 		this.timeTickListeners.clear();
-		this.currentItemPlayer = null;
 	}
 
 	// ---------------------------------------------------------------------------
@@ -1112,14 +1304,14 @@ export class AssessmentPlayer {
 	 * Get the i18n provider instance
 	 * @returns I18nProvider instance
 	 */
-	public getI18nProvider(): any {
+	public getI18nProvider(): I18nProvider {
 		return this.i18nProvider;
 	}
 
 	/**
 	 * Create a simple fallback i18n provider when none is provided
 	 */
-	private createDefaultI18nProvider(): any {
+	private createDefaultI18nProvider(): I18nProvider {
 		return {
 			getLocale: () => 'en-US',
 			setLocale: () => {},
@@ -1171,4 +1363,46 @@ function shuffleSectionComponents(
 
 function cloneData<T>(value: T | undefined): T | undefined {
 	return value === undefined ? undefined : structuredClone(value);
+}
+
+function cloneResponseRecord(
+	responses: Readonly<Record<string, unknown>>,
+): Record<string, unknown> {
+	return structuredClone(responses) as Record<string, unknown>;
+}
+
+function valuesFromItemSession(
+	state: SerializedItemSessionState,
+): Record<string, unknown> {
+	return Object.fromEntries(
+		Object.entries(state.responseVariables).map(([identifier, variable]) => [
+			identifier,
+			cloneData(variable.value),
+		]),
+	);
+}
+
+function responseValuesEqual(left: unknown, right: unknown): boolean {
+	if (Object.is(left, right)) return true;
+	if (Array.isArray(left) || Array.isArray(right)) {
+		if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length) return false;
+		return left.every((value, index) => responseValuesEqual(value, right[index]));
+	}
+	if (!isRecord(left) || !isRecord(right)) return false;
+
+	const leftKeys = Object.keys(left);
+	const rightKeys = Object.keys(right);
+	if (leftKeys.length !== rightKeys.length) return false;
+	const rightKeySet = new Set(rightKeys);
+	return leftKeys.every(
+		(key) => rightKeySet.has(key) && responseValuesEqual(left[key], right[key]),
+	);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return value !== null && typeof value === 'object';
+}
+
+function isWritableItemLifecycle(lifecycleStatus: SerializedItemSessionState['lifecycleStatus']): boolean {
+	return lifecycleStatus === 'initial' || lifecycleStatus === 'interacting';
 }

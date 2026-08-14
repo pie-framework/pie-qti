@@ -15,23 +15,40 @@ export * from './core/constants.js';
 export * from './core/declarations.js';
 // Export drawing utilities
 export * from './utils/drawingUtils.js';
-export { Player } from './core/Player.js';
-export { getRoleCapabilities, type RoleCapabilities } from './core/rolePolicy.js';
-// Plugin system (new extraction-based plugins)
 export {
-	type PluginContext,
-	type PluginLifecycle,
-	type QTIPlugin,
-	type RenderContext,
-} from './core/Plugin.js';
-export { PluginManager } from './core/PluginManager.js';
+	createAssessmentItemDefinition,
+	type AssessmentItemDefinition,
+	type AssessmentItemDefinitionConfig,
+	type AssessmentItemDefinitionPlugin,
+} from './core/AssessmentItemDefinition.js';
+export {
+	type ItemPresentationView,
+	type ItemSession,
+	type ItemSessionCommand,
+	type ItemSessionEventCommand,
+	type ItemSessionListener,
+	type ItemSessionTransition,
+	type ItemSessionView,
+	type OpenItemSessionOptions,
+} from './core/ItemSession.js';
+export type {
+	FinalItemBodyHtml,
+	ItemInteractionMount,
+	ItemPresentation,
+	ItemPresentationFlowNode,
+} from './presentation/itemPresentationPlan.js';
+export { getRoleCapabilities, type RoleCapabilities } from './core/rolePolicy.js';
 // Export extraction system (PUBLIC API)
 export * from './interactions/index.js';
 export type {
 	ElementExtractor,
 	ExtractionContext,
+	ExtractionDispatchResult,
 	ExtractionResult,
 	ExtractionUtils,
+	InteractionDeliveryField,
+	InteractionDeliveryPathSegment,
+	InteractionDeliverySchema,
 	ValidationResult,
 	VariableDeclaration,
 } from './extraction/index.js';
@@ -41,8 +58,10 @@ export {
 	createExtractionUtils,
 	ExtractionError,
 	ExtractionRegistry,
+	htmlField,
 	isErrorResult,
 	isSuccessResult,
+	urlField,
 } from './extraction/index.js';
 // NOTE:
 // The player’s primary rendering contract is via web components and the Svelte component entrypoint.
@@ -103,8 +122,8 @@ export {
 /**
  * NOTE (SSR safety):
  * Web component base classes depend on DOM globals like `HTMLElement` and must not be
- * re-exported from the main entrypoint, otherwise server-side imports of `{ Player }`
- * will crash under SSR/Node.
+ * re-exported from the main entrypoint. Item ownership flows through
+ * AssessmentItemDefinition and ItemSession in every deployment.
  *
  * Import web-components from the subpath entry instead:
  * - `@pie-qti/item-player/web-components`

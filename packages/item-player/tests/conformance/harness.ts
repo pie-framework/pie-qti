@@ -76,9 +76,13 @@ export function runItemCase(args: {
 	const itemBodyHtml = player.getItemBodyHtml();
 
 	if (args.useSubmitAttempt) {
-		return { result: player.submitAttempt(args.countAttempt ?? true), itemBodyHtml };
+		const result = player.runItemSessionAction({
+			action: 'submitAttempt',
+			countAttempt: args.countAttempt ?? true,
+		}).scoring;
+		if (!result) throw new Error('Adaptive submission did not produce a scoring result');
+		return { result, itemBodyHtml };
 	}
 	return { result: player.processResponses(), itemBodyHtml };
 }
-
 

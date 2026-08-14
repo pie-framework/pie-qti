@@ -2,22 +2,17 @@
 	import { base } from '$app/paths';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import {
-		Player,
-		type QTIRole,
-		type RubricBlock,
-	} from '@pie-qti/item-player';
-	import { registerDefaultComponents } from '@pie-qti/default-components';
+	import type { QTIRole, RubricBlock } from '@pie-qti/item-player';
 	import { onMount, untrack, getContext } from 'svelte';
 	import type { SvelteI18nProvider } from '@pie-qti/i18n';
 	import { SAMPLE_ITEMS } from '$lib/sample-items';
 	import { getItemXmlForLocale, hasMultilingualVariants } from '$lib/locale-aware-items';
 	import { getSecurityConfig } from '$lib/player-config';
+	import { DemoItemSessionController } from '$lib/item-session.svelte';
 	import ConfigurationPanel from './components/ConfigurationPanel.svelte';
 	import QuestionPanel from './components/QuestionPanel.svelte';
 	import ResizableDivider from './components/ResizableDivider.svelte';
 	import ResultsPanel from './components/ResultsPanel.svelte';
-	import SettingsPanel from './components/SettingsPanel.svelte';
 	import { exportToCsv, exportToJson } from './lib/export-utils';
 	import * as PanelResize from './lib/panel-resize';
 	import { loadSessionFromServer, saveSessionToServer } from './lib/session-api';
@@ -32,8 +27,8 @@
 	// State
 	let selectedSampleId = $state('simple-choice');
 	let xmlContent = $state('');
-	let player = $state<Player | null>(null);
-	let responses = $state<DemoResponseMap>({});
+	const itemSession = new DemoItemSessionController();
+	let responses = $derived((itemSession.view?.responses ?? {}) as DemoResponseMap);
 	let scoringResult = $state<SessionData['scoringResult']>(null);
 	let errorMessage = $state('');
 	let useBackendScoring = $state(false);
@@ -41,63 +36,70 @@
 	let isSaving = $state(false);
 	let isSubmitting = $state(false);
 	let selectedRole = $state<QTIRole>('candidate');
-	let sidePanelRubrics = $state<RubricBlock[]>([]);
+	let sidePanelRubrics = $derived.by((): readonly RubricBlock[] => {
+		void itemSession.revision;
+		return itemSession.session?.present().directRubrics ?? [];
+	});
 	let diagnostics = $state<QtiCompatibilityReport | null>(null);
-	let templateVariables = $derived(player ? player.getTemplateVariables() : {});
 	let hasLoadedCustomUpload = false; // Track if we've loaded a custom upload in this effect cycle
 
 	// Panel resize state
 	let leftPanelWidth = $state(50);
 	let isDragging = $state(false);
 
-	// Progress tracking (derived from player) - delegated to Player APIs
-	let progress = $derived(player ? player.getProgress(responses) : null);
-	let totalInteractions = $derived(progress?.total ?? 0);
-	let answeredCount = $derived(progress?.answered ?? 0);
+	let responseIdentifiers = $derived.by(() => {
+		void itemSession.revision;
+		if (!itemSession.session) return [];
+		return [
+			...new Set(
+				itemSession.session
+					.present()
+					.flow.flatMap((node) =>
+						node.kind === 'interaction' ? [node.mount.interaction.responseId] : [],
+					),
+			),
+		];
+	});
+	let totalInteractions = $derived(responseIdentifiers.length);
+	let answeredCount = $derived(
+		responseIdentifiers.filter((identifier) => isMeaningfulResponse(responses[identifier])).length,
+	);
 	let progressPercentage = $derived(
 		totalInteractions > 0 ? (answeredCount / totalInteractions) * 100 : 0
 	);
 
+	function isMeaningfulResponse(value: unknown): boolean {
+		if (value === null || value === undefined) return false;
+		if (typeof value === 'string') return value.trim().length > 0;
+		if (Array.isArray(value)) return value.length > 0;
+		return true;
+	}
+
 	// Load player
-	function loadPlayer(xml: string) {
+	function loadPlayer(xml: string, initialResponses?: DemoResponseMap) {
 		try {
 			errorMessage = '';
 			scoringResult = null;
 
 			if (!xml.trim()) {
-				player = null;
-				responses = {};
-				sidePanelRubrics = [];
+				itemSession.dispose();
 				diagnostics = null;
 				return;
 			}
 
-			const newPlayer = new Player({
-				itemXml: xml,
-				role: selectedRole,
-				security: getSecurityConfig(),
+			itemSession.open(
+				{
+					itemXml: xml,
+					role: selectedRole,
+					security: getSecurityConfig(),
+				},
+				{ responses: initialResponses },
+			);
+			diagnostics = analyzeQtiItemCompatibility(xml, {
+				session: itemSession.session ?? undefined,
 			});
-
-			// Register default components with the player's registry
-			registerDefaultComponents(newPlayer.getComponentRegistry());
-
-			player = newPlayer;
-			sidePanelRubrics = newPlayer.getRubrics({ scope: selectedRole === 'candidate' ? 'direct' : 'all' });
-			diagnostics = analyzeQtiItemCompatibility(xml, { player: newPlayer });
-
-			// Initialize responses for response interactions (delegated to Player APIs)
-			const interactions = newPlayer.getResponseInteractions();
-			const newResponses: DemoResponseMap = {};
-			for (const interaction of interactions) {
-				if (interaction?.responseIdentifier) {
-					newResponses[interaction.responseIdentifier] = null;
-				}
-			}
-			responses = newResponses;
 		} catch (err: any) {
-			player = null;
-			responses = {};
-			sidePanelRubrics = [];
+			itemSession.dispose();
 			diagnostics = analyzeQtiItemCompatibility(xml);
 			errorMessage = err.message;
 		}
@@ -122,16 +124,12 @@
 
 	function handleResponseChange(responseId: string, value: DemoResponseValue) {
 		console.log('[Demo] Response changed:', { responseId, value });
-		responses = { ...responses, [responseId]: value };
 		console.log('[Demo] All responses:', responses);
-		if (player) {
-			const canSubmit = player.canSubmitResponses(responses);
-			console.log('[Demo] Can submit:', canSubmit);
-		}
+		console.log('[Demo] Can submit:', itemSession.view?.canSubmit ?? false);
 	}
 
 	async function submitResponses() {
-		if (!player) return;
+		if (!itemSession.session) return;
 
 		try {
 			errorMessage = '';
@@ -155,8 +153,8 @@
 
 				scoringResult = data.result;
 			} else {
-				player.setResponses(responses);
-				scoringResult = player.processResponses();
+				scoringResult = itemSession.dispatch({ action: 'endAttempt' }).result?.scoring ?? null;
+				if (!scoringResult) throw new Error('Item submission did not produce a scoring result');
 			}
 		} catch (err: any) {
 			errorMessage = err.message;
@@ -166,23 +164,14 @@
 	}
 
 	function resetResponses() {
-		if (!player) return;
-
-		const interactions = player.getResponseInteractions();
-		const newResponses: DemoResponseMap = {};
-		for (const interaction of interactions) {
-			if (interaction?.responseIdentifier) {
-				newResponses[interaction.responseIdentifier] = null;
-			}
-		}
-
-		responses = newResponses;
+		if (!itemSession.session) return;
+		loadPlayer(xmlContent);
 		scoringResult = null;
 		errorMessage = '';
 	}
 
 	function regenerateVariant() {
-		// New player instance => templateProcessing re-runs, producing a fresh variant
+		// A fresh session re-runs templateProcessing and produces a new variant.
 		if (!xmlContent.trim()) return;
 		loadPlayer(xmlContent);
 	}
@@ -220,12 +209,11 @@
 
 			selectedSampleId = sessionData.selectedSampleId || 'simple-choice';
 			xmlContent = sessionData.itemXml || '';
-			responses = sessionData.responses || {};
 			scoringResult = sessionData.scoringResult || null;
 			sessionId = id;
 
 			if (sessionData.itemXml) {
-				loadPlayer(sessionData.itemXml);
+				loadPlayer(sessionData.itemXml, sessionData.responses || {});
 			}
 
 			alert('Session loaded successfully!');
@@ -235,7 +223,7 @@
 	}
 
 	function exportResponses(format: 'json' | 'csv') {
-		if (!player) return;
+		if (!itemSession.session) return;
 
 		try {
 			if (format === 'json') {
@@ -334,14 +322,10 @@
 		const abortController = new AbortController();
 		const signal = abortController.signal;
 
-		// Clean up previous player instance before creating a new one
-		// Use untrack to prevent reactive updates from triggering the effect again
+		// Clean up the previous live session before loading the next item.
 		untrack(() => {
-			if (player) {
-				player = null;
-				responses = {};
-				scoringResult = null;
-			}
+			itemSession.dispose();
+			scoringResult = null;
 			selectedSampleId = urlSampleId;
 		});
 
@@ -390,12 +374,12 @@
 				}
 			} else if ((event.ctrlKey || event.metaKey) && event.key === 'e') {
 				event.preventDefault();
-				if (player && Object.keys(responses).length > 0) {
+				if (itemSession.session && Object.keys(responses).length > 0) {
 					exportResponses('json');
 				}
 			} else if ((event.ctrlKey || event.metaKey) && event.key === 's') {
 				event.preventDefault();
-				if (player && !isSaving) {
+				if (itemSession.session && !isSaving) {
 					saveSession();
 				}
 			}
@@ -405,6 +389,7 @@
 
 		return () => {
 			document.removeEventListener('keydown', handleKeyDown);
+			itemSession.dispose();
 		};
 	});
 </script>
@@ -473,11 +458,11 @@
 				</div>
 			{/if}
 
-			{#if player && !errorMessage}
+			{#if itemSession.session && !errorMessage}
 				<QuestionPanel
-					{player}
+					session={itemSession.session}
+					revision={itemSession.revision}
 					{sidePanelRubrics}
-					{responses}
 					{scoringResult}
 					{answeredCount}
 					{totalInteractions}
@@ -485,7 +470,6 @@
 					{isSubmitting}
 					{i18n}
 					disabled={scoringResult !== null}
-					role={selectedRole}
 					onResponseChange={handleResponseChange}
 					onSubmit={submitResponses}
 					onReset={resetResponses}

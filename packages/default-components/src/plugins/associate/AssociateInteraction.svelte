@@ -1,7 +1,8 @@
 <svelte:options customElement="pie-qti-associate" />
 
 <script lang="ts">
-	import type { AssociateInteractionData } from '@pie-qti/item-player';
+	import type { AssociateInteractionData, HtmlContent } from '@pie-qti/item-player';
+	import { htmlToString } from '@pie-qti/item-player/security';
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
@@ -122,16 +123,16 @@
 		);
 	}
 
-	function toPlainText(html: string): string {
-		return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+	function toPlainText(html: HtmlContent): string {
+		return htmlToString(html).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 	}
 
-	function getChoiceLabel(choice: { identifier: string; text: string }): string {
+	function getChoiceLabel(choice: { identifier: string; text: HtmlContent }): string {
 		const text = toPlainText(choice.text);
 		return text ? `${choice.identifier}: ${text}` : choice.identifier;
 	}
 
-	function getPairLabel(choice1: { identifier: string; text: string }, choice2: { identifier: string; text: string }): string {
+	function getPairLabel(choice1: { identifier: string; text: HtmlContent }, choice2: { identifier: string; text: HtmlContent }): string {
 		return `${getChoiceLabel(choice1)} and ${getChoiceLabel(choice2)}`;
 	}
 
@@ -200,9 +201,9 @@
 						part="correct-pair"
 						class="qti-associate-pair flex items-center gap-4 p-2 bg-success/10 border border-success rounded"
 					>
-						<span class="flex-1">{choice1.text}</span>
+						<span class="flex-1 qti-rich-inline-content">{@html choice1.text}</span>
 						<span class="text-success">↔</span>
-						<span class="flex-1">{choice2.text}</span>
+						<span class="flex-1 qti-rich-inline-content">{@html choice2.text}</span>
 						<span class="badge badge-success badge-sm">
 							{i18n?.t('interactions.choice.correct', 'Correct') ?? 'Correct'}
 						</span>
@@ -230,9 +231,9 @@
 							? 'bg-success/10 border border-success'
 							: 'bg-primary/10 border border-base-300'}"
 					>
-						<span class="flex-1">{choice1.text}</span>
+						<span class="flex-1 qti-rich-inline-content">{@html choice1.text}</span>
 						<span class="{isCorrect ? 'text-success' : 'text-primary'}">↔</span>
-						<span class="flex-1">{choice2.text}</span>
+						<span class="flex-1 qti-rich-inline-content">{@html choice2.text}</span>
 						{#if isCorrect}
 							<span class="badge badge-success badge-sm">
 								{i18n?.t('interactions.choice.correct', 'Correct') ?? 'Correct'}

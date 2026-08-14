@@ -1,16 +1,18 @@
 import { describe, expect, it } from 'bun:test';
 import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
-import type { InteractionData } from '../interactions/index.js';
+import type { StandardInteractionData } from '../interactions/index.js';
 import {
-	createItemPresentationPlan,
+	createItemPresentation,
 	interactionKey,
-	type ItemPresentationPlayer,
+	type ItemPresentation,
+	type ItemPresentationSource,
 } from '../presentation/itemPresentationPlan.js';
 import { Player } from '../core/Player.js';
+import { createComponentRegistry } from '../core/ComponentRegistry.js';
 
-describe('createItemPresentationPlan', () => {
-	it('builds inline segments and block interaction presentations from one plan', () => {
-		const player = fakePlayer({
+describe('createItemPresentation', () => {
+	it('builds one ordered flow with inline and block interaction mounts', () => {
+		const source = presentationSource({
 			bodyHtml: `
 				<p>Choose <inlineChoiceInteraction responseIdentifier="INLINE"><inlineChoice identifier="A">A</inlineChoice></inlineChoiceInteraction>.</p>
 				<choiceInteraction responseIdentifier="RESPONSE"><simpleChoice identifier="A">A</simpleChoice></choiceInteraction>
@@ -22,16 +24,23 @@ describe('createItemPresentationPlan', () => {
 			correctResponses: { RESPONSE: 'A', INLINE: 'A' },
 		});
 
-		const plan = createItemPresentationPlan({
-			player,
+		const presentation = createItemPresentation({
+			source,
 			responses: { RESPONSE: 'A', INLINE: 'A' },
 			role: 'scorer',
 		});
 
-		expect(plan.inlineSegments.some((segment) => segment.type === 'inlineChoice')).toBe(true);
-		expect(plan.itemBodyHtml).toContain('qti-hidden-interaction');
-		expect(plan.blockInteractions).toHaveLength(1);
-		expect(plan.blockInteractions[0]).toMatchObject({
+		expect(
+			presentation.flow.some(
+				(node) => node.kind === 'interaction' && node.mount.renderer === 'inline-choice'
+			)
+		).toBe(true);
+		expect(presentationHtml(presentation)).toContain('qti-hidden-interaction');
+		const blockMounts = presentation.flow
+			.filter((node) => node.kind === 'interaction' && node.mount.placement === 'block')
+			.map((node) => node.kind === 'interaction' ? node.mount : null);
+		expect(blockMounts).toHaveLength(1);
+		expect(blockMounts[0]).toMatchObject({
 			tagName: 'pie-qti-choice',
 			response: 'A',
 			correctResponse: 'A',
@@ -41,7 +50,7 @@ describe('createItemPresentationPlan', () => {
 	});
 
 	it('passes an extended-text stringIdentifier response back as its lexical companion', () => {
-		const player = fakePlayer({
+		const source = presentationSource({
 			interactions: [{
 				type: 'extendedTextInteraction',
 				responseId: 'RESPONSE',
@@ -59,12 +68,15 @@ describe('createItemPresentationPlan', () => {
 			}],
 		});
 
-		const plan = createItemPresentationPlan({
-			player,
+		const presentation = createItemPresentation({
+			source,
 			responses: { RESPONSE: 255, RAW: '00FF' },
 		});
 
-		expect(plan.blockInteractions[0]).toMatchObject({
+		const block = presentation.flow.find(
+			(node) => node.kind === 'interaction' && node.mount.placement === 'block'
+		);
+		expect(block && block.kind === 'interaction' ? block.mount : null).toMatchObject({
 			response: 255,
 			stringResponse: '00FF',
 		});
@@ -90,21 +102,21 @@ describe('createItemPresentationPlan', () => {
 			],
 			catalogSources: [],
 		};
-		const player = fakePlayer({
+		const source = presentationSource({
 			bodyHtml: '<qti-assessment-stimulus-ref identifier="stimulus1" /><p class="stem">Stem</p>',
 			deliveryContext,
 		});
 
-		const plan = createItemPresentationPlan({ player, deliveryContext });
+		const presentation = createItemPresentation({ source });
 
-		expect(plan.itemBodyHtml).toContain('<style data-qti-stylesheets="resolved">');
-		expect(plan.itemBodyHtml).toContain('[data-qti-item-body-scope] .stem { color: red; }');
-		expect(plan.inlineSegments[0]?.type).toBe('html');
-		expect(plan.inlineSegments[0]?.content).toContain('Shared stimulus');
+		expect(presentationHtml(presentation)).not.toContain('<style');
+		expect(presentation.scopedCss).toContain('[data-qti-item-body-scope] .stem { color: red; }');
+		expect(presentation.flow[0]?.kind).toBe('html');
+		expect(presentationHtml(presentation)).toContain('Shared stimulus');
 	});
 
 	it('filters item body rubric blocks by role view before rendering', () => {
-		const player = fakePlayer({
+		const source = presentationSource({
 			bodyHtml: `
 				<p>Stem</p>
 				<rubricBlock view="candidate"><p>Candidate instructions</p></rubricBlock>
@@ -114,22 +126,24 @@ describe('createItemPresentationPlan', () => {
 			`,
 		});
 
-		const candidate = createItemPresentationPlan({ player, role: 'candidate' });
-		const scorer = createItemPresentationPlan({ player, role: 'scorer' });
+		const candidate = createItemPresentation({ source, role: 'candidate' });
+		const scorer = createItemPresentation({ source, role: 'scorer' });
+		const candidateHtml = presentationHtml(candidate);
+		const scorerHtml = presentationHtml(scorer);
 
-		expect(candidate.itemBodyHtml).toContain('Candidate instructions');
-		expect(candidate.itemBodyHtml).toContain('Shared review guidance');
-		expect(candidate.itemBodyHtml).toContain('Visible to all roles');
-		expect(candidate.itemBodyHtml).not.toContain('Answer key');
+		expect(candidateHtml).toContain('Candidate instructions');
+		expect(candidateHtml).toContain('Shared review guidance');
+		expect(candidateHtml).toContain('Visible to all roles');
+		expect(candidateHtml).not.toContain('Answer key');
 
-		expect(scorer.itemBodyHtml).not.toContain('Candidate instructions');
-		expect(scorer.itemBodyHtml).toContain('Shared review guidance');
-		expect(scorer.itemBodyHtml).toContain('Answer key');
-		expect(scorer.itemBodyHtml).toContain('Visible to all roles');
+		expect(scorerHtml).not.toContain('Candidate instructions');
+		expect(scorerHtml).toContain('Shared review guidance');
+		expect(scorerHtml).toContain('Answer key');
+		expect(scorerHtml).toContain('Visible to all roles');
 	});
 
 	it('wraps visible item body rubric blocks with inert render metadata', () => {
-		const player = fakePlayer({
+		const source = presentationSource({
 			bodyHtml: `
 				<p>Stem</p>
 				<rubricBlock view="scorer" use="rubric">
@@ -142,23 +156,23 @@ describe('createItemPresentationPlan', () => {
 			`,
 		});
 
-		const scorer = createItemPresentationPlan({ player, role: 'scorer' });
-		const candidate = createItemPresentationPlan({ player, role: 'candidate' });
+		const scorer = presentationHtml(createItemPresentation({ source, role: 'scorer' }));
+		const candidate = presentationHtml(createItemPresentation({ source, role: 'candidate' }));
 
-		expect(scorer.itemBodyHtml).toContain('class="qti-rubric-block"');
-		expect(scorer.itemBodyHtml).toContain('data-qti-rubric-view="scorer"');
-		expect(scorer.itemBodyHtml).toContain('data-qti-rubric-use="rubric"');
-		expect(scorer.itemBodyHtml).toContain('<table>');
-		expect(scorer.itemBodyHtml).not.toContain('<rubricBlock');
-		expect(scorer.itemBodyHtml).not.toContain('<qti-rubric-block');
+		expect(scorer).toContain('class="qti-rubric-block"');
+		expect(scorer).toContain('data-qti-rubric-view="scorer"');
+		expect(scorer).toContain('data-qti-rubric-use="rubric"');
+		expect(scorer).toContain('<table>');
+		expect(scorer).not.toContain('<rubricBlock');
+		expect(scorer).not.toContain('<qti-rubric-block');
 
-		expect(candidate.itemBodyHtml).toContain('Student instructions');
-		expect(candidate.itemBodyHtml).toContain('class="qti-rubric-block"');
-		expect(candidate.itemBodyHtml).not.toContain('Scoring guide');
+		expect(candidate).toContain('Student instructions');
+		expect(candidate).toContain('class="qti-rubric-block"');
+		expect(candidate).not.toContain('Scoring guide');
 	});
 
 	it('can suppress item body rubric blocks for host-placed rubric panels', () => {
-		const player = fakePlayer({
+		const source = presentationSource({
 			bodyHtml: `
 				<p>Stem</p>
 				<rubricBlock view="scorer" use="rubric">
@@ -167,17 +181,17 @@ describe('createItemPresentationPlan', () => {
 			`,
 		});
 
-		const defaultPlan = createItemPresentationPlan({ player, role: 'scorer' });
-		const hostPlacedPlan = createItemPresentationPlan({
-			player,
+		const defaultHtml = presentationHtml(createItemPresentation({ source, role: 'scorer' }));
+		const hostPlacedHtml = presentationHtml(createItemPresentation({
+			source,
 			role: 'scorer',
 			renderItemBodyRubrics: false,
-		});
+		}));
 
-		expect(defaultPlan.itemBodyHtml).toContain('Scorer-only answer key');
-		expect(hostPlacedPlan.itemBodyHtml).toContain('Stem');
-		expect(hostPlacedPlan.itemBodyHtml).not.toContain('Scorer-only answer key');
-		expect(hostPlacedPlan.itemBodyHtml).not.toContain('rubricBlock');
+		expect(defaultHtml).toContain('Scorer-only answer key');
+		expect(hostPlacedHtml).toContain('Stem');
+		expect(hostPlacedHtml).not.toContain('Scorer-only answer key');
+		expect(hostPlacedHtml).not.toContain('rubricBlock');
 	});
 
 	it('renders only item body HTML by default so hosts can place direct rubrics separately', () => {
@@ -190,13 +204,64 @@ describe('createItemPresentationPlan', () => {
 			role: 'scorer',
 		});
 
-		const scorer = createItemPresentationPlan({ player, role: 'scorer' });
-		const candidate = createItemPresentationPlan({ player, role: 'candidate' });
+		const source = sourceFromPlayer(player);
+		const scorer = presentationHtml(createItemPresentation({ source, role: 'scorer' }));
+		const candidate = presentationHtml(createItemPresentation({ source, role: 'candidate' }));
 
-		expect(scorer.itemBodyHtml).toContain('Body only');
-		expect(scorer.itemBodyHtml).not.toContain('Direct scorer rubric');
-		expect(candidate.itemBodyHtml).toContain('Body only');
-		expect(candidate.itemBodyHtml).not.toContain('Direct scorer rubric');
+		expect(scorer).toContain('Body only');
+		expect(scorer).not.toContain('Direct scorer rubric');
+		expect(candidate).toContain('Body only');
+		expect(candidate).not.toContain('Direct scorer rubric');
+	});
+
+	it('keeps final item body HTML trusted after every presentation transform', () => {
+		const policyName = `pie-qti-presentation-${Date.now()}-${Math.random()}`;
+		const previous = Object.getOwnPropertyDescriptor(globalThis, 'trustedTypes');
+		class TestTrustedHtml {
+			constructor(readonly value: string) {}
+			toString() {
+				return this.value;
+			}
+		}
+		Object.defineProperty(globalThis, 'trustedTypes', {
+			configurable: true,
+			value: {
+				createPolicy: (_name: string, rules: { createHTML(input: string): string }) => ({
+					createHTML: (input: string) => new TestTrustedHtml(rules.createHTML(input)),
+				}),
+			},
+		});
+
+		try {
+			const player = new Player({
+				itemXml: `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="trusted-presentation">
+	<responseDeclaration identifier="RESPONSE" cardinality="single" baseType="string">
+		<correctResponse><value>answer</value></correctResponse>
+	</responseDeclaration>
+	<itemBody>
+		<p onclick="alert(1)">Enter <textEntryInteraction responseIdentifier="RESPONSE"/></p>
+		<rubricBlock view="candidate"><p>Candidate guidance</p></rubricBlock>
+	</itemBody>
+</assessmentItem>`,
+				security: { trustedTypesPolicyName: policyName },
+			});
+			const source = sourceFromPlayer(player);
+			expect(source.itemBodyHtml).toBeInstanceOf(TestTrustedHtml);
+
+			const presentation = createItemPresentation({ source, role: 'candidate' });
+			const htmlNodes = presentation.flow.filter((node) => node.kind === 'html');
+			expect(htmlNodes.length).toBeGreaterThan(0);
+			for (const node of htmlNodes) {
+				if (node.kind === 'html') expect(node.html).toBeInstanceOf(TestTrustedHtml);
+			}
+			const html = presentationHtml(presentation);
+			expect(html).toContain('Candidate guidance');
+			expect(html).not.toContain('onclick');
+		} finally {
+			if (previous) Object.defineProperty(globalThis, 'trustedTypes', previous);
+			else delete (globalThis as { trustedTypes?: unknown }).trustedTypes;
+		}
 	});
 
 	it('uses stable interaction keys that include item-specific choice identity', () => {
@@ -217,27 +282,41 @@ describe('createItemPresentationPlan', () => {
 	});
 });
 
-function fakePlayer({
+function presentationSource({
 	bodyHtml = '<p>Stem</p>',
 	interactions = [],
 	correctResponses = {},
 	deliveryContext,
 }: {
 	bodyHtml?: string;
-	interactions?: InteractionData[];
+	interactions?: StandardInteractionData[];
 	correctResponses?: Record<string, unknown>;
 	deliveryContext?: ResolvedItemDeliveryContext;
-}): ItemPresentationPlayer {
-	const player: ItemPresentationPlayer = {
-		getComponentRegistry: () => ({
-			getTagName: (interaction: InteractionData) => `pie-qti-${interaction.type.replace(/Interaction$/, '').replace(/[A-Z]/g, (char) => `-${char.toLowerCase()}`)}`,
-		}),
-		getInteractionData: () => interactions,
-		getCorrectResponses: () => correctResponses,
-		getItemBodyHtml: () => bodyHtml,
-		getDeliveryContext: () => deliveryContext,
-		sanitizeHtmlContent: (html: string) => html,
-		getPnp: () => undefined,
+}): ItemPresentationSource {
+	return {
+		itemBodyHtml: bodyHtml,
+		interactions,
+		correctResponses,
+		componentRegistry: createComponentRegistry(),
+		deliveryContext,
 	};
-	return player;
+}
+
+function sourceFromPlayer(player: Player): ItemPresentationSource {
+	return {
+		itemBodyHtml: player.getItemBodyHtml(),
+		interactions: player.getInteractionData(),
+		correctResponses: player.getCorrectResponses(),
+		componentRegistry: player.getComponentRegistry(),
+		deliveryContext: player.getDeliveryContext(),
+		pnp: player.getPnp(),
+		security: player.getSecurityConfig(),
+	};
+}
+
+function presentationHtml(presentation: ItemPresentation): string {
+	return presentation.flow
+		.filter((node) => node.kind === 'html')
+		.map((node) => node.kind === 'html' ? String(node.html) : '')
+		.join('');
 }

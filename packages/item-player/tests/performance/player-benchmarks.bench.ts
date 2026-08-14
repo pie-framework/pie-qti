@@ -10,6 +10,7 @@
  */
 
 import { bench, describe } from 'bun:test';
+import { createAssessmentItemDefinition } from '../../src/core/AssessmentItemDefinition.js';
 import { Player } from '../../src/core/Player.js';
 
 const NS = 'xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"';
@@ -100,11 +101,14 @@ describe('Player Initialization', () => {
 		new Player({ itemXml: COMPLEX_CHOICE_XML });
 	});
 
-	bench('parse item with state restoration', () => {
-		new Player({
-			itemXml: SIMPLE_CHOICE_XML,
-			sessionState: { RESPONSE: 'A', SCORE: 1.0 }
-		});
+	const definition = createAssessmentItemDefinition({ itemXml: SIMPLE_CHOICE_XML });
+	const sourceSession = definition.openSession();
+	sourceSession.dispatch({ action: 'setResponse', responseIdentifier: 'RESPONSE', value: 'A' });
+	const serializedSession = sourceSession.serialize();
+	sourceSession.dispose();
+
+	bench('open item session with state restoration', () => {
+		definition.openSession({ restore: serializedSession }).dispose();
 	});
 });
 

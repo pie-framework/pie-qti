@@ -20,9 +20,12 @@ type SettableSvelteInstance<TProps> = {
 /**
  * Owns Svelte custom-element mount policy in one place.
  *
- * Svelte 5 runes components do not expose `$set`, so updates fall back to one
- * microtask-scheduled remount. Coalescing here prevents synchronous remount
- * loops in custom element setters and attribute callbacks.
+ * Svelte 5 runes components do not support `$set`, so updates fall back to one
+ * microtask-scheduled remount. Development builds may still expose a `$set`
+ * compatibility shim that throws `component_api_changed`; treat that shim as
+ * unsupported while preserving genuine Svelte 4-compatible instances.
+ * Coalescing here prevents synchronous remount loops in custom element setters
+ * and attribute callbacks.
  */
 export function createSvelteMountController<TProps, TInstance>({
 	host,
@@ -85,8 +88,12 @@ export function createSvelteMountController<TProps, TInstance>({
 
 		const set = (instance as SettableSvelteInstance<TProps>).$set;
 		if (typeof set === 'function') {
-			set.call(instance, props);
-			return;
+			try {
+				set.call(instance, props);
+				return;
+			} catch (error) {
+				if (!isSvelteComponentApiChanged(error)) throw error;
+			}
 		}
 
 		scheduleRemount();
@@ -112,6 +119,10 @@ export function createSvelteMountController<TProps, TInstance>({
 		update,
 		teardown,
 	};
+}
+
+function isSvelteComponentApiChanged(error: unknown): error is Error {
+	return error instanceof Error && error.message.includes('https://svelte.dev/e/component_api_changed');
 }
 
 function defaultContainer() {

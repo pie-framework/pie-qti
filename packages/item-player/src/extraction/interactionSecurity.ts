@@ -1,60 +1,169 @@
-import type { InteractionData } from '../interactions/index.js';
-import type { PlayerSecurityConfig } from '../types/index.js';
+import { sanitizeHtml } from '../core/sanitizer.js';
 import { toTrustedHtml } from '../core/trustedTypes.js';
-import { sanitizeResourceUrl } from '../core/urlPolicy.js';
+import { sanitizeResourceUrl, type UrlKind } from '../core/urlPolicy.js';
+import type { BaseInteractionData } from '../interactions/index.js';
+import { getStandardInteractionModule } from '../interactions/modules.js';
+import type { PlayerSecurityConfig } from '../types/index.js';
+import type {
+	InteractionDeliveryField,
+	InteractionDeliveryPathSegment,
+} from './deliveryTypes.js';
 
-export function applyInteractionSecurity(
-	interactions: InteractionData[],
-	security?: PlayerSecurityConfig
-): InteractionData[] {
-	const policy = security?.urlPolicy;
-	const allowObjectEmbeds = security?.allowObjectEmbeds === true;
-	const ttPolicyName = security?.trustedTypesPolicyName;
+type MutableRecord = Record<string, unknown>;
 
-	for (const interaction of interactions as any[]) {
-		// Wrap known HTML injection fields in TrustedHTML (when enabled).
-		// Important: do NOT wrap fields rendered as plain text (e.g. prompt).
-		if (interaction.type === 'choiceInteraction' && Array.isArray(interaction.choices)) {
-			for (const choice of interaction.choices) {
-				if (typeof choice?.text === 'string') {
-					choice.text = toTrustedHtml(choice.text, ttPolicyName);
-				}
+/**
+ * Finalize extracted data for its declared render sinks.
+ *
+ * InteractionModules own field classification. This module owns the common
+ * enforcement implementation and is the only extraction egress that may mint
+ * TrustedHTML. The returned graph is frozen so no post-egress string transform
+ * can invalidate that guarantee.
+ */
+export function finalizeInteractionDelivery<TData extends BaseInteractionData>(
+	interaction: TData,
+	fields: readonly InteractionDeliveryField[],
+	security?: PlayerSecurityConfig,
+	authoredType: string = interaction.type,
+): TData {
+	const output = cloneValue(interaction) as TData;
+
+	for (const field of fields) {
+		visitField(output as unknown as MutableRecord, field.path, (value, parent, key) => {
+			if (field.kind === 'html') {
+				// A plugin overriding a standard extractor cannot bypass the common
+				// policy by returning an object at a known HTML field. Coerce at this
+				// boundary, sanitize, and mint the only render-capable value here.
+				const raw = typeof value === 'string' ? value : '';
+				const sanitized = sanitizeHtml(raw, { security });
+				setChild(parent, key, toTrustedHtml(sanitized, security?.trustedTypesPolicyName));
+				return;
 			}
-		}
 
-		// Shared ImageData shape.
-		if (interaction.imageData?.src) {
-			interaction.imageData.src = sanitizeResourceUrl(interaction.imageData.src, policy, 'img') ?? '';
-		}
-		if (interaction.imageData?.content && typeof interaction.imageData.content === 'string') {
-			interaction.imageData.content = toTrustedHtml(interaction.imageData.content, ttPolicyName);
-		}
-
-		// positionObject stages.
-		if (Array.isArray(interaction.positionObjectStages)) {
-			for (const stage of interaction.positionObjectStages) {
-				if (stage?.objectData?.src) {
-					stage.objectData.src = sanitizeResourceUrl(stage.objectData.src, policy, 'img') ?? '';
-				}
-				if (stage?.objectData?.content && typeof stage.objectData.content === 'string') {
-					stage.objectData.content = toTrustedHtml(stage.objectData.content, ttPolicyName);
-				}
+			// Unexpected URL shapes fail closed rather than reaching a browser sink
+			// where implicit string coercion could reinterpret them.
+			if (typeof value !== 'string') {
+				setChild(parent, key, '');
+				return;
 			}
-		}
-
-		// mediaInteraction.
-		if (interaction.type === 'mediaInteraction' && interaction.mediaElement?.src) {
-			const kind = interaction.mediaElement.type === 'object' ? 'object' : 'media';
-			interaction.mediaElement.src =
-				sanitizeResourceUrl(interaction.mediaElement.src, policy, kind) ?? '';
-			interaction.allowObjectEmbeds = allowObjectEmbeds;
-		}
-
-		// hottextInteraction content is injected via {@html}.
-		if (interaction.type === 'hottextInteraction' && typeof interaction.contentHtml === 'string') {
-			interaction.contentHtml = toTrustedHtml(interaction.contentHtml, ttPolicyName);
-		}
+			const use = resolveUrlKind(field.use, output, authoredType);
+			setChild(parent, key, sanitizeResourceUrl(value, security?.urlPolicy, use) ?? '');
+		});
 	}
 
-	return interactions;
+	if (authoredType === 'mediaInteraction') {
+		(output as any).allowObjectEmbeds = security?.allowObjectEmbeds === true;
+	}
+
+	return deepFreeze(output);
+}
+
+/**
+ * Compatibility entry point for callers that already have an interaction data
+ * array. New extraction code supplies the selected extractor's additional
+ * schema directly to `finalizeInteractionDelivery`.
+ */
+export function applyInteractionSecurity<TData extends BaseInteractionData>(
+	interactions: TData[],
+	security?: PlayerSecurityConfig
+): TData[] {
+	return Object.freeze(
+		interactions.map((interaction) =>
+			finalizeInteractionDelivery(
+				interaction,
+				getStandardInteractionModule(interaction.type)?.delivery ?? [],
+				security
+			)
+		)
+	) as unknown as TData[];
+}
+
+function visitField(
+	value: unknown,
+	path: readonly InteractionDeliveryPathSegment[],
+	visit: (value: unknown, parent: MutableRecord | unknown[], key: string | number) => void,
+	parent?: MutableRecord | unknown[],
+	key?: string | number
+): void {
+	if (path.length === 0) {
+		if (parent !== undefined && key !== undefined) visit(value, parent, key);
+		return;
+	}
+
+	if (value === null || typeof value !== 'object') return;
+
+	const [segment, ...rest] = path;
+	if (segment === '*') {
+		if (Array.isArray(value)) {
+			for (let index = 0; index < value.length; index += 1) {
+				visitField(value[index], rest, visit, value, index);
+			}
+			return;
+		}
+		for (const [childKey, child] of Object.entries(value)) {
+			visitField(child, rest, visit, value as MutableRecord, childKey);
+		}
+		return;
+	}
+
+	const record = value as MutableRecord;
+	if (!(segment in record)) return;
+	visitField(record[segment], rest, visit, record, segment);
+}
+
+function resolveUrlKind(
+	use: UrlKind | 'media-or-object',
+	interaction: BaseInteractionData,
+	authoredType: string,
+): UrlKind {
+	if (use !== 'media-or-object') return use;
+	const mediaElement =
+		authoredType === 'mediaInteraction' && 'mediaElement' in interaction
+			? interaction.mediaElement
+			: null;
+	return mediaElement &&
+		typeof mediaElement === 'object' &&
+		'type' in mediaElement &&
+		mediaElement.type === 'object'
+		? 'object'
+		: 'media';
+}
+
+function setChild(
+	parent: MutableRecord | unknown[],
+	key: string | number,
+	value: unknown
+): void {
+	if (Array.isArray(parent) && typeof key === 'number') {
+		parent[key] = value;
+		return;
+	}
+	(parent as MutableRecord)[String(key)] = value;
+}
+
+function cloneValue<T>(value: T): T {
+	if (Array.isArray(value)) return value.map((entry) => cloneValue(entry)) as T;
+	if (value && typeof value === 'object') {
+		// TrustedHTML and other host values are terminal leaves. Standard extractor
+		// output is plain data; retaining a non-plain value avoids destroying a host
+		// object's identity when a plugin supplies one deliberately.
+		const prototype = Object.getPrototypeOf(value);
+		if (prototype !== Object.prototype && prototype !== null) return value;
+		return Object.fromEntries(
+			Object.entries(value).map(([key, entry]) => [key, cloneValue(entry)])
+		) as T;
+	}
+	return value;
+}
+
+function deepFreeze<T>(value: T): T {
+	if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value;
+	const prototype = Object.getPrototypeOf(value);
+	if (!Array.isArray(value) && prototype !== Object.prototype && prototype !== null) {
+		// TrustedHTML and other host objects are opaque terminal values. Freezing a
+		// browser-owned object can throw and adds no protection to our data graph.
+		return value;
+	}
+	Object.freeze(value);
+	for (const child of Object.values(value as MutableRecord)) deepFreeze(child);
+	return value;
 }

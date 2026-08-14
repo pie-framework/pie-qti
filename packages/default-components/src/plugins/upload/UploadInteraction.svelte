@@ -2,6 +2,7 @@
 
 <script lang="ts">
 	import type { UploadInteractionData, QTIFileResponse } from '@pie-qti/item-player';
+	import { htmlToString } from '@pie-qti/item-player/security';
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import FileUpload from '../../shared/components/FileUpload.svelte';
@@ -49,7 +50,9 @@
 		</div>
 	{:else}
 		<FileUpload
-			label={parsedInteraction.prompt || i18n?.t('interactions.upload.label', 'Upload a file')}
+			label={parsedInteraction.prompt
+				? htmlToString(parsedInteraction.prompt).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+				: i18n?.t('interactions.upload.label', 'Upload a file')}
 			responseId={parsedInteraction.responseId}
 			fileTypes={parsedInteraction.fileTypes}
 			{maxFileSizeBytes}

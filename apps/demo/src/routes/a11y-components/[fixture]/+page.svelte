@@ -2,7 +2,6 @@
 	import { base } from '$app/paths';
 	import { A11Y_FIXTURES, type A11yFixtureId } from '$lib/a11y/fixtures';
 	import AssessmentNavigationBarFixture from '$lib/a11y/fixtures/AssessmentNavigationBarFixture.svelte';
-	import AssessmentRubricDisplayFixture from '$lib/a11y/fixtures/AssessmentRubricDisplayFixture.svelte';
 	import AssessmentSectionMenuFixture from '$lib/a11y/fixtures/AssessmentSectionMenuFixture.svelte';
 	import AssessmentShellFixture from '$lib/a11y/fixtures/AssessmentShellFixture.svelte';
 	import AssessmentTimerFixture from '$lib/a11y/fixtures/AssessmentTimerFixture.svelte';
@@ -22,6 +21,7 @@
 	import MediaInteractionFixture from '$lib/a11y/fixtures/MediaInteractionFixture.svelte';
 	import ModalFeedbackFixture from '$lib/a11y/fixtures/ModalFeedbackFixture.svelte';
 	import PnpCatalogStimulusFixture from '$lib/a11y/fixtures/PnpCatalogStimulusFixture.svelte';
+	import SectionRubricDisplayFixture from '$lib/a11y/fixtures/SectionRubricDisplayFixture.svelte';
 
 	interface Props {
 		data: { fixture: string };
@@ -82,8 +82,8 @@
 				<AssessmentNavigationBarFixture />
 			{:else if fixture === 'assessment-section-menu'}
 				<AssessmentSectionMenuFixture />
-			{:else if fixture === 'assessment-rubric-display'}
-				<AssessmentRubricDisplayFixture />
+			{:else if fixture === 'section-rubric-display'}
+				<SectionRubricDisplayFixture />
 			{:else if fixture === 'assessment-timer'}
 				<AssessmentTimerFixture />
 			{:else if fixture === 'assessment-shell'}
@@ -98,5 +98,4 @@
 		</div>
 	</div>
 </div>
-
 
