@@ -153,7 +153,10 @@
 					'aria-label': initialEditorLabel,
 				},
 			},
-			onUpdate: ({ editor: ed }) => {
+			onUpdate: ({ editor: ed, transaction }) => {
+				// `setEditable()` emits `update` with an empty transaction, so an editability
+				// change arrives here looking like an edit; only a document change is one.
+				if (!transaction.docChanged) return;
 				const html = ed.getHTML();
 				// Only emit if content actually changed
 				if (html !== lastEmitted) {
@@ -171,10 +174,11 @@
 		};
 	});
 
-	// Keep editable in sync (without re-creating the editor)
+	// Keep editable in sync (without re-creating the editor). `emitUpdate: false` keeps an
+	// editability change from masquerading as a content edit.
 	$effect(() => {
 		if (editor) {
-			editor.setEditable(editable);
+			editor.setEditable(editable, false);
 		}
 	});
 
