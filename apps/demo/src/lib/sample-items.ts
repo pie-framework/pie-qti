@@ -336,7 +336,7 @@ export const EXTENDED_TEXT = `<?xml version="1.0" encoding="UTF-8"?>
 
   <itemBody>
     <p>Explain the role of mitochondria in cellular function.</p>
-    <extendedTextInteraction responseIdentifier="RESPONSE" expectedLines="3" expectedLength="200"/>
+    <extendedTextInteraction responseIdentifier="RESPONSE" format="xhtml" expectedLines="3" expectedLength="200"/>
   </itemBody>
 
   <responseProcessing>
@@ -2823,18 +2823,20 @@ export const POSITION_OBJECT_INTERACTION = `<?xml version="1.0" encoding="UTF-8"
   <itemBody>
     <div class="qti-item">
       <p>Place the star marker on the capital of Texas (Austin).</p>
-      <positionObjectInteraction responseIdentifier="RESPONSE" maxChoices="1">
-        <prompt>Drag the star to the correct location:</prompt>
+      <!-- QTI 2.2 nesting: the stage owns the background image and wraps the interaction(s),
+           each of which supplies the object the candidate positions. -->
+      <positionObjectStage>
         <object type="image/png" data="/usa-map-capitals.png" width="300" height="196">
           USA Outline Map
         </object>
-        <positionObjectStage identifier="AUSTIN" matchMax="1">
+        <positionObjectInteraction responseIdentifier="RESPONSE" maxChoices="1">
+          <prompt>Drag the star to the correct location:</prompt>
           <object type="image/svg+xml" width="24" height="24">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="gold" stroke="orange" stroke-width="1">
               <polygon points="12,2 15,10 24,10 17,15 20,23 12,18 4,23 7,15 0,10 9,10"/>
-            </svg>
-          </object>Austin</positionObjectStage>
-      </positionObjectInteraction>
+            </svg>Austin</object>
+        </positionObjectInteraction>
+      </positionObjectStage>
     </div>
   </itemBody>
   <responseProcessing>
@@ -3099,7 +3101,7 @@ export const SAMPLE_ITEMS: SampleItem[] = [
   {
     id: 'position-object',
     title: 'Position Object Interaction',
-    description: 'Drag and position furniture objects on a room layout',
+    description: 'Drag a star marker onto a US map to mark a state capital',
     xml: POSITION_OBJECT_INTERACTION,
   },
   {

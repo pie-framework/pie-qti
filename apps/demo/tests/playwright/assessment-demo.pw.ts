@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 test.describe('/assessment-demo', () => {
 	test('multiple choice is selectable (reading comprehension)', async ({ page }) => {
@@ -181,10 +181,10 @@ test.describe('/assessment-demo', () => {
 		// Wait for assessment to load
 		await page.waitForTimeout(1000);
 
-		// First item is based on reading comprehension q1 where correct choice is identifier "A" (Evaporation).
+		// The passage section carries the math-inline item, whose correct choice is "ChoiceB".
 		const choiceHost = page.locator('pie-qti-choice').first();
 		await expect(choiceHost).toBeVisible({ timeout: 10000 });
-		await choiceHost.locator('input[type="radio"][value="A"]').click();
+		await choiceHost.locator('input[type="radio"][value="ChoiceB"]').click();
 
 		// Navigate to the end and submit.
 		const next = page.locator('[data-testid="assessment-next"]');
@@ -232,10 +232,10 @@ test.describe('/assessment-demo', () => {
 			});
 		});
 
-		// Q1 (water cycle) correct is "A"
+		// Q1 (quadratic solution set, math-inline) correct is "ChoiceB"
 		const q1Choice = page.locator('pie-qti-choice').first();
 		await expect(q1Choice).toBeVisible({ timeout: 10000 });
-		const q1Radio = q1Choice.locator('input[type="radio"][value="A"]');
+		const q1Radio = q1Choice.locator('input[type="radio"][value="ChoiceB"]');
 		await expect(q1Radio).toBeVisible();
 		await q1Radio.click();
 		await expect(q1Radio).toBeChecked();

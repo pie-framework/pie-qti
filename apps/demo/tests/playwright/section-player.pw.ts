@@ -1,7 +1,23 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 const silenceWavBase64 =
 	'UklGRsQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+
+/**
+ * TTS read-along highlighting cannot mark anything while
+ * `@pie-players/pie-assessment-toolkit` ships its HighlightCoordinator twice — once as a
+ * standalone module and once inlined into `PieAssessmentToolkit.custom-element.js`. Both copies
+ * call `CSS.highlights.set('tts-word'|'tts-sentence', ...)`, so the tools add ranges to one
+ * Highlight instance while the registry holds the other, and neither the ranges nor the
+ * `data-pie-tts-*-element` fallback ever land. Synthesis and playback are unaffected.
+ * Reproduces identically at 0.3.53 and 0.3.63.
+ *
+ * Marked expected-to-fail rather than skipped so the run turns red — "expected to fail but
+ * passed" — the moment upstream ships a single instance, which is the signal to delete this.
+ */
+function expectedToFailOnDuplicateHighlightCoordinator() {
+	test.fail();
+}
 
 function speechMarksForText(text: string) {
 	return Array.from(text.matchAll(/\S+/g)).map((match, index) => ({
@@ -120,6 +136,7 @@ test.describe('section player web components', () => {
 	});
 
 	test('split-pane route marks passage text while TTS is playing', async ({ page }) => {
+		expectedToFailOnDuplicateHighlightCoordinator();
 		await page.addInitScript(() => {
 			HTMLMediaElement.prototype.play = function () {
 				this.dispatchEvent(new Event('play'));
@@ -173,6 +190,7 @@ test.describe('section player web components', () => {
 	});
 
 	test('split-pane route maps projected interaction TTS tracking to visible question content', async ({ page }) => {
+		expectedToFailOnDuplicateHighlightCoordinator();
 		await page.addInitScript(() => {
 			HTMLMediaElement.prototype.play = function () {
 				this.dispatchEvent(new Event('play'));

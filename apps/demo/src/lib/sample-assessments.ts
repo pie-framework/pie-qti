@@ -684,8 +684,9 @@ export const SAMPLE_ASSESSMENTS: SampleAssessment[] = [
 												and an item on the right. Answer the question using the information in the passage.
 											</p>
 											<p>
-												Water continuously moves between the atmosphere and Earth's surface through evaporation, condensation,
-												precipitation, and collection. This cycle helps distribute fresh water across ecosystems.
+												A quadratic equation written as x&#178; + bx + c = 0 can be solved by factoring it into
+												(x + p)(x + q) = 0, where p and q multiply to c and add to b. Each factor is then set to
+												zero, so the solutions are x = &#8722;p and x = &#8722;q.
 											</p>
 										</div>
 									`,
