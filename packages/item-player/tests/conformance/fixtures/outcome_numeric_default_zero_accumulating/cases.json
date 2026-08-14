@@ -1,0 +1,45 @@
+{
+  "id": "outcome_numeric_default_zero_accumulating",
+  "cases": [
+    {
+      "name": "both correct => SCORE 2",
+      "responses": { "RESPONSE": "winter", "RESPONSE_1": "york" },
+      "expect": {
+        "score": 2,
+        "outcomes": { "SCORE": 2, "TALLY": 2, "GRADE": null, "BONUS": 5 }
+      }
+    },
+    {
+      "name": "first correct only => SCORE 1",
+      "responses": { "RESPONSE": "winter", "RESPONSE_1": "lancaster" },
+      "expect": {
+        "score": 1,
+        "outcomes": { "SCORE": 1, "TALLY": 1 }
+      }
+    },
+    {
+      "name": "second correct only => SCORE 1",
+      "responses": { "RESPONSE": "summer", "RESPONSE_1": "york" },
+      "expect": {
+        "score": 1,
+        "outcomes": { "SCORE": 1, "TALLY": 1 }
+      }
+    },
+    {
+      "name": "none correct => SCORE 0",
+      "responses": { "RESPONSE": "summer", "RESPONSE_1": "lancaster" },
+      "expect": {
+        "score": 0,
+        "outcomes": { "SCORE": 0, "TALLY": 0 }
+      }
+    },
+    {
+      "name": "no responses => SCORE 0",
+      "responses": {},
+      "expect": {
+        "score": 0,
+        "outcomes": { "SCORE": 0, "TALLY": 0, "GRADE": null }
+      }
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 async function setTheme(page: any, theme: string) {
 	await page.evaluate((t: string) => {

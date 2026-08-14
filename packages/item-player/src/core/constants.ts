@@ -2,8 +2,6 @@
  * QTI constants and configuration
  */
 
-import type { VariableDeclaration } from '../types/index.js';
-
 // Prefix for data attributes and CSS classes
 export const PREFIX = 'pie-qti';
 
@@ -57,40 +55,6 @@ export const MSG_NO_SKIP = `${PREFIX}-msg-no-skip`;
 export const MSG_TOO_MANY = `${PREFIX}-msg-too-many`;
 export const MSG_TOO_FEW = `${PREFIX}-msg-too-few`;
 export const MSG_MISMATCH = `${PREFIX}-msg-match-not-allowed`;
-
-// Built-in QTI variable declarations
-export const BUILTIN_DECLARATIONS: Record<string, VariableDeclaration> = {
-	numAttempts: {
-		identifier: 'numAttempts',
-		value: 0,
-		baseType: 'integer',
-		cardinality: 'single',
-	},
-	duration: {
-		identifier: 'duration',
-		value: null,
-		baseType: 'duration',
-		cardinality: 'single',
-	},
-	completionStatus: {
-		identifier: 'completionStatus',
-		value: 'not_attempted',
-		baseType: 'string',
-		cardinality: 'single',
-	},
-	$comment: {
-		identifier: '$comment',
-		value: null,
-		baseType: 'string',
-		cardinality: 'single',
-	},
-	$dirty: {
-		identifier: '$dirty',
-		value: false,
-		baseType: 'boolean',
-		cardinality: 'single',
-	},
-};
 
 // Namespaces
 /**
