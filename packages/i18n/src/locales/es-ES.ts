@@ -640,7 +640,10 @@ export default {
 		samples: {
 			title: 'Paquetes QTI de Muestra',
 			description: 'Pruebe el procesador con paquetes de muestra precargados que demuestran varios tipos de interacción QTI.',
-			itemCount: '{count, plural, one {# elemento} other {# elementos}}',
+			itemCount: {
+				one: '{count} elemento',
+				other: '{count} elementos',
+			},
 			hasManifest: 'Manifiesto',
 			load: 'Cargar Muestra',
 			loadSample: 'Cargar Muestra',
@@ -691,10 +694,16 @@ export default {
 			sampleItems: 'Elementos de Muestra por Tipo de Interacción',
 			issues: 'Problemas',
 			browseAssessments: 'Explorar y Vista Previa de Pruebas de Evaluación',
-			browseAssessmentsDescription: 'Explorar y ver vista previa de {count, plural, one {# prueba de evaluación QTI} other {# pruebas de evaluación QTI}} encontradas en esta sesión',
+			browseAssessmentsDescription: {
+				one: 'Explorar y ver vista previa de {count} prueba de evaluación QTI encontrada en esta sesión',
+				other: 'Explorar y ver vista previa de {count} pruebas de evaluación QTI encontradas en esta sesión',
+			},
 			individualItems: 'Elementos Individuales',
 			browseItems: 'Explorar y Vista Previa de Elementos',
-			browseItemsDescription: 'Explorar y ver vista previa de {count, plural, one {# elemento QTI} other {# elementos QTI}} encontrados en esta sesión',
+			browseItemsDescription: {
+				one: 'Explorar y ver vista previa de {count} elemento QTI encontrado en esta sesión',
+				other: 'Explorar y ver vista previa de {count} elementos QTI encontrados en esta sesión',
+			},
 		},
 
 		// Analysis results
@@ -738,14 +747,30 @@ export default {
 			pageTitle: 'Resultados de la Transformación - Sesión {sessionId}',
 			breadcrumb: 'Transformado',
 			title: 'Resultados de la Transformación',
-			summary: '{itemCount} elemento{itemCount, plural, one {} other {s}}{assessmentCount, plural, =0 {} other { + {assessmentCount} evaluación{assessmentCount, plural, one {} other {es}}}} transformado{itemCount, plural, one {} other {s}} en {duration}',
+			// El participio concuerda con itemCount, por eso va dentro de summaryItems
+			summary: '{items} en {duration}',
+			summaryWithAssessments: '{items} + {assessments} en {duration}',
+			summaryItems: {
+				one: '{count} elemento transformado',
+				other: '{count} elementos transformados',
+			},
+			summaryAssessments: {
+				one: '{count} evaluación',
+				other: '{count} evaluaciones',
+			},
 			backToSession: 'Volver a la Sesión',
 			content: 'Contenido Transformado',
 			items: 'Elementos',
 			assessments: 'Evaluaciones',
 			errors: 'Errores',
-			warnings: '{count, plural, one {# advertencia} other {# advertencias}}',
-			transformationErrors: '{count, plural, one {# Error de Transformación} other {# Errores de Transformación}}',
+			warnings: {
+				one: '{count} advertencia',
+				other: '{count} advertencias',
+			},
+			transformationErrors: {
+				one: '{count} Error de Transformación',
+				other: '{count} Errores de Transformación',
+			},
 			noItems: 'No hay elementos transformados',
 			selectPrompt: 'Seleccione un elemento o evaluación para ver una vista previa',
 		},

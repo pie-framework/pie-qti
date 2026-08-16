@@ -639,7 +639,10 @@ export default {
 		samples: {
 			title: 'Packages QTI Exemples',
 			description: 'Essayez le processeur avec des packages d\'exemple prédéfinis démontrant divers types d\'interactions QTI.',
-			itemCount: '{count, plural, one {# élément} other {# éléments}}',
+			itemCount: {
+				one: '{count} élément',
+				other: '{count} éléments',
+			},
 			hasManifest: 'Manifest',
 			load: 'Charger l\'Exemple',
 			loadSample: 'Charger l\'Exemple',
@@ -690,10 +693,16 @@ export default {
 			sampleItems: 'Éléments Exemples par Type d\'Interaction',
 			issues: 'Problèmes',
 			browseAssessments: 'Parcourir et Prévisualiser les Tests d\'Évaluation',
-			browseAssessmentsDescription: 'Parcourir et prévisualiser {count, plural, one {# test d\'évaluation QTI} other {# tests d\'évaluation QTI}} trouvés dans cette session',
+			browseAssessmentsDescription: {
+				one: 'Parcourir et prévisualiser {count} test d\'évaluation QTI trouvé dans cette session',
+				other: 'Parcourir et prévisualiser {count} tests d\'évaluation QTI trouvés dans cette session',
+			},
 			individualItems: 'Éléments Individuels',
 			browseItems: 'Parcourir et Prévisualiser les Éléments',
-			browseItemsDescription: 'Parcourir et prévisualiser {count, plural, one {# élément QTI} other {# éléments QTI}} trouvés dans cette session',
+			browseItemsDescription: {
+				one: 'Parcourir et prévisualiser {count} élément QTI trouvé dans cette session',
+				other: 'Parcourir et prévisualiser {count} éléments QTI trouvés dans cette session',
+			},
 		},
 
 		// Analysis results
@@ -737,14 +746,30 @@ export default {
 			pageTitle: 'Résultats de la Transformation - Session {sessionId}',
 			breadcrumb: 'Transformé',
 			title: 'Résultats de la Transformation',
-			summary: '{itemCount} élément{itemCount, plural, one {} other {s}}{assessmentCount, plural, =0 {} other { + {assessmentCount} évaluation{assessmentCount, plural, one {} other {s}}}} transformé{itemCount, plural, one {} other {s}} en {duration}',
+			// Le participe s'accorde avec itemCount, d'où sa place dans summaryItems
+			summary: '{items} en {duration}',
+			summaryWithAssessments: '{items} + {assessments} en {duration}',
+			summaryItems: {
+				one: '{count} élément transformé',
+				other: '{count} éléments transformés',
+			},
+			summaryAssessments: {
+				one: '{count} évaluation',
+				other: '{count} évaluations',
+			},
 			backToSession: 'Retour à la Session',
 			content: 'Contenu Transformé',
 			items: 'Éléments',
 			assessments: 'Évaluations',
 			errors: 'Erreurs',
-			warnings: '{count, plural, one {# avertissement} other {# avertissements}}',
-			transformationErrors: '{count, plural, one {# Erreur de Transformation} other {# Erreurs de Transformation}}',
+			warnings: {
+				one: '{count} avertissement',
+				other: '{count} avertissements',
+			},
+			transformationErrors: {
+				one: '{count} Erreur de Transformation',
+				other: '{count} Erreurs de Transformation',
+			},
 			noItems: 'Aucun élément transformé',
 			selectPrompt: 'Sélectionnez un élément ou une évaluation pour prévisualiser',
 		},

@@ -652,7 +652,10 @@ export default {
 		samples: {
 			title: '示例 QTI 包',
 			description: '使用演示各种 QTI 交互类型的预加载示例包来尝试此处理工具。',
-			itemCount: '{count, plural, one {# 个项目} other {# 个项目}}',
+			itemCount: {
+				one: '{count} 个项目',
+				other: '{count} 个项目',
+			},
 			hasManifest: '清单',
 			load: '加载示例',
 			loadSample: '加载示例',
@@ -703,10 +706,16 @@ export default {
 			sampleItems: '按交互类型的示例项目',
 			issues: '问题',
 			browseAssessments: '浏览和预览评估测试',
-			browseAssessmentsDescription: '浏览和预览此会话中找到的 {count, plural, one {# 个 QTI 评估测试} other {# 个 QTI 评估测试}}',
+			browseAssessmentsDescription: {
+				one: '浏览和预览此会话中找到的 {count} 个 QTI 评估测试',
+				other: '浏览和预览此会话中找到的 {count} 个 QTI 评估测试',
+			},
 			individualItems: '单项项目',
 			browseItems: '浏览和预览项目',
-			browseItemsDescription: '浏览和预览此会话中找到的 {count, plural, one {# 个 QTI 项目} other {# 个 QTI 项目}}',
+			browseItemsDescription: {
+				one: '浏览和预览此会话中找到的 {count} 个 QTI 项目',
+				other: '浏览和预览此会话中找到的 {count} 个 QTI 项目',
+			},
 		},
 
 		// 分析结果
@@ -750,14 +759,29 @@ export default {
 			pageTitle: '转换结果 - 会话 {sessionId}',
 			breadcrumb: '已转换',
 			title: '转换结果',
-			summary: '{itemCount} 个项目{itemCount, plural, one {} other {}}{assessmentCount, plural, =0 {} other { + {assessmentCount} 个评估{assessmentCount, plural, one {} other {}}}}在 {duration} 内转换完成',
+			summary: '{items}在 {duration} 内转换完成',
+			summaryWithAssessments: '{items} + {assessments}在 {duration} 内转换完成',
+			summaryItems: {
+				one: '{count} 个项目',
+				other: '{count} 个项目',
+			},
+			summaryAssessments: {
+				one: '{count} 个评估',
+				other: '{count} 个评估',
+			},
 			backToSession: '返回会话',
 			content: '转换的内容',
 			items: '项目',
 			assessments: '评估',
 			errors: '错误',
-			warnings: '{count, plural, one {# 个警告} other {# 个警告}}',
-			transformationErrors: '{count, plural, one {# 个转换错误} other {# 个转换错误}}',
+			warnings: {
+				one: '{count} 个警告',
+				other: '{count} 个警告',
+			},
+			transformationErrors: {
+				one: '{count} 个转换错误',
+				other: '{count} 个转换错误',
+			},
 			noItems: '未转换任何项目',
 			selectPrompt: '选择项目或评估以预览',
 		},

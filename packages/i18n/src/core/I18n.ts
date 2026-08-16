@@ -2,25 +2,79 @@
  * Default I18n provider implementation
  *
  * This is the framework's default implementation of the I18nProvider interface.
- * It uses Vite's dynamic imports for lazy locale loading and provides simple
+ * It uses standard dynamic imports for lazy locale loading and provides simple
  * interpolation and pluralization support.
  */
 
 import type { I18nProvider, InterpolationValues, PluralOptions } from './I18nProvider.js';
 import type { LocaleCode, FrameworkLocaleCode, MessageKey, LocaleMessages } from './types.js';
+import enUS from '../locales/en-US.js';
 
-// Use Vite's glob import to load all locales dynamically
-// Load en-US eagerly (default/fallback locale), others lazily
-// In dev mode, Vite uses .ts files directly. In production, use .js files from dist.
-// @ts-expect-error - import.meta.glob is a Vite feature, not standard TypeScript
-const eagerLocales = import.meta.glob('../locales/en-US.{js,ts}', { eager: true });
-// @ts-expect-error - import.meta.glob is a Vite feature, not standard TypeScript
-const lazyLocales = import.meta.glob('../locales/*.{js,ts}', { eager: false });
+/**
+ * Lazy loaders for the framework locales.
+ *
+ * An explicit static map rather than a bundler macro: `tsc` emits these
+ * `import()` calls verbatim, so the published package evaluates anywhere ESM
+ * does — webpack, esbuild, Rollup, Node, or a browser loading the files
+ * directly. Every bundler still sees the specifiers statically, so each locale
+ * remains its own chunk and a host that only renders English never fetches the
+ * others. Adding a locale means adding a line here alongside the file.
+ *
+ * en-US is a plain static import because it is the fallback for every missing
+ * key in every other locale, so it must be resolvable synchronously in the
+ * constructor.
+ */
+const localeLoaders: Record<FrameworkLocaleCode, () => Promise<{ default: LocaleMessages }>> = {
+	'en-US': () => Promise.resolve({ default: enUS }),
+	'ar-SA': () => import('../locales/ar-SA.js'),
+	'es-ES': () => import('../locales/es-ES.js'),
+	'fr-FR': () => import('../locales/fr-FR.js'),
+	'nl-NL': () => import('../locales/nl-NL.js'),
+	'ro-RO': () => import('../locales/ro-RO.js'),
+	'th-TH': () => import('../locales/th-TH.js'),
+	'zh-CN': () => import('../locales/zh-CN.js'),
+};
 
-// Combine both for lookup
-const localeModules = { ...lazyLocales };
+/**
+ * Whether to log missing-translation warnings.
+ *
+ * `process` does not exist in a plain browser, so the read is guarded rather
+ * than bare: an unguarded `process.env.NODE_ENV` throws a ReferenceError on the
+ * missing-key path for any consumer that is not running the code through a
+ * bundler that substitutes it.
+ */
+const isDevelopment: boolean =
+	typeof process !== 'undefined' && process.env?.NODE_ENV === 'development';
+
+/**
+ * Right-to-left primary language subtags.
+ *
+ * Only consulted when `Intl.Locale.prototype.textInfo` is unavailable — it is the
+ * authoritative source but shipped late in Safari, and an assessment rendered
+ * left-to-right for an Arabic reader is not a graceful degradation.
+ */
+const RTL_LANGUAGES = new Set([
+	'ar', // Arabic
+	'ckb', // Central Kurdish
+	'dv', // Dhivehi
+	'fa', // Persian
+	'he',
+	'iw', // Hebrew (current and legacy subtags)
+	'ks', // Kashmiri
+	'ku', // Kurdish
+	'nqo', // N'Ko
+	'ps', // Pashto
+	'sd', // Sindhi
+	'syr', // Syriac
+	'ug', // Uyghur
+	'ur', // Urdu
+	'yi', // Yiddish
+]);
 
 export class DefaultI18nProvider implements I18nProvider {
+	/** Shared across instances: constructing Intl.PluralRules is not cheap */
+	private static pluralRules: Map<LocaleCode, Intl.PluralRules> = new Map();
+
 	private currentLocale: LocaleCode;
 	private messages: Record<LocaleCode, LocaleMessages>;
 	private customMessages: Record<string, LocaleMessages>; // Client-provided translations
@@ -38,13 +92,9 @@ export class DefaultI18nProvider implements I18nProvider {
 		this.messages = {} as Record<LocaleCode, LocaleMessages>;
 		this.customMessages = customMessages || {};
 
-		// Load en-US eagerly from the eager imports to ensure immediate availability
-		// Try both .ts (dev) and .js (prod) extensions
-		const enUSModule = (eagerLocales['../locales/en-US.ts'] || eagerLocales['../locales/en-US.js']) as any;
-		if (enUSModule) {
-			this.messages['en-US'] = enUSModule.default;
-			this.loadedLocales.add('en-US');
-		}
+		// en-US is the fallback for every other locale, so it is always present
+		this.messages['en-US'] = enUS;
+		this.loadedLocales.add('en-US');
 	}
 
 	/**
@@ -57,17 +107,14 @@ export class DefaultI18nProvider implements I18nProvider {
 		}
 
 		try {
-			// Try both .ts (dev) and .js (prod) extensions
-			const modulePathTs = `../locales/${locale}.ts`;
-			const modulePathJs = `../locales/${locale}.js`;
-			const loader = localeModules[modulePathTs] || localeModules[modulePathJs];
+			const loader = localeLoaders[locale];
 
 			if (!loader) {
-				throw new Error(`Locale '${locale}' not found in available modules`);
+				throw new Error(`Locale '${locale}' is not a framework locale`);
 			}
 
 			const module = await loader();
-			this.messages[locale] = (module as any).default;
+			this.messages[locale] = module.default;
 			this.loadedLocales.add(locale);
 		} catch (error) {
 			console.error(`[i18n] Failed to load locale '${locale}':`, error);
@@ -110,7 +157,7 @@ export class DefaultI18nProvider implements I18nProvider {
 		const defaultStr = typeof defaultOrValues === 'string' ? defaultOrValues : undefined;
 
 		if (!message) {
-			if (process.env.NODE_ENV === 'development') {
+			if (isDevelopment) {
 				console.warn(`[i18n] Missing translation: ${key} (locale: ${this.currentLocale})`);
 			}
 			return defaultStr ?? key;
@@ -126,13 +173,83 @@ export class DefaultI18nProvider implements I18nProvider {
 
 	/**
 	 * Pluralization support
-	 * @example plural('upload.fileCount', { count: 1 }) => "1 file selected"
-	 * @example plural('upload.fileCount', { count: 5 }) => "5 files selected"
+	 *
+	 * The plural category comes from `Intl.PluralRules` for the active locale, so
+	 * locales with more than two forms resolve correctly: Arabic selects between
+	 * zero/one/two/few/many/other, Romanian between one/few/other. A locale whose
+	 * catalog does not carry the selected category falls back to `.other`.
+	 *
+	 * @example plural('plurals.files', { count: 1 }) => "1 file selected"
+	 * @example plural('plurals.files', { count: 5 }) => "5 files selected"
 	 */
 	plural(key: string, options: PluralOptions): string {
 		const { count } = options;
-		const pluralKey = count === 1 ? `${key}.one` : `${key}.other`;
+		const category = this.selectPluralCategory(count);
+		const categoryKey = `${key}.${category}`;
+		const pluralKey = this.getMessage(categoryKey) !== undefined ? categoryKey : `${key}.other`;
 		return this.t(pluralKey, options);
+	}
+
+	/**
+	 * Select the CLDR plural category for a count in the active locale
+	 *
+	 * Falls back to the English one/other split if the locale tag is not one
+	 * `Intl.PluralRules` accepts — a host may set an arbitrary custom locale code.
+	 */
+	private selectPluralCategory(count: number): Intl.LDMLPluralRule {
+		let rules = DefaultI18nProvider.pluralRules.get(this.currentLocale);
+
+		if (!rules) {
+			try {
+				rules = new Intl.PluralRules(this.currentLocale);
+			} catch {
+				return count === 1 ? 'one' : 'other';
+			}
+			DefaultI18nProvider.pluralRules.set(this.currentLocale, rules);
+		}
+
+		return rules.select(count);
+	}
+
+	/**
+	 * Writing direction of the current locale
+	 *
+	 * @example getDirection() => 'rtl' for ar-SA, 'ltr' for en-US
+	 */
+	getDirection(): 'ltr' | 'rtl' {
+		try {
+			// textInfo is the authoritative CLDR answer where the engine has it
+			const textInfo = (new Intl.Locale(this.currentLocale) as { textInfo?: { direction?: string } })
+				.textInfo;
+			if (textInfo?.direction === 'rtl' || textInfo?.direction === 'ltr') {
+				return textInfo.direction;
+			}
+		} catch {
+			// Not a tag Intl.Locale accepts; the subtag check below still works
+		}
+
+		const language = this.currentLocale.toLowerCase().split(/[-_]/)[0] ?? '';
+		return RTL_LANGUAGES.has(language) ? 'rtl' : 'ltr';
+	}
+
+	/**
+	 * A view of this provider fixed to another locale
+	 *
+	 * Catalogs, loaded-locale bookkeeping and custom messages are shared by
+	 * reference, so `loadLocale()` through either side is visible to both and no
+	 * catalog is parsed twice. This is what lets two players on one page render
+	 * different locales from one provider: the locale is per-view, the catalogs
+	 * are per-provider.
+	 */
+	withLocale(locale: LocaleCode): I18nProvider {
+		if (locale === this.currentLocale) return this;
+
+		const view = new DefaultI18nProvider(locale, this.customMessages);
+		// The constructor prefers a persisted locale; an explicit view must not.
+		view.currentLocale = locale;
+		view.messages = this.messages;
+		view.loadedLocales = this.loadedLocales;
+		return view;
 	}
 
 	/**
@@ -175,6 +292,11 @@ export class DefaultI18nProvider implements I18nProvider {
 
 	/**
 	 * Get message from a specific messages object
+	 *
+	 * Resolves to a string or nothing. A key that lands on a namespace branch
+	 * (`t('common')`) or on a plural sub-object (`t('plurals.items')`) is a miss,
+	 * not a hit: returning the branch would put an object where the caller
+	 * expects a string, and interpolating one throws.
 	 */
 	private getMessageFromObject(key: string, messages: any): string | undefined {
 		if (!messages) return undefined;
@@ -183,11 +305,12 @@ export class DefaultI18nProvider implements I18nProvider {
 		let current: any = messages;
 
 		for (const part of parts) {
+			if (current === null || typeof current !== 'object') return undefined;
 			current = current[part];
 			if (current === undefined) return undefined;
 		}
 
-		return current;
+		return typeof current === 'string' ? current : undefined;
 	}
 
 	/**

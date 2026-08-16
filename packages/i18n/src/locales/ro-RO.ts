@@ -639,7 +639,10 @@ export default {
 		samples: {
 			title: 'Pachete QTI de Probă',
 			description: 'Încearcă procesatorul cu pachete de probă pre-încărcate care demonstrează diferite tipuri de interacțiuni QTI.',
-			itemCount: '{count, plural, one {# element} other {# elemente}}',
+			itemCount: {
+				one: '{count} element',
+				other: '{count} elemente',
+			},
 			hasManifest: 'Manifest',
 			load: 'Încarcă Probă',
 			loadSample: 'Încarcă Probă',
@@ -690,10 +693,16 @@ export default {
 			sampleItems: 'Elemente Exemplu după Tipul de Interacțiune',
 			issues: 'Probleme',
 			browseAssessments: 'Răsfoiește și Previzualizează Testele de Evaluare',
-			browseAssessmentsDescription: 'Răsfoiește și previzualizează {count, plural, one {# test de evaluare QTI} other {# teste de evaluare QTI}} găsite în această sesiune',
+			browseAssessmentsDescription: {
+				one: 'Răsfoiește și previzualizează {count} test de evaluare QTI găsit în această sesiune',
+				other: 'Răsfoiește și previzualizează {count} teste de evaluare QTI găsite în această sesiune',
+			},
 			individualItems: 'Elemente Individuale',
 			browseItems: 'Răsfoiește și Previzualizează Elementele',
-			browseItemsDescription: 'Răsfoiește și previzualizează {count, plural, one {# element QTI} other {# elemente QTI}} găsite în această sesiune',
+			browseItemsDescription: {
+				one: 'Răsfoiește și previzualizează {count} element QTI găsit în această sesiune',
+				other: 'Răsfoiește și previzualizează {count} elemente QTI găsite în această sesiune',
+			},
 		},
 
 		// Analysis results
@@ -737,14 +746,30 @@ export default {
 			pageTitle: 'Rezultate Transformare - Sesiune {sessionId}',
 			breadcrumb: 'Transformat',
 			title: 'Rezultate Transformare',
-			summary: '{itemCount} element{itemCount, plural, one {} other {e}}{assessmentCount, plural, =0 {} other { + {assessmentCount} evaluare{assessmentCount, plural, one {} other {i}}}} transformat{itemCount, plural, one {} other {e}} în {duration}',
+			// Participiul se acordă cu itemCount, de aceea stă în summaryItems
+			summary: '{items} în {duration}',
+			summaryWithAssessments: '{items} + {assessments} în {duration}',
+			summaryItems: {
+				one: '{count} element transformat',
+				other: '{count} elemente transformate',
+			},
+			summaryAssessments: {
+				one: '{count} evaluare',
+				other: '{count} evaluări',
+			},
 			backToSession: 'Înapoi la Sesiune',
 			content: 'Conținut Transformat',
 			items: 'Elemente',
 			assessments: 'Evaluări',
 			errors: 'Erori',
-			warnings: '{count, plural, one {# avertisment} other {# avertismente}}',
-			transformationErrors: '{count, plural, one {# Eroare de Transformare} other {# Erori de Transformare}}',
+			warnings: {
+				one: '{count} avertisment',
+				other: '{count} avertismente',
+			},
+			transformationErrors: {
+				one: '{count} Eroare de Transformare',
+				other: '{count} Erori de Transformare',
+			},
 			noItems: 'Niciun element transformat',
 			selectPrompt: 'Selectează un element sau o evaluare pentru a previzualiza',
 		},

@@ -94,12 +94,25 @@ async function getLocaleFiles(): Promise<string[]> {
  */
 /**
  * Check if a key is a valid plural form extension
- * Languages like Arabic have more plural forms than English (zero, one, two, few, many, other)
+ *
+ * A locale may carry more CLDR categories than en-US does — Arabic has six where
+ * English has two — so a `.two` or `.few` leaf is expected extra data, not an
+ * obsolete key. Recognised anywhere a plural sub-object lives, not just under
+ * `plurals.*`: the transform.* namespace uses the same convention. The sibling
+ * check is what keeps this from excusing a genuine typo — the key only passes if
+ * en-US defines the same parent with at least one category leaf.
  */
-function isValidPluralExtension(key: string): boolean {
-	// Arabic and other languages with extended plural forms
-	const pluralForms = ['.zero', '.one', '.two', '.few', '.many', '.other'];
-	return pluralForms.some(form => key.endsWith(form)) && key.startsWith('plurals.');
+const PLURAL_CATEGORIES = ['zero', 'one', 'two', 'few', 'many', 'other'];
+
+function isValidPluralExtension(key: string, reference: Record<string, string>): boolean {
+	const lastDot = key.lastIndexOf('.');
+	if (lastDot === -1) return false;
+
+	const category = key.slice(lastDot + 1);
+	if (!PLURAL_CATEGORIES.includes(category)) return false;
+
+	const parent = key.slice(0, lastDot);
+	return PLURAL_CATEGORIES.some((form) => `${parent}.${form}` in reference);
 }
 
 function compareLocales(reference: Record<string, string>, target: Record<string, string>) {
@@ -121,7 +134,7 @@ function compareLocales(reference: Record<string, string>, target: Record<string
 	for (const key of Object.keys(target)) {
 		if (!(key in reference)) {
 			// Don't flag valid plural form extensions as "extra"
-			if (!isValidPluralExtension(key)) {
+			if (!isValidPluralExtension(key, reference)) {
 				extra.push(key);
 			}
 		}

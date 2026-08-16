@@ -639,7 +639,10 @@ export default {
 		samples: {
 			title: 'Voorbeeld QTI-Pakketten',
 			description: 'Probeer de processor met vooraf geladen voorbeeldpakketten die verschillende QTI-interactietypen demonstreren.',
-			itemCount: '{count, plural, one {# item} other {# items}}',
+			itemCount: {
+				one: '{count} item',
+				other: '{count} items',
+			},
 			hasManifest: 'Manifest',
 			load: 'Voorbeeld Laden',
 			loadSample: 'Voorbeeld Laden',
@@ -690,10 +693,16 @@ export default {
 			sampleItems: 'Voorbeelditems per Interactietype',
 			issues: 'Problemen',
 			browseAssessments: 'Bladeren & Bekijken van Beoordelingstoetsen',
-			browseAssessmentsDescription: 'Bladeren en bekijk {count, plural, one {# QTI-beoordelingstoets} other {# QTI-beoordelingstoetsen}} gevonden in deze sessie',
+			browseAssessmentsDescription: {
+				one: 'Bladeren en bekijk {count} QTI-beoordelingstoets gevonden in deze sessie',
+				other: 'Bladeren en bekijk {count} QTI-beoordelingstoetsen gevonden in deze sessie',
+			},
 			individualItems: 'Afzonderlijke Items',
 			browseItems: 'Bladeren & Bekijken van Items',
-			browseItemsDescription: 'Bladeren en bekijk {count, plural, one {# QTI-item} other {# QTI-items}} gevonden in deze sessie',
+			browseItemsDescription: {
+				one: 'Bladeren en bekijk {count} QTI-item gevonden in deze sessie',
+				other: 'Bladeren en bekijk {count} QTI-items gevonden in deze sessie',
+			},
 		},
 
 		// Analysis results
@@ -737,14 +746,29 @@ export default {
 			pageTitle: 'Transformatieresultaten - Sessie {sessionId}',
 			breadcrumb: 'Omgezet',
 			title: 'Transformatieresultaten',
-			summary: '{itemCount} item{itemCount, plural, one {} other {s}}{assessmentCount, plural, =0 {} other { + {assessmentCount} beoordeling{assessmentCount, plural, one {} other {en}}}} omgezet in {duration}',
+			summary: '{items} omgezet in {duration}',
+			summaryWithAssessments: '{items} + {assessments} omgezet in {duration}',
+			summaryItems: {
+				one: '{count} item',
+				other: '{count} items',
+			},
+			summaryAssessments: {
+				one: '{count} beoordeling',
+				other: '{count} beoordelingen',
+			},
 			backToSession: 'Terug naar Sessie',
 			content: 'Omgezette Inhoud',
 			items: 'Items',
 			assessments: 'Toetsen',
 			errors: 'Fouten',
-			warnings: '{count, plural, one {# waarschuwing} other {# waarschuwingen}}',
-			transformationErrors: '{count, plural, one {# Transformatiefout} other {# Transformatiefouten}}',
+			warnings: {
+				one: '{count} waarschuwing',
+				other: '{count} waarschuwingen',
+			},
+			transformationErrors: {
+				one: '{count} Transformatiefout',
+				other: '{count} Transformatiefouten',
+			},
 			noItems: 'Geen items omgezet',
 			selectPrompt: 'Selecteer een item of toets om een voorbeeld te bekijken',
 		},

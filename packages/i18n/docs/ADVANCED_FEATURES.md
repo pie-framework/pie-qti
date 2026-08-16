@@ -182,19 +182,31 @@ plurals: {
 
 ### Complex Pluralization
 
-For languages with complex plural rules (Russian, Arabic, Polish), you may need to use a more sophisticated i18n library like [Intl.PluralRules](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/PluralRules):
+Languages with more than two plural forms are handled by `DefaultI18nProvider` itself — no custom provider needed. It selects the CLDR category with [`Intl.PluralRules`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/PluralRules) for the active locale, looks up `${key}.${category}`, and falls back to `${key}.other` when the catalog does not define that category.
+
+Define whichever categories the language uses:
 
 ```typescript
-// Custom provider with complex pluralization
-class ComplexI18nProvider implements I18nProvider {
-  plural(key: string, options: { count: number; [key: string]: any }): string {
-    const pluralRules = new Intl.PluralRules(this.locale);
-    const rule = pluralRules.select(options.count); // 'zero', 'one', 'two', 'few', 'many', 'other'
-
-    return this.t(`${key}.${rule}`, options);
-  }
+// ar-SA.ts — Arabic distinguishes six
+plurals: {
+  items: {
+    zero: '{count} عنصر',
+    one: 'عنصر واحد',
+    two: 'عنصران',
+    few: '{count} عناصر',
+    many: '{count} عنصرًا',
+    other: '{count} عنصر',
+  },
 }
 ```
+
+```typescript
+i18n.plural('plurals.items', { count: 3 });  // ar-SA → 'few'  → '3 عناصر'
+i18n.plural('plurals.items', { count: 11 }); // ar-SA → 'many' → '11 عنصرًا'
+i18n.plural('plurals.items', { count: 3 });  // en-US → 'other' → '3 items'
+```
+
+A locale that defines only `one`/`other` still works everywhere: any other category resolves through the `.other` fallback.
 
 ## Number Formatting
 

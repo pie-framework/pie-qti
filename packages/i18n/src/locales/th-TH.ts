@@ -640,7 +640,10 @@ export default {
 		samples: {
 			title: 'แพ็คเกจ QTI ตัวอย่าง',
 			description: 'ลองใช้ตัวประมวลผลกับแพ็คเกจตัวอย่างที่โหลดไว้ล่วงหน้าซึ่งแสดงประเภทการโต้ตอบ QTI ต่างๆ',
-			itemCount: '{count, plural, one {# รายการ} other {# รายการ}}',
+			itemCount: {
+				one: '{count} รายการ',
+				other: '{count} รายการ',
+			},
 			hasManifest: 'Manifest',
 			load: 'โหลดตัวอย่าง',
 			loadSample: 'โหลดตัวอย่าง',
@@ -691,10 +694,16 @@ export default {
 			sampleItems: 'รายการตัวอย่างตามประเภทการโต้ตอบ',
 			issues: 'ปัญหา',
 			browseAssessments: 'เรียกดูและดูตัวอย่างการทดสอบการประเมิน',
-			browseAssessmentsDescription: 'เรียกดูและดูตัวอย่าง {count, plural, one {# การทดสอบการประเมิน QTI} other {# การทดสอบการประเมิน QTI}} ที่พบในเซสชันนี้',
+			browseAssessmentsDescription: {
+				one: 'เรียกดูและดูตัวอย่าง {count} การทดสอบการประเมิน QTI ที่พบในเซสชันนี้',
+				other: 'เรียกดูและดูตัวอย่าง {count} การทดสอบการประเมิน QTI ที่พบในเซสชันนี้',
+			},
 			individualItems: 'รายการแต่ละรายการ',
 			browseItems: 'เรียกดูและดูตัวอย่างรายการ',
-			browseItemsDescription: 'เรียกดูและดูตัวอย่าง {count, plural, one {# รายการ QTI} other {# รายการ QTI}} ที่พบในเซสชันนี้',
+			browseItemsDescription: {
+				one: 'เรียกดูและดูตัวอย่าง {count} รายการ QTI ที่พบในเซสชันนี้',
+				other: 'เรียกดูและดูตัวอย่าง {count} รายการ QTI ที่พบในเซสชันนี้',
+			},
 		},
 
 		// Analysis results
@@ -738,14 +747,29 @@ export default {
 			pageTitle: 'ผลลัพธ์การแปลง - เซสชัน {sessionId}',
 			breadcrumb: 'แปลงแล้ว',
 			title: 'ผลลัพธ์การแปลง',
-			summary: '{itemCount} รายการ{itemCount, plural, one {} other {}}{assessmentCount, plural, =0 {} other { + {assessmentCount} การประเมิน{assessmentCount, plural, one {} other {}}}} แปลงแล้วใน {duration}',
+			summary: '{items} แปลงแล้วใน {duration}',
+			summaryWithAssessments: '{items} + {assessments} แปลงแล้วใน {duration}',
+			summaryItems: {
+				one: '{count} รายการ',
+				other: '{count} รายการ',
+			},
+			summaryAssessments: {
+				one: '{count} การประเมิน',
+				other: '{count} การประเมิน',
+			},
 			backToSession: 'กลับไปที่เซสชัน',
 			content: 'เนื้อหาที่แปลงแล้ว',
 			items: 'รายการ',
 			assessments: 'การประเมิน',
 			errors: 'ข้อผิดพลาด',
-			warnings: '{count, plural, one {# คำเตือน} other {# คำเตือน}}',
-			transformationErrors: '{count, plural, one {# ข้อผิดพลาดในการแปลง} other {# ข้อผิดพลาดในการแปลง}}',
+			warnings: {
+				one: '{count} คำเตือน',
+				other: '{count} คำเตือน',
+			},
+			transformationErrors: {
+				one: '{count} ข้อผิดพลาดในการแปลง',
+				other: '{count} ข้อผิดพลาดในการแปลง',
+			},
 			noItems: 'ไม่มีรายการที่แปลง',
 			selectPrompt: 'เลือกรายการหรือการประเมินเพื่อดูตัวอย่าง',
 		},
