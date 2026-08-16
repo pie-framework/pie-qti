@@ -36,6 +36,28 @@ export interface I18nProvider {
 	plural?(key: string, options: { count: number; [key: string]: any }): string;
 
 	/**
+	 * Optional: Writing direction of the current locale
+	 *
+	 * Components reflect this onto a `dir` attribute. `direction` is an inherited
+	 * CSS property, so a `dir` on the host element crosses into shadow content
+	 * without any per-component wiring.
+	 *
+	 * @returns 'rtl' for right-to-left locales, otherwise 'ltr'
+	 */
+	getDirection?(): 'ltr' | 'rtl';
+
+	/**
+	 * Optional: A view of this provider fixed to another locale
+	 *
+	 * Lets two players on one page render different locales without either
+	 * mutating the other's active locale. A provider that cannot produce such a
+	 * view simply omits this, and callers fall back to the provider itself.
+	 *
+	 * @param locale - BCP 47 locale code for the view
+	 */
+	withLocale?(locale: string): I18nProvider;
+
+	/**
 	 * Optional: Format number according to locale
 	 * @param value - Number to format
 	 * @param options - Intl.NumberFormat options

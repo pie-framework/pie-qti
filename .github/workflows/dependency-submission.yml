@@ -1,0 +1,77 @@
+name: Dependency Submission
+
+# Feeds the resolved dependency tree to GitHub's dependency graph, which cannot read
+# `bun.lock` on its own. Without this the graph holds no inventory for this repository
+# (`GET /dependency-graph/sbom` answers 404), so Dependabot alerting is inert: the alerts that
+# exist name manifest paths deleted in the January 2026 package rename, and no new advisory
+# can be raised however vulnerable a dependency becomes.
+#
+# Alerts are evaluated against the default branch, so only `master` is submitted. `develop`
+# would add a second inventory that nothing reads. A pull request cannot submit at all — the
+# API needs `contents: write`, which a fork PR does not get.
+
+on:
+  push:
+    branches: [master]
+  # Manual runs re-submit the current default branch, for confirming a fix without a commit.
+  workflow_dispatch:
+
+concurrency:
+  group: dependency-submission-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  submit:
+    name: Submit dependency snapshot
+    runs-on: ubuntu-latest
+    permissions:
+      # Required by the dependency submission API; nothing here writes to the repository.
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - name: Cache Bun downloads
+        uses: actions/cache@v6
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      # The snapshot describes what actually installed, so the install has to be the real one.
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Submit dependency snapshot
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bun scripts/submit-dependency-snapshot.ts
+
+  audit:
+    name: Audit dependencies
+    runs-on: ubuntu-latest
+    # Reports rather than gates. `bun audit` reads the same lockfile and does not wait for the
+    # graph to be populated, so it is the faster signal of the two; it is deliberately not
+    # failing the build yet, because the tree currently carries advisories that need triage
+    # first and a red master on day one teaches everyone to ignore it.
+    continue-on-error: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Audit
+        run: bun audit --audit-level=high

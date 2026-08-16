@@ -652,7 +652,10 @@ export default {
 		samples: {
 			title: 'Sample QTI Packages',
 			description: 'Try the processor with pre-loaded sample packages demonstrating various QTI interaction types.',
-			itemCount: '{count, plural, one {# item} other {# items}}',
+			itemCount: {
+				one: '{count} item',
+				other: '{count} items',
+			},
 			hasManifest: 'Manifest',
 			load: 'Load Sample',
 			loadSample: 'Load Sample',
@@ -703,10 +706,16 @@ export default {
 			sampleItems: 'Sample Items by Interaction Type',
 			issues: 'Issues',
 			browseAssessments: 'Browse & Preview Assessment Tests',
-			browseAssessmentsDescription: 'Browse and preview {count, plural, one {# QTI assessment test} other {# QTI assessment tests}} found in this session',
+			browseAssessmentsDescription: {
+				one: 'Browse and preview {count} QTI assessment test found in this session',
+				other: 'Browse and preview {count} QTI assessment tests found in this session',
+			},
 			individualItems: 'Individual Items',
 			browseItems: 'Browse & Preview Items',
-			browseItemsDescription: 'Browse and preview {count, plural, one {# QTI item} other {# QTI items}} found in this session',
+			browseItemsDescription: {
+				one: 'Browse and preview {count} QTI item found in this session',
+				other: 'Browse and preview {count} QTI items found in this session',
+			},
 		},
 
 		// Analysis results
@@ -750,14 +759,33 @@ export default {
 			pageTitle: 'Transformation Results - Session {sessionId}',
 			breadcrumb: 'Transformed',
 			title: 'Transformation Results',
-			summary: '{itemCount} item{itemCount, plural, one {} other {s}}{assessmentCount, plural, =0 {} other { + {assessmentCount} assessment{assessmentCount, plural, one {} other {s}}}} transformed in {duration}',
+			// Two independent counts in one sentence, so the caller composes it:
+			// plural('…summaryItems', { count: itemCount }) and, when there are
+			// assessments, plural('…summaryAssessments', { count: assessmentCount }),
+			// interpolated into summary or summaryWithAssessments along with duration.
+			summary: '{items} transformed in {duration}',
+			summaryWithAssessments: '{items} + {assessments} transformed in {duration}',
+			summaryItems: {
+				one: '{count} item',
+				other: '{count} items',
+			},
+			summaryAssessments: {
+				one: '{count} assessment',
+				other: '{count} assessments',
+			},
 			backToSession: 'Back to Session',
 			content: 'Transformed Content',
 			items: 'Items',
 			assessments: 'Assessments',
 			errors: 'Errors',
-			warnings: '{count, plural, one {# warning} other {# warnings}}',
-			transformationErrors: '{count, plural, one {# Transformation Error} other {# Transformation Errors}}',
+			warnings: {
+				one: '{count} warning',
+				other: '{count} warnings',
+			},
+			transformationErrors: {
+				one: '{count} Transformation Error',
+				other: '{count} Transformation Errors',
+			},
 			noItems: 'No items transformed',
 			selectPrompt: 'Select an item or assessment to preview',
 		},

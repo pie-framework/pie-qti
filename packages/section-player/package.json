@@ -31,13 +31,21 @@
     "@pie-players/pie-tool-tts-inline": "0.3.53",
     "@pie-players/tts-client-server": "0.3.53",
     "@pie-qti/default-components": "workspace:*",
-    "@pie-qti/i18n": "workspace:*",
     "@pie-qti/ims-cp-core": "workspace:*",
     "@pie-qti/item-player": "workspace:*",
     "@pie-qti/qti-common": "workspace:*"
   },
+  "peerDependencies": {
+    "@pie-qti/i18n": "workspace:*"
+  },
+  "peerDependenciesMeta": {
+    "@pie-qti/i18n": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@biomejs/biome": "^2.5.7",
+    "@pie-qti/i18n": "workspace:*",
     "@types/node": "^26.2.0",
     "linkedom": "^0.18.13",
     "svelte": "^5.56.8",

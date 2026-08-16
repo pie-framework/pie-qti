@@ -57,6 +57,7 @@
       "args": {
         "inputs": {
           "description": "One or more package paths (directories or ZIPs)",
+          "multiple": true,
           "name": "inputs",
           "required": true
         }
@@ -272,5 +273,5 @@
       ]
     }
   },
-  "version": "0.1.16"
+  "version": "0.1.21"
 }

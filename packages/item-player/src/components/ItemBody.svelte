@@ -45,6 +45,13 @@
 	}: Props = $props();
 	const itemBodyScope = `qti-item-body-${++nextItemBodyScopeId}`;
 	const itemBodyScopeSelector = `[data-qti-item-body-scope="${itemBodyScope}"]`;
+
+	// Publish the locale's writing direction on the item body root. `direction` is
+	// an inherited CSS property, so this reaches interaction components inside
+	// shadow roots without any per-component wiring. Left unset when no provider
+	// is supplied, so an English-only host keeps whatever the page already has.
+	const locale = $derived(i18n?.getLocale());
+	const direction = $derived(i18n?.getDirection?.());
 	const binding = $derived(getItemSessionBinding(session));
 	const sessionView = $derived.by(() => {
 		void revision;
@@ -143,6 +150,8 @@
 	bind:this={rootEl}
 	class="qti-item-body"
 	data-qti-item-body-scope={itemBodyScope}
+	lang={locale}
+	dir={direction}
 	use:typesetAction={{ typeset }}
 	use:glossaryAction={{ player: binding }}
 >
