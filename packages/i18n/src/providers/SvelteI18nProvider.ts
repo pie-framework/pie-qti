@@ -58,6 +58,22 @@ export class SvelteI18nProvider implements I18nProvider {
 		return this.provider.plural?.(key, options) ?? this.provider.t(key, options);
 	}
 
+	getDirection(): 'ltr' | 'rtl' {
+		return this.provider.getDirection?.() ?? 'ltr';
+	}
+
+	/**
+	 * A locale-scoped view, wrapped so the caller keeps the Svelte provider's API.
+	 *
+	 * The view deliberately does not inherit the reload-on-setLocale behaviour of
+	 * its parent: a per-element locale override exists precisely to avoid a
+	 * page-wide reload.
+	 */
+	withLocale(locale: string): I18nProvider {
+		const view = this.provider.withLocale?.(locale);
+		return view ?? this.provider;
+	}
+
 	formatNumber(value: number, options?: Intl.NumberFormatOptions): string {
 		if (this.provider.formatNumber) {
 			return this.provider.formatNumber(value, options);

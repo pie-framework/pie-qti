@@ -79,7 +79,7 @@ type ItemPlayerComponentInstance = {
 
 export class PieQtiItemPlayerElement extends HTMLElementBase {
 	static get observedAttributes() {
-		return ['item-xml', 'role', 'disabled'];
+		return ['item-xml', 'role', 'disabled', 'locale'];
 	}
 
 	#mountController = createSvelteMountController<ItemPlayerElementProps, ItemPlayerComponentInstance>({
@@ -92,6 +92,7 @@ export class PieQtiItemPlayerElement extends HTMLElementBase {
 	#itemXml = '';
 	#role: QTIRole = 'candidate';
 	#disabled = false;
+	#locale: string | undefined;
 	#renderItemBodyRubrics = true;
 
 	// JS-only props
@@ -128,6 +129,23 @@ export class PieQtiItemPlayerElement extends HTMLElementBase {
 	}
 	set disabled(value: boolean | undefined) {
 		this.#disabled = Boolean(value);
+		this.#update();
+	}
+
+	/**
+	 * Per-element locale override, settable declaratively as `locale="ar-SA"`.
+	 *
+	 * Applied by asking the provider for a locale-scoped view rather than by
+	 * calling `setLocale()` on it: the provider is shared with everything else on
+	 * the page, and `SvelteI18nProvider.setLocale()` reloads the document. Two
+	 * players can therefore carry different `locale` attributes over one provider.
+	 * Has no effect without an `i18n` provider — there is nothing to translate with.
+	 */
+	get locale(): string | undefined {
+		return this.#locale;
+	}
+	set locale(value: string | null | undefined) {
+		this.#locale = value ?? undefined;
 		this.#update();
 	}
 
@@ -251,6 +269,7 @@ export class PieQtiItemPlayerElement extends HTMLElementBase {
 		if (name === 'item-xml') this.#itemXml = value ?? '';
 		else if (name === 'role') this.#role = (value ?? 'candidate') as QTIRole;
 		else if (name === 'disabled') this.#disabled = value !== null;
+		else if (name === 'locale') this.#locale = value ?? undefined;
 		this.#update();
 	}
 
@@ -277,6 +296,15 @@ export class PieQtiItemPlayerElement extends HTMLElementBase {
 		super.addEventListener(type, listener, options);
 	}
 
+	/**
+	 * The provider the component actually renders with: the injected one, narrowed
+	 * to the `locale` attribute when both are present.
+	 */
+	#resolveI18n(): I18nProvider | undefined {
+		if (!this.#i18n || !this.#locale) return this.#i18n;
+		return this.#i18n.withLocale?.(this.#locale) ?? this.#i18n;
+	}
+
 	#getProps(): ItemPlayerElementProps {
 		return {
 			itemXml: this.#itemXml,
@@ -285,7 +313,7 @@ export class PieQtiItemPlayerElement extends HTMLElementBase {
 			disabled: this.#disabled,
 			renderItemBodyRubrics: this.#renderItemBodyRubrics,
 			typeset: this.#typeset,
-			i18n: this.#i18n,
+			i18n: this.#resolveI18n(),
 			security: {
 				...(this.#security ?? {}),
 				parsingLimits: {
