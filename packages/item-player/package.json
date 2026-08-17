@@ -46,7 +46,7 @@
 		"@pie-qti/i18n": "workspace:*",
 		"@sveltejs/vite-plugin-svelte": "^7.3.0",
 		"@types/node": "^26.2.0",
-		"svelte": "^5.56.8",
+		"svelte": "^5.56.9",
 		"svelte-check": "^4.7.5",
 		"typescript": "^5.9.3",
 		"vite": "^8.2.1",

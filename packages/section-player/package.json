@@ -48,7 +48,7 @@
     "@pie-qti/i18n": "workspace:*",
     "@types/node": "^26.2.0",
     "linkedom": "^0.18.13",
-    "svelte": "^5.56.8",
+    "svelte": "^5.56.9",
     "svelte-check": "^4.7.5",
     "typescript": "^5.9.3"
   },
