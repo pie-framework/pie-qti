@@ -99,7 +99,18 @@ export interface PciHostController {
 	load(): Promise<void>;
 	initialize(dom: HTMLElement): void;
 	getResponse(): unknown;
-	setResponse(value: unknown): void;
+	/**
+	 * Offer a response the player believes to be current. Declined, returning
+	 * `false`, once a mounted module has reported a response of its own: a live
+	 * interaction owns its response until something authoritative replaces it.
+	 */
+	hydrate(value: unknown): boolean;
+	/**
+	 * Authoritatively replace the response, discarding in-progress candidate
+	 * state and returning ownership to the player. Session restore, reset to
+	 * declaration default, and explicit host overrides use this.
+	 */
+	restore(value: unknown): void;
 	disable(): void;
 	enable(): void;
 	destroy(): void;

@@ -211,13 +211,53 @@ describe('PciHost', () => {
 		expect(module.getResponse).toHaveBeenCalledTimes(1);
 	});
 
-	it('setResponse() delegates to module.setResponse()', () => {
+	it('hydrate() delegates to module.setResponse() before the module reports', () => {
 		const module = makeModule();
 		const host = new PciHost(makeData(), '');
 		(host as any).module = module;
 
-		host.setResponse('world');
+		expect(host.hydrate('world')).toBe(true);
 		expect(module.setResponse).toHaveBeenCalledWith('world');
+	});
+
+	it('hydrate() is declined once the module owns its response', () => {
+		const module = makeModule();
+		const host = new PciHost(makeData(), '');
+		(host as any).module = module;
+		host.initialize(makeDomNode());
+
+		const boundTo = (module.initialize as any).mock.calls[0][2];
+		boundTo.onResponseChange('candidate-typed-this');
+		(module.setResponse as any).mockClear();
+
+		expect(host.hydrate('candidate-typed-this')).toBe(false);
+		expect(host.hydrate('something-else')).toBe(false);
+		expect(module.setResponse).not.toHaveBeenCalled();
+		expect(host.getResponse()).toBe('test-response');
+	});
+
+	it('restore() overrides module ownership and returns it to the player', () => {
+		const module = makeModule();
+		const host = new PciHost(makeData(), '');
+		(host as any).module = module;
+		host.initialize(makeDomNode());
+
+		const boundTo = (module.initialize as any).mock.calls[0][2];
+		boundTo.onResponseChange('candidate-typed-this');
+		host.restore('authoritative');
+
+		expect(module.setResponse).toHaveBeenCalledWith('authoritative');
+		// Ownership is back with the player, so a plain hydrate lands again.
+		expect(host.hydrate('later')).toBe(true);
+	});
+
+	it('a newly adopted module does not inherit the previous ownership flag', async () => {
+		const module = makeModule();
+		const host = new PciHost(makeData(), { moduleResolver: resolverReturning(module) });
+		(host as any)._moduleOwnsResponse = true;
+
+		await host.load();
+		expect(host.hydrate('fresh')).toBe(true);
 	});
 
 	it('onResponseChange callback fires when boundTo.onResponseChange is called', () => {
@@ -495,6 +535,76 @@ describe('Player PCI integration', () => {
 
 		player.destroy();
 		expect(module.destroy).toHaveBeenCalledTimes(1);
+	});
+
+	it('does not feed a PCI its own reported response back through setResponses', async () => {
+		const module = makeModule();
+		const player = new Player({
+			itemXml: QTI3_PCI_ITEM,
+			pci: { moduleResolver: resolverReturning(module) },
+		});
+		const host = player.createPciHost(player.getInteractionData()[0] as ExtractedPci);
+		await host.load();
+		host.initialize(makeDomNode());
+
+		const boundTo = (module.initialize as any).mock.calls[0][2];
+		boundTo.onResponseChange('candidate-typed-this');
+		(module.setResponse as any).mockClear();
+
+		// Every candidate change reaches the player this way, a PCI's own included.
+		player.setResponses({ PCI_RESPONSE: 'candidate-typed-this' });
+
+		expect(module.setResponse).not.toHaveBeenCalled();
+		expect(player.getResponses().PCI_RESPONSE).toBe('test-response');
+	});
+
+	it('setResponses({ authoritative: true }) replaces in-progress module state', async () => {
+		const module = makeModule();
+		const player = new Player({
+			itemXml: QTI3_PCI_ITEM,
+			pci: { moduleResolver: resolverReturning(module) },
+		});
+		const host = player.createPciHost(player.getInteractionData()[0] as ExtractedPci);
+		await host.load();
+		host.initialize(makeDomNode());
+
+		const boundTo = (module.initialize as any).mock.calls[0][2];
+		boundTo.onResponseChange('candidate-typed-this');
+		(module.setResponse as any).mockClear();
+
+		player.setResponses({ PCI_RESPONSE: 'host-override' }, { authoritative: true });
+
+		expect(module.setResponse).toHaveBeenCalledWith('host-override');
+	});
+
+	it('a session round-trip through dispatch leaves module state untouched', async () => {
+		const module = makeModule();
+		const session = createAssessmentItemDefinition({
+			itemXml: QTI3_PCI_ITEM,
+			pci: { moduleResolver: resolverReturning(module) },
+		}).openSession();
+		const interactionNode = session
+			.present()
+			.flow.find((node) => node.kind === 'interaction');
+		if (!interactionNode) throw new Error('Expected a PCI interaction mount');
+		const host = getItemSessionBinding(session).createPciHost(
+			interactionNode.mount.interaction as unknown as ExtractedPci,
+		);
+
+		await host.load();
+		host.initialize(makeDomNode());
+		const boundTo = (module.initialize as any).mock.calls[0][2];
+		boundTo.onResponseChange('candidate-typed-this');
+		(module.setResponse as any).mockClear();
+
+		session.dispatch({
+			action: 'setResponse',
+			responseIdentifier: 'PCI_RESPONSE',
+			value: 'candidate-typed-this',
+		});
+
+		expect(module.setResponse).not.toHaveBeenCalled();
+		session.dispose();
 	});
 
 	it('ignores late PCI response events after the authoritative session closes', async () => {

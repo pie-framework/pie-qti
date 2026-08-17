@@ -23,7 +23,7 @@ PIE-QTI supports both forms:
 
 - **Opaque QTI 2.x `customInteraction`** — rendered by `CustomInteractionFallback.svelte` with a warning banner and manual textarea for best-effort response collection. The raw XML and all attributes are preserved for debugging.
 - **QTI 2.x PCI** — a `customInteraction` wrapping a namespaced `pci:portableCustomInteraction` is detected and routed to the portable renderer. The first external script in `pci:instance` is exposed to the host resolver, while the script-free instance markup is used as the DOM scaffold.
-- **QTI 3.0 `qti-portable-custom-interaction`** — handled by `portableCustomExtractor` and rendered by `pie-qti-portable-custom`. `PciHost` asks an explicit host-supplied resolver for the primary or fallback module and manages the full `initialize` / `getResponse` / `setResponse` / `disable` / `enable` / `destroy` lifecycle. The player never imports an authored URL on its own.
+- **QTI 3.0 `qti-portable-custom-interaction`** — handled by `portableCustomExtractor` and rendered by `pie-qti-portable-custom`. `PciHost` asks an explicit host-supplied resolver for the primary or fallback module and manages the full `initialize` / `getResponse` / `hydrate` / `restore` / `disable` / `enable` / `destroy` lifecycle. The player never imports an authored URL on its own.
 
 ---
 
@@ -104,7 +104,7 @@ Extracted by `portableCustomExtractor` (priority 20) into `ExtractedPci`. `PciHo
 1. `load()` — passes the resolved primary path and authored-path context to the host's `moduleResolver`, falling back to `fallback-path` when present. Throws `PciModuleResolverRequiredError` when execution has not been explicitly enabled and `PciLoadError` if resolution or interface validation fails.
 2. `initialize(dom)` — calls `module.initialize(dom, config, boundTo)` once the DOM scaffold is mounted. `boundTo.onResponseChange` fires whenever the module reports a new response value.
 3. `getResponse()` — delegates to `module.getResponse()`.
-4. `setResponse(value)` — delegates to `module.setResponse(value)` (session restore).
+4. `hydrate(value)` / `restore(value)` — response ownership. `hydrate()` offers a value the player believes to be current and is declined, returning `false`, once the mounted module has reported a response of its own; `restore()` replaces the response authoritatively and returns ownership to the player. Session deserialization and reset-to-default use `restore()`; ordinary `setResponses()` traffic uses `hydrate()`, because every candidate change — a PCI's own included — echoes back through that method.
 5. `disable()` / `enable()` — called on role/state transitions.
 6. `destroy()` — called on player teardown; releases the module reference.
 
@@ -129,6 +129,7 @@ No known disconnected delivery path remains for G-08. PCI execution is deliberat
 - **FR-9:** The component must dispatch a `qti-change` CustomEvent on the host element (not on the inner `<div>`) so the event propagates up the shadow-DOM boundary to the item player.
 - **FR-10:** The extractor's `validate()` must return a warning (not an error) when the extracted `xml` is empty. Extraction must not fail — an empty custom interaction is unusual but not necessarily malformed at the item level.
 - **FR-11:** For QTI 2.x or 3.0 PCI content, the player must instantiate a `PciHost`, call the host-provided resolver from `load()`, call `initialize(dom)` once the sanitized DOM scaffold is mounted, and wire `onResponseChange` to the player's response variable map. No authored module may execute without that explicit resolver.
+- **FR-13:** A mounted module that has reported a response owns it. `hydrate()` must decline further pushes until `restore()` or a remount returns ownership to the player, so that the response echo every candidate change makes through `setResponses()` cannot rebuild module-internal state such as selection, cursor position, or undo history.
 - **FR-12:** When module resolution or interface validation fails, the portable renderer must catch the error and expose an accessible `role="alert"` error without throwing out the rest of the item. The ordinary `customInteraction` fallback remains available only for non-PCI content.
 
 ---
@@ -252,7 +253,10 @@ export class PciHost {
   /** Mount the PCI inside the given DOM element. Must be called after load() resolves. */
   initialize(dom: HTMLElement): void;
   getResponse(): unknown;
-  setResponse(value: unknown): void;
+  /** Offer a response; declined (false) while the module owns the current one. */
+  hydrate(value: unknown): boolean;
+  /** Authoritatively replace the response, discarding candidate state. */
+  restore(value: unknown): void;
   disable(): void;
   enable(): void;
   destroy(): void;
@@ -562,12 +566,23 @@ Then: module.getResponse() is called
   AND the returned value is stored in the response variable for the responseIdentifier
 ```
 
-AC-G5: setResponse called on restore
+AC-G5: stored response reaches the module on restore
 ```
 Given: A session is restored with a previously stored PCI response value
 When: The player mounts the PCI interaction
 Then: module.setResponse(storedValue) is called after initialize
   AND the module reflects the restored state in its UI
+```
+
+AC-G8: a module keeps the response it reported
+```
+Given: A mounted PCI module has reported a response through boundTo.onResponseChange
+When: That same change echoes back through player.setResponses()
+Then: module.setResponse() is NOT called
+  AND player.getResponses() still reflects the module's own getResponse()
+When: The player calls setResponses(..., { authoritative: true }) instead
+Then: module.setResponse() IS called with the caller's value
+  AND ownership returns to the player, so a later plain hydrate applies
 ```
 
 AC-G6: disable/enable on role change

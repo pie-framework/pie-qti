@@ -143,11 +143,20 @@ of being constructed empty and pushed into. The renderer's reactive
 `setResponse` becomes a keyed remount. The three hydration sites mark a host
 dirty for re-instantiation on next render rather than mutating a live module.
 
-This closes a present-tense defect. `setResponses()` is public API a host may
-call during an attempt, and `PciHost.setResponse` then overwrites whatever the
-candidate was doing inside the module — there is no dirty check anywhere on that
-path today, independent of which module contract is in use. An autosave
-round-trip is enough to trigger it.
+The ownership half of this landed ahead of the contract migration, because it
+fixed a live defect rather than a migration cost. `ItemSession.dispatch({ action:
+'setResponse' })` — the path every candidate change takes, a PCI's own reports
+included — calls `Player.setResponses`, which pushed straight into
+`PciHost.setResponse` with no dirty check. Every response a module reported was
+handed back to it immediately, rebuilding whatever internal state the module
+derived from it, and the renderer's reactive `response` prop carried a second
+copy of the same loop.
+
+`PciHost.setResponse` is now `hydrate()` (declined while the module owns the
+response) and `restore()` (authoritative, returns ownership), with
+`setResponses(responses, { authoritative: true })` as the host escape hatch. What
+remains for phase 1 is turning `restore()` into remount-with-state, since the
+specified contract has no setter to delegate to.
 
 **Interaction status** replaces `disable()`/`enable()` under the same rule.
 `configuration.status` (`interacting`, `closed`, `solution`, `review`) is fixed at

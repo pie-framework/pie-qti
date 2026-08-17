@@ -56,8 +56,14 @@
 	let host: PciHostController | null = $state(null);
 	let status: LoadStatus = $state('idle');
 	let errorMessage = $state<string | null>(null);
+	// The module's own reports round-trip through the `response` prop. Tracking
+	// the last emitted value keeps that echo from re-entering the module.
+	let lastEmitted: unknown = undefined;
+	let hasEmitted = false;
 
 	function emitResponse(value: unknown) {
+		lastEmitted = value;
+		hasEmitted = true;
 		response = value;
 		onChange?.(value);
 		// A player-owned host publishes this same change through the authoritative
@@ -96,6 +102,9 @@
 		host = currentHost;
 		status = 'loading';
 		errorMessage = null;
+		// A remount starts a fresh module; nothing has been emitted from it yet.
+		hasEmitted = false;
+		lastEmitted = undefined;
 		const stopListening = currentHost.onResponseChange((_responseId, value) => {
 			if (!cancelled) emitResponse(value);
 		});
@@ -122,11 +131,15 @@
 		};
 	});
 
-	// Restore controlled/session state both before and after module initialization.
+	// Offer controlled/session state before and after module initialization. The
+	// host declines once the module owns its response; skipping our own echo here
+	// avoids a pointless round-trip on every candidate change.
 	$effect(() => {
 		const currentHost = host;
 		const value = parsedResponse;
-		if (currentHost && value !== undefined) currentHost.setResponse(value);
+		if (!currentHost || value === undefined) return;
+		if (hasEmitted && value === lastEmitted) return;
+		currentHost.hydrate(value);
 	});
 
 	// Keep the module's operability aligned with the candidate/read-only state.

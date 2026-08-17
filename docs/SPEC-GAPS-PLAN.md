@@ -589,7 +589,8 @@ and integrity validation; the resolver is a trust decision, not a sandbox.
 Test signal
 - Loading QTI 2.x or 3.0 PCI content instantiates the resolver-returned module.
 - `player.getResponses()` delegates PCI values to the module's response read.
-- `player.setResponses({ RESPONSE: value })` restores module state.
+- `player.setResponses({ RESPONSE: value })` offers the value to the module and is
+  declined once the module owns its response; `{ authoritative: true }` replaces it.
 - `disable()` is called when the player switches to a non-candidate role.
 - `destroy()` is called when the player is torn down.
 - A module registering through `qtiCustomInteractionContext` runs unmodified (phase 1).

@@ -28,6 +28,11 @@ export class PciHost implements PciHostController {
 	private loadGeneration = 0;
 	private _response: unknown = null;
 	private _hasResponse = false;
+	/**
+	 * True once a mounted module has reported a response. While set, the module
+	 * is the source of truth and `hydrate()` will not overwrite it.
+	 */
+	private _moduleOwnsResponse = false;
 	private readonly _responseChangeListeners = new Set<
 		(responseId: string, value: unknown) => void
 	>();
@@ -101,6 +106,7 @@ export class PciHost implements PciHostController {
 			onResponseChange: (value: unknown) => {
 				this._response = value;
 				this._hasResponse = true;
+				this._moduleOwnsResponse = true;
 				for (const listener of this._responseChangeListeners) {
 					listener(this.data.responseIdentifier, value);
 				}
@@ -125,10 +131,34 @@ export class PciHost implements PciHostController {
 		return this.module ? this.module.getResponse() : this._response;
 	}
 
-	/** Restore a response value into the PCI module (e.g. from session state). */
-	public setResponse(value: unknown): void {
+	/**
+	 * Offer a response the player believes to be current.
+	 *
+	 * Declined once a mounted module has reported a response of its own. The
+	 * player's response map echoes every change back through `setResponses`, so
+	 * an unconditional push would hand the module its own value mid-interaction
+	 * and rebuild whatever internal state — selection, cursor, undo history —
+	 * the module derives from it. Use `restore()` when the player's value must
+	 * win regardless.
+	 *
+	 * @returns `false` when the module retained ownership and the value was not applied.
+	 */
+	public hydrate(value: unknown): boolean {
+		if (this._moduleOwnsResponse) return false;
 		this._response = value;
 		this._hasResponse = true;
+		this.module?.setResponse(value);
+		return true;
+	}
+
+	/**
+	 * Authoritatively replace the response, discarding in-progress candidate
+	 * state and returning ownership to the player.
+	 */
+	public restore(value: unknown): void {
+		this._response = value;
+		this._hasResponse = true;
+		this._moduleOwnsResponse = false;
 		this.module?.setResponse(value);
 	}
 
@@ -196,6 +226,8 @@ export class PciHost implements PciHostController {
 		}
 		this.module?.destroy();
 		this.module = candidate;
+		// A freshly adopted module has reported nothing yet.
+		this._moduleOwnsResponse = false;
 	}
 
 	/**

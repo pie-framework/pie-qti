@@ -452,11 +452,19 @@ export class Player {
 	}
 
 	/**
-	 * Push a response value into the PCI identified by responseIdentifier.
-	 * Called from setResponses() so session restore reaches PCI modules.
+	 * Offer a response value to the PCI identified by responseIdentifier. A
+	 * mounted module that has already reported a response keeps it.
 	 */
-	public setPciResponse(responseIdentifier: string, value: unknown): void {
-		this._pciHosts.get(responseIdentifier)?.setResponse(value);
+	public hydratePciResponse(responseIdentifier: string, value: unknown): void {
+		this._pciHosts.get(responseIdentifier)?.hydrate(value);
+	}
+
+	/**
+	 * Authoritatively replace a PCI's response, discarding in-progress candidate
+	 * state. Session restore and reset-to-default use this.
+	 */
+	public restorePciResponse(responseIdentifier: string, value: unknown): void {
+		this._pciHosts.get(responseIdentifier)?.restore(value);
 	}
 
 	/**
@@ -485,13 +493,25 @@ export class Player {
 		return this.decls;
 	}
 
-	public setResponses(responses: Record<string, unknown>): void {
+	/**
+	 * Apply response values to the declaration context.
+	 *
+	 * Every candidate interaction reaches this method, including a PCI reporting
+	 * its own change, so mounted PCI modules are offered the value rather than
+	 * force-fed it. Pass `{ authoritative: true }` when the caller's value must
+	 * replace in-progress module state.
+	 */
+	public setResponses(
+		responses: Record<string, unknown>,
+		options: { authoritative?: boolean } = {}
+	): void {
 		for (const [id, raw] of Object.entries(responses)) {
 			const d = this.decls[id];
 			if (!d) continue;
 			d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, raw, d.identifier);
-			// Push restored responses into any mounted PCI modules
-			this.setPciResponse(id, this.qtiValueToPublic(d.value));
+			const value = this.qtiValueToPublic(d.value);
+			if (options.authoritative) this.restorePciResponse(id, value);
+			else this.hydratePciResponse(id, value);
 		}
 	}
 
@@ -744,7 +764,7 @@ export class Player {
 		for (const d of Object.values(this.decls)) {
 			if ((d as any).__kind !== 'response') continue;
 			this.ctx.resetToDefault(d.identifier);
-			this.setPciResponse(d.identifier, d.value.kind === 'value' ? d.value.value : null);
+			this.restorePciResponse(d.identifier, d.value.kind === 'value' ? d.value.value : null);
 		}
 	}
 
@@ -1554,7 +1574,7 @@ export class Player {
 			if (!d) continue;
 			d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, v.value, d.identifier);
 			if ((d as any).__kind === 'response') {
-				this.setPciResponse(d.identifier, this.qtiValueToPublic(d.value));
+				this.restorePciResponse(d.identifier, this.qtiValueToPublic(d.value));
 			}
 		}
 	}
