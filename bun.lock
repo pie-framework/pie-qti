@@ -369,7 +369,7 @@
         "@pie-players/pie-context": "0.3.53",
         "@pie-players/pie-tool-calculator-desmos": "0.3.53",
         "@pie-players/pie-tool-tts-inline": "0.3.53",
-        "@pie-players/tts-client-server": "0.3.53",
+        "@pie-players/tts-client-server": "0.3.65",
         "@pie-qti/default-components": "workspace:*",
         "@pie-qti/ims-cp-core": "workspace:*",
         "@pie-qti/item-player": "workspace:*",
@@ -817,7 +817,7 @@
 
     "@pie-players/pie-tts": ["@pie-players/pie-tts@0.3.53", "", {}, "sha512-nzO21J6/ZGs4pES2wzaStpVZb+SA3PjQTaqYxVC9cXd1Ttbkz0IXzgsa8ZwnmtkNklGJHu5kfYX0OeXWODFQCw=="],
 
-    "@pie-players/tts-client-server": ["@pie-players/tts-client-server@0.3.53", "", { "dependencies": { "@pie-players/pie-tts": "0.3.53" } }, "sha512-k3a4OKfO8fUzto1Y+5h5wttN+t9HIvGlq4pDwesviIf56v7SPeQOjJDXCNQUlXdAaycFWeQszQzdl09gcufW3Q=="],
+    "@pie-players/tts-client-server": ["@pie-players/tts-client-server@0.3.65", "", { "dependencies": { "@pie-players/pie-tts": "0.3.65" } }, "sha512-VtX/JjwAOOeSomFuwlwPCulAKO09hcqmgF2396EkO7VQsQTT/KJC/46T8p0YyqAbEYVUYC6BHVFflksl8BWKUQ=="],
 
     "@pie-players/tts-server-core": ["@pie-players/tts-server-core@0.3.53", "", {}, "sha512-IVVLauB0znd3t8LxxPHaU+c0tAdzv9kHNXERuZVxnBUG3XFem+FaUROXFAV8jZBzZhSZg//MLVfdp4H1rVvRlA=="],
 
@@ -2098,6 +2098,8 @@
     "@oclif/core/semver": ["semver@7.8.5", "", { "bin": { "semver": "bin/semver.js" } }, "sha512-Y7/KDsb8LjooZpwaqGyulO6DQlksgCncchHGk+sZIY4SBvUocMBEFH5Ur1fI4dV+Jvl0w6cjvucaIi40puRioA=="],
 
     "@pie-players/pie-players-shared/semver": ["semver@7.8.5", "", { "bin": { "semver": "bin/semver.js" } }, "sha512-Y7/KDsb8LjooZpwaqGyulO6DQlksgCncchHGk+sZIY4SBvUocMBEFH5Ur1fI4dV+Jvl0w6cjvucaIi40puRioA=="],
+
+    "@pie-players/tts-client-server/@pie-players/pie-tts": ["@pie-players/pie-tts@0.3.65", "", {}, "sha512-ultRxhTgcRgk3mKHoaz92S0jekptdNxKPF32fZapM+5+NXgPBsskHRM+4ukHZnbJ9VT7SfLErPbkyXF6QYFjLg=="],
 
     "@pnpm/network.ca-file/graceful-fs": ["graceful-fs@4.2.10", "", {}, "sha512-9ByhssR2fPVsNZj478qUUbKfmL0+t5BDVyjShtyZZLiK7ZDAArFFfopyOTj0M05wE2tJPisA4iTnnXl2YoPvOA=="],
 
