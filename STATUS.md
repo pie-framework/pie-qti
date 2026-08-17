@@ -64,8 +64,10 @@ The public repository uses clean-room certification coverage only.
   QTI 3.0 Elevated Accessibility profile. The QTI 2.1 certification line is closed;
   2.1 support is ingest compatibility only. See
   [`docs/certification/README.md`](docs/certification/README.md).
-- The project should remain pre-1.0 until the relevant QTI certification path is
-  complete.
+- 1.0 waits on readiness for real production use, not on certification. Composer
+  CMS is the only integration that exercises the players at that level, so it is
+  the practical test. The certification track runs independently and can be
+  claimed at 0.x.
 
 ### Transformation
 
