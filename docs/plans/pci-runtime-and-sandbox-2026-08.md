@@ -56,9 +56,14 @@ a PCI authored against the specification does not run here, and one authored
 against `PciModule` runs nowhere else. Any official PCI test content fails at
 module registration, before sandboxing is even reachable.
 
-So certification-grade PCI is a runtime replacement behind the existing
-extraction, not a resolver completion. Extraction, renderer, session wiring and
-the resolver trust gate all survive.
+The divergence was unintended, so `PciModule` is replaced outright rather than
+adapted. The project is pre-1.0 and carries no compatibility obligation to it;
+no legacy contract, adapter, or dual-acceptance path is kept.
+
+Scope is narrower than the table suggests. Extraction, the renderer, session
+wiring, the resolver trust gate, and QTI value conversion all survive. What
+changes is the module-facing contract at three points — module discovery,
+restore, and interaction status — plus a module loader.
 
 ---
 
@@ -69,22 +74,42 @@ spec-facing runtime beneath it that owns the registry global and module
 loading. The player keeps one seam; the spec contract lives on the far side of
 it.
 
-**Response representation** becomes QTI variable JSON at the runtime boundary,
-converted to internal response values by `PciHost`. `boundTo` reverts to its
-specified meaning — the bound response-variable object — and the current
-callback bag becomes runtime-internal.
+**Module discovery** becomes registry observation. The runtime installs
+`qtiCustomInteractionContext` before the resolver evaluates the module and reads
+the registration afterward, replacing the six-method duck-type in
+`PciHost.extractPciInterface`. The resolver's signature does not change and its
+return value stops mattering: a host that imports an allow-listed URL keeps
+working, because a conformant module registers as a side effect of evaluation.
+The trust gate is unaffected — the loader decides *how* a module is evaluated,
+the resolver still decides *whether*.
 
-**State restore** happens by instantiation: `getInstance(dom, configuration,
-state)` is the only injection point the spec defines, so `PciHost.setResponse()`
-survives as a player affordance implemented by tearing down and re-instantiating
-with state. That is a real cost of conformance — restore is no longer a cheap
-setter — and it constrains how often the player may push responses into a PCI.
+**Response representation** becomes QTI variable JSON at the runtime boundary.
+`Player.qtiValueToPublic` already produces and recurses through `base`/`list`/
+`record` values and the PCI seam currently uses it to convert *away* from the
+shape the spec wants, so this is a deletion at the boundary rather than new
+machinery. `boundTo` reverts to its specified meaning — the bound
+response-variable object — and the current callback bag becomes runtime-internal.
+
+**State restore** happens by instantiation. `getInstance(dom, configuration,
+state)` is the only injection point the spec defines, so restore becomes teardown
+plus re-instantiation with state. The player currently pushes responses into PCI
+hosts from three call sites in `Player.ts` and reactively from the renderer, so
+it must distinguish a restore-time push from a mid-attempt sync; otherwise every
+response sync destroys live module UI state. This is the one place where
+conformance changes behavior rather than wiring.
+
+**Interaction status** replaces `disable()`/`enable()`. The spec conveys it
+through `configuration.status` (`interacting`, `closed`, `solution`, `review`),
+fixed at instantiation, while `Player.syncPciDisabledState()` derives a boolean
+from `role !== 'candidate'` and calls setters. Role transitions therefore become
+re-instantiations under the same constraint as restore. Keep `disable`/`enable`
+only as optional methods the runtime calls when a module happens to expose them.
 
 **Module loading** goes behind a loader seam with two implementations: AMD for
-the specified default resolution, ESM for the current path. Selection follows
-the authored `module-resolution-config` when present. The host resolver stays
-the trust gate in both cases; the loader decides *how*, the resolver decides
-*whether*.
+the specified default resolution, ESM for direct imports. Selection follows the
+authored `module-resolution-config` when present. The AMD `define`/`require`
+implementation is new code required by the specification, not an accommodation
+of anything legacy.
 
 **Extraction** grows to carry multiple `qti-interaction-module` entries with
 their `id`s and the `module-resolution-config` reference. `ExtractedPci` becomes
@@ -189,12 +214,17 @@ phases 1–3. Submission strategy lives in the private conformance project.
 
 ---
 
+## Principal Risk
+
+No conformance oracle. Official suite commit `b058156` ships no PCI packages, so
+phases 1 and 2 are implemented against specification prose with no official
+content to check against, and the first authoritative feedback arrives from
+1EdTech during a submission. Mitigate by testing against a third-party PCI
+authored to the specification rather than only against clean-room fixtures
+written from the same reading of the spec that produced the implementation.
+
 ## Decisions Owed
 
-- **Breaking change.** Spec-contract adoption changes `PciModule`, which is
-  public API and a documented extension point. Either break it pre-1.0 or keep
-  it as a named legacy adapter alongside the spec contract. Keeping both doubles
-  the surface the runtime must accept.
 - **Sandbox origin.** Whether any deployment can provision one decides whether
   Option D is real or theoretical.
 - **PIE Elements as PCIs.** Whether PIE Elements are projected into the PCI
