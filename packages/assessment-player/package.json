@@ -50,7 +50,7 @@
     "@pie-qti/i18n": "workspace:*",
     "@types/node": "^26.2.0",
     "svelte": "^5.56.8",
-    "svelte-check": "^4.7.5",
+    "svelte-check": "^4.7.6",
     "typescript": "^5.9.3"
   },
   "exports": {
