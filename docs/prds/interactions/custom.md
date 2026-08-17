@@ -105,6 +105,7 @@ Extracted by `portableCustomExtractor` (priority 20) into `ExtractedPci`. `PciHo
 2. `initialize(dom)` — calls `module.initialize(dom, config, boundTo)` once the DOM scaffold is mounted. `boundTo.onResponseChange` fires whenever the module reports a new response value.
 3. `getResponse()` — delegates to `module.getResponse()`.
 4. `hydrate(value)` / `restore(value)` — response ownership. `hydrate()` offers a value the player believes to be current and is declined, returning `false`, once the mounted module has reported a response of its own; `restore()` replaces the response authoritatively and returns ownership to the player. Session deserialization and reset-to-default use `restore()`; ordinary `setResponses()` traffic uses `hydrate()`, because every candidate change — a PCI's own included — echoes back through that method.
+5. `onReinitializeRequest(cb)` / `remount(dom)` — a `restore()` that lands on a mounted module rebuilds it rather than mutating it, since discarding candidate state is what re-instantiation means and is the only form the QTI 3.0 contract offers. The host signals; the renderer resets the sanitized scaffold and calls `remount()`, which discards the previous instance, resolves a fresh one, and seeds the restored value. Before mount, `restore()` merely holds the value for `initialize()`.
 5. `disable()` / `enable()` — called on role/state transitions.
 6. `destroy()` — called on player teardown; releases the module reference.
 
@@ -112,7 +113,16 @@ The portable renderer mounts the sanitized scaffold, asks the owning item sessio
 
 ### Known gaps
 
-No known disconnected delivery path remains for G-08. PCI execution is deliberately disabled until a host supplies a resolver; that resolver is responsible for package-manifest validation, URL/origin policy, and returning a compatible module. PCI code runs in the page realm, so deployments requiring stronger isolation must host the player in an appropriately sandboxed, cross-origin frame.
+The `PciModule` interface is bespoke rather than the specified registry contract
+(`qtiCustomInteractionContext.register()`, `getInstance(dom, configuration, state)`, `onready`/`ondone`,
+QTI variable JSON responses, `getState()`), and AMD module resolution is absent. A PCI authored to the
+specification will not run until that is replaced — see
+[`docs/plans/pci-runtime-and-sandbox-2026-08.md`](../../plans/pci-runtime-and-sandbox-2026-08.md).
+
+PCI execution is deliberately disabled until a host supplies a resolver. `createAllowlistPciModuleResolver`
+covers origin and prefix policy; package-manifest validation and integrity checking remain the host's.
+PCI code runs in the page realm, so deployments requiring stronger isolation must host the player in an
+appropriately sandboxed, cross-origin frame.
 
 ---
 
@@ -237,6 +247,7 @@ The `i18n` prop is optional; all strings have English defaults. RTL layout is ha
 | --------------- | --------- | ---------- | ----- |
 | PCI module interface | `PciModule` in `packages/item-player/src/pci/types.ts` | Export a default object (or named `getInstance` export) with `initialize`, `getResponse`, `setResponse`, `disable`, `enable`, `destroy` | Every PCI module must implement this interface; `PciHost` calls it at defined lifecycle points |
 | `AssessmentItemDefinitionConfig.pci` / custom-element `.pci` | `PciConfiguration` | Supply `{ baseUrl?, moduleResolver }` as a JavaScript property on `pie-qti-item-player` or `pie-qti-assessment-player` | Secure default is disabled; there is no ambient import or `document.baseURI` default |
+| Allow-list resolver | `createAllowlistPciModuleResolver` in `packages/item-player/src/pci/allowlistResolver.ts` | `moduleResolver: createAllowlistPciModuleResolver({ allowedOrigins, allowedPathPrefixes })` | Imports only from allow-listed origins and/or normalized URL prefixes; refuses non-http(s) schemes and an empty allow-list. Passing it remains the host's trust decision |
 | Custom extractor (higher priority) | `ElementExtractor<ExtractedPci>` | Register an extractor with `priority > 20` for `qti-portable-custom-interaction` element type | `portableCustomExtractor` itself follows this pattern; plugin system docs in `docs/prds/architecture/item-player-plugin-system.md` |
 
 ### `PciHost` contract

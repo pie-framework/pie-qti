@@ -1,4 +1,9 @@
 export { PciHost } from './PciHost.js';
+export {
+	createAllowlistPciModuleResolver,
+	PciModuleNotAllowedError,
+} from './allowlistResolver.js';
+export type { AllowlistPciResolverOptions } from './allowlistResolver.js';
 export type {
 	ExtractedPci,
 	PciBoundTo,

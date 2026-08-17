@@ -109,6 +109,27 @@
 			if (!cancelled) emitResponse(value);
 		});
 
+		// An authoritative restore rebuilds the module from the restored value.
+		// Scaffold sanitization lives here, so the reset does too.
+		const stopRemountRequests = currentHost.onReinitializeRequest(() => {
+			if (cancelled) return;
+			hasEmitted = false;
+			lastEmitted = undefined;
+			status = 'loading';
+			errorMessage = null;
+			target.innerHTML = markup as any;
+			void currentHost
+				.remount(target)
+				.then(() => {
+					if (!cancelled) status = 'ready';
+				})
+				.catch((error) => {
+					if (cancelled) return;
+					status = 'error';
+					errorMessage = error instanceof Error ? error.message : String(error);
+				});
+		});
+
 		void currentHost
 			.load()
 			.then(() => {
@@ -126,6 +147,7 @@
 		return () => {
 			cancelled = true;
 			stopListening();
+			stopRemountRequests();
 			currentHost.destroy();
 			if (host === currentHost) host = null;
 		};

@@ -154,9 +154,13 @@ copy of the same loop.
 
 `PciHost.setResponse` is now `hydrate()` (declined while the module owns the
 response) and `restore()` (authoritative, returns ownership), with
-`setResponses(responses, { authoritative: true })` as the host escape hatch. What
-remains for phase 1 is turning `restore()` into remount-with-state, since the
-specified contract has no setter to delegate to.
+`setResponses(responses, { authoritative: true })` as the host escape hatch.
+Rebuild-on-restore landed with it: `restore()` on a mounted module fires
+`onReinitializeRequest`, and the renderer — which owns scaffold sanitization —
+resets the markup and calls `remount(dom)`, discarding the previous instance,
+resolving a fresh one, and seeding the restored value. Phase 1 changes only the
+seeding call inside `initialize()`, from `setResponse` to state passed at
+`getInstance`.
 
 **Interaction status** replaces `disable()`/`enable()` under the same rule.
 `configuration.status` (`interacting`, `closed`, `solution`, `review`) is fixed at
@@ -196,8 +200,11 @@ those requests must be proxied against the content-package manifest.
 ### Option A — Page realm
 
 Current behavior. PCI code holds page authority; the host resolver is the only
-gate. Synchronous `getResponse()` works. Zero isolation: a hostile PCI reads
-the session, the DOM, and any host credentials in the realm.
+gate, and `createAllowlistPciModuleResolver` now supplies that gate's origin and
+prefix policy so each host does not reimplement it. Synchronous `getResponse()`
+works. Zero isolation: a hostile PCI reads the session, the DOM, and any host
+credentials in the realm — an allow-list constrains *which* code runs, never what
+it can do once running.
 
 Correct for first-party and contractually-trusted PCIs, which is the common
 case in a K-12 item bank the delivery platform also authors.

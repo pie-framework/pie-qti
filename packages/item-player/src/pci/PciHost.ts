@@ -36,6 +36,7 @@ export class PciHost implements PciHostController {
 	private readonly _responseChangeListeners = new Set<
 		(responseId: string, value: unknown) => void
 	>();
+	private readonly _reinitializeListeners = new Set<() => void>();
 
 	constructor(data: ExtractedPci, options: PciHostOptions | string = {}) {
 		this.data = data;
@@ -50,6 +51,19 @@ export class PciHost implements PciHostController {
 	public onResponseChange(callback: (responseId: string, value: unknown) => void): () => void {
 		this._responseChangeListeners.add(callback);
 		return () => this._responseChangeListeners.delete(callback);
+	}
+
+	/**
+	 * Register a callback fired when an authoritative `restore()` lands on a
+	 * mounted module and the module must be rebuilt from the restored value.
+	 *
+	 * The renderer owns the DOM scaffold and its sanitization, so it performs the
+	 * rebuild: reset the sanitized markup into the mount node, then call
+	 * `remount(node)`.
+	 */
+	public onReinitializeRequest(callback: () => void): () => void {
+		this._reinitializeListeners.add(callback);
+		return () => this._reinitializeListeners.delete(callback);
 	}
 
 	/**
@@ -154,12 +168,34 @@ export class PciHost implements PciHostController {
 	/**
 	 * Authoritatively replace the response, discarding in-progress candidate
 	 * state and returning ownership to the player.
+	 *
+	 * A mounted module is rebuilt from the restored value rather than mutated:
+	 * "discard candidate state" is what re-instantiation means, and it is the
+	 * only form the QTI 3.0 PCI contract offers, since state is injected at
+	 * `getInstance` and there is no setter. Before mount, the value is held and
+	 * applied by `initialize()`.
 	 */
 	public restore(value: unknown): void {
 		this._response = value;
 		this._hasResponse = true;
 		this._moduleOwnsResponse = false;
-		this.module?.setResponse(value);
+		if (!this.module) return;
+		for (const listener of this._reinitializeListeners) listener();
+	}
+
+	/**
+	 * Rebuild the module in place from the currently held response.
+	 *
+	 * The caller must reset the sanitized DOM scaffold into `dom` first: this
+	 * discards the previous module instance, resolves a fresh one through the
+	 * host resolver, and initializes it, which seeds the held response.
+	 */
+	public async remount(dom: HTMLElement): Promise<void> {
+		if (this.destroyed) throw new Error('Cannot remount a destroyed PciHost');
+		this.module?.destroy();
+		this.module = null;
+		await this.load();
+		this.initialize(dom);
 	}
 
 	/** Disable the PCI (e.g. when role is not candidate, or after final submission). */
@@ -179,6 +215,7 @@ export class PciHost implements PciHostController {
 		this.module?.destroy();
 		this.module = null;
 		this._responseChangeListeners.clear();
+		this._reinitializeListeners.clear();
 	}
 
 	// ---------------------------------------------------------------------------

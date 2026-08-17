@@ -1,5 +1,9 @@
 import { describe, it, expect, mock } from 'bun:test';
 import { PciHost } from '../pci/PciHost.js';
+import {
+	createAllowlistPciModuleResolver,
+	PciModuleNotAllowedError,
+} from '../pci/allowlistResolver.js';
 import { PciLoadError, PciModuleResolverRequiredError } from '../pci/types.js';
 import type { ExtractedPci, PciModule, PciModuleResolver } from '../pci/types.js';
 import { portableCustomExtractor } from '../interactions/portable-custom/extractor.js';
@@ -236,7 +240,7 @@ describe('PciHost', () => {
 		expect(host.getResponse()).toBe('test-response');
 	});
 
-	it('restore() overrides module ownership and returns it to the player', () => {
+	it('restore() rebuilds a mounted module instead of mutating it', () => {
 		const module = makeModule();
 		const host = new PciHost(makeData(), '');
 		(host as any).module = module;
@@ -244,11 +248,58 @@ describe('PciHost', () => {
 
 		const boundTo = (module.initialize as any).mock.calls[0][2];
 		boundTo.onResponseChange('candidate-typed-this');
+		(module.setResponse as any).mockClear();
+
+		let remountRequests = 0;
+		host.onReinitializeRequest(() => remountRequests++);
 		host.restore('authoritative');
 
-		expect(module.setResponse).toHaveBeenCalledWith('authoritative');
+		expect(remountRequests).toBe(1);
+		expect(module.setResponse).not.toHaveBeenCalled();
 		// Ownership is back with the player, so a plain hydrate lands again.
 		expect(host.hydrate('later')).toBe(true);
+	});
+
+	it('restore() before mount holds the value for initialize() and requests no rebuild', () => {
+		const module = makeModule();
+		const host = new PciHost(makeData(), '');
+		let remountRequests = 0;
+		host.onReinitializeRequest(() => remountRequests++);
+
+		host.restore('from-session');
+		expect(remountRequests).toBe(0);
+
+		(host as any).module = module;
+		host.initialize(makeDomNode());
+		expect(module.setResponse).toHaveBeenCalledWith('from-session');
+	});
+
+	it('remount() discards the old module, resolves a fresh one, and seeds the restored value', async () => {
+		const first = makeModule();
+		const second = makeModule();
+		let call = 0;
+		const host = new PciHost(makeData(), {
+			moduleResolver: mock(async () => ({ default: ++call === 1 ? first : second })),
+		});
+
+		await host.load();
+		host.initialize(makeDomNode());
+		const boundTo = (first.initialize as any).mock.calls[0][2];
+		boundTo.onResponseChange('candidate-typed-this');
+
+		host.restore('authoritative');
+		await host.remount(makeDomNode());
+
+		expect(first.destroy).toHaveBeenCalledTimes(1);
+		expect(second.initialize).toHaveBeenCalledTimes(1);
+		expect(second.setResponse).toHaveBeenCalledWith('authoritative');
+	});
+
+	it('remount() refuses a destroyed host', async () => {
+		const host = new PciHost(makeData(), { moduleResolver: resolverReturning(makeModule()) });
+		await host.load();
+		host.destroy();
+		await expect(host.remount(makeDomNode())).rejects.toThrow('destroyed');
 	});
 
 	it('a newly adopted module does not inherit the previous ownership flag', async () => {
@@ -407,6 +458,133 @@ function makeContext(el: any) {
 	return { element: el, responseId: 'PCI_RESPONSE', dom: el, declarations: new Map(), utils, config: {} as any };
 }
 
+describe('createAllowlistPciModuleResolver', () => {
+	function resolverWith(
+		options: Partial<Parameters<typeof createAllowlistPciModuleResolver>[0]> = {}
+	) {
+		const importModule = mock(async () => ({ default: makeModule() }));
+		return {
+			importModule,
+			resolver: createAllowlistPciModuleResolver({
+				allowedOrigins: ['https://cdn.example.com'],
+				importModule,
+				...options,
+			}),
+		};
+	}
+
+	const context = {
+		authoredPath: 'pci/echo.js',
+		kind: 'primary' as const,
+		responseIdentifier: 'RESPONSE',
+		customInteractionTypeIdentifier: 'urn:test:echo',
+	};
+
+	it('throws when the allow-list is empty', () => {
+		expect(() => createAllowlistPciModuleResolver({})).toThrow('allowedOrigins');
+		expect(() =>
+			createAllowlistPciModuleResolver({ allowedOrigins: [], allowedPathPrefixes: [] })
+		).toThrow('allowedOrigins');
+	});
+
+	it('rejects a non-absolute origin or prefix at construction', () => {
+		expect(() => createAllowlistPciModuleResolver({ allowedOrigins: ['cdn.example.com'] })).toThrow(
+			'absolute URL'
+		);
+		expect(() =>
+			createAllowlistPciModuleResolver({ allowedPathPrefixes: ['/pci/'] })
+		).toThrow('absolute URL');
+		expect(() =>
+			createAllowlistPciModuleResolver({ allowedOrigins: ['file:///etc/'] })
+		).toThrow('http(s)');
+	});
+
+	it('imports a module from an allow-listed origin', async () => {
+		const { resolver, importModule } = resolverWith();
+		await resolver('https://cdn.example.com/pci/echo.js', context);
+		expect(importModule).toHaveBeenCalledWith('https://cdn.example.com/pci/echo.js', context);
+	});
+
+	it('refuses an origin that is not allow-listed', async () => {
+		const { resolver, importModule } = resolverWith();
+		await expect(resolver('https://evil.example.com/pci/echo.js', context)).rejects.toBeInstanceOf(
+			PciModuleNotAllowedError
+		);
+		expect(importModule).not.toHaveBeenCalled();
+	});
+
+	it('refuses non-http(s) schemes regardless of configuration', async () => {
+		const { resolver } = resolverWith();
+		for (const url of [
+			'data:text/javascript,globalThis.pwned=1',
+			'javascript:globalThis.pwned=1',
+			'blob:https://cdn.example.com/abc',
+		]) {
+			await expect(resolver(url, context)).rejects.toThrow('not http(s)');
+		}
+	});
+
+	it('refuses an unresolved relative authored path and names the fix', async () => {
+		const { resolver } = resolverWith();
+		await expect(resolver('pci/echo.js', context)).rejects.toThrow('baseUrl');
+	});
+
+	it('enforces path prefixes against the normalized href so traversal cannot escape', async () => {
+		const { resolver, importModule } = resolverWith({
+			allowedPathPrefixes: ['https://cdn.example.com/pci/'],
+		});
+
+		await resolver('https://cdn.example.com/pci/echo.js', context);
+		expect(importModule).toHaveBeenCalledTimes(1);
+
+		await expect(
+			resolver('https://cdn.example.com/pci/../secrets/token.js', context)
+		).rejects.toBeInstanceOf(PciModuleNotAllowedError);
+		expect(importModule).toHaveBeenCalledTimes(1);
+	});
+
+	it('requires both origin and prefix when both are configured', async () => {
+		const { resolver } = resolverWith({
+			allowedOrigins: ['https://cdn.example.com'],
+			allowedPathPrefixes: ['https://other.example.com/pci/'],
+		});
+		await expect(resolver('https://cdn.example.com/pci/echo.js', context)).rejects.toThrow(
+			'path prefix'
+		);
+	});
+
+	it('drives a PciHost end to end when the module is allow-listed', async () => {
+		const module = makeModule();
+		const host = new PciHost(makeData({ fallbackPath: undefined }), {
+			moduleResolver: createAllowlistPciModuleResolver({
+				allowedOrigins: ['https://cdn.example.com'],
+				importModule: async () => ({ default: module }),
+			}),
+		});
+
+		await host.load();
+		host.initialize(makeDomNode());
+		expect(module.initialize).toHaveBeenCalledTimes(1);
+	});
+
+	it('surfaces a refusal as PciLoadError once the fallback is also refused', async () => {
+		const host = new PciHost(
+			makeData({
+				primaryPath: 'https://evil.example.com/a.js',
+				fallbackPath: 'https://evil.example.com/b.js',
+			}),
+			{
+				moduleResolver: createAllowlistPciModuleResolver({
+					allowedOrigins: ['https://cdn.example.com'],
+					importModule: async () => ({ default: makeModule() }),
+				}),
+			}
+		);
+
+		await expect(host.load()).rejects.toBeInstanceOf(PciLoadError);
+	});
+});
+
 describe('portableCustomExtractor', () => {
 	it('canHandle returns true for qti-portable-custom-interaction', () => {
 		const el = parseEl(PCI_XML);
@@ -558,7 +736,7 @@ describe('Player PCI integration', () => {
 		expect(player.getResponses().PCI_RESPONSE).toBe('test-response');
 	});
 
-	it('setResponses({ authoritative: true }) replaces in-progress module state', async () => {
+	it('setResponses({ authoritative: true }) rebuilds the module from the override', async () => {
 		const module = makeModule();
 		const player = new Player({
 			itemXml: QTI3_PCI_ITEM,
@@ -572,8 +750,14 @@ describe('Player PCI integration', () => {
 		boundTo.onResponseChange('candidate-typed-this');
 		(module.setResponse as any).mockClear();
 
+		let remountRequests = 0;
+		host.onReinitializeRequest(() => remountRequests++);
 		player.setResponses({ PCI_RESPONSE: 'host-override' }, { authoritative: true });
 
+		expect(remountRequests).toBe(1);
+		expect(module.setResponse).not.toHaveBeenCalled();
+
+		await host.remount(makeDomNode());
 		expect(module.setResponse).toHaveBeenCalledWith('host-override');
 	});
 
