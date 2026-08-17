@@ -63,7 +63,35 @@ no legacy contract, adapter, or dual-acceptance path is kept.
 Scope is narrower than the table suggests. Extraction, the renderer, session
 wiring, the resolver trust gate, and QTI value conversion all survive. What
 changes is the module-facing contract at three points — module discovery,
-restore, and interaction status — plus a module loader.
+response ownership, and interaction status — plus a module loader.
+
+---
+
+## Blast Radius
+
+Nothing that executes today. PCI execution requires
+`PciConfiguration.moduleResolver`, no consumer in the workspace supplies one, and
+`renaissance-pie-qti-extensions` carries no PCI references at all. The
+`moduleResolver` in `pie-elements-ng`'s element loader is an unrelated
+`ElementModuleResolver` for PIE element modules.
+
+Authored content is unaffected: extraction is unchanged, so spec-shaped
+`qti-portable-custom-interaction` XML keeps parsing and rendering its scaffold.
+
+The break is the published type surface. `@pie-qti/item-player` exports
+`PciModule`, `PciBoundTo`, `PciHost`, `PciHostController`, `PciHostOptions`,
+`PciModuleResolver`, `PciModuleResolutionContext`, `PciConfiguration` and
+`PciModulePathKind`, plus a `./pci` subpath, and most change shape.
+`PciConfiguration` stays `{ baseUrl?, moduleResolver }`, so the `.pci` property on
+the custom elements is stable. Any module written against `PciModule` breaks
+outright; none is known to exist, since running one requires a resolver nobody
+ships.
+
+Composer is unaffected. It pins `@pie-qti/*@0.1.22`, imports no `Pci*` type,
+assigns no `.pci` property, and supplies no resolver. Its only PCI awareness is
+in the corpus-triage CLI, which classifies PCI and `customInteraction` items as
+`manual_only` against the `pie-qti-custom` fallback component — a classification
+this work does not change, since the fallback path is untouched.
 
 ---
 
@@ -90,20 +118,46 @@ shape the spec wants, so this is a deletion at the boundary rather than new
 machinery. `boundTo` reverts to its specified meaning — the bound
 response-variable object — and the current callback bag becomes runtime-internal.
 
-**State restore** happens by instantiation. `getInstance(dom, configuration,
-state)` is the only injection point the spec defines, so restore becomes teardown
-plus re-instantiation with state. The player currently pushes responses into PCI
-hosts from three call sites in `Player.ts` and reactively from the renderer, so
-it must distinguish a restore-time push from a mid-attempt sync; otherwise every
-response sync destroys live module UI state. This is the one place where
-conformance changes behavior rather than wiring.
+**Response ownership** is the substantive change, and it is a correction rather
+than a migration cost. `getInstance(dom, configuration, state)` is the only state
+injection point the spec defines and there is no setter, which encodes an
+invariant worth having independently: a mounted interaction owns its response
+until it reports one. The player currently treats the response map as
+authoritative and pushes downward — right for declarative Svelte components,
+wrong for a stateful third-party module.
 
-**Interaction status** replaces `disable()`/`enable()`. The spec conveys it
-through `configuration.status` (`interacting`, `closed`, `solution`, `review`),
-fixed at instantiation, while `Player.syncPciDisabledState()` derives a boolean
-from `role !== 'candidate'` and calls setters. Role transitions therefore become
-re-instantiations under the same constraint as restore. Keep `disable`/`enable`
-only as optional methods the runtime calls when a module happens to expose them.
+The three `Player.ts` push sites are three intents collapsed into one method, not
+three timings of one operation:
+
+| Site | Intent |
+| ---- | ------ |
+| `setResponses` | External hydration |
+| `resetResponsesToDefault` | Reset to declaration default |
+| `applySerializedVariables` | Session deserialization |
+
+All three transfer authority *into* the item and none of them represents
+candidate action, so re-instantiation is the correct response to all three.
+
+**Decision:** hosts are constructed with their initial state and status instead
+of being constructed empty and pushed into. The renderer's reactive
+`setResponse` becomes a keyed remount. The three hydration sites mark a host
+dirty for re-instantiation on next render rather than mutating a live module.
+
+This closes a present-tense defect. `setResponses()` is public API a host may
+call during an attempt, and `PciHost.setResponse` then overwrites whatever the
+candidate was doing inside the module — there is no dirty check anywhere on that
+path today, independent of which module contract is in use. An autosave
+round-trip is enough to trigger it.
+
+**Interaction status** replaces `disable()`/`enable()` under the same rule.
+`configuration.status` (`interacting`, `closed`, `solution`, `review`) is fixed at
+instantiation, while `Player.syncPciDisabledState()` flattens `role !==
+'candidate'` into a boolean. Deriving status from role plus attempt and feedback
+state — all of which the player already tracks — is both conformant and a
+capability gain: a boolean cannot distinguish `review` from `solution`, so
+today's player has no way to tell a PCI to show the solution. Keep
+`disable`/`enable` only as optional methods the runtime calls when a module
+happens to expose them.
 
 **Module loading** goes behind a loader seam with two implementations: AMD for
 the specified default resolution, ESM for direct imports. Selection follows the
