@@ -43,7 +43,7 @@
     "@tiptap/pm": "3.30.1",
     "highlight.js": "^11.11.1",
     "lowlight": "^3.3.0",
-    "unzipper": "^0.12.3",
+    "unzipper": "^0.12.5",
     "xml-formatter": "^3.7.0",
     "xml2js": "^0.6.2"
   },

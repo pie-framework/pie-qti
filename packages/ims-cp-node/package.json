@@ -18,7 +18,7 @@
   },
   "dependencies": {
     "@pie-qti/ims-cp-core": "workspace:*",
-    "unzipper": "^0.12.3"
+    "unzipper": "^0.12.5"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
