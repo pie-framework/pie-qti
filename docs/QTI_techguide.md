@@ -10,6 +10,9 @@ This guide is the local, greppable QTI reference for implementation work. It
 covers QTI **2.1**, **2.2**, and **3.0** concepts; certification-specific
 coverage is tracked separately in [`certification/README.md`](certification/README.md).
 
+Version coverage here is spec coverage, not certification scope. 1EdTech closed
+the QTI 2.1 certification line in 2023–2024; only 2.2 and 3.0 are certifiable.
+
 ---
 
 ## Table of Contents

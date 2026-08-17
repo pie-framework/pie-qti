@@ -6,6 +6,10 @@ This document describes implementation coverage. It is not a claim of full confo
 1EdTech certification. The player has broad QTI 2.2 and 3.0 coverage and a compatibility path for
 QTI 2.1, but valid documents remain that it cannot render, interact with, or score faithfully.
 
+QTI 2.1 coverage is ingest compatibility only. Its 1EdTech certification line closed in 2023–2024,
+so 2.2 and 3.0 are the only certifiable versions — see
+[`docs/certification/README.md`](../../../docs/certification/README.md).
+
 The authoritative implementation backlog is
 [`docs/SPEC-GAPS-PLAN.md`](../../../docs/SPEC-GAPS-PLAN.md).
 
