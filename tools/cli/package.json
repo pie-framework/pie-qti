@@ -34,7 +34,7 @@
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
-    "oclif": "^4.23.29",
+    "oclif": "^4.23.30",
     "typescript": "^5.9.3"
   },
   "engines": {
