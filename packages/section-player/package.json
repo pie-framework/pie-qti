@@ -26,7 +26,7 @@
   "dependencies": {
     "@pie-players/pie-assessment-toolkit": "0.3.53",
     "@pie-players/pie-calculator-desmos": "0.3.53",
-    "@pie-players/pie-context": "0.3.53",
+    "@pie-players/pie-context": "0.3.66",
     "@pie-players/pie-tool-calculator-desmos": "0.3.53",
     "@pie-players/pie-tool-tts-inline": "0.3.53",
     "@pie-players/tts-client-server": "0.3.53",
