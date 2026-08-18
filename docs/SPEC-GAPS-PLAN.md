@@ -1,7 +1,7 @@
 # PIE-QTI Specification Gaps — Implementation Plan
 
 **Status**: Living document
-**Last reviewed**: 2026-07-13
+**Last reviewed**: 2026-08-17
 **Source analysis**: Comparison of `docs/QTI_techguide.md` against the codebase
 
 This document is the authoritative meta-plan for closing gaps between the QTI specification and the
@@ -10,11 +10,14 @@ AI agent or a human engineer. Sections are ordered by priority tier.
 
 > **Verification boundary:** statuses below describe the current source tree and its public,
 > clean-room tests. The private official-suite runner intentionally consumes published
-> `@pie-qti/*` packages only, never workspace source or local tarballs. The remediation reviewed on
-> 2026-07-13 therefore cannot receive official-package confirmation until a new candidate is
-> published and pinned by that runner. Earlier official-suite results are evidence for the earlier
-> published candidate, not for this working tree, and none of these statuses is a conformance or
-> certification claim.
+> `@pie-qti/*` packages only, never workspace source or local tarballs, so official-package
+> evidence always attaches to a published version rather than to this tree.
+>
+> The remediation reviewed on 2026-07-13 was released as `0.1.21` and confirmed there: the private
+> runner reports all four QTI 2.2 and QTI 3.0 Basic and Advanced DELIVERY suites green for that
+> candidate. Changes released after `0.1.21`, and anything unreleased, carry no official-package
+> evidence — `0.1.22` touched item rendering, so re-pinning the runner to it means a re-run, not a
+> re-pin. None of these statuses is a conformance or certification claim.
 
 ---
 

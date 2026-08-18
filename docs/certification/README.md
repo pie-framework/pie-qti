@@ -14,8 +14,10 @@ bundles, checklist work, and submission planning live in the private
 > score assertions against published NPM artifacts.
 
 The private runner deliberately installs published package versions only. It cannot validate an
-unpublished working tree, workspace link, or local tarball, so the current remediation must first
-be released as a candidate and pinned there before official-suite results can be attributed to it.
+unpublished working tree, workspace link, or local tarball, so official-suite results always attach
+to a published version. `0.1.21` is the confirmed candidate, with all four QTI 2.2 and QTI 3.0 Basic
+and Advanced DELIVERY suites green. Anything released after it — `0.1.22` included, which touched item
+rendering — needs a re-run before its results count, not just a re-pin.
 
 ## Certifiable Lines
 
