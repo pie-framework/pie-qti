@@ -215,16 +215,16 @@ describe('PciHost', () => {
 		expect(module.getResponse).toHaveBeenCalledTimes(1);
 	});
 
-	it('hydrate() delegates to module.setResponse() before the module reports', () => {
+	it('offerResponse() delegates to module.setResponse() before the module reports', () => {
 		const module = makeModule();
 		const host = new PciHost(makeData(), '');
 		(host as any).module = module;
 
-		expect(host.hydrate('world')).toBe(true);
+		expect(host.offerResponse('world')).toBe(true);
 		expect(module.setResponse).toHaveBeenCalledWith('world');
 	});
 
-	it('hydrate() is declined once the module owns its response', () => {
+	it('offerResponse() is declined once the module owns its response', () => {
 		const module = makeModule();
 		const host = new PciHost(makeData(), '');
 		(host as any).module = module;
@@ -234,8 +234,8 @@ describe('PciHost', () => {
 		boundTo.onResponseChange('candidate-typed-this');
 		(module.setResponse as any).mockClear();
 
-		expect(host.hydrate('candidate-typed-this')).toBe(false);
-		expect(host.hydrate('something-else')).toBe(false);
+		expect(host.offerResponse('candidate-typed-this')).toBe(false);
+		expect(host.offerResponse('something-else')).toBe(false);
 		expect(module.setResponse).not.toHaveBeenCalled();
 		expect(host.getResponse()).toBe('test-response');
 	});
@@ -251,20 +251,62 @@ describe('PciHost', () => {
 		(module.setResponse as any).mockClear();
 
 		let remountRequests = 0;
-		host.onReinitializeRequest(() => remountRequests++);
+		host.onRemountRequest(() => remountRequests++);
 		host.restore('authoritative');
 
 		expect(remountRequests).toBe(1);
 		expect(module.setResponse).not.toHaveBeenCalled();
-		// Ownership is back with the player, so a plain hydrate lands again.
-		expect(host.hydrate('later')).toBe(true);
+		// Ownership is back with the player, so a plain offer lands again.
+		expect(host.offerResponse('later')).toBe(true);
+	});
+
+	it('restore() applies directly when no rebuild path is wired', () => {
+		const module = makeModule();
+		const host = new PciHost(makeData(), '');
+		(host as any).module = module;
+		host.initialize(makeDomNode());
+
+		const boundTo = (module.initialize as any).mock.calls[0][2];
+		boundTo.onResponseChange('candidate-typed-this');
+		(module.setResponse as any).mockClear();
+
+		host.restore('from-session');
+
+		// Mutating candidate state is all a host without a scaffold owner can do;
+		// dropping the restore on the floor is not an option.
+		expect(module.setResponse).toHaveBeenCalledWith('from-session');
+		expect(host.offerResponse('later')).toBe(true);
+	});
+
+	it('getResponse() reports the restored value until the rebuild lands', async () => {
+		const first = makeModule({ getResponse: mock(() => 'candidate-typed-this') });
+		const second = makeModule({ getResponse: mock(() => 'authoritative') });
+		let call = 0;
+		const host = new PciHost(makeData(), {
+			moduleResolver: mock(async () => ({ default: ++call === 1 ? first : second })),
+		});
+		host.onRemountRequest(() => {});
+
+		await host.load();
+		host.initialize(makeDomNode());
+		const boundTo = (first.initialize as any).mock.calls[0][2];
+		boundTo.onResponseChange('candidate-typed-this');
+
+		host.restore('authoritative');
+		// The mounted module still holds the superseded value in this window.
+		expect(host.getResponse()).toBe('authoritative');
+		expect(first.getResponse).not.toHaveBeenCalled();
+
+		await host.remount(makeDomNode());
+		expect(host.getResponse()).toBe('authoritative');
+		expect(second.getResponse).toHaveBeenCalled();
 	});
 
 	it('restore() before mount holds the value for initialize() and requests no rebuild', () => {
 		const module = makeModule();
 		const host = new PciHost(makeData(), '');
 		let remountRequests = 0;
-		host.onReinitializeRequest(() => remountRequests++);
+		host.onRemountRequest(() => remountRequests++);
 
 		host.restore('from-session');
 		expect(remountRequests).toBe(0);
@@ -303,12 +345,22 @@ describe('PciHost', () => {
 	});
 
 	it('a newly adopted module does not inherit the previous ownership flag', async () => {
-		const module = makeModule();
-		const host = new PciHost(makeData(), { moduleResolver: resolverReturning(module) });
-		(host as any)._moduleOwnsResponse = true;
+		const first = makeModule();
+		const second = makeModule();
+		let call = 0;
+		const host = new PciHost(makeData(), {
+			moduleResolver: mock(async () => ({ default: ++call === 1 ? first : second })),
+		});
 
 		await host.load();
-		expect(host.hydrate('fresh')).toBe(true);
+		host.initialize(makeDomNode());
+		const boundTo = (first.initialize as any).mock.calls[0][2];
+		boundTo.onResponseChange('candidate-typed-this');
+		expect(host.offerResponse('declined')).toBe(false);
+
+		await host.load();
+		expect(host.offerResponse('fresh')).toBe(true);
+		expect(second.setResponse).toHaveBeenCalledWith('fresh');
 	});
 
 	it('onResponseChange callback fires when boundTo.onResponseChange is called', () => {
@@ -736,7 +788,7 @@ describe('Player PCI integration', () => {
 		expect(player.getResponses().PCI_RESPONSE).toBe('test-response');
 	});
 
-	it('setResponses({ authoritative: true }) rebuilds the module from the override', async () => {
+	it('restoreResponses() rebuilds the module from the override', async () => {
 		const module = makeModule();
 		const player = new Player({
 			itemXml: QTI3_PCI_ITEM,
@@ -751,8 +803,8 @@ describe('Player PCI integration', () => {
 		(module.setResponse as any).mockClear();
 
 		let remountRequests = 0;
-		host.onReinitializeRequest(() => remountRequests++);
-		player.setResponses({ PCI_RESPONSE: 'host-override' }, { authoritative: true });
+		host.onRemountRequest(() => remountRequests++);
+		player.restoreResponses({ PCI_RESPONSE: 'host-override' });
 
 		expect(remountRequests).toBe(1);
 		expect(module.setResponse).not.toHaveBeenCalled();

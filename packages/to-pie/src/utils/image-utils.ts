@@ -23,12 +23,22 @@ import { dirname, resolve } from 'path';
  * type during detection, before calculate() runs; the validate() functions these
  * still go through are loop-free. 'jxl-stream' is listed because JXL.calculate()
  * delegates to it. Drop an entry once its advisory is patched.
+ *
+ * disableTypes() mutates image-size's own module state, so it is applied on first
+ * measurement rather than at import: importing to-pie must not silently change
+ * what an unrelated image-size caller in the same process can measure.
  */
 type ImageParserType = Parameters<typeof disableTypes>[0][number];
 
 const DISABLED_IMAGE_TYPES: ImageParserType[] = ['heif', 'icns', 'jxl', 'jxl-stream'];
 
-disableTypes(DISABLED_IMAGE_TYPES);
+let hangingParsersDisabled = false;
+
+function disableHangingParsers(): void {
+  if (hangingParsersDisabled) return;
+  disableTypes(DISABLED_IMAGE_TYPES);
+  hangingParsersDisabled = true;
+}
 
 /**
  * True when image-size refused the buffer because the format is disabled above or
@@ -58,6 +68,8 @@ export function getImageDimensions(imagePath: string): ImageDimensions | undefin
     return undefined;
   }
 
+  disableHangingParsers();
+
   try {
     // Read file as buffer
     const buffer = readFileSync(imagePath);
@@ -86,6 +98,8 @@ export function getImageDimensions(imagePath: string): ImageDimensions | undefin
  * Bun-compatible implementation
  */
 export function getImageDimensionsFromBuffer(buffer: Buffer): ImageDimensions | undefined {
+  disableHangingParsers();
+
   try {
     // Convert to Uint8Array for Bun compatibility
     const uint8Array = new Uint8Array(buffer);

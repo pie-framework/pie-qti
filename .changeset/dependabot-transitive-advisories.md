@@ -20,10 +20,12 @@ because `cookie` has exactly one copy in the tree.
 
 `image-size` has no upstream fix — 2.0.2 is current and both advisories name it. They are
 reachable: `to-pie` measures images out of ingested QTI packages, so a crafted `.icns` or
-`.heic` in a package hangs the converter's event loop. `getImageDimensions` now calls
-`disableTypes(['heif', 'icns', 'jxl', 'jxl-stream'])`, which rejects those formats during
-detection before the looping `calculate()` runs; the `validate()` functions still reached
-are loop-free. Detection failures for a disabled or unrecognised format no longer log as
-errors, since callers already treat an unmeasured image as having no dimensions. The two
-alerts stay open until upstream patches, and the disabled list is the thing to shorten
-when it does.
+`.heic` in a package hangs the converter's event loop. The first measurement in a process
+applies `disableTypes(['heif', 'icns', 'jxl', 'jxl-stream'])`, which rejects those formats
+during detection before the looping `calculate()` runs; the `validate()` functions still
+reached are loop-free. That call mutates image-size's own module state, so it is deferred to
+first use rather than run at import: importing `@pie-qti/to-pie` must not silently change
+what an unrelated image-size caller in the same process can measure. Detection failures for
+a disabled or unrecognised format no longer log as errors, since callers already treat an
+unmeasured image as having no dimensions. The two alerts stay open until upstream patches,
+and the disabled list is the thing to shorten when it does.

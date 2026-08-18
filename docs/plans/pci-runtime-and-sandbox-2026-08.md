@@ -152,14 +152,18 @@ handed back to it immediately, rebuilding whatever internal state the module
 derived from it, and the renderer's reactive `response` prop carried a second
 copy of the same loop.
 
-`PciHost.setResponse` is now `hydrate()` (declined while the module owns the
+`PciHost.setResponse` is now `offerResponse()` (declined while the module owns the
 response) and `restore()` (authoritative, returns ownership), with
-`setResponses(responses, { authoritative: true })` as the host escape hatch.
-Rebuild-on-restore landed with it: `restore()` on a mounted module fires
-`onReinitializeRequest`, and the renderer — which owns scaffold sanitization —
-resets the markup and calls `remount(dom)`, discarding the previous instance,
-resolving a fresh one, and seeding the restored value. Phase 1 changes only the
-seeding call inside `initialize()`, from `setResponse` to state passed at
+`Player.restoreResponses()` as the host escape hatch. Rebuild-on-restore landed
+with it: `restore()` on a mounted module fires `onRemountRequest`, and the
+renderer — which owns scaffold sanitization — resets the markup, calls
+`remount(dom)`, discarding the previous instance, resolving a fresh one, and
+seeding the restored value, then returns focus into the rebuilt scaffold. While
+the rebuild is outstanding, `getResponse()` reports the held value, since the
+mounted module still holds the superseded one. A host with no renderer wired to
+the signal gets the value pushed into the module directly — mutation rather than
+a discard, which is the most a caller owning no scaffold can do. Phase 1 changes
+only the seeding call inside `initialize()`, from `setResponse` to state passed at
 `getInstance`.
 
 **Interaction status** replaces `disable()`/`enable()` under the same rule.

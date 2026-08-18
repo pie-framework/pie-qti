@@ -455,8 +455,8 @@ export class Player {
 	 * Offer a response value to the PCI identified by responseIdentifier. A
 	 * mounted module that has already reported a response keeps it.
 	 */
-	public hydratePciResponse(responseIdentifier: string, value: unknown): void {
-		this._pciHosts.get(responseIdentifier)?.hydrate(value);
+	public offerPciResponse(responseIdentifier: string, value: unknown): void {
+		this._pciHosts.get(responseIdentifier)?.offerResponse(value);
 	}
 
 	/**
@@ -494,24 +494,34 @@ export class Player {
 	}
 
 	/**
-	 * Apply response values to the declaration context.
+	 * Apply candidate response values to the declaration context.
 	 *
 	 * Every candidate interaction reaches this method, including a PCI reporting
-	 * its own change, so mounted PCI modules are offered the value rather than
-	 * force-fed it. Pass `{ authoritative: true }` when the caller's value must
-	 * replace in-progress module state.
+	 * its own change, so a mounted PCI module is offered the value rather than
+	 * force-fed it. Use `restoreResponses()` when the caller's value must replace
+	 * in-progress module state.
 	 */
-	public setResponses(
+	public setResponses(responses: Record<string, unknown>): void {
+		this.applyResponses(responses, (id, value) => this.offerPciResponse(id, value));
+	}
+
+	/**
+	 * Apply response values authoritatively, discarding in-progress PCI candidate
+	 * state. State replacement and explicit host overrides use this.
+	 */
+	public restoreResponses(responses: Record<string, unknown>): void {
+		this.applyResponses(responses, (id, value) => this.restorePciResponse(id, value));
+	}
+
+	private applyResponses(
 		responses: Record<string, unknown>,
-		options: { authoritative?: boolean } = {}
+		applyToPci: (responseIdentifier: string, value: unknown) => void
 	): void {
 		for (const [id, raw] of Object.entries(responses)) {
 			const d = this.decls[id];
 			if (!d) continue;
 			d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, raw, d.identifier);
-			const value = this.qtiValueToPublic(d.value);
-			if (options.authoritative) this.restorePciResponse(id, value);
-			else this.hydratePciResponse(id, value);
+			applyToPci(id, this.qtiValueToPublic(d.value));
 		}
 	}
 

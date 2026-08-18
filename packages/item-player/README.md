@@ -196,7 +196,8 @@ trust decision; it exists so the security-critical check does not have to be rew
 import { createAllowlistPciModuleResolver } from '@pie-qti/item-player';
 
 const pci = {
-  baseUrl: 'https://packages.example.com/items/item-1/',
+  // Authored relative paths resolve against this, so it must itself be allow-listed.
+  baseUrl: 'https://cdn.example.com/pci/item-1/',
   moduleResolver: createAllowlistPciModuleResolver({
     allowedOrigins: ['https://cdn.example.com'],
     allowedPathPrefixes: ['https://cdn.example.com/pci/'],
@@ -204,8 +205,10 @@ const pci = {
 };
 ```
 
-Prefixes are matched against the normalized URL, so `pci/../secrets/token.js` cannot escape its
-prefix.
+Prefixes are matched against the normalized URL, so an authored `../../secrets/token.js` resolves to
+`https://cdn.example.com/secrets/token.js` and is refused. Traversal that stays inside the prefix is
+not a traversal: normalization is the whole check, so keep the prefix as narrow as the deployment
+allows.
 
 ## Server scoring
 

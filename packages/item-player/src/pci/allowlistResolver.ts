@@ -31,30 +31,18 @@ export interface AllowlistPciResolverOptions {
 	importModule?: (resolvedUrl: string, context: PciModuleResolutionContext) => Promise<unknown>;
 }
 
-function normalizePrefix(prefix: string): string {
+/** Parse one allow-list entry, rejecting anything not an absolute http(s) URL. */
+function parseAllowlistUrl(kind: 'origin' | 'path prefix', value: string): URL {
 	let url: URL;
 	try {
-		url = new URL(prefix);
+		url = new URL(value);
 	} catch {
-		throw new Error(`PCI allow-list path prefix must be an absolute URL: '${prefix}'`);
+		throw new Error(`PCI allow-list ${kind} must be an absolute URL: '${value}'`);
 	}
 	if (url.protocol !== 'https:' && url.protocol !== 'http:') {
-		throw new Error(`PCI allow-list path prefix must be http(s): '${prefix}'`);
+		throw new Error(`PCI allow-list ${kind} must be http(s): '${value}'`);
 	}
-	return url.href;
-}
-
-function normalizeOrigin(origin: string): string {
-	let url: URL;
-	try {
-		url = new URL(origin);
-	} catch {
-		throw new Error(`PCI allow-list origin must be an absolute URL: '${origin}'`);
-	}
-	if (url.protocol !== 'https:' && url.protocol !== 'http:') {
-		throw new Error(`PCI allow-list origin must be http(s): '${origin}'`);
-	}
-	return url.origin;
+	return url;
 }
 
 /**
@@ -78,8 +66,12 @@ function normalizeOrigin(origin: string): string {
 export function createAllowlistPciModuleResolver(
 	options: AllowlistPciResolverOptions
 ): PciModuleResolver {
-	const origins = (options.allowedOrigins ?? []).map(normalizeOrigin);
-	const prefixes = (options.allowedPathPrefixes ?? []).map(normalizePrefix);
+	const origins = (options.allowedOrigins ?? []).map(
+		(origin) => parseAllowlistUrl('origin', origin).origin
+	);
+	const prefixes = (options.allowedPathPrefixes ?? []).map(
+		(prefix) => parseAllowlistUrl('path prefix', prefix).href
+	);
 	if (origins.length === 0 && prefixes.length === 0) {
 		throw new Error(
 			'createAllowlistPciModuleResolver requires allowedOrigins or allowedPathPrefixes; ' +

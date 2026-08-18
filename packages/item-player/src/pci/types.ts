@@ -101,7 +101,7 @@ export interface PciHostController {
 	 * renderer owns scaffold sanitization, so it resets the markup and calls
 	 * `remount()`.
 	 */
-	onReinitializeRequest(callback: () => void): () => void;
+	onRemountRequest(callback: () => void): () => void;
 	load(): Promise<void>;
 	initialize(dom: HTMLElement): void;
 	/** Rebuild the module in place from the held response, after a scaffold reset. */
@@ -112,12 +112,13 @@ export interface PciHostController {
 	 * `false`, once a mounted module has reported a response of its own: a live
 	 * interaction owns its response until something authoritative replaces it.
 	 */
-	hydrate(value: unknown): boolean;
+	offerResponse(value: unknown): boolean;
 	/**
 	 * Authoritatively replace the response, discarding in-progress candidate
 	 * state and returning ownership to the player. Session restore, reset to
 	 * declaration default, and explicit host overrides use this. A mounted module
-	 * is rebuilt through `onReinitializeRequest` rather than mutated.
+	 * is rebuilt through `onRemountRequest` where a renderer is wired to it, and
+	 * otherwise receives the value directly.
 	 */
 	restore(value: unknown): void;
 	disable(): void;

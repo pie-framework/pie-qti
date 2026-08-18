@@ -61,6 +61,34 @@
 	let lastEmitted: unknown = undefined;
 	let hasEmitted = false;
 
+	// Interactive descendants, in document order, for restoring focus after a
+	// rebuild. Negative tabindex is excluded: it is reachable by script only.
+	const FOCUSABLE_SELECTOR =
+		'a[href],area[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),' +
+		'textarea:not([disabled]),iframe,[contenteditable="true"],[tabindex]:not([tabindex^="-"])';
+
+	/** Reset the module's DOM scaffold and the per-instance echo tracking. */
+	function resetScaffold(target: HTMLElement, markup: unknown) {
+		// A fresh module has emitted nothing yet.
+		hasEmitted = false;
+		lastEmitted = undefined;
+		status = 'loading';
+		errorMessage = null;
+		// Keep TrustedHTML opaque until the DOM sink. Raw standalone strings are
+		// sanitized and finalized by `safeMarkup` above.
+		target.innerHTML = markup as any;
+	}
+
+	function holdsFocus(target: HTMLElement): boolean {
+		const root = target.getRootNode() as Document | ShadowRoot;
+		const active = root.activeElement;
+		return !!active && target.contains(active);
+	}
+
+	function restoreFocus(target: HTMLElement) {
+		(target.querySelector<HTMLElement>(FOCUSABLE_SELECTOR) ?? target).focus();
+	}
+
 	function emitResponse(value: unknown) {
 		lastEmitted = value;
 		hasEmitted = true;
@@ -83,9 +111,7 @@
 		const baseUrl = pci?.baseUrl;
 		const markup = safeMarkup;
 		if (!data || !target) return;
-		// Keep TrustedHTML opaque until the DOM sink. Raw standalone strings are
-		// sanitized and finalized by `safeMarkup` above.
-		target.innerHTML = markup as any;
+		resetScaffold(target, markup);
 
 		let cancelled = false;
 		let currentHost: PciHostController;
@@ -100,28 +126,24 @@
 		}
 
 		host = currentHost;
-		status = 'loading';
-		errorMessage = null;
-		// A remount starts a fresh module; nothing has been emitted from it yet.
-		hasEmitted = false;
-		lastEmitted = undefined;
 		const stopListening = currentHost.onResponseChange((_responseId, value) => {
 			if (!cancelled) emitResponse(value);
 		});
 
 		// An authoritative restore rebuilds the module from the restored value.
 		// Scaffold sanitization lives here, so the reset does too.
-		const stopRemountRequests = currentHost.onReinitializeRequest(() => {
+		const stopRemountRequests = currentHost.onRemountRequest(() => {
 			if (cancelled) return;
-			hasEmitted = false;
-			lastEmitted = undefined;
-			status = 'loading';
-			errorMessage = null;
-			target.innerHTML = markup as any;
+			// Replacing the scaffold destroys the focused element inside it, so a
+			// candidate working by keyboard would be dropped back to the document.
+			const refocus = holdsFocus(target);
+			resetScaffold(target, markup);
 			void currentHost
 				.remount(target)
 				.then(() => {
-					if (!cancelled) status = 'ready';
+					if (cancelled) return;
+					status = 'ready';
+					if (refocus) restoreFocus(target);
 				})
 				.catch((error) => {
 					if (cancelled) return;
@@ -161,7 +183,7 @@
 		const value = parsedResponse;
 		if (!currentHost || value === undefined) return;
 		if (hasEmitted && value === lastEmitted) return;
-		currentHost.hydrate(value);
+		currentHost.offerResponse(value);
 	});
 
 	// Keep the module's operability aligned with the candidate/read-only state.
@@ -197,10 +219,13 @@
 			</div>
 		{/if}
 
+		<!-- tabindex="-1": script-only focus target when a rebuilt scaffold has no
+		     focusable descendant to return the candidate to. -->
 		<div
 			bind:this={mountElement}
 			part="interaction"
 			class="pci-mount"
+			tabindex="-1"
 			aria-busy={status === 'loading'}
 		></div>
 	{/if}
