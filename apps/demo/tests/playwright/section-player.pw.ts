@@ -89,17 +89,15 @@ test.describe('section player web components', () => {
 		await expect(page.locator('pie-tool-tts-inline').first()).toBeAttached();
 		const calculatorButton = page.getByRole('button', { name: /calculator/i });
 		await expect(calculatorButton).toBeVisible();
-		// Asserts a rendered icon, not which mechanism drew it. This checked for
-		// `[data-pie-qti-icon-fallback="calculator"]` while the toolkit rendered a vendored
-		// nds-icon-button whose FontAwesome Pro glyph 404ed, leaving a blank button that
-		// QtiToolButtonBar patched with an inline SVG. The NDS icons are licensed to
-		// Renaissance products only (PIE-785), so since 0.3.59 the toolkit renders plain
-		// buttons unless a host opts in via `ndsIcons`. This repo never opts in, so the
-		// marker cannot appear and the workaround is inert.
+		// The toolkit renders the icon itself on the default path. This looked for a
+		// `[data-pie-qti-icon-fallback="calculator"]` SVG that QtiToolButtonBar injected to
+		// rescue a vendored nds-icon-button whose FontAwesome Pro glyph 404ed; those icons
+		// are licensed to Renaissance products only (PIE-785), so they are opt-in behind
+		// `ndsIcons` since 0.3.59 and this repo never opts in.
 		await expect
 			.poll(async () => {
 				return calculatorButton.evaluate((button) => {
-					const icon = button.querySelector('[data-pie-qti-icon-fallback="calculator"], svg');
+					const icon = button.querySelector('svg');
 					if (!(icon instanceof HTMLElement || icon instanceof SVGElement)) return false;
 					const rect = icon.getBoundingClientRect();
 					const style = window.getComputedStyle(icon);
@@ -129,15 +127,14 @@ test.describe('section player web components', () => {
 
 		await page.getByRole('button', { name: /calculator/i }).click();
 		await expect(page.locator('pie-tool-calculator')).toBeAttached();
-		// This asserted that every nds-icon-button carried a patched-in fallback glyph.
-		// On the default (non-NDS) path the toolkit renders no nds-icon-button at all, so
-		// the locator matches nothing and the assertion can no longer hold. What it was
-		// really protecting is below: the toolbar button keeps a visible icon once the
+		// This asserted that every nds-icon-button carried a patched-in fallback glyph. No
+		// nds-icon-button is rendered on the default path, so the locator matched nothing.
+		// What it protected is below: the toolbar button keeps a visible icon once the
 		// overlay is open, and nothing 404ed reaching for FontAwesome Pro.
 		await expect
 			.poll(async () => {
 				return page.getByRole('button', { name: /calculator/i }).evaluate((button) => {
-					const icon = button.querySelector('[data-pie-qti-icon-fallback], svg');
+					const icon = button.querySelector('svg');
 					if (!(icon instanceof HTMLElement || icon instanceof SVGElement)) return false;
 					const rect = icon.getBoundingClientRect();
 					return rect.width > 0 && rect.height > 0;
