@@ -264,6 +264,31 @@ export class QtiValidator {
 }
 
 /**
+ * The local name of the document's root element, ignoring any namespace prefix.
+ *
+ * Comments are stripped first so a commented-out root cannot be mistaken for the real one.
+ */
+export function qtiDocumentRootName(xml: string): string | null {
+  const withoutComments = xml.replace(/<!--[\s\S]*?-->/g, '');
+  return /<(?![?!])\s*(?:[\w.-]+:)?([\w.-]+)/.exec(withoutComments)?.[1] ?? null;
+}
+
+/**
+ * Whether the document *is* a QTI test definition, covering the QTI 2.x `assessmentTest`
+ * and the QTI 3.0 `qti-assessment-test` spelling.
+ *
+ * Used to keep test documents out of the item conversion lane. Transforming a test as an
+ * item is not a failure the transform notices: the payload reaches the
+ * `builtin.assessment-test` handler, comes back as a `PieAssessment`, and is reported as a
+ * transformed item with no warning, so a test structure lands wherever the caller stores
+ * item content. Converting a test declared *as* a test stays supported and is unaffected.
+ */
+export function isAssessmentTestDocument(xml: string): boolean {
+  const root = qtiDocumentRootName(xml);
+  return root === 'assessmentTest' || root === 'qti-assessment-test';
+}
+
+/**
  * Convenience function to validate QTI XML
  */
 export async function validateQti(

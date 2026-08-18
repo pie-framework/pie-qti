@@ -23,7 +23,7 @@ import {
 import type { HTMLElement } from 'node-html-parser';
 import { parse } from 'node-html-parser';
 import {
-	QtiSourceProfileTransformError,
+	QtiItemTransformError,
 	QtiToPiePlugin,
 	type QtiToPiePluginOptions,
 } from './plugin.js';
@@ -32,6 +32,7 @@ import {
 	createConversionTrace,
 	detectPackageProfiles,
 } from './source-profile-runtime.js';
+import { isAssessmentTestDocument } from './utils/qti-validator.js';
 
 export interface QtiPackageTransformInput {
 	packageId?: string;
@@ -165,6 +166,44 @@ export async function transformQtiPackageToPie({
 			});
 			continue;
 		}
+		if (isAssessmentTestDocument(itemXml)) {
+			// The manifest declared this resource as an item, but the document is a test.
+			// Converting it yields a `PieAssessment` reported as a transformed item with no
+			// warning, so test structure would be stored as an item. Refuse it here instead;
+			// a resource declared as a test still converts through the test lane below.
+			// `failed` rather than `skipped` because the resource read fine — it was rejected,
+			// and the two statuses carry different meanings for stage coverage.
+			const diagnostic: SourceProfileDiagnostic = {
+				code: 'QTI_ASSESSMENT_TEST_DECLARED_AS_ITEM',
+				severity: 'error',
+				scope: 'item',
+				message:
+					`Resource ${node.identifier} is declared as an item resource but the document is a ` +
+					'QTI test definition. Test structure is not imported as an item.',
+				resourceId: node.identifier,
+				sourcePath: node.resolvedHref,
+			};
+			failedItemDiagnostics.push(diagnostic);
+			itemResults.push({
+				resourceId: node.identifier,
+				sourcePath: node.resolvedHref,
+				status: 'failed',
+				itemCount: 0,
+				warnings: [sourceDiagnosticToWarning(diagnostic)],
+				diagnostics: [diagnostic],
+				profiles: [],
+				message: diagnostic.message,
+			});
+			addTraceEvent(trace, {
+				kind: 'error',
+				scope: 'item',
+				resourceId: node.identifier,
+				sourcePath: node.resolvedHref,
+				message: diagnostic.message,
+				data: { diagnostics: [diagnostic] },
+			});
+			continue;
+		}
 		addTraceEvent(trace, {
 			kind: 'resource-analyzed',
 			scope: 'resource',
@@ -202,7 +241,9 @@ export async function transformQtiPackageToPie({
 			itemOutputs.push(output);
 			itemResults.push(createItemTransformResult(node, output));
 		} catch (error) {
-			if (!(error instanceof QtiSourceProfileTransformError)) {
+			// Item-scoped failures are recorded against the item; anything else is a package-level
+			// fault and must not be swallowed.
+			if (!(error instanceof QtiItemTransformError)) {
 				throw error;
 			}
 			failedItemDiagnostics.push(...(error.sourceDiagnostics ?? []));

@@ -46,6 +46,92 @@ const testXml = `
 </assessmentTest>`;
 
 describe('transformQtiPackageToPie', () => {
+	test('refuses a test document declared as an item resource and keeps the rest of the package', async () => {
+		// A manifest that mis-declares a test as an item used to convert silently: the payload
+		// reached the assessment-test handler and came back as a PieAssessment reported as a
+		// transformed item.
+		const misdeclaredManifest = `
+<manifest identifier="pkg-misdeclared">
+  <resources>
+    <resource identifier="item1" type="imsqti_item_xmlv2p2" href="items/item.xml">
+      <file href="items/item.xml"/>
+    </resource>
+    <resource identifier="bogus-item" type="imsqti_item_xmlv2p2" href="tests/test.xml">
+      <file href="tests/test.xml"/>
+    </resource>
+  </resources>
+</manifest>`;
+
+		const result = await transformQtiPackageToPie({
+			manifestXml: misdeclaredManifest,
+			fileAccess: {
+				readText(path) {
+					if (path === 'tests/test.xml') return testXml;
+					return path === 'items/item.xml' ? itemXml : null;
+				},
+			},
+		});
+
+		expect(result.items).toHaveLength(1);
+		expect(result.itemResults).toHaveLength(2);
+
+		const rejected = result.itemResults.find((entry) => entry.resourceId === 'bogus-item');
+		expect(rejected?.status).toBe('failed');
+		expect(rejected?.itemCount).toBe(0);
+		expect(rejected?.diagnostics.map((diagnostic) => diagnostic.code)).toContain(
+			'QTI_ASSESSMENT_TEST_DECLARED_AS_ITEM'
+		);
+
+		const converted = result.itemResults.find((entry) => entry.resourceId === 'item1');
+		expect(converted?.status).toBe('transformed');
+	});
+
+	test('records an unsupported item as failed and still converts the rest of the package', async () => {
+		const twoItemManifest = `
+<manifest identifier="pkg-mixed">
+  <resources>
+    <resource identifier="item1" type="imsqti_item_xmlv2p2" href="items/item.xml">
+      <file href="items/item.xml"/>
+    </resource>
+    <resource identifier="item2" type="imsqti_item_xmlv2p2" href="items/composite.xml">
+      <file href="items/composite.xml"/>
+    </resource>
+  </resources>
+</manifest>`;
+
+		const compositeXml = `
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="item2" title="Composite">
+  <responseDeclaration identifier="CHOICE" cardinality="single" baseType="identifier"/>
+  <responseDeclaration identifier="SLIDER" cardinality="single" baseType="float"/>
+  <itemBody>
+    <choiceInteraction responseIdentifier="CHOICE" maxChoices="1">
+      <simpleChoice identifier="A">A</simpleChoice>
+    </choiceInteraction>
+    <sliderInteraction responseIdentifier="SLIDER" lowerBound="0" upperBound="10"/>
+  </itemBody>
+</assessmentItem>`;
+
+		const result = await transformQtiPackageToPie({
+			manifestXml: twoItemManifest,
+			fileAccess: {
+				readText(path) {
+					if (path === 'items/item.xml') return itemXml;
+					return path === 'items/composite.xml' ? compositeXml : null;
+				},
+			},
+		});
+
+		expect(result.items).toHaveLength(1);
+		expect(result.itemResults).toHaveLength(2);
+
+		const failed = result.itemResults.find(item => item.resourceId === 'item2');
+		expect(failed?.status).toBe('failed');
+		expect(failed?.message).toMatch(/Unsupported composite QTI item/);
+		expect(failed?.diagnostics.some(d => d.code === 'QTI_COMPOSITE_ITEM_UNSUPPORTED')).toBe(true);
+
+		expect(result.itemResults.find(item => item.resourceId === 'item1')?.status).not.toBe('failed');
+	});
+
 	test('transforms package item resources with package trace and sidecars', async () => {
 		const sourceProfile: QtiSourceProfile = {
 			id: 'package-test-profile',

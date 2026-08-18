@@ -4,7 +4,12 @@
  * QTI 2.2 to PIE transformation plugin
  */
 
-export { QtiSourceProfileTransformError, QtiToPiePlugin } from './plugin.js';
+export {
+	QtiItemTransformError,
+	QtiSourceProfileTransformError,
+	QtiToPiePlugin,
+	QtiUnsupportedItemError,
+} from './plugin.js';
 export type { QtiToPiePluginOptions } from './plugin.js';
 export { transformQtiPackageToPie } from './package-transformer.js';
 export type {
@@ -98,7 +103,14 @@ export type { QtiExtensionMetadata } from './utils/qti-extension-embedder.js';
 export { embedQtiSourceInPie, extractQtiSourceFromPie, hasQtiSource, QTI_NAMESPACE, QTI_PREFIX } from './utils/qti-extension-embedder.js';
 export type { ValidationError, ValidationResult as QtiValidationResult, ValidationWarning, ValidatorOptions } from './utils/qti-validator.js';
 // Validation utilities
-export { QtiValidator, validateQti } from './utils/qti-validator.js';
+export {
+  isAssessmentTestDocument,
+  qtiDocumentRootName,
+  QtiValidator,
+  validateQti,
+} from './utils/qti-validator.js';
+// CDATA unwrapping for markup bound for PIE models
+export { unwrapCdataSections } from './utils/cdata.js';
 // Vendor helper utilities
 export {
   applyBehavioralClasses,

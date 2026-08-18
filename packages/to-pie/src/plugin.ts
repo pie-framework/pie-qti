@@ -97,7 +97,12 @@ export interface QtiToPiePluginOptions {
   vendorExtensions?: VendorExtensionConfig;
 }
 
-export class QtiSourceProfileTransformError extends Error {
+/**
+ * Base for failures that are scoped to a single item. The package transformer records these
+ * against the offending item and carries on with the rest of the package; any other error
+ * aborts the whole package transform.
+ */
+export class QtiItemTransformError extends Error {
   readonly sourceDiagnostics: SourceProfileExtractionResult['diagnostics'];
   readonly conversionTrace: ConversionTrace;
 
@@ -106,9 +111,30 @@ export class QtiSourceProfileTransformError extends Error {
     conversionTrace: ConversionTrace;
   }) {
     super(message);
-    this.name = 'QtiSourceProfileTransformError';
+    this.name = 'QtiItemTransformError';
     this.sourceDiagnostics = options.sourceDiagnostics;
     this.conversionTrace = options.conversionTrace;
+  }
+}
+
+export class QtiSourceProfileTransformError extends QtiItemTransformError {
+  constructor(message: string, options: {
+    sourceDiagnostics: SourceProfileExtractionResult['diagnostics'];
+    conversionTrace: ConversionTrace;
+  }) {
+    super(message, options);
+    this.name = 'QtiSourceProfileTransformError';
+  }
+}
+
+/** The item is well-formed QTI this transform cannot represent in PIE. */
+export class QtiUnsupportedItemError extends QtiItemTransformError {
+  constructor(message: string, options: {
+    sourceDiagnostics: SourceProfileExtractionResult['diagnostics'];
+    conversionTrace: ConversionTrace;
+  }) {
+    super(message, options);
+    this.name = 'QtiUnsupportedItemError';
   }
 }
 
@@ -286,7 +312,14 @@ export class QtiToPiePlugin implements TransformPlugin {
     });
 
     const assessmentItem = doc.querySelector('assessmentItem') || doc.getElementsByTagName('assessmentItem')[0];
-    const interactionAnalysis = assessmentItem ? analyzeAssessmentItemInteractions(assessmentItem) : null;
+    // QTI 3.0 items use kebab element names throughout, and every transformer on this path reads
+    // QTI 2.x camelCase children. The 3.0 root is therefore recognised only so the item can be
+    // rejected by version rather than reported as an unknown interaction type.
+    const qti3ItemElement = assessmentItem
+      ? undefined
+      : doc.getElementsByTagName('qti-assessment-item')[0];
+    const itemElement = assessmentItem ?? qti3ItemElement;
+    const interactionAnalysis = itemElement ? analyzeAssessmentItemInteractions(itemElement) : null;
     const itemContext = {
       itemId,
       resourceId: (input.metadata?.resourceId as string | undefined) ?? itemId,
@@ -344,6 +377,18 @@ export class QtiToPiePlugin implements TransformPlugin {
       }
     }
 
+    // Vendor transformers receive the raw XML and may support QTI 3.0 themselves, so the version
+    // rejection lands after vendor detection and before built-in handler selection.
+    const itemFailure: ItemFailureContext = {
+      itemId,
+      trace,
+      sourceDiagnostics: profileRuntime.extraction.diagnostics,
+    };
+
+    if (qti3ItemElement) {
+      throw createUnsupportedQti3ItemError(interactionAnalysis, itemFailure);
+    }
+
     // Detect item type and use appropriate transformer
     const interactionType = this.detectInteractionType(qtiXml, interactionAnalysis);
 
@@ -363,7 +408,8 @@ export class QtiToPiePlugin implements TransformPlugin {
 
     const runGenericTransform = async (): Promise<TransformOutput> => {
       if (interactionAnalysis) {
-        validateInteractionShape(interactionAnalysis, itemId);
+        validateInteractionShape(interactionAnalysis, itemFailure);
+        warnings.push(...createInteractionShapeWarnings(interactionAnalysis, itemId));
       }
 
       if (assessmentItem) {
@@ -376,7 +422,11 @@ export class QtiToPiePlugin implements TransformPlugin {
       const builtInHandler = this.registry.getHandlerForInteraction(interactionType);
       if (!builtInHandler) {
         logger?.warn(`Unsupported interaction type: ${interactionType} for item ${itemId}`);
-        throw new Error(`Unsupported interaction type: ${interactionType}`);
+        throw unsupportedItemError(
+          `Unsupported interaction type: ${interactionType}`,
+          'QTI_INTERACTION_TYPE_UNSUPPORTED',
+          itemFailure
+        );
       }
       addTraceEvent(trace, {
         kind: 'handler-selected',
@@ -584,26 +634,13 @@ export class QtiToPiePlugin implements TransformPlugin {
       return 'customInteraction';
     }
 
-    // Check for specific interactions
-    const interactions = [
-      'choiceInteraction',
-      'extendedTextInteraction',
-      'orderInteraction',
-      'matchInteraction',
-      'textEntryInteraction',
-      'selectPointInteraction',
-      'hottextInteraction',
-      'inlineChoiceInteraction',
-      'gapMatchInteraction',
-      'hotspotInteraction',
-      'graphicGapMatchInteraction',
-      'associateInteraction',
-    ];
-
-    for (const interaction of interactions) {
-      if (qtiXml.includes(`<${interaction}`)) {
-        return interaction;
-      }
+    // Fallback for XML with no parseable <assessmentItem>: recognise the first interaction
+    // element by shape, so an unsupported interaction is named rather than reported as unknown.
+    // Deliberately QTI 2.x-only — every transformer on this path reads camelCase elements, so a
+    // QTI 3.0 item must stay 'unknown' and fail loudly rather than transform into an empty model.
+    const match = qtiXml.match(/<([a-zA-Z][A-Za-z0-9]*Interaction)[\s/>]/);
+    if (match?.[1]) {
+      return match[1];
     }
 
     return 'unknown';
@@ -810,7 +847,10 @@ export class QtiToPiePlugin implements TransformPlugin {
 type QtiVersion = '2.1' | '2.2' | '3.0' | 'unknown';
 
 interface InteractionAnalysis {
+  /** Distinct response-bearing interaction names, normalized to QTI 2.x camelCase. */
   standardTypes: string[];
+  /** Interaction names present that control attempt flow rather than carrying a response. */
+  attemptControlTypes: string[];
   customInteractionCount: number;
 }
 
@@ -820,20 +860,42 @@ interface QtiProcessingMetadata {
   responseProcessingXml?: string;
 }
 
-const STANDARD_ITEM_INTERACTIONS = [
-  'choiceInteraction',
-  'extendedTextInteraction',
-  'orderInteraction',
-  'matchInteraction',
-  'textEntryInteraction',
-  'selectPointInteraction',
-  'hottextInteraction',
-  'inlineChoiceInteraction',
-  'gapMatchInteraction',
-  'hotspotInteraction',
-  'graphicGapMatchInteraction',
-  'associateInteraction',
-] as const;
+/**
+ * Interactions are recognised by element shape, not by an allow-list: any `*Interaction`
+ * (QTI 2.x) or `qti-*-interaction` (QTI 3.0) element counts. An allow-list under-counts
+ * composites for every interaction it omits, which is precisely the silent reduction the
+ * composite guard exists to prevent.
+ */
+const QTI_INTERACTION_NAME = /^[a-zA-Z][A-Za-z0-9]*Interaction$/;
+
+/** Custom and portable-custom interactions route to vendor transformers; they are never reduced. */
+const CUSTOM_INTERACTION_NAMES = new Set(['customInteraction', 'portableCustomInteraction']);
+
+/**
+ * endAttemptInteraction controls attempt flow rather than carrying a scored response, and has
+ * no PIE equivalent. It is reported as a dropped interaction instead of failing the item.
+ */
+const ATTEMPT_CONTROL_INTERACTION_NAMES = new Set(['endAttemptInteraction']);
+
+/** Normalize a QTI 3.0 kebab element name to its QTI 2.x camelCase equivalent. */
+function toCamelElementName(tagName: string): string {
+  if (!tagName.startsWith('qti-')) return tagName;
+  return tagName
+    .slice(4)
+    .split('-')
+    .map((part, index) => (index === 0 ? part : part.charAt(0).toUpperCase() + part.slice(1)))
+    .join('');
+}
+
+function collectInteractionNames(node: HTMLElement, found: string[]): void {
+  for (const child of node.childNodes) {
+    const element = child as HTMLElement;
+    if (!element.rawTagName) continue;
+    const name = toCamelElementName(element.rawTagName);
+    if (QTI_INTERACTION_NAME.test(name)) found.push(name);
+    collectInteractionNames(element, found);
+  }
+}
 
 function detectQtiVersion(qtiXml: string): QtiVersion {
   if (qtiXml.includes('imsqtiasi_v3p0') || qtiXml.includes('imsqti_v3p0')) return '3.0';
@@ -856,46 +918,122 @@ function qtiVersionToSourceFormat(version: QtiVersion): string {
 }
 
 function analyzeAssessmentItemInteractions(assessmentItem: HTMLElement): InteractionAnalysis {
-  const itemBody = assessmentItem.getElementsByTagName('itemBody')[0];
+  const itemBody =
+    assessmentItem.getElementsByTagName('itemBody')[0] ||
+    assessmentItem.getElementsByTagName('qti-item-body')[0];
   if (!itemBody) {
-    return { standardTypes: [], customInteractionCount: 0 };
+    return { standardTypes: [], attemptControlTypes: [], customInteractionCount: 0 };
   }
 
-  const standardTypes = STANDARD_ITEM_INTERACTIONS.filter(
-    interactionType => itemBody.getElementsByTagName(interactionType).length > 0
-  );
+  const found: string[] = [];
+  collectInteractionNames(itemBody, found);
 
-  return {
-    standardTypes,
-    customInteractionCount: itemBody.getElementsByTagName('customInteraction').length,
-  };
+  const standardTypes: string[] = [];
+  const attemptControlTypes: string[] = [];
+  let customInteractionCount = 0;
+
+  // Repeats of one type are counted once: multi-blank items (several textEntryInteraction or
+  // inlineChoiceInteraction elements) are a supported shape whose transformer consumes every
+  // occurrence, so they are not a reduction.
+  for (const name of found) {
+    if (CUSTOM_INTERACTION_NAMES.has(name)) {
+      customInteractionCount += 1;
+      continue;
+    }
+    if (ATTEMPT_CONTROL_INTERACTION_NAMES.has(name)) {
+      if (!attemptControlTypes.includes(name)) attemptControlTypes.push(name);
+      continue;
+    }
+    if (!standardTypes.includes(name)) standardTypes.push(name);
+  }
+
+  return { standardTypes, attemptControlTypes, customInteractionCount };
 }
 
-function validateInteractionShape(analysis: InteractionAnalysis, itemId: string): void {
+/** What an item-scoped failure needs to report itself to the package transformer. */
+interface ItemFailureContext {
+  itemId: string;
+  trace: ConversionTrace;
+  sourceDiagnostics: SourceProfileExtractionResult['diagnostics'];
+}
+
+function unsupportedItemError(
+  message: string,
+  code: string,
+  failure: ItemFailureContext
+): QtiUnsupportedItemError {
+  return new QtiUnsupportedItemError(message, {
+    sourceDiagnostics: [
+      ...(failure.sourceDiagnostics ?? []),
+      {
+        code,
+        severity: 'error',
+        message,
+        scope: 'item',
+        itemId: failure.itemId,
+      },
+    ],
+    conversionTrace: failure.trace,
+  });
+}
+
+function validateInteractionShape(analysis: InteractionAnalysis, failure: ItemFailureContext): void {
   if (analysis.customInteractionCount > 0) {
     const standardPart = analysis.standardTypes.length > 0
       ? ` with standard interaction(s): ${analysis.standardTypes.join(', ')}`
       : '';
-    throw new Error(
-      `Unsupported customInteraction${standardPart} in item ${itemId}. ` +
-      'Use a vendor transformer for proprietary interactions instead of reducing the item to a generic PIE model.'
+    throw unsupportedItemError(
+      `Unsupported customInteraction${standardPart} in item ${failure.itemId}. ` +
+      'Use a vendor transformer for proprietary interactions instead of reducing the item to a generic PIE model.',
+      'QTI_CUSTOM_INTERACTION_UNSUPPORTED',
+      failure
     );
   }
 
   if (analysis.standardTypes.length > 1) {
-    if (
-      analysis.standardTypes.length === 2 &&
-      analysis.standardTypes.includes('choiceInteraction') &&
-      analysis.standardTypes.every(type => type === 'choiceInteraction')
-    ) {
-      return;
-    }
-
-    throw new Error(
-      `Unsupported composite QTI item ${itemId}: ${analysis.standardTypes.join(', ')}. ` +
-      'Generic QTI to PIE conversion does not silently reduce multi-interaction items to the first interaction.'
+    throw unsupportedItemError(
+      `Unsupported composite QTI item ${failure.itemId}: ${analysis.standardTypes.join(', ')}. ` +
+      'Generic QTI to PIE conversion does not silently reduce multi-interaction items to the first interaction.',
+      'QTI_COMPOSITE_ITEM_UNSUPPORTED',
+      failure
     );
   }
+}
+
+function createUnsupportedQti3ItemError(
+  analysis: InteractionAnalysis | null,
+  failure: ItemFailureContext
+): QtiUnsupportedItemError {
+  const detected = [
+    ...(analysis?.standardTypes ?? []),
+    ...(analysis?.attemptControlTypes ?? []),
+    ...(analysis?.customInteractionCount ? ['customInteraction'] : []),
+  ];
+  const detectedPart = detected.length > 0 ? ` Detected interaction(s): ${detected.join(', ')}.` : '';
+
+  return unsupportedItemError(
+    `Unsupported QTI 3.0 item ${failure.itemId}: this transform ingests QTI 2.1/2.2 item elements only.` +
+    `${detectedPart} Convert the item to QTI 2.2 before transforming.`,
+    'QTI_VERSION_UNSUPPORTED',
+    failure
+  );
+}
+
+function createInteractionShapeWarnings(
+  analysis: InteractionAnalysis,
+  itemId: string
+): TransformWarning[] {
+  if (analysis.attemptControlTypes.length === 0) return [];
+
+  return [
+    {
+      itemId,
+      code: 'QTI_INTERACTION_DROPPED',
+      message:
+        `${analysis.attemptControlTypes.join(', ')} has no PIE equivalent and was dropped from item ${itemId}; ` +
+        'attempt-control behaviour is not represented in the converted item.',
+    },
+  ];
 }
 
 function createProcessingWarnings(assessmentItem: HTMLElement, itemId: string): TransformWarning[] {

@@ -1,4 +1,5 @@
 import type { HTMLElement } from 'node-html-parser';
+import { unwrapCdataSections } from './cdata.js';
 
 export function extractPromptForInteraction(
 	itemBody: HTMLElement,
@@ -47,7 +48,7 @@ export function extractItemBodyPromptBeforeInteraction(
 }
 
 export function cleanTransformHtml(html: string): string {
-	return html
+	return unwrapCdataSections(html)
 		.trim()
 		.replace(/\s+/g, ' ')
 		.replace(/>\s+</g, '><');

@@ -6,6 +6,7 @@
 
 import type { HTMLElement } from 'node-html-parser';
 import { v4 as uuid } from 'uuid';
+import { unwrapCdataSections } from './cdata.js';
 import { generateStablePassageId, parseObjectReference } from './passage-reusability.js';
 
 export interface PassageModel {
@@ -228,16 +229,15 @@ function extractPointsFromRubric(rubricBlock: HTMLElement): string[] {
 
 /**
  * Clean passage HTML
- * - Remove CDATA markers
+ * - Unwrap CDATA sections
  * - Normalize newlines
  * - Preserve HTML structure
  */
 function cleanPassageHtml(html: string): string {
-  // Remove CDATA markers
-  html = html.replace(/<!\\[CDATA\\[/g, '').replace(/\\]\\]>/g, '');
+  html = unwrapCdataSections(html);
 
   // Replace multiple newlines with space (but preserve HTML tags)
-  html = html.replace(/\\n\\s*\\n/g, '\\n');
+  html = html.replace(/\n\s*\n/g, '\n');
 
   // Trim whitespace
   html = html.trim();
