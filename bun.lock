@@ -368,7 +368,7 @@
         "@pie-players/pie-calculator-desmos": "0.3.53",
         "@pie-players/pie-context": "0.3.66",
         "@pie-players/pie-tool-calculator-desmos": "0.3.53",
-        "@pie-players/pie-tool-tts-inline": "0.3.53",
+        "@pie-players/pie-tool-tts-inline": "0.3.66",
         "@pie-players/tts-client-server": "0.3.65",
         "@pie-qti/default-components": "workspace:*",
         "@pie-qti/ims-cp-core": "workspace:*",
@@ -722,7 +722,7 @@
 
     "@pie-players/pie-tool-calculator-desmos": ["@pie-players/pie-tool-calculator-desmos@0.3.53", "", { "dependencies": { "@pie-players/pie-assessment-toolkit": "0.3.53", "@pie-players/pie-context": "0.3.53", "@pie-players/pie-players-shared": "0.3.53" } }, "sha512-raLyK/O1zZr3ae+WOW3NqJ2hr+sPr5WdPxvYaNkHNDvh+SCnr6XJ7EwDQBhTJmchvJ6GQzIT5br96d0ZCV4Cvw=="],
 
-    "@pie-players/pie-tool-tts-inline": ["@pie-players/pie-tool-tts-inline@0.3.53", "", { "dependencies": { "@pie-players/pie-assessment-toolkit": "0.3.53", "@pie-players/pie-context": "0.3.53" } }, "sha512-KArvjrsI1yLQIn336S2BZiQYoLx7RWCfJAWnxZdkOdYThurSHL5YSKCtE+wEC4uZgI0BVMOpcxhdfyhVkejcVw=="],
+    "@pie-players/pie-tool-tts-inline": ["@pie-players/pie-tool-tts-inline@0.3.66", "", { "dependencies": { "@pie-players/pie-assessment-toolkit": "0.3.66", "@pie-players/pie-context": "0.3.66", "@pie-players/pie-players-shared": "0.3.66" } }, "sha512-sE3iDsZIG8s/6olSjV/roWoHKsqTBVuhqnm/vpJX8qVguwZR9IQV6STQ2msGr4XcC5itFzK63zGiezF0sp4GRw=="],
 
     "@pie-players/pie-tts": ["@pie-players/pie-tts@0.3.53", "", {}, "sha512-nzO21J6/ZGs4pES2wzaStpVZb+SA3PjQTaqYxVC9cXd1Ttbkz0IXzgsa8ZwnmtkNklGJHu5kfYX0OeXWODFQCw=="],
 
@@ -1832,11 +1832,13 @@
 
     "@pie-players/pie-tool-calculator-desmos/@pie-players/pie-context": ["@pie-players/pie-context@0.3.53", "", {}, "sha512-aBGbMBtE+ljQG+s+W/divDcq3JjlxjfWgWcYMBzbpoo/O8MakZdmomegOkNnnrdAvWTSBkqX9yFnU9BBzNVeMg=="],
 
-    "@pie-players/pie-tool-tts-inline/@pie-players/pie-context": ["@pie-players/pie-context@0.3.53", "", {}, "sha512-aBGbMBtE+ljQG+s+W/divDcq3JjlxjfWgWcYMBzbpoo/O8MakZdmomegOkNnnrdAvWTSBkqX9yFnU9BBzNVeMg=="],
+    "@pie-players/pie-tool-tts-inline/@pie-players/pie-assessment-toolkit": ["@pie-players/pie-assessment-toolkit@0.3.66", "", { "dependencies": { "@pie-players/pie-calculator": "0.3.66", "@pie-players/pie-context": "0.3.66", "@pie-players/pie-players-shared": "0.3.66", "@pie-players/pie-tts": "0.3.66", "speech-rule-engine": "^5.0.0-rc.4" }, "peerDependencies": { "@pie-players/pie-calculator-desmos": "0.3.66", "@pie-players/tts-client-server": "0.3.66" }, "optionalPeers": ["@pie-players/pie-calculator-desmos", "@pie-players/tts-client-server"] }, "sha512-2Z1944A+hYFOYmXkl5djzX/L/EzK4XiGiGUt2ddnomXPSFj+Q0EhZRDJ9deqrAOcXYvV5Vv+TmSasyI3EnZ6ig=="],
 
-    "@pie-qti/default-components/svelte": ["svelte@5.56.8", "", { "dependencies": { "@jridgewell/remapping": "^2.3.4", "@jridgewell/sourcemap-codec": "^1.5.0", "@sveltejs/acorn-typescript": "^1.0.10", "@types/estree": "^1.0.5", "@types/trusted-types": "^2.0.7", "acorn": "^8.12.1", "aria-query": "5.3.1", "axobject-query": "^4.1.0", "clsx": "^2.1.1", "devalue": "^5.8.1", "esm-env": "^1.2.1", "esrap": "^2.2.12", "is-reference": "^3.0.3", "locate-character": "^3.0.0", "magic-string": "^0.30.11", "zimmerframe": "^1.1.2" } }, "sha512-PY8LOw7xP6c8IOiVqdo0sbbZVYhXRSfklOQLAUyGBKqjTX0wx/z4l/9J+PmBpmlLnxzEb1NqltxQ5/wZme/Cmg=="],
+    "@pie-players/pie-tool-tts-inline/@pie-players/pie-players-shared": ["@pie-players/pie-players-shared@0.3.66", "", { "dependencies": { "@pie-lib/math-rendering-module": "5.1.2", "dompurify": "^3.4.13", "semver": "^7.8.5" } }, "sha512-Uq9efTUNdShUnomFdWm0JqBY5MgXkifLcumLJwbtALepgWtr406CsrGVyCrXjQdJ+nMKkUj7BzxIpz3Hna+SZQ=="],
 
     "@pie-players/tts-client-server/@pie-players/pie-tts": ["@pie-players/pie-tts@0.3.65", "", {}, "sha512-ultRxhTgcRgk3mKHoaz92S0jekptdNxKPF32fZapM+5+NXgPBsskHRM+4ukHZnbJ9VT7SfLErPbkyXF6QYFjLg=="],
+
+    "@pie-qti/default-components/svelte": ["svelte@5.56.8", "", { "dependencies": { "@jridgewell/remapping": "^2.3.4", "@jridgewell/sourcemap-codec": "^1.5.0", "@sveltejs/acorn-typescript": "^1.0.10", "@types/estree": "^1.0.5", "@types/trusted-types": "^2.0.7", "acorn": "^8.12.1", "aria-query": "5.3.1", "axobject-query": "^4.1.0", "clsx": "^2.1.1", "devalue": "^5.8.1", "esm-env": "^1.2.1", "esrap": "^2.2.12", "is-reference": "^3.0.3", "locate-character": "^3.0.0", "magic-string": "^0.30.11", "zimmerframe": "^1.1.2" } }, "sha512-PY8LOw7xP6c8IOiVqdo0sbbZVYhXRSfklOQLAUyGBKqjTX0wx/z4l/9J+PmBpmlLnxzEb1NqltxQ5/wZme/Cmg=="],
 
     "@pnpm/network.ca-file/graceful-fs": ["graceful-fs@4.2.10", "", {}, "sha512-9ByhssR2fPVsNZj478qUUbKfmL0+t5BDVyjShtyZZLiK7ZDAArFFfopyOTj0M05wE2tJPisA4iTnnXl2YoPvOA=="],
 
@@ -1965,6 +1967,12 @@
     "@inquirer/search/@inquirer/core/signal-exit": ["signal-exit@4.1.0", "", {}, "sha512-bzyZ1e88w9O1iNJbKnOlvYTrWPDl46O1bG0D3XInv+9tkPrxrN8jUUTiFlDkkmKWgn1M6CfIA13SuGqOa9Korw=="],
 
     "@inquirer/search/@inquirer/core/wrap-ansi": ["wrap-ansi@6.2.0", "", { "dependencies": { "ansi-styles": "^4.0.0", "string-width": "^4.1.0", "strip-ansi": "^6.0.0" } }, "sha512-r6lPcBGxZXlIcymEu7InxDMhdW0KDxpLgoFLcguasxCaJ/SOIZwINatK9KY/tf+ZrlywOKU0UDj3ATXUBfxJXA=="],
+
+    "@pie-players/pie-tool-tts-inline/@pie-players/pie-assessment-toolkit/@pie-players/pie-calculator": ["@pie-players/pie-calculator@0.3.66", "", {}, "sha512-gx9sRAb7dmdPbhAK69SlpFsWJyZ/dV0/P7457X9IYoGCYAtaVTQ2kCs0PSCIyKPBOr+FuJmb3SNGYHAuORXXFg=="],
+
+    "@pie-players/pie-tool-tts-inline/@pie-players/pie-assessment-toolkit/@pie-players/pie-tts": ["@pie-players/pie-tts@0.3.66", "", {}, "sha512-6Uygc/+JBjt53uaXoetVPOKQnwdSq3yg5LGnWIfpyzQ0LqCUKMxUawrer5YpLE43dGsz3rY+DQmlOr2GEtBirA=="],
+
+    "@pie-players/pie-tool-tts-inline/@pie-players/pie-players-shared/@pie-lib/math-rendering-module": ["@pie-lib/math-rendering-module@5.1.2", "", {}, "sha512-3kmeAnBA48ferPZ0HElHhbPkiwcqN4xUhKzgVH3klfZM7RCkXopMfZi+pVTgf3ENhdQANzQQPMoGsgJu82qM/w=="],
 
     "@tailwindcss/node/lightningcss/lightningcss-android-arm64": ["lightningcss-android-arm64@1.32.0", "", { "os": "android", "cpu": "arm64" }, "sha512-YK7/ClTt4kAK0vo6w3X+Pnm0D2cf2vPHbhOXdoNti1Ga0al1P4TBZhwjATvjNwLEBCnKvjJc2jQgHXH0NEwlAg=="],
 
