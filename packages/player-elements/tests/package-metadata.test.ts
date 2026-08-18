@@ -16,7 +16,10 @@ describe('player-elements package metadata', () => {
 	test('keeps the register entrypoint side-effectful for package consumers', () => {
 		expect(packageJson.sideEffects).toContain('./dist/register.js');
 		expect(packageJson.sideEffects).toContain('./dist/register-players.js');
-		expect(packageJson.sideEffects).toContain('./dist/tag-names-*.js');
+		// Chunk name, not a source filename: rolldown derives it from an upstream
+		// module, so an @pie-players bump can rename it. It was './dist/tag-names-*.js'
+		// until the family moved to 0.3.67 and the code merged into the define chunk.
+		expect(packageJson.sideEffects).toContain('./dist/define-*.js');
 	});
 
 	test('publishes explicit SSR, default-runtime, and advanced browser entrypoints', () => {
