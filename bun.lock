@@ -366,7 +366,7 @@
       "dependencies": {
         "@pie-players/pie-assessment-toolkit": "0.3.53",
         "@pie-players/pie-calculator-desmos": "0.3.53",
-        "@pie-players/pie-context": "0.3.53",
+        "@pie-players/pie-context": "0.3.66",
         "@pie-players/pie-tool-calculator-desmos": "0.3.53",
         "@pie-players/pie-tool-tts-inline": "0.3.53",
         "@pie-players/tts-client-server": "0.3.53",
@@ -722,7 +722,7 @@
 
     "@pie-players/pie-calculator-desmos": ["@pie-players/pie-calculator-desmos@0.3.53", "", { "dependencies": { "@pie-players/pie-calculator": "0.3.53" } }, "sha512-LAnDhV81I/++mTXVAtl7cjlwPmXf5VUEGK8e24VEzZ7WHS0xyYH/gAZXZf/3QoC3qUrilPA1DV+2pkrp3hWnmw=="],
 
-    "@pie-players/pie-context": ["@pie-players/pie-context@0.3.53", "", {}, "sha512-aBGbMBtE+ljQG+s+W/divDcq3JjlxjfWgWcYMBzbpoo/O8MakZdmomegOkNnnrdAvWTSBkqX9yFnU9BBzNVeMg=="],
+    "@pie-players/pie-context": ["@pie-players/pie-context@0.3.66", "", {}, "sha512-50TIaWhzZkd1VI+JfSWYvqnjzBGmnv7sibK0GzRg2kS6I+93dfvT5TpOk313YI7X7EFetjBd3P2Btrg0MrbjSQ=="],
 
     "@pie-players/pie-players-shared": ["@pie-players/pie-players-shared@0.3.53", "", { "dependencies": { "@pie-lib/math-rendering-module": "5.0.0", "dompurify": "^3.4.0", "semver": "^7.7.4" } }, "sha512-+kawkqatbNHF1Fkp1a9Zx+jSTWx4WOFZYj+DxQgtjliak9EjKgzg0SS7ocwQ4CRl7yXQu/T55K1CZBHffVtccA=="],
 
@@ -1881,6 +1881,12 @@
     "@manypkg/get-packages/fs-extra": ["fs-extra@8.1.0", "", { "dependencies": { "graceful-fs": "^4.2.0", "jsonfile": "^4.0.0", "universalify": "^0.1.0" } }, "sha512-yhlQgA6mnOJUKOsRUFsgJdQCvkKhcz8tlZG5HBQfReYZy46OwLcY+Zia0mtdHsOo9y/hP+CxMN0TU9QxoOtG4g=="],
 
     "@oclif/core/ejs": ["ejs@6.0.1", "", { "bin": { "ejs": "bin/cli.js" } }, "sha512-UaaM14yby8U3k02ihS1Bmj5Kz2d7CCQM1scxpgs4Mhkq8F1wR2gl3+Ts4h5Ne4Mnt7M9m4Dw7jsuMr3+xO4vZA=="],
+
+    "@pie-players/pie-assessment-toolkit/@pie-players/pie-context": ["@pie-players/pie-context@0.3.53", "", {}, "sha512-aBGbMBtE+ljQG+s+W/divDcq3JjlxjfWgWcYMBzbpoo/O8MakZdmomegOkNnnrdAvWTSBkqX9yFnU9BBzNVeMg=="],
+
+    "@pie-players/pie-tool-calculator-desmos/@pie-players/pie-context": ["@pie-players/pie-context@0.3.53", "", {}, "sha512-aBGbMBtE+ljQG+s+W/divDcq3JjlxjfWgWcYMBzbpoo/O8MakZdmomegOkNnnrdAvWTSBkqX9yFnU9BBzNVeMg=="],
+
+    "@pie-players/pie-tool-tts-inline/@pie-players/pie-context": ["@pie-players/pie-context@0.3.53", "", {}, "sha512-aBGbMBtE+ljQG+s+W/divDcq3JjlxjfWgWcYMBzbpoo/O8MakZdmomegOkNnnrdAvWTSBkqX9yFnU9BBzNVeMg=="],
 
     "@pie-qti/default-components/svelte": ["svelte@5.56.8", "", { "dependencies": { "@jridgewell/remapping": "^2.3.4", "@jridgewell/sourcemap-codec": "^1.5.0", "@sveltejs/acorn-typescript": "^1.0.10", "@types/estree": "^1.0.5", "@types/trusted-types": "^2.0.7", "acorn": "^8.12.1", "aria-query": "5.3.1", "axobject-query": "^4.1.0", "clsx": "^2.1.1", "devalue": "^5.8.1", "esm-env": "^1.2.1", "esrap": "^2.2.12", "is-reference": "^3.0.3", "locate-character": "^3.0.0", "magic-string": "^0.30.11", "zimmerframe": "^1.1.2" } }, "sha512-PY8LOw7xP6c8IOiVqdo0sbbZVYhXRSfklOQLAUyGBKqjTX0wx/z4l/9J+PmBpmlLnxzEb1NqltxQ5/wZme/Cmg=="],
 
