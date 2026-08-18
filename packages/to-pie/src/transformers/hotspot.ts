@@ -94,10 +94,10 @@ export function transformHotspot(
   const multipleCorrect = options?.multipleCorrect ?? (maxChoices > 1 || correctAnswers.length > 1);
 
   // Extract image and dimensions
-  const { imageUrl, dimensions } = extractImage(hotspotInteraction, options);
+  const { imageUrl, dimensions, reason } = extractImage(hotspotInteraction, options);
 
   if (!dimensions) {
-    throw createMissingDimensionsError(imageUrl, { itemId });
+    throw createMissingDimensionsError(imageUrl, { itemId }, reason);
   }
 
   // Extract hotspot shapes
@@ -194,7 +194,7 @@ function extractCorrectAnswers(document: HTMLElement, responseIdentifier: string
 function extractImage(
   interaction: HTMLElement,
   options?: HotspotOptions
-): { imageUrl: string; dimensions: Dimensions | null } {
+): { imageUrl: string; dimensions: Dimensions | null; reason?: string } {
   // Remove prompt to avoid confusing it with image content
   const prompts = interaction.getElementsByTagName('prompt');
   for (const prompt of Array.from(prompts)) {
@@ -218,21 +218,18 @@ function extractImage(
 
   // Try to read from filesystem if itemFilePath provided
   if (options?.itemFilePath) {
-    try {
-      const imagePath = resolveImagePath(imageUrl, options.itemFilePath);
-      const dims = getImageDimensions(imagePath);
-      if (dims) {
-        return {
-          imageUrl,
-          dimensions: {
-            width: dims.width,
-            height: dims.height,
-          },
-        };
-      }
-    } catch (error) {
-      console.warn(`Could not read image dimensions from ${imageUrl}:`, error);
+    const imagePath = resolveImagePath(imageUrl, options.itemFilePath);
+    const measured = getImageDimensions(imagePath);
+    if (measured.dimensions) {
+      return {
+        imageUrl,
+        dimensions: {
+          width: measured.dimensions.width,
+          height: measured.dimensions.height,
+        },
+      };
     }
+    return { imageUrl, dimensions: null, reason: measured.reason };
   }
 
   // No dimensions available

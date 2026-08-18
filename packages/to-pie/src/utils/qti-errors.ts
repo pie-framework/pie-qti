@@ -102,7 +102,8 @@ export function createMissingImageError(
  */
 export function createMissingDimensionsError(
   imageUrl: string,
-  context: QtiErrorContext
+  context: QtiErrorContext,
+  reason?: string
 ): Error {
   let message = `Cannot determine image dimensions for '${imageUrl}'`;
 
@@ -111,6 +112,10 @@ export function createMissingDimensionsError(
   }
 
   message += `\n\nImage hotspots require exact dimensions to calculate coordinates.`;
+
+  if (reason) {
+    message += `\n\nReason: ${reason}`;
+  }
 
   message += `\n\nSolutions:`;
   message += `\n  1. Add width/height attributes to the image element:`;
