@@ -1,6 +1,6 @@
 # PCI Runtime Engine and Sandbox Plan
 
-**Status**: Proposed
+**Status**: Proposed, not scheduled — the ingest driver was measured and is absent
 **Last reviewed**: 2026-08-17
 **Scope**: `packages/item-player/src/pci/`,
 `packages/item-player/src/interactions/portable-custom/`,
@@ -297,20 +297,44 @@ security posture and does not gate anything else.
 
 ---
 
-## Driver: Ingest, Not Portability
+## Driver: Measured, And Absent
 
-The reason to do this is inbound content. Composer's corpus triage classifies PCI
-and `customInteraction` items as `manual_only` against the fallback component, so
-packages already arriving from third-party sources carry PCIs the pipeline cannot
-play. Phases 1–3 close that; nothing about them depends on a certification claim.
+Phases 1–4 are **not scheduled**. The ingest driver was measured against
+Composer's corpus research on 2026-08-17 and does not exist yet.
 
-PCI certification is therefore a data-driven decision rather than a positioning
-one. The corpus triage already counts how often ingested packages carry PCIs: if
-that frequency is negligible, do phases 1–3 for ingest quality and skip the claim;
-if it is not, the claim follows from work already done. Official suite commit
-`b058156` ships no PCI packages while Cito holds Delivery-PCI and Import-PCI, so
-scope the test-content source with 1EdTech before committing either way.
-Submission strategy lives in the private conformance project.
+| Corpus | PCI signal |
+| ------ | ---------- |
+| Partner third-party corpus — ~17,175 package candidates, ~598,000 items, ~709,000 interactions | PCI appears in the long tail only, with no count. An earlier scan found 11,090 QTI 2.1 packages, 83 QTI 2.2, **no QTI 3.0 packages** |
+| Known-PIE subset — 416,304 inputs | 30 `customInteraction`, **zero** `portableCustomInteraction`, 36 in the whole custom/graph/drawing/upload/PCI-like risk bucket |
+| Local standards/conformance corpus — ~2,901 profiled documents | 60 `customInteraction`, 49 PCI-signal documents |
+
+The 49 PCI-signal documents sit in the standards corpus, which the source
+explicitly treats as conformance material rather than partner-intake realism.
+Real intake carries roughly 30 custom interactions in 598,000 items, and they are
+the opaque QTI 2.x kind, not portable ones.
+
+The zero-known-PIE count invites a selection-effect objection — PCI content would
+be blocked before becoming PIE, so a subset of successful conversions would
+undercount it. The version strata answer that: standardized PCI is a QTI 3.0
+construct and the partner scan found no QTI 3.0 packages at all, so the rule that
+blocks unsupported QTI 3.0 constructs is firing on approximately nothing.
+
+**Decision:** PCI relevance tracks QTI 3.0 adoption in partner content, not PCI
+itself. Revisit when QTI 3.0 packages appear in intake at any material rate; the
+existing corpus tooling already measures that, so this is a periodic lookup rather
+than an investigation. Until then the opaque-`customInteraction` fallback —
+warning banner, manual response, blocked-for-review — is proportionate handling
+for 30 items.
+
+PCI certification follows the same finding and is not pursued. Official suite
+commit `b058156` ships no PCI packages while Cito holds Delivery-PCI and
+Import-PCI, so the test-content source would need scoping with 1EdTech first;
+that question stays open but unasked. Submission strategy lives in the private
+conformance project.
+
+What already landed stands on its own merits and is unaffected: the response
+ownership fix corrected a live defect, and `createAllowlistPciModuleResolver`
+makes the existing host path usable by anyone who does meet a PCI.
 
 ---
 
