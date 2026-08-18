@@ -37,9 +37,11 @@
     "@pie-qti/ims-cp-node": "workspace:*",
     "@pie-qti/transform-core": "workspace:*",
     "@pie-qti/transform-types": "workspace:*",
+    "fast-xml-parser": "^5.10.1",
     "image-size": "^2.0.2",
     "node-html-parser": "^9.0.1",
-    "uuid": "^14.0.1"
+    "uuid": "^14.0.1",
+    "xmllint-wasm": "^5.3.0"
   },
   "devDependencies": {
     "@pie-qti/test-utils": "workspace:*",
@@ -63,6 +65,7 @@
     "node": ">=20.19.0"
   },
   "files": [
-    "dist"
+    "dist",
+    "schemas"
   ]
 }

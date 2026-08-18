@@ -101,13 +101,21 @@ export { extractDataAttributes, extractPieExtension, hasPieExtension, PIE_NAMESP
 // QTI extension utilities for lossless round-trip
 export type { QtiExtensionMetadata } from './utils/qti-extension-embedder.js';
 export { embedQtiSourceInPie, extractQtiSourceFromPie, hasQtiSource, QTI_NAMESPACE, QTI_PREFIX } from './utils/qti-extension-embedder.js';
-export type { ValidationError, ValidationResult as QtiValidationResult, ValidationWarning, ValidatorOptions } from './utils/qti-validator.js';
+export type {
+  QtiSchemaVersion,
+  ValidationError,
+  ValidationResult as QtiValidationResult,
+  ValidationWarning,
+  ValidatorOptions,
+} from './utils/qti-validator.js';
 // Validation utilities
 export {
+  detectQtiSchemaVersion,
   isAssessmentTestDocument,
-  qtiDocumentRootName,
   QtiValidator,
+  qtiDocumentRootName,
   validateQti,
+  validateQtiBatch,
 } from './utils/qti-validator.js';
 // CDATA unwrapping for markup bound for PIE models
 export { unwrapCdataSections } from './utils/cdata.js';
