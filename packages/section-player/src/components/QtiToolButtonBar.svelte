@@ -2,11 +2,20 @@
 	import {
 		assessmentToolkitRegionScopeContext,
 		assessmentToolkitShellContext,
-		createPackagedToolRegistry,
 		ToolkitCoordinator,
+		ToolRegistry,
 		type AssessmentToolkitRegionScopeContext,
 		type AssessmentToolkitShellContext,
 	} from '@pie-players/pie-assessment-toolkit';
+	// pie-assessment-toolkit 0.3.65 moved the concrete tool registrations out of the
+	// toolkit core, so a host composes the capabilities it wants. The two
+	// registrations are imported individually rather than through
+	// createPackagedToolRegistry(), whose PACKAGED_TOOL_REGISTRATIONS statically
+	// references all eleven packaged tools and so drags every one into the bundle.
+	import {
+		calculatorToolRegistration,
+		ttsToolRegistration,
+	} from '@pie-players/pie-default-tool-loaders';
 	import { ContextProvider, ContextRoot } from '@pie-players/pie-context';
 	import type { QtiSectionToolConfig } from '../contracts/index.js';
 	import { resolveSectionTtsProviderConfig } from '../tools/section-tool-config.js';
@@ -57,13 +66,25 @@
 	const contentKind = $derived(scopeLabel === 'passage' ? 'rubric-block-stimulus' : 'assessment-item');
 	const level = $derived(scopeLabel === 'passage' ? 'passage' : 'item');
 	const sourceMarkup = $derived(sourceXml.trim() || sourceText.trim());
-	const toolRegistry = createPackagedToolRegistry({
-		toolIds: ['textToSpeech', 'calculator'],
-		toolModuleLoaders: {
+	// The toolkit core no longer ships a default tag map either, for the same reason:
+	// a map names capabilities, so it belongs to whoever decides which exist. These
+	// two entries mirror PACKAGED_TOOL_TAG_MAP.
+	const toolRegistry = (() => {
+		const registry = new ToolRegistry();
+		registry.register(ttsToolRegistration);
+		registry.register(calculatorToolRegistration);
+		registry.setComponentOverrides({
+			toolTagMap: {
+				textToSpeech: 'pie-tool-text-to-speech',
+				calculator: 'pie-tool-calculator',
+			},
+		});
+		registry.setToolModuleLoaders({
 			textToSpeech: () => import('@pie-players/pie-tool-tts-inline'),
 			calculator: () => import('@pie-players/pie-tool-calculator-desmos'),
-		},
-	});
+		});
+		return registry;
+	})();
 	const ttsProvider = $derived(visibleTools.find((tool) => tool.toolId === 'textToSpeech')?.provider ?? {});
 	const calculatorParams = $derived(calculatorTool?.renderParams ?? {});
 	const toolsConfig = $derived({

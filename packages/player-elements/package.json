@@ -62,7 +62,7 @@
   "sideEffects": [
     "./dist/register.js",
     "./dist/register-players.js",
-    "./dist/tag-names-*.js"
+    "./dist/define-*.js"
   ],
   "engines": {
     "node": ">=20.19.0"
