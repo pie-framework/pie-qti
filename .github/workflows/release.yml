@@ -284,7 +284,7 @@ jobs:
       - name: Create Release Pull Request or Publish to NPM
         if: github.event_name == 'workflow_dispatch' || steps.detect.outputs.has_changesets == 'true' || steps.detect.outputs.should_publish == 'true' || steps.temp_changeset.outputs.created == 'true'
         id: changesets
-        uses: changesets/action@v1
+        uses: changesets/action@v2
         with:
           # release script handles: workspace range rewriting, build, publish, restore
           publish: node scripts/changeset-publish-resolved-workspaces.mjs

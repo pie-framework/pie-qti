@@ -28,9 +28,21 @@ export class PciHost implements PciHostController {
 	private loadGeneration = 0;
 	private _response: unknown = null;
 	private _hasResponse = false;
+	/**
+	 * True once a mounted module has reported a response. While set, the module
+	 * is the source of truth and `offerResponse()` will not overwrite it.
+	 */
+	private _moduleOwnsResponse = false;
+	/**
+	 * True between an authoritative `restore()` and the rebuild that applies it.
+	 * The mounted module still holds the superseded value during that window, so
+	 * `getResponse()` must report the held one.
+	 */
+	private _restorePending = false;
 	private readonly _responseChangeListeners = new Set<
 		(responseId: string, value: unknown) => void
 	>();
+	private readonly _remountRequestListeners = new Set<() => void>();
 
 	constructor(data: ExtractedPci, options: PciHostOptions | string = {}) {
 		this.data = data;
@@ -45,6 +57,20 @@ export class PciHost implements PciHostController {
 	public onResponseChange(callback: (responseId: string, value: unknown) => void): () => void {
 		this._responseChangeListeners.add(callback);
 		return () => this._responseChangeListeners.delete(callback);
+	}
+
+	/**
+	 * Register a callback fired when an authoritative `restore()` lands on a
+	 * mounted module and the module must be rebuilt from the restored value.
+	 *
+	 * The renderer owns the DOM scaffold and its sanitization, so it performs the
+	 * rebuild: reset the sanitized markup into the mount node, then call
+	 * `remount(node)`. A host with no renderer wired here still gets the restored
+	 * value applied — see `restore()`.
+	 */
+	public onRemountRequest(callback: () => void): () => void {
+		this._remountRequestListeners.add(callback);
+		return () => this._remountRequestListeners.delete(callback);
 	}
 
 	/**
@@ -101,6 +127,8 @@ export class PciHost implements PciHostController {
 			onResponseChange: (value: unknown) => {
 				this._response = value;
 				this._hasResponse = true;
+				this._moduleOwnsResponse = true;
+				this._restorePending = false;
 				for (const listener of this._responseChangeListeners) {
 					listener(this.data.responseIdentifier, value);
 				}
@@ -112,6 +140,8 @@ export class PciHost implements PciHostController {
 			if (this._hasResponse) {
 				this.module.setResponse(this._response);
 			}
+			// The module now holds the held value, however it got there.
+			this._restorePending = false;
 		} catch (error) {
 			const failedModule = this.module;
 			this.module = null;
@@ -122,14 +152,76 @@ export class PciHost implements PciHostController {
 
 	/** Return the current response value from the PCI module. */
 	public getResponse(): unknown {
+		if (this._restorePending) return this._response;
 		return this.module ? this.module.getResponse() : this._response;
 	}
 
-	/** Restore a response value into the PCI module (e.g. from session state). */
-	public setResponse(value: unknown): void {
+	/**
+	 * Offer a response the player believes to be current.
+	 *
+	 * Declined once a mounted module has reported a response of its own. The
+	 * player's response map echoes every change back through `setResponses`, so
+	 * an unconditional push would hand the module its own value mid-interaction
+	 * and rebuild whatever internal state — selection, cursor, undo history —
+	 * the module derives from it. Use `restore()` when the player's value must
+	 * win regardless.
+	 *
+	 * @returns `false` when the module retained ownership and the value was not applied.
+	 */
+	public offerResponse(value: unknown): boolean {
+		if (this._moduleOwnsResponse) return false;
 		this._response = value;
 		this._hasResponse = true;
-		this.module?.setResponse(value);
+		if (this.module) {
+			this.module.setResponse(value);
+			this._restorePending = false;
+		}
+		return true;
+	}
+
+	/**
+	 * Authoritatively replace the response, discarding in-progress candidate
+	 * state and returning ownership to the player.
+	 *
+	 * A mounted module is rebuilt from the restored value rather than mutated
+	 * where a renderer is wired to `onRemountRequest`: "discard candidate state"
+	 * is what re-instantiation means, and it is the only form the QTI 3.0 PCI
+	 * contract offers, since state is injected at `getInstance` and there is no
+	 * setter. Until the rebuild lands, `getResponse()` reports the restored value
+	 * rather than the module's superseded one.
+	 *
+	 * With no rebuild path wired, the value is pushed into the module directly.
+	 * That mutates rather than discards candidate state, which is all a host
+	 * without a scaffold owner can do, and it keeps reset-to-default and session
+	 * restore effective for consumers driving `PciHost` themselves. Before mount,
+	 * the value is held and applied by `initialize()`.
+	 */
+	public restore(value: unknown): void {
+		this._response = value;
+		this._hasResponse = true;
+		this._moduleOwnsResponse = false;
+		if (!this.module) return;
+		if (this._remountRequestListeners.size === 0) {
+			this.module.setResponse(value);
+			return;
+		}
+		this._restorePending = true;
+		for (const listener of this._remountRequestListeners) listener();
+	}
+
+	/**
+	 * Rebuild the module in place from the currently held response.
+	 *
+	 * The caller must reset the sanitized DOM scaffold into `dom` first: this
+	 * discards the previous module instance, resolves a fresh one through the
+	 * host resolver, and initializes it, which seeds the held response.
+	 */
+	public async remount(dom: HTMLElement): Promise<void> {
+		if (this.destroyed) throw new Error('Cannot remount a destroyed PciHost');
+		this.module?.destroy();
+		this.module = null;
+		await this.load();
+		this.initialize(dom);
 	}
 
 	/** Disable the PCI (e.g. when role is not candidate, or after final submission). */
@@ -149,6 +241,7 @@ export class PciHost implements PciHostController {
 		this.module?.destroy();
 		this.module = null;
 		this._responseChangeListeners.clear();
+		this._remountRequestListeners.clear();
 	}
 
 	// ---------------------------------------------------------------------------
@@ -196,6 +289,8 @@ export class PciHost implements PciHostController {
 		}
 		this.module?.destroy();
 		this.module = candidate;
+		// A freshly adopted module has reported nothing yet.
+		this._moduleOwnsResponse = false;
 	}
 
 	/**

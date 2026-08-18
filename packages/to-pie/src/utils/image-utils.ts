@@ -5,8 +5,53 @@
  */
 
 import { existsSync, readFileSync } from 'fs';
-import sizeOf from 'image-size';
+import sizeOf, { disableTypes } from 'image-size';
 import { dirname, resolve } from 'path';
+
+/**
+ * Parsers disabled in image-size because they hang on crafted input.
+ *
+ * to-pie measures images that come out of ingested QTI content packages, so the
+ * bytes are attacker-controlled. Three of image-size's parsers loop forever on a
+ * zero-valued length field, blocking the event loop for the whole conversion:
+ *
+ * - GHSA-w3rx-r6r6-pgpr - ICNS: a zero entry length never advances imageOffset.
+ * - GHSA-5p2g-fcmc-qvqq - JXL/HEIF: a zero-size box never advances the offset in
+ *   extractPartialStreams(), which recomputes it from box.size.
+ *
+ * Neither has an upstream fix as of image-size 2.0.2. disableTypes() rejects the
+ * type during detection, before calculate() runs; the validate() functions these
+ * still go through are loop-free. 'jxl-stream' is listed because JXL.calculate()
+ * delegates to it. Drop an entry once its advisory is patched.
+ *
+ * disableTypes() mutates image-size's own module state, so it is applied on first
+ * measurement rather than at import: importing to-pie must not silently change
+ * what an unrelated image-size caller in the same process can measure.
+ */
+type ImageParserType = Parameters<typeof disableTypes>[0][number];
+
+const DISABLED_IMAGE_TYPES: ImageParserType[] = ['heif', 'icns', 'jxl', 'jxl-stream'];
+
+let hangingParsersDisabled = false;
+
+function disableHangingParsers(): void {
+  if (hangingParsersDisabled) return;
+  disableTypes(DISABLED_IMAGE_TYPES);
+  hangingParsersDisabled = true;
+}
+
+/**
+ * True when image-size refused the buffer because the format is disabled above or
+ * simply unrecognised. Not a fault worth reporting: callers treat an unmeasured
+ * image as "no dimensions" and carry on.
+ */
+function isUnmeasurableType(error: unknown): boolean {
+  return (
+    error instanceof TypeError &&
+    (error.message.startsWith('disabled file type:') ||
+      error.message.startsWith('unsupported file type:'))
+  );
+}
 
 export interface ImageDimensions {
   width: number;
@@ -22,6 +67,8 @@ export function getImageDimensions(imagePath: string): ImageDimensions | undefin
   if (!existsSync(imagePath)) {
     return undefined;
   }
+
+  disableHangingParsers();
 
   try {
     // Read file as buffer
@@ -39,7 +86,9 @@ export function getImageDimensions(imagePath: string): ImageDimensions | undefin
       type: dimensions.type,
     };
   } catch (error) {
-    console.error(`Error reading image dimensions for ${imagePath}:`, error);
+    if (!isUnmeasurableType(error)) {
+      console.error(`Error reading image dimensions for ${imagePath}:`, error);
+    }
     return undefined;
   }
 }
@@ -49,6 +98,8 @@ export function getImageDimensions(imagePath: string): ImageDimensions | undefin
  * Bun-compatible implementation
  */
 export function getImageDimensionsFromBuffer(buffer: Buffer): ImageDimensions | undefined {
+  disableHangingParsers();
+
   try {
     // Convert to Uint8Array for Bun compatibility
     const uint8Array = new Uint8Array(buffer);
@@ -60,7 +111,9 @@ export function getImageDimensionsFromBuffer(buffer: Buffer): ImageDimensions | 
       type: dimensions.type,
     };
   } catch (error) {
-    console.error('Error reading image dimensions from buffer:', error);
+    if (!isUnmeasurableType(error)) {
+      console.error('Error reading image dimensions from buffer:', error);
+    }
     return undefined;
   }
 }

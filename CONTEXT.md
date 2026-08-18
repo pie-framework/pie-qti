@@ -69,6 +69,7 @@
 | Term | Definition | Aliases to avoid |
 | ---- | ---------- | ---------------- |
 | **QTI** | The IMS/1EdTech XML standard for assessment content interchange. | IMS format |
+| **QTI 2.1** | A supported ingest version with no certification path; the 1EdTech 2.1 line is closed. | QTI 2.x certification target |
 | **QTI 2.2** | The supported QTI 2.x certification target in this project. | QTI2 |
 | **QTI 3.0** | The supported QTI 3.x certification target in this project. | QTI3 |
 | **Shared Vocabulary** | QTI 3.0 CSS class vocabulary that carries standardized rendering semantics. | CSS hints, Styling classes |

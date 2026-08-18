@@ -111,6 +111,11 @@ export type {
 } from './pci/types.js';
 export { PciLoadError, PciModuleResolverRequiredError } from './pci/types.js';
 export { PciHost } from './pci/PciHost.js';
+export {
+	createAllowlistPciModuleResolver,
+	PciModuleNotAllowedError,
+} from './pci/allowlistResolver.js';
+export type { AllowlistPciResolverOptions } from './pci/allowlistResolver.js';
 
 // Re-export QTI heuristics from @pie-qti/ims-cp-core for convenience
 // (heuristics are now in the shared ingestion layer)

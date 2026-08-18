@@ -14,8 +14,30 @@ bundles, checklist work, and submission planning live in the private
 > score assertions against published NPM artifacts.
 
 The private runner deliberately installs published package versions only. It cannot validate an
-unpublished working tree, workspace link, or local tarball, so the current remediation must first
-be released as a candidate and pinned there before official-suite results can be attributed to it.
+unpublished working tree, workspace link, or local tarball, so official-suite results always attach
+to a published version. `0.1.21` is the confirmed candidate, with all four QTI 2.2 and QTI 3.0 Basic
+and Advanced DELIVERY suites green. Anything released after it — `0.1.22` included, which touched item
+rendering — needs a re-run before its results count, not just a re-pin.
+
+## Certifiable Lines
+
+1EdTech issues QTI certifications per product, per version, per capability, per
+level. `pie-qti` targets the DELIVERY capability, which subsumes the IMPORT
+criteria at the same level.
+
+| Line | Status |
+| ---- | ------ |
+| QTI 2.2 Basic / Advanced DELIVERY | Open for new certifications |
+| QTI 3.0 Basic / Advanced DELIVERY | Open for new certifications |
+| QTI 3.0 Elevated Accessibility | Open; requires QTI 3.0 Advanced first |
+| QTI 2.1 DELIVERY | **Closed.** No new certifications after 2023-12-31, no recertifications after 2024-09-30, and all v2.1 application certifications expired 2024-12-31 |
+
+Levels are prerequisite-chained (Basic → Advanced → Elective), so an Advanced
+claim presupposes Basic for the same version.
+
+QTI 2.1 support in this project is an ingest and compatibility capability, not a
+certification target, and cannot become one. Roadmap or coverage docs that group
+"2.1, 2.2, 3.0" describe spec coverage, never certification scope.
 
 ## Files
 

@@ -2,11 +2,20 @@
 	import {
 		assessmentToolkitRegionScopeContext,
 		assessmentToolkitShellContext,
-		createPackagedToolRegistry,
 		ToolkitCoordinator,
+		ToolRegistry,
 		type AssessmentToolkitRegionScopeContext,
 		type AssessmentToolkitShellContext,
 	} from '@pie-players/pie-assessment-toolkit';
+	// pie-assessment-toolkit 0.3.65 moved the concrete tool registrations out of the
+	// toolkit core, so a host composes the capabilities it wants. The two
+	// registrations are imported individually rather than through
+	// createPackagedToolRegistry(), whose PACKAGED_TOOL_REGISTRATIONS statically
+	// references all eleven packaged tools and so drags every one into the bundle.
+	import {
+		calculatorToolRegistration,
+		ttsToolRegistration,
+	} from '@pie-players/pie-default-tool-loaders';
 	import { ContextProvider, ContextRoot } from '@pie-players/pie-context';
 	import type { QtiSectionToolConfig } from '../contracts/index.js';
 	import { resolveSectionTtsProviderConfig } from '../tools/section-tool-config.js';
@@ -57,13 +66,25 @@
 	const contentKind = $derived(scopeLabel === 'passage' ? 'rubric-block-stimulus' : 'assessment-item');
 	const level = $derived(scopeLabel === 'passage' ? 'passage' : 'item');
 	const sourceMarkup = $derived(sourceXml.trim() || sourceText.trim());
-	const toolRegistry = createPackagedToolRegistry({
-		toolIds: ['textToSpeech', 'calculator'],
-		toolModuleLoaders: {
+	// The toolkit core no longer ships a default tag map either, for the same reason:
+	// a map names capabilities, so it belongs to whoever decides which exist. These
+	// two entries mirror PACKAGED_TOOL_TAG_MAP.
+	const toolRegistry = (() => {
+		const registry = new ToolRegistry();
+		registry.register(ttsToolRegistration);
+		registry.register(calculatorToolRegistration);
+		registry.setComponentOverrides({
+			toolTagMap: {
+				textToSpeech: 'pie-tool-text-to-speech',
+				calculator: 'pie-tool-calculator',
+			},
+		});
+		registry.setToolModuleLoaders({
 			textToSpeech: () => import('@pie-players/pie-tool-tts-inline'),
 			calculator: () => import('@pie-players/pie-tool-calculator-desmos'),
-		},
-	});
+		});
+		return registry;
+	})();
 	const ttsProvider = $derived(visibleTools.find((tool) => tool.toolId === 'textToSpeech')?.provider ?? {});
 	const calculatorParams = $derived(calculatorTool?.renderParams ?? {});
 	const toolsConfig = $derived({
@@ -104,7 +125,6 @@
 			],
 		},
 	});
-	const observedIconFallbackRoots = new WeakSet<Node>();
 	const effectiveScopeElement = $derived(scopeElement || shellHost);
 	const readableTrackingSelector =
 		'p,h1,h2,h3,h4,h5,h6,li,label,td,th,blockquote,figcaption,[role="heading"],[role="listitem"],[role="radio"],.qti-choice-prompt,.qti-choice-text';
@@ -277,6 +297,19 @@
 		return mapProjectionRangeToVisibleRange(range, sourceBlock, visibleBlock);
 	}
 
+	/**
+	 * Stop pie-assessment-toolkit from injecting FontAwesome into this page.
+	 *
+	 * Its ItemToolBar appends FontAwesome Free from jsDelivr plus host-relative
+	 * /_fa-pro/*.min.css links at import time, expecting the embedding app to serve
+	 * FontAwesome Pro — Quiz Engine does; this repo does not, so those requests 404.
+	 * The injection is skipped when a stylesheet whose href matches
+	 * /font.?awesome|fa-?pro/i is already present, so a dummy data: URL suppresses it.
+	 *
+	 * This runs regardless of the `ndsIcons` opt-in: the toolkit injects on import, not
+	 * on the decision to render vendored icon buttons. Removing it brings the 404s back,
+	 * which apps/demo/tests/playwright/section-player.pw.ts asserts against.
+	 */
 	function ensureFontAwesomeFallbackMarker() {
 		if (typeof document === 'undefined') return;
 		const hasFontAwesomeLink = Array.from(document.querySelectorAll('link[rel="stylesheet"][href]')).some((link) =>
@@ -289,43 +322,7 @@
 		document.head.appendChild(link);
 	}
 
-	function createIconFallbackSvg(iconName: string): SVGSVGElement | null {
-		if (typeof document === 'undefined') return null;
-		const paths: Record<string, string[]> = {
-			calculator: ['M6 3.5h8A1.5 1.5 0 0 1 15.5 5v10A1.5 1.5 0 0 1 14 16.5H6A1.5 1.5 0 0 1 4.5 15V5A1.5 1.5 0 0 1 6 3.5Z', 'M6.5 6.5h7', 'M7 9h1', 'M10 9h1', 'M13 9h0', 'M7 12h1', 'M10 12h1', 'M13 12h0'],
-			'chevron-left': ['M12.5 4.5 7 10l5.5 5.5'],
-			'chevron-right': ['M7.5 4.5 13 10l-5.5 5.5'],
-			'chevron-up': ['M4.5 12.5 10 7l5.5 5.5'],
-			'chevron-down': ['M4.5 7.5 10 13l5.5-5.5'],
-			'magnifying-glass-minus': ['M8.5 4.5a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z', 'M11.5 11.5 15.5 15.5', 'M6.5 8.5h4'],
-			'magnifying-glass-plus': ['M8.5 4.5a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z', 'M11.5 11.5 15.5 15.5', 'M6.5 8.5h4', 'M8.5 6.5v4'],
-			xmark: ['M5 5l10 10', 'M15 5 5 15'],
-		};
-		const iconPaths = paths[iconName];
-		if (!iconPaths) return null;
-
-		const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-		svg.setAttribute('data-pie-qti-icon-fallback', iconName);
-		svg.setAttribute('aria-hidden', 'true');
-		svg.setAttribute('viewBox', '0 0 20 20');
-		svg.setAttribute('fill', 'none');
-		svg.setAttribute('width', '1em');
-		svg.setAttribute('height', '1em');
-		svg.style.display = 'block';
-		svg.style.pointerEvents = 'none';
-
-		for (const pathData of iconPaths) {
-			const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-			path.setAttribute('d', pathData);
-			path.setAttribute('stroke', 'currentColor');
-			path.setAttribute('stroke-width', '1.8');
-			path.setAttribute('stroke-linecap', 'round');
-			path.setAttribute('stroke-linejoin', 'round');
-			svg.appendChild(path);
-		}
-
-		return svg;
-	}
+	ensureFontAwesomeFallbackMarker();
 
 	function collectQueryableRoots(root: ParentNode, roots: ParentNode[] = [], seen = new WeakSet<object>()) {
 		if (seen.has(root)) return roots;
@@ -355,89 +352,6 @@
 		}
 		return elements;
 	}
-
-	function inferFontAwesomeIconName(icon: HTMLElement, explicitIconName = '') {
-		if (explicitIconName) return explicitIconName;
-		const ignoredClasses = new Set(['fa-regular', 'fa-solid', 'fa-light', 'fa-thin', 'fa-duotone', 'fa-sharp']);
-		const iconClass = Array.from(icon.classList).find((className) => className.startsWith('fa-') && !ignoredClasses.has(className));
-		return iconClass?.replace(/^fa-/, '') ?? '';
-	}
-
-	function patchFontAwesomeIcon(icon: HTMLElement, explicitIconName = '') {
-		const iconName = inferFontAwesomeIconName(icon, explicitIconName);
-		if (!iconName) return;
-		const renderRoot = icon.parentElement ?? icon;
-		if (renderRoot.querySelector('[data-pie-qti-icon-fallback]')) return;
-		const fallback = createIconFallbackSvg(iconName);
-		if (!fallback) return;
-		icon.style.display = 'none';
-		icon.insertAdjacentElement('afterend', fallback);
-	}
-
-	function patchNdsIconButton(button: Element) {
-		const renderRoot: ParentNode = (button as HTMLElement).shadowRoot ?? button;
-		if (renderRoot.querySelector('[data-pie-qti-icon-fallback]')) return;
-		const icon = renderRoot.querySelector('i.nds-icon-button__icon, i[class*="fa-"]') as HTMLElement | null;
-		if (!icon) return;
-		patchFontAwesomeIcon(icon, button.getAttribute('icon-name') ?? '');
-	}
-
-	function patchNdsIconButtons(root: ParentNode = document) {
-		const buttons = queryElementsIncludingOpenShadowRoots(root, 'nds-icon-button');
-		for (const button of buttons) {
-			patchNdsIconButton(button);
-		}
-	}
-
-	function patchPiePlayersFontAwesomeIcons(root: ParentNode = document) {
-		const icons = queryElementsIncludingOpenShadowRoots(root, 'i[class*="fa-calculator"]').filter((icon): icon is HTMLElement => icon instanceof HTMLElement);
-		for (const icon of icons) {
-			patchFontAwesomeIcon(icon);
-		}
-	}
-
-	function patchPiePlayersIconFallbacks(root: ParentNode = document) {
-		patchNdsIconButtons(root);
-		patchPiePlayersFontAwesomeIcons(root);
-	}
-
-	function schedulePiePlayersIconFallbackPatch(root: ParentNode = document) {
-		patchPiePlayersIconFallbacks(root);
-		requestAnimationFrame(() => patchPiePlayersIconFallbacks(root));
-		setTimeout(() => patchPiePlayersIconFallbacks(root), 50);
-		setTimeout(() => patchPiePlayersIconFallbacks(root), 250);
-	}
-
-	function observeIconFallbackRoots(observer: MutationObserver, root: ParentNode = document) {
-		for (const queryRoot of collectQueryableRoots(root)) {
-			if (!(queryRoot instanceof Node) || observedIconFallbackRoots.has(queryRoot)) continue;
-			observer.observe(queryRoot, { childList: true, subtree: true });
-			observedIconFallbackRoots.add(queryRoot);
-		}
-	}
-
-	function installPiePlayersIconFallbacks() {
-		if (typeof window === 'undefined' || typeof document === 'undefined') return;
-		const fallbackWindow = window as typeof window & { __pieQtiNdsIconFallbackInstalled?: boolean };
-		ensureFontAwesomeFallbackMarker();
-		schedulePiePlayersIconFallbackPatch();
-		if (fallbackWindow.__pieQtiNdsIconFallbackInstalled) return;
-		fallbackWindow.__pieQtiNdsIconFallbackInstalled = true;
-		const observer = new MutationObserver((mutations) => {
-			observeIconFallbackRoots(observer);
-			for (const mutation of mutations) {
-				for (const node of Array.from(mutation.addedNodes)) {
-					if (node instanceof Element) {
-						observeIconFallbackRoots(observer, node);
-						schedulePiePlayersIconFallbackPatch(node);
-					}
-				}
-			}
-		});
-		observeIconFallbackRoots(observer);
-	}
-
-	installPiePlayersIconFallbacks();
 
 	$effect(() => {
 		if (toolkitCoordinator) return;

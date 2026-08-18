@@ -188,6 +188,28 @@ host origin.
 Portable Custom Interaction execution is disabled unless the host supplies a trusted
 `pci.moduleResolver`. Authored module paths are never imported directly by default.
 
+`createAllowlistPciModuleResolver` builds a resolver that imports only from allow-listed origins
+and/or absolute URL prefixes, refusing non-http(s) schemes outright. Passing it is still the host's
+trust decision; it exists so the security-critical check does not have to be rewritten per host.
+
+```ts
+import { createAllowlistPciModuleResolver } from '@pie-qti/item-player';
+
+const pci = {
+  // Authored relative paths resolve against this, so it must itself be allow-listed.
+  baseUrl: 'https://cdn.example.com/pci/item-1/',
+  moduleResolver: createAllowlistPciModuleResolver({
+    allowedOrigins: ['https://cdn.example.com'],
+    allowedPathPrefixes: ['https://cdn.example.com/pci/'],
+  }),
+};
+```
+
+Prefixes are matched against the normalized URL, so an authored `../../secrets/token.js` resolves to
+`https://cdn.example.com/secrets/token.js` and is refused. Traversal that stays inside the prefix is
+not a traversal: normalization is the whole check, so keep the prefix as narrow as the deployment
+allows.
+
 ## Server scoring
 
 `@pie-qti/item-player/server` exports a DOM-free definition/session interface with the same ownership

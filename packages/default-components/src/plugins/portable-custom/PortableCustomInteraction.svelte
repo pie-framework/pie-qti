@@ -56,8 +56,42 @@
 	let host: PciHostController | null = $state(null);
 	let status: LoadStatus = $state('idle');
 	let errorMessage = $state<string | null>(null);
+	// The module's own reports round-trip through the `response` prop. Tracking
+	// the last emitted value keeps that echo from re-entering the module.
+	let lastEmitted: unknown = undefined;
+	let hasEmitted = false;
+
+	// Interactive descendants, in document order, for restoring focus after a
+	// rebuild. Negative tabindex is excluded: it is reachable by script only.
+	const FOCUSABLE_SELECTOR =
+		'a[href],area[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),' +
+		'textarea:not([disabled]),iframe,[contenteditable="true"],[tabindex]:not([tabindex^="-"])';
+
+	/** Reset the module's DOM scaffold and the per-instance echo tracking. */
+	function resetScaffold(target: HTMLElement, markup: unknown) {
+		// A fresh module has emitted nothing yet.
+		hasEmitted = false;
+		lastEmitted = undefined;
+		status = 'loading';
+		errorMessage = null;
+		// Keep TrustedHTML opaque until the DOM sink. Raw standalone strings are
+		// sanitized and finalized by `safeMarkup` above.
+		target.innerHTML = markup as any;
+	}
+
+	function holdsFocus(target: HTMLElement): boolean {
+		const root = target.getRootNode() as Document | ShadowRoot;
+		const active = root.activeElement;
+		return !!active && target.contains(active);
+	}
+
+	function restoreFocus(target: HTMLElement) {
+		(target.querySelector<HTMLElement>(FOCUSABLE_SELECTOR) ?? target).focus();
+	}
 
 	function emitResponse(value: unknown) {
+		lastEmitted = value;
+		hasEmitted = true;
 		response = value;
 		onChange?.(value);
 		// A player-owned host publishes this same change through the authoritative
@@ -77,9 +111,7 @@
 		const baseUrl = pci?.baseUrl;
 		const markup = safeMarkup;
 		if (!data || !target) return;
-		// Keep TrustedHTML opaque until the DOM sink. Raw standalone strings are
-		// sanitized and finalized by `safeMarkup` above.
-		target.innerHTML = markup as any;
+		resetScaffold(target, markup);
 
 		let cancelled = false;
 		let currentHost: PciHostController;
@@ -94,10 +126,30 @@
 		}
 
 		host = currentHost;
-		status = 'loading';
-		errorMessage = null;
 		const stopListening = currentHost.onResponseChange((_responseId, value) => {
 			if (!cancelled) emitResponse(value);
+		});
+
+		// An authoritative restore rebuilds the module from the restored value.
+		// Scaffold sanitization lives here, so the reset does too.
+		const stopRemountRequests = currentHost.onRemountRequest(() => {
+			if (cancelled) return;
+			// Replacing the scaffold destroys the focused element inside it, so a
+			// candidate working by keyboard would be dropped back to the document.
+			const refocus = holdsFocus(target);
+			resetScaffold(target, markup);
+			void currentHost
+				.remount(target)
+				.then(() => {
+					if (cancelled) return;
+					status = 'ready';
+					if (refocus) restoreFocus(target);
+				})
+				.catch((error) => {
+					if (cancelled) return;
+					status = 'error';
+					errorMessage = error instanceof Error ? error.message : String(error);
+				});
 		});
 
 		void currentHost
@@ -117,16 +169,21 @@
 		return () => {
 			cancelled = true;
 			stopListening();
+			stopRemountRequests();
 			currentHost.destroy();
 			if (host === currentHost) host = null;
 		};
 	});
 
-	// Restore controlled/session state both before and after module initialization.
+	// Offer controlled/session state before and after module initialization. The
+	// host declines once the module owns its response; skipping our own echo here
+	// avoids a pointless round-trip on every candidate change.
 	$effect(() => {
 		const currentHost = host;
 		const value = parsedResponse;
-		if (currentHost && value !== undefined) currentHost.setResponse(value);
+		if (!currentHost || value === undefined) return;
+		if (hasEmitted && value === lastEmitted) return;
+		currentHost.offerResponse(value);
 	});
 
 	// Keep the module's operability aligned with the candidate/read-only state.
@@ -162,10 +219,13 @@
 			</div>
 		{/if}
 
+		<!-- tabindex="-1": script-only focus target when a rebuilt scaffold has no
+		     focusable descendant to return the candidate to. -->
 		<div
 			bind:this={mountElement}
 			part="interaction"
 			class="pci-mount"
+			tabindex="-1"
 			aria-busy={status === 'loading'}
 		></div>
 	{/if}

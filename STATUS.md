@@ -57,11 +57,17 @@ The public repository uses clean-room certification coverage only.
 - That runner consumes published NPM candidates only. Current working-tree fixes
   cannot be exercised by the official suite until a new candidate is published and
   pinned; prior green evidence applies to the previously published candidate.
-- The current private runner is useful smoke coverage, not semantic proof: several
-  paths pass on construction/no-throw, permit manual-required results, or bypass
-  browser interaction through direct response APIs.
-- The project should remain pre-1.0 until the relevant QTI certification path is
-  complete.
+- The private runner now drives DOM-level interaction and score discrimination in a
+  browser, not construction/no-throw alone. A residue of criteria remains
+  manual-only where the content under test declares no correct response.
+- Certifiable lines are QTI 2.2 and QTI 3.0 DELIVERY (Basic and Advanced) plus the
+  QTI 3.0 Elevated Accessibility profile. The QTI 2.1 certification line is closed;
+  2.1 support is ingest compatibility only. See
+  [`docs/certification/README.md`](docs/certification/README.md).
+- 1.0 waits on readiness for real production use, not on certification. Composer
+  CMS is the only integration that exercises the players at that level, so it is
+  the practical test. The certification track runs independently and can be
+  claimed at 0.x.
 
 ### Transformation
 

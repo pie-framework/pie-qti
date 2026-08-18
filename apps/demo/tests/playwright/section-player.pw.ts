@@ -89,13 +89,18 @@ test.describe('section player web components', () => {
 		await expect(page.locator('pie-tool-tts-inline').first()).toBeAttached();
 		const calculatorButton = page.getByRole('button', { name: /calculator/i });
 		await expect(calculatorButton).toBeVisible();
+		// The toolkit renders the icon itself on the default path. This looked for a
+		// `[data-pie-qti-icon-fallback="calculator"]` SVG that QtiToolButtonBar injected to
+		// rescue a vendored nds-icon-button whose FontAwesome Pro glyph 404ed; those icons
+		// are licensed to Renaissance products only (PIE-785), so they are opt-in behind
+		// `ndsIcons` since 0.3.59 and this repo never opts in.
 		await expect
 			.poll(async () => {
 				return calculatorButton.evaluate((button) => {
-					const fallback = button.querySelector('[data-pie-qti-icon-fallback="calculator"]');
-					if (!(fallback instanceof HTMLElement || fallback instanceof SVGElement)) return false;
-					const rect = fallback.getBoundingClientRect();
-					const style = window.getComputedStyle(fallback);
+					const icon = button.querySelector('svg');
+					if (!(icon instanceof HTMLElement || icon instanceof SVGElement)) return false;
+					const rect = icon.getBoundingClientRect();
+					const style = window.getComputedStyle(icon);
 					return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
 				});
 			})
@@ -122,13 +127,17 @@ test.describe('section player web components', () => {
 
 		await page.getByRole('button', { name: /calculator/i }).click();
 		await expect(page.locator('pie-tool-calculator')).toBeAttached();
+		// This asserted that every nds-icon-button carried a patched-in fallback glyph. No
+		// nds-icon-button is rendered on the default path, so the locator matched nothing.
+		// What it protected is below: the toolbar button keeps a visible icon once the
+		// overlay is open, and nothing 404ed reaching for FontAwesome Pro.
 		await expect
 			.poll(async () => {
-				return page.locator('nds-icon-button').evaluateAll((buttons) => {
-					return (
-						buttons.length > 0 &&
-						buttons.every((button) => button.shadowRoot?.querySelector('[data-pie-qti-icon-fallback]') ?? button.querySelector('[data-pie-qti-icon-fallback]'))
-					);
+				return page.getByRole('button', { name: /calculator/i }).evaluate((button) => {
+					const icon = button.querySelector('svg');
+					if (!(icon instanceof HTMLElement || icon instanceof SVGElement)) return false;
+					const rect = icon.getBoundingClientRect();
+					return rect.width > 0 && rect.height > 0;
 				});
 			})
 			.toBe(true);

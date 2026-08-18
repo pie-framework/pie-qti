@@ -96,10 +96,31 @@ export interface PciHostOptions {
  */
 export interface PciHostController {
 	onResponseChange(callback: (responseId: string, value: unknown) => void): () => void;
+	/**
+	 * Fired when an authoritative `restore()` lands on a mounted module. The
+	 * renderer owns scaffold sanitization, so it resets the markup and calls
+	 * `remount()`.
+	 */
+	onRemountRequest(callback: () => void): () => void;
 	load(): Promise<void>;
 	initialize(dom: HTMLElement): void;
+	/** Rebuild the module in place from the held response, after a scaffold reset. */
+	remount(dom: HTMLElement): Promise<void>;
 	getResponse(): unknown;
-	setResponse(value: unknown): void;
+	/**
+	 * Offer a response the player believes to be current. Declined, returning
+	 * `false`, once a mounted module has reported a response of its own: a live
+	 * interaction owns its response until something authoritative replaces it.
+	 */
+	offerResponse(value: unknown): boolean;
+	/**
+	 * Authoritatively replace the response, discarding in-progress candidate
+	 * state and returning ownership to the player. Session restore, reset to
+	 * declaration default, and explicit host overrides use this. A mounted module
+	 * is rebuilt through `onRemountRequest` where a renderer is wired to it, and
+	 * otherwise receives the value directly.
+	 */
+	restore(value: unknown): void;
 	disable(): void;
 	enable(): void;
 	destroy(): void;

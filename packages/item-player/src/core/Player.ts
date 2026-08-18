@@ -452,11 +452,19 @@ export class Player {
 	}
 
 	/**
-	 * Push a response value into the PCI identified by responseIdentifier.
-	 * Called from setResponses() so session restore reaches PCI modules.
+	 * Offer a response value to the PCI identified by responseIdentifier. A
+	 * mounted module that has already reported a response keeps it.
 	 */
-	public setPciResponse(responseIdentifier: string, value: unknown): void {
-		this._pciHosts.get(responseIdentifier)?.setResponse(value);
+	public offerPciResponse(responseIdentifier: string, value: unknown): void {
+		this._pciHosts.get(responseIdentifier)?.offerResponse(value);
+	}
+
+	/**
+	 * Authoritatively replace a PCI's response, discarding in-progress candidate
+	 * state. Session restore and reset-to-default use this.
+	 */
+	public restorePciResponse(responseIdentifier: string, value: unknown): void {
+		this._pciHosts.get(responseIdentifier)?.restore(value);
 	}
 
 	/**
@@ -485,13 +493,35 @@ export class Player {
 		return this.decls;
 	}
 
+	/**
+	 * Apply candidate response values to the declaration context.
+	 *
+	 * Every candidate interaction reaches this method, including a PCI reporting
+	 * its own change, so a mounted PCI module is offered the value rather than
+	 * force-fed it. Use `restoreResponses()` when the caller's value must replace
+	 * in-progress module state.
+	 */
 	public setResponses(responses: Record<string, unknown>): void {
+		this.applyResponses(responses, (id, value) => this.offerPciResponse(id, value));
+	}
+
+	/**
+	 * Apply response values authoritatively, discarding in-progress PCI candidate
+	 * state. State replacement and explicit host overrides use this.
+	 */
+	public restoreResponses(responses: Record<string, unknown>): void {
+		this.applyResponses(responses, (id, value) => this.restorePciResponse(id, value));
+	}
+
+	private applyResponses(
+		responses: Record<string, unknown>,
+		applyToPci: (responseIdentifier: string, value: unknown) => void
+	): void {
 		for (const [id, raw] of Object.entries(responses)) {
 			const d = this.decls[id];
 			if (!d) continue;
 			d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, raw, d.identifier);
-			// Push restored responses into any mounted PCI modules
-			this.setPciResponse(id, this.qtiValueToPublic(d.value));
+			applyToPci(id, this.qtiValueToPublic(d.value));
 		}
 	}
 
@@ -744,7 +774,7 @@ export class Player {
 		for (const d of Object.values(this.decls)) {
 			if ((d as any).__kind !== 'response') continue;
 			this.ctx.resetToDefault(d.identifier);
-			this.setPciResponse(d.identifier, d.value.kind === 'value' ? d.value.value : null);
+			this.restorePciResponse(d.identifier, d.value.kind === 'value' ? d.value.value : null);
 		}
 	}
 
@@ -1554,7 +1584,7 @@ export class Player {
 			if (!d) continue;
 			d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, v.value, d.identifier);
 			if ((d as any).__kind === 'response') {
-				this.setPciResponse(d.identifier, this.qtiValueToPublic(d.value));
+				this.restorePciResponse(d.identifier, this.qtiValueToPublic(d.value));
 			}
 		}
 	}
