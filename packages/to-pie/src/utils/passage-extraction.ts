@@ -9,6 +9,22 @@ import { v4 as uuid } from 'uuid';
 import { unwrapCdataSections } from './cdata.js';
 import { generateStablePassageId, parseObjectReference } from './passage-reusability.js';
 
+const QTI_INTERACTION_TAGS = new Set([
+  'choiceinteraction',
+  'extendedtextinteraction',
+  'orderinteraction',
+  'matchinteraction',
+  'textentryinteraction',
+  'selectpointinteraction',
+  'hottextinteraction',
+  'inlinechoiceinteraction',
+  'gapmatchinteraction',
+  'hotspotinteraction',
+  'graphicgapmatchinteraction',
+  'associateinteraction',
+  'sliderinteraction',
+] as const);
+
 export interface PassageModel {
   id: string;
   element: '@pie-element/passage';
@@ -45,6 +61,10 @@ export function extractObjectPassages(
   const objects = itemBody.getElementsByTagName('object');
 
   for (const obj of Array.from(objects)) {
+    if (hasInteractionAncestor(obj, itemBody)) {
+      continue;
+    }
+
     const reference = parseObjectReference(obj);
     if (!reference || !reference.filePath) continue;
 
@@ -80,6 +100,19 @@ export function extractObjectPassages(
   }
 
   return passages;
+}
+
+/** Whether `element` sits inside a QTI interaction between itself and `stopAt`. */
+function hasInteractionAncestor(element: HTMLElement, stopAt: HTMLElement): boolean {
+  let current = element.parentNode as HTMLElement | null;
+  while (current && current !== stopAt) {
+    const tagName = (current.rawTagName ?? current.tagName ?? '').toLowerCase();
+    if (QTI_INTERACTION_TAGS.has(tagName as never)) {
+      return true;
+    }
+    current = current.parentNode as HTMLElement | null;
+  }
+  return false;
 }
 
 /**
