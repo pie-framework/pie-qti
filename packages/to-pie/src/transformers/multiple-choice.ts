@@ -7,7 +7,7 @@
 import type { PieItem, PieMultipleChoiceModel } from '@pie-qti/transform-types';
 import type { HTMLElement } from 'node-html-parser';
 import { v4 as uuidv4 } from 'uuid';
-import { mapChoiceLayout } from '../utils/choice-layout.js';
+import { mapChoiceLayout, type PieChoiceLayout } from '../utils/choice-layout.js';
 import { extractInlineStimulus, extractObjectPassages } from '../utils/passage-extraction.js';
 import { cleanTransformHtml, extractPromptForInteraction } from '../utils/prompt-extraction.js';
 import { createMissingElementError, createMissingInteractionError } from '../utils/qti-errors.js';
@@ -107,7 +107,10 @@ export async function transformMultipleChoice(
   const scoring = deriveItemScoring(itemElement);
 
   // Create PIE model
-  const model: PieMultipleChoiceModel = {
+  // Intersected in rather than relied on through `PieModel`'s `[key: string]: any`:
+  // `@pie-qti/transform-types` doesn't declare the layout fields yet, so without this a
+  // typo like `choicesLayout: 'gird'` would compile and silently produce an unlaid-out item.
+  const model: PieMultipleChoiceModel & PieChoiceLayout = {
     id: uuid,
     element: '@pie-element/multiple-choice',
     prompt,

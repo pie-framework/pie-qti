@@ -10,7 +10,7 @@ import type { HTMLElement } from 'node-html-parser';
 import { parse } from 'node-html-parser';
 import { v4 as uuid } from 'uuid';
 import { extractPromptForInteraction } from '../utils/prompt-extraction.js';
-import { createMissingInteractionError } from '../utils/qti-errors.js';
+import { createMissingElementError, createMissingInteractionError } from '../utils/qti-errors.js';
 import {
   deriveItemScoring,
   findResponseDeclaration,
@@ -41,6 +41,15 @@ export function transformPlacementOrdering(
   options?: PlacementOrderingOptions
 ): PieItem {
   const document = parse(qtiXml);
+  const itemBody = document.getElementsByTagName('itemBody')[0];
+
+  if (!itemBody) {
+    throw createMissingElementError('itemBody', {
+      itemId,
+      details: 'The <itemBody> element is required to contain the question content and interaction.',
+    });
+  }
+
   const orderInteraction = document.getElementsByTagName('orderInteraction')[0];
 
   if (!orderInteraction) {
@@ -55,8 +64,7 @@ export function transformPlacementOrdering(
   const orientation = orderInteraction.getAttribute('orientation');
 
   // Extract prompt
-  const itemBody = document.getElementsByTagName('itemBody')[0];
-  const prompt = itemBody ? extractPromptForInteraction(itemBody, orderInteraction) : '';
+  const prompt = extractPromptForInteraction(itemBody, orderInteraction);
 
   // Extract choices
   const choices = extractChoices(orderInteraction);

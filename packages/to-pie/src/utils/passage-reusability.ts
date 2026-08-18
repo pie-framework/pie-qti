@@ -9,7 +9,7 @@
  * This module provides stable ID generation and reusability detection.
  */
 
-import { createHash } from 'crypto';
+import { createHash } from 'node:crypto';
 
 /**
  * Generate stable ID for passage content
@@ -165,7 +165,7 @@ export class PassageRegistry {
    */
   detectAndMergeDuplicates(): Map<string, string> {
     const contentMap = new Map<string, string>(); // content hash -> primary ID
-    const mergeMap = new Map<string, string>(); // old ID -> new ID
+    const mergeMap = new Map<string, string>(); // duplicate ID -> primary ID
 
     for (const [id, entry] of this.passages.entries()) {
       if (!entry.content) continue;
