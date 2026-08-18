@@ -10,7 +10,8 @@ import type { PieItem } from '@pie-qti/transform-types';
 import type { HTMLElement } from 'node-html-parser';
 import { parse } from 'node-html-parser';
 import { v4 as uuid } from 'uuid';
-import { type PieChoiceLayout, mapChoiceLayout } from '../utils/choice-layout.js';
+import { mapChoiceLayout, type PieChoiceLayout } from '../utils/choice-layout.js';
+import { extractItemBodyPromptBeforeInteraction } from '../utils/prompt-extraction.js';
 import { createInsufficientElementsError, createMissingElementError } from '../utils/qti-errors.js';
 import { deriveItemScoring, readMapping } from '../utils/response-scoring.js';
 
@@ -44,56 +45,65 @@ interface EbsrPart extends PieChoiceLayout {
 /**
  * Transform QTI EBSR (two-part choiceInteraction) to PIE ebsr
  */
-export function transformEbsr(
-  qtiXml: string,
-  itemId: string,
-  options?: EbsrOptions
-): PieItem {
+export function transformEbsr(qtiXml: string, itemId: string, options?: EbsrOptions): PieItem {
   const document = parse(qtiXml);
   const itemBody = document.getElementsByTagName('itemBody')[0];
 
   if (!itemBody) {
     throw createMissingElementError('itemBody', {
       itemId,
-      details: 'The <itemBody> element is required to contain the question content and interactions.',
+      details:
+        'The <itemBody> element is required to contain the question content and interactions.',
     });
   }
 
   const choiceInteractions = itemBody.getElementsByTagName('choiceInteraction');
 
   if (choiceInteractions.length < 2) {
-    throw createInsufficientElementsError(
-      'choiceInteraction',
-      2,
-      choiceInteractions.length,
-      {
-        itemId,
-        details: 'EBSR (Evidence-Based Selected Response) questions require two parts: Part A asks a question and Part B asks for supporting evidence.',
-      }
-    );
+    throw createInsufficientElementsError('choiceInteraction', 2, choiceInteractions.length, {
+      itemId,
+      details:
+        'EBSR (Evidence-Based Selected Response) questions require two parts: Part A asks a question and Part B asks for supporting evidence.',
+    });
   }
 
-  // Extract correct answer map (responseId -> correct identifiers)
+  const firstInteraction = choiceInteractions[0];
+  const secondInteraction = choiceInteractions[1];
+  if (!firstInteraction || !secondInteraction) {
+    throw createInsufficientElementsError('choiceInteraction', 2, choiceInteractions.length, {
+      itemId,
+      details:
+        'EBSR (Evidence-Based Selected Response) questions require two parts: Part A asks a question and Part B asks for supporting evidence.',
+    });
+  }
+
+  return transformEbsrInteractions(
+    document,
+    itemBody,
+    [firstInteraction, secondInteraction],
+    itemId,
+    options
+  );
+}
+
+export function transformEbsrInteractions(
+  document: HTMLElement,
+  itemBody: HTMLElement,
+  choiceInteractions: [HTMLElement, HTMLElement],
+  itemId: string,
+  options?: EbsrOptions
+): PieItem {
+  const [firstInteraction, secondInteraction] = choiceInteractions;
   const correctAnswerMap = extractCorrectAnswerMap(document);
 
   // Extract shared prompt/stem for Part A (content before first interaction)
-  const sharedPrompt = extractSharedPrompt(itemBody, choiceInteractions[0]);
+  const sharedPrompt = extractSharedPrompt(itemBody, firstInteraction);
 
   // Build Part A
-  const partA = buildPart(
-    choiceInteractions[0],
-    correctAnswerMap,
-    sharedPrompt,
-    document
-  );
+  const partA = buildPart(firstInteraction, correctAnswerMap, sharedPrompt, document);
 
   // Build Part B
-  const partB = buildPart(
-    choiceInteractions[1],
-    correctAnswerMap,
-    null,
-    document
-  );
+  const partB = buildPart(secondInteraction, correctAnswerMap, null, document);
 
   const modelId = uuid();
   const scoring = deriveItemScoring(document);
@@ -137,29 +147,8 @@ export function transformEbsr(
 /**
  * Extract shared prompt/stem content before the first interaction
  */
-function extractSharedPrompt(
-  itemBody: HTMLElement,
-  firstInteraction: HTMLElement
-): string | null {
-  let promptHtml = '';
-
-  // Collect all content before first interaction
-  for (const child of itemBody.childNodes) {
-    if (child === firstInteraction) break;
-
-    if (child.nodeType === 3) {
-      // Text node
-      const text = child.textContent?.trim();
-      if (text) promptHtml += text;
-    } else if ((child as HTMLElement).tagName) {
-      const element = child as HTMLElement;
-      // Skip if it's the interaction itself
-      if (element.tagName === 'choiceInteraction') break;
-      promptHtml += element.outerHTML;
-    }
-  }
-
-  return promptHtml.trim() || null;
+function extractSharedPrompt(itemBody: HTMLElement, firstInteraction: HTMLElement): string | null {
+  return extractItemBodyPromptBeforeInteraction(itemBody, firstInteraction) || null;
 }
 
 /**
@@ -201,7 +190,7 @@ function buildPart(
     maxChoices === 1 && correctAnswers.length <= 1 ? 'radio' : 'checkbox';
 
   // Check for feedback
-  const feedbackEnabled = choices.some(c => c.feedback);
+  const feedbackEnabled = choices.some((c) => c.feedback);
 
   return {
     prompt: prompt || undefined,
@@ -253,19 +242,15 @@ function extractCorrectAnswerMap(document: HTMLElement): Map<string, string[]> {
 /**
  * Extract choices from choiceInteraction
  */
-function extractChoices(
-  choiceInteraction: HTMLElement,
-  correctAnswers: string[]
-): Choice[] {
+function extractChoices(choiceInteraction: HTMLElement, correctAnswers: string[]): Choice[] {
   const choices: Choice[] = [];
   const simpleChoices = choiceInteraction.getElementsByTagName('simpleChoice');
 
   for (let i = 0; i < simpleChoices.length; i++) {
     const simpleChoice = simpleChoices[i];
+    if (!simpleChoice) continue;
     const identifier = simpleChoice.getAttribute('identifier') || `choice-${i}`;
-    const label = simpleChoice.innerHTML.trim()
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>');
+    const label = simpleChoice.innerHTML.trim().replace(/&lt;/g, '<').replace(/&gt;/g, '>');
 
     // Check for feedback (feedbackInline)
     const feedbackInline = simpleChoice.getElementsByTagName('feedbackInline')[0];

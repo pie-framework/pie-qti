@@ -9,7 +9,9 @@ import type { PieItem } from '@pie-qti/transform-types';
 import type { HTMLElement } from 'node-html-parser';
 import { parse } from 'node-html-parser';
 import { v4 as uuid } from 'uuid';
+import { serializeChildrenWithReplacements } from '../utils/markup-extraction.js';
 import { createMissingElementError, createMissingInteractionError } from '../utils/qti-errors.js';
+import { isQtiInteractionElement } from '../utils/qti-item-planner.js';
 import {
   deriveItemScoring,
   readCorrectResponseValues,
@@ -17,7 +19,7 @@ import {
 } from '../utils/response-scoring.js';
 
 export interface ExplicitConstructedResponseOptions {
-  /** Overrides the partial scoring derived from the QTI source. */
+  /** Whether to enable partial scoring by default */
   partialScoring?: boolean;
   /** Custom note text for the element */
   note?: string;
@@ -44,7 +46,8 @@ export function transformExplicitConstructedResponse(
   if (!itemBody) {
     throw createMissingElementError('itemBody', {
       itemId,
-      details: 'The <itemBody> element is required to contain the question content and interactions.',
+      details:
+        'The <itemBody> element is required to contain the question content and interactions.',
     });
   }
 
@@ -53,10 +56,27 @@ export function transformExplicitConstructedResponse(
   if (textEntryInteractions.length === 0) {
     throw createMissingInteractionError('textEntryInteraction', {
       itemId,
-      details: 'For fill-in-the-blank questions, use <textEntryInteraction> elements with expectedLength attribute.',
+      details:
+        'For fill-in-the-blank questions, use <textEntryInteraction> elements with expectedLength attribute.',
     });
   }
 
+  return transformExplicitConstructedResponseInteractions(
+    document,
+    itemBody,
+    Array.from(textEntryInteractions),
+    itemId,
+    options
+  );
+}
+
+export function transformExplicitConstructedResponseInteractions(
+  document: HTMLElement,
+  itemBody: HTMLElement,
+  textEntryInteractions: HTMLElement[],
+  itemId: string,
+  options?: ExplicitConstructedResponseOptions
+): PieItem {
   // Build response ID map (maps QTI responseIdentifier to sequential index)
   const responseIdMap = buildResponseIdMap(textEntryInteractions);
 
@@ -120,7 +140,7 @@ function buildResponseIdMap(interactions: HTMLElement[]): Map<string, string> {
   const map = new Map<string, string>();
 
   for (let i = 0; i < interactions.length; i++) {
-    const responseIdentifier = interactions[i].getAttribute('responseIdentifier');
+    const responseIdentifier = interactions[i]?.getAttribute('responseIdentifier');
     if (responseIdentifier) {
       map.set(responseIdentifier, String(i));
     }
@@ -173,42 +193,44 @@ function buildMarkup(
   interactions: HTMLElement[],
   responseIdMap: Map<string, string>
 ): string {
-  let itemBodyHtml = itemBody.innerHTML;
-
-  // Remove audio/prompt if present (it goes in the prompt field)
-  if (itemBodyHtml.includes('<audio')) {
-    const audioStart = itemBodyHtml.indexOf('<audio');
-    let audioEnd = itemBodyHtml.indexOf('</audio>', audioStart) + 8;
-
-    // Include link if present
-    if (itemBodyHtml.substring(audioEnd, audioEnd + 2) === '<a') {
-      audioEnd = itemBodyHtml.indexOf('</a>', audioEnd) + 4;
-    }
-
-    // Remove surrounding <p> tags if present
-    if (
-      itemBodyHtml.substring(audioStart - 3, audioStart) === '<p>' &&
-      itemBodyHtml.substring(audioEnd, audioEnd + 4) === '</p>'
-    ) {
-      itemBodyHtml = itemBodyHtml.substring(0, audioStart - 3) + itemBodyHtml.substring(audioEnd + 4);
-    } else {
-      itemBodyHtml = itemBodyHtml.substring(0, audioStart) + itemBodyHtml.substring(audioEnd);
-    }
-  }
-
-  // Replace each textEntryInteraction with {{index}} placeholder
-  let markup = itemBodyHtml;
+  const replacements = new Map<HTMLElement, string>();
   for (const interaction of interactions) {
     const responseIdentifier = interaction.getAttribute('responseIdentifier');
     if (responseIdentifier) {
       const index = responseIdMap.get(responseIdentifier);
       if (index !== undefined) {
-        markup = markup.replace(interaction.outerHTML, `{{${index}}}`);
+        replacements.set(interaction, `{{${index}}}`);
       }
     }
   }
 
-  return markup.trim();
+  return serializeChildrenWithReplacements(itemBody, {
+    replacements,
+    omit: (element) => {
+      const tagName = element.tagName.toLowerCase();
+      return (
+        tagName === 'prompt' ||
+        tagName === 'audio' ||
+        tagName === 'feedbackinline' ||
+        isLinkImmediatelyAfterAudio(element) ||
+        (isQtiInteractionElement(element) && !replacements.has(element))
+      );
+    },
+  });
+}
+
+/**
+ * `extractPrompt` folds a link into the prompt when it immediately follows an `<audio>` tag
+ * with nothing in between; `buildMarkup` must drop that same link, or it appears in both the
+ * prompt and the markup.
+ */
+function isLinkImmediatelyAfterAudio(element: HTMLElement): boolean {
+  if (element.tagName?.toLowerCase() !== 'a') return false;
+  const parent = element.parentNode as HTMLElement | undefined;
+  if (!parent) return false;
+  const index = parent.childNodes.indexOf(element);
+  const previous = index > 0 ? (parent.childNodes[index - 1] as HTMLElement) : undefined;
+  return previous?.tagName?.toLowerCase() === 'audio';
 }
 
 /**
@@ -235,7 +257,8 @@ function extractChoices(
     // all. For text entry a positive-mappedValue mapKey *is* an accepted
     // answer, so the mapping supplies the same list. Zero-scoring entries are
     // recorded misspellings, not answers.
-    const accepted = declared.length > 0 ? declared : (readMapping(responseDeclaration)?.positiveKeys ?? []);
+    const accepted =
+      declared.length > 0 ? declared : (readMapping(responseDeclaration)?.positiveKeys ?? []);
 
     choices[index] = accepted.map((label, i) => ({
       label,

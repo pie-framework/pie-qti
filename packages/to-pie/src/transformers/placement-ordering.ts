@@ -21,10 +21,11 @@ import {
 export interface PlacementOrderingOptions {
   /** Default orientation if not specified in QTI */
   defaultOrientation?: 'horizontal' | 'vertical';
-  /** Overrides the partial scoring derived from the QTI source. */
+  /** Whether to enable partial scoring by default */
   partialScoring?: boolean;
   /** Stable/public identifier for round-trip compatibility */
   baseId?: string;
+  promptBoundaryStart?: HTMLElement;
 }
 
 interface Choice {
@@ -42,29 +43,50 @@ export function transformPlacementOrdering(
 ): PieItem {
   const document = parse(qtiXml);
   const itemBody = document.getElementsByTagName('itemBody')[0];
+  const orderInteraction = document.getElementsByTagName('orderInteraction')[0];
 
   if (!itemBody) {
     throw createMissingElementError('itemBody', {
       itemId,
-      details: 'The <itemBody> element is required to contain the question content and interaction.',
+      details:
+        'The <itemBody> element is required to contain the question content and interaction.',
     });
   }
-
-  const orderInteraction = document.getElementsByTagName('orderInteraction')[0];
 
   if (!orderInteraction) {
     throw createMissingInteractionError('orderInteraction', {
       itemId,
-      details: 'For ordering/sequencing questions, use <orderInteraction> with <simpleChoice> elements defining the items to order.',
+      details:
+        'For ordering/sequencing questions, use <orderInteraction> with <simpleChoice> elements defining the items to order.',
     });
   }
 
+  return transformPlacementOrderingInteraction(
+    document,
+    itemBody,
+    orderInteraction,
+    itemId,
+    options
+  );
+}
+
+export function transformPlacementOrderingInteraction(
+  document: HTMLElement,
+  itemBody: HTMLElement,
+  orderInteraction: HTMLElement,
+  itemId: string,
+  options?: PlacementOrderingOptions
+): PieItem {
   const responseIdentifier = orderInteraction.getAttribute('responseIdentifier') || 'RESPONSE';
   const shuffle = orderInteraction.getAttribute('shuffle');
   const orientation = orderInteraction.getAttribute('orientation');
 
   // Extract prompt
-  const prompt = extractPromptForInteraction(itemBody, orderInteraction);
+  const prompt = itemBody
+    ? extractPromptForInteraction(itemBody, orderInteraction, {
+        after: options?.promptBoundaryStart,
+      })
+    : '';
 
   // Extract choices
   const choices = extractChoices(orderInteraction);
@@ -87,7 +109,8 @@ export function transformPlacementOrdering(
           element: '@pie-element/placement-ordering',
           prompt: prompt || '',
           lockChoiceOrder: shuffle === 'false', // shuffle=false means locked order
-          orientation: (orientation as 'horizontal' | 'vertical') || options?.defaultOrientation || 'vertical',
+          orientation:
+            (orientation as 'horizontal' | 'vertical') || options?.defaultOrientation || 'vertical',
           partialScoring: options?.partialScoring ?? scoring.partialScoring,
           choiceLabel: '',
           choices: choices.map((c, index) => ({
@@ -146,13 +169,15 @@ function extractCorrectResponse(
 
   // An item scored via map_response need not declare a correctResponse at all.
   // Fall back to the mapping only when the declared key produced nothing, and
-  // only for strictly positive mappedValues. For an ordered response the
+  // only for strictly positive mappedValues — a zero-scoring mapEntry is a
+  // distractor, not an answer. For an ordered response the
   // mapEntry document order is the intended sequence.
-  const identifiers = declared.length > 0 ? declared : (readMapping(responseDeclaration)?.positiveKeys ?? []);
+  const identifiers =
+    declared.length > 0 ? declared : (readMapping(responseDeclaration)?.positiveKeys ?? []);
 
   const choiceMap = new Map(choices.map((c, i) => [c.id, i]));
 
   return identifiers
-    .map(identifier => choiceMap.get(identifier))
+    .map((identifier) => choiceMap.get(identifier))
     .filter((id): id is number => id !== undefined);
 }

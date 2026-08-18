@@ -23,7 +23,9 @@ Two complementary extension surfaces sit on the best-effort path:
 - The original five-hook **vendor extension** system — detectors, transformers, asset resolvers, CSS extractors, and metadata extractors — for whole-pipeline replacement and asset/CSS/metadata interception.
 - The **source-profile** mechanism (`@pie-qti/source-profiles`, `QtiToPieRegistry`, item handlers, decorators, fallback diagnostics, conversion trace, package sidecars) for real-world QTI imports that are mostly standards-shaped but carry source-specific package conventions, metadata, proprietary interactions, sidecars, or repair needs. Source profiles are the preferred extension model for QTI imports; the five vendor hooks remain for the cases they were designed for. See `docs/SOURCE-PROFILES.md` for the source-profile authoring reference.
 
-Package-level transforms (whole IMS Content Package in, PIE items + sidecars + diagnostics out) are handled by `transformQtiPackageToPie`, which composes `@pie-qti/ims-cp-core`'s package graph analysis with the plugin's item-level transform and source-profile runtime.
+Package-level transforms (whole IMS Content Package in, PIE items + sidecars + diagnostics out) are handled by `transformQtiPackageToPie`, which composes `@pie-qti/ims-cp-core`'s package graph analysis with the plugin's item-level transform and source-profile runtime. Item conversion runs with bounded concurrency (`itemConcurrency`, sequential by default); `transformAnalyzedQtiPackageToPie` takes an already-analyzed package graph for callers that need to run their own stage over the package first (see `package-exploder.ts`) without analyzing it twice.
+
+An `itemBody` with more than one interaction is not rejected outright: a scoped set of interaction types compose into one PIE item carrying multiple models (see "Composite items" below), and every item-scoped rejection — an unsupported interaction, an unsupported composite shape, a QTI 3.0 item — is a catchable `QtiItemTransformError`, so one bad item fails only itself rather than the whole package.
 
 ---
 
@@ -72,21 +74,29 @@ QTI `associateInteraction` models arbitrary many-to-many pairings: any source co
   - `matchInteraction` (two `simpleMatchSet` elements) → PIE `match-list`
   - `matchInteraction` (single pairing) → PIE `match`
   - `textEntryInteraction` → PIE `explicit-constructed-response`
-  - `selectPointInteraction` → PIE `select-text` (best effort)
+  - `selectPointInteraction` → PIE `number-line` / `charting` / `graphing`, dispatched on the Renaissance `@class` discriminator (`numberLine` / `chart` / `graph`); a bare `selectPointInteraction` (plain point-on-image selection) has no PIE element and fails closed
+  - `sliderInteraction` → PIE `number-line`
   - `hottextInteraction` → PIE `select-text`
   - `inlineChoiceInteraction` → PIE `inline-dropdown`
   - `gapMatchInteraction` → PIE `drag-in-the-blank`
   - `hotspotInteraction` → PIE `hotspot`
   - `graphicGapMatchInteraction` → PIE `image-cloze-association`
-  - Two `choiceInteraction` elements → PIE `ebsr` (Evidence-Based Selected Response)
+  - Two `choiceInteraction` elements, gated on textual EBSR evidence (see below) → PIE `ebsr` (Evidence-Based Selected Response)
   - `associateInteraction` → PIE `categorize` (experimental, see rationale above)
   - `assessmentPassage` / `assessmentStimulus` (top-level) → PIE `passage`
   - `assessmentTest` → PIE assessment structure
-- **Deliberately omitted:** `sliderInteraction` (no standard PIE element; `AcmeSliderTransformer` in `demo-vendor-extensions` is a placeholder demonstrating the vendor hook path). `drawingInteraction`, `uploadInteraction`, `mediaInteraction`, `endAttemptInteraction`, `positionObjectInteraction`, `graphicOrderInteraction`, `graphicAssociateInteraction` — not yet implemented; throws `Unsupported interaction type`.
+  - A scoped set of interaction types co-occurring in one `itemBody` (see "Composite items" below) → one PIE item carrying multiple models
+- **Deliberately omitted:** `drawingInteraction`, `uploadInteraction`, `mediaInteraction`, `endAttemptInteraction` (dropped with a `QTI_INTERACTION_DROPPED` warning rather than failing the item), `positionObjectInteraction`, `graphicOrderInteraction`, `graphicAssociateInteraction` — not yet implemented; throws `Unsupported interaction type`.
 - **Known divergences:**
   - Inline `<stimulus>` elements inside `itemBody` are treated as inline content, not standalone passages. Only top-level `<assessmentPassage>` or `<assessmentStimulus>` root elements produce a PIE `passage` item.
-  - EBSR detection is heuristic: exactly two `<choiceInteraction>` elements in a single `assessmentItem` are assumed to be EBSR. Items with two choice interactions for other reasons will be misdetected.
-  - `selectPointInteraction` is mapped to `select-text` (a text-selection interaction); the PIE framework has no standard point-on-image interaction that maps cleanly. The transformation is approximate.
+  - EBSR detection requires textual evidence, not interaction count alone: exactly two `<choiceInteraction>` elements is necessary but not sufficient — the item's identifier, title, or either interaction's `responseIdentifier` must also mention "EBSR"/"evidence-based" or a Part A/Part B pairing. Two unrelated `choiceInteraction`s with no such evidence compose as two independent `multiple-choice` models instead (see "Composite items" below).
+  - `selectPointInteraction`'s vendor-class config keys with no PIE target (e.g. `xAxisTitleTop` on a `graph`, since PIE's `domain`/`range` carry a single `axisLabel` each) are reported via `logger.warn`, not carried into the model.
+
+### Composite items
+
+An `itemBody` containing more than one interaction is not rejected outright: it is planned (`planQtiItemBody`) into ordered units, and composed into one PIE item when every unit's interaction type is in the scoped set the composite converter supports — `choiceInteraction`, `orderInteraction`, `sliderInteraction`, `textEntryInteraction`, `inlineChoiceInteraction`. Of these, `choiceInteraction`, `orderInteraction`, and `sliderInteraction` may repeat (each occurrence becomes its own model); `textEntryInteraction`/`inlineChoiceInteraction` may not repeat within a composite, since a multi-blank group of either is not yet representable in mixed composite markup. Each unit transforms through its own registry handler as if it were the whole item, then the parts are merged: `elements` specs are de-duplicated across parts, model ids are made unique, and the item's own markup gets each unit's leading interaction replaced by a placeholder element tag referencing the merged model — everything else (prose, prompts) is serialized unchanged.
+
+A composite that mixes in an interaction outside the scoped set, repeats a non-repeatable type, nests an interaction inside a `feedbackBlock`, or declares a `customInteraction`/`customOperator` is refused rather than silently reduced to its first interaction — see "Item-scoped failures" below for how that refusal reaches the caller.
 
 ---
 
@@ -101,6 +111,8 @@ QTI `associateInteraction` models arbitrary many-to-many pairings: any source co
 - **FR-7:** `baseId` MUST be extracted from `<qti-metadata-field name="externalId">` only when `<qti-metadata-field name="sourceSystemId">` has value `"pie"`, confirming the item originated in PIE.
 - **FR-8:** For `assessmentTest` input, the plugin MUST return an assessment object (not a single item) that includes `testParts`, `sections`, `itemRefs`, `timeLimits`, and `outcomeProcessingXml`.
 - **FR-9:** Vendor hooks registered via constructor options (`vendorDetectors`, `vendorTransformers`, `assetResolvers`, `cssClassExtractors`, `metadataExtractors`) MUST behave identically to hooks registered via `registerVendorDetector(...)` et al. after construction.
+- **FR-10:** An `itemBody` with more than one interaction MUST be composed into one PIE item, not silently reduced to its first interaction, when every interaction's type is in the scoped composite set and any repeated type is one of the types allowed to repeat. An itemBody with a `customInteraction`, `customOperator`, or an interaction nested inside a `feedbackBlock` MUST NOT take the composite path, regardless of how many interactions it has.
+- **FR-11:** Every rejection that is a property of one item — an unsupported single interaction, an unsupported composite shape, a QTI 3.0 item — MUST raise `QtiUnsupportedItemError` (or `QtiSourceProfileTransformError`), both of which extend `QtiItemTransformError`. A plugin-code defect (a handler registration bug, a malformed transformer) MUST propagate as a plain `Error` instead, since `transformQtiPackageToPie` treats `QtiItemTransformError` as recoverable per item and anything else as a package-aborting fault.
 
 ---
 
@@ -155,6 +167,18 @@ QTI `associateInteraction` models arbitrary many-to-many pairings: any source co
 
 ---
 
+### Item-scoped failures are a typed error hierarchy, not `QtiSourceProfileTransformError` alone
+
+**Decision:** `QtiItemTransformError` is the base for every failure that is scoped to one item — an unsupported interaction shape, an unsupported composite, a source-profile block. `QtiSourceProfileTransformError` and `QtiUnsupportedItemError` both extend it. `transformQtiPackageToPie`'s per-item catch checks `error instanceof QtiItemTransformError`, not the narrower subclass.
+
+**Rationale:** Composite validation, interaction-shape validation, and the QTI 3.0 version guard all reject content that is well-formed QTI the transform cannot represent — a property of the item, not a package-level fault. Catching only `QtiSourceProfileTransformError` means every other item-scoped rejection is an uncaught `Error` that propagates out of `transformQtiPackageToPie` and aborts the whole package: one bad composite item in a 100-item package would fail all 100, not just the one. `QtiUnsupportedItemError` exists as a named, catchable case so that failure mode is closed by construction rather than by remembering to catch broadly.
+
+**Alternatives considered:** Throwing `QtiSourceProfileTransformError` for every item-scoped rejection regardless of whether a source profile was involved — rejected as a misleading name for content that never touched the source-profile runtime. Catching plain `Error` in the package transformer — rejected because it would also swallow genuine plugin-code defects (a transformer bug, a malformed handler registration), which must abort the package and surface loudly rather than read as "this one item failed."
+
+**Consequences:** Any new item-scoped rejection must throw `QtiUnsupportedItemError` (via the `unsupportedItemError` helper, which also appends a `SourceProfileDiagnostic` and threads the `ConversionTrace`) or a `QtiSourceProfileTransformError`, never a bare `Error` — a bare `Error` aborts the package. `itemResults[].diagnostics[].code` carries a stable code per rejection reason (`QTI_COMPOSITE_ITEM_UNSUPPORTED`, `QTI_CUSTOM_INTERACTION_UNSUPPORTED`, `QTI_FEEDBACK_INTERACTION_UNSUPPORTED`, `QTI_CUSTOM_OPERATOR_UNSUPPORTED`, `QTI_ITEM_BODY_MISSING`, `QTI_NO_INTERACTION_FOUND`, `QTI_INTERACTION_TYPE_UNSUPPORTED`, `QTI_VERSION_UNSUPPORTED`) so callers can distinguish rejection reasons without parsing the message string.
+
+---
+
 ### assessmentTest path returns early without QTI source embedding
 
 **Decision:** The `assessmentTest` branch returns a `TransformOutput` immediately after building the PIE assessment object, bypassing the `embedQtiSourceInPie` call that all other paths go through.
@@ -188,10 +212,16 @@ QTI `associateInteraction` models arbitrary many-to-many pairings: any source co
 ## Data model / contracts
 
 Key source files:
-- `packages/to-pie/src/plugin.ts` — `QtiToPiePlugin`, `QtiToPiePluginOptions`, `QtiSourceProfileTransformError`
+- `packages/to-pie/src/plugin.ts` — `QtiToPiePlugin`, `QtiToPiePluginOptions`, `QtiItemTransformError`, `QtiSourceProfileTransformError`, `QtiUnsupportedItemError`, composite dispatch (`transformCompositeBuiltIns`, `transformWithSingleBuiltIn`, `shouldUseCompositeBuiltIns`, `validateCompositeUnitCompatibility`)
+- `packages/to-pie/src/utils/qti-item-planner.ts` — `planQtiItemBody`, `QtiItemBodyPlan`, `PlannedQtiInteractionUnit`, `isQtiInteractionElement`
+- `packages/to-pie/src/utils/markup-extraction.ts` — `serializeChildrenWithReplacements`, used by composite assembly and by the multi-blank text-entry/inline-dropdown transformers
+- `packages/to-pie/src/utils/stylesheet-extraction.ts` — `extractStylesheetResources`, `withStylesheetResources`; carries QTI `<stylesheet>` references into `config.resources.stylesheets[]`
+- `packages/to-pie/src/utils/select-point-config.ts`, `packages/to-pie/src/transformers/select-point.ts` — the Renaissance `selectPointInteraction` `@class` vendor discriminator (`numberLine`/`chart`/`graph`) and its transformers
+- `packages/to-pie/src/transformers/number-line.ts` — `sliderInteraction` → `@pie-element/number-line`
+- `packages/to-pie/src/package-exploder.ts` — `explodeAnalyzedQtiPackageItems`, the pre-conversion seam that hands a package's item XML to a caller-owned transform stage before `transformAnalyzedQtiPackageToPie` converts it; its enumeration mirrors the package transformer's own item loop and must be changed in lockstep with it
 - `packages/to-pie/src/registry/qti-to-pie-registry.ts` — `QtiToPieRegistry`, `createDefaultQtiToPieRegistry`, `QtiBuiltInTransformHandler`, `BuiltInTransformDelegate`
 - `packages/to-pie/src/source-profile-runtime.ts` — `runItemHandlers`, `applyItemDecorators`, `ItemHandlerRuntimeResult`, source-profile diagnostic aggregation
-- `packages/to-pie/src/package-transformer.ts` — `transformQtiPackageToPie`, sidecar emission, package-level diagnostic rollup, MIME inference
+- `packages/to-pie/src/package-transformer.ts` — `transformQtiPackageToPie`, `transformAnalyzedQtiPackageToPie` (takes an already-analyzed package graph, for callers like `package-exploder.ts` that need it analyzed once), bounded item concurrency (`itemConcurrency`), sidecar emission, package-level diagnostic rollup, MIME inference
 - `packages/types/src/source-profile.ts` — `QtiSourceProfile`, `QtiItemHandler`, `QtiItemDecorator`, `SourceProfileMatch`, `SourceProfileDiagnostic`, `SourceProfileFallbackPolicy`, `ConversionTrace`, `TransformTraceEvent`
 - `packages/source-profiles/src/` — default generic `QtiSourceProfile` implementations such as `common-cartridge-csm`; host packages register partner/publisher profiles using the same API
 - `packages/to-pie/src/types/vendor-extensions.ts` — `VendorDetector`, `VendorTransformer`, `VendorInfo`, `AssetResolver`, `CssClassExtractor`, `MetadataExtractor`, `VendorClasses`, `ResolvedAsset`, `VendorExtensionHooks`
@@ -245,10 +275,14 @@ AC-5: Confidence threshold blocks weak detection
   When: transform is called
   Then: No vendor is detected (detectVendor returns null); standard path is used
 
-AC-6: EBSR detection by two choiceInteraction elements
-  Given: QTI XML containing exactly two <choiceInteraction> elements in one assessmentItem
+AC-6: EBSR detection by two choiceInteraction elements plus textual evidence
+  Given: QTI XML containing exactly two <choiceInteraction> elements in one assessmentItem,
+         and the item's identifier, title, or a responseIdentifier mentions "EBSR",
+         "evidence-based", or a Part A / Part B pairing
   When: detectInteractionType is called
   Then: Returns 'ebsr'
+  Notes: Two choiceInteractions with no such evidence are not EBSR — they compose as two
+         independent multiple-choice models instead (AC-12).
 
 AC-7: associateInteraction emits a warning
   Given: QTI XML with associateInteraction
@@ -279,6 +313,24 @@ AC-11: Vendor metadata extractor takes priority over standard
   When: transform is called
   Then: result.items[0].content.searchMetaData.subject equals 'Science' (from vendor extractor)
         not 'Mathematics' (from standard extractor)
+
+AC-12: Scoped composite items compose into one PIE item
+  Given: An itemBody with a choiceInteraction and a textEntryInteraction (both in the scoped
+         composite set), in that document order, with surrounding prose
+  When: transform is called
+  Then: The result has one PIE item with two models ('multiple-choice' and
+        'explicit-constructed-response'); config.markup contains the surrounding prose with
+        each interaction replaced by a placeholder element tag in document order; a
+        QTI_COMPOSITE_ITEM_COMPOSED warning is emitted
+
+AC-13: Composites outside the scoped set fail as a per-item, not per-package, error
+  Given: A package containing one item whose itemBody mixes a choiceInteraction with an
+         interaction outside the scoped composite set (e.g. hotspotInteraction), and one
+         other, unrelated, convertible item
+  When: transformQtiPackageToPie is called
+  Then: The call resolves (does not reject); the composite item's itemResults entry has
+        status 'failed' with diagnostics code QTI_COMPOSITE_ITEM_UNSUPPORTED; the other
+        item's itemResults entry has status 'transformed'
 ```
 
 ### Edge cases
@@ -300,9 +352,9 @@ AC-E3: Detector that throws is skipped
   Then: A console.warn is emitted for the first detector; second detector's result is used
 
 AC-E4: Unsupported interaction type throws
-  Given: QTI XML with a <sliderInteraction> and no vendor transformer registered for it
+  Given: QTI XML with an <uploadInteraction> and no vendor transformer registered for it
   When: transform is called with standard QtiToPiePlugin (no vendor extensions)
-  Then: transform throws with 'Unsupported interaction type: sliderInteraction'
+  Then: transform throws with 'Unsupported interaction type: uploadInteraction'
   Notes: This is by design — unsupported types should be handled by vendor extensions, not silently dropped.
 
 AC-E5: Inline stimulus is not treated as standalone passage
@@ -316,7 +368,7 @@ AC-E5: Inline stimulus is not treated as standalone passage
 
 ## Open questions
 
-- [ ] `selectPointInteraction` is mapped to `select-text`, which is a text-selection element in PIE. For actual coordinate-on-image interactions, there is no matching PIE element. Should this mapping emit a warning? Should it throw for non-text QTI content?
+- [ ] The scoped composite set (`choiceInteraction`, `orderInteraction`, `sliderInteraction`, `textEntryInteraction`, `inlineChoiceInteraction`) is narrower than full interaction support — `matchInteraction` and `hotspotInteraction` convert fine standalone but are refused in a composite. Growing the set means implementing `promptBoundaryStart`-aware `*Interaction(s)` variants for each addition, plus a `validateCompositeUnitCompatibility` update; there is no tracked backlog of which combinations real content actually needs.
 - [ ] The plugin's `version` field is hardcoded as `'1.0.0'`. It should be derived from `package.json` at build time to ensure the version embedded in `qtiSource.metadata.generator.version` stays accurate.
 - [ ] `AcmeSliderTransformer` in `demo-vendor-extensions` references an undefined variable `baseId` (line 96 of the file), producing a runtime reference to the module-level `const baseId = undefined`. This is a bug in the demo code; it should reference the extracted item ID.
 - [ ] Confidence threshold (0.6) is hardcoded in `detectVendor`. Should it be configurable per plugin instance? Low-threshold vendor plugins that intentionally match on weak signals cannot currently lower this floor.

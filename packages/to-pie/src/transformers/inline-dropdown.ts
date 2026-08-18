@@ -9,7 +9,9 @@ import type { PieItem } from '@pie-qti/transform-types';
 import type { HTMLElement } from 'node-html-parser';
 import { parse } from 'node-html-parser';
 import { v4 as uuid } from 'uuid';
+import { serializeChildrenWithReplacements } from '../utils/markup-extraction.js';
 import { createMissingElementError, createMissingInteractionError } from '../utils/qti-errors.js';
+import { isQtiInteractionElement } from '../utils/qti-item-planner.js';
 import {
   deriveItemScoring,
   readCorrectResponseValues,
@@ -47,7 +49,8 @@ export function transformInlineDropdown(
   if (!itemBody) {
     throw createMissingElementError('itemBody', {
       itemId,
-      details: 'The <itemBody> element is required to contain the question content and interactions.',
+      details:
+        'The <itemBody> element is required to contain the question content and interactions.',
     });
   }
 
@@ -56,20 +59,37 @@ export function transformInlineDropdown(
   if (inlineChoiceInteractions.length === 0) {
     throw createMissingInteractionError('inlineChoiceInteraction', {
       itemId,
-      details: 'For inline dropdown questions, use <inlineChoiceInteraction> elements with <inlineChoice> options.',
+      details:
+        'For inline dropdown questions, use <inlineChoiceInteraction> elements with <inlineChoice> options.',
     });
   }
 
+  return transformInlineDropdownInteractions(
+    document,
+    itemBody,
+    Array.from(inlineChoiceInteractions),
+    itemId,
+    options
+  );
+}
+
+export function transformInlineDropdownInteractions(
+  document: HTMLElement,
+  itemBody: HTMLElement,
+  inlineChoiceInteractions: HTMLElement[],
+  itemId: string,
+  options?: InlineDropdownOptions
+): PieItem {
   // Extract prompt (audio or other content before interactions)
   const prompt = extractPrompt(itemBody);
 
   // Extract correct answers from responseDeclarations
-  const correctAnswers = extractCorrectAnswers(document);
+  const correctAnswers = extractCorrectAnswers(document, inlineChoiceInteractions);
 
   // Determine lockChoiceOrder from first interaction's shuffle attribute
   const firstInteraction = inlineChoiceInteractions[0];
-  const shuffle = firstInteraction.getAttribute('shuffle');
-  const lockChoiceOrder = options?.lockChoiceOrder ?? (shuffle === 'false');
+  const shuffle = firstInteraction?.getAttribute('shuffle');
+  const lockChoiceOrder = options?.lockChoiceOrder ?? shuffle === 'false';
 
   // Build markup by replacing inlineChoiceInteractions with {{index}} placeholders
   const markup = buildMarkup(itemBody, inlineChoiceInteractions);
@@ -158,21 +178,35 @@ function extractPrompt(itemBody: HTMLElement): string | null {
 /**
  * Extract correct answers from all responseDeclarations
  */
-function extractCorrectAnswers(document: HTMLElement): Set<string> {
-  const correctAnswers = new Set<string>();
+function extractCorrectAnswers(
+  document: HTMLElement,
+  interactions: HTMLElement[]
+): Map<string, Set<string>> {
+  const correctAnswers = new Map<string, Set<string>>();
   const responseDeclarations = document.getElementsByTagName('responseDeclaration');
+  const ownedResponseIdentifiers = new Set(
+    interactions
+      .map((interaction) => interaction.getAttribute('responseIdentifier'))
+      .filter((identifier): identifier is string => Boolean(identifier))
+  );
 
   for (const responseDeclaration of Array.from(responseDeclarations)) {
+    const responseIdentifier = responseDeclaration.getAttribute('identifier');
+    if (!responseIdentifier || !ownedResponseIdentifiers.has(responseIdentifier)) {
+      continue;
+    }
     const declared = readCorrectResponseValues(responseDeclaration);
 
     // An item scored via map_response need not declare a correctResponse at
-    // all. Fall back to the mapping per declaration, only when that
-    // declaration's key produced nothing, and only for positive mappedValues.
-    const keys = declared.length > 0 ? declared : (readMapping(responseDeclaration)?.positiveKeys ?? []);
+    // all. Fall back to this declaration's mapping only when its declared key
+    // produced nothing, and only for strictly positive mappedValues — a
+    // zero-scoring mapEntry is a distractor, not an answer.
+    const keys =
+      declared.length > 0 ? declared : (readMapping(responseDeclaration)?.positiveKeys ?? []);
 
-    for (const key of keys) {
-      correctAnswers.add(key);
-    }
+    if (keys.length === 0) continue;
+
+    correctAnswers.set(responseIdentifier, new Set(keys));
   }
 
   return correctAnswers;
@@ -181,51 +215,37 @@ function extractCorrectAnswers(document: HTMLElement): Set<string> {
 /**
  * Build markup by replacing inlineChoiceInteractions with {{index}} placeholders
  */
-function buildMarkup(
-  itemBody: HTMLElement,
-  _interactions: HTMLElement[]
-): string {
-  let itemBodyHtml = itemBody.innerHTML;
+function buildMarkup(itemBody: HTMLElement, interactions: HTMLElement[]): string {
+  const replacements = new Map(
+    interactions.map((interaction, index) => [interaction, `{{${index}}}`] as const)
+  );
+  return serializeChildrenWithReplacements(itemBody, {
+    replacements,
+    omit: (element) => {
+      const tagName = element.tagName.toLowerCase();
+      return (
+        tagName === 'prompt' ||
+        tagName === 'audio' ||
+        tagName === 'feedbackinline' ||
+        isLinkImmediatelyAfterAudio(element) ||
+        (isQtiInteractionElement(element) && !replacements.has(element))
+      );
+    },
+  });
+}
 
-  // Remove audio/prompt if present (it goes in the prompt field)
-  if (itemBodyHtml.includes('<audio')) {
-    const audioStart = itemBodyHtml.indexOf('<audio');
-    let audioEnd = itemBodyHtml.indexOf('</audio>', audioStart) + 8;
-
-    // Include link if present
-    if (itemBodyHtml.substring(audioEnd, audioEnd + 2) === '<a') {
-      audioEnd = itemBodyHtml.indexOf('</a>', audioEnd) + 4;
-    }
-
-    // Remove surrounding <p> tags if present
-    if (
-      itemBodyHtml.substring(audioStart - 3, audioStart) === '<p>' &&
-      itemBodyHtml.substring(audioEnd, audioEnd + 4) === '</p>'
-    ) {
-      itemBodyHtml = itemBodyHtml.substring(0, audioStart - 3) + itemBodyHtml.substring(audioEnd + 4);
-    } else {
-      itemBodyHtml = itemBodyHtml.substring(0, audioStart) + itemBodyHtml.substring(audioEnd);
-    }
-  }
-
-  // Remove feedbackInline elements
-  itemBodyHtml = removeFeedbackInline(itemBodyHtml);
-
-  // Replace each inlineChoiceInteraction with {{index}} placeholder
-  let markup = itemBodyHtml;
-  let interactionNumber = 0;
-  let start = markup.indexOf('<inlineChoiceInteraction');
-
-  while (start !== -1) {
-    const end = markup.indexOf('</inlineChoiceInteraction>', start);
-    if (end === -1) break;
-
-    const fullInteraction = markup.substring(start, end + '</inlineChoiceInteraction>'.length);
-    markup = markup.replace(fullInteraction, `{{${interactionNumber++}}}`);
-    start = markup.indexOf('<inlineChoiceInteraction');
-  }
-
-  return markup.trim();
+/**
+ * `extractPrompt` folds a link into the prompt when it immediately follows an `<audio>` tag
+ * with nothing in between; `buildMarkup` must drop that same link, or it appears in both the
+ * prompt and the markup.
+ */
+function isLinkImmediatelyAfterAudio(element: HTMLElement): boolean {
+  if (element.tagName?.toLowerCase() !== 'a') return false;
+  const parent = element.parentNode as HTMLElement | undefined;
+  if (!parent) return false;
+  const index = parent.childNodes.indexOf(element);
+  const previous = index > 0 ? (parent.childNodes[index - 1] as HTMLElement) : undefined;
+  return previous?.tagName?.toLowerCase() === 'audio';
 }
 
 /**
@@ -233,22 +253,28 @@ function buildMarkup(
  */
 function extractChoices(
   interactions: HTMLElement[],
-  correctAnswers: Set<string>
+  correctAnswers: Map<string, Set<string>>
 ): { [id: string]: Choice[] } {
   const choices: { [id: string]: Choice[] } = {};
 
   for (let i = 0; i < interactions.length; i++) {
-    choices[String(i)] = [];
+    const interaction = interactions[i];
+    if (!interaction) continue;
 
-    const inlineChoices = interactions[i].getElementsByTagName('inlineChoice');
+    const choiceList: Choice[] = [];
+    choices[String(i)] = choiceList;
+    const responseIdentifier = interaction.getAttribute('responseIdentifier') ?? '';
+    const correctValues = correctAnswers.get(responseIdentifier) ?? new Set<string>();
+
+    const inlineChoices = interaction.getElementsByTagName('inlineChoice');
     for (const inlineChoice of Array.from(inlineChoices)) {
       const identifier = inlineChoice.getAttribute('identifier') || '';
       const label = inlineChoice.innerHTML.trim();
 
-      choices[String(i)].push({
+      choiceList.push({
         value: identifier,
         label,
-        correct: correctAnswers.has(identifier),
+        correct: correctValues.has(identifier),
       });
     }
   }
@@ -269,21 +295,4 @@ function extractRationale(itemBody: HTMLElement): string | undefined {
   }
 
   return rationale || undefined;
-}
-
-/**
- * Remove feedbackInline elements from markup
- */
-function removeFeedbackInline(html: string): string {
-  let feedbackStart = html.indexOf('<feedbackInline');
-  while (feedbackStart !== -1) {
-    const feedbackEnd = html.indexOf('</feedbackInline>', feedbackStart);
-    if (feedbackEnd === -1) break;
-
-    const fullFeedback = html.substring(feedbackStart, feedbackEnd + '</feedbackInline>'.length);
-    html = html.replace(fullFeedback, '');
-    feedbackStart = html.indexOf('<feedbackInline');
-  }
-
-  return html;
 }
