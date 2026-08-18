@@ -194,8 +194,10 @@ obligation rather than a function call — this is the constraint that decides
 between the options below, not the sandbox syntax.
 
 Relative asset resolution is the second constraint: a PCI that loads its own
-images or data files expects them relative to its module path. Inside a sandbox
-those requests must be proxied against the content-package manifest.
+images or data files expects them relative to its module path. A sandboxed frame
+loaded from a real URL keeps that working — an opaque origin removes
+origin-derived authority, not base-URL resolution — so the runner needs the
+package base URL passed in at init, not a manifest proxy.
 
 ### Option A — Page realm
 
@@ -220,39 +222,60 @@ Coarse but already built and already the documented answer for untrusted
 content. The trade: isolation is all-or-nothing per item, and the host loses
 direct DOM access to everything, not just the PCI.
 
-### Option C — Per-PCI sandboxed iframe, opaque origin
+### Option C — Per-PCI sandboxed iframe from a cookieless runner origin
 
-`<iframe sandbox="allow-scripts">` without `allow-same-origin` gives the PCI an
-opaque origin, so it shares no storage or DOM with the player while the rest of
-the item stays in the page realm.
+`<iframe sandbox="allow-scripts" src="https://<runner-origin>/pci-runner.html">`
+— a real URL *and* the sandbox attribute, not one or the other. Without
+`allow-same-origin` the document's origin is opaque, so it shares no storage,
+cookies or DOM with the player, while its base URL remains the URL it loaded
+from, so authored relative asset paths still resolve. The rest of the item stays
+in the page realm.
 
-Needs a PCI-side runner that implements `qtiCustomInteractionContext` inside the
-frame and bridges the contract over `postMessage`, plus manifest-proxied asset
-resolution and frame-height propagation. The existing `pie-qti-iframe` protocol
-is the model: versioned envelopes, origin locking, `resize` and
-`responseChange` messages already exist in the shape this needs.
+Requirements:
 
-The trade: strong isolation with no new infrastructure, at the cost of an async
-response path and of breaking PCIs that assume same-origin fetches or cookies.
+- `allow-scripts` alone. A frame carrying `allow-scripts` *and*
+  `allow-same-origin` can strip its own sandbox attribute.
+- A runner origin that serves nothing else and sets no cookies. There is nothing
+  on it worth reaching, which is the security property; per-tenant subdomains are
+  unnecessary because each frame already has a distinct opaque origin.
+- A PCI-side runner implementing `qtiCustomInteractionContext` and bridging the
+  contract over `postMessage`. The existing `pie-qti-iframe` protocol is the
+  model: versioned envelopes, origin locking, `resize` and `responseChange`
+  already exist in the shape this needs.
+- Mutual origin locking over `postMessage`. `frame-ancestors` is ignored in
+  `<meta>` CSP, so who may frame the runner cannot be enforced by header on a
+  static host; the runner verifies `event.origin` against a value passed at init,
+  as `IFramePlayerHost` already verifies the frame.
+- `Access-Control-Allow-Origin: *` without credentials on the package origin. An
+  opaque origin sends `Origin: null`, so a PCI using `fetch` needs it; `<img>`
+  and `<script>` loads need no CORS at all.
 
-### Option D — Per-PCI iframe on a dedicated sandbox origin
+Accepted limits: no storage and no cookies in the frame, so a PCI that persists
+locally or fetches authenticated assets breaks. Neither should happen under the
+specification, where state travels through `getState()`, but third-party code
+will do both.
 
-Option C plus a real second origin serving the runner, which restores a normal
-origin for the PCI's own subresource loads while keeping it off the player's
-origin. Strongest isolation available in a browser.
+`https://qti.pie-framework.org` satisfies the runner-origin requirements today,
+including for production, since it is a distinct cookieless origin serving static
+content. Its inability to set response headers costs only `frame-ancestors`,
+which the origin-locking protocol covers.
 
-The trade: it needs an origin provisioned, served and CSP-configured — a
-deployment dependency the library cannot satisfy on its own, which makes it a
-host capability rather than a package feature.
+### Option D — Retired
+
+Previously "per-PCI iframe on a dedicated sandbox origin", listed as stronger
+isolation than Option C. It is not a separate tier: a dedicated origin is a
+property of Option C, and the objection that motivated D — tenants sharing
+storage on one named origin — dissolves under sandboxing, which denies storage
+outright. Folded into Option C's requirements.
 
 ### Option E — Worker or ShadowRealm
 
 Rejected. PCIs render; both boundaries deny DOM access.
 
-**Decision:** Option A stays the default and Option B stays the documented
-answer for untrusted items. Option C becomes the opt-in hardened engine because
-it needs no infrastructure. Option D is enabled by configuration once a host has
-an origin to offer.
+**Decision:** Option A stays the default for first-party and contractually
+trusted PCIs. Option B stays the documented answer for wholly untrusted items.
+Option C is the opt-in hardened engine for third-party PCIs delivered alongside
+trusted item content.
 
 ---
 
@@ -267,20 +290,27 @@ an origin to offer.
    restore-by-state, `ondone`, and fallback resolution; browser-level evidence
    in the private runner.
 4. **Sandboxed engine (Option C).** Frame runner, bridged contract, cached
-   response reads, manifest-proxied assets.
-5. **Sandbox origin (Option D).** Configuration only, once an origin exists.
+   response reads, base-URL asset resolution, mutual origin locking.
 
-Phases 1–3 are the certification prerequisites. Phase 4 is a security posture
-and must not gate a PCI certification claim.
+Phases 1–3 make third-party PCIs playable, which is the driver. Phase 4 is a
+security posture and does not gate anything else.
 
 ---
 
-## Certification Linkage
+## Driver: Ingest, Not Portability
 
-Official suite commit `b058156` ships no PCI packages, yet Cito holds
-Delivery-PCI and Import-PCI, so a certification path exists through content the
-current checkout does not carry — scope it with 1EdTech before estimating
-phases 1–3. Submission strategy lives in the private conformance project.
+The reason to do this is inbound content. Composer's corpus triage classifies PCI
+and `customInteraction` items as `manual_only` against the fallback component, so
+packages already arriving from third-party sources carry PCIs the pipeline cannot
+play. Phases 1–3 close that; nothing about them depends on a certification claim.
+
+PCI certification is therefore a data-driven decision rather than a positioning
+one. The corpus triage already counts how often ingested packages carry PCIs: if
+that frequency is negligible, do phases 1–3 for ingest quality and skip the claim;
+if it is not, the claim follows from work already done. Official suite commit
+`b058156` ships no PCI packages while Cito holds Delivery-PCI and Import-PCI, so
+scope the test-content source with 1EdTech before committing either way.
+Submission strategy lives in the private conformance project.
 
 ---
 
@@ -293,15 +323,29 @@ content to check against, and the first authoritative feedback arrives from
 authored to the specification rather than only against clean-room fixtures
 written from the same reading of the spec that produced the implementation.
 
-## Decisions Owed
+## Decisions Closed
 
-- **Sandbox origin.** Whether any deployment can provision one decides whether
-  Option D is real or theoretical.
-- **PIE Elements as PCIs.** Whether PIE Elements are projected into the PCI
-  contract, which would make `pie-qti` a PCI host in the strong sense and turn
-  the whole PIE catalogue into portable QTI content. This is the positioning
-  question behind the certification decision, and it is independent of phases
-  1–5.
+**PIE Elements are not projected into the PCI contract** (2026-08-17). Exposing
+each PIE Element as a conformant PCI module would make the PIE catalogue portable
+to third-party players, and `@pie-qti/pie-to-qti2` would emit
+`qti-portable-custom-interaction` where it currently emits an opaque QTI 2.x
+`customInteraction` that no other player can run.
+
+Rejected because it complicates PIE for a benefit PIE does not need. Distribution
+is already solved by CDN-loaded web components sharing a `pie-context` singleton —
+the coupling that forced the lockstep `@pie-players/*` pin — and a PCI module must
+be self-contained JavaScript at a URL inside the package, so projection would
+duplicate that shared runtime in every module of every package. The payoff is
+third-party players consuming Renaissance content, which is not a current need:
+Composer reads QTI and does not publish it.
+
+This closes only the outbound direction. PCI *host* support is unaffected and
+proceeds on the ingest driver above; the two were being conflated.
+
+**Sandbox origin: `https://qti.pie-framework.org`** (2026-08-17). Satisfies
+Option C's runner-origin requirements — distinct, cookieless, static. Not being
+able to set response headers costs only `frame-ancestors`, which mutual origin
+locking covers.
 
 ---
 

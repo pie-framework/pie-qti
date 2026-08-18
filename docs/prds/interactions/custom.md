@@ -620,7 +620,7 @@ Then: module.destroy() is called (if the method is present)
 
 - [ ] Should `CustomInteractionData.xml` be renamed `rawXml` to make the "debug/best-effort" semantics clearer now that `ExtractedPci` is the structured type for QTI 3.0? Renaming avoids confusion between the two types.
 - [ ] Should the fallback warning be suppressible via a `suppressFallback` prop for delivery contexts where showing an unsupported-interaction warning would be confusing to candidates? (e.g. an embedded preview that only wants to test other interactions in the item.)
-- [ ] Should a future resolver adapter provide per-PCI iframe isolation? The current contract deliberately leaves acquisition to the host but executes the returned module in the player realm. Whole-player cross-origin framing remains the supported stronger-isolation boundary.
+- Per-PCI iframe isolation is planned rather than open: a `sandbox="allow-scripts"` frame loaded from a cookieless runner origin, decided in [`docs/plans/pci-runtime-and-sandbox-2026-08.md`](../../plans/pci-runtime-and-sandbox-2026-08.md). Until it lands, the current contract executes the resolver's module in the player realm and whole-player cross-origin framing remains the supported stronger-isolation boundary.
 
 ---
 
