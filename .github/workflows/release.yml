@@ -289,11 +289,21 @@ jobs:
         # this step on 2026-08-18 with no change on our side.
         uses: changesets/action@v2.1.0
         with:
+          # v2 no longer reads a custom token from the GITHUB_TOKEN environment
+          # variable — it must arrive through this input or the push and PR calls
+          # go unauthenticated.
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           # release script handles: workspace range rewriting, build, publish, restore
           publish-script: node scripts/changeset-publish-resolved-workspaces.mjs
           version-script: bun run version
           pr-title: 'chore(release): version packages [skip-heavy-ci]'
           commit-message: 'chore(release): version packages'
+          # v2 pushes the release commit and tags through the GitHub API by default.
+          # The Git CLI path is what this workflow has always used, and it is what the
+          # checkout's credentials and the LEFTHOOK=0 escape below are set up for; an
+          # API push also re-attributes the release commit to the token's owner and
+          # dropped the tag annotations on 0.1.23. Keep the existing mechanism.
+          push-with-git-cli: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ env.PUBLISH_NPM_TOKEN }}
@@ -307,12 +317,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: v${{ fromJson(steps.changesets.outputs.publishedPackages)[0].version }}
-          release_name: Release v${{ fromJson(steps.changesets.outputs.publishedPackages)[0].version }}
+          tag_name: v${{ fromJson(steps.changesets.outputs.published-packages)[0].version }}
+          release_name: Release v${{ fromJson(steps.changesets.outputs.published-packages)[0].version }}
           body: |
             ## Changes
 
-            ${{ steps.changesets.outputs.publishedPackages }}
+            ${{ steps.changesets.outputs.published-packages }}
 
             See CHANGELOG.md files in each package for detailed changes.
           draft: false
@@ -323,12 +333,12 @@ jobs:
         run: |
           echo "### Published Packages" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo '${{ steps.changesets.outputs.publishedPackages }}' | jq -r '.[] | "- \(.name)@\(.version)"' >> $GITHUB_STEP_SUMMARY
+          echo '${{ steps.changesets.outputs.published-packages }}' | jq -r '.[] | "- \(.name)@\(.version)"' >> $GITHUB_STEP_SUMMARY
 
       - name: Verify published dependency closure
         if: steps.changesets.outputs.published == 'true'
         env:
-          PUBLISHED_PACKAGES_JSON: ${{ steps.changesets.outputs.publishedPackages }}
+          PUBLISHED_PACKAGES_JSON: ${{ steps.changesets.outputs.published-packages }}
         run: node scripts/check-published-closure.mjs
 
       - name: Notify Slack on Successful Publish
@@ -358,7 +368,7 @@ jobs:
                     },
                     {
                       "type": "mrkdwn",
-                      "text": "*Version:*\nv${{ fromJson(steps.changesets.outputs.publishedPackages)[0].version }}"
+                      "text": "*Version:*\nv${{ fromJson(steps.changesets.outputs.published-packages)[0].version }}"
                     },
                     {
                       "type": "mrkdwn",
