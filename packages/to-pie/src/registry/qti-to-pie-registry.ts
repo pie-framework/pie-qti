@@ -2,21 +2,30 @@ import type { PieItem } from '@pie-qti/transform-types';
 import type { HTMLElement } from 'node-html-parser';
 import { transformAssessmentTest } from '../transformers/assessment-test.js';
 import { transformAssociateToCategorize } from '../transformers/associate-to-categorize.js';
-import { transformDragInTheBlank } from '../transformers/drag-in-the-blank.js';
+import {
+  transformDragInTheBlank,
+  transformDragInTheBlankInteraction,
+} from '../transformers/drag-in-the-blank.js';
 import { transformEbsr, transformEbsrInteractions } from '../transformers/ebsr.js';
 import {
   transformExplicitConstructedResponse,
   transformExplicitConstructedResponseInteractions,
 } from '../transformers/explicit-constructed-response.js';
-import { transformExtendedResponse } from '../transformers/extended-response.js';
-import { transformHotspot } from '../transformers/hotspot.js';
-import { transformImageClozeAssociation } from '../transformers/image-cloze-association.js';
+import {
+  transformExtendedResponse,
+  transformExtendedResponseInteraction,
+} from '../transformers/extended-response.js';
+import { transformHotspot, transformHotspotInteraction } from '../transformers/hotspot.js';
+import {
+  transformImageClozeAssociation,
+  transformImageClozeAssociationInteraction,
+} from '../transformers/image-cloze-association.js';
 import {
   transformInlineDropdown,
   transformInlineDropdownInteractions,
 } from '../transformers/inline-dropdown.js';
-import { transformMatch } from '../transformers/match.js';
-import { transformMatchList } from '../transformers/match-list.js';
+import { transformMatch, transformMatchInteraction } from '../transformers/match.js';
+import { transformMatchList, transformMatchListInteraction } from '../transformers/match-list.js';
 import {
   transformMultipleChoice,
   transformMultipleChoiceInteraction,
@@ -187,6 +196,24 @@ export function createDefaultQtiToPieRegistry(): QtiToPieRegistry {
     notes: ['May also emit passage or rubric elements when the source item carries them.'],
     async transform(context) {
       if (!context.assessmentItem) throw new Error('No assessmentItem found');
+      const assessmentItem = context.assessmentItem;
+      const itemBody = assessmentItem.getElementsByTagName('itemBody')[0];
+      const extendedTextInteraction = context.interactionUnit?.interactions[0];
+      if (itemBody && extendedTextInteraction) {
+        return {
+          kind: 'pie-item',
+          content: await transformExtendedResponseInteraction(
+            assessmentItem,
+            itemBody,
+            extendedTextInteraction,
+            context.itemId,
+            {
+              baseId: context.baseId,
+              promptBoundaryStart: previousPlannedInteraction(context, extendedTextInteraction),
+            }
+          ),
+        };
+      }
       return {
         kind: 'pie-item',
         content: await transformExtendedResponse(context.assessmentItem, context.itemId, {
@@ -228,13 +255,35 @@ export function createDefaultQtiToPieRegistry(): QtiToPieRegistry {
     notes: ['Uses match-list when the source has two simpleMatchSet groups; otherwise match.'],
     transform(context) {
       const matchInteraction = context.interactionUnit?.interactions[0];
+      const assessmentItem = context.assessmentItem;
+      const itemBody = assessmentItem?.getElementsByTagName('itemBody')[0];
+      if (assessmentItem && itemBody && matchInteraction) {
+        const options = {
+          baseId: context.baseId,
+          promptBoundaryStart: previousPlannedInteraction(context, matchInteraction),
+        };
+        return {
+          kind: 'pie-item',
+          content: isMatchListInteraction(matchInteraction)
+            ? transformMatchListInteraction(
+                assessmentItem,
+                itemBody,
+                matchInteraction,
+                context.itemId,
+                options
+              )
+            : transformMatchInteraction(
+                assessmentItem,
+                itemBody,
+                matchInteraction,
+                context.itemId,
+                options
+              ),
+        };
+      }
       return {
         kind: 'pie-item',
-        content: (
-          matchInteraction
-            ? isMatchListInteraction(matchInteraction)
-            : isMatchList(context.qtiXml)
-        )
+        content: isMatchList(context.qtiXml)
           ? transformMatchList(context.qtiXml, context.itemId)
           : transformMatch(context.qtiXml, context.itemId),
       };
@@ -253,7 +302,8 @@ export function createDefaultQtiToPieRegistry(): QtiToPieRegistry {
             assessmentItem,
             itemBody,
             context.interactionUnit.interactions,
-            context.itemId
+            context.itemId,
+            plannedInteractionUnitBoundaries(context, context.interactionUnit)
           );
         }
         return transformExplicitConstructedResponse(context.qtiXml, context.itemId);
@@ -352,7 +402,8 @@ export function createDefaultQtiToPieRegistry(): QtiToPieRegistry {
             assessmentItem,
             itemBody,
             context.interactionUnit.interactions,
-            context.itemId
+            context.itemId,
+            plannedInteractionUnitBoundaries(context, context.interactionUnit)
           );
         }
         return transformInlineDropdown(context.qtiXml, context.itemId);
@@ -364,7 +415,21 @@ export function createDefaultQtiToPieRegistry(): QtiToPieRegistry {
       'builtin.drag-in-the-blank',
       ['gapMatchInteraction'],
       ['@pie-element/drag-in-the-blank'],
-      (context) => transformDragInTheBlank(context.qtiXml, context.itemId)
+      (context) => {
+        const gapMatchInteraction = context.interactionUnit?.interactions[0];
+        const assessmentItem = context.assessmentItem;
+        const itemBody = assessmentItem?.getElementsByTagName('itemBody')[0];
+        if (assessmentItem && itemBody && gapMatchInteraction) {
+          return transformDragInTheBlankInteraction(
+            assessmentItem,
+            itemBody,
+            gapMatchInteraction,
+            context.itemId,
+            { promptBoundaryStart: previousPlannedInteraction(context, gapMatchInteraction) }
+          );
+        }
+        return transformDragInTheBlank(context.qtiXml, context.itemId);
+      }
     )
   );
   registry.register(
@@ -379,16 +444,42 @@ export function createDefaultQtiToPieRegistry(): QtiToPieRegistry {
     })
   );
   registry.register(
-    itemHandler('builtin.hotspot', ['hotspotInteraction'], ['@pie-element/hotspot'], (context) =>
-      transformHotspot(context.qtiXml, context.itemId)
-    )
+    itemHandler('builtin.hotspot', ['hotspotInteraction'], ['@pie-element/hotspot'], (context) => {
+      const hotspotInteraction = context.interactionUnit?.interactions[0];
+      const assessmentItem = context.assessmentItem;
+      const itemBody = assessmentItem?.getElementsByTagName('itemBody')[0];
+      if (assessmentItem && itemBody && hotspotInteraction) {
+        return transformHotspotInteraction(
+          assessmentItem,
+          itemBody,
+          hotspotInteraction,
+          context.itemId,
+          { promptBoundaryStart: previousPlannedInteraction(context, hotspotInteraction) }
+        );
+      }
+      return transformHotspot(context.qtiXml, context.itemId);
+    })
   );
   registry.register(
     itemHandler(
       'builtin.image-cloze-association',
       ['graphicGapMatchInteraction'],
       ['@pie-element/image-cloze-association'],
-      (context) => transformImageClozeAssociation(context.qtiXml, context.itemId)
+      (context) => {
+        const graphicGapMatchInteraction = context.interactionUnit?.interactions[0];
+        const assessmentItem = context.assessmentItem;
+        const itemBody = assessmentItem?.getElementsByTagName('itemBody')[0];
+        if (assessmentItem && itemBody && graphicGapMatchInteraction) {
+          return transformImageClozeAssociationInteraction(
+            assessmentItem,
+            itemBody,
+            graphicGapMatchInteraction,
+            context.itemId,
+            { promptBoundaryStart: previousPlannedInteraction(context, graphicGapMatchInteraction) }
+          );
+        }
+        return transformImageClozeAssociation(context.qtiXml, context.itemId);
+      }
     )
   );
   registry.register(
@@ -478,6 +569,37 @@ function previousPlannedInteraction(
   }
   const index = interactions.indexOf(interaction);
   return index > 0 ? interactions[index - 1] : undefined;
+}
+
+function nextPlannedInteraction(
+  context: BuiltInTransformContext,
+  interaction: HTMLElement
+): HTMLElement | undefined {
+  const interactions = context.itemBodyPlan?.interactions;
+  if (!interactions) {
+    return undefined;
+  }
+  const index = interactions.indexOf(interaction);
+  return index >= 0 && index < interactions.length - 1 ? interactions[index + 1] : undefined;
+}
+
+/**
+ * Bounds for a composite unit's own markup/prompt extraction: the sibling
+ * interactions immediately before its first and after its last owned
+ * interaction, in document order. Scoping to this local window keeps a
+ * multi-interaction unit (e.g. several textEntryInteraction blanks grouped
+ * together) from reaching into prose that belongs to a neighboring unit.
+ */
+function plannedInteractionUnitBoundaries(
+  context: BuiltInTransformContext,
+  unit: PlannedQtiInteractionUnit
+): { boundaryStart?: HTMLElement; boundaryEnd?: HTMLElement } {
+  const first = unit.interactions[0];
+  const last = unit.interactions[unit.interactions.length - 1];
+  return {
+    boundaryStart: first ? previousPlannedInteraction(context, first) : undefined,
+    boundaryEnd: last ? nextPlannedInteraction(context, last) : undefined,
+  };
 }
 
 function isMatchList(qtiXml: string): boolean {

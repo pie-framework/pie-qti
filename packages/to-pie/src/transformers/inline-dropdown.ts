@@ -9,7 +9,7 @@ import type { PieItem } from '@pie-qti/transform-types';
 import type { HTMLElement } from 'node-html-parser';
 import { parse } from 'node-html-parser';
 import { v4 as uuid } from 'uuid';
-import { serializeChildrenWithReplacements } from '../utils/markup-extraction.js';
+import { resolveNodeWindow, serializeNodesWithReplacements } from '../utils/markup-extraction.js';
 import { createMissingElementError, createMissingInteractionError } from '../utils/qti-errors.js';
 import { isQtiInteractionElement } from '../utils/qti-item-planner.js';
 import {
@@ -27,6 +27,14 @@ export interface InlineDropdownOptions {
   rationale?: string;
   /** Stable/public identifier for round-trip compatibility */
   baseId?: string;
+  /**
+   * When this interaction group is one unit inside a composite item, bounds
+   * markup extraction to the local span after this neighboring interaction
+   * (exclusive) instead of the whole item body.
+   */
+  boundaryStart?: HTMLElement;
+  /** Same as `boundaryStart`, bounding the end of the local span (exclusive). */
+  boundaryEnd?: HTMLElement;
 }
 
 interface Choice {
@@ -92,7 +100,10 @@ export function transformInlineDropdownInteractions(
   const lockChoiceOrder = options?.lockChoiceOrder ?? shuffle === 'false';
 
   // Build markup by replacing inlineChoiceInteractions with {{index}} placeholders
-  const markup = buildMarkup(itemBody, inlineChoiceInteractions);
+  const markup = buildMarkup(itemBody, inlineChoiceInteractions, {
+    boundaryStart: options?.boundaryStart,
+    boundaryEnd: options?.boundaryEnd,
+  });
 
   // Extract choices for each inline choice interaction
   const choices = extractChoices(inlineChoiceInteractions, correctAnswers);
@@ -215,11 +226,16 @@ function extractCorrectAnswers(
 /**
  * Build markup by replacing inlineChoiceInteractions with {{index}} placeholders
  */
-function buildMarkup(itemBody: HTMLElement, interactions: HTMLElement[]): string {
+function buildMarkup(
+  itemBody: HTMLElement,
+  interactions: HTMLElement[],
+  window?: { boundaryStart?: HTMLElement; boundaryEnd?: HTMLElement }
+): string {
   const replacements = new Map(
     interactions.map((interaction, index) => [interaction, `{{${index}}}`] as const)
   );
-  return serializeChildrenWithReplacements(itemBody, {
+  const nodes = resolveNodeWindow(itemBody, window?.boundaryStart, window?.boundaryEnd);
+  return serializeNodesWithReplacements(nodes, {
     replacements,
     omit: (element) => {
       const tagName = element.tagName.toLowerCase();

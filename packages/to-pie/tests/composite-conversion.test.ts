@@ -293,7 +293,7 @@ describe('composite conversion', () => {
     );
   });
 
-  test('rejects repeated same-type composites for handlers without scoped adapters', async () => {
+  test('preserves repeated matchInteraction units as separate composite models', async () => {
     const result = await transformedSingleItem(`
 <assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="repeated-match">
   <responseDeclaration identifier="FIRST_MATCH" cardinality="directedPair" baseType="directedPair">
@@ -314,11 +314,15 @@ describe('composite conversion', () => {
   </itemBody>
 </assessmentItem>`);
 
-    expect(failedItem(result)?.status).toBe('failed');
-    expect(failedItem(result)?.message).toContain('repeated matchInteraction units are not supported');
+    expect(failedItem(result)?.status).toBe('transformed');
+    const item = (result.items[0] as any).content;
+    expect(item.config.models.map((model: any) => model.element)).toEqual([
+      'match-list',
+      'match-list',
+    ]);
   });
 
-  test('rejects mixed composites with matchInteraction until a scoped adapter exists', async () => {
+  test('converts mixed composites with matchInteraction', async () => {
     const result = await transformedSingleItem(`
 <assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="choice-match">
   <responseDeclaration identifier="CHOICE" cardinality="single" baseType="identifier">
@@ -338,13 +342,15 @@ describe('composite conversion', () => {
   </itemBody>
 </assessmentItem>`);
 
-    expect(failedItem(result)?.status).toBe('failed');
-    expect(failedItem(result)?.message).toContain(
-      'matchInteraction units are not supported by the scoped generic converter'
-    );
+    expect(failedItem(result)?.status).toBe('transformed');
+    const item = (result.items[0] as any).content;
+    expect(item.config.models.map((model: any) => model.element)).toEqual([
+      'multiple-choice',
+      'match-list',
+    ]);
   });
 
-  test('rejects mixed composites with hotspotInteraction until a scoped adapter exists', async () => {
+  test('converts mixed composites with hotspotInteraction', async () => {
     const result = await transformedSingleItem(`
 <assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="choice-hotspot">
   <responseDeclaration identifier="CHOICE" cardinality="single" baseType="identifier">
@@ -364,10 +370,12 @@ describe('composite conversion', () => {
   </itemBody>
 </assessmentItem>`);
 
-    expect(failedItem(result)?.status).toBe('failed');
-    expect(failedItem(result)?.message).toContain(
-      'hotspotInteraction units are not supported by the scoped generic converter'
-    );
+    expect(failedItem(result)?.status).toBe('transformed');
+    const item = (result.items[0] as any).content;
+    expect(item.config.models.map((model: any) => model.element)).toEqual([
+      'multiple-choice',
+      'hotspot',
+    ]);
   });
 
   test('rejects interactions nested inside feedbackBlock instead of planning them as normal content', async () => {
@@ -393,9 +401,9 @@ describe('composite conversion', () => {
     expect(failedItem(result)?.message).toContain('Unsupported interaction inside feedbackBlock');
   });
 
-  test('rejects mixed composites with multi-blank inline groups', async () => {
+  test('converts mixed composites with multi-blank inline groups, scoped to their own span', async () => {
     const result = await transformedSingleItem(`
-<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="unsupported-inline-composite">
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="multi-blank-composite">
   <responseDeclaration identifier="A" cardinality="single" baseType="string">
     <correctResponse><value>alpha</value></correctResponse>
   </responseDeclaration>
@@ -413,10 +421,48 @@ describe('composite conversion', () => {
   </itemBody>
 </assessmentItem>`);
 
-    expect(failedItem(result)?.status).toBe('failed');
-    expect(failedItem(result)?.message).toContain(
-      'multi-blank textEntryInteraction groups cannot yet be represented faithfully'
-    );
+    expect(failedItem(result)?.status).toBe('transformed');
+    const item = (result.items[0] as any).content;
+    expect(item.config.models.map((model: any) => model.element)).toEqual([
+      'explicit-constructed-response',
+      'multiple-choice',
+    ]);
+    const ecr = item.config.models[0];
+    expect(ecr.markup).toBe('<p>{{0}} then {{1}}</p>');
+    // The sibling choiceInteraction's own content stays out of the ECR unit's
+    // bounded markup — it doesn't reach past its own local span.
+    expect(ecr.markup).not.toContain('C');
+  });
+
+  test('preserves repeated separate textEntryInteraction units, bounded to their own span', async () => {
+    const result = await transformedSingleItem(`
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="repeated-separate-text-entry">
+  <responseDeclaration identifier="A" cardinality="single" baseType="string">
+    <correctResponse><value>alpha</value></correctResponse>
+  </responseDeclaration>
+  <responseDeclaration identifier="B" cardinality="single" baseType="string">
+    <correctResponse><value>beta</value></correctResponse>
+  </responseDeclaration>
+  <responseDeclaration identifier="CHOICE" cardinality="single" baseType="identifier">
+    <correctResponse><value>C</value></correctResponse>
+  </responseDeclaration>
+  <itemBody>
+    <p>First blank: <textEntryInteraction responseIdentifier="A"/></p>
+    <choiceInteraction responseIdentifier="CHOICE">
+      <simpleChoice identifier="C">C</simpleChoice>
+    </choiceInteraction>
+    <p>Second blank: <textEntryInteraction responseIdentifier="B"/></p>
+  </itemBody>
+</assessmentItem>`);
+
+    expect(failedItem(result)?.status).toBe('transformed');
+    const item = (result.items[0] as any).content;
+    expect(item.config.models.map((model: any) => model.element)).toEqual([
+      'explicit-constructed-response',
+      'multiple-choice',
+      'explicit-constructed-response',
+    ]);
+    expect(item.config.markup.match(/<explicit-constructed-response/g)).toHaveLength(2);
   });
 
   test('reports a missing itemBody as a specific, per-item conversion blocker', async () => {

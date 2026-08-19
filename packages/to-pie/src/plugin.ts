@@ -1432,6 +1432,24 @@ const SCOPED_REPEATABLE_COMPOSITE_INTERACTIONS = new Set<string>([
   'choiceInteraction',
   'orderInteraction',
   'sliderInteraction',
+  // textEntryInteraction/inlineChoiceInteraction handlers bound their own
+  // markup extraction to the local span between neighboring units (see
+  // `plannedInteractionUnitBoundaries` in qti-to-pie-registry.ts), so
+  // repeated or multi-blank groups of these no longer risk duplicating a
+  // sibling unit's prose the way an unbounded extraction would.
+  'textEntryInteraction',
+  'inlineChoiceInteraction',
+  // match/hotspot/gapMatch/graphicGapMatch/extendedText are always
+  // 'block'-kind units (never merged into a multi-interaction group, unlike
+  // textEntry/inlineChoice), and their scoped adapters extract everything
+  // from the interaction's own node plus a boundary-limited prompt — so
+  // repeats carry the same, already-accepted per-unit boundary as
+  // choice/order/slider.
+  'matchInteraction',
+  'hotspotInteraction',
+  'gapMatchInteraction',
+  'graphicGapMatchInteraction',
+  'extendedTextInteraction',
 ]);
 
 const SCOPED_COMPOSITE_INTERACTIONS = new Set<string>([
@@ -1516,13 +1534,6 @@ function validateCompositeUnitCompatibility(
     if (unit.kind === 'paired') {
       throw unsupportedItemError(
         `Unsupported composite QTI item ${failure.itemId}: EBSR paired groups cannot be mixed with other interactions.`,
-        'QTI_COMPOSITE_ITEM_UNSUPPORTED',
-        failure
-      );
-    }
-    if (unit.kind === 'inline' && unit.interactions.length > 1) {
-      throw unsupportedItemError(
-        `Unsupported composite QTI item ${failure.itemId}: multi-blank ${unit.interactionType} groups cannot yet be represented faithfully in mixed PIE item markup.`,
         'QTI_COMPOSITE_ITEM_UNSUPPORTED',
         failure
       );

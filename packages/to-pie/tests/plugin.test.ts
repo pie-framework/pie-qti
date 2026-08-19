@@ -491,25 +491,19 @@ describe('QtiToPiePlugin', () => {
     expect(metadata.qtiProcessing.responseProcessingXml).toContain('<responseProcessing>');
   });
 
-  test('should reject standard composite items instead of silently reducing to first interaction', async () => {
+  test('should reject a standard composite item outside the scoped set instead of silently reducing to first interaction', async () => {
     const plugin = new QtiToPiePlugin();
     const compositeQti = `<?xml version="1.0" encoding="UTF-8"?>
-<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="choice-match-composite" title="Composite" adaptive="false" timeDependent="false">
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="choice-upload-composite" title="Composite" adaptive="false" timeDependent="false">
   <responseDeclaration identifier="CHOICE" cardinality="single" baseType="identifier">
     <correctResponse><value>A</value></correctResponse>
-  </responseDeclaration>
-  <responseDeclaration identifier="MATCH" cardinality="single" baseType="directedPair">
-    <correctResponse><value>S1 T1</value></correctResponse>
   </responseDeclaration>
   <itemBody>
     <choiceInteraction responseIdentifier="CHOICE" shuffle="false" maxChoices="1">
       <simpleChoice identifier="A">A</simpleChoice>
       <simpleChoice identifier="B">B</simpleChoice>
     </choiceInteraction>
-    <matchInteraction responseIdentifier="MATCH">
-      <simpleMatchSet><simpleAssociableChoice identifier="S1" matchMax="1">Stem</simpleAssociableChoice></simpleMatchSet>
-      <simpleMatchSet><simpleAssociableChoice identifier="T1" matchMax="1">Target</simpleAssociableChoice></simpleMatchSet>
-    </matchInteraction>
+    <uploadInteraction responseIdentifier="UPLOAD"/>
   </itemBody>
 </assessmentItem>`;
 
@@ -556,10 +550,11 @@ describe('QtiToPiePlugin', () => {
     expect(output.warnings?.some(w => w.code === 'QTI_COMPOSITE_ITEM_COMPOSED')).toBe(true);
   });
 
-  test('should reject a composite whose second interaction is outside the scoped composite set', async () => {
-    // hotspotInteraction converts fine on its own (builtin.hotspot is registered for it), but
-    // it is not one of the types the generic composite converter is scoped to combine — unlike
-    // choiceInteraction/orderInteraction/sliderInteraction/textEntryInteraction/inlineChoiceInteraction.
+  test('should compose a scoped composite (choice + hotspot) into one PIE item', async () => {
+    // hotspotInteraction has its own scoped adapter (transformHotspotInteraction), bound to its
+    // own node plus a boundary-limited prompt, so it composes with a sibling choiceInteraction
+    // the same way choiceInteraction/orderInteraction/sliderInteraction/textEntryInteraction/
+    // inlineChoiceInteraction already do.
     const plugin = new QtiToPiePlugin();
     const hotspotComposite = `<?xml version="1.0" encoding="UTF-8"?>
 <assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="choice-hotspot-composite" title="Composite" adaptive="false" timeDependent="false">
@@ -581,10 +576,16 @@ describe('QtiToPiePlugin', () => {
   </itemBody>
 </assessmentItem>`;
 
-    await expect(plugin.transform(
+    const output = await plugin.transform(
       { content: hotspotComposite },
       { logger: new SilentLogger() }
-    )).rejects.toThrow(/Unsupported composite QTI item .*hotspotInteraction/);
+    );
+
+    expect(output.items).toHaveLength(1);
+    const item = output.items[0]?.content as any;
+    expect(item.config.models).toHaveLength(2);
+    expect(Object.keys(item.config.elements)).toContain('multiple-choice');
+    expect(Object.keys(item.config.elements)).toContain('hotspot');
   });
 
   test('should reject a portableCustomInteraction composite', async () => {

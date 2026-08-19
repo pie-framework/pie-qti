@@ -10,7 +10,53 @@ export function serializeChildrenWithReplacements(
   root: HTMLElement,
   options: SerializeHtmlOptions = {}
 ): string {
-  return cleanTransformHtml(root.childNodes.map((child) => serializeNode(child, options)).join(''));
+  return serializeNodesWithReplacements(root.childNodes, options);
+}
+
+export function serializeNodesWithReplacements(
+  nodes: Node[],
+  options: SerializeHtmlOptions = {}
+): string {
+  return cleanTransformHtml(nodes.map((child) => serializeNode(child, options)).join(''));
+}
+
+/**
+ * Narrows a root's direct children to the window strictly between the
+ * top-level siblings that contain `boundaryStart` and `boundaryEnd` (both
+ * exclusive). Used to scope a composite unit's own markup/prompt extraction
+ * to its local neighborhood instead of the whole item body, matching the
+ * `promptBoundaryStart` pattern already used for prompt-only extraction.
+ * Falls back to the full child list when a boundary can't be resolved to a
+ * distinct top-level sibling (e.g. both boundaries land in the same
+ * container), since narrowing to an empty/inverted range would be worse than
+ * the pre-existing unbounded behavior.
+ */
+export function resolveNodeWindow(
+  root: HTMLElement,
+  boundaryStart?: HTMLElement,
+  boundaryEnd?: HTMLElement
+): Node[] {
+  const children = root.childNodes;
+  if (!boundaryStart && !boundaryEnd) {
+    return children;
+  }
+
+  const startIndex = boundaryStart ? topLevelIndexContaining(children, boundaryStart) : -1;
+  const endIndex = boundaryEnd ? topLevelIndexContaining(children, boundaryEnd) : -1;
+  const from = startIndex >= 0 ? startIndex + 1 : 0;
+  const to = endIndex >= 0 ? endIndex : children.length;
+
+  if (from >= to) {
+    return children;
+  }
+  return children.slice(from, to);
+}
+
+function topLevelIndexContaining(nodes: Node[], target: HTMLElement): number {
+  return nodes.findIndex((child) => {
+    const element = child as HTMLElement;
+    return Boolean(element.tagName) && elementIsOrContains(element, target);
+  });
 }
 
 function serializeNode(node: Node, options: SerializeHtmlOptions): string {

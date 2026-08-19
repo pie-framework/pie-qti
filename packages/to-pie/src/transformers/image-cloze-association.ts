@@ -37,6 +37,8 @@ export interface ImageClozeAssociationOptions {
   itemFilePath?: string;
   /** Stable/public identifier for round-trip compatibility */
   baseId?: string;
+  /** Bounds prompt extraction to the span after this neighboring interaction (exclusive). */
+  promptBoundaryStart?: HTMLElement;
 }
 
 interface ResponseContainer {
@@ -79,8 +81,23 @@ export function transformImageClozeAssociation(
     });
   }
 
+  return transformImageClozeAssociationInteraction(document, itemBody, interaction, itemId, options);
+}
+
+/**
+ * Transform a specific QTI graphicGapMatchInteraction node to PIE
+ * image-cloze-association. Scoped to one node so a composite item with
+ * more than one graphicGapMatchInteraction converts each unit independently.
+ */
+export function transformImageClozeAssociationInteraction(
+  document: HTMLElement,
+  itemBody: HTMLElement,
+  interaction: HTMLElement,
+  itemId: string,
+  options?: ImageClozeAssociationOptions
+): PieItem {
   // Extract prompt
-  const prompt = extractPrompt(itemBody, interaction);
+  const prompt = extractPrompt(itemBody, interaction, options?.promptBoundaryStart);
 
   // Get response identifier
   const responseIdentifier = interaction.getAttribute('responseIdentifier') || 'RESPONSE';
@@ -160,8 +177,12 @@ export function transformImageClozeAssociation(
 /**
  * Extract prompt from itemBody or interaction
  */
-function extractPrompt(itemBody: HTMLElement, interaction: HTMLElement): string | null {
-  return extractPromptForInteraction(itemBody, interaction) || null;
+function extractPrompt(
+  itemBody: HTMLElement,
+  interaction: HTMLElement,
+  promptBoundaryStart?: HTMLElement
+): string | null {
+  return extractPromptForInteraction(itemBody, interaction, { after: promptBoundaryStart }) || null;
 }
 
 /**

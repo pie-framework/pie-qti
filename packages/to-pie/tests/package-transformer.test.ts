@@ -99,21 +99,17 @@ describe('transformQtiPackageToPie', () => {
   </resources>
 </manifest>`;
 
-		// hotspotInteraction is fully supported on its own, but it is not one of the types the
-		// generic composite converter is scoped to combine, so pairing it with choiceInteraction
-		// must still fail closed rather than silently reduce to the first interaction.
+		// uploadInteraction is not one of the types the generic composite converter is scoped to
+		// combine, so pairing it with choiceInteraction must still fail closed rather than
+		// silently reduce to the first interaction.
 		const compositeXml = `
 <assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="item2" title="Composite">
   <responseDeclaration identifier="CHOICE" cardinality="single" baseType="identifier"/>
-  <responseDeclaration identifier="HOTSPOT" cardinality="single" baseType="identifier"/>
   <itemBody>
     <choiceInteraction responseIdentifier="CHOICE" maxChoices="1">
       <simpleChoice identifier="A">A</simpleChoice>
     </choiceInteraction>
-    <hotspotInteraction responseIdentifier="HOTSPOT" maxChoices="1">
-      <object data="image.png" type="image/png" width="100" height="100"/>
-      <hotspotChoice identifier="H1" shape="rect" coords="0,0,10,10"/>
-    </hotspotInteraction>
+    <uploadInteraction responseIdentifier="UPLOAD"/>
   </itemBody>
 </assessmentItem>`;
 

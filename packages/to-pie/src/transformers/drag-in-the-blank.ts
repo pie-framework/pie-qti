@@ -26,6 +26,8 @@ export interface DragInTheBlankOptions {
   rationale?: string;
   /** Stable/public identifier for round-trip compatibility */
   baseId?: string;
+  /** Bounds prompt extraction to the span after this neighboring interaction (exclusive). */
+  promptBoundaryStart?: HTMLElement;
 }
 
 interface Choice {
@@ -60,10 +62,27 @@ export function transformDragInTheBlank(
     });
   }
 
+  return transformDragInTheBlankInteraction(document, itemBody, gapMatchInteraction, itemId, options);
+}
+
+/**
+ * Transform a specific QTI gapMatchInteraction node to PIE drag-in-the-blank.
+ * Scoped to one node so a composite item with more than one
+ * gapMatchInteraction converts each unit independently.
+ */
+export function transformDragInTheBlankInteraction(
+  document: HTMLElement,
+  itemBody: HTMLElement,
+  gapMatchInteraction: HTMLElement,
+  itemId: string,
+  options?: DragInTheBlankOptions
+): PieItem {
   const responseIdentifier = gapMatchInteraction.getAttribute('responseIdentifier') || 'RESPONSE';
 
   // Extract prompt
-  const prompt = extractPromptForInteraction(itemBody, gapMatchInteraction);
+  const prompt = extractPromptForInteraction(itemBody, gapMatchInteraction, {
+    after: options?.promptBoundaryStart,
+  });
 
   // Determine shuffle/lockChoiceOrder
   const shuffle = gapMatchInteraction.getAttribute('shuffle');

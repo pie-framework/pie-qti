@@ -33,6 +33,8 @@ export interface HotspotOptions {
   itemFilePath?: string;
   /** Stable/public identifier for round-trip compatibility */
   baseId?: string;
+  /** Bounds prompt extraction to the span after this neighboring interaction (exclusive). */
+  promptBoundaryStart?: HTMLElement;
 }
 
 interface Rectangle {
@@ -82,8 +84,23 @@ export function transformHotspot(
     });
   }
 
+  return transformHotspotInteraction(document, itemBody, hotspotInteraction, itemId, options);
+}
+
+/**
+ * Transform a specific QTI hotspotInteraction node to PIE hotspot. Scoped
+ * to one node so a composite item with more than one hotspotInteraction
+ * converts each unit independently.
+ */
+export function transformHotspotInteraction(
+  document: HTMLElement,
+  itemBody: HTMLElement,
+  hotspotInteraction: HTMLElement,
+  itemId: string,
+  options?: HotspotOptions
+): PieItem {
   // Extract prompt
-  const prompt = extractPrompt(itemBody, hotspotInteraction);
+  const prompt = extractPrompt(itemBody, hotspotInteraction, options?.promptBoundaryStart);
 
   // Extract correct answers
   const responseIdentifier = hotspotInteraction.getAttribute('responseIdentifier') || 'RESPONSE';
@@ -152,8 +169,12 @@ export function transformHotspot(
 /**
  * Extract prompt from itemBody or interaction
  */
-function extractPrompt(itemBody: HTMLElement, interaction: HTMLElement): string | null {
-  return extractPromptForInteraction(itemBody, interaction) || null;
+function extractPrompt(
+  itemBody: HTMLElement,
+  interaction: HTMLElement,
+  promptBoundaryStart?: HTMLElement
+): string | null {
+  return extractPromptForInteraction(itemBody, interaction, { after: promptBoundaryStart }) || null;
 }
 
 /**

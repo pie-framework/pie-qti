@@ -9,7 +9,7 @@ import type { PieItem } from '@pie-qti/transform-types';
 import type { HTMLElement } from 'node-html-parser';
 import { parse } from 'node-html-parser';
 import { v4 as uuid } from 'uuid';
-import { serializeChildrenWithReplacements } from '../utils/markup-extraction.js';
+import { resolveNodeWindow, serializeNodesWithReplacements } from '../utils/markup-extraction.js';
 import { createMissingElementError, createMissingInteractionError } from '../utils/qti-errors.js';
 import { isQtiInteractionElement } from '../utils/qti-item-planner.js';
 import {
@@ -25,6 +25,14 @@ export interface ExplicitConstructedResponseOptions {
   note?: string;
   /** Stable/public identifier for round-trip compatibility */
   baseId?: string;
+  /**
+   * When this interaction group is one unit inside a composite item, bounds
+   * markup extraction to the local span after this neighboring interaction
+   * (exclusive) instead of the whole item body.
+   */
+  boundaryStart?: HTMLElement;
+  /** Same as `boundaryStart`, bounding the end of the local span (exclusive). */
+  boundaryEnd?: HTMLElement;
 }
 
 interface Choice {
@@ -84,7 +92,10 @@ export function transformExplicitConstructedResponseInteractions(
   const prompt = extractPrompt(itemBody);
 
   // Build markup by replacing textEntryInteractions with {{index}} placeholders
-  const markup = buildMarkup(itemBody, textEntryInteractions, responseIdMap);
+  const markup = buildMarkup(itemBody, textEntryInteractions, responseIdMap, {
+    boundaryStart: options?.boundaryStart,
+    boundaryEnd: options?.boundaryEnd,
+  });
 
   // Extract choices (correct answers) for each text entry
   const choices = extractChoices(document, responseIdMap);
@@ -191,7 +202,8 @@ function extractPrompt(itemBody: HTMLElement): string | null {
 function buildMarkup(
   itemBody: HTMLElement,
   interactions: HTMLElement[],
-  responseIdMap: Map<string, string>
+  responseIdMap: Map<string, string>,
+  window?: { boundaryStart?: HTMLElement; boundaryEnd?: HTMLElement }
 ): string {
   const replacements = new Map<HTMLElement, string>();
   for (const interaction of interactions) {
@@ -204,7 +216,8 @@ function buildMarkup(
     }
   }
 
-  return serializeChildrenWithReplacements(itemBody, {
+  const nodes = resolveNodeWindow(itemBody, window?.boundaryStart, window?.boundaryEnd);
+  return serializeNodesWithReplacements(nodes, {
     replacements,
     omit: (element) => {
       const tagName = element.tagName.toLowerCase();

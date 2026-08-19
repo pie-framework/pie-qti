@@ -18,6 +18,8 @@ export interface ExtendedResponseOptions {
   maxScore?: number;
   equationEditor?: string;
   baseId?: string;  // Stable/public identifier for round-trip compatibility
+  /** Bounds prompt extraction to the span after this neighboring interaction (exclusive). */
+  promptBoundaryStart?: HTMLElement;
 }
 
 export async function transformExtendedResponse(
@@ -25,9 +27,6 @@ export async function transformExtendedResponse(
   itemId: string,
   options: ExtendedResponseOptions = {}
 ): Promise<PieItem> {
-  const uuid = uuidv4();
-  const { baseId } = options;
-
   // Get interaction
   const extendedTextInteraction = itemElement.querySelector('extendedTextInteraction') ||
                                   itemElement.getElementsByTagName('extendedTextInteraction')[0];
@@ -39,9 +38,6 @@ export async function transformExtendedResponse(
     });
   }
 
-  // Get response identifier
-  const responseId = extendedTextInteraction.getAttribute('responseIdentifier') || 'RESPONSE';
-
   // Get itemBody
   const itemBody = itemElement.querySelector('itemBody') ||
                   itemElement.getElementsByTagName('itemBody')[0];
@@ -49,6 +45,33 @@ export async function transformExtendedResponse(
   if (!itemBody) {
     throw new Error(`No itemBody found in item ${itemId}`);
   }
+
+  return transformExtendedResponseInteraction(
+    itemElement,
+    itemBody,
+    extendedTextInteraction,
+    itemId,
+    options
+  );
+}
+
+/**
+ * Transform a specific QTI extendedTextInteraction node to PIE
+ * extended-text-entry. Scoped to one node so a composite item with more
+ * than one extendedTextInteraction converts each unit independently.
+ */
+export async function transformExtendedResponseInteraction(
+  itemElement: HTMLElement,
+  itemBody: HTMLElement,
+  extendedTextInteraction: HTMLElement,
+  itemId: string,
+  options: ExtendedResponseOptions = {}
+): Promise<PieItem> {
+  const uuid = uuidv4();
+  const { baseId } = options;
+
+  // Get response identifier
+  const responseId = extendedTextInteraction.getAttribute('responseIdentifier') || 'RESPONSE';
 
   // Check for inline stimulus (passage content)
   const passageModel = extractInlineStimulus(itemBody);
@@ -59,9 +82,10 @@ export async function transformExtendedResponse(
   // Check for rubric block (scoring guide)
   const rubricModel = extractRubricBlock(itemElement);
 
+  const promptOptions = { after: options.promptBoundaryStart };
   const prompt =
-    extractItemBodyPromptBeforeInteraction(itemBody, extendedTextInteraction) ||
-    extractPromptForInteraction(itemBody, extendedTextInteraction);
+    extractItemBodyPromptBeforeInteraction(itemBody, extendedTextInteraction, promptOptions) ||
+    extractPromptForInteraction(itemBody, extendedTextInteraction, promptOptions);
 
   // Get expectedLines for height calculation
   const expectedLines = parseInt(extendedTextInteraction.getAttribute('expectedLines') || '0', 10);
