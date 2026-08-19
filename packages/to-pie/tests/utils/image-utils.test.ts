@@ -7,17 +7,20 @@ import { getImageDimensionsFromBuffer } from '../../src/utils/image-utils';
  * rather than spin. Each test fails by timing out if the mitigation regresses.
  */
 describe('getImageDimensionsFromBuffer with crafted input', () => {
-  test('returns undefined for an ICNS buffer with a zero-length entry', () => {
+  test('refuses an ICNS buffer with a zero-length entry, naming why', () => {
     const buf = Buffer.alloc(32);
     buf.write('icns', 0, 'ascii');
     buf.writeUInt32BE(32, 4); // file length
     buf.write('ic07', 8, 'ascii'); // entry type
     buf.writeUInt32BE(0, 12); // entry length of 0 never advances the offset
 
-    expect(getImageDimensionsFromBuffer(buf)).toBeUndefined();
+    const result = getImageDimensionsFromBuffer(buf);
+
+    expect(result.dimensions).toBeNull();
+    expect(result.reason).toContain('denial-of-service advisory');
   });
 
-  test('returns undefined for a JXL container with a zero-size box', () => {
+  test('refuses a JXL container with a zero-size box, naming why', () => {
     const buf = Buffer.alloc(48);
     buf.writeUInt32BE(12, 0); // signature box size
     buf.write('JXL ', 4, 'ascii');
@@ -28,10 +31,13 @@ describe('getImageDimensionsFromBuffer with crafted input', () => {
     buf.writeUInt32BE(0, 32); // zero-size jxlp box never advances the offset
     buf.write('jxlp', 36, 'ascii');
 
-    expect(getImageDimensionsFromBuffer(buf)).toBeUndefined();
+    const result = getImageDimensionsFromBuffer(buf);
+
+    expect(result.dimensions).toBeNull();
+    expect(result.reason).toContain('denial-of-service advisory');
   });
 
-  test('returns undefined for a HEIF buffer with a zero-size box', () => {
+  test('refuses a HEIF buffer with a zero-size box, naming why', () => {
     const buf = Buffer.alloc(40);
     buf.writeUInt32BE(20, 0); // ftyp box size
     buf.write('ftyp', 4, 'ascii');
@@ -39,7 +45,10 @@ describe('getImageDimensionsFromBuffer with crafted input', () => {
     buf.writeUInt32BE(0, 20); // zero-size meta box
     buf.write('meta', 24, 'ascii');
 
-    expect(getImageDimensionsFromBuffer(buf)).toBeUndefined();
+    const result = getImageDimensionsFromBuffer(buf);
+
+    expect(result.dimensions).toBeNull();
+    expect(result.reason).toContain('denial-of-service advisory');
   });
 
   test('still measures a supported format', () => {
@@ -49,6 +58,6 @@ describe('getImageDimensionsFromBuffer with crafted input', () => {
       'base64',
     );
 
-    expect(getImageDimensionsFromBuffer(png)).toEqual({ width: 1, height: 1, type: 'png' });
+    expect(getImageDimensionsFromBuffer(png)).toEqual({ dimensions: { width: 1, height: 1, type: 'png' } });
   });
 });

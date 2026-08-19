@@ -60,62 +60,64 @@ export interface ImageDimensions {
 }
 
 /**
- * Get image dimensions from file path
- * Bun-compatible implementation using Uint8Array
+ * Either the dimensions, or why they are unavailable. The reason reaches the conversion
+ * error, so an author whose AVIF hotspot stops converting is told to supply width/height
+ * instead of seeing an unexplained failure.
  */
-export function getImageDimensions(imagePath: string): ImageDimensions | undefined {
-  if (!existsSync(imagePath)) {
-    return undefined;
-  }
+export type ImageDimensionsResult =
+  | { dimensions: ImageDimensions; reason?: undefined }
+  | { dimensions: null; reason: string };
 
+function measure(bytes: Uint8Array, label: string): ImageDimensionsResult {
   disableHangingParsers();
 
   try {
-    // Read file as buffer
-    const buffer = readFileSync(imagePath);
-
-    // Convert to Uint8Array for Bun compatibility
-    // Bun's image-size requires Uint8Array, not Buffer
-    const uint8Array = new Uint8Array(buffer);
-
-    const dimensions = sizeOf(uint8Array);
-
+    const dimensions = sizeOf(bytes);
     return {
-      width: dimensions.width || 0,
-      height: dimensions.height || 0,
-      type: dimensions.type,
+      dimensions: {
+        width: dimensions.width || 0,
+        height: dimensions.height || 0,
+        type: dimensions.type,
+      },
     };
   } catch (error) {
-    if (!isUnmeasurableType(error)) {
-      console.error(`Error reading image dimensions for ${imagePath}:`, error);
+    if (isUnmeasurableType(error)) {
+      return {
+        dimensions: null,
+        reason:
+          `${label} is in an image format this converter does not measure (${(error as Error).message}); ` +
+          'its parser is covered by an unfixed denial-of-service advisory. Supply width and ' +
+          'height on the image element, or convert the image to PNG or JPEG.',
+      };
     }
-    return undefined;
+    console.error(`Error reading image dimensions for ${label}:`, error);
+    const detail = error instanceof Error ? error.message : String(error);
+    return { dimensions: null, reason: `${label} could not be read as an image: ${detail}` };
   }
+}
+
+/**
+ * Get image dimensions from file path
+ * Bun-compatible implementation using Uint8Array
+ */
+export function getImageDimensions(imagePath: string): ImageDimensionsResult {
+  if (!existsSync(imagePath)) {
+    return { dimensions: null, reason: `${imagePath} does not exist` };
+  }
+
+  // Bun's image-size requires Uint8Array, not Buffer.
+  return measure(new Uint8Array(readFileSync(imagePath)), imagePath);
 }
 
 /**
  * Get image dimensions from buffer
  * Bun-compatible implementation
  */
-export function getImageDimensionsFromBuffer(buffer: Buffer): ImageDimensions | undefined {
-  disableHangingParsers();
-
-  try {
-    // Convert to Uint8Array for Bun compatibility
-    const uint8Array = new Uint8Array(buffer);
-    const dimensions = sizeOf(uint8Array);
-
-    return {
-      width: dimensions.width || 0,
-      height: dimensions.height || 0,
-      type: dimensions.type,
-    };
-  } catch (error) {
-    if (!isUnmeasurableType(error)) {
-      console.error('Error reading image dimensions from buffer:', error);
-    }
-    return undefined;
-  }
+export function getImageDimensionsFromBuffer(
+  buffer: Buffer,
+  label = 'image'
+): ImageDimensionsResult {
+  return measure(new Uint8Array(buffer), label);
 }
 
 /**

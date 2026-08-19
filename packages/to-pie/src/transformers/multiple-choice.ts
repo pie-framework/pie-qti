@@ -7,7 +7,7 @@
 import type { PieItem, PieMultipleChoiceModel } from '@pie-qti/transform-types';
 import type { HTMLElement } from 'node-html-parser';
 import { v4 as uuidv4 } from 'uuid';
-import { mapChoiceLayout } from '../utils/choice-layout.js';
+import { mapChoiceLayout, type PieChoiceLayout } from '../utils/choice-layout.js';
 import { extractInlineStimulus, extractObjectPassages } from '../utils/passage-extraction.js';
 import { cleanTransformHtml, extractPromptForInteraction } from '../utils/prompt-extraction.js';
 import { createMissingElementError, createMissingInteractionError } from '../utils/qti-errors.js';
@@ -16,7 +16,8 @@ import { deriveItemScoring, mappingAnswerKeys } from '../utils/response-scoring.
 export interface MultipleChoiceOptions {
   /** Overrides the partial scoring derived from the QTI source. */
   partialScoring?: boolean;
-  baseId?: string;  // Stable/public identifier for round-trip compatibility
+  baseId?: string; // Stable/public identifier for round-trip compatibility
+  promptBoundaryStart?: HTMLElement;
 }
 
 export async function transformMultipleChoice(
@@ -24,30 +25,49 @@ export async function transformMultipleChoice(
   itemId: string,
   options: MultipleChoiceOptions = {}
 ): Promise<PieItem> {
-  const uuid = uuidv4();
-  const { baseId } = options;
-
   // Get itemBody
-  const itemBody = itemElement.querySelector('itemBody') ||
-                   itemElement.getElementsByTagName('itemBody')[0];
+  const itemBody =
+    itemElement.querySelector('itemBody') || itemElement.getElementsByTagName('itemBody')[0];
 
   if (!itemBody) {
     throw createMissingElementError('itemBody', {
       itemId,
-      details: 'The <itemBody> element is required to contain the question content and interaction.',
+      details:
+        'The <itemBody> element is required to contain the question content and interaction.',
     });
   }
 
   // Get interaction
-  const choiceInteraction = itemBody.querySelector('choiceInteraction') ||
-                           itemBody.getElementsByTagName('choiceInteraction')[0];
+  const choiceInteraction =
+    itemBody.querySelector('choiceInteraction') ||
+    itemBody.getElementsByTagName('choiceInteraction')[0];
 
   if (!choiceInteraction) {
     throw createMissingInteractionError('choiceInteraction', {
       itemId,
-      details: 'For multiple-choice questions, use <choiceInteraction> with <simpleChoice> options.',
+      details:
+        'For multiple-choice questions, use <choiceInteraction> with <simpleChoice> options.',
     });
   }
+
+  return transformMultipleChoiceInteraction(
+    itemElement,
+    itemBody,
+    choiceInteraction,
+    itemId,
+    options
+  );
+}
+
+export async function transformMultipleChoiceInteraction(
+  itemElement: HTMLElement,
+  itemBody: HTMLElement,
+  choiceInteraction: HTMLElement,
+  itemId: string,
+  options: MultipleChoiceOptions = {}
+): Promise<PieItem> {
+  const uuid = uuidv4();
+  const { baseId } = options;
 
   // Check for inline stimulus (passage content)
   const passageModel = extractInlineStimulus(itemBody);
@@ -68,7 +88,9 @@ export async function transformMultipleChoice(
   // Get shuffle setting
   const shuffle = choiceInteraction.getAttribute('shuffle') === 'true';
 
-  const prompt = extractPromptForInteraction(itemBody, choiceInteraction);
+  const prompt = extractPromptForInteraction(itemBody, choiceInteraction, {
+    after: options.promptBoundaryStart,
+  });
 
   // Get choices
   const simpleChoices = choiceInteraction.getElementsByTagName('simpleChoice');
@@ -78,17 +100,22 @@ export async function transformMultipleChoice(
   }));
 
   // Get correct response
-  const responseDeclaration = itemElement.querySelector(`responseDeclaration[identifier="${responseId}"]`) ||
-                             Array.from(itemElement.getElementsByTagName('responseDeclaration'))
-                               .find(rd => rd.getAttribute('identifier') === responseId);
+  const responseDeclaration =
+    itemElement.querySelector(`responseDeclaration[identifier="${responseId}"]`) ||
+    Array.from(itemElement.getElementsByTagName('responseDeclaration')).find(
+      (rd) => rd.getAttribute('identifier') === responseId
+    );
 
   let correctResponse: string[] = [];
   if (responseDeclaration) {
-    const correctResponseElement = responseDeclaration.querySelector('correctResponse') ||
-                                   responseDeclaration.getElementsByTagName('correctResponse')[0];
+    const correctResponseElement =
+      responseDeclaration.querySelector('correctResponse') ||
+      responseDeclaration.getElementsByTagName('correctResponse')[0];
     if (correctResponseElement) {
       const values = correctResponseElement.getElementsByTagName('value');
-      correctResponse = Array.from(values).map(v => v.text.trim()).filter(v => v !== '');
+      correctResponse = Array.from(values)
+        .map((v) => v.text.trim())
+        .filter((v) => v !== '');
     }
   }
 
@@ -106,12 +133,17 @@ export async function transformMultipleChoice(
 
   const scoring = deriveItemScoring(itemElement);
 
-  // Create PIE model
-  const model: PieMultipleChoiceModel = {
+  // The layout fields are intersected in rather than relied on through
+  // `PieModel`'s `[key: string]: any`. The installed `@pie-qti/transform-types`
+  // does not declare them yet, so without this the values would be accepted
+  // unchecked — a typo like `choicesLayout: 'gird'` would compile and silently
+  // produce an item the element cannot lay out. The intersection becomes
+  // redundant, not wrong, once the types package catches up.
+  const model: PieMultipleChoiceModel & PieChoiceLayout = {
     id: uuid,
     element: '@pie-element/multiple-choice',
     prompt,
-    choices: choices.map(choice => ({
+    choices: choices.map((choice) => ({
       ...choice,
       correct: correctResponse.includes(choice.value),
     })),
@@ -145,13 +177,13 @@ export async function transformMultipleChoice(
     'multiple-choice': '@pie-element/multiple-choice@latest',
   };
   if (passageModel || objectPassages.length > 0) {
-    elements['passage'] = '@pie-element/passage@latest';
+    elements.passage = '@pie-element/passage@latest';
   }
 
   // Create PIE item
   const pieItem: PieItem = {
     id: itemId,
-    ...(baseId && { baseId }),  // Include baseId if present
+    ...(baseId && { baseId }), // Include baseId if present
     uuid,
     config: {
       id: uuid,
@@ -174,9 +206,11 @@ export async function transformMultipleChoice(
   if (objectPassages.length > 0) {
     // Use first external passage reference
     // Note: Multiple passages not currently supported in PIE passage property
-    pieItem.passage = objectPassages[0].passageId;
+    const firstPassage = objectPassages[0];
+    if (firstPassage) {
+      pieItem.passage = firstPassage.passageId;
+    }
   }
 
   return pieItem;
 }
-

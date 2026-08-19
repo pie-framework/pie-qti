@@ -29,6 +29,16 @@
 				"noUnusedImports": "off",
 				"noUnusedPrivateClassMembers": "off"
 			},
+			"style": {
+				"noRestrictedImports": {
+					"level": "error",
+					"options": {
+						"paths": {
+							"image-size": "Import from packages/to-pie/src/utils/image-utils.ts instead. It calls disableTypes() to refuse the ICNS, HEIF and JXL parsers, whose unfixed advisories (GHSA-w3rx-r6r6-pgpr, GHSA-5p2g-fcmc-qvqq) loop forever on partner-supplied bytes. A direct import bypasses that guard."
+						}
+					}
+				}
+			},
 			"suspicious": {
 				"recommended": true,
 				"noExplicitAny": "off",
@@ -51,6 +61,16 @@
 			"includes": ["**/*.svelte"],
 			"linter": {
 				"enabled": false
+			}
+		},
+		{
+			"includes": ["packages/to-pie/src/utils/image-utils.ts"],
+			"linter": {
+				"rules": {
+					"style": {
+						"noRestrictedImports": "off"
+					}
+				}
 			}
 		}
 	]

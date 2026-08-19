@@ -33,6 +33,8 @@ export interface HotspotOptions {
   itemFilePath?: string;
   /** Stable/public identifier for round-trip compatibility */
   baseId?: string;
+  /** Bounds prompt extraction to the span after this neighboring interaction (exclusive). */
+  promptBoundaryStart?: HTMLElement;
 }
 
 interface Rectangle {
@@ -82,8 +84,23 @@ export function transformHotspot(
     });
   }
 
+  return transformHotspotInteraction(document, itemBody, hotspotInteraction, itemId, options);
+}
+
+/**
+ * Transform a specific QTI hotspotInteraction node to PIE hotspot. Scoped
+ * to one node so a composite item with more than one hotspotInteraction
+ * converts each unit independently.
+ */
+export function transformHotspotInteraction(
+  document: HTMLElement,
+  itemBody: HTMLElement,
+  hotspotInteraction: HTMLElement,
+  itemId: string,
+  options?: HotspotOptions
+): PieItem {
   // Extract prompt
-  const prompt = extractPrompt(itemBody, hotspotInteraction);
+  const prompt = extractPrompt(itemBody, hotspotInteraction, options?.promptBoundaryStart);
 
   // Extract correct answers
   const responseIdentifier = hotspotInteraction.getAttribute('responseIdentifier') || 'RESPONSE';
@@ -94,10 +111,10 @@ export function transformHotspot(
   const multipleCorrect = options?.multipleCorrect ?? (maxChoices > 1 || correctAnswers.length > 1);
 
   // Extract image and dimensions
-  const { imageUrl, dimensions } = extractImage(hotspotInteraction, options);
+  const { imageUrl, dimensions, reason } = extractImage(hotspotInteraction, options);
 
   if (!dimensions) {
-    throw createMissingDimensionsError(imageUrl, { itemId });
+    throw createMissingDimensionsError(imageUrl, { itemId }, reason);
   }
 
   // Extract hotspot shapes
@@ -152,8 +169,12 @@ export function transformHotspot(
 /**
  * Extract prompt from itemBody or interaction
  */
-function extractPrompt(itemBody: HTMLElement, interaction: HTMLElement): string | null {
-  return extractPromptForInteraction(itemBody, interaction) || null;
+function extractPrompt(
+  itemBody: HTMLElement,
+  interaction: HTMLElement,
+  promptBoundaryStart?: HTMLElement
+): string | null {
+  return extractPromptForInteraction(itemBody, interaction, { after: promptBoundaryStart }) || null;
 }
 
 /**
@@ -194,7 +215,7 @@ function extractCorrectAnswers(document: HTMLElement, responseIdentifier: string
 function extractImage(
   interaction: HTMLElement,
   options?: HotspotOptions
-): { imageUrl: string; dimensions: Dimensions | null } {
+): { imageUrl: string; dimensions: Dimensions | null; reason?: string } {
   // Remove prompt to avoid confusing it with image content
   const prompts = interaction.getElementsByTagName('prompt');
   for (const prompt of Array.from(prompts)) {
@@ -218,21 +239,18 @@ function extractImage(
 
   // Try to read from filesystem if itemFilePath provided
   if (options?.itemFilePath) {
-    try {
-      const imagePath = resolveImagePath(imageUrl, options.itemFilePath);
-      const dims = getImageDimensions(imagePath);
-      if (dims) {
-        return {
-          imageUrl,
-          dimensions: {
-            width: dims.width,
-            height: dims.height,
-          },
-        };
-      }
-    } catch (error) {
-      console.warn(`Could not read image dimensions from ${imageUrl}:`, error);
+    const imagePath = resolveImagePath(imageUrl, options.itemFilePath);
+    const measured = getImageDimensions(imagePath);
+    if (measured.dimensions) {
+      return {
+        imageUrl,
+        dimensions: {
+          width: measured.dimensions.width,
+          height: measured.dimensions.height,
+        },
+      };
     }
+    return { imageUrl, dimensions: null, reason: measured.reason };
   }
 
   // No dimensions available

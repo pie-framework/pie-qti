@@ -37,6 +37,8 @@ export interface ImageClozeAssociationOptions {
   itemFilePath?: string;
   /** Stable/public identifier for round-trip compatibility */
   baseId?: string;
+  /** Bounds prompt extraction to the span after this neighboring interaction (exclusive). */
+  promptBoundaryStart?: HTMLElement;
 }
 
 interface ResponseContainer {
@@ -79,8 +81,23 @@ export function transformImageClozeAssociation(
     });
   }
 
+  return transformImageClozeAssociationInteraction(document, itemBody, interaction, itemId, options);
+}
+
+/**
+ * Transform a specific QTI graphicGapMatchInteraction node to PIE
+ * image-cloze-association. Scoped to one node so a composite item with
+ * more than one graphicGapMatchInteraction converts each unit independently.
+ */
+export function transformImageClozeAssociationInteraction(
+  document: HTMLElement,
+  itemBody: HTMLElement,
+  interaction: HTMLElement,
+  itemId: string,
+  options?: ImageClozeAssociationOptions
+): PieItem {
   // Extract prompt
-  const prompt = extractPrompt(itemBody, interaction);
+  const prompt = extractPrompt(itemBody, interaction, options?.promptBoundaryStart);
 
   // Get response identifier
   const responseIdentifier = interaction.getAttribute('responseIdentifier') || 'RESPONSE';
@@ -89,10 +106,10 @@ export function transformImageClozeAssociation(
   const correctAnswerMap = extractCorrectAnswers(document, responseIdentifier);
 
   // Extract image and dimensions
-  const { imageUrl, dimensions } = extractImage(interaction, options);
+  const { imageUrl, dimensions, reason } = extractImage(interaction, options);
 
   if (!dimensions) {
-    throw createMissingDimensionsError(imageUrl, { itemId });
+    throw createMissingDimensionsError(imageUrl, { itemId }, reason);
   }
 
   // Extract gap images (draggable items)
@@ -160,8 +177,12 @@ export function transformImageClozeAssociation(
 /**
  * Extract prompt from itemBody or interaction
  */
-function extractPrompt(itemBody: HTMLElement, interaction: HTMLElement): string | null {
-  return extractPromptForInteraction(itemBody, interaction) || null;
+function extractPrompt(
+  itemBody: HTMLElement,
+  interaction: HTMLElement,
+  promptBoundaryStart?: HTMLElement
+): string | null {
+  return extractPromptForInteraction(itemBody, interaction, { after: promptBoundaryStart }) || null;
 }
 
 /**
@@ -210,7 +231,7 @@ function extractCorrectAnswers(document: HTMLElement, responseIdentifier: string
 function extractImage(
   interaction: HTMLElement,
   options?: ImageClozeAssociationOptions
-): { imageUrl: string; dimensions: ImageDimensions | null } {
+): { imageUrl: string; dimensions: ImageDimensions | null; reason?: string } {
   // Remove prompt to avoid confusing it with image content
   const prompts = interaction.getElementsByTagName('prompt');
   for (const prompt of Array.from(prompts)) {
@@ -234,21 +255,18 @@ function extractImage(
 
   // Try to read from filesystem if itemFilePath provided
   if (options?.itemFilePath) {
-    try {
-      const imagePath = resolveImagePath(imageUrl, options.itemFilePath);
-      const dims = getImageDimensions(imagePath);
-      if (dims) {
-        return {
-          imageUrl,
-          dimensions: {
-            width: dims.width,
-            height: dims.height,
-          },
-        };
-      }
-    } catch (error) {
-      console.warn(`Could not read image dimensions from ${imageUrl}:`, error);
+    const imagePath = resolveImagePath(imageUrl, options.itemFilePath);
+    const measured = getImageDimensions(imagePath);
+    if (measured.dimensions) {
+      return {
+        imageUrl,
+        dimensions: {
+          width: measured.dimensions.width,
+          height: measured.dimensions.height,
+        },
+      };
     }
+    return { imageUrl, dimensions: null, reason: measured.reason };
   }
 
   // No dimensions available

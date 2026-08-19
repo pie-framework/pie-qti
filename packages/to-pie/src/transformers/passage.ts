@@ -9,6 +9,7 @@ import type { PieItem } from '@pie-qti/transform-types';
 import type { HTMLElement } from 'node-html-parser';
 import { parse } from 'node-html-parser';
 import { v4 as uuid } from 'uuid';
+import { unwrapCdataSections } from '../utils/cdata.js';
 import { createInvalidContentError } from '../utils/qti-errors.js';
 
 export interface PassageOptions {
@@ -220,13 +221,12 @@ function extractFromItemStimulus(element: HTMLElement): Passage | null {
 
 /**
  * Clean passage HTML
- * - Remove CDATA markers
+ * - Unwrap CDATA sections
  * - Normalize newlines
  * - Preserve HTML structure
  */
 function cleanPassageHtml(html: string): string {
-  // Remove CDATA markers
-  html = html.replace(/<!\[CDATA\[/g, '').replace(/\]\]>/g, '');
+  html = unwrapCdataSections(html);
 
   // Replace multiple newlines with space (but preserve HTML tags)
   html = html.replace(/\n\s*\n/g, '\n');

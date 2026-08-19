@@ -176,6 +176,7 @@ describe('transformInlineDropdown', () => {
     expect(model.prompt).toContain('<audio');
     expect(model.prompt).toContain('<a href="transcript.pdf">');
     expect(model.markup).not.toContain('<audio');
+    expect(model.markup).not.toContain('Transcript');
   });
 
   test('should handle feedbackInline as rationale', () => {

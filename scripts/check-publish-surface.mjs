@@ -17,6 +17,12 @@ const policy = existsSync(POLICY_PATH) ? readJson(POLICY_PATH) : {};
 const forbiddenPublicExports = new Map(
 	Object.entries(policy.forbiddenPublicExports || {}),
 );
+const assetDirectories = new Map(
+	Object.entries(policy.assetDirectories || {}).map(([name, dirs]) => [
+		name,
+		dirs.map((dir) => (dir.endsWith("/") ? dir : `${dir}/`)),
+	]),
+);
 
 const getWorkspaceDirs = () => {
 	const rootPkg = readJson(ROOT_PACKAGE_JSON);
@@ -120,6 +126,8 @@ const isAllowedPackedFile = (filePath, pkg) => {
 	if (/\.(?:css|json|svg|png|jpg|jpeg|gif|webp|woff2?|ttf|otf|eot)$/.test(filePath)) {
 		return true;
 	}
+	const allowedDirs = assetDirectories.get(pkg.name) || [];
+	if (allowedDirs.some((dir) => filePath.startsWith(dir))) return true;
 	return false;
 };
 

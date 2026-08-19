@@ -25,6 +25,8 @@ export interface MatchListOptions {
   duplicates?: boolean;
   /** Stable/public identifier for round-trip compatibility */
   baseId?: string;
+  /** Bounds prompt extraction to the span after this neighboring interaction (exclusive). */
+  promptBoundaryStart?: HTMLElement;
 }
 
 interface Prompt {
@@ -65,10 +67,25 @@ export function transformMatchList(
     });
   }
 
+  return transformMatchListInteraction(document, itemBody, matchInteraction, itemId, options);
+}
+
+/**
+ * Transform a specific QTI matchInteraction node to PIE match-list. Scoped
+ * to one node so a composite item with more than one matchInteraction
+ * converts each unit independently.
+ */
+export function transformMatchListInteraction(
+  document: HTMLElement,
+  itemBody: HTMLElement,
+  matchInteraction: HTMLElement,
+  itemId: string,
+  options?: MatchListOptions
+): PieItem {
   const responseIdentifier = matchInteraction.getAttribute('responseIdentifier') || 'RESPONSE';
 
   // Extract prompt
-  const prompt = extractPrompt(itemBody, matchInteraction);
+  const prompt = extractPrompt(itemBody, matchInteraction, options?.promptBoundaryStart);
 
   // Extract correct answers
   const correctAnswers = extractCorrectAnswers(document, responseIdentifier);
@@ -125,8 +142,12 @@ export function transformMatchList(
 /**
  * Extract prompt from itemBody or interaction
  */
-function extractPrompt(itemBody: HTMLElement, interaction: HTMLElement): string | null {
-  return extractPromptForInteraction(itemBody, interaction) || null;
+function extractPrompt(
+  itemBody: HTMLElement,
+  interaction: HTMLElement,
+  promptBoundaryStart?: HTMLElement
+): string | null {
+  return extractPromptForInteraction(itemBody, interaction, { after: promptBoundaryStart }) || null;
 }
 
 /**

@@ -284,13 +284,16 @@ jobs:
       - name: Create Release Pull Request or Publish to NPM
         if: github.event_name == 'workflow_dispatch' || steps.detect.outputs.has_changesets == 'true' || steps.detect.outputs.should_publish == 'true' || steps.temp_changeset.outputs.created == 'true'
         id: changesets
-        uses: changesets/action@v2
+        # Pinned to an exact version, not the floating `v2` tag: v2 silently moved forward
+        # to v2.1.0 and renamed these inputs (publish -> publish-script, etc.), which broke
+        # this step on 2026-08-18 with no change on our side.
+        uses: changesets/action@v2.1.0
         with:
           # release script handles: workspace range rewriting, build, publish, restore
-          publish: node scripts/changeset-publish-resolved-workspaces.mjs
-          version: bun run version
-          title: 'chore(release): version packages [skip-heavy-ci]'
-          commit: 'chore(release): version packages'
+          publish-script: node scripts/changeset-publish-resolved-workspaces.mjs
+          version-script: bun run version
+          pr-title: 'chore(release): version packages [skip-heavy-ci]'
+          commit-message: 'chore(release): version packages'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ env.PUBLISH_NPM_TOKEN }}
@@ -331,8 +334,10 @@ jobs:
       - name: Notify Slack on Successful Publish
         if: steps.changesets.outputs.published == 'true'
         continue-on-error: true
-        uses: slackapi/slack-github-action@v1.27.0
+        uses: slackapi/slack-github-action@v3.0.1
         with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
           payload: |
             {
               "text": "📦 PIE QTI Package Published to NPM",
@@ -371,15 +376,14 @@ jobs:
                 }
               ]
             }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
 
       - name: Notify Slack on Release Failure
         if: failure()
         continue-on-error: true
-        uses: slackapi/slack-github-action@v1.27.0
+        uses: slackapi/slack-github-action@v3.0.1
         with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
           payload: |
             {
               "text": "❌ PIE QTI Release Failed",
@@ -418,6 +422,3 @@ jobs:
                 }
               ]
             }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

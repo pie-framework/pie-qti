@@ -87,7 +87,7 @@ export function detectItemProfiles(
 
 	return {
 		matches,
-		extraction: extractFromProfiles(profiles, context, trace),
+		extraction: extractFromProfiles(matchedProfiles(profiles, matches), context, trace),
 	};
 }
 
@@ -120,8 +120,21 @@ export function detectPackageProfiles(
 
 	return {
 		matches,
-		extraction: extractFromPackageProfiles(profiles, context, trace),
+		extraction: extractFromPackageProfiles(matchedProfiles(profiles, matches), context, trace),
 	};
+}
+
+// `extractFromProfiles`/`extractFromPackageProfiles` run every profile handed to them
+// unconditionally — they trust the caller to have already filtered to matches. Passing the
+// full `profiles` list ran every registered profile's extraction on every item, regardless of
+// whether `detectItem`/`detectPackage` matched it, so a second registered profile's extractor
+// fired on content it never claimed to recognize.
+function matchedProfiles(
+	profiles: readonly QtiSourceProfile[],
+	matches: readonly SourceProfileMatch[]
+): QtiSourceProfile[] {
+	const activeProfileIds = new Set(matches.map((match) => match.profileId));
+	return profiles.filter((profile) => activeProfileIds.has(profile.id));
 }
 
 export async function applyItemDecorators(

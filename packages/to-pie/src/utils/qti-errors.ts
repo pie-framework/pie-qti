@@ -71,6 +71,40 @@ export function createMissingInteractionError(
 }
 
 /**
+ * Creates a descriptive error for an interaction Composer recognizes but cannot convert.
+ *
+ * Deliberately distinct from `createMissingInteractionError`: nothing is missing or
+ * malformed. The source is valid QTI that has no PIE target element, so the actionable step
+ * is registering a vendor transformer or renegotiating the delivery shape — not editing the
+ * markup. Pointing the reader at markup they should not change is how the previous
+ * `selectPointInteraction` routing misled: it reported a missing `hottextInteraction` on
+ * graphing items that were never text selection to begin with.
+ */
+export function createUnsupportedInteractionError(
+  interactionType: string,
+  context: QtiErrorContext
+): Error {
+  let message = `Unsupported QTI interaction: ${interactionType}`;
+
+  if (context.itemId) {
+    message += ` in item '${context.itemId}'`;
+  }
+
+  message += `\n\nThe markup is valid QTI. This transform has no PIE element to convert it into.`;
+
+  if (context.details) {
+    message += `\n\n${context.details}`;
+  }
+
+  message += `\n\nOptions:`;
+  message += `\n  • Register a source-profile vendor transformer for this shape`;
+  message += `\n  • Ask the source to deliver an interaction listed in the supported map`;
+  message += `\n  • See docs/prds/architecture/qti-to-pie.md`;
+
+  return new Error(message);
+}
+
+/**
  * Creates a descriptive error for missing images
  */
 export function createMissingImageError(
@@ -102,7 +136,8 @@ export function createMissingImageError(
  */
 export function createMissingDimensionsError(
   imageUrl: string,
-  context: QtiErrorContext
+  context: QtiErrorContext,
+  reason?: string
 ): Error {
   let message = `Cannot determine image dimensions for '${imageUrl}'`;
 
@@ -111,6 +146,10 @@ export function createMissingDimensionsError(
   }
 
   message += `\n\nImage hotspots require exact dimensions to calculate coordinates.`;
+
+  if (reason) {
+    message += `\n\nReason: ${reason}`;
+  }
 
   message += `\n\nSolutions:`;
   message += `\n  1. Add width/height attributes to the image element:`;

@@ -491,25 +491,19 @@ describe('QtiToPiePlugin', () => {
     expect(metadata.qtiProcessing.responseProcessingXml).toContain('<responseProcessing>');
   });
 
-  test('should reject standard composite items instead of silently reducing to first interaction', async () => {
+  test('should reject a standard composite item outside the scoped set instead of silently reducing to first interaction', async () => {
     const plugin = new QtiToPiePlugin();
     const compositeQti = `<?xml version="1.0" encoding="UTF-8"?>
-<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="choice-match-composite" title="Composite" adaptive="false" timeDependent="false">
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="choice-upload-composite" title="Composite" adaptive="false" timeDependent="false">
   <responseDeclaration identifier="CHOICE" cardinality="single" baseType="identifier">
     <correctResponse><value>A</value></correctResponse>
-  </responseDeclaration>
-  <responseDeclaration identifier="MATCH" cardinality="single" baseType="directedPair">
-    <correctResponse><value>S1 T1</value></correctResponse>
   </responseDeclaration>
   <itemBody>
     <choiceInteraction responseIdentifier="CHOICE" shuffle="false" maxChoices="1">
       <simpleChoice identifier="A">A</simpleChoice>
       <simpleChoice identifier="B">B</simpleChoice>
     </choiceInteraction>
-    <matchInteraction responseIdentifier="MATCH">
-      <simpleMatchSet><simpleAssociableChoice identifier="S1" matchMax="1">Stem</simpleAssociableChoice></simpleMatchSet>
-      <simpleMatchSet><simpleAssociableChoice identifier="T1" matchMax="1">Target</simpleAssociableChoice></simpleMatchSet>
-    </matchInteraction>
+    <uploadInteraction responseIdentifier="UPLOAD"/>
   </itemBody>
 </assessmentItem>`;
 
@@ -517,6 +511,203 @@ describe('QtiToPiePlugin', () => {
       { content: compositeQti },
       { logger: new SilentLogger() }
     )).rejects.toThrow(/Unsupported composite QTI item/);
+  });
+
+  test('should compose a scoped composite (choice + text entry) into one PIE item', async () => {
+    const plugin = new QtiToPiePlugin();
+    const composite = `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="choice-text-composite" title="Composite" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="CHOICE" cardinality="single" baseType="identifier">
+    <correctResponse><value>A</value></correctResponse>
+  </responseDeclaration>
+  <responseDeclaration identifier="BLANK" cardinality="single" baseType="string">
+    <correctResponse><value>answer</value></correctResponse>
+  </responseDeclaration>
+  <itemBody>
+    <p>Pick one:</p>
+    <choiceInteraction responseIdentifier="CHOICE" shuffle="false" maxChoices="1">
+      <simpleChoice identifier="A">A</simpleChoice>
+      <simpleChoice identifier="B">B</simpleChoice>
+    </choiceInteraction>
+    <p>Now fill in: <textEntryInteraction responseIdentifier="BLANK" expectedLength="10"/>.</p>
+  </itemBody>
+</assessmentItem>`;
+
+    const output = await plugin.transform(
+      { content: composite },
+      { logger: new SilentLogger() }
+    );
+
+    expect(output.items).toHaveLength(1);
+    const item = output.items[0]?.content as any;
+    expect(item.config.models).toHaveLength(2);
+    expect(Object.keys(item.config.elements)).toContain('multiple-choice');
+    expect(Object.keys(item.config.elements)).toContain('explicit-constructed-response');
+    expect(item.config.markup).toContain('Pick one:');
+    expect(item.config.markup).toContain('Now fill in:');
+    expect(item.config.markup).not.toContain('<choiceInteraction');
+    expect(item.config.markup).not.toContain('<textEntryInteraction');
+    expect(output.warnings?.some(w => w.code === 'QTI_COMPOSITE_ITEM_COMPOSED')).toBe(true);
+  });
+
+  test('should compose a scoped composite (choice + hotspot) into one PIE item', async () => {
+    // hotspotInteraction has its own scoped adapter (transformHotspotInteraction), bound to its
+    // own node plus a boundary-limited prompt, so it composes with a sibling choiceInteraction
+    // the same way choiceInteraction/orderInteraction/sliderInteraction/textEntryInteraction/
+    // inlineChoiceInteraction already do.
+    const plugin = new QtiToPiePlugin();
+    const hotspotComposite = `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="choice-hotspot-composite" title="Composite" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="CHOICE" cardinality="single" baseType="identifier">
+    <correctResponse><value>A</value></correctResponse>
+  </responseDeclaration>
+  <responseDeclaration identifier="HOTSPOT" cardinality="single" baseType="identifier">
+    <correctResponse><value>H1</value></correctResponse>
+  </responseDeclaration>
+  <itemBody>
+    <choiceInteraction responseIdentifier="CHOICE" shuffle="false" maxChoices="1">
+      <simpleChoice identifier="A">A</simpleChoice>
+      <simpleChoice identifier="B">B</simpleChoice>
+    </choiceInteraction>
+    <hotspotInteraction responseIdentifier="HOTSPOT" maxChoices="1">
+      <object data="image.png" type="image/png" width="100" height="100"/>
+      <hotspotChoice identifier="H1" shape="rect" coords="0,0,10,10"/>
+    </hotspotInteraction>
+  </itemBody>
+</assessmentItem>`;
+
+    const output = await plugin.transform(
+      { content: hotspotComposite },
+      { logger: new SilentLogger() }
+    );
+
+    expect(output.items).toHaveLength(1);
+    const item = output.items[0]?.content as any;
+    expect(item.config.models).toHaveLength(2);
+    expect(Object.keys(item.config.elements)).toContain('multiple-choice');
+    expect(Object.keys(item.config.elements)).toContain('hotspot');
+  });
+
+  test('should reject a portableCustomInteraction composite', async () => {
+    const plugin = new QtiToPiePlugin();
+    const pciComposite = `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="choice-pci-composite" title="Composite" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="CHOICE" cardinality="single" baseType="identifier">
+    <correctResponse><value>A</value></correctResponse>
+  </responseDeclaration>
+  <responseDeclaration identifier="PCI" cardinality="single" baseType="string"/>
+  <itemBody>
+    <choiceInteraction responseIdentifier="CHOICE" shuffle="false" maxChoices="1">
+      <simpleChoice identifier="A">A</simpleChoice>
+      <simpleChoice identifier="B">B</simpleChoice>
+    </choiceInteraction>
+    <portableCustomInteraction responseIdentifier="PCI" custom-interaction-type-identifier="vendor.graph"/>
+  </itemBody>
+</assessmentItem>`;
+
+    await expect(plugin.transform(
+      { content: pciComposite },
+      { logger: new SilentLogger() }
+    )).rejects.toThrow(/Unsupported customInteraction/);
+  });
+
+  test('should warn rather than fail when endAttemptInteraction accompanies a single interaction', async () => {
+    const plugin = new QtiToPiePlugin();
+    const withEndAttempt = `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="choice-with-hint" title="Hint" adaptive="true" timeDependent="false">
+  <responseDeclaration identifier="CHOICE" cardinality="single" baseType="identifier">
+    <correctResponse><value>A</value></correctResponse>
+  </responseDeclaration>
+  <responseDeclaration identifier="HINT" cardinality="single" baseType="boolean"/>
+  <itemBody>
+    <choiceInteraction responseIdentifier="CHOICE" shuffle="false" maxChoices="1">
+      <simpleChoice identifier="A">A</simpleChoice>
+      <simpleChoice identifier="B">B</simpleChoice>
+    </choiceInteraction>
+    <endAttemptInteraction responseIdentifier="HINT" title="Hint"/>
+  </itemBody>
+</assessmentItem>`;
+
+    const output = await plugin.transform(
+      { content: withEndAttempt },
+      { logger: new SilentLogger() }
+    );
+
+    expect(output.items).toHaveLength(1);
+    expect(output.warnings?.some(w => w.code === 'QTI_INTERACTION_DROPPED')).toBe(true);
+  });
+
+  test('should name an unsupported single interaction instead of reporting it as unknown', async () => {
+    const plugin = new QtiToPiePlugin();
+    const uploadOnly = `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="upload-only" title="Upload" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="UPLOAD" cardinality="single" baseType="file"/>
+  <itemBody>
+    <uploadInteraction responseIdentifier="UPLOAD"/>
+  </itemBody>
+</assessmentItem>`;
+
+    await expect(plugin.transform(
+      { content: uploadOnly },
+      { logger: new SilentLogger() }
+    )).rejects.toThrow(/Unsupported interaction type: uploadInteraction/);
+  });
+
+  test('should reject a QTI 3.0 item by version and name the interactions it found', async () => {
+    const plugin = new QtiToPiePlugin();
+    const qti3Composite = `<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="q3-composite" title="Composite">
+  <qti-response-declaration identifier="CHOICE" cardinality="single" base-type="identifier"/>
+  <qti-response-declaration identifier="SLIDER" cardinality="single" base-type="float"/>
+  <qti-item-body>
+    <qti-choice-interaction response-identifier="CHOICE" max-choices="1">
+      <qti-simple-choice identifier="A">A</qti-simple-choice>
+      <qti-simple-choice identifier="B">B</qti-simple-choice>
+    </qti-choice-interaction>
+    <qti-slider-interaction response-identifier="SLIDER" lower-bound="0" upper-bound="10"/>
+  </qti-item-body>
+</qti-assessment-item>`;
+
+    await expect(plugin.transform(
+      { content: qti3Composite },
+      { logger: new SilentLogger() }
+    )).rejects.toThrow(/Unsupported QTI 3\.0 item q3-composite.*choiceInteraction, sliderInteraction/s);
+  });
+
+  test('should let a vendor transformer claim QTI 3.0 content before the version rejection', async () => {
+    const plugin = new QtiToPiePlugin();
+    const qti3Item = `<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="q3-vendor" title="Vendor">
+  <qti-item-body>
+    <qti-choice-interaction response-identifier="CHOICE" max-choices="1">
+      <qti-simple-choice identifier="A">A</qti-simple-choice>
+    </qti-choice-interaction>
+  </qti-item-body>
+</qti-assessment-item>`;
+
+    plugin.registerVendorDetector({
+      name: 'acme-qti3',
+      detect: () => ({ vendor: 'acme', confidence: 1 }),
+    });
+    plugin.registerVendorTransformer({
+      vendor: 'acme',
+      canHandle: () => true,
+      transform: async () => ({
+        success: true,
+        format: 'pie',
+        items: [{ id: 'q3-vendor', content: { element: 'acme-element' } }],
+        warnings: [],
+        metadata: {},
+      }) as any,
+    });
+
+    const output = await plugin.transform(
+      { content: qti3Item },
+      { logger: new SilentLogger() }
+    );
+
+    expect(output.items).toHaveLength(1);
+    expect(output.items[0].id).toBe('q3-vendor');
   });
 
   test('should reject custom interactions without a vendor transformer', async () => {

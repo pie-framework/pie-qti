@@ -10,7 +10,7 @@ import type { HTMLElement } from 'node-html-parser';
 import { parse } from 'node-html-parser';
 import { v4 as uuid } from 'uuid';
 import { extractPromptForInteraction } from '../utils/prompt-extraction.js';
-import { createMissingInteractionError } from '../utils/qti-errors.js';
+import { createMissingElementError, createMissingInteractionError } from '../utils/qti-errors.js';
 import {
   deriveItemScoring,
   findResponseDeclaration,
@@ -25,6 +25,8 @@ export interface MatchOptions {
   choiceMode?: 'radio' | 'checkbox';
   /** Stable/public identifier for round-trip compatibility */
   baseId?: string;
+  /** Bounds prompt extraction to the span after this neighboring interaction (exclusive). */
+  promptBoundaryStart?: HTMLElement;
 }
 
 interface Row {
@@ -42,6 +44,7 @@ export function transformMatch(
   options?: MatchOptions
 ): PieItem {
   const document = parse(qtiXml);
+  const itemBody = document.getElementsByTagName('itemBody')[0];
   const matchInteraction = document.getElementsByTagName('matchInteraction')[0];
 
   if (!matchInteraction) {
@@ -50,13 +53,36 @@ export function transformMatch(
       details: 'For matching questions, use <matchInteraction> with two <simpleMatchSet> elements.',
     });
   }
+  if (!itemBody) {
+    throw createMissingElementError('itemBody', {
+      itemId,
+      details: 'The <itemBody> element is required to contain the question content and interaction.',
+    });
+  }
 
+  return transformMatchInteraction(document, itemBody, matchInteraction, itemId, options);
+}
+
+/**
+ * Transform a specific QTI matchInteraction node to PIE match. Scoped to one
+ * node (rather than rediscovering "the first matchInteraction") so a
+ * composite item with more than one matchInteraction converts each unit
+ * independently.
+ */
+export function transformMatchInteraction(
+  document: HTMLElement,
+  itemBody: HTMLElement,
+  matchInteraction: HTMLElement,
+  itemId: string,
+  options?: MatchOptions
+): PieItem {
   const responseIdentifier = matchInteraction.getAttribute('responseIdentifier') || 'RESPONSE';
   const shuffle = matchInteraction.getAttribute('shuffle');
 
   // Extract prompt
-  const itemBody = document.getElementsByTagName('itemBody')[0];
-  const prompt = itemBody ? extractPromptForInteraction(itemBody, matchInteraction) : '';
+  const prompt = extractPromptForInteraction(itemBody, matchInteraction, {
+    after: options?.promptBoundaryStart,
+  });
 
   // Extract correct answers from responseDeclaration
   const correctAnswers = extractCorrectAnswers(document, responseIdentifier);

@@ -48,5 +48,10 @@
 		"@pie-qti/section-player": [
 			"./components"
 		]
+	},
+	"assetDirectories": {
+		"@pie-qti/to-pie": [
+			"schemas/"
+		]
 	}
 }
