@@ -366,7 +366,7 @@
       "dependencies": {
         "@pie-players/pie-assessment-toolkit": "0.3.67",
         "@pie-players/pie-calculator-desmos": "0.3.67",
-        "@pie-players/pie-context": "0.3.67",
+        "@pie-players/pie-context": "0.3.68",
         "@pie-players/pie-default-tool-loaders": "0.3.67",
         "@pie-players/pie-tool-calculator-desmos": "0.3.67",
         "@pie-players/pie-tool-tts-inline": "0.3.67",
@@ -733,7 +733,7 @@
 
     "@pie-players/pie-calculator-desmos": ["@pie-players/pie-calculator-desmos@0.3.67", "", { "dependencies": { "@pie-players/pie-calculator": "0.3.67" } }, "sha512-jb84/ci7CF8ekKdrUQ6padT1G5USK8bx7+yyRM0nZPrrfGee8DRVaxwmpJe2tlB3d+2B6WxyPT2EtYMPX8uXdg=="],
 
-    "@pie-players/pie-context": ["@pie-players/pie-context@0.3.67", "", {}, "sha512-AIMsFR+PnO2U4QzP1ntCGH3W/3/DZhs1XiW1Q5aRe7JhVRJgP1a+BHjLIQk3B4m04QObbvDHlVTJ2Ew44Nj4wA=="],
+    "@pie-players/pie-context": ["@pie-players/pie-context@0.3.68", "", {}, "sha512-3/RQlR5oeH1RO2bom8yF8Iu7OZ4tYP6s/2JrOVuyfdq0TcXC3+WxP2Y6yMRRC8Ky2bUgO0IIZWDDHsSyREX1Ag=="],
 
     "@pie-players/pie-default-tool-loaders": ["@pie-players/pie-default-tool-loaders@0.3.67", "", { "dependencies": { "@pie-players/pie-assessment-toolkit": "0.3.67", "@pie-players/pie-players-shared": "0.3.67", "@pie-players/pie-tool-annotation-toolbar": "0.3.67", "@pie-players/pie-tool-answer-eliminator": "0.3.67", "@pie-players/pie-tool-calculator-desmos": "0.3.67", "@pie-players/pie-tool-graph": "0.3.67", "@pie-players/pie-tool-line-reader": "0.3.67", "@pie-players/pie-tool-periodic-table": "0.3.67", "@pie-players/pie-tool-protractor": "0.3.67", "@pie-players/pie-tool-ruler": "0.3.67", "@pie-players/pie-tool-theme": "0.3.67", "@pie-players/pie-tool-tts-inline": "0.3.67" } }, "sha512-4+no6X53Pm/4bMZFfsHnBJQ6pieCfgO0Nqcu/4rV77wx+aLHGYePHUt5FXJI9EQnjfQOG9CS3x0dz2rc3IJTzg=="],
 
@@ -1916,6 +1916,26 @@
     "@inquirer/search/@inquirer/type": ["@inquirer/type@3.0.10", "", { "peerDependencies": { "@types/node": ">=18" }, "optionalPeers": ["@types/node"] }, "sha512-BvziSRxfz5Ov8ch0z/n3oijRSEcEsHnhggm4xFZe93DHcUCTlutlq9Ox4SVENAfcRD22UQq7T/atg9Wr3k09eA=="],
 
     "@oclif/core/ejs": ["ejs@6.0.1", "", { "bin": { "ejs": "bin/cli.js" } }, "sha512-UaaM14yby8U3k02ihS1Bmj5Kz2d7CCQM1scxpgs4Mhkq8F1wR2gl3+Ts4h5Ne4Mnt7M9m4Dw7jsuMr3+xO4vZA=="],
+
+    "@pie-players/pie-assessment-toolkit/@pie-players/pie-context": ["@pie-players/pie-context@0.3.67", "", {}, "sha512-AIMsFR+PnO2U4QzP1ntCGH3W/3/DZhs1XiW1Q5aRe7JhVRJgP1a+BHjLIQk3B4m04QObbvDHlVTJ2Ew44Nj4wA=="],
+
+    "@pie-players/pie-tool-answer-eliminator/@pie-players/pie-context": ["@pie-players/pie-context@0.3.67", "", {}, "sha512-AIMsFR+PnO2U4QzP1ntCGH3W/3/DZhs1XiW1Q5aRe7JhVRJgP1a+BHjLIQk3B4m04QObbvDHlVTJ2Ew44Nj4wA=="],
+
+    "@pie-players/pie-tool-calculator-desmos/@pie-players/pie-context": ["@pie-players/pie-context@0.3.67", "", {}, "sha512-AIMsFR+PnO2U4QzP1ntCGH3W/3/DZhs1XiW1Q5aRe7JhVRJgP1a+BHjLIQk3B4m04QObbvDHlVTJ2Ew44Nj4wA=="],
+
+    "@pie-players/pie-tool-graph/@pie-players/pie-context": ["@pie-players/pie-context@0.3.67", "", {}, "sha512-AIMsFR+PnO2U4QzP1ntCGH3W/3/DZhs1XiW1Q5aRe7JhVRJgP1a+BHjLIQk3B4m04QObbvDHlVTJ2Ew44Nj4wA=="],
+
+    "@pie-players/pie-tool-line-reader/@pie-players/pie-context": ["@pie-players/pie-context@0.3.67", "", {}, "sha512-AIMsFR+PnO2U4QzP1ntCGH3W/3/DZhs1XiW1Q5aRe7JhVRJgP1a+BHjLIQk3B4m04QObbvDHlVTJ2Ew44Nj4wA=="],
+
+    "@pie-players/pie-tool-periodic-table/@pie-players/pie-context": ["@pie-players/pie-context@0.3.67", "", {}, "sha512-AIMsFR+PnO2U4QzP1ntCGH3W/3/DZhs1XiW1Q5aRe7JhVRJgP1a+BHjLIQk3B4m04QObbvDHlVTJ2Ew44Nj4wA=="],
+
+    "@pie-players/pie-tool-protractor/@pie-players/pie-context": ["@pie-players/pie-context@0.3.67", "", {}, "sha512-AIMsFR+PnO2U4QzP1ntCGH3W/3/DZhs1XiW1Q5aRe7JhVRJgP1a+BHjLIQk3B4m04QObbvDHlVTJ2Ew44Nj4wA=="],
+
+    "@pie-players/pie-tool-ruler/@pie-players/pie-context": ["@pie-players/pie-context@0.3.67", "", {}, "sha512-AIMsFR+PnO2U4QzP1ntCGH3W/3/DZhs1XiW1Q5aRe7JhVRJgP1a+BHjLIQk3B4m04QObbvDHlVTJ2Ew44Nj4wA=="],
+
+    "@pie-players/pie-tool-theme/@pie-players/pie-context": ["@pie-players/pie-context@0.3.67", "", {}, "sha512-AIMsFR+PnO2U4QzP1ntCGH3W/3/DZhs1XiW1Q5aRe7JhVRJgP1a+BHjLIQk3B4m04QObbvDHlVTJ2Ew44Nj4wA=="],
+
+    "@pie-players/pie-tool-tts-inline/@pie-players/pie-context": ["@pie-players/pie-context@0.3.67", "", {}, "sha512-AIMsFR+PnO2U4QzP1ntCGH3W/3/DZhs1XiW1Q5aRe7JhVRJgP1a+BHjLIQk3B4m04QObbvDHlVTJ2Ew44Nj4wA=="],
 
     "@pie-qti/default-components/svelte": ["svelte@5.56.8", "", { "dependencies": { "@jridgewell/remapping": "^2.3.4", "@jridgewell/sourcemap-codec": "^1.5.0", "@sveltejs/acorn-typescript": "^1.0.10", "@types/estree": "^1.0.5", "@types/trusted-types": "^2.0.7", "acorn": "^8.12.1", "aria-query": "5.3.1", "axobject-query": "^4.1.0", "clsx": "^2.1.1", "devalue": "^5.8.1", "esm-env": "^1.2.1", "esrap": "^2.2.12", "is-reference": "^3.0.3", "locate-character": "^3.0.0", "magic-string": "^0.30.11", "zimmerframe": "^1.1.2" } }, "sha512-PY8LOw7xP6c8IOiVqdo0sbbZVYhXRSfklOQLAUyGBKqjTX0wx/z4l/9J+PmBpmlLnxzEb1NqltxQ5/wZme/Cmg=="],
 
