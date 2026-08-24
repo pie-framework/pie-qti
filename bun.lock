@@ -21,7 +21,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@acme/likert-scale-plugin": "workspace:*",
-        "@pie-players/tts-server-polly": "0.3.67",
+        "@pie-players/tts-server-polly": "0.3.68",
         "@pie-qti/assessment-player": "workspace:*",
         "@pie-qti/default-components": "workspace:*",
         "@pie-qti/i18n": "workspace:*",
@@ -765,9 +765,9 @@
 
     "@pie-players/tts-client-server": ["@pie-players/tts-client-server@0.3.67", "", { "dependencies": { "@pie-players/pie-tts": "0.3.67" } }, "sha512-xo4A6MqR+tCsUiHiHcqeS18hJQuEftkgC11b9mDLvmWNaXiFX0N3RYj56Y2p/EP80Zi4nSxh1hOwlmpVxayqow=="],
 
-    "@pie-players/tts-server-core": ["@pie-players/tts-server-core@0.3.67", "", {}, "sha512-1vFoOkJtbhVjcHqYlbdjc8m+wkbmU7H+s9fdlXTrZ7c0nQ74F4N8DsE1HOAiEqmxPZiYI5QZmIzFtbpCHIKJHQ=="],
+    "@pie-players/tts-server-core": ["@pie-players/tts-server-core@0.3.68", "", {}, "sha512-90fG5DnG2CiK2K2j2WTD9+jDPrSHgJ0xRhRZF4nL5/jXTUEhaO/Glt9wnvuWkap1TAPdMfhErbsLu+A6KMdlGw=="],
 
-    "@pie-players/tts-server-polly": ["@pie-players/tts-server-polly@0.3.67", "", { "dependencies": { "@aws-sdk/client-polly": "^3.1033.0", "@pie-players/tts-server-core": "0.3.67" } }, "sha512-tpQUNLyMMlUfa6gRLrC3LAIEBoIYw9AWaHokyhYPs9zTHXENEAGc4jP640QaAAHol2AC6+I4L1DLw+HQOZVIcw=="],
+    "@pie-players/tts-server-polly": ["@pie-players/tts-server-polly@0.3.68", "", { "dependencies": { "@aws-sdk/client-polly": "^3.1033.0", "@pie-players/tts-server-core": "0.3.68" } }, "sha512-qPgqh5lQtpehwbOccZ6+MfnikkyegSsgS5/1jLp1cyzll6kTDOtZ36Yqpk8F291tHfJuRhkmLFROdvoJ/aRC+A=="],
 
     "@pie-qti/app-demo": ["@pie-qti/app-demo@workspace:apps/demo"],
 
