@@ -287,7 +287,7 @@ jobs:
         # Pinned to an exact version, not the floating `v2` tag: v2 silently moved forward
         # to v2.1.0 and renamed these inputs (publish -> publish-script, etc.), which broke
         # this step on 2026-08-18 with no change on our side.
-        uses: changesets/action@v2.1.0
+        uses: changesets/action@v2.1.1
         with:
           # v2 no longer reads a custom token from the GITHUB_TOKEN environment
           # variable — it must arrive through this input or the push and PR calls
