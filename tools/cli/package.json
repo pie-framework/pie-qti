@@ -33,7 +33,7 @@
     "node-html-parser": "^9.0.1"
   },
   "devDependencies": {
-    "@types/node": "^26.2.0",
+    "@types/node": "^26.4.0",
     "oclif": "^4.23.29",
     "typescript": "^5.9.3"
   },
