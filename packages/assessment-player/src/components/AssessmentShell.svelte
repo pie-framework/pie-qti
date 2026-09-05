@@ -48,6 +48,9 @@
 	let sections = $state<any[]>([]);
 	let error = $state<string | null>(null);
 	let navError = $state<string | null>(null);
+	let submitError = $state<string | null>(null);
+	let isSubmitting = $state(false);
+	let retryButton = $state<HTMLButtonElement | null>(null);
 	let itemPaneEl = $state<HTMLElement | null>(null);
 	let rootEl = $state<HTMLElement | null>(null);
 	let testFeedback = $state<Array<{ identifier: string; content: string; access: string }>>([]);
@@ -161,7 +164,7 @@
 	}
 
 	async function handlePrevious() {
-		if (!player) return;
+		if (!player || isSubmitting || isComplete) return;
 		try {
 			navError = null;
 			await player.previous();
@@ -175,7 +178,7 @@
 	}
 
 	async function handleNext() {
-		if (!player) return;
+		if (!player || isSubmitting || isComplete) return;
 		try {
 			navError = null;
 			await player.next();
@@ -202,7 +205,7 @@
 	}
 
 	async function handleSectionSelect(sectionIndex: number) {
-		if (!player || !sections[sectionIndex]) return;
+		if (!player || isSubmitting || isComplete || !sections[sectionIndex]) return;
 
 		const section = sections[sectionIndex];
 		await player.navigateToSection(section.id);
@@ -230,26 +233,31 @@
 	}
 
 	async function handleSubmit() {
-		if (!player) return;
+		if (!player || isSubmitting || isComplete) return;
 
+		submitError = null;
+		isSubmitting = true;
+		let results: AssessmentResults;
 		try {
-			const results = await player.submit();
-			console.log('Assessment results:', results);
-
-			// Get test feedback based on outcomes
-			testFeedback = player.getVisibleFeedback();
-			isComplete = true;
-
-			onSubmit?.(results);
-
-			// Could also emit a custom event here
-			// Or show results modal
+			results = await player.submit();
 		} catch (err) {
 			console.error('Failed to submit assessment:', err);
-			const message = err instanceof Error ? err.message : (i18n?.t('assessment.errors.submitFailed') ?? 'assessment.errors.submitFailed');
-			error = message;
-			announcer?.announce(message, 3000, 'assertive');
+			submitError = err instanceof Error ? err.message : (i18n?.t('assessment.errors.submitFailed') ?? 'Submission failed. Please try again.');
+			// Keep the shell and its session available after the core restores a
+			// failed submission. Already accepted responses are retained for retry.
+			updateState();
+			return;
+		} finally {
+			isSubmitting = false;
+			if (submitError) {
+				await tick();
+				retryButton?.focus();
+			}
 		}
+
+		testFeedback = player.getVisibleFeedback();
+		isComplete = true;
+		onSubmit?.(results);
 	}
 
 	/**
@@ -318,14 +326,14 @@
 		</div>
 	</div>
 {:else}
-	<div bind:this={rootEl} class="assessment-shell" role="region" aria-label="Assessment player">
+	<div bind:this={rootEl} class="assessment-shell" role="region" aria-label="Assessment player" aria-busy={isSubmitting}>
 		<!-- Header with title and section menu -->
 		<AssessmentHeader
 			title={initSession.assessmentId || (i18n?.t('assessment.title') ?? 'Assessment')}
 			{sections}
 			currentSectionIndex={navState.currentSection?.index}
 			showSections={config.showSections}
-			allowSectionNavigation={config.allowSectionNavigation}
+			allowSectionNavigation={!isSubmitting && !isComplete && config.allowSectionNavigation !== false}
 			onSectionSelect={handleSectionSelect}
 		/>
 
@@ -395,10 +403,22 @@
 			{/if}
 		</div>
 
+		{#if submitError}
+			<div class="assessment-submit-error">
+				<p role="alert">{submitError}</p>
+				<button bind:this={retryButton} type="button" class="btn btn-primary" onclick={handleSubmit} disabled={isSubmitting}>
+					{i18n?.t('common.tryAgain') ?? 'Try Again'}
+				</button>
+			</div>
+		{/if}
+		{#if isSubmitting}
+			<p class="assessment-submit-status" role="status">{i18n?.t('common.submitting') ?? 'Submitting...'}</p>
+		{/if}
+
 		<!-- Navigation bar -->
 		{#if i18n}
 			<NavigationBar
-				navState={navState}
+				navState={{ ...navState, isLoading: navState.isLoading || isSubmitting || isComplete }}
 				{i18n}
 				onPrevious={handlePrevious}
 				onNext={handleNext}
@@ -445,6 +465,25 @@
 
 	.assessment-nav-error {
 		padding: 1rem 2rem 0;
+	}
+
+	.assessment-submit-error {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		flex-wrap: wrap;
+		gap: 1rem;
+		padding: 1rem;
+		border-top: 2px solid var(--color-error);
+	}
+
+	.assessment-submit-error p {
+		flex: 1 1 16rem;
+		overflow-wrap: anywhere;
+	}
+
+	.assessment-submit-status {
+		padding: 0.5rem 1rem;
 	}
 
 	@media (max-width: 768px) {
