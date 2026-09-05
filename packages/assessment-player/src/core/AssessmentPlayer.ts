@@ -752,6 +752,12 @@ export class AssessmentPlayer {
 		const currentItem = this.items[this.currentItemIndex];
 		if (!options.restoring && currentItem && target) {
 			this.assertTransitionMinimum(currentItem, target);
+			if (currentItem.testPart !== target.testPart
+				&& (currentItem.testPart.submissionMode ?? this.assessment.submissionMode) === 'simultaneous') {
+				// Commit this part before leaving it; a failed request keeps the learner
+				// in the current part so its remaining answers can be retried.
+				await this.submitSimultaneousItems(this.items.filter((q) => q.testPart === currentItem.testPart));
+			}
 		}
 		if (!options.restoring && this.currentItemIndex === index && this.currentItemSession) {
 			return;
@@ -1007,6 +1013,114 @@ export class AssessmentPlayer {
 		return mode === 'nonlinear' || targetIndex === currentIndex || targetIndex === currentIndex + 1;
 	}
 
+	private async submitSimultaneousItems(items: readonly FlatItem[]): Promise<void> {
+		if (items.every((q) => this.sessionCoordinator.hasItemResult(q.identifier))) return;
+		const current = this.items[this.currentItemIndex];
+		const submittedItem = current && items.includes(current) ? current : undefined;
+		const preSubmitSession = submittedItem ? this.currentItemSession?.serialize() : undefined;
+		let allItemSessions: NonNullable<AssessmentSessionState['itemSessions']> = {};
+
+		try {
+			// Suspending the rendered session gives the UI one non-writable state while
+			// backend submission is in flight. Detached sessions perform the provisional
+			// end-attempt work for every item.
+			if (submittedItem) this.saveCurrentItemSession();
+			// Preserve client-collected responses across backend state updates.
+			// Some backend adapters return an updatedState snapshot that may only include
+			// responses for items that have been submitted so far, which would otherwise
+			// wipe out responses for later items during this loop.
+			const allItemResponses = cloneData(this.state.itemResponses || {}) as any;
+			allItemSessions = cloneData(this.state.itemSessions || {})!;
+
+			for (const q of items) {
+				if (this.sessionCoordinator.hasItemResult(q.identifier)) continue;
+				const submittedAt = Date.now();
+				const responsesForItem = (allItemResponses?.[q.identifier] || {}) as any;
+				const itemSession = this.endItemSessionForSubmit(
+					q,
+					responsesForItem,
+					allItemSessions[q.identifier],
+				);
+				allItemSessions[q.identifier] = itemSession;
+				const res = await this.backend.submitResponses({
+					sessionId: this.sessionId,
+					itemIdentifier: q.identifier,
+					responses: responsesForItem,
+					submittedAt,
+					timeSpent: itemSession.duration,
+					timing: this.getSubmitTimingEvidence(q, itemSession.duration),
+					itemSession: this.config.sendItemSessionToBackend ? itemSession : undefined,
+				});
+				if (!res.success || !res.result) {
+					throw new Error(res.error || `Submit failed for item ${q.identifier}`);
+				}
+				if (res.updatedState) {
+					this.sessionCoordinator.replaceStatePreservingResponsesAndSessions(
+						res.updatedState,
+						allItemResponses,
+						allItemSessions,
+					);
+				} else {
+					this.state.itemScores = this.state.itemScores || {};
+					this.state.itemScores[q.identifier] = res.result;
+					this.sessionCoordinator.markVisited(q.identifier);
+					this.state.itemResponses[q.identifier] = responsesForItem;
+					this.sessionCoordinator.setItemSession(q.identifier, itemSession);
+					this.sessionCoordinator.recordAttempt(q.identifier);
+				}
+				this.sessionCoordinator.setItemResult({
+					itemIdentifier: q.identifier,
+					score: res.result.score,
+					maxScore: res.result.maxScore,
+					responses: this.state.itemResponses[q.identifier] || {},
+				});
+			}
+
+			// The attached item must represent the same accepted lifecycle as persistence.
+			// Replace the provisional suspended object with one restored from the accepted
+			// closed state; no second live state owner remains.
+			if (submittedItem && this.items[this.currentItemIndex] === submittedItem) {
+				const accepted = allItemSessions[submittedItem.identifier];
+				if (accepted) {
+					this.releaseCurrentItemSession();
+					this.attachCurrentItemSession(
+						submittedItem,
+						this.getItemDefinition(submittedItem).openSession({ restore: accepted }),
+					);
+					this.notifyItemChange();
+				}
+			}
+		} catch (error) {
+			// The backend accepts simultaneous items one request at a time. Keep earlier
+			// accepted items committed so retry cannot double-submit them. If the rendered
+			// item was not accepted, restore only that item to its exact writable state.
+			if (submittedItem && this.items[this.currentItemIndex] === submittedItem) {
+				const accepted = this.sessionCoordinator.hasItemResult(submittedItem.identifier)
+					? allItemSessions[submittedItem.identifier]
+					: undefined;
+				const restored = accepted ?? preSubmitSession;
+				if (!accepted && preSubmitSession) {
+					this.sessionCoordinator.saveItemSession(
+						submittedItem.identifier,
+						cloneResponseRecord(valuesFromItemSession(preSubmitSession)),
+						preSubmitSession,
+						preSubmitSession.duration,
+					);
+				}
+				this.releaseCurrentItemSession();
+				if (restored) {
+					this.attachCurrentItemSession(
+						submittedItem,
+						this.getItemDefinition(submittedItem).openSession({ restore: restored }),
+					);
+					this.notifyItemChange();
+					this.notifyResponseChange();
+				}
+			}
+			throw error;
+		}
+	}
+
 	/** Submit entire assessment (finalize on backend) */
 	public async submit(): Promise<AssessmentResults> {
 		const current = this.items[this.currentItemIndex];
@@ -1016,118 +1130,15 @@ export class AssessmentPlayer {
 			this.assertMinimumTime('testPart', current);
 			this.assertMinimumTime('assessment', current);
 		}
-		// For simultaneous submission, ensure all items are submitted before finalize so
-		// the backend can compute a complete test score.
-		if (this.assessment.submissionMode === 'simultaneous') {
-			const submittedItem = current;
-			const preSubmitSession = this.currentItemSession?.serialize();
-			let allItemSessions: NonNullable<AssessmentSessionState['itemSessions']> = {};
-
-			try {
-				// Suspending the rendered session gives the UI one non-writable state while
-				// backend submission is in flight. Detached sessions perform the provisional
-				// end-attempt work for every item.
-				this.saveCurrentItemSession();
-				// Preserve client-collected responses across backend state updates.
-				// Some backend adapters return an updatedState snapshot that may only include
-				// responses for items that have been submitted so far, which would otherwise
-				// wipe out responses for later items during this loop.
-				const allItemResponses = cloneData(this.state.itemResponses || {}) as any;
-				allItemSessions = cloneData(this.state.itemSessions || {})!;
-
-				for (const q of this.items) {
-					if (this.sessionCoordinator.hasItemResult(q.identifier)) continue;
-					const submittedAt = Date.now();
-					const responsesForItem = (allItemResponses?.[q.identifier] || {}) as any;
-					const itemSession = this.endItemSessionForSubmit(
-						q,
-						responsesForItem,
-						allItemSessions[q.identifier],
-					);
-					allItemSessions[q.identifier] = itemSession;
-					const res = await this.backend.submitResponses({
-						sessionId: this.sessionId,
-						itemIdentifier: q.identifier,
-						responses: responsesForItem,
-						submittedAt,
-						timeSpent: itemSession.duration,
-						timing: this.getSubmitTimingEvidence(q, itemSession.duration),
-						itemSession: this.config.sendItemSessionToBackend ? itemSession : undefined,
-					});
-					if (!res.success || !res.result) {
-						throw new Error(res.error || `Submit failed for item ${q.identifier}`);
-					}
-					if (res.updatedState) {
-						this.sessionCoordinator.replaceStatePreservingResponsesAndSessions(
-							res.updatedState,
-							allItemResponses,
-							allItemSessions,
-						);
-					} else {
-						this.state.itemScores = this.state.itemScores || {};
-						this.state.itemScores[q.identifier] = res.result;
-						this.sessionCoordinator.markVisited(q.identifier);
-						this.state.itemResponses[q.identifier] = responsesForItem;
-						this.sessionCoordinator.setItemSession(q.identifier, itemSession);
-						this.sessionCoordinator.recordAttempt(q.identifier);
-					}
-					this.sessionCoordinator.setItemResult({
-						itemIdentifier: q.identifier,
-						score: res.result.score,
-						maxScore: res.result.maxScore,
-						responses: this.state.itemResponses[q.identifier] || {},
-					});
-				}
-
-				// The attached item must represent the same accepted lifecycle as persistence.
-				// Replace the provisional suspended object with one restored from the accepted
-				// closed state; no second live state owner remains.
-				if (submittedItem && this.items[this.currentItemIndex] === submittedItem) {
-					const accepted = allItemSessions[submittedItem.identifier];
-					if (accepted) {
-						this.releaseCurrentItemSession();
-						this.attachCurrentItemSession(
-							submittedItem,
-							this.getItemDefinition(submittedItem).openSession({ restore: accepted }),
-						);
-						this.notifyItemChange();
-					}
-				}
-			} catch (error) {
-				// The backend accepts simultaneous items one request at a time. Keep earlier
-				// accepted items committed so retry cannot double-submit them. If the rendered
-				// item was not accepted, restore only that item to its exact writable state.
-				if (submittedItem && this.items[this.currentItemIndex] === submittedItem) {
-					const accepted = this.sessionCoordinator.hasItemResult(submittedItem.identifier)
-						? allItemSessions[submittedItem.identifier]
-						: undefined;
-					const restored = accepted ?? preSubmitSession;
-					if (!accepted && preSubmitSession) {
-						this.sessionCoordinator.saveItemSession(
-							submittedItem.identifier,
-							cloneResponseRecord(valuesFromItemSession(preSubmitSession)),
-							preSubmitSession,
-							preSubmitSession.duration,
-						);
-					}
-					this.releaseCurrentItemSession();
-					if (restored) {
-						this.attachCurrentItemSession(
-							submittedItem,
-							this.getItemDefinition(submittedItem).openSession({ restore: restored }),
-						);
-						this.notifyItemChange();
-						this.notifyResponseChange();
-					}
-				}
-				throw error;
-			}
-		} else {
-			// Ensure current item is submitted (individual submission mode)
-			const q = this.items[this.currentItemIndex];
-			if (q && !this.sessionCoordinator.hasItemResult(q.identifier)) {
-				await this.submitCurrentItem();
-			}
+		// Submission modes belong to test parts. The assessment-level field is only
+		// a fallback for older hosts that do not supply a mode on each part.
+		await this.submitSimultaneousItems(this.items.filter((q) =>
+			(q.testPart.submissionMode ?? this.assessment.submissionMode) === 'simultaneous',
+		));
+		const q = this.items[this.currentItemIndex];
+		if (q && (q.testPart.submissionMode ?? this.assessment.submissionMode) === 'individual'
+			&& !this.sessionCoordinator.hasItemResult(q.identifier)) {
+			await this.submitCurrentItem();
 		}
 
 		const finalized: FinalizeAssessmentResponse = await this.backend.finalizeAssessment({
