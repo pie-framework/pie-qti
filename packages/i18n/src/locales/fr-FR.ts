@@ -215,6 +215,8 @@ export default {
 		},
 
 		match: {
+			pointerInstructions: 'Sélectionnez un élément, puis sa cible. Vous pouvez aussi glisser-déposer.',
+			selectTarget: 'Sélectionner pour associer',
 			keyboardInstructions: 'Appuyez sur Espace ou Entrée pour sélectionner un élément source. Tab pour naviguer vers les cibles. Appuyez sur Espace ou Entrée sur une cible pour créer une correspondance. Appuyez sur Échap pour annuler la sélection.',
 			dragInstruction: 'Appuyez sur Espace ou Entrée pour associer',
 			dropTarget: 'Déposez l\'élément ici',
@@ -236,6 +238,10 @@ export default {
 		},
 
 		gapMatch: {
+			filledGapAriaLabelWithHeld: 'Espace {gapId}, rempli avec {word}. Sélectionnez pour remplacer par {heldWord}.',
+			blankGapAriaLabelWithHeld: 'Espace {gapId}. Sélectionnez pour y placer {heldWord}.',
+			placed: '{word} placé dans l’espace {gapId}.',
+			pointerInstructions: 'Sélectionnez un mot, puis un espace vide. Vous pouvez aussi glisser-déposer.',
 			instruction: 'Faites glisser les mots pour remplir les blancs',
 			available: 'Mots disponibles',
 			availableLabel: 'Mots disponibles à placer',
@@ -249,6 +255,7 @@ export default {
 		},
 
 		graphicGapMatch: {
+			pointerInstructions: 'Sélectionnez une étiquette, puis une zone sur l’image. Vous pouvez aussi glisser-déposer.',
 			instruction: 'Placez les étiquettes sur les zones sensibles de l\'image',
 			keyboardInstructions: 'Appuyez sur Espace ou Entrée pour sélectionner une étiquette. Tab pour naviguer vers les zones sensibles sur l\'image. Appuyez sur Espace ou Entrée sur une zone sensible pour placer l\'étiquette. Appuyez sur Échap pour annuler la sélection.',
 			available: 'Étiquettes disponibles',
@@ -266,7 +273,9 @@ export default {
 		},
 
 		order: {
-			instruction: 'Faites glisser les éléments pour les réordonner',
+			moveEarlier: 'Déplacer avant',
+			moveLater: 'Déplacer après',
+			instruction: 'Utilisez les boutons de déplacement ou faites glisser les éléments pour les réorganiser.',
 			keyboardInstructions: 'Appuyez sur Espace ou Entrée pour saisir un élément. Utilisez les touches fléchées pour déplacer l\'élément. Appuyez à nouveau sur Espace ou Entrée pour déposer. Appuyez sur Échap pour annuler.',
 			grabbed: 'Saisi. Utilisez les touches fléchées pour déplacer.',
 			moveUp: 'Déplacer vers le haut',

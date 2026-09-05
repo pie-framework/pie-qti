@@ -226,6 +226,8 @@ export default {
 		},
 
 		match: {
+			pointerInstructions: 'Select a source item, then select its target. You can also drag and drop.',
+			selectTarget: 'Select to match',
 			// Keyboard instruction for accessible drag-drop
 			keyboardInstructions: 'Press Space or Enter to select a source item. Tab to navigate to targets. Press Space or Enter on a target to create a match. Press Escape to cancel selection.',
 			dragInstruction: 'Press Space or Enter to match',
@@ -248,6 +250,10 @@ export default {
 		},
 
 		gapMatch: {
+			filledGapAriaLabelWithHeld: 'Blank {gapId}, filled with {word}. Select to replace with {heldWord}.',
+			blankGapAriaLabelWithHeld: 'Blank {gapId}. Select to place {heldWord} here.',
+			placed: 'Placed {word} in blank {gapId}.',
+			pointerInstructions: 'Select a word, then select a blank. You can also drag and drop.',
 			instruction: 'Drag words to fill in the blanks',
 			available: 'Available words',
 			availableLabel: 'Available words to place',
@@ -262,6 +268,7 @@ export default {
 		},
 
 		graphicGapMatch: {
+			pointerInstructions: 'Select a label, then select a hotspot on the image. You can also drag and drop.',
 			instruction: 'Place labels on the image hotspots',
 			keyboardInstructions: 'Press Space or Enter to select a label. Tab to navigate to hotspots on the image. Press Space or Enter on a hotspot to place the label. Press Escape to cancel selection.',
 			available: 'Available labels',
@@ -279,7 +286,9 @@ export default {
 		},
 
 		order: {
-			instruction: 'Drag items to reorder them',
+			moveEarlier: 'Move earlier',
+			moveLater: 'Move later',
+			instruction: 'Use the move buttons or drag items to reorder them.',
 			keyboardInstructions: 'Press Space or Enter to grab an item. Use arrow keys to move the item. Press Space or Enter again to drop. Press Escape to cancel.',
 			grabbed: 'Grabbed. Use arrow keys to move.',
 			moveUp: 'Move up',

@@ -53,7 +53,7 @@ const translations = $derived({
 
 let draggedTextId = $state<string | null>(null);
 let hoveredHotspotId = $state<string | null>(null);
-let keyboardSelectedTextId = $state<string | null>(null); // Gap text selected via keyboard
+let selectedTextId = $state<string | null>(null); // Gap text selected via keyboard
 let announceText = $state<string>(''); // For screen reader announcements
 
 function handleDragStart(gapTextId: string) {
@@ -97,49 +97,37 @@ function clearMatch(gapTextId: string) {
 	announceText = `${gapTextName} removed from hotspot`;
 }
 
-// Keyboard handlers for gap texts (labels)
-function handleGapTextKeyDown(event: KeyboardEvent, gapTextId: string) {
-	if (disabled) return;
-
-	const gapTextObj = gapTexts.find((g) => g.identifier === gapTextId);
-	const gapTextName = gapTextObj?.text || 'Label';
-
-	if (event.key === ' ' || event.key === 'Enter') {
-		event.preventDefault();
-
-		if (keyboardSelectedTextId === gapTextId) {
-			// Deselect
-			keyboardSelectedTextId = null;
-			announceText = `${gapTextName} deselected`;
-		} else {
-			// Select this gap text for placement
-			keyboardSelectedTextId = gapTextId;
-			announceText = `${gapTextName} selected. Navigate to a hotspot and press Space or Enter to place.`;
-		}
-	} else if (event.key === 'Escape' && keyboardSelectedTextId) {
-		event.preventDefault();
-		keyboardSelectedTextId = null;
-		announceText = `Selection cancelled`;
-	}
+function selectLabel(gapTextId: string) {
+	if (disabled || getTargetForSource(pairs, gapTextId)) return;
+	selectedTextId = selectedTextId === gapTextId ? null : gapTextId;
+	const item = gapTexts.find((label) => label.identifier === gapTextId)?.text ?? 'Label';
+	announceText = selectedTextId
+		? (i18n?.t('interactions.match.selected', { item }) ?? `${item} selected`)
+		: (i18n?.t('common.selectionCancelled') ?? 'Selection cancelled');
 }
 
-// Keyboard handlers for hotspots
+function cancelSelection(event: KeyboardEvent) {
+	if (event.key !== 'Escape') return;
+	selectedTextId = null;
+	announceText = i18n?.t('common.selectionCancelled') ?? 'Selection cancelled';
+}
+
+function selectHotspot(hotspotId: string) {
+	if (disabled || !selectedTextId) return;
+	const label = gapTexts.find((entry) => entry.identifier === selectedTextId)?.text ?? 'Label';
+	onPairsChange(createOrUpdatePair(pairs, selectedTextId, hotspotId));
+	announceText = i18n?.t('interactions.graphicGapMatch.labelPlaced', {
+		label, hotspot: hotspots.findIndex((entry) => entry.identifier === hotspotId) + 1,
+	}) ?? `${label} placed`;
+	selectedTextId = null;
+}
+
+// SVG buttons need explicit keyboard activation; native label buttons do not.
 function handleHotspotKeyDown(event: KeyboardEvent, hotspotId: string) {
-	if (disabled || !keyboardSelectedTextId) return;
-
-	const hotspotIndex = hotspots.findIndex((h) => h.identifier === hotspotId);
-	const gapTextObj = gapTexts.find((g) => g.identifier === keyboardSelectedTextId);
-	const gapTextName = gapTextObj?.text || 'Label';
-
 	if (event.key === ' ' || event.key === 'Enter') {
 		event.preventDefault();
-
-		// Create match
-		const newPairs = createOrUpdatePair(pairs, keyboardSelectedTextId!, hotspotId);
-		onPairsChange(newPairs);
-		announceText = `${gapTextName} placed on hotspot ${hotspotIndex + 1}`;
-		keyboardSelectedTextId = null;
-	}
+		selectHotspot(hotspotId);
+	} else cancelSelection(event);
 }
 
 // Parse coords based on shape
@@ -162,6 +150,8 @@ function parseCoords(hotspot: Hotspot): { x: number; y: number; width: number; h
 	{announceText}
 </div>
 
+<p>{i18n?.t('interactions.graphicGapMatch.pointerInstructions') ?? 'Select a label, then select a hotspot on the image. You can also drag and drop.'}</p>
+
 <!-- Instructions for keyboard users -->
 <div id="graphic-gap-match-instructions" class="sr-only">
 	Press Space or Enter to select a label. Tab to navigate to hotspots on the image. Press Space or Enter on a hotspot to place the label. Press Escape to cancel selection.
@@ -174,7 +164,7 @@ function parseCoords(hotspot: Hotspot): { x: number; y: number; width: number; h
 		{#each gapTexts as gapText (gapText.identifier)}
 			{@const matchedHotspot = getTargetForSource(pairs, gapText.identifier)}
 			{@const isDragged = draggedTextId === gapText.identifier}
-			{@const isSelected = keyboardSelectedTextId === gapText.identifier}
+			{@const isSelected = selectedTextId === gapText.identifier}
 
 			<div class="inline-flex items-center gap-1">
 				<button
@@ -183,7 +173,8 @@ function parseCoords(hotspot: Hotspot): { x: number; y: number; width: number; h
 					use:touchDrag
 					ondragstart={() => handleDragStart(gapText.identifier)}
 					ondragend={handleDragEnd}
-					onkeydown={(e) => handleGapTextKeyDown(e, gapText.identifier)}
+					onclick={() => selectLabel(gapText.identifier)}
+					onkeydown={cancelSelection}
 					disabled={disabled || !!matchedHotspot}
 					aria-pressed={isSelected}
 					aria-label="{gapText.text}{matchedHotspot ? '. Already placed on hotspot' : ''}{isSelected ? '. Selected for placement' : '. Press Space to select'}"
@@ -238,8 +229,8 @@ function parseCoords(hotspot: Hotspot): { x: number; y: number; width: number; h
 						{@const hotspotIndex = hotspots.findIndex((h) => h.identifier === hotspot.identifier)}
 						<circle
 							role="button"
-							tabindex={disabled || !keyboardSelectedTextId ? -1 : 0}
-							aria-label="Hotspot {hotspotIndex + 1}{matchedGapText && gapTextObj ? '. Contains ' + gapTextObj.text : '. Available'}{keyboardSelectedTextId ? '. Press Space or Enter to place label' : ''}"
+							tabindex={disabled || !selectedTextId ? -1 : 0}
+							aria-label="Hotspot {hotspotIndex + 1}{matchedGapText && gapTextObj ? '. Contains ' + gapTextObj.text : '. Available'}{selectedTextId ? '. Press Space or Enter to place label' : ''}"
 							cx={cx}
 							cy={cy}
 							r={r}
@@ -253,6 +244,7 @@ function parseCoords(hotspot: Hotspot): { x: number; y: number; width: number; h
 							ondragover={(e) => handleHotspotDragOver(e, hotspot.identifier)}
 							ondragleave={handleHotspotDragLeave}
 							ondrop={(e) => handleHotspotDrop(e, hotspot.identifier)}
+							onclick={() => selectHotspot(hotspot.identifier)}
 							onkeydown={(e) => handleHotspotKeyDown(e, hotspot.identifier)}
 						/>
 					{:else if hotspot.shape === 'rect'}
@@ -262,8 +254,8 @@ function parseCoords(hotspot: Hotspot): { x: number; y: number; width: number; h
 						{@const hotspotIndex = hotspots.findIndex((h) => h.identifier === hotspot.identifier)}
 						<rect
 							role="button"
-							tabindex={disabled || !keyboardSelectedTextId ? -1 : 0}
-							aria-label="Hotspot {hotspotIndex + 1}{matchedGapText && gapTextObj ? '. Contains ' + gapTextObj.text : '. Available'}{keyboardSelectedTextId ? '. Press Space or Enter to place label' : ''}"
+							tabindex={disabled || !selectedTextId ? -1 : 0}
+							aria-label="Hotspot {hotspotIndex + 1}{matchedGapText && gapTextObj ? '. Contains ' + gapTextObj.text : '. Available'}{selectedTextId ? '. Press Space or Enter to place label' : ''}"
 							x={x}
 							y={y}
 							width={width}
@@ -278,6 +270,7 @@ function parseCoords(hotspot: Hotspot): { x: number; y: number; width: number; h
 							ondragover={(e) => handleHotspotDragOver(e, hotspot.identifier)}
 							ondragleave={handleHotspotDragLeave}
 							ondrop={(e) => handleHotspotDrop(e, hotspot.identifier)}
+							onclick={() => selectHotspot(hotspot.identifier)}
 							onkeydown={(e) => handleHotspotKeyDown(e, hotspot.identifier)}
 						/>
 					{/if}
