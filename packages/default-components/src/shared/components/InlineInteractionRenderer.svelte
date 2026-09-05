@@ -25,11 +25,9 @@ interface Props {
 let { html, interactions, responses, onResponseChange }: Props = $props();
 
 // Parse HTML and extract inline interaction placeholders
-interface ParsedSegment {
-	type: 'html' | 'textEntry' | 'inlineChoice';
-	content?: string;
-	interaction?: InlineRendererInteraction;
-}
+type ParsedSegment =
+	| { type: 'html'; content: string }
+	| { type: 'textEntry' | 'inlineChoice'; interaction: InlineRendererInteraction };
 
 const segments = $derived.by(() => {
 	const result: ParsedSegment[] = [];
