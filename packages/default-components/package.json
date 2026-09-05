@@ -29,10 +29,10 @@
   "dependencies": {
     "@pie-qti/item-player": "workspace:*",
     "@pie-qti/qti-common": "workspace:*",
-    "@tiptap/core": "3.30.1",
-    "@tiptap/extension-mathematics": "3.30.1",
-    "@tiptap/extension-placeholder": "3.30.1",
-    "@tiptap/starter-kit": "3.30.1",
+    "@tiptap/core": "3.31.0",
+    "@tiptap/extension-mathematics": "3.31.0",
+    "@tiptap/extension-placeholder": "3.31.0",
+    "@tiptap/starter-kit": "3.31.0",
     "mathlive": "^0.110.0"
   },
   "peerDependencies": {
