@@ -6,6 +6,7 @@
  */
 
 import type { I18nProvider } from '@pie-qti/i18n';
+import type { GraphicGapMatchInteractionData } from '@pie-qti/item-player';
 import { touchDrag } from '@pie-qti/qti-common';
 import { createOrUpdatePair, getSourceForTarget, getTargetForSource, removePairBySource } from '../utils/pairHelpers.js';
 import '../styles/shared.css';
@@ -16,12 +17,7 @@ interface GapText {
 	matchMax: number;
 }
 
-interface Hotspot {
-	identifier: string;
-	shape: 'circle' | 'rect' | 'poly';
-	coords: string;
-	matchMax: number;
-}
+type Hotspot = GraphicGapMatchInteractionData['hotspots'][number];
 
 interface Props {
 	gapTexts: GapText[];

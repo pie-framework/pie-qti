@@ -9,7 +9,7 @@
     "build": "rm -rf dist && tsc && vite build && mkdir -p dist/shared/styles && cp src/shared/styles/qti-shared-vocabulary.css dist/shared/styles/qti-shared-vocabulary.css",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
-    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "check": "svelte-check --tsconfig ./tsconfig.svelte.json",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write ."
