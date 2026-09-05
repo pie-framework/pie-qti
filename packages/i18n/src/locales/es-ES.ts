@@ -413,6 +413,7 @@ export default {
 		section: 'Sección {current} de {total}',
 		sectionDefault: 'Sección {number}',
 		readingPassage: 'Pasaje de Lectura',
+		readingPassages: 'Pasajes de lectura',
 		expandPassage: 'Expandir pasaje',
 		collapsePassage: 'Contraer pasaje',
 		closeMenu: 'Cerrar menú',

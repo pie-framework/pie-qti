@@ -426,6 +426,7 @@ export default {
 		sectionDefault: '部分 {number}',
 		closeMenu: '关闭菜单',
 		readingPassage: '阅读文章',
+		readingPassages: '阅读文章',
 		expandPassage: '展开文章',
 		collapsePassage: '折叠文章',
 

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, tick, getContext } from 'svelte';
-	import type { SvelteI18nProvider } from '@pie-qti/i18n';
+	import { DefaultI18nProvider, type I18nProvider } from '@pie-qti/i18n';
 	import type { QtiSharedHtmlBlock } from '@pie-qti/section-player';
 	import { SectionPlayerSplitPane, SectionPlayerVertical, TestFeedback as SectionTestFeedback } from '../../../section-player/src/components/index.js';
 	import type { BackendAssessmentPlayerConfig } from '../core/AssessmentPlayer.js';
@@ -28,11 +28,22 @@
 	const { backend, initSession, config = {}, onSubmit, typeset }: Props = $props();
 
 	// Get i18n from context (set by +layout.svelte)
-	const contextI18nWrapper = getContext<{ value: SvelteI18nProvider | null } | undefined>('i18n');
+	const contextI18nWrapper = getContext<{ value: I18nProvider | null } | undefined>('i18n');
 	const contextI18n = $derived(contextI18nWrapper?.value ?? undefined);
+	const fallbackI18n = new DefaultI18nProvider();
+	const i18n = $derived(config.i18nProvider ?? contextI18n ?? fallbackI18n);
+	// The core and cached item definitions retain one provider reference, while a
+	// host may finish loading its actual provider after this shell mounts. Resolve
+	// methods against the current provider and preserve their receiver.
+	const playerI18n: I18nProvider = new Proxy(fallbackI18n, {
+		get(_target, key) {
+			const provider = i18n;
+			const value = Reflect.get(provider, key, provider);
+			return typeof value === 'function' ? value.bind(provider) : value;
+		},
+	});
 
 	let player = $state<AssessmentPlayer | null>(null);
-	const i18n = $derived(player?.getI18nProvider() ?? contextI18n);
 	let navState = $state<NavigationState>({
 		currentIndex: -1,
 		totalItems: 0,
@@ -79,7 +90,7 @@
 		// Never allow infinite "Loading assessment..." state
 		initTimeout = setTimeout(() => {
 			if (!hasFirstItem && !error) {
-				error = contextI18n?.t('assessment.loadingError') ?? 'assessment.loadingError';
+				error = i18n.t('assessment.loadingError');
 				announcer?.announce(error, 3000, 'assertive');
 			}
 		}, 10000);
@@ -90,8 +101,8 @@
 			showSections: config.showSections !== false,
 			allowSectionNavigation: config.allowSectionNavigation !== false,
 			showProgress: config.showProgress !== false,
-			i18nProvider: contextI18n, // Pass i18n from context
 			...config,
+			i18nProvider: playerI18n,
 		};
 
 		(async () => {
@@ -135,7 +146,7 @@
 			}
 		})().catch((err) => {
 			console.error('Failed to initialize assessment player:', err);
-			error = err instanceof Error ? err.message : (contextI18n?.t('assessment.loadingError') ?? 'assessment.loadingError');
+			error = err instanceof Error ? err.message : i18n.t('assessment.loadingError');
 			announcer?.announce(error, 3000, 'assertive');
 		});
 
@@ -314,7 +325,7 @@
 	<div class="assessment-loading">
 		<div class="flex items-center justify-center p-8" role="status" aria-live="polite">
 			<span class="loading loading-spinner loading-lg"></span>
-			<span class="ml-4">{contextI18n?.t('assessment.loading') ?? 'assessment.loading'}</span>
+			<span class="ml-4">{i18n.t('assessment.loading')}</span>
 		</div>
 	</div>
 {:else}

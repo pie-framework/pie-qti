@@ -426,6 +426,7 @@ export default {
 		sectionDefault: 'Section {number}',
 		closeMenu: 'Close menu',
 		readingPassage: 'Reading Passage',
+		readingPassages: 'Reading passages',
 		expandPassage: 'Expand passage',
 		collapsePassage: 'Collapse passage',
 

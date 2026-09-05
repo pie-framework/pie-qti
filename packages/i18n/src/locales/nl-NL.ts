@@ -412,6 +412,7 @@ export default {
 		section: 'Sectie {current} van {total}',
 		sectionDefault: 'Sectie {number}',
 		readingPassage: 'Leestekst',
+		readingPassages: 'Leesteksten',
 		expandPassage: 'Tekst uitvouwen',
 		collapsePassage: 'Tekst samenvouwen',
 		closeMenu: 'Menu sluiten',
