@@ -10,6 +10,7 @@ import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
 import type { I18nProvider } from '@pie-qti/i18n';
 import { createSvelteMountController } from '@pie-qti/qti-common';
 import { mount, unmount } from 'svelte';
+import { createSubscriber } from 'svelte/reactivity';
 import ItemPlayer from './components/ItemPlayer.svelte';
 import type {
 	AssessmentItemDefinitionConfig,
@@ -84,6 +85,7 @@ export class PieQtiItemPlayerElement extends HTMLElementBase {
 
 	#mountController = createSvelteMountController<ItemPlayerElementProps, ItemPlayerComponentInstance>({
 		host: this,
+		createSubscriber,
 		mount: (target, props) => mount(ItemPlayer, { target, props }) as ItemPlayerComponentInstance,
 		unmount,
 	});
