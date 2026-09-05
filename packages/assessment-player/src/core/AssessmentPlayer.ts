@@ -680,6 +680,15 @@ export class AssessmentPlayer {
 	 */
 	public getState(options: { includeItemSessions?: boolean } = {}): AssessmentSessionState {
 		const snapshot = this.sessionCoordinator.snapshot(options);
+		const current = this.items[this.currentItemIndex];
+		if (options.includeItemSessions && current && this.currentItemSession) {
+			// Navigation snapshots may predate edits made after revisiting this item.
+			// Serialize the live authority without suspending the learner's attempt.
+			snapshot.itemSessions = {
+				...snapshot.itemSessions,
+				[current.identifier]: this.currentItemSession.serialize(),
+			};
+		}
 		const timing = this.timeManager?.getState();
 		if (timing) {
 			snapshot.timing = {
