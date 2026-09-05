@@ -66,6 +66,10 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 	}
 
 	protected Component: any = AssessmentShell;
+	// These host properties configure the assessment/session created on mount.
+	// Section and item props update a live presentation; replacing these inputs
+	// must still recreate the assessment core and its definition-level policies.
+	protected override readonly reactiveProps = false;
 
 	#assessmentTestXml: string | null = null;
 	#assessmentId: string | undefined;

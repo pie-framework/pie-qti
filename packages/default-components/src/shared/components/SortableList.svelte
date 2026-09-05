@@ -8,6 +8,7 @@ import type { I18nProvider } from '@pie-qti/i18n';
 import type { HtmlContent } from '@pie-qti/item-player';
 import { htmlToString } from '@pie-qti/item-player/security';
 import { touchDrag } from '@pie-qti/qti-common';
+import { tick } from 'svelte';
 import DragHandle from './DragHandle.svelte';
 import '../styles/shared.css';
 
@@ -133,6 +134,7 @@ function handleCancelSelection(event: KeyboardEvent, itemName: string) {
 }
 
 function handleArrowKeyMovement(event: KeyboardEvent, itemName: string, currentIndex: number) {
+	const focusedItem = event.currentTarget as HTMLButtonElement;
 	if (event.key === 'ArrowUp' && orientation === 'vertical' && currentIndex > 0) {
 		event.preventDefault();
 		moveItem(currentIndex, currentIndex - 1);
@@ -157,6 +159,13 @@ function handleArrowKeyMovement(event: KeyboardEvent, itemName: string, currentI
 		event.preventDefault();
 		moveItem(currentIndex, currentIndex + 1);
 		announceText = `${itemName} moved to position ${currentIndex + 2} of ${orderedIds.length}`;
+	}
+	if (event.defaultPrevented) {
+		// Moving a keyed DOM node can blur it even when its component survives.
+		// Restore focus after Svelte has applied the new order.
+		void tick().then(() => {
+			if (focusedItem.isConnected) focusedItem.focus();
+		});
 	}
 }
 
