@@ -1,5 +1,7 @@
 # @pie-qti/i18n
 
+## 0.1.23
+
 ## 0.1.22
 
 ### Patch Changes

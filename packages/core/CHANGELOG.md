@@ -1,5 +1,13 @@
 # @pie-qti/transform-core
 
+## 0.1.23
+
+### Patch Changes
+
+- @pie-qti/logger@0.1.23
+  - @pie-qti/element-schemas@0.1.23
+  - @pie-qti/transform-types@0.1.23
+
 ## 0.1.22
 
 ### Patch Changes
