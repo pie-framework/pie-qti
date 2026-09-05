@@ -1,5 +1,69 @@
 # @pie-qti/default-components
 
+## 0.1.23
+
+### Patch Changes
+
+- d476546: Make PCI deliverable, and rebuild a module on authoritative restore.
+  
+  `createAllowlistPciModuleResolver({ allowedOrigins, allowedPathPrefixes })` is a
+  new export from `@pie-qti/item-player`. PCI execution previously required every
+  host to write the security-critical resolver itself, so in practice no deployment
+  ran a PCI at all. The secure default is unchanged — a host must still pass a
+  resolver, and doing so is still a trust decision — but the origin and prefix check
+  now ships reviewed. Prefixes match the normalized URL so traversal cannot escape
+  them, non-http(s) schemes are refused outright, and an empty allow-list is a
+  construction error rather than a silent deny-all. Note that `PciConfiguration.baseUrl`
+  is where authored relative paths resolve, so it has to fall inside the allow-list
+  itself.
+  
+  `PciHost.restore()` no longer calls `module.setResponse` on a mounted module that
+  has a rebuild path. It fires the new `onRemountRequest` signal; the renderer resets
+  the sanitized scaffold, calls `remount(dom)` — which discards the previous
+  instance, resolves a fresh one, and seeds the restored value — and returns focus
+  into the rebuilt scaffold, since replacing the scaffold destroys whatever the
+  candidate had focused. Discarding in-progress candidate state is what
+  re-instantiation means, and it is the only form the QTI 3.0 PCI contract offers,
+  since state is injected at `getInstance` and there is no setter.
+  
+  Two consequences of that being asynchronous and renderer-driven. `getResponse()`
+  reports the restored value for as long as a requested rebuild has not landed,
+  because until it does the mounted module still holds the superseded one. And a host
+  that drives `PciHost` directly, with nothing subscribed to `onRemountRequest`, gets
+  the value pushed into the module instead — mutation rather than a discard, which is
+  the most a caller owning no scaffold can do, and it keeps reset-to-default and
+  session restore effective there. Before mount, `restore()` still just holds the
+  value for `initialize()`.
+  
+  `PciHostController` gains `onRemountRequest` and `remount`.
+- 2fd7a31: Give a mounted PCI module ownership of its own response.
+  
+  Every candidate change reaches `Player.setResponses`, a PCI module's own reports
+  included, and that pushed straight back into the module with no dirty check — so
+  each reported response was immediately handed back, rebuilding whatever internal
+  state the module derived from it. The renderer's reactive `response` prop carried
+  a second copy of the same loop.
+  
+  `PciHost.setResponse` is replaced by `offerResponse(value)`, which offers a value
+  and returns `false` once the module has reported a response of its own, and
+  `restore(value)`, which replaces the response authoritatively and returns
+  ownership to the player. Session deserialization and reset-to-default use
+  `restore()`; ordinary traffic uses `offerResponse()`. `offerResponse` is named for
+  what it does — the value may be declined — and avoids colliding with Svelte's
+  sense of "hydrate".
+  
+  `Player.setPciResponse` is likewise replaced by `offerPciResponse` and
+  `restorePciResponse`, and `PciHostController` gains `offerResponse`/`restore` in
+  place of `setResponse`. `Player.setResponses` keeps its single-argument signature;
+  callers needing the authoritative path use the new `Player.restoreResponses`
+  rather than an options flag. PCI execution still requires a host-supplied
+  `moduleResolver`, so no delivery that runs today changes behavior.
+- Updated dependencies [d476546]
+- Updated dependencies [2fd7a31]
+  - @pie-qti/item-player@0.1.23
+  - @pie-qti/i18n@0.1.23
+  - @pie-qti/qti-common@0.1.23
+
 ## 0.1.22
 
 ### Patch Changes
