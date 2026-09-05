@@ -258,6 +258,8 @@ export default {
 		},
 
 		match: {
+			pointerInstructions: 'اختر عنصرًا ثم اختر هدفه. يمكنك أيضًا السحب والإفلات.',
+			selectTarget: 'اختر للمطابقة',
 			// Keyboard instruction for accessible drag-drop
 			keyboardInstructions: 'اضغط على مفتاح المسافة أو الإدخال لتحديد عنصر مصدر. اضغط على Tab للانتقال إلى الأهداف. اضغط على مفتاح المسافة أو الإدخال على هدف لإنشاء مطابقة. اضغط على Escape لإلغاء التحديد.',
 			dragInstruction: 'اضغط على مفتاح المسافة أو الإدخال للمطابقة',
@@ -280,6 +282,10 @@ export default {
 		},
 
 		gapMatch: {
+			filledGapAriaLabelWithHeld: 'الفراغ {gapId} يحتوي على {word}. اختر لاستبداله بـ {heldWord}.',
+			blankGapAriaLabelWithHeld: 'الفراغ {gapId}. اختر لوضع {heldWord} هنا.',
+			placed: 'تم وضع {word} في الفراغ {gapId}.',
+			pointerInstructions: 'اختر كلمة ثم اختر فراغًا. يمكنك أيضًا السحب والإفلات.',
 			instruction: 'اسحب الكلمات لملء الفراغات',
 			available: 'الكلمات المتاحة',
 			availableLabel: 'الكلمات المتاحة للوضع',
@@ -294,6 +300,7 @@ export default {
 		},
 
 		graphicGapMatch: {
+			pointerInstructions: 'اختر تسمية ثم اختر منطقة في الصورة. يمكنك أيضًا السحب والإفلات.',
 			instruction: 'ضع التسميات على النقاط الساخنة للصورة',
 			keyboardInstructions: 'اضغط على مفتاح المسافة أو الإدخال لتحديد تسمية. اضغط على Tab للانتقال إلى النقاط الساخنة على الصورة. اضغط على مفتاح المسافة أو الإدخال على نقطة ساخنة لوضع التسمية. اضغط على Escape لإلغاء التحديد.',
 			available: 'التسميات المتاحة',
@@ -311,7 +318,9 @@ export default {
 		},
 
 		order: {
-			instruction: 'اسحب العناصر لإعادة ترتيبها',
+			moveEarlier: 'نقل إلى الأمام',
+			moveLater: 'نقل إلى الخلف',
+			instruction: 'استخدم أزرار النقل أو اسحب العناصر لتغيير ترتيبها.',
 			keyboardInstructions: 'اضغط على مفتاح المسافة أو الإدخال للإمساك بعنصر. استخدم مفاتيح الأسهم لتحريك العنصر. اضغط على مفتاح المسافة أو الإدخال مرة أخرى للإفلات. اضغط على Escape للإلغاء.',
 			grabbed: 'تم الإمساك. استخدم مفاتيح الأسهم للتحريك.',
 			moveUp: 'تحريك لأعلى',

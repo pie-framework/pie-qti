@@ -135,36 +135,20 @@
 		e.dataTransfer.effectAllowed = 'move';
 	}
 
-	// K-02: handle keyboard pick-up on a word button
-	function onWordKeydown(e: KeyboardEvent, wordId: string) {
-		if (disabled) return;
-		if (e.key === 'Enter' || e.key === ' ') {
-			e.preventDefault();
-			if (pickedUpWord === wordId) {
-				// Toggle off — pressing the already-held word cancels the pick-up
-				pickedUpWord = null;
-				liveMessage = i18n?.t('interactions.gapMatch.pickUpCancelled') ?? 'Pick-up cancelled.';
-			} else {
-				// Pick up this word (replaces any previously held word)
-				pickedUpWord = wordId;
-				const wordText = getWordText(wordId);
-				liveMessage =
-					i18n?.t('interactions.gapMatch.pickedUp', { word: wordText }) ??
-					`Picked up: ${wordText}. Tab to a blank and press Enter to place it. Press Escape to cancel.`;
-			}
-		} else if (e.key === 'Escape') {
-			if (pickedUpWord !== null) {
-				pickedUpWord = null;
-				liveMessage = i18n?.t('interactions.gapMatch.pickUpCancelled') ?? 'Pick-up cancelled.';
-			}
-		}
+	function selectWord(wordId: string) {
+		if (disabled || isWordUsed(wordId) || unavailableWords.has(wordId)) return;
+		pickedUpWord = pickedUpWord === wordId ? null : wordId;
+		const item = getWordText(wordId);
+		liveMessage = pickedUpWord
+			? (i18n?.t('interactions.match.selected', { item }) ?? `${item} selected`)
+			: (i18n?.t('common.selectionCancelled') ?? 'Selection cancelled');
 	}
 
 	// K-02: global Escape handler to cancel pick-up from anywhere in the component
 	function onRootKeydown(e: KeyboardEvent) {
 		if (e.key === 'Escape' && pickedUpWord !== null) {
 			pickedUpWord = null;
-			liveMessage = i18n?.t('interactions.gapMatch.pickUpCancelled') ?? 'Pick-up cancelled.';
+			liveMessage = i18n?.t('common.selectionCancelled') ?? 'Pick-up cancelled.';
 		}
 	}
 
@@ -182,6 +166,10 @@
 
 	function renderPromptWithGaps() {
 		if (!promptContainer || !parsedInteraction?.promptText) return;
+
+		const activeElement = (promptContainer.getRootNode() as Document | ShadowRoot).activeElement;
+		const focusedGapId = activeElement && promptContainer.contains(activeElement)
+			? activeElement.getAttribute('data-gap-id') : null;
 
 		// Clean up any existing event listeners before creating new ones
 		cleanupFunctions.forEach(cleanup => cleanup());
@@ -320,7 +308,7 @@
 				} else if (e.key === 'Escape') {
 					if (pickedUpWord !== null) {
 						pickedUpWord = null;
-						liveMessage = i18n?.t('interactions.gapMatch.pickUpCancelled') ?? 'Pick-up cancelled.';
+						liveMessage = i18n?.t('common.selectionCancelled') ?? 'Pick-up cancelled.';
 					}
 				}
 			};
@@ -343,6 +331,11 @@
 			});
 
 			ph.replaceWith(btn);
+		}
+		if (focusedGapId) {
+			const replacement = Array.from(promptContainer.querySelectorAll<HTMLButtonElement>('[data-gap-id]'))
+				.find((button) => button.dataset.gapId === focusedGapId);
+			replacement?.focus({ preventScroll: true });
 		}
 	}
 
@@ -411,6 +404,8 @@
 			</div>
 		{/if}
 
+		<p>{i18n?.t('interactions.gapMatch.pointerInstructions') ?? 'Select a word, then select a blank. You can also drag and drop.'}</p>
+
 		<!-- Available gap texts (draggable words) -->
 		<div
 			part="palette"
@@ -445,10 +440,8 @@
 						aria-pressed={isHeld}
 						disabled={disabled || used}
 						ondragstart={(e: DragEvent) => onWordDragStart(e, gapText.identifier)}
-						onkeydown={(e: KeyboardEvent) => onWordKeydown(e, gapText.identifier)}
-						aria-label={isHeld
-							? (i18n?.t('interactions.gapMatch.wordAriaLabelHeld', { word: gapText.text }) ?? `${gapText.text} (currently held). Press Enter to cancel, or Tab to a blank.`)
-							: (i18n?.t('interactions.gapMatch.wordAriaLabel', { word: gapText.text }) ?? `${gapText.text} (press Enter to pick up)`)}
+						onclick={() => selectWord(gapText.identifier)}
+						aria-label={gapText.text}
 					>
 						{gapText.text}
 					</button>

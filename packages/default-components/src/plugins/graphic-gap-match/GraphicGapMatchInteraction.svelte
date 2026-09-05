@@ -203,7 +203,7 @@ function getLabelName(labelId: string): string {
 
 // Phase-1 handler: pick up or put down a label from the palette.
 function handleLabelActivate(labelId: string) {
-	if (disabled) return;
+	if (disabled || unavailableLabels.has(labelId) || getMatchedHotspot(labelId)) return;
 
 	if (pickedUpLabel === labelId) {
 		// Second press on the same label cancels the pick-up
@@ -295,6 +295,8 @@ function handleRootKeyDown(event: KeyboardEvent) {
 		<div aria-live="polite" aria-atomic="true" class="sr-only">
 			{liveMessage}
 		</div>
+
+		<p>{i18n?.t('interactions.graphicGapMatch.pointerInstructions') ?? 'Select a label, then select a hotspot on the image. You can also drag and drop.'}</p>
 
 		<!-- Instructions for keyboard users -->
 		<div id="graphic-gap-match-instructions" class="sr-only">

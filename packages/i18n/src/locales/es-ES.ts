@@ -216,6 +216,8 @@ export default {
 		},
 
 		match: {
+			pointerInstructions: 'Selecciona un elemento y luego su destino. También puedes arrastrar y soltar.',
+			selectTarget: 'Seleccionar para emparejar',
 			keyboardInstructions: 'Presiona Espacio o Enter para seleccionar un elemento fuente. Tab para navegar a los objetivos. Presiona Espacio o Enter en un objetivo para crear una coincidencia. Presiona Escape para cancelar la selección.',
 			dragInstruction: 'Presiona Espacio o Enter para emparejar',
 			dropTarget: 'Suelta el elemento aquí',
@@ -237,6 +239,10 @@ export default {
 		},
 
 		gapMatch: {
+			filledGapAriaLabelWithHeld: 'Espacio {gapId}, con {word}. Selecciona para sustituirlo por {heldWord}.',
+			blankGapAriaLabelWithHeld: 'Espacio {gapId}. Selecciona para colocar {heldWord} aquí.',
+			placed: '{word} colocado en el espacio {gapId}.',
+			pointerInstructions: 'Selecciona una palabra y luego un espacio en blanco. También puedes arrastrar y soltar.',
 			instruction: 'Arrastra palabras para llenar los espacios en blanco',
 			available: 'Palabras disponibles',
 			availableLabel: 'Palabras disponibles para colocar',
@@ -250,6 +256,7 @@ export default {
 		},
 
 		graphicGapMatch: {
+			pointerInstructions: 'Selecciona una etiqueta y luego una zona de la imagen. También puedes arrastrar y soltar.',
 			instruction: 'Coloca etiquetas en los puntos activos de la imagen',
 			keyboardInstructions: 'Presiona Espacio o Enter para seleccionar una etiqueta. Tab para navegar a los puntos activos en la imagen. Presiona Espacio o Enter en un punto activo para colocar la etiqueta. Presiona Escape para cancelar la selección.',
 			available: 'Etiquetas disponibles',
@@ -267,7 +274,9 @@ export default {
 		},
 
 		order: {
-			instruction: 'Arrastra elementos para reordenarlos',
+			moveEarlier: 'Mover antes',
+			moveLater: 'Mover después',
+			instruction: 'Usa los botones de movimiento o arrastra los elementos para ordenarlos.',
 			keyboardInstructions: 'Presiona Espacio o Enter para agarrar un elemento. Usa las flechas para mover el elemento. Presiona Espacio o Enter nuevamente para soltar. Presiona Escape para cancelar.',
 			grabbed: 'Agarrado. Usa las flechas para mover.',
 			moveUp: 'Mover arriba',

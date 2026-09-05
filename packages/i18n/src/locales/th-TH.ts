@@ -216,6 +216,8 @@ export default {
 		},
 
 		match: {
+			pointerInstructions: 'เลือกรายการ แล้วเลือกเป้าหมาย หรือใช้การลากและวาง',
+			selectTarget: 'เลือกเพื่อจับคู่',
 			keyboardInstructions: 'กด Space หรือ Enter เพื่อเลือกรายการต้นทาง กด Tab เพื่อนำทางไปยังเป้าหมาย กด Space หรือ Enter บนเป้าหมายเพื่อสร้างการจับคู่ กด Escape เพื่อยกเลิกการเลือก',
 			dragInstruction: 'กด Space หรือ Enter เพื่อจับคู่',
 			dropTarget: 'วางรายการที่นี่',
@@ -237,6 +239,10 @@ export default {
 		},
 
 		gapMatch: {
+			filledGapAriaLabelWithHeld: 'ช่องว่าง {gapId} มีคำว่า {word} เลือกเพื่อแทนที่ด้วย {heldWord}',
+			blankGapAriaLabelWithHeld: 'ช่องว่าง {gapId} เลือกเพื่อวาง {heldWord} ที่นี่',
+			placed: 'วาง {word} ในช่องว่าง {gapId} แล้ว',
+			pointerInstructions: 'เลือกคำ แล้วเลือกช่องว่าง หรือใช้การลากและวาง',
 			instruction: 'ลากคำเพื่อเติมช่องว่าง',
 			available: 'คำที่พร้อมใช้งาน',
 			availableLabel: 'คำที่พร้อมวาง',
@@ -250,6 +256,7 @@ export default {
 		},
 
 		graphicGapMatch: {
+			pointerInstructions: 'เลือกป้ายกำกับ แล้วเลือกจุดบนภาพ หรือใช้การลากและวาง',
 			instruction: 'วางป้ายกำกับบนฮอตสปอตของภาพ',
 			keyboardInstructions: 'กด Space หรือ Enter เพื่อเลือกป้ายกำกับ กด Tab เพื่อนำทางไปยังฮอตสปอตบนภาพ กด Space หรือ Enter บนฮอตสปอตเพื่อวางป้ายกำกับ กด Escape เพื่อยกเลิกการเลือก',
 			available: 'ป้ายกำกับที่พร้อมใช้งาน',
@@ -267,7 +274,9 @@ export default {
 		},
 
 		order: {
-			instruction: 'ลากรายการเพื่อจัดเรียงใหม่',
+			moveEarlier: 'เลื่อนไปก่อนหน้า',
+			moveLater: 'เลื่อนไปถัดไป',
+			instruction: 'ใช้ปุ่มเลื่อนหรือลากรายการเพื่อจัดลำดับใหม่',
 			keyboardInstructions: 'กด Space หรือ Enter เพื่อจับรายการ ใช้ปุ่มลูกศรเพื่อย้ายรายการ กด Space หรือ Enter อีกครั้งเพื่อวาง กด Escape เพื่อยกเลิก',
 			grabbed: 'จับแล้ว ใช้ปุ่มลูกศรเพื่อย้าย',
 			moveUp: 'เลื่อนขึ้น',

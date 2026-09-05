@@ -215,6 +215,8 @@ export default {
 		},
 
 		match: {
+			pointerInstructions: 'Selectează un element, apoi ținta sa. Poți și să tragi și să plasezi.',
+			selectTarget: 'Selectează pentru asociere',
 			keyboardInstructions: 'Apasă Spațiu sau Enter pentru a selecta un element sursă. Tab pentru a naviga la ținte. Apasă Spațiu sau Enter pe o țintă pentru a crea o potrivire. Apasă Escape pentru a anula selecția.',
 			dragInstruction: 'Apasă Spațiu sau Enter pentru a potrivi',
 			dropTarget: 'Plasează elementul aici',
@@ -236,6 +238,10 @@ export default {
 		},
 
 		gapMatch: {
+			filledGapAriaLabelWithHeld: 'Spațiul {gapId}, completat cu {word}. Selectează pentru a înlocui cu {heldWord}.',
+			blankGapAriaLabelWithHeld: 'Spațiul {gapId}. Selectează pentru a plasa {heldWord} aici.',
+			placed: '{word} a fost plasat în spațiul {gapId}.',
+			pointerInstructions: 'Selectează un cuvânt, apoi un spațiu liber. Poți și să tragi și să plasezi.',
 			instruction: 'Trage cuvinte pentru a completa spațiile libere',
 			available: 'Cuvinte disponibile',
 			availableLabel: 'Cuvinte disponibile de plasat',
@@ -249,6 +255,7 @@ export default {
 		},
 
 		graphicGapMatch: {
+			pointerInstructions: 'Selectează o etichetă, apoi o zonă din imagine. Poți și să tragi și să plasezi.',
 			instruction: 'Plasează etichete pe hotspot-urile imaginii',
 			keyboardInstructions: 'Apasă Spațiu sau Enter pentru a selecta o etichetă. Tab pentru a naviga la hotspot-uri pe imagine. Apasă Spațiu sau Enter pe un hotspot pentru a plasa eticheta. Apasă Escape pentru a anula selecția.',
 			available: 'Etichete disponibile',
@@ -266,7 +273,9 @@ export default {
 		},
 
 		order: {
-			instruction: 'Trage elemente pentru a le reordona',
+			moveEarlier: 'Mută înainte',
+			moveLater: 'Mută după',
+			instruction: 'Folosește butoanele de mutare sau trage elementele pentru a le reordona.',
 			keyboardInstructions: 'Apasă Spațiu sau Enter pentru a apuca un element. Folosește săgețile pentru a muta elementul. Apasă din nou Spațiu sau Enter pentru a plasa. Apasă Escape pentru a anula.',
 			grabbed: 'Apucat. Folosește săgețile pentru a muta.',
 			moveUp: 'Mută în sus',
