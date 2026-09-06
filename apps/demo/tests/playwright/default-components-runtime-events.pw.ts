@@ -128,21 +128,7 @@ async function pressKeyInShadowRoot(
 	targetSelector: string,
 	key: string
 ) {
-	await page.evaluate(
-		({ hostSelector, key, targetSelector }) => {
-			const host = document.querySelector(hostSelector);
-			if (!host) {
-				throw new Error(`Missing custom element host ${hostSelector}`);
-			}
-			const target = host.shadowRoot?.querySelector<HTMLElement>(targetSelector);
-			if (!target) {
-				throw new Error(`Missing ${targetSelector} inside ${hostSelector}`);
-			}
-			target.focus();
-			target.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
-		},
-		{ hostSelector, key, targetSelector }
-	);
+	await page.locator(hostSelector).locator(targetSelector).press(key);
 }
 
 async function expectQtiChangeEvents(page: Page, expectedEvents: RecordedQtiChangeEvent[]) {

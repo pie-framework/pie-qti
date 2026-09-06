@@ -131,6 +131,7 @@
 			<SortableList
 				items={parsedInteraction.choices.map(c => ({ id: c.identifier, text: c.text }))}
 				{orderedIds}
+				{i18n}
 				correctOrder={isShowingCorrect ? (parsedCorrectResponse || []) : []}
 				orientation="vertical"
 				{disabled}

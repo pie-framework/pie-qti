@@ -9,7 +9,7 @@
     "build": "rm -rf dist && tsc && vite build && mkdir -p dist/shared/styles && cp src/shared/styles/qti-shared-vocabulary.css dist/shared/styles/qti-shared-vocabulary.css",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
-    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "check": "svelte-check --tsconfig ./tsconfig.svelte.json",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write ."
@@ -29,10 +29,10 @@
   "dependencies": {
     "@pie-qti/item-player": "workspace:*",
     "@pie-qti/qti-common": "workspace:*",
-    "@tiptap/core": "3.30.1",
-    "@tiptap/extension-mathematics": "3.30.1",
-    "@tiptap/extension-placeholder": "3.30.1",
-    "@tiptap/starter-kit": "3.30.1",
+    "@tiptap/core": "3.31.0",
+    "@tiptap/extension-mathematics": "3.31.0",
+    "@tiptap/extension-placeholder": "3.31.0",
+    "@tiptap/starter-kit": "3.31.0",
     "mathlive": "^0.110.0"
   },
   "peerDependencies": {
@@ -44,10 +44,10 @@
     }
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.7",
+    "@biomejs/biome": "^2.5.11",
     "@pie-qti/i18n": "workspace:*",
     "@sveltejs/vite-plugin-svelte": "7.3.0",
-    "@types/node": "^26.2.0",
+    "@types/node": "^26.4.0",
     "linkedom": "^0.18.13",
     "svelte": "5.56.8",
     "svelte-check": "^4.7.5",

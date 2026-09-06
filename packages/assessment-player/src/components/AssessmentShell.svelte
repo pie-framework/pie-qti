@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, tick, getContext } from 'svelte';
-	import type { SvelteI18nProvider } from '@pie-qti/i18n';
+	import { DefaultI18nProvider, type I18nProvider } from '@pie-qti/i18n';
 	import type { QtiSharedHtmlBlock } from '@pie-qti/section-player';
 	import { SectionPlayerSplitPane, SectionPlayerVertical, TestFeedback as SectionTestFeedback } from '../../../section-player/src/components/index.js';
 	import type { BackendAssessmentPlayerConfig } from '../core/AssessmentPlayer.js';
@@ -28,11 +28,22 @@
 	const { backend, initSession, config = {}, onSubmit, typeset }: Props = $props();
 
 	// Get i18n from context (set by +layout.svelte)
-	const contextI18nWrapper = getContext<{ value: SvelteI18nProvider | null } | undefined>('i18n');
+	const contextI18nWrapper = getContext<{ value: I18nProvider | null } | undefined>('i18n');
 	const contextI18n = $derived(contextI18nWrapper?.value ?? undefined);
+	const fallbackI18n = new DefaultI18nProvider();
+	const i18n = $derived(config.i18nProvider ?? contextI18n ?? fallbackI18n);
+	// The core and cached item definitions retain one provider reference, while a
+	// host may finish loading its actual provider after this shell mounts. Resolve
+	// methods against the current provider and preserve their receiver.
+	const playerI18n: I18nProvider = new Proxy(fallbackI18n, {
+		get(_target, key) {
+			const provider = i18n;
+			const value = Reflect.get(provider, key, provider);
+			return typeof value === 'function' ? value.bind(provider) : value;
+		},
+	});
 
 	let player = $state<AssessmentPlayer | null>(null);
-	const i18n = $derived(player?.getI18nProvider() ?? contextI18n);
 	let navState = $state<NavigationState>({
 		currentIndex: -1,
 		totalItems: 0,
@@ -48,6 +59,9 @@
 	let sections = $state<any[]>([]);
 	let error = $state<string | null>(null);
 	let navError = $state<string | null>(null);
+	let submitError = $state<string | null>(null);
+	let isSubmitting = $state(false);
+	let retryButton = $state<HTMLButtonElement | null>(null);
 	let itemPaneEl = $state<HTMLElement | null>(null);
 	let rootEl = $state<HTMLElement | null>(null);
 	let testFeedback = $state<Array<{ identifier: string; content: string; access: string }>>([]);
@@ -79,7 +93,7 @@
 		// Never allow infinite "Loading assessment..." state
 		initTimeout = setTimeout(() => {
 			if (!hasFirstItem && !error) {
-				error = contextI18n?.t('assessment.loadingError') ?? 'assessment.loadingError';
+				error = i18n.t('assessment.loadingError');
 				announcer?.announce(error, 3000, 'assertive');
 			}
 		}, 10000);
@@ -90,8 +104,8 @@
 			showSections: config.showSections !== false,
 			allowSectionNavigation: config.allowSectionNavigation !== false,
 			showProgress: config.showProgress !== false,
-			i18nProvider: contextI18n, // Pass i18n from context
 			...config,
+			i18nProvider: playerI18n,
 		};
 
 		(async () => {
@@ -135,7 +149,7 @@
 			}
 		})().catch((err) => {
 			console.error('Failed to initialize assessment player:', err);
-			error = err instanceof Error ? err.message : (contextI18n?.t('assessment.loadingError') ?? 'assessment.loadingError');
+			error = err instanceof Error ? err.message : i18n.t('assessment.loadingError');
 			announcer?.announce(error, 3000, 'assertive');
 		});
 
@@ -161,7 +175,7 @@
 	}
 
 	async function handlePrevious() {
-		if (!player) return;
+		if (!player || isSubmitting || isComplete) return;
 		try {
 			navError = null;
 			await player.previous();
@@ -175,7 +189,7 @@
 	}
 
 	async function handleNext() {
-		if (!player) return;
+		if (!player || isSubmitting || isComplete) return;
 		try {
 			navError = null;
 			await player.next();
@@ -202,7 +216,7 @@
 	}
 
 	async function handleSectionSelect(sectionIndex: number) {
-		if (!player || !sections[sectionIndex]) return;
+		if (!player || isSubmitting || isComplete || !sections[sectionIndex]) return;
 
 		const section = sections[sectionIndex];
 		await player.navigateToSection(section.id);
@@ -230,26 +244,31 @@
 	}
 
 	async function handleSubmit() {
-		if (!player) return;
+		if (!player || isSubmitting || isComplete) return;
 
+		submitError = null;
+		isSubmitting = true;
+		let results: AssessmentResults;
 		try {
-			const results = await player.submit();
-			console.log('Assessment results:', results);
-
-			// Get test feedback based on outcomes
-			testFeedback = player.getVisibleFeedback();
-			isComplete = true;
-
-			onSubmit?.(results);
-
-			// Could also emit a custom event here
-			// Or show results modal
+			results = await player.submit();
 		} catch (err) {
 			console.error('Failed to submit assessment:', err);
-			const message = err instanceof Error ? err.message : (i18n?.t('assessment.errors.submitFailed') ?? 'assessment.errors.submitFailed');
-			error = message;
-			announcer?.announce(message, 3000, 'assertive');
+			submitError = err instanceof Error ? err.message : (i18n?.t('assessment.errors.submitFailed') ?? 'Submission failed. Please try again.');
+			// Keep the shell and its session available after the core restores a
+			// failed submission. Already accepted responses are retained for retry.
+			updateState();
+			return;
+		} finally {
+			isSubmitting = false;
+			if (submitError) {
+				await tick();
+				retryButton?.focus();
+			}
 		}
+
+		testFeedback = player.getVisibleFeedback();
+		isComplete = true;
+		onSubmit?.(results);
 	}
 
 	/**
@@ -314,18 +333,18 @@
 	<div class="assessment-loading">
 		<div class="flex items-center justify-center p-8" role="status" aria-live="polite">
 			<span class="loading loading-spinner loading-lg"></span>
-			<span class="ml-4">{contextI18n?.t('assessment.loading') ?? 'assessment.loading'}</span>
+			<span class="ml-4">{i18n.t('assessment.loading')}</span>
 		</div>
 	</div>
 {:else}
-	<div bind:this={rootEl} class="assessment-shell" role="region" aria-label="Assessment player">
+	<div bind:this={rootEl} class="assessment-shell" role="region" aria-label="Assessment player" aria-busy={isSubmitting}>
 		<!-- Header with title and section menu -->
 		<AssessmentHeader
 			title={initSession.assessmentId || (i18n?.t('assessment.title') ?? 'Assessment')}
 			{sections}
 			currentSectionIndex={navState.currentSection?.index}
 			showSections={config.showSections}
-			allowSectionNavigation={config.allowSectionNavigation}
+			allowSectionNavigation={!isSubmitting && !isComplete && config.allowSectionNavigation !== false}
 			onSectionSelect={handleSectionSelect}
 		/>
 
@@ -395,10 +414,22 @@
 			{/if}
 		</div>
 
+		{#if submitError}
+			<div class="assessment-submit-error">
+				<p role="alert">{submitError}</p>
+				<button bind:this={retryButton} type="button" class="btn btn-primary" onclick={handleSubmit} disabled={isSubmitting}>
+					{i18n?.t('common.tryAgain') ?? 'Try Again'}
+				</button>
+			</div>
+		{/if}
+		{#if isSubmitting}
+			<p class="assessment-submit-status" role="status">{i18n?.t('common.submitting') ?? 'Submitting...'}</p>
+		{/if}
+
 		<!-- Navigation bar -->
 		{#if i18n}
 			<NavigationBar
-				navState={navState}
+				navState={{ ...navState, isLoading: navState.isLoading || isSubmitting || isComplete }}
 				{i18n}
 				onPrevious={handlePrevious}
 				onNext={handleNext}
@@ -445,6 +476,25 @@
 
 	.assessment-nav-error {
 		padding: 1rem 2rem 0;
+	}
+
+	.assessment-submit-error {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		flex-wrap: wrap;
+		gap: 1rem;
+		padding: 1rem;
+		border-top: 2px solid var(--color-error);
+	}
+
+	.assessment-submit-error p {
+		flex: 1 1 16rem;
+		overflow-wrap: anywhere;
+	}
+
+	.assessment-submit-status {
+		padding: 0.5rem 1rem;
 	}
 
 	@media (max-width: 768px) {

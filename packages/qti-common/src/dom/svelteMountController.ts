@@ -1,6 +1,8 @@
 export interface SvelteMountControllerOptions<TProps, TInstance> {
 	host: HTMLElement;
 	mount: (target: HTMLElement, props: TProps) => TInstance;
+	/** Svelte 5's createSubscriber, supplied by the browser adapter's runtime. */
+	createSubscriber?: (start: (update: () => void) => () => void) => () => void;
 	unmount: (instance: TInstance) => void | Promise<void>;
 	createContainer?: () => HTMLElement;
 }
@@ -20,16 +22,14 @@ type SettableSvelteInstance<TProps> = {
 /**
  * Owns Svelte custom-element mount policy in one place.
  *
- * Svelte 5 runes components do not support `$set`, so updates fall back to one
- * microtask-scheduled remount. Development builds may still expose a `$set`
- * compatibility shim that throws `component_api_changed`; treat that shim as
- * unsupported while preserving genuine Svelte 4-compatible instances.
- * Coalescing here prevents synchronous remount loops in custom element setters
- * and attribute callbacks.
+ * Svelte 5 adapters supply createSubscriber to track shallow reactive props so a
+ * response update preserves the component, input focus, and local state.
+ * The $set/remount fallback remains for existing callers without that bridge.
  */
 export function createSvelteMountController<TProps, TInstance>({
 	host,
 	mount,
+	createSubscriber,
 	unmount,
 	createContainer = defaultContainer,
 }: SvelteMountControllerOptions<TProps, TInstance>): SvelteMountController<TProps, TInstance> {
@@ -37,6 +37,32 @@ export function createSvelteMountController<TProps, TInstance>({
 	let instance: TInstance | null = null;
 	let pendingRemount = false;
 	let latestProps: TProps | null = null;
+	let notifyProps: (() => void) | undefined;
+	const trackProps = createSubscriber?.((update) => {
+		notifyProps = update;
+		return () => { notifyProps = undefined; };
+	});
+	// Track reads without deep-proxying externally owned sessions and providers.
+	const reactiveProps = trackProps ? new Proxy({}, {
+		get(_target, key) {
+			trackProps();
+			return Reflect.get(latestProps as object, key);
+		},
+		has(_target, key) {
+			trackProps();
+			return Reflect.has(latestProps as object, key);
+		},
+		ownKeys() {
+			trackProps();
+			return Reflect.ownKeys(latestProps as object);
+		},
+		getOwnPropertyDescriptor(_target, key) {
+			trackProps();
+			return Reflect.has(latestProps as object, key)
+				? { configurable: true, enumerable: true }
+				: undefined;
+		},
+	}) as TProps : undefined;
 
 	function ensureContainer() {
 		if (!container) {
@@ -48,7 +74,7 @@ export function createSvelteMountController<TProps, TInstance>({
 
 	function mountFresh(props: TProps) {
 		latestProps = props;
-		instance = mount(ensureContainer(), props);
+		instance = mount(ensureContainer(), reactiveProps ?? props);
 		return instance;
 	}
 
@@ -85,6 +111,10 @@ export function createSvelteMountController<TProps, TInstance>({
 	function update(props: TProps) {
 		latestProps = props;
 		if (!instance) return;
+		if (trackProps) {
+			notifyProps?.();
+			return;
+		}
 
 		const set = (instance as SettableSvelteInstance<TProps>).$set;
 		if (typeof set === 'function') {

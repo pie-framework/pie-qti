@@ -7,20 +7,6 @@
 	import { extractReadableInteractionSpeechHtml } from '../tts/readable-interaction-projection.js';
 	import QtiToolButtonBar from './QtiToolButtonBar.svelte';
 
-	type ItemResponseMap = Record<string, unknown>;
-	type PieQtiItemPlayerElement = HTMLElement & {
-		itemXml?: string;
-		session?: QtiSectionItemRef['session'];
-		role?: QtiSectionRole;
-		disabled?: boolean;
-		responses?: ItemResponseMap;
-		deliveryContext?: QtiSectionItemRef['deliveryContext'];
-		security?: PlayerSecurityConfig;
-		pci?: PciConfiguration;
-		pnp?: PnpProfile;
-		typeset?: (root: HTMLElement) => void | Promise<void>;
-		i18n?: I18nProvider;
-	};
 	type ItemPlayerResponseChangeEvent = CustomEvent<{ responseId: string; value: unknown }>;
 
 	interface Props {
@@ -97,7 +83,7 @@
 		onResponseChange?.(itemRef.identifier, responseIdentifier, value);
 	}
 
-	function itemPlayerProps(node: PieQtiItemPlayerElement, props: Record<string, unknown>) {
+	function itemPlayerProps(node: HTMLElement, props: Record<string, unknown>) {
 		const handleItemPlayerResponseChange = (event: Event) => {
 			const { responseId, value } = (event as ItemPlayerResponseChangeEvent).detail;
 			handleResponseChange(responseId, value);

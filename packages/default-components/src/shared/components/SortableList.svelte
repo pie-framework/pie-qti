@@ -8,6 +8,7 @@ import type { I18nProvider } from '@pie-qti/i18n';
 import type { HtmlContent } from '@pie-qti/item-player';
 import { htmlToString } from '@pie-qti/item-player/security';
 import { touchDrag } from '@pie-qti/qti-common';
+import { tick } from 'svelte';
 import DragHandle from './DragHandle.svelte';
 import '../styles/shared.css';
 
@@ -133,6 +134,7 @@ function handleCancelSelection(event: KeyboardEvent, itemName: string) {
 }
 
 function handleArrowKeyMovement(event: KeyboardEvent, itemName: string, currentIndex: number) {
+	const focusedItem = event.currentTarget as HTMLButtonElement;
 	if (event.key === 'ArrowUp' && orientation === 'vertical' && currentIndex > 0) {
 		event.preventDefault();
 		moveItem(currentIndex, currentIndex - 1);
@@ -158,6 +160,13 @@ function handleArrowKeyMovement(event: KeyboardEvent, itemName: string, currentI
 		moveItem(currentIndex, currentIndex + 1);
 		announceText = `${itemName} moved to position ${currentIndex + 2} of ${orderedIds.length}`;
 	}
+	if (event.defaultPrevented) {
+		// Moving a keyed DOM node can blur it even when its component survives.
+		// Restore focus after Svelte has applied the new order.
+		void tick().then(() => {
+			if (focusedItem.isConnected) focusedItem.focus();
+		});
+	}
 }
 
 function moveItem(fromIndex: number, toIndex: number) {
@@ -165,6 +174,23 @@ function moveItem(fromIndex: number, toIndex: number) {
 	const [movedItem] = newOrder.splice(fromIndex, 1);
 	newOrder.splice(toIndex, 0, movedItem);
 	onReorder(newOrder);
+}
+
+async function moveWithButton(event: MouseEvent, id: string, offset: number) {
+	const index = orderedIds.indexOf(id);
+	if (disabled || index < 0 || index + offset < 0 || index + offset >= orderedIds.length) return;
+	const button = event.currentTarget as HTMLButtonElement;
+	const row = button.closest('[role="listitem"]');
+	const item = items.find((entry) => entry.id === orderedIds[index]);
+	keyboardSelectedId = null;
+	moveItem(index, index + offset);
+	announceText = i18n?.t('interactions.order.itemMoved', {
+		item: item ? itemLabel(item) : 'Item', position: index + offset + 1, total: orderedIds.length,
+	}) ?? `Moved to position ${index + offset + 1} of ${orderedIds.length}`;
+	await tick();
+	// Keep repeated moves keyboard accessible; at a boundary focus the item.
+	if (button.isConnected && !button.disabled) button.focus();
+	else row?.querySelector<HTMLButtonElement>('[part="item"]')?.focus();
 }
 
 function itemLabel(item: Item): string {
@@ -210,7 +236,7 @@ function toPlainText(html: HtmlContent): string {
 			{@const correctIndex = correctOrder.indexOf(id)}
 			{@const isCorrect = correctIndex !== -1 && correctIndex === index}
 			{@const label = itemLabel(item)}
-			<div role="listitem">
+			<div role="listitem" class="qti-sortable-row">
 				<button
 					type="button"
 					draggable={!disabled}
@@ -246,6 +272,22 @@ function toPlainText(html: HtmlContent): string {
 						<span class="badge badge-success badge-sm">{i18n?.t('interactions.choice.correct', 'Correct') ?? 'Correct'}</span>
 					{/if}
 				</button>
+				{#if !disabled}
+					<div class="qti-sortable-moves">
+						<button type="button" class="qti-sortable-move" disabled={index === 0}
+							aria-label="{i18n?.t('interactions.order.moveEarlier') ?? 'Move earlier'}: {label}"
+							title={i18n?.t('interactions.order.moveEarlier') ?? 'Move earlier'}
+							onclick={(event) => moveWithButton(event, id, -1)}>
+							<span aria-hidden="true">{orientation === 'horizontal' ? '←' : '↑'}</span>
+						</button>
+						<button type="button" class="qti-sortable-move" disabled={index === orderedIds.length - 1}
+							aria-label="{i18n?.t('interactions.order.moveLater') ?? 'Move later'}: {label}"
+							title={i18n?.t('interactions.order.moveLater') ?? 'Move later'}
+							onclick={(event) => moveWithButton(event, id, 1)}>
+							<span aria-hidden="true">{orientation === 'horizontal' ? '→' : '↓'}</span>
+						</button>
+					</div>
+				{/if}
 			</div>
 		{/if}
 	{/each}
@@ -263,7 +305,18 @@ function toPlainText(html: HtmlContent): string {
 		flex-wrap: wrap;
 	}
 
+	.qti-sortable-row { display: flex; gap: 0.5rem; align-items: center; min-width: 0; }
+	.qti-sortable-moves { display: flex; flex: 0 0 auto; gap: 0.25rem; }
+	.qti-sortable-move {
+		min-width: 44px; min-height: 44px; border-radius: 0.375rem;
+		border: 1px solid var(--pie-qti-base-content, #333);
+		background: var(--pie-qti-base-100, white); color: var(--pie-qti-base-content, #333);
+		font-size: 1.25rem; cursor: pointer;
+	}
+	.qti-sortable-move:disabled { opacity: 0.4; cursor: default; }
+	.qti-sortable-move:focus-visible { outline: 2px solid var(--pie-qti-primary, #4338ca); outline-offset: 2px; }
 	.qti-sortable-item {
+		min-width: 0;
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;

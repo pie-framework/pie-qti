@@ -226,6 +226,8 @@ export default {
 		},
 
 		match: {
+			pointerInstructions: '先选择一个项目，再选择其目标。也可以拖放。',
+			selectTarget: '选择以匹配',
 			// 可访问拖放的键盘说明
 			keyboardInstructions: '按空格键或回车键选择源项目。按 Tab 键导航到目标。在目标上按空格键或回车键创建匹配。按 Esc 键取消选择。',
 			dragInstruction: '按空格键或回车键进行匹配',
@@ -248,6 +250,10 @@ export default {
 		},
 
 		gapMatch: {
+			filledGapAriaLabelWithHeld: '空格 {gapId}，已填入 {word}。选择以替换为 {heldWord}。',
+			blankGapAriaLabelWithHeld: '空格 {gapId}。选择以在此放入 {heldWord}。',
+			placed: '已将 {word} 放入空格 {gapId}。',
+			pointerInstructions: '先选择一个词，再选择一个空格。也可以拖放。',
 			instruction: '拖动单词填入空白处',
 			available: '可用的单词',
 			availableLabel: '可放置的可用单词',
@@ -262,6 +268,7 @@ export default {
 		},
 
 		graphicGapMatch: {
+			pointerInstructions: '先选择一个标签，再选择图像上的热点。也可以拖放。',
 			instruction: '在图像热点上放置标签',
 			keyboardInstructions: '按空格键或回车键选择标签。按 Tab 键导航到图像上的热点。在热点上按空格键或回车键放置标签。按 Esc 键取消选择。',
 			available: '可用的标签',
@@ -279,7 +286,9 @@ export default {
 		},
 
 		order: {
-			instruction: '拖动项目以重新排序',
+			moveEarlier: '向前移动',
+			moveLater: '向后移动',
+			instruction: '使用移动按钮或拖动项目来调整顺序。',
 			keyboardInstructions: '按空格键或回车键抓取项目。使用方向键移动项目。再次按空格键或回车键放下。按 Esc 键取消。',
 			grabbed: '已抓取。使用方向键移动。',
 			moveUp: '向上移动',
@@ -426,6 +435,7 @@ export default {
 		sectionDefault: '部分 {number}',
 		closeMenu: '关闭菜单',
 		readingPassage: '阅读文章',
+		readingPassages: '阅读文章',
 		expandPassage: '展开文章',
 		collapsePassage: '折叠文章',
 

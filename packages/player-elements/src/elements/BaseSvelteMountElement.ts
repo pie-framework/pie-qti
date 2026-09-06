@@ -1,4 +1,5 @@
 import { mount, unmount } from 'svelte';
+import { createSubscriber } from 'svelte/reactivity';
 import { createSvelteMountController, type SvelteMountController } from '@pie-qti/qti-common';
 
 const HTMLElementBase: typeof HTMLElement = globalThis.HTMLElement ?? (class {} as typeof HTMLElement);
@@ -6,6 +7,7 @@ const HTMLElementBase: typeof HTMLElement = globalThis.HTMLElement ?? (class {} 
 export abstract class BaseSvelteMountElement<TProps extends Record<string, unknown>> extends HTMLElementBase {
 	protected abstract Component: any;
 	protected abstract getProps(): TProps;
+	protected readonly reactiveProps: boolean = true;
 
 	#mountController: SvelteMountController<TProps, any> | null = null;
 
@@ -33,6 +35,7 @@ export abstract class BaseSvelteMountElement<TProps extends Record<string, unkno
 		if (!this.#mountController) {
 			this.#mountController = createSvelteMountController({
 				host: this,
+				createSubscriber: this.reactiveProps ? createSubscriber : undefined,
 				mount: (target, props) =>
 					mount(this.Component, {
 						target,
@@ -44,5 +47,3 @@ export abstract class BaseSvelteMountElement<TProps extends Record<string, unkno
 		return this.#mountController;
 	}
 }
-
-

@@ -215,6 +215,8 @@ export default {
 		},
 
 		match: {
+			pointerInstructions: 'Selecteer een item en daarna het bijbehorende doel. Je kunt ook slepen.',
+			selectTarget: 'Selecteer om te koppelen',
 			keyboardInstructions: 'Druk op Spatie of Enter om een bronitem te selecteren. Tab om naar doelen te navigeren. Druk op Spatie of Enter op een doel om een match te maken. Druk op Escape om selectie te annuleren.',
 			dragInstruction: 'Druk op Spatie of Enter om te koppelen',
 			dropTarget: 'Zet item hier neer',
@@ -236,6 +238,10 @@ export default {
 		},
 
 		gapMatch: {
+			filledGapAriaLabelWithHeld: 'Lege plek {gapId}, ingevuld met {word}. Selecteer om te vervangen door {heldWord}.',
+			blankGapAriaLabelWithHeld: 'Lege plek {gapId}. Selecteer om {heldWord} hier te plaatsen.',
+			placed: '{word} is geplaatst in lege plek {gapId}.',
+			pointerInstructions: 'Selecteer een woord en daarna een lege plek. Je kunt ook slepen.',
 			instruction: 'Sleep woorden om de lege plaatsen in te vullen',
 			available: 'Beschikbare woorden',
 			availableLabel: 'Beschikbare woorden om te plaatsen',
@@ -249,6 +255,7 @@ export default {
 		},
 
 		graphicGapMatch: {
+			pointerInstructions: 'Selecteer een label en daarna een plek op de afbeelding. Je kunt ook slepen.',
 			instruction: 'Plaats labels op de hotspots van de afbeelding',
 			keyboardInstructions: 'Druk op Spatie of Enter om een label te selecteren. Tab om naar hotspots op de afbeelding te navigeren. Druk op Spatie of Enter op een hotspot om het label te plaatsen. Druk op Escape om selectie te annuleren.',
 			available: 'Beschikbare labels',
@@ -266,7 +273,9 @@ export default {
 		},
 
 		order: {
-			instruction: 'Sleep items om ze te herschikken',
+			moveEarlier: 'Naar voren',
+			moveLater: 'Naar achteren',
+			instruction: 'Gebruik de verplaatsknoppen of sleep items om de volgorde te wijzigen.',
 			keyboardInstructions: 'Druk op Spatie of Enter om een item te pakken. Gebruik pijltjestoetsen om het item te verplaatsen. Druk opnieuw op Spatie of Enter om neer te zetten. Druk op Escape om te annuleren.',
 			grabbed: 'Gepakt. Gebruik pijltjestoetsen om te verplaatsen.',
 			moveUp: 'Omhoog',
@@ -412,6 +421,7 @@ export default {
 		section: 'Sectie {current} van {total}',
 		sectionDefault: 'Sectie {number}',
 		readingPassage: 'Leestekst',
+		readingPassages: 'Leesteksten',
 		expandPassage: 'Tekst uitvouwen',
 		collapsePassage: 'Tekst samenvouwen',
 		closeMenu: 'Menu sluiten',

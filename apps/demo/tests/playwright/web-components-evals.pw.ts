@@ -94,7 +94,7 @@ async function runStep(page: Page, step: EvalStep): Promise<void> {
 
 			// Handle "Next" button clicks
 			if (description.includes('next')) {
-				await page.getByRole('button', { name: /next/i }).click();
+				await page.getByTestId('assessment-next').click();
 				await page.waitForTimeout(1000);
 				break;
 			}

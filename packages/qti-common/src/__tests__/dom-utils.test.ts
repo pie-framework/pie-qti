@@ -3,6 +3,36 @@ import { assignProps } from '../dom/assignProps.js';
 import { createSvelteMountController } from '../dom/svelteMountController.js';
 
 describe('dom utils', () => {
+	test('explicit prop updates preserve the instance and its lifecycle', async () => {
+		let mounts = 0;
+		let unmounts = 0;
+		let updates = 0;
+		const controller = createSvelteMountController({
+			host: fakeHost(),
+			createContainer: fakeContainer,
+			mount: (_target, props: { value: number }) => ({ id: ++mounts, props }),
+			createSubscriber: (start) => {
+				start(() => { updates += 1; });
+				return () => {};
+			},
+			unmount: () => { unmounts += 1; },
+		});
+		const initial = controller.mountOrUpdate({ value: 1 });
+		controller.mountOrUpdate({ value: 2 });
+		controller.update({ value: 3 });
+		await Promise.resolve();
+		expect(controller.instance).toBe(initial);
+		expect(controller.instance?.props.value).toBe(3);
+		expect(updates).toBe(2);
+		expect(mounts).toBe(1);
+		expect(unmounts).toBe(0);
+		controller.teardown();
+		expect(unmounts).toBe(1);
+		controller.mountOrUpdate({ value: 4 });
+		expect(controller.instance).not.toBe(initial);
+		expect(controller.instance?.props.value).toBe(4);
+	});
+
 	test('assignProps skips undefined by default', () => {
 		const el = { count: 3 } as unknown as HTMLElement & { count?: number };
 		el.count = 3;

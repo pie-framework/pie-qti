@@ -80,13 +80,13 @@
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.2",
-    "@biomejs/biome": "^2.5.7",
-    "@changesets/cli": "^3.0.0",
+    "@biomejs/biome": "^2.5.11",
+    "@changesets/cli": "^3.0.1",
     "@dotenvx/dotenvx": "^1.56.0",
-    "@types/bun": "^1.3.14",
+    "@types/bun": "^1.4.0",
     "lefthook": "^2.1.10",
     "publint": "^0.3.23",
-    "turbo": "^2.10.9",
+    "turbo": "^2.10.12",
     "typescript": "^5.9.3"
   },
   "packageManager": "bun@1.3.11",

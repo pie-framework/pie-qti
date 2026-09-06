@@ -9,7 +9,18 @@ interface TouchDragState {
 	dragThreshold: number;
 }
 
+function deepestElementFromPoint(owner: Document, x: number, y: number): Element | null {
+	let element = owner.elementFromPoint(x, y);
+	while (element?.shadowRoot) {
+		const inner = element.shadowRoot.elementFromPoint(x, y);
+		if (!inner || inner === element) break;
+		element = inner;
+	}
+	return element;
+}
+
 export function touchDrag(node: HTMLElement) {
+	const ownerDocument = node.ownerDocument;
 	const state: TouchDragState = {
 		element: node,
 		touchId: null,
@@ -35,9 +46,9 @@ export function touchDrag(node: HTMLElement) {
 		state.currentY = touch.clientY;
 		state.isDragging = false;
 
-		document.addEventListener('touchmove', handleTouchMove, { passive: false });
-		document.addEventListener('touchend', handleTouchEnd);
-		document.addEventListener('touchcancel', handleTouchCancel);
+		ownerDocument.addEventListener('touchmove', handleTouchMove, { passive: false });
+		ownerDocument.addEventListener('touchend', handleTouchEnd);
+		ownerDocument.addEventListener('touchcancel', handleTouchCancel);
 	}
 
 	function handleTouchMove(e: TouchEvent) {
@@ -58,6 +69,7 @@ export function touchDrag(node: HTMLElement) {
 
 			const dragStartEvent = new DragEvent('dragstart', {
 				bubbles: true,
+				composed: true,
 				cancelable: true,
 				clientX: state.startX,
 				clientY: state.startY,
@@ -71,10 +83,11 @@ export function touchDrag(node: HTMLElement) {
 		if (state.isDragging) {
 			e.preventDefault();
 
-			const elementUnder = document.elementFromPoint(state.currentX, state.currentY);
+			const elementUnder = deepestElementFromPoint(ownerDocument, state.currentX, state.currentY);
 			if (elementUnder && elementUnder !== node) {
 				const dragOverEvent = new DragEvent('dragover', {
 					bubbles: true,
+					composed: true,
 					cancelable: true,
 					clientX: state.currentX,
 					clientY: state.currentY,
@@ -92,10 +105,11 @@ export function touchDrag(node: HTMLElement) {
 		if (!touch) return;
 
 		if (state.isDragging) {
-			const elementUnder = document.elementFromPoint(touch.clientX, touch.clientY);
+			const elementUnder = deepestElementFromPoint(ownerDocument, touch.clientX, touch.clientY);
 			if (elementUnder) {
 				const dropEvent = new DragEvent('drop', {
 					bubbles: true,
+					composed: true,
 					cancelable: true,
 					clientX: touch.clientX,
 					clientY: touch.clientY,
@@ -106,6 +120,7 @@ export function touchDrag(node: HTMLElement) {
 
 			const dragEndEvent = new DragEvent('dragend', {
 				bubbles: true,
+				composed: true,
 				cancelable: true,
 			});
 
@@ -120,6 +135,7 @@ export function touchDrag(node: HTMLElement) {
 		if (state.isDragging) {
 			const dragEndEvent = new DragEvent('dragend', {
 				bubbles: true,
+				composed: true,
 				cancelable: true,
 			});
 			node.dispatchEvent(dragEndEvent);
@@ -133,9 +149,9 @@ export function touchDrag(node: HTMLElement) {
 		state.touchId = null;
 		state.isDragging = false;
 
-		document.removeEventListener('touchmove', handleTouchMove);
-		document.removeEventListener('touchend', handleTouchEnd);
-		document.removeEventListener('touchcancel', handleTouchCancel);
+		ownerDocument.removeEventListener('touchmove', handleTouchMove);
+		ownerDocument.removeEventListener('touchend', handleTouchEnd);
+		ownerDocument.removeEventListener('touchcancel', handleTouchCancel);
 	}
 
 	node.addEventListener('touchstart', handleTouchStart, { passive: true });
@@ -143,7 +159,7 @@ export function touchDrag(node: HTMLElement) {
 	return {
 		destroy() {
 			node.removeEventListener('touchstart', handleTouchStart);
-			cleanup();
+			handleTouchCancel();
 		},
 	};
 }
