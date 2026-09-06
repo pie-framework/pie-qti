@@ -1,5 +1,28 @@
 # @pie-qti/assessment-player
 
+## 0.1.24
+
+### Patch Changes
+
+- 080f254: Render readable assessment labels before host translations finish loading, and adopt a later context provider without restarting the attempt. Explicitly configured providers continue to take precedence.
+- 10eba70: Keep assessment answers visible after a failed submission, provide a focused retry action, and prevent duplicate submission while a request is pending.
+- 3c00b98: Preserve the latest answer when saving and restoring an assessment with rich item sessions, including edits made after revisiting an item. Taking a snapshot leaves the live attempt active.
+- 04f33a1: Respect each test part's submission mode when leaving a part and finalizing an assessment, so mixed individual/simultaneous tests submit every applicable answer. Keep failed part transitions retryable without resubmitting previously accepted items.
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies [5c8a8e8]
+- Updated dependencies [080f254]
+- Updated dependencies [e532f4f]
+- Updated dependencies [67e4c23]
+  - @pie-qti/section-player@0.1.24
+  - @pie-qti/default-components@0.1.24
+  - @pie-qti/qti-common@0.1.24
+  - @pie-qti/i18n@0.1.24
+  - @pie-qti/item-player@0.1.24
+  - @pie-qti/assessment-toolkit@0.1.24
+  - @pie-qti/qti-processing@0.1.24
+  - @pie-qti/ims-cp-core@0.1.24
+
 ## 0.1.23
 
 ### Patch Changes

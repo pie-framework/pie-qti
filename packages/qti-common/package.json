@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/qti-common",
-  "version": "0.1.23",
+  "version": "0.1.24",
   "main": "./dist/index.js",
   "devDependencies": {
     "@types/bun": "^1.4.0",
