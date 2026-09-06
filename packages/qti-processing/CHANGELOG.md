@@ -1,5 +1,13 @@
 # @pie-qti/qti-processing
 
+## 0.1.24
+
+### Patch Changes
+
+- Updated dependencies [5c8a8e8]
+- Updated dependencies [67e4c23]
+  - @pie-qti/qti-common@0.1.24
+
 ## 0.1.23
 
 ### Patch Changes

@@ -1,5 +1,21 @@
 # @pie-qti/section-player
 
+## 0.1.24
+
+### Patch Changes
+
+- Align the PIE toolkit, tool loaders, calculator, and speech dependencies on 0.3.68 so hosted tools share compatible registration and context contracts.
+- Updated dependencies
+- Updated dependencies [5c8a8e8]
+- Updated dependencies [080f254]
+- Updated dependencies [e532f4f]
+- Updated dependencies [67e4c23]
+  - @pie-qti/default-components@0.1.24
+  - @pie-qti/qti-common@0.1.24
+  - @pie-qti/i18n@0.1.24
+  - @pie-qti/item-player@0.1.24
+  - @pie-qti/ims-cp-core@0.1.24
+
 ## 0.1.23
 
 ### Patch Changes

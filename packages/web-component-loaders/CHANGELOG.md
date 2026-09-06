@@ -1,5 +1,14 @@
 # @pie-qti/web-component-loaders
 
+## 0.1.24
+
+### Patch Changes
+
+- Updated dependencies [080f254]
+- Updated dependencies [67e4c23]
+- Updated dependencies [10eba70]
+  - @pie-qti/player-elements@0.1.24
+
 ## 0.1.23
 
 ### Patch Changes

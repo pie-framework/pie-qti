@@ -1,5 +1,20 @@
 # @pie-qti/default-components
 
+## 0.1.24
+
+### Patch Changes
+
+- Update the rich text editor and its Tiptap extensions together to 3.31.0, preserving a single compatible editor core and command registry.
+- e532f4f: Provide visible move controls for ordering and select-then-place actions for matching, gap matching, and graphic gap matching, with instructions in all supported locales. Preserve keyboard and drag interaction paths.
+- 67e4c23: Update mounted player components through reactive props so entering answers preserves input focus, caret position, and keyboard interaction state. Keep externally supplied session and provider objects intact across updates.
+- Updated dependencies [5c8a8e8]
+- Updated dependencies [080f254]
+- Updated dependencies [e532f4f]
+- Updated dependencies [67e4c23]
+  - @pie-qti/qti-common@0.1.24
+  - @pie-qti/i18n@0.1.24
+  - @pie-qti/item-player@0.1.24
+
 ## 0.1.23
 
 ### Patch Changes

@@ -1,5 +1,12 @@
 # @pie-qti/i18n
 
+## 0.1.24
+
+### Patch Changes
+
+- 080f254: Render readable assessment labels before host translations finish loading, and adopt a later context provider without restarting the attempt. Explicitly configured providers continue to take precedence.
+- e532f4f: Provide visible move controls for ordering and select-then-place actions for matching, gap matching, and graphic gap matching, with instructions in all supported locales. Preserve keyboard and drag interaction paths.
+
 ## 0.1.23
 
 ## 0.1.22
