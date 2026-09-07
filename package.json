@@ -84,7 +84,7 @@
     "@changesets/cli": "^3.0.1",
     "@dotenvx/dotenvx": "^1.56.0",
     "@types/bun": "^1.4.0",
-    "lefthook": "^2.1.10",
+    "lefthook": "^2.1.12",
     "publint": "^0.3.23",
     "turbo": "^2.10.12",
     "typescript": "^5.9.3"
