@@ -45,9 +45,9 @@
     }
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.11",
+    "@biomejs/biome": "^2.5.13",
     "@pie-qti/i18n": "workspace:*",
-    "@types/node": "^26.4.0",
+    "@types/node": "^26.5.1",
     "linkedom": "^0.18.13",
     "svelte": "^5.56.8",
     "svelte-check": "^4.7.5",
