@@ -1,5 +1,9 @@
 # @pie-qti/i18n
 
+## 0.1.25
+
+No changes in this release.
+
 ## 0.1.24
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # @pie-qti/default-components
 
+## 0.1.25
+
+### Patch Changes
+
+- @pie-qti/item-player@0.1.25
+  - @pie-qti/i18n@0.1.25
+  - @pie-qti/qti-common@0.1.25
+
 ## 0.1.24
 
 ### Patch Changes
