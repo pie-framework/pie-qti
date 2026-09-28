@@ -4,12 +4,9 @@ export function parseXml(xml: string): Document {
 	const DOMParserImpl: any = (globalThis as any).DOMParser ?? XmldomDOMParser;
 
 	const parser = new DOMParserImpl({
-		errorHandler: {
-			// xmldom calls these for parse warnings/errors; treat as errors via thrown Error in our wrapper.
-			warning: () => {},
-			error: () => {},
-			fatalError: () => {},
-		},
+		// Silences xmldom's console reporting of warnings and recoverable errors;
+		// a fatalError still throws a ParseError after this returns.
+		onError: () => {},
 	});
 
 	const doc = parser.parseFromString(xml, 'text/xml');
