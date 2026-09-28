@@ -334,7 +334,7 @@
       "version": "0.1.23",
       "devDependencies": {
         "@types/bun": "^1.4.2",
-        "@xmldom/xmldom": "^0.8.13",
+        "@xmldom/xmldom": "^0.9.12",
         "typescript": "^5.9.3",
         "vitest": "^4.1.11",
       },
@@ -344,7 +344,7 @@
       "version": "0.1.23",
       "dependencies": {
         "@pie-qti/qti-common": "workspace:*",
-        "@xmldom/xmldom": "^0.8.13",
+        "@xmldom/xmldom": "^0.9.12",
         "decimal.js": "^10.6.0",
       },
       "devDependencies": {
@@ -1065,7 +1065,7 @@
 
     "@volar/typescript": ["@volar/typescript@2.4.28", "", { "dependencies": { "@volar/language-core": "2.4.28", "path-browserify": "^1.0.1", "vscode-uri": "^3.0.8" } }, "sha512-Ja6yvWrbis2QtN4ClAKreeUZPVYMARDYZl9LMEv1iQ1QdepB6wn0jTRxA9MftYmYa4DQ4k/DaSZpFPUfxl8giw=="],
 
-    "@xmldom/xmldom": ["@xmldom/xmldom@0.8.14", "", {}, "sha512-T4EDRUBVZYRldYApjEJiU0e1stYWaRAX7CuSnKzrpwdZKo53zGV8/pqfzV6FfwNl9YThD2OumQYvqtvjvgG7aQ=="],
+    "@xmldom/xmldom": ["@xmldom/xmldom@0.9.12", "", {}, "sha512-5AXjrcMClTryPe9LgZrygpB1lj7s0S9E0+W+AHaVKAVyHanafK86iPSvG5xHVSp/jC+VH1UXu0TAEmY279xH7A=="],
 
     "acorn": ["acorn@8.18.0", "", { "bin": { "acorn": "bin/acorn" } }, "sha512-lGq+9yr1/GuAWaVYIHRjvvySG5/4VfKIvC8EWxStPdcDh/Ka7FG3twP6v4d5BkravUilhIAsG4Qj83t02LWUPQ=="],
 
