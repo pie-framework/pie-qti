@@ -25,7 +25,7 @@
   "license": "MIT",
   "dependencies": {
     "@pie-players/pie-assessment-toolkit": "0.3.68",
-    "@pie-players/pie-calculator-desmos": "0.3.68",
+    "@pie-players/pie-calculator-desmos": "0.3.73",
     "@pie-players/pie-context": "0.3.68",
     "@pie-players/pie-default-tool-loaders": "0.3.68",
     "@pie-players/pie-tool-calculator-desmos": "0.3.68",
