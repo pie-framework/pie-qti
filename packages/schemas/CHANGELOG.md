@@ -1,5 +1,9 @@
 # @pie-qti/element-schemas
 
+## 0.1.25
+
+No changes in this release.
+
 ## 0.1.24
 
 ## 0.1.23
