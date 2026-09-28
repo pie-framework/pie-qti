@@ -1,5 +1,12 @@
 # @pie-qti/qti-common
 
+## 0.1.24
+
+### Patch Changes
+
+- 5c8a8e8: Route touch-generated drag events to the actual drop target inside nested open shadow roots, use the source element's owner document, and clear active drag state when the action is destroyed.
+- 67e4c23: Update mounted player components through reactive props so entering answers preserves input focus, caret position, and keyboard interaction state. Keep externally supplied session and provider objects intact across updates.
+
 ## 0.1.23
 
 ## 0.1.22

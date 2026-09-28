@@ -1,5 +1,15 @@
 # @pie-qti/player-elements
 
+## 0.1.24
+
+### Patch Changes
+
+- 080f254: Render readable assessment labels before host translations finish loading, and adopt a later context provider without restarting the attempt. Explicitly configured providers continue to take precedence.
+- 67e4c23: Update mounted player components through reactive props so entering answers preserves input focus, caret position, and keyboard interaction state. Keep externally supplied session and provider objects intact across updates.
+- 10eba70: Keep assessment answers visible after a failed submission, provide a focused retry action, and prevent duplicate submission while a request is pending.
+- Updated dependencies [67e4c23]
+  - @pie-qti/item-player@0.1.24
+
 ## 0.1.23
 
 ### Patch Changes
