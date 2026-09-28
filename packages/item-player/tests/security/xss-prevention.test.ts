@@ -123,7 +123,7 @@ describe('XSS Prevention - Item Body Content', () => {
 				<correctResponse><value>A</value></correctResponse>
 			</responseDeclaration>
 			<itemBody>
-				<img src="data:text/html,<script>alert('XSS')</script>" />
+				<img src="data:text/html,&lt;script>alert('XSS')&lt;/script>" />
 				<choiceInteraction responseIdentifier="RESPONSE" shuffle="false" maxChoices="1">
 					<simpleChoice identifier="A">Choice A</simpleChoice>
 				</choiceInteraction>
@@ -433,7 +433,7 @@ describe('XSS Prevention - URL Validation', () => {
 				<correctResponse><value>A</value></correctResponse>
 			</responseDeclaration>
 			<itemBody>
-				<iframe srcdoc="<img src=x onerror=alert('XSS')>"></iframe>
+				<iframe srcdoc="&lt;img src=x onerror=alert('XSS')>"></iframe>
 				<choiceInteraction responseIdentifier="RESPONSE" shuffle="false" maxChoices="1">
 					<simpleChoice identifier="A">Choice A</simpleChoice>
 				</choiceInteraction>

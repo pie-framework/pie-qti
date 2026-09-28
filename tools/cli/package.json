@@ -24,7 +24,7 @@
   },
   "dependencies": {
     "@oclif/core": "^4.0.0",
-    "@oclif/plugin-help": "^6.2.0",
+    "@oclif/plugin-help": "^7.0.0",
     "@pie-qti/ims-cp-node": "workspace:*",
     "@pie-qti/logger": "workspace:*",
     "@pie-qti/to-pie": "workspace:*",
@@ -33,7 +33,7 @@
     "node-html-parser": "^9.0.1"
   },
   "devDependencies": {
-    "@types/node": "^26.4.0",
+    "@types/node": "^26.6.2",
     "oclif": "^4.23.29",
     "typescript": "^5.9.3"
   },
