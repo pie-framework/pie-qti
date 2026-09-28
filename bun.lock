@@ -60,7 +60,7 @@
         "@types/node": "^26.4.0",
         "@types/unzipper": "^0.10.11",
         "@types/xml2js": "^0.4.14",
-        "daisyui": "^5.7.7",
+        "daisyui": "^5.7.28",
         "js-yaml": "^5.2.3",
         "svelte": "^5.56.8",
         "svelte-check": "^4.7.5",
@@ -93,7 +93,7 @@
         "@tailwindcss/typography": "^0.5.20",
         "@tailwindcss/vite": "^4.3.3",
         "@types/node": "^26.4.0",
-        "daisyui": "^5.7.7",
+        "daisyui": "^5.7.28",
         "svelte": "^5.56.8",
         "svelte-check": "^4.7.5",
         "tailwindcss": "^4.2.2",
@@ -1203,7 +1203,7 @@
 
     "cssom": ["cssom@0.5.0", "", {}, "sha512-iKuQcq+NdHqlAcwUY0o/HL69XQrUaQdMjmStJ8JFmUaiiQErlhrmuigkg/CU4E2J0IyUKUrMAgl36TvN67MqTw=="],
 
-    "daisyui": ["daisyui@5.7.17", "", {}, "sha512-w5U5FdL9hH4/zh8eLXytWQt3c0DgHS1WDw+1yuQykT8nSIE9Vc5wkJVeDymD1JlRDLANDawvN4iIGVaxgV6Cjw=="],
+    "daisyui": ["daisyui@5.7.28", "", {}, "sha512-BxQap2QOj7NQy5nEsjTHRmybmUZP3t+O5G6vfdidZuptBsh/QyKN9wbdrGDZk198fMI3UyYnA/rCWlggZIhGnw=="],
 
     "debounce-fn": ["debounce-fn@4.0.0", "", { "dependencies": { "mimic-fn": "^3.0.0" } }, "sha512-8pYCQiL9Xdcg0UPSD3d+0KMlOjp+KGU5EPwYddgzQ7DATsg4fuUDjQtsYLmWjnk2obnNHgV3vE2Y4jejSOJVBQ=="],
 
