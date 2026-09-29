@@ -26,6 +26,8 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 
+import { planRetry, policyFromEnv } from "./registry-propagation.mjs";
+
 const ROOT = process.cwd();
 const REGISTRY = "https://registry.npmjs.org";
 
@@ -69,21 +71,52 @@ let withProvenance = 0;
 const noProvenance = [];
 const notPublished = [];
 
-for (const { name } of packages) {
-	let doc;
-	try {
-		const res = await fetch(`${REGISTRY}/${name.replace("/", "%2F")}`);
-		doc = await res.json();
-	} catch (error) {
-		notPublished.push([name, `registry fetch failed: ${error.message}`]);
-		console.log(`  ${name.padEnd(40)} FETCH FAILED`);
-		continue;
-	}
+// Run right after a release, a version missing from the registry is as likely to be replica lag
+// as a partial release. Retry on the same bounded schedule as check-published-closure before
+// believing "not published".
+const propagationPolicy = policyFromEnv(process.env);
+const startedAt = Date.now();
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/** Throws with an E404-shaped message when the version is absent, so planRetry recognises it. */
+async function fetchVersionEntry(name) {
+	const res = await fetch(`${REGISTRY}/${name.replace("/", "%2F")}`, { cache: "no-store" });
+	const doc = await res.json();
 	const entry = doc?.versions?.[version];
-	if (!entry) {
-		notPublished.push([name, `no ${version} on the registry`]);
-		console.log(`  ${name.padEnd(40)} NOT PUBLISHED at ${version}`);
+	if (!entry) throw new Error(`E404 no ${version} on the registry for ${name}`);
+	return entry;
+}
+
+async function fetchVersionEntryWithRetries(name) {
+	for (let attempt = 1; ; attempt++) {
+		try {
+			return await fetchVersionEntry(name);
+		} catch (error) {
+			const { retry, delayMs } = planRetry({
+				attempt,
+				elapsedMs: Date.now() - startedAt,
+				message: error.message,
+				policy: propagationPolicy,
+			});
+			if (!retry) throw error;
+			console.log(`  ${name.padEnd(40)} not on the registry yet, retrying in ${delayMs / 1_000}s`);
+			await sleep(delayMs);
+		}
+	}
+}
+
+for (const { name } of packages) {
+	let entry;
+	try {
+		entry = await fetchVersionEntryWithRetries(name);
+	} catch (error) {
+		if (/\bE404\b/.test(error.message)) {
+			notPublished.push([name, `no ${version} on the registry`]);
+			console.log(`  ${name.padEnd(40)} NOT PUBLISHED at ${version}`);
+		} else {
+			notPublished.push([name, `registry fetch failed: ${error.message}`]);
+			console.log(`  ${name.padEnd(40)} FETCH FAILED`);
+		}
 		continue;
 	}
 

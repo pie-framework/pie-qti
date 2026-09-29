@@ -2,6 +2,8 @@
 
 import { execSync } from "node:child_process";
 
+import { planRetry, policyFromEnv } from "./registry-propagation.mjs";
+
 const readArgValue = (name) => {
 	const idx = process.argv.indexOf(name);
 	if (idx === -1) return undefined;
@@ -30,10 +32,17 @@ if (!Array.isArray(publishedPackages) || publishedPackages.length === 0) {
 	process.exit(0);
 }
 
-const runNpmView = (specifier, field) => {
+const propagationPolicy = policyFromEnv(process.env);
+const startedAt = Date.now();
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// --prefer-online revalidates the packument instead of trusting npm's local cache, which may hold
+// one fetched before the publish.
+const runNpmViewOnce = (specifier, field) => {
 	const cmd = field
-		? `npm view "${specifier}" "${field}" --json`
-		: `npm view "${specifier}" --json`;
+		? `npm view "${specifier}" "${field}" --json --prefer-online`
+		: `npm view "${specifier}" --json --prefer-online`;
 	try {
 		const out = execSync(cmd, { stdio: "pipe" }).toString("utf8").trim();
 		if (!out) return null;
@@ -42,6 +51,35 @@ const runNpmView = (specifier, field) => {
 		throw new Error(
 			`npm view failed for ${specifier}${field ? ` ${field}` : ""}: ${error.stderr?.toString()?.trim() || error.message}`,
 		);
+	}
+};
+
+// Runs in the same job as the publish, so a missing version is as likely to be replica lag as a
+// partial release: retry propagation failures on the shared bounded schedule before failing.
+const runNpmView = async (specifier, field) => {
+	for (let attempt = 1; ; attempt++) {
+		try {
+			return runNpmViewOnce(specifier, field);
+		} catch (error) {
+			const { retry, delayMs, reason } = planRetry({
+				attempt,
+				elapsedMs: Date.now() - startedAt,
+				message: error.message,
+				policy: propagationPolicy,
+			});
+
+			if (!retry) {
+				if (attempt > 1) {
+					error.message = `${error.message}\n  (${attempt} attempt(s) over ${Math.round((Date.now() - startedAt) / 1_000)}s; ${reason})`;
+				}
+				throw error;
+			}
+
+			console.warn(
+				`[check-published-closure] ${specifier}${field ? ` ${field}` : ""} not on the registry yet (attempt ${attempt}/${propagationPolicy.maxAttempts}); retrying in ${delayMs / 1_000}s`,
+			);
+			await sleep(delayMs);
+		}
 	}
 };
 
@@ -57,7 +95,7 @@ for (const pkg of publishedPackages) {
 
 	let deps;
 	try {
-		deps = runNpmView(`${name}@${version}`, "dependencies");
+		deps = await runNpmView(`${name}@${version}`, "dependencies");
 	} catch (error) {
 		failures.push(String(error.message));
 		continue;
@@ -77,7 +115,7 @@ for (const pkg of publishedPackages) {
 		}
 
 		try {
-			const resolved = runNpmView(`${depName}@${depRange}`, "version");
+			const resolved = await runNpmView(`${depName}@${depRange}`, "version");
 			if (!resolved || typeof resolved !== "string") {
 				failures.push(`${name}@${version} -> ${depName}@${depRange} did not resolve to a concrete version`);
 			}
