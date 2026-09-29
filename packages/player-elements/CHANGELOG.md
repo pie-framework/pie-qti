@@ -1,5 +1,11 @@
 # @pie-qti/player-elements
 
+## 0.1.25
+
+### Patch Changes
+
+- @pie-qti/item-player@0.1.25
+
 ## 0.1.24
 
 ### Patch Changes

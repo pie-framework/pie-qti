@@ -1,5 +1,11 @@
 # @pie-qti/ims-cp-node
 
+## 0.1.25
+
+### Patch Changes
+
+- @pie-qti/ims-cp-core@0.1.25
+
 ## 0.1.24
 
 ### Patch Changes
