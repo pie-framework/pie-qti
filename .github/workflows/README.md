@@ -28,11 +28,14 @@ Runs on every push to `master` and `develop`, and on pull requests targeting tho
 Automatically creates release PRs and publishes packages to NPM using Changesets.
 
 **Triggers:**
-- Push to `main` branch with changes in `.changeset/`, `packages/`, or `package.json`
+- Push to `master` branch with changes in `.changeset/`, `packages/`, or `package.json`
 
 **Features:**
 - Creates version bump PRs when changesets are detected
 - Publishes to NPM when version bump PR is merged
+- Opens a `master` -> `develop` back-merge PR after every publish, so `develop` picks up the bumped
+  versions and drops the changesets the release consumed. `GITHUB_TOKEN` opens it, so a maintainer
+  approves its workflow runs; merge it with a merge commit before the next promotion to `master`
 - Publishes canary pre-release versions for testing
 
 **Required Secrets:**
