@@ -118,7 +118,7 @@
     },
     "packages/assessment-player": {
       "name": "@pie-qti/assessment-player",
-      "version": "0.1.24",
+      "version": "0.1.25",
       "dependencies": {
         "@pie-qti/assessment-toolkit": "workspace:*",
         "@pie-qti/default-components": "workspace:*",
@@ -146,7 +146,7 @@
     },
     "packages/assessment-toolkit": {
       "name": "@pie-qti/assessment-toolkit",
-      "version": "0.1.24",
+      "version": "0.1.25",
       "dependencies": {
         "@pie-qti/ims-cp-core": "workspace:*",
         "@pie-qti/section-player": "workspace:*",
@@ -159,7 +159,7 @@
     },
     "packages/core": {
       "name": "@pie-qti/transform-core",
-      "version": "0.1.24",
+      "version": "0.1.25",
       "dependencies": {
         "@pie-qti/element-schemas": "workspace:*",
         "@pie-qti/logger": "workspace:*",
@@ -174,12 +174,12 @@
     },
     "packages/default-components": {
       "name": "@pie-qti/default-components",
-      "version": "0.1.24",
+      "version": "0.1.25",
       "dependencies": {
         "@pie-qti/item-player": "workspace:*",
         "@pie-qti/qti-common": "workspace:*",
         "@tiptap/core": "3.31.0",
-        "@tiptap/extension-mathematics": "3.31.0",
+        "@tiptap/extension-mathematics": "3.31.4",
         "@tiptap/extension-placeholder": "3.31.0",
         "@tiptap/starter-kit": "3.31.0",
         "mathlive": "^0.110.0",
@@ -204,7 +204,7 @@
     },
     "packages/demo-vendor-extensions": {
       "name": "@pie-qti/demo-vendor-extensions",
-      "version": "0.1.24",
+      "version": "0.1.25",
       "dependencies": {
         "@pie-qti/to-pie": "workspace:*",
         "@pie-qti/transform-types": "workspace:*",
@@ -217,7 +217,7 @@
     },
     "packages/i18n": {
       "name": "@pie-qti/i18n",
-      "version": "0.1.24",
+      "version": "0.1.25",
       "devDependencies": {
         "@types/bun": "^1.4.2",
         "svelte": "^5.57.1",
@@ -227,7 +227,7 @@
     },
     "packages/ims-cp-browser": {
       "name": "@pie-qti/ims-cp-browser",
-      "version": "0.1.24",
+      "version": "0.1.25",
       "dependencies": {
         "@pie-qti/ims-cp-core": "workspace:*",
         "jszip": "^3.10.1",
@@ -238,7 +238,7 @@
     },
     "packages/ims-cp-core": {
       "name": "@pie-qti/ims-cp-core",
-      "version": "0.1.24",
+      "version": "0.1.25",
       "dependencies": {
         "@pie-qti/logger": "workspace:*",
         "node-html-parser": "^9.0.1",
@@ -249,7 +249,7 @@
     },
     "packages/ims-cp-node": {
       "name": "@pie-qti/ims-cp-node",
-      "version": "0.1.24",
+      "version": "0.1.25",
       "dependencies": {
         "@pie-qti/ims-cp-core": "workspace:*",
         "unzipper": "^0.12.3",
@@ -262,7 +262,7 @@
     },
     "packages/item-player": {
       "name": "@pie-qti/item-player",
-      "version": "0.1.24",
+      "version": "0.1.25",
       "dependencies": {
         "@pie-qti/ims-cp-core": "workspace:*",
         "@pie-qti/qti-common": "workspace:*",
@@ -290,14 +290,14 @@
     },
     "packages/logger": {
       "name": "@pie-qti/logger",
-      "version": "0.1.24",
+      "version": "0.1.25",
       "devDependencies": {
         "typescript": "^5.9.3",
       },
     },
     "packages/pie-to-qti2": {
       "name": "@pie-qti/pie-to-qti2",
-      "version": "0.1.24",
+      "version": "0.1.25",
       "dependencies": {
         "@pie-qti/transform-core": "workspace:*",
         "@pie-qti/transform-types": "workspace:*",
@@ -312,7 +312,7 @@
     },
     "packages/player-elements": {
       "name": "@pie-qti/player-elements",
-      "version": "0.1.24",
+      "version": "0.1.25",
       "dependencies": {
         "@pie-qti/item-player": "workspace:*",
       },
@@ -331,7 +331,7 @@
     },
     "packages/qti-common": {
       "name": "@pie-qti/qti-common",
-      "version": "0.1.24",
+      "version": "0.1.25",
       "devDependencies": {
         "@types/bun": "^1.4.2",
         "@xmldom/xmldom": "^0.9.12",
@@ -341,7 +341,7 @@
     },
     "packages/qti-processing": {
       "name": "@pie-qti/qti-processing",
-      "version": "0.1.24",
+      "version": "0.1.25",
       "dependencies": {
         "@pie-qti/qti-common": "workspace:*",
         "@xmldom/xmldom": "^0.9.12",
@@ -355,14 +355,14 @@
     },
     "packages/schemas": {
       "name": "@pie-qti/element-schemas",
-      "version": "0.1.24",
+      "version": "0.1.25",
       "devDependencies": {
         "typescript": "^5.9.3",
       },
     },
     "packages/section-player": {
       "name": "@pie-qti/section-player",
-      "version": "0.1.24",
+      "version": "0.1.25",
       "dependencies": {
         "@pie-players/pie-assessment-toolkit": "0.3.73",
         "@pie-players/pie-calculator-desmos": "0.3.73",
@@ -394,7 +394,7 @@
     },
     "packages/source-profiles": {
       "name": "@pie-qti/source-profiles",
-      "version": "0.1.24",
+      "version": "0.1.25",
       "dependencies": {
         "@pie-qti/transform-types": "workspace:*",
       },
@@ -404,7 +404,7 @@
     },
     "packages/storage": {
       "name": "@pie-qti/storage",
-      "version": "0.1.24",
+      "version": "0.1.25",
       "dependencies": {
         "@pie-qti/transform-types": "workspace:*",
         "adm-zip": "^0.6.1",
@@ -425,7 +425,7 @@
     },
     "packages/test-utils": {
       "name": "@pie-qti/test-utils",
-      "version": "0.1.24",
+      "version": "0.1.25",
       "dependencies": {
         "@pie-qti/logger": "workspace:*",
         "@pie-qti/storage": "workspace:*",
@@ -440,7 +440,7 @@
     },
     "packages/theme": {
       "name": "@pie-qti/theme",
-      "version": "0.1.24",
+      "version": "0.1.25",
       "devDependencies": {
         "@biomejs/biome": "^2.5.14",
         "typescript": "^5.9.3",
@@ -448,7 +448,7 @@
     },
     "packages/theme-daisyui": {
       "name": "@pie-qti/theme-daisyui",
-      "version": "0.1.24",
+      "version": "0.1.25",
       "devDependencies": {
         "@biomejs/biome": "^2.5.14",
         "typescript": "^5.9.3",
@@ -456,7 +456,7 @@
     },
     "packages/to-pie": {
       "name": "@pie-qti/to-pie",
-      "version": "0.1.24",
+      "version": "0.1.25",
       "dependencies": {
         "@pie-qti/ims-cp-core": "workspace:*",
         "@pie-qti/ims-cp-node": "workspace:*",
@@ -475,7 +475,7 @@
     },
     "packages/types": {
       "name": "@pie-qti/transform-types",
-      "version": "0.1.24",
+      "version": "0.1.25",
       "dependencies": {
         "@pie-qti/logger": "workspace:*",
       },
@@ -485,7 +485,7 @@
     },
     "packages/typeset-katex": {
       "name": "@pie-qti/typeset-katex",
-      "version": "0.1.24",
+      "version": "0.1.25",
       "dependencies": {
         "katex": "^0.18.1",
       },
@@ -496,7 +496,7 @@
     },
     "packages/web-component-loaders": {
       "name": "@pie-qti/web-component-loaders",
-      "version": "0.1.24",
+      "version": "0.1.25",
       "dependencies": {
         "@pie-qti/player-elements": "workspace:*",
       },
@@ -508,7 +508,7 @@
     },
     "tools/cli": {
       "name": "@pie-qti/transform-cli",
-      "version": "0.1.24",
+      "version": "0.1.25",
       "bin": {
         "pie-transform": "./bin/run.js",
       },
@@ -987,7 +987,7 @@
 
     "@tiptap/extension-list-keymap": ["@tiptap/extension-list-keymap@3.31.0", "", { "peerDependencies": { "@tiptap/extension-list": "3.31.0" } }, "sha512-bmZZmQyH0PibpIUA2thA3Cgm82cnrcC4oU4eNqiaoUqrva1NuOIqb71L2Br9keBnmtQKEtkzdODs4x+eI53kBg=="],
 
-    "@tiptap/extension-mathematics": ["@tiptap/extension-mathematics@3.31.0", "", { "peerDependencies": { "@tiptap/core": "3.31.0", "@tiptap/pm": "3.31.0", "katex": "^0.16.4 || ^0.17.0 || ^0.18.0" } }, "sha512-wr3L8zb/jGWPeYb7xvn5AUqUz/ORR6V/kFRGqmZwdM45ksU2txt06Jj16eu5uiUDdGIcLgx0QiMw6hgUyJZAQg=="],
+    "@tiptap/extension-mathematics": ["@tiptap/extension-mathematics@3.31.4", "", { "peerDependencies": { "@tiptap/core": "3.31.4", "@tiptap/pm": "3.31.4", "katex": "^0.16.4 || ^0.17.0 || ^0.18.0" } }, "sha512-qWJHvp+ETbwpaEY6WhWk94yzZFc3OnX/kfBqHfgpdX2x1LVgjZLpFqSmNIvpwtR97+RBP4cKLZT4kwJbSse/zA=="],
 
     "@tiptap/extension-ordered-list": ["@tiptap/extension-ordered-list@3.31.0", "", { "peerDependencies": { "@tiptap/extension-list": "3.31.0" } }, "sha512-KLCax7pI/3JTCkMY01n2+CXwZRPPsIVR1fvSmkFMryUPonkkMYWSUlXCuYKvF22+kM0gU0kiXsVjqsn/YFdeDg=="],
 
