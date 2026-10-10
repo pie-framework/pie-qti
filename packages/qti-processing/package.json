@@ -20,8 +20,8 @@
     "decimal.js": "^10.6.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.14",
-    "@types/node": "^26.6.2",
+    "@biomejs/biome": "^2.5.15",
+    "@types/node": "^26.6.4",
     "typescript": "^5.9.3"
   },
   "exports": {
