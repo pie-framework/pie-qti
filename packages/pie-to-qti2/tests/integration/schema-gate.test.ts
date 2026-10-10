@@ -194,9 +194,6 @@ function itemFor(name: string, model: Record<string, any>): PieItem {
   } as PieItem;
 }
 
-// xmllint validation takes seconds per item under a parallel run.
-const XSD_TIMEOUT = 30_000;
-
 describe('Schema gate: QTI 2.2 XSD', () => {
   const pieToQti = new PieToQtiPlugin();
   const qtiToPie = new QtiToPiePlugin();
@@ -214,7 +211,7 @@ describe('Schema gate: QTI 2.2 XSD', () => {
 
       const back = await qtiToPie.transform({ content: xml, sidecar: output.items[0].sidecar }, { logger });
       expect(back.items[0].content).toMatchObject({ id: item.id, baseId: 'base-1', config: item.config });
-    }, XSD_TIMEOUT);
+    });
   }
 
   test('an inline passage beside an interaction validates', async () => {
@@ -236,7 +233,7 @@ describe('Schema gate: QTI 2.2 XSD', () => {
     const output = await pieToQti.transform({ content: item }, { logger });
     const validation = await validateQti(output.items[0].content as string, { xsdSeverity: 'error' });
     expect(validation.errors.map((error) => error.message)).toEqual([]);
-  }, XSD_TIMEOUT);
+  });
 
   const rubrics: Array<[label: string, name: string, model: Record<string, any>, maxScore: number]> = [
     ['simple rubric', 'rubric', { points: ['<p>None</p>', 'Partial', 'Full'], excludeZero: false }, 2],
@@ -298,12 +295,12 @@ describe('Schema gate: QTI 2.2 XSD', () => {
 
       const back = await qtiToPie.transform({ content: xml, sidecar: output.items[0].sidecar }, { logger });
       expect(back.items[0].content).toMatchObject({ id: item.id, config: item.config });
-    }, XSD_TIMEOUT);
+    });
   }
 
   test('a standalone passage file validates', async () => {
     const xml = generatePassageXml({ id: 'p1', baseId: 'b1', title: 'Theme', content: '<p>Once upon a time.</p>' });
     const validation = await validateQti(xml, { xsdSeverity: 'error' });
     expect(validation.errors.map((error) => error.message)).toEqual([]);
-  }, XSD_TIMEOUT);
+  });
 });
