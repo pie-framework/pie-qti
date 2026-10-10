@@ -29,7 +29,7 @@
   "dependencies": {
     "@pie-qti/item-player": "workspace:*",
     "@pie-qti/qti-common": "workspace:*",
-    "@tiptap/core": "3.31.0",
+    "@tiptap/core": "3.31.4",
     "@tiptap/extension-mathematics": "3.31.4",
     "@tiptap/extension-placeholder": "3.31.0",
     "@tiptap/starter-kit": "3.31.0",
