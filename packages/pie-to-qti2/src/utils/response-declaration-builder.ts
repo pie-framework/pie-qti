@@ -11,7 +11,7 @@ import { escapeXml } from './qti-builder.js';
  * Build a responseDeclaration element
  */
 export function buildResponseDeclaration(options: ResponseDeclarationOptions): string {
-  const { identifier, cardinality, baseType, correctResponse, mapping } = options;
+  const { identifier, cardinality, baseType, correctResponse, mapping, mappingBounds } = options;
 
   let content = '';
 
@@ -29,10 +29,15 @@ ${values}
   // Build mapping (for partial credit)
   if (mapping && mapping.length > 0) {
     const entries = mapping
-      .map(m => `      <mapEntry mapKey="${escapeXml(m.mapKey)}" mappedValue="${m.mappedValue}"/>`)
+      .map((m) => {
+        const caseSensitive = m.caseSensitive === undefined ? '' : ` caseSensitive="${m.caseSensitive}"`;
+        return `      <mapEntry mapKey="${escapeXml(m.mapKey)}" mappedValue="${m.mappedValue}"${caseSensitive}/>`;
+      })
       .join('\n');
+    const lowerBound = mappingBounds?.lowerBound === undefined ? '' : ` lowerBound="${mappingBounds.lowerBound}"`;
+    const upperBound = mappingBounds?.upperBound === undefined ? '' : ` upperBound="${mappingBounds.upperBound}"`;
     content += `
-    <mapping defaultValue="0">
+    <mapping defaultValue="${mappingBounds?.defaultValue ?? 0}"${lowerBound}${upperBound}>
 ${entries}
     </mapping>`;
   }

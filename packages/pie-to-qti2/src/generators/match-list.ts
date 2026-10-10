@@ -7,6 +7,7 @@
 import { generateIdentifier } from '../utils/identifier-generator.js';
 import { QtiBuilder } from '../utils/qti-builder.js';
 import { buildResponseDeclaration } from '../utils/response-declaration-builder.js';
+import { correctResponseScoring, partialScoringEnabled } from '../utils/scoring.js';
 import { BaseGenerator } from './base-generator.js';
 import type { GeneratorContext, GeneratorResult } from './types.js';
 
@@ -74,11 +75,13 @@ export class MatchListGenerator extends BaseGenerator {
     }
 
     // Build response declaration (directed pairs)
+    const { mapping, scoring } = correctResponseScoring(correctPairs, partialScoringEnabled(model));
     const responseDecl = buildResponseDeclaration({
       identifier: responseId,
       cardinality: 'multiple',
       baseType: 'directedPair',
       correctResponse: correctPairs,
+      ...mapping,
     });
 
     // Build item body with matchInteraction
@@ -95,6 +98,7 @@ export class MatchListGenerator extends BaseGenerator {
     const qti = QtiBuilder.createAssessmentItem(itemId, [responseDecl], itemBody, {
       title: model.title || 'Match List Item',
       pieElement: this.id,
+      ...scoring,
     });
 
     const warnings: string[] = [];
@@ -121,7 +125,7 @@ export class MatchListGenerator extends BaseGenerator {
     prompt?: string
   ): string {
     // Build prompt if present
-    const promptHtml = prompt ? `<prompt>${prompt}</prompt>\n    ` : '';
+    const promptHtml = prompt ? `\n      <prompt>${prompt}</prompt>` : '';
 
     // Build first simpleMatchSet (prompts/questions)
     const promptChoices = prompts
@@ -140,7 +144,7 @@ export class MatchListGenerator extends BaseGenerator {
       .join('\n');
 
     // Build matchInteraction
-    const interaction = `${promptHtml}<matchInteraction responseIdentifier="${responseId}" shuffle="${shuffle}" maxAssociations="${prompts.length}">
+    const interaction = `<matchInteraction responseIdentifier="${responseId}" shuffle="${shuffle}" maxAssociations="${prompts.length}">${promptHtml}
       <simpleMatchSet>
 ${promptChoices}
       </simpleMatchSet>

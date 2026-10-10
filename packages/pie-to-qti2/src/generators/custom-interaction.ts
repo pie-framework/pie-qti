@@ -8,6 +8,7 @@
 import { generateIdentifier } from '../utils/identifier-generator.js';
 import { QtiBuilder } from '../utils/qti-builder.js';
 import { buildResponseDeclaration } from '../utils/response-declaration-builder.js';
+import { externalScoring } from '../utils/scoring.js';
 import { BaseGenerator } from './base-generator.js';
 import type { GeneratorContext, GeneratorResult } from './types.js';
 
@@ -53,6 +54,7 @@ export class CustomInteractionGenerator extends BaseGenerator {
     const qti = QtiBuilder.createAssessmentItem(itemId, [responseDecl], interaction, {
       title: model.title || 'Custom Interaction Item',
       pieElement: elementType,
+      ...externalScoring(),
     });
 
     const warnings = [

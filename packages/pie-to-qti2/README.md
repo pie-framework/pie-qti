@@ -6,20 +6,22 @@ Bidirectional transformation plugin that converts PIE (Platform for Interactive 
 
 This package provides PIE → QTI transformation capabilities, completing the bidirectional transformation system when used alongside `@pie-qti/to-pie`. Together, they enable lossless round-trips:
 
-- **PIE → QTI → PIE**: Preserves all PIE data through embedded `<pie:sourceModel>` extensions
+- **PIE → QTI → PIE**: Preserves all PIE data through a `.pie.json` sidecar beside each QTI item
 - **QTI → PIE → QTI**: Preserves all QTI data through embedded `qtiSource` metadata
+
+Each direction uses the embedded source only while the content beside it is unchanged; an edited item is transformed from its visible content.
 
 ## Features
 
 - **17+ PIE Elements**: Complete coverage of all major PIE element types including interactions, passages, rubrics, and assessments
 - **Multi-Model Support**: Handles PIE items with multiple models (passages, interactions, rubrics) in a single QTI item
-- **searchMetaData Preservation**: Maintains Renaissance metadata (subject, gradeLevel, DOK, standards, difficulty) through QTI extensions
+- **searchMetaData Preservation**: Maintains Renaissance metadata (subject, gradeLevel, DOK, standards, difficulty) through the sidecar
 - **External Passage Support**: Generates separate passage files with `<object>` references for reusable stimulus content
 - **IMS Content Packages**: Automatic manifest generation for distributable QTI packages with proper resource declarations
 - **BaseId Support**: Stable/public identifier handling for consistent resource references across systems
 - **Inline Passages**: Embeds passage content within QTI itemBody using standard HTML (backward compatible)
-- **Lossless Round-Trips**: Embeds source format to enable perfect reconstruction via `<pie:sourceModel>`
-- **QTI 2.2.2 Compliance**: Generates valid QTI with minimal, well-documented vendor extensions
+- **Lossless Round-Trips**: The PIE item travels in a sidecar file listed under the item's package resource
+- **QTI 2.2.2 Conformance**: Output validates against the QTI 2.2 XSD and declares `SCORE`, `MAXSCORE` and response processing ([status](./docs/QTI-COMPLIANCE.md#conformance-status))
 - **Human-Readable Output**: Pretty-printed XML with consistent formatting
 - **Data Preservation**: Uses `data-pie-*` attributes for PIE-specific features
 - **Custom Interactions**: Supports non-standard PIE elements via QTI `<customInteraction>`
@@ -224,7 +226,7 @@ See [docs/MANIFEST-GENERATION.md](./docs/MANIFEST-GENERATION.md) for complete do
 
 - **categorize** → `<associateInteraction>` (grouping into categories)
 - **passage** → `<assessmentItem>` with stimulus content (informational text)
-- **rubric** / **complex-rubric** → `<assessmentItem>` with `<rubricBlock>`
+- **rubric** / **multi-trait-rubric** / **complex-rubric** → `<rubricBlock view="scorer">` in the interaction item's body; an `<assessmentItem>` holding only the block when exported alone
 - **PIE Assessment** → `<assessmentTest>` with testPart and sections
 
 ### Custom Interactions (Fallback)
@@ -235,30 +237,24 @@ Non-standard PIE elements use `<customInteraction>`:
 
 ## Architecture
 
-### Extension Mechanism
+### Round-Trip Sidecar
 
-PIE models are embedded in QTI XML using a custom namespace:
+QTI 2.2 admits no foreign elements in `assessmentItem`, so the PIE item is written beside the QTI item
+as `items/<id>.pie.json` and listed under the item's `<resource>` in the content package. A bare item
+transform returns it as the output item's `sidecar`:
 
-```xml
-<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
-                xmlns:pie="https://github.com/pie-framework/pie-elements"
-                identifier="item-1">
-  <!-- Standard QTI content -->
-  <responseDeclaration .../>
-  <itemBody>
-    <choiceInteraction .../>
-  </itemBody>
-
-  <!-- Embedded PIE source for lossless round-trip -->
-  <pie:sourceModel><![CDATA[
-    {
-      "element": "@pie-element/multiple-choice",
-      "config": { ... },
-      "models": [ ... ]
-    }
-  ]]></pie:sourceModel>
-</assessmentItem>
+```json
+{
+  "format": "pie-qti/pie-source",
+  "version": 1,
+  "qtiDigest": "sha256:…",
+  "sourceModel": { "id": "item-1", "searchMetaData": { … }, "config": { … } }
+}
 ```
+
+`@pie-qti/to-pie` uses the sidecar only while the QTI item still has the recorded `qtiDigest`.
+The item's `baseId` and `searchMetaData` are also written as IEEE LOM on its manifest resource, which
+to-pie reads when the sidecar is absent or stale.
 
 ### Multi-Model Support
 
@@ -289,10 +285,6 @@ const pieItem: PieItem = {
 
 // Transforms to:
 // <assessmentItem>
-//   <qti-metadata>
-//     <qti-metadata-field name="subject" value="Science"/>
-//     <qti-metadata-field name="gradeLevel" value="8,9" data-type="array"/>
-//   </qti-metadata>
 //   <itemBody>
 //     <div class="stimulus">...</div>  <!-- Inline passage -->
 //     <choiceInteraction>...</choiceInteraction>
@@ -349,7 +341,7 @@ bun run typecheck
 ## Documentation
 
 - **[Assessment Transformations](./docs/ASSESSMENT-TRANSFORMATIONS.md)** - Complete guide to assessment-level transformations with outcome processing, branch rules, and adaptive navigation
-- **[QTI 2.2.2 Compliance](./docs/QTI-COMPLIANCE.md)** - Detailed explanation of QTI compliance and extension strategy
+- **[QTI 2.2.2 Compliance](./docs/QTI-COMPLIANCE.md)** - Conformance gate, scoring, content normalization and the round-trip sidecar
 - **[Custom Generators](./CUSTOM-GENERATORS.md)** - Guide for creating custom PIE → QTI generators
 - **[External Passages](./docs/EXTERNAL-PASSAGES.md)** - External passage support and resolution
 - **[Passage Deduplication](./docs/PASSAGE-DEDUPLICATION.md)** - Batch transformation with passage deduplication

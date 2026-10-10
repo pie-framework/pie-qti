@@ -95,7 +95,7 @@ The generated manifest follows this structure:
 <?xml version="1.0" encoding="UTF-8"?>
 <manifest identifier="pkg-assessment-1"
           xmlns="http://www.imsglobal.org/xsd/imscp_v1p1"
-          xmlns:imsmd="http://www.imsglobal.org/xsd/imsmd_v1p2"
+          xmlns:imsmd="http://ltsc.ieee.org/xsd/LOM"
           xmlns:imsqti="http://www.imsglobal.org/xsd/imsqti_v2p2"
           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
           xsi:schemaLocation="...">
@@ -133,6 +133,46 @@ The generated manifest follows this structure:
   </resources>
 </manifest>
 ```
+
+## Resource Metadata
+
+A resource's metadata is IEEE LOM (`http://ltsc.ieee.org/xsd/LOM`, the loose binding
+`imsmd_loose_v1p3p2.xsd`), the metadata the QTI 2.2 packaging profile admits on a resource. Resource
+`metadata` keys `title`, `description` and `language` (or `locale`) go in LOM `general`; other keys
+are not written. A resource's `baseId` and `searchMetaData` follow the PIE encoding in
+`@pie-qti/transform-types` (`PIE_LOM_BASE_ID_CATALOG`, `PIE_LOM_SEARCH_METADATA_SOURCE`):
+
+```xml
+<imsmd:lom>
+  <imsmd:general>
+    <imsmd:identifier>
+      <imsmd:catalog>pie:baseId</imsmd:catalog>
+      <imsmd:entry>item-stable-123</imsmd:entry>
+    </imsmd:identifier>
+  </imsmd:general>
+  <imsmd:classification>
+    <imsmd:purpose>
+      <imsmd:source>LOMv1.0</imsmd:source>
+      <imsmd:value>educational level</imsmd:value>
+    </imsmd:purpose>
+    <imsmd:taxonPath>
+      <imsmd:source><imsmd:string language="x-none">pie:searchMetaData:gradeLevel</imsmd:string></imsmd:source>
+      <imsmd:taxon><imsmd:entry><imsmd:string language="x-none">3</imsmd:string></imsmd:entry></imsmd:taxon>
+      <imsmd:taxon><imsmd:entry><imsmd:string language="x-none">4</imsmd:string></imsmd:entry></imsmd:taxon>
+    </imsmd:taxonPath>
+    <imsmd:description><imsmd:string language="x-none">["3","4"]</imsmd:string></imsmd:description>
+  </imsmd:classification>
+</imsmd:lom>
+```
+
+Each `searchMetaData` key is one classification with one taxon per value. The purpose is `discipline`
+for `subject`, `educational level` for `gradeLevel`, `skill level` for `dok` and `depthOfKnowledge`,
+`competency` for `standard` and `standards`, `educational objective` for `bloomsTaxonomy`, and `idea`
+otherwise. A value other than a string also carries its JSON in the classification's `description`,
+which `@pie-qti/to-pie` reads back with its type. The plugin's package output fills both from the PIE
+item, and the passage's `searchMetaData` on the passage resource.
+
+`tests/integration/manifest-lom.test.ts` validates generated manifests against IMS CP 1.1 with IEEE LOM.
 
 ## API Reference
 
@@ -371,13 +411,11 @@ package-root/
 **Current Limitations:**
 
 - Single item per transform (batch support planned)
-- Basic metadata only (title, description)
 - No support for organizations (navigation structure)
 
 **Planned Features:**
 
 - Batch transformation with deduplication across items
-- Full IMS MD metadata support
 - Organization structures for navigation
 - Package validation and structure verification
 

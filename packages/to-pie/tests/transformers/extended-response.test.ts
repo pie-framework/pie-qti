@@ -165,6 +165,31 @@ describe('transformExtendedResponse', () => {
     expect(model.prompt).toBe('');
   });
 
+  test('should keep the interaction prompt after itemBody content', async () => {
+    const result = await transformExtendedResponse(parseQtiItem(sampleExtendedResponseQti), 'er-001');
+
+    expect(result.config.models[0].prompt).toBe(
+      '<p>Explain the significance of the American Revolution.</p><div>Write your answer below:</div>'
+    );
+  });
+
+  test('should not let empty itemBody markup hide the interaction prompt', async () => {
+    const qti = createQtiWrapper(`
+      <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="string">
+      </responseDeclaration>
+      <itemBody>
+        <div><p> </p></div>
+        <extendedTextInteraction responseIdentifier="RESPONSE">
+          <prompt>Describe the water cycle.</prompt>
+        </extendedTextInteraction>
+      </itemBody>
+    `, 'er-empty-lead-001', 'Empty Lead');
+
+    const result = await transformExtendedResponse(parseQtiItem(qti), 'er-empty-lead-001');
+
+    expect(result.config.models[0].prompt).toBe('Describe the water cycle.');
+  });
+
   test('should use default height when expectedLines is not specified', async () => {
     const qtiNoLines = createQtiWrapper(`
       <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="string">

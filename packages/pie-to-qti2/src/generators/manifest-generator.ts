@@ -16,6 +16,7 @@ import type {
   Resource,
   ResourceDependency,
 } from '../types/manifest.js';
+import { LOM_NAMESPACE, LOM_SCHEMA_LOCATION, renderResourceLom } from '../utils/lom.js';
 
 /**
  * Generate IMS manifest XML from input
@@ -54,6 +55,8 @@ export function buildManifest(input: ManifestInput): ImsManifest {
         type: passage.type || 'imsqti_item_xmlv2p2',
         href: passage.filePath,
         metadata,
+        baseId: passage.baseId,
+        searchMetaData: passage.searchMetaData,
         files: passage.files?.map(f => ({ href: f })),
       });
     }
@@ -80,6 +83,8 @@ export function buildManifest(input: ManifestInput): ImsManifest {
       type: item.type || 'imsqti_item_xmlv2p2',
       href: item.filePath,
       metadata,
+      baseId: item.baseId,
+      searchMetaData: item.searchMetaData,
       files: item.files?.map(f => ({ href: f })),
       dependencies: dependencies.length > 0 ? dependencies : undefined,
     });
@@ -137,11 +142,12 @@ export function manifestToXml(manifest: ImsManifest): string {
   lines.push(
     '<manifest identifier="' + escapeXml(manifest.identifier) + '"',
     '          xmlns="http://www.imsglobal.org/xsd/imscp_v1p1"',
-    '          xmlns:imsmd="http://www.imsglobal.org/xsd/imsmd_v1p2"',
+    `          xmlns:imsmd="${LOM_NAMESPACE}"`,
     '          xmlns:imsqti="http://www.imsglobal.org/xsd/imsqti_v2p2"',
     '          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"',
     '          xsi:schemaLocation="http://www.imsglobal.org/xsd/imscp_v1p1',
     '                              http://www.imsglobal.org/xsd/qti/qtiv2p2/qtiv2p2_imscpv1p2_v1p0.xsd',
+    `                              ${LOM_NAMESPACE} ${LOM_SCHEMA_LOCATION}`,
     '                              http://www.imsglobal.org/xsd/imsqti_v2p2',
     '                              http://www.imsglobal.org/xsd/qti/qtiv2p2/imsqti_v2p2.xsd">',
   );
@@ -169,27 +175,19 @@ export function manifestToXml(manifest: ImsManifest): string {
 
     lines.push('    <resource ' + resourceAttrs.join(' ') + '>');
 
-    // Metadata (if provided)
-    if (resource.metadata) {
-      lines.push('      <metadata>');
-
-      // Special handling for IMS LOM language (must be in lom/general structure)
-      if (resource.metadata.language) {
-        lines.push('        <imsmd:lom>');
-        lines.push('          <imsmd:general>');
-        lines.push('            <imsmd:language>' + escapeXml(String(resource.metadata.language)) + '</imsmd:language>');
-        lines.push('          </imsmd:general>');
-        lines.push('        </imsmd:lom>');
-      }
-
-      // Other metadata fields
-      for (const [key, value] of Object.entries(resource.metadata)) {
-        if (key !== 'language') {
-          lines.push(`        <imsmd:${key}>${escapeXml(String(value))}</imsmd:${key}>`);
-        }
-      }
-
-      lines.push('      </metadata>');
+    // IEEE LOM, the metadata the QTI 2.2 packaging profile admits on a resource
+    const lom = renderResourceLom(
+      {
+        baseId: resource.baseId,
+        title: optionalString(resource.metadata?.title),
+        description: optionalString(resource.metadata?.description),
+        language: optionalString(resource.metadata?.language),
+        searchMetaData: resource.searchMetaData,
+      },
+      '        '
+    );
+    if (lom.length > 0) {
+      lines.push('      <metadata>', ...lom, '      </metadata>');
     }
 
     // Main file
@@ -216,6 +214,10 @@ export function manifestToXml(manifest: ImsManifest): string {
   lines.push('</manifest>');
 
   return lines.join('\n') + '\n';
+}
+
+function optionalString(value: unknown): string | undefined {
+  return value === undefined || value === null ? undefined : String(value);
 }
 
 /**
@@ -278,8 +280,8 @@ export function generateSingleItemManifest(
  * @returns Manifest XML string
  */
 export function generateBatchManifest(
-  items: Array<{ id: string; filePath: string; dependencies?: string[] }>,
-  passages: Array<{ id: string; filePath: string }>,
+  items: Array<Pick<ItemResource, 'id' | 'filePath' | 'dependencies' | 'baseId' | 'searchMetaData'>>,
+  passages: Array<Pick<PassageResource, 'id' | 'filePath' | 'baseId' | 'searchMetaData'>>,
   options?: ManifestGenerationOptions
 ): string {
   const input: ManifestInput = {
@@ -287,10 +289,14 @@ export function generateBatchManifest(
       id: item.id,
       filePath: item.filePath,
       dependencies: item.dependencies,
+      baseId: item.baseId,
+      searchMetaData: item.searchMetaData,
     })),
     passages: passages.map(p => ({
       id: p.id,
       filePath: p.filePath,
+      baseId: p.baseId,
+      searchMetaData: p.searchMetaData,
     })),
     options,
   };
@@ -314,8 +320,8 @@ export function generateBatchManifest(
 export function generateAssessmentManifest(
   assessmentId: string,
   assessmentPath: string,
-  items: Array<{ id: string; filePath: string; dependencies?: string[] }>,
-  passages: Array<{ id: string; filePath: string }> = [],
+  items: Array<Pick<ItemResource, 'id' | 'filePath' | 'dependencies' | 'baseId' | 'searchMetaData'>>,
+  passages: Array<Pick<PassageResource, 'id' | 'filePath' | 'baseId' | 'searchMetaData'>> = [],
   options?: ManifestGenerationOptions
 ): string {
   const itemIds = items.map(item => item.id);
@@ -325,10 +331,14 @@ export function generateAssessmentManifest(
       id: item.id,
       filePath: item.filePath,
       dependencies: item.dependencies,
+      baseId: item.baseId,
+      searchMetaData: item.searchMetaData,
     })),
     passages: passages.map(p => ({
       id: p.id,
       filePath: p.filePath,
+      baseId: p.baseId,
+      searchMetaData: p.searchMetaData,
     })),
     assessments: [
       {

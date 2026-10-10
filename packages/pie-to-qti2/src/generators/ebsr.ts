@@ -4,9 +4,10 @@
  * Generates QTI with two choiceInteraction elements from PIE ebsr models
  */
 
-import { generateIdentifier } from '../utils/identifier-generator.js';
+import { generateIdentifier, prefixedIdentifier } from '../utils/identifier-generator.js';
 import { QtiBuilder } from '../utils/qti-builder.js';
 import { buildResponseDeclaration } from '../utils/response-declaration-builder.js';
+import { customScoring, floatValue, matchesCorrect, partialScoringEnabled, setScore } from '../utils/scoring.js';
 import { BaseGenerator } from './base-generator.js';
 import type { GeneratorContext, GeneratorResult } from './types.js';
 
@@ -55,7 +56,7 @@ export class EbsrGenerator extends BaseGenerator {
     // Build Part A response declaration
     const correctA = model.partA.choices
       .filter((c: any) => c.correct)
-      .map((c: any) => c.value);
+      .map((c: any) => prefixedIdentifier('CHOICE_', c.value));
     const responseADecl = buildResponseDeclaration({
       identifier: 'RESPONSE_A',
       cardinality: model.partA.choiceMode === 'checkbox' ? 'multiple' : 'single',
@@ -66,7 +67,7 @@ export class EbsrGenerator extends BaseGenerator {
     // Build Part B response declaration
     const correctB = model.partB.choices
       .filter((c: any) => c.correct)
-      .map((c: any) => c.value);
+      .map((c: any) => prefixedIdentifier('CHOICE_', c.value));
     const responseBDecl = buildResponseDeclaration({
       identifier: 'RESPONSE_B',
       cardinality: model.partB.choiceMode === 'checkbox' ? 'multiple' : 'single',
@@ -85,12 +86,13 @@ export class EbsrGenerator extends BaseGenerator {
       {
         title: model.title || 'EBSR Item',
         pieElement: this.id,
+        ...this.scoring(partialScoringEnabled(model)),
       }
     );
 
     const warnings = [
       'EBSR uses two separate choiceInteraction elements - QTI players must support multiple interactions per item',
-      'Full PIE model is preserved in pie:sourceModel for accurate reconstruction',
+      'Full PIE model is preserved in the PIE source sidecar for accurate reconstruction',
     ];
 
     this.debug(context, 'Successfully generated EBSR item with Part A and Part B');
@@ -98,9 +100,25 @@ export class EbsrGenerator extends BaseGenerator {
     return this.createResult(qti, warnings);
   }
 
+  /**
+   * PIE's EBSR rule: with partial scoring, 2 when both parts are correct and 1 when only Part A is;
+   * without it, 1 when both are correct.
+   */
+  private scoring(partial: boolean) {
+    const bothCorrect = `<and>${matchesCorrect('RESPONSE_A')}${matchesCorrect('RESPONSE_B')}</and>`;
+    if (!partial) {
+      return customScoring(1, [
+        `<responseCondition><responseIf>${bothCorrect}${setScore(floatValue(1))}</responseIf></responseCondition>`,
+      ]);
+    }
+    return customScoring(2, [
+      `<responseCondition><responseIf>${bothCorrect}${setScore(floatValue(2))}</responseIf><responseElseIf>${matchesCorrect('RESPONSE_A')}${setScore(floatValue(1))}</responseElseIf></responseCondition>`,
+    ]);
+  }
+
   private buildItemBody(partA: any, partB: any, mainPrompt?: string): string {
-    // Main prompt
-    const promptHtml = mainPrompt ? `<prompt>${mainPrompt}</prompt>\n    ` : '';
+    // A body-level <prompt> is not valid QTI; the main prompt is body content before Part A.
+    const promptHtml = mainPrompt ? `<div>${mainPrompt}</div>\n    ` : '';
 
     // Build Part A interaction
     const shuffleA = partA.shuffle !== false ? 'true' : 'false';
@@ -108,7 +126,7 @@ export class EbsrGenerator extends BaseGenerator {
     const choicesA = partA.choices
       .map(
         (choice: any) =>
-          `        <simpleChoice identifier="${choice.value}">${choice.label}</simpleChoice>`
+          `        <simpleChoice identifier="${prefixedIdentifier('CHOICE_', choice.value)}">${choice.label}</simpleChoice>`
       )
       .join('\n');
 
@@ -123,7 +141,7 @@ export class EbsrGenerator extends BaseGenerator {
     const choicesB = partB.choices
       .map(
         (choice: any) =>
-          `        <simpleChoice identifier="${choice.value}">${choice.label}</simpleChoice>`
+          `        <simpleChoice identifier="${prefixedIdentifier('CHOICE_', choice.value)}">${choice.label}</simpleChoice>`
       )
       .join('\n');
 

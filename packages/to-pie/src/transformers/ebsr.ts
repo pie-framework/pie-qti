@@ -11,7 +11,7 @@ import type { HTMLElement } from 'node-html-parser';
 import { parse } from 'node-html-parser';
 import { v4 as uuid } from 'uuid';
 import { mapChoiceLayout, type PieChoiceLayout } from '../utils/choice-layout.js';
-import { extractItemBodyPromptBeforeInteraction } from '../utils/prompt-extraction.js';
+import { extractPromptForInteraction } from '../utils/prompt-extraction.js';
 import { createInsufficientElementsError, createMissingElementError } from '../utils/qti-errors.js';
 import { deriveItemScoring, readMapping } from '../utils/response-scoring.js';
 
@@ -96,14 +96,20 @@ export function transformEbsrInteractions(
   const [firstInteraction, secondInteraction] = choiceInteractions;
   const correctAnswerMap = extractCorrectAnswerMap(document);
 
-  // Extract shared prompt/stem for Part A (content before first interaction)
-  const sharedPrompt = extractSharedPrompt(itemBody, firstInteraction);
-
-  // Build Part A
-  const partA = buildPart(firstInteraction, correctAnswerMap, sharedPrompt, document);
-
-  // Build Part B
-  const partB = buildPart(secondInteraction, correctAnswerMap, null, document);
+  // Each part's prompt includes the body content before it: the shared stem for Part A, and
+  // whatever sits between the two interactions for Part B.
+  const partA = buildPart(
+    firstInteraction,
+    correctAnswerMap,
+    extractPromptForInteraction(itemBody, firstInteraction),
+    document
+  );
+  const partB = buildPart(
+    secondInteraction,
+    correctAnswerMap,
+    extractPromptForInteraction(itemBody, secondInteraction, { after: firstInteraction }),
+    document
+  );
 
   const modelId = uuid();
   const scoring = deriveItemScoring(document);
@@ -145,33 +151,15 @@ export function transformEbsrInteractions(
 }
 
 /**
- * Extract shared prompt/stem content before the first interaction
- */
-function extractSharedPrompt(itemBody: HTMLElement, firstInteraction: HTMLElement): string | null {
-  return extractItemBodyPromptBeforeInteraction(itemBody, firstInteraction) || null;
-}
-
-/**
  * Build an EBSR part from a choiceInteraction
  */
 function buildPart(
   choiceInteraction: HTMLElement,
   correctAnswerMap: Map<string, string[]>,
-  sharedPrompt: string | null,
+  prompt: string,
   _document: HTMLElement
 ): EbsrPart {
   const responseIdentifier = choiceInteraction.getAttribute('responseIdentifier') || 'RESPONSE';
-
-  // Extract prompt from interaction
-  let prompt = '';
-  if (sharedPrompt) {
-    prompt = sharedPrompt;
-  }
-
-  const promptElement = choiceInteraction.getElementsByTagName('prompt')[0];
-  if (promptElement) {
-    prompt += (prompt ? '\n' : '') + promptElement.innerHTML.trim();
-  }
 
   const maxChoices = parseInt(choiceInteraction.getAttribute('maxChoices') || '1', 10);
 
@@ -250,11 +238,15 @@ function extractChoices(choiceInteraction: HTMLElement, correctAnswers: string[]
     const simpleChoice = simpleChoices[i];
     if (!simpleChoice) continue;
     const identifier = simpleChoice.getAttribute('identifier') || `choice-${i}`;
-    const label = simpleChoice.innerHTML.trim().replace(/&lt;/g, '<').replace(/&gt;/g, '>');
 
-    // Check for feedback (feedbackInline)
+    // The choice's feedbackInline becomes its feedback and stays out of the label, where it would
+    // render before the learner answers.
     const feedbackInline = simpleChoice.getElementsByTagName('feedbackInline')[0];
     const feedback = feedbackInline?.innerHTML.trim();
+    const labelHtml = feedbackInline
+      ? simpleChoice.innerHTML.replace(feedbackInline.toString(), '')
+      : simpleChoice.innerHTML;
+    const label = labelHtml.trim().replace(/&lt;/g, '<').replace(/&gt;/g, '>');
 
     choices.push({
       label,

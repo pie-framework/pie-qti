@@ -18,7 +18,7 @@
   "scripts": {
     "build": "tsc",
     "clean": "rm -rf dist",
-    "test": "bun test",
+    "test": "bun test --timeout 30000",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [
@@ -39,8 +39,10 @@
     "xml-formatter": "^3.6.4"
   },
   "devDependencies": {
+    "@pie-qti/item-player": "workspace:*",
     "@pie-qti/to-pie": "workspace:*",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "xmllint-wasm": "^5.3.0"
   },
   "type": "module",
   "repository": {

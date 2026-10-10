@@ -18,6 +18,7 @@ import type {
   ValidationResult,
   VendorExtensionConfig,
 } from '@pie-qti/transform-types';
+import { sourceDigest } from '@pie-qti/transform-types';
 import type { HTMLElement } from 'node-html-parser';
 import { parse } from 'node-html-parser';
 import type {
@@ -29,10 +30,12 @@ import type {
   VendorInfo,
   VendorTransformer,
 } from './types/vendor-extensions.js';
+import { removeUnmappedFeedback } from './utils/feedback-removal.js';
 import { serializeChildrenWithReplacements } from './utils/markup-extraction.js';
 import { extractSearchMetadata } from './utils/metadata-extraction.js';
 import { makePieItemPlayerReady } from './utils/player-config.js';
-import { extractPieExtension, hasPieExtension } from './utils/pie-extension.js';
+import { hasPieExtension, type PieExtensionData } from './utils/pie-extension.js';
+import { readPieSourceSidecar } from './utils/pie-source-sidecar.js';
 import { embedQtiSourceInPie } from './utils/qti-extension-embedder.js';
 import {
   isQtiInteractionElement,
@@ -304,16 +307,59 @@ export class QtiToPiePlugin implements TransformPlugin {
       data: { sourceFormat, qtiVersion },
     });
 
-    // Check for PIE extension first for lossless round-trip
+    // Check for the PIE source first for lossless round-trip: the sidecar pie-to-qti2 writes beside
+    // the item. It only adds fidelity and the body is complete QTI, so a source that is unreadable,
+    // or stale because the item changed after export, falls back to the body.
+    if (input.sidecar !== undefined) {
+      const sidecar = readPieSourceSidecar(input.sidecar);
+      const fresh = sidecar !== null && sidecar.qtiDigest === (await sourceDigest(qtiXml));
+      if (sidecar && fresh) {
+        logger?.info('Detected PIE source sidecar - using lossless extraction');
+        addTraceEvent(trace, {
+          kind: 'handler-selected',
+          scope: 'item',
+          itemId,
+          message: 'Detected PIE source sidecar; using lossless extraction.',
+        });
+        return this.extractFromPieExtension(
+          {
+            sourceModel: sidecar.sourceModel,
+            metadata: {
+              generator: sidecar.generator,
+              elementType: sidecar.elementType,
+              ...(sidecar.generatedAt && { timestamp: new Date(sidecar.generatedAt) }),
+            },
+            hasExtension: true,
+          },
+          startTime,
+          logger,
+          sourceFormat,
+          trace,
+          qtiVersion
+        );
+      }
+
+      const [code, message] = sidecar
+        ? ([
+            'PIE_SOURCE_STALE',
+            `PIE source sidecar for item ${itemId} does not match the item, which changed after export; the item was transformed from its QTI body.`,
+          ] as const)
+        : ([
+            'PIE_EXTENSION_UNREADABLE',
+            `PIE source sidecar for item ${itemId} could not be read; the item was transformed from its QTI body.`,
+          ] as const);
+      logger?.warn(message);
+      warnings.push({ itemId, code, message });
+      addTraceEvent(trace, { kind: 'fallback', scope: 'item', itemId, message });
+    }
+
+    // Earlier pie-to-qti2 versions embedded the PIE source in the item with no digest, so it cannot
+    // be shown to match the item and is not used.
     if (hasPieExtension(qtiXml)) {
-      logger?.info('Detected PIE extension - using lossless extraction');
-      addTraceEvent(trace, {
-        kind: 'handler-selected',
-        scope: 'item',
-        itemId,
-        message: 'Detected embedded PIE extension; using lossless extraction.',
-      });
-      return this.extractFromPieExtension(qtiXml, startTime, logger, sourceFormat, trace, qtiVersion);
+      const message = `Embedded PIE source model in item ${itemId} has no digest to show it matches the item; the item was transformed from its QTI body.`;
+      logger?.warn(message);
+      warnings.push({ itemId, code: 'PIE_SOURCE_STALE', message });
+      addTraceEvent(trace, { kind: 'fallback', scope: 'item', itemId, message });
     }
 
     // Parse XML once for all detection and transformation
@@ -373,7 +419,7 @@ export class QtiToPiePlugin implements TransformPlugin {
             message: `Using legacy vendor transformer for ${vendorTransformer.vendor}.`,
           });
           const output = await vendorTransformer.transform(qtiXml, vendorInfo, context, doc);
-          return withTraceMetadata(output, trace, profileRuntime);
+          return withTraceMetadata(output, trace, profileRuntime, warnings);
         } catch (error) {
           logger?.warn(
             `Vendor transformer failed for ${vendorInfo.vendor}: ${(error as Error).message}. ` +
@@ -432,9 +478,12 @@ export class QtiToPiePlugin implements TransformPlugin {
         warnings.push(...createProcessingWarnings(assessmentItem, itemId));
       }
 
+      const genericContext = this.withoutUnmappedFeedback(builtInContext, interactionAnalysis, warnings);
+
       let pieItem;
       const useCompositeBuiltIns =
-        interactionType !== 'ebsr' && shouldUseCompositeBuiltIns(interactionAnalysis, itemBodyPlan);
+        interactionType !== 'ebsr' &&
+        shouldUseCompositeBuiltIns(interactionAnalysis, genericContext.itemBodyPlan);
 
       try {
       const transformResult: BuiltInTransformResult = useCompositeBuiltIns
@@ -442,14 +491,14 @@ export class QtiToPiePlugin implements TransformPlugin {
             kind: 'pie-item',
             content: await this.transformCompositeBuiltIns(
               interactionAnalysis?.standardTypes ?? [],
-              builtInContext,
+              genericContext,
               itemFailure
             ),
           }
         : await this.transformWithSingleBuiltIn({
             interactionAnalysis,
             interactionType,
-            builtInContext,
+            builtInContext: genericContext,
             logger,
             trace,
             failure: itemFailure,
@@ -569,6 +618,11 @@ export class QtiToPiePlugin implements TransformPlugin {
         qtiVersion,
       });
       await applyItemDecorators(this.sourceProfiles, profileRuntime, itemContext, pieItemWithSource, 'afterFinalize', trace);
+      // Digested last, after every decorator: pie-to-qti2 uses the embedded QTI only for this config.
+      const qtiSource = pieItemWithSource.metadata?.qtiSource;
+      if (qtiSource) {
+        qtiSource.metadata = { ...qtiSource.metadata, configDigest: await sourceDigest(pieItemWithSource.config) };
+      }
 
       return {
         items: [{ content: pieItemWithSource, format: 'pie' as const }],
@@ -636,6 +690,40 @@ export class QtiToPiePlugin implements TransformPlugin {
     }
 
     return runGenericTransform();
+  }
+
+  /**
+   * The built-in context with the feedback no built-in maps removed, re-parsed so the item, its
+   * body plan and the XML all describe the same document. The embedded QTI source and metadata
+   * extraction keep reading the original.
+   */
+  private withoutUnmappedFeedback(
+    context: BuiltInTransformContext,
+    interactionAnalysis: InteractionAnalysis | null,
+    warnings: TransformWarning[]
+  ): BuiltInTransformContext {
+    if (!context.assessmentItem) {
+      return context;
+    }
+    const removal = removeUnmappedFeedback(
+      context.qtiXml,
+      context.assessmentItem,
+      context.itemId,
+      new Set([context.interactionType, ...(interactionAnalysis?.standardTypes ?? [])])
+    );
+    if (!removal.warning) {
+      return context;
+    }
+    warnings.push(removal.warning);
+    const doc = parse(removal.xml, { lowerCaseTagName: false, comment: false });
+    const assessmentItem = doc.querySelector('assessmentItem') || doc.getElementsByTagName('assessmentItem')[0];
+    const itemBody = assessmentItem?.getElementsByTagName('itemBody')[0];
+    return {
+      ...context,
+      qtiXml: removal.xml,
+      assessmentItem,
+      itemBodyPlan: itemBody ? planQtiItemBody(itemBody) : undefined,
+    };
   }
 
   /**
@@ -1001,19 +1089,13 @@ export class QtiToPiePlugin implements TransformPlugin {
    * Extract PIE item from QTI XML with PIE extension for lossless round-trip
    */
   private extractFromPieExtension(
-    qtiXml: string,
+    extensionData: PieExtensionData,
     startTime: number,
     logger?: any,
     sourceFormat = 'qti22',
     trace?: ConversionTrace,
     qtiVersion?: string
   ): TransformOutput {
-    const extensionData = extractPieExtension(qtiXml);
-
-    if (!extensionData.hasExtension || !extensionData.sourceModel) {
-      throw new Error('PIE extension detected but failed to extract source model');
-    }
-
     const processingTime = Date.now() - startTime;
     logger?.info(`Lossless extraction complete in ${processingTime}ms`);
 

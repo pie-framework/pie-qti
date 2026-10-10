@@ -5,8 +5,10 @@
  */
 
 import { generateIdentifier } from '../utils/identifier-generator.js';
-import { QtiBuilder } from '../utils/qti-builder.js';
+import { escapeXml, QtiBuilder } from '../utils/qti-builder.js';
 import { buildResponseDeclaration } from '../utils/response-declaration-builder.js';
+import { rubricMaxScore } from '../utils/rubric-block.js';
+import { externalScoring } from '../utils/scoring.js';
 import { BaseGenerator } from './base-generator.js';
 import type { GeneratorContext, GeneratorResult } from './types.js';
 
@@ -71,17 +73,18 @@ export class ExtendedResponseGenerator extends BaseGenerator {
     }
 
     if (model.placeholder) {
-      attributes.push(`placeholderText="${model.placeholder}"`);
+      attributes.push(`placeholderText="${escapeXml(String(model.placeholder))}"`);
     }
 
-    const interaction = `<extendedTextInteraction ${attributes.join(' ')}/>`;
-
-    const itemBody = prompt ? `${prompt}\n    ${interaction}` : interaction;
+    const itemBody = prompt
+      ? `<extendedTextInteraction ${attributes.join(' ')}>\n      ${prompt}\n    </extendedTextInteraction>`
+      : `<extendedTextInteraction ${attributes.join(' ')}/>`;
 
     // Generate assessment item
     const qti = QtiBuilder.createAssessmentItem(itemId, [responseDecl], itemBody, {
       title: model.title || 'Extended Response Item',
       pieElement: model.element || this.id,
+      ...externalScoring(rubricMaxScore(context.rubrics)),
     });
 
     this.debug(context, 'Successfully generated extendedTextInteraction');

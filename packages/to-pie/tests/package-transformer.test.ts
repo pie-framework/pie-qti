@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import type { QtiSourceProfile } from '@pie-qti/transform-types';
+import { type QtiSourceProfile, sourceDigest } from '@pie-qti/transform-types';
 import { transformQtiPackageToPie } from '../src/package-transformer';
 
 const manifestXml = `
@@ -439,5 +439,136 @@ describe('transformQtiPackageToPie', () => {
 		expect(result.sourceDiagnostics.some((diagnostic) => diagnostic.severity === 'error')).toBe(true);
 		expect(result.warnings.some((warning) => warning.code === 'QTI_PROFILE_HANDLER_BLOCKED_FALLBACK')).toBe(true);
 		expect(result.conversionTrace.events.some((event) => event.kind === 'error')).toBe(true);
+	});
+	test('reads the PIE source sidecar listed under an item resource', async () => {
+		const sidecarManifest = `
+<manifest identifier="pkg-sidecar">
+  <resources>
+    <resource identifier="item1" type="imsqti_item_xmlv2p2" href="items/item.xml">
+      <file href="items/item.xml"/>
+      <file href="items/item.pie.json"/>
+    </resource>
+  </resources>
+</manifest>`;
+		const sidecar = JSON.stringify({
+			format: 'pie-qti/pie-source',
+			version: 1,
+			qtiDigest: await sourceDigest(itemXml),
+			sourceModel: { id: 'from-sidecar', config: { models: [{ id: '1', element: 'pie-mc' }] } },
+		});
+
+		const result = await transformQtiPackageToPie({
+			manifestXml: sidecarManifest,
+			fileAccess: {
+				readText(path) {
+					if (path === 'items/item.pie.json') return sidecar;
+					return path === 'items/item.xml' ? itemXml : null;
+				},
+			},
+		});
+
+		expect(result.items[0].content.id).toBe('from-sidecar');
+	});
+
+	describe('PIE metadata in the manifest LOM', () => {
+		const lomManifest = `
+<manifest identifier="pkg-lom" xmlns="http://www.imsglobal.org/xsd/imscp_v1p1" xmlns:imsmd="http://ltsc.ieee.org/xsd/LOM">
+  <resources>
+    <resource identifier="item1" type="imsqti_item_xmlv2p2" href="items/item.xml">
+      <metadata>
+        <imsmd:lom>
+          <imsmd:general>
+            <imsmd:identifier>
+              <imsmd:catalog>pie:baseId</imsmd:catalog>
+              <imsmd:entry>base-1</imsmd:entry>
+            </imsmd:identifier>
+          </imsmd:general>
+          <imsmd:classification>
+            <imsmd:purpose><imsmd:source>LOMv1.0</imsmd:source><imsmd:value>discipline</imsmd:value></imsmd:purpose>
+            <imsmd:taxonPath>
+              <imsmd:source><imsmd:string language="x-none">pie:searchMetaData:subject</imsmd:string></imsmd:source>
+              <imsmd:taxon><imsmd:entry><imsmd:string language="x-none">Math</imsmd:string></imsmd:entry></imsmd:taxon>
+            </imsmd:taxonPath>
+          </imsmd:classification>
+        </imsmd:lom>
+      </metadata>
+      <file href="items/item.xml"/>
+      <file href="items/item.pie.json"/>
+    </resource>
+  </resources>
+</manifest>`;
+
+		const transformWithSidecar = (sidecar: string | null) =>
+			transformQtiPackageToPie({
+				manifestXml: lomManifest,
+				fileAccess: {
+					readText(path) {
+						if (path === 'items/item.pie.json') return sidecar;
+						return path === 'items/item.xml' ? itemXml : null;
+					},
+				},
+			});
+
+		test('fills baseId and searchMetaData when the sidecar is stale', async () => {
+			const stale = JSON.stringify({
+				format: 'pie-qti/pie-source',
+				version: 1,
+				qtiDigest: await sourceDigest('<assessmentItem/>'),
+				sourceModel: { id: 'stale', baseId: 'stale', config: { models: [] } },
+			});
+
+			const result = await transformWithSidecar(stale);
+
+			const item = result.items[0].content;
+			expect(item.config.models[0].element).toBe('multiple-choice');
+			expect(item.baseId).toBe('base-1');
+			expect(item.searchMetaData).toEqual({ subject: 'Math' });
+		});
+
+		test('leaves a fresh sidecar source model as written', async () => {
+			const fresh = JSON.stringify({
+				format: 'pie-qti/pie-source',
+				version: 1,
+				qtiDigest: await sourceDigest(itemXml),
+				sourceModel: {
+					id: 'from-sidecar',
+					baseId: 'sidecar-base',
+					searchMetaData: { subject: 'Science' },
+					config: { models: [{ id: '1', element: 'pie-mc' }] },
+				},
+			});
+
+			const result = await transformWithSidecar(fresh);
+
+			const item = result.items[0].content;
+			expect(item.id).toBe('from-sidecar');
+			expect(item.baseId).toBe('sidecar-base');
+			expect(item.searchMetaData).toEqual({ subject: 'Science' });
+		});
+	});
+
+	test('falls back to the QTI body when a listed sidecar cannot be read', async () => {
+		const sidecarManifest = `
+<manifest identifier="pkg-sidecar-missing">
+  <resources>
+    <resource identifier="item1" type="imsqti_item_xmlv2p2" href="items/item.xml">
+      <file href="items/item.xml"/>
+      <file href="items/item.pie.json"/>
+    </resource>
+  </resources>
+</manifest>`;
+
+		const result = await transformQtiPackageToPie({
+			manifestXml: sidecarManifest,
+			fileAccess: {
+				readText(path) {
+					if (path === 'items/item.pie.json') throw new Error('missing');
+					return path === 'items/item.xml' ? itemXml : null;
+				},
+			},
+		});
+
+		expect(result.items[0].content.config.models[0].element).toBe('multiple-choice');
+		expect(result.warnings.some((warning) => warning.code === 'PIE_EXTENSION_UNREADABLE')).toBe(true);
 	});
 });

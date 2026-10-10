@@ -266,12 +266,13 @@ function extractChoices(
 
     const declared = readCorrectResponseValues(responseDeclaration);
 
-    // An item scored via map_response need not declare a correctResponse at
-    // all. For text entry a positive-mappedValue mapKey *is* an accepted
-    // answer, so the mapping supplies the same list. Zero-scoring entries are
-    // recorded misspellings, not answers.
-    const accepted =
-      declared.length > 0 ? declared : (readMapping(responseDeclaration)?.positiveKeys ?? []);
+    // For text entry a positive-mappedValue mapKey *is* an accepted answer, and
+    // an item scored via map_response may declare one correctResponse or none,
+    // so the accepted answers are the union. Zero-scoring entries are recorded
+    // misspellings, not answers.
+    const accepted = [
+      ...new Set([...declared, ...(readMapping(responseDeclaration)?.positiveKeys ?? [])]),
+    ];
 
     choices[index] = accepted.map((label, i) => ({
       label,

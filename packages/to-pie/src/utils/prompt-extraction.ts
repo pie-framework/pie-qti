@@ -1,32 +1,68 @@
-import type { HTMLElement } from 'node-html-parser';
+import { type HTMLElement, parse } from 'node-html-parser';
 import { unwrapCdataSections } from './cdata.js';
 
 export interface PromptExtractionOptions {
   after?: HTMLElement;
 }
 
+/**
+ * The interaction's prompt as a learner sees it: the item body content before the interaction (a
+ * stem, a figure), followed by the interaction's own `<prompt>`. Markup with nothing to render
+ * counts as absent. When both are present, each that is not already block content is wrapped in a
+ * `<div>` so the two do not run together.
+ */
 export function extractPromptForInteraction(
   itemBody: HTMLElement,
   interaction: HTMLElement,
   options: PromptExtractionOptions = {}
 ): string {
   const interactionPrompt = directChildByTagName(interaction, 'prompt');
-  if (interactionPrompt) {
-    const prompt = cleanTransformHtml(interactionPrompt.innerHTML);
-    if (prompt) {
-      return prompt;
-    }
+  const prompt = interactionPrompt ? cleanTransformHtml(interactionPrompt.innerHTML) : '';
+  const lead = cleanTransformHtml(contentBeforeTarget(itemBody, interaction, options.after));
+  const hasPrompt = hasRenderableContent(prompt);
+  if (!hasRenderableContent(lead)) {
+    return hasPrompt ? prompt : '';
   }
-
-  return extractItemBodyPromptBeforeInteraction(itemBody, interaction, options);
+  if (!hasPrompt) {
+    return unwrapSoleParagraph(lead);
+  }
+  return [lead, prompt].map((part) => (isBlockContent(part) ? part : `<div>${part}</div>`)).join('');
 }
 
-export function extractItemBodyPromptBeforeInteraction(
-  itemBody: HTMLElement,
-  interaction: HTMLElement,
-  options: PromptExtractionOptions = {}
-): string {
-  return cleanTransformHtml(contentBeforeTarget(itemBody, interaction, options.after));
+const MEDIA_TAGS = ['img', 'object', 'embed', 'math', 'svg', 'video', 'audio', 'iframe', 'table', 'canvas'];
+
+const BLOCK_TAGS = new Set([
+  'address', 'article', 'aside', 'blockquote', 'details', 'div', 'dl', 'fieldset', 'figure', 'footer',
+  'form', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'header', 'hr', 'ol', 'p', 'pre', 'section', 'table', 'ul',
+]);
+
+function hasRenderableContent(html: string): boolean {
+  const root = parse(html);
+  if (root.text.replace(/[\s\u00a0]/g, '')) {
+    return true;
+  }
+  return MEDIA_TAGS.some((tag) => root.getElementsByTagName(tag).length > 0);
+}
+
+function isBlockContent(html: string): boolean {
+  const nodes = topLevelNodes(html);
+  return nodes.length > 0 && nodes.every((node) => BLOCK_TAGS.has(tagNameOf(node)));
+}
+
+/** Keeps the inline form a single-paragraph stem has always been stored in. */
+function unwrapSoleParagraph(html: string): string {
+  const nodes = topLevelNodes(html);
+  return nodes.length === 1 && tagNameOf(nodes[0]) === 'p'
+    ? cleanTransformHtml((nodes[0] as HTMLElement).innerHTML)
+    : html;
+}
+
+function topLevelNodes(html: string) {
+  return parse(html).childNodes.filter((node) => node.nodeType !== 3 || node.textContent.trim() !== '');
+}
+
+function tagNameOf(node: unknown): string {
+  return ((node as HTMLElement).tagName ?? '').toLowerCase();
 }
 
 export function containsElement(element: HTMLElement, target: HTMLElement): boolean {
@@ -99,8 +135,7 @@ function contentBeforeTarget(
       break;
     }
 
-    const childHtml = tagName === 'p' ? element.innerHTML : element.outerHTML;
-    const cleaned = cleanTransformHtml(childHtml);
+    const cleaned = cleanTransformHtml(element.outerHTML);
     if (cleaned) {
       html += cleaned;
     }

@@ -7,6 +7,7 @@
 import { generateIdentifier } from '../utils/identifier-generator.js';
 import { QtiBuilder } from '../utils/qti-builder.js';
 import { buildResponseDeclaration } from '../utils/response-declaration-builder.js';
+import { correctResponseScoring, partialScoringEnabled } from '../utils/scoring.js';
 import { BaseGenerator } from './base-generator.js';
 import type { GeneratorContext, GeneratorResult } from './types.js';
 
@@ -66,16 +67,19 @@ export class SelectTextGenerator extends BaseGenerator {
       .map((token: Token & { identifier: string }) => token.identifier);
 
     // Build response declaration
-    const cardinality = correctTokens.length > 1 ? 'multiple' : 'single';
+    // PIE's maxSelections 0 is unlimited, as is QTI's maxChoices 0; QTI defaults to 1 when omitted.
+    const maxChoices = model.maxSelections || 0;
+    const cardinality = maxChoices === 1 ? 'single' : 'multiple';
+    const { mapping, scoring } = correctResponseScoring(correctTokens, partialScoringEnabled(model));
     const responseDecl = buildResponseDeclaration({
       identifier: responseId,
       cardinality,
       baseType: 'identifier',
       correctResponse: correctTokens,
+      ...mapping,
     });
 
     // Build item body with hottextInteraction
-    const maxChoices = model.maxSelections || 0;
     const itemBody = this.buildItemBody(
       model.text,
       model.tokens,
@@ -88,6 +92,7 @@ export class SelectTextGenerator extends BaseGenerator {
     const qti = QtiBuilder.createAssessmentItem(itemId, [responseDecl], itemBody, {
       title: model.title || 'Select Text Item',
       pieElement: this.id,
+      ...scoring,
     });
 
     const warnings: string[] = [];
@@ -98,11 +103,6 @@ export class SelectTextGenerator extends BaseGenerator {
       );
     }
 
-    if (model.partialScoring) {
-      warnings.push(
-        'Partial scoring is not standard QTI - preserved in data-pie-partial-scoring'
-      );
-    }
 
     this.debug(context, `Successfully generated hottextInteraction with ${model.tokens.length} tokens`);
 
@@ -134,12 +134,14 @@ export class SelectTextGenerator extends BaseGenerator {
     }
 
     // Build prompt if present
-    const promptHtml = prompt ? `<prompt>${prompt}</prompt>\n    ` : '';
+    const promptHtml = prompt ? `\n      <prompt>${prompt}</prompt>` : '';
 
     // Build hottextInteraction
-    const maxChoicesAttr = maxChoices > 0 ? ` maxChoices="${maxChoices}"` : '';
-    const interaction = `${promptHtml}<hottextInteraction responseIdentifier="${responseId}"${maxChoicesAttr}>
-      ${html}
+    const maxChoicesAttr = maxChoices === 1 ? '' : ` maxChoices="${maxChoices}"`;
+    // hottextInteraction holds block content: wrap passage text that is not already in a block.
+    const body = /^\s*<(p|div|blockquote|ul|ol|table|h[1-6])[\s>]/i.test(html) ? html : `<p>${html}</p>`;
+    const interaction = `<hottextInteraction responseIdentifier="${responseId}"${maxChoicesAttr}>${promptHtml}
+      ${body}
     </hottextInteraction>`;
 
     return interaction;

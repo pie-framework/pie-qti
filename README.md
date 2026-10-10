@@ -133,16 +133,17 @@ See [Transformation Engine Documentation](docs/TRANSFORMATION-ENGINE.md) for com
 
 **QTI → PIE** (`@pie-qti/to-pie`)
 
-- Supports QTI 2.2 and 3.0 (auto-detected)
-- Lossless round-trip when QTI originated from PIE
+- Supports QTI 2.1 and 2.2; QTI 3.0 items are detected and rejected with a diagnostic
+- Lossless round-trip from the PIE source sidecar while the QTI item is unchanged
 - Best-effort semantic transformation otherwise
 - Vendor extension system for custom QTI variants
 
 **PIE → QTI** (`@pie-qti/pie-to-qti2`)
 
-- Lossless reconstruction when PIE contains embedded QTI
+- Lossless reconstruction when PIE contains embedded QTI and its config is unchanged
 - Generator registry for custom PIE model handling
 - IMS Content Package generation (`imsmanifest.xml`)
+- Output validates against the QTI 2.2 XSD and carries response processing ([status](packages/pie-to-qti2/docs/QTI-COMPLIANCE.md#conformance-status))
 
 ### Extension Points
 
