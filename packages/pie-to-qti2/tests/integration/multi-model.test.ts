@@ -113,21 +113,20 @@ describe('Multi-Model Support', () => {
     const result = await pieToQti.transform({ content: pieItem }, { logger });
     const qtiXml = result.items[0].content as string;
 
-    // Verify qti-metadata section exists
-    expect(qtiXml).toContain('<qti-metadata>');
-    expect(qtiXml).toContain('</qti-metadata>');
+    // The source model, search metadata included, travels in the PIE source sidecar.
+    expect(qtiXml).not.toContain('pie:');
+    expect(qtiXml).not.toContain('qti-metadata');
+    expect(result.items[0].sidecar?.sourceModel.searchMetaData).toEqual(pieItem.searchMetaData);
 
-    // Verify individual metadata fields
-    expect(qtiXml).toContain('name="subject" value="Science"');
-    expect(qtiXml).toContain('name="gradeLevel" value="8,9"');
-    expect(qtiXml).toContain('data-type="array"');
-    expect(qtiXml).toContain('name="DOK" value="DOK3"');
-    expect(qtiXml).toContain('name="difficulty" value="0.65"');
-    expect(qtiXml).toContain('data-type="number"');
+    // The source model, search metadata included, travels in the PIE source sidecar.
+    expect(qtiXml).not.toContain('pie:');
+    expect(qtiXml).not.toContain('qti-metadata');
+    expect(result.items[0].sidecar?.sourceModel.searchMetaData).toEqual(pieItem.searchMetaData);
 
-    // Verify metadata is preserved in PIE extension
-    expect(qtiXml).toContain('<pie:sourceModel>');
-    expect(qtiXml).toContain('searchMetaData');
+    // The source model, search metadata included, travels in the PIE source sidecar.
+    expect(qtiXml).not.toContain('pie:');
+    expect(qtiXml).not.toContain('qti-metadata');
+    expect(result.items[0].sidecar?.sourceModel.searchMetaData).toEqual(pieItem.searchMetaData);
   });
 
   test('should handle multiple interactions - processes only first one (Phase 1)', async () => {
@@ -222,19 +221,21 @@ describe('Multi-Model Support', () => {
     expect(qtiXml).toContain('assessmentItem');
     expect(qtiXml).toContain('stimulus'); // Passage
     expect(qtiXml).toContain('extendedTextInteraction'); // Interaction
-    expect(qtiXml).toContain('<qti-metadata>'); // Metadata
+    // The source model, search metadata included, travels in the PIE source sidecar.
+    expect(qtiXml).not.toContain('pie:');
+    expect(qtiXml).not.toContain('qti-metadata');
+    expect(result.items[0].sidecar?.sourceModel.searchMetaData).toEqual(pieItem.searchMetaData);
 
-    // Verify order: metadata → passage → interaction
-    const metadataIndex = qtiXml.indexOf('<qti-metadata>');
+    // Verify order: passage → interaction
     const stimulusIndex = qtiXml.indexOf('stimulus');
     const interactionIndex = qtiXml.indexOf('extendedTextInteraction');
 
-    expect(metadataIndex).toBeLessThan(stimulusIndex);
     expect(stimulusIndex).toBeLessThan(interactionIndex);
 
-    // Verify all metadata fields
-    expect(qtiXml).toContain('name="subject" value="ELA"');
-    expect(qtiXml).toContain('name="gradeLevel"');
+    // The source model, search metadata included, travels in the PIE source sidecar.
+    expect(qtiXml).not.toContain('pie:');
+    expect(qtiXml).not.toContain('qti-metadata');
+    expect(result.items[0].sidecar?.sourceModel.searchMetaData).toEqual(pieItem.searchMetaData);
 
     // Verify result metadata
     expect(result.metadata.modelCount).toBe(2);

@@ -117,6 +117,33 @@ describe('validateQti', () => {
       expect(result.valid).toBe(true);
     });
 
+    test.each([
+      ['an undeclared entity', '<itemBody><p>a&mdash;b</p></itemBody>', "Entity 'mdash' not defined"],
+      ['a CDATA terminator in content', '<itemBody><p>a ]]> b</p></itemBody>', "']]>' not allowed"],
+      ['an unescaped < in an attribute value', '<itemBody><p title="a < b">x</p></itemBody>', "'<' not allowed"],
+      ['a control character', '<itemBody><p>a\u0001b</p></itemBody>', 'invalid Char value 1'],
+    ])('rejects %s, which the lenient parser accepts', async (_, body, reason) => {
+      const result = await validateQti(item(body), { xsd: false });
+
+      expect(result.valid).toBe(false);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0]?.level).toBe('fatal');
+      expect(result.errors[0]?.message).toContain('not well-formed');
+      expect(result.errors[0]?.message).toContain(reason);
+      expect(result.errors[0]?.line).toBe(3);
+    });
+
+    test('accepts an entity the document declares', async () => {
+      const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE assessmentItem [<!ENTITY mdash "&#8212;">]>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="i1" title="T">
+  <itemBody><p>a&mdash;b</p></itemBody>
+</assessmentItem>`;
+      const result = await validateQti(xml, { xsd: false });
+
+      expect(result.valid).toBe(true);
+    });
+
     test('malformed XML is never handed to the schema processor', async () => {
       // Well-formedness short-circuits, so a malformed document reports the parse failure
       // and nothing else — no schema findings about a tree that could not be built.
@@ -325,6 +352,21 @@ describe('validateQti', () => {
 
       expect(results.get('qti21.xml')?.schemaValidated).toBe(true);
       expect(results.get('qti21.xml')?.warnings).toEqual([]);
+    });
+
+    test('attributes a strict-parse failure to its own document', async () => {
+      const results = await validateQtiBatch(
+        [
+          { path: 'clean.xml', content: item(choiceBody) },
+          { path: 'entity.xml', content: item('<itemBody><p>a&nbsp;b</p></itemBody>') },
+          { path: 'also-clean.xml', content: item('<itemBody><p>c</p></itemBody>') },
+        ],
+        { xsd: false }
+      );
+
+      expect(results.get('clean.xml')?.valid).toBe(true);
+      expect(results.get('entity.xml')?.errors[0]?.message).toContain("Entity 'nbsp' not defined");
+      expect(results.get('also-clean.xml')?.valid).toBe(true);
     });
 
     test('a finding on one document does not leak onto its neighbours', async () => {

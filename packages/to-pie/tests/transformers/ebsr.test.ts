@@ -7,6 +7,34 @@ import { transformEbsr } from '../../src/transformers/ebsr.js';
 import { createQtiWrapper } from '../test-utils.js';
 
 describe('transformEbsr', () => {
+  test('should give Part B the content between the two interactions', () => {
+    const qtiXml = createQtiWrapper(`
+      <responseDeclaration identifier="RESPONSE_A" cardinality="single" baseType="identifier">
+        <correctResponse><value>A</value></correctResponse>
+      </responseDeclaration>
+      <responseDeclaration identifier="RESPONSE_B" cardinality="single" baseType="identifier">
+        <correctResponse><value>X</value></correctResponse>
+      </responseDeclaration>
+      <itemBody>
+        <p>Read the passage.</p>
+        <choiceInteraction responseIdentifier="RESPONSE_A">
+          <prompt>What is the main idea?</prompt>
+          <simpleChoice identifier="A">Choice A</simpleChoice>
+        </choiceInteraction>
+        <p>Use your answer to Part A.</p>
+        <choiceInteraction responseIdentifier="RESPONSE_B">
+          <prompt>Which evidence supports it?</prompt>
+          <simpleChoice identifier="X">Evidence X</simpleChoice>
+        </choiceInteraction>
+      </itemBody>
+    `, 'ebsr-between-001', 'EBSR Between');
+
+    const model = transformEbsr(qtiXml, 'ebsr-between-001').config.models[0];
+
+    expect(model.partA.prompt).toBe('<p>Read the passage.</p><div>What is the main idea?</div>');
+    expect(model.partB.prompt).toBe('<p>Use your answer to Part A.</p><div>Which evidence supports it?</div>');
+  });
+
   test('should transform basic QTI EBSR (two choiceInteractions) to PIE ebsr', () => {
     const qtiXml = createQtiWrapper(`
       <responseDeclaration identifier="RESPONSE_A" cardinality="single" baseType="identifier">

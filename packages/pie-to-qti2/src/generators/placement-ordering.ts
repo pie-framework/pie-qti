@@ -4,9 +4,10 @@
  * Generates QTI orderInteraction from PIE placement-ordering models
  */
 
-import { generateIdentifier } from '../utils/identifier-generator.js';
+import { generateIdentifier, prefixedIdentifier } from '../utils/identifier-generator.js';
 import { QtiBuilder } from '../utils/qti-builder.js';
 import { buildResponseDeclaration } from '../utils/response-declaration-builder.js';
+import { partialScoringEnabled, templateScoring } from '../utils/scoring.js';
 import { BaseGenerator } from './base-generator.js';
 import type { GeneratorContext, GeneratorResult } from './types.js';
 
@@ -63,7 +64,7 @@ export class PlacementOrderingGenerator extends BaseGenerator {
     const responseId = 'RESPONSE';
 
     // Build correct response - ordered list of identifiers
-    const correctIds = model.correctResponse.map((item: { id: string }) => item.id);
+    const correctIds = model.correctResponse.map((item: { id: string }) => prefixedIdentifier('CHOICE_', item.id));
 
     // Build response declaration (ordered cardinality)
     const responseDecl = buildResponseDeclaration({
@@ -88,13 +89,14 @@ export class PlacementOrderingGenerator extends BaseGenerator {
     const qti = QtiBuilder.createAssessmentItem(itemId, [responseDecl], itemBody, {
       title: model.title || 'Placement Ordering Item',
       pieElement: this.id,
+      ...templateScoring('match_correct'),
     });
 
     const warnings: string[] = [];
 
-    if (model.partialScoring) {
+    if (partialScoringEnabled(model)) {
       warnings.push(
-        'Partial scoring is not standard QTI - preserved in data-pie-partial-scoring'
+        'QTI scores the order all-or-nothing; the PIE partial-credit rule is kept in the PIE source sidecar'
       );
     }
 
@@ -114,18 +116,18 @@ export class PlacementOrderingGenerator extends BaseGenerator {
     prompt?: string
   ): string {
     // Build prompt if present
-    const promptHtml = prompt ? `<prompt>${prompt}</prompt>\n    ` : '';
+    const promptHtml = prompt ? `\n      <prompt>${prompt}</prompt>` : '';
 
     // Build simpleChoice elements
     const choiceElements = choices
       .map(
         (choice) =>
-          `      <simpleChoice identifier="${choice.id}">${choice.label}</simpleChoice>`
+          `      <simpleChoice identifier="${prefixedIdentifier('CHOICE_', choice.id)}">${choice.label}</simpleChoice>`
       )
       .join('\n');
 
     // Build orderInteraction
-    const interaction = `${promptHtml}<orderInteraction responseIdentifier="${responseId}" shuffle="${shuffle}" orientation="${orientation}">
+    const interaction = `<orderInteraction responseIdentifier="${responseId}" shuffle="${shuffle}" orientation="${orientation}">${promptHtml}
 ${choiceElements}
     </orderInteraction>`;
 

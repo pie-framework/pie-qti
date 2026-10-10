@@ -4,9 +4,10 @@
  * Generates QTI inlineChoiceInteraction from PIE inline-dropdown models
  */
 
-import { generateIdentifier } from '../utils/identifier-generator.js';
+import { generateIdentifier, prefixedIdentifier } from '../utils/identifier-generator.js';
 import { QtiBuilder } from '../utils/qti-builder.js';
 import { buildResponseDeclaration } from '../utils/response-declaration-builder.js';
+import { allResponsesScoring, partialScoringEnabled } from '../utils/scoring.js';
 import { BaseGenerator } from './base-generator.js';
 import type { GeneratorContext, GeneratorResult } from './types.js';
 
@@ -76,7 +77,7 @@ export class InlineDropdownGenerator extends BaseGenerator {
       const choices = model.choices[index] || [];
       const correctValues = choices
         .filter((choice: any) => choice.correct)
-        .map((choice: any) => choice.value);
+        .map((choice: any) => prefixedIdentifier('CHOICE_', choice.value));
 
       responseDecls.push(
         buildResponseDeclaration({
@@ -96,15 +97,13 @@ export class InlineDropdownGenerator extends BaseGenerator {
     const qti = QtiBuilder.createAssessmentItem(itemId, responseDecls, itemBody, {
       title: model.title || 'Inline Dropdown Item',
       pieElement: this.id,
+      ...allResponsesScoring(
+        placeholders.map((index) => `RESPONSE_${index}`),
+        partialScoringEnabled(model)
+      ),
     });
 
     const warnings: string[] = [];
-
-    if (model.partialScoring) {
-      warnings.push(
-        'Partial scoring is not standard QTI - preserved in data-pie-partial-scoring'
-      );
-    }
 
     this.debug(context, `Successfully generated ${placeholders.length} inlineChoiceInteraction elements`);
 
@@ -145,7 +144,7 @@ export class InlineDropdownGenerator extends BaseGenerator {
       const inlineChoices = choiceList
         .map(
           (choice: any) =>
-            `<inlineChoice identifier="${choice.value}">${choice.label}</inlineChoice>`
+            `<inlineChoice identifier="${prefixedIdentifier('CHOICE_', choice.value)}">${choice.label}</inlineChoice>`
         )
         .join('\n      ');
 

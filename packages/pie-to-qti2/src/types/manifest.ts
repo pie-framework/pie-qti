@@ -93,8 +93,14 @@ export interface Resource {
   /** Main file href */
   href: string;
 
-  /** Resource metadata */
+  /** Resource metadata; `title`, `description` and `language` are written as LOM `general` */
   metadata?: Record<string, any>;
+
+  /** PIE `baseId`, written as a LOM `general/identifier` */
+  baseId?: string;
+
+  /** PIE `searchMetaData`, written as LOM classifications */
+  searchMetaData?: Record<string, unknown>;
 
   /** File entries */
   files?: ResourceFile[];
@@ -181,6 +187,12 @@ export interface ItemResource {
   /** Metadata */
   metadata?: Record<string, any>;
 
+  /** PIE `baseId`, written as a LOM `general/identifier` */
+  baseId?: string;
+
+  /** PIE `searchMetaData`, written as LOM classifications */
+  searchMetaData?: Record<string, unknown>;
+
   /** Locale for this specific variant (e.g., "en-US", "es-ES") */
   locale?: string;
 }
@@ -203,6 +215,12 @@ export interface PassageResource {
 
   /** Metadata */
   metadata?: Record<string, any>;
+
+  /** PIE `baseId`, written as a LOM `general/identifier` */
+  baseId?: string;
+
+  /** PIE `searchMetaData`, written as LOM classifications */
+  searchMetaData?: Record<string, unknown>;
 
   /** Locale for this specific variant (e.g., "en-US", "es-ES") */
   locale?: string;

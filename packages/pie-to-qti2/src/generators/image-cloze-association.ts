@@ -6,8 +6,9 @@
  */
 
 import { generateIdentifier } from '../utils/identifier-generator.js';
-import { QtiBuilder } from '../utils/qti-builder.js';
+import { escapeXml, imageMimeType, QtiBuilder } from '../utils/qti-builder.js';
 import { buildResponseDeclaration } from '../utils/response-declaration-builder.js';
+import { correctResponseScoring, partialScoringEnabled } from '../utils/scoring.js';
 import { BaseGenerator } from './base-generator.js';
 import type { GeneratorContext, GeneratorResult } from './types.js';
 
@@ -62,11 +63,13 @@ export class ImageClozeAssociationGenerator extends BaseGenerator {
     }
 
     // Build response declaration
+    const { mapping, scoring } = correctResponseScoring(correctPairs, partialScoringEnabled(model));
     const responseDecl = buildResponseDeclaration({
       identifier: responseId,
       cardinality: 'multiple',
       baseType: 'directedPair',
       correctResponse: correctPairs,
+      ...mapping,
     });
 
     // Build item body with graphicGapMatchInteraction
@@ -84,11 +87,12 @@ export class ImageClozeAssociationGenerator extends BaseGenerator {
     const qti = QtiBuilder.createAssessmentItem(itemId, [responseDecl], itemBody, {
       title: model.title || 'Image Cloze Association Item',
       pieElement: this.id,
+      ...scoring,
     });
 
     const warnings = [
       'image-cloze-association uses graphicGapMatchInteraction which has limited support in QTI players',
-      'Full PIE model is preserved in pie:sourceModel for accurate reconstruction',
+      'Full PIE model is preserved in the PIE source sidecar for accurate reconstruction',
     ];
 
     this.debug(context, `Successfully generated graphicGapMatchInteraction`);
@@ -104,13 +108,13 @@ export class ImageClozeAssociationGenerator extends BaseGenerator {
     responseId: string,
     prompt?: string
   ): string {
-    const promptHtml = prompt ? `<prompt>${prompt}</prompt>\n    ` : '';
+    const promptHtml = prompt ? `\n      <prompt>${prompt}</prompt>` : '';
 
-    // Build gapImg elements (draggable responses)
-    const gapImgElements = responses
+    // Build gapText elements (draggable responses)
+    const gapTextElements = responses
       .map(
         (response) =>
-          `      <gapImg identifier="RESPONSE_${response.id}">${response.value || response.label}</gapImg>`
+          `      <gapText identifier="RESPONSE_${response.id}" matchMax="${containers.length}">${response.value || response.label}</gapText>`
       )
       .join('\n');
 
@@ -122,11 +126,10 @@ export class ImageClozeAssociationGenerator extends BaseGenerator {
       })
       .join('\n');
 
-    const interaction = `${promptHtml}<graphicGapMatchInteraction responseIdentifier="${responseId}">
-${gapImgElements}
-      <object type="image/png" data="${imageUrl}" width="${dimensions.width}" height="${dimensions.height}">
+    const interaction = `<graphicGapMatchInteraction responseIdentifier="${responseId}">${promptHtml}
+      <object type="${imageMimeType(imageUrl)}" data="${escapeXml(imageUrl)}" width="${dimensions.width}" height="${dimensions.height}"/>
+${gapTextElements}
 ${hotspotElements}
-      </object>
     </graphicGapMatchInteraction>`;
 
     return interaction;

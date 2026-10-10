@@ -16,6 +16,11 @@ export interface QtiExtensionMetadata {
   };
   timestamp?: Date;
   qtiVersion?: string;
+  /**
+   * `sourceDigest` of the PIE config produced beside the QTI. pie-to-qti2 returns the embedded QTI
+   * only while the item's config has this digest.
+   */
+  configDigest?: string;
 }
 
 /**

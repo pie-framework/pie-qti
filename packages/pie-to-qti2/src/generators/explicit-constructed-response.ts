@@ -5,8 +5,9 @@
  */
 
 import { generateIdentifier } from '../utils/identifier-generator.js';
-import { QtiBuilder } from '../utils/qti-builder.js';
+import { escapeXml, QtiBuilder } from '../utils/qti-builder.js';
 import { buildResponseDeclaration } from '../utils/response-declaration-builder.js';
+import { templateScoring } from '../utils/scoring.js';
 import { BaseGenerator } from './base-generator.js';
 import type { GeneratorContext, GeneratorResult } from './types.js';
 
@@ -48,16 +49,19 @@ export class ExplicitConstructedResponseGenerator extends BaseGenerator {
     const responseId = 'RESPONSE';
 
     // Build response declaration with correct answer
-    const correctResponse = model.correctResponse || [];
+    // A single response holds one correct value; every accepted answer scores through the mapping,
+    // case-sensitively as PIE compares them.
+    const accepted: string[] = (
+      Array.isArray(model.correctResponse) ? model.correctResponse : [model.correctResponse]
+    ).filter((value: unknown): value is string => typeof value === 'string' && value !== '');
     const responseDecl = buildResponseDeclaration({
       identifier: responseId,
       cardinality: 'single',
       baseType: 'string',
-      correctResponse: Array.isArray(correctResponse) ? correctResponse : [correctResponse],
+      correctResponse: accepted.slice(0, 1),
+      mapping: accepted.map((mapKey) => ({ mapKey, mappedValue: 1, caseSensitive: true })),
+      mappingBounds: { defaultValue: 0, upperBound: 1 },
     });
-
-    // Build item body with textEntryInteraction
-    const prompt = model.prompt ? QtiBuilder.createPrompt(model.prompt) : '';
 
     // Build interaction with optional attributes
     const attributes: string[] = [`responseIdentifier="${responseId}"`];
@@ -67,17 +71,20 @@ export class ExplicitConstructedResponseGenerator extends BaseGenerator {
     }
 
     if (model.placeholder) {
-      attributes.push(`placeholderText="${model.placeholder}"`);
+      attributes.push(`placeholderText="${escapeXml(String(model.placeholder))}"`);
     }
 
     const interaction = `<textEntryInteraction ${attributes.join(' ')}/>`;
 
-    const itemBody = prompt ? `${prompt}\n    ${interaction}` : interaction;
+    // textEntryInteraction is inline and takes no prompt: the prompt becomes body content before it.
+    const body = `<p>${interaction}</p>`;
+    const itemBody = model.prompt ? `<div>${model.prompt}</div>\n    ${body}` : body;
 
     // Generate assessment item
     const qti = QtiBuilder.createAssessmentItem(itemId, [responseDecl], itemBody, {
       title: model.title || 'Text Entry Item',
       pieElement: model.element || this.id,
+      ...templateScoring(accepted.length > 0 ? 'map_response' : 'match_correct'),
     });
 
     this.debug(context, 'Successfully generated textEntryInteraction');

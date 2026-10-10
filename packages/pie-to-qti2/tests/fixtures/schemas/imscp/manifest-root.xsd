@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Validation root: IMS CP 1.1 with IEEE LOM, so the CP metadata wildcard validates `lom` strictly. -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="urn:pie-qti:manifest-root">
+  <xs:import namespace="http://www.imsglobal.org/xsd/imscp_v1p1" schemaLocation="imscp_v1p1.xsd"/>
+  <xs:import namespace="http://ltsc.ieee.org/xsd/LOM" schemaLocation="imsmd_loose_v1p3p2.xsd"/>
+</xs:schema>

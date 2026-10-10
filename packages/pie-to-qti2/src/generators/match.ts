@@ -4,9 +4,10 @@
  * Generates QTI matchInteraction from PIE match models
  */
 
-import { generateIdentifier } from '../utils/identifier-generator.js';
+import { generateIdentifier, prefixedIdentifier } from '../utils/identifier-generator.js';
 import { QtiBuilder } from '../utils/qti-builder.js';
 import { buildResponseDeclaration } from '../utils/response-declaration-builder.js';
+import { correctResponseScoring, partialScoringEnabled } from '../utils/scoring.js';
 import { BaseGenerator } from './base-generator.js';
 import type { GeneratorContext, GeneratorResult } from './types.js';
 
@@ -61,7 +62,7 @@ export class MatchGenerator extends BaseGenerator {
     // Build correct response pairs
     const correctPairs: string[] = [];
     for (const row of model.rows) {
-      const rowId = row.id;
+      const rowId = prefixedIdentifier('ROW_', row.id);
       // Skip first value (empty column)
       for (let i = 1; i < row.values.length; i++) {
         if (row.values[i]) {
@@ -72,11 +73,13 @@ export class MatchGenerator extends BaseGenerator {
     }
 
     // Build response declaration (pairs)
+    const { mapping, scoring } = correctResponseScoring(correctPairs, partialScoringEnabled(model));
     const responseDecl = buildResponseDeclaration({
       identifier: responseId,
       cardinality: 'multiple',
       baseType: 'directedPair',
       correctResponse: correctPairs,
+      ...mapping,
     });
 
     // Build item body with matchInteraction
@@ -93,6 +96,7 @@ export class MatchGenerator extends BaseGenerator {
     const qti = QtiBuilder.createAssessmentItem(itemId, [responseDecl], itemBody, {
       title: model.title || 'Match Item',
       pieElement: this.id,
+      ...scoring,
     });
 
     const warnings: string[] = [];
@@ -103,11 +107,6 @@ export class MatchGenerator extends BaseGenerator {
       );
     }
 
-    if (model.partialScoring) {
-      warnings.push(
-        'Partial scoring is not standard QTI - preserved in data-pie-partial-scoring'
-      );
-    }
 
     this.debug(context, `Successfully generated matchInteraction with ${model.rows.length} rows`);
 
@@ -125,13 +124,13 @@ export class MatchGenerator extends BaseGenerator {
     prompt?: string
   ): string {
     // Build prompt if present
-    const promptHtml = prompt ? `<prompt>${prompt}</prompt>\n    ` : '';
+    const promptHtml = prompt ? `\n      <prompt>${prompt}</prompt>` : '';
 
     // Build first simpleMatchSet (rows/stems)
     const rowChoices = rows
       .map(
         (row) =>
-          `        <simpleAssociableChoice identifier="${row.id}" matchMax="1">${row.title}</simpleAssociableChoice>`
+          `        <simpleAssociableChoice identifier="${prefixedIdentifier('ROW_', row.id)}" matchMax="1">${row.title}</simpleAssociableChoice>`
       )
       .join('\n');
 
@@ -145,7 +144,7 @@ export class MatchGenerator extends BaseGenerator {
       .join('\n');
 
     // Build matchInteraction
-    const interaction = `${promptHtml}<matchInteraction responseIdentifier="${responseId}" shuffle="${shuffle}" maxAssociations="${rows.length}">
+    const interaction = `<matchInteraction responseIdentifier="${responseId}" shuffle="${shuffle}" maxAssociations="${rows.length}">${promptHtml}
       <simpleMatchSet>
 ${rowChoices}
       </simpleMatchSet>

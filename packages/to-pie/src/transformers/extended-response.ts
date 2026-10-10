@@ -8,10 +8,7 @@ import type { PieExtendedTextModel, PieItem } from '@pie-qti/transform-types';
 import type { HTMLElement } from 'node-html-parser';
 import { v4 as uuidv4 } from 'uuid';
 import { extractInlineStimulus, extractObjectPassages, extractRubricBlock } from '../utils/passage-extraction.js';
-import {
-  extractItemBodyPromptBeforeInteraction,
-  extractPromptForInteraction,
-} from '../utils/prompt-extraction.js';
+import { extractPromptForInteraction } from '../utils/prompt-extraction.js';
 import { createMissingInteractionError } from '../utils/qti-errors.js';
 
 export interface ExtendedResponseOptions {
@@ -83,9 +80,7 @@ export async function transformExtendedResponseInteraction(
   const rubricModel = extractRubricBlock(itemElement);
 
   const promptOptions = { after: options.promptBoundaryStart };
-  const prompt =
-    extractItemBodyPromptBeforeInteraction(itemBody, extendedTextInteraction, promptOptions) ||
-    extractPromptForInteraction(itemBody, extendedTextInteraction, promptOptions);
+  const prompt = extractPromptForInteraction(itemBody, extendedTextInteraction, promptOptions);
 
   // Get expectedLines for height calculation
   const expectedLines = parseInt(extendedTextInteraction.getAttribute('expectedLines') || '0', 10);

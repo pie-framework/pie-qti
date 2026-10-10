@@ -12,7 +12,7 @@ export function generateIdentifier(input: string, prefix?: string): string {
   // Remove invalid characters and replace spaces with hyphens
   let identifier = input
     .replace(/[^a-zA-Z0-9_\-.]/g, '-')
-    .replace(/^[^a-zA-Z_]/, '_'); // Ensure starts with letter or underscore
+    .replace(/^(?=[^a-zA-Z_])/, '_'); // Ensure starts with letter or underscore
 
   // Add prefix if provided
   if (prefix) {
@@ -25,6 +25,14 @@ export function generateIdentifier(input: string, prefix?: string): string {
   }
 
   return identifier;
+}
+
+/**
+ * Map a PIE id to a QTI identifier under a fixed prefix, so ids that start with a
+ * digit (`'0'`, `'1'`) stay distinct and valid.
+ */
+export function prefixedIdentifier(prefix: string, id: string | number): string {
+  return `${prefix}${String(id).replace(/[^a-zA-Z0-9_\-.]/g, '_')}`;
 }
 
 /**
@@ -54,5 +62,5 @@ export function generateOutcomeIdentifier(name: string): string {
 export function sanitizeForIdentifier(input: string): string {
   return input
     .replace(/[^a-zA-Z0-9_-]/g, '')
-    .replace(/^[^a-zA-Z_]/, '_');
+    .replace(/^(?=[^a-zA-Z_])/, '_');
 }

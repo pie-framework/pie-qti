@@ -4,9 +4,10 @@
  * Generates QTI hotspotInteraction from PIE hotspot models
  */
 
-import { generateIdentifier } from '../utils/identifier-generator.js';
-import { QtiBuilder } from '../utils/qti-builder.js';
+import { generateIdentifier, prefixedIdentifier } from '../utils/identifier-generator.js';
+import { escapeXml, imageMimeType, QtiBuilder } from '../utils/qti-builder.js';
 import { buildResponseDeclaration } from '../utils/response-declaration-builder.js';
+import { correctResponseScoring, partialScoringEnabled } from '../utils/scoring.js';
 import { BaseGenerator } from './base-generator.js';
 import type { GeneratorContext, GeneratorResult } from './types.js';
 
@@ -83,23 +84,27 @@ export class HotspotGenerator extends BaseGenerator {
     const polygons = model.shapes.polygons || [];
 
     for (const rect of rectangles) {
-      if (rect.correct) correctIds.push(rect.id);
+      if (rect.correct) correctIds.push(prefixedIdentifier('HOTSPOT_', rect.id));
     }
     for (const poly of polygons) {
-      if (poly.correct) correctIds.push(poly.id);
+      if (poly.correct) correctIds.push(prefixedIdentifier('HOTSPOT_', poly.id));
     }
 
     // Build response declaration
-    const cardinality = correctIds.length > 1 ? 'multiple' : 'single';
+    // PIE does not cap a multiple-correct selection, so neither does QTI (maxChoices 0).
+    const multiple = Boolean(model.multipleCorrect) || correctIds.length > 1;
+    const cardinality = multiple ? 'multiple' : 'single';
+    const { mapping, scoring } = correctResponseScoring(correctIds, partialScoringEnabled(model));
     const responseDecl = buildResponseDeclaration({
       identifier: responseId,
       cardinality,
       baseType: 'identifier',
       correctResponse: correctIds,
+      ...mapping,
     });
 
     // Build item body with hotspotInteraction
-    const maxChoices = model.multipleCorrect ? correctIds.length : 1;
+    const maxChoices = multiple ? 0 : 1;
     const itemBody = this.buildItemBody(
       model.imageUrl,
       model.dimensions,
@@ -114,6 +119,7 @@ export class HotspotGenerator extends BaseGenerator {
     const qti = QtiBuilder.createAssessmentItem(itemId, [responseDecl], itemBody, {
       title: model.title || 'Hotspot Item',
       pieElement: this.id,
+      ...scoring,
     });
 
     const warnings: string[] = [];
@@ -130,11 +136,6 @@ export class HotspotGenerator extends BaseGenerator {
       );
     }
 
-    if (model.partialScoring) {
-      warnings.push(
-        'Partial scoring is not standard QTI - preserved in data-pie-partial-scoring'
-      );
-    }
 
     this.debug(
       context,
@@ -157,16 +158,16 @@ export class HotspotGenerator extends BaseGenerator {
     prompt?: string
   ): string {
     // Build prompt if present
-    const promptHtml = prompt ? `<prompt>${prompt}</prompt>\n    ` : '';
+    const promptHtml = prompt ? `\n      <prompt>${prompt}</prompt>` : '';
 
-    // Build image element
-    const imageElement = `<img src="${imageUrl}" width="${dimensions.width}" height="${dimensions.height}" />`;
+    // Graphic interactions take their image as an <object>
+    const imageElement = `<object type="${imageMimeType(imageUrl)}" data="${escapeXml(imageUrl)}" width="${dimensions.width}" height="${dimensions.height}"/>`;
 
     // Build hotspotChoice elements for rectangles
     const rectChoices = rectangles
       .map((rect) => {
         const coords = `${rect.x},${rect.y},${rect.x + rect.width},${rect.y + rect.height}`;
-        return `      <hotspotChoice identifier="${rect.id}" shape="rect" coords="${coords}" />`;
+        return `      <hotspotChoice identifier="${prefixedIdentifier('HOTSPOT_', rect.id)}" shape="rect" coords="${coords}" />`;
       })
       .join('\n');
 
@@ -174,7 +175,7 @@ export class HotspotGenerator extends BaseGenerator {
     const polyChoices = polygons
       .map((poly) => {
         const coords = poly.points.map((p) => `${p.x},${p.y}`).join(',');
-        return `      <hotspotChoice identifier="${poly.id}" shape="poly" coords="${coords}" />`;
+        return `      <hotspotChoice identifier="${prefixedIdentifier('HOTSPOT_', poly.id)}" shape="poly" coords="${coords}" />`;
       })
       .join('\n');
 
@@ -182,8 +183,8 @@ export class HotspotGenerator extends BaseGenerator {
     const allChoices = [rectChoices, polyChoices].filter((c) => c).join('\n');
 
     // Build hotspotInteraction
-    const maxChoicesAttr = maxChoices > 1 ? ` maxChoices="${maxChoices}"` : '';
-    const interaction = `${promptHtml}<hotspotInteraction responseIdentifier="${responseId}"${maxChoicesAttr}>
+    const maxChoicesAttr = maxChoices === 1 ? '' : ` maxChoices="${maxChoices}"`;
+    const interaction = `<hotspotInteraction responseIdentifier="${responseId}"${maxChoicesAttr}>${promptHtml}
       ${imageElement}
 ${allChoices}
     </hotspotInteraction>`;

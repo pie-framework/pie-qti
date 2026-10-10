@@ -4,11 +4,16 @@
  * Transforms PIE assessment items to QTI 2.2 format with lossless round-trip support
  */
 
-import type {PieItem, PieModel, 
-  TransformContext,
-  TransformInput,
-  TransformOutput,
-  TransformPlugin
+import {
+  PIE_SOURCE_SIDECAR_FORMAT,
+  type PieItem,
+  type PieModel,
+  type PieSourceSidecar,
+  type TransformContext,
+  type TransformInput,
+  type TransformOutput,
+  type TransformPlugin,
+  sourceDigest,
 } from '@pie-qti/transform-types';
 import { generateManifest } from './generators/manifest-generator.js';
 import {
@@ -20,7 +25,12 @@ import { defaultRegistry, GeneratorRegistry } from './generators/registry.js';
 import type { PieToQtiGenerator } from './generators/types.js';
 import type { ManifestInput } from './types/manifest.js';
 import type { GeneratedPassageFile, PassageResolver, PassageStrategy } from './types/passages.js';
-import { embedPieExtension } from './utils/index.js';
+import { withResolvedPackages } from './utils/element-package.js';
+import { generateIdentifier } from './utils/identifier-generator.js';
+import { composeItems } from './utils/item-composer.js';
+import { pieSourceSidecarPath } from './utils/pie-source-sidecar.js';
+import { isRubricModel, renderRubricBlock } from './utils/rubric-block.js';
+import { normalizeItemBody } from './utils/xhtml.js';
 import { detectPassages } from './utils/passage-detection.js';
 // Import to trigger auto-registration of built-in generators
 import './generators/index.js';
@@ -152,14 +162,27 @@ export class PieToQtiPlugin implements TransformPlugin {
 
     const pieItem = pieContent as PieItem;
 
-    // Check for embedded QTI source first for lossless round-trip
+    // Check for embedded QTI source first for lossless round-trip. It is used only while the config
+    // still has the digest to-pie recorded; a config edited since import is generated afresh.
+    const sourceWarnings: string[] = [];
     if (hasQtiSource(pieItem)) {
-      logger?.info('Detected embedded QTI source - using lossless reconstruction');
-      return this.reconstructFromQtiSource(pieItem, startTime, logger);
+      const recorded = pieItem.metadata?.qtiSource?.metadata?.configDigest;
+      if (recorded && recorded === (await sourceDigest(pieItem.config ?? {}))) {
+        logger?.info('Detected embedded QTI source - using lossless reconstruction');
+        return this.reconstructFromQtiSource(pieItem, startTime, logger);
+      }
+      sourceWarnings.push(
+        recorded
+          ? 'Embedded QTI source does not match the PIE config, which changed after import; the QTI was generated from the config'
+          : 'Embedded QTI source has no digest to show it matches the PIE config; the QTI was generated from the config'
+      );
     }
 
-    // Extract ALL models (multi-model support)
-    const models = pieItem.config?.models || (pieItem as any).models || [];
+    // Extract ALL models (multi-model support), each named by its package id
+    const models = withResolvedPackages(
+      pieItem.config?.models || (pieItem as any).models || [],
+      pieItem.config?.elements
+    );
     if (models.length === 0) {
       throw new Error('PIE item has no models');
     }
@@ -203,10 +226,7 @@ export class PieToQtiPlugin implements TransformPlugin {
 
     // Categorize models by type for multi-model support
     const passages = models.filter(m => m.element === '@pie-element/passage');
-    const rubrics = models.filter(m =>
-      m.element === '@pie-element/rubric' ||
-      m.element === '@pie-element/complex-rubric'
-    );
+    const rubrics = models.filter(isRubricModel);
     const interactions = models.filter(m =>
       !passages.includes(m) && !rubrics.includes(m)
     );
@@ -215,48 +235,48 @@ export class PieToQtiPlugin implements TransformPlugin {
       throw new Error('PIE item has no interaction models');
     }
 
-    // For Phase 1: Process primary interaction (single-interaction support)
-    // Phase 2 will support multiple interactions
     const primaryModel = interactions[0];
     const elementType = primaryModel.element || 'unknown';
 
-    if (interactions.length > 1) {
-      logger?.warn(
-        `Item has ${interactions.length} interactions - only processing first one. ` +
-        `Multiple interactions per item will be supported in a future release.`
-      );
-    }
-
     logger?.info(`Primary interaction type: ${elementType}`);
 
-    // Find appropriate generator for primary interaction
-    const generator = this.registry.findGenerator(primaryModel);
-
-    if (!generator) {
-      throw new Error(
-        `No generator found for PIE element type: ${elementType}. ` +
-        `Registered types: ${this.registry.getRegisteredTypes().join(', ')}`
-      );
+    // Each interaction is generated as a complete item; several are then composed into one.
+    const generated = [];
+    for (const model of interactions) {
+      const generator = this.registry.findGenerator(model);
+      if (!generator) {
+        throw new Error(
+          `No generator found for PIE element type: ${model.element || 'unknown'}. ` +
+          `Registered types: ${this.registry.getRegisteredTypes().join(', ')}`
+        );
+      }
+      logger?.info(`Using generator: ${generator.name} v${generator.version}`);
+      const generatorContext = {
+        pieItem,
+        model,
+        logger,
+        // Multi-model context for generators to use
+        allModels: models,
+        passages,
+        rubrics,
+        interactions,
+      };
+      generated.push({ generator, result: await Promise.resolve(generator.generate(generatorContext)) });
     }
+    const { generator, result } = generated[0];
 
-    logger?.info(`Using generator: ${generator.name} v${generator.version}`);
-
-    // Generate QTI using the generator with multi-model context
-    const generatorContext = {
-      pieItem,
-      model: primaryModel,
-      logger,
-      // Multi-model context for generators to use
-      allModels: models,
-      passages,
-      rubrics,
-      interactions,
-    };
-
-    const result = await Promise.resolve(generator.generate(generatorContext));
-
-    // Combine multi-model content into single QTI item
     let qtiXml = result.qti;
+    const compositionWarnings: string[] = [];
+    if (generated.length > 1) {
+      logger?.info(`Composing ${generated.length} interactions into one item`);
+      const composed = composeItems(
+        generateIdentifier(pieItem.id || pieItem.uuid),
+        generated.map((entry) => entry.result.qti),
+        { pieElement: interactions.map((model) => model.element).join(', ') }
+      );
+      qtiXml = composed.qti;
+      compositionWarnings.push(...composed.warnings);
+    }
 
     // Handle passages based on strategy
     if (effectiveStrategy === 'external' && generatedPassageFiles.length > 0) {
@@ -271,35 +291,44 @@ export class PieToQtiPlugin implements TransformPlugin {
       qtiXml = this.inlinePassages(qtiXml, passages, logger);
     }
 
-    // Add rubrics (future: will be added to QTI item)
-    if (rubrics.length > 0) {
-      logger?.info(`Note: ${rubrics.length} rubric(s) detected but not yet implemented`);
+    const rubricBlocks = rubrics.flatMap((rubric) => renderRubricBlock(rubric)?.html ?? []);
+    if (rubricBlocks.length > 0) {
+      qtiXml = qtiXml.replace('</itemBody>', `${rubricBlocks.join('\n')}\n</itemBody>`);
     }
+    // Composition, passages and rubrics write body content after the generator; normalize it once more.
+    qtiXml = normalizeItemBody(qtiXml);
 
     // Log warnings if any
-    const allWarnings = result.metadata?.warnings || [];
+    const allWarnings = [
+      ...sourceWarnings,
+      ...generated.flatMap((entry) => entry.result.metadata?.warnings || []),
+      ...compositionWarnings,
+    ];
     for (const warning of allWarnings) {
       logger?.warn(warning);
     }
 
-    // Add searchMetaData to QTI (Phase 1: metadata preservation)
-    qtiXml = this.addSearchMetadata(qtiXml, pieItem, logger);
-
-    // Embed PIE sourceModel for lossless round-trip
-    const qtiWithExtension = embedPieExtension(qtiXml, pieItem, {
+    // The PIE item travels beside the QTI for a lossless round-trip: QTI 2.2 admits no foreign
+    // elements in assessmentItem, so neither the source model nor its baseId and searchMetaData can
+    // be embedded.
+    const sidecar: PieSourceSidecar = {
+      format: PIE_SOURCE_SIDECAR_FORMAT,
+      version: 1,
+      sourceModel: pieItem,
       generator: {
         package: '@pie-qti/pie-to-qti2',
         version: this.version,
       },
       elementType,
-      timestamp: new Date(),
-    });
+      generatedAt: new Date().toISOString(),
+      qtiDigest: await sourceDigest(qtiXml),
+    };
 
     const processingTime = Date.now() - startTime;
 
     // Build transform output
     const output: TransformOutput = {
-      items: [{ content: qtiWithExtension, format: 'qti22' }],
+      items: [{ content: qtiXml, format: 'qti22', sidecar }],
       format: 'qti22',
       metadata: {
         sourceFormat: 'pie',
@@ -333,12 +362,16 @@ export class PieToQtiPlugin implements TransformPlugin {
           {
             id: pieItem.baseId || pieItem.id,
             filePath: `items/${pieItem.baseId || pieItem.id}.xml`,
+            files: [pieSourceSidecarPath(`items/${pieItem.baseId || pieItem.id}.xml`)],
             dependencies: generatedPassageFiles.map(pf => pf.id),
+            baseId: pieItem.baseId,
+            searchMetaData: pieItem.searchMetaData,
           },
         ],
         passages: generatedPassageFiles.map(pf => ({
           id: pf.id,
           filePath: pf.filePath,
+          searchMetaData: pf.metadata,
         })),
         options: {
           packageId: `pkg-${pieItem.baseId || pieItem.id}`,
@@ -515,74 +548,6 @@ export class PieToQtiPlugin implements TransformPlugin {
   }
 
   /**
-   * Add searchMetaData and baseId to QTI XML
-   */
-  private addSearchMetadata(qtiXml: string, pieItem: PieItem, logger: any): string {
-    const searchMetaData = pieItem.searchMetaData || (pieItem.metadata as any)?.searchMetaData;
-    const hasSearchMetaData = searchMetaData && Object.keys(searchMetaData).length > 0;
-    const hasBaseId = !!pieItem.baseId;
-
-    if (!hasSearchMetaData && !hasBaseId) {
-      return qtiXml; // No metadata to add
-    }
-
-    logger?.info('Adding metadata to QTI item');
-
-    // Generate qti-metadata-field elements
-    const metadataFields: string[] = [];
-
-    // Add baseId for round-trip compatibility
-    if (hasBaseId && pieItem.baseId) {
-      logger?.info(`Preserving baseId for round-trip: ${pieItem.baseId}`);
-      // Add sourceSystemId to identify this as PIE-originated
-      metadataFields.push(`<qti-metadata-field name="sourceSystemId" value="pie"/>`);
-      // Add externalId (used by qti2-to-pie to restore baseId)
-      metadataFields.push(`<qti-metadata-field name="externalId" value="${escapeXml(pieItem.baseId)}"/>`);
-    }
-
-    // Add searchMetaData fields
-    if (hasSearchMetaData) {
-      const searchMetaDataFields = Object.entries(searchMetaData)
-        .map(([key, value]) => {
-          let valueStr: string;
-          let dataType: string | undefined;
-
-          if (Array.isArray(value)) {
-            valueStr = value.join(',');
-            dataType = 'array';
-          } else if (typeof value === 'number') {
-            valueStr = String(value);
-            dataType = 'number';
-          } else {
-            valueStr = String(value);
-          }
-
-          const dataTypeAttr = dataType ? ` data-type="${dataType}"` : '';
-          return `<qti-metadata-field name="${escapeXml(key)}" value="${escapeXml(valueStr)}"${dataTypeAttr}/>`;
-        });
-      metadataFields.push(...searchMetaDataFields);
-    }
-
-    const metadataSection = `<qti-metadata>\n    ${metadataFields.join('\n    ')}\n  </qti-metadata>`;
-
-    // Insert metadata section after assessmentItem opening tag but before itemBody
-    const insertAfter = qtiXml.indexOf('<assessmentItem');
-    const insertAt = qtiXml.indexOf('>', insertAfter) + 1;
-
-    if (insertAt <= 0) {
-      logger?.warn('Could not find assessmentItem tag - skipping metadata insertion');
-      return qtiXml;
-    }
-
-    return (
-      qtiXml.slice(0, insertAt) +
-      '\n  ' +
-      metadataSection +
-      qtiXml.slice(insertAt)
-    );
-  }
-
-  /**
    * Reconstruct from embedded QTI source (lossless round-trip)
    */
   private reconstructFromQtiSource(
@@ -599,13 +564,15 @@ export class PieToQtiPlugin implements TransformPlugin {
     logger?.info('Successfully reconstructed QTI from embedded source');
 
     const processingTime = Date.now() - startTime;
+    // The embedded document keeps its own version, which to-pie recorded on import.
+    const format = SOURCE_FORMATS[pieItem.metadata?.qtiSource?.metadata?.qtiVersion] ?? 'qti22';
 
     return {
-      items: [{ content: qtiXml, format: 'qti22' }],
-      format: 'qti22',
+      items: [{ content: qtiXml, format }],
+      format,
       metadata: {
         sourceFormat: 'pie',
-        targetFormat: 'qti22',
+        targetFormat: format,
         pluginId: this.id,
         timestamp: new Date(),
         itemCount: 1,
@@ -615,6 +582,8 @@ export class PieToQtiPlugin implements TransformPlugin {
     };
   }
 }
+
+const SOURCE_FORMATS: Record<string, string> = { '2.1': 'qti21', '2.2': 'qti22', '3.0': 'qti30' };
 
 /**
  * Extract original QTI XML from PIE item metadata

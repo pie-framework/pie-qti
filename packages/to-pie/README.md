@@ -240,9 +240,10 @@ applyBehavioralClasses(pieModel, classes.behavioral);
 
 ## Supported QTI Versions
 
-- QTI 3.0 (items and assessments; auto-detected)
 - QTI 2.2 (primary compatibility baseline)
 - QTI 2.1 / 2.0 (compatibility; warnings are emitted for legacy versions)
+
+QTI 3.0 input is detected and not transformed: each QTI 3.0 item fails with a `QTI_VERSION_UNSUPPORTED` diagnostic unless a registered vendor transformer handles it.
 
 The plugin format id remains `qti22` for registry compatibility, but input XML is version-detected at runtime.
 
@@ -328,63 +329,38 @@ console.log(pieToQtiResult.items[0].format); // 'qti22'
 const qtiXml = pieToQtiResult.items[0].content; // QTI XML string
 ```
 
-### Lossless Round-Trip via PIE Extension
+### Lossless Round-Trip via the PIE Source Sidecar
 
-The plugin supports lossless round-trip transformation (PIE → QTI → PIE) via the PIE namespace extension:
+`@pie-qti/pie-to-qti2` writes the PIE item beside each QTI item as a `.pie.json` sidecar, listed under
+the item's `<resource>` in the content package. `transformQtiPackageToPie` reads a listed sidecar
+automatically; a bare item transform takes it as `sidecar`:
 
 ```typescript
-import { hasPieExtension, extractPieExtension } from '@pie-qti/to-pie';
-
-// Check if QTI has PIE extension
-if (hasPieExtension(qtiXml)) {
-  // Extract original PIE model
-  const { sourceModel, metadata } = extractPieExtension(qtiXml);
-
-  // Returns exact original PIE item with all properties preserved
-  return { items: [{ content: sourceModel, format: 'pie' }], ... };
-}
+const result = await plugin.transform({ content: qtiXml, sidecar: sidecarJson }, { logger });
 ```
 
-**When PIE extension is present:**
+The sidecar records a digest of the QTI item it was written beside, and is used only while the item
+still has that digest:
 
-- Original PIE model is extracted verbatim
-- No QTI → PIE transformation occurs
-- 100% lossless round-trip guaranteed
-- Vendor-specific configuration preserved
+- **Unchanged item:** the original PIE item is returned verbatim, with `baseId`, `searchMetaData` and
+  vendor configuration.
+- **Item edited after export:** the QTI body is transformed, with a `PIE_SOURCE_STALE` warning and a
+  `fallback` trace event.
+- **Unreadable sidecar:** the QTI body is transformed, with a `PIE_EXTENSION_UNREADABLE` warning.
 
-**When PIE extension is absent:**
+QTI from releases before the sidecar embeds the PIE item as `<pie:sourceModel>`. It carries no digest,
+so it is ignored with a `PIE_SOURCE_STALE` warning and the QTI body is transformed.
 
-- Standard QTI → PIE transformation applied
-- `baseId` extracted from metadata
-- Best-effort semantic mapping
-- Some PIE-specific features may be approximated
+The reverse direction works the same way: every transformed item keeps the original QTI in
+`metadata.qtiSource` with a digest of the final PIE config, and pie-to-qti2 writes the original QTI back
+only while the config is unchanged.
 
 ### Metadata Preservation
 
-The transformation pipeline preserves metadata across round-trips:
-
-```typescript
-// Metadata preserved during PIE → QTI
-{
-  sourceSystemId: 'pie',           // Identifies origin system
-  externalId: pieItem.baseId,      // Stable identifier
-  itemType: 'MC',                  // PIE item type
-  // Custom vendor metadata...
-}
-
-// Extracted during QTI → PIE
-const baseId = extractBaseId(qtiElement); // Reads externalId with sourceSystemId=pie
-const pieItem = {
-  id: baseId || qtiIdentifier,
-  baseId: baseId,                   // Preserved for round-trips
-  metadata: {
-    searchMetaData: {
-      itemType: 'MC',
-      source: 'qti'
-    }
-  }
-};
-```
+`baseId` and `searchMetaData` travel in the sidecar. Without a fresh one, `transformQtiPackageToPie`
+reads them from the IEEE LOM pie-to-qti2 writes on the item's manifest resource, keeping any value the
+item already has; a bare item transform reads `baseId` from a `qti-metadata-field` named `externalId`
+or `baseId`, which earlier pie-to-qti2 releases wrote.
 
 ### Best Practices for Round-Trip Scenarios
 
@@ -398,15 +374,8 @@ const pieItem = {
    };
    ```
 
-2. **Check for PIE extension** when transforming QTI that may have originated from PIE:
-
-   ```typescript
-   if (hasPieExtension(qtiXml)) {
-     // Lossless path - original PIE preserved
-   } else {
-     // Lossy path - best-effort QTI → PIE transformation
-   }
-   ```
+2. **Keep the sidecar with the item** when moving QTI exported from PIE: an item transformed
+   without it is mapped from its QTI body, which approximates some PIE features.
 
 3. **Use consistent output format** when building pipelines:
 
@@ -440,7 +409,7 @@ bun test tests/integration/passage-roundtrip.test.ts
 # - Identifier mapping
 # - Metadata preservation
 # - Passage reference integrity
-# - Lossless PIE extension extraction
+# - Lossless PIE source sidecar extraction
 ```
 
 ## Architecture

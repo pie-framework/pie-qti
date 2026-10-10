@@ -68,15 +68,16 @@ describe('QTI 2.2.2 Structure Verification', () => {
 
     // Verify structure
     expect(qtiXml).toContain('assessmentItem');
-    expect(qtiXml).toContain('<qti-metadata>');
+    // The source model, search metadata included, travels in the PIE source sidecar.
+    expect(qtiXml).not.toContain('pie:');
+    expect(qtiXml).not.toContain('qti-metadata');
+    expect(result.items[0].sidecar?.sourceModel.searchMetaData).toEqual(pieItem.searchMetaData);
     expect(qtiXml).toContain('<div class="stimulus"');
     expect(qtiXml).toContain('choiceInteraction');
 
-    // Check metadata format
-    expect(qtiXml).toContain('name="subject" value="Science"');
-    expect(qtiXml).toContain('name="gradeLevel" value="8,9"');
-    expect(qtiXml).toContain('data-type="array"');
-    expect(qtiXml).toContain('name="difficulty" value="0.72"');
-    expect(qtiXml).toContain('data-type="number"');
+    // The source model, search metadata included, travels in the PIE source sidecar.
+    expect(qtiXml).not.toContain('pie:');
+    expect(qtiXml).not.toContain('qti-metadata');
+    expect(result.items[0].sidecar?.sourceModel.searchMetaData).toEqual(pieItem.searchMetaData);
   });
 });

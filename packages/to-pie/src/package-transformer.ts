@@ -33,6 +33,8 @@ import {
   detectPackageProfiles,
 } from './source-profile-runtime.js';
 import { isAssessmentTestDocument } from './utils/qti-validator.js';
+import { applyPieResourceLom, readPieResourceLom } from './utils/manifest-lom.js';
+import { findPieSourceSidecarPath } from './utils/pie-source-sidecar.js';
 
 export interface QtiPackageTransformInput {
   packageId?: string;
@@ -85,6 +87,25 @@ export interface QtiPackageTransformResult {
   rubricCandidates: RubricCandidate[];
   warnings: TransformWarning[];
   conversionTrace: ConversionTrace;
+}
+
+/**
+ * The text of the PIE source sidecar listed under an item resource. A listed sidecar that cannot
+ * be read comes back as `null`, so the item transform reports it and falls back to the QTI body.
+ */
+async function readListedPieSourceSidecar(
+  resourceFiles: readonly string[],
+  fileAccess: PackageFileAccess
+): Promise<string | null | undefined> {
+  const sidecarPath = findPieSourceSidecarPath(resourceFiles);
+  if (!sidecarPath) {
+    return undefined;
+  }
+  try {
+    return (await fileAccess.readText(sidecarPath)) ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -175,6 +196,7 @@ export async function transformAnalyzedQtiPackageToPie({
       sourceProfiles: profiles,
     });
 
+  const resourceLom = readPieResourceLom(manifestXml);
   const itemOutputs: TransformOutput[] = [];
   const itemResults: QtiPackageItemTransformResult[] = [];
   const failedItemDiagnostics: SourceProfileDiagnostic[] = [];
@@ -281,11 +303,13 @@ export async function transformAnalyzedQtiPackageToPie({
       for (const rubricCandidate of itemRubricCandidates) {
         traceEvents.push(rubricTraceEvent(rubricCandidate, node));
       }
+      const sidecar = await readListedPieSourceSidecar(node.resolvedFiles, fileAccess);
       try {
         const output = await transformer.transform(
           {
             content: itemXml,
             format: 'qti',
+            ...(sidecar !== undefined && { sidecar }),
             metadata: {
               resourceId: node.identifier,
               sourcePath: node.resolvedHref,
@@ -303,6 +327,7 @@ export async function transformAnalyzedQtiPackageToPie({
           },
           context ?? {}
         );
+        applyPieResourceLom(output, resourceLom.get(node.identifier));
         return {
           genericRubricCandidates: itemRubricCandidates,
           itemOutputs: [output],

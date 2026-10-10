@@ -148,6 +148,45 @@ describe('transformMultipleChoice', () => {
     expect(model.choiceMode).toBe('checkbox');
   });
 
+  test('should keep itemBody content before the interaction alongside its prompt', async () => {
+    const qti = createQtiWrapper(`
+      ${createResponseDeclaration('RESPONSE', 'single', ['choiceA'])}
+      <itemBody>
+        <p>A farmer plants 12 rows of corn.</p>
+        <div><img src="field.png" alt="Field"/></div>
+        <choiceInteraction responseIdentifier="RESPONSE" maxChoices="1">
+          <prompt>How many plants are there?</prompt>
+          <simpleChoice identifier="choiceA">48</simpleChoice>
+          <simpleChoice identifier="choiceB">36</simpleChoice>
+        </choiceInteraction>
+      </itemBody>
+    `, 'mc-stem-and-prompt-001', 'Stem and Prompt');
+
+    const result = await transformMultipleChoice(parseQtiItem(qti), 'mc-stem-and-prompt-001');
+
+    expect(result.config.models[0].prompt).toBe(
+      '<p>A farmer plants 12 rows of corn.</p><div><img src="field.png" alt="Field"></div>' +
+        '<div>How many plants are there?</div>'
+    );
+  });
+
+  test('should keep paragraphs before the interaction separate', async () => {
+    const qti = createQtiWrapper(`
+      ${createResponseDeclaration('RESPONSE', 'single', ['choiceA'])}
+      <itemBody>
+        <p>First sentence.</p>
+        <p>Second <b>sentence</b>.</p>
+        <choiceInteraction responseIdentifier="RESPONSE" maxChoices="1">
+          <simpleChoice identifier="choiceA">A</simpleChoice>
+        </choiceInteraction>
+      </itemBody>
+    `, 'mc-paragraphs-001', 'Paragraphs');
+
+    const result = await transformMultipleChoice(parseQtiItem(qti), 'mc-paragraphs-001');
+
+    expect(result.config.models[0].prompt).toBe('<p>First sentence.</p><p>Second <b>sentence</b>.</p>');
+  });
+
   test('should support partial scoring option', async () => {
     const itemElement = parseQtiItem(sampleMultipleSelectQti);
 

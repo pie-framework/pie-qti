@@ -15,7 +15,7 @@ import {
 } from '@pie-qti/test-utils';
 import { QtiToPiePlugin } from '../src/plugin';
 import type { CssClassExtractor, VendorDetector } from '../src/types/vendor-extensions';
-import type { QtiSourceProfile } from '@pie-qti/transform-types';
+import { type QtiSourceProfile, sourceDigest } from '@pie-qti/transform-types';
 
 // Create sample QTI using test utilities
 const sampleQtiXml = createQtiWrapper(
@@ -453,6 +453,164 @@ describe('QtiToPiePlugin', () => {
     expect(output.metadata.sourceFormat).toBe('qti21');
     expect(output.metadata.qtiVersion).toBe('2.1');
     expect(output.items[0].content.metadata.qtiSource.metadata.qtiVersion).toBe('2.1');
+  });
+
+  test('should transform the QTI body when the QTI embeds a PIE source model without a digest', async () => {
+    const plugin = new QtiToPiePlugin();
+    const qtiWithBrokenExtension = `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" xmlns:pie="https://github.com/pie-framework/pie-elements" identifier="broken-ext" title="Broken Extension" adaptive="false" timeDependent="false">
+  ${createResponseDeclaration('RESPONSE', 'single', ['choiceA'])}
+  <itemBody>
+    <p>What is 2 + 2?</p>
+    ${createChoiceInteraction('RESPONSE', [
+      { id: 'choiceA', text: '4' },
+      { id: 'choiceB', text: '3' },
+    ])}
+  </itemBody>
+  <pie:sourceModel><![CDATA[{"id": "truncated]]></pie:sourceModel>
+</assessmentItem>`;
+
+    const output = await plugin.transform(
+      { content: qtiWithBrokenExtension },
+      { logger: new SilentLogger() }
+    );
+
+    expect(output.items[0].content.config.models[0].element).toBe('multiple-choice');
+    expect(output.items[0].content.config.models[0].prompt).toContain('What is 2 + 2?');
+    expect(output.warnings?.some((w) => w.code === 'PIE_SOURCE_STALE')).toBe(true);
+    expect(output.metadata.conversionTrace?.events.some((e) => e.kind === 'fallback')).toBe(true);
+  });
+
+  test('should reconstruct the PIE item from its source sidecar', async () => {
+    const plugin = new QtiToPiePlugin();
+    const sourceModel = {
+      id: 'sidecar-item',
+      config: { models: [{ id: '1', element: 'pie-mc', prompt: 'From the sidecar' }], elements: { 'pie-mc': '@pie-element/multiple-choice@11.0.0' } },
+      searchMetaData: { subject: 'Math' },
+    };
+
+    const output = await plugin.transform(
+      {
+        content: sampleQtiXml,
+        sidecar: JSON.stringify({
+          format: 'pie-qti/pie-source',
+          version: 1,
+          qtiDigest: await sourceDigest(sampleQtiXml.replaceAll('\n', '\r\n')),
+          sourceModel,
+        }),
+      },
+      { logger: new SilentLogger() }
+    );
+
+    expect(output.items[0].content.id).toBe('sidecar-item');
+    expect(output.items[0].content.config.models[0].prompt).toBe('From the sidecar');
+    expect(output.items[0].content.searchMetaData).toEqual({ subject: 'Math' });
+    expect(output.warnings?.some((w) => w.code === 'PIE_EXTENSION_UNREADABLE')).toBeFalsy();
+  });
+
+  test('should transform the QTI body when the item changed after its sidecar was written', async () => {
+    const plugin = new QtiToPiePlugin();
+    const sourceModel = { id: 'sidecar-item', config: { models: [{ id: '1', element: 'pie-mc' }] } };
+    const sidecar = JSON.stringify({
+      format: 'pie-qti/pie-source',
+      version: 1,
+      qtiDigest: await sourceDigest(sampleQtiXml),
+      sourceModel,
+    });
+
+    for (const content of [sampleQtiXml.replace('</itemBody>', '<p>Edited.</p></itemBody>'), undefined]) {
+      const output = await plugin.transform(
+        {
+          content: content ?? sampleQtiXml,
+          sidecar: content ? sidecar : JSON.stringify({ format: 'pie-qti/pie-source', version: 1, sourceModel }),
+        },
+        { logger: new SilentLogger() }
+      );
+
+      expect(output.items[0].content.id).not.toBe('sidecar-item');
+      expect(output.items[0].content.config.models[0].element).toBe('multiple-choice');
+      expect(output.warnings?.some((w) => w.code === 'PIE_SOURCE_STALE')).toBe(true);
+      expect(output.metadata.conversionTrace?.events.some((e) => e.kind === 'fallback')).toBe(true);
+    }
+  });
+
+  test('should record the digest of the final PIE config beside the embedded QTI', async () => {
+    const plugin = new QtiToPiePlugin();
+
+    const output = await plugin.transform({ content: sampleQtiXml }, { logger: new SilentLogger() });
+    const item = output.items[0].content;
+
+    expect(item.metadata.qtiSource.metadata.configDigest).toBe(await sourceDigest(item.config));
+  });
+
+  test('should transform the QTI body when the PIE source sidecar is unreadable', async () => {
+    const plugin = new QtiToPiePlugin();
+
+    const output = await plugin.transform(
+      { content: sampleQtiXml, sidecar: '{"format": "pie-qti/pie-source"' },
+      { logger: new SilentLogger() }
+    );
+
+    expect(output.items[0].content.config.models[0].element).toBe('multiple-choice');
+    expect(output.warnings?.some((w) => w.code === 'PIE_EXTENSION_UNREADABLE')).toBe(true);
+    expect(output.metadata.conversionTrace?.events.some((e) => e.kind === 'fallback')).toBe(true);
+  });
+
+  test('should remove unmapped feedback from transformed content and report it', async () => {
+    const plugin = new QtiToPiePlugin();
+    const qtiWithFeedback = `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="feedback-item" title="Feedback" adaptive="false" timeDependent="false">
+  ${createResponseDeclaration('RESPONSE', 'single', ['choiceA'])}
+  <outcomeDeclaration identifier="FEEDBACK" cardinality="single" baseType="identifier"/>
+  <itemBody>
+    <p>What is 2 + 2?</p>
+    <choiceInteraction responseIdentifier="RESPONSE" maxChoices="1">
+      <simpleChoice identifier="choiceA">4<feedbackInline outcomeIdentifier="FEEDBACK" identifier="choiceA" showHide="show"> Correct, four.</feedbackInline></simpleChoice>
+      <simpleChoice identifier="choiceB">3</simpleChoice>
+    </choiceInteraction>
+    <feedbackBlock outcomeIdentifier="FEEDBACK" identifier="choiceB" showHide="show"><p>Count again.</p></feedbackBlock>
+  </itemBody>
+  <modalFeedback outcomeIdentifier="FEEDBACK" identifier="choiceA" showHide="show">Well done.</modalFeedback>
+</assessmentItem>`;
+
+    const output = await plugin.transform({ content: qtiWithFeedback }, { logger: new SilentLogger() });
+    const item = output.items[0].content;
+    const model = item.config.models[0];
+
+    expect(model.choices[0].label).toBe('4');
+    expect(model.prompt).toBe('What is 2 + 2?');
+    expect(item.config.markup).not.toContain('Count again');
+    const warning = output.warnings?.find((w) => w.code === 'QTI_FEEDBACK_DROPPED');
+    expect(warning?.message).toContain('1 modalFeedback, 1 feedbackBlock, 1 feedbackInline');
+    expect(item.metadata.qtiSource.xml).toContain('Correct, four.');
+  });
+
+  test('should keep feedback a built-in maps without reporting it', async () => {
+    const plugin = new QtiToPiePlugin();
+    const ebsrWithChoiceFeedback = `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="ebsr-feedback" title="EBSR Feedback" adaptive="false" timeDependent="false">
+  ${createResponseDeclaration('RESPONSE_A', 'single', ['A'])}
+  ${createResponseDeclaration('RESPONSE_B', 'single', ['X'])}
+  <itemBody>
+    <choiceInteraction responseIdentifier="RESPONSE_A" maxChoices="1">
+      <prompt>Part A</prompt>
+      <simpleChoice identifier="A">Choice A<feedbackInline outcomeIdentifier="FEEDBACK" identifier="A" showHide="show">Yes.</feedbackInline></simpleChoice>
+      <simpleChoice identifier="B">Choice B</simpleChoice>
+    </choiceInteraction>
+    <choiceInteraction responseIdentifier="RESPONSE_B" maxChoices="1">
+      <prompt>Part B</prompt>
+      <simpleChoice identifier="X">Evidence X</simpleChoice>
+      <simpleChoice identifier="Y">Evidence Y</simpleChoice>
+    </choiceInteraction>
+  </itemBody>
+</assessmentItem>`;
+
+    const output = await plugin.transform({ content: ebsrWithChoiceFeedback }, { logger: new SilentLogger() });
+    const choice = output.items[0].content.config.models[0].partA.choices[0];
+
+    expect(choice.label).toBe('Choice A');
+    expect(choice.feedback).toBe('Yes.');
+    expect(output.warnings?.some((w) => w.code === 'QTI_FEEDBACK_DROPPED') ?? false).toBe(false);
   });
 
   test('should preserve response processing XML and warn on inline rule trees', async () => {
