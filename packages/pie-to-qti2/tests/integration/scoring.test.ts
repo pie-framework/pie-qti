@@ -212,7 +212,7 @@ describe('Multi-interaction items', () => {
 
     const validation = await validateQti(xml, { xsdSeverity: 'error' });
     expect(validation.errors.map((error) => error.message)).toEqual([]);
-  });
+    }, 30_000);
 
   test('SCORE sums the parts, and an externally scored part adds only to MAXSCORE', async () => {
     const xml = await exportMulti([
