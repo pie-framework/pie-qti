@@ -107,7 +107,7 @@
       "devDependencies": {
         "@pie-qti/item-player": "workspace:*",
         "@types/bun": "^1.4.2",
-        "node-html-parser": "^9.0.1",
+        "node-html-parser": "^9.0.4",
         "svelte": "^5.57.1",
         "typescript": "^5.9.3",
       },
@@ -127,7 +127,7 @@
         "@pie-qti/qti-common": "workspace:*",
         "@pie-qti/qti-processing": "workspace:*",
         "@pie-qti/section-player": "workspace:*",
-        "node-html-parser": "^9.0.1",
+        "node-html-parser": "^9.0.4",
       },
       "devDependencies": {
         "@biomejs/biome": "^2.5.14",
@@ -165,7 +165,7 @@
         "@pie-qti/logger": "workspace:*",
         "@pie-qti/transform-types": "workspace:*",
         "ajv": "^8.20.0",
-        "node-html-parser": "^9.0.1",
+        "node-html-parser": "^9.0.4",
       },
       "devDependencies": {
         "typescript": "^5.9.3",
@@ -208,7 +208,7 @@
       "dependencies": {
         "@pie-qti/to-pie": "workspace:*",
         "@pie-qti/transform-types": "workspace:*",
-        "node-html-parser": "^9.0.1",
+        "node-html-parser": "^9.0.4",
         "uuid": "^14.0.1",
       },
       "devDependencies": {
@@ -241,7 +241,7 @@
       "version": "0.1.25",
       "dependencies": {
         "@pie-qti/logger": "workspace:*",
-        "node-html-parser": "^9.0.1",
+        "node-html-parser": "^9.0.4",
       },
       "devDependencies": {
         "typescript": "^5.9.3",
@@ -268,7 +268,7 @@
         "@pie-qti/qti-common": "workspace:*",
         "@pie-qti/qti-processing": "workspace:*",
         "mathlive": "^0.110.0",
-        "node-html-parser": "^9.0.1",
+        "node-html-parser": "^9.0.4",
       },
       "devDependencies": {
         "@biomejs/biome": "^2.5.14",
@@ -301,7 +301,7 @@
       "dependencies": {
         "@pie-qti/transform-core": "workspace:*",
         "@pie-qti/transform-types": "workspace:*",
-        "node-html-parser": "^9.0.1",
+        "node-html-parser": "^9.0.4",
         "uuid": "^14.0.1",
         "xml-formatter": "^3.6.4",
       },
@@ -433,7 +433,7 @@
         "@pie-qti/storage": "workspace:*",
         "@pie-qti/transform-core": "workspace:*",
         "@pie-qti/transform-types": "workspace:*",
-        "node-html-parser": "^9.0.1",
+        "node-html-parser": "^9.0.4",
       },
       "devDependencies": {
         "@types/bun": "^1.4.2",
@@ -466,7 +466,7 @@
         "@pie-qti/transform-types": "workspace:*",
         "fast-xml-parser": "^5.10.1",
         "image-size": "^2.0.4",
-        "node-html-parser": "^9.0.1",
+        "node-html-parser": "^9.0.4",
         "uuid": "^14.0.1",
         "xmllint-wasm": "^5.3.0",
       },
@@ -522,7 +522,7 @@
         "@pie-qti/to-pie": "workspace:*",
         "@pie-qti/transform-core": "workspace:*",
         "@pie-qti/transform-types": "workspace:*",
-        "node-html-parser": "^9.0.1",
+        "node-html-parser": "^9.0.4",
       },
       "devDependencies": {
         "@types/node": "^26.6.2",
@@ -1541,7 +1541,7 @@
 
     "node-forge": ["node-forge@1.4.0", "", {}, "sha512-LarFH0+6VfriEhqMMcLX2F7SwSXeWwnEAJEsYm5QKWchiVYVvJyV9v7UDvUv+w5HO23ZpQTXDv/GxdDdMyOuoQ=="],
 
-    "node-html-parser": ["node-html-parser@9.0.1", "", { "dependencies": { "css-select": "^5.1.0", "entities": "^8.0.0" } }, "sha512-QrdiYYm1NnLRXsMXThUgVcF/syWfWIgHFmy8hylWMGFbHFtnRuXLBxxGQvIm3xaIJMUDJ0ayOmT/FGJYT3pZIw=="],
+    "node-html-parser": ["node-html-parser@9.0.4", "", { "dependencies": { "css-select": "^5.1.0", "entities": "^8.0.0" } }, "sha512-reUSrZkF1rO7hEYe5mJwtbVcQ6mB5QrViCZH6Wv+iz3er/PA9Q50gol15dMLQRDfdli4VzqPMPR24HNRFgVKFw=="],
 
     "node-int64": ["node-int64@0.4.0", "", {}, "sha512-O5lz91xSOeoXP6DulyHfllpq+Eg00MWitZIbtPfoSEvqIHdl5gfcY6hYzDWnj0qD5tz52PI08u9qUvSVeUBeHw=="],
 
