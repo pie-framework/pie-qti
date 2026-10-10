@@ -43,7 +43,7 @@
     "@pie-qti/logger": "workspace:*",
     "@pie-qti/transform-types": "workspace:*",
     "ajv": "^8.20.0",
-    "node-html-parser": "^9.0.1"
+    "node-html-parser": "^9.0.4"
   },
   "devDependencies": {
     "typescript": "^5.9.3",
