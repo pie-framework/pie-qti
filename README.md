@@ -147,7 +147,7 @@ See [Transformation Engine Documentation](docs/TRANSFORMATION-ENGINE.md) for com
 
 ### Extension Points
 
-The transform pipeline is extensible at the package level. Production import workflows belong in host applications such as Composer CMS; this repository ships the reusable transform packages and examples:
+The transform pipeline is extensible at the package level. Production import workflows belong in host applications; this repository ships the reusable transform packages and examples:
 
 - **Transform Plugins** — Add support for custom formats or vendor-specific QTI variants
 - **Vendor Extensions** — Customize transformation behavior (detectors, transformers, asset resolvers)

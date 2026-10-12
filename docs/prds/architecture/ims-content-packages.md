@@ -136,7 +136,7 @@ The `getLocaleFallbackChain()` function deduplicates entries, so requesting `en-
 
 **Decision:** Package-relative file lookup is centralised in `package-file-resolver.ts`. The resolver first tries strict source-relative and package-root paths, then uses explicit heuristics for unambiguous path-segment suffix matches and media-asset basename matches. Unsafe paths, root escapes, absolute package paths, and ambiguous suffix/basename matches are terminal diagnostics and never fall through to a looser match.
 
-**Rationale:** Real-world QTI packages often contain media and stylesheet references that drift from strict XML-local paths, while still shipping the referenced files elsewhere in the package. A shared resolver lets the package graph, QTI 3 delivery context, and browser image resolver recover those generic cases consistently without importing Composer-specific asset rewrites.
+**Rationale:** Real-world QTI packages often contain media and stylesheet references that drift from strict XML-local paths, while still shipping the referenced files elsewhere in the package. A shared resolver lets the package graph, QTI 3 delivery context, and browser image resolver recover those generic cases consistently without importing host-specific asset rewrites.
 
 **Consequences:** `PackageReference` and `PackageAssetRef` can carry `resolutionStrategy`, `heuristic`, and `renderHref` provenance. Strict callers disable these heuristics through `STRICT_QTI_CONFIG`. Source XML resources remain stricter than media assets: `assessmentItemRef` and stimulus references use manifest/resource evidence for suffix recovery and never use basename-only matching.
 

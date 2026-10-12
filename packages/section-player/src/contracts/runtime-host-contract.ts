@@ -1,7 +1,7 @@
 export type QtiSectionDiagnosticSeverity = 'info' | 'warning' | 'error';
 export type QtiSectionDiagnosticSource =
   | 'assessment-player'
-  | 'composer'
+  | 'host'
   | 'manifest'
   | 'assessment-test'
   | 'item'

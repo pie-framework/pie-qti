@@ -5,29 +5,24 @@
  * QTI packages put shared styling in a stylesheet file that items reference
  * rather than inline. The conversion used to forward nothing, so a package that
  * previewed correctly on the QTI side converted to a PIE item that rendered
- * unstyled — the gap the `qti.stylesheet.not_carried_into_pie` fidelity probe
- * exists to name.
+ * unstyled.
  *
  * PIE needs no model change to carry this: `PieItemConfig.resources` already has
  * a `stylesheets[]` array of URLs that the players fetch and scope to the player
  * instance (`ConfigResource` in `pie-players` - `packages/players-shared`). So
- * this is a wiring gap, and Composer deliberately does **not** flatten rules to
- * inline styles — see "Package stylesheets travel as a PIE resource; Composer
- * does not flatten them" in `docs/prds/import/qti-import.md`.
+ * this is a wiring gap, and the conversion deliberately does **not** flatten
+ * rules to inline styles.
  *
- * **What lands in `url` is a Pantry Asset Reference, not a fetchable URL.**
- * `.css` is a tracked asset, so `qti.asset-reference.rewrite-to-pantry` has
- * already rewritten the `href` to `pantry://assets/<id>` by the time the
- * conversion runs — wherever org/Pantry context was present. That reference is
- * the durable form and is what belongs in stored content, exactly as image
- * references do. Resolution to an `https:` URL happens per-surface at render
- * time (`resolvePantryAssetReferencesForPreview`), which matters because the
- * players reject any non-`http(s)` stylesheet URL outright.
+ * **`url` carries the `href` as the conversion receives it.** A host that
+ * rewrites package assets to durable asset-store references before conversion
+ * gets that reference here, exactly as image references do, and resolves it to
+ * an `https:` URL per surface at render time. That matters because the players
+ * reject any non-`http(s)` stylesheet URL outright.
  *
- * When no Pantry context was available the original relative href is carried
- * through unchanged. That is deliberate: it keeps the reference the author wrote
- * rather than inventing one, and the fidelity probe reports it as unresolvable
- * instead of this code silently dropping it.
+ * Without such a rewrite the original relative href is carried through
+ * unchanged. That is deliberate: it keeps the reference the author wrote rather
+ * than inventing one, and leaves an unresolvable reference visible to the host
+ * instead of silently dropping it.
  */
 
 import type { PieItem } from '@pie-qti/transform-types';

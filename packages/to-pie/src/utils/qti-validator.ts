@@ -4,9 +4,9 @@
  * Three tiers, in the order they run, because each one is only meaningful if the
  * previous one passed:
  *
- * 1. **Well-formedness** — fatal and short-circuiting. This is the one failure Composer
- *    can *introduce*: a QTI-stage transform that emits broken XML must not reach the
- *    conversion. Every later check reads the document as a parsed or schema-matched tree,
+ * 1. **Well-formedness** — fatal and short-circuiting. This is the one failure a host
+ *    can *introduce*: a host transform that emits broken XML ahead of conversion must not
+ *    reach it. Every later check reads the document as a parsed or schema-matched tree,
  *    so running them over malformed XML reports misleading detail about a document that
  *    cannot be parsed at all. `fast-xml-parser` runs first for its tag-level messages;
  *    libxml2 (`xmllint-wasm`, no schema) then decides, because `fast-xml-parser` accepts

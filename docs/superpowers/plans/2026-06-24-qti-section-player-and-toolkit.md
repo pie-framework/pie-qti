@@ -470,7 +470,7 @@ Create `packages/section-player/src/contracts/runtime-host-contract.ts`:
 export type QtiSectionDiagnosticSeverity = 'info' | 'warning' | 'error';
 export type QtiSectionDiagnosticSource =
   | 'assessment-player'
-  | 'composer'
+  | 'host'
   | 'manifest'
   | 'assessment-test'
   | 'item'

@@ -604,7 +604,7 @@ describe('VendorCustomPlugin', () => {
 
 ## Host Integration
 
-Product import workflows belong in host applications such as Composer CMS, which owns production import orchestration, persistence, permissions, and editorial state. This repository ships the reusable transform packages; hosts compose them.
+Product import workflows belong in host applications, which own production import orchestration, persistence, permissions, and editorial state. This repository ships the reusable transform packages; hosts compose them.
 
 ### Suggested module breakdown
 

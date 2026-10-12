@@ -408,7 +408,7 @@ Key reference:
 
 ## Host integration pattern (composing the transform packages)
 
-> **Status**: Composer CMS is the intended home for product import workflows. This repository ships reusable packages; host applications compose them.
+> **Status**: Product import workflows belong in host applications. This repository ships reusable packages; host applications compose them.
 
 A product import surface can wire the reusable packages together along these lines:
 
