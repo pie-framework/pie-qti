@@ -18,7 +18,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-/** The two roots Composer validates against. QTI 2.1 dominates real partner content. */
+/** The two roots the validator checks against. QTI 2.1 dominates real partner content. */
 const ROOTS: ReadonlyArray<readonly [string, string]> = [
   ['imsqti_v2p1.xsd', 'https://www.imsglobal.org/xsd/qti/qtiv2p1/imsqti_v2p1.xsd'],
   ['imsqti_v2p2.xsd', 'https://www.imsglobal.org/xsd/qti/qtiv2p2/imsqti_v2p2.xsd'],

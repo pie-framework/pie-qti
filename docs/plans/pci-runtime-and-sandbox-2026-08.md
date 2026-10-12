@@ -87,11 +87,10 @@ the custom elements is stable. Any module written against `PciModule` breaks
 outright; none is known to exist, since running one requires a resolver nobody
 ships.
 
-Composer is unaffected. It pins `@pie-qti/*@0.1.22`, imports no `Pci*` type,
-assigns no `.pci` property, and supplies no resolver. Its only PCI awareness is
-in the corpus-triage CLI, which classifies PCI and `customInteraction` items as
-`manual_only` against the `pie-qti-custom` fallback component — a classification
-this work does not change, since the fallback path is untouched.
+No known host is affected: none imports a `Pci*` type, assigns a `.pci`
+property, or supplies a resolver. A host that classifies PCI and
+`customInteraction` items against the `pie-qti-custom` fallback component keeps
+that classification, since the fallback path is untouched.
 
 ---
 
@@ -304,7 +303,7 @@ security posture and does not gate anything else.
 ## Driver: Measured, And Absent
 
 Phases 1–4 are **not scheduled**. The ingest driver was measured against
-Composer's corpus research on 2026-08-17 and does not exist yet.
+a third-party QTI corpus on 2026-08-17 and does not exist yet.
 
 | Corpus | PCI signal |
 | ------ | ---------- |
@@ -365,7 +364,7 @@ the coupling that forced the lockstep `@pie-players/*` pin — and a PCI module 
 be self-contained JavaScript at a URL inside the package, so projection would
 duplicate that shared runtime in every module of every package. The payoff is
 third-party players consuming Renaissance content, which is not a current need:
-Composer reads QTI and does not publish it.
+no host publishes QTI today.
 
 This closes only the outbound direction. PCI *host* support is unaffected and
 proceeds on the ingest driver above; the two were being conflated.

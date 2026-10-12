@@ -24,7 +24,7 @@ in the legacy `pie-elements` and `pie-lib` repositories take no work.
 - **Latent**: the code is wrong and no production path exercises it yet.
 
 `pie-to-qti2` has no production consumer, so every export defect is latent and turns concrete with
-the first adopter. Import defects were sized against the third-party corpus Composer indexes
+the first adopter. Import defects were sized against a third-party QTI corpus
 (935,929 items in 16,881 packages), sampling equally from each of the 13 sources holding more than
 1,000 items.
 
@@ -102,8 +102,8 @@ and source-profile handlers keep the original XML. EBSR labels exclude the mappe
 character data, undeclared entity references such as `&nbsp;`, `<` in attribute values and control
 characters. libxml2 reports all four while running the XSD pass. The default
 `xsdSeverity: 'warning'` demotes those parser errors to warnings along with schema findings, and with
-`xsd: false` nothing reports them at all. Composer's blocking QTI stage gate calls its fork with
-`xsd: false`, so such items pass that gate as well-formed. One of 2,600 sampled items has an
+`xsd: false` nothing reports them at all, so a host gate that validates with `xsd: false` passes
+such items as well-formed. One of 2,600 sampled items has an
 undeclared entity (`&sdot;`, Savvas); in the 1,950-item prompt sample, 3 items fail a strict parse:
 `&mdash;` with no DTD (TCI) and `<mfenced open="<">` (McGraw Hill, 2). All three convert today,
 because the transforms parse leniently.
@@ -112,8 +112,8 @@ libxml2, run through `xmllint-wasm` with no schema, decides well-formedness afte
 which keeps its tag-level messages. Failures are fatal errors with or without `xsd`, and
 `xsdSeverity` governs schema findings only, since malformed documents never reach the schema pass.
 The strict parse costs about 14ms per call, almost all of it instantiating the wasm module, and
-about 0.3ms per document within a batch. Composer's per-item, per-step gate pays the 14ms on every
-call; the schema compile ADR 004 measured (0.58s for QTI 2.1, 3.07s for QTI 2.2) does not apply with
+about 0.3ms per document within a batch. A gate that validates per item and per step pays the 14ms
+on every call; the schema compile (0.58s for QTI 2.1, 3.07s for QTI 2.2) does not apply with
 `xsd: false`.
 
 ### I5: Stem and Prompt Loss
@@ -125,20 +125,14 @@ and dropped the other when both were present. Body markup with nothing to render
 interactions.
 
 Across the 1,840 sampled items that transform, 15 lost their stem (all Baltimore County) and 27 lost
-their prompt (TCI 20, Baltimore County 6, Accelerate Learning 1). Composer imports through its fork,
-so items it has already imported from these sources carry the loss.
+their prompt (TCI 20, Baltimore County 6, Accelerate Learning 1). Items converted from these
+sources before the fix carry the loss.
 
 The prompt is the body content before the interaction followed by the interaction's `<prompt>`, each
 wrapped in a `<div>` unless it is already block content. Markup with nothing to render counts as
 absent, paragraphs stay separate, and a stem that is a single `<p>` keeps the inline form it has
 always been stored in. Each EBSR part takes the body content before it, starting after Part A for
 Part B. The same sample transformed again loses no stem and no prompt.
-
-### Composer's Fork
-
-`@composer/to-pie` carries I1 through I5 verbatim. The fixes land in `@pie-qti/to-pie` and reach
-Composer when it drops the fork (to-pie consolidation Phase 5, unblocked). Porting them to the fork
-is the fallback if Phase 5 slips.
 
 ---
 
@@ -319,7 +313,7 @@ response is the selected choice's number.
 ## Sequencing
 
 1. D1, D2: now, as text changes. Done, unmerged.
-2. I1, I3, I4, I5: small and independent; they reach Composer through Phase 5. Done, unmerged.
+2. I1, I3, I4, I5: small and independent. Done, unmerged.
 3. P1: independent, in pie-elements-ng; P2 merges with it or separately. Done, unmerged.
 4. Validation gate, then E1, E3 (closing E4), E2, E5, E6 and E8: before pie-to-qti2's first
    consumer. Done, unmerged.

@@ -678,7 +678,7 @@ export interface QtiSerializedItemSessionState {
 
 export type QtiSectionDiagnosticSource =
 	| 'assessment-player'
-	| 'composer'
+	| 'host'
 	| 'manifest'
 	| 'assessment-test'
 	| 'item'
