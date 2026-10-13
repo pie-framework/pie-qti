@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { SAMPLE_ASSESSMENTS } from '$lib/sample-assessments';
+	import { SAMPLE_ASSESSMENTS } from '#lib/sample-assessments.js';
 
 	interface Props {
 		selectedSampleId: string;

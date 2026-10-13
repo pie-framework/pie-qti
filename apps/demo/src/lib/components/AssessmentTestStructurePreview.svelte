@@ -4,7 +4,7 @@
 		AssessmentSectionSummary,
 		AssessmentTestStructure,
 		TestPartSummary,
-	} from '$lib/qti-test-structure';
+	} from '#lib/qti-test-structure.js';
 
 	interface Props {
 		structure: AssessmentTestStructure | null;

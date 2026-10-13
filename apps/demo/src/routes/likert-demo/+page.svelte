@@ -3,12 +3,12 @@
 	import { ItemBody } from '@pie-qti/item-player/components';
 	import type { InteractionResponseValue } from '@pie-qti/item-player/web-components';
 	import { typesetMathInElement } from '@pie-qti/typeset-katex';
-	import { browser } from '$app/environment';
+	import { browser } from '$app/env';
 	import { onDestroy, untrack } from 'svelte';
-	import XmlEditor from '$lib/components/XmlEditor.svelte';
-	import { DemoItemSessionController } from '$lib/item-session.svelte';
-	import { ALL_LIKERT_ITEMS } from '$lib/sample-likert-items';
-	import { getSecurityConfig } from '$lib/player-config';
+	import XmlEditor from '#lib/components/XmlEditor.svelte';
+	import { DemoItemSessionController } from '#lib/item-session.svelte.js';
+	import { ALL_LIKERT_ITEMS } from '#lib/sample-likert-items.js';
+	import { getSecurityConfig } from '#lib/player-config.js';
 
 	type LikertResponseValue = InteractionResponseValue | null;
 	type LikertResponseMap = Record<string, LikertResponseValue>;

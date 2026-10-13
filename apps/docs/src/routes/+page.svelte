@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { base } from '$app/paths';
+	import { asset } from '$app/paths';
 
 	// Note: docs-site is prerendered; avoid creating an internal prerender-crawled link to /examples
 	// (that path is served by a separate app, merged into the final Pages artifact).
@@ -77,7 +77,7 @@
 							<img
 								alt="QTI player examples"
 								class="rounded-lg border border-base-200"
-								src={`${base}/images/examples-screenshot-1.png`}
+								src={asset('images/examples-screenshot-1.png')}
 								loading="lazy"
 							/>
 						</div>

@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { IFramePlayerHost, type IFramePlayerHostEvent } from '@pie-qti/item-player/iframe';
 	import { onDestroy, onMount, getContext } from 'svelte';
-	import { base } from '$app/paths';
-	import { SAMPLE_ITEMS } from '$lib/sample-items';
-	import { getSecurityConfig } from '$lib/player-config';
+	import { resolve } from '$app/paths';
+	import { SAMPLE_ITEMS } from '#lib/sample-items.js';
+	import { getSecurityConfig } from '#lib/player-config.js';
 	import type { SvelteI18nProvider } from '@pie-qti/i18n';
 
 	const i18nContext = getContext<{ value: SvelteI18nProvider | null }>('i18n');
@@ -22,7 +22,7 @@
 
 	function computeRuntimeUrl() {
 		const parentOrigin = window.location.origin;
-		runtimeUrl = `${parentOrigin}${base}/iframe-runtime?parentOrigin=${encodeURIComponent(parentOrigin)}`;
+		runtimeUrl = `${parentOrigin}${resolve('/iframe-runtime')}?parentOrigin=${encodeURIComponent(parentOrigin)}`;
 	}
 
 	function onHostEvent(evt: IFramePlayerHostEvent) {

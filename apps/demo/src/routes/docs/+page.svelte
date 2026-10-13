@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { base } from '$app/paths';
+	import { resolve } from '$app/paths';
 </script>
 
 <svelte:head>
@@ -31,7 +31,7 @@
 		</div>
 
 		<div class="not-prose grid grid-cols-1 lg:grid-cols-3 gap-4 mb-10">
-			<a href="{base}/item-demo" class="card bg-base-100 shadow hover:shadow-xl transition-shadow">
+			<a href={resolve('/item-demo')} class="card bg-base-100 shadow hover:shadow-xl transition-shadow">
 				<div class="card-body">
 					<h2 class="card-title">Try an Item</h2>
 					<p class="text-sm text-base-content/70">
@@ -40,7 +40,7 @@
 					</p>
 				</div>
 			</a>
-			<a href="{base}/assessment-demo" class="card bg-base-100 shadow hover:shadow-xl transition-shadow">
+			<a href={resolve('/assessment-demo')} class="card bg-base-100 shadow hover:shadow-xl transition-shadow">
 				<div class="card-body">
 					<h2 class="card-title">Run an Assessment</h2>
 					<p class="text-sm text-base-content/70">
@@ -49,7 +49,7 @@
 					</p>
 				</div>
 			</a>
-			<a href="{base}/package-upload" class="card bg-base-100 shadow hover:shadow-xl transition-shadow">
+			<a href={resolve('/package-upload')} class="card bg-base-100 shadow hover:shadow-xl transition-shadow">
 				<div class="card-body">
 					<h2 class="card-title">Upload a Package</h2>
 					<p class="text-sm text-base-content/70">
@@ -95,13 +95,13 @@
 		</ul>
 
 		<div class="not-prose mt-10 flex flex-wrap gap-3">
-			<a href="{base}/item-demo" class="btn btn-primary">
+			<a href={resolve('/item-demo')} class="btn btn-primary">
 				Try Item Demo
 			</a>
-			<a href="{base}/package-upload" class="btn btn-outline">
+			<a href={resolve('/package-upload')} class="btn btn-outline">
 				Upload Package
 			</a>
-			<a href="{base}/" class="btn btn-ghost">
+			<a href={resolve('/')} class="btn btn-ghost">
 				<svg
 					xmlns="http://www.w3.org/2000/svg"
 					class="h-5 w-5"

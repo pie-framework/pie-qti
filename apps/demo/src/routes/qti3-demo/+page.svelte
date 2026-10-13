@@ -5,9 +5,9 @@
 	import { Qti3ElementNameMapper } from '@pie-qti/qti-common';
 	import { typesetMathInElement } from '@pie-qti/typeset-katex';
 	import { onDestroy, untrack } from 'svelte';
-	import { DemoItemSessionController } from '$lib/item-session.svelte';
-	import { QTI3_SAMPLE_ITEMS, getQti3Categories } from '$lib/sample-items-qti3';
-	import { getSecurityConfig } from '$lib/player-config';
+	import { DemoItemSessionController } from '#lib/item-session.svelte.js';
+	import { QTI3_SAMPLE_ITEMS, getQti3Categories } from '#lib/sample-items-qti3.js';
+	import { getSecurityConfig } from '#lib/player-config.js';
 
 	type DemoResponseValue = InteractionResponseValue | null;
 	type DemoResponseMap = Record<string, DemoResponseValue>;

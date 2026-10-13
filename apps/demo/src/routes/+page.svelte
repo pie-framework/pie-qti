@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { base } from '$app/paths';
+	import { resolve } from '$app/paths';
 	import { getContext } from 'svelte';
 	import type { SvelteI18nProvider } from '@pie-qti/i18n';
 
@@ -57,7 +57,7 @@
 			sessionStorage.setItem('uploadedItemName', selectedFile.name);
 
 			// Navigate to item-demo with special 'custom' sample ID
-			window.location.href = `${base}/item-demo/custom`;
+			window.location.href = resolve('item-demo/custom');
 		} catch (err) {
 			console.error('Failed to read file:', err);
 			alert('Failed to read file');
@@ -83,7 +83,7 @@
 					{i18n?.t('demo.homeSubtitle') ?? 'A modern, framework-agnostic player for QTI 2.2 assessment items. Works 100% client-side by default, with optional server-side hooks for production use.'}
 				</p>
 				<div class="flex gap-4 justify-center flex-wrap">
-					<a href="{base}/item-demo" class="btn btn-primary btn-lg">
+					<a href={resolve('/item-demo')} class="btn btn-primary btn-lg">
 						<svg
 							xmlns="http://www.w3.org/2000/svg"
 							class="h-6 w-6"
@@ -100,7 +100,7 @@
 						</svg>
 						{i18n?.t('demo.tryItems') ?? 'Try Items'}
 					</a>
-					<a href="{base}/assessment-demo" class="btn btn-primary btn-lg">
+					<a href={resolve('/assessment-demo')} class="btn btn-primary btn-lg">
 						<svg
 							xmlns="http://www.w3.org/2000/svg"
 							class="h-6 w-6"
@@ -117,7 +117,7 @@
 						</svg>
 						{i18n?.t('demo.tryAssessments') ?? 'Try Assessments'}
 					</a>
-					<a href="{base}/wc-section-splitpane" class="btn btn-secondary btn-lg">
+					<a href={resolve('/wc-section-splitpane')} class="btn btn-secondary btn-lg">
 						<svg
 							xmlns="http://www.w3.org/2000/svg"
 							class="h-6 w-6"
@@ -134,7 +134,7 @@
 						</svg>
 						{i18n?.t('demo.trySectionPlayer') ?? 'Section Player'}
 					</a>
-					<a href="{base}/likert-demo" class="btn btn-secondary btn-lg">
+					<a href={resolve('/likert-demo')} class="btn btn-secondary btn-lg">
 						<svg
 							xmlns="http://www.w3.org/2000/svg"
 							class="h-6 w-6"
@@ -151,7 +151,7 @@
 						</svg>
 						{i18n?.t('demo.pluginDemo') ?? 'Plugin Demo'}
 					</a>
-					<a href="{base}/package-upload" class="btn btn-accent btn-lg">
+					<a href={resolve('/package-upload')} class="btn btn-accent btn-lg">
 						<svg
 							xmlns="http://www.w3.org/2000/svg"
 							class="h-6 w-6"
@@ -263,7 +263,7 @@
 		</p>
 		<div class="modal-action">
 			<button class="btn" onclick={() => (showFileTypeError = false)}>Close</button>
-			<a href="{base}/package-upload" class="btn btn-primary">Go to Package Upload</a>
+			<a href={resolve('/package-upload')} class="btn btn-primary">Go to Package Upload</a>
 		</div>
 	</div>
 	<form method="dialog" class="modal-backdrop">
