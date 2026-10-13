@@ -1,5 +1,13 @@
 # @pie-qti/storage
 
+## 0.1.26
+
+### Patch Changes
+
+- cd85c07: Require `adm-zip` 0.6.1 and `image-size` 2.0.4, which fall outside their published security advisories.
+- Updated dependencies [ff00d31]
+  - @pie-qti/transform-types@0.1.26
+
 ## 0.1.25
 
 ### Patch Changes

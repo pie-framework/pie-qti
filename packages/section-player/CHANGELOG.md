@@ -1,5 +1,20 @@
 # @pie-qti/section-player
 
+## 0.1.26
+
+### Patch Changes
+
+- af8ee10: `QtiSectionDiagnosticSource` names diagnostics a host contributes `'host'`. Breaking: a host emitting the previous host-specific source value switches to `'host'`. The select-point rejection message now says PIE has no element for selecting a point on an image.
+- Updated dependencies [ff00d31]
+- Updated dependencies [34c0034]
+- Updated dependencies [6deb125]
+- Updated dependencies [5627ce1]
+  - @pie-qti/ims-cp-core@0.1.26
+  - @pie-qti/item-player@0.1.26
+  - @pie-qti/default-components@0.1.26
+  - @pie-qti/qti-common@0.1.26
+  - @pie-qti/i18n@0.1.26
+
 ## 0.1.25
 
 ### Patch Changes
