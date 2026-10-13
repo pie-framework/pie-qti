@@ -14,11 +14,13 @@ import { convertQtiPassageDocument } from '../src/passage-converter.js';
 import { type QtiItemTransformError, QtiToPiePlugin } from '../src/plugin.js';
 import type { PieAssessment } from '../src/transformers/assessment-test.js';
 import {
+  demoteMisplacedQti3Prompts,
   isQti3Document,
   normalizeQti3Lexically,
   normalizeQti3ToQti2,
+  relocateQti3PromptIntoInteraction,
   unsupportedQti3Construct,
-} from '../src/utils/qti3-normalize.js';
+} from '../src/index.js';
 
 const logger = { info() {}, warn() {}, error() {}, debug() {} };
 const QTI3_NS = 'http://www.imsglobal.org/xsd/imsqtiasi_v3p0';
@@ -285,6 +287,27 @@ describe('misplaced prompt repair', () => {
 
     expect(normalized).toContain('<div class="qti-prompt"></div>');
     expect(normalized).not.toMatch(/<prompt\s*\/>/);
+  });
+
+  test('composes from steps that each show whether their repair applied', () => {
+    const steps = (xml: string) => {
+      const renamed = normalizeQti3Lexically(xml);
+      const relocated = relocateQti3PromptIntoInteraction(renamed);
+      const demoted = demoteMisplacedQti3Prompts(relocated);
+      expect(demoted).toBe(normalizeQti3ToQti2(xml));
+      return { relocatedChanged: relocated !== renamed, demotedChanged: demoted !== relocated };
+    };
+
+    expect(
+      steps(withBody(`<qti-item-body><qti-prompt>Pick one</qti-prompt>${choice()}</qti-item-body>`))
+    ).toEqual({ relocatedChanged: true, demotedChanged: false });
+    expect(
+      steps(
+        withBody(
+          `<qti-item-body><div><qti-prompt>Nested stem</qti-prompt></div><div>${choice()}</div></qti-item-body>`
+        )
+      )
+    ).toEqual({ relocatedChanged: false, demotedChanged: true });
   });
 
   test('leaves a prompt inside its interaction in place', () => {
