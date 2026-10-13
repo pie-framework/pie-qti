@@ -1,197 +1,169 @@
 import { describe, expect, it } from 'bun:test';
 import { Player } from '../../src/core/Player.js';
 import { applyPnpToRoot } from '../../src/pnp/applyPnp.js';
-import { parsePnpXml } from '../../src/pnp/parsePnpXml.js';
+import { parseAfaPnpXml, parsePnpXml } from '../../src/pnp/parsePnpXml.js';
 import type { PnpProfile } from '../../src/pnp/types.js';
 
-describe('parsePnpXml', () => {
-	it('parses default color scheme', () => {
-		const profile = parsePnpXml(`
-			<personalNeedsProfile>
-				<display>
-					<colorScheme value="default"/>
-				</display>
-			</personalNeedsProfile>
-		`);
-		expect(profile.display?.colorScheme).toBe('default');
-	});
+const AFA = 'http://www.imsglobal.org/xsd/qtiv3p0/imsafa3p0pnp_v1p0';
+const pnp = (body: string) => `<?xml version="1.0" encoding="UTF-8"?>
+	<access-for-all-pnp xmlns="${AFA}" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">${body}</access-for-all-pnp>`;
 
-	it.each([
-		'blackwhite',
-		'whiteblack',
-		'blackrose',
-		'roseblack',
-		'yellowblue',
-		'blueyellow',
-		'mgraydgray',
-		'dgraymgray',
-		'blackcyan',
-		'cyanblack',
-		'blackcream',
-		'creamblack',
-		'whitenav',
-		'medgray',
-	] as const)('parses color scheme "%s"', (scheme) => {
-		const profile = parsePnpXml(`
-			<personalNeedsProfile>
-				<display>
-					<colorScheme value="${scheme}"/>
-				</display>
-			</personalNeedsProfile>
-		`);
-		expect(profile.display?.colorScheme).toBe(scheme);
-	});
-
-	it('ignores unknown color scheme values', () => {
-		const profile = parsePnpXml(`
-			<personalNeedsProfile>
-				<display>
-					<colorScheme value="neon-pink"/>
-				</display>
-			</personalNeedsProfile>
-		`);
-		expect(profile.display?.colorScheme).toBeUndefined();
-	});
-
-	it('parses extendedTime', () => {
-		const profile = parsePnpXml(`
-			<personalNeedsProfile>
-				<content>
-					<extendedTime active="true" multiplier="1.5"/>
-				</content>
-			</personalNeedsProfile>
-		`);
-		expect(profile.content?.extendedTime).toEqual({ active: true, multiplier: 1.5 });
-	});
-
-	it('parses extendedTime with Infinity multiplier', () => {
-		const profile = parsePnpXml(`
-			<personalNeedsProfile>
-				<content>
-					<extendedTime active="true" multiplier="Infinity"/>
-				</content>
-			</personalNeedsProfile>
-		`);
-		expect(profile.content?.extendedTime?.multiplier).toBe(Infinity);
-	});
-
-	it('parses glossaryOnScreen', () => {
-		const profile = parsePnpXml(`
-			<personalNeedsProfile>
-				<content>
-					<glossaryOnScreen enabled="true"/>
-				</content>
-			</personalNeedsProfile>
-		`);
-		expect(profile.content?.glossaryOnScreen).toBe(true);
-	});
-
-	it('parses keywordTranslation', () => {
-		const profile = parsePnpXml(`
-			<personalNeedsProfile>
-				<content>
-					<keywordTranslation active="true" languageCode="es"/>
-				</content>
-			</personalNeedsProfile>
-		`);
-		expect(profile.content?.keywordTranslation).toEqual({ active: true, languageCode: 'es' });
-	});
-
-	it('parses illustratedGlossary', () => {
-		const profile = parsePnpXml(`
-			<personalNeedsProfile>
-				<content>
-					<illustratedGlossary enabled="true"/>
-				</content>
-			</personalNeedsProfile>
-		`);
-		expect(profile.content?.illustratedGlossary).toBe(true);
-	});
-
-	it('parses host-routed catalog support preferences', () => {
-		const profile = parsePnpXml(`
-			<personalNeedsProfile>
-				<content>
-					<ttsPronunciation enabled="true"/>
-					<audioDescription active="true"/>
-				</content>
-			</personalNeedsProfile>
-		`);
-		expect(profile.content?.catalogSupports).toEqual({
-			ttsPronunciation: true,
-			audioDescription: true,
+describe('parseAfaPnpXml', () => {
+	it('keys the record by AfA terms', () => {
+		const record = parseAfaPnpXml(
+			pnp(`
+				<spoken>
+					<reading-type>computer-read-aloud</reading-type>
+					<speech-rate>270</speech-rate>
+					<restriction-type>skip-math-equations</restriction-type>
+					<restriction-type>skip-images</restriction-type>
+				</spoken>
+				<calculator-on-screen calculator-type="scientific"/>
+				<sign-language xml:lang="ase"/>
+				<line-reader highlight-color="#336699"/>
+				<answer-masking/>
+				<activate-at-initialization-set><spoken/></activate-at-initialization-set>
+				<prohibit-set><dictionary-on-screen/></prohibit-set>
+			`)
+		);
+		expect(record).toEqual({
+			spoken: {
+				'reading-type': 'computer-read-aloud',
+				'speech-rate': 270,
+				'restriction-type': ['skip-math-equations', 'skip-images'],
+			},
+			'calculator-on-screen': { 'calculator-type': 'scientific' },
+			'sign-language': { language: 'ase' },
+			'line-reader': { 'highlight-color': '#336699' },
+			'answer-masking': {},
+			'activate-at-initialization-set': ['spoken'],
+			'prohibit-set': ['dictionary-on-screen'],
 		});
 	});
 
-	it('parses generic host-defined catalog support usage names', () => {
-		const profile = parsePnpXml(`
-			<personalNeedsProfile>
-				<content>
-					<catalogSupport usage="custom-audio" enabled="true" languageCode="es"/>
-					<catalog-support usage="signing-definition" enabled="false"/>
-				</content>
-			</personalNeedsProfile>
+	it('reads the profile inside a bulk record', () => {
+		const record = parseAfaPnpXml(`
+			<access-for-all-pnp-records xmlns="${AFA}">
+				<access-for-all-pnp-record>
+					<person-sourced-id source-system="example">111</person-sourced-id>
+					<access-for-all-pnp><keyword-translation xml:lang="es"/></access-for-all-pnp>
+				</access-for-all-pnp-record>
+			</access-for-all-pnp-records>
 		`);
-		expect(profile.content?.catalogSupports?.['custom-audio']).toEqual({ active: true, languageCode: 'es' });
-		expect(profile.content?.catalogSupports?.signingDefinition).toBe(false);
+		expect(record).toEqual({ 'keyword-translation': { language: 'es' } });
 	});
 
-	it('ignores unsafe generic catalog support usage names', () => {
-		const profile = parsePnpXml(`
-			<personalNeedsProfile>
-				<content>
-					<catalogSupport usage="javascript:alert" enabled="true"/>
-				</content>
-			</personalNeedsProfile>
+	it('reads a prefixed AfA namespace as AfA and other namespaces as extensions', () => {
+		const record = parseAfaPnpXml(`
+			<afa:access-for-all-pnp xmlns:afa="${AFA}" xmlns:kxz="http://www.kxztesting.com/2019/pnp-extensions">
+				<afa:glossary-on-screen/>
+				<kxz:kxztesting-illustrated-glossary-on-screen/>
+			</afa:access-for-all-pnp>
 		`);
-		expect(profile.content?.catalogSupports).toBeUndefined();
+		expect(record).toEqual({
+			'glossary-on-screen': {},
+			extensions: { 'kxztesting-illustrated-glossary-on-screen': {} },
+		});
 	});
 
-	it('parses access-for-all illustrated glossary aliases', () => {
+	it('returns null when the input holds no AfA profile', () => {
+		expect(parseAfaPnpXml('')).toBeNull();
+		expect(parseAfaPnpXml('<personalNeedsProfile><display/></personalNeedsProfile>')).toBeNull();
+	});
+});
+
+describe('parsePnpXml', () => {
+	it.each([
+		['default', 'default'],
+		['default-reverse', 'defaultreverse'],
+		['high-contrast', 'blackwhite'],
+		['high-contrast-reverse', 'whiteblack'],
+		['black-rose', 'blackrose'],
+		['rose-black', 'roseblack'],
+		['yellow-blue', 'yellowblue'],
+		['blue-yellow', 'blueyellow'],
+		['medgray-darkgray', 'mgraydgray'],
+		['darkgray-medgray', 'dgraymgray'],
+		['black-cyan', 'blackcyan'],
+		['cyan-black', 'cyanblack'],
+		['black-cream', 'blackcream'],
+		['cream-black', 'creamblack'],
+	] as const)('maps color-theme "%s" to scheme "%s"', (theme, scheme) => {
+		const profile = parsePnpXml(pnp(`<text-appearance><color-theme>${theme}</color-theme></text-appearance>`));
+		expect(profile.display?.colorScheme).toBe(scheme);
+	});
+
+	it('leaves an extension color theme and a bare color-theme request to the host', () => {
+		expect(parsePnpXml(pnp('<text-appearance><color-theme>ext:program-sepia</color-theme></text-appearance>'))).toEqual({});
+		expect(parsePnpXml(pnp('<text-appearance><color-theme/></text-appearance>'))).toEqual({});
+	});
+
+	it('reads magnification from all-content, else from text', () => {
+		expect(parsePnpXml(pnp('<magnification><all-content zoom-amount="2"/></magnification>')).display?.magnification).toBe(2);
+		expect(
+			parsePnpXml(pnp('<magnification><text zoom-amount="1.5"/><non-text zoom-amount="2.0"/></magnification>')).display
+				?.magnification
+		).toBe(1.5);
+	});
+
+	it('maps additional-testing-time to extended time', () => {
+		expect(
+			parsePnpXml(pnp('<additional-testing-time><time-multiplier>1.5</time-multiplier></additional-testing-time>')).content
+				?.extendedTime
+		).toEqual({ active: true, multiplier: 1.5 });
+		expect(
+			parsePnpXml(pnp('<additional-testing-time><unlimited/></additional-testing-time>')).content?.extendedTime
+		).toEqual({ active: true, multiplier: Infinity });
+	});
+
+	it('leaves fixed-minutes testing time to the host', () => {
+		const xml = pnp('<additional-testing-time><fixed-minutes>30</fixed-minutes></additional-testing-time>');
+		expect(parsePnpXml(xml)).toEqual({});
+		expect(parseAfaPnpXml(xml)).toEqual({ 'additional-testing-time': { 'fixed-minutes': 30 } });
+	});
+
+	it('maps glossary-on-screen and keyword-translation to their popups', () => {
+		const profile = parsePnpXml(pnp('<glossary-on-screen/><keyword-translation xml:lang="es"/>'));
+		expect(profile.content?.glossaryOnScreen).toBe(true);
+		expect(profile.content?.keywordTranslation).toEqual({ active: true, languageCode: 'es' });
+	});
+
+	it('maps the SBAC illustrated glossary extension', () => {
 		const profile = parsePnpXml(`
-			<personalNeedsProfile>
-				<content>
-					<ext:sbac-glossary-illustration active="true"/>
-				</content>
-			</personalNeedsProfile>
+			<access-for-all-pnp xmlns="${AFA}" xmlns:sbac="urn:example:sbac">
+				<sbac:sbac-glossary-illustration/>
+			</access-for-all-pnp>
 		`);
 		expect(profile.content?.illustratedGlossary).toBe(true);
 	});
 
-	it('parses eliminationTool', () => {
-		const profile = parsePnpXml(`
-			<personalNeedsProfile>
-				<cognitive>
-					<eliminationTool enabled="true"/>
-				</cognitive>
-			</personalNeedsProfile>
-		`);
-		expect(profile.cognitive?.eliminationTool).toBe(true);
+	it('enables the catalog support of each predefined card support it grants', () => {
+		const profile = parsePnpXml(pnp('<sign-language xml:lang="ase"/><braille/><spoken/><calculator-on-screen/>'));
+		expect(profile.content?.catalogSupports).toEqual({
+			braille: true,
+			'sign-language': { active: true, languageCode: 'ase' },
+			spoken: true,
+		});
 	});
 
-	it('silently ignores unknown child elements', () => {
-		expect(() =>
-			parsePnpXml(`
-				<personalNeedsProfile>
-					<display>
-						<unknownFutureThing value="42"/>
-					</display>
-					<futureSection>
-						<anotherThing/>
-					</futureSection>
-				</personalNeedsProfile>
+	it('maps answer-masking to the elimination tool', () => {
+		expect(parsePnpXml(pnp('<answer-masking/>')).cognitive?.eliminationTool).toBe(true);
+	});
+
+	it('grants features listed in an activation set and withdraws prohibited ones', () => {
+		const profile = parsePnpXml(
+			pnp(`
+				<glossary-on-screen/>
+				<activate-as-option-set><answer-masking/></activate-as-option-set>
+				<prohibit-set><glossary-on-screen/></prohibit-set>
 			`)
-		).not.toThrow();
+		);
+		expect(profile).toEqual({ cognitive: { eliminationTool: true } });
 	});
 
-	it('returns empty profile for empty input', () => {
-		const profile = parsePnpXml('');
-		expect(profile).toEqual({});
-	});
-
-	it('returns empty profile when no recognized root element', () => {
-		const profile = parsePnpXml('<somethingElse><display/></somethingElse>');
-		expect(profile).toEqual({});
+	it('returns an empty profile for empty input and for the pre-AfA shape', () => {
+		expect(parsePnpXml('')).toEqual({});
+		expect(parsePnpXml('<personalNeedsProfile><content><glossaryOnScreen/></content></personalNeedsProfile>')).toEqual({});
 	});
 });
 

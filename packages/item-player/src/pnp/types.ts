@@ -1,6 +1,6 @@
 /**
- * QTI 3.0 §6.2 Personal Needs and Preferences profile.
- * All fields are optional; absent means "use platform default".
+ * The candidate needs the item player renders, from a per-candidate AfA PNP 3.0
+ * profile (`pnpProfileFromAfa`). All fields are optional; absent means "use platform default".
  */
 export interface PnpProfile {
 	display?: {

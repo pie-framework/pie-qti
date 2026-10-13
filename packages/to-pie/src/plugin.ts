@@ -505,6 +505,7 @@ export class QtiToPiePlugin implements TransformPlugin {
           });
 
       if (transformResult.kind === 'assessment') {
+        warnings.push(...(transformResult.warnings ?? []));
         const processingTimeTest = Date.now() - startTime;
         logger?.info(`Assessment transformation complete in ${processingTimeTest}ms`);
         return {

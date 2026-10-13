@@ -109,7 +109,7 @@ A composite that mixes in an interaction outside the scoped set, repeats a non-r
 - **FR-5:** When a vendor is detected and a matching `VendorTransformer` is registered for that vendor, the plugin MUST delegate to the vendor transformer. If the vendor transformer throws, the plugin MUST log a warning and fall through to the standard transformation path.
 - **FR-6:** Metadata extraction MUST prefer a vendor-specific `MetadataExtractor` (matched by `extractor.vendor === vendorInfo.vendor`) over the standard extractor (`extractor.vendor === 'standard'`). The standard extractor is registered by default in the constructor.
 - **FR-7:** `baseId` MUST be extracted from `<qti-metadata-field name="externalId">` only when `<qti-metadata-field name="sourceSystemId">` has value `"pie"`, confirming the item originated in PIE.
-- **FR-8:** For `assessmentTest` input, the plugin MUST return an assessment object (not a single item) that includes `testParts`, `sections`, `itemRefs`, `timeLimits`, and `outcomeProcessingXml`.
+- **FR-8:** For `assessmentTest` input, the plugin MUST return an assessment object (not a single item) that includes `testParts`, `sections`, `itemRefs`, `timeLimits`, and `outcomeProcessingXml`. A personal needs profile is per-candidate data, so a `personalNeedsProfile` or `access-for-all-pnp` element in the test MUST produce a `QTI_PNP_IN_CONTENT` warning naming the element, and the assessment MUST omit it.
 - **FR-9:** Vendor hooks registered via constructor options (`vendorDetectors`, `vendorTransformers`, `assetResolvers`, `cssClassExtractors`, `metadataExtractors`) MUST behave identically to hooks registered via `registerVendorDetector(...)` et al. after construction.
 - **FR-10:** An `itemBody` with more than one interaction MUST be composed into one PIE item, not silently reduced to its first interaction, when every interaction's type is in the scoped composite set and any repeated type is one of the types allowed to repeat. An itemBody with a `customInteraction`, `customOperator`, or an interaction nested inside a `feedbackBlock` MUST NOT take the composite path, regardless of how many interactions it has.
 - **FR-11:** Every rejection that is a property of one item — an unsupported single interaction, an unsupported composite shape, a QTI 3.0 item — MUST raise `QtiUnsupportedItemError` (or `QtiSourceProfileTransformError`), both of which extend `QtiItemTransformError`. A plugin-code defect (a handler registration bug, a malformed transformer) MUST propagate as a plain `Error` instead, since `transformQtiPackageToPie` treats `QtiItemTransformError` as recoverable per item and anything else as a package-aborting fault.
@@ -294,6 +294,12 @@ AC-8: assessmentTest returns assessment structure
   When: transform is called
   Then: result.items[0].content has testParts array; result.metadata.itemCount equals the
         total number of itemRefs across all sections and testParts
+
+AC-8a: a personal needs profile in an assessmentTest is reported, not converted
+  Given: An <assessmentTest> containing a <personalNeedsProfile> or <afa:access-for-all-pnp>
+  When: transform is called
+  Then: result.warnings has a QTI_PNP_IN_CONTENT entry naming the element; the assessment
+        content has no personalNeedsProfile
 
 AC-9: baseId extracted from PIE-originated QTI
   Given: QTI XML with <qti-metadata-field name="sourceSystemId" value="pie"/> and
