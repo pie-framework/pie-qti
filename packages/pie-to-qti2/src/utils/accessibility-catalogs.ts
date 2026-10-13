@@ -2,10 +2,23 @@
  * Accessibility catalogs
  *
  * pie-players' accessibility catalogs attach to a model, the item root, a passage or an
- * assessment, and markup points into them with `data-catalog-idref`. QTI 2.2 carries the same
- * content as APIP, which the export does not write, so an export that meets a catalog names it in
- * a warning. QTI 2.2 admits `data-*` attributes, so the idrefs stay in the markup.
+ * assessment, and markup points into them with `data-catalog-idref`. The QTI 2.2 export writes an
+ * item's or passage's catalogs as APIP access elements, each linked to the elements whose
+ * `data-catalog-idref` names it; an element without an `id` gets one. QTI 2.2 admits `data-*`
+ * attributes, so the idrefs stay in the markup.
+ *
+ * What APIP cannot carry is named in a warning: supports APIP has no element for, catalogs no
+ * exported element refers to, and idrefs no exported catalog declares. Assessments carry no APIP,
+ * so their catalogs are named whole. When two owners declare one identifier, the first
+ * declaration is written.
  */
+
+import {
+  type ApipAccessElementSource,
+  type ApipContentLink,
+  type CatalogCard,
+  writeApipAccessibility,
+} from '@pie-qti/qti-common/accessibility';
 
 const CATALOG_IDREF = /\bdata-catalog-idref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>/]+))/g;
 
@@ -56,4 +69,119 @@ export function catalogsNotExportedWarning(subject: string, content: unknown): s
   if (catalogs.length === 0) return undefined;
   const names = catalogs.map((catalog) => `"${catalog}"`).join(', ');
   return `${subject} carries accessibility catalogs ${names}, which the QTI 2.2 export does not write`;
+}
+
+/** Elements an APIP link names as an object rather than by their text. */
+const OBJECT_ELEMENTS = new Set(['img', 'object', 'audio', 'video']);
+const START_TAG = /<([A-Za-z][\w.:-]*)((?:\s+[^\s=>/]+\s*=\s*(?:"[^"]*"|'[^']*'))*)\s*(\/?)>/g;
+const ID_ATTRIBUTE = /(?:^|\s)id\s*=\s*(?:"([^"]*)"|'([^']*)')/;
+const ALL_IDS = /\sid\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
+const IDREF_ATTRIBUTE = /(?:^|\s)data-catalog-idref\s*=\s*(?:"([^"]*)"|'([^']*)')/;
+
+export interface ApipExport {
+  qtiXml: string;
+  /** What the export does not write, or `undefined` when it writes every catalog in full. */
+  warning?: string;
+}
+
+/**
+ * `qtiXml`, an item or passage, with the catalogs `content` declares written as APIP before its
+ * closing `assessmentItem` tag. `subject` names what is exported, as in `Item "item-1"`.
+ */
+export function withApipAccessibility(subject: string, qtiXml: string, content: unknown): ApipExport {
+  const declared = declaredCatalogs(content);
+  const named = findAccessibilityCatalogs(content);
+  const bodyStart = qtiXml.indexOf('<itemBody');
+  const close = qtiXml.lastIndexOf('</assessmentItem>');
+  if (named.length === 0 && declared.size === 0) return { qtiXml };
+
+  const ids = new Set([...qtiXml.matchAll(ALL_IDS)].map((match) => decode(match[1] ?? match[2] ?? '')));
+  const links = new Map<string, ApipContentLink[]>();
+  let generated = 0;
+  const region = bodyStart === -1 || close === -1 ? '' : qtiXml.slice(bodyStart, close);
+  const edited = region.replace(START_TAG, (tag, name: string, attrs: string) => {
+    const idrefMatch = IDREF_ATTRIBUTE.exec(attrs);
+    const idref = idrefMatch ? decode(idrefMatch[1] ?? idrefMatch[2] ?? '').trim() : '';
+    if (!idref) return tag;
+    if (!named.includes(idref)) named.push(idref);
+    if (!declared.has(idref)) return tag;
+    const idMatch = ID_ATTRIBUTE.exec(attrs);
+    let id = idMatch ? decode(idMatch[1] ?? idMatch[2] ?? '').trim() : '';
+    let edit = tag;
+    if (!id) {
+      do {
+        generated += 1;
+        id = `apip-target-${generated}`;
+      } while (ids.has(id));
+      ids.add(id);
+      edit = `<${name} id="${id}"${tag.slice(name.length + 1)}`;
+    }
+    const local = name.slice(name.indexOf(':') + 1).toLowerCase();
+    const targets = links.get(idref) ?? [];
+    targets.push({ target: id, ...(OBJECT_ELEMENTS.has(local) ? { object: true } : {}) });
+    links.set(idref, targets);
+    return edit;
+  });
+
+  const elements: ApipAccessElementSource[] = [...declared]
+    .filter(([identifier]) => links.has(identifier))
+    .map(([identifier, catalog]) => ({ identifier, links: links.get(identifier) ?? [], cards: catalog.cards }));
+  const apip = writeApipAccessibility(elements, { reservedIds: ids });
+
+  const reasons = named.flatMap((identifier) => {
+    const catalog = declared.get(identifier);
+    const reason: string[] = [];
+    if (!catalog) reason.push('no catalog in the export declares it');
+    else if (!links.has(identifier)) reason.push('no exported element refers to it');
+    else reason.push(...(apip.unwritten.get(identifier) ?? []));
+    if (catalog?.redeclared) reason.push('declared again, which is not written');
+    return reason.length > 0 ? [`"${identifier}" (${reason.join(', ')})`] : [];
+  });
+  const warning =
+    reasons.length > 0
+      ? `${subject} carries accessibility catalogs the QTI 2.2 export does not write in full: ${reasons.join(', ')}`
+      : undefined;
+  if (!apip.xml) return { qtiXml, ...(warning ? { warning } : {}) };
+  return {
+    qtiXml: `${qtiXml.slice(0, bodyStart)}${edited.replace(/\s*$/, '\n  ')}${apip.xml}\n${qtiXml.slice(close)}`,
+    ...(warning ? { warning } : {}),
+  };
+}
+
+/** The catalogs `content` declares, by identifier: the first declaration's cards. */
+function declaredCatalogs(content: unknown): Map<string, { cards: CatalogCard[]; redeclared: boolean }> {
+  const declared = new Map<string, { cards: CatalogCard[]; redeclared: boolean }>();
+  const visit = (value: unknown): void => {
+    if (typeof value !== 'object' || value === null) return;
+    if (Array.isArray(value)) {
+      for (const entry of value) visit(entry);
+      return;
+    }
+    for (const [key, child] of Object.entries(value)) {
+      if (key === 'qtiSource') continue;
+      if (CATALOG_KEYS.has(key) && Array.isArray(child)) {
+        for (const catalog of child as Array<{ identifier?: unknown; cards?: unknown } | null>) {
+          const identifier = typeof catalog?.identifier === 'string' ? catalog.identifier : '';
+          if (!identifier || !Array.isArray(catalog?.cards)) continue;
+          const cards = catalog.cards as CatalogCard[];
+          const existing = declared.get(identifier);
+          if (!existing) declared.set(identifier, { cards, redeclared: false });
+          else if (JSON.stringify(existing.cards) !== JSON.stringify(cards)) existing.redeclared = true;
+        }
+        continue;
+      }
+      visit(child);
+    }
+  };
+  visit(content);
+  return declared;
+}
+
+function decode(value: string): string {
+  return value
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&');
 }

@@ -1,5 +1,6 @@
 import { parse as parseHtml } from 'node-html-parser';
 import type { HTMLElement as NhpElement } from 'node-html-parser';
+import { apipCatalogIndex, readApipAccessibility } from './apipAccessibility.js';
 import type { CatalogCard, CatalogEntry, CatalogIndex } from './types.js';
 
 /**
@@ -21,14 +22,20 @@ export function extractCatalog(xml: string): CatalogIndex {
 }
 
 /**
- * Parse a raw QTI item XML string and extract the embedded catalog.
+ * Parse a raw QTI item XML string and extract the embedded catalog: QTI 3.0 <qti-catalog-info>
+ * and the access elements of QTI 2.x APIP accessibility, each a catalog under its identifier.
  * Used by Player when integrating with the full item XML.
  */
 export function extractCatalogFromItemXml(itemXml: string): CatalogIndex {
 	const doc = parseHtml(itemXml, { lowerCaseTagName: true });
 	const infoEl = doc.querySelector('qti-catalog-info');
-	if (!infoEl) return new Map();
-	return buildIndex(infoEl);
+	const index = infoEl ? buildIndex(infoEl) : new Map();
+	for (const [identifier, card] of apipCatalogIndex(readApipAccessibility(itemXml))) {
+		const existing = index.get(identifier);
+		if (existing) existing.entries.push(...card.entries);
+		else index.set(identifier, card);
+	}
+	return index;
 }
 
 /**
