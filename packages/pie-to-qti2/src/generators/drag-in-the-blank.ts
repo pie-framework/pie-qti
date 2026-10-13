@@ -8,6 +8,7 @@
 import { generateIdentifier } from '../utils/identifier-generator.js';
 import { QtiBuilder } from '../utils/qti-builder.js';
 import { buildResponseDeclaration } from '../utils/response-declaration-builder.js';
+import { correctResponseScoring, partialScoringEnabled } from '../utils/scoring.js';
 import { BaseGenerator } from './base-generator.js';
 import type { GeneratorContext, GeneratorResult } from './types.js';
 
@@ -52,11 +53,13 @@ export class DragInTheBlankGenerator extends BaseGenerator {
     const { gaps, correctResponses } = this.extractGaps(model.markup, model.choices);
 
     // Build response declaration
+    const { mapping, scoring } = correctResponseScoring(correctResponses, partialScoringEnabled(model));
     const responseDecl = buildResponseDeclaration({
       identifier: responseId,
       cardinality: 'multiple',
       baseType: 'directedPair',
       correctResponse: correctResponses,
+      ...mapping,
     });
 
     // Build item body with gapMatchInteraction
@@ -72,11 +75,12 @@ export class DragInTheBlankGenerator extends BaseGenerator {
     const qti = QtiBuilder.createAssessmentItem(itemId, [responseDecl], itemBody, {
       title: model.title || 'Drag in the Blank Item',
       pieElement: this.id,
+      ...scoring,
     });
 
     const warnings = [
       'drag-in-the-blank uses gapMatchInteraction which has limited support in QTI players',
-      'Full PIE model is preserved in pie:sourceModel for accurate reconstruction',
+      'Full PIE model is preserved in the PIE source sidecar for accurate reconstruction',
     ];
 
     this.debug(context, `Successfully generated gapMatchInteraction with ${gaps.length} gaps`);
@@ -112,7 +116,7 @@ export class DragInTheBlankGenerator extends BaseGenerator {
     responseId: string,
     prompt?: string
   ): string {
-    const promptHtml = prompt ? `<prompt>${prompt}</prompt>\n    ` : '';
+    const promptHtml = prompt ? `\n      <prompt>${prompt}</prompt>` : '';
 
     // Build gapText elements (draggable choices)
     const allChoices: string[] = [];
@@ -120,7 +124,7 @@ export class DragInTheBlankGenerator extends BaseGenerator {
       const choicesForGap = choices[gapIndex] || [];
       for (const choice of choicesForGap) {
         allChoices.push(
-          `      <gapText identifier="CHOICE_${gapIndex}_${choice.value}">${choice.label}</gapText>`
+          `      <gapText identifier="CHOICE_${gapIndex}_${choice.value}" matchMax="1">${choice.label}</gapText>`
         );
       }
     }
@@ -131,7 +135,7 @@ export class DragInTheBlankGenerator extends BaseGenerator {
       processedMarkup = processedMarkup.replace(`{{${gapIndex}}}`, `<gap identifier="GAP_${gapIndex}"/>`);
     }
 
-    const interaction = `${promptHtml}<gapMatchInteraction responseIdentifier="${responseId}">
+    const interaction = `<gapMatchInteraction responseIdentifier="${responseId}">${promptHtml}
 ${allChoices.join('\n')}
       <blockquote>
         <p>${processedMarkup}</p>

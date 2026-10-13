@@ -417,12 +417,13 @@ describe('Calculator Round-Trip', () => {
       { logger: console }
     );
     const qtiXml = qtiResult.items[0].content as string;
+    const sidecar = qtiResult.items[0].sidecar;
 
-    expect(qtiXml).toContain('<pie:sourceModel>');
+    expect(sidecar).toBeDefined();
 
     // QTI → PIE
     const pieResult = await qtiToPie.transform(
-      { content: qtiXml },
+      { content: qtiXml, sidecar },
       { logger: console }
     );
     const reconstructedPie = pieResult.items[0];

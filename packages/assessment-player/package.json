@@ -35,7 +35,7 @@
     "@pie-qti/qti-common": "workspace:*",
     "@pie-qti/qti-processing": "workspace:*",
     "@pie-qti/section-player": "workspace:*",
-    "node-html-parser": "^9.0.1"
+    "node-html-parser": "^9.0.4"
   },
   "peerDependencies": {
     "@pie-qti/i18n": "workspace:*"
@@ -46,9 +46,9 @@
     }
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.14",
+    "@biomejs/biome": "^2.5.15",
     "@pie-qti/i18n": "workspace:*",
-    "@types/node": "^26.6.2",
+    "@types/node": "^26.6.4",
     "svelte": "^5.57.1",
     "svelte-check": "^4.7.5",
     "typescript": "^5.9.3"

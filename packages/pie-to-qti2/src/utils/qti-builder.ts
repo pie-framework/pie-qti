@@ -6,6 +6,7 @@
 
 import formatXml from 'xml-formatter';
 import type { AssessmentItemOptions } from '../types/index.js';
+import { toQtiXhtml } from './xhtml.js';
 
 /**
  * QTI Builder - utilities for constructing QTI XML
@@ -52,10 +53,10 @@ export class QtiBuilder {
   ${options?.label ? `label="${escapeXml(options.label)}"` : ''}
   adaptive="${options?.adaptive ?? false}"
   timeDependent="${options?.timeDependent ?? false}">
-  ${comment}${responseDeclarations.join('\n  ')}
+  ${comment}${[...responseDeclarations, ...(options?.outcomeDeclarations ?? [])].join('\n  ')}
   <itemBody>
-    ${itemBody}
-  </itemBody>
+    ${toQtiXhtml(itemBody)}
+  </itemBody>${options?.responseProcessing ? `\n  ${options.responseProcessing}` : ''}
 </assessmentItem>`;
 
     return QtiBuilder.format(xml);
@@ -130,6 +131,23 @@ export class QtiBuilder {
     const classAttr = className ? ` class="${escapeXml(className)}"` : '';
     return `<div${classAttr}>${content}</div>`;
   }
+}
+
+const IMAGE_MIME_TYPES: Record<string, string> = {
+  gif: 'image/gif',
+  jpeg: 'image/jpeg',
+  jpg: 'image/jpeg',
+  png: 'image/png',
+  svg: 'image/svg+xml',
+  webp: 'image/webp',
+};
+
+/**
+ * MIME type for an image URL's extension, which QTI's <object> requires; PNG when unknown.
+ */
+export function imageMimeType(url: string): string {
+  const extension = url.split(/[?#]/)[0].split('.').pop()?.toLowerCase() ?? '';
+  return IMAGE_MIME_TYPES[extension] ?? 'image/png';
 }
 
 /**

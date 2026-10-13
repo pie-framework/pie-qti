@@ -24,6 +24,8 @@ export interface ResolvedPassage {
   metadata?: Record<string, any>;
   /** Original PIE passage stimulus (if available) */
   piePassage?: PiePassageStimulus;
+  /** The passage's pie-players accessibility catalogs, which the export reports as not written */
+  accessibilityCatalogs?: Array<{ identifier: string; cards: unknown[] }>;
 }
 
 /**

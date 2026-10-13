@@ -1,15 +1,11 @@
 /**
- * Composite-item conversion, ported from Composer's own characterization suite
- * (`package-transformer.test.ts`) to confirm the merged planner/registry/plugin
- * machinery reproduces Composer's tested behavior under pie-qti's node-html-parser (9.x
- * here vs Composer's 7.x) and pie-qti's own error hierarchy.
+ * Composite-item conversion: characterization tests confirming the planner/registry/plugin
+ * machinery under pie-qti's node-html-parser and its own error hierarchy.
  *
- * Composer's originals assert rejection by awaiting a *thrown* `transformQtiPackageToPie`
- * promise, because Composer's package transformer only catches `QtiSourceProfileTransformError`
- * — every one of these composite-rejection paths throws a plain `Error` there, so a single bad
- * composite item aborts the whole package. Here the same rejections are threaded through
- * `QtiUnsupportedItemError`, so the assertions below check the failed item result instead: the
- * package call returns normally, and only the offending item is marked failed.
+ * Composite rejections are threaded through `QtiUnsupportedItemError`, so the assertions below
+ * check the failed item result: the package call returns normally, and only the offending item
+ * is marked failed. A plain thrown `Error` would abort the whole package over one bad composite
+ * item.
  */
 
 import { describe, expect, test } from 'bun:test';
@@ -191,7 +187,7 @@ describe('composite conversion', () => {
     expect(item.config.models[1].choices.map((choice: any) => choice.label)).toEqual(['C', 'D']);
   });
 
-  test('uses the primary interaction model for composite placeholders when parts emit passages', async () => {
+  test('leads a composite with its inline passage', async () => {
     const result = await transformedSingleItem(`
 <assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="composite-passage-placeholder">
   <responseDeclaration identifier="CHOICE" cardinality="single" baseType="identifier">
@@ -212,8 +208,15 @@ describe('composite conversion', () => {
 
     const item = (result.items[0] as any).content;
 
-    expect(item.config.models.map((model: any) => model.element)).toContain('passage');
-    expect(item.config.markup).toContain('<multiple-choice');
+    expect(item.config.models.map((model: any) => model.element)).toEqual([
+      'passage',
+      'multiple-choice',
+      'explicit-constructed-response',
+    ]);
+    expect(item.config.markup).not.toContain('Shared passage.');
+    expect(item.config.markup.indexOf('<passage')).toBeLessThan(
+      item.config.markup.indexOf('<multiple-choice')
+    );
     expect(item.config.markup.indexOf('<multiple-choice')).toBeLessThan(
       item.config.markup.indexOf('<explicit-constructed-response')
     );

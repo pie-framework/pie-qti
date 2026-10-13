@@ -397,34 +397,24 @@ describe('Real-World QTI Integration Tests', () => {
       expect(item.config.elements['multiple-choice']).toBe('@pie-element/multiple-choice@latest');
     });
 
-    test('should extract rubricBlock as rubric model', async () => {
+    test('should carry a scorer rubricBlock as teacher instructions', async () => {
       const qtiXml = loadFixture('with-passages/extended-response-with-rubric.xml');
       const input: TransformInput = { content: qtiXml };
 
       const result = await plugin.transform(input, context);
       const item = result.items[0].content;
 
-      // Should have 2 models: extended-text-entry + rubric
-      expect(item.config.models).toHaveLength(2);
-
-      // First model should be extended-text-entry
+      expect(item.config.models).toHaveLength(1);
       const erModel = item.config.models[0];
       expect(erModel.element).toBe('extended-text-entry');
       expect(erModel.prompt).toBeTruthy();
-
-      // Second model should be rubric
-      const rubricModel = item.config.models[1];
-      expect(rubricModel.element).toBe('rubric');
-      expect(rubricModel.rubric).toBeDefined();
-      expect(rubricModel.rubric.points).toContain('0');
-      expect(rubricModel.rubric.points).toContain('4');
-
-      // Should have both elements registered
-      expect(item.config.elements['extended-text-entry']).toBe('@pie-element/extended-text-entry@latest');
-      expect(item.config.elements['rubric']).toBe('@pie-element/rubric@latest');
+      expect(erModel.teacherInstructions).toContain('Scoring Guide:');
+      expect(erModel.teacherInstructions).toContain('<td>4</td>');
+      expect(erModel.teacherInstructions).toContain('<td>0</td>');
+      expect(erModel.teacherInstructionsEnabled).toBe(true);
     });
 
-    test('should extract object tag passage as passage model', async () => {
+    test('should report an object passage the item cannot resolve', async () => {
       // No object-tag external passage sample in the shared QTI samples currently; keep a minimal inlined object example.
       const qtiXml = `
         <assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p1" identifier="choice_with_object_passage">
@@ -446,68 +436,16 @@ describe('Real-World QTI Integration Tests', () => {
       const result = await plugin.transform(input, context);
       const item = result.items[0].content;
 
-      // Should have 2 models: passage + multiple-choice
-      expect(item.config.models).toHaveLength(2);
-
-      // First model should be passage
-      const passageModel = item.config.models[0];
-      expect(passageModel.element).toBe('passage');
-      expect(passageModel.passages).toBeDefined();
-
-      expect(passageModel.id).toBeTruthy();
-
-      // Second model should be multiple-choice
-      const mcModel = item.config.models[1];
-      expect(mcModel.element).toBe('multiple-choice');
-      // Prompt extraction can vary depending on how the passage/object is embedded.
-      expect(mcModel.prompt).toBeDefined();
-
-      // Should have both elements registered
-      expect(item.config.elements['passage']).toBe('@pie-element/passage@latest');
-      expect(item.config.elements['multiple-choice']).toBe('@pie-element/multiple-choice@latest');
-    });
-
-    test('should generate same passage ID for same file path', async () => {
-      const qtiXml1 = `
-        <assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p1" identifier="object_passage_1">
-          <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier">
-            <correctResponse><value>ChoiceA</value></correctResponse>
-          </responseDeclaration>
-          <itemBody>
-            <object data="passages/industrial-revolution.xml" type="text/xml"/>
-            <choiceInteraction responseIdentifier="RESPONSE">
-              <prompt>Based on the passage, pick A.</prompt>
-              <simpleChoice identifier="ChoiceA">A</simpleChoice>
-              <simpleChoice identifier="ChoiceB">B</simpleChoice>
-            </choiceInteraction>
-          </itemBody>
-        </assessmentItem>
-      `;
-      const qtiXml2 = `
-        <assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p1" identifier="object_passage_2">
-          <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier">
-            <correctResponse><value>ChoiceA</value></correctResponse>
-          </responseDeclaration>
-          <itemBody>
-            <object data="passages/industrial-revolution.xml" type="text/xml"/>
-            <choiceInteraction responseIdentifier="RESPONSE">
-              <prompt>Based on the passage, pick A.</prompt>
-              <simpleChoice identifier="ChoiceA">A</simpleChoice>
-              <simpleChoice identifier="ChoiceB">B</simpleChoice>
-            </choiceInteraction>
-          </itemBody>
-        </assessmentItem>
-      `;
-
-      const result1 = await plugin.transform({ content: qtiXml1 }, context);
-      const result2 = await plugin.transform({ content: qtiXml2 }, context);
-
-      const passage1 = result1.items[0].content.config.models[0];
-      const passage2 = result2.items[0].content.config.models[0];
-
-      // Both items reference same file, should have same passage ID
-      expect(passage1.id).toBe(passage2.id);
-      expect(passage1.id).toBeTruthy();
+      expect(item.passage).toBeUndefined();
+      expect(item.config.models.map((model: { element: string }) => model.element)).toEqual([
+        'multiple-choice',
+      ]);
+      expect(result.warnings).toContainEqual(
+        expect.objectContaining({
+          code: 'QTI_PASSAGE_UNRESOLVED',
+          path: 'passages/industrial-revolution.xml',
+        })
+      );
     });
   });
 });

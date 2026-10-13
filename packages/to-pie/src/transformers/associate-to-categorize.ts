@@ -17,7 +17,7 @@ import type { PieItem } from '@pie-qti/transform-types';
 import type { HTMLElement } from 'node-html-parser';
 import { parse } from 'node-html-parser';
 import { v4 as uuid } from 'uuid';
-import { cleanTransformHtml } from '../utils/prompt-extraction.js';
+import { extractPromptForInteraction } from '../utils/prompt-extraction.js';
 import { createMissingElementError, createMissingInteractionError } from '../utils/qti-errors.js';
 import {
   deriveItemScoring,
@@ -82,8 +82,7 @@ export function transformAssociateToCategorize(
     });
   }
 
-  // Extract prompt
-  const prompt = extractPrompt(interaction);
+  const prompt = extractPromptForInteraction(itemBody, interaction);
 
   // Get response identifier
   const responseIdentifier = interaction.getAttribute('responseIdentifier') || 'RESPONSE';
@@ -150,17 +149,6 @@ export function transformAssociateToCategorize(
   };
 
   return pieItem;
-}
-
-/**
- * Extract prompt from interaction
- */
-function extractPrompt(interaction: HTMLElement): string | null {
-  const promptElement = interaction.getElementsByTagName('prompt')[0];
-  if (promptElement) {
-    return cleanTransformHtml(promptElement.innerHTML) || null;
-  }
-  return null;
 }
 
 /**

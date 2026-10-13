@@ -25,7 +25,7 @@ Two complementary extension surfaces sit on the best-effort path:
 
 Package-level transforms (whole IMS Content Package in, PIE items + sidecars + diagnostics out) are handled by `transformQtiPackageToPie`, which composes `@pie-qti/ims-cp-core`'s package graph analysis with the plugin's item-level transform and source-profile runtime. Item conversion runs with bounded concurrency (`itemConcurrency`, sequential by default); `transformAnalyzedQtiPackageToPie` takes an already-analyzed package graph for callers that need to run their own stage over the package first (see `package-exploder.ts`) without analyzing it twice.
 
-An `itemBody` with more than one interaction is not rejected outright: a scoped set of interaction types compose into one PIE item carrying multiple models (see "Composite items" below), and every item-scoped rejection — an unsupported interaction, an unsupported composite shape, a QTI 3.0 item — is a catchable `QtiItemTransformError`, so one bad item fails only itself rather than the whole package.
+An `itemBody` with more than one interaction is not rejected outright: a scoped set of interaction types compose into one PIE item carrying multiple models (see "Composite items" below), and every item-scoped rejection — an unsupported interaction, an unsupported composite shape, a QTI 3.0 construct normalization cannot carry — is a catchable `QtiItemTransformError`, so one bad item fails only itself rather than the whole package.
 
 ---
 
@@ -65,7 +65,7 @@ QTI `associateInteraction` models arbitrary many-to-many pairings: any source co
 
 ## QTI specification alignment
 
-- **Spec versions:** QTI 2.2
+- **Spec versions:** QTI 2.2; QTI 2.1 and QTI 3.0 convert through its vocabulary, QTI 3.0 after `normalizeQti3ToQti2` renames it at the entry point
 - **Spec sections:** §4.1 assessmentItem; §4.x individual interaction types; §6 assessmentTest structure
 - **Supported interaction types:**
   - `choiceInteraction` → PIE `multiple-choice`
@@ -109,10 +109,10 @@ A composite that mixes in an interaction outside the scoped set, repeats a non-r
 - **FR-5:** When a vendor is detected and a matching `VendorTransformer` is registered for that vendor, the plugin MUST delegate to the vendor transformer. If the vendor transformer throws, the plugin MUST log a warning and fall through to the standard transformation path.
 - **FR-6:** Metadata extraction MUST prefer a vendor-specific `MetadataExtractor` (matched by `extractor.vendor === vendorInfo.vendor`) over the standard extractor (`extractor.vendor === 'standard'`). The standard extractor is registered by default in the constructor.
 - **FR-7:** `baseId` MUST be extracted from `<qti-metadata-field name="externalId">` only when `<qti-metadata-field name="sourceSystemId">` has value `"pie"`, confirming the item originated in PIE.
-- **FR-8:** For `assessmentTest` input, the plugin MUST return an assessment object (not a single item) that includes `testParts`, `sections`, `itemRefs`, `timeLimits`, and `outcomeProcessingXml`.
+- **FR-8:** For `assessmentTest` input, the plugin MUST return an assessment object (not a single item) that includes `testParts`, `sections`, `itemRefs`, `timeLimits`, and `outcomeProcessingXml`. A personal needs profile is per-candidate data, so a `personalNeedsProfile` or `access-for-all-pnp` element in the test MUST produce a `QTI_PNP_IN_CONTENT` warning naming the element, and the assessment MUST omit it.
 - **FR-9:** Vendor hooks registered via constructor options (`vendorDetectors`, `vendorTransformers`, `assetResolvers`, `cssClassExtractors`, `metadataExtractors`) MUST behave identically to hooks registered via `registerVendorDetector(...)` et al. after construction.
 - **FR-10:** An `itemBody` with more than one interaction MUST be composed into one PIE item, not silently reduced to its first interaction, when every interaction's type is in the scoped composite set and any repeated type is one of the types allowed to repeat. An itemBody with a `customInteraction`, `customOperator`, or an interaction nested inside a `feedbackBlock` MUST NOT take the composite path, regardless of how many interactions it has.
-- **FR-11:** Every rejection that is a property of one item — an unsupported single interaction, an unsupported composite shape, a QTI 3.0 item — MUST raise `QtiUnsupportedItemError` (or `QtiSourceProfileTransformError`), both of which extend `QtiItemTransformError`. A plugin-code defect (a handler registration bug, a malformed transformer) MUST propagate as a plain `Error` instead, since `transformQtiPackageToPie` treats `QtiItemTransformError` as recoverable per item and anything else as a package-aborting fault.
+- **FR-11:** Every rejection that is a property of one item — an unsupported single interaction, an unsupported composite shape, a QTI 3.0 construct normalization cannot carry — MUST raise `QtiUnsupportedItemError` (or `QtiSourceProfileTransformError`), both of which extend `QtiItemTransformError`. A plugin-code defect (a handler registration bug, a malformed transformer) MUST propagate as a plain `Error` instead, since `transformQtiPackageToPie` treats `QtiItemTransformError` as recoverable per item and anything else as a package-aborting fault.
 
 ---
 
@@ -171,7 +171,7 @@ A composite that mixes in an interaction outside the scoped set, repeats a non-r
 
 **Decision:** `QtiItemTransformError` is the base for every failure that is scoped to one item — an unsupported interaction shape, an unsupported composite, a source-profile block. `QtiSourceProfileTransformError` and `QtiUnsupportedItemError` both extend it. `transformQtiPackageToPie`'s per-item catch checks `error instanceof QtiItemTransformError`, not the narrower subclass.
 
-**Rationale:** Composite validation, interaction-shape validation, and the QTI 3.0 version guard all reject content that is well-formed QTI the transform cannot represent — a property of the item, not a package-level fault. Catching only `QtiSourceProfileTransformError` means every other item-scoped rejection is an uncaught `Error` that propagates out of `transformQtiPackageToPie` and aborts the whole package: one bad composite item in a 100-item package would fail all 100, not just the one. `QtiUnsupportedItemError` exists as a named, catchable case so that failure mode is closed by construction rather than by remembering to catch broadly.
+**Rationale:** Composite validation, interaction-shape validation, and the QTI 3.0 construct guard all reject content that is well-formed QTI the transform cannot represent — a property of the item, not a package-level fault. Catching only `QtiSourceProfileTransformError` means every other item-scoped rejection is an uncaught `Error` that propagates out of `transformQtiPackageToPie` and aborts the whole package: one bad composite item in a 100-item package would fail all 100, not just the one. `QtiUnsupportedItemError` exists as a named, catchable case so that failure mode is closed by construction rather than by remembering to catch broadly.
 
 **Alternatives considered:** Throwing `QtiSourceProfileTransformError` for every item-scoped rejection regardless of whether a source profile was involved — rejected as a misleading name for content that never touched the source-profile runtime. Catching plain `Error` in the package transformer — rejected because it would also swallow genuine plugin-code defects (a transformer bug, a malformed handler registration), which must abort the package and surface loudly rather than read as "this one item failed."
 
@@ -294,6 +294,12 @@ AC-8: assessmentTest returns assessment structure
   When: transform is called
   Then: result.items[0].content has testParts array; result.metadata.itemCount equals the
         total number of itemRefs across all sections and testParts
+
+AC-8a: a personal needs profile in an assessmentTest is reported, not converted
+  Given: An <assessmentTest> containing a <personalNeedsProfile> or <afa:access-for-all-pnp>
+  When: transform is called
+  Then: result.warnings has a QTI_PNP_IN_CONTENT entry naming the element; the assessment
+        content has no personalNeedsProfile
 
 AC-9: baseId extracted from PIE-originated QTI
   Given: QTI XML with <qti-metadata-field name="sourceSystemId" value="pie"/> and

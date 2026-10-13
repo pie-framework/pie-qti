@@ -108,7 +108,7 @@ export function transformHotspotInteraction(
 
   // Determine if multiple correct
   const maxChoices = parseInt(hotspotInteraction.getAttribute('maxChoices') || '1', 10);
-  const multipleCorrect = options?.multipleCorrect ?? (maxChoices > 1 || correctAnswers.length > 1);
+  const multipleCorrect = options?.multipleCorrect ?? (maxChoices !== 1 || correctAnswers.length > 1);
 
   // Extract image and dimensions
   const { imageUrl, dimensions, reason } = extractImage(hotspotInteraction, options);

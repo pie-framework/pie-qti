@@ -4,6 +4,7 @@
  * Transforms QTI 2.2 assessment items to PIE format
  */
 
+import type { AnalyzedContentPackage } from '@pie-qti/ims-cp-core';
 import type {
   ConversionTrace,
   PieItem,
@@ -18,6 +19,7 @@ import type {
   ValidationResult,
   VendorExtensionConfig,
 } from '@pie-qti/transform-types';
+import { sourceDigest } from '@pie-qti/transform-types';
 import type { HTMLElement } from 'node-html-parser';
 import { parse } from 'node-html-parser';
 import type {
@@ -29,10 +31,23 @@ import type {
   VendorInfo,
   VendorTransformer,
 } from './types/vendor-extensions.js';
+import { prepareQtiAccessibility, withQtiAccessibility } from './utils/accessibility-catalogs.js';
+import { withAccessibilityAudit } from './utils/accessibility-inventory.js';
+import { removeUnmappedFeedback } from './utils/feedback-removal.js';
+import {
+  type InlinePassageRule,
+  type ItemBodyPartition,
+  partitionItemBody,
+  withItemBodyPartition,
+} from './utils/item-body-partition.js';
 import { serializeChildrenWithReplacements } from './utils/markup-extraction.js';
 import { extractSearchMetadata } from './utils/metadata-extraction.js';
+import { passageResourceIndex } from './utils/passage-resources.js';
 import { makePieItemPlayerReady } from './utils/player-config.js';
-import { extractPieExtension, hasPieExtension } from './utils/pie-extension.js';
+import { hasPieExtension, type PieExtensionData } from './utils/pie-extension.js';
+import { pieElementTagForModel, piePackageName, piePlaceholderMarkup } from './utils/pie-markup.js';
+import { readPieSourceSidecar } from './utils/pie-source-sidecar.js';
+import { contentAfterInteraction } from './utils/prompt-extraction.js';
 import { embedQtiSourceInPie } from './utils/qti-extension-embedder.js';
 import {
   isQtiInteractionElement,
@@ -41,7 +56,18 @@ import {
   type QtiItemBodyPlan,
 } from './utils/qti-item-planner.js';
 import { isAssessmentTestDocument, validateQti } from './utils/qti-validator.js';
+import {
+  isQti3Document,
+  normalizeQti3ToQti2,
+  type UnsupportedQti3Construct,
+  unsupportedQti3Construct,
+} from './utils/qti3-normalize.js';
+import { withScorerRubric } from './utils/scorer-rubric.js';
 import { withStylesheetResources } from './utils/stylesheet-extraction.js';
+import {
+  unresolvedStimulusRefWarnings,
+  withUnresolvedPassageWarnings,
+} from './utils/unresolved-passages.js';
 import { createStandardMetadataExtractor } from './extractors/standard-metadata-extractor.js';
 import { extractCssClassesWithHooks } from './vendor-extension-runtime.js';
 import {
@@ -94,6 +120,12 @@ export interface QtiToPiePluginOptions {
    * without taking over the generic QTI-to-PIE transform.
    */
   sourceProfiles?: QtiSourceProfile[];
+
+  /**
+   * Elements that hold an inline passage, beyond the `<stimulus>` element every conversion
+   * recognizes. A claimed element leaves the item body and becomes a passage model of the item.
+   */
+  inlinePassageRules?: InlinePassageRule[];
 
   /**
    * Optional transform registry. Primarily useful for tests or hosts that need
@@ -169,6 +201,8 @@ export class QtiToPiePlugin implements TransformPlugin {
 
   private sourceProfiles: QtiSourceProfile[] = [];
 
+  private inlinePassageRules: InlinePassageRule[] = [];
+
   private registry: QtiToPieRegistry;
 
   /**
@@ -218,6 +252,7 @@ export class QtiToPiePlugin implements TransformPlugin {
       this.registerMetadataExtractor(extractor)
     );
     this.sourceProfiles = [...(options.sourceProfiles ?? [])];
+    this.inlinePassageRules = [...(options.inlinePassageRules ?? [])];
 
     // Note: vendorExtensions config is handled by VendorExtensionRegistry
     // after plugin instantiation, not in the constructor
@@ -285,13 +320,40 @@ export class QtiToPiePlugin implements TransformPlugin {
   }
 
   async transform(input: TransformInput, context: TransformContext): Promise<TransformOutput> {
+    const authoredXml =
+      typeof input.content === 'string' ? input.content : JSON.stringify(input.content);
+    const qtiXml = isQti3Document(authoredXml) ? normalizeQti3ToQti2(authoredXml) : authoredXml;
+    const accessibility = prepareQtiAccessibility(qtiXml);
+    const output = await this.transformItem(input, context, qtiXml, accessibility.xml);
+    // An item restored from its PIE source carries its own catalogs and rubrics.
+    if ((output.metadata as { losslessRoundTrip?: boolean }).losslessRoundTrip) {
+      return output;
+    }
+    const itemId = this.extractItemId(qtiXml, input.metadata?.resourceId as string | undefined);
+    const withCatalogs = withQtiAccessibility(withScorerRubric(output, qtiXml, itemId), accessibility);
+    return withUnresolvedPassageWarnings(withAccessibilityAudit(withCatalogs, qtiXml, itemId), itemId);
+  }
+
+  /**
+   * @param qtiXml The item in the QTI 2.x vocabulary: normalized from QTI 3.0, otherwise as
+   * authored. Vendor extensions and the embedded source receive the item as authored instead.
+   * @param conversionXml The item as the built-in transformers convert it, prepared for its
+   * accessibility catalogs; `qtiXml` when omitted.
+   */
+  private async transformItem(
+    input: TransformInput,
+    context: TransformContext,
+    qtiXml: string,
+    conversionXml?: string
+  ): Promise<TransformOutput> {
     const startTime = Date.now();
     const logger = context.logger;
 
-    logger?.info('Starting QTI 2.2 to PIE transformation');
+    logger?.info('Starting QTI to PIE transformation');
 
-    const qtiXml = typeof input.content === 'string' ? input.content : JSON.stringify(input.content);
-    const qtiVersion = detectQtiVersion(qtiXml);
+    const authoredXml =
+      typeof input.content === 'string' ? input.content : JSON.stringify(input.content);
+    const qtiVersion = detectQtiVersion(authoredXml);
     const sourceFormat = qtiVersionToSourceFormat(qtiVersion);
     const warnings: TransformWarning[] = [];
     const itemId = this.extractItemId(qtiXml, input.metadata?.resourceId as string | undefined);
@@ -304,16 +366,59 @@ export class QtiToPiePlugin implements TransformPlugin {
       data: { sourceFormat, qtiVersion },
     });
 
-    // Check for PIE extension first for lossless round-trip
-    if (hasPieExtension(qtiXml)) {
-      logger?.info('Detected PIE extension - using lossless extraction');
-      addTraceEvent(trace, {
-        kind: 'handler-selected',
-        scope: 'item',
-        itemId,
-        message: 'Detected embedded PIE extension; using lossless extraction.',
-      });
-      return this.extractFromPieExtension(qtiXml, startTime, logger, sourceFormat, trace, qtiVersion);
+    // Check for the PIE source first for lossless round-trip: the sidecar pie-to-qti2 writes beside
+    // the item. It only adds fidelity and the body is complete QTI, so a source that is unreadable,
+    // or stale because the item changed after export, falls back to the body.
+    if (input.sidecar !== undefined) {
+      const sidecar = readPieSourceSidecar(input.sidecar);
+      const fresh = sidecar !== null && sidecar.qtiDigest === (await sourceDigest(authoredXml));
+      if (sidecar && fresh) {
+        logger?.info('Detected PIE source sidecar - using lossless extraction');
+        addTraceEvent(trace, {
+          kind: 'handler-selected',
+          scope: 'item',
+          itemId,
+          message: 'Detected PIE source sidecar; using lossless extraction.',
+        });
+        return this.extractFromPieExtension(
+          {
+            sourceModel: sidecar.sourceModel,
+            metadata: {
+              generator: sidecar.generator,
+              elementType: sidecar.elementType,
+              ...(sidecar.generatedAt && { timestamp: new Date(sidecar.generatedAt) }),
+            },
+            hasExtension: true,
+          },
+          startTime,
+          logger,
+          sourceFormat,
+          trace,
+          qtiVersion
+        );
+      }
+
+      const [code, message] = sidecar
+        ? ([
+            'PIE_SOURCE_STALE',
+            `PIE source sidecar for item ${itemId} does not match the item, which changed after export; the item was transformed from its QTI body.`,
+          ] as const)
+        : ([
+            'PIE_EXTENSION_UNREADABLE',
+            `PIE source sidecar for item ${itemId} could not be read; the item was transformed from its QTI body.`,
+          ] as const);
+      logger?.warn(message);
+      warnings.push({ itemId, code, message });
+      addTraceEvent(trace, { kind: 'fallback', scope: 'item', itemId, message });
+    }
+
+    // Earlier pie-to-qti2 versions embedded the PIE source in the item with no digest, so it cannot
+    // be shown to match the item and is not used.
+    if (hasPieExtension(authoredXml)) {
+      const message = `Embedded PIE source model in item ${itemId} has no digest to show it matches the item; the item was transformed from its QTI body.`;
+      logger?.warn(message);
+      warnings.push({ itemId, code: 'PIE_SOURCE_STALE', message });
+      addTraceEvent(trace, { kind: 'fallback', scope: 'item', itemId, message });
     }
 
     // Parse XML once for all detection and transformation
@@ -322,27 +427,37 @@ export class QtiToPiePlugin implements TransformPlugin {
       comment: false,
     });
 
+    const authoredDoc =
+      authoredXml === qtiXml ? doc : parse(authoredXml, { lowerCaseTagName: false, comment: false });
+
     const assessmentItem = doc.querySelector('assessmentItem') || doc.getElementsByTagName('assessmentItem')[0];
-    // QTI 3.0 items use kebab element names throughout, and every transformer on this path reads
-    // QTI 2.x camelCase children. The 3.0 root is therefore recognised only so the item can be
-    // rejected by version rather than reported as an unknown interaction type.
-    const qti3ItemElement = assessmentItem
-      ? undefined
-      : doc.getElementsByTagName('qti-assessment-item')[0];
-    const itemElement = assessmentItem ?? qti3ItemElement;
-    const interactionAnalysis = itemElement ? analyzeAssessmentItemInteractions(itemElement) : null;
-    const itemBody = assessmentItem?.getElementsByTagName('itemBody')[0];
+    const interactionAnalysis = assessmentItem ? analyzeAssessmentItemInteractions(assessmentItem) : null;
+    const sourcePath = input.metadata?.sourcePath as string | undefined;
+    const packageContext = input.metadata?.packageContext as any;
+    const partitioned = assessmentItem
+      ? this.partitionItem(conversionXml ?? qtiXml, packageContext?.packageGraph, sourcePath, {
+          prepared: conversionXml !== undefined && conversionXml !== qtiXml,
+        })
+      : undefined;
+    if (partitioned) {
+      warnings.push(...unresolvedStimulusRefWarnings(partitioned.partition.unresolvedStimulusRefs, itemId));
+    }
+    // The transformers convert the partitioned item, and the plan holds its elements, so a source
+    // profile handler can hand a planned unit to a built-in. Everything else read from the whole
+    // item (profile detection, processing, stylesheets) reads `qtiXml` and `doc`.
+    const conversionItem = partitioned?.assessmentItem ?? assessmentItem;
+    const itemBody = conversionItem?.getElementsByTagName('itemBody')[0];
     const itemBodyPlan = itemBody ? planQtiItemBody(itemBody) : undefined;
     const itemContext = {
       itemId,
       resourceId: (input.metadata?.resourceId as string | undefined) ?? itemId,
-      sourcePath: input.metadata?.sourcePath as string | undefined,
+      sourcePath,
       xml: qtiXml,
       qtiVersion,
       interactionTypes: interactionAnalysis?.standardTypes ?? [],
       responseProcessingXml: assessmentItem ? directChildXml(assessmentItem, 'responseProcessing') : undefined,
       qtiItemBodyPlan: itemBodyPlan,
-      package: input.metadata?.packageContext as any,
+      package: packageContext,
       metadata: input.metadata,
     };
     const profileRuntime = detectItemProfiles(
@@ -353,13 +468,13 @@ export class QtiToPiePlugin implements TransformPlugin {
     warnings.push(...(profileRuntime.extraction.warnings ?? []));
 
     // Check for vendor-specific QTI and use vendor transformer if available
-    const vendorInfo = this.detectVendor(qtiXml, doc);
+    const vendorInfo = this.detectVendor(authoredXml, authoredDoc);
     if (vendorInfo) {
       logger?.info(`Detected vendor: ${vendorInfo.vendor} (confidence: ${vendorInfo.confidence})`);
 
       // Try to find a vendor transformer that can handle this content
       const vendorTransformer = this.vendorExtensions.transformers.find(
-        t => t.vendor === vendorInfo.vendor && t.canHandle(qtiXml, vendorInfo, doc)
+        t => t.vendor === vendorInfo.vendor && t.canHandle(authoredXml, vendorInfo, authoredDoc)
       );
 
       if (vendorTransformer) {
@@ -372,8 +487,8 @@ export class QtiToPiePlugin implements TransformPlugin {
             handlerId: `legacy-vendor-transformer:${vendorTransformer.vendor}`,
             message: `Using legacy vendor transformer for ${vendorTransformer.vendor}.`,
           });
-          const output = await vendorTransformer.transform(qtiXml, vendorInfo, context, doc);
-          return withTraceMetadata(output, trace, profileRuntime);
+          const output = await vendorTransformer.transform(authoredXml, vendorInfo, context, authoredDoc);
+          return withTraceMetadata(output, trace, profileRuntime, warnings);
         } catch (error) {
           logger?.warn(
             `Vendor transformer failed for ${vendorInfo.vendor}: ${(error as Error).message}. ` +
@@ -391,8 +506,8 @@ export class QtiToPiePlugin implements TransformPlugin {
       }
     }
 
-    // Vendor transformers receive the raw XML and may support QTI 3.0 themselves, so the version
-    // rejection lands after vendor detection and before built-in handler selection.
+    // Vendor transformers receive the item as authored and may convert a QTI 3.0 construct
+    // normalization cannot carry, so that rejection lands after vendor detection.
     const itemFailure: ItemFailureContext = {
       itemId,
       trace,
@@ -400,8 +515,10 @@ export class QtiToPiePlugin implements TransformPlugin {
       sourcePath: itemContext.sourcePath,
     };
 
-    if (qti3ItemElement) {
-      throw createUnsupportedQti3ItemError(interactionAnalysis, itemFailure);
+    const unsupportedQti3 =
+      qtiXml === authoredXml ? undefined : unsupportedQti3Construct(authoredXml, qtiXml);
+    if (unsupportedQti3) {
+      throw createUnsupportedQti3ConstructError(unsupportedQti3, itemFailure);
     }
 
     // Detect item type and use appropriate transformer
@@ -414,14 +531,17 @@ export class QtiToPiePlugin implements TransformPlugin {
 
     const builtInContext: BuiltInTransformContext = {
       interactionType,
-      qtiXml,
+      qtiXml: partitioned?.xml ?? qtiXml,
       itemId,
-      assessmentItem,
+      assessmentItem: conversionItem,
       itemBodyPlan,
-      sourcePath: itemContext.sourcePath,
+      sourcePath,
       baseId,
       logger,
     };
+    const partition = partitioned?.partition;
+    const withPartition = (item: PieItem): PieItem =>
+      partition ? withItemBodyPartition(item, partition) : item;
 
     const runGenericTransform = async (): Promise<TransformOutput> => {
       if (interactionAnalysis) {
@@ -432,9 +552,12 @@ export class QtiToPiePlugin implements TransformPlugin {
         warnings.push(...createProcessingWarnings(assessmentItem, itemId));
       }
 
+      const genericContext = this.withoutUnmappedFeedback(builtInContext, interactionAnalysis, warnings);
+
       let pieItem;
       const useCompositeBuiltIns =
-        interactionType !== 'ebsr' && shouldUseCompositeBuiltIns(interactionAnalysis, itemBodyPlan);
+        interactionType !== 'ebsr' &&
+        shouldUseCompositeBuiltIns(interactionAnalysis, genericContext.itemBodyPlan);
 
       try {
       const transformResult: BuiltInTransformResult = useCompositeBuiltIns
@@ -442,24 +565,26 @@ export class QtiToPiePlugin implements TransformPlugin {
             kind: 'pie-item',
             content: await this.transformCompositeBuiltIns(
               interactionAnalysis?.standardTypes ?? [],
-              builtInContext,
+              genericContext,
               itemFailure
             ),
           }
         : await this.transformWithSingleBuiltIn({
             interactionAnalysis,
             interactionType,
-            builtInContext,
+            builtInContext: genericContext,
             logger,
             trace,
             failure: itemFailure,
           });
 
       if (transformResult.kind === 'assessment') {
+        warnings.push(...(transformResult.warnings ?? []));
         const processingTimeTest = Date.now() - startTime;
         logger?.info(`Assessment transformation complete in ${processingTimeTest}ms`);
         return {
-          items: [{ content: transformResult.content, format: 'pie' as const }], // Return assessment wrapped
+          // The test transform reads the normalized document, so the version is the authored one.
+          items: [{ content: { ...transformResult.content, qtiVersion }, format: 'pie' as const }],
           format: 'pie',
           metadata: {
             sourceFormat,
@@ -475,7 +600,7 @@ export class QtiToPiePlugin implements TransformPlugin {
           warnings: warnings.length > 0 ? warnings : undefined,
         };
       }
-      pieItem = transformResult.content;
+      pieItem = withPartition(transformResult.content);
       if (useCompositeBuiltIns) {
         warnings.push({
           itemId,
@@ -514,7 +639,7 @@ export class QtiToPiePlugin implements TransformPlugin {
       );
 
       if (metadataExtractor) {
-        const extractedMetadata = metadataExtractor.extract(qtiXml, doc, vendorInfo || { vendor: 'standard', confidence: 1.0 });
+        const extractedMetadata = metadataExtractor.extract(authoredXml, authoredDoc, vendorInfo || { vendor: 'standard', confidence: 1.0 });
         logger?.info(`Extracted metadata using ${metadataExtractor.vendor} extractor`);
 
         // Apply extracted searchMetadata
@@ -528,7 +653,7 @@ export class QtiToPiePlugin implements TransformPlugin {
         }
       } else {
         // Fallback to old method if no extractor available
-        const extractedSearchMetadata = extractSearchMetadata(doc);
+        const extractedSearchMetadata = extractSearchMetadata(authoredDoc);
         if (Object.keys(extractedSearchMetadata).length > 0) {
           logger?.info(`Extracted searchMetaData with ${Object.keys(extractedSearchMetadata).length} fields (legacy method)`);
           pieItem.searchMetaData = {
@@ -540,7 +665,7 @@ export class QtiToPiePlugin implements TransformPlugin {
 
       const cssClassExtractions = extractCssClassesWithHooks({
         extractors: this.vendorExtensions.cssClassExtractors,
-        root: doc,
+        root: authoredDoc,
         vendorInfo,
       });
 
@@ -557,10 +682,17 @@ export class QtiToPiePlugin implements TransformPlugin {
 
       await applyItemDecorators(this.sourceProfiles, profileRuntime, itemContext, pieItem, 'beforeFinalize', trace);
 
-      const playerReadyPieItem = withStylesheetResources(makePieItemPlayerReady(pieItem), qtiXml);
+      const trailingContent =
+        useCompositeBuiltIns || pieItem.config?.markup?.trim()
+          ? ''
+          : contentAfterSoleInteraction(interactionType, genericContext);
+      const playerReadyPieItem = withStylesheetResources(
+        withTrailingContent(makePieItemPlayerReady(pieItem), trailingContent),
+        qtiXml
+      );
 
       // Embed original QTI XML for lossless round-trip
-      const pieItemWithSource = embedQtiSourceInPie(playerReadyPieItem, qtiXml, {
+      const pieItemWithSource = embedQtiSourceInPie(playerReadyPieItem, authoredXml, {
         generator: {
           package: '@pie-qti/to-pie',
           version: this.version,
@@ -569,6 +701,11 @@ export class QtiToPiePlugin implements TransformPlugin {
         qtiVersion,
       });
       await applyItemDecorators(this.sourceProfiles, profileRuntime, itemContext, pieItemWithSource, 'afterFinalize', trace);
+      // Digested last, after every decorator: pie-to-qti2 uses the embedded QTI only for this config.
+      const qtiSource = pieItemWithSource.metadata?.qtiSource;
+      if (qtiSource) {
+        qtiSource.metadata = { ...qtiSource.metadata, configDigest: await sourceDigest(pieItemWithSource.config) };
+      }
 
       return {
         items: [{ content: pieItemWithSource, format: 'pie' as const }],
@@ -598,10 +735,14 @@ export class QtiToPiePlugin implements TransformPlugin {
       context: itemContext,
       delegate: {
         continue: runGenericTransform,
-        transformWithBuiltIn: async (handlerId, overrides) =>
-          this.registry
+        transformWithBuiltIn: async (handlerId, overrides) => {
+          const result = await this.registry
             .createDelegate(builtInContext)
-            .transformWithBuiltIn(handlerId, overrides as any),
+            .transformWithBuiltIn(handlerId, overrides as any);
+          return result.kind === 'pie-item'
+            ? { ...result, content: withPartition(result.content) }
+            : result;
+        },
       },
       trace,
     });
@@ -636,6 +777,72 @@ export class QtiToPiePlugin implements TransformPlugin {
     }
 
     return runGenericTransform();
+  }
+
+  /**
+   * The item with its passages partitioned out of the body, or `undefined` when there was nothing
+   * to partition and the item was not prepared for its accessibility catalogs. The partition runs
+   * on its own parse, so the source document stays as authored.
+   */
+  private partitionItem(
+    qtiXml: string,
+    packageGraph: AnalyzedContentPackage | undefined,
+    sourcePath: string | undefined,
+    options: { prepared: boolean }
+  ): { partition: ItemBodyPartition; xml: string; assessmentItem: HTMLElement } | undefined {
+    const assessmentItemOf = (root: HTMLElement) =>
+      root.querySelector('assessmentItem') || root.getElementsByTagName('assessmentItem')[0];
+    const doc = parse(qtiXml, { lowerCaseTagName: false, comment: false });
+    const item = assessmentItemOf(doc);
+    if (!item) {
+      return undefined;
+    }
+    const partition = partitionItemBody(item, {
+      passageResources: passageResourceIndex(packageGraph, sourcePath),
+      inlinePassageRules: this.inlinePassageRules,
+    });
+    if (!partition.changed && !options.prepared) {
+      return undefined;
+    }
+    // Reparsed so the transformers that read `qtiXml` and those that walk the element tree see
+    // one document.
+    const xml = doc.toString();
+    const assessmentItem = assessmentItemOf(parse(xml, { lowerCaseTagName: false, comment: false }));
+    return assessmentItem ? { partition, xml, assessmentItem } : undefined;
+  }
+
+  /**
+   * The built-in context with the feedback no built-in maps removed, re-parsed so the item, its
+   * body plan and the XML all describe the same document. The embedded QTI source and metadata
+   * extraction keep reading the original.
+   */
+  private withoutUnmappedFeedback(
+    context: BuiltInTransformContext,
+    interactionAnalysis: InteractionAnalysis | null,
+    warnings: TransformWarning[]
+  ): BuiltInTransformContext {
+    if (!context.assessmentItem) {
+      return context;
+    }
+    const removal = removeUnmappedFeedback(
+      context.qtiXml,
+      context.assessmentItem,
+      context.itemId,
+      new Set([context.interactionType, ...(interactionAnalysis?.standardTypes ?? [])])
+    );
+    if (!removal.warning) {
+      return context;
+    }
+    warnings.push(removal.warning);
+    const doc = parse(removal.xml, { lowerCaseTagName: false, comment: false });
+    const assessmentItem = doc.querySelector('assessmentItem') || doc.getElementsByTagName('assessmentItem')[0];
+    const itemBody = assessmentItem?.getElementsByTagName('itemBody')[0];
+    return {
+      ...context,
+      qtiXml: removal.xml,
+      assessmentItem,
+      itemBodyPlan: itemBody ? planQtiItemBody(itemBody) : undefined,
+    };
   }
 
   /**
@@ -756,7 +963,14 @@ export class QtiToPiePlugin implements TransformPlugin {
         builtInHandler.pieElements ?? [],
         elements
       );
-      const placeholder = placeholderForModel(placeholderModel, elements);
+      const placeholder = placeholderModel ? piePlaceholderMarkup(placeholderModel, elements) : null;
+      if (!placeholder) {
+        throw unsupportedItemError(
+          `Composite QTI item ${failure.itemId} produced a PIE model the config cannot render.`,
+          'QTI_COMPOSITE_ITEM_UNSUPPORTED',
+          failure
+        );
+      }
       replacements.set(unit.interactions[0]!, placeholder);
       for (const extraInteraction of unit.interactions.slice(1)) {
         replacements.set(extraInteraction, '');
@@ -808,7 +1022,8 @@ export class QtiToPiePlugin implements TransformPlugin {
 
     // Check for passage/stimulus ONLY as standalone top-level elements
     // NOTE: <stimulus> within itemBody is inline content, not a standalone passage
-    if (qtiXml.includes('<assessmentPassage') || qtiXml.includes('<assessmentStimulus')) {
+    // `\b` keeps an item's `assessmentStimulusRef` from reading as a stimulus document.
+    if (/<assessment(?:Passage|Stimulus)\b/.test(qtiXml)) {
       return 'passage';
     }
 
@@ -896,7 +1111,7 @@ export class QtiToPiePlugin implements TransformPlugin {
    * every edited item look like a brand-new item rather than an update.
    */
   private extractItemId(qtiXml: string, resourceId?: string): string {
-    const rootTag = /<\s*(?:[\w.-]+:)?(?:assessmentItem|qti-assessment-item)\b[^>]*>/i.exec(
+    const rootTag = /<\s*(?:[\w.-]+:)?assessmentItem\b[^>]*>/i.exec(
       qtiXml
     )?.[0];
     const declared = rootTag
@@ -987,7 +1202,7 @@ export class QtiToPiePlugin implements TransformPlugin {
    * Validate QTI XML input (before transformation)
    */
   async validateInput(xml: string): Promise<ValidationResult> {
-    const result = await validateQti(xml);
+    const result = await validateQti(isQti3Document(xml) ? normalizeQti3ToQti2(xml) : xml);
 
     // Convert to TransformPlugin ValidationResult format
     return {
@@ -1001,19 +1216,13 @@ export class QtiToPiePlugin implements TransformPlugin {
    * Extract PIE item from QTI XML with PIE extension for lossless round-trip
    */
   private extractFromPieExtension(
-    qtiXml: string,
+    extensionData: PieExtensionData,
     startTime: number,
     logger?: any,
     sourceFormat = 'qti22',
     trace?: ConversionTrace,
     qtiVersion?: string
   ): TransformOutput {
-    const extensionData = extractPieExtension(qtiXml);
-
-    if (!extensionData.hasExtension || !extensionData.sourceModel) {
-      throw new Error('PIE extension detected but failed to extract source model');
-    }
-
     const processingTime = Date.now() - startTime;
     logger?.info(`Lossless extraction complete in ${processingTime}ms`);
 
@@ -1124,15 +1333,46 @@ interface QtiProcessingMetadata {
 }
 
 /**
- * Interactions are recognised by element shape, not by an allow-list: any `*Interaction`
- * (QTI 2.x) or `qti-*-interaction` (QTI 3.0) element counts. An allow-list under-counts
- * composites for every interaction it omits, which is precisely the silent reduction the
- * composite guard exists to prevent.
+ * Interactions are recognised by element shape, not by an allow-list: any element whose local
+ * name ends in `interaction`, in any case and under any namespace prefix, counts. An allow-list
+ * under-counts composites for every interaction it omits, which is precisely the silent
+ * reduction the composite guard exists to prevent.
  */
-const QTI_INTERACTION_NAME = /^[a-zA-Z][A-Za-z0-9]*Interaction$/;
+const QTI_INTERACTION_LOCAL_NAME = /^[a-z][a-z0-9]*interaction$/;
 
-/** Custom and portable-custom interactions route to vendor transformers; they are never reduced. */
-const CUSTOM_INTERACTION_NAMES = new Set(['customInteraction', 'portableCustomInteraction']);
+/**
+ * Custom and portable-custom interactions route to vendor transformers; they are never reduced.
+ * They are counted from their evidence, so they are not interaction types.
+ */
+const CUSTOM_INTERACTION_LOCAL_NAMES = new Set(['custominteraction', 'portablecustominteraction']);
+
+/** The QTI 2.2 interaction names, which the registry and the transformers key on. */
+const QTI2_INTERACTION_NAMES = [
+  'associateInteraction',
+  'choiceInteraction',
+  'drawingInteraction',
+  'endAttemptInteraction',
+  'extendedTextInteraction',
+  'gapMatchInteraction',
+  'graphicAssociateInteraction',
+  'graphicGapMatchInteraction',
+  'graphicOrderInteraction',
+  'hotspotInteraction',
+  'hottextInteraction',
+  'inlineChoiceInteraction',
+  'matchInteraction',
+  'mediaInteraction',
+  'orderInteraction',
+  'positionObjectInteraction',
+  'selectPointInteraction',
+  'sliderInteraction',
+  'textEntryInteraction',
+  'uploadInteraction',
+];
+
+const QTI2_INTERACTION_NAME_BY_LOCAL_NAME = new Map(
+  QTI2_INTERACTION_NAMES.map((name) => [name.toLowerCase(), name])
+);
 
 /**
  * endAttemptInteraction controls attempt flow rather than carrying a scored response, and has
@@ -1140,22 +1380,23 @@ const CUSTOM_INTERACTION_NAMES = new Set(['customInteraction', 'portableCustomIn
  */
 const ATTEMPT_CONTROL_INTERACTION_NAMES = new Set(['endAttemptInteraction']);
 
-/** Normalize a QTI 3.0 kebab element name to its QTI 2.x camelCase equivalent. */
-function toCamelElementName(tagName: string): string {
-  if (!tagName.startsWith('qti-')) return tagName;
-  return tagName
-    .slice(4)
-    .split('-')
-    .map((part, index) => (index === 0 ? part : part.charAt(0).toUpperCase() + part.slice(1)))
-    .join('');
-}
-
+/**
+ * The interaction types under `node`. An unprefixed QTI 2.2 interaction is named in its QTI 2.2
+ * spelling whatever its authored case, since the transformers' tag lookups ignore case. Any other
+ * interaction keeps its authored tag name, prefix included, so the type names exactly what the
+ * item holds and no transformer is routed an element its lookups cannot find.
+ */
 function collectInteractionNames(node: HTMLElement, found: string[]): void {
   for (const child of node.childNodes) {
     const element = child as HTMLElement;
     if (!element.rawTagName) continue;
-    const name = toCamelElementName(element.rawTagName);
-    if (QTI_INTERACTION_NAME.test(name)) found.push(name);
+    const localName = elementLocalName(element);
+    if (QTI_INTERACTION_LOCAL_NAME.test(localName) && !CUSTOM_INTERACTION_LOCAL_NAMES.has(localName)) {
+      const prefixed = element.rawTagName.includes(':');
+      found.push(
+        (!prefixed && QTI2_INTERACTION_NAME_BY_LOCAL_NAME.get(localName)) || element.rawTagName
+      );
+    }
     collectInteractionNames(element, found);
   }
 }
@@ -1181,9 +1422,7 @@ function qtiVersionToSourceFormat(version: QtiVersion): string {
 }
 
 function analyzeAssessmentItemInteractions(assessmentItem: HTMLElement): InteractionAnalysis {
-  const itemBody =
-    assessmentItem.getElementsByTagName('itemBody')[0] ||
-    assessmentItem.getElementsByTagName('qti-item-body')[0];
+  const itemBody = assessmentItem.getElementsByTagName('itemBody')[0];
   if (!itemBody) {
     return {
       itemBodyPresent: false,
@@ -1201,16 +1440,11 @@ function analyzeAssessmentItemInteractions(assessmentItem: HTMLElement): Interac
 
   const standardTypes: string[] = [];
   const attemptControlTypes: string[] = [];
-  let customInteractionCount = 0;
 
   // Repeats of one type are counted once: multi-blank items (several textEntryInteraction or
   // inlineChoiceInteraction elements) are a supported shape whose transformer consumes every
   // occurrence, so they are not a reduction.
   for (const name of found) {
-    if (CUSTOM_INTERACTION_NAMES.has(name)) {
-      customInteractionCount += 1;
-      continue;
-    }
     if (ATTEMPT_CONTROL_INTERACTION_NAMES.has(name)) {
       if (!attemptControlTypes.includes(name)) attemptControlTypes.push(name);
       continue;
@@ -1218,9 +1452,14 @@ function analyzeAssessmentItemInteractions(assessmentItem: HTMLElement): Interac
     if (!standardTypes.includes(name)) standardTypes.push(name);
   }
 
-  const customInteractions = elementsByLocalName(itemBody, 'customInteraction').map(
-    customInteractionEvidence
-  );
+  const customInteractions = [
+    ...elementsByLocalName(itemBody, 'customInteraction').map(customInteractionEvidence),
+    // A portable custom interaction no customInteraction wraps, as QTI 3.0 places one; a wrapped
+    // one is counted once, through its wrapper.
+    ...elementsByLocalName(itemBody, 'portableCustomInteraction')
+      .filter((pci) => !hasAncestorLocalName(pci, 'custominteraction'))
+      .map(portableCustomInteractionEvidence),
+  ];
   const feedbackInteractionTypes = interactionTypesInsideFeedbackBlocks(itemBody);
   const customOperators = elementsByLocalName(assessmentItem, 'customOperator').map(
     customOperatorEvidence
@@ -1230,7 +1469,7 @@ function analyzeAssessmentItemInteractions(assessmentItem: HTMLElement): Interac
     itemBodyPresent: true,
     standardTypes,
     attemptControlTypes,
-    customInteractionCount,
+    customInteractionCount: customInteractions.length,
     customInteractions,
     feedbackInteractionTypes,
     customOperators,
@@ -1279,10 +1518,29 @@ function elementLocalName(element: HTMLElement): string {
   return (tagName.split(':').pop() || tagName).toLowerCase();
 }
 
+/** Whether an ancestor of `element` has the given lowercase local name. */
+function hasAncestorLocalName(element: HTMLElement, localName: string): boolean {
+  for (let parent = element.parentNode; parent; parent = parent.parentNode) {
+    if (elementLocalName(parent) === localName) return true;
+  }
+  return false;
+}
+
+/**
+ * A portable custom interaction's type identifier, in the spellings the item player reads: QTI
+ * 2.2's, then QTI 3.0's kebab-case, which normalization leaves as authored, then a variant seen
+ * in exported content.
+ */
+function pciTypeIdentifier(pci: HTMLElement | undefined): string | undefined {
+  return (
+    pci?.getAttribute('customInteractionTypeIdentifier') ??
+    pci?.getAttribute('custom-interaction-type-identifier') ??
+    pci?.getAttribute('customInteractionIdentifierType')
+  );
+}
+
 function customInteractionEvidence(customInteraction: HTMLElement): CustomInteractionEvidence {
-  const nestedPortable =
-    customInteraction.getElementsByTagName('portableCustomInteraction')[0] ??
-    customInteraction.getElementsByTagName('pci:portableCustomInteraction')[0];
+  const [nestedPortable] = elementsByLocalName(customInteraction, 'portableCustomInteraction');
   const moduleRefs = [
     customInteraction.getAttribute('data-module-ref'),
     ...Array.from(customInteraction.getElementsByTagName('script')).map((script) =>
@@ -1293,7 +1551,22 @@ function customInteractionEvidence(customInteraction: HTMLElement): CustomIntera
     responseIdentifier: customInteraction.getAttribute('responseIdentifier'),
     customInteractionIdentifierType:
       customInteraction.getAttribute('customInteractionIdentifierType') ??
-      nestedPortable?.getAttribute('customInteractionIdentifierType'),
+      pciTypeIdentifier(nestedPortable),
+    moduleRefs: [...new Set(moduleRefs)],
+  };
+}
+
+/** A portable custom interaction no customInteraction wraps. */
+function portableCustomInteractionEvidence(pci: HTMLElement): CustomInteractionEvidence {
+  const moduleRefs = [
+    pci.getAttribute('module'),
+    ...elementsByLocalName(pci, 'interactionModule').map(
+      (module) => module.getAttribute('primary-path') ?? module.getAttribute('id')
+    ),
+  ].filter((value): value is string => Boolean(value));
+  return {
+    responseIdentifier: pci.getAttribute('responseIdentifier'),
+    customInteractionIdentifierType: pciTypeIdentifier(pci),
     moduleRefs: [...new Set(moduleRefs)],
   };
 }
@@ -1458,6 +1731,55 @@ const SCOPED_COMPOSITE_INTERACTIONS = new Set<string>([
   'inlineChoiceInteraction',
 ]);
 
+/**
+ * Block interactions whose transformer converts the content before the interaction and the
+ * interaction itself, so content the item places after it needs carrying separately.
+ */
+const LEAD_IN_ONLY_INTERACTIONS = new Set<string>([
+  'choiceInteraction',
+  'extendedTextInteraction',
+  'orderInteraction',
+  'matchInteraction',
+  'hotspotInteraction',
+  'gapMatchInteraction',
+  'graphicGapMatchInteraction',
+  'sliderInteraction',
+  'hottextInteraction',
+  'selectPointInteraction',
+]);
+
+/** The body content after the item's one interaction, when its transformer leaves that out. */
+function contentAfterSoleInteraction(
+  interactionType: string,
+  context: Pick<BuiltInTransformContext, 'assessmentItem' | 'itemBodyPlan'>
+): string {
+  const units = context.itemBodyPlan?.units ?? [];
+  const unit = units.length === 1 ? units[0] : undefined;
+  const interaction = unit?.interactions[0];
+  const itemBody = context.assessmentItem?.getElementsByTagName('itemBody')[0];
+  if (
+    !unit ||
+    !interaction ||
+    !itemBody ||
+    unit.kind !== 'block' ||
+    unit.interactionType !== interactionType ||
+    !LEAD_IN_ONLY_INTERACTIONS.has(interactionType)
+  ) {
+    return '';
+  }
+  return contentAfterInteraction(itemBody, interaction);
+}
+
+function withTrailingContent(pieItem: PieItem, trailingContent: string): PieItem {
+  if (!trailingContent) {
+    return pieItem;
+  }
+  return {
+    ...pieItem,
+    config: { ...pieItem.config, markup: `${pieItem.config.markup ?? ''}${trailingContent}` },
+  };
+}
+
 function isSupportedCompositeInteractionShape(
   analysis: InteractionAnalysis | null
 ): analysis is InteractionAnalysis {
@@ -1562,7 +1884,7 @@ function normalizeCompositeModel(
   usedModelIds: Set<string>
 ): PieModel {
   if (typeof model.element === 'string') {
-    const sourceElementKey = elementTagForModel(model.element, sourceElements);
+    const sourceElementKey = pieElementTagForModel(model.element, sourceElements);
     if (sourceElementKey && elementKeyMap.has(sourceElementKey)) {
       model.element = elementKeyMap.get(sourceElementKey);
     }
@@ -1591,16 +1913,14 @@ function selectPrimaryPlaceholderModel(
   pieElements: readonly string[],
   elements: Record<string, string>
 ): PieModel | undefined {
-  const primaryPackageNames = new Set(pieElements.map(packageName));
+  const primaryPackageNames = new Set(pieElements.map(piePackageName));
   return (
     models.find((model) => {
       const modelElement = typeof model.element === 'string' ? model.element : null;
       if (!modelElement) {
         return false;
       }
-      return primaryPackageNames.has(
-        packageName(elementPackageSpecForModel(modelElement, elements))
-      );
+      return primaryPackageNames.has(piePackageName(elements[modelElement] ?? modelElement));
     }) ?? models[0]
   );
 }
@@ -1612,62 +1932,6 @@ function hasDirectInteractionPrompt(unit: PlannedQtiInteractionUnit): boolean {
       return element.tagName?.toLowerCase() === 'prompt';
     })
   );
-}
-
-function elementPackageSpecForModel(
-  modelElement: string,
-  elements: Record<string, string>
-): string {
-  return Object.hasOwn(elements, modelElement) ? elements[modelElement]! : modelElement;
-}
-
-function placeholderForModel(
-  model: PieModel | undefined,
-  elements: Record<string, string>
-): string {
-  const element = typeof model?.element === 'string' ? model.element : null;
-  const id = typeof model?.id === 'string' ? model.id : null;
-  if (!element || !id) {
-    throw new Error('Composite QTI item produced a PIE model without element or id.');
-  }
-  const elementTag = Object.hasOwn(elements, element)
-    ? element
-    : elementTagForModel(element, elements);
-  if (!elementTag) {
-    throw new Error(`Composite QTI item produced a PIE model with unknown element ${element}.`);
-  }
-  return `<${elementTag} id="${escapeAttribute(id)}"></${elementTag}>`;
-}
-
-function elementTagForModel(modelElement: string, elements: Record<string, string>): string | null {
-  if (Object.hasOwn(elements, modelElement)) {
-    return modelElement;
-  }
-  const modelPackageName = packageName(modelElement);
-  return (
-    Object.entries(elements).find(
-      ([, packageSpec]) => packageName(packageSpec) === modelPackageName
-    )?.[0] ?? null
-  );
-}
-
-function packageName(packageSpec: string) {
-  if (!packageSpec.startsWith('@')) {
-    const versionAt = packageSpec.indexOf('@');
-    return versionAt > 0 ? packageSpec.slice(0, versionAt) : packageSpec;
-  }
-
-  const scopeSeparatorAt = packageSpec.indexOf('/');
-  const versionAt = packageSpec.indexOf('@', scopeSeparatorAt + 1);
-  return versionAt > 0 ? packageSpec.slice(0, versionAt) : packageSpec;
-}
-
-function escapeAttribute(value: string) {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
 }
 
 function uniqueKey(key: string, target: Record<string, string>, packageSpec: string): string {
@@ -1698,20 +1962,13 @@ function uniqueModelId(modelId: string, used: Set<string>): string {
   return next;
 }
 
-function createUnsupportedQti3ItemError(
-  analysis: InteractionAnalysis | null,
+function createUnsupportedQti3ConstructError(
+  unsupported: UnsupportedQti3Construct,
   failure: ItemFailureContext
 ): QtiUnsupportedItemError {
-  const detected = [
-    ...(analysis?.standardTypes ?? []),
-    ...(analysis?.attemptControlTypes ?? []),
-    ...(analysis?.customInteractionCount ? ['customInteraction'] : []),
-  ];
-  const detectedPart = detected.length > 0 ? ` Detected interaction(s): ${detected.join(', ')}.` : '';
-
   return unsupportedItemError(
-    `Unsupported QTI 3.0 item ${failure.itemId}: this transform ingests QTI 2.1/2.2 item elements only.` +
-    `${detectedPart} Convert the item to QTI 2.2 before transforming.`,
+    `Unsupported QTI 3.0 construct ${unsupported.construct} in item ${failure.itemId}: ` +
+    `${unsupported.message} Use a vendor transformer for the item.`,
     'QTI_VERSION_UNSUPPORTED',
     failure
   );

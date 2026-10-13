@@ -4,11 +4,15 @@
  * Three tiers, in the order they run, because each one is only meaningful if the
  * previous one passed:
  *
- * 1. **Well-formedness** (`fast-xml-parser`) — fatal and short-circuiting. This is the
- *    one failure Composer can *introduce*: a QTI-stage transform that emits broken XML
- *    must not reach the conversion. Every later check reads the document as a parsed or
- *    schema-matched tree, so running them over malformed XML reports misleading detail
- *    about a document that cannot be parsed at all.
+ * 1. **Well-formedness** — fatal and short-circuiting. This is the one failure a host
+ *    can *introduce*: a host transform that emits broken XML ahead of conversion must not
+ *    reach it. Every later check reads the document as a parsed or schema-matched tree,
+ *    so running them over malformed XML reports misleading detail about a document that
+ *    cannot be parsed at all. `fast-xml-parser` runs first for its tag-level messages;
+ *    libxml2 (`xmllint-wasm`, no schema) then decides, because `fast-xml-parser` accepts
+ *    undeclared entities, `]]>` in content, `<` in attribute values and control
+ *    characters. Over 1,950 corpus items libxml2 rejects 3 that `fast-xml-parser`
+ *    accepts: `&mdash;` with no DTD (TCI) and `<mfenced open="<">` (McGraw Hill, 2).
  * 2. **Structural rules** — QTI-specific checks that give a far better message than the
  *    schema's equivalent. Only the ones nothing downstream can recover from are *errors*:
  *    a missing root element is, a missing `identifier` is **not** (the conversion derives
@@ -26,7 +30,7 @@
  * imports to enforce a conformance standard partner content has never met, so they are
  * reported as warnings carrying full schema diagnostics and the *stage verdict* stays
  * driven by well-formedness and structure. Callers that want a strict gate pass
- * `xsdSeverity: 'error'`. ADR 004 § "Validity gates" records the measurement.
+ * `xsdSeverity: 'error'`.
  *
  * **Cost note, which shapes the API.** The compile dominates, and it is per *compile*,
  * not per document: validating 1 item and validating 200 cost the same. The two roots
@@ -42,6 +46,9 @@
  * 2.2 namespace. Either way `validateBatch` compiles once and validates the whole batch,
  * and it is the entry point for anything package-sized — a per-item loop over
  * `validate()` would multiply the compile cost by the item count.
+ *
+ * The strict well-formedness parse runs with `xsd: false` too. It costs ~14ms per call,
+ * almost all of it instantiating the wasm module, and ~0.3ms per document within a batch.
  */
 
 import * as fs from 'node:fs';
@@ -101,9 +108,8 @@ export function qtiDocumentRootName(xml: string): string | null {
  * Used to keep test documents out of the item conversion lane. A package that declares a
  * test resource under an item resource type used to convert silently: the payload reached
  * the `builtin.assessment-test` handler, came back as a `PieAssessment`, and was reported
- * as a transformed *item* with no warning — so a test structure would have been written
- * into `item_versions.config` as a junk item. ADR 004 is explicit that a construct with no
- * standard item equivalent is invalid input rather than something to smuggle to PIE.
+ * as a transformed *item* with no warning. A construct with no standard item equivalent is
+ * invalid input for the item lane.
  */
 export function isAssessmentTestDocument(xml: string): boolean {
   const root = qtiDocumentRootName(xml);
@@ -243,6 +249,7 @@ export class QtiValidator {
     const results = new Map<string, ValidationResult>();
     const schemaCandidates: BatchDocument[] = [];
 
+    const parsed: Array<{ key: string; xml: string }> = [];
     for (const document of documents) {
       const result: ValidationResult = {
         valid: true,
@@ -264,6 +271,12 @@ export class QtiValidator {
         });
         continue;
       }
+      parsed.push(document);
+    }
+
+    const strictlyParsed = await this.applyStrictParse(parsed, results);
+    for (const document of strictlyParsed) {
+      const result = results.get(document.key) as ValidationResult;
 
       // Tier 2: structural rules.
       this.validateStructure(document.xml, result);
@@ -288,6 +301,60 @@ export class QtiValidator {
     }
 
     return results;
+  }
+
+  /**
+   * The libxml2 half of tier 1, over the documents `fast-xml-parser` accepted, in one
+   * call. Returns the documents that are well-formed. When the processor itself fails,
+   * every document keeps the `fast-xml-parser` verdict and carries a warning saying the
+   * strict parse did not run.
+   */
+  private async applyStrictParse(
+    documents: Array<{ key: string; xml: string }>,
+    results: Map<string, ValidationResult>
+  ): Promise<Array<{ key: string; xml: string }>> {
+    if (documents.length === 0) {
+      return documents;
+    }
+    const nameByIndex = documents.map((_, index) => `qti-${index}.xml`);
+    let parse: Awaited<ReturnType<typeof validateXML>>;
+    try {
+      parse = await validateXML({
+        xml: documents.map((document, index) => ({
+          fileName: nameByIndex[index] as string,
+          contents: document.xml,
+        })),
+        schema: [],
+        maxMemoryPages: MAX_MEMORY_PAGES,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      for (const document of documents) {
+        results.get(document.key)?.warnings.push({
+          message: `Strict XML well-formedness check could not run: ${message.split('\n')[0] ?? message}`,
+        });
+      }
+      return documents;
+    }
+
+    const indexByName = new Map(nameByIndex.map((name, index) => [name, index]));
+    const malformed = new Set<number>();
+    for (const failure of parse.errors) {
+      const index = failure.loc ? indexByName.get(failure.loc.fileName) : undefined;
+      // libxml2 follows each error with context lines; the first parser error is the finding.
+      if (index === undefined || malformed.has(index) || !/parser error/.test(failure.rawMessage)) {
+        continue;
+      }
+      malformed.add(index);
+      const result = results.get((documents[index] as { key: string }).key) as ValidationResult;
+      result.valid = false;
+      result.errors.push({
+        message: `XML is not well-formed: ${failure.message.replace(/^\s*parser error\s*:\s*/, '').trim()}`,
+        level: 'fatal',
+        ...(failure.loc ? { line: failure.loc.lineNumber } : {}),
+      });
+    }
+    return documents.filter((_, index) => !malformed.has(index));
   }
 
   private async applySchemaValidation(
@@ -540,9 +607,8 @@ export class QtiValidator {
  *
  * Namespace-driven rather than guessing: a document that declares neither QTI 2.x
  * namespace returns `null`, and the caller reports "not judged" instead of validating it
- * against a schema it never claimed to follow. QTI 3.0 lands here as `null` — it is
- * judged after lexical normalization into QTI-2 shape, which is the seam's job, not the
- * validator's (ADR 004 § "Validity gates").
+ * against a schema it never claimed to follow. QTI 3.0 lands here as `null`: it is judged
+ * against the 2.2 root after `normalizeQti3ToQti2`.
  */
 export function detectQtiSchemaVersion(xml: string): QtiSchemaVersion | null {
   if (xml.includes('imsqti_v2p2')) {

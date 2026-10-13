@@ -3,23 +3,6 @@
  */
 
 /**
- * PIE Extension Metadata embedded in QTI XML
- */
-export interface PieExtensionMetadata {
-  /** Generator information */
-  generator?: {
-    package: string;
-    version: string;
-  };
-  /** PIE element type */
-  elementType?: string;
-  /** Generation timestamp */
-  timestamp?: Date;
-  /** Additional metadata */
-  [key: string]: any;
-}
-
-/**
  * Response declaration configuration
  */
 export interface ResponseDeclarationOptions {
@@ -32,7 +15,9 @@ export interface ResponseDeclarationOptions {
   /** Correct response values */
   correctResponse?: string[];
   /** Mapping for partial credit scoring */
-  mapping?: Array<{ mapKey: string; mappedValue: number }>;
+  mapping?: Array<{ mapKey: string; mappedValue: number; caseSensitive?: boolean }>;
+  /** Value for keys outside the mapping, and the bounds on the mapped sum */
+  mappingBounds?: { defaultValue?: number; lowerBound?: number; upperBound?: number };
 }
 
 /**
@@ -49,13 +34,11 @@ export interface AssessmentItemOptions {
   adaptive?: boolean;
   /** Time dependent */
   timeDependent?: boolean;
+  /** Outcome declarations, emitted after the response declarations */
+  outcomeDeclarations?: string[];
+  /** Response processing, emitted after the item body */
+  responseProcessing?: string;
 }
-
-/**
- * PIE Namespace constants
- */
-export const PIE_NAMESPACE = 'https://github.com/pie-framework/pie-elements';
-export const PIE_PREFIX = 'pie';
 
 /**
  * QTI Namespace constants

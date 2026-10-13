@@ -1,32 +1,158 @@
-import type { HTMLElement } from 'node-html-parser';
+import { type HTMLElement, parse } from 'node-html-parser';
 import { unwrapCdataSections } from './cdata.js';
 
 export interface PromptExtractionOptions {
   after?: HTMLElement;
 }
 
+/**
+ * The interaction's prompt as a learner sees it: the item body content before the interaction (a
+ * stem, a figure), followed by the interaction's own `<prompt>`. Markup with nothing to render
+ * counts as absent. When both are present, each that is not already block content is wrapped in a
+ * `<div>` so the two do not run together.
+ */
 export function extractPromptForInteraction(
   itemBody: HTMLElement,
   interaction: HTMLElement,
   options: PromptExtractionOptions = {}
 ): string {
   const interactionPrompt = directChildByTagName(interaction, 'prompt');
-  if (interactionPrompt) {
-    const prompt = cleanTransformHtml(interactionPrompt.innerHTML);
-    if (prompt) {
-      return prompt;
-    }
+  const prompt = interactionPrompt ? cleanTransformHtml(promptContent(interactionPrompt)) : '';
+  const lead = cleanTransformHtml(contentBeforeTarget(itemBody, interaction, options.after));
+  const hasPrompt = hasRenderableContent(prompt);
+  if (!hasRenderableContent(lead)) {
+    return hasPrompt ? prompt : '';
   }
-
-  return extractItemBodyPromptBeforeInteraction(itemBody, interaction, options);
+  if (!hasPrompt) {
+    return unwrapSoleParagraph(lead);
+  }
+  return [lead, prompt]
+    .map((part) => (isBlockContent(part) ? part : `<div>${part}</div>`))
+    .join('');
 }
 
-export function extractItemBodyPromptBeforeInteraction(
-  itemBody: HTMLElement,
-  interaction: HTMLElement,
-  options: PromptExtractionOptions = {}
-): string {
-  return cleanTransformHtml(contentBeforeTarget(itemBody, interaction, options.after));
+/**
+ * A `<prompt>`'s content, in a `<div>` carrying the prompt's attributes when it has any: a catalog
+ * reference, a language or an ARIA relation on the prompt describes its content.
+ */
+export function promptContent(prompt: HTMLElement): string {
+  const content = prompt.innerHTML.trim();
+  const attributes = prompt.rawAttrs.trim();
+  return attributes && hasRenderableContent(content)
+    ? `<div ${attributes}>${content}</div>`
+    : content;
+}
+
+/**
+ * The item body content after the interaction, which a transformer that converts the interaction
+ * on its own leaves out: a closing note, a figure, a rubric the candidate sees. Ancestors of the
+ * interaction keep their tags, so the content renders inside the blocks it was authored in.
+ */
+export function contentAfterInteraction(itemBody: HTMLElement, interaction: HTMLElement): string {
+  const html = cleanTransformHtml(contentAfterTarget(itemBody, interaction));
+  return hasRenderableContent(html) ? html : '';
+}
+
+function contentAfterTarget(parent: HTMLElement, target: HTMLElement): string {
+  let html = '';
+  let collecting = false;
+  for (const child of parent.childNodes) {
+    const element = child as HTMLElement;
+    if (collecting) {
+      if (child.nodeType === 3) {
+        html += child.toString();
+      } else if (element.tagName && !isSkippedPromptContainer(element.tagName.toLowerCase())) {
+        html += element.outerHTML;
+      }
+      continue;
+    }
+    if (child === target) {
+      collecting = true;
+    } else if (element.tagName && containsElement(element, target)) {
+      const nested = contentAfterTarget(element, target);
+      if (hasRenderableContent(nested)) {
+        html += wrapWithOriginalElement(element, nested);
+      }
+      collecting = true;
+    }
+  }
+  return html;
+}
+
+const MEDIA_TAGS = [
+  'img',
+  'object',
+  'embed',
+  'math',
+  'svg',
+  'video',
+  'audio',
+  'iframe',
+  'table',
+  'canvas',
+];
+
+const BLOCK_TAGS = new Set([
+  'address',
+  'article',
+  'aside',
+  'blockquote',
+  'details',
+  'div',
+  'dl',
+  'fieldset',
+  'figure',
+  'footer',
+  'form',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'header',
+  'hr',
+  'ol',
+  'p',
+  'pre',
+  'section',
+  'table',
+  'ul',
+]);
+
+function hasRenderableContent(html: string): boolean {
+  const root = parse(html);
+  if (root.text.replace(/[\s\u00a0]/g, '')) {
+    return true;
+  }
+  return MEDIA_TAGS.some((tag) => root.getElementsByTagName(tag).length > 0);
+}
+
+function isBlockContent(html: string): boolean {
+  const nodes = topLevelNodes(html);
+  return nodes.length > 0 && nodes.every((node) => BLOCK_TAGS.has(tagNameOf(node)));
+}
+
+/**
+ * Keeps the inline form a single-paragraph stem has always been stored in. A paragraph with
+ * attributes stays: a catalog reference or a language describes its content.
+ */
+function unwrapSoleParagraph(html: string): string {
+  const nodes = topLevelNodes(html);
+  const [node] = nodes;
+  return nodes.length === 1 && tagNameOf(node) === 'p' && !(node as HTMLElement).rawAttrs.trim()
+    ? cleanTransformHtml((node as HTMLElement).innerHTML)
+    : html;
+}
+
+function topLevelNodes(html: string) {
+  return parse(html).childNodes.filter(
+    (node) => node.nodeType !== 3 || node.textContent.trim() !== ''
+  );
+}
+
+function tagNameOf(node: unknown): string {
+  return ((node as HTMLElement).tagName ?? '').toLowerCase();
 }
 
 export function containsElement(element: HTMLElement, target: HTMLElement): boolean {
@@ -99,8 +225,7 @@ function contentBeforeTarget(
       break;
     }
 
-    const childHtml = tagName === 'p' ? element.innerHTML : element.outerHTML;
-    const cleaned = cleanTransformHtml(childHtml);
+    const cleaned = cleanTransformHtml(element.outerHTML);
     if (cleaned) {
       html += cleaned;
     }

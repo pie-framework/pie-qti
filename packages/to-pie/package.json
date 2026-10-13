@@ -35,11 +35,12 @@
   "dependencies": {
     "@pie-qti/ims-cp-core": "workspace:*",
     "@pie-qti/ims-cp-node": "workspace:*",
+    "@pie-qti/qti-common": "workspace:*",
     "@pie-qti/transform-core": "workspace:*",
     "@pie-qti/transform-types": "workspace:*",
     "fast-xml-parser": "^5.10.1",
-    "image-size": "^2.0.2",
-    "node-html-parser": "^9.0.1",
+    "image-size": "^2.0.4",
+    "node-html-parser": "^9.0.4",
     "uuid": "^14.0.1",
     "xmllint-wasm": "^5.3.0"
   },

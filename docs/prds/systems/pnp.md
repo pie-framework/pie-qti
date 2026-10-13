@@ -4,35 +4,37 @@
   Status: current
   Type: system
   Packages: @pie-qti/item-player, @pie-qti/assessment-player, @pie-qti/default-components
-  Last reviewed: 2026-08-13
+  Last reviewed: 2026-10-12
 -->
 
 **Status:** current
 **Type:** system
 **Packages:** `@pie-qti/item-player`, `@pie-qti/assessment-player`, `@pie-qti/default-components`
-**Last reviewed:** 2026-08-13
+**Last reviewed:** 2026-10-12
 
 ---
 
 ## Summary
 
-The PNP (Personal Needs and Preferences) profile is a QTI 3.0 §6.2 mechanism for delivering candidate-specific accessibility accommodations as structured data alongside the assessment. PIE-QTI implements the core PNP surface: six named color schemes applied via a CSS data-attribute on the player root, a per-choice elimination tool in `choiceInteraction` and `orderInteraction`, an extended-time multiplier that scales `timeLimits.maxTime` in the assessment player, and trigger UI with inline popup for on-screen glossary and keyword-translation accommodations (illustrated-glossary renders as `<img>`), plus `qti-catalog-lookup` DOM events for platform-level usages (TTS, signing, braille, audio description). Structured label and braille support are deferred to G-13.
+The PNP (Personal Needs and Preferences) profile is a per-candidate AfA PNP 3.0 document, QTI 3's profile of IMS Access for All, that the host delivers to the player at session start. Content never carries it. PIE-QTI parses the document and implements the core PNP surface: named color schemes applied via a CSS data-attribute on the player root, a per-choice elimination tool in `choiceInteraction` and `orderInteraction`, an extended-time multiplier that scales `timeLimits.maxTime` in the assessment player, and trigger UI with inline popup for on-screen glossary and keyword-translation accommodations (illustrated-glossary renders as `<img>`), plus `qti-catalog-lookup` DOM events for platform-level usages (TTS, signing, braille, audio description). Structured label and braille support are deferred to G-13.
 
 ---
 
 ## Background and rationale
 
-### Why PNP lives in the QTI spec
+### PNP as per-candidate data
 
-Before QTI 3.0, accessibility accommodations were delivery-platform conventions with no portable representation. A student's extended-time accommodation had to be re-configured in each platform separately; there was no way to embed it in the item package so it travelled with the content. QTI 3.0 §6.2 fixes this: a `<personalNeedsProfile>` element in the assessment XML carries the accommodation set, and a conformant player applies it automatically without platform-specific configuration.
+QTI 3 splits accessibility between content and candidate. Content carries the alternatives: catalogs of glossary entries, translations, signing and braille, bound to the body by `data-catalog-idref`. The candidate's AfA PNP 3.0 document, root `access-for-all-pnp` in the namespace `http://www.imsglobal.org/xsd/qtiv3p0/imsafa3p0pnp_v1p0`, selects among them and grants tools. It is a portable record of the candidate's accommodations, exchanged between systems singly or in bulk records files keyed by `person-sourced-id`, and never part of an item, section or test.
 
-In K-12 US assessments, PNP-equivalent accommodations (color schemes, extended time, answer eliminator) are legally required for students with documented disabilities under IDEA §504 and state IEP/504 plans. Embedding them in the QTI package means the accommodation data is auditable — it travels with the item and can be verified at the delivery layer.
+In K-12 US assessments, PNP-equivalent accommodations (color schemes, extended time, answer eliminator) are legally required for students with documented disabilities under IDEA §504 and state IEP/504 plans. Holding them in one standard per-candidate record lets every delivery system apply the same accommodations and verify them at the delivery layer.
+
+A test carrying a profile element, an AfA `access-for-all-pnp` or the `personalNeedsProfile` some exports invent, converts without it: to-pie reports it as `QTI_PNP_IN_CONTENT`.
 
 ### Why these four features and not others
 
-The six color schemes, elimination tool, extended time, and glossary trigger cover the majority of documented K-12 accommodation needs that can be implemented entirely within the delivery player:
+The color schemes, elimination tool, extended time, and glossary trigger cover the majority of documented K-12 accommodation needs that can be implemented entirely within the delivery player:
 
-- **Color schemes** — the most common visual accessibility accommodation; six named profiles are defined by the QTI 3.0 spec and correspond to established high-contrast and low-vision combinations used in state testing programs.
+- **Color schemes** — the most common visual accessibility accommodation; AfA's `color-theme` vocabulary names fourteen themes, established high-contrast and low-vision combinations used in state testing programs.
 - **Elimination tool** — standard accommodation in state summative assessments; allows candidates to cross out choices they have already ruled out, reducing cognitive load.
 - **Extended time** — the most common accommodation overall (affects ~15% of students with IEPs); needs only a multiplier applied to existing timer logic.
 - **Glossary/keyword-translation trigger** — enables just-in-time vocabulary support for ELL students and students with cognitive disabilities; the trigger UI is lightweight and decoupled from the catalog content that backs it.
@@ -55,28 +57,64 @@ Removing an eliminated choice from the DOM would change the response set silentl
 
 ## QTI specification alignment
 
-- **Spec version:** QTI 3.0
-- **Spec section:** §6.2 — Personal Needs and Preferences
+- **Spec version:** QTI 3.0, with [AfA PNP 3.0](https://www.imsglobal.org/spec/afa/v3p0/info) as its candidate profile
+- **Spec section:** QTI 3 implementation guide §5, Personal Needs and Preferences; schema [`imsqtiv3p0_afa3p0pnp_v1p0.xsd`](https://purl.imsglobal.org/spec/qti/v3p0/schema/xsd/imsqtiv3p0_afa3p0pnp_v1p0.xsd)
 
 ### Supported PNP features
 
-| Feature | `PnpProfile` field | Notes |
-|---------|-------------------|-------|
-| Color scheme | `display.colorScheme` | Six named values from spec table; `'default'` removes the attribute |
-| Elimination tool | `cognitive.eliminationTool` | Applied to `choiceInteraction` and `orderInteraction` |
-| Extended time | `content.extendedTime` | Multiplies `timeLimits.maxTime`; `Infinity` removes limit |
-| Glossary on screen trigger | `content.glossaryOnScreen` | Opens an inline popup with catalog content |
-| Keyword translation trigger | `content.keywordTranslation` | Opens an inline popup using the requested language |
+`pnpProfileFromAfa` maps these AfA features onto `PnpProfile`. A feature counts when the profile names it or one of its activation sets (`activate-at-initialization-set`, `activate-as-option-set`) lists it, unless `prohibit-set` lists it.
+
+| AfA feature | `PnpProfile` field | Notes |
+|-------------|-------------------|-------|
+| `text-appearance` › `color-theme` | `display.colorScheme` | Theme terms map onto scheme names below; `'default'` removes the attribute |
+| `magnification` | `display.magnification` | `all-content`'s `zoom-amount`, else `text`'s |
+| `answer-masking` | `cognitive.eliminationTool` | Applied to `choiceInteraction` and `orderInteraction` |
+| `additional-testing-time` | `content.extendedTime` | `time-multiplier` multiplies `timeLimits.maxTime`; `unlimited` is `Infinity`, which removes the limit |
+| `glossary-on-screen` | `content.glossaryOnScreen` | Opens an inline popup with catalog content |
+| `keyword-translation` (`xml:lang`) | `content.keywordTranslation` | Opens an inline popup using the requested language |
+| `sbac-glossary-illustration`, an extension element | `content.illustratedGlossary` | Opens the illustrated glossary popup |
+| `additional-directions`, `audio-description`, `braille`, `high-contrast`, `keyboard-directions`, `linguistic-guidance`, `long-description`, `sign-language`, `simplified-graphics`, `simplified-language-portions`, `spoken`, `tactile`, `transcript` | `content.catalogSupports[<feature>]` | QTI 3's predefined card supports; each enables the catalog support of that name, with the feature's `xml:lang` as its language |
+
+| AfA `color-theme` | Scheme |
+|-------------------|--------|
+| `default`, `default-reverse` | `default`, `defaultreverse` |
+| `high-contrast`, `high-contrast-reverse` | `blackwhite`, `whiteblack` |
+| `black-rose`, `rose-black` | `blackrose`, `roseblack` |
+| `yellow-blue`, `blue-yellow` | `yellowblue`, `blueyellow` |
+| `medgray-darkgray`, `darkgray-medgray` | `mgraydgray`, `dgraymgray` |
+| `black-cyan`, `cyan-black` | `blackcyan`, `cyanblack` |
+| `black-cream`, `cream-black` | `blackcream`, `creamblack` |
+
+AfA leaves a theme's exact colors to the delivery system, so `high-contrast` takes black on white and its reverse white on black. An `ext:` theme, and a bare `<color-theme/>` that asks only for the ability to choose, set no scheme.
+
+### Tool supports
+
+The record `parseAfaPnpXml` returns is the JSON form pie-players' `createPersonalNeedsProfileFromAfa` takes, so a host running the pie-players toolkit hands it over unchanged. That adapter grants each AfA feature as a tool id, the term camelCased except where a packaged tool carries the capability under its own id, per pie-players' [support-id table](https://github.com/pie-framework/pie-players/blob/develop/packages/assessment-toolkit/docs/TOOL_REGISTRY.md#support-ids):
+
+| AfA term | pie-players tool id |
+|----------|---------------------|
+| `calculator-on-screen` | `calculator` |
+| `spoken` with `reading-type` `computer-read-aloud` | `textToSpeech` |
+| `spoken` with `reading-type` `screen-reader`, AfA's default | `screenReader`, which withholds read-aloud |
+| `answer-masking` | `answerEliminator` |
+| `dictionary-on-screen` | `dictionary` |
+| `line-reader` | `lineReader` |
+| `sign-language` | `signLanguage` |
+| `transcript` | `transcript` |
+
+[AfA PNP 3.0 records](https://github.com/pie-framework/pie-players/blob/develop/packages/assessment-toolkit/docs/PNP_CONFIGURATION.md#afa-pnp-30-records) gives every feature's disposition there.
 
 ### Deliberately omitted / deferred features
 
 | Feature | Reason |
 |---------|--------|
-| `magnification` | Browser/OS zoom is sufficient; overlay deferred |
-| `structuredLabelSupport` | Per-interaction ARIA work; tracked as G-13 |
-| `braille` | Hardware integration; tracked as G-13 |
-| `signLanguageInterpretation` | Video player is host responsibility; tracked as G-14 |
-| `timingControl` / `pauseControl` | UI for these requires assessment-level integration beyond timer multiplication; tracked separately |
+| `magnification` | Parsed into `display.magnification`; browser/OS zoom is sufficient, overlay deferred |
+| Structured labels | Per-interaction ARIA work; tracked as G-13 |
+| `braille` | Hardware integration; tracked as G-13. The catalog support fires `qti-catalog-lookup` for the host |
+| `sign-language` | Video player is host responsibility; tracked as G-14. The catalog support fires `qti-catalog-lookup` for the host |
+| `additional-testing-time` › `fixed-minutes` | `extendedTime` holds a multiplier only; the record carries the minutes for the host |
+| Timing and pause control | UI for these requires assessment-level integration beyond timer multiplication; tracked separately |
+| Tool supports (`calculator-on-screen`, `spoken`, `line-reader`, …) | The host's tools, through the record (Tool supports above) |
 
 ### Known gaps
 
@@ -88,7 +126,7 @@ Removing an eliminated choice from the DOM would change the response set silentl
 
 - **FR-1:** `AssessmentItemDefinitionConfig` must accept an optional `pnp?: PnpProfile` field. When absent, all PNP code paths must be completely inert — no DOM changes, no event listeners added, no effect on QTI 2.x items.
 - **FR-2:** `session.dispatch({ action: 'updatePnp', profile })` must merge `profile` into the current PNP state and re-apply all PNP effects without re-parsing the item.
-- **FR-3:** `parsePnpXml(xml: string | Element): PnpProfile | null` must parse a `<personalNeedsProfile>` element from a QTI 3.0 assessment XML fragment and return a `PnpProfile`, or `null` if the element is absent.
+- **FR-3:** `parsePnpXml(xml: string | Element): PnpProfile` must parse an AfA PNP 3.0 document, an `access-for-all-pnp` element or the first one inside an `access-for-all-pnp-record`, into a `PnpProfile`, and return an empty profile when the input holds none. `parseAfaPnpXml` returns the whole record, or `null`, and `pnpProfileFromAfa` maps a record onto `PnpProfile`.
 - **FR-4:** `applyPnpToRoot(rootEl: HTMLElement, pnp: PnpProfile): void` must set `data-qti-colorscheme` on `rootEl` to the active scheme name when a non-default scheme is present, and remove the attribute when `colorScheme` is `'default'` or absent.
 - **FR-5:** When `pnp.cognitive.eliminationTool` is `true`, every `simpleChoice` in a `choiceInteraction` and every orderable item in an `orderInteraction` must render a toggle button that marks/unmarks that choice as eliminated. The button must be visible, labelled, and keyboard-operable.
 - **FR-6:** An eliminated choice must receive the `data-eliminated` attribute and `aria-disabled="true"`. Its response-variable eligibility must not change — it must remain selectable and its identifier must be included in or excluded from the response exactly as if the elimination state did not exist.
@@ -97,16 +135,16 @@ Removing an eliminated choice from the DOM would change the response set silentl
 - **FR-9:** When `pnp.content.keywordTranslation.active` is `true`, the same trigger-plus-popup mechanism applies using `usage = 'keyword-translation'` and `lang = pnp.content.keywordTranslation.languageCode`.
 - **FR-10:** For `tts-pronunciation`, `signing-definition`, `braille-text`, `audio-description`, and `extended-description` entries, the player must fire a `qti-catalog-lookup` `CustomEvent` on the root player element with `{ bubbles: true, composed: true }` and `detail: { idref: string; usage: string; html: string | null }`. The player must not render any popup for these platform-level usages.
 - **FR-11:** The iframe postMessage protocol must be extended with a `SET_PNP` message type so that hosts using the iframe embedding mode can push PNP updates mid-session.
-- **FR-12:** `parsePnpXml` must silently ignore unknown child elements; it must not throw on forward-compatible QTI 3.0 PNP features not yet defined in `PnpProfile`.
+- **FR-12:** `parsePnpXml` must not throw on AfA features `PnpProfile` has no field for, and `parseAfaPnpXml` must keep them in the record, extension elements under `extensions`, so the host can act on them.
 
 ---
 
 ## Non-functional requirements
 
-- **Accessibility:** The elimination toggle button must have a visible label derived from the choice text (e.g. `aria-label="Eliminate: [choice text]"` when not eliminated; `"Restore: [choice text]"` when eliminated). The button must have a minimum touch target of 44×44 CSS pixels. The `data-eliminated` attribute must be reflected via `aria-disabled="true"` so screen readers announce the eliminated state. All six color scheme combinations must pass WCAG 1.4.3 minimum contrast (4.5:1 for normal text, 3:1 for large text) against their intended backgrounds — CSS for these schemes must be validated as part of the theming deliverable.
+- **Accessibility:** The elimination toggle button must have a visible label derived from the choice text (e.g. `aria-label="Eliminate: [choice text]"` when not eliminated; `"Restore: [choice text]"` when eliminated). The button must have a minimum touch target of 44×44 CSS pixels. The `data-eliminated` attribute must be reflected via `aria-disabled="true"` so screen readers announce the eliminated state. Every color scheme must pass WCAG 1.4.3 minimum contrast (4.5:1 for normal text, 3:1 for large text) against their intended backgrounds — CSS for these schemes must be validated as part of the theming deliverable.
 - **Performance:** `applyPnpToRoot` performs a single DOM attribute write. The `updatePnp` session command must be callable repeatedly during an assessment session (e.g. on each item navigation) without accumulated listeners or parsing work.
 - **Cross-platform:** The elimination toggle button must be usable on touch devices (tap target, no hover dependency). Color schemes must be verified on mobile viewports (375px minimum).
-- **Security:** `parsePnpXml` must not evaluate any script content from the XML input. It processes only named structural elements (`<personalNeedsProfile>`, `<colorScheme>`, etc.) and reads their text/attribute values; it must not `innerHTML`-inject any parsed content.
+- **Security:** `parsePnpXml` must not evaluate any script content from the XML input. It reads element names, text and attribute values of the AfA document; it must not `innerHTML`-inject any parsed content.
 - **i18n:** The elimination button label strings (`"Eliminate"` / `"Restore"`) must be sourced from the `@pie-qti/i18n` provider under keys `accessibility.pnp.eliminate` and `accessibility.pnp.restore`. English defaults are acceptable fallbacks.
 
 ---
@@ -121,7 +159,7 @@ Removing an eliminated choice from the DOM would change the response set silentl
 
 **Alternatives considered:** Inline `style` attribute for CSS custom property overrides (rejected — properties would need to be duplicated per-scheme; hard to audit; harder for host to override).
 
-**Consequences:** The six color scheme CSS rulesets must be shipped in `@pie-qti/default-components` and scoped to the player root element's attribute. The host cannot suppress the scheme by removing a class; it must override via higher-specificity CSS or remove the attribute directly.
+**Consequences:** The color scheme CSS rulesets must be shipped in `@pie-qti/default-components` and scoped to the player root element's attribute. The host cannot suppress the scheme by removing a class; it must override via higher-specificity CSS or remove the attribute directly.
 
 ---
 
@@ -170,7 +208,9 @@ Removing an eliminated choice from the DOM would change the response set silentl
 | `AssessmentItemDefinitionConfig.pnp` | `PnpProfile` | Pass while compiling a definition; provides initial PNP state to its sessions | `createAssessmentItemDefinition({ itemXml, pnp: { display: { colorScheme: 'blackwhite' } } })` |
 | `ItemSession.dispatch()` | `{ action: 'updatePnp'; profile: Partial<PnpProfile> }` | Dispatch while a session is active to update accommodations | Update color scheme when a student changes preference |
 | `applyPnpToRoot()` | `(rootEl: HTMLElement, pnp: PnpProfile) => void` | Exported utility; call directly if embedding the player root in a custom shell | Apply scheme to a custom outer wrapper element |
-| `parsePnpXml()` | `(xml: string \| Element) => PnpProfile \| null` | Parse `<personalNeedsProfile>` from QTI 3.0 assessment XML | Feed the parsed profile into `AssessmentItemDefinitionConfig.pnp` |
+| `parsePnpXml()` | `(xml: string \| Element) => PnpProfile` | Parse a candidate's AfA PNP 3.0 document | Feed the parsed profile into `AssessmentItemDefinitionConfig.pnp` |
+| `parseAfaPnpXml()` | `(xml: string \| Element) => AfaPnpRecord \| null` | Read the whole AfA record, keyed by AfA terms | Hand it to pie-players' `createPersonalNeedsProfileFromAfa` for the toolkit's tools |
+| `pnpProfileFromAfa()` | `(record: AfaPnpRecord) => PnpProfile` | Map a record already held as JSON | Build the item player's profile from a stored record |
 | `qti-catalog-lookup` event | `CustomEvent<{ idref: string; usage: string; html: string \| null }>` | Listen on the player root element to handle platform-level catalog lookups in the host | Route TTS, signing, braille, audio, or extended-description content |
 | Iframe `SET_PNP` message | `QtiIframeEnvelope<'SET_PNP', { pnp: PnpProfile }>` | Send from host to iframe runtime to update PNP mid-session | Push PNP from a student settings panel in the host |
 
@@ -186,10 +226,14 @@ Defined in `packages/item-player/src/pnp/types.ts`:
 export interface PnpProfile {
   display?: {
     /**
-     * One of six named color schemes from QTI 3.0 §6.2.
+     * Named color scheme; AfA color-theme terms map onto it.
      * 'default' removes the data-qti-colorscheme attribute.
      */
-    colorScheme?: 'default' | 'blackwhite' | 'whitenav' | 'blackcream' | 'yellowblue' | 'medgray';
+    colorScheme?:
+      | 'default' | 'defaultreverse' | 'blackwhite' | 'whiteblack'
+      | 'blackrose' | 'roseblack' | 'yellowblue' | 'blueyellow'
+      | 'mgraydgray' | 'dgraymgray' | 'blackcyan' | 'cyanblack'
+      | 'blackcream' | 'creamblack' | 'whitenav' | 'medgray';
     /**
      * CSS zoom factor. 1.0 = default (no magnification).
      * Deferred — parsed and stored but not applied by this milestone.
@@ -201,6 +245,10 @@ export interface PnpProfile {
     glossaryOnScreen?: boolean;
     /** Show keyword translation triggers with the given target language. */
     keywordTranslation?: { active: boolean; languageCode: string };
+    /** Show illustrated glossary supports when catalog entries provide them. */
+    illustratedGlossary?: boolean;
+    /** Enable host-routed catalog supports, by usage name. */
+    catalogSupports?: CatalogSupportPreferences;
     /** Multiply timeLimits.maxTime by multiplier. Infinity = no limit. */
     extendedTime?: { active: boolean; multiplier: number };
   };
@@ -253,10 +301,10 @@ When: The player root element is inspected
 Then: data-qti-colorscheme="blackwhite" is set on the root element
 ```
 
-**AC-3: All six named schemes accepted without error**
+**AC-3: Every named scheme accepted without error**
 ```
-Given: Definitions/sessions are created successively with each of the six named color schemes
-  ('blackwhite', 'whitenav', 'blackcream', 'yellowblue', 'medgray', 'default')
+Given: Definitions/sessions are created successively with each named color scheme
+  ('blackwhite', 'whitenav', 'blackcream', 'yellowblue', 'medgray', 'default', …)
 When: Each instance's root element is inspected
 Then: Each instance has the corresponding data-qti-colorscheme attribute value
   (or no attribute for 'default')
@@ -419,39 +467,47 @@ Then: event.detail.usage is "keyword-translation"
 
 ### parsePnpXml
 
-**AC-20: Parses color scheme**
+**AC-20: Maps a color theme**
 ```
-Given: An XML fragment:
-  <personalNeedsProfile>
-    <display><colorScheme>blackwhite</colorScheme></display>
-  </personalNeedsProfile>
-When: parsePnpXml() is called with this fragment
+Given: <access-for-all-pnp xmlns="http://www.imsglobal.org/xsd/qtiv3p0/imsafa3p0pnp_v1p0">
+         <text-appearance><color-theme>high-contrast</color-theme></text-appearance>
+       </access-for-all-pnp>
+When: parsePnpXml() is called with this document
 Then: The result is { display: { colorScheme: 'blackwhite' } }
 ```
 
-**AC-21: Returns null when element absent**
+**AC-21: Returns an empty profile when no AfA profile is present**
 ```
-Given: An XML string with no <personalNeedsProfile> element
+Given: An XML string with no access-for-all-pnp element
 When: parsePnpXml() is called
-Then: null is returned AND no error is thrown
+Then: {} is returned AND no error is thrown
+  AND parseAfaPnpXml() returns null
 ```
 
-**AC-22: Ignores unknown elements (forward-compatible)**
+**AC-22: Keeps unmapped features in the record**
 ```
-Given: A <personalNeedsProfile> with an unknown child element <futureFeature>xyz</futureFeature>
-When: parsePnpXml() is called
-Then: The unknown element is silently ignored
-  AND the known fields are still parsed correctly
-  AND no error is thrown
+Given: An access-for-all-pnp holding <calculator-on-screen calculator-type="scientific"/>
+  and an extension element <kxz:kxztesting-illustrated-glossary-on-screen/>
+When: parsePnpXml() and parseAfaPnpXml() are called
+Then: parsePnpXml() returns {} AND no error is thrown
+  AND parseAfaPnpXml() returns { 'calculator-on-screen': { 'calculator-type': 'scientific' },
+    extensions: { 'kxztesting-illustrated-glossary-on-screen': {} } }
 ```
 
-**AC-23: Parses extendedTime multiplier**
+**AC-23: Maps additional testing time**
 ```
-Given: <personalNeedsProfile>
-         <content><extendedTime active="true" multiplier="1.5"/></content>
-       </personalNeedsProfile>
+Given: <additional-testing-time><time-multiplier>1.5</time-multiplier></additional-testing-time>
 When: parsePnpXml() is called
 Then: result.content.extendedTime = { active: true, multiplier: 1.5 }
+  AND <unlimited/> in its place gives multiplier Infinity
+```
+
+**AC-24: Honors prohibit-set**
+```
+Given: An access-for-all-pnp holding <glossary-on-screen/> and
+  <prohibit-set><glossary-on-screen/></prohibit-set>
+When: parsePnpXml() is called
+Then: result.content?.glossaryOnScreen is undefined
 ```
 
 ---
@@ -536,7 +592,7 @@ Then: Three separate trigger buttons are rendered, one per span
 
 ## Open questions
 
-- [ ] **Color scheme CSS ownership:** The six CSS rulesets for `[data-qti-colorscheme=...]` must be specified somewhere. Should they live in `@pie-qti/default-components` (alongside the interaction styles) or in `@pie-qti/item-player` (alongside the `applyPnpToRoot` logic)? The constraint is that the CSS must be applied to interactions inside Shadow DOM; the current DaisyUI theme CSS uses `::part()` to pierce shadow boundaries for known parts.
+- [ ] **Color scheme CSS ownership:** The CSS rulesets for `[data-qti-colorscheme=...]` must be specified somewhere. Should they live in `@pie-qti/default-components` (alongside the interaction styles) or in `@pie-qti/item-player` (alongside the `applyPnpToRoot` logic)? The constraint is that the CSS must be applied to interactions inside Shadow DOM; the current DaisyUI theme CSS uses `::part()` to pierce shadow boundaries for known parts.
 - [ ] **Elimination state persistence across item navigation:** If a student navigates away from an item and returns, should their elimination marks be preserved? The response variable is preserved (that's the standard session state mechanism); elimination marks are UI-only. Storing them requires a separate PNP session state channel not currently defined.
 - [ ] **orderInteraction elimination UX:** The `orderInteraction` uses a drag-and-drop + keyboard reordering UI (`SortableList`). Where exactly should the eliminate button appear relative to a draggable row, and how should the button interact with the drag affordance? This detail needs UX review before implementation.
 
@@ -544,7 +600,8 @@ Then: Three separate trigger buttons are rendered, one per span
 
 ## Related
 
-- QTI spec: `docs/QTI_techguide.md` §6.2 (PNP profile)
+- QTI spec: `docs/QTI_techguide.md` §6.2 (PNP profile); [AfA PNP 3.0](https://www.imsglobal.org/spec/afa/v3p0/info)
+- pie-players: [support ids](https://github.com/pie-framework/pie-players/blob/develop/packages/assessment-toolkit/docs/TOOL_REGISTRY.md#support-ids), the AfA term to tool id mapping
 - Spec gap: `docs/SPEC-GAPS-PLAN.md` §G-09 (Done, Tier 2)
 - Adjacent PRD: `docs/prds/systems/accessibility.md` — WCAG 2.2 AA baseline (PNP builds on top of it)
 - Adjacent PRD: `docs/prds/systems/catalog.md` — catalog content for glossary/keyword-translation triggers

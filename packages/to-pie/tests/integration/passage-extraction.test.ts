@@ -49,15 +49,15 @@ describe('Passage Extraction (QTI → PIE)', () => {
     expect(result.items.length).toBe(1);
     const pieItem = result.items[0].content;
 
-    // Should populate passage property with passage ID
     expect(pieItem.passage).toBe('passage-123');
-
-    // Should also add passage model to config.models
-    expect(pieItem.config.models.length).toBe(2); // passage + mc
-    expect(pieItem.config.models[0].element).toBe('passage');
+    expect(pieItem.metadata.qtiPassageReferences).toEqual([
+      { identifier: 'passage-123', href: 'passages/passage-123.xml', via: 'object' },
+    ]);
+    expect(pieItem.config.models.map((model) => model.element)).toEqual(['multiple-choice']);
+    expect(pieItem.config.models[0].prompt).not.toContain('<object');
   });
 
-  test('should handle object tag without data-pie-passage-id attribute', async () => {
+  test('should leave an object without data-pie-passage-id in the prompt and report it', async () => {
     const qtiXml = `<?xml version="1.0" encoding="UTF-8"?>
 <assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
                 identifier="item-ref"
@@ -86,13 +86,11 @@ describe('Passage Extraction (QTI → PIE)', () => {
     expect(result.items.length).toBe(1);
     const pieItem = result.items[0].content;
 
-    // Should generate stable ID from file path
-    expect(pieItem.passage).toBeTruthy();
-    expect(typeof pieItem.passage).toBe('string');
-
-    // Should contain normalized file path
-    expect(pieItem.passage).toContain('passage');
-    expect(pieItem.passage).toContain('another-passage');
+    expect(pieItem.passage).toBeUndefined();
+    expect(pieItem.config.models[0].prompt).toContain('<object data="passages/another-passage.xml"');
+    expect(result.warnings).toContainEqual(
+      expect.objectContaining({ code: 'QTI_PASSAGE_UNRESOLVED', path: 'passages/another-passage.xml' })
+    );
   });
 
   test('should NOT populate passage property for inline stimulus', async () => {
@@ -190,16 +188,11 @@ describe('Passage Extraction (QTI → PIE)', () => {
     expect(result.items.length).toBe(1);
     const pieItem = result.items[0].content;
 
-    // Should populate passage property
     expect(pieItem.passage).toBe('science-123');
-
-    // Should have passage + ER models
-    expect(pieItem.config.models.length).toBe(2);
-    expect(pieItem.config.models[0].element).toBe('passage');
-    expect(pieItem.config.models[1].element).toBe('extended-text-entry');
+    expect(pieItem.config.models.map((model) => model.element)).toEqual(['extended-text-entry']);
   });
 
-  test('should preserve object data path in passage model', async () => {
+  test('should report a self-closing object the item cannot resolve', async () => {
     const qtiXml = `<?xml version="1.0" encoding="UTF-8"?>
 <assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
                 identifier="item-check-path"
@@ -225,13 +218,14 @@ describe('Passage Extraction (QTI → PIE)', () => {
     expect(result.items.length).toBe(1);
     const pieItem = result.items[0].content;
 
-    // Passage property should be derived from file path
-    expect(pieItem.passage).toBeTruthy();
-
-    // Passage model should indicate it's external
-    const passageModel = pieItem.config.models.find(m => m.element === 'passage');
-    expect(passageModel).toBeTruthy();
-    expect(passageModel.passages[0].text).toContain('External passage');
+    expect(pieItem.passage).toBeUndefined();
+    expect(pieItem.config.models.map((model) => model.element)).toEqual(['multiple-choice']);
+    expect(result.warnings).toContainEqual(
+      expect.objectContaining({
+        code: 'QTI_PASSAGE_UNRESOLVED',
+        path: 'passages/chapter3/reading-comprehension.xml',
+      })
+    );
   });
 });
 

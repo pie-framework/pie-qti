@@ -341,6 +341,65 @@ jobs:
           PUBLISHED_PACKAGES_JSON: ${{ steps.changesets.outputs.published-packages }}
         run: node scripts/check-published-closure.mjs
 
+      # A release commit exists only on master: changesets/action bumps the manifests and deletes
+      # the consumed changesets there, and nothing carries that back. develop kept the consumed
+      # changesets, so the next develop -> master promotion hit a modify/delete conflict on
+      # .changeset/align-pie-tool-dependencies.md and develop was synced by hand twice on
+      # 2026-09-28 (6a15a8e, 6480269).
+      #
+      # A PR rather than a direct push to develop: a back-merge can conflict on CHANGELOG.md, and
+      # resolving that is a human's job. GITHUB_TOKEN opens it, so a maintainer has to approve its
+      # workflow runs. continue-on-error because a release that published must not be reported as
+      # failed over its follow-up bookkeeping.
+      #
+      # !cancelled() rather than success(): continue-on-error keeps this step from failing the
+      # release, but it does not keep an *earlier* failure from skipping it. 0.1.25 published all
+      # 27 packages and then failed the closure check above on npm replica lag, which would have
+      # skipped this step too. The post-publish checks still fail the run; they no longer decide
+      # whether develop gets the release commit back.
+      - name: Open master -> develop back-merge PR
+        if: ${{ !cancelled() && steps.changesets.outputs.published == 'true' }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ fromJson(steps.changesets.outputs.published-packages)[0].version }}
+        run: |
+          set -euo pipefail
+          git fetch --quiet origin develop master
+
+          existing="$(gh pr list --base develop --head master --state open --json number --jq '.[].number' | head -1)"
+          if [ -n "$existing" ]; then
+            echo "PR #${existing} already back-merges master into develop; it will carry ${VERSION} too."
+            exit 0
+          fi
+
+          ahead="$(git rev-list --count origin/develop..origin/master)"
+          if [ "$ahead" = "0" ]; then
+            echo "develop already contains master; nothing to back-merge."
+            exit 0
+          fi
+
+          body_file="$(mktemp)"
+          cat > "$body_file" <<EOF
+          Returns the \`${VERSION}\` release commit to \`develop\`: bumped manifests, assembled
+          \`CHANGELOG.md\` files, and the deletion of the changesets this release consumed. Without it
+          those changesets stay on \`develop\` and the next promotion to \`master\` conflicts on them.
+
+          Opened by \`GITHUB_TOKEN\`, so its workflow runs wait for a maintainer to approve them. Merge
+          with a merge commit: a squash leaves \`master\`'s commits out of \`develop\`'s history, and every
+          later back-merge carries them again.
+
+          A conflict on a changeset means \`develop\` edited it after this release consumed it: keep the
+          deletion and move the edit into a new changeset. In a \`CHANGELOG.md\`, take both sides, release
+          entry first.
+          EOF
+
+          gh pr create \
+            --base develop \
+            --head master \
+            --title "chore(release): back-merge ${VERSION} into develop" \
+            --body-file "$body_file"
+
       - name: Notify Slack on Successful Publish
         if: steps.changesets.outputs.published == 'true'
         continue-on-error: true

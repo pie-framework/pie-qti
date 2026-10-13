@@ -5,6 +5,7 @@
  * Assessments are pure reference structures that link to items, passages, and sections.
  */
 
+import type { TransformWarning } from '@pie-qti/transform-types';
 import type { HTMLElement } from 'node-html-parser';
 import { parse } from 'node-html-parser';
 import { v4 as uuid } from 'uuid';
@@ -27,27 +28,35 @@ export interface ContextDeclaration {
   defaultValue?: any;
 }
 
-export interface CatalogCard {
-  catalog: string; // 'spoken', 'sign-language', 'braille', etc.
-  language?: string;
+/** The QTI `view` roles, which PIE players read from a rubric block as an array. */
+export type RubricBlockView =
+  | 'author'
+  | 'candidate'
+  | 'proctor'
+  | 'scorer'
+  | 'testConstructor'
+  | 'tutor';
+
+const RUBRIC_BLOCK_VIEWS = new Set<string>([
+  'author',
+  'candidate',
+  'proctor',
+  'scorer',
+  'testConstructor',
+  'tutor',
+]);
+
+const RUBRIC_BLOCK_CLASSES = new Set<string>(['stimulus', 'instructions', 'rubric']);
+
+/** A section's rubric block, in the shape PIE players render section rubric blocks in. */
+export interface RubricBlock {
+  /** The block's QTI `id`. */
+  identifier?: string;
+  view: RubricBlockView[];
+  /** QTI's `use` when it names one of these, else the first `class` token that does. */
+  class?: 'stimulus' | 'instructions' | 'rubric';
+  /** The block's content as authored. */
   content: string;
-}
-
-export interface AccessibilityCatalog {
-  identifier: string;
-  cards: CatalogCard[];
-}
-
-export interface PersonalNeedsProfile {
-  supports: string[];
-  prohibitedSupports?: string[];
-  activateAtInit?: string[];
-}
-
-export interface StimulusRef {
-  identifier: string;
-  href: string;
-  type: 'qti-stimulus';
 }
 
 export interface PieAssessment {
@@ -64,15 +73,6 @@ export interface PieAssessment {
 
   /** QTI 3.0: Context declarations (global shared variables) */
   contextDeclarations?: ContextDeclaration[];
-
-  /** QTI 3.0: Integrated APIP accessibility catalogs */
-  accessibilityCatalogs?: AccessibilityCatalog[];
-
-  /** QTI 3.0: Personal Needs Profile (PNP 3.0) */
-  personalNeedsProfile?: PersonalNeedsProfile;
-
-  /** QTI 3.0: Stimulus references (shared passages) */
-  stimulusRefs?: StimulusRef[];
 
   /**
    * Lossless XML for assessment-level outcomeProcessing (QTI expression/rule set).
@@ -131,7 +131,8 @@ export interface AssessmentSection {
   ordering?: {
     shuffle: boolean;
   };
-  rubricRefs?: string[]; // references to rubric blocks
+  /** The section's own rubric blocks; a stimulus is one of class `stimulus`. */
+  rubricBlocks?: RubricBlock[];
   timeLimits?: {
     maxTime?: number;
     allowLateSubmission?: boolean;
@@ -176,6 +177,8 @@ export interface AssessmentTestOptions {
   includeBranchRules?: boolean;
   /** Whether to include item session controls */
   includeItemControls?: boolean;
+  /** Receives a warning for each construct the transform does not carry. */
+  warnings?: TransformWarning[];
 }
 
 /**
@@ -265,14 +268,14 @@ export function transformAssessmentTest(
   // Extract QTI 3.0 context declarations
   const contextDeclarations = extractContextDeclarations(assessmentTest);
 
-  // Extract QTI 3.0 accessibility catalogs
-  const accessibilityCatalogs = extractAccessibilityCatalogs(assessmentTest);
-
-  // Extract QTI 3.0 personal needs profile
-  const personalNeedsProfile = extractPersonalNeedsProfile(assessmentTest);
-
-  // Extract QTI 3.0 stimulus references
-  const stimulusRefs = extractStimulusRefs(assessmentTest);
+  const pnpElementName = findCandidateProfile(assessmentTest);
+  if (pnpElementName) {
+    options?.warnings?.push({
+      itemId: assessmentId,
+      code: 'QTI_PNP_IN_CONTENT',
+      message: `assessmentTest "${identifier}" carries a <${pnpElementName}>, which is not converted: a personal needs profile is a per-candidate AfA PNP 3.0 document the player takes at session start.`,
+    });
+  }
 
   const assessment: PieAssessment = {
     id: uuid(),
@@ -281,9 +284,6 @@ export function transformAssessmentTest(
     qtiVersion,
     testParts,
     contextDeclarations: contextDeclarations.length > 0 ? contextDeclarations : undefined,
-    accessibilityCatalogs: accessibilityCatalogs.length > 0 ? accessibilityCatalogs : undefined,
-    personalNeedsProfile,
-    stimulusRefs: stimulusRefs.length > 0 ? stimulusRefs : undefined,
     outcomeProcessingXml,
     outcomeDeclarationsXml: outcomeDeclarationsXml.length > 0 ? outcomeDeclarationsXml : undefined,
     templateDeclarationsXml: templateDeclarationsXml.length > 0 ? templateDeclarationsXml : undefined,
@@ -354,8 +354,7 @@ function transformSection(
   // Get selection rules
   const selection = extractSelectionRules(section);
 
-  // Get rubric references
-  const rubricRefs = extractRubricRefs(section);
+  const rubricBlocks = extractRubricBlocks(section);
 
   // Get time limits
   const timeLimits = options?.includeTimeLimits
@@ -376,7 +375,7 @@ function transformSection(
     subsections: subsections.length > 0 ? subsections : undefined,
     selection,
     ordering: { shuffle },
-    rubricRefs: rubricRefs.length > 0 ? rubricRefs : undefined,
+    rubricBlocks: rubricBlocks.length > 0 ? rubricBlocks : undefined,
     timeLimits,
   };
 
@@ -482,26 +481,28 @@ function extractSelectionRules(section: HTMLElement): AssessmentSection['selecti
   };
 }
 
-/**
- * Extract rubric references
- */
-function extractRubricRefs(element: HTMLElement): string[] {
-  const refs: string[] = [];
-  const rubricBlocks = element.getElementsByTagName('rubricBlock');
-
-  for (const rubric of Array.from(rubricBlocks)) {
-    const view = rubric.getAttribute('view');
-    const identifier = rubric.getAttribute('identifier');
-
-    if (identifier) {
-      refs.push(identifier);
-    } else if (view) {
-      // Use view as identifier if no explicit ID
-      refs.push(`rubric-${view}`);
-    }
+/** The section's own rubric blocks; a nested section's are its own. */
+function extractRubricBlocks(section: HTMLElement): RubricBlock[] {
+  const blocks: RubricBlock[] = [];
+  for (const child of section.childNodes) {
+    if (child.nodeType !== 1 || (child as HTMLElement).rawTagName !== 'rubricBlock') continue;
+    const rubric = child as HTMLElement;
+    const view = (rubric.getAttribute('view') ?? '')
+      .split(/\s+/)
+      .filter((role): role is RubricBlockView => RUBRIC_BLOCK_VIEWS.has(role));
+    const identifier = rubric.getAttribute('id');
+    const blockClass = [
+      rubric.getAttribute('use') ?? '',
+      ...(rubric.getAttribute('class') ?? '').split(/\s+/),
+    ].find((token) => RUBRIC_BLOCK_CLASSES.has(token)) as RubricBlock['class'];
+    blocks.push({
+      ...(identifier ? { identifier } : {}),
+      view,
+      ...(blockClass ? { class: blockClass } : {}),
+      content: rubric.innerHTML.trim(),
+    });
   }
-
-  return refs;
+  return blocks;
 }
 
 /**
@@ -720,100 +721,18 @@ function extractContextDeclarations(assessmentTest: HTMLElement): ContextDeclara
 }
 
 /**
- * Extract QTI 3.0 accessibility catalogs (integrated APIP)
+ * The name of a personal needs profile element inside the test, whether AfA's or the
+ * `personalNeedsProfile` some exports invent. Neither belongs in content.
  */
-function extractAccessibilityCatalogs(assessmentTest: HTMLElement): AccessibilityCatalog[] {
-  const catalogs: AccessibilityCatalog[] = [];
-  const catalogElements = assessmentTest.getElementsByTagName('accessibilityCatalog');
-
-  for (const catalogElement of Array.from(catalogElements)) {
-    const identifier = catalogElement.getAttribute('identifier');
-    if (!identifier) continue;
-
-    const cards: CatalogCard[] = [];
-    const cardElements = catalogElement.getElementsByTagName('catalogCard');
-
-    for (const cardElement of Array.from(cardElements)) {
-      const catalog = cardElement.getAttribute('catalog');
-      const language = cardElement.getAttribute('language') || undefined;
-      const content = cardElement.textContent?.trim();
-
-      if (catalog && content) {
-        cards.push({ catalog, language, content });
-      }
-    }
-
-    if (cards.length > 0) {
-      catalogs.push({ identifier, cards });
-    }
+function findCandidateProfile(parent: HTMLElement): string | undefined {
+  for (const child of parent.childNodes) {
+    if (child.nodeType !== 1) continue;
+    const el = child as HTMLElement;
+    const name = el.rawTagName ?? '';
+    const local = name.slice(name.indexOf(':') + 1);
+    if (local === 'personalNeedsProfile' || local === 'access-for-all-pnp') return name;
+    const nested = findCandidateProfile(el);
+    if (nested) return nested;
   }
-
-  return catalogs;
-}
-
-/**
- * Extract QTI 3.0 personal needs profile (PNP 3.0)
- */
-function extractPersonalNeedsProfile(assessmentTest: HTMLElement): PersonalNeedsProfile | undefined {
-  const pnpElement = assessmentTest.querySelector('personalNeedsProfile') ||
-                    assessmentTest.getElementsByTagName('personalNeedsProfile')[0];
-
-  if (!pnpElement) return undefined;
-
-  const supports: string[] = [];
-  const prohibitedSupports: string[] = [];
-  const activateAtInit: string[] = [];
-
-  // Extract supports
-  const supportElements = pnpElement.getElementsByTagName('support');
-  for (const support of Array.from(supportElements)) {
-    const value = support.textContent?.trim();
-    if (value) supports.push(value);
-  }
-
-  // Extract prohibited supports
-  const prohibitedElements = pnpElement.getElementsByTagName('prohibitedSupport');
-  for (const prohibited of Array.from(prohibitedElements)) {
-    const value = prohibited.textContent?.trim();
-    if (value) prohibitedSupports.push(value);
-  }
-
-  // Extract activate at init
-  const activateElements = pnpElement.getElementsByTagName('activateAtInit');
-  for (const activate of Array.from(activateElements)) {
-    const value = activate.textContent?.trim();
-    if (value) activateAtInit.push(value);
-  }
-
-  if (supports.length === 0) return undefined;
-
-  return {
-    supports,
-    prohibitedSupports: prohibitedSupports.length > 0 ? prohibitedSupports : undefined,
-    activateAtInit: activateAtInit.length > 0 ? activateAtInit : undefined,
-  };
-}
-
-/**
- * Extract QTI 3.0 stimulus references (shared passages)
- */
-function extractStimulusRefs(assessmentTest: HTMLElement): StimulusRef[] {
-  const stimulusRefs: StimulusRef[] = [];
-  const stimulusElements = assessmentTest.getElementsByTagName('stimulusRef');
-
-  for (const stimulus of Array.from(stimulusElements)) {
-    const identifier = stimulus.getAttribute('identifier');
-    const href = stimulus.getAttribute('href');
-    const type = stimulus.getAttribute('type');
-
-    if (identifier && href) {
-      stimulusRefs.push({
-        identifier,
-        href,
-        type: (type as 'qti-stimulus') || 'qti-stimulus',
-      });
-    }
-  }
-
-  return stimulusRefs;
+  return undefined;
 }

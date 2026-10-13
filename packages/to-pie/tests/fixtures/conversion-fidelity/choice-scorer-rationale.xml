@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- choiceInteraction whose scorer rubricBlock holds a rationale per choice. -->
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/qti/qtiv2p2/imsqti_v2p2.xsd"
+                identifier="cf-choice-scorer-rationale-001"
+                title="Choice with scorer rationale"
+                adaptive="false"
+                timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier">
+    <correctResponse>
+      <value>choiceB</value>
+    </correctResponse>
+  </responseDeclaration>
+  <itemBody>
+    <p>Which planet is closest to the Sun?</p>
+    <choiceInteraction responseIdentifier="RESPONSE" maxChoices="1" shuffle="false">
+      <simpleChoice identifier="choiceA">Venus</simpleChoice>
+      <simpleChoice identifier="choiceB">Mercury</simpleChoice>
+      <simpleChoice identifier="choiceC">Mars</simpleChoice>
+    </choiceInteraction>
+    <rubricBlock view="scorer">
+      <div class="rationale">Venus is the second planet from the Sun.</div>
+      <div class="rationale">Correct. Mercury orbits closest to the Sun.</div>
+      <div class="rationale">Mars is the fourth planet from the Sun.</div>
+    </rubricBlock>
+  </itemBody>
+</assessmentItem>

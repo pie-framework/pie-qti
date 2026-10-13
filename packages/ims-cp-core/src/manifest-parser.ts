@@ -164,22 +164,8 @@ function parseResource(resourceEl: HTMLElement): ManifestResource {
     .map(d => d.getAttribute('identifierref'))
     .filter((id): id is string => !!id);
 
-  // Extract metadata if present
-  let metadata: { title?: string; description?: string; language?: string } | undefined;
   const metadataEl = resourceEl.querySelector('metadata');
-  if (metadataEl) {
-    const title = metadataEl.querySelector('title')?.textContent?.trim();
-    const description = metadataEl.querySelector('description')?.textContent?.trim();
-
-    // Extract IMS LOM language (supports multiple selector patterns)
-    const languageEl = metadataEl.querySelector('language, [\\:language]') ||
-                       metadataEl.querySelector('[name="language"]');
-    const language = languageEl?.textContent?.trim();
-
-    if (title || description || language) {
-      metadata = { title, description, language };
-    }
-  }
+  const metadata = metadataEl ? parseResourceMetadata(metadataEl) : undefined;
 
   return {
     identifier,
@@ -190,6 +176,64 @@ function parseResource(resourceEl: HTMLElement): ManifestResource {
     dependencies,
     metadata,
   };
+}
+
+/**
+ * Title, description and language of a resource's `<metadata>`
+ *
+ * LOM is matched by local name, so a prefixed binding (`imsmd:title`) reads the same as an unprefixed
+ * one, and LangString text comes from its first `string` (or LOM 1.2 `langstring`). When the metadata
+ * holds LOM, only `general` is read: a `classification` description is not the resource's.
+ */
+function parseResourceMetadata(metadataEl: HTMLElement): ManifestResource['metadata'] {
+  let title: string | undefined;
+  let description: string | undefined;
+  let language: string | undefined;
+
+  const loms = descendantsNamed(metadataEl, 'lom');
+  if (loms.length > 0) {
+    const general = loms.flatMap((lom) => childrenNamed(lom, 'general'))[0];
+    if (general) {
+      title = langStringText(childrenNamed(general, 'title')[0]);
+      description = langStringText(childrenNamed(general, 'description')[0]);
+      language = textOf(childrenNamed(general, 'language')[0]);
+    }
+  } else {
+    title = langStringText(descendantsNamed(metadataEl, 'title')[0]);
+    description = langStringText(descendantsNamed(metadataEl, 'description')[0]);
+    const languageEl = descendantsNamed(metadataEl, 'language')[0] ||
+                       metadataEl.querySelector('[\\:language]') ||
+                       metadataEl.querySelector('[name="language"]');
+    language = textOf(languageEl ?? undefined);
+  }
+
+  return title || description || language ? { title, description, language } : undefined;
+}
+
+function langStringText(el: HTMLElement | undefined): string | undefined {
+  if (!el) return undefined;
+  const string = [...childrenNamed(el, 'string'), ...childrenNamed(el, 'langstring')][0];
+  return textOf(string ?? el);
+}
+
+function textOf(el: HTMLElement | undefined): string | undefined {
+  return el?.textContent?.trim() || undefined;
+}
+
+/** Tag name without its namespace prefix, lowercased. */
+function localName(el: HTMLElement): string {
+  return (el.rawTagName ?? '').replace(/^[^:]*:/, '').toLowerCase();
+}
+
+function childrenNamed(el: HTMLElement, name: string): HTMLElement[] {
+  return el.children.filter((child) => localName(child) === name);
+}
+
+function descendantsNamed(el: HTMLElement, name: string): HTMLElement[] {
+  return el.children.flatMap((child) => [
+    ...(localName(child) === name ? [child] : []),
+    ...descendantsNamed(child, name),
+  ]);
 }
 
 /**

@@ -63,18 +63,14 @@ describe('searchMetaData Round-Trip', () => {
     );
     const qtiXml = qtiResult.items[0].content as string;
 
-    // Verify QTI contains metadata
-    expect(qtiXml).toContain('<qti-metadata>');
-    expect(qtiXml).toContain('name="subject" value="Mathematics"');
-    expect(qtiXml).toContain('name="gradeLevel" value="9,10,11"');
-    expect(qtiXml).toContain('data-type="array"');
-    expect(qtiXml).toContain('name="difficulty" value="0.72"');
-    expect(qtiXml).toContain('data-type="number"');
-    expect(qtiXml).toContain('name="DOK" value="DOK2"');
+    // The source model, search metadata included, travels in the PIE source sidecar.
+    expect(qtiXml).not.toContain('pie:');
+    expect(qtiXml).not.toContain('qti-metadata');
+    expect(qtiResult.items[0].sidecar?.sourceModel.searchMetaData).toEqual(originalPie.searchMetaData);
 
     // QTI → PIE
     const pieResult = await qtiToPie.transform(
-      { content: qtiXml },
+      { content: qtiXml, sidecar: qtiResult.items[0].sidecar },
       { logger }
     );
     const reconstructedPie = pieResult.items[0].content;
@@ -140,13 +136,14 @@ describe('searchMetaData Round-Trip', () => {
     // Verify both passage and metadata are in QTI
     expect(qtiXml).toContain('stimulus');
     expect(qtiXml).toContain('Understanding Theme');
-    expect(qtiXml).toContain('<qti-metadata>');
-    expect(qtiXml).toContain('name="subject" value="ELA"');
-    expect(qtiXml).toContain('name="estimatedTime" value="180"');
+    // The source model, search metadata included, travels in the PIE source sidecar.
+    expect(qtiXml).not.toContain('pie:');
+    expect(qtiXml).not.toContain('qti-metadata');
+    expect(qtiResult.items[0].sidecar?.sourceModel.searchMetaData).toEqual(originalPie.searchMetaData);
 
     // QTI → PIE
     const pieResult = await qtiToPie.transform(
-      { content: qtiXml },
+      { content: qtiXml, sidecar: qtiResult.items[0].sidecar },
       { logger }
     );
     const reconstructedPie = pieResult.items[0].content;
@@ -200,7 +197,7 @@ describe('searchMetaData Round-Trip', () => {
 
     // QTI → PIE
     const pieResult = await qtiToPie.transform(
-      { content: qtiXml },
+      { content: qtiXml, sidecar: qtiResult.items[0].sidecar },
       { logger }
     );
     const reconstructedPie = pieResult.items[0].content;
@@ -243,13 +240,14 @@ describe('searchMetaData Round-Trip', () => {
     );
     const qtiXml = qtiResult.items[0].content as string;
 
-    // Verify metadata fields
-    expect(qtiXml).toContain('name="subject" value="Science"');
-    expect(qtiXml).toContain('name="difficulty" value="0"');
+    // The source model, search metadata included, travels in the PIE source sidecar.
+    expect(qtiXml).not.toContain('pie:');
+    expect(qtiXml).not.toContain('qti-metadata');
+    expect(qtiResult.items[0].sidecar?.sourceModel.searchMetaData).toEqual(originalPie.searchMetaData);
 
     // QTI → PIE
     const pieResult = await qtiToPie.transform(
-      { content: qtiXml },
+      { content: qtiXml, sidecar: qtiResult.items[0].sidecar },
       { logger }
     );
     const reconstructedPie = pieResult.items[0].content;
@@ -302,13 +300,14 @@ describe('searchMetaData Round-Trip', () => {
     );
     const qtiXml = qtiResult.items[0].content as string;
 
-    // Verify PIE extension is present
-    expect(qtiXml).toContain('<pie:sourceModel>');
-    expect(qtiXml).toContain('searchMetaData');
+    // The source model, search metadata included, travels in the PIE source sidecar.
+    expect(qtiXml).not.toContain('pie:');
+    expect(qtiXml).not.toContain('qti-metadata');
+    expect(qtiResult.items[0].sidecar?.sourceModel.searchMetaData).toEqual(originalPie.searchMetaData);
 
     // QTI → PIE (should extract from PIE extension for perfect match)
     const pieResult = await qtiToPie.transform(
-      { content: qtiXml },
+      { content: qtiXml, sidecar: qtiResult.items[0].sidecar },
       { logger }
     );
     const reconstructedPie = pieResult.items[0].content;

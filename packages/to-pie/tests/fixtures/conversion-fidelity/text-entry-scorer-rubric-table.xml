@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- textEntryInteraction whose scorer rubricBlock holds a scoring table. -->
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/qti/qtiv2p2/imsqti_v2p2.xsd"
+                identifier="cf-text-entry-scorer-rubric-table-001"
+                title="Text entry with scorer rubric table"
+                adaptive="false"
+                timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="string"/>
+  <itemBody>
+    <p>How many of the objects give off their own light? <textEntryInteraction responseIdentifier="RESPONSE" expectedLength="10"/></p>
+    <rubricBlock view="scorer">
+      <table>
+        <tbody>
+          <tr><td colspan="2"><strong>Constructed Response – 1 Point</strong></td></tr>
+          <tr><td><strong>Evidence of Mastery</strong></td><td>The count matches the objects that are light sources.</td></tr>
+        </tbody>
+      </table>
+    </rubricBlock>
+  </itemBody>
+</assessmentItem>

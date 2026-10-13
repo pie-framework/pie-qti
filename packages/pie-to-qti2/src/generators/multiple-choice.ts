@@ -7,6 +7,12 @@
 import { generateChoiceIdentifier, generateIdentifier } from '../utils/identifier-generator.js';
 import { QtiBuilder } from '../utils/qti-builder.js';
 import { buildResponseDeclaration } from '../utils/response-declaration-builder.js';
+import {
+  choiceSelectionScoring,
+  correctResponseScoring,
+  partialScoringEnabled,
+  templateScoring,
+} from '../utils/scoring.js';
 import { BaseGenerator } from './base-generator.js';
 import type { GeneratorContext, GeneratorResult } from './types.js';
 
@@ -65,42 +71,47 @@ export class MultipleChoiceGenerator extends BaseGenerator {
       .map((choice: any, i: number) => (choice.correct ? generateChoiceIdentifier(i) : null))
       .filter(Boolean);
 
+    // PIE scores a radio item all-or-nothing whatever its partialScoring setting. A partial-credit
+    // checkbox item keeps its mapping for importers and map_response consumers, and is scored by
+    // PIE's own selection rule, which a mapping cannot express.
+    const { mapping, scoring: mappedScoring } =
+      maxChoices === '1'
+        ? { mapping: {}, scoring: templateScoring('match_correct') }
+        : correctResponseScoring(correctValues, partialScoringEnabled(model));
+    const scoring = mapping.mapping ? choiceSelectionScoring(responseId, correctValues) : mappedScoring;
+
     const responseDecl = buildResponseDeclaration({
       identifier: responseId,
       cardinality: maxChoices === '1' ? 'single' : 'multiple',
       baseType: 'identifier',
       correctResponse: correctValues,
+      ...mapping,
     });
 
     // Build item body
     const prompt = model.prompt ? QtiBuilder.createPrompt(model.prompt) : '';
 
-    // Carry the choice layout back to QTI's orientation. `grid` has no QTI
-    // equivalent and is emitted as `grid`, which readers that don't know it
-    // treat as unspecified; the column count has no QTI home at all.
+    // Carry the choice layout back to QTI's orientation. QTI 2.2 allows only
+    // horizontal and vertical, so `grid` and its column count are not emitted.
     const orientation =
-      model.choicesLayout === 'horizontal' || model.choicesLayout === 'vertical' || model.choicesLayout === 'grid'
+      model.choicesLayout === 'horizontal' || model.choicesLayout === 'vertical'
         ? ` orientation="${model.choicesLayout}"`
         : '';
 
-    const interaction = `<choiceInteraction responseIdentifier="${responseId}" shuffle="${shuffle}" maxChoices="${maxChoices}"${orientation}>
+    const interaction = `<choiceInteraction responseIdentifier="${responseId}" shuffle="${shuffle}" maxChoices="${maxChoices}"${orientation}>${prompt ? `\n    ${prompt}` : ''}
     ${choicesXml}
   </choiceInteraction>`;
 
-    const itemBody = prompt ? `${prompt}\n    ${interaction}` : interaction;
+    const itemBody = interaction;
 
     // Generate assessment item
     const qti = QtiBuilder.createAssessmentItem(itemId, [responseDecl], itemBody, {
       title: model.title || 'Multiple Choice Item',
       pieElement: this.id,
+      ...scoring,
     });
 
     const warnings: string[] = [];
-
-    // Check for partial scoring (not standard QTI)
-    if (model.partialScoring) {
-      warnings.push('Partial scoring is not standard QTI - preserved in data-pie-partial-scoring');
-    }
 
     this.debug(context, 'Successfully generated choiceInteraction');
 

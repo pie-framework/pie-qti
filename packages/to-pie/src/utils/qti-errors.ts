@@ -71,7 +71,7 @@ export function createMissingInteractionError(
 }
 
 /**
- * Creates a descriptive error for an interaction Composer recognizes but cannot convert.
+ * Creates a descriptive error for an interaction the conversion recognizes but cannot convert.
  *
  * Deliberately distinct from `createMissingInteractionError`: nothing is missing or
  * malformed. The source is valid QTI that has no PIE target element, so the actionable step

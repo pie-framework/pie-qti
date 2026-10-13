@@ -592,7 +592,7 @@
 				"browser-visible",
 				"browser-a11y-stage5"
 			],
-			"notes": "Covers caption track preservation plus item-runtime PNP/catalog coverage for glossary, keyword translation, illustrated glossary triggers, dynamic rebinding cleanup, known and host-defined catalog support events, unsafe usage-name rejection, and browser-visible catalog affordance behavior. Manual assistive-technology signoff is deferred outside the public gate."
+			"notes": "Covers caption track preservation, AfA PNP 3.0 profile parsing, plus item-runtime PNP/catalog coverage for glossary, keyword translation, illustrated glossary triggers, dynamic rebinding cleanup, known and host-defined catalog support events, unsafe usage-name rejection, and browser-visible catalog affordance behavior. Manual assistive-technology signoff is deferred outside the public gate."
 		},
 		{
 			"id": "qti30-advanced-s3-s4",

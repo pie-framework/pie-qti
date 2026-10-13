@@ -254,7 +254,7 @@ function plainLine(description: SelectPointDescription): string {
   const declared = description.className
     ? `Unrecognized class "${description.className}".`
     : 'No class discriminator, so this is plain QTI graphic point selection.';
-  return `${declared} Composer has no PIE element for selecting a point on an image.`;
+  return `${declared} PIE has no element for selecting a point on an image.`;
 }
 
 function tryParseJson(raw: string): unknown | undefined {

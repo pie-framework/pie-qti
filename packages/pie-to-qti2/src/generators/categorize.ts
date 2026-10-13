@@ -7,6 +7,7 @@
 import { generateIdentifier } from '../utils/identifier-generator.js';
 import { QtiBuilder } from '../utils/qti-builder.js';
 import { buildResponseDeclaration } from '../utils/response-declaration-builder.js';
+import { correctResponseScoring, partialScoringEnabled } from '../utils/scoring.js';
 import { BaseGenerator } from './base-generator.js';
 import type { GeneratorContext, GeneratorResult } from './types.js';
 
@@ -81,11 +82,13 @@ export class CategorizeGenerator extends BaseGenerator {
     }
 
     // Build response declaration (directed pairs: choice -> category)
+    const { mapping, scoring } = correctResponseScoring(correctPairs, partialScoringEnabled(model));
     const responseDecl = buildResponseDeclaration({
       identifier: responseId,
       cardinality: 'multiple',
       baseType: 'directedPair',
       correctResponse: correctPairs,
+      ...mapping,
     });
 
     // Build item body with associateInteraction
@@ -102,6 +105,7 @@ export class CategorizeGenerator extends BaseGenerator {
     const qti = QtiBuilder.createAssessmentItem(itemId, [responseDecl], itemBody, {
       title: model.title || 'Categorize Item',
       pieElement: this.id,
+      ...scoring,
     });
 
     const warnings = [
@@ -109,9 +113,6 @@ export class CategorizeGenerator extends BaseGenerator {
       'Category structure is preserved in data-pie-categories for accurate reconstruction',
     ];
 
-    if (model.partialScoring) {
-      warnings.push('Partial scoring settings preserved in data-pie-partial-scoring');
-    }
 
     this.debug(context, `Successfully generated associateInteraction with ${model.categories.length} categories`);
 
@@ -129,7 +130,7 @@ export class CategorizeGenerator extends BaseGenerator {
     prompt?: string
   ): string {
     // Build prompt if present
-    const promptHtml = prompt ? `<prompt>${prompt}</prompt>\n    ` : '';
+    const promptHtml = prompt ? `\n      <prompt>${prompt}</prompt>` : '';
 
     // Calculate max associations
     // Each choice can be associated with any number of categories
@@ -153,7 +154,7 @@ export class CategorizeGenerator extends BaseGenerator {
       .join('\n');
 
     // Build associateInteraction
-    const interaction = `${promptHtml}<associateInteraction responseIdentifier="${responseId}" shuffle="${shuffle}" maxAssociations="${maxAssociations}">
+    const interaction = `<associateInteraction responseIdentifier="${responseId}" shuffle="${shuffle}" maxAssociations="${maxAssociations}">${promptHtml}
 ${categoryChoices}
 ${itemChoices}
     </associateInteraction>`;

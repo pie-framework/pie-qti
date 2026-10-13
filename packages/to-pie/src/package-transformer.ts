@@ -32,7 +32,17 @@ import {
   createConversionTrace,
   detectPackageProfiles,
 } from './source-profile-runtime.js';
+import {
+  type ItemPassageLinks,
+  itemPassageLinks,
+  packagePassages,
+  type QtiPackagePassage,
+} from './utils/passage-links.js';
+import { passageResourceNodes } from './utils/passage-resources.js';
 import { isAssessmentTestDocument } from './utils/qti-validator.js';
+import { isQti3Document, normalizeQti3ToQti2 } from './utils/qti3-normalize.js';
+import { applyPieResourceLom, readPieResourceLom } from './utils/manifest-lom.js';
+import { findPieSourceSidecarPath } from './utils/pie-source-sidecar.js';
 
 export interface QtiPackageTransformInput {
   packageId?: string;
@@ -83,8 +93,29 @@ export interface QtiPackageTransformResult {
   sourceDiagnostics: SourceProfileDiagnostic[];
   standardCandidates: StandardCandidate[];
   rubricCandidates: RubricCandidate[];
+  /** The package's passage resources, each with the converted items linked to it. */
+  passages: QtiPackagePassage[];
   warnings: TransformWarning[];
   conversionTrace: ConversionTrace;
+}
+
+/**
+ * The text of the PIE source sidecar listed under an item resource. A listed sidecar that cannot
+ * be read comes back as `null`, so the item transform reports it and falls back to the QTI body.
+ */
+async function readListedPieSourceSidecar(
+  resourceFiles: readonly string[],
+  fileAccess: PackageFileAccess
+): Promise<string | null | undefined> {
+  const sidecarPath = findPieSourceSidecarPath(resourceFiles);
+  if (!sidecarPath) {
+    return undefined;
+  }
+  try {
+    return (await fileAccess.readText(sidecarPath)) ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -175,8 +206,12 @@ export async function transformAnalyzedQtiPackageToPie({
       sourceProfiles: profiles,
     });
 
+  const resourceLom = readPieResourceLom(manifestXml);
+  const passageNodes = passageResourceNodes(packageGraph);
+  const passageNodesById = new Map(passageNodes.map((node) => [node.identifier, node]));
   const itemOutputs: TransformOutput[] = [];
   const itemResults: QtiPackageItemTransformResult[] = [];
+  const passageLinks: Omit<ItemPassageLinks, 'output'> = { links: [], warnings: [] };
   const failedItemDiagnostics: SourceProfileDiagnostic[] = [];
   const genericRubricCandidates: RubricCandidate[] = [];
   const itemRuns = await mapWithConcurrency(
@@ -281,11 +316,13 @@ export async function transformAnalyzedQtiPackageToPie({
       for (const rubricCandidate of itemRubricCandidates) {
         traceEvents.push(rubricTraceEvent(rubricCandidate, node));
       }
+      const sidecar = await readListedPieSourceSidecar(node.resolvedFiles, fileAccess);
       try {
-        const output = await transformer.transform(
+        const transformed = await transformer.transform(
           {
             content: itemXml,
             format: 'qti',
+            ...(sidecar !== undefined && { sidecar }),
             metadata: {
               resourceId: node.identifier,
               sourcePath: node.resolvedHref,
@@ -303,10 +340,13 @@ export async function transformAnalyzedQtiPackageToPie({
           },
           context ?? {}
         );
+        const { output, ...linked } = itemPassageLinks(node, transformed, passageNodesById);
+        applyPieResourceLom(output, resourceLom.get(node.identifier));
         return {
           genericRubricCandidates: itemRubricCandidates,
           itemOutputs: [output],
           itemResults: [createItemTransformResult(node, output)],
+          passageLinks: linked,
           traceEvents,
         };
       } catch (error) {
@@ -356,6 +396,8 @@ export async function transformAnalyzedQtiPackageToPie({
     itemOutputs.push(...run.itemOutputs);
     itemResults.push(...run.itemResults);
     failedItemDiagnostics.push(...(run.failedItemDiagnostics ?? []));
+    passageLinks.links.push(...(run.passageLinks?.links ?? []));
+    passageLinks.warnings.push(...(run.passageLinks?.warnings ?? []));
     for (const event of run.traceEvents) {
       addTraceEvent(trace, event);
     }
@@ -411,6 +453,7 @@ export async function transformAnalyzedQtiPackageToPie({
       .map(sourceDiagnosticToWarning),
     ...(packageRuntime.extraction.warnings ?? []),
     ...itemOutputs.flatMap((output) => output.warnings ?? []),
+    ...passageLinks.warnings,
     ...failedItemDiagnostics
       .filter((diagnostic) => diagnostic.severity !== 'info')
       .map(sourceDiagnosticToWarning),
@@ -455,6 +498,7 @@ export async function transformAnalyzedQtiPackageToPie({
     sourceDiagnostics,
     standardCandidates,
     rubricCandidates,
+    passages: packagePassages(passageNodes, passageLinks.links),
     warnings,
     conversionTrace: {
       ...trace,
@@ -529,18 +573,12 @@ function rubricTraceEvent(rubricCandidate: RubricCandidate, node: PackageResourc
 
 function extractGenericRubricCandidates(xml: string, node: PackageResourceNode): RubricCandidate[] {
   try {
-    const document = parse(xml, {
+    const document = parse(isQti3Document(xml) ? normalizeQti3ToQti2(xml) : xml, {
       lowerCaseTagName: false,
       comment: false,
     });
-    const itemElement =
-      document.getElementsByTagName('assessmentItem')[0] ??
-      document.getElementsByTagName('qti-assessment-item')[0];
-    const itemId = itemElement?.getAttribute('identifier');
-    const rubricBlocks = [
-      ...Array.from(document.getElementsByTagName('rubricBlock')),
-      ...Array.from(document.getElementsByTagName('qti-rubric-block')),
-    ];
+    const itemId = document.getElementsByTagName('assessmentItem')[0]?.getAttribute('identifier');
+    const rubricBlocks = Array.from(document.getElementsByTagName('rubricBlock'));
     return rubricBlocks.map((rubricBlock, index) =>
       toRubricCandidate(rubricBlock, {
         index,

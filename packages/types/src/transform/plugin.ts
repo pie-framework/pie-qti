@@ -92,6 +92,37 @@ export interface TransformInput {
 
   /** Optional metadata */
   metadata?: Record<string, any>;
+
+  /**
+   * The PIE source sidecar exported beside a QTI item, for a lossless return to PIE. Unvalidated:
+   * the reader checks its shape and falls back to the QTI body when it does not match.
+   */
+  sidecar?: unknown;
+}
+
+/** `format` value of a {@link PieSourceSidecar}. */
+export const PIE_SOURCE_SIDECAR_FORMAT = 'pie-qti/pie-source';
+
+/**
+ * The PIE item a QTI item was generated from, kept in a JSON file beside the item. QTI 2.2 admits
+ * no foreign elements in `assessmentItem`, so the item document cannot carry it; in a content
+ * package the file is listed under the item's `<resource>`.
+ */
+export interface PieSourceSidecar {
+  format: typeof PIE_SOURCE_SIDECAR_FORMAT;
+  version: 1;
+  /** The PIE item, unchanged. */
+  sourceModel: Record<string, any>;
+  generator?: { package: string; version: string };
+  /** Package id of the item's primary element. */
+  elementType?: string;
+  /** ISO 8601 time of generation. */
+  generatedAt?: string;
+  /**
+   * `sourceDigest` of the QTI document generated beside the sidecar. A reader uses the sidecar only
+   * while the document it accompanies has this digest.
+   */
+  qtiDigest: string;
 }
 
 /**
@@ -103,6 +134,12 @@ export interface TransformOutputItem {
 
   /** Format of this specific item */
   format: TransformFormat;
+
+  /**
+   * The PIE source of a QTI item, written beside it as `<item>.pie.json` and listed under the
+   * item's `<resource>` in a content package.
+   */
+  sidecar?: PieSourceSidecar;
 }
 
 /**

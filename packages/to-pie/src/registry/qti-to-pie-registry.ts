@@ -1,4 +1,4 @@
-import type { PieItem } from '@pie-qti/transform-types';
+import type { PieItem, TransformWarning } from '@pie-qti/transform-types';
 import type { HTMLElement } from 'node-html-parser';
 import { transformAssessmentTest } from '../transformers/assessment-test.js';
 import { transformAssociateToCategorize } from '../transformers/associate-to-categorize.js';
@@ -86,6 +86,7 @@ export interface BuiltInTransformResult {
   kind: BuiltInTransformKind;
   content: any;
   itemCount?: number;
+  warnings?: TransformWarning[];
 }
 
 export interface QtiBuiltInTransformHandler {
@@ -193,7 +194,6 @@ export function createDefaultQtiToPieRegistry(): QtiToPieRegistry {
     interactionTypes: ['extendedTextInteraction'],
     outputKind: 'pie-item',
     pieElements: ['@pie-element/extended-text-entry'],
-    notes: ['May also emit passage or rubric elements when the source item carries them.'],
     async transform(context) {
       if (!context.assessmentItem) throw new Error('No assessmentItem found');
       const assessmentItem = context.assessmentItem;
@@ -515,14 +515,17 @@ export function createDefaultQtiToPieRegistry(): QtiToPieRegistry {
     notes: ['Produces a PIE assessment structure rather than an item element model.'],
     transform(context) {
       context.logger?.info?.(`Transforming assessmentTest: ${context.itemId}`);
+      const warnings: TransformWarning[] = [];
       const assessment = transformAssessmentTest(context.qtiXml, context.itemId, {
         includeTimeLimits: true,
         includeBranchRules: true,
         includeItemControls: true,
+        warnings,
       });
       return {
         kind: 'assessment',
         content: assessment,
+        ...(warnings.length > 0 ? { warnings } : {}),
         itemCount: assessment.testParts.reduce(
           (total, testPart) =>
             total +

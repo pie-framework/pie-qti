@@ -30,11 +30,11 @@
     "@pie-qti/to-pie": "workspace:*",
     "@pie-qti/transform-core": "workspace:*",
     "@pie-qti/transform-types": "workspace:*",
-    "node-html-parser": "^9.0.1"
+    "node-html-parser": "^9.0.4"
   },
   "devDependencies": {
-    "@types/node": "^26.6.2",
-    "oclif": "^4.23.29",
+    "@types/node": "^26.6.4",
+    "oclif": "^6.0.2",
     "typescript": "^5.9.3"
   },
   "engines": {

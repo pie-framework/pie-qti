@@ -22,11 +22,11 @@ The QTI section player is the composition-only render layer for one active item 
 
 ## Background and rationale
 
-`@pie-qti/item-player` correctly owns single `assessmentItem` rendering. It already handles item-body extraction, item-level rubrics, response deltas, scoring state, PNP/catalog inputs, QTI 3 stimulus delivery context, and item HTML sanitization. It should not grow section, testPart, package, or Composer preview responsibilities.
+`@pie-qti/item-player` correctly owns single `assessmentItem` rendering. It already handles item-body extraction, item-level rubrics, response deltas, scoring state, PNP/catalog inputs, QTI 3 stimulus delivery context, and item HTML sanitization. It should not grow section, testPart, package, or host preview responsibilities.
 
 `@pie-qti/assessment-player` historically owned both full-assessment orchestration and a duplicate section-adjacent rendering path. That shallow path let rubric, split-pane, feedback, and item rendering drift from the reusable section render layer, including a path that could construct a second live item runtime. The duplicate assessment modules have now been retired; `AssessmentShell.svelte` delegates those concerns to `@pie-qti/section-player`.
 
-The section player extracts the reusable section/page composition concept without importing `@pie-qti/assessment-player` backend contracts. `@pie-qti/assessment-player` remains the full-assessment orchestration layer; it adapts its `SecureAssessment`, `SecureSection`, navigation state, and active live item session into the neutral section contract and delegates active-section rendering. Composer can build the same neutral contract without a session for standalone preview, allowing the item element to own its own definition/session lifecycle.
+The section player extracts the reusable section/page composition concept without importing `@pie-qti/assessment-player` backend contracts. `@pie-qti/assessment-player` remains the full-assessment orchestration layer; it adapts its `SecureAssessment`, `SecureSection`, navigation state, and active live item session into the neutral section contract and delegates active-section rendering. A preview host can build the same neutral contract without a session for standalone preview, allowing the item element to own its own definition/session lifecycle.
 
 The toolkit strategy is QTI-native thin reuse. `pie-qti` should not duplicate `pie-players` projection, lifecycle, tool, readiness, session, or score vocabulary. It should import or align with accepted stable `pie-players` contracts where they exist, use QTI-specific contracts where QTI semantics are the source of truth, and clearly label draft or deferred alignment.
 
@@ -67,8 +67,8 @@ QTI 2.1 shared passages and QTI 3.0 stimuli enter the render model through diffe
 - **FR-12:** `@pie-qti/assessment-toolkit` MUST NOT define competing `pie-players` projection, tool, readiness, score, outcome, or session contracts. It may import accepted stable contracts from the owning `pie-players` package.
 - **FR-13:** Browser consumers MUST be able to load the section custom elements without deep imports through `@pie-qti/player-elements` and `@pie-qti/web-component-loaders`.
 - **FR-14:** The first public layout custom elements SHOULD be `pie-qti-section-player-splitpane` and `pie-qti-section-player-vertical`.
-- **FR-15:** Composer migration MUST be planned as a follow-up that builds a server-side `QtiSectionPreviewContext` before replacing the current item-only QTI preview bridge.
-- **FR-16:** Composer QTI preview MUST retain item-only fallback whenever no resolved section, passage, stimulus, or test context is available.
+- **FR-15:** A preview host SHOULD build a server-side `QtiSectionPreviewContext` before replacing an item-only QTI preview with section preview.
+- **FR-16:** Host QTI preview MUST retain item-only fallback whenever no resolved section, passage, stimulus, or test context is available.
 
 ---
 
@@ -87,7 +87,7 @@ QTI 2.1 shared passages and QTI 3.0 stimuli enter the render model through diffe
 ### Contract-first section rendering
 
 **Decision:** Define `QtiSectionModel`, `QtiSectionItemRef`, `QtiSharedContext`, `ResolvedQtiSectionComposition`, resolver hooks, and event details before creating layout elements.
-**Rationale:** Current assessment-player layout data is tied to backend contracts and Svelte shell state. A neutral contract allows the same section renderer to serve assessment-player and Composer preview without importing backend implementation types.
+**Rationale:** Current assessment-player layout data is tied to backend contracts and Svelte shell state. A neutral contract allows the same section renderer to serve assessment-player and host previews without importing backend implementation types.
 **Alternatives considered:** Extract current Svelte components first and retrofit contracts later.
 **Consequences:** The initial implementation must spend time on types and adapter tests before visible UI extraction. That cost is intentional because package cycles would be harder to unwind later.
 
@@ -117,14 +117,14 @@ QTI 2.1 shared passages and QTI 3.0 stimuli enter the render model through diffe
 **Decision:** `@pie-qti/assessment-player` maps its backend-oriented model into the section contract and delegates active-section rendering.
 **Rationale:** The assessment player already owns backend sessions, section navigation, submission, scoring, and final results. The section player should not know about `BackendAdapter`, `SecureAssessment`, or persistence.
 **Alternatives considered:** Move assessment-player backend contracts into the section-player package.
-**Consequences:** Adapter code remains in `@pie-qti/assessment-player` or a QTI toolkit helper. The active `QtiSectionItemRef.session` is the same object returned by `AssessmentPlayer.getCurrentItemSession()`. Section-player treats it as borrowed and never disposes it. `@pie-qti/section-player` can also be embedded by Composer without constructing a full assessment backend, in which case standalone item-element ownership applies.
+**Consequences:** Adapter code remains in `@pie-qti/assessment-player` or a QTI toolkit helper. The active `QtiSectionItemRef.session` is the same object returned by `AssessmentPlayer.getCurrentItemSession()`. Section-player treats it as borrowed and never disposes it. `@pie-qti/section-player` can also be embedded by a preview host without constructing a full assessment backend, in which case standalone item-element ownership applies.
 
-### Composer migration is server-context first
+### Host preview is server-context first
 
-**Decision:** Composer must build `QtiSectionPreviewContext` on the server before switching the QTI tab from item-only preview to section preview.
-**Rationale:** Composer's current QTI path resolves one item XML string. Section preview requires manifest resources, test XML, item-to-section mapping, package files, resolved item XML for each section item, package-relative asset URLs, and diagnostics.
-**Alternatives considered:** Extend `QtiItemPreview.svelte` with client-side package fetches.
-**Consequences:** Composer integration stays a follow-up outside this repo. This PRD defines the expected context and fallback behavior so Composer can migrate without reshaping `pie-qti` packages again.
+**Decision:** A preview host builds `QtiSectionPreviewContext` on the server before switching from item-only preview to section preview.
+**Rationale:** An item-only preview resolves one item XML string. Section preview requires manifest resources, test XML, item-to-section mapping, package files, resolved item XML for each section item, package-relative asset URLs, and diagnostics.
+**Alternatives considered:** Client-side package fetches in the item preview.
+**Consequences:** Host integration lives outside this repo. This PRD defines the expected context and fallback behavior so hosts can migrate without reshaping `pie-qti` packages again.
 
 ---
 
@@ -133,12 +133,12 @@ QTI 2.1 shared passages and QTI 3.0 stimuli enter the render model through diffe
 | Extension point | Interface/type | How to use | Example |
 | ---------------- | --------------- | ------------ | --------- |
 | Section input contract | `QtiSectionModel` | Hosts provide a neutral section model and ordered item refs | `assessment-player` maps `SecureSection` into `QtiSectionModel` |
-| Item ref contract | `QtiSectionItemRef` | Provide per-item XML, optional fallback responses, and the exact borrowed live session for an assessment-owned active item | Assessment-player injects its current session; Composer omits it |
+| Item ref contract | `QtiSectionItemRef` | Provide per-item XML, optional fallback responses, and the exact borrowed live session for an assessment-owned active item | Assessment-player injects its current session; a preview host omits it |
 | Shared context contract | `QtiSharedContext` | Normalize passages, stimuli, rubrics, catalogs, stylesheets, feedback, and diagnostics | QTI 3 stimulus body and stylesheet refs become shared context entries |
 | Composition resolver | `resolveQtiSectionComposition(...)` | Convert host/package inputs into layout-ready data | Assessment-player calls it after navigation state changes |
-| Package resolver hooks | `QtiSectionRuntimeHostContract` | Resolve package-relative URLs and load raw files | Composer maps `href` values to raw-file API URLs |
+| Package resolver hooks | `QtiSectionRuntimeHostContract` | Resolve package-relative URLs and load raw files | A preview host maps `href` values to raw-file API URLs |
 | Security policy | QTI shared-content security API | Sanitize shared HTML and asset URLs before render sinks | Split-pane passage content uses the same URL allow/block policy as item bodies |
-| Layout custom elements | `pie-qti-section-player-splitpane`, `pie-qti-section-player-vertical` | Embed section layouts without deep Svelte imports | Composer loads the split-pane CE when shared context exists |
+| Layout custom elements | `pie-qti-section-player-splitpane`, `pie-qti-section-player-vertical` | Embed section layouts without deep Svelte imports | A preview host loads the split-pane CE when shared context exists |
 | Lifecycle/error bridge | DOM events and callbacks | Surface readiness, active item changes, snapshots, and framework errors | Host listens for `framework-error` and section snapshot changes |
 
 ---
@@ -229,9 +229,9 @@ export interface QtiSectionRuntimeHostContract {
 
 Lifecycle vocabulary should align with stable `pie-players` concepts where they are public and accepted. The section layout host should surface one canonical readiness/error channel for a section cohort, with `framework-error` for framework failures. QTI-specific response, active-item, and snapshot events may use `qti-section-*` names until an accepted cross-player projection contract exists.
 
-### Composer preview context
+### Host preview context
 
-Composer should build a server-side context before rendering the section player:
+A preview host builds a server-side context before rendering the section player:
 
 ```ts
 export interface QtiSectionPreviewContext {
@@ -250,7 +250,7 @@ export interface QtiSectionPreviewContext {
 }
 ```
 
-Composer must derive this from manifest resources, `assessmentTest` XML, package file reads, item source paths, QTI 2.1 item-relative passage assets, QTI 3 stimulus delivery context, package-relative asset URLs, optional qti-prime item XML, and diagnostics. If no usable section context exists, Composer should render the existing item-only preview.
+The host derives this from manifest resources, `assessmentTest` XML, package file reads, item source paths, QTI 2.1 item-relative passage assets, QTI 3 stimulus delivery context, package-relative asset URLs, optional host-transformed item XML, and diagnostics. If no usable section context exists, it renders the item-only preview.
 
 ---
 
@@ -304,13 +304,13 @@ Composer must derive this from manifest resources, `assessmentTest` XML, package
 - Update `packages/web-component-loaders/src/index.ts` and `packages/web-component-loaders/README.md` so hosts can load section player custom elements without deep imports.
 - Add demo routes in `apps/demo` that exercise the initial split-pane section-with-passage custom element and the vertical active-item custom element. QTI 3 stimulus and malicious shared-content demo cases remain follow-up coverage beyond the initial browser entrypoint smoke tests.
 
-### Phase 7: Plan Composer integration
+### Phase 7: Host preview integration (outside this repo)
 
-- Add a Composer server resolver for `QtiSectionPreviewContext`.
+- A host server resolver builds `QtiSectionPreviewContext`.
 - Parse test XML to locate the selected item's containing section when possible.
 - Resolve all section item XML, not only the selected item.
-- Preserve qti-prime item override behavior while defining diagnostics for missing qti-prime test shells.
-- Render the section player when shared section context exists; otherwise retain `QtiItemPreview.svelte` item-only fallback.
+- Host-transformed item XML overrides source item XML, with diagnostics for a missing transformed test shell.
+- Render the section player when shared section context exists; otherwise retain the item-only preview.
 
 ### Phase 8: Test in layers
 
@@ -320,7 +320,7 @@ Composer must derive this from manifest resources, `assessmentTest` XML, package
 - Component tests for split-pane keyboard resizing, focus management, mobile vertical fallback, and role/view filtering.
 - Regression tests proving `@pie-qti/assessment-player` still renders current passages, rubrics, item players, navigation, and test feedback through the new section player.
 - Demo-backed Playwright coverage in `apps/demo`.
-- Composer follow-up tests for item-to-section resolution, multi-test ambiguity diagnostics, package-relative asset URLs, and item-only fallback.
+- Host tests for item-to-section resolution, multi-test ambiguity diagnostics, package-relative asset URLs, and item-only fallback.
 
 ---
 
@@ -335,8 +335,8 @@ Composer must derive this from manifest resources, `assessmentTest` XML, package
 - **AC-4a:** Given assessment-player owns the active live session, when `toSectionComposition()` and `ItemRenderer` render that item, then the active ref and item element receive the identical object, inactive refs receive no session, and no serialized-state or response-map synchronization creates another live authority.
 - **AC-5:** Given a section player implementation, when `@pie-qti/assessment-player` consumes it, then `@pie-qti/section-player` does not import `BackendAdapter`, `SecureAssessment`, or `SecureSection`.
 - **AC-6:** Given browser hosts importing `@pie-qti/web-component-loaders`, when player elements are loaded, then `pie-qti-section-player-splitpane` and `pie-qti-section-player-vertical` can be registered without deep Svelte imports.
-- **AC-7:** Given Composer has only an item XML string and no usable section context, when the QTI preview tab renders, then it uses the existing item-only fallback behavior.
-- **AC-8:** Given Composer has manifest data, test XML, package files, and item XML for a selected item inside a section, when `QtiSectionPreviewContext` is built, then it includes section metadata, ordered item refs, resolved item XML, package-relative asset URLs, shared context, and diagnostics.
+- **AC-7:** Given a preview host has only an item XML string and no usable section context, when its QTI preview renders, then it uses the existing item-only fallback behavior.
+- **AC-8:** Given a preview host has manifest data, test XML, package files, and item XML for a selected item inside a section, when `QtiSectionPreviewContext` is built, then it includes section metadata, ordered item refs, resolved item XML, package-relative asset URLs, shared context, and diagnostics.
 
 ### Accessibility
 
@@ -353,7 +353,7 @@ Composer must derive this from manifest resources, `assessmentTest` XML, package
 
 ### Edge cases
 
-- **AC-E1:** Given a selected item appears in multiple test sections, when Composer builds `QtiSectionPreviewContext`, then it chooses a deterministic section or reports an ambiguity diagnostic while preserving item-only fallback.
+- **AC-E1:** Given a selected item appears in multiple test sections, when a preview host builds `QtiSectionPreviewContext`, then it chooses a deterministic section or reports an ambiguity diagnostic while preserving item-only fallback.
 - **AC-E2:** Given a section references an item whose XML cannot be loaded, when section composition resolves, then diagnostics identify the missing item and the host can still render available item-only fallback if configured.
 - **AC-E3:** Given upstream `pie-players` projection contracts remain draft, when `@pie-qti/assessment-toolkit` is implemented, then it does not define final-looking replacement projection types in `pie-qti`.
 - **AC-E4:** Given a simultaneous-submission assessment, when the v1 active-item section player renders it, then scoring/submission behavior remains owned by `@pie-qti/assessment-player` and is not reinterpreted by the section layout.
@@ -365,8 +365,6 @@ Composer must derive this from manifest resources, `assessmentTest` XML, package
 - [ ] When should the initial public `@pie-qti/item-player/security` subpath be extracted into a package-neutral `@pie-qti/qti-security` package, if ever?
 - [ ] Which `pie-players` contracts are stable enough for `@pie-qti/assessment-toolkit` v1, and which should remain documented as deferred alignment?
 - [ ] Which future standalone section-player demos should cover QTI 3 stimulus resources, malicious shared-content fixtures, and synthetic multi-item sections after the active-item-only baseline is accepted?
-- [ ] How should Composer choose between source `assessmentTest` XML and qti-prime-transformed artifacts if qti-prime later emits a transformed test shell?
-- [ ] Should Composer section preview load package archives for every QTI-preview-visible status, or only when a lighter test/section resolver confirms section context is needed?
 
 ---
 
@@ -381,4 +379,3 @@ Composer must derive this from manifest resources, `assessmentTest` XML, package
 - Current shared-content implementation: `packages/ims-cp-core/src/qti3-shared-content.ts`, `packages/ims-cp-core/src/package-file-resolver.ts`.
 - Browser entrypoints: `packages/player-elements/src/index.ts`, `packages/player-elements/src/define.ts`, `packages/player-elements/src/constants.ts`, `packages/web-component-loaders/src/index.ts`, `packages/web-component-loaders/README.md`.
 - `pie-players` references: `../pie-players/packages/section-player/ARCHITECTURE.md`, `../pie-players/packages/assessment-toolkit/README.md`.
-- Composer follow-up references: `../kds/composer/apps/composer/src/lib/components/qti/QtiItemPreview.svelte`, `../kds/composer/apps/composer/src/routes/(protected)/explore/qti/[runId]/packages/[packageId]/preview/+page.svelte`, `../kds/composer/apps/composer/src/lib/server/qti-preview-resolution.ts`, `../kds/composer/apps/composer/src/lib/server/qti-explore-files.ts`.

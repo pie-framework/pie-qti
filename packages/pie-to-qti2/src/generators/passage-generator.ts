@@ -6,6 +6,7 @@
 
 import type { PieModel, PiePassageStimulus } from '@pie-qti/transform-types';
 import type { GeneratedPassageFile, ResolvedPassage } from '../types/passages.js';
+import { toQtiXhtml } from '../utils/xhtml.js';
 
 /**
  * Escape XML special characters
@@ -64,13 +65,6 @@ export function generatePassageXml(passage: PieModel | ResolvedPassage): string 
   // Determine QTI identifier: baseId (if present), otherwise id
   const qtiIdentifier = baseId || passageId;
 
-  // Generate metadata fields
-  const metadataFields: string[] = [];
-  metadataFields.push('<qti-metadata-field name="sourceSystemId" value="pie"/>');
-  metadataFields.push(`<qti-metadata-field name="externalId" value="${escapeXml(qtiIdentifier)}"/>`);
-
-  const metadata = `  <qti-metadata>\n    ${metadataFields.join('\n    ')}\n  </qti-metadata>\n`;
-
   // Build passage XML
   const titleElement = title ? `<h2>${escapeXml(title)}</h2>\n    ` : '';
 
@@ -83,10 +77,10 @@ export function generatePassageXml(passage: PieModel | ResolvedPassage): string 
                 title="${escapeXml(title || 'Passage')}"
                 adaptive="false"
                 timeDependent="false">
-${metadata}  <!-- Standalone passage/stimulus item -->
+  <!-- Standalone passage/stimulus item -->
   <itemBody>
     <div class="stimulus">
-      ${titleElement}${content}
+      ${titleElement}${toQtiXhtml(content ?? '')}
     </div>
   </itemBody>
 </assessmentItem>

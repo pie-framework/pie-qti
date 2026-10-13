@@ -57,11 +57,13 @@ describe('Round-Trip: PIE → QTI → PIE', () => {
     // Verify QTI was generated
     expect(qtiXml).toContain('assessmentItem');
     expect(qtiXml).toContain('choiceInteraction');
-    expect(qtiXml).toContain('<pie:sourceModel>');
+    // The source model, search metadata included, travels in the PIE source sidecar.
+    expect(qtiXml).not.toContain('pie:');
+    expect(qtiXml).not.toContain('qti-metadata');
 
     // QTI → PIE
     const pieResult = await qtiToPie.transform(
-      { content: qtiXml },
+      { content: qtiXml, sidecar: qtiResult.items[0].sidecar },
       { logger }
     );
     const reconstructedPie = pieResult.items[0].content;
@@ -112,7 +114,7 @@ describe('Round-Trip: PIE → QTI → PIE', () => {
 
     // QTI → PIE
     const pieResult = await qtiToPie.transform(
-      { content: qtiXml },
+      { content: qtiXml, sidecar: qtiResult.items[0].sidecar },
       { logger }
     );
     const reconstructedPie = pieResult.items[0].content;
@@ -158,7 +160,7 @@ describe('Round-Trip: PIE → QTI → PIE', () => {
 
     // QTI → PIE
     const pieResult = await qtiToPie.transform(
-      { content: qtiXml },
+      { content: qtiXml, sidecar: qtiResult.items[0].sidecar },
       { logger }
     );
     const reconstructedPie = pieResult.items[0].content;
@@ -218,11 +220,13 @@ describe('Round-Trip: PIE → QTI → PIE', () => {
     expect(qtiXml).toContain('inlineChoiceInteraction');
     expect(qtiXml).toContain('RESPONSE_0');
     expect(qtiXml).toContain('RESPONSE_1');
-    expect(qtiXml).toContain('<pie:sourceModel>');
+    // The source model, search metadata included, travels in the PIE source sidecar.
+    expect(qtiXml).not.toContain('pie:');
+    expect(qtiXml).not.toContain('qti-metadata');
 
     // QTI → PIE
     const pieResult = await qtiToPie.transform(
-      { content: qtiXml },
+      { content: qtiXml, sidecar: qtiResult.items[0].sidecar },
       { logger }
     );
     const reconstructedPie = pieResult.items[0].content;
@@ -277,11 +281,13 @@ describe('Round-Trip: PIE → QTI → PIE', () => {
     expect(qtiXml).toContain('assessmentItem');
     expect(qtiXml).toContain('hottextInteraction');
     expect(qtiXml).toContain('<hottext identifier="TOKEN_0">runs</hottext>');
-    expect(qtiXml).toContain('<pie:sourceModel>');
+    // The source model, search metadata included, travels in the PIE source sidecar.
+    expect(qtiXml).not.toContain('pie:');
+    expect(qtiXml).not.toContain('qti-metadata');
 
     // QTI → PIE
     const pieResult = await qtiToPie.transform(
-      { content: qtiXml },
+      { content: qtiXml, sidecar: qtiResult.items[0].sidecar },
       { logger }
     );
     const reconstructedPie = pieResult.items[0].content;
@@ -339,11 +345,13 @@ describe('Round-Trip: PIE → QTI → PIE', () => {
     expect(qtiXml).toContain('hotspotInteraction');
     expect(qtiXml).toContain('hotspotChoice');
     expect(qtiXml).toContain('shape="rect"');
-    expect(qtiXml).toContain('<pie:sourceModel>');
+    // The source model, search metadata included, travels in the PIE source sidecar.
+    expect(qtiXml).not.toContain('pie:');
+    expect(qtiXml).not.toContain('qti-metadata');
 
     // QTI → PIE
     const pieResult = await qtiToPie.transform(
-      { content: qtiXml },
+      { content: qtiXml, sidecar: qtiResult.items[0].sidecar },
       { logger }
     );
     const reconstructedPie = pieResult.items[0].content;
@@ -401,11 +409,13 @@ describe('Round-Trip: PIE → QTI → PIE', () => {
     expect(qtiXml).toContain('orderInteraction');
     expect(qtiXml).toContain('simpleChoice');
     expect(qtiXml).toContain('shuffle="true"');
-    expect(qtiXml).toContain('<pie:sourceModel>');
+    // The source model, search metadata included, travels in the PIE source sidecar.
+    expect(qtiXml).not.toContain('pie:');
+    expect(qtiXml).not.toContain('qti-metadata');
 
     // QTI → PIE
     const pieResult = await qtiToPie.transform(
-      { content: qtiXml },
+      { content: qtiXml, sidecar: qtiResult.items[0].sidecar },
       { logger }
     );
     const reconstructedPie = pieResult.items[0].content;
