@@ -7,6 +7,10 @@ export { Qti3ElementNameMapper } from './element-mapper/Qti3ElementNameMapper.js
 export type { AttributeNameMapper } from './element-mapper/AttributeNameMapper.js';
 export { Qti2xAttributeNameMapper } from './element-mapper/Qti2xAttributeNameMapper.js';
 export { Qti3AttributeNameMapper } from './element-mapper/Qti3AttributeNameMapper.js';
+export {
+	QTI2_PROMPT_BEARING_INTERACTIONS,
+	QTI3_ATTRIBUTE_TO_QTI2,
+} from './element-mapper/qti3-attribute-map.js';
 
 // Version detection
 export { detectQtiVersion } from './version-detection/detectQtiVersion.js';

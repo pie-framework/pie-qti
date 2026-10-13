@@ -57,12 +57,8 @@ describe('QTI → PIE with External Passage References', () => {
     expect(result.items.length).toBe(1);
     const pieItem = result.items[0].content;
 
-    // Should restore passage property
     expect(pieItem.passage).toBe('passage-external-123');
-
-    // Should also have passage model in config.models
-    expect(pieItem.config.models.length).toBe(2); // passage + mc
-    expect(pieItem.config.models[0].element).toBe('passage');
+    expect(pieItem.config.models.map((model) => model.element)).toEqual(['multiple-choice']);
   });
 
   test('should handle QTI with baseId in passage reference', async () => {

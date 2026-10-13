@@ -8,7 +8,6 @@ import type { PieItem, PieMultipleChoiceModel } from '@pie-qti/transform-types';
 import type { HTMLElement } from 'node-html-parser';
 import { v4 as uuidv4 } from 'uuid';
 import { mapChoiceLayout, type PieChoiceLayout } from '../utils/choice-layout.js';
-import { extractInlineStimulus, extractObjectPassages } from '../utils/passage-extraction.js';
 import { cleanTransformHtml, extractPromptForInteraction } from '../utils/prompt-extraction.js';
 import { createMissingElementError, createMissingInteractionError } from '../utils/qti-errors.js';
 import { deriveItemScoring, mappingAnswerKeys } from '../utils/response-scoring.js';
@@ -68,12 +67,6 @@ export async function transformMultipleChoiceInteraction(
 ): Promise<PieItem> {
   const uuid = uuidv4();
   const { baseId } = options;
-
-  // Check for inline stimulus (passage content)
-  const passageModel = extractInlineStimulus(itemBody);
-
-  // Check for object tag passages (external file references)
-  const objectPassages = extractObjectPassages(itemBody);
 
   // Get response identifier
   const responseId = choiceInteraction.getAttribute('responseIdentifier') || 'RESPONSE';
@@ -157,28 +150,10 @@ export async function transformMultipleChoiceInteraction(
   // Get title from assessmentItem
   const title = itemElement.getAttribute('title') || '';
 
-  // Build models array - include passage models
-  const models = [];
-
-  // Add inline stimulus passage
-  if (passageModel) {
-    models.push(passageModel);
-  }
-
-  // Add object tag passages
-  for (const objPassage of objectPassages) {
-    models.push(objPassage.model);
-  }
-
-  models.push(model);
-
   // Build elements object
   const elements: Record<string, string> = {
     'multiple-choice': '@pie-element/multiple-choice@latest',
   };
-  if (passageModel || objectPassages.length > 0) {
-    elements.passage = '@pie-element/passage@latest';
-  }
 
   // Create PIE item
   const pieItem: PieItem = {
@@ -187,7 +162,7 @@ export async function transformMultipleChoiceInteraction(
     uuid,
     config: {
       id: uuid,
-      models,
+      models: [model],
       elements,
     },
     metadata: {
@@ -200,17 +175,6 @@ export async function transformMultipleChoiceInteraction(
       },
     },
   };
-
-  // Populate passage property if external passage was found
-  // (External passages are from <object> tags, not inline <stimulus>)
-  if (objectPassages.length > 0) {
-    // Use first external passage reference
-    // Note: Multiple passages not currently supported in PIE passage property
-    const firstPassage = objectPassages[0];
-    if (firstPassage) {
-      pieItem.passage = firstPassage.passageId;
-    }
-  }
 
   return pieItem;
 }

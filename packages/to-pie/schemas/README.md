@@ -39,9 +39,8 @@ MathML 2 and MathML 3 each ship a distinct schema under the same name.
 | `imsqti_v2p2.xsd` | `…/xsd/imsqti_v2p2` | 237 packages (1.4%) |
 
 QTI 2.1 is what partner content overwhelmingly declares; 2.2 is rare. There is
-deliberately **no QTI 3 root here** — QTI 3.0 content is judged against 2.2
-after lexical normalization rather than against QTI 3 schemas. ADR 004
-§ "Validity gates" records that decision and why.
+deliberately **no QTI 3 root here**: QTI 3.0 content is judged against 2.2
+after normalization into the QTI 2.2 vocabulary, which every transformer reads.
 
 ## Cost
 

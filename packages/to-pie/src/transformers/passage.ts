@@ -25,6 +25,13 @@ export interface PassageOptions {
   teacherInstructionsEnabled?: boolean;
   /** Stable/public identifier for round-trip compatibility */
   baseId?: string;
+  /**
+   * What to call a passage whose source declares no `title`. QTI leaves the attribute
+   * optional and a great deal of partner content omits it, so the generic default names
+   * every such passage identically; a caller with something better — the stimulus
+   * document's filename — passes it here.
+   */
+  defaultTitle?: string;
 }
 
 interface Passage {
@@ -46,7 +53,7 @@ export function transformPassage(
   const document = parse(qtiXml);
 
   // Extract passage from various QTI formats
-  const passage = extractPassage(document);
+  const passage = extractPassage(document, options?.defaultTitle);
 
   if (!passage) {
     throw createInvalidContentError(
@@ -104,23 +111,23 @@ export function transformPassage(
  * Extract passage content from QTI XML
  * Supports multiple QTI passage formats
  */
-function extractPassage(document: HTMLElement): Passage | null {
+function extractPassage(document: HTMLElement, defaultTitle?: string): Passage | null {
   // Try assessmentPassage (QTI 2.x extended format)
   const assessmentPassage = document.getElementsByTagName('assessmentPassage')[0];
   if (assessmentPassage) {
-    return extractFromAssessmentPassage(assessmentPassage);
+    return extractFromAssessmentPassage(assessmentPassage, defaultTitle);
   }
 
   // Try assessmentStimulus (QTI 2.x)
   const assessmentStimulus = document.getElementsByTagName('assessmentStimulus')[0];
   if (assessmentStimulus) {
-    return extractFromAssessmentStimulus(assessmentStimulus);
+    return extractFromAssessmentStimulus(assessmentStimulus, defaultTitle);
   }
 
   // Try assessmentItem with stimulus (embedded in item)
   const assessmentItem = document.getElementsByTagName('assessmentItem')[0];
   if (assessmentItem) {
-    const stimulus = extractFromItemStimulus(assessmentItem);
+    const stimulus = extractFromItemStimulus(assessmentItem, defaultTitle);
     if (stimulus) {
       return stimulus;
     }
@@ -132,8 +139,8 @@ function extractPassage(document: HTMLElement): Passage | null {
 /**
  * Extract from assessmentPassage element
  */
-function extractFromAssessmentPassage(element: HTMLElement): Passage {
-  const title = element.getAttribute('title') || 'Passage';
+function extractFromAssessmentPassage(element: HTMLElement, defaultTitle?: string): Passage {
+  const title = element.getAttribute('title') || defaultTitle || 'Passage';
 
   // Extract from partBody (if present)
   const partBodies = element.getElementsByTagName('partBody');
@@ -157,8 +164,8 @@ function extractFromAssessmentPassage(element: HTMLElement): Passage {
 /**
  * Extract from assessmentStimulus element (QTI 2.2)
  */
-function extractFromAssessmentStimulus(element: HTMLElement): Passage {
-  const title = element.getAttribute('title') || 'Stimulus';
+function extractFromAssessmentStimulus(element: HTMLElement, defaultTitle?: string): Passage {
+  const title = element.getAttribute('title') || defaultTitle || 'Stimulus';
 
   // Extract from stimulusBody (QTI 2.2 preferred element).
   // Compatibility: some QTI 2.x content uses itemBody here; accept and normalize.
@@ -184,13 +191,13 @@ function extractFromAssessmentStimulus(element: HTMLElement): Passage {
 /**
  * Extract stimulus from within an assessmentItem
  */
-function extractFromItemStimulus(element: HTMLElement): Passage | null {
+function extractFromItemStimulus(element: HTMLElement, defaultTitle?: string): Passage | null {
   // Look for explicit stimulus element
   const stimulusElements = element.getElementsByTagName('stimulus');
   if (stimulusElements.length > 0) {
     const text = cleanPassageHtml(stimulusElements[0].innerHTML.trim());
     return {
-      title: 'Stimulus',
+      title: defaultTitle || 'Stimulus',
       text,
     };
   }
@@ -210,7 +217,7 @@ function extractFromItemStimulus(element: HTMLElement): Passage | null {
     if (text.length > 50) {
       // Arbitrary threshold for substantial content
       return {
-        title: element.getAttribute('title') || 'Passage',
+        title: element.getAttribute('title') || defaultTitle || 'Passage',
         text,
       };
     }

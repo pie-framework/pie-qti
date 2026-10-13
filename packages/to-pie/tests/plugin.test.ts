@@ -831,11 +831,13 @@ describe('QtiToPiePlugin', () => {
     )).rejects.toThrow(/Unsupported interaction type: uploadInteraction/);
   });
 
-  test('should reject a QTI 3.0 item by version and name the interactions it found', async () => {
+  test('should convert a QTI 3.0 composite item', async () => {
     const plugin = new QtiToPiePlugin();
     const qti3Composite = `<?xml version="1.0" encoding="UTF-8"?>
-<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="q3-composite" title="Composite">
-  <qti-response-declaration identifier="CHOICE" cardinality="single" base-type="identifier"/>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="q3-composite" title="Composite" adaptive="false" time-dependent="false">
+  <qti-response-declaration identifier="CHOICE" cardinality="single" base-type="identifier">
+    <qti-correct-response><qti-value>A</qti-value></qti-correct-response>
+  </qti-response-declaration>
   <qti-response-declaration identifier="SLIDER" cardinality="single" base-type="float"/>
   <qti-item-body>
     <qti-choice-interaction response-identifier="CHOICE" max-choices="1">
@@ -846,13 +848,21 @@ describe('QtiToPiePlugin', () => {
   </qti-item-body>
 </qti-assessment-item>`;
 
-    await expect(plugin.transform(
+    const output = await plugin.transform(
       { content: qti3Composite },
       { logger: new SilentLogger() }
-    )).rejects.toThrow(/Unsupported QTI 3\.0 item q3-composite.*choiceInteraction, sliderInteraction/s);
+    );
+
+    const item = output.items[0].content as any;
+    expect(item.id).toBe('q3-composite');
+    expect(item.config.models.map((model: any) => model.element)).toEqual([
+      'multiple-choice',
+      'number-line',
+    ]);
+    expect(output.metadata?.sourceFormat).toBe('qti30');
   });
 
-  test('should let a vendor transformer claim QTI 3.0 content before the version rejection', async () => {
+  test('should let a vendor transformer claim QTI 3.0 content as authored', async () => {
     const plugin = new QtiToPiePlugin();
     const qti3Item = `<?xml version="1.0" encoding="UTF-8"?>
 <qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="q3-vendor" title="Vendor">
@@ -863,6 +873,7 @@ describe('QtiToPiePlugin', () => {
   </qti-item-body>
 </qti-assessment-item>`;
 
+    let authored = '';
     plugin.registerVendorDetector({
       name: 'acme-qti3',
       detect: () => ({ vendor: 'acme', confidence: 1 }),
@@ -870,13 +881,16 @@ describe('QtiToPiePlugin', () => {
     plugin.registerVendorTransformer({
       vendor: 'acme',
       canHandle: () => true,
-      transform: async () => ({
-        success: true,
-        format: 'pie',
-        items: [{ id: 'q3-vendor', content: { element: 'acme-element' } }],
-        warnings: [],
-        metadata: {},
-      }) as any,
+      transform: async (xml: string) => {
+        authored = xml;
+        return {
+          success: true,
+          format: 'pie',
+          items: [{ id: 'q3-vendor', content: { element: 'acme-element' } }],
+          warnings: [],
+          metadata: {},
+        } as any;
+      },
     });
 
     const output = await plugin.transform(
@@ -886,6 +900,7 @@ describe('QtiToPiePlugin', () => {
 
     expect(output.items).toHaveLength(1);
     expect(output.items[0].id).toBe('q3-vendor');
+    expect(authored).toContain('<qti-choice-interaction response-identifier="CHOICE"');
   });
 
   test('should reject custom interactions without a vendor transformer', async () => {

@@ -22,8 +22,16 @@ export type {
   ExplodedQtiPackageItems,
   ExplodeQtiPackageItemsInput,
   QtiPackageItemSource,
+  QtiPackagePassageSource,
 } from './package-exploder.js';
 export { explodeAnalyzedQtiPackageItems, explodeQtiPackageItems } from './package-exploder.js';
+export type {
+  ConvertedQtiPassage,
+  ConvertedQtiPassageConfig,
+  ConvertQtiPassageDocumentInput,
+  ConvertQtiPassageResult,
+} from './passage-converter.js';
+export { convertQtiPassageDocument } from './passage-converter.js';
 export {
   addTraceEvent,
   applyItemDecorators,
@@ -49,14 +57,13 @@ export type {
   QtiBuiltInTransformHandler,
 } from './registry/qti-to-pie-registry.js';
 export type {
-  AccessibilityCatalog,
   AssessmentSection,
   AssessmentTestOptions,
-  CatalogCard,
   ContextDeclaration,
   ItemReference,
   PieAssessment,
-  StimulusRef,
+  RubricBlock,
+  RubricBlockView,
   TestPart,
 } from './transformers/assessment-test.js';
 export { transformAssessmentTest } from './transformers/assessment-test.js';
@@ -119,11 +126,45 @@ export type {
   VendorInfo,
   VendorTransformer,
 } from './types/vendor-extensions.js';
+// QTI and APIP accessibility catalogs, in the card shape PIE players resolve
+export type {
+  AccessibilityCatalog,
+  ApipAccessElement,
+  ApipContentLink,
+  CatalogCard,
+  CatalogCardPayload,
+  CompanionMaterialsNode,
+  MediaAssetRef,
+  MediaFragmentRange,
+  MediaKind,
+  MediaSource,
+  QtiAccessibility,
+} from './utils/accessibility-catalogs.js';
+export {
+  prepareQtiAccessibility,
+  readApipAccessElements,
+  readQtiCatalogs,
+  withQtiAccessibility,
+} from './utils/accessibility-catalogs.js';
+export type { TextRange } from './utils/accessibility-markup.js';
+export type { QtiPackagePassage, QtiPassageItemLink } from './utils/passage-links.js';
+export {
+  PASSAGE_DEPENDENCY_UNREFERENCED,
+  transformedItemSourceIdentifier,
+} from './utils/passage-links.js';
 // Standard metadata extractor (default implementation)
 export { StandardMetadataExtractor, createStandardMetadataExtractor } from './extractors/standard-metadata-extractor.js';
 // PIE extension utilities for lossless round-trip
 export type { PieExtensionData, PieExtensionMetadata } from './utils/pie-extension.js';
 export { extractDataAttributes, extractPieExtension, hasPieExtension, PIE_NAMESPACE, PIE_PREFIX } from './utils/pie-extension.js';
+// PIE config element/markup naming, shared by the conversion and the preview
+export {
+  escapePieAttribute,
+  isPieModelOfPackage,
+  pieElementTagForModel,
+  piePackageName,
+  piePlaceholderMarkup,
+} from './utils/pie-markup.js';
 // QTI extension utilities for lossless round-trip
 export type { QtiExtensionMetadata } from './utils/qti-extension-embedder.js';
 export { embedQtiSourceInPie, extractQtiSourceFromPie, hasQtiSource, QTI_NAMESPACE, QTI_PREFIX } from './utils/qti-extension-embedder.js';

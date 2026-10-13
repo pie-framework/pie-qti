@@ -11,7 +11,8 @@
 import { describe, expect, test } from 'bun:test';
 import { type HTMLElement, parse } from 'node-html-parser';
 import { unwrapCdataSections } from '../../src/utils/cdata';
-import { extractInlineStimulus, extractRubricBlock } from '../../src/utils/passage-extraction';
+import { partitionItemBody } from '../../src/utils/item-body-partition';
+import { extractScorerRubric } from '../../src/utils/passage-extraction';
 import { transformMultipleChoice } from '../../src/transformers/multiple-choice';
 
 function parseItem(qtiXml: string): HTMLElement {
@@ -62,12 +63,14 @@ describe('multiple-choice conversion', () => {
 
 describe('passage and rubric extraction', () => {
   test('unwraps CDATA in an explicit stimulus', () => {
-    const itemBody = parseItem(`<assessmentItem><itemBody>
+    const item = parseItem(`<assessmentItem><itemBody>
       <stimulus><![CDATA[<p>Selection 1: Making a House a Home</p>]]></stimulus>
-    </itemBody></assessmentItem>`).getElementsByTagName('itemBody')[0];
+    </itemBody></assessmentItem>`);
 
-    const passage = extractInlineStimulus(itemBody!);
-    const text = passage?.passages[0]?.text ?? '';
+    const { inlinePassages } = partitionItemBody(item, {
+      passageResources: { resolve: () => undefined },
+    });
+    const text = inlinePassages[0]?.passages[0]?.text ?? '';
 
     expect(delimiters(text)).toEqual([]);
     expect(text).toContain('<p>Selection 1: Making a House a Home</p>');
@@ -79,9 +82,10 @@ describe('passage and rubric extraction', () => {
       <rubricBlock view="scorer"><![CDATA[<p>Award 1 point for evidence.</p>]]></rubricBlock>
     </assessmentItem>`);
 
-    const rubric = extractRubricBlock(item);
+    const rubric = extractScorerRubric(item);
 
-    expect(delimiters(JSON.stringify(rubric))).toEqual([]);
+    expect(delimiters(rubric)).toEqual([]);
+    expect(rubric).toBe('<p>Award 1 point for evidence.</p>');
   });
 });
 

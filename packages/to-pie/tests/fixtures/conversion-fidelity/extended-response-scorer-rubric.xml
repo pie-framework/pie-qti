@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- A scorer rubricBlock holding an answer key: text and an image the learner never sees, carried to the instructor as teacher instructions. -->
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/qti/qtiv2p2/imsqti_v2p2.xsd"
+                identifier="cf-scorer-rubric-001"
+                title="Extended response with a scorer answer key"
+                adaptive="false"
+                timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="string"/>
+  <itemBody>
+    <rubricBlock view="scorer">Correct Answer(s):<br/>
+<img src="answer-key.gif" alt="" />
+</rubricBlock>
+    <p>Explain why a tenth is greater than a hundredth.</p>
+    <extendedTextInteraction responseIdentifier="RESPONSE" expectedLines="5"/>
+  </itemBody>
+</assessmentItem>

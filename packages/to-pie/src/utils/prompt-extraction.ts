@@ -17,7 +17,7 @@ export function extractPromptForInteraction(
   options: PromptExtractionOptions = {}
 ): string {
   const interactionPrompt = directChildByTagName(interaction, 'prompt');
-  const prompt = interactionPrompt ? cleanTransformHtml(interactionPrompt.innerHTML) : '';
+  const prompt = interactionPrompt ? cleanTransformHtml(promptContent(interactionPrompt)) : '';
   const lead = cleanTransformHtml(contentBeforeTarget(itemBody, interaction, options.after));
   const hasPrompt = hasRenderableContent(prompt);
   if (!hasRenderableContent(lead)) {
@@ -26,14 +26,98 @@ export function extractPromptForInteraction(
   if (!hasPrompt) {
     return unwrapSoleParagraph(lead);
   }
-  return [lead, prompt].map((part) => (isBlockContent(part) ? part : `<div>${part}</div>`)).join('');
+  return [lead, prompt]
+    .map((part) => (isBlockContent(part) ? part : `<div>${part}</div>`))
+    .join('');
 }
 
-const MEDIA_TAGS = ['img', 'object', 'embed', 'math', 'svg', 'video', 'audio', 'iframe', 'table', 'canvas'];
+/**
+ * A `<prompt>`'s content, in a `<div>` carrying the prompt's attributes when it has any: a catalog
+ * reference, a language or an ARIA relation on the prompt describes its content.
+ */
+export function promptContent(prompt: HTMLElement): string {
+  const content = prompt.innerHTML.trim();
+  const attributes = prompt.rawAttrs.trim();
+  return attributes && hasRenderableContent(content)
+    ? `<div ${attributes}>${content}</div>`
+    : content;
+}
+
+/**
+ * The item body content after the interaction, which a transformer that converts the interaction
+ * on its own leaves out: a closing note, a figure, a rubric the candidate sees. Ancestors of the
+ * interaction keep their tags, so the content renders inside the blocks it was authored in.
+ */
+export function contentAfterInteraction(itemBody: HTMLElement, interaction: HTMLElement): string {
+  const html = cleanTransformHtml(contentAfterTarget(itemBody, interaction));
+  return hasRenderableContent(html) ? html : '';
+}
+
+function contentAfterTarget(parent: HTMLElement, target: HTMLElement): string {
+  let html = '';
+  let collecting = false;
+  for (const child of parent.childNodes) {
+    const element = child as HTMLElement;
+    if (collecting) {
+      if (child.nodeType === 3) {
+        html += child.toString();
+      } else if (element.tagName && !isSkippedPromptContainer(element.tagName.toLowerCase())) {
+        html += element.outerHTML;
+      }
+      continue;
+    }
+    if (child === target) {
+      collecting = true;
+    } else if (element.tagName && containsElement(element, target)) {
+      const nested = contentAfterTarget(element, target);
+      if (hasRenderableContent(nested)) {
+        html += wrapWithOriginalElement(element, nested);
+      }
+      collecting = true;
+    }
+  }
+  return html;
+}
+
+const MEDIA_TAGS = [
+  'img',
+  'object',
+  'embed',
+  'math',
+  'svg',
+  'video',
+  'audio',
+  'iframe',
+  'table',
+  'canvas',
+];
 
 const BLOCK_TAGS = new Set([
-  'address', 'article', 'aside', 'blockquote', 'details', 'div', 'dl', 'fieldset', 'figure', 'footer',
-  'form', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'header', 'hr', 'ol', 'p', 'pre', 'section', 'table', 'ul',
+  'address',
+  'article',
+  'aside',
+  'blockquote',
+  'details',
+  'div',
+  'dl',
+  'fieldset',
+  'figure',
+  'footer',
+  'form',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'header',
+  'hr',
+  'ol',
+  'p',
+  'pre',
+  'section',
+  'table',
+  'ul',
 ]);
 
 function hasRenderableContent(html: string): boolean {
@@ -49,16 +133,22 @@ function isBlockContent(html: string): boolean {
   return nodes.length > 0 && nodes.every((node) => BLOCK_TAGS.has(tagNameOf(node)));
 }
 
-/** Keeps the inline form a single-paragraph stem has always been stored in. */
+/**
+ * Keeps the inline form a single-paragraph stem has always been stored in. A paragraph with
+ * attributes stays: a catalog reference or a language describes its content.
+ */
 function unwrapSoleParagraph(html: string): string {
   const nodes = topLevelNodes(html);
-  return nodes.length === 1 && tagNameOf(nodes[0]) === 'p'
-    ? cleanTransformHtml((nodes[0] as HTMLElement).innerHTML)
+  const [node] = nodes;
+  return nodes.length === 1 && tagNameOf(node) === 'p' && !(node as HTMLElement).rawAttrs.trim()
+    ? cleanTransformHtml((node as HTMLElement).innerHTML)
     : html;
 }
 
 function topLevelNodes(html: string) {
-  return parse(html).childNodes.filter((node) => node.nodeType !== 3 || node.textContent.trim() !== '');
+  return parse(html).childNodes.filter(
+    (node) => node.nodeType !== 3 || node.textContent.trim() !== ''
+  );
 }
 
 function tagNameOf(node: unknown): string {
