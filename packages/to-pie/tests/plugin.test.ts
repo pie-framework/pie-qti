@@ -789,6 +789,60 @@ describe('QtiToPiePlugin', () => {
     )).rejects.toThrow(/Unsupported customInteraction/);
   });
 
+  const recognitionProbe = (body: string) => `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" xmlns:pci="http://www.imsglobal.org/xsd/portableCustomInteraction" xmlns:v="urn:vendor" identifier="probe" title="Probe" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="CHOICE" cardinality="single" baseType="identifier">
+    <correctResponse><value>A</value></correctResponse>
+  </responseDeclaration>
+  <itemBody>${body}</itemBody>
+</assessmentItem>`;
+  const probeChoice = `
+    <choiceInteraction responseIdentifier="CHOICE" maxChoices="1">
+      <simpleChoice identifier="A">A</simpleChoice>
+      <simpleChoice identifier="B">B</simpleChoice>
+    </choiceInteraction>`;
+
+  test('should reject a namespace-prefixed portableCustomInteraction beside a choiceInteraction', async () => {
+    const plugin = new QtiToPiePlugin();
+    const promise = plugin.transform(
+      {
+        content: recognitionProbe(
+          `${probeChoice}<pci:portableCustomInteraction responseIdentifier="PCI" customInteractionTypeIdentifier="urn:vendor:graph"/>`
+        ),
+      },
+      { logger: new SilentLogger() }
+    );
+
+    await expect(promise).rejects.toThrow(/Unsupported customInteraction with standard interaction\(s\): choiceInteraction/);
+    await expect(promise).rejects.toThrow(/customInteractionIdentifierType: urn:vendor:graph/);
+  });
+
+  test('should reject a namespace-prefixed interaction beside a choiceInteraction', async () => {
+    const plugin = new QtiToPiePlugin();
+
+    await expect(plugin.transform(
+      { content: recognitionProbe(`${probeChoice}<p><v:textEntryInteraction responseIdentifier="TEXT"/></p>`) },
+      { logger: new SilentLogger() }
+    )).rejects.toThrow(/Unsupported composite QTI item probe: v:textEntryInteraction/);
+  });
+
+  test('should convert a lowercase-authored interaction through its handler', async () => {
+    const plugin = new QtiToPiePlugin();
+    const output = await plugin.transform(
+      {
+        content: recognitionProbe(`
+    <choiceinteraction responseIdentifier="CHOICE" maxChoices="1">
+      <simpleChoice identifier="A">A</simpleChoice>
+      <simpleChoice identifier="B">B</simpleChoice>
+    </choiceinteraction>`),
+      },
+      { logger: new SilentLogger() }
+    );
+
+    const item = output.items[0]?.content as any;
+    expect(item.config.models.map((model: any) => model.element)).toEqual(['multiple-choice']);
+  });
+
   test('should warn rather than fail when endAttemptInteraction accompanies a single interaction', async () => {
     const plugin = new QtiToPiePlugin();
     const withEndAttempt = `<?xml version="1.0" encoding="UTF-8"?>

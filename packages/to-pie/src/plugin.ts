@@ -1333,15 +1333,46 @@ interface QtiProcessingMetadata {
 }
 
 /**
- * Interactions are recognised by element shape, not by an allow-list: any `*Interaction`
- * element counts. An allow-list under-counts
- * composites for every interaction it omits, which is precisely the silent reduction the
- * composite guard exists to prevent.
+ * Interactions are recognised by element shape, not by an allow-list: any element whose local
+ * name ends in `interaction`, in any case and under any namespace prefix, counts. An allow-list
+ * under-counts composites for every interaction it omits, which is precisely the silent
+ * reduction the composite guard exists to prevent.
  */
-const QTI_INTERACTION_NAME = /^[a-zA-Z][A-Za-z0-9]*Interaction$/;
+const QTI_INTERACTION_LOCAL_NAME = /^[a-z][a-z0-9]*interaction$/;
 
-/** Custom and portable-custom interactions route to vendor transformers; they are never reduced. */
-const CUSTOM_INTERACTION_NAMES = new Set(['customInteraction', 'portableCustomInteraction']);
+/**
+ * Custom and portable-custom interactions route to vendor transformers; they are never reduced.
+ * They are counted from their evidence, so they are not interaction types.
+ */
+const CUSTOM_INTERACTION_LOCAL_NAMES = new Set(['custominteraction', 'portablecustominteraction']);
+
+/** The QTI 2.2 interaction names, which the registry and the transformers key on. */
+const QTI2_INTERACTION_NAMES = [
+  'associateInteraction',
+  'choiceInteraction',
+  'drawingInteraction',
+  'endAttemptInteraction',
+  'extendedTextInteraction',
+  'gapMatchInteraction',
+  'graphicAssociateInteraction',
+  'graphicGapMatchInteraction',
+  'graphicOrderInteraction',
+  'hotspotInteraction',
+  'hottextInteraction',
+  'inlineChoiceInteraction',
+  'matchInteraction',
+  'mediaInteraction',
+  'orderInteraction',
+  'positionObjectInteraction',
+  'selectPointInteraction',
+  'sliderInteraction',
+  'textEntryInteraction',
+  'uploadInteraction',
+];
+
+const QTI2_INTERACTION_NAME_BY_LOCAL_NAME = new Map(
+  QTI2_INTERACTION_NAMES.map((name) => [name.toLowerCase(), name])
+);
 
 /**
  * endAttemptInteraction controls attempt flow rather than carrying a scored response, and has
@@ -1349,12 +1380,23 @@ const CUSTOM_INTERACTION_NAMES = new Set(['customInteraction', 'portableCustomIn
  */
 const ATTEMPT_CONTROL_INTERACTION_NAMES = new Set(['endAttemptInteraction']);
 
+/**
+ * The interaction types under `node`. An unprefixed QTI 2.2 interaction is named in its QTI 2.2
+ * spelling whatever its authored case, since the transformers' tag lookups ignore case. Any other
+ * interaction keeps its authored tag name, prefix included, so the type names exactly what the
+ * item holds and no transformer is routed an element its lookups cannot find.
+ */
 function collectInteractionNames(node: HTMLElement, found: string[]): void {
   for (const child of node.childNodes) {
     const element = child as HTMLElement;
     if (!element.rawTagName) continue;
-    const name = element.rawTagName;
-    if (QTI_INTERACTION_NAME.test(name)) found.push(name);
+    const localName = elementLocalName(element);
+    if (QTI_INTERACTION_LOCAL_NAME.test(localName) && !CUSTOM_INTERACTION_LOCAL_NAMES.has(localName)) {
+      const prefixed = element.rawTagName.includes(':');
+      found.push(
+        (!prefixed && QTI2_INTERACTION_NAME_BY_LOCAL_NAME.get(localName)) || element.rawTagName
+      );
+    }
     collectInteractionNames(element, found);
   }
 }
@@ -1398,16 +1440,11 @@ function analyzeAssessmentItemInteractions(assessmentItem: HTMLElement): Interac
 
   const standardTypes: string[] = [];
   const attemptControlTypes: string[] = [];
-  let customInteractionCount = 0;
 
   // Repeats of one type are counted once: multi-blank items (several textEntryInteraction or
   // inlineChoiceInteraction elements) are a supported shape whose transformer consumes every
   // occurrence, so they are not a reduction.
   for (const name of found) {
-    if (CUSTOM_INTERACTION_NAMES.has(name)) {
-      customInteractionCount += 1;
-      continue;
-    }
     if (ATTEMPT_CONTROL_INTERACTION_NAMES.has(name)) {
       if (!attemptControlTypes.includes(name)) attemptControlTypes.push(name);
       continue;
@@ -1417,9 +1454,10 @@ function analyzeAssessmentItemInteractions(assessmentItem: HTMLElement): Interac
 
   const customInteractions = [
     ...elementsByLocalName(itemBody, 'customInteraction').map(customInteractionEvidence),
-    // QTI 3.0 places a portable custom interaction in the body directly.
+    // A portable custom interaction no customInteraction wraps, as QTI 3.0 places one; a wrapped
+    // one is counted once, through its wrapper.
     ...elementsByLocalName(itemBody, 'portableCustomInteraction')
-      .filter((pci) => !pci.parentNode || elementLocalName(pci.parentNode) !== 'custominteraction')
+      .filter((pci) => !hasAncestorLocalName(pci, 'custominteraction'))
       .map(portableCustomInteractionEvidence),
   ];
   const feedbackInteractionTypes = interactionTypesInsideFeedbackBlocks(itemBody);
@@ -1431,7 +1469,7 @@ function analyzeAssessmentItemInteractions(assessmentItem: HTMLElement): Interac
     itemBodyPresent: true,
     standardTypes,
     attemptControlTypes,
-    customInteractionCount,
+    customInteractionCount: customInteractions.length,
     customInteractions,
     feedbackInteractionTypes,
     customOperators,
@@ -1480,10 +1518,29 @@ function elementLocalName(element: HTMLElement): string {
   return (tagName.split(':').pop() || tagName).toLowerCase();
 }
 
+/** Whether an ancestor of `element` has the given lowercase local name. */
+function hasAncestorLocalName(element: HTMLElement, localName: string): boolean {
+  for (let parent = element.parentNode; parent; parent = parent.parentNode) {
+    if (elementLocalName(parent) === localName) return true;
+  }
+  return false;
+}
+
+/**
+ * A portable custom interaction's type identifier, in the spellings the item player reads: QTI
+ * 2.2's, then QTI 3.0's kebab-case, which normalization leaves as authored, then a variant seen
+ * in exported content.
+ */
+function pciTypeIdentifier(pci: HTMLElement | undefined): string | undefined {
+  return (
+    pci?.getAttribute('customInteractionTypeIdentifier') ??
+    pci?.getAttribute('custom-interaction-type-identifier') ??
+    pci?.getAttribute('customInteractionIdentifierType')
+  );
+}
+
 function customInteractionEvidence(customInteraction: HTMLElement): CustomInteractionEvidence {
-  const nestedPortable =
-    customInteraction.getElementsByTagName('portableCustomInteraction')[0] ??
-    customInteraction.getElementsByTagName('pci:portableCustomInteraction')[0];
+  const [nestedPortable] = elementsByLocalName(customInteraction, 'portableCustomInteraction');
   const moduleRefs = [
     customInteraction.getAttribute('data-module-ref'),
     ...Array.from(customInteraction.getElementsByTagName('script')).map((script) =>
@@ -1494,15 +1551,12 @@ function customInteractionEvidence(customInteraction: HTMLElement): CustomIntera
     responseIdentifier: customInteraction.getAttribute('responseIdentifier'),
     customInteractionIdentifierType:
       customInteraction.getAttribute('customInteractionIdentifierType') ??
-      nestedPortable?.getAttribute('customInteractionIdentifierType'),
+      pciTypeIdentifier(nestedPortable),
     moduleRefs: [...new Set(moduleRefs)],
   };
 }
 
-/**
- * A QTI 3.0 portable custom interaction after normalization: its attributes outside the QTI 2.2
- * vocabulary keep their kebab-case spelling.
- */
+/** A portable custom interaction no customInteraction wraps. */
 function portableCustomInteractionEvidence(pci: HTMLElement): CustomInteractionEvidence {
   const moduleRefs = [
     pci.getAttribute('module'),
@@ -1512,7 +1566,7 @@ function portableCustomInteractionEvidence(pci: HTMLElement): CustomInteractionE
   ].filter((value): value is string => Boolean(value));
   return {
     responseIdentifier: pci.getAttribute('responseIdentifier'),
-    customInteractionIdentifierType: pci.getAttribute('custom-interaction-type-identifier'),
+    customInteractionIdentifierType: pciTypeIdentifier(pci),
     moduleRefs: [...new Set(moduleRefs)],
   };
 }
