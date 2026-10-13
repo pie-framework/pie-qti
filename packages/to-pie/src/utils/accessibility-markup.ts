@@ -27,6 +27,7 @@
  * accessibility audit reports what it would have carried.
  */
 
+import type { TextRange } from '@pie-qti/qti-common/accessibility';
 import { type HTMLElement, parse } from 'node-html-parser';
 
 export const HIDING_STYLES = {
@@ -40,12 +41,7 @@ export const SSML_NAMESPACES: ReadonlySet<string> = new Set([
   'http://www.w3.org/2010/10/synthesis',
 ]);
 
-/** A word or character range of an element's text, counted from 1, both ends included. */
-export interface TextRange {
-  unit: 'word' | 'character';
-  start: number;
-  stop: number;
-}
+export type { TextRange };
 
 /** An idref to dock on the content element whose `id` is `target`, or on a range of its text. */
 export interface ContentLink {
@@ -184,6 +180,7 @@ export function prepareContentMarkup(qtiXml: string, links: ContentLink[] = []):
   };
   const dock = (element: ContentElement, idref: string): boolean => {
     if (!element.parent) return false;
+    if (element.idref === idref) return true;
     if (CONTENT_WRAPPED.has(element.local) || element.ssml || element.idref !== undefined) {
       if (!element.close) return false;
       const block = element.children.some(

@@ -38,7 +38,7 @@
     "@pie-qti/qti-common": "workspace:*",
     "@pie-qti/transform-core": "workspace:*",
     "@pie-qti/transform-types": "workspace:*",
-    "fast-xml-parser": "^5.10.1",
+    "fast-xml-parser": "^5.11.2",
     "image-size": "^2.0.4",
     "node-html-parser": "^9.0.4",
     "uuid": "^14.0.1",

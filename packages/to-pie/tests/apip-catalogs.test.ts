@@ -214,6 +214,22 @@ describe('APIP accessibility catalogs', () => {
     );
   });
 
+  test('a link to an element that names its access element already leaves the element as it is', () => {
+    const qti = apipItem(
+      '<p id="docked" data-catalog-idref="ae-docked">Docked</p><p id="other" data-catalog-idref="authored">Other</p>',
+      [
+        accessElement('ae-docked', 'qtiLinkIdentifierRef="docked"><apip:objectLink/>'),
+        accessElement('ae-other', 'qtiLinkIdentifierRef="other"><apip:objectLink/>'),
+      ].join('')
+    );
+
+    const { xml } = prepareQtiAccessibility(qti);
+    expect(xml).toContain('<p id="docked" data-catalog-idref="ae-docked">Docked</p>');
+    expect(xml).toContain(
+      '<p id="other" data-catalog-idref="authored"><span data-catalog-idref="ae-other">Other</span></p>'
+    );
+  });
+
   test('an APIP item converts with nothing reported but its read order', async () => {
     const converted = await convert(APIP_ITEM);
     const item = pieItemOf(converted);

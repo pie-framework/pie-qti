@@ -9,6 +9,7 @@ import {
 	serializeXml,
 } from '@pie-qti/qti-processing';
 import { parse } from 'node-html-parser';
+import { dockApipLinks, readApipAccessibility } from '../catalog/apipAccessibility.js';
 import { enforceItemXmlLimits } from '../core/parsingLimits.js';
 import { normalizeInteractionTypeFromTagName } from '../interactions/modules.js';
 import type { PlayerSecurityConfig } from '../types/index.js';
@@ -77,6 +78,7 @@ export class AssessmentItemDocument {
 		enforceItemXmlLimits(this.itemXml, this.security);
 		this.xmlDocument = parseXml(this.itemXml);
 		this.assessmentItem = findAssessmentItem(this.xmlDocument);
+		dockApipLinks(this.assessmentItem, readApipAccessibility(this.itemXml));
 		this.extractionSource = this.serializeItemBodyForExtraction();
 	}
 

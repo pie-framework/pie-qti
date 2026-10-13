@@ -49,8 +49,8 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",
-    "@playwright/test": "^1.63.0",
-    "@sveltejs/adapter-static": "^3.0.10",
+    "@playwright/test": "^1.64.0",
+    "@sveltejs/adapter-static": "^4.0.0",
     "@sveltejs/kit": "^2.70.2",
     "@sveltejs/vite-plugin-svelte": "^7.3.0",
     "@tailwindcss/vite": "^4.3.3",
