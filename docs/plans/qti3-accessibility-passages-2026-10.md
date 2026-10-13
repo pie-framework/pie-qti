@@ -1,7 +1,7 @@
 # QTI 3, Accessibility Content and Passages Plan
 
-**Status**: In progress. The slice table below is the record; each slice's PR updates its row
-**Last reviewed**: 2026-10-12
+**Status**: Done. Every slice merged by 2026-10-13; the slice table below is the record
+**Last reviewed**: 2026-10-13
 **Scope**: `packages/to-pie/`, `packages/qti-common/`, `packages/item-player/`,
 `packages/pie-to-qti2/`
 
