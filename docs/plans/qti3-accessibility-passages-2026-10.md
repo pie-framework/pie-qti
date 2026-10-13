@@ -22,7 +22,7 @@ behavior; this plan covers what changes and in what order.
 | 1   | PNP out of content; AfA PNP 3.0                   | `fix/pnp-out-of-content`            | #273 | merged  |
 | 2   | Export reports the catalogs it drops              | `feat/pie-to-qti2-catalog-warnings` | #274 | merged  |
 | 3   | to-pie: QTI 3.0, accessibility catalogs, passages | `feat/to-pie-qti3-a11y-passages`    | #285 | merged  |
-| 4   | APIP in the item player and the export            | `feat/apip-catalog-mapping`         |      | pending |
+| 4   | APIP in the item player and the export            | `feat/apip-catalog-mapping`         | #290 | open    |
 
 States: `pending`, `in progress`, `open` (PR up, merge agent running), `merged`, `blocked`
 (with a one-line reason under the slice).
@@ -207,10 +207,12 @@ the inventory reports nothing on the APIP fixtures beyond `inclusionOrder`. Then
 ### 4. APIP in the item player and the export
 
 - The APIP mapping moves from to-pie, where slice 3 built it, into `qti-common`.
-- `catalogLookup` resolves APIP access elements through the shared mapping, so a source preview
-  shows the accessibility content the converted item carries.
-- `pie-to-qti2` emits `apip:apipAccessibility` from catalogs whose supports APIP defines, with
-  `contentLinkInfo` for each idref. Supports APIP lacks stay warned.
+- The item player's catalog extractor indexes APIP access elements through the shared mapping,
+  and the item document docks their links as `data-catalog-idref`, so a source preview shows the
+  accessibility content the converted item carries.
+- `pie-to-qti2` writes an item's or passage's catalogs as `apip:apipAccessibility`, with
+  `contentLinkInfo` for each element whose idref names one. The warning names what APIP cannot
+  carry; assessments keep the whole-catalog warning.
 
 ---
 

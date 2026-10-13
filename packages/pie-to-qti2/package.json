@@ -32,6 +32,7 @@
   ],
   "license": "MIT",
   "dependencies": {
+    "@pie-qti/qti-common": "workspace:*",
     "@pie-qti/transform-core": "workspace:*",
     "@pie-qti/transform-types": "workspace:*",
     "node-html-parser": "^9.0.4",

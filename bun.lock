@@ -299,6 +299,7 @@
       "name": "@pie-qti/pie-to-qti2",
       "version": "0.1.25",
       "dependencies": {
+        "@pie-qti/qti-common": "workspace:*",
         "@pie-qti/transform-core": "workspace:*",
         "@pie-qti/transform-types": "workspace:*",
         "node-html-parser": "^9.0.4",
@@ -334,6 +335,9 @@
     "packages/qti-common": {
       "name": "@pie-qti/qti-common",
       "version": "0.1.25",
+      "dependencies": {
+        "node-html-parser": "^9.0.4",
+      },
       "devDependencies": {
         "@types/bun": "^1.4.2",
         "@xmldom/xmldom": "^0.9.12",

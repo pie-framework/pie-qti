@@ -31,7 +31,7 @@ import { composeItems } from './utils/item-composer.js';
 import { pieSourceSidecarPath } from './utils/pie-source-sidecar.js';
 import { isRubricModel, renderRubricBlock } from './utils/rubric-block.js';
 import { normalizeItemBody } from './utils/xhtml.js';
-import { catalogsNotExportedWarning } from './utils/accessibility-catalogs.js';
+import { catalogsNotExportedWarning, withApipAccessibility } from './utils/accessibility-catalogs.js';
 import { detectPassages } from './utils/passage-detection.js';
 // Import to trigger auto-registration of built-in generators
 import './generators/index.js';
@@ -190,7 +190,7 @@ export class PieToQtiPlugin implements TransformPlugin {
 
     logger?.info(`Processing ${models.length} model(s) in PIE item`);
 
-    const catalogWarnings = [catalogsNotExportedWarning(`Item "${pieItem.id || pieItem.uuid}"`, pieItem)];
+    const catalogWarnings: Array<string | undefined> = [];
 
     // Detect passage configuration (Phase 2: external passage support)
     const passageDetection = detectPassages(pieItem);
@@ -208,21 +208,25 @@ export class PieToQtiPlugin implements TransformPlugin {
 
       logger?.info(`Resolving external passage: ${passageDetection.externalPassage.id}`);
       const resolvedPassage = await this.passageResolver(passageDetection.externalPassage.id);
-      catalogWarnings.push(catalogsNotExportedWarning(`Passage "${resolvedPassage.id}"`, resolvedPassage));
 
       // Generate passage file
       const passageFile = generatePassageFile(resolvedPassage, {
         basePath: 'passages',
         metadata: resolvedPassage.metadata,
       });
-      generatedPassageFiles.push(passageFile);
+      const apip = withApipAccessibility(`Passage "${resolvedPassage.id}"`, passageFile.xml, resolvedPassage);
+      catalogWarnings.push(apip.warning);
+      generatedPassageFiles.push({ ...passageFile, xml: apip.qtiXml });
 
       logger?.info(`Generated external passage file: ${passageFile.filePath}`);
     } else if (passageDetection.externalPassage?.stimulus) {
       // Full passage object provided
       logger?.info('Using provided passage stimulus object');
-      const passageFile = generatePassageFromStimulus(passageDetection.externalPassage.stimulus);
-      generatedPassageFiles.push(passageFile);
+      const { stimulus } = passageDetection.externalPassage;
+      const passageFile = generatePassageFromStimulus(stimulus);
+      const apip = withApipAccessibility(`Passage "${passageFile.id}"`, passageFile.xml, stimulus);
+      catalogWarnings.push(apip.warning);
+      generatedPassageFiles.push({ ...passageFile, xml: apip.qtiXml });
     }
 
     // Determine passage strategy
@@ -301,6 +305,11 @@ export class PieToQtiPlugin implements TransformPlugin {
     }
     // Composition, passages and rubrics write body content after the generator; normalize it once more.
     qtiXml = normalizeItemBody(qtiXml);
+    // A passage object is written to its own file, with its own catalogs.
+    const itemContent = typeof pieItem.passage === 'object' ? { ...pieItem, passage: undefined } : pieItem;
+    const apip = withApipAccessibility(`Item "${pieItem.id || pieItem.uuid}"`, qtiXml, itemContent);
+    qtiXml = apip.qtiXml;
+    catalogWarnings.unshift(apip.warning);
 
     // Log warnings if any
     const allWarnings = [
