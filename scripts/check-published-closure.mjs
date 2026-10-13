@@ -76,7 +76,7 @@ const runNpmView = async (specifier, field) => {
 			}
 
 			console.warn(
-				`[check-published-closure] ${specifier}${field ? ` ${field}` : ""} not on the registry yet (attempt ${attempt}/${propagationPolicy.maxAttempts}); retrying in ${delayMs / 1_000}s`,
+				`[check-published-closure] ${specifier}${field ? ` ${field}` : ""} not on the registry yet (attempt ${attempt}, ${Math.round((Date.now() - startedAt) / 1_000)}s of ${Math.round(propagationPolicy.deadlineMs / 1_000)}s); retrying in ${delayMs / 1_000}s`,
 			);
 			await sleep(delayMs);
 		}
