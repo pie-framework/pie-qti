@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/web-component-loaders",
-  "version": "0.1.26",
+  "version": "0.1.27",
   "main": "./dist/index.js",
   "dependencies": {
     "@pie-qti/player-elements": "workspace:*"
