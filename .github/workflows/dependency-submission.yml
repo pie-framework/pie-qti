@@ -56,11 +56,8 @@ jobs:
   audit:
     name: Audit dependencies
     runs-on: ubuntu-latest
-    # Reports rather than gates. `bun audit` reads the same lockfile and does not wait for the
-    # graph to be populated, so it is the faster signal of the two; it is deliberately not
-    # failing the build yet, because the tree currently carries advisories that need triage
-    # first and a red master on day one teaches everyone to ignore it.
-    continue-on-error: true
+    # Fails on any high or critical advisory. `bun audit` reads the same lockfile and does not
+    # wait for the graph to be populated, so it is the faster signal of the two.
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -73,5 +70,7 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      # GHSA-vfj7-8cjw-p6xm (braces) has no fixed release and is reached only through oclif,
+      # which packages the CLI. Drop the ignore once braces ships a fix.
       - name: Audit
-        run: bun audit --audit-level=high
+        run: bun audit --audit-level=high --ignore GHSA-vfj7-8cjw-p6xm
