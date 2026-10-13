@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { ItemBody } from '@pie-qti/item-player/components';
-	import { DemoItemSessionController } from '$lib/item-session.svelte';
+	import { DemoItemSessionController } from '#lib/item-session.svelte.js';
 	import { onMount } from 'svelte';
 
 	// Simple QTI 2.2 choice interaction XML

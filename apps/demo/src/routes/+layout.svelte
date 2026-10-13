@@ -2,23 +2,23 @@
 	import '../app.css';
 	import '@pie-qti/typeset-katex/css';
 	import { onMount, setContext } from 'svelte';
-	import { browser } from '$app/environment';
+	import { browser } from '$app/env';
 	import { loadPieQtiPlayerElements } from '@pie-qti/web-component-loaders';
-	import { base } from '$app/paths';
-	import { page } from '$app/stores';
+	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import {
 		createDefaultSvelteI18nProvider,
 		type SvelteI18nProvider,
 		type LocaleCode
 	} from '@pie-qti/i18n';
-	import SettingsMenu from '$lib/components/SettingsMenu.svelte';
+	import SettingsMenu from '#lib/components/SettingsMenu.svelte';
 
 	const { children } = $props();
 	let theme = $state('light');
 	let i18n = $state<SvelteI18nProvider | null>(null);
 	let currentLocale = $state<LocaleCode>('en-US');
-	const currentPath = $derived($page.url.pathname);
-	const isIframeRuntime = $derived(currentPath.startsWith(`${base}/iframe-runtime`));
+	const currentPath = $derived(page.url.pathname);
+	const isIframeRuntime = $derived(currentPath.startsWith(resolve('/iframe-runtime')));
 
 	// Provide i18n to child components via Svelte context
 	// Use a getter to make it reactive - captures the current value of i18n
@@ -122,7 +122,7 @@
 		<!-- Navigation -->
 		<nav class="navbar bg-base-100 shadow-lg" role="banner" aria-label="Main navigation">
 			<div class="flex-1">
-				<a href="{base}/" class="btn btn-ghost normal-case text-xl">
+				<a href={resolve('/')} class="btn btn-ghost normal-case text-xl">
 					<svg
 						xmlns="http://www.w3.org/2000/svg"
 						class="h-6 w-6"
@@ -148,26 +148,26 @@
 			</div>
 			<div class="flex-none gap-2">
 				<ul class="menu menu-horizontal px-1">
-					<li><a href="{base}/" class:active={currentPath === `${base}/`}>{i18n?.t('demo.home') ?? 'Home'}</a></li>
+					<li><a href={resolve('/')} class:active={currentPath === resolve('/')}>{i18n?.t('demo.home') ?? 'Home'}</a></li>
 					<li>
-						<a href="{base}/item-demo" class:active={currentPath === `${base}/item-demo`}>{i18n?.t('demo.itemDemo') ?? 'Item Demo'}</a>
+						<a href={resolve('/item-demo')} class:active={currentPath === resolve('/item-demo')}>{i18n?.t('demo.itemDemo') ?? 'Item Demo'}</a>
 					</li>
 					<li>
 						<a
-							href="{base}/assessment-demo"
-							class:active={currentPath === `${base}/assessment-demo`}
+							href={resolve('/assessment-demo')}
+							class:active={currentPath === resolve('/assessment-demo')}
 							>{i18n?.t('demo.assessmentDemo') ?? 'Assessment Demo'}</a
 						>
 					</li>
 					<li>
 						<a
-							href="{base}/likert-demo"
-							class:active={currentPath === `${base}/likert-demo`}
+							href={resolve('/likert-demo')}
+							class:active={currentPath === resolve('/likert-demo')}
 							>{i18n?.t('demo.likertDemo') ?? 'Likert Plugin Demo'}</a
 						>
 					</li>
 					<li>
-						<a href="{base}/iframe-demo" class:active={currentPath === `${base}/iframe-demo`}>{i18n?.t('demo.iframeDemo') ?? 'Iframe Demo'}</a>
+						<a href={resolve('/iframe-demo')} class:active={currentPath === resolve('/iframe-demo')}>{i18n?.t('demo.iframeDemo') ?? 'Iframe Demo'}</a>
 					</li>
 				</ul>
 				<!-- Settings Menu -->

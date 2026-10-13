@@ -2,8 +2,8 @@
 	import { onMount } from 'svelte';
 	import { AssessmentPlayer, ReferenceBackendAdapter, toSectionComposition } from '@pie-qti/assessment-player';
 	import { assignProps } from '@pie-qti/qti-common';
-	import { MIXED_TOPICS_ASSESSMENT } from '$lib/sample-assessments';
-	import { getSecurityConfig } from '$lib/player-config';
+	import { MIXED_TOPICS_ASSESSMENT } from '#lib/sample-assessments.js';
+	import { getSecurityConfig } from '#lib/player-config.js';
 
 	type Status = 'booting' | 'registering' | 'registered' | 'rendered' | 'error';
 	type SectionDelta = {

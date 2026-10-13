@@ -1,6 +1,6 @@
 import { PollyServerProvider } from '@pie-players/tts-server-polly';
 import { json, type RequestHandler } from '@sveltejs/kit';
-import { demoEnv } from '$lib/server/demo-env';
+import { demoEnv } from '#lib/server/demo-env.js';
 
 export const prerender = false;
 

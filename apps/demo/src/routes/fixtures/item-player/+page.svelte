@@ -3,9 +3,9 @@
 	import type { QTIRole } from '@pie-qti/item-player';
 	import { typesetMathInElement } from '@pie-qti/typeset-katex';
 	import { onDestroy, untrack } from 'svelte';
-	import { DemoItemSessionController } from '$lib/item-session.svelte';
-	import { SAMPLE_ITEMS } from '$lib/sample-items';
-	import { getSecurityConfig } from '$lib/player-config';
+	import { DemoItemSessionController } from '#lib/item-session.svelte.js';
+	import { SAMPLE_ITEMS } from '#lib/sample-items.js';
+	import { getSecurityConfig } from '#lib/player-config.js';
 
 	let selectedSampleId = $state('simple-choice');
 	let xmlContent = $state('');

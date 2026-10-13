@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { base } from '$app/paths';
+	import { asset, resolve } from '$app/paths';
 
 	// Note: docs-site is prerendered; avoid creating an internal prerender-crawled link to /examples
 	// (that path is served by a separate app, merged into the final Pages artifact).
@@ -9,11 +9,11 @@
 <header class="border-b border-base-200 bg-base-100/80 backdrop-blur">
 	<div class="navbar max-w-6xl mx-auto px-4">
 		<div class="navbar-start">
-			<a class="btn btn-ghost text-base gap-2" href={`${base}/`}>
+			<a class="btn btn-ghost text-base gap-2" href={resolve('/')}>
 				<img
 					alt="PIE-QTI"
 					class="w-6 h-6"
-					src={`${base}/pie-logo-orange.svg`}
+					src={asset('pie-logo-orange.svg')}
 					loading="eager"
 				/>
 				<span class="font-semibold">PIE-QTI</span>
@@ -22,7 +22,7 @@
 
 		<div class="navbar-center hidden md:flex">
 			<ul class="menu menu-horizontal px-1">
-				<li><a href={`${base}/`}>Overview</a></li>
+				<li><a href={resolve('/')}>Overview</a></li>
 				<li><a href={examplesHref} data-sveltekit-reload>Examples</a></li>
 			</ul>
 		</div>

@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { browser } from '$app/environment';
+	import { browser } from '$app/env';
 	import PackageUploader from './components/PackageUploader.svelte';
 	import PackageBrowser from './components/PackageBrowser.svelte';
-	import { processPackage, loadPackageDataAsync, clearPackageData } from '$lib/package-processor';
-	import type { PackageStructure } from '$lib/package-processor';
+	import { processPackage, loadPackageDataAsync, clearPackageData } from '#lib/package-processor.js';
+	import type { PackageStructure } from '#lib/package-processor.js';
 
 	let packageData: PackageStructure | null = null;
 	let loading = false;
