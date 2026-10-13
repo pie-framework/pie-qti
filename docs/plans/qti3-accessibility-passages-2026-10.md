@@ -21,7 +21,7 @@ behavior; this plan covers what changes and in what order.
 | 0   | This plan                                         | `docs/qti3-a11y-passages-plan`      | #271 | merged  |
 | 1   | PNP out of content; AfA PNP 3.0                   | `fix/pnp-out-of-content`            | #273 | merged  |
 | 2   | Export reports the catalogs it drops              | `feat/pie-to-qti2-catalog-warnings` | #274 | merged  |
-| 3   | to-pie: QTI 3.0, accessibility catalogs, passages | `feat/to-pie-qti3-a11y-passages`    | #285 | open    |
+| 3   | to-pie: QTI 3.0, accessibility catalogs, passages | `feat/to-pie-qti3-a11y-passages`    | #285 | merged  |
 | 4   | APIP in the item player and the export            | `feat/apip-catalog-mapping`         |      | pending |
 
 States: `pending`, `in progress`, `open` (PR up, merge agent running), `merged`, `blocked`
