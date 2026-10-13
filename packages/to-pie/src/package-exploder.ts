@@ -3,12 +3,12 @@ import {
   analyzeContentPackage,
   type PackageFileAccess,
 } from '@pie-qti/ims-cp-core';
+import { passageResourceNodes } from './utils/passage-resources.js';
 
 /**
- * One QTI item resource exploded from a package, ready to be threaded through the
- * pre-conversion QTI transform stage (ADR 004). `sourcePath` is the resolved href
- * of the item resource within the package; the layered pipeline uses it to feed the
- * transformed QTI' back into the conversion's file access.
+ * One QTI item resource exploded from a package, for a caller that rewrites item XML before
+ * converting it. `sourcePath` is the resolved href of the item resource within the package,
+ * where the caller feeds the rewritten XML back into the conversion's file access.
  */
 export interface QtiPackageItemSource {
   resourceId: string;
@@ -25,18 +25,37 @@ export interface ExplodeQtiPackageItemsInput {
 export interface ExplodedQtiPackageItems {
   packageGraph: AnalyzedContentPackage;
   items: QtiPackageItemSource[];
+  /**
+   * The package's stimulus documents' raw XML, enumerated the same way the items are. They
+   * convert to passages through `convertQtiPassageDocument`, and are read here because the
+   * package is already open.
+   */
+  passages: QtiPackagePassageSource[];
+}
+
+/**
+ * One QTI stimulus document exploded from a package. `resourceId` is the manifest resource
+ * identifier, which an item's passage reference names it by.
+ */
+export interface QtiPackagePassageSource {
+  resourceId: string;
+  sourcePath: string;
+  xml: string;
+  /** The manifest's title for the resource, when it declares one. */
+  title?: string;
 }
 
 /**
  * Explode a QTI package into its readable item resources' raw XML, without
- * converting. This is the pre-conversion seam for the layered transform pipeline:
- * the QTI transform stage runs over each item's QTI XML before the fixed
- * QTI -> PIE conversion (ADR 004).
+ * converting, so a caller can rewrite each item's XML before the QTI -> PIE conversion.
  *
  * Item resources that have no resolved source path or cannot be read are skipped
  * here (the conversion records the same skip), so callers only see items that have
  * real QTI XML to transform. The enumeration deliberately mirrors the converter's
- * own item loop so the QTI stage sees exactly the items the conversion will convert.
+ * own item loop so the caller sees exactly the items the conversion will convert.
+ *
+ * The package's stimulus documents come out alongside them; see {@link passageResourceNodes}
+ * for which resources those are.
  */
 export async function explodeQtiPackageItems(
   input: ExplodeQtiPackageItemsInput
@@ -69,5 +88,20 @@ export async function explodeAnalyzedQtiPackageItems(
       xml,
     });
   }
-  return { packageGraph, items };
+
+  const passages: QtiPackagePassageSource[] = [];
+  for (const node of passageResourceNodes(packageGraph)) {
+    const xml = await input.fileAccess.readText(node.resolvedHref);
+    if (!xml) {
+      continue;
+    }
+    passages.push({
+      resourceId: node.identifier,
+      sourcePath: node.resolvedHref,
+      xml,
+      ...(node.metadata?.title ? { title: node.metadata.title } : {}),
+    });
+  }
+
+  return { packageGraph, items, passages };
 }

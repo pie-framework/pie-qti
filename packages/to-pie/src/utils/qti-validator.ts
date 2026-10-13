@@ -30,7 +30,7 @@
  * imports to enforce a conformance standard partner content has never met, so they are
  * reported as warnings carrying full schema diagnostics and the *stage verdict* stays
  * driven by well-formedness and structure. Callers that want a strict gate pass
- * `xsdSeverity: 'error'`. ADR 004 § "Validity gates" records the measurement.
+ * `xsdSeverity: 'error'`.
  *
  * **Cost note, which shapes the API.** The compile dominates, and it is per *compile*,
  * not per document: validating 1 item and validating 200 cost the same. The two roots
@@ -108,9 +108,8 @@ export function qtiDocumentRootName(xml: string): string | null {
  * Used to keep test documents out of the item conversion lane. A package that declares a
  * test resource under an item resource type used to convert silently: the payload reached
  * the `builtin.assessment-test` handler, came back as a `PieAssessment`, and was reported
- * as a transformed *item* with no warning — so a test structure would have been written
- * into `item_versions.config` as a junk item. ADR 004 is explicit that a construct with no
- * standard item equivalent is invalid input rather than something to smuggle to PIE.
+ * as a transformed *item* with no warning. A construct with no standard item equivalent is
+ * invalid input for the item lane.
  */
 export function isAssessmentTestDocument(xml: string): boolean {
   const root = qtiDocumentRootName(xml);
@@ -608,9 +607,8 @@ export class QtiValidator {
  *
  * Namespace-driven rather than guessing: a document that declares neither QTI 2.x
  * namespace returns `null`, and the caller reports "not judged" instead of validating it
- * against a schema it never claimed to follow. QTI 3.0 lands here as `null` — it is
- * judged after lexical normalization into QTI-2 shape, which is the seam's job, not the
- * validator's (ADR 004 § "Validity gates").
+ * against a schema it never claimed to follow. QTI 3.0 lands here as `null`: it is judged
+ * against the 2.2 root after `normalizeQti3ToQti2`.
  */
 export function detectQtiSchemaVersion(xml: string): QtiSchemaVersion | null {
   if (xml.includes('imsqti_v2p2')) {

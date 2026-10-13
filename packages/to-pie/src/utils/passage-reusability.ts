@@ -204,11 +204,10 @@ export function parseObjectReference(objectElement: any): PassageReference | nul
   const dataAttr = objectElement.getAttribute?.('data');
   const typeAttr = objectElement.getAttribute?.('type');
 
-  // Check if it's a passage reference (text/html, text/plain, or no type)
-  const isPassageType = !typeAttr ||
-                        typeAttr === 'text/html' ||
-                        typeAttr === 'text/plain' ||
-                        typeAttr.startsWith('text/');
+  // A text type, or an untyped object naming a markup document: untyped objects embed figures too
+  const isPassageType = typeAttr
+    ? typeAttr.startsWith('text/')
+    : /\.(?:html?|xhtml|xml)(?:[?#]|$)/i.test(dataAttr ?? '');
 
   if (!dataAttr || !isPassageType) {
     return null;

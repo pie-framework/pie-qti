@@ -20,8 +20,8 @@ behavior; this plan covers what changes and in what order.
 | --- | ------------------------------------------------- | ----------------------------------- | ---- | ------- |
 | 0   | This plan                                         | `docs/qti3-a11y-passages-plan`      | #271 | merged  |
 | 1   | PNP out of content; AfA PNP 3.0                   | `fix/pnp-out-of-content`            | #273 | merged  |
-| 2   | Export reports the catalogs it drops              | `feat/pie-to-qti2-catalog-warnings` | #274 | open    |
-| 3   | to-pie: QTI 3.0, accessibility catalogs, passages | `feat/to-pie-qti3-a11y-passages`    |      | pending |
+| 2   | Export reports the catalogs it drops              | `feat/pie-to-qti2-catalog-warnings` | #274 | merged  |
+| 3   | to-pie: QTI 3.0, accessibility catalogs, passages | `feat/to-pie-qti3-a11y-passages`    |      | open    |
 | 4   | APIP in the item player and the export            | `feat/apip-catalog-mapping`         |      | pending |
 
 States: `pending`, `in progress`, `open` (PR up, merge agent running), `merged`, `blocked`
@@ -157,10 +157,11 @@ QTI 3.0:
   interaction and in-place demotion of prompts inside layout columns.
 - `qti-assessment-stimulus-ref` normalizes to QTI 2.2's `assessmentStimulusRef`, which the 2.2
   `assessmentItem` admits.
-- Companion materials go to item metadata, and onto `AssessmentItemRef.settings.requiredTools`
-  through the test transform where a pie-players tool id exists.
-- Content marked `qti-visually-hidden` or `qti-hidden` never becomes visible: the
-  shared-vocabulary stylesheet travels as an item stylesheet resource.
+- Companion materials go to `metadata.companionMaterials`. Their move onto
+  `AssessmentItemRef.settings.requiredTools` waits for a test conversion that reads its items:
+  the test transform sees only the test document, and the package transform converts no tests.
+- Content marked `qti-visually-hidden` or `qti-hidden` never becomes visible: each such element
+  carries the class's hiding style inline, so no stylesheet has to travel with the item.
 - `qti-assessment-test` converts through `assessment-test.ts`. PCI stays rejected under its own
   code: PIE has no PCI element.
 - The QTI 3 rejection test in `plugin.test.ts` inverts; the vendor-claim test keeps vendor
@@ -196,14 +197,16 @@ Passages:
   `convertQtiPassageDocument`, and emits `PassageEntity` output beside the items, with model ids
   derived from the stimulus identifier so a re-import is stable. QTI 3 `qti-assessment-stimulus`
   catalogs land on `PassageEntity.accessibilityCatalogs`.
-- The test transform's stimulus references reconcile with pie-players' section rubric blocks of
-  class `stimulus`.
+- The test transform's non-standard `stimulusRef` reader goes. Section rubric blocks come out in
+  pie-players' `RubricBlock` shape, and a block whose `use` or class is `stimulus` is a stimulus.
+  Its `passageVId` needs the package and stays unset.
 
 Done when every interaction fixture converts identically from its QTI 2.2 and QTI 3.0 forms, and
 the inventory reports nothing on the APIP fixtures beyond `inclusionOrder`. Then cut a release.
 
 ### 4. APIP in the item player and the export
 
+- The APIP mapping moves from to-pie, where slice 3 built it, into `qti-common`.
 - `catalogLookup` resolves APIP access elements through the shared mapping, so a source preview
   shows the accessibility content the converted item carries.
 - `pie-to-qti2` emits `apip:apipAccessibility` from catalogs whose supports APIP defines, with

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- hotspotInteraction whose scorer rubricBlock describes the correct hotspot in words. -->
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/qti/qtiv2p2/imsqti_v2p2.xsd"
+                identifier="cf-hotspot-scorer-answer-001"
+                title="Hotspot with scorer answer"
+                adaptive="false"
+                timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier">
+    <correctResponse>
+      <value>frame8</value>
+    </correctResponse>
+  </responseDeclaration>
+  <itemBody>
+    <p>Click the ten frame that shows 8.</p>
+    <hotspotInteraction responseIdentifier="RESPONSE">
+      <img src="ten-frames.png" width="400" height="300"/>
+      <hotspotChoice shape="rect" coords="10,10,190,140" identifier="frame6"/>
+      <hotspotChoice shape="rect" coords="210,10,390,140" identifier="frame8"/>
+    </hotspotInteraction>
+    <rubricBlock view="scorer"><div class="answer"><p>Ten frame with 8</p></div></rubricBlock>
+  </itemBody>
+</assessmentItem>

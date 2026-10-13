@@ -7,7 +7,6 @@
 import type { PieExtendedTextModel, PieItem } from '@pie-qti/transform-types';
 import type { HTMLElement } from 'node-html-parser';
 import { v4 as uuidv4 } from 'uuid';
-import { extractInlineStimulus, extractObjectPassages, extractRubricBlock } from '../utils/passage-extraction.js';
 import { extractPromptForInteraction } from '../utils/prompt-extraction.js';
 import { createMissingInteractionError } from '../utils/qti-errors.js';
 
@@ -70,15 +69,6 @@ export async function transformExtendedResponseInteraction(
   // Get response identifier
   const responseId = extendedTextInteraction.getAttribute('responseIdentifier') || 'RESPONSE';
 
-  // Check for inline stimulus (passage content)
-  const passageModel = extractInlineStimulus(itemBody);
-
-  // Check for object tag passages (external file references)
-  const objectPassages = extractObjectPassages(itemBody);
-
-  // Check for rubric block (scoring guide)
-  const rubricModel = extractRubricBlock(itemElement);
-
   const promptOptions = { after: options.promptBoundaryStart };
   const prompt = extractPromptForInteraction(itemBody, extendedTextInteraction, promptOptions);
 
@@ -124,35 +114,10 @@ export async function transformExtendedResponseInteraction(
   // Determine item type (ER = Extended Response, FE = Formula Entry)
   const itemType = mathInput ? 'FE' : 'ER';
 
-  // Build models array - include passage and rubric models if present
-  const models = [];
-
-  // Add inline stimulus passage
-  if (passageModel) {
-    models.push(passageModel);
-  }
-
-  // Add object tag passages
-  for (const objPassage of objectPassages) {
-    models.push(objPassage.model);
-  }
-
-  models.push(model);
-
-  if (rubricModel) {
-    models.push(rubricModel);
-  }
-
   // Build elements object
   const elements: Record<string, string> = {
     'extended-text-entry': '@pie-element/extended-text-entry@latest',
   };
-  if (passageModel || objectPassages.length > 0) {
-    elements['passage'] = '@pie-element/passage@latest';
-  }
-  if (rubricModel) {
-    elements['rubric'] = '@pie-element/rubric@latest';
-  }
 
   // Create PIE item
   const pieItem: PieItem = {
@@ -161,7 +126,7 @@ export async function transformExtendedResponseInteraction(
     uuid,
     config: {
       id: uuid,
-      models,
+      models: [model],
       elements,
     },
     metadata: {
@@ -174,14 +139,6 @@ export async function transformExtendedResponseInteraction(
       },
     },
   };
-
-  // Populate passage property if external passage was found
-  // (External passages are from <object> tags, not inline <stimulus>)
-  if (objectPassages.length > 0) {
-    // Use first external passage reference
-    // Note: Multiple passages not currently supported in PIE passage property
-    pieItem.passage = objectPassages[0].passageId;
-  }
 
   return pieItem;
 }

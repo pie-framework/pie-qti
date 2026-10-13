@@ -194,7 +194,6 @@ export function createDefaultQtiToPieRegistry(): QtiToPieRegistry {
     interactionTypes: ['extendedTextInteraction'],
     outputKind: 'pie-item',
     pieElements: ['@pie-element/extended-text-entry'],
-    notes: ['May also emit passage or rubric elements when the source item carries them.'],
     async transform(context) {
       if (!context.assessmentItem) throw new Error('No assessmentItem found');
       const assessmentItem = context.assessmentItem;

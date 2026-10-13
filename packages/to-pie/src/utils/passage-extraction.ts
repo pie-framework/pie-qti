@@ -1,29 +1,12 @@
 /**
  * Passage and rubric extraction utilities
  *
- * Extracts inline stimulus and rubric content from QTI items and converts to PIE models
+ * The PIE passage model and the scorer rubric read from a QTI item. Passages leave the item body
+ * through the item body partition.
  */
 
 import type { HTMLElement } from 'node-html-parser';
-import { v4 as uuid } from 'uuid';
 import { unwrapCdataSections } from './cdata.js';
-import { generateStablePassageId, parseObjectReference } from './passage-reusability.js';
-
-const QTI_INTERACTION_TAGS = new Set([
-  'choiceinteraction',
-  'extendedtextinteraction',
-  'orderinteraction',
-  'matchinteraction',
-  'textentryinteraction',
-  'selectpointinteraction',
-  'hottextinteraction',
-  'inlinechoiceinteraction',
-  'gapmatchinteraction',
-  'hotspotinteraction',
-  'graphicgapmatchinteraction',
-  'associateinteraction',
-  'sliderinteraction',
-] as const);
 
 export interface PassageModel {
   id: string;
@@ -43,230 +26,37 @@ export interface PassageModel {
 }
 
 /**
- * Extract passages from object tags in itemBody
- *
- * QTI Pattern: <object data="passages/passage.xml" type="text/html"/>
- *
- * @param itemBody The itemBody element to search
- * @param _contentLoader Optional function to load external content
- * @returns Array of PassageModel objects and their file paths
+ * The item's scorer guidance: the content of every rubricBlock whose `view` list names `scorer`.
+ * A block the candidate also sees is item content and stays out. A block whose content another
+ * block already holds is dropped, so guidance copied into a second block appears once.
  */
-export function extractObjectPassages(
-  itemBody: HTMLElement,
-  _contentLoader?: (filePath: string) => Promise<string> | string
-): Array<{ model: PassageModel; filePath: string; passageId: string }> {
-  const passages: Array<{ model: PassageModel; filePath: string; passageId: string }> = [];
-
-  // Find all object tags
-  const objects = itemBody.getElementsByTagName('object');
-
-  for (const obj of Array.from(objects)) {
-    if (hasInteractionAncestor(obj, itemBody)) {
-      continue;
-    }
-
-    const reference = parseObjectReference(obj);
-    if (!reference || !reference.filePath) continue;
-
-    // Extract passage ID from data-pie-passage-id attribute (if present)
-    const passageId = obj.getAttribute('data-pie-passage-id') || reference.id;
-
-    // For now, create a placeholder passage
-    // In batch mode, content will be loaded and populated
-    const modelId = reference.id;
-
-    passages.push({
-      model: {
-        id: modelId,
-        element: '@pie-element/passage',
-        passages: [
-          {
-            title: '',
-            text: `[External passage: ${reference.filePath}]`,
-          },
-        ],
-        titleEnabled: false,
-        subtitleEnabled: false,
-        authorEnabled: false,
-        textEnabled: true,
-        teacherInstructionsEnabled: false,
-      },
-      filePath: reference.filePath,
-      passageId,
-    });
-
-    // Remove the object tag from itemBody (it's now a separate model)
-    obj.remove();
-  }
-
-  return passages;
-}
-
-/** Whether `element` sits inside a QTI interaction between itself and `stopAt`. */
-function hasInteractionAncestor(element: HTMLElement, stopAt: HTMLElement): boolean {
-  let current = element.parentNode as HTMLElement | null;
-  while (current && current !== stopAt) {
-    const tagName = (current.rawTagName ?? current.tagName ?? '').toLowerCase();
-    if (QTI_INTERACTION_TAGS.has(tagName as never)) {
-      return true;
-    }
-    current = current.parentNode as HTMLElement | null;
-  }
-  return false;
-}
-
-/**
- * Extract inline stimulus from itemBody and convert to passage model
- *
- * QTI Pattern: <stimulus> element within itemBody, typically before interactions
- *
- * @param itemBody The itemBody element to search
- * @param options Options for extraction
- * @returns PassageModel if stimulus found, null otherwise
- */
-export function extractInlineStimulus(
-  itemBody: HTMLElement,
-  options?: { generateStableId?: boolean }
-): PassageModel | null {
-  // Look for explicit <stimulus> element
-  const stimulusElements = itemBody.getElementsByTagName('stimulus');
-
-  if (stimulusElements.length === 0) {
-    return null;
-  }
-
-  const stimulus = stimulusElements[0];
-  const text = cleanPassageHtml(stimulus.innerHTML.trim());
-
-  if (!text) {
-    return null;
-  }
-
-  // Generate stable ID based on content if requested
-  const modelId = options?.generateStableId
-    ? generateStablePassageId({ content: text })
-    : uuid();
-
-  return {
-    id: modelId,
-    element: '@pie-element/passage',
-    passages: [
-      {
-        title: '',
-        text,
-      },
-    ],
-    titleEnabled: false,
-    subtitleEnabled: false,
-    authorEnabled: false,
-    textEnabled: true,
-    teacherInstructionsEnabled: false,
-  };
-}
-
-export interface RubricModel {
-  id: string;
-  element: '@pie-element/rubric';
-  rubric: {
-    points: string[];
-    scales: Array<{
-      id: string;
-      label: string;
-      maxPoints: number;
-      scorePointsLabels: string[];
-    }>;
-  };
-}
-
-/**
- * Extract rubricBlock from assessmentItem and convert to rubric model
- *
- * QTI Pattern: <rubricBlock view="scorer"> typically after itemBody
- *
- * @param itemElement The assessmentItem element to search
- * @returns RubricModel if rubricBlock found, null otherwise
- */
-export function extractRubricBlock(itemElement: HTMLElement): RubricModel | null {
-  // Look for rubricBlock element with view="scorer"
-  const rubricBlocks = itemElement.getElementsByTagName('rubricBlock');
-
-  if (rubricBlocks.length === 0) {
-    return null;
-  }
-
-  // Find scorer rubric block
-  const scorerRubric = Array.from(rubricBlocks).find(
-    rb => rb.getAttribute('view') === 'scorer'
+export function extractScorerRubric(itemElement: HTMLElement): string {
+  const selected = Array.from(itemElement.getElementsByTagName('rubricBlock'))
+    .filter((rubricBlock) => {
+      const views = (rubricBlock.getAttribute('view') ?? '').trim().split(/\s+/);
+      return views.includes('scorer') && !views.includes('candidate');
+    })
+    .map((rubricBlock) => cleanPassageHtml(rubricBlock.innerHTML))
+    .filter(Boolean);
+  const blocks = selected.filter(
+    (block, index) =>
+      !selected.some((other, otherIndex) =>
+        other === block ? otherIndex < index : other.includes(block)
+      )
   );
-
-  if (!scorerRubric) {
-    return null;
-  }
-
-  const content = cleanPassageHtml(scorerRubric.innerHTML.trim());
-
-  if (!content) {
-    return null;
-  }
-
-  // Parse rubric content - simple approach for now
-  // QTI rubrics are often structured as tables with points and criteria
-  // For now, we'll extract as simple text rubric
-  const modelId = uuid();
-
-  // Try to extract points from table structure if present
-  const points = extractPointsFromRubric(scorerRubric);
-
-  return {
-    id: modelId,
-    element: '@pie-element/rubric',
-    rubric: {
-      points: points.length > 0 ? points : ['0', '1', '2', '3'],
-      scales: [
-        {
-          id: uuid(),
-          label: 'Score',
-          maxPoints: points.length > 0 ? points.length - 1 : 3,
-          scorePointsLabels: points.length > 0 ? points : ['0', '1', '2', '3'],
-        },
-      ],
-    },
-  };
-}
-
-/**
- * Extract point values from rubric table structure
- */
-function extractPointsFromRubric(rubricBlock: HTMLElement): string[] {
-  const points: string[] = [];
-
-  // Look for table rows with point values
-  const tables = rubricBlock.getElementsByTagName('table');
-  if (tables.length > 0) {
-    const rows = tables[0].getElementsByTagName('tr');
-    for (const row of Array.from(rows)) {
-      const cells = row.getElementsByTagName('td');
-      if (cells.length > 0) {
-        const firstCell = cells[0].textContent?.trim();
-        // Check if first cell looks like a point value (number)
-        if (firstCell && /^\d+$/.test(firstCell)) {
-          points.push(firstCell);
-        }
-      }
-    }
-  }
-
-  // Sort points numerically
-  return points.sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
+  return blocks.length > 1
+    ? blocks.map((block) => `<div>${block}</div>`).join('')
+    : (blocks[0] ?? '');
 }
 
 /**
  * Clean passage HTML
- * - Unwrap CDATA sections
+ * - Remove CDATA markers
  * - Normalize newlines
  * - Preserve HTML structure
  */
-function cleanPassageHtml(html: string): string {
+export function cleanPassageHtml(html: string): string {
+  // Remove CDATA markers
   html = unwrapCdataSections(html);
 
   // Replace multiple newlines with space (but preserve HTML tags)

@@ -187,7 +187,7 @@ describe('composite conversion', () => {
     expect(item.config.models[1].choices.map((choice: any) => choice.label)).toEqual(['C', 'D']);
   });
 
-  test('uses the primary interaction model for composite placeholders when parts emit passages', async () => {
+  test('leads a composite with its inline passage', async () => {
     const result = await transformedSingleItem(`
 <assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="composite-passage-placeholder">
   <responseDeclaration identifier="CHOICE" cardinality="single" baseType="identifier">
@@ -208,8 +208,15 @@ describe('composite conversion', () => {
 
     const item = (result.items[0] as any).content;
 
-    expect(item.config.models.map((model: any) => model.element)).toContain('passage');
-    expect(item.config.markup).toContain('<multiple-choice');
+    expect(item.config.models.map((model: any) => model.element)).toEqual([
+      'passage',
+      'multiple-choice',
+      'explicit-constructed-response',
+    ]);
+    expect(item.config.markup).not.toContain('Shared passage.');
+    expect(item.config.markup.indexOf('<passage')).toBeLessThan(
+      item.config.markup.indexOf('<multiple-choice')
+    );
     expect(item.config.markup.indexOf('<multiple-choice')).toBeLessThan(
       item.config.markup.indexOf('<explicit-constructed-response')
     );

@@ -10,6 +10,7 @@ import type { HTMLElement } from 'node-html-parser';
 import { parse } from 'node-html-parser';
 import { v4 as uuid } from 'uuid';
 import { resolveNodeWindow, serializeNodesWithReplacements } from '../utils/markup-extraction.js';
+import { promptContent } from '../utils/prompt-extraction.js';
 import { createMissingElementError, createMissingInteractionError } from '../utils/qti-errors.js';
 import { isQtiInteractionElement } from '../utils/qti-item-planner.js';
 import {
@@ -190,7 +191,7 @@ function extractPrompt(itemBody: HTMLElement): string | null {
   // Look for explicit prompt element
   const promptElement = itemBody.getElementsByTagName('prompt')[0];
   if (promptElement) {
-    return promptElement.innerHTML.trim();
+    return promptContent(promptElement);
   }
 
   return null;

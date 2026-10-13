@@ -462,6 +462,7 @@
       "dependencies": {
         "@pie-qti/ims-cp-core": "workspace:*",
         "@pie-qti/ims-cp-node": "workspace:*",
+        "@pie-qti/qti-common": "workspace:*",
         "@pie-qti/transform-core": "workspace:*",
         "@pie-qti/transform-types": "workspace:*",
         "fast-xml-parser": "^5.10.1",
