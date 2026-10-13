@@ -1,5 +1,16 @@
 # @pie-qti/item-player
 
+## 0.1.27
+
+### Patch Changes
+
+- 498b1e2: The item player resolves a QTI 2.x item's APIP access elements as catalogs, docking each link on the element, word or characters it names as `data-catalog-idref`.
+- Updated dependencies [498b1e2]
+  - @pie-qti/qti-common@0.1.27
+  - @pie-qti/qti-processing@0.1.27
+  - @pie-qti/i18n@0.1.27
+  - @pie-qti/ims-cp-core@0.1.27
+
 ## 0.1.26
 
 ### Patch Changes

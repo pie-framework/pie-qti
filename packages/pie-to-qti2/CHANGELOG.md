@@ -1,5 +1,15 @@
 # @pie-qti/pie-to-qti2
 
+## 0.1.27
+
+### Patch Changes
+
+- 498b1e2: An exported item or passage carries its accessibility catalogs as `apip:apipAccessibility`, linked to the elements whose `data-catalog-idref` names them; an element without an `id` gets one. The warning now names only what APIP cannot carry, and why. Assessments still warn for every catalog.
+- Updated dependencies [498b1e2]
+  - @pie-qti/qti-common@0.1.27
+  - @pie-qti/transform-core@0.1.27
+  - @pie-qti/transform-types@0.1.27
+
 ## 0.1.26
 
 ### Patch Changes

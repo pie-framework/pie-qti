@@ -1,5 +1,15 @@
 # @pie-qti/default-components
 
+## 0.1.27
+
+### Patch Changes
+
+- Updated dependencies [498b1e2]
+- Updated dependencies [498b1e2]
+  - @pie-qti/item-player@0.1.27
+  - @pie-qti/qti-common@0.1.27
+  - @pie-qti/i18n@0.1.27
+
 ## 0.1.26
 
 ### Patch Changes

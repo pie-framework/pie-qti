@@ -1,5 +1,17 @@
 # @pie-qti/to-pie
 
+## 0.1.27
+
+### Patch Changes
+
+- 498b1e2: An APIP link to an element whose `data-catalog-idref` already names that access element no longer wraps the element's content in a second idref.
+- Updated dependencies [498b1e2]
+  - @pie-qti/qti-common@0.1.27
+  - @pie-qti/transform-core@0.1.27
+  - @pie-qti/ims-cp-core@0.1.27
+  - @pie-qti/ims-cp-node@0.1.27
+  - @pie-qti/transform-types@0.1.27
+
 ## 0.1.26
 
 ### Patch Changes
