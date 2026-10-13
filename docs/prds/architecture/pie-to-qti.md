@@ -50,6 +50,7 @@ Lossy information examples:
 - PIE rubric models: detected and logged, but QTI `<rubricBlock>` generation is not yet implemented
 - Multi-interaction items: only the first interaction in `config.models[]` is mapped to QTI; additional interactions produce a warning
 - Complex PIE-specific scoring logic not expressible in standard QTI response processing
+- Accessibility catalogs (`accessibilityCatalogs` on a model, the item root, a passage or an assessment, and `extractedCatalogs`): QTI 2.2 carries them as APIP, which the export does not write. Each is named in a warning; `data-catalog-idref` attributes stay in the markup, since QTI 2.2 admits `data-*`
 
 ---
 
@@ -78,6 +79,7 @@ Lossy information examples:
 - **FR-11:** A PIE object with a top-level `sections` array SHALL be treated as an assessment and transformed to `<assessmentTest>` rather than `<assessmentItem>`.
 - **FR-12:** `outcomeProcessingXml`, `branchRule`, and `preCondition` on assessment items SHALL be inserted verbatim into the generated QTI without re-parsing or re-serialisation.
 - **FR-13:** `deduplicatePassageFiles` SHALL return each passage only once when called on results from batch item transformations sharing the same passage ID.
+- **FR-14:** A generated export of an item, a resolved passage or an assessment that carries accessibility catalogs SHALL add one warning per exported object to `output.metadata.warnings`, naming every catalog it declares or its markup references through `data-catalog-idref`. Lossless reconstruction from `metadata.qtiSource.xml` adds none.
 
 ---
 
@@ -269,6 +271,14 @@ AC-E3: Multiple interactions — only first processed
   When: transform() is called
   Then: output.metadata.warnings contains a message about multiple interactions
         AND only the first interaction appears in the QTI output
+
+AC-E3a: Accessibility catalogs reported
+  Given: A PIE item whose multiple-choice model declares catalog 'term-water' and whose prompt
+         holds <span data-catalog-idref="term-water">
+  When: transform() is called
+  Then: output.metadata.warnings contains 'Item "<id>" carries accessibility catalogs
+        "term-water", which the QTI 2.2 export does not write'
+        AND the prompt in the QTI output keeps data-catalog-idref="term-water"
 
 AC-E4: Passage deduplication in batch
   Given: Three PIE items that all reference passage 'shared-passage' externally

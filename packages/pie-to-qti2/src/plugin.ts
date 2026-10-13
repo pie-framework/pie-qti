@@ -31,6 +31,7 @@ import { composeItems } from './utils/item-composer.js';
 import { pieSourceSidecarPath } from './utils/pie-source-sidecar.js';
 import { isRubricModel, renderRubricBlock } from './utils/rubric-block.js';
 import { normalizeItemBody } from './utils/xhtml.js';
+import { catalogsNotExportedWarning } from './utils/accessibility-catalogs.js';
 import { detectPassages } from './utils/passage-detection.js';
 // Import to trigger auto-registration of built-in generators
 import './generators/index.js';
@@ -189,6 +190,8 @@ export class PieToQtiPlugin implements TransformPlugin {
 
     logger?.info(`Processing ${models.length} model(s) in PIE item`);
 
+    const catalogWarnings = [catalogsNotExportedWarning(`Item "${pieItem.id || pieItem.uuid}"`, pieItem)];
+
     // Detect passage configuration (Phase 2: external passage support)
     const passageDetection = detectPassages(pieItem);
 
@@ -205,6 +208,7 @@ export class PieToQtiPlugin implements TransformPlugin {
 
       logger?.info(`Resolving external passage: ${passageDetection.externalPassage.id}`);
       const resolvedPassage = await this.passageResolver(passageDetection.externalPassage.id);
+      catalogWarnings.push(catalogsNotExportedWarning(`Passage "${resolvedPassage.id}"`, resolvedPassage));
 
       // Generate passage file
       const passageFile = generatePassageFile(resolvedPassage, {
@@ -303,6 +307,7 @@ export class PieToQtiPlugin implements TransformPlugin {
       ...sourceWarnings,
       ...generated.flatMap((entry) => entry.result.metadata?.warnings || []),
       ...compositionWarnings,
+      ...catalogWarnings.filter((warning): warning is string => warning !== undefined),
     ];
     for (const warning of allWarnings) {
       logger?.warn(warning);
@@ -410,6 +415,15 @@ export class PieToQtiPlugin implements TransformPlugin {
     };
 
     const result = generator.generate(context);
+    const warnings: string[] = [...(result.warnings || [])];
+    const catalogWarning = catalogsNotExportedWarning(
+      `Assessment "${assessment.identifier || assessment.id}"`,
+      assessment
+    );
+    if (catalogWarning) {
+      logger?.warn(catalogWarning);
+      warnings.push(catalogWarning);
+    }
     const processingTime = Date.now() - startTime;
 
     // Build output object
@@ -430,7 +444,7 @@ export class PieToQtiPlugin implements TransformPlugin {
         processingTime,
         generatorId: generator.id,
         generatorVersion: generator.version,
-        warnings: result.warnings || [],
+        warnings,
       } as any,
     };
 
