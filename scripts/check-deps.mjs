@@ -96,6 +96,8 @@ function isExternalSpecifier(specifier) {
 function isIgnoredSpecifier(specifier, aliasPrefixes) {
 	return (
 		specifier.startsWith("$") ||
+		// Subpath imports resolve through the importing package's own `imports` field.
+		specifier.startsWith("#") ||
 		specifier.startsWith("bun:") ||
 		specifier.startsWith("node:") ||
 		specifier.startsWith("virtual:") ||
@@ -367,7 +369,7 @@ function main() {
 					}
 					// Deliberately no export-map check on the subpath here. Several
 					// specifiers (e.g. "@pie-qti/item-player/components") are resolved by
-					// bundler aliases in vite.config.ts / svelte.config.js rather than by
+					// bundler aliases in vite.config.ts rather than by
 					// the exports map, so validating against exports reports false
 					// positives. The published export surface is already covered properly
 					// by check-pack-exports, check-publint and check-attw.
