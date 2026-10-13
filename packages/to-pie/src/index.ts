@@ -184,6 +184,16 @@ export {
   validateQti,
   validateQtiBatch,
 } from './utils/qti-validator.js';
+// QTI 3.0 normalization into the QTI 2.2 vocabulary the conversion reads
+export type { UnsupportedQti3Construct } from './utils/qti3-normalize.js';
+export {
+  demoteMisplacedQti3Prompts,
+  isQti3Document,
+  normalizeQti3Lexically,
+  normalizeQti3ToQti2,
+  relocateQti3PromptIntoInteraction,
+  unsupportedQti3Construct,
+} from './utils/qti3-normalize.js';
 // CDATA unwrapping for markup bound for PIE models
 export { unwrapCdataSections } from './utils/cdata.js';
 // Composite-item planning: groups an itemBody's interactions into transformable units
