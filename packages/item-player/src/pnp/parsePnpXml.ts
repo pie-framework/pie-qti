@@ -2,214 +2,266 @@ import { parse as parseHtml } from 'node-html-parser';
 import type { HTMLElement as NhpElement } from 'node-html-parser';
 import type { CatalogSupportPreference, PnpProfile } from './types.js';
 
+/** QTI 3's profile of Access for All Personal Needs and Preferences 3.0. */
+export const AFA_PNP_NAMESPACE = 'http://www.imsglobal.org/xsd/qtiv3p0/imsafa3p0pnp_v1p0';
+
 /**
- * Parse a QTI 3.0 <personalNeedsProfile> element (or legacy <pnp> element) into a PnpProfile.
+ * An AfA PNP 3.0 profile as JSON keyed by the spec's kebab-case terms, the shape
+ * pie-players' `createPersonalNeedsProfileFromAfa` takes.
  *
- * Accepts either an XML/HTML string containing the profile element, or a live DOM Element.
- * Unknown child elements are silently ignored for forward-compatibility.
+ * An empty element is `{}`, an element holding only text is that text (a number or
+ * boolean when it reads as one), `xml:lang` is `language`, a repeated element is an
+ * array, and a feature set is the list of feature names it holds. Elements of another
+ * namespace, AfA's extension mechanism, sit under `extensions` by local name.
  */
-export function parsePnpXml(xml: string | Element): PnpProfile {
-	if (typeof xml !== 'string') {
-		// Live DOM Element — serialise to string and re-parse via node-html-parser
-		return parsePnpXml((xml as Element).outerHTML ?? '');
-	}
-
-	const trimmed = xml.trim();
-	if (!trimmed) return {};
-
-	// Wrap so node-html-parser treats the outer tag as the root
-	const doc = parseHtml(`<root>${trimmed}</root>`, { lowerCaseTagName: true });
-	const root = doc.querySelector('personalneedsprofile') ?? doc.querySelector('pnp');
-	if (!root) return {};
-
-	return extractProfile(root);
+export interface AfaPnpRecord {
+	'activate-at-initialization-set'?: string[];
+	'activate-as-option-set'?: string[];
+	'prohibit-set'?: string[];
+	extensions?: Record<string, unknown>;
+	[feature: string]: unknown;
 }
 
-function extractProfile(root: NhpElement): PnpProfile {
+const FEATURE_SETS = new Set(['activate-at-initialization-set', 'activate-as-option-set', 'prohibit-set']);
+
+/**
+ * QTI 3's predefined catalog card supports, less `glossary-on-screen` and
+ * `keyword-translation`, which have popups of their own. A granted one enables the
+ * catalog support of that name.
+ */
+const CATALOG_SUPPORT_FEATURES = [
+	'additional-directions',
+	'audio-description',
+	'braille',
+	'high-contrast',
+	'keyboard-directions',
+	'linguistic-guidance',
+	'long-description',
+	'sign-language',
+	'simplified-graphics',
+	'simplified-language-portions',
+	'spoken',
+	'tactile',
+	'transcript',
+] as const;
+
+/** The extension SBAC requests its illustrated glossary with. */
+const ILLUSTRATED_GLOSSARY_EXTENSION = 'sbac-glossary-illustration';
+
+type ColorScheme = NonNullable<NonNullable<PnpProfile['display']>['colorScheme']>;
+
+/**
+ * AfA `color-theme` terms onto the player's scheme names. The spec leaves a theme's
+ * exact colors to the delivery system, so `high-contrast` takes black on white and
+ * its reverse white on black.
+ */
+const COLOR_THEMES: Readonly<Record<string, ColorScheme>> = {
+	default: 'default',
+	'default-reverse': 'defaultreverse',
+	'high-contrast': 'blackwhite',
+	'high-contrast-reverse': 'whiteblack',
+	'black-rose': 'blackrose',
+	'rose-black': 'roseblack',
+	'yellow-blue': 'yellowblue',
+	'blue-yellow': 'blueyellow',
+	'medgray-darkgray': 'mgraydgray',
+	'darkgray-medgray': 'dgraymgray',
+	'black-cyan': 'blackcyan',
+	'cyan-black': 'cyanblack',
+	'black-cream': 'blackcream',
+	'cream-black': 'creamblack',
+};
+
+/**
+ * Parse an AfA PNP 3.0 document into its record: an `access-for-all-pnp` element, or
+ * the first one inside an `access-for-all-pnp-record`. A bulk records file holds one
+ * profile per candidate, so pass the candidate's record. Returns `null` when the input
+ * holds no profile.
+ */
+export function parseAfaPnpXml(xml: string | Element): AfaPnpRecord | null {
+	const source = typeof xml === 'string' ? xml : ((xml as Element).outerHTML ?? '');
+	const trimmed = source.replace(/<\?xml[^>]*\?>/g, '').trim();
+	if (!trimmed) return null;
+
+	const doc = parseHtml(`<root>${trimmed}</root>`, { lowerCaseTagName: false });
+	const root = findProfile(doc);
+	if (!root) return null;
+
+	const afaPrefixes = collectAfaPrefixes(root);
+	const record: AfaPnpRecord = {};
+	for (const child of elementChildren(root)) {
+		const { prefix, local } = splitName(child.rawTagName);
+		if (prefix && !afaPrefixes.has(prefix)) {
+			record.extensions ??= {};
+			addValue(record.extensions, local, elementValue(child));
+		} else if (FEATURE_SETS.has(local)) {
+			record[local] = elementChildren(child).map((feature) => splitName(feature.rawTagName).local);
+		} else {
+			addValue(record, local, elementValue(child));
+		}
+	}
+	return record;
+}
+
+/**
+ * The part of an AfA record the item player renders. A feature counts when the record
+ * names it or one of its activation sets lists it, unless `prohibit-set` lists it.
+ * Features with no `PnpProfile` field stay in the record for the host's tools:
+ * `fixed-minutes` testing time, `ext:` color themes, and every tool support.
+ */
+export function pnpProfileFromAfa(record: AfaPnpRecord): PnpProfile {
+	const prohibited = new Set(record['prohibit-set'] ?? []);
+	const listed = new Set([
+		...(record['activate-at-initialization-set'] ?? []),
+		...(record['activate-as-option-set'] ?? []),
+	]);
+	const granted = (feature: string): boolean =>
+		!prohibited.has(feature) && (isPresent(record[feature]) || listed.has(feature));
+
+	const display: NonNullable<PnpProfile['display']> = {};
+	const theme = granted('text-appearance')
+		? field(record['text-appearance'], 'color-theme')
+		: granted('color-theme')
+			? record['color-theme']
+			: undefined;
+	if (typeof theme === 'string' && COLOR_THEMES[theme]) display.colorScheme = COLOR_THEMES[theme];
+	if (granted('magnification')) {
+		const magnification = record.magnification;
+		const zoom =
+			finiteNumber(field(field(magnification, 'all-content'), 'zoom-amount')) ??
+			finiteNumber(field(field(magnification, 'text'), 'zoom-amount'));
+		if (zoom !== undefined && zoom > 0) display.magnification = zoom;
+	}
+
+	const content: NonNullable<PnpProfile['content']> = {};
+	if (granted('glossary-on-screen')) content.glossaryOnScreen = true;
+	if (granted('keyword-translation')) {
+		const languageCode = normalizeLanguageCode(field(record['keyword-translation'], 'language'));
+		if (languageCode) content.keywordTranslation = { active: true, languageCode };
+	}
+	if (
+		!prohibited.has(ILLUSTRATED_GLOSSARY_EXTENSION) &&
+		isPresent(record.extensions?.[ILLUSTRATED_GLOSSARY_EXTENSION])
+	) {
+		content.illustratedGlossary = true;
+	}
+	for (const feature of CATALOG_SUPPORT_FEATURES) {
+		if (!granted(feature)) continue;
+		const languageCode = normalizeLanguageCode(field(record[feature], 'language'));
+		const preference: CatalogSupportPreference = languageCode ? { active: true, languageCode } : true;
+		content.catalogSupports ??= {};
+		content.catalogSupports[feature] = preference;
+	}
+	if (granted('additional-testing-time')) {
+		const testingTime = record['additional-testing-time'];
+		const multiplier = isPresent(field(testingTime, 'unlimited'))
+			? Infinity
+			: finiteNumber(field(testingTime, 'time-multiplier'));
+		if (multiplier !== undefined && multiplier > 0) content.extendedTime = { active: true, multiplier };
+	}
+
+	const cognitive: NonNullable<PnpProfile['cognitive']> = {};
+	if (granted('answer-masking')) cognitive.eliminationTool = true;
+
 	const profile: PnpProfile = {};
-
-	// <display>
-	const displayEl = findChild(root, ['display']);
-	if (displayEl) {
-		profile.display = {};
-
-		const colorSchemeEl = findChild(displayEl, ['colorscheme', 'color-scheme']);
-		if (colorSchemeEl) {
-			const val = (colorSchemeEl.getAttribute('value') ?? colorSchemeEl.text ?? '').trim().toLowerCase();
-			if (isColorScheme(val)) profile.display.colorScheme = val;
-		}
-
-		const magEl = findChild(displayEl, ['magnification']);
-		if (magEl) {
-			const val = parseFloat(magEl.getAttribute('value') ?? magEl.text ?? '');
-			if (Number.isFinite(val) && val > 0) profile.display.magnification = val;
-		}
-	}
-
-	// <content>
-	const contentEl = findChild(root, ['content']);
-	if (contentEl) {
-		profile.content = {};
-
-		const glossaryEl = findChild(contentEl, ['glossaryonscreen', 'glossary-on-screen']);
-		if (glossaryEl) {
-			profile.content.glossaryOnScreen = parseBool(glossaryEl.getAttribute('enabled') ?? glossaryEl.text ?? 'true');
-		}
-
-		const kwEl = findChild(contentEl, ['keywordtranslation', 'keyword-translation']);
-		if (kwEl) {
-			const active = parseBool(kwEl.getAttribute('active') ?? 'true');
-			const languageCode = (kwEl.getAttribute('languagecode') ?? kwEl.getAttribute('language-code') ?? kwEl.getAttribute('lang') ?? '').trim();
-			if (languageCode) profile.content.keywordTranslation = { active, languageCode };
-		}
-
-		const illustratedEl = findChild(contentEl, [
-			'illustratedglossary',
-			'illustrated-glossary',
-			'ext:sbacglossaryillustration',
-			'ext:sbac-glossary-illustration',
-		]);
-		if (illustratedEl) {
-			profile.content.illustratedGlossary = parseBool(
-				illustratedEl.getAttribute('enabled') ?? illustratedEl.getAttribute('active') ?? illustratedEl.text ?? 'true'
-			);
-		}
-
-		const catalogSupportMap = [
-			['ttsPronunciation', ['ttspronunciation', 'tts-pronunciation']],
-			['signingDefinition', ['signingdefinition', 'signing-definition']],
-			['brailleText', ['brailletext', 'braille-text']],
-			['audioDescription', ['audiodescription', 'audio-description']],
-			['extendedDescription', ['extendeddescription', 'extended-description']],
-		] as const;
-		for (const [key, names] of catalogSupportMap) {
-			const el = findChild(contentEl, names);
-			if (el) {
-				profile.content.catalogSupports ??= {};
-				profile.content.catalogSupports[key] = parseCatalogSupportPreference(el);
-			}
-		}
-
-		for (const el of findChildren(contentEl, ['catalogsupport', 'catalog-support', 'qti-catalog-support'])) {
-			const usage = normalizeCatalogUsage(
-				el.getAttribute('usage') ?? el.getAttribute('support') ?? el.getAttribute('name') ?? ''
-			);
-			if (!usage) continue;
-			const key = catalogSupportPreferenceKey(usage);
-			profile.content.catalogSupports ??= {};
-			profile.content.catalogSupports[key] = parseCatalogSupportPreference(el);
-		}
-
-		const etEl = findChild(contentEl, ['extendedtime', 'extended-time']);
-		if (etEl) {
-			const active = parseBool(etEl.getAttribute('active') ?? 'true');
-			const rawMultiplier = etEl.getAttribute('multiplier') ?? etEl.text ?? '';
-			const multiplier = rawMultiplier.trim().toLowerCase() === 'infinity'
-				? Infinity
-				: parseFloat(rawMultiplier);
-			if (Number.isFinite(multiplier) || multiplier === Infinity) {
-				profile.content.extendedTime = { active, multiplier };
-			}
-		}
-	}
-
-	// <cognitive>
-	const cogEl = findChild(root, ['cognitive']);
-	if (cogEl) {
-		profile.cognitive = {};
-
-		const elTool = findChild(cogEl, ['eliminationtool', 'elimination-tool']);
-		if (elTool) {
-			profile.cognitive.eliminationTool = parseBool(
-				elTool.getAttribute('enabled') ?? elTool.getAttribute('active') ?? elTool.text ?? 'true'
-			);
-		}
-	}
-
+	if (Object.keys(display).length > 0) profile.display = display;
+	if (Object.keys(content).length > 0) profile.content = content;
+	if (Object.keys(cognitive).length > 0) profile.cognitive = cognitive;
 	return profile;
+}
+
+/**
+ * Parse an AfA PNP 3.0 document into the `PnpProfile` the item player renders. Returns
+ * an empty profile when the input holds none. `parseAfaPnpXml` returns the whole record.
+ */
+export function parsePnpXml(xml: string | Element): PnpProfile {
+	const record = parseAfaPnpXml(xml);
+	return record ? pnpProfileFromAfa(record) : {};
 }
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function findChild(parent: NhpElement, names: readonly string[]): NhpElement | null {
-	return findChildren(parent, names)[0] ?? null;
-}
-
-function findChildren(parent: NhpElement, names: readonly string[]): NhpElement[] {
-	const matches: NhpElement[] = [];
-	for (const child of parent.childNodes) {
-		if (child.nodeType !== 1) continue; // element nodes only
-		const el = child as NhpElement;
-		const tag = (el.rawTagName ?? '').toLowerCase();
-		if (names.includes(tag)) matches.push(el);
+function findProfile(parent: NhpElement): NhpElement | null {
+	for (const child of elementChildren(parent)) {
+		if (splitName(child.rawTagName).local === 'access-for-all-pnp') return child;
+		const nested = findProfile(child);
+		if (nested) return nested;
 	}
-	return matches;
+	return null;
 }
 
-function parseBool(value: string): boolean {
-	const v = (value ?? '').trim().toLowerCase();
-	return v !== 'false' && v !== '0' && v !== 'no';
+/** Prefixes bound to an AfA PNP namespace on the profile or its ancestors. */
+function collectAfaPrefixes(root: NhpElement): Set<string> {
+	const prefixes = new Set<string>();
+	for (let el: NhpElement | null = root; el; el = el.parentNode as NhpElement | null) {
+		for (const [name, value] of Object.entries(el.rawAttributes ?? {})) {
+			if (name.startsWith('xmlns:') && value.includes('imsafa3p0pnp')) prefixes.add(name.slice(6));
+		}
+	}
+	return prefixes;
 }
 
-function parseCatalogSupportPreference(el: NhpElement): CatalogSupportPreference {
-	const active = parseBool(el.getAttribute('enabled') ?? el.getAttribute('active') ?? el.text ?? 'true');
-	const languageCode = normalizeLanguageCode(
-		el.getAttribute('languagecode') ?? el.getAttribute('language-code') ?? el.getAttribute('lang') ?? ''
-	);
-	return languageCode ? { active, languageCode } : active;
+function elementChildren(parent: NhpElement): NhpElement[] {
+	return parent.childNodes.filter((child): child is NhpElement => child.nodeType === 1);
 }
 
-type ColorScheme = PnpProfile['display'] extends { colorScheme?: infer C } ? Exclude<C, undefined> : never;
-const COLOR_SCHEMES = new Set<string>([
-	'default',
-	'defaultreverse',
-	'blackwhite',
-	'whiteblack',
-	'blackrose',
-	'roseblack',
-	'yellowblue',
-	'blueyellow',
-	'mgraydgray',
-	'dgraymgray',
-	'blackcyan',
-	'cyanblack',
-	'blackcream',
-	'creamblack',
-	'whitenav',
-	'medgray',
-]);
-function isColorScheme(v: string): v is ColorScheme {
-	return COLOR_SCHEMES.has(v);
+function splitName(name: string | undefined): { prefix?: string; local: string } {
+	const raw = name ?? '';
+	const colon = raw.indexOf(':');
+	return colon < 0 ? { local: raw } : { prefix: raw.slice(0, colon), local: raw.slice(colon + 1) };
 }
 
-function normalizeCatalogUsage(value: string): string | null {
-	const usage = value.trim().toLowerCase();
-	if (!/^[a-z][a-z0-9._-]*$/.test(usage)) return null;
-	return usage;
+function elementValue(el: NhpElement): unknown {
+	const value: Record<string, unknown> = {};
+	for (const [name, raw] of Object.entries(el.rawAttributes ?? {})) {
+		if (name === 'xmlns' || name.startsWith('xmlns:') || name.startsWith('xsi:')) continue;
+		addValue(value, name === 'xml:lang' ? 'language' : splitName(name).local, scalar(raw));
+	}
+	const children = elementChildren(el);
+	for (const child of children) {
+		addValue(value, splitName(child.rawTagName).local, elementValue(child));
+	}
+	if (children.length > 0 || Object.keys(value).length > 0) return value;
+	const text = el.text.trim();
+	return text ? scalar(text) : {};
 }
 
-function normalizeLanguageCode(value: string): string | undefined {
+function addValue(target: Record<string, unknown>, key: string, value: unknown): void {
+	if (!(key in target)) {
+		target[key] = value;
+		return;
+	}
+	const existing = target[key];
+	target[key] = Array.isArray(existing) ? [...existing, value] : [existing, value];
+}
+
+function scalar(raw: string): string | number | boolean {
+	const value = raw.trim();
+	if (value === 'true') return true;
+	if (value === 'false') return false;
+	if (/^-?\d+(?:\.\d+)?$/.test(value)) return Number(value);
+	return value;
+}
+
+function field(value: unknown, key: string): unknown {
+	return typeof value === 'object' && value !== null && !Array.isArray(value)
+		? (value as Record<string, unknown>)[key]
+		: undefined;
+}
+
+function isPresent(value: unknown): boolean {
+	return value !== undefined && value !== null && value !== false;
+}
+
+function finiteNumber(value: unknown): number | undefined {
+	return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function normalizeLanguageCode(value: unknown): string | undefined {
+	if (typeof value !== 'string') return undefined;
 	const languageCode = value.trim();
-	if (!languageCode) return undefined;
 	if (!/^[a-zA-Z]{2,8}(?:-[a-zA-Z0-9]{1,8})*$/.test(languageCode)) return undefined;
 	return languageCode;
-}
-
-function catalogSupportPreferenceKey(usage: string): string {
-	switch (usage) {
-		case 'tts-pronunciation':
-			return 'ttsPronunciation';
-		case 'signing-definition':
-			return 'signingDefinition';
-		case 'braille-text':
-			return 'brailleText';
-		case 'audio-description':
-			return 'audioDescription';
-		case 'extended-description':
-			return 'extendedDescription';
-		default:
-			return usage;
-	}
 }

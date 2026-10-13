@@ -86,10 +86,11 @@ export {
 
 export { isResponseEmpty } from './utils/responseUtils.js';
 
-// PNP profile (QTI 3.0 §6.2)
+// PNP profile (AfA PNP 3.0, QTI 3's per-candidate profile)
 export type { PnpProfile } from './pnp/types.js';
 export { applyPnpToRoot } from './pnp/applyPnp.js';
-export { parsePnpXml } from './pnp/parsePnpXml.js';
+export type { AfaPnpRecord } from './pnp/parsePnpXml.js';
+export { AFA_PNP_NAMESPACE, parseAfaPnpXml, parsePnpXml, pnpProfileFromAfa } from './pnp/parsePnpXml.js';
 
 // Catalog (QTI 3.0 §6.3)
 export type { CatalogIndex, CatalogCard, CatalogEntry } from './catalog/types.js';

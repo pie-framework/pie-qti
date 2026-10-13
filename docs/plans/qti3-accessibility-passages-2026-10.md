@@ -19,7 +19,7 @@ behavior; this plan covers what changes and in what order.
 | #   | Slice                                             | Branch                              | PR   | State   |
 | --- | ------------------------------------------------- | ----------------------------------- | ---- | ------- |
 | 0   | This plan                                         | `docs/qti3-a11y-passages-plan`      | #271 | merged  |
-| 1   | PNP out of content; AfA PNP 3.0                   | `fix/pnp-out-of-content`            |      | pending |
+| 1   | PNP out of content; AfA PNP 3.0                   | `fix/pnp-out-of-content`            | #273 | open    |
 | 2   | Export reports the catalogs it drops              | `feat/pie-to-qti2-catalog-warnings` |      | pending |
 | 3   | to-pie: QTI 3.0, accessibility catalogs, passages | `feat/to-pie-qti3-a11y-passages`    |      | pending |
 | 4   | APIP in the item player and the export            | `feat/apip-catalog-mapping`         |      | pending |

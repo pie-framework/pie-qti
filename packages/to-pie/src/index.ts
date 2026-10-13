@@ -55,7 +55,6 @@ export type {
   CatalogCard,
   ContextDeclaration,
   ItemReference,
-  PersonalNeedsProfile,
   PieAssessment,
   StimulusRef,
   TestPart,

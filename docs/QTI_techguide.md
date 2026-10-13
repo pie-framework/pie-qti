@@ -1215,15 +1215,26 @@ PCI modules are packaged within the standard QTI content package. All module fil
 
 ### Overview
 
-Personal Needs and Preferences (PNP) is the APIP accessibility framework integrated into QTI 3.0. PNP allows a candidate's accessibility requirements to be expressed as a profile that drives delivery-time adaptation of content presentation. Rather than creating separate accessible versions of items, a single item can be rendered appropriately for many different needs based on the active PNP profile.
+Personal Needs and Preferences (PNP) is QTI 3.0's profile of IMS [Access for All PNP 3.0](https://www.imsglobal.org/spec/afa/v3p0/info). PNP allows a candidate's accessibility requirements to be expressed as a profile that drives delivery-time adaptation of content presentation. Rather than creating separate accessible versions of items, a single item can be rendered appropriately for many different needs based on the active PNP profile.
 
-PNP profiles are typically stored at the platform level (associated with a student account), delivered to the player at session initialization, and applied dynamically during rendering.
+A PNP profile is per-candidate data: an `access-for-all-pnp` document in the namespace `http://www.imsglobal.org/xsd/qtiv3p0/imsafa3p0pnp_v1p0`, stored at the platform level (associated with a student account), delivered to the player at session initialization, and applied dynamically during rendering. Items, sections and tests never carry one; to-pie reports a profile element found in a test as `QTI_PNP_IN_CONTENT` and converts the test without it.
+
+```xml
+<access-for-all-pnp xmlns="http://www.imsglobal.org/xsd/qtiv3p0/imsafa3p0pnp_v1p0">
+  <text-appearance><color-theme>high-contrast</color-theme></text-appearance>
+  <additional-testing-time><time-multiplier>1.5</time-multiplier></additional-testing-time>
+  <answer-masking/>
+  <keyword-translation xml:lang="es"/>
+  <activate-as-option-set><glossary-on-screen/></activate-as-option-set>
+</access-for-all-pnp>
+```
 
 ### PNP Profile Structure
 
-A PNP profile is structured data describing the candidate's needs. The current player accepts the
-implemented `PnpProfile` subset below; `parsePnpXml()` can produce the same shape from QTI XML.
-Other QTI 3.0 PNP fields remain host concerns or deferred work.
+The current player accepts the implemented `PnpProfile` subset below. `parsePnpXml()` produces it
+from an AfA document; `parseAfaPnpXml()` returns the whole record, keyed by AfA terms, for the
+host's tools, and `pnpProfileFromAfa()` maps a record already held as JSON. The document above
+parses to this profile. Other AfA features remain host concerns or deferred work.
 
 ```json
 {
@@ -1249,19 +1260,25 @@ Other QTI 3.0 PNP fields remain host concerns or deferred work.
 
 ### Color Schemes
 
-QTI 3.0 defines a standard set of named color schemes that players must support:
+AfA's `color-theme` vocabulary names the themes; the player maps each onto a scheme identifier:
 
-| Scheme Identifier | Description |
-|-------------------|-------------|
-| `default` | Platform default styling |
-| `blackwhite` | Black text on white background |
-| `whitenav` | White text on dark/navy background |
-| `blackcream` | Black text on cream/off-white background |
-| `yellowblue` | Yellow text on dark blue background |
-| `medgray` | Dark text on medium gray background |
+| AfA `color-theme` | Scheme identifier | Description |
+|-------------------|-------------------|-------------|
+| `default` | `default` | Platform default styling |
+| `default-reverse` | `defaultreverse` | Platform default, reversed |
+| `high-contrast` | `blackwhite` | Black text on white background |
+| `high-contrast-reverse` | `whiteblack` | White text on black background |
+| `black-rose`, `rose-black` | `blackrose`, `roseblack` | Black on rose, and reversed |
+| `yellow-blue`, `blue-yellow` | `yellowblue`, `blueyellow` | Yellow on blue, and reversed |
+| `medgray-darkgray`, `darkgray-medgray` | `mgraydgray`, `dgraymgray` | Medium gray on dark gray, and reversed |
+| `black-cyan`, `cyan-black` | `blackcyan`, `cyanblack` | Black on cyan, and reversed |
+| `black-cream`, `cream-black` | `blackcream`, `creamblack` | Black on cream, and reversed |
 
-The current player writes `data-qti-colorscheme` on its rendered root; shipped styles target that
-attribute and use CSS custom properties internally:
+AfA leaves a theme's exact colors to the delivery system, so `high-contrast` takes black on white.
+An `ext:` theme sets no scheme; the host reads it from the record.
+
+The current player writes `data-qti-colorscheme` on its rendered root. It ships no scheme rules yet,
+so the host stylesheet targets that attribute, for example with CSS custom properties:
 
 ```css
 /* Example: blackwhite scheme */

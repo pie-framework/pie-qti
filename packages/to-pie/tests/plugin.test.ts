@@ -36,6 +36,26 @@ const sampleQtiXml = createQtiWrapper(
 );
 
 describe('QtiToPiePlugin', () => {
+  test('should report a personal needs profile in an assessmentTest', async () => {
+    const plugin = new QtiToPiePlugin();
+    const output = await plugin.transform(
+      {
+        content: `<assessmentTest xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="t1" title="T1">
+          <personalNeedsProfile><support>textToSpeech</support></personalNeedsProfile>
+          <testPart identifier="p1" navigationMode="linear" submissionMode="individual">
+            <assessmentSection identifier="s1" title="S1" visible="true">
+              <assessmentItemRef identifier="i1" href="i1.xml"/>
+            </assessmentSection>
+          </testPart>
+        </assessmentTest>`,
+      },
+      { logger: new SilentLogger() }
+    );
+
+    expect(output.items[0].content).not.toHaveProperty('personalNeedsProfile');
+    expect(output.warnings?.map((warning) => warning.code)).toContain('QTI_PNP_IN_CONTENT');
+  });
+
   test('should identify as correct plugin', () => {
     const plugin = new QtiToPiePlugin();
 

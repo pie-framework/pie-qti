@@ -5,6 +5,7 @@
  * Assessments are pure reference structures that link to items, passages, and sections.
  */
 
+import type { TransformWarning } from '@pie-qti/transform-types';
 import type { HTMLElement } from 'node-html-parser';
 import { parse } from 'node-html-parser';
 import { v4 as uuid } from 'uuid';
@@ -38,12 +39,6 @@ export interface AccessibilityCatalog {
   cards: CatalogCard[];
 }
 
-export interface PersonalNeedsProfile {
-  supports: string[];
-  prohibitedSupports?: string[];
-  activateAtInit?: string[];
-}
-
 export interface StimulusRef {
   identifier: string;
   href: string;
@@ -67,9 +62,6 @@ export interface PieAssessment {
 
   /** QTI 3.0: Integrated APIP accessibility catalogs */
   accessibilityCatalogs?: AccessibilityCatalog[];
-
-  /** QTI 3.0: Personal Needs Profile (PNP 3.0) */
-  personalNeedsProfile?: PersonalNeedsProfile;
 
   /** QTI 3.0: Stimulus references (shared passages) */
   stimulusRefs?: StimulusRef[];
@@ -176,6 +168,8 @@ export interface AssessmentTestOptions {
   includeBranchRules?: boolean;
   /** Whether to include item session controls */
   includeItemControls?: boolean;
+  /** Receives a warning for each construct the transform does not carry. */
+  warnings?: TransformWarning[];
 }
 
 /**
@@ -268,8 +262,14 @@ export function transformAssessmentTest(
   // Extract QTI 3.0 accessibility catalogs
   const accessibilityCatalogs = extractAccessibilityCatalogs(assessmentTest);
 
-  // Extract QTI 3.0 personal needs profile
-  const personalNeedsProfile = extractPersonalNeedsProfile(assessmentTest);
+  const pnpElementName = findCandidateProfile(assessmentTest);
+  if (pnpElementName) {
+    options?.warnings?.push({
+      itemId: assessmentId,
+      code: 'QTI_PNP_IN_CONTENT',
+      message: `assessmentTest "${identifier}" carries a <${pnpElementName}>, which is not converted: a personal needs profile is a per-candidate AfA PNP 3.0 document the player takes at session start.`,
+    });
+  }
 
   // Extract QTI 3.0 stimulus references
   const stimulusRefs = extractStimulusRefs(assessmentTest);
@@ -282,7 +282,6 @@ export function transformAssessmentTest(
     testParts,
     contextDeclarations: contextDeclarations.length > 0 ? contextDeclarations : undefined,
     accessibilityCatalogs: accessibilityCatalogs.length > 0 ? accessibilityCatalogs : undefined,
-    personalNeedsProfile,
     stimulusRefs: stimulusRefs.length > 0 ? stimulusRefs : undefined,
     outcomeProcessingXml,
     outcomeDeclarationsXml: outcomeDeclarationsXml.length > 0 ? outcomeDeclarationsXml : undefined,
@@ -752,46 +751,20 @@ function extractAccessibilityCatalogs(assessmentTest: HTMLElement): Accessibilit
 }
 
 /**
- * Extract QTI 3.0 personal needs profile (PNP 3.0)
+ * The name of a personal needs profile element inside the test, whether AfA's or the
+ * `personalNeedsProfile` some exports invent. Neither belongs in content.
  */
-function extractPersonalNeedsProfile(assessmentTest: HTMLElement): PersonalNeedsProfile | undefined {
-  const pnpElement = assessmentTest.querySelector('personalNeedsProfile') ||
-                    assessmentTest.getElementsByTagName('personalNeedsProfile')[0];
-
-  if (!pnpElement) return undefined;
-
-  const supports: string[] = [];
-  const prohibitedSupports: string[] = [];
-  const activateAtInit: string[] = [];
-
-  // Extract supports
-  const supportElements = pnpElement.getElementsByTagName('support');
-  for (const support of Array.from(supportElements)) {
-    const value = support.textContent?.trim();
-    if (value) supports.push(value);
+function findCandidateProfile(parent: HTMLElement): string | undefined {
+  for (const child of parent.childNodes) {
+    if (child.nodeType !== 1) continue;
+    const el = child as HTMLElement;
+    const name = el.rawTagName ?? '';
+    const local = name.slice(name.indexOf(':') + 1);
+    if (local === 'personalNeedsProfile' || local === 'access-for-all-pnp') return name;
+    const nested = findCandidateProfile(el);
+    if (nested) return nested;
   }
-
-  // Extract prohibited supports
-  const prohibitedElements = pnpElement.getElementsByTagName('prohibitedSupport');
-  for (const prohibited of Array.from(prohibitedElements)) {
-    const value = prohibited.textContent?.trim();
-    if (value) prohibitedSupports.push(value);
-  }
-
-  // Extract activate at init
-  const activateElements = pnpElement.getElementsByTagName('activateAtInit');
-  for (const activate of Array.from(activateElements)) {
-    const value = activate.textContent?.trim();
-    if (value) activateAtInit.push(value);
-  }
-
-  if (supports.length === 0) return undefined;
-
-  return {
-    supports,
-    prohibitedSupports: prohibitedSupports.length > 0 ? prohibitedSupports : undefined,
-    activateAtInit: activateAtInit.length > 0 ? activateAtInit : undefined,
-  };
+  return undefined;
 }
 
 /**

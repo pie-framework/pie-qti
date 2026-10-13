@@ -5,6 +5,7 @@
 import { describe, expect, it } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import type { TransformWarning } from '@pie-qti/transform-types';
 import { transformAssessmentTest } from '../../src/transformers/assessment-test.js';
 
 function loadFixture(name: string): string {
@@ -508,6 +509,39 @@ describe('transformAssessmentTest', () => {
 			expect(assessment.testParts[0].sections[0].visible).toBe(true);
 			expect(assessment.testParts[0].sections[1].visible).toBe(false);
 			expect(assessment.testParts[0].sections[2].visible).toBe(true); // Default is true
+		});
+	});
+
+	describe('Personal needs profile in content', () => {
+		const testWith = (profile: string) => `<assessmentTest xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="pnp-test" title="PNP">
+			${profile}
+			<testPart identifier="part1" navigationMode="linear" submissionMode="individual">
+				<assessmentSection identifier="s1" title="S1" visible="true">
+					<assessmentItemRef identifier="item1" href="item1.xml"/>
+				</assessmentSection>
+			</testPart>
+		</assessmentTest>`;
+
+		it.each([
+			['personalNeedsProfile', '<personalNeedsProfile><support>textToSpeech</support></personalNeedsProfile>'],
+			[
+				'afa:access-for-all-pnp',
+				'<afa:access-for-all-pnp xmlns:afa="http://www.imsglobal.org/xsd/qtiv3p0/imsafa3p0pnp_v1p0"><afa:spoken/></afa:access-for-all-pnp>',
+			],
+		])('warns that a <%s> is not converted', (name, profile) => {
+			const warnings: TransformWarning[] = [];
+			const assessment = transformAssessmentTest(testWith(profile), 'pnp-test', { warnings });
+
+			expect(assessment).not.toHaveProperty('personalNeedsProfile');
+			expect(warnings).toHaveLength(1);
+			expect(warnings[0]).toMatchObject({ itemId: 'pnp-test', code: 'QTI_PNP_IN_CONTENT' });
+			expect(warnings[0].message).toContain(`<${name}>`);
+		});
+
+		it('warns about nothing when the test carries no profile', () => {
+			const warnings: TransformWarning[] = [];
+			transformAssessmentTest(testWith(''), 'pnp-test', { warnings });
+			expect(warnings).toEqual([]);
 		});
 	});
 });
