@@ -42,6 +42,7 @@
     "@pie-qti/section-player": "workspace:*",
     "@biomejs/biome": "^2.5.15",
     "@sveltejs/vite-plugin-svelte": "^7.3.0",
+    "esbuild": "^0.28.2",
     "linkedom": "^0.18.13",
     "svelte": "^5.57.1",
     "typescript": "^5.9.3",
