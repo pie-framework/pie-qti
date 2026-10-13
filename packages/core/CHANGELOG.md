@@ -1,5 +1,14 @@
 # @pie-qti/transform-core
 
+## 0.1.26
+
+### Patch Changes
+
+- Updated dependencies [ff00d31]
+  - @pie-qti/transform-types@0.1.26
+  - @pie-qti/logger@0.1.26
+  - @pie-qti/element-schemas@0.1.26
+
 ## 0.1.25
 
 ### Patch Changes

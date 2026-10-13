@@ -1,5 +1,16 @@
 # @pie-qti/test-utils
 
+## 0.1.26
+
+### Patch Changes
+
+- Updated dependencies [ff00d31]
+- Updated dependencies [cd85c07]
+  - @pie-qti/transform-types@0.1.26
+  - @pie-qti/storage@0.1.26
+  - @pie-qti/transform-core@0.1.26
+  - @pie-qti/logger@0.1.26
+
 ## 0.1.25
 
 ### Patch Changes

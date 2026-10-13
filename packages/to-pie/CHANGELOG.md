@@ -1,5 +1,34 @@
 # @pie-qti/to-pie
 
+## 0.1.26
+
+### Patch Changes
+
+- ff00d31: pie-to-qti2 output now validates against the QTI 2.2 XSD and is scorable: generators match tag-named models through `config.elements`, place `prompt` inside the interaction, declare `SCORE` and `MAXSCORE` with response processing, export every interaction of a multi-interaction item, write rubrics as a `rubricBlock`, and re-serialize authored HTML as XML.
+  
+  Breaking for pie-to-qti2: the PIE item travels in a `.pie.json` sidecar listed under the item's package resource, in place of the embedded `pie:sourceModel` and `qti-metadata`, and the `pie-extension-embedder` exports are removed.
+  
+  Embedded sources are used only while the content beside them is unchanged: to-pie checks the sidecar's `qtiDigest` and warns `PIE_SOURCE_STALE` on a mismatch, and pie-to-qti2 regenerates QTI once a config no longer has the `configDigest` to-pie recorded. Sources written by earlier releases carry no digest and are treated as stale.
+  
+  to-pie keeps both the stem before an interaction and the interaction's `<prompt>`, and EBSR Part B gets the content between its two interactions. It removes QTI feedback it does not map, which rendered inside choice labels and prompts, and reports it as `QTI_FEEDBACK_DROPPED`. `validateQti` rejects XML that is not well-formed as a fatal error, also with `xsd: false`.
+  
+  Item `baseId` and `searchMetaData` are also written as IEEE LOM on the item's manifest resource, which to-pie reads back when no fresh sidecar is present. The manifest's `imsmd` prefix moves from `imsmd_v1p2` to the IEEE LOM namespace the QTI 2.2 packaging profile admits, and resource metadata keys other than `title`, `description` and `language` are no longer written. ims-cp-core's `parseManifest` reads resource title, description and language from prefixed LOM, in either binding, and from `general` only.
+  
+  The to-pie README no longer lists QTI 3.0 input, which is rejected.
+- af8ee10: `QtiSectionDiagnosticSource` names diagnostics a host contributes `'host'`. Breaking: a host emitting the previous host-specific source value switches to `'host'`. The select-point rejection message now says PIE has no element for selecting a point on an image.
+- cd85c07: Require `adm-zip` 0.6.1 and `image-size` 2.0.4, which fall outside their published security advisories.
+- 34c0034: Read the PNP as a per-candidate AfA PNP 3.0 profile. `parsePnpXml` now parses an `access-for-all-pnp` document, `parseAfaPnpXml` returns its whole record and `pnpProfileFromAfa` maps a record onto `PnpProfile`. to-pie no longer emits `personalNeedsProfile` for an assessmentTest and warns `QTI_PNP_IN_CONTENT` instead; the `PersonalNeedsProfile` type is removed.
+- 0307016: to-pie exports its QTI 3.0 normalization: `normalizeQti3ToQti2`, its three steps (`normalizeQti3Lexically`, `relocateQti3PromptIntoInteraction`, `demoteMisplacedQti3Prompts`), `isQti3Document` and `unsupportedQti3Construct`, so a caller that validates or reports on a QTI 3.0 document judges the shape the conversion consumes.
+- 9e96848: to-pie recognizes an interaction under a namespace prefix and in any case. A prefixed portable custom interaction or prefixed interaction beside a standard one refuses the item, where it used to convert the standard interaction alone and drop the other without warning. A lowercase-authored QTI 2.2 interaction converts through its handler, and custom-interaction evidence reads the PCI type identifier in its QTI 2.2 and QTI 3.0 spellings.
+- 5627ce1: to-pie converts QTI 3.0 items, stimuli and tests: `normalizeQti3ToQti2` renames them into the QTI 2.2 vocabulary at the entry point, a vendor transformer still sees the authored document, and a portable custom interaction stays rejected. QTI 3.0 catalogs, APIP access elements and inline SSML become PIE accessibility catalogs keyed by `data-catalog-idref`, companion materials land in `metadata.companionMaterials`, and anything not carried warns `QTI_ACCESSIBILITY_NOT_CARRIED`. Passages convert once per stimulus document through `convertQtiPassageDocument` and come out of the package transform beside the items, prompts keep only the stem, and an unresolvable passage reference warns `QTI_PASSAGE_UNRESOLVED`. `PieAssessment` drops `accessibilityCatalogs` and `stimulusRefs` along with the `StimulusRef` type, and its sections carry `rubricBlocks` in the PIE players' `RubricBlock` shape in place of `rubricRefs`. qti-common exports `QTI3_ATTRIBUTE_TO_QTI2` and `QTI2_PROMPT_BEARING_INTERACTIONS`.
+- Updated dependencies [ff00d31]
+- Updated dependencies [5627ce1]
+  - @pie-qti/transform-types@0.1.26
+  - @pie-qti/ims-cp-core@0.1.26
+  - @pie-qti/qti-common@0.1.26
+  - @pie-qti/transform-core@0.1.26
+  - @pie-qti/ims-cp-node@0.1.26
+
 ## 0.1.25
 
 ### Patch Changes

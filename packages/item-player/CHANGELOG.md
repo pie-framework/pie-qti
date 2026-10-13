@@ -1,5 +1,17 @@
 # @pie-qti/item-player
 
+## 0.1.26
+
+### Patch Changes
+
+- 34c0034: Read the PNP as a per-candidate AfA PNP 3.0 profile. `parsePnpXml` now parses an `access-for-all-pnp` document, `parseAfaPnpXml` returns its whole record and `pnpProfileFromAfa` maps a record onto `PnpProfile`. to-pie no longer emits `personalNeedsProfile` for an assessmentTest and warns `QTI_PNP_IN_CONTENT` instead; the `PersonalNeedsProfile` type is removed.
+- Updated dependencies [ff00d31]
+- Updated dependencies [5627ce1]
+  - @pie-qti/ims-cp-core@0.1.26
+  - @pie-qti/qti-common@0.1.26
+  - @pie-qti/qti-processing@0.1.26
+  - @pie-qti/i18n@0.1.26
+
 ## 0.1.25
 
 ### Patch Changes
