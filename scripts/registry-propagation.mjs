@@ -1,23 +1,24 @@
 /**
  * Retry policy for registry reads that follow a publish in the same job.
  *
- * npm serves reads from replicas that lag the publish, so a version that was just published
- * 404s for a while: the 0.1.25 release published all 27 packages and `check-published-closure`
- * then got E404 for four of them, all resolvable minutes later. The release had already gone
- * out, so the failure only reported it as failed.
+ * A version reaches its packument minutes after `changeset publish` reports it published: npm's
+ * own `time` entries put @pie-qti/item-player 515s behind the first package on 0.1.26, and on
+ * 0.1.25 `check-published-closure` got E404 for four packages that resolved minutes later. The
+ * release had already gone out both times, so giving up early only reported it as failed.
  *
- * Waiting is bounded twice over. Per call, `maxAttempts` with exponential backoff. Across the
- * run, one shared `deadlineMs` measured from the first attempt: without it a genuinely
- * unpublished package burns the full per-call budget once for every package in the fixed group.
+ * One bound: a shared `deadlineMs` measured from the first attempt of the run. It is shared
+ * because versioning is fixed, so a genuinely unpublished release fails every package at once,
+ * and a per-lookup budget would multiply the wait by the size of the group. Past the deadline the
+ * remaining lookups get one attempt each. A five-attempt cap per lookup was dropped after it gave
+ * each package 45 seconds and, with a 240s deadline, failed 0.1.26 on lag alone.
  *
  * Same policy as pie-players' scripts/lib/registry-propagation.mjs.
  */
 
 export const DEFAULT_PROPAGATION_POLICY = Object.freeze({
-	maxAttempts: 5,
 	initialDelayMs: 3_000,
 	maxDelayMs: 30_000,
-	deadlineMs: 240_000,
+	deadlineMs: 900_000,
 });
 
 /** Lets a release run widen the wait without a code change when the registry is slow. */
@@ -50,15 +51,12 @@ export const isPropagationError = (message) => {
 
 /**
  * Decide what to do after a failed attempt. Pure: the caller supplies elapsed time and does the
- * sleeping. `reason` is set only when giving up, and names which bound was hit so a release log
- * distinguishes "npm never caught up" from "not published".
+ * sleeping. `reason` is set only when giving up, and says whether the failure was not lag at all
+ * or npm never caught up within the deadline.
  */
 export const planRetry = ({ attempt, elapsedMs, message, policy = DEFAULT_PROPAGATION_POLICY }) => {
 	if (!isPropagationError(message)) {
 		return { retry: false, delayMs: 0, reason: "not a propagation failure" };
-	}
-	if (attempt >= policy.maxAttempts) {
-		return { retry: false, delayMs: 0, reason: `gave up after ${policy.maxAttempts} attempt(s)` };
 	}
 
 	const delayMs = backoffDelayMs(attempt, policy);
