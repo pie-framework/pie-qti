@@ -1,16 +1,16 @@
 <script lang="ts">
-	import { page } from '$app/stores';
-	import { browser } from '$app/environment';
+	import { page } from '$app/state';
+	import { browser } from '$app/env';
 	import { goto } from '$app/navigation';
-	import { base } from '$app/paths';
-	import { loadPackageDataAsync, getTestXml } from '$lib/package-processor';
-	import type { PackageStructure } from '$lib/package-processor';
-	import XmlEditor from '$lib/components/XmlEditor.svelte';
-	import AssessmentTestStructurePreview from '$lib/components/AssessmentTestStructurePreview.svelte';
+	import { resolve } from '$app/paths';
+	import { loadPackageDataAsync, getTestXml } from '#lib/package-processor.js';
+	import type { PackageStructure } from '#lib/package-processor.js';
+	import XmlEditor from '#lib/components/XmlEditor.svelte';
+	import AssessmentTestStructurePreview from '#lib/components/AssessmentTestStructurePreview.svelte';
 	import {
 		analyzeAssessmentTestStructure,
 		type AssessmentTestStructure,
-	} from '$lib/qti-test-structure';
+	} from '#lib/qti-test-structure.js';
 
 	let testXml = $state<string | null>(null);
 	let loading = $state(true);
@@ -23,8 +23,8 @@
 	// React to URL parameter changes
 	$effect(() => {
 		// Read dependencies - effect will re-run when these change
-		const urlPackageId = $page.params.packageId || '';
-		const urlTestId = $page.params.testId || '';
+		const urlPackageId = page.params.packageId || '';
+		const urlTestId = page.params.testId || '';
 
 		if (!browser || !urlPackageId || !urlTestId) return;
 
@@ -78,12 +78,12 @@
 	});
 
 	function goBack() {
-		goto(`${base}/package-upload`);
+		goto(resolve('/package-upload'));
 	}
 </script>
 
 <svelte:head>
-	<title>QTI Test: {$page.params.testId}</title>
+	<title>QTI Test: {page.params.testId}</title>
 </svelte:head>
 
 <div class="max-w-7xl mx-auto px-6 py-8 space-y-6">
@@ -93,7 +93,7 @@
 			<button class="btn btn-outline btn-sm" onclick={goBack}>← Back to Package</button>
 			<div class="divider divider-horizontal"></div>
 			<div>
-				<h1 class="text-2xl font-bold">Test: {$page.params.testId}</h1>
+				<h1 class="text-2xl font-bold">Test: {page.params.testId}</h1>
 			</div>
 		</div>
 	</div>

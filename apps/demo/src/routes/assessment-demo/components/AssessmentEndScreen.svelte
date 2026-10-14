@@ -2,10 +2,10 @@
 	import type { AssessmentResults, ItemResult } from '@pie-qti/assessment-player';
 	import { typesetMathInElement } from '@pie-qti/typeset-katex';
 	import { ItemBody } from '@pie-qti/item-player/components';
-	import type { SampleAssessment } from '$lib/sample-assessments';
+	import type { SampleAssessment } from '#lib/sample-assessments.js';
 	import { typesetAction } from '@pie-qti/default-components/shared';
-	import { DemoItemSessionController } from '$lib/item-session.svelte';
-	import { getSecurityConfig } from '$lib/player-config';
+	import { DemoItemSessionController } from '#lib/item-session.svelte.js';
+	import { getSecurityConfig } from '#lib/player-config.js';
 	import { untrack } from 'svelte';
 
 	type DisplayItemScore = {

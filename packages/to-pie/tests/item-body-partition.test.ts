@@ -158,6 +158,19 @@ describe('a stimulus reference', () => {
     expect(unresolved(warnings)).toEqual([]);
   });
 
+  test('that the PIE export wrote becomes a reference by its PIE passage id', async () => {
+    const { item, warnings } = await convert(
+      choiceItem(
+        CHOICE,
+        '<assessmentStimulusRef identifier="p-1" href="passages/p-1.xml" data-pie-passage-id="p-1"/>'
+      )
+    );
+
+    expect(item.passage).toBe('p-1');
+    expect(models(item).map((model) => model.element)).toEqual(['multiple-choice']);
+    expect(unresolved(warnings)).toEqual([]);
+  });
+
   test('that names no passage resource is reported', async () => {
     const { item, warnings } = await convert(
       choiceItem(CHOICE, '<assessmentStimulusRef identifier="S1" href="../passages/stimulus.xml"/>')

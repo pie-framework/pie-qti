@@ -1,8 +1,9 @@
-# QTI 2.2.2 Compliance Documentation
+# QTI Compliance Documentation
 
 ## Overview
 
-`@pie-qti/pie-to-qti2` generates QTI 2.2.2 items that validate against the official XSD. The PIE item
+`@pie-qti/pie-to-qti2` generates QTI 2.2.2 items that validate against the official XSD, and QTI 3.0
+items with `targetVersion: '3.0'` (see [QTI 3.0](#qti-30)). The PIE item
 each QTI item came from travels beside it in a sidecar file, so the item document carries no vendor
 elements. This document covers the conformance gate, scoring, content normalization and the round-trip
 mechanism.
@@ -26,6 +27,34 @@ Known approximations, each valid QTI:
   ignores it, as IEEE LOM on the item's `<resource>` in the package manifest (see
   [Manifest Generation](./MANIFEST-GENERATION.md#resource-metadata)). A bare item transform has no
   manifest, so only the sidecar carries them.
+
+## QTI 3.0
+
+`new PieToQtiPlugin({ targetVersion: '3.0' })` writes QTI 3.0. The generators write QTI 2.2 and
+`convertQti2ToQti3` from `@pie-qti/qti-common` renames the finished document: the `imsqtiasi_v3p0`
+namespace and ASI schema location, `qti-` kebab-case element names, kebab-case attributes and the
+3.0 response-processing template URIs. HTML, MathML and SVG keep their names. Three structures
+differ from the QTI 2.2 export:
+
+- **Passages.** An external passage is a `qti-assessment-stimulus` file under `passages/`, and the
+  item references it with `qti-assessment-stimulus-ref`, carrying the PIE passage id as
+  `data-pie-passage-id`.
+- **Rubrics.** Rubric block content sits in `qti-content-body`, and `use` is `scoring` for a scorer
+  view, else `instructions`.
+- **Catalogs.** Item and passage catalogs are written natively as `qti-catalog-info`, one `qti-card`
+  per card, so none of the APIP losses apply. QTI 3.0 types `data-catalog-idref` as an IDREF, so an
+  idref no exported catalog declares is dropped and named in a warning. Assessment catalogs keep
+  their warning.
+
+Packages use the QTI 3 content packaging profile with resource types `imsqti_item_xmlv3p0`,
+`imsqti_stimulus_xmlv3p0` and `imsqti_test_xmlv3p0`. The plugin reports `qti30`. An embedded QTI
+source is re-emitted only to a target of its version family; otherwise the item is generated and a
+warning says so.
+
+[`schema-gate-qti3.test.ts`](../tests/integration/schema-gate-qti3.test.ts) validates every
+generator's QTI 3.0 output, stimuli, tests and manifests against the 1EdTech schemas vendored in
+`@pie-qti/qti-common`, requires to-pie to import each item as it imports the QTI 2.2 twin, and scores
+through the item player.
 
 ## Item Structure
 
@@ -150,10 +179,12 @@ xmllint --schema /path/to/imsqti_v2p2p2.xsd generated-item.xml
 
 - **QTI 2.2 players and LMS imports** load, render and score generated items, within the scoring
   approximations above.
+- **QTI 3.0 players** receive the same items and scoring in the QTI 3.0 vocabulary.
 - **PIE players** use the sidecar's source model.
 
 ## References
 
 - **QTI 2.2.2 Specification:** https://www.imsglobal.org/question/qtiv2p2p2/imsqti_v2p2p2.html
+- **QTI 3.0 Specification:** https://www.imsglobal.org/spec/qti/v3p0/impl
 - **IMS Content Packaging 1.2:** https://www.imsglobal.org/content/packaging/
 - **PIE Framework:** https://github.com/pie-framework/pie-elements

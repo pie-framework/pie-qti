@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { SAMPLE_ITEMS } from '$lib/sample-items';
-	import { getSecurityConfig } from '$lib/player-config';
+	import { SAMPLE_ITEMS } from '#lib/sample-items.js';
+	import { getSecurityConfig } from '#lib/player-config.js';
 	import { assignProps } from '@pie-qti/qti-common';
 
 	let status = $state<'booting' | 'registering' | 'registered' | 'rendered' | 'error'>('booting');
@@ -9,7 +9,7 @@
 	let el = $state<any | null>(null);
 
 	const sample = SAMPLE_ITEMS.find((i) => i.id === 'simple-choice') ?? SAMPLE_ITEMS[0];
-	// Keep in sync with `SIMPLE_CHOICE`'s itemBody text in `$lib/sample-items`.
+	// Keep in sync with `SIMPLE_CHOICE`'s itemBody text in `#lib/sample-items.js`.
 	const expectedText = 'If Maya has 12 cookies and gives 5 to her friend, how many cookies does she have left?';
 
 	/** QTI interaction CEs use open shadow roots; recurse so we see prompt text inside them. */

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { QtiCompatibilityReport, QtiDiagnosticIssue } from '$lib/qti-diagnostics';
+	import type { QtiCompatibilityReport, QtiDiagnosticIssue } from '#lib/qti-diagnostics.js';
 
 	interface Props {
 		report: QtiCompatibilityReport | null;

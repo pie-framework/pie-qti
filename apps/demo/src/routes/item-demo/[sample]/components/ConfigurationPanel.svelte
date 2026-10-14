@@ -1,7 +1,7 @@
 <script lang="ts">
-	import XmlEditor from '$lib/components/XmlEditor.svelte';
-	import { SAMPLE_ITEMS } from '$lib/sample-items';
-	import { hasMultilingualVariants } from '$lib/locale-aware-items';
+	import XmlEditor from '#lib/components/XmlEditor.svelte';
+	import { SAMPLE_ITEMS } from '#lib/sample-items.js';
+	import { hasMultilingualVariants } from '#lib/locale-aware-items.js';
 	import { getContext } from 'svelte';
 	import type { SvelteI18nProvider } from '@pie-qti/i18n';
 	import type { QTIRole } from '@pie-qti/item-player';

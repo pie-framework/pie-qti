@@ -23,7 +23,7 @@
     "batch-transform": "node --loader ts-node/esm --no-warnings=ExperimentalWarning ./src/commands/batch-transform.ts"
   },
   "dependencies": {
-    "@oclif/core": "^4.0.0",
+    "@oclif/core": "^5.1.7",
     "@oclif/plugin-help": "^7.0.4",
     "@pie-qti/ims-cp-node": "workspace:*",
     "@pie-qti/logger": "workspace:*",
@@ -38,7 +38,7 @@
     "typescript": "^5.9.3"
   },
   "engines": {
-    "node": ">=20.19.0"
+    "node": ">=22.0.0"
   },
   "oclif": {
     "bin": "pie-transform",

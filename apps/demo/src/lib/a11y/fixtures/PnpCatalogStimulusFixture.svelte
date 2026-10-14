@@ -2,7 +2,7 @@
 	import { ItemBody } from '@pie-qti/item-player/components';
 	import type { PnpProfile } from '@pie-qti/item-player';
 	import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
-	import { DemoItemSessionController } from '$lib/item-session.svelte';
+	import { DemoItemSessionController } from '#lib/item-session.svelte.js';
 	import { onMount } from 'svelte';
 
 	// Clean-room QTI 3 fixture authored for Stage 5 public accessibility evidence.

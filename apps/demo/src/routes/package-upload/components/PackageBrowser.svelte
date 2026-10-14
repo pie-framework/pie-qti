@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { base } from '$app/paths';
+	import { resolve } from '$app/paths';
 	import ItemList from './ItemList.svelte';
 	import TestList from './TestList.svelte';
 
@@ -19,12 +19,12 @@
 
 	function viewItem(event: CustomEvent<[item: { identifier: string; href: string }]>) {
 		const item = event.detail[0];
-		goto(`${base}/package-upload/${packageData.packageId}/item/${item.identifier}`);
+		goto(resolve('/package-upload/[packageId]/item/[itemId]', { packageId: packageData.packageId, itemId: item.identifier }));
 	}
 
 	function viewTest(event: CustomEvent<[test: { identifier: string; href: string }]>) {
 		const test = event.detail[0];
-		goto(`${base}/package-upload/${packageData.packageId}/test/${test.identifier}`);
+		goto(resolve('/package-upload/[packageId]/test/[testId]', { packageId: packageData.packageId, testId: test.identifier }));
 	}
 </script>
 

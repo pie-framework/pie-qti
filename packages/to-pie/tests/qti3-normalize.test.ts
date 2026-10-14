@@ -180,6 +180,20 @@ describe('normalizeQti3ToQti2', () => {
     );
   });
 
+  test('unwraps rubric block content from qti-content-body', () => {
+    const xml = item(
+      '',
+      '<qti-item-body><qti-rubric-block view="scorer" use="scoring"><qti-stylesheet href="r.css" type="text/css"/>' +
+        '<qti-content-body><p>Full</p></qti-content-body></qti-rubric-block>' +
+        '<qti-rubric-block view="candidate" use="instructions"><qti-content-body/></qti-rubric-block></qti-item-body>'
+    );
+
+    expect(normalizeQti3Lexically(xml)).toContain(
+      '<itemBody><rubricBlock view="scorer" use="scoring"><stylesheet href="r.css" type="text/css"/><p>Full</p></rubricBlock>' +
+        '<rubricBlock view="candidate" use="instructions"></rubricBlock></itemBody>'
+    );
+  });
+
   test('leaves QTI 2.x markup unchanged', () => {
     const qti2 =
       '<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="i1"><itemBody/></assessmentItem>';

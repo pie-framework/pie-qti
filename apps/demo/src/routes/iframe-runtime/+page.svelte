@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { browser } from '$app/environment';
-	import { page } from '$app/stores';
+	import { browser } from '$app/env';
+	import { page } from '$app/state';
 	import { typesetAction } from '@pie-qti/default-components/shared';
 	import { ItemBody } from '@pie-qti/item-player/components';
 	import {
@@ -12,7 +12,7 @@
 	import type { InteractionResponseValue } from '@pie-qti/item-player/web-components';
 	import { typesetMathInElement } from '@pie-qti/typeset-katex';
 	import { onDestroy, onMount } from 'svelte';
-	import { DemoItemSessionController } from '$lib/item-session.svelte';
+	import { DemoItemSessionController } from '#lib/item-session.svelte.js';
 
 	type IframeResponseValue = InteractionResponseValue | null;
 	type IframeResponseMap = Record<string, IframeResponseValue>;
@@ -37,7 +37,7 @@
 
 	// Optional security: validate messages from a known parent origin.
 	// Note: during prerendering, query strings are unavailable; guard access.
-	const expectedParentOrigin = $derived(browser ? $page.url.searchParams.get('parentOrigin') : null);
+	const expectedParentOrigin = $derived(browser ? page.url.searchParams.get('parentOrigin') : null);
 	const targetParentOrigin = $derived(expectedParentOrigin ?? '*');
 
 	function makePostMessageSafe(value: unknown): unknown {

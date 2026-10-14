@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { READING_COMPREHENSION_ASSESSMENT } from '$lib/sample-assessments';
-	import { getSecurityConfig } from '$lib/player-config';
+	import { READING_COMPREHENSION_ASSESSMENT } from '#lib/sample-assessments.js';
+	import { getSecurityConfig } from '#lib/player-config.js';
 	import { assignProps } from '@pie-qti/qti-common';
 
 	let status = $state<'booting' | 'registering' | 'registered' | 'rendered' | 'error'>('booting');

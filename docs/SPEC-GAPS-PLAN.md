@@ -1,7 +1,7 @@
 # PIE-QTI Specification Gaps — Implementation Plan
 
 **Status**: Living document
-**Last reviewed**: 2026-08-17
+**Last reviewed**: 2026-10-14
 **Source analysis**: Comparison of `docs/QTI_techguide.md` against the codebase
 
 This document is the authoritative meta-plan for closing gaps between the QTI specification and the
@@ -69,8 +69,9 @@ other choices that also list `"set-a"` in their `matchGroup`. This is used in re
 prevent nonsensical pairings in large matching pools.
 
 Current
-None of the four affected extractors read or expose `matchGroup`. The UI components therefore have
-no information to enforce pairing constraints.
+The associate, match, gap-match, graphic-gap-match and graphic-associate extractors read
+`matchGroup` into the choice data, and the default components filter pairing targets through
+`isCompatibleMatchGroup`.
 
 Action
 1. Add `matchGroup?: string[]` to the choice type in each affected extractor's data interface.
@@ -175,7 +176,7 @@ Test signal
 ### G-05: `testFeedback` visibility only handles boolean outcomes
 
 Scope       — `packages/assessment-player/src/core/AssessmentPlayer.ts`
-Status      — Done (already implemented; no code change needed)
+Status      — In-progress (comparison done; the reference backend supplies no outcomes, and `access="during"` is never shown)
 Effort      — S
 Spec ref    — §2.1 (Assessment Architecture — testFeedback)
 
@@ -186,12 +187,17 @@ is shown when the outcome variable named by `outcomeIdentifier` equals `identifi
 can be any type, not just boolean.
 
 Current
-`AssessmentPlayer.ts:574-576` already performs `String(outcomes[fb.outcomeIdentifier] ?? '') ===
-fb.identifier` — string equality for all outcome types. Boolean outcomes still work because
-`true`/`false` are coerced to `"true"`/`"false"` before comparison.
+`AssessmentPlayer` compares `String(outcomes[fb.outcomeIdentifier] ?? '') === fb.identifier` at
+finalize — string equality for all outcome types, with booleans coerced to `"true"`/`"false"`.
+The outcomes come from the backend's finalize result, and `ReferenceBackendAdapter.finalizeAssessment`
+returns only `totalScore`, `maxScore` and `itemScores`, so the comparison sees `{}`: with the
+reference backend, `showHide="show"` feedback never shows and `showHide="hide"` feedback always
+shows. Only `access="atEnd"` feedback is evaluated. Tests cover `testFeedback` parsing only; none covers visibility.
 
 Action
-Done. `AssessmentPlayer.getVisibleFeedback()` uses string equality for the named outcome variable; keep regression coverage for boolean outcomes, string outcomes, and `showHide="hide"`.
+1. Return the outcome values `runOutcomeProcessing` computes from `finalizeAssessment` as `outcomes`.
+2. Evaluate `access="during"` feedback after each item submission.
+3. Add coverage for boolean outcomes, string outcomes and `showHide="hide"` through the reference backend.
 
 Test signal
 - Assessment with `outcomeIdentifier="GRADE"` and three feedback blocks for `identifier="A"`, `"B"`, `"C"` shows only the correct block after scoring.
@@ -212,9 +218,9 @@ choice, the response is incomplete unless that choice has been used at least `ma
 is a hard constraint on response completeness analogous to `minChoices` on `choiceInteraction`.
 
 Current
-`matchMin` is extracted and present in the data models. It is validated in extractor `validate()`
-methods only as a structural check (`matchMin >= 0`). There is no check at response-submission time
-that the candidate has satisfied `matchMin` for every choice.
+`Player.validateResponses()` counts each choice's appearances in the response, across choices, gap
+texts, gap images, match sets and associable hotspots, and reports the response incomplete while any
+choice is below its `matchMin`.
 
 Action
 1. In `Player.validateResponse()` (or wherever `isResponseValid()` is computed), for interactions that carry `matchMin` on choices, iterate each choice and count how many times its identifier appears in the current response. Return invalid if any choice has a count below its `matchMin`.
@@ -606,7 +612,7 @@ Scope       — `packages/item-player/src/core/Player.ts`;
               new `packages/item-player/src/pnp/` module;
               `packages/default-components/src/` (individual component changes);
               `packages/assessment-player/src/core/AssessmentPlayer.ts`
-Status      — Done (commit fa8fa97, 2026-04-28)
+Status      — Done except color-scheme CSS (commit fa8fa97, 2026-04-28; the attribute is written, no scheme rules ship)
 Effort      — L
 Spec ref    — §6.2
 
@@ -624,15 +630,18 @@ initialisation. It controls:
 
 Current
 PNP support is implemented for the current delivery scope: `AssessmentItemDefinitionConfig.pnp`,
-the `ItemSession` `updatePnp` command, color schemes, elimination tool, extended time, and
-glossary/keyword-translation trigger UI are shipped. Specialist features such as structured labels,
-braille routing, and sign-language video remain deferred under G-13/G-14.
+the `ItemSession` `updatePnp` command, elimination tool, extended time, and
+glossary/keyword-translation trigger UI are shipped. A color scheme is written as
+`data-qti-colorscheme` on the player root, but no package ships `[data-qti-colorscheme]` rules, so a
+scheme changes nothing until the host stylesheet supplies them; which package owns them is an open
+question in `prds/systems/pnp.md`. Specialist features such as structured labels and braille routing
+remain deferred under G-13.
 
 Action
-Done for G-09. Future PNP work is tracked under G-13/G-14 and package-level catalog discovery under G-15.
+Ship the color-scheme rulesets once their owning package is decided. Future PNP work is tracked under G-13 and package-level catalog discovery under G-15.
 
 Test signal
-- A definition/session created with `pnp: { display: { colorScheme: 'blackwhite' } }` applies the correct CSS custom properties.
+- A definition/session created with `pnp: { display: { colorScheme: 'blackwhite' } }` sets `data-qti-colorscheme="blackwhite"` and, once the rulesets ship, the scheme's colors.
 - `session.dispatch({ action: 'updatePnp', profile: { display: { colorScheme: 'yellowblue' } } })` changes the scheme without re-parsing the item.
 - Elimination tool buttons appear in `choiceInteraction` when `pnp.cognitive.eliminationTool` is true.
 - A 60-second time limit becomes 90 seconds when `extendedTime.multiplier` is 1.5.
@@ -682,7 +691,7 @@ clear record of what remains and so sub-tasks can be created when priorities shi
 ### G-11: Full QTI `<outcomeProcessing>` XML interpreter at assessment level
 
 Scope       — `packages/assessment-player/`; `packages/qti-processing/`
-Status      — Done for the current assessment/reference ingestion path (2026-07-13)
+Status      — Done for the interpreter (2026-07-13); the reference backend passes it a partial test context
 Effort      — L
 Spec ref    — §2.1 (Assessment Architecture), §4.3
 
@@ -696,7 +705,11 @@ Current
 `ReferenceBackendAdapter` parses outcome declarations and outcome-processing XML and executes it
 with a test context. The raw-XML custom element's explicit reference mode now resolves resources and
 delegates its authoritative `SecureAssessment` parse to that adapter, preserving outcome processing
-and test feedback. Production use remains backend-authoritative: an injected backend supplies the
+and test feedback. The test context it builds is partial: each item carries only `SCORE` and its
+outcome values, coerced to single float or string, with no section identifiers, categories, weights
+or presented/responded/selected flags, so `numberResponded`, `numberSelected`, section filters,
+`weightIdentifier` and category filters do not evaluate as authored; and the computed outcomes do
+not reach test feedback (G-05). Production use remains backend-authoritative: an injected backend supplies the
 secure assessment/session model rather than exposing answer-bearing assessment XML in the browser.
 
 Action
@@ -769,7 +782,7 @@ Test signal
 
 Scope       — `packages/item-player/src/pnp/`;
               catalog integration (G-10)
-Status      — Deferred
+Status      — Done (commit fa8fa97, 2026-04-28; through `qti-catalog-lookup`)
 Effort      — M
 Spec ref    — §6.2, §6.3
 
@@ -780,9 +793,14 @@ are outside the scope of the player itself. The player's role is to expose the d
 the host provides the capability.
 
 Current
-Not implemented.
+`getCatalogEntry()` returns any usage, `tts-pronunciation` and `signing-definition` included. With
+a platform usage active (`tts-pronunciation`, `signing-definition`, `braille-text`,
+`audio-description`, `extended-description`), activating a linked term fires a `qti-catalog-lookup`
+CustomEvent carrying `idref`, `usage`, the entry's content and its language, which the host routes
+to its TTS engine or sign-language player. The single event replaces the per-usage events the
+original action proposed.
 
-Action (when prioritised)
+Original action
 1. Extend `getCatalogEntry()` to support `'signing-definition'` and `'tts-pronunciation'` usages (catalog parsing covered by G-10).
 2. When `data-catalog-idref` elements are encountered and a TTS engine is registered, fire a `qti-tts-override` custom event carrying the phonetic hint so the host's TTS engine can intercept it.
 3. For signing, emit a `qti-signing-request` event with the video URL when the candidate activates the signing indicator.
@@ -821,6 +839,37 @@ Test signal
 
 ---
 
+### G-25: QTI 3.0 writer
+
+Scope       — `packages/pie-to-qti2/`
+Status      — Done (PR #302, 2026-10-14; `targetVersion: '3.0'` on `PieToQtiPlugin`)
+Effort      — L
+Spec ref    — §1.3 (Version Differences Reference)
+
+Context
+QTI 3.0 import is supported end to end, so a package can enter as QTI 3.0 and leave as QTI 2.2.
+Round-tripping QTI 3.0 content, or exporting to a QTI 3.0-only platform, requires a writer that emits
+`imsqti_v3p0` items, stimuli, tests and manifests with the `qti-` kebab-case vocabulary.
+
+Current
+Every generator emits QTI 2.2: the namespace and schema location are fixed to `imsqti_v2p2` in
+`types/index.ts`, `utils/qti-builder.ts`, `generators/passage-generator.ts`, `generators/passage.ts`,
+`generators/assessment.ts` and `generators/manifest-generator.ts`. The only QTI 3.0 output is the
+lossless path, which re-emits embedded QTI 3.0 source unchanged and reports `qti30`; a PIE item
+without embedded source, or one edited after import, always exports as QTI 2.2.
+
+Action (when prioritised)
+1. Decide the surface: a `targetVersion` option on the existing plugin or a separate plugin.
+2. Emit QTI 3.0 through the element and attribute mappers in `@pie-qti/qti-common` (canonical name to
+   `qti-` name), with QTI 3.0 namespaces in items, stimuli, tests and the manifest resource types.
+3. Write `qti-assessment-stimulus` resources for passages and `qti-assessment-stimulus-ref` from items.
+
+Test signal
+- A generated QTI 3.0 package validates against the QTI 3.0 XSD and imports through `to-pie` to the
+  same PIE models as its QTI 2.2 counterpart.
+
+---
+
 ## Reference: gap–file index
 
 Quick lookup of which source files are touched by each gap item.
@@ -853,6 +902,7 @@ Quick lookup of which source files are touched by each gap item.
 | `packages/qti-common/src/element-mapper/` | G-18 |
 | `packages/qti-processing/` | G-11, G-19, G-21, G-24 |
 | `packages/ims-cp-browser/` | G-15 |
+| `packages/pie-to-qti2/` | G-25 |
 
 ---
 

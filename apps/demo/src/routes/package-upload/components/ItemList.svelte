@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
-	import type { PackageItem } from '$lib/package-processor';
+	import type { PackageItem } from '#lib/package-processor.js';
 
 	const dispatch = createEventDispatcher<{ view: [item: { identifier: string; href: string }] }>();
 

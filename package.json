@@ -13,9 +13,6 @@
     "packages/*",
     "tools/*"
   ],
-  "overrides": {
-    "cookie": "0.7.2"
-  },
   "scripts": {
     "postinstall": "node scripts/setup-local-players.mjs && node scripts/check-deps.mjs --warn-only",
     "prepare": "lefthook install",
@@ -82,7 +79,7 @@
     "@arethetypeswrong/cli": "^0.18.2",
     "@biomejs/biome": "^2.5.15",
     "@changesets/cli": "^3.0.3",
-    "@dotenvx/dotenvx": "^2.32.4",
+    "@dotenvx/dotenvx": "^2.34.2",
     "@types/bun": "^1.4.2",
     "lefthook": "^2.1.16",
     "publint": "^0.3.25",

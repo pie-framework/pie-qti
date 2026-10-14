@@ -1,18 +1,18 @@
 {
-	"extends": "./.svelte-kit/tsconfig.json",
+	"extends": "$app/tsconfig",
 	"compilerOptions": {
-		"noEmit": true,
-		"allowJs": true,
-		"checkJs": true,
-		"esModuleInterop": true,
-		"forceConsistentCasingInFileNames": true,
-		"resolveJsonModule": true,
-		"skipLibCheck": true,
 		"sourceMap": true,
-		"strict": true,
-		"moduleResolution": "bundler"
+		// `$app/tsconfig` sets `types`, so global types the tests rely on are listed here.
+		"types": ["$app/types", "bun"],
+		"strict": true
 	},
 	"exclude": [
 		"tests/playwright/**/*"
+	],
+	"include": [
+		"src",
+		"vite.config.ts",
+		"playwright.config.ts",
+		"tests"
 	]
 }

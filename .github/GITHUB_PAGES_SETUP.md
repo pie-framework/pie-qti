@@ -17,28 +17,32 @@ This provides:
 
 The example app uses `@sveltejs/adapter-static` to generate a static site.
 
-**File:** `apps/docs/svelte.config.js`
+**File:** `apps/docs/vite.config.ts`
 ```javascript
 import adapter from '@sveltejs/adapter-static';
+import { sveltekit } from '@sveltejs/kit/vite';
+import { defineConfig } from 'vite';
 
-const config = {
-  kit: {
-    adapter: adapter({
-      pages: 'build',
-      assets: 'build',
-      fallback: undefined,
-      precompress: false,
-      strict: false // Allow non-prerenderable API routes (they won't be available on GitHub Pages)
-    }),
-    paths: {
-      base: process.env.NODE_ENV === 'production' ? '/pie-qti' : ''
-    },
-    prerender: {
-      handleMissingId: 'warn',
-      handleUnseenRoutes: 'ignore' // Ignore dynamic routes like /a11y-components/[fixture]
-    }
-  }
-};
+export default defineConfig({
+  plugins: [
+    sveltekit({
+      adapter: adapter({
+        pages: 'build',
+        assets: 'build',
+        fallback: undefined,
+        precompress: false,
+        strict: false // Allow non-prerenderable API routes (they won't be available on GitHub Pages)
+      }),
+      paths: {
+        base: process.env.NODE_ENV === 'production' ? '/pie-qti' : ''
+      },
+      prerender: {
+        handleMissingId: 'warn',
+        handleUnseenRoutes: 'ignore' // Ignore dynamic routes like /a11y-components/[fixture]
+      }
+    })
+  ]
+});
 ```
 
 **Key settings:**
@@ -202,7 +206,7 @@ To use a custom domain like `qti.pie-framework.org`:
    - Custom domain: `qti.pie-framework.org`
    - Save (this creates CNAME file in repo)
 
-3. **Update svelte.config.js**:
+3. **Update the `sveltekit()` options in vite.config.ts**:
    ```javascript
    paths: {
      base: '' // Remove /pie-qti for custom domain
@@ -215,7 +219,7 @@ To use a custom domain like `qti.pie-framework.org`:
 
 ### Enable Precompression
 
-Update `svelte.config.js`:
+Update the `sveltekit()` options in `vite.config.ts`:
 ```javascript
 adapter: adapter({
   precompress: true, // Generates .gz and .br files
@@ -252,6 +256,6 @@ For private repos, you need a paid plan.
 ## Related Documentation
 
 - [.github/workflows/deploy-pages.yml](.github/workflows/deploy-pages.yml) - Deployment workflow
-- [apps/demo/svelte.config.js](../apps/demo/svelte.config.js) - SvelteKit config
+- [apps/demo/vite.config.ts](../apps/demo/vite.config.ts) - SvelteKit config
 - [SvelteKit Static Adapter](https://kit.svelte.dev/docs/adapter-static) - Official docs
 - [GitHub Pages](https://docs.github.com/en/pages) - Official docs

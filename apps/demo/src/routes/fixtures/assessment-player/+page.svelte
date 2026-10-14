@@ -5,8 +5,8 @@
 import { AssessmentShell } from '$assessment-components';
 	import { typesetAction } from '@pie-qti/default-components/shared';
 	import { typesetMathInElement } from '@pie-qti/typeset-katex';
-	import { SAMPLE_ASSESSMENTS, type SampleAssessment } from '$lib/sample-assessments';
-	import { getSecurityConfig } from '$lib/player-config';
+	import { SAMPLE_ASSESSMENTS, type SampleAssessment } from '#lib/sample-assessments.js';
+	import { getSecurityConfig } from '#lib/player-config.js';
 
 	let selectedSampleId = $state('reading-comp-1');
 	let selectedAssessment = $state<SampleAssessment | null>(null);

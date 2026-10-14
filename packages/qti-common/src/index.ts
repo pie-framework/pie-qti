@@ -11,6 +11,12 @@ export {
 	QTI2_PROMPT_BEARING_INTERACTIONS,
 	QTI3_ATTRIBUTE_TO_QTI2,
 } from './element-mapper/qti3-attribute-map.js';
+export {
+	convertQti2ToQti3,
+	QTI3_ASI_SCHEMA_LOCATION,
+	QTI3_NAMESPACE,
+	QTI3_RPTEMPLATE_BASE,
+} from './element-mapper/qti2-to-qti3.js';
 
 // Version detection
 export { detectQtiVersion } from './version-detection/detectQtiVersion.js';

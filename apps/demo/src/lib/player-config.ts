@@ -5,7 +5,7 @@
  * deployment-specific concerns like asset URL resolution.
  */
 
-import { base } from '$app/paths';
+import { resolve } from '$app/paths';
 import type { PlayerSecurityConfig } from '@pie-qti/item-player';
 
 /**
@@ -17,7 +17,7 @@ import type { PlayerSecurityConfig } from '@pie-qti/item-player';
  */
 export function getAssetBaseUrl(): string {
 	if (typeof window === 'undefined') return '';
-	return `${window.location.origin}${base}/`;
+	return `${window.location.origin}${resolve('/')}`;
 }
 
 /**

@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { getContext, onDestroy } from 'svelte';
-	import { page } from '$app/stores';
-	import { browser } from '$app/environment';
+	import { page } from '$app/state';
+	import { browser } from '$app/env';
 	import { goto } from '$app/navigation';
-	import { base } from '$app/paths';
+	import { resolve } from '$app/paths';
 	import type { QtiHeuristicsConfig, QTIRole } from '@pie-qti/item-player';
 	import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
 	import type { InteractionResponseValue } from '@pie-qti/item-player/web-components';
@@ -11,13 +11,13 @@
 	import { typesetAction } from '@pie-qti/default-components/shared';
 	import { typesetMathInElement } from '@pie-qti/typeset-katex';
 	import type { SvelteI18nProvider } from '@pie-qti/i18n';
-	import { loadPackageDataAsync, getItemXml, resolveImagesInXml, loadItemDeliveryContext, listFiles } from '$lib/package-processor';
-	import type { PackageStructure } from '$lib/package-processor';
-	import { DemoItemSessionController } from '$lib/item-session.svelte';
-	import { getSecurityConfig } from '$lib/player-config';
-	import XmlEditor from '$lib/components/XmlEditor.svelte';
-	import QtiDiagnosticsPanel from '$lib/components/QtiDiagnosticsPanel.svelte';
-	import { analyzeQtiItemCompatibility, type QtiCompatibilityReport } from '$lib/qti-diagnostics';
+	import { loadPackageDataAsync, getItemXml, resolveImagesInXml, loadItemDeliveryContext, listFiles } from '#lib/package-processor.js';
+	import type { PackageStructure } from '#lib/package-processor.js';
+	import { DemoItemSessionController } from '#lib/item-session.svelte.js';
+	import { getSecurityConfig } from '#lib/player-config.js';
+	import XmlEditor from '#lib/components/XmlEditor.svelte';
+	import QtiDiagnosticsPanel from '#lib/components/QtiDiagnosticsPanel.svelte';
+	import { analyzeQtiItemCompatibility, type QtiCompatibilityReport } from '#lib/qti-diagnostics.js';
 
 	type ItemResponseValue = InteractionResponseValue | null;
 
@@ -75,7 +75,7 @@
 		openItemSession(itemXml, deliveryContext);
 		diagnostics = analyzeQtiItemCompatibility(sourceItemXml ?? itemXml, {
 			session: itemSession.session ?? undefined,
-			sourcePath: packageData?.items.find((item) => item.identifier === $page.params.itemId)?.href,
+			sourcePath: packageData?.items.find((item) => item.identifier === page.params.itemId)?.href,
 			packageFiles: packageData ? listFiles(packageData).map((file) => file.path) : [],
 		});
 	}
@@ -83,8 +83,8 @@
 	// React to URL parameter changes
 	$effect(() => {
 		// Read dependencies - effect will re-run when these change
-		const urlPackageId = $page.params.packageId || '';
-		const urlItemId = $page.params.itemId || '';
+		const urlPackageId = page.params.packageId || '';
+		const urlItemId = page.params.itemId || '';
 
 		if (!browser || !urlPackageId || !urlItemId) return;
 
@@ -173,7 +173,7 @@
 	function navigateToItem(index: number) {
 		if (packageData && packageData.items[index]) {
 			const item = packageData.items[index];
-			goto(`${base}/package-upload/${$page.params.packageId}/item/${item.identifier}`);
+			goto(resolve('/package-upload/[packageId]/item/[itemId]', { packageId: packageData.packageId, itemId: item.identifier }));
 		}
 	}
 
@@ -190,7 +190,7 @@
 	}
 
 	function goBack() {
-		goto(`${base}/package-upload`);
+		goto(resolve('/package-upload'));
 	}
 
 	function handleRoleChange() {
@@ -231,7 +231,7 @@
 </script>
 
 <svelte:head>
-	<title>{itemTitle ? `${itemTitle} - QTI Item` : `QTI Item: ${$page.params.itemId}`}</title>
+	<title>{itemTitle ? `${itemTitle} - QTI Item` : `QTI Item: ${page.params.itemId}`}</title>
 </svelte:head>
 
 <div class="max-w-7xl mx-auto px-6 py-8 space-y-6">
@@ -242,13 +242,13 @@
 			<div class="divider divider-horizontal"></div>
 			<div>
 				<h1 class="text-2xl font-bold">
-					{itemTitle || `Item: ${$page.params.itemId}`}
+					{itemTitle || `Item: ${page.params.itemId}`}
 				</h1>
 				{#if currentItemIndex >= 0}
 					<p class="text-sm text-base-content/70">
 						Item {currentItemIndex + 1} of {totalItems}
 						{#if itemTitle}
-							<span class="ml-2 text-xs opacity-70">({$page.params.itemId})</span>
+							<span class="ml-2 text-xs opacity-70">({page.params.itemId})</span>
 						{/if}
 					</p>
 				{/if}

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { ItemBody } from '@pie-qti/item-player/components';
-	import { DemoItemSessionController } from '$lib/item-session.svelte';
+	import { DemoItemSessionController } from '#lib/item-session.svelte.js';
 	import { onMount } from 'svelte';
 
 	const qtiXml = `<?xml version="1.0" encoding="UTF-8"?>

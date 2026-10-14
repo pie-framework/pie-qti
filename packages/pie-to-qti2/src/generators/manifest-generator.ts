@@ -2,7 +2,7 @@
  * IMS Content Package Manifest Generator
  *
  * Generates imsmanifest.xml files for IMS Content Packages
- * Follows IMS Content Packaging v1.1.4 and QTI 2.2 specifications
+ * Follows IMS Content Packaging v1.1.4 with the QTI 2.2 or QTI 3.0 content-packaging profile
  */
 
 import { v4 as uuid } from 'uuid';
@@ -38,6 +38,8 @@ export function generateManifest(input: ManifestInput): string {
 export function buildManifest(input: ManifestInput): ImsManifest {
   const options = input.options || {};
   const packageId = options.packageId || `pkg-${uuid()}`;
+  const qtiVersion = options.qtiVersion ?? '2.2';
+  const types = RESOURCE_TYPES[qtiVersion];
 
   // Build resources
   const resources: Resource[] = [];
@@ -52,7 +54,7 @@ export function buildManifest(input: ManifestInput): ImsManifest {
 
       resources.push({
         identifier: passage.id,
-        type: passage.type || 'imsqti_item_xmlv2p2',
+        type: passage.type || types.passage,
         href: passage.filePath,
         metadata,
         baseId: passage.baseId,
@@ -80,7 +82,7 @@ export function buildManifest(input: ManifestInput): ImsManifest {
 
     resources.push({
       identifier: item.id,
-      type: item.type || 'imsqti_item_xmlv2p2',
+      type: item.type || types.item,
       href: item.filePath,
       metadata,
       baseId: item.baseId,
@@ -109,7 +111,7 @@ export function buildManifest(input: ManifestInput): ImsManifest {
 
       resources.push({
         identifier: assessment.id,
-        type: assessment.type || 'imsqti_assessment_xmlv2p2',
+        type: assessment.type || types.assessment,
         href: assessment.filePath,
         metadata,
         files: assessment.files?.map(f => ({ href: f })),
@@ -123,8 +125,18 @@ export function buildManifest(input: ManifestInput): ImsManifest {
     schemaVersion: options.schemaVersion || '1.1',
     metadata: options.metadata,
     resources,
+    qtiVersion,
   };
 }
+
+/** Default resource types per QTI version. QTI 2.2 packages a passage as an interaction-less item. */
+const RESOURCE_TYPES = {
+  '2.2': { passage: 'imsqti_item_xmlv2p2', item: 'imsqti_item_xmlv2p2', assessment: 'imsqti_assessment_xmlv2p2' },
+  '3.0': { passage: 'imsqti_stimulus_xmlv3p0', item: 'imsqti_item_xmlv3p0', assessment: 'imsqti_test_xmlv3p0' },
+} as const;
+
+export const QTI3_CP_NAMESPACE = 'http://www.imsglobal.org/xsd/qti/qtiv3p0/imscp_v1p1';
+const QTI3_CP_SCHEMA_LOCATION = 'https://purl.imsglobal.org/spec/qti/v3p0/schema/xsd/imsqtiv3p0_imscpv1p2_v1p0.xsd';
 
 /**
  * Convert manifest structure to XML
@@ -138,26 +150,41 @@ export function manifestToXml(manifest: ImsManifest): string {
   // XML declaration
   lines.push('<?xml version="1.0" encoding="UTF-8"?>');
 
-  // Manifest root element
-  lines.push(
-    '<manifest identifier="' + escapeXml(manifest.identifier) + '"',
-    '          xmlns="http://www.imsglobal.org/xsd/imscp_v1p1"',
-    `          xmlns:imsmd="${LOM_NAMESPACE}"`,
-    '          xmlns:imsqti="http://www.imsglobal.org/xsd/imsqti_v2p2"',
-    '          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"',
-    '          xsi:schemaLocation="http://www.imsglobal.org/xsd/imscp_v1p1',
-    '                              http://www.imsglobal.org/xsd/qti/qtiv2p2/qtiv2p2_imscpv1p2_v1p0.xsd',
-    `                              ${LOM_NAMESPACE} ${LOM_SCHEMA_LOCATION}`,
-    '                              http://www.imsglobal.org/xsd/imsqti_v2p2',
-    '                              http://www.imsglobal.org/xsd/qti/qtiv2p2/imsqti_v2p2.xsd">',
-  );
+  if (manifest.qtiVersion === '3.0') {
+    // The QTI 3.0 profile requires the manifest metadata and fixes its values.
+    lines.push(
+      `<manifest identifier="${escapeXml(manifest.identifier)}"`,
+      `          xmlns="${QTI3_CP_NAMESPACE}"`,
+      `          xmlns:imsmd="${LOM_NAMESPACE}"`,
+      '          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"',
+      `          xsi:schemaLocation="${QTI3_CP_NAMESPACE} ${QTI3_CP_SCHEMA_LOCATION}`,
+      `                              ${LOM_NAMESPACE} ${LOM_SCHEMA_LOCATION}">`,
+      '  <metadata>',
+      '    <schema>QTI Package</schema>',
+      '    <schemaversion>3.0.0</schemaversion>',
+      '  </metadata>'
+    );
+  } else {
+    lines.push(
+      '<manifest identifier="' + escapeXml(manifest.identifier) + '"',
+      '          xmlns="http://www.imsglobal.org/xsd/imscp_v1p1"',
+      `          xmlns:imsmd="${LOM_NAMESPACE}"`,
+      '          xmlns:imsqti="http://www.imsglobal.org/xsd/imsqti_v2p2"',
+      '          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"',
+      '          xsi:schemaLocation="http://www.imsglobal.org/xsd/imscp_v1p1',
+      '                              http://www.imsglobal.org/xsd/qti/qtiv2p2/qtiv2p2_imscpv1p2_v1p0.xsd',
+      `                              ${LOM_NAMESPACE} ${LOM_SCHEMA_LOCATION}`,
+      '                              http://www.imsglobal.org/xsd/imsqti_v2p2',
+      '                              http://www.imsglobal.org/xsd/qti/qtiv2p2/imsqti_v2p2.xsd">',
+    );
 
-  // Metadata (if provided)
-  if (manifest.metadata) {
-    lines.push('  <metadata>');
-    lines.push('    <schema>IMS Content</schema>');
-    lines.push('    <schemaversion>' + escapeXml(manifest.schemaVersion || '1.1') + '</schemaversion>');
-    lines.push('  </metadata>');
+    // Metadata (if provided)
+    if (manifest.metadata) {
+      lines.push('  <metadata>');
+      lines.push('    <schema>IMS Content</schema>');
+      lines.push('    <schemaversion>' + escapeXml(manifest.schemaVersion || '1.1') + '</schemaversion>');
+      lines.push('  </metadata>');
+    }
   }
 
   // Organizations (empty by default, as QTI items don't require navigation structure)
@@ -175,7 +202,7 @@ export function manifestToXml(manifest: ImsManifest): string {
 
     lines.push('    <resource ' + resourceAttrs.join(' ') + '>');
 
-    // IEEE LOM, the metadata the QTI 2.2 packaging profile admits on a resource
+    // IEEE LOM, the metadata both QTI packaging profiles admit on a resource
     const lom = renderResourceLom(
       {
         baseId: resource.baseId,

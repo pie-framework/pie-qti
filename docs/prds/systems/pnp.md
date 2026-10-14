@@ -16,7 +16,7 @@
 
 ## Summary
 
-The PNP (Personal Needs and Preferences) profile is a per-candidate AfA PNP 3.0 document, QTI 3's profile of IMS Access for All, that the host delivers to the player at session start. Content never carries it. PIE-QTI parses the document and implements the core PNP surface: named color schemes applied via a CSS data-attribute on the player root, a per-choice elimination tool in `choiceInteraction` and `orderInteraction`, an extended-time multiplier that scales `timeLimits.maxTime` in the assessment player, and trigger UI with inline popup for on-screen glossary and keyword-translation accommodations (illustrated-glossary renders as `<img>`), plus `qti-catalog-lookup` DOM events for platform-level usages (TTS, signing, braille, audio description). Structured label and braille support are deferred to G-13.
+The PNP (Personal Needs and Preferences) profile is a per-candidate AfA PNP 3.0 document, QTI 3's profile of IMS Access for All, that the host delivers to the player at session start. Content never carries it. PIE-QTI parses the document and implements the core PNP surface: a named color scheme written as the `data-qti-colorscheme` attribute on the player root (no package ships the scheme rulesets yet, so the host stylesheet must supply them), a per-choice elimination tool in `choiceInteraction` and `orderInteraction`, an extended-time multiplier that scales `timeLimits.maxTime` in the assessment player, and trigger UI with inline popup for on-screen glossary and keyword-translation accommodations (illustrated-glossary renders as `<img>`), plus `qti-catalog-lookup` DOM events for platform-level usages (TTS, signing, braille, audio description). Structured label and braille support are deferred to G-13.
 
 ---
 
@@ -118,7 +118,7 @@ The record `parseAfaPnpXml` returns is the JSON form pie-players' `createPersona
 
 ### Known gaps
 
-**G-09 — PNP profile support:** Implemented in commit `fa8fa97` (2026-04-28). Color schemes, elimination tool, extended time, glossary/keyword-translation triggers and popups are all shipped. Remaining deferred items: magnification overlay (browser zoom sufficient), structured labels (G-13), braille routing (G-13), sign language video (G-14).
+**G-09 — PNP profile support:** Implemented in commit `fa8fa97` (2026-04-28). Elimination tool, extended time, glossary/keyword-translation triggers and popups are shipped. Color schemes set `data-qti-colorscheme` on the player root; the scheme rulesets do not ship yet (see the CSS ownership open question). Remaining deferred items: magnification overlay (browser zoom sufficient), structured labels (G-13), braille routing (G-13). Sign language video is host-owned: G-14 delivers it through `qti-catalog-lookup`.
 
 ---
 
@@ -159,7 +159,7 @@ The record `parseAfaPnpXml` returns is the JSON form pie-players' `createPersona
 
 **Alternatives considered:** Inline `style` attribute for CSS custom property overrides (rejected — properties would need to be duplicated per-scheme; hard to audit; harder for host to override).
 
-**Consequences:** The color scheme CSS rulesets must be shipped in `@pie-qti/default-components` and scoped to the player root element's attribute. The host cannot suppress the scheme by removing a class; it must override via higher-specificity CSS or remove the attribute directly.
+**Consequences:** The color scheme CSS rulesets must ship in a PIE-QTI package, scoped to the player root element's attribute; which package is an open question, and none ships them yet. The host cannot suppress the scheme by removing a class; it must override via higher-specificity CSS or remove the attribute directly.
 
 ---
 

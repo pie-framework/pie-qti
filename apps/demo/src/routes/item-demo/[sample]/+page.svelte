@@ -1,14 +1,14 @@
 <script lang="ts">
-	import { base } from '$app/paths';
-	import { page } from '$app/stores';
+	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import type { QTIRole, RubricBlock } from '@pie-qti/item-player';
 	import { onMount, untrack, getContext } from 'svelte';
 	import type { SvelteI18nProvider } from '@pie-qti/i18n';
-	import { SAMPLE_ITEMS } from '$lib/sample-items';
-	import { getItemXmlForLocale, hasMultilingualVariants } from '$lib/locale-aware-items';
-	import { getSecurityConfig } from '$lib/player-config';
-	import { DemoItemSessionController } from '$lib/item-session.svelte';
+	import { SAMPLE_ITEMS } from '#lib/sample-items.js';
+	import { getItemXmlForLocale, hasMultilingualVariants } from '#lib/locale-aware-items.js';
+	import { getSecurityConfig } from '#lib/player-config.js';
+	import { DemoItemSessionController } from '#lib/item-session.svelte.js';
 	import ConfigurationPanel from './components/ConfigurationPanel.svelte';
 	import QuestionPanel from './components/QuestionPanel.svelte';
 	import ResizableDivider from './components/ResizableDivider.svelte';
@@ -17,8 +17,8 @@
 	import * as PanelResize from './lib/panel-resize';
 	import { loadSessionFromServer, saveSessionToServer } from './lib/session-api';
 	import type { DemoResponseMap, DemoResponseValue, SessionData } from './lib/types';
-	import QtiDiagnosticsPanel from '$lib/components/QtiDiagnosticsPanel.svelte';
-	import { analyzeQtiItemCompatibility, type QtiCompatibilityReport } from '$lib/qti-diagnostics';
+	import QtiDiagnosticsPanel from '#lib/components/QtiDiagnosticsPanel.svelte';
+	import { analyzeQtiItemCompatibility, type QtiCompatibilityReport } from '#lib/qti-diagnostics.js';
 
 	// Get i18n provider from context (set in root layout)
 	const i18nContext = getContext<{ value: SvelteI18nProvider | null }>('i18n');
@@ -108,7 +108,7 @@
 	// Event handlers
 	function handleSampleChange(id: string) {
 		// Use full page reload for fast, reliable navigation with proper math rendering
-		window.location.href = `${base}/item-demo/${encodeURIComponent(id)}`;
+		window.location.href = resolve('/item-demo/[sample]', { sample: encodeURIComponent(id) });
 	}
 
 	function handleXmlChange(newXml: string) {
@@ -261,7 +261,7 @@
 	// React to URL parameter changes and locale changes
 	$effect(() => {
 		// Read dependencies - effect will re-run when these change
-		const urlSampleId = $page.params.sample;
+		const urlSampleId = page.params.sample;
 		const i18nProvider = i18n;
 		const currentLocale = i18nProvider?.getLocale() ?? 'en-US';
 
@@ -311,7 +311,7 @@
 		// Validate sample exists
 		if (!SAMPLE_ITEMS.find((item) => item.id === urlSampleId)) {
 			// Invalid sample - redirect to default
-			goto(`${base}/item-demo/simple-choice`, { replaceState: true, noScroll: true });
+			goto(resolve('item-demo/simple-choice'), { replace: true, reset: false });
 			return;
 		}
 
