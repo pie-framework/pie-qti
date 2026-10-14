@@ -407,7 +407,7 @@ Then: Focus is not moved away from the candidate's current position
 
 ## Open questions
 
-- [x] **G-09 — PNP profile:** Shipped in commit `fa8fa97` (2026-04-28). Color schemes, elimination tool, extended time, glossary/keyword-translation triggers and popups are all implemented. See `docs/prds/systems/pnp.md` for full specification.
+- [x] **G-09 — PNP profile:** Shipped in commit `fa8fa97` (2026-04-28). Elimination tool, extended time, glossary/keyword-translation triggers and popups are implemented; color schemes set `data-qti-colorscheme` on the player root, and no scheme rulesets ship yet. See `docs/prds/systems/pnp.md` for full specification.
 
 - [ ] **G-13 — Structured label and braille support (Tier 3, Deferred):** PNP `structuredLabelSupport` adds supplementary ARIA group wrappers and sub-labels to complex interactions. `braille-text` catalog entries expose content to refreshable braille displays. The catalog prerequisite (G-10) has shipped; G-13 itself remains deferred. See `docs/SPEC-GAPS-PLAN.md` §G-13.
 

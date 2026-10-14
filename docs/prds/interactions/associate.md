@@ -67,7 +67,7 @@ The response array stored in `player.declarations` is NOT canonicalized when the
 | `responseIdentifier` | — | Required. Binds to `responseDeclaration` with `baseType="pair"` `cardinality="multiple"`. |
 | `shuffle` | `false` | When `true`, choice order is randomized at extraction time by a PRNG seeded from the item session GUID, so the order is fixed for the session (including across reloads). |
 | `maxAssociations` | `1` | Maximum number of pairs the candidate may form. `0` means unlimited. |
-| `minAssociations` | `0` | Minimum number of pairs required for a complete response. Extracted but **not enforced at submission time** (see G-06 below). |
+| `minAssociations` | `0` | Minimum number of pairs required for a complete response. Enforced by `Player.validateResponses()`: a response with fewer pairs is incomplete. |
 
 ### Supported attributes on `simpleAssociableChoice`
 
@@ -75,28 +75,14 @@ The response array stored in `player.declarations` is NOT canonicalized when the
 |-----------|---------|----------|
 | `identifier` | — | Required. Used as both the response token and the lookup key in `mapEntry`. |
 | `matchMax` | — | Required per spec. Maximum times this choice may appear in the response (across all pairs). `0` means unlimited. Extracted and present in `AssociateData.choices[].matchMax`. **Not enforced by the UI** — see design decisions. |
-| `matchMin` | `0` | Minimum times this choice must appear. Extracted and conditionally included in `AssociateData.choices[].matchMin`. **Not validated at submission** (G-06). |
+| `matchMin` | `0` | Minimum times this choice must appear. Extracted when > 0. `Player.validateResponses()` marks the response incomplete while any choice appears in fewer pairs (G-06). |
 | `class` | — | Optional space-separated CSS class names. Extracted into `choices[].classes`. |
 
-### Known gaps
+### Resolved gaps
 
-**G-01 — `matchGroup` not extracted** (`SPEC-GAPS-PLAN.md §G-01`, status: Open)
+**G-01 — `matchGroup`** (`SPEC-GAPS-PLAN.md §G-01`, Done). The extractor reads `matchGroup` into `choices[].matchGroup`, and the component makes choices with no shared group inert while a choice is pending.
 
-The `matchGroup` attribute restricts which choices may be paired with each other. When `matchGroup="set-a"` is set on a choice, it may only be paired with other choices whose `matchGroup` includes `"set-a"`. Item banks use this to prevent nonsensical pairings in large pools (e.g., a pool of 8 items where only specific subsets should be paired together).
-
-Impact: Items that rely on `matchGroup` will silently allow invalid pairings. The UI offers all choices as valid partners for any pending selection, which is incorrect. The extractor does not read the attribute; it is absent from `AssociateData`.
-
-Required fix: Add `matchGroup?: string[]` to `AssociableChoice` and extractor; filter valid pairing targets in the UI component based on shared group membership.
-
-**G-06 — `matchMin` not validated at submission** (`SPEC-GAPS-PLAN.md §G-06`, status: Open)
-
-`matchMin > 0` on a `simpleAssociableChoice` means the choice must appear in at least that many pairs in a valid response. Currently, `matchMin` is extracted and passed to the component but not checked when the candidate submits. A response that violates `matchMin` is accepted without warning.
-
-Impact: Items that use `matchMin` to enforce mandatory choice usage (e.g., "each term must be used at least once") will accept incomplete responses silently.
-
-### Type-system gap
-
-`AssociateInteractionData` (in `packages/item-player/src/interactions/shared/types.ts`) does not include `minAssociations` or per-choice `matchMin`/`matchGroup` fields, even though the extractor reads and returns them. The runtime type used by the component is narrower than the extractor's `AssociateData` type. If these fields are needed by the UI, the shared type must be updated in the same PR.
+**G-06 — `matchMin` at submission** (`SPEC-GAPS-PLAN.md §G-06`, Done). `Player.validateResponses()` counts each choice's appearances across pairs and reports the response incomplete while any choice is below its `matchMin`.
 
 ---
 
@@ -205,6 +191,7 @@ interface AssociateData {
     text: string;        // HTML string, sanitized by item player pipeline
     matchMax: number;    // 0 = unlimited
     matchMin?: number;   // Present only when > 0
+    matchGroup?: string[]; // Present only when non-empty
     classes?: string[];  // Present only when non-empty
   }>;
   shuffle: boolean;
@@ -214,7 +201,6 @@ interface AssociateData {
 }
 ```
 
-Note: `matchGroup` is absent (G-01 gap). `minAssociations` is extracted but absent from `AssociateInteractionData` in `interactions.ts` — it does not reach the component.
 
 ### `AssociateInteractionData` (component input, `packages/item-player/src/interactions/shared/types.ts`)
 
@@ -223,12 +209,11 @@ interface AssociateInteractionData extends BaseInteractionData {
   type: 'associateInteraction';
   shuffle: boolean;
   maxAssociations: number;
+  minAssociations?: number;
   prompt: string | null;
-  choices: AssociableChoice[];  // AssociableChoice has identifier, text, matchMax only
+  choices: AssociableChoice[];  // identifier, text, matchMax, matchMin?, matchGroup?, classes?
 }
 ```
-
-This type is narrower than `AssociateData` — `minAssociations`, per-choice `matchMin`, per-choice `classes`, and (once G-01 is addressed) per-choice `matchGroup` are all absent. The gap between extractor output and component input is a known inconsistency.
 
 ### Response variable
 
@@ -423,18 +408,16 @@ AC-E3: Response restoration
   Then: Both pairs are shown in the Current Associations list on initial render
         No qti-change event fires on mount
 
-AC-E4: G-01 — matchGroup absent, all choices offered as partners
+AC-E4: G-01 — matchGroup restricts partners
   Given: An item with matchGroup="set-a" on choices A and B, matchGroup="set-b" on choices C and D
   When: The candidate selects choice A as pending
-  Then: Choices C and D appear as clickable (no filtering occurs — G-01 is open)
-  Notes: This is the known incorrect behavior until G-01 is fixed. Document that the acceptance criterion will invert once G-01 is resolved: after the fix, C and D must be visually inert when A (set-a) is pending.
+  Then: Choices C and D are inert; B remains a valid partner
 
-AC-E5: G-06 — matchMin not enforced at submission
+AC-E5: G-06 — matchMin enforced at submission
   Given: An item with matchMin=1 on choice A (A must be used at least once)
          The candidate submits without including A in any pair
-  When: player.validateResponse() or submit is invoked
-  Then: No validation error is surfaced for the unmet matchMin constraint (G-06 is open)
-  Notes: This is the known gap. After G-06 is fixed, the criterion inverts: submission must be blocked with an appropriate accessibility-friendly error message.
+  When: player.validateResponses() is invoked
+  Then: The response is reported incomplete
 
 AC-E6: maxAssociations=1 (default) limits to one pair
   Given: An associateInteraction with no maxAssociations attribute (default=1)
