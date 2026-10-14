@@ -22,7 +22,7 @@ the PIE→QTI export. Slices run in certification-impact order. The conversion d
 | #   | Slice                                          | Branch                                | PR  | State   |
 | --- | ---------------------------------------------- | ------------------------------------- | --- | ------- |
 | 0   | This plan                                      | `docs/qti3-native-delivery-plan`      | #300 | merged  |
-| 1   | Item-body pass and printed variables           | `feat/item-body-printed-variables`    |     | pending |
+| 1   | Item-body pass and printed variables           | `feat/item-body-printed-variables`    | #307 | open    |
 | 2   | Inline feedback                                | `fix/feedback-inline-native`          |     | pending |
 | 3   | Feedback and template blocks; modal feedback   | `feat/feedback-template-blocks`       |     | pending |
 | 4   | Test feedback outcomes                         | `fix/test-feedback-outcomes`          |     | pending |
