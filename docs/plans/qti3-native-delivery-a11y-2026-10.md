@@ -33,7 +33,7 @@ the PIE→QTI export. Slices run in certification-impact order. The conversion d
 | 9   | Content language                               | `feat/delivery-content-language`      |     | pending |
 | 10  | PNP in delivery                                | `feat/delivery-pnp`                   |     | pending |
 | 11  | Shared vocabulary, catalogs and sanitizer      | `feat/delivery-vocabulary-catalogs`   |     | pending |
-| 12  | Element map completion                         | `fix/qti3-element-map`                |     | open    |
+| 12  | Element map completion                         | `fix/qti3-element-map`                | #301 | open    |
 | 13  | QTI 3.0 writer                                 | `feat/pie-to-qti2-qti3-writer`        |     | pending |
 
 States: `pending`, `in progress`, `open` (PR up, merge agent running), `merged`, `blocked`
