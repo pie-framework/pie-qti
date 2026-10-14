@@ -1,15 +1,9 @@
 /**
- * Comprehensive QTI 3.0 element name mappings.
+ * QTI 3.0 element name mappings: every `qti-*` element of the 1EdTech QTI 3.0 ASI schema,
+ * mapped to its lowercase canonical name. `qti3-xsd-conformance.test.ts` checks the map
+ * against the schema vendored in `schemas/qti3/`, in both directions.
  *
- * Based on IMS Global/1EdTech QTI 3.0 specification and amp-up.io implementation.
- * All QTI 3.0 elements use kebab-case with 'qti-' prefix.
- *
- * The map covers the interactions, most processing rules and expressions, and the
- * accessibility elements. It is not the complete vocabulary: test-structure elements
- * such as qti-item-session-control, qti-selection and qti-branch-rule, and
- * qti-assessment-stimulus, are absent. Qti3ElementNameMapper.toCanonical derives a
- * canonical name for an unmapped qti- element by stripping the prefix and hyphens;
- * toNative returns an unmapped canonical name unchanged.
+ * XHTML and HTML5 content elements keep their unprefixed names in QTI 3 and are not listed.
  */
 
 /**
@@ -24,6 +18,32 @@ export const CORE_ELEMENTS = {
 	'qti-assessment-section': 'assessmentsection',
 	'qti-assessment-item-ref': 'assessmentitemref',
 	'qti-assessment-stimulus-ref': 'assessmentstimulusref',
+} as const;
+
+/**
+ * Test structure elements
+ */
+export const TEST_STRUCTURE_ELEMENTS = {
+	'qti-assessment-section-ref': 'assessmentsectionref',
+	'qti-item-session-control': 'itemsessioncontrol',
+	'qti-time-limits': 'timelimits',
+	'qti-selection': 'selection',
+	'qti-ordering': 'ordering',
+	'qti-branch-rule': 'branchrule',
+	'qti-pre-condition': 'precondition',
+	'qti-test-feedback': 'testfeedback',
+	'qti-template-default': 'templatedefault',
+	'qti-variable-mapping': 'variablemapping',
+	'qti-weight': 'weight',
+	'qti-outcome-processing-fragment': 'outcomeprocessingfragment',
+} as const;
+
+/**
+ * Shared stimulus elements
+ */
+export const STIMULUS_ELEMENTS = {
+	'qti-assessment-stimulus': 'assessmentstimulus',
+	'qti-stimulus-body': 'stimulusbody',
 } as const;
 
 /**
@@ -90,7 +110,6 @@ export const INTERACTION_CHILD_ELEMENTS = {
 	'qti-gap': 'gap',
 	'qti-gap-text': 'gaptext',
 	'qti-gap-img': 'gapimg',
-	'qti-gap-choice': 'gapchoice',
 	'qti-hotspot-choice': 'hotspotchoice',
 	'qti-associable-hotspot': 'associablehotspot',
 	'qti-hottext': 'hottext',
@@ -226,11 +245,12 @@ export const EXPRESSION_ELEMENTS = {
 	'qti-number-responded': 'numberresponded',
 	'qti-number-selected': 'numberselected',
 
-	// Duration operators (time-based constraints)
-	'qti-duration-gt': 'durationgt',
+	// Type conversion
+	'qti-integer-to-float': 'integertofloat',
+
+	// Duration operators (QTI 2 durationGTE and durationLT)
 	'qti-duration-gte': 'durationgte',
 	'qti-duration-lt': 'durationlt',
-	'qti-duration-lte': 'durationlte',
 } as const;
 
 /**
@@ -241,7 +261,6 @@ export const FEEDBACK_ELEMENTS = {
 	'qti-feedback-block': 'feedbackblock',
 	'qti-feedback-inline': 'feedbackinline',
 	'qti-rubric-block': 'rubricblock',
-	'qti-modal-feedback-ok': 'modalfeedbackok',
 } as const;
 
 /**
@@ -251,8 +270,6 @@ export const PCI_ELEMENTS = {
 	'qti-interaction-modules': 'interactionmodules',
 	'qti-interaction-module': 'interactionmodule',
 	'qti-interaction-markup': 'interactionmarkup',
-	'qti-interaction-hook': 'interactionhook',
-	'qti-interaction-config': 'interactionconfig',
 } as const;
 
 /**
@@ -275,7 +292,41 @@ export const CONTENT_ELEMENTS = {
 	'qti-context-variable': 'contextvariable',
 	'qti-template-variable': 'templatevariable',
 	'qti-stylesheet': 'stylesheet',
+} as const;
+
+/**
+ * Companion materials (calculators, rulers, protractors, reference material)
+ */
+export const COMPANION_MATERIAL_ELEMENTS = {
 	'qti-companion-materials-info': 'companionmaterialsinfo',
+	'qti-calculator': 'calculator',
+	'qti-calculator-info': 'calculatorinfo',
+	'qti-calculator-type': 'calculatortype',
+	'qti-description': 'description',
+	'qti-digital-material': 'digitalmaterial',
+	'qti-physical-material': 'physicalmaterial',
+	'qti-label': 'label',
+	'qti-protractor': 'protractor',
+	'qti-rule': 'rule',
+	'qti-rule-system-si': 'rulesystemsi',
+	'qti-rule-system-us': 'rulesystemus',
+	'qti-increment-si': 'incrementsi',
+	'qti-increment-us': 'incrementus',
+	'qti-major-increment': 'majorincrement',
+	'qti-minor-increment': 'minorincrement',
+	'qti-minimum-length': 'minimumlength',
+} as const;
+
+/**
+ * Adaptive delivery and metadata references
+ */
+export const REFERENCE_ELEMENTS = {
+	'qti-adaptive-selection': 'adaptiveselection',
+	'qti-adaptive-engine-ref': 'adaptiveengineref',
+	'qti-adaptive-settings-ref': 'adaptivesettingsref',
+	'qti-metadata-ref': 'metadataref',
+	'qti-usagedata-ref': 'usagedataref',
+	'qti-resource-icon': 'resourceicon',
 } as const;
 
 /**
@@ -283,6 +334,8 @@ export const CONTENT_ELEMENTS = {
  */
 export const QTI3_ELEMENT_MAPPINGS = {
 	...CORE_ELEMENTS,
+	...TEST_STRUCTURE_ELEMENTS,
+	...STIMULUS_ELEMENTS,
 	...DECLARATION_ELEMENTS,
 	...INTERACTION_ELEMENTS,
 	...INTERACTION_CHILD_ELEMENTS,
@@ -294,6 +347,8 @@ export const QTI3_ELEMENT_MAPPINGS = {
 	...PCI_ELEMENTS,
 	...CATALOG_ELEMENTS,
 	...CONTENT_ELEMENTS,
+	...COMPANION_MATERIAL_ELEMENTS,
+	...REFERENCE_ELEMENTS,
 } as const;
 
 /**
