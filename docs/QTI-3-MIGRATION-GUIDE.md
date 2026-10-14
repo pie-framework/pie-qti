@@ -321,7 +321,7 @@ Catalog parsing and glossary/keyword-translation popup support are implemented:
 
 | Component | QTI 2.x | QTI 3.0 | Notes |
 |-----------|---------|---------|-------|
-| **Element name mapping** | Implemented | Partial map | Explicit map lacks some test-structure and stimulus elements, which fall back to prefix stripping; HTML/MathML/SVG/extensions pass through |
+| **Element name mapping** | Implemented | Implemented | Explicit map of every `qti-*` element in the 3.0 schema, checked against it in tests; HTML/MathML/SVG/extensions pass through |
 | **Attribute handling** | Implemented | Implemented | Camel/kebab accessors |
 | **Version detection** | Implemented | Implemented | Namespace first, root-name fallback |
 | **Standard interactions (21 names)** | Broad coverage | Broad coverage | Includes schema-valid position-object hierarchy and extended-text cardinalities; browser evidence varies by interaction |

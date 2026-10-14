@@ -21,7 +21,7 @@ the PIE→QTI export. Slices run in certification-impact order. The conversion d
 
 | #   | Slice                                          | Branch                                | PR  | State   |
 | --- | ---------------------------------------------- | ------------------------------------- | --- | ------- |
-| 0   | This plan                                      | `docs/qti3-native-delivery-plan`      | #300 | open    |
+| 0   | This plan                                      | `docs/qti3-native-delivery-plan`      | #300 | merged  |
 | 1   | Item-body pass and printed variables           | `feat/item-body-printed-variables`    |     | pending |
 | 2   | Inline feedback                                | `fix/feedback-inline-native`          |     | pending |
 | 3   | Feedback and template blocks; modal feedback   | `feat/feedback-template-blocks`       |     | pending |
@@ -33,7 +33,7 @@ the PIE→QTI export. Slices run in certification-impact order. The conversion d
 | 9   | Content language                               | `feat/delivery-content-language`      |     | pending |
 | 10  | PNP in delivery                                | `feat/delivery-pnp`                   |     | pending |
 | 11  | Shared vocabulary, catalogs and sanitizer      | `feat/delivery-vocabulary-catalogs`   |     | pending |
-| 12  | Element map completion                         | `fix/qti3-element-map`                |     | pending |
+| 12  | Element map completion                         | `fix/qti3-element-map`                | #301 | open    |
 | 13  | QTI 3.0 writer                                 | `feat/pie-to-qti2-qti3-writer`        |     | pending |
 
 States: `pending`, `in progress`, `open` (PR up, merge agent running), `merged`, `blocked`
@@ -131,12 +131,13 @@ display/margin/padding/width utilities. Missing: `qti-writing-orientation-*`,
 `aria-*`, `alt`, `role` and `lang`, except where `<object type="image/*">` becomes `<img>` and
 drops them. Interaction-level `aria-*` is not carried to the rendered controls.
 
-**Element map.** `qti3-element-mappings.ts` has no entry for `qti-assessment-section-ref`,
-`qti-assessment-stimulus`, `qti-stimulus-body`, `qti-item-session-control`, `qti-time-limits`,
-`qti-selection`, `qti-ordering`, `qti-branch-rule`, `qti-pre-condition`, `qti-test-feedback`,
-`qti-template-default`, `qti-variable-mapping`, `qti-weight` or `qti-integer-to-float`. The
-fallback strips prefix and hyphens, which yields a lowercased name that differs from the
-camelCase canonical one for every multi-word element.
+**Element map.** `qti3-element-mappings.ts` lacks 37 of the ASI schema's `qti-*` elements,
+among them `qti-assessment-section-ref`, `qti-assessment-stimulus`, `qti-stimulus-body`,
+`qti-item-session-control`, `qti-time-limits`, `qti-selection`, `qti-ordering`,
+`qti-branch-rule`, `qti-pre-condition`, `qti-test-feedback`, `qti-template-default`,
+`qti-variable-mapping`, `qti-weight` and `qti-integer-to-float`, and lists six the schema does
+not declare. The `toCanonical` fallback strips prefix and hyphens, which equals the canonical
+name, so the gaps break `toNative` and `isQti3Element` only.
 
 **QTI 3 export.** `pie-to-qti2` writes `imsqti_v2p2` throughout: sixteen item and passage generators build
 QTI 2.2 by string template, passages are interaction-less `assessmentItem`s, catalogs are written
@@ -209,8 +210,10 @@ loss warnings do not apply to it. Assessment-level catalogs still have no QTI ho
 their warning.
 
 **QTI 3.0 XSDs as test fixtures.** The QTI 3.0 ASI and content-packaging XSDs are vendored into
-`pie-to-qti2`'s test fixtures to validate generated output, as the 2.2 XSDs validate the 2.2
-export. Import still validates after normalization against 2.2, so to-pie gains no schemas.
+`packages/qti-common/schemas/qti3/`, outside the published files, where the element-map test and
+the pie-to-qti2 export gate both read them. MathML 3 and SSML resolve to skip-content stubs,
+since the copies vendored for 2.2 use IMS's 2010 namespaces. Import still validates after
+normalization against 2.2, so to-pie gains no schemas.
 
 ---
 
@@ -346,9 +349,10 @@ Done when each vocabulary class has a fixture and a screen reader announces inte
 
 ### 12. Element map completion
 
-- The missing test-structure and stimulus entries are added by extending the attribute-map
-  generator's kebab-case rule to element names from the vendored XSDs, excluding the XHTML
-  elements QTI 3 takes from HTML and the elements QTI 3 removed.
+- The 37 missing entries are added by hand in their groups and the six undeclared ones removed.
+  A conformance test checks the map against the vendored ASI schema in both directions, and
+  that every QTI 2.2 element except the XHTML set and the removed `infoControl` maps to a
+  declared QTI 3.0 name.
 
 Done when every QTI 3 element with a 2.2 counterpart round-trips through the mapper.
 
