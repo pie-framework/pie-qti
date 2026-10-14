@@ -111,6 +111,11 @@ policy-checked scoped CSS, ordered body flow, and direct `assessmentItem` rubric
 use `HtmlContent` (`string | TrustedHTML` when available); `FinalItemBodyHtml` marks content that has
 completed the body transform and delivery pipeline.
 
+Item body, rubric block and modal feedback content resolves `printedVariable` against the current
+session in either QTI spelling, honouring `format` (C `printf` conversions), `base`, `index`,
+`powerForm`, `field`, `delimiter` and `mappingIndicator`. QTI 3 rubric content is unwrapped from
+`qti-content-body`, so a rubric renders as its QTI 2.2 counterpart does.
+
 Section/test-part shared rubrics are not duplicated into item presentation. Assessment and section
 hosts place those through section composition.
 

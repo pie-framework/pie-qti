@@ -37,6 +37,8 @@ import type {
 	ResponseProcessingDescriptor,
 } from '../document/AssessmentItemDocument.js';
 import { parseAssessmentItemDocument } from '../document/AssessmentItemDocument.js';
+import type { ContentHandler, ContentHandlers } from '../document/contentPass.js';
+import { printVariable, readPrintedVariableOptions } from '../document/printedVariable.js';
 import {
 	createExtractionRegistry,
 	registerFrameworkDeliveryFields,
@@ -855,7 +857,7 @@ export class Player {
 	}
 
 	public getItemBodyHtml(): HtmlContent {
-		const inner = this.itemDocument.serializeItemBodyChildren();
+		const inner = this.itemDocument.serializeItemBodyChildren(this.contentHandlers());
 		if (!inner) return '';
 
 		return this.renderHtmlContent(inner);
@@ -871,7 +873,7 @@ export class Player {
 	 */
 	public getRubrics(options: RubricBlockOptions = {}): RubricBlock[] {
 		const role = this.role;
-		const rubrics = this.itemDocument.readRubricBlocks();
+		const rubrics = this.itemDocument.readRubricBlocks(this.contentHandlers());
 		if (rubrics.length === 0) return [];
 
 		const blocks: RubricBlock[] = [];
@@ -884,9 +886,7 @@ export class Player {
 			// If view is specified, show only when it includes the current role.
 			if (view.length > 0 && role && !view.includes(role)) continue;
 
-			const printed = this.renderPrintedVariables(rubric.content);
-			const sanitized = sanitizeHtml(printed, { security: this.config.security });
-			const html = toTrustedHtml(sanitized, this.config.security?.trustedTypesPolicyName);
+			const html = this.renderHtmlContent(rubric.content);
 
 			blocks.push({ view, html, scope, use: rubric.use });
 		}
@@ -1969,40 +1969,42 @@ export class Player {
 	// printedVariable + feedback
 	// ----------------------------------------------------------------------------
 
-	private renderPrintedVariables(html: string): string {
-		const readIdentifier = (attrs: string): string | null => {
-			const m = attrs.match(/identifier\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s>]+))/i);
-			return (m?.[1] || m?.[2] || m?.[3] || '').trim() || null;
-		};
+	/**
+	 * The item content pass's handlers, reading the session's current variable values. QTI 3 wraps
+	 * rubric content in `qti-content-body`, which is unwrapped so a rubric renders as in QTI 2.2.
+	 */
+	private contentHandlers(): ContentHandlers {
+		return new Map<string, ContentHandler>([
+			['printedvariable', (element) => this.printedVariableNodes(element)],
+			['contentbody', (element) => Array.from(element.childNodes)],
+		]);
+	}
 
-		const renderId = (id: string | null): string => {
-			if (!id) return '';
-			const v = this.ctx.getValue(id);
-			if (v.kind !== 'value') return '';
-			if (Array.isArray(v.value)) return v.value.map(String).join(', ');
-			return String(v.value);
-		};
-
-		let out = html.replace(/<printedVariable\b([^>]*)>([\s\S]*?)<\/printedVariable>/gi, (_m, attrs) =>
-			renderId(readIdentifier(String(attrs)))
-		);
-		out = out.replace(/<printedVariable\b([^>]*)\/>/gi, (_m, attrs) => renderId(readIdentifier(String(attrs))));
-		return out;
+	private printedVariableNodes(element: Element): Node[] {
+		const identifier = (getAttr(element, 'identifier') || '').trim();
+		const document = element.ownerDocument;
+		if (!identifier || !document) return [];
+		const variable = (id: string): QtiValue => this.ctx.getValue(id);
+		const printed = printVariable(variable(identifier), readPrintedVariableOptions(element, variable));
+		return printed.map((segment) => {
+			if (typeof segment === 'string') return document.createTextNode(segment);
+			const sup = document.createElementNS(element.namespaceURI, 'sup');
+			sup.appendChild(document.createTextNode(segment.superscript));
+			return sup;
+		});
 	}
 
 	private renderHtmlContent(html: string): HtmlContent {
-		const printed = this.renderPrintedVariables(html);
-		const sanitized = sanitizeHtml(printed, { security: this.config.security });
+		const sanitized = sanitizeHtml(html, { security: this.config.security });
 		return toTrustedHtml(sanitized, this.config.security?.trustedTypesPolicyName);
 	}
 
 	private getModalFeedback(outcomes: Record<string, any>): ModalFeedback[] {
 		const active: ModalFeedback[] = [];
 
-		for (const feedback of this.itemDocument.readModalFeedback()) {
+		for (const feedback of this.itemDocument.readModalFeedback(this.contentHandlers())) {
 			const { identifier, outcomeIdentifier, showHide, title } = feedback;
-			const sanitized = sanitizeHtml(feedback.content, { security: this.config.security });
-			const content = toTrustedHtml(sanitized, this.config.security?.trustedTypesPolicyName);
+			const content = this.renderHtmlContent(feedback.content);
 
 			const outcomeValue = outcomes[outcomeIdentifier];
 			const shouldShow = showHide === 'show' ? outcomeValue === identifier : outcomeValue !== identifier;

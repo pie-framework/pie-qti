@@ -14,8 +14,11 @@ import { enforceItemXmlLimits } from '../core/parsingLimits.js';
 import { normalizeInteractionTypeFromTagName } from '../interactions/modules.js';
 import type { PlayerSecurityConfig } from '../types/index.js';
 import type { QTIElement } from '../interactions/shared/types.js';
+import { type ContentHandlers, resolveContent } from './contentPass.js';
 
 export type ProcessingKind = 'template' | 'response' | 'outcome';
+
+const NO_HANDLERS: ContentHandlers = new Map();
 
 export interface DiscoveredInteractionElement {
 	element: QTIElement;
@@ -108,10 +111,11 @@ export class AssessmentItemDocument {
 		return findFirstDescendant(this.assessmentItem, this.elementNameMapper.toNative(tagName));
 	}
 
-	serializeItemBodyChildren(): string {
+	/** The item body's content, resolved by `handlers`. */
+	serializeItemBodyChildren(handlers: ContentHandlers = NO_HANDLERS): string {
 		const itemBody = this.getItemBodyElement();
 		if (!itemBody) return '';
-		return this.serializeChildren(itemBody);
+		return this.serializeChildren(itemBody, handlers);
 	}
 
 	describeResponseProcessing(): ResponseProcessingDescriptor {
@@ -125,7 +129,8 @@ export class AssessmentItemDocument {
 		});
 	}
 
-	readRubricBlocks(): readonly DocumentRubricBlock[] {
+	/** Every rubric block, with its content resolved by `handlers`. */
+	readRubricBlocks(handlers: ContentHandlers = NO_HANDLERS): readonly DocumentRubricBlock[] {
 		return this.findRubricElements().map((element) => {
 			const view = (getAttr(element, 'view') || '').trim().split(/[\s,]+/).filter(Boolean);
 			const use = (getAttr(element, 'use') || '').trim() || undefined;
@@ -133,12 +138,13 @@ export class AssessmentItemDocument {
 				view: Object.freeze(view),
 				...(use ? { use } : {}),
 				scope: this.rubricElementScope(element),
-				content: this.serializeChildren(element) || element.textContent || '',
+				content: this.serializeChildren(element, handlers) || element.textContent || '',
 			});
 		});
 	}
 
-	readModalFeedback(): readonly DocumentModalFeedback[] {
+	/** Every modal feedback, with its content resolved by `handlers`. */
+	readModalFeedback(handlers: ContentHandlers = NO_HANDLERS): readonly DocumentModalFeedback[] {
 		return this.findModalFeedbackElements().map((element) => {
 			const identifier = this.getMappedAttribute(element, 'identifier') || '';
 			const outcomeIdentifier = this.getMappedAttribute(element, 'outcomeIdentifier') || '';
@@ -149,7 +155,7 @@ export class AssessmentItemDocument {
 				outcomeIdentifier,
 				showHide,
 				...(title ? { title } : {}),
-				content: this.serializeChildren(element) || element.textContent || '',
+				content: this.serializeChildren(element, handlers) || element.textContent || '',
 			});
 		});
 	}
@@ -202,9 +208,10 @@ export class AssessmentItemDocument {
 		return element.getAttribute(this.attributeNameMapper.toNative(name));
 	}
 
-	private serializeChildren(element: Element): string {
+	private serializeChildren(element: Element, handlers: ContentHandlers = NO_HANDLERS): string {
+		const resolved = handlers.size > 0 ? resolveContent(element, handlers, this.elementNameMapper) : element;
 		return normalizeMathMlPrefixes(
-			unwrapCdataSections(this.serializeChildNodes(element)),
+			unwrapCdataSections(this.serializeChildNodes(resolved)),
 			this.mathMlPrefixes
 		);
 	}
