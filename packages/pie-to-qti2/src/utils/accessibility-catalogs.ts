@@ -11,6 +11,10 @@
  * exported element refers to, and idrefs no exported catalog declares. Assessments carry no APIP,
  * so their catalogs are named whole. When two owners declare one identifier, the first
  * declaration is written.
+ *
+ * The QTI 3.0 export writes the same catalogs natively as `qti-catalog-info` after the item or
+ * stimulus body, every card included. QTI 3.0 types `data-catalog-idref` as an IDREF, so an idref
+ * no exported catalog declares is dropped from the markup, and the warning names it.
  */
 
 import {
@@ -18,7 +22,9 @@ import {
   type ApipContentLink,
   type CatalogCard,
   writeApipAccessibility,
+  writeQtiCatalogInfo,
 } from '@pie-qti/qti-common/accessibility';
+import { toQtiXhtml } from './xhtml.js';
 
 const CATALOG_IDREF = /\bdata-catalog-idref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>/]+))/g;
 
@@ -64,12 +70,18 @@ export function findAccessibilityCatalogs(content: unknown): string[] {
  * A warning naming the catalogs `content` carries, which the export drops, or `undefined` when it
  * carries none. `subject` names what is exported, as in `Item "item-1"`.
  */
-export function catalogsNotExportedWarning(subject: string, content: unknown): string | undefined {
+export function catalogsNotExportedWarning(
+  subject: string,
+  content: unknown,
+  version: QtiVersion = '2.2'
+): string | undefined {
   const catalogs = findAccessibilityCatalogs(content);
   if (catalogs.length === 0) return undefined;
   const names = catalogs.map((catalog) => `"${catalog}"`).join(', ');
-  return `${subject} carries accessibility catalogs ${names}, which the QTI 2.2 export does not write`;
+  return `${subject} carries accessibility catalogs ${names}, which the QTI ${version} export does not write`;
 }
+
+export type QtiVersion = '2.2' | '3.0';
 
 /** Elements an APIP link names as an object rather than by their text. */
 const OBJECT_ELEMENTS = new Set(['img', 'object', 'audio', 'video']);
@@ -146,6 +158,60 @@ export function withApipAccessibility(subject: string, qtiXml: string, content: 
     qtiXml: `${qtiXml.slice(0, bodyStart)}${edited.replace(/\s*$/, '\n  ')}${apip.xml}\n${qtiXml.slice(close)}`,
     ...(warning ? { warning } : {}),
   };
+}
+
+/**
+ * `qtiXml`, a QTI 3.0 item or stimulus, with the catalogs `content` declares and its markup
+ * refers to written as `qti-catalog-info` after its body. `subject` names what is exported.
+ */
+export function withQtiCatalogInfo(subject: string, qtiXml: string, content: unknown): ApipExport {
+  const declared = declaredCatalogs(content);
+  const named = findAccessibilityCatalogs(content);
+  const body = /<qti-(item|stimulus)-body[\s/>]/.exec(qtiXml);
+  if (named.length === 0 && declared.size === 0) return { qtiXml };
+
+  const referenced = new Set<string>();
+  const dropped = new Set<string>();
+  const start = body?.index ?? qtiXml.length;
+  const edited =
+    qtiXml.slice(0, start) +
+    qtiXml.slice(start).replace(START_TAG, (tag) => {
+      const idrefMatch = IDREF_ATTRIBUTE.exec(tag);
+      if (!idrefMatch) return tag;
+      const idref = decode(idrefMatch[1] ?? idrefMatch[2] ?? '').trim();
+      if (declared.has(idref)) {
+        referenced.add(idref);
+        return tag;
+      }
+      if (idref) dropped.add(idref);
+      return tag.replace(IDREF_ATTRIBUTE, '');
+    });
+
+  for (const idref of dropped) if (!named.includes(idref)) named.push(idref);
+  const catalogs = [...declared]
+    .filter(([identifier]) => referenced.has(identifier))
+    .map(([identifier, catalog]) => ({ identifier, cards: catalog.cards }));
+  const reasons = named.flatMap((identifier) => {
+    const catalog = declared.get(identifier);
+    const reason: string[] = [];
+    if (!catalog) reason.push('no catalog in the export declares it');
+    else if (!referenced.has(identifier)) reason.push('no exported element refers to it');
+    if (catalog?.redeclared) reason.push('declared again, which is not written');
+    return reason.length > 0 ? [`"${identifier}" (${reason.join(', ')})`] : [];
+  });
+  const warning =
+    reasons.length > 0
+      ? `${subject} carries accessibility catalogs the QTI 3.0 export does not write in full: ${reasons.join(', ')}`
+      : undefined;
+
+  const catalogInfo = writeQtiCatalogInfo(catalogs, { html: toQtiXhtml });
+  const close = body ? `</qti-${body[1]}-body>` : '';
+  const at = close ? edited.lastIndexOf(close) : -1;
+  const written =
+    catalogInfo && at !== -1
+      ? `${edited.slice(0, at + close.length)}\n  ${catalogInfo}${edited.slice(at + close.length)}`
+      : edited;
+  return { qtiXml: written, ...(warning ? { warning } : {}) };
 }
 
 /** The catalogs `content` declares, by identifier: the first declaration's cards. */

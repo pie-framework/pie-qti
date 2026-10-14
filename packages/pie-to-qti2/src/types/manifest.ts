@@ -22,6 +22,9 @@ export interface ImsManifest {
 
   /** Schema version */
   schemaVersion?: string;
+
+  /** The QTI version packaged, which picks the content-packaging profile; `2.2` by default */
+  qtiVersion?: '2.2' | '3.0';
 }
 
 /**
@@ -146,6 +149,9 @@ export interface ManifestGenerationOptions {
 
   /** Base path for resources (default: empty string) */
   basePath?: string;
+
+  /** The QTI version packaged, which picks the profile and default resource types; `2.2` by default */
+  qtiVersion?: '2.2' | '3.0';
 }
 
 /**

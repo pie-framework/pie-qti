@@ -1,6 +1,6 @@
 # @pie-qti/pie-to-qti2
 
-Bidirectional transformation plugin that converts PIE (Platform for Interactive Education) items to QTI 2.2 format with lossless round-trip support.
+Bidirectional transformation plugin that converts PIE (Platform for Interactive Education) items to QTI 2.2 or QTI 3.0 with lossless round-trip support.
 
 ## Overview
 
@@ -22,6 +22,7 @@ Each direction uses the embedded source only while the content beside it is unch
 - **Inline Passages**: Embeds passage content within QTI itemBody using standard HTML (backward compatible)
 - **Lossless Round-Trips**: The PIE item travels in a sidecar file listed under the item's package resource
 - **QTI 2.2.2 Conformance**: Output validates against the QTI 2.2 XSD and declares `SCORE`, `MAXSCORE` and response processing ([status](./docs/QTI-COMPLIANCE.md#conformance-status))
+- **QTI 3.0 Export**: `targetVersion: '3.0'` writes QTI 3.0 items, stimuli, tests and packages, with catalogs as `qti-catalog-info` ([details](./docs/QTI-COMPLIANCE.md#qti-30))
 - **Human-Readable Output**: Pretty-printed XML with consistent formatting
 - **Data Preservation**: Uses `data-pie-*` attributes for PIE-specific features
 - **Custom Interactions**: Supports non-standard PIE elements via QTI `<customInteraction>`
@@ -47,6 +48,12 @@ const result = await plugin.transform(
 );
 
 const qtiXml = result.items[0].content;
+```
+
+For QTI 3.0, pass `targetVersion`:
+
+```typescript
+const plugin = new PieToQtiPlugin({ targetVersion: '3.0' });
 ```
 
 ### Round-Trip Example
@@ -201,7 +208,7 @@ const passageFiles = result.passageFiles;
 //     passage-abc.xml       <- passageFiles[0].xml
 ```
 
-The manifest declares all resources and their dependencies following IMS CP v1.1 and QTI 2.2 specifications.
+The manifest declares all resources and their dependencies following IMS CP v1.1 and QTI 2.2, or the QTI 3 content packaging profile for a QTI 3.0 export.
 
 See [docs/MANIFEST-GENERATION.md](./docs/MANIFEST-GENERATION.md) for complete documentation.
 
@@ -239,7 +246,7 @@ Non-standard PIE elements use `<customInteraction>`:
 
 ### Round-Trip Sidecar
 
-QTI 2.2 admits no foreign elements in `assessmentItem`, so the PIE item is written beside the QTI item
+QTI admits no foreign elements in an item, so the PIE item is written beside the QTI item
 as `items/<id>.pie.json` and listed under the item's `<resource>` in the content package. A bare item
 transform returns it as the output item's `sidecar`:
 
@@ -316,9 +323,9 @@ Main plugin class implementing the `TransformPlugin` interface.
 class PieToQtiPlugin implements TransformPlugin {
   readonly id = 'pie-to-qti2';
   readonly version = '1.0.0';
-  readonly name = 'PIE to QTI 2.2';
+  readonly name: string; // 'PIE to QTI 2.2' or 'PIE to QTI 3.0'
   readonly sourceFormat = 'pie';
-  readonly targetFormat = 'qti22';
+  readonly targetFormat: 'qti22' | 'qti30'; // from the targetVersion option, '2.2' by default
 
   canHandle(input: TransformInput): Promise<boolean>;
   transform(input: TransformInput, context: TransformContext): Promise<TransformOutput>;

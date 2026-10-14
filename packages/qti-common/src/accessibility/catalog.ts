@@ -74,6 +74,34 @@ const EXTENSION_KINDS: Record<string, MediaKind> = {
 	webp: 'image',
 };
 
+const MIME_TYPES: Record<string, string> = {
+	aac: 'audio/aac',
+	m4a: 'audio/mp4',
+	mp3: 'audio/mpeg',
+	oga: 'audio/ogg',
+	ogg: 'audio/ogg',
+	wav: 'audio/wav',
+	m4v: 'video/x-m4v',
+	mov: 'video/quicktime',
+	mp4: 'video/mp4',
+	ogv: 'video/ogg',
+	webm: 'video/webm',
+	gif: 'image/gif',
+	jpeg: 'image/jpeg',
+	jpg: 'image/jpeg',
+	png: 'image/png',
+	svg: 'image/svg+xml',
+	webp: 'image/webp',
+};
+
+/** A media source's MIME type: as declared, else from its extension; `undefined` when unknown. */
+export function mediaMimeType(source: MediaSource): string | undefined {
+	const declared = source.type?.trim();
+	if (declared) return declared;
+	const extension = /\.([a-z0-9]+)(?:[?#].*)?$/i.exec(source.src)?.[1]?.toLowerCase();
+	return extension ? MIME_TYPES[extension] : undefined;
+}
+
 /** A media asset's kind, from its MIME type, else its extension, else `fallback`. */
 export function mediaKind(type: string | undefined, src: string, fallback: MediaKind): MediaKind {
 	const prefix = type?.split('/')[0]?.toLowerCase();

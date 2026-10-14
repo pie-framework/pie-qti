@@ -1,9 +1,11 @@
 /**
- * PIE to QTI 2.2 Plugin
+ * PIE to QTI Plugin
  *
- * Transforms PIE assessment items to QTI 2.2 format with lossless round-trip support
+ * Transforms PIE assessment items to QTI 2.2 or QTI 3.0 with lossless round-trip support. The
+ * generators write QTI 2.2; a QTI 3.0 export renames the finished document.
  */
 
+import { convertQti2ToQti3 } from '@pie-qti/qti-common';
 import {
   PIE_SOURCE_SIDECAR_FORMAT,
   type PieItem,
@@ -20,6 +22,7 @@ import {
   generatePassageFile,
   generatePassageFromStimulus,
   insertPassageObjectReference,
+  insertStimulusReference,
 } from './generators/passage-generator.js';
 import { defaultRegistry, GeneratorRegistry } from './generators/registry.js';
 import type { PieToQtiGenerator } from './generators/types.js';
@@ -31,7 +34,13 @@ import { composeItems } from './utils/item-composer.js';
 import { pieSourceSidecarPath } from './utils/pie-source-sidecar.js';
 import { isRubricModel, renderRubricBlock } from './utils/rubric-block.js';
 import { normalizeItemBody } from './utils/xhtml.js';
-import { catalogsNotExportedWarning, withApipAccessibility } from './utils/accessibility-catalogs.js';
+import {
+  type ApipExport,
+  catalogsNotExportedWarning,
+  type QtiVersion,
+  withApipAccessibility,
+  withQtiCatalogInfo,
+} from './utils/accessibility-catalogs.js';
 import { detectPassages } from './utils/passage-detection.js';
 // Import to trigger auto-registration of built-in generators
 import './generators/index.js';
@@ -84,17 +93,24 @@ export interface PieToQtiPluginOptions {
    * When true, generates IMS Content Package with manifest
    */
   generatePackage?: boolean;
+
+  /**
+   * The QTI version written: `2.2` (the default) or `3.0`. A QTI 3.0 export references external
+   * passages as `qti-assessment-stimulus` files and writes catalogs as `qti-catalog-info`.
+   */
+  targetVersion?: QtiVersion;
 }
 
 /**
- * PIE to QTI 2.2 transformation plugin
+ * PIE to QTI transformation plugin
  */
 export class PieToQtiPlugin implements TransformPlugin {
   readonly id = 'pie-to-qti2';
   readonly version = '1.0.0';
-  readonly name = 'PIE to QTI 2.2';
+  readonly name: string;
   readonly sourceFormat = 'pie' as const;
-  readonly targetFormat = 'qti22' as const;
+  readonly targetFormat: 'qti22' | 'qti30';
+  readonly targetVersion: QtiVersion;
 
   private registry: GeneratorRegistry;
   private passageResolver?: PassageResolver;
@@ -112,6 +128,9 @@ export class PieToQtiPlugin implements TransformPlugin {
     this.passageResolver = options.passageResolver;
     this.passageStrategy = options.passageStrategy;
     this.generatePackage = options.generatePackage || false;
+    this.targetVersion = options.targetVersion ?? '2.2';
+    this.targetFormat = this.targetVersion === '3.0' ? 'qti30' : 'qti22';
+    this.name = `PIE to QTI ${this.targetVersion}`;
   }
 
   /**
@@ -151,7 +170,7 @@ export class PieToQtiPlugin implements TransformPlugin {
     const startTime = Date.now();
     const logger = context.logger;
 
-    logger?.info('Starting PIE to QTI 2.2 transformation');
+    logger?.info(`Starting PIE to QTI ${this.targetVersion} transformation`);
 
     const pieContent = input.content as any;
 
@@ -164,18 +183,23 @@ export class PieToQtiPlugin implements TransformPlugin {
     const pieItem = pieContent as PieItem;
 
     // Check for embedded QTI source first for lossless round-trip. It is used only while the config
-    // still has the digest to-pie recorded; a config edited since import is generated afresh.
+    // still has the digest to-pie recorded, and only when its version family is the target's; a
+    // config edited since import, or another version, is generated afresh.
     const sourceWarnings: string[] = [];
     if (hasQtiSource(pieItem)) {
       const recorded = pieItem.metadata?.qtiSource?.metadata?.configDigest;
-      if (recorded && recorded === (await sourceDigest(pieItem.config ?? {}))) {
+      const sourceVersion = pieItem.metadata?.qtiSource?.metadata?.qtiVersion;
+      const matches = recorded && recorded === (await sourceDigest(pieItem.config ?? {}));
+      if (matches && (sourceVersion === '3.0') === (this.targetVersion === '3.0')) {
         logger?.info('Detected embedded QTI source - using lossless reconstruction');
         return this.reconstructFromQtiSource(pieItem, startTime, logger);
       }
       sourceWarnings.push(
-        recorded
-          ? 'Embedded QTI source does not match the PIE config, which changed after import; the QTI was generated from the config'
-          : 'Embedded QTI source has no digest to show it matches the PIE config; the QTI was generated from the config'
+        matches
+          ? `Embedded QTI ${sourceVersion ?? '2.x'} source is not re-emitted for a QTI ${this.targetVersion} export; the QTI was generated from the config`
+          : recorded
+            ? 'Embedded QTI source does not match the PIE config, which changed after import; the QTI was generated from the config'
+            : 'Embedded QTI source has no digest to show it matches the PIE config; the QTI was generated from the config'
       );
     }
 
@@ -213,8 +237,9 @@ export class PieToQtiPlugin implements TransformPlugin {
       const passageFile = generatePassageFile(resolvedPassage, {
         basePath: 'passages',
         metadata: resolvedPassage.metadata,
+        targetVersion: this.targetVersion,
       });
-      const apip = withApipAccessibility(`Passage "${resolvedPassage.id}"`, passageFile.xml, resolvedPassage);
+      const apip = this.withCatalogs(`Passage "${resolvedPassage.id}"`, passageFile.xml, resolvedPassage);
       catalogWarnings.push(apip.warning);
       generatedPassageFiles.push({ ...passageFile, xml: apip.qtiXml });
 
@@ -223,8 +248,8 @@ export class PieToQtiPlugin implements TransformPlugin {
       // Full passage object provided
       logger?.info('Using provided passage stimulus object');
       const { stimulus } = passageDetection.externalPassage;
-      const passageFile = generatePassageFromStimulus(stimulus);
-      const apip = withApipAccessibility(`Passage "${passageFile.id}"`, passageFile.xml, stimulus);
+      const passageFile = generatePassageFromStimulus(stimulus, this.targetVersion);
+      const apip = this.withCatalogs(`Passage "${passageFile.id}"`, passageFile.xml, stimulus);
       catalogWarnings.push(apip.warning);
       generatedPassageFiles.push({ ...passageFile, xml: apip.qtiXml });
     }
@@ -291,7 +316,10 @@ export class PieToQtiPlugin implements TransformPlugin {
       // Phase 2: External passages with object references
       logger?.info(`Using external passage strategy - ${generatedPassageFiles.length} passage file(s)`);
       for (const passageFile of generatedPassageFiles) {
-        qtiXml = insertPassageObjectReference(qtiXml, passageFile.id, passageFile.filePath, logger);
+        qtiXml =
+          this.targetVersion === '3.0'
+            ? insertStimulusReference(qtiXml, passageFile.id, passageFile.filePath)
+            : insertPassageObjectReference(qtiXml, passageFile.id, passageFile.filePath, logger);
       }
     } else if (passages.length > 0) {
       // Phase 1: Inline passages embedded in itemBody
@@ -305,9 +333,10 @@ export class PieToQtiPlugin implements TransformPlugin {
     }
     // Composition, passages and rubrics write body content after the generator; normalize it once more.
     qtiXml = normalizeItemBody(qtiXml);
+    if (this.targetVersion === '3.0') qtiXml = convertQti2ToQti3(qtiXml);
     // A passage object is written to its own file, with its own catalogs.
     const itemContent = typeof pieItem.passage === 'object' ? { ...pieItem, passage: undefined } : pieItem;
-    const apip = withApipAccessibility(`Item "${pieItem.id || pieItem.uuid}"`, qtiXml, itemContent);
+    const apip = this.withCatalogs(`Item "${pieItem.id || pieItem.uuid}"`, qtiXml, itemContent);
     qtiXml = apip.qtiXml;
     catalogWarnings.unshift(apip.warning);
 
@@ -322,9 +351,8 @@ export class PieToQtiPlugin implements TransformPlugin {
       logger?.warn(warning);
     }
 
-    // The PIE item travels beside the QTI for a lossless round-trip: QTI 2.2 admits no foreign
-    // elements in assessmentItem, so neither the source model nor its baseId and searchMetaData can
-    // be embedded.
+    // The PIE item travels beside the QTI for a lossless round-trip: QTI admits no foreign elements
+    // in an item, so neither the source model nor its baseId and searchMetaData can be embedded.
     const sidecar: PieSourceSidecar = {
       format: PIE_SOURCE_SIDECAR_FORMAT,
       version: 1,
@@ -342,11 +370,11 @@ export class PieToQtiPlugin implements TransformPlugin {
 
     // Build transform output
     const output: TransformOutput = {
-      items: [{ content: qtiXml, format: 'qti22', sidecar }],
-      format: 'qti22',
+      items: [{ content: qtiXml, format: this.targetFormat, sidecar }],
+      format: this.targetFormat,
       metadata: {
         sourceFormat: 'pie',
-        targetFormat: 'qti22',
+        targetFormat: this.targetFormat,
         pluginId: this.id,
         timestamp: new Date(),
         itemCount: 1,
@@ -389,6 +417,7 @@ export class PieToQtiPlugin implements TransformPlugin {
         })),
         options: {
           packageId: `pkg-${pieItem.baseId || pieItem.id}`,
+          qtiVersion: this.targetVersion,
         },
       };
 
@@ -427,7 +456,8 @@ export class PieToQtiPlugin implements TransformPlugin {
     const warnings: string[] = [...(result.warnings || [])];
     const catalogWarning = catalogsNotExportedWarning(
       `Assessment "${assessment.identifier || assessment.id}"`,
-      assessment
+      assessment,
+      this.targetVersion
     );
     if (catalogWarning) {
       logger?.warn(catalogWarning);
@@ -439,14 +469,14 @@ export class PieToQtiPlugin implements TransformPlugin {
     const output: TransformOutput = {
       items: [
         {
-          content: result.qti,
-          format: 'qti22' as const,
+          content: this.targetVersion === '3.0' ? convertQti2ToQti3(result.qti) : result.qti,
+          format: this.targetFormat,
         },
       ],
-      format: 'qti22',
+      format: this.targetFormat,
       metadata: {
         sourceFormat: 'pie',
-        targetFormat: 'qti22',
+        targetFormat: this.targetFormat,
         pluginId: this.id,
         timestamp: new Date(),
         itemCount: 1,
@@ -512,6 +542,7 @@ export class PieToQtiPlugin implements TransformPlugin {
         ],
         options: {
           packageId: `pkg-${assessmentId}`,
+          qtiVersion: this.targetVersion,
           metadata: {
             title: assessment.title || assessmentId,
             description: assessment.description,
@@ -525,6 +556,13 @@ export class PieToQtiPlugin implements TransformPlugin {
     }
 
     return output;
+  }
+
+  /** Catalogs as APIP for QTI 2.2, as `qti-catalog-info` for QTI 3.0. */
+  private withCatalogs(subject: string, qtiXml: string, content: unknown): ApipExport {
+    return this.targetVersion === '3.0'
+      ? withQtiCatalogInfo(subject, qtiXml, content)
+      : withApipAccessibility(subject, qtiXml, content);
   }
 
   /**

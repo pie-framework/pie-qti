@@ -16,7 +16,7 @@
 
 ## Summary
 
-`@pie-qti/pie-to-qti2` transforms PIE (Platform for Interactive Education) assessment items and assessments into QTI 2.2 XML. It implements the `TransformPlugin` interface from `@pie-qti/transform-types` and integrates with the transform engine in `@pie-qti/transform-core`. The package supports the full PIE item model: single interactions, multi-model items (passage + interaction + rubric), and full `assessmentTest` documents with sections, branch rules, and scoring logic. Every forward transformation embeds the original PIE source in a `<pie:sourceModel>` extension, enabling a lossless round-trip back to PIE via `@pie-qti/to-pie`.
+`@pie-qti/pie-to-qti2` transforms PIE (Platform for Interactive Education) assessment items and assessments into QTI 2.2 XML (namespace `imsqti_v2p2`), or into QTI 3.0 (namespace `imsqtiasi_v3p0`) with `targetVersion: '3.0'`. It implements the `TransformPlugin` interface from `@pie-qti/transform-types` and integrates with the transform engine in `@pie-qti/transform-core`. The package supports the full PIE item model: single interactions, multi-model items (passage + interaction + rubric), and full `assessmentTest` documents with sections, branch rules, and scoring logic. Every forward transformation embeds the original PIE source in a `<pie:sourceModel>` extension, enabling a lossless round-trip back to PIE via `@pie-qti/to-pie`.
 
 ---
 
@@ -50,13 +50,13 @@ Lossy information examples:
 - PIE rubric models: detected and logged, but QTI `<rubricBlock>` generation is not yet implemented
 - Multi-interaction items: only the first interaction in `config.models[]` is mapped to QTI; additional interactions produce a warning
 - Complex PIE-specific scoring logic not expressible in standard QTI response processing
-- Accessibility catalogs (`accessibilityCatalogs` on a model, the item root, a passage or an assessment, and `extractedCatalogs`): an item's or passage's catalogs are written as `apip:apipAccessibility`, each access element linked to the elements whose `data-catalog-idref` names it; an element without an `id` gets one, and the idrefs stay in the markup, since QTI 2.2 admits `data-*`. A warning names what APIP cannot carry: supports APIP has no element for (`glossary-on-screen`, among others), catalogs no exported element refers to, idrefs no exported catalog declares, and a second declaration of one identifier. Assessments carry no APIP, so each assessment catalog is named in a warning
+- Accessibility catalogs (`accessibilityCatalogs` on a model, the item root, a passage or an assessment, and `extractedCatalogs`): an item's or passage's catalogs are written as `apip:apipAccessibility`, each access element linked to the elements whose `data-catalog-idref` names it; an element without an `id` gets one, and the idrefs stay in the markup, since QTI 2.2 admits `data-*`. A warning names what APIP cannot carry: supports APIP has no element for (`glossary-on-screen`, among others), catalogs no exported element refers to, idrefs no exported catalog declares, and a second declaration of one identifier. Assessments carry no APIP, so each assessment catalog is named in a warning. A QTI 3.0 export writes item and passage catalogs natively as `qti-catalog-info`; because QTI 3.0 types `data-catalog-idref` as an IDREF, an idref no exported catalog declares is dropped from the markup and named in the warning
 
 ---
 
 ## QTI specification alignment
 
-- **Spec version(s):** QTI 2.2.2
+- **Spec version(s):** QTI 2.2.2; QTI 3.0 with `targetVersion: '3.0'`
 - **Spec section(s):** §4 assessmentItem, §6 assessmentTest, §8 IMS Content Packaging
 - **Supported output elements:** `<assessmentItem>`, `<assessmentTest>`, `<testPart>`, `<assessmentSection>`, `<assessmentItemRef>`, `<choiceInteraction>`, `<extendedTextInteraction>`, `<textEntryInteraction>`, `<inlineChoiceInteraction>`, `<orderInteraction>`, `<matchInteraction>`, `<hotspotInteraction>`, `<hottextInteraction>`, `<gapMatchInteraction>`, `<graphicGapMatchInteraction>`, `<associateInteraction>`, `<customInteraction>`, `<outcomeProcessing>`, `<branchRule>`, `<preCondition>`, `<timeLimits>`, `<weight>`
 - **Deliberately omitted:** `<rubricBlock>` (known gap; see open questions), multiple interactions per item body (phase 2 work), `<organizations>` in IMS manifest (not used for QTI item packages)
@@ -304,7 +304,7 @@ AC-E5: Registry throws on duplicate without override
 
 - [ ] Rubric generation: `@pie-element/rubric` and `@pie-element/complex-rubric` are detected and logged but not yet transformed to `<rubricBlock>`. What is the target QTI structure?
 - [ ] Multiple interactions per item body: the spec allows multiple interactions in one `<assessmentItem>`. The current single-primary-model approach is a known Phase 1 limitation. When is this needed, and what is the target architecture?
-- [ ] QTI 3.0 output: the generated namespace is `imsqti_v2p2`. Is there a requirement to produce QTI 3.0 (`imsqti_v3p0`) output, and if so, should it be a separate plugin or a flag?
+- [x] QTI 3.0 output: a flag. `targetVersion: '2.2' | '3.0'` on this plugin, defaulting to `'2.2'`, since both versions share every generator. A QTI 3.0 export renames the finished QTI 2.2 document into the `imsqtiasi_v3p0` vocabulary, writes external passages as `qti-assessment-stimulus` files referenced by `qti-assessment-stimulus-ref`, wraps rubric content in `qti-content-body`, writes catalogs as `qti-catalog-info`, and packages under the QTI 3 content packaging profile.
 
 ---
 

@@ -8,7 +8,8 @@
  * 1. an `<object>` outside the interactions whose `data` resolves to a passage resource of the
  *    package becomes a reference by that resource's manifest identifier, and one the PIE export
  *    wrote becomes a reference by the PIE passage id its `data-pie-passage-id` names;
- * 2. an `assessmentStimulusRef` whose `href` resolves the same way becomes a reference too;
+ * 2. an `assessmentStimulusRef` whose `href` resolves the same way, or that names a PIE passage id
+ *    by `data-pie-passage-id`, becomes a reference too;
  * 3. an element an inline passage rule claims becomes a passage model.
  *
  * Any other `<object>` stays where it is, and is reported as an unresolved passage. A stimulus reference renders nothing, so it leaves the body either way, and
@@ -83,7 +84,9 @@ export function partitionItemBody(
 
   for (const stimulusRef of assessmentItem.getElementsByTagName('assessmentStimulusRef')) {
     const href = stimulusRef.getAttribute('href')?.trim() ?? '';
-    const identifier = href ? options.passageResources.resolve(href) : undefined;
+    const identifier =
+      (href ? options.passageResources.resolve(href) : undefined) ??
+      (stimulusRef.getAttribute('data-pie-passage-id')?.trim() || undefined);
     if (identifier) {
       reference(identifier, href, 'assessmentStimulusRef');
     } else {

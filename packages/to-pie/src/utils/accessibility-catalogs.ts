@@ -67,6 +67,7 @@ export interface QtiAccessibility {
 const SPOKEN = 'spoken';
 const SIGN_LANGUAGE = 'sign-language';
 const IDREF_PATTERN = /\bdata-catalog-idref\s*=\s*(["'])(.*?)\1/g;
+const SSML_DEFAULT_NAMESPACE = /^<speak\s+xmlns\s*=\s*(["'])http:\/\/www\.w3\.org\/2001\/10\/synthesis\1(?=[\s>/])/;
 const MEDIA_FRAGMENT_PATTERN = /^t=(?:npt:)?([\d.:]*)(?:,([\d.:]+))?$/;
 
 /** Read the item's catalogs and companion materials, and prepare its content for conversion. */
@@ -188,7 +189,8 @@ function cardBody(
 ): Pick<CatalogCard, 'content' | 'payload'> | undefined {
   const [htmlContent] = childElements(source, 'htmlContent');
   if (htmlContent) {
-    const content = htmlContent.innerHTML.trim();
+    // QTI 3 puts a speak script in the SSML namespace; the card keeps it as authored.
+    const content = htmlContent.innerHTML.trim().replace(SSML_DEFAULT_NAMESPACE, '<speak');
     return content ? { content } : undefined;
   }
   const files = childElements(source, 'fileHref').flatMap((fileHref) => {
