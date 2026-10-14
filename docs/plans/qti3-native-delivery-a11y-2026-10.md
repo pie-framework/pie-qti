@@ -4,14 +4,15 @@
 **Last reviewed**: 2026-10-14
 **Scope**: `packages/item-player/`, `packages/assessment-player/`, `packages/qti-processing/`,
 `packages/qti-common/`, `packages/section-player/`, `packages/default-components/`,
-`packages/web-component-loaders/`, `packages/player-elements/`, `packages/to-pie/`
+`packages/web-component-loaders/`, `packages/player-elements/`, `packages/to-pie/`,
+`packages/pie-to-qti2/`
 
 Brings native delivery, the item and assessment players rendering QTI directly, up to what QTI
 2.2 and 3.0 Advanced Delivery and 3.0 Elevated Accessibility certification exercise. The
 [QTI 3, accessibility content and passages plan](qti3-accessibility-passages-2026-10.md) made
 conversion to PIE complete; this plan covers the constructs the players parse but do not
-evaluate, and the accessibility markup that only conversion understands. Slices run in
-certification-impact order. The conversion deferrals recorded there (companion materials →
+evaluate, the accessibility markup that only conversion understands, and a QTI 3.0 writer for
+the PIE→QTI export. Slices run in certification-impact order. The conversion deferrals recorded there (companion materials →
 `requiredTools`, `passageVId`, APIP `inclusionOrder`, PCI in to-pie) stay out.
 
 ---
@@ -33,7 +34,7 @@ certification-impact order. The conversion deferrals recorded there (companion m
 | 10  | PNP in delivery                                | `feat/delivery-pnp`                   |     | pending |
 | 11  | Shared vocabulary, catalogs and sanitizer      | `feat/delivery-vocabulary-catalogs`   |     | pending |
 | 12  | Element map completion                         | `fix/qti3-element-map`                |     | pending |
-| 13  | QTI 3 writer                                   | —                                     |     | blocked |
+| 13  | QTI 3.0 writer                                 | `feat/pie-to-qti2-qti3-writer`        |     | pending |
 
 States: `pending`, `in progress`, `open` (PR up, merge agent running), `merged`, `blocked`
 (with a one-line reason under the slice).
@@ -137,9 +138,11 @@ drops them. Interaction-level `aria-*` is not carried to the rendered controls.
 fallback strips prefix and hyphens, which yields a lowercased name that differs from the
 camelCase canonical one for every multi-word element.
 
-**QTI 3 export.** `pie-to-qti2` writes `imsqti_v2p2` throughout; the only QTI 3 output is the
-lossless re-emit of a QTI 3 source. G-25 and the open question in
-[`pie-to-qti.md`](../prds/architecture/pie-to-qti.md) record it.
+**QTI 3 export.** `pie-to-qti2` writes `imsqti_v2p2` throughout: sixteen item and passage generators build
+QTI 2.2 by string template, passages are interaction-less `assessmentItem`s, catalogs are written
+as APIP access elements with a warning for what APIP cannot carry, and manifest resource types are
+`imsqti_*_xmlv2p2`. The only QTI 3 output is the lossless re-emit of an unedited QTI 3 source.
+G-25 and the open question in [`pie-to-qti.md`](../prds/architecture/pie-to-qti.md) record it.
 
 ---
 
@@ -186,8 +189,28 @@ Magnification stays with browser and OS zoom, as `pnp.md` decides; `data-qti-mag
 **Elevated Accessibility follows Advanced.** Slices 8–11 target the QTI 3.0 Elevated
 Accessibility line, which requires Advanced Delivery, so they start after slices 1–7.
 
-**QTI 3 writer is undecided.** Whether `pie-to-qti2` emits QTI 3 from PIE models is a scope
-decision, recorded as slice 13 and G-25; nothing in slices 1–12 depends on it.
+**QTI 3.0 export by denormalization at the back door.** The generators keep emitting QTI 2.2,
+and a `qti-common` function renames the finished document into QTI 3.0: namespace, `qti-*`
+element names, kebab-case attributes, plus the structural repairs QTI 3.0 requires. A native
+QTI 3 path would double the surface of sixteen generators, the same constraint that put import
+normalization at the front door. The rename is the inverse of to-pie's normalization and lives
+beside the element and attribute maps, so import and export share one vocabulary and a round
+trip through both is testable.
+
+**One plugin, a target version option.** `pie-to-qti2` takes `targetVersion: '2.2' | '3.0'`,
+defaulting to `'2.2'`, because both versions share every generator, the identifier and passage
+deduplication, and the LOM metadata. A deliberate trade: the package name stops describing its
+output, at the cost of none of the breakage a rename would bring. The lossless path re-emits an
+embedded source only when its version equals the target; otherwise the item is generated.
+
+**Catalogs native in QTI 3.0.** A QTI 3.0 export writes catalogs as `qti-catalog-info` with
+`data-catalog-idref` unchanged, the canonical shape the catalogs already have, so the APIP
+loss warnings do not apply to it. Assessment-level catalogs still have no QTI home and keep
+their warning.
+
+**QTI 3.0 XSDs as test fixtures.** The QTI 3.0 ASI and content-packaging XSDs are vendored into
+`pie-to-qti2`'s test fixtures to validate generated output, as the 2.2 XSDs validate the 2.2
+export. Import still validates after normalization against 2.2, so to-pie gains no schemas.
 
 ---
 
@@ -329,10 +352,30 @@ Done when each vocabulary class has a fixture and a screen reader announces inte
 
 Done when every QTI 3 element with a 2.2 counterpart round-trips through the mapper.
 
-### 13. QTI 3 writer
+### 13. QTI 3.0 writer
 
-Blocked on a scope decision: whether `pie-to-qti2` writes QTI 3 from PIE models. If it does, it
-emits `imsqti_asi_v3p0` through the same name and attribute maps, and G-25 closes with it.
+Runs after slice 12, whose completed element map the rename reads.
+
+- `qti-common` gains the QTI 2.2 → 3.0 rename: namespace `imsqtiasi_v3p0` with its schema
+  location, element names through `Qti3ElementNameMapper.toNative` with the generic
+  camel-to-kebab rule for unmapped names, and attributes through the inverse of
+  `QTI3_ATTRIBUTE_TO_QTI2`. The generator asserts the inverse is one-to-one.
+- Structural repairs: rubric-block content wraps in `qti-content-body`; passages become
+  `qti-assessment-stimulus` resources with `qti-stimulus-body`, and items reference them by
+  `qti-assessment-stimulus-ref` instead of embedding interaction-less items.
+- Catalogs are written as `qti-catalog-info` per the decision above, and the APIP warnings are
+  skipped for a QTI 3.0 target.
+- `AssessmentGenerator` emits `qti-assessment-test` with `qti-assessment-item-ref` and stimulus
+  dependencies; the manifest declares the QTI 3.0 content-packaging profile and resource types
+  `imsqti_item_xmlv3p0`, `imsqti_test_xmlv3p0` and `imsqti_stimulus_xmlv3p0`; the package
+  validator checks the version-specific namespace and types.
+- The plugin reports `qti30` as its target format, and the lossless path follows the decision
+  above.
+- `pie-to-qti.md`'s open question is closed, its namespace statements cover both versions,
+  `QTI-COMPLIANCE.md` gains a QTI 3.0 section, and G-25 is marked done.
+
+Done when every generator's fixture exports as QTI 3.0 that validates against the vendored XSDs,
+to-pie imports it back to the same PIE model as its QTI 2.2 twin, and the item player renders it.
 
 ---
 
@@ -369,6 +412,7 @@ Merge-agent brief:
 
 Releases: after slices 7 and 11 merge, cut a release per the repo's release process (`develop`
 → `master`, changesets publish) and rerun the certification suites for the Advanced Delivery and
-Elevated Accessibility lines respectively. Other slices ride the next regular release.
+Elevated Accessibility lines respectively; after slice 13 merges, cut one for the QTI 3.0 export.
+Other slices ride the next regular release.
 
 A session resumes from this table and `gh pr list --author @me --state open`.
