@@ -20,7 +20,7 @@ certification-impact order. The conversion deferrals recorded there (companion m
 
 | #   | Slice                                          | Branch                                | PR  | State   |
 | --- | ---------------------------------------------- | ------------------------------------- | --- | ------- |
-| 0   | This plan                                      | `docs/qti3-native-delivery-plan`      |     | open    |
+| 0   | This plan                                      | `docs/qti3-native-delivery-plan`      | #300 | open    |
 | 1   | Item-body pass and printed variables           | `feat/item-body-printed-variables`    |     | pending |
 | 2   | Inline feedback                                | `fix/feedback-inline-native`          |     | pending |
 | 3   | Feedback and template blocks; modal feedback   | `feat/feedback-template-blocks`       |     | pending |
