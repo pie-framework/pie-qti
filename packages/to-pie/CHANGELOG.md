@@ -1,5 +1,18 @@
 # @pie-qti/to-pie
 
+## 0.1.28
+
+### Patch Changes
+
+- 8fd28e3: Add a QTI 3.0 export: `targetVersion: '3.0'` on `PieToQtiPlugin` writes QTI 3.0 items, stimuli, tests and content packages, with catalogs as `qti-catalog-info`. `@pie-qti/qti-common` gains `convertQti2ToQti3` and `writeQtiCatalogInfo`; `@pie-qti/to-pie` reads the export back, unwrapping `qti-content-body` and resolving a stimulus reference by its PIE passage id.
+- Updated dependencies [6af3354]
+- Updated dependencies [8fd28e3]
+  - @pie-qti/qti-common@0.1.28
+  - @pie-qti/transform-core@0.1.28
+  - @pie-qti/ims-cp-core@0.1.28
+  - @pie-qti/ims-cp-node@0.1.28
+  - @pie-qti/transform-types@0.1.28
+
 ## 0.1.27
 
 ### Patch Changes

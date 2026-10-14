@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/ims-cp-browser",
-  "version": "0.1.27",
+  "version": "0.1.28",
   "description": "Browser-compatible IMS Content Package utilities",
   "type": "module",
   "main": "./dist/index.js",
