@@ -842,7 +842,7 @@ Test signal
 ### G-25: QTI 3.0 writer
 
 Scope       — `packages/pie-to-qti2/`
-Status      — Open (output version undecided; see the open question in `prds/architecture/pie-to-qti.md`)
+Status      — Done (PR #302, 2026-10-14; `targetVersion: '3.0'` on `PieToQtiPlugin`)
 Effort      — L
 Spec ref    — §1.3 (Version Differences Reference)
 

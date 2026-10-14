@@ -6,6 +6,7 @@ import { describe, expect, it } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Qti3ElementNameMapper } from '../Qti3ElementNameMapper.js';
+import { QTI3_HTML_ELEMENTS } from '../qti2-to-qti3.js';
 import { isQti3Element, QTI3_ELEMENT_MAPPINGS } from '../qti3-element-mappings.js';
 
 const PACKAGES = join(import.meta.dir, '..', '..', '..', '..');
@@ -15,9 +16,10 @@ function declaredElements(xsdPath: string): Set<string> {
 	return new Set([...xsd.matchAll(/<xs:element name="([A-Za-z0-9-]+)"/g)].map((m) => m[1] as string));
 }
 
-const qti3Names = [
+const qti3Declared = [
 	...declaredElements(join(PACKAGES, 'qti-common', 'schemas', 'qti3', 'imsqti_asiv3p0_v1p0.xsd')),
-].filter((name) => name.startsWith('qti-'));
+];
+const qti3Names = qti3Declared.filter((name) => name.startsWith('qti-'));
 
 /** XHTML elements QTI 2.2 declares in its own namespace; QTI 3 keeps them unprefixed. */
 const XHTML = new Set(
@@ -52,6 +54,10 @@ describe('QTI 3 element map against the QTI 3.0 schema', () => {
 	it('maps no element the schema does not declare', () => {
 		const declared = new Set(qti3Names);
 		expect(Object.keys(QTI3_ELEMENT_MAPPINGS).filter((name) => !declared.has(name))).toEqual([]);
+	});
+
+	it('keeps exactly the HTML elements the schema declares', () => {
+		expect([...QTI3_HTML_ELEMENTS].sort()).toEqual(qti3Declared.filter((name) => !name.startsWith('qti-')).sort());
 	});
 
 	it('gives every QTI 2.2 element its QTI 3.0 name', () => {

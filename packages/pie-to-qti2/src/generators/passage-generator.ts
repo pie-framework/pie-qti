@@ -6,6 +6,7 @@
 
 import type { PieModel, PiePassageStimulus } from '@pie-qti/transform-types';
 import type { GeneratedPassageFile, ResolvedPassage } from '../types/passages.js';
+import { convertQti2ToQti3 } from '@pie-qti/qti-common';
 import { toQtiXhtml } from '../utils/xhtml.js';
 
 /**
@@ -20,6 +21,34 @@ function escapeXml(unsafe: string): string {
     .replace(/'/g, '&apos;');
 }
 
+interface PassageParts {
+  /** The QTI identifier: baseId when present, else id. */
+  identifier: string;
+  title?: string;
+  content: string;
+}
+
+function passageParts(passage: PieModel | ResolvedPassage): PassageParts {
+  if ('element' in passage) {
+    // PIE passage model from config.models[]
+    const [first] = passage.passages || [];
+    return {
+      identifier: (passage as any).baseId || passage.id || 'passage',
+      title: first?.title,
+      content: first?.text || '',
+    };
+  }
+  // Resolved passage from PassageResolver
+  return { identifier: passage.baseId || passage.id, title: passage.title, content: passage.content };
+}
+
+function stimulusDiv({ title, content }: PassageParts): string {
+  const titleElement = title ? `<h2>${escapeXml(title)}</h2>\n    ` : '';
+  return `<div class="stimulus">
+      ${titleElement}${toQtiXhtml(content ?? '')}
+    </div>`;
+}
+
 /**
  * Generate QTI passage XML from PIE passage model
  *
@@ -31,60 +60,42 @@ function escapeXml(unsafe: string): string {
  * - Metadata: sourceSystemId = "pie", externalId = identifier value
  */
 export function generatePassageXml(passage: PieModel | ResolvedPassage): string {
-  let passageId: string;
-  let baseId: string | undefined;
-  let title: string | undefined;
-  let content: string;
-
-  // Handle different passage sources
-  if ('element' in passage) {
-    // PIE passage model from config.models[]
-    passageId = passage.id || 'passage';
-    baseId = (passage as any).baseId;
-    // externalId could be extracted but not currently used
-    // const externalId = (passage as any).externalId;
-    const passageData = passage.passages || [];
-
-    if (passageData.length > 0) {
-      const firstPassage = passageData[0];
-      title = firstPassage.title;
-      content = firstPassage.text || '';
-    } else {
-      content = '';
-    }
-  } else {
-    // Resolved passage from PassageResolver
-    passageId = passage.id;
-    baseId = passage.baseId;
-    // externalId could be used but not currently needed
-    // const externalId = passage.externalId;
-    title = passage.title;
-    content = passage.content;
-  }
-
-  // Determine QTI identifier: baseId (if present), otherwise id
-  const qtiIdentifier = baseId || passageId;
-
-  // Build passage XML
-  const titleElement = title ? `<h2>${escapeXml(title)}</h2>\n    ` : '';
-
+  const parts = passageParts(passage);
   return `<?xml version="1.0" encoding="UTF-8"?>
 <assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
                 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                 xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2
                                     http://www.imsglobal.org/xsd/qti/qtiv2p2/imsqti_v2p2.xsd"
-                identifier="${escapeXml(qtiIdentifier)}"
-                title="${escapeXml(title || 'Passage')}"
+                identifier="${escapeXml(parts.identifier)}"
+                title="${escapeXml(parts.title || 'Passage')}"
                 adaptive="false"
                 timeDependent="false">
   <!-- Standalone passage/stimulus item -->
   <itemBody>
-    <div class="stimulus">
-      ${titleElement}${toQtiXhtml(content ?? '')}
-    </div>
+    ${stimulusDiv(parts)}
   </itemBody>
 </assessmentItem>
 `;
+}
+
+/**
+ * Generate a QTI 3.0 `qti-assessment-stimulus` for a passage. It is written in QTI 2.2's
+ * vocabulary and renamed, like every QTI 3.0 document the export writes.
+ */
+export function generatePassageStimulusXml(passage: PieModel | ResolvedPassage): string {
+  const parts = passageParts(passage);
+  return convertQti2ToQti3(`<?xml version="1.0" encoding="UTF-8"?>
+<assessmentStimulus xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                    xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2
+                                        http://www.imsglobal.org/xsd/qti/qtiv2p2/imsqti_v2p2.xsd"
+                    identifier="${escapeXml(parts.identifier)}"
+                    title="${escapeXml(parts.title || 'Passage')}">
+  <stimulusBody>
+    ${stimulusDiv(parts)}
+  </stimulusBody>
+</assessmentStimulus>
+`);
 }
 
 /**
@@ -98,6 +109,8 @@ export function generatePassageFile(
   options: {
     basePath?: string;
     metadata?: Record<string, any>;
+    /** `3.0` writes a `qti-assessment-stimulus`; `2.2`, the default, an interaction-less item. */
+    targetVersion?: '2.2' | '3.0';
   } = {}
 ): GeneratedPassageFile {
   // Extract IDs
@@ -113,7 +126,7 @@ export function generatePassageFile(
   return {
     id: qtiIdentifier,  // Use stable ID
     filePath: `${basePath}/${qtiIdentifier}.xml`,
-    xml: generatePassageXml(passage),
+    xml: options.targetVersion === '3.0' ? generatePassageStimulusXml(passage) : generatePassageXml(passage),
     metadata: options.metadata,
   };
 }
@@ -123,7 +136,10 @@ export function generatePassageFile(
  *
  * Converts full PIE passage stimulus to QTI passage XML
  */
-export function generatePassageFromStimulus(stimulus: PiePassageStimulus): GeneratedPassageFile {
+export function generatePassageFromStimulus(
+  stimulus: PiePassageStimulus,
+  targetVersion: '2.2' | '3.0' = '2.2'
+): GeneratedPassageFile {
   const passageId = stimulus.id || stimulus.externalId || 'passage';
 
   // Extract passage content from config.models
@@ -153,6 +169,7 @@ export function generatePassageFromStimulus(stimulus: PiePassageStimulus): Gener
 
   return generatePassageFile(resolved, {
     metadata: stimulus.searchMetaData,
+    targetVersion,
   });
 }
 
@@ -195,4 +212,15 @@ export function insertPassageObjectReference(
     /(<itemBody>)[\s\S]*?(<\/itemBody>)/,
     `${openTag}${newBodyContent}\n  ${closeTag}`
   );
+}
+
+/**
+ * Insert an `assessmentStimulusRef` to an external passage, in QTI 2.2's vocabulary for the
+ * QTI 3.0 rename: it precedes the item's stylesheets and body.
+ */
+export function insertStimulusReference(qtiXml: string, passageId: string, href: string): string {
+  const at = qtiXml.search(/<(?:companionMaterialsInfo|stylesheet|itemBody)[\s/>]/);
+  if (at === -1) return qtiXml;
+  const ref = `<assessmentStimulusRef identifier="${escapeXml(passageId)}" href="${escapeXml(href)}" data-pie-passage-id="${escapeXml(passageId)}"/>\n  `;
+  return `${qtiXml.slice(0, at)}${ref}${qtiXml.slice(at)}`;
 }

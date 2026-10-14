@@ -4,6 +4,7 @@
  * Validates the structure and integrity of IMS Content Packages
  */
 
+import { QTI3_CP_NAMESPACE } from '../generators/manifest-generator.js';
 import type { ManifestInput } from '../types/manifest.js';
 
 export interface ValidationResult {
@@ -221,11 +222,11 @@ export function validateGeneratedManifest(manifestXml: string): ValidationResult
     });
   }
 
-  // Check required namespaces
-  const requiredNamespaces = [
-    'xmlns="http://www.imsglobal.org/xsd/imscp_v1p1"',
-    'xmlns:imsqti="http://www.imsglobal.org/xsd/imsqti_v2p2"',
-  ];
+  // The QTI 3.0 profile is recognized by its namespace; anything else is checked as QTI 2.2.
+  const qti3 = manifestXml.includes(`xmlns="${QTI3_CP_NAMESPACE}"`);
+  const requiredNamespaces = qti3
+    ? [`xmlns="${QTI3_CP_NAMESPACE}"`]
+    : ['xmlns="http://www.imsglobal.org/xsd/imscp_v1p1"', 'xmlns:imsqti="http://www.imsglobal.org/xsd/imsqti_v2p2"'];
 
   for (const ns of requiredNamespaces) {
     if (!manifestXml.includes(ns)) {
@@ -260,9 +261,18 @@ export function validateGeneratedManifest(manifestXml: string): ValidationResult
     });
   }
 
+  if (qti3 && !manifestXml.includes('<schemaversion>3.0.0</schemaversion>')) {
+    errors.push({
+      code: 'MISSING_METADATA',
+      message: 'QTI 3.0 manifest is missing its metadata with schemaversion 3.0.0',
+    });
+  }
+
   // Check resource types
-  const hasItemResources = manifestXml.includes('type="imsqti_item_xmlv2p2"');
-  const hasAssessmentResources = manifestXml.includes('type="imsqti_assessment_xmlv2p2"');
+  const hasItemResources = manifestXml.includes(qti3 ? 'type="imsqti_item_xmlv3p0"' : 'type="imsqti_item_xmlv2p2"');
+  const hasAssessmentResources = manifestXml.includes(
+    qti3 ? 'type="imsqti_test_xmlv3p0"' : 'type="imsqti_assessment_xmlv2p2"'
+  );
 
   if (!hasItemResources && !hasAssessmentResources) {
     warnings.push({

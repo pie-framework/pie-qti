@@ -3,8 +3,9 @@
  *
  * Every transformer reads the QTI 2.x vocabulary, so a QTI 3.0 document is renamed into it at the
  * entry point: the namespace, `qti-*` element names, and each kebab-case attribute the QTI 2.x
- * schemas spell in camelCase. Two structural repairs follow for prompts QTI 2.2 does not admit
- * where QTI 3.0 content puts them.
+ * schemas spell in camelCase. `qti-content-body`, which QTI 3.0 wraps rubric block content in
+ * and QTI 2.2 does not have, is unwrapped. Two structural repairs follow for prompts QTI 2.2 does
+ * not admit where QTI 3.0 content puts them.
  *
  * The rename is a generic kebab-to-camel mapping that covers every well-formed `qti-*` tag, so no
  * allow-list of element names has to track what content uses. The constructs it cannot carry are
@@ -74,10 +75,14 @@ const QTI3_ATTRIBUTE_PATTERN = new RegExp(
   'gi'
 );
 
+/** A `qti-content-body` start, end or empty tag. */
+const QTI3_CONTENT_BODY_TAG = /<\s*\/?\s*(?:[\w.-]+:)?qti-content-body\b[^>]*>/gi;
+
 /** The namespace, the `qti-*` element names and every kebab-case QTI attribute. */
 export function normalizeQti3Lexically(xml: string): string {
   return xml
     .replace(QTI3_NAMESPACE_PATTERN, CANONICAL_QTI_NAMESPACE)
+    .replace(QTI3_CONTENT_BODY_TAG, '')
     .replace(/<\s*(\/?)\s*(?:[\w.-]+:)?qti-([a-z][\w.-]*)/gi, (_match, slash, name) => {
       return `<${slash}${camelCaseQtiName(name)}`;
     })

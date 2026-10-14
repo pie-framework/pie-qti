@@ -341,7 +341,8 @@ Catalog parsing and glossary/keyword-translation popup support are implemented:
   yet construct and pass the item-relative resolver automatically.
 - Test feedback: the reference backend returns no outcome values, so `qti-test-feedback` is evaluated
   against empty outcomes, and only `access="atEnd"` feedback is evaluated (G-05).
-- Export is QTI 2.2 only; QTI 3.0 output is limited to re-emitting embedded QTI 3.0 source (G-25).
+- Export writes QTI 3.0 with `targetVersion: '3.0'` on `PieToQtiPlugin` (G-25). Assessment-level
+  accessibility catalogs have no QTI home and are named in a warning instead of written.
 - Formal official-suite evidence for current source changes is unavailable until a new NPM candidate
   is published: the private runner deliberately consumes published packages only.
 

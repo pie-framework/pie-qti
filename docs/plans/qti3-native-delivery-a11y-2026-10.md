@@ -33,8 +33,8 @@ the PIE→QTI export. Slices run in certification-impact order. The conversion d
 | 9   | Content language                               | `feat/delivery-content-language`      |     | pending |
 | 10  | PNP in delivery                                | `feat/delivery-pnp`                   |     | pending |
 | 11  | Shared vocabulary, catalogs and sanitizer      | `feat/delivery-vocabulary-catalogs`   |     | pending |
-| 12  | Element map completion                         | `fix/qti3-element-map`                | #301 | open    |
-| 13  | QTI 3.0 writer                                 | `feat/pie-to-qti2-qti3-writer`        |     | pending |
+| 12  | Element map completion                         | `fix/qti3-element-map`                | #301 | merged  |
+| 13  | QTI 3.0 writer                                 | `feat/pie-to-qti2-qti3-writer`        | #302 | open    |
 
 States: `pending`, `in progress`, `open` (PR up, merge agent running), `merged`, `blocked`
 (with a one-line reason under the slice).
@@ -202,7 +202,8 @@ trip through both is testable.
 defaulting to `'2.2'`, because both versions share every generator, the identifier and passage
 deduplication, and the LOM metadata. A deliberate trade: the package name stops describing its
 output, at the cost of none of the breakage a rename would bring. The lossless path re-emits an
-embedded source only when its version equals the target; otherwise the item is generated.
+embedded source only when its version family matches the target, 2.1 and 2.2 for a 2.2 target and
+3.0 for a 3.0 target; otherwise the item is generated, with a warning.
 
 **Catalogs native in QTI 3.0.** A QTI 3.0 export writes catalogs as `qti-catalog-info` with
 `data-catalog-idref` unchanged, the canonical shape the catalogs already have, so the APIP

@@ -1,6 +1,6 @@
 /**
  * Embedded QTI source: an item imported by to-pie is exported as its original QTI only while its
- * config still has the digest to-pie recorded.
+ * config still has the digest to-pie recorded, and only to a target of the same version family.
  */
 
 import { describe, expect, test } from 'bun:test';
@@ -49,6 +49,30 @@ describe('Embedded QTI source', () => {
     expect(output.items[0].content).toContain('Pick B.');
     expect(output.format).toBe('qti22');
     expect(output.metadata.warnings).toContainEqual(expect.stringContaining('changed after import'));
+  });
+
+  test('a QTI 2.x source is generated afresh for a QTI 3.0 target, and a QTI 3.0 source is kept', async () => {
+    const qti30 = new PieToQtiPlugin({ targetVersion: '3.0' });
+    const output = await qti30.transform({ content: await imported() }, { logger });
+
+    expect(output.format).toBe('qti30');
+    expect(output.items[0].content).toContain('<qti-choice-interaction');
+    expect(output.metadata.warnings).toContainEqual(
+      expect.stringContaining('QTI 2.1 source is not re-emitted for a QTI 3.0 export')
+    );
+
+    const qti30Xml = output.items[0].content as string;
+    const reimported = (await new QtiToPiePlugin().transform({ content: qti30Xml }, { logger })).items[0]
+      .content as PieItem;
+    const again = await qti30.transform({ content: reimported }, { logger });
+    expect(again.items[0].content).toBe(qti30Xml);
+    expect(again.format).toBe('qti30');
+
+    const toQti22 = await pieToQti.transform({ content: reimported }, { logger });
+    expect(toQti22.format).toBe('qti22');
+    expect(toQti22.metadata.warnings).toContainEqual(
+      expect.stringContaining('QTI 3.0 source is not re-emitted for a QTI 2.2 export')
+    );
   });
 
   test('an embedded source without a digest is generated afresh', async () => {

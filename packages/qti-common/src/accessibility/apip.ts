@@ -34,8 +34,8 @@ import {
 	clockSeconds,
 	type MediaFragmentRange,
 	type MediaKind,
-	type MediaSource,
 	mediaKind,
+	mediaMimeType,
 	type TextRange,
 } from './catalog.js';
 
@@ -98,19 +98,6 @@ const APIP_SSML_ELEMENTS = new Set([
 	'mark',
 	'audio',
 ]);
-const MIME_TYPES: Record<string, string> = {
-	aac: 'audio/aac',
-	m4a: 'audio/mp4',
-	mp3: 'audio/mpeg',
-	oga: 'audio/ogg',
-	ogg: 'audio/ogg',
-	wav: 'audio/wav',
-	m4v: 'video/x-m4v',
-	mov: 'video/quicktime',
-	mp4: 'video/mp4',
-	ogv: 'video/ogg',
-	webm: 'video/webm',
-};
 const APIP_SUPPORTS: Record<string, (support: HTMLElement) => ApipSupport> = {
 	spoken: spokenSupport,
 	brailleText: (support) => ({ cards: textCards('braille', textOf(support, 'brailleTextString')) }),
@@ -551,7 +538,7 @@ function tactileXml(cards: CatalogCard[], label: () => string): { xml?: string; 
 function fileInfoXml(name: string, payload: CatalogCardPayload, label: () => string): string | undefined {
 	const video = name === 'videoFileInfo';
 	const source = payload.media.sources
-		.map((candidate) => ({ ...candidate, mimeType: mimeTypeOf(candidate) }))
+		.map((candidate) => ({ ...candidate, mimeType: mediaMimeType(candidate) }))
 		.find((candidate) => candidate.src && candidate.mimeType);
 	if (!source) return undefined;
 	const { fragment } = payload;
@@ -573,12 +560,6 @@ function fileInfoXml(name: string, payload: CatalogCardPayload, label: () => str
 	);
 }
 
-function mimeTypeOf(source: MediaSource): string | undefined {
-	const declared = source.type?.trim();
-	if (declared) return declared;
-	const extension = /\.([a-z0-9]+)(?:[?#].*)?$/i.exec(source.src)?.[1]?.toLowerCase();
-	return extension ? MIME_TYPES[extension] : undefined;
-}
 
 /** Seconds as an `xs:time`, to the millisecond. */
 function xsTime(seconds: number): string {

@@ -19,5 +19,7 @@ export {
 	type MediaKind,
 	type MediaSource,
 	mediaKind,
+	mediaMimeType,
 	type TextRange,
 } from './catalog.js';
+export { type QtiCatalogInfoOptions, writeQtiCatalogInfo } from './catalog-info.js';
