@@ -1,5 +1,13 @@
 # @pie-qti/demo-vendor-extensions
 
+## 0.1.28
+
+### Patch Changes
+
+- Updated dependencies [8fd28e3]
+  - @pie-qti/to-pie@0.1.28
+  - @pie-qti/transform-types@0.1.28
+
 ## 0.1.27
 
 ### Patch Changes
