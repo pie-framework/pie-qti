@@ -4,9 +4,12 @@
  * Based on IMS Global/1EdTech QTI 3.0 specification and amp-up.io implementation.
  * All QTI 3.0 elements use kebab-case with 'qti-' prefix.
  *
- * This file documents 172 QTI 3.0 elements providing 100% coverage of the official
- * specification including all interactions, processing rules, expressions, and
- * accessibility features.
+ * The map covers the interactions, most processing rules and expressions, and the
+ * accessibility elements. It is not the complete vocabulary: test-structure elements
+ * such as qti-item-session-control, qti-selection and qti-branch-rule, and
+ * qti-assessment-stimulus, are absent. Qti3ElementNameMapper.toCanonical derives a
+ * canonical name for an unmapped qti- element by stripping the prefix and hyphens;
+ * toNative returns an unmapped canonical name unchanged.
  */
 
 /**

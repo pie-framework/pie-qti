@@ -1,9 +1,8 @@
 # Interchange Defect Remediation Plan
 
-**Status**: In progress — every defect fixed, none merged: D1 through E8 on
-`fix/interchange-defects`, P1 on `fix/graphing-solution-set-partial-scoring`, P2 on
-`fix/likert-is-complete`
-**Last reviewed**: 2026-10-09
+**Status**: In progress — D1 through E8 merged in #269 (662e5a9, 2026-10-10); P1 on
+`fix/graphing-solution-set-partial-scoring` and P2 on `fix/likert-is-complete` are fixed and unmerged
+**Last reviewed**: 2026-10-14
 **Scope**: `packages/to-pie/src/`, `packages/to-pie/README.md`, `packages/pie-to-qti2/src/`,
 `packages/pie-to-qti2/docs/QTI-COMPLIANCE.md`; in pie-elements-ng,
 `packages/elements-react/graphing-solution-set/src/controller/` and
@@ -11,8 +10,10 @@
 
 Fixes the defects found in the October 2026 interchange assessment: wrong behavior in QTI import
 (`to-pie`), QTI 2.2 export (`pie-to-qti2`) and two pie-elements-ng controllers. QTI 3.0 import,
-stimulus references, catalogs, partner custom interactions, a QTI 3.0 writer and PCI wrapping are
-missing features, tracked in [`../SPEC-GAPS-PLAN.md`](../SPEC-GAPS-PLAN.md) and
+stimulus references and catalogs landed through
+[`qti3-accessibility-passages-2026-10.md`](qti3-accessibility-passages-2026-10.md). Partner custom
+interactions, a QTI 3.0 writer and PCI wrapping are missing features, tracked in
+[`../SPEC-GAPS-PLAN.md`](../SPEC-GAPS-PLAN.md) (G-08, G-25) and
 [`pci-runtime-and-sandbox-2026-08.md`](pci-runtime-and-sandbox-2026-08.md). Copies of these defects
 in the legacy `pie-elements` and `pie-lib` repositories take no work.
 
@@ -30,21 +31,21 @@ the first adopter. Import defects were sized against a third-party QTI corpus
 
 | ID | Defect | Package | Exposure | Evidence |
 |---|---|---|---|---|
-| D1 | README claims QTI 3.0 import | to-pie | Concrete; fixed, unmerged | QTI 3.0 input is rejected |
-| D2 | Compliance doc claims XSD conformance | pie-to-qti2 | Concrete; fixed, unmerged | every probed export fails the QTI 2.2 XSD |
-| I1 | A broken PIE extension aborts the package | to-pie | Latent; fixed, unmerged | only pie-to-qti2 output carries the extension |
-| I2 | Embedded `sourceModel` overrides an edited QTI body | to-pie | Latent; fixed, unmerged | as I1 |
-| I3 | Feedback markup leaks into labels or drops silently | to-pie | Latent; fixed, unmerged | 0 of 5,200 sampled items carry feedback markup |
-| I4 | Validator reports non-well-formed XML as valid | to-pie | Latent; fixed, unmerged | 3 of 1,950 sampled items fail a strict parse |
-| I5 | Stem or prompt dropped when an item has both | to-pie | Concrete; fixed, unmerged | 42 of 1,840 transformed sampled items |
-| E1 | Generators never match real PIE items | pie-to-qti2 | Latent; fixed, unmerged | no consumer |
-| E2 | No response processing or `SCORE` | pie-to-qti2 | Latent; fixed, unmerged | no consumer |
-| E3 | Output violates the QTI 2.2 schema | pie-to-qti2 | Latent; fixed, unmerged | no consumer |
-| E4 | `]]>` in model content breaks well-formedness | pie-to-qti2 | Latent; fixed, unmerged | no consumer |
-| E5 | Only the first interaction is exported | pie-to-qti2 | Latent; fixed, unmerged | no consumer |
-| E6 | Rubric models are dropped | pie-to-qti2 | Latent; fixed, unmerged | no consumer |
-| E7 | Embedded QTI source discards PIE edits | pie-to-qti2 | Latent; fixed, unmerged | no consumer |
-| E8 | Authored HTML written raw into XML | pie-to-qti2 | Latent; fixed, unmerged | of 1,829 production prompts: `&nbsp;` 70, `<br>` 139, `<img>` without `alt` 299 |
+| D1 | README claims QTI 3.0 import | to-pie | Concrete; fixed, merged | QTI 3.0 input is rejected |
+| D2 | Compliance doc claims XSD conformance | pie-to-qti2 | Concrete; fixed, merged | every probed export fails the QTI 2.2 XSD |
+| I1 | A broken PIE extension aborts the package | to-pie | Latent; fixed, merged | only pie-to-qti2 output carries the extension |
+| I2 | Embedded `sourceModel` overrides an edited QTI body | to-pie | Latent; fixed, merged | as I1 |
+| I3 | Feedback markup leaks into labels or drops silently | to-pie | Latent; fixed, merged | 0 of 5,200 sampled items carry feedback markup |
+| I4 | Validator reports non-well-formed XML as valid | to-pie | Latent; fixed, merged | 3 of 1,950 sampled items fail a strict parse |
+| I5 | Stem or prompt dropped when an item has both | to-pie | Concrete; fixed, merged | 42 of 1,840 transformed sampled items |
+| E1 | Generators never match real PIE items | pie-to-qti2 | Latent; fixed, merged | no consumer |
+| E2 | No response processing or `SCORE` | pie-to-qti2 | Latent; fixed, merged | no consumer |
+| E3 | Output violates the QTI 2.2 schema | pie-to-qti2 | Latent; fixed, merged | no consumer |
+| E4 | `]]>` in model content breaks well-formedness | pie-to-qti2 | Latent; fixed, merged | no consumer |
+| E5 | Only the first interaction is exported | pie-to-qti2 | Latent; fixed, merged | no consumer |
+| E6 | Rubric models are dropped | pie-to-qti2 | Latent; fixed, merged | no consumer |
+| E7 | Embedded QTI source discards PIE edits | pie-to-qti2 | Latent; fixed, merged | no consumer |
+| E8 | Authored HTML written raw into XML | pie-to-qti2 | Latent; fixed, merged | of 1,829 production prompts: `&nbsp;` 70, `<br>` 139, `<img>` without `alt` 299 |
 | P1 | graphing-solution-set ignores partial scoring | pie-elements-ng | Latent; fixed, unmerged | setting absent from 100 of 100 production models sampled |
 | P2 | likert never reports a complete session | pie-elements-ng | Fixed, unmerged | — |
 
@@ -56,7 +57,8 @@ D1 and D2 are text changes for readers today. I5 is the one code defect with a c
 
 - **D1.** `packages/to-pie/README.md` lists "QTI 3.0 (items and assessments; auto-detected)" under
   supported versions. to-pie detects QTI 3.0 and rejects it. The section states QTI 2.1 and 2.2
-  input, with QTI 3.0 rejected by a diagnostic, until QTI 3.0 normalization lands.
+  input, with QTI 3.0 rejected by a diagnostic, until QTI 3.0 normalization lands. QTI 3.0
+  normalization landed in #285, and the README now lists QTI 3.0 items, stimuli and tests.
 - **D2.** `packages/pie-to-qti2/docs/QTI-COMPLIANCE.md` states that all generated items conform to
   the official XSD. The claim is withdrawn until the validation gate below passes without exceptions.
 
@@ -312,9 +314,9 @@ response is the selected choice's number.
 
 ## Sequencing
 
-1. D1, D2: now, as text changes. Done, unmerged.
-2. I1, I3, I4, I5: small and independent. Done, unmerged.
+1. D1, D2: now, as text changes. Merged in #269.
+2. I1, I3, I4, I5: small and independent. Merged in #269.
 3. P1: independent, in pie-elements-ng; P2 merges with it or separately. Done, unmerged.
 4. Validation gate, then E1, E3 (closing E4), E2, E5, E6 and E8: before pie-to-qti2's first
-   consumer. Done, unmerged.
-5. Embedded-source freshness (I2, E7): after step 4. Done, unmerged.
+   consumer. Merged in #269.
+5. Embedded-source freshness (I2, E7): after step 4. Merged in #269.

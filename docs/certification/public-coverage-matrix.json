@@ -553,7 +553,7 @@
 				"item-clean-room",
 				"browser-visible"
 			],
-			"notes": "Covers class preservation and browser-applied Shared Vocabulary utility classes."
+			"notes": "Covers class preservation and the Shared Vocabulary utility classes the default stylesheet implements. No CSS ships for qti-writing-orientation-*, qti-text-orientation-*, qti-list-style-type-*, qti-labels-suffix-*, qti-choices-left/right, qti-unselected-hidden or qti-heading; those classes are preserved without styling."
 		},
 		{
 			"id": "qti30-advanced-p7",

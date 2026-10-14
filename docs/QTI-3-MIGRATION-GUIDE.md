@@ -321,15 +321,15 @@ Catalog parsing and glossary/keyword-translation popup support are implemented:
 
 | Component | QTI 2.x | QTI 3.0 | Notes |
 |-----------|---------|---------|-------|
-| **Element name mapping** | Implemented | Implemented | Explicit QTI map; HTML/MathML/SVG/extensions pass through |
+| **Element name mapping** | Implemented | Partial map | Explicit map lacks some test-structure and stimulus elements, which fall back to prefix stripping; HTML/MathML/SVG/extensions pass through |
 | **Attribute handling** | Implemented | Implemented | Camel/kebab accessors |
 | **Version detection** | Implemented | Implemented | Namespace first, root-name fallback |
 | **Standard interactions (21 names)** | Broad coverage | Broad coverage | Includes schema-valid position-object hierarchy and extended-text cardinalities; browser evidence varies by interaction |
 | **Record cardinality** | Implemented | Implemented | Named typed fields; no declaration-level BaseType |
 | **Response processing** | Broad coverage | Broad coverage | Canonical fixed templates covered; external fragments require a host resolver |
 | **Assessment player** | Partial | Partial | Per-part modes and ordered hierarchy retained; dynamic controls below remain |
-| **PCI support** | Implemented for PCI payloads | Implemented | Explicit host resolver required; not a sandbox |
-| **PNP support** | N/A / host profile | Current delivery scope | Color schemes, elimination, extended time, glossary/translation triggers |
+| **PCI support** | Partial | Partial | Bespoke module contract, not the spec's `qtiCustomInteractionContext` registry (G-08); explicit host resolver required; not a sandbox |
+| **PNP support** | N/A / host profile | Current delivery scope | Elimination, extended time, glossary/translation triggers; color schemes set `data-qti-colorscheme` but ship no rulesets |
 | **Catalog system** | Limited extensions | Current item scope | Inline/provided catalog XML; manifest-level shared discovery remains open |
 
 ### Remaining delivery boundaries
@@ -339,6 +339,9 @@ Catalog parsing and glossary/keyword-translation popup support are implemented:
 - `selection withReplacement="true"` does not yet materialize distinct, sequence-indexed ItemSessions.
 - Processing-fragment resolution is available on ItemPlayer, but assessment/package delivery does not
   yet construct and pass the item-relative resolver automatically.
+- Test feedback: the reference backend returns no outcome values, so `qti-test-feedback` is evaluated
+  against empty outcomes, and only `access="atEnd"` feedback is evaluated (G-05).
+- Export is QTI 2.2 only; QTI 3.0 output is limited to re-emitting embedded QTI 3.0 source (G-25).
 - Formal official-suite evidence for current source changes is unavailable until a new NPM candidate
   is published: the private runner deliberately consumes published packages only.
 
