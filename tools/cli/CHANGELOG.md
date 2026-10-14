@@ -1,5 +1,17 @@
 # @pie-qti/transform-cli
 
+## 0.1.28
+
+### Patch Changes
+
+- 73ec447: The CLI moves to `@oclif/core` 5 and declares the Node.js 22 floor oclif already required; Node.js 20 cannot run it.
+- Updated dependencies [8fd28e3]
+  - @pie-qti/to-pie@0.1.28
+  - @pie-qti/transform-core@0.1.28
+  - @pie-qti/ims-cp-node@0.1.28
+  - @pie-qti/logger@0.1.28
+  - @pie-qti/transform-types@0.1.28
+
 ## 0.1.27
 
 ### Patch Changes

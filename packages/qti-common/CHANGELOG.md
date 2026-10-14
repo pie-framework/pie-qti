@@ -1,5 +1,12 @@
 # @pie-qti/qti-common
 
+## 0.1.28
+
+### Patch Changes
+
+- 6af3354: The QTI 3 element map now covers every `qti-*` element of the QTI 3.0 schema, including test structure, shared stimuli and companion materials, so `toNative` and `isQti3Element` answer for them; six names the schema does not declare are removed.
+- 8fd28e3: Add a QTI 3.0 export: `targetVersion: '3.0'` on `PieToQtiPlugin` writes QTI 3.0 items, stimuli, tests and content packages, with catalogs as `qti-catalog-info`. `@pie-qti/qti-common` gains `convertQti2ToQti3` and `writeQtiCatalogInfo`; `@pie-qti/to-pie` reads the export back, unwrapping `qti-content-body` and resolving a stimulus reference by its PIE passage id.
+
 ## 0.1.27
 
 ### Patch Changes

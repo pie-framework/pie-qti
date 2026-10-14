@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/qti-common",
-  "version": "0.1.27",
+  "version": "0.1.28",
   "main": "./dist/index.js",
   "dependencies": {
     "node-html-parser": "^9.0.4"
