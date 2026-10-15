@@ -27,7 +27,7 @@ the PIE→QTI export. Slices run in certification-impact order. The conversion d
 | 3   | Feedback and template blocks; modal feedback   | `feat/feedback-template-blocks`       | #311 | merged  |
 | 4   | Test feedback outcomes                         | `fix/test-feedback-outcomes`          | #315 | merged  |
 | 5   | Outcome-processing inputs                      | `fix/outcome-processing-inputs`       | #317 | merged  |
-| 6   | Lookup tables                                  | `fix/lookup-table-semantics`          |     | pending |
+| 6   | Lookup tables                                  | `fix/lookup-table-semantics`          |     | in progress |
 | 7   | Test structure and item session control        | `feat/test-structure-session-control` |     | pending |
 | 8   | TTS and SSML in delivery                       | `feat/delivery-tts-ssml`              |     | pending |
 | 9   | Content language                               | `feat/delivery-content-language`      |     | pending |
@@ -310,6 +310,10 @@ is, and a `weightIdentifier` makes it float.
   build.
 
 Done when a QTI 3 item using each table loads and maps per the spec's examples.
+
+Landed with one change: the non-QTI `lookupTable` expression keeps working with step semantics, and
+its conformance fixture now exercises `includeBoundary` and `defaultValue` instead of linear
+interpolation. Without an outcome to coerce to, its values read as float when numeric.
 
 ### 7. Test structure and item session control
 
