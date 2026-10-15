@@ -25,7 +25,7 @@ the PIE→QTI export. Slices run in certification-impact order. The conversion d
 | 1   | Item-body pass and printed variables           | `feat/item-body-printed-variables`    | #307 | merged  |
 | 2   | Inline feedback                                | `fix/feedback-inline-native`          | #309 | merged  |
 | 3   | Feedback and template blocks; modal feedback   | `feat/feedback-template-blocks`       | #311 | merged  |
-| 4   | Test feedback outcomes                         | `fix/test-feedback-outcomes`          |     | in progress |
+| 4   | Test feedback outcomes                         | `fix/test-feedback-outcomes`          | #315 | open    |
 | 5   | Outcome-processing inputs                      | `fix/outcome-processing-inputs`       |     | pending |
 | 6   | Lookup tables                                  | `fix/lookup-table-semantics`          |     | pending |
 | 7   | Test structure and item session control        | `feat/test-structure-session-control` |     | pending |
