@@ -29,7 +29,7 @@ the PIE→QTI export. Slices run in certification-impact order. The conversion d
 | 5   | Outcome-processing inputs                      | `fix/outcome-processing-inputs`       | #317 | merged  |
 | 6   | Lookup tables                                  | `fix/lookup-table-semantics`          | #318 | merged  |
 | 7   | Test structure and item session control        | `feat/test-structure-session-control` | #321 | merged  |
-| 8   | TTS and SSML in delivery                       | `feat/delivery-tts-ssml`              |     | in progress |
+| 8   | TTS and SSML in delivery                       | `feat/delivery-tts-ssml`              | #323 | open    |
 | 9   | Content language                               | `feat/delivery-content-language`      |     | pending |
 | 10  | PNP in delivery                                | `feat/delivery-pnp`                   |     | pending |
 | 11  | Shared vocabulary, catalogs and sanitizer      | `feat/delivery-vocabulary-catalogs`   |     | pending |
