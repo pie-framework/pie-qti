@@ -31,6 +31,7 @@ import {
 	Qti3ElementNameMapper,
 	Qti3AttributeNameMapper,
 	detectQtiVersion,
+	isShownByIdentifier,
 } from '@pie-qti/qti-common';
 import type {
 	AssessmentItemDocument,
@@ -857,7 +858,7 @@ export class Player {
 	}
 
 	public getItemBodyHtml(): HtmlContent {
-		const inner = this.itemDocument.serializeItemBodyChildren(this.contentHandlers());
+		const inner = this.itemDocument.serializeItemBodyChildren(this.contentHandlers({ inlineFeedback: false }));
 		if (!inner) return '';
 
 		return this.renderHtmlContent(inner);
@@ -1972,12 +1973,28 @@ export class Player {
 	/**
 	 * The item content pass's handlers, reading the session's current variable values. QTI 3 wraps
 	 * rubric content in `qti-content-body`, which is unwrapped so a rubric renders as in QTI 2.2.
+	 * Inline feedback resolves here for rubric and modal feedback content; item body feedback
+	 * resolves in presentation, which takes the outcome values to present as input.
 	 */
-	private contentHandlers(): ContentHandlers {
-		return new Map<string, ContentHandler>([
+	private contentHandlers({ inlineFeedback = true }: { inlineFeedback?: boolean } = {}): ContentHandlers {
+		const handlers = new Map<string, ContentHandler>([
 			['printedvariable', (element) => this.printedVariableNodes(element)],
 			['contentbody', (element) => Array.from(element.childNodes)],
 		]);
+		if (inlineFeedback) handlers.set('feedbackinline', (element) => this.feedbackInlineNodes(element));
+		return handlers;
+	}
+
+	/** A shown feedbackInline's content, or nothing; nested feedback resolves in turn. */
+	private feedbackInlineNodes(element: Element): Node[] {
+		const outcomeIdentifier = (getAttr(element, 'outcomeIdentifier') || '').trim();
+		const identifier = (getAttr(element, 'identifier') || '').trim();
+		if (!outcomeIdentifier || !identifier) return [];
+		const outcome = this.ctx.getValue(outcomeIdentifier);
+		const value = outcome.kind === 'value' ? outcome.value : null;
+		return isShownByIdentifier(value, identifier, getAttr(element, 'showHide'))
+			? Array.from(element.childNodes)
+			: [];
 	}
 
 	private printedVariableNodes(element: Element): Node[] {

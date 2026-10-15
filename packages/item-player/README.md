@@ -116,6 +116,12 @@ session in either QTI spelling, honouring `format` (C `printf` conversions), `ba
 `powerForm`, `field`, `delimiter` and `mappingIndicator`. QTI 3 rubric content is unwrapped from
 `qti-content-body`, so a rubric renders as its QTI 2.2 counterpart does.
 
+`feedbackInline` shows by the shared visibility rule in `@pie-qti/qti-common`: its `identifier`
+matches a single outcome value by equality and a container by membership, `showHide="hide"`
+inverts it, and nested feedback resolves inside shown feedback. Rubric and modal feedback content
+resolves against the session's outcomes; the item body and choice text resolve against the
+`outcomeValues` being presented.
+
 Section/test-part shared rubrics are not duplicated into item presentation. Assessment and section
 hosts place those through section composition.
 

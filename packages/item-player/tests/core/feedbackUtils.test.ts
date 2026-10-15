@@ -44,4 +44,35 @@ describe('processFeedbackInline', () => {
 		expect(processed).not.toContain('Incorrect');
 		expect(processed).not.toContain('feedbackInline');
 	});
+
+	test('reads QTI 3 spellings without taking identifier from outcome-identifier', () => {
+		const html =
+			'<p><qti-feedback-inline identifier="CORRECT" outcome-identifier="FEEDBACK" show-hide="hide">Hidden</qti-feedback-inline>' +
+			'<qti-feedback-inline outcome-identifier="CORRECT" identifier="FEEDBACK">Unmatched</qti-feedback-inline></p>';
+		expect(processFeedbackInline(html, { outcomeValues: { FEEDBACK: 'CORRECT', CORRECT: 'X' } })).toBe('<p></p>');
+		expect(processFeedbackInline(html, { outcomeValues: { FEEDBACK: 'OTHER' } })).toBe('<p>Hidden</p>');
+	});
+
+	test('resolves nested feedback inside shown feedback and drops it with hidden feedback', () => {
+		const html =
+			'<feedbackInline outcomeIdentifier="F" identifier="A">a[<feedbackInline outcomeIdentifier="F" identifier="B">b</feedbackInline>' +
+			'<feedbackInline outcomeIdentifier="F" identifier="C">c</feedbackInline>]</feedbackInline>' +
+			'<feedbackInline outcomeIdentifier="F" identifier="D">d<feedbackInline outcomeIdentifier="F" identifier="B">b</feedbackInline></feedbackInline>';
+		expect(processFeedbackInline(html, { outcomeValues: { F: ['A', 'B'] } })).toBe('a[b]');
+		expect(processFeedbackInline(html, { outcomeValues: { F: ['B', 'D'] } })).toBe('db');
+	});
+
+	test('shows showHide="hide" feedback while the outcome is NULL', () => {
+		const html = '<feedbackInline outcomeIdentifier="F" identifier="A" showHide="hide">until A</feedbackInline>';
+		expect(processFeedbackInline(html, { outcomeValues: {} })).toBe('until A');
+		expect(processFeedbackInline(html, { outcomeValues: { F: 'A' } })).toBe('');
+	});
+
+	test('drops empty feedback and leaves an unclosed element as written', () => {
+		expect(processFeedbackInline('x<feedbackInline outcomeIdentifier="F" identifier="A"/>y', { outcomeValues: { F: 'A' } })).toBe(
+			'xy'
+		);
+		const unclosed = 'x<feedbackInline outcomeIdentifier="F" identifier="A">y';
+		expect(processFeedbackInline(unclosed, { outcomeValues: { F: 'A' } })).toBe(unclosed);
+	});
 });

@@ -33,7 +33,7 @@
 
 **Why `shuffle` does not re-randomize on each render**: The QTI spec requires `shuffle` to produce a consistent random order for a given item session — not a new random order each time the item is rendered. Shuffling happens at extraction time using a PRNG seeded from the item session GUID (`packages/item-player/src/core/shuffle.ts`). Because `Player` persists that GUID in its saved state and restores it, the order is reproduced for the whole session — including after a reload — while a different candidate or a new attempt gets a different order. No separate shuffle state has to be serialised: the order is a pure function of the session GUID and the `responseIdentifier`.
 
-**Why `feedbackInline` is filtered through `heuristics`**: Some imported QTI content includes `feedbackInline` elements directly inside `simpleChoice` text. The QTI spec allows this, but the content was authored for a specific delivery engine that may have rendered it differently. The `heuristicsConfig.feedbackTextFormatting` flag enables a post-processing pass (`processFeedbackInline`) that strips or conditionally shows inline feedback based on `outcomeValues`. This is a best-effort compatibility feature for imported content, not a core spec requirement.
+**Inline feedback in choice text**: `simpleChoice` text may contain `feedbackInline` (`qti-feedback-inline` in QTI 3). `processFeedbackInline` shows or hides each one from `outcomeValues` by the shared visibility rule, including nested feedback, and wraps shown feedback in `.qti-feedback-inline`. `heuristicsConfig.feedbackTextFormatting` additionally rewrites vendor `Correct;`/`Incorrect;` labels inside shown feedback; it does not gate visibility.
 
 **Why correct-answer highlighting is role-gated**: The `role` prop controls whether `correctResponse` is visible. Only the `scorer` role sees the correct-answer badge and green highlight. The `candidate` role never sees the correct response during interaction, even if `correctResponse` is populated — exposing it would violate the QTI spec's `rubricBlock` role semantics and undermine assessment integrity.
 
@@ -98,7 +98,7 @@
 - **FR-5:** When `disabled=true`, all inputs must be non-interactive. Disabled state must be visually distinct.
 - **FR-6:** When `shuffle=true`, present choices in a shuffled order. The order must be stable (not re-randomised on re-render).
 - **FR-7:** When `role='scorer'` and `correctResponse` is provided, visually distinguish correct choices (green highlight, badge). Do not reveal correct answers to any other role.
-- **FR-8:** Render `feedbackInline` elements inside choice text conditionally based on `outcomeValues` when `heuristics.feedbackTextFormatting` is enabled.
+- **FR-8:** Render `feedbackInline` elements inside choice text, in either QTI spelling, conditionally on `outcomeValues` by the shared visibility rule.
 - **FR-9:** Render the `prompt` HTML content above the choice list when present.
 
 ---

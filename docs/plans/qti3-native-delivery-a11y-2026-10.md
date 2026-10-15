@@ -23,7 +23,7 @@ the PIE→QTI export. Slices run in certification-impact order. The conversion d
 | --- | ---------------------------------------------- | ------------------------------------- | --- | ------- |
 | 0   | This plan                                      | `docs/qti3-native-delivery-plan`      | #300 | merged  |
 | 1   | Item-body pass and printed variables           | `feat/item-body-printed-variables`    | #307 | merged  |
-| 2   | Inline feedback                                | `fix/feedback-inline-native`          |     | pending |
+| 2   | Inline feedback                                | `fix/feedback-inline-native`          |     | in progress |
 | 3   | Feedback and template blocks; modal feedback   | `feat/feedback-template-blocks`       |     | pending |
 | 4   | Test feedback outcomes                         | `fix/test-feedback-outcomes`          |     | pending |
 | 5   | Outcome-processing inputs                      | `fix/outcome-processing-inputs`       |     | pending |
@@ -244,6 +244,11 @@ renders identically to its QTI 2.2 twin, including inside modal feedback.
 
 Done when nested inline feedback and multiple-cardinality membership show correctly in both
 versions.
+
+Landed with one change: `createItemPresentation` takes the outcome values to present as input, so
+the item body and choice text resolve in presentation through `processFeedbackInline`, on the
+same rule; the pass resolves rubric and modal feedback content. The rule is `isShownByIdentifier`
+in `qti-common`, ready for slice 3.
 
 ### 3. Feedback and template blocks; modal feedback
 
