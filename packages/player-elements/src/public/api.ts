@@ -276,6 +276,7 @@ export interface QtiSecureItemRef {
 	branchRule?: Array<{ target: string; conditionXml?: string }>;
 	preConditions?: string[];
 	weights?: Array<{ identifier: string; value: number }>;
+	categories?: string[];
 }
 
 export type QtiSecureSectionComponent =

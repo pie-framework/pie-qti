@@ -89,8 +89,6 @@ async function deliver(xml: string, version: keyof typeof ITEMS) {
 		itemXmlMap: Object.fromEntries(['item-1', 'item-2', 'item-3'].map((id) => [`${id}.xml`, ITEMS[version](id)])),
 	});
 	const backend = new ReferenceBackendAdapter();
-	const orig = (backend as any).runOutcomeProcessing.bind(backend);
-	(backend as any).runOutcomeProcessing = (a: any, sc: any) => { const r = orig(a, sc); console.log('OP', JSON.stringify(Object.values(sc).map((x: any) => [x.itemIdentifier, x.score, x.outcomeValues])), JSON.stringify(r)); return r; };
 	backend.registerAssessment(assessment.identifier, assessment);
 	let sessionId = '';
 	const initSession = backend.initSession.bind(backend);
