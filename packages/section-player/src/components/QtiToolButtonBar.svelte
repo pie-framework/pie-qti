@@ -18,6 +18,7 @@
 	} from '@pie-players/pie-default-tool-loaders';
 	import { ContextProvider, ContextRoot } from '@pie-players/pie-context';
 	import type { QtiSectionToolConfig } from '../contracts/index.js';
+	import type { SpokenCatalog } from '../tts/readable-interaction-projection.js';
 	import { resolveSectionTtsProviderConfig } from '../tools/section-tool-config.js';
 
 	interface Props {
@@ -26,6 +27,8 @@
 		scopeLabel: string;
 		sourceText?: string;
 		sourceXml?: string;
+		/** The spoken cards the scope's SSML makes, resolved through its `data-catalog-idref`s. */
+		accessibilityCatalogs?: SpokenCatalog[];
 		scopeElement?: HTMLElement | null;
 	}
 
@@ -42,7 +45,15 @@
 		ttsHighlightTargetResolver?: TtsHighlightTargetResolver | null;
 	};
 
-	const { tools = [], scopeId, scopeLabel, sourceText = '', sourceXml = '', scopeElement = null }: Props = $props();
+	const {
+		tools = [],
+		scopeId,
+		scopeLabel,
+		sourceText = '',
+		sourceXml = '',
+		accessibilityCatalogs = [],
+		scopeElement = null,
+	}: Props = $props();
 
 	let shellHost = $state<HTMLElement | null>(null);
 	let shellProvider: ContextProvider<typeof assessmentToolkitShellContext> | null = null;
@@ -109,6 +120,7 @@
 	});
 	const toolEntity = $derived({
 		id: scopeId,
+		accessibilityCatalogs,
 		config: {
 			markup: sourceMarkup,
 			content: sourceMarkup,

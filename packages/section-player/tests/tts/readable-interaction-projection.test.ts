@@ -1,6 +1,10 @@
 import { describe, expect, test } from 'bun:test';
 import { DOMParser } from 'linkedom';
-import { extractReadableInteractionSpeechHtml } from '../../src/tts/readable-interaction-projection';
+import { convertQti2ToQti3 } from '@pie-qti/qti-common';
+import {
+	extractReadableInteractionSpeechHtml,
+	extractReadableItemSpeech,
+} from '../../src/tts/readable-interaction-projection';
 
 const parser = DOMParser as unknown as typeof globalThis.DOMParser;
 
@@ -118,5 +122,48 @@ describe('extractReadableInteractionSpeechHtml', () => {
 		expect(html).not.toContain('tracker.invalid');
 		expect(html).not.toContain('host-privileged-widget');
 		expect(html).not.toContain('secret=');
+	});
+});
+
+const READ_ALOUD_ITEM = `<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" xmlns:ssml="http://www.w3.org/2010/10/synthesis" identifier="read-aloud">
+	<itemBody>
+		<p>Water is <ssml:sub alias="water">H2O</ssml:sub>.</p>
+		<choiceInteraction responseIdentifier="RESPONSE" maxChoices="1">
+			<prompt data-ssml="&lt;speak&gt;Pick one&lt;/speak&gt;">Choose one.</prompt>
+			<simpleChoice identifier="A" data-ssml="&lt;speak&gt;Ay&lt;/speak&gt;">A</simpleChoice>
+			<simpleChoice identifier="B" data-qti-suppress-tts="computer-read-aloud">photosynthesis</simpleChoice>
+			<simpleChoice identifier="C" data-qti-suppress-tts="screen-reader">Carbon</simpleChoice>
+			<simpleChoice identifier="D" class="qti-hidden">Decoy</simpleChoice>
+		</choiceInteraction>
+	</itemBody>
+</assessmentItem>`;
+
+describe.each([
+	['QTI 2.2', READ_ALOUD_ITEM],
+	['QTI 3.0', convertQti2ToQti3(READ_ALOUD_ITEM)],
+])('extractReadableItemSpeech (%s)', (_version, xml) => {
+	const speech = extractReadableItemSpeech(xml, { DOMParserImpl: parser });
+
+	test('projects the interaction content of either QTI version', () => {
+		expect(speech.html).toContain('Choose one.');
+		expect(speech.html).toContain('Carbon');
+	});
+
+	test('carries the docked idrefs and returns their spoken catalogs', () => {
+		expect(speech.html).toContain('<p data-qti-readable-source="prompt" data-catalog-idref="ssml-1">Choose one.</p>');
+		expect(speech.html).toContain('<span data-catalog-idref="ssml-2">A</span>');
+		expect(speech.catalogs).toEqual([
+			{ identifier: 'ssml-1', cards: [{ catalog: 'spoken', content: '<speak>Pick one</speak>' }] },
+			{ identifier: 'ssml-2', cards: [{ catalog: 'spoken', content: '<speak>Ay</speak>' }] },
+			{
+				identifier: 'ssml-3',
+				cards: [{ catalog: 'spoken', content: '<speak>Water is <sub alias="water">H2O</sub>.</speak>' }],
+			},
+		]);
+	});
+
+	test('leaves out content suppressed for read-aloud or hidden', () => {
+		expect(speech.html).not.toContain('photosynthesis');
+		expect(speech.html).not.toContain('Decoy');
 	});
 });

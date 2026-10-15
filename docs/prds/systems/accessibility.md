@@ -68,6 +68,7 @@ KaTeX is configured with `throwOnError: false` and is set to produce MathML outp
 - **FR-14:** Hotspot interactions must expose each selectable region as a `role="button"` with `aria-pressed` toggling on selection and keyboard activation via Enter and Space.
 - **FR-15:** Slider interactions must map to `<input type="range">` with `aria-valuemin`, `aria-valuemax`, and `aria-valuenow` attributes kept in sync with the current response value.
 - **FR-16:** The assessment shell must include a single `AccessibilityAnnouncer` instance mounted at the root. Individual components must not mount their own announcers; they must receive an `announcer` reference from the shell or fire a custom DOM event that the shell's announcer handles.
+- **FR-17:** Read-aloud markup in QTI 2.2 and QTI 3.0 content must reach the PIE read-aloud tool. The item player prepares item XML with `prepareContentMarkup` from `@pie-qti/qti-common/accessibility` before parsing: `data-ssml` and inline `ssml:*` become `spoken` catalog cards docked under `data-catalog-idref`, inline SSML is unwrapped from the visible body, and `data-qti-suppress-tts` is restated as `data-tts-suppress`. The section player derives the same cards from the same XML, registers them on the item's toolkit entity as `accessibilityCatalogs`, and projects interaction content (prompts and choices, which render in shadow roots) with QTI 3 names, docked idrefs, and suppressed and `qti-hidden` content left out. Stem text is read from the rendered body.
 
 ---
 

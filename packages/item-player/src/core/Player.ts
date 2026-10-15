@@ -24,6 +24,7 @@ import {
 	toStringValue,
 } from '@pie-qti/qti-processing';
 import type { ElementNameMapper, AttributeNameMapper } from '@pie-qti/qti-common';
+import { prepareContentMarkup } from '@pie-qti/qti-common/accessibility';
 import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
 import {
 	Qti2xElementNameMapper,
@@ -74,6 +75,7 @@ import { createSeededRng } from './random.js';
 import { sanitizeHtml } from './sanitizer.js';
 import { toTrustedHtml } from './trustedTypes.js';
 import { sanitizeResourceUrl } from './urlPolicy.js';
+import { enforceItemXmlLimits } from './parsingLimits.js';
 import type { PnpProfile } from '../pnp/types.js';
 import { applyPnpToRoot } from '../pnp/applyPnp.js';
 import type { CatalogIndex } from '../catalog/types.js';
@@ -225,6 +227,11 @@ export class Player {
 			this.itemDocument = prepared.itemDocument;
 			this.decls = cloneDeclarationMap(prepared.declarations);
 		} else {
+			// Read-aloud markup: suppression restated as the attribute the PIE tools read, and SSML
+			// docked as catalog idrefs and unwrapped from the visible body. The section player derives
+			// the same `spoken` cards from the same XML.
+			enforceItemXmlLimits(this.itemXml, this.config.security);
+			this.itemXml = prepareContentMarkup(this.itemXml, [], { hidingStyles: false }).xml;
 			this.itemDocument = parseAssessmentItemDocument({
 				itemXml: this.itemXml,
 				elementNameMapper: this.mapper,
