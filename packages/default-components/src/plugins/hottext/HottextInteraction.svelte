@@ -6,6 +6,7 @@
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
 	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
+	import { HOTTEXT_SELECTOR } from './hottextSelector';
 
 	interface Props {
 		interaction?: HottextInteractionData | string;
@@ -115,7 +116,7 @@
 	function updateHottextStyles() {
 		if (!contentElement) return;
 
-		const hottextElements = contentElement.querySelectorAll('hottext');
+		const hottextElements = contentElement.querySelectorAll(HOTTEXT_SELECTOR);
 		hottextElements.forEach((elem: Element) => {
 			const identifier = elem.getAttribute('identifier');
 			if (identifier) {
@@ -153,7 +154,7 @@
 	$effect(() => {
 		if (!contentElement) return;
 
-		const hottextElements = contentElement.querySelectorAll('hottext');
+		const hottextElements = contentElement.querySelectorAll(HOTTEXT_SELECTOR);
 		hottextElements.forEach((elem: Element) => {
 			const identifier = elem.getAttribute('identifier');
 			if (identifier) {
@@ -271,11 +272,13 @@
 	}
 
 	/* qti-input-control-hidden: hide visual selection indicators but keep keyboard-accessible */
-	.qti-input-control-hidden :global(hottext) {
+	.qti-input-control-hidden :global(hottext),
+	.qti-input-control-hidden :global(qti-hottext) {
 		cursor: pointer;
 		outline: none;
 	}
-	.qti-input-control-hidden :global(hottext[data-selected]) {
+	.qti-input-control-hidden :global(hottext[data-selected]),
+	.qti-input-control-hidden :global(qti-hottext[data-selected]) {
 		background-color: transparent;
 		text-decoration: underline;
 	}
@@ -296,28 +299,33 @@
 		flex-wrap: wrap;
 	}
 
-	:global(.hottext-content hottext) {
+	:global(.hottext-content hottext),
+	:global(.hottext-content qti-hottext) {
 		display: inline;
 		user-select: none;
 	}
 
-	:global(.hottext-content hottext.selectable) {
+	:global(.hottext-content hottext.selectable),
+	:global(.hottext-content qti-hottext.selectable) {
 		background-color: color-mix(in oklch, var(--pie-qti-base-content, oklch(21% 0 0)) 10%, transparent);
 		border: 1px solid color-mix(in oklch, var(--pie-qti-base-content, oklch(21% 0 0)) 20%, transparent);
 	}
 
-	:global(.hottext-content hottext.selectable:hover) {
+	:global(.hottext-content hottext.selectable:hover),
+	:global(.hottext-content qti-hottext.selectable:hover) {
 		background-color: color-mix(in oklch, var(--pie-qti-primary, oklch(45% 0.24 277)) 20%, transparent);
 		border-color: color-mix(in oklch, var(--pie-qti-primary, oklch(45% 0.24 277)) 40%, transparent);
 	}
 
-	:global(.hottext-content hottext.selected) {
+	:global(.hottext-content hottext.selected),
+	:global(.hottext-content qti-hottext.selected) {
 		background-color: color-mix(in oklch, var(--pie-qti-primary, oklch(45% 0.24 277)) 30%, transparent);
 		border: 2px solid var(--pie-qti-primary, oklch(45% 0.24 277));
 		font-weight: 600;
 	}
 
-	:global(.hottext-content hottext.correct) {
+	:global(.hottext-content hottext.correct),
+	:global(.hottext-content qti-hottext.correct) {
 		background-color: color-mix(in oklch, var(--pie-qti-success, oklch(76% 0.177 163.223)) 8%, transparent);
 		border: 1px solid var(--pie-qti-success, oklch(76% 0.177 163.223));
 		border-radius: 0.25rem;
