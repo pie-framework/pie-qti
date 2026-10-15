@@ -18,6 +18,9 @@ export {
 	QTI3_RPTEMPLATE_BASE,
 } from './element-mapper/qti2-to-qti3.js';
 
+// Feedback and template visibility
+export { isShownByIdentifier, matchesIdentifier } from './feedback/visibility.js';
+
 // Version detection
 export { detectQtiVersion } from './version-detection/detectQtiVersion.js';
 export type { QtiVersion } from './version-detection/detectQtiVersion.js';

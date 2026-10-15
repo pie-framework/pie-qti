@@ -11,6 +11,8 @@
  * 3. Pass custom transforms via the feedbackTransforms option
  */
 
+import { isShownByIdentifier } from '@pie-qti/qti-common';
+
 /**
  * Text pattern replacement for feedback content
  */
@@ -79,8 +81,10 @@ export interface ProcessFeedbackInlineOptions {
 /**
  * Process feedbackInline elements in QTI content
  *
- * Conditionally shows/hides feedback based on outcome values and the showHide attribute.
- * Optionally applies text cleaning heuristics and wraps content with styling span.
+ * Shows or hides each `feedbackInline` (`qti-feedback-inline` in QTI 3) by the shared visibility
+ * rule: its `identifier` against the outcome value, by membership for a container, inverted by
+ * `showHide="hide"`. Nested feedback resolves inside shown feedback; hidden feedback drops with
+ * everything inside it. Markup outside feedback elements is left as it is.
  *
  * @param html - The HTML content containing feedbackInline elements
  * @param options - Processing options
@@ -99,56 +103,74 @@ export function processFeedbackInline(
 	html: string,
 	options: ProcessFeedbackInlineOptions
 ): string {
-	const { outcomeValues, applyHeuristics = false, wrapWithSpan = false, transforms } = options;
-
 	if (!html) return html;
+	const feedback = feedbackElements(html);
+	if (feedback.length === 0) return html;
 
-	return html.replace(
-		/<feedbackInline\b([^>]*)>([\s\S]*?)<\/feedbackInline>/gi,
-		(_match, attrs, content) => {
-			const outcomeId = feedbackInlineAttr(attrs, 'outcomeIdentifier');
-			const feedbackId = feedbackInlineAttr(attrs, 'identifier');
-			const showHide = feedbackInlineAttr(attrs, 'showHide') ?? 'show';
-			const outcomeValue = outcomeId ? outcomeValues[outcomeId] : undefined;
+	const { outcomeValues, applyHeuristics = false, wrapWithSpan = false, transforms } = options;
+	const render = (start: number, end: number, elements: readonly FeedbackElement[]): string => {
+		let out = '';
+		let position = start;
+		for (const element of elements) {
+			out += html.slice(position, element.openStart);
+			position = element.closeEnd;
+			const outcomeId = feedbackInlineAttr(element.attrs, 'outcomeIdentifier');
+			const feedbackId = feedbackInlineAttr(element.attrs, 'identifier');
+			if (outcomeId === null || feedbackId === null) continue;
+			const showHide = feedbackInlineAttr(element.attrs, 'showHide');
+			if (!isShownByIdentifier(outcomeValues[outcomeId], feedbackId, showHide)) continue;
 
-			// If outcome value is not set (undefined, null, empty string), hide feedback
-			if (
-				outcomeId === null ||
-				feedbackId === null ||
-				outcomeValue === undefined ||
-				outcomeValue === null ||
-				outcomeValue === ''
-			) {
-				return '';
-			}
-
-			// Determine if feedback should be shown based on showHide attribute
-			const matchesFeedback = Array.isArray(outcomeValue)
-				? outcomeValue.includes(feedbackId)
-				: outcomeValue === feedbackId;
-			const shouldShow =
-				showHide.toLowerCase() === 'show' ? matchesFeedback : !matchesFeedback;
-
-			if (!shouldShow) return '';
-
-			// Apply text cleaning heuristics if enabled
-			if (applyHeuristics) {
-				content = cleanFeedbackText(content, transforms);
-			}
-
-			// Wrap with styling span if enabled
-			if (wrapWithSpan) {
-				return ` <span class="qti-feedback-inline">${content}</span>`;
-			}
-
-			return content;
+			let content = render(element.openEnd, element.closeStart, element.children);
+			if (applyHeuristics) content = cleanFeedbackText(content, transforms);
+			out += wrapWithSpan ? ` <span class="qti-feedback-inline">${content}</span>` : content;
 		}
-	);
+		return out + html.slice(position, end);
+	};
+	return render(0, html.length, feedback);
 }
 
+const FEEDBACK_TAG = /<(\/?)(?:feedbackInline|qti-feedback-inline)\b([^>]*?)(\/?)>/gi;
+
+interface FeedbackElement {
+	readonly attrs: string;
+	readonly openStart: number;
+	readonly openEnd: number;
+	closeStart: number;
+	closeEnd: number;
+	readonly children: FeedbackElement[];
+}
+
+/** The top-level feedback elements in `html`, each with the feedback nested inside it. */
+function feedbackElements(html: string): FeedbackElement[] {
+	const roots: FeedbackElement[] = [];
+	const open: FeedbackElement[] = [];
+	const add = (element: FeedbackElement) => (open[open.length - 1]?.children ?? roots).push(element);
+	for (const match of html.matchAll(FEEDBACK_TAG)) {
+		const [tag, closing, attrs = '', selfClosing] = match;
+		const start = match.index;
+		const end = start + tag.length;
+		if (closing) {
+			const element = open.pop();
+			if (!element) continue;
+			element.closeStart = start;
+			element.closeEnd = end;
+			add(element);
+		} else {
+			const element: FeedbackElement = { attrs, openStart: start, openEnd: end, closeStart: end, closeEnd: end, children: [] };
+			if (selfClosing) add(element);
+			else open.push(element);
+		}
+	}
+	// An unclosed element is left as written, with any feedback inside it.
+	return roots;
+}
+
+/** An attribute in either QTI spelling, e.g. `outcomeIdentifier` or `outcome-identifier`. */
 function feedbackInlineAttr(attrs: string, name: string): string | null {
-	const match =
-		new RegExp(`\\b${name}\\s*=\\s*"([^"]*)"`, 'i').exec(attrs) ??
-		new RegExp(`\\b${name}\\s*=\\s*'([^']*)'`, 'i').exec(attrs);
-	return match?.[1] ?? null;
+	const kebab = name.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
+	for (const spelling of kebab === name ? [name] : [name, kebab]) {
+		const match = new RegExp(`(?:^|\\s)${spelling}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`, 'i').exec(attrs);
+		if (match) return match[1] ?? match[2] ?? '';
+	}
+	return null;
 }
