@@ -15,7 +15,7 @@
 import type { PieItem, TransformOutput, TransformWarning } from '@pie-qti/transform-types';
 import { type HTMLElement, NodeType, parse } from 'node-html-parser';
 import { readApipAccessElements } from './accessibility-catalogs.js';
-import { escapeText, HIDING_STYLES, SSML_NAMESPACES } from './accessibility-markup.js';
+import { escapeText, HIDING_STYLES, SSML_NAMESPACES } from '@pie-qti/qti-common/accessibility';
 import { unwrapCdataSections } from './cdata.js';
 
 export const ACCESSIBILITY_NOT_CARRIED = 'QTI_ACCESSIBILITY_NOT_CARRIED';

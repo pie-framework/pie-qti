@@ -2,6 +2,7 @@
 
 import { enforceItemXmlLimits, sanitizeHtml } from '@pie-qti/item-player/security';
 import type { PlayerSecurityConfig } from '@pie-qti/item-player';
+import { prepareContentMarkup } from '@pie-qti/qti-common/accessibility';
 
 type DOMParserConstructor = new () => {
 	parseFromString(xml: string, mimeType: string): Document;
@@ -53,6 +54,40 @@ const readableChildNames = new Set([
 
 const optionLikeNames = new Set(['gapText', 'hottext', 'inlineChoice', 'simpleAssociableChoice', 'simpleChoice']);
 
+/** The `spoken` catalogs an item's SSML makes, in the shape the PIE toolkit registers per owner. */
+export interface SpokenCatalog {
+	identifier: string;
+	cards: Array<{ catalog: 'spoken'; content: string }>;
+}
+
+export interface ReadableItemSpeech {
+	/** Readable copies of the interaction content, which renders inside shadow roots. */
+	html: string;
+	catalogs: SpokenCatalog[];
+}
+
+// `screen-reader` asks the host to hide the node from assistive technology; machine read-aloud
+// still speaks it. Unrecognised values suppress, as the PIE toolkit does.
+const READ_ALOUD_KEPT = new Set(['screen-reader']);
+
+/** The QTI 2 element name: `qti-choice-interaction` reads as `choiceInteraction`. */
+function qtiName(element: Element) {
+	const local = element.localName;
+	if (!local.startsWith('qti-')) return local;
+	return local.slice(4).replace(/-([a-z])/g, (_, letter: string) => letter.toUpperCase());
+}
+
+function isSilenced(element: Element) {
+	const suppress = element.getAttribute('data-tts-suppress') ?? element.getAttribute('data-qti-suppress-tts');
+	if (suppress !== null && !READ_ALOUD_KEPT.has(suppress.trim().toLowerCase())) return true;
+	return (element.getAttribute('class') ?? '').split(/\s+/).includes('qti-hidden');
+}
+
+function idrefAttribute(element: Element) {
+	const idref = element.getAttribute('data-catalog-idref')?.trim();
+	return idref ? ` data-catalog-idref="${escapeHtml(idref).replace(/"/g, '&quot;')}"` : '';
+}
+
 function escapeHtml(value: string) {
 	return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
@@ -76,7 +111,7 @@ function serializeReadableNode(
 	options: ReadableProjectionOptions,
 ): string {
 	if (node.nodeType === 3) return escapeHtml(node.textContent ?? '');
-	if (!isElement(node)) return '';
+	if (!isElement(node) || isSilenced(node)) return '';
 
 	const localName = node.localName.toLowerCase();
 	if (localName === 'object' || localName === 'img') {
@@ -93,10 +128,13 @@ function serializeReadableNode(
 
 	// The projection exists only to expose readable content to TTS. Do not copy
 	// arbitrary authored elements or attributes into the host document: recurse
-	// into their text instead, retaining only sanitized MathML and line breaks.
-	return Array.from(node.childNodes)
+	// into their text instead, retaining only sanitized MathML, line breaks and the catalog
+	// idrefs the read-aloud tool resolves to the item's spoken cards.
+	const markup = Array.from(node.childNodes)
 		.map((child) => serializeReadableNode(child, serializer, options))
 		.join('');
+	const idref = idrefAttribute(node);
+	return idref && markup ? `<span${idref}>${markup}</span>` : markup;
 }
 
 function serializeChildren(
@@ -110,20 +148,30 @@ function serializeChildren(
 		.trim();
 }
 
-function childElementsByLocalName(element: Element, localName: string) {
-	return Array.from(element.children).filter((child) => child.localName === localName);
+function childElementsByName(element: Element, name: string) {
+	return Array.from(element.children).filter((child) => qtiName(child) === name);
 }
 
 function allElements(root: ParentNode) {
 	return Array.from(root.querySelectorAll('*'));
 }
 
-function descendantElementsByLocalNames(element: Element, localNames: Set<string>) {
-	return allElements(element).filter((child) => localNames.has(child.localName));
+function descendantElementsByNames(element: Element, names: Set<string>) {
+	return allElements(element).filter((child) => names.has(qtiName(child)) && !silencedWithin(child, element));
 }
 
-function paragraph(markup: string, source: string) {
-	return markup ? `<p data-qti-readable-source="${escapeHtml(source)}">${markup}</p>` : '';
+/** Whether `element` or an ancestor below `root` is silenced. */
+function silencedWithin(element: Element, root: Element) {
+	for (let current: Element | null = element; current && current !== root; current = current.parentElement) {
+		if (isSilenced(current)) return true;
+	}
+	return false;
+}
+
+function paragraph(markup: string, source: Element) {
+	return markup
+		? `<p data-qti-readable-source="${escapeHtml(qtiName(source))}"${idrefAttribute(source)}>${markup}</p>`
+		: '';
 }
 
 function readableMarkupForElement(
@@ -131,7 +179,7 @@ function readableMarkupForElement(
 	serializer: XMLSerializerLike | null,
 	options: ReadableProjectionOptions,
 ) {
-	if (element.localName === 'object') {
+	if (qtiName(element) === 'object') {
 		const label = element.getAttribute('aria-label') || element.getAttribute('alt') || element.getAttribute('title');
 		if (label?.trim()) return escapeHtml(label.trim());
 	}
@@ -146,40 +194,59 @@ function extractInteractionChunks(
 ) {
 	const chunks: string[] = [];
 
-	for (const prompt of childElementsByLocalName(interaction, 'prompt')) {
+	for (const prompt of childElementsByName(interaction, 'prompt')) {
+		if (isSilenced(prompt)) continue;
 		const markup = readableMarkupForElement(prompt, serializer, options);
-		if (markup) chunks.push(paragraph(markup, 'prompt'));
+		if (markup) chunks.push(paragraph(markup, prompt));
 	}
 
-	const optionElements = descendantElementsByLocalNames(interaction, optionLikeNames);
+	const optionElements = descendantElementsByNames(interaction, optionLikeNames);
 	for (const option of optionElements) {
 		const markup = readableMarkupForElement(option, serializer, options);
-		if (markup) chunks.push(paragraph(markup, option.localName));
+		if (markup) chunks.push(paragraph(markup, option));
 	}
 
 	if (chunks.length === 0) {
-		for (const readable of descendantElementsByLocalNames(interaction, readableChildNames)) {
+		for (const readable of descendantElementsByNames(interaction, readableChildNames)) {
 			const markup = readableMarkupForElement(readable, serializer, options);
-			if (markup) chunks.push(paragraph(markup, readable.localName));
+			if (markup) chunks.push(paragraph(markup, readable));
 		}
 	}
 
 	return chunks;
 }
 
-export function extractReadableInteractionSpeechHtml(itemXml?: string, options: ReadableProjectionOptions = {}) {
-	if (!itemXml) return '';
+/**
+ * The item's interaction content as readable markup, and the spoken catalogs its SSML makes.
+ *
+ * Reads the item as the item player renders it: the same preparation docks SSML under the same
+ * generated idrefs, so the catalogs resolve against both the stem and this projection.
+ */
+export function extractReadableItemSpeech(itemXml?: string, options: ReadableProjectionOptions = {}): ReadableItemSpeech {
+	if (!itemXml) return { html: '', catalogs: [] };
 	enforceItemXmlLimits(itemXml, options.security);
 
-	const DOMParserImpl = getParser(options);
-	if (!DOMParserImpl) return '';
+	const prepared = prepareContentMarkup(itemXml, [], { hidingStyles: false });
+	const catalogs = prepared.spoken.map(({ identifier, content }): SpokenCatalog => ({
+		identifier,
+		cards: [{ catalog: 'spoken', content }],
+	}));
 
-	const document = new DOMParserImpl().parseFromString(itemXml, 'application/xml');
-	if (document.getElementsByTagName('parsererror').length > 0) return '';
+	const DOMParserImpl = getParser(options);
+	if (!DOMParserImpl) return { html: '', catalogs };
+
+	const document = new DOMParserImpl().parseFromString(prepared.xml, 'application/xml');
+	if (document.getElementsByTagName('parsererror').length > 0) return { html: '', catalogs };
 
 	const serializer = getSerializer(options);
-	const interactions = allElements(document).filter((element) => interactionElementNames.has(element.localName));
+	const interactions = allElements(document).filter(
+		(element) => interactionElementNames.has(qtiName(element)) && !silencedWithin(element, document.documentElement),
+	);
 	const chunks = interactions.flatMap((interaction) => extractInteractionChunks(interaction, serializer, options));
 
-	return chunks.join('');
+	return { html: chunks.join(''), catalogs };
+}
+
+export function extractReadableInteractionSpeechHtml(itemXml?: string, options: ReadableProjectionOptions = {}) {
+	return extractReadableItemSpeech(itemXml, options).html;
 }

@@ -4,7 +4,7 @@
 	import { assignProps } from '@pie-qti/qti-common';
 	import { onMount } from 'svelte';
 	import type { QtiSectionFrameworkError, QtiSectionItemRef, QtiSectionRole } from '../contracts/index.js';
-	import { extractReadableInteractionSpeechHtml } from '../tts/readable-interaction-projection.js';
+	import { extractReadableItemSpeech } from '../tts/readable-interaction-projection.js';
 	import QtiToolButtonBar from './QtiToolButtonBar.svelte';
 
 	type ItemPlayerResponseChangeEvent = CustomEvent<{ responseId: string; value: unknown }>;
@@ -42,9 +42,8 @@
 	let itemScopeElement = $state<HTMLElement | null>(null);
 	const itemTitle = $derived(itemRef.title ?? 'Question');
 	const hasHeaderTools = $derived((itemRef.tools?.length ?? 0) > 0);
-	const interactionSpeechHtml = $derived(
-		extractReadableInteractionSpeechHtml(itemRef.itemXml, { security }),
-	);
+	const itemSpeech = $derived(extractReadableItemSpeech(itemRef.itemXml, { security }));
+	const interactionSpeechHtml = $derived(itemSpeech.html);
 
 	async function loadItemPlayerElement() {
 		if (!customElements.get('pie-qti-item-player')) {
@@ -130,6 +129,7 @@
 					scopeId={itemRef.identifier}
 					scopeLabel="question"
 					sourceXml={itemRef.itemXml}
+					accessibilityCatalogs={itemSpeech.catalogs}
 					scopeElement={itemScopeElement}
 				/>
 			</header>

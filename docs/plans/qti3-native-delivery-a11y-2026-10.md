@@ -29,7 +29,7 @@ the PIE→QTI export. Slices run in certification-impact order. The conversion d
 | 5   | Outcome-processing inputs                      | `fix/outcome-processing-inputs`       | #317 | merged  |
 | 6   | Lookup tables                                  | `fix/lookup-table-semantics`          | #318 | merged  |
 | 7   | Test structure and item session control        | `feat/test-structure-session-control` | #321 | merged  |
-| 8   | TTS and SSML in delivery                       | `feat/delivery-tts-ssml`              |     | pending |
+| 8   | TTS and SSML in delivery                       | `feat/delivery-tts-ssml`              | #323 | open    |
 | 9   | Content language                               | `feat/delivery-content-language`      |     | pending |
 | 10  | PNP in delivery                                | `feat/delivery-pnp`                   |     | pending |
 | 11  | Shared vocabulary, catalogs and sanitizer      | `feat/delivery-vocabulary-catalogs`   |     | pending |
@@ -348,6 +348,13 @@ adaptive items keep theirs during attempts.
 
 Done when a QTI 3 item reads its stem, prompt and choices with SSML pronunciation and skips
 suppressed nodes.
+
+Landed with the stem read from the rendered body, which carries the docking and suppression; the
+projection covers interaction content only, which renders in shadow roots. Delivery passes
+`hidingStyles: false`, since the shared vocabulary stylesheet already hides `qti-hidden`. SSML
+lands as `spoken` catalog cards under generated `ssml-N` idrefs, which the item player and the
+section player compute alike. APIP spoken cards in the section player, and passages, are left to
+slice 11.
 
 ### 9. Content language
 
