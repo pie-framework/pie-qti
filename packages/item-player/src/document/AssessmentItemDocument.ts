@@ -195,6 +195,13 @@ export class AssessmentItemDocument {
 		return findDescendants(this.assessmentItem, this.elementNameMapper.toNative(tagName));
 	}
 
+	/** The item body's `xml:lang`, else the item's: the language its content is written in. */
+	getContentLanguage(): string | undefined {
+		const itemBody = this.getItemBodyElement();
+		const language = itemBody?.getAttribute('xml:lang')?.trim() || this.assessmentItem.getAttribute('xml:lang')?.trim();
+		return language || undefined;
+	}
+
 	getAssessmentItemAttribute(name: string): string | null {
 		return this.assessmentItem.getAttribute(this.attributeNameMapper.toNative(name));
 	}

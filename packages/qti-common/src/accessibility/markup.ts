@@ -22,6 +22,7 @@
  * 5. Inline SSML elements are unwrapped with their text kept, and their nearest enclosing element
  *    gets a `spoken` card holding its content as SSML: the shape `SSMLExtractor` in pie-players
  *    produces from a `<speak>` element, so both reach `TTSService` alike.
+ * 6. `xml:lang` is restated as `lang`, the attribute HTML reads for the language of content.
  *
  * Docking puts the idref on the element's start tag, with two exceptions that wrap the element's
  * content instead: a choice, whose attributes the transformers drop along with its tag, and an
@@ -341,7 +342,7 @@ function contentTree(
 	return root;
 }
 
-/** Restate hiding classes and read-aloud suppression in the start tag. */
+/** Restate hiding classes, read-aloud suppression and content language in the start tag. */
 function editStartTag(element: ContentElement, hidingStyles: boolean): void {
 	const { attributes } = element;
 	const classes = unquote(attributes.get('class')).split(/\s+/);
@@ -361,6 +362,11 @@ function editStartTag(element: ContentElement, hidingStyles: boolean): void {
 				`$1${quote}${merged}${quote}`
 			);
 		}
+	}
+
+	const language = attributes.get('xml:lang');
+	if (language !== undefined && !attributes.has('lang')) {
+		element.added.push(`lang=${quoted(language)}`);
 	}
 
 	const suppress = attributes.get('data-qti-suppress-tts');

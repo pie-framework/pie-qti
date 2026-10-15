@@ -130,6 +130,7 @@
 					scopeLabel="question"
 					sourceXml={itemRef.itemXml}
 					accessibilityCatalogs={itemSpeech.catalogs}
+					language={itemSpeech.language}
 					scopeElement={itemScopeElement}
 				/>
 			</header>

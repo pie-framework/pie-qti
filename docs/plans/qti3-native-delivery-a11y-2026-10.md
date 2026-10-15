@@ -30,7 +30,7 @@ the PIE→QTI export. Slices run in certification-impact order. The conversion d
 | 6   | Lookup tables                                  | `fix/lookup-table-semantics`          | #318 | merged  |
 | 7   | Test structure and item session control        | `feat/test-structure-session-control` | #321 | merged  |
 | 8   | TTS and SSML in delivery                       | `feat/delivery-tts-ssml`              | #323 | merged  |
-| 9   | Content language                               | `feat/delivery-content-language`      |     | pending |
+| 9   | Content language                               | `feat/delivery-content-language`      | #325 | open    |
 | 10  | PNP in delivery                                | `feat/delivery-pnp`                   |     | pending |
 | 11  | Shared vocabulary, catalogs and sanitizer      | `feat/delivery-vocabulary-catalogs`   |     | pending |
 | 12  | Element map completion                         | `fix/qti3-element-map`                | #301 | merged  |
@@ -178,7 +178,8 @@ and delivery read the same markup the same way.
 
 **Content language flows from the item.** The nearest `xml:lang` becomes the rendered `lang`, the
 toolbar language and the catalog lookup language; the i18n locale applies only where content
-declares none. Voice follows language through the TTS provider's voice list.
+declares none. Voice follows language: the section player picks the Polly voice for the content
+language unless the host configures one.
 
 **Colour schemes ship with the shared vocabulary.** The `[data-qti-colorscheme]` rules live in
 `default-components` next to `qti-shared-vocabulary.css` and load through `default-runtime.css`,
@@ -364,6 +365,13 @@ slice 11.
   untagged entry.
 
 Done when a Spanish item reads in a Spanish voice and opens its Spanish glossary entry.
+
+Landed with a Polly standard-engine voice table keyed by tag, then primary subtag; a language
+outside it keeps the toolkit's English default. The browser TTS backend in pie-players 0.3.73
+picks its voice from `navigator.language`, so it does not follow the content language. Passages
+take their language from the host's `QtiSharedHtmlBlock.language`, since the section player gets
+passage markup and no stimulus XML. `xml:lang` on a prompt or choice element is dropped from the
+item player's interaction data, which carries their text only; `xml:lang` inside them survives.
 
 ### 10. PNP in delivery
 

@@ -3,7 +3,7 @@
  *
  * Read-aloud markup in QTI 2.2 and QTI 3.0 content: SSML docked under generated catalog idrefs and
  * unwrapped from the visible body, `data-qti-suppress-tts` restated as `data-tts-suppress`, and the
- * hiding classes left to a stylesheet when delivery ships one.
+ * hiding classes left to a stylesheet when delivery ships one, and `xml:lang` restated as `lang`.
  */
 
 import { describe, expect, test } from 'bun:test';
@@ -16,6 +16,7 @@ const ITEM = `<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" x
 <p>Water is <ssml:sub alias="water">H2O</ssml:sub>.</p>
 <p data-qti-suppress-tts="computer-read-aloud">Answer word</p>
 <p class="qti-hidden">Hidden</p>
+<p xml:lang="fr">Bonjour <span xml:lang="de" lang="de">Hallo</span></p>
 <choiceInteraction responseIdentifier="RESPONSE" maxChoices="1">
 <prompt data-ssml="&lt;speak&gt;Pick one&lt;/speak&gt;">Choose</prompt>
 <simpleChoice identifier="A" data-ssml="&lt;speak&gt;Ay&lt;/speak&gt;">A</simpleChoice>
@@ -43,6 +44,10 @@ describe.each([
 
 	test('restates read-aloud suppression', () => {
 		expect(prepared.xml).toContain('data-tts-suppress="computer-read-aloud">Answer word</p>');
+	});
+
+	test('restates the content language as lang', () => {
+		expect(prepared.xml).toContain('<p xml:lang="fr" lang="fr">Bonjour <span xml:lang="de" lang="de">Hallo</span></p>');
 	});
 
 	test('leaves the hiding classes to the stylesheet when asked', () => {

@@ -141,6 +141,9 @@ function matchesSelector(el: FakeElement, selector: string): boolean {
 	if (selector === '[data-catalog-idref]') {
 		return el.getAttribute('data-catalog-idref') !== null;
 	}
+	if (selector === '[lang]') {
+		return el.getAttribute('lang') !== null;
+	}
 	if (selector === '[data-stimulus-idref]') {
 		return el.getAttribute('data-stimulus-idref') !== null;
 	}
@@ -565,6 +568,48 @@ describe('applyGlossaryTriggers', () => {
 		expect(container.children.length).toBe(2);
 		expect(container.children[0].className).toBe('qti-catalog-term');
 		expect(container.children[1].className).toBe('qti-catalog-term');
+	});
+
+	it('passes the content language of the term to glossary and illustrated glossary lookups', () => {
+		const container = new FakeElement('div') as any;
+		container.setAttribute('lang', 'es');
+		const english = new FakeElement('span') as any;
+		english.setAttribute('lang', 'en');
+		const spanishTerm = new FakeElement('span') as any;
+		spanishTerm.setAttribute('data-catalog-idref', 'term_es');
+		spanishTerm.textContent = 'fotosíntesis';
+		const englishTerm = new FakeElement('span') as any;
+		englishTerm.setAttribute('data-catalog-idref', 'term_en');
+		englishTerm.textContent = 'photosynthesis';
+		container.appendChild(spanishTerm);
+		english.appendChild(englishTerm);
+		container.appendChild(english);
+		const lookups: Array<[string, string, string | undefined]> = [];
+		const player = {
+			getPnp: () => ({ content: { glossaryOnScreen: true, illustratedGlossary: true } }),
+			getCatalogEntry: (idref: string, usage: string, lang?: string) => {
+				lookups.push([idref, usage, lang]);
+				return null;
+			},
+			getComponentRegistry: () => ({
+				getTagNameForType: (_type: string) => null,
+			}),
+		} as any;
+
+		applyGlossaryTriggers(container, player);
+		const wrappers = [container.children[0], english.children[0]];
+		for (const wrapper of wrappers) {
+			for (const btn of wrapper.children.filter((child: FakeElement) => child.tagName === 'BUTTON')) {
+				btn.dispatchEvent(new FakeEvent('click', {}));
+			}
+		}
+
+		expect(lookups).toEqual([
+			['term_es', 'glossary-on-screen', 'es'],
+			['term_es', 'illustrated-glossary', 'es'],
+			['term_en', 'glossary-on-screen', 'en'],
+			['term_en', 'illustrated-glossary', 'en'],
+		]);
 	});
 
 	it('passes stimulus scope when a catalog term is inside a rendered stimulus wrapper', () => {

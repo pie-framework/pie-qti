@@ -248,6 +248,7 @@ export class LiveItemSession implements ItemSession {
 			showSolution: this.presentation.showSolution === true && attemptEnded,
 			source: {
 				itemBodyHtml: this.player.getItemBodyHtml(),
+				contentLanguage: this.player.getContentLanguage(),
 				interactions: this.player.getInteractionData(),
 				correctResponses: this.player.getCorrectResponses(),
 				componentRegistry: this.player.getComponentRegistry(),

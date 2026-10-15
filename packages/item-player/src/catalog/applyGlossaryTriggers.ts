@@ -79,6 +79,7 @@ export function applyGlossaryTriggers(container: HTMLElement, player: GlossaryPl
 		const idref = termEl.getAttribute('data-catalog-idref');
 		if (!idref) continue;
 		const stimulusIdentifier = getStimulusIdentifier(termEl);
+		const contentLanguage = getContentLanguage(termEl);
 
 		// Wrap term in a relative-positioned span so we can position popup against it
 		const wrapper = document.createElement('span');
@@ -98,7 +99,7 @@ export function applyGlossaryTriggers(container: HTMLElement, player: GlossaryPl
 					currentCleanup = null;
 					return;
 				}
-				const html = player.getCatalogEntry(idref, 'glossary-on-screen', undefined, { stimulusIdentifier });
+				const html = player.getCatalogEntry(idref, 'glossary-on-screen', contentLanguage, { stimulusIdentifier });
 				if (html !== null) {
 					currentCleanup = mountPopup(wrapper, termEl.textContent ?? idref, html, btn, player, () => {
 						currentCleanup = null;
@@ -137,7 +138,7 @@ export function applyGlossaryTriggers(container: HTMLElement, player: GlossaryPl
 					currentCleanup = null;
 					return;
 				}
-				const html = player.getCatalogEntry(idref, ILLUSTRATED_GLOSSARY_USAGE, undefined, { stimulusIdentifier });
+				const html = player.getCatalogEntry(idref, ILLUSTRATED_GLOSSARY_USAGE, contentLanguage, { stimulusIdentifier });
 				if (html !== null) {
 					currentCleanup = mountPopup(wrapper, termEl.textContent ?? idref, html, btn, player, () => {
 						currentCleanup = null;
@@ -211,6 +212,12 @@ function addHostCatalogSupportButton(
 			})
 		);
 	});
+}
+
+/** The language of the term's content: the nearest `lang`, which the item body sets from `xml:lang`. */
+function getContentLanguage(termEl: HTMLElement): string | undefined {
+	const language = termEl.closest?.('[lang]')?.getAttribute?.('lang')?.trim();
+	return language || undefined;
 }
 
 function getStimulusIdentifier(termEl: HTMLElement): string | undefined {
