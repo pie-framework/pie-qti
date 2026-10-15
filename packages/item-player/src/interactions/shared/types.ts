@@ -24,10 +24,14 @@ export interface InteractionAccessibility {
 	description?: string;
 }
 
+/** The read-aloud attributes authored on an interaction element, for its renderer's host. */
+export type InteractionReadAloud = Partial<Record<'lang' | 'data-catalog-idref' | 'data-tts-suppress', string>>;
+
 export interface BaseInteractionData<TType extends string = string> {
 	readonly type: TType;
 	readonly responseId: string;
 	readonly accessibility?: InteractionAccessibility;
+	readonly readAloud?: InteractionReadAloud;
 }
 
 /**

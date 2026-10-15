@@ -22,7 +22,7 @@
 	const sample = SAMPLE_ASSESSMENTS.find((assessment) => assessment.id === 'interaction-showcase-1');
 	const expectedText = 'Reading Passage';
 	const pollyTtsProvider = {
-		backend: 'polly',
+		backend: 'server',
 		serverProvider: 'polly',
 		apiEndpoint: '/api/tts',
 		transportMode: 'pie',

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { DOMParser } from 'linkedom';
 import { convertQti2ToQti3 } from '@pie-qti/qti-common';
-import { extractReadableItemSpeech, prepareReadableBlock } from '../../src/tts/readable-interaction-projection';
+import { extractItemSpeech, prepareReadableBlock } from '../../src/tts/spoken-catalogs';
 
 const parser = DOMParser as unknown as typeof globalThis.DOMParser;
 // linkedom has no XMLSerializer; its nodes serialize themselves.
@@ -53,17 +53,65 @@ const NATIVE_ITEM = convertQti2ToQti3(BASE_ITEM('<prompt>Pick the NaCl sample.</
 describe.each([
 	['QTI 2.2 APIP', APIP_ITEM],
 	['QTI 3.0 catalog', NATIVE_ITEM],
-])('extractReadableItemSpeech authored spoken cards (%s)', (_version, xml) => {
-	const speech = extractReadableItemSpeech(xml, { DOMParserImpl: parser, XMLSerializerImpl: serializer });
+])('extractItemSpeech authored spoken cards (%s)', (_version, xml) => {
+	const speech = extractItemSpeech(xml, { DOMParserImpl: parser, XMLSerializerImpl: serializer });
 
 	test('returns the spoken cards under the catalog identifier', () => {
 		expect(speech.catalogs).toEqual([
 			{ identifier: 'ae-prompt', cards: [{ catalog: 'spoken', content: 'Pick the sodium chloride sample.' }] },
 		]);
 	});
+});
 
-	test('docks the identifier on the content the cards describe', () => {
-		expect(speech.html).toContain('data-catalog-idref="ae-prompt"');
+const READ_ALOUD_ITEM = `<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" xmlns:ssml="http://www.w3.org/2010/10/synthesis" identifier="read-aloud">
+	<itemBody>
+		<p>Water is <ssml:sub alias="water">H2O</ssml:sub>.</p>
+		<choiceInteraction responseIdentifier="RESPONSE" maxChoices="1">
+			<prompt data-ssml="&lt;speak&gt;Pick one&lt;/speak&gt;">Choose one.</prompt>
+			<simpleChoice identifier="A" data-ssml="&lt;speak&gt;Ay&lt;/speak&gt;">A</simpleChoice>
+			<simpleChoice identifier="B" data-qti-suppress-tts="computer-read-aloud">photosynthesis</simpleChoice>
+			<simpleChoice identifier="C" data-qti-suppress-tts="screen-reader">Carbon</simpleChoice>
+			<simpleChoice identifier="D" class="qti-hidden">Decoy</simpleChoice>
+		</choiceInteraction>
+	</itemBody>
+</assessmentItem>`;
+
+describe.each([
+	['QTI 2.2', READ_ALOUD_ITEM],
+	['QTI 3.0', convertQti2ToQti3(READ_ALOUD_ITEM)],
+])('extractItemSpeech SSML cards (%s)', (_version, xml) => {
+	test('returns the cards under the idrefs the item player docks', () => {
+		expect(extractItemSpeech(xml, { DOMParserImpl: parser }).catalogs).toEqual([
+			{ identifier: 'ssml-1', cards: [{ catalog: 'spoken', content: '<speak>Pick one</speak>' }] },
+			{ identifier: 'ssml-2', cards: [{ catalog: 'spoken', content: '<speak>Ay</speak>' }] },
+			{
+				identifier: 'ssml-3',
+				cards: [{ catalog: 'spoken', content: '<speak>Water is <sub alias="water">H2O</sub>.</speak>' }],
+			},
+		]);
+	});
+});
+
+const SPANISH_ITEM = `<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="es-item" xml:lang="es">
+	<itemBody>
+		<choiceInteraction responseIdentifier="RESPONSE" maxChoices="1">
+			<prompt>Elige la palabra inglesa.</prompt>
+			<simpleChoice identifier="A">gato</simpleChoice>
+			<simpleChoice identifier="B" xml:lang="en">cat</simpleChoice>
+		</choiceInteraction>
+	</itemBody>
+</assessmentItem>`;
+
+describe.each([
+	['QTI 2.2', SPANISH_ITEM],
+	['QTI 3.0', convertQti2ToQti3(SPANISH_ITEM)],
+])('extractItemSpeech content language (%s)', (_version, xml) => {
+	test('returns the language the item declares', () => {
+		expect(extractItemSpeech(xml, { DOMParserImpl: parser }).language).toBe('es');
+	});
+
+	test('an item without xml:lang declares no language', () => {
+		expect(extractItemSpeech(xml.replace(' xml:lang="es"', ''), { DOMParserImpl: parser }).language).toBeUndefined();
 	});
 });
 

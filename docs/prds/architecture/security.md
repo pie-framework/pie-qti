@@ -175,7 +175,7 @@ elements and attributes that have no legitimate use in QTI item bodies.
   exceeds `maxHtmlDepth`.
 - **FR-16:** When `parsingLimits.enabled` is `true`, `enforceItemXmlLimits` must throw if
   `itemXml` exceeds `maxItemXmlBytes` or contains a `<!DOCTYPE` declaration. Any secondary parser,
-  including the TTS readable projection, must call it before reparsing item XML.
+  including the section player's spoken-catalog extraction, must call it before reparsing item XML.
 - **FR-17:** `toTrustedHtml(html, policyName)` must return a `TrustedHTML` value when
   Trusted Types is available and the policy name is found/created. It must fall back to the
   plain string when Trusted Types is unavailable.

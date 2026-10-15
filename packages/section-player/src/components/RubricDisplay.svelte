@@ -7,7 +7,7 @@
 		QtiSharedHtmlBlock,
 		QtiSharedHtmlSanitizeContext,
 	} from '../contracts/index.js';
-	import { prepareReadableBlock } from '../tts/readable-interaction-projection.js';
+	import { prepareReadableBlock } from '../tts/spoken-catalogs.js';
 	import { isQtiViewVisibleForRole } from '../visibility/role-view.js';
 	import QtiToolButtonBar from './QtiToolButtonBar.svelte';
 	import SanitizedHtml from './SanitizedHtml.svelte';
