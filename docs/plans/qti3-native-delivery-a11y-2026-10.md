@@ -27,7 +27,7 @@ the PIE→QTI export. Slices run in certification-impact order. The conversion d
 | 3   | Feedback and template blocks; modal feedback   | `feat/feedback-template-blocks`       | #311 | merged  |
 | 4   | Test feedback outcomes                         | `fix/test-feedback-outcomes`          | #315 | merged  |
 | 5   | Outcome-processing inputs                      | `fix/outcome-processing-inputs`       | #317 | merged  |
-| 6   | Lookup tables                                  | `fix/lookup-table-semantics`          |     | in progress |
+| 6   | Lookup tables                                  | `fix/lookup-table-semantics`          | #318 | open    |
 | 7   | Test structure and item session control        | `feat/test-structure-session-control` |     | pending |
 | 8   | TTS and SSML in delivery                       | `feat/delivery-tts-ssml`              |     | pending |
 | 9   | Content language                               | `feat/delivery-content-language`      |     | pending |
