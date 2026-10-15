@@ -124,8 +124,7 @@ test.describe('section player web components', () => {
 		expect(synthesizedText).toContain('interpret-as');
 		expect(synthesizedText).toContain('squared plus');
 		expect(synthesizedText).toContain('Select the correct solution set');
-		// The reader walks open shadow roots, so the interactions' own text and their readable
-		// projection must not both be read.
+		// The reader walks open shadow roots: the interactions read once, from their own content.
 		await page.waitForTimeout(3_000);
 		const promptReads = ttsRequests.filter((request) => JSON.stringify(request).includes('Select the correct solution set'));
 		expect(promptReads).toHaveLength(1);
@@ -203,7 +202,7 @@ test.describe('section player web components', () => {
 			.toBe(true);
 	});
 
-	test('split-pane route maps projected interaction TTS tracking to visible question content', async ({ page }) => {
+	test('split-pane route tracks interaction TTS on visible question content', async ({ page }) => {
 		expectedToFailOnDuplicateHighlightCoordinator();
 		await page.addInitScript(() => {
 			HTMLMediaElement.prototype.play = function () {

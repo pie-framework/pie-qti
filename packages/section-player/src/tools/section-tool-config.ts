@@ -86,7 +86,10 @@ function liftLegacyProviderKeys(provider: Record<string, unknown>): Record<strin
  * The TTS provider config for one scope. The content language sets the synthesis language and,
  * for Polly, the voice; a voice the host configures wins.
  */
-export function resolveSectionTtsProviderConfig(provider: Record<string, unknown> = {}, language?: string) {
+export function resolveSectionTtsProviderConfig(
+	provider: Record<string, unknown> = {},
+	language?: string,
+): Record<string, unknown> {
 	const hostConfig = liftLegacyProviderKeys(provider);
 	const resolved: Record<string, unknown> = { ...defaultSectionTtsProviderConfig, ...hostConfig };
 	const polly = resolved.backend === 'server' && resolved.serverProvider === 'polly';

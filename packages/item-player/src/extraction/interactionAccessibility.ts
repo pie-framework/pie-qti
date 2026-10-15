@@ -1,4 +1,4 @@
-import type { InteractionAccessibility, QTIElement } from '../interactions/shared/types.js';
+import type { InteractionAccessibility, InteractionReadAloud, QTIElement } from '../interactions/shared/types.js';
 
 function normalizeText(text: string | null | undefined): string {
 	return (text ?? '').replace(/\s+/g, ' ').trim();
@@ -43,4 +43,21 @@ export function interactionAccessibility(
 		normalizeText(element.getAttribute('aria-description'));
 	if (!label && !description) return undefined;
 	return { ...(label ? { label } : {}), ...(description ? { description } : {}) };
+}
+
+/** The authored attributes read-aloud resolves on content: its language, catalog idref and suppression. */
+const READ_ALOUD_ATTRIBUTES = ['lang', 'data-catalog-idref', 'data-tts-suppress'] as const;
+
+/**
+ * The read-aloud attributes on `element` itself. Markup preparation restates `xml:lang` as `lang`
+ * and `data-qti-suppress-tts` as `data-tts-suppress`; the extracted content of an interaction, prompt
+ * or choice carries its children only, so a renderer restates these on what it draws.
+ */
+export function readAloudAttributes(element: QTIElement): InteractionReadAloud | undefined {
+	const attributes: Record<string, string> = {};
+	for (const name of READ_ALOUD_ATTRIBUTES) {
+		const value = element.getAttribute?.(name)?.trim();
+		if (value) attributes[name] = value;
+	}
+	return Object.keys(attributes).length > 0 ? attributes : undefined;
 }

@@ -171,24 +171,28 @@
 					{@html node.html}
 				{:else if node.mount.renderer === 'text-entry'}
 					{@const correctAnswer = (presentation.capabilities.canViewCorrectResponses ? (presentation.correctResponses[node.mount.interaction.responseId] ?? null) : null) as string | null}
-					<InlineTextEntry
-						interaction={node.mount.interaction}
-						response={getStringResponse(node.mount.interaction.responseId)}
-						correctAnswer={presentation.capabilities.canViewCorrectResponses ? correctAnswer : null}
-						disabled={presentation.disabled}
-						{i18n}
-						onResponseChange={handleResponseChange}
-					/>
+					<span {...node.mount.interaction.readAloud}>
+						<InlineTextEntry
+							interaction={node.mount.interaction}
+							response={getStringResponse(node.mount.interaction.responseId)}
+							correctAnswer={presentation.capabilities.canViewCorrectResponses ? correctAnswer : null}
+							disabled={presentation.disabled}
+							{i18n}
+							onResponseChange={handleResponseChange}
+						/>
+					</span>
 				{:else if node.mount.renderer === 'inline-choice'}
 					{@const correctAnswer = (presentation.capabilities.canViewCorrectResponses ? (presentation.correctResponses[node.mount.interaction.responseId] ?? null) : null) as string | null}
-					<InlineChoice
-						interaction={node.mount.interaction}
-						response={getStringResponse(node.mount.interaction.responseId)}
-						correctAnswer={presentation.capabilities.canViewCorrectResponses ? correctAnswer : null}
-						disabled={presentation.disabled}
-						{i18n}
-						onResponseChange={handleResponseChange}
-					/>
+					<span {...node.mount.interaction.readAloud}>
+						<InlineChoice
+							interaction={node.mount.interaction}
+							response={getStringResponse(node.mount.interaction.responseId)}
+							correctAnswer={presentation.capabilities.canViewCorrectResponses ? correctAnswer : null}
+							disabled={presentation.disabled}
+							{i18n}
+							onResponseChange={handleResponseChange}
+						/>
+					</span>
 				{/if}
 			{/each}
 		</div>
@@ -198,6 +202,7 @@
 	{#each blockMounts as block (block.key)}
 		<svelte:element
 			this={block.tagName}
+			{...block.interaction.readAloud}
 			use:setWebComponentProps={{
 				i18n,
 				typeset,

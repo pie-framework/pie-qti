@@ -10,7 +10,7 @@
 		ttsToolRegistration,
 	} from '@pie-players/pie-default-tool-loaders';
 	import type { QtiSectionToolConfig } from '../contracts/index.js';
-	import type { SpokenCatalog } from '../tts/readable-interaction-projection.js';
+	import type { SpokenCatalog } from '../tts/spoken-catalogs.js';
 	import { resolveSectionTtsProviderConfig } from '../tools/section-tool-config.js';
 
 	interface Props {
@@ -25,15 +25,6 @@
 		language?: string;
 		scopeElement?: HTMLElement | null;
 	}
-
-	type TtsHighlightContext = {
-		scopeElement?: HTMLElement | null;
-	};
-
-	type TtsHighlightTargetResolver = {
-		resolveWordRange?: (range: Range, context: TtsHighlightContext) => Range | null | undefined;
-		resolveSentenceRanges?: (ranges: Range[], context: TtsHighlightContext) => Array<Range | HTMLElement> | null | undefined;
-	};
 
 	const {
 		tools = [],
@@ -128,23 +119,6 @@
 		},
 	});
 	const effectiveScopeElement = $derived(scopeElement || shellHost);
-	const readableTrackingSelector =
-		'p,h1,h2,h3,h4,h5,h6,li,label,td,th,blockquote,figcaption,[role="heading"],[role="listitem"],[role="radio"],.qti-choice-prompt,.qti-choice-text';
-	const ttsHighlightTargetResolver: TtsHighlightTargetResolver = {
-		resolveWordRange: (range, context) => {
-			const scope = context.scopeElement ?? effectiveScopeElement;
-			if (!scope) return range;
-			return resolveVisibleTrackingRange(range, scope);
-		},
-		resolveSentenceRanges: (ranges, context) => {
-			const scope = context.scopeElement ?? effectiveScopeElement;
-			if (!scope) return ranges;
-			const targets = ranges
-				.map((range) => resolveVisibleTrackingBlock(range, scope))
-				.filter((target): target is HTMLElement => target instanceof HTMLElement);
-			return targets.length > 0 ? targets : ranges;
-		},
-	};
 
 	$effect(() => {
 		if (visibleTools.length === 0 || toolkitElementsReady) return;
@@ -164,121 +138,6 @@
 			cancelled = true;
 		};
 	});
-	type TextPosition = { node: Text; offset: number };
-
-	function normalizeTrackingText(value: string) {
-		return value.replace(/\s+/g, ' ').trim();
-	}
-
-	function isVisibleTrackingElement(element: Element) {
-		const rect = element.getBoundingClientRect();
-		const style = window.getComputedStyle(element);
-		return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden' && rect.x >= 0 && rect.y >= 0;
-	}
-
-	function isProjectionElement(element: Element | null) {
-		return !!element?.closest('[data-qti-tts-readable-projection]');
-	}
-
-	function nearestReadableBlock(node: Node | null, scope: HTMLElement): HTMLElement | null {
-		const start = node?.nodeType === Node.ELEMENT_NODE ? (node as Element) : node?.parentElement;
-		const block = start?.closest?.(readableTrackingSelector);
-		return block instanceof HTMLElement && scope.contains(block) ? block : scope;
-	}
-
-	function findVisibleTrackingBlock(sourceBlock: HTMLElement, scope: HTMLElement) {
-		const sourceText = normalizeTrackingText(sourceBlock.textContent ?? '');
-		if (!sourceText) return null;
-		const candidates = queryElementsIncludingOpenShadowRoots(scope, readableTrackingSelector).filter(
-			(candidate): candidate is HTMLElement =>
-				candidate instanceof HTMLElement &&
-				!isProjectionElement(candidate) &&
-				isVisibleTrackingElement(candidate) &&
-				normalizeTrackingText(candidate.textContent ?? '') === sourceText,
-		);
-		return candidates
-			.sort((left, right) => {
-				const leftRect = left.getBoundingClientRect();
-				const rightRect = right.getBoundingClientRect();
-				return leftRect.width * leftRect.height - rightRect.width * rightRect.height;
-			})[0] ?? null;
-	}
-
-	function resolveVisibleTrackingBlock(range: Range, scope: HTMLElement) {
-		const sourceBlock = nearestReadableBlock(range.startContainer, scope);
-		if (!sourceBlock) return null;
-		if (!isProjectionElement(sourceBlock)) return sourceBlock;
-		return findVisibleTrackingBlock(sourceBlock, scope);
-	}
-
-	function collectNormalizedTextMap(root: Element) {
-		const text: string[] = [];
-		const positions: TextPosition[] = [];
-		let lastWasWhitespace = true;
-		const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-		let node = walker.nextNode();
-
-		while (node) {
-			const textNode = node as Text;
-			const raw = textNode.textContent ?? '';
-			for (let offset = 0; offset < raw.length; offset += 1) {
-				const char = raw[offset];
-				if (/\s/.test(char)) {
-					if (!lastWasWhitespace) {
-						text.push(' ');
-						positions.push({ node: textNode, offset });
-						lastWasWhitespace = true;
-					}
-					continue;
-				}
-				text.push(char);
-				positions.push({ node: textNode, offset });
-				lastWasWhitespace = false;
-			}
-			node = walker.nextNode();
-		}
-
-		while (text[text.length - 1] === ' ') {
-			text.pop();
-			positions.pop();
-		}
-
-		return { text: text.join(''), positions };
-	}
-
-	function findNormalizedPosition(positions: TextPosition[], node: Node, offset: number) {
-		return positions.findIndex((position) => position.node === node && position.offset === offset);
-	}
-
-	function createRangeFromNormalizedSpan(map: { positions: TextPosition[] }, startIndex: number, endIndex: number) {
-		const start = map.positions[startIndex];
-		const end = map.positions[endIndex - 1];
-		if (!start || !end) return null;
-		const range = document.createRange();
-		range.setStart(start.node, start.offset);
-		range.setEnd(end.node, end.offset + 1);
-		return range;
-	}
-
-	function mapProjectionRangeToVisibleRange(range: Range, sourceBlock: HTMLElement, visibleBlock: HTMLElement) {
-		const sourceMap = collectNormalizedTextMap(sourceBlock);
-		const visibleMap = collectNormalizedTextMap(visibleBlock);
-		if (sourceMap.text !== visibleMap.text) return null;
-
-		const startIndex = findNormalizedPosition(sourceMap.positions, range.startContainer, range.startOffset);
-		const endIndex = findNormalizedPosition(sourceMap.positions, range.endContainer, Math.max(range.endOffset - 1, 0));
-		if (startIndex < 0 || endIndex < startIndex) return null;
-		return createRangeFromNormalizedSpan(visibleMap, startIndex, endIndex + 1);
-	}
-
-	function resolveVisibleTrackingRange(range: Range, scope: HTMLElement) {
-		const sourceBlock = nearestReadableBlock(range.startContainer, scope);
-		if (!sourceBlock || !isProjectionElement(sourceBlock)) return range;
-		const visibleBlock = findVisibleTrackingBlock(sourceBlock, scope);
-		if (!visibleBlock) return null;
-		return mapProjectionRangeToVisibleRange(range, sourceBlock, visibleBlock);
-	}
-
 	/**
 	 * Stop pie-assessment-toolkit from injecting FontAwesome into this page.
 	 *
@@ -305,35 +164,6 @@
 	}
 
 	ensureFontAwesomeFallbackMarker();
-
-	function collectQueryableRoots(root: ParentNode, roots: ParentNode[] = [], seen = new WeakSet<object>()) {
-		if (seen.has(root)) return roots;
-		seen.add(root);
-		roots.push(root);
-
-		const elements: Element[] = [];
-		if (root instanceof Element) elements.push(root);
-		elements.push(...Array.from(root.querySelectorAll('*')));
-
-		for (const element of elements) {
-			if (element.shadowRoot) {
-				collectQueryableRoots(element.shadowRoot, roots, seen);
-			}
-		}
-
-		return roots;
-	}
-
-	function queryElementsIncludingOpenShadowRoots(root: ParentNode, selector: string) {
-		const elements: Element[] = [];
-		for (const queryRoot of collectQueryableRoots(root)) {
-			if (queryRoot instanceof Element && queryRoot.matches(selector)) {
-				elements.push(queryRoot);
-			}
-			elements.push(...Array.from(queryRoot.querySelectorAll(selector)));
-		}
-		return elements;
-	}
 
 	$effect(() => {
 		if (toolkitCoordinator) return;
@@ -380,7 +210,6 @@
 					content-kind={contentKind}
 					region-policy="default"
 					scopeElement={effectiveScopeElement}
-					{ttsHighlightTargetResolver}
 					item={toolEntity}
 					settings={scopeSettings}
 				>

@@ -357,6 +357,10 @@ lands as `spoken` catalog cards under generated `ssml-N` idrefs, which the item 
 section player compute alike. APIP spoken cards in the section player, and passages, are left to
 slice 11.
 
+From pie-players 1.0 the reader walks open shadow roots and reads MathML as SSML, so the projection
+is gone: interactions read from their own rendered content, and the section player extracts only
+the spoken catalogs and the content language.
+
 ### 9. Content language
 
 - The nearest `xml:lang` maps to `lang` on the item body and inner elements.
@@ -371,8 +375,8 @@ outside it keeps the toolkit's English default. From pie-players 1.0 the browser
 picks a voice for the content language: markup `lang`, then the toolbar's `language`, then
 `navigator.language`. Passages
 take their language from the host's `QtiSharedHtmlBlock.language`, since the section player gets
-passage markup and no stimulus XML. `xml:lang` on a prompt or choice element is dropped from the
-item player's interaction data, which carries their text only; `xml:lang` inside them survives.
+passage markup and no stimulus XML. A prompt or choice keeps its own `lang`, catalog idref and
+read-aloud suppression on a span around its content, and an interaction on its rendered host.
 
 ### 10. PNP in delivery
 
