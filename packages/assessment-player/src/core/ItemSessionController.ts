@@ -11,7 +11,9 @@
  * - allowReview: Allow returning to already-answered items
  * - allowSkipping: Allow skipping items without answering
  * - validateResponses: Require valid responses before moving on
- * - allowComment: Allow candidate comments (not implemented yet)
+ * - allowComment: Allow candidate comments
+ *
+ * Settings apply per item where `setItemSettings` has set them, and fall back to the shared settings.
  */
 
 export interface ItemSessionControlSettings {
@@ -35,6 +37,7 @@ export interface ItemSessionState {
 export class ItemSessionController {
 	private settings: ItemSessionControlSettings;
 	private sessionStates: Map<string, ItemSessionState> = new Map();
+	private itemSettings: Map<string, ItemSessionControlSettings> = new Map();
 
 	constructor(settings: ItemSessionControlSettings = {}) {
 		// Apply defaults per QTI 2.2 spec
@@ -47,6 +50,16 @@ export class ItemSessionController {
 			allowSkipping: settings.allowSkipping ?? true,
 			validateResponses: settings.validateResponses ?? false,
 		};
+	}
+
+	/** Sets an item's effective itemSessionControl, overriding the shared settings for that item. */
+	setItemSettings(itemIdentifier: string, settings: ItemSessionControlSettings): void {
+		this.itemSettings.set(itemIdentifier, { ...this.settings, ...settings });
+	}
+
+	/** Effective settings for an item. */
+	settingsFor(itemIdentifier: string | undefined): ItemSessionControlSettings {
+		return (itemIdentifier === undefined ? undefined : this.itemSettings.get(itemIdentifier)) ?? this.settings;
 	}
 
 	/**
@@ -104,7 +117,7 @@ export class ItemSessionController {
 		}
 
 		// Check maxAttempts
-		const maxAttempts = this.settings.maxAttempts ?? 0;
+		const maxAttempts = this.settingsFor(itemIdentifier).maxAttempts ?? 0;
 		if (maxAttempts > 0 && state.attemptCount >= maxAttempts) {
 			return false;
 		}
@@ -121,7 +134,7 @@ export class ItemSessionController {
 			return null;
 		}
 
-		const maxAttempts = this.settings.maxAttempts ?? 0;
+		const maxAttempts = this.settingsFor(itemIdentifier).maxAttempts ?? 0;
 		if (maxAttempts === 0) {
 			return null; // Unlimited
 		}
@@ -138,7 +151,7 @@ export class ItemSessionController {
 			return false;
 		}
 
-		return this.settings.showFeedback ?? false;
+		return this.settingsFor(itemIdentifier).showFeedback ?? false;
 	}
 
 	/**
@@ -150,7 +163,7 @@ export class ItemSessionController {
 			return false;
 		}
 
-		return this.settings.showSolution ?? false;
+		return this.settingsFor(itemIdentifier).showSolution ?? false;
 	}
 
 	/**
@@ -162,21 +175,26 @@ export class ItemSessionController {
 			return true; // Can always navigate to unsubmitted items
 		}
 
-		return this.settings.allowReview ?? true;
+		return this.settingsFor(itemIdentifier).allowReview ?? true;
 	}
 
 	/**
 	 * Check if candidate can skip an item without answering
 	 */
-	canSkip(_itemIdentifier: string): boolean {
-		return this.settings.allowSkipping ?? true;
+	canSkip(itemIdentifier: string): boolean {
+		return this.settingsFor(itemIdentifier).allowSkipping ?? true;
+	}
+
+	/** Check if the candidate may comment on an item */
+	canComment(itemIdentifier: string): boolean {
+		return this.settingsFor(itemIdentifier).allowComment ?? false;
 	}
 
 	/**
 	 * Check if responses must be validated before navigation
 	 */
-	mustValidateResponses(): boolean {
-		return this.settings.validateResponses ?? false;
+	mustValidateResponses(itemIdentifier?: string): boolean {
+		return this.settingsFor(itemIdentifier).validateResponses ?? false;
 	}
 
 	/**
@@ -186,7 +204,7 @@ export class ItemSessionController {
 		isValid: boolean;
 		error?: string;
 	} {
-		if (!this.mustValidateResponses()) {
+		if (!this.mustValidateResponses(itemIdentifier)) {
 			return { isValid: true };
 		}
 
@@ -227,7 +245,7 @@ export class ItemSessionController {
 		}
 
 		// Check validation requirements
-		if (this.mustValidateResponses() && state.isAnswered && !hasValidResponses) {
+		if (this.mustValidateResponses(itemIdentifier) && state.isAnswered && !hasValidResponses) {
 			return {
 				allowed: false,
 				reason: 'Please provide valid responses before continuing.',
@@ -249,6 +267,11 @@ export class ItemSessionController {
 	 */
 	updateSettings(settings: Partial<ItemSessionControlSettings>): void {
 		this.settings = { ...this.settings, ...settings };
+	}
+
+	/** Get an item's effective settings */
+	getItemSettings(itemIdentifier: string): ItemSessionControlSettings {
+		return { ...this.settingsFor(itemIdentifier) };
 	}
 
 	/**

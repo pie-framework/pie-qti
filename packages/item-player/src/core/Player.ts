@@ -235,6 +235,7 @@ export class Player {
 			this.ensureBuiltinDeclarations(this.decls);
 		}
 		this.applyContextVariables(config.contextVariables);
+		this.applyTemplateDefaults(config.templateDefaults);
 		this.sourceDeclarations = cloneDeclarationMap(this.decls);
 		this.ctx = new DeclarationContext(this.decls);
 		this.ops = new OperatorRegistry();
@@ -1519,6 +1520,16 @@ export class Player {
 			const d = this.decls[id];
 			if ((d as any)?.__kind !== 'context') continue;
 			d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, raw, d.identifier);
+		}
+	}
+
+	/** Test-supplied template defaults; identifiers that are not template variables are ignored. */
+	private applyTemplateDefaults(values: Readonly<Record<string, unknown>> | undefined): void {
+		for (const [id, raw] of Object.entries(values ?? {})) {
+			const d = this.decls[id];
+			if (!d?.isTemplate) continue;
+			d.defaultValue = this.coerceToDeclarationValue(d.baseType, d.cardinality, raw, d.identifier);
+			d.value = d.defaultValue;
 		}
 	}
 

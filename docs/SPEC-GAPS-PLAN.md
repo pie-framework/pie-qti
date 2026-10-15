@@ -264,7 +264,7 @@ Test signal
 ### G-16: Lossless `assessmentTest` XML ingestion and one authoritative test model
 
 Scope       — `packages/assessment-player/`; `packages/player-elements/src/qti/`
-Status      — In-progress (ordered hierarchy and core controls preserved; dynamic control gaps remain)
+Status      — In-progress (dynamic structure semantics done 2026-10-15; discovery-parser consolidation remains)
 Effort      — L
 Spec ref    — QTI assessment-test information model
 
@@ -282,23 +282,24 @@ preconditions; time limits; outcome processing; and test feedback. The raw-XML c
 reference mode now uses that richer parser instead of converting through its former flattened
 `SecureAssessment` copy.
 
-The model is not yet lossless at execution time. Parsed preconditions are not evaluated dynamically;
-branch rules are executed only for `assessmentItemRef`, not `assessmentSection` or `testPart`; and
-`selection withReplacement="true"` does not materialize distinct item-session clones with sequence
-identity. External `assessmentSectionRef` recursion now rejects cycles and enforces a configurable
+The backend draws selection and ordering once at session start and stores the drawn assessment, so
+a resume returns the same draw. `withReplacement` repeats are cloned with suffixed identifiers
+(`.2`, `.3`), each with its own item session and result, and an invisible `keepTogether="false"`
+section is mixed into its parent's shuffle. Branch rules run on item refs, sections and test parts
+(item and section rules in linear parts only), with EXIT_SECTION, EXIT_TESTPART and EXIT_TEST.
+Preconditions are evaluated on entering each test part, section and item ref against typed test
+outcomes and the submitted items' variables after `variableMapping`. `itemSessionControl` cascades
+from the test part through every enclosing section to the item ref over the QTI defaults; the
+backend enforces `maxAttempts` and `allowComment`, and the player applies `showFeedback`,
+`showSolution` and `validateResponses` per item and evaluates `templateDefault` before template
+processing. External `assessmentSectionRef` recursion rejects cycles and enforces a configurable
 depth limit (32 by default). A small discovery parser remains in player-elements to resolve
 referenced resources before the authoritative parse.
 
 Action
-1. Evaluate ordered preconditions whenever their owning part/section/item-ref becomes eligible,
-   using current test/session variables rather than a one-time parse decision.
-2. Preserve and execute ordered branch rules on sections and test parts, including reserved exit
-   targets and target-validation rules.
-3. Materialize `withReplacement` selections as distinct runtime item instances with stable
-   sequence indexes and independent ItemSessions/results; do not duplicate one identifier-keyed
-   object in the current maps.
-4. Consolidate the remaining discovery parser with the assessment-owned model where practical.
-5. Add raw-XML delivery tests for each dynamic rule and replacement-instance result lookup.
+Consolidate the remaining discovery parser with the assessment-owned model where practical.
+Preconditions, section and test-part branch rules, `withReplacement` instances and the
+itemSessionControl cascade landed 2026-10-15 with raw QTI 2.2 and 3.0 delivery tests.
 
 Test signal
 - Tests start from raw QTI 2.1, 2.2, and 3.0 assessment XML and assert selected/ordered runtime
@@ -408,8 +409,8 @@ nonlinear parts retain free in-part navigation. Test parts are entered sequentia
 re-entered after advancing. Individual submission is selected from the active test part.
 
 Action
-Done for this gap. Dynamic preconditions and section/testPart branch rules remain under G-16 and can
-change the next eligible target without weakening the irreversible linear rule.
+Done for this gap. Preconditions and section/testPart branch rules (G-16) change the next eligible
+target without weakening the irreversible linear rule.
 
 Test signal
 - Previous/back navigation is unavailable after advancing in a linear part, while nonlinear parts
@@ -459,7 +460,9 @@ Current
 The player now tracks assessment, testPart, section, and item clocks independently, persists them
 across save/resume, uses the shortest active hard maximum, and enforces each applicable `minTime`
 when leaving or submitting a scope. Deterministic clock tests cover independent accumulation,
-pause/resume, maximum selection, and restoration. More integration coverage is still needed for
+pause/resume, maximum selection, and restoration. A test part, section or item limit without late
+submission closes that scope's items when it expires and moves delivery to the next item outside
+it; only the assessment limit ends delivery. More integration coverage is still needed for
 simultaneous expirations, minimum-time UI affordances, and browser save/resume transitions.
 
 Action

@@ -76,6 +76,8 @@ export interface ProcessFeedbackInlineOptions {
 	wrapWithSpan?: boolean;
 	/** Custom feedback transforms (defaults to DEFAULT_FEEDBACK_TRANSFORMS) */
 	transforms?: FeedbackTransform[];
+	/** Drop every feedback element whatever the outcomes. */
+	hideAll?: boolean;
 }
 
 /**
@@ -108,7 +110,7 @@ export function processFeedbackInline(
 	const feedback = feedbackElements(html);
 	if (feedback.length === 0) return html;
 
-	const { outcomeValues, applyHeuristics = false, wrapWithSpan = false, transforms } = options;
+	const { outcomeValues, applyHeuristics = false, wrapWithSpan = false, transforms, hideAll = false } = options;
 	const render = (start: number, end: number, elements: readonly FeedbackElement[]): string => {
 		let out = '';
 		let position = start;
@@ -117,7 +119,7 @@ export function processFeedbackInline(
 			position = element.closeEnd;
 			const outcomeId = feedbackInlineAttr(element.attrs, 'outcomeIdentifier');
 			const feedbackId = feedbackInlineAttr(element.attrs, 'identifier');
-			if (outcomeId === null || feedbackId === null) continue;
+			if (hideAll || outcomeId === null || feedbackId === null) continue;
 			const showHide = feedbackInlineAttr(element.attrs, 'showHide');
 			if (!isShownByIdentifier(outcomeValues[outcomeId], feedbackId, showHide)) continue;
 

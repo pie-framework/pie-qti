@@ -61,6 +61,10 @@ export interface CreateItemPresentationOptions {
 	heuristicsConfig?: QtiHeuristicsConfig;
 	itemBodyScopeSelector?: string;
 	renderItemBodyRubrics?: boolean;
+	/** False drops every feedbackInline and feedbackBlock, as test-level showFeedback="false" requires. */
+	showFeedback?: boolean;
+	/** True exposes correct responses whatever the role, as test-level showSolution requires. */
+	showSolution?: boolean;
 	onComponentError?: (interaction: BaseInteractionData, error: unknown) => void;
 }
 
@@ -126,9 +130,14 @@ export function createItemPresentation({
 	heuristicsConfig,
 	itemBodyScopeSelector = '[data-qti-item-body-scope]',
 	renderItemBodyRubrics = true,
+	showFeedback = true,
+	showSolution = false,
 	onComponentError,
 }: CreateItemPresentationOptions): ItemPresentation {
-	const roleCapabilities = getRoleCapabilities(role);
+	const baseCapabilities = getRoleCapabilities(role);
+	const roleCapabilities = showSolution
+		? { ...baseCapabilities, canViewCorrectResponses: true }
+		: baseCapabilities;
 	const effectiveDisabled = disabled || roleCapabilities.isReadOnly;
 	const correctResponses = roleCapabilities.canViewCorrectResponses ? source.correctResponses : {};
 	const { html, scopedCss } = buildItemBodyPresentation({
@@ -138,6 +147,7 @@ export function createItemPresentation({
 		heuristicsConfig,
 		itemBodyScopeSelector,
 		renderItemBodyRubrics,
+		showFeedback,
 	});
 	const inlineFlow = createInlineRenderPlan(html, source.interactions).map(
 		(segment): ItemPresentationFlowNode => {
@@ -213,6 +223,7 @@ function buildItemBodyPresentation({
 	heuristicsConfig,
 	itemBodyScopeSelector,
 	renderItemBodyRubrics,
+	showFeedback,
 }: {
 	source: ItemPresentationSource;
 	role: QTIRole;
@@ -220,6 +231,7 @@ function buildItemBodyPresentation({
 	heuristicsConfig: QtiHeuristicsConfig | undefined;
 	itemBodyScopeSelector: string;
 	renderItemBodyRubrics: boolean;
+	showFeedback: boolean;
 }): { html: string; scopedCss: string } {
 	let html = htmlToString(source.itemBodyHtml);
 	const scopedCss = buildScopedStylesheetCss(source.deliveryContext, itemBodyScopeSelector);
@@ -236,6 +248,7 @@ function buildItemBodyPresentation({
 		outcomeValues,
 		applyHeuristics: heuristics.feedbackTextFormatting,
 		wrapWithSpan: false,
+		hideAll: !showFeedback,
 	});
 
 	return { html: hideBlockInteractionMarkup(html), scopedCss };

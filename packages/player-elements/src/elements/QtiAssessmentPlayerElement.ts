@@ -421,7 +421,7 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 					? {}
 					: { sectionReferenceLimits: { maxDepth: configuredSectionDepth } }),
 			});
-			const backend = new ReferenceBackendAdapter();
+			const backend = new ReferenceBackendAdapter({ rng: this.#config.rng });
 			backend.registerAssessment(assessmentId, secure);
 			this.#backend = backend;
 			this.#initSession = { assessmentId, candidateId };
