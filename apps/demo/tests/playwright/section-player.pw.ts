@@ -109,7 +109,7 @@ test.describe('section player web components', () => {
 		await expect.poll(() => ttsRequests.length, { timeout: 10_000 }).toBeGreaterThan(0);
 		expect(ttsRequests[0]).toMatchObject({
 			provider: 'polly',
-			engine: 'standard',
+			voice: 'Joanna',
 		});
 		await expect
 			.poll(
@@ -124,6 +124,11 @@ test.describe('section player web components', () => {
 		expect(synthesizedText).toContain('interpret-as');
 		expect(synthesizedText).toContain('squared plus');
 		expect(synthesizedText).toContain('Select the correct solution set');
+		// The reader walks open shadow roots, so the interactions' own text and their readable
+		// projection must not both be read.
+		await page.waitForTimeout(3_000);
+		const promptReads = ttsRequests.filter((request) => JSON.stringify(request).includes('Select the correct solution set'));
+		expect(promptReads).toHaveLength(1);
 
 		await page.getByRole('button', { name: /calculator/i }).click();
 		await expect(page.locator('pie-tool-calculator')).toBeAttached();

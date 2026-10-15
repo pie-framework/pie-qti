@@ -1,12 +1,5 @@
 <script lang="ts">
-	import {
-		assessmentToolkitRegionScopeContext,
-		assessmentToolkitShellContext,
-		ToolkitCoordinator,
-		ToolRegistry,
-		type AssessmentToolkitRegionScopeContext,
-		type AssessmentToolkitShellContext,
-	} from '@pie-players/pie-assessment-toolkit';
+	import { ToolkitCoordinator, ToolRegistry } from '@pie-players/pie-assessment-toolkit';
 	// pie-assessment-toolkit 0.3.65 moved the concrete tool registrations out of the
 	// toolkit core, so a host composes the capabilities it wants. The two
 	// registrations are imported individually rather than through
@@ -16,7 +9,6 @@
 		calculatorToolRegistration,
 		ttsToolRegistration,
 	} from '@pie-players/pie-default-tool-loaders';
-	import { ContextProvider, ContextRoot } from '@pie-players/pie-context';
 	import type { QtiSectionToolConfig } from '../contracts/index.js';
 	import type { SpokenCatalog } from '../tts/readable-interaction-projection.js';
 	import { resolveSectionTtsProviderConfig } from '../tools/section-tool-config.js';
@@ -43,10 +35,6 @@
 		resolveSentenceRanges?: (ranges: Range[], context: TtsHighlightContext) => Array<Range | HTMLElement> | null | undefined;
 	};
 
-	type QtiRegionScopeContext = AssessmentToolkitRegionScopeContext & {
-		ttsHighlightTargetResolver?: TtsHighlightTargetResolver | null;
-	};
-
 	const {
 		tools = [],
 		scopeId,
@@ -59,10 +47,6 @@
 	}: Props = $props();
 
 	let shellHost = $state<HTMLElement | null>(null);
-	let shellProvider: ContextProvider<typeof assessmentToolkitShellContext> | null = null;
-	let shellContextRoot: ContextRoot | null = null;
-	let regionScopeProvider: ContextProvider<typeof assessmentToolkitRegionScopeContext> | null = null;
-	let regionScopeRoot: ContextRoot | null = null;
 	let toolkitElement = $state<HTMLElement | null>(null);
 	let toolkitCoordinator = $state<ToolkitCoordinator | null>(null);
 	let toolkitElementsReady = $state(false);
@@ -89,7 +73,7 @@
 		registry.register(calculatorToolRegistration);
 		registry.setComponentOverrides({
 			toolTagMap: {
-				textToSpeech: 'pie-tool-text-to-speech',
+				textToSpeech: 'pie-tool-tts-inline',
 				calculator: 'pie-tool-calculator',
 			},
 		});
@@ -100,7 +84,11 @@
 		return registry;
 	})();
 	const ttsProvider = $derived(visibleTools.find((tool) => tool.toolId === 'textToSpeech')?.provider ?? {});
-	const calculatorParams = $derived(calculatorTool?.renderParams ?? {});
+	const calculatorType = $derived(calculatorTool?.renderParams?.calculatorType);
+	// The calculator opens the type its item's `toolParameters` name.
+	const scopeSettings = $derived(
+		typeof calculatorType === 'string' ? { toolParameters: { calculator: { type: calculatorType } } } : null,
+	);
 	const toolsConfig = $derived({
 		pnpEnforcement: 'off',
 		policy: {
@@ -135,7 +123,6 @@
 					id: scopeId,
 					prompt: sourceMarkup,
 					markup: sourceMarkup,
-					...calculatorParams,
 				},
 			],
 		},
@@ -143,19 +130,6 @@
 	const effectiveScopeElement = $derived(scopeElement || shellHost);
 	const readableTrackingSelector =
 		'p,h1,h2,h3,h4,h5,h6,li,label,td,th,blockquote,figcaption,[role="heading"],[role="listitem"],[role="radio"],.qti-choice-prompt,.qti-choice-text';
-	const shellContextValue = $derived.by((): AssessmentToolkitShellContext | null => {
-		if (!effectiveScopeElement) return null;
-		return {
-			kind: level === 'passage' ? 'passage' : 'item',
-			itemId: scopeId,
-			canonicalItemId: scopeId,
-			contentKind,
-			regionPolicy: 'default',
-			scopeElement: effectiveScopeElement,
-			item: toolEntity,
-			contextVersion: Date.now(),
-		};
-	});
 	const ttsHighlightTargetResolver: TtsHighlightTargetResolver = {
 		resolveWordRange: (range, context) => {
 			const scope = context.scopeElement ?? effectiveScopeElement;
@@ -176,6 +150,7 @@
 		if (visibleTools.length === 0 || toolkitElementsReady) return;
 		let cancelled = false;
 		void Promise.all([
+			import('@pie-players/pie-assessment-toolkit/components/item-scope-element'),
 			import('@pie-players/pie-assessment-toolkit/components/item-toolbar-element'),
 			import('@pie-players/pie-assessment-toolkit/components/pie-assessment-toolkit-element'),
 		])
@@ -189,14 +164,6 @@
 			cancelled = true;
 		};
 	});
-	const regionScopeValue = $derived.by((): QtiRegionScopeContext | null => {
-		if (!effectiveScopeElement) return null;
-		return {
-			scopeElement: effectiveScopeElement,
-			ttsHighlightTargetResolver,
-		};
-	});
-
 	type TextPosition = { node: Text; offset: number };
 
 	function normalizeTrackingText(value: string) {
@@ -380,52 +347,6 @@
 	});
 
 	$effect(() => {
-		if (!shellHost || !shellContextValue) return;
-		shellProvider = new ContextProvider(shellHost, {
-			context: assessmentToolkitShellContext,
-			initialValue: shellContextValue,
-		});
-		shellProvider.connect();
-		shellContextRoot = new ContextRoot(shellHost);
-		shellContextRoot.attach();
-
-		return () => {
-			shellContextRoot?.detach();
-			shellContextRoot = null;
-			shellProvider?.disconnect();
-			shellProvider = null;
-		};
-	});
-
-	$effect(() => {
-		if (!shellContextValue) return;
-		shellProvider?.setValue(shellContextValue);
-	});
-
-	$effect(() => {
-		if (!shellHost || !regionScopeValue) return;
-		regionScopeProvider = new ContextProvider(shellHost, {
-			context: assessmentToolkitRegionScopeContext,
-			initialValue: regionScopeValue,
-		});
-		regionScopeProvider.connect();
-		regionScopeRoot = new ContextRoot(shellHost);
-		regionScopeRoot.attach();
-
-		return () => {
-			regionScopeRoot?.detach();
-			regionScopeRoot = null;
-			regionScopeProvider?.disconnect();
-			regionScopeProvider = null;
-		};
-	});
-
-	$effect(() => {
-		if (!regionScopeValue) return;
-		regionScopeProvider?.setValue(regionScopeValue);
-	});
-
-	$effect(() => {
 		if (!toolkitCoordinator) return;
 		toolkitElement?.dispatchEvent(
 			new CustomEvent('qti-toolkit-coordinator-ready', {
@@ -453,19 +374,28 @@
 				coordinator={toolkitCoordinator}
 				lazy-init={false}
 			>
-				<pie-item-toolbar
-					{level}
-					scope-id={scopeId}
+				<pie-item-scope
 					item-id={scopeId}
-					catalog-id={scopeId}
-					tools={toolbarTools}
-					{contentKind}
-					size="md"
-					{language}
+					canonical-item-id={scopeId}
+					content-kind={contentKind}
+					region-policy="default"
 					scopeElement={effectiveScopeElement}
-					{toolRegistry}
+					{ttsHighlightTargetResolver}
 					item={toolEntity}
-				></pie-item-toolbar>
+					settings={scopeSettings}
+				>
+					<pie-item-toolbar
+						{level}
+						scope-id={scopeId}
+						item-id={scopeId}
+						catalog-id={scopeId}
+						tools={toolbarTools}
+						{contentKind}
+						size="md"
+						{language}
+						{toolRegistry}
+					></pie-item-toolbar>
+				</pie-item-scope>
 			</pie-assessment-toolkit>
 		{/if}
 	</span>
@@ -477,7 +407,8 @@
 		margin-left: auto;
 	}
 
-	pie-assessment-toolkit {
+	pie-assessment-toolkit,
+	pie-item-scope {
 		display: inline-flex;
 	}
 </style>
