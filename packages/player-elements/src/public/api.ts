@@ -529,6 +529,7 @@ export interface QtiSectionRuntimeHost {
 
 export interface QtiAssessmentPlayerConfig {
 	role?: QtiRole;
+	/** Seeds selection and ordering when the element runs its built-in reference backend. */
 	rng?: () => number;
 	plugins?: readonly QtiAssessmentItemDefinitionPlugin[];
 	i18nProvider?: QtiI18nProvider;

@@ -26,6 +26,7 @@ export {
 	type ItemSessionCommand,
 	type ItemSessionEventCommand,
 	type ItemSessionListener,
+	type ItemSessionPresentationPolicy,
 	type ItemSessionTransition,
 	type ItemSessionView,
 	type OpenItemSessionOptions,

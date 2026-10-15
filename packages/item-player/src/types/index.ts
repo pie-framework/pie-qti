@@ -286,6 +286,11 @@ export interface ItemSessionEngineConfig {
 	 * record, and any declared by `contextDeclaration` (`qti-context-declaration`).
 	 */
 	contextVariables?: Readonly<Record<string, unknown>>;
+	/**
+	 * Default values for template variables, set before template processing and kept by
+	 * `newTemplate`, as an assessmentItemRef's `templateDefault` requires.
+	 */
+	templateDefaults?: Readonly<Record<string, unknown>>;
 	/** Optional seed for deterministic random operations (e.g. templateProcessing randomInteger) */
 	seed?: number;
 	/** Optional RNG override (takes precedence over seed if provided) */

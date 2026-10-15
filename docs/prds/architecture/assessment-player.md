@@ -37,14 +37,13 @@ In any assessment with academic stakes, the correct responses and scoring rules 
 After `initSession` returns, `AssessmentPlayer` immediately flattens all `SecureTestPart → SecureSection → SecureItemRef` references into a single ordered `FlatItem[]` array. This is because:
 
 1. Navigation arithmetic (next/previous, index-to-section mapping) is simpler over a flat sequence than over a nested tree, especially when sections may be empty.
-2. The runtime applies a preserved section's direct-child selection and ordering once while building
-   the session's flat sequence. Required children are retained and fixed children keep their slots.
-   An authoritative backend may instead return an already-resolved structure.
-3. The flat list is stable for the lifetime of a session. Resuming a session restores the same list
-   by restoring the `currentItemIdentifier` from `AssessmentSessionState`; a production backend must
-   persist/replay the selected structure or its deterministic seed rather than silently reselecting.
-   Replacement selection is not materialized yet because duplicate instances require distinct
-   sequence identity and independent ItemSessions.
+2. The backend draws selection and ordering at session start and returns the drawn assessment; the
+   player flattens it as given. The reference adapter's `drawAssessment` keeps required children,
+   keeps fixed children in their slots, clones `withReplacement` repeats under suffixed identifiers
+   (`.2`, `.3`) and mixes an invisible `keepTogether="false"` section into its parent's shuffle. Its
+   rng is the adapter's `rng` option.
+3. The flat list is stable for the lifetime of a session. The backend stores the draw, so a resume
+   returns the same assessment and restores `currentItemIdentifier` from `AssessmentSessionState`.
 
 ### Why individual and simultaneous submission modes differ
 
@@ -82,31 +81,24 @@ host decides when a draft is durable and whether client storage is appropriate.
 | `assessmentSection.rubricBlock` (view-filtered) | Full |
 | `timeLimits.minTime` / `maxTime` (assessment, testPart, section, item) | Runtime enforcement with independent persisted clocks; edge/browser coverage remains |
 | `timeLimits.allowLateSubmission` | Full |
-| `itemSessionControl.maxAttempts` | UI hint (server-authoritative) |
-| `itemSessionControl.allowReview` | UI hint |
-| `itemSessionControl.allowSkipping` | UI hint |
-| `itemSessionControl.showFeedback` | UI hint |
-| `itemSessionControl.validateResponses` | UI hint |
+| `itemSessionControl` cascade (testPart → sections → item ref) | Full, over the QTI defaults |
+| `itemSessionControl.maxAttempts` | Backend-enforced; UI hint (adaptive items unlimited) |
+| `itemSessionControl.allowComment` | Backend-enforced; comments sent with the submission |
+| `itemSessionControl.allowReview` / `allowSkipping` | UI hint |
+| `itemSessionControl.showFeedback` / `showSolution` | Applied to the item presentation |
+| `itemSessionControl.validateResponses` | Applied when the attempt ends |
+| `preCondition` (testPart, section, item ref) | Evaluated by the backend on entering each |
+| `branchRule` (item ref, section, testPart) | Evaluated by the backend; returned as `nextItemIdentifier` |
+| `variableMapping` / `templateDefault` | Full |
 | `testFeedback` (outcome-based) | Full for preserved structured feedback and finalized backend feedback |
-| `assessmentSection.selection` (direct children) | Implemented without replacement; replacement clones remain open |
-| `assessmentSection.ordering` (shuffle/fixed) | Implemented during session-sequence construction |
+| `assessmentSection.selection` (direct children, with replacement) | Drawn by the backend at session start |
+| `assessmentSection.ordering` (shuffle, fixed, keepTogether) | Drawn by the backend at session start |
 | `outcomeDeclaration` / `outcomeProcessing` (test-level) | Parsed/executed by the reference adapter; production backend remains authoritative |
-
-### Deliberately incomplete assessment semantics
-
-- Parsed `preCondition` expressions are retained but are not evaluated dynamically while walking
-  test parts, sections, and item refs.
-- Item-ref branch rules can be evaluated by the reference backend; section and testPart branch rules
-  are not yet represented/executed. A production backend may return `nextItemIdentifier` as its
-  authoritative branch decision.
-- `selection withReplacement="true"` does not materialize distinct sequence-indexed item instances;
-  the runtime rejects selections that require more instances than source children.
-- `assessmentSectionRef` resolution needs explicit cycle/depth limits in addition to its package-path checks.
 
 ### Known divergences from spec
 
-- **Dynamic structure rules (G-16):** preconditions, section/testPart branches, and replacement
-  instances remain the material assessment-level conformance gap.
+- **Modal feedback:** the assessment renders no item `modalFeedback`; `showFeedback` governs the
+  integrated feedback only.
 - **Timing evidence (G-22):** scoped clocks and `minTime`/`maxTime` enforcement exist, but direct
   integration coverage for every minimum-time scope and simultaneous expiry combination remains.
 
@@ -178,20 +170,18 @@ for preview, offline, and trusted low-stakes use.
 
 **Decision:** All items are flattened into `FlatItem[]` in the constructor, indexed 0-N.
 **Rationale:** Navigation, visited-item tracking, and section boundary detection are all simpler and
-faster over a flat array. The source tree is retained through XML ingestion, and direct-child
-selection/ordering is applied once while constructing the per-session flat sequence.
+faster over a flat array. The source tree is retained through XML ingestion, and the backend draws
+selection and ordering before the player sees it.
 **Alternatives considered:** Keeping the tree structure and walking it on each navigation call. Rejected because section-crossing navigation (jumping from item 3 in section 1 to item 1 in section 2) becomes ambiguous without a flat index.
-**Consequences:** `SecureAssessment` must contain all source children or an already-resolved
-sequence before construction. Dynamic insertion is not supported. `withReplacement` cannot safely
-reuse identifier-keyed state and therefore remains rejected until distinct runtime instance keys,
-sequence indexes, ItemSessions, and results are materialized.
+**Consequences:** `SecureAssessment` arrives drawn. Dynamic insertion is not supported. A
+`withReplacement` repeat is its own item ref with a suffixed identifier, so identifier-keyed
+sessions and results stay distinct.
 
-### itemSessionControl has testPart defaults with section overrides
+### itemSessionControl resolves per item
 
-**Decision:** In the constructor, `ItemSessionController` starts from the first `testPart` defaults; navigation then applies effective item-session settings for the current item/section when available.
-**Rationale:** QTI allows testPart, section, and item-level control settings. The runtime needs a stable controller object, but its settings must follow the current item's effective context.
-**Alternatives considered:** Per-section `ItemSessionController` instances. Deferred because updating the active controller settings is simpler and keeps existing session state intact.
-**Consequences:** Multi-section assessments can express section-level `allowSkipping` / `allowReview` differences, while multi-testPart assessments still need additional work if each part has materially different control policy.
+**Decision:** `resolveItemSessionControl` cascades the test part, each enclosing section from outer to inner, then the item ref over the QTI defaults (maxAttempts 1, showFeedback false, allowReview true, showSolution false, allowComment false, allowSkipping true, validateResponses false). The player seeds `ItemSessionController` with every item's resolved settings; the backend resolves the same cascade to enforce attempts and comments.
+**Rationale:** QTI sets item session control at three levels, and every item's effective policy must hold however the candidate reaches it.
+**Consequences:** Mixed-policy test parts and sections deliver correctly. Adaptive items allow unlimited attempts and keep their feedback during attempts whatever `showFeedback` says.
 
 ### Navigation and submission modes are testPart-scoped
 
@@ -202,8 +192,8 @@ first part's behavior.
 **Alternatives considered:** Collapsing all modes to one top-level pair. Rejected because it changes
 valid mixed-part delivery semantics.
 **Consequences:** Linear parts allow only the immediate forward transition and cannot be re-entered.
-Nonlinear parts permit in-part navigation subject to ItemSessionControl. Dynamic part/section branch
-targets remain backend/G-16 work.
+Nonlinear parts permit in-part navigation subject to ItemSessionControl. Branch rules and
+preconditions resolve in the backend, which returns the next eligible item as `nextItemIdentifier`.
 
 ### Event listeners use `Set<listener>`, not an event emitter library
 

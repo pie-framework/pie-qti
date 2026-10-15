@@ -33,7 +33,6 @@ import type {
 	SecureAssessment,
 	SecureItemRef,
 	SecureSection,
-	SecureSectionComponent,
 	SecureTestPart,
 	SessionId,
 	TestFeedbackItem,
@@ -48,13 +47,25 @@ import type {
 } from '../types/index.js';
 import { AssessmentSessionCoordinator } from './AssessmentSessionCoordinator.js';
 import { NavigationManager } from './NavigationManager.js';
+import {
+	deliveredItems,
+	evaluateTestExpression,
+	isAdaptiveItemXml,
+	plainQtiValue,
+	resolveItemSessionControl,
+	sectionComponents,
+	testOutcomeDeclarations,
+} from './testStructure.js';
 import { TimeManager } from './TimeManager.js';
 
 export interface BackendAssessmentPlayerConfig {
 	backend: BackendAdapter;
 	initSession: InitSessionRequest;
 	role?: QTIRole;
-	/** Optional RNG for deterministic shuffling in selection/ordering. Defaults to Math.random. */
+	/**
+	 * @deprecated Ignored. The backend draws selection and ordering at session start; pass an rng to
+	 * `new ReferenceBackendAdapter({ rng })` for deterministic draws.
+	 */
 	rng?: () => number;
 	/** Definition-lifetime extractor and renderer extensions applied to every item. */
 	plugins?: readonly AssessmentItemDefinitionPlugin[];
@@ -113,7 +124,10 @@ export interface BackendAssessmentPlayerConfig {
 type FlatItem = {
 	identifier: string;
 	item: SecureItemRef;
+	/** Innermost enclosing section. */
 	section: SecureSection;
+	/** Enclosing sections, outermost first. */
+	sections: SecureSection[];
 	testPart: SecureTestPart;
 	index: number;
 	sectionIndex: number;
@@ -163,6 +177,8 @@ export class AssessmentPlayer {
 	/** Test-level outcomes from the last outcome processing; null until it first runs. */
 	private testOutcomes: TestOutcomeValues | null = null;
 	private finalized = false;
+	/** Scopes whose time limit expired without late submission, keyed `scope:identifier`. */
+	private readonly lockedScopes = new Set<string>();
 	private legacyFeedback: string | undefined;
 
 	// Event listeners
@@ -184,7 +200,7 @@ export class AssessmentPlayer {
 		const initialState =
 			init.restoredState ??
 			({
-				currentItemIdentifier: '',
+				currentItemIdentifier: init.currentItemIdentifier ?? '',
 				visitedItems: [],
 				itemResponses: {},
 				itemScores: {},
@@ -198,12 +214,12 @@ export class AssessmentPlayer {
 		this.navigationManager = new NavigationManager(navigationMode, this.items.length);
 
 		// Item session control is a UI hint; backend remains authoritative.
-		// Start with testPart-level defaults; section-level overrides are applied per item in navigateTo().
-		const itemSessionControl = this.assessment.testParts?.[0]?.itemSessionControl;
 		this.sessionCoordinator = new AssessmentSessionCoordinator({
 			state: initialState,
 			itemIdentifiers: this.items.map((q) => q.identifier),
-			itemSessionControl,
+			itemSessionControlByItem: Object.fromEntries(
+				this.items.map((q) => [q.identifier, resolveItemSessionControl(q.testPart, q.sections, q.item)]),
+			),
 		});
 
 		this.timeManager = new TimeManager({
@@ -212,6 +228,7 @@ export class AssessmentPlayer {
 			extendedTime: config.pnp?.content?.extendedTime,
 			onWarning: (remainingSeconds) => this.notifyTimeWarning(remainingSeconds),
 			onExpired: () => this.notifyTimeExpired(),
+			onScopeExpired: (scope, identifier) => this.handleScopeExpired(scope, identifier),
 			onTick: (remainingSeconds, elapsedSeconds) => this.notifyTimeTick(remainingSeconds, elapsedSeconds),
 		});
 		if (init.restoredState?.timing) {
@@ -234,29 +251,6 @@ export class AssessmentPlayer {
 
 	private set state(state: AssessmentSessionState) {
 		this.sessionCoordinator.restoreState(state);
-	}
-
-	/**
-	 * Compute effective itemSessionControl for a given item using three-level fallback:
-	 * section-level (highest priority) → testPart-level → defaults.
-	 * Section-level values override testPart-level when present.
-	 */
-	private getEffectiveItemSessionControl(flat: FlatItem): SecureSection['itemSessionControl'] {
-		const testPartControl = flat.testPart.itemSessionControl;
-		const sectionControl = flat.section.itemSessionControl;
-
-		if (!sectionControl) return testPartControl;
-		if (!testPartControl) return sectionControl;
-
-		return {
-			maxAttempts: sectionControl.maxAttempts ?? testPartControl.maxAttempts,
-			showFeedback: sectionControl.showFeedback ?? testPartControl.showFeedback,
-			allowReview: sectionControl.allowReview ?? testPartControl.allowReview,
-			showSolution: sectionControl.showSolution ?? testPartControl.showSolution,
-			allowComment: sectionControl.allowComment ?? testPartControl.allowComment,
-			allowSkipping: sectionControl.allowSkipping ?? testPartControl.allowSkipping,
-			validateResponses: sectionControl.validateResponses ?? testPartControl.validateResponses,
-		};
 	}
 
 	private getEffectiveItemTimeLimits(flat: FlatItem): EffectiveItemTimeLimits {
@@ -352,79 +346,24 @@ export class AssessmentPlayer {
 	private assertTransitionMinimum(current: FlatItem, target: FlatItem): void {
 		if (current === target) return;
 		this.assertMinimumTime('item', current);
-		if (current.section !== target.section) this.assertMinimumTime('section', current);
+		if (current.section.identifier !== target.section.identifier) this.assertMinimumTime('section', current);
 		if (current.testPart !== target.testPart) this.assertMinimumTime('testPart', current);
 	}
 
 	private flattenItems(assessment: SecureAssessment): FlatItem[] {
-		const out: FlatItem[] = [];
-		const testParts = assessment.testParts || [];
-		let idx = 0;
-		let secIdx = 0;
-		const rng = this.config.rng ?? Math.random;
-
-		const visitSection = (section: SecureSection, tp: SecureTestPart): void => {
-			const currentSectionIndex = secIdx++;
-			let components: SecureSectionComponent[] = section.children
-				? [...section.children]
-				: [
-					...(section.assessmentItemRefs ?? []).map((item) => ({ type: 'item' as const, item })),
-					...(section.sections ?? []).map((child) => ({ type: 'section' as const, section: child })),
-				];
-
-			// Selection is applied to direct children only. Required children are always
-			// included, and selection preserves source order; ordering is a later step.
-			if (section.selection) {
-				const count = Math.max(0, section.selection.select);
-				const indexed = components.map((component, sourceIndex) => ({ component, sourceIndex }));
-				const required = indexed.filter(({ component }) => isRequiredSectionComponent(component));
-				if (count < required.length) {
-					throw new Error(
-						`Section "${section.identifier}" selects ${count} components but contains ${required.length} required components.`,
-					);
-				}
-				if (count > indexed.length) {
-					const replacement = section.selection.withReplacement === true;
-					throw new Error(
-						replacement
-							? `Section "${section.identifier}" requires cloned item instances for withReplacement selection; the backend must materialize those instances before delivery.`
-							: `Section "${section.identifier}" selects ${count} components without replacement but only contains ${indexed.length}.`,
-					);
-				}
-				const optional = shuffleArray(
-					indexed.filter(({ component }) => !isRequiredSectionComponent(component)),
-					rng,
-				);
-				components = [...required, ...optional.slice(0, count - required.length)]
-					.sort((a, b) => a.sourceIndex - b.sourceIndex)
-					.map(({ component }) => component);
-			}
-
-			if (section.ordering?.shuffle) {
-				components = shuffleSectionComponents(components, rng);
-			}
-
-			for (const component of components) {
-				if (component.type === 'section') {
-					visitSection(component.section, tp);
-					continue;
-				}
-				const item = component.item;
-					out.push({
-						identifier: item.identifier,
-						item,
-						section,
-						testPart: tp,
-						index: idx++,
-						sectionIndex: currentSectionIndex,
-					});
-			}
-		};
-
-		for (const tp of testParts) {
-			for (const section of tp.sections || []) visitSection(section, tp);
-		}
-		return out;
+		const sectionIndexes = new Map(this.getAllSections().map((section) => [section.id, section.index]));
+		return deliveredItems(assessment).map(({ item, testPart, sections }, index) => {
+			const section = sections[sections.length - 1];
+			return {
+				identifier: item.identifier,
+				item,
+				section,
+				sections,
+				testPart,
+				index,
+				sectionIndex: sectionIndexes.get(section.identifier) ?? 0,
+			};
+		});
 	}
 
 	// ---------------------------------------------------------------------------
@@ -433,10 +372,16 @@ export class AssessmentPlayer {
 
 	public getAllSections(): Array<{ id: string; title?: string; visible: boolean; index: number }> {
 		const out: Array<{ id: string; title?: string; visible: boolean; index: number }> = [];
-		let idx = 0;
+		const seen = new Set<string>();
 		const visit = (section: SecureSection): void => {
-			out.push({ id: section.identifier, title: section.title, visible: section.visible, index: idx++ });
-			for (const child of section.sections ?? []) visit(child);
+			// A keepTogether="false" section mixed into its parent's shuffle appears as several fragments.
+			if (!seen.has(section.identifier)) {
+				seen.add(section.identifier);
+				out.push({ id: section.identifier, title: section.title, visible: section.visible, index: out.length });
+			}
+			for (const component of sectionComponents(section)) {
+				if (component.type === 'section') visit(component.section);
+			}
 		};
 		for (const tp of this.assessment.testParts || []) {
 			for (const section of tp.sections || []) visit(section);
@@ -491,7 +436,7 @@ export class AssessmentPlayer {
 		if (!current) return [];
 
 		return this.items
-			.filter((item) => item.section === current.section)
+			.filter((item) => item.section.identifier === current.section.identifier)
 			.map((item) => {
 				const itemRef = item.item as SecureItemRef & { href?: string; title?: string };
 				return {
@@ -657,14 +602,21 @@ export class AssessmentPlayer {
 		responses: Record<string, unknown>,
 		itemSession?: SerializedItemSessionState,
 	): SerializedItemSessionState {
+		const validateResponses = this.sessionCoordinator.mustValidateResponses(q.identifier);
+		const endAttempt = (session: ItemSession): SerializedItemSessionState => {
+			const result = session.dispatch({ action: 'endAttempt', validateResponses }).result;
+			if (result?.validation && !result.validation.valid) {
+				throw new Error(result.validation.issues[0]?.message || `Submit failed: invalid response for item ${q.identifier}`);
+			}
+			return result?.sessionState ?? session.serialize();
+		};
 		const active = this.items[this.currentItemIndex];
 		if (
 			active === q &&
 			this.currentItemSession &&
 			this.currentItemSession.state().lifecycleStatus !== 'suspended'
 		) {
-			const transition = this.currentItemSession.dispatch({ action: 'endAttempt' });
-			return transition.result?.sessionState ?? this.currentItemSession.serialize();
+			return endAttempt(this.currentItemSession);
 		}
 
 		const session = this.getItemDefinition(q).openSession({
@@ -673,8 +625,7 @@ export class AssessmentPlayer {
 			activate: true,
 		});
 		try {
-			const transition = session.dispatch({ action: 'endAttempt' });
-			return transition.result?.sessionState ?? session.serialize();
+			return endAttempt(session);
 		} finally {
 			session.dispose();
 		}
@@ -804,12 +755,15 @@ export class AssessmentPlayer {
 		// Enforce navigation rules (UI hints, still backend-authoritative for real deployments).
 		if (!options.restoring && this.currentItemIndex >= 0 && !this.canNavigateByTestPart(index, this.currentItemIndex)) {
 			const currentMode = this.items[this.currentItemIndex]?.testPart.navigationMode ?? this.assessment.navigationMode;
-			if (currentMode === 'linear' && index > this.currentItemIndex + 1) {
+			if (currentMode === 'linear' && index > this.nextUnlockedIndex(this.currentItemIndex)) {
 				throw new Error('In linear navigation mode, you can only move to the next question.');
 			}
 			throw new Error('Navigation is not allowed.');
 		}
 		const target = this.items[index];
+		if (!options.restoring && target && this.isItemLocked(target)) {
+			throw new Error('The time limit for this question has expired.');
+		}
 		if (!options.restoring && target && !this.sessionCoordinator.canReview(target.identifier)) {
 			throw new Error('You cannot go back to previous questions in this assessment.');
 		}
@@ -852,21 +806,22 @@ export class AssessmentPlayer {
 			item: { identifier: q.identifier, timeLimits: q.item.timeLimits },
 		});
 
-		// Apply three-level itemSessionControl fallback for this item's section (S1).
-		const effectiveControl = this.getEffectiveItemSessionControl(q);
-		if (effectiveControl) {
-			this.sessionCoordinator.updateItemSessionControl(effectiveControl);
-		}
-
 		// Restore responses into one live session owned by the assessment. The section
 		// composition and item renderer receive this exact object.
 		const responses = this.sessionCoordinator.activateItem(q.identifier);
 		const restoredItemSession = this.state.itemSessions?.[q.identifier];
+		const control = this.sessionCoordinator.getItemSettings(q.identifier);
 		this.releaseCurrentItemSession();
 		const session = this.getItemDefinition(q).openSession({
 			restore: restoredItemSession,
 			responses: restoredItemSession ? undefined : responses,
 			activate: true,
+			templateDefaults: restoredItemSession ? undefined : this.evaluateTemplateDefaults(q),
+			presentation: {
+				// Feedback during an adaptive item's attempts is part of the item, whatever showFeedback says.
+				showFeedback: control.showFeedback === true || isAdaptiveItemXml(q.item.itemXml),
+				showSolution: control.showSolution === true,
+			},
 		});
 		this.attachCurrentItemSession(q, session);
 
@@ -894,8 +849,14 @@ export class AssessmentPlayer {
 				throw new Error(navAway.reason || 'You must answer this question before continuing.');
 			}
 
-			// In individual submission mode, submit current item before moving forward.
-			if ((q.testPart.submissionMode ?? this.assessment.submissionMode) === 'individual') {
+			// In individual submission mode, submit the current item before moving forward
+			// unless its attempts are used up or it is already closed.
+			const lifecycle = this.currentItemSession?.state().lifecycleStatus;
+			if (
+				(q.testPart.submissionMode ?? this.assessment.submissionMode) === 'individual' &&
+				this.sessionCoordinator.canSubmit(q.identifier) &&
+				lifecycle !== 'closed'
+			) {
 				const before = this.currentItemIndex;
 				await this.submitCurrentItem();
 				// submitCurrentItem may branch/navigate; if it did, we're done.
@@ -903,7 +864,9 @@ export class AssessmentPlayer {
 			}
 		}
 
-		await this.navigateTo(this.currentItemIndex + 1);
+		const nextIndex = this.nextUnlockedIndex(this.currentItemIndex);
+		if (nextIndex < 0) return;
+		await this.navigateTo(nextIndex);
 	}
 
 	public async previous(): Promise<void> {
@@ -930,7 +893,7 @@ export class AssessmentPlayer {
 			if (submittedSession) {
 				const transition = submittedSession.dispatch({
 					action: 'endAttempt',
-					validateResponses: this.sessionCoordinator.mustValidateResponses(),
+					validateResponses: this.sessionCoordinator.mustValidateResponses(q.identifier),
 				});
 				const attempt = transition.result;
 				if (!attempt) throw new Error('Item session did not produce an end-attempt result');
@@ -947,6 +910,7 @@ export class AssessmentPlayer {
 				timeSpent: itemSession?.duration,
 				timing: this.getSubmitTimingEvidence(q, itemSession?.duration ?? 0),
 				itemSession: this.config.sendItemSessionToBackend ? itemSession : undefined,
+				comment: this.sessionCoordinator.getItemComment(q.identifier),
 			});
 
 			if (!res.success || !res.result) {
@@ -1053,15 +1017,15 @@ export class AssessmentPlayer {
 	private canPrevious(): boolean {
 		if (this.currentItemIndex <= 0) return false;
 		const prev = this.items[this.currentItemIndex - 1];
-		if (!prev) return false;
+		if (!prev || this.isItemLocked(prev)) return false;
 		if (!this.canNavigateByTestPart(this.currentItemIndex - 1, this.currentItemIndex)) return false;
 		return this.sessionCoordinator.canReview(prev.identifier);
 	}
 
 	private canNext(): boolean {
 		if (this.currentItemIndex < 0) return false;
-		const nextIdx = this.currentItemIndex + 1;
-		if (nextIdx >= this.items.length) return false;
+		const nextIdx = this.nextUnlockedIndex(this.currentItemIndex);
+		if (nextIdx < 0) return false;
 		if (!this.canNavigateByTestPart(nextIdx, this.currentItemIndex)) return false;
 		// Note: itemSessionControl constraints on leaving current item are enforced in next().
 		return true;
@@ -1072,13 +1036,15 @@ export class AssessmentPlayer {
 		const current = this.items[currentIndex];
 		const target = this.items[targetIndex];
 		if (!current || !target) return false;
+		// Items locked by an expired time limit are passed over.
+		const nextIndex = this.nextUnlockedIndex(currentIndex);
 		if (current.testPart !== target.testPart) {
 			// QTI testParts are delivered in sequence. A candidate may enter the next
 			// part, but cannot jump across parts or return to a completed part.
-			return targetIndex === currentIndex + 1;
+			return targetIndex === nextIndex;
 		}
 		const mode = current.testPart.navigationMode ?? this.assessment.navigationMode ?? 'nonlinear';
-		return mode === 'nonlinear' || targetIndex === currentIndex || targetIndex === currentIndex + 1;
+		return mode === 'nonlinear' || targetIndex === currentIndex || targetIndex === nextIndex;
 	}
 
 	private async submitSimultaneousItems(items: readonly FlatItem[]): Promise<void> {
@@ -1118,6 +1084,7 @@ export class AssessmentPlayer {
 					timeSpent: itemSession.duration,
 					timing: this.getSubmitTimingEvidence(q, itemSession.duration),
 					itemSession: this.config.sendItemSessionToBackend ? itemSession : undefined,
+					comment: this.sessionCoordinator.getItemComment(q.identifier),
 				});
 				if (!res.success || !res.result) {
 					throw new Error(res.error || `Submit failed for item ${q.identifier}`);
@@ -1254,12 +1221,28 @@ export class AssessmentPlayer {
 		showSolution: boolean;
 		canReview: boolean;
 		canSkip: boolean;
+		canComment: boolean;
 	} | null {
 		const q = this.items[this.currentItemIndex];
 		if (!q) return null;
 		const id = q.identifier;
 
 		return this.sessionCoordinator.getItemSessionInfo(id);
+	}
+
+	/**
+	 * Records the candidate's comment on an item (QTI `allowComment`), sent with its next submission.
+	 * Defaults to the current item; throws when the item does not allow comments.
+	 */
+	public setItemComment(comment: string, itemIdentifier?: string): void {
+		const id = itemIdentifier ?? this.items[this.currentItemIndex]?.identifier;
+		if (!id) throw new Error('No current item');
+		this.sessionCoordinator.setItemComment(id, comment);
+	}
+
+	public getItemComment(itemIdentifier?: string): string | undefined {
+		const id = itemIdentifier ?? this.items[this.currentItemIndex]?.identifier;
+		return id ? this.sessionCoordinator.getItemComment(id) : undefined;
 	}
 
 	public getRemainingTime(): number {
@@ -1369,6 +1352,50 @@ export class AssessmentPlayer {
 		for (const l of this.timeWarningListeners) l(remainingSeconds);
 	}
 
+	private evaluateTemplateDefaults(q: FlatItem): Record<string, unknown> | undefined {
+		const defaults = q.item.templateDefaults;
+		if (!defaults?.length) return undefined;
+		const declarations = testOutcomeDeclarations(this.assessment, this.testOutcomes ?? undefined);
+		const out: Record<string, unknown> = {};
+		for (const { templateIdentifier, expressionXml } of defaults) {
+			out[templateIdentifier] = plainQtiValue(evaluateTestExpression(expressionXml, declarations, Math.random));
+		}
+		return out;
+	}
+
+	private isItemLocked(q: FlatItem): boolean {
+		return (
+			this.lockedScopes.has(`item:${q.identifier}`) ||
+			this.lockedScopes.has(`testPart:${q.testPart.identifier}`) ||
+			q.sections.some((section) => this.lockedScopes.has(`section:${section.identifier}`))
+		);
+	}
+
+	private nextUnlockedIndex(fromIndex: number): number {
+		for (let i = fromIndex + 1; i < this.items.length; i++) {
+			if (!this.isItemLocked(this.items[i]!)) return i;
+		}
+		return -1;
+	}
+
+	/**
+	 * A test part, section or item without late submission ran out of time: its items close for the
+	 * candidate, and delivery moves to the next item outside it.
+	 */
+	private handleScopeExpired(scope: 'testPart' | 'section' | 'item', identifier: string): void {
+		this.lockedScopes.add(`${scope}:${identifier}`);
+		const current = this.items[this.currentItemIndex];
+		if (!current || !this.isItemLocked(current)) return;
+		this.saveCurrentItemSession();
+		this.notifyItemChange();
+		const nextIndex = this.nextUnlockedIndex(this.currentItemIndex);
+		if (nextIndex < 0) {
+			this.notifyTimeExpired();
+			return;
+		}
+		this.navigateTo(nextIndex, { restoring: true }).catch(() => {});
+	}
+
 	private notifyTimeExpired(): void {
 		for (const l of this.timeExpiredListeners) l();
 	}
@@ -1398,44 +1425,6 @@ export class AssessmentPlayer {
 			formatDate: (date: Date) => date.toISOString(),
 		};
 	}
-}
-
-/** Fisher-Yates shuffle using a provided RNG (returns a new array). */
-function shuffleArray<T>(arr: T[], rng: () => number): T[] {
-	const out = [...arr];
-	for (let i = out.length - 1; i > 0; i--) {
-		const j = Math.floor(rng() * (i + 1));
-		[out[i], out[j]] = [out[j], out[i]];
-	}
-	return out;
-}
-
-function isRequiredSectionComponent(component: SecureSectionComponent): boolean {
-	return component.type === 'item' ? component.item.required === true : component.section.required === true;
-}
-
-function isFixedSectionComponent(component: SecureSectionComponent): boolean {
-	return component.type === 'item' ? component.item.fixed === true : component.section.fixed === true;
-}
-
-/** Shuffle non-fixed children while retaining fixed children at their post-selection positions. */
-function shuffleSectionComponents(
-	components: SecureSectionComponent[],
-	rng: () => number,
-): SecureSectionComponent[] {
-	const result = [...components];
-	const movableIndexes = components
-		.map((component, index) => ({ component, index }))
-		.filter(({ component }) => !isFixedSectionComponent(component))
-		.map(({ index }) => index);
-	const shuffled = shuffleArray(
-		movableIndexes.map((index) => components[index]!),
-		rng,
-	);
-	for (let index = 0; index < movableIndexes.length; index++) {
-		result[movableIndexes[index]!] = shuffled[index]!;
-	}
-	return result;
 }
 
 function cloneData<T>(value: T | undefined): T | undefined {

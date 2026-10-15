@@ -23,6 +23,12 @@ export interface TimeManagerConfig {
 	onWarning?: (remainingSeconds: number) => void;
 	/** Callback when time expires */
 	onExpired?: () => void;
+	/**
+	 * Callback when a test part, section or item limit without late submission expires. When set,
+	 * those expiries lock the scope through this callback and the timer keeps running; only the
+	 * assessment limit calls `onExpired`.
+	 */
+	onScopeExpired?: (scope: 'testPart' | 'section' | 'item', identifier: string) => void;
 	/** Callback for time updates (fires every second) */
 	onTick?: (remainingSeconds: number, elapsedSeconds: number) => void;
 	/**
@@ -148,6 +154,12 @@ export class TimeManager {
 				if (candidate.remainingSeconds > 0 || this.expirationTriggered.has(candidate.key)) continue;
 				this.expirationTriggered.add(candidate.key);
 				if (!candidate.allowLateSubmission) {
+					const separator = candidate.key.indexOf(':');
+					if (separator > 0 && this.config.onScopeExpired) {
+						const scope = candidate.key.slice(0, separator) as 'testPart' | 'section' | 'item';
+						this.config.onScopeExpired(scope, candidate.key.slice(separator + 1));
+						return;
+					}
 					this.handleExpiration();
 					return;
 				}

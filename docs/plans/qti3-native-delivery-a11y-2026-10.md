@@ -28,7 +28,7 @@ the PIE→QTI export. Slices run in certification-impact order. The conversion d
 | 4   | Test feedback outcomes                         | `fix/test-feedback-outcomes`          | #315 | merged  |
 | 5   | Outcome-processing inputs                      | `fix/outcome-processing-inputs`       | #317 | merged  |
 | 6   | Lookup tables                                  | `fix/lookup-table-semantics`          | #318 | merged  |
-| 7   | Test structure and item session control        | `feat/test-structure-session-control` |     | pending |
+| 7   | Test structure and item session control        | `feat/test-structure-session-control` | #321 | open    |
 | 8   | TTS and SSML in delivery                       | `feat/delivery-tts-ssml`              |     | pending |
 | 9   | Content language                               | `feat/delivery-content-language`      |     | pending |
 | 10  | PNP in delivery                                | `feat/delivery-pnp`                   |     | pending |
@@ -332,6 +332,12 @@ interpolation. Without an outcome to coerce to, its values read as float when nu
 
 Done when the session-control and selection/ordering fixtures deliver in the drawn order, resume
 in it, and enforce each attribute at every nesting level.
+
+Landed with three changes. A new session's `InitSessionResponse` carries `currentItemIdentifier`,
+the first item whose preconditions hold, and the player starts there. The player's `rng` option is
+deprecated and ignored: the reference adapter takes it as `new ReferenceBackendAdapter({ rng })`.
+The assessment renders no item modal feedback; `showFeedback` governs integrated feedback, and
+adaptive items keep theirs during attempts.
 
 ### 8. TTS and SSML in delivery
 
