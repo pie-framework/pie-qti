@@ -1,4 +1,5 @@
 import type { AssessmentItemDocument } from '../document/AssessmentItemDocument.js';
+import type { ContentHandlers } from '../document/contentPass.js';
 import type { ExtractionRegistry } from './ExtractionRegistry.js';
 import { createExtractionContext } from './createContext.js';
 import { finalizeInteractionDelivery } from './interactionSecurity.js';
@@ -20,6 +21,8 @@ export interface InteractionExtractionPipelineInput {
 	 * Omit to keep the authored order.
 	 */
 	sessionGuid?: string;
+	/** The content pass applied to the item body before interactions are extracted. */
+	contentHandlers?: ContentHandlers;
 }
 
 export function extractInteractionData({
@@ -28,9 +31,13 @@ export function extractInteractionData({
 	declarations,
 	config,
 	sessionGuid,
+	contentHandlers,
 }: InteractionExtractionPipelineInput): readonly BaseInteractionData[] {
 	const declMap = projectDeclarationsForExtraction(declarations);
-	const elements = document.findExtractionElements(getRegisteredElementTypes(extractionRegistry));
+	const elements = document.findExtractionElements(
+		getRegisteredElementTypes(extractionRegistry),
+		contentHandlers,
+	);
 
 	const interactions: BaseInteractionData[] = [];
 	for (const discovered of elements) {

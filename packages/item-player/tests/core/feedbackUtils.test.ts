@@ -75,4 +75,14 @@ describe('processFeedbackInline', () => {
 		const unclosed = 'x<feedbackInline outcomeIdentifier="F" identifier="A">y';
 		expect(processFeedbackInline(unclosed, { outcomeValues: { F: 'A' } })).toBe(unclosed);
 	});
+
+	test('resolves feedbackBlock in both spellings, nested with feedbackInline, without a span wrap', () => {
+		const html =
+			'<feedbackBlock outcomeIdentifier="F" identifier="A"><p>a<feedbackInline outcomeIdentifier="F" identifier="B">b</feedbackInline></p></feedbackBlock>' +
+			'<qti-feedback-block outcome-identifier="F" identifier="C" show-hide="hide"><p>c</p></qti-feedback-block>';
+		expect(processFeedbackInline(html, { outcomeValues: { F: ['A', 'C'] } })).toBe('<p>a</p>');
+		expect(processFeedbackInline(html, { outcomeValues: { F: ['A', 'B'] }, wrapWithSpan: true })).toBe(
+			'<p>a <span class="qti-feedback-inline">b</span></p><p>c</p>'
+		);
+	});
 });

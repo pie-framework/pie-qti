@@ -24,7 +24,7 @@ the PIE→QTI export. Slices run in certification-impact order. The conversion d
 | 0   | This plan                                      | `docs/qti3-native-delivery-plan`      | #300 | merged  |
 | 1   | Item-body pass and printed variables           | `feat/item-body-printed-variables`    | #307 | merged  |
 | 2   | Inline feedback                                | `fix/feedback-inline-native`          | #309 | merged  |
-| 3   | Feedback and template blocks; modal feedback   | `feat/feedback-template-blocks`       |     | pending |
+| 3   | Feedback and template blocks; modal feedback   | `feat/feedback-template-blocks`       | #311 | open    |
 | 4   | Test feedback outcomes                         | `fix/test-feedback-outcomes`          |     | pending |
 | 5   | Outcome-processing inputs                      | `fix/outcome-processing-inputs`       |     | pending |
 | 6   | Lookup tables                                  | `fix/lookup-table-semantics`          |     | pending |
@@ -260,6 +260,12 @@ in `qti-common`, ready for slice 3.
   response processing.
 
 Done when the conformance fixtures for each construct render in both versions.
+
+Landed with one change: interaction extraction runs on the pass with feedback left out, so template
+choices, template content, `printedVariable` and MathML resolve in prompts and choices, and
+interactions are extracted again when template values change. A `printedVariable` of an outcome
+inside an interaction keeps its value from extraction. Body `feedbackBlock` resolves in
+presentation on the slice 2 path. `contextVariables` on `openSession` sets context values.
 
 ### 4. Test feedback outcomes
 

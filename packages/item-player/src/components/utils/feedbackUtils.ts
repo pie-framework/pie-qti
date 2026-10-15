@@ -72,19 +72,20 @@ export interface ProcessFeedbackInlineOptions {
 	outcomeValues: Record<string, any>;
 	/** Whether to apply feedback text cleaning heuristics */
 	applyHeuristics?: boolean;
-	/** Whether to wrap feedback content with qti-feedback-inline span */
+	/** Whether to wrap inline feedback content with qti-feedback-inline span */
 	wrapWithSpan?: boolean;
 	/** Custom feedback transforms (defaults to DEFAULT_FEEDBACK_TRANSFORMS) */
 	transforms?: FeedbackTransform[];
 }
 
 /**
- * Process feedbackInline elements in QTI content
+ * Process feedbackInline and feedbackBlock elements in QTI content
  *
- * Shows or hides each `feedbackInline` (`qti-feedback-inline` in QTI 3) by the shared visibility
- * rule: its `identifier` against the outcome value, by membership for a container, inverted by
- * `showHide="hide"`. Nested feedback resolves inside shown feedback; hidden feedback drops with
- * everything inside it. Markup outside feedback elements is left as it is.
+ * Shows or hides each `feedbackInline` and `feedbackBlock` (`qti-feedback-inline` and
+ * `qti-feedback-block` in QTI 3) by the shared visibility rule: its `identifier` against the
+ * outcome value, by membership for a container, inverted by `showHide="hide"`. Nested feedback
+ * resolves inside shown feedback; hidden feedback drops with everything inside it. Markup outside
+ * feedback elements is left as it is.
  *
  * @param html - The HTML content containing feedbackInline elements
  * @param options - Processing options
@@ -122,16 +123,17 @@ export function processFeedbackInline(
 
 			let content = render(element.openEnd, element.closeStart, element.children);
 			if (applyHeuristics) content = cleanFeedbackText(content, transforms);
-			out += wrapWithSpan ? ` <span class="qti-feedback-inline">${content}</span>` : content;
+			out += wrapWithSpan && !element.block ? ` <span class="qti-feedback-inline">${content}</span>` : content;
 		}
 		return out + html.slice(position, end);
 	};
 	return render(0, html.length, feedback);
 }
 
-const FEEDBACK_TAG = /<(\/?)(?:feedbackInline|qti-feedback-inline)\b([^>]*?)(\/?)>/gi;
+const FEEDBACK_TAG = /<(\/?)(feedbackInline|qti-feedback-inline|feedbackBlock|qti-feedback-block)\b([^>]*?)(\/?)>/gi;
 
 interface FeedbackElement {
+	readonly block: boolean;
 	readonly attrs: string;
 	readonly openStart: number;
 	readonly openEnd: number;
@@ -146,7 +148,7 @@ function feedbackElements(html: string): FeedbackElement[] {
 	const open: FeedbackElement[] = [];
 	const add = (element: FeedbackElement) => (open[open.length - 1]?.children ?? roots).push(element);
 	for (const match of html.matchAll(FEEDBACK_TAG)) {
-		const [tag, closing, attrs = '', selfClosing] = match;
+		const [tag, closing, name = '', attrs = '', selfClosing] = match;
 		const start = match.index;
 		const end = start + tag.length;
 		if (closing) {
@@ -156,7 +158,8 @@ function feedbackElements(html: string): FeedbackElement[] {
 			element.closeEnd = end;
 			add(element);
 		} else {
-			const element: FeedbackElement = { attrs, openStart: start, openEnd: end, closeStart: end, closeEnd: end, children: [] };
+			const block = /block$/i.test(name);
+			const element: FeedbackElement = { block, attrs, openStart: start, openEnd: end, closeStart: end, closeEnd: end, children: [] };
 			if (selfClosing) add(element);
 			else open.push(element);
 		}

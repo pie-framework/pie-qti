@@ -62,8 +62,8 @@
 |-----------|---------|-----------|
 | `identifier` | ✅ Full | Required; deduplicated; used as radio/checkbox value and in response |
 | `fixed` | ✅ Full | Extracted as `choice.fixed`. When `shuffle=true`, `fixed=true` choices keep their authored index and only the remaining choices are permuted around them. |
-| `templateIdentifier` | ❌ Not extracted | Links choice to a `TemplateDeclaration` for conditional visibility. Not implemented. |
-| `showHide` | ❌ Not extracted | Companion to `templateIdentifier`. Not implemented. |
+| `templateIdentifier` | ✅ Full | A choice whose template variable hides it is dropped before extraction, by the shared visibility rule. |
+| `showHide` | ✅ Full | Inverts `templateIdentifier` visibility. |
 | class (CSS classes) | ✅ Partial | Extracted as `classes?: string[]` on each choice; passed through to host for custom renderer detection. Not rendered as CSS classes in the default component. |
 
 ### Response variable contract
@@ -85,7 +85,6 @@
 - **G-09 (PNP elimination tool):** Implemented for `choiceInteraction`; when `pnp.cognitive.eliminationTool` is enabled, each choice can be visually eliminated without removing it from the response pool.
 - **G-13 (PNP structural labels):** When `pnp.structuredLabelSupport` is enabled, interaction prompts should carry additional ARIA group role and label markup for screen-reader clarity. Not implemented. Tracked in `docs/SPEC-GAPS-PLAN.md`.
 - **`minChoices` not enforced:** The spec requires the player to treat the response as incomplete if fewer than `minChoices` identifiers are selected. Not extracted or validated.
-- **`templateIdentifier`/`showHide` not implemented:** Template-variable-driven conditional choice visibility is not supported.
 
 ---
 

@@ -86,7 +86,20 @@ import {
 	EXTENDED_TEXT_RECORD_FIELD_TYPES,
 } from '../interactions/extended-text/response.js';
 
-type DeclKind = 'response' | 'outcome' | 'template';
+type DeclKind = 'response' | 'outcome' | 'template' | 'context';
+
+/** Choices a template variable can show or hide, by canonical name. */
+const TEMPLATE_CHOICES = [
+	'simplechoice',
+	'simpleassociablechoice',
+	'gaptext',
+	'gapimg',
+	'gap',
+	'hottext',
+	'inlinechoice',
+	'hotspotchoice',
+	'associablehotspot',
+] as const;
 
 /** Immutable source-derived artifacts shared by sessions from one definition. */
 interface PreparedPlayerDefinition {
@@ -143,6 +156,8 @@ export class Player {
 	private ops: OperatorRegistry;
 	private extractionRegistry: ExtractionRegistry;
 	private interactionDataCache: readonly BaseInteractionData[] | null = null;
+	/** Template variables declared with `mathVariable`, substituted into MathML. */
+	private mathVariableIds: ReadonlySet<string> | null = null;
 	private componentRegistry: ComponentRegistry;
 	private i18nProvider: any; // I18nProvider from @pie-qti/i18n
 	private mapper: ElementNameMapper;
@@ -219,6 +234,7 @@ export class Player {
 			this.decls = this.buildDeclarations();
 			this.ensureBuiltinDeclarations(this.decls);
 		}
+		this.applyContextVariables(config.contextVariables);
 		this.sourceDeclarations = cloneDeclarationMap(this.decls);
 		this.ctx = new DeclarationContext(this.decls);
 		this.ops = new OperatorRegistry();
@@ -858,7 +874,7 @@ export class Player {
 	}
 
 	public getItemBodyHtml(): HtmlContent {
-		const inner = this.itemDocument.serializeItemBodyChildren(this.contentHandlers({ inlineFeedback: false }));
+		const inner = this.itemDocument.serializeItemBodyChildren(this.contentHandlers({ feedback: false }));
 		if (!inner) return '';
 
 		return this.renderHtmlContent(inner);
@@ -917,6 +933,9 @@ export class Player {
 			// resumed session reproduces the order the candidate already saw, while a
 			// different candidate or a new attempt gets a different one.
 			sessionGuid: this.sessionGuid,
+			// Template content resolves before extraction, so interactions are extracted again
+			// when template values change. Choice feedback resolves in presentation.
+			contentHandlers: this.contentHandlers({ feedback: false }),
 		});
 		return this.interactionDataCache;
 	}
@@ -1053,6 +1072,7 @@ export class Player {
 	}
 
 	public setTemplateVariables(vars: Record<string, any>): void {
+		this.interactionDataCache = null;
 		for (const [id, raw] of Object.entries(vars)) {
 			const d = this.decls[id];
 			if (!d?.isTemplate) continue;
@@ -1255,6 +1275,7 @@ export class Player {
 	// ----------------------------------------------------------------------------
 
 	private execTemplateProcessing(): void {
+		this.interactionDataCache = null;
 		if (!this.templateProcessingProgram) return;
 		execProgram(
 			{
@@ -1465,8 +1486,18 @@ export class Player {
 		for (const el of this.itemDocument.findDeclarationElements('response')) addDecl('response', el);
 		for (const el of this.itemDocument.findDeclarationElements('outcome')) addDecl('outcome', el);
 		for (const el of this.itemDocument.findDeclarationElements('template')) addDecl('template', el);
+		for (const el of this.itemDocument.findDeclarationElements('context')) addDecl('context', el);
 
 		return decls;
+	}
+
+	/** Host-supplied context values, e.g. `QTI_CONTEXT`; identifiers that are not context variables are ignored. */
+	private applyContextVariables(values: Readonly<Record<string, unknown>> | undefined): void {
+		for (const [id, raw] of Object.entries(values ?? {})) {
+			const d = this.decls[id];
+			if ((d as any)?.__kind !== 'context') continue;
+			d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, raw, d.identifier);
+		}
 	}
 
 	private parseMatchTable(el: Element) {
@@ -1540,6 +1571,19 @@ export class Player {
 			};
 		}
 
+		// QTI 3 built-in context variable, set by the delivery system.
+		if (!decls.QTI_CONTEXT) {
+			decls.QTI_CONTEXT = {
+				identifier: 'QTI_CONTEXT',
+				cardinality: 'record',
+				defaultValue: qtiNull(undefined, 'record'),
+				value: qtiNull(undefined, 'record'),
+				isTemplate: false,
+				// @ts-expect-error internal marker
+				__kind: 'context',
+			};
+		}
+
 		// Common scoring defaults
 		if (!decls.SCORE) {
 			decls.SCORE = {
@@ -1601,7 +1645,7 @@ export class Player {
 			const variable = this.serializeVariable(d);
 			if (d.isTemplate) {
 				templateVariables[d.identifier] = { ...variable, kind: 'template' };
-			} else if (contextIds.has(d.identifier)) {
+			} else if (contextIds.has(d.identifier) || (d as any).__kind === 'context') {
 				contextVariables[d.identifier] = { ...variable, kind: 'context' };
 			} else if ((d as any).__kind === 'response') {
 				responseVariables[d.identifier] = { ...variable, kind: 'response' };
@@ -1967,34 +2011,86 @@ export class Player {
 	}
 
 	// ----------------------------------------------------------------------------
-	// printedVariable + feedback
+	// Item content pass: printedVariable, feedback, templates
 	// ----------------------------------------------------------------------------
 
 	/**
 	 * The item content pass's handlers, reading the session's current variable values. QTI 3 wraps
 	 * rubric content in `qti-content-body`, which is unwrapped so a rubric renders as in QTI 2.2.
-	 * Inline feedback resolves here for rubric and modal feedback content; item body feedback
-	 * resolves in presentation, which takes the outcome values to present as input.
+	 * Feedback resolves here for rubric and modal feedback content; item body and choice feedback
+	 * resolve in presentation, which takes the outcome values to present as input.
 	 */
-	private contentHandlers({ inlineFeedback = true }: { inlineFeedback?: boolean } = {}): ContentHandlers {
+	private contentHandlers({ feedback = true }: { feedback?: boolean } = {}): ContentHandlers {
+		const conditional = (variable: string) => (element: Element) =>
+			this.isShownByVariable(element, variable, getAttr(element, 'identifier')) ? Array.from(element.childNodes) : [];
 		const handlers = new Map<string, ContentHandler>([
 			['printedvariable', (element) => this.printedVariableNodes(element)],
 			['contentbody', (element) => Array.from(element.childNodes)],
+			['templateinline', conditional('templateIdentifier')],
+			['templateblock', conditional('templateIdentifier')],
 		]);
-		if (inlineFeedback) handlers.set('feedbackinline', (element) => this.feedbackInlineNodes(element));
+		for (const choice of TEMPLATE_CHOICES) {
+			handlers.set(choice, (element) =>
+				!getAttr(element, 'templateIdentifier') ||
+				this.isShownByVariable(element, 'templateIdentifier', getAttr(element, 'identifier'))
+					? undefined
+					: [],
+			);
+		}
+		if (this.mathVariables().size > 0) {
+			handlers.set('mi', (element) => this.mathVariableNodes(element, 'mn'));
+			handlers.set('ci', (element) => this.mathVariableNodes(element, 'cn'));
+		}
+		if (feedback) {
+			handlers.set('feedbackinline', conditional('outcomeIdentifier'));
+			handlers.set('feedbackblock', conditional('outcomeIdentifier'));
+		}
 		return handlers;
 	}
 
-	/** A shown feedbackInline's content, or nothing; nested feedback resolves in turn. */
-	private feedbackInlineNodes(element: Element): Node[] {
-		const outcomeIdentifier = (getAttr(element, 'outcomeIdentifier') || '').trim();
-		const identifier = (getAttr(element, 'identifier') || '').trim();
-		if (!outcomeIdentifier || !identifier) return [];
-		const outcome = this.ctx.getValue(outcomeIdentifier);
-		const value = outcome.kind === 'value' ? outcome.value : null;
-		return isShownByIdentifier(value, identifier, getAttr(element, 'showHide'))
-			? Array.from(element.childNodes)
-			: [];
+	/**
+	 * Whether `element` shows: the variable named by its `variableAttribute` against `identifier`,
+	 * by the shared visibility rule. A missing variable or identifier hides it.
+	 */
+	private isShownByVariable(element: Element, variableAttribute: string, identifier: string | null): boolean {
+		const variable = (getAttr(element, variableAttribute) || '').trim();
+		const id = (identifier || '').trim();
+		if (!variable || !id) return false;
+		const current = this.ctx.getValue(variable);
+		return isShownByIdentifier(current.kind === 'value' ? current.value : null, id, getAttr(element, 'showHide'));
+	}
+
+	private mathVariables(): ReadonlySet<string> {
+		this.mathVariableIds ??= new Set(
+			this.itemDocument
+				.findDeclarationElements('template')
+				.filter((el) => getAttr(el, 'mathVariable')?.trim() === 'true')
+				.map((el) => (getAttr(el, 'identifier') || '').trim()),
+		);
+		return this.mathVariableIds;
+	}
+
+	/**
+	 * A MathML `mi` or `ci` naming a math variable, with the variable's single value in its place:
+	 * a number as `mn` or `cn` (`numberName`), any other value as the element's text. NULL and
+	 * container values leave the element as authored.
+	 */
+	private mathVariableNodes(element: Element, numberName: string): Node[] | undefined {
+		const identifier = (element.textContent || '').trim();
+		const document = element.ownerDocument;
+		if (!document || !this.mathVariables().has(identifier)) return undefined;
+		const value = this.ctx.getValue(identifier);
+		if (value.kind !== 'value' || value.cardinality !== 'single') return undefined;
+		const text = String(value.value);
+		if (value.baseType !== 'integer' && value.baseType !== 'float') {
+			// The pass resolves a copy, and the element is not walked again, so this cannot cycle.
+			element.textContent = text;
+			return undefined;
+		}
+		const name = element.prefix ? `${element.prefix}:${numberName}` : numberName;
+		const replacement = document.createElementNS(element.namespaceURI, name);
+		replacement.appendChild(document.createTextNode(text));
+		return [replacement];
 	}
 
 	private printedVariableNodes(element: Element): Node[] {
@@ -2023,9 +2119,7 @@ export class Player {
 			const { identifier, outcomeIdentifier, showHide, title } = feedback;
 			const content = this.renderHtmlContent(feedback.content);
 
-			const outcomeValue = outcomes[outcomeIdentifier];
-			const shouldShow = showHide === 'show' ? outcomeValue === identifier : outcomeValue !== identifier;
-			if (shouldShow && content) {
+			if (isShownByIdentifier(outcomes[outcomeIdentifier], identifier, showHide) && content) {
 				active.push({ identifier, outcomeIdentifier, showHide, content, title });
 			}
 		}

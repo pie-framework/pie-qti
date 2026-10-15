@@ -28,6 +28,11 @@ export interface OpenItemSessionOptions {
 	responses?: Readonly<Record<string, unknown>>;
 	/** Resume a suspended handoff as an active interaction session. */
 	activate?: boolean;
+	/**
+	 * Values for the item's context variables, e.g. `QTI_CONTEXT`, set before template processing.
+	 * A restored session keeps its saved context values.
+	 */
+	contextVariables?: Readonly<Record<string, unknown>>;
 }
 
 export type ItemSessionCommand =
@@ -143,7 +148,9 @@ export class LiveItemSession implements ItemSession {
 		prepared?: unknown,
 	) {
 		this.defaultRole = config.role ?? 'candidate';
-		const playerConfig = { ...config };
+		const playerConfig = options.contextVariables
+			? { ...config, contextVariables: options.contextVariables }
+			: { ...config };
 		this.player = prepared
 			? createPlayerFromPreparedInternal(playerConfig, prepared, Boolean(options.restore))
 			: new Player(playerConfig);

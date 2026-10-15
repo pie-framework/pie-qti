@@ -276,6 +276,11 @@ export interface ItemSessionEngineConfig {
 	 */
 	deliveryContext?: ResolvedItemDeliveryContext;
 	role?: QTIRole;
+	/**
+	 * Values for the item's context variables, set before template processing: `QTI_CONTEXT`, a
+	 * record, and any declared by `contextDeclaration` (`qti-context-declaration`).
+	 */
+	contextVariables?: Readonly<Record<string, unknown>>;
 	/** Optional seed for deterministic random operations (e.g. templateProcessing randomInteger) */
 	seed?: number;
 	/** Optional RNG override (takes precedence over seed if provided) */
