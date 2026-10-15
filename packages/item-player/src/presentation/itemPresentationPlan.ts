@@ -42,6 +42,8 @@ export type ItemPresentationResponseMap = Record<string, ItemPresentationRespons
  */
 export interface ItemPresentationSource {
 	itemBodyHtml: HtmlContent;
+	/** The content's `xml:lang`, when the item declares one. */
+	contentLanguage?: string;
 	interactions: readonly BaseInteractionData[];
 	correctResponses: Record<string, unknown>;
 	componentRegistry: ComponentRegistry;
@@ -112,6 +114,8 @@ export type ItemPresentationFlowNode =
 export interface ItemPresentation {
 	readonly capabilities: RoleCapabilities;
 	readonly disabled: boolean;
+	/** The language the item body is written in, for its `lang`; undefined when undeclared. */
+	readonly contentLanguage?: string;
 	readonly correctResponses: Readonly<Record<string, unknown>>;
 	/** Direct assessmentItem rubrics that remain outside the item-body flow. */
 	readonly directRubrics: readonly RubricBlock[];
@@ -198,6 +202,7 @@ export function createItemPresentation({
 	return freezePresentation({
 		capabilities: roleCapabilities,
 		disabled: effectiveDisabled,
+		...(source.contentLanguage ? { contentLanguage: source.contentLanguage } : {}),
 		correctResponses,
 		directRubrics: source.directRubrics ?? [],
 		flow: [...inlineFlow, ...blockFlow],

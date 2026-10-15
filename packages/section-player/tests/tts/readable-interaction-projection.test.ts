@@ -167,3 +167,33 @@ describe.each([
 		expect(speech.html).not.toContain('Decoy');
 	});
 });
+
+const SPANISH_ITEM = `<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="es-item" xml:lang="es">
+	<itemBody>
+		<choiceInteraction responseIdentifier="RESPONSE" maxChoices="1">
+			<prompt>Elige la palabra inglesa.</prompt>
+			<simpleChoice identifier="A">gato</simpleChoice>
+			<simpleChoice identifier="B" xml:lang="en">cat</simpleChoice>
+		</choiceInteraction>
+	</itemBody>
+</assessmentItem>`;
+
+describe.each([
+	['QTI 2.2', SPANISH_ITEM],
+	['QTI 3.0', convertQti2ToQti3(SPANISH_ITEM)],
+])('extractReadableItemSpeech content language (%s)', (_version, xml) => {
+	const speech = extractReadableItemSpeech(xml, { DOMParserImpl: parser });
+
+	test('returns the language the item declares', () => {
+		expect(speech.language).toBe('es');
+	});
+
+	test('carries inner content language as lang', () => {
+		expect(speech.html).toContain('<p data-qti-readable-source="simpleChoice" lang="en">cat</p>');
+	});
+
+	test('an item without xml:lang declares no language', () => {
+		const untagged = extractReadableItemSpeech(xml.replace(' xml:lang="es"', ''), { DOMParserImpl: parser });
+		expect(untagged.language).toBeUndefined();
+	});
+});

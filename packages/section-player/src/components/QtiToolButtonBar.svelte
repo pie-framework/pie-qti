@@ -29,6 +29,8 @@
 		sourceXml?: string;
 		/** The spoken cards the scope's SSML makes, resolved through its `data-catalog-idref`s. */
 		accessibilityCatalogs?: SpokenCatalog[];
+		/** The scope's content language, from its `xml:lang`; sets the tools' language and TTS voice. */
+		language?: string;
 		scopeElement?: HTMLElement | null;
 	}
 
@@ -52,6 +54,7 @@
 		sourceText = '',
 		sourceXml = '',
 		accessibilityCatalogs = [],
+		language,
 		scopeElement = null,
 	}: Props = $props();
 
@@ -110,7 +113,7 @@
 			passage: level === 'passage' ? visibleTools.map((tool) => String(tool.toolId)) : [],
 		},
 		providers: {
-			textToSpeech: resolveSectionTtsProviderConfig(ttsProvider),
+			textToSpeech: resolveSectionTtsProviderConfig(ttsProvider, language),
 			calculator: {
 				provider: {
 					id: 'calculator-desmos',
@@ -458,7 +461,7 @@
 					tools={toolbarTools}
 					{contentKind}
 					size="md"
-					language="en-US"
+					{language}
 					scopeElement={effectiveScopeElement}
 					{toolRegistry}
 					item={toolEntity}

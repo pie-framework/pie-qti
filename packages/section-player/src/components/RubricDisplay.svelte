@@ -71,7 +71,7 @@
 		{#if visiblePassages.length > 0}
 			<section class="passage-section" aria-label={i18n?.t('assessment.readingPassages') ?? 'Reading passages'}>
 				{#each visiblePassages as passage, index (passage.identifier)}
-					<article class="passage" aria-labelledby={`passage-heading-${index}`}>
+					<article class="passage" aria-labelledby={`passage-heading-${index}`} lang={passage.language}>
 						<div class="passage-header">
 							<h4 id={`passage-heading-${index}`} class="font-semibold text-base">
 								{i18n?.t('assessment.readingPassage') ?? 'Reading Passage'}
@@ -82,6 +82,7 @@
 									scopeId={passage.identifier}
 									scopeLabel="passage"
 									sourceText={passage.rawHtml}
+									language={passage.language}
 									scopeElement={passageScopeElements[passage.identifier] ?? null}
 								/>
 								<button

@@ -408,6 +408,11 @@ export class Player {
 		}
 	}
 
+	/** The language the item's content is written in, from the nearest `xml:lang` on its body. */
+	public getContentLanguage(): string | undefined {
+		return this.itemDocument.getContentLanguage();
+	}
+
 	/** Return the current resolved PNP profile. */
 	public getPnp(): PnpProfile | undefined {
 		return this._pnp;

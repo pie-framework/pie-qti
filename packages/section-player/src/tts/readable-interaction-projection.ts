@@ -64,6 +64,8 @@ export interface ReadableItemSpeech {
 	/** Readable copies of the interaction content, which renders inside shadow roots. */
 	html: string;
 	catalogs: SpokenCatalog[];
+	/** The content's `xml:lang`, when the item declares one. */
+	language?: string;
 }
 
 // `screen-reader` asks the host to hide the node from assistive technology; machine read-aloud
@@ -83,9 +85,22 @@ function isSilenced(element: Element) {
 	return (element.getAttribute('class') ?? '').split(/\s+/).includes('qti-hidden');
 }
 
-function idrefAttribute(element: Element) {
-	const idref = element.getAttribute('data-catalog-idref')?.trim();
-	return idref ? ` data-catalog-idref="${escapeHtml(idref).replace(/"/g, '&quot;')}"` : '';
+/** The attributes read-aloud reads from a node: its catalog idref and its content language. */
+function readAloudAttributes(element: Element) {
+	return ['data-catalog-idref', 'lang']
+		.map((name) => {
+			const value = element.getAttribute(name)?.trim();
+			return value ? ` ${name}="${escapeHtml(value).replace(/"/g, '&quot;')}"` : '';
+		})
+		.join('');
+}
+
+/** The language the item's content is written in: the item body's `xml:lang`, else the item's. */
+function contentLanguageOf(document: Document) {
+	const itemBody = allElements(document).find((element) => qtiName(element) === 'itemBody');
+	const language =
+		itemBody?.getAttribute('xml:lang')?.trim() || document.documentElement.getAttribute('xml:lang')?.trim();
+	return language || undefined;
 }
 
 function escapeHtml(value: string) {
@@ -128,13 +143,13 @@ function serializeReadableNode(
 
 	// The projection exists only to expose readable content to TTS. Do not copy
 	// arbitrary authored elements or attributes into the host document: recurse
-	// into their text instead, retaining only sanitized MathML, line breaks and the catalog
-	// idrefs the read-aloud tool resolves to the item's spoken cards.
+	// into their text instead, retaining only sanitized MathML, line breaks, the catalog
+	// idrefs the read-aloud tool resolves to the item's spoken cards, and content language.
 	const markup = Array.from(node.childNodes)
 		.map((child) => serializeReadableNode(child, serializer, options))
 		.join('');
-	const idref = idrefAttribute(node);
-	return idref && markup ? `<span${idref}>${markup}</span>` : markup;
+	const attributes = readAloudAttributes(node);
+	return attributes && markup ? `<span${attributes}>${markup}</span>` : markup;
 }
 
 function serializeChildren(
@@ -170,7 +185,7 @@ function silencedWithin(element: Element, root: Element) {
 
 function paragraph(markup: string, source: Element) {
 	return markup
-		? `<p data-qti-readable-source="${escapeHtml(qtiName(source))}"${idrefAttribute(source)}>${markup}</p>`
+		? `<p data-qti-readable-source="${escapeHtml(qtiName(source))}"${readAloudAttributes(source)}>${markup}</p>`
 		: '';
 }
 
@@ -243,8 +258,9 @@ export function extractReadableItemSpeech(itemXml?: string, options: ReadablePro
 		(element) => interactionElementNames.has(qtiName(element)) && !silencedWithin(element, document.documentElement),
 	);
 	const chunks = interactions.flatMap((interaction) => extractInteractionChunks(interaction, serializer, options));
+	const language = contentLanguageOf(document);
 
-	return { html: chunks.join(''), catalogs };
+	return { html: chunks.join(''), catalogs, ...(language ? { language } : {}) };
 }
 
 export function extractReadableInteractionSpeechHtml(itemXml?: string, options: ReadableProjectionOptions = {}) {

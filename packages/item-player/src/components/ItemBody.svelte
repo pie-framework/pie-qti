@@ -50,6 +50,8 @@
 	// an inherited CSS property, so this reaches interaction components inside
 	// shadow roots without any per-component wiring. Left unset when no provider
 	// is supplied, so an English-only host keeps whatever the page already has.
+	// `lang` names the content's language when the item declares one, and the
+	// locale's otherwise; glossary lookups and read-aloud read it.
 	const locale = $derived(i18n?.getLocale());
 	const direction = $derived(i18n?.getDirection?.());
 	const binding = $derived(getItemSessionBinding(session));
@@ -150,7 +152,7 @@
 	bind:this={rootEl}
 	class="qti-item-body"
 	data-qti-item-body-scope={itemBodyScope}
-	lang={locale}
+	lang={presentation.contentLanguage ?? locale}
 	dir={direction}
 	use:typesetAction={{ typeset }}
 	use:glossaryAction={{ player: binding }}

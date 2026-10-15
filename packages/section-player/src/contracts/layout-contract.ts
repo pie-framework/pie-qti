@@ -70,6 +70,8 @@ export interface QtiSharedHtmlBlock {
   view?: string[];
   tools?: QtiSectionToolConfig[];
   rawHtml?: string;
+  /** The block's content language, from its `xml:lang`; sets its `lang` and its read-aloud voice. */
+  language?: string;
   html?: HtmlContent;
 }
 
