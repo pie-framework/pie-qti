@@ -265,3 +265,36 @@ describe('Player catalog integration', () => {
 		expect(player.getCatalogEntry('shared-only-word', 'glossary-on-screen')).toContain('Shared-only');
 	});
 });
+
+describe('catalog entry content', () => {
+	const entryOf = (body: string) =>
+		extractCatalog(
+			`<qti-catalog-info><qti-catalog id="c"><qti-card support="extended-description">${body}</qti-card></qti-catalog></qti-catalog-info>`,
+		)
+			.get('c')
+			?.entries[0]?.html;
+
+	it('keeps every html content and file href in document order', () => {
+		expect(
+			entryOf(
+				'<qti-html-content><p>Rivers in blue.</p></qti-html-content><qti-file-href mime-type="image/png">https://example.com/map.png</qti-file-href><qti-html-content><p>Roads in red.</p></qti-html-content>',
+			),
+		).toBe('<p>Rivers in blue.</p><img src="https://example.com/map.png" alt=""><p>Roads in red.</p>');
+	});
+
+	it('renders file hrefs by their MIME type', () => {
+		expect(
+			entryOf(
+				'<qti-html-content>Listen:</qti-html-content><qti-file-href mime-type="audio/mpeg">https://example.com/a.mp3</qti-file-href><qti-file-href mime-type="video/mp4">https://example.com/v.mp4</qti-file-href><qti-file-href mime-type="application/pdf">https://example.com/d.pdf</qti-file-href>',
+			),
+		).toBe(
+			'Listen:<audio controls src="https://example.com/a.mp3"></audio><video controls src="https://example.com/v.mp4"></video><a href="https://example.com/d.pdf">https://example.com/d.pdf</a>',
+		);
+	});
+
+	it('keeps a lone file href as its URL', () => {
+		expect(entryOf('<qti-file-href mime-type="image/png">https://example.com/map.png</qti-file-href>')).toBe(
+			'https://example.com/map.png',
+		);
+	});
+});

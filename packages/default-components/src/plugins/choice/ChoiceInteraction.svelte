@@ -9,6 +9,8 @@
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
+	import { interactionAria } from '../../shared/utils/interactionAria';
+	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 
 	interface Props {
 		interaction?: ChoiceInteractionData | string;
@@ -166,7 +168,8 @@
 	>{i18n?.t('interactions.choice.revealChoice', { index: index + 1 }) ?? `Reveal choice ${index + 1}`}</button>
 {/snippet}
 
-<div bind:this={rootElement} part="root" class={['qti-choice-interaction space-y-2', ...(parsedInteraction?.interactionClasses ?? [])].join(' ')} use:typesetAction={{ typeset }}>
+<div bind:this={rootElement} {...interactionAria(parsedInteraction)} part="root" class={['qti-choice-interaction space-y-2', ...(parsedInteraction?.interactionClasses ?? [])].join(' ')} use:typesetAction={{ typeset }}>
+	<InteractionDescription interaction={parsedInteraction} />
 	{#if parsedInteraction?.prompt}
 		<div part="prompt" class="qti-choice-prompt qti-rich-content font-semibold">{@html parsedInteraction.prompt}</div>
 	{/if}
@@ -420,6 +423,48 @@
 	.qti-choice-interaction.qti-choices-stacking-3 { grid-template-columns: repeat(3, 1fr); }
 	.qti-choice-interaction.qti-choices-stacking-4 { grid-template-columns: repeat(4, 1fr); }
 	.qti-choice-interaction.qti-choices-stacking-5 { grid-template-columns: repeat(5, 1fr); }
+
+	/* qti-orientation-vertical: the default single column, stated explicitly */
+	.qti-choice-interaction.qti-orientation-vertical {
+		grid-auto-flow: row;
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	/* qti-labels-*: generated choice labels, part of each choice's accessible name */
+	.qti-choice-interaction {
+		counter-reset: qti-choice;
+		--qti-label-suffix: '.';
+	}
+	.qti-choice-option {
+		counter-increment: qti-choice;
+	}
+	.qti-choice-interaction.qti-labels-suffix-none { --qti-label-suffix: ''; }
+	.qti-choice-interaction.qti-labels-suffix-period { --qti-label-suffix: '.'; }
+	.qti-choice-interaction.qti-labels-suffix-parenthesis { --qti-label-suffix: ')'; }
+	.qti-choice-interaction:is(.qti-labels-decimal, .qti-labels-lower-alpha, .qti-labels-upper-alpha, .qti-labels-cjk-ideographic) .qti-choice-text::before {
+		float: inline-start;
+		margin-inline-end: 0.5em;
+		font-weight: 600;
+	}
+	.qti-choice-interaction.qti-labels-decimal .qti-choice-text::before {
+		content: counter(qti-choice, decimal) var(--qti-label-suffix);
+	}
+	.qti-choice-interaction.qti-labels-lower-alpha .qti-choice-text::before {
+		content: counter(qti-choice, lower-alpha) var(--qti-label-suffix);
+	}
+	.qti-choice-interaction.qti-labels-upper-alpha .qti-choice-text::before {
+		content: counter(qti-choice, upper-alpha) var(--qti-label-suffix);
+	}
+	.qti-choice-interaction.qti-labels-cjk-ideographic .qti-choice-text::before {
+		content: counter(qti-choice, cjk-ideographic) var(--qti-label-suffix);
+	}
+
+	/* qti-writing-orientation-vertical-*: vertical CJK and Mongolian layout, labels upright */
+	.qti-choice-interaction.qti-writing-orientation-vertical-rl { writing-mode: vertical-rl; }
+	.qti-choice-interaction.qti-writing-orientation-vertical-lr { writing-mode: vertical-lr; }
+	.qti-choice-interaction:is(.qti-writing-orientation-vertical-rl, .qti-writing-orientation-vertical-lr) .qti-choice-text::before {
+		text-orientation: upright;
+	}
 
 	/* Selection limit messages */
 	.qti-selection-message {

@@ -7,6 +7,7 @@
 		QtiSharedHtmlBlock,
 		QtiSharedHtmlSanitizeContext,
 	} from '../contracts/index.js';
+	import { prepareReadableBlock } from '../tts/readable-interaction-projection.js';
 	import { isQtiViewVisibleForRole } from '../visibility/role-view.js';
 	import QtiToolButtonBar from './QtiToolButtonBar.svelte';
 	import SanitizedHtml from './SanitizedHtml.svelte';
@@ -39,6 +40,17 @@
 	const isVisibleForRole = (block: QtiSharedHtmlBlock) => isQtiViewVisibleForRole(block.view, role);
 	const visiblePassages = $derived(passages.filter(isVisibleForRole));
 	const visibleRubricBlocks = $derived(rubricBlocks.filter(isVisibleForRole));
+	// Prepared markup docks the passages' SSML; a host-supplied `html` renders as given.
+	const readablePassages = $derived(
+		new Map(
+			visiblePassages.map((passage) => [
+				passage.identifier,
+				passage.html === undefined && passage.rawHtml
+					? prepareReadableBlock(passage.rawHtml)
+					: { html: passage.rawHtml ?? '', catalogs: [] },
+			]),
+		),
+	);
 	const visibleInstructions = $derived(visibleRubricBlocks.filter((block) => block.kind === 'instructions'));
 	const visibleRubrics = $derived(visibleRubricBlocks.filter((block) => block.kind !== 'instructions'));
 
@@ -81,7 +93,8 @@
 									tools={passage.tools}
 									scopeId={passage.identifier}
 									scopeLabel="passage"
-									sourceText={passage.rawHtml}
+									sourceText={readablePassages.get(passage.identifier)?.html ?? passage.rawHtml}
+									accessibilityCatalogs={readablePassages.get(passage.identifier)?.catalogs}
 									language={passage.language}
 									scopeElement={passageScopeElements[passage.identifier] ?? null}
 								/>
@@ -108,7 +121,7 @@
 						{#if !isCollapsed}
 							<div use:passageScope={passage.identifier}>
 								<SanitizedHtml
-									rawHtml={passage.rawHtml}
+									rawHtml={readablePassages.get(passage.identifier)?.html ?? passage.rawHtml}
 									html={passage.html}
 									{security}
 									{host}

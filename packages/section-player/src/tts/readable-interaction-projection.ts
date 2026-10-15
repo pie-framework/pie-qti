@@ -2,7 +2,7 @@
 
 import { enforceItemXmlLimits, sanitizeHtml } from '@pie-qti/item-player/security';
 import type { PlayerSecurityConfig } from '@pie-qti/item-player';
-import { prepareContentMarkup } from '@pie-qti/qti-common/accessibility';
+import { type ContentLink, prepareContentMarkup, readApipAccessElements } from '@pie-qti/qti-common/accessibility';
 
 type DOMParserConstructor = new () => {
 	parseFromString(xml: string, mimeType: string): Document;
@@ -54,7 +54,7 @@ const readableChildNames = new Set([
 
 const optionLikeNames = new Set(['gapText', 'hottext', 'inlineChoice', 'simpleAssociableChoice', 'simpleChoice']);
 
-/** The `spoken` catalogs an item's SSML makes, in the shape the PIE toolkit registers per owner. */
+/** A `spoken` catalog, in the shape the PIE toolkit registers per owner. */
 export interface SpokenCatalog {
 	identifier: string;
 	cards: Array<{ catalog: 'spoken'; content: string }>;
@@ -232,7 +232,75 @@ function extractInteractionChunks(
 }
 
 /**
- * The item's interaction content as readable markup, and the spoken catalogs its SSML makes.
+ * The APIP access elements' spoken cards, and the links that dock their identifiers on the
+ * content they describe: the identifiers the item player docks the same elements under.
+ */
+function apipSpeechOf(qtiXml: string): { links: ContentLink[]; catalogs: SpokenCatalog[] } {
+	if (!qtiXml.includes('accessElement')) return { links: [], catalogs: [] };
+	const links: ContentLink[] = [];
+	const catalogs: SpokenCatalog[] = [];
+	for (const { identifier, links: elementLinks, cards } of readApipAccessElements(qtiXml)) {
+		const spoken = cards.flatMap((card) =>
+			card.catalog === 'spoken' && card.content ? [{ catalog: 'spoken' as const, content: card.content }] : [],
+		);
+		if (!identifier || spoken.length === 0) continue;
+		catalogs.push({ identifier, cards: spoken });
+		links.push(...elementLinks.map((link) => ({ idref: identifier, ...link })));
+	}
+	return { links, catalogs };
+}
+
+const QTI_NAMESPACE_DECLARATION = /\s+xmlns(?::[\w-]+)?="http:\/\/www\.imsglobal\.org\/[^"]*"/g;
+
+/** The `spoken` cards of the item's `qti-catalog-info`, their `qti-html-content` serialized as authored. */
+function nativeSpokenCatalogs(document: Document, serializer: XMLSerializerLike | null): SpokenCatalog[] {
+	if (!serializer) return [];
+	const catalogs: SpokenCatalog[] = [];
+	for (const catalog of allElements(document).filter((element) => qtiName(element) === 'catalog')) {
+		const identifier = (catalog.getAttribute('id') ?? catalog.getAttribute('identifier'))?.trim();
+		if (!identifier) continue;
+		const cards = childElementsByName(catalog, 'card')
+			.filter((card) => card.getAttribute('support') === 'spoken')
+			.flatMap((card) => {
+				const content = allElements(card)
+					.filter((element) => qtiName(element) === 'htmlContent')
+					.map((element) =>
+						Array.from(element.childNodes)
+							.map((node) => serializer.serializeToString(node))
+							.join('')
+							.replace(QTI_NAMESPACE_DECLARATION, '')
+							.trim(),
+					)
+					.filter(Boolean)
+					.join(' ');
+				return content ? [{ catalog: 'spoken' as const, content }] : [];
+			});
+		if (cards.length > 0) catalogs.push({ identifier, cards });
+	}
+	return catalogs;
+}
+
+/**
+ * A passage's markup as it reads aloud, and the spoken catalogs its SSML makes: `data-ssml`
+ * and inline SSML dock under generated idrefs, the item player's preparation of item content.
+ */
+export function prepareReadableBlock(rawHtml: string): { html: string; catalogs: SpokenCatalog[] } {
+	if (!/ssml|synthesis/.test(rawHtml)) return { html: rawHtml, catalogs: [] };
+	const open = '<qti-stimulus-body>';
+	const close = '</qti-stimulus-body>';
+	const prepared = prepareContentMarkup(`${open}${rawHtml}${close}`, [], { hidingStyles: false });
+	const start = prepared.xml.indexOf(open);
+	const end = prepared.xml.lastIndexOf(close);
+	if (start < 0 || end < start) return { html: rawHtml, catalogs: [] };
+	return {
+		html: prepared.xml.slice(start + open.length, end),
+		catalogs: prepared.spoken.map(({ identifier, content }) => ({ identifier, cards: [{ catalog: 'spoken', content }] })),
+	};
+}
+
+/**
+ * The item's interaction content as readable markup, and its spoken catalogs: the `spoken` cards of
+ * its `qti-catalog-info` and APIP access elements, and those its SSML makes.
  *
  * Reads the item as the item player renders it: the same preparation docks SSML under the same
  * generated idrefs, so the catalogs resolve against both the stem and this projection.
@@ -241,11 +309,15 @@ export function extractReadableItemSpeech(itemXml?: string, options: ReadablePro
 	if (!itemXml) return { html: '', catalogs: [] };
 	enforceItemXmlLimits(itemXml, options.security);
 
-	const prepared = prepareContentMarkup(itemXml, [], { hidingStyles: false });
-	const catalogs = prepared.spoken.map(({ identifier, content }): SpokenCatalog => ({
-		identifier,
-		cards: [{ catalog: 'spoken', content }],
-	}));
+	const apip = apipSpeechOf(itemXml);
+	const prepared = prepareContentMarkup(itemXml, apip.links, { hidingStyles: false });
+	const catalogs = [
+		...apip.catalogs,
+		...prepared.spoken.map(({ identifier, content }): SpokenCatalog => ({
+			identifier,
+			cards: [{ catalog: 'spoken', content }],
+		})),
+	];
 
 	const DOMParserImpl = getParser(options);
 	if (!DOMParserImpl) return { html: '', catalogs };
@@ -254,6 +326,7 @@ export function extractReadableItemSpeech(itemXml?: string, options: ReadablePro
 	if (document.getElementsByTagName('parsererror').length > 0) return { html: '', catalogs };
 
 	const serializer = getSerializer(options);
+	catalogs.unshift(...nativeSpokenCatalogs(document, serializer));
 	const interactions = allElements(document).filter(
 		(element) => interactionElementNames.has(qtiName(element)) && !silencedWithin(element, document.documentElement),
 	);

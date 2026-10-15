@@ -14,6 +14,8 @@
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
+	import { interactionAria } from '../../shared/utils/interactionAria';
+	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 
 	type PciHostFactory = (data: ExtractedPci) => PciHostController;
 	type LoadStatus = 'idle' | 'loading' | 'ready' | 'error';
@@ -202,8 +204,10 @@
 	part="root"
 	class="qti-portable-custom-interaction"
 	role="group"
-	aria-label={i18n?.t('customInteraction.portableLabel', 'Portable custom interaction')}
+	aria-label={parsedInteraction?.accessibility?.label ?? i18n?.t('customInteraction.portableLabel', 'Portable custom interaction')}
+	aria-describedby={interactionAria(parsedInteraction)['aria-describedby']}
 >
+	<InteractionDescription interaction={parsedInteraction} />
 	{#if !parsedInteraction}
 		<div class="alert alert-error" role="alert">
 			{i18n?.t('common.errorNoData', 'No interaction data provided')}

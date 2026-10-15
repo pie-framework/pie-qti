@@ -2,6 +2,7 @@ import type { AssessmentItemDocument } from '../document/AssessmentItemDocument.
 import type { ContentHandlers } from '../document/contentPass.js';
 import type { ExtractionRegistry } from './ExtractionRegistry.js';
 import { createExtractionContext } from './createContext.js';
+import { interactionAccessibility } from './interactionAccessibility.js';
 import { finalizeInteractionDelivery } from './interactionSecurity.js';
 import type { VariableDeclaration as ExtractionVariableDeclaration } from './types.js';
 import type { DeclarationMap } from '@pie-qti/qti-processing';
@@ -57,8 +58,10 @@ export function extractInteractionData({
 
 		const extractor = result.extractor;
 		const outputType = extractor?.outputType ?? discovered.normalizedType;
+		const accessibility = interactionAccessibility(discovered.element, discovered.contextRoot);
 		const interaction = {
 			...result.data,
+			...(accessibility ? { accessibility } : {}),
 			// These are framework-owned routing fields. Applying them after the
 			// extractor payload prevents a plugin from redirecting a response or
 			// selecting an undeclared renderer through payload properties.

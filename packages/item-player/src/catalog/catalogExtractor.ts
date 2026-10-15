@@ -127,11 +127,49 @@ function getLang(el: NhpElement): string | undefined {
 	return el.getAttribute('xml:lang') ?? el.getAttribute('xmllang') ?? el.getAttribute('lang') ?? undefined;
 }
 
+/**
+ * A card entry's content: every `qti-html-content` and `qti-file-href` in document order.
+ * A lone file href stays a bare URL, which the player resolves through its URL policy. Alongside
+ * other content a file href becomes the element its MIME type plays in (`img`, `audio` or
+ * `video`), or a link.
+ */
 function extractHtmlContent(el: NhpElement): string {
-	const htmlContent = el.querySelector('qti-html-content');
-	const fileHref = el.querySelector('qti-file-href');
+	const parts = el.querySelectorAll('qti-html-content, qti-file-href');
+	if (parts.length === 1 && parts[0].rawTagName.toLowerCase() === 'qti-file-href') {
+		return fileHrefOf(parts[0]);
+	}
+	return parts
+		.map((part) =>
+			part.rawTagName.toLowerCase() === 'qti-html-content'
+				? (part.innerHTML ?? part.text ?? '')
+				: fileHrefContent(part),
+		)
+		.filter((content) => content.trim() !== '')
+		.join('');
+}
 
-	if (htmlContent) return htmlContent.innerHTML ?? htmlContent.text ?? '';
-	if (fileHref) return fileHref.getAttribute('src') ?? fileHref.text?.trim() ?? '';
-	return '';
+function fileHrefOf(el: NhpElement): string {
+	return el.getAttribute('src') ?? el.text?.trim() ?? '';
+}
+
+function mediaKindOf(el: NhpElement): 'img' | 'audio' | 'video' | undefined {
+	const type = el.getAttribute('mime-type')?.trim().toLowerCase() ?? '';
+	if (type.startsWith('image/')) return 'img';
+	if (type.startsWith('audio/')) return 'audio';
+	if (type.startsWith('video/')) return 'video';
+	return undefined;
+}
+
+function escapeAttr(value: string): string {
+	return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function fileHrefContent(el: NhpElement): string {
+	const href = fileHrefOf(el);
+	if (!href) return '';
+	const src = escapeAttr(href);
+	const kind = mediaKindOf(el);
+	if (kind === 'img') return `<img src="${src}" alt="">`;
+	if (kind) return `<${kind} controls src="${src}"></${kind}>`;
+	return `<a href="${src}">${src}</a>`;
 }

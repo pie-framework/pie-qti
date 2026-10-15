@@ -13,3 +13,5 @@ export * from './extensions/MathLiveEditor.js';
 export * from './utils/eventHelpers.js';
 // Pair helpers for matching/association interactions
 export * from './utils/pairHelpers.js';
+// Authored accessible name and description for an interaction root
+export * from './utils/interactionAria.js';

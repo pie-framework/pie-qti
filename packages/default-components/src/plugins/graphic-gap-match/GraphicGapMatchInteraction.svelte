@@ -13,6 +13,8 @@ import type { I18nProvider } from '@pie-qti/i18n';
 import { touchDrag } from '@pie-qti/qti-common';
 import { createQtiChangeEvent } from '../../shared/utils/eventHelpers.js';
 import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
+import { interactionAria } from '../../shared/utils/interactionAria';
+import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 
 import '../../shared/styles/shared.css';
 import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
@@ -281,7 +283,8 @@ function handleRootKeyDown(event: KeyboardEvent) {
 <ShadowBaseStyles />
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div bind:this={rootElement} class={['qti-graphic-gap-match-interaction', ...(parsedInteraction?.interactionClasses ?? [])].join(' ')} onkeydown={handleRootKeyDown}>
+<div bind:this={rootElement} {...interactionAria(parsedInteraction)} class={['qti-graphic-gap-match-interaction', ...(parsedInteraction?.interactionClasses ?? [])].join(' ')} onkeydown={handleRootKeyDown}>
+	<InteractionDescription interaction={parsedInteraction} />
 	{#if !parsedInteraction}
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
@@ -470,7 +473,8 @@ function handleRootKeyDown(event: KeyboardEvent) {
 									stroke={matchedGapText ? '#10b981' : isCorrect ? '#10b981' : hotspotReady ? '#3b82f6' : isHovered ? '#3b82f6' : '#6b7280'}
 									stroke-width={hotspotReady ? '3' : '2'}
 									stroke-dasharray={matchedGapText || isCorrect ? '' : hotspotReady ? '6,3' : '4,4'}
-									class="transition-all{hotspotReady ? ' qti-ggm-hotspot-ready' : ''}"
+									class="qti-ggm-hotspot transition-all{hotspotReady ? ' qti-ggm-hotspot-ready' : ''}"
+									data-filled={matchedGapText ? '' : undefined}
 									style="pointer-events: auto; cursor: {disabled ? 'not-allowed' : hotspotReady ? 'copy' : 'pointer'};"
 									ondragover={(e) => handleHotspotDragOver(e, hotspot.identifier)}
 									ondragleave={handleHotspotDragLeave}
@@ -496,7 +500,8 @@ function handleRootKeyDown(event: KeyboardEvent) {
 									stroke={matchedGapText ? '#10b981' : isCorrect ? '#10b981' : hotspotReady ? '#3b82f6' : isHovered ? '#3b82f6' : '#6b7280'}
 									stroke-width={hotspotReady ? '3' : '2'}
 									stroke-dasharray={matchedGapText || isCorrect ? '' : hotspotReady ? '6,3' : '4,4'}
-									class="transition-all{hotspotReady ? ' qti-ggm-hotspot-ready' : ''}"
+									class="qti-ggm-hotspot transition-all{hotspotReady ? ' qti-ggm-hotspot-ready' : ''}"
+									data-filled={matchedGapText ? '' : undefined}
 									style="pointer-events: auto; cursor: {disabled ? 'not-allowed' : hotspotReady ? 'copy' : 'pointer'};"
 									ondragover={(e) => handleHotspotDragOver(e, hotspot.identifier)}
 									ondragleave={handleHotspotDragLeave}
@@ -555,9 +560,30 @@ function handleRootKeyDown(event: KeyboardEvent) {
 	.qti-ggm-prompt {
 		margin: 0 0 0.75rem;
 	}
+	/* qti-choices-top|bottom|left|right: the labels' side of the image; top by default */
 	.qti-ggm-region {
-		display: grid;
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
 		gap: 1rem;
+	}
+	.qti-graphic-gap-match-interaction.qti-choices-bottom .qti-ggm-region { flex-direction: column-reverse; }
+	.qti-graphic-gap-match-interaction.qti-choices-left .qti-ggm-region { flex-direction: row; }
+	.qti-graphic-gap-match-interaction.qti-choices-right .qti-ggm-region { flex-direction: row-reverse; }
+	.qti-graphic-gap-match-interaction:is(.qti-choices-top, .qti-choices-bottom, :not([class*='qti-choices-'])) .qti-ggm-labels {
+		align-self: stretch;
+	}
+	.qti-graphic-gap-match-interaction:is(.qti-choices-left, .qti-choices-right) .qti-ggm-labels {
+		flex: 0 0 auto;
+		max-width: 40%;
+		align-content: flex-start;
+	}
+
+	/* qti-unselected-hidden: empty drop zones show only while focused; they stay operable */
+	.qti-graphic-gap-match-interaction.qti-unselected-hidden .qti-ggm-hotspot:not([data-filled]):not(:focus-visible) {
+		fill-opacity: 0;
+		stroke-opacity: 0;
+		animation: none;
 	}
 	.qti-ggm-labels {
 		display: flex;

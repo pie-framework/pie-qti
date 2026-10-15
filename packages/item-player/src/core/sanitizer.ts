@@ -60,6 +60,19 @@ function getOptionalAttr(element: HTMLElement, attrName: string): string {
 	return value ? ` ${attrName}="${escapeAttr(value)}"` : '';
 }
 
+/** The accessibility attributes an `object` replacement keeps: `aria-*`, `role` and `lang` (or `xml:lang`). */
+function getAccessibilityAttrs(element: HTMLElement): string {
+	let attrs = '';
+	for (const [name, value] of Object.entries(element.attributes ?? {})) {
+		const attrName = name.toLowerCase();
+		if (/^aria-[a-z]+$/.test(attrName) || attrName === 'role') {
+			attrs += ` ${attrName}="${escapeAttr(value)}"`;
+		}
+	}
+	const lang = element.getAttribute('lang') ?? element.getAttribute('xml:lang');
+	return lang ? `${attrs} lang="${escapeAttr(lang)}"` : attrs;
+}
+
 function sanitizeUrlForHtml(value: string, options: SanitizeHtmlOptions | undefined, kind: UrlKind): string | null {
 	const policy = policyFromOptions(options);
 	const sanitized = sanitizeResourceUrl(value, policy, kind);
@@ -430,6 +443,7 @@ function getSafeObjectReplacementHtml(element: HTMLElement, options: SanitizeHtm
 	const dimensions = `${getOptionalAttr(element, 'width')}${getOptionalAttr(element, 'height')}`;
 	const classes = getOptionalAttr(element, 'class');
 	const id = getOptionalAttr(element, 'id');
+	const a11y = getAccessibilityAttrs(element);
 
 	if (rawType.startsWith('image/')) {
 		const src = sanitizeUrlForHtml(rawData, options, 'img');
@@ -441,7 +455,7 @@ function getSafeObjectReplacementHtml(element: HTMLElement, options: SanitizeHtm
 			element.getAttribute('title') ??
 			element.textContent?.trim() ??
 			'';
-		return `<img src="${escapeAttr(src)}" alt="${escapeAttr(alt)}"${dimensions}${classes}${id}>`;
+		return `<img src="${escapeAttr(src)}" alt="${escapeAttr(alt)}"${dimensions}${classes}${id}${a11y}>`;
 	}
 
 	if (rawType.startsWith('audio/')) {
@@ -449,7 +463,7 @@ function getSafeObjectReplacementHtml(element: HTMLElement, options: SanitizeHtm
 		if (!src) {
 			return null;
 		}
-		return `<audio controls${classes}${id}><source src="${escapeAttr(src)}" type="${escapeAttr(rawType)}"></audio>`;
+		return `<audio controls${classes}${id}${a11y}><source src="${escapeAttr(src)}" type="${escapeAttr(rawType)}"></audio>`;
 	}
 
 	if (rawType.startsWith('video/')) {
@@ -462,7 +476,7 @@ function getSafeObjectReplacementHtml(element: HTMLElement, options: SanitizeHtm
 			? sanitizeUrlForHtml(rawPoster, options, 'img')
 			: null;
 		const posterAttr = poster ? ` poster="${escapeAttr(poster)}"` : '';
-		return `<video controls${dimensions}${classes}${id}${posterAttr}><source src="${escapeAttr(src)}" type="${escapeAttr(rawType)}"></video>`;
+		return `<video controls${dimensions}${classes}${id}${posterAttr}${a11y}><source src="${escapeAttr(src)}" type="${escapeAttr(rawType)}"></video>`;
 	}
 
 	return null;

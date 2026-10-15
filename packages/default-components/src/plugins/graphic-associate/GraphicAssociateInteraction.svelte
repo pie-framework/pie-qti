@@ -8,6 +8,8 @@
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
 	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
 	import { isCompatibleMatchGroup } from '../../shared/utils/matchGroupUtils';
+	import { interactionAria } from '../../shared/utils/interactionAria';
+	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 
 	interface Props {
 		interaction?: GraphicAssociateInteractionData | string;
@@ -181,7 +183,8 @@
 
 <ShadowBaseStyles />
 
-<div bind:this={rootElement} part="root" class="qti-graphic-associate-interaction">
+<div bind:this={rootElement} {...interactionAria(parsedInteraction)} part="root" class="qti-graphic-associate-interaction">
+	<InteractionDescription interaction={parsedInteraction} />
 	{#if !parsedInteraction}
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
