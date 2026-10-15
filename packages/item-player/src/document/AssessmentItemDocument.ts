@@ -190,13 +190,8 @@ export class AssessmentItemDocument {
 		return findDescendants(this.assessmentItem, this.elementNameMapper.toNative('modalfeedback'));
 	}
 
-	findDeclarationElements(kind: 'response' | 'outcome' | 'template'): Element[] {
-		const tagName =
-			kind === 'response'
-				? 'responsedeclaration'
-				: kind === 'outcome'
-					? 'outcomedeclaration'
-					: 'templatedeclaration';
+	findDeclarationElements(kind: 'response' | 'outcome' | 'template' | 'context'): Element[] {
+		const tagName = `${kind}declaration`;
 		return findDescendants(this.assessmentItem, this.elementNameMapper.toNative(tagName));
 	}
 
@@ -216,8 +211,14 @@ export class AssessmentItemDocument {
 		);
 	}
 
-	findExtractionElements(elementTypes: Iterable<string>): DiscoveredInteractionElement[] {
-		const root = this.createExtractionRoot();
+	/** Interaction elements to extract, from the item body resolved by `handlers`. */
+	findExtractionElements(
+		elementTypes: Iterable<string>,
+		handlers: ContentHandlers = NO_HANDLERS,
+	): DiscoveredInteractionElement[] {
+		const root = this.createExtractionRoot(
+			handlers.size > 0 ? this.serializeItemBodyForExtraction(handlers) : this.extractionSource,
+		);
 		if (!root) return [];
 
 		const canonicalTypes = new Set(
@@ -244,11 +245,11 @@ export class AssessmentItemDocument {
 		return elements;
 	}
 
-	private createExtractionRoot(): QTIElement | null {
+	private createExtractionRoot(source: string): QTIElement | null {
 		// node-html-parser elements are intentionally mutable for plugin compatibility.
 		// Parse one private view for each extraction pass so a plugin cannot mutate
 		// the compiled document observed by a later item session.
-		const docRoot = parse(this.extractionSource, {
+		const docRoot = parse(source, {
 			lowerCaseTagName: false,
 			comment: false,
 		}) as unknown as QTIElement;
@@ -263,10 +264,10 @@ export class AssessmentItemDocument {
 		);
 	}
 
-	private serializeItemBodyForExtraction(): string {
+	private serializeItemBodyForExtraction(handlers: ContentHandlers = NO_HANDLERS): string {
 		const itemBodyTag = this.elementNameMapper.toNative('itembody');
 		const itemBody = this.getItemBodyElement();
-		const itemBodyChildren = itemBody ? this.serializeChildren(itemBody) : '';
+		const itemBodyChildren = itemBody ? this.serializeChildren(itemBody, handlers) : '';
 
 		return `<assessmentItem><${itemBodyTag}>${itemBodyChildren}</${itemBodyTag}></assessmentItem>`;
 	}

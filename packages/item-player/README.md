@@ -66,7 +66,9 @@ session.dispose();
 
 `openSession()` accepts an optional serialized `restore` snapshot, response overrides, and
 `activate: true` to resume a suspended handoff as an active session. Response identifiers are
-validated against the compiled declarations.
+validated against the compiled declarations. `contextVariables` sets the item's context variables
+before template processing: `QTI_CONTEXT`, a record, and any declared by `contextDeclaration`
+(`qti-context-declaration`). A restored session keeps its saved context values.
 
 The definition's role is fixed for every session it opens and is visible as `session.state().role`.
 `present()` intentionally does not accept a role override.
@@ -116,11 +118,18 @@ session in either QTI spelling, honouring `format` (C `printf` conversions), `ba
 `powerForm`, `field`, `delimiter` and `mappingIndicator`. QTI 3 rubric content is unwrapped from
 `qti-content-body`, so a rubric renders as its QTI 2.2 counterpart does.
 
-`feedbackInline` shows by the shared visibility rule in `@pie-qti/qti-common`: its `identifier`
-matches a single outcome value by equality and a container by membership, `showHide="hide"`
-inverts it, and nested feedback resolves inside shown feedback. Rubric and modal feedback content
-resolves against the session's outcomes; the item body and choice text resolve against the
-`outcomeValues` being presented.
+`feedbackInline`, `feedbackBlock` and `modalFeedback` show by the shared visibility rule in
+`@pie-qti/qti-common`: the `identifier` matches a single outcome value by equality and a container
+by membership, `showHide="hide"` inverts it, and nested feedback resolves inside shown feedback.
+Rubric and modal feedback content resolves against the session's outcomes; the item body and
+choice text resolve against the `outcomeValues` being presented.
+
+`templateInline` and `templateBlock` show by the same rule against their template variable.
+Choices carrying `templateIdentifier` (`simpleChoice`, `hottext`, `gapText`, `inlineChoice` and
+the other choice elements) are dropped from interaction data when hidden. A `mathVariable` template
+variable substitutes into MathML `mi` and `ci` naming it, as `mn` or `cn` for a number. Interaction
+prompts and choices resolve template content and `printedVariable` when the interaction is
+extracted, and are extracted again when template values change.
 
 Section/test-part shared rubrics are not duplicated into item presentation. Assessment and section
 hosts place those through section composition.
