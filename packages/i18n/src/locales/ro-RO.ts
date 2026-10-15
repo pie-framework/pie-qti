@@ -120,6 +120,7 @@ export default {
 			selected: 'Selectat',
 			notSelected: 'Neselectat',
 			correct: 'Corect',
+			revealChoice: 'Afișează opțiunea {index}',
 		},
 
 		upload: {

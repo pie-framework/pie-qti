@@ -121,6 +121,7 @@ export default {
 			selected: 'เลือกแล้ว',
 			notSelected: 'ยังไม่ได้เลือก',
 			correct: 'ถูกต้อง',
+			revealChoice: 'แสดงตัวเลือก {index}',
 		},
 
 		upload: {

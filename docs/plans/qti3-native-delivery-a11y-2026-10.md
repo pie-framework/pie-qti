@@ -31,7 +31,7 @@ the PIE→QTI export. Slices run in certification-impact order. The conversion d
 | 7   | Test structure and item session control        | `feat/test-structure-session-control` | #321 | merged  |
 | 8   | TTS and SSML in delivery                       | `feat/delivery-tts-ssml`              | #323 | merged  |
 | 9   | Content language                               | `feat/delivery-content-language`      | #325 | open    |
-| 10  | PNP in delivery                                | `feat/delivery-pnp`                   |     | pending |
+| 10  | PNP in delivery                                | `feat/delivery-pnp`                   |     | in progress |
 | 11  | Shared vocabulary, catalogs and sanitizer      | `feat/delivery-vocabulary-catalogs`   |     | pending |
 | 12  | Element map completion                         | `fix/qti3-element-map`                | #301 | merged  |
 | 13  | QTI 3.0 writer                                 | `feat/pie-to-qti2-qti3-writer`        | #302 | merged  |
@@ -383,6 +383,14 @@ item player's interaction data, which carries their text only; `xml:lang` inside
 - Companion materials enable the tools they name.
 
 Done when each AfA term either drives delivery or is listed in `pnp.md` as unsupported.
+
+Landed with the display needs as root attributes and `--qti-*` custom properties styled by
+`qti-pnp.css` in default-components, which the web-component loaders' runtime CSS imports. Tool
+supports land in `PnpProfile.tools` in pie-players' ids, and the section player applies them and
+the item's companion materials to the host's tools: an offered `enabled: false` tool turns on, a
+prohibited one goes, and `screenReader` withholds read-aloud. Masking covers `choiceInteraction`
+only. AfA has no highlighter term; dictionary, line reader and language of interface are parsed
+for the host, which owns those tools and the interface locale.
 
 ### 11. Shared vocabulary, catalogs and sanitizer
 

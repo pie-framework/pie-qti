@@ -263,7 +263,7 @@ export interface ItemSessionEngineConfig {
 	itemXml: string;
 	/**
 	 * QTI 3.0 §6.2 Personal Needs and Preferences profile.
-	 * Color scheme is applied immediately as data-qti-colorscheme on the player root.
+	 * Display needs are applied as attributes and custom properties on the player root.
 	 * Use player.updatePnp() to change mid-session without re-parsing the item.
 	 */
 	pnp?: import('../pnp/types.js').PnpProfile;

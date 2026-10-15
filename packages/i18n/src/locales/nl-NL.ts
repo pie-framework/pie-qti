@@ -120,6 +120,7 @@ export default {
 			selected: 'Geselecteerd',
 			notSelected: 'Niet geselecteerd',
 			correct: 'Correct',
+			revealChoice: 'Keuze {index} tonen',
 		},
 
 		upload: {

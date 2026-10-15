@@ -23,6 +23,8 @@
 		heuristicsConfig?: QtiHeuristicsConfig;
 		/** When true, renders an elimination toggle button per choice (QTI 3.0 PNP §6.2). */
 		eliminationTool?: boolean;
+		/** AfA `answer-masking`: each choice stays masked behind a reveal button until the candidate reveals it. */
+		answerMasking?: boolean;
 	}
 
 	let {
@@ -36,7 +38,8 @@
 		onChange,
 		outcomeValues = {},
 		heuristicsConfig,
-		eliminationTool = false
+		eliminationTool = false,
+		answerMasking = false
 	}: Props = $props();
 
 	// Normalize heuristics configuration with defaults
@@ -106,6 +109,17 @@
 		return action;
 	}
 
+	// Answer masking state: choices the candidate has revealed. A masked choice cannot be selected.
+	let revealedChoices = $state(new Set<string>());
+
+	function isMasked(identifier: string): boolean {
+		return answerMasking && !revealedChoices.has(identifier);
+	}
+
+	function revealChoice(identifier: string) {
+		revealedChoices = new Set(revealedChoices).add(identifier);
+	}
+
 	function handleRadioChange(identifier: string) {
 		response = identifier;
 		emitInteractionChange({ target: rootElement, responseId: shell.responseId, value: identifier, onChange });
@@ -143,6 +157,15 @@
 
 <ShadowBaseStyles />
 
+{#snippet maskedChoice(identifier: string, index: number)}
+	<button
+		type="button"
+		part="reveal"
+		class="qti-reveal-btn"
+		onclick={() => revealChoice(identifier)}
+	>{i18n?.t('interactions.choice.revealChoice', { index: index + 1 }) ?? `Reveal choice ${index + 1}`}</button>
+{/snippet}
+
 <div bind:this={rootElement} part="root" class={['qti-choice-interaction space-y-2', ...(parsedInteraction?.interactionClasses ?? [])].join(' ')} use:typesetAction={{ typeset }}>
 	{#if parsedInteraction?.prompt}
 		<div part="prompt" class="qti-choice-prompt qti-rich-content font-semibold">{@html parsedInteraction.prompt}</div>
@@ -152,13 +175,17 @@
 		<div class="alert alert-error">{i18n?.t('common.errorNoData') ?? 'No interaction data provided'}</div>
 	{:else if parsedInteraction.maxChoices === 1}
 		<!-- Single choice (radio buttons) -->
-		{#each parsedInteraction.choices as choice}
+		{#each parsedInteraction.choices as choice, index}
 			{@const textId = choiceTextId(parsedInteraction.responseId, choice.identifier)}
 			<div
 				part="option"
 				class="qti-choice-option form-control"
 				data-eliminated={eliminatedChoices.has(choice.identifier) ? '' : undefined}
+				data-masked={isMasked(choice.identifier) ? '' : undefined}
 			>
+				{#if isMasked(choice.identifier)}
+					{@render maskedChoice(choice.identifier, index)}
+				{:else}
 				<label
 					part="label"
 					class="qti-choice-label label cursor-pointer justify-start gap-4"
@@ -183,6 +210,7 @@
 						<span class="badge badge-success badge-sm">{t('interactions.choice.correct', 'Correct')}</span>
 					{/if}
 				</label>
+				{/if}
 				{#if eliminationTool}
 					<button
 						type="button"
@@ -197,13 +225,17 @@
 	{:else}
 		<!-- Multiple choice (checkboxes) -->
 		{@const currentValues = Array.isArray(parsedResponse) ? parsedResponse : []}
-		{#each parsedInteraction.choices as choice}
+		{#each parsedInteraction.choices as choice, index}
 			{@const textId = choiceTextId(parsedInteraction.responseId, choice.identifier)}
 			<div
 				part="option"
 				class="qti-choice-option form-control"
 				data-eliminated={eliminatedChoices.has(choice.identifier) ? '' : undefined}
+				data-masked={isMasked(choice.identifier) ? '' : undefined}
 			>
+				{#if isMasked(choice.identifier)}
+					{@render maskedChoice(choice.identifier, index)}
+				{:else}
 				<label
 					part="label"
 					class="qti-choice-label label cursor-pointer justify-start gap-4"
@@ -230,6 +262,7 @@
 						<span class="badge badge-success badge-sm">{t('interactions.choice.correct', 'Correct')}</span>
 					{/if}
 				</label>
+				{/if}
 				{#if eliminationTool}
 					<button
 						type="button"
@@ -340,6 +373,25 @@
 	[data-eliminated] .qti-eliminate-btn {
 		opacity: 1;
 		color: var(--pie-qti-error, oklch(63% 0.237 25.331));
+	}
+
+	/* Answer masking */
+	.qti-reveal-btn {
+		width: 100%;
+		min-height: 2.5rem;
+		text-align: start;
+		padding: 0.5rem 0.75rem;
+		border: 1px dashed currentColor;
+		border-radius: 0.5rem;
+		background: var(--pie-qti-base-200, transparent);
+		color: inherit;
+		font: inherit;
+		cursor: pointer;
+	}
+
+	.qti-reveal-btn:focus-visible {
+		outline: 2px solid var(--pie-qti-focus, currentColor);
+		outline-offset: 2px;
 	}
 
 	/* ── QTI Shared Vocabulary behavioral classes ─────────────────────────── */

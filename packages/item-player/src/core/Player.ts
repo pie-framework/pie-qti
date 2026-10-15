@@ -2176,6 +2176,7 @@ function mergePnp(base: PnpProfile | undefined, partial: Partial<PnpProfile>): P
 		display: { ...(base?.display ?? {}), ...(partial.display ?? {}) },
 		content: { ...(base?.content ?? {}), ...(partial.content ?? {}) },
 		cognitive: { ...(base?.cognitive ?? {}), ...(partial.cognitive ?? {}) },
+		...(base?.tools || partial.tools ? { tools: { ...(base?.tools ?? {}), ...(partial.tools ?? {}) } } : {}),
 	};
 }
 

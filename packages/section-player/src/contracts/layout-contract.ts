@@ -1,5 +1,5 @@
 import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
-import type { HtmlContent, ItemSession, PlayerSecurityConfig } from '@pie-qti/item-player';
+import type { HtmlContent, ItemSession, PlayerSecurityConfig, PnpProfile } from '@pie-qti/item-player';
 import type { QtiSectionDiagnostic, QtiSectionRuntimeHostContract } from './runtime-host-contract.js';
 
 export type QtiSectionLayoutPreference = 'split-pane' | 'vertical' | 'auto';
@@ -142,4 +142,9 @@ export interface ResolveQtiSectionCompositionOptions {
   responsesByItemIdentifier?: Record<string, Record<string, unknown>>;
   security?: PlayerSecurityConfig;
   host?: QtiSectionRuntimeHostContract;
+  /**
+   * The candidate's PNP. Its tool supports turn on the tools the host offers with
+   * `enabled: false`, remove prohibited ones and fill unset tool parameters.
+   */
+  pnp?: PnpProfile;
 }

@@ -207,6 +207,7 @@
 				correctResponse: block.correctResponse,
 				pnp: block.pnp,
 				eliminationTool: block.eliminationTool,
+				answerMasking: block.answerMasking,
 				disabled: block.disabled,
 				// Avoid invalid ARIA role values on custom-element hosts.
 				// Components default to candidate when role is omitted.

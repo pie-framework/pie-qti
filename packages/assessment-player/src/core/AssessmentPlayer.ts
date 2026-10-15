@@ -56,7 +56,7 @@ import {
 	sectionComponents,
 	testOutcomeDeclarations,
 } from './testStructure.js';
-import { TimeManager } from './TimeManager.js';
+import { extendTimeLimit, TimeManager } from './TimeManager.js';
 
 export interface BackendAssessmentPlayerConfig {
 	backend: BackendAdapter;
@@ -270,12 +270,7 @@ export class AssessmentPlayer {
 				minTime = minTime === undefined ? scope.limits.minTime : Math.max(minTime, scope.limits.minTime);
 			}
 			if (scope.limits.maxTime !== undefined) {
-				const extended = this.config.pnp?.content?.extendedTime;
-				const scopedMaxTime = extended?.active
-					? extended.multiplier === Infinity
-						? undefined
-						: scope.limits.maxTime * extended.multiplier
-					: scope.limits.maxTime;
+				const scopedMaxTime = extendTimeLimit(scope.limits.maxTime, this.config.pnp?.content?.extendedTime);
 				if (scopedMaxTime !== undefined && (maxTime === undefined || scopedMaxTime < maxTime)) {
 					maxTime = scopedMaxTime;
 					source = scope.source;

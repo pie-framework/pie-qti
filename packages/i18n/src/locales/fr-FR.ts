@@ -120,6 +120,7 @@ export default {
 			selected: 'Sélectionné',
 			notSelected: 'Non sélectionné',
 			correct: 'Correct',
+			revealChoice: 'Afficher le choix {index}',
 		},
 
 		upload: {

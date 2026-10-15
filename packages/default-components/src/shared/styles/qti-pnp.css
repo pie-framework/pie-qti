@@ -1,0 +1,209 @@
+/*
+ * Personal needs display, from the PNP profile the item player applies to its root
+ * (`applyPnpToRoot`): colour schemes, inverted polarity, single-column layout and text
+ * appearance. Every scheme's foreground and background meet WCAG 1.4.3's 4.5:1.
+ */
+
+/* =============================================================================
+   Colour schemes
+   ============================================================================= */
+
+/* light text on a dark ground */
+[data-qti-colorscheme='defaultreverse'] {
+	--qti-scheme-fg: #ffffff;
+	--qti-scheme-bg: #1a1a1a;
+}
+
+/* black on white */
+[data-qti-colorscheme='blackwhite'] {
+	--qti-scheme-fg: #000000;
+	--qti-scheme-bg: #ffffff;
+}
+
+/* white on black */
+[data-qti-colorscheme='whiteblack'] {
+	--qti-scheme-fg: #ffffff;
+	--qti-scheme-bg: #000000;
+}
+
+/* black on rose */
+[data-qti-colorscheme='blackrose'] {
+	--qti-scheme-fg: #000000;
+	--qti-scheme-bg: #ffd0ff;
+}
+
+/* rose on black */
+[data-qti-colorscheme='roseblack'] {
+	--qti-scheme-fg: #ffd0ff;
+	--qti-scheme-bg: #000000;
+}
+
+/* yellow on blue */
+[data-qti-colorscheme='yellowblue'] {
+	--qti-scheme-fg: #ffff00;
+	--qti-scheme-bg: #003399;
+}
+
+/* blue on yellow */
+[data-qti-colorscheme='blueyellow'] {
+	--qti-scheme-fg: #003399;
+	--qti-scheme-bg: #ffff00;
+}
+
+/* medium grey on dark grey */
+[data-qti-colorscheme='mgraydgray'] {
+	--qti-scheme-fg: #bbbbbb;
+	--qti-scheme-bg: #333333;
+}
+
+/* dark grey on medium grey */
+[data-qti-colorscheme='dgraymgray'] {
+	--qti-scheme-fg: #333333;
+	--qti-scheme-bg: #bbbbbb;
+}
+
+/* black on cyan */
+[data-qti-colorscheme='blackcyan'] {
+	--qti-scheme-fg: #000000;
+	--qti-scheme-bg: #00ffff;
+}
+
+/* cyan on black */
+[data-qti-colorscheme='cyanblack'] {
+	--qti-scheme-fg: #00ffff;
+	--qti-scheme-bg: #000000;
+}
+
+/* black on cream */
+[data-qti-colorscheme='blackcream'] {
+	--qti-scheme-fg: #000000;
+	--qti-scheme-bg: #fffacd;
+}
+
+/* cream on black */
+[data-qti-colorscheme='creamblack'] {
+	--qti-scheme-fg: #fffacd;
+	--qti-scheme-bg: #000000;
+}
+
+/* white on navy */
+[data-qti-colorscheme='whitenav'] {
+	--qti-scheme-fg: #ffffff;
+	--qti-scheme-bg: #000080;
+}
+
+/* black on medium grey */
+[data-qti-colorscheme='medgray'] {
+	--qti-scheme-fg: #000000;
+	--qti-scheme-bg: #a0a0a0;
+}
+
+/*
+ * A scheme recolours the player: the root and the theme tokens interactions draw with,
+ * so selection and focus states stay visible in the scheme's two colours.
+ */
+[data-qti-colorscheme],
+[data-qti-invert-polarity='colors'] {
+	color: var(--qti-scheme-fg);
+	background-color: var(--qti-scheme-bg);
+	--color-base-100: var(--qti-scheme-bg);
+	--color-base-200: var(--qti-scheme-bg);
+	--color-base-300: var(--qti-scheme-fg);
+	--color-base-content: var(--qti-scheme-fg);
+	--color-primary: var(--qti-scheme-fg);
+	--color-primary-content: var(--qti-scheme-bg);
+	--color-secondary: var(--qti-scheme-fg);
+	--color-secondary-content: var(--qti-scheme-bg);
+	--color-accent: var(--qti-scheme-fg);
+	--color-accent-content: var(--qti-scheme-bg);
+	--color-neutral: var(--qti-scheme-fg);
+	--color-neutral-content: var(--qti-scheme-bg);
+	--pie-qti-base-100: var(--qti-scheme-bg);
+	--pie-qti-base-200: var(--qti-scheme-bg);
+	--pie-qti-base-300: var(--qti-scheme-fg);
+	--pie-qti-base-content: var(--qti-scheme-fg);
+	--pie-qti-primary: var(--qti-scheme-fg);
+	--pie-qti-primary-content: var(--qti-scheme-bg);
+	--pie-qti-secondary: var(--qti-scheme-fg);
+	--pie-qti-secondary-content: var(--qti-scheme-bg);
+	--pie-qti-accent: var(--qti-scheme-fg);
+	--pie-qti-accent-content: var(--qti-scheme-bg);
+	--pie-qti-neutral: var(--qti-scheme-fg);
+	--pie-qti-neutral-content: var(--qti-scheme-bg);
+	--pie-qti-focus: var(--qti-scheme-fg);
+}
+
+[data-qti-colorscheme] :where(a),
+[data-qti-invert-polarity='colors'] :where(a) {
+	color: inherit;
+}
+
+/* =============================================================================
+   Inverted polarity
+   ============================================================================= */
+
+/* Without colours of its own, the player inverts and media is inverted back. */
+[data-qti-invert-polarity='invert'] {
+	filter: invert(1) hue-rotate(180deg);
+}
+
+[data-qti-invert-polarity='invert'] :where(img, picture, video, canvas, object) {
+	filter: invert(1) hue-rotate(180deg);
+}
+
+/* With the profile's colours, they take the scheme's place. */
+[data-qti-invert-polarity='colors'] {
+	--qti-scheme-fg: var(--qti-invert-foreground, #ffffff);
+	--qti-scheme-bg: var(--qti-invert-background, #000000);
+}
+
+/* =============================================================================
+   Single-column layout
+   ============================================================================= */
+
+[data-qti-layout='single-column'] .qti-layout-row {
+	flex-direction: column;
+}
+
+[data-qti-layout='single-column'] .qti-layout-row > * {
+	width: 100%;
+	margin-left: 0;
+}
+
+/* =============================================================================
+   Text appearance: each property the profile sets is a token on the attribute
+   ============================================================================= */
+
+[data-qti-text-appearance~='font-size'] {
+	font-size: var(--qti-font-size);
+}
+
+[data-qti-text-appearance~='font-family'],
+[data-qti-text-appearance~='font-family'] :where(p, li, td, th, label, span, div, button, input, textarea, select) {
+	font-family: var(--qti-font-family);
+}
+
+[data-qti-text-appearance~='font-color'] {
+	color: var(--qti-font-color);
+	--color-base-content: var(--qti-font-color);
+	--pie-qti-base-content: var(--qti-font-color);
+}
+
+[data-qti-text-appearance~='background-color'] {
+	background-color: var(--qti-background-color);
+	--color-base-100: var(--qti-background-color);
+	--pie-qti-base-100: var(--qti-background-color);
+}
+
+[data-qti-text-appearance~='line-height'],
+[data-qti-text-appearance~='line-height'] :where(p, li, td, th, label, span, div) {
+	line-height: var(--qti-line-height);
+}
+
+[data-qti-text-appearance~='letter-spacing'] {
+	letter-spacing: var(--qti-letter-spacing);
+}
+
+[data-qti-text-appearance~='word-spacing'] {
+	word-spacing: var(--qti-word-spacing);
+}

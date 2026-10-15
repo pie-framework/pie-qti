@@ -116,10 +116,81 @@ describe('parsePnpXml', () => {
 		).toEqual({ active: true, multiplier: Infinity });
 	});
 
-	it('leaves fixed-minutes testing time to the host', () => {
+	it('maps fixed-minutes testing time to minutes added to each limit', () => {
 		const xml = pnp('<additional-testing-time><fixed-minutes>30</fixed-minutes></additional-testing-time>');
-		expect(parsePnpXml(xml)).toEqual({});
-		expect(parseAfaPnpXml(xml)).toEqual({ 'additional-testing-time': { 'fixed-minutes': 30 } });
+		expect(parsePnpXml(xml).content?.extendedTime).toEqual({ active: true, multiplier: 1, fixedMinutes: 30 });
+	});
+
+	it('maps language-of-interface, invert-display-polarity and layout-single-column', () => {
+		const profile = parsePnpXml(
+			pnp(`
+				<language-of-interface xml:lang="es"/>
+				<invert-display-polarity foreground="FFFF00" background="000000"/>
+				<layout-single-column/>
+			`)
+		);
+		expect(profile.display).toEqual({
+			interfaceLanguage: 'es',
+			invertPolarity: { foreground: '#ffff00', background: '#000000' },
+			singleColumn: true,
+		});
+		expect(parsePnpXml(pnp('<invert-display-polarity/>')).display?.invertPolarity).toEqual({});
+	});
+
+	it('maps text-appearance to the text the player sets', () => {
+		const profile = parsePnpXml(
+			pnp(`
+				<text-appearance>
+					<background-color>#FFFFCC</background-color>
+					<font-color>333333</font-color>
+					<font-size>18</font-size>
+					<font-face><font-name>Atkinson Hyperlegible</font-name><generic-font-face>sans serif</generic-font-face></font-face>
+					<line-spacing>1.5</line-spacing>
+					<letter-spacing>0.12</letter-spacing>
+					<word-spacing>0.16</word-spacing>
+				</text-appearance>
+			`)
+		);
+		expect(profile.display?.textAppearance).toEqual({
+			backgroundColor: '#ffffcc',
+			fontColor: '#333333',
+			fontSize: 18,
+			fontFamily: '"Atkinson Hyperlegible", sans-serif',
+			lineHeight: 1.5,
+			letterSpacing: 0.12,
+			wordSpacing: 0.16,
+		});
+	});
+
+	it('maps tool supports to pie-players support ids', () => {
+		const profile = parsePnpXml(
+			pnp(`
+				<calculator-on-screen calculator-type="graphing"/>
+				<spoken><reading-type>computer-read-aloud</reading-type><speech-rate>270</speech-rate><pitch>0.5</pitch></spoken>
+				<line-reader highlight-color="#336699"/>
+				<activate-at-initialization-set><line-reader/></activate-at-initialization-set>
+				<prohibit-set><dictionary-on-screen/></prohibit-set>
+			`)
+		);
+		expect(profile.tools).toEqual({
+			supports: ['calculator', 'lineReader', 'textToSpeech'],
+			prohibitedSupports: ['dictionary'],
+			activateAtInit: ['lineReader'],
+			toolParameters: { calculator: { type: 'graphing' }, textToSpeech: { rate: 1.5, pitch: 1 } },
+		});
+	});
+
+	it('maps a screen-reader spoken request to screenReader and a prohibited one to no read-aloud', () => {
+		expect(parsePnpXml(pnp('<spoken/>')).tools).toEqual({ supports: ['screenReader'] });
+		expect(parsePnpXml(pnp('<prohibit-set><spoken/></prohibit-set>')).tools).toEqual({
+			prohibitedSupports: ['textToSpeech'],
+		});
+	});
+
+	it('leaves a standard or extension calculator type to the tool default', () => {
+		expect(parsePnpXml(pnp('<calculator-on-screen calculator-type="standard"/>')).tools).toEqual({
+			supports: ['calculator'],
+		});
 	});
 
 	it('maps glossary-on-screen and keyword-translation to their popups', () => {
@@ -146,8 +217,8 @@ describe('parsePnpXml', () => {
 		});
 	});
 
-	it('maps answer-masking to the elimination tool', () => {
-		expect(parsePnpXml(pnp('<answer-masking/>')).cognitive?.eliminationTool).toBe(true);
+	it('maps answer-masking to masked choices', () => {
+		expect(parsePnpXml(pnp('<answer-masking/>')).cognitive).toEqual({ answerMasking: true });
 	});
 
 	it('grants features listed in an activation set and withdraws prohibited ones', () => {
@@ -158,7 +229,7 @@ describe('parsePnpXml', () => {
 				<prohibit-set><glossary-on-screen/></prohibit-set>
 			`)
 		);
-		expect(profile).toEqual({ cognitive: { eliminationTool: true } });
+		expect(profile).toEqual({ cognitive: { answerMasking: true } });
 	});
 
 	it('returns an empty profile for empty input and for the pre-AfA shape', () => {
@@ -167,9 +238,19 @@ describe('parsePnpXml', () => {
 	});
 });
 
-function makeEl(): HTMLElement {
+function makeEl(): HTMLElement & { props: Record<string, string> } {
 	const attrs: Record<string, string> = {};
+	const props: Record<string, string> = {};
 	return {
+		props,
+		style: {
+			setProperty(k: string, v: string) {
+				props[k] = v;
+			},
+			removeProperty(k: string) {
+				delete props[k];
+			},
+		},
 		setAttribute(k: string, v: string) {
 			attrs[k] = v;
 		},
@@ -182,7 +263,7 @@ function makeEl(): HTMLElement {
 		getAttribute(k: string) {
 			return attrs[k] ?? null;
 		},
-	} as unknown as HTMLElement;
+	} as unknown as HTMLElement & { props: Record<string, string> };
 }
 
 describe('applyPnpToRoot', () => {
@@ -217,6 +298,44 @@ describe('applyPnpToRoot', () => {
 		const el = makeEl();
 		applyPnpToRoot(el, { display: { magnification: 1.5 } });
 		expect(el.getAttribute('data-qti-magnification')).toBe('1.5');
+	});
+
+	it('sets inverted polarity, with the profile colours when given', () => {
+		const el = makeEl();
+		applyPnpToRoot(el, { display: { invertPolarity: {} } });
+		expect(el.getAttribute('data-qti-invert-polarity')).toBe('invert');
+		applyPnpToRoot(el, { display: { invertPolarity: { foreground: '#ffff00', background: '#000000' } } });
+		expect(el.getAttribute('data-qti-invert-polarity')).toBe('colors');
+		expect(el.props).toMatchObject({ '--qti-invert-foreground': '#ffff00', '--qti-invert-background': '#000000' });
+		applyPnpToRoot(el, {});
+		expect(el.hasAttribute('data-qti-invert-polarity')).toBe(false);
+		expect(el.props['--qti-invert-foreground']).toBeUndefined();
+	});
+
+	it('sets the single-column layout', () => {
+		const el = makeEl();
+		applyPnpToRoot(el, { display: { singleColumn: true } });
+		expect(el.getAttribute('data-qti-layout')).toBe('single-column');
+		applyPnpToRoot(el, { display: {} });
+		expect(el.hasAttribute('data-qti-layout')).toBe(false);
+	});
+
+	it('sets text appearance as custom properties with their units', () => {
+		const el = makeEl();
+		applyPnpToRoot(el, {
+			display: { textAppearance: { fontSize: 18, fontFamily: 'serif', lineHeight: 1.5, letterSpacing: 0.12, wordSpacing: 0.16 } },
+		});
+		expect(el.getAttribute('data-qti-text-appearance')).toBe('font-size font-family line-height letter-spacing word-spacing');
+		expect(el.props).toEqual({
+			'--qti-font-size': '18pt',
+			'--qti-font-family': 'serif',
+			'--qti-line-height': '1.5',
+			'--qti-letter-spacing': '0.12em',
+			'--qti-word-spacing': '0.16em',
+		});
+		applyPnpToRoot(el, undefined);
+		expect(el.hasAttribute('data-qti-text-appearance')).toBe(false);
+		expect(el.props).toEqual({});
 	});
 
 	it.each(['blackwhite', 'whiteblack', 'blackrose', 'yellowblue', 'blueyellow', 'blackcream', 'creamblack', 'medgray'] as const)(

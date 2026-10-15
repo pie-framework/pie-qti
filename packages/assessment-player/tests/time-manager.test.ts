@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { TimeManager } from '../src/core/TimeManager.js';
+import { extendTimeLimit, TimeManager } from '../src/core/TimeManager.js';
 
 describe('TimeManager scoped clocks', () => {
 	test('tracks item, section, testPart, and assessment time independently', () => {
@@ -118,5 +118,29 @@ describe('TimeManager scoped clocks', () => {
 		expect(resumed.getScopeElapsedMs('section', 'section')).toBe(2_000);
 		expect(resumed.getScopeElapsedMs('item', 'item')).toBe(2_000);
 		resumed.destroy();
+	});
+});
+
+describe('PNP extended time', () => {
+	test('scales, removes or adds fixed minutes to a limit', () => {
+		expect(extendTimeLimit(60, undefined)).toBe(60);
+		expect(extendTimeLimit(60, { active: true, multiplier: 1.5 })).toBe(90);
+		expect(extendTimeLimit(60, { active: true, multiplier: Infinity })).toBeUndefined();
+		expect(extendTimeLimit(60, { active: true, multiplier: 1, fixedMinutes: 30 })).toBe(1_860);
+		expect(extendTimeLimit(60, { active: false, multiplier: 1, fixedMinutes: 30 })).toBe(60);
+	});
+
+	test('adds fixed minutes to the assessment and scope limits', () => {
+		let now = 1_000;
+		const manager = new TimeManager({
+			assessmentTimeLimits: { maxTime: 600 },
+			extendedTime: { active: true, multiplier: 1, fixedMinutes: 10 },
+			now: () => now,
+		});
+		expect(manager.getRemainingSeconds()).toBe(1_200);
+		manager.activateScopes({ item: { identifier: 'item', timeLimits: { maxTime: 60 } } });
+		now += 60_000;
+		expect(manager.getRemainingSeconds()).toBe(600);
+		manager.destroy();
 	});
 });

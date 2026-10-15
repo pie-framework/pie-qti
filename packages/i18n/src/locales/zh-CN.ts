@@ -118,6 +118,7 @@ export default {
 			selected: '已选择',
 			notSelected: '未选择',
 			correct: '正确',
+			revealChoice: '显示选项 {index}',
 		},
 
 		upload: {

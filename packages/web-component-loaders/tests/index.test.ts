@@ -31,6 +31,7 @@ describe('web component loader', () => {
 		const css = readFileSync(new URL('../src/default-runtime.css', import.meta.url), 'utf8');
 		expect(css).toContain("@import './theme-bridge.css'");
 		expect(css).toContain("@import './qti-shared-vocabulary.css'");
+		expect(css).toContain("@import './qti-pnp.css'");
 		expect(css).not.toContain('@pie-qti/');
 	});
 });

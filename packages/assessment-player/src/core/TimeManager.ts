@@ -32,11 +32,10 @@ export interface TimeManagerConfig {
 	/** Callback for time updates (fires every second) */
 	onTick?: (remainingSeconds: number, elapsedSeconds: number) => void;
 	/**
-	 * QTI 3.0 PNP extended time accommodation.
-	 * When active, multiplies assessmentTimeLimits.maxTime by the given multiplier.
-	 * multiplier: Infinity removes the time limit entirely.
+	 * QTI 3.0 PNP extended time accommodation, applied to every time limit by
+	 * `extendTimeLimit`.
 	 */
-	extendedTime?: { active: boolean; multiplier: number };
+	extendedTime?: ExtendedTime;
 	/** Injectable monotonic wall clock for deterministic hosts/tests. */
 	now?: () => number;
 }
@@ -74,6 +73,27 @@ export interface TimeTrackingState {
 	isPaused: boolean;
 }
 
+/**
+ * The PNP extended-time accommodation: `multiplier` scales a limit (Infinity removes it)
+ * and `fixedMinutes`, AfA's `fixed-minutes`, adds to it.
+ */
+export interface ExtendedTime {
+	active: boolean;
+	multiplier: number;
+	fixedMinutes?: number;
+}
+
+/** A time limit in seconds under extended time; undefined when the accommodation removes it. */
+export function extendTimeLimit(seconds: number, extended: ExtendedTime | undefined): number | undefined {
+	if (!extended?.active) return seconds;
+	if (extended.multiplier === Infinity) return undefined;
+	const scaled = extended.multiplier > 0 ? seconds * extended.multiplier : seconds;
+	const fixedMinutes = extended.fixedMinutes;
+	return fixedMinutes !== undefined && Number.isFinite(fixedMinutes) && fixedMinutes > 0
+		? scaled + fixedMinutes * 60
+		: scaled;
+}
+
 export class TimeManager {
 	private config: TimeManagerConfig;
 	private state: TimeTrackingState;
@@ -100,16 +120,7 @@ export class TimeManager {
 
 		// Initialize timer if time limit exists, applying PNP extended-time multiplier if set.
 		if (config.assessmentTimeLimits?.maxTime) {
-			const base = config.assessmentTimeLimits.maxTime;
-			const et = config.extendedTime;
-			if (et?.active && et.multiplier === Infinity) {
-				// multiplier: Infinity → unlimited time (no countdown)
-				this.maxTimeSeconds = null;
-			} else if (et?.active && et.multiplier > 0) {
-				this.maxTimeSeconds = base * et.multiplier;
-			} else {
-				this.maxTimeSeconds = base;
-			}
+			this.maxTimeSeconds = extendTimeLimit(config.assessmentTimeLimits.maxTime, config.extendedTime) ?? null;
 		}
 		// Scope timing is required even when the assessment itself has no maxTime.
 		this.startTimer();
@@ -121,10 +132,7 @@ export class TimeManager {
 
 	private applyExtendedTime(seconds: number | undefined): number | null {
 		if (seconds === undefined) return null;
-		const extended = this.config.extendedTime;
-		if (extended?.active && extended.multiplier === Infinity) return null;
-		if (extended?.active && extended.multiplier > 0) return seconds * extended.multiplier;
-		return seconds;
+		return extendTimeLimit(seconds, this.config.extendedTime) ?? null;
 	}
 
 	/**

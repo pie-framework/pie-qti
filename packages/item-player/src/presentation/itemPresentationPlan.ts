@@ -82,6 +82,7 @@ export interface BlockInteractionMount {
 	readonly correctResponse: unknown;
 	readonly pnp: PnpProfile | undefined;
 	readonly eliminationTool: boolean;
+	readonly answerMasking: boolean;
 	readonly disabled: boolean;
 	readonly componentRole: 'scorer' | undefined;
 }
@@ -406,6 +407,7 @@ function createBlockInteractionMounts({
 						: null,
 					pnp: source.pnp,
 					eliminationTool: source.pnp?.cognitive?.eliminationTool === true,
+					answerMasking: source.pnp?.cognitive?.answerMasking === true,
 					disabled: effectiveDisabled,
 					componentRole: roleCapabilities.canViewCorrectResponses ? 'scorer' : undefined,
 				};
