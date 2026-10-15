@@ -25,7 +25,7 @@ the PIE→QTI export. Slices run in certification-impact order. The conversion d
 | 1   | Item-body pass and printed variables           | `feat/item-body-printed-variables`    | #307 | merged  |
 | 2   | Inline feedback                                | `fix/feedback-inline-native`          | #309 | merged  |
 | 3   | Feedback and template blocks; modal feedback   | `feat/feedback-template-blocks`       | #311 | merged  |
-| 4   | Test feedback outcomes                         | `fix/test-feedback-outcomes`          |     | pending |
+| 4   | Test feedback outcomes                         | `fix/test-feedback-outcomes`          |     | in progress |
 | 5   | Outcome-processing inputs                      | `fix/outcome-processing-inputs`       |     | pending |
 | 6   | Lookup tables                                  | `fix/lookup-table-semantics`          |     | pending |
 | 7   | Test structure and item session control        | `feat/test-structure-session-control` |     | pending |
@@ -277,6 +277,11 @@ presentation on the slice 2 path. `contextVariables` on `openSession` sets conte
 
 Done when `atEnd` and `during` feedback at test and test-part level show for single and
 multiple outcomes.
+
+Landed with two changes. `submitResponses` and a resumed `initSession` return outcomes too, so
+`during` feedback follows each submission; part-level `atEnd` shows once the candidate moves past
+the part. `sum` and `product` in `qti-processing` now take a multiple or ordered container, which
+`testVariables` yields, and QTI 3 items no longer score as item `unknown`.
 
 ### 5. Outcome-processing inputs
 

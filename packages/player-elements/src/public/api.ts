@@ -306,8 +306,29 @@ export interface QtiSecureTestPart {
 	sections: QtiSecureSection[];
 	timeLimits?: QtiTimeLimits;
 	rubricBlocks?: QtiAssessmentRubricBlock[];
+	testFeedback?: QtiTestFeedback[];
 	itemSessionControl?: QtiItemSessionControl;
 }
+
+export interface QtiTestFeedback {
+	identifier: string;
+	outcomeIdentifier: string;
+	showHide: 'show' | 'hide';
+	access: 'atEnd' | 'during';
+	content: string;
+}
+
+/**
+ * A test-level outcome value: a scalar for single cardinality, an array for multiple and ordered,
+ * an object for record, and `null` for NULL.
+ */
+export type QtiTestOutcomeValue =
+	| string
+	| number
+	| boolean
+	| null
+	| Array<string | number | boolean | null>
+	| Record<string, unknown>;
 
 export interface QtiSecureAssessment {
 	identifier: string;
@@ -324,13 +345,7 @@ export interface QtiSecureAssessment {
 	}>;
 	outcomeProcessingXml?: string;
 	baseUrl?: string;
-	testFeedback?: Array<{
-		identifier: string;
-		outcomeIdentifier: string;
-		showHide: 'show' | 'hide';
-		access: 'atEnd' | 'during';
-		content: string;
-	}>;
+	testFeedback?: QtiTestFeedback[];
 }
 
 export type QtiAssessmentResponseValue = unknown;
@@ -387,6 +402,7 @@ export interface QtiAssessmentInitSessionResponse {
 	sessionId: string;
 	assessment: QtiSecureAssessment;
 	restoredState?: QtiAssessmentSessionState;
+	outcomes?: Record<string, QtiTestOutcomeValue>;
 }
 
 export interface QtiAssessmentSubmitResponsesRequest {
@@ -410,6 +426,7 @@ export interface QtiAssessmentSubmitResponsesResponse {
 	result?: QtiAssessmentScoringResult;
 	nextItemIdentifier?: string;
 	updatedState?: QtiAssessmentSessionState;
+	outcomes?: Record<string, QtiTestOutcomeValue>;
 	error?: string;
 }
 
@@ -419,7 +436,7 @@ export interface QtiAssessmentFinalizeResponse {
 	maxScore: number;
 	itemScores: Record<string, QtiAssessmentScoringResult>;
 	feedback?: string;
-	outcomes?: Record<string, string>;
+	outcomes?: Record<string, QtiTestOutcomeValue>;
 	finalizedAt: number;
 }
 

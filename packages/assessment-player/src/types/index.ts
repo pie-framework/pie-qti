@@ -57,3 +57,14 @@ export interface AssessmentResults {
 	itemResults: ItemResult[];
 	completedAt: Date;
 }
+
+/** A test feedback block `AssessmentPlayer.getVisibleFeedback()` shows now. */
+export interface VisibleTestFeedback {
+	/** Unique across the test; feedback identifiers repeat, for example in show/hide pairs. */
+	key: string;
+	identifier: string;
+	content: string;
+	access: 'atEnd' | 'during';
+	/** Set for feedback authored on a test part. */
+	testPartIdentifier?: string;
+}

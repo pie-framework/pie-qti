@@ -69,6 +69,9 @@ import type {
 	SessionId,
 	SubmitResponsesRequest,
 	SubmitResponsesResponse,
+	TestFeedbackItem,
+	TestOutcomeValue,
+	TestOutcomeValues,
 } from './api-contract.js';
 import { scoreAssessmentItem } from './assessment-item-scorer.js';
 
@@ -180,6 +183,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 					sessionId: stored.sessionId,
 					assessment: stored.assessment,
 					restoredState: stored.state,
+					outcomes: this.currentOutcomes(stored.assessment, stored.state),
 				};
 			}
 		}
@@ -354,6 +358,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			result,
 			nextItemIdentifier,
 			updatedState: session.state,
+			outcomes: this.currentOutcomes(session.assessment, session.state),
 		};
 	}
 
@@ -407,25 +412,38 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 
 		// Execute test-level outcome processing if available
 		const outcomes = this.runOutcomeProcessing(session.assessment, itemScores);
-		const totalScore = outcomes !== null ? (outcomes['SCORE_TOTAL'] ?? outcomes['SCORE'] ?? fallbackTotal) as number : fallbackTotal;
+		const scoreOutcome = outcomes?.SCORE_TOTAL ?? outcomes?.SCORE;
+		const totalScore = typeof scoreOutcome === 'number' ? scoreOutcome : fallbackTotal;
 
 		return {
 			success: true,
 			totalScore,
 			maxScore,
 			itemScores,
+			outcomes: outcomes ?? undefined,
 			finalizedAt: Date.now(),
 		};
 	}
 
+	/** Outcome values after the submissions so far; undefined before the first submission. */
+	private currentOutcomes(
+		assessment: SecureAssessment,
+		state: AssessmentSessionState
+	): TestOutcomeValues | undefined {
+		const itemScores = state.itemScores ?? {};
+		if (Object.keys(itemScores).length === 0) return undefined;
+		return this.runOutcomeProcessing(assessment, itemScores) ?? undefined;
+	}
+
 	/**
 	 * Execute test-level outcome processing (T9/T1).
-	 * Returns a map of outcome variable values, or null if no outcomeProcessing is defined.
+	 * Returns every declared outcome's value (null for NULL), or null if no outcomeProcessing is
+	 * defined.
 	 */
 	private runOutcomeProcessing(
 		assessment: SecureAssessment,
 		itemScores: Record<string, AssessmentScoringResult>
-	): Record<string, unknown> | null {
+	): TestOutcomeValues | null {
 		if (!assessment.outcomeProcessingXml) {
 			return null;
 		}
@@ -491,13 +509,10 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 				program
 			);
 
-			// Extract outcome values
-			const result: Record<string, unknown> = {};
+			const result: TestOutcomeValues = {};
 			for (const d of assessment.outcomeDeclarations || []) {
 				const v = ctx.getValue(d.identifier);
-				if (v.kind === 'value') {
-					result[d.identifier] = v.value;
-				}
+				result[d.identifier] = v.kind === 'value' ? (v.value as TestOutcomeValue) : null;
 			}
 			return result;
 		} catch (err) {
@@ -1194,18 +1209,24 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 		const outcomeProcessingXml = outcomeProcessingEl
 			? serializeXml(outcomeProcessingEl)
 			: undefined;
-		const testFeedback = childrenByTag(root, 'testFeedback').flatMap((feedback, index) => {
-			const outcomeIdentifier = getAttr(feedback, 'outcomeIdentifier');
-			if (!outcomeIdentifier) return [];
-			const content = Array.from(feedback.childNodes).map((node) => serializeXml(node)).join('');
-			return [{
-				identifier: getAttr(feedback, 'identifier') ?? `test-feedback-${index + 1}`,
-				outcomeIdentifier,
-				showHide: (getAttr(feedback, 'showHide') ?? 'show') as 'show' | 'hide',
-				access: (getAttr(feedback, 'access') ?? 'atEnd') as 'atEnd' | 'during',
-				content,
-			}];
-		});
+		// QTI 3 wraps testFeedback content in qti-content-body.
+		const parseTestFeedback = (parent: Element): TestFeedbackItem[] | undefined => {
+			const items = childrenByTag(parent, 'testFeedback').flatMap((feedback, index) => {
+				const outcomeIdentifier = getAttr(feedback, 'outcomeIdentifier');
+				if (!outcomeIdentifier) return [];
+				const body = childrenByTag(feedback, 'contentBody')[0] ?? feedback;
+				const content = Array.from(body.childNodes).map((node) => serializeXml(node)).join('');
+				return [{
+					identifier: getAttr(feedback, 'identifier') ?? `test-feedback-${index + 1}`,
+					outcomeIdentifier,
+					showHide: (getAttr(feedback, 'showHide') ?? 'show') as 'show' | 'hide',
+					access: (getAttr(feedback, 'access') ?? 'atEnd') as 'atEnd' | 'during',
+					content,
+				}];
+			});
+			return items.length > 0 ? items : undefined;
+		};
+		const testFeedback = parseTestFeedback(root);
 
 		// Extract assessment-level timeLimits.
 		const timeLimits = parseTimeLimits(root);
@@ -1249,6 +1270,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 				submissionMode: tpSubmissionMode,
 				sections,
 				rubricBlocks: tpRubricBlocks,
+				testFeedback: parseTestFeedback(tp),
 				itemSessionControl: tpItemSessionControl,
 				timeLimits: tpTimeLimits,
 			});
@@ -1284,7 +1306,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			timeLimits,
 			outcomeDeclarations: outcomeDeclarations.length > 0 ? outcomeDeclarations : undefined,
 			outcomeProcessingXml,
-			testFeedback: testFeedback.length > 0 ? testFeedback : undefined,
+			testFeedback,
 			baseUrl,
 		};
 	}

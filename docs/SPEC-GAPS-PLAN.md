@@ -175,32 +175,32 @@ Test signal
 
 ### G-05: `testFeedback` visibility only handles boolean outcomes
 
-Scope       — `packages/assessment-player/src/core/AssessmentPlayer.ts`
-Status      — In-progress (comparison done; the reference backend supplies no outcomes, and `access="during"` is never shown)
+Scope       — `packages/assessment-player/src/core/AssessmentPlayer.ts`; `ReferenceBackendAdapter.ts`
+Status      — Done (2026-10-14)
 Effort      — S
 Spec ref    — §2.1 (Assessment Architecture — testFeedback)
 
 Context
-The QTI spec says `testFeedback` has `outcomeIdentifier` + `identifier` + `showHide`. The element
-is shown when the outcome variable named by `outcomeIdentifier` equals `identifier` (for
-`showHide="show"`) or does not equal `identifier` (for `showHide="hide"`). The outcome variable
-can be any type, not just boolean.
+`testFeedback` has `outcomeIdentifier`, `identifier`, `showHide` and `access`. It shows when the
+outcome named by `outcomeIdentifier` matches `identifier` (inverted by `showHide="hide"`), and it
+belongs to the `assessmentTest` or to a `testPart`. `access="atEnd"` feedback shows at the end of
+the test or part; `access="during"` feedback shows while it runs.
 
 Current
-`AssessmentPlayer` compares `String(outcomes[fb.outcomeIdentifier] ?? '') === fb.identifier` at
-finalize — string equality for all outcome types, with booleans coerced to `"true"`/`"false"`.
-The outcomes come from the backend's finalize result, and `ReferenceBackendAdapter.finalizeAssessment`
-returns only `totalScore`, `maxScore` and `itemScores`, so the comparison sees `{}`: with the
-reference backend, `showHide="show"` feedback never shows and `showHide="hide"` feedback always
-shows. Only `access="atEnd"` feedback is evaluated. Tests cover `testFeedback` parsing only; none covers visibility.
-
-Action
-1. Return the outcome values `runOutcomeProcessing` computes from `finalizeAssessment` as `outcomes`.
-2. Evaluate `access="during"` feedback after each item submission.
-3. Add coverage for boolean outcomes, string outcomes and `showHide="hide"` through the reference backend.
+Visibility uses the shared `isShownByIdentifier` rule: equality for a single outcome, membership for
+a multiple or ordered one, and a NULL outcome matches nothing. `submitResponses`, a resumed
+`initSession` and `finalizeAssessment` return the test-level outcome values as typed
+`TestOutcomeValues`, and the player recomputes feedback on each, notifying `onTestFeedbackChange`
+listeners. The reference backend runs outcome processing for each. Test-level `during` feedback shows
+once outcome processing has run and `atEnd` once the test is finalized; `testPart` feedback is parsed
+onto `SecureTestPart`, its `during` shows while the part is current and its `atEnd` once the
+candidate has moved past the part or the test is finalized. QTI 3 content is unwrapped from
+`qti-content-body`.
 
 Test signal
-- Assessment with `outcomeIdentifier="GRADE"` and three feedback blocks for `identifier="A"`, `"B"`, `"C"` shows only the correct block after scoring.
+- `packages/assessment-player/tests/test-feedback-outcomes.test.ts`: in QTI 2.2 and 3.0, test and
+  part feedback by a single `GRADE` outcome and a multiple `FLAGS` outcome, `showHide="hide"`, both
+  access timings and a resumed session.
 
 ---
 
@@ -708,8 +708,8 @@ delegates its authoritative `SecureAssessment` parse to that adapter, preserving
 and test feedback. The test context it builds is partial: each item carries only `SCORE` and its
 outcome values, coerced to single float or string, with no section identifiers, categories, weights
 or presented/responded/selected flags, so `numberResponded`, `numberSelected`, section filters,
-`weightIdentifier` and category filters do not evaluate as authored; and the computed outcomes do
-not reach test feedback (G-05). Production use remains backend-authoritative: an injected backend supplies the
+`weightIdentifier` and category filters do not evaluate as authored. The computed outcomes drive test
+feedback (G-05). Production use remains backend-authoritative: an injected backend supplies the
 secure assessment/session model rather than exposing answer-bearing assessment XML in the browser.
 
 Action
