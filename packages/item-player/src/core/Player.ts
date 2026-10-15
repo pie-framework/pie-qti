@@ -869,8 +869,30 @@ export class Player {
 			maxScore,
 			completed,
 			outcomeValues: outcomes,
+			correct: this.responsesMatchCorrect(),
 			modalFeedback: this.getModalFeedback(outcomes),
 		};
+	}
+
+	/**
+	 * QTI item correctness, as test-level `numberCorrect` reads it: every declared response matches
+	 * its correct response. Undefined when the item has no response or one declares no correct
+	 * response.
+	 */
+	private responsesMatchCorrect(): boolean | undefined {
+		const responses = Object.values(this.decls).filter((d) => (d as any).__kind === 'response');
+		if (responses.length === 0 || responses.some((d) => d.correctResponse?.kind !== 'value')) return undefined;
+		const env = { ctx: this.ctx, ops: this.ops, rng: this.rng, customOperators: this.config.customOperators };
+		return responses.every((d) =>
+			toBoolean(
+				evalExpr(env, {
+					kind: 'expr.match',
+					id: `correct-${d.identifier}`,
+					a: { kind: 'expr.variable', id: `correct-${d.identifier}-response`, identifier: d.identifier },
+					b: { kind: 'expr.correct', id: `correct-${d.identifier}-correct`, identifier: d.identifier },
+				} as any),
+			),
+		);
 	}
 
 	public getItemBodyHtml(): HtmlContent {

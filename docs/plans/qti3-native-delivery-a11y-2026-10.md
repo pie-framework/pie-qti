@@ -26,7 +26,7 @@ the PIE→QTI export. Slices run in certification-impact order. The conversion d
 | 2   | Inline feedback                                | `fix/feedback-inline-native`          | #309 | merged  |
 | 3   | Feedback and template blocks; modal feedback   | `feat/feedback-template-blocks`       | #311 | merged  |
 | 4   | Test feedback outcomes                         | `fix/test-feedback-outcomes`          | #315 | merged  |
-| 5   | Outcome-processing inputs                      | `fix/outcome-processing-inputs`       |     | pending |
+| 5   | Outcome-processing inputs                      | `fix/outcome-processing-inputs`       | #317 | open    |
 | 6   | Lookup tables                                  | `fix/lookup-table-semantics`          |     | pending |
 | 7   | Test structure and item session control        | `feat/test-structure-session-control` |     | pending |
 | 8   | TTS and SSML in delivery                       | `feat/delivery-tts-ssml`              |     | pending |
@@ -293,6 +293,12 @@ the part. `sum` and `product` in `qti-processing` now take a multiple or ordered
 
 Done when `numberResponded`, `numberSelected`, `numberCorrect` without `MAXSCORE`,
 section/category filters and weighted `testVariables` match spec examples.
+
+Landed with two changes. Item scoring reports `correct` (every declared response matches its
+correct response, absent when one declares none), which the backend stores per item with its
+variables, so `numberCorrect` reads it directly. `testVariables` follows the spec's base-type
+rules: an omitted `baseType` matches integer and float, the result is integer only when every match
+is, and a `weightIdentifier` makes it float.
 
 ### 6. Lookup tables
 

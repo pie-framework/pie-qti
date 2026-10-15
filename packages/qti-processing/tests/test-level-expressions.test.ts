@@ -49,50 +49,61 @@ describe('qti-processing test-level expressions', () => {
 		expect(out.value).toEqual([1, 0]);
 	});
 
-	it('outcomeMinimum/outcomeMaximum compute min/max over filtered items', () => {
+	it('testVariables matches integer and float when baseType is omitted, weighting into float', () => {
 		const env = makeEnv({
 			test: {
 				items: [
-					{
-						identifier: 'i1',
-						sectionIdentifiers: ['s1'],
-						categories: ['math'],
-						variables: { SCORE: qtiValue('float', 'single', 1) },
-					},
-					{
-						identifier: 'i2',
-						sectionIdentifiers: ['s1'],
-						categories: ['math'],
-						variables: { SCORE: qtiValue('float', 'single', 3) },
-					},
-					{
-						identifier: 'i3',
-						sectionIdentifiers: ['s2'],
-						categories: ['ela'],
-						variables: { SCORE: qtiValue('float', 'single', 2) },
-					},
+					{ identifier: 'i1', weights: { W: 2 }, variables: { V: qtiValue('integer', 'single', 1), S: qtiValue('string', 'single', 'a') } },
+					{ identifier: 'i2', weights: { W: 0.5 }, variables: { V: qtiValue('integer', 'single', 4), S: qtiValue('identifier', 'single', 'b') } },
+					{ identifier: 'i3', variables: { V: qtiValue('integer', 'multiple', [9]) } },
 				],
 			},
 		});
+		const testVariables = (attrs: Record<string, string>) =>
+			evalExpr(env as any, { kind: 'expr.testVariables', id: 'e', variableIdentifier: 'V', ...attrs } as any);
 
-		const minExpr = {
-			kind: 'expr.outcomeMinimum',
-			id: 'min',
-			outcomeIdentifier: 'SCORE',
-			sectionIdentifier: 's1',
-			includeCategory: ['math'],
-		} as any;
+		expect(testVariables({})).toEqual(qtiValue('integer', 'multiple', [1, 4]));
+		expect(testVariables({ weightIdentifier: 'W' })).toEqual(qtiValue('float', 'multiple', [2, 2]));
+		expect(testVariables({ baseType: 'float' })).toEqual(qtiNull('float', 'multiple'));
+		expect(testVariables({ variableIdentifier: 'S' })).toEqual(qtiNull('integer', 'multiple'));
+		expect(testVariables({ variableIdentifier: 'S', baseType: 'string' })).toEqual(qtiValue('string', 'multiple', ['a']));
+	});
 
-		const maxExpr = {
-			kind: 'expr.outcomeMaximum',
-			id: 'max',
-			outcomeIdentifier: 'SCORE',
-			sectionIdentifier: 's1',
-			includeCategory: ['math'],
-		} as any;
+	it('outcomeMinimum/outcomeMaximum read declared bounds over filtered items, weighted', () => {
+		const items = [
+			{
+				identifier: 'i1',
+				sectionIdentifiers: ['s1'],
+				categories: ['math'],
+				weights: { W: 2 },
+				outcomeBounds: { SCORE: { normalMinimum: -1, normalMaximum: 2 } },
+				variables: { SCORE: qtiValue('float', 'single', 1) },
+			},
+			{
+				identifier: 'i2',
+				sectionIdentifiers: ['s1'],
+				categories: ['math'],
+				outcomeBounds: { SCORE: { normalMaximum: 5 } },
+				variables: { SCORE: qtiValue('float', 'single', 3) },
+			},
+			{
+				identifier: 'i3',
+				sectionIdentifiers: ['s2'],
+				categories: ['ela'],
+				variables: { SCORE: qtiValue('float', 'single', 2) },
+			},
+		];
+		const env = makeEnv({ test: { items } });
+		const bound = (kind: string, attrs: Record<string, unknown> = {}) =>
+			evalExpr(env as any, { kind, id: kind, outcomeIdentifier: 'SCORE', ...attrs } as any);
+		const math = { sectionIdentifier: 's1', includeCategory: ['math'] };
 
-		expect(evalExpr(env as any, minExpr)).toEqual(qtiValue('float', 'single', 1));
-		expect(evalExpr(env as any, maxExpr)).toEqual(qtiValue('float', 'single', 3));
+		expect(bound('expr.outcomeMinimum', math)).toEqual(qtiValue('float', 'multiple', [-1]));
+		expect(bound('expr.outcomeMaximum', math)).toEqual(qtiValue('float', 'multiple', [2, 5]));
+		expect(bound('expr.outcomeMaximum', { ...math, weightIdentifier: 'W' })).toEqual(qtiValue('float', 'multiple', [4, 5]));
+		// i3 declares no maximum, so the maximum over every item is NULL; the minimum ignores it.
+		expect(bound('expr.outcomeMaximum')).toEqual(qtiNull('float', 'multiple'));
+		expect(bound('expr.outcomeMinimum')).toEqual(qtiValue('float', 'multiple', [-1]));
 	});
 
 	it('numberCorrect/numberIncorrect use explicit flags when present', () => {

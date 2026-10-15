@@ -243,6 +243,8 @@ export interface SecureItemRef {
 	preConditions?: string[];
 	/** QTI item-ref weights, preserved for backend outcome processing. */
 	weights?: Array<{ identifier: string; value: number }>;
+	/** QTI item-ref categories, matched by includeCategory/excludeCategory in outcome processing. */
+	categories?: string[];
 }
 
 export interface AssessmentRubricBlock {

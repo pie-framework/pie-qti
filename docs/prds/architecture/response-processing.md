@@ -145,7 +145,7 @@ The QTI processing model is inherently stateful: `setOutcomeValue` and `setTempl
 
 ### Known divergences from spec
 
-- **`outcomeProcessing` XML at assessment level (G-11):** `buildOutcomeProcessingAst()` and the full test-level expression set (`testVariables`, `numberCorrect`, etc.) are implemented and pass tests. `ReferenceBackendAdapter` now parses and executes the assessment XML path. However, `QtiAssessmentPlayerElement` uses a separate, lossy `assessmentTest` parser and drops outcome declarations and processing before registering the assessment. See G-11.
+- **`outcomeProcessing` inputs are the backend's (G-11):** the test-level expressions evaluate over whatever `TestItemState` the backend supplies. `ReferenceBackendAdapter` supplies one per delivered item, submitted or not, with typed variables, section path, categories, weights, declared normal bounds and the presented/responded/correct/incorrect/selected flags; a production backend must build the same from its authoritative session state. `outcomeMinimum` and `outcomeMaximum` read the declared `normalMinimum`/`normalMaximum`.
 - **`xi:include` is a parse error, not a no-op:** The spec implies `xi:include` should be resolved. The engine throws instead of silently ignoring it, to surface content authoring errors early.
 
 ---
@@ -230,7 +230,7 @@ The QTI processing model is inherently stateful: `setOutcomeValue` and `setTempl
 | Custom operators | `EvalEnv.customOperators: Record<string, (args, meta) => QtiValue>` | Populate the `customOperators` map before calling `evalExpr`. Keys are the operator `class` attribute or `definition` URI from the QTI XML. | Map `class="my:weighted"` to a custom scoring function |
 | `OperatorRegistry` | `OperatorRegistry` in `eval/operators.ts` | Call `registry.register(name, impl)` to add or override an operator. Pass the registry as `EvalEnv.ops`. | Override `round` to use a different rounding mode |
 | Element name mapping | `ElementNameMapper` (from `@pie-qti/qti-common`) | Implement and pass via `BuildOptions.elementNameMapper` | Support a content vendor's non-standard element names |
-| Test-level context | `TestEvalContext` in `test/types.ts` | Populate and pass as `EvalEnv.test` | Wire `testVariables`/`numberCorrect` to real assessment-player state (prerequisite for G-11) |
+| Test-level context | `TestEvalContext` in `test/types.ts` | Populate one `TestItemState` per delivered item and pass as `EvalEnv.test` | `ReferenceBackendAdapter.buildTestItems` |
 
 ---
 

@@ -691,7 +691,7 @@ clear record of what remains and so sub-tasks can be created when priorities shi
 ### G-11: Full QTI `<outcomeProcessing>` XML interpreter at assessment level
 
 Scope       — `packages/assessment-player/`; `packages/qti-processing/`
-Status      — Done for the interpreter (2026-07-13); the reference backend passes it a partial test context
+Status      — Done (interpreter 2026-07-13; full test context 2026-10-15)
 Effort      — L
 Spec ref    — §2.1 (Assessment Architecture), §4.3
 
@@ -705,11 +705,12 @@ Current
 `ReferenceBackendAdapter` parses outcome declarations and outcome-processing XML and executes it
 with a test context. The raw-XML custom element's explicit reference mode now resolves resources and
 delegates its authoritative `SecureAssessment` parse to that adapter, preserving outcome processing
-and test feedback. The test context it builds is partial: each item carries only `SCORE` and its
-outcome values, coerced to single float or string, with no section identifiers, categories, weights
-or presented/responded/selected flags, so `numberResponded`, `numberSelected`, section filters,
-`weightIdentifier` and category filters do not evaluate as authored. The computed outcomes drive test
-feedback (G-05). Production use remains backend-authoritative: an injected backend supplies the
+and test feedback. The test context holds every delivered item, submitted or not: its response,
+outcome, template and built-in variables with their declared base type and cardinality, the
+section path, item-ref categories, weights as a record, declared `normalMinimum`/`normalMaximum`,
+and the presented, responded, correct, incorrect and selected flags. Correctness comes from item
+scoring (every response matches its correct response), so `numberCorrect` needs no `MAXSCORE`.
+Unsubmitted items carry their declared defaults. The computed outcomes drive test feedback (G-05). Production use remains backend-authoritative: an injected backend supplies the
 secure assessment/session model rather than exposing answer-bearing assessment XML in the browser.
 
 Action
@@ -719,6 +720,8 @@ conflating them with outcome-processing execution.
 
 Test signal
 - An assessmentTest XML with `<setOutcomeValue>` using `<testVariables>` produces the correct `SCORE`.
+- `packages/assessment-player/tests/outcome-processing-inputs.test.ts`: the `number*` counts,
+  section and category filters, weighted `testVariables` and normal bounds in QTI 2.2 and 3.0.
 - The four existing template scenarios still pass.
 
 ---

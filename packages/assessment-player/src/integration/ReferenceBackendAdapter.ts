@@ -40,6 +40,7 @@ import {
 	type QtiValue,
 	qtiNull,
 	qtiValue,
+	type TestItemState,
 } from '@pie-qti/qti-processing';
 import {
 	createResolvedItemDeliveryContext,
@@ -73,7 +74,7 @@ import type {
 	TestOutcomeValue,
 	TestOutcomeValues,
 } from './api-contract.js';
-import { scoreAssessmentItem } from './assessment-item-scorer.js';
+import { defaultItemTestState, type ItemTestState, scoreAssessmentItemForTest } from './assessment-item-scorer.js';
 
 /**
  * Storage key prefix for localStorage
@@ -123,6 +124,8 @@ interface StoredSession {
 	createdAt: number;
 	/** Finalized flag */
 	finalized: boolean;
+	/** Per-item variables and flags from the latest submission, read by test-level outcome processing. */
+	itemTestStates?: Record<string, ItemTestState>;
 }
 
 /**
@@ -183,7 +186,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 					sessionId: stored.sessionId,
 					assessment: stored.assessment,
 					restoredState: stored.state,
-					outcomes: this.currentOutcomes(stored.assessment, stored.state),
+					outcomes: this.currentOutcomes(stored),
 				};
 			}
 		}
@@ -289,7 +292,11 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 
 		// **SECURITY WARNING**: Client-side scoring is INSECURE
 		// In production, this MUST be done server-side
-		const result = scoreAssessmentItem({ itemXml, responses: request.responses, itemSession: request.itemSession });
+		const { result, testState } = scoreAssessmentItemForTest({
+			itemXml,
+			responses: request.responses,
+			itemSession: request.itemSession,
+		});
 
 		// Store responses and result
 		session.state.itemResponses[request.itemIdentifier] = request.responses;
@@ -297,6 +304,11 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			session.state.itemScores = {};
 		}
 		session.state.itemScores[request.itemIdentifier] = result;
+		if (testState) {
+			session.itemTestStates = { ...(session.itemTestStates ?? {}), [request.itemIdentifier]: testState };
+		} else if (session.itemTestStates) {
+			delete session.itemTestStates[request.itemIdentifier];
+		}
 		if (request.itemSession) {
 			session.state.itemSessions = {
 				...(session.state.itemSessions ?? {}),
@@ -358,7 +370,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			result,
 			nextItemIdentifier,
 			updatedState: session.state,
-			outcomes: this.currentOutcomes(session.assessment, session.state),
+			outcomes: this.currentOutcomes(session),
 		};
 	}
 
@@ -411,7 +423,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 		const maxScore = Object.values(itemScores).reduce((sum, result) => sum + result.maxScore, 0);
 
 		// Execute test-level outcome processing if available
-		const outcomes = this.runOutcomeProcessing(session.assessment, itemScores);
+		const outcomes = this.runOutcomeProcessing(session);
 		const scoreOutcome = outcomes?.SCORE_TOTAL ?? outcomes?.SCORE;
 		const totalScore = typeof scoreOutcome === 'number' ? scoreOutcome : fallbackTotal;
 
@@ -426,13 +438,9 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 	}
 
 	/** Outcome values after the submissions so far; undefined before the first submission. */
-	private currentOutcomes(
-		assessment: SecureAssessment,
-		state: AssessmentSessionState
-	): TestOutcomeValues | undefined {
-		const itemScores = state.itemScores ?? {};
-		if (Object.keys(itemScores).length === 0) return undefined;
-		return this.runOutcomeProcessing(assessment, itemScores) ?? undefined;
+	private currentOutcomes(session: StoredSession): TestOutcomeValues | undefined {
+		if (Object.keys(session.state.itemScores ?? {}).length === 0) return undefined;
+		return this.runOutcomeProcessing(session) ?? undefined;
 	}
 
 	/**
@@ -440,10 +448,8 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 	 * Returns every declared outcome's value (null for NULL), or null if no outcomeProcessing is
 	 * defined.
 	 */
-	private runOutcomeProcessing(
-		assessment: SecureAssessment,
-		itemScores: Record<string, AssessmentScoringResult>
-	): TestOutcomeValues | null {
+	private runOutcomeProcessing(session: StoredSession): TestOutcomeValues | null {
+		const { assessment } = session;
 		if (!assessment.outcomeProcessingXml) {
 			return null;
 		}
@@ -474,22 +480,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			const ctx = new DeclarationContext(decls);
 			const ops = new OperatorRegistry();
 
-			// Build test items array for testVariables expression
-			const testItems = Object.entries(itemScores).map(([id, scoring]) => ({
-				identifier: id,
-				variables: {
-					SCORE: qtiValue('float', 'single', scoring.score),
-					// Add any other outcome values from the scoring result
-					...Object.fromEntries(
-						Object.entries(scoring.outcomeValues || {}).map(([k, v]) => [
-							k,
-							typeof v === 'number'
-								? qtiValue('float', 'single', v)
-								: qtiValue('string', 'single', String(v)),
-						])
-					),
-				},
-			}));
+			const testItems = this.buildTestItems(session);
 
 			// Parse and execute outcome processing
 			const opEl = parseXml(assessment.outcomeProcessingXml).documentElement;
@@ -995,6 +986,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 					'';
 			const requiredRaw = getAttr(ref, 'required');
 			const fixedRaw = getAttr(ref, 'fixed');
+			const categories = (getAttr(ref, 'category') ?? '').split(/\s+/).filter(Boolean);
 			const weights = childrenByTag(ref, 'weight').flatMap((weight) => {
 				const identifier = getAttr(weight, 'identifier');
 				const value = Number(getAttr(weight, 'value'));
@@ -1011,6 +1003,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 				branchRule: parseBranchRules(ref),
 				preConditions: parseConditionExpressions(ref, 'preCondition'),
 				weights: weights.length > 0 ? weights : undefined,
+				categories: categories.length > 0 ? categories : undefined,
 			};
 		};
 
@@ -1340,23 +1333,77 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 	}
 
 	private getItemOrder(assessment: SecureAssessment): string[] {
-		const out: string[] = [];
-		const visit = (section: SecureSection): void => {
+		return this.getItemRefsInOrder(assessment).map(({ item }) => item.identifier);
+	}
+
+	/** Delivered item refs in order, each with the identifiers of the sections containing it (outermost first). */
+	private getItemRefsInOrder(
+		assessment: SecureAssessment
+	): Array<{ item: SecureItemRef; sectionIdentifiers: string[] }> {
+		const out: Array<{ item: SecureItemRef; sectionIdentifiers: string[] }> = [];
+		const visit = (section: SecureSection, path: string[]): void => {
+			const sectionIdentifiers = [...path, section.identifier];
 			const components = section.children ?? [
 				...(section.assessmentItemRefs ?? []).map((item) => ({ type: 'item' as const, item })),
 				...(section.sections ?? []).map((child) => ({ type: 'section' as const, section: child })),
 			];
 			for (const component of components) {
-				if (component.type === 'item') out.push(component.item.identifier);
-				else visit(component.section);
+				if (component.type === 'item') out.push({ item: component.item, sectionIdentifiers });
+				else visit(component.section, sectionIdentifiers);
 			}
 		};
 		for (const part of assessment.testParts || []) {
 			for (const section of part.sections || []) {
-				visit(section);
+				visit(section, []);
 			}
 		}
 		return out;
+	}
+
+	/**
+	 * Test-level view of every delivered item. Items not yet submitted carry their declared defaults
+	 * and count as not presented; sessions stored before item test states existed fall back to the
+	 * submitted scores, leaving correctness to SCORE/MAXSCORE inference.
+	 */
+	private buildTestItems(session: StoredSession): TestItemState[] {
+		const itemScores = session.state.itemScores ?? {};
+		return this.getItemRefsInOrder(session.assessment).map(({ item, sectionIdentifiers }) => {
+			const scoring = itemScores[item.identifier];
+			const presented = scoring !== undefined;
+			const stored = presented ? session.itemTestStates?.[item.identifier] : undefined;
+			const itemState = presented ? stored : defaultItemTestState(item.itemXml);
+			const variables: Record<string, QtiValue> = {
+				...(itemState?.variables ?? (scoring ? this.scoredItemVariables(scoring) : {})),
+			};
+			if (scoring && !variables.SCORE) variables.SCORE = qtiValue('float', 'single', scoring.score);
+			const legacy = presented && !stored;
+			return {
+				identifier: item.identifier,
+				sectionIdentifiers,
+				categories: item.categories,
+				weights: item.weights ? Object.fromEntries(item.weights.map((w) => [w.identifier, w.value])) : undefined,
+				variables,
+				outcomeBounds: (itemState ?? defaultItemTestState(item.itemXml))?.outcomeBounds,
+				presented,
+				responded: legacy
+					? this.hasAnyResponse(session.state.itemResponses[item.identifier] ?? {})
+					: presented && itemState?.responded === true,
+				...(legacy
+					? {}
+					: { correct: presented && itemState?.correct === true, incorrect: presented && itemState?.correct === false }),
+				selected: true,
+			};
+		});
+	}
+
+	/** Variables recoverable from a scoring result alone: numbers as float, everything else as string. */
+	private scoredItemVariables(scoring: AssessmentScoringResult): Record<string, QtiValue> {
+		return Object.fromEntries(
+			Object.entries(scoring.outcomeValues || {}).map(([k, v]) => [
+				k,
+				typeof v === 'number' ? qtiValue('float', 'single', v) : qtiValue('string', 'single', String(v)),
+			])
+		);
 	}
 
 	// =========================================================================

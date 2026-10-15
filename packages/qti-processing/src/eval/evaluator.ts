@@ -280,66 +280,57 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			const items = filterTestItems(expr);
 			if (!items) return qtiInvalid('testVariables requires env.test');
 
-			const targetBaseType = asBaseType(expr.baseType) || 'float';
+			// An omitted baseType matches integer and float variables; the result is integer when every
+			// match is. Weights apply only to float or omitted baseType, and make the result float.
+			const wanted = asBaseType(expr.baseType);
+			const weighted = Boolean(expr.weightIdentifier) && (wanted === undefined || wanted === 'float');
 			const out: unknown[] = [];
+			let allInteger = true;
 
 			for (const it of items) {
 				const v = it.variables?.[expr.variableIdentifier];
-				if (!v || v.kind !== 'value') continue;
-				if (v.cardinality !== 'single') continue;
-				if (v.value === null || v.value === undefined) continue;
-
 				// Only variables with single cardinality are considered, all NULL values are ignored.
-				let raw: unknown = v.value;
+				if (!v || v.kind !== 'value' || v.cardinality !== 'single') continue;
+				if (v.value === null || v.value === undefined) continue;
+				const declared = v.baseType ?? (typeof v.value === 'number' ? 'float' : undefined);
+				if (wanted ? declared !== wanted : declared !== 'integer' && declared !== 'float') continue;
+				if (declared !== 'integer') allInteger = false;
 
-				// If weightIdentifier is provided, apply weight to numeric values.
-				if (expr.weightIdentifier) {
-					const w = resolveWeight(it, expr.weightIdentifier);
+				if (weighted) {
 					const n = toNumber(v);
-					if (Number.isFinite(n)) raw = n * w;
-				}
-
-				// Coerce into requested baseType (best effort).
-				switch (targetBaseType) {
-					case 'boolean':
-						out.push(Boolean(raw));
-						break;
-					case 'integer': {
-						const n = Number(raw);
-						if (Number.isFinite(n)) out.push(Math.trunc(n));
-						break;
-					}
-					case 'float': {
-						const n = Number(raw);
-						if (Number.isFinite(n)) out.push(n);
-						break;
-					}
-					default:
-						out.push(String(raw));
-						break;
+					if (Number.isFinite(n)) out.push(n * resolveWeight(it, expr.weightIdentifier));
+				} else if (declared === 'integer' || declared === 'float') {
+					const n = toNumber(v);
+					if (Number.isFinite(n)) out.push(n);
+				} else {
+					out.push(v.value);
 				}
 			}
 
-			return qtiValue(targetBaseType, 'multiple', out);
+			const baseType = wanted ?? (allInteger && !weighted ? 'integer' : 'float');
+			return out.length > 0 ? qtiValue(baseType, 'multiple', out) : qtiNull(baseType, 'multiple');
 		}
 		case 'expr.outcomeMinimum':
 		case 'expr.outcomeMaximum': {
 			const items = filterTestItems(expr);
 			if (!items) return qtiInvalid(`${expr.kind} requires env.test`);
 
+			// The declared normalMinimum/normalMaximum of each item's outcome. Items with no declared
+			// minimum are ignored; an item with no declared maximum makes the result NULL.
+			const isMinimum = expr.kind === 'expr.outcomeMinimum';
 			const values: number[] = [];
 			for (const it of items) {
 				const v = it.variables?.[expr.outcomeIdentifier];
-				if (!v || v.kind !== 'value') continue;
-				if (v.cardinality !== 'single') continue;
-				const n = toNumber(v);
-				if (!Number.isFinite(n)) continue;
-				const w = resolveWeight(it, (expr as any).weightIdentifier);
-				values.push(n * w);
+				if (v?.cardinality !== undefined && v.cardinality !== 'single') continue;
+				const bounds = it.outcomeBounds?.[expr.outcomeIdentifier];
+				const n = isMinimum ? bounds?.normalMinimum : bounds?.normalMaximum;
+				if (typeof n !== 'number' || !Number.isFinite(n)) {
+					if (isMinimum) continue;
+					return qtiNull('float', 'multiple');
+				}
+				values.push(n * resolveWeight(it, expr.weightIdentifier));
 			}
-			if (values.length === 0) return qtiNull('float', 'single');
-			const out = expr.kind === 'expr.outcomeMinimum' ? Math.min(...values) : Math.max(...values);
-			return qtiValue('float', 'single', out);
+			return values.length > 0 ? qtiValue('float', 'multiple', values) : qtiNull('float', 'multiple');
 		}
 		case 'expr.numberCorrect':
 		case 'expr.numberIncorrect':

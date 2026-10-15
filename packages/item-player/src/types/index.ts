@@ -188,6 +188,11 @@ export interface ScoringResult {
 	maxScore: number;
 	completed: boolean;
 	outcomeValues: Record<string, any>;
+	/**
+	 * Whether every declared response matches its correct response; absent when the item has no
+	 * response or one declares no correct response.
+	 */
+	correct?: boolean;
 	/** Modal feedback elements that should be displayed based on outcome values */
 	modalFeedback?: ModalFeedback[];
 }
