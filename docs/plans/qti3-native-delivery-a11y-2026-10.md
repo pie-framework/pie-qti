@@ -31,7 +31,7 @@ the PIE→QTI export. Slices run in certification-impact order. The conversion d
 | 7   | Test structure and item session control        | `feat/test-structure-session-control` | #321 | merged  |
 | 8   | TTS and SSML in delivery                       | `feat/delivery-tts-ssml`              | #323 | merged  |
 | 9   | Content language                               | `feat/delivery-content-language`      | #325 | open    |
-| 10  | PNP in delivery                                | `feat/delivery-pnp`                   |     | in progress |
+| 10  | PNP in delivery                                | `feat/delivery-pnp`                   | #326 | open    |
 | 11  | Shared vocabulary, catalogs and sanitizer      | `feat/delivery-vocabulary-catalogs`   |     | pending |
 | 12  | Element map completion                         | `fix/qti3-element-map`                | #301 | merged  |
 | 13  | QTI 3.0 writer                                 | `feat/pie-to-qti2-qti3-writer`        | #302 | merged  |
