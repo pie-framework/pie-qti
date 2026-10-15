@@ -88,7 +88,7 @@ export {
 export { isResponseEmpty } from './utils/responseUtils.js';
 
 // PNP profile (AfA PNP 3.0, QTI 3's per-candidate profile)
-export type { PnpProfile } from './pnp/types.js';
+export type { PnpProfile, PnpTextAppearance, PnpToolSupports } from './pnp/types.js';
 export { applyPnpToRoot } from './pnp/applyPnp.js';
 export type { AfaPnpRecord } from './pnp/parsePnpXml.js';
 export { AFA_PNP_NAMESPACE, parseAfaPnpXml, parsePnpXml, pnpProfileFromAfa } from './pnp/parsePnpXml.js';

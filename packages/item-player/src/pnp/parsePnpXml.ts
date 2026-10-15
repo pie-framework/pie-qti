@@ -1,6 +1,6 @@
 import { parse as parseHtml } from 'node-html-parser';
 import type { HTMLElement as NhpElement } from 'node-html-parser';
-import type { CatalogSupportPreference, PnpProfile } from './types.js';
+import type { CatalogSupportPreference, PnpProfile, PnpTextAppearance, PnpToolSupports } from './types.js';
 
 /** QTI 3's profile of Access for All Personal Needs and Preferences 3.0. */
 export const AFA_PNP_NAMESPACE = 'http://www.imsglobal.org/xsd/qtiv3p0/imsafa3p0pnp_v1p0';
@@ -72,6 +72,28 @@ const COLOR_THEMES: Readonly<Record<string, ColorScheme>> = {
 	'cream-black': 'creamblack',
 };
 
+/** AfA `generic-font-face` terms onto CSS generic families. */
+const GENERIC_FONT_FACES: Readonly<Record<string, string>> = {
+	serif: 'serif',
+	'sans serif': 'sans-serif',
+	monospaced: 'monospace',
+	cursive: 'cursive',
+	fantasy: 'fantasy',
+};
+
+/** AfA's speech rate when the profile gives none, in words per minute. */
+const AFA_DEFAULT_SPEECH_RATE = 180;
+
+/**
+ * AfA tool features onto pie-players support ids, the ids its
+ * `createPersonalNeedsProfileFromAfa` gives them. `spoken` resolves by reading type.
+ */
+const TOOL_FEATURES: Readonly<Record<string, string>> = {
+	'calculator-on-screen': 'calculator',
+	'line-reader': 'lineReader',
+	'dictionary-on-screen': 'dictionary',
+};
+
 /**
  * Parse an AfA PNP 3.0 document into its record: an `access-for-all-pnp` element, or
  * the first one inside an `access-for-all-pnp-record`. A bulk records file holds one
@@ -106,8 +128,8 @@ export function parseAfaPnpXml(xml: string | Element): AfaPnpRecord | null {
 /**
  * The part of an AfA record the item player renders. A feature counts when the record
  * names it or one of its activation sets lists it, unless `prohibit-set` lists it.
- * Features with no `PnpProfile` field stay in the record for the host's tools:
- * `fixed-minutes` testing time, `ext:` color themes, and every tool support.
+ * Features with no `PnpProfile` field stay in the record for the host: `ext:` color
+ * themes, and the tool supports `tools` does not name.
  */
 export function pnpProfileFromAfa(record: AfaPnpRecord): PnpProfile {
 	const prohibited = new Set(record['prohibit-set'] ?? []);
@@ -131,6 +153,21 @@ export function pnpProfileFromAfa(record: AfaPnpRecord): PnpProfile {
 			finiteNumber(field(field(magnification, 'all-content'), 'zoom-amount')) ??
 			finiteNumber(field(field(magnification, 'text'), 'zoom-amount'));
 		if (zoom !== undefined && zoom > 0) display.magnification = zoom;
+	}
+	if (granted('language-of-interface')) {
+		const interfaceLanguage = normalizeLanguageCode(field(record['language-of-interface'], 'language'));
+		if (interfaceLanguage) display.interfaceLanguage = interfaceLanguage;
+	}
+	if (granted('invert-display-polarity')) {
+		const polarity = record['invert-display-polarity'];
+		const foreground = hexColor(field(polarity, 'foreground'));
+		const background = hexColor(field(polarity, 'background'));
+		display.invertPolarity = { ...(foreground ? { foreground } : {}), ...(background ? { background } : {}) };
+	}
+	if (granted('layout-single-column')) display.singleColumn = true;
+	if (granted('text-appearance')) {
+		const textAppearance = textAppearanceOf(record['text-appearance']);
+		if (textAppearance) display.textAppearance = textAppearance;
 	}
 
 	const content: NonNullable<PnpProfile['content']> = {};
@@ -157,17 +194,102 @@ export function pnpProfileFromAfa(record: AfaPnpRecord): PnpProfile {
 		const multiplier = isPresent(field(testingTime, 'unlimited'))
 			? Infinity
 			: finiteNumber(field(testingTime, 'time-multiplier'));
+		const fixedMinutes = finiteNumber(field(testingTime, 'fixed-minutes'));
 		if (multiplier !== undefined && multiplier > 0) content.extendedTime = { active: true, multiplier };
+		else if (fixedMinutes !== undefined && fixedMinutes > 0) {
+			content.extendedTime = { active: true, multiplier: 1, fixedMinutes };
+		}
 	}
 
 	const cognitive: NonNullable<PnpProfile['cognitive']> = {};
-	if (granted('answer-masking')) cognitive.eliminationTool = true;
+	if (granted('answer-masking')) cognitive.answerMasking = true;
+
+	const tools = toolSupportsOf(record, granted, prohibited);
 
 	const profile: PnpProfile = {};
 	if (Object.keys(display).length > 0) profile.display = display;
 	if (Object.keys(content).length > 0) profile.content = content;
 	if (Object.keys(cognitive).length > 0) profile.cognitive = cognitive;
+	if (tools) profile.tools = tools;
 	return profile;
+}
+
+/** The tool supports an AfA record grants or withdraws, as pie-players support ids. */
+function toolSupportsOf(
+	record: AfaPnpRecord,
+	granted: (feature: string) => boolean,
+	prohibited: ReadonlySet<string>,
+): PnpToolSupports | undefined {
+	const atInit = new Set(record['activate-at-initialization-set'] ?? []);
+	const supports: string[] = [];
+	const prohibitedSupports: string[] = [];
+	const activateAtInit: string[] = [];
+	const toolParameters: Record<string, Record<string, unknown>> = {};
+	const add = (feature: string, toolId: string, parameters?: Record<string, unknown>) => {
+		if (prohibited.has(feature)) {
+			prohibitedSupports.push(toolId);
+			return;
+		}
+		if (!granted(feature)) return;
+		supports.push(toolId);
+		if (atInit.has(feature)) activateAtInit.push(toolId);
+		if (parameters && Object.keys(parameters).length > 0) toolParameters[toolId] = parameters;
+	};
+
+	for (const [feature, toolId] of Object.entries(TOOL_FEATURES)) {
+		const calculatorType = feature === 'calculator-on-screen' ? field(record[feature], 'calculator-type') : undefined;
+		add(
+			feature,
+			toolId,
+			typeof calculatorType === 'string' && ['basic', 'scientific', 'graphing'].includes(calculatorType)
+				? { type: calculatorType }
+				: undefined,
+		);
+	}
+
+	const spoken = record.spoken;
+	if (prohibited.has('spoken')) prohibitedSupports.push('textToSpeech');
+	else if (field(spoken, 'reading-type') === 'computer-read-aloud') {
+		const rate = finiteNumber(field(spoken, 'speech-rate'));
+		const pitch = finiteNumber(field(spoken, 'pitch'));
+		const volume = finiteNumber(field(spoken, 'volume'));
+		add('spoken', 'textToSpeech', {
+			...(rate !== undefined && rate > 0 ? { rate: rate / AFA_DEFAULT_SPEECH_RATE } : {}),
+			...(pitch !== undefined ? { pitch: pitch * 2 } : {}),
+			...(volume !== undefined ? { volume } : {}),
+		});
+	} else add('spoken', 'screenReader');
+
+	if (supports.length === 0 && prohibitedSupports.length === 0) return undefined;
+	return {
+		...(supports.length > 0 ? { supports } : {}),
+		...(prohibitedSupports.length > 0 ? { prohibitedSupports } : {}),
+		...(activateAtInit.length > 0 ? { activateAtInit } : {}),
+		...(Object.keys(toolParameters).length > 0 ? { toolParameters } : {}),
+	};
+}
+
+/** AfA `text-appearance` as the player applies it; undefined when it sets nothing. */
+function textAppearanceOf(value: unknown): PnpTextAppearance | undefined {
+	const appearance: PnpTextAppearance = {};
+	const fontSize = finiteNumber(field(value, 'font-size'));
+	if (fontSize !== undefined && fontSize > 0) appearance.fontSize = fontSize;
+	const fontFace = field(value, 'font-face');
+	const names = [field(fontFace, 'font-name')].flat().filter((name): name is string => typeof name === 'string');
+	const generic = GENERIC_FONT_FACES[String(field(fontFace, 'generic-font-face') ?? '')];
+	const families = [...names.map((name) => JSON.stringify(name.trim())), ...(generic ? [generic] : [])];
+	if (families.length > 0) appearance.fontFamily = families.join(', ');
+	const fontColor = hexColor(field(value, 'font-color'));
+	if (fontColor) appearance.fontColor = fontColor;
+	const backgroundColor = hexColor(field(value, 'background-color'));
+	if (backgroundColor) appearance.backgroundColor = backgroundColor;
+	const lineHeight = finiteNumber(field(value, 'line-height')) ?? finiteNumber(field(value, 'line-spacing'));
+	if (lineHeight !== undefined && lineHeight > 0) appearance.lineHeight = lineHeight;
+	const letterSpacing = finiteNumber(field(value, 'letter-spacing'));
+	if (letterSpacing !== undefined) appearance.letterSpacing = letterSpacing;
+	const wordSpacing = finiteNumber(field(value, 'word-spacing'));
+	if (wordSpacing !== undefined) appearance.wordSpacing = wordSpacing;
+	return Object.keys(appearance).length > 0 ? appearance : undefined;
 }
 
 /**
@@ -257,6 +379,16 @@ function isPresent(value: unknown): boolean {
 
 function finiteNumber(value: unknown): number | undefined {
 	return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+/**
+ * An AfA hex colour (`#fff`, `ffffff`) as CSS; undefined for anything else. An all-digit
+ * colour reaches here as the number the record read it as, so it is padded back to six.
+ */
+function hexColor(value: unknown): string | undefined {
+	if (typeof value !== 'string' && typeof value !== 'number') return undefined;
+	const hex = typeof value === 'number' ? String(value).padStart(6, '0') : value.trim().replace(/^#/, '');
+	return /^(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(hex) ? `#${hex.toLowerCase()}` : undefined;
 }
 
 function normalizeLanguageCode(value: unknown): string | undefined {

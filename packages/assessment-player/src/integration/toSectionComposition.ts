@@ -69,5 +69,6 @@ export function toSectionComposition(
 		canNext: navState.canNext,
 		security: config.security,
 		host: config.sectionHost,
+		pnp: config.pnp,
 	});
 }

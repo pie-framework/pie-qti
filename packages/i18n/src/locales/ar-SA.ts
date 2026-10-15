@@ -150,6 +150,7 @@ export default {
 			selected: 'محدد',
 			notSelected: 'غير محدد',
 			correct: 'صحيح',
+			revealChoice: 'إظهار الخيار {index}',
 		},
 
 		upload: {

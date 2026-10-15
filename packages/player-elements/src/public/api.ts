@@ -68,6 +68,18 @@ export interface QtiPnpProfile {
 	display?: {
 		colorScheme?: string;
 		magnification?: number;
+		interfaceLanguage?: string;
+		invertPolarity?: { foreground?: string; background?: string };
+		singleColumn?: boolean;
+		textAppearance?: {
+			fontSize?: number;
+			fontFamily?: string;
+			fontColor?: string;
+			backgroundColor?: string;
+			lineHeight?: number;
+			letterSpacing?: number;
+			wordSpacing?: number;
+		};
 	};
 	content?: {
 		glossaryOnScreen?: boolean;
@@ -77,10 +89,17 @@ export interface QtiPnpProfile {
 			string,
 			boolean | { active?: boolean; languageCode?: string } | undefined
 		>;
-		extendedTime?: { active: boolean; multiplier: number };
+		extendedTime?: { active: boolean; multiplier: number; fixedMinutes?: number };
 	};
 	cognitive?: {
 		eliminationTool?: boolean;
+		answerMasking?: boolean;
+	};
+	tools?: {
+		supports?: string[];
+		prohibitedSupports?: string[];
+		activateAtInit?: string[];
+		toolParameters?: Record<string, Record<string, unknown>>;
 	};
 }
 
