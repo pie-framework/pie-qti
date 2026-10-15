@@ -1523,11 +1523,9 @@ export class Player {
 	}
 
 	private parseMatchTable(el: Element) {
-		const defaultValueRaw = (getAttr(el, 'defaultValue') || '').trim();
-		const defaultValue = defaultValueRaw ? Number(defaultValueRaw) : undefined;
 		return {
 			kind: 'table.matchTable' as const,
-			defaultValue: Number.isFinite(defaultValue as any) ? defaultValue : undefined,
+			defaultValue: (getAttr(el, 'defaultValue') || '').trim() || undefined,
 			entries: findDescendants(el, this.mapper.toNative('matchtableentry')).map((e) => ({
 				sourceValue: (getAttr(e, 'sourceValue') || '').trim(),
 				targetValue: (getAttr(e, 'targetValue') || '').trim(),
@@ -1536,19 +1534,16 @@ export class Player {
 	}
 
 	private parseInterpolationTable(el: Element) {
-		const defaultValueRaw = (getAttr(el, 'defaultValue') || '').trim();
-		const defaultValue = defaultValueRaw ? Number(defaultValueRaw) : undefined;
-		const interpolationMethod = (getAttr(el, 'interpolationMethod') || 'linear').trim();
 		return {
 			kind: 'table.interpolationTable' as const,
-			defaultValue: Number.isFinite(defaultValue as any) ? defaultValue : undefined,
-			interpolationMethod,
+			defaultValue: (getAttr(el, 'defaultValue') || '').trim() || undefined,
 			entries: findDescendants(el, this.mapper.toNative('interpolationtableentry'))
 				.map((e) => ({
-					sourceValue: Number((getAttr(e, 'sourceValue') || '').trim()),
-					targetValue: Number((getAttr(e, 'targetValue') || '').trim()),
+					sourceValue: Number((getAttr(e, 'sourceValue') || '').trim() || Number.NaN),
+					targetValue: (getAttr(e, 'targetValue') || '').trim(),
+					includeBoundary: (getAttr(e, 'includeBoundary') || '').trim() !== 'false',
 				}))
-				.filter((e) => Number.isFinite(e.sourceValue) && Number.isFinite(e.targetValue)),
+				.filter((e) => Number.isFinite(e.sourceValue)),
 		};
 	}
 

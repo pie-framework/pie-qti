@@ -21,9 +21,10 @@
 		<setOutcomeValue identifier="SCORE">
 			<lookupTable>
 				<variable identifier="R" />
-				<interpolationTable interpolationMethod="linear" defaultValue="0">
-					<interpolationTableEntry sourceValue="0" targetValue="0" />
+				<interpolationTable defaultValue="0">
 					<interpolationTableEntry sourceValue="10" targetValue="100" />
+					<interpolationTableEntry sourceValue="5" targetValue="50" includeBoundary="false" />
+					<interpolationTableEntry sourceValue="0" targetValue="10" />
 				</interpolationTable>
 			</lookupTable>
 		</setOutcomeValue>

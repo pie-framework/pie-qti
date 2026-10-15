@@ -2,26 +2,49 @@
 	"id": "responseProcessing_lookupTable_interpolationTable",
 	"cases": [
 		{
-			"name": "R=0 -> SCORE=0",
-			"responses": { "R": 0 },
-			"expect": { "score": 0 }
+			"name": "R=12 -> SCORE=100 (first entry it exceeds)",
+			"responses": {
+				"R": 12
+			},
+			"expect": {
+				"score": 100
+			}
 		},
 		{
-			"name": "R=5 -> SCORE=50 (linear interpolation)",
-			"responses": { "R": 5 },
-			"expect": { "score": 50 }
+			"name": "R=10 -> SCORE=100 (boundary included by default)",
+			"responses": {
+				"R": 10
+			},
+			"expect": {
+				"score": 100
+			}
 		},
 		{
-			"name": "R=-5 -> SCORE=0 (clamp low)",
-			"responses": { "R": -5 },
-			"expect": { "score": 0 }
+			"name": "R=7 -> SCORE=50 (step, no interpolation)",
+			"responses": {
+				"R": 7
+			},
+			"expect": {
+				"score": 50
+			}
 		},
 		{
-			"name": "R=12 -> SCORE=100 (clamp high)",
-			"responses": { "R": 12 },
-			"expect": { "score": 100 }
+			"name": "R=5 -> SCORE=10 (includeBoundary=false skips the exact match)",
+			"responses": {
+				"R": 5
+			},
+			"expect": {
+				"score": 10
+			}
+		},
+		{
+			"name": "R=-5 -> SCORE=0 (defaultValue when no entry matches)",
+			"responses": {
+				"R": -5
+			},
+			"expect": {
+				"score": 0
+			}
 		}
 	]
 }
-
-

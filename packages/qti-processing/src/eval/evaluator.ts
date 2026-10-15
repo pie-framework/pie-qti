@@ -35,72 +35,37 @@ export interface EvalEnv {
 	>;
 }
 
-export function applyLookupTable(source: QtiValue, table: LookupTableTable): QtiValue {
+/**
+ * QTI lookupOutcomeValue: a matchTable maps an exact source value, an interpolationTable maps the
+ * first entry, in document order, whose sourceValue the source exceeds (or equals, when the entry
+ * includes its boundary). With no match the table's defaultValue applies, else NULL. Values take
+ * the target outcome's base type; without one they read as float when numeric, string otherwise.
+ */
+export function applyLookupTable(source: QtiValue, table: LookupTableTable, baseType?: BaseType): QtiValue {
+	const target = (text: string | undefined): QtiValue => {
+		if (text === undefined) return qtiNull(baseType, 'single');
+		if (baseType) return coerceBaseValue(baseType, text);
+		const n = Number(text);
+		return text.trim() !== '' && Number.isFinite(n) ? qtiValue('float', 'single', n) : qtiValue('string', 'single', text);
+	};
 	if (source.kind === 'invalid') return qtiInvalid('lookupTable invalid');
-	if (source.kind === 'null') {
-		const def = table.defaultValue;
-		return def === undefined ? qtiNull() : qtiValue('float', 'single', def);
-	}
-	if (source.kind !== 'value') return qtiNull();
-	if (Array.isArray(source.value)) return qtiInvalid('lookupTable expects single cardinality');
+	if (source.kind !== 'value') return target(table.defaultValue);
+	if (source.cardinality !== 'single' || Array.isArray(source.value)) return qtiInvalid('lookupTable expects single cardinality');
 
 	if (table.kind === 'table.matchTable') {
-		const srcIsNumber = source.baseType === 'integer' || source.baseType === 'float';
-		if (srcIsNumber) {
-			const x = toNumber(source);
-			for (const entry of table.entries) {
-				const k = Number(entry.sourceValue);
-				if (!Number.isFinite(k)) continue;
-				if (x === k) {
-					const n = Number(entry.targetValue);
-					return Number.isFinite(n) ? qtiValue('float', 'single', n) : qtiValue('string', 'single', entry.targetValue);
-				}
-			}
-		} else {
-			const x = normalizeForCompare(source.value);
-			for (const entry of table.entries) {
-				if (x === normalizeForCompare(entry.sourceValue)) {
-					const n = Number(entry.targetValue);
-					return Number.isFinite(n) ? qtiValue('float', 'single', n) : qtiValue('string', 'single', entry.targetValue);
-				}
-			}
-		}
-
-		const def = table.defaultValue;
-		return def === undefined ? qtiNull() : qtiValue('float', 'single', def);
+		const numeric = source.baseType === 'integer' || source.baseType === 'float' || typeof source.value === 'number';
+		const x = numeric ? toNumber(source) : normalizeForCompare(source.value);
+		const entry = table.entries.find((e) => (numeric ? Number(e.sourceValue) === x : normalizeForCompare(e.sourceValue) === x));
+		return target(entry?.targetValue ?? table.defaultValue);
 	}
 
-	// interpolation table
-	if (source.baseType !== 'integer' && source.baseType !== 'float') {
+	if (source.baseType !== undefined && source.baseType !== 'integer' && source.baseType !== 'float') {
 		return qtiInvalid('lookupTable interpolation expects numeric source');
 	}
-	const method = (table.interpolationMethod || 'linear').toLowerCase();
-	if (method !== 'linear') return qtiInvalid(`lookupTable unsupported interpolationMethod: ${method}`);
-
 	const x = toNumber(source);
 	if (!Number.isFinite(x)) return qtiInvalid('lookupTable interpolation invalid number');
-
-	const entries = [...table.entries].sort((a, b) => a.sourceValue - b.sourceValue);
-	if (entries.length === 0) {
-		const def = table.defaultValue;
-		return def === undefined ? qtiNull() : qtiValue('float', 'single', def);
-	}
-
-	if (x <= entries[0]!.sourceValue) return qtiValue('float', 'single', entries[0]!.targetValue);
-	if (x >= entries[entries.length - 1]!.sourceValue) return qtiValue('float', 'single', entries[entries.length - 1]!.targetValue);
-
-	for (let i = 0; i < entries.length - 1; i++) {
-		const a = entries[i]!;
-		const b = entries[i + 1]!;
-		if (x >= a.sourceValue && x <= b.sourceValue) {
-			if (a.sourceValue === b.sourceValue) return qtiValue('float', 'single', a.targetValue);
-			const t = (x - a.sourceValue) / (b.sourceValue - a.sourceValue);
-			return qtiValue('float', 'single', a.targetValue + t * (b.targetValue - a.targetValue));
-		}
-	}
-
-	// Fallback (shouldn't happen due to bounds checks)
-	return qtiValue('float', 'single', entries[entries.length - 1]!.targetValue);
+	const entry = table.entries.find((e) => x > e.sourceValue || (e.includeBoundary !== false && x === e.sourceValue));
+	return target(entry?.targetValue ?? table.defaultValue);
 }
 
 /**

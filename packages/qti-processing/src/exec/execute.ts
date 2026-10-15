@@ -81,7 +81,7 @@ export function execStatement(env: ExecEnv, s: StatementNode): void {
 				return;
 			}
 			const source = evalExpr(env, s.expr);
-			const v = applyLookupTable(source, d.lookupTable);
+			const v = applyLookupTable(source, d.lookupTable, d.baseType);
 			env.ctx.setValue(s.identifier, v);
 			return;
 		}

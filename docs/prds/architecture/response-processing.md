@@ -121,7 +121,7 @@ The QTI processing model is inherently stateful: `setOutcomeValue` and `setTempl
 `mapResponse`, `mapResponsePoint`, `mapOutcome`
 
 **Lookup tables**  
-`lookupTable` (match and interpolation)
+`lookupOutcomeValue` over the outcome's `matchTable` or `interpolationTable`: an exact match, or the first entry in document order whose `sourceValue` the source exceeds (or equals, unless `includeBoundary="false"`), else `defaultValue`, else NULL, coerced to the outcome's base type. The `lookupTable` expression wrapping either table is a non-QTI extension with the same semantics.
 
 **Random**  
 `random`, `randomInteger`, `randomFloat`
