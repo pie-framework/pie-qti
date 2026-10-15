@@ -150,6 +150,7 @@ elements and attributes that have no legitimate use in QTI item bodies.
   of `allowIframes` setting.
 - **FR-4:** `sanitizeHtml` must remove `<iframe>`, `<object>`, and `<embed>` elements unless
   `allowIframes` / `allowObjectEmbeds` are set to `true` in `PlayerSecurityConfig`.
+- **FR-4a:** An `<object>` whose `type` is an image, audio or video MIME type becomes an `<img>`, `<audio>` or `<video>` with the sanitized `data` URL, keeping its `aria-*`, `role` and `lang` (from `lang` or `xml:lang`); event handlers and other attributes are dropped.
 - **FR-5:** `sanitizeHtml` must remove `<base>`, `<meta>`, `<link>`, `<style>`, and
   `<foreignobject>` elements unconditionally.
 - **FR-6:** `sanitizeHtml` must sanitize `src`, `href`, `xlink:href`, `data`, `action`,

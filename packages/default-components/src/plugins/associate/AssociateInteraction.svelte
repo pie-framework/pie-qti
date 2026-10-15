@@ -8,6 +8,8 @@
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
 	import { isCompatibleMatchGroup } from '../../shared/utils/matchGroupUtils';
+	import { interactionAria } from '../../shared/utils/interactionAria';
+	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 
 	interface Props {
 		interaction?: AssociateInteractionData | string;
@@ -143,7 +145,8 @@
 
 <ShadowBaseStyles />
 
-<div bind:this={rootElement} part="root" class="qti-associate-interaction space-y-3">
+<div bind:this={rootElement} {...interactionAria(parsedInteraction)} part="root" class="qti-associate-interaction space-y-3">
+	<InteractionDescription interaction={parsedInteraction} />
 	{#if !parsedInteraction}
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}

@@ -46,6 +46,8 @@
 	import DragHandle from '../../shared/components/DragHandle.svelte';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
 	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
+	import { interactionAria } from '../../shared/utils/interactionAria';
+	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 
 	interface Position {
 		stageId: string;
@@ -511,7 +513,8 @@
 
 <ShadowBaseStyles />
 
-<div bind:this={rootElement} part="root" class="qti-position-object-interaction">
+<div bind:this={rootElement} {...interactionAria(parsedInteraction)} part="root" class="qti-position-object-interaction">
+	<InteractionDescription interaction={parsedInteraction} />
 	{#if !parsedInteraction}
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}

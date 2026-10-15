@@ -6,6 +6,8 @@
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
+	import { interactionAria } from '../../shared/utils/interactionAria';
+	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 
 	interface Props {
 		interaction?: EndAttemptInteractionData | string;
@@ -49,7 +51,8 @@
 
 <ShadowBaseStyles />
 
-<div bind:this={rootElement} class="qti-end-attempt-interaction">
+<div bind:this={rootElement} {...interactionAria(parsedInteraction)} class="qti-end-attempt-interaction">
+	<InteractionDescription interaction={parsedInteraction} />
 	{#if !parsedInteraction}
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}

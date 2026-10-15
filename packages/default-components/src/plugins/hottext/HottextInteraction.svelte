@@ -7,6 +7,8 @@
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
 	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
 	import { HOTTEXT_SELECTOR } from './hottextSelector';
+	import { interactionAria } from '../../shared/utils/interactionAria';
+	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 
 	interface Props {
 		interaction?: HottextInteractionData | string;
@@ -201,7 +203,8 @@
 
 <ShadowBaseStyles />
 
-<div bind:this={rootElement} part="root" class={['qti-hottext-interaction space-y-3', ...(parsedInteraction?.interactionClasses ?? [])].join(' ')}>
+<div bind:this={rootElement} {...interactionAria(parsedInteraction)} part="root" class={['qti-hottext-interaction space-y-3', ...(parsedInteraction?.interactionClasses ?? [])].join(' ')}>
+	<InteractionDescription interaction={parsedInteraction} />
 	{#if !parsedInteraction}
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
@@ -281,6 +284,12 @@
 	.qti-input-control-hidden :global(qti-hottext[data-selected]) {
 		background-color: transparent;
 		text-decoration: underline;
+	}
+
+	/* qti-unselected-hidden: unselected hottexts read as plain text until focused; they stay operable */
+	.qti-unselected-hidden :global(.hottext-content :is(hottext, qti-hottext):not(.selected):not(:focus-visible)) {
+		background-color: transparent;
+		border-color: transparent;
 	}
 
 	/* Minimal layout so this works without Tailwind/DaisyUI */

@@ -5,9 +5,11 @@
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import { typesetAction } from '../../shared/actions/typesetAction';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
-	import SortableList from '../../shared/components/SortableList.svelte';
+	import SortableList, { type SortableIndexLabels } from '../../shared/components/SortableList.svelte';
 	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
+	import { interactionAria } from '../../shared/utils/interactionAria';
+	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 
 	interface Props {
 		interaction?: OrderInteractionData | string;
@@ -29,6 +31,25 @@
 	const parsedResponse = $derived(parseJsonProp<string[]>(response));
 	const parsedCorrectResponse = $derived(parseJsonProp<string[]>(correctResponse));
 	const isShowingCorrect = $derived(role === 'scorer' && parsedCorrectResponse !== null);
+	const classes = $derived(parsedInteraction?.interactionClasses ?? []);
+	const orientation = $derived(
+		classes.includes('qti-orientation-horizontal') ||
+			(parsedInteraction?.orientation === 'horizontal' && !classes.includes('qti-orientation-vertical'))
+			? 'horizontal'
+			: 'vertical',
+	);
+	const indexLabels = $derived<SortableIndexLabels>(
+		classes.includes('qti-labels-none')
+			? 'none'
+			: classes.includes('qti-labels-lower-alpha')
+				? 'lower-alpha'
+				: classes.includes('qti-labels-upper-alpha')
+					? 'upper-alpha'
+					: 'decimal',
+	);
+	const indexSuffix = $derived(
+		classes.includes('qti-labels-suffix-period') ? '.' : classes.includes('qti-labels-suffix-parenthesis') ? ')' : '',
+	);
 
 	// Get reference to the root element for event dispatching
 	let rootElement: HTMLDivElement | undefined = $state();
@@ -117,7 +138,8 @@
 
 <ShadowBaseStyles />
 
-<div bind:this={rootElement} class="qti-order-interaction" use:typesetAction={{ typeset }}>
+<div bind:this={rootElement} {...interactionAria(parsedInteraction)} class={['qti-order-interaction', ...classes].join(' ')} use:typesetAction={{ typeset }}>
+	<InteractionDescription interaction={parsedInteraction} />
 	{#if !parsedInteraction}
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
@@ -133,7 +155,9 @@
 				{orderedIds}
 				{i18n}
 				correctOrder={isShowingCorrect ? (parsedCorrectResponse || []) : []}
-				orientation="vertical"
+				{orientation}
+				{indexLabels}
+				{indexSuffix}
 				{disabled}
 				onReorder={handleReorder}
 			/>

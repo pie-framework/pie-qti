@@ -30,10 +30,14 @@
 </script>
 
 <span class="inline-choice-wrapper">
+	{#if interaction.accessibility?.description}
+		<span id={`${interaction.responseId}-description`} hidden>{interaction.accessibility.description}</span>
+	{/if}
 	<select
 		class:qti-inline-select={true}
 		class:qti-inline-select-correct={correctAnswer !== null}
-		aria-label={`Inline choice ${interaction.responseId}${correctAnswer && correctChoice ? '. Correct answer: ' + correctChoice.text : ''}`}
+		aria-label={`${interaction.accessibility?.label ?? `Inline choice ${interaction.responseId}`}${correctAnswer && correctChoice ? '. Correct answer: ' + correctChoice.text : ''}`}
+		aria-describedby={interaction.accessibility?.description ? `${interaction.responseId}-description` : undefined}
 		value={displayValue}
 		onchange={handleChange}
 		{disabled}

@@ -31,8 +31,8 @@ the PIE→QTI export. Slices run in certification-impact order. The conversion d
 | 7   | Test structure and item session control        | `feat/test-structure-session-control` | #321 | merged  |
 | 8   | TTS and SSML in delivery                       | `feat/delivery-tts-ssml`              | #323 | merged  |
 | 9   | Content language                               | `feat/delivery-content-language`      | #325 | merged  |
-| 10  | PNP in delivery                                | `feat/delivery-pnp`                   | #326 | open    |
-| 11  | Shared vocabulary, catalogs and sanitizer      | `feat/delivery-vocabulary-catalogs`   |     | pending |
+| 10  | PNP in delivery                                | `feat/delivery-pnp`                   | #326 | merged  |
+| 11  | Shared vocabulary, catalogs and sanitizer      | `feat/delivery-vocabulary-catalogs`   | #327 | open    |
 | 12  | Element map completion                         | `fix/qti3-element-map`                | #301 | merged  |
 | 13  | QTI 3.0 writer                                 | `feat/pie-to-qti2-qti3-writer`        | #302 | merged  |
 
@@ -119,12 +119,12 @@ extra time, dictionary and highlighter are dropped. `applyPnp` sets `data-qti-co
 `data-qti-magnification` and `--qti-magnification`; no CSS consumes them. Companion materials
 appear only in the element map; the calculator comes from host configuration.
 
-**Shared vocabulary.** `qti-shared-vocabulary.css` covers underline, bordered, alignment
-(without justify), vertical alignment, well, layout grid, hidden, visually-hidden, italic and the
+**Shared vocabulary.** `qti-shared-vocabulary.css` covers underline, bordered, alignment,
+vertical alignment, well, layout grid, hidden, visually-hidden, italic and the
 display/margin/padding/width utilities. Missing: `qti-writing-orientation-*`,
 `qti-text-orientation-*`, `qti-list-style-type-*`, `qti-labels-*`, `qti-labels-suffix-*`,
-`qti-choices-left|right|top|bottom` (emitted as classes with no rules), `qti-unselected-hidden`,
-`qti-fullwidth` and `qti-heading`.
+`qti-choices-left|right|top|bottom` (emitted as classes with no rules), `qti-unselected-hidden`
+and `qti-fullwidth`. Justify and `qti-heading` are not in the vocabulary.
 
 **Catalogs and sanitizer.** The catalog extractor takes the first `qti-html-content` or
 `qti-file-href` per card, HTML first, and a file href becomes a bare URL. The sanitizer preserves
@@ -402,6 +402,16 @@ for the host, which owns those tools and the interface locale.
   the rendered controls.
 
 Done when each vocabulary class has a fixture and a screen reader announces interaction labels.
+
+Landed with interaction classes styled in each component's shadow root and the item-body classes
+in the shared stylesheet; the class table is in the theming PRD. `qti-match-tabular` and
+`qti-header-hidden` are unsupported, since the match interaction renders columns only.
+Interaction `aria-labelledby` and `aria-describedby` resolve to text at extraction, as
+`BaseInteractionData.accessibility`, because an idref cannot cross the shadow root; a block
+interaction's root becomes a labelled `group`. A catalog entry holding one `qti-file-href` stays a
+bare URL, so the URL policy still governs it. Slice 8's leftovers landed here: the section player
+registers the `spoken` cards of `qti-catalog-info` and APIP access elements, and prepares passages
+given as `rawHtml` for read-aloud; a passage given as `html` reads as given.
 
 ### 12. Element map completion
 

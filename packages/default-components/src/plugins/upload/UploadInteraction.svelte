@@ -9,6 +9,8 @@
 	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
 	import { typesetAction } from '../../shared/actions/typesetAction';
+	import { interactionAria } from '../../shared/utils/interactionAria';
+	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 
 	interface Props {
 		interaction?: UploadInteractionData | string;
@@ -43,7 +45,8 @@
 
 <ShadowBaseStyles />
 
-<div bind:this={rootElement} part="root" class="qti-upload-interaction" use:typesetAction={{ typeset }}>
+<div bind:this={rootElement} {...interactionAria(parsedInteraction)} part="root" class="qti-upload-interaction" use:typesetAction={{ typeset }}>
+	<InteractionDescription interaction={parsedInteraction} />
 	{#if !parsedInteraction}
 		<div class="alert alert-error">
 			<span>{i18n?.t('common.error', 'Error')}: {i18n?.t('common.errorNoData', 'No interaction data provided')}</span>

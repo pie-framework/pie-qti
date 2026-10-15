@@ -1,3 +1,7 @@
+<script lang="ts" module>
+export type SortableIndexLabels = 'decimal' | 'lower-alpha' | 'upper-alpha' | 'none';
+</script>
+
 <script lang="ts">
 /**
  * Sortable list component with keyboard, mouse, and touch support
@@ -22,6 +26,10 @@ interface Props {
 	orderedIds: string[];
 	correctOrder?: string[];
 	orientation?: 'vertical' | 'horizontal';
+	/** Position badge style, from the interaction's `qti-labels-*` class; `none` hides the badge. */
+	indexLabels?: SortableIndexLabels;
+	/** Text after each position badge, from the interaction's `qti-labels-suffix-*` class. */
+	indexSuffix?: string;
 	disabled?: boolean;
 	i18n?: I18nProvider;
 	onReorder: (newOrder: string[]) => void;
@@ -32,10 +40,24 @@ const {
 	orderedIds,
 	correctOrder = [],
 	orientation = 'vertical',
+	indexLabels = 'decimal',
+	indexSuffix = '',
 	disabled = false,
 	i18n,
 	onReorder,
 }: Props = $props();
+
+function formatIndex(index: number): string {
+	if (indexLabels === 'decimal') return `${index + 1}${indexSuffix}`;
+	let n = index + 1;
+	let letters = '';
+	while (n > 0) {
+		n -= 1;
+		letters = String.fromCharCode(97 + (n % 26)) + letters;
+		n = Math.floor(n / 26);
+	}
+	return `${indexLabels === 'upper-alpha' ? letters.toUpperCase() : letters}${indexSuffix}`;
+}
 
 let draggedId = $state<string | null>(null);
 let dragOverId = $state<string | null>(null);
@@ -265,7 +287,9 @@ function toPlainText(html: HtmlContent): string {
 					class:bg-success={isCorrect}
 					class:border-success={isCorrect}
 				>
-					<span part="index" class="qti-sortable-index badge {isCorrect ? 'badge-success' : 'badge-neutral'}">{index + 1}</span>
+					{#if indexLabels !== 'none'}
+						<span part="index" class="qti-sortable-index badge {isCorrect ? 'badge-success' : 'badge-neutral'}">{formatIndex(index)}</span>
+					{/if}
 					<DragHandle size={1} opacity={0.5} class="text-base-content" />
 					<span part="text" class="qti-sortable-text qti-rich-content flex-1">{@html item.text}</span>
 					{#if isCorrect}

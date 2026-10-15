@@ -8,6 +8,8 @@
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
+	import { interactionAria } from '../../shared/utils/interactionAria';
+	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 
 	interface Props {
 		interaction?: MatchInteractionData | string;
@@ -47,7 +49,8 @@
 
 <ShadowBaseStyles />
 
-<div bind:this={rootElement} class={['qti-match-interaction', ...(parsedInteraction?.interactionClasses ?? [])].join(' ')} use:typesetAction={{ typeset }}>
+<div bind:this={rootElement} {...interactionAria(parsedInteraction)} class={['qti-match-interaction', ...(parsedInteraction?.interactionClasses ?? [])].join(' ')} use:typesetAction={{ typeset }}>
+	<InteractionDescription interaction={parsedInteraction} />
 	{#if !parsedInteraction}
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
@@ -74,6 +77,14 @@
 </div>
 
 <style>
+	/* qti-choices-top|bottom|left|right: the first set's side of the second; left by default */
+	.qti-match-interaction:is(.qti-choices-top, .qti-choices-bottom) :global(.qti-match-grid) {
+		grid-template-columns: 1fr;
+	}
+	.qti-match-interaction:is(.qti-choices-bottom, .qti-choices-right) :global(.qti-match-grid > [part='source-column']) {
+		order: 2;
+	}
+
 	.qti-selection-message {
 		font-size: 0.875rem;
 		color: var(--pie-qti-warning, oklch(77% 0.194 82));

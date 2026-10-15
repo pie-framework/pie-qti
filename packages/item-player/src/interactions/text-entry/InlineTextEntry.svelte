@@ -25,6 +25,10 @@
 	const inputWidthClass = $derived((interaction.interactionClasses ?? []).find((className) => className.startsWith('qti-input-width-')));
 	const extraClasses = $derived((interaction.interactionClasses ?? []).filter((className) => !className.startsWith('qti-input-width-')).join(' '));
 	const errorId = $derived(`${interaction.responseId}-error`);
+	const descriptionId = $derived(`${interaction.responseId}-description`);
+	const describedBy = $derived(
+		[interaction.accessibility?.description ? descriptionId : '', validationError ? errorId : ''].filter(Boolean).join(' ') || undefined,
+	);
 
 	function handleInput(event: Event) {
 		const input = event.currentTarget as HTMLInputElement | null;
@@ -56,15 +60,18 @@
 	pattern={interaction.patternMask || undefined}
 	title={interaction.patternMask ? `Format: ${interaction.patternMask}` : undefined}
 	data-format={interaction.format || undefined}
-	aria-label={`Text entry ${interaction.responseId}${correctAnswer ? '. Correct answer: ' + correctAnswer : ''}`}
+	aria-label={`${interaction.accessibility?.label ?? `Text entry ${interaction.responseId}`}${correctAnswer ? '. Correct answer: ' + correctAnswer : ''}`}
 	aria-invalid={validationError ? 'true' : undefined}
-	aria-describedby={validationError ? errorId : undefined}
+	aria-describedby={describedBy}
 	value={displayValue}
 	oninput={handleInput}
 	oninvalid={handleInvalid}
 	onblur={handleBlur}
 	{disabled}
 />
+{#if interaction.accessibility?.description}
+	<span id={descriptionId} hidden>{interaction.accessibility.description}</span>
+{/if}
 {#if validationError}
 	<span id={errorId} role="alert" class="qti-text-entry-error">
 		{validationError}
