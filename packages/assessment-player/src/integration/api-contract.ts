@@ -50,7 +50,24 @@ export interface InitSessionResponse {
 	assessment: SecureAssessment;
 	/** Restored state if resuming, undefined if new session */
 	restoredState?: AssessmentSessionState;
+	/** Test-level outcome values of a resumed session, once outcome processing has run */
+	outcomes?: TestOutcomeValues;
 }
+
+/**
+ * A test-level outcome value: a scalar for single cardinality, an array for multiple and ordered,
+ * an object for record, and `null` for NULL.
+ */
+export type TestOutcomeValue =
+	| string
+	| number
+	| boolean
+	| null
+	| Array<string | number | boolean | null>
+	| Record<string, unknown>;
+
+/** Test-level outcome values keyed by outcome identifier (e.g. "PASS", "GRADE"). */
+export type TestOutcomeValues = Record<string, TestOutcomeValue>;
 
 // ============================================================================
 // ASSESSMENT STRUCTURE (CLIENT-SAFE)
@@ -65,9 +82,15 @@ export interface TestFeedbackItem {
 	identifier: string;
 	/** Outcome variable name to evaluate (e.g. "PASS", "GRADE") */
 	outcomeIdentifier: string;
-	/** 'show' = show when outcome equals identifier; 'hide' = show when it does not */
+	/**
+	 * 'show' = show when the outcome matches identifier (equality for a single value, membership
+	 * for multiple and ordered); 'hide' = show when it does not
+	 */
 	showHide: 'show' | 'hide';
-	/** 'atEnd' = only after submission; 'during' = also during attempt */
+	/**
+	 * 'atEnd' = once the test (or, for test-part feedback, the part) has ended;
+	 * 'during' = whenever outcome processing has run
+	 */
 	access: 'atEnd' | 'during';
 	/** HTML content to display */
 	content: string;
@@ -101,7 +124,7 @@ export interface SecureAssessment {
 	outcomeProcessingXml?: string;
 	/** Base URL/path for resolving relative hrefs (e.g. assessmentSectionRef) */
 	baseUrl?: string;
-	/** QTI testFeedback blocks for post-submission display */
+	/** QTI assessmentTest testFeedback blocks */
 	testFeedback?: TestFeedbackItem[];
 }
 
@@ -116,6 +139,8 @@ export interface SecureTestPart {
 	timeLimits?: SecureTimeLimits;
 	/** Candidate instructions (safe for display) */
 	rubricBlocks?: AssessmentRubricBlock[];
+	/** QTI testPart testFeedback blocks */
+	testFeedback?: TestFeedbackItem[];
 	/**
 	 * Item session control (QTI testPart/itemSessionControl).
 	 * Server is authoritative; client uses this for UI hints only.
@@ -287,6 +312,8 @@ export interface SubmitResponsesResponse {
 	 * If provided, client should replace its local state with this.
 	 */
 	updatedState?: AssessmentSessionState;
+	/** Test-level outcome values after the outcome processing this submission triggers */
+	outcomes?: TestOutcomeValues;
 	/** Error message if success=false */
 	error?: string;
 }
@@ -408,12 +435,8 @@ export interface FinalizeAssessmentResponse {
 	itemScores: Record<string, AssessmentScoringResult>;
 	/** Assessment-level feedback (legacy: single string; prefer outcomes + assessment.testFeedback) */
 	feedback?: string;
-	/**
-	 * Test-level outcome variable values after outcomeProcessing.
-	 * Used to evaluate testFeedback visibility via string equality.
-	 * Keys are outcome identifiers (e.g. "PASS", "GRADE"); values are their string representations.
-	 */
-	outcomes?: Record<string, string>;
+	/** Test-level outcome values after outcomeProcessing; testFeedback visibility reads them. */
+	outcomes?: TestOutcomeValues;
 	/** Server timestamp */
 	finalizedAt: number;
 }

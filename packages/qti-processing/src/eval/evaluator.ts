@@ -103,6 +103,20 @@ export function applyLookupTable(source: QtiValue, table: LookupTableTable): Qti
 	return qtiValue('float', 'single', entries[entries.length - 1]!.targetValue);
 }
 
+/**
+ * The numbers a `sum` or `product` operand contributes: one for a single value, each value of a
+ * multiple or ordered container. NULL, including an empty container, gives null.
+ */
+function numericOperandValues(v: QtiValue): number[] | null {
+	if (v.kind !== 'value') return null;
+	if (v.cardinality === 'multiple' || v.cardinality === 'ordered') {
+		const values = Array.isArray(v.value) ? v.value : [];
+		if (values.length === 0) return null;
+		return values.map((value) => toNumber({ kind: 'value', baseType: v.baseType, cardinality: 'single', value }));
+	}
+	return [toNumber(v)];
+}
+
 export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 	const inferBaseType = (values: QtiValue[], fallback: BaseType = 'string'): BaseType => {
 		for (const v of values) {
@@ -1012,11 +1026,11 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			for (const op of expr.values) {
 				const v = evalExpr(env, op);
 				if (v.kind === 'invalid') return qtiInvalid('sum operand invalid', 'float', 'single');
-				if (v.kind === 'null') return qtiNull('float', 'single');
-				const n = toNumber(v);
-				if (!Number.isFinite(n)) return qtiInvalid('sum operand is not a finite number', 'float', 'single');
+				const numbers = numericOperandValues(v);
+				if (numbers === null) return qtiNull('float', 'single');
+				if (numbers.some((n) => !Number.isFinite(n))) return qtiInvalid('sum operand is not a finite number', 'float', 'single');
 				if (v.baseType !== 'integer') allInteger = false;
-				acc += n;
+				for (const n of numbers) acc += n;
 			}
 			return qtiValue(allInteger ? 'integer' : 'float', 'single', acc);
 		}
@@ -1040,11 +1054,11 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			for (const op of expr.values) {
 				const v = evalExpr(env, op);
 				if (v.kind === 'invalid') return qtiInvalid('product operand invalid', 'float', 'single');
-				if (v.kind === 'null') return qtiNull('float', 'single');
-				const n = toNumber(v);
-				if (!Number.isFinite(n)) return qtiInvalid('product operand is not a finite number', 'float', 'single');
+				const numbers = numericOperandValues(v);
+				if (numbers === null) return qtiNull('float', 'single');
+				if (numbers.some((n) => !Number.isFinite(n))) return qtiInvalid('product operand is not a finite number', 'float', 'single');
 				if (v.baseType !== 'integer') allInteger = false;
-				acc *= n;
+				for (const n of numbers) acc *= n;
 			}
 			return qtiValue(allInteger ? 'integer' : 'float', 'single', acc);
 		}

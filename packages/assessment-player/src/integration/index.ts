@@ -65,6 +65,9 @@ export type {
 	SubmitTimingEvidence,
 	SubmitResponsesRequest,
 	SubmitResponsesResponse,
+	TestFeedbackItem,
+	TestOutcomeValue,
+	TestOutcomeValues,
 } from './api-contract.js';
 
 // Export reference implementation (for development/demos)

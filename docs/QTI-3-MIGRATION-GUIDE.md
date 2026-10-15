@@ -339,8 +339,6 @@ Catalog parsing and glossary/keyword-translation popup support are implemented:
 - `selection withReplacement="true"` does not yet materialize distinct, sequence-indexed ItemSessions.
 - Processing-fragment resolution is available on ItemPlayer, but assessment/package delivery does not
   yet construct and pass the item-relative resolver automatically.
-- Test feedback: the reference backend returns no outcome values, so `qti-test-feedback` is evaluated
-  against empty outcomes, and only `access="atEnd"` feedback is evaluated (G-05).
 - Export writes QTI 3.0 with `targetVersion: '3.0'` on `PieToQtiPlugin` (G-25). Assessment-level
   accessibility catalogs have no QTI home and are named in a warning instead of written.
 - Formal official-suite evidence for current source changes is unavailable until a new NPM candidate

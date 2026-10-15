@@ -7,7 +7,7 @@
 	import { AssessmentPlayer } from '../core/AssessmentPlayer.js';
 	import type { BackendAdapter, InitSessionRequest } from '../integration/api-contract.js';
 	import { toSectionComposition } from '../integration/toSectionComposition.js';
-	import type { AssessmentResults, NavigationState } from '../types/index.js';
+	import type { AssessmentResults, NavigationState, VisibleTestFeedback } from '../types/index.js';
 	import AccessibilityAnnouncer from './AccessibilityAnnouncer.svelte';
 	import AssessmentHeader from './AssessmentHeader.svelte';
 	import NavigationBar from './NavigationBar.svelte';
@@ -64,7 +64,7 @@
 	let retryButton = $state<HTMLButtonElement | null>(null);
 	let itemPaneEl = $state<HTMLElement | null>(null);
 	let rootEl = $state<HTMLElement | null>(null);
-	let testFeedback = $state<Array<{ identifier: string; content: string; access: string }>>([]);
+	let testFeedback = $state<VisibleTestFeedback[]>([]);
 	let isComplete = $state(false);
 	let initTimeout: ReturnType<typeof setTimeout> | null = null;
 	let hasFirstItem = $state(false);
@@ -81,9 +81,9 @@
 	const sectionRole = $derived(config.role ?? 'candidate');
 	const testFeedbackBlocks = $derived<QtiSharedHtmlBlock[]>(
 		testFeedback.map((item) => ({
-			identifier: item.identifier,
+			identifier: item.key,
 			kind: 'test-feedback',
-			scope: 'assessment',
+			scope: item.testPartIdentifier ? 'testPart' : 'assessment',
 			rawHtml: item.content,
 		}))
 	);
@@ -131,6 +131,10 @@
 				updateState();
 			});
 
+			player.onTestFeedbackChange(() => {
+				if (player) testFeedback = player.getVisibleFeedback();
+			});
+
 			player.onResponseChange((responses) => {
 				currentResponses = responses;
 				responseVersion += 1;
@@ -171,6 +175,7 @@
 		currentItem = player.getCurrentItem();
 		currentRubricBlocks = player.getCurrentRubricBlocks();
 		currentResponses = player.getResponses();
+		testFeedback = player.getVisibleFeedback();
 		stateVersion += 1;
 	}
 
@@ -348,8 +353,8 @@
 			onSectionSelect={handleSectionSelect}
 		/>
 
-		<!-- Test Feedback (shown after completion) -->
-		{#if isComplete && testFeedback.length > 0}
+		<!-- Test feedback: `during` once outcomes exist, `atEnd` once its test or test part has ended -->
+		{#if testFeedback.length > 0}
 			<SectionTestFeedback
 				feedback={testFeedbackBlocks}
 				role={sectionRole}

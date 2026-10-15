@@ -20,6 +20,7 @@ import {
 	type SerializedItemSessionState,
 } from '@pie-qti/item-player';
 import type { I18nProvider } from '@pie-qti/i18n';
+import { isShownByIdentifier } from '@pie-qti/qti-common';
 import type { QtiSectionRuntimeHostContract, QtiSectionToolConfig } from '@pie-qti/section-player';
 import type {
 	AssessmentRubricBlock,
@@ -35,12 +36,15 @@ import type {
 	SecureSectionComponent,
 	SecureTestPart,
 	SessionId,
+	TestFeedbackItem,
+	TestOutcomeValues,
 } from '../integration/api-contract.js';
 import type {
 	AssessmentResults,
 	ItemResult,
 	NavigationState,
 	TimeLimits,
+	VisibleTestFeedback,
 } from '../types/index.js';
 import { AssessmentSessionCoordinator } from './AssessmentSessionCoordinator.js';
 import { NavigationManager } from './NavigationManager.js';
@@ -156,13 +160,17 @@ export class AssessmentPlayer {
 	private readonly itemDefinitions = new Map<string, AssessmentItemDefinition>();
 	private currentItemSession: ItemSession | null = null;
 	private currentItemSessionUnsubscribe: (() => void) | null = null;
-	private visibleFeedback: Array<{ identifier: string; content: string; access: string }> = [];
+	/** Test-level outcomes from the last outcome processing; null until it first runs. */
+	private testOutcomes: TestOutcomeValues | null = null;
+	private finalized = false;
+	private legacyFeedback: string | undefined;
 
 	// Event listeners
 	private itemChangeListeners = new Set<(index: number, total: number) => void>();
 	private sectionChangeListeners = new Set<(index: number, total: number) => void>();
 	private responseChangeListeners = new Set<(responses: Record<string, unknown>) => void>();
 	private completeListeners = new Set<() => void>();
+	private testFeedbackChangeListeners = new Set<() => void>();
 	private timeWarningListeners = new Set<(remainingSeconds: number) => void>();
 	private timeExpiredListeners = new Set<() => void>();
 	private timeTickListeners = new Set<(remainingSeconds: number, elapsedSeconds: number) => void>();
@@ -171,6 +179,7 @@ export class AssessmentPlayer {
 		this.backend = config.backend;
 		this.sessionId = init.sessionId;
 		this.assessment = init.assessment;
+		this.testOutcomes = init.outcomes ? cloneData(init.outcomes)! : null;
 		this.i18nProvider = config.i18nProvider ?? this.createDefaultI18nProvider();
 		const initialState =
 			init.restoredState ??
@@ -515,8 +524,55 @@ export class AssessmentPlayer {
 		return q.section.rubricBlocks || q.testPart.rubricBlocks || [];
 	}
 
-	public getVisibleFeedback(): Array<{ identifier: string; content: string; access: string }> {
-		return this.visibleFeedback.map((item) => ({ ...item }));
+	/**
+	 * Test feedback shown now, test-level first, then each test part's. Nothing shows before outcome
+	 * processing first runs. `during` feedback then shows by its outcome, test-part `during`
+	 * feedback while its part is current; `atEnd` feedback shows once the test, or its test part,
+	 * has ended.
+	 */
+	public getVisibleFeedback(): VisibleTestFeedback[] {
+		const outcomes = this.testOutcomes;
+		const parts = this.assessment.testParts ?? [];
+		const hasStructured =
+			(this.assessment.testFeedback?.length ?? 0) > 0 || parts.some((part) => (part.testFeedback?.length ?? 0) > 0);
+		if (!hasStructured) {
+			return this.finalized && this.legacyFeedback
+				? [{ key: 'testFeedback', identifier: 'testFeedback', content: this.legacyFeedback, access: 'atEnd' }]
+				: [];
+		}
+		if (!outcomes) return [];
+
+		const shown: VisibleTestFeedback[] = [];
+		const add = (items: TestFeedbackItem[] | undefined, ended: boolean, current: boolean, part?: SecureTestPart) => {
+			items?.forEach((fb, index) => {
+				if (fb.access === 'atEnd' ? !ended : !current) return;
+				if (!isShownByIdentifier(outcomes[fb.outcomeIdentifier] ?? null, fb.identifier, fb.showHide)) return;
+				shown.push({
+					key: part ? `part:${part.identifier}:${index}` : `test:${index}`,
+					identifier: fb.identifier,
+					content: fb.content,
+					access: fb.access,
+					...(part ? { testPartIdentifier: part.identifier } : {}),
+				});
+			});
+		};
+		add(this.assessment.testFeedback, this.finalized, true);
+		const currentPart = this.currentTestPartIndex();
+		parts.forEach((part, index) => {
+			add(part.testFeedback, this.finalized || currentPart > index, currentPart === index, part);
+		});
+		return shown;
+	}
+
+	private currentTestPartIndex(): number {
+		const part = this.items[this.currentItemIndex]?.testPart;
+		return part ? (this.assessment.testParts ?? []).findIndex((p) => p.identifier === part.identifier) : -1;
+	}
+
+	private setTestOutcomes(outcomes: TestOutcomeValues | undefined): void {
+		if (!outcomes) return;
+		this.testOutcomes = cloneData(outcomes)!;
+		this.notifyTestFeedbackChange();
 	}
 
 	public updateResponse(responseId: string, value: unknown): void {
@@ -816,6 +872,7 @@ export class AssessmentPlayer {
 
 		this.notifyItemChange();
 		this.notifySectionChange();
+		if (currentItem?.testPart.identifier !== q.testPart.identifier) this.notifyTestFeedbackChange();
 	}
 
 	public async navigateToSection(sectionId: string): Promise<void> {
@@ -937,6 +994,8 @@ export class AssessmentPlayer {
 				this.sessionCoordinator.setItemSession(q.identifier, itemSession);
 			}
 		}
+
+		this.setTestOutcomes(res.outcomes);
 
 		const itemResult: ItemResult = {
 			itemIdentifier: q.identifier,
@@ -1083,6 +1142,7 @@ export class AssessmentPlayer {
 					maxScore: res.result.maxScore,
 					responses: this.state.itemResponses[q.identifier] || {},
 				});
+				this.setTestOutcomes(res.outcomes);
 			}
 
 			// The attached item must represent the same accepted lifecycle as persistence.
@@ -1164,26 +1224,12 @@ export class AssessmentPlayer {
 			responses: this.state.itemResponses[r.itemIdentifier] || {},
 		}));
 
-		// Evaluate testFeedback visibility using QTI string equality:
-		// show when outcomeIdentifier's value equals feedback.identifier (for showHide='show'),
-		// or does NOT equal it (for showHide='hide').
-		const structuredFeedback = this.assessment.testFeedback ?? [];
-		const outcomes = finalized.outcomes ?? {};
-		if (structuredFeedback.length > 0) {
-			this.visibleFeedback = structuredFeedback
-				.filter((fb) => fb.access === 'atEnd')
-				.filter((fb) => {
-					const outcomeValue = String(outcomes[fb.outcomeIdentifier] ?? '');
-					const matches = outcomeValue === fb.identifier;
-					return fb.showHide === 'show' ? matches : !matches;
-				})
-				.map((fb) => ({ identifier: fb.identifier, content: fb.content, access: fb.access }));
-		} else {
-			// Legacy: backend returns a plain feedback string
-			this.visibleFeedback = finalized.feedback
-				? [{ identifier: 'testFeedback', content: finalized.feedback, access: 'atEnd' }]
-				: [];
-		}
+		// Outcome processing has run by the end of the test, so a backend returning no outcomes
+		// leaves them all NULL.
+		this.finalized = true;
+		this.legacyFeedback = finalized.feedback;
+		this.testOutcomes = cloneData(finalized.outcomes ?? this.testOutcomes ?? {})!;
+		this.notifyTestFeedbackChange();
 
 		this.notifyComplete();
 		if (this.config.onComplete) this.config.onComplete();
@@ -1253,6 +1299,12 @@ export class AssessmentPlayer {
 		return () => this.completeListeners.delete(listener);
 	}
 
+	/** Called when `getVisibleFeedback()` may have changed: new outcomes, a new test part, or the end. */
+	public onTestFeedbackChange(listener: () => void): () => void {
+		this.testFeedbackChangeListeners.add(listener);
+		return () => this.testFeedbackChangeListeners.delete(listener);
+	}
+
 	public onTimeWarning(listener: (remainingSeconds: number) => void): () => void {
 		this.timeWarningListeners.add(listener);
 		return () => this.timeWarningListeners.delete(listener);
@@ -1276,6 +1328,7 @@ export class AssessmentPlayer {
 		this.sectionChangeListeners.clear();
 		this.responseChangeListeners.clear();
 		this.completeListeners.clear();
+		this.testFeedbackChangeListeners.clear();
 		this.timeWarningListeners.clear();
 		this.timeExpiredListeners.clear();
 		this.timeTickListeners.clear();
@@ -1306,6 +1359,10 @@ export class AssessmentPlayer {
 
 	private notifyComplete(): void {
 		for (const l of this.completeListeners) l();
+	}
+
+	private notifyTestFeedbackChange(): void {
+		for (const l of this.testFeedbackChangeListeners) l();
 	}
 
 	private notifyTimeWarning(remainingSeconds: number): void {

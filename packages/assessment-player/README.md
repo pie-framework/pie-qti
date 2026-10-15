@@ -176,6 +176,19 @@ XML, own authoritative scoring state, and validate every client submission. See
   responses and serialized item sessions across backend state replacements.
 - `submit()` finishes by calling `finalizeAssessment()` and returns `AssessmentResults`.
 
+## Test feedback
+
+`testFeedback` on the `assessmentTest` and on each `testPart` shows by the outcome values the backend
+returns from `submitResponses`, a resumed `initSession` and `finalizeAssessment`
+(`TestOutcomeValues`: a scalar, an array for a multiple or ordered outcome, `null` for NULL). The
+`identifier` matches a single outcome by equality and a container by membership; `showHide="hide"`
+inverts it. Nothing shows before outcomes first arrive. Test-level `access="during"` feedback then
+shows by its outcome and `atEnd` once the test is finalized. A part's `during` feedback shows while
+the part is current and its `atEnd` once the candidate has moved past it or the test is finalized.
+
+`getVisibleFeedback()` returns the shown blocks as `VisibleTestFeedback`, and
+`onTestFeedbackChange(listener)` reports each change and returns an unsubscribe function.
+
 The optional `sendItemSessionToBackend` flag includes the rich serialized item-session snapshot in
 submission requests. Treat that snapshot as untrusted client save data; a production backend should
 validate it against server-owned source and state.

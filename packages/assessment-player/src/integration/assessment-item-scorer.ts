@@ -11,7 +11,7 @@ export interface AssessmentItemScoringInput {
 }
 
 export function getAssessmentItemIdentifier(itemXml: string): string {
-	const identifierMatch = itemXml.match(/assessmentItem[^>]+identifier=["']([^"']+)["']/);
+	const identifierMatch = itemXml.match(/<(?:assessmentItem|qti-assessment-item)\b[^>]*\sidentifier=["']([^"']+)["']/);
 	return identifierMatch?.[1] || 'unknown';
 }
 

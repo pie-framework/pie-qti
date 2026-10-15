@@ -216,13 +216,17 @@ return {
   totalScore: 18,
   maxScore: 20,
   itemScores,
-  outcomes: { PASS: 'PASS' },
+  outcomes: { GRADE: 'A', FLAGS: ['SEEN', 'RIGHT'], TOTAL: 18 },
   finalizedAt: Date.now()
 };
 ```
 
-The optional `outcomes` map drives QTI `testFeedback` visibility. The older single `feedback` string
-is retained for compatibility; structured assessment feedback plus outcome values is preferred.
+The optional `outcomes` map holds the test-level outcome values after outcome processing
+(`TestOutcomeValues`: a scalar, an array for a multiple or ordered outcome, `null` for NULL) and
+drives QTI `testFeedback` visibility. Return it from `submitResponses()` and from a resumed
+`initSession()` as well, so `access="during"` feedback follows each submission. The older single
+`feedback` string is retained for compatibility; structured assessment feedback plus outcome values
+is preferred.
 
 ## Reference adapter
 

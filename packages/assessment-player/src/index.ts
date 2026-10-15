@@ -6,4 +6,11 @@ export { AssessmentPlayer, NavigationManager } from './core/index.js';
 // Backend integration API + reference adapter
 export * from './integration/index.js';
 // Public UI/data types
-export type { AssessmentResults, ItemRef, ItemResult, NavigationState, QTIRole } from './types/index.js';
+export type {
+	AssessmentResults,
+	ItemRef,
+	ItemResult,
+	NavigationState,
+	QTIRole,
+	VisibleTestFeedback,
+} from './types/index.js';
