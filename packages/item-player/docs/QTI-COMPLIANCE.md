@@ -31,17 +31,16 @@ usable in a browser or scores according to the official template semantics.
 covers only what is still open in the item player as of 2026-10-17. Gaps closed since this file was
 last audited (position-object hierarchy G-17, QTI 3 foreign-vocabulary mapping G-18, record
 cardinality G-21, response-template aliases G-19, extended-text response shapes G-23, processing
-fragments G-24) are tracked there as Done and are no longer repeated here.
+fragments G-24, PNP structured labels and braille G-13, the PCI spec contract and AMD module
+resolution G-08 phases 1–3, with clean-room conformance fixtures) are tracked there as Done and
+are no longer repeated here.
 
 ### Interaction delivery
 
-- QTI 3 Portable Custom Interaction runs the spec's registry contract
-  (`qtiCustomInteractionContext.register`, `getInstance(dom, configuration, state)`,
-  `onready`/`ondone`, QTI variable JSON responses, `getState()` restore) and loads
-  multi-module declarations through the AMD loader with resolution-config parsing
-  (phases 1–2 under G-08). Still open under G-08: third-party conformance evidence
-  (phase 3). Module execution stays gated on the host resolver — a trust decision,
-  not a sandbox.
+- PCI browser-level evidence in the private runner and third-party content as a same-reading
+  check remain open under G-08's evidence thread; the spec contract itself runs (registry,
+  `getInstance`, QTI variable JSON, `getState()` restore, AMD loading with resolution configs).
+  Module execution stays gated on the host resolver — a trust decision, not a sandbox.
 
 ### QTI 2.1
 

@@ -68,3 +68,15 @@ Used for provenance/licensing metadata:
 - `upstreamUrl`: where it came from
 - `license`: SPDX identifier (when known)
 - `notes`: why this fixture exists / what it covers
+
+## PCI conformance evidence (`pci/`)
+
+`pci-conformance.test.ts` and the fixtures under `pci/fixtures/` are separate from the
+cases-json harness: they are the G-08 phase-3 evidence that a PCI authored to the
+QTI 3.0 specification runs here. The fixtures are clean-room content (see their
+`manifest.json` files) — a two-module AMD declaration whose entry registers against
+`qtiCustomInteractionContext` — and the suite drives extraction, AMD dependency
+wiring over real module files loaded from disk, `getInstance` state seeding in QTI
+variable JSON, `onready`/`ondone`, `getState()` restore, and fallback resolution.
+Browser-level evidence stays with the private runner, which consumes published
+packages only.

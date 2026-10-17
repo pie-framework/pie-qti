@@ -301,7 +301,14 @@ trusted item content.
    and the entry module is picked by the type-identifier tail.
 3. **Conformance evidence.** Clean-room PCI fixtures exercising registration,
    restore-by-state, `ondone`, and fallback resolution; browser-level evidence
-   in the private runner.
+   in the private runner. **In-repo evidence done (2026-10-16)** — clean-room
+   fixtures (`tests/conformance/pci/`) authored from the specification drive
+   the full delivery path over real module files: registration, AMD dependency
+   wiring, `getInstance` state seeding, QTI variable JSON, `onready`/`ondone`,
+   `getState()` restore, and fallback resolution. Browser-level evidence in the
+   private runner follows the verification boundary: it attaches to a published
+   candidate, so it waits for the next release, and third-party content
+   (actual vendor modules) remains the 1EdTech-scoping step.
 4. **Sandboxed engine (Option C).** Frame runner, bridged contract, cached
    response reads, base-URL asset resolution, mutual origin locking.
 
@@ -361,11 +368,16 @@ makes the existing host path usable by anyone who does meet a PCI.
 ## Principal Risk
 
 No conformance oracle. Official suite commit `b058156` ships no PCI packages, so
-phases 1 and 2 are implemented against specification prose with no official
+phases 1 and 2 were implemented against specification prose with no official
 content to check against, and the first authoritative feedback arrives from
-1EdTech during a submission. Mitigate by testing against a third-party PCI
-authored to the specification rather than only against clean-room fixtures
-written from the same reading of the spec that produced the implementation.
+1EdTech during a submission. The in-repo mitigation (2026-10-16) is the
+clean-room conformance suite: fixtures authored from the specification exercise
+registration, restore-by-state, `ondone`, and fallback resolution over real
+module files. What in-repo evidence cannot close is the same-reading risk — the
+fixtures were written from the same reading of the spec that produced the
+implementation — so testing against a third-party PCI authored to the
+specification remains the outstanding mitigation, with official content to be
+scoped with 1EdTech.
 
 ## Decisions Closed
 

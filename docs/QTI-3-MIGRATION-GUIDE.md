@@ -334,11 +334,11 @@ Catalog parsing and glossary/keyword-translation popup support are implemented:
 
 ### Remaining delivery boundaries
 
-- PCI runs the spec registry contract with AMD module resolution (G-08 phases 1–2): modules
-  register via `qtiCustomInteractionContext`, instantiate through
-  `getInstance(dom, configuration, state)`, and multi-module declarations load through the
-  loader's `define` wiring with resolution-config parsing. Still scheduled for 1.0 (G-08
-  phase 3): third-party conformance evidence — see
+- PCI runs the spec registry contract with AMD module resolution and clean-room conformance
+  evidence (G-08 phases 1–3): modules register via `qtiCustomInteractionContext`, instantiate
+  through `getInstance(dom, configuration, state)`, and multi-module declarations load through
+  the loader's `define` wiring with resolution-config parsing. Still scheduled: browser-level
+  evidence with a published candidate and third-party content as a same-reading check — see
   [`../plans/version-1-0-2026-10.md`](../plans/version-1-0-2026-10.md).
 - Braille data exposure landed (G-13, done): `braille-text` lookups answer APIP `braille` entries
   too, and `pnp.display.structuredLabelSupport` labels interaction answer sets for screen

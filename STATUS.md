@@ -42,9 +42,11 @@ QTI 3.0 naming infrastructure and broad standard interaction delivery are implem
   at the player layer. Portable Custom Interaction extraction and the production
   lifecycle are connected, but module execution remains disabled until the host
   supplies a resolver; accepted PCI code is trusted page-authority code, not sandboxed.
-  The spec-conformant PCI runtime (registry contract, AMD loader, conformance
-  evidence) is scheduled for 1.0 under
-  [`docs/plans/version-1-0-2026-10.md`](docs/plans/version-1-0-2026-10.md).
+  The spec-conformant PCI runtime has landed (registry contract, `getInstance`,
+  QTI variable JSON, `getState()` restore, AMD loading with resolution configs,
+  clean-room conformance fixtures); browser-level evidence attaches to the next
+  published candidate, and the sandboxed realm stays opt-in hardening — see
+  [`docs/plans/pci-runtime-and-sandbox-2026-08.md`](docs/plans/pci-runtime-and-sandbox-2026-08.md).
 - Remaining assessment semantics include dynamic preconditions, section/testPart
   branch rules, and sequence-indexed clone materialization for selection with replacement.
 

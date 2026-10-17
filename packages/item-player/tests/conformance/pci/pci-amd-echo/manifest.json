@@ -1,0 +1,6 @@
+{
+	"source": "internal",
+	"license": "MIT",
+	"notes": "Clean-room PCI conformance fixture authored from the QTI 3.0 PCI specification (G-08 phase 3): a two-module AMD declaration (dependency + entry) whose entry registers against qtiCustomInteractionContext, instantiates through getInstance(dom, configuration, state), reports QTI variable JSON through getResponse(), captures state through getState(), and signals configuration.onready/ondone.",
+	"covers": ["pciRegistryContract", "pciGetInstance", "pciQtiVariableJson", "pciStateRestore", "pciOnreadyOndone", "amdModuleResolution"]
+}
