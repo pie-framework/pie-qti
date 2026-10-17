@@ -122,6 +122,7 @@ export default {
 			notSelected: 'No seleccionado',
 			correct: 'Correcto',
 			revealChoice: 'Mostrar opción {index}',
+			groupLabel: 'Opciones de respuesta',
 		},
 
 		upload: {
@@ -229,6 +230,7 @@ export default {
 			removeMatch: 'Eliminar emparejamiento',
 			clearMatch: 'Limpiar emparejamiento de {source}',
 			sourceItemsLabel: 'Elementos fuente para emparejar',
+			groupLabel: 'Elementos para asociar',
 			targetItemsLabel: 'Elementos objetivo para emparejar',
 			dragFromHere: 'Arrastra desde aquí:',
 			dropHere: 'Suelta aquí:',

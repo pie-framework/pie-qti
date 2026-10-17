@@ -211,8 +211,10 @@ describe('parsePnpXml', () => {
 	it('enables the catalog support of each predefined card support it grants', () => {
 		const profile = parsePnpXml(pnp('<sign-language xml:lang="ase"/><braille/><spoken/><calculator-on-screen/>'));
 		expect(profile.content?.catalogSupports).toEqual({
-			braille: true,
-			'sign-language': { active: true, languageCode: 'ase' },
+			// The supports the player routes itself arrive under their platform preference
+			// keys; the rest keep the AfA feature name for host-defined routing.
+			brailleText: true,
+			signingDefinition: { active: true, languageCode: 'ase' },
 			spoken: true,
 		});
 	});

@@ -80,7 +80,7 @@ import type { PnpProfile } from '../pnp/types.js';
 import { applyPnpToRoot } from '../pnp/applyPnp.js';
 import type { CatalogIndex } from '../catalog/types.js';
 import { extractCatalog, extractCatalogFromItemXml, mergeCatalogs } from '../catalog/catalogExtractor.js';
-import { getCatalogEntry } from '../catalog/catalogLookup.js';
+import { getCatalogEntryWithAliases } from '../catalog/catalogLookup.js';
 import { PciHost } from '../pci/PciHost.js';
 import type { ExtractedPci } from '../pci/types.js';
 import {
@@ -441,9 +441,10 @@ export class Player {
 		options?: { stimulusIdentifier?: string }
 	): HtmlContent | null {
 		const stimulusHtml = options?.stimulusIdentifier
-			? getCatalogEntry(this._stimulusCatalogIndexes.get(options.stimulusIdentifier) ?? new Map(), idref, usage, lang)
+			? getCatalogEntryWithAliases(this._stimulusCatalogIndexes.get(options.stimulusIdentifier) ?? new Map(), idref, usage, lang)
 			: null;
-		const html = stimulusHtml ?? getCatalogEntry(this._catalogIndex, idref, usage, lang);
+		const html =
+			stimulusHtml ?? getCatalogEntryWithAliases(this._catalogIndex, idref, usage, lang);
 		if (html === null) return null;
 		if (looksLikeCatalogUrl(html)) {
 			return sanitizeResourceUrl(html.trim(), this.config.security?.urlPolicy, 'img');

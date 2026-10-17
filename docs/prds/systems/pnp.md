@@ -131,7 +131,7 @@ The section player applies `tools` and the item's companion materials (`companio
 
 ### Known gaps
 
-**G-09 — PNP profile support:** Implemented in commit `fa8fa97` (2026-04-28). Elimination tool, extended time, glossary/keyword-translation triggers and popups are shipped. Color schemes set `data-qti-colorscheme` on the player root, and `qti-pnp.css` in `@pie-qti/default-components` ships the scheme rulesets, each at WCAG 1.4.3 contrast. Remaining items: magnification overlay (browser zoom sufficient — boundary), structured labels and braille data exposure (G-13, scheduled for 1.0); device routing stays host-side. Sign language video is host-owned: G-14 delivers it through `qti-catalog-lookup`.
+**G-09 — PNP profile support:** Implemented in commit `fa8fa97` (2026-04-28). Elimination tool, extended time, glossary/keyword-translation triggers and popups are shipped. Color schemes set `data-qti-colorscheme` on the player root, and `qti-pnp.css` in `@pie-qti/default-components` ships the scheme rulesets, each at WCAG 1.4.3 contrast. Structured labels and braille data exposure landed with G-13 (research note, markup contract and NVDA checklist in `packages/item-player/docs/PNP.md`): `pnp.display.structuredLabelSupport` announces interaction answer sets as prompt-named ARIA groups, an AfA `<braille/>` grant routes to the platform `brailleText` preference, and `braille-text`/`braille` catalog usage names share one lookup. Remaining item: magnification overlay (browser zoom sufficient — boundary); braille device routing stays host-side. Sign language video is host-owned: G-14 delivers it through `qti-catalog-lookup`.
 
 ---
 

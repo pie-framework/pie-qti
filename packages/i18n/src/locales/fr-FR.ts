@@ -121,6 +121,7 @@ export default {
 			notSelected: 'Non sélectionné',
 			correct: 'Correct',
 			revealChoice: 'Afficher le choix {index}',
+			groupLabel: 'Options de réponse',
 		},
 
 		upload: {
@@ -228,6 +229,7 @@ export default {
 			removeMatch: 'Supprimer l\'association',
 			clearMatch: 'Effacer l\'association pour {source}',
 			sourceItemsLabel: 'Éléments sources à associer',
+			groupLabel: 'Éléments à associer',
 			targetItemsLabel: 'Éléments cibles pour l\'association',
 			dragFromHere: 'Faites glisser depuis ici :',
 			dropHere: 'Déposez ici :',

@@ -23,10 +23,12 @@ interface Props {
 	correctPairs?: string[]; // Array of correct "sourceId targetId" pairs
 	disabled?: boolean;
 	i18n?: I18nProvider;
+	/** PNP structured labels: name each column by its visible heading instead of a hidden label (G-13). */
+	structuredLabels?: boolean;
 	onPairsChange: (newPairs: string[]) => void;
 }
 
-const { sourceSet, targetSet, pairs, maxAssociations = 0, correctPairs = [], disabled = false, i18n, onPairsChange }: Props = $props();
+const { sourceSet, targetSet, pairs, maxAssociations = 0, correctPairs = [], disabled = false, i18n, structuredLabels = false, onPairsChange }: Props = $props();
 
 // Targets incompatible with the active source due to matchGroup constraints
 const blockedTargetIds = $derived.by(() => {
@@ -163,8 +165,14 @@ function clearMatch(sourceId: string) {
 	aria-describedby="match-instructions"
 >
 	<!-- Source Set (Left Column) -->
-	<div part="source-column" class="qti-match-col space-y-2" role="group" aria-label={i18n?.t('interactions.match.sourceItemsLabel') ?? 'Source items to match'}>
-		<h3 part="source-heading" class="qti-match-heading font-semibold text-sm text-base-content/70 mb-3">
+	<div
+		part="source-column"
+		class="qti-match-col space-y-2"
+		role="group"
+		aria-labelledby={structuredLabels ? 'qti-match-source-heading' : undefined}
+		aria-label={structuredLabels ? undefined : (i18n?.t('interactions.match.sourceItemsLabel') ?? 'Source items to match')}
+	>
+		<h3 id="qti-match-source-heading" part="source-heading" class="qti-match-heading font-semibold text-sm text-base-content/70 mb-3">
 			{i18n?.t('interactions.match.sourceItemsLabel') ?? 'Source items to match'}
 		</h3>
 		{#each sourceSet as source (source.identifier)}
@@ -244,8 +252,14 @@ function clearMatch(sourceId: string) {
 	</div>
 
 	<!-- Target Set (Right Column) - Drop Zones -->
-	<div part="target-column" class="qti-match-col space-y-2" role="group" aria-label={i18n?.t('interactions.match.targetItemsLabel') ?? 'Target items for matching'}>
-		<h3 part="target-heading" class="qti-match-heading font-semibold text-sm text-base-content/70 mb-3">
+	<div
+		part="target-column"
+		class="qti-match-col space-y-2"
+		role="group"
+		aria-labelledby={structuredLabels ? 'qti-match-target-heading' : undefined}
+		aria-label={structuredLabels ? undefined : (i18n?.t('interactions.match.targetItemsLabel') ?? 'Target items for matching')}
+	>
+		<h3 id="qti-match-target-heading" part="target-heading" class="qti-match-heading font-semibold text-sm text-base-content/70 mb-3">
 			{i18n?.t('interactions.match.targetItemsLabel') ?? 'Target items for matching'}
 		</h3>
 		{#each targetSet as target (target.identifier)}

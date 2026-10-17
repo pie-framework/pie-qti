@@ -20,15 +20,29 @@
 		i18n?: I18nProvider;
 		typeset?: (element: HTMLElement) => void;
 		onChange?: (value: string[]) => void;
+		/** PNP structured labels: the answer sets are announced as labelled groups (G-13). */
+		structuredLabelSupport?: boolean;
 	}
 
-	let { interaction = $bindable(), response = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), typeset, onChange }: Props = $props();
+	let { interaction = $bindable(), response = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), typeset, onChange, structuredLabelSupport = false }: Props = $props();
 
 	// Parse props that may be JSON strings (web component usage)
 	const parsedInteraction = $derived(parseJsonProp<MatchInteractionData>(interaction));
 	const parsedResponse = $derived(parseJsonProp<string[]>(response));
 	const parsedCorrectResponse = $derived(parseJsonProp<string[]>(correctResponse));
 	const isShowingCorrect = $derived(role === 'scorer' && parsedCorrectResponse !== null);
+
+	// G-13 structured labels: the answer set becomes one ARIA group named by the prompt.
+	const promptId = $derived(
+		parsedInteraction ? `qti-match-prompt-${parsedInteraction.responseId.replace(/[^A-Za-z0-9_-]/g, '-')}` : undefined
+	);
+	const structuredAria = $derived.by(() => {
+		if (!structuredLabelSupport || !parsedInteraction) return {};
+		if (parsedInteraction.prompt) return { role: 'group', 'aria-labelledby': promptId ?? '' };
+		// An authored accessible name beats the generic group label.
+		if (parsedInteraction.accessibility?.label) return { role: 'group' };
+		return { role: 'group', 'aria-label': i18n?.t('interactions.match.groupLabel') ?? 'Matching items' };
+	});
 
 	// Get reference to the root element for event dispatching
 	let rootElement: HTMLDivElement | undefined = $state();
@@ -49,13 +63,13 @@
 
 <ShadowBaseStyles />
 
-<div bind:this={rootElement} {...interactionAria(parsedInteraction)} class={['qti-match-interaction', ...(parsedInteraction?.interactionClasses ?? [])].join(' ')} use:typesetAction={{ typeset }}>
+<div bind:this={rootElement} {...interactionAria(parsedInteraction)} {...structuredAria} class={['qti-match-interaction', ...(parsedInteraction?.interactionClasses ?? [])].join(' ')} use:typesetAction={{ typeset }}>
 	<InteractionDescription interaction={parsedInteraction} />
 	{#if !parsedInteraction}
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
 		{#if parsedInteraction.prompt}
-			<div part="prompt" class="qti-match-prompt qti-rich-content mb-3 text-sm text-base-content/70">
+			<div id={promptId} part="prompt" class="qti-match-prompt qti-rich-content mb-3 text-sm text-base-content/70">
 				{@html parsedInteraction.prompt}
 			</div>
 		{/if}
@@ -68,6 +82,7 @@
 			correctPairs={isShowingCorrect ? (parsedCorrectResponse || []) : []}
 			{disabled}
 			{i18n}
+			structuredLabels={structuredLabelSupport}
 			onPairsChange={handlePairsChange}
 		/>
 		{#if parsedInteraction.maxSelectionsMessage && pairs.length >= parsedInteraction.maxAssociations && parsedInteraction.maxAssociations > 0}

@@ -121,6 +121,7 @@ export default {
 			notSelected: 'Neselectat',
 			correct: 'Corect',
 			revealChoice: 'Afișează opțiunea {index}',
+			groupLabel: 'Opțiuni de răspuns',
 		},
 
 		upload: {
@@ -228,6 +229,7 @@ export default {
 			removeMatch: 'Elimină potrivirea',
 			clearMatch: 'Șterge potrivirea pentru {source}',
 			sourceItemsLabel: 'Elemente sursă de potrivit',
+			groupLabel: 'Elemente de asociat',
 			targetItemsLabel: 'Elemente țintă pentru potrivire',
 			dragFromHere: 'Trage de aici:',
 			dropHere: 'Plasează aici:',

@@ -119,6 +119,7 @@ export default {
 			notSelected: '未选择',
 			correct: '正确',
 			revealChoice: '显示选项 {index}',
+			groupLabel: '答案选项',
 		},
 
 		upload: {
@@ -240,6 +241,7 @@ export default {
 			removeMatch: '移除匹配',
 			clearMatch: '清除 {source} 的匹配',
 			sourceItemsLabel: '要匹配的源项目',
+			groupLabel: '配对项目',
 			targetItemsLabel: '用于匹配的目标项目',
 			dragFromHere: '从此处拖动:',
 			dropHere: '放在此处:',

@@ -784,26 +784,35 @@ Test signal
 
 Scope       — `packages/item-player/src/pnp/`;
               `packages/default-components/src/`
-Status      — Committed for 1.0
+Status      — Done
 Effort      — M
 Spec ref    — §6.2
 
 Context
 `structuredLabelSupport` in the PNP profile adds additional ARIA markup to interaction prompts
 (supplementary `role="group"` wrappers, visible sub-labels for complex interactions). The
-`braille-text` catalog entry usage serves refreshable braille display devices. Both require
-specialist accessibility knowledge to implement correctly.
+`braille-text` catalog entry usage serves refreshable braille display devices.
 
-Current
-Not implemented (G-09 covers the core PNP surface; this covers the two most specialist features).
+Research outcome (2026-10-16): neither APIP 1.0 nor AfA PNP 3.0 defines a structured-label term —
+verified against the published XSDs — so `structuredLabelSupport` is a player extension anchored
+in WAI-ARIA group labelling. The findings, markup contract and NVDA checklist live in
+`packages/item-player/docs/PNP.md`.
 
-Action
-1. Research the APIP spec section for structured labels; document the required markup in `packages/item-player/docs/PNP.md`.
-2. Implement structured label injection for `choiceInteraction` and `matchInteraction` as a starting point.
-3. For braille, expose `player.getCatalogEntry(idref, 'braille-text')` (already covered by G-10 catalog extractor); document that the host is responsible for routing this to a braille device driver.
+Implementation
+1. `pnp.display.structuredLabelSupport` rides the presentation plan to every block interaction;
+   `choiceInteraction` and `matchInteraction` announce their answer set as one `role="group"`
+   named by the prompt (i18n fallback otherwise, authored accessibility name still winning), and
+   match columns take their visible headings as `aria-labelledby` names.
+2. An AfA `<braille/>` grant maps to the platform `brailleText` preference (sign-language to
+   `signingDefinition`), and a `braille-text` lookup falls back to APIP's `braille` usage, so
+   QTI 3 and APIP catalogs share one routing path.
+3. `player.getCatalogEntry(idref, 'braille-text')` (G-10) plus the `qti-catalog-lookup` event
+   (G-14) expose the payload; device routing stays host-side, documented in
+   `packages/item-player/docs/PNP.md`.
 
 Test signal
 - With `structuredLabelSupport: true`, choice groups carry the correct ARIA roles.
+- `player.getCatalogEntry(idref, 'braille-text')` finds an APIP item's `braille` entry.
 
 ---
 

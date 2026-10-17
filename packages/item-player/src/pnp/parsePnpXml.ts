@@ -45,6 +45,16 @@ const CATALOG_SUPPORT_FEATURES = [
 	'transcript',
 ] as const;
 
+/**
+ * AfA features the player routes itself, recorded under the platform preference key
+ * (`CatalogSupportPreferences` flag) rather than the AfA feature name, so the granted
+ * support reaches the platform routing instead of falling through as host-defined.
+ */
+const PLATFORM_CATALOG_FEATURES: Readonly<Partial<Record<(typeof CATALOG_SUPPORT_FEATURES)[number], string>>> = {
+	braille: 'brailleText',
+	'sign-language': 'signingDefinition',
+};
+
 /** The extension SBAC requests its illustrated glossary with. */
 const ILLUSTRATED_GLOSSARY_EXTENSION = 'sbac-glossary-illustration';
 
@@ -187,7 +197,7 @@ export function pnpProfileFromAfa(record: AfaPnpRecord): PnpProfile {
 		const languageCode = normalizeLanguageCode(field(record[feature], 'language'));
 		const preference: CatalogSupportPreference = languageCode ? { active: true, languageCode } : true;
 		content.catalogSupports ??= {};
-		content.catalogSupports[feature] = preference;
+		content.catalogSupports[PLATFORM_CATALOG_FEATURES[feature] ?? feature] = preference;
 	}
 	if (granted('additional-testing-time')) {
 		const testingTime = record['additional-testing-time'];

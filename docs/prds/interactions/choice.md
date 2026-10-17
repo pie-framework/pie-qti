@@ -83,7 +83,7 @@
 ### Known gaps
 
 - **G-09 (PNP elimination tool):** Implemented for `choiceInteraction`; when `pnp.cognitive.eliminationTool` is enabled, each choice can be visually eliminated without removing it from the response pool.
-- **G-13 (PNP structural labels):** When `pnp.structuredLabelSupport` is enabled, interaction prompts should carry additional ARIA group role and label markup for screen-reader clarity. Not implemented. Tracked in `docs/SPEC-GAPS-PLAN.md`.
+- **G-13 (PNP structural labels):** Done. When `pnp.display.structuredLabelSupport` is enabled, the choice set is announced as one `role="group"` named by the prompt (i18n fallback otherwise; an authored accessibility name still wins). Markup contract and NVDA checklist in `packages/item-player/docs/PNP.md`; tracked as Done in `docs/SPEC-GAPS-PLAN.md`.
 - **`minChoices` not enforced:** The spec requires the player to treat the response as incomplete if fewer than `minChoices` identifiers are selected. Not extracted or validated.
 
 ---

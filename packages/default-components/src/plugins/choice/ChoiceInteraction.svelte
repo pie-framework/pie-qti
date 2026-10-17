@@ -27,6 +27,8 @@
 		eliminationTool?: boolean;
 		/** AfA `answer-masking`: each choice stays masked behind a reveal button until the candidate reveals it. */
 		answerMasking?: boolean;
+		/** PNP structured labels: the answer set is announced as one group named by the prompt (G-13). */
+		structuredLabelSupport?: boolean;
 	}
 
 	let {
@@ -41,7 +43,8 @@
 		outcomeValues = {},
 		heuristicsConfig,
 		eliminationTool = false,
-		answerMasking = false
+		answerMasking = false,
+		structuredLabelSupport = false
 	}: Props = $props();
 
 	// Normalize heuristics configuration with defaults
@@ -149,6 +152,19 @@
 		return `qti-choice-text-${token}`;
 	}
 
+	// G-13 structured labels: the answer set becomes one ARIA group named by the prompt,
+	// so a screen reader announces the question once and each choice within it.
+	const promptId = $derived(
+		parsedInteraction ? `qti-choice-prompt-${parsedInteraction.responseId.replace(/[^A-Za-z0-9_-]/g, '-')}` : undefined
+	);
+	const structuredAria = $derived.by(() => {
+		if (!structuredLabelSupport || !parsedInteraction) return {};
+		if (parsedInteraction.prompt) return { role: 'group', 'aria-labelledby': promptId ?? '' };
+		// An authored accessible name beats the generic group label.
+		if (parsedInteraction.accessibility?.label) return { role: 'group' };
+		return { role: 'group', 'aria-label': t('interactions.choice.groupLabel', 'Answer choices') };
+	});
+
 	// Selection limit message: show max message when at/over limit; min message is for submit time
 	const selectionCount = $derived(Array.isArray(parsedResponse) ? parsedResponse.length : (parsedResponse ? 1 : 0));
 	const maxChoices = $derived(parsedInteraction?.maxChoices ?? 0);
@@ -168,10 +184,10 @@
 	>{i18n?.t('interactions.choice.revealChoice', { index: index + 1 }) ?? `Reveal choice ${index + 1}`}</button>
 {/snippet}
 
-<div bind:this={rootElement} {...interactionAria(parsedInteraction)} part="root" class={['qti-choice-interaction space-y-2', ...(parsedInteraction?.interactionClasses ?? [])].join(' ')} use:typesetAction={{ typeset }}>
+<div bind:this={rootElement} {...interactionAria(parsedInteraction)} {...structuredAria} part="root" class={['qti-choice-interaction space-y-2', ...(parsedInteraction?.interactionClasses ?? [])].join(' ')} use:typesetAction={{ typeset }}>
 	<InteractionDescription interaction={parsedInteraction} />
 	{#if parsedInteraction?.prompt}
-		<div part="prompt" class="qti-choice-prompt qti-rich-content font-semibold">{@html parsedInteraction.prompt}</div>
+		<div id={promptId} part="prompt" class="qti-choice-prompt qti-rich-content font-semibold">{@html parsedInteraction.prompt}</div>
 	{/if}
 
 	{#if !parsedInteraction}
