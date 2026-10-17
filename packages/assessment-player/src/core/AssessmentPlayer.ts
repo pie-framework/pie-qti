@@ -108,6 +108,11 @@ export interface BackendAssessmentPlayerConfig {
 	// Time management
 	timeWarningThreshold?: number;
 	/**
+	 * Deterministic clock for time-limit tracking. Defaults to Date.now; intended for
+	 * tests and hosts that drive delivery from their own timeline.
+	 */
+	now?: () => number;
+	/**
 	 * QTI 3.0 §6.2 Personal Needs and Preferences profile.
 	 * Extended time (pnp.content.extendedTime) is applied to assessment timeLimits.
 	 * The full profile is passed down to each item player for component-level features
@@ -225,6 +230,7 @@ export class AssessmentPlayer {
 		this.timeManager = new TimeManager({
 			assessmentTimeLimits: this.assessment.timeLimits,
 			warningThreshold: config.timeWarningThreshold || 60,
+			now: config.now,
 			extendedTime: config.pnp?.content?.extendedTime,
 			onWarning: (remainingSeconds) => this.notifyTimeWarning(remainingSeconds),
 			onExpired: () => this.notifyTimeExpired(),
