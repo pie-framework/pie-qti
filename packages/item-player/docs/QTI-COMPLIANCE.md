@@ -35,13 +35,13 @@ fragments G-24) are tracked there as Done and are no longer repeated here.
 
 ### Interaction delivery
 
-- QTI 3 Portable Custom Interaction now runs the spec's registry contract
+- QTI 3 Portable Custom Interaction runs the spec's registry contract
   (`qtiCustomInteractionContext.register`, `getInstance(dom, configuration, state)`,
-  `onready`/`ondone`, QTI variable JSON responses, `getState()` restore) as of the
-  phase-1 work under G-08. Still open under G-08: the AMD loader with
-  resolution-config parsing and multi-module extraction (phase 2) and third-party
-  conformance evidence (phase 3). Module execution stays gated on the host
-  resolver — a trust decision, not a sandbox.
+  `onready`/`ondone`, QTI variable JSON responses, `getState()` restore) and loads
+  multi-module declarations through the AMD loader with resolution-config parsing
+  (phases 1–2 under G-08). Still open under G-08: third-party conformance evidence
+  (phase 3). Module execution stays gated on the host resolver — a trust decision,
+  not a sandbox.
 
 ### QTI 2.1
 

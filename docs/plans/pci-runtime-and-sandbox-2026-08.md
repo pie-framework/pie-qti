@@ -294,6 +294,11 @@ trusted item content.
    derived from role and attempt state.
 2. **AMD loader and module resolution.** Loader seam, AMD default resolution,
    resolution-config parsing, fallback resolution, multi-module extraction.
+   **Done (2026-10-16)** — `amdLoader.ts` implements `define`/`require` with
+   serialized evaluations, shims and `urlArgs`; `resolutionConfig.ts` parses the
+   RequireJS-shaped config and probes the defined default locations;
+   `ExtractedPci.modules` carries every authored `qti-interaction-module` entry,
+   and the entry module is picked by the type-identifier tail.
 3. **Conformance evidence.** Clean-room PCI fixtures exercising registration,
    restore-by-state, `ondone`, and fallback resolution; browser-level evidence
    in the private runner.

@@ -569,7 +569,8 @@ Scope       — `packages/item-player/src/interactions/portable-custom/extractor
               `packages/item-player/src/pci/`;
               `packages/item-player/src/core/Player.ts`;
               default interaction rendering
-Status      — In progress (phase 1 done — the spec contract runs; phases 2–3 remain of
+Status      — In progress (phases 1–2 done — the spec contract runs and modules load
+              through the AMD path; phase 3 evidence remains of
               [`plans/pci-runtime-and-sandbox-2026-08.md`](plans/pci-runtime-and-sandbox-2026-08.md);
               phase 4 sandboxed realm follows on the same track)
 Effort      — L
@@ -609,14 +610,17 @@ re-instantiates the module. A PCI authored against the specification runs; one a
 the retired `PciModule` does not, and never ran anywhere else.
 
 Action
-Phase 1 is done: registry global, `getInstance`, `onready`/`ondone`, QTI variable JSON,
-`getState()` restore, and the derived interaction status. Remaining per
+Phases 1 and 2 are done: the registry global, `getInstance`, `onready`/`ondone`, QTI variable JSON,
+`getState()` restore, the derived interaction status, and — phase 2 — the AMD loader
+(`amdLoader.ts`), the RequireJS-shaped resolution config (`resolutionConfig.ts`, probing the
+defined default locations `modules/module_resolution.js` and
+`modules/fallback_module_resolution.js`), multi-module extraction with per-entry ids, and entry
+selection by the customInteractionTypeIdentifier tail. Remaining per
 [`plans/pci-runtime-and-sandbox-2026-08.md`](plans/pci-runtime-and-sandbox-2026-08.md):
-the AMD loader and module resolution with multi-module extraction (phase 2), then conformance
-evidence against a third-party spec-authored module (phase 3). The 2026-08-17 intake measurement
-(zero `portableCustomInteraction` content, no QTI 3.0 packages) stands as data, but the
-2026-10-17 completeness goal supersedes it as the driver: spec-shaped PCI must run for its own
-sake, not because intake demand appeared. Keep the host resolver responsible for
+conformance evidence against a third-party spec-authored module (phase 3). The 2026-08-17 intake
+measurement (zero `portableCustomInteraction` content, no QTI 3.0 packages) stands as data, but
+the 2026-10-17 completeness goal supersedes it as the driver: spec-shaped PCI must run for its
+own sake, not because intake demand appeared. Keep the host resolver responsible for
 package-manifest, URL/origin, and integrity validation; the resolver is a trust decision, not a
 sandbox. Phase 4 (sandboxed execution realm) is opt-in hardening on the same 1.0 track and gates
 nothing.
