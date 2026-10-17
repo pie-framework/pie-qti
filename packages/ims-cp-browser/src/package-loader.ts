@@ -287,6 +287,11 @@ export interface ResolvedManifest {
 	passages: ResolvedManifestResource[];
 	/** QTI tests */
 	tests: ResolvedManifestResource[];
+	/**
+	 * Shared catalog files (manifest resource type `imsqti_catalog_xmlv3p0`):
+	 * glossary and support entries shared across items, per QTI 3.0 §6.3.
+	 */
+	sharedCatalogs: ResolvedManifestResource[];
 }
 
 /**
@@ -331,6 +336,9 @@ export async function loadResolvedManifest(
 	const items = parsed.items.map(resolveResource);
 	const passages = parsed.passages.map(resolveResource);
 	const tests = parsed.tests.map(resolveResource);
+	const sharedCatalogs = [...resources.values()].filter(
+		(resource) => resource.type === 'imsqti_catalog_xmlv3p0',
+	);
 
 	return {
 		identifier: parsed.identifier || 'unknown',
@@ -340,6 +348,7 @@ export async function loadResolvedManifest(
 		items,
 		passages,
 		tests,
+		sharedCatalogs,
 	};
 }
 

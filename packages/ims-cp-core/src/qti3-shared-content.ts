@@ -46,7 +46,13 @@ export interface ResolvedQtiStylesheetRef extends QtiStylesheetRef {
 }
 
 export interface ResolvedQtiCatalogSource {
-	scope: 'item' | 'stimulus';
+	/**
+	 * Where the catalog came from. `package` sources come from shared catalog
+	 * files the manifest lists (`imsqti_catalog_xmlv3p0`) and hold the lowest
+	 * precedence; `item` sources win identifier collisions over them, matching
+	 * QTI 3.0 §6.3.
+	 */
+	scope: 'item' | 'stimulus' | 'package';
 	xml: string;
 	baseHref: string;
 	stimulusIdentifier?: string;
@@ -100,6 +106,13 @@ export interface ResolveItemDeliveryContextOptions {
 	heuristicsConfig?: QtiHeuristicsConfig;
 	/** Preloaded external processing fragment texts, keyed by package-relative path. */
 	processingFragments?: Record<string, string>;
+	/**
+	 * Shared catalog files the package manifest lists (`imsqti_catalog_xmlv3p0`).
+	 * Give the manifest's package-relative href, the XML, or both. Their entries
+	 * sit below item-level catalogs: an item's own `qti-catalog-info` wins a
+	 * shared identifier (QTI 3.0 §6.3).
+	 */
+	packageCatalogSources?: ReadonlyArray<{ href?: string; xml?: string }>;
 }
 
 interface PackageResolverContext {
@@ -191,6 +204,25 @@ export function createResolvedItemDeliveryContext(
 		undefined,
 		resolverContext
 	);
+
+	// Shared catalogs first: the merge order puts them at the bottom, so an
+	// item-level entry wins a shared identifier.
+	for (const [index, shared] of (options.packageCatalogSources ?? []).entries()) {
+		const href = shared.href
+			? resolvePackageHref('', shared.href, validationMessages, 'Shared catalog', 'source-xml', resolverContext)
+			: undefined;
+		if (shared.href && href === null) continue;
+		const xml = shared.xml ?? (typeof href === 'string' ? options.readText(href) : undefined);
+		if (!xml) {
+			validationMessages.push(`Shared catalog file not found: ${shared.href ?? `#${index}`}.`);
+			continue;
+		}
+		catalogSources.push({
+			scope: 'package',
+			xml: resolveCatalogFileHrefs(xml, href ?? '', validationMessages, resolverContext),
+			baseHref: href ?? '',
+		});
+	}
 
 	for (const itemCatalogXml of extractCatalogInfoXml(options.itemXml)) {
 		catalogSources.push({

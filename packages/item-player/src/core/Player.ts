@@ -329,6 +329,8 @@ export class Player {
 		// Build the catalog index from shared catalog XML, item XML, and resolved delivery context.
 		// Sanitized item-level delivery context entries win over raw item XML on collisions.
 		// Stimulus entries are kept separately so rendered stimulus terms can avoid ID collisions.
+		// Package (shared catalog file) entries merge first: they hold the lowest
+		// precedence, below catalogXml and the item's own catalogs (QTI 3.0 §6.3).
 		if (prepared) {
 			this._catalogIndex = prepared.catalogIndex;
 			this._stimulusCatalogIndexes = prepared.stimulusCatalogIndexes;
@@ -343,6 +345,8 @@ export class Player {
 						source.stimulusIdentifier,
 						mergeCatalogs(existing, sourceCatalog),
 					);
+				} else if (source.scope === 'package') {
+					mergedCatalog = mergeCatalogs(mergedCatalog, sourceCatalog);
 				} else {
 					deliveryItemCatalog = mergeCatalogs(deliveryItemCatalog, sourceCatalog);
 				}

@@ -417,6 +417,7 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 				role: this.#config.role ?? 'candidate',
 				itemXmlMap: this.#resolvedItemXmlMap(parsed),
 				fileResolver: resourceResolver,
+				...(this.#config.sharedCatalogs ? { sharedCatalogs: this.#config.sharedCatalogs } : {}),
 				...(configuredSectionDepth === undefined
 					? {}
 					: { sectionReferenceLimits: { maxDepth: configuredSectionDepth } }),
