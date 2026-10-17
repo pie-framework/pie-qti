@@ -185,7 +185,7 @@ export function createAmdLoader(options: AmdLoaderOptions): AmdLoader {
 		if (typeof first === 'string') {
 			// Synchronous require: only already-evaluated modules answer.
 			if (!modules.has(first)) {
-				throw new Error(`AMD require('${first}') before the module was loaded`);
+				throw new Error(`AMD sync require of '${first}' before the module was loaded`);
 			}
 			return modules.get(first);
 		}

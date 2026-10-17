@@ -91,6 +91,9 @@ const isExternalSpecifier = (specifier) =>
 
 const isIgnoredSpecifier = (specifier) => {
 	if (BUILTIN_SPECIFIERS.has(specifier)) return true;
+	// A leading ${ marks a template-literal interpolation that a regex over minified
+	// code mistook for a static specifier; it is never a real import.
+	if (specifier.startsWith("${")) return true;
 	return BUNDLED_IMPORT_PROTOCOLS.some(
 		(prefix) => specifier === prefix || specifier.startsWith(prefix),
 	);
