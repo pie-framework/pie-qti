@@ -867,4 +867,4 @@ For questions or issues:
 
 ## License
 
-ISC
+MIT

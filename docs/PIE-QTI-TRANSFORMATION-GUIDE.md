@@ -629,4 +629,4 @@ For issues or questions:
 
 ## License
 
-ISC
+MIT

@@ -149,4 +149,4 @@ If you discover a security vulnerability, please follow the security model in [d
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the ISC License (see [LICENSE](LICENSE)).
+By contributing, you agree that your contributions will be licensed under the MIT License (see [LICENSE](LICENSE)).

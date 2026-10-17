@@ -155,4 +155,4 @@ bun run batch-transform -- ./path/to/content/ -o ./output/
 
 ## License
 
-ISC
+MIT

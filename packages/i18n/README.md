@@ -399,4 +399,4 @@ bun run build:skip-check
 
 ## License
 
-ISC © Renaissance Learning
+MIT

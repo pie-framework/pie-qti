@@ -26,7 +26,7 @@ This project provides two major capabilities:
 
 ## Why This Project Exists
 
-[PIE](https://pie-framework.org/) (Portable Interactions and Elements) is a complete framework for playing and authoring assessment items, maintained by [Renaissance Learning](https://www.renaissance.com/) with implementation partner [MCRO](https://mcro.tech/).
+[PIE](https://pie-framework.org/) (Portable Interactions and Elements) is a complete framework for playing and authoring assessment items, sponsored by [Renaissance Learning](https://www.renaissance.com/) with implementation partner [MCRO](https://mcro.tech/).
 
 Many Renaissance partners exchange content in **QTI format**, so bidirectional QTI ↔ PIE transformation is essential. This project **open sources that transformation framework** for partners and the broader community.
 
@@ -261,4 +261,4 @@ bun run preview:pages
 
 ## License
 
-ISC License — see [LICENSE](LICENSE)
+MIT License — see [LICENSE](LICENSE)
