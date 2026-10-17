@@ -52,6 +52,29 @@ describe('createItemPresentation', () => {
 		expect(presentationHtml(correct)).not.toContain('feedbackInline');
 	});
 
+	test('a PNP structured-label profile reaches every block mount', () => {
+		const player = new Player({
+			itemXml: `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="structured">
+	<responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier"/>
+	<itemBody>
+		<choiceInteraction responseIdentifier="RESPONSE" maxChoices="1">
+			<prompt>Choose one.</prompt>
+			<simpleChoice identifier="A">A</simpleChoice>
+			<simpleChoice identifier="B">B</simpleChoice>
+		</choiceInteraction>
+	</itemBody>
+</assessmentItem>`,
+			pnp: { display: { structuredLabelSupport: true } },
+		});
+		const mounts = createItemPresentation({ source: sourceFromPlayer(player) }).flow.flatMap((node) =>
+			node.kind === 'interaction' && node.mount.placement === 'block' ? [node.mount] : []
+		);
+		expect(mounts).toHaveLength(1);
+		expect(mounts[0].structuredLabelSupport).toBe(true);
+		expect(mounts[0].eliminationTool).toBe(false);
+	});
+
 	test('a live ItemSession presents post-submit outcomes without a response snapshot handoff', () => {
 		const definition = createAssessmentItemDefinition({
 			itemXml: `<?xml version="1.0" encoding="UTF-8"?>

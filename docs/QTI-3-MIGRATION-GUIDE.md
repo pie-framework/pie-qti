@@ -336,8 +336,9 @@ Catalog parsing and glossary/keyword-translation popup support are implemented:
 
 - PCI runs under the bespoke module contract until the spec registry contract lands (G-08,
   scheduled for 1.0 — see [`../plans/version-1-0-2026-10.md`](../plans/version-1-0-2026-10.md)).
-- Structured labels, braille data exposure (G-13), and manifest-level shared catalogs (G-15) are
-  scheduled for 1.0 but not yet implemented.
+- Braille data exposure landed (G-13, done): `braille-text` lookups answer APIP `braille` entries
+  too, and `pnp.display.structuredLabelSupport` labels interaction answer sets for screen
+  readers. Manifest-level shared catalogs (G-15) remain scheduled for 1.0.
 - Export writes QTI 3.0 with `targetVersion: '3.0'` on `PieToQtiPlugin` (G-25). Assessment-level
   accessibility catalogs have no QTI home and are named in a warning instead of written.
 - Formal official-suite evidence for current source changes is unavailable until a new NPM candidate

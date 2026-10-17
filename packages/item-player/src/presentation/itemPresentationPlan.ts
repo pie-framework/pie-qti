@@ -83,6 +83,8 @@ export interface BlockInteractionMount {
 	readonly pnp: PnpProfile | undefined;
 	readonly eliminationTool: boolean;
 	readonly answerMasking: boolean;
+	/** Label the interaction's answer set as an ARIA group for assistive technology (G-13). */
+	readonly structuredLabelSupport: boolean;
 	readonly disabled: boolean;
 	readonly componentRole: 'scorer' | undefined;
 }
@@ -408,6 +410,7 @@ function createBlockInteractionMounts({
 					pnp: source.pnp,
 					eliminationTool: source.pnp?.cognitive?.eliminationTool === true,
 					answerMasking: source.pnp?.cognitive?.answerMasking === true,
+					structuredLabelSupport: source.pnp?.display?.structuredLabelSupport === true,
 					disabled: effectiveDisabled,
 					componentRole: roleCapabilities.canViewCorrectResponses ? 'scorer' : undefined,
 				};
