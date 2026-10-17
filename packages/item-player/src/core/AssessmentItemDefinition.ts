@@ -9,6 +9,7 @@ import {
 } from '@pie-qti/qti-common';
 import type { I18nProvider } from '@pie-qti/i18n';
 import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
+import { resolveCheckedPackagePathFromFile } from '@pie-qti/ims-cp-core';
 import type { ProcessingFragmentResolver, QtiValue } from '@pie-qti/qti-processing';
 import {
 	createExtractionRegistry,
@@ -201,7 +202,42 @@ function snapshotDefinitionConfig(input: AssessmentItemDefinitionConfig): Readon
 			? { deliveryContext: freezePlainSnapshot(input.deliveryContext) }
 			: {}),
 	};
+	if (!config.resolveProcessingFragment && config.deliveryContext) {
+		const derived = createPackageFragmentResolver(config.deliveryContext);
+		if (derived) config.resolveProcessingFragment = derived;
+	}
 	return Object.freeze(config);
+}
+
+/**
+ * Builds a synchronous, package-contained processing fragment resolver from the
+ * preloaded fragment texts of an item delivery context. The resolver resolves each
+ * authored href against the item's package path; because include resolution is
+ * depth-first and synchronous, it also tracks the resolved path per nesting level so
+ * includes authored inside a fragment resolve relative to that fragment.
+ */
+function createPackageFragmentResolver(
+	deliveryContext: Readonly<ResolvedItemDeliveryContext>,
+): ProcessingFragmentResolver | undefined {
+	const fragments = deliveryContext.processingFragments;
+	if (!fragments || Object.keys(fragments).length === 0) return undefined;
+	const itemHref = deliveryContext.itemHref ?? '';
+	const baseByDepth: string[] = [itemHref];
+	return (request) => {
+		// Drop stale deeper levels so fallback content resolves against the item again.
+		baseByDepth.length = request.depth + 1;
+		const base = baseByDepth[request.depth] ?? itemHref;
+		const path = base ? resolveCheckedPackagePathFromFile(base, request.href) : null;
+		if (path !== null && fragments[path] !== undefined) {
+			baseByDepth[request.depth + 1] = path;
+			return fragments[path];
+		}
+		if (fragments[request.href] !== undefined) {
+			baseByDepth[request.depth + 1] = request.href;
+			return fragments[request.href];
+		}
+		return null;
+	};
 }
 
 function compileDefinitionConfig(

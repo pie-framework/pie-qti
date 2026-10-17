@@ -42,6 +42,7 @@ import {
 import {
 	createResolvedItemDeliveryContext,
 	extractAssessmentStimulusRefs,
+	extractProcessingIncludeRefs,
 	extractQtiStylesheets,
 	parseAssessmentStimulusXml,
 	resolveCheckedPackagePath,
@@ -910,10 +911,33 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 					}
 				}
 			}
+			// Preload external processing fragments so the item session's synchronous
+			// resolver stays package-contained. Nested includes resolve relative to the
+			// fragment that references them; the processing engine still validates
+			// namespace, mode, depth, and cycles at build time.
+			const processingFragments: Record<string, string> = {};
+			const collectProcessingFragments = async (
+				sourceXml: string,
+				sourceHref: string,
+				seen: Set<string>,
+			): Promise<void> => {
+				for (const includeHref of extractProcessingIncludeRefs(sourceXml)) {
+					const fragmentPath = resolveCheckedPackagePathFromFile(sourceHref, includeHref);
+					if (!fragmentPath || seen.has(fragmentPath)) continue;
+					seen.add(fragmentPath);
+					const fragmentXml = await loadText(fragmentPath);
+					if (fragmentXml === undefined) continue;
+					processingFragments[fragmentPath] = fragmentXml;
+					await collectProcessingFragments(fragmentXml, fragmentPath, seen);
+				}
+			};
+			const fragmentSeen = new Set<string>();
+			await collectProcessingFragments(itemXml, itemHref, fragmentSeen);
 			return createResolvedItemDeliveryContext({
 				itemXml,
 				itemHref,
 				readText: (path) => packageTextByPath[path] ?? stimulusXmlByPath[path] ?? itemXmlMap[path],
+				...(Object.keys(processingFragments).length > 0 ? { processingFragments } : {}),
 			});
 		};
 

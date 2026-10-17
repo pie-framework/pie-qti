@@ -99,4 +99,43 @@ describe('external QTI processing fragments', () => {
 			}),
 		).toThrow('included from responseProcessing');
 	});
+
+	it('rejects an include element outside the XInclude namespace without calling the resolver', () => {
+		let resolverCalls = 0;
+		const foreignPrefixed = () =>
+			buildResponseProcessingAst(
+				parseXml(
+					`<responseProcessing xmlns:xi="${XI}" xmlns:v="http://example.com/vendor"><v:include href="score.xml"/></responseProcessing>`,
+				).documentElement,
+				{
+					resolveProcessingFragment: () => {
+						resolverCalls++;
+						return null;
+					},
+				},
+			);
+		expect(foreignPrefixed).toThrow('only recognized in the XInclude namespace');
+		expect(resolverCalls).toBe(0);
+
+		// A bare <include> with no namespace declaration is equally not XInclude.
+		expect(() =>
+			buildResponseProcessingAst(parseXml('<responseProcessing><include href="score.xml"/></responseProcessing>').documentElement, {
+				resolveProcessingFragment: () => null,
+			}),
+		).toThrow('Unknown processing statement tag');
+	});
+
+	it('ignores a fallback element outside the XInclude namespace', () => {
+		expect(() =>
+			buildResponseProcessingAst(
+				parseXml(
+					`<responseProcessing xmlns:xi="${XI}" xmlns:v="http://example.com/vendor">` +
+						'<xi:include href="missing.xml">' +
+						'<v:fallback><setOutcomeValue identifier="SCORE"><baseValue baseType="float">3</baseValue></setOutcomeValue></v:fallback>' +
+						'</xi:include></responseProcessing>',
+				).documentElement,
+				{ resolveProcessingFragment: () => null },
+			),
+		).toThrow('resolver returned no content');
+	});
 });

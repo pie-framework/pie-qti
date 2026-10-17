@@ -20,6 +20,13 @@ import { parseXml, serializeXml } from '../xml/parse.js';
 export type ProcessingScope = 'item' | 'test';
 export type ProcessingMode = 'template' | 'response' | 'outcome';
 
+/** Only vocabulary in the XInclude namespace is an inclusion statement. */
+const XINCLUDE_NAMESPACE = 'http://www.w3.org/2001/XInclude';
+
+function inXIncludeNamespace(el: Element): boolean {
+	return el.namespaceURI === XINCLUDE_NAMESPACE;
+}
+
 export interface ProcessingFragmentRequest {
 	/** The href exactly as authored on xi:include. */
 	href: string;
@@ -139,6 +146,13 @@ function buildStatements(
 					break;
 				}
 			case 'include': {
+				// An element merely named "include" in another vocabulary must not be
+				// interpreted as processing inclusion; fail loudly like the default case.
+				if (!inXIncludeNamespace(el)) {
+					throw new Error(
+						`Unknown processing statement tag: <${tag}> (mode=${mode}); <include> is only recognized in the XInclude namespace`,
+					);
+				}
 				out.push(...buildIncludedStatements(el, mode, options, fragmentState));
 				break;
 			}
@@ -329,7 +343,7 @@ function buildIncludedStatements(
 
 	if (resolved == null) {
 		const fallback = childElements(includeElement).find(
-			(child) => (localName(child) ?? '').toLowerCase() === 'fallback',
+			(child) => inXIncludeNamespace(child) && (localName(child) ?? '').toLowerCase() === 'fallback',
 		);
 		if (fallback) {
 			return buildStatements(childElements(fallback), mode, options, state);
