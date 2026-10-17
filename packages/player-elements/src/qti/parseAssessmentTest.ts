@@ -1,15 +1,22 @@
-import type { AssessmentRubricBlock, QTIRole } from '@pie-qti/assessment-player';
+/**
+ * Bounded structural pre-scan of an assessmentTest document.
+ *
+ * This discovery parser is intentionally NOT the authority on assessment semantics:
+ * `ReferenceBackendAdapter.parseAssessmentTestXml` re-parses the same document and owns
+ * section refs, selection/ordering, session control, processing, and feedback. The
+ * discovery pass exists so the element can (a) reject over-deep inline nesting before
+ * fetching anything, (b) know which item hrefs to prefetch under strict budgets, and
+ * (c) fall back to the test identifier for the assessment id. Its item identifier and
+ * raw href values must keep matching the adapter's itemXmlMap lookup
+ * (identifier, authored href, then href resolved against the containing file).
+ */
+import { toCanonicalQtiName, type AssessmentRubricBlock, type QTIRole } from '@pie-qti/assessment-player';
 import { DOMParser as LinkedomDOMParser } from 'linkedom';
 import type { ParsedAssessmentItemRef, ParsedAssessmentSection, ParsedAssessmentTest, ParsedTestPart } from './types.js';
 
 // Use native DOMParser in browser, linkedom in Node/Bun
 const DOMParserImpl = typeof DOMParser !== 'undefined' ? DOMParser : LinkedomDOMParser;
 const DEFAULT_MAX_SECTION_DEPTH = 32;
-
-function toCanonicalQtiName(name: string | null | undefined): string {
-	const withoutPrefix = (name ?? '').replace(/^qti-/, '');
-	return withoutPrefix.replace(/-([a-z])/g, (_, char: string) => char.toUpperCase());
-}
 
 function firstByLocalName(parent: ParentNode, localName: string): Element | null {
 	const all = (parent as any).getElementsByTagNameNS

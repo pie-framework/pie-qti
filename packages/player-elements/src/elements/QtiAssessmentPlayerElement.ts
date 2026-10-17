@@ -521,6 +521,8 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 	}
 
 	#resolvedItemXmlMap(parsed: ParsedAssessmentTest): Record<string, string> {
+		// Keys must keep satisfying the adapter's per-item lookup order: identifier,
+		// authored href, then href resolved against the containing file.
 		const map: Record<string, string> = {};
 		const visit = (sections: ParsedAssessmentSection[]): void => {
 			for (const section of sections) {

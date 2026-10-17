@@ -751,6 +751,9 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 		const root = doc.documentElement;
 		if (!root) throw new Error('Empty assessmentTest XML');
 
+		// Reads camelCase and QTI 3 kebab-case attribute spellings alike. Empty values
+		// are treated as missing here; the player-elements discovery parser keeps '' —
+		// the two are intentionally not shared so each call site keeps its semantics.
 		const getAttr = (el: Element, name: string): string | undefined => {
 			const direct = el.getAttribute(name);
 			if (direct !== null && direct !== '') return direct;
