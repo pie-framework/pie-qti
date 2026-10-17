@@ -569,7 +569,7 @@ Scope       — `packages/item-player/src/interactions/portable-custom/extractor
               `packages/item-player/src/pci/`;
               `packages/item-player/src/core/Player.ts`;
               default interaction rendering
-Status      — Committed for 1.0 (phases 1–3 of
+Status      — In progress (phase 1 done — the spec contract runs; phases 2–3 remain of
               [`plans/pci-runtime-and-sandbox-2026-08.md`](plans/pci-runtime-and-sandbox-2026-08.md);
               phase 4 sandboxed realm follows on the same track)
 Effort      — L
@@ -599,33 +599,39 @@ imports an authored URL by itself. Ordinary non-PCI `customInteraction` content 
 fallback renderer. This resolver is a trust-decision boundary, not a JavaScript sandbox: accepted
 PCI code runs with the page's authority.
 
-The `PciModule` interface above is bespoke. QTI 3.0 specifies a registry contract —
-`qtiCustomInteractionContext.register()`, `getInstance(dom, configuration, state)`,
-`configuration.onready` / `ondone`, QTI variable JSON responses, `getState()` restore — with AMD
-as the documented default module resolution. A PCI authored against the specification therefore
-does not run here, and one authored against `PciModule` runs nowhere else.
+The `PciModule` interface above was bespoke, and was replaced outright (phase 1, 2026-10-16) with
+the contract QTI 3.0 specifies: modules register against the page's `qtiCustomInteractionContext`
+(`registry.ts`), the host instantiates through `getInstance(dom, configuration, state)` with
+`configuration.onready` / `ondone` and a `status` of `interacting`/`closed`/`solution`/`review`,
+responses cross the boundary as QTI variable JSON (`base`/`list`/`record`), and restore re-seeds
+`getInstance` with `getState()` output — there is no setter, so an authoritative response change
+re-instantiates the module. A PCI authored against the specification runs; one authored against
+the retired `PciModule` does not, and never ran anywhere else.
 
 Action
-Extraction, renderer, session wiring, and the resolver trust gate are complete and stay. Replace the
-module contract per
-[`plans/pci-runtime-and-sandbox-2026-08.md`](plans/pci-runtime-and-sandbox-2026-08.md), phases 1–3:
-registry global, `getInstance`, `onready`/`ondone`, QTI variable JSON responses, `getState()`
-restore, then the AMD loader and module resolution, then conformance evidence against a third-party
-spec-authored module. The 2026-08-17 intake measurement (zero `portableCustomInteraction` content,
-no QTI 3.0 packages) stands as data, but the 2026-10-17 completeness goal supersedes it as the
-driver: spec-shaped PCI must run for its own sake, not because intake demand appeared. Keep the
-host resolver responsible for package-manifest, URL/origin, and integrity validation; the resolver
-is a trust decision, not a sandbox. Phase 4 (sandboxed execution realm) is opt-in hardening on the
-same 1.0 track and gates nothing.
+Phase 1 is done: registry global, `getInstance`, `onready`/`ondone`, QTI variable JSON,
+`getState()` restore, and the derived interaction status. Remaining per
+[`plans/pci-runtime-and-sandbox-2026-08.md`](plans/pci-runtime-and-sandbox-2026-08.md):
+the AMD loader and module resolution with multi-module extraction (phase 2), then conformance
+evidence against a third-party spec-authored module (phase 3). The 2026-08-17 intake measurement
+(zero `portableCustomInteraction` content, no QTI 3.0 packages) stands as data, but the
+2026-10-17 completeness goal supersedes it as the driver: spec-shaped PCI must run for its own
+sake, not because intake demand appeared. Keep the host resolver responsible for
+package-manifest, URL/origin, and integrity validation; the resolver is a trust decision, not a
+sandbox. Phase 4 (sandboxed execution realm) is opt-in hardening on the same 1.0 track and gates
+nothing.
 
 Test signal
-- Loading QTI 2.x or 3.0 PCI content instantiates the resolver-returned module.
+- A module registering through `qtiCustomInteractionContext` runs unmodified (done, phase 1).
 - `player.getResponses()` delegates PCI values to the module's response read.
 - `player.setResponses({ RESPONSE: value })` offers the value to the module and is
-  declined once the module owns its response; `player.restoreResponses()` replaces it.
-- `disable()` is called when the player switches to a non-candidate role.
+  declined once the module owns its response; `player.restoreResponses()` re-instantiates
+  the module with the override as its `getInstance` state.
+- Responses cross the host boundary as QTI variable JSON; the player's runtime values
+  stay plain inside.
+- `disable()` is called when the player switches to a non-candidate role, for modules
+  that expose it; conformant modules read their fixed `configuration.status`.
 - `destroy()` is called when the player is torn down.
-- A module registering through `qtiCustomInteractionContext` runs unmodified (phase 1).
 
 ---
 

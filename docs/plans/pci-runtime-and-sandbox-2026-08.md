@@ -287,7 +287,11 @@ trusted item content.
 
 1. **Spec contract adoption.** Registry global, `getInstance`, `onready` /
    `ondone`, QTI variable JSON responses, `getState()` restore. Third-party PCIs
-   run after this phase and not before it.
+   run after this phase and not before it. **Done (2026-10-16)** — `registry.ts`
+   installs `qtiCustomInteractionContext`, `PciHost` instantiates through
+   `getInstance`, responses cross the boundary as QTI variable JSON
+   (`qtiVariableJson.ts`), restore re-seeds state, and `configuration.status` is
+   derived from role and attempt state.
 2. **AMD loader and module resolution.** Loader seam, AMD default resolution,
    resolution-config parsing, fallback resolution, multi-module extraction.
 3. **Conformance evidence.** Clean-room PCI fixtures exercising registration,
