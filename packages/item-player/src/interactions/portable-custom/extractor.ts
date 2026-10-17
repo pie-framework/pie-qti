@@ -63,24 +63,40 @@ export const portableCustomExtractor: ElementExtractor<
 
 		// --- Module paths from <qti-interaction-modules>/<qti-interaction-module> ---
 		// These element names ARE in the standard QTI 3.0 element mapper so utils.querySelector works.
-		let primaryPath = '';
-		let fallbackPath: string | undefined;
+		// Every authored entry is kept; the entry module — the one whose id matches the
+		// customInteractionTypeIdentifier's tail, else the last one — fills primaryPath.
+		const modules: ExtractedPci['modules'] = [];
+		let resolutionConfigPath: string | undefined;
 
 		const modulesEl = findDescendant(pciElement, ['interactionmodules', 'qti-interaction-modules']);
 
 		if (modulesEl) {
-			const moduleEl = findDescendant(modulesEl, ['interactionmodule', 'qti-interaction-module']);
+			const configuration =
+				utils.getAttribute(modulesEl, 'primaryConfiguration') ||
+				utils.getAttribute(modulesEl, 'primary-configuration') ||
+				'';
+			if (configuration) resolutionConfigPath = configuration;
 
-			if (moduleEl) {
-				primaryPath =
+			for (const moduleEl of findDescendants(modulesEl, ['interactionmodule', 'qti-interaction-module'])) {
+				const primary =
 					utils.getAttribute(moduleEl, 'primaryPath') ||
-					utils.getAttribute(moduleEl, 'primary-path') || '';
-				const fb =
+					utils.getAttribute(moduleEl, 'primary-path') ||
+					'';
+				const fallback =
 					utils.getAttribute(moduleEl, 'fallbackPath') ||
-					utils.getAttribute(moduleEl, 'fallback-path') || '';
-				if (fb) fallbackPath = fb;
+					utils.getAttribute(moduleEl, 'fallback-path') ||
+					'';
+				modules.push({
+					id: utils.getAttribute(moduleEl, 'id') || '',
+					primaryPath: primary,
+					...(fallback ? { fallbackPath: fallback } : {}),
+				});
 			}
 		}
+
+		const entry = pickEntryModule(modules, customInteractionTypeIdentifier);
+		let primaryPath = entry?.primaryPath ?? '';
+		let fallbackPath = entry?.fallbackPath;
 
 		// QTI 2.x PCI v1.0 embeds one or more script hooks in <pci:instance>.
 		// The first external script identifies the resource a host resolver must map.
@@ -121,6 +137,8 @@ export const portableCustomExtractor: ElementExtractor<
 			customInteractionTypeIdentifier,
 			primaryPath,
 			fallbackPath,
+			modules,
+			...(resolutionConfigPath ? { resolutionConfigPath } : {}),
 			markup,
 			config,
 		};
@@ -145,6 +163,28 @@ export const portableCustomExtractor: ElementExtractor<
 };
 
 type ExtractableElement = Parameters<typeof portableCustomExtractor.canHandle>[0];
+
+/**
+ * The entry module: the one whose id matches the customInteractionTypeIdentifier's
+ * tail (`urn:...:pci:shading` → `shading`), else the last entry with a path, else
+ * the last entry. Only the id match is specified; the rest keeps single-module
+ * content authored without ids loading.
+ */
+function pickEntryModule(
+	modules: ExtractedPci['modules'],
+	customInteractionTypeIdentifier: string
+): ExtractedPci['modules'][number] | undefined {
+	if (modules.length === 0) return undefined;
+	const tail = customInteractionTypeIdentifier.split(':').pop()?.trim();
+	if (tail) {
+		const byId = modules.find((module) => module.id === tail);
+		if (byId) return byId;
+	}
+	for (let index = modules.length - 1; index >= 0; index -= 1) {
+		if (modules[index].primaryPath) return modules[index];
+	}
+	return modules[modules.length - 1];
+}
 
 function localTagName(element: ExtractableElement): string {
 	const raw = element.rawTagName?.toLowerCase() ?? '';

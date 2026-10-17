@@ -192,6 +192,14 @@ export interface PciHostController {
 	destroy(): void;
 }
 
+/** One authored `qti-interaction-module` entry. */
+export interface PciModuleEntry {
+	/** The module id other modules' AMD dependencies refer to. */
+	id: string;
+	primaryPath: string;
+	fallbackPath?: string;
+}
+
 /**
  * Extracted data from a <qti-portable-custom-interaction> element.
  */
@@ -200,10 +208,24 @@ export interface ExtractedPci {
 	responseIdentifier: string;
 	/** customInteractionTypeIdentifier attribute value (URN identifying the PCI type). */
 	customInteractionTypeIdentifier: string;
-	/** Primary JS module path (required). */
+	/** Primary JS module path (required). The entry module's path. */
 	primaryPath: string;
-	/** Fallback JS module path (optional). */
+	/** Fallback JS module path (optional). The entry module's fallback. */
 	fallbackPath?: string;
+	/**
+	 * All authored `qti-interaction-module` entries, in document order. A
+	 * multi-module PCI loads them through the AMD loader, whose `define` wires
+	 * the dependencies; the entry module is the one whose id matches the
+	 * customInteractionTypeIdentifier's tail.
+	 */
+	modules: PciModuleEntry[];
+	/**
+	 * The `qti-interaction-modules@primary-configuration` reference: a module
+	 * resolution config file (RequireJS `paths` shape) that names the modules'
+	 * paths. When absent, the runtime tries the defined default locations under
+	 * the package base URL.
+	 */
+	resolutionConfigPath?: string;
 	/** Inner HTML of the <qti-interaction-markup> element. */
 	markup: HtmlContent;
 	/** Key/value pairs from <qti-pci-properties>/<qti-pci-property>. */

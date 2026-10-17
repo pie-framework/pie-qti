@@ -107,6 +107,7 @@ export type {
 	PciHostController,
 	PciHostOptions,
 	PciInteractionStatus,
+	PciModuleEntry,
 	PciModulePathKind,
 	PciModuleResolutionContext,
 	PciModuleResolver,
@@ -124,6 +125,14 @@ export {
 } from './pci/allowlistResolver.js';
 export type { AllowlistPciResolverOptions } from './pci/allowlistResolver.js';
 export { installPciRegistry, getSharedPciRegistry, PCI_REGISTRY_GLOBAL } from './pci/registry.js';
+export { createAmdLoader } from './pci/amdLoader.js';
+export type { AmdLoader, AmdLoaderOptions } from './pci/amdLoader.js';
+export {
+	DEFAULT_RESOLUTION_CONFIG_PATHS,
+	emptyResolutionConfig,
+	parseModuleResolutionConfig,
+} from './pci/resolutionConfig.js';
+export type { PciResolutionConfig, PciResolutionShim } from './pci/resolutionConfig.js';
 export { toQtiVariableJson, fromQtiVariableJson } from './pci/qtiVariableJson.js';
 
 // Re-export QTI heuristics from @pie-qti/ims-cp-core for convenience

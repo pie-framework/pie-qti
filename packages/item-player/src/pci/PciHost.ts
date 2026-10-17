@@ -12,6 +12,13 @@ import type {
 import { PciLoadError, PciModuleResolverRequiredError } from './types.js';
 import { getSharedPciRegistry } from './registry.js';
 import { fromQtiVariableJson, toQtiVariableJson } from './qtiVariableJson.js';
+import {
+	DEFAULT_RESOLUTION_CONFIG_PATHS,
+	emptyResolutionConfig,
+	parseModuleResolutionConfig,
+	type PciResolutionConfig,
+} from './resolutionConfig.js';
+import { createAmdLoader } from './amdLoader.js';
 
 const DEFAULT_REGISTRATION_TIMEOUT_MS = 5000;
 
@@ -109,8 +116,10 @@ export class PciHost implements PciHostController {
 
 	/**
 	 * Evaluate the PCI module from primaryPath, falling back to fallbackPath, and
-	 * take the module's registration from `qtiCustomInteractionContext`. Throws
-	 * PciLoadError when both paths fail or the module never registers.
+	 * take the module's registration from `qtiCustomInteractionContext`. A
+	 * multi-module declaration (or an authored resolution config) loads through
+	 * the AMD loader, which wires `define` dependencies by id. Throws PciLoadError
+	 * when both paths fail or the module never registers.
 	 */
 	public async load(): Promise<void> {
 		if (this.destroyed) {
@@ -123,6 +132,12 @@ export class PciHost implements PciHostController {
 			);
 		}
 		const generation = ++this.loadGeneration;
+
+		const useAmd = this.data.modules.length > 1 || this.data.resolutionConfigPath !== undefined;
+		if (useAmd) {
+			await this.loadViaAmd(generation);
+			return;
+		}
 
 		const primary = this.resolveUrl(this.data.primaryPath);
 		try {
@@ -376,6 +391,85 @@ export class PciHost implements PciHostController {
 				customInteractionTypeIdentifier: this.data.customInteractionTypeIdentifier,
 			})
 		);
+	}
+
+	/**
+	 * Multi-module loading: fetch the resolution config (authored reference first,
+	 * then the defined default locations), then drive the entry module — its
+	 * primary path, or its fallback — through the AMD loader so `define`
+	 * dependencies wire up before the registration is read.
+	 */
+	private async loadViaAmd(generation: number): Promise<void> {
+		const entry =
+			this.data.modules.find((module) => module.primaryPath === this.data.primaryPath) ??
+			this.data.modules[this.data.modules.length - 1];
+		const attempt = async (entryPath: string, kind: PciModulePathKind): Promise<void> => {
+			const config = await this.loadResolutionConfig();
+			const loader = createAmdLoader({
+				baseUrl: this.baseUrl,
+				config,
+				evaluate: (resolvedUrl, authoredPath) => this.evaluateModule(resolvedUrl, authoredPath, kind),
+				resolveUrl: (path) => this.resolveUrl(path),
+			});
+			loader.install();
+			try {
+				// Authored `qti-interaction-module` entries bind their own ids; the
+				// resolution config fills in dependency ids the item does not declare.
+				loader.addPaths(
+					Object.fromEntries(
+						this.data.modules
+							.filter((module) => module.primaryPath)
+							.map((module) => [module.id || module.primaryPath, module.primaryPath])
+					)
+				);
+				const entryId = this.data.modules.find((module) => module.primaryPath === entryPath)?.id || entryPath;
+				await loader.load([entryId]);
+				this.adoptRegistration(await this.awaitRegistration(), generation);
+			} finally {
+				loader.dispose();
+			}
+		};
+
+		try {
+			await attempt(this.data.primaryPath, 'primary');
+		} catch (primaryErr) {
+			if (!this.isCurrentLoad(generation)) throw primaryErr;
+			const fallbackPath = entry?.fallbackPath;
+			if (!fallbackPath) {
+				throw new PciLoadError(
+					this.data.primaryPath,
+					undefined,
+					primaryErr as Error
+				);
+			}
+			try {
+				await attempt(fallbackPath, 'fallback');
+			} catch (fallbackErr) {
+				if (!this.isCurrentLoad(generation)) throw fallbackErr;
+				throw new PciLoadError(
+					this.data.primaryPath,
+					fallbackPath,
+					fallbackErr as Error
+				);
+			}
+		}
+	}
+
+	/** The resolution config: the authored reference, then the defined default locations. */
+	private async loadResolutionConfig(): Promise<PciResolutionConfig> {
+		const candidates = this.data.resolutionConfigPath
+			? [this.data.resolutionConfigPath, ...DEFAULT_RESOLUTION_CONFIG_PATHS]
+			: DEFAULT_RESOLUTION_CONFIG_PATHS;
+		for (const path of candidates) {
+			try {
+				const raw = await this.evaluateModule(this.resolveUrl(path), path, 'primary');
+				const parsed = parseModuleResolutionConfig(raw);
+				if (Object.keys(parsed.paths).length > 0) return parsed;
+			} catch {
+				// A package without a config file at this location falls through.
+			}
+		}
+		return emptyResolutionConfig();
 	}
 
 	private resolveUrl(path: string): string {

@@ -32,6 +32,7 @@ function makeData(overrides: Partial<ExtractedPci> = {}): ExtractedPci {
 		customInteractionTypeIdentifier: 'urn:test:echo-pci',
 		primaryPath: 'https://cdn.example.com/pci/echo.js',
 		fallbackPath: 'https://cdn.example.com/pci/echo-fallback.js',
+		modules: [],
 		markup: '<div class="pci-container"></div>',
 		config: { color: 'blue', maxLength: '200' },
 		...overrides,
