@@ -42,8 +42,8 @@ The color schemes, elimination tool, extended time, and glossary trigger cover t
 
 Features deliberately deferred:
 - **Magnification overlay** — browser zoom and OS accessibility meet this need adequately; a player-level overlay adds complexity without meaningful additional coverage.
-- **Structured labels** (G-13) — requires specialist ARIA authoring decisions per interaction type; deferred to avoid under-specifying a critical accessibility contract.
-- **Braille** (G-13) — content delivery to hardware devices requires a separate integration layer outside the player.
+- **Structured labels** (G-13) — requires specialist ARIA authoring decisions per interaction type; **scheduled for 1.0** under the [completeness goal](../../plans/version-1-0-2026-10.md).
+- **Braille** (G-13) — content delivery to hardware devices requires a separate integration layer outside the player; the player-side `braille-text` exposure is scheduled for 1.0 under G-13.
 - **Sign language** (G-14) — video delivery is a host-platform capability surfaced via events, not a player UI concern.
 
 ### Why CSS data-attribute rather than CSS class for color schemes
@@ -131,7 +131,7 @@ The section player applies `tools` and the item's companion materials (`companio
 
 ### Known gaps
 
-**G-09 — PNP profile support:** Implemented in commit `fa8fa97` (2026-04-28). Elimination tool, extended time, glossary/keyword-translation triggers and popups are shipped. Color schemes set `data-qti-colorscheme` on the player root, and `qti-pnp.css` in `@pie-qti/default-components` ships the scheme rulesets, each at WCAG 1.4.3 contrast. Remaining deferred items: magnification overlay (browser zoom sufficient), structured labels (G-13), braille routing (G-13). Sign language video is host-owned: G-14 delivers it through `qti-catalog-lookup`.
+**G-09 — PNP profile support:** Implemented in commit `fa8fa97` (2026-04-28). Elimination tool, extended time, glossary/keyword-translation triggers and popups are shipped. Color schemes set `data-qti-colorscheme` on the player root, and `qti-pnp.css` in `@pie-qti/default-components` ships the scheme rulesets, each at WCAG 1.4.3 contrast. Remaining items: magnification overlay (browser zoom sufficient — boundary), structured labels and braille data exposure (G-13, scheduled for 1.0); device routing stays host-side. Sign language video is host-owned: G-14 delivers it through `qti-catalog-lookup`.
 
 ---
 

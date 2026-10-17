@@ -116,7 +116,9 @@ The portable renderer mounts the sanitized scaffold, asks the owning item sessio
 The `PciModule` interface is bespoke rather than the specified registry contract
 (`qtiCustomInteractionContext.register()`, `getInstance(dom, configuration, state)`, `onready`/`ondone`,
 QTI variable JSON responses, `getState()`), and AMD module resolution is absent. A PCI authored to the
-specification will not run until that is replaced — see
+specification will not run until that is replaced; the replacement (registry contract, AMD loader,
+conformance evidence) is scheduled for 1.0 under the
+[completeness goal](../../plans/version-1-0-2026-10.md) — see
 [`docs/plans/pci-runtime-and-sandbox-2026-08.md`](../../plans/pci-runtime-and-sandbox-2026-08.md).
 
 PCI execution is deliberately disabled until a host supplies a resolver. `createAllowlistPciModuleResolver`

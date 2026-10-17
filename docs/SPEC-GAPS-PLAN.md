@@ -1,12 +1,18 @@
 # PIE-QTI Specification Gaps — Implementation Plan
 
 **Status**: Living document
-**Last reviewed**: 2026-10-14
+**Last reviewed**: 2026-10-17
 **Source analysis**: Comparison of `docs/QTI_techguide.md` against the codebase
 
 This document is the authoritative meta-plan for closing gaps between the QTI specification and the
 PIE-QTI implementation. Each section maps to one or more concrete sub-tasks that can be handed to an
 AI agent or a human engineer. Sections are ordered by priority tier.
+
+> **Goal (2026-10-17):** feature completeness against the QTI 2.2 and 3.0 specifications and a
+> proper 1.0 release. Every item in this plan is committed work on that path — including the PCI
+> spec contract (G-08), structured labels and braille support (G-13), and shared catalog files
+> (G-15), which earlier deferrals had set aside. Sequencing and 1.0 acceptance criteria live in
+> [`plans/version-1-0-2026-10.md`](plans/version-1-0-2026-10.md).
 
 > **Verification boundary:** statuses below describe the current source tree and its public,
 > clean-room tests. The private official-suite runner intentionally consumes published
@@ -264,7 +270,7 @@ Test signal
 ### G-16: Lossless `assessmentTest` XML ingestion and one authoritative test model
 
 Scope       — `packages/assessment-player/`; `packages/player-elements/src/qti/`
-Status      — In-progress (dynamic structure semantics done 2026-10-15; discovery-parser consolidation remains)
+Status      — Done (dynamic structure semantics 2026-10-15; discovery-parser consolidation 2026-10-17, PR #333)
 Effort      — L
 Spec ref    — QTI assessment-test information model
 
@@ -563,8 +569,9 @@ Scope       — `packages/item-player/src/interactions/portable-custom/extractor
               `packages/item-player/src/pci/`;
               `packages/item-player/src/core/Player.ts`;
               default interaction rendering
-Status      — Deferred by decision (2026-08-17): the ingest driver was measured and is absent — see
-              [`plans/pci-runtime-and-sandbox-2026-08.md`](plans/pci-runtime-and-sandbox-2026-08.md)
+Status      — Committed for 1.0 (phases 1–3 of
+              [`plans/pci-runtime-and-sandbox-2026-08.md`](plans/pci-runtime-and-sandbox-2026-08.md);
+              phase 4 sandboxed realm follows on the same track)
 Effort      — L
 Spec ref    — §6.1
 
@@ -599,18 +606,17 @@ as the documented default module resolution. A PCI authored against the specific
 does not run here, and one authored against `PciModule` runs nowhere else.
 
 Action
-Extraction, renderer, session wiring, and the resolver trust gate are complete and stay. The spec
-contract replacement is sequenced in
-[`plans/pci-runtime-and-sandbox-2026-08.md`](plans/pci-runtime-and-sandbox-2026-08.md) (registry
-global, `getInstance`, `onready`/`ondone`, QTI variable JSON responses, `getState()` restore, then
-the AMD loader and conformance evidence) but is **not scheduled**: a 2026-08-17 measurement of the
-partner intake corpus found zero `portableCustomInteraction` content and no QTI 3.0 packages, so
-the driver for those phases does not exist yet. Revisit when QTI 3.0 packages appear in intake at
-any material rate; until then the opaque-`customInteraction` fallback (warning banner, manual
-response, blocked-for-review) is the proportionate handling, and
-`createAllowlistPciModuleResolver` keeps the existing host path usable for anyone who does meet a
-PCI. The host resolver remains responsible for package-manifest, URL/origin, and integrity
-validation; it is a trust decision, not a sandbox.
+Extraction, renderer, session wiring, and the resolver trust gate are complete and stay. Replace the
+module contract per
+[`plans/pci-runtime-and-sandbox-2026-08.md`](plans/pci-runtime-and-sandbox-2026-08.md), phases 1–3:
+registry global, `getInstance`, `onready`/`ondone`, QTI variable JSON responses, `getState()`
+restore, then the AMD loader and module resolution, then conformance evidence against a third-party
+spec-authored module. The 2026-08-17 intake measurement (zero `portableCustomInteraction` content,
+no QTI 3.0 packages) stands as data, but the 2026-10-17 completeness goal supersedes it as the
+driver: spec-shaped PCI must run for its own sake, not because intake demand appeared. Keep the
+host resolver responsible for package-manifest, URL/origin, and integrity validation; the resolver
+is a trust decision, not a sandbox. Phase 4 (sandboxed execution realm) is opt-in hardening on the
+same 1.0 track and gates nothing.
 
 Test signal
 - Loading QTI 2.x or 3.0 PCI content instantiates the resolver-returned module.
@@ -701,10 +707,11 @@ Test signal
 
 ---
 
-## Tier 3 — QTI 3.0 features deferred but planned
+## Tier 3 — QTI 3.0 features on the 1.0 track
 
-These are not committed to any near-term milestone. They are documented here so the repo has a
-clear record of what remains and so sub-tasks can be created when priorities shift.
+These were previously deferred without a milestone; under the
+[completeness goal](plans/version-1-0-2026-10.md) they are committed for 1.0, sequenced after the
+PCI spec contract. They are documented here so sub-tasks can be created directly from them.
 
 ---
 
@@ -777,7 +784,7 @@ Test signal
 
 Scope       — `packages/item-player/src/pnp/`;
               `packages/default-components/src/`
-Status      — Deferred
+Status      — Committed for 1.0
 Effort      — M
 Spec ref    — §6.2
 
@@ -790,7 +797,7 @@ specialist accessibility knowledge to implement correctly.
 Current
 Not implemented (G-09 covers the core PNP surface; this covers the two most specialist features).
 
-Action (when prioritised)
+Action
 1. Research the APIP spec section for structured labels; document the required markup in `packages/item-player/docs/PNP.md`.
 2. Implement structured label injection for `choiceInteraction` and `matchInteraction` as a starting point.
 3. For braille, expose `player.getCatalogEntry(idref, 'braille-text')` (already covered by G-10 catalog extractor); document that the host is responsible for routing this to a braille device driver.
@@ -838,7 +845,7 @@ Test signal
 
 Scope       — `packages/item-player/src/core/Player.ts`;
               `packages/ims-cp-browser/`
-Status      — Deferred
+Status      — Committed for 1.0
 Effort      — M
 Spec ref    — §6.3 (Shared Catalogs)
 
@@ -851,7 +858,7 @@ Current
 G-10 supports an inline catalog and a `catalogXml` string option. Package-level catalog discovery
 from the manifest is not handled.
 
-Action (when prioritised)
+Action
 1. In `packages/ims-cp-browser/`, extend `PackageLoader` to detect catalog resources in the manifest (type `imsqti_catalog_xmlv3p0`) and expose them as `catalogXml` strings.
 2. Pass these to the item player when constructing `Player` instances for items in the package.
 3. Merge package-level and item-level catalogs (item-level takes precedence for the same `identifier`).

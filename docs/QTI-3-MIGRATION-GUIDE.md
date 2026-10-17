@@ -328,24 +328,26 @@ Catalog parsing and glossary/keyword-translation popup support are implemented:
 | **Record cardinality** | Implemented | Implemented | Named typed fields; no declaration-level BaseType |
 | **Response processing** | Broad coverage | Broad coverage | Canonical fixed templates covered; external fragments require a host resolver |
 | **Assessment player** | Partial | Partial | Per-part modes and ordered hierarchy retained; dynamic controls below remain |
-| **PCI support** | Partial | Partial | Bespoke module contract, not the spec's `qtiCustomInteractionContext` registry (G-08); explicit host resolver required; not a sandbox |
-| **PNP support** | N/A / host profile | Current delivery scope | Elimination, extended time, glossary/translation triggers; color schemes set `data-qti-colorscheme` but ship no rulesets |
-| **Catalog system** | Limited extensions | Current item scope | Inline/provided catalog XML; manifest-level shared discovery remains open |
+| **PCI support** | Partial | Partial | Bespoke module contract today; the spec's `qtiCustomInteractionContext` registry, AMD loading, and conformance evidence are scheduled for 1.0 (G-08, [`../plans/version-1-0-2026-10.md`](../plans/version-1-0-2026-10.md)); explicit host resolver required; not a sandbox |
+| **PNP support** | N/A / host profile | Current delivery scope | Elimination, extended time, glossary/translation triggers; color schemes ship rulesets via `@pie-qti/default-components` `qti-pnp.css` |
+| **Catalog system** | Limited extensions | Current item scope | Inline/provided catalog XML; manifest-level shared discovery is scheduled for 1.0 (G-15) |
 
 ### Remaining delivery boundaries
 
-- Dynamic `preCondition` evaluation is not yet applied while walking an AssessmentTest.
-- `branchRule` execution is implemented for item refs, not for sections or test parts.
-- `selection withReplacement="true"` does not yet materialize distinct, sequence-indexed ItemSessions.
-- Processing-fragment resolution is available on ItemPlayer, but assessment/package delivery does not
-  yet construct and pass the item-relative resolver automatically.
+- PCI runs under the bespoke module contract until the spec registry contract lands (G-08,
+  scheduled for 1.0 — see [`../plans/version-1-0-2026-10.md`](../plans/version-1-0-2026-10.md)).
+- Structured labels, braille data exposure (G-13), and manifest-level shared catalogs (G-15) are
+  scheduled for 1.0 but not yet implemented.
 - Export writes QTI 3.0 with `targetVersion: '3.0'` on `PieToQtiPlugin` (G-25). Assessment-level
   accessibility catalogs have no QTI home and are named in a warning instead of written.
 - Formal official-suite evidence for current source changes is unavailable until a new NPM candidate
   is published: the private runner deliberately consumes published packages only.
 
-These boundaries are why the project remains pre-1.0 and must not be described as fully conformant
-or certified.
+Dynamic `preCondition` evaluation, section/testPart `branchRule` execution, `withReplacement`
+clone materialization (2026-10-15), and packaged processing-fragment resolution (2026-10-16) are
+implemented; the lists above name what remains between here and the 1.0 acceptance criteria in
+[`../plans/version-1-0-2026-10.md`](../plans/version-1-0-2026-10.md). Until those criteria are met,
+the project must not be described as fully conformant or certified.
 
 ## Testing
 

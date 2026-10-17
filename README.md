@@ -67,9 +67,9 @@ Renders and scores individual QTI items:
 Orchestrates multi-item assessments:
 
 - **Navigation mode model** — Per-testPart linear/nonlinear and individual/simultaneous modes are preserved; linear parts prohibit return after advancing
-- **Sections & hierarchy runtime** — Ordered nested sections, external section refs, controls, rubrics, weights, and feedback are retained from raw XML; dynamic preconditions and section/testPart branch execution remain open
-- **Selection & ordering runtime** — Raw XML selection, required/fixed children, and shuffle are preserved; `withReplacement` still requires distinct sequence-indexed clone materialization
-- **Time-limit runtime** — Independent item/section/testPart/assessment clocks, save/resume, maximums, and `minTime` enforcement exist; timing edge/browser evidence is still being expanded
+- **Sections & hierarchy runtime** — Ordered nested sections, external section refs, controls, rubrics, weights, feedback, dynamic preconditions, and section/testPart branch execution are retained and evaluated from raw XML
+- **Selection & ordering runtime** — Raw XML selection, required/fixed children, and shuffle are preserved; `withReplacement` clones materialize as distinct sequence-indexed sessions
+- **Time-limit runtime** — Independent item/section/testPart/assessment clocks, save/resume, maximums, `minTime` enforcement, and deterministic-clock edge coverage
 - **Item session control** — Max attempts, review/skip, response validation
 - **State persistence** — Auto-save with resume capability
 - **Outcome processing** — Scoring templates (total, weighted, percentage, pass/fail)
@@ -133,7 +133,7 @@ See [Transformation Engine Documentation](docs/TRANSFORMATION-ENGINE.md) for com
 
 **QTI → PIE** (`@pie-qti/to-pie`)
 
-- Supports QTI 2.1 and 2.2; QTI 3.0 items are detected and rejected with a diagnostic
+- Supports QTI 2.1 and 2.2, with QTI 3.0 items normalized to the 2.2 vocabulary on ingest
 - Lossless round-trip from the PIE source sidecar while the QTI item is unchanged
 - Best-effort semantic transformation otherwise
 - Vendor extension system for custom QTI variants

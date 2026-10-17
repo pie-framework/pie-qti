@@ -412,7 +412,7 @@ Then: Focus is not moved away from the candidate's current position
 
 - [x] **G-09 — PNP profile:** Shipped in commit `fa8fa97` (2026-04-28). Elimination tool, extended time, glossary/keyword-translation triggers and popups are implemented; color schemes set `data-qti-colorscheme` on the player root, and no scheme rulesets ship yet. See `docs/prds/systems/pnp.md` for full specification.
 
-- [ ] **G-13 — Structured label and braille support (Tier 3, Deferred):** PNP `structuredLabelSupport` adds supplementary ARIA group wrappers and sub-labels to complex interactions. `braille-text` catalog entries expose content to refreshable braille displays. The catalog prerequisite (G-10) has shipped; G-13 itself remains deferred. See `docs/SPEC-GAPS-PLAN.md` §G-13.
+- [ ] **G-13 — Structured label and braille support (Tier 3, Committed for 1.0):** PNP `structuredLabelSupport` adds supplementary ARIA group wrappers and sub-labels to complex interactions. `braille-text` catalog entries expose content to refreshable braille displays. The catalog prerequisite (G-10) has shipped; G-13 itself is scheduled for 1.0 under [`docs/plans/version-1-0-2026-10.md`](../plans/version-1-0-2026-10.md). See `docs/SPEC-GAPS-PLAN.md` §G-13.
 
 - [ ] **Cross-shadow ARIA with ARIA IDRef Reflection:** ARIA 1.3 defines `ariaLabelledByElements` / `ariaDescribedByElements` to allow IDREF relationships across shadow boundaries. As of 2026 this is not reliably supported in all target browsers. Once browser support stabilizes, interaction components should be updated to accept external labelling rather than requiring self-contained labels.
 
