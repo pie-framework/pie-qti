@@ -448,7 +448,7 @@ Test signal
 ### G-22: Time limits require independent scope clocks and `minTime` enforcement
 
 Scope       — `packages/assessment-player/src/core/TimeManager.ts`; assessment delivery model
-Status      — In-progress (scoped clocks and runtime enforcement implemented; edge coverage remains)
+Status      — Done (deterministic edge coverage, 2026-10-16; min-time UI affordances remain host work)
 Effort      — L
 Spec ref    — QTI timeLimits and duration variables
 
@@ -462,16 +462,20 @@ across save/resume, uses the shortest active hard maximum, and enforces each app
 when leaving or submitting a scope. Deterministic clock tests cover independent accumulation,
 pause/resume, maximum selection, and restoration. A test part, section or item limit without late
 submission closes that scope's items when it expires and moves delivery to the next item outside
-it; only the assessment limit ends delivery. More integration coverage is still needed for
-simultaneous expirations, minimum-time UI affordances, and browser save/resume transitions.
+it; only the assessment limit ends delivery. The player config accepts a deterministic `now` clock,
+and integration tests exercise item/section minTime gates on navigation and submission, testPart and
+assessment minTime on `submit()`, same-instant parent/child expiry ordering (parent scope first),
+allow-late item limits that keep accepting submissions with expired timing evidence while a hard
+parent limit still closes the scope, and the effective-limit and remaining-time getters.
 
 Action
-Add deterministic integration tests for each scope's `minTime`, simultaneous parent/child expiry,
-late-submission combinations, and candidate-facing controls before treating timing as fully closed.
+Done for the tracked runtime and evidence gaps. Candidate-facing minimum-time affordances (countdown
+UI for `minTime`) remain host work; the effective-limit getters are the intended data source.
 
 Test signal
-- Deterministic-clock tests independently exercise item, section, part, and test min/max limits and
-  verify recorded durations and navigation/submission behavior.
+- `packages/assessment-player/tests/time-limit-edges.test.ts`: deterministic-clock tests exercise
+  item, section, part, and test min/max limits and verify recorded durations (submit timing
+  evidence), expiry ordering, and navigation/submission behavior.
 
 ---
 
