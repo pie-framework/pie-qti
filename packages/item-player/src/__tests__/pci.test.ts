@@ -4,8 +4,16 @@ import {
 	createAllowlistPciModuleResolver,
 	PciModuleNotAllowedError,
 } from '../pci/allowlistResolver.js';
+import { installPciRegistry, PCI_REGISTRY_GLOBAL } from '../pci/registry.js';
+import { fromQtiVariableJson, toQtiVariableJson } from '../pci/qtiVariableJson.js';
 import { PciLoadError, PciModuleResolverRequiredError } from '../pci/types.js';
-import type { ExtractedPci, PciModule, PciModuleResolver } from '../pci/types.js';
+import type {
+	ExtractedPci,
+	PciModuleResolver,
+	QtiCustomInteractionRegistration,
+	QtiPciConfiguration,
+	QtiPciInstance,
+} from '../pci/types.js';
 import { portableCustomExtractor } from '../interactions/portable-custom/extractor.js';
 import { createExtractionUtils } from '../extraction/index.js';
 import { Qti3AttributeNameMapper, Qti3ElementNameMapper } from '@pie-qti/qti-common';
@@ -30,20 +38,65 @@ function makeData(overrides: Partial<ExtractedPci> = {}): ExtractedPci {
 	};
 }
 
-function makeModule(overrides: Partial<PciModule> = {}): PciModule {
+function makeInstance(overrides: Partial<Record<string, unknown>> = {}) {
 	return {
-		initialize: mock(() => {}),
-		getResponse: mock(() => 'test-response'),
-		setResponse: mock(() => {}),
-		disable: mock(() => {}),
-		enable: mock(() => {}),
+		getResponse: mock(() => ({ base: { string: 'test-response' } })),
+		getState: mock(() => undefined),
 		destroy: mock(() => {}),
 		...overrides,
+	} as unknown as QtiPciInstance & Record<string, ReturnType<typeof mock>>;
+}
+
+interface RegistrationFixture {
+	registration: QtiCustomInteractionRegistration;
+	getInstance: ReturnType<typeof mock>;
+	instances: QtiPciInstance[];
+	configurations: QtiPciConfiguration[];
+	states: unknown[];
+}
+
+/** A spec-shaped registration whose getInstance returns a fresh mock instance. */
+function makeRegistration(instanceOverrides: Partial<Record<string, unknown>> = {}): RegistrationFixture {
+	const instances: QtiPciInstance[] = [];
+	const configurations: QtiPciConfiguration[] = [];
+	const states: unknown[] = [];
+	const getInstance = mock((_dom: HTMLElement, configuration: QtiPciConfiguration, state?: unknown) => {
+		configurations.push(configuration);
+		states.push(state);
+		const instance = makeInstance(instanceOverrides);
+		instances.push(instance);
+		return instance;
+	});
+	return {
+		registration: { typeIdentifier: 'urn:test:echo-pci', getInstance },
+		getInstance,
+		instances,
+		configurations,
+		states,
 	};
 }
 
-function resolverReturning(module: PciModule): PciModuleResolver {
-	return mock(async () => ({ default: module }));
+interface RegistryFixture {
+	context: { register: (registration: QtiCustomInteractionRegistration) => void };
+	observation: ReturnType<typeof installPciRegistry>;
+}
+
+/** An isolated registry: the resolver "evaluates" module code that registers into it. */
+function makeRegistry(): RegistryFixture {
+	const target: Record<string, unknown> = {};
+	const observation = installPciRegistry(target);
+	return { context: target[PCI_REGISTRY_GLOBAL] as never, observation };
+}
+
+/** A resolver standing in for a module evaluation that registers as a side effect. */
+function resolverRegistering(
+	fixture: RegistryFixture,
+	registration: QtiCustomInteractionRegistration
+): PciModuleResolver {
+	return mock(async () => {
+		fixture.context.register(registration);
+		return { default: registration };
+	});
 }
 
 /** Fake DOM node (minimal — just needs appendChild) */
@@ -54,28 +107,29 @@ function makeDomNode() {
 }
 
 // ---------------------------------------------------------------------------
-// PciHost — constructor
+// PciHost — constructor and load
 // ---------------------------------------------------------------------------
 
 describe('PciHost', () => {
 	it('instantiates without throwing', () => {
-		expect(() =>
-			new PciHost(makeData(), {
-				baseUrl: 'https://host.example.com',
-				moduleResolver: resolverReturning(makeModule()),
-			})
+		const registry = makeRegistry();
+		expect(
+			() =>
+				new PciHost(makeData(), {
+					baseUrl: 'https://host.example.com',
+					moduleResolver: resolverRegistering(registry, makeRegistration().registration),
+					registry: registry.observation,
+				})
 		).not.toThrow();
 	});
 
-	// ---------------------------------------------------------------------------
-	// PciHost.load()
-	// ---------------------------------------------------------------------------
-
-	it('load() resolves through the host resolver with a default export', async () => {
-		const module = makeModule();
-		const resolver = resolverReturning(module);
+	it('load() adopts the module registration made as a side effect of evaluation', async () => {
+		const registry = makeRegistry();
+		const fixture = makeRegistration();
+		const resolver = resolverRegistering(registry, fixture.registration);
 		const host = new PciHost(makeData({ primaryPath: 'https://cdn.example.com/good.js' }), {
 			moduleResolver: resolver,
+			registry: registry.observation,
 		});
 
 		await host.load();
@@ -85,15 +139,20 @@ describe('PciHost', () => {
 		);
 	});
 
-	it('load() falls back to fallbackPath when primary resolution throws', async () => {
-		const module = makeModule();
+	it('load() falls back to fallbackPath when primary evaluation throws', async () => {
+		const registry = makeRegistry();
+		const fixture = makeRegistration();
 		let callCount = 0;
 		const resolver = mock(async (_url: string) => {
 			callCount++;
 			if (callCount === 1) throw new Error('primary failed');
-			return { default: module };
+			registry.context.register(fixture.registration);
+			return {};
 		});
-		const host = new PciHost(makeData(), { moduleResolver: resolver });
+		const host = new PciHost(makeData(), {
+			moduleResolver: resolver,
+			registry: registry.observation,
+		});
 
 		await host.load();
 		expect(callCount).toBe(2);
@@ -101,31 +160,37 @@ describe('PciHost', () => {
 	});
 
 	it('load() throws PciLoadError when both primary and fallback fail', async () => {
+		const registry = makeRegistry();
 		const host = new PciHost(makeData(), {
 			moduleResolver: async () => {
 				throw new Error('not found');
 			},
+			registry: registry.observation,
 		});
 
 		await expect(host.load()).rejects.toBeInstanceOf(PciLoadError);
 	});
 
 	it('load() throws PciLoadError when only primary fails and no fallback', async () => {
+		const registry = makeRegistry();
 		const host = new PciHost(makeData({ fallbackPath: undefined }), {
 			moduleResolver: async () => {
 				throw new Error('not found');
 			},
+			registry: registry.observation,
 		});
 
 		await expect(host.load()).rejects.toBeInstanceOf(PciLoadError);
 	});
 
 	it('PciLoadError includes primaryPath and fallbackPath', async () => {
+		const registry = makeRegistry();
 		const data = makeData();
 		const host = new PciHost(data, {
 			moduleResolver: async () => {
 				throw new Error('not found');
 			},
+			registry: registry.observation,
 		});
 
 		let err: PciLoadError | null = null;
@@ -141,281 +206,342 @@ describe('PciHost', () => {
 	});
 
 	it('load() refuses authored code when no host resolver is configured', async () => {
-		const host = new PciHost(makeData(), { baseUrl: 'https://host.example.com/items/' });
+		const registry = makeRegistry();
+		const host = new PciHost(makeData(), {
+			baseUrl: 'https://host.example.com/items/',
+			registry: registry.observation,
+		});
 		await expect(host.load()).rejects.toBeInstanceOf(PciModuleResolverRequiredError);
 		await expect(host.load()).rejects.toThrow('moduleResolver');
 	});
 
-	it('destroys a module that resolves after its host was destroyed', async () => {
-		const module = makeModule();
-		let resolveModule: ((value: unknown) => void) | undefined;
-		const deferred = new Promise<unknown>((resolve) => {
-			resolveModule = resolve;
+	it('load() fails when the module evaluates but never registers', async () => {
+		const registry = makeRegistry();
+		const host = new PciHost(makeData(), {
+			moduleResolver: async () => ({}),
+			registry: registry.observation,
+			registrationTimeoutMs: 10,
 		});
-		const host = new PciHost(makeData(), { moduleResolver: () => deferred });
+
+		await expect(host.load()).rejects.toBeInstanceOf(PciLoadError);
+		await expect(host.load()).rejects.toThrow(/failed to load/);
+	});
+
+	it('destroys an in-flight load when the host is destroyed first', async () => {
+		const registry = makeRegistry();
+		const fixture = makeRegistration();
+		let resolveModule: (() => void) | undefined;
+		const deferred = new Promise<unknown>((resolve) => {
+			resolveModule = () => {
+				registry.context.register(fixture.registration);
+				resolve({});
+			};
+		});
+		const host = new PciHost(makeData(), {
+			moduleResolver: () => deferred,
+			registry: registry.observation,
+		});
 
 		const loading = host.load();
 		host.destroy();
-		resolveModule?.({ default: module });
+		resolveModule?.();
 
 		await expect(loading).rejects.toThrow('destroyed before its module finished loading');
-		expect(module.destroy).toHaveBeenCalledTimes(1);
 	});
 
 	// ---------------------------------------------------------------------------
-	// PciHost.initialize()
+	// PciHost.initialize() — the getInstance contract
 	// ---------------------------------------------------------------------------
 
-	it('initialize() calls module.initialize with dom, config, and boundTo', () => {
-		const module = makeModule();
-		const host = new PciHost(makeData(), '');
-		(host as any).module = module;
+	it('initialize() instantiates through getInstance(dom, configuration, state)', async () => {
+		const registry = makeRegistry();
+		const fixture = makeRegistration();
+		const host = new PciHost(makeData(), {
+			moduleResolver: resolverRegistering(registry, fixture.registration),
+			registry: registry.observation,
+		});
+		await host.load();
 
 		const dom = makeDomNode();
 		host.initialize(dom);
 
-		expect(module.initialize).toHaveBeenCalledTimes(1);
-		const [calledDom, calledConfig, calledBoundTo] = (module.initialize as any).mock.calls[0];
+		expect(fixture.getInstance).toHaveBeenCalledTimes(1);
+		const [calledDom, configuration, state] = fixture.getInstance.mock.calls[0];
 		expect(calledDom).toBe(dom);
-		expect(calledConfig).toEqual({ color: 'blue', maxLength: '200' });
-		expect(typeof calledBoundTo.onReady).toBe('function');
-		expect(typeof calledBoundTo.onResponseChange).toBe('function');
+		expect(configuration.responseIdentifier).toBe('RESPONSE');
+		expect(configuration.status).toBe('interacting');
+		expect(configuration.properties).toEqual({ color: 'blue', maxLength: '200' });
+		expect(typeof configuration.onready).toBe('function');
+		expect(typeof configuration.ondone).toBe('function');
+		expect(state).toBeUndefined();
 	});
 
-	it('initialize() is a no-op when module has not been loaded', () => {
-		const host = new PciHost(makeData(), '');
-		// Should not throw even though module is null
+	it('initialize() is a no-op when no registration has been loaded', () => {
+		const registry = makeRegistry();
+		const host = new PciHost(makeData(), { registry: registry.observation });
 		expect(() => host.initialize(makeDomNode())).not.toThrow();
 	});
 
-	it('destroys a module when initialize() throws', () => {
-		const module = makeModule({
-			initialize: mock(() => {
-				throw new Error('initialization failed');
-			}),
+	it('instantiates with the status its options derive at instantiation time', async () => {
+		const registry = makeRegistry();
+		const fixture = makeRegistration();
+		let status = 'interacting' as const;
+		const host = new PciHost(makeData(), {
+			moduleResolver: resolverRegistering(registry, fixture.registration),
+			registry: registry.observation,
+			status: () => status,
 		});
-		const host = new PciHost(makeData());
-		(host as any).module = module;
+		await host.load();
+		host.initialize(makeDomNode());
+		expect(fixture.configurations[0].status).toBe('interacting');
 
-		expect(() => host.initialize(makeDomNode())).toThrow('initialization failed');
-		expect(module.destroy).toHaveBeenCalledTimes(1);
-		expect((host as any).module).toBeNull();
+		status = 'review';
+		await host.remount(makeDomNode());
+		expect(fixture.configurations[1].status).toBe('review');
 	});
 
-	// ---------------------------------------------------------------------------
-	// PciHost response handling
-	// ---------------------------------------------------------------------------
-
-	it('getResponse() delegates to module.getResponse()', () => {
-		const module = makeModule({ getResponse: mock(() => 'hello') });
-		const host = new PciHost(makeData(), '');
-		(host as any).module = module;
-
-		expect(host.getResponse()).toBe('hello');
-		expect(module.getResponse).toHaveBeenCalledTimes(1);
-	});
-
-	it('offerResponse() delegates to module.setResponse() before the module reports', () => {
-		const module = makeModule();
-		const host = new PciHost(makeData(), '');
-		(host as any).module = module;
-
-		expect(host.offerResponse('world')).toBe(true);
-		expect(module.setResponse).toHaveBeenCalledWith('world');
-	});
-
-	it('offerResponse() is declined once the module owns its response', () => {
-		const module = makeModule();
-		const host = new PciHost(makeData(), '');
-		(host as any).module = module;
+	it('seeds the held response as QTI variable JSON state at getInstance', async () => {
+		const registry = makeRegistry();
+		const fixture = makeRegistration();
+		const host = new PciHost(makeData(), {
+			moduleResolver: resolverRegistering(registry, fixture.registration),
+			registry: registry.observation,
+			responseDeclaration: { baseType: 'identifier', cardinality: 'single' },
+		});
+		host.offerResponse('A');
+		await host.load();
 		host.initialize(makeDomNode());
 
-		const boundTo = (module.initialize as any).mock.calls[0][2];
-		boundTo.onResponseChange('candidate-typed-this');
-		(module.setResponse as any).mockClear();
+		expect(fixture.states[0]).toEqual({ base: { identifier: 'A' } });
+	});
 
-		expect(host.offerResponse('candidate-typed-this')).toBe(false);
-		expect(host.offerResponse('something-else')).toBe(false);
-		expect(module.setResponse).not.toHaveBeenCalled();
+	// ---------------------------------------------------------------------------
+	// PciHost response handling — QTI variable JSON at the boundary
+	// ---------------------------------------------------------------------------
+
+	it('getResponse() converts the module\u2019s QTI variable JSON to the runtime value', async () => {
+		const registry = makeRegistry();
+		const fixture = makeRegistration();
+		const host = new PciHost(makeData(), {
+			moduleResolver: resolverRegistering(registry, fixture.registration),
+			registry: registry.observation,
+		});
+		await host.load();
+		host.initialize(makeDomNode());
+
 		expect(host.getResponse()).toBe('test-response');
 	});
 
-	it('restore() rebuilds a mounted module instead of mutating it', () => {
-		const module = makeModule();
-		const host = new PciHost(makeData(), '');
-		(host as any).module = module;
+	it('a response reported through onready becomes the module\u2019s own', async () => {
+		const registry = makeRegistry();
+		const fixture = makeRegistration();
+		const host = new PciHost(makeData(), {
+			moduleResolver: resolverRegistering(registry, fixture.registration),
+			registry: registry.observation,
+		});
+		const received: Array<[string, unknown]> = [];
+		host.onResponseChange((id, value) => received.push([id, value]));
+		await host.load();
 		host.initialize(makeDomNode());
 
-		const boundTo = (module.initialize as any).mock.calls[0][2];
-		boundTo.onResponseChange('candidate-typed-this');
-		(module.setResponse as any).mockClear();
+		const configuration = fixture.configurations[0];
+		configuration.onready(fixture.instances[0], { seed: 1 });
+
+		expect(received).toEqual([['RESPONSE', 'test-response']]);
+		expect(host.offerResponse('anything')).toBe(false);
+		expect(host.getState()).toEqual({ seed: 1 });
+	});
+
+	it('ondone publishes the final response and captures the module state', async () => {
+		const registry = makeRegistry();
+		const fixture = makeRegistration();
+		const host = new PciHost(makeData(), {
+			moduleResolver: resolverRegistering(registry, fixture.registration),
+			registry: registry.observation,
+		});
+		const received: Array<[string, unknown]> = [];
+		host.onResponseChange((id, value) => received.push([id, value]));
+		await host.load();
+		host.initialize(makeDomNode());
+
+		fixture.configurations[0].ondone(fixture.instances[0], { done: true });
+
+		expect(received).toEqual([['RESPONSE', 'test-response']]);
+		expect(host.getState()).toEqual({ done: true });
+	});
+
+	it('offerResponse() is declined once the module owns its response', async () => {
+		const registry = makeRegistry();
+		const fixture = makeRegistration();
+		const host = new PciHost(makeData(), {
+			moduleResolver: resolverRegistering(registry, fixture.registration),
+			registry: registry.observation,
+		});
+		await host.load();
+		host.initialize(makeDomNode());
+
+		fixture.configurations[0].onready(fixture.instances[0]);
+
+		expect(host.offerResponse('candidate-typed-this')).toBe(false);
+		expect(host.offerResponse('something-else')).toBe(false);
+		expect(host.getResponse()).toBe('test-response');
+	});
+
+	it('restore() rebuilds a mounted module through the remount request, not a setter', async () => {
+		const registry = makeRegistry();
+		const fixture = makeRegistration();
+		const host = new PciHost(makeData(), {
+			moduleResolver: resolverRegistering(registry, fixture.registration),
+			registry: registry.observation,
+			responseDeclaration: { baseType: 'string', cardinality: 'single' },
+		});
+		await host.load();
+		host.initialize(makeDomNode());
+		fixture.configurations[0].onready(fixture.instances[0]);
 
 		let remountRequests = 0;
 		host.onRemountRequest(() => remountRequests++);
 		host.restore('authoritative');
 
 		expect(remountRequests).toBe(1);
-		expect(module.setResponse).not.toHaveBeenCalled();
-		// Ownership is back with the player, so a plain offer lands again.
-		expect(host.offerResponse('later')).toBe(true);
+		expect(fixture.getInstance).toHaveBeenCalledTimes(1);
+		expect(host.getResponse()).toBe('authoritative');
+
+		await host.remount(makeDomNode());
+		expect(fixture.getInstance).toHaveBeenCalledTimes(2);
+		expect(fixture.states[1]).toEqual({ base: { string: 'authoritative' } });
+		expect(fixture.instances[0].destroy).toHaveBeenCalledTimes(1);
 	});
 
-	it('restore() applies directly when no rebuild path is wired', () => {
-		const module = makeModule();
-		const host = new PciHost(makeData(), '');
-		(host as any).module = module;
-		host.initialize(makeDomNode());
-
-		const boundTo = (module.initialize as any).mock.calls[0][2];
-		boundTo.onResponseChange('candidate-typed-this');
-		(module.setResponse as any).mockClear();
+	it('restore() without a renderer re-instantiates the module on the last mount node', async () => {
+		const registry = makeRegistry();
+		const fixture = makeRegistration();
+		const host = new PciHost(makeData(), {
+			moduleResolver: resolverRegistering(registry, fixture.registration),
+			registry: registry.observation,
+			responseDeclaration: { baseType: 'string', cardinality: 'single' },
+		});
+		await host.load();
+		const dom = makeDomNode();
+		host.initialize(dom);
+		fixture.configurations[0].onready(fixture.instances[0]);
 
 		host.restore('from-session');
 
-		// Mutating candidate state is all a host without a scaffold owner can do;
-		// dropping the restore on the floor is not an option.
-		expect(module.setResponse).toHaveBeenCalledWith('from-session');
-		expect(host.offerResponse('later')).toBe(true);
+		expect(fixture.getInstance).toHaveBeenCalledTimes(2);
+		expect(fixture.states[1]).toEqual({ base: { string: 'from-session' } });
+		expect(fixture.instances[0].destroy).toHaveBeenCalledTimes(1);
 	});
 
-	it('getResponse() reports the restored value until the rebuild lands', async () => {
-		const first = makeModule({ getResponse: mock(() => 'candidate-typed-this') });
-		const second = makeModule({ getResponse: mock(() => 'authoritative') });
-		let call = 0;
+	it('restore() before mount holds the value for instantiation and requests no rebuild', async () => {
+		const registry = makeRegistry();
+		const fixture = makeRegistration();
 		const host = new PciHost(makeData(), {
-			moduleResolver: mock(async () => ({ default: ++call === 1 ? first : second })),
+			moduleResolver: resolverRegistering(registry, fixture.registration),
+			registry: registry.observation,
+			responseDeclaration: { baseType: 'string', cardinality: 'single' },
 		});
-		host.onRemountRequest(() => {});
-
-		await host.load();
-		host.initialize(makeDomNode());
-		const boundTo = (first.initialize as any).mock.calls[0][2];
-		boundTo.onResponseChange('candidate-typed-this');
-
-		host.restore('authoritative');
-		// The mounted module still holds the superseded value in this window.
-		expect(host.getResponse()).toBe('authoritative');
-		expect(first.getResponse).not.toHaveBeenCalled();
-
-		await host.remount(makeDomNode());
-		expect(host.getResponse()).toBe('authoritative');
-		expect(second.getResponse).toHaveBeenCalled();
-	});
-
-	it('restore() before mount holds the value for initialize() and requests no rebuild', () => {
-		const module = makeModule();
-		const host = new PciHost(makeData(), '');
 		let remountRequests = 0;
 		host.onRemountRequest(() => remountRequests++);
 
 		host.restore('from-session');
 		expect(remountRequests).toBe(0);
 
-		(host as any).module = module;
+		await host.load();
 		host.initialize(makeDomNode());
-		expect(module.setResponse).toHaveBeenCalledWith('from-session');
+		expect(fixture.states[0]).toEqual({ base: { string: 'from-session' } });
 	});
 
-	it('remount() discards the old module, resolves a fresh one, and seeds the restored value', async () => {
-		const first = makeModule();
-		const second = makeModule();
-		let call = 0;
+	it('remount() discards the old instance and resolves the registration again', async () => {
+		const registry = makeRegistry();
+		const fixture = makeRegistration();
 		const host = new PciHost(makeData(), {
-			moduleResolver: mock(async () => ({ default: ++call === 1 ? first : second })),
+			moduleResolver: resolverRegistering(registry, fixture.registration),
+			registry: registry.observation,
 		});
 
 		await host.load();
 		host.initialize(makeDomNode());
-		const boundTo = (first.initialize as any).mock.calls[0][2];
-		boundTo.onResponseChange('candidate-typed-this');
-
-		host.restore('authoritative');
 		await host.remount(makeDomNode());
 
-		expect(first.destroy).toHaveBeenCalledTimes(1);
-		expect(second.initialize).toHaveBeenCalledTimes(1);
-		expect(second.setResponse).toHaveBeenCalledWith('authoritative');
+		expect(fixture.getInstance).toHaveBeenCalledTimes(2);
+		expect(fixture.instances[0].destroy).toHaveBeenCalledTimes(1);
 	});
 
 	it('remount() refuses a destroyed host', async () => {
-		const host = new PciHost(makeData(), { moduleResolver: resolverReturning(makeModule()) });
+		const registry = makeRegistry();
+		const fixture = makeRegistration();
+		const host = new PciHost(makeData(), {
+			moduleResolver: resolverRegistering(registry, fixture.registration),
+			registry: registry.observation,
+		});
 		await host.load();
 		host.destroy();
 		await expect(host.remount(makeDomNode())).rejects.toThrow('destroyed');
 	});
 
-	it('a newly adopted module does not inherit the previous ownership flag', async () => {
-		const first = makeModule();
-		const second = makeModule();
-		let call = 0;
-		const host = new PciHost(makeData(), {
-			moduleResolver: mock(async () => ({ default: ++call === 1 ? first : second })),
+	it('getState() answers the live module state, then the last captured state', async () => {
+		const registry = makeRegistry();
+		const fixture = makeRegistration({
+			getState: mock(() => ({ position: 3 })),
 		});
-
+		const host = new PciHost(makeData(), {
+			moduleResolver: resolverRegistering(registry, fixture.registration),
+			registry: registry.observation,
+		});
 		await host.load();
+
+		expect(host.getState()).toBeUndefined();
 		host.initialize(makeDomNode());
-		const boundTo = (first.initialize as any).mock.calls[0][2];
-		boundTo.onResponseChange('candidate-typed-this');
-		expect(host.offerResponse('declined')).toBe(false);
+		expect(host.getState()).toEqual({ position: 3 });
 
-		await host.load();
-		expect(host.offerResponse('fresh')).toBe(true);
-		expect(second.setResponse).toHaveBeenCalledWith('fresh');
-	});
-
-	it('onResponseChange callback fires when boundTo.onResponseChange is called', () => {
-		const module = makeModule();
-		const host = new PciHost(makeData(), '');
-		(host as any).module = module;
-
-		const received: Array<[string, unknown]> = [];
-		host.onResponseChange((id, val) => received.push([id, val]));
-
-		const dom = makeDomNode();
-		host.initialize(dom);
-
-		// Simulate PCI calling boundTo.onResponseChange
-		const boundTo = (module.initialize as any).mock.calls[0][2];
-		boundTo.onResponseChange('answer-42');
-
-		expect(received).toEqual([['RESPONSE', 'answer-42']]);
+		host.destroy();
+		expect(host.getState()).toEqual({ position: 3 });
 	});
 
 	// ---------------------------------------------------------------------------
 	// PciHost lifecycle
 	// ---------------------------------------------------------------------------
 
-	it('disable() delegates to module.disable()', () => {
-		const module = makeModule();
-		const host = new PciHost(makeData(), '');
-		(host as any).module = module;
+	it('disable/enable reach the instance only when it exposes them', async () => {
+		const registry = makeRegistry();
+		const fixture = makeRegistration();
+		const host = new PciHost(makeData(), {
+			moduleResolver: resolverRegistering(registry, fixture.registration),
+			registry: registry.observation,
+		});
+		await host.load();
+		host.initialize(makeDomNode());
 
-		host.disable();
-		expect(module.disable).toHaveBeenCalledTimes(1);
+		expect(() => {
+			host.disable();
+			host.enable();
+		}).not.toThrow();
 	});
 
-	it('enable() delegates to module.enable()', () => {
-		const module = makeModule();
-		const host = new PciHost(makeData(), '');
-		(host as any).module = module;
-
-		host.enable();
-		expect(module.enable).toHaveBeenCalledTimes(1);
-	});
-
-	it('destroy() calls module.destroy() and nullifies module', () => {
-		const module = makeModule();
-		const host = new PciHost(makeData(), '');
-		(host as any).module = module;
+	it('destroy() calls the instance destroy and clears listeners', async () => {
+		const registry = makeRegistry();
+		const fixture = makeRegistration();
+		const host = new PciHost(makeData(), {
+			moduleResolver: resolverRegistering(registry, fixture.registration),
+			registry: registry.observation,
+		});
+		await host.load();
+		host.initialize(makeDomNode());
 
 		host.destroy();
-		expect(module.destroy).toHaveBeenCalledTimes(1);
-		expect((host as any).module).toBeNull();
+		expect(fixture.instances[0].destroy).toHaveBeenCalledTimes(1);
+		expect(() => host.destroy()).not.toThrow();
 	});
 
 	it('disable/enable/destroy are no-ops before load()', () => {
-		const host = new PciHost(makeData(), '');
-		expect(() => { host.disable(); host.enable(); host.destroy(); }).not.toThrow();
+		const registry = makeRegistry();
+		const host = new PciHost(makeData(), { registry: registry.observation });
+		expect(() => {
+			host.disable();
+			host.enable();
+			host.destroy();
+		}).not.toThrow();
 	});
 
 	// ---------------------------------------------------------------------------
@@ -423,6 +549,7 @@ describe('PciHost', () => {
 	// ---------------------------------------------------------------------------
 
 	it('resolveUrl returns absolute URLs unchanged', () => {
+		const registry = makeRegistry();
 		const host = new PciHost(makeData(), 'https://base.example.com/items/');
 		expect((host as any).resolveUrl('https://cdn.example.com/pci.js')).toBe('https://cdn.example.com/pci.js');
 		expect((host as any).resolveUrl('/absolute/path.js')).toBe('/absolute/path.js');
@@ -440,7 +567,89 @@ describe('PciHost', () => {
 });
 
 // ---------------------------------------------------------------------------
-// portableCustomExtractor
+// Registry
+// ---------------------------------------------------------------------------
+
+describe('installPciRegistry', () => {
+	it('delivers registrations to whenRegistered observers', async () => {
+		const registry = makeRegistry();
+		const fixture = makeRegistration();
+		const pending = registry.observation.whenRegistered('urn:test:echo-pci');
+		registry.context.register(fixture.registration);
+		await expect(pending).resolves.toBe(fixture.registration);
+		expect(registry.observation.registeredTypes()).toEqual(['urn:test:echo-pci']);
+	});
+
+	it('resolves immediately for an already-registered type', async () => {
+		const registry = makeRegistry();
+		const fixture = makeRegistration();
+		registry.context.register(fixture.registration);
+		await expect(registry.observation.whenRegistered('urn:test:echo-pci')).resolves.toBe(
+			fixture.registration
+		);
+	});
+
+	it('ignores registrations that are not spec-shaped', () => {
+		const registry = makeRegistry();
+		registry.context.register({} as QtiCustomInteractionRegistration);
+		registry.context.register({ typeIdentifier: '', getInstance: () => {} });
+		expect(registry.observation.registeredTypes()).toEqual([]);
+	});
+
+	it('preserves a context the page already had', async () => {
+		const previousRegistrations: string[] = [];
+		const target: Record<string, unknown> = {
+			[PCI_REGISTRY_GLOBAL]: {
+				register: (registration: QtiCustomInteractionRegistration) => {
+					previousRegistrations.push(registration.typeIdentifier);
+				},
+			},
+		};
+		const observation = installPciRegistry(target);
+		const fixture = makeRegistration();
+		const context = target[PCI_REGISTRY_GLOBAL] as { register: (r: QtiCustomInteractionRegistration) => void };
+		context.register(fixture.registration);
+
+		expect(previousRegistrations).toEqual(['urn:test:echo-pci']);
+		await expect(observation.whenRegistered('urn:test:echo-pci')).resolves.toBe(fixture.registration);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// QTI variable JSON
+// ---------------------------------------------------------------------------
+
+describe('qtiVariableJson', () => {
+	it('converts single, multiple and record runtime values to variable JSON', () => {
+		expect(toQtiVariableJson('A', 'identifier', 'single')).toEqual({ base: { identifier: 'A' } });
+		expect(toQtiVariableJson(['A', 'B'], 'identifier', 'multiple')).toEqual({
+			list: { identifier: ['A', 'B'] },
+		});
+		expect(toQtiVariableJson(['A', 'B'], 'identifier', 'ordered')).toEqual({
+			list: { identifier: ['A', 'B'] },
+		});
+		expect(toQtiVariableJson({ score: 1, text: 'why' }, undefined, 'record')).toEqual({
+			record: { score: { base: { integer: 1 } }, text: { base: { string: 'why' } } },
+		});
+		expect(toQtiVariableJson(null, 'string', 'single')).toBeNull();
+	});
+
+	it('converts variable JSON back to runtime values and round-trips', () => {
+		expect(fromQtiVariableJson({ base: { identifier: 'A' } })).toBe('A');
+		expect(fromQtiVariableJson({ list: { identifier: ['A', 'B'] } })).toEqual(['A', 'B']);
+		expect(
+			fromQtiVariableJson({ record: { a: { base: { integer: 1 } }, b: { base: { string: 'x' } } } })
+		).toEqual({ a: 1, b: 'x' });
+		expect(fromQtiVariableJson(null)).toBeNull();
+		expect(fromQtiVariableJson('plain')).toBe('plain');
+
+		const value = ['A', 'B'];
+		expect(fromQtiVariableJson(toQtiVariableJson(value, 'identifier', 'multiple'))).toEqual(value);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// createAllowlistPciModuleResolver
 // ---------------------------------------------------------------------------
 
 const PCI_XML = `
@@ -514,7 +723,7 @@ describe('createAllowlistPciModuleResolver', () => {
 	function resolverWith(
 		options: Partial<Parameters<typeof createAllowlistPciModuleResolver>[0]> = {}
 	) {
-		const importModule = mock(async () => ({ default: makeModule() }));
+		const importModule = mock(async () => ({}));
 		return {
 			importModule,
 			resolver: createAllowlistPciModuleResolver({
@@ -605,21 +814,27 @@ describe('createAllowlistPciModuleResolver', () => {
 		);
 	});
 
-	it('drives a PciHost end to end when the module is allow-listed', async () => {
-		const module = makeModule();
+	it('drives a PciHost end to end when the module registers from an allow-listed origin', async () => {
+		const registry = makeRegistry();
+		const fixture = makeRegistration();
 		const host = new PciHost(makeData({ fallbackPath: undefined }), {
 			moduleResolver: createAllowlistPciModuleResolver({
 				allowedOrigins: ['https://cdn.example.com'],
-				importModule: async () => ({ default: module }),
+				importModule: async () => {
+					registry.context.register(fixture.registration);
+					return {};
+				},
 			}),
+			registry: registry.observation,
 		});
 
 		await host.load();
 		host.initialize(makeDomNode());
-		expect(module.initialize).toHaveBeenCalledTimes(1);
+		expect(fixture.getInstance).toHaveBeenCalledTimes(1);
 	});
 
 	it('surfaces a refusal as PciLoadError once the fallback is also refused', async () => {
+		const registry = makeRegistry();
 		const host = new PciHost(
 			makeData({
 				primaryPath: 'https://evil.example.com/a.js',
@@ -628,14 +843,19 @@ describe('createAllowlistPciModuleResolver', () => {
 			{
 				moduleResolver: createAllowlistPciModuleResolver({
 					allowedOrigins: ['https://cdn.example.com'],
-					importModule: async () => ({ default: makeModule() }),
+					importModule: async () => ({}),
 				}),
+				registry: registry.observation,
 			}
 		);
 
 		await expect(host.load()).rejects.toBeInstanceOf(PciLoadError);
 	});
 });
+
+// ---------------------------------------------------------------------------
+// portableCustomExtractor
+// ---------------------------------------------------------------------------
 
 describe('portableCustomExtractor', () => {
 	it('canHandle returns true for qti-portable-custom-interaction', () => {
@@ -738,10 +958,29 @@ describe('portableCustomExtractor', () => {
 	});
 });
 
+// ---------------------------------------------------------------------------
+// Player PCI integration
+// ---------------------------------------------------------------------------
+
 describe('Player PCI integration', () => {
-	it('threads resolver config, restores responses, queries getResponse, and tears down', async () => {
-		const module = makeModule({ getResponse: mock(() => 'module-answer') });
-		const resolver = resolverReturning(module);
+	/** Module "code" that registers against the page's shared registry, as authored PCIs do. */
+	function playerResolver(): PciModuleResolver {
+		return mock(async () => {
+			const context = (globalThis as any)[PCI_REGISTRY_GLOBAL];
+			context?.register({
+				typeIdentifier: 'urn:example:echo-pci',
+				getInstance: (_dom: HTMLElement, configuration: QtiPciConfiguration) => {
+					lastConfiguration = configuration;
+					return makeInstance({ getResponse: mock(() => ({ base: { string: 'module-answer' } })) });
+				},
+			});
+			return {};
+		});
+	}
+	let lastConfiguration: QtiPciConfiguration | undefined;
+
+	it('threads resolver config, seeds restored responses at getInstance, and tears down', async () => {
+		const resolver = playerResolver();
 		const player = new Player({
 			itemXml: QTI3_PCI_ITEM,
 			pci: {
@@ -760,64 +999,65 @@ describe('Player PCI integration', () => {
 			'https://packages.example/items/item-1/pci/echo.js',
 			expect.objectContaining({ kind: 'primary', responseIdentifier: 'PCI_RESPONSE' })
 		);
-		expect(module.setResponse).toHaveBeenCalledWith('restored-answer');
-		expect(player.getResponses().PCI_RESPONSE).toBe('module-answer');
+		// The restored value reached the module as QTI variable JSON state.
+		expect(lastConfiguration?.responseIdentifier).toBe('PCI_RESPONSE');
+		expect(lastConfiguration?.status).toBe('interacting');
+		expect(host.getResponse()).toBe('module-answer');
 
 		player.destroy();
-		expect(module.destroy).toHaveBeenCalledTimes(1);
 	});
 
 	it('does not feed a PCI its own reported response back through setResponses', async () => {
-		const module = makeModule();
+		const resolver = playerResolver();
 		const player = new Player({
 			itemXml: QTI3_PCI_ITEM,
-			pci: { moduleResolver: resolverReturning(module) },
+			pci: { moduleResolver: resolver },
 		});
 		const host = player.createPciHost(player.getInteractionData()[0] as ExtractedPci);
 		await host.load();
 		host.initialize(makeDomNode());
 
-		const boundTo = (module.initialize as any).mock.calls[0][2];
-		boundTo.onResponseChange('candidate-typed-this');
-		(module.setResponse as any).mockClear();
+		// The module reports through onready, as conformant modules do.
+		lastConfiguration?.onready(
+			(host as any).instance as QtiPciInstance,
+			undefined
+		);
 
 		// Every candidate change reaches the player this way, a PCI's own included.
-		player.setResponses({ PCI_RESPONSE: 'candidate-typed-this' });
+		player.setResponses({ PCI_RESPONSE: 'module-answer' });
 
-		expect(module.setResponse).not.toHaveBeenCalled();
-		expect(player.getResponses().PCI_RESPONSE).toBe('test-response');
+		expect(host.getResponse()).toBe('module-answer');
+		expect(host.offerResponse('echo')).toBe(false);
+
+		player.destroy();
 	});
 
 	it('restoreResponses() rebuilds the module from the override', async () => {
-		const module = makeModule();
+		const resolver = playerResolver();
 		const player = new Player({
 			itemXml: QTI3_PCI_ITEM,
-			pci: { moduleResolver: resolverReturning(module) },
+			pci: { moduleResolver: resolver },
 		});
 		const host = player.createPciHost(player.getInteractionData()[0] as ExtractedPci);
 		await host.load();
 		host.initialize(makeDomNode());
-
-		const boundTo = (module.initialize as any).mock.calls[0][2];
-		boundTo.onResponseChange('candidate-typed-this');
-		(module.setResponse as any).mockClear();
 
 		let remountRequests = 0;
 		host.onRemountRequest(() => remountRequests++);
 		player.restoreResponses({ PCI_RESPONSE: 'host-override' });
 
 		expect(remountRequests).toBe(1);
-		expect(module.setResponse).not.toHaveBeenCalled();
-
 		await host.remount(makeDomNode());
-		expect(module.setResponse).toHaveBeenCalledWith('host-override');
+		expect(host.getResponse()).toBe('module-answer');
+
+		player.destroy();
 	});
 
 	it('a session round-trip through dispatch leaves module state untouched', async () => {
-		const module = makeModule();
+		const resolver = playerResolver();
 		const session = createAssessmentItemDefinition({
 			itemXml: QTI3_PCI_ITEM,
-			pci: { moduleResolver: resolverReturning(module) },
+			pci: { moduleResolver: resolver },
 		}).openSession();
 		const interactionNode = session
 			.present()
@@ -829,25 +1069,24 @@ describe('Player PCI integration', () => {
 
 		await host.load();
 		host.initialize(makeDomNode());
-		const boundTo = (module.initialize as any).mock.calls[0][2];
-		boundTo.onResponseChange('candidate-typed-this');
-		(module.setResponse as any).mockClear();
+		const configuration = lastConfiguration;
+		configuration?.onready((host as any).instance as QtiPciInstance, undefined);
 
 		session.dispatch({
 			action: 'setResponse',
 			responseIdentifier: 'PCI_RESPONSE',
-			value: 'candidate-typed-this',
+			value: 'module-answer',
 		});
 
-		expect(module.setResponse).not.toHaveBeenCalled();
+		expect(host.offerResponse('echo')).toBe(false);
 		session.dispose();
 	});
 
 	it('ignores late PCI response events after the authoritative session closes', async () => {
-		const module = makeModule({ getResponse: mock(() => 'late-answer') });
+		const resolver = playerResolver();
 		const session = createAssessmentItemDefinition({
 			itemXml: QTI3_PCI_ITEM,
-			pci: { moduleResolver: resolverReturning(module) },
+			pci: { moduleResolver: resolver },
 		}).openSession({ responses: { PCI_RESPONSE: 'submitted-answer' } });
 		const interactionNode = session
 			.present()
@@ -863,8 +1102,8 @@ describe('Player PCI integration', () => {
 		host.initialize(makeDomNode());
 		session.dispatch({ action: 'endAttempt' });
 		const revisionAfterClose = session.state().revision;
-		const boundTo = (module.initialize as any).mock.calls[0]?.[2];
-		boundTo.onResponseChange('late-answer');
+		const configuration = lastConfiguration;
+		configuration?.onready((host as any).instance as QtiPciInstance, undefined);
 
 		expect(session.state().responses.PCI_RESPONSE).toBe('submitted-answer');
 		expect(session.state().revision).toBe(revisionAfterClose);

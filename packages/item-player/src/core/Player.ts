@@ -82,7 +82,7 @@ import type { CatalogIndex } from '../catalog/types.js';
 import { extractCatalog, extractCatalogFromItemXml, mergeCatalogs } from '../catalog/catalogExtractor.js';
 import { getCatalogEntryWithAliases } from '../catalog/catalogLookup.js';
 import { PciHost } from '../pci/PciHost.js';
-import type { ExtractedPci } from '../pci/types.js';
+import type { ExtractedPci, PciInteractionStatus } from '../pci/types.js';
 import {
 	createExtendedTextNumericRecord,
 	EXTENDED_TEXT_RECORD_FIELD_TYPES,
@@ -469,6 +469,11 @@ export class Player {
 		const host = new PciHost(data, {
 			baseUrl: this.config.pci?.baseUrl,
 			moduleResolver: this.config.pci?.moduleResolver,
+			responseDeclaration: (() => {
+				const d = this.decls[data.responseIdentifier];
+				return d ? { baseType: d.baseType, cardinality: d.cardinality } : undefined;
+			})(),
+			status: () => this.pciInteractionStatus(),
 		});
 
 		// Wire response changes back into the player's declaration context
@@ -509,6 +514,18 @@ export class Player {
 		for (const host of this._pciHosts.values()) {
 			if (disabled) host.disable(); else host.enable();
 		}
+	}
+
+	/**
+	 * The QTI 3.0 §6.1 interaction status a PCI instantiates with: 'solution' when
+	 * correct responses are exposed, 'review' for non-candidate roles otherwise,
+	 * 'closed' once the attempt finished, 'interacting' while the candidate works.
+	 * Hosts that know better pass their own `status` to the PciHost options.
+	 */
+	private pciInteractionStatus(): PciInteractionStatus {
+		if (this.role !== 'candidate') return 'review';
+		if (this.lifecycleStatus === 'closed') return 'closed';
+		return 'interacting';
 	}
 
 	/**
