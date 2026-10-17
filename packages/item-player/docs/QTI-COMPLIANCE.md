@@ -27,27 +27,17 @@ usable in a browser or scores according to the official template semantics.
 
 ## Confirmed conformance gaps
 
+`docs/SPEC-GAPS-PLAN.md` is the authoritative, live tracker for conformance work — the list below
+covers only what is still open in the item player as of 2026-10-17. Gaps closed since this file was
+last audited (position-object hierarchy G-17, QTI 3 foreign-vocabulary mapping G-18, record
+cardinality G-21, response-template aliases G-19, extended-text response shapes G-23, processing
+fragments G-24) are tracked there as Done and are no longer repeated here.
+
 ### Interaction delivery
 
-- `positionObjectStage` is currently modeled as a child of `positionObjectInteraction`; QTI 2.2
-  and 3.0 define the stage as the parent. Schema-valid position-object items extract no interaction.
-- QTI 3 HTML elements such as `<object>` are incorrectly routed through the universal `qti-`
-  element-name fallback in some extractors. This loses images/media for valid graphical items.
-- QTI 3 Portable Custom Interaction parser and host primitives exist, but the extractor, renderer,
-  response collection, state restoration, and teardown lifecycle are not connected in production.
-- `record` is modeled as a base type instead of a cardinality, and valid record declarations lose
-  their field structure.
-- Extended-text delivery does not yet cover all single, multiple, ordered, and record response
-  forms or the complete string/min/max constraint model.
-
-### Response processing
-
-Filename-based implementations of `match_correct`, `map_response`, and Common Cartridge aliases
-do not yet reproduce all official template XML semantics. In particular, current code can operate
-across every response declaration, use `MAXSCORE` where the canonical template writes `1`, omit
-required `FEEDBACK` outcomes, and does not support `CC2_match_basic.xml`.
-
-External `xi:include` response/outcome-processing fragments are rejected rather than resolved.
+- QTI 3 Portable Custom Interaction runs under a bespoke module contract; the spec's
+  registry contract, AMD loading, and conformance evidence are scheduled for 1.0 (G-08). Module
+  execution stays gated on the host resolver — a trust decision, not a sandbox.
 
 ### QTI 2.1
 

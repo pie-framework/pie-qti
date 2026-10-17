@@ -1,7 +1,8 @@
 # PCI Runtime Engine and Sandbox Plan
 
-**Status**: Proposed, not scheduled — the ingest driver was measured and is absent
-**Last reviewed**: 2026-08-17
+**Status**: Scheduled for 1.0 — phases 1–3 are committed under the
+[completeness goal](version-1-0-2026-10.md); phase 4 (sandboxed realm) follows as opt-in hardening
+**Last reviewed**: 2026-10-17
 **Scope**: `packages/item-player/src/pci/`,
 `packages/item-player/src/interactions/portable-custom/`,
 `packages/item-player/src/iframe/`,
@@ -300,10 +301,17 @@ security posture and does not gate anything else.
 
 ---
 
-## Driver: Measured, And Absent
+## Driver: Measured, Then Re-Driven By Completeness
 
-Phases 1–4 are **not scheduled**. The ingest driver was measured against
-a third-party QTI corpus on 2026-08-17 and does not exist yet.
+**Update 2026-10-17:** phases 1–4 are **scheduled**. The project goal is now
+feature completeness and a proper 1.0
+([`version-1-0-2026-10.md`](version-1-0-2026-10.md)), so spec-shaped PCI must
+run for its own sake; the intake measurement below remains valid data but no
+longer decides scope. Phases 1–3 gate the 1.0 acceptance criterion that a
+third-party spec-authored PCI runs unmodified; phase 4 ships on the same track
+as opt-in hardening and gates nothing.
+
+The original 2026-08-17 measurement, retained for the record:
 
 | Corpus | PCI signal |
 | ------ | ---------- |
@@ -322,17 +330,17 @@ undercount it. The version strata answer that: standardized PCI is a QTI 3.0
 construct and the partner scan found no QTI 3.0 packages at all, so the rule that
 blocks unsupported QTI 3.0 constructs is firing on approximately nothing.
 
-**Decision:** PCI relevance tracks QTI 3.0 adoption in partner content, not PCI
-itself. Revisit when QTI 3.0 packages appear in intake at any material rate; the
-existing corpus tooling already measures that, so this is a periodic lookup rather
-than an investigation. Until then the opaque-`customInteraction` fallback —
-warning banner, manual response, blocked-for-review — is proportionate handling
-for 30 items.
+**Superseded decision (2026-08-17):** PCI relevance was held to track QTI 3.0
+adoption in partner content rather than PCI itself, with the
+opaque-`customInteraction` fallback as proportionate handling. **2026-10-17:**
+superseded by the completeness goal — the fallback remains the behavior until
+phase 1 lands, not a resting state.
 
-PCI certification follows the same finding and is not pursued. Official suite
+PCI certification follows the same flip: the 2026-08-17 finding — official suite
 commit `b058156` ships no PCI packages while Cito holds Delivery-PCI and
-Import-PCI, so the test-content source would need scoping with 1EdTech first;
-that question stays open but unasked. Submission strategy lives in the private
+Import-PCI — remains true, so the test-content source needs scoping with 1EdTech.
+Under the completeness goal that scoping is now part of the 1.0 certification
+push rather than an unasked question. Submission strategy lives in the private
 conformance project.
 
 What already landed stands on its own merits and is unaffected: the response
@@ -367,7 +375,16 @@ third-party players consuming Renaissance content, which is not a current need:
 no host publishes QTI today.
 
 This closes only the outbound direction. PCI *host* support is unaffected and
-proceeds on the ingest driver above; the two were being conflated.
+proceeds on its own track; the two were being conflated.
+
+**Update 2026-10-17 — re-opened for reconsideration, sequenced after phases
+1–3.** The completeness goal
+([`version-1-0-2026-10.md`](version-1-0-2026-10.md)) retires the "no host
+publishes QTI today" rationale. The technical objections stand (a projected
+module must be self-contained JavaScript, and nothing can consume it until
+conformant hosts exist), so reconsideration is sequenced behind the host
+runtime: once phases 1–3 land, re-evaluate whether `@pie-qti/pie-to-qti2`
+should emit `qti-portable-custom-interaction` for PIE-backed interactions.
 
 **Sandbox origin: `https://qti.pie-framework.org`** (2026-08-17). Satisfies
 Option C's runner-origin requirements — distinct, cookieless, static. Not being
