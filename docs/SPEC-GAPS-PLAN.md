@@ -11,7 +11,7 @@ AI agent or a human engineer. Sections are ordered by priority tier.
 > **Goal (2026-10-17):** feature completeness against the QTI 2.2 and 3.0 specifications and a
 > proper 1.0 release. Every item in this plan is committed work on that path — including the PCI
 > spec contract (G-08, phases 1–3 landed), structured labels and braille support (G-13, landed),
-> and shared catalog files (G-15, still open), which earlier deferrals had set aside. Sequencing
+> and shared catalog files (G-15, landed), which earlier deferrals had set aside. Sequencing
 > and 1.0 acceptance criteria live in
 > [`plans/version-1-0-2026-10.md`](plans/version-1-0-2026-10.md).
 
@@ -868,7 +868,7 @@ Test signal
 
 Scope       — `packages/item-player/src/core/Player.ts`;
               `packages/ims-cp-browser/`
-Status      — Committed for 1.0
+Status      — Done
 Effort      — M
 Spec ref    — §6.3 (Shared Catalogs)
 
@@ -877,17 +877,19 @@ Large item banks share glossary terms across many items using a single external 
 referenced from the IMS content package manifest, rather than embedding a per-item `<qti-catalog>`.
 The spec allows a standalone `qti-catalog` XML file listed as a resource in `imsmanifest.xml`.
 
-Current
-G-10 supports an inline catalog and a `catalogXml` string option. Package-level catalog discovery
-from the manifest is not handled.
-
-Action
-1. In `packages/ims-cp-browser/`, extend `PackageLoader` to detect catalog resources in the manifest (type `imsqti_catalog_xmlv3p0`) and expose them as `catalogXml` strings.
-2. Pass these to the item player when constructing `Player` instances for items in the package.
-3. Merge package-level and item-level catalogs (item-level takes precedence for the same `identifier`).
+Implementation
+1. `loadResolvedManifest` surfaces manifest resources of type `imsqti_catalog_xmlv3p0` as
+   `sharedCatalogs`.
+2. `createResolvedItemDeliveryContext` accepts `packageCatalogSources` (href, xml, or both) and
+   lands them in `deliveryContext.catalogSources` with scope `package`; the reference backend
+   adapter threads a host-supplied list through every item (the
+   `QtiAssessmentPlayerConfig.sharedCatalogs` knob reaches it from the web component).
+3. The item Player merges package-scope entries at the bottom: below `catalogXml` and the item's
+   own catalogs, so an item-level `qti-catalog-info` wins a shared identifier.
 
 Test signal
-- A content package with a shared catalog file produces the correct glossary entries for items that only have `data-catalog-idref` references, not inline `<qti-catalog>` elements.
+- A package-level entry backs an item that only carries `data-catalog-idref` references; an
+  item-level entry with the same identifier wins.
 
 ---
 

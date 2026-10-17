@@ -564,6 +564,13 @@ export interface QtiAssessmentPlayerConfig {
 	showProgress?: boolean;
 	timeWarningThreshold?: number;
 	pnp?: QtiPnpProfile;
+	/**
+	 * Shared catalog files from the content package manifest (resource type
+	 * `imsqti_catalog_xmlv3p0`), as the host that read the manifest discovered
+	 * them. Their entries back every item's `data-catalog-idref` terms; item-level
+	 * catalogs win on identifier collisions.
+	 */
+	sharedCatalogs?: ReadonlyArray<{ href?: string; xml?: string }>;
 }
 
 export interface QtiAssessmentItemResult {

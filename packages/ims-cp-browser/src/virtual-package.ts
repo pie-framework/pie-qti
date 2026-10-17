@@ -115,6 +115,7 @@ export function createVirtualPackage(
 					items: this.manifest.items,
 					passages: this.manifest.passages,
 					tests: this.manifest.tests,
+					sharedCatalogs: this.manifest.sharedCatalogs,
 				},
 			};
 
@@ -178,6 +179,7 @@ export async function loadPackageFromStorage(
 		items: data.manifest.items,
 		passages: data.manifest.passages,
 		tests: data.manifest.tests,
+		sharedCatalogs: data.manifest.sharedCatalogs ?? [],
 	};
 
 	return createVirtualPackage(packageId, files, manifest, storage);

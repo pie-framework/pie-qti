@@ -70,6 +70,13 @@ export interface BackendAssessmentPlayerConfig {
 	/** Definition-lifetime extractor and renderer extensions applied to every item. */
 	plugins?: readonly AssessmentItemDefinitionPlugin[];
 	/**
+	 * Shared catalog files the package manifest lists (resource type
+	 * `imsqti_catalog_xmlv3p0`), read by the host that loaded the package. When the
+	 * reference backend parses the assessment test they become package-scope
+	 * catalog sources beneath item-level catalogs (QTI 3.0 §6.3).
+	 */
+	sharedCatalogs?: ReadonlyArray<{ href?: string; xml?: string }>;
+	/**
 	 * Optional i18n provider for internationalization.
 	 * If provided, this will be shared across all item players in the assessment.
 	 */

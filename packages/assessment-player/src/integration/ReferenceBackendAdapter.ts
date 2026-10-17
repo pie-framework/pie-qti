@@ -736,13 +736,20 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			itemXmlMap?: Record<string, string>;
 			fileResolver?: (href: string) => Promise<string>;
 			baseUrl?: string;
+			/**
+			 * Shared catalog files the package manifest lists (resource type
+			 * `imsqti_catalog_xmlv3p0`): href, XML, or both. Their entries back
+			 * every item's `data-catalog-idref` terms; item-level catalogs win
+			 * identifier collisions (QTI 3.0 §6.3).
+			 */
+			sharedCatalogs?: ReadonlyArray<{ href?: string; xml?: string }>;
 			sectionReferenceLimits?: {
 				/** Maximum total inline and external assessmentSection nesting. Defaults to 32. */
 				maxDepth?: number;
 			};
 		} = {}
 	): Promise<SecureAssessment> {
-		const { role = 'candidate', itemXmlMap = {}, fileResolver, baseUrl } = options;
+		const { role = 'candidate', itemXmlMap = {}, fileResolver, baseUrl, sharedCatalogs } = options;
 		const maxSectionDepth = options.sectionReferenceLimits?.maxDepth ?? 32;
 		if (!Number.isInteger(maxSectionDepth) || maxSectionDepth < 1) {
 			throw new Error('sectionReferenceLimits.maxDepth must be a positive integer');
@@ -936,11 +943,25 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			};
 			const fragmentSeen = new Set<string>();
 			await collectProcessingFragments(itemXml, itemHref, fragmentSeen);
+			// Shared catalog files resolve against the package root, not the item.
+			const packageCatalogSources: Array<{ href?: string; xml?: string }> = [];
+			for (const shared of sharedCatalogs ?? []) {
+				if (shared.xml) {
+					packageCatalogSources.push({ href: shared.href, xml: shared.xml });
+					continue;
+				}
+				if (!shared.href) continue;
+				const href = resolveCheckedHref(shared.href);
+				if (!href) continue;
+				const xml = await loadText(href);
+				if (xml !== undefined) packageCatalogSources.push({ href, xml });
+			}
 			return createResolvedItemDeliveryContext({
 				itemXml,
 				itemHref,
 				readText: (path) => packageTextByPath[path] ?? stimulusXmlByPath[path] ?? itemXmlMap[path],
 				...(Object.keys(processingFragments).length > 0 ? { processingFragments } : {}),
+				...(packageCatalogSources.length > 0 ? { packageCatalogSources } : {}),
 			});
 		};
 
