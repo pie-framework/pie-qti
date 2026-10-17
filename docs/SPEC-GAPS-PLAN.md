@@ -708,10 +708,10 @@ translations. In the item body, `<span data-catalog-idref="cat-id">term</span>` 
 catalog card.
 
 Current
-Catalog parsing, `player.getCatalogEntry()`, inline glossary/keyword-translation popup support, and platform-level catalog lookup events are implemented. Manifest-level shared catalog discovery remains deferred under G-15.
+Catalog parsing, `player.getCatalogEntry()`, inline glossary/keyword-translation popup support, platform-level catalog lookup events, and manifest-level shared catalog discovery (G-15) are implemented.
 
 Action
-Done for G-10. Keep G-15 open for manifest-level shared catalog discovery.
+Done for G-10 and G-15 (manifest-level shared catalog discovery).
 
 Test signal
 - `player.getCatalogEntry('cat-photosynthesis', 'glossary-on-screen')` returns the correct HTML.
