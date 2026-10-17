@@ -509,7 +509,7 @@ Test signal
 ### G-24: Resolve external processing fragments
 
 Scope       — package/resource resolution; `packages/qti-processing/src/ast/build.ts`
-Status      — In-progress (bounded ItemPlayer resolver implemented; package/assessment wiring remains)
+Status      — Done (package-contained resolver through assessment delivery + XInclude namespace gate, 2026-10-16)
 Effort      — M
 Spec ref    — QTI responseProcessingFragment / outcomeProcessingFragment and XInclude
 
@@ -521,24 +521,24 @@ Current
 The processing AST and ItemPlayer accept an explicit host-owned resolver for response, template,
 and outcome fragments. They support XInclude fallback and reject missing resolvers, wrong fragment
 modes, cycles, excessive depth, and excessive cumulative XML size. The engine performs no implicit
-network or filesystem reads.
-
-The assessment/section rendering path does not yet derive and pass a package-relative resolver, so
-reference-mode assessment delivery cannot execute packaged fragments without host wiring. The AST
-builder also recognizes `include`/`fallback` by local name and should require the XInclude namespace
-to avoid interpreting unrelated vocabulary as processing inclusion.
+network or filesystem reads. Reference-mode assessment parsing preloads each item's external
+fragments (recursively, relative to the referencing document) into the delivery context, and
+`createAssessmentItemDefinition` derives a package-contained resolver from it, so assessment and
+section delivery execute packaged fragments without host wiring; authored `xi:fallback` runs when a
+fragment file is missing. The builder requires the XInclude namespace for `include` and `fallback`
+and fails loudly on foreign vocabulary. Test-scope (`scope: 'test'`) fragments still require a
+host-supplied resolver and fail closed, unchanged.
 
 Action
-1. Build a package-contained resolver from the active item's source path and delivery context and
-   pass it through section/assessment rendering to ItemPlayer.
-2. Require the XInclude namespace for `include` and `fallback` recognition.
-3. Preserve the existing resolver, cycle, depth, character, mode, and fail-closed tests at the
-   public custom-element boundary.
+Done for the tracked gap. Test-level outcome-processing fragments remain host-wired; revisit only if
+packaged test-level fragments become a real content requirement.
 
 Test signal
-- Direct ItemPlayer tests already prove valid and rejected resolver cases. Completion additionally
-  requires a packaged assessment test whose item-relative fragment executes through the public
-  delivery path, plus a foreign-namespace `<include>` regression.
+- `packages/assessment-player/tests/processing-fragment-resolver.test.ts`: a packaged item whose
+  fragment chain (including a fragment-relative nested include) scores through `AssessmentPlayer`,
+  and a missing fragment whose authored `xi:fallback` executes.
+- `packages/qti-processing/tests/processing-fragments.test.ts`: foreign-namespace `<include>` and
+  `<fallback>` regressions, resolver never consulted for foreign vocabulary.
 
 ---
 

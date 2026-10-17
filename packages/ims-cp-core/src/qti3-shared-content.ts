@@ -70,6 +70,13 @@ export interface ResolvedItemDeliveryContext {
 	stylesheets: ResolvedQtiStylesheetRef[];
 	catalogSources: ResolvedQtiCatalogSource[];
 	validationMessages: string[];
+	/**
+	 * Package-relative path -> preloaded XML text for external processing fragments
+	 * (xi:include) referenced by this item or by those fragments. Absent when the item
+	 * references none. Namespace, mode, depth, and cycle validation remain the
+	 * processing engine's job; this map is only a preloaded, package-contained source.
+	 */
+	processingFragments?: Record<string, string>;
 }
 
 export interface ResolveItemDeliveryContextOptions {
@@ -91,6 +98,8 @@ export interface ResolveItemDeliveryContextOptions {
 	manifestEvidencePaths?: ReadonlySet<string>;
 	/** Controls optional real-world package path heuristics. */
 	heuristicsConfig?: QtiHeuristicsConfig;
+	/** Preloaded external processing fragment texts, keyed by package-relative path. */
+	processingFragments?: Record<string, string>;
 }
 
 interface PackageResolverContext {
@@ -254,6 +263,7 @@ export function createResolvedItemDeliveryContext(
 		stylesheets,
 		catalogSources,
 		validationMessages,
+		...(options.processingFragments ? { processingFragments: options.processingFragments } : {}),
 	};
 }
 
@@ -265,6 +275,24 @@ export function extractQtiStylesheets(xml: string): QtiStylesheetRef[] {
 
 export function extractCatalogInfoXml(xml: string): string[] {
 	return findElements(parseXml(xml), CATALOG_INFO_TAGS).map((el) => el.toString());
+}
+
+/**
+ * Collects the hrefs of xi:include elements so hosts can preload external processing
+ * fragments. The parser used here is not namespace-aware, so matching is by local tag
+ * name only and is intentionally best-effort: the processing engine remains the
+ * authority on XInclude namespace, fragment mode, depth, and cycle validity.
+ */
+export function extractProcessingIncludeRefs(xml: string): string[] {
+	const refs: string[] = [];
+	visit(parseXml(xml), (el) => {
+		const tagName = el.tagName.toLowerCase();
+		const localName = tagName.slice(tagName.lastIndexOf(':') + 1);
+		if (localName !== 'include') return;
+		const href = el.getAttribute('href')?.trim();
+		if (href) refs.push(href);
+	});
+	return refs;
 }
 
 export function resolveRelativePath(baseHref: string, relativePath: string): string {
