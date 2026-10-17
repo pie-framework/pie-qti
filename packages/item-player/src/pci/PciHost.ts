@@ -403,6 +403,7 @@ export class PciHost implements PciHostController {
 		const entry =
 			this.data.modules.find((module) => module.primaryPath === this.data.primaryPath) ??
 			this.data.modules[this.data.modules.length - 1];
+		const entryId = entry?.id || this.data.primaryPath;
 		const attempt = async (entryPath: string, kind: PciModulePathKind): Promise<void> => {
 			const config = await this.loadResolutionConfig();
 			const loader = createAmdLoader({
@@ -415,6 +416,7 @@ export class PciHost implements PciHostController {
 			try {
 				// Authored `qti-interaction-module` entries bind their own ids; the
 				// resolution config fills in dependency ids the item does not declare.
+				// On the fallback attempt the entry id rebinds to the fallback path.
 				loader.addPaths(
 					Object.fromEntries(
 						this.data.modules
@@ -422,7 +424,7 @@ export class PciHost implements PciHostController {
 							.map((module) => [module.id || module.primaryPath, module.primaryPath])
 					)
 				);
-				const entryId = this.data.modules.find((module) => module.primaryPath === entryPath)?.id || entryPath;
+				loader.addPaths({ [entryId]: entryPath });
 				await loader.load([entryId]);
 				this.adoptRegistration(await this.awaitRegistration(), generation);
 			} finally {

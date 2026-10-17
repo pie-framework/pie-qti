@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The same interaction as pci-amd-echo, but the entry module's primary path is
+  deliberately wrong, as the official fractions1 example demonstrates: delivery
+  must fall back to the authored fallback-path and still register.
+-->
+<qti-assessment-item
+  xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0"
+  identifier="pci-amd-echo-fallback"
+  adaptive="false"
+  time-dependent="false">
+  <qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="string"/>
+  <qti-item-body>
+    <qti-portable-custom-interaction
+      response-identifier="RESPONSE"
+      custom-interaction-type-identifier="urn:example:pci:echo-conformance">
+      <qti-interaction-modules>
+        <qti-interaction-module id="echo_lib" primary-path="modules/echo_lib.js"/>
+        <qti-interaction-module id="echo_conformance" primary-path="modules/missing.js" fallback-path="modules/fallback/echo_conformance.js"/>
+      </qti-interaction-modules>
+      <qti-interaction-markup>
+        <div class="echo-mount"></div>
+      </qti-interaction-markup>
+    </qti-portable-custom-interaction>
+  </qti-item-body>
+</qti-assessment-item>

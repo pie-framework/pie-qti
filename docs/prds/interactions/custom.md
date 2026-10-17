@@ -114,9 +114,10 @@ The portable renderer mounts the sanitized scaffold, asks the owning item sessio
 
 ### Known gaps
 
-The registry contract (phase 1) and the AMD loader with resolution-config parsing and
-multi-module extraction (phase 2) have landed; third-party conformance evidence (phase 3)
-remains scheduled for 1.0 under the
+The registry contract (phase 1), the AMD loader with resolution-config parsing and
+multi-module extraction (phase 2), and clean-room conformance evidence over real module files
+(phase 3, `tests/conformance/pci/`) have landed. Browser-level evidence in the private runner
+and third-party content as a same-reading check remain, scheduled under the
 [completeness goal](../../plans/version-1-0-2026-10.md) — see
 [`docs/plans/pci-runtime-and-sandbox-2026-08.md`](../../plans/pci-runtime-and-sandbox-2026-08.md).
 

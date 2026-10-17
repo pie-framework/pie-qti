@@ -10,8 +10,9 @@ AI agent or a human engineer. Sections are ordered by priority tier.
 
 > **Goal (2026-10-17):** feature completeness against the QTI 2.2 and 3.0 specifications and a
 > proper 1.0 release. Every item in this plan is committed work on that path — including the PCI
-> spec contract (G-08), structured labels and braille support (G-13), and shared catalog files
-> (G-15), which earlier deferrals had set aside. Sequencing and 1.0 acceptance criteria live in
+> spec contract (G-08, phases 1–3 landed), structured labels and braille support (G-13, landed),
+> and shared catalog files (G-15, still open), which earlier deferrals had set aside. Sequencing
+> and 1.0 acceptance criteria live in
 > [`plans/version-1-0-2026-10.md`](plans/version-1-0-2026-10.md).
 
 > **Verification boundary:** statuses below describe the current source tree and its public,
@@ -569,10 +570,13 @@ Scope       — `packages/item-player/src/interactions/portable-custom/extractor
               `packages/item-player/src/pci/`;
               `packages/item-player/src/core/Player.ts`;
               default interaction rendering
-Status      — In progress (phases 1–2 done — the spec contract runs and modules load
-              through the AMD path; phase 3 evidence remains of
-              [`plans/pci-runtime-and-sandbox-2026-08.md`](plans/pci-runtime-and-sandbox-2026-08.md);
-              phase 4 sandboxed realm follows on the same track)
+Status      — Done (phases 1–3 in-repo, 2026-10-16: the spec contract runs, modules
+              load through the AMD path, and the clean-room conformance suite in
+              `packages/item-player/tests/conformance/pci/` drives registration,
+              state restore, `ondone` and fallback resolution over real module
+              files. Browser-level evidence attaches to a published candidate per
+              the verification boundary; phase 4 sandboxed realm is opt-in
+              hardening on the same track)
 Effort      — L
 Spec ref    — §6.1
 
@@ -610,20 +614,20 @@ re-instantiates the module. A PCI authored against the specification runs; one a
 the retired `PciModule` does not, and never ran anywhere else.
 
 Action
-Phases 1 and 2 are done: the registry global, `getInstance`, `onready`/`ondone`, QTI variable JSON,
-`getState()` restore, the derived interaction status, and — phase 2 — the AMD loader
+Phases 1–3 are done in-repo. Phase 1: the registry global, `getInstance`, `onready`/`ondone`, QTI
+variable JSON, `getState()` restore, and the derived interaction status. Phase 2: the AMD loader
 (`amdLoader.ts`), the RequireJS-shaped resolution config (`resolutionConfig.ts`, probing the
 defined default locations `modules/module_resolution.js` and
 `modules/fallback_module_resolution.js`), multi-module extraction with per-entry ids, and entry
-selection by the customInteractionTypeIdentifier tail. Remaining per
-[`plans/pci-runtime-and-sandbox-2026-08.md`](plans/pci-runtime-and-sandbox-2026-08.md):
-conformance evidence against a third-party spec-authored module (phase 3). The 2026-08-17 intake
-measurement (zero `portableCustomInteraction` content, no QTI 3.0 packages) stands as data, but
-the 2026-10-17 completeness goal supersedes it as the driver: spec-shaped PCI must run for its
-own sake, not because intake demand appeared. Keep the host resolver responsible for
+selection by the customInteractionTypeIdentifier tail. Phase 3: clean-room conformance fixtures
+(`tests/conformance/pci/`) exercising registration, restore-by-state, `ondone` and fallback
+resolution over real module files. The 2026-08-17 intake measurement (zero
+`portableCustomInteraction` content, no QTI 3.0 packages) stands as data, but the 2026-10-17
+completeness goal supersedes it as the driver. Keep the host resolver responsible for
 package-manifest, URL/origin, and integrity validation; the resolver is a trust decision, not a
-sandbox. Phase 4 (sandboxed execution realm) is opt-in hardening on the same 1.0 track and gates
-nothing.
+sandbox. Outstanding: browser-level evidence in the private runner (waits for a published
+candidate), third-party content as the same-reading check, phase 4 (sandboxed execution realm) as
+opt-in hardening, and the PIE-projection reconsideration that was sequenced behind phases 1–3.
 
 Test signal
 - A module registering through `qtiCustomInteractionContext` runs unmodified (done, phase 1).
