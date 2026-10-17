@@ -75,7 +75,8 @@ function resolvePackagePathInternal(
 	return { path: normalized.join('/'), escapedRoot };
 }
 
-function hasUnsafeEncodedPathToken(href: string): boolean {
+/** True when href carries percent-encoded path separators/dots that survive repeated decoding. */
+export function hasUnsafeEncodedPathToken(href: string): boolean {
 	let current = href;
 	for (let i = 0; i < 3; i += 1) {
 		if (/%(?:2e|2f|5c)/i.test(current)) {

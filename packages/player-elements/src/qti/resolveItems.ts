@@ -1,3 +1,4 @@
+import { hasUnsafeEncodedPathToken } from '@pie-qti/ims-cp-core';
 import type { PlayerSecurityConfig } from '@pie-qti/item-player';
 import { sanitizeResourceUrl } from '@pie-qti/item-player/security';
 import type { ParsedAssessmentItemRef, ParsedAssessmentSection, ParsedAssessmentTest, ParsedTestPart } from './types.js';
@@ -113,21 +114,6 @@ function isWithinBase(candidate: URL, base: URL): boolean {
 	if (candidate.origin !== base.origin) return false;
 	const basePath = base.pathname.endsWith('/') ? base.pathname : `${base.pathname}/`;
 	return candidate.pathname === base.pathname || candidate.pathname.startsWith(basePath);
-}
-
-function hasUnsafeEncodedPathToken(href: string): boolean {
-	let current = href;
-	for (let depth = 0; depth < 3; depth++) {
-		if (/%(?:2e|2f|5c)/i.test(current)) return true;
-		try {
-			const decoded = decodeURIComponent(current);
-			if (decoded === current) return false;
-			current = decoded;
-		} catch {
-			return true;
-		}
-	}
-	return /%(?:2e|2f|5c)/i.test(current);
 }
 
 function resolveCheckedItemUrl(

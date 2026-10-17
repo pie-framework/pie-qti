@@ -317,11 +317,12 @@
       "name": "@pie-qti/player-elements",
       "version": "0.1.28",
       "dependencies": {
+        "@pie-qti/assessment-player": "workspace:*",
+        "@pie-qti/ims-cp-core": "workspace:*",
         "@pie-qti/item-player": "workspace:*",
       },
       "devDependencies": {
         "@biomejs/biome": "^2.5.15",
-        "@pie-qti/assessment-player": "workspace:*",
         "@pie-qti/default-components": "workspace:*",
         "@pie-qti/qti-common": "workspace:*",
         "@pie-qti/section-player": "workspace:*",

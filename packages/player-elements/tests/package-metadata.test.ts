@@ -29,6 +29,10 @@ describe('player-elements package metadata', () => {
 		expect(Object.hasOwn(packageJson.exports ?? {}, './register-players')).toBe(true);
 		expect(packageJson.types).toBe('./dist/public/index.d.ts');
 		expect(packageJson.dependencies).toEqual({
+			// Runtime imports: ReferenceBackendAdapter + the shared XML scan primitives, and
+			// the encoded-path guard reused from ims-cp-core.
+			'@pie-qti/assessment-player': 'workspace:*',
+			'@pie-qti/ims-cp-core': 'workspace:*',
 			'@pie-qti/item-player': 'workspace:*',
 		});
 		expect(packageJson.devDependencies?.['@pie-qti/default-components']).toBe('workspace:*');

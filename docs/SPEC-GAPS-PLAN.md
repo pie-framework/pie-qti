@@ -297,9 +297,12 @@ depth limit (32 by default). A small discovery parser remains in player-elements
 referenced resources before the authoritative parse.
 
 Action
-Consolidate the remaining discovery parser with the assessment-owned model where practical.
-Preconditions, section and test-part branch rules, `withReplacement` instances and the
-itemSessionControl cascade landed 2026-10-15 with raw QTI 2.2 and 3.0 delivery tests.
+Done. Preconditions, section and test-part branch rules, `withReplacement` instances and the
+itemSessionControl cascade landed 2026-10-15 with raw QTI 2.2 and 3.0 delivery tests. The
+player-elements discovery pass was consolidated where practical (2026-10-16): the canonical-name and
+encoded-path scan primitives are single-sourced, the discovery/authoritative boundary and the
+element's itemXmlMap keying contract are documented in code. The discovery parser remains the
+bounded pre-fetch surface and a public standalone utility.
 
 Test signal
 - Tests start from raw QTI 2.1, 2.2, and 3.0 assessment XML and assert selected/ordered runtime

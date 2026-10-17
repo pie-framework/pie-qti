@@ -33,10 +33,11 @@
   },
   "license": "MIT",
   "dependencies": {
+    "@pie-qti/assessment-player": "workspace:*",
+    "@pie-qti/ims-cp-core": "workspace:*",
     "@pie-qti/item-player": "workspace:*"
   },
   "devDependencies": {
-    "@pie-qti/assessment-player": "workspace:*",
     "@pie-qti/default-components": "workspace:*",
     "@pie-qti/qti-common": "workspace:*",
     "@pie-qti/section-player": "workspace:*",
