@@ -563,7 +563,8 @@ Scope       — `packages/item-player/src/interactions/portable-custom/extractor
               `packages/item-player/src/pci/`;
               `packages/item-player/src/core/Player.ts`;
               default interaction rendering
-Status      — In-progress (lifecycle done against a bespoke module contract; spec contract open)
+Status      — Deferred by decision (2026-08-17): the ingest driver was measured and is absent — see
+              [`plans/pci-runtime-and-sandbox-2026-08.md`](plans/pci-runtime-and-sandbox-2026-08.md)
 Effort      — L
 Spec ref    — §6.1
 
@@ -598,12 +599,18 @@ as the documented default module resolution. A PCI authored against the specific
 does not run here, and one authored against `PciModule` runs nowhere else.
 
 Action
-Extraction, renderer, session wiring, and the resolver trust gate are complete and stay. Replace
-the module contract per
-[`plans/pci-runtime-and-sandbox-2026-08.md`](plans/pci-runtime-and-sandbox-2026-08.md), which
-sequences spec-contract adoption, the AMD loader and module resolution, conformance evidence, and
-the sandboxed execution realm. Keep the host resolver responsible for package-manifest, URL/origin,
-and integrity validation; the resolver is a trust decision, not a sandbox.
+Extraction, renderer, session wiring, and the resolver trust gate are complete and stay. The spec
+contract replacement is sequenced in
+[`plans/pci-runtime-and-sandbox-2026-08.md`](plans/pci-runtime-and-sandbox-2026-08.md) (registry
+global, `getInstance`, `onready`/`ondone`, QTI variable JSON responses, `getState()` restore, then
+the AMD loader and conformance evidence) but is **not scheduled**: a 2026-08-17 measurement of the
+partner intake corpus found zero `portableCustomInteraction` content and no QTI 3.0 packages, so
+the driver for those phases does not exist yet. Revisit when QTI 3.0 packages appear in intake at
+any material rate; until then the opaque-`customInteraction` fallback (warning banner, manual
+response, blocked-for-review) is the proportionate handling, and
+`createAllowlistPciModuleResolver` keeps the existing host path usable for anyone who does meet a
+PCI. The host resolver remains responsible for package-manifest, URL/origin, and integrity
+validation; it is a trust decision, not a sandbox.
 
 Test signal
 - Loading QTI 2.x or 3.0 PCI content instantiates the resolver-returned module.
@@ -622,7 +629,8 @@ Scope       — `packages/item-player/src/core/Player.ts`;
               new `packages/item-player/src/pnp/` module;
               `packages/default-components/src/` (individual component changes);
               `packages/assessment-player/src/core/AssessmentPlayer.ts`
-Status      — Done except color-scheme CSS (commit fa8fa97, 2026-04-28; the attribute is written, no scheme rules ship)
+Status      — Done (core profile commit fa8fa97, 2026-04-28; color-scheme rulesets shipped in
+              commit 6c209e27 as `qti-pnp.css`)
 Effort      — L
 Spec ref    — §6.2
 
@@ -641,17 +649,19 @@ initialisation. It controls:
 Current
 PNP support is implemented for the current delivery scope: `AssessmentItemDefinitionConfig.pnp`,
 the `ItemSession` `updatePnp` command, elimination tool, extended time, and
-glossary/keyword-translation trigger UI are shipped. A color scheme is written as
-`data-qti-colorscheme` on the player root, but no package ships `[data-qti-colorscheme]` rules, so a
-scheme changes nothing until the host stylesheet supplies them; which package owns them is an open
-question in `prds/systems/pnp.md`. Specialist features such as structured labels and braille routing
-remain deferred under G-13.
+glossary/keyword-translation trigger UI are shipped. The color scheme is written as
+`data-qti-colorscheme` on the player root and the rulesets ship: `qti-pnp.css` in
+`@pie-qti/default-components` (exported as `./qti-pnp.css`, copied into the web-component loaders'
+`default-runtime.css`) styles every scheme plus inverted polarity, single-column layout, and text
+appearance, with the scheme tokens inheriting into shadow roots. Specialist features such as
+structured labels and braille routing remain deferred under G-13.
 
 Action
-Ship the color-scheme rulesets once their owning package is decided. Future PNP work is tracked under G-13 and package-level catalog discovery under G-15.
+Done for the tracked scope. Future PNP work is tracked under G-13 and package-level catalog
+discovery under G-15.
 
 Test signal
-- A definition/session created with `pnp: { display: { colorScheme: 'blackwhite' } }` sets `data-qti-colorscheme="blackwhite"` and, once the rulesets ship, the scheme's colors.
+- A definition/session created with `pnp: { display: { colorScheme: 'blackwhite' } }` sets `data-qti-colorscheme="blackwhite"`, and the shipped `qti-pnp.css` rules recolour the theme tokens.
 - `session.dispatch({ action: 'updatePnp', profile: { display: { colorScheme: 'yellowblue' } } })` changes the scheme without re-parsing the item.
 - Elimination tool buttons appear in `choiceInteraction` when `pnp.cognitive.eliminationTool` is true.
 - A 60-second time limit becomes 90 seconds when `extendedTime.multiplier` is 1.5.
@@ -749,14 +759,13 @@ It is not a distinct interaction type. QTI 3.0 does not define a
 `<qti-composite-interaction>` element.
 
 Current
-The player already extracts and renders multiple standard interactions from one item. A stray
-`qti-composite-interaction` entry in the QTI 3 element mapping table is non-standard and should be
-removed as cleanup; it is not a feature to implement.
+The player already extracts and renders multiple standard interactions from one item. The stray
+non-standard `qti-composite-interaction` entry was removed from the QTI 3 element mapping with the
+G-18 mapper work (2026-07-13); nothing in the codebase references it.
 
 Action
-Do not add an extractor or component for `qti-composite-interaction`. Keep regression coverage for
-items with multiple independent interactions and remove the non-standard name-map entry when
-runtime cleanup is scheduled.
+Done. Do not add an extractor or component for `qti-composite-interaction`. Keep regression
+coverage for items with multiple independent interactions.
 
 Test signal
 - A QTI 2.x and a QTI 3.0 item containing multiple interactions render and collect each declared
