@@ -1,55 +1,48 @@
 import { describe, expect, test } from 'bun:test';
-import { readFileSync } from 'node:fs';
+import {
+	normalizeCssPixelLength,
+	normalizePixelDimension,
+} from '@pie-qti/item-player/security';
 
-function componentSource(name: string): string {
-	return readFileSync(new URL(`../src/plugins/${name}`, import.meta.url), 'utf8');
-}
-
-describe('authored style value sinks', () => {
-	test('normalizes both gap-match palette widths before style interpolation', () => {
-		for (const path of [
-			'gap-match/GapMatchInteraction.svelte',
-			'graphic-gap-match/GraphicGapMatchInteraction.svelte',
-		]) {
-			const source = componentSource(path);
-
-			expect(source, path).toContain('normalizeCssPixelLength(');
-			expect(source, path).toContain('style={choicesContainerWidth ?');
-			expect(source, path).not.toContain('parsedInteraction.choicesContainerWidth}`');
-		}
+describe('normalizeCssPixelLength', () => {
+	test('canonicalizes unsigned pixel values', () => {
+		expect(normalizeCssPixelLength('300')).toBe('300px');
+		expect(normalizeCssPixelLength('300px')).toBe('300px');
+		expect(normalizeCssPixelLength('12.5')).toBe('12.5px');
+		expect(normalizeCssPixelLength(48)).toBe('48px');
 	});
 
-	test('normalizes representative image dimensions before CSS sinks', () => {
-		const graphicOrder = componentSource('graphic-order/GraphicOrderInteraction.svelte');
-		const graphicAssociate = componentSource(
-			'graphic-associate/GraphicAssociateInteraction.svelte',
-		);
-		const selectPoint = componentSource('select-point/SelectPointInteraction.svelte');
-		const graphicGapMatch = componentSource(
-			'graphic-gap-match/GraphicGapMatchInteraction.svelte',
-		);
-		const positionObject = componentSource(
-			'position-object/PositionObjectInteraction.svelte',
-		);
+	test('rejects values that could terminate the declaration and inject another one', () => {
+		const injection = '"; background-image: url(https://evil.example/x.png)';
+		expect(normalizeCssPixelLength(injection)).toBeNull();
+		expect(normalizeCssPixelLength('url(https://evil.example/x.png)')).toBeNull();
+		expect(normalizeCssPixelLength('50%')).toBeNull();
+		expect(normalizeCssPixelLength('-10')).toBeNull();
+		expect(normalizeCssPixelLength('1e6')).toBeNull();
+		expect(normalizeCssPixelLength('auto')).toBeNull();
+		expect(normalizeCssPixelLength(undefined)).toBeNull();
+		expect(normalizeCssPixelLength(null)).toBeNull();
+	});
+});
 
-		for (const source of [
-			graphicOrder,
-			graphicAssociate,
-			selectPoint,
-			graphicGapMatch,
-			positionObject,
-		]) {
-			expect(source).toContain('normalizePixelDimension(');
-		}
+describe('normalizePixelDimension', () => {
+	test('returns a unit-free positive pixel count for image attributes', () => {
+		expect(normalizePixelDimension('400')).toBe('400');
+		expect(normalizePixelDimension(400)).toBe('400');
+		expect(normalizePixelDimension('12.5')).toBe('12.5');
+	});
 
-		expect(graphicOrder).not.toContain('style="width: {parsedInteraction.imageData.width}px');
-		expect(graphicAssociate).not.toContain(
-			'style="width: {parsedInteraction.imageData?.width}px',
-		);
-		expect(selectPoint).not.toContain('style="width: {parsedInteraction.imageData.width}px');
-		expect(graphicGapMatch).not.toContain('width: {parsedInteraction.imageData?.width}px');
-		expect(positionObject).not.toContain(
-			'aspect-ratio: {parsedInteraction.imageData?.width',
-		);
+	test('rejects unit-bearing and hostile values instead of interpolating them', () => {
+		expect(normalizePixelDimension('400px')).toBeUndefined();
+		expect(normalizePixelDimension('0')).toBeUndefined();
+		expect(normalizePixelDimension('-10')).toBeUndefined();
+		expect(normalizePixelDimension('0; background:url(x)')).toBeUndefined();
+		expect(normalizePixelDimension(null)).toBeUndefined();
+	});
+
+	test('falls back only when the fallback is itself a safe dimension', () => {
+		expect(normalizePixelDimension('abc', 320)).toBe('320');
+		expect(normalizePixelDimension('abc', 'inject; url(x)')).toBeUndefined();
+		expect(normalizePixelDimension('abc')).toBeUndefined();
 	});
 });
