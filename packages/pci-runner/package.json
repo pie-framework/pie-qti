@@ -1,0 +1,60 @@
+{
+  "name": "@pie-qti/pci-runner",
+  "version": "0.1.28",
+  "description": "Deployable QTI 3.0 PCI sandbox runner: a static page that executes Portable Custom Interaction modules in a sandboxed cross-origin frame and bridges the spec contract over postMessage",
+  "type": "module",
+  "main": "./dist/pci-runner.js",
+  "exports": {
+    ".": {
+      "default": "./dist/pci-runner.js"
+    },
+    "./pci-runner.html": "./dist/pci-runner.html"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "vite build && mv dist/index.html dist/pci-runner.html && tsc --noEmit",
+    "dev": "vite build --watch",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "qti",
+    "qti3",
+    "pci",
+    "portable-custom-interaction",
+    "sandbox",
+    "iframe",
+    "assessment"
+  ],
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.15",
+    "@pie-qti/item-player": "workspace:*",
+    "typescript": "^5.9.3",
+    "vite": "^8.2.1"
+  },
+  "peerDependenciesMeta": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pie-framework/pie-qti.git",
+    "directory": "packages/pci-runner"
+  },
+  "homepage": "https://github.com/pie-framework/pie-qti/tree/master/packages/pci-runner",
+  "bugs": {
+    "url": "https://github.com/pie-framework/pie-qti/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20.19.0"
+  }
+}

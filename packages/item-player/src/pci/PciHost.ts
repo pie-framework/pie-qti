@@ -2,36 +2,32 @@ import type {
 	ExtractedPci,
 	PciHostController,
 	PciHostOptions,
-	PciModulePathKind,
 	PciModuleResolver,
 	PciRegistryObservation,
-	QtiCustomInteractionRegistration,
 	QtiPciConfiguration,
 	QtiPciInstance,
 } from './types.js';
-import { PciLoadError, PciModuleResolverRequiredError } from './types.js';
+import { PciModuleResolverRequiredError } from './types.js';
 import { getSharedPciRegistry } from './registry.js';
 import { fromQtiVariableJson, toQtiVariableJson } from './qtiVariableJson.js';
-import {
-	DEFAULT_RESOLUTION_CONFIG_PATHS,
-	emptyResolutionConfig,
-	parseModuleResolutionConfig,
-	type PciResolutionConfig,
-} from './resolutionConfig.js';
-import { createAmdLoader } from './amdLoader.js';
-
-const DEFAULT_REGISTRATION_TIMEOUT_MS = 5000;
+import { PageRealmPciSession } from './pageRealmSession.js';
+import { SandboxedPciSession } from './sandbox/SandboxedPciSession.js';
+import type { PciModuleSession } from './moduleSession.js';
 
 /**
  * Loads, initializes, and manages the lifecycle of a single PCI module under the
  * QTI 3.0 §6.1 contract.
  *
- * The module is expected to register itself against the page's
- * `qtiCustomInteractionContext` as its code evaluates; the host resolver decides
- * whether that evaluation happens. Instantiation goes through the registered
- * `getInstance(dom, configuration, state)` factory — state in, `getResponse()` /
- * `getState()` out — and there is no setter: an authoritative response change
- * re-instantiates the module.
+ * The module-facing contract is engine-independent: a module registers itself
+ * against `qtiCustomInteractionContext` as its code evaluates, instantiation
+ * goes through the registered `getInstance(dom, configuration, state)` factory
+ * — state in, `getResponse()` / `getState()` out, no setter — and an
+ * authoritative response change re-instantiates the module. What the host
+ * chooses is *where that code runs*: by default the page realm behind a host
+ * resolver (`moduleResolver`), or, with `sandbox` configured, a cross-origin
+ * runner frame whose document has an opaque origin. The response-ownership
+ * state machine below is shared by both engines; only the execution backend
+ * (`PciModuleSession`) differs.
  *
  * Usage:
  *   const host = new PciHost(extractedData, { baseUrl, moduleResolver });
@@ -44,13 +40,14 @@ export class PciHost implements PciHostController {
 	private readonly data: ExtractedPci;
 	private readonly baseUrl: string;
 	private readonly moduleResolver: PciModuleResolver | undefined;
+	private readonly sandboxConfig: PciHostOptions['sandbox'];
 	private readonly responseDeclaration: PciHostOptions['responseDeclaration'];
 	private readonly statusSource: PciHostOptions['status'];
-	private readonly registrationTimeoutMs: number;
 	private readonly registry: PciRegistryObservation;
-	private registration: QtiCustomInteractionRegistration | null = null;
+	private readonly session: PciModuleSession;
 	private instance: QtiPciInstance | null = null;
 	private mountNode: HTMLElement | null = null;
+	private loaded = false;
 	private destroyed = false;
 	private loadGeneration = 0;
 	private _response: unknown = null;
@@ -75,19 +72,45 @@ export class PciHost implements PciHostController {
 		(responseId: string, value: unknown) => void
 	>();
 	private readonly _remountRequestListeners = new Set<() => void>();
+	private readonly _errorListeners = new Set<(error: Error) => void>();
 
 	constructor(data: ExtractedPci, options: PciHostOptions | string = {}) {
 		this.data = data;
 		this.baseUrl = typeof options === 'string' ? options : (options.baseUrl ?? '');
 		this.moduleResolver = typeof options === 'string' ? undefined : options.moduleResolver;
+		this.sandboxConfig = typeof options === 'string' ? undefined : options.sandbox;
 		this.responseDeclaration =
 			typeof options === 'string' ? undefined : options.responseDeclaration;
 		this.statusSource = typeof options === 'string' ? undefined : options.status;
-		this.registrationTimeoutMs =
-			typeof options === 'string'
-				? DEFAULT_REGISTRATION_TIMEOUT_MS
-				: (options.registrationTimeoutMs ?? DEFAULT_REGISTRATION_TIMEOUT_MS);
 		this.registry = typeof options === 'string' ? getSharedPciRegistry() : (options.registry ?? getSharedPciRegistry());
+
+		if (this.sandboxConfig) {
+			this.session = new SandboxedPciSession({
+				sandbox: this.sandboxConfig,
+				data,
+				baseUrl: this.baseUrl,
+				modulePolicy: typeof options === 'string' ? undefined : options.modulePolicy,
+				frameConnector: typeof options === 'string' ? undefined : options.frameConnector,
+				parentOrigin: typeof options === 'string' ? undefined : options.parentOrigin,
+			});
+		} else {
+			this.session = new PageRealmPciSession({
+				data,
+				baseUrl: this.baseUrl,
+				moduleResolver: this.moduleResolver,
+				registry: this.registry,
+				...(typeof options === 'string' ? {} : { registrationTimeoutMs: options.registrationTimeoutMs }),
+			});
+		}
+		this.session.onRemoteReport?.((report) => {
+			// The proxy's cache already carries the pushed response; the state
+			// joins the instance state and the report counts as the module's own.
+			if (report.state !== undefined) this._instanceState = report.state;
+			this.captureInstanceResponse();
+		});
+		this.session.onError?.((error) => {
+			for (const listener of this._errorListeners) listener(error);
+		});
 	}
 
 	/**
@@ -115,68 +138,50 @@ export class PciHost implements PciHostController {
 	}
 
 	/**
-	 * Evaluate the PCI module from primaryPath, falling back to fallbackPath, and
-	 * take the module's registration from `qtiCustomInteractionContext`. A
-	 * multi-module declaration (or an authored resolution config) loads through
-	 * the AMD loader, which wires `define` dependencies by id. Throws PciLoadError
-	 * when both paths fail or the module never registers.
+	 * Register a callback for asynchronous engine failures: the sandboxed
+	 * engine's frame handshake, in-frame module load, or instance errors. The
+	 * page-realm engine rejects `load()` instead and never uses this channel.
+	 */
+	public onError(callback: (error: Error) => void): () => void {
+		this._errorListeners.add(callback);
+		return () => this._errorListeners.delete(callback);
+	}
+
+	/**
+	 * Bring the module's execution backend up: page-realm hosts evaluate the
+	 * module (primary path, then fallback, through the AMD loader for
+	 * multi-module declarations) and adopt its registration; the sandboxed
+	 * engine prepares the init payload and defers the module load to the runner
+	 * frame, whose failures surface through `onError`. Throws PciLoadError when
+	 * both page-realm paths fail or the module never registers.
 	 */
 	public async load(): Promise<void> {
 		if (this.destroyed) {
 			throw new Error('Cannot load a destroyed PciHost');
 		}
-		if (!this.moduleResolver) {
-			throw new PciModuleResolverRequiredError(
-				this.data.responseIdentifier,
-				this.data.primaryPath
-			);
-		}
 		const generation = ++this.loadGeneration;
-
-		const useAmd = this.data.modules.length > 1 || this.data.resolutionConfigPath !== undefined;
-		if (useAmd) {
-			await this.loadViaAmd(generation);
-			return;
-		}
-
-		const primary = this.resolveUrl(this.data.primaryPath);
-		try {
-			await this.evaluateModule(primary, this.data.primaryPath, 'primary');
-			this.adoptRegistration(await this.awaitRegistration(), generation);
-			return;
-		} catch (primaryErr) {
-			if (!this.isCurrentLoad(generation)) throw primaryErr;
-			if (!this.data.fallbackPath) {
-				throw new PciLoadError(this.data.primaryPath, undefined, primaryErr as Error);
-			}
-		}
-
-		const fallback = this.resolveUrl(this.data.fallbackPath!);
-		try {
-			await this.evaluateModule(fallback, this.data.fallbackPath!, 'fallback');
-			this.adoptRegistration(await this.awaitRegistration(), generation);
-		} catch (fallbackErr) {
-			if (!this.isCurrentLoad(generation)) throw fallbackErr;
-			throw new PciLoadError(
-				this.data.primaryPath,
-				this.data.fallbackPath,
-				fallbackErr as Error
-			);
-		}
+		await this.session.load({ isCurrent: () => this.isCurrentLoad(generation) });
+		// A freshly adopted module has reported nothing yet; its old instance,
+		// from a previous load, is gone with the re-resolution.
+		this.destroyInstance();
+		this._moduleOwnsResponse = false;
+		this.loaded = true;
 	}
 
 	/**
 	 * Instantiate the PCI inside the given DOM element through the registered
 	 * `getInstance` factory, seeding it with the held state. Must be called after
-	 * load() resolves.
+	 * load() resolves. The sandboxed engine mounts its runner frame here instead:
+	 * the frame element replaces the scaffold's markup, because the module renders
+	 * inside the frame, not on the page.
 	 */
 	public initialize(dom: HTMLElement): void {
-		if (!this.registration) return;
+		if (!this.loaded) return;
 		this.mountNode = dom;
 		this._lastSeed = this.seedValue();
 
 		try {
-			const returned = this.registration.getInstance(dom, this.buildConfiguration(), this.seedValue());
+			const returned = this.session.instantiate(dom, this.buildConfiguration(), this.seedValue());
 			if (returned && typeof returned === 'object') this.instance = returned;
 			this._restorePending = false;
 		} catch (error) {
@@ -190,7 +195,15 @@ export class PciHost implements PciHostController {
 		if (this._restorePending) return this._response;
 		if (this.instance) {
 			try {
-				return fromQtiVariableJson(this.instance.getResponse());
+				const value = fromQtiVariableJson(this.instance.getResponse());
+				if ((value === null || value === undefined) && this._hasResponse && !this._moduleOwnsResponse) {
+					// A freshly instantiated module that has reported nothing yet: the
+					// held value is what this instantiation was seeded with (the
+					// sandboxed engine's cache stays empty until the frame's first
+					// report crosses the bridge).
+					return this._response;
+				}
+				return value;
 			} catch {
 				return this._response;
 			}
@@ -283,8 +296,10 @@ export class PciHost implements PciHostController {
 		// Keep the last known module state answerable after teardown.
 		this._instanceState = this.instance?.getState?.() ?? this._instanceState;
 		this.destroyInstance();
+		this.session.dispose();
 		this._responseChangeListeners.clear();
 		this._remountRequestListeners.clear();
+		this._errorListeners.clear();
 	}
 
 	// ---------------------------------------------------------------------------
@@ -292,9 +307,10 @@ export class PciHost implements PciHostController {
 	// ---------------------------------------------------------------------------
 
 	private destroyInstance(): void {
-		const instance = this.instance as { destroy?: () => void } | null;
-		instance?.destroy?.();
+		const instance = this.instance;
 		this.instance = null;
+		if (!instance) return;
+		this.session.destroyInstance(instance);
 	}
 
 	/**
@@ -303,7 +319,7 @@ export class PciHost implements PciHostController {
 	 * renderer's job, and this path exists for hosts that wired none.
 	 */
 	private rebuildInPlace(): void {
-		if (!this.mountNode || !this.registration || this.destroyed) return;
+		if (!this.mountNode || !this.loaded || this.destroyed) return;
 		this.destroyInstance();
 		this._instanceState = undefined;
 		this.initialize(this.mountNode);
@@ -364,151 +380,8 @@ export class PciHost implements PciHostController {
 		}
 	}
 
-	private awaitRegistration(): Promise<QtiCustomInteractionRegistration> {
-		const typeIdentifier = this.data.customInteractionTypeIdentifier;
-		let timer: ReturnType<typeof setTimeout> | undefined;
-		const timeout = new Promise<never>((_, reject) => {
-			timer = setTimeout(
-				() => reject(new Error(`PCI module for '${typeIdentifier}' did not register`)),
-				this.registrationTimeoutMs
-			);
-		});
-		return Promise.race([this.registry.whenRegistered(typeIdentifier), timeout]).finally(() => {
-			if (timer !== undefined) clearTimeout(timer);
-		});
-	}
-
-	private evaluateModule(
-		resolvedUrl: string,
-		authoredPath: string,
-		kind: PciModulePathKind
-	): Promise<unknown> {
-		return Promise.resolve(
-			this.moduleResolver!(resolvedUrl, {
-				authoredPath,
-				kind,
-				responseIdentifier: this.data.responseIdentifier,
-				customInteractionTypeIdentifier: this.data.customInteractionTypeIdentifier,
-			})
-		);
-	}
-
-	/**
-	 * Multi-module loading: fetch the resolution config (authored reference first,
-	 * then the defined default locations), then drive the entry module — its
-	 * primary path, or its fallback — through the AMD loader so `define`
-	 * dependencies wire up before the registration is read.
-	 */
-	private async loadViaAmd(generation: number): Promise<void> {
-		const entry =
-			this.data.modules.find((module) => module.primaryPath === this.data.primaryPath) ??
-			this.data.modules[this.data.modules.length - 1];
-		const entryId = entry?.id || this.data.primaryPath;
-		const attempt = async (entryPath: string, kind: PciModulePathKind): Promise<void> => {
-			const config = await this.loadResolutionConfig();
-			const loader = createAmdLoader({
-				baseUrl: this.baseUrl,
-				config,
-				evaluate: (resolvedUrl, authoredPath) => this.evaluateModule(resolvedUrl, authoredPath, kind),
-				resolveUrl: (path) => this.resolveUrl(path),
-			});
-			loader.install();
-			try {
-				// Authored `qti-interaction-module` entries bind their own ids; the
-				// resolution config fills in dependency ids the item does not declare.
-				// On the fallback attempt the entry id rebinds to the fallback path.
-				loader.addPaths(
-					Object.fromEntries(
-						this.data.modules
-							.filter((module) => module.primaryPath)
-							.map((module) => [module.id || module.primaryPath, module.primaryPath])
-					)
-				);
-				loader.addPaths({ [entryId]: entryPath });
-				await loader.load([entryId]);
-				this.adoptRegistration(await this.awaitRegistration(), generation);
-			} finally {
-				loader.dispose();
-			}
-		};
-
-		try {
-			await attempt(this.data.primaryPath, 'primary');
-		} catch (primaryErr) {
-			if (!this.isCurrentLoad(generation)) throw primaryErr;
-			const fallbackPath = entry?.fallbackPath;
-			if (!fallbackPath) {
-				throw new PciLoadError(
-					this.data.primaryPath,
-					undefined,
-					primaryErr as Error
-				);
-			}
-			try {
-				await attempt(fallbackPath, 'fallback');
-			} catch (fallbackErr) {
-				if (!this.isCurrentLoad(generation)) throw fallbackErr;
-				throw new PciLoadError(
-					this.data.primaryPath,
-					fallbackPath,
-					fallbackErr as Error
-				);
-			}
-		}
-	}
-
-	/** The resolution config: the authored reference, then the defined default locations. */
-	private async loadResolutionConfig(): Promise<PciResolutionConfig> {
-		const candidates = this.data.resolutionConfigPath
-			? [this.data.resolutionConfigPath, ...DEFAULT_RESOLUTION_CONFIG_PATHS]
-			: DEFAULT_RESOLUTION_CONFIG_PATHS;
-		for (const path of candidates) {
-			try {
-				const raw = await this.evaluateModule(this.resolveUrl(path), path, 'primary');
-				const parsed = parseModuleResolutionConfig(raw);
-				if (Object.keys(parsed.paths).length > 0) return parsed;
-			} catch {
-				// A package without a config file at this location falls through.
-			}
-		}
-		return emptyResolutionConfig();
-	}
-
-	private resolveUrl(path: string): string {
-		if (/^[a-z][a-z\d+.-]*:/i.test(path) || path.startsWith('//') || path.startsWith('/')) {
-			return path;
-		}
-		if (!this.baseUrl) return path;
-		// Relative path: resolve against baseUrl
-		const base = this.baseUrl.endsWith('/') ? this.baseUrl : this.baseUrl + '/';
-		try {
-			return new URL(path, base).href;
-		} catch {
-			return base + path;
-		}
-	}
-
 	private isCurrentLoad(generation: number): boolean {
 		return !this.destroyed && generation === this.loadGeneration;
-	}
-
-	private adoptRegistration(
-		registration: QtiCustomInteractionRegistration,
-		generation: number
-	): void {
-		if (!registration || typeof registration.getInstance !== 'function') {
-			throw new Error(
-				`PCI registration for '${this.data.customInteractionTypeIdentifier}' is not a valid spec registration`
-			);
-		}
-		if (!this.isCurrentLoad(generation)) {
-			throw new Error('PciHost was destroyed before its module finished loading');
-		}
-		this.registration = registration;
-		// A freshly adopted module has reported nothing yet; its old instance,
-		// from a previous load, is gone with the re-resolution.
-		this.destroyInstance();
-		this._moduleOwnsResponse = false;
 	}
 }
 

@@ -295,6 +295,16 @@
         "typescript": "^5.9.3",
       },
     },
+    "packages/pci-runner": {
+      "name": "@pie-qti/pci-runner",
+      "version": "0.1.28",
+      "devDependencies": {
+        "@biomejs/biome": "^2.5.15",
+        "@pie-qti/item-player": "workspace:*",
+        "typescript": "^5.9.3",
+        "vite": "^8.2.1",
+      },
+    },
     "packages/pie-to-qti2": {
       "name": "@pie-qti/pie-to-qti2",
       "version": "0.1.28",
@@ -860,6 +870,8 @@
     "@pie-qti/item-player": ["@pie-qti/item-player@workspace:packages/item-player"],
 
     "@pie-qti/logger": ["@pie-qti/logger@workspace:packages/logger"],
+
+    "@pie-qti/pci-runner": ["@pie-qti/pci-runner@workspace:packages/pci-runner"],
 
     "@pie-qti/pie-to-qti2": ["@pie-qti/pie-to-qti2@workspace:packages/pie-to-qti2"],
 

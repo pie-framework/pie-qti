@@ -120,7 +120,12 @@
 		try {
 			currentHost = factory
 				? factory(data)
-				: new PciHost(data, { baseUrl, moduleResolver: resolver });
+				: new PciHost(data, {
+						baseUrl,
+						moduleResolver: resolver,
+						sandbox: pci?.sandbox,
+						modulePolicy: pci?.modulePolicy,
+					});
 		} catch (error) {
 			status = 'error';
 			errorMessage = error instanceof Error ? error.message : String(error);
@@ -130,6 +135,14 @@
 		host = currentHost;
 		const stopListening = currentHost.onResponseChange((_responseId, value) => {
 			if (!cancelled) emitResponse(value);
+		});
+
+		// Engines that execute the module out of the page realm — the sandboxed
+		// runner frame — report their failures here instead of rejecting load().
+		const stopErrors = currentHost.onError((error) => {
+			if (cancelled) return;
+			status = 'error';
+			errorMessage = error.message;
 		});
 
 		// An authoritative restore rebuilds the module from the restored value.
@@ -171,6 +184,7 @@
 		return () => {
 			cancelled = true;
 			stopListening();
+			stopErrors();
 			stopRemountRequests();
 			currentHost.destroy();
 			if (host === currentHost) host = null;

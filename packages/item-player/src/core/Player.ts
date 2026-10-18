@@ -473,6 +473,8 @@ export class Player {
 		const host = new PciHost(data, {
 			baseUrl: this.config.pci?.baseUrl,
 			moduleResolver: this.config.pci?.moduleResolver,
+			sandbox: this.config.pci?.sandbox,
+			modulePolicy: this.config.pci?.modulePolicy,
 			responseDeclaration: (() => {
 				const d = this.decls[data.responseIdentifier];
 				return d ? { baseType: d.baseType, cardinality: d.cardinality } : undefined;

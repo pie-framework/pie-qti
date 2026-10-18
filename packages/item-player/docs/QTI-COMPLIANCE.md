@@ -39,8 +39,10 @@ are no longer repeated here.
 
 - PCI browser-level evidence in the private runner and third-party content as a same-reading
   check remain open under G-08's evidence thread; the spec contract itself runs (registry,
-  `getInstance`, QTI variable JSON, `getState()` restore, AMD loading with resolution configs).
-  Module execution stays gated on the host resolver — a trust decision, not a sandbox.
+  `getInstance`, QTI variable JSON, `getState()` restore, AMD loading with resolution configs),
+  and the sandboxed engine (plan phase 4) offers opt-in hardened execution in a cross-origin
+  runner frame. Page-realm module execution stays gated on the host resolver — a trust decision;
+  the sandboxed engine is the containment.
 
 ### QTI 2.1
 

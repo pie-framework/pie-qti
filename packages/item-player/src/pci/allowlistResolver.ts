@@ -1,4 +1,4 @@
-import type { PciModuleResolutionContext, PciModuleResolver } from './types.js';
+import type { PciModulePolicy, PciModuleResolutionContext, PciModuleResolver } from './types.js';
 
 /**
  * Raised when an authored PCI module path falls outside the configured allow-list.
@@ -30,6 +30,9 @@ export interface AllowlistPciResolverOptions {
 	 */
 	importModule?: (resolvedUrl: string, context: PciModuleResolutionContext) => Promise<unknown>;
 }
+
+/** Options for {@link createAllowlistPciModulePolicy}; no import hook exists. */
+export type AllowlistPciPolicyOptions = Omit<AllowlistPciResolverOptions, 'importModule'>;
 
 /** Parse one allow-list entry, rejecting anything not an absolute http(s) URL. */
 function parseAllowlistUrl(kind: 'origin' | 'path prefix', value: string): URL {
@@ -63,9 +66,8 @@ function parseAllowlistUrl(kind: 'origin' | 'path prefix', value: string): URL {
  * Non-http(s) URLs are always refused, which rules out `data:`, `blob:` and
  * `javascript:` module paths regardless of configuration.
  */
-export function createAllowlistPciModuleResolver(
-	options: AllowlistPciResolverOptions
-): PciModuleResolver {
+/** Parse and normalize an allow-list, refusing an empty one as a configuration error. */
+function buildAllowlist(options: AllowlistPciPolicyOptions) {
 	const origins = (options.allowedOrigins ?? []).map(
 		(origin) => parseAllowlistUrl('origin', origin).origin
 	);
@@ -74,14 +76,11 @@ export function createAllowlistPciModuleResolver(
 	);
 	if (origins.length === 0 && prefixes.length === 0) {
 		throw new Error(
-			'createAllowlistPciModuleResolver requires allowedOrigins or allowedPathPrefixes; ' +
+			'PCI allow-list requires allowedOrigins or allowedPathPrefixes; ' +
 				'an empty allow-list would refuse every module'
 		);
 	}
-	const importModule =
-		options.importModule ?? ((resolvedUrl: string) => import(/* @vite-ignore */ resolvedUrl));
-
-	return async (resolvedUrl: string, context: PciModuleResolutionContext) => {
+	const check = (resolvedUrl: string): URL => {
 		let url: URL;
 		try {
 			url = new URL(resolvedUrl);
@@ -100,6 +99,53 @@ export function createAllowlistPciModuleResolver(
 		if (prefixes.length > 0 && !prefixes.some((prefix) => url.href.startsWith(prefix))) {
 			throw new PciModuleNotAllowedError(resolvedUrl, 'no allow-listed path prefix matches');
 		}
+		return url;
+	};
+	return { check };
+}
+
+/**
+ * Build a `modulePolicy` — the sandboxed engine's variant of the allow-list
+ * resolver. It applies exactly the same origin/prefix/scheme checks but never
+ * imports anything: the module is not evaluated in the page, so the policy only
+ * decides whether its URL may be handed to the runner frame.
+ */
+export function createAllowlistPciModulePolicy(
+	options: AllowlistPciPolicyOptions
+): PciModulePolicy {
+	const { check } = buildAllowlist(options);
+	return (resolvedUrl: string) => {
+		check(resolvedUrl);
+	};
+}
+
+/**
+ * Build a `moduleResolver` that imports PCI modules only from an explicit
+ * allow-list.
+ *
+ * PCI code executes with the authority of the realm that imports it, so the
+ * player never resolves an authored path on its own. This factory does not
+ * remove that gate: a host still has to pass the returned resolver as
+ * `PciConfiguration.moduleResolver`, and doing so remains a trust decision. It
+ * exists so hosts opt into a reviewed check rather than writing the
+ * security-critical part themselves.
+ *
+ * At least one of `allowedOrigins` or `allowedPathPrefixes` must be non-empty;
+ * an empty allow-list would deny everything and is treated as a configuration
+ * error rather than silently disabling PCI. When both are given, both must match.
+ *
+ * Non-http(s) URLs are always refused, which rules out `data:`, `blob:` and
+ * `javascript:` module paths regardless of configuration.
+ */
+export function createAllowlistPciModuleResolver(
+	options: AllowlistPciResolverOptions
+): PciModuleResolver {
+	const { check } = buildAllowlist(options);
+	const importModule =
+		options.importModule ?? ((resolvedUrl: string) => import(/* @vite-ignore */ resolvedUrl));
+
+	return async (resolvedUrl: string, context: PciModuleResolutionContext) => {
+		const url = check(resolvedUrl);
 		return importModule(url.href, context);
 	};
 }
