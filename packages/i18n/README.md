@@ -310,7 +310,7 @@ const t = $derived((key: string, fallback: string) => i18n?.t(key) ?? fallback);
 For detailed guides, see the `docs/` directory:
 
 - **[Integration Guide](./docs/INTEGRATION_GUIDE.md)** - Complete guide for adding i18n to components
-- **[Component Patterns](./docs/COMPONENT_PATTERNS.md)** - Svelte 5 + DaisyUI patterns and examples
+- **[Component UI Patterns](./docs/INTEGRATION_GUIDE.md#component-ui-patterns)** - Svelte 5 + DaisyUI patterns and examples
 - **[Advanced Features](./docs/ADVANCED_FEATURES.md)** - Pluralization, number & date formatting
 - **[Message Keys](./src/locales/en-US.ts)** - All available translation keys and namespaces
 

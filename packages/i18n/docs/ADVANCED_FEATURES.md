@@ -566,7 +566,6 @@ export default {
 ## See Also
 
 - [INTEGRATION_GUIDE.md](./INTEGRATION_GUIDE.md) - Basic i18n integration
-- [COMPONENT_PATTERNS.md](./COMPONENT_PATTERNS.md) - UI component patterns
 - [MDN: Intl.NumberFormat](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/NumberFormat)
 - [MDN: Intl.DateTimeFormat](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat)
 - [MDN: Intl.PluralRules](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/PluralRules)
