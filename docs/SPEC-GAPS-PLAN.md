@@ -625,9 +625,12 @@ resolution over real module files. The 2026-08-17 intake measurement (zero
 `portableCustomInteraction` content, no QTI 3.0 packages) stands as data, but the 2026-10-17
 completeness goal supersedes it as the driver. Keep the host resolver responsible for
 package-manifest, URL/origin, and integrity validation; the resolver is a trust decision, not a
-sandbox. Outstanding: browser-level evidence in the private runner (waits for a published
-candidate), third-party content as the same-reading check, phase 4 (sandboxed execution realm) as
-opt-in hardening, and the PIE-projection reconsideration that was sequenced behind phases 1–3.
+sandbox. Phase 4 (sandboxed execution realm) landed as opt-in hardening on 2026-10-16
+(`PciConfiguration.sandbox`, `@pie-qti/pci-runner`); the PIE-projection reconsideration
+sequenced behind phases 1–3 was re-closed on 2026-10-18 with its record in
+[`plans/pci-runtime-and-sandbox-2026-08.md`](plans/pci-runtime-and-sandbox-2026-08.md).
+Outstanding: browser-level evidence in the private runner (waits for a published candidate)
+and third-party content as the same-reading check.
 
 Test signal
 - A module registering through `qtiCustomInteractionContext` runs unmodified (done, phase 1).

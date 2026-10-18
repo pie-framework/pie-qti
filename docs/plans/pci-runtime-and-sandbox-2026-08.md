@@ -436,6 +436,37 @@ conformant hosts exist), so reconsideration is sequenced behind the host
 runtime: once phases 1–3 land, re-evaluate whether `@pie-qti/pie-to-qti2`
 should emit `qti-portable-custom-interaction` for PIE-backed interactions.
 
+**Reconsidered and re-closed (2026-10-18, after phases 1–4 landed).** The
+reconsideration premise held — a conformant host runtime now exists (this
+player, phase 4's runner included) — but a runtime was only one of three
+load-bearing conditions, and the other two did not move:
+
+1. **Self-containment is an architecture reversal, not an export flag.** PIE's
+   distribution is one CDN-loaded runtime shared by every element on the page
+   (the coupling that forced the lockstep `@pie-players/*` pin). A projected
+   PCI module must be self-contained JavaScript at a URL inside the package;
+   projecting would either duplicate that runtime in every module of every
+   package or ship a loader that quietly depends on the PIE CDN — reintroducing
+   exactly the dependency the projection is meant to remove.
+2. **Emitted PIE items are not semantically self-sufficient today.** The
+   fallback generator embeds the PIE model with external scoring and a generic
+   string response declaration; the mapping-based QTI scoring approximations
+   are documented as lossy. Under the current form that is honest — the PIE
+   runtime and scoring service travel with the content. A module labeled
+   *portable* claims more interoperability than the semantic mapping delivers:
+   a third-party host would run the interaction but score it with guesses.
+   Per-element response-shape guarantees against QTI base types are per-element
+   engineering, not packaging.
+3. **Nothing pulls.** No third-party player or consumer needs PIE content
+   runnable without the PIE CDN today. Completeness drove the *player* side of
+   PCI (an in-spec player runs any conformant PCI); it does not create a
+   consumer for an outbound exporter.
+
+**Reopen trigger:** a named consumer that must run Renaissance-authored PIE
+interactions on a host that cannot load the PIE CDN. Until that appears, the
+outbound direction stays closed and the PCI *host* side — which shipped — is the
+completeness deliverable.
+
 **Sandbox origin: `https://qti.pie-framework.org`** (2026-08-17). Satisfies
 Option C's runner-origin requirements — distinct, cookieless, static. Not being
 able to set response headers costs only `frame-ancestors`, which mutual origin
