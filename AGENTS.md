@@ -27,7 +27,8 @@ After completing each feature or fix:
 1. Run Biome with auto-fix: `bun run lint:fix` or `npx @biomejs/biome check --write .`.
 2. Run TypeScript type checking: `bun run typecheck` (Turborepo runs `tsc --noEmit` in every workspace; the root tsconfig is solution-style and checks nothing on its own).
 3. Run Svelte type checking where relevant: `bun run check` (runs svelte-check in every Svelte workspace), or for a single package, for example `cd packages/item-player && bun run check`.
-4. Fix errors and warnings before marking the task complete.
+4. If any markdown documentation changed: `bun run check:doc-links` (validates relative links and heading anchors across all markdown; CI enforces this).
+5. Fix errors and warnings before marking the task complete.
 
 Before any merge request:
 
