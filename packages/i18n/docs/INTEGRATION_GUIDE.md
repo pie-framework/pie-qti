@@ -48,10 +48,10 @@ const translations = $derived({
 
 ```svelte
 <script lang="ts">
-import { SvelteI18nProvider } from '@pie-qti/i18n';
+import { createDefaultSvelteI18nProvider } from '@pie-qti/i18n';
 import MyComponent from './MyComponent.svelte';
 
-const i18nProvider = new SvelteI18nProvider('en-US');
+const i18nProvider = await createDefaultSvelteI18nProvider('en-US');
 </script>
 
 <MyComponent i18n={i18nProvider} />
@@ -132,9 +132,9 @@ const translations = $derived({
 ```
 
 **Why $derived?**
-- Translations reactively update when locale changes
-- Computed once per locale change (efficient)
-- Clean, declarative syntax
+- Keeps translation lookups declarative and tied to the component's inputs
+- Re-evaluates whenever the `i18n` prop or interpolation values change
+- Locale switches go through `SvelteI18nProvider.setLocale()`, which persists the locale and reloads the page, so components always render with the active locale
 
 ### Step 3: Use Translations in Template
 
@@ -174,14 +174,18 @@ let { i18n }: { i18n?: I18nProvider } = $props();
 ### Basic Usage
 
 ```typescript
-// ✅ CORRECT - Reactive with $derived
+// ✅ CORRECT - Derived translation
 const translations = $derived({
   title: i18n?.t('page.title') ?? 'page.title',
 });
 
-// ❌ INCORRECT - Won't update on locale change
+// ❌ INCORRECT - Translation captured once as a plain constant
 const title = i18n?.t('page.title') ?? 'page.title';
 ```
+
+**Note:** Locale changes through `SvelteI18nProvider.setLocale()` persist the locale and reload the
+page, so components render correctly after a locale switch. `$derived` still matters for values
+that change within a component's lifetime (props, state, interpolated values).
 
 ### Interpolation
 
@@ -302,12 +306,12 @@ TypeScript will automatically provide autocomplete for your new keys! The i18n p
 
 ```svelte
 <script lang="ts">
-import { SvelteI18nProvider } from '@pie-qti/i18n';
+import { createDefaultSvelteI18nProvider } from '@pie-qti/i18n';
 
 // Test with different locales
-const i18nProvider = new SvelteI18nProvider('es-ES'); // Spanish
-// const i18nProvider = new SvelteI18nProvider('fr-FR'); // French
-// const i18nProvider = new SvelteI18nProvider('nl-NL'); // Dutch
+const i18nProvider = await createDefaultSvelteI18nProvider('es-ES'); // Spanish
+// const i18nProvider = await createDefaultSvelteI18nProvider('fr-FR'); // French
+// const i18nProvider = await createDefaultSvelteI18nProvider('nl-NL'); // Dutch
 </script>
 
 <YourComponent i18n={i18nProvider} />
@@ -317,13 +321,14 @@ const i18nProvider = new SvelteI18nProvider('es-ES'); // Spanish
 
 ```svelte
 <script lang="ts">
-import { SvelteI18nProvider } from '@pie-qti/i18n';
+import { createDefaultSvelteI18nProvider } from '@pie-qti/i18n';
 
-const i18nProvider = new SvelteI18nProvider('en-US');
+const i18nProvider = await createDefaultSvelteI18nProvider('en-US');
 
 async function switchLocale(locale: string) {
   await i18nProvider.setLocale(locale);
-  // All components reactively update!
+  // Persists the locale to localStorage and reloads the page, so every
+  // component renders with the new locale after the reload.
 }
 </script>
 
@@ -360,10 +365,10 @@ const label = i18n?.t('component.label') ?? 'component.label';
 ### ❌ Not Using $derived
 
 ```typescript
-// ❌ WRONG - Won't update on locale change
+// ❌ WRONG - Translation captured once as a plain constant
 const title = i18n?.t('page.title') ?? 'page.title';
 
-// ✅ CORRECT - Reactive translation
+// ✅ CORRECT - Derived translation
 const translations = $derived({
   title: i18n?.t('page.title') ?? 'page.title',
 });
@@ -683,8 +688,6 @@ function clearAll() {
 ## Related Documentation
 
 - [COMPONENT_PATTERNS.md](./COMPONENT_PATTERNS.md) - Svelte 5 + DaisyUI + i18n patterns
-- [I18N_IMPLEMENTATION_PLAN.md](../../../I18N_IMPLEMENTATION_PLAN.md) - Complete implementation plan
-- [I18N_PROGRESS_SUMMARY.md](../../../I18N_PROGRESS_SUMMARY.md) - Current progress
 
 ---
 

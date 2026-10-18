@@ -328,7 +328,7 @@ The `PassageRegistry` stores full passage content in memory. For very large batc
 
 - [External Passages](./EXTERNAL-PASSAGES.md) - External passage resolution and generation
 - [Manifest Generation](./MANIFEST-GENERATION.md) - IMS Content Package manifests
-- [Plugin API](../README.md#api) - Plugin configuration options
+- [Plugin API](../README.md#api-reference) - Plugin configuration options
 
 ## Testing
 

@@ -141,3 +141,9 @@ When adding new fixtures:
 - **Inline is ok**: Simple, one-off test XML can stay inline using `createQtiWrapper()`
 - **Variants welcome**: Create variants like `match-asymmetric.xml` for edge cases
 - **Keep minimal**: Remove unnecessary attributes and content
+
+## Other Content in This Directory
+
+- `assessment-*.xml` - Assessment-test fixtures (`assessment-basic`, `assessment-branching`, `assessment-item-controls`, `assessment-nested-sections`, `assessment-selection-ordering`, `assessment-time-limits`) that exercise test-level transforms
+- `conversion-fidelity/` - Regression fixtures for conversion fidelity edge cases (mapping variants, scorer rubrics/rationales, hotspot dimension quirks)
+- `qti-samples/` - Packaged, manifest-carrying sample QTI packages used by integration tests and CLI examples; see [qti-samples/README.md](./qti-samples/README.md)

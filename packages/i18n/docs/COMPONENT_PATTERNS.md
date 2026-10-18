@@ -753,17 +753,21 @@ function handleKeyDown(event: KeyboardEvent, itemId: string) {
 
 ## Best Practices
 
-### 1. Always Use Reactive Translations
+### 1. Always Use $derived for Translations
 
 ```typescript
-// ✅ CORRECT - Reactive translations update when locale changes
+// ✅ CORRECT - Derived translation lookups
 const translations = $derived({
   label: i18n?.t('key') ?? 'key',
 });
 
-// ❌ INCORRECT - Won't update on locale change
+// ❌ INCORRECT - Translation captured once as a plain constant
 const label = i18n?.t('key') ?? 'key';
 ```
+
+Locale changes via `SvelteI18nProvider.setLocale()` persist the locale and reload the page, so
+components render correctly after a locale switch. `$derived` still keeps lookups correct for prop
+and state changes within a component's lifetime.
 
 ### 2. Provide Descriptive Aria Labels
 
@@ -888,9 +892,5 @@ async function loadData() {
 - **Use DaisyUI semantic classes** for consistent styling
 - **Provide full accessibility** (aria-labels, keyboard navigation, screen reader support)
 - **Handle all states** (loading, error, empty, success)
-- **Use reactive translations** with `$derived`
+- **Use `$derived` for translation lookups** (locale changes via `SvelteI18nProvider` reload the page, so components render correctly after a locale switch)
 - **Follow semantic HTML** best practices
-
-For more information, see:
-- [I18N_IMPLEMENTATION_PLAN.md](../../../I18N_IMPLEMENTATION_PLAN.md)
-- [I18N_PROGRESS_SUMMARY.md](../../../I18N_PROGRESS_SUMMARY.md)

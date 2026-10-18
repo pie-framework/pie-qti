@@ -1,5 +1,11 @@
 # Position Object Interaction
 
+> **Note:** Spec-tracked extraction and scoring for `positionObjectInteraction` is implemented in
+> the item-player extractor
+> ([`packages/item-player/src/interactions/position-object/extractor.ts`](../../../../item-player/src/interactions/position-object/extractor.ts),
+> closed under gap G-17). This plugin's multi-stage renderer remains a non-standard rendering
+> extension.
+
 ## ⚠️ Important Limitations
 
 This QTI 2.2 interaction type has **severe limitations** that make it impractical for most educational scenarios. This implementation exists for QTI 2.2 specification compliance, but the interaction itself has limited practical utility.

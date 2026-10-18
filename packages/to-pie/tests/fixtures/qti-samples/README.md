@@ -4,21 +4,15 @@ This directory contains public, clean-room QTI sample packages used by `@pie-qti
 
 ## Available Samples
 
-### basic-interactions
+- **assessment-test** - A complete QTI 2.2 `assessmentTest` (`assessment-test.xml`) with sections, item refs, and outcome processing, plus the four items (`item1.xml`-`item4.xml`) it references
+- **basic-interactions** - Five items demonstrating common interaction types: single-select and multi-select choice (`choice_simple.xml`, `choice_multiple.xml`), text entry (`text_entry.xml`), inline dropdown (`inline_choice.xml`), and match (`match_interaction.xml`)
+- **graphic-interactions** - Image-based interactions: clickable regions on an image (`hotspot.xml`) and dragging labels onto image gaps (`graphic_gap_match.xml`)
+- **interactive-interactions** - Drag-and-drop and selection interactions: associate (`associate.xml`), match (`match.xml`), gap match (`gap_match.xml`), and inline choice (`inline_choice.xml`)
+- **math-assessment** - A math `assessmentTest` (`math-test.xml`) referencing four items (algebra equation, fraction ordering, geometry area, word problem) that use choice, order, and text-entry interactions with math content
+- **text-interactions** - Text response items: short text entry (`text_entry.xml`) and extended text (`extended_text.xml`)
+- **with-passages** - Reading comprehension items: a choice item with an inline `<stimulus>` passage (`choice-with-stimulus.xml`) and an extended-response item with a `rubricBlock` scoring rubric (`extended-response-with-rubric.xml`)
 
-A collection of QTI 2.2 items demonstrating various interaction types:
-
-- **choice_simple.xml** - Single-select multiple choice question
-- **choice_multiple.xml** - Multi-select multiple choice question
-- **text_entry.xml** - Text entry interaction
-- **inline_choice.xml** - Inline dropdown selection
-- **match_interaction.xml** - Match/association question
-
-**Package Details:**
-- Items: 5
-- Manifest: Yes (imsmanifest.xml)
-- QTI Version: 2.2
-- Media Assets: None
+Every package ships an `imsmanifest.xml` and uses QTI 2.2. See `samples-metadata.json` for per-sample details.
 
 ## Adding New Samples
 
@@ -38,12 +32,3 @@ Samples should:
 - Include response processing
 - Be self-contained (no external dependencies initially)
 - Demonstrate specific features or interaction types
-
-## Future Samples
-
-Planned sample packages:
-- **with-media** - Items with images, audio, video
-- **with-passages** - Items with reading passages/stimuli
-- **math-questions** - Items with MathML
-- **advanced-scoring** - Custom response processing
-- **assessment-test** - Complete QTI assessment test

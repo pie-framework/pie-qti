@@ -132,15 +132,17 @@ Parts:
 
 Parts:
 
+- `root`
 - `prompt`
 - `layout`
 - `canvas-area`
 - `canvas`
 - `placed`
 - `remove`
+- `remove-icon`
+- `correct-placed`
 - `palette`
 - `palette-item`
-- `drag-icon`
 
 ### `pie-qti-graphic-associate` (`graphicAssociateInteraction`)
 
@@ -163,6 +165,8 @@ Parts:
 - `label`
 - `input`
 - `text`
+- `prompt`
+- `reveal`
 
 ### `pie-qti-slider` (`sliderInteraction`)
 
