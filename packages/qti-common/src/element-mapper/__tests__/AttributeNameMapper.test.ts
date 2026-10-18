@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'bun:test';
 import { Qti2xAttributeNameMapper } from '../Qti2xAttributeNameMapper';
 import { Qti3AttributeNameMapper } from '../Qti3AttributeNameMapper';
 
