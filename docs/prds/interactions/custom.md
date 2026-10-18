@@ -114,17 +114,20 @@ The portable renderer mounts the sanitized scaffold, asks the owning item sessio
 
 ### Known gaps
 
-The registry contract (phase 1), the AMD loader with resolution-config parsing and
-multi-module extraction (phase 2), and clean-room conformance evidence over real module files
-(phase 3, `tests/conformance/pci/`) have landed. Browser-level evidence in the private runner
-and third-party content as a same-reading check remain, scheduled under the
-[completeness goal](../../plans/version-1-0-2026-10.md) — see
-[`docs/plans/pci-runtime-and-sandbox-2026-08.md`](../../plans/pci-runtime-and-sandbox-2026-08.md).
+Phases 1–4 of [`docs/plans/pci-runtime-and-sandbox-2026-08.md`](../../plans/pci-runtime-and-sandbox-2026-08.md)
+have landed: the registry contract (phase 1), the AMD loader with resolution-config parsing and
+multi-module extraction (phase 2), clean-room conformance evidence over real module files
+(phase 3, `tests/conformance/pci/`), and the sandboxed engine (phase 4). Browser-level evidence
+in the private runner and third-party content as a same-reading check remain, scheduled under the
+[completeness goal](../../plans/version-1-0-2026-10.md).
 
-PCI execution is deliberately disabled until a host supplies a resolver. `createAllowlistPciModuleResolver`
-covers origin and prefix policy; package-manifest validation and integrity checking remain the host's.
-PCI code runs in the page realm, so deployments requiring stronger isolation must host the player in an
-appropriately sandboxed, cross-origin frame.
+PCI execution is disabled until a host opts in. Two opt-ins exist, per `PciConfiguration`:
+`moduleResolver` runs the module in the page realm behind an allow-list
+(`createAllowlistPciModuleResolver`), and `sandbox` runs it in a hardened cross-origin frame
+(`<iframe sandbox="allow-scripts">` on a cookieless runner origin — `@pie-qti/pci-runner` is the
+deployable page; `createAllowlistPciModulePolicy` allow-lists the module URLs handed to the
+frame). Package-manifest validation and integrity checking remain the host's. Deployments whose
+whole player is untrusted keep the whole-player cross-origin framing boundary.
 
 ---
 
@@ -629,7 +632,7 @@ Then: module.destroy() is called (if the method is present)
 
 - [ ] Should `CustomInteractionData.xml` be renamed `rawXml` to make the "debug/best-effort" semantics clearer now that `ExtractedPci` is the structured type for QTI 3.0? Renaming avoids confusion between the two types.
 - [ ] Should the fallback warning be suppressible via a `suppressFallback` prop for delivery contexts where showing an unsupported-interaction warning would be confusing to candidates? (e.g. an embedded preview that only wants to test other interactions in the item.)
-- Per-PCI iframe isolation is planned rather than open: a `sandbox="allow-scripts"` frame loaded from a cookieless runner origin, decided in [`docs/plans/pci-runtime-and-sandbox-2026-08.md`](../../plans/pci-runtime-and-sandbox-2026-08.md). Until it lands, the current contract executes the resolver's module in the player realm and whole-player cross-origin framing remains the supported stronger-isolation boundary.
+- Per-PCI iframe isolation has landed as the opt-in `PciConfiguration.sandbox` engine (2026-10-16): a `sandbox="allow-scripts"` frame loaded from a cookieless runner origin, per [`docs/plans/pci-runtime-and-sandbox-2026-08.md`](../../plans/pci-runtime-and-sandbox-2026-08.md). The runner origin's deployment is the remaining operational step.
 
 ---
 

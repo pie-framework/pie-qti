@@ -228,6 +228,14 @@ elements and attributes that have no legitimate use in QTI item bodies.
 - **FR-37:** Item-body presentation must perform all string-producing transforms before the final
   sanitation and optional Trusted Types conversion. `scopedCss` must remain a separate,
   policy-checked presentation field and must not be concatenated into trusted body HTML.
+- **FR-38:** PCI modules are third-party code. The player must never evaluate an authored PCI
+  URL ambiently: page-realm execution requires an explicit host resolver, and the sandboxed
+  engine (`PciConfiguration.sandbox`) must run the module in an `<iframe sandbox="allow-scripts">`
+  from a dedicated cookieless runner origin — never with `allow-same-origin` — over a versioned
+  protocol with mutual origin locking (host: runner origin + frame `contentWindow`; runner:
+  `window.parent` + first-message origin lock). Module URLs handed to the frame pass through an
+  optional host policy (`createAllowlistPciModulePolicy`), and the interaction markup crossing
+  the bridge is sanitized host-side with the shared-content sanitizer.
 
 ### Public shared-content API
 

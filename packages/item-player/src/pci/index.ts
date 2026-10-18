@@ -1,9 +1,13 @@
 export { PciHost } from './PciHost.js';
 export {
 	createAllowlistPciModuleResolver,
+	createAllowlistPciModulePolicy,
 	PciModuleNotAllowedError,
 } from './allowlistResolver.js';
-export type { AllowlistPciResolverOptions } from './allowlistResolver.js';
+export type {
+	AllowlistPciPolicyOptions,
+	AllowlistPciResolverOptions,
+} from './allowlistResolver.js';
 export {
 	getSharedPciRegistry,
 	installPciRegistry,
@@ -17,20 +21,44 @@ export {
 	parseModuleResolutionConfig,
 } from './resolutionConfig.js';
 export type { PciResolutionConfig, PciResolutionShim } from './resolutionConfig.js';
+export { createIframeFrameConnector } from './sandbox/iframeConnector.js';
+export { SandboxedPciSession } from './sandbox/SandboxedPciSession.js';
+export {
+	PCI_SANDBOX_PROTOCOL,
+	PCI_SANDBOX_PROTOCOL_VERSION,
+	createSandboxEnvelope,
+	isPciSandboxEnvelope,
+} from './sandbox/protocol.js';
+export type {
+	PciSandboxEnvelope,
+	PciSandboxHostToRunnerType,
+	PciSandboxInitPayload,
+	PciSandboxInstantiatePayload,
+	PciSandboxMessage,
+	PciSandboxMessageType,
+	PciSandboxModuleEntryPayload,
+	PciSandboxProtocolVersion,
+	PciSandboxRunnerToHostType,
+} from './sandbox/protocol.js';
+export type { PciLoadContext, PciModuleSession } from './moduleSession.js';
 export { fromQtiVariableJson, toQtiVariableJson } from './qtiVariableJson.js';
 export type {
 	ExtractedPci,
 	PciConfiguration,
 	PciCustomInteractionContext,
+	PciFrameConnection,
+	PciFrameConnector,
 	PciHostController,
 	PciHostOptions,
 	PciInteractionStatus,
 	PciModuleEntry,
 	PciModulePathKind,
+	PciModulePolicy,
 	PciModuleResolutionContext,
 	PciModuleResolver,
 	PciRegistryObservation,
 	PciResponseDeclarationInfo,
+	PciSandboxConfiguration,
 	QtiCustomInteractionRegistration,
 	QtiPciConfiguration,
 	QtiPciInstance,

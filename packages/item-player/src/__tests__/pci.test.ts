@@ -1,7 +1,9 @@
 import { describe, it, expect, mock } from 'bun:test';
 import { PciHost } from '../pci/PciHost.js';
+import { PageRealmPciSession } from '../pci/pageRealmSession.js';
 import {
 	createAllowlistPciModuleResolver,
+	createAllowlistPciModulePolicy,
 	PciModuleNotAllowedError,
 } from '../pci/allowlistResolver.js';
 import { installPciRegistry, PCI_REGISTRY_GLOBAL } from '../pci/registry.js';
@@ -550,20 +552,31 @@ describe('PciHost', () => {
 	// ---------------------------------------------------------------------------
 
 	it('resolveUrl returns absolute URLs unchanged', () => {
-		const registry = makeRegistry();
-		const host = new PciHost(makeData(), 'https://base.example.com/items/');
-		expect((host as any).resolveUrl('https://cdn.example.com/pci.js')).toBe('https://cdn.example.com/pci.js');
-		expect((host as any).resolveUrl('/absolute/path.js')).toBe('/absolute/path.js');
+		const session = new PageRealmPciSession({
+			data: makeData(),
+			baseUrl: 'https://base.example.com/items/',
+			moduleResolver: () => undefined,
+		});
+		expect((session as any).resolveUrl('https://cdn.example.com/pci.js')).toBe('https://cdn.example.com/pci.js');
+		expect((session as any).resolveUrl('/absolute/path.js')).toBe('/absolute/path.js');
 	});
 
 	it('resolveUrl prepends baseUrl for relative paths', () => {
-		const host = new PciHost(makeData(), 'https://base.example.com/items/');
-		expect((host as any).resolveUrl('pci/echo.js')).toBe('https://base.example.com/items/pci/echo.js');
+		const session = new PageRealmPciSession({
+			data: makeData(),
+			baseUrl: 'https://base.example.com/items/',
+			moduleResolver: () => undefined,
+		});
+		expect((session as any).resolveUrl('pci/echo.js')).toBe('https://base.example.com/items/pci/echo.js');
 	});
 
 	it('resolveUrl adds trailing slash to baseUrl if missing', () => {
-		const host = new PciHost(makeData(), 'https://base.example.com/items');
-		expect((host as any).resolveUrl('pci/echo.js')).toBe('https://base.example.com/items/pci/echo.js');
+		const session = new PageRealmPciSession({
+			data: makeData(),
+			baseUrl: 'https://base.example.com/items',
+			moduleResolver: () => undefined,
+		});
+		expect((session as any).resolveUrl('pci/echo.js')).toBe('https://base.example.com/items/pci/echo.js');
 	});
 });
 
@@ -851,6 +864,28 @@ describe('createAllowlistPciModuleResolver', () => {
 		);
 
 		await expect(host.load()).rejects.toBeInstanceOf(PciLoadError);
+	});
+});
+
+describe('createAllowlistPciModulePolicy', () => {
+	const context = {
+		authoredPath: 'pci/echo.js',
+		kind: 'primary' as const,
+		responseIdentifier: 'RESPONSE',
+		customInteractionTypeIdentifier: 'urn:test:echo',
+	};
+
+	it('applies the same checks as the resolver but never imports anything', () => {
+		const policy = createAllowlistPciModulePolicy({ allowedOrigins: ['https://cdn.example.com'] });
+		expect(() => policy('https://cdn.example.com/pci/echo.js', context)).not.toThrow();
+		expect(() => policy('https://evil.example/pci/echo.js', context)).toThrow(
+			PciModuleNotAllowedError
+		);
+		expect(() => policy('data:text/javascript,export {};', context)).toThrow('not http(s)');
+	});
+
+	it('throws when the allow-list is empty', () => {
+		expect(() => createAllowlistPciModulePolicy({})).toThrow('allowedOrigins');
 	});
 });
 

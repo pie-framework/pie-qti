@@ -39,13 +39,14 @@ QTI 3.0 naming infrastructure and broad standard interaction delivery are implem
   semantics align.
 - QTI 3.0 Shared Vocabulary classes are preserved for rendering behavior.
 - Personal Needs and Preferences and Catalog / Glossary support are implemented
-  at the player layer. Portable Custom Interaction extraction and the production
-  lifecycle are connected, but module execution remains disabled until the host
-  supplies a resolver; accepted PCI code is trusted page-authority code, not sandboxed.
-  The spec-conformant PCI runtime has landed (registry contract, `getInstance`,
-  QTI variable JSON, `getState()` restore, AMD loading with resolution configs,
-  clean-room conformance fixtures); browser-level evidence attaches to the next
-  published candidate, and the sandboxed realm stays opt-in hardening — see
+  at the player layer. Portable Custom Interaction support is complete through
+  phase 4: spec-conformant runtime (registry contract, `getInstance`, QTI variable
+  JSON, `getState()` restore, AMD loading with resolution configs, clean-room
+  conformance fixtures) plus the opt-in sandboxed engine — `PciConfiguration.sandbox`
+  runs modules in a hardened cross-origin frame (`@pie-qti/pci-runner` is the
+  deployable runner page; the `qti.pie-framework.org` deployment follows the next
+  release). Page-realm execution still requires an explicit host resolver;
+  browser-level evidence attaches to the next published candidate — see
   [`docs/plans/pci-runtime-and-sandbox-2026-08.md`](docs/plans/pci-runtime-and-sandbox-2026-08.md).
 - Remaining assessment semantics include dynamic preconditions, section/testPart
   branch rules, and sequence-indexed clone materialization for selection with replacement.

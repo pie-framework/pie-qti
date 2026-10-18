@@ -59,9 +59,29 @@ export type QtiPciModuleResolver = (
 	context: QtiPciModuleResolutionContext,
 ) => Promise<unknown> | unknown;
 
+/** The sandboxed engine's variant: a policy over module URLs, never an in-page evaluation. */
+export type QtiPciModulePolicy = (resolvedUrl: string, context: QtiPciModuleResolutionContext) => void;
+
+/** Mirror of `@pie-qti/item-player`'s PciSandboxConfiguration. */
+export interface QtiPciSandboxConfiguration {
+	/** Absolute URL of the deployed `@pie-qti/pci-runner` page on a cookieless origin. */
+	runnerUrl: string;
+	handshakeTimeoutMs?: number;
+	pollIntervalMs?: number;
+	registrationTimeoutMs?: number;
+}
+
 export interface QtiPciConfiguration {
 	baseUrl?: string;
-	moduleResolver: QtiPciModuleResolver;
+	/**
+	 * The host trust decision for executing a PCI module in the page realm.
+	 * Required unless `sandbox` is configured.
+	 */
+	moduleResolver?: QtiPciModuleResolver;
+	/** Opt-in hardened execution in a sandboxed cross-origin runner frame. */
+	sandbox?: QtiPciSandboxConfiguration;
+	/** Optional allow-list applied to module URLs handed to the sandbox runner. */
+	modulePolicy?: QtiPciModulePolicy;
 }
 
 export interface QtiPnpProfile {

@@ -15,6 +15,7 @@
       "@pie-qti/ims-cp-node",
       "@pie-qti/item-player",
       "@pie-qti/logger",
+      "@pie-qti/pci-runner",
       "@pie-qti/pie-to-qti2",
       "@pie-qti/player-elements",
       "@pie-qti/qti-common",

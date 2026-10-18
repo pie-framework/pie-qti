@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="robots" content="noindex" />
+		<!--
+			Defense in depth for the sandboxed runner page. The frame is already
+			opaque-origin via the host's sandbox="allow-scripts" attribute; this CSP
+			additionally refuses plug-ins, nested frames, and http: scripts. PCI
+			content may load scripts, styles, images, and data from any https origin,
+			so the allowances are permissive by design.
+		-->
+		<meta
+			http-equiv="Content-Security-Policy"
+			content="default-src 'none'; script-src https:; style-src 'unsafe-inline' https:; img-src https: http: data: blob:; media-src https: http: data: blob:; connect-src https: http:; font-src https: data:; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
+		/>
+		<title>PCI runner</title>
+		<style>
+			/* The runner page renders nothing itself; the PCI supplies its own styles. */
+			html,
+			body {
+				margin: 0;
+				padding: 0;
+				background: transparent;
+			}
+			#pci-runner-mount {
+				width: 100%;
+				min-width: 0;
+			}
+		</style>
+		<script type="module" src="/src/main.ts"></script>
+	</head>
+	<body>
+		<div id="pci-runner-mount"></div>
+	</body>
+</html>

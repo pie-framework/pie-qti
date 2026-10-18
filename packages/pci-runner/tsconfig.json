@@ -1,0 +1,11 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"lib": ["ES2022", "DOM", "DOM.Iterable"],
+		"types": ["@types/bun"],
+		"noEmit": true,
+		"composite": false,
+		"declaration": false
+	},
+	"include": ["src/**/*.ts", "tests/**/*.ts", "vite.config.ts"]
+}
