@@ -60,8 +60,7 @@ and Tier 3 below.
 
 ### G-01: `matchGroup` attribute not extracted for associable-choice interactions
 
-Scope       — `packages/item-player/src/interactions/associate/extractor.ts`,
-              `matchExtractor.ts`, `gapMatchExtractor.ts`, `graphicGapMatchExtractor.ts`;
+Scope       — `packages/item-player/src/interactions/{associate,match,gap-match,graphic-gap-match}/extractor.ts`;
               corresponding default-components UI components
 Status      — Done (commit e2660fb, 2026-04-29)
 Effort      — M
@@ -909,11 +908,12 @@ Round-tripping QTI 3.0 content, or exporting to a QTI 3.0-only platform, require
 `imsqti_v3p0` items, stimuli, tests and manifests with the `qti-` kebab-case vocabulary.
 
 Current
-Every generator emits QTI 2.2: the namespace and schema location are fixed to `imsqti_v2p2` in
-`types/index.ts`, `utils/qti-builder.ts`, `generators/passage-generator.ts`, `generators/passage.ts`,
-`generators/assessment.ts` and `generators/manifest-generator.ts`. The only QTI 3.0 output is the
-lossless path, which re-emits embedded QTI 3.0 source unchanged and reports `qti30`; a PIE item
-without embedded source, or one edited after import, always exports as QTI 2.2.
+Before G-25 (historical): every generator emits QTI 2.2 — the namespace and schema location are
+fixed to `imsqti_v2p2` in `types/index.ts`, `utils/qti-builder.ts`, `generators/passage-generator.ts`,
+`generators/passage.ts`, `generators/assessment.ts` and `generators/manifest-generator.ts`. The only
+QTI 3.0 output is the lossless path, which re-emits embedded QTI 3.0 source unchanged and reports
+`qti30`; a PIE item without embedded source, or one edited after import, always exports as QTI 2.2.
+Generators now accept `targetVersion: '3.0'` (default `'2.2'`) per `packages/pie-to-qti2/src/plugin.ts`.
 
 Action (when prioritised)
 1. Decide the surface: a `targetVersion` option on the existing plugin or a separate plugin.

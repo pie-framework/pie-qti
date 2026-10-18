@@ -15,96 +15,85 @@ This guide explains how to configure the PIE-QTI transform system using configur
 
 ## Configuration File Format
 
-Configuration files should be in JSON format:
+Configuration files should be in JSON format. The file (loaded via `loadFromFile()` in `packages/core/src/config/config-loader.ts`) matches the `TransformConfig` type defined in `packages/types/src/config/plugin-config.ts`:
 
 ```json
 {
-  "orchestration": {
-    "name": "in-memory",
-    "defaultRetryPolicy": {
-      "maxAttempts": 3,
-      "initialInterval": 1000,
-      "maxInterval": 30000,
-      "backoffCoefficient": 2
-    },
-    "defaultTimeout": {
-      "workflowTimeout": 600000,
-      "activityTimeout": 120000
-    }
-  },
   "storage": {
-    "type": "filesystem",
+    "backend": "filesystem",
     "options": {
-      "basePath": "./uploads"
+      "rootDir": "./uploads"
     }
   },
   "plugins": {
     "qti22": {
-      "pie": "@pie-qti/qti2-to-pie"
-    }
-  },
-  "formatDetectors": [
-    "packages/core/src/detectors/qti22-detector.ts",
-    "packages/core/src/detectors/pie-detector.ts"
-  ],
-  "vendors": {
-    "myorg": {
-      "namespace": "http://www.myorg.com/qti/v1",
-      "prefix": "myorg",
-      "extensions": {
-        "customInteraction": {
-          "handler": "./path/to/handler.ts"
-        }
+      "pie": {
+        "module": "@pie-qti/to-pie",
+        "export": "QtiToPiePlugin"
       }
     }
   },
-  "defaultOptions": {
-    "skipValidation": false,
-    "maxConcurrent": 5,
-    "timeout": 300000
+  "formatDetectors": [
+    { "module": "@my-org/qti-custom-detector", "export": "CustomDetector" }
+  ],
+  "vendorExtensions": {
+    "detectors": [
+      { "module": "@my-org/qti-vendor-detector", "export": "MyOrgDetector" }
+    ],
+    "transformers": [
+      { "module": "./extensions/custom-interaction.ts", "options": { "pieType": "custom-interaction" } }
+    ]
   },
   "logger": {
-    "level": "info",
-    "format": "json"
+    "level": "info"
   }
 }
 ```
+
+Notes:
+
+- Plugin, detector, and vendor-extension entries are **objects** (`module`, optional `export`, optional `options`), not plain module-path strings. The loader dynamically imports `module` and instantiates the default export unless `export` names one; `options` is passed to the constructor.
+- There is **no `orchestration` or `defaultOptions` section in the file config**. Orchestrator settings and pipeline defaults come from environment variables via `loadOrchestrationConfig()` or from constructor injection (`new TransformEngine(orchestrator?, storage?)`). See [Orchestration Configuration](#orchestration-configuration).
 
 ## Orchestration Configuration
 
 Configure workflow orchestration for transformation pipelines. The orchestration layer provides retry mechanisms, progress tracking, and workflow execution.
 
+**This section is environment/constructor-only — it is not read from the config file.**
+
 ### In-Memory Orchestrator (Default)
 
-The in-memory orchestrator is the default implementation suitable for most use cases:
+The `TransformEngine` constructor takes an optional orchestrator and storage backend and defaults to the in-memory orchestrator:
 
-```json
-{
-  "orchestration": {
-    "name": "in-memory",
-    "defaultRetryPolicy": {
-      "maxAttempts": 3,
-      "initialInterval": 1000,
-      "maxInterval": 30000,
-      "backoffCoefficient": 2,
-      "nonRetryableErrors": ["ValidationError"]
-    },
-    "defaultTimeout": {
-      "workflowTimeout": 600000,
-      "activityTimeout": 120000
-    },
-    "maxConcurrentActivities": 5
-  }
-}
+```typescript
+import { TransformEngine } from '@pie-qti/transform-core';
+
+const engine = new TransformEngine(); // in-memory orchestrator, no storage backend
+const engineWithDeps = new TransformEngine(myOrchestrator, myStorage);
+```
+
+Retry policies, timeouts, and pipeline defaults are configured through environment variables consumed by `loadOrchestrationConfig()` (`packages/types/src/config/orchestration-config.ts`) — see [Environment Variables](#environment-variables):
+
+```bash
+# Retry policy
+export ORCHESTRATOR_MAX_ATTEMPTS=3
+export ORCHESTRATOR_RETRY_INITIAL_INTERVAL=1000
+export ORCHESTRATOR_RETRY_MAX_INTERVAL=30000
+export ORCHESTRATOR_RETRY_BACKOFF=2
+
+# Default transform options
+export SKIP_VALIDATION=false
+export MAX_CONCURRENT=5
+export DEFAULT_TIMEOUT=300000
 ```
 
 ### Custom Orchestrators
 
-The orchestration layer is fully extensible. You can implement custom orchestrators by implementing the `WorkflowOrchestrator` interface. For production deployments requiring durable execution and advanced workflow capabilities, consider implementing a custom orchestrator using a workflow engine like [Temporal](https://temporal.io/).
+The orchestration layer is fully extensible. You can implement custom orchestrators by implementing the `WorkflowOrchestrator` interface and injecting them via the constructor. For production deployments requiring durable execution and advanced workflow capabilities, consider implementing a custom orchestrator using a workflow engine like [Temporal](https://temporal.io/).
 
 ## Storage Configuration
 
-Configure where uploaded files, sessions, and outputs are stored.
+Configure where uploaded files, sessions, and outputs are stored. The `storage.backend` key selects the backend; `options` are passed to the backend implementation.
 
 ### In-Memory Backend (Default)
 
@@ -113,21 +102,21 @@ The in-memory backend stores files in memory and is suitable for development and
 ```json
 {
   "storage": {
-    "type": "memory"
+    "backend": "memory"
   }
 }
 ```
 
 ### Filesystem Backend
 
-Store files on the local filesystem:
+Store files on the local filesystem. The filesystem backend uses `rootDir` (not `basePath`):
 
 ```json
 {
   "storage": {
-    "type": "filesystem",
+    "backend": "filesystem",
     "options": {
-      "basePath": "./uploads"
+      "rootDir": "./uploads"
     }
   }
 }
@@ -142,7 +131,7 @@ Example configurations for custom backends:
 ```json
 {
   "storage": {
-    "type": "s3",
+    "backend": "s3",
     "options": {
       "bucket": "my-qti-bucket",
       "region": "us-east-1",
@@ -155,7 +144,7 @@ Example configurations for custom backends:
 ```json
 {
   "storage": {
-    "type": "database",
+    "backend": "database",
     "options": {
       "connectionString": "postgresql://user:pass@localhost:5432/pie_qti"
     }
@@ -165,7 +154,7 @@ Example configurations for custom backends:
 
 ## Plugin Configuration
 
-Configure transformation plugins for different format pairs.
+Configure transformation plugins for different format pairs. Plugin entries are `PluginConfig` objects: `module` (NPM package or file path), optional `export` (named export — the loader instantiates the module's default export when omitted), and optional `options` passed to the plugin constructor.
 
 ### Built-in Plugins
 
@@ -173,7 +162,10 @@ Configure transformation plugins for different format pairs.
 {
   "plugins": {
     "qti22": {
-      "pie": "@pie-qti/qti2-to-pie"
+      "pie": {
+        "module": "@pie-qti/to-pie",
+        "export": "QtiToPiePlugin"
+      }
     }
   }
 }
@@ -185,10 +177,15 @@ Configure transformation plugins for different format pairs.
 {
   "plugins": {
     "qti30": {
-      "pie": "./plugins/qti30-to-pie.ts"
+      "pie": {
+        "module": "./plugins/qti30-to-pie.ts"
+      }
     },
     "pie": {
-      "qti22": "./plugins/pie-to-qti22.ts"
+      "qti22": {
+        "module": "./plugins/pie-to-qti22.ts",
+        "export": "PieToQti22Plugin"
+      }
     }
   }
 }
@@ -203,7 +200,8 @@ Pass options to plugins:
   "plugins": {
     "qti22": {
       "pie": {
-        "module": "@pie-qti/qti2-to-pie",
+        "module": "@pie-qti/to-pie",
+        "export": "QtiToPiePlugin",
         "options": {
           "strictMode": true,
           "preserveIds": true
@@ -216,28 +214,25 @@ Pass options to plugins:
 
 ## Vendor Extensions
 
-Configure vendor-specific QTI extensions.
+Configure vendor-specific QTI extensions under the `vendorExtensions` key. Each list holds module references (`module`, optional `export`, optional `options`):
 
 ```json
 {
-  "vendors": {
-    "renaissance": {
-      "namespace": "http://www.renaissance.com/qti/v1",
-      "prefix": "ren",
-      "extensions": {
-        "audioRecording": {
-          "handler": "@pie-qti/renaissance-extensions/audio-recording",
-          "pieType": "audio-response"
-        },
-        "mathKeyboard": {
-          "handler": "@pie-qti/renaissance-extensions/math-keyboard",
-          "pieType": "math-input"
-        }
-      }
-    }
+  "vendorExtensions": {
+    "detectors": [
+      { "module": "@acme/qti-extensions", "export": "AcmeVendorDetector" }
+    ],
+    "transformers": [
+      { "module": "@acme/qti-extensions", "export": "AcmeAudioRecordingTransformer", "options": { "pieType": "audio-response" } }
+    ],
+    "assetResolvers": [],
+    "cssClassExtractors": [],
+    "metadataExtractors": []
   }
 }
 ```
+
+Available lists: `detectors`, `transformers`, `assetResolvers`, `cssClassExtractors`, `metadataExtractors` (see `VendorExtensionConfig` in `packages/types/src/config/vendor-config.ts`).
 
 ### Extension Handler API
 
@@ -264,14 +259,15 @@ export class CustomExtensionHandler implements VendorExtensionHandler {
 
 ## Format Detectors
 
-Configure automatic format detection.
+This section covers **custom detectors only**. The `TransformEngine` constructor auto-registers the built-in `qti-detector` and `pie-detector`, so standard QTI/PIE detection needs no configuration.
+
+Custom detectors are `PluginConfig` objects (module/export/options), not bare file paths:
 
 ```json
 {
   "formatDetectors": [
-    "./detectors/qti22-detector.ts",
-    "./detectors/qti30-detector.ts",
-    "@my-org/custom-detector"
+    { "module": "./detectors/qti30-detector.ts" },
+    { "module": "@my-org/custom-detector", "export": "CustomFormatDetector" }
   ]
 }
 ```
@@ -302,9 +298,20 @@ export class CustomFormatDetector implements FormatDetector {
 
 ## Environment Variables
 
-All configuration can be overridden with environment variables:
+Environment variables are consumed by two separate loaders:
 
-### Orchestration
+### Config/engine path (`loadFromEnv()` in `packages/core/src/config/config-loader.ts`, also used by the CLI)
+
+```bash
+export PIE_QTI_CONFIG=/path/to/config.json   # Config file path (takes precedence)
+export PIE_QTI_STORAGE_BACKEND=filesystem    # memory, filesystem, s3, database, or a custom backend name
+export PIE_QTI_STORAGE_ROOT_DIR=./uploads    # Root directory when the backend is filesystem
+export PIE_QTI_LOG_LEVEL=debug               # error, warn, info, debug
+```
+
+### Orchestration path (`loadOrchestrationConfig()` in `packages/types/src/config/orchestration-config.ts`)
+
+`STORAGE_TYPE` and `STORAGE_BASE_PATH` are consumed **only** via `loadOrchestrationConfig()` — they configure the orchestration pipeline's storage view, not the `TransformConfig` file/env config above:
 
 ```bash
 # Retry policy
@@ -312,66 +319,18 @@ export ORCHESTRATOR_MAX_ATTEMPTS=3
 export ORCHESTRATOR_RETRY_INITIAL_INTERVAL=1000
 export ORCHESTRATOR_RETRY_MAX_INTERVAL=30000
 export ORCHESTRATOR_RETRY_BACKOFF=2
-```
 
-### Storage
+# Storage (orchestration pipeline only)
+export STORAGE_TYPE=memory            # or filesystem
+export STORAGE_BASE_PATH=./uploads    # used when STORAGE_TYPE=filesystem
 
-```bash
-# In-memory backend (default)
-export STORAGE_TYPE=memory
-
-# Filesystem backend
-export STORAGE_TYPE=filesystem
-export STORAGE_BASE_PATH=./uploads
-
-# Custom backends can use their own environment variables
-# Example for S3:
-# export STORAGE_TYPE=s3
-# export S3_BUCKET=my-bucket
-# export S3_REGION=us-east-1
-# export AWS_ACCESS_KEY_ID=xxx
-# export AWS_SECRET_ACCESS_KEY=xxx
-```
-
-### Default Options
-
-```bash
+# Default transform options
 export SKIP_VALIDATION=false
 export MAX_CONCURRENT=5
 export DEFAULT_TIMEOUT=300000
 ```
 
-### Logging
-
-```bash
-export PIE_QTI_LOG_LEVEL=debug  # error, warn, info, debug
-export PIE_QTI_LOG_FORMAT=json  # json, text
-```
-
-### Config File Path
-
-```bash
-export PIE_QTI_CONFIG=/path/to/config.json
-```
-
 ## Usage Examples
-
-### Transform App
-
-The transform app automatically loads configuration from:
-1. `PIE_QTI_CONFIG` environment variable
-2. Environment variables (prefixed with `PIE_QTI_`)
-
-```bash
-# Using config file
-export PIE_QTI_CONFIG=./config.json
-bun run dev
-
-# Using environment variables
-export STORAGE_TYPE=filesystem
-export STORAGE_BASE_PATH=./uploads
-bun run dev
-```
 
 ### CLI Tool
 
@@ -379,13 +338,13 @@ Pass config file via `--config` flag:
 
 ```bash
 # Transform with config file
-pie-transform transform input.xml -o output.json --config ./config.json
+bun run pie-qti -- transform input.xml -o output.json --config ./config.json
 
 # Config file loads plugins automatically
-pie-transform transform input.xml --config ./my-plugins.json
+bun run pie-qti -- transform input.xml --config ./my-plugins.json
 
 # Without config, uses defaults
-pie-transform transform input.xml -o output.json
+bun run pie-qti -- transform input.xml -o output.json
 ```
 
 ### Programmatic Usage
@@ -425,10 +384,10 @@ console.log('PIE config:', result.pieConfig);
 
 ```typescript
 import { TransformEngine } from '@pie-qti/transform-core';
-import { Qti22ToPiePlugin } from '@pie-qti/qti2-to-pie';
+import { QtiToPiePlugin } from '@pie-qti/to-pie';
 
 const engine = new TransformEngine();
-engine.use(new Qti22ToPiePlugin());
+engine.use(new QtiToPiePlugin());
 
 // Start transformation
 const handle = await engine.transform(qtiXml, {
@@ -453,6 +412,10 @@ console.log('Warnings:', result.warnings);
 ```
 
 ### Batch Transformation
+
+> `engine.transformBatch()` requires a storage backend. Without one it throws
+> `Storage backend required for batch transformation` — pass a backend via
+> `new TransformEngine(orchestrator, storage)` before batching.
 
 ```typescript
 const handle = await engine.transformBatch([xml1, xml2, xml3], {
@@ -482,18 +445,20 @@ Configuration is merged in this order (later overrides earlier):
 
 1. Default values (hardcoded)
 2. Config file (from `PIE_QTI_CONFIG` or `--config`)
-3. Environment variables (prefixed with `PIE_QTI_`)
+3. Environment variables consumed by `loadFromEnv()` (`PIE_QTI_*`)
 
 Example:
 
 ```bash
-# Config file sets: storage.type = "filesystem"
-# Environment overrides: storage.type = "s3"
+# Config file sets: storage.backend = "filesystem"
+# Environment overrides: storage backend = "s3"
 export PIE_QTI_CONFIG=./config.json
-export STORAGE_TYPE=s3  # This wins
+export PIE_QTI_STORAGE_BACKEND=s3  # This wins
 
 # Result: S3 backend is used
 ```
+
+`STORAGE_TYPE` / `STORAGE_BASE_PATH` and the orchestrator/default-option variables belong to the separate orchestration pipeline config (`loadOrchestrationConfig()`); they do not participate in the `TransformConfig` merge above.
 
 ## API Changes (Orchestration Update)
 
@@ -574,7 +539,9 @@ bun install
 {
   "plugins": {
     "qti22": {
-      "pie": "./packages/my-plugin/src/index.ts"
+      "pie": {
+        "module": "./packages/my-plugin/src/index.ts"
+      }
     }
   }
 }
@@ -597,4 +564,4 @@ psql $DATABASE_URL -c "SELECT 1"
 
 - [Architecture Documentation](./ARCHITECTURE.md) - System architecture and design decisions
 - [PIE-QTI Transformation Guide](./PIE-QTI-TRANSFORMATION-GUIDE.md) - Complete transformation guide
-- [Orchestration Implementation](https://github.com/anthropics/claude-code/blob/main/packages/core/src/orchestration/README.md) - Workflow orchestration details
+- [Orchestration implementation](../packages/core/src/orchestration/index.ts) — in-memory orchestrator and workflow definitions

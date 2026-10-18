@@ -1,8 +1,7 @@
 # Interchange Defect Remediation Plan
 
-**Status**: In progress — D1 through E8 merged in #269 (662e5a9, 2026-10-10); P1 on
-`fix/graphing-solution-set-partial-scoring` and P2 on `fix/likert-is-complete` are fixed and unmerged
-**Last reviewed**: 2026-10-14
+**Status**: Done in this repository — D1 through E8 merged in #269 (662e5a9, 2026-10-10); no open work here. P1 and P2 are fixed on branches in the pie-elements-ng repository and tracked there, not here
+**Last reviewed**: 2026-10-18
 **Scope**: `packages/to-pie/src/`, `packages/to-pie/README.md`, `packages/pie-to-qti2/src/`,
 `packages/pie-to-qti2/docs/QTI-COMPLIANCE.md`; in pie-elements-ng,
 `packages/elements-react/graphing-solution-set/src/controller/` and

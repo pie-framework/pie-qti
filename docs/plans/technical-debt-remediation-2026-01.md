@@ -14,7 +14,7 @@
 
 # Technical Debt & Security Remediation Plan
 
-**Status**: Draft for Review
+**Status**: Historical — superseded by the banner above; Phase 1 critical items landed (3c56bd9, f4655e6), the rest are unverified leads, not an active backlog
 **Created**: 2026-01-17
 **Scope**: Address 18 identified categories of technical debt, security vulnerabilities, and code quality issues
 

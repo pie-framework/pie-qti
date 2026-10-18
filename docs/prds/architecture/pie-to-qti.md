@@ -4,19 +4,19 @@
   Status: draft
   Type: architecture
   Packages: @pie-qti/pie-to-qti2
-  Last reviewed: 2026-04-27
+  Last reviewed: 2026-10-18
 -->
 
 **Status:** draft
 **Type:** architecture
 **Packages:** `@pie-qti/pie-to-qti2`
-**Last reviewed:** 2026-04-27
+**Last reviewed:** 2026-10-18
 
 ---
 
 ## Summary
 
-`@pie-qti/pie-to-qti2` transforms PIE (Platform for Interactive Education) assessment items and assessments into QTI 2.2 XML (namespace `imsqti_v2p2`), or into QTI 3.0 (namespace `imsqtiasi_v3p0`) with `targetVersion: '3.0'`. It implements the `TransformPlugin` interface from `@pie-qti/transform-types` and integrates with the transform engine in `@pie-qti/transform-core`. The package supports the full PIE item model: single interactions, multi-model items (passage + interaction + rubric), and full `assessmentTest` documents with sections, branch rules, and scoring logic. Every forward transformation embeds the original PIE source in a `<pie:sourceModel>` extension, enabling a lossless round-trip back to PIE via `@pie-qti/to-pie`.
+`@pie-qti/pie-to-qti2` transforms PIE (Platform for Interactive Education) assessment items and assessments into QTI 2.2 XML (namespace `imsqti_v2p2`), or into QTI 3.0 (namespace `imsqtiasi_v3p0`) with `targetVersion: '3.0'`. It implements the `TransformPlugin` interface from `@pie-qti/transform-types` and integrates with the transform engine in `@pie-qti/transform-core`. The package supports the full PIE item model: single interactions, multi-model items (passage + interaction + rubric), and full `assessmentTest` documents with sections, branch rules, and scoring logic. The original PIE source travels as a digested sidecar (`<item>.pie.json`, `qtiDigest`; see `packages/pie-to-qti2/src/utils/pie-source-sidecar.ts`), enabling a lossless round-trip back to PIE via `@pie-qti/to-pie`.
 
 ---
 
@@ -30,24 +30,24 @@ The `GeneratorRegistry` solves this differently: generators are value objects th
 
 The `BaseGenerator` abstract class exists purely as a convenience (shared helpers for logging and result building). Implementing `PieToQtiGenerator` directly is equally valid.
 
-### Why lossless round-trip embeds source XML in the PIE side, not in QTI
+### Why the round-trip source travels beside the QTI, not inside it
 
-Both directions of the round-trip use the same strategy: when transforming A → B, embed the full original A source in B so that B → A can reconstruct A exactly.
+Both directions of the round-trip use the same strategy: when transforming A → B, the original A source travels alongside B so that B → A can reconstruct A exactly.
 
-For PIE → QTI, the full PIE item JSON is serialised as a CDATA block in `<pie:sourceModel>` at the bottom of the `<assessmentItem>`. The reverse transform (`@pie-qti/to-pie`) reads `pie:sourceModel` first; if found, it skips QTI parsing entirely and returns the embedded JSON as-is.
+For PIE → QTI, the original PIE source is serialised as the digested sidecar `<item>.pie.json` (`qtiDigest`) written next to the QTI item and referenced from its `<resource>` (see `packages/pie-to-qti2/src/utils/pie-source-sidecar.ts`). The reverse transform (`@pie-qti/to-pie`) looks for the sidecar first; while the accompanying QTI still matches the recorded `qtiDigest`, it skips QTI parsing entirely and returns the sidecar's `sourceModel` as-is, falling back to the body when the sidecar is missing or stale.
 
 For QTI → PIE (not this package), the QTI source XML is stored in `pieItem.metadata.qtiSource.xml`. When this package encounters a PIE item with that field, it reconstructs QTI by returning the stored XML verbatim instead of running a generator (see `reconstructFromQtiSource`).
 
-Embedding in the destination rather than keeping a side-channel reference avoids the need to manage external state or a separate storage layer during round-trips.
+Carrying the source beside the document rather than inside it keeps the QTI free of foreign elements — QTI 2.2 admits no extension elements in `assessmentItem`, so neither the source model nor its `baseId` and `searchMetaData` can be embedded — while the `<resource>` reference keeps the package self-describing.
 
 ### What is lossy
 
-When a PIE item is transformed without a prior QTI origin (i.e., no `metadata.qtiSource.xml`), the generator produces QTI from the PIE model. PIE features that have no QTI equivalent are preserved with `data-pie-*` attributes on the interaction element (e.g., `data-pie-feedback`, `data-pie-ui-settings`). These survive the round-trip because they live in the embedded `pie:sourceModel`, not because QTI can represent them natively.
+When a PIE item is transformed without a prior QTI origin (i.e., no `metadata.qtiSource.xml`), the generator produces QTI from the PIE model. PIE features that have no QTI equivalent are preserved with `data-pie-*` attributes on the interaction element (e.g., `data-pie-feedback`, `data-pie-ui-settings`). These survive the round-trip because they live in the sidecar's `sourceModel`, not because QTI can represent them natively.
 
-What is truly lossy is the QTI itself after a fresh PIE → QTI transformation: the generated QTI reflects the generator's mapping choices, not any original QTI. If a QTI consumer strips `<pie:sourceModel>` (as a security or compliance measure), the PIE source is gone.
+What is truly lossy is the QTI itself after a fresh PIE → QTI transformation: the generated QTI reflects the generator's mapping choices, not any original QTI. If a QTI consumer drops the `<item>.pie.json` sidecar (as a security or compliance measure), the PIE source is gone.
 
 Lossy information examples:
-- PIE rubric models: detected and logged, but QTI `<rubricBlock>` generation is not yet implemented
+- PIE rubric models: transformed to scorer-view QTI `<rubricBlock>` elements (`packages/pie-to-qti2/src/utils/rubric-block.ts`, `generators/rubric.ts`) — the former "detected and logged only" gap is closed
 - Multi-interaction items: only the first interaction in `config.models[]` is mapped to QTI; additional interactions produce a warning
 - Complex PIE-specific scoring logic not expressible in standard QTI response processing
 - Accessibility catalogs (`accessibilityCatalogs` on a model, the item root, a passage or an assessment, and `extractedCatalogs`): an item's or passage's catalogs are written as `apip:apipAccessibility`, each access element linked to the elements whose `data-catalog-idref` names it; an element without an `id` gets one, and the idrefs stay in the markup, since QTI 2.2 admits `data-*`. A warning names what APIP cannot carry: supports APIP has no element for (`glossary-on-screen`, among others), catalogs no exported element refers to, idrefs no exported catalog declares, and a second declaration of one identifier. Assessments carry no APIP, so each assessment catalog is named in a warning. A QTI 3.0 export writes item and passage catalogs natively as `qti-catalog-info`; because QTI 3.0 types `data-catalog-idref` as an IDREF, an idref no exported catalog declares is dropped from the markup and named in the warning
@@ -59,15 +59,15 @@ Lossy information examples:
 - **Spec version(s):** QTI 2.2.2; QTI 3.0 with `targetVersion: '3.0'`
 - **Spec section(s):** §4 assessmentItem, §6 assessmentTest, §8 IMS Content Packaging
 - **Supported output elements:** `<assessmentItem>`, `<assessmentTest>`, `<testPart>`, `<assessmentSection>`, `<assessmentItemRef>`, `<choiceInteraction>`, `<extendedTextInteraction>`, `<textEntryInteraction>`, `<inlineChoiceInteraction>`, `<orderInteraction>`, `<matchInteraction>`, `<hotspotInteraction>`, `<hottextInteraction>`, `<gapMatchInteraction>`, `<graphicGapMatchInteraction>`, `<associateInteraction>`, `<customInteraction>`, `<outcomeProcessing>`, `<branchRule>`, `<preCondition>`, `<timeLimits>`, `<weight>`
-- **Deliberately omitted:** `<rubricBlock>` (known gap; see open questions), multiple interactions per item body (phase 2 work), `<organizations>` in IMS manifest (not used for QTI item packages)
-- **Known divergences:** `<pie:sourceModel>` and `<pie:metadata>` use a vendor namespace (`xmlns:pie="https://github.com/pie-framework/pie-elements"`). This is a valid QTI extension mechanism but will cause validation failures against schemas that do not allow extension elements.
+- **Deliberately omitted:** `<organizations>` in IMS manifest (not used for QTI item packages). Formerly omitted, now implemented: `<rubricBlock>` generation (`utils/rubric-block.ts`, `generators/rubric.ts`) and multiple interactions per item body (`utils/item-composer.ts`)
+- **Known divergences:** former only — the export once embedded `<pie:sourceModel>` and `<pie:metadata>` under a vendor namespace (`xmlns:pie="https://github.com/pie-framework/pie-elements"`), a valid QTI extension mechanism that failed validation against schemas that do not allow extension elements. The PIE source now travels in the `<item>.pie.json` sidecar, so a fresh export declares no vendor namespace.
 
 ---
 
 ## Functional requirements
 
 - **FR-1:** Given a PIE item with `config.models[]`, the plugin SHALL produce a valid QTI 2.2 `<assessmentItem>` with the correct interaction element for the primary model's element type.
-- **FR-2:** The output item SHALL contain a `<pie:sourceModel>` CDATA block containing the full original PIE item JSON.
+- **FR-2:** The plugin SHALL write the original PIE item JSON as a `<item>.pie.json` source sidecar (`PieSourceSidecar`, `format: 'pie-qti/pie-source'`) recording the `qtiDigest` of the generated QTI document, return it on `output.items[].sidecar`, and list it under the item's `<resource>` when generating a package. The reverse transform SHALL use the sidecar for a lossless round-trip only while the QTI item is unchanged — its digest still matches `qtiDigest`.
 - **FR-3:** Given a PIE item with `metadata.qtiSource.xml` set, the plugin SHALL return that embedded XML as-is without invoking any generator (lossless reconstruction).
 - **FR-4:** Given a PIE item with `@pie-element/passage` models in `config.models[]`, the plugin SHALL embed passage HTML inside `<itemBody>` as `<div class="stimulus">` before the interaction element (inline strategy).
 - **FR-5:** Given a PIE item with a `passage` string property and a configured `passageResolver`, the plugin SHALL call the resolver, generate a separate passage file, and reference it in the item XML via `<object data="passages/...">` (external strategy).
@@ -102,12 +102,12 @@ Lossy information examples:
 **Alternatives considered:** Plugin inheritance (one subclass per element type); method overrides on a single class. Both bind callers to the library's internal structure.
 **Consequences:** Generator resolution order is: exact element-type match → priority-sorted scan of all generators → wildcard generators. Priority ties within the sorted scan are resolved by insertion order (Map iteration order in V8).
 
-### Lossless path via embedded CDATA
+### Lossless path via the PIE source sidecar
 
-**Decision:** The full PIE JSON is embedded as `<pie:sourceModel><![CDATA[...]]></pie:sourceModel>` inside the QTI root element.
-**Rationale:** A CDATA section survives all standard XML serialisers and parsers without escaping concerns. Storing the JSON as a side-channel file (e.g., `item.json` alongside `item.xml`) would require callers to manage file pairs, breaking the "one file = one item" assumption of QTI packages.
-**Alternatives considered:** Separate sidecar file; base64-encoded attribute; JSON stored as escaped XML attribute text.
-**Consequences:** The QTI file grows by the size of the PIE JSON. A typical PIE item adds 2–20 KB. The `<pie:sourceModel>` element is placed at the end of the document so it does not interfere with QTI parsers that stop after `</itemBody>`.
+**Decision:** The full PIE item is serialised into a sidecar file, `<item>.pie.json` (`PieSourceSidecar`, `format: 'pie-qti/pie-source'`), written beside the QTI item and referenced from the item's `<resource>` in a content package. The sidecar records the `qtiDigest` of the generated QTI document.
+**Rationale:** QTI 2.2 admits no foreign elements in `assessmentItem`, so the document cannot carry the source model, its `baseId`, or its `searchMetaData` without breaking schema validation. A digested sidecar keeps the XML clean and lets the reverse transform trust it only while the document is unchanged — `qtiDigest` still matches — falling back to the body when the sidecar is missing or stale.
+**Alternatives considered:** embedding the JSON as `<pie:sourceModel>` CDATA inside the QTI root (the original design; rejected because schemas that disallow extension elements fail the document); base64-encoded attribute; JSON stored as escaped XML attribute text.
+**Consequences:** The transform output is a file pair (item XML plus sidecar) rather than a single file; `TransformOutput.items[].sidecar` carries the sidecar for callers that do not build a package. A consumer that drops the sidecar loses the lossless round-trip but keeps valid, renderable QTI.
 
 ### outcomeProcessingXml stored as raw string
 
@@ -146,7 +146,7 @@ Defined in `src/generators/types.ts`. Key invariants:
 
 - `id` must match the PIE element type string (e.g., `'@pie-element/multiple-choice'`). The registry uses this as the map key.
 - `canHandle(model)` is called by the registry even after an exact key match, so it must return `true` for the model it is keyed to. A generator may return `false` to yield to lower-priority generators.
-- `generate(context)` returns `GeneratorResult` synchronously or as a `Promise`. The `qti` field must be a complete, valid `<assessmentItem>` XML string. PIE extension embedding (`<pie:sourceModel>`) is added by `PieToQtiPlugin` after the generator returns; generators must not add it themselves.
+- `generate(context)` returns `GeneratorResult` synchronously or as a `Promise`. The `qti` field must be a complete, valid `<assessmentItem>` XML string. PIE source sidecar emission is handled by `PieToQtiPlugin` after the generator returns; generators must not embed the PIE source themselves.
 
 ### `TransformOutput` shape (extended)
 
@@ -183,7 +183,8 @@ AC-1: Basic item transformation
   Given: A PIE item with a single @pie-element/multiple-choice model with two choices
   When: PieToQtiPlugin.transform() is called
   Then: output.items[0].content is a string starting with <?xml and containing <choiceInteraction>
-        AND output.items[0].content contains <pie:sourceModel> with the original PIE JSON
+        AND output.items[0].sidecar is a 'pie-qti/pie-source' sidecar whose sourceModel equals the
+        original PIE item and whose qtiDigest matches the generated QTI document
         AND output.metadata.generatorId equals '@pie-element/multiple-choice'
 
 AC-2: Lossless reconstruction from embedded QTI source
@@ -302,8 +303,10 @@ AC-E5: Registry throws on duplicate without override
 
 ## Open questions
 
-- [ ] Rubric generation: `@pie-element/rubric` and `@pie-element/complex-rubric` are detected and logged but not yet transformed to `<rubricBlock>`. What is the target QTI structure?
-- [ ] Multiple interactions per item body: the spec allows multiple interactions in one `<assessmentItem>`. The current single-primary-model approach is a known Phase 1 limitation. When is this needed, and what is the target architecture?
+- [x] Rubric generation: `@pie-element/rubric` and `@pie-element/complex-rubric` are detected and logged but not yet transformed to `<rubricBlock>`. What is the target QTI structure?
+  Resolved: rubric models transform to scorer-view `<rubricBlock>` blocks at the end of the item body (`packages/pie-to-qti2/src/utils/rubric-block.ts`, `generators/rubric.ts`).
+- [x] Multiple interactions per item body: the spec allows multiple interactions in one `<assessmentItem>`. The current single-primary-model approach is a known Phase 1 limitation. When is this needed, and what is the target architecture?
+  Resolved: every interaction model is generated as its own item and the parts are composed into one item with prefixed identifiers and summed scores (`packages/pie-to-qti2/src/utils/item-composer.ts`).
 - [x] QTI 3.0 output: a flag. `targetVersion: '2.2' | '3.0'` on this plugin, defaulting to `'2.2'`, since both versions share every generator. A QTI 3.0 export renames the finished QTI 2.2 document into the `imsqtiasi_v3p0` vocabulary, writes external passages as `qti-assessment-stimulus` files referenced by `qti-assessment-stimulus-ref`, wraps rubric content in `qti-content-body`, writes catalogs as `qti-catalog-info`, and packages under the QTI 3 content packaging profile.
 
 ---

@@ -1,5 +1,11 @@
 # QTI Section Player and Toolkit Implementation Plan
 
+> **Completed.** Executed 2026-06-24; every task below landed (packages/section-player,
+> packages/assessment-toolkit, the player-elements section elements, the demo routes, and the
+> item-player ./security subpath). The checkboxes were never ticked and reflect no outstanding
+> work. docs/prds/architecture/qti-section-player-and-toolkit.md is the canonical behavior doc;
+> this file is kept as an execution record.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build the contract-first `@pie-qti/section-player` foundation, shared-content security surface, assessment-player delegation path, web component exposure, and QTI-native toolkit helpers described in `docs/prds/architecture/qti-section-player-and-toolkit.md`.
