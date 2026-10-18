@@ -1,6 +1,5 @@
 ---
 '@pie-qti/qti-common': patch
-'@pie-qti/to-pie': patch
 '@pie-qti/item-player': patch
 '@pie-qti/section-player': patch
 ---
