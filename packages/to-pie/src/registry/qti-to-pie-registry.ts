@@ -1,6 +1,6 @@
 import type { PieItem, TransformWarning } from '@pie-qti/transform-types';
 import type { HTMLElement } from 'node-html-parser';
-import { transformAssessmentTest } from '../transformers/assessment-test.js';
+import { countAssessmentItems, transformAssessmentTest } from '../transformers/assessment-test.js';
 import { transformAssociateToCategorize } from '../transformers/associate-to-categorize.js';
 import {
   transformDragInTheBlank,
@@ -526,15 +526,7 @@ export function createDefaultQtiToPieRegistry(): QtiToPieRegistry {
         kind: 'assessment',
         content: assessment,
         ...(warnings.length > 0 ? { warnings } : {}),
-        itemCount: assessment.testParts.reduce(
-          (total, testPart) =>
-            total +
-            testPart.sections.reduce(
-              (sectionTotal, section) => sectionTotal + section.itemRefs.length,
-              0
-            ),
-          0
-        ),
+        itemCount: countAssessmentItems(assessment),
       };
     },
   });

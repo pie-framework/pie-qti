@@ -75,12 +75,7 @@ describe('transformAssessmentTest', () => {
 	});
 
 	describe('Nested Sections', () => {
-		// Known bug, tracked here so the suite flips when it is fixed: nested
-		// sections are emitted BOTH at the testPart top level (duplicating them
-		// and pulling in all descendant itemRefs) and inside the parent's
-		// `subsections`. The correct shape is one top-level section holding its
-		// own itemRefs and its subsections.
-		it.failing('should transform nested section hierarchy without duplicating sections', () => {
+		it('should transform nested section hierarchy without duplicating sections', () => {
 			const xml = loadFixture('assessment-nested-sections.xml');
 			const assessment = transformAssessmentTest(xml, 'test-002');
 
@@ -129,12 +124,12 @@ describe('transformAssessmentTest', () => {
 			const xml = loadFixture('assessment-nested-sections.xml');
 			const assessment = transformAssessmentTest(xml, 'test-002');
 
-			// NOTE: Current implementation collects ALL items including from nested sections
-			// This is actually a bug, but documenting current behavior
+			// The top section keeps only its own item; nested items belong to
+			// their subsections, so the whole test still has five.
 			const topSection = assessment.testParts[0].sections[0];
-			expect(topSection.itemRefs.length).toBeGreaterThan(1);
+			expect(topSection.itemRefs).toHaveLength(1);
 
-			// Subsections should have their own items
+			// Subsections have their own items
 			const algebra = topSection.subsections![0];
 			const geometry = topSection.subsections![1];
 
