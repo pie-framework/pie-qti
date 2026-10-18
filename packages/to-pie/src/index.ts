@@ -66,7 +66,7 @@ export type {
   RubricBlockView,
   TestPart,
 } from './transformers/assessment-test.js';
-export { transformAssessmentTest } from './transformers/assessment-test.js';
+export { countAssessmentItems, transformAssessmentTest } from './transformers/assessment-test.js';
 export type { DragInTheBlankOptions } from './transformers/drag-in-the-blank.js';
 export { transformDragInTheBlank } from './transformers/drag-in-the-blank.js';
 export type { EbsrOptions } from './transformers/ebsr.js';

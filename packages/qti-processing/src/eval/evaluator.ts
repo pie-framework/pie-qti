@@ -1225,27 +1225,40 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 				return inside;
 			};
 
+			// Overlapping areas resolve to the entry listed first (QTI §5.5.4:
+			// "those listed first taking priority in the case where areas overlap").
+			// QTI §2.11.1.6 caps containers: "each area can be mapped once only", so
+			// a second point in an already-counted area adds nothing.
+			const hitEntries = new Set<number>();
 			const mapOnePoint = (pt: { x: number; y: number }): number => {
-				for (const e of decl.areaMapping!.entries) {
+				const entries = decl.areaMapping!.entries;
+				for (let i = 0; i < entries.length; i++) {
+					const e = entries[i]!;
+					let matched = false;
 					switch (e.shape) {
 						case 'rect':
-							if (inRect(pt, e.coords)) return Number(e.mappedValue);
+							matched = inRect(pt, e.coords);
 							break;
 						case 'circle':
-							if (inCircle(pt, e.coords)) return Number(e.mappedValue);
+							matched = inCircle(pt, e.coords);
 							break;
 						case 'ellipse':
-							if (inEllipse(pt, e.coords)) return Number(e.mappedValue);
+							matched = inEllipse(pt, e.coords);
 							break;
 						case 'poly':
-							if (inPoly(pt, e.coords)) return Number(e.mappedValue);
+							matched = inPoly(pt, e.coords);
 							break;
 						case 'default':
 							// default always matches if reached
-							return Number(e.mappedValue);
+							matched = true;
+							break;
 						default:
 							break;
 					}
+					if (!matched) continue;
+					if (hitEntries.has(i)) return 0;
+					hitEntries.add(i);
+					return Number(e.mappedValue);
 				}
 				return Number(decl.areaMapping!.defaultValue || 0);
 			};

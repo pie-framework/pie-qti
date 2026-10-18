@@ -171,9 +171,8 @@ describe('mapResponsePoint', () => {
 	});
 
 	it('scores a point inside several areas with the first matching area, not a sum', () => {
-		// (10,10) is inside both areas below; the engine scores the first match.
-		// (If content ever needs overlapping areas to accumulate, this is the
-		// line to revisit — the QTI areaMapping rules are worth a spec check.)
+		// (10,10) is inside both areas; the QTI areaMapEntry rules (§5.5.4) give
+		// priority to the entry listed first when areas overlap.
 		const ctx = run(
 			{
 				OUT: { identifier: 'OUT', baseType: 'float', cardinality: 'single', value: qtiValue('float', 'single', 0) },
@@ -211,6 +210,43 @@ describe('mapResponsePoint', () => {
 			`<setOutcomeValue identifier="OUT"><mapResponsePoint identifier="RESPONSE"/></setOutcomeValue>`,
 		);
 		// One point hits the circle (2), the other lands outside (default 0).
+		expect(ctx.getValue('OUT')).toEqual(qtiValue('float', 'single', 2));
+	});
+
+	it('counts different areas separately across a multiple-point response', () => {
+		const ctx = run(
+			{
+				OUT: { identifier: 'OUT', baseType: 'float', cardinality: 'single', value: qtiValue('float', 'single', 0) },
+				RESPONSE: {
+					identifier: 'RESPONSE',
+					baseType: 'point',
+					cardinality: 'multiple',
+					value: qtiValue('point', 'multiple', ['55 52', '10 10']),
+					areaMapping: AREA_MAPPING,
+				},
+			},
+			`<setOutcomeValue identifier="OUT"><mapResponsePoint identifier="RESPONSE"/></setOutcomeValue>`,
+		);
+		// Circle (2) plus rect (1).
+		expect(ctx.getValue('OUT')).toEqual(qtiValue('float', 'single', 3));
+	});
+
+	it('counts a mapped area once when several points fall inside it', () => {
+		// QTI §2.11.1.6: "when mapping containers each area can be mapped once
+		// only" — both points are inside the circle, so it still scores 2, not 4.
+		const ctx = run(
+			{
+				OUT: { identifier: 'OUT', baseType: 'float', cardinality: 'single', value: qtiValue('float', 'single', 0) },
+				RESPONSE: {
+					identifier: 'RESPONSE',
+					baseType: 'point',
+					cardinality: 'multiple',
+					value: qtiValue('point', 'multiple', ['55 52', '48 47']),
+					areaMapping: AREA_MAPPING,
+				},
+			},
+			`<setOutcomeValue identifier="OUT"><mapResponsePoint identifier="RESPONSE"/></setOutcomeValue>`,
+		);
 		expect(ctx.getValue('OUT')).toEqual(qtiValue('float', 'single', 2));
 	});
 });

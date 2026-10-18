@@ -182,14 +182,45 @@ export interface AssessmentTestOptions {
 }
 
 /**
+ * Direct element children with the given tag name, matched case-insensitively.
+ * Sections and item refs must be read from direct children only: a deep scan
+ * would attribute a nested section's items and rules to its parent. The
+ * `tagName` getter uppercases, so match on `rawTagName`.
+ */
+function childElements(parent: HTMLElement, tagName: string): HTMLElement[] {
+  const target = tagName.toLowerCase();
+  const children: HTMLElement[] = [];
+  for (const node of parent.childNodes) {
+    if (node.nodeType !== 1) continue;
+    const element = node as HTMLElement;
+    if ((element.rawTagName ?? '').toLowerCase() === target) {
+      children.push(element);
+    }
+  }
+  return children;
+}
+
+/**
+ * Total item references in the assessment, counting nested sections.
+ */
+export function countAssessmentItems(assessment: PieAssessment): number {
+  const countSection = (section: AssessmentSection): number =>
+    section.itemRefs.length +
+    (section.subsections ?? []).reduce((total, subsection) => total + countSection(subsection), 0);
+  return assessment.testParts.reduce(
+    (total, testPart) => total + testPart.sections.reduce((sum, section) => sum + countSection(section), 0),
+    0
+  );
+}
+
+/**
  * Transform QTI assessmentTest to PIE assessment
  */
 export function transformAssessmentTest(
   qtiXml: string,
   assessmentId: string,
   options?: AssessmentTestOptions
-): PieAssessment {
-  const document = parse(qtiXml, { lowerCaseTagName: false });
+): PieAssessment {  const document = parse(qtiXml, { lowerCaseTagName: false });
   const assessmentTest = document.querySelector('assessmentTest') ||
                         document.getElementsByTagName('assessmentTest')[0];
 
@@ -240,16 +271,10 @@ export function transformAssessmentTest(
     const navigationMode = (testPartElement.getAttribute('navigationMode') as 'linear' | 'nonlinear') || 'nonlinear';
     const submissionMode = (testPartElement.getAttribute('submissionMode') as 'individual' | 'simultaneous') || 'individual';
 
-    // Extract assessment sections from test part
-    const assessmentSections = testPartElement.getElementsByTagName('assessmentSection');
+    // Top-level sections only; nested sections are handled recursively below.
     const testPartSections: AssessmentSection[] = [];
 
-    for (const section of Array.from(assessmentSections)) {
-      // Skip nested sections (they'll be handled recursively)
-      if (section.parentNode?.tagName === 'assessmentSection') {
-        continue;
-      }
-
+    for (const section of childElements(testPartElement, 'assessmentSection')) {
       const transformedSection = transformSection(section, options);
       if (transformedSection) {
         testPartSections.push(transformedSection);
@@ -316,21 +341,13 @@ function transformSection(
   const fixed = section.getAttribute('fixed') === 'true';
 
   // Get ordering/shuffle settings
-  const orderingElement = section.querySelector('ordering') ||
-                         section.getElementsByTagName('ordering')[0];
+  const orderingElement = childElements(section, 'ordering')[0];
   const shuffle = orderingElement?.getAttribute('shuffle') === 'true';
 
   // Get item references
   const itemRefs: ItemReference[] = [];
-  const assessmentItemRefs = section.getElementsByTagName('assessmentItemRef');
 
-  for (const itemRef of Array.from(assessmentItemRefs)) {
-    // Skip if this is in a nested section
-    if (itemRef.parentNode?.tagName === 'assessmentSection' &&
-        itemRef.parentNode !== section) {
-      continue;
-    }
-
+  for (const itemRef of childElements(section, 'assessmentItemRef')) {
     const ref = transformItemReference(itemRef, options);
     if (ref) {
       itemRefs.push(ref);
@@ -339,15 +356,11 @@ function transformSection(
 
   // Get nested sections
   const subsections: AssessmentSection[] = [];
-  const childSections = section.getElementsByTagName('assessmentSection');
 
-  for (const childSection of Array.from(childSections)) {
-    // Only process direct children
-    if (childSection.parentNode === section) {
-      const transformed = transformSection(childSection, options);
-      if (transformed) {
-        subsections.push(transformed);
-      }
+  for (const childSection of childElements(section, 'assessmentSection')) {
+    const transformed = transformSection(childSection, options);
+    if (transformed) {
+      subsections.push(transformed);
     }
   }
 
@@ -464,8 +477,7 @@ function transformItemReference(
  * Extract selection rules from section
  */
 function extractSelectionRules(section: HTMLElement): AssessmentSection['selection'] | undefined {
-  const selection = section.querySelector('selection') ||
-                   section.getElementsByTagName('selection')[0];
+  const selection = childElements(section, 'selection')[0];
 
   if (!selection) return undefined;
 
@@ -509,8 +521,7 @@ function extractRubricBlocks(section: HTMLElement): RubricBlock[] {
  * Extract time limits
  */
 function extractTimeLimits(element: HTMLElement): { maxTime?: number; allowLateSubmission?: boolean } | undefined {
-  const timeLimits = element.querySelector('timeLimits') ||
-                    element.getElementsByTagName('timeLimits')[0];
+  const timeLimits = childElements(element, 'timeLimits')[0];
 
   if (!timeLimits) return undefined;
 
@@ -584,10 +595,7 @@ function extractBranchRules(itemRef: HTMLElement): ItemReference['branchRule'] {
  * Extract pre-condition from element
  */
 function extractPreCondition(element: HTMLElement): string | undefined {
-  const preCondition =
-    (element.querySelector('preCondition') as any as HTMLElement | null) ||
-    (element.getElementsByTagName('preCondition')[0] as any as HTMLElement | undefined) ||
-    null;
+  const preCondition = childElements(element, 'preCondition')[0];
 
   if (!preCondition) return undefined;
   return preCondition.toString();
