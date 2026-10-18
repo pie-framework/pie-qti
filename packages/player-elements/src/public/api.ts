@@ -136,7 +136,12 @@ export interface QtiResolvedStylesheetRef {
 }
 
 export interface QtiResolvedCatalogSource {
-	scope: 'item' | 'stimulus';
+	/**
+	 * `package` sources come from shared catalog files the manifest lists
+	 * (`imsqti_catalog_xmlv3p0`) and hold the lowest precedence; `item` sources
+	 * win identifier collisions over them (QTI 3.0 §6.3).
+	 */
+	scope: 'item' | 'stimulus' | 'package';
 	xml: string;
 	baseHref: string;
 	stimulusIdentifier?: string;
