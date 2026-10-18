@@ -82,7 +82,7 @@ describe('component response → response processing bridge', () => {
 		inputs[1]!.dispatchEvent(new Event('change', { bubbles: true }));
 		await settle();
 
-		const emitted = mounted.events.at(-1)?.detail as { responseId: string; value: string };
+		const emitted = mounted.events.at(-1)!.detail as { responseId: string; value: string };
 		expect(emitted.responseId).toBe('RESPONSE');
 		expect(emitted.value).toBe('OK');
 
@@ -101,7 +101,8 @@ describe('component response → response processing bridge', () => {
 		inputs[0]!.dispatchEvent(new Event('change', { bubbles: true }));
 		await settle();
 
-		expect(scoreFor((mounted.events.at(-1)?.detail as { value: string }).value)).toBe(2);
+		const emitted = mounted.events.at(-1)!.detail as { value: string };
+		expect(scoreFor(emitted.value)).toBe(2);
 
 		cleanupInteraction(mounted);
 	});
