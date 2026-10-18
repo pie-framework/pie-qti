@@ -19,7 +19,6 @@
   "dependencies": {
     "@pie-qti/logger": "workspace:*",
     "@pie-qti/storage": "workspace:*",
-    "@pie-qti/transform-core": "workspace:*",
     "@pie-qti/transform-types": "workspace:*",
     "node-html-parser": "^9.0.4"
   },

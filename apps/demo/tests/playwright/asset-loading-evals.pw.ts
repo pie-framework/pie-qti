@@ -1,59 +1,7 @@
-import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { expect, type Page, test } from './fixtures';
-import { load as loadYaml } from 'js-yaml';
 
-// Minimal eval types for asset loading tests
-type EvalStep =
-	| { action: 'navigate'; path: string }
-	| { action: 'observe'; target?: { description?: string; hint?: string } }
-	| { action: 'playUntilEnded'; target?: { description?: string; hint?: string }; times?: number }
-	| { action: 'dragPair'; target?: { description?: string; hint?: string } };
-
-type EvalExpected = {
-	outcomes?: Record<string, any>;
-};
-
-type EvalCase = {
-	id: string;
-	sampleId: string;
-	intent?: string;
-	notes?: string[];
-	steps: EvalStep[];
-	expected?: EvalExpected;
-	spiritChecks?: string[];
-};
-
-type EvalFile = {
-	version: number;
-	component: { interactionType: string; tagName: string };
-	examplesApp: { app: string; routeTemplate: string };
-	evals: EvalCase[];
-};
-
-function listFilesRecursive(dir: string): string[] {
-	const out: string[] = [];
-	for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-		const full = path.join(dir, entry.name);
-		if (entry.isDirectory()) out.push(...listFilesRecursive(full));
-		else out.push(full);
-	}
-	return out;
-}
-
-function readEvalFiles(): Array<{ filePath: string; data: EvalFile }> {
-	const __filename = fileURLToPath(import.meta.url);
-	const __dirname = path.dirname(__filename);
-	const repoRoot = path.resolve(__dirname, '../../../../');
-	const evalRoot = path.join(repoRoot, 'docs/evals/asset-loading');
-	const candidates = listFilesRecursive(evalRoot).filter((p) => p.endsWith('evals.yaml'));
-	return candidates.map((filePath) => {
-		const raw = fs.readFileSync(filePath, 'utf8');
-		const data = loadYaml(raw) as EvalFile;
-		return { filePath, data };
-	});
-}
+import { readEvalFiles, type EvalCase, type EvalExpected, type EvalStep } from './eval-helpers';
 
 async function runStep(page: Page, step: EvalStep): Promise<void> {
 	switch (step.action) {
@@ -81,7 +29,7 @@ async function runStep(page: Page, step: EvalStep): Promise<void> {
 	}
 }
 
-const evalFiles = readEvalFiles();
+const evalFiles = readEvalFiles('asset-loading');
 
 test.describe('docs/evals/asset-loading (YAML-driven)', () => {
 	for (const { filePath, data } of evalFiles) {

@@ -8,6 +8,7 @@
 import { describe, expect, test } from 'bun:test';
 import type { PieItem } from '@pie-qti/transform-types';
 import { PieToQtiPlugin } from '../../src/plugin.js';
+import { expectSidecarIsolation } from '../helpers/sidecar.js';
 
 describe('Multi-Model Support', () => {
   const pieToQti = new PieToQtiPlugin();
@@ -113,10 +114,7 @@ describe('Multi-Model Support', () => {
     const result = await pieToQti.transform({ content: pieItem }, { logger });
     const qtiXml = result.items[0].content as string;
 
-    // The source model, search metadata included, travels in the PIE source sidecar.
-    expect(qtiXml).not.toContain('pie:');
-    expect(qtiXml).not.toContain('qti-metadata');
-    expect(result.items[0].sidecar?.sourceModel.searchMetaData).toEqual(pieItem.searchMetaData);
+    expectSidecarIsolation(qtiXml, result, pieItem);
   });
 
   test('should handle passage + interaction + searchMetaData together', async () => {
@@ -162,10 +160,7 @@ describe('Multi-Model Support', () => {
     expect(qtiXml).toContain('assessmentItem');
     expect(qtiXml).toContain('stimulus'); // Passage
     expect(qtiXml).toContain('extendedTextInteraction'); // Interaction
-    // The source model, search metadata included, travels in the PIE source sidecar.
-    expect(qtiXml).not.toContain('pie:');
-    expect(qtiXml).not.toContain('qti-metadata');
-    expect(result.items[0].sidecar?.sourceModel.searchMetaData).toEqual(pieItem.searchMetaData);
+    expectSidecarIsolation(qtiXml, result, pieItem);
 
     // Verify order: passage → interaction
     const stimulusIndex = qtiXml.indexOf('stimulus');
@@ -173,10 +168,7 @@ describe('Multi-Model Support', () => {
 
     expect(stimulusIndex).toBeLessThan(interactionIndex);
 
-    // The source model, search metadata included, travels in the PIE source sidecar.
-    expect(qtiXml).not.toContain('pie:');
-    expect(qtiXml).not.toContain('qti-metadata');
-    expect(result.items[0].sidecar?.sourceModel.searchMetaData).toEqual(pieItem.searchMetaData);
+    expectSidecarIsolation(qtiXml, result, pieItem);
 
     // Verify result metadata
     expect(result.metadata.modelCount).toBe(2);

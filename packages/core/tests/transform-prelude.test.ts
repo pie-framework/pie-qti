@@ -1,10 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import type {
-  TransformContext,
-  TransformInput,
-  TransformOutput,
-  TransformPlugin,
-} from '@pie-qti/transform-types';
+import { MockTransformPlugin } from '@pie-qti/test-utils';
 import type { ServerLogger } from '@pie-qti/logger/server';
 import { prepareTransformPrelude, detectTransformFormat } from '../src/engine/transform-prelude';
 import { FormatDetectorRegistry } from '../src/registry/format-detector-registry';
@@ -17,12 +12,7 @@ const logger: ServerLogger = {
   error() {},
 };
 
-class PreludePlugin implements TransformPlugin {
-  readonly id: string;
-  readonly version = '1.0.0';
-  readonly name: string;
-  readonly sourceFormat: string;
-  readonly targetFormat: string;
+class PreludePlugin extends MockTransformPlugin {
   initializeCalls = 0;
   initializeOptions: Record<string, unknown> | null = null;
 
@@ -35,34 +25,12 @@ class PreludePlugin implements TransformPlugin {
     sourceFormat: string;
     targetFormat: string;
   }) {
-    this.id = id ?? `${sourceFormat}-to-${targetFormat}`;
-    this.name = this.id;
-    this.sourceFormat = sourceFormat;
-    this.targetFormat = targetFormat;
+    super(id ?? `${sourceFormat}-to-${targetFormat}`, sourceFormat, targetFormat);
   }
 
-  async initialize(options: Record<string, unknown>): Promise<void> {
+  override async initialize(options: Record<string, unknown>): Promise<void> {
     this.initializeCalls += 1;
     this.initializeOptions = options;
-  }
-
-  async canHandle(_input: TransformInput): Promise<boolean> {
-    return true;
-  }
-
-  async transform(_input: TransformInput, _context: TransformContext): Promise<TransformOutput> {
-    return {
-      items: [],
-      format: this.targetFormat,
-      metadata: {
-        sourceFormat: this.sourceFormat,
-        targetFormat: this.targetFormat,
-        pluginId: this.id,
-        timestamp: new Date(),
-        itemCount: 0,
-        processingTime: 0,
-      },
-    };
   }
 }
 

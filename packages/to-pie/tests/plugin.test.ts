@@ -9,10 +9,10 @@ import {
 	createResponseDeclaration,
 	createChoiceInteraction,
 	SilentLogger,
-	createTestEngine,
 	expectSuccessfulTransform,
 	expectValidPieModel,
 } from '@pie-qti/test-utils';
+import { createTestEngine } from './test-utils.js';
 import { QtiToPiePlugin } from '../src/plugin';
 import type { CssClassExtractor, VendorDetector } from '../src/types/vendor-extensions';
 import { type QtiSourceProfile, sourceDigest } from '@pie-qti/transform-types';

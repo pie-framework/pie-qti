@@ -3,49 +3,24 @@
  */
 
 import { beforeEach, describe, expect, test } from 'bun:test';
-import type { TransformContext, TransformInput, TransformOutput, TransformPlugin, StorageBackend } from '@pie-qti/transform-types';
+import type { TransformInput } from '@pie-qti/transform-types';
+import { MockStorageBackend, MockTransformPlugin } from '@pie-qti/test-utils';
 import { TransformEngine } from '../src/engine/transform-engine';
 
-// Mock plugin for testing
-class MockPlugin implements TransformPlugin {
-  dispose?: () => Promise<void>;
-
-  readonly id = 'mock-qti22-to-pie';
-  readonly version = '1.0.0';
-  readonly name = 'Mock QTI 2.2 to PIE Plugin';
-  readonly sourceFormat = 'qti22' as const;
-  readonly targetFormat = 'pie' as const;
-
-  async canHandle(input: TransformInput): Promise<boolean> {
-    if (typeof input.content === 'string') {
-      return input.content.includes('assessmentItem');
-    }
-    return false;
-  }
-
-  async transform(_input: TransformInput, context: TransformContext): Promise<TransformOutput> {
-    context.logger?.info('Mock transformation', 'test-item');
-
-    return {
-      items: [
-        {
-          id: 'test-item',
-          uuid: 'test-uuid',
-          config: { id: 'test-uuid', models: [], elements: {} },
-          searchMetaData: {},
-        },
-      ],
-      format: 'pie',
-      metadata: {
-        sourceFormat: 'qti22',
-        targetFormat: 'pie',
-        pluginId: this.id,
-        timestamp: new Date(),
-        itemCount: 1,
-        processingTime: 0,
-      },
-    };
-  }
+function createMockPlugin(): MockTransformPlugin {
+	return new MockTransformPlugin('mock-qti22-to-pie', 'qti22', 'pie', {
+		name: 'Mock QTI 2.2 to PIE Plugin',
+		canHandle: async (input: TransformInput) =>
+			typeof input.content === 'string' && input.content.includes('assessmentItem'),
+		mockItems: [
+			{
+				id: 'test-item',
+				uuid: 'test-uuid',
+				config: { id: 'test-uuid', models: [], elements: {} },
+				searchMetaData: {},
+			},
+		],
+	});
 }
 
 describe('TransformEngine', () => {
@@ -56,8 +31,7 @@ describe('TransformEngine', () => {
   });
 
   test('should register a plugin', () => {
-    const plugin = new MockPlugin();
-    engine.use(plugin);
+    engine.use(createMockPlugin());
 
     const plugins = engine.getPlugins();
     expect(plugins.length).toBe(1);
@@ -65,8 +39,7 @@ describe('TransformEngine', () => {
   });
 
   test('should get plugin by id', () => {
-    const plugin = new MockPlugin();
-    engine.use(plugin);
+    engine.use(createMockPlugin());
 
     const found = engine.getPlugin('mock-qti22-to-pie');
     expect(found).toBeDefined();
@@ -74,8 +47,7 @@ describe('TransformEngine', () => {
   });
 
   test('should transform QTI to PIE', async () => {
-    const plugin = new MockPlugin();
-    engine.use(plugin);
+    engine.use(createMockPlugin());
 
     const qtiXml = `<?xml version="1.0" encoding="UTF-8"?>
 <assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
@@ -99,8 +71,7 @@ describe('TransformEngine', () => {
   });
 
   test('should auto-detect QTI 2.2 format', async () => {
-    const plugin = new MockPlugin();
-    engine.use(plugin);
+    engine.use(createMockPlugin());
 
     const qtiXml = `<?xml version="1.0" encoding="UTF-8"?>
 <assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2">
@@ -129,25 +100,8 @@ describe('TransformEngine', () => {
   });
 
   test('should transform batch of inputs', async () => {
-    const plugin = new MockPlugin();
-    engine.use(plugin);
-
-    // Create a simple mock storage backend for batch transformation
-    const mockStorage: StorageBackend = {
-      name: 'mock-storage',
-      async initialize() {},
-      async readText() { return ''; },
-      async writeText() {},
-      async readBuffer() { return Buffer.from(''); },
-      async writeBuffer() {},
-      async write() {},
-      async createReadStream() { throw new Error('Not implemented'); },
-      async createWriteStream() { throw new Error('Not implemented'); },
-      async exists() { return false; },
-      async list() { return []; },
-      async delete() {},
-    };
-    engine.setStorage(mockStorage);
+    engine.use(createMockPlugin());
+    engine.setStorage(new MockStorageBackend());
 
     const inputs = [
       '<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2">1</assessmentItem>',
@@ -169,10 +123,10 @@ describe('TransformEngine', () => {
   });
 
   test('should clean up resources on dispose', async () => {
-    const plugin = new MockPlugin();
+    const plugin = createMockPlugin();
     let disposeCalled = false;
 
-    plugin.dispose = async () => {
+    (plugin as unknown as { dispose?: () => Promise<void> }).dispose = async () => {
       disposeCalled = true;
     };
 

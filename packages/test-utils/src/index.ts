@@ -20,8 +20,6 @@ export {
 } from './mocks/logger.js';
 
 // Test helpers
-export { createTestEngine } from './helpers/engine.js';
-export type { TestEngineOptions } from './helpers/engine.js';
 
 export {
 	loadFixture,

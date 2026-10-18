@@ -1,77 +1,14 @@
-import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { expect, type Page, test } from './fixtures';
-import { load as loadYaml } from 'js-yaml';
 
-type EvalStep =
-	| { action: 'navigate'; path: string }
-	| { action: 'observe'; target?: { description?: string; hint?: string } }
-	| { action: 'click'; target: { description?: string; hint?: string } }
-	| { action: 'clickAt'; target?: { description?: string; hint?: string }; coordinates: { x: number; y: number } }
-	| { action: 'select'; target: { description?: string; hint?: string }; value: string }
-	| { action: 'dragToGap'; target: { description?: string; hint?: string }; value: string }
-	| { action: 'setValue'; target: { description?: string; hint?: string }; value: number }
-	| { action: 'type'; target: { description?: string; hint?: string }; value: string }
-	| { action: 'typeRichText'; target: { description?: string; hint?: string }; value: string }
-	| { action: 'submit'; target?: { description?: string; hint?: string }; note?: string }
-	| { action: 'dragReorder'; target: { description?: string; hint?: string } }
-	| { action: 'matchPairs'; target: { description?: string; hint?: string } }
-	| { action: 'clickPair'; target?: { description?: string; hint?: string }; pair?: string }
-	| { action: 'dragPair'; target?: { description?: string; hint?: string }; pair?: string }
-	| {
-			action: 'dragToCanvas';
-			target: { description?: string; hint?: string };
-			/** Canonical QTI point value(s) to place, e.g. ["105 132"]. */
-			value?: string | string[];
-	  }
-	| { action: 'playUntilEnded'; target: { description?: string; hint?: string }; times: number };
-
-type EvalExpected = {
-	responses?: Record<string, any>;
-	outcomes?: Record<string, any>;
-};
-
-type EvalCase = {
-	id: string;
-	sampleId: string;
-	intent?: string;
-	notes?: string[];
-	steps: EvalStep[];
-	expected?: EvalExpected;
-	spiritChecks?: string[];
-};
-
-type EvalFile = {
-	version: number;
-	component: { interactionType: string; tagName: string };
-	examplesApp: { app: string; routeTemplate: string };
-	evals: EvalCase[];
-};
-
-function listFilesRecursive(dir: string): string[] {
-	const out: string[] = [];
-	for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-		const full = path.join(dir, entry.name);
-		if (entry.isDirectory()) out.push(...listFilesRecursive(full));
-		else out.push(full);
-	}
-	return out;
-}
-
-function readEvalFiles(): Array<{ filePath: string; data: EvalFile }> {
-	// ESM-safe dirname
-	const __filename = fileURLToPath(import.meta.url);
-	const __dirname = path.dirname(__filename);
-	const repoRoot = path.resolve(__dirname, '../../../../');
-	const evalRoot = path.join(repoRoot, 'docs/evals/default-components');
-	const candidates = listFilesRecursive(evalRoot).filter((p) => p.endsWith('evals.yaml'));
-	return candidates.map((filePath) => {
-		const raw = fs.readFileSync(filePath, 'utf8');
-		const data = loadYaml(raw) as EvalFile;
-		return { filePath, data };
-	});
-}
+import {
+	getResponsesFromWebComponents,
+	readEvalFiles,
+	type EvalCase,
+	type EvalExpected,
+	type EvalFile,
+	type EvalStep,
+} from './eval-helpers';
 
 async function clickSubmit(page: Page, note?: string) {
 	const btn = page.getByRole('button', { name: /submit answer/i });
@@ -148,37 +85,6 @@ async function readOutcomeValue(page: Page, key: string): Promise<any> {
 	} catch {
 		return raw;
 	}
-}
-
-async function getResponsesFromWebComponents(page: Page): Promise<Record<string, any>> {
-	// ItemBody passes `interaction` and `response` props as JSON strings to each `pie-qti-*` custom element.
-	return await page.evaluate(() => {
-		const els = Array.from(document.querySelectorAll<HTMLElement>('pie-qti-choice, pie-qti-slider, pie-qti-order, pie-qti-match, pie-qti-associate, pie-qti-gap-match, pie-qti-hotspot, pie-qti-hottext, pie-qti-media, pie-qti-custom, pie-qti-end-attempt, pie-qti-position-object, pie-qti-graphic-gap-match, pie-qti-graphic-order, pie-qti-graphic-associate, pie-qti-select-point, pie-qti-extended-text'));
-		const out: Record<string, any> = {};
-		for (const el of els) {
-			// Depending on how Svelte sets props for custom elements, these may exist as properties (preferred)
-			// or as string attributes. Support both.
-			const interactionRaw = (el as any).interaction ?? el.getAttribute('interaction');
-			const responseRaw = (el as any).response ?? el.getAttribute('response');
-			if (!interactionRaw) continue;
-			let interaction: any;
-			try {
-				interaction = typeof interactionRaw === 'string' ? JSON.parse(interactionRaw) : interactionRaw;
-			} catch {
-				continue;
-			}
-			const responseId = interaction?.responseId;
-			if (!responseId) continue;
-			let response: any = null;
-			try {
-				response = typeof responseRaw === 'string' ? JSON.parse(responseRaw) : responseRaw;
-			} catch {
-				response = responseRaw;
-			}
-			out[responseId] = response;
-		}
-		return out;
-	});
 }
 
 function extractQuotedText(s?: string): string | null {
@@ -705,7 +611,7 @@ async function assertExpected(page: Page, expected: EvalExpected | undefined, su
 	}
 }
 
-const evalFiles = readEvalFiles();
+const evalFiles = readEvalFiles('default-components');
 
 test.describe('docs/evals/default-components (YAML-driven)', () => {
 	for (const { filePath, data } of evalFiles) {

@@ -7,6 +7,7 @@
 import { describe, expect, test } from 'bun:test';
 import type { PieItem } from '@pie-qti/transform-types';
 import { PieToQtiPlugin } from '../../src/plugin.js';
+import { expectSidecarIsolation } from '../helpers/sidecar.js';
 
 describe('QTI 2.2.2 Structure Verification', () => {
   const pieToQti = new PieToQtiPlugin();
@@ -68,16 +69,10 @@ describe('QTI 2.2.2 Structure Verification', () => {
 
     // Verify structure
     expect(qtiXml).toContain('assessmentItem');
-    // The source model, search metadata included, travels in the PIE source sidecar.
-    expect(qtiXml).not.toContain('pie:');
-    expect(qtiXml).not.toContain('qti-metadata');
-    expect(result.items[0].sidecar?.sourceModel.searchMetaData).toEqual(pieItem.searchMetaData);
+    expectSidecarIsolation(qtiXml, result, pieItem);
     expect(qtiXml).toContain('<div class="stimulus"');
     expect(qtiXml).toContain('choiceInteraction');
 
-    // The source model, search metadata included, travels in the PIE source sidecar.
-    expect(qtiXml).not.toContain('pie:');
-    expect(qtiXml).not.toContain('qti-metadata');
-    expect(result.items[0].sidecar?.sourceModel.searchMetaData).toEqual(pieItem.searchMetaData);
+    expectSidecarIsolation(qtiXml, result, pieItem);
   });
 });

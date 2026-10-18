@@ -1,65 +1,12 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { expect, type Page, test } from './fixtures';
-import { load as loadYaml } from 'js-yaml';
-
-// Reuse types from i18n runner
-type EvalStep =
-	| { action: 'navigate'; path: string }
-	| { action: 'observe'; target?: { description?: string; hint?: string } }
-	| { action: 'click'; target: { description?: string; hint?: string } }
-	| { action: 'setLocalStorage'; key: string; value: string }
-	| { action: 'pressKey'; key: string; target?: { description?: string; hint?: string } };
-
-type LocalStorageMatcher = {
-	equals?: string;
-	isPresent?: boolean;
-};
-
-type EvalExpected = {
-	localStorage?: Record<string, LocalStorageMatcher>;
-};
-
-type EvalCase = {
-	id: string;
-	sampleId: string;
-	intent?: string;
-	notes?: string[];
-	steps: EvalStep[];
-	expected?: EvalExpected;
-	spiritChecks?: string[];
-};
-
-type EvalFile = {
-	version: number;
-	component: { interactionType: string; tagName: string };
-	examplesApp: { app: string; routeTemplate: string };
-	evals: EvalCase[];
-};
-
-function listFilesRecursive(dir: string): string[] {
-	const out: string[] = [];
-	for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-		const full = path.join(dir, entry.name);
-		if (entry.isDirectory()) out.push(...listFilesRecursive(full));
-		else out.push(full);
-	}
-	return out;
-}
-
-function readEvalFiles(): Array<{ filePath: string; data: EvalFile }> {
-	const __filename = fileURLToPath(import.meta.url);
-	const __dirname = path.dirname(__filename);
-	const repoRoot = path.resolve(__dirname, '../../../../');
-	const evalRoot = path.join(repoRoot, 'docs/evals/settings-ui');
-	const candidates = listFilesRecursive(evalRoot).filter((p) => p.endsWith('evals.yaml'));
-	return candidates.map((filePath) => {
-		const raw = fs.readFileSync(filePath, 'utf8');
-		const data = loadYaml(raw) as EvalFile;
-		return { filePath, data };
-	});
-}
+import {
+	LOCALE_LABELS,
+	readEvalFiles,
+	type EvalCase,
+	type EvalExpected,
+	type EvalFile,
+	type EvalStep,
+} from './eval-helpers';
 
 async function runStep(page: Page, step: EvalStep): Promise<void> {
 	switch (step.action) {
@@ -172,7 +119,7 @@ async function assertExpected(page: Page, expected: EvalExpected | undefined) {
 	}
 }
 
-const evalFiles = readEvalFiles();
+const evalFiles = readEvalFiles('settings-ui');
 
 test.describe('docs/evals/settings-ui (YAML-driven)', () => {
 	for (const { filePath, data } of evalFiles) {
