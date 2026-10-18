@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { expect, type Page, test } from './fixtures';
 import {
 	LOCALE_LABELS,
