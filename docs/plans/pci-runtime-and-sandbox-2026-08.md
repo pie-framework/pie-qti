@@ -1,6 +1,6 @@
 # PCI Runtime Engine and Sandbox Plan
 
-**Status**: Landed — phases 1–3 on 2026-10-16, phase 4 (sandboxed realm) on 2026-10-16, all under the
+**Status**: Landed — phases 1–3 on 2026-10-17, phase 4 (sandboxed realm) on 2026-10-17, all under the
 [completeness goal](version-1-0-2026-10.md)
 **Last reviewed**: 2026-10-17
 **Scope**: `packages/item-player/src/pci/`,
@@ -229,7 +229,7 @@ direct DOM access to everything, not just the PCI.
 
 ### Option C — Per-PCI sandboxed iframe from a cookieless runner origin
 
-**Shipped (2026-10-16).** `PciConfiguration.sandbox.runnerUrl` opts an item's PCIs into this
+**Shipped (2026-10-17).** `PciConfiguration.sandbox.runnerUrl` opts an item's PCIs into this
 engine; `@pie-qti/pci-runner` is the deployable runner page, and
 `SandboxedPciSession` + the `pie-qti-pci-sandbox` protocol are the bridge. The runner origin
 itself (`https://qti.pie-framework.org`) is a deployment step that follows the next release.
@@ -299,21 +299,21 @@ trusted item content.
 
 1. **Spec contract adoption.** Registry global, `getInstance`, `onready` /
    `ondone`, QTI variable JSON responses, `getState()` restore. Third-party PCIs
-   run after this phase and not before it. **Done (2026-10-16)** — `registry.ts`
+   run after this phase and not before it. **Done (2026-10-17)** — `registry.ts`
    installs `qtiCustomInteractionContext`, `PciHost` instantiates through
    `getInstance`, responses cross the boundary as QTI variable JSON
    (`qtiVariableJson.ts`), restore re-seeds state, and `configuration.status` is
    derived from role and attempt state.
 2. **AMD loader and module resolution.** Loader seam, AMD default resolution,
    resolution-config parsing, fallback resolution, multi-module extraction.
-   **Done (2026-10-16)** — `amdLoader.ts` implements `define`/`require` with
+   **Done (2026-10-17)** — `amdLoader.ts` implements `define`/`require` with
    serialized evaluations, shims and `urlArgs`; `resolutionConfig.ts` parses the
    RequireJS-shaped config and probes the defined default locations;
    `ExtractedPci.modules` carries every authored `qti-interaction-module` entry,
    and the entry module is picked by the type-identifier tail.
 3. **Conformance evidence.** Clean-room PCI fixtures exercising registration,
    restore-by-state, `ondone`, and fallback resolution; browser-level evidence
-   in the private runner. **In-repo evidence done (2026-10-16)** — clean-room
+   in the private runner. **In-repo evidence done (2026-10-17)** — clean-room
    fixtures (`tests/conformance/pci/`) authored from the specification drive
    the full delivery path over real module files: registration, AMD dependency
    wiring, `getInstance` state seeding, QTI variable JSON, `onready`/`ondone`,
@@ -323,7 +323,7 @@ trusted item content.
    (actual vendor modules) remains the 1EdTech-scoping step.
 4. **Sandboxed engine (Option C).** Frame runner, bridged contract, cached
    response reads, base-URL asset resolution, mutual origin locking.
-   **Done (2026-10-16)** — `SandboxedPciSession` runs the module in
+   **Done (2026-10-17)** — `SandboxedPciSession` runs the module in
    `<iframe sandbox="allow-scripts">` behind `PciHost`'s shared response-ownership
    state machine (the engines differ only behind the `PciModuleSession` seam);
    `@pie-qti/pci-runner` builds the deployable runner page (`dist/pci-runner.html`
@@ -399,7 +399,7 @@ makes the existing host path usable by anyone who does meet a PCI.
 No conformance oracle. Official suite commit `b058156` ships no PCI packages, so
 phases 1 and 2 were implemented against specification prose with no official
 content to check against, and the first authoritative feedback arrives from
-1EdTech during a submission. The in-repo mitigation (2026-10-16) is the
+1EdTech during a submission. The in-repo mitigation (2026-10-17) is the
 clean-room conformance suite: fixtures authored from the specification exercise
 registration, restore-by-state, `ondone`, and fallback resolution over real
 module files. What in-repo evidence cannot close is the same-reading risk — the

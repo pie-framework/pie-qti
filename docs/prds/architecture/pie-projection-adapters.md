@@ -12,6 +12,12 @@
 **Packages:** `@pie-qti/to-pie`, `@pie-qti/pie-to-qti2`, `@pie-qti/transform-core`
 **Last reviewed:** 2026-06-23
 
+**Update 2026-10-18:** the outbound direction adjacent to this PRD (projecting PIE Elements into
+the PCI contract) was reconsidered after PCI phases 1–4 landed and re-closed; the decision record
+lives in docs/plans/pci-runtime-and-sandbox-2026-08.md ("Decisions Closed") and
+docs/plans/version-1-0-2026-10.md. This PRD stays a dormant draft pending the pie-players
+shared-contract PRDs it consumes.
+
 ---
 
 ## Summary

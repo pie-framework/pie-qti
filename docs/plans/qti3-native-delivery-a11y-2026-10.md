@@ -1,7 +1,7 @@
 # QTI 3 Native Delivery and Accessibility Plan
 
-**Status**: Planned
-**Last reviewed**: 2026-10-14
+**Status**: Done. Every slice merged by 2026-10-15; the slice table below is the record
+**Last reviewed**: 2026-10-18
 **Scope**: `packages/item-player/`, `packages/assessment-player/`, `packages/qti-processing/`,
 `packages/qti-common/`, `packages/section-player/`, `packages/default-components/`,
 `packages/web-component-loaders/`, `packages/player-elements/`, `packages/to-pie/`,

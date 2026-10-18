@@ -12,7 +12,7 @@ PIE Item/Assessment ←→ QTI Item/AssessmentTest
 
 ### Key Features
 
-- **Lossless Round-Trips**: Transform PIE → QTI → PIE with perfect preservation
+- **Lossless Round-Trips**: Transform PIE → QTI → PIE with perfect preservation when the PIE source sidecar (QTI → PIE) or the embedded QTI source and config (PIE → QTI) is unchanged; best-effort semantic transformation otherwise
 - **Item-Level Support**: Transform individual questions/interactions
 - **Assessment-Level Support**: Transform multi-item tests with scoring logic
 - **17+ Interaction Types**: Complete coverage of PIE elements
@@ -95,6 +95,8 @@ const reconstructed = pieResult.items[0].content;
 
 // `reconstructed` is identical to `pieItem`
 ```
+
+> **QTI 3.0 export:** `new PieToQtiPlugin({ targetVersion: '3.0' })` emits QTI 3.0 (`imsqti_v3p0`) instead of QTI 2.2. The default is `'2.2'`. (Landed feature G-25; see `packages/pie-to-qti2/src/plugin.ts`.)
 
 ### 2. Transform Assessment
 
@@ -561,7 +563,8 @@ bun test packages/to-pie/tests/integration/passage-roundtrip.test.ts
 
 ### Technical Guides
 
-- **[Vendor Customization](../packages/to-pie/docs/VENDOR_CUSTOMIZATION_GUIDE.md)** - Vendor extensions
+- **[Vendor Transform Plugin Guide](./VENDOR-TRANSFORM-PLUGIN-GUIDE.md)** - Vendor plugin extension surface
+- **[QTI Source Profiles](./SOURCE-PROFILES.md)** - Preferred extension model for real-world QTI imports
 
 ## Troubleshooting
 

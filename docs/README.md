@@ -17,7 +17,6 @@ Complete architecture guide for the QTI transformation framework. Documents:
 
 **Includes:** Architecture diagram (`images/qti-transform-engine.png`)
 **Status:** Active architecture documentation
-**Last Updated:** 2026-01-24
 
 ### [PIE-QTI-TRANSFORMATION-GUIDE.md](./PIE-QTI-TRANSFORMATION-GUIDE.md)
 
@@ -30,7 +29,6 @@ User-facing guide for bidirectional PIE ↔ QTI transformations. Covers:
 - Troubleshooting
 
 **Status:** Active user guide
-**Last Updated:** 2025-12-31
 
 ### [VENDOR-TRANSFORM-PLUGIN-GUIDE.md](./VENDOR-TRANSFORM-PLUGIN-GUIDE.md)
 
@@ -43,7 +41,6 @@ Developer guide for building vendor-specific transform plugins. Includes:
 - Testing strategies
 
 **Status:** Active developer guide
-**Last Updated:** 2025-12-31
 
 ### [SOURCE-PROFILES.md](./SOURCE-PROFILES.md)
 
@@ -55,7 +52,6 @@ Architecture and authoring guide for QTI source profiles. Covers:
 - Current built-in source profiles
 
 **Status:** Active developer guide
-**Last Updated:** 2026-05-15
 
 ### PRDs
 
@@ -69,6 +65,14 @@ Architecture and authoring guide for QTI source profiles. Covers:
 - `QTI-RESPONSE-TRACKING-AND-SCORING.md` (scoring/response tracking)
 - `QTI-3-MIGRATION-GUIDE.md` (QTI 3.0 support and unified architecture)
 - `ARCHITECTURE.md` (overall system architecture)
+- `CONFIGURATION.md` (transform config files, environment variables, plugin loading)
+- `SPEC-GAPS-PLAN.md` (authoritative spec-gap tracker / 1.0 completeness gate)
+
+Subdirectories:
+
+- `plans/` (1.0 plan and landed-work records)
+- `certification/` (public coverage matrix and gate)
+- `evals/` (browser interaction eval cases)
 
 ## Quick Links
 
@@ -93,7 +97,7 @@ The canonical QTI source is 1EdTech. Do not assume a local `docs/specs/` tree ex
 1. Start with ARCHITECTURE.md for overall design
 2. Review code in `packages/` for implementation details
 3. Check `packages/to-pie/src/` for QTI → PIE transformation logic
-4. Check `packages/item-player/src/core/Plugin.ts` if adding custom runtime interactions
+4. Check `packages/item-player/docs/custom-extractors.md` if adding custom extractors
 
 ## Document Maintenance
 

@@ -10,7 +10,7 @@ Comprehensive guide to the PIE-QTI transformation framework architecture, plugin
 4. [Transform Engine](#transform-engine)
 5. [Extensibility Points](#extensibility-points)
 6. [Building Custom Plugins](#building-custom-plugins)
-7. [Reference Harness Integration](#reference-harness-integration)
+7. [Host Integration](#host-integration)
 8. [CLI Integration](#cli-integration)
 9. [Best Practices](#best-practices)
 
@@ -112,10 +112,12 @@ For the dedicated QTI → PIE extension surface introduced for real-world third-
 **Key Methods:**
 ```typescript
 class TransformEngine {
-  use(plugin: TransformPlugin): void;
-  transform(input: TransformInput, context?: TransformContext): Promise<TransformOutput>;
+  use(plugin: TransformPlugin): this;
+  transform(input: string | object, options: TransformOptions): Promise<WorkflowHandle<TransformItemOutput>>;
 }
 ```
+
+> **Note on result shapes:** the engine-level result (`await handle.result()`) exposes the single-item output `{ pieConfig, warnings, errors, metadata }`. The plugin-level `TransformOutput` interface (implemented by plugins and described below) exposes `{ items, format, metadata, ... }`.
 
 #### Plugin Registry
 
@@ -227,23 +229,23 @@ When both plugins are registered:
 
 #### CLI Registration
 
-In `tools/cli/src/index.ts`:
+The shipped CLI (`tools/cli/src/commands/transform.ts`) creates a `TransformEngine`, registers `QtiToPiePlugin`, and supports the `qti22:pie` format pair out of the box. Vendor plugins register the same way. The snippet below is illustrative:
 
 ```typescript
 import { TransformEngine } from '@pie-qti/transform-core';
 import { QtiToPiePlugin } from '@pie-qti/to-pie';
-import { PieToQtiPlugin } from '@pie-qti/pie-to-qti2';
 import { vendorAcmePlugin } from '@vendor/acme-plugin';
 
 const engine = new TransformEngine();
 
-// Register default plugins
+// Register default plugin
 engine.use(new QtiToPiePlugin());
-engine.use(new PieToQtiPlugin());
 
 // Register vendor plugins (higher priority)
 engine.use(vendorAcmePlugin);
 ```
+
+The CLI ships four real commands: `transform`, `batch-transform`, `analyze-qti`, and `discover-qti`.
 
 #### Host Application Registration
 
@@ -488,14 +490,18 @@ Source profiles target the specific extension surface that real-world QTI import
 import { transformQtiPackageToPie } from '@pie-qti/to-pie';
 import { defaultSourceProfiles } from '@pie-qti/source-profiles';
 
-const result = await transformQtiPackageToPie(input, {
+const result = await transformQtiPackageToPie({
+  packageId,
+  manifestXml,
+  fileAccess,
   sourceProfiles: [...defaultSourceProfiles, myCustomProfile],
 });
 
-result.metadata.sourceProfiles;        // matched profiles (package-level)
-result.metadata.sourceDiagnostics;     // structured diagnostics (info/warn/error)
-result.metadata.conversionTrace;       // ordered trace events
+result.sourceProfiles;                 // matched profiles (package-level)
+result.sourceDiagnostics;              // structured diagnostics (info/warn/error)
+result.standardCandidates;             // raw standards evidence from package and item extraction
 result.sidecars;                       // source XML, catalogs, rubrics, assets, ...
+result.conversionTrace.events;         // ordered trace events
 ```
 
 See [SOURCE-PROFILES.md](SOURCE-PROFILES.md) for the full authoring reference (detection, item handlers, decorators, fallback policy, sidecars, conversion trace) and the architecture diagram. The five vendor hooks above remain available for whole-pipeline replacement, asset URL rewriting, CSS-class interception, and vendor-keyed metadata extraction.
@@ -570,12 +576,14 @@ export class VendorCustomPlugin implements TransformPlugin {
 3. **Register Plugin**
 
 ```typescript
-import { createEngine } from '@pie-qti/transform-core';
+import { TransformEngine } from '@pie-qti/transform-core';
 import { VendorCustomPlugin } from './vendor-custom-plugin';
 
-const engine = createEngine();
+const engine = new TransformEngine();
 engine.use(new VendorCustomPlugin());
 ```
+
+> `createEngine()` is not exported from `@pie-qti/transform-core` — construct the engine directly with `new TransformEngine()`. For tests, `createTestEngine()` from `@pie-qti/test-utils` provides a preconfigured engine.
 
 ### Testing Plugins
 
@@ -665,7 +673,7 @@ The command-line interface ([tools/cli](../tools/cli/)) provides batch transform
 ### CLI Architecture
 
 ```bash
-pie-qti transform input.xml --format qti22:pie --output output.json
+bun run pie-qti -- transform input.xml --format qti22:pie --output output.json
 ```
 
 The CLI:
@@ -678,14 +686,15 @@ The CLI:
 
 ### Plugin Loading
 
+The shipped `transform` command registers `QtiToPiePlugin`; the snippet below is illustrative:
+
 ```typescript
 // tools/cli/src/commands/transform.ts
 export async function transformCommand(args: TransformArgs) {
   const engine = new TransformEngine();
 
-  // Load core plugins
+  // Load core plugin
   engine.use(new QtiToPiePlugin());
-  engine.use(new PieToQtiPlugin());
 
   // Load vendor plugins if configured
   const vendorPlugins = await loadVendorPlugins();
@@ -704,21 +713,14 @@ export async function transformCommand(args: TransformArgs) {
 
 ### Configuration File
 
+Config files register plugins per format pair and configure storage, custom detectors, and vendor extensions. See [CONFIGURATION.md](./CONFIGURATION.md) for the config file schema and environment variables. A minimal example:
+
 ```json
 {
-  "plugins": [
-    {
-      "name": "@vendor/acme-plugin",
-      "priority": 500,
-      "config": {
-        "cdnBaseUrl": "https://cdn.acme.com",
-        "apiKey": "${ACME_API_KEY}"
-      }
+  "plugins": {
+    "qti22": {
+      "pie": { "module": "@pie-qti/to-pie" }
     }
-  ],
-  "storage": {
-    "type": "filesystem",
-    "path": "./output"
   }
 }
 ```
@@ -858,7 +860,7 @@ export async function transformCommand(args: TransformArgs) {
 For questions or issues:
 
 1. Review this documentation and related guides
-2. Check examples in `packages/` and `examples/`
+2. Check examples in `packages/`
 3. Open an issue on GitHub with:
    - Plugin code or configuration
    - Input content (QTI or PIE)
