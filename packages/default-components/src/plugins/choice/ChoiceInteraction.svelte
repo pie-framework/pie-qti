@@ -9,6 +9,8 @@
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
+	import { interactionAria } from '../../shared/utils/interactionAria';
+	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 
 	interface Props {
 		interaction?: ChoiceInteractionData | string;
@@ -23,6 +25,10 @@
 		heuristicsConfig?: QtiHeuristicsConfig;
 		/** When true, renders an elimination toggle button per choice (QTI 3.0 PNP §6.2). */
 		eliminationTool?: boolean;
+		/** AfA `answer-masking`: each choice stays masked behind a reveal button until the candidate reveals it. */
+		answerMasking?: boolean;
+		/** PNP structured labels: the answer set is announced as one group named by the prompt (G-13). */
+		structuredLabelSupport?: boolean;
 	}
 
 	let {
@@ -36,7 +42,9 @@
 		onChange,
 		outcomeValues = {},
 		heuristicsConfig,
-		eliminationTool = false
+		eliminationTool = false,
+		answerMasking = false,
+		structuredLabelSupport = false
 	}: Props = $props();
 
 	// Normalize heuristics configuration with defaults
@@ -106,6 +114,17 @@
 		return action;
 	}
 
+	// Answer masking state: choices the candidate has revealed. A masked choice cannot be selected.
+	let revealedChoices = $state(new Set<string>());
+
+	function isMasked(identifier: string): boolean {
+		return answerMasking && !revealedChoices.has(identifier);
+	}
+
+	function revealChoice(identifier: string) {
+		revealedChoices = new Set(revealedChoices).add(identifier);
+	}
+
 	function handleRadioChange(identifier: string) {
 		response = identifier;
 		emitInteractionChange({ target: rootElement, responseId: shell.responseId, value: identifier, onChange });
@@ -133,6 +152,19 @@
 		return `qti-choice-text-${token}`;
 	}
 
+	// G-13 structured labels: the answer set becomes one ARIA group named by the prompt,
+	// so a screen reader announces the question once and each choice within it.
+	const promptId = $derived(
+		parsedInteraction ? `qti-choice-prompt-${parsedInteraction.responseId.replace(/[^A-Za-z0-9_-]/g, '-')}` : undefined
+	);
+	const structuredAria = $derived.by(() => {
+		if (!structuredLabelSupport || !parsedInteraction) return {};
+		if (parsedInteraction.prompt) return { role: 'group', 'aria-labelledby': promptId ?? '' };
+		// An authored accessible name beats the generic group label.
+		if (parsedInteraction.accessibility?.label) return { role: 'group' };
+		return { role: 'group', 'aria-label': t('interactions.choice.groupLabel', 'Answer choices') };
+	});
+
 	// Selection limit message: show max message when at/over limit; min message is for submit time
 	const selectionCount = $derived(Array.isArray(parsedResponse) ? parsedResponse.length : (parsedResponse ? 1 : 0));
 	const maxChoices = $derived(parsedInteraction?.maxChoices ?? 0);
@@ -143,22 +175,36 @@
 
 <ShadowBaseStyles />
 
-<div bind:this={rootElement} part="root" class={['qti-choice-interaction space-y-2', ...(parsedInteraction?.interactionClasses ?? [])].join(' ')} use:typesetAction={{ typeset }}>
+{#snippet maskedChoice(identifier: string, index: number)}
+	<button
+		type="button"
+		part="reveal"
+		class="qti-reveal-btn"
+		onclick={() => revealChoice(identifier)}
+	>{i18n?.t('interactions.choice.revealChoice', { index: index + 1 }) ?? `Reveal choice ${index + 1}`}</button>
+{/snippet}
+
+<div bind:this={rootElement} {...interactionAria(parsedInteraction)} {...structuredAria} part="root" class={['qti-choice-interaction space-y-2', ...(parsedInteraction?.interactionClasses ?? [])].join(' ')} use:typesetAction={{ typeset }}>
+	<InteractionDescription interaction={parsedInteraction} />
 	{#if parsedInteraction?.prompt}
-		<div part="prompt" class="qti-choice-prompt qti-rich-content font-semibold">{@html parsedInteraction.prompt}</div>
+		<div id={promptId} part="prompt" class="qti-choice-prompt qti-rich-content font-semibold">{@html parsedInteraction.prompt}</div>
 	{/if}
 
 	{#if !parsedInteraction}
 		<div class="alert alert-error">{i18n?.t('common.errorNoData') ?? 'No interaction data provided'}</div>
 	{:else if parsedInteraction.maxChoices === 1}
 		<!-- Single choice (radio buttons) -->
-		{#each parsedInteraction.choices as choice}
+		{#each parsedInteraction.choices as choice, index}
 			{@const textId = choiceTextId(parsedInteraction.responseId, choice.identifier)}
 			<div
 				part="option"
 				class="qti-choice-option form-control"
 				data-eliminated={eliminatedChoices.has(choice.identifier) ? '' : undefined}
+				data-masked={isMasked(choice.identifier) ? '' : undefined}
 			>
+				{#if isMasked(choice.identifier)}
+					{@render maskedChoice(choice.identifier, index)}
+				{:else}
 				<label
 					part="label"
 					class="qti-choice-label label cursor-pointer justify-start gap-4"
@@ -183,6 +229,7 @@
 						<span class="badge badge-success badge-sm">{t('interactions.choice.correct', 'Correct')}</span>
 					{/if}
 				</label>
+				{/if}
 				{#if eliminationTool}
 					<button
 						type="button"
@@ -197,13 +244,17 @@
 	{:else}
 		<!-- Multiple choice (checkboxes) -->
 		{@const currentValues = Array.isArray(parsedResponse) ? parsedResponse : []}
-		{#each parsedInteraction.choices as choice}
+		{#each parsedInteraction.choices as choice, index}
 			{@const textId = choiceTextId(parsedInteraction.responseId, choice.identifier)}
 			<div
 				part="option"
 				class="qti-choice-option form-control"
 				data-eliminated={eliminatedChoices.has(choice.identifier) ? '' : undefined}
+				data-masked={isMasked(choice.identifier) ? '' : undefined}
 			>
+				{#if isMasked(choice.identifier)}
+					{@render maskedChoice(choice.identifier, index)}
+				{:else}
 				<label
 					part="label"
 					class="qti-choice-label label cursor-pointer justify-start gap-4"
@@ -230,6 +281,7 @@
 						<span class="badge badge-success badge-sm">{t('interactions.choice.correct', 'Correct')}</span>
 					{/if}
 				</label>
+				{/if}
 				{#if eliminationTool}
 					<button
 						type="button"
@@ -342,6 +394,25 @@
 		color: var(--pie-qti-error, oklch(63% 0.237 25.331));
 	}
 
+	/* Answer masking */
+	.qti-reveal-btn {
+		width: 100%;
+		min-height: 2.5rem;
+		text-align: start;
+		padding: 0.5rem 0.75rem;
+		border: 1px dashed currentColor;
+		border-radius: 0.5rem;
+		background: var(--pie-qti-base-200, transparent);
+		color: inherit;
+		font: inherit;
+		cursor: pointer;
+	}
+
+	.qti-reveal-btn:focus-visible {
+		outline: 2px solid var(--pie-qti-focus, currentColor);
+		outline-offset: 2px;
+	}
+
 	/* ── QTI Shared Vocabulary behavioral classes ─────────────────────────── */
 
 	/* qti-input-control-hidden: hide radio/checkbox controls but keep keyboard-accessible */
@@ -368,6 +439,48 @@
 	.qti-choice-interaction.qti-choices-stacking-3 { grid-template-columns: repeat(3, 1fr); }
 	.qti-choice-interaction.qti-choices-stacking-4 { grid-template-columns: repeat(4, 1fr); }
 	.qti-choice-interaction.qti-choices-stacking-5 { grid-template-columns: repeat(5, 1fr); }
+
+	/* qti-orientation-vertical: the default single column, stated explicitly */
+	.qti-choice-interaction.qti-orientation-vertical {
+		grid-auto-flow: row;
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	/* qti-labels-*: generated choice labels, part of each choice's accessible name */
+	.qti-choice-interaction {
+		counter-reset: qti-choice;
+		--qti-label-suffix: '.';
+	}
+	.qti-choice-option {
+		counter-increment: qti-choice;
+	}
+	.qti-choice-interaction.qti-labels-suffix-none { --qti-label-suffix: ''; }
+	.qti-choice-interaction.qti-labels-suffix-period { --qti-label-suffix: '.'; }
+	.qti-choice-interaction.qti-labels-suffix-parenthesis { --qti-label-suffix: ')'; }
+	.qti-choice-interaction:is(.qti-labels-decimal, .qti-labels-lower-alpha, .qti-labels-upper-alpha, .qti-labels-cjk-ideographic) .qti-choice-text::before {
+		float: inline-start;
+		margin-inline-end: 0.5em;
+		font-weight: 600;
+	}
+	.qti-choice-interaction.qti-labels-decimal .qti-choice-text::before {
+		content: counter(qti-choice, decimal) var(--qti-label-suffix);
+	}
+	.qti-choice-interaction.qti-labels-lower-alpha .qti-choice-text::before {
+		content: counter(qti-choice, lower-alpha) var(--qti-label-suffix);
+	}
+	.qti-choice-interaction.qti-labels-upper-alpha .qti-choice-text::before {
+		content: counter(qti-choice, upper-alpha) var(--qti-label-suffix);
+	}
+	.qti-choice-interaction.qti-labels-cjk-ideographic .qti-choice-text::before {
+		content: counter(qti-choice, cjk-ideographic) var(--qti-label-suffix);
+	}
+
+	/* qti-writing-orientation-vertical-*: vertical CJK and Mongolian layout, labels upright */
+	.qti-choice-interaction.qti-writing-orientation-vertical-rl { writing-mode: vertical-rl; }
+	.qti-choice-interaction.qti-writing-orientation-vertical-lr { writing-mode: vertical-lr; }
+	.qti-choice-interaction:is(.qti-writing-orientation-vertical-rl, .qti-writing-orientation-vertical-lr) .qti-choice-text::before {
+		text-orientation: upright;
+	}
 
 	/* Selection limit messages */
 	.qti-selection-message {

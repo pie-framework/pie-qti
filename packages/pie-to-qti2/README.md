@@ -356,4 +356,4 @@ bun run typecheck
 
 ## License
 
-ISC
+MIT

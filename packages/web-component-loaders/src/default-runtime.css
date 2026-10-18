@@ -3,8 +3,10 @@
  *
  * Import this once in host applications that use loadPieQtiPlayerElements().
  * It wires host DaisyUI theme tokens into QTI components and enables QTI 3
- * shared vocabulary classes in authored item content.
+ * shared vocabulary classes in authored item content and the candidate's PNP display
+ * needs.
  */
 
 @import './theme-bridge.css';
 @import './qti-shared-vocabulary.css';
+@import './qti-pnp.css';

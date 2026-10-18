@@ -26,6 +26,7 @@ export {
 	type ItemSessionCommand,
 	type ItemSessionEventCommand,
 	type ItemSessionListener,
+	type ItemSessionPresentationPolicy,
 	type ItemSessionTransition,
 	type ItemSessionView,
 	type OpenItemSessionOptions,
@@ -87,7 +88,7 @@ export {
 export { isResponseEmpty } from './utils/responseUtils.js';
 
 // PNP profile (AfA PNP 3.0, QTI 3's per-candidate profile)
-export type { PnpProfile } from './pnp/types.js';
+export type { PnpProfile, PnpTextAppearance, PnpToolSupports } from './pnp/types.js';
 export { applyPnpToRoot } from './pnp/applyPnp.js';
 export type { AfaPnpRecord } from './pnp/parsePnpXml.js';
 export { AFA_PNP_NAMESPACE, parseAfaPnpXml, parsePnpXml, pnpProfileFromAfa } from './pnp/parsePnpXml.js';
@@ -101,14 +102,20 @@ export type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
 // PCI — Portable Custom Interaction (QTI 3.0 §6.1)
 export type {
 	ExtractedPci,
-	PciBoundTo,
 	PciConfiguration,
+	PciCustomInteractionContext,
 	PciHostController,
 	PciHostOptions,
-	PciModule,
+	PciInteractionStatus,
+	PciModuleEntry,
 	PciModulePathKind,
 	PciModuleResolutionContext,
 	PciModuleResolver,
+	PciRegistryObservation,
+	PciResponseDeclarationInfo,
+	QtiCustomInteractionRegistration,
+	QtiPciConfiguration,
+	QtiPciInstance,
 } from './pci/types.js';
 export { PciLoadError, PciModuleResolverRequiredError } from './pci/types.js';
 export { PciHost } from './pci/PciHost.js';
@@ -117,6 +124,16 @@ export {
 	PciModuleNotAllowedError,
 } from './pci/allowlistResolver.js';
 export type { AllowlistPciResolverOptions } from './pci/allowlistResolver.js';
+export { installPciRegistry, getSharedPciRegistry, PCI_REGISTRY_GLOBAL } from './pci/registry.js';
+export { createAmdLoader } from './pci/amdLoader.js';
+export type { AmdLoader, AmdLoaderOptions } from './pci/amdLoader.js';
+export {
+	DEFAULT_RESOLUTION_CONFIG_PATHS,
+	emptyResolutionConfig,
+	parseModuleResolutionConfig,
+} from './pci/resolutionConfig.js';
+export type { PciResolutionConfig, PciResolutionShim } from './pci/resolutionConfig.js';
+export { toQtiVariableJson, fromQtiVariableJson } from './pci/qtiVariableJson.js';
 
 // Re-export QTI heuristics from @pie-qti/ims-cp-core for convenience
 // (heuristics are now in the shared ingestion layer)

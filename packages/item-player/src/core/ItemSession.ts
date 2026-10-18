@@ -28,6 +28,25 @@ export interface OpenItemSessionOptions {
 	responses?: Readonly<Record<string, unknown>>;
 	/** Resume a suspended handoff as an active interaction session. */
 	activate?: boolean;
+	/**
+	 * Values for the item's context variables, e.g. `QTI_CONTEXT`, set before template processing.
+	 * A restored session keeps its saved context values.
+	 */
+	contextVariables?: Readonly<Record<string, unknown>>;
+	/**
+	 * Default values for template variables, set before template processing, as an
+	 * assessmentItemRef's `templateDefault` requires. A restored session keeps its saved values.
+	 */
+	templateDefaults?: Readonly<Record<string, unknown>>;
+	/** Test-level item session control applied by `present()`. */
+	presentation?: ItemSessionPresentationPolicy;
+}
+
+export interface ItemSessionPresentationPolicy {
+	/** False hides integrated feedback (`showFeedback="false"`). Defaults to true. */
+	showFeedback?: boolean;
+	/** True shows correct responses once the attempt has ended (`showSolution="true"`). */
+	showSolution?: boolean;
 }
 
 export type ItemSessionCommand =
@@ -67,7 +86,7 @@ export type ItemSessionListener = (transition: ItemSessionTransition) => void;
 
 export type ItemPresentationView = Omit<
 	CreateItemPresentationOptions,
-	'outcomeValues' | 'responses' | 'role' | 'source'
+	'outcomeValues' | 'responses' | 'role' | 'source' | 'showFeedback' | 'showSolution'
 >;
 
 export interface ItemSession {
@@ -130,6 +149,7 @@ export class LiveItemSession implements ItemSession {
 	private readonly player: Player;
 	private readonly listeners = new Set<ItemSessionListener>();
 	private readonly defaultRole: QTIRole;
+	private readonly presentation: ItemSessionPresentationPolicy;
 	private revision = 0;
 	private disposed = false;
 	private currentView: ItemSessionView;
@@ -143,7 +163,12 @@ export class LiveItemSession implements ItemSession {
 		prepared?: unknown,
 	) {
 		this.defaultRole = config.role ?? 'candidate';
-		const playerConfig = { ...config };
+		this.presentation = { ...options.presentation };
+		const playerConfig = {
+			...config,
+			...(options.contextVariables ? { contextVariables: options.contextVariables } : {}),
+			...(options.templateDefaults ? { templateDefaults: options.templateDefaults } : {}),
+		};
 		this.player = prepared
 			? createPlayerFromPreparedInternal(playerConfig, prepared, Boolean(options.restore))
 			: new Player(playerConfig);
@@ -214,12 +239,16 @@ export class LiveItemSession implements ItemSession {
 
 	present(view: ItemPresentationView = {}): ItemPresentation {
 		this.assertActive();
+		const lifecycle = this.currentView.lifecycleStatus;
+		const attemptEnded = !isResponseWritableLifecycle(lifecycle) && lifecycle !== 'suspended';
 		return createItemPresentation({
 			...view,
-			disabled:
-				view.disabled === true || !isResponseWritableLifecycle(this.currentView.lifecycleStatus),
+			disabled: view.disabled === true || !isResponseWritableLifecycle(lifecycle),
+			showFeedback: this.presentation.showFeedback !== false,
+			showSolution: this.presentation.showSolution === true && attemptEnded,
 			source: {
 				itemBodyHtml: this.player.getItemBodyHtml(),
+				contentLanguage: this.player.getContentLanguage(),
 				interactions: this.player.getInteractionData(),
 				correctResponses: this.player.getCorrectResponses(),
 				componentRegistry: this.player.getComponentRegistry(),

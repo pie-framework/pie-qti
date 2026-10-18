@@ -1,12 +1,5 @@
 <script lang="ts">
-	import {
-		assessmentToolkitRegionScopeContext,
-		assessmentToolkitShellContext,
-		ToolkitCoordinator,
-		ToolRegistry,
-		type AssessmentToolkitRegionScopeContext,
-		type AssessmentToolkitShellContext,
-	} from '@pie-players/pie-assessment-toolkit';
+	import { ToolkitCoordinator, ToolRegistry } from '@pie-players/pie-assessment-toolkit';
 	// pie-assessment-toolkit 0.3.65 moved the concrete tool registrations out of the
 	// toolkit core, so a host composes the capabilities it wants. The two
 	// registrations are imported individually rather than through
@@ -16,8 +9,8 @@
 		calculatorToolRegistration,
 		ttsToolRegistration,
 	} from '@pie-players/pie-default-tool-loaders';
-	import { ContextProvider, ContextRoot } from '@pie-players/pie-context';
 	import type { QtiSectionToolConfig } from '../contracts/index.js';
+	import type { SpokenCatalog } from '../tts/spoken-catalogs.js';
 	import { resolveSectionTtsProviderConfig } from '../tools/section-tool-config.js';
 
 	interface Props {
@@ -26,29 +19,25 @@
 		scopeLabel: string;
 		sourceText?: string;
 		sourceXml?: string;
+		/** The spoken cards the scope's SSML makes, resolved through its `data-catalog-idref`s. */
+		accessibilityCatalogs?: SpokenCatalog[];
+		/** The scope's content language, from its `xml:lang`; sets the tools' language and TTS voice. */
+		language?: string;
 		scopeElement?: HTMLElement | null;
 	}
 
-	type TtsHighlightContext = {
-		scopeElement?: HTMLElement | null;
-	};
-
-	type TtsHighlightTargetResolver = {
-		resolveWordRange?: (range: Range, context: TtsHighlightContext) => Range | null | undefined;
-		resolveSentenceRanges?: (ranges: Range[], context: TtsHighlightContext) => Array<Range | HTMLElement> | null | undefined;
-	};
-
-	type QtiRegionScopeContext = AssessmentToolkitRegionScopeContext & {
-		ttsHighlightTargetResolver?: TtsHighlightTargetResolver | null;
-	};
-
-	const { tools = [], scopeId, scopeLabel, sourceText = '', sourceXml = '', scopeElement = null }: Props = $props();
+	const {
+		tools = [],
+		scopeId,
+		scopeLabel,
+		sourceText = '',
+		sourceXml = '',
+		accessibilityCatalogs = [],
+		language,
+		scopeElement = null,
+	}: Props = $props();
 
 	let shellHost = $state<HTMLElement | null>(null);
-	let shellProvider: ContextProvider<typeof assessmentToolkitShellContext> | null = null;
-	let shellContextRoot: ContextRoot | null = null;
-	let regionScopeProvider: ContextProvider<typeof assessmentToolkitRegionScopeContext> | null = null;
-	let regionScopeRoot: ContextRoot | null = null;
 	let toolkitElement = $state<HTMLElement | null>(null);
 	let toolkitCoordinator = $state<ToolkitCoordinator | null>(null);
 	let toolkitElementsReady = $state(false);
@@ -75,7 +64,7 @@
 		registry.register(calculatorToolRegistration);
 		registry.setComponentOverrides({
 			toolTagMap: {
-				textToSpeech: 'pie-tool-text-to-speech',
+				textToSpeech: 'pie-tool-tts-inline',
 				calculator: 'pie-tool-calculator',
 			},
 		});
@@ -86,7 +75,11 @@
 		return registry;
 	})();
 	const ttsProvider = $derived(visibleTools.find((tool) => tool.toolId === 'textToSpeech')?.provider ?? {});
-	const calculatorParams = $derived(calculatorTool?.renderParams ?? {});
+	const calculatorType = $derived(calculatorTool?.renderParams?.calculatorType);
+	// The calculator opens the type its item's `toolParameters` name.
+	const scopeSettings = $derived(
+		typeof calculatorType === 'string' ? { toolParameters: { calculator: { type: calculatorType } } } : null,
+	);
 	const toolsConfig = $derived({
 		pnpEnforcement: 'off',
 		policy: {
@@ -99,7 +92,7 @@
 			passage: level === 'passage' ? visibleTools.map((tool) => String(tool.toolId)) : [],
 		},
 		providers: {
-			textToSpeech: resolveSectionTtsProviderConfig(ttsProvider),
+			textToSpeech: resolveSectionTtsProviderConfig(ttsProvider, language),
 			calculator: {
 				provider: {
 					id: 'calculator-desmos',
@@ -109,6 +102,7 @@
 	});
 	const toolEntity = $derived({
 		id: scopeId,
+		accessibilityCatalogs,
 		config: {
 			markup: sourceMarkup,
 			content: sourceMarkup,
@@ -120,47 +114,17 @@
 					id: scopeId,
 					prompt: sourceMarkup,
 					markup: sourceMarkup,
-					...calculatorParams,
 				},
 			],
 		},
 	});
 	const effectiveScopeElement = $derived(scopeElement || shellHost);
-	const readableTrackingSelector =
-		'p,h1,h2,h3,h4,h5,h6,li,label,td,th,blockquote,figcaption,[role="heading"],[role="listitem"],[role="radio"],.qti-choice-prompt,.qti-choice-text';
-	const shellContextValue = $derived.by((): AssessmentToolkitShellContext | null => {
-		if (!effectiveScopeElement) return null;
-		return {
-			kind: level === 'passage' ? 'passage' : 'item',
-			itemId: scopeId,
-			canonicalItemId: scopeId,
-			contentKind,
-			regionPolicy: 'default',
-			scopeElement: effectiveScopeElement,
-			item: toolEntity,
-			contextVersion: Date.now(),
-		};
-	});
-	const ttsHighlightTargetResolver: TtsHighlightTargetResolver = {
-		resolveWordRange: (range, context) => {
-			const scope = context.scopeElement ?? effectiveScopeElement;
-			if (!scope) return range;
-			return resolveVisibleTrackingRange(range, scope);
-		},
-		resolveSentenceRanges: (ranges, context) => {
-			const scope = context.scopeElement ?? effectiveScopeElement;
-			if (!scope) return ranges;
-			const targets = ranges
-				.map((range) => resolveVisibleTrackingBlock(range, scope))
-				.filter((target): target is HTMLElement => target instanceof HTMLElement);
-			return targets.length > 0 ? targets : ranges;
-		},
-	};
 
 	$effect(() => {
 		if (visibleTools.length === 0 || toolkitElementsReady) return;
 		let cancelled = false;
 		void Promise.all([
+			import('@pie-players/pie-assessment-toolkit/components/item-scope-element'),
 			import('@pie-players/pie-assessment-toolkit/components/item-toolbar-element'),
 			import('@pie-players/pie-assessment-toolkit/components/pie-assessment-toolkit-element'),
 		])
@@ -174,129 +138,6 @@
 			cancelled = true;
 		};
 	});
-	const regionScopeValue = $derived.by((): QtiRegionScopeContext | null => {
-		if (!effectiveScopeElement) return null;
-		return {
-			scopeElement: effectiveScopeElement,
-			ttsHighlightTargetResolver,
-		};
-	});
-
-	type TextPosition = { node: Text; offset: number };
-
-	function normalizeTrackingText(value: string) {
-		return value.replace(/\s+/g, ' ').trim();
-	}
-
-	function isVisibleTrackingElement(element: Element) {
-		const rect = element.getBoundingClientRect();
-		const style = window.getComputedStyle(element);
-		return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden' && rect.x >= 0 && rect.y >= 0;
-	}
-
-	function isProjectionElement(element: Element | null) {
-		return !!element?.closest('[data-qti-tts-readable-projection]');
-	}
-
-	function nearestReadableBlock(node: Node | null, scope: HTMLElement): HTMLElement | null {
-		const start = node?.nodeType === Node.ELEMENT_NODE ? (node as Element) : node?.parentElement;
-		const block = start?.closest?.(readableTrackingSelector);
-		return block instanceof HTMLElement && scope.contains(block) ? block : scope;
-	}
-
-	function findVisibleTrackingBlock(sourceBlock: HTMLElement, scope: HTMLElement) {
-		const sourceText = normalizeTrackingText(sourceBlock.textContent ?? '');
-		if (!sourceText) return null;
-		const candidates = queryElementsIncludingOpenShadowRoots(scope, readableTrackingSelector).filter(
-			(candidate): candidate is HTMLElement =>
-				candidate instanceof HTMLElement &&
-				!isProjectionElement(candidate) &&
-				isVisibleTrackingElement(candidate) &&
-				normalizeTrackingText(candidate.textContent ?? '') === sourceText,
-		);
-		return candidates
-			.sort((left, right) => {
-				const leftRect = left.getBoundingClientRect();
-				const rightRect = right.getBoundingClientRect();
-				return leftRect.width * leftRect.height - rightRect.width * rightRect.height;
-			})[0] ?? null;
-	}
-
-	function resolveVisibleTrackingBlock(range: Range, scope: HTMLElement) {
-		const sourceBlock = nearestReadableBlock(range.startContainer, scope);
-		if (!sourceBlock) return null;
-		if (!isProjectionElement(sourceBlock)) return sourceBlock;
-		return findVisibleTrackingBlock(sourceBlock, scope);
-	}
-
-	function collectNormalizedTextMap(root: Element) {
-		const text: string[] = [];
-		const positions: TextPosition[] = [];
-		let lastWasWhitespace = true;
-		const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-		let node = walker.nextNode();
-
-		while (node) {
-			const textNode = node as Text;
-			const raw = textNode.textContent ?? '';
-			for (let offset = 0; offset < raw.length; offset += 1) {
-				const char = raw[offset];
-				if (/\s/.test(char)) {
-					if (!lastWasWhitespace) {
-						text.push(' ');
-						positions.push({ node: textNode, offset });
-						lastWasWhitespace = true;
-					}
-					continue;
-				}
-				text.push(char);
-				positions.push({ node: textNode, offset });
-				lastWasWhitespace = false;
-			}
-			node = walker.nextNode();
-		}
-
-		while (text[text.length - 1] === ' ') {
-			text.pop();
-			positions.pop();
-		}
-
-		return { text: text.join(''), positions };
-	}
-
-	function findNormalizedPosition(positions: TextPosition[], node: Node, offset: number) {
-		return positions.findIndex((position) => position.node === node && position.offset === offset);
-	}
-
-	function createRangeFromNormalizedSpan(map: { positions: TextPosition[] }, startIndex: number, endIndex: number) {
-		const start = map.positions[startIndex];
-		const end = map.positions[endIndex - 1];
-		if (!start || !end) return null;
-		const range = document.createRange();
-		range.setStart(start.node, start.offset);
-		range.setEnd(end.node, end.offset + 1);
-		return range;
-	}
-
-	function mapProjectionRangeToVisibleRange(range: Range, sourceBlock: HTMLElement, visibleBlock: HTMLElement) {
-		const sourceMap = collectNormalizedTextMap(sourceBlock);
-		const visibleMap = collectNormalizedTextMap(visibleBlock);
-		if (sourceMap.text !== visibleMap.text) return null;
-
-		const startIndex = findNormalizedPosition(sourceMap.positions, range.startContainer, range.startOffset);
-		const endIndex = findNormalizedPosition(sourceMap.positions, range.endContainer, Math.max(range.endOffset - 1, 0));
-		if (startIndex < 0 || endIndex < startIndex) return null;
-		return createRangeFromNormalizedSpan(visibleMap, startIndex, endIndex + 1);
-	}
-
-	function resolveVisibleTrackingRange(range: Range, scope: HTMLElement) {
-		const sourceBlock = nearestReadableBlock(range.startContainer, scope);
-		if (!sourceBlock || !isProjectionElement(sourceBlock)) return range;
-		const visibleBlock = findVisibleTrackingBlock(sourceBlock, scope);
-		if (!visibleBlock) return null;
-		return mapProjectionRangeToVisibleRange(range, sourceBlock, visibleBlock);
-	}
-
 	/**
 	 * Stop pie-assessment-toolkit from injecting FontAwesome into this page.
 	 *
@@ -324,35 +165,6 @@
 
 	ensureFontAwesomeFallbackMarker();
 
-	function collectQueryableRoots(root: ParentNode, roots: ParentNode[] = [], seen = new WeakSet<object>()) {
-		if (seen.has(root)) return roots;
-		seen.add(root);
-		roots.push(root);
-
-		const elements: Element[] = [];
-		if (root instanceof Element) elements.push(root);
-		elements.push(...Array.from(root.querySelectorAll('*')));
-
-		for (const element of elements) {
-			if (element.shadowRoot) {
-				collectQueryableRoots(element.shadowRoot, roots, seen);
-			}
-		}
-
-		return roots;
-	}
-
-	function queryElementsIncludingOpenShadowRoots(root: ParentNode, selector: string) {
-		const elements: Element[] = [];
-		for (const queryRoot of collectQueryableRoots(root)) {
-			if (queryRoot instanceof Element && queryRoot.matches(selector)) {
-				elements.push(queryRoot);
-			}
-			elements.push(...Array.from(queryRoot.querySelectorAll(selector)));
-		}
-		return elements;
-	}
-
 	$effect(() => {
 		if (toolkitCoordinator) return;
 		toolkitCoordinator = new ToolkitCoordinator({
@@ -362,52 +174,6 @@
 			tools: toolsConfig as any,
 			toolRegistry,
 		});
-	});
-
-	$effect(() => {
-		if (!shellHost || !shellContextValue) return;
-		shellProvider = new ContextProvider(shellHost, {
-			context: assessmentToolkitShellContext,
-			initialValue: shellContextValue,
-		});
-		shellProvider.connect();
-		shellContextRoot = new ContextRoot(shellHost);
-		shellContextRoot.attach();
-
-		return () => {
-			shellContextRoot?.detach();
-			shellContextRoot = null;
-			shellProvider?.disconnect();
-			shellProvider = null;
-		};
-	});
-
-	$effect(() => {
-		if (!shellContextValue) return;
-		shellProvider?.setValue(shellContextValue);
-	});
-
-	$effect(() => {
-		if (!shellHost || !regionScopeValue) return;
-		regionScopeProvider = new ContextProvider(shellHost, {
-			context: assessmentToolkitRegionScopeContext,
-			initialValue: regionScopeValue,
-		});
-		regionScopeProvider.connect();
-		regionScopeRoot = new ContextRoot(shellHost);
-		regionScopeRoot.attach();
-
-		return () => {
-			regionScopeRoot?.detach();
-			regionScopeRoot = null;
-			regionScopeProvider?.disconnect();
-			regionScopeProvider = null;
-		};
-	});
-
-	$effect(() => {
-		if (!regionScopeValue) return;
-		regionScopeProvider?.setValue(regionScopeValue);
 	});
 
 	$effect(() => {
@@ -438,19 +204,27 @@
 				coordinator={toolkitCoordinator}
 				lazy-init={false}
 			>
-				<pie-item-toolbar
-					{level}
-					scope-id={scopeId}
+				<pie-item-scope
 					item-id={scopeId}
-					catalog-id={scopeId}
-					tools={toolbarTools}
-					{contentKind}
-					size="md"
-					language="en-US"
+					canonical-item-id={scopeId}
+					content-kind={contentKind}
+					region-policy="default"
 					scopeElement={effectiveScopeElement}
-					{toolRegistry}
 					item={toolEntity}
-				></pie-item-toolbar>
+					settings={scopeSettings}
+				>
+					<pie-item-toolbar
+						{level}
+						scope-id={scopeId}
+						item-id={scopeId}
+						catalog-id={scopeId}
+						tools={toolbarTools}
+						{contentKind}
+						size="md"
+						{language}
+						{toolRegistry}
+					></pie-item-toolbar>
+				</pie-item-scope>
 			</pie-assessment-toolkit>
 		{/if}
 	</span>
@@ -462,7 +236,8 @@
 		margin-left: auto;
 	}
 
-	pie-assessment-toolkit {
+	pie-assessment-toolkit,
+	pie-item-scope {
 		display: inline-flex;
 	}
 </style>

@@ -99,30 +99,35 @@ Extracted by `portableCustomExtractor` (priority 20) into `ExtractedPci`. `PciHo
 
 ### PCI module lifecycle
 
-`PciHost` (`packages/item-player/src/pci/PciHost.ts`) manages the full QTI 3.0 PCI contract:
+`PciHost` (`packages/item-player/src/pci/PciHost.ts`) manages the QTI 3.0 §6.1 registry contract:
 
-1. `load()` — passes the resolved primary path and authored-path context to the host's `moduleResolver`, falling back to `fallback-path` when present. Throws `PciModuleResolverRequiredError` when execution has not been explicitly enabled and `PciLoadError` if resolution or interface validation fails.
-2. `initialize(dom)` — calls `module.initialize(dom, config, boundTo)` once the DOM scaffold is mounted. `boundTo.onResponseChange` fires whenever the module reports a new response value.
-3. `getResponse()` — delegates to `module.getResponse()`, except while a requested rebuild is outstanding (see below).
-4. `offerResponse(value)` / `restore(value)` — response ownership. `offerResponse()` offers a value the player believes to be current and is declined, returning `false`, once the mounted module has reported a response of its own; `restore()` replaces the response authoritatively and returns ownership to the player. Session deserialization and reset-to-default use `restore()`; ordinary `setResponses()` traffic uses `offerResponse()`, because every candidate change — a PCI's own included — echoes back through that method.
-5. `onRemountRequest(cb)` / `remount(dom)` — a `restore()` that lands on a mounted module rebuilds it rather than mutating it, since discarding candidate state is what re-instantiation means and is the only form the QTI 3.0 contract offers. The host signals; the renderer resets the sanitized scaffold, calls `remount()` — which discards the previous instance, resolves a fresh one, and seeds the restored value — and returns focus into the rebuilt scaffold. Until the rebuild lands, `getResponse()` reports the restored value rather than the module's superseded one. With no renderer wired to the signal, `restore()` pushes the value into the module directly, mutating candidate state rather than discarding it. Before mount, `restore()` merely holds the value for `initialize()`.
-6. `disable()` / `enable()` — called on role/state transitions.
-7. `destroy()` — called on player teardown; releases the module reference.
+1. `load()` — passes the resolved primary path and authored-path context to the host's `moduleResolver`, falling back to `fallback-path` when present. A conformant module registers itself against the page's `qtiCustomInteractionContext` as its code evaluates; the host adopts that registration (`registry.ts` installs the global). Throws `PciModuleResolverRequiredError` when execution has not been explicitly enabled and `PciLoadError` when resolution fails or the module never registers.
+2. `initialize(dom)` — instantiates through the registered `getInstance(dom, configuration, state)` factory. `configuration` carries `responseIdentifier`, a `status` of `interacting`/`closed`/`solution`/`review` derived from role and attempt state, and the `qti-pci-properties` values as `properties`; `configuration.onready` and `ondone` capture the module's response and state. A held response reaches the module as the `state` argument, in QTI variable JSON.
+3. `getResponse()` — reads the module's QTI variable JSON and converts it to the player's runtime value shape, except while a requested rebuild is outstanding (see below).
+4. `getState()` — the mounted module's own state snapshot (its `getState()` output), kept answerable after teardown.
+5. `offerResponse(value)` / `restore(value)` — response ownership. `offerResponse()` offers a value the player believes to be current and is declined, returning `false`, once the mounted module has reported a response of its own; since the spec contract has no setter, an accepted offer that differs from what the module was seeded with re-instantiates it. `restore()` replaces the response authoritatively and returns ownership to the player. Session deserialization and reset-to-default use `restore()`; ordinary `setResponses()` traffic uses `offerResponse()`, because every candidate change — a PCI's own included — echoes back through that method.
+6. `onRemountRequest(cb)` / `remount(dom)` — a `restore()` that lands on a mounted module rebuilds it rather than mutating it, since discarding candidate state is what re-instantiation means and is the only form the contract offers. The host signals; the renderer resets the sanitized scaffold, calls `remount()` — which discards the previous instance, re-resolves the registration, and seeds the restored value as `getInstance` state — and returns focus into the rebuilt scaffold. Until the rebuild lands, `getResponse()` reports the restored value rather than the module's superseded one. With no renderer wired to the signal, the host re-instantiates the module on the last mount node itself. Before mount, `restore()` merely holds the value for `initialize()`.
+7. `disable()` / `enable()` — optional-module conveniences, called on role/state transitions for modules that expose the methods. Conformant modules read their fixed `configuration.status` instead.
+8. `destroy()` — called on player teardown; releases the instance reference, keeping the last known state answerable through `getState()`.
 
 The portable renderer mounts the sanitized scaffold, asks the owning item session binding to create a `PciHost`, calls `load()`/`initialize()`, and wires responses into the normal item-session lifecycle. The same `AssessmentItemDefinitionConfig.pci` object is available as a JS-only `.pci` property on the item and assessment custom elements and is propagated through assessment and section rendering.
 
 ### Known gaps
 
-The `PciModule` interface is bespoke rather than the specified registry contract
-(`qtiCustomInteractionContext.register()`, `getInstance(dom, configuration, state)`, `onready`/`ondone`,
-QTI variable JSON responses, `getState()`), and AMD module resolution is absent. A PCI authored to the
-specification will not run until that is replaced — see
-[`docs/plans/pci-runtime-and-sandbox-2026-08.md`](../../plans/pci-runtime-and-sandbox-2026-08.md).
+Phases 1–4 of [`docs/plans/pci-runtime-and-sandbox-2026-08.md`](../../plans/pci-runtime-and-sandbox-2026-08.md)
+have landed: the registry contract (phase 1), the AMD loader with resolution-config parsing and
+multi-module extraction (phase 2), clean-room conformance evidence over real module files
+(phase 3, `tests/conformance/pci/`), and the sandboxed engine (phase 4). Browser-level evidence
+in the private runner and third-party content as a same-reading check remain, scheduled under the
+[completeness goal](../../plans/version-1-0-2026-10.md).
 
-PCI execution is deliberately disabled until a host supplies a resolver. `createAllowlistPciModuleResolver`
-covers origin and prefix policy; package-manifest validation and integrity checking remain the host's.
-PCI code runs in the page realm, so deployments requiring stronger isolation must host the player in an
-appropriately sandboxed, cross-origin frame.
+PCI execution is disabled until a host opts in. Two opt-ins exist, per `PciConfiguration`:
+`moduleResolver` runs the module in the page realm behind an allow-list
+(`createAllowlistPciModuleResolver`), and `sandbox` runs it in a hardened cross-origin frame
+(`<iframe sandbox="allow-scripts">` on a cookieless runner origin — `@pie-qti/pci-runner` is the
+deployable page; `createAllowlistPciModulePolicy` allow-lists the module URLs handed to the
+frame). Package-manifest validation and integrity checking remain the host's. Deployments whose
+whole player is untrusted keep the whole-player cross-origin framing boundary.
 
 ---
 
@@ -246,7 +251,7 @@ The `i18n` prop is optional; all strings have English defaults. RTL layout is ha
 
 | Extension point | Interface | How to use | Notes |
 | --------------- | --------- | ---------- | ----- |
-| PCI module interface | `PciModule` in `packages/item-player/src/pci/types.ts` | Export a default object (or named `getInstance` export) with `initialize`, `getResponse`, `setResponse`, `disable`, `enable`, `destroy` | Every PCI module must implement this interface; `PciHost` calls it at defined lifecycle points |
+| PCI module contract | `QtiCustomInteractionRegistration` in `packages/item-player/src/pci/types.ts` | Call `qtiCustomInteractionContext.register({ typeIdentifier, getInstance })` as a side effect of module evaluation | The registration is what counts; the resolver's return value is informational. `getInstance(dom, configuration, state)` returns the instance with `getResponse()` (QTI variable JSON) and optional `getState()` |
 | `AssessmentItemDefinitionConfig.pci` / custom-element `.pci` | `PciConfiguration` | Supply `{ baseUrl?, moduleResolver }` as a JavaScript property on `pie-qti-item-player` or `pie-qti-assessment-player` | Secure default is disabled; there is no ambient import or `document.baseURI` default |
 | Allow-list resolver | `createAllowlistPciModuleResolver` in `packages/item-player/src/pci/allowlistResolver.ts` | `moduleResolver: createAllowlistPciModuleResolver({ allowedOrigins, allowedPathPrefixes })` | Imports only from allow-listed origins and/or normalized URL prefixes; refuses non-http(s) schemes and an empty allow-list. Passing it remains the host's trust decision |
 | Custom extractor (higher priority) | `ElementExtractor<ExtractedPci>` | Register an extractor with `priority > 20` for `qti-portable-custom-interaction` element type | `portableCustomExtractor` itself follows this pattern; plugin system docs in `docs/prds/architecture/item-player-plugin-system.md` |
@@ -279,24 +284,24 @@ export class PciHost {
 }
 ```
 
-### `PciModule` interface (what every PCI module must export)
+### Registration contract (what every conformant PCI module does)
 
 ```typescript
-// packages/item-player/src/pci/types.ts
-
-export interface PciBoundTo {
-  onReady(): void;
-  onResponseChange(value: unknown): void;
-}
-
-export interface PciModule {
-  initialize(dom: HTMLElement, config: Record<string, string>, boundTo: PciBoundTo): void;
-  getResponse(): unknown;
-  setResponse(value: unknown): void;
-  disable(): void;
-  enable(): void;
-  destroy(): void;
-}
+// The module's code, wherever the host resolver evaluates it from:
+qtiCustomInteractionContext.register({
+  typeIdentifier: 'urn:example:my-pci',
+  getInstance(dom: HTMLElement, configuration, state) {
+    // configuration: { responseIdentifier, status, properties, onready, ondone, ... }
+    // state: what getState() returned last time, else the response as QTI variable JSON
+    const instance = {
+      getResponse: () => ({ base: { string: input.value } }),
+      getState: () => ({ /* module state snapshot */ }),
+    };
+    // build into dom...
+    configuration.onready(instance);
+    return instance;
+  },
+});
 ```
 
 ---
@@ -627,7 +632,7 @@ Then: module.destroy() is called (if the method is present)
 
 - [ ] Should `CustomInteractionData.xml` be renamed `rawXml` to make the "debug/best-effort" semantics clearer now that `ExtractedPci` is the structured type for QTI 3.0? Renaming avoids confusion between the two types.
 - [ ] Should the fallback warning be suppressible via a `suppressFallback` prop for delivery contexts where showing an unsupported-interaction warning would be confusing to candidates? (e.g. an embedded preview that only wants to test other interactions in the item.)
-- Per-PCI iframe isolation is planned rather than open: a `sandbox="allow-scripts"` frame loaded from a cookieless runner origin, decided in [`docs/plans/pci-runtime-and-sandbox-2026-08.md`](../../plans/pci-runtime-and-sandbox-2026-08.md). Until it lands, the current contract executes the resolver's module in the player realm and whole-player cross-origin framing remains the supported stronger-isolation boundary.
+- Per-PCI iframe isolation has landed as the opt-in `PciConfiguration.sandbox` engine (2026-10-16): a `sandbox="allow-scripts"` frame loaded from a cookieless runner origin, per [`docs/plans/pci-runtime-and-sandbox-2026-08.md`](../../plans/pci-runtime-and-sandbox-2026-08.md). The runner origin's deployment is the remaining operational step.
 
 ---
 

@@ -184,6 +184,22 @@ The following custom properties are referenced by `ShadowBaseStyles.svelte` and 
 
 All `color-mix` expressions in the codebase use `in oklch` interpolation. Hosts providing custom values should supply oklch literals or values in a color space that browsers can convert to oklch; sRGB hex values are accepted by the browser but `color-mix` blending results may differ slightly from the oklch-native calculations.
 
+### Shared vocabulary classes
+
+QTI 3.0's shared CSS vocabulary is styled in two places. `@pie-qti/default-components/shared/styles/qti-shared-vocabulary.css` styles the item body's light DOM: display, width (`qti-width-N-12`, `qti-width-full`, `qti-fullwidth`), height, text indent, flex, float and clearfix, alignment, vertical writing (`qti-writing-mode-*`, `qti-text-orientation-*`, `qti-text-combine-upright-all`), `qti-hidden`, `qti-visually-hidden` and the `qti-list-style-type-*` set. Interaction classes reach each component through `interactionClasses` and are styled in its shadow root:
+
+| Class | Interactions | Rendering |
+|-------|--------------|-----------|
+| `qti-labels-{none,decimal,lower-alpha,upper-alpha,cjk-ideographic}` | choice, order | Generated labels; order's position badges take `none`, `decimal`, `lower-alpha` and `upper-alpha` |
+| `qti-labels-suffix-{none,period,parenthesis}` | choice, order | Text after each label |
+| `qti-orientation-{vertical,horizontal}` | choice, order | Layout direction; on order it wins over the `orientation` attribute |
+| `qti-writing-orientation-vertical-{rl,lr}` | choice | Vertical writing with upright labels |
+| `qti-choices-{top,bottom,left,right}` | gap-match, graphic gap-match, match | Side of the choices relative to the content; top by default |
+| `qti-unselected-hidden` | hotspot, hottext, graphic gap-match | Unselected targets are transparent until focused, and stay operable |
+| `qti-selections-{light,dark}` | hotspot | Light or dark selection fill and stroke |
+
+`qti-match-tabular` and `qti-header-hidden` are not supported: the match interaction renders drag-and-drop columns only.
+
 ### `::part()` names by component
 
 The following table lists the part names each component exposes. All components expose `part="root"` on the outermost element.

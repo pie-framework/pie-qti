@@ -26,7 +26,7 @@ This project provides two major capabilities:
 
 ## Why This Project Exists
 
-[PIE](https://pie-framework.org/) (Portable Interactions and Elements) is a complete framework for playing and authoring assessment items, maintained by [Renaissance Learning](https://www.renaissance.com/) with implementation partner [MCRO](https://mcro.tech/).
+[PIE](https://pie-framework.org/) (Portable Interactions and Elements) is a complete framework for playing and authoring assessment items, sponsored by [Renaissance Learning](https://www.renaissance.com/) with implementation partner [MCRO](https://mcro.tech/).
 
 Many Renaissance partners exchange content in **QTI format**, so bidirectional QTI ↔ PIE transformation is essential. This project **open sources that transformation framework** for partners and the broader community.
 
@@ -55,7 +55,7 @@ See [`@pie-qti/qti-common`](packages/qti-common/README.md) for the version abstr
 
 Renders and scores individual QTI items:
 
-- **Standard and portable interaction extraction** — Broad QTI 2.x/3.0 rendering coverage, including host-resolved QTI 2.x and 3.0 PCI; remaining conformance work is tracked in the spec-gap plan
+- **Standard and portable interaction extraction** — Broad QTI 2.x/3.0 rendering coverage, including spec-conformant QTI 2.x and 3.0 PCI (host-resolver page realm plus an opt-in sandboxed execution engine); remaining conformance work is tracked in the spec-gap plan
 - **Response processing AST/evaluator** — Broad operator coverage, typed record fields, canonical fixed-template behavior for the supported URI set, and explicit host-resolved processing fragments
 - **Role/view-aware rendering** — candidate, scorer, author, tutor, proctor, testConstructor
 - **Adaptive items** — Multi-attempt workflows with progressive feedback
@@ -67,9 +67,9 @@ Renders and scores individual QTI items:
 Orchestrates multi-item assessments:
 
 - **Navigation mode model** — Per-testPart linear/nonlinear and individual/simultaneous modes are preserved; linear parts prohibit return after advancing
-- **Sections & hierarchy runtime** — Ordered nested sections, external section refs, controls, rubrics, weights, and feedback are retained from raw XML; dynamic preconditions and section/testPart branch execution remain open
-- **Selection & ordering runtime** — Raw XML selection, required/fixed children, and shuffle are preserved; `withReplacement` still requires distinct sequence-indexed clone materialization
-- **Time-limit runtime** — Independent item/section/testPart/assessment clocks, save/resume, maximums, and `minTime` enforcement exist; timing edge/browser evidence is still being expanded
+- **Sections & hierarchy runtime** — Ordered nested sections, external section refs, controls, rubrics, weights, feedback, dynamic preconditions, and section/testPart branch execution are retained and evaluated from raw XML
+- **Selection & ordering runtime** — Raw XML selection, required/fixed children, and shuffle are preserved; `withReplacement` clones materialize as distinct sequence-indexed sessions
+- **Time-limit runtime** — Independent item/section/testPart/assessment clocks, save/resume, maximums, `minTime` enforcement, and deterministic-clock edge coverage
 - **Item session control** — Max attempts, review/skip, response validation
 - **State persistence** — Auto-save with resume capability
 - **Outcome processing** — Scoring templates (total, weighted, percentage, pass/fail)
@@ -133,7 +133,7 @@ See [Transformation Engine Documentation](docs/TRANSFORMATION-ENGINE.md) for com
 
 **QTI → PIE** (`@pie-qti/to-pie`)
 
-- Supports QTI 2.1 and 2.2; QTI 3.0 items are detected and rejected with a diagnostic
+- Supports QTI 2.1 and 2.2, with QTI 3.0 items normalized to the 2.2 vocabulary on ingest
 - Lossless round-trip from the PIE source sidecar while the QTI item is unchanged
 - Best-effort semantic transformation otherwise
 - Vendor extension system for custom QTI variants
@@ -261,4 +261,4 @@ bun run preview:pages
 
 ## License
 
-ISC License — see [LICENSE](LICENSE)
+MIT License — see [LICENSE](LICENSE)

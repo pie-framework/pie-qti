@@ -150,6 +150,7 @@ elements and attributes that have no legitimate use in QTI item bodies.
   of `allowIframes` setting.
 - **FR-4:** `sanitizeHtml` must remove `<iframe>`, `<object>`, and `<embed>` elements unless
   `allowIframes` / `allowObjectEmbeds` are set to `true` in `PlayerSecurityConfig`.
+- **FR-4a:** An `<object>` whose `type` is an image, audio or video MIME type becomes an `<img>`, `<audio>` or `<video>` with the sanitized `data` URL, keeping its `aria-*`, `role` and `lang` (from `lang` or `xml:lang`); event handlers and other attributes are dropped.
 - **FR-5:** `sanitizeHtml` must remove `<base>`, `<meta>`, `<link>`, `<style>`, and
   `<foreignobject>` elements unconditionally.
 - **FR-6:** `sanitizeHtml` must sanitize `src`, `href`, `xlink:href`, `data`, `action`,
@@ -174,7 +175,7 @@ elements and attributes that have no legitimate use in QTI item bodies.
   exceeds `maxHtmlDepth`.
 - **FR-16:** When `parsingLimits.enabled` is `true`, `enforceItemXmlLimits` must throw if
   `itemXml` exceeds `maxItemXmlBytes` or contains a `<!DOCTYPE` declaration. Any secondary parser,
-  including the TTS readable projection, must call it before reparsing item XML.
+  including the section player's spoken-catalog extraction, must call it before reparsing item XML.
 - **FR-17:** `toTrustedHtml(html, policyName)` must return a `TrustedHTML` value when
   Trusted Types is available and the policy name is found/created. It must fall back to the
   plain string when Trusted Types is unavailable.
@@ -227,6 +228,14 @@ elements and attributes that have no legitimate use in QTI item bodies.
 - **FR-37:** Item-body presentation must perform all string-producing transforms before the final
   sanitation and optional Trusted Types conversion. `scopedCss` must remain a separate,
   policy-checked presentation field and must not be concatenated into trusted body HTML.
+- **FR-38:** PCI modules are third-party code. The player must never evaluate an authored PCI
+  URL ambiently: page-realm execution requires an explicit host resolver, and the sandboxed
+  engine (`PciConfiguration.sandbox`) must run the module in an `<iframe sandbox="allow-scripts">`
+  from a dedicated cookieless runner origin — never with `allow-same-origin` — over a versioned
+  protocol with mutual origin locking (host: runner origin + frame `contentWindow`; runner:
+  `window.parent` + first-message origin lock). Module URLs handed to the frame pass through an
+  optional host policy (`createAllowlistPciModulePolicy`), and the interaction markup crossing
+  the bridge is sanitized host-side with the shared-content sanitizer.
 
 ### Public shared-content API
 

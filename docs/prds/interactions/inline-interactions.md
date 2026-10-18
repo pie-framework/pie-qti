@@ -118,8 +118,8 @@ The extractor reads and exposes `patternMask` as a string on `TextEntryInteracti
 | `inlineChoice/@identifier` | ✅ Full | Maps to `choice.identifier`; stored as the `value` of the `<option>` |
 | `inlineChoice/text()` | ✅ Full | Text content maps to `choice.text` / `<option>` label |
 | `inlineChoice/@fixed` | ✅ Full | Extracted as `choice.fixed`; when `shuffle=true` the choice keeps its authored index. |
-| `inlineChoice/@templateIdentifier` | ❌ Not extracted | Template-variable-driven visibility. Not extracted. |
-| `inlineChoice/@showHide` | ❌ Not extracted | Template-driven show/hide. Not extracted. |
+| `inlineChoice/@templateIdentifier` | ✅ Full | A choice whose template variable hides it is dropped before extraction, by the shared visibility rule. |
+| `inlineChoice/@showHide` | ✅ Full | Inverts `templateIdentifier` visibility. |
 | `label` (child element, QTI 2.2+) | ❌ Not extracted | Placeholder text shown before selection. Not extracted (G-02). |
 
 #### Known gaps

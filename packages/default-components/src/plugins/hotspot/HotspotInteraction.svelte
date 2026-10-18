@@ -6,6 +6,8 @@
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
+	import { interactionAria } from '../../shared/utils/interactionAria';
+	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 
 	interface Props {
 		interaction?: HotspotInteractionData | string;
@@ -91,7 +93,8 @@
 
 <ShadowBaseStyles />
 
-<div bind:this={rootElement} class={['qti-hotspot-interaction space-y-3', ...(parsedInteraction?.interactionClasses ?? [])].join(' ')}>
+<div bind:this={rootElement} {...interactionAria(parsedInteraction)} class={['qti-hotspot-interaction space-y-3', ...(parsedInteraction?.interactionClasses ?? [])].join(' ')}>
+	<InteractionDescription interaction={parsedInteraction} />
 	{#if !parsedInteraction}
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
@@ -158,6 +161,7 @@
 								role="button"
 								aria-label={ariaLabel}
 								aria-pressed={isSelected ? 'true' : 'false'}
+								data-selected={isSelected ? '' : undefined}
 								tabindex={disabled ? -1 : 0}
 								onclick={() => handleClick(choice.identifier)}
 								onkeydown={(e) => handleKeyDown(e, choice.identifier)}
@@ -176,6 +180,7 @@
 								role="button"
 								aria-label={ariaLabel}
 								aria-pressed={isSelected ? 'true' : 'false'}
+								data-selected={isSelected ? '' : undefined}
 								tabindex={disabled ? -1 : 0}
 								onclick={() => handleClick(choice.identifier)}
 								onkeydown={(e) => handleKeyDown(e, choice.identifier)}
@@ -194,6 +199,7 @@
 								role="button"
 								aria-label={ariaLabel}
 								aria-pressed={isSelected ? 'true' : 'false'}
+								data-selected={isSelected ? '' : undefined}
 								tabindex={disabled ? -1 : 0}
 								onclick={() => handleClick(choice.identifier)}
 								onkeydown={(e) => handleKeyDown(e, choice.identifier)}
@@ -217,6 +223,7 @@
 								role="button"
 								aria-label={ariaLabel}
 								aria-pressed={isSelected ? 'true' : 'false'}
+								data-selected={isSelected ? '' : undefined}
 								tabindex={disabled ? -1 : 0}
 								onclick={() => handleClick(choice.identifier)}
 								onkeydown={(e) => handleKeyDown(e, choice.identifier)}
@@ -254,14 +261,30 @@
 		margin-top: 0.25rem;
 	}
 
-	/* qti-selections-light / qti-selections-dark: hotspot overlay color theme */
+	/* qti-selections-light / qti-selections-dark: outlines and selections that contrast with a dark or light image */
 	.qti-selections-light .qti-hotspot-shape {
-		fill: rgba(255, 255, 255, 0.4);
+		fill: rgba(255, 255, 255, 0.1);
 		stroke: rgba(255, 255, 255, 0.8);
 	}
+	.qti-selections-light .qti-hotspot-shape[data-selected] {
+		fill: rgba(255, 255, 255, 0.5);
+		stroke: #fff;
+		stroke-width: 3;
+	}
 	.qti-selections-dark .qti-hotspot-shape {
-		fill: rgba(0, 0, 0, 0.4);
+		fill: rgba(0, 0, 0, 0.1);
 		stroke: rgba(0, 0, 0, 0.8);
+	}
+	.qti-selections-dark .qti-hotspot-shape[data-selected] {
+		fill: rgba(0, 0, 0, 0.5);
+		stroke: #000;
+		stroke-width: 3;
+	}
+
+	/* qti-unselected-hidden: unselected hotspots show only while focused; they stay operable */
+	.qti-unselected-hidden .qti-hotspot-shape:not([data-selected]):not(:focus-visible) {
+		fill: transparent;
+		stroke: transparent;
 	}
 
 	/* Minimal layout so this works without Tailwind utilities */

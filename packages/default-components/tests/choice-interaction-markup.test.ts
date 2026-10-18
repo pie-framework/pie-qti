@@ -14,3 +14,12 @@ describe('ChoiceInteraction markup', () => {
 		expect(source).toContain('qti-rich-content');
 	});
 });
+
+describe('ChoiceInteraction answer masking', () => {
+	it('renders a reveal button in place of a masked choice in both choice branches', () => {
+		expect(source).toContain('answerMasking?: boolean;');
+		expect(source.match(/\{@render maskedChoice\(choice\.identifier, index\)\}/g)).toHaveLength(2);
+		expect(source).toContain("i18n?.t('interactions.choice.revealChoice', { index: index + 1 })");
+		expect(source).toContain('data-masked={isMasked(choice.identifier)');
+	});
+});

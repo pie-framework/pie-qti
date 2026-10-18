@@ -11,6 +11,8 @@ export interface AssessmentSessionCoordinatorOptions {
 	state: AssessmentSessionState;
 	itemIdentifiers: string[];
 	itemSessionControl?: ItemSessionControlSettings;
+	/** Effective itemSessionControl per item, overriding `itemSessionControl` for those items. */
+	itemSessionControlByItem?: Record<string, ItemSessionControlSettings>;
 }
 
 export interface ItemSessionInfo {
@@ -21,6 +23,7 @@ export interface ItemSessionInfo {
 	showSolution: boolean;
 	canReview: boolean;
 	canSkip: boolean;
+	canComment: boolean;
 }
 
 export class AssessmentSessionCoordinator {
@@ -29,10 +32,13 @@ export class AssessmentSessionCoordinator {
 	#itemResults = new Map<string, ItemResult>();
 	#itemIdentifiers: string[];
 
-	constructor({ state, itemIdentifiers, itemSessionControl }: AssessmentSessionCoordinatorOptions) {
+	constructor({ state, itemIdentifiers, itemSessionControl, itemSessionControlByItem }: AssessmentSessionCoordinatorOptions) {
 		this.#state = state;
 		this.#itemIdentifiers = itemIdentifiers;
 		this.#sessionController = new ItemSessionController(itemSessionControl);
+		for (const [itemIdentifier, settings] of Object.entries(itemSessionControlByItem ?? {})) {
+			this.#sessionController.setItemSettings(itemIdentifier, settings);
+		}
 		this.#initializeItemSessions();
 		this.#restoreItemSessionsFromState(state);
 		this.#restoreItemResultsFromScores(state);
@@ -59,6 +65,7 @@ export class AssessmentSessionCoordinator {
 					? { ...this.#state.itemSessions }
 					: undefined,
 			itemSessionStates: this.#itemSessionStateSnapshot(),
+			itemComments: this.#state.itemComments ? { ...this.#state.itemComments } : undefined,
 			timing: {
 				...this.#state.timing,
 				itemTimes: { ...this.#state.timing.itemTimes },
@@ -181,8 +188,28 @@ export class AssessmentSessionCoordinator {
 		this.#sessionController.updateSettings(settings);
 	}
 
-	mustValidateResponses(): boolean {
-		return this.#sessionController.mustValidateResponses();
+	mustValidateResponses(itemIdentifier?: string): boolean {
+		return this.#sessionController.mustValidateResponses(itemIdentifier);
+	}
+
+	canSubmit(itemIdentifier: string): boolean {
+		return this.#sessionController.canSubmit(itemIdentifier);
+	}
+
+	getItemSettings(itemIdentifier: string): ItemSessionControlSettings {
+		return this.#sessionController.getItemSettings(itemIdentifier);
+	}
+
+	/** Records the candidate's comment on an item; throws unless its allowComment is on. */
+	setItemComment(itemIdentifier: string, comment: string): void {
+		if (!this.#sessionController.canComment(itemIdentifier)) {
+			throw new Error(`Comments are not allowed for item "${itemIdentifier}".`);
+		}
+		this.#state.itemComments = { ...(this.#state.itemComments ?? {}), [itemIdentifier]: comment };
+	}
+
+	getItemComment(itemIdentifier: string): string | undefined {
+		return this.#state.itemComments?.[itemIdentifier];
 	}
 
 	recordAttempt(itemIdentifier: string): void {
@@ -210,6 +237,7 @@ export class AssessmentSessionCoordinator {
 			showSolution: this.#sessionController.shouldShowSolution(itemIdentifier),
 			canReview: this.#sessionController.canReview(itemIdentifier),
 			canSkip: this.#sessionController.canSkip(itemIdentifier),
+			canComment: this.#sessionController.canComment(itemIdentifier),
 		};
 	}
 

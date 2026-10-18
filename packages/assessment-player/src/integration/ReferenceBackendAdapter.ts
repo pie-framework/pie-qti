@@ -28,22 +28,21 @@
  */
 
 import {
-	buildExpression,
 	buildOutcomeProcessingAst,
 	DeclarationContext,
 	type DeclarationMap,
-	evalExpr,
 	execProgram,
 	OperatorRegistry,
 	parseXml,
 	serializeXml,
 	type QtiValue,
-	qtiNull,
 	qtiValue,
+	type TestItemState,
 } from '@pie-qti/qti-processing';
 import {
 	createResolvedItemDeliveryContext,
 	extractAssessmentStimulusRefs,
+	extractProcessingIncludeRefs,
 	extractQtiStylesheets,
 	parseAssessmentStimulusXml,
 	resolveCheckedPackagePath,
@@ -63,14 +62,31 @@ import type {
 	SaveAssessmentStateRequest,
 	SaveAssessmentStateResponse,
 	SecureAssessment,
+	SecureBranchRule,
 	SecureItemRef,
+	SecureItemSessionControl,
 	SecureSection,
 	SecureTestPart,
 	SessionId,
 	SubmitResponsesRequest,
 	SubmitResponsesResponse,
+	TestFeedbackItem,
+	TestOutcomeValue,
+	TestOutcomeValues,
 } from './api-contract.js';
-import { scoreAssessmentItem } from './assessment-item-scorer.js';
+import {
+	addItemVariableDeclarations,
+	applyVariableMappings,
+	type DeliveredItem,
+	deliveredItems,
+	drawAssessment,
+	evaluateTestCondition,
+	qtiElementNameMapper,
+	resolveItemSessionControl,
+	testOutcomeDeclarations,
+	toCanonicalQtiName,
+} from '../core/testStructure.js';
+import { defaultItemTestState, type ItemTestState, scoreAssessmentItemForTest } from './assessment-item-scorer.js';
 
 /**
  * Storage key prefix for localStorage
@@ -83,18 +99,6 @@ const STORAGE_PREFIX = 'qti_session_';
 const BANK_CACHE_PREFIX = 'qti_bank_cache_';
 
 class AssessmentSectionReferenceLimitError extends Error {}
-
-function toCanonicalQtiName(name: string | null | undefined): string {
-	const withoutPrefix = (name ?? '').replace(/^qti-/, '');
-	return withoutPrefix.replace(/-([a-z])/g, (_, char: string) => char.toUpperCase());
-}
-
-const qtiElementNameMapper = {
-	version: 'qti2x-or-qti3',
-	toCanonical: (elementName: string) => toCanonicalQtiName(elementName).toLowerCase(),
-	toNative: (canonicalName: string) => canonicalName,
-	isValidElementName: () => true,
-};
 
 /**
  * Cache entry for item bank queries
@@ -120,6 +124,8 @@ interface StoredSession {
 	createdAt: number;
 	/** Finalized flag */
 	finalized: boolean;
+	/** Per-item variables and flags from the latest submission, read by test-level outcome processing. */
+	itemTestStates?: Record<string, ItemTestState>;
 }
 
 /**
@@ -134,8 +140,18 @@ interface StoredSession {
  * });
  * ```
  */
+export interface ReferenceBackendAdapterOptions {
+	/** RNG for the session-start draw of selection and ordering. Defaults to Math.random. */
+	rng?: () => number;
+}
+
 export class ReferenceBackendAdapter implements BackendAdapter {
 	private registeredAssessments: Map<string, SecureAssessment> = new Map();
+	private readonly rng: () => number;
+
+	constructor(options: ReferenceBackendAdapterOptions = {}) {
+		this.rng = options.rng ?? Math.random;
+	}
 
 	/**
 	 * Register/override a client-provided assessment structure for a given assessmentId.
@@ -180,6 +196,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 					sessionId: stored.sessionId,
 					assessment: stored.assessment,
 					restoredState: stored.state,
+					outcomes: this.currentOutcomes(stored),
 				};
 			}
 		}
@@ -192,9 +209,11 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 		// 2. Filter QTI XML based on role
 		// 3. Remove responseProcessing for candidates
 		//
-		// For reference implementation, we'll use demo data
-		const assessment = this.getAssessment(request.assessmentId);
-		const firstItemIdentifier = this.getItemOrder(assessment)[0] ?? '';
+		// For reference implementation, we'll use demo data. Selection and ordering are drawn once
+		// here; the stored draw is what a resume returns.
+		const assessment = drawAssessment(this.getAssessment(request.assessmentId), this.rng);
+		const firstItemIdentifier =
+			this.firstEligibleItem(assessment, deliveredItems(assessment), 0, undefined, testOutcomeDeclarations(assessment)) ?? '';
 
 		const state: AssessmentSessionState = {
 			currentItemIdentifier: firstItemIdentifier,
@@ -224,6 +243,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 		return {
 			sessionId,
 			assessment,
+			currentItemIdentifier: firstItemIdentifier || undefined,
 		};
 	}
 
@@ -274,18 +294,38 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			};
 		}
 
-		// Find the item XML
-		const itemXml = this.findItemXml(session.assessment, request.itemIdentifier);
-		if (!itemXml) {
+		const delivered = deliveredItems(session.assessment);
+		const index = delivered.findIndex((d) => d.item.identifier === request.itemIdentifier);
+		const current = delivered[index];
+		if (!current) {
 			return {
 				success: false,
 				error: 'Item not found',
 			};
 		}
+		const itemXml = current.item.itemXml;
+		const control = resolveItemSessionControl(current.testPart, current.sections, current.item);
+		const previousItemSession = session.state.itemSessionStates?.[request.itemIdentifier];
+		if (control.maxAttempts > 0 && (previousItemSession?.attemptCount ?? 0) >= control.maxAttempts) {
+			return {
+				success: false,
+				error: 'Maximum attempts reached',
+			};
+		}
+		if (request.comment !== undefined && !control.allowComment) {
+			return {
+				success: false,
+				error: 'Comments are not allowed for this item',
+			};
+		}
 
 		// **SECURITY WARNING**: Client-side scoring is INSECURE
 		// In production, this MUST be done server-side
-		const result = scoreAssessmentItem({ itemXml, responses: request.responses, itemSession: request.itemSession });
+		const { result, testState } = scoreAssessmentItemForTest({
+			itemXml,
+			responses: request.responses,
+			itemSession: request.itemSession,
+		});
 
 		// Store responses and result
 		session.state.itemResponses[request.itemIdentifier] = request.responses;
@@ -293,13 +333,20 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			session.state.itemScores = {};
 		}
 		session.state.itemScores[request.itemIdentifier] = result;
+		if (testState) {
+			session.itemTestStates = { ...(session.itemTestStates ?? {}), [request.itemIdentifier]: testState };
+		} else if (session.itemTestStates) {
+			delete session.itemTestStates[request.itemIdentifier];
+		}
 		if (request.itemSession) {
 			session.state.itemSessions = {
 				...(session.state.itemSessions ?? {}),
 				[request.itemIdentifier]: request.itemSession,
 			};
 		}
-		const previousItemSession = session.state.itemSessionStates?.[request.itemIdentifier];
+		if (request.comment !== undefined) {
+			session.state.itemComments = { ...(session.state.itemComments ?? {}), [request.itemIdentifier]: request.comment };
+		}
 		session.state.itemSessionStates = {
 			...(session.state.itemSessionStates ?? {}),
 			[request.itemIdentifier]: {
@@ -323,37 +370,20 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 
 		this.saveSession(session);
 
-		const order = this.getItemOrder(session.assessment);
-		const idx = order.indexOf(request.itemIdentifier);
-		let nextItemIdentifier: string | undefined = idx >= 0 ? order[idx + 1] : undefined;
-
-		// QTI branchRule evaluation (backend-authoritative).
-		// Evaluate each rule in order; the first matching rule determines the next item.
-		// Special targets EXIT_TEST / EXIT_TESTPART / EXIT_SECTION are returned as-is for
-		// the client to interpret.
-		const itemRef = this.findItemRef(session.assessment, request.itemIdentifier);
-		if (itemRef?.branchRule && itemRef.branchRule.length > 0) {
-			const outcomeVars: Record<string, unknown> = {
-				...result.outcomeValues,
-				SCORE: result.score,
-			};
-			nextItemIdentifier = undefined; // reset — branch rules take full control
-			for (const rule of itemRef.branchRule) {
-				const matches = rule.conditionXml
-					? this.evaluateConditionXml(rule.conditionXml, outcomeVars)
-					: true; // unconditional branch
-				if (matches) {
-					nextItemIdentifier = rule.target;
-					break;
-				}
-			}
-		}
+		const outcomes = this.currentOutcomes(session);
+		const currentVariables = testState?.variables ?? this.scoredItemVariables(result);
+		const decls = this.navigationDeclarations(session, outcomes, {
+			...applyVariableMappings(currentVariables, current.item.variableMappings),
+			...(currentVariables.SCORE ? {} : { SCORE: qtiValue('float', 'single', result.score) }),
+		});
+		const nextItemIdentifier = this.nextItemIdentifier(session.assessment, delivered, index, decls);
 
 		return {
 			success: true,
 			result,
 			nextItemIdentifier,
 			updatedState: session.state,
+			outcomes,
 		};
 	}
 
@@ -406,72 +436,45 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 		const maxScore = Object.values(itemScores).reduce((sum, result) => sum + result.maxScore, 0);
 
 		// Execute test-level outcome processing if available
-		const outcomes = this.runOutcomeProcessing(session.assessment, itemScores);
-		const totalScore = outcomes !== null ? (outcomes['SCORE_TOTAL'] ?? outcomes['SCORE'] ?? fallbackTotal) as number : fallbackTotal;
+		const outcomes = this.runOutcomeProcessing(session);
+		const scoreOutcome = outcomes?.SCORE_TOTAL ?? outcomes?.SCORE;
+		const totalScore = typeof scoreOutcome === 'number' ? scoreOutcome : fallbackTotal;
 
 		return {
 			success: true,
 			totalScore,
 			maxScore,
 			itemScores,
+			outcomes: outcomes ?? undefined,
 			finalizedAt: Date.now(),
 		};
 	}
 
+	/** Outcome values after the submissions so far; undefined before the first submission. */
+	private currentOutcomes(session: StoredSession): TestOutcomeValues | undefined {
+		if (Object.keys(session.state.itemScores ?? {}).length === 0) return undefined;
+		return this.runOutcomeProcessing(session) ?? undefined;
+	}
+
 	/**
 	 * Execute test-level outcome processing (T9/T1).
-	 * Returns a map of outcome variable values, or null if no outcomeProcessing is defined.
+	 * Returns every declared outcome's value (null for NULL), or null if no outcomeProcessing is
+	 * defined.
 	 */
-	private runOutcomeProcessing(
-		assessment: SecureAssessment,
-		itemScores: Record<string, AssessmentScoringResult>
-	): Record<string, unknown> | null {
+	private runOutcomeProcessing(session: StoredSession): TestOutcomeValues | null {
+		const { assessment } = session;
 		if (!assessment.outcomeProcessingXml) {
 			return null;
 		}
 
 		try {
-			// Build declaration map from outcomeDeclarations
-			const decls: DeclarationMap = {};
-			for (const d of assessment.outcomeDeclarations || []) {
-				const baseType = d.baseType as any;
-				const cardinality = d.cardinality as any;
-				let defaultQtiValue: QtiValue;
-				if (d.defaultValue !== undefined) {
-					defaultQtiValue = qtiValue(baseType, cardinality, d.defaultValue);
-				} else if (baseType === 'float' || baseType === 'integer') {
-					defaultQtiValue = qtiValue(baseType, 'single', 0);
-				} else {
-					defaultQtiValue = qtiNull();
-				}
-				decls[d.identifier] = {
-					identifier: d.identifier,
-					baseType,
-					cardinality,
-					defaultValue: defaultQtiValue,
-					value: { ...defaultQtiValue },
-				};
-			}
-
+			const testItems = this.buildTestItems(session);
+			const decls = addItemVariableDeclarations(
+				testOutcomeDeclarations(assessment),
+				Object.fromEntries(testItems.map((item) => [item.identifier, item.variables])),
+			);
 			const ctx = new DeclarationContext(decls);
 			const ops = new OperatorRegistry();
-
-			// Build test items array for testVariables expression
-			const testItems = Object.entries(itemScores).map(([id, scoring]) => ({
-				identifier: id,
-				variables: {
-					SCORE: qtiValue('float', 'single', scoring.score),
-					// Add any other outcome values from the scoring result
-					...Object.fromEntries(
-						Object.entries(scoring.outcomeValues || {}).map(([k, v]) => [
-							k,
-							typeof v === 'number'
-								? qtiValue('float', 'single', v)
-								: qtiValue('string', 'single', String(v)),
-						])
-					),
-				},
-			}));
 
 			// Parse and execute outcome processing
 			const opEl = parseXml(assessment.outcomeProcessingXml).documentElement;
@@ -485,19 +488,16 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 				{
 					ctx,
 					ops,
-					rng: Math.random,
+					rng: this.rng,
 					test: { items: testItems },
 				},
 				program
 			);
 
-			// Extract outcome values
-			const result: Record<string, unknown> = {};
+			const result: TestOutcomeValues = {};
 			for (const d of assessment.outcomeDeclarations || []) {
 				const v = ctx.getValue(d.identifier);
-				if (v.kind === 'value') {
-					result[d.identifier] = v.value;
-				}
+				result[d.identifier] = v.kind === 'value' ? (v.value as TestOutcomeValue) : null;
 			}
 			return result;
 		} catch (err) {
@@ -589,46 +589,6 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 		} catch (error) {
 			console.error('Failed to save session to localStorage:', error);
 		}
-	}
-
-	private findItemXml(assessment: SecureAssessment, itemIdentifier: string): string | null {
-		const findInSection = (section: SecureSection): string | null => {
-			for (const item of section.assessmentItemRefs) {
-				if (item.identifier === itemIdentifier) return item.itemXml;
-			}
-			for (const child of section.sections ?? []) {
-				const found = findInSection(child);
-				if (found !== null) return found;
-			}
-			return null;
-		};
-		for (const part of assessment.testParts) {
-			for (const section of part.sections) {
-				const found = findInSection(section);
-				if (found !== null) return found;
-			}
-		}
-		return null;
-	}
-
-	private findItemRef(assessment: SecureAssessment, itemIdentifier: string): SecureItemRef | null {
-		const findInSection = (section: SecureSection): SecureItemRef | null => {
-			for (const item of section.assessmentItemRefs) {
-				if (item.identifier === itemIdentifier) return item;
-			}
-			for (const child of section.sections ?? []) {
-				const found = findInSection(child);
-				if (found) return found;
-			}
-			return null;
-		};
-		for (const part of assessment.testParts) {
-			for (const section of part.sections) {
-				const found = findInSection(section);
-				if (found) return found;
-			}
-		}
-		return null;
 	}
 
 	/**
@@ -776,13 +736,20 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			itemXmlMap?: Record<string, string>;
 			fileResolver?: (href: string) => Promise<string>;
 			baseUrl?: string;
+			/**
+			 * Shared catalog files the package manifest lists (resource type
+			 * `imsqti_catalog_xmlv3p0`): href, XML, or both. Their entries back
+			 * every item's `data-catalog-idref` terms; item-level catalogs win
+			 * identifier collisions (QTI 3.0 §6.3).
+			 */
+			sharedCatalogs?: ReadonlyArray<{ href?: string; xml?: string }>;
 			sectionReferenceLimits?: {
 				/** Maximum total inline and external assessmentSection nesting. Defaults to 32. */
 				maxDepth?: number;
 			};
 		} = {}
 	): Promise<SecureAssessment> {
-		const { role = 'candidate', itemXmlMap = {}, fileResolver, baseUrl } = options;
+		const { role = 'candidate', itemXmlMap = {}, fileResolver, baseUrl, sharedCatalogs } = options;
 		const maxSectionDepth = options.sectionReferenceLimits?.maxDepth ?? 32;
 		if (!Number.isInteger(maxSectionDepth) || maxSectionDepth < 1) {
 			throw new Error('sectionReferenceLimits.maxDepth must be a positive integer');
@@ -791,6 +758,9 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 		const root = doc.documentElement;
 		if (!root) throw new Error('Empty assessmentTest XML');
 
+		// Reads camelCase and QTI 3 kebab-case attribute spellings alike. Empty values
+		// are treated as missing here; the player-elements discovery parser keeps '' —
+		// the two are intentionally not shared so each call site keeps its semantics.
 		const getAttr = (el: Element, name: string): string | undefined => {
 			const direct = el.getAttribute(name);
 			if (direct !== null && direct !== '') return direct;
@@ -805,9 +775,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			childElements(el).filter((c) => toCanonicalQtiName(c.localName) === tag);
 
 		// Parse itemSessionControl element
-		const parseItemSessionControl = (
-			el: Element
-		): SecureSection['itemSessionControl'] | undefined => {
+		const parseItemSessionControl = (el: Element): SecureItemSessionControl | undefined => {
 			const isc = childrenByTag(el, 'itemSessionControl')[0];
 			if (!isc) return undefined;
 			const boolAttr = (name: string): boolean | undefined => {
@@ -857,7 +825,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			return expressions.length > 0 ? expressions : undefined;
 		};
 
-		const parseBranchRules = (el: Element): SecureItemRef['branchRule'] => {
+		const parseBranchRules = (el: Element): SecureBranchRule[] | undefined => {
 			const rules = childrenByTag(el, 'branchRule').flatMap((rule) => {
 				const target = getAttr(rule, 'target');
 				if (!target) return [];
@@ -953,10 +921,47 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 					}
 				}
 			}
+			// Preload external processing fragments so the item session's synchronous
+			// resolver stays package-contained. Nested includes resolve relative to the
+			// fragment that references them; the processing engine still validates
+			// namespace, mode, depth, and cycles at build time.
+			const processingFragments: Record<string, string> = {};
+			const collectProcessingFragments = async (
+				sourceXml: string,
+				sourceHref: string,
+				seen: Set<string>,
+			): Promise<void> => {
+				for (const includeHref of extractProcessingIncludeRefs(sourceXml)) {
+					const fragmentPath = resolveCheckedPackagePathFromFile(sourceHref, includeHref);
+					if (!fragmentPath || seen.has(fragmentPath)) continue;
+					seen.add(fragmentPath);
+					const fragmentXml = await loadText(fragmentPath);
+					if (fragmentXml === undefined) continue;
+					processingFragments[fragmentPath] = fragmentXml;
+					await collectProcessingFragments(fragmentXml, fragmentPath, seen);
+				}
+			};
+			const fragmentSeen = new Set<string>();
+			await collectProcessingFragments(itemXml, itemHref, fragmentSeen);
+			// Shared catalog files resolve against the package root, not the item.
+			const packageCatalogSources: Array<{ href?: string; xml?: string }> = [];
+			for (const shared of sharedCatalogs ?? []) {
+				if (shared.xml) {
+					packageCatalogSources.push({ href: shared.href, xml: shared.xml });
+					continue;
+				}
+				if (!shared.href) continue;
+				const href = resolveCheckedHref(shared.href);
+				if (!href) continue;
+				const xml = await loadText(href);
+				if (xml !== undefined) packageCatalogSources.push({ href, xml });
+			}
 			return createResolvedItemDeliveryContext({
 				itemXml,
 				itemHref,
 				readText: (path) => packageTextByPath[path] ?? stimulusXmlByPath[path] ?? itemXmlMap[path],
+				...(Object.keys(processingFragments).length > 0 ? { processingFragments } : {}),
+				...(packageCatalogSources.length > 0 ? { packageCatalogSources } : {}),
 			});
 		};
 
@@ -980,10 +985,23 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 					'';
 			const requiredRaw = getAttr(ref, 'required');
 			const fixedRaw = getAttr(ref, 'fixed');
+			const categories = (getAttr(ref, 'category') ?? '').split(/\s+/).filter(Boolean);
 			const weights = childrenByTag(ref, 'weight').flatMap((weight) => {
 				const identifier = getAttr(weight, 'identifier');
 				const value = Number(getAttr(weight, 'value'));
 				return identifier && Number.isFinite(value) ? [{ identifier, value }] : [];
+			});
+			const variableMappings = childrenByTag(ref, 'variableMapping').flatMap((mapping) => {
+				const sourceIdentifier = getAttr(mapping, 'sourceIdentifier');
+				const targetIdentifier = getAttr(mapping, 'targetIdentifier');
+				return sourceIdentifier && targetIdentifier ? [{ sourceIdentifier, targetIdentifier }] : [];
+			});
+			const templateDefaults = childrenByTag(ref, 'templateDefault').flatMap((templateDefault) => {
+				const templateIdentifier = getAttr(templateDefault, 'templateIdentifier');
+				const expression = childElements(templateDefault)[0];
+				return templateIdentifier && expression
+					? [{ templateIdentifier, expressionXml: serializeXml(expression) }]
+					: [];
 			});
 			return {
 				identifier: itemId,
@@ -996,6 +1014,10 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 				branchRule: parseBranchRules(ref),
 				preConditions: parseConditionExpressions(ref, 'preCondition'),
 				weights: weights.length > 0 ? weights : undefined,
+				categories: categories.length > 0 ? categories : undefined,
+				itemSessionControl: parseItemSessionControl(ref),
+				variableMappings: variableMappings.length > 0 ? variableMappings : undefined,
+				templateDefaults: templateDefaults.length > 0 ? templateDefaults : undefined,
 			};
 		};
 
@@ -1017,6 +1039,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			const visible = visibleRaw === undefined ? true : visibleRaw !== 'false';
 			const requiredRaw = getAttr(sectionEl, 'required');
 			const fixedRaw = getAttr(sectionEl, 'fixed');
+			const keepTogetherRaw = getAttr(sectionEl, 'keepTogether');
 
 			const itemSessionControl = parseItemSessionControl(sectionEl);
 			const timeLimits = parseTimeLimits(sectionEl);
@@ -1069,6 +1092,8 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 				selection: parseSelection(sectionEl),
 				ordering: parseOrdering(sectionEl),
 				preConditions: parseConditionExpressions(sectionEl, 'preCondition'),
+				branchRule: parseBranchRules(sectionEl),
+				keepTogether: keepTogetherRaw === undefined ? undefined : keepTogetherRaw !== 'false',
 			};
 		};
 
@@ -1142,31 +1167,6 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			return sections;
 		};
 
-		// Parse testPart-level itemSessionControl
-		const parseTestPartItemSessionControl = (
-			testPartEl: Element
-		): SecureTestPart['itemSessionControl'] | undefined => {
-			const isc = childrenByTag(testPartEl, 'itemSessionControl')[0];
-			if (!isc) return undefined;
-			const boolAttr = (name: string): boolean | undefined => {
-				const v = getAttr(isc, name);
-				return v === undefined ? undefined : v !== 'false';
-			};
-			const intAttr = (name: string): number | undefined => {
-				const v = getAttr(isc, name);
-				return v === undefined ? undefined : parseInt(v, 10);
-			};
-			return {
-				maxAttempts: intAttr('maxAttempts'),
-				showFeedback: boolAttr('showFeedback') ?? boolAttr('show-feedback'),
-				allowReview: boolAttr('allowReview') ?? boolAttr('allow-review'),
-				showSolution: boolAttr('showSolution') ?? boolAttr('show-solution'),
-				allowComment: boolAttr('allowComment') ?? boolAttr('allow-comment'),
-				allowSkipping: boolAttr('allowSkipping') ?? boolAttr('allow-skipping'),
-				validateResponses: boolAttr('validateResponses') ?? boolAttr('validate-responses'),
-			};
-		};
-
 		// Extract outcomeDeclarations
 		const outcomeDeclarations = childrenByTag(root, 'outcomeDeclaration').map((d) => {
 			const identifier = getAttr(d, 'identifier') ?? 'OUTCOME';
@@ -1194,18 +1194,24 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 		const outcomeProcessingXml = outcomeProcessingEl
 			? serializeXml(outcomeProcessingEl)
 			: undefined;
-		const testFeedback = childrenByTag(root, 'testFeedback').flatMap((feedback, index) => {
-			const outcomeIdentifier = getAttr(feedback, 'outcomeIdentifier');
-			if (!outcomeIdentifier) return [];
-			const content = Array.from(feedback.childNodes).map((node) => serializeXml(node)).join('');
-			return [{
-				identifier: getAttr(feedback, 'identifier') ?? `test-feedback-${index + 1}`,
-				outcomeIdentifier,
-				showHide: (getAttr(feedback, 'showHide') ?? 'show') as 'show' | 'hide',
-				access: (getAttr(feedback, 'access') ?? 'atEnd') as 'atEnd' | 'during',
-				content,
-			}];
-		});
+		// QTI 3 wraps testFeedback content in qti-content-body.
+		const parseTestFeedback = (parent: Element): TestFeedbackItem[] | undefined => {
+			const items = childrenByTag(parent, 'testFeedback').flatMap((feedback, index) => {
+				const outcomeIdentifier = getAttr(feedback, 'outcomeIdentifier');
+				if (!outcomeIdentifier) return [];
+				const body = childrenByTag(feedback, 'contentBody')[0] ?? feedback;
+				const content = Array.from(body.childNodes).map((node) => serializeXml(node)).join('');
+				return [{
+					identifier: getAttr(feedback, 'identifier') ?? `test-feedback-${index + 1}`,
+					outcomeIdentifier,
+					showHide: (getAttr(feedback, 'showHide') ?? 'show') as 'show' | 'hide',
+					access: (getAttr(feedback, 'access') ?? 'atEnd') as 'atEnd' | 'during',
+					content,
+				}];
+			});
+			return items.length > 0 ? items : undefined;
+		};
+		const testFeedback = parseTestFeedback(root);
 
 		// Extract assessment-level timeLimits.
 		const timeLimits = parseTimeLimits(root);
@@ -1230,7 +1236,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			const tpSubmissionMode = (getAttr(tp, 'submissionMode') ?? 'simultaneous') as
 				| 'individual'
 				| 'simultaneous';
-			const tpItemSessionControl = parseTestPartItemSessionControl(tp);
+			const tpItemSessionControl = parseItemSessionControl(tp);
 			const tpTimeLimits = parseTimeLimits(tp);
 			const tpRubricBlockEls = childrenByTag(tp, 'rubricBlock');
 			const tpRubricBlocks = tpRubricBlockEls.length > 0
@@ -1249,8 +1255,11 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 				submissionMode: tpSubmissionMode,
 				sections,
 				rubricBlocks: tpRubricBlocks,
+				testFeedback: parseTestFeedback(tp),
 				itemSessionControl: tpItemSessionControl,
 				timeLimits: tpTimeLimits,
+				preConditions: parseConditionExpressions(tp, 'preCondition'),
+				branchRule: parseBranchRules(tp),
 			});
 		}
 
@@ -1284,57 +1293,207 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			timeLimits,
 			outcomeDeclarations: outcomeDeclarations.length > 0 ? outcomeDeclarations : undefined,
 			outcomeProcessingXml,
-			testFeedback: testFeedback.length > 0 ? testFeedback : undefined,
+			testFeedback,
 			baseUrl,
 		};
 	}
 
-	private evaluateConditionXml(conditionXml: string, vars: Record<string, unknown>): boolean {
-		// conditionXml is an operator element like <gt>...</gt> (not wrapped in <expression>).
-		const doc = parseXml(conditionXml);
-		const root = doc.documentElement;
-		if (!root) return false;
-
-		const decls: DeclarationMap = {};
-		for (const [k, raw] of Object.entries(vars)) {
-			let v: QtiValue = qtiNull();
-			if (typeof raw === 'number') v = qtiValue('float', 'single', raw);
-			else if (typeof raw === 'boolean') v = qtiValue('boolean', 'single', raw);
-			else if (typeof raw === 'string') v = qtiValue('string', 'single', raw);
-			decls[k] = {
-				identifier: k,
-				baseType: v.kind === 'value' ? v.baseType : 'string',
-				cardinality: 'single',
-				defaultValue: qtiNull(),
-				value: v,
-			};
+	/**
+	 * Context for branch rules and preconditions: test outcomes, every submitted item's variables as
+	 * `itemIdentifier.VARIABLE`, and `current` unprefixed where the test declares no such outcome.
+	 */
+	private navigationDeclarations(
+		session: StoredSession,
+		outcomes: TestOutcomeValues | undefined,
+		current: Record<string, QtiValue> = {},
+	): DeclarationMap {
+		const itemVariables: Record<string, Record<string, QtiValue>> = {};
+		for (const { item } of deliveredItems(session.assessment)) {
+			const variables = session.itemTestStates?.[item.identifier]?.variables;
+			if (variables) itemVariables[item.identifier] = applyVariableMappings(variables, item.variableMappings);
 		}
-
-		const ctx = new DeclarationContext(decls);
-		const ops = new OperatorRegistry();
-		const expr = buildExpression(root, { scope: 'test' });
-		const out = evalExpr({ ctx, ops, rng: Math.random }, expr);
-		return out.kind === 'value' && out.baseType === 'boolean' ? Boolean(out.value) : false;
+		return addItemVariableDeclarations(testOutcomeDeclarations(session.assessment, outcomes), itemVariables, current);
 	}
 
-	private getItemOrder(assessment: SecureAssessment): string[] {
-		const out: string[] = [];
-		const visit = (section: SecureSection): void => {
-			const components = section.children ?? [
-				...(section.assessmentItemRefs ?? []).map((item) => ({ type: 'item' as const, item })),
-				...(section.sections ?? []).map((child) => ({ type: 'section' as const, section: child })),
-			];
-			for (const component of components) {
-				if (component.type === 'item') out.push(component.item.identifier);
-				else visit(component.section);
-			}
-		};
-		for (const part of assessment.testParts || []) {
-			for (const section of part.sections || []) {
-				visit(section);
+	/**
+	 * Next item after `delivered[index]`. Branch rules come first: the item's, then each enclosing
+	 * section's it ends (inner to outer), then the test part's when it ends that too. Item and
+	 * section rules apply in linear navigation only. With no matching rule, navigation falls through
+	 * to the following item. Preconditions then skip forward from the target. EXIT_TEST means the
+	 * remaining items are all skipped; undefined means the current item was the last.
+	 */
+	private nextItemIdentifier(
+		assessment: SecureAssessment,
+		delivered: DeliveredItem[],
+		index: number,
+		decls: DeclarationMap,
+	): string | undefined {
+		const start = this.branchTarget(assessment, delivered, index, decls) ?? index + 1;
+		const next = this.firstEligibleItem(assessment, delivered, start, delivered[index], decls);
+		return next ?? (index + 1 < delivered.length ? 'EXIT_TEST' : undefined);
+	}
+
+	private branchTarget(
+		assessment: SecureAssessment,
+		delivered: DeliveredItem[],
+		index: number,
+		decls: DeclarationMap,
+	): number | undefined {
+		const current = delivered[index]!;
+		const following = delivered[index + 1];
+		const linear = this.isLinear(assessment, current.testPart);
+		const holders: Array<{ rules?: SecureBranchRule[]; exitSection?: SecureSection }> = [];
+		if (linear) {
+			holders.push({ rules: current.item.branchRule, exitSection: current.sections[current.sections.length - 1] });
+			for (let level = current.sections.length - 1; level >= 0; level--) {
+				const section = current.sections[level]!;
+				if (following?.sections.includes(section)) break;
+				holders.push({ rules: section.branchRule, exitSection: current.sections[level - 1] });
 			}
 		}
-		return out;
+		if (following?.testPart !== current.testPart) holders.push({ rules: current.testPart.branchRule });
+
+		for (const { rules, exitSection } of holders) {
+			for (const rule of rules ?? []) {
+				if (rule.conditionXml && !evaluateTestCondition(rule.conditionXml, decls, this.rng)) continue;
+				const target = this.resolveBranchTarget(rule.target, delivered, index, exitSection);
+				if (target !== undefined) return target;
+			}
+		}
+		return undefined;
+	}
+
+	/** Index a branch target resolves to, forward of `index`; delivered.length ends the test. */
+	private resolveBranchTarget(
+		target: string,
+		delivered: DeliveredItem[],
+		index: number,
+		exitSection: SecureSection | undefined,
+	): number | undefined {
+		const current = delivered[index]!;
+		const firstAfter = (match: (d: DeliveredItem) => boolean): number | undefined => {
+			for (let j = index + 1; j < delivered.length; j++) if (match(delivered[j]!)) return j;
+			return undefined;
+		};
+		switch (target) {
+			case 'EXIT_TEST':
+				return delivered.length;
+			case 'EXIT_TESTPART':
+				return firstAfter((d) => d.testPart !== current.testPart) ?? delivered.length;
+			case 'EXIT_SECTION':
+				if (!exitSection) return undefined;
+				return firstAfter((d) => !d.sections.includes(exitSection)) ?? delivered.length;
+			default:
+				return (
+					firstAfter((d) => d.item.identifier === target) ??
+					firstAfter((d) => d.sections.some((section) => section.identifier === target)) ??
+					firstAfter((d) => d.testPart.identifier === target)
+				);
+		}
+	}
+
+	/**
+	 * First item from `start` whose preconditions hold. A test part's are checked on entering it in
+	 * any navigation mode; a newly entered section's (outermost first) and the item's only in linear
+	 * navigation. A failing part or section skips everything inside it.
+	 */
+	private firstEligibleItem(
+		assessment: SecureAssessment,
+		delivered: DeliveredItem[],
+		start: number,
+		from: DeliveredItem | undefined,
+		decls: DeclarationMap,
+	): string | undefined {
+		const holds = (conditions: string[] | undefined): boolean =>
+			(conditions ?? []).every((condition) => evaluateTestCondition(condition, decls, this.rng));
+		const skipPast = (j: number, inside: (d: DeliveredItem) => boolean): number => {
+			let next = j + 1;
+			while (next < delivered.length && inside(delivered[next]!)) next++;
+			return next;
+		};
+		let j = start;
+		candidates: while (j < delivered.length) {
+			const candidate = delivered[j]!;
+			const previous = j === start ? from : delivered[j - 1];
+			if (candidate.testPart !== previous?.testPart && !holds(candidate.testPart.preConditions)) {
+				j = skipPast(j, (d) => d.testPart === candidate.testPart);
+				continue;
+			}
+			if (this.isLinear(assessment, candidate.testPart)) {
+				for (const section of candidate.sections) {
+					if (previous?.sections.includes(section) || holds(section.preConditions)) continue;
+					j = skipPast(j, (d) => d.sections.includes(section));
+					continue candidates;
+				}
+				if (!holds(candidate.item.preConditions)) {
+					j++;
+					continue;
+				}
+			}
+			return candidate.item.identifier;
+		}
+		return undefined;
+	}
+
+	private isLinear(assessment: SecureAssessment, testPart: SecureTestPart): boolean {
+		return (testPart.navigationMode ?? assessment.navigationMode) === 'linear';
+	}
+
+	/** Delivered item refs in order, each with the identifiers of the sections containing it (outermost first). */
+	private getItemRefsInOrder(
+		assessment: SecureAssessment
+	): Array<{ item: SecureItemRef; sectionIdentifiers: string[] }> {
+		return deliveredItems(assessment).map(({ item, sections }) => ({
+			item,
+			sectionIdentifiers: sections.map((section) => section.identifier),
+		}));
+	}
+
+	/**
+	 * Test-level view of every delivered item. Items not yet submitted carry their declared defaults
+	 * and count as not presented; sessions stored before item test states existed fall back to the
+	 * submitted scores, leaving correctness to SCORE/MAXSCORE inference.
+	 */
+	private buildTestItems(session: StoredSession): TestItemState[] {
+		const itemScores = session.state.itemScores ?? {};
+		return this.getItemRefsInOrder(session.assessment).map(({ item, sectionIdentifiers }) => {
+			const scoring = itemScores[item.identifier];
+			const presented = scoring !== undefined;
+			const stored = presented ? session.itemTestStates?.[item.identifier] : undefined;
+			const itemState = presented ? stored : defaultItemTestState(item.itemXml);
+			const variables: Record<string, QtiValue> = {
+				...(itemState?.variables ?? (scoring ? this.scoredItemVariables(scoring) : {})),
+			};
+			if (scoring && !variables.SCORE) variables.SCORE = qtiValue('float', 'single', scoring.score);
+			Object.assign(variables, applyVariableMappings(variables, item.variableMappings));
+			const legacy = presented && !stored;
+			return {
+				identifier: item.identifier,
+				sectionIdentifiers,
+				categories: item.categories,
+				weights: item.weights ? Object.fromEntries(item.weights.map((w) => [w.identifier, w.value])) : undefined,
+				variables,
+				outcomeBounds: (itemState ?? defaultItemTestState(item.itemXml))?.outcomeBounds,
+				presented,
+				responded: legacy
+					? this.hasAnyResponse(session.state.itemResponses[item.identifier] ?? {})
+					: presented && itemState?.responded === true,
+				...(legacy
+					? {}
+					: { correct: presented && itemState?.correct === true, incorrect: presented && itemState?.correct === false }),
+				selected: true,
+			};
+		});
+	}
+
+	/** Variables recoverable from a scoring result alone: numbers as float, everything else as string. */
+	private scoredItemVariables(scoring: AssessmentScoringResult): Record<string, QtiValue> {
+		return Object.fromEntries(
+			Object.entries(scoring.outcomeValues || {}).map(([k, v]) => [
+				k,
+				typeof v === 'number' ? qtiValue('float', 'single', v) : qtiValue('string', 'single', String(v)),
+			])
+		);
 	}
 
 	// =========================================================================

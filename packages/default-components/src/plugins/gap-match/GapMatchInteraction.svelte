@@ -8,6 +8,8 @@
 	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
 	import { isCompatibleMatchGroup } from '../../shared/utils/matchGroupUtils';
+	import { interactionAria } from '../../shared/utils/interactionAria';
+	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 
 	interface Props {
 		interaction?: GapMatchInteractionData | string;
@@ -394,7 +396,8 @@
 </div>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div bind:this={rootElement} part="root" class={['qti-gap-match-interaction space-y-3', ...(parsedInteraction?.interactionClasses ?? [])].join(' ')} onkeydown={onRootKeydown}>
+<div bind:this={rootElement} {...interactionAria(parsedInteraction)} part="root" class={['qti-gap-match-interaction space-y-3', ...(parsedInteraction?.interactionClasses ?? [])].join(' ')} onkeydown={onRootKeydown}>
+	<InteractionDescription interaction={parsedInteraction} />
 	{#if !parsedInteraction}
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
@@ -406,6 +409,7 @@
 
 		<p>{i18n?.t('interactions.gapMatch.pointerInstructions') ?? 'Select a word, then select a blank. You can also drag and drop.'}</p>
 
+		<div class="qti-gm-layout">
 		<!-- Available gap texts (draggable words) -->
 		<div
 			part="palette"
@@ -465,6 +469,7 @@
 	<div part="text" class="qti-gm-text qti-rich-content p-4 bg-base-100 border border-base-300 rounded">
 		<div bind:this={promptContainer} class="qti-gm-inline"></div>
 	</div>
+		</div>
 	{/if}
 </div>
 
@@ -476,6 +481,24 @@
 	}
 	.qti-gm-prompt {
 		margin: 0;
+	}
+	/* qti-choices-top|bottom|left|right: the word palette's side of the text; top by default */
+	.qti-gm-layout {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+	.qti-gap-match-interaction.qti-choices-bottom .qti-gm-layout { flex-direction: column-reverse; }
+	.qti-gap-match-interaction.qti-choices-left .qti-gm-layout { flex-direction: row; }
+	.qti-gap-match-interaction.qti-choices-right .qti-gm-layout { flex-direction: row-reverse; }
+	.qti-gap-match-interaction:is(.qti-choices-left, .qti-choices-right) .qti-gm-palette {
+		flex: 0 0 auto;
+		max-width: 40%;
+		align-content: flex-start;
+	}
+	.qti-gap-match-interaction:is(.qti-choices-left, .qti-choices-right) .qti-gm-text {
+		flex: 1 1 0;
+		min-width: 0;
 	}
 	.qti-gm-palette {
 		display: flex;

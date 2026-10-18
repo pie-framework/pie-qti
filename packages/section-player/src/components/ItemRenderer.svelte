@@ -4,7 +4,7 @@
 	import { assignProps } from '@pie-qti/qti-common';
 	import { onMount } from 'svelte';
 	import type { QtiSectionFrameworkError, QtiSectionItemRef, QtiSectionRole } from '../contracts/index.js';
-	import { extractReadableInteractionSpeechHtml } from '../tts/readable-interaction-projection.js';
+	import { extractItemSpeech } from '../tts/spoken-catalogs.js';
 	import QtiToolButtonBar from './QtiToolButtonBar.svelte';
 
 	type ItemPlayerResponseChangeEvent = CustomEvent<{ responseId: string; value: unknown }>;
@@ -42,9 +42,7 @@
 	let itemScopeElement = $state<HTMLElement | null>(null);
 	const itemTitle = $derived(itemRef.title ?? 'Question');
 	const hasHeaderTools = $derived((itemRef.tools?.length ?? 0) > 0);
-	const interactionSpeechHtml = $derived(
-		extractReadableInteractionSpeechHtml(itemRef.itemXml, { security }),
-	);
+	const itemSpeech = $derived(extractItemSpeech(itemRef.itemXml, { security }));
 
 	async function loadItemPlayerElement() {
 		if (!customElements.get('pie-qti-item-player')) {
@@ -130,6 +128,8 @@
 					scopeId={itemRef.identifier}
 					scopeLabel="question"
 					sourceXml={itemRef.itemXml}
+					accessibilityCatalogs={itemSpeech.catalogs}
+					language={itemSpeech.language}
 					scopeElement={itemScopeElement}
 				/>
 			</header>
@@ -151,11 +151,6 @@
 					i18n,
 				}}
 			></pie-qti-item-player>
-			{#if interactionSpeechHtml}
-				<div class="qti-tts-interaction-projection" data-qti-tts-readable-projection>
-					{@html interactionSpeechHtml}
-				</div>
-			{/if}
 		</div>
 	</article>
 {/if}
@@ -177,14 +172,5 @@
 	.item-content {
 		width: 100%;
 		position: relative;
-	}
-
-	.qti-tts-interaction-projection {
-		position: absolute;
-		left: -10000px;
-		top: 0;
-		width: 1px;
-		opacity: 0.01;
-		pointer-events: none;
 	}
 </style>

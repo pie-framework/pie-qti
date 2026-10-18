@@ -188,6 +188,11 @@ export interface ScoringResult {
 	maxScore: number;
 	completed: boolean;
 	outcomeValues: Record<string, any>;
+	/**
+	 * Whether every declared response matches its correct response; absent when the item has no
+	 * response or one declares no correct response.
+	 */
+	correct?: boolean;
 	/** Modal feedback elements that should be displayed based on outcome values */
 	modalFeedback?: ModalFeedback[];
 }
@@ -258,7 +263,7 @@ export interface ItemSessionEngineConfig {
 	itemXml: string;
 	/**
 	 * QTI 3.0 §6.2 Personal Needs and Preferences profile.
-	 * Color scheme is applied immediately as data-qti-colorscheme on the player root.
+	 * Display needs are applied as attributes and custom properties on the player root.
 	 * Use player.updatePnp() to change mid-session without re-parsing the item.
 	 */
 	pnp?: import('../pnp/types.js').PnpProfile;
@@ -276,6 +281,16 @@ export interface ItemSessionEngineConfig {
 	 */
 	deliveryContext?: ResolvedItemDeliveryContext;
 	role?: QTIRole;
+	/**
+	 * Values for the item's context variables, set before template processing: `QTI_CONTEXT`, a
+	 * record, and any declared by `contextDeclaration` (`qti-context-declaration`).
+	 */
+	contextVariables?: Readonly<Record<string, unknown>>;
+	/**
+	 * Default values for template variables, set before template processing and kept by
+	 * `newTemplate`, as an assessmentItemRef's `templateDefault` requires.
+	 */
+	templateDefaults?: Readonly<Record<string, unknown>>;
 	/** Optional seed for deterministic random operations (e.g. templateProcessing randomInteger) */
 	seed?: number;
 	/** Optional RNG override (takes precedence over seed if provided) */

@@ -118,6 +118,8 @@ export default {
 			selected: 'Selected',
 			notSelected: 'Not selected',
 			correct: 'Correct',
+			revealChoice: 'Reveal choice {index}',
+			groupLabel: 'Answer choices',
 		},
 
 		upload: {
@@ -240,6 +242,7 @@ export default {
 			clearMatch: 'Clear match for {source}',
 			sourceItemsLabel: 'Source items to match',
 			targetItemsLabel: 'Target items for matching',
+			groupLabel: 'Matching items',
 			dragFromHere: 'Drag from here:',
 			dropHere: 'Drop here:',
 			deselected: '{item} deselected',

@@ -42,6 +42,8 @@ export type ItemPresentationResponseMap = Record<string, ItemPresentationRespons
  */
 export interface ItemPresentationSource {
 	itemBodyHtml: HtmlContent;
+	/** The content's `xml:lang`, when the item declares one. */
+	contentLanguage?: string;
 	interactions: readonly BaseInteractionData[];
 	correctResponses: Record<string, unknown>;
 	componentRegistry: ComponentRegistry;
@@ -61,6 +63,10 @@ export interface CreateItemPresentationOptions {
 	heuristicsConfig?: QtiHeuristicsConfig;
 	itemBodyScopeSelector?: string;
 	renderItemBodyRubrics?: boolean;
+	/** False drops every feedbackInline and feedbackBlock, as test-level showFeedback="false" requires. */
+	showFeedback?: boolean;
+	/** True exposes correct responses whatever the role, as test-level showSolution requires. */
+	showSolution?: boolean;
 	onComponentError?: (interaction: BaseInteractionData, error: unknown) => void;
 }
 
@@ -76,6 +82,9 @@ export interface BlockInteractionMount {
 	readonly correctResponse: unknown;
 	readonly pnp: PnpProfile | undefined;
 	readonly eliminationTool: boolean;
+	readonly answerMasking: boolean;
+	/** Label the interaction's answer set as an ARIA group for assistive technology (G-13). */
+	readonly structuredLabelSupport: boolean;
 	readonly disabled: boolean;
 	readonly componentRole: 'scorer' | undefined;
 }
@@ -108,6 +117,8 @@ export type ItemPresentationFlowNode =
 export interface ItemPresentation {
 	readonly capabilities: RoleCapabilities;
 	readonly disabled: boolean;
+	/** The language the item body is written in, for its `lang`; undefined when undeclared. */
+	readonly contentLanguage?: string;
 	readonly correctResponses: Readonly<Record<string, unknown>>;
 	/** Direct assessmentItem rubrics that remain outside the item-body flow. */
 	readonly directRubrics: readonly RubricBlock[];
@@ -126,9 +137,14 @@ export function createItemPresentation({
 	heuristicsConfig,
 	itemBodyScopeSelector = '[data-qti-item-body-scope]',
 	renderItemBodyRubrics = true,
+	showFeedback = true,
+	showSolution = false,
 	onComponentError,
 }: CreateItemPresentationOptions): ItemPresentation {
-	const roleCapabilities = getRoleCapabilities(role);
+	const baseCapabilities = getRoleCapabilities(role);
+	const roleCapabilities = showSolution
+		? { ...baseCapabilities, canViewCorrectResponses: true }
+		: baseCapabilities;
 	const effectiveDisabled = disabled || roleCapabilities.isReadOnly;
 	const correctResponses = roleCapabilities.canViewCorrectResponses ? source.correctResponses : {};
 	const { html, scopedCss } = buildItemBodyPresentation({
@@ -138,6 +154,7 @@ export function createItemPresentation({
 		heuristicsConfig,
 		itemBodyScopeSelector,
 		renderItemBodyRubrics,
+		showFeedback,
 	});
 	const inlineFlow = createInlineRenderPlan(html, source.interactions).map(
 		(segment): ItemPresentationFlowNode => {
@@ -188,6 +205,7 @@ export function createItemPresentation({
 	return freezePresentation({
 		capabilities: roleCapabilities,
 		disabled: effectiveDisabled,
+		...(source.contentLanguage ? { contentLanguage: source.contentLanguage } : {}),
 		correctResponses,
 		directRubrics: source.directRubrics ?? [],
 		flow: [...inlineFlow, ...blockFlow],
@@ -213,6 +231,7 @@ function buildItemBodyPresentation({
 	heuristicsConfig,
 	itemBodyScopeSelector,
 	renderItemBodyRubrics,
+	showFeedback,
 }: {
 	source: ItemPresentationSource;
 	role: QTIRole;
@@ -220,6 +239,7 @@ function buildItemBodyPresentation({
 	heuristicsConfig: QtiHeuristicsConfig | undefined;
 	itemBodyScopeSelector: string;
 	renderItemBodyRubrics: boolean;
+	showFeedback: boolean;
 }): { html: string; scopedCss: string } {
 	let html = htmlToString(source.itemBodyHtml);
 	const scopedCss = buildScopedStylesheetCss(source.deliveryContext, itemBodyScopeSelector);
@@ -236,6 +256,7 @@ function buildItemBodyPresentation({
 		outcomeValues,
 		applyHeuristics: heuristics.feedbackTextFormatting,
 		wrapWithSpan: false,
+		hideAll: !showFeedback,
 	});
 
 	return { html: hideBlockInteractionMarkup(html), scopedCss };
@@ -388,6 +409,8 @@ function createBlockInteractionMounts({
 						: null,
 					pnp: source.pnp,
 					eliminationTool: source.pnp?.cognitive?.eliminationTool === true,
+					answerMasking: source.pnp?.cognitive?.answerMasking === true,
+					structuredLabelSupport: source.pnp?.display?.structuredLabelSupport === true,
 					disabled: effectiveDisabled,
 					componentRole: roleCapabilities.canViewCorrectResponses ? 'scorer' : undefined,
 				};

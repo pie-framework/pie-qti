@@ -7,6 +7,7 @@
 import type { ElementNameMapper, AttributeNameMapper } from '@pie-qti/qti-common';
 import { Qti2xElementNameMapper, Qti2xAttributeNameMapper } from '@pie-qti/qti-common';
 import { sanitizeTextContent } from '../core/sanitizer.js';
+import { readAloudAttributes } from './interactionAccessibility.js';
 import type { PlayerSecurityConfig } from '../types/index.js';
 import type { QTIElement } from '../interactions/shared/types.js';
 import type { ExtractionUtils } from './types.js';
@@ -130,6 +131,13 @@ function matchesTagName(
 	return rawTagName.toLowerCase() === native.toLowerCase();
 }
 
+/** Whether `element`'s content is one element carrying `idref`. */
+function wrapsContentWithIdref(element: QTIElement, idref: string): boolean {
+	const content = element.childNodes.filter((child) => child.nodeType === 1 || child.text.trim() !== '');
+	const [only] = content;
+	return content.length === 1 && (only as QTIElement).getAttribute?.('data-catalog-idref') === idref;
+}
+
 /**
  * Create extraction utilities instance
  * Provides standard helpers for extracting data from QTI elements.
@@ -196,7 +204,20 @@ export function createExtractionUtils(
 
 		getHtmlContent(element: QTIElement): string {
 			const html = element?.innerHTML?.trim() || '';
-			return sanitizeTextContent(html, { security });
+			// A prompt's or choice's own language, catalog idref and read-aloud suppression would
+			// go with its tag, so they wrap its content. An object's markup stays as authored.
+			const attributes = element?.rawTagName?.toLowerCase() === 'object' ? undefined : readAloudAttributes(element);
+			// Markup preparation docks a choice's idref on a wrapper around its content already.
+			if (attributes?.['data-catalog-idref'] && wrapsContentWithIdref(element, attributes['data-catalog-idref'])) {
+				delete attributes['data-catalog-idref'];
+			}
+			const wrapped =
+				html && attributes && Object.keys(attributes).length > 0
+					? `<span ${Object.entries(attributes)
+							.map(([name, value]) => `${name}="${value.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"`)
+							.join(' ')}>${html}</span>`
+					: html;
+			return sanitizeTextContent(wrapped, { security });
 		},
 
 		getTextContent(element: QTIElement): string {

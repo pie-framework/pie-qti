@@ -45,6 +45,9 @@ packages/schemas/scripts/*.d.ts.map
 **/tests/**/*.js.map
 **/tests/**/*.d.ts
 **/tests/**/*.d.ts.map
+# ...except authored runtime content: the PCI conformance fixtures are AMD
+# modules on purpose (they are the test subject, loaded from disk).
+!packages/item-player/tests/conformance/pci/**/*.js
 
 # Logs
 *.log

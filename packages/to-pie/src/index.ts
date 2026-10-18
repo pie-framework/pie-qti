@@ -146,7 +146,7 @@ export {
   readQtiCatalogs,
   withQtiAccessibility,
 } from './utils/accessibility-catalogs.js';
-export type { TextRange } from './utils/accessibility-markup.js';
+export type { TextRange } from '@pie-qti/qti-common/accessibility';
 export type { QtiPackagePassage, QtiPassageItemLink } from './utils/passage-links.js';
 export {
   PASSAGE_DEPENDENCY_UNREFERENCED,

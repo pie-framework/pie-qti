@@ -66,9 +66,13 @@ item.addEventListener('submit', (event) => {});
 item.addEventListener('complete', (event) => {});
 ```
 
-Portable Custom Interaction execution is disabled until the host supplies an allow-listed resolver:
+Portable Custom Interaction execution is disabled until the host opts into one of two engines:
+a page-realm resolver that returns the trusted module, or the sandboxed engine
+(`pci.sandbox`), which runs the module inside a hardened cross-origin runner frame
+(deploy `@pie-qti/pci-runner`) and evaluates nothing in the page:
 
 ```js
+// Page realm: the resolver's return runs the module with page authority.
 item.pci = {
   baseUrl: 'https://content.example/items/item-1/',
   moduleResolver(_resolvedUrl, { authoredPath }) {
@@ -77,6 +81,12 @@ item.pci = {
     return load();
   }
 };
+
+// Or sandboxed: module URLs are resolved and handed to the runner frame.
+// item.pci = {
+//   baseUrl: 'https://content.example/items/item-1/',
+//   sandbox: { runnerUrl: 'https://qti.pie-framework.org/pci-runner.html' },
+// };
 ```
 
 ## Assessment element

@@ -23,3 +23,12 @@ export {
 	type TextRange,
 } from './catalog.js';
 export { type QtiCatalogInfoOptions, writeQtiCatalogInfo } from './catalog-info.js';
+export {
+	type ContentLink,
+	escapeText,
+	HIDING_STYLES,
+	type PreparedMarkup,
+	type PrepareContentMarkupOptions,
+	prepareContentMarkup,
+	SSML_NAMESPACES,
+} from './markup.js';

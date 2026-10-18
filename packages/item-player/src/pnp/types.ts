@@ -30,6 +30,26 @@ export interface PnpProfile {
 		 * Stored here for forward-compatibility but not yet applied by the player.
 		 */
 		magnification?: number;
+		/** AfA `language-of-interface`: the language the host renders the player's own text in. */
+		interfaceLanguage?: string;
+		/**
+		 * AfA `invert-display-polarity`: light content on a dark ground. The colours, when given,
+		 * replace the inverted ones. Sets `data-qti-invert-polarity` on the player root.
+		 */
+		invertPolarity?: { foreground?: string; background?: string };
+		/** AfA `layout-single-column`: layout grids stack. Sets `data-qti-layout="single-column"`. */
+		singleColumn?: boolean;
+		/** AfA `text-appearance`, applied as custom properties on the player root. */
+		textAppearance?: PnpTextAppearance;
+		/**
+		 * Present each interaction's answer set as a labelled ARIA group for assistive
+		 * technology: the choice and match interactions wrap their answers in a
+		 * `role="group"` labelled by the interaction prompt, and the match columns get
+		 * visible, programmatically associated sub-labels. Neither APIP 1.0 nor AfA PNP
+		 * 3.0 defines a structured-label term; this is a player extension, so hosts set
+		 * it in the JSON profile (it has no AfA XML feature).
+		 */
+		structuredLabelSupport?: boolean;
 	};
 	content?: {
 		/** Show glossary trigger buttons on [data-catalog-idref] terms (G-10). */
@@ -44,12 +64,51 @@ export interface PnpProfile {
 		 * Scale assessment time limits. multiplier: 1.5 means 50% extra time.
 		 * multiplier: Infinity removes the time limit entirely.
 		 */
-		extendedTime?: { active: boolean; multiplier: number };
+		extendedTime?: {
+			active: boolean;
+			multiplier: number;
+			/** AfA `fixed-minutes`: minutes added to each time limit, with `multiplier` 1. */
+			fixedMinutes?: number;
+		};
 	};
 	cognitive?: {
 		/** Render per-choice elimination toggle buttons in choiceInteraction and orderInteraction. */
 		eliminationTool?: boolean;
+		/** AfA `answer-masking`: each choice of a choiceInteraction stays masked until the candidate reveals it. */
+		answerMasking?: boolean;
 	};
+	/**
+	 * Tool supports in pie-players' `PersonalNeedsProfile` terms, from AfA `calculator-on-screen`,
+	 * `spoken`, `line-reader` and `dictionary-on-screen`. The section player enables the tools it
+	 * offers from them; a host passes them to its own toolkit.
+	 */
+	tools?: PnpToolSupports;
+}
+
+export interface PnpTextAppearance {
+	/** Font size in points. */
+	fontSize?: number;
+	/** A CSS font-family list: the named fonts, then the generic face. */
+	fontFamily?: string;
+	fontColor?: string;
+	backgroundColor?: string;
+	/** Unitless line height, from AfA `line-height`, else `line-spacing`. */
+	lineHeight?: number;
+	/** Letter spacing in em. */
+	letterSpacing?: number;
+	/** Word spacing in em. */
+	wordSpacing?: number;
+}
+
+export interface PnpToolSupports {
+	/** Tool ids granted to the candidate. */
+	supports?: string[];
+	/** Tool ids withdrawn from the candidate. */
+	prohibitedSupports?: string[];
+	/** Granted tool ids turned on at start. */
+	activateAtInit?: string[];
+	/** The candidate's settings per tool id. */
+	toolParameters?: Record<string, Record<string, unknown>>;
 }
 
 export interface CatalogSupportPreferences {

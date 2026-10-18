@@ -7,6 +7,8 @@
 		createExtendedTextStringResponse,
 		extendedTextResponseToStrings,
 	} from '@pie-qti/item-player';
+	import { interactionAria } from '../../shared/utils/interactionAria';
+	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import RichTextEditor from '../../shared/components/RichTextEditor.svelte';
 	import { typesetAction } from '../../shared/actions/typesetAction';
@@ -165,7 +167,8 @@
 
 <ShadowBaseStyles />
 
-<div bind:this={rootElement} part="root" class={['qti-extended-text-interaction', ...(parsedInteraction?.interactionClasses ?? [])].join(' ')}>
+<div bind:this={rootElement} {...interactionAria(parsedInteraction)} part="root" class={['qti-extended-text-interaction', ...(parsedInteraction?.interactionClasses ?? [])].join(' ')}>
+	<InteractionDescription interaction={parsedInteraction} />
 	{#if !parsedInteraction}
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}

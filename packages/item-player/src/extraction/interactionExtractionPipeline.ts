@@ -1,6 +1,8 @@
 import type { AssessmentItemDocument } from '../document/AssessmentItemDocument.js';
+import type { ContentHandlers } from '../document/contentPass.js';
 import type { ExtractionRegistry } from './ExtractionRegistry.js';
 import { createExtractionContext } from './createContext.js';
+import { interactionAccessibility, readAloudAttributes } from './interactionAccessibility.js';
 import { finalizeInteractionDelivery } from './interactionSecurity.js';
 import type { VariableDeclaration as ExtractionVariableDeclaration } from './types.js';
 import type { DeclarationMap } from '@pie-qti/qti-processing';
@@ -20,6 +22,8 @@ export interface InteractionExtractionPipelineInput {
 	 * Omit to keep the authored order.
 	 */
 	sessionGuid?: string;
+	/** The content pass applied to the item body before interactions are extracted. */
+	contentHandlers?: ContentHandlers;
 }
 
 export function extractInteractionData({
@@ -28,9 +32,13 @@ export function extractInteractionData({
 	declarations,
 	config,
 	sessionGuid,
+	contentHandlers,
 }: InteractionExtractionPipelineInput): readonly BaseInteractionData[] {
 	const declMap = projectDeclarationsForExtraction(declarations);
-	const elements = document.findExtractionElements(getRegisteredElementTypes(extractionRegistry));
+	const elements = document.findExtractionElements(
+		getRegisteredElementTypes(extractionRegistry),
+		contentHandlers,
+	);
 
 	const interactions: BaseInteractionData[] = [];
 	for (const discovered of elements) {
@@ -50,8 +58,12 @@ export function extractInteractionData({
 
 		const extractor = result.extractor;
 		const outputType = extractor?.outputType ?? discovered.normalizedType;
+		const accessibility = interactionAccessibility(discovered.element, discovered.contextRoot);
+		const readAloud = readAloudAttributes(discovered.element);
 		const interaction = {
 			...result.data,
+			...(accessibility ? { accessibility } : {}),
+			...(readAloud ? { readAloud } : {}),
 			// These are framework-owned routing fields. Applying them after the
 			// extractor payload prevents a plugin from redirecting a response or
 			// selecting an undeclared renderer through payload properties.

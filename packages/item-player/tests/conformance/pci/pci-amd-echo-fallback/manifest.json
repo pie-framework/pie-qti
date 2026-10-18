@@ -1,0 +1,6 @@
+{
+	"source": "internal",
+	"license": "MIT",
+	"notes": "Same interaction as pci-amd-echo with a deliberately wrong entry primary-path, as the official 1EdTech fractions1 example demonstrates: delivery must fall back to the authored fallback-path and still register.",
+	"covers": ["pciFallbackResolution", "amdModuleResolution"]
+}

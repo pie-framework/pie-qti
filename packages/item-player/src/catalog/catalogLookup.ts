@@ -51,3 +51,26 @@ export function getCatalogEntry(
 
 	return null;
 }
+
+/**
+ * Delivery-level usage aliases: APIP-derived catalogs name a few supports by their AfA
+ * support name, where QTI 3 catalogs use the newer usage string. A lookup under a QTI 3
+ * usage falls back to its alias so host routing finds both catalog flavors.
+ */
+export const USAGE_ALIASES: Readonly<Record<string, string>> = {
+	'braille-text': 'braille',
+	'signing-definition': 'sign-language',
+};
+
+/** Look `usage` up, then its QTI 3 → APIP alias, so one idref answers under either name. */
+export function getCatalogEntryWithAliases(
+	index: CatalogIndex,
+	idref: string,
+	usage: string,
+	lang?: string
+): string | null {
+	const direct = getCatalogEntry(index, idref, usage, lang);
+	if (direct !== null) return direct;
+	const alias = USAGE_ALIASES[usage];
+	return alias ? getCatalogEntry(index, idref, alias, lang) : null;
+}

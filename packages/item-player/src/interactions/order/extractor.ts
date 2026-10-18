@@ -61,6 +61,7 @@ export const standardOrderExtractor: ElementExtractor<OrderData> = {
 		const orientation = utils.getAttribute(element, 'orientation', 'vertical');
 		const minChoices = utils.getNumberAttribute(element, 'minChoices', 0);
 		const maxChoices = utils.getNumberAttribute(element, 'maxChoices', 0);
+		const interactionClasses = utils.getClasses(element);
 
 		return {
 			choices: maybeShuffle(choices, shuffle, context.shuffleRng),
@@ -69,6 +70,7 @@ export const standardOrderExtractor: ElementExtractor<OrderData> = {
 			minChoices,
 			maxChoices,
 			prompt,
+			...(interactionClasses.length > 0 ? { interactionClasses } : {}),
 		};
 	},
 

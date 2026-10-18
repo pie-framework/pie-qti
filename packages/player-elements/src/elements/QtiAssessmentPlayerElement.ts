@@ -417,11 +417,12 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 				role: this.#config.role ?? 'candidate',
 				itemXmlMap: this.#resolvedItemXmlMap(parsed),
 				fileResolver: resourceResolver,
+				...(this.#config.sharedCatalogs ? { sharedCatalogs: this.#config.sharedCatalogs } : {}),
 				...(configuredSectionDepth === undefined
 					? {}
 					: { sectionReferenceLimits: { maxDepth: configuredSectionDepth } }),
 			});
-			const backend = new ReferenceBackendAdapter();
+			const backend = new ReferenceBackendAdapter({ rng: this.#config.rng });
 			backend.registerAssessment(assessmentId, secure);
 			this.#backend = backend;
 			this.#initSession = { assessmentId, candidateId };
@@ -521,6 +522,8 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 	}
 
 	#resolvedItemXmlMap(parsed: ParsedAssessmentTest): Record<string, string> {
+		// Keys must keep satisfying the adapter's per-item lookup order: identifier,
+		// authored href, then href resolved against the containing file.
 		const map: Record<string, string> = {};
 		const visit = (sections: ParsedAssessmentSection[]): void => {
 			for (const section of sections) {

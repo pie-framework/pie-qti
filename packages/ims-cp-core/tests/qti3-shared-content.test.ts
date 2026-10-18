@@ -10,6 +10,16 @@ import {
 	resolveRelativePath,
 } from '../src/qti3-shared-content.js';
 
+const SHARED_CATALOG_XML = `<qti-catalog-info xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0">
+  <qti-catalog id="term_shared">
+    <qti-card>
+      <qti-card-entry usage="glossary-on-screen">
+        <qti-html-content><p>A shared definition.</p><qti-file-href src="../shared/icons/term.png" mime-type="image/png"/></qti-html-content>
+      </qti-card-entry>
+    </qti-card>
+  </qti-catalog>
+</qti-catalog-info>`;
+
 describe('QTI 3 shared content parsing', () => {
 	test('extracts qti-assessment-stimulus-ref values with QTI 3 attributes', () => {
 		const itemXml = `<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="item-1">
@@ -315,5 +325,51 @@ describe('QTI 3 shared content parsing', () => {
 
 		expect(context.catalogSources[0].xml).toContain('https://cdn.example/card.png');
 		expect(context.validationMessages).toEqual([]);
+	});
+});
+
+describe('shared catalog files (G-15)', () => {
+	const itemXml = `<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="shared-cat">
+    <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier"/>
+    <itemBody><p>Term <span data-catalog-idref="term_shared">shared</span>.</p></itemBody>
+  </assessmentItem>`;
+
+	test('package catalog sources back the delivery context below item scope', () => {
+		const context = createResolvedItemDeliveryContext({
+			itemXml,
+			itemHref: 'items/item.xml',
+			readText: (path) => (path === 'catalogs/shared.xml' ? SHARED_CATALOG_XML : undefined),
+			packageCatalogSources: [{ href: 'catalogs/shared.xml' }],
+		});
+
+		expect(context.catalogSources.map((source) => source.scope)).toEqual(['package']);
+		expect(context.catalogSources[0].baseHref).toBe('catalogs/shared.xml');
+		// A file href inside the shared catalog resolves against the catalog file.
+		expect(context.catalogSources[0].xml).toContain('src="shared/icons/term.png"');
+		expect(context.validationMessages).toEqual([]);
+	});
+
+	test('an inline shared catalog xml needs no file read', () => {
+		const context = createResolvedItemDeliveryContext({
+			itemXml,
+			itemHref: 'items/item.xml',
+			readText: () => undefined,
+			packageCatalogSources: [{ xml: SHARED_CATALOG_XML }],
+		});
+
+		expect(context.catalogSources).toHaveLength(1);
+		expect(context.catalogSources[0].scope).toBe('package');
+	});
+
+	test('a missing shared catalog file is named in validation', () => {
+		const context = createResolvedItemDeliveryContext({
+			itemXml,
+			itemHref: 'items/item.xml',
+			readText: () => undefined,
+			packageCatalogSources: [{ href: 'catalogs/gone.xml' }],
+		});
+
+		expect(context.catalogSources).toHaveLength(0);
+		expect(context.validationMessages.join(' ')).toContain('Shared catalog file not found');
 	});
 });

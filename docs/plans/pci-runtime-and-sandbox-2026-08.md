@@ -1,10 +1,12 @@
 # PCI Runtime Engine and Sandbox Plan
 
-**Status**: Proposed, not scheduled — the ingest driver was measured and is absent
-**Last reviewed**: 2026-08-17
+**Status**: Landed — phases 1–3 on 2026-10-16, phase 4 (sandboxed realm) on 2026-10-16, all under the
+[completeness goal](version-1-0-2026-10.md)
+**Last reviewed**: 2026-10-17
 **Scope**: `packages/item-player/src/pci/`,
 `packages/item-player/src/interactions/portable-custom/`,
 `packages/item-player/src/iframe/`,
+`packages/pci-runner/`,
 `packages/default-components/src/plugins/portable-custom/`
 
 Turns Portable Custom Interaction support from a host-gated escape hatch into a
@@ -227,6 +229,11 @@ direct DOM access to everything, not just the PCI.
 
 ### Option C — Per-PCI sandboxed iframe from a cookieless runner origin
 
+**Shipped (2026-10-16).** `PciConfiguration.sandbox.runnerUrl` opts an item's PCIs into this
+engine; `@pie-qti/pci-runner` is the deployable runner page, and
+`SandboxedPciSession` + the `pie-qti-pci-sandbox` protocol are the bridge. The runner origin
+itself (`https://qti.pie-framework.org`) is a deployment step that follows the next release.
+
 `<iframe sandbox="allow-scripts" src="https://<runner-origin>/pci-runner.html">`
 — a real URL *and* the sandbox attribute, not one or the other. Without
 `allow-same-origin` the document's origin is opaque, so it shares no storage,
@@ -242,21 +249,27 @@ Requirements:
   on it worth reaching, which is the security property; per-tenant subdomains are
   unnecessary because each frame already has a distinct opaque origin.
 - A PCI-side runner implementing `qtiCustomInteractionContext` and bridging the
-  contract over `postMessage`. The existing `pie-qti-iframe` protocol is the
-  model: versioned envelopes, origin locking, `resize` and `responseChange`
-  already exist in the shape this needs.
-- Mutual origin locking over `postMessage`. `frame-ancestors` is ignored in
-  `<meta>` CSP, so who may frame the runner cannot be enforced by header on a
-  static host; the runner verifies `event.origin` against a value passed at init,
-  as `IFramePlayerHost` already verifies the frame.
+  contract over `postMessage`. **Landed** as `createPciRunnerController` in
+  `@pie-qti/pci-runner`: the runner is a conformant PCI *host* in its own realm
+  (same registry install, same AMD loader), with the versioned
+  `pie-qti-pci-sandbox` envelope between the sides. `resize` and
+  `response-change` push; a bounded poll (default 250 ms) is the freshness floor
+  for the host's synchronous `getResponse()`.
+- Mutual origin locking over `postMessage`. **Landed**: the host accepts messages
+  only from the runner URL's origin *and* the frame's `contentWindow`; the runner
+  accepts its first message only from `window.parent` and locks to that origin.
 - `Access-Control-Allow-Origin: *` without credentials on the package origin. An
   opaque origin sends `Origin: null`, so a PCI using `fetch` needs it; `<img>`
-  and `<script>` loads need no CORS at all.
+  and `<script>` loads need no CORS at all (the runner loads modules by script
+  injection, so only the resolution-config fetch requires CORS).
 
 Accepted limits: no storage and no cookies in the frame, so a PCI that persists
 locally or fetches authenticated assets breaks. Neither should happen under the
 specification, where state travels through `getState()`, but third-party code
-will do both.
+will do both. `getResponse()` on the host is synchronous but answers a cache: a
+submit reads a value at most one poll interval old — this is the protocol
+obligation a realm boundary forces, and it is documented in
+`PciSandboxConfiguration.pollIntervalMs`.
 
 `https://qti.pie-framework.org` satisfies the runner-origin requirements today,
 including for production, since it is a distinct cookieless origin serving static
@@ -286,24 +299,64 @@ trusted item content.
 
 1. **Spec contract adoption.** Registry global, `getInstance`, `onready` /
    `ondone`, QTI variable JSON responses, `getState()` restore. Third-party PCIs
-   run after this phase and not before it.
+   run after this phase and not before it. **Done (2026-10-16)** — `registry.ts`
+   installs `qtiCustomInteractionContext`, `PciHost` instantiates through
+   `getInstance`, responses cross the boundary as QTI variable JSON
+   (`qtiVariableJson.ts`), restore re-seeds state, and `configuration.status` is
+   derived from role and attempt state.
 2. **AMD loader and module resolution.** Loader seam, AMD default resolution,
    resolution-config parsing, fallback resolution, multi-module extraction.
+   **Done (2026-10-16)** — `amdLoader.ts` implements `define`/`require` with
+   serialized evaluations, shims and `urlArgs`; `resolutionConfig.ts` parses the
+   RequireJS-shaped config and probes the defined default locations;
+   `ExtractedPci.modules` carries every authored `qti-interaction-module` entry,
+   and the entry module is picked by the type-identifier tail.
 3. **Conformance evidence.** Clean-room PCI fixtures exercising registration,
    restore-by-state, `ondone`, and fallback resolution; browser-level evidence
-   in the private runner.
+   in the private runner. **In-repo evidence done (2026-10-16)** — clean-room
+   fixtures (`tests/conformance/pci/`) authored from the specification drive
+   the full delivery path over real module files: registration, AMD dependency
+   wiring, `getInstance` state seeding, QTI variable JSON, `onready`/`ondone`,
+   `getState()` restore, and fallback resolution. Browser-level evidence in the
+   private runner follows the verification boundary: it attaches to a published
+   candidate, so it waits for the next release, and third-party content
+   (actual vendor modules) remains the 1EdTech-scoping step.
 4. **Sandboxed engine (Option C).** Frame runner, bridged contract, cached
    response reads, base-URL asset resolution, mutual origin locking.
+   **Done (2026-10-16)** — `SandboxedPciSession` runs the module in
+   `<iframe sandbox="allow-scripts">` behind `PciHost`'s shared response-ownership
+   state machine (the engines differ only behind the `PciModuleSession` seam);
+   `@pie-qti/pci-runner` builds the deployable runner page (`dist/pci-runner.html`
+   + `pci-runner.js`, CSP-hardened, fixed file names); the `pie-qti-pci-sandbox`
+   protocol carries init/instantiate/lifecycle/response-change/resize with mutual
+   origin locking; `PciConfiguration.moduleResolver` became optional (required for
+   the page realm, unused under `sandbox`), with
+   `createAllowlistPciModulePolicy` as the sandbox-side allow-list; the renderer
+   surfaces asynchronous engine failures through the new
+   `PciHostController.onError`. Both sides are tested over in-memory transports
+   (`pci-sandbox.test.ts`, `packages/pci-runner/tests`); browser-level evidence
+   against the deployed runner origin attaches to the next published candidate,
+   like phases 1–3.
 
 Phases 1–3 make third-party PCIs playable, which is the driver. Phase 4 is a
-security posture and does not gate anything else.
+security posture and does not gate anything else. The runner-origin deployment
+(`https://qti.pie-framework.org`) is the one operational step that follows a
+release; until then the engine is fully testable in-repo and against any origin
+a host deploys the runner to.
 
 ---
 
-## Driver: Measured, And Absent
+## Driver: Measured, Then Re-Driven By Completeness
 
-Phases 1–4 are **not scheduled**. The ingest driver was measured against
-a third-party QTI corpus on 2026-08-17 and does not exist yet.
+**Update 2026-10-17:** phases 1–4 are **landed**. The project goal is now
+feature completeness and a proper 1.0
+([`version-1-0-2026-10.md`](version-1-0-2026-10.md)), so spec-shaped PCI must
+run for its own sake; the intake measurement below remains valid data but no
+longer decides scope. Phases 1–3 gate the 1.0 acceptance criterion that a
+third-party spec-authored PCI runs unmodified; phase 4 shipped on the same track
+as opt-in hardening and gates nothing.
+
+The original 2026-08-17 measurement, retained for the record:
 
 | Corpus | PCI signal |
 | ------ | ---------- |
@@ -322,17 +375,17 @@ undercount it. The version strata answer that: standardized PCI is a QTI 3.0
 construct and the partner scan found no QTI 3.0 packages at all, so the rule that
 blocks unsupported QTI 3.0 constructs is firing on approximately nothing.
 
-**Decision:** PCI relevance tracks QTI 3.0 adoption in partner content, not PCI
-itself. Revisit when QTI 3.0 packages appear in intake at any material rate; the
-existing corpus tooling already measures that, so this is a periodic lookup rather
-than an investigation. Until then the opaque-`customInteraction` fallback —
-warning banner, manual response, blocked-for-review — is proportionate handling
-for 30 items.
+**Superseded decision (2026-08-17):** PCI relevance was held to track QTI 3.0
+adoption in partner content rather than PCI itself, with the
+opaque-`customInteraction` fallback as proportionate handling. **2026-10-17:**
+superseded by the completeness goal — the fallback remains the behavior until
+phase 1 lands, not a resting state.
 
-PCI certification follows the same finding and is not pursued. Official suite
+PCI certification follows the same flip: the 2026-08-17 finding — official suite
 commit `b058156` ships no PCI packages while Cito holds Delivery-PCI and
-Import-PCI, so the test-content source would need scoping with 1EdTech first;
-that question stays open but unasked. Submission strategy lives in the private
+Import-PCI — remains true, so the test-content source needs scoping with 1EdTech.
+Under the completeness goal that scoping is now part of the 1.0 certification
+push rather than an unasked question. Submission strategy lives in the private
 conformance project.
 
 What already landed stands on its own merits and is unaffected: the response
@@ -344,11 +397,16 @@ makes the existing host path usable by anyone who does meet a PCI.
 ## Principal Risk
 
 No conformance oracle. Official suite commit `b058156` ships no PCI packages, so
-phases 1 and 2 are implemented against specification prose with no official
+phases 1 and 2 were implemented against specification prose with no official
 content to check against, and the first authoritative feedback arrives from
-1EdTech during a submission. Mitigate by testing against a third-party PCI
-authored to the specification rather than only against clean-room fixtures
-written from the same reading of the spec that produced the implementation.
+1EdTech during a submission. The in-repo mitigation (2026-10-16) is the
+clean-room conformance suite: fixtures authored from the specification exercise
+registration, restore-by-state, `ondone`, and fallback resolution over real
+module files. What in-repo evidence cannot close is the same-reading risk — the
+fixtures were written from the same reading of the spec that produced the
+implementation — so testing against a third-party PCI authored to the
+specification remains the outstanding mitigation, with official content to be
+scoped with 1EdTech.
 
 ## Decisions Closed
 
@@ -367,7 +425,47 @@ third-party players consuming Renaissance content, which is not a current need:
 no host publishes QTI today.
 
 This closes only the outbound direction. PCI *host* support is unaffected and
-proceeds on the ingest driver above; the two were being conflated.
+proceeds on its own track; the two were being conflated.
+
+**Update 2026-10-17 — re-opened for reconsideration, sequenced after phases
+1–3.** The completeness goal
+([`version-1-0-2026-10.md`](version-1-0-2026-10.md)) retires the "no host
+publishes QTI today" rationale. The technical objections stand (a projected
+module must be self-contained JavaScript, and nothing can consume it until
+conformant hosts exist), so reconsideration is sequenced behind the host
+runtime: once phases 1–3 land, re-evaluate whether `@pie-qti/pie-to-qti2`
+should emit `qti-portable-custom-interaction` for PIE-backed interactions.
+
+**Reconsidered and re-closed (2026-10-18, after phases 1–4 landed).** The
+reconsideration premise held — a conformant host runtime now exists (this
+player, phase 4's runner included) — but a runtime was only one of three
+load-bearing conditions, and the other two did not move:
+
+1. **Self-containment is an architecture reversal, not an export flag.** PIE's
+   distribution is one CDN-loaded runtime shared by every element on the page
+   (the coupling that forced the lockstep `@pie-players/*` pin). A projected
+   PCI module must be self-contained JavaScript at a URL inside the package;
+   projecting would either duplicate that runtime in every module of every
+   package or ship a loader that quietly depends on the PIE CDN — reintroducing
+   exactly the dependency the projection is meant to remove.
+2. **Emitted PIE items are not semantically self-sufficient today.** The
+   fallback generator embeds the PIE model with external scoring and a generic
+   string response declaration; the mapping-based QTI scoring approximations
+   are documented as lossy. Under the current form that is honest — the PIE
+   runtime and scoring service travel with the content. A module labeled
+   *portable* claims more interoperability than the semantic mapping delivers:
+   a third-party host would run the interaction but score it with guesses.
+   Per-element response-shape guarantees against QTI base types are per-element
+   engineering, not packaging.
+3. **Nothing pulls.** No third-party player or consumer needs PIE content
+   runnable without the PIE CDN today. Completeness drove the *player* side of
+   PCI (an in-spec player runs any conformant PCI); it does not create a
+   consumer for an outbound exporter.
+
+**Reopen trigger:** a named consumer that must run Renaissance-authored PIE
+interactions on a host that cannot load the PIE CDN. Until that appears, the
+outbound direction stays closed and the PCI *host* side — which shipped — is the
+completeness deliverable.
 
 **Sandbox origin: `https://qti.pie-framework.org`** (2026-08-17). Satisfies
 Option C's runner-origin requirements — distinct, cookieless, static. Not being

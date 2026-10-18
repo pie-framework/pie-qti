@@ -15,9 +15,23 @@ import type { HtmlContent, QTIFileResponse } from '../../types/index.js';
  */
 export type QTIElement = HTMLElement;
 
+/**
+ * The interaction's authored accessible name and description, resolved to text from its
+ * `aria-labelledby`, `aria-label`, `aria-describedby` and `aria-description`.
+ */
+export interface InteractionAccessibility {
+	label?: string;
+	description?: string;
+}
+
+/** The read-aloud attributes authored on an interaction element, for its renderer's host. */
+export type InteractionReadAloud = Partial<Record<'lang' | 'data-catalog-idref' | 'data-tts-suppress', string>>;
+
 export interface BaseInteractionData<TType extends string = string> {
 	readonly type: TType;
 	readonly responseId: string;
+	readonly accessibility?: InteractionAccessibility;
+	readonly readAloud?: InteractionReadAloud;
 }
 
 /**
@@ -96,6 +110,10 @@ export interface OrderInteractionData extends BaseInteractionData<'orderInteract
 	maxChoices: number;
 	prompt: HtmlContent | null;
 	choices: Array<{ identifier: string; text: HtmlContent; fixed?: boolean }>;
+	/** The authored `orientation` attribute: `vertical` (default) or `horizontal` */
+	orientation?: string;
+	/** CSS classes from the orderInteraction element (orientation and `qti-labels-*`) */
+	interactionClasses?: string[];
 }
 
 export interface AssociableChoice {

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Clean-room conformance fixture (G-08 phase 3), authored from the QTI 3.0
+  PCI specification's module resolution and registry contract. It mirrors the
+  shape of the official 1EdTech PCI packaging examples without copying them.
+-->
+<qti-assessment-item
+  xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0"
+  identifier="pci-amd-echo"
+  adaptive="false"
+  time-dependent="false">
+  <qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="string">
+    <qti-correct-response><qti-value>echoed</qti-value></qti-correct-response>
+  </qti-response-declaration>
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float">
+    <qti-default-value><qti-value>0</qti-value></qti-default-value>
+  </qti-outcome-declaration>
+  <qti-item-body>
+    <p>Type anything; the interaction echoes it back.</p>
+    <qti-portable-custom-interaction
+      response-identifier="RESPONSE"
+      custom-interaction-type-identifier="urn:example:pci:echo-conformance">
+      <qti-interaction-modules>
+        <qti-interaction-module id="echo_lib" primary-path="modules/echo_lib.js"/>
+        <qti-interaction-module id="echo_conformance" primary-path="modules/echo_conformance.js"/>
+      </qti-interaction-modules>
+      <qti-interaction-markup>
+        <div class="echo-mount"></div>
+      </qti-interaction-markup>
+      <qti-pci-properties>
+        <qti-pci-property key="greeting" value="hello"/>
+      </qti-pci-properties>
+    </qti-portable-custom-interaction>
+  </qti-item-body>
+</qti-assessment-item>

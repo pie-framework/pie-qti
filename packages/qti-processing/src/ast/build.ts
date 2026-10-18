@@ -20,6 +20,13 @@ import { parseXml, serializeXml } from '../xml/parse.js';
 export type ProcessingScope = 'item' | 'test';
 export type ProcessingMode = 'template' | 'response' | 'outcome';
 
+/** Only vocabulary in the XInclude namespace is an inclusion statement. */
+const XINCLUDE_NAMESPACE = 'http://www.w3.org/2001/XInclude';
+
+function inXIncludeNamespace(el: Element): boolean {
+	return el.namespaceURI === XINCLUDE_NAMESPACE;
+}
+
 export interface ProcessingFragmentRequest {
 	/** The href exactly as authored on xi:include. */
 	href: string;
@@ -139,6 +146,13 @@ function buildStatements(
 					break;
 				}
 			case 'include': {
+				// An element merely named "include" in another vocabulary must not be
+				// interpreted as processing inclusion; fail loudly like the default case.
+				if (!inXIncludeNamespace(el)) {
+					throw new Error(
+						`Unknown processing statement tag: <${tag}> (mode=${mode}); <include> is only recognized in the XInclude namespace`,
+					);
+				}
 				out.push(...buildIncludedStatements(el, mode, options, fragmentState));
 				break;
 			}
@@ -329,7 +343,7 @@ function buildIncludedStatements(
 
 	if (resolved == null) {
 		const fallback = childElements(includeElement).find(
-			(child) => (localName(child) ?? '').toLowerCase() === 'fallback',
+			(child) => inXIncludeNamespace(child) && (localName(child) ?? '').toLowerCase() === 'fallback',
 		);
 		if (fallback) {
 			return buildStatements(childElements(fallback), mode, options, state);
@@ -812,19 +826,14 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 			if (!tableEl) {
 				throw new Error('<lookupTable> is missing its table element child');
 			}
-			const tableTag = (localName(tableEl) || '').toLowerCase();
+			const canonical = (node: Element) => mapper.toCanonical(localName(node) || '').toLowerCase();
+			const tableTag = canonical(tableEl);
 			const tableKids = childElements(tableEl);
-
-			const numAttrOn = (node: Element, name: string): number | undefined => {
-				const raw = (getAttr(node, name) || '').trim();
-				if (!raw) return undefined;
-				const n = Number(raw);
-				return Number.isFinite(n) ? n : undefined;
-			};
+			const defaultValue = (getAttr(tableEl, 'defaultValue') || '').trim() || undefined;
 
 			if (tableTag === 'matchtable') {
 				const entries = tableKids
-					.filter((e) => (localName(e) || '').toLowerCase() === 'matchtableentry')
+					.filter((e) => canonical(e) === 'matchtableentry')
 					.map((e) => ({
 						sourceValue: getAttr(e, 'sourceValue') || '',
 						targetValue: getAttr(e, 'targetValue') || '',
@@ -836,7 +845,7 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 					source,
 					table: {
 						kind: 'table.matchTable',
-						defaultValue: numAttrOn(tableEl, 'defaultValue'),
+						defaultValue,
 						entries,
 					},
 				};
@@ -844,12 +853,13 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 
 			if (tableTag === 'interpolationtable') {
 				const entries = tableKids
-					.filter((e) => (localName(e) || '').toLowerCase() === 'interpolationtableentry')
+					.filter((e) => canonical(e) === 'interpolationtableentry')
 					.map((e) => ({
-						sourceValue: Number(getAttr(e, 'sourceValue') || ''),
-						targetValue: Number(getAttr(e, 'targetValue') || ''),
+						sourceValue: Number((getAttr(e, 'sourceValue') || '').trim() || Number.NaN),
+						targetValue: (getAttr(e, 'targetValue') || '').trim(),
+						includeBoundary: (getAttr(e, 'includeBoundary') || '').trim() !== 'false',
 					}))
-					.filter((e) => Number.isFinite(e.sourceValue) && Number.isFinite(e.targetValue));
+					.filter((e) => Number.isFinite(e.sourceValue));
 
 				return {
 					kind: 'expr.lookupTable',
@@ -857,8 +867,7 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 					source,
 					table: {
 						kind: 'table.interpolationTable',
-						defaultValue: numAttrOn(tableEl, 'defaultValue'),
-						interpolationMethod: (getAttr(tableEl, 'interpolationMethod') || 'linear').trim(),
+						defaultValue,
 						entries,
 					},
 				};

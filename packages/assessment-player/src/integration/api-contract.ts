@@ -46,11 +46,33 @@ export interface InitSessionRequest {
 export interface InitSessionResponse {
 	/** Unique session identifier for all subsequent requests */
 	sessionId: SessionId;
-	/** Assessment structure WITHOUT sensitive data */
+	/** Assessment structure without sensitive data, as drawn for this session; a resume returns the same draw. */
 	assessment: SecureAssessment;
 	/** Restored state if resuming, undefined if new session */
 	restoredState?: AssessmentSessionState;
+	/**
+	 * Item delivery starts at in a new session: the first item whose preconditions hold. A resumed
+	 * session carries it in `restoredState`.
+	 */
+	currentItemIdentifier?: string;
+	/** Test-level outcome values of a resumed session, once outcome processing has run */
+	outcomes?: TestOutcomeValues;
 }
+
+/**
+ * A test-level outcome value: a scalar for single cardinality, an array for multiple and ordered,
+ * an object for record, and `null` for NULL.
+ */
+export type TestOutcomeValue =
+	| string
+	| number
+	| boolean
+	| null
+	| Array<string | number | boolean | null>
+	| Record<string, unknown>;
+
+/** Test-level outcome values keyed by outcome identifier (e.g. "PASS", "GRADE"). */
+export type TestOutcomeValues = Record<string, TestOutcomeValue>;
 
 // ============================================================================
 // ASSESSMENT STRUCTURE (CLIENT-SAFE)
@@ -65,9 +87,15 @@ export interface TestFeedbackItem {
 	identifier: string;
 	/** Outcome variable name to evaluate (e.g. "PASS", "GRADE") */
 	outcomeIdentifier: string;
-	/** 'show' = show when outcome equals identifier; 'hide' = show when it does not */
+	/**
+	 * 'show' = show when the outcome matches identifier (equality for a single value, membership
+	 * for multiple and ordered); 'hide' = show when it does not
+	 */
 	showHide: 'show' | 'hide';
-	/** 'atEnd' = only after submission; 'during' = also during attempt */
+	/**
+	 * 'atEnd' = once the test (or, for test-part feedback, the part) has ended;
+	 * 'during' = whenever outcome processing has run
+	 */
 	access: 'atEnd' | 'during';
 	/** HTML content to display */
 	content: string;
@@ -101,7 +129,7 @@ export interface SecureAssessment {
 	outcomeProcessingXml?: string;
 	/** Base URL/path for resolving relative hrefs (e.g. assessmentSectionRef) */
 	baseUrl?: string;
-	/** QTI testFeedback blocks for post-submission display */
+	/** QTI assessmentTest testFeedback blocks */
 	testFeedback?: TestFeedbackItem[];
 }
 
@@ -116,19 +144,17 @@ export interface SecureTestPart {
 	timeLimits?: SecureTimeLimits;
 	/** Candidate instructions (safe for display) */
 	rubricBlocks?: AssessmentRubricBlock[];
+	/** QTI testPart testFeedback blocks */
+	testFeedback?: TestFeedbackItem[];
 	/**
-	 * Item session control (QTI testPart/itemSessionControl).
-	 * Server is authoritative; client uses this for UI hints only.
+	 * Item session control (QTI testPart/itemSessionControl). Each attribute cascades through every
+	 * enclosing section to the item ref; the backend enforces maxAttempts.
 	 */
-	itemSessionControl?: {
-		maxAttempts?: number;
-		showFeedback?: boolean;
-		allowReview?: boolean;
-		showSolution?: boolean;
-		allowComment?: boolean;
-		allowSkipping?: boolean;
-		validateResponses?: boolean;
-	};
+	itemSessionControl?: SecureItemSessionControl;
+	/** Serialized direct preCondition expressions, evaluated by the backend on entering the part. */
+	preConditions?: string[];
+	/** Branch rules the backend evaluates after the part's last item, in linear navigation. */
+	branchRule?: SecureBranchRule[];
 }
 
 export interface SecureSection {
@@ -138,7 +164,7 @@ export interface SecureSection {
 	fixed?: boolean;
 	/** Visible determines if section appears in navigation */
 	visible: boolean;
-	/** Assessment item references (order reflects selection/ordering already applied server-side) */
+	/** Assessment item references, in the order the backend drew for this session. */
 	assessmentItemRefs: SecureItemRef[];
 	/** Nested QTI sections, retained instead of being flattened during XML ingestion. */
 	sections?: SecureSection[];
@@ -152,36 +178,51 @@ export interface SecureSection {
 	/** Candidate instructions (safe for display) */
 	rubricBlocks?: AssessmentRubricBlock[];
 	/**
-	 * QTI selection: how many items to present from this section.
-	 * When present the server has already applied selection; client uses this for progress display.
+	 * QTI selection: how many children to present from this section. Backends draw selection when
+	 * the session starts and return the drawn assessment without it; the client never draws.
 	 */
 	selection?: {
 		/** Number of items selected for this session */
 		select: number;
 		withReplacement?: boolean;
 	};
-	/**
-	 * QTI ordering: whether items were shuffled.
-	 * When true the server has already shuffled assessmentItemRefs.
-	 */
+	/** QTI ordering: whether non-fixed children are shuffled. Backends apply it with selection. */
 	ordering?: {
 		shuffle: boolean;
 	};
 	/** Serialized direct preCondition expressions, evaluated by the backend. */
 	preConditions?: string[];
+	/** Branch rules the backend evaluates after the section's last item, in linear navigation. */
+	branchRule?: SecureBranchRule[];
 	/**
-	 * Item session control (QTI assessmentSection/itemSessionControl).
-	 * Section-level values take precedence over testPart-level when present.
+	 * QTI keepTogether, default true. An invisible section with keepTogether false has its children
+	 * mixed into the parent's ordering; the backend applies it while drawing.
 	 */
-	itemSessionControl?: {
-		maxAttempts?: number;
-		showFeedback?: boolean;
-		allowReview?: boolean;
-		showSolution?: boolean;
-		allowComment?: boolean;
-		allowSkipping?: boolean;
-		validateResponses?: boolean;
-	};
+	keepTogether?: boolean;
+	/**
+	 * Item session control (QTI assessmentSection/itemSessionControl). Attributes set here override
+	 * the enclosing section's and test part's.
+	 */
+	itemSessionControl?: SecureItemSessionControl;
+}
+
+/** QTI itemSessionControl. Absent attributes inherit from the enclosing section or test part. */
+export interface SecureItemSessionControl {
+	/** Default 1; 0 means unlimited. Adaptive items are unlimited whatever the value. */
+	maxAttempts?: number;
+	showFeedback?: boolean;
+	allowReview?: boolean;
+	showSolution?: boolean;
+	allowComment?: boolean;
+	allowSkipping?: boolean;
+	validateResponses?: boolean;
+}
+
+export interface SecureBranchRule {
+	/** Identifier of the target item, section or test part, or EXIT_TEST, EXIT_TESTPART or EXIT_SECTION. */
+	target: string;
+	/** Serialised QTI expression XML (the child of <branchRule>). Absent means unconditional. */
+	conditionXml?: string;
 }
 
 export type SecureSectionComponent =
@@ -203,21 +244,25 @@ export interface SecureItemRef {
 	/** Optional resolved QTI 3 delivery context. Additive; itemXml remains the compatibility path. */
 	deliveryContext?: ResolvedItemDeliveryContext;
 	/**
-	 * QTI branchRule: ordered list of branch rules on this item.
-	 * The backend evaluates these after scoring and returns nextItemIdentifier in SubmitResponsesResponse.
-	 * Carried here so reference/demo adapters can evaluate them client-side.
+	 * QTI branchRule: ordered branch rules on this item. The backend evaluates them after scoring, in
+	 * linear navigation, and returns the resolved target as nextItemIdentifier.
 	 */
-	branchRule?: Array<{
-		/** Identifier of the target item, section, testPart, or one of the special values:
-		 *  EXIT_TEST | EXIT_TESTPART | EXIT_SECTION */
-		target: string;
-		/** Serialised QTI expression XML (the child of <branchRule>). Absent means unconditional. */
-		conditionXml?: string;
-	}>;
+	branchRule?: SecureBranchRule[];
 	/** Serialized direct preCondition expressions, evaluated by the backend. */
 	preConditions?: string[];
 	/** QTI item-ref weights, preserved for backend outcome processing. */
 	weights?: Array<{ identifier: string; value: number }>;
+	/** QTI item-ref categories, matched by includeCategory/excludeCategory in outcome processing. */
+	categories?: string[];
+	/** Item session control (assessmentItemRef/itemSessionControl), the innermost cascade level. */
+	itemSessionControl?: SecureItemSessionControl;
+	/** QTI variableMapping: item variables the test reads under another identifier. */
+	variableMappings?: Array<{ sourceIdentifier: string; targetIdentifier: string }>;
+	/**
+	 * QTI templateDefault: serialized expressions, evaluated against test outcomes, that replace a
+	 * template variable's default before template processing.
+	 */
+	templateDefaults?: Array<{ templateIdentifier: string; expressionXml: string }>;
 }
 
 export interface AssessmentRubricBlock {
@@ -257,6 +302,8 @@ export interface SubmitResponsesRequest {
 	 * Production backends should treat this as a client save format and validate against server-owned state.
 	 */
 	itemSession?: SerializedItemSessionState;
+	/** Candidate comment, accepted only when the item's allowComment is on. */
+	comment?: string;
 }
 
 export interface SubmitTimingEvidence {
@@ -287,6 +334,8 @@ export interface SubmitResponsesResponse {
 	 * If provided, client should replace its local state with this.
 	 */
 	updatedState?: AssessmentSessionState;
+	/** Test-level outcome values after the outcome processing this submission triggers */
+	outcomes?: TestOutcomeValues;
 	/** Error message if success=false */
 	error?: string;
 }
@@ -357,6 +406,8 @@ export interface AssessmentSessionState {
 	itemSessionStates?: Record<string, AssessmentItemSessionState>;
 	/** Rich QTI item session snapshots, used to restore variables and score saved sessions. */
 	itemSessions?: Record<string, SerializedItemSessionState>;
+	/** Candidate comments per item, captured where allowComment is on. */
+	itemComments?: Record<string, string>;
 	/** Time tracking */
 	timing: {
 		/** Session start time */
@@ -408,12 +459,8 @@ export interface FinalizeAssessmentResponse {
 	itemScores: Record<string, AssessmentScoringResult>;
 	/** Assessment-level feedback (legacy: single string; prefer outcomes + assessment.testFeedback) */
 	feedback?: string;
-	/**
-	 * Test-level outcome variable values after outcomeProcessing.
-	 * Used to evaluate testFeedback visibility via string equality.
-	 * Keys are outcome identifiers (e.g. "PASS", "GRADE"); values are their string representations.
-	 */
-	outcomes?: Record<string, string>;
+	/** Test-level outcome values after outcomeProcessing; testFeedback visibility reads them. */
+	outcomes?: TestOutcomeValues;
 	/** Server timestamp */
 	finalizedAt: number;
 }

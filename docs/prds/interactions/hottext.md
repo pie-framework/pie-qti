@@ -67,8 +67,8 @@
 |-----------|---------|-----------|
 | `identifier` | Full | Required. Used as the value stored in the response when this span is selected. Must be unique within the interaction. |
 | `fixed` | Not extracted | Spec: prevents this span from being shuffled. `hottextInteraction` has no `shuffle` attribute, so `fixed` is meaningless. Not extracted; has no effect. |
-| `templateIdentifier` | Not extracted | Links the hottext element's visibility to a `TemplateDeclaration` variable. Not implemented. |
-| `showHide` | Not extracted | Companion to `templateIdentifier`. Not implemented. |
+| `templateIdentifier` | Full | A hidden hottext is dropped before extraction, from `hottextChoices` and `contentHtml` alike, by the shared visibility rule. |
+| `showHide` | Full | Inverts `templateIdentifier` visibility. |
 | CSS `class` attribute | Partial | Extracted as `classes?: string[]` in `HottextData`; not carried forward into `HottextInteractionData` or the component. |
 
 ### Response variable contract
@@ -90,7 +90,6 @@
 
 - **`minChoices` not surfaced to the component**: `minChoices` is extracted by `standardHottextExtractor` and present in the local `HottextData` type (in the extractor file), but `HottextInteractionData` (in `packages/item-player/src/interactions/shared/types.ts`) does not include the field. The component therefore cannot render a "Select at least N" hint or gate submission. This is analogous to the `choiceInteraction` `minChoices` gap. Not tracked under a named gap item in `docs/SPEC-GAPS-PLAN.md` but consistent with the pattern described by G-06.
 - **`fixed` on `<hottext>` not extracted**: As noted above, this is a deliberate no-op because `hottextInteraction` has no shuffle.
-- **`templateIdentifier`/`showHide` not implemented**: Template-variable-driven conditional span visibility is not supported (consistent with all other interactions in this codebase).
 - **G-09 (PNP)**: When `pnp.cognitive.eliminationTool` is enabled, candidates should be able to dismiss non-selectable spans from consideration. Not implemented.
 
 ---

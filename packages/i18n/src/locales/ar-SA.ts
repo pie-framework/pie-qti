@@ -150,6 +150,8 @@ export default {
 			selected: 'محدد',
 			notSelected: 'غير محدد',
 			correct: 'صحيح',
+			revealChoice: 'إظهار الخيار {index}',
+			groupLabel: 'خيارات الإجابة',
 		},
 
 		upload: {
@@ -271,6 +273,7 @@ export default {
 			removeMatch: 'إزالة المطابقة',
 			clearMatch: 'مسح المطابقة لـ {source}',
 			sourceItemsLabel: 'عناصر المصدر للمطابقة',
+			groupLabel: 'عناصر المطابقة',
 			targetItemsLabel: 'عناصر الهدف للمطابقة',
 			dragFromHere: 'اسحب من هنا:',
 			dropHere: 'أفلت هنا:',

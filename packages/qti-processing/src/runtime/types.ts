@@ -80,17 +80,18 @@ export type DeclarationMap = Record<string, Declaration>;
 
 export type LookupTableTable = MatchTableDef | InterpolationTableDef;
 
+/** Target and default values keep their lexical form; lookup coerces them to the outcome's base type. */
 export interface MatchTableDef {
 	kind: 'table.matchTable';
-	defaultValue?: number;
+	defaultValue?: string;
 	entries: Array<{ sourceValue: string; targetValue: string }>;
 }
 
+/** Entries in document order; `includeBoundary` (default true) decides whether an exact match hits. */
 export interface InterpolationTableDef {
 	kind: 'table.interpolationTable';
-	defaultValue?: number;
-	interpolationMethod?: string;
-	entries: Array<{ sourceValue: number; targetValue: number }>;
+	defaultValue?: string;
+	entries: Array<{ sourceValue: number; targetValue: string; includeBoundary?: boolean }>;
 }
 
 export interface AreaMapEntry {

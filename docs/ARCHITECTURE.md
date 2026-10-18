@@ -23,7 +23,7 @@ High-level architecture overview for PIE-QTI.
 
 ### Version support (important boundary)
 
-- **Transforms**: ingest QTI content and emit **QTI 2.2** (`imsqti_v2p2`) from PIE. Treat unsupported namespaces/variants as ingest-time compatibility work and validate early.
+- **Transforms**: ingest QTI content and emit **QTI 2.2** (`imsqti_v2p2`) from PIE by default, or **QTI 3.0** (`imsqti_v3p0`) with `targetVersion: '3.0'` (G-25). Treat unsupported namespaces/variants as ingest-time compatibility work and validate early.
 - **Players**: designed for QTI content across the supported delivery scope (role/view-aware rendering, response processing, optional backend scoring patterns). For highest interoperability in legacy ecosystems, keep content aligned to the relevant QTI profile.
 
 ---

@@ -16,7 +16,7 @@
 
 ## Summary
 
-The QTI 3.0 catalog system (§6.3) provides a structured store of per-term accessibility and translation content embedded in QTI items. An item may contain a `<qti-catalog-info>` element holding named `<qti-card>` entries, each with typed content entries (`glossary-on-screen`, `keyword-translation`, `illustrated-glossary`, `tts-pronunciation`, `signing-definition`, `braille-text`, `audio-description`, `extended-description`). In the item body, elements marked with `data-catalog-idref` link to a catalog card by identifier. PIE-QTI implements catalog parsing (`CatalogIndex` builder), a `player.getCatalogEntry()` lookup API, an in-player `CatalogPopup` component for on-screen usages (glossary and illustrated glossary), and event-based forwarding for platform-level usages (TTS, signing, braille, audio description). Catalog activation is gated on the PNP profile (G-09): glossary and keyword-translation content only appear when `pnp.content.glossaryOnScreen` or `pnp.content.keywordTranslation.active` is true. Shared external catalog files (G-15) and braille hardware routing (G-13) are deferred.
+The QTI 3.0 catalog system (§6.3) provides a structured store of per-term accessibility and translation content embedded in QTI items. An item may contain a `<qti-catalog-info>` element holding named `<qti-card>` entries, each with typed content entries (`glossary-on-screen`, `keyword-translation`, `illustrated-glossary`, `tts-pronunciation`, `signing-definition`, `braille-text`, `audio-description`, `extended-description`). In the item body, elements marked with `data-catalog-idref` link to a catalog card by identifier. PIE-QTI implements catalog parsing (`CatalogIndex` builder), a `player.getCatalogEntry()` lookup API, an in-player `CatalogPopup` component for on-screen usages (glossary and illustrated glossary), and event-based forwarding for platform-level usages (TTS, signing, braille, audio description). Catalog activation is gated on the PNP profile (G-09): glossary and keyword-translation content only appear when `pnp.content.glossaryOnScreen` or `pnp.content.keywordTranslation.active` is true. Shared external catalog files landed (G-15): manifest-listed `imsqti_catalog_xmlv3p0` resources become package-scope sources below item-level catalogs. Braille hardware routing stays host-side (G-13).
 
 ---
 
@@ -79,7 +79,7 @@ This mirrors the language negotiation algorithm used by HTTP `Accept-Language` a
 | `<qti-card>` | `card` | Identified by `identifier` attribute |
 | `<qti-card-entry>` | `cardentry` | Has `usage` and `xml:lang` attributes |
 | `<qti-html-content>` | `htmlcontent` | Inner HTML is the glossary/translation content |
-| `<qti-file-href>` | `filehref` | `src` attribute is a URL to a media resource |
+| `<qti-file-href>` | `filehref` | A media resource by `src` or text; rendered by `mime-type` beside other content, a bare URL when alone |
 | `data-catalog-idref` | `dataCatalogIdref` | HTML attribute on term elements in the item body |
 
 All six element names are already registered in `CATALOG_ELEMENTS` in `packages/qti-common/src/element-mapper/qti3-element-mappings.ts`.
@@ -103,8 +103,8 @@ All eight types defined in QTI 3.0 §6.3 are parsed and stored in `CatalogIndex`
 
 | Feature | Reason |
 |---------|--------|
-| Shared/external catalog files from IMS manifest (`catalogXml` with manifest resolution) | G-15, deferred; infrastructure is planned (`AssessmentItemDefinitionConfig.catalogXml`) but manifest-level linking requires IMS CP support |
-| Braille hardware routing | G-13, deferred; `getCatalogEntry()` exposes the `braille-text` content; host routes it |
+| Shared/external catalog files from IMS manifest | G-15, **Done** — manifest resources of type `imsqti_catalog_xmlv3p0` land as package-scope catalog sources below item-level catalogs (`loadResolvedManifest.sharedCatalogs`, `packageCatalogSources`, `QtiAssessmentPlayerConfig.sharedCatalogs`) |
+| Braille hardware routing | Host-side boundary; G-13's player-side `braille-text` exposure is scheduled for 1.0 |
 | Sign language video player | G-14, deferred; event fires; host provides player |
 | `qti-companion-materials-info` | Different from catalog; not in scope for G-10 |
 
@@ -112,7 +112,7 @@ All eight types defined in QTI 3.0 §6.3 are parsed and stored in `CatalogIndex`
 
 **G-10 — Catalog system (Done, Tier 2):** The core catalog parser, lookup API, glossary/keyword-translation popup path, and platform-level lookup events are implemented. See `docs/SPEC-GAPS-PLAN.md §G-10` for the historical action list and remaining deferred items.
 
-**G-15 — Shared/external catalog files from IMS manifest (Deferred, Tier 3):** `AssessmentItemDefinitionConfig.catalogXml` is supported for host-provided shared catalog XML. Manifest-level catalog discovery and resolution are not implemented.
+**G-15 — Shared/external catalog files from IMS manifest (Done, Tier 3):** `AssessmentItemDefinitionConfig.catalogXml` remains for host-provided XML; manifest-level discovery is implemented — `loadResolvedManifest` surfaces `imsqti_catalog_xmlv3p0` resources, and the delivery context merges them as package-scope sources that item-level catalogs override.
 
 ---
 
@@ -121,11 +121,11 @@ All eight types defined in QTI 3.0 §6.3 are parsed and stored in `CatalogIndex`
 - **FR-1:** After parsing a QTI 3.0 item, the player must call `extractCatalog()` on the item root and store the resulting `CatalogIndex` internally. This must happen before any item body rendering.
 - **FR-2:** `extractCatalog(itemRoot: Element, mapper: ElementNameMapper): CatalogIndex` must parse all `<qti-catalog-info>` and `<qti-catalog>` children of the item root, building a `Map<string, CatalogCard>` keyed by card `identifier`.
 - **FR-2a:** A QTI 2.x item's APIP 1.0 access elements (`apip:apipAccessibility`) join the same index: each `apip:accessElement` is a card under its `identifier`, its supports entries under the QTI 3 support names `@pie-qti/qti-common/accessibility` maps them to, and an identifier both declare gets both sets of entries. Before the item body renders, each `contentLinkInfo` docks the identifier as `data-catalog-idref`: on the element its `qtiLinkIdentifierRef` names, on the content of an element whose tag the player does not render or that names another catalog, or on a span around the word or character range its `textLink` counts. A range that crosses markup is not docked.
-- **FR-3:** For each `<qti-card>`, all `<qti-card-entry>` children must be read. For each entry: `usage` from the `usage` attribute; `lang` from the `xml:lang` attribute (absent if not set); `html` from the inner HTML of a `<qti-html-content>` child, or from the `src` attribute of a `<qti-file-href>` child.
+- **FR-3:** For each `<qti-card>`, all `<qti-card-entry>` children must be read. For each entry: `usage` from the `usage` attribute; `lang` from the `xml:lang` attribute (absent if not set); `html` from every `<qti-html-content>` and `<qti-file-href>` child in document order, a `<qti-html-content>` as its inner HTML and a `<qti-file-href>` as an `<img>`, `<audio controls>`, `<video controls>` or link by its `mime-type`. An entry holding one `<qti-file-href>` and nothing else keeps its bare URL (its `src`, else its text), which `getCatalogEntry` passes through the URL policy instead of the HTML sanitizer.
 - **FR-4:** All eight catalog usage types must be stored: `glossary-on-screen`, `keyword-translation`, `illustrated-glossary`, `tts-pronunciation`, `signing-definition`, `braille-text`, `audio-description`, `extended-description`. Unknown usage values must be stored as-is (forward-compatible).
 - **FR-5:** `player.getCatalogEntry(idref: string, usage: string, lang?: string): string | null` must be a public player method. It must apply the three-level language fallback: exact `xml:lang` match, then language-prefix match, then no-`xml:lang` entry. It must return `null` when the identifier is not found or when no entry matches the requested usage.
 - **FR-6:** If `AssessmentItemDefinitionConfig.catalogXml` is provided, the definition must parse it as a standalone catalog XML string and merge it into the item-level `CatalogIndex`. Item-level entries must take precedence over shared entries when both define the same card identifier.
-- **FR-7:** When `pnp.content.glossaryOnScreen` is true, the item body renderer must find every `[data-catalog-idref]` element in the rendered item body and mount an accessible trigger button. Activating the trigger must open a focus-trapped inline popup populated with the result of `getCatalogEntry(idref, 'glossary-on-screen')`.
+- **FR-7:** When `pnp.content.glossaryOnScreen` is true, the item body renderer must find every `[data-catalog-idref]` element in the rendered item body and mount an accessible trigger button. Activating the trigger must open a focus-trapped inline popup populated with the result of `getCatalogEntry(idref, 'glossary-on-screen', lang)`, where `lang` is the nearest `lang` around the term, which the item body sets from `xml:lang`. Illustrated-glossary lookups pass the same language.
 - **FR-8:** When `pnp.content.keywordTranslation.active` is true, the same trigger mechanism applies using `usage = 'keyword-translation'` and `lang = pnp.content.keywordTranslation.languageCode`. If no matching entry is found for the requested language, the trigger must still render (and the popup content may be empty or fall back to the no-lang entry).
 - **FR-9:** For `illustrated-glossary` entries, the popup must render the `html` value as an `<img src="...">` with an `alt` attribute derived from the term's visible text.
 - **FR-10:** For `tts-pronunciation`, `signing-definition`, `braille-text`, `audio-description`, and `extended-description` entries, the player must fire a `qti-catalog-lookup` `CustomEvent` (same event used by PNP trigger UI) with `detail: { idref, usage, html }`. The player must not render any popup for these usages.
@@ -588,7 +588,7 @@ AC-E5: QTI 2.x items with no catalog are unaffected
 
 - QTI spec: `docs/QTI_techguide.md` §6.3 (Catalog)
 - Spec gap: `docs/SPEC-GAPS-PLAN.md` §G-10 (Done, Tier 2)
-- Spec gap: `docs/SPEC-GAPS-PLAN.md` §G-15 (shared catalog, Deferred, Tier 3)
+- Spec gap: `docs/SPEC-GAPS-PLAN.md` §G-15 (shared catalog, Done)
 - Element mappings (already in place): `packages/qti-common/src/element-mapper/qti3-element-mappings.ts` — `CATALOG_ELEMENTS`
 - Adjacent PRD: `docs/prds/systems/pnp.md` — PNP profile; `glossaryOnScreen` and `keywordTranslation` flags gate catalog trigger UI
 - Adjacent PRD: `docs/prds/systems/accessibility.md` — WCAG 2.2 AA baseline; CatalogPopup accessibility requirements derive from it

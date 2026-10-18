@@ -24,6 +24,7 @@ import {
 	toStringValue,
 } from '@pie-qti/qti-processing';
 import type { ElementNameMapper, AttributeNameMapper } from '@pie-qti/qti-common';
+import { prepareContentMarkup } from '@pie-qti/qti-common/accessibility';
 import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
 import {
 	Qti2xElementNameMapper,
@@ -31,12 +32,15 @@ import {
 	Qti3ElementNameMapper,
 	Qti3AttributeNameMapper,
 	detectQtiVersion,
+	isShownByIdentifier,
 } from '@pie-qti/qti-common';
 import type {
 	AssessmentItemDocument,
 	ResponseProcessingDescriptor,
 } from '../document/AssessmentItemDocument.js';
 import { parseAssessmentItemDocument } from '../document/AssessmentItemDocument.js';
+import type { ContentHandler, ContentHandlers } from '../document/contentPass.js';
+import { printVariable, readPrintedVariableOptions } from '../document/printedVariable.js';
 import {
 	createExtractionRegistry,
 	registerFrameworkDeliveryFields,
@@ -71,19 +75,33 @@ import { createSeededRng } from './random.js';
 import { sanitizeHtml } from './sanitizer.js';
 import { toTrustedHtml } from './trustedTypes.js';
 import { sanitizeResourceUrl } from './urlPolicy.js';
+import { enforceItemXmlLimits } from './parsingLimits.js';
 import type { PnpProfile } from '../pnp/types.js';
 import { applyPnpToRoot } from '../pnp/applyPnp.js';
 import type { CatalogIndex } from '../catalog/types.js';
 import { extractCatalog, extractCatalogFromItemXml, mergeCatalogs } from '../catalog/catalogExtractor.js';
-import { getCatalogEntry } from '../catalog/catalogLookup.js';
+import { getCatalogEntryWithAliases } from '../catalog/catalogLookup.js';
 import { PciHost } from '../pci/PciHost.js';
-import type { ExtractedPci } from '../pci/types.js';
+import type { ExtractedPci, PciInteractionStatus } from '../pci/types.js';
 import {
 	createExtendedTextNumericRecord,
 	EXTENDED_TEXT_RECORD_FIELD_TYPES,
 } from '../interactions/extended-text/response.js';
 
-type DeclKind = 'response' | 'outcome' | 'template';
+type DeclKind = 'response' | 'outcome' | 'template' | 'context';
+
+/** Choices a template variable can show or hide, by canonical name. */
+const TEMPLATE_CHOICES = [
+	'simplechoice',
+	'simpleassociablechoice',
+	'gaptext',
+	'gapimg',
+	'gap',
+	'hottext',
+	'inlinechoice',
+	'hotspotchoice',
+	'associablehotspot',
+] as const;
 
 /** Immutable source-derived artifacts shared by sessions from one definition. */
 interface PreparedPlayerDefinition {
@@ -140,6 +158,8 @@ export class Player {
 	private ops: OperatorRegistry;
 	private extractionRegistry: ExtractionRegistry;
 	private interactionDataCache: readonly BaseInteractionData[] | null = null;
+	/** Template variables declared with `mathVariable`, substituted into MathML. */
+	private mathVariableIds: ReadonlySet<string> | null = null;
 	private componentRegistry: ComponentRegistry;
 	private i18nProvider: any; // I18nProvider from @pie-qti/i18n
 	private mapper: ElementNameMapper;
@@ -207,6 +227,11 @@ export class Player {
 			this.itemDocument = prepared.itemDocument;
 			this.decls = cloneDeclarationMap(prepared.declarations);
 		} else {
+			// Read-aloud markup: suppression restated as the attribute the PIE tools read, and SSML
+			// docked as catalog idrefs and unwrapped from the visible body. The section player derives
+			// the same `spoken` cards from the same XML.
+			enforceItemXmlLimits(this.itemXml, this.config.security);
+			this.itemXml = prepareContentMarkup(this.itemXml, [], { hidingStyles: false }).xml;
 			this.itemDocument = parseAssessmentItemDocument({
 				itemXml: this.itemXml,
 				elementNameMapper: this.mapper,
@@ -216,6 +241,8 @@ export class Player {
 			this.decls = this.buildDeclarations();
 			this.ensureBuiltinDeclarations(this.decls);
 		}
+		this.applyContextVariables(config.contextVariables);
+		this.applyTemplateDefaults(config.templateDefaults);
 		this.sourceDeclarations = cloneDeclarationMap(this.decls);
 		this.ctx = new DeclarationContext(this.decls);
 		this.ops = new OperatorRegistry();
@@ -302,6 +329,8 @@ export class Player {
 		// Build the catalog index from shared catalog XML, item XML, and resolved delivery context.
 		// Sanitized item-level delivery context entries win over raw item XML on collisions.
 		// Stimulus entries are kept separately so rendered stimulus terms can avoid ID collisions.
+		// Package (shared catalog file) entries merge first: they hold the lowest
+		// precedence, below catalogXml and the item's own catalogs (QTI 3.0 §6.3).
 		if (prepared) {
 			this._catalogIndex = prepared.catalogIndex;
 			this._stimulusCatalogIndexes = prepared.stimulusCatalogIndexes;
@@ -316,6 +345,8 @@ export class Player {
 						source.stimulusIdentifier,
 						mergeCatalogs(existing, sourceCatalog),
 					);
+				} else if (source.scope === 'package') {
+					mergedCatalog = mergeCatalogs(mergedCatalog, sourceCatalog);
 				} else {
 					deliveryItemCatalog = mergeCatalogs(deliveryItemCatalog, sourceCatalog);
 				}
@@ -381,6 +412,11 @@ export class Player {
 		}
 	}
 
+	/** The language the item's content is written in, from the nearest `xml:lang` on its body. */
+	public getContentLanguage(): string | undefined {
+		return this.itemDocument.getContentLanguage();
+	}
+
 	/** Return the current resolved PNP profile. */
 	public getPnp(): PnpProfile | undefined {
 		return this._pnp;
@@ -409,9 +445,10 @@ export class Player {
 		options?: { stimulusIdentifier?: string }
 	): HtmlContent | null {
 		const stimulusHtml = options?.stimulusIdentifier
-			? getCatalogEntry(this._stimulusCatalogIndexes.get(options.stimulusIdentifier) ?? new Map(), idref, usage, lang)
+			? getCatalogEntryWithAliases(this._stimulusCatalogIndexes.get(options.stimulusIdentifier) ?? new Map(), idref, usage, lang)
 			: null;
-		const html = stimulusHtml ?? getCatalogEntry(this._catalogIndex, idref, usage, lang);
+		const html =
+			stimulusHtml ?? getCatalogEntryWithAliases(this._catalogIndex, idref, usage, lang);
 		if (html === null) return null;
 		if (looksLikeCatalogUrl(html)) {
 			return sanitizeResourceUrl(html.trim(), this.config.security?.urlPolicy, 'img');
@@ -436,6 +473,13 @@ export class Player {
 		const host = new PciHost(data, {
 			baseUrl: this.config.pci?.baseUrl,
 			moduleResolver: this.config.pci?.moduleResolver,
+			sandbox: this.config.pci?.sandbox,
+			modulePolicy: this.config.pci?.modulePolicy,
+			responseDeclaration: (() => {
+				const d = this.decls[data.responseIdentifier];
+				return d ? { baseType: d.baseType, cardinality: d.cardinality } : undefined;
+			})(),
+			status: () => this.pciInteractionStatus(),
 		});
 
 		// Wire response changes back into the player's declaration context
@@ -476,6 +520,18 @@ export class Player {
 		for (const host of this._pciHosts.values()) {
 			if (disabled) host.disable(); else host.enable();
 		}
+	}
+
+	/**
+	 * The QTI 3.0 §6.1 interaction status a PCI instantiates with: 'solution' when
+	 * correct responses are exposed, 'review' for non-candidate roles otherwise,
+	 * 'closed' once the attempt finished, 'interacting' while the candidate works.
+	 * Hosts that know better pass their own `status` to the PciHost options.
+	 */
+	private pciInteractionStatus(): PciInteractionStatus {
+		if (this.role !== 'candidate') return 'review';
+		if (this.lifecycleStatus === 'closed') return 'closed';
+		return 'interacting';
 	}
 
 	/**
@@ -850,12 +906,34 @@ export class Player {
 			maxScore,
 			completed,
 			outcomeValues: outcomes,
+			correct: this.responsesMatchCorrect(),
 			modalFeedback: this.getModalFeedback(outcomes),
 		};
 	}
 
+	/**
+	 * QTI item correctness, as test-level `numberCorrect` reads it: every declared response matches
+	 * its correct response. Undefined when the item has no response or one declares no correct
+	 * response.
+	 */
+	private responsesMatchCorrect(): boolean | undefined {
+		const responses = Object.values(this.decls).filter((d) => (d as any).__kind === 'response');
+		if (responses.length === 0 || responses.some((d) => d.correctResponse?.kind !== 'value')) return undefined;
+		const env = { ctx: this.ctx, ops: this.ops, rng: this.rng, customOperators: this.config.customOperators };
+		return responses.every((d) =>
+			toBoolean(
+				evalExpr(env, {
+					kind: 'expr.match',
+					id: `correct-${d.identifier}`,
+					a: { kind: 'expr.variable', id: `correct-${d.identifier}-response`, identifier: d.identifier },
+					b: { kind: 'expr.correct', id: `correct-${d.identifier}-correct`, identifier: d.identifier },
+				} as any),
+			),
+		);
+	}
+
 	public getItemBodyHtml(): HtmlContent {
-		const inner = this.itemDocument.serializeItemBodyChildren();
+		const inner = this.itemDocument.serializeItemBodyChildren(this.contentHandlers({ feedback: false }));
 		if (!inner) return '';
 
 		return this.renderHtmlContent(inner);
@@ -871,7 +949,7 @@ export class Player {
 	 */
 	public getRubrics(options: RubricBlockOptions = {}): RubricBlock[] {
 		const role = this.role;
-		const rubrics = this.itemDocument.readRubricBlocks();
+		const rubrics = this.itemDocument.readRubricBlocks(this.contentHandlers());
 		if (rubrics.length === 0) return [];
 
 		const blocks: RubricBlock[] = [];
@@ -884,9 +962,7 @@ export class Player {
 			// If view is specified, show only when it includes the current role.
 			if (view.length > 0 && role && !view.includes(role)) continue;
 
-			const printed = this.renderPrintedVariables(rubric.content);
-			const sanitized = sanitizeHtml(printed, { security: this.config.security });
-			const html = toTrustedHtml(sanitized, this.config.security?.trustedTypesPolicyName);
+			const html = this.renderHtmlContent(rubric.content);
 
 			blocks.push({ view, html, scope, use: rubric.use });
 		}
@@ -916,6 +992,9 @@ export class Player {
 			// resumed session reproduces the order the candidate already saw, while a
 			// different candidate or a new attempt gets a different one.
 			sessionGuid: this.sessionGuid,
+			// Template content resolves before extraction, so interactions are extracted again
+			// when template values change. Choice feedback resolves in presentation.
+			contentHandlers: this.contentHandlers({ feedback: false }),
 		});
 		return this.interactionDataCache;
 	}
@@ -1052,6 +1131,7 @@ export class Player {
 	}
 
 	public setTemplateVariables(vars: Record<string, any>): void {
+		this.interactionDataCache = null;
 		for (const [id, raw] of Object.entries(vars)) {
 			const d = this.decls[id];
 			if (!d?.isTemplate) continue;
@@ -1254,6 +1334,7 @@ export class Player {
 	// ----------------------------------------------------------------------------
 
 	private execTemplateProcessing(): void {
+		this.interactionDataCache = null;
 		if (!this.templateProcessingProgram) return;
 		execProgram(
 			{
@@ -1464,16 +1545,34 @@ export class Player {
 		for (const el of this.itemDocument.findDeclarationElements('response')) addDecl('response', el);
 		for (const el of this.itemDocument.findDeclarationElements('outcome')) addDecl('outcome', el);
 		for (const el of this.itemDocument.findDeclarationElements('template')) addDecl('template', el);
+		for (const el of this.itemDocument.findDeclarationElements('context')) addDecl('context', el);
 
 		return decls;
 	}
 
+	/** Host-supplied context values, e.g. `QTI_CONTEXT`; identifiers that are not context variables are ignored. */
+	private applyContextVariables(values: Readonly<Record<string, unknown>> | undefined): void {
+		for (const [id, raw] of Object.entries(values ?? {})) {
+			const d = this.decls[id];
+			if ((d as any)?.__kind !== 'context') continue;
+			d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, raw, d.identifier);
+		}
+	}
+
+	/** Test-supplied template defaults; identifiers that are not template variables are ignored. */
+	private applyTemplateDefaults(values: Readonly<Record<string, unknown>> | undefined): void {
+		for (const [id, raw] of Object.entries(values ?? {})) {
+			const d = this.decls[id];
+			if (!d?.isTemplate) continue;
+			d.defaultValue = this.coerceToDeclarationValue(d.baseType, d.cardinality, raw, d.identifier);
+			d.value = d.defaultValue;
+		}
+	}
+
 	private parseMatchTable(el: Element) {
-		const defaultValueRaw = (getAttr(el, 'defaultValue') || '').trim();
-		const defaultValue = defaultValueRaw ? Number(defaultValueRaw) : undefined;
 		return {
 			kind: 'table.matchTable' as const,
-			defaultValue: Number.isFinite(defaultValue as any) ? defaultValue : undefined,
+			defaultValue: (getAttr(el, 'defaultValue') || '').trim() || undefined,
 			entries: findDescendants(el, this.mapper.toNative('matchtableentry')).map((e) => ({
 				sourceValue: (getAttr(e, 'sourceValue') || '').trim(),
 				targetValue: (getAttr(e, 'targetValue') || '').trim(),
@@ -1482,19 +1581,16 @@ export class Player {
 	}
 
 	private parseInterpolationTable(el: Element) {
-		const defaultValueRaw = (getAttr(el, 'defaultValue') || '').trim();
-		const defaultValue = defaultValueRaw ? Number(defaultValueRaw) : undefined;
-		const interpolationMethod = (getAttr(el, 'interpolationMethod') || 'linear').trim();
 		return {
 			kind: 'table.interpolationTable' as const,
-			defaultValue: Number.isFinite(defaultValue as any) ? defaultValue : undefined,
-			interpolationMethod,
+			defaultValue: (getAttr(el, 'defaultValue') || '').trim() || undefined,
 			entries: findDescendants(el, this.mapper.toNative('interpolationtableentry'))
 				.map((e) => ({
-					sourceValue: Number((getAttr(e, 'sourceValue') || '').trim()),
-					targetValue: Number((getAttr(e, 'targetValue') || '').trim()),
+					sourceValue: Number((getAttr(e, 'sourceValue') || '').trim() || Number.NaN),
+					targetValue: (getAttr(e, 'targetValue') || '').trim(),
+					includeBoundary: (getAttr(e, 'includeBoundary') || '').trim() !== 'false',
 				}))
-				.filter((e) => Number.isFinite(e.sourceValue) && Number.isFinite(e.targetValue)),
+				.filter((e) => Number.isFinite(e.sourceValue)),
 		};
 	}
 
@@ -1536,6 +1632,19 @@ export class Player {
 				isTemplate: false,
 				// @ts-expect-error internal marker
 				__kind: 'outcome',
+			};
+		}
+
+		// QTI 3 built-in context variable, set by the delivery system.
+		if (!decls.QTI_CONTEXT) {
+			decls.QTI_CONTEXT = {
+				identifier: 'QTI_CONTEXT',
+				cardinality: 'record',
+				defaultValue: qtiNull(undefined, 'record'),
+				value: qtiNull(undefined, 'record'),
+				isTemplate: false,
+				// @ts-expect-error internal marker
+				__kind: 'context',
 			};
 		}
 
@@ -1600,7 +1709,7 @@ export class Player {
 			const variable = this.serializeVariable(d);
 			if (d.isTemplate) {
 				templateVariables[d.identifier] = { ...variable, kind: 'template' };
-			} else if (contextIds.has(d.identifier)) {
+			} else if (contextIds.has(d.identifier) || (d as any).__kind === 'context') {
 				contextVariables[d.identifier] = { ...variable, kind: 'context' };
 			} else if ((d as any).__kind === 'response') {
 				responseVariables[d.identifier] = { ...variable, kind: 'response' };
@@ -1966,47 +2075,115 @@ export class Player {
 	}
 
 	// ----------------------------------------------------------------------------
-	// printedVariable + feedback
+	// Item content pass: printedVariable, feedback, templates
 	// ----------------------------------------------------------------------------
 
-	private renderPrintedVariables(html: string): string {
-		const readIdentifier = (attrs: string): string | null => {
-			const m = attrs.match(/identifier\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s>]+))/i);
-			return (m?.[1] || m?.[2] || m?.[3] || '').trim() || null;
-		};
+	/**
+	 * The item content pass's handlers, reading the session's current variable values. QTI 3 wraps
+	 * rubric content in `qti-content-body`, which is unwrapped so a rubric renders as in QTI 2.2.
+	 * Feedback resolves here for rubric and modal feedback content; item body and choice feedback
+	 * resolve in presentation, which takes the outcome values to present as input.
+	 */
+	private contentHandlers({ feedback = true }: { feedback?: boolean } = {}): ContentHandlers {
+		const conditional = (variable: string) => (element: Element) =>
+			this.isShownByVariable(element, variable, getAttr(element, 'identifier')) ? Array.from(element.childNodes) : [];
+		const handlers = new Map<string, ContentHandler>([
+			['printedvariable', (element) => this.printedVariableNodes(element)],
+			['contentbody', (element) => Array.from(element.childNodes)],
+			['templateinline', conditional('templateIdentifier')],
+			['templateblock', conditional('templateIdentifier')],
+		]);
+		for (const choice of TEMPLATE_CHOICES) {
+			handlers.set(choice, (element) =>
+				!getAttr(element, 'templateIdentifier') ||
+				this.isShownByVariable(element, 'templateIdentifier', getAttr(element, 'identifier'))
+					? undefined
+					: [],
+			);
+		}
+		if (this.mathVariables().size > 0) {
+			handlers.set('mi', (element) => this.mathVariableNodes(element, 'mn'));
+			handlers.set('ci', (element) => this.mathVariableNodes(element, 'cn'));
+		}
+		if (feedback) {
+			handlers.set('feedbackinline', conditional('outcomeIdentifier'));
+			handlers.set('feedbackblock', conditional('outcomeIdentifier'));
+		}
+		return handlers;
+	}
 
-		const renderId = (id: string | null): string => {
-			if (!id) return '';
-			const v = this.ctx.getValue(id);
-			if (v.kind !== 'value') return '';
-			if (Array.isArray(v.value)) return v.value.map(String).join(', ');
-			return String(v.value);
-		};
+	/**
+	 * Whether `element` shows: the variable named by its `variableAttribute` against `identifier`,
+	 * by the shared visibility rule. A missing variable or identifier hides it.
+	 */
+	private isShownByVariable(element: Element, variableAttribute: string, identifier: string | null): boolean {
+		const variable = (getAttr(element, variableAttribute) || '').trim();
+		const id = (identifier || '').trim();
+		if (!variable || !id) return false;
+		const current = this.ctx.getValue(variable);
+		return isShownByIdentifier(current.kind === 'value' ? current.value : null, id, getAttr(element, 'showHide'));
+	}
 
-		let out = html.replace(/<printedVariable\b([^>]*)>([\s\S]*?)<\/printedVariable>/gi, (_m, attrs) =>
-			renderId(readIdentifier(String(attrs)))
+	private mathVariables(): ReadonlySet<string> {
+		this.mathVariableIds ??= new Set(
+			this.itemDocument
+				.findDeclarationElements('template')
+				.filter((el) => getAttr(el, 'mathVariable')?.trim() === 'true')
+				.map((el) => (getAttr(el, 'identifier') || '').trim()),
 		);
-		out = out.replace(/<printedVariable\b([^>]*)\/>/gi, (_m, attrs) => renderId(readIdentifier(String(attrs))));
-		return out;
+		return this.mathVariableIds;
+	}
+
+	/**
+	 * A MathML `mi` or `ci` naming a math variable, with the variable's single value in its place:
+	 * a number as `mn` or `cn` (`numberName`), any other value as the element's text. NULL and
+	 * container values leave the element as authored.
+	 */
+	private mathVariableNodes(element: Element, numberName: string): Node[] | undefined {
+		const identifier = (element.textContent || '').trim();
+		const document = element.ownerDocument;
+		if (!document || !this.mathVariables().has(identifier)) return undefined;
+		const value = this.ctx.getValue(identifier);
+		if (value.kind !== 'value' || value.cardinality !== 'single') return undefined;
+		const text = String(value.value);
+		if (value.baseType !== 'integer' && value.baseType !== 'float') {
+			// The pass resolves a copy, and the element is not walked again, so this cannot cycle.
+			element.textContent = text;
+			return undefined;
+		}
+		const name = element.prefix ? `${element.prefix}:${numberName}` : numberName;
+		const replacement = document.createElementNS(element.namespaceURI, name);
+		replacement.appendChild(document.createTextNode(text));
+		return [replacement];
+	}
+
+	private printedVariableNodes(element: Element): Node[] {
+		const identifier = (getAttr(element, 'identifier') || '').trim();
+		const document = element.ownerDocument;
+		if (!identifier || !document) return [];
+		const variable = (id: string): QtiValue => this.ctx.getValue(id);
+		const printed = printVariable(variable(identifier), readPrintedVariableOptions(element, variable));
+		return printed.map((segment) => {
+			if (typeof segment === 'string') return document.createTextNode(segment);
+			const sup = document.createElementNS(element.namespaceURI, 'sup');
+			sup.appendChild(document.createTextNode(segment.superscript));
+			return sup;
+		});
 	}
 
 	private renderHtmlContent(html: string): HtmlContent {
-		const printed = this.renderPrintedVariables(html);
-		const sanitized = sanitizeHtml(printed, { security: this.config.security });
+		const sanitized = sanitizeHtml(html, { security: this.config.security });
 		return toTrustedHtml(sanitized, this.config.security?.trustedTypesPolicyName);
 	}
 
 	private getModalFeedback(outcomes: Record<string, any>): ModalFeedback[] {
 		const active: ModalFeedback[] = [];
 
-		for (const feedback of this.itemDocument.readModalFeedback()) {
+		for (const feedback of this.itemDocument.readModalFeedback(this.contentHandlers())) {
 			const { identifier, outcomeIdentifier, showHide, title } = feedback;
-			const sanitized = sanitizeHtml(feedback.content, { security: this.config.security });
-			const content = toTrustedHtml(sanitized, this.config.security?.trustedTypesPolicyName);
+			const content = this.renderHtmlContent(feedback.content);
 
-			const outcomeValue = outcomes[outcomeIdentifier];
-			const shouldShow = showHide === 'show' ? outcomeValue === identifier : outcomeValue !== identifier;
-			if (shouldShow && content) {
+			if (isShownByIdentifier(outcomes[outcomeIdentifier], identifier, showHide) && content) {
 				active.push({ identifier, outcomeIdentifier, showHide, content, title });
 			}
 		}
@@ -2023,6 +2200,7 @@ function mergePnp(base: PnpProfile | undefined, partial: Partial<PnpProfile>): P
 		display: { ...(base?.display ?? {}), ...(partial.display ?? {}) },
 		content: { ...(base?.content ?? {}), ...(partial.content ?? {}) },
 		cognitive: { ...(base?.cognitive ?? {}), ...(partial.cognitive ?? {}) },
+		...(base?.tools || partial.tools ? { tools: { ...(base?.tools ?? {}), ...(partial.tools ?? {}) } } : {}),
 	};
 }
 

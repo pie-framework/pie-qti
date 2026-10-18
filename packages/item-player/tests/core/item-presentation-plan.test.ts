@@ -6,6 +6,21 @@ import {
 } from '../../src/presentation/itemPresentationPlan.js';
 import { Player } from '../../src/core/Player.js';
 import { createAssessmentItemDefinition } from '../../src/core/AssessmentItemDefinition.js';
+import { convertQti2ToQti3 } from '@pie-qti/qti-common';
+
+const SOLUTION_ITEM_QTI22 = `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="solution" adaptive="false" timeDependent="false">
+	<responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier">
+		<correctResponse><value>A</value></correctResponse>
+	</responseDeclaration>
+	<outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float"/>
+	<itemBody>
+		<choiceInteraction responseIdentifier="RESPONSE" maxChoices="1">
+			<simpleChoice identifier="A">A</simpleChoice>
+			<simpleChoice identifier="B">B</simpleChoice>
+		</choiceInteraction>
+	</itemBody>
+</assessmentItem>`;
 
 describe('createItemPresentation', () => {
 	test('reprocesses feedbackInline visibility from current post-submit outcome values', () => {
@@ -37,6 +52,29 @@ describe('createItemPresentation', () => {
 		expect(presentationHtml(correct)).not.toContain('feedbackInline');
 	});
 
+	test('a PNP structured-label profile reaches every block mount', () => {
+		const player = new Player({
+			itemXml: `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="structured">
+	<responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier"/>
+	<itemBody>
+		<choiceInteraction responseIdentifier="RESPONSE" maxChoices="1">
+			<prompt>Choose one.</prompt>
+			<simpleChoice identifier="A">A</simpleChoice>
+			<simpleChoice identifier="B">B</simpleChoice>
+		</choiceInteraction>
+	</itemBody>
+</assessmentItem>`,
+			pnp: { display: { structuredLabelSupport: true } },
+		});
+		const mounts = createItemPresentation({ source: sourceFromPlayer(player) }).flow.flatMap((node) =>
+			node.kind === 'interaction' && node.mount.placement === 'block' ? [node.mount] : []
+		);
+		expect(mounts).toHaveLength(1);
+		expect(mounts[0].structuredLabelSupport).toBe(true);
+		expect(mounts[0].eliminationTool).toBe(false);
+	});
+
 	test('a live ItemSession presents post-submit outcomes without a response snapshot handoff', () => {
 		const definition = createAssessmentItemDefinition({
 			itemXml: `<?xml version="1.0" encoding="UTF-8"?>
@@ -59,6 +97,51 @@ describe('createItemPresentation', () => {
 		expect(presentationHtml(session.present())).toContain('Correct feedback');
 		session.dispose();
 	});
+
+	test('showFeedback false hides inline and block feedback whatever the outcome', () => {
+		const player = new Player({
+			itemXml: `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="feedback-hidden">
+	<outcomeDeclaration identifier="FEEDBACK" cardinality="single" baseType="identifier"/>
+	<itemBody>
+		<p><feedbackInline outcomeIdentifier="FEEDBACK" identifier="correct" showHide="show">Inline feedback</feedbackInline></p>
+		<feedbackBlock outcomeIdentifier="FEEDBACK" identifier="correct" showHide="show"><p>Block feedback</p></feedbackBlock>
+	</itemBody>
+</assessmentItem>`,
+		});
+		const source = sourceFromPlayer(player);
+		const shown = presentationHtml(createItemPresentation({ source, outcomeValues: { FEEDBACK: 'correct' } }));
+		expect(shown).toContain('Inline feedback');
+		expect(shown).toContain('Block feedback');
+
+		const hidden = presentationHtml(
+			createItemPresentation({ source, outcomeValues: { FEEDBACK: 'correct' }, showFeedback: false }),
+		);
+		expect(hidden).not.toContain('Inline feedback');
+		expect(hidden).not.toContain('Block feedback');
+	});
+
+	for (const [version, itemXml] of [
+		['QTI 2.2', SOLUTION_ITEM_QTI22],
+		['QTI 3.0', convertQti2ToQti3(SOLUTION_ITEM_QTI22)],
+	] as const) {
+		test(`${version}: a session's showSolution exposes correct responses to a candidate once the attempt ends`, () => {
+			const session = createAssessmentItemDefinition({ itemXml }).openSession({
+				presentation: { showSolution: true, showFeedback: false },
+			});
+			expect(session.present().correctResponses).toEqual({});
+			session.dispatch({ action: 'endAttempt' });
+			const presentation = session.present();
+			expect(presentation.capabilities.canViewCorrectResponses).toBe(true);
+			expect(presentation.correctResponses).toEqual({ RESPONSE: 'A' });
+			session.dispose();
+
+			const plain = createAssessmentItemDefinition({ itemXml }).openSession();
+			plain.dispatch({ action: 'endAttempt' });
+			expect(plain.present().correctResponses).toEqual({});
+			plain.dispose();
+		});
+	}
 });
 
 function sourceFromPlayer(player: Player): ItemPresentationSource {

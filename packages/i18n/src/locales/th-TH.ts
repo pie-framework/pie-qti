@@ -121,6 +121,8 @@ export default {
 			selected: 'เลือกแล้ว',
 			notSelected: 'ยังไม่ได้เลือก',
 			correct: 'ถูกต้อง',
+			revealChoice: 'แสดงตัวเลือก {index}',
+			groupLabel: 'ตัวเลือกคำตอบ',
 		},
 
 		upload: {
@@ -228,6 +230,7 @@ export default {
 			removeMatch: 'ลบการจับคู่',
 			clearMatch: 'ล้างการจับคู่สำหรับ {source}',
 			sourceItemsLabel: 'รายการต้นทางที่จะจับคู่',
+			groupLabel: 'รายการจับคู่',
 			targetItemsLabel: 'รายการเป้าหมายสำหรับการจับคู่',
 			dragFromHere: 'ลากจากที่นี่:',
 			dropHere: 'วางที่นี่:',

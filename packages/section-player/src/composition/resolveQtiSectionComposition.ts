@@ -11,6 +11,7 @@ import type {
 	ResolveQtiSectionCompositionOptions,
 	ResolvedQtiSectionComposition,
 } from '../contracts/index.js';
+import { applyToolSupports, companionMaterialsOf, type QtiCompanionMaterials } from '../tools/pnp-tool-supports.js';
 import { isQtiViewVisibleForRole } from '../visibility/role-view.js';
 
 function emptySharedContext(): QtiSharedContext {
@@ -55,18 +56,31 @@ function resolveLayout(section: QtiSectionModel, sharedContext: QtiSharedContext
 	return sharedContext.passages.length > 0 ? 'split-pane' : 'vertical';
 }
 
-function filterToolsForRole(tools: QtiSectionToolConfig[] | undefined, role: QtiSectionModel['role']): QtiSectionToolConfig[] | undefined {
-	const filtered = (tools ?? []).filter((tool) => tool.enabled !== false && isQtiViewVisibleForRole(tool.view, role ?? 'candidate'));
+function filterToolsForRole(
+	tools: QtiSectionToolConfig[] | undefined,
+	role: QtiSectionModel['role'],
+	pnp?: ResolveQtiSectionCompositionOptions['pnp'],
+	materials?: QtiCompanionMaterials,
+): QtiSectionToolConfig[] | undefined {
+	const filtered = (applyToolSupports(tools, pnp, materials) ?? []).filter((tool) => tool.enabled !== false && isQtiViewVisibleForRole(tool.view, role ?? 'candidate'));
 	return filtered.length > 0 ? filtered : undefined;
 }
 
-function resolveSharedHtmlBlockTools(block: QtiSharedHtmlBlock, role: QtiSectionModel['role']): QtiSharedHtmlBlock {
-	const tools = filterToolsForRole(block.tools, role);
+function resolveSharedHtmlBlockTools(
+	block: QtiSharedHtmlBlock,
+	role: QtiSectionModel['role'],
+	pnp?: ResolveQtiSectionCompositionOptions['pnp'],
+): QtiSharedHtmlBlock {
+	const tools = filterToolsForRole(block.tools, role, pnp);
 	return tools === block.tools ? block : { ...block, tools };
 }
 
-function resolveItemTools(item: QtiSectionModel['itemRefs'][number], role: QtiSectionModel['role']): QtiSectionModel['itemRefs'][number] {
-	const tools = filterToolsForRole(item.tools, role);
+function resolveItemTools(
+	item: QtiSectionModel['itemRefs'][number],
+	role: QtiSectionModel['role'],
+	pnp?: ResolveQtiSectionCompositionOptions['pnp'],
+): QtiSectionModel['itemRefs'][number] {
+	const tools = filterToolsForRole(item.tools, role, pnp, item.tools ? companionMaterialsOf(item.itemXml) : undefined);
 	return tools === item.tools ? item : { ...item, tools };
 }
 
@@ -178,12 +192,12 @@ function resolveSharedContext(
 
 	return {
 		...sharedContext,
-		passages: sharedContext.passages.filter(filterBlock).map((block) => resolveSharedHtmlBlockTools(block, role)),
+		passages: sharedContext.passages.filter(filterBlock).map((block) => resolveSharedHtmlBlockTools(block, role, options.pnp)),
 		stimuli: sharedContext.stimuli.map((stimulus, stimulusIndex) =>
 			resolveStimulusStylesheets(stimulus, options, diagnostics, stimulusIndex),
 		),
-		rubricBlocks: sharedContext.rubricBlocks.filter(filterBlock).map((block) => resolveSharedHtmlBlockTools(block, role)),
-		testFeedback: sharedContext.testFeedback.filter(filterBlock).map((block) => resolveSharedHtmlBlockTools(block, role)),
+		rubricBlocks: sharedContext.rubricBlocks.filter(filterBlock).map((block) => resolveSharedHtmlBlockTools(block, role, options.pnp)),
+		testFeedback: sharedContext.testFeedback.filter(filterBlock).map((block) => resolveSharedHtmlBlockTools(block, role, options.pnp)),
 		stylesheets: sharedContext.stylesheets.map((stylesheet, index) =>
 			resolveSharedStylesheetRef(stylesheet, options, diagnostics, `sharedContext.stylesheets[${index}].href`),
 		),
@@ -219,13 +233,16 @@ export function resolveQtiSectionComposition(
 
 	const activeItemIndex = resolveActiveIndex(options, diagnostics);
 	const role = options.section.role ?? 'candidate';
-	const itemRefs = options.section.itemRefs.map((item) => resolveItemTools(item, role));
+	const itemRefs = options.section.itemRefs.map((item) => resolveItemTools(item, role, options.pnp));
 	const activeItem = itemRefs[activeItemIndex] ?? {
 		identifier: '',
 		itemXml: '',
 	};
 	const sharedContext = resolveSharedContext(options, diagnostics);
-	const tools = filterToolsForRole(options.section.tools, role);
+	const activeMaterials = options.section.tools
+		? companionMaterialsOf(options.section.itemRefs[activeItemIndex]?.itemXml ?? '')
+		: undefined;
+	const tools = filterToolsForRole(options.section.tools, role, options.pnp, activeMaterials);
 	const snapshot: QtiSectionSnapshot = {
 		sectionIdentifier: options.section.identifier,
 		activeItemIdentifier: activeItem.identifier,

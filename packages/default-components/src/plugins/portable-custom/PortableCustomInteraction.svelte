@@ -14,6 +14,8 @@
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
+	import { interactionAria } from '../../shared/utils/interactionAria';
+	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 
 	type PciHostFactory = (data: ExtractedPci) => PciHostController;
 	type LoadStatus = 'idle' | 'loading' | 'ready' | 'error';
@@ -118,7 +120,12 @@
 		try {
 			currentHost = factory
 				? factory(data)
-				: new PciHost(data, { baseUrl, moduleResolver: resolver });
+				: new PciHost(data, {
+						baseUrl,
+						moduleResolver: resolver,
+						sandbox: pci?.sandbox,
+						modulePolicy: pci?.modulePolicy,
+					});
 		} catch (error) {
 			status = 'error';
 			errorMessage = error instanceof Error ? error.message : String(error);
@@ -128,6 +135,14 @@
 		host = currentHost;
 		const stopListening = currentHost.onResponseChange((_responseId, value) => {
 			if (!cancelled) emitResponse(value);
+		});
+
+		// Engines that execute the module out of the page realm — the sandboxed
+		// runner frame — report their failures here instead of rejecting load().
+		const stopErrors = currentHost.onError((error) => {
+			if (cancelled) return;
+			status = 'error';
+			errorMessage = error.message;
 		});
 
 		// An authoritative restore rebuilds the module from the restored value.
@@ -169,6 +184,7 @@
 		return () => {
 			cancelled = true;
 			stopListening();
+			stopErrors();
 			stopRemountRequests();
 			currentHost.destroy();
 			if (host === currentHost) host = null;
@@ -202,8 +218,10 @@
 	part="root"
 	class="qti-portable-custom-interaction"
 	role="group"
-	aria-label={i18n?.t('customInteraction.portableLabel', 'Portable custom interaction')}
+	aria-label={parsedInteraction?.accessibility?.label ?? i18n?.t('customInteraction.portableLabel', 'Portable custom interaction')}
+	aria-describedby={interactionAria(parsedInteraction)['aria-describedby']}
 >
+	<InteractionDescription interaction={parsedInteraction} />
 	{#if !parsedInteraction}
 		<div class="alert alert-error" role="alert">
 			{i18n?.t('common.errorNoData', 'No interaction data provided')}

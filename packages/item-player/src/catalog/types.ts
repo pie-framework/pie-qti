@@ -29,9 +29,9 @@ export interface CatalogEntry {
 	/** xml:lang value (e.g. 'en-US', 'es'). Undefined when no language is specified. */
 	lang?: string;
 	/**
-	 * Inner HTML from <qti-html-content>, or the src URL from <qti-file-href>.
-	 * For illustrated-glossary entries the player checks whether this looks like a URL
-	 * and renders an <img> instead of innerHTML.
+	 * The entry's `<qti-html-content>` and `<qti-file-href>` content in document order, a file
+	 * href as an `img`, `audio`, `video` or link by its MIME type. A lone `<qti-file-href>` is its
+	 * bare URL, which the player passes through its URL policy instead of the HTML sanitizer.
 	 */
 	html: string;
 }

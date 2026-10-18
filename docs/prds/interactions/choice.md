@@ -33,7 +33,7 @@
 
 **Why `shuffle` does not re-randomize on each render**: The QTI spec requires `shuffle` to produce a consistent random order for a given item session — not a new random order each time the item is rendered. Shuffling happens at extraction time using a PRNG seeded from the item session GUID (`packages/item-player/src/core/shuffle.ts`). Because `Player` persists that GUID in its saved state and restores it, the order is reproduced for the whole session — including after a reload — while a different candidate or a new attempt gets a different order. No separate shuffle state has to be serialised: the order is a pure function of the session GUID and the `responseIdentifier`.
 
-**Why `feedbackInline` is filtered through `heuristics`**: Some imported QTI content includes `feedbackInline` elements directly inside `simpleChoice` text. The QTI spec allows this, but the content was authored for a specific delivery engine that may have rendered it differently. The `heuristicsConfig.feedbackTextFormatting` flag enables a post-processing pass (`processFeedbackInline`) that strips or conditionally shows inline feedback based on `outcomeValues`. This is a best-effort compatibility feature for imported content, not a core spec requirement.
+**Inline feedback in choice text**: `simpleChoice` text may contain `feedbackInline` (`qti-feedback-inline` in QTI 3). `processFeedbackInline` shows or hides each one from `outcomeValues` by the shared visibility rule, including nested feedback, and wraps shown feedback in `.qti-feedback-inline`. `heuristicsConfig.feedbackTextFormatting` additionally rewrites vendor `Correct;`/`Incorrect;` labels inside shown feedback; it does not gate visibility.
 
 **Why correct-answer highlighting is role-gated**: The `role` prop controls whether `correctResponse` is visible. Only the `scorer` role sees the correct-answer badge and green highlight. The `candidate` role never sees the correct response during interaction, even if `correctResponse` is populated — exposing it would violate the QTI spec's `rubricBlock` role semantics and undermine assessment integrity.
 
@@ -62,8 +62,8 @@
 |-----------|---------|-----------|
 | `identifier` | ✅ Full | Required; deduplicated; used as radio/checkbox value and in response |
 | `fixed` | ✅ Full | Extracted as `choice.fixed`. When `shuffle=true`, `fixed=true` choices keep their authored index and only the remaining choices are permuted around them. |
-| `templateIdentifier` | ❌ Not extracted | Links choice to a `TemplateDeclaration` for conditional visibility. Not implemented. |
-| `showHide` | ❌ Not extracted | Companion to `templateIdentifier`. Not implemented. |
+| `templateIdentifier` | ✅ Full | A choice whose template variable hides it is dropped before extraction, by the shared visibility rule. |
+| `showHide` | ✅ Full | Inverts `templateIdentifier` visibility. |
 | class (CSS classes) | ✅ Partial | Extracted as `classes?: string[]` on each choice; passed through to host for custom renderer detection. Not rendered as CSS classes in the default component. |
 
 ### Response variable contract
@@ -83,9 +83,8 @@
 ### Known gaps
 
 - **G-09 (PNP elimination tool):** Implemented for `choiceInteraction`; when `pnp.cognitive.eliminationTool` is enabled, each choice can be visually eliminated without removing it from the response pool.
-- **G-13 (PNP structural labels):** When `pnp.structuredLabelSupport` is enabled, interaction prompts should carry additional ARIA group role and label markup for screen-reader clarity. Not implemented. Tracked in `docs/SPEC-GAPS-PLAN.md`.
+- **G-13 (PNP structural labels):** Done. When `pnp.display.structuredLabelSupport` is enabled, the choice set is announced as one `role="group"` named by the prompt (i18n fallback otherwise; an authored accessibility name still wins). Markup contract and NVDA checklist in `packages/item-player/docs/PNP.md`; tracked as Done in `docs/SPEC-GAPS-PLAN.md`.
 - **`minChoices` not enforced:** The spec requires the player to treat the response as incomplete if fewer than `minChoices` identifiers are selected. Not extracted or validated.
-- **`templateIdentifier`/`showHide` not implemented:** Template-variable-driven conditional choice visibility is not supported.
 
 ---
 
@@ -98,7 +97,7 @@
 - **FR-5:** When `disabled=true`, all inputs must be non-interactive. Disabled state must be visually distinct.
 - **FR-6:** When `shuffle=true`, present choices in a shuffled order. The order must be stable (not re-randomised on re-render).
 - **FR-7:** When `role='scorer'` and `correctResponse` is provided, visually distinguish correct choices (green highlight, badge). Do not reveal correct answers to any other role.
-- **FR-8:** Render `feedbackInline` elements inside choice text conditionally based on `outcomeValues` when `heuristics.feedbackTextFormatting` is enabled.
+- **FR-8:** Render `feedbackInline` elements inside choice text, in either QTI spelling, conditionally on `outcomeValues` by the shared visibility rule.
 - **FR-9:** Render the `prompt` HTML content above the choice list when present.
 
 ---

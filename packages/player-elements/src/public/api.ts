@@ -59,15 +59,47 @@ export type QtiPciModuleResolver = (
 	context: QtiPciModuleResolutionContext,
 ) => Promise<unknown> | unknown;
 
+/** The sandboxed engine's variant: a policy over module URLs, never an in-page evaluation. */
+export type QtiPciModulePolicy = (resolvedUrl: string, context: QtiPciModuleResolutionContext) => void;
+
+/** Mirror of `@pie-qti/item-player`'s PciSandboxConfiguration. */
+export interface QtiPciSandboxConfiguration {
+	/** Absolute URL of the deployed `@pie-qti/pci-runner` page on a cookieless origin. */
+	runnerUrl: string;
+	handshakeTimeoutMs?: number;
+	pollIntervalMs?: number;
+	registrationTimeoutMs?: number;
+}
+
 export interface QtiPciConfiguration {
 	baseUrl?: string;
-	moduleResolver: QtiPciModuleResolver;
+	/**
+	 * The host trust decision for executing a PCI module in the page realm.
+	 * Required unless `sandbox` is configured.
+	 */
+	moduleResolver?: QtiPciModuleResolver;
+	/** Opt-in hardened execution in a sandboxed cross-origin runner frame. */
+	sandbox?: QtiPciSandboxConfiguration;
+	/** Optional allow-list applied to module URLs handed to the sandbox runner. */
+	modulePolicy?: QtiPciModulePolicy;
 }
 
 export interface QtiPnpProfile {
 	display?: {
 		colorScheme?: string;
 		magnification?: number;
+		interfaceLanguage?: string;
+		invertPolarity?: { foreground?: string; background?: string };
+		singleColumn?: boolean;
+		textAppearance?: {
+			fontSize?: number;
+			fontFamily?: string;
+			fontColor?: string;
+			backgroundColor?: string;
+			lineHeight?: number;
+			letterSpacing?: number;
+			wordSpacing?: number;
+		};
 	};
 	content?: {
 		glossaryOnScreen?: boolean;
@@ -77,10 +109,17 @@ export interface QtiPnpProfile {
 			string,
 			boolean | { active?: boolean; languageCode?: string } | undefined
 		>;
-		extendedTime?: { active: boolean; multiplier: number };
+		extendedTime?: { active: boolean; multiplier: number; fixedMinutes?: number };
 	};
 	cognitive?: {
 		eliminationTool?: boolean;
+		answerMasking?: boolean;
+	};
+	tools?: {
+		supports?: string[];
+		prohibitedSupports?: string[];
+		activateAtInit?: string[];
+		toolParameters?: Record<string, Record<string, unknown>>;
 	};
 }
 
@@ -117,7 +156,12 @@ export interface QtiResolvedStylesheetRef {
 }
 
 export interface QtiResolvedCatalogSource {
-	scope: 'item' | 'stimulus';
+	/**
+	 * `package` sources come from shared catalog files the manifest lists
+	 * (`imsqti_catalog_xmlv3p0`) and hold the lowest precedence; `item` sources
+	 * win identifier collisions over them (QTI 3.0 §6.3).
+	 */
+	scope: 'item' | 'stimulus' | 'package';
 	xml: string;
 	baseHref: string;
 	stimulusIdentifier?: string;
@@ -276,6 +320,7 @@ export interface QtiSecureItemRef {
 	branchRule?: Array<{ target: string; conditionXml?: string }>;
 	preConditions?: string[];
 	weights?: Array<{ identifier: string; value: number }>;
+	categories?: string[];
 }
 
 export type QtiSecureSectionComponent =
@@ -306,8 +351,29 @@ export interface QtiSecureTestPart {
 	sections: QtiSecureSection[];
 	timeLimits?: QtiTimeLimits;
 	rubricBlocks?: QtiAssessmentRubricBlock[];
+	testFeedback?: QtiTestFeedback[];
 	itemSessionControl?: QtiItemSessionControl;
 }
+
+export interface QtiTestFeedback {
+	identifier: string;
+	outcomeIdentifier: string;
+	showHide: 'show' | 'hide';
+	access: 'atEnd' | 'during';
+	content: string;
+}
+
+/**
+ * A test-level outcome value: a scalar for single cardinality, an array for multiple and ordered,
+ * an object for record, and `null` for NULL.
+ */
+export type QtiTestOutcomeValue =
+	| string
+	| number
+	| boolean
+	| null
+	| Array<string | number | boolean | null>
+	| Record<string, unknown>;
 
 export interface QtiSecureAssessment {
 	identifier: string;
@@ -324,13 +390,7 @@ export interface QtiSecureAssessment {
 	}>;
 	outcomeProcessingXml?: string;
 	baseUrl?: string;
-	testFeedback?: Array<{
-		identifier: string;
-		outcomeIdentifier: string;
-		showHide: 'show' | 'hide';
-		access: 'atEnd' | 'during';
-		content: string;
-	}>;
+	testFeedback?: QtiTestFeedback[];
 }
 
 export type QtiAssessmentResponseValue = unknown;
@@ -387,6 +447,7 @@ export interface QtiAssessmentInitSessionResponse {
 	sessionId: string;
 	assessment: QtiSecureAssessment;
 	restoredState?: QtiAssessmentSessionState;
+	outcomes?: Record<string, QtiTestOutcomeValue>;
 }
 
 export interface QtiAssessmentSubmitResponsesRequest {
@@ -410,6 +471,7 @@ export interface QtiAssessmentSubmitResponsesResponse {
 	result?: QtiAssessmentScoringResult;
 	nextItemIdentifier?: string;
 	updatedState?: QtiAssessmentSessionState;
+	outcomes?: Record<string, QtiTestOutcomeValue>;
 	error?: string;
 }
 
@@ -419,7 +481,7 @@ export interface QtiAssessmentFinalizeResponse {
 	maxScore: number;
 	itemScores: Record<string, QtiAssessmentScoringResult>;
 	feedback?: string;
-	outcomes?: Record<string, string>;
+	outcomes?: Record<string, QtiTestOutcomeValue>;
 	finalizedAt: number;
 }
 
@@ -511,6 +573,7 @@ export interface QtiSectionRuntimeHost {
 
 export interface QtiAssessmentPlayerConfig {
 	role?: QtiRole;
+	/** Seeds selection and ordering when the element runs its built-in reference backend. */
 	rng?: () => number;
 	plugins?: readonly QtiAssessmentItemDefinitionPlugin[];
 	i18nProvider?: QtiI18nProvider;
@@ -526,6 +589,13 @@ export interface QtiAssessmentPlayerConfig {
 	showProgress?: boolean;
 	timeWarningThreshold?: number;
 	pnp?: QtiPnpProfile;
+	/**
+	 * Shared catalog files from the content package manifest (resource type
+	 * `imsqti_catalog_xmlv3p0`), as the host that read the manifest discovered
+	 * them. Their entries back every item's `data-catalog-idref` terms; item-level
+	 * catalogs win on identifier collisions.
+	 */
+	sharedCatalogs?: ReadonlyArray<{ href?: string; xml?: string }>;
 }
 
 export interface QtiAssessmentItemResult {
@@ -702,6 +772,8 @@ export interface QtiSharedHtmlBlock {
 	view?: string[];
 	tools?: QtiSectionToolConfig[];
 	rawHtml?: string;
+	/** The block's content language, from its `xml:lang`; sets its `lang` and its read-aloud voice. */
+	language?: string;
 	html?: QtiHtmlContent;
 }
 

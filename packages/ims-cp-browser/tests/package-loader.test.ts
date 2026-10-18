@@ -117,3 +117,21 @@ describe('loadResolvedManifest', () => {
 		).rejects.toThrow('maximum compression ratio');
 	});
 });
+
+describe('shared catalog discovery (G-15)', () => {
+	test('surfaces manifest resources of type imsqti_catalog_xmlv3p0', async () => {
+		const manifest = await loadResolvedManifest(
+			`<manifest identifier="shared">
+        <resources>
+          <resource identifier="item1" type="imsqti_item_xmlv3p0" href="items/item.xml"/>
+          <resource identifier="glossary" type="imsqti_catalog_xmlv3p0" href="catalogs/shared.xml"/>
+        </resources>
+      </manifest>`,
+			'imsmanifest.xml'
+		);
+
+		expect(manifest.sharedCatalogs).toHaveLength(1);
+		expect(manifest.sharedCatalogs[0].identifier).toBe('glossary');
+		expect(manifest.sharedCatalogs[0].hrefResolved).toBe('catalogs/shared.xml');
+	});
+});

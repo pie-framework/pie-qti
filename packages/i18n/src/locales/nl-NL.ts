@@ -120,6 +120,8 @@ export default {
 			selected: 'Geselecteerd',
 			notSelected: 'Niet geselecteerd',
 			correct: 'Correct',
+			revealChoice: 'Keuze {index} tonen',
+			groupLabel: 'Antwoordopties',
 		},
 
 		upload: {
@@ -227,6 +229,7 @@ export default {
 			removeMatch: 'Koppeling verwijderen',
 			clearMatch: 'Koppeling wissen voor {source}',
 			sourceItemsLabel: 'Bronitems om te koppelen',
+			groupLabel: 'Koppelitems',
 			targetItemsLabel: 'Doelitems voor koppeling',
 			dragFromHere: 'Sleep vanaf hier:',
 			dropHere: 'Zet hier neer:',

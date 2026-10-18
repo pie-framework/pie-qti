@@ -8,6 +8,8 @@
 	import SortableList from '../../shared/components/SortableList.svelte';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
 	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
+	import { interactionAria } from '../../shared/utils/interactionAria';
+	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 
 	interface Props {
 		interaction?: GraphicOrderInteractionData | string;
@@ -103,7 +105,8 @@
 
 <ShadowBaseStyles />
 
-<div bind:this={rootElement} part="root" class="qti-graphic-order-interaction">
+<div bind:this={rootElement} {...interactionAria(parsedInteraction)} part="root" class="qti-graphic-order-interaction">
+	<InteractionDescription interaction={parsedInteraction} />
 	{#if !parsedInteraction}
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}

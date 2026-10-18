@@ -22,17 +22,17 @@ the PIE→QTI export. Slices run in certification-impact order. The conversion d
 | #   | Slice                                          | Branch                                | PR  | State   |
 | --- | ---------------------------------------------- | ------------------------------------- | --- | ------- |
 | 0   | This plan                                      | `docs/qti3-native-delivery-plan`      | #300 | merged  |
-| 1   | Item-body pass and printed variables           | `feat/item-body-printed-variables`    |     | pending |
-| 2   | Inline feedback                                | `fix/feedback-inline-native`          |     | pending |
-| 3   | Feedback and template blocks; modal feedback   | `feat/feedback-template-blocks`       |     | pending |
-| 4   | Test feedback outcomes                         | `fix/test-feedback-outcomes`          |     | pending |
-| 5   | Outcome-processing inputs                      | `fix/outcome-processing-inputs`       |     | pending |
-| 6   | Lookup tables                                  | `fix/lookup-table-semantics`          |     | pending |
-| 7   | Test structure and item session control        | `feat/test-structure-session-control` |     | pending |
-| 8   | TTS and SSML in delivery                       | `feat/delivery-tts-ssml`              |     | pending |
-| 9   | Content language                               | `feat/delivery-content-language`      |     | pending |
-| 10  | PNP in delivery                                | `feat/delivery-pnp`                   |     | pending |
-| 11  | Shared vocabulary, catalogs and sanitizer      | `feat/delivery-vocabulary-catalogs`   |     | pending |
+| 1   | Item-body pass and printed variables           | `feat/item-body-printed-variables`    | #307 | merged  |
+| 2   | Inline feedback                                | `fix/feedback-inline-native`          | #309 | merged  |
+| 3   | Feedback and template blocks; modal feedback   | `feat/feedback-template-blocks`       | #311 | merged  |
+| 4   | Test feedback outcomes                         | `fix/test-feedback-outcomes`          | #315 | merged  |
+| 5   | Outcome-processing inputs                      | `fix/outcome-processing-inputs`       | #317 | merged  |
+| 6   | Lookup tables                                  | `fix/lookup-table-semantics`          | #318 | merged  |
+| 7   | Test structure and item session control        | `feat/test-structure-session-control` | #321 | merged  |
+| 8   | TTS and SSML in delivery                       | `feat/delivery-tts-ssml`              | #323 | merged  |
+| 9   | Content language                               | `feat/delivery-content-language`      | #325 | merged  |
+| 10  | PNP in delivery                                | `feat/delivery-pnp`                   | #326 | merged  |
+| 11  | Shared vocabulary, catalogs and sanitizer      | `feat/delivery-vocabulary-catalogs`   | #327 | merged  |
 | 12  | Element map completion                         | `fix/qti3-element-map`                | #301 | merged  |
 | 13  | QTI 3.0 writer                                 | `feat/pie-to-qti2-qti3-writer`        | #302 | merged  |
 
@@ -119,12 +119,12 @@ extra time, dictionary and highlighter are dropped. `applyPnp` sets `data-qti-co
 `data-qti-magnification` and `--qti-magnification`; no CSS consumes them. Companion materials
 appear only in the element map; the calculator comes from host configuration.
 
-**Shared vocabulary.** `qti-shared-vocabulary.css` covers underline, bordered, alignment
-(without justify), vertical alignment, well, layout grid, hidden, visually-hidden, italic and the
+**Shared vocabulary.** `qti-shared-vocabulary.css` covers underline, bordered, alignment,
+vertical alignment, well, layout grid, hidden, visually-hidden, italic and the
 display/margin/padding/width utilities. Missing: `qti-writing-orientation-*`,
 `qti-text-orientation-*`, `qti-list-style-type-*`, `qti-labels-*`, `qti-labels-suffix-*`,
-`qti-choices-left|right|top|bottom` (emitted as classes with no rules), `qti-unselected-hidden`,
-`qti-fullwidth` and `qti-heading`.
+`qti-choices-left|right|top|bottom` (emitted as classes with no rules), `qti-unselected-hidden`
+and `qti-fullwidth`. Justify and `qti-heading` are not in the vocabulary.
 
 **Catalogs and sanitizer.** The catalog extractor takes the first `qti-html-content` or
 `qti-file-href` per card, HTML first, and a file href becomes a bare URL. The sanitizer preserves
@@ -178,7 +178,8 @@ and delivery read the same markup the same way.
 
 **Content language flows from the item.** The nearest `xml:lang` becomes the rendered `lang`, the
 toolbar language and the catalog lookup language; the i18n locale applies only where content
-declares none. Voice follows language through the TTS provider's voice list.
+declares none. Voice follows language: the section player picks the Polly voice for the content
+language unless the host configures one.
 
 **Colour schemes ship with the shared vocabulary.** The `[data-qti-colorscheme]` rules live in
 `default-components` next to `qti-shared-vocabulary.css` and load through `default-runtime.css`,
@@ -245,6 +246,11 @@ renders identically to its QTI 2.2 twin, including inside modal feedback.
 Done when nested inline feedback and multiple-cardinality membership show correctly in both
 versions.
 
+Landed with one change: `createItemPresentation` takes the outcome values to present as input, so
+the item body and choice text resolve in presentation through `processFeedbackInline`, on the
+same rule; the pass resolves rubric and modal feedback content. The rule is `isShownByIdentifier`
+in `qti-common`, ready for slice 3.
+
 ### 3. Feedback and template blocks; modal feedback
 
 - `feedbackBlock`, `templateBlock` and `templateInline` are evaluated on the pass.
@@ -255,6 +261,12 @@ versions.
   response processing.
 
 Done when the conformance fixtures for each construct render in both versions.
+
+Landed with one change: interaction extraction runs on the pass with feedback left out, so template
+choices, template content, `printedVariable` and MathML resolve in prompts and choices, and
+interactions are extracted again when template values change. A `printedVariable` of an outcome
+inside an interaction keeps its value from extraction. Body `feedbackBlock` resolves in
+presentation on the slice 2 path. `contextVariables` on `openSession` sets context values.
 
 ### 4. Test feedback outcomes
 
@@ -267,6 +279,11 @@ Done when the conformance fixtures for each construct render in both versions.
 Done when `atEnd` and `during` feedback at test and test-part level show for single and
 multiple outcomes.
 
+Landed with two changes. `submitResponses` and a resumed `initSession` return outcomes too, so
+`during` feedback follows each submission; part-level `atEnd` shows once the candidate moves past
+the part. `sum` and `product` in `qti-processing` now take a multiple or ordered container, which
+`testVariables` yields, and QTI 3 items no longer score as item `unknown`.
+
 ### 5. Outcome-processing inputs
 
 - The backend builds `TestItemState` in full: response variables and built-ins, section
@@ -278,6 +295,12 @@ multiple outcomes.
 Done when `numberResponded`, `numberSelected`, `numberCorrect` without `MAXSCORE`,
 section/category filters and weighted `testVariables` match spec examples.
 
+Landed with two changes. Item scoring reports `correct` (every declared response matches its
+correct response, absent when one declares none), which the backend stores per item with its
+variables, so `numberCorrect` reads it directly. `testVariables` follows the spec's base-type
+rules: an omitted `baseType` matches integer and float, the result is integer only when every match
+is, and a `weightIdentifier` makes it float.
+
 ### 6. Lookup tables
 
 - `interpolationTable` is a step lookup: entries in order, `sourceValue` as lower bound,
@@ -288,6 +311,10 @@ section/category filters and weighted `testVariables` match spec examples.
   build.
 
 Done when a QTI 3 item using each table loads and maps per the spec's examples.
+
+Landed with one change: the non-QTI `lookupTable` expression keeps working with step semantics, and
+its conformance fixture now exercises `includeBoundary` and `defaultValue` instead of linear
+interpolation. Without an outcome to coerce to, its values read as float when numeric.
 
 ### 7. Test structure and item session control
 
@@ -307,6 +334,12 @@ Done when a QTI 3 item using each table loads and maps per the spec's examples.
 Done when the session-control and selection/ordering fixtures deliver in the drawn order, resume
 in it, and enforce each attribute at every nesting level.
 
+Landed with three changes. A new session's `InitSessionResponse` carries `currentItemIdentifier`,
+the first item whose preconditions hold, and the player starts there. The player's `rng` option is
+deprecated and ignored: the reference adapter takes it as `new ReferenceBackendAdapter({ rng })`.
+The assessment renders no item modal feedback; `showFeedback` governs integrated feedback, and
+adaptive items keep theirs during attempts.
+
 ### 8. TTS and SSML in delivery
 
 - The suppress-TTS and SSML mapping moves from to-pie into `qti-common`; to-pie imports it.
@@ -317,6 +350,17 @@ in it, and enforce each attribute at every nesting level.
 Done when a QTI 3 item reads its stem, prompt and choices with SSML pronunciation and skips
 suppressed nodes.
 
+Landed with the stem read from the rendered body, which carries the docking and suppression; the
+projection covers interaction content only, which renders in shadow roots. Delivery passes
+`hidingStyles: false`, since the shared vocabulary stylesheet already hides `qti-hidden`. SSML
+lands as `spoken` catalog cards under generated `ssml-N` idrefs, which the item player and the
+section player compute alike. APIP spoken cards in the section player, and passages, are left to
+slice 11.
+
+From pie-players 1.0 the reader walks open shadow roots and reads MathML as SSML, so the projection
+is gone: interactions read from their own rendered content, and the section player extracts only
+the spoken catalogs and the content language.
+
 ### 9. Content language
 
 - The nearest `xml:lang` maps to `lang` on the item body and inner elements.
@@ -325,6 +369,14 @@ suppressed nodes.
   untagged entry.
 
 Done when a Spanish item reads in a Spanish voice and opens its Spanish glossary entry.
+
+Landed with a Polly standard-engine voice table keyed by tag, then primary subtag; a language
+outside it keeps the toolkit's English default. From pie-players 1.0 the browser TTS backend
+picks a voice for the content language: markup `lang`, then the toolbar's `language`, then
+`navigator.language`. Passages
+take their language from the host's `QtiSharedHtmlBlock.language`, since the section player gets
+passage markup and no stimulus XML. A prompt or choice keeps its own `lang`, catalog idref and
+read-aloud suppression on a span around its content, and an interaction on its rendered host.
 
 ### 10. PNP in delivery
 
@@ -337,6 +389,14 @@ Done when a Spanish item reads in a Spanish voice and opens its Spanish glossary
 
 Done when each AfA term either drives delivery or is listed in `pnp.md` as unsupported.
 
+Landed with the display needs as root attributes and `--qti-*` custom properties styled by
+`qti-pnp.css` in default-components, which the web-component loaders' runtime CSS imports. Tool
+supports land in `PnpProfile.tools` in pie-players' ids, and the section player applies them and
+the item's companion materials to the host's tools: an offered `enabled: false` tool turns on, a
+prohibited one goes, and `screenReader` withholds read-aloud. Masking covers `choiceInteraction`
+only. AfA has no highlighter term; dictionary, line reader and language of interface are parsed
+for the host, which owns those tools and the interface locale.
+
 ### 11. Shared vocabulary, catalogs and sanitizer
 
 - The missing shared-vocabulary classes get rules, including `qti-choices-*` placement and
@@ -347,6 +407,16 @@ Done when each AfA term either drives delivery or is listed in `pnp.md` as unsup
   the rendered controls.
 
 Done when each vocabulary class has a fixture and a screen reader announces interaction labels.
+
+Landed with interaction classes styled in each component's shadow root and the item-body classes
+in the shared stylesheet; the class table is in the theming PRD. `qti-match-tabular` and
+`qti-header-hidden` are unsupported, since the match interaction renders columns only.
+Interaction `aria-labelledby` and `aria-describedby` resolve to text at extraction, as
+`BaseInteractionData.accessibility`, because an idref cannot cross the shadow root; a block
+interaction's root becomes a labelled `group`. A catalog entry holding one `qti-file-href` stays a
+bare URL, so the URL policy still governs it. Slice 8's leftovers landed here: the section player
+registers the `spoken` cards of `qti-catalog-info` and APIP access elements, and prepares passages
+given as `rawHtml` for read-aloud; a passage given as `html` reads as given.
 
 ### 12. Element map completion
 

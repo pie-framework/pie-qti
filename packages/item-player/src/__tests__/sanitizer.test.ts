@@ -38,3 +38,21 @@ describe('non-QTI custom elements', () => {
 		expect(html).toContain('Choose the best answer.');
 	});
 });
+
+describe('object replacement accessibility', () => {
+	test.each([
+		['image/png', '<img'],
+		['audio/mpeg', '<audio'],
+		['video/mp4', '<video'],
+	])('keeps aria-*, role and lang on a %s object', (type, tag) => {
+		const html = sanitizeHtml(
+			`<object type="${type}" data="https://example.com/media" aria-label="Water cycle" aria-describedby="cycle-help" role="img" xml:lang="es" onclick="alert(1)">Ciclo</object>`,
+		);
+		expect(html).toContain(tag);
+		expect(html).toContain('aria-label="Water cycle"');
+		expect(html).toContain('aria-describedby="cycle-help"');
+		expect(html).toContain('role="img"');
+		expect(html).toContain('lang="es"');
+		expect(html).not.toContain('onclick');
+	});
+});

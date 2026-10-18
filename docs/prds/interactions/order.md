@@ -63,8 +63,8 @@
 | `identifier` | Full | Required; deduplicated; used as list item key, in `qti-change` payload, and in response |
 | `fixed` | Partial | Extracted by `standardOrderExtractor` as `fixed?: boolean` on the choice object; passed to component via runtime spread. **The component does not honour `fixed`** — all choices are draggable regardless. See Known gaps. |
 | class (CSS classes) | Partial | Extracted as `classes?: string[]`; not rendered as CSS classes by default component but available for custom renderer detection |
-| `templateIdentifier` | Not implemented | Template-variable-driven conditional visibility. Not supported. |
-| `showHide` | Not implemented | Companion to `templateIdentifier`. Not supported. |
+| `templateIdentifier` | Full | A choice whose template variable hides it is dropped before extraction, by the shared visibility rule. |
+| `showHide` | Full | Inverts `templateIdentifier` visibility. |
 
 ### Response variable contract
 

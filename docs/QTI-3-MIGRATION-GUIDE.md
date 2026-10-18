@@ -328,26 +328,33 @@ Catalog parsing and glossary/keyword-translation popup support are implemented:
 | **Record cardinality** | Implemented | Implemented | Named typed fields; no declaration-level BaseType |
 | **Response processing** | Broad coverage | Broad coverage | Canonical fixed templates covered; external fragments require a host resolver |
 | **Assessment player** | Partial | Partial | Per-part modes and ordered hierarchy retained; dynamic controls below remain |
-| **PCI support** | Partial | Partial | Bespoke module contract, not the spec's `qtiCustomInteractionContext` registry (G-08); explicit host resolver required; not a sandbox |
-| **PNP support** | N/A / host profile | Current delivery scope | Elimination, extended time, glossary/translation triggers; color schemes set `data-qti-colorscheme` but ship no rulesets |
-| **Catalog system** | Limited extensions | Current item scope | Inline/provided catalog XML; manifest-level shared discovery remains open |
+| **PCI support** | Yes | Yes | Spec contract landed (G-08 phases 1–3): `qtiCustomInteractionContext` registry, `getInstance`, QTI variable JSON, AMD loading with resolution configs, clean-room conformance fixtures. Page-realm execution requires an explicit host resolver; `PciConfiguration.sandbox` offers opt-in hardened execution in a cross-origin runner frame (`@pie-qti/pci-runner`). Browser-level evidence in the private runner attaches to the next published candidate |
+| **PNP support** | N/A / host profile | Current delivery scope | Elimination, extended time, glossary/translation triggers; color schemes ship rulesets via `@pie-qti/default-components` `qti-pnp.css` |
+| **Catalog system** | Limited extensions | Current item scope + shared files | Inline/provided catalog XML; manifest-listed `imsqti_catalog_xmlv3p0` files land as package-scope sources (G-15, done) |
 
 ### Remaining delivery boundaries
 
-- Dynamic `preCondition` evaluation is not yet applied while walking an AssessmentTest.
-- `branchRule` execution is implemented for item refs, not for sections or test parts.
-- `selection withReplacement="true"` does not yet materialize distinct, sequence-indexed ItemSessions.
-- Processing-fragment resolution is available on ItemPlayer, but assessment/package delivery does not
-  yet construct and pass the item-relative resolver automatically.
-- Test feedback: the reference backend returns no outcome values, so `qti-test-feedback` is evaluated
-  against empty outcomes, and only `access="atEnd"` feedback is evaluated (G-05).
+- PCI runs the spec registry contract with AMD module resolution and clean-room conformance
+  evidence (G-08 phases 1–3): modules register via `qtiCustomInteractionContext`, instantiate
+  through `getInstance(dom, configuration, state)`, and multi-module declarations load through
+  the loader's `define` wiring with resolution-config parsing. Still scheduled: browser-level
+  evidence with a published candidate and third-party content as a same-reading check — see
+  [`../plans/version-1-0-2026-10.md`](../plans/version-1-0-2026-10.md).
+- Braille data exposure landed (G-13, done): `braille-text` lookups answer APIP `braille` entries
+  too, and `pnp.display.structuredLabelSupport` labels interaction answer sets for screen
+  readers. Manifest-level shared catalogs landed too (G-15, done): `imsqti_catalog_xmlv3p0`
+  manifest resources back every item's catalog terms, with item-level catalogs winning shared
+  identifiers.
 - Export writes QTI 3.0 with `targetVersion: '3.0'` on `PieToQtiPlugin` (G-25). Assessment-level
   accessibility catalogs have no QTI home and are named in a warning instead of written.
 - Formal official-suite evidence for current source changes is unavailable until a new NPM candidate
   is published: the private runner deliberately consumes published packages only.
 
-These boundaries are why the project remains pre-1.0 and must not be described as fully conformant
-or certified.
+Dynamic `preCondition` evaluation, section/testPart `branchRule` execution, `withReplacement`
+clone materialization (2026-10-15), and packaged processing-fragment resolution (2026-10-16) are
+implemented; the lists above name what remains between here and the 1.0 acceptance criteria in
+[`../plans/version-1-0-2026-10.md`](../plans/version-1-0-2026-10.md). Until those criteria are met,
+the project must not be described as fully conformant or certified.
 
 ## Testing
 

@@ -457,10 +457,7 @@ describe('ReferenceBackendAdapter', () => {
 	// selection / ordering tests
 	// ===========================================================================
 
-	describe('selection and ordering (via AssessmentPlayer flattenItems)', () => {
-		// These tests verify the AssessmentPlayer's flattenItems behavior using
-		// a registered assessment with selection/ordering attributes.
-
+	describe('selection and ordering (drawn by the backend at session start)', () => {
 		function makeSelectAssessment(select: number, shuffle: boolean, itemCount = 5): SecureAssessment {
 			const items = Array.from({ length: itemCount }, (_, i) => ({
 				identifier: `item${i + 1}`,
@@ -515,12 +512,12 @@ describe('ReferenceBackendAdapter', () => {
 				return (s - 1) / 2147483646;
 			};
 
-			adapter.registerAssessment('select-test', assessment);
+			const seeded = new ReferenceBackendAdapter({ rng: seedRng });
+			seeded.registerAssessment('select-test', assessment);
 
 			const player1 = await AssessmentPlayer.create({
-				backend: adapter,
+				backend: seeded,
 				initSession: { assessmentId: 'select-test', candidateId: 'c1' },
-				rng: seedRng,
 			});
 
 			// All 5 items still present (no selection restriction)
@@ -546,11 +543,11 @@ describe('ReferenceBackendAdapter', () => {
 			assessment.navigationMode = 'nonlinear';
 			assessment.testParts[0]!.navigationMode = 'nonlinear';
 			assessment.testParts[0]!.sections[0]!.assessmentItemRefs[4]!.required = true;
-			adapter.registerAssessment('select-test', assessment);
+			const seeded = new ReferenceBackendAdapter({ rng: () => 0 });
+			seeded.registerAssessment('select-test', assessment);
 			const player = await AssessmentPlayer.create({
-				backend: adapter,
+				backend: seeded,
 				initSession: { assessmentId: 'select-test', candidateId: 'required' },
-				rng: () => 0,
 			});
 
 			const selected: string[] = [];
@@ -568,11 +565,11 @@ describe('ReferenceBackendAdapter', () => {
 			assessment.navigationMode = 'nonlinear';
 			assessment.testParts[0]!.navigationMode = 'nonlinear';
 			assessment.testParts[0]!.sections[0]!.assessmentItemRefs[1]!.fixed = true;
-			adapter.registerAssessment('select-test', assessment);
+			const seeded = new ReferenceBackendAdapter({ rng: () => 0 });
+			seeded.registerAssessment('select-test', assessment);
 			const player = await AssessmentPlayer.create({
-				backend: adapter,
+				backend: seeded,
 				initSession: { assessmentId: 'select-test', candidateId: 'fixed' },
-				rng: () => 0,
 			});
 
 			await player.navigateTo(1);

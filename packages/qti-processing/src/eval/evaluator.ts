@@ -35,72 +35,51 @@ export interface EvalEnv {
 	>;
 }
 
-export function applyLookupTable(source: QtiValue, table: LookupTableTable): QtiValue {
+/**
+ * QTI lookupOutcomeValue: a matchTable maps an exact source value, an interpolationTable maps the
+ * first entry, in document order, whose sourceValue the source exceeds (or equals, when the entry
+ * includes its boundary). With no match the table's defaultValue applies, else NULL. Values take
+ * the target outcome's base type; without one they read as float when numeric, string otherwise.
+ */
+export function applyLookupTable(source: QtiValue, table: LookupTableTable, baseType?: BaseType): QtiValue {
+	const target = (text: string | undefined): QtiValue => {
+		if (text === undefined) return qtiNull(baseType, 'single');
+		if (baseType) return coerceBaseValue(baseType, text);
+		const n = Number(text);
+		return text.trim() !== '' && Number.isFinite(n) ? qtiValue('float', 'single', n) : qtiValue('string', 'single', text);
+	};
 	if (source.kind === 'invalid') return qtiInvalid('lookupTable invalid');
-	if (source.kind === 'null') {
-		const def = table.defaultValue;
-		return def === undefined ? qtiNull() : qtiValue('float', 'single', def);
-	}
-	if (source.kind !== 'value') return qtiNull();
-	if (Array.isArray(source.value)) return qtiInvalid('lookupTable expects single cardinality');
+	if (source.kind !== 'value') return target(table.defaultValue);
+	if (source.cardinality !== 'single' || Array.isArray(source.value)) return qtiInvalid('lookupTable expects single cardinality');
 
 	if (table.kind === 'table.matchTable') {
-		const srcIsNumber = source.baseType === 'integer' || source.baseType === 'float';
-		if (srcIsNumber) {
-			const x = toNumber(source);
-			for (const entry of table.entries) {
-				const k = Number(entry.sourceValue);
-				if (!Number.isFinite(k)) continue;
-				if (x === k) {
-					const n = Number(entry.targetValue);
-					return Number.isFinite(n) ? qtiValue('float', 'single', n) : qtiValue('string', 'single', entry.targetValue);
-				}
-			}
-		} else {
-			const x = normalizeForCompare(source.value);
-			for (const entry of table.entries) {
-				if (x === normalizeForCompare(entry.sourceValue)) {
-					const n = Number(entry.targetValue);
-					return Number.isFinite(n) ? qtiValue('float', 'single', n) : qtiValue('string', 'single', entry.targetValue);
-				}
-			}
-		}
-
-		const def = table.defaultValue;
-		return def === undefined ? qtiNull() : qtiValue('float', 'single', def);
+		const numeric = source.baseType === 'integer' || source.baseType === 'float' || typeof source.value === 'number';
+		const x = numeric ? toNumber(source) : normalizeForCompare(source.value);
+		const entry = table.entries.find((e) => (numeric ? Number(e.sourceValue) === x : normalizeForCompare(e.sourceValue) === x));
+		return target(entry?.targetValue ?? table.defaultValue);
 	}
 
-	// interpolation table
-	if (source.baseType !== 'integer' && source.baseType !== 'float') {
+	if (source.baseType !== undefined && source.baseType !== 'integer' && source.baseType !== 'float') {
 		return qtiInvalid('lookupTable interpolation expects numeric source');
 	}
-	const method = (table.interpolationMethod || 'linear').toLowerCase();
-	if (method !== 'linear') return qtiInvalid(`lookupTable unsupported interpolationMethod: ${method}`);
-
 	const x = toNumber(source);
 	if (!Number.isFinite(x)) return qtiInvalid('lookupTable interpolation invalid number');
+	const entry = table.entries.find((e) => x > e.sourceValue || (e.includeBoundary !== false && x === e.sourceValue));
+	return target(entry?.targetValue ?? table.defaultValue);
+}
 
-	const entries = [...table.entries].sort((a, b) => a.sourceValue - b.sourceValue);
-	if (entries.length === 0) {
-		const def = table.defaultValue;
-		return def === undefined ? qtiNull() : qtiValue('float', 'single', def);
+/**
+ * The numbers a `sum` or `product` operand contributes: one for a single value, each value of a
+ * multiple or ordered container. NULL, including an empty container, gives null.
+ */
+function numericOperandValues(v: QtiValue): number[] | null {
+	if (v.kind !== 'value') return null;
+	if (v.cardinality === 'multiple' || v.cardinality === 'ordered') {
+		const values = Array.isArray(v.value) ? v.value : [];
+		if (values.length === 0) return null;
+		return values.map((value) => toNumber({ kind: 'value', baseType: v.baseType, cardinality: 'single', value }));
 	}
-
-	if (x <= entries[0]!.sourceValue) return qtiValue('float', 'single', entries[0]!.targetValue);
-	if (x >= entries[entries.length - 1]!.sourceValue) return qtiValue('float', 'single', entries[entries.length - 1]!.targetValue);
-
-	for (let i = 0; i < entries.length - 1; i++) {
-		const a = entries[i]!;
-		const b = entries[i + 1]!;
-		if (x >= a.sourceValue && x <= b.sourceValue) {
-			if (a.sourceValue === b.sourceValue) return qtiValue('float', 'single', a.targetValue);
-			const t = (x - a.sourceValue) / (b.sourceValue - a.sourceValue);
-			return qtiValue('float', 'single', a.targetValue + t * (b.targetValue - a.targetValue));
-		}
-	}
-
-	// Fallback (shouldn't happen due to bounds checks)
-	return qtiValue('float', 'single', entries[entries.length - 1]!.targetValue);
+	return [toNumber(v)];
 }
 
 export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
@@ -266,66 +245,57 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			const items = filterTestItems(expr);
 			if (!items) return qtiInvalid('testVariables requires env.test');
 
-			const targetBaseType = asBaseType(expr.baseType) || 'float';
+			// An omitted baseType matches integer and float variables; the result is integer when every
+			// match is. Weights apply only to float or omitted baseType, and make the result float.
+			const wanted = asBaseType(expr.baseType);
+			const weighted = Boolean(expr.weightIdentifier) && (wanted === undefined || wanted === 'float');
 			const out: unknown[] = [];
+			let allInteger = true;
 
 			for (const it of items) {
 				const v = it.variables?.[expr.variableIdentifier];
-				if (!v || v.kind !== 'value') continue;
-				if (v.cardinality !== 'single') continue;
-				if (v.value === null || v.value === undefined) continue;
-
 				// Only variables with single cardinality are considered, all NULL values are ignored.
-				let raw: unknown = v.value;
+				if (!v || v.kind !== 'value' || v.cardinality !== 'single') continue;
+				if (v.value === null || v.value === undefined) continue;
+				const declared = v.baseType ?? (typeof v.value === 'number' ? 'float' : undefined);
+				if (wanted ? declared !== wanted : declared !== 'integer' && declared !== 'float') continue;
+				if (declared !== 'integer') allInteger = false;
 
-				// If weightIdentifier is provided, apply weight to numeric values.
-				if (expr.weightIdentifier) {
-					const w = resolveWeight(it, expr.weightIdentifier);
+				if (weighted) {
 					const n = toNumber(v);
-					if (Number.isFinite(n)) raw = n * w;
-				}
-
-				// Coerce into requested baseType (best effort).
-				switch (targetBaseType) {
-					case 'boolean':
-						out.push(Boolean(raw));
-						break;
-					case 'integer': {
-						const n = Number(raw);
-						if (Number.isFinite(n)) out.push(Math.trunc(n));
-						break;
-					}
-					case 'float': {
-						const n = Number(raw);
-						if (Number.isFinite(n)) out.push(n);
-						break;
-					}
-					default:
-						out.push(String(raw));
-						break;
+					if (Number.isFinite(n)) out.push(n * resolveWeight(it, expr.weightIdentifier));
+				} else if (declared === 'integer' || declared === 'float') {
+					const n = toNumber(v);
+					if (Number.isFinite(n)) out.push(n);
+				} else {
+					out.push(v.value);
 				}
 			}
 
-			return qtiValue(targetBaseType, 'multiple', out);
+			const baseType = wanted ?? (allInteger && !weighted ? 'integer' : 'float');
+			return out.length > 0 ? qtiValue(baseType, 'multiple', out) : qtiNull(baseType, 'multiple');
 		}
 		case 'expr.outcomeMinimum':
 		case 'expr.outcomeMaximum': {
 			const items = filterTestItems(expr);
 			if (!items) return qtiInvalid(`${expr.kind} requires env.test`);
 
+			// The declared normalMinimum/normalMaximum of each item's outcome. Items with no declared
+			// minimum are ignored; an item with no declared maximum makes the result NULL.
+			const isMinimum = expr.kind === 'expr.outcomeMinimum';
 			const values: number[] = [];
 			for (const it of items) {
 				const v = it.variables?.[expr.outcomeIdentifier];
-				if (!v || v.kind !== 'value') continue;
-				if (v.cardinality !== 'single') continue;
-				const n = toNumber(v);
-				if (!Number.isFinite(n)) continue;
-				const w = resolveWeight(it, (expr as any).weightIdentifier);
-				values.push(n * w);
+				if (v?.cardinality !== undefined && v.cardinality !== 'single') continue;
+				const bounds = it.outcomeBounds?.[expr.outcomeIdentifier];
+				const n = isMinimum ? bounds?.normalMinimum : bounds?.normalMaximum;
+				if (typeof n !== 'number' || !Number.isFinite(n)) {
+					if (isMinimum) continue;
+					return qtiNull('float', 'multiple');
+				}
+				values.push(n * resolveWeight(it, expr.weightIdentifier));
 			}
-			if (values.length === 0) return qtiNull('float', 'single');
-			const out = expr.kind === 'expr.outcomeMinimum' ? Math.min(...values) : Math.max(...values);
-			return qtiValue('float', 'single', out);
+			return values.length > 0 ? qtiValue('float', 'multiple', values) : qtiNull('float', 'multiple');
 		}
 		case 'expr.numberCorrect':
 		case 'expr.numberIncorrect':
@@ -1012,11 +982,11 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			for (const op of expr.values) {
 				const v = evalExpr(env, op);
 				if (v.kind === 'invalid') return qtiInvalid('sum operand invalid', 'float', 'single');
-				if (v.kind === 'null') return qtiNull('float', 'single');
-				const n = toNumber(v);
-				if (!Number.isFinite(n)) return qtiInvalid('sum operand is not a finite number', 'float', 'single');
+				const numbers = numericOperandValues(v);
+				if (numbers === null) return qtiNull('float', 'single');
+				if (numbers.some((n) => !Number.isFinite(n))) return qtiInvalid('sum operand is not a finite number', 'float', 'single');
 				if (v.baseType !== 'integer') allInteger = false;
-				acc += n;
+				for (const n of numbers) acc += n;
 			}
 			return qtiValue(allInteger ? 'integer' : 'float', 'single', acc);
 		}
@@ -1040,11 +1010,11 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			for (const op of expr.values) {
 				const v = evalExpr(env, op);
 				if (v.kind === 'invalid') return qtiInvalid('product operand invalid', 'float', 'single');
-				if (v.kind === 'null') return qtiNull('float', 'single');
-				const n = toNumber(v);
-				if (!Number.isFinite(n)) return qtiInvalid('product operand is not a finite number', 'float', 'single');
+				const numbers = numericOperandValues(v);
+				if (numbers === null) return qtiNull('float', 'single');
+				if (numbers.some((n) => !Number.isFinite(n))) return qtiInvalid('product operand is not a finite number', 'float', 'single');
 				if (v.baseType !== 'integer') allInteger = false;
-				acc *= n;
+				for (const n of numbers) acc *= n;
 			}
 			return qtiValue(allInteger ? 'integer' : 'float', 'single', acc);
 		}

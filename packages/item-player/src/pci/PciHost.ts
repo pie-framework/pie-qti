@@ -1,36 +1,61 @@
 import type {
 	ExtractedPci,
-	PciBoundTo,
 	PciHostController,
 	PciHostOptions,
-	PciModule,
-	PciModulePathKind,
 	PciModuleResolver,
+	PciRegistryObservation,
+	QtiPciConfiguration,
+	QtiPciInstance,
 } from './types.js';
-import { PciLoadError, PciModuleResolverRequiredError } from './types.js';
+import { PciModuleResolverRequiredError } from './types.js';
+import { getSharedPciRegistry } from './registry.js';
+import { fromQtiVariableJson, toQtiVariableJson } from './qtiVariableJson.js';
+import { PageRealmPciSession } from './pageRealmSession.js';
+import { SandboxedPciSession } from './sandbox/SandboxedPciSession.js';
+import type { PciModuleSession } from './moduleSession.js';
 
 /**
- * Loads, initializes, and manages the lifecycle of a single PCI module.
+ * Loads, initializes, and manages the lifecycle of a single PCI module under the
+ * QTI 3.0 §6.1 contract.
+ *
+ * The module-facing contract is engine-independent: a module registers itself
+ * against `qtiCustomInteractionContext` as its code evaluates, instantiation
+ * goes through the registered `getInstance(dom, configuration, state)` factory
+ * — state in, `getResponse()` / `getState()` out, no setter — and an
+ * authoritative response change re-instantiates the module. What the host
+ * chooses is *where that code runs*: by default the page realm behind a host
+ * resolver (`moduleResolver`), or, with `sandbox` configured, a cross-origin
+ * runner frame whose document has an opaque origin. The response-ownership
+ * state machine below is shared by both engines; only the execution backend
+ * (`PciModuleSession`) differs.
  *
  * Usage:
  *   const host = new PciHost(extractedData, { baseUrl, moduleResolver });
  *   await host.load();
  *   host.initialize(domNode);
- *   host.getResponse(); // returns current response
+ *   host.getResponse(); // current response, in the player's runtime value shape
  *   host.destroy();     // cleanup on player teardown
  */
 export class PciHost implements PciHostController {
 	private readonly data: ExtractedPci;
 	private readonly baseUrl: string;
 	private readonly moduleResolver: PciModuleResolver | undefined;
-	private module: PciModule | null = null;
+	private readonly sandboxConfig: PciHostOptions['sandbox'];
+	private readonly responseDeclaration: PciHostOptions['responseDeclaration'];
+	private readonly statusSource: PciHostOptions['status'];
+	private readonly registry: PciRegistryObservation;
+	private readonly session: PciModuleSession;
+	private instance: QtiPciInstance | null = null;
+	private mountNode: HTMLElement | null = null;
+	private loaded = false;
 	private destroyed = false;
 	private loadGeneration = 0;
 	private _response: unknown = null;
 	private _hasResponse = false;
 	/**
-	 * True once a mounted module has reported a response. While set, the module
-	 * is the source of truth and `offerResponse()` will not overwrite it.
+	 * True once a mounted module has reported a response (through its own getResponse
+	 * captured at `onready`/`ondone`). While set, the module is the source of truth and
+	 * `offerResponse()` will not overwrite it.
 	 */
 	private _moduleOwnsResponse = false;
 	/**
@@ -39,20 +64,59 @@ export class PciHost implements PciHostController {
 	 * `getResponse()` must report the held one.
 	 */
 	private _restorePending = false;
+	/** The module's own state snapshot, seeded back at the next `getInstance`. */
+	private _instanceState: unknown;
+	/** The held value the current instantiation was seeded with, for no-op echo detection. */
+	private _lastSeed: unknown;
 	private readonly _responseChangeListeners = new Set<
 		(responseId: string, value: unknown) => void
 	>();
 	private readonly _remountRequestListeners = new Set<() => void>();
+	private readonly _errorListeners = new Set<(error: Error) => void>();
 
 	constructor(data: ExtractedPci, options: PciHostOptions | string = {}) {
 		this.data = data;
 		this.baseUrl = typeof options === 'string' ? options : (options.baseUrl ?? '');
 		this.moduleResolver = typeof options === 'string' ? undefined : options.moduleResolver;
+		this.sandboxConfig = typeof options === 'string' ? undefined : options.sandbox;
+		this.responseDeclaration =
+			typeof options === 'string' ? undefined : options.responseDeclaration;
+		this.statusSource = typeof options === 'string' ? undefined : options.status;
+		this.registry = typeof options === 'string' ? getSharedPciRegistry() : (options.registry ?? getSharedPciRegistry());
+
+		if (this.sandboxConfig) {
+			this.session = new SandboxedPciSession({
+				sandbox: this.sandboxConfig,
+				data,
+				baseUrl: this.baseUrl,
+				modulePolicy: typeof options === 'string' ? undefined : options.modulePolicy,
+				frameConnector: typeof options === 'string' ? undefined : options.frameConnector,
+				parentOrigin: typeof options === 'string' ? undefined : options.parentOrigin,
+			});
+		} else {
+			this.session = new PageRealmPciSession({
+				data,
+				baseUrl: this.baseUrl,
+				moduleResolver: this.moduleResolver,
+				registry: this.registry,
+				...(typeof options === 'string' ? {} : { registrationTimeoutMs: options.registrationTimeoutMs }),
+			});
+		}
+		this.session.onRemoteReport?.((report) => {
+			// The proxy's cache already carries the pushed response; the state
+			// joins the instance state and the report counts as the module's own.
+			if (report.state !== undefined) this._instanceState = report.state;
+			this.captureInstanceResponse();
+		});
+		this.session.onError?.((error) => {
+			for (const listener of this._errorListeners) listener(error);
+		});
 	}
 
 	/**
-	 * Register a callback to fire when the PCI's response changes.
-	 * The player calls this to wire the PCI into its internal response map.
+	 * Register a callback to fire when the PCI's response changes. The player calls
+	 * this to wire the PCI into its internal response map. Values arrive in the
+	 * player's runtime shape; QTI variable JSON conversion happened at the boundary.
 	 */
 	public onResponseChange(callback: (responseId: string, value: unknown) => void): () => void {
 		this._responseChangeListeners.add(callback);
@@ -65,8 +129,8 @@ export class PciHost implements PciHostController {
 	 *
 	 * The renderer owns the DOM scaffold and its sanitization, so it performs the
 	 * rebuild: reset the sanitized markup into the mount node, then call
-	 * `remount(node)`. A host with no renderer wired here still gets the restored
-	 * value applied — see `restore()`.
+	 * `remount(node)`. A host with no renderer wired here re-instantiates the
+	 * module on the last mount node itself.
 	 */
 	public onRemountRequest(callback: () => void): () => void {
 		this._remountRequestListeners.add(callback);
@@ -74,108 +138,102 @@ export class PciHost implements PciHostController {
 	}
 
 	/**
-	 * Load the PCI module from primaryPath, falling back to fallbackPath.
-	 * Throws PciLoadError if both fail.
+	 * Register a callback for asynchronous engine failures: the sandboxed
+	 * engine's frame handshake, in-frame module load, or instance errors. The
+	 * page-realm engine rejects `load()` instead and never uses this channel.
+	 */
+	public onError(callback: (error: Error) => void): () => void {
+		this._errorListeners.add(callback);
+		return () => this._errorListeners.delete(callback);
+	}
+
+	/**
+	 * Bring the module's execution backend up: page-realm hosts evaluate the
+	 * module (primary path, then fallback, through the AMD loader for
+	 * multi-module declarations) and adopt its registration; the sandboxed
+	 * engine prepares the init payload and defers the module load to the runner
+	 * frame, whose failures surface through `onError`. Throws PciLoadError when
+	 * both page-realm paths fail or the module never registers.
 	 */
 	public async load(): Promise<void> {
 		if (this.destroyed) {
 			throw new Error('Cannot load a destroyed PciHost');
 		}
-		if (!this.moduleResolver) {
-			throw new PciModuleResolverRequiredError(
-				this.data.responseIdentifier,
-				this.data.primaryPath
-			);
-		}
 		const generation = ++this.loadGeneration;
-
-		const primary = this.resolveUrl(this.data.primaryPath);
-		try {
-			const mod = await this.resolveModule(primary, this.data.primaryPath, 'primary');
-			this.adoptResolvedModule(mod, this.data.primaryPath, generation);
-			return;
-		} catch (primaryErr) {
-			if (!this.isCurrentLoad(generation)) throw primaryErr;
-			if (!this.data.fallbackPath) {
-				throw new PciLoadError(this.data.primaryPath, undefined, primaryErr as Error);
-			}
-		}
-
-		const fallback = this.resolveUrl(this.data.fallbackPath!);
-		try {
-			const mod = await this.resolveModule(fallback, this.data.fallbackPath!, 'fallback');
-			this.adoptResolvedModule(mod, this.data.fallbackPath!, generation);
-		} catch (fallbackErr) {
-			if (!this.isCurrentLoad(generation)) throw fallbackErr;
-			throw new PciLoadError(
-				this.data.primaryPath,
-				this.data.fallbackPath,
-				fallbackErr as Error
-			);
-		}
+		await this.session.load({ isCurrent: () => this.isCurrentLoad(generation) });
+		// A freshly adopted module has reported nothing yet; its old instance,
+		// from a previous load, is gone with the re-resolution.
+		this.destroyInstance();
+		this._moduleOwnsResponse = false;
+		this.loaded = true;
 	}
 
 	/**
-	 * Initialize the PCI inside the given DOM element.
-	 * Must be called after load() resolves.
+	 * Instantiate the PCI inside the given DOM element through the registered
+	 * `getInstance` factory, seeding it with the held state. Must be called after
+	 * load() resolves. The sandboxed engine mounts its runner frame here instead:
+	 * the frame element replaces the scaffold's markup, because the module renders
+	 * inside the frame, not on the page.
 	 */
 	public initialize(dom: HTMLElement): void {
-		if (!this.module) return;
-
-		const boundTo: PciBoundTo = {
-			onReady: () => {},
-			onResponseChange: (value: unknown) => {
-				this._response = value;
-				this._hasResponse = true;
-				this._moduleOwnsResponse = true;
-				this._restorePending = false;
-				for (const listener of this._responseChangeListeners) {
-					listener(this.data.responseIdentifier, value);
-				}
-			},
-		};
+		if (!this.loaded) return;
+		this.mountNode = dom;
+		this._lastSeed = this.seedValue();
 
 		try {
-			this.module.initialize(dom, this.data.config, boundTo);
-			if (this._hasResponse) {
-				this.module.setResponse(this._response);
-			}
-			// The module now holds the held value, however it got there.
+			const returned = this.session.instantiate(dom, this.buildConfiguration(), this.seedValue());
+			if (returned && typeof returned === 'object') this.instance = returned;
 			this._restorePending = false;
 		} catch (error) {
-			const failedModule = this.module;
-			this.module = null;
-			failedModule.destroy();
+			this.instance = null;
 			throw error;
 		}
 	}
 
-	/** Return the current response value from the PCI module. */
+	/** Return the current response value, in the player's runtime value shape. */
 	public getResponse(): unknown {
 		if (this._restorePending) return this._response;
-		return this.module ? this.module.getResponse() : this._response;
+		if (this.instance) {
+			try {
+				const value = fromQtiVariableJson(this.instance.getResponse());
+				if ((value === null || value === undefined) && this._hasResponse && !this._moduleOwnsResponse) {
+					// A freshly instantiated module that has reported nothing yet: the
+					// held value is what this instantiation was seeded with (the
+					// sandboxed engine's cache stays empty until the frame's first
+					// report crosses the bridge).
+					return this._response;
+				}
+				return value;
+			} catch {
+				return this._response;
+			}
+		}
+		return this._response;
+	}
+
+	/** The mounted module's state snapshot, when it exposes `getState()`. */
+	public getState(): unknown {
+		const live = this.instance?.getState?.();
+		return live === undefined ? this._instanceState : live;
 	}
 
 	/**
 	 * Offer a response the player believes to be current.
 	 *
-	 * Declined once a mounted module has reported a response of its own. The
-	 * player's response map echoes every change back through `setResponses`, so
-	 * an unconditional push would hand the module its own value mid-interaction
-	 * and rebuild whatever internal state — selection, cursor, undo history —
-	 * the module derives from it. Use `restore()` when the player's value must
-	 * win regardless.
+	 * Declined once a mounted module has reported a response of its own. Under the
+	 * spec contract there is no setter, so an accepted offer before any report is
+	 * either held for the next instantiation or, when the value differs from what
+	 * the mounted module was seeded with, applied by re-instantiating it in place.
 	 *
 	 * @returns `false` when the module retained ownership and the value was not applied.
 	 */
 	public offerResponse(value: unknown): boolean {
 		if (this._moduleOwnsResponse) return false;
+		const unchanged = this.instance !== null && this.valuesEqual(value, this._lastSeed);
 		this._response = value;
 		this._hasResponse = true;
-		if (this.module) {
-			this.module.setResponse(value);
-			this._restorePending = false;
-		}
+		if (!this.instance || unchanged) return true;
+		this.rebuildInPlace();
 		return true;
 	}
 
@@ -183,139 +241,151 @@ export class PciHost implements PciHostController {
 	 * Authoritatively replace the response, discarding in-progress candidate
 	 * state and returning ownership to the player.
 	 *
-	 * A mounted module is rebuilt from the restored value rather than mutated
-	 * where a renderer is wired to `onRemountRequest`: "discard candidate state"
-	 * is what re-instantiation means, and it is the only form the QTI 3.0 PCI
-	 * contract offers, since state is injected at `getInstance` and there is no
-	 * setter. Until the rebuild lands, `getResponse()` reports the restored value
-	 * rather than the module's superseded one.
-	 *
-	 * With no rebuild path wired, the value is pushed into the module directly.
-	 * That mutates rather than discards candidate state, which is all a host
-	 * without a scaffold owner can do, and it keeps reset-to-default and session
-	 * restore effective for consumers driving `PciHost` themselves. Before mount,
-	 * the value is held and applied by `initialize()`.
+	 * "Discard candidate state" is re-instantiation: state is injected at
+	 * `getInstance` and the contract offers no setter. Where a renderer is wired
+	 * to `onRemountRequest` it rebuilds through a scaffold reset; otherwise this
+	 * host re-instantiates the module on the last mount node itself. Until the
+	 * rebuild lands, `getResponse()` reports the restored value rather than the
+	 * module's superseded one.
 	 */
 	public restore(value: unknown): void {
 		this._response = value;
 		this._hasResponse = true;
 		this._moduleOwnsResponse = false;
-		if (!this.module) return;
-		if (this._remountRequestListeners.size === 0) {
-			this.module.setResponse(value);
+		if (!this.instance && !this.mountNode) return;
+		if (this._remountRequestListeners.size > 0) {
+			this._restorePending = true;
+			for (const listener of this._remountRequestListeners) listener();
 			return;
 		}
-		this._restorePending = true;
-		for (const listener of this._remountRequestListeners) listener();
+		if (this.instance) this.rebuildInPlace();
 	}
 
 	/**
 	 * Rebuild the module in place from the currently held response.
 	 *
 	 * The caller must reset the sanitized DOM scaffold into `dom` first: this
-	 * discards the previous module instance, resolves a fresh one through the
-	 * host resolver, and initializes it, which seeds the held response.
+	 * discards the previous module instance, re-resolves the registration, and
+	 * instantiates it with the held state.
 	 */
 	public async remount(dom: HTMLElement): Promise<void> {
 		if (this.destroyed) throw new Error('Cannot remount a destroyed PciHost');
-		this.module?.destroy();
-		this.module = null;
+		this.destroyInstance();
 		await this.load();
 		this.initialize(dom);
 	}
 
-	/** Disable the PCI (e.g. when role is not candidate, or after final submission). */
+	/**
+	 * Nudge the module out of interaction, for hosts whose module exposes the
+	 * optional `disable` method. Conformant modules read their fixed
+	 * `configuration.status` instead.
+	 */
 	public disable(): void {
-		this.module?.disable();
+		(this.instance as { disable?: () => void } | null)?.disable?.();
 	}
 
-	/** Re-enable the PCI. */
+	/** The counterpart of `disable()`, for modules that expose it. */
 	public enable(): void {
-		this.module?.enable();
+		(this.instance as { enable?: () => void } | null)?.enable?.();
 	}
 
 	/** Tear down the PCI and release all resources. */
 	public destroy(): void {
 		this.destroyed = true;
 		this.loadGeneration++;
-		this.module?.destroy();
-		this.module = null;
+		// Keep the last known module state answerable after teardown.
+		this._instanceState = this.instance?.getState?.() ?? this._instanceState;
+		this.destroyInstance();
+		this.session.dispose();
 		this._responseChangeListeners.clear();
 		this._remountRequestListeners.clear();
+		this._errorListeners.clear();
 	}
 
 	// ---------------------------------------------------------------------------
 	// Private helpers
 	// ---------------------------------------------------------------------------
 
-	private resolveModule(
-		resolvedUrl: string,
-		authoredPath: string,
-		kind: PciModulePathKind
-	): Promise<unknown> {
-		return Promise.resolve(
-			this.moduleResolver!(resolvedUrl, {
-				authoredPath,
-				kind,
-				responseIdentifier: this.data.responseIdentifier,
-				customInteractionTypeIdentifier: this.data.customInteractionTypeIdentifier,
-			})
+	private destroyInstance(): void {
+		const instance = this.instance;
+		this.instance = null;
+		if (!instance) return;
+		this.session.destroyInstance(instance);
+	}
+
+	/**
+	 * Re-instantiate the current module on the last mount node, discarding the
+	 * previous instance. The DOM scaffold is not reset here — that is the
+	 * renderer's job, and this path exists for hosts that wired none.
+	 */
+	private rebuildInPlace(): void {
+		if (!this.mountNode || !this.loaded || this.destroyed) return;
+		this.destroyInstance();
+		this._instanceState = undefined;
+		this.initialize(this.mountNode);
+	}
+
+	private buildConfiguration(): QtiPciConfiguration {
+		return {
+			responseIdentifier: this.data.responseIdentifier,
+			status: typeof this.statusSource === 'function' ? this.statusSource() : (this.statusSource ?? 'interacting'),
+			properties: { ...this.data.config },
+			onready: (_instance, state) => {
+				if (state !== undefined) this._instanceState = state;
+				this.captureInstanceResponse();
+			},
+			ondone: (_instance, state) => {
+				if (state !== undefined) this._instanceState = state;
+				this.captureInstanceResponse();
+			},
+		};
+	}
+
+	/** Take the mounted module's response as its own report and publish it. */
+	private captureInstanceResponse(): void {
+		if (!this.instance) return;
+		try {
+			const value = fromQtiVariableJson(this.instance.getResponse());
+			if (value === null && !this._hasResponse) return;
+			this._response = value;
+			this._hasResponse = true;
+			this._moduleOwnsResponse = true;
+			this._restorePending = false;
+			for (const listener of this._responseChangeListeners) {
+				listener(this.data.responseIdentifier, value);
+			}
+		} catch {
+			// A module whose getResponse() throws has reported nothing yet.
+		}
+	}
+
+	/** The held response as the `state` a fresh instantiation receives. */
+	private seedValue(): unknown {
+		if (this._instanceState !== undefined) return this._instanceState;
+		if (!this._hasResponse) return undefined;
+		const cardinality = this.responseDeclaration?.cardinality ?? inferCardinality(this._response);
+		return toQtiVariableJson(
+			this._response,
+			this.responseDeclaration?.baseType,
+			cardinality
 		);
 	}
 
-	private resolveUrl(path: string): string {
-		if (/^[a-z][a-z\d+.-]*:/i.test(path) || path.startsWith('//') || path.startsWith('/')) {
-			return path;
-		}
-		if (!this.baseUrl) return path;
-		// Relative path: resolve against baseUrl
-		const base = this.baseUrl.endsWith('/') ? this.baseUrl : this.baseUrl + '/';
+	private valuesEqual(a: unknown, b: unknown): boolean {
+		if (a === b) return true;
 		try {
-			return new URL(path, base).href;
+			return JSON.stringify(a) === JSON.stringify(b);
 		} catch {
-			return base + path;
+			return false;
 		}
 	}
 
 	private isCurrentLoad(generation: number): boolean {
 		return !this.destroyed && generation === this.loadGeneration;
 	}
+}
 
-	private adoptResolvedModule(mod: unknown, authoredPath: string, generation: number): void {
-		const candidate = this.extractPciInterface(mod, authoredPath);
-		if (!this.isCurrentLoad(generation)) {
-			candidate.destroy();
-			throw new Error('PciHost was destroyed before its module finished loading');
-		}
-		this.module?.destroy();
-		this.module = candidate;
-		// A freshly adopted module has reported nothing yet.
-		this._moduleOwnsResponse = false;
-	}
-
-	/**
-	 * Extract a PciModule from the host resolver's result.
-	 * Supports: default export, named `getInstance` export, or the module itself.
-	 */
-	private extractPciInterface(mod: any, authoredPath: string): PciModule {
-		const candidate = mod?.default ?? mod?.getInstance?.() ?? mod;
-		const requiredMethods = [
-			'initialize',
-			'getResponse',
-			'setResponse',
-			'disable',
-			'enable',
-			'destroy',
-		] as const;
-		const missingMethods = requiredMethods.filter(
-			(method) => typeof candidate?.[method] !== 'function'
-		);
-		if (missingMethods.length > 0) {
-			throw new Error(
-				`PCI module at '${authoredPath}' does not export a valid PciModule interface; ` +
-					`missing: ${missingMethods.join(', ')}`
-			);
-		}
-		return candidate as PciModule;
-	}
+/** A response's cardinality from its JavaScript shape, when no declaration is known. */
+function inferCardinality(value: unknown): 'single' | 'multiple' {
+	return Array.isArray(value) ? 'multiple' : 'single';
 }

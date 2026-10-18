@@ -7,6 +7,7 @@
 		QtiSharedHtmlBlock,
 		QtiSharedHtmlSanitizeContext,
 	} from '../contracts/index.js';
+	import { prepareReadableBlock } from '../tts/spoken-catalogs.js';
 	import { isQtiViewVisibleForRole } from '../visibility/role-view.js';
 	import QtiToolButtonBar from './QtiToolButtonBar.svelte';
 	import SanitizedHtml from './SanitizedHtml.svelte';
@@ -39,6 +40,17 @@
 	const isVisibleForRole = (block: QtiSharedHtmlBlock) => isQtiViewVisibleForRole(block.view, role);
 	const visiblePassages = $derived(passages.filter(isVisibleForRole));
 	const visibleRubricBlocks = $derived(rubricBlocks.filter(isVisibleForRole));
+	// Prepared markup docks the passages' SSML; a host-supplied `html` renders as given.
+	const readablePassages = $derived(
+		new Map(
+			visiblePassages.map((passage) => [
+				passage.identifier,
+				passage.html === undefined && passage.rawHtml
+					? prepareReadableBlock(passage.rawHtml)
+					: { html: passage.rawHtml ?? '', catalogs: [] },
+			]),
+		),
+	);
 	const visibleInstructions = $derived(visibleRubricBlocks.filter((block) => block.kind === 'instructions'));
 	const visibleRubrics = $derived(visibleRubricBlocks.filter((block) => block.kind !== 'instructions'));
 
@@ -71,7 +83,7 @@
 		{#if visiblePassages.length > 0}
 			<section class="passage-section" aria-label={i18n?.t('assessment.readingPassages') ?? 'Reading passages'}>
 				{#each visiblePassages as passage, index (passage.identifier)}
-					<article class="passage" aria-labelledby={`passage-heading-${index}`}>
+					<article class="passage" aria-labelledby={`passage-heading-${index}`} lang={passage.language}>
 						<div class="passage-header">
 							<h4 id={`passage-heading-${index}`} class="font-semibold text-base">
 								{i18n?.t('assessment.readingPassage') ?? 'Reading Passage'}
@@ -81,7 +93,9 @@
 									tools={passage.tools}
 									scopeId={passage.identifier}
 									scopeLabel="passage"
-									sourceText={passage.rawHtml}
+									sourceText={readablePassages.get(passage.identifier)?.html ?? passage.rawHtml}
+									accessibilityCatalogs={readablePassages.get(passage.identifier)?.catalogs}
+									language={passage.language}
 									scopeElement={passageScopeElements[passage.identifier] ?? null}
 								/>
 								<button
@@ -107,7 +121,7 @@
 						{#if !isCollapsed}
 							<div use:passageScope={passage.identifier}>
 								<SanitizedHtml
-									rawHtml={passage.rawHtml}
+									rawHtml={readablePassages.get(passage.identifier)?.html ?? passage.rawHtml}
 									html={passage.html}
 									{security}
 									{host}

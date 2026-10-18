@@ -1,6 +1,6 @@
 # PIE QTI Project Status
 
-**Last updated**: 2026-07-13
+**Last updated**: 2026-10-17
 
 This is the short project snapshot. Package READMEs, `docs/`, and the CI
 workflows are the authoritative sources for detailed behavior.
@@ -39,9 +39,15 @@ QTI 3.0 naming infrastructure and broad standard interaction delivery are implem
   semantics align.
 - QTI 3.0 Shared Vocabulary classes are preserved for rendering behavior.
 - Personal Needs and Preferences and Catalog / Glossary support are implemented
-  at the player layer. Portable Custom Interaction extraction and the production
-  lifecycle are connected, but module execution remains disabled until the host
-  supplies a resolver; accepted PCI code is trusted page-authority code, not sandboxed.
+  at the player layer. Portable Custom Interaction support is complete through
+  phase 4: spec-conformant runtime (registry contract, `getInstance`, QTI variable
+  JSON, `getState()` restore, AMD loading with resolution configs, clean-room
+  conformance fixtures) plus the opt-in sandboxed engine — `PciConfiguration.sandbox`
+  runs modules in a hardened cross-origin frame (`@pie-qti/pci-runner` is the
+  deployable runner page; the `qti.pie-framework.org` deployment follows the next
+  release). Page-realm execution still requires an explicit host resolver;
+  browser-level evidence attaches to the next published candidate — see
+  [`docs/plans/pci-runtime-and-sandbox-2026-08.md`](docs/plans/pci-runtime-and-sandbox-2026-08.md).
 - Remaining assessment semantics include dynamic preconditions, section/testPart
   branch rules, and sequence-indexed clone materialization for selection with replacement.
 
@@ -64,9 +70,13 @@ The public repository uses clean-room certification coverage only.
   QTI 3.0 Elevated Accessibility profile. The QTI 2.1 certification line is closed;
   2.1 support is ingest compatibility only. See
   [`docs/certification/README.md`](docs/certification/README.md).
-- 1.0 waits on readiness for real production use, not on certification. A
-  production host integration exercising the players is the practical test. The certification track runs independently and can be
-  claimed at 0.x.
+- 1.0 now has a defined target: the feature-completeness goal and acceptance
+  criteria in [`docs/plans/version-1-0-2026-10.md`](docs/plans/version-1-0-2026-10.md) —
+  spec gaps closed (including the PCI spec contract, structured labels, shared
+  catalogs), current official-suite evidence, and honest status surfaces. A
+  production host integration exercising the players remains the practical
+  acceptance test at or before the release. The certification track runs
+  independently and can be claimed at 0.x.
 
 ### Transformation
 
@@ -106,6 +116,10 @@ its ATTW fallback now handles the same known Node-10 and CSS-resolution diagnost
 as the structured-report path.
 
 ## Intentional Non-Goals
+
+These are platform and licensing boundaries, not capability de-scopes: feature
+completeness exclusions are tracked as re-opened work in
+[`docs/plans/version-1-0-2026-10.md`](docs/plans/version-1-0-2026-10.md).
 
 - Implementing an LMS, CMS, or LTI platform in this repository.
 - Shipping a supported end-user import product; import workflows belong in host applications such as a CMS.

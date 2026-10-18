@@ -50,6 +50,8 @@
 	// an inherited CSS property, so this reaches interaction components inside
 	// shadow roots without any per-component wiring. Left unset when no provider
 	// is supplied, so an English-only host keeps whatever the page already has.
+	// `lang` names the content's language when the item declares one, and the
+	// locale's otherwise; glossary lookups and read-aloud read it.
 	const locale = $derived(i18n?.getLocale());
 	const direction = $derived(i18n?.getDirection?.());
 	const binding = $derived(getItemSessionBinding(session));
@@ -150,7 +152,7 @@
 	bind:this={rootEl}
 	class="qti-item-body"
 	data-qti-item-body-scope={itemBodyScope}
-	lang={locale}
+	lang={presentation.contentLanguage ?? locale}
 	dir={direction}
 	use:typesetAction={{ typeset }}
 	use:glossaryAction={{ player: binding }}
@@ -169,24 +171,28 @@
 					{@html node.html}
 				{:else if node.mount.renderer === 'text-entry'}
 					{@const correctAnswer = (presentation.capabilities.canViewCorrectResponses ? (presentation.correctResponses[node.mount.interaction.responseId] ?? null) : null) as string | null}
-					<InlineTextEntry
-						interaction={node.mount.interaction}
-						response={getStringResponse(node.mount.interaction.responseId)}
-						correctAnswer={presentation.capabilities.canViewCorrectResponses ? correctAnswer : null}
-						disabled={presentation.disabled}
-						{i18n}
-						onResponseChange={handleResponseChange}
-					/>
+					<span {...node.mount.interaction.readAloud}>
+						<InlineTextEntry
+							interaction={node.mount.interaction}
+							response={getStringResponse(node.mount.interaction.responseId)}
+							correctAnswer={presentation.capabilities.canViewCorrectResponses ? correctAnswer : null}
+							disabled={presentation.disabled}
+							{i18n}
+							onResponseChange={handleResponseChange}
+						/>
+					</span>
 				{:else if node.mount.renderer === 'inline-choice'}
 					{@const correctAnswer = (presentation.capabilities.canViewCorrectResponses ? (presentation.correctResponses[node.mount.interaction.responseId] ?? null) : null) as string | null}
-					<InlineChoice
-						interaction={node.mount.interaction}
-						response={getStringResponse(node.mount.interaction.responseId)}
-						correctAnswer={presentation.capabilities.canViewCorrectResponses ? correctAnswer : null}
-						disabled={presentation.disabled}
-						{i18n}
-						onResponseChange={handleResponseChange}
-					/>
+					<span {...node.mount.interaction.readAloud}>
+						<InlineChoice
+							interaction={node.mount.interaction}
+							response={getStringResponse(node.mount.interaction.responseId)}
+							correctAnswer={presentation.capabilities.canViewCorrectResponses ? correctAnswer : null}
+							disabled={presentation.disabled}
+							{i18n}
+							onResponseChange={handleResponseChange}
+						/>
+					</span>
 				{/if}
 			{/each}
 		</div>
@@ -196,6 +202,7 @@
 	{#each blockMounts as block (block.key)}
 		<svelte:element
 			this={block.tagName}
+			{...block.interaction.readAloud}
 			use:setWebComponentProps={{
 				i18n,
 				typeset,
@@ -205,6 +212,8 @@
 				correctResponse: block.correctResponse,
 				pnp: block.pnp,
 				eliminationTool: block.eliminationTool,
+				answerMasking: block.answerMasking,
+				structuredLabelSupport: block.structuredLabelSupport,
 				disabled: block.disabled,
 				// Avoid invalid ARIA role values on custom-element hosts.
 				// Components default to candidate when role is omitted.

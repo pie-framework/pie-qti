@@ -12,9 +12,9 @@
  * accessibility audit reports the supports QTI 3 has no counterpart for. Each content link docks
  * the catalog's idref in the content.
  *
- * The content's preparation, so what QTI voices, hides or suppresses stays so in PIE, is in
- * `accessibility-markup.ts`. Its `spoken` cards from SSML join the catalog they dock under,
- * unless that catalog has a `spoken` card already.
+ * The content's preparation, so what QTI voices, hides or suppresses stays so in PIE, is
+ * `prepareContentMarkup` in `@pie-qti/qti-common/accessibility`. Its `spoken` cards from SSML join
+ * the catalog they dock under, unless that catalog has a `spoken` card already.
  *
  * A catalog attaches where the node it describes renders: to the one model whose content holds
  * its idref, or to the item when its markup or several models hold it. A catalog no output node
@@ -25,15 +25,17 @@
 import {
   type AccessibilityCatalog,
   type CatalogCard,
+  type ContentLink,
   clockSeconds,
+  HIDING_STYLES,
   type MediaFragmentRange,
   type MediaKind,
   mediaKind,
+  prepareContentMarkup,
   readApipAccessElements,
 } from '@pie-qti/qti-common/accessibility';
 import type { PieItem, TransformOutput } from '@pie-qti/transform-types';
 import { type HTMLElement, NodeType, parse } from 'node-html-parser';
-import { type ContentLink, HIDING_STYLES, prepareContentMarkup } from './accessibility-markup.js';
 import { unwrapCdataSections } from './cdata.js';
 
 export type {

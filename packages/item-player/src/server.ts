@@ -101,6 +101,11 @@ export interface ServerScoringResult {
 	maxScore: number;
 	completed: boolean;
 	outcomeValues: Record<string, unknown>;
+	/**
+	 * Whether every declared response matches its correct response; absent when the item has no
+	 * response or one declares no correct response.
+	 */
+	correct?: boolean;
 	modalFeedback?: ServerModalFeedback[];
 }
 

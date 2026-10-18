@@ -66,7 +66,9 @@ session.dispose();
 
 `openSession()` accepts an optional serialized `restore` snapshot, response overrides, and
 `activate: true` to resume a suspended handoff as an active session. Response identifiers are
-validated against the compiled declarations.
+validated against the compiled declarations. `contextVariables` sets the item's context variables
+before template processing: `QTI_CONTEXT`, a record, and any declared by `contextDeclaration`
+(`qti-context-declaration`). A restored session keeps its saved context values.
 
 The definition's role is fixed for every session it opens and is visible as `session.state().role`.
 `present()` intentionally does not accept a role override.
@@ -110,6 +112,24 @@ The presentation contains role capabilities, disabled state, role-filtered corre
 policy-checked scoped CSS, ordered body flow, and direct `assessmentItem` rubric blocks. HTML values
 use `HtmlContent` (`string | TrustedHTML` when available); `FinalItemBodyHtml` marks content that has
 completed the body transform and delivery pipeline.
+
+Item body, rubric block and modal feedback content resolves `printedVariable` against the current
+session in either QTI spelling, honouring `format` (C `printf` conversions), `base`, `index`,
+`powerForm`, `field`, `delimiter` and `mappingIndicator`. QTI 3 rubric content is unwrapped from
+`qti-content-body`, so a rubric renders as its QTI 2.2 counterpart does.
+
+`feedbackInline`, `feedbackBlock` and `modalFeedback` show by the shared visibility rule in
+`@pie-qti/qti-common`: the `identifier` matches a single outcome value by equality and a container
+by membership, `showHide="hide"` inverts it, and nested feedback resolves inside shown feedback.
+Rubric and modal feedback content resolves against the session's outcomes; the item body and
+choice text resolve against the `outcomeValues` being presented.
+
+`templateInline` and `templateBlock` show by the same rule against their template variable.
+Choices carrying `templateIdentifier` (`simpleChoice`, `hottext`, `gapText`, `inlineChoice` and
+the other choice elements) are dropped from interaction data when hidden. A `mathVariable` template
+variable substitutes into MathML `mi` and `ci` naming it, as `mn` or `cn` for a number. Interaction
+prompts and choices resolve template content and `printedVariable` when the interaction is
+extracted, and are extracted again when template values change.
 
 Section/test-part shared rubrics are not duplicated into item presentation. Assessment and section
 hosts place those through section composition.
@@ -185,12 +205,17 @@ are not sandboxed. Sanitized same-DOM content is still not equivalent to isolati
 JavaScript; use a suitably sandboxed cross-origin iframe when content is not trusted to run in the
 host origin.
 
-Portable Custom Interaction execution is disabled unless the host supplies a trusted
-`pci.moduleResolver`. Authored module paths are never imported directly by default.
+Portable Custom Interaction execution is disabled until the host opts into one of two engines.
+The page realm runs a module behind a trusted `pci.moduleResolver`; the sandboxed engine
+(`pci.sandbox`) runs it inside `<iframe sandbox="allow-scripts">` on a dedicated cookieless
+runner origin (deploy `@pie-qti/pci-runner`), where the module gets an opaque origin and the
+page never evaluates it. Authored module paths are never imported directly by default.
 
-`createAllowlistPciModuleResolver` builds a resolver that imports only from allow-listed origins
-and/or absolute URL prefixes, refusing non-http(s) schemes outright. Passing it is still the host's
-trust decision; it exists so the security-critical check does not have to be rewritten per host.
+`createAllowlistPciModuleResolver` builds a page-realm resolver that imports only from
+allow-listed origins and/or absolute URL prefixes, refusing non-http(s) schemes outright;
+`createAllowlistPciModulePolicy` applies the same checks to the module URLs handed to the
+sandbox frame, without importing anything. Passing either is still the host's trust decision;
+they exist so the security-critical check does not have to be rewritten per host.
 
 ```ts
 import { createAllowlistPciModuleResolver } from '@pie-qti/item-player';
@@ -198,10 +223,14 @@ import { createAllowlistPciModuleResolver } from '@pie-qti/item-player';
 const pci = {
   // Authored relative paths resolve against this, so it must itself be allow-listed.
   baseUrl: 'https://cdn.example.com/pci/item-1/',
+  // Page realm: the resolver's import runs the module with page authority.
   moduleResolver: createAllowlistPciModuleResolver({
     allowedOrigins: ['https://cdn.example.com'],
     allowedPathPrefixes: ['https://cdn.example.com/pci/'],
   }),
+  // Or the sandboxed engine: module URLs are resolved and handed to the runner
+  // frame; nothing is evaluated in the page.
+  // sandbox: { runnerUrl: 'https://qti.pie-framework.org/pci-runner.html' },
 };
 ```
 

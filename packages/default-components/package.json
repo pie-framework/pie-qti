@@ -6,7 +6,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "rm -rf dist && tsc && vite build && mkdir -p dist/shared/styles && cp src/shared/styles/qti-shared-vocabulary.css dist/shared/styles/qti-shared-vocabulary.css",
+    "build": "rm -rf dist && tsc && vite build && mkdir -p dist/shared/styles && cp src/shared/styles/qti-shared-vocabulary.css src/shared/styles/qti-pnp.css dist/shared/styles/",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
     "check": "svelte-check --tsconfig ./tsconfig.svelte.json",
@@ -91,6 +91,14 @@
     "./qti-shared-vocabulary.css": {
       "style": "./dist/shared/styles/qti-shared-vocabulary.css",
       "default": "./dist/shared/styles/qti-shared-vocabulary.css"
+    },
+    "./shared/styles/qti-pnp.css": {
+      "style": "./dist/shared/styles/qti-pnp.css",
+      "default": "./dist/shared/styles/qti-pnp.css"
+    },
+    "./qti-pnp.css": {
+      "style": "./dist/shared/styles/qti-pnp.css",
+      "default": "./dist/shared/styles/qti-pnp.css"
     }
   },
   "repository": {

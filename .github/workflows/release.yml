@@ -326,7 +326,8 @@ jobs:
 
             See CHANGELOG.md files in each package for detailed changes.
           draft: false
-          prerelease: false
+          # A prerelease version (1.0.0-beta.N) must not present as a full release.
+          prerelease: ${{ contains(fromJson(steps.changesets.outputs.published-packages)[0].version, '-') }}
 
       - name: Summary
         if: steps.changesets.outputs.published == 'true'
