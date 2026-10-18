@@ -32,9 +32,14 @@ const translations = $derived({
 
 ### How It Works
 
-The `plural()` method uses a simple rule:
-- If `count === 1`, uses `{key}.one`
-- Otherwise, uses `{key}.other`
+The `plural()` method resolves the plural category with [`Intl.PluralRules`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/PluralRules) for the active locale:
+
+- It computes the CLDR category for `count` (`zero`, `one`, `two`, `few`, `many`, or `other`)
+- It looks up `{key}.{category}`, falling back to `{key}.other` when the locale does not define that category
+
+For English this usually means `count === 1` maps to `.one` and everything else to `.other`, but
+languages with more categories (see [Complex Pluralization](#complex-pluralization) below) are
+handled by the same rule.
 
 Example locale structure:
 
@@ -514,7 +519,7 @@ Always test formatting with different locales to catch issues:
 const testLocales = ['en-US', 'fr-FR', 'de-DE', 'ja-JP', 'ar-SA'];
 
 testLocales.forEach(locale => {
-  const i18n = createSvelteI18nProvider(locale);
+  const i18n = new DefaultI18nProvider(locale);
   console.log(locale, i18n.formatNumber(1234.56, {
     style: 'currency',
     currency: 'USD',
@@ -562,7 +567,6 @@ export default {
 
 - [INTEGRATION_GUIDE.md](./INTEGRATION_GUIDE.md) - Basic i18n integration
 - [COMPONENT_PATTERNS.md](./COMPONENT_PATTERNS.md) - UI component patterns
-- [MIGRATION.md](./MIGRATION.md) - Migrating existing components
 - [MDN: Intl.NumberFormat](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/NumberFormat)
 - [MDN: Intl.DateTimeFormat](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat)
 - [MDN: Intl.PluralRules](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/PluralRules)

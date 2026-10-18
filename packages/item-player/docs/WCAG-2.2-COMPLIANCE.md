@@ -1,6 +1,14 @@
 # WCAG 2.2 Accessibility Analysis - QTI Player Components
 
-**Package:** `@pie-qti/item-player`
+> **Historical snapshot (December 2024).** This analysis predates the 1.0 restructuring: the
+> components it reviews now live in `packages/default-components/src/shared/components/`, and the
+> automated axe-core coverage it recommends has since shipped as the Playwright accessibility
+> suites in `apps/demo/tests/playwright/` (`component-fixtures-a11y.pw.ts`,
+> `qti3-stage5-a11y.pw.ts`, `assessment-a11y-behavior.pw.ts`). Read the per-component findings as
+> point-in-time evidence, not as the current compliance state. PCI custom-interaction modules
+> (third-party UI) are out of scope for this snapshot.
+
+**Components analyzed:** QTI interaction components (originally shipped with `@pie-qti/item-player`; now in `@pie-qti/default-components`)
 **Target:** WCAG 2.2 Level AA Guidelines
 **Date:** December 25, 2024
 **Status:** Internal analysis and automated regression coverage against WCAG 2.2 Level AA guidelines (not formally certified)
@@ -370,44 +378,6 @@ test('SortableList is accessible', async ({ page }) => {
 
 ---
 
-## Priority Recommendations
-
-### High Priority (Address Now)
-
-1. ✅ **SortableList & MatchDragDrop** - Meet the current automated baseline
-2. ⚠️ **GraphicGapMatch WCAG 2.2 Audit**
-   - Verify 2.5.7 (keyboard alternative for dragging)
-   - Verify 2.5.8 (minimum target size 24×24px) and the project 44×44px preference
-   - Add keyboard support if missing
-   - Effort: 1-2 days
-
-### Medium Priority (Soon)
-
-3. **Theme Contrast Testing**
-   - Test all DaisyUI themes for WCAG 2.2 compliance
-   - Document which themes are WCAG 2.2 Level AA compliant
-   - Effort: 4-6 hours
-
-4. **CI/CD Accessibility Testing**
-   - Integrate axe-core into test suite
-   - Add Playwright accessibility tests
-   - Effort: 1 day
-
-### Low Priority (Nice to Have)
-
-5. **Enhanced Focus Indicators (AAA)**
-   - Consider 4px focus indicators for extra visibility
-   - Add focus indicator customization options
-   - Effort: 2-3 hours
-
-6. **Comprehensive Documentation**
-   - Add accessibility examples to README
-   - Document keyboard shortcuts
-   - Create accessibility testing guide for consumers
-   - Effort: 1 day
-
----
-
 ## Conclusion
 
 **Overall Status:** QTI Player components aim to follow WCAG 2.2 Level AA guidelines, with several behaviors requiring targeted automated and manual verification:
@@ -428,13 +398,6 @@ test('SortableList is accessible', async ({ page }) => {
 3. **Adequate target sizes** - Interactive elements must meet WCAG's 24×24px minimum and should meet the project's 44×44px learner-friendly target where feasible
 4. **Screen reader friendly** - Live regions and clear labels (4.1.3)
 5. **Framework-agnostic** - Core Player and processors have no accessibility concerns
-
-### Next Steps:
-1. Audit GraphicGapMatch component (1-2 days)
-2. Add automated accessibility tests to CI/CD (1 day)
-3. Document accessibility features in README (1 day)
-
-**Estimated effort to complete verification:** 3-4 days
 
 ---
 

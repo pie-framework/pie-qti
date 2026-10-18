@@ -20,33 +20,11 @@ bun test tests/integration/
 
 ## Test Organization
 
-```
-tests/
-├── test-utils.ts              # Shared test utilities
-├── plugin.test.ts             # Plugin integration tests
-├── utils/
-│   └── qti-validator.test.ts  # QTI validation tests
-├── transformers/              # Individual transformer tests
-│   ├── drag-in-the-blank.test.ts
-│   ├── ebsr.test.ts
-│   ├── explicit-constructed-response.test.ts
-│   ├── extended-response.test.ts
-│   ├── hotspot.test.ts
-│   ├── image-cloze-association.test.ts
-│   ├── inline-dropdown.test.ts
-│   ├── match-list.test.ts
-│   ├── match.test.ts
-│   ├── multiple-choice.test.ts
-│   ├── passage.test.ts
-│   ├── placement-ordering.test.ts
-│   └── select-text.test.ts
-└── integration/               # Integration tests with real QTI samples
-    ├── real-world.test.ts
-    ├── check-output.js
-    └── fixtures/              # Real-world QTI samples
-        ├── README.md
-        └── *.xml
-```
+- `tests/*.test.ts` - Package-level suites (plugin, package transform, passages, QTI 3 normalization, vendor runtime, ...)
+- `tests/transformers/` - Individual transformer tests
+- `tests/utils/` - Utility tests (validation, markup extraction, sidecar, ...)
+- `tests/integration/` - Integration tests with real QTI samples
+- `tests/fixtures/` - Reusable QTI XML fixtures; see [fixtures/README.md](./fixtures/README.md)
 
 ## Test Types
 
@@ -216,17 +194,6 @@ describe('transformNewInteraction', () => {
    const choiceId = 'choiceA';
    // Use responseId and choiceId throughout test
    ```
-
-## Test Statistics
-
-- **Total tests**: 223
-- **Total assertions**: 746
-- **All passing**: ✅
-
-### Breakdown by Type
-- Transformer tests: 13 files, ~200 tests
-- Integration tests: 1 file, ~20 tests
-- Validation tests: 1 file, ~3 tests
 
 ## Performance Benchmarks
 

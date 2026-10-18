@@ -41,25 +41,15 @@ const nativeName = mapper.toNative('choiceinteraction');
 
 ### Element Name Mapping
 
-The package provides mappers for both QTI versions:
-
-```typescript
-import { Qti2xElementNameMapper, Qti3ElementNameMapper } from '@pie-qti/qti-common';
-
-// QTI 2.x (camelCase)
-const qti2Mapper = new Qti2xElementNameMapper();
-qti2Mapper.toCanonical('choiceInteraction'); // → "choiceinteraction"
-qti2Mapper.toNative('choiceinteraction');     // → "choiceinteraction"
-
-// QTI 3.0 (kebab-case with qti- prefix)
-const qti3Mapper = new Qti3ElementNameMapper();
-qti3Mapper.toCanonical('qti-choice-interaction'); // → "choiceinteraction"
-qti3Mapper.toNative('choiceinteraction');          // → "qti-choice-interaction"
-```
+Mappers convert between QTI version-specific element names and the canonical internal form, so the
+same processing code handles both versions. One round-trip caveat applies to QTI 2.x:
 
 `Qti2xElementNameMapper.toNative()` returns the lowercase canonical spelling because the parser's
 QTI 2.x matching is case-insensitive; it cannot reconstruct the original camelCase from a lowercase
 name. Preserve the source spelling separately when exact XML serialization matters.
+
+The full element and attribute naming tables, plus step-by-step migration guidance, are in
+[`docs/QTI-3-MIGRATION-GUIDE.md`](../../docs/QTI-3-MIGRATION-GUIDE.md).
 
 ### Smart Attribute Accessors
 
@@ -84,28 +74,14 @@ getBooleanAttribute(element, 'shuffle');         // Returns boolean
 
 ## QTI 2.x vs 3.0 Naming Differences
 
-### Element Names
+QTI 2.x uses camelCase element and attribute names (`choiceInteraction`, `baseType`), while QTI 3.0
+uses kebab-case names with a `qti-` prefix (`qti-choice-interaction`, `base-type`). The canonical
+layer hides these differences: extractors and response processing always operate on canonical names,
+and the mappers translate to and from the version-specific spelling. A few simple attributes
+(`identifier`, `shuffle`, `cardinality`) are spelled the same in both versions.
 
-| Canonical (Internal) | QTI 2.x | QTI 3.0 |
-|---------------------|---------|---------|
-| `assessmentitem` | `assessmentItem` | `qti-assessment-item` |
-| `itembody` | `itemBody` | `qti-item-body` |
-| `responsedeclaration` | `responseDeclaration` | `qti-response-declaration` |
-| `choiceinteraction` | `choiceInteraction` | `qti-choice-interaction` |
-| `simplechoice` | `simpleChoice` | `qti-simple-choice` |
-| `matchinteraction` | `matchInteraction` | `qti-match-interaction` |
-| `textentryinteraction` | `textEntryInteraction` | `qti-text-entry-interaction` |
-
-### Attribute Names
-
-| Canonical (Internal) | QTI 2.x | QTI 3.0 |
-|---------------------|---------|---------|
-| `baseType` | `baseType` | `base-type` |
-| `responseIdentifier` | `responseIdentifier` | `response-identifier` |
-| `maxChoices` | `maxChoices` | `max-choices` |
-| `cardinality` | `cardinality` | `cardinality` |
-
-**Note:** Not all attributes changed in QTI 3.0. Simple names like `identifier`, `shuffle`, and `cardinality` remain the same.
+For the complete element and attribute naming tables, see
+[`docs/QTI-3-MIGRATION-GUIDE.md`](../../docs/QTI-3-MIGRATION-GUIDE.md).
 
 ## Architecture
 
@@ -286,67 +262,36 @@ session.dispose();
 
 ### Transform Integration
 
+`@pie-qti/qti-common` also powers the QTI → PIE transformation in `@pie-qti/to-pie`. To transform
+QTI XML directly, use the plugin:
+
 ```typescript
-import { TransformEngine } from '@pie-qti/transform-core';
 import { QtiToPiePlugin } from '@pie-qti/to-pie';
-import { createQtiParser } from '@pie-qti/qti-common';
 
 const xml = `...(QTI 2.x or 3.0)...`;
-const { version } = createQtiParser(xml);
 
-const engine = new TransformEngine();
-engine.use(new QtiToPiePlugin());
+const plugin = new QtiToPiePlugin();
+const result = await plugin.transform(
+  { content: xml, format: 'qti22' }, // format is optional; qti30 is detected the same way
+  { logger: console }
+);
 
-const handle = await engine.transform(xml, {
-  sourceFormat: version.startsWith('3') ? 'qti30' : 'qti22',
-  targetFormat: 'pie'
-});
-const result = await handle.result();
+console.log(result.items); // PIE items
 ```
+
+For engine-level usage (multi-plugin pipelines and PIE ⇄ QTI round-trips), see
+[`docs/PIE-QTI-TRANSFORMATION-GUIDE.md`](../../docs/PIE-QTI-TRANSFORMATION-GUIDE.md).
 
 ## Migration Guide
 
-### From QTI 2.x-only Code
+Migrating existing QTI 2.x-only code usually means replacing hard-coded `getElementsByTagName`
+lookups and direct `getAttribute` reads with `createQtiParser(...)` plus the mapper and smart
+attribute accessors, so the same code handles QTI 2.x and 3.0. Code that already goes through the
+extraction layer (`createAssessmentItemDefinition`) uses the mappers internally and needs no
+changes.
 
-**Before** (QTI 2.x only):
-
-```typescript
-const elements = doc.getElementsByTagName('choiceInteraction');
-```
-
-**After** (QTI 2.x + 3.0):
-
-```typescript
-import { createQtiParser } from '@pie-qti/qti-common';
-
-const { mapper } = createQtiParser(xml);
-const tagName = mapper.toNative('choiceinteraction');
-const elements = doc.getElementsByTagName(tagName);
-```
-
-**Even Better** (using existing extraction layer):
-
-```typescript
-// No changes needed! Extraction layer already uses mappers internally
-const definition = createAssessmentItemDefinition({ itemXml: xml });
-const session = definition.openSession(); // Works with both QTI 2.x and 3.0
-```
-
-### Attribute Handling Migration
-
-**Before** (QTI 2.x only):
-
-```typescript
-const baseType = element.getAttribute('baseType');
-```
-
-**After** (QTI 2.x + 3.0):
-
-```typescript
-import { getAttribute } from '@pie-qti/qti-common';
-
-const baseType = getAttribute(element, 'baseType');  // Works for both!
-```
+See [`docs/QTI-3-MIGRATION-GUIDE.md`](../../docs/QTI-3-MIGRATION-GUIDE.md) for the full naming
+tables and before/after migration examples.
 
 ## Testing
 

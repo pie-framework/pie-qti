@@ -410,12 +410,10 @@ package-root/
 
 **Current Limitations:**
 
-- Single item per transform (batch support planned)
-- No support for organizations (navigation structure)
+- No support for organizations (navigation structure); `buildManifest` emits empty organizations
 
 **Planned Features:**
 
-- Batch transformation with deduplication across items
 - Organization structures for navigation
 - Package validation and structure verification
 
@@ -438,8 +436,7 @@ All tests verify compliance with IMS CP and QTI 2.2 specifications.
 ## Related Documentation
 
 - [External Passages](./EXTERNAL-PASSAGES.md) - Passage resolution and generation
-- [BaseId Support](./BASEID.md) - Stable identifier handling
-- [Plugin API](../README.md#api) - Plugin configuration options
+- [Plugin API](../README.md#api-reference) - Plugin configuration options
 
 ## Standards References
 

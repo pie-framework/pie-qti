@@ -43,7 +43,7 @@ These tests are designed to be:
 ### Fast ⚡
 - Minimal page loads (reuse dev server)
 - Focused selectors (no unnecessary waits)
-- Parallel execution (6 workers)
+- Parallel execution (multiple workers locally, single worker in CI)
 - **Typical execution time**: 30-40 seconds
 
 ### Reliable 🎯

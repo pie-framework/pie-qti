@@ -76,13 +76,12 @@ This package supports vendor-specific QTI transformations through a flexible ext
 
 ```typescript
 import { QtiToPiePlugin } from '@pie-qti/to-pie';
-import { vendorDetector, vendorTransformer } from '@acme/qti-vendor-extensions';
+import { createAcmeExtensions } from '@pie-qti/demo-vendor-extensions';
 
+const { detector, transformer } = createAcmeExtensions();
 const plugin = new QtiToPiePlugin();
-
-// Register vendor extensions
-plugin.registerVendorDetector(vendorDetector);
-plugin.registerVendorTransformer(vendorTransformer);
+plugin.registerVendorDetector(detector);
+plugin.registerVendorTransformer(transformer);
 
 // Now transforms will automatically detect and handle vendor-specific QTI
 ```
@@ -244,7 +243,7 @@ applyBehavioralClasses(pieModel, classes.behavioral);
 - QTI 2.1 / 2.0 (compatibility; warnings are emitted for legacy versions)
 - QTI 3.0 (items, stimuli and tests)
 
-QTI 3.0 input is renamed into the QTI 2.2 vocabulary at the entry point (`normalizeQti3ToQti2`) and converts through the same transformers; `metadata.qtiVersion` and `sourceFormat` report the authored version. A registered vendor transformer sees the authored QTI 3.0 document. A portable custom interaction stays rejected under `QTI_CUSTOM_INTERACTION_UNSUPPORTED`, since PIE has no PCI element, and `qti-accessibility` or a `qti-*` element normalization cannot name fails with `QTI_VERSION_UNSUPPORTED`. The normalization is exported with its steps (`normalizeQti3Lexically`, `relocateQti3PromptIntoInteraction`, `demoteMisplacedQti3Prompts`), for a caller that validates or reports on QTI 3.0 content in the shape the conversion consumes.
+QTI 3.0 input is renamed into the QTI 2.2 vocabulary at the entry point (`normalizeQti3ToQti2`) and converts through the same transformers; `metadata.qtiVersion` and `sourceFormat` report the authored version. A registered vendor transformer sees the authored QTI 3.0 document. A portable custom interaction stays rejected under `QTI_CUSTOM_INTERACTION_UNSUPPORTED`, since PIE has no PCI element, and input whose version cannot be normalized (a `qti-accessibility` or `qti-*` document that no rename rule covers) fails with `QTI_VERSION_UNSUPPORTED`. The normalization is exported with its steps (`normalizeQti3Lexically`, `relocateQti3PromptIntoInteraction`, `demoteMisplacedQti3Prompts`), for a caller that validates or reports on QTI 3.0 content in the shape the conversion consumes.
 
 The plugin format id remains `qti22` for registry compatibility, but input XML is version-detected at runtime.
 
@@ -264,6 +263,8 @@ Standard QTI interactions:
 - `selectPointInteraction` - Point selection
 - `hottextInteraction` - Selectable text
 - `associateInteraction` - Association (mapped to categorize)
+
+This list is not exhaustive: the built-in registry covers more interactions (for example `sliderInteraction` → `@pie-element/number-line`). See [src/registry/qti-to-pie-registry.ts](./src/registry/qti-to-pie-registry.ts) for the full set.
 
 Custom interactions (via vendor extensions):
 
