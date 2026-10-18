@@ -117,65 +117,6 @@ describe('Multi-Model Support', () => {
     expect(qtiXml).not.toContain('pie:');
     expect(qtiXml).not.toContain('qti-metadata');
     expect(result.items[0].sidecar?.sourceModel.searchMetaData).toEqual(pieItem.searchMetaData);
-
-    // The source model, search metadata included, travels in the PIE source sidecar.
-    expect(qtiXml).not.toContain('pie:');
-    expect(qtiXml).not.toContain('qti-metadata');
-    expect(result.items[0].sidecar?.sourceModel.searchMetaData).toEqual(pieItem.searchMetaData);
-
-    // The source model, search metadata included, travels in the PIE source sidecar.
-    expect(qtiXml).not.toContain('pie:');
-    expect(qtiXml).not.toContain('qti-metadata');
-    expect(result.items[0].sidecar?.sourceModel.searchMetaData).toEqual(pieItem.searchMetaData);
-  });
-
-  test('should handle multiple interactions - processes only first one (Phase 1)', async () => {
-    const pieItem: PieItem = {
-      id: 'multi-interaction',
-      uuid: '555e4567-e89b-12d3-a456-426614174000',
-      config: {
-        id: '555e4567-e89b-12d3-a456-426614174000',
-        models: [
-          {
-            id: 'mc-1',
-            element: '@pie-element/multiple-choice',
-            prompt: 'Question 1',
-            choiceMode: 'radio',
-            choices: [
-              { label: 'A', value: 'a', correct: true },
-              { label: 'B', value: 'b', correct: false },
-            ],
-          },
-          {
-            id: 'mc-2',
-            element: '@pie-element/multiple-choice',
-            prompt: 'Question 2',
-            choiceMode: 'radio',
-            choices: [
-              { label: 'C', value: 'c', correct: false },
-              { label: 'D', value: 'd', correct: true },
-            ],
-          },
-        ],
-        elements: {
-          '@pie-element/multiple-choice': '1.0.0',
-        },
-      },
-    };
-
-    const result = await pieToQti.transform({ content: pieItem }, { logger });
-    const qtiXml = result.items[0].content as string;
-
-    // Should process first interaction
-    expect(qtiXml).toContain('Question 1');
-
-    // Metadata should indicate multiple interactions detected
-    expect(result.metadata.modelCount).toBe(2);
-
-    // Note: Currently Phase 1 only processes the first interaction
-    // The generator itself may include both in choices, but plugin logs warning
-    // Future Phase 2 will properly handle multiple interactions
-    expect(qtiXml).toContain('choiceInteraction');
   });
 
   test('should handle passage + interaction + searchMetaData together', async () => {

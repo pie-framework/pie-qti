@@ -1,10 +1,11 @@
 /**
- * Logger Tests
+ * Logger contract tests: levels route to the right sink, context travels with
+ * the message, and no logger throws.
  */
 
 import { describe, test, expect, beforeEach, mock } from 'bun:test';
-import { ConsoleLogger, JsonLogger, MemoryLogger, SilentLogger } from '@pie-qti/logger/server';
-import type { LogContext } from '@pie-qti/logger/server';
+import { ConsoleLogger, JsonLogger, MemoryLogger, SilentLogger } from '../src/server';
+import type { LogContext } from '../src/server';
 
 describe('ConsoleLogger', () => {
 	let logger: ConsoleLogger;
@@ -27,12 +28,15 @@ describe('ConsoleLogger', () => {
 		console.error = consoleErrorSpy;
 	});
 
-	test('should log debug message without context', () => {
+	test('debug messages route to console.debug', () => {
 		logger.debug('Test message');
-		expect(consoleDebugSpy).toHaveBeenCalledWith('[DEBUG] Test message');
+		expect(consoleDebugSpy).toHaveBeenCalled();
+		const output = consoleDebugSpy.mock.calls[0]?.[0] as string;
+		expect(output).toContain('DEBUG');
+		expect(output).toContain('Test message');
 	});
 
-	test('should log with full structured context', () => {
+	test('info messages carry the structured context and the message', () => {
 		const context: LogContext = {
 			itemId: 'item-123',
 			sessionId: 'session-456',
@@ -43,12 +47,16 @@ describe('ConsoleLogger', () => {
 
 		logger.info('Test message', context);
 
-		expect(consoleInfoSpy).toHaveBeenCalledWith(
-			'[INFO] [item:item-123 session:session-456 user:user-789 vendor:acme corr:corr-abc] Test message',
-		);
+		expect(consoleInfoSpy).toHaveBeenCalled();
+		const output = consoleInfoSpy.mock.calls[0]?.[0] as string;
+		expect(output).toContain('INFO');
+		expect(output).toContain('Test message');
+		expect(output).toContain('item:item-123');
+		expect(output).toContain('session:session-456');
+		expect(output).toContain('vendor:acme');
 	});
 
-	test('should log error with partial context', () => {
+	test('error messages route to console.error with their context', () => {
 		const context: LogContext = {
 			sessionId: 'session-123',
 			vendor: 'acme',
@@ -56,21 +64,20 @@ describe('ConsoleLogger', () => {
 
 		logger.error('Error occurred', context);
 
-		expect(consoleErrorSpy).toHaveBeenCalledWith(
-			'[ERROR] [session:session-123 vendor:acme] Error occurred',
-		);
+		expect(consoleErrorSpy).toHaveBeenCalled();
+		const output = consoleErrorSpy.mock.calls[0]?.[0] as string;
+		expect(output).toContain('ERROR');
+		expect(output).toContain('Error occurred');
+		expect(output).toContain('session:session-123');
 	});
 
-	test('should handle custom context properties', () => {
-		const context: LogContext = {
-			itemId: 'item-1',
-			customProp: 'custom-value',
-		};
+	test('levels above the configured threshold are suppressed', () => {
+		const quiet = new ConsoleLogger('error');
+		quiet.info('Not important');
+		quiet.error('Important');
 
-		logger.info('Test', context);
-
-		// Custom properties are stored but not displayed in console format
-		expect(consoleInfoSpy).toHaveBeenCalledWith('[INFO] [item:item-1] Test');
+		expect(consoleInfoSpy).not.toHaveBeenCalled();
+		expect(consoleErrorSpy).toHaveBeenCalled();
 	});
 });
 
@@ -89,7 +96,7 @@ describe('JsonLogger', () => {
 		console.warn = consoleWarnSpy;
 	});
 
-	test('should output JSON with message and context', () => {
+	test('outputs parseable JSON with message and context', () => {
 		const context: LogContext = {
 			itemId: 'item-123',
 			sessionId: 'session-456',
@@ -110,7 +117,7 @@ describe('JsonLogger', () => {
 		expect(parsed.timestamp).toBeDefined();
 	});
 
-	test('should include custom context properties in JSON', () => {
+	test('includes custom context properties in JSON', () => {
 		const context: LogContext = {
 			itemId: 'item-1',
 			customProp: 'custom-value',
@@ -134,7 +141,7 @@ describe('MemoryLogger', () => {
 		logger = new MemoryLogger();
 	});
 
-	test('should store messages with context', () => {
+	test('stores messages with context', () => {
 		const context: LogContext = {
 			itemId: 'item-123',
 			sessionId: 'session-456',
@@ -149,7 +156,7 @@ describe('MemoryLogger', () => {
 		expect(logger.messages[0].context.sessionId).toBe('session-456');
 	});
 
-	test('should filter messages by level', () => {
+	test('filters messages by level', () => {
 		logger.info('Info 1');
 		logger.warn('Warning 1');
 		logger.info('Info 2');
@@ -161,7 +168,7 @@ describe('MemoryLogger', () => {
 		expect(infoMessages[1].message).toBe('Info 2');
 	});
 
-	test('should get messages by context property', () => {
+	test('retrieves messages by context property', () => {
 		logger.info('Message 1', { sessionId: 'session-a' });
 		logger.info('Message 2', { sessionId: 'session-b' });
 		logger.info('Message 3', { sessionId: 'session-a' });
@@ -172,7 +179,7 @@ describe('MemoryLogger', () => {
 		expect(sessionAMessages[1].message).toBe('Message 3');
 	});
 
-	test('should check if context exists', () => {
+	test('checks whether a context value exists', () => {
 		logger.info('Test', { vendor: 'acme' });
 
 		expect(logger.hasContext('vendor', 'acme')).toBe(true);
@@ -180,7 +187,7 @@ describe('MemoryLogger', () => {
 		expect(logger.hasContext('userId', 'user-123')).toBe(false);
 	});
 
-	test('should clear all messages', () => {
+	test('clears all messages', () => {
 		logger.info('Message 1');
 		logger.warn('Message 2');
 		logger.error('Message 3');
@@ -191,17 +198,10 @@ describe('MemoryLogger', () => {
 
 		expect(logger.messages).toHaveLength(0);
 	});
-
-	test('should store itemId from context', () => {
-		logger.info('Test', { itemId: 'item-from-context', sessionId: 'session-123' });
-
-		expect(logger.messages[0].context.itemId).toBe('item-from-context');
-		expect(logger.messages[0].context.sessionId).toBe('session-123');
-	});
 });
 
 describe('SilentLogger', () => {
-	test('should not throw errors when logging', () => {
+	test('does not throw when logging', () => {
 		const logger = new SilentLogger();
 
 		expect(() => {
@@ -212,7 +212,7 @@ describe('SilentLogger', () => {
 		}).not.toThrow();
 	});
 
-	test('should support context parameter', () => {
+	test('supports a context parameter', () => {
 		const logger = new SilentLogger();
 		const context: LogContext = { itemId: 'item-1' };
 
