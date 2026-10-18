@@ -211,4 +211,3 @@ This is a reference implementation - feel free to copy and modify:
 ### Related Documentation
 
 - [INTEGRATION_GUIDE.md](../../docs/INTEGRATION_GUIDE.md) - How to add i18n to components
-- [COMPONENT_PATTERNS.md](../../docs/COMPONENT_PATTERNS.md) - UI patterns and examples
