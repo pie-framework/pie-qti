@@ -1,5 +1,22 @@
 #!/usr/bin/env node
 
+/**
+ * Validates the fixed-versioning invariants across the two release groups:
+ *
+ * - the player/platform group versions in lockstep and cuts the 1.0 line;
+ * - the transformation group (pie-to-qti2, to-pie, the transform packages and
+ *   source-profiles), still pre-alpha, stays on its own 0.1.x lockstep.
+ *
+ * Invariants checked:
+ * 1. Every publishable @pie-qti package is a member of exactly one fixed group.
+ * 2. Each fixed group is internally aligned on one version.
+ * 3. (Full mode) No package's local version regresses behind its published npm
+ *    version. A local version equal to the published one is fine (the package
+ *    simply is not part of the pending release); greater is the release.
+ *
+ * Internal dependencies must keep workspace:* style ranges.
+ */
+
 import { execSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -61,14 +78,41 @@ const fail = (message) => {
 const parseSemver = (value) => {
 	if (typeof value !== "string") return null;
 	const normalized = value.trim().replace(/^v/, "");
-	const match = normalized.match(/^(\d+)\.(\d+)\.(\d+)(?:[-+].+)?$/);
+	const match = normalized.match(/^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/);
 	if (!match) return null;
+	const prerelease = match[4]
+		? match[4].split(".").map((id) => (/^\d+$/.test(id) ? Number.parseInt(id, 10) : id))
+		: undefined;
 	return {
 		major: Number.parseInt(match[1], 10),
 		minor: Number.parseInt(match[2], 10),
 		patch: Number.parseInt(match[3], 10),
+		prerelease,
 		raw: normalized,
 	};
+};
+
+/** Semver precedence, including prerelease identifier rules. */
+const compareSemver = (a, b) => {
+	if (a.major !== b.major) return a.major - b.major;
+	if (a.minor !== b.minor) return a.minor - b.minor;
+	if (a.patch !== b.patch) return a.patch - b.patch;
+	const aPre = a.prerelease;
+	const bPre = b.prerelease;
+	if (aPre === bPre) return 0;
+	if (aPre === undefined) return 1; // a release outranks its prereleases
+	if (bPre === undefined) return -1;
+	const length = Math.max(aPre.length, bPre.length);
+	for (let i = 0; i < length; i += 1) {
+		const aId = aPre[i];
+		const bId = bPre[i];
+		if (aId === undefined) return -1;
+		if (bId === undefined) return 1;
+		if (aId === bId) continue;
+		if (typeof aId === "number" && typeof bId === "number") return aId - bId;
+		return String(aId) < String(bId) ? -1 : 1;
+	}
+	return 0;
 };
 
 const fetchPublishedVersion = (pkgName) => {
@@ -107,136 +151,84 @@ if (!existsSync(CHANGESET_CONFIG_PATH)) {
 }
 
 const changesetConfig = readJson(CHANGESET_CONFIG_PATH);
-const fixedGroups = Array.isArray(changesetConfig.fixed) ? changesetConfig.fixed : [];
-const fixedSet = new Set(
-	fixedGroups.flatMap((group) => (Array.isArray(group) ? group : [])),
-);
+const fixedGroups = Array.isArray(changesetConfig.fixed)
+	? changesetConfig.fixed.filter(Array.isArray)
+	: [];
+if (fixedGroups.length === 0) {
+	fail("Changeset config declares no fixed groups.");
+}
+
 const publishableSet = new Set(publishablePackages.map((pkg) => pkg.name));
 
-const missingFromFixed = [...publishableSet].filter((name) => !fixedSet.has(name));
-const extraInFixed = [...fixedSet].filter((name) => !publishableSet.has(name));
-
-if (missingFromFixed.length > 0 || extraInFixed.length > 0) {
-	const missingText =
-		missingFromFixed.length > 0
-			? `Missing from fixed group:\n${missingFromFixed.map((p) => `- ${p}`).join("\n")}`
-			: "";
-	const extraText =
-		extraInFixed.length > 0
-			? `Unexpected in fixed group:\n${extraInFixed.map((p) => `- ${p}`).join("\n")}`
-			: "";
-	fail(`Changesets fixed group does not match publishable package set.\n${missingText}\n${extraText}`.trim());
-}
-
-const versions = new Set(publishablePackages.map((pkg) => pkg.version));
-if (versions.size !== 1) {
-	const byVersion = new Map();
-	for (const pkg of publishablePackages) {
-		const list = byVersion.get(pkg.version) || [];
-		list.push(pkg.name);
-		byVersion.set(pkg.version, list);
+// 1. Membership: every publishable package in exactly one fixed group.
+const membership = new Map();
+for (const [index, group] of fixedGroups.entries()) {
+	for (const name of group) {
+		if (!publishableSet.has(name)) {
+			fail(`Fixed group ${index + 1} names '${name}', which is not a publishable package.`);
+		}
+		if (membership.has(name)) {
+			fail(`'${name}' is a member of more than one fixed group.`);
+		}
+		membership.set(name, index);
 	}
-
-	const details = [...byVersion.entries()]
-		.sort(([a], [b]) => a.localeCompare(b))
-		.map(([version, names]) => `- ${version}: ${names.join(", ")}`)
-		.join("\n");
-
-	fail(`Expected one lockstep version across publishable packages, found ${versions.size}:\n${details}`);
+}
+const missingFromFixed = [...publishableSet].filter((name) => !membership.has(name));
+if (missingFromFixed.length > 0) {
+	fail(
+		`Publishable packages missing from every fixed group:\n${missingFromFixed
+			.map((p) => `- ${p}`)
+			.join("\n")}`,
+	);
 }
 
+// 2. Alignment: each group internally agrees on one version.
+const groupSummaries = [];
+for (const [index, group] of fixedGroups.entries()) {
+	const names = [...group].sort((a, b) => a.localeCompare(b));
+	const versions = new Map();
+	for (const name of names) {
+		const pkg = publishablePackages.find((entry) => entry.name === name);
+		const list = versions.get(pkg.version) ?? [];
+		list.push(name);
+		versions.set(pkg.version, list);
+	}
+	if (versions.size !== 1) {
+		const details = [...versions.entries()]
+			.sort(([a], [b]) => a.localeCompare(b))
+			.map(([version, namesInVersion]) => `- ${version}: ${namesInVersion.join(", ")}`)
+			.join("\n");
+		fail(`Fixed group ${index + 1} is not version-aligned:\n${details}`);
+	}
+	const version = [...versions.keys()][0];
+	groupSummaries.push({ index: index + 1, names, version });
+}
+
+// 3. (Full mode) No package regresses behind its published version.
 if (process.env.SKIP_NPM_VERSION_SEQUENCE_CHECK !== "1") {
-	const localVersion = publishablePackages[0].version;
-	const localSemver = parseSemver(localVersion);
-	if (!localSemver) {
-		fail(`Local version "${localVersion}" is not a valid semver.`);
-	}
-
-	const publishedVersionMap = new Map();
-	for (const pkg of publishablePackages) {
-		const published = fetchPublishedVersion(pkg.name);
-		if (published) {
-			publishedVersionMap.set(pkg.name, published);
+	for (const summary of groupSummaries) {
+		const localSemver = parseSemver(summary.version);
+		if (!localSemver) {
+			fail(`Group ${summary.index} version "${summary.version}" is not a valid semver.`);
 		}
-	}
-
-	if (publishedVersionMap.size === 0) {
-		console.log(
-			"[check-fixed-versioning] No packages found on npm; skipping npm patch sequence check.",
-		);
-	} else if (publishedVersionMap.size < publishablePackages.length) {
-		const unpublished = publishablePackages
-			.filter((p) => !publishedVersionMap.has(p.name))
-			.map((p) => p.name);
-		console.log(
-			`[check-fixed-versioning] Unpublished on npm (skipped for patch sequence): ${unpublished.join(", ")}`,
-		);
-	}
-
-	if (publishedVersionMap.size === 0) {
-		// First-time monorepo publish or offline; workspace invariants already checked above.
-	} else {
-		const parsedPublished = [...publishedVersionMap.entries()].map(([name, version]) => ({
-			name,
-			version,
-			semver: parseSemver(version),
-		}));
-		const invalidPublished = parsedPublished.filter((entry) => !entry.semver);
-		if (invalidPublished.length > 0) {
-			fail(
-				`Found invalid published semver(s):\n${invalidPublished
-					.map((entry) => `- ${entry.name}: ${entry.version}`)
-					.join("\n")}`,
-			);
-		}
-
-		const publishedVersions = new Set(parsedPublished.map((entry) => entry.version));
-		const convergenceMode = publishedVersions.size > 1;
-		const publishedMajorMinor = new Set(
-			parsedPublished.map((entry) => `${entry.semver.major}.${entry.semver.minor}`),
-		);
-		if (publishedMajorMinor.size !== 1) {
-			const details = parsedPublished
-				.sort((a, b) => a.name.localeCompare(b.name))
-				.map((entry) => `- ${entry.name}: ${entry.version}`)
-				.join("\n");
-			fail(
-				`Expected one published major/minor across fixed packages during patch-only releases, found ${publishedMajorMinor.size}:\n${details}`,
-			);
-		}
-
-		const highestPublished = parsedPublished.reduce((max, current) =>
-			current.semver.patch > max.semver.patch ? current : max,
-		);
-		const referencePublishedVersion = highestPublished.version;
-
-		if (
-			localSemver.major !== highestPublished.semver.major ||
-			localSemver.minor !== highestPublished.semver.minor
-		) {
-			fail(
-				`Local version ${localVersion} must keep major/minor aligned with highest published ${referencePublishedVersion} for patch lockstep releases.`,
-			);
-		}
-
-		const delta = localSemver.patch - highestPublished.semver.patch;
-		if (convergenceMode) {
-			if (delta <= 0) {
+		let compared = 0;
+		for (const name of summary.names) {
+			const published = fetchPublishedVersion(name);
+			if (!published) continue;
+			compared += 1;
+			const publishedSemver = parseSemver(published);
+			if (!publishedSemver) {
+				fail(`Invalid published semver for ${name}: '${published}'`);
+			}
+			if (compareSemver(localSemver, publishedSemver) < 0) {
 				fail(
-					`Local version ${localVersion} must be ahead of highest published ${referencePublishedVersion} while converging mixed published patch versions.`,
+					`${name} would regress: local ${summary.version} is behind published ${published}.`,
 				);
 			}
+		}
+		if (compared === 0) {
 			console.log(
-				`[check-fixed-versioning] Convergence mode: allowing local ${localVersion} to advance from mixed published baseline (highest ${referencePublishedVersion}).`,
-			);
-		} else if (delta !== 1) {
-			if (delta <= 0) {
-				fail(
-					`Local version ${localVersion} must be exactly one patch ahead of highest published ${referencePublishedVersion}. Did you run changeset version?`,
-				);
-			}
-			fail(
-				`Local version ${localVersion} skips patch versions from highest published ${referencePublishedVersion}. Reset version/changelog files and rerun release once.`,
+				`[check-fixed-versioning] Group ${summary.index}: nothing on npm yet; skipping sequence check.`,
 			);
 		}
 	}
@@ -266,6 +258,8 @@ if (violations.length > 0) {
 	fail(`Found ${violations.length} internal dependency invariant violation(s):\n${violations.join("\n")}`);
 }
 
-console.log(
-	`[check-fixed-versioning] OK: ${publishablePackages.length} publishable packages in one fixed group at version ${publishablePackages[0].version}`,
-);
+for (const summary of groupSummaries) {
+	console.log(
+		`[check-fixed-versioning] OK: fixed group ${summary.index} (${summary.names.length} packages) at version ${summary.version}`,
+	);
+}

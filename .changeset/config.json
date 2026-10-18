@@ -16,27 +16,32 @@
       "@pie-qti/item-player",
       "@pie-qti/logger",
       "@pie-qti/pci-runner",
-      "@pie-qti/pie-to-qti2",
       "@pie-qti/player-elements",
       "@pie-qti/qti-common",
       "@pie-qti/qti-processing",
       "@pie-qti/section-player",
-      "@pie-qti/source-profiles",
       "@pie-qti/storage",
       "@pie-qti/test-utils",
       "@pie-qti/theme",
       "@pie-qti/theme-daisyui",
+      "@pie-qti/typeset-katex",
+      "@pie-qti/web-component-loaders"
+    ],
+    [
+      "@pie-qti/pie-to-qti2",
+      "@pie-qti/source-profiles",
       "@pie-qti/to-pie",
       "@pie-qti/transform-cli",
       "@pie-qti/transform-core",
-      "@pie-qti/transform-types",
-      "@pie-qti/typeset-katex",
-      "@pie-qti/web-component-loaders"
+      "@pie-qti/transform-types"
     ]
   ],
   "linked": [],
   "access": "public",
   "baseBranch": "master",
   "updateInternalDependencies": "patch",
-  "ignore": ["@acme/likert-scale-plugin", "@pie-qti/app-demo"]
+  "ignore": [
+    "@acme/likert-scale-plugin",
+    "@pie-qti/app-demo"
+  ]
 }
