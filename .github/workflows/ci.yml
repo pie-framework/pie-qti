@@ -92,6 +92,23 @@ jobs:
           cd packages/i18n
           bun run scan-hardcoded
 
+  doc-links:
+    name: Doc Links
+    if: ${{ !(github.event_name == 'pull_request' && (startsWith(github.head_ref, 'changeset-release/') || contains(github.event.pull_request.title, '[skip-heavy-ci]') || contains(join(github.event.pull_request.labels.*.name, ','), 'skip-heavy-ci'))) }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      # The checker is dependency-free, so no bun install is needed.
+      - name: Check markdown links and anchors
+        run: bun ./scripts/check-doc-links.mjs
+
   test-unit:
     name: Unit Tests
     if: ${{ !(github.event_name == 'pull_request' && (startsWith(github.head_ref, 'changeset-release/') || contains(github.event.pull_request.title, '[skip-heavy-ci]') || contains(join(github.event.pull_request.labels.*.name, ','), 'skip-heavy-ci'))) }}
@@ -335,12 +352,13 @@ jobs:
   all-checks:
     name: All Checks Passed
     runs-on: ubuntu-latest
-    needs: [lint, translations, test-unit, qti-public-certification, accessibility, e2e, deployability-apps, publish-readiness]
+    needs: [lint, doc-links, translations, test-unit, qti-public-certification, accessibility, e2e, deployability-apps, publish-readiness]
     if: always()
     steps:
       - name: Check all job statuses
         run: |
           if [[ "${{ needs.lint.result }}" != "success" && "${{ needs.lint.result }}" != "skipped" ]] || \
+             [[ "${{ needs.doc-links.result }}" != "success" && "${{ needs.doc-links.result }}" != "skipped" ]] || \
              [[ "${{ needs.translations.result }}" != "success" && "${{ needs.translations.result }}" != "skipped" ]] || \
              [[ "${{ needs.test-unit.result }}" != "success" && "${{ needs.test-unit.result }}" != "skipped" ]] || \
              [[ "${{ needs.qti-public-certification.result }}" != "success" && "${{ needs.qti-public-certification.result }}" != "skipped" ]] || \
