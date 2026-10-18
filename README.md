@@ -2,7 +2,7 @@
 
 ![QTI 2.1, 2.2 & 3.0 Coverage](https://img.shields.io/badge/QTI%202.1%2C%202.2%20%26%203.0-Partial-orange)
 ![Interactions](https://img.shields.io/badge/Interaction%20extractors-21-blue)
-![Tests](https://img.shields.io/badge/Tests-1112%2B-success)
+![Tests](https://img.shields.io/badge/Tests-2700%2B-success)
 ![Accessibility](https://img.shields.io/badge/Accessibility-Tested-blue)
 ![TypeScript](https://img.shields.io/badge/TypeScript-Strict-blue)
 
@@ -20,7 +20,7 @@ This project provides two major capabilities:
 ---
 
 > [!WARNING]
-> This project is pre-1.0: APIs may change, formal QTI certification is still in progress, and the current review found conformance and security blockers for arbitrary untrusted/high-stakes delivery. Evaluate the documented gaps for your content profile, use a backend-authoritative assessment integration, and contact the maintainers before adopting it for a non-trivial production system.
+> This project is on the 1.0.0-beta line: APIs may still change, formal QTI certification is still in progress, and the current review found conformance and security blockers for arbitrary untrusted/high-stakes delivery. Evaluate the documented gaps for your content profile, use a backend-authoritative assessment integration, and contact the maintainers before adopting it for a non-trivial production system.
 
 ---
 
@@ -105,7 +105,7 @@ The player UI supports multiple languages with runtime locale switching:
 - **Custom translations** — Clients provide complete locale bundles or override specific strings
 - **Small bundle** — <10 KB gzipped (core + default locale)
 
-See [`@pie-qti/i18n`](packages/i18n/) for the complete i18n API and [custom translation examples](packages/i18n/docs/custom-translations-example.md).
+See [`@pie-qti/i18n`](packages/i18n/) for the complete i18n API and [custom translation examples](packages/i18n/README.md#custom-translations).
 
 ---
 
@@ -199,6 +199,7 @@ bun run verify:publish
 CI runs the main quality gates on PRs:
 
 - **Lint/type gates:** Biome, Svelte checks, TypeScript, translation coverage, and unit tests
+- **End-to-end gate:** Playwright suites against the demo app (`test:e2e`)
 - **Certification gate:** `test:certification:public`
 - **Accessibility gate:** `verify:a11y`
 - **Deployability gate:** `verify:apps:deploy` (apps/docs and apps/demo production buildability)

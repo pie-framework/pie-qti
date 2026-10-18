@@ -83,7 +83,7 @@
 | **TransformPlugin** | A registered unit that converts content between source and target formats. | Transformer, Converter |
 | **VendorExtension** | Transformation support for a vendor-specific QTI dialect. | Vendor transformer |
 | **AssetResolver** | A component that resolves external resources referenced by transformed content. | Resource loader |
-| **TransformHarness** | The internal reference app used to exercise transformation flows. | Transform app, Import app |
+| **TransformHarness** | (Retired) The former internal reference app for transformation flows; flows are now exercised via `@pie-qti/to-pie`, `@pie-qti/pie-to-qti2`, and `@pie-qti/transform-cli`. | Transform app, Import app |
 
 ### Player Architecture
 
@@ -164,7 +164,7 @@
 - **"Score"** can mean a numeric score value, an **OutcomeDeclaration**, a **ScoringResult**, or a **PieScore**; qualify the layer and shape.
 - **"Session"** can mean **ItemSession**, **AssessmentSession**, or **PieSession**; never use it unqualified in design docs.
 - **"Plugin"** can mean **TransformPlugin**, player plugin, vendor extension, or Cursor plugin; qualify the registry or platform.
-- **"Transform app"** now refers only to the internal **TransformHarness**; do not describe it as a supported import product.
+- **"Transform app"** is retired: there is no transform web app; transformation flows run through the transform packages and the CLI. Do not describe a transform app as a supported import product.
 - **"Conformance"** and **"certification"** are related but not identical; conformance is behavior against criteria, certification is the formal 1EdTech program.
 - **"Report"** is too vague for certification artifacts; use **EvidenceRecord** for the sanitized document and **EvidenceBundle** for generated raw output.
 - **"LTI player"** implies this project implements LTI; use **LTIHost** for the external platform and **EmbeddingBoundary** for this project's responsibility.
