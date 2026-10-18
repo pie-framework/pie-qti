@@ -70,7 +70,7 @@ Architecture and authoring guide for QTI source profiles. Covers:
 
 Subdirectories:
 
-- `plans/` (1.0 plan and landed-work records)
+- `plans/` (1.0 plan of record; the PCI runtime/sandbox decision record)
 - `certification/` (public coverage matrix and gate)
 - `evals/` (browser interaction eval cases)
 
