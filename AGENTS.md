@@ -16,7 +16,7 @@ Critical requirements:
 
 - Frontend: Svelte 5 with TypeScript.
 - Build: Vite and SvelteKit.
-- Testing: Vitest for unit/component tests and Playwright for end-to-end tests.
+- Testing: Bun's built-in test runner (`bun test`) for unit tests, Vitest with jsdom for Svelte component behavior tests (`packages/default-components`, run with `bun run test:component`), and Playwright for end-to-end tests.
 - Package management: Bun in a monorepo.
 - Internationalization: custom i18n framework in `@pie-qti/i18n`.
 
@@ -102,8 +102,8 @@ import XmlEditor from '$lib/components/XmlEditor.svelte';
 
 ## Testing Strategy
 
-- Unit tests: use for business logic, utilities, and pure functions.
-- Component tests: use for isolated component behavior.
+- Unit tests: use for business logic, utilities, and pure functions. Run with `bun test` (per package, via the package's `test` script); import from `bun:test`.
+- Component tests: use for isolated component behavior. `packages/default-components` mounts its real Svelte interaction components in jsdom under Vitest (`tests/component/*.vitest.ts`, run via `bun run test:component`); the `.vitest.ts` suffix keeps them out of `bun test`.
 - End-to-end tests: use Playwright for full user workflows.
 - Accessibility tests: combine automated checks with manual verification for changed assessment interactions.
 

@@ -2,7 +2,7 @@
  * Tests for InMemoryOrchestrator
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'bun:test';
 import { InMemoryOrchestrator } from '../../src/orchestration/in-memory-orchestrator.js';
 import type { WorkflowDefinition, Activity, WorkflowEvent } from '@pie-qti/transform-types';
 
