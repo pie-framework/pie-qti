@@ -5,7 +5,7 @@ This document describes the git workflow and release process for pie-qti.
 ## Branch Structure
 
 ```
-main (production)
+master (production)
   ↑
   └── develop (integration)
         ↑
@@ -17,10 +17,10 @@ main (production)
 
 ### Branch Descriptions
 
-- **`main`** - Production branch
+- **`master`** - Production branch
   - Always stable and deployable
   - Protected branch (requires PR approval)
-  - Merges to main trigger automatic releases to NPM
+  - Merges to master trigger automatic releases to NPM
   - Tagged with semantic versions (v1.0.0, v1.1.0, etc.)
 
 - **`develop`** - Integration branch
@@ -47,8 +47,8 @@ main (production)
   - Branch naming: `docs/short-description`
 
 - **`hotfix/*`** - Emergency production fixes
-  - Created from main (only exception!)
-  - Merge to both main and develop
+  - Created from master (only exception!)
+  - Merge to both master and develop
   - Branch naming: `hotfix/critical-issue`
   - Use sparingly for critical production bugs
 
@@ -116,18 +116,26 @@ git push origin develop
 ### 5. Releasing to Production
 
 ```bash
-# Create PR from develop to main
+# Create PR from develop to master
 # Title: "Release v1.2.0" or "chore: prepare release v1.2.0"
 # Body: List of changes included in this release
 
-# After PR approval and merge to main:
+# After PR approval and merge to master:
 # 1. Release workflow automatically runs
 # 2. Versions are bumped based on changesets
 # 3. CHANGELOG.md files are updated
 # 4. Git tags are created
 # 5. Packages are published to NPM
 # 6. GitHub release is created
+# 7. A master -> develop back-merge PR opens; merge it before the next promotion
 ```
+
+**Lockstep versioning:** all publishable `packages/*` release together in lockstep and the
+automation is patch-only — the release flow auto-generates a temporary patch changeset when
+merges to `master` have none, and `check:fixed-versioning` enforces that the shared version line
+only moves through deliberate version-line preparations (such as the 1.0.0-beta prep). Write
+changesets with the semver type that describes your change; the release machinery normalizes the
+published bump. See [docs/development/publish-verification.md](../docs/development/publish-verification.md).
 
 ## Semantic Versioning
 
@@ -171,10 +179,12 @@ bun run changeset
 
 ✅ Runs full CI pipeline:
 - Linting and formatting checks
-- Unit tests (459 tests)
-- E2E tests (174 tests)
-- Accessibility tests (199 tests)
-- Build on all platforms
+- Unit tests across all packages
+- End-to-end tests (Playwright against the demo app)
+- Accessibility verification (`bun run verify:a11y`)
+- QTI public certification gate (`bun run test:certification:public`)
+- Publish-readiness checks (`verify:publish:quick`)
+- Docs/demo deployability builds
 
 ### On Push to Develop
 
@@ -182,7 +192,7 @@ bun run changeset
 - Ensures develop stays stable
 - Catches integration issues early
 
-### On Push to Main
+### On Push to Master
 
 ✅ Full CI pipeline PLUS:
 - Runs tests one more time
@@ -197,9 +207,9 @@ bun run changeset
 For critical production bugs that can't wait for normal release cycle:
 
 ```bash
-# Create hotfix branch from main
-git checkout main
-git pull origin main
+# Create hotfix branch from master
+git checkout master
+git pull origin master
 git checkout -b hotfix/critical-security-fix
 
 # Fix the issue and test thoroughly
@@ -209,14 +219,14 @@ git commit -m "fix: critical security vulnerability"
 bun run changeset
 # Select "patch" for version bump
 
-# Push and create PR to main
+# Push and create PR to master
 git push origin hotfix/critical-security-fix
 
-# After PR is merged to main:
+# After PR is merged to master:
 # 1. Release happens automatically
 # 2. Manually merge hotfix to develop:
 git checkout develop
-git merge main
+git merge master
 git push origin develop
 ```
 
@@ -256,7 +266,7 @@ For internal refactors, infrastructure, or non-user-facing changes:
 
 Recommended settings on GitHub:
 
-### Main Branch
+### Master Branch
 - ✅ Require pull request reviews (at least 1)
 - ✅ Require status checks to pass
 - ✅ Require branches to be up to date
@@ -280,13 +290,13 @@ develop → feature/my-feature → PR → develop
 ### Scenario 2: Release to Production
 
 ```bash
-develop (with changesets) → PR → main → auto-release
+develop (with changesets) → PR → master → auto-release
 ```
 
 ### Scenario 3: Critical Hotfix
 
 ```bash
-main → hotfix/critical → PR → main → auto-release
+master → hotfix/critical → PR → master → auto-release
                                  ↓
                               develop (manual merge)
 ```
@@ -298,7 +308,7 @@ Developer A: develop → feature/feature-a → PR → develop
 Developer B: develop → feature/feature-b → PR → develop
 Developer C: develop → fix/bug-fix → PR → develop
 
-Later: develop → PR → main → release v1.2.0
+Later: develop → PR → master → release v1.2.0
 ```
 
 ## Troubleshooting
@@ -311,26 +321,27 @@ Later: develop → PR → main → release v1.2.0
 
 ### "Release workflow didn't run"
 
-- Check that you merged to main (not develop)
+- Check that you merged to master (not develop)
 - Verify workflows are enabled in repository settings
 - Check Actions tab for any error messages
 
 ### "NPM publish failed"
 
-- Verify NPM_TOKEN secret is set
-- Check token hasn't expired
+- Verify the package's npm trusted-publisher record matches this repo and workflow
+  (`bun run trusted-publishers --verify`; see docs/development/trusted-publishing.md)
+- If a legacy `NPM_TOKEN` secret is set, check it hasn't expired and has publish permissions
 - Ensure you have publish permissions for @pie-qti packages
 - Check if package version already exists on NPM
 
-### "Merge conflicts between develop and main"
+### "Merge conflicts between develop and master"
 
 ```bash
-# Update develop with main
+# Update develop with master
 git checkout develop
-git pull origin main
+git pull origin master
 # Resolve conflicts
 git add .
-git commit -m "chore: merge main into develop"
+git commit -m "chore: merge master into develop"
 git push origin develop
 ```
 
@@ -338,11 +349,11 @@ git push origin develop
 
 1. **Daily work**: Feature branches → develop
 2. **Release prep**: Add changesets to develop
-3. **Release**: develop → main (triggers auto-release)
-4. **Emergency**: hotfix from main → main → develop
+3. **Release**: develop → master (triggers auto-release)
+4. **Emergency**: hotfix from master → master → develop
 
 This workflow ensures:
-- Stable production branch (main)
+- Stable production branch (master)
 - Safe integration branch (develop)
 - Automated releases with proper versioning
 - Clear history and release notes

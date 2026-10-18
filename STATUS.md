@@ -1,6 +1,6 @@
 # PIE QTI Project Status
 
-**Last updated**: 2026-10-17
+**Last updated**: 2026-10-18
 
 This is the short project snapshot. Package READMEs, `docs/`, and the CI
 workflows are the authoritative sources for detailed behavior.
@@ -48,8 +48,10 @@ QTI 3.0 naming infrastructure and broad standard interaction delivery are implem
   release). Page-realm execution still requires an explicit host resolver;
   browser-level evidence attaches to the next published candidate — see
   [`docs/plans/pci-runtime-and-sandbox-2026-08.md`](docs/plans/pci-runtime-and-sandbox-2026-08.md).
-- Remaining assessment semantics include dynamic preconditions, section/testPart
-  branch rules, and sequence-indexed clone materialization for selection with replacement.
+- Dynamic assessment-structure semantics are implemented: preconditions, section/testPart
+  branch rules, and sequence-indexed clone materialization for selection with replacement
+  (spec gap G-16 closed 2026-10-15; discovery-parser consolidation 2026-10-17 — see
+  [`docs/SPEC-GAPS-PLAN.md`](docs/SPEC-GAPS-PLAN.md)).
 
 ### Certification Readiness
 
