@@ -185,8 +185,10 @@ async function runStep(page: Page, file: EvalFile, step: EvalStep): Promise<{ su
 					extractIdentifierHint(step.target.hint) ??
 					extractIdentifierHint(step.target.description);
 				if (id) {
-					// Deterministically set response to avoid flaky SVG hit-testing / shadow DOM differences.
-					await dispatchQtiChange(page, tagName, 'RESPONSE', id);
+					// Click the real SVG shape (its accessible name carries the hotspot
+					// identifier, authored label, or both) so SVG hit-testing and the
+					// shadow-DOM event path are exercised, not bypassed.
+					await host.getByRole('button', { name: id }).first().click();
 					return {};
 				}
 			}
@@ -475,16 +477,20 @@ async function runStep(page: Page, file: EvalFile, step: EvalStep): Promise<{ su
 					await dispatchQtiChange(page, tagName, 'RESPONSE', ['HEART BLOOD', 'LUNGS PUMP', 'LIVER OXYGEN']);
 					return {};
 				}
-				// Component uses response as array of "ID1 ID2"
-				const responses = (await getResponsesFromWebComponents(page))['RESPONSE'];
-				const current = Array.isArray(responses) ? responses : [];
-				const next = [...current, step.pair];
-				// The sample item uses a strict <match> on the response variable; normalize to its correctResponse ordering
-				// when we can recognize the full set.
-				const set = new Set(next);
-				const canonical = ['LIVER BLOOD', 'LUNGS OXYGEN', 'HEART PUMP'];
-				const value = canonical.every((p) => set.has(p)) ? canonical : next;
-				await dispatchQtiChange(page, tagName, 'RESPONSE', value);
+				// Concrete pair: click the two real hotspot buttons in order (the
+				// component forms "first second" from the click sequence), so the
+				// pointer path and event wiring are exercised, not bypassed.
+				const host = page.locator(tagName);
+				await expect(host).toBeVisible();
+				const [firstId, secondId] = step.pair.split(' ');
+				const labels = await host.evaluate((el) => {
+					const raw = (el as any).interaction ?? el.getAttribute('interaction');
+					const interaction = typeof raw === 'string' ? JSON.parse(raw) : raw;
+					const hotspots = interaction?.associableHotspots ?? interaction?.hotspots ?? [];
+					return Object.fromEntries(hotspots.map((h: any) => [h.identifier, h.label]));
+				});
+				await host.getByRole('button', { name: labels[firstId] }).first().click();
+				await host.getByRole('button', { name: labels[secondId] }).first().click();
 				return {};
 			}
 			throw new Error(`Unsupported clickPair for ${tagName}`);
