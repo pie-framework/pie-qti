@@ -205,12 +205,17 @@ are not sandboxed. Sanitized same-DOM content is still not equivalent to isolati
 JavaScript; use a suitably sandboxed cross-origin iframe when content is not trusted to run in the
 host origin.
 
-Portable Custom Interaction execution is disabled unless the host supplies a trusted
-`pci.moduleResolver`. Authored module paths are never imported directly by default.
+Portable Custom Interaction execution is disabled until the host opts into one of two engines.
+The page realm runs a module behind a trusted `pci.moduleResolver`; the sandboxed engine
+(`pci.sandbox`) runs it inside `<iframe sandbox="allow-scripts">` on a dedicated cookieless
+runner origin (deploy `@pie-qti/pci-runner`), where the module gets an opaque origin and the
+page never evaluates it. Authored module paths are never imported directly by default.
 
-`createAllowlistPciModuleResolver` builds a resolver that imports only from allow-listed origins
-and/or absolute URL prefixes, refusing non-http(s) schemes outright. Passing it is still the host's
-trust decision; it exists so the security-critical check does not have to be rewritten per host.
+`createAllowlistPciModuleResolver` builds a page-realm resolver that imports only from
+allow-listed origins and/or absolute URL prefixes, refusing non-http(s) schemes outright;
+`createAllowlistPciModulePolicy` applies the same checks to the module URLs handed to the
+sandbox frame, without importing anything. Passing either is still the host's trust decision;
+they exist so the security-critical check does not have to be rewritten per host.
 
 ```ts
 import { createAllowlistPciModuleResolver } from '@pie-qti/item-player';
@@ -218,10 +223,14 @@ import { createAllowlistPciModuleResolver } from '@pie-qti/item-player';
 const pci = {
   // Authored relative paths resolve against this, so it must itself be allow-listed.
   baseUrl: 'https://cdn.example.com/pci/item-1/',
+  // Page realm: the resolver's import runs the module with page authority.
   moduleResolver: createAllowlistPciModuleResolver({
     allowedOrigins: ['https://cdn.example.com'],
     allowedPathPrefixes: ['https://cdn.example.com/pci/'],
   }),
+  // Or the sandboxed engine: module URLs are resolved and handed to the runner
+  // frame; nothing is evaluated in the page.
+  // sandbox: { runnerUrl: 'https://qti.pie-framework.org/pci-runner.html' },
 };
 ```
 

@@ -328,7 +328,7 @@ Catalog parsing and glossary/keyword-translation popup support are implemented:
 | **Record cardinality** | Implemented | Implemented | Named typed fields; no declaration-level BaseType |
 | **Response processing** | Broad coverage | Broad coverage | Canonical fixed templates covered; external fragments require a host resolver |
 | **Assessment player** | Partial | Partial | Per-part modes and ordered hierarchy retained; dynamic controls below remain |
-| **PCI support** | Partial | Partial | Bespoke module contract today; the spec's `qtiCustomInteractionContext` registry, AMD loading, and conformance evidence are scheduled for 1.0 (G-08, [`../plans/version-1-0-2026-10.md`](../plans/version-1-0-2026-10.md)); explicit host resolver required; not a sandbox |
+| **PCI support** | Yes | Yes | Spec contract landed (G-08 phases 1–3): `qtiCustomInteractionContext` registry, `getInstance`, QTI variable JSON, AMD loading with resolution configs, clean-room conformance fixtures. Page-realm execution requires an explicit host resolver; `PciConfiguration.sandbox` offers opt-in hardened execution in a cross-origin runner frame (`@pie-qti/pci-runner`). Browser-level evidence in the private runner attaches to the next published candidate |
 | **PNP support** | N/A / host profile | Current delivery scope | Elimination, extended time, glossary/translation triggers; color schemes ship rulesets via `@pie-qti/default-components` `qti-pnp.css` |
 | **Catalog system** | Limited extensions | Current item scope + shared files | Inline/provided catalog XML; manifest-listed `imsqti_catalog_xmlv3p0` files land as package-scope sources (G-15, done) |
 

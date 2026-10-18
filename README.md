@@ -55,7 +55,7 @@ See [`@pie-qti/qti-common`](packages/qti-common/README.md) for the version abstr
 
 Renders and scores individual QTI items:
 
-- **Standard and portable interaction extraction** — Broad QTI 2.x/3.0 rendering coverage, including host-resolved QTI 2.x and 3.0 PCI; remaining conformance work is tracked in the spec-gap plan
+- **Standard and portable interaction extraction** — Broad QTI 2.x/3.0 rendering coverage, including spec-conformant QTI 2.x and 3.0 PCI (host-resolver page realm plus an opt-in sandboxed execution engine); remaining conformance work is tracked in the spec-gap plan
 - **Response processing AST/evaluator** — Broad operator coverage, typed record fields, canonical fixed-template behavior for the supported URI set, and explicit host-resolved processing fragments
 - **Role/view-aware rendering** — candidate, scorer, author, tutor, proctor, testConstructor
 - **Adaptive items** — Multi-attempt workflows with progressive feedback
