@@ -1,5 +1,16 @@
 # @pie-qti/transform-cli
 
+## 0.1.30
+
+### Patch Changes
+
+- 66f5281: Dependency updates: `jszip` 3.10.2 in `@pie-qti/ims-cp-browser`, `@tiptap/starter-kit` 3.32.0 in `@pie-qti/default-components`, and `@oclif/core` 5.1.8 in `@pie-qti/transform-cli`. No API changes; published dependency ranges move with the bumps.
+- @pie-qti/ims-cp-node@1.0.0-beta.1
+  - @pie-qti/logger@1.0.0-beta.1
+  - @pie-qti/transform-core@0.1.30
+  - @pie-qti/to-pie@0.1.30
+  - @pie-qti/transform-types@0.1.30
+
 ## 0.1.29
 
 ### Patch Changes
