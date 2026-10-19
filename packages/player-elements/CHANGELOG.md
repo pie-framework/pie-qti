@@ -1,5 +1,13 @@
 # @pie-qti/player-elements
 
+## 1.0.0-beta.1
+
+### Patch Changes
+
+- @pie-qti/assessment-player@1.0.0-beta.1
+  - @pie-qti/ims-cp-core@1.0.0-beta.1
+  - @pie-qti/item-player@1.0.0-beta.1
+
 ## 1.0.0-beta.0
 
 ### Patch Changes
