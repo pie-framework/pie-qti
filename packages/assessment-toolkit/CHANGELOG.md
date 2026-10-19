@@ -1,5 +1,12 @@
 # @pie-qti/assessment-toolkit
 
+## 1.0.0-beta.1
+
+### Patch Changes
+
+- @pie-qti/section-player@1.0.0-beta.1
+  - @pie-qti/ims-cp-core@1.0.0-beta.1
+
 ## 1.0.0-beta.0
 
 ### Patch Changes

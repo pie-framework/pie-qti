@@ -1,5 +1,13 @@
 # @pie-qti/test-utils
 
+## 1.0.0-beta.1
+
+### Patch Changes
+
+- @pie-qti/logger@1.0.0-beta.1
+  - @pie-qti/storage@1.0.0-beta.1
+  - @pie-qti/transform-types@0.1.30
+
 ## 1.0.0-beta.0
 
 ### Patch Changes
