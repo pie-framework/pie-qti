@@ -4,6 +4,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 describe('published default-runtime registration', () => {
+	// Bun's default 5s test timeout loses on a cold CI runner: the first esbuild
+	// spawn has to page in the binary and the multi-megabyte dist bundle.
 	test('survives consumer tree shaking', () => {
 		const tempDirectory = mkdtempSync(join(tmpdir(), 'pie-qti-register-bundle-'));
 		const outputPath = join(tempDirectory, 'register.js');
@@ -29,5 +31,5 @@ describe('published default-runtime registration', () => {
 		} finally {
 			rmSync(tempDirectory, { recursive: true, force: true });
 		}
-	});
+	}, 120_000);
 });

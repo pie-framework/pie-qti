@@ -1,5 +1,49 @@
 # @pie-qti/default-components
 
+## 1.0.0-beta.0
+
+### Patch Changes
+
+- 063229c: Reject a checkbox selection that would exceed `maxChoices` immediately, so the refused choice no longer stays visually checked while missing from the response. Adds jsdom-based component behavior tests for the choice, hottext, hotspot, extended-text and upload components.
+- 6c209e2: AfA PNP drives more of delivery. `pnpProfileFromAfa` maps interface language, inverted polarity, single-column layout, text appearance, fixed-minute extra time, answer masking and the tool supports (`PnpProfile.tools`); `answer-masking` now masks choices in `choiceInteraction` and no longer turns on the elimination tool. `qti-pnp.css` in default-components styles the colour schemes and display needs, and the loaders' runtime CSS imports it. The section player takes `pnp` and, with the item's companion materials, turns on the tools the host offers with `enabled: false` and removes prohibited ones.
+- 1521a74: Shared vocabulary classes, authored interaction aria and richer catalogs. `qti-shared-vocabulary.css` and the interactions honour the QTI 3 shared classes: choice labels and suffixes, writing orientation, `qti-choices-*` placement and `qti-unselected-hidden`. Every interaction takes its authored `aria-label`, `aria-labelledby` and `aria-describedby` through `interactionAria`, resolved to text at extraction (`BaseInteractionData.accessibility`). Catalog entries render multi-part content and media; object replacement keeps aria, role and `lang`. The section player's read-aloud takes native `qti-catalog-info` and APIP spoken cards and docks the SSML of passages.
+- 7f68a35: Make QTI 3 `qti-hottext` spans selectable and styled in the hottext interaction.
+- 833ddad: PCI sandboxed engine (plan Option C): Portable Custom Interaction modules can now run in a
+  hardened, opt-in cross-origin frame instead of the page realm. `PciConfiguration.sandbox`
+  points at a runner page served from a dedicated cookieless origin; the module executes with
+  an opaque origin — no shared storage, cookies, or DOM with the player — while `getResponse()`
+  stays synchronous by answering from a bridge-maintained cache. New `@pie-qti/pci-runner`
+  package is the deployable runner page (`dist/pci-runner.html` + bundle), with mutual origin
+  locking over the versioned `pie-qti-pci-sandbox` protocol. `PciConfiguration.moduleResolver`
+  is now optional: required for page-realm execution, unused when `sandbox` is configured, with
+  the new `createAllowlistPciModulePolicy` available to allow-list which module URLs may be
+  handed to the frame. `PciHostController.onError` reports asynchronous engine failures (frame
+  handshake, in-frame module load, instance errors). The page-realm engine and its resolver
+  contract are unchanged.
+- 765423c: Structured labels and braille routing (G-13): `pnp.display.structuredLabelSupport` presents choice and match answer sets as one ARIA group named by the interaction prompt, with match columns named by their visible headings. An AfA PNP `<braille/>` grant now routes to the platform `brailleText` preference (`sign-language` to `signingDefinition`), and `getCatalogEntry` under a QTI 3 usage falls back to the APIP support name (`braille-text` → `braille`, `signing-definition` → `sign-language`), so QTI 3 and APIP catalogs share one lookup path. The research note, markup contract, and NVDA checklist live in `packages/item-player/docs/PNP.md`.
+- Updated dependencies [32c08b7]
+- Updated dependencies [6c209e2]
+- Updated dependencies [0f93a03]
+- Updated dependencies [1521a74]
+- Updated dependencies [a7c714e]
+- Updated dependencies [5be190e]
+- Updated dependencies [bac1158]
+- Updated dependencies [a4353af]
+- Updated dependencies [8063850]
+- Updated dependencies [f20a87e]
+- Updated dependencies [3c70cc3]
+- Updated dependencies [30b045d]
+- Updated dependencies [bbaab53]
+- Updated dependencies [0ca867a]
+- Updated dependencies [833ddad]
+- Updated dependencies [33b1a1a]
+- Updated dependencies [765423c]
+- Updated dependencies [0edef83]
+- Updated dependencies [953e5d1]
+  - @pie-qti/qti-common@1.0.0-beta.0
+  - @pie-qti/item-player@1.0.0-beta.0
+  - @pie-qti/i18n@1.0.0-beta.0
+
 ## 0.1.28
 
 ### Patch Changes

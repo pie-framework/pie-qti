@@ -124,14 +124,110 @@ const runChangesetPublish = async () => {
 	throw lastError;
 };
 
+const runDistTagFixup = () =>
+	new Promise((resolve, reject) => {
+		// In changesets pre mode, `changeset publish` applies the pre tag to every
+		// package it publishes (see getReleaseTag in @changesets/cli), which would
+		// strand `latest` for groups that release plain versions — the
+		// transformation line during the 1.0.0-beta. A plain release always owns
+		// `latest` and a prerelease never does, so after publishing, re-point
+		// `latest` at each plain-version package whose npm dist-tag differs.
+		const plainPackages = [...localPackages.entries()].filter(([, version]) =>
+			/^\d+\.\d+\.\d+$/.test(version),
+		);
+		if (plainPackages.length === 0) {
+			resolve();
+			return;
+		}
+
+		const tasks = plainPackages.map(
+			([name, version]) =>
+				new Promise((done, failTask) => {
+					const exists = spawn(
+						"npm",
+						["view", `${name}@${version}`, "version"],
+						{ cwd: repoRoot, env: npmEnv },
+					);
+					exists.on("close", (existsCode) => {
+						if (existsCode !== 0) {
+							// The version never made it to npm (this publish did not
+							// include it, or the package's publish failed) — nothing to
+							// point `latest` at; the publish failure owns the report.
+							done();
+							return;
+						}
+						const view = spawn(
+							"npm",
+							["view", name, "dist-tags", "--json"],
+							{ cwd: repoRoot, env: npmEnv },
+						);
+						let out = "";
+						view.stdout.on("data", (chunk) => {
+							out += chunk;
+						});
+						view.on("close", (code) => {
+							if (code !== 0) {
+								failTask(new Error(`npm view ${name} dist-tags exited with ${code}`));
+								return;
+							}
+							try {
+								const tags = JSON.parse(out);
+								if (tags?.latest === version) {
+									done();
+									return;
+								}
+								const add = spawn(
+									"npm",
+									["dist-tag", "add", `${name}@${version}`, "latest"],
+									{ cwd: repoRoot, env: npmEnv, stdio: "inherit" },
+								);
+								add.on("close", (addCode) => {
+									if (addCode === 0) {
+										console.log(`[release] dist-tag latest -> ${name}@${version}`);
+										done();
+									} else {
+										failTask(
+											new Error(`npm dist-tag add ${name}@${version} latest exited with ${addCode}`),
+										);
+									}
+								});
+								add.on("error", failTask);
+							} catch (error) {
+								failTask(error);
+							}
+						});
+						view.on("error", failTask);
+					});
+					exists.on("error", failTask);
+				}),
+		);
+
+		Promise.all(tasks).then(resolve, reject);
+	});
+
+// A failed `changeset publish` does not mean nothing published: a retry after
+// the registry staged versions returns E409 for them, and one broken package
+// (missing trusted publisher, for instance) must not strand the dist-tags of
+// the ones that did land. Run the fixup on the partial result either way, then
+// re-raise the publish failure so the run stays red.
 try {
-	rewriteWorkspaceRanges();
-	if (changedFiles.length > 0) {
-		console.log(
-			`[release] Rewrote workspace ranges in ${changedFiles.length} package.json file(s) for publish`,
+	let publishError;
+	try {
+		rewriteWorkspaceRanges();
+		if (changedFiles.length > 0) {
+			console.log(
+				`[release] Rewrote workspace ranges in ${changedFiles.length} package.json file(s) for publish`,
+			);
+		}
+		await runChangesetPublish();
+	} catch (error) {
+		publishError = error;
+		console.warn(
+			`[release] changeset publish reported failure (${error.message}); running the dist-tag fixup over whatever published before re-raising.`,
 		);
 	}
-	await runChangesetPublish();
+	await runDistTagFixup();
+	if (publishError) throw publishError;
 } finally {
 	restoreWorkspaceRanges();
 	cleanupNpmEnv();

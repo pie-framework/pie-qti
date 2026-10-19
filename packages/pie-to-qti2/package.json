@@ -1,70 +1,70 @@
 {
-  "name": "@pie-qti/pie-to-qti2",
-  "version": "0.1.28",
-  "description": "PIE to QTI 2.2 transformation plugin",
-  "main": "./dist/index.js",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    },
-    "./generators/manifest-generator": {
-      "types": "./dist/generators/manifest-generator.d.ts",
-      "import": "./dist/generators/manifest-generator.js"
-    }
-  },
-  "scripts": {
-    "build": "tsc",
-    "clean": "rm -rf dist",
-    "test": "bun test --timeout 30000",
-    "typecheck": "tsc --noEmit"
-  },
-  "keywords": [
-    "pie",
-    "qti",
-    "qti2",
-    "qti2.2",
-    "assessment",
-    "transformation",
-    "pie-to-qti"
-  ],
-  "license": "MIT",
-  "dependencies": {
-    "@pie-qti/qti-common": "workspace:*",
-    "@pie-qti/transform-core": "workspace:*",
-    "@pie-qti/transform-types": "workspace:*",
-    "node-html-parser": "^9.0.4",
-    "uuid": "^14.0.1",
-    "xml-formatter": "^3.6.4"
-  },
-  "devDependencies": {
-    "@pie-qti/item-player": "workspace:*",
-    "@pie-qti/to-pie": "workspace:*",
-    "typescript": "^5.9.3",
-    "xmllint-wasm": "^5.3.0"
-  },
-  "type": "module",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/pie-framework/pie-qti.git",
-    "directory": "packages/pie-to-qti2"
-  },
-  "homepage": "https://github.com/pie-framework/pie-qti/tree/master/packages/pie-to-qti2",
-  "bugs": {
-    "url": "https://github.com/pie-framework/pie-qti/issues"
-  },
-  "publishConfig": {
-    "access": "public"
-  },
-  "sideEffects": [
-    "./dist/generators/index.js"
-  ],
-  "engines": {
-    "node": ">=20.19.0"
-  },
-  "files": [
-    "dist"
-  ]
+	"name": "@pie-qti/pie-to-qti2",
+	"version": "0.1.29",
+	"description": "PIE to QTI 2.2 transformation plugin",
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		},
+		"./generators/manifest-generator": {
+			"types": "./dist/generators/manifest-generator.d.ts",
+			"import": "./dist/generators/manifest-generator.js"
+		}
+	},
+	"scripts": {
+		"build": "tsc",
+		"clean": "rm -rf dist",
+		"test": "bun test --timeout 30000",
+		"typecheck": "tsc --noEmit"
+	},
+	"keywords": [
+		"pie",
+		"qti",
+		"qti2",
+		"qti2.2",
+		"assessment",
+		"transformation",
+		"pie-to-qti"
+	],
+	"license": "MIT",
+	"dependencies": {
+		"@pie-qti/qti-common": "workspace:*",
+		"@pie-qti/transform-core": "workspace:*",
+		"@pie-qti/transform-types": "workspace:*",
+		"node-html-parser": "^9.0.4",
+		"uuid": "^14.0.1",
+		"xml-formatter": "^3.6.4"
+	},
+	"devDependencies": {
+		"@pie-qti/item-player": "workspace:*",
+		"@pie-qti/to-pie": "workspace:*",
+		"typescript": "^5.9.3",
+		"xmllint-wasm": "^5.3.0"
+	},
+	"type": "module",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/pie-framework/pie-qti.git",
+		"directory": "packages/pie-to-qti2"
+	},
+	"homepage": "https://github.com/pie-framework/pie-qti/tree/master/packages/pie-to-qti2",
+	"bugs": {
+		"url": "https://github.com/pie-framework/pie-qti/issues"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"sideEffects": [
+		"./dist/generators/index.js"
+	],
+	"engines": {
+		"node": ">=20.19.0"
+	},
+	"files": [
+		"dist"
+	]
 }

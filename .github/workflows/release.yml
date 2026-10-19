@@ -311,14 +311,24 @@ jobs:
           NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
           LEFTHOOK: 0
 
+      # Two fixed groups publish per run since the 1.0 beta split (player platform vs
+      # pre-alpha transformation line). Tag the release after the player platform's
+      # version; the fallback keeps transformation-only releases working.
+      - name: Resolve release tag version
+        if: steps.changesets.outputs.published == 'true'
+        id: tag_version
+        run: |
+          version="$(echo '${{ steps.changesets.outputs.published-packages }}' | jq -r '[.[] | select(.name == "@pie-qti/assessment-player")][0].version // .[0].version')"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
       - name: Create GitHub Release
         if: steps.changesets.outputs.published == 'true'
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: v${{ fromJson(steps.changesets.outputs.published-packages)[0].version }}
-          release_name: Release v${{ fromJson(steps.changesets.outputs.published-packages)[0].version }}
+          tag_name: v${{ steps.tag_version.outputs.version }}
+          release_name: Release v${{ steps.tag_version.outputs.version }}
           body: |
             ## Changes
 
@@ -327,7 +337,7 @@ jobs:
             See CHANGELOG.md files in each package for detailed changes.
           draft: false
           # A prerelease version (1.0.0-beta.N) must not present as a full release.
-          prerelease: ${{ contains(fromJson(steps.changesets.outputs.published-packages)[0].version, '-') }}
+          prerelease: ${{ contains(steps.tag_version.outputs.version, '-') }}
 
       - name: Summary
         if: steps.changesets.outputs.published == 'true'
@@ -363,7 +373,7 @@ jobs:
         continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ fromJson(steps.changesets.outputs.published-packages)[0].version }}
+          VERSION: ${{ steps.tag_version.outputs.version }}
         run: |
           set -euo pipefail
           git fetch --quiet origin develop master

@@ -1,5 +1,13 @@
 # @pie-qti/qti-common
 
+## 1.0.0-beta.0
+
+### Patch Changes
+
+- 32c08b7: Content language follows `xml:lang`. `prepareContentMarkup` restates it as `lang`; the item body takes its `lang` from the item, exposed as `Player.getContentLanguage()`, and glossary lookups pass it. The section player sets the toolbar and TTS language from it and picks a Polly voice for that language unless the host configures `defaultVoice`, which no longer defaults to Joanna; shared HTML blocks take an optional `language`.
+- 0f93a03: Read-aloud markup reaches delivery. `prepareContentMarkup` moves from to-pie into `@pie-qti/qti-common/accessibility` and reads QTI 3 names; the item player renders SSML docked as catalog idrefs and `data-qti-suppress-tts` as `data-tts-suppress`, and the section player registers the SSML as `spoken` catalogs and projects QTI 3 interactions without suppressed content.
+- a7c714e: `feedbackInline` resolves in either QTI spelling, nested and by membership in a container outcome, in the item body, choice text, rubric blocks and modal feedback; `qti-common` exports the shared visibility rule as `isShownByIdentifier`.
+
 ## 0.1.28
 
 ### Patch Changes

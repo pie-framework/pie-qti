@@ -1,5 +1,20 @@
 # @pie-qti/web-component-loaders
 
+## 1.0.0-beta.0
+
+### Patch Changes
+
+- 6c209e2: AfA PNP drives more of delivery. `pnpProfileFromAfa` maps interface language, inverted polarity, single-column layout, text appearance, fixed-minute extra time, answer masking and the tool supports (`PnpProfile.tools`); `answer-masking` now masks choices in `choiceInteraction` and no longer turns on the elimination tool. `qti-pnp.css` in default-components styles the colour schemes and display needs, and the loaders' runtime CSS imports it. The section player takes `pnp` and, with the item's companion materials, turns on the tools the host offers with `enabled: false` and removes prohibited ones.
+- Updated dependencies [0d99546]
+- Updated dependencies [32c08b7]
+- Updated dependencies [6c209e2]
+- Updated dependencies [30b045d]
+- Updated dependencies [833ddad]
+- Updated dependencies [953e5d1]
+- Updated dependencies [c785703]
+- Updated dependencies [8063850]
+  - @pie-qti/player-elements@1.0.0-beta.0
+
 ## 0.1.28
 
 ### Patch Changes

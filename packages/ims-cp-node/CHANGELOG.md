@@ -1,5 +1,14 @@
 # @pie-qti/ims-cp-node
 
+## 1.0.0-beta.0
+
+### Patch Changes
+
+- Updated dependencies [0d99546]
+- Updated dependencies [0edef83]
+- Updated dependencies [953e5d1]
+  - @pie-qti/ims-cp-core@1.0.0-beta.0
+
 ## 0.1.28
 
 ### Patch Changes

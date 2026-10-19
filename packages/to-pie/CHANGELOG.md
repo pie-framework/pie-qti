@@ -1,5 +1,22 @@
 # @pie-qti/to-pie
 
+## 0.1.29
+
+### Patch Changes
+
+- 19f62bf: Fix nested-section duplication in `transformAssessmentTest`: nested `<assessmentSection>` elements appeared both at the testPart top level and inside their parent's `subsections`, and the parent collected all descendant item refs. Sections now keep only their direct item refs, with nested sections appearing solely in `subsections`. Section-level `selection`, `ordering`, `timeLimits`, and `preCondition` are likewise read from direct children only. Adds `countAssessmentItems()` and uses it for the registry transform's `itemCount`.
+- Updated dependencies [0d99546]
+- Updated dependencies [32c08b7]
+- Updated dependencies [0f93a03]
+- Updated dependencies [a7c714e]
+- Updated dependencies [0edef83]
+- Updated dependencies [953e5d1]
+  - @pie-qti/ims-cp-core@1.0.0-beta.0
+  - @pie-qti/qti-common@1.0.0-beta.0
+  - @pie-qti/ims-cp-node@1.0.0-beta.0
+  - @pie-qti/transform-core@0.1.29
+  - @pie-qti/transform-types@0.1.29
+
 ## 0.1.28
 
 ### Patch Changes
