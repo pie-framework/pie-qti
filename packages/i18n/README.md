@@ -5,15 +5,15 @@ Lightweight, type-safe internationalization (i18n) package for the PIE-QTI playe
 ## Features
 
 - ✅ **Type-Safe Translations** - TypeScript autocomplete for all message keys
-- ✅ **Locale Persistence** - Locale persists across page reloads via localStorage
+- ✅ **Locale Persistence** - Locale persists across page reloads via localStorage (`SvelteI18nProvider`)
 - ✅ **Framework Agnostic** - Core provider works with any JavaScript framework
 - ✅ **Svelte Integration** - Simple `$derived` pattern for Svelte 5 components
 - ✅ **Web Component Compatible** - Works within Shadow DOM boundaries
-- ✅ **Small Bundle Size** - <10 KB gzipped for core + default locale
+- ✅ **Small Bundle Size** - ~10 KB gzipped for core + default locale (verify with your bundler)
 - ✅ **On-Demand Loading** - Load additional locales asynchronously
 - ✅ **Built-in Formatting** - Number and date formatting via `Intl` APIs
 - ✅ **Custom Translations** - Override or extend framework translations
-- ✅ **6 Languages Supported** - en-US (complete), es-ES, fr-FR, nl-NL, ro-RO, th-TH
+- ✅ **8 Languages Supported** - en-US (source locale), ar-SA, es-ES, fr-FR, nl-NL, ro-RO, th-TH, zh-CN
 
 ## Installation
 
@@ -63,15 +63,28 @@ const translations = $derived({
 
 ### 3. Switch Locales
 
-```typescript
-// Switch to Spanish (triggers page reload)
-await i18n.setLocale('es-ES');
+The two providers behave differently:
 
-// Locale is stored in localStorage and persists across reloads
-// On next page load, i18n will automatically use 'es-ES'
-```
+- `DefaultI18nProvider.setLocale()` is synchronous. It updates the in-memory locale only — it does
+  not persist anything and does not reload the page.
 
-**Important:** Calling `setLocale()` stores the locale in localStorage and triggers a page reload. This simplifies the codebase by eliminating complex reactivity patterns.
+  ```typescript
+  // In-memory switch only; no persistence, no reload
+  i18n.setLocale('es-ES');
+  ```
+
+- `SvelteI18nProvider.setLocale()` stores the locale in localStorage and triggers a page reload, so
+  every component picks up the new locale on the fresh page.
+
+  ```typescript
+  // Switch to Spanish (persists to localStorage, then reloads the page)
+  await i18n.setLocale('es-ES');
+
+  // On next page load, i18n will automatically use 'es-ES'
+  ```
+
+To render a specific player or element in another locale without reloading, use the
+`withLocale(locale)` view (available on providers that support it) instead of `setLocale()`.
 
 ## API Reference
 
@@ -84,11 +97,14 @@ The framework-agnostic interface for i18n providers:
 ```typescript
 interface I18nProvider {
   getLocale(): string;
-  setLocale(locale: string): Promise<void>;
-  loadLocale(locale: string): Promise<void>;
-  t(key: string, values?: Record<string, any>): string;
-  formatNumber(value: number, options?: Intl.NumberFormatOptions): string;
-  formatDate(date: Date, options?: Intl.DateTimeFormatOptions): string;
+  setLocale(locale: string): Promise<void> | void;
+  t(key: string, defaultOrValues?: Record<string, any> | string, values?: Record<string, any>): string;
+  // Optional members
+  plural?(key: string, options: { count: number; [key: string]: any }): string;
+  getDirection?(): 'ltr' | 'rtl';
+  withLocale?(locale: string): I18nProvider;
+  formatNumber?(value: number, options?: Intl.NumberFormatOptions): string;
+  formatDate?(date: Date, options?: Intl.DateTimeFormatOptions): string;
 }
 ```
 
@@ -133,27 +149,27 @@ const i18n = await createDefaultSvelteI18nProvider('en-US');
 
 // Same API as I18nProvider
 const text = i18n.t('common.submit');
-await i18n.setLocale('es-ES'); // Triggers page reload
-
-// Deprecated reactive stores (kept for backwards compatibility)
-// Note: These are no longer needed since locale changes trigger page reload
-const { locale, t$, plural$, formatNumber$, formatDate$ } = i18n;
+await i18n.setLocale('es-ES'); // Persists to localStorage and triggers a page reload
 ```
-
-**Migration Note:** The reactive stores (`locale`, `t$`, `plural$`, etc.) are deprecated. Use the direct methods (`t()`, `plural()`, etc.) with `$derived` instead. See the Quick Start section for the recommended pattern.
 
 ### Supported Locales
 
-The framework currently includes 6 locales:
+The framework currently includes 8 locales:
 
-| Locale Code | Language                  | Status                   |
-|-------------|---------------------------|--------------------------|
-| `en-US`     | English (United States)   | ✅ Complete (300+ keys)  |
-| `es-ES`     | Spanish (Spain)           | 🚧 ~80% complete         |
-| `fr-FR`     | French (France)           | 🚧 ~70% complete         |
-| `nl-NL`     | Dutch (Netherlands)       | 🚧 ~30% complete         |
-| `ro-RO`     | Romanian (Romania)        | 🚧 ~30% complete         |
-| `th-TH`     | Thai (Thailand)           | 🚧 ~30% complete         |
+| Locale Code | Language                  | Status                        |
+|-------------|---------------------------|-------------------------------|
+| `en-US`     | English (United States)   | ✅ Complete (source locale)   |
+| `ar-SA`     | Arabic (Saudi Arabia)     | ✅ Complete                   |
+| `es-ES`     | Spanish (Spain)           | ✅ Complete                   |
+| `fr-FR`     | French (France)           | ✅ Complete                   |
+| `nl-NL`     | Dutch (Netherlands)       | ✅ Complete                   |
+| `ro-RO`     | Romanian (Romania)        | ✅ Complete                   |
+| `th-TH`     | Thai (Thailand)           | ✅ Complete                   |
+| `zh-CN`     | Chinese (Simplified)      | ✅ Complete                   |
+
+"Complete" means every en-US key exists in the locale (verified by the translation coverage
+checker below). Values that still match English are reported by the checker as *untranslated*
+rather than missing.
 
 **Note:** Additional locales can be provided via custom translations (see below).
 
@@ -294,7 +310,7 @@ const t = $derived((key: string, fallback: string) => i18n?.t(key) ?? fallback);
 For detailed guides, see the `docs/` directory:
 
 - **[Integration Guide](./docs/INTEGRATION_GUIDE.md)** - Complete guide for adding i18n to components
-- **[Component Patterns](./docs/COMPONENT_PATTERNS.md)** - Svelte 5 + DaisyUI patterns and examples
+- **[Component UI Patterns](./docs/INTEGRATION_GUIDE.md#component-ui-patterns)** - Svelte 5 + DaisyUI patterns and examples
 - **[Advanced Features](./docs/ADVANCED_FEATURES.md)** - Pluralization, number & date formatting
 - **[Message Keys](./src/locales/en-US.ts)** - All available translation keys and namespaces
 
@@ -332,7 +348,7 @@ The package includes an automated translation coverage checker that ensures all 
 bun run check-translations
 
 # Check specific locale
-bun run check-translations:locale=nl-NL
+bun run scripts/check-translations.ts --locale nl-NL
 ```
 
 The checker:
@@ -349,7 +365,8 @@ The checker:
 bun run build  # Automatically checks translations first
 ```
 
-See [Translation Coverage Documentation](./docs/TRANSLATION_COVERAGE.md) for details.
+See [`scripts/check-translations.ts`](./scripts/check-translations.ts) for the checker's behavior
+and options.
 
 ### Hardcoded String Scanner
 

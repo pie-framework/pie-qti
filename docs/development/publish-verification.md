@@ -25,7 +25,7 @@ For how a release authenticates to npm — and why a newly added package needs a
 ## Versioning notes
 
 - **`verify:publish`** uses `check:fixed-versioning` (with `SKIP_NPM_VERSION_SEQUENCE_CHECK`) so local and CI verification do not require a perfectly aligned npm registry when some packages are new or registry versions temporarily diverge.
-- **`release:with-version`** runs `check:fixed-versioning:full` before `verify:publish`, so maintainers still get a strict npm check at release time when the registry is authoritative.
+- **`release:with-version`** does not run the full fixed-versioning check in its local chain; it relies on `scripts/release.mjs`'s lockstep invariant check, and CI runs `check:fixed-versioning:full` on publish runs, so the strict npm patch-sequence check is enforced at release time when the registry is authoritative.
 
 ## Policy
 

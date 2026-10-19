@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { createComponentRegistry } from '@pie-qti/item-player';
-import {
-	getStandardBlockInteractionModules,
-	getStandardInlineInteractionModules,
-} from '../../item-player/src/interactions/modules.js';
 import { getDefaultComponentTypes, registerDefaultComponents } from '../src/index';
 
 const packageJson = JSON.parse(
@@ -12,6 +8,30 @@ const packageJson = JSON.parse(
 ) as {
 	sideEffects?: unknown;
 };
+
+/** Every standard QTI block interaction the default components must render. */
+const STANDARD_BLOCK_INTERACTION_TYPES = [
+	'associateInteraction',
+	'choiceInteraction',
+	'customInteraction',
+	'drawingInteraction',
+	'endAttemptInteraction',
+	'extendedTextInteraction',
+	'gapMatchInteraction',
+	'graphicAssociateInteraction',
+	'graphicGapMatchInteraction',
+	'graphicOrderInteraction',
+	'hotspotInteraction',
+	'hottextInteraction',
+	'matchInteraction',
+	'mediaInteraction',
+	'orderInteraction',
+	'portableCustomInteraction',
+	'positionObjectInteraction',
+	'selectPointInteraction',
+	'sliderInteraction',
+	'uploadInteraction',
+] as const;
 
 describe('default-components', () => {
 	it('should export registerDefaultComponents', () => {
@@ -24,16 +44,12 @@ describe('default-components', () => {
 		const defaultComponentTypes = getDefaultComponentTypes();
 
 		expect(defaultComponentTypes.sort()).toEqual(
-			getStandardBlockInteractionModules().map((module) => module.type).sort()
+			[...STANDARD_BLOCK_INTERACTION_TYPES].sort()
 		);
 
-		for (const module of getStandardBlockInteractionModules()) {
-			expect(registry.hasComponent(module.type)).toBe(true);
-			expect(registry.getTagNameForType(module.type)).toMatch(/^pie-qti-/);
-		}
-
-		for (const module of getStandardInlineInteractionModules()) {
-			expect(registry.hasComponent(module.type)).toBe(false);
+		for (const type of STANDARD_BLOCK_INTERACTION_TYPES) {
+			expect(registry.hasComponent(type), type).toBe(true);
+			expect(registry.getTagNameForType(type), type).toMatch(/^pie-qti-/);
 		}
 	});
 

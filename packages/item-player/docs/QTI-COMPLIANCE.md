@@ -1,6 +1,6 @@
 # QTI Delivery Coverage
 
-**Last reviewed:** 2026-07-13
+**Last reviewed:** 2026-10-17
 
 This document describes implementation coverage. It is not a claim of full conformance or formal
 1EdTech certification. The player has broad QTI 2.2 and 3.0 coverage and a compatibility path for

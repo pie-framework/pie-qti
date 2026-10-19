@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { afterAll, describe, expect, test } from 'bun:test';
 import { basename, join } from 'node:path';
 import {
 	listFixtureDirs,
@@ -110,9 +110,10 @@ describe('conformance fixtures', async () => {
 		});
 	}
 
-	test('coverage report (operator/statement -> fixtures)', () => {
-		// This is intentionally a lightweight report: it gives visibility into what
-		// we *think* we cover, based on fixture manifests.
+	// The coverage report is operator visibility, not a test: it prints what the
+	// fixture manifests appear to cover. The real assertions live in the
+	// per-fixture cases above (and in the fixture-discovery test).
+	afterAll(() => {
 		const lines: string[] = [];
 		for (const tag of [...coverage.keys()].sort()) {
 			const fixtures = [...(coverage.get(tag) || [])].sort();
@@ -120,7 +121,6 @@ describe('conformance fixtures', async () => {
 		}
 		// eslint-disable-next-line no-console
 		console.log(lines.length ? `\n[conformance coverage]\n${lines.join('\n')}\n` : '\n[conformance coverage]\n(none)\n');
-		expect(true).toBe(true);
 	});
 });
 

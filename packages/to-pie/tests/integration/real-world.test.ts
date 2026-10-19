@@ -280,9 +280,11 @@ describe('Real-World QTI Integration Tests', () => {
       const result = await plugin.transform(input, context);
       const model = result.items[0].content.config.models[0];
 
-      // match-list stores prompt differently than match
-      const hasPrompt = model.prompt || model.layout?.prompt || true;
-      expect(hasPrompt).toBeTruthy();
+      // The authored prompt must survive the transformation on the model
+      // (or, for prompt-refactoring layouts, on the layout).
+      const prompt = model.prompt ?? model.layout?.prompt;
+      expect(typeof prompt).toBe('string');
+      expect(prompt as string).toContain('Shakespeare');
     });
 
     test('should extract item identifiers correctly', async () => {

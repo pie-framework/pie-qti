@@ -49,7 +49,7 @@ There is no `qti-composite-interaction` element.
 
 ```typescript
 // Auto-detect version from XML
-import { createQtiParser, isQti3 } from '@pie-qti/qti-common';
+import { createQtiParser } from '@pie-qti/qti-common';
 import { createAssessmentItemDefinition } from '@pie-qti/item-player';
 
 const xml = `<qti-assessment-item ...>...</qti-assessment-item>`;
@@ -339,7 +339,7 @@ Catalog parsing and glossary/keyword-translation popup support are implemented:
   through `getInstance(dom, configuration, state)`, and multi-module declarations load through
   the loader's `define` wiring with resolution-config parsing. Still scheduled: browser-level
   evidence with a published candidate and third-party content as a same-reading check — see
-  [`../plans/version-1-0-2026-10.md`](../plans/version-1-0-2026-10.md).
+  [`plans/version-1-0-2026-10.md`](plans/version-1-0-2026-10.md).
 - Braille data exposure landed (G-13, done): `braille-text` lookups answer APIP `braille` entries
   too, and `pnp.display.structuredLabelSupport` labels interaction answer sets for screen
   readers. Manifest-level shared catalogs landed too (G-15, done): `imsqti_catalog_xmlv3p0`
@@ -353,7 +353,7 @@ Catalog parsing and glossary/keyword-translation popup support are implemented:
 Dynamic `preCondition` evaluation, section/testPart `branchRule` execution, `withReplacement`
 clone materialization (2026-10-15), and packaged processing-fragment resolution (2026-10-16) are
 implemented; the lists above name what remains between here and the 1.0 acceptance criteria in
-[`../plans/version-1-0-2026-10.md`](../plans/version-1-0-2026-10.md). Until those criteria are met,
+[`plans/version-1-0-2026-10.md`](plans/version-1-0-2026-10.md). Until those criteria are met,
 the project must not be described as fully conformant or certified.
 
 ## Testing
@@ -372,7 +372,7 @@ bun test packages/qti-common/src/__tests__/qti3-integration.test.ts
 
 ```bash
 # Test with QTI 3.0 fixtures
-bun test packages/item-player -- --grep "QTI 3.0"
+cd packages/item-player && bun test -t "QTI 3.0"
 ```
 
 ### Sample Fixtures

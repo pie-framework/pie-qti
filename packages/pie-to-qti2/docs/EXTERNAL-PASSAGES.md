@@ -41,7 +41,7 @@ const pieItem = {
 // Result: Single QTI item with embedded passage
 ```
 
-### External Strategy (Phase 2)
+### External Strategy
 
 **Used when:**
 - PIE item has `passage` property (string reference or full object)
@@ -272,30 +272,20 @@ const resolver: PassageResolver = async (passageId) => {
 
 ## Best Practices
 
-### 1. Passage Deduplication (Future)
+### 1. Passage Deduplication
 
-When transforming multiple items that reference the same passage:
+When transforming multiple items that share passages, use the batch APIs: each shared passage file is generated once and referenced by every item. See [Passage Deduplication](./PASSAGE-DEDUPLICATION.md).
 
-```typescript
-// Phase 3 will support:
-// - Detect duplicate passage IDs across items
-// - Generate each passage file only once
-// - Update all item references accordingly
-```
-
-### 2. IMS Content Package Generation (Future)
+### 2. IMS Content Package Generation
 
 ```typescript
 const plugin = new PieToQtiPlugin({
   passageResolver: resolver,
-  generatePackage: true // Phase 2: Generate IMS CP manifest
+  generatePackage: true
 });
-
-// Result will include imsmanifest.xml with:
-// - Resource entries for each item
-// - Resource entries for each passage
-// - File dependencies
 ```
+
+The result includes an `imsmanifest.xml` with resource entries for each item and passage plus their file dependencies. See [Manifest Generation](./MANIFEST-GENERATION.md).
 
 ### 3. Metadata Preservation
 
@@ -352,7 +342,6 @@ interface GeneratedPassageFile {
 interface PieToQtiPluginOptions {
   registry?: GeneratorRegistry;
 
-  // External passage support (Phase 2)
   passageResolver?: PassageResolver;
   passageStrategy?: PassageStrategy;
   generatePackage?: boolean;
@@ -393,15 +382,9 @@ See [tests/integration/external-passages.test.ts](../tests/integration/external-
 
 ## Future Enhancements
 
-### Phase 2 (In Progress)
-- ✅ External passage resolution with PassageResolver callback
-- ✅ Separate passage file generation
-- ✅ QTI object reference insertion
-- ⏳ IMS manifest generation
-- ⏳ Passage deduplication
+Batch transformation with shared passages is available today; see [Passage Deduplication](./PASSAGE-DEDUPLICATION.md) and [Manifest Generation](./MANIFEST-GENERATION.md).
 
-### Phase 3 (Planned)
-- Batch transformation with shared passages
+### Planned
 - Custom passage file naming strategies
 - Passage template support
 - Advanced metadata mapping

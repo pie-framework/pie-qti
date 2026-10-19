@@ -28,13 +28,16 @@ describe('player-elements package metadata', () => {
 		expect(Object.hasOwn(packageJson.exports ?? {}, './elements')).toBe(true);
 		expect(Object.hasOwn(packageJson.exports ?? {}, './register-players')).toBe(true);
 		expect(packageJson.types).toBe('./dist/public/index.d.ts');
-		expect(packageJson.dependencies).toEqual({
-			// Runtime imports: ReferenceBackendAdapter + the shared XML scan primitives, and
-			// the encoded-path guard reused from ims-cp-core.
-			'@pie-qti/assessment-player': 'workspace:*',
-			'@pie-qti/ims-cp-core': 'workspace:*',
-			'@pie-qti/item-player': 'workspace:*',
-		});
+		// Runtime imports the bundler must find: the player, the shared XML scan
+		// primitives, and the encoded-path guard. (New dependencies may be added
+		// freely; these must not silently disappear.)
+		for (const dependency of [
+			'@pie-qti/assessment-player',
+			'@pie-qti/ims-cp-core',
+			'@pie-qti/item-player',
+		]) {
+			expect(packageJson.dependencies?.[dependency]).toBe('workspace:*');
+		}
 		expect(packageJson.devDependencies?.['@pie-qti/default-components']).toBe('workspace:*');
 	});
 

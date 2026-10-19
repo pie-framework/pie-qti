@@ -11,6 +11,12 @@ describe('createQtiChangeEvent', () => {
 		expect(typeof event.detail.timestamp).toBe('number');
 	});
 
+	test('the event crosses shadow-DOM and player boundaries', () => {
+		const event = createQtiChangeEvent('RESPONSE', ['A', 'B']);
+		expect(event.bubbles).toBe(true);
+		expect(event.composed).toBe(true);
+	});
+
 	test('throws when responseId is missing', () => {
 		expect(() => createQtiChangeEvent(undefined, 'A')).toThrow('responseId');
 	});

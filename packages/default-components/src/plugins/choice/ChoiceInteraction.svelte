@@ -130,14 +130,18 @@
 		emitInteractionChange({ target: rootElement, responseId: shell.responseId, value: identifier, onChange });
 	}
 
-	function handleCheckboxChange(identifier: string, checked: boolean) {
+	function handleCheckboxChange(identifier: string, checked: boolean, input?: HTMLInputElement) {
 		const currentValues = Array.isArray(parsedResponse) ? parsedResponse : [];
 		let newValues = [...currentValues];
 
 		if (checked) {
 			// Enforce maxChoices (0 = unlimited)
 			const max = parsedInteraction?.maxChoices ?? 0;
-			if (max > 0 && newValues.length >= max) return;
+			if (max > 0 && newValues.length >= max) {
+				// The selection is refused, so don't leave the checkbox visually checked.
+				if (input) input.checked = false;
+				return;
+			}
 			newValues.push(identifier);
 		} else {
 			newValues = newValues.filter((v) => v !== identifier);
@@ -269,8 +273,8 @@
 						aria-labelledby={textId}
 						checked={currentValues.includes(choice.identifier)}
 						onchange={(e: Event) => {
-							const checked = (e.currentTarget as HTMLInputElement).checked;
-							handleCheckboxChange(choice.identifier, checked);
+							const target = e.currentTarget as HTMLInputElement;
+							handleCheckboxChange(choice.identifier, target.checked, target);
 						}}
 						{disabled}
 					/>

@@ -126,3 +126,34 @@ export class SilentTestLogger {
 	warn(_msg: string) {}
 	error(_msg: string) {}
 }
+
+import type {
+	TransformPlugin,
+	StorageBackend,
+	WorkflowOrchestrator,
+} from '@pie-qti/transform-types';
+import { TransformEngine } from '@pie-qti/transform-core';
+
+export interface TestEngineOptions {
+	/** Plugins to register */
+	plugins?: TransformPlugin[];
+	/** Storage backend to use */
+	storage?: StorageBackend;
+	/** Workflow orchestrator */
+	orchestrator?: WorkflowOrchestrator;
+}
+
+/**
+ * Create a TransformEngine configured for testing.
+ * (Formerly re-exported from @pie-qti/test-utils; it lives here because this
+ * is the only consumer and the shared package must not depend on the engine.)
+ */
+export function createTestEngine(options: TestEngineOptions = {}): TransformEngine {
+	const engine = new TransformEngine(options.orchestrator, options.storage);
+
+	for (const plugin of options.plugins || []) {
+		engine.use(plugin);
+	}
+
+	return engine;
+}

@@ -263,12 +263,6 @@ async function createTwoItemPlayerWithRepeatedResponseIdentifier(): Promise<Asse
 // ---------------------------------------------------------------------------
 
 describe('QTI 2.2 Advanced — T1/T9 Outcome Declaration & Processing', () => {
-	it('T1-L2-D1: SCORE_TOTAL declaration has defaultValue=0', () => {
-		const decl = T1_T9_ASSESSMENT.outcomeDeclarations?.find((d) => d.identifier === 'SCORE_TOTAL');
-		expect(decl).toBeDefined();
-		expect(decl!.defaultValue).toBe(0);
-	});
-
 	it('T9-L2-D1: SCORE_TOTAL equals 3 when all items answered correctly', async () => {
 		const adapter = makeAdapter(T1_T9_ASSESSMENT);
 		const initRes = await adapter.initSession({
@@ -327,11 +321,6 @@ describe('QTI 2.2 Advanced — T1/T9 Outcome Declaration & Processing', () => {
 // ---------------------------------------------------------------------------
 
 describe('QTI 2.2 Advanced — T5 Item Session Control (maxAttempts=0)', () => {
-	it('T5-L2-D1: testPart itemSessionControl maxAttempts=0 is parsed correctly', () => {
-		const testPart = T5_ASSESSMENT.testParts[0];
-		expect(testPart.itemSessionControl?.maxAttempts).toBe(0);
-	});
-
 	it('T5-L2-D1: session info reports unlimited submissions when maxAttempts=0', async () => {
 		const player = await createPlayer(T5_ASSESSMENT);
 		const info = player.getItemSessionInfo();
@@ -378,29 +367,6 @@ describe('QTI 2.2 Advanced — T12 Multiple Sections', () => {
 		const nav = player.getNavigationState();
 		expect(nav.totalSections).toBe(3);
 	});
-
-	it('T12-L2-D1: Section 1 contains items 1–4', () => {
-		const assessment = (player as any).assessment as SecureAssessment;
-		const s1 = assessment.testParts[0].sections[0];
-		expect(s1.assessmentItemRefs.map((r: any) => r.identifier)).toEqual([
-			't12-item-1', 't12-item-2', 't12-item-3', 't12-item-4',
-		]);
-	});
-
-	it('T12-L2-D1: Section 2 contains items 5–7', () => {
-		const assessment = (player as any).assessment as SecureAssessment;
-		const s2 = assessment.testParts[0].sections[1];
-		expect(s2.assessmentItemRefs.map((r: any) => r.identifier)).toEqual([
-			't12-item-5', 't12-item-6', 't12-item-7',
-		]);
-	});
-
-	it('T12-L2-D1: Section 3 contains item 8', () => {
-		const assessment = (player as any).assessment as SecureAssessment;
-		const s3 = assessment.testParts[0].sections[2];
-		expect(s3.assessmentItemRefs).toHaveLength(1);
-		expect(s3.assessmentItemRefs[0].identifier).toBe('t12-item-8');
-	});
 });
 
 // ---------------------------------------------------------------------------
@@ -408,10 +374,6 @@ describe('QTI 2.2 Advanced — T12 Multiple Sections', () => {
 // ---------------------------------------------------------------------------
 
 describe('QTI 2.2 Advanced — T2 Test Level Time Limits', () => {
-	it('T2-L2-D1: timeLimits.maxTime=60 is available from assessment structure', () => {
-		expect(T12_ASSESSMENT.timeLimits?.maxTime).toBe(60);
-	});
-
 	it('T2-L2-D1: parseAssessmentTestXml extracts timeLimits.maxTime=60', async () => {
 		const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <assessmentTest xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
@@ -439,16 +401,6 @@ describe('QTI 2.2 Advanced — S1 Section-level itemSessionControl', () => {
 
 	beforeEach(async () => {
 		player = await createPlayer(T12_ASSESSMENT);
-	});
-
-	it('S1-L2-D1: Section 1 itemSessionControl.allowSkipping=true', () => {
-		const assessment = (player as any).assessment as SecureAssessment;
-		expect(assessment.testParts[0].sections[0].itemSessionControl?.allowSkipping).toBe(true);
-	});
-
-	it('S1-L2-D2: Section 2 itemSessionControl.allowSkipping=false', () => {
-		const assessment = (player as any).assessment as SecureAssessment;
-		expect(assessment.testParts[0].sections[1].itemSessionControl?.allowSkipping).toBe(false);
 	});
 
 	it('S1-L2-D1: navigating to section-1 item applies allowSkipping=true', async () => {

@@ -16,7 +16,7 @@ Critical requirements:
 
 - Frontend: Svelte 5 with TypeScript.
 - Build: Vite and SvelteKit.
-- Testing: Vitest for unit/component tests and Playwright for end-to-end tests.
+- Testing: Bun's built-in test runner (`bun test`) for unit tests, Vitest with jsdom for Svelte component behavior tests (`packages/default-components`, run with `bun run test:component`), and Playwright for end-to-end tests.
 - Package management: Bun in a monorepo.
 - Internationalization: custom i18n framework in `@pie-qti/i18n`.
 
@@ -25,9 +25,10 @@ Critical requirements:
 After completing each feature or fix:
 
 1. Run Biome with auto-fix: `bun run lint:fix` or `npx @biomejs/biome check --write .`.
-2. Run TypeScript type checking: `bunx tsc --noEmit`.
-3. Run Svelte type checking where relevant, for example `bunx svelte-check --workspace packages/components`.
-4. Fix errors and warnings before marking the task complete.
+2. Run TypeScript type checking: `bun run typecheck` (Turborepo runs `tsc --noEmit` in every workspace; the root tsconfig is solution-style and checks nothing on its own).
+3. Run Svelte type checking where relevant: `bun run check` (runs svelte-check in every Svelte workspace), or for a single package, for example `cd packages/item-player && bun run check`.
+4. If any markdown documentation changed: `bun run check:doc-links` (validates relative links and heading anchors across all markdown; CI enforces this).
+5. Fix errors and warnings before marking the task complete.
 
 Before any merge request:
 
@@ -97,12 +98,12 @@ import XmlEditor from '$lib/components/XmlEditor.svelte';
 <XmlEditor bind:content={xmlString} onContentChange={handleChange} />
 ```
 
-`XmlEditor` provides syntax highlighting with TipTap and Lowlight, theme-aware display, text selection for copying, and read-only/editable modes.
+`XmlEditor` provides syntax highlighting with TipTap and Lowlight, theme-aware display, text selection for copying, and read-only/editable modes. (The component lives in the demo app at `apps/demo/src/lib/components/XmlEditor.svelte`; this rule applies to demo/docs app code, not to published packages.)
 
 ## Testing Strategy
 
-- Unit tests: use for business logic, utilities, and pure functions.
-- Component tests: use for isolated component behavior.
+- Unit tests: use for business logic, utilities, and pure functions. Run with `bun test` (per package, via the package's `test` script); import from `bun:test`.
+- Component tests: use for isolated component behavior. `packages/default-components` mounts its real Svelte interaction components in jsdom under Vitest (`tests/component/*.vitest.ts`, run via `bun run test:component`); the `.vitest.ts` suffix keeps them out of `bun test`.
 - End-to-end tests: use Playwright for full user workflows.
 - Accessibility tests: combine automated checks with manual verification for changed assessment interactions.
 

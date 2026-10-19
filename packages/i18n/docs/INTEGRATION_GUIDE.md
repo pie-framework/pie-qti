@@ -15,7 +15,8 @@ This guide explains how to add and use i18n in your components.
 5. [Adding New Message Keys](#adding-new-message-keys)
 6. [Testing with Different Locales](#testing-with-different-locales)
 7. [Common Pitfalls](#common-pitfalls)
-8. [Best Practices](#best-practices)
+8. [Component UI Patterns](#component-ui-patterns)
+9. [Best Practices](#best-practices)
 
 ---
 
@@ -48,10 +49,10 @@ const translations = $derived({
 
 ```svelte
 <script lang="ts">
-import { SvelteI18nProvider } from '@pie-qti/i18n';
+import { createDefaultSvelteI18nProvider } from '@pie-qti/i18n';
 import MyComponent from './MyComponent.svelte';
 
-const i18nProvider = new SvelteI18nProvider('en-US');
+const i18nProvider = await createDefaultSvelteI18nProvider('en-US');
 </script>
 
 <MyComponent i18n={i18nProvider} />
@@ -132,9 +133,9 @@ const translations = $derived({
 ```
 
 **Why $derived?**
-- Translations reactively update when locale changes
-- Computed once per locale change (efficient)
-- Clean, declarative syntax
+- Keeps translation lookups declarative and tied to the component's inputs
+- Re-evaluates whenever the `i18n` prop or interpolation values change
+- Locale switches go through `SvelteI18nProvider.setLocale()`, which persists the locale and reloads the page, so components always render with the active locale
 
 ### Step 3: Use Translations in Template
 
@@ -174,14 +175,18 @@ let { i18n }: { i18n?: I18nProvider } = $props();
 ### Basic Usage
 
 ```typescript
-// ✅ CORRECT - Reactive with $derived
+// ✅ CORRECT - Derived translation
 const translations = $derived({
   title: i18n?.t('page.title') ?? 'page.title',
 });
 
-// ❌ INCORRECT - Won't update on locale change
+// ❌ INCORRECT - Translation captured once as a plain constant
 const title = i18n?.t('page.title') ?? 'page.title';
 ```
+
+**Note:** Locale changes through `SvelteI18nProvider.setLocale()` persist the locale and reload the
+page, so components render correctly after a locale switch. `$derived` still matters for values
+that change within a component's lifetime (props, state, interpolated values).
 
 ### Interpolation
 
@@ -302,12 +307,12 @@ TypeScript will automatically provide autocomplete for your new keys! The i18n p
 
 ```svelte
 <script lang="ts">
-import { SvelteI18nProvider } from '@pie-qti/i18n';
+import { createDefaultSvelteI18nProvider } from '@pie-qti/i18n';
 
 // Test with different locales
-const i18nProvider = new SvelteI18nProvider('es-ES'); // Spanish
-// const i18nProvider = new SvelteI18nProvider('fr-FR'); // French
-// const i18nProvider = new SvelteI18nProvider('nl-NL'); // Dutch
+const i18nProvider = await createDefaultSvelteI18nProvider('es-ES'); // Spanish
+// const i18nProvider = await createDefaultSvelteI18nProvider('fr-FR'); // French
+// const i18nProvider = await createDefaultSvelteI18nProvider('nl-NL'); // Dutch
 </script>
 
 <YourComponent i18n={i18nProvider} />
@@ -317,13 +322,14 @@ const i18nProvider = new SvelteI18nProvider('es-ES'); // Spanish
 
 ```svelte
 <script lang="ts">
-import { SvelteI18nProvider } from '@pie-qti/i18n';
+import { createDefaultSvelteI18nProvider } from '@pie-qti/i18n';
 
-const i18nProvider = new SvelteI18nProvider('en-US');
+const i18nProvider = await createDefaultSvelteI18nProvider('en-US');
 
 async function switchLocale(locale: string) {
   await i18nProvider.setLocale(locale);
-  // All components reactively update!
+  // Persists the locale to localStorage and reloads the page, so every
+  // component renders with the new locale after the reload.
 }
 </script>
 
@@ -360,10 +366,10 @@ const label = i18n?.t('component.label') ?? 'component.label';
 ### ❌ Not Using $derived
 
 ```typescript
-// ❌ WRONG - Won't update on locale change
+// ❌ WRONG - Translation captured once as a plain constant
 const title = i18n?.t('page.title') ?? 'page.title';
 
-// ✅ CORRECT - Reactive translation
+// ✅ CORRECT - Derived translation
 const translations = $derived({
   title: i18n?.t('page.title') ?? 'page.title',
 });
@@ -405,6 +411,158 @@ const label = i18n?.t('component.label', { locale: 'en-US' });
 
 // ✅ CORRECT - Use current locale
 const label = i18n?.t('component.label');
+```
+
+---
+
+## Component UI Patterns
+
+The examples above use [DaisyUI](https://daisyui.com/) semantic utility classes. The patterns in this section are the conventions used across PIE-QTI components.
+
+### DaisyUI Semantic Classes
+
+Use DaisyUI's semantic utility classes consistently:
+
+```svelte
+<!-- Buttons -->
+<button class="btn btn-primary">Primary Action</button>
+<button class="btn btn-outline">Secondary Action</button>
+<button class="btn btn-error">Destructive Action</button>
+
+<!-- Forms -->
+<div class="form-control">
+  <label class="label">
+    <span class="label-text">Field Label</span>
+  </label>
+  <input class="input input-bordered" />
+</div>
+
+<!-- Alerts -->
+<div class="alert alert-error">Error message</div>
+<div class="alert alert-warning">Warning message</div>
+<div class="alert alert-info">Info message</div>
+```
+
+### Loading, Skeleton, and Progress States
+
+```svelte
+<!-- Spinner -->
+<div class="flex justify-center items-center py-8">
+  <span class="loading loading-spinner loading-lg"></span>
+</div>
+
+<!-- Spinner with a translated message -->
+<div class="flex flex-col justify-center items-center gap-4 py-8">
+  <span class="loading loading-spinner loading-lg"></span>
+  <p class="text-sm text-base-content/70">{translations.loading}</p>
+</div>
+
+<!-- Skeleton placeholders -->
+<div class="space-y-4">
+  <div class="skeleton h-4 w-full"></div>
+  <div class="skeleton h-4 w-3/4"></div>
+  <div class="skeleton h-32 w-full"></div>
+</div>
+
+<!-- Progress bar -->
+<progress class="progress progress-primary w-full" value={progress} max="100"></progress>
+```
+
+### Alerts
+
+```svelte
+<!-- Error alert -->
+<div class="alert alert-error">
+  <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+  </svg>
+  <span>{errorMessage}</span>
+</div>
+
+<!-- Dismissible info alert -->
+{#if visible}
+  <div class="alert alert-info">
+    <span>{message}</span>
+    <button
+      class="btn btn-sm btn-circle btn-ghost"
+      onclick={() => visible = false}
+      aria-label={translations.close}
+    >
+      ✕
+    </button>
+  </div>
+{/if}
+```
+
+### Drag and Drop with `touchDrag`
+
+Interactive components that drag use the `touchDrag` action from `@pie-qti/qti-common` so drag
+works on touch devices, not only with a mouse:
+
+```svelte
+<script lang="ts">
+  import { touchDrag } from '@pie-qti/qti-common';
+
+  let draggedItem = $state<string | null>(null);
+  let hoveredZone = $state<string | null>(null);
+
+  const translations = $derived({
+    dragInstruction: i18n?.t('interactions.component.dragInstruction') ?? 'interactions.component.dragInstruction',
+    dropZone: i18n?.t('interactions.component.dropZone') ?? 'interactions.component.dropZone',
+  });
+
+  function handleDragStart(itemId: string) {
+    if (disabled) return;
+    draggedItem = itemId;
+  }
+
+  function handleDragEnd() {
+    draggedItem = null;
+    hoveredZone = null;
+  }
+
+  function handleDrop(event: DragEvent, zoneId: string) {
+    if (disabled || !draggedItem) return;
+    event.preventDefault();
+
+    onChange({ item: draggedItem, zone: zoneId });
+
+    draggedItem = null;
+    hoveredZone = null;
+  }
+</script>
+
+<!-- Draggable item -->
+<button
+  type="button"
+  draggable={!disabled}
+  use:touchDrag
+  ondragstart={() => handleDragStart(item.id)}
+  ondragend={handleDragEnd}
+  class="btn btn-primary"
+  class:opacity-50={draggedItem === item.id}
+  aria-label="{item.label}. {translations.dragInstruction}"
+>
+  {item.label}
+</button>
+
+<!-- Drop zone -->
+<div
+  ondragover={(e) => { e.preventDefault(); hoveredZone = zone.id; }}
+  ondragleave={() => hoveredZone = null}
+  ondrop={(e) => handleDrop(e, zone.id)}
+  class="border-2 border-dashed rounded-lg p-4"
+  class:border-primary={hoveredZone === zone.id}
+  role="button"
+  tabindex="0"
+  aria-label={translations.dropZone}
+>
+  {#if hoveredZone === zone.id}
+    <div class="text-primary">{translations.dropHere}</div>
+  {:else}
+    {zone.label}
+  {/if}
+</div>
 ```
 
 ---
@@ -680,16 +838,7 @@ function clearAll() {
 
 ---
 
-## Related Documentation
-
-- [COMPONENT_PATTERNS.md](./COMPONENT_PATTERNS.md) - Svelte 5 + DaisyUI + i18n patterns
-- [I18N_IMPLEMENTATION_PLAN.md](../../../I18N_IMPLEMENTATION_PLAN.md) - Complete implementation plan
-- [I18N_PROGRESS_SUMMARY.md](../../../I18N_PROGRESS_SUMMARY.md) - Current progress
-
----
-
 ## Need Help?
 
 - Check existing components for examples: [NavigationBar.svelte](../../assessment-player/src/components/NavigationBar.svelte)
 - Review the [en-US locale file](../src/locales/en-US.ts) for available keys
-- See [COMPONENT_PATTERNS.md](./COMPONENT_PATTERNS.md) for more patterns

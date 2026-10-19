@@ -171,6 +171,7 @@ For testing transformations with validation:
 import { describe, test, expect } from 'bun:test';
 import { QtiToPiePlugin } from '@pie-qti/to-pie';
 import { PieItemValidator } from '@pie-qti/transform-core';
+import { SilentLogger } from '@pie-qti/test-utils';
 
 describe('QTI to PIE transformation', () => {
   test('should produce valid PIE output', async () => {
@@ -178,10 +179,7 @@ describe('QTI to PIE transformation', () => {
     const validator = new PieItemValidator();
 
     // Load schemas for elements you're testing
-    await validator.loadSchema(
-      '@pie-element/multiple-choice',
-      './schemas/multiple-choice/pie-schema.json'
-    );
+    await validator.loadSchemaForElement('@pie-element/multiple-choice');
 
     const output = await plugin.transform(
       { content: qtiXml },

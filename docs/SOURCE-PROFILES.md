@@ -147,7 +147,12 @@ Preview URLs, CDN rewrites, storage destinations, and publish fan-out are host c
 
 ## Built-In And Host-Owned Profiles
 
-- Built into `@pie-qti/source-profiles`: `common-cartridge-csm`, which extracts CSM standard candidates from manifest metadata.
-- Host-owned packages can register partner/publisher profiles such as Savvas, GCA/UGA, Progress Learning, HMH/Amplify, or McGraw Hill/MHE using the same `QtiSourceProfile` API.
+`@pie-qti/source-profiles` (`packages/source-profiles/src/index.ts`) ships three built-in profiles in `defaultSourceProfiles`:
+
+- `common-cartridge-csm` — Common Cartridge Curriculum Standards Metadata; extracts CSM standard candidates from manifest metadata.
+- `partner.gca` — GCA/UGA Partner QTI.
+- `savvas.myperspectives.examview.qti21` — Savvas myPerspectives ExamView QTI 2.1.
+
+These built-ins cover the sources the repository already models. NEW partner/publisher profiles (Progress Learning, HMH/Amplify, McGraw Hill/MHE, and similar) belong in host packages, registered through the same `QtiSourceProfile` API.
 
 Host-owned profiles should be intentionally incremental. Add source-specific conversion behavior only when fixtures and fidelity expectations are clear; otherwise prefer precise diagnostics and reviewable trace output.
