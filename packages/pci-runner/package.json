@@ -38,7 +38,7 @@
     "@biomejs/biome": "^2.5.15",
     "@pie-qti/item-player": "workspace:*",
     "typescript": "^5.9.3",
-    "vite": "^8.2.1"
+    "vite": "^8.3.4"
   },
   "peerDependenciesMeta": {},
   "repository": {
