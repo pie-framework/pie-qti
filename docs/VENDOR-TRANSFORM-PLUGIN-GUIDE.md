@@ -124,34 +124,7 @@ That's it! Your vendor plugin will now handle ACME content with priority over th
 
 ## Understanding the Architecture
 
-### Plugin Lifecycle
-
-```mermaid
-graph TD
-    A[Transform Request] --> B{Format Detection}
-    B --> C[Find Matching Plugins]
-    C --> D{Multiple Plugins?}
-    D -->|Yes| E[Sort by Priority]
-    D -->|No| F[Use Single Plugin]
-    E --> G[Select Highest Priority]
-    G --> H{canHandle?}
-    F --> H
-    H -->|Yes| I[Execute transform]
-    H -->|No| J[Try Next Plugin]
-    J --> H
-    I --> K[Return Result]
-```
-
-### Plugin Priority System
-
-Plugins are selected based on **priority** when multiple plugins support the same format pair:
-
-| Priority Range | Purpose | Example Use Case |
-|----------------|---------|------------------|
-| 1-99 | Low priority | Fallback implementations |
-| 100-499 | Normal priority | Default framework plugins |
-| 500-999 | High priority | **Vendor-specific overrides** |
-| 1000+ | Critical priority | Framework internals |
+The plugin lifecycle (registration → format detection → plugin selection → `canHandle()` → transform) and the priority table that governs selection are documented in [Transformation Engine — plugin priority](./TRANSFORMATION-ENGINE.md#plugin-priority).
 
 **Key Insight**: Vendor plugins should use priority **500-999** to override default plugins while allowing framework internals to take precedence.
 
@@ -1470,7 +1443,7 @@ export const vendorAcmePlugin = createAcmePlugin({
 ## Additional Resources
 
 - [PIE-QTI Core Architecture](./ARCHITECTURE.md)
-- [Transform Types Reference](../packages/types/README.md)
+- [Transform Types Reference](../packages/types/src/transform/plugin.ts) (`TransformPlugin`, `TransformInput`/`TransformOutput`, `ErrorCategory`)
 - [Test Utils Documentation](../packages/test-utils/README.md)
 - [QTI 2.2 Specification](http://www.imsglobal.org/question/qtiv2p2/imsqti_v2p2.html)
 - [PIE Framework Documentation](https://github.com/pie-framework)

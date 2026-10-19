@@ -8,6 +8,7 @@ import { describe, expect, test } from 'bun:test';
 import { QtiToPiePlugin } from '@pie-qti/to-pie';
 import type { PieItem } from '@pie-qti/transform-types';
 import { PieToQtiPlugin } from '../../src/plugin.js';
+import { expectSidecarIsolation } from '../helpers/sidecar.js';
 
 describe('Round-Trip: PIE → QTI → PIE', () => {
   const pieToQti = new PieToQtiPlugin();
@@ -57,9 +58,7 @@ describe('Round-Trip: PIE → QTI → PIE', () => {
     // Verify QTI was generated
     expect(qtiXml).toContain('assessmentItem');
     expect(qtiXml).toContain('choiceInteraction');
-    // The source model, search metadata included, travels in the PIE source sidecar.
-    expect(qtiXml).not.toContain('pie:');
-    expect(qtiXml).not.toContain('qti-metadata');
+    expectSidecarIsolation(qtiXml);
 
     // QTI → PIE
     const pieResult = await qtiToPie.transform(
@@ -220,9 +219,7 @@ describe('Round-Trip: PIE → QTI → PIE', () => {
     expect(qtiXml).toContain('inlineChoiceInteraction');
     expect(qtiXml).toContain('RESPONSE_0');
     expect(qtiXml).toContain('RESPONSE_1');
-    // The source model, search metadata included, travels in the PIE source sidecar.
-    expect(qtiXml).not.toContain('pie:');
-    expect(qtiXml).not.toContain('qti-metadata');
+    expectSidecarIsolation(qtiXml);
 
     // QTI → PIE
     const pieResult = await qtiToPie.transform(
@@ -281,9 +278,7 @@ describe('Round-Trip: PIE → QTI → PIE', () => {
     expect(qtiXml).toContain('assessmentItem');
     expect(qtiXml).toContain('hottextInteraction');
     expect(qtiXml).toContain('<hottext identifier="TOKEN_0">runs</hottext>');
-    // The source model, search metadata included, travels in the PIE source sidecar.
-    expect(qtiXml).not.toContain('pie:');
-    expect(qtiXml).not.toContain('qti-metadata');
+    expectSidecarIsolation(qtiXml);
 
     // QTI → PIE
     const pieResult = await qtiToPie.transform(
@@ -345,9 +340,7 @@ describe('Round-Trip: PIE → QTI → PIE', () => {
     expect(qtiXml).toContain('hotspotInteraction');
     expect(qtiXml).toContain('hotspotChoice');
     expect(qtiXml).toContain('shape="rect"');
-    // The source model, search metadata included, travels in the PIE source sidecar.
-    expect(qtiXml).not.toContain('pie:');
-    expect(qtiXml).not.toContain('qti-metadata');
+    expectSidecarIsolation(qtiXml);
 
     // QTI → PIE
     const pieResult = await qtiToPie.transform(
@@ -409,9 +402,7 @@ describe('Round-Trip: PIE → QTI → PIE', () => {
     expect(qtiXml).toContain('orderInteraction');
     expect(qtiXml).toContain('simpleChoice');
     expect(qtiXml).toContain('shuffle="true"');
-    // The source model, search metadata included, travels in the PIE source sidecar.
-    expect(qtiXml).not.toContain('pie:');
-    expect(qtiXml).not.toContain('qti-metadata');
+    expectSidecarIsolation(qtiXml);
 
     // QTI → PIE
     const pieResult = await qtiToPie.transform(

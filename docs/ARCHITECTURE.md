@@ -19,7 +19,6 @@ High-level architecture overview for PIE-QTI.
 ### Tools
 
 - **CLI** for batch conversion and analysis.
-- **Transform app** for upload → analyze → transform → preview.
 
 ### Version support (important boundary)
 
@@ -40,12 +39,18 @@ Everything lives under `packages/` and `apps/`:
 - `packages/storage`: pluggable storage backends (filesystem, S3, database)
 - `packages/to-pie`: QTI → PIE transform plugin (plus vendor extension hooks)
 - `packages/pie-to-qti2`: PIE → QTI transform plugin (generator registry + packaging)
+- `packages/qti-common`: QTI version detection and element/attribute name mappers for 2.x ↔ 3.0 normalization
+- `packages/source-profiles`: built-in QTI source profiles for imports
+- `packages/ims-cp-core`, `packages/ims-cp-browser`, `packages/ims-cp-node`: IMS Content Package parsing (core, browser, and node runtimes)
 
 ### Player packages
 
 - `packages/item-player`: QTI item player (core engine + extraction + web-component rendering + optional iframe host helper)
 - `packages/assessment-player`: QTI assessment shell (sections, navigation, persistence, backend adapter)
+- `packages/section-player`: section-level player elements/runtime
+- `packages/assessment-toolkit`: shared section-context helpers
 - `packages/default-components`: default web components for QTI interactions (Svelte-authored, but web-component contract is framework-agnostic)
+- `packages/pci-runner`: deployable cross-origin runner page for sandboxed PCI execution
 
 ### Optional adapters / supporting packages
 
@@ -53,10 +58,17 @@ Everything lives under `packages/` and `apps/`:
 - `packages/typeset-katex`: KaTeX typesetting adapter (host-provided `typeset()` function)
 - `packages/qti-processing`: response processing operators/templates used by the item player
 - `packages/player-elements`, `packages/web-component-loaders`: web-component build/load helpers
+- `packages/theme`, `packages/theme-daisyui`: theme tokens and the DaisyUI bridge
+- `packages/logger`, `packages/test-utils`: logging and shared test support
+
+### Extensibility examples
+
+- `packages/acme-likert-plugin`, `packages/demo-vendor-extensions`: extensibility examples (item-player definition plugin and transform vendor extensions)
 
 ### Apps
 
 - `apps/demo`: example app + fixtures + reference iframe runtime page
+- `apps/docs`: documentation site
 
 ---
 
@@ -99,7 +111,8 @@ boundary. Plugins complete asynchronous setup before synchronous definition cons
 Key references:
 
 - `packages/item-player/src/core/AssessmentItemDefinition.ts`
-- `packages/item-player/src/extraction/ElementExtractor.ts`
+- `packages/item-player/src/extraction/ExtractionRegistry.ts`
+- `packages/item-player/docs/custom-extractors.md`
 - Example plugin: `packages/acme-likert-plugin/`
 
 ![ACME Likert plugin architecture](images/acme_likert_plugin_architecture.jpeg)
@@ -148,7 +161,7 @@ For untrusted QTI, consider iframe isolation. The repo provides:
 - **Host helper**: `@pie-qti/item-player/iframe`
 - **Protocol types/validators** for postMessage messages
 
-You host your own runtime page/app (the repo’s `example` includes a reference runtime for demo/testing).
+You host your own runtime page/app (the demo app includes a reference runtime page: `apps/demo`, `/iframe-runtime` route).
 
 Key references:
 
@@ -453,7 +466,7 @@ A sessioned host flow can follow this shape:
 ### Preview model
 
 - **QTI preview**: use the QTI players + typesetting adapter to render XML directly.
-- **PIE preview**: use PIE web components (`pie-iife-player` / `pie-esm-player`) to render the transformed PIE config.
+- **PIE preview**: use the PIE framework's web-component players (separate pie-framework packages, not shipped in this repository) or the host's own PIE renderer to display the transformed PIE config.
 
 Product import implementations should compose the package-level pieces (`@pie-qti/to-pie`, `@pie-qti/transform-core`, QTI players, PIE players) inside their own persistence, workflow, and authorization boundaries.
 

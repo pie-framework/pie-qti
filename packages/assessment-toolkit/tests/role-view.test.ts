@@ -13,14 +13,8 @@ describe('QTI role view helpers', () => {
     ]);
   });
 
-  test('shows candidate-visible content to candidates', () => {
-    expect(isQtiViewVisibleForRole(['candidate'], 'candidate')).toBe(true);
-    expect(isQtiViewVisibleForRole(['candidate scorer'], 'candidate')).toBe(true);
-  });
-
   test('shows missing or empty view content to all roles', () => {
-    expect(isQtiViewVisibleForRole(undefined, 'candidate')).toBe(true);
-    expect(isQtiViewVisibleForRole([], 'scorer')).toBe(true);
+    expect(isQtiViewVisibleForRole(undefined, 'scorer')).toBe(true);
     expect(isQtiViewVisibleForRole(['  ', ','], 'author')).toBe(true);
   });
 

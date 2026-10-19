@@ -5,6 +5,10 @@
 
 import type { ServerLogger, LogContext } from '@pie-qti/logger/server';
 
+// The no-op logger is identical to the one @pie-qti/logger ships; re-export it
+// rather than keeping a second copy.
+export { SilentLogger } from '@pie-qti/logger/server';
+
 /**
  * Logger that captures all log messages for testing
  * Useful for verifying that expected logs were produced
@@ -98,53 +102,4 @@ export class CaptureLogger implements ServerLogger {
 	}
 }
 
-/**
- * Logger that outputs nothing
- * Useful for keeping test output clean
- */
-export class SilentLogger implements ServerLogger {
-	info(): void {}
-	warn(): void {}
-	error(): void {}
-	debug(): void {}
-}
-
-/**
- * Logger that outputs to console
- * Useful for debugging test failures
- */
-export class ConsoleLogger implements ServerLogger {
-	constructor(private prefix = '[TEST]') {}
-
-	info(message: string, context?: LogContext): void {
-		const contextStr = this.formatContext(context ?? {});
-		console.log(`${this.prefix}${contextStr} INFO:`, message);
-	}
-
-	warn(message: string, context?: LogContext): void {
-		const contextStr = this.formatContext(context ?? {});
-		console.warn(`${this.prefix}${contextStr} WARN:`, message);
-	}
-
-	error(message: string, context?: LogContext): void {
-		const contextStr = this.formatContext(context ?? {});
-		console.error(`${this.prefix}${contextStr} ERROR:`, message);
-	}
-
-	debug(message: string, context?: LogContext): void {
-		const contextStr = this.formatContext(context ?? {});
-		console.debug(`${this.prefix}${contextStr} DEBUG:`, message);
-	}
-
-	private formatContext(context: LogContext): string {
-		if (!context || Object.keys(context).length === 0) return '';
-
-		const parts: string[] = [];
-		if (context.itemId) parts.push(`item:${context.itemId}`);
-		if (context.sessionId) parts.push(`session:${context.sessionId}`);
-		if (context.userId) parts.push(`user:${context.userId}`);
-		if (context.vendor) parts.push(`vendor:${context.vendor}`);
-
-		return parts.length > 0 ? `[${parts.join(' ')}]` : '';
-	}
-}
+export { ConsoleLogger } from '@pie-qti/logger/server';

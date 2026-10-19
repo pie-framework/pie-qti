@@ -39,7 +39,7 @@
     "lint": "bun run lint:biome && bun run lint:svelte",
     "lint:biome": "biome check .",
     "lint:svelte": "turbo check",
-    "lint:all": "bun run lint && bun run check && bun run typecheck && bun run check:package-metadata && bun run check:publish-side-effects && bun run check:custom-elements && bun run check:deps && bun run check:demo-player-contract && bun run check:publish-surface && bun run check:sourcemaps",
+    "lint:all": "bun run lint && bun run check && bun run typecheck && bun run check:package-metadata && bun run check:publish-side-effects && bun run check:custom-elements && bun run check:deps && bun run check:demo-player-contract && bun run check:publish-surface && bun run check:sourcemaps && bun run check:doc-links",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "clean:outputs": "rm -rf packages/*/dist tools/*/dist packages/*/tsconfig.tsbuildinfo tools/*/tsconfig.tsbuildinfo",
@@ -69,11 +69,12 @@
     "restore:workspace-ranges": "node scripts/restore-workspace-ranges.mjs",
     "pack:local": "bun run build && node scripts/pack-local.mjs",
     "changeset": "changeset",
-    "version": "changeset version",
+    "version": "changeset version && node scripts/flatten-nonprerelease-groups.mjs",
     "release": "dotenvx run -f .env -- node scripts/release.mjs",
     "release:with-version": "bun ./scripts/create-temporary-release-changeset.mjs && bun run version && bun run restore:workspace-ranges && bun run check:npm-auth && bun run verify:publish && bun run test && bun run release && bun run restore:workspace-ranges",
     "check:custom-elements": "bun ./scripts/check-custom-elements.mjs",
-    "check:publish-side-effects": "bun ./scripts/check-publish-side-effects.mjs"
+    "check:publish-side-effects": "bun ./scripts/check-publish-side-effects.mjs",
+    "check:doc-links": "bun ./scripts/check-doc-links.mjs"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.2",

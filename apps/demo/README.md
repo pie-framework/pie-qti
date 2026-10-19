@@ -62,28 +62,7 @@ The selected theme is saved to localStorage and persists across sessions.
 
 ### Sample Items
 
-Includes 20 sample QTI items covering all 18 interaction types:
-
-1. **Simple Multiple Choice** - Basic choice interaction
-2. **Partial Credit** - Multiple response scoring
-3. **Capital Cities** - Choice with distractors
-4. **Text Entry** - Fill-in-the-blank
-5. **Extended Text** - Essay/long-form response
-6. **Inline Choice** - Dropdown within text
-7. **Order Interaction** - Drag to reorder
-8. **Match Interaction** - Drag-and-drop matching
-9. **Associate Interaction** - Many-to-many associations
-10. **Gap Match** - Drag text into gaps
-11. **Graphic Gap Match** - Drag labels onto diagram
-12. **Slider Interaction** - Numeric slider
-13. **Hotspot Interaction** - Click regions on image
-14. **Upload Interaction** - File upload
-15. **Drawing Interaction** - Canvas drawing
-16. **Custom Interaction** - Fallback renderer
-17. **Reading Comprehension** - Inline stimulus passage
-18. **Quadratic Equation** - Inline KaTeX math
-19. **Pythagorean Theorem** - Show work with math
-20. **Adding Fractions** - Block display math
+The demo ships 30+ sample QTI 2.2 items in [src/lib/sample-items.ts](src/lib/sample-items.ts), plus separate QTI 3.0, i18n, likert, and edge-case sets (`sample-items-qti3.ts`, `sample-items-i18n/`, `sample-likert-items.ts`, `sample-items-edge-cases.ts`). Samples are selectable in the demo UI at `/item-demo`.
 
 ### File Upload
 
@@ -137,7 +116,7 @@ bun run build
 bun run test:e2e
 
 # Run specific test file
-bun run test:e2e tests/e2e/theme-cascade.spec.ts
+bun run test:e2e tests/playwright/theme-cascade.pw.ts
 ```
 
 ## Architecture
@@ -151,8 +130,10 @@ bun run test:e2e tests/e2e/theme-cascade.spec.ts
 
 - **[+layout.svelte](src/routes/+layout.svelte)** - App shell with navigation and theme switcher
 - **[+page.svelte](src/routes/+page.svelte)** - Landing page
-- **[item-demo/+page.svelte](src/routes/item-demo/+page.svelte)** - Item player demo
+- **[item-demo/[sample]/+page.svelte](src/routes/item-demo/[sample]/+page.svelte)** - Item player demo (sample-driven; /item-demo redirects to the first sample)
 - **[assessment-demo/+page.svelte](src/routes/assessment-demo/+page.svelte)** - Assessment player demo
+
+…plus routes for accessibility fixtures, package upload, the QTI 3 demo, iframe embedding, and web-component hosts.
 
 ### Libraries
 

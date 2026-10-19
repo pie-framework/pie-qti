@@ -4,7 +4,9 @@ This directory contains example/reference components demonstrating i18n patterns
 
 ## LocaleSwitcher
 
-A reference implementation of a locale switcher component. You can use this directly or copy and customize it for your needs.
+A reference implementation of a locale switcher component. It is **not exported** from the
+`@pie-qti/i18n` package entry point — copy [LocaleSwitcher.svelte](./LocaleSwitcher.svelte) from
+this directory into your host app and customize it as needed.
 
 ### Features
 
@@ -18,19 +20,22 @@ A reference implementation of a locale switcher component. You can use this dire
 ### Basic Usage
 
 ```svelte
-<script>
-  import { LocaleSwitcher, createSvelteI18nProvider } from '@pie-qti/i18n';
+<script lang="ts">
+  // LocaleSwitcher is not published from '@pie-qti/i18n'; import your local
+  // copy of src/components/LocaleSwitcher.svelte instead.
+  import LocaleSwitcher from './LocaleSwitcher.svelte';
+  import { createDefaultSvelteI18nProvider } from '@pie-qti/i18n';
 
-  let locale = $state('en-US');
-  const i18nProvider = $derived(createSvelteI18nProvider(locale));
+  const i18nProvider = await createDefaultSvelteI18nProvider('en-US');
 
-  function handleLocaleChange(newLocale) {
-    locale = newLocale;
+  function handleLocaleChange(newLocale: string) {
+    // Persists the locale to localStorage and reloads the page with it
+    i18nProvider.setLocale(newLocale);
   }
 </script>
 
 <LocaleSwitcher
-  currentLocale={locale}
+  currentLocale={i18nProvider.getLocale()}
   onChange={handleLocaleChange}
   i18n={i18nProvider}
 />
@@ -49,7 +54,7 @@ A reference implementation of a locale switcher component. You can use this dire
 
 ### Default Available Locales
 
-By default, LocaleSwitcher shows the locales that have translations in PIE-QTI:
+By default, LocaleSwitcher shows the bundled PIE-QTI locales:
 
 - `en-US` - English (US)
 - `es-ES` - Español
@@ -57,6 +62,11 @@ By default, LocaleSwitcher shows the locales that have translations in PIE-QTI:
 - `nl-NL` - Nederlands
 - `ro-RO` - Română
 - `th-TH` - ไทย
+- `zh-CN` - 中文（简体）
+
+The package also ships `ar-SA` (العربية) translations, but it is deliberately absent from this
+default list until the component can expose text direction; pass it explicitly via
+`availableLocales` if you need it.
 
 ### Customizing Available Locales
 
@@ -103,52 +113,33 @@ Override the default "Language" label:
 />
 ```
 
-### Complete Example with Assessment Player
+### Complete Example in a Host App
+
+The assessment player packages publish logic, not Svelte components, so the switcher lives in your
+host app's shell:
 
 ```svelte
 <script lang="ts">
-  import { AssessmentShell } from '@pie-qti/assessment-player';
-  import { LocaleSwitcher, createSvelteI18nProvider } from '@pie-qti/i18n';
+  import LocaleSwitcher from './LocaleSwitcher.svelte';
+  import { createDefaultSvelteI18nProvider } from '@pie-qti/i18n';
 
-  interface Props {
-    assessmentData: AssessmentData;
-  }
-
-  let { assessmentData }: Props = $props();
-
-  // Locale state
-  let locale = $state('en-US');
-  const i18nProvider = $derived(createSvelteI18nProvider(locale));
+  const i18nProvider = await createDefaultSvelteI18nProvider('en-US');
 
   function handleLocaleChange(newLocale: string) {
-    locale = newLocale;
-    // Optionally save to localStorage
-    localStorage.setItem('preferredLocale', newLocale);
+    // Persists the locale to localStorage and reloads the page with it
+    i18nProvider.setLocale(newLocale);
   }
-
-  // Restore saved locale on mount
-  $effect(() => {
-    const saved = localStorage.getItem('preferredLocale');
-    if (saved) {
-      locale = saved;
-    }
-  });
 </script>
 
 <div class="app-header">
   <h1>My Assessment</h1>
   <LocaleSwitcher
-    currentLocale={locale}
+    currentLocale={i18nProvider.getLocale()}
     onChange={handleLocaleChange}
     i18n={i18nProvider}
     compact={true}
   />
 </div>
-
-<AssessmentShell
-  assessment={assessmentData}
-  i18n={i18nProvider}
-/>
 
 <style>
   .app-header {
@@ -220,5 +211,3 @@ This is a reference implementation - feel free to copy and modify:
 ### Related Documentation
 
 - [INTEGRATION_GUIDE.md](../../docs/INTEGRATION_GUIDE.md) - How to add i18n to components
-- [COMPONENT_PATTERNS.md](../../docs/COMPONENT_PATTERNS.md) - UI patterns and examples
-- [MIGRATION.md](../../docs/MIGRATION.md) - Migrating existing components to i18n

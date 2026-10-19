@@ -3,36 +3,9 @@
  */
 
 import { beforeEach, describe, expect, test } from 'bun:test';
-import type { TransformPlugin } from '@pie-qti/transform-types';
+import type { TransformFormat } from '@pie-qti/transform-types';
+import { createMockPlugin } from '@pie-qti/test-utils';
 import { PluginRegistry } from '../src/registry/plugin-registry';
-
-// Simple mock plugins
-const createMockPlugin = (
-  id: string,
-  sourceFormat: 'qti22' | 'pie',
-  targetFormat: 'pie' | 'qti22'
-): TransformPlugin => ({
-  id,
-  version: '1.0.0',
-  name: `Mock ${id}`,
-  sourceFormat,
-  targetFormat,
-  async canHandle() { return true; },
-  async transform() {
-    return {
-      items: [],
-      format: targetFormat,
-      metadata: {
-        sourceFormat,
-        targetFormat,
-        pluginId: id,
-        timestamp: new Date(),
-        itemCount: 0,
-        processingTime: 0,
-      },
-    };
-  },
-});
 
 describe('PluginRegistry', () => {
   let registry: PluginRegistry;

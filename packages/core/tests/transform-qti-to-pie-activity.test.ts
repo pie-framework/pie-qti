@@ -1,11 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import type {
-  ActivityContext,
-  TransformContext,
-  TransformInput,
-  TransformOutput,
-  TransformPlugin,
-} from '@pie-qti/transform-types';
+import type { ActivityContext, TransformInput } from '@pie-qti/transform-types';
+import { MockTransformPlugin } from '@pie-qti/test-utils';
 import { TransformQtiToPieActivity } from '../src/orchestration/activities/transform-qti-to-pie-activity';
 
 const activityContext: ActivityContext = {
@@ -17,46 +12,26 @@ const activityContext: ActivityContext = {
   isCancelled: () => false,
 };
 
-class FormatCapturingPlugin implements TransformPlugin {
-  readonly id = 'format-capturing-qti30-to-pie';
-  readonly version = '1.0.0';
-  readonly name = 'Format Capturing QTI 3.0 to PIE Plugin';
-  readonly sourceFormat = 'qti30';
-  readonly targetFormat = 'pie';
-  receivedInput: TransformInput | null = null;
-
-  async canHandle(): Promise<boolean> {
-    return true;
-  }
-
-  async transform(input: TransformInput, _context: TransformContext): Promise<TransformOutput> {
-    this.receivedInput = input;
-    return {
-      items: [
-        {
-          content: {
-            id: 'item-1',
-          },
-          format: 'pie',
+function createFormatCapturingPlugin(): MockTransformPlugin {
+  return new MockTransformPlugin('format-capturing-qti30-to-pie', 'qti30', 'pie', {
+    name: 'Format Capturing QTI 3.0 to PIE Plugin',
+    mockItems: [
+      {
+        content: {
+          id: 'item-1',
         },
-      ],
-      format: 'pie',
-      metadata: {
-        sourceFormat: input.format ?? 'unknown',
-        targetFormat: 'pie',
-        pluginId: this.id,
-        timestamp: new Date(),
-        itemCount: 1,
-        processingTime: 0,
-        qtiVersion: '3.0',
+        format: 'pie',
       },
-    };
-  }
+    ],
+    mockMetadata: {
+      qtiVersion: '3.0',
+    },
+  });
 }
 
 describe('TransformQtiToPieActivity', () => {
   test('forwards the workflow sourceFormat to plugin TransformInput', async () => {
-    const plugin = new FormatCapturingPlugin();
+    const plugin = createFormatCapturingPlugin();
 
     const result = await TransformQtiToPieActivity.execute(activityContext, {
       xml: '<qti-assessment-item identifier="item-1"/>',
@@ -67,8 +42,8 @@ describe('TransformQtiToPieActivity', () => {
       context: {},
     });
 
-    expect(plugin.receivedInput?.format).toBe('qti30');
-    expect(plugin.receivedInput?.content).toBe('<qti-assessment-item identifier="item-1"/>');
+    expect(plugin.getLastInput()?.format).toBe('qti30');
+    expect(plugin.getLastInput()?.content).toBe('<qti-assessment-item identifier="item-1"/>');
     expect(result.pieConfig).toEqual({
       content: {
         id: 'item-1',

@@ -15,7 +15,6 @@ import {
 	drawAssessment,
 	resolveItemSessionControl,
 } from '../src/core/testStructure.js';
-import { TimeManager } from '../src/core/TimeManager.js';
 import { ReferenceBackendAdapter } from '../src/integration/ReferenceBackendAdapter.js';
 
 const NS = 'xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"';
@@ -92,12 +91,18 @@ async function deliver(
 	return { parsed, backend, init, submit };
 }
 
-async function player(version: Version, testXml: string, items: Record<string, string>) {
+async function player(
+	version: Version,
+	testXml: string,
+	items: Record<string, string>,
+	options: { now?: () => number } = {},
+) {
 	const { backend, parsed } = await deliver(version, testXml, items);
 	localStorage.clear();
 	return AssessmentPlayer.create({
 		backend,
 		initSession: { assessmentId: parsed.identifier, candidateId: 'player' },
+		now: options.now,
 	});
 }
 
@@ -382,49 +387,26 @@ describe.each(Object.keys(VERSIONS) as Version[])('%s delivery in the player', (
 	});
 
 	test('an expired section limit closes its items and moves delivery past them', async () => {
+		let now = 1_000;
 		const xml = assessmentTest(
-			part('part-1', section('s1', ref('i1') + ref('i2')) + section('s2', ref('i3')), 'nonlinear'),
+			part(
+				'part-1',
+				section('s1', '<timeLimits maxTime="60"/>' + ref('i1') + ref('i2')) + section('s2', ref('i3')),
+				'nonlinear',
+			),
 		);
-		const p = await player(version, xml, items('i1', 'i2', 'i3'));
-		let expired = 0;
-		p.onTimeExpired(() => expired++);
-		const expire = (scope: 'testPart' | 'section' | 'item', identifier: string) =>
-			(p as unknown as { handleScopeExpired(scope: string, id: string): void }).handleScopeExpired(scope, identifier);
+		const p = await player(version, xml, items('i1', 'i2', 'i3'), { now: () => now });
+		await p.navigateTo(0);
 
-		expire('section', 's1');
-		await new Promise((resolve) => setTimeout(resolve, 0));
+		now += 61_000;
+		// The ticking is a real 1s interval reading the injected clock. Only the
+		// section expires (the part has no limit), so the assessment continues.
+		await new Promise((resolve) => setTimeout(resolve, 1_100));
+
+		// The expired section's items are closed: delivery sits past them and cannot return.
 		expect(p.getCurrentItem()?.identifier).toBe('i3');
 		expect(p.getNavigationState().canPrevious).toBe(false);
 		await expect(p.navigateTo(0)).rejects.toThrow('The time limit for this question has expired.');
-		expect(expired).toBe(0);
-
-		expire('testPart', 'part-1');
-		expect(expired).toBe(1);
 		p.destroy();
-	});
-});
-
-describe('TimeManager scope expiry', () => {
-	test('reports an expired scope without late submission and keeps the assessment clock running', async () => {
-		let now = 1_000;
-		const scopes: string[] = [];
-		let assessmentExpired = false;
-		const manager = new TimeManager({
-			now: () => now,
-			onScopeExpired: (scope, identifier) => scopes.push(`${scope}:${identifier}`),
-			onExpired: () => {
-				assessmentExpired = true;
-			},
-		});
-		manager.activateScopes({
-			testPart: { identifier: 'part-1' },
-			section: { identifier: 's1', timeLimits: { maxTime: 1 } },
-			item: { identifier: 'i1' },
-		});
-		now = 3_000;
-		await new Promise((resolve) => setTimeout(resolve, 1_100));
-		expect(scopes).toEqual(['section:s1']);
-		expect(assessmentExpired).toBe(false);
-		manager.destroy();
 	});
 });

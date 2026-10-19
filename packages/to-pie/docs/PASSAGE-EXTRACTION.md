@@ -80,90 +80,6 @@ The transformer:
 }
 ```
 
-## Implementation Changes
-
-### Modified Files
-
-#### 1. `src/utils/passage-extraction.ts`
-
-**Change:** Updated `extractObjectPassages()` return type to include `passageId`
-
-```typescript
-export function extractObjectPassages(
-  itemBody: HTMLElement
-): Array<{ model: PassageModel; filePath: string; passageId: string }> {
-  // ...
-
-  // Extract passage ID from data-pie-passage-id attribute (if present)
-  const passageId = obj.getAttribute('data-pie-passage-id') || reference.id;
-
-  passages.push({
-    model: { /* ... */ },
-    filePath: reference.filePath,
-    passageId, // ← NEW: Passage ID for reference
-  });
-}
-```
-
-#### 2. `src/transformers/multiple-choice.ts`
-
-**Change:** Populate `passage` property when external passages found
-
-```typescript
-// After building PIE item...
-
-// Populate passage property if external passage was found
-if (objectPassages.length > 0) {
-  pieItem.passage = objectPassages[0].passageId;
-}
-```
-
-#### 3. `src/transformers/extended-response.ts`
-
-**Change:** Same as multiple-choice - populate `passage` property
-
-```typescript
-// Populate passage property if external passage was found
-if (objectPassages.length > 0) {
-  pieItem.passage = objectPassages[0].passageId;
-}
-```
-
-### New Test Files
-
-#### 1. `tests/integration/passage-extraction.test.ts` (7 tests)
-
-Tests QTI → PIE transformation with various passage configurations:
-- External passage with `data-pie-passage-id`
-- External passage without attribute (fallback to file path)
-- Inline stimulus (no `passage` property)
-- Items without passages
-- Extended-response items with passages
-- Path preservation in passage models
-
-#### 2. `tests/integration/passage-roundtrip.test.ts` (4 tests)
-
-Documents round-trip behavior (PIE → QTI → PIE):
-- Passage ID preservation through object references
-- BaseId handling in passages
-- Inline stimulus behavior (no `passage` property)
-- Custom passage IDs
-
-## Test Results
-
-**Total Tests:** 275 passing (added 11 new tests)
-- 7 passage extraction tests
-- 4 passage round-trip tests
-
-**Coverage:**
-- ✅ External passage extraction from `<object>` tags
-- ✅ Passage ID extraction from `data-pie-passage-id`
-- ✅ Fallback to file path for ID generation
-- ✅ Inline stimulus handling (no `passage` property)
-- ✅ Multiple-choice item transformation
-- ✅ Extended-response item transformation
-- ✅ Items without passages
-
 ## Round-Trip Compatibility
 
 The implementation ensures proper round-trip transformation:
@@ -233,77 +149,35 @@ External passages can use baseId for stable/public identifiers:
 }
 ```
 
-## Limitations and Future Work
+## Limitations
 
-### Current Limitations
+These caveats apply to a bare per-item transform. `transformQtiPackageToPie` resolves passage
+references against the content package manifest and returns every passage beside the items that
+link to it, so it does not share them.
 
-1. **Placeholder Content Only**: External passages create placeholder models with text like `[External passage: path.xml]`. Full passage content loading requires additional infrastructure.
+1. **No package context, no external resolution**: Without the package graph, an `<object>` or
+   `<assessmentStimulusRef>` pointing at a passage file has nothing to resolve against, so the
+   reference is reported as unresolved instead of becoming a passage reference.
 
-2. **Single Passage Support**: If an item has multiple external passage references, only the first is used for the `passage` property.
+2. **Passage content is not loaded**: A resolved external reference stays a reference
+   (identifier + href); the item transform never reads the passage file's content into the item.
 
-3. **No Content Loading**: The `contentLoader` parameter in `extractObjectPassages()` is not yet implemented.
-
-### Future Enhancements
-
-1. **Content Loading**: Implement `contentLoader` to fetch and populate full passage content from external files during transformation.
-
-2. **Multiple Passages**: Support items with multiple external passage references (array of IDs).
-
-3. **Metadata Extraction**: Extract baseId and externalId from passage file metadata when loading content.
-
-4. **Batch Processing**: Optimize passage loading for batch transformations (load each passage once, reuse across items).
-
-## API Reference
-
-### Updated Function Signatures
+## API
 
 ```typescript
-// passage-extraction.ts
-export function extractObjectPassages(
-  itemBody: HTMLElement,
-  contentLoader?: (filePath: string) => Promise<string> | string
-): Array<{
-  model: PassageModel;
-  filePath: string;
-  passageId: string; // NEW: Extracted passage ID
-}>;
+// Package root (@pie-qti/to-pie)
+export { transformPassage } from './transformers/passage.js';       // QTI passage item → PIE passage model
+export { convertQtiPassageDocument } from './passage-converter.js'; // Standalone QTI passage document → PIE passage
 
-// transformers
-export async function transformMultipleChoice(
-  itemElement: HTMLElement,
-  itemId: string,
-  options?: MultipleChoiceOptions
-): Promise<PieItem>; // PieItem may now have `passage` property
-
-export async function transformExtendedResponse(
-  itemElement: HTMLElement,
-  itemId: string,
-  options?: ExtendedResponseOptions
-): Promise<PieItem>; // PieItem may now have `passage` property
+// src/utils/passage-extraction.ts
+export interface PassageModel { /* ... */ }
+export function extractScorerRubric(itemElement: HTMLElement): string;
+export function cleanPassageHtml(html: string): string;
 ```
 
-### PIE Item Structure
-
-```typescript
-interface PieItem {
-  id: string;
-  baseId?: string;
-  uuid: string;
-
-  // NEW: External passage reference (if item uses external passage)
-  passage?: string;
-
-  config: {
-    id: string;
-    models: Array</* passage models + question models */>;
-    elements: Record<string, string>;
-  };
-
-  metadata?: {
-    searchMetaData?: Record<string, any>;
-  };
-}
-```
+External `<object>` and `<assessmentStimulusRef>` handling lives in
+`src/utils/item-body-partition.ts`, which partitions passages out of the item body before the
+interaction transformers run.
 
 ## Related Documentation
 

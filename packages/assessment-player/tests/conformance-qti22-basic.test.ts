@@ -185,24 +185,21 @@ describe('T4-L1-D2: navigationMode=linear, submissionMode=individual', () => {
 describe('T7-L1-D1: one visible section', () => {
 	it('first section is visible', async () => {
 		const player = await createPlayer();
-		const assessment = (player as any).assessment as SecureAssessment;
-		const section = assessment.testParts[0].sections[0];
-		expect(section.visible).toBe(true);
+		const sections = player.getAllSections();
+		expect(sections).toHaveLength(1);
+		expect(sections[0].visible).toBe(true);
 	});
 });
 
 describe('T7-L1-D2: four items in section', () => {
-	it('section contains 4 assessmentItemRefs', async () => {
+	it('the opening section delivers 4 item refs', async () => {
 		const player = await createPlayer();
-		const assessment = (player as any).assessment as SecureAssessment;
-		const refs = assessment.testParts[0].sections[0].assessmentItemRefs;
-		expect(refs).toHaveLength(4);
+		expect(player.getCurrentSectionItemRefs()).toHaveLength(4);
 	});
 
 	it('items include choice-single, choice-multiple, text-entry, extended-text', async () => {
 		const player = await createPlayer();
-		const assessment = (player as any).assessment as SecureAssessment;
-		const ids = assessment.testParts[0].sections[0].assessmentItemRefs.map((r) => r.identifier);
+		const ids = player.getCurrentSectionItemRefs().map((r) => r.identifier);
 		expect(ids).toContain('item-choice-single');
 		expect(ids).toContain('item-choice-multiple');
 		expect(ids).toContain('item-text-entry');

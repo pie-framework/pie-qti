@@ -8,6 +8,7 @@ import { describe, expect, test } from 'bun:test';
 import { QtiToPiePlugin } from '@pie-qti/to-pie';
 import type { PieItem } from '@pie-qti/transform-types';
 import { PieToQtiPlugin } from '../../src/plugin.js';
+import { expectSidecarIsolation } from '../helpers/sidecar.js';
 
 describe('searchMetaData Round-Trip', () => {
   const pieToQti = new PieToQtiPlugin();
@@ -63,9 +64,7 @@ describe('searchMetaData Round-Trip', () => {
     );
     const qtiXml = qtiResult.items[0].content as string;
 
-    // The source model, search metadata included, travels in the PIE source sidecar.
-    expect(qtiXml).not.toContain('pie:');
-    expect(qtiXml).not.toContain('qti-metadata');
+    expectSidecarIsolation(qtiXml);
     expect(qtiResult.items[0].sidecar?.sourceModel.searchMetaData).toEqual(originalPie.searchMetaData);
 
     // QTI → PIE
@@ -136,9 +135,7 @@ describe('searchMetaData Round-Trip', () => {
     // Verify both passage and metadata are in QTI
     expect(qtiXml).toContain('stimulus');
     expect(qtiXml).toContain('Understanding Theme');
-    // The source model, search metadata included, travels in the PIE source sidecar.
-    expect(qtiXml).not.toContain('pie:');
-    expect(qtiXml).not.toContain('qti-metadata');
+    expectSidecarIsolation(qtiXml);
     expect(qtiResult.items[0].sidecar?.sourceModel.searchMetaData).toEqual(originalPie.searchMetaData);
 
     // QTI → PIE
@@ -240,9 +237,7 @@ describe('searchMetaData Round-Trip', () => {
     );
     const qtiXml = qtiResult.items[0].content as string;
 
-    // The source model, search metadata included, travels in the PIE source sidecar.
-    expect(qtiXml).not.toContain('pie:');
-    expect(qtiXml).not.toContain('qti-metadata');
+    expectSidecarIsolation(qtiXml);
     expect(qtiResult.items[0].sidecar?.sourceModel.searchMetaData).toEqual(originalPie.searchMetaData);
 
     // QTI → PIE
@@ -300,9 +295,7 @@ describe('searchMetaData Round-Trip', () => {
     );
     const qtiXml = qtiResult.items[0].content as string;
 
-    // The source model, search metadata included, travels in the PIE source sidecar.
-    expect(qtiXml).not.toContain('pie:');
-    expect(qtiXml).not.toContain('qti-metadata');
+    expectSidecarIsolation(qtiXml);
     expect(qtiResult.items[0].sidecar?.sourceModel.searchMetaData).toEqual(originalPie.searchMetaData);
 
     // QTI → PIE (should extract from PIE extension for perfect match)

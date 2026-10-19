@@ -124,6 +124,74 @@ const runChangesetPublish = async () => {
 	throw lastError;
 };
 
+const runDistTagFixup = () =>
+	new Promise((resolve, reject) => {
+		// In changesets pre mode, `changeset publish` applies the pre tag to every
+		// package it publishes (see getReleaseTag in @changesets/cli), which would
+		// strand `latest` for groups that release plain versions — the
+		// transformation line during the 1.0.0-beta. A plain release always owns
+		// `latest` and a prerelease never does, so after publishing, re-point
+		// `latest` at each plain-version package whose npm dist-tag differs.
+		const plainPackages = [...localPackages.entries()].filter(([, version]) =>
+			/^\d+\.\d+\.\d+$/.test(version),
+		);
+		if (plainPackages.length === 0) {
+			resolve();
+			return;
+		}
+
+		const tasks = plainPackages.map(
+			([name, version]) =>
+				new Promise((done, failTask) => {
+					const view = spawn(
+						"npm",
+						["view", name, "dist-tags", "--json"],
+						{ cwd: repoRoot, env: npmEnv },
+					);
+					let out = "";
+					view.stdout.on("data", (chunk) => {
+						out += chunk;
+					});
+					view.on("close", (code) => {
+						if (code !== 0) {
+							// Not on npm yet (first publish raced registry indexing) or a
+							// transient error: the publish above owns the failure surface.
+							done();
+							return;
+						}
+						try {
+							const tags = JSON.parse(out);
+							if (tags?.latest === version) {
+								done();
+								return;
+							}
+							const add = spawn(
+								"npm",
+								["dist-tag", "add", `${name}@${version}`, "latest"],
+								{ cwd: repoRoot, env: npmEnv, stdio: "inherit" },
+							);
+							add.on("close", (addCode) => {
+								if (addCode === 0) {
+									console.log(`[release] dist-tag latest -> ${name}@${version}`);
+									done();
+								} else {
+									failTask(
+										new Error(`npm dist-tag add ${name}@${version} latest exited with ${addCode}`),
+									);
+								}
+							});
+							add.on("error", failTask);
+						} catch (error) {
+							failTask(error);
+						}
+					});
+					view.on("error", failTask);
+				}),
+		);
+
+		Promise.all(tasks).then(resolve, reject);
+	});
+
 try {
 	rewriteWorkspaceRanges();
 	if (changedFiles.length > 0) {
@@ -132,6 +200,7 @@ try {
 		);
 	}
 	await runChangesetPublish();
+	await runDistTagFixup();
 } finally {
 	restoreWorkspaceRanges();
 	cleanupNpmEnv();

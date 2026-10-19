@@ -4,6 +4,14 @@ This directory contains the CI/CD automation workflows for the pie-qti project.
 
 ## Workflows
 
+### Dependency Submission (`dependency-submission.yml`)
+
+Snapshots the dependency graph to GitHub on pushes to `master`, feeding Dependabot alerting.
+
+### PR Notifications (`pr-notifications.yml`)
+
+Sends Slack notifications for pull requests (skipping dependabot PRs).
+
 ### CI (`ci.yml`)
 
 Runs on every push to `master` and `develop`, and on pull requests targeting those branches.
@@ -13,12 +21,14 @@ Runs on every push to `master` and `develop`, and on pull requests targeting tho
 1. **Lint & Typecheck** - Runs Biome linting, Svelte checks, and TypeScript type checking
 2. **Translation Coverage** - Verifies locale coverage
 3. **Hardcoded String Scan** - Informational i18n scan
-4. **Unit Tests** - Runs package test suites through `bun run test`
-5. **QTI Public Certification Gate** - Runs clean-room public certification coverage
-6. **Accessibility Verification** - Runs `bun run verify:a11y` with Playwright Chromium
-7. **Deployability (Apps)** - Builds deployable demo/docs apps and smoke-checks outputs
-8. **Publish Readiness** - Builds packages and runs package publishing readiness checks
-9. **All Checks** - Summary job that ensures required checks pass
+4. **Doc Links** - Verifies every relative link and heading anchor across all markdown resolves (`bun run check:doc-links`)
+5. **Unit Tests** - Runs package test suites through `bun run test`
+6. **End-to-End Tests** - Runs the Playwright E2E suites against the demo app (`bun run test:e2e`)
+7. **QTI Public Certification Gate** - Runs clean-room public certification coverage
+8. **Accessibility Verification** - Runs `bun run verify:a11y` with Playwright Chromium
+9. **Deployability (Apps)** - Builds deployable demo/docs apps and smoke-checks outputs
+10. **Publish Readiness** - Builds packages and runs package publishing readiness checks
+11. **All Checks** - Summary job that ensures required checks pass
 
 **Artifacts:**
 - Package build outputs from the publish-readiness job
@@ -28,7 +38,9 @@ Runs on every push to `master` and `develop`, and on pull requests targeting tho
 Automatically creates release PRs and publishes packages to NPM using Changesets.
 
 **Triggers:**
-- Push to `master` branch with changes in `.changeset/`, `packages/`, or `package.json`
+- Push to `master` branch with changes in `.changeset/`, `packages/`, `tools/`, `package.json`,
+  `bun.lock`, `turbo.json`, `tsconfig*.json`, or the release workflow itself
+- Manual dispatch with an explicit release intent
 
 **Features:**
 - Creates version bump PRs when changesets are detected
@@ -36,20 +48,24 @@ Automatically creates release PRs and publishes packages to NPM using Changesets
 - Opens a `master` -> `develop` back-merge PR after every publish, so `develop` picks up the bumped
   versions and drops the changesets the release consumed. `GITHUB_TOKEN` opens it, so a maintainer
   approves its workflow runs; merge it with a merge commit before the next promotion to `master`
-- Publishes canary pre-release versions for testing
+- Marks the GitHub release as a prerelease when the published version is a prerelease
+  (e.g. `1.0.0-beta.N`)
+- Sends Slack notifications on publish success/failure (when the Slack secrets are configured)
 
 **Required Secrets:**
-- `NPM_TOKEN` - NPM authentication token with publish permissions
+- None. Publishing authenticates through npm OIDC trusted publishing (no stored token).
+  See [docs/development/trusted-publishing.md](../../docs/development/trusted-publishing.md).
+  A legacy `NPM_TOKEN` secret is still honored as a classic-token fallback if present, but it is
+  not required.
 
 ## Setup Instructions
 
 ### 1. NPM Publishing
 
-To enable NPM publishing, add the `NPM_TOKEN` secret:
-
-1. Generate an NPM access token at https://www.npmjs.com/settings/YOUR_USERNAME/tokens
-2. Go to GitHub repository Settings → Secrets and variables → Actions
-3. Add a new secret named `NPM_TOKEN` with your token value
+Publishing uses npm OIDC trusted publishing — no `NPM_TOKEN` secret is needed. New packages must
+have a trusted-publisher record claimed on npmjs.com before their first release; see
+[docs/development/trusted-publishing.md](../../docs/development/trusted-publishing.md) and the
+`bun run trusted-publishers` helper.
 
 ### 2. Changesets Workflow
 
@@ -69,8 +85,8 @@ bun run changeset
 git add .changeset
 git commit -m "chore: add changeset"
 
-# 6. Push to main
-git push origin main
+# 6. Push to master
+git push origin master
 
 # 7. The Release workflow will create a PR with version bumps
 # 8. Review and merge the PR to publish to NPM
@@ -132,8 +148,9 @@ If build fails in CI but not locally:
 ### NPM Publishing Failing
 
 If release workflow fails to publish:
-1. Verify `NPM_TOKEN` secret is set correctly
-2. Check NPM token has publish permissions
+1. Verify the package has a trusted-publisher record on npmjs.com for the GitHub workflow
+   (see `bun run trusted-publishers` and docs/development/trusted-publishing.md)
+2. If a legacy `NPM_TOKEN` secret is set, confirm it has publish permissions and has not expired
 3. Verify package names in `package.json` are available on NPM
 4. Check if 2FA is required (tokens must have automation-level access)
 
@@ -153,5 +170,5 @@ Review and merge Dependabot PRs regularly to keep dependencies up to date.
 When updating workflows:
 1. Test changes locally with `act` if possible
 2. Create a PR to test workflows in isolation
-3. Check all matrix builds complete successfully
+3. Check all jobs complete successfully
 4. Update this README if workflow behavior changes

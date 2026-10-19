@@ -75,23 +75,20 @@ describe('transformAssessmentTest', () => {
 	});
 
 	describe('Nested Sections', () => {
-		it('should transform nested section hierarchy', () => {
+		it('should transform nested section hierarchy without duplicating sections', () => {
 			const xml = loadFixture('assessment-nested-sections.xml');
 			const assessment = transformAssessmentTest(xml, 'test-002');
 
-			// NOTE: Current implementation has a bug where nested sections appear at top level
-			// This should be 1, but implementation returns 3 (parent + 2 nested)
-			expect(assessment.testParts[0].sections).toHaveLength(3);
+			expect(assessment.testParts[0].sections).toHaveLength(1);
 			const topSection = assessment.testParts[0].sections[0];
 			expect(topSection.identifier).toBe('section1');
 			expect(topSection.title).toBe('Mathematics');
 
-			// NOTE: Current implementation collects ALL items including nested ones
-			// This should be 1, but implementation returns 5
-			expect(topSection.itemRefs).toHaveLength(5);
+			// The parent's own itemRefs only (nested items belong to their subsections).
+			expect(topSection.itemRefs).toHaveLength(1);
 			expect(topSection.itemRefs[0].identifier).toBe('item1');
 
-			// Subsections are correctly identified within parent
+			// Subsections are identified within parent
 			expect(topSection.subsections).toHaveLength(2);
 		});
 
@@ -127,12 +124,12 @@ describe('transformAssessmentTest', () => {
 			const xml = loadFixture('assessment-nested-sections.xml');
 			const assessment = transformAssessmentTest(xml, 'test-002');
 
-			// NOTE: Current implementation collects ALL items including from nested sections
-			// This is actually a bug, but documenting current behavior
+			// The top section keeps only its own item; nested items belong to
+			// their subsections, so the whole test still has five.
 			const topSection = assessment.testParts[0].sections[0];
-			expect(topSection.itemRefs.length).toBeGreaterThan(1);
+			expect(topSection.itemRefs).toHaveLength(1);
 
-			// Subsections should have their own items
+			// Subsections have their own items
 			const algebra = topSection.subsections![0];
 			const geometry = topSection.subsections![1];
 
