@@ -61,6 +61,18 @@ When adding a package that will publish to npm:
 | `bun run release:with-version` | Canonical local release command: temporary all-package changeset, version, restore workspace ranges, auth check, publish verification, tests, release, restore ranges. |
 | `bun run release` | Lower-level publish wrapper used by `release:with-version`; do not run directly unless the maintainer asks. |
 
+## During the 1.0.0-beta pre mode
+
+While `.changeset/pre.json` is active, the player/platform group publishes prereleases under the `beta` dist-tag and the transformation group publishes plain patches — but `changeset publish` tags *every* package it publishes `beta` (see `getReleaseTag` in `@changesets/cli`), and the OIDC trusted publisher cannot manage dist-tags ("Allow npm dist-tag" is a website-only toggle per package, not an `npm trust` flag). The release workflow's dist-tag fixup therefore fails after publishing.
+
+Re-point `latest` locally as the maintainer after each beta-period release (web-auth prompt per package):
+
+```sh
+npm dist-tag add @pie-qti/<pkg>@<version> latest   # once per transformation package that released
+```
+
+Verify afterwards with `npm view @pie-qti/<pkg> dist-tags`. A brand-new package must be published once before `npm trust github` accepts its trusted-publisher configuration; its first release cannot go through OIDC.
+
 ## Preflight
 
 Before a release, confirm:
