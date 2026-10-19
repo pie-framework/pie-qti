@@ -81,10 +81,10 @@
     "@biomejs/biome": "^2.5.15",
     "@changesets/cli": "^3.0.3",
     "@dotenvx/dotenvx": "^2.34.2",
-    "@types/bun": "^1.4.2",
+    "@types/bun": "^1.4.3",
     "lefthook": "^2.1.16",
     "publint": "^0.3.25",
-    "turbo": "^2.11.7",
+    "turbo": "^2.11.8",
     "typescript": "^5.9.3"
   },
   "overrides": {
