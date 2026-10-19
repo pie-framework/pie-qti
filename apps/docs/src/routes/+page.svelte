@@ -20,7 +20,7 @@
 				</p>
 
 				<div class="mt-6 flex flex-wrap gap-2">
-					<span class="badge badge-success badge-lg">QTI 2.2 compliant</span>
+					<span class="badge badge-success badge-lg">QTI 2.2/3.0 compliant</span>
 					<span class="badge badge-success badge-lg">21/21 interactions</span>
 					<span class="badge badge-info badge-lg">Accessibility tested</span>
 					<span class="badge badge-info badge-lg">TypeScript strict</span>
