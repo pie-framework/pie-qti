@@ -1,5 +1,16 @@
 # @pie-qti/pie-to-qti2
 
+## 0.1.29
+
+### Patch Changes
+
+- Updated dependencies [32c08b7]
+- Updated dependencies [0f93a03]
+- Updated dependencies [a7c714e]
+  - @pie-qti/qti-common@1.0.0-beta.0
+  - @pie-qti/transform-core@0.1.29
+  - @pie-qti/transform-types@0.1.29
+
 ## 0.1.28
 
 ### Patch Changes

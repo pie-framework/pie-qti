@@ -1,53 +1,53 @@
 {
-  "name": "@pie-qti/transform-types",
-  "version": "0.1.28",
-  "description": "TypeScript type definitions for PIE Transform",
-  "main": "./dist/index.js",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    }
-  },
-  "scripts": {
-    "build": "tsc",
-    "clean": "rm -rf dist",
-    "typecheck": "tsc --noEmit"
-  },
-  "keywords": [
-    "pie",
-    "qti",
-    "assessment",
-    "types",
-    "typescript"
-  ],
-  "license": "MIT",
-  "dependencies": {
-    "@pie-qti/logger": "workspace:*"
-  },
-  "devDependencies": {
-    "typescript": "^5.9.3"
-  },
-  "type": "module",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/pie-framework/pie-qti.git",
-    "directory": "packages/types"
-  },
-  "homepage": "https://github.com/pie-framework/pie-qti/tree/master/packages/types",
-  "bugs": {
-    "url": "https://github.com/pie-framework/pie-qti/issues"
-  },
-  "publishConfig": {
-    "access": "public"
-  },
-  "sideEffects": false,
-  "engines": {
-    "node": ">=20.19.0"
-  },
-  "files": [
-    "dist"
-  ]
+	"name": "@pie-qti/transform-types",
+	"version": "0.1.29",
+	"description": "TypeScript type definitions for PIE Transform",
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		}
+	},
+	"scripts": {
+		"build": "tsc",
+		"clean": "rm -rf dist",
+		"typecheck": "tsc --noEmit"
+	},
+	"keywords": [
+		"pie",
+		"qti",
+		"assessment",
+		"types",
+		"typescript"
+	],
+	"license": "MIT",
+	"dependencies": {
+		"@pie-qti/logger": "workspace:*"
+	},
+	"devDependencies": {
+		"typescript": "^5.9.3"
+	},
+	"type": "module",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/pie-framework/pie-qti.git",
+		"directory": "packages/types"
+	},
+	"homepage": "https://github.com/pie-framework/pie-qti/tree/master/packages/types",
+	"bugs": {
+		"url": "https://github.com/pie-framework/pie-qti/issues"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"sideEffects": false,
+	"engines": {
+		"node": ">=20.19.0"
+	},
+	"files": [
+		"dist"
+	]
 }

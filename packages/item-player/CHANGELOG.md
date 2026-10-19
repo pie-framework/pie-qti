@@ -1,5 +1,61 @@
 # @pie-qti/item-player
 
+## 1.0.0-beta.0
+
+### Major Changes
+
+- 3c70cc3: Declare the player platform's 1.0 feature set complete with a beta: all tracked QTI 2.2 / 3.0 spec gaps are closed — the spec-conformant PCI runtime (registry contract, `getInstance`, QTI variable JSON, AMD loading with resolution configs, clean-room conformance fixtures) plus the opt-in sandboxed execution engine (`@pie-qti/pci-runner`), PNP structured labels and braille data exposure, and manifest-level shared catalog files. The player/platform packages move together to the prerelease line and publish under the `beta` npm dist-tag; `latest` stays on 0.1.x. The transformation packages (`@pie-qti/pie-to-qti2`, `to-pie`, `transform-cli`, `transform-core`, `transform-types`, `source-profiles`) stay pre-alpha on their own 0.1.x lockstep and keep their current versioning: they ride along as the plain patch their dependents' release requires and publish to `latest` with no `beta` suffix. The final 1.0.0 follows the official-suite evidence refresh and a production-host validation.
+
+### Patch Changes
+
+- 32c08b7: Content language follows `xml:lang`. `prepareContentMarkup` restates it as `lang`; the item body takes its `lang` from the item, exposed as `Player.getContentLanguage()`, and glossary lookups pass it. The section player sets the toolbar and TTS language from it and picks a Polly voice for that language unless the host configures `defaultVoice`, which no longer defaults to Joanna; shared HTML blocks take an optional `language`.
+- 6c209e2: AfA PNP drives more of delivery. `pnpProfileFromAfa` maps interface language, inverted polarity, single-column layout, text appearance, fixed-minute extra time, answer masking and the tool supports (`PnpProfile.tools`); `answer-masking` now masks choices in `choiceInteraction` and no longer turns on the elimination tool. `qti-pnp.css` in default-components styles the colour schemes and display needs, and the loaders' runtime CSS imports it. The section player takes `pnp` and, with the item's companion materials, turns on the tools the host offers with `enabled: false` and removes prohibited ones.
+- 0f93a03: Read-aloud markup reaches delivery. `prepareContentMarkup` moves from to-pie into `@pie-qti/qti-common/accessibility` and reads QTI 3 names; the item player renders SSML docked as catalog idrefs and `data-qti-suppress-tts` as `data-tts-suppress`, and the section player registers the SSML as `spoken` catalogs and projects QTI 3 interactions without suppressed content.
+- 1521a74: Shared vocabulary classes, authored interaction aria and richer catalogs. `qti-shared-vocabulary.css` and the interactions honour the QTI 3 shared classes: choice labels and suffixes, writing orientation, `qti-choices-*` placement and `qti-unselected-hidden`. Every interaction takes its authored `aria-label`, `aria-labelledby` and `aria-describedby` through `interactionAria`, resolved to text at extraction (`BaseInteractionData.accessibility`). Catalog entries render multi-part content and media; object replacement keeps aria, role and `lang`. The section player's read-aloud takes native `qti-catalog-info` and APIP spoken cards and docks the SSML of passages.
+- a7c714e: `feedbackInline` resolves in either QTI spelling, nested and by membership in a container outcome, in the item body, choice text, rubric blocks and modal feedback; `qti-common` exports the shared visibility rule as `isShownByIdentifier`.
+- 5be190e: Evaluate `feedbackBlock`, `templateBlock`, `templateInline`, choice-level `templateIdentifier` and MathML template variables in both QTI spellings, show modal feedback by membership, and read context variables, including `QTI_CONTEXT`, set through `openSession({ contextVariables })`.
+- bac1158: `printedVariable` honours `format`, `base`, `index`, `powerForm`, `field`, `delimiter` and `mappingIndicator` in both QTI spellings, and resolves in rubric blocks and modal feedback as well as the item body.
+- a4353af: Prompts, choices and interaction hosts keep their authored `lang`, catalog idref and read-aloud suppression.
+- 8063850: `ItemSession` takes `templateDefaults`, applied before template processing, and a `presentation` policy whose `showFeedback` and `showSolution` gate integrated feedback and the solution view.
+- f20a87e: `interpolationTable` is a step lookup per QTI: the first entry in document order whose `sourceValue` the source exceeds, or equals unless `includeBoundary="false"`, else `defaultValue`, else NULL. Lookup results and `defaultValue` take the outcome's base type, `interpolationMethod` is gone, and `qti-match-table` and `qti-interpolation-table` build.
+- 30b045d: Test-level outcome processing sees every delivered item with its typed variables, section path, categories, weights, declared normal bounds and presented/responded/correct/incorrect/selected flags, so `numberResponded`, `numberSelected`, `numberCorrect` without `MAXSCORE`, section and category filters and weighted `testVariables` evaluate as authored. Item scoring reports `correct`; `outcomeMinimum`/`outcomeMaximum` read `normalMinimum`/`normalMaximum`.
+- bbaab53: PCI module loading reaches the spec's AMD default resolution (G-08 phase 2): every authored `qti-interaction-module` entry is extracted with its id, multi-module declarations load through a `define`/`require` implementation that wires dependencies by id, and the RequireJS-shaped resolution config is parsed from the authored `primary-configuration` reference or the defined default locations (`modules/module_resolution.js`, then `modules/fallback_module_resolution.js`). The entry module is picked by the `customInteractionTypeIdentifier` tail, falling back to its authored fallback path on failure. Evaluation still goes through the host resolver — the loader decides how dependencies wire up, the resolver still decides whether code runs.
+- 0ca867a: PCI conformance evidence and a fallback-loading fix (G-08 phase 3): on a multi-module load's fallback attempt, the entry module's id now rebinds to the authored fallback path, so a fallback declared beside a wrong primary path registers instead of re-fetching the broken path. Clean-room conformance fixtures under `tests/conformance/pci/` drive the full delivery path over real module files — registration, `getInstance` state seeding in QTI variable JSON, `onready`/`ondone`, `getState()` restore, and fallback resolution.
+- 833ddad: PCI sandboxed engine (plan Option C): Portable Custom Interaction modules can now run in a
+  hardened, opt-in cross-origin frame instead of the page realm. `PciConfiguration.sandbox`
+  points at a runner page served from a dedicated cookieless origin; the module executes with
+  an opaque origin — no shared storage, cookies, or DOM with the player — while `getResponse()`
+  stays synchronous by answering from a bridge-maintained cache. New `@pie-qti/pci-runner`
+  package is the deployable runner page (`dist/pci-runner.html` + bundle), with mutual origin
+  locking over the versioned `pie-qti-pci-sandbox` protocol. `PciConfiguration.moduleResolver`
+  is now optional: required for page-realm execution, unused when `sandbox` is configured, with
+  the new `createAllowlistPciModulePolicy` available to allow-list which module URLs may be
+  handed to the frame. `PciHostController.onError` reports asynchronous engine failures (frame
+  handshake, in-frame module load, instance errors). The page-realm engine and its resolver
+  contract are unchanged.
+- 33b1a1a: PCI adopts the QTI 3.0 §6.1 registry contract (G-08 phase 1), replacing the bespoke `PciModule` interface outright: modules register against the page's `qtiCustomInteractionContext` and the host instantiates through `getInstance(dom, configuration, state)` with `onready`/`ondone`, a derived `status` (`interacting`/`closed`/`solution`/`review`), and QTI variable JSON (`base`/`list`/`record`) at the boundary. Responses are owned by the mounted module — `restore()` re-seeds `getInstance` state instead of pushing a setter — and `getState()` is exposed on the host. Host resolver trust gating is unchanged. A module written against the retired `PciModule` breaks; none is known to exist.
+- 765423c: Structured labels and braille routing (G-13): `pnp.display.structuredLabelSupport` presents choice and match answer sets as one ARIA group named by the interaction prompt, with match columns named by their visible headings. An AfA PNP `<braille/>` grant now routes to the platform `brailleText` preference (`sign-language` to `signingDefinition`), and `getCatalogEntry` under a QTI 3 usage falls back to the APIP support name (`braille-text` → `braille`, `signing-definition` → `sign-language`), so QTI 3 and APIP catalogs share one lookup path. The research note, markup contract, and NVDA checklist live in `packages/item-player/docs/PNP.md`.
+- 0edef83: Resolve external QTI processing fragments during packaged assessment delivery.
+  
+  `xi:include` fragments referenced by an item's `responseProcessing`, `templateProcessing`, or `outcomeProcessing` are now preloaded from the content package during reference-mode assessment parsing and executed through a package-contained resolver, so packaged fragments work without host wiring. Nested includes resolve relative to the fragment that references them, and authored `xi:fallback` content runs when a fragment file is missing. The processing engine now requires the XInclude namespace for `include` and `fallback` elements and fails loudly when another vocabulary uses those local names. Test-scope (`scope: 'test'`) fragments still require a host-supplied resolver and fail closed, unchanged.
+- 953e5d1: Shared catalog files from the content package manifest (G-15, QTI 3.0 §6.3): `loadResolvedManifest` surfaces resources of type `imsqti_catalog_xmlv3p0` as `sharedCatalogs`; `createResolvedItemDeliveryContext` accepts `packageCatalogSources` and the reference backend adapter threads a host-supplied list (`parseAssessmentTestXml({ sharedCatalogs })`, exposed as `QtiAssessmentPlayerConfig.sharedCatalogs`) into every item's delivery context. The item player merges package-scope entries at the bottom, so an item-level `qti-catalog-info` wins a shared identifier and a shared file backs items that declare none.
+- Updated dependencies [65e62f6]
+- Updated dependencies [0d99546]
+- Updated dependencies [32c08b7]
+- Updated dependencies [6c209e2]
+- Updated dependencies [0f93a03]
+- Updated dependencies [a7c714e]
+- Updated dependencies [f20a87e]
+- Updated dependencies [30b045d]
+- Updated dependencies [765423c]
+- Updated dependencies [0edef83]
+- Updated dependencies [953e5d1]
+- Updated dependencies [c785703]
+  - @pie-qti/qti-processing@1.0.0-beta.0
+  - @pie-qti/ims-cp-core@1.0.0-beta.0
+  - @pie-qti/qti-common@1.0.0-beta.0
+  - @pie-qti/i18n@1.0.0-beta.0
+
 ## 0.1.28
 
 ### Patch Changes

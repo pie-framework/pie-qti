@@ -1,5 +1,57 @@
 # @pie-qti/player-elements
 
+## 1.0.0-beta.0
+
+### Patch Changes
+
+- 0d99546: Consolidate the assessment discovery pre-scan with the backend model's scan primitives.
+  
+  `@pie-qti/assessment-player` now exports `toCanonicalQtiName` and `@pie-qti/ims-cp-core` exports `hasUnsafeEncodedPathToken`, and the player-elements discovery parser reuses both instead of private copies, so QTI 2.x/3.0 name mapping and encoded-path safety cannot drift between the element pre-pass and the authoritative parse. The discovery parser's role (bounded pre-fetch, early depth rejection) and its item-map keying contract with the backend are documented in code. `@pie-qti/player-elements` also moves `@pie-qti/assessment-player` to runtime dependencies to match its existing runtime import of `ReferenceBackendAdapter`.
+- 32c08b7: Content language follows `xml:lang`. `prepareContentMarkup` restates it as `lang`; the item body takes its `lang` from the item, exposed as `Player.getContentLanguage()`, and glossary lookups pass it. The section player sets the toolbar and TTS language from it and picks a Polly voice for that language unless the host configures `defaultVoice`, which no longer defaults to Joanna; shared HTML blocks take an optional `language`.
+- 6c209e2: AfA PNP drives more of delivery. `pnpProfileFromAfa` maps interface language, inverted polarity, single-column layout, text appearance, fixed-minute extra time, answer masking and the tool supports (`PnpProfile.tools`); `answer-masking` now masks choices in `choiceInteraction` and no longer turns on the elimination tool. `qti-pnp.css` in default-components styles the colour schemes and display needs, and the loaders' runtime CSS imports it. The section player takes `pnp` and, with the item's companion materials, turns on the tools the host offers with `enabled: false` and removes prohibited ones.
+- 30b045d: Test-level outcome processing sees every delivered item with its typed variables, section path, categories, weights, declared normal bounds and presented/responded/correct/incorrect/selected flags, so `numberResponded`, `numberSelected`, `numberCorrect` without `MAXSCORE`, section and category filters and weighted `testVariables` evaluate as authored. Item scoring reports `correct`; `outcomeMinimum`/`outcomeMaximum` read `normalMinimum`/`normalMaximum`.
+- 833ddad: PCI sandboxed engine (plan Option C): Portable Custom Interaction modules can now run in a
+  hardened, opt-in cross-origin frame instead of the page realm. `PciConfiguration.sandbox`
+  points at a runner page served from a dedicated cookieless origin; the module executes with
+  an opaque origin — no shared storage, cookies, or DOM with the player — while `getResponse()`
+  stays synchronous by answering from a bridge-maintained cache. New `@pie-qti/pci-runner`
+  package is the deployable runner page (`dist/pci-runner.html` + bundle), with mutual origin
+  locking over the versioned `pie-qti-pci-sandbox` protocol. `PciConfiguration.moduleResolver`
+  is now optional: required for page-realm execution, unused when `sandbox` is configured, with
+  the new `createAllowlistPciModulePolicy` available to allow-list which module URLs may be
+  handed to the frame. `PciHostController.onError` reports asynchronous engine failures (frame
+  handshake, in-frame module load, instance errors). The page-realm engine and its resolver
+  contract are unchanged.
+- 953e5d1: Shared catalog files from the content package manifest (G-15, QTI 3.0 §6.3): `loadResolvedManifest` surfaces resources of type `imsqti_catalog_xmlv3p0` as `sharedCatalogs`; `createResolvedItemDeliveryContext` accepts `packageCatalogSources` and the reference backend adapter threads a host-supplied list (`parseAssessmentTestXml({ sharedCatalogs })`, exposed as `QtiAssessmentPlayerConfig.sharedCatalogs`) into every item's delivery context. The item player merges package-scope entries at the bottom, so an item-level `qti-catalog-info` wins a shared identifier and a shared file backs items that declare none.
+- c785703: Show `testFeedback` at test and test-part level by typed outcome values, single or multiple, with `access="during"` during the test and `atEnd` at the end of the test or its part. The backend contract returns `outcomes` from `submitResponses`, a resumed `initSession` and `finalizeAssessment`; `sum` and `product` accept multiple and ordered containers; QTI 3 items score under their own identifier.
+- 8063850: Test structure semantics: the backend draws selection (with replacement clones) and ordering (with `keepTogether`) at session start and stores the draw; preconditions and item, section and test part branch rules decide `nextItemIdentifier`; item session control cascades per item and the backend enforces `maxAttempts` and `allowComment`; an expired test part, section or item limit locks that scope. A backend must now return the drawn assessment and the first eligible item as `InitSessionResponse.currentItemIdentifier`. The player's `rng` option is ignored; pass it to `new ReferenceBackendAdapter({ rng })`.
+- Updated dependencies [eca64c2]
+- Updated dependencies [0d99546]
+- Updated dependencies [32c08b7]
+- Updated dependencies [6c209e2]
+- Updated dependencies [0f93a03]
+- Updated dependencies [1521a74]
+- Updated dependencies [a7c714e]
+- Updated dependencies [5be190e]
+- Updated dependencies [bac1158]
+- Updated dependencies [a4353af]
+- Updated dependencies [8063850]
+- Updated dependencies [f20a87e]
+- Updated dependencies [3c70cc3]
+- Updated dependencies [30b045d]
+- Updated dependencies [bbaab53]
+- Updated dependencies [0ca867a]
+- Updated dependencies [833ddad]
+- Updated dependencies [33b1a1a]
+- Updated dependencies [765423c]
+- Updated dependencies [0edef83]
+- Updated dependencies [953e5d1]
+- Updated dependencies [c785703]
+- Updated dependencies [8063850]
+  - @pie-qti/assessment-player@1.0.0-beta.0
+  - @pie-qti/ims-cp-core@1.0.0-beta.0
+  - @pie-qti/item-player@1.0.0-beta.0
+
 ## 0.1.28
 
 ### Patch Changes

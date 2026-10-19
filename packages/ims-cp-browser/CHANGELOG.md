@@ -1,5 +1,15 @@
 # @pie-qti/ims-cp-browser
 
+## 1.0.0-beta.0
+
+### Patch Changes
+
+- 953e5d1: Shared catalog files from the content package manifest (G-15, QTI 3.0 §6.3): `loadResolvedManifest` surfaces resources of type `imsqti_catalog_xmlv3p0` as `sharedCatalogs`; `createResolvedItemDeliveryContext` accepts `packageCatalogSources` and the reference backend adapter threads a host-supplied list (`parseAssessmentTestXml({ sharedCatalogs })`, exposed as `QtiAssessmentPlayerConfig.sharedCatalogs`) into every item's delivery context. The item player merges package-scope entries at the bottom, so an item-level `qti-catalog-info` wins a shared identifier and a shared file backs items that declare none.
+- Updated dependencies [0d99546]
+- Updated dependencies [0edef83]
+- Updated dependencies [953e5d1]
+  - @pie-qti/ims-cp-core@1.0.0-beta.0
+
 ## 0.1.28
 
 ### Patch Changes
