@@ -241,7 +241,12 @@ describe('PciHost sandboxed engine', () => {
 	});
 
 	test('module-error surfaces through onError as a PciLoadError', async () => {
-		const { host, runner, errors } = setup();
+		// The module answered with an error, so the handshake timeout is moot for
+		// this scenario — give it an hour so its fire can never race the
+		// assertion window on a slow runner (the 30ms default demonstrably does).
+		const { host, runner, errors } = setup(makeData(), {
+			sandbox: { handshakeTimeoutMs: 3_600_000 },
+		});
 		await host.load();
 		host.initialize(makeMountNode());
 		runner.runnerReady();
