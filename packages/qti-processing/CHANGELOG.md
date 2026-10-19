@@ -1,5 +1,21 @@
 # @pie-qti/qti-processing
 
+## 1.0.0-beta.0
+
+### Patch Changes
+
+- 65e62f6: Fix `mapResponsePoint` container scoring: each mapped area now contributes its value at most once when a multiple-cardinality point response contains several points inside the same area, per QTI §2.11.1.6 ("each area can be mapped once only"). Overlapping areas keep first-listed priority (§5.5.4), which is unchanged.
+- f20a87e: `interpolationTable` is a step lookup per QTI: the first entry in document order whose `sourceValue` the source exceeds, or equals unless `includeBoundary="false"`, else `defaultValue`, else NULL. Lookup results and `defaultValue` take the outcome's base type, `interpolationMethod` is gone, and `qti-match-table` and `qti-interpolation-table` build.
+- 30b045d: Test-level outcome processing sees every delivered item with its typed variables, section path, categories, weights, declared normal bounds and presented/responded/correct/incorrect/selected flags, so `numberResponded`, `numberSelected`, `numberCorrect` without `MAXSCORE`, section and category filters and weighted `testVariables` evaluate as authored. Item scoring reports `correct`; `outcomeMinimum`/`outcomeMaximum` read `normalMinimum`/`normalMaximum`.
+- 0edef83: Resolve external QTI processing fragments during packaged assessment delivery.
+  
+  `xi:include` fragments referenced by an item's `responseProcessing`, `templateProcessing`, or `outcomeProcessing` are now preloaded from the content package during reference-mode assessment parsing and executed through a package-contained resolver, so packaged fragments work without host wiring. Nested includes resolve relative to the fragment that references them, and authored `xi:fallback` content runs when a fragment file is missing. The processing engine now requires the XInclude namespace for `include` and `fallback` elements and fails loudly when another vocabulary uses those local names. Test-scope (`scope: 'test'`) fragments still require a host-supplied resolver and fail closed, unchanged.
+- c785703: Show `testFeedback` at test and test-part level by typed outcome values, single or multiple, with `access="during"` during the test and `atEnd` at the end of the test or its part. The backend contract returns `outcomes` from `submitResponses`, a resumed `initSession` and `finalizeAssessment`; `sum` and `product` accept multiple and ordered containers; QTI 3 items score under their own identifier.
+- Updated dependencies [32c08b7]
+- Updated dependencies [0f93a03]
+- Updated dependencies [a7c714e]
+  - @pie-qti/qti-common@1.0.0-beta.0
+
 ## 0.1.28
 
 ### Patch Changes

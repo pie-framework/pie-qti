@@ -1,5 +1,9 @@
 # @pie-qti/logger
 
+## 1.0.0-beta.0
+
+No changes in this release.
+
 ## 0.1.28
 
 No changes in this release.

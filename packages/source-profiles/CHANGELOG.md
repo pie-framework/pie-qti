@@ -1,5 +1,11 @@
 # @pie-qti/source-profiles
 
+## 0.1.29
+
+### Patch Changes
+
+- @pie-qti/transform-types@0.1.29
+
 ## 0.1.28
 
 ### Patch Changes
