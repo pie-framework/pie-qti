@@ -69,7 +69,7 @@
     "restore:workspace-ranges": "node scripts/restore-workspace-ranges.mjs",
     "pack:local": "bun run build && node scripts/pack-local.mjs",
     "changeset": "changeset",
-    "version": "changeset version",
+    "version": "changeset version && node scripts/flatten-nonprerelease-groups.mjs",
     "release": "dotenvx run -f .env -- node scripts/release.mjs",
     "release:with-version": "bun ./scripts/create-temporary-release-changeset.mjs && bun run version && bun run restore:workspace-ranges && bun run check:npm-auth && bun run verify:publish && bun run test && bun run release && bun run restore:workspace-ranges",
     "check:custom-elements": "bun ./scripts/check-custom-elements.mjs",
