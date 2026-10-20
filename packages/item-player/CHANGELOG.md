@@ -1,5 +1,14 @@
 # @pie-qti/item-player
 
+## 1.0.0-beta.1
+
+### Patch Changes
+
+- @pie-qti/i18n@1.0.0-beta.1
+  - @pie-qti/ims-cp-core@1.0.0-beta.1
+  - @pie-qti/qti-common@1.0.0-beta.1
+  - @pie-qti/qti-processing@1.0.0-beta.1
+
 ## 1.0.0-beta.0
 
 ### Major Changes
