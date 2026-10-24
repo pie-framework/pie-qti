@@ -83,7 +83,7 @@
 		{#if visiblePassages.length > 0}
 			<section class="passage-section" aria-label={i18n?.t('assessment.readingPassages') ?? 'Reading passages'}>
 				{#each visiblePassages as passage, index (passage.identifier)}
-					<article class="passage" aria-labelledby={`passage-heading-${index}`} lang={passage.language}>
+					<article class="passage" aria-labelledby={`passage-heading-${index}`}>
 						<div class="passage-header">
 							<h4 id={`passage-heading-${index}`} class="font-semibold text-base">
 								{i18n?.t('assessment.readingPassage') ?? 'Reading Passage'}
@@ -126,6 +126,7 @@
 									{security}
 									{host}
 									sanitizeContext={{ kind: 'passage', source: passage.source }}
+									language={passage.language}
 									class="passage-content prose max-w-none"
 									{typeset}
 								/>
@@ -149,6 +150,7 @@
 							{security}
 							{host}
 							sanitizeContext={{ kind: 'instructions', source: instruction.source }}
+							language={instruction.language}
 							class="instructions-content"
 							{typeset}
 						/>
@@ -166,6 +168,7 @@
 						{security}
 						{host}
 						sanitizeContext={{ kind: sanitizeKind(rubric), source: rubric.source }}
+						language={rubric.language}
 						class="rubric-block"
 						{typeset}
 					/>

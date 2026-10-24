@@ -378,25 +378,19 @@
         "@pie-players/pie-tool-tts-inline": "1.0.0-beta.3",
         "@pie-players/tts-client-server": "1.0.0-beta.3",
         "@pie-qti/default-components": "workspace:*",
+        "@pie-qti/i18n": "workspace:*",
         "@pie-qti/ims-cp-core": "workspace:*",
         "@pie-qti/item-player": "workspace:*",
         "@pie-qti/qti-common": "workspace:*",
       },
       "devDependencies": {
         "@biomejs/biome": "^2.5.15",
-        "@pie-qti/i18n": "workspace:*",
         "@types/node": "^26.6.4",
         "linkedom": "^0.18.13",
         "svelte": "^5.57.1",
         "svelte-check": "^4.7.5",
         "typescript": "^5.9.3",
       },
-      "peerDependencies": {
-        "@pie-qti/i18n": "workspace:*",
-      },
-      "optionalPeers": [
-        "@pie-qti/i18n",
-      ],
     },
     "packages/source-profiles": {
       "name": "@pie-qti/source-profiles",

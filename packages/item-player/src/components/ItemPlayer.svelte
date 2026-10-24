@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { createAssessmentItemDefinition } from '../core/AssessmentItemDefinition';
 	import type { AssessmentItemDefinitionConfig } from '../core/AssessmentItemDefinition';
-	import type { ItemSession, ItemSessionView } from '../core/ItemSession';
+	import { getItemSessionBinding, type ItemSession, type ItemSessionView } from '../core/ItemSession';
 	import type { AssessmentItemDefinitionPlugin } from '../core/AssessmentItemDefinition';
 	import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
 	import type { AdaptiveAttemptResult, ModalFeedback, PlayerSecurityConfig, QTIRole, ScoringResult } from '../types';
 	import type { PnpProfile } from '../pnp/types';
 	import type { InteractionResponseValue } from '../web-components';
-	import type { I18nProvider } from '@pie-qti/i18n';
+	import { interfaceLocaleAttributes, type I18nProvider } from '@pie-qti/i18n';
 	import { untrack } from 'svelte';
 	import ItemBody from './ItemBody.svelte';
 	import ModalFeedbackDisplay from './ModalFeedbackDisplay.svelte';
@@ -191,9 +191,14 @@
 	function closeFeedback() {
 		modalFeedback = [];
 	}
+
+	// The player's chrome (status, submit, feedback controls) takes the interface
+	// locale; the item body inside sets its own from the item's language.
+	const interfaceAttributes = $derived(interfaceLocaleAttributes(i18n));
+	const contentLanguage = $derived(activeSession ? getItemSessionBinding(activeSession).getContentLanguage() : undefined);
 </script>
 
-<div class="qti-item-player">
+<div class="qti-item-player" lang={interfaceAttributes?.lang} dir={interfaceAttributes?.dir}>
 	{#if error}
 		<div class="qti-player-alert qti-player-alert-error">
 			<span>{error}</span>
@@ -232,7 +237,7 @@
 		{/if}
 
 		<!-- Modal feedback display -->
-		<ModalFeedbackDisplay feedback={modalFeedback} onClose={closeFeedback} {typeset} {i18n} />
+		<ModalFeedbackDisplay feedback={modalFeedback} onClose={closeFeedback} {typeset} {i18n} {contentLanguage} />
 	{:else}
 		<div class="qti-player-alert qti-player-alert-info">
 			<span>{i18n?.t('item.loading') ?? 'item.loading'}</span>

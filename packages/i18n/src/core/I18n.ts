@@ -8,6 +8,7 @@
 
 import type { I18nProvider, InterpolationValues, PluralOptions } from './I18nProvider.js';
 import type { LocaleCode, MessageKey, LocaleMessages } from './types.js';
+import { languageDirection } from './direction.js';
 import { normalizeLanguageTag } from './language-tags.js';
 import {
 	FRAMEWORK_CATALOGS,
@@ -79,31 +80,6 @@ function intlLocale(tag: string): string {
  */
 const isDevelopment: boolean =
 	typeof process !== 'undefined' && process.env?.NODE_ENV === 'development';
-
-/**
- * Right-to-left primary language subtags.
- *
- * Only consulted when `Intl.Locale.prototype.textInfo` is unavailable — it is the
- * authoritative source but shipped late in Safari, and an assessment rendered
- * left-to-right for an Arabic reader is not a graceful degradation.
- */
-const RTL_LANGUAGES = new Set([
-	'ar', // Arabic
-	'ckb', // Central Kurdish
-	'dv', // Dhivehi
-	'fa', // Persian
-	'he',
-	'iw', // Hebrew (current and legacy subtags)
-	'ks', // Kashmiri
-	'ku', // Kurdish
-	'nqo', // N'Ko
-	'ps', // Pashto
-	'sd', // Sindhi
-	'syr', // Syriac
-	'ug', // Uyghur
-	'ur', // Urdu
-	'yi', // Yiddish
-]);
 
 export class DefaultI18nProvider implements I18nProvider {
 	/** Shared across instances: constructing Intl.PluralRules is not cheap */
@@ -271,19 +247,7 @@ export class DefaultI18nProvider implements I18nProvider {
 	 * @example getDirection() => 'rtl' for ar-SA, 'ltr' for en-US
 	 */
 	getDirection(): 'ltr' | 'rtl' {
-		try {
-			// textInfo is the authoritative CLDR answer where the engine has it
-			const textInfo = (new Intl.Locale(this.currentLocale.replace(/_/g, '-')) as { textInfo?: { direction?: string } })
-				.textInfo;
-			if (textInfo?.direction === 'rtl' || textInfo?.direction === 'ltr') {
-				return textInfo.direction;
-			}
-		} catch {
-			// Not a tag Intl.Locale accepts; the subtag check below still works
-		}
-
-		const language = this.currentLocale.toLowerCase().split(/[-_]/)[0] ?? '';
-		return RTL_LANGUAGES.has(language) ? 'rtl' : 'ltr';
+		return languageDirection(this.currentLocale);
 	}
 
 	/**

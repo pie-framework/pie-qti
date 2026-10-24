@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, type Snippet } from 'svelte';
-	import type { I18nProvider } from '@pie-qti/i18n';
+	import { interfaceLocaleAttributes, type I18nProvider } from '@pie-qti/i18n';
 
 	interface Props {
 		i18n?: I18nProvider;
@@ -55,11 +55,16 @@
 		}
 	}
 
+	/** Right-to-left layout puts the shared-context pane, the grid's first column, on the right. */
+	function isRtl() {
+		return splitContainerEl ? getComputedStyle(splitContainerEl).direction === 'rtl' : false;
+	}
+
 	function updateSplitFromClientX(clientX: number) {
 		if (!splitContainerEl) return;
 		const rect = splitContainerEl.getBoundingClientRect();
 		if (rect.width <= 0) return;
-		const x = clientX - rect.left;
+		const x = isRtl() ? rect.right - clientX : clientX - rect.left;
 		const pct = (x / rect.width) * 100;
 		splitLeftPct = clampPct(pct);
 	}
@@ -85,11 +90,15 @@
 	}
 
 	function onSplitterKeyDown(e: KeyboardEvent) {
-		if (e.key === 'ArrowLeft') {
+		// The arrows move the splitter where they point, which grows the first pane
+		// towards the inline end: rightwards left-to-right, leftwards right-to-left.
+		const grow = isRtl() ? 'ArrowLeft' : 'ArrowRight';
+		const shrink = isRtl() ? 'ArrowRight' : 'ArrowLeft';
+		if (e.key === shrink) {
 			e.preventDefault();
 			splitLeftPct = clampPct(splitLeftPct - 2);
 			saveSplitPct(splitLeftPct);
-		} else if (e.key === 'ArrowRight') {
+		} else if (e.key === grow) {
 			e.preventDefault();
 			splitLeftPct = clampPct(splitLeftPct + 2);
 			saveSplitPct(splitLeftPct);
@@ -136,11 +145,17 @@
 			onRightPaneReady?.(rightPaneEl);
 		}
 	});
+
+	// The section's chrome takes the interface locale; passages and items set
+	// their own from their content language.
+	const interfaceAttributes = $derived(interfaceLocaleAttributes(i18n));
 </script>
 
 <div
 	class:resizing={isResizing}
 	class="split-layout"
+	lang={interfaceAttributes?.lang}
+	dir={interfaceAttributes?.dir}
 	bind:this={splitContainerEl}
 	style={`--split-left: ${splitLeftPct}%;`}
 >
@@ -213,8 +228,7 @@
 		min-height: 44px;
 		height: 100%;
 		background: var(--color-base-200);
-		border-left: 1px solid var(--color-base-300);
-		border-right: 1px solid var(--color-base-300);
+		border-inline: 1px solid var(--color-base-300);
 		user-select: none;
 		touch-action: none;
 		position: relative;
