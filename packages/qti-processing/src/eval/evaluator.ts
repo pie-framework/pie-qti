@@ -1,7 +1,8 @@
 import Decimal from 'decimal.js';
 import type { ExpressionNode } from '../ast/types.js';
 import type { DeclarationContext } from '../runtime/context.js';
-import type { BaseType, Cardinality, LookupTableTable, QtiValue } from '../runtime/types.js';
+import { normalizeResponse } from '../runtime/normalize.js';
+import type { BaseType, Cardinality, LookupTableTable, Mapping, MappingEntry, QtiValue } from '../runtime/types.js';
 import {
 	coerceBaseValue,
 	normalizeForCompare,
@@ -19,6 +20,11 @@ export interface EvalEnv {
 	ctx: DeclarationContext;
 	ops: OperatorRegistry;
 	rng: () => number;
+	/**
+	 * BCP 47 tag of the item's content language. String comparisons and number
+	 * parsing read responses in it: its decimal marks, and its case fold.
+	 */
+	language?: string;
 	/**
 	 * Optional test-level context. Required to evaluate test-only expressions like:
 	 * - testVariables / outcomeMinimum / outcomeMaximum
@@ -66,6 +72,30 @@ export function applyLookupTable(source: QtiValue, table: LookupTableTable, base
 	if (!Number.isFinite(x)) return qtiInvalid('lookupTable interpolation invalid number');
 	const entry = table.entries.find((e) => x > e.sourceValue || (e.includeBoundary !== false && x === e.sourceValue));
 	return target(entry?.targetValue ?? table.defaultValue);
+}
+
+/**
+ * The mapping entry for a response value. String keys also compare in their
+ * normalised form, case folded where the entry is not case sensitive, so an
+ * answer typed in other digits or another Unicode encoding finds its entry.
+ */
+function findMappingEntry(
+	mapping: Mapping,
+	key: string,
+	baseType: BaseType | undefined,
+	language: string | undefined,
+): MappingEntry | undefined {
+	const exact =
+		mapping.entries[key] ??
+		(baseType === 'string' || baseType === 'identifier' ? mapping.entries[key.toLowerCase()] : undefined);
+	if (exact || baseType !== 'string') return exact;
+	const typed = normalizeResponse(key, { language });
+	const typedFolded = normalizeResponse(key, { language, ignoreCase: true });
+	return Object.values(mapping.entries).find((entry) =>
+		(entry.caseSensitive ?? mapping.caseSensitive) === 'false'
+			? normalizeResponse(entry.mapKey, { language, ignoreCase: true }) === typedFolded
+			: normalizeResponse(entry.mapKey, { language }) === typed,
+	);
 }
 
 /**
@@ -131,6 +161,7 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 				return `${a} ${b}`;
 			}
 		}
+		if (baseType === 'string' && typeof v === 'string') return normalizeResponse(v, { language: env.language });
 		return normalizeForCompare(v);
 	};
 
@@ -232,7 +263,7 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 
 	switch (expr.kind) {
 		case 'expr.baseValue':
-			return coerceBaseValue(expr.baseType as any, expr.text);
+			return coerceBaseValue(expr.baseType as any, expr.text, env.language);
 		case 'expr.null':
 			return qtiNull();
 		case 'expr.variable':
@@ -928,11 +959,9 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			if (a.kind === 'invalid' || b.kind === 'invalid') return qtiInvalid('stringMatch invalid');
 			if (a.kind === 'null' || b.kind === 'null') return qtiValue('boolean', 'single', false);
 
-			const sa = toStringValue(a);
-			const sb = toStringValue(b);
-
-			const left = expr.caseSensitive ? sa : sa.toLowerCase();
-			const right = expr.caseSensitive ? sb : sb.toLowerCase();
+			const options = { language: env.language, ignoreCase: !expr.caseSensitive };
+			const left = normalizeResponse(toStringValue(a), options);
+			const right = normalizeResponse(toStringValue(b), options);
 
 			if (expr.substring) return qtiValue('boolean', 'single', left.includes(right));
 			return qtiValue('boolean', 'single', left === right);
@@ -1097,10 +1126,7 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			};
 
 			const mapOne = (key: string): number => {
-				const k = normalizeMappingKey(key);
-				const entry =
-					decl.mapping!.entries[k] ??
-					((decl.baseType === 'string' || decl.baseType === 'identifier') ? decl.mapping!.entries[k.toLowerCase()] : undefined);
+				const entry = findMappingEntry(decl.mapping!, normalizeMappingKey(key), decl.baseType, env.language);
 				return entry ? Number(entry.mappedValue) : Number(decl.mapping!.defaultValue ?? 0);
 			};
 
@@ -1140,10 +1166,7 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			};
 
 			const mapOne = (key: string): number => {
-				const k = normalizeMappingKey(key);
-				const entry =
-					decl.mapping!.entries[k] ??
-					((decl.baseType === 'string' || decl.baseType === 'identifier') ? decl.mapping!.entries[k.toLowerCase()] : undefined);
+				const entry = findMappingEntry(decl.mapping!, normalizeMappingKey(key), decl.baseType, env.language);
 				return entry ? Number(entry.mappedValue) : Number(decl.mapping!.defaultValue ?? 0);
 			};
 

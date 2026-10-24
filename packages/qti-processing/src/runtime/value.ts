@@ -1,3 +1,4 @@
+import { parseResponseNumber } from './normalize.js';
 import type { BaseType, Cardinality, QtiValue } from './types.js';
 
 export function qtiNull(baseType?: BaseType, cardinality?: Cardinality): QtiValue {
@@ -93,7 +94,11 @@ function parseXsdDurationToMilliseconds(text: string): number | null {
 	return sign * totalSeconds * 1000;
 }
 
-export function coerceBaseValue(baseType: BaseType, text: string): QtiValue {
+/**
+ * Reads a QTI value from its lexical form. `language`, the content language,
+ * lets numbers be typed with any script's digits and that language's marks.
+ */
+export function coerceBaseValue(baseType: BaseType, text: string, language?: string): QtiValue {
 	const t = text.trim();
 	switch (baseType) {
 		case 'boolean':
@@ -103,7 +108,7 @@ export function coerceBaseValue(baseType: BaseType, text: string): QtiValue {
 			return qtiInvalid(`invalid boolean: ${t}`, 'boolean', 'single');
 		case 'integer':
 		case 'float': {
-			const n = Number(t);
+			const n = parseResponseNumber(t, language);
 			if (!Number.isFinite(n)) return qtiInvalid(`invalid number: ${t}`, baseType, 'single');
 			if (baseType === 'integer') return qtiValue('integer', 'single', Math.trunc(n));
 			return qtiValue('float', 'single', n);
