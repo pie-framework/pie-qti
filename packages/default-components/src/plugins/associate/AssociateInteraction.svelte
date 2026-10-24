@@ -183,9 +183,9 @@
 					{@html choice.text}
 				</span>
 				{#if isSelected}
-					<span class="ml-2">◉</span>
+					<span class="ms-2">◉</span>
 				{:else if inPair}
-					<span class="ml-2">✓</span>
+					<span class="ms-2">✓</span>
 				{/if}
 			</button>
 		{/each}

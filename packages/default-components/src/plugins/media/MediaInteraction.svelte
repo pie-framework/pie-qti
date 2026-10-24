@@ -147,7 +147,7 @@
 	<div class="qti-media-stats flex items-center justify-between text-sm text-base-content/70" part="stats" role="status" aria-live="polite">
 		<div>
 			<span class="font-medium">{translate(i18n, 'interactions.media.playCount', 'Play count:')}</span>
-			<span class="ml-2">{playCount}</span>
+			<span class="ms-2">{playCount}</span>
 		</div>
 
 		{#if parsedInteraction.minPlays > 0}
@@ -170,7 +170,7 @@
 		{#if parsedInteraction.minPlays > 0 && !hasMetMinPlays}
 			<div>
 				<span class="font-medium">{translate(i18n, 'interactions.media.remaining', 'Remaining:')}</span>
-				<span class="ml-2">{Math.max(0, parsedInteraction.minPlays - playCount)}</span>
+				<span class="ms-2">{Math.max(0, parsedInteraction.minPlays - playCount)}</span>
 			</div>
 		{/if}
 	</div>

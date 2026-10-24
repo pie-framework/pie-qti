@@ -152,12 +152,13 @@
 		inset-inline-start: 1rem;
 	}
 
+	/* The physical position values stay physical; -start and -end mirror. */
 	.assessment-timer[data-position$='-right'] {
-		right: 1rem;
+		right: 1rem; /* i18n-physical */
 	}
 
 	.assessment-timer[data-position$='-left'] {
-		left: 1rem;
+		left: 1rem; /* i18n-physical */
 	}
 
 	.assessment-timer.warning {

@@ -341,7 +341,7 @@
 	<div class="assessment-loading" lang={interfaceAttributes?.lang} dir={interfaceAttributes?.dir}>
 		<div class="flex items-center justify-center p-8" role="status" aria-live="polite">
 			<span class="loading loading-spinner loading-lg"></span>
-			<span class="ml-4">{i18n.t('assessment.loading')}</span>
+			<span class="ms-4">{i18n.t('assessment.loading')}</span>
 		</div>
 	</div>
 {:else}

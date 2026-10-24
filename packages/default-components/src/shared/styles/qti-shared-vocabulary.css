@@ -31,6 +31,7 @@
    ============================================================================= */
 
 .qti-align-left {
+	/* i18n-physical: the spec defines qti-align-left as physical */
 	text-align: left;
 }
 
@@ -39,6 +40,7 @@
 }
 
 .qti-align-right {
+	/* i18n-physical: the spec defines qti-align-right as physical */
 	text-align: right;
 }
 
@@ -425,11 +427,12 @@
    Float
    ============================================================================= */
 
-.qti-float-left        { float: left; }
-.qti-float-right       { float: right; }
+/* i18n-physical: qti-float-* and qti-float-clear-* are physical by spec */
+.qti-float-left        { float: left; } /* i18n-physical */
+.qti-float-right       { float: right; } /* i18n-physical */
 .qti-float-none        { float: none; }
-.qti-float-clear-left  { clear: left; }
-.qti-float-clear-right { clear: right; }
+.qti-float-clear-left  { clear: left; } /* i18n-physical */
+.qti-float-clear-right { clear: right; } /* i18n-physical */
 .qti-float-clear-both  { clear: both; }
 .qti-float-clearfix::after {
 	content: '';
