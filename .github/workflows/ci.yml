@@ -66,31 +66,8 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Check translation coverage
-        run: |
-          cd packages/i18n
-          bun run check-translations
-
-  hardcoded-strings:
-    name: Hardcoded String Scan (Informational)
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: package.json
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Scan for hardcoded strings
-        run: |
-          cd packages/i18n
-          bun run scan-hardcoded
+      - name: Check translation coverage and hardcoded strings
+        run: bun run check:i18n
 
   doc-links:
     name: Doc Links

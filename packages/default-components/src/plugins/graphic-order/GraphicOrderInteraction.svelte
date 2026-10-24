@@ -3,7 +3,7 @@
 <script lang="ts">
 	import type { GraphicOrderInteractionData } from '@pie-qti/item-player';
 	import { normalizePixelDimension } from '@pie-qti/item-player/security';
-	import type { I18nProvider } from '@pie-qti/i18n';
+	import { translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import SortableList from '../../shared/components/SortableList.svelte';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
@@ -192,7 +192,7 @@
 											d="M5 13l4 4L19 7"
 										></path>
 									</svg>
-									<span class="text-sm">Order confirmed</span>
+									<span class="text-sm">{translate(i18n, 'interactions.order.orderConfirmed', 'Order confirmed')}</span>
 								</div>
 							{/if}
 						</div>

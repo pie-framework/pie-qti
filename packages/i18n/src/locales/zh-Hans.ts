@@ -183,6 +183,7 @@ export default {
 			keyboard: '键盘',
 			update: '更新',
 			insert: '插入',
+			correctAnswerHeading: '正确答案：',
 		},
 
 		slider: {
@@ -209,6 +210,7 @@ export default {
 			altText: '热点交互',
 			unknownImageDimensions:
 				'无法显示此热点：其图像尺寸未知，因此无法定位可选区域。请为图像添加宽度和高度，或提供资源尺寸。',
+			correctList: '正确：{ids}',
 		},
 
 		selectPoint: {
@@ -225,6 +227,7 @@ export default {
 			pointsSelected: '已选择的点:',
 			minimumMet: '✓ 已满足最小要求',
 			selectAtLeast: '至少选择 {minChoices} 个',
+			correctPointAt: '坐标为 {x}, {y} 的正确答案点',
 		},
 
 		match: {
@@ -250,6 +253,12 @@ export default {
 			navigateToTarget: '导航到目标并按空格键或回车键进行匹配',
 			selectionCancelled: '已取消选择',
 			matchCleared: '已清除 {item} 的匹配',
+			maxReached: '已达到最大关联数。请移除一对后再添加新的一对。',
+			pairCreated: '{source} 已与 {target} 匹配。',
+			matchedWithSentence: '已与 {targets} 匹配。',
+			selectedForMatchingSentence: '已选择以进行匹配。',
+			availableForMatchingSentence: '可用于匹配。',
+			notCompatibleSentence: '与所选来源不兼容。',
 		},
 
 		gapMatch: {
@@ -286,6 +295,22 @@ export default {
 			labelPlaced: '{label} 已放置在热点 {hotspot} 上',
 			hotspot: '热点 {number}',
 			contains: '包含:{label}',
+			labelRemoved: '已从热点移除 {label}。',
+			pickedUp: '已拿起：{label}。按 Tab 键移到热点，然后按 Enter 键放置。',
+			alreadyPlacedSentence: '已放置在热点上。',
+			unavailableSentence: '因匹配组限制而不可用。',
+			heldHint: '已拿起。按 Tab 键移到热点，然后按 Enter 键放置。',
+			pickUpHint: '按空格键或 Enter 键拿起。',
+			selectedHint: '已选择以进行放置。',
+			selectHint: '按空格键选择。',
+			hotspotContains: '热点 {number}。包含 {label}。',
+			hotspotCorrectAnswer: '热点 {number}。正确答案：{label}。',
+			hotspotEmpty: '热点 {number}。空。',
+			hotspotAvailable: '热点 {number}。可用。',
+			placeHereHint: '按 Enter 键将 {label} 放置在此处。',
+			placeLabelHint: '按空格键或 Enter 键放置标签。',
+			labelFallback: '标签',
+			pickUpInstructions: '按空格键或回车键拾取标签。按 Tab 键移到图像上的热点，然后按回车键放置。按 Esc 键取消。',
 		},
 
 		order: {
@@ -305,6 +330,9 @@ export default {
 			itemDropped: '{item} 已放置在位置 {position} / {total}',
 			itemMoved: '{item} 已移动到位置 {position} / {total}',
 			selectionCancelled: '{item} 选择已取消',
+			itemPosition: '{item}。位置 {position} / {total}。',
+			itemFallback: '项目',
+			orderConfirmed: '顺序已确认',
 		},
 
 		associate: {
@@ -326,6 +354,7 @@ export default {
 			associationsCount: '关联({count}/{max})',
 			clickHotspotsToAssociate: '点击图像上的两个热点以创建关联。',
 			clickAnotherHotspot: '已选择:<strong>{label}</strong>。点击另一个热点以创建关联。',
+			removeAssociationBetween: '移除 {first} 与 {second} 之间的关联',
 		},
 
 		positionObject: {
@@ -343,6 +372,12 @@ export default {
 			availableObjectsCount: '可用的物体({count}/{max})',
 			dragObjectsInstruction: '将物体拖动到画布上进行定位。',
 			used: '已使用 {usageCount}/{matchMax}',
+			objectSelected: '已选择 {object}。按 Tab 键移到画布，然后使用方向键定位。按 Enter 键放置，按 Esc 键取消。',
+			objectPlacedAt: '已将 {object} 放置在 {x}%，{y}%。',
+			placementCancelled: '已取消放置。',
+			correctPositionFor: '{label} 的正确位置在 ({x}, {y})',
+			availableObjectsTotal: '可用的物体({count})',
+			paletteInstructions: '将物体拖动到画布上，或在物体上按回车键或空格键，然后使用方向键在画布上定位。',
 		},
 
 		endAttempt: {
@@ -369,8 +404,10 @@ export default {
 			playCount: '播放次数:',
 			remaining: '剩余:',
 			requirementMet: '✓ 已满足要求',
-			playAtLeast: '至少播放 {minPlays} 次',
-			playAtLeastPlural: '至少播放 {minPlays} 次',
+			playAtLeastCount: {
+				one: '至少播放 {count} 次',
+				other: '至少播放 {count} 次',
+			},
 			browserNoSupport: '你的浏览器不支持此媒体类型。',
 			audioNoSupport: '你的浏览器不支持音频元素。',
 			videoNoSupport: '你的浏览器不支持视频元素。',
@@ -396,11 +433,15 @@ export default {
 			placeholder: '输入手动响应(备用)',
 			attributes: '属性',
 			xml: 'XML',
+			promptHeading: '提示：',
 		},
 
 		inline: {
 			placeholder: '...',
 			selectPlaceholder: '选择...',
+			textEntryLabel: '文本输入 {id}',
+			choiceLabel: '行内选项 {id}',
+			formatHint: '格式：{mask}',
 		},
 	},
 
@@ -500,6 +541,9 @@ export default {
 			loadFailed: '加载问题失败。',
 			saveFailed: '保存响应失败。',
 		},
+		playerLabel: '评估播放器',
+		instructions: '说明',
+		rubrics: '评分标准',
 	},
 
 	i18n: {
@@ -516,6 +560,20 @@ export default {
 		newQuestion: '已加载新问题',
 		answerRecorded: '答案已记录',
 		resizer: '调整文章和问题面板大小',
+		sentence: '{text}。',
+		correctAnswer: '正确答案。',
+		correctAnswerIs: '正确答案：{answer}。',
+		correctPosition: '位置正确。',
+		positionPercent: '位置：{x}%，{y}%。',
+		catalogShowDefinition: '显示定义：{term}',
+		catalogShowTranslation: '显示翻译：{term}',
+		catalogShowIllustratedGlossary: '显示图解词汇表：{term}',
+		catalogRequestPronunciation: '请求发音：{term}',
+		catalogRequestSigningDefinition: '请求手语释义：{term}',
+		catalogRequestBrailleText: '请求盲文文本：{term}',
+		catalogRequestAudioDescription: '请求音频描述：{term}',
+		catalogRequestExtendedDescription: '请求扩展描述：{term}',
+		catalogRequestUsage: '请求 {usage}：{term}',
 	},
 
 	demo: {

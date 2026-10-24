@@ -8,7 +8,7 @@
  */
 
 import type { MathfieldElement } from 'mathlive';
-import type { I18nProvider } from '@pie-qti/i18n';
+import { isImeComposing, type I18nProvider } from '@pie-qti/i18n';
 
 // Import MathLive CSS from the local package
 import 'mathlive/mathlive-static.css';
@@ -263,7 +263,7 @@ export async function openMathLiveEditor(options: MathLiveEditorOptions): Promis
 	};
 
 	const handleEscape = (e: KeyboardEvent) => {
-		if (e.key === 'Escape') {
+		if (e.key === 'Escape' && !isImeComposing(e)) {
 			handleCancel();
 		}
 	};

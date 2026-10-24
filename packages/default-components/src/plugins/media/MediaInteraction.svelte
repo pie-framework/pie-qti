@@ -2,7 +2,7 @@
 
 <script lang="ts">
 	import type { MediaInteractionData } from '@pie-qti/item-player';
-	import type { I18nProvider } from '@pie-qti/i18n';
+	import { translate, translatePlural, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
@@ -112,7 +112,7 @@
 				onplaying={handlePlayAttempt}
 			>
 				<source src={parsedInteraction.mediaElement.src} type={parsedInteraction.mediaElement.mimeType} />
-				Your browser does not support the audio element.
+				{translate(i18n, 'interactions.media.audioNoSupport', 'Your browser does not support the audio element.')}
 			</audio>
 		{:else if parsedInteraction.mediaElement.type === 'video'}
 			<video
@@ -128,7 +128,7 @@
 				onplaying={handlePlayAttempt}
 			>
 				<source src={parsedInteraction.mediaElement.src} type={parsedInteraction.mediaElement.mimeType} />
-				Your browser does not support the video element.
+				{translate(i18n, 'interactions.media.videoNoSupport', 'Your browser does not support the video element.')}
 			</video>
 		{:else if parsedInteraction.mediaElement.type === 'object' && parsedInteraction.allowObjectEmbeds}
 			<object
@@ -139,24 +139,29 @@
 				class="w-full"
 				aria-label={i18n?.t('interactions.media.ariaLabel') ?? 'Media content'}
 			>
-				<p>Your browser does not support this media type.</p>
+				<p>{translate(i18n, 'interactions.media.browserNoSupport', 'Your browser does not support this media type.')}</p>
 			</object>
 		{/if}
 	</div>
 
 	<div class="qti-media-stats flex items-center justify-between text-sm text-base-content/70" part="stats" role="status" aria-live="polite">
 		<div>
-			<span class="font-medium">Play count:</span>
+			<span class="font-medium">{translate(i18n, 'interactions.media.playCount', 'Play count:')}</span>
 			<span class="ml-2">{playCount}</span>
 		</div>
 
 		{#if parsedInteraction.minPlays > 0}
 			<div class="flex items-center gap-2">
 				{#if hasMetMinPlays}
-					<span class="badge badge-success badge-sm">✓ Requirement met</span>
+					<span class="badge badge-success badge-sm">{translate(i18n, 'interactions.media.requirementMet', '✓ Requirement met')}</span>
 				{:else}
 					<span class="badge badge-warning badge-sm">
-						Play at least {parsedInteraction.minPlays} time{parsedInteraction.minPlays === 1 ? '' : 's'}
+						{translatePlural(
+							i18n,
+							'interactions.media.playAtLeastCount',
+							{ one: 'Play at least {count} time', other: 'Play at least {count} times' },
+							parsedInteraction.minPlays,
+						)}
 					</span>
 				{/if}
 			</div>
@@ -164,7 +169,7 @@
 
 		{#if parsedInteraction.minPlays > 0 && !hasMetMinPlays}
 			<div>
-				<span class="font-medium">Remaining:</span>
+				<span class="font-medium">{translate(i18n, 'interactions.media.remaining', 'Remaining:')}</span>
 				<span class="ml-2">{Math.max(0, parsedInteraction.minPlays - playCount)}</span>
 			</div>
 		{/if}

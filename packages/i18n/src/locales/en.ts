@@ -183,6 +183,7 @@ export default {
 			keyboard: 'Keyboard',
 			update: 'Update',
 			insert: 'Insert',
+			correctAnswerHeading: 'Correct answer:',
 		},
 
 		slider: {
@@ -209,6 +210,7 @@ export default {
 			altText: 'Hotspot interaction',
 			unknownImageDimensions:
 				'This hotspot cannot be shown: the size of its image is unknown, so the selectable regions cannot be placed. Add width and height to the image, or supply the asset dimensions.',
+			correctList: 'Correct: {ids}',
 		},
 
 		selectPoint: {
@@ -225,6 +227,7 @@ export default {
 			pointsSelected: 'Points selected:',
 			minimumMet: '✓ Minimum met',
 			selectAtLeast: 'Select at least {minChoices}',
+			correctPointAt: 'Correct answer point at coordinates {x}, {y}',
 		},
 
 		match: {
@@ -250,6 +253,12 @@ export default {
 			navigateToTarget: 'Navigate to a target and press Space or Enter to match',
 			selectionCancelled: 'Selection cancelled',
 			matchCleared: 'Match cleared for {item}',
+			maxReached: 'Maximum associations reached. Remove a pair to add a new one.',
+			pairCreated: '{source} matched with {target}.',
+			matchedWithSentence: 'Matched with {targets}.',
+			selectedForMatchingSentence: 'Selected for matching.',
+			availableForMatchingSentence: 'Available for matching.',
+			notCompatibleSentence: 'Not compatible with the selected source.',
 		},
 
 		gapMatch: {
@@ -286,6 +295,22 @@ export default {
 			labelPlaced: '{label} placed on hotspot {hotspot}',
 			hotspot: 'Hotspot {number}',
 			contains: 'Contains: {label}',
+			labelRemoved: '{label} removed from hotspot.',
+			pickedUp: 'Picked up: {label}. Tab to a hotspot and press Enter to place it.',
+			alreadyPlacedSentence: 'Already placed on a hotspot.',
+			unavailableSentence: 'Not available due to a match group restriction.',
+			heldHint: 'Picked up. Tab to a hotspot and press Enter to place it.',
+			pickUpHint: 'Press Space or Enter to pick up.',
+			selectedHint: 'Selected for placement.',
+			selectHint: 'Press Space to select.',
+			hotspotContains: 'Hotspot {number}. Contains {label}.',
+			hotspotCorrectAnswer: 'Hotspot {number}. Correct answer: {label}.',
+			hotspotEmpty: 'Hotspot {number}. Empty.',
+			hotspotAvailable: 'Hotspot {number}. Available.',
+			placeHereHint: 'Press Enter to place {label} here.',
+			placeLabelHint: 'Press Space or Enter to place the label.',
+			labelFallback: 'Label',
+			pickUpInstructions: 'Press Space or Enter to pick up a label. Tab to a hotspot on the image and press Enter to place it. Press Escape to cancel.',
 		},
 
 		order: {
@@ -305,6 +330,9 @@ export default {
 			itemDropped: '{item} dropped at position {position} of {total}',
 			itemMoved: '{item} moved to position {position} of {total}',
 			selectionCancelled: '{item} selection cancelled',
+			itemPosition: '{item}. Position {position} of {total}.',
+			itemFallback: 'Item',
+			orderConfirmed: 'Order confirmed',
 		},
 
 		associate: {
@@ -326,6 +354,7 @@ export default {
 			associationsCount: 'Associations ({count}/{max})',
 			clickHotspotsToAssociate: 'Click two hotspots on the image to create an association.',
 			clickAnotherHotspot: 'Selected: <strong>{label}</strong>. Click another hotspot to create an association.',
+			removeAssociationBetween: 'Remove association between {first} and {second}',
 		},
 
 		positionObject: {
@@ -343,6 +372,12 @@ export default {
 			availableObjectsCount: 'Available Objects ({count}/{max})',
 			dragObjectsInstruction: 'Drag objects onto the canvas to position them.',
 			used: '{usageCount}/{matchMax} used',
+			objectSelected: '{object} selected. Tab to the canvas, then use the arrow keys to position it. Press Enter to place it or Escape to cancel.',
+			objectPlacedAt: '{object} placed at {x}%, {y}%.',
+			placementCancelled: 'Placement cancelled.',
+			correctPositionFor: 'Correct position for {label} at ({x}, {y})',
+			availableObjectsTotal: 'Available Objects ({count})',
+			paletteInstructions: 'Drag objects onto the canvas, or press Enter or Space on an object, then use the arrow keys to position it on the canvas.',
 		},
 
 		endAttempt: {
@@ -369,8 +404,10 @@ export default {
 			playCount: 'Play count:',
 			remaining: 'Remaining:',
 			requirementMet: '✓ Requirement met',
-			playAtLeast: 'Play at least {minPlays} time',
-			playAtLeastPlural: 'Play at least {minPlays} times',
+			playAtLeastCount: {
+				one: 'Play at least {count} time',
+				other: 'Play at least {count} times',
+			},
 			browserNoSupport: 'Your browser does not support this media type.',
 			audioNoSupport: 'Your browser does not support the audio element.',
 			videoNoSupport: 'Your browser does not support the video element.',
@@ -396,11 +433,15 @@ export default {
 			placeholder: 'Enter a manual response (fallback)',
 			attributes: 'Attributes',
 			xml: 'XML',
+			promptHeading: 'Prompt:',
 		},
 
 		inline: {
 			placeholder: '...',
 			selectPlaceholder: 'Select...',
+			textEntryLabel: 'Text entry {id}',
+			choiceLabel: 'Inline choice {id}',
+			formatHint: 'Format: {mask}',
 		},
 	},
 
@@ -500,6 +541,9 @@ export default {
 			loadFailed: 'Failed to load question.',
 			saveFailed: 'Failed to save response.',
 		},
+		playerLabel: 'Assessment player',
+		instructions: 'Instructions',
+		rubrics: 'Rubrics',
 	},
 
 	i18n: {
@@ -516,6 +560,20 @@ export default {
 		newQuestion: 'New question loaded',
 		answerRecorded: 'Answer recorded',
 		resizer: 'Resize passage and question panels',
+		sentence: '{text}.',
+		correctAnswer: 'Correct answer.',
+		correctAnswerIs: 'Correct answer: {answer}.',
+		correctPosition: 'Correct position.',
+		positionPercent: 'Position: {x}%, {y}%.',
+		catalogShowDefinition: 'Show definition: {term}',
+		catalogShowTranslation: 'Show translation: {term}',
+		catalogShowIllustratedGlossary: 'Show illustrated glossary: {term}',
+		catalogRequestPronunciation: 'Request pronunciation: {term}',
+		catalogRequestSigningDefinition: 'Request signing definition: {term}',
+		catalogRequestBrailleText: 'Request braille text: {term}',
+		catalogRequestAudioDescription: 'Request audio description: {term}',
+		catalogRequestExtendedDescription: 'Request extended description: {term}',
+		catalogRequestUsage: 'Request {usage}: {term}',
 	},
 
 	demo: {

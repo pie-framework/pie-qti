@@ -3,6 +3,8 @@
  * Component to render HTML with inline interactive elements (textEntry, inlineChoice)
  * Uses a custom parsing approach to embed Svelte components within HTML
  */
+import { translate, type I18nProvider } from '@pie-qti/i18n';
+
 interface InlineRendererInteraction {
 	responseId: string;
 	interactionClasses?: string[];
@@ -20,9 +22,10 @@ interface Props {
 	interactions: InlineRendererInteraction[];
 	responses: InlineResponseMap;
 	onResponseChange: (responseId: string, value: string) => void;
+	i18n?: I18nProvider;
 }
 
-let { html, interactions, responses, onResponseChange }: Props = $props();
+let { html, interactions, responses, onResponseChange, i18n }: Props = $props();
 
 // Parse HTML and extract inline interaction placeholders
 type ParsedSegment =
@@ -103,18 +106,19 @@ const segments = $derived.by(() => {
 				class={['input input-bordered input-sm inline-input', ...(segment.interaction.interactionClasses ?? [])].join(' ')}
 				style={inputWidthCh ? `width: ${inputWidthCh}ch; display: inline-block; margin: 0 4px;` : `width: ${(segment.interaction.expectedLength ?? 15) * 8}px; min-width: 100px; display: inline-block; margin: 0 4px;`}
 				placeholder={segment.interaction.placeholderText || ''}
-				aria-label={`Text entry ${segment.interaction.responseId}`}
+				dir="auto"
+				aria-label={translate(i18n, 'interactions.inline.textEntryLabel', 'Text entry {id}', { id: segment.interaction.responseId })}
 				value={responses[segment.interaction.responseId] || ''}
 				oninput={(e) => onResponseChange(segment.interaction.responseId, e.currentTarget.value)}
 			/>
 		{:else if segment.type === 'inlineChoice'}
 			{@const inputWidthClass = (segment.interaction.interactionClasses ?? []).find((c: string) => c.startsWith('qti-input-width-'))}
 			{@const inputWidthCh = inputWidthClass ? parseInt(inputWidthClass.replace('qti-input-width-', ''), 10) : null}
-			{@const placeholder = segment.interaction.dataPrompt ?? segment.interaction.label ?? 'Select...'}
+			{@const placeholder = segment.interaction.dataPrompt ?? segment.interaction.label ?? translate(i18n, 'interactions.inline.selectPlaceholder', 'Select...')}
 			<select
 				class={['select select-bordered select-sm inline-select', ...(segment.interaction.interactionClasses ?? [])].join(' ')}
 				style={inputWidthCh ? `width: ${inputWidthCh}ch; display: inline-block; margin: 0 4px;` : `display: inline-block; margin: 0 4px; width: auto; min-width: 120px;`}
-				aria-label={`Inline choice ${segment.interaction.responseId}`}
+				aria-label={translate(i18n, 'interactions.inline.choiceLabel', 'Inline choice {id}', { id: segment.interaction.responseId })}
 				value={responses[segment.interaction.responseId] || ''}
 				onchange={(e) => onResponseChange(segment.interaction.responseId, e.currentTarget.value)}
 			>

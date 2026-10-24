@@ -2,7 +2,7 @@
 
 <script lang="ts">
 	import type { HottextInteractionData } from '@pie-qti/item-player';
-	import type { I18nProvider } from '@pie-qti/i18n';
+	import { translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
 	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
@@ -257,7 +257,7 @@
 					}}
 					{disabled}
 				>
-					Clear Selection
+					{translate(i18n, 'interactions.hottext.clearSelection', 'Clear Selection')}
 				</button>
 			{/if}
 		</div>

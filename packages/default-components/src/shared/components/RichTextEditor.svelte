@@ -149,6 +149,7 @@
 					class: 'pie-tiptap tiptap-prose',
 					style: `min-height: ${initialMinHeight}px`,
 					role: 'textbox',
+					dir: 'auto',
 					'aria-multiline': 'true',
 					'aria-label': initialEditorLabel,
 				},

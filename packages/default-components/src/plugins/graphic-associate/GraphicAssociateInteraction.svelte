@@ -3,7 +3,7 @@
 <script lang="ts">
 	import type { GraphicAssociateInteractionData } from '@pie-qti/item-player';
 	import { normalizePixelDimension } from '@pie-qti/item-player/security';
-	import type { I18nProvider } from '@pie-qti/i18n';
+	import { translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
 	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
@@ -403,12 +403,19 @@
 				<div class="qti-ga-card card bg-base-100 border border-base-300">
 					<div class="qti-ga-card-body card-body p-4">
 						<h3 class="card-title text-sm">
-							Associations ({pairs.length}/{parsedInteraction.maxAssociations})
+							{translate(i18n, 'interactions.associate.associationsCount', 'Associations ({count}/{max})', {
+								count: pairs.length,
+								max: parsedInteraction.maxAssociations,
+							})}
 						</h3>
 
 						{#if pairs.length === 0}
 							<p class="text-sm text-base-content/60">
-								Click two hotspots on the image to create an association.
+								{translate(
+									i18n,
+									'interactions.associate.clickHotspotsToAssociate',
+									'Click two hotspots on the image to create an association.',
+								)}
 							</p>
 						{:else}
 							<div class="space-y-2">
@@ -456,7 +463,9 @@
 
 						{#if parsedInteraction.minAssociations > 0}
 							<div class="text-xs text-base-content/60 mt-2">
-								Minimum required: {parsedInteraction.minAssociations}
+								{translate(i18n, 'interactions.associate.minimumRequired', 'Minimum required: {minAssociations}', {
+									minAssociations: parsedInteraction.minAssociations,
+								})}
 							</div>
 						{/if}
 					</div>

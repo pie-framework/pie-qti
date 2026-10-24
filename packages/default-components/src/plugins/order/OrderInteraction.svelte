@@ -2,7 +2,7 @@
 
 <script lang="ts">
 	import type { OrderInteractionData } from '@pie-qti/item-player';
-	import type { I18nProvider } from '@pie-qti/i18n';
+	import { translate, type I18nProvider } from '@pie-qti/i18n';
 	import { typesetAction } from '../../shared/actions/typesetAction';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import SortableList, { type SortableIndexLabels } from '../../shared/components/SortableList.svelte';
@@ -210,7 +210,7 @@
 							d="M5 13l4 4L19 7"
 						></path>
 					</svg>
-					Order confirmed
+					{translate(i18n, 'interactions.order.orderConfirmed', 'Order confirmed')}
 				</div>
 			{/if}
 		</div>

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { ModalFeedback } from '@pie-qti/item-player';
-	import type { I18nProvider } from '@pie-qti/i18n';
+	import { translate, type I18nProvider } from '@pie-qti/i18n';
 	import { typesetAction } from '../actions/typesetAction';
 
 	interface Props {
@@ -70,7 +70,7 @@
 			<!-- Action buttons -->
 			<div class="modal-action">
 				<button class="btn btn-primary" type="button" onclick={handleClose}>
-					Continue
+					{translate(i18n, 'common.continue', 'Continue')}
 				</button>
 			</div>
 		</div>

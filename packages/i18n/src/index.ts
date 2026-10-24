@@ -41,6 +41,9 @@ export {
 } from './core/direction.js';
 export type { LanguageAttributes, TextDirection } from './core/direction.js';
 
+// Accessible names and live-region messages
+export { formatList, isImeComposing, joinSentences, translate, translatePlural } from './core/accessible-text.js';
+
 // Types
 export type {
 	LocaleCode,
