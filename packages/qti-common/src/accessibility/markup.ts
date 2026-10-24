@@ -22,7 +22,10 @@
  * 5. Inline SSML elements are unwrapped with their text kept, and their nearest enclosing element
  *    gets a `spoken` card holding its content as SSML: the shape `SSMLExtractor` in pie-players
  *    produces from a `<speak>` element, so both reach `TTSService` alike.
- * 6. `xml:lang` is restated as `lang`, the attribute HTML reads for the language of content.
+ * 6. `xml:lang` is restated as `lang`, the attribute HTML reads for the language of content, and
+ *    gets the `dir` of that language where it differs from the surrounding content's: the nearest
+ *    ancestor's `dir` or language, else the document element's `xml:lang`, else left-to-right.
+ *    An authored `dir` stays as authored.
  *
  * Docking puts the idref on the element's start tag, with two exceptions that wrap the element's
  * content instead: a choice, whose attributes the transformers drop along with its tag, and an
@@ -31,6 +34,7 @@
  */
 
 import { type HTMLElement, parse } from 'node-html-parser';
+import { languageDirection, type TextDirection } from '../language/direction.js';
 import type { TextRange } from './catalog.js';
 
 export const HIDING_STYLES = {
@@ -105,6 +109,7 @@ const CONTENT_ROOT_PATTERN =
 	/<((?:[\w.-]+:)?(?:itemBody|modalFeedback|stimulusBody|qti-item-body|qti-modal-feedback|qti-stimulus-body))\b[\s\S]*?<\/\1\s*>/g;
 const TOKEN_PATTERN =
 	/<!--[\s\S]*?-->|<\?[\s\S]*?\?>|<!\[CDATA\[|\]\]>|<\/([A-Za-z][\w.:-]*)\s*>|<([A-Za-z][\w.:-]*)((?:\s+[^\s=/>]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'>]+))?)*)\s*(\/?)>/g;
+const DOCUMENT_LANGUAGE_PATTERN = /^(?:\s*<(?:\?[\s\S]*?\?|!--[\s\S]*?--|![^>]*)>)*\s*<[^\s/>!?]+[^>]*?\sxml:lang\s*=\s*("[^"]*"|'[^']*')/;
 const ATTRIBUTE_PATTERN = /([^\s=/>]+)(?:\s*=\s*("[^"]*"|'[^']*'|[^\s"'>]+))?/g;
 const XMLNS_ATTRIBUTE_PATTERN = /\s+xmlns(?::[\w.-]+)?\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'>]+)/g;
 const SSML_PREFIX_PATTERN = /\bxmlns:([\w.-]+)\s*=\s*(["'])(.*?)\2/g;
@@ -167,6 +172,7 @@ export function prepareContentMarkup(
 	options: PrepareContentMarkupOptions = {}
 ): PreparedMarkup {
 	const hidingStyles = options.hidingStyles ?? true;
+	const documentDirection = languageDirection(unquote(qtiXml.match(DOCUMENT_LANGUAGE_PATTERN)?.[1]));
 	const roots = [...qtiXml.matchAll(CONTENT_ROOT_PATTERN)].flatMap((match) => {
 		const root = contentTree(match[0], match.index, ssmlPrefixesOf(qtiXml));
 		return root ? [root] : [];
@@ -211,7 +217,7 @@ export function prepareContentMarkup(
 
 	for (const element of elements) {
 		if (element.ssml) continue;
-		editStartTag(element, hidingStyles);
+		editStartTag(element, hidingStyles, documentDirection);
 		const authored = unquote(element.attributes.get('data-catalog-idref')).trim();
 		if (authored) {
 			if (CONTENT_WRAPPED.has(element.local)) dock(element, authored);
@@ -343,7 +349,11 @@ function contentTree(
 }
 
 /** Restate hiding classes, read-aloud suppression and content language in the start tag. */
-function editStartTag(element: ContentElement, hidingStyles: boolean): void {
+function editStartTag(
+	element: ContentElement,
+	hidingStyles: boolean,
+	documentDirection: TextDirection
+): void {
 	const { attributes } = element;
 	const classes = unquote(attributes.get('class')).split(/\s+/);
 	const hiding = Object.entries(hidingStyles ? HIDING_STYLES : {})
@@ -365,14 +375,29 @@ function editStartTag(element: ContentElement, hidingStyles: boolean): void {
 	}
 
 	const language = attributes.get('xml:lang');
-	if (language !== undefined && !attributes.has('lang')) {
-		element.added.push(`lang=${quoted(language)}`);
+	if (language !== undefined) {
+		if (!attributes.has('lang')) element.added.push(`lang=${quoted(language)}`);
+		const direction = languageDirection(unquote(language));
+		if (!attributes.has('dir') && direction !== surroundingDirection(element, documentDirection)) {
+			element.added.push(`dir="${direction}"`);
+		}
 	}
 
 	const suppress = attributes.get('data-qti-suppress-tts');
 	if (suppress !== undefined && !attributes.has('data-tts-suppress')) {
 		element.added.push(`data-tts-suppress=${quoted(suppress)}`);
 	}
+}
+
+/** The direction `element` inherits: its nearest ancestor's `dir` or language, else the document's. */
+function surroundingDirection(element: ContentElement, documentDirection: TextDirection): TextDirection {
+	for (let ancestor = element.parent; ancestor; ancestor = ancestor.parent) {
+		const dir = unquote(ancestor.attributes.get('dir')).trim().toLowerCase();
+		if (dir === 'rtl' || dir === 'ltr') return dir;
+		const language = ancestor.attributes.get('xml:lang') ?? ancestor.attributes.get('lang');
+		if (language !== undefined) return languageDirection(unquote(language));
+	}
+	return documentDirection;
 }
 
 /**

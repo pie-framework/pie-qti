@@ -32,6 +32,15 @@ export {
 } from './core/negotiation.js';
 export type { FrameworkCatalogCode } from './core/negotiation.js';
 
+// Writing direction and the lang/dir pairs players write on their roots
+export {
+	canonicalLanguageTag,
+	contentLanguageAttributes,
+	interfaceLocaleAttributes,
+	languageDirection,
+} from './core/direction.js';
+export type { LanguageAttributes, TextDirection } from './core/direction.js';
+
 // Types
 export type {
 	LocaleCode,
