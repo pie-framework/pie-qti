@@ -3,7 +3,7 @@
 <script lang="ts">
 	import type { Point, SelectPointInteractionData } from '@pie-qti/item-player';
 	import { normalizePixelDimension } from '@pie-qti/item-player/security';
-	import type { I18nProvider } from '@pie-qti/i18n';
+	import { joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
@@ -280,7 +280,7 @@
 
 				const xPct = Math.round(crosshairX * 100);
 				const yPct = Math.round(crosshairY * 100);
-				liveRegionText = `Position: ${xPct}%, ${yPct}%`;
+				liveRegionText = translate(i18n, 'accessibility.positionPercent', 'Position: {x}%, {y}%.', { x: xPct, y: yPct });
 				break;
 			}
 			case 'Enter':
@@ -297,7 +297,7 @@
 		crosshairActive = true;
 		crosshairX = 0.5;
 		crosshairY = 0.5;
-		liveRegionText = 'Position: 50%, 50%';
+		liveRegionText = translate(i18n, 'accessibility.positionPercent', 'Position: {x}%, {y}%.', { x: 50, y: 50 });
 	}
 
 	function handleBlur() {
@@ -372,8 +372,20 @@
 						e.stopPropagation();
 						removePoint(index);
 					}}
-					aria-label="Remove point {index + 1} at coordinates {point.x}, {point.y}{isCorrect ? '. Correct answer' : ''}"
-					title="Click to remove this point ({point.x}, {point.y}){isCorrect ? ' - Correct' : ''}"
+					aria-label={joinSentences(
+						translate(i18n, 'accessibility.sentence', '{text}.', {
+							text: translate(i18n, 'interactions.selectPoint.removePointAt', 'Remove point {index} at coordinates {x}, {y}', {
+								index: index + 1,
+								x: point.x,
+								y: point.y,
+							}),
+						}),
+						isCorrect && translate(i18n, 'accessibility.correctAnswer', 'Correct answer.'),
+					)}
+					title={joinSentences(
+						translate(i18n, 'interactions.selectPoint.removePointAtTitle', 'Click to remove this point ({x}, {y})', { x: point.x, y: point.y }),
+						isCorrect && translate(i18n, 'accessibility.correctAnswer', 'Correct answer.'),
+					)}
 					{disabled}
 				>
 					<span class="point-number">{isCorrect ? '✓' : index + 1}</span>
@@ -392,8 +404,8 @@
 						part="correct-point"
 						class="point-marker point-marker-correct"
 						style="left: {xPercent}%; top: {yPercent}%; pointer-events: none; z-index: 200;"
-						aria-label="Correct answer point at coordinates {point.x}, {point.y}"
-						title="Correct answer: ({point.x}, {point.y})"
+						aria-label={translate(i18n, 'interactions.selectPoint.correctPointAt', 'Correct answer point at coordinates {x}, {y}', { x: point.x, y: point.y })}
+						title={translate(i18n, 'accessibility.correctAnswerIs', 'Correct answer: {answer}.', { answer: `(${point.x}, ${point.y})` })}
 					>
 						<span class="point-number">✓</span>
 					</div>
@@ -433,15 +445,17 @@
 
 	<div class="flex items-center justify-between text-sm text-base-content/70">
 		<div>
-			<span class="font-medium">Points selected:</span>
+			<span class="font-medium">{translate(i18n, 'interactions.selectPoint.pointsSelected', 'Points selected:')}</span>
 			<span class="ml-2">{selectedPoints.length} / {parsedInteraction.maxChoices}</span>
 			{#if parsedInteraction.minChoices > 0}
 				<span class="ml-2">
 					{#if hasMetMinChoices}
-						<span class="badge badge-success badge-sm">✓ Minimum met</span>
+						<span class="badge badge-success badge-sm">{translate(i18n, 'interactions.selectPoint.minimumMet', '✓ Minimum met')}</span>
 					{:else}
 						<span class="badge badge-warning badge-sm">
-							Select at least {parsedInteraction.minChoices}
+							{translate(i18n, 'interactions.selectPoint.selectAtLeast', 'Select at least {minChoices}', {
+								minChoices: parsedInteraction.minChoices,
+							})}
 						</span>
 					{/if}
 				</span>
@@ -450,7 +464,7 @@
 
 		{#if selectedPoints.length > 0}
 			<button type="button" class="btn btn-sm btn-ghost" onclick={clearAllPoints} {disabled}>
-				Clear All
+				{translate(i18n, 'common.clearAll', 'Clear All')}
 			</button>
 		{/if}
 	</div>
@@ -471,7 +485,7 @@
 					d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
 				></path>
 			</svg>
-			<span>Maximum points reached. Remove a point to add a new one.</span>
+			<span>{translate(i18n, 'interactions.selectPoint.maxPointsReached', 'Maximum points reached. Remove a point to add a new one.')}</span>
 		</div>
 	{/if}
 	</div>

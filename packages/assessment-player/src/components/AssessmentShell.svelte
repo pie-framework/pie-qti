@@ -351,7 +351,7 @@
 		lang={interfaceAttributes?.lang}
 		dir={interfaceAttributes?.dir}
 		role="region"
-		aria-label="Assessment player"
+		aria-label={i18n.t('assessment.playerLabel', 'Assessment player')}
 		aria-busy={isSubmitting}
 	>
 		<!-- Header with title and section menu -->

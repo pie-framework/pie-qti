@@ -389,33 +389,25 @@ and options.
 
 ### Hardcoded String Scanner
 
-The package includes a scanner that detects hardcoded English strings in component files that should use i18n:
+The scanner parses Svelte templates with the Svelte compiler and reports learner-visible strings that bypass the catalog: template text, and `aria-label`, `title` and `placeholder` values on DOM elements that are static text or a template literal. Script literals, component props and test directories are out of scope. A finding names the catalog key when en already carries the string.
 
 ```bash
-# Scan default components package
+# Scan every package (advisory)
 bun run scan-hardcoded
+
+# Exit 1 on any finding; `bun run check:i18n` and CI run it this way
+bun run scan-hardcoded --strict
 
 # Scan a custom path
 bun run scan-hardcoded --path=../custom-components
 ```
 
-The scanner:
-
-- ✅ **Detects hardcoded strings** that match translation values in en
-- ✅ **Suggests the correct i18n key** to use for each match
-- ✅ **Scans .svelte and .ts files** recursively
-- ✅ **Provides exact replacement code** for each hardcoded string
-
-**Example output:**
+Put `<!-- i18n-ignore -->` before an element or text node that no learner reads in their own language, such as a code sample; the node and its subtree are skipped.
 
 ```text
-📄 plugins/graphic-order/GraphicOrderInteraction.svelte (1 match)
-────────────────────────────────────────────────────────────────
-  Line 138: <h3>Order (drag to reorder)</h3>
-           Use: i18n?.t('interactions.graphicOrder.orderHeading') ?? 'Order (drag to reorder)'
+packages/default-components: 1 finding(s)
+  packages/default-components/src/plugins/order/OrderInteraction.svelte:212 text"Order confirmed" → t('interactions.order.orderConfirmed')
 ```
-
-This tool helps maintain consistency by ensuring all user-facing strings use the i18n system.
 
 ### Running Tests
 

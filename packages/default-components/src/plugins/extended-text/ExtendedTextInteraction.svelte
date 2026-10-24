@@ -9,7 +9,7 @@
 	} from '@pie-qti/item-player';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
-	import type { I18nProvider } from '@pie-qti/i18n';
+	import { translate, type I18nProvider } from '@pie-qti/i18n';
 	import RichTextEditor from '../../shared/components/RichTextEditor.svelte';
 	import { typesetAction } from '../../shared/actions/typesetAction';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
@@ -186,7 +186,7 @@
 						<RichTextEditor
 							value={editorValue}
 							editable={!disabled}
-							placeholder={parsedInteraction.placeholderText || 'Enter your response...'}
+							placeholder={parsedInteraction.placeholderText || translate(i18n, 'interactions.extendedText.placeholder', 'Type your response here...')}
 							minHeight={parsedInteraction.expectedLines ? parsedInteraction.expectedLines * 24 : 200}
 							{i18n}
 							onChange={(html) => handleChange(index, html)}
@@ -196,8 +196,9 @@
 							value={editorValue}
 							disabled={disabled}
 							rows={parsedInteraction.expectedLines || 3}
-							placeholder={parsedInteraction.placeholderText || 'Enter your response...'}
-							aria-label={parsedInteraction.placeholderText || 'Enter your response'}
+							dir="auto"
+							placeholder={parsedInteraction.placeholderText || translate(i18n, 'interactions.extendedText.placeholder', 'Type your response here...')}
+							aria-label={parsedInteraction.placeholderText || translate(i18n, 'interactions.extendedText.placeholder', 'Type your response here...')}
 							oninput={(event) => handleChange(index, event.currentTarget.value)}
 						></textarea>
 					{/if}
@@ -232,7 +233,7 @@
 		{#if isShowingCorrect && parsedCorrectResponse}
 			<div part="correct-answer" class="mt-3 p-3 bg-success bg-opacity-10 border border-success rounded">
 				<div class="text-sm font-semibold text-success mb-2">
-					{i18n?.t('interactions.choice.correct', 'Correct') ?? 'Correct'} Answer:
+					{translate(i18n, 'interactions.extendedText.correctAnswerHeading', 'Correct answer:')}
 				</div>
 				{#each correctResponseStrings as correctResponseString}
 					<div class="text-sm">{correctResponseString}</div>

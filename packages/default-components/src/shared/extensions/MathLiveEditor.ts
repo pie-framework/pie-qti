@@ -9,6 +9,7 @@
  * Note: MathLive CSS is loaded dynamically to avoid build issues with package exports.
  */
 
+import { isImeComposing } from '@pie-qti/i18n';
 import type { MathfieldElement } from 'mathlive';
 // Import MathLive CSS from the local package
 import 'mathlive/static.css';
@@ -249,7 +250,7 @@ export async function openMathLiveEditor(options: MathLiveEditorOptions): Promis
 	};
 
 	const handleEscape = (e: KeyboardEvent) => {
-		if (e.key === 'Escape') {
+		if (e.key === 'Escape' && !isImeComposing(e)) {
 			handleCancel();
 		}
 	};

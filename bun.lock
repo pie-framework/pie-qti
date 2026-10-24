@@ -170,6 +170,7 @@
       "name": "@pie-qti/default-components",
       "version": "1.0.0-beta.1",
       "dependencies": {
+        "@pie-qti/i18n": "workspace:*",
         "@pie-qti/item-player": "workspace:*",
         "@pie-qti/qti-common": "workspace:*",
         "@tiptap/core": "3.32.0",
@@ -180,7 +181,6 @@
       },
       "devDependencies": {
         "@biomejs/biome": "^2.5.15",
-        "@pie-qti/i18n": "workspace:*",
         "@sveltejs/vite-plugin-svelte": "7.3.1",
         "@types/node": "^26.6.4",
         "jsdom": "^30.1.3",
@@ -191,12 +191,6 @@
         "vite": "8.3.4",
         "vitest": "^5.0.5",
       },
-      "peerDependencies": {
-        "@pie-qti/i18n": "workspace:*",
-      },
-      "optionalPeers": [
-        "@pie-qti/i18n",
-      ],
     },
     "packages/demo-vendor-extensions": {
       "name": "@pie-qti/demo-vendor-extensions",

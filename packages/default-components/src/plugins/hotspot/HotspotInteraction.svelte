@@ -2,7 +2,7 @@
 
 <script lang="ts">
 	import type { HotspotInteractionData } from '@pie-qti/item-player';
-	import type { I18nProvider } from '@pie-qti/i18n';
+	import { formatList, translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
@@ -241,7 +241,7 @@
 					<span>{i18n?.t('interactions.hotspot.selected') ?? 'Selected:'} {parsedResponse}</span>
 				{/if}
 				{#if isShowingCorrect && correctIds.length > 0}
-					<span class="ml-2">Correct: {correctIds.join(', ')}</span>
+					<span class="ml-2">{translate(i18n, 'interactions.hotspot.correctList', 'Correct: {ids}', { ids: formatList(i18n, correctIds) })}</span>
 				{/if}
 			</div>
 		{/if}

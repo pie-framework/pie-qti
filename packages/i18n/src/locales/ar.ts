@@ -215,6 +215,7 @@ export default {
 			keyboard: 'لوحة المفاتيح',
 			update: 'تحديث',
 			insert: 'إدراج',
+			correctAnswerHeading: 'الإجابة الصحيحة:',
 		},
 
 		slider: {
@@ -241,6 +242,7 @@ export default {
 			altText: 'تفاعل النقطة الساخنة',
 			unknownImageDimensions:
 				'لا يمكن عرض هذه النقطة الساخنة: أبعاد صورتها غير معروفة، لذا لا يمكن تحديد مواضع المناطق القابلة للتحديد. أضف العرض والارتفاع إلى الصورة، أو حدد أبعاد الملف.',
+			correctList: 'الصحيح: {ids}',
 		},
 
 		selectPoint: {
@@ -257,6 +259,7 @@ export default {
 			pointsSelected: 'النقاط المحددة:',
 			minimumMet: '✓ تم تحقيق الحد الأدنى',
 			selectAtLeast: 'اختر على الأقل {minChoices}',
+			correctPointAt: 'نقطة الإجابة الصحيحة عند الإحداثيات {x}، {y}',
 		},
 
 		match: {
@@ -282,6 +285,12 @@ export default {
 			navigateToTarget: 'انتقل إلى هدف واضغط على مفتاح المسافة أو الإدخال للمطابقة',
 			selectionCancelled: 'تم إلغاء التحديد',
 			matchCleared: 'تم مسح المطابقة لـ {item}',
+			maxReached: 'تم الوصول إلى الحد الأقصى للارتباطات. أزل زوجًا لإضافة زوج جديد.',
+			pairCreated: 'تمت مطابقة {source} مع {target}.',
+			matchedWithSentence: 'مطابق مع {targets}.',
+			selectedForMatchingSentence: 'محدد للمطابقة.',
+			availableForMatchingSentence: 'متاح للمطابقة.',
+			notCompatibleSentence: 'غير متوافق مع المصدر المحدد.',
 		},
 
 		gapMatch: {
@@ -318,6 +327,22 @@ export default {
 			labelPlaced: 'تم وضع {label} على النقطة الساخنة {hotspot}',
 			hotspot: 'النقطة الساخنة {number}',
 			contains: 'يحتوي على: {label}',
+			labelRemoved: 'تمت إزالة {label} من النقطة الساخنة.',
+			pickedUp: 'تم الإمساك بـ {label}. انتقل بمفتاح Tab إلى نقطة ساخنة واضغط Enter لوضعها.',
+			alreadyPlacedSentence: 'تم وضعها بالفعل على نقطة ساخنة.',
+			unavailableSentence: 'غير متاح بسبب قيد مجموعة المطابقة.',
+			heldHint: 'تم الإمساك. انتقل بمفتاح Tab إلى نقطة ساخنة واضغط Enter لوضعها.',
+			pickUpHint: 'اضغط على مفتاح المسافة أو Enter للإمساك.',
+			selectedHint: 'محددة للوضع.',
+			selectHint: 'اضغط على مفتاح المسافة للتحديد.',
+			hotspotContains: 'النقطة الساخنة {number}. تحتوي على {label}.',
+			hotspotCorrectAnswer: 'النقطة الساخنة {number}. الإجابة الصحيحة: {label}.',
+			hotspotEmpty: 'النقطة الساخنة {number}. فارغة.',
+			hotspotAvailable: 'النقطة الساخنة {number}. متاحة.',
+			placeHereHint: 'اضغط Enter لوضع {label} هنا.',
+			placeLabelHint: 'اضغط على مفتاح المسافة أو Enter لوضع التسمية.',
+			labelFallback: 'تسمية',
+			pickUpInstructions: 'اضغط على مفتاح المسافة أو الإدخال لالتقاط تسمية. اضغط على Tab للانتقال إلى نقطة ساخنة على الصورة، ثم اضغط على الإدخال لوضعها. اضغط على Escape للإلغاء.',
 		},
 
 		order: {
@@ -337,6 +362,9 @@ export default {
 			itemDropped: 'تم إفلات {item} في الموضع {position} من {total}',
 			itemMoved: 'تم نقل {item} إلى الموضع {position} من {total}',
 			selectionCancelled: 'تم إلغاء تحديد {item}',
+			itemPosition: '{item}. الموضع {position} من {total}.',
+			itemFallback: 'عنصر',
+			orderConfirmed: 'تم تأكيد الترتيب',
 		},
 
 		associate: {
@@ -358,6 +386,7 @@ export default {
 			associationsCount: 'الارتباطات ({count}/{max})',
 			clickHotspotsToAssociate: 'انقر على نقطتين ساخنتين على الصورة لإنشاء ارتباط.',
 			clickAnotherHotspot: 'محدد: <strong>{label}</strong>. انقر على نقطة ساخنة أخرى لإنشاء ارتباط.',
+			removeAssociationBetween: 'إزالة الارتباط بين {first} و{second}',
 		},
 
 		positionObject: {
@@ -375,6 +404,12 @@ export default {
 			availableObjectsCount: 'الكائنات المتاحة ({count}/{max})',
 			dragObjectsInstruction: 'اسحب الكائنات على اللوحة لوضعها.',
 			used: '{usageCount}/{matchMax} مستخدم',
+			objectSelected: 'تم تحديد {object}. انتقل بمفتاح Tab إلى اللوحة، ثم استخدم مفاتيح الأسهم لتحديد موضعه. اضغط Enter لوضعه أو Escape للإلغاء.',
+			objectPlacedAt: 'تم وضع {object} عند {x}٪، {y}٪.',
+			placementCancelled: 'تم إلغاء الوضع.',
+			correctPositionFor: 'الموضع الصحيح لـ {label} عند ({x}، {y})',
+			availableObjectsTotal: 'الكائنات المتاحة ({count})',
+			paletteInstructions: 'اسحب الكائنات على اللوحة، أو اضغط على الإدخال أو المسافة على كائن، ثم استخدم مفاتيح الأسهم لوضعه على اللوحة.',
 		},
 
 		endAttempt: {
@@ -401,8 +436,14 @@ export default {
 			playCount: 'عدد مرات التشغيل:',
 			remaining: 'المتبقي:',
 			requirementMet: '✓ تم تحقيق المتطلب',
-			playAtLeast: 'شغل على الأقل {minPlays} مرة',
-			playAtLeastPlural: 'شغل على الأقل {minPlays} مرات',
+			playAtLeastCount: {
+				zero: 'شغّل {count} مرة على الأقل',
+				one: 'شغّل مرة واحدة على الأقل',
+				two: 'شغّل مرتين على الأقل',
+				few: 'شغّل {count} مرات على الأقل',
+				many: 'شغّل {count} مرة على الأقل',
+				other: 'شغّل {count} مرة على الأقل',
+			},
 			browserNoSupport: 'متصفحك لا يدعم هذا النوع من الوسائط.',
 			audioNoSupport: 'متصفحك لا يدعم عنصر الصوت.',
 			videoNoSupport: 'متصفحك لا يدعم عنصر الفيديو.',
@@ -428,11 +469,15 @@ export default {
 			placeholder: 'أدخل استجابة يدوية (احتياطية)',
 			attributes: 'السمات',
 			xml: 'XML',
+			promptHeading: 'الموجه:',
 		},
 
 		inline: {
 			placeholder: '...',
 			selectPlaceholder: 'اختر...',
+			textEntryLabel: 'إدخال نص {id}',
+			choiceLabel: 'اختيار مضمَّن {id}',
+			formatHint: 'التنسيق: {mask}',
 		},
 	},
 
@@ -532,6 +577,9 @@ export default {
 			loadFailed: 'فشل تحميل السؤال.',
 			saveFailed: 'فشل حفظ الإجابة.',
 		},
+		playerLabel: 'مشغل التقييم',
+		instructions: 'التعليمات',
+		rubrics: 'معايير التقييم',
 	},
 
 	i18n: {
@@ -548,6 +596,20 @@ export default {
 		newQuestion: 'تم تحميل سؤال جديد',
 		answerRecorded: 'تم تسجيل الإجابة',
 		resizer: 'تغيير حجم لوحات الفقرة والسؤال',
+		sentence: '{text}.',
+		correctAnswer: 'إجابة صحيحة.',
+		correctAnswerIs: 'الإجابة الصحيحة: {answer}.',
+		correctPosition: 'موضع صحيح.',
+		positionPercent: 'الموضع: {x}٪، {y}٪.',
+		catalogShowDefinition: 'عرض التعريف: {term}',
+		catalogShowTranslation: 'عرض الترجمة: {term}',
+		catalogShowIllustratedGlossary: 'عرض المسرد المصوّر: {term}',
+		catalogRequestPronunciation: 'طلب النطق: {term}',
+		catalogRequestSigningDefinition: 'طلب التعريف بلغة الإشارة: {term}',
+		catalogRequestBrailleText: 'طلب نص برايل: {term}',
+		catalogRequestAudioDescription: 'طلب الوصف الصوتي: {term}',
+		catalogRequestExtendedDescription: 'طلب الوصف الموسّع: {term}',
+		catalogRequestUsage: 'طلب {usage}: {term}',
 	},
 
 	demo: {

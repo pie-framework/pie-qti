@@ -3,7 +3,7 @@
 <script lang="ts">
 	import type { AssociateInteractionData, HtmlContent } from '@pie-qti/item-player';
 	import { htmlToString } from '@pie-qti/item-player/security';
-	import type { I18nProvider } from '@pie-qti/i18n';
+	import { translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
@@ -134,8 +134,11 @@
 		return text ? `${choice.identifier}: ${text}` : choice.identifier;
 	}
 
-	function getPairLabel(choice1: { identifier: string; text: HtmlContent }, choice2: { identifier: string; text: HtmlContent }): string {
-		return `${getChoiceLabel(choice1)} and ${getChoiceLabel(choice2)}`;
+	function getRemoveAssociationLabel(choice1: { identifier: string; text: HtmlContent }, choice2: { identifier: string; text: HtmlContent }): string {
+		return translate(i18n, 'interactions.associate.removeAssociationBetween', 'Remove association between {first} and {second}', {
+			first: getChoiceLabel(choice1),
+			second: getChoiceLabel(choice2),
+		});
 	}
 
 	const correctPairs = $derived(
@@ -246,7 +249,7 @@
 							part="pair-remove"
 							class="btn btn-sm btn-ghost btn-circle"
 							type="button"
-							aria-label={`Remove association between ${getPairLabel(choice1, choice2)}`}
+							aria-label={getRemoveAssociationLabel(choice1, choice2)}
 							onclick={() => removePair(index)}
 							{disabled}
 						>

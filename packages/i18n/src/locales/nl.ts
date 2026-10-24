@@ -172,6 +172,7 @@ export default {
 			keyboard: 'Toetsenbord',
 			update: 'Bijwerken',
 			insert: 'Invoegen',
+			correctAnswerHeading: 'Juist antwoord:',
 		},
 
 		slider: {
@@ -198,6 +199,7 @@ export default {
 			altText: 'Hotspot-interactie',
 			unknownImageDimensions:
 				'Deze hotspot kan niet worden weergegeven: de afmetingen van de afbeelding zijn onbekend, waardoor de selecteerbare gebieden niet geplaatst kunnen worden. Voeg breedte en hoogte toe aan de afbeelding of geef de afmetingen van het bestand op.',
+			correctList: 'Juist: {ids}',
 		},
 
 		selectPoint: {
@@ -214,6 +216,7 @@ export default {
 			pointsSelected: 'Punten geselecteerd:',
 			minimumMet: '✓ Minimum bereikt',
 			selectAtLeast: 'Selecteer minimaal {minChoices}',
+			correctPointAt: 'Punt van het juiste antwoord op coördinaten {x}, {y}',
 		},
 
 		match: {
@@ -238,6 +241,12 @@ export default {
 			navigateToTarget: 'Navigeer naar een doel en druk op Spatie of Enter om te koppelen',
 			selectionCancelled: 'Selectie geannuleerd',
 			matchCleared: 'Koppeling gewist voor {item}',
+			maxReached: 'Maximum aantal koppelingen bereikt. Verwijder een paar om een nieuw paar toe te voegen.',
+			pairCreated: '{source} gekoppeld aan {target}.',
+			matchedWithSentence: 'Gekoppeld aan {targets}.',
+			selectedForMatchingSentence: 'Geselecteerd voor koppeling.',
+			availableForMatchingSentence: 'Beschikbaar voor koppeling.',
+			notCompatibleSentence: 'Niet compatibel met de geselecteerde bron.',
 		},
 
 		gapMatch: {
@@ -273,6 +282,22 @@ export default {
 			labelPlaced: '{label} geplaatst op hotspot {hotspot}',
 			hotspot: 'Hotspot {number}',
 			contains: 'Bevat: {label}',
+			labelRemoved: '{label} verwijderd van hotspot.',
+			pickedUp: 'Opgepakt: {label}. Ga met Tab naar een hotspot en druk op Enter om het te plaatsen.',
+			alreadyPlacedSentence: 'Al geplaatst op een hotspot.',
+			unavailableSentence: 'Niet beschikbaar door een beperking van de koppelgroep.',
+			heldHint: 'Opgepakt. Ga met Tab naar een hotspot en druk op Enter om het te plaatsen.',
+			pickUpHint: 'Druk op Spatie of Enter om op te pakken.',
+			selectedHint: 'Geselecteerd voor plaatsing.',
+			selectHint: 'Druk op Spatie om te selecteren.',
+			hotspotContains: 'Hotspot {number}. Bevat {label}.',
+			hotspotCorrectAnswer: 'Hotspot {number}. Juist antwoord: {label}.',
+			hotspotEmpty: 'Hotspot {number}. Leeg.',
+			hotspotAvailable: 'Hotspot {number}. Beschikbaar.',
+			placeHereHint: 'Druk op Enter om {label} hier te plaatsen.',
+			placeLabelHint: 'Druk op Spatie of Enter om het label te plaatsen.',
+			labelFallback: 'Label',
+			pickUpInstructions: 'Druk op Spatie of Enter om een label op te pakken. Tab naar een hotspot op de afbeelding en druk op Enter om het te plaatsen. Druk op Escape om te annuleren.',
 		},
 
 		order: {
@@ -292,6 +317,9 @@ export default {
 			itemDropped: '{item} neergezet op positie {position} van {total}',
 			itemMoved: '{item} verplaatst naar positie {position} van {total}',
 			selectionCancelled: '{item} selectie geannuleerd',
+			itemPosition: '{item}. Positie {position} van {total}.',
+			itemFallback: 'Item',
+			orderConfirmed: 'Volgorde bevestigd',
 		},
 
 		associate: {
@@ -313,6 +341,7 @@ export default {
 			associationsCount: 'Associaties ({count}/{max})',
 			clickHotspotsToAssociate: 'Klik op twee hotspots op de afbeelding om een associatie te maken.',
 			clickAnotherHotspot: 'Geselecteerd: <strong>{label}</strong>. Klik op een andere hotspot om een associatie te maken.',
+			removeAssociationBetween: 'Associatie tussen {first} en {second} verwijderen',
 		},
 
 		positionObject: {
@@ -330,6 +359,12 @@ export default {
 			availableObjectsCount: 'Beschikbare objecten ({count}/{max})',
 			dragObjectsInstruction: 'Sleep objecten op het canvas om ze te positioneren.',
 			used: '{usageCount}/{matchMax} gebruikt',
+			objectSelected: '{object} geselecteerd. Ga met Tab naar het canvas en gebruik de pijltjestoetsen om het te positioneren. Druk op Enter om het te plaatsen of op Escape om te annuleren.',
+			objectPlacedAt: '{object} geplaatst op {x}%, {y}%.',
+			placementCancelled: 'Plaatsing geannuleerd.',
+			correctPositionFor: 'Juiste positie voor {label} op ({x}, {y})',
+			availableObjectsTotal: 'Beschikbare objecten ({count})',
+			paletteInstructions: 'Sleep objecten op het canvas, of druk op Enter of Spatie op een object en gebruik de pijltjestoetsen om het op het canvas te positioneren.',
 		},
 
 		endAttempt: {
@@ -356,8 +391,10 @@ export default {
 			playCount: 'Aantal keer afgespeeld:',
 			remaining: 'Resterend:',
 			requirementMet: '✓ Vereiste voldaan',
-			playAtLeast: 'Speel minimaal {minPlays} keer af',
-			playAtLeastPlural: 'Speel minimaal {minPlays} keer af',
+			playAtLeastCount: {
+				one: 'Speel minimaal {count} keer af',
+				other: 'Speel minimaal {count} keer af',
+			},
 			browserNoSupport: 'Je browser ondersteunt dit mediatype niet.',
 			audioNoSupport: 'Je browser ondersteunt het audio-element niet.',
 			videoNoSupport: 'Je browser ondersteunt het video-element niet.',
@@ -383,11 +420,15 @@ export default {
 			placeholder: 'Voer een handmatig antwoord in (fallback)',
 			attributes: 'Attributen',
 			xml: 'XML',
+			promptHeading: 'Prompt:',
 		},
 
 		inline: {
 			placeholder: '...',
 			selectPlaceholder: 'Selecteren...',
+			textEntryLabel: 'Tekstinvoer {id}',
+			choiceLabel: 'Inline keuze {id}',
+			formatHint: 'Notatie: {mask}',
 		},
 	},
 
@@ -487,6 +528,9 @@ export default {
 			loadFailed: 'Kan vraag niet laden.',
 			saveFailed: 'Kan antwoord niet opslaan.',
 		},
+		playerLabel: 'Toetsspeler',
+		instructions: 'Instructies',
+		rubrics: 'Beoordelingsrubrieken',
 	},
 
 	i18n: {
@@ -503,6 +547,20 @@ export default {
 		newQuestion: 'Nieuwe vraag geladen',
 		answerRecorded: 'Antwoord opgeslagen',
 		resizer: 'Grootte van tekst- en vraagpanelen aanpassen',
+		sentence: '{text}.',
+		correctAnswer: 'Juist antwoord.',
+		correctAnswerIs: 'Juist antwoord: {answer}.',
+		correctPosition: 'Juiste positie.',
+		positionPercent: 'Positie: {x}%, {y}%.',
+		catalogShowDefinition: 'Definitie tonen: {term}',
+		catalogShowTranslation: 'Vertaling tonen: {term}',
+		catalogShowIllustratedGlossary: 'Geïllustreerde woordenlijst tonen: {term}',
+		catalogRequestPronunciation: 'Uitspraak aanvragen: {term}',
+		catalogRequestSigningDefinition: 'Definitie in gebarentaal aanvragen: {term}',
+		catalogRequestBrailleText: 'Brailletekst aanvragen: {term}',
+		catalogRequestAudioDescription: 'Audiodescriptie aanvragen: {term}',
+		catalogRequestExtendedDescription: 'Uitgebreide beschrijving aanvragen: {term}',
+		catalogRequestUsage: '{usage} aanvragen: {term}',
 	},
 
 	demo: {

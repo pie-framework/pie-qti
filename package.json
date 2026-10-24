@@ -74,7 +74,8 @@
     "release:with-version": "bun ./scripts/create-temporary-release-changeset.mjs && bun run version && bun run restore:workspace-ranges && bun run check:npm-auth && bun run verify:publish && bun run test && bun run release && bun run restore:workspace-ranges",
     "check:custom-elements": "bun ./scripts/check-custom-elements.mjs",
     "check:publish-side-effects": "bun ./scripts/check-publish-side-effects.mjs",
-    "check:doc-links": "bun ./scripts/check-doc-links.mjs"
+    "check:doc-links": "bun ./scripts/check-doc-links.mjs",
+    "check:i18n": "bun run --cwd packages/i18n check:i18n"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.2",
