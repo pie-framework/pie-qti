@@ -2,19 +2,27 @@
  * Type definitions for i18n system
  */
 
-import type enUS from '../locales/en-US.js';
+import type en from '../locales/en.js';
+import type { FrameworkCatalogCode } from './negotiation.js';
 
-// Framework-provided locale codes (BCP 47 format)
-// The framework provides a minimal set of locales. Clients can provide their own
-// translations for additional locales via the customMessages parameter.
+/**
+ * Locale tags with a framework catalog.
+ *
+ * Catalogs are keyed by language (`FrameworkCatalogCode`: `en`, `es`, `ar`,
+ * `zh-Hans` …). The region-qualified tags are kept as members because hosts
+ * pass them; negotiation resolves each to its language's catalog, as it does
+ * any other tag (`es-MX`, `ar_EG`). Clients provide translations for other
+ * locales via the customMessages parameter.
+ */
 export type FrameworkLocaleCode =
-	| 'en-US'  // English (United States)
-	| 'es-ES'  // Spanish (Spain)
-	| 'fr-FR'  // French (France)
-	| 'nl-NL'  // Dutch (Netherlands)
-	| 'ro-RO'  // Romanian (Romania)
-	| 'th-TH'  // Thai (Thailand)
-	| 'zh-CN'  // Chinese (Simplified, China)
+	| FrameworkCatalogCode
+	| 'en-US' // English (United States)
+	| 'es-ES' // Spanish (Spain)
+	| 'fr-FR' // French (France)
+	| 'nl-NL' // Dutch (Netherlands)
+	| 'ro-RO' // Romanian (Romania)
+	| 'th-TH' // Thai (Thailand)
+	| 'zh-CN' // Chinese (Simplified, China)
 	| 'ar-SA'; // Arabic (Saudi Arabia)
 
 // Allow any locale code (clients can provide custom locales)
@@ -27,8 +35,8 @@ type NestedKeyOfHelper<ObjectType extends object> = {
 		: `${Key}`;
 }[keyof ObjectType & (string | number)];
 
-// Message key generated from English locale structure
-export type MessageKey = NestedKeyOfHelper<typeof enUS>;
+// Message key generated from the English catalog structure
+export type MessageKey = NestedKeyOfHelper<typeof en>;
 
 // Interpolation values for dynamic message content
 export interface InterpolationValues {

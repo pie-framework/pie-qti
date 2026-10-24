@@ -8,7 +8,7 @@
 
 export interface I18nProvider {
 	/**
-	 * Get the current locale code (e.g., 'en-US', 'fr-FR')
+	 * Get the current locale tag as the host set it (e.g., 'en-US', 'fr', 'ar_SA')
 	 */
 	getLocale(): string;
 
@@ -56,6 +56,15 @@ export interface I18nProvider {
 	 * @param locale - BCP 47 locale code for the view
 	 */
 	withLocale?(locale: string): I18nProvider;
+
+	/**
+	 * Optional: Settles once the catalog for this provider's locale is loaded
+	 *
+	 * Set on a `withLocale()` view whose catalog is not yet resident. A caller
+	 * renders immediately (English fills the gap) and renders again, once, when
+	 * this settles. It never rejects: a failed load leaves the English fallback.
+	 */
+	readonly ready?: Promise<void>;
 
 	/**
 	 * Optional: Format number according to locale

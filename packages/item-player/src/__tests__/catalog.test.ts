@@ -203,7 +203,45 @@ describe('getCatalogEntry', () => {
 		const result = getCatalogEntry(index, 't1', 'glossary-on-screen');
 		expect(result).toBe('def:nolang');
 	});
+
+	it('walks the lookup sequence before reaching a sibling region (es-MX → es, not es-ES)', () => {
+		const index = makeMultiEntryIndex(['es-ES', 'es', 'en']);
+		expect(getCatalogEntry(index, 't1', 'glossary-on-screen', 'es-MX')).toBe('def:es');
+	});
+
+	it('reaches a sibling region when the language has nothing broader (es-MX → es-ES)', () => {
+		const index = makeMultiEntryIndex(['en', 'es-ES']);
+		expect(getCatalogEntry(index, 't1', 'glossary-on-screen', 'es-MX')).toBe('def:es-ES');
+	});
+
+	it('matches POSIX and BCP-47 tags to each other', () => {
+		const index = makeMultiEntryIndex(['en', 'es_ES']);
+		expect(getCatalogEntry(index, 't1', 'glossary-on-screen', 'es-ES')).toBe('def:es_ES');
+		expect(getCatalogEntry(index, 't1', 'glossary-on-screen', 'ES_es')).toBe('def:es_ES');
+	});
+
+	it('does not match a language that only shares a prefix string (e => es)', () => {
+		const index = makeMultiEntryIndex(['es', 'en']);
+		expect(getCatalogEntry(index, 't1', 'glossary-on-screen', 'e')).toBeNull();
+	});
 });
+
+function makeMultiEntryIndex(langs: string[]): ReturnType<typeof extractCatalog> {
+	const entries = langs
+		.map(
+			(lang) => `
+				<qti-card-entry usage="glossary-on-screen" xml:lang="${lang}">
+					<qti-html-content>def:${lang}</qti-html-content>
+				</qti-card-entry>`
+		)
+		.join('');
+	return extractCatalog(`
+		<qti-catalog-info>
+			<qti-card identifier="t1">${entries}
+			</qti-card>
+		</qti-catalog-info>
+	`);
+}
 
 // ---------------------------------------------------------------------------
 // Player.getCatalogEntry integration

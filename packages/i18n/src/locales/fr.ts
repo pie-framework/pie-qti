@@ -1,5 +1,5 @@
 /**
- * French (France) translations
+ * French translations
  *
  * Guidelines for translators:
  * - Keep messages concise for UI constraints

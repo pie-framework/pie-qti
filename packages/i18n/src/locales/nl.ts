@@ -1,5 +1,5 @@
 /**
- * Dutch (Netherlands) translations
+ * Dutch translations
  *
  * Guidelines for translators:
  * - Keep messages concise for UI constraints

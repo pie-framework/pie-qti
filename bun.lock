@@ -122,6 +122,7 @@
       "dependencies": {
         "@pie-qti/assessment-toolkit": "workspace:*",
         "@pie-qti/default-components": "workspace:*",
+        "@pie-qti/i18n": "workspace:*",
         "@pie-qti/ims-cp-core": "workspace:*",
         "@pie-qti/item-player": "workspace:*",
         "@pie-qti/qti-common": "workspace:*",
@@ -131,18 +132,11 @@
       },
       "devDependencies": {
         "@biomejs/biome": "^2.5.15",
-        "@pie-qti/i18n": "workspace:*",
         "@types/node": "^26.6.4",
         "svelte": "^5.57.1",
         "svelte-check": "^4.7.5",
         "typescript": "^5.9.3",
       },
-      "peerDependencies": {
-        "@pie-qti/i18n": "workspace:*",
-      },
-      "optionalPeers": [
-        "@pie-qti/i18n",
-      ],
     },
     "packages/assessment-toolkit": {
       "name": "@pie-qti/assessment-toolkit",
@@ -266,6 +260,7 @@
       "name": "@pie-qti/item-player",
       "version": "1.0.0-beta.0",
       "dependencies": {
+        "@pie-qti/i18n": "workspace:*",
         "@pie-qti/ims-cp-core": "workspace:*",
         "@pie-qti/qti-common": "workspace:*",
         "@pie-qti/qti-processing": "workspace:*",
@@ -274,7 +269,6 @@
       },
       "devDependencies": {
         "@biomejs/biome": "^2.5.15",
-        "@pie-qti/i18n": "workspace:*",
         "@sveltejs/vite-plugin-svelte": "^7.3.1",
         "@types/node": "^26.6.4",
         "svelte": "^5.57.1",
@@ -283,12 +277,6 @@
         "vite": "^8.3.4",
         "vite-plugin-dts": "^5.1.2",
       },
-      "peerDependencies": {
-        "@pie-qti/i18n": "workspace:*",
-      },
-      "optionalPeers": [
-        "@pie-qti/i18n",
-      ],
     },
     "packages/logger": {
       "name": "@pie-qti/logger",
