@@ -95,7 +95,7 @@
 - **FR-1:** Render each `simpleChoice` as a draggable list item in a `role="list"` container. Each item must show a position badge (1-based index), a drag handle icon, and the choice text.
 - **FR-2:** Support mouse drag-and-drop reordering: drag any item to any other position; the item replaces the target and all others shift accordingly.
 - **FR-3:** Support touch drag reordering: a single-touch press and drag must move items the same way mouse drag does. Multi-touch must not trigger drag (single-touch only).
-- **FR-4:** Support keyboard reordering: `Space` or `Enter` grabs the focused item; arrow keys (Up/Down for vertical, Left/Right for horizontal) move the grabbed item one position per press; `Space` or `Enter` drops it; `Escape` cancels the grab without changing order.
+- **FR-4:** Support keyboard reordering: `Space` or `Enter` grabs the focused item; arrow keys (Up/Down for vertical, Left/Right for horizontal) move the grabbed item one position per press, with Left/Right mirrored when the list's computed `direction` is `rtl`; `Space` or `Enter` drops it; `Escape` cancels the grab without changing order.
 - **FR-5:** After every reorder (drag or keyboard), auto-confirm the response and emit a `qti-change` CustomEvent with `{ responseIdentifier, value: string[] }` from the root element. The event must bubble.
 - **FR-6:** Show a "Confirm Order" button when the response has not yet been confirmed (e.g., first mount with no prior response). Clicking "Confirm Order" commits the current displayed order and emits `qti-change`.
 - **FR-7:** When the candidate has not reordered any items, the confirm button must show "Confirm Order (No Changes)" to make the default state explicit.
@@ -116,7 +116,7 @@
 
 WCAG 2.2 Level AA compliance is mandatory for all default components.
 
-- **Keyboard drag pattern (SC 2.1.1):** The grab → move → drop pattern with Space/Enter and arrow keys is mandatory. Arrow keys must respect orientation: Up/Down for `vertical`, Left/Right for `horizontal`.
+- **Keyboard drag pattern (SC 2.1.1):** The grab → move → drop pattern with Space/Enter and arrow keys is mandatory. Arrow keys must respect orientation: Up/Down for `vertical`, Left/Right for `horizontal`. Horizontal keys follow the inline direction: under `rtl`, ArrowRight moves earlier.
 - **Focus management (SC 2.4.3):** After a keyboard drop, focus must remain on the dropped item at its new position.
 - **Live region announcements (SC 4.1.3):** All position changes must be announced via `aria-live="polite"` with messages in the format: `"{item} moved to position {N} of {total}"`. Grab, drop, and cancel must each have their own message. Messages are i18n-keyed (see `interactions.order.*` keys).
 - **Static instructions for screen readers:** An `aria-describedby` pointing to a visually hidden instructions element must be present on the list container. The instructions explain the grab → arrow → drop pattern.
@@ -358,7 +358,8 @@ AC-A3: Keyboard move — horizontal orientation
   Given: an item with orientation=horizontal
   When: an item is grabbed and the candidate presses ArrowRight
   Then: the item moves one position to the right; ArrowLeft moves it left;
-        ArrowUp and ArrowDown have no effect on the order
+        ArrowUp and ArrowDown have no effect on the order;
+        under a computed direction of rtl, ArrowRight moves it one position earlier and ArrowLeft later
 
 AC-A4: Screen-reader instructions are present but visually hidden
   Given: any orderInteraction item rendered

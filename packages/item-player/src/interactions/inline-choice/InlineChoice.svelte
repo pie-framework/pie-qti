@@ -98,7 +98,7 @@
 	.qti-inline-choice-correct-badge {
 		position: absolute;
 		top: -1.5rem;
-		left: 0;
+		inset-inline-start: 0;
 		display: inline-flex;
 		align-items: center;
 		white-space: nowrap;

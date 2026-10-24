@@ -241,7 +241,7 @@
 <style>
 	.qti-pie-tool-shell {
 		display: inline-flex;
-		margin-left: auto;
+		margin-inline-start: auto;
 	}
 
 	pie-assessment-toolkit,
