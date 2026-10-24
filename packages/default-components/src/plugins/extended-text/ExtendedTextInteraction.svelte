@@ -319,6 +319,6 @@
 		color: var(--pie-qti-base-content, #374151);
 		opacity: 0.7;
 		margin-top: 0.25rem;
-		text-align: right;
+		text-align: end;
 	}
 </style>

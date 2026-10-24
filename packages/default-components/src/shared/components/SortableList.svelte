@@ -170,6 +170,10 @@ function announceMoved(itemName: string, position: number): string {
 
 function handleArrowKeyMovement(event: KeyboardEvent, itemName: string, currentIndex: number) {
 	const focusedItem = event.currentTarget as HTMLButtonElement;
+	// Horizontal lists run in the inline direction, so the earlier key mirrors under RTL.
+	const rtl = getComputedStyle(focusedItem).direction === 'rtl';
+	const earlierKey = rtl ? 'ArrowRight' : 'ArrowLeft';
+	const laterKey = rtl ? 'ArrowLeft' : 'ArrowRight';
 	if (event.key === 'ArrowUp' && orientation === 'vertical' && currentIndex > 0) {
 		event.preventDefault();
 		moveItem(currentIndex, currentIndex - 1);
@@ -182,12 +186,12 @@ function handleArrowKeyMovement(event: KeyboardEvent, itemName: string, currentI
 		event.preventDefault();
 		moveItem(currentIndex, currentIndex + 1);
 		announceText = announceMoved(itemName, currentIndex + 2);
-	} else if (event.key === 'ArrowLeft' && orientation === 'horizontal' && currentIndex > 0) {
+	} else if (event.key === earlierKey && orientation === 'horizontal' && currentIndex > 0) {
 		event.preventDefault();
 		moveItem(currentIndex, currentIndex - 1);
 		announceText = announceMoved(itemName, currentIndex);
 	} else if (
-		event.key === 'ArrowRight' &&
+		event.key === laterKey &&
 		orientation === 'horizontal' &&
 		currentIndex < orderedIds.length - 1
 	) {
@@ -300,7 +304,7 @@ function toPlainText(html: HtmlContent): string {
 					data-correct={isCorrect}
 					data-disabled={disabled}
 					part="item"
-					class="qti-sortable-item flex items-center gap-2 p-3 bg-base-200 rounded select-none transition-all w-full text-left"
+					class="qti-sortable-item flex items-center gap-2 p-3 bg-base-200 rounded select-none transition-all w-full text-start"
 					class:cursor-grab={!disabled && !isGrabbed}
 					class:cursor-not-allowed={disabled}
 					class:opacity-50={disabled || draggedId === id}
@@ -326,13 +330,13 @@ function toPlainText(html: HtmlContent): string {
 							aria-label="{i18n?.t('interactions.order.moveEarlier') ?? 'Move earlier'}: {label}"
 							title={i18n?.t('interactions.order.moveEarlier') ?? 'Move earlier'}
 							onclick={(event) => moveWithButton(event, id, -1)}>
-							<span aria-hidden="true">{orientation === 'horizontal' ? '←' : '↑'}</span>
+							<span class="qti-sortable-glyph" aria-hidden="true">{orientation === 'horizontal' ? '←' : '↑'}</span>
 						</button>
 						<button type="button" class="qti-sortable-move" disabled={index === orderedIds.length - 1}
 							aria-label="{i18n?.t('interactions.order.moveLater') ?? 'Move later'}: {label}"
 							title={i18n?.t('interactions.order.moveLater') ?? 'Move later'}
 							onclick={(event) => moveWithButton(event, id, 1)}>
-							<span aria-hidden="true">{orientation === 'horizontal' ? '→' : '↓'}</span>
+							<span class="qti-sortable-glyph" aria-hidden="true">{orientation === 'horizontal' ? '→' : '↓'}</span>
 						</button>
 					</div>
 				{/if}
@@ -355,6 +359,10 @@ function toPlainText(html: HtmlContent): string {
 
 	.qti-sortable-row { display: flex; gap: 0.5rem; align-items: center; min-width: 0; }
 	.qti-sortable-moves { display: flex; flex: 0 0 auto; gap: 0.25rem; }
+	.qti-sortable-list[data-orientation='horizontal'] .qti-sortable-glyph:dir(rtl) {
+		display: inline-block;
+		transform: scaleX(-1);
+	}
 	.qti-sortable-move {
 		min-width: 44px; min-height: 44px; border-radius: 0.375rem;
 		border: 1px solid var(--pie-qti-base-content, #333);
@@ -374,7 +382,7 @@ function toPlainText(html: HtmlContent): string {
 		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
 		background: var(--pie-qti-base-200, oklch(98% 0 0));
 		color: var(--pie-qti-base-content, oklch(21% 0 0));
-		text-align: left;
+		text-align: start;
 		user-select: none;
 		transition: background-color 120ms ease, border-color 120ms ease, outline-color 120ms ease,
 			opacity 120ms ease;

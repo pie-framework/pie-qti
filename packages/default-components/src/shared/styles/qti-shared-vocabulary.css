@@ -80,13 +80,11 @@
 .qti-layout-row {
 	display: flex;
 	flex-wrap: wrap;
-	margin-left: -0.5rem;
-	margin-right: -0.5rem;
+	margin-inline: -0.5rem;
 }
 
 .qti-layout-row > * {
-	padding-left: 0.5rem;
-	padding-right: 0.5rem;
+	padding-inline: 0.5rem;
 	box-sizing: border-box;
 }
 
@@ -103,17 +101,17 @@
 .qti-layout-col11 { width: 91.6667%; }
 .qti-layout-col12 { width: 100%; }
 
-.qti-layout-offset1  { margin-left: 8.3333%; }
-.qti-layout-offset2  { margin-left: 16.6667%; }
-.qti-layout-offset3  { margin-left: 25%; }
-.qti-layout-offset4  { margin-left: 33.3333%; }
-.qti-layout-offset5  { margin-left: 41.6667%; }
-.qti-layout-offset6  { margin-left: 50%; }
-.qti-layout-offset7  { margin-left: 58.3333%; }
-.qti-layout-offset8  { margin-left: 66.6667%; }
-.qti-layout-offset9  { margin-left: 75%; }
-.qti-layout-offset10 { margin-left: 83.3333%; }
-.qti-layout-offset11 { margin-left: 91.6667%; }
+.qti-layout-offset1  { margin-inline-start: 8.3333%; }
+.qti-layout-offset2  { margin-inline-start: 16.6667%; }
+.qti-layout-offset3  { margin-inline-start: 25%; }
+.qti-layout-offset4  { margin-inline-start: 33.3333%; }
+.qti-layout-offset5  { margin-inline-start: 41.6667%; }
+.qti-layout-offset6  { margin-inline-start: 50%; }
+.qti-layout-offset7  { margin-inline-start: 58.3333%; }
+.qti-layout-offset8  { margin-inline-start: 66.6667%; }
+.qti-layout-offset9  { margin-inline-start: 75%; }
+.qti-layout-offset10 { margin-inline-start: 83.3333%; }
+.qti-layout-offset11 { margin-inline-start: 91.6667%; }
 
 /* =============================================================================
    Padding (0–5 scale; ~4px per unit)
@@ -126,12 +124,12 @@
 .qti-padding-4 { padding: 1rem; }
 .qti-padding-5 { padding: 1.25rem; }
 
-.qti-padding-x-0 { padding-left: 0; padding-right: 0; }
-.qti-padding-x-1 { padding-left: 0.25rem; padding-right: 0.25rem; }
-.qti-padding-x-2 { padding-left: 0.5rem; padding-right: 0.5rem; }
-.qti-padding-x-3 { padding-left: 0.75rem; padding-right: 0.75rem; }
-.qti-padding-x-4 { padding-left: 1rem; padding-right: 1rem; }
-.qti-padding-x-5 { padding-left: 1.25rem; padding-right: 1.25rem; }
+.qti-padding-x-0 { padding-inline: 0; }
+.qti-padding-x-1 { padding-inline: 0.25rem; }
+.qti-padding-x-2 { padding-inline: 0.5rem; }
+.qti-padding-x-3 { padding-inline: 0.75rem; }
+.qti-padding-x-4 { padding-inline: 1rem; }
+.qti-padding-x-5 { padding-inline: 1.25rem; }
 
 .qti-padding-y-0 { padding-top: 0; padding-bottom: 0; }
 .qti-padding-y-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
@@ -181,13 +179,13 @@
 .qti-margin-5    { margin: 1.25rem; }
 .qti-margin-auto { margin: auto; }
 
-.qti-margin-x-0    { margin-left: 0; margin-right: 0; }
-.qti-margin-x-1    { margin-left: 0.25rem; margin-right: 0.25rem; }
-.qti-margin-x-2    { margin-left: 0.5rem; margin-right: 0.5rem; }
-.qti-margin-x-3    { margin-left: 0.75rem; margin-right: 0.75rem; }
-.qti-margin-x-4    { margin-left: 1rem; margin-right: 1rem; }
-.qti-margin-x-5    { margin-left: 1.25rem; margin-right: 1.25rem; }
-.qti-margin-x-auto { margin-left: auto; margin-right: auto; }
+.qti-margin-x-0    { margin-inline: 0; }
+.qti-margin-x-1    { margin-inline: 0.25rem; }
+.qti-margin-x-2    { margin-inline: 0.5rem; }
+.qti-margin-x-3    { margin-inline: 0.75rem; }
+.qti-margin-x-4    { margin-inline: 1rem; }
+.qti-margin-x-5    { margin-inline: 1.25rem; }
+.qti-margin-x-auto { margin-inline: auto; }
 
 .qti-margin-y-0    { margin-top: 0; margin-bottom: 0; }
 .qti-margin-y-1    { margin-top: 0.25rem; margin-bottom: 0.25rem; }

@@ -236,8 +236,7 @@
 
 	.splitter:hover {
 		background: var(--color-base-300);
-		border-left-color: var(--color-base-300);
-		border-right-color: var(--color-base-300);
+		border-inline-color: var(--color-base-300);
 	}
 
 	.splitter:focus-visible {
@@ -250,9 +249,9 @@
 		position: absolute;
 		top: 0;
 		bottom: 0;
-		left: 50%;
+		inset-inline: 0;
 		width: 2px;
-		transform: translateX(-50%);
+		margin-inline: auto;
 		background: color-mix(in oklab, var(--color-base-content) 55%, transparent);
 	}
 
@@ -270,8 +269,7 @@
 
 	.split-layout.resizing .splitter {
 		background: color-mix(in oklab, var(--color-primary) 14%, transparent);
-		border-left-color: color-mix(in oklab, var(--color-primary) 60%, transparent);
-		border-right-color: color-mix(in oklab, var(--color-primary) 60%, transparent);
+		border-inline-color: color-mix(in oklab, var(--color-primary) 60%, transparent);
 	}
 
 	.split-layout.resizing {

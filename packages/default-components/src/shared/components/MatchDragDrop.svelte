@@ -386,7 +386,7 @@ function clearMatch(sourceId: string) {
 		border: 2px solid var(--pie-qti-base-300, oklch(95% 0 0));
 		background: var(--pie-qti-base-200, oklch(98% 0 0));
 		color: var(--pie-qti-base-content, oklch(21% 0 0));
-		text-align: left;
+		text-align: start;
 		user-select: none;
 		transition: background-color 120ms ease, border-color 120ms ease, outline-color 120ms ease,
 			opacity 120ms ease;
@@ -430,7 +430,7 @@ function clearMatch(sourceId: string) {
 	.qti-match-clear {
 		position: absolute;
 		top: 0.5rem;
-		right: 0.5rem;
+		inset-inline-end: 0.5rem;
 		width: 1.5rem;
 		height: 1.5rem;
 		display: inline-flex;
@@ -453,7 +453,7 @@ function clearMatch(sourceId: string) {
 		border: 2px dashed var(--pie-qti-base-300, oklch(95% 0 0));
 		background: var(--pie-qti-base-100, oklch(100% 0 0));
 		color: var(--pie-qti-base-content, oklch(21% 0 0));
-		text-align: left;
+		text-align: start;
 		min-height: 60px;
 		transition: background-color 120ms ease, border-color 120ms ease, outline-color 120ms ease,
 			opacity 120ms ease;
