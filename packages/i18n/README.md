@@ -409,6 +409,27 @@ packages/default-components: 1 finding(s)
   packages/default-components/src/plugins/order/OrderInteraction.svelte:212 text"Order confirmed" → t('interactions.order.orderConfirmed')
 ```
 
+### Physical-Direction CSS Check
+
+`bun run check-physical-css` reports CSS that does not mirror under `dir="rtl"`: `margin-left`, `right: 0`, `text-align: left`, `border-top-left-radius`, and Tailwind utilities such as `ml-2`, `right-2` and `text-left` in `class` attributes. Use the logical form (`margin-inline-start`, `inset-inline-end`, `text-align: start`, `ms-2`, `end-2`, `text-start`). It runs last in `check:i18n` and exits 1 on any finding.
+
+Graphic and spatial interactions are exempt, since their coordinates are image space. For CSS physical by definition, such as the QTI `qti-align-left` class, put an `i18n-physical` comment on the line or the line above.
+
+### Pseudo-Locales
+
+`pseudoLocalize(en)` turns a catalog into accented, lengthened, bracketed English with the same keys and placeholders. Register it under `PSEUDO_LOCALE_RTL` (`ar-XB`) to see untranslated strings, truncation and clipping in a right-to-left layout, or under `PSEUDO_LOCALE_EXPANDED` (`en-XA`) for expansion alone:
+
+```typescript
+import { DefaultI18nProvider, PSEUDO_LOCALE_RTL, pseudoLocalize } from '@pie-qti/i18n';
+import en from '@pie-qti/i18n/locales/en.js';
+
+const i18n = new DefaultI18nProvider(PSEUDO_LOCALE_RTL, { [PSEUDO_LOCALE_RTL]: pseudoLocalize(en) });
+await i18n.loadLocale(PSEUDO_LOCALE_RTL);
+i18n.t('common.close'); // '[Çĺóšé ~~]'
+```
+
+The demo's web-component routes accept `?locale=ar-XB`, which `apps/demo/tests/playwright/rtl-matrix.pw.ts` runs alongside `ar`.
+
 ### Running Tests
 
 ```bash

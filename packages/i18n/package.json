@@ -23,7 +23,8 @@
     "check-translations": "bun run scripts/check-translations.ts",
     "check-translations:locale": "bun run scripts/check-translations.ts --locale",
     "scan-hardcoded": "bun run scripts/scan-hardcoded-strings.ts",
-    "check:i18n": "bun run check-translations && bun run scan-hardcoded --strict"
+    "check-physical-css": "bun run scripts/check-physical-css.ts",
+    "check:i18n": "bun run check-translations && bun run scan-hardcoded --strict && bun run check-physical-css"
   },
   "keywords": [
     "pie",

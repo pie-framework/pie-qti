@@ -239,7 +239,7 @@ function clearMatch(sourceId: string) {
 								{/if}
 							{/if}
 							{#if isCorrect && matchedTargets.length === 0}
-								<span class="badge badge-success badge-sm ml-2">{i18n?.t('interactions.choice.correct', 'Correct') ?? 'Correct'}</span>
+								<span class="badge badge-success badge-sm ms-2">{i18n?.t('interactions.choice.correct', 'Correct') ?? 'Correct'}</span>
 							{/if}
 						</div>
 						{#if !disabled && canDragMore}
@@ -251,7 +251,7 @@ function clearMatch(sourceId: string) {
 					<button
 						type="button"
 						part="source-clear"
-						class="qti-match-clear btn btn-xs btn-ghost absolute top-2 right-2"
+						class="qti-match-clear btn btn-xs btn-ghost absolute top-2 end-2"
 						onclick={() => clearMatch(source.identifier)}
 						aria-label={translate(i18n, 'interactions.match.clearMatch', 'Clear match for {source}', { source: sourceLabel })}
 					>

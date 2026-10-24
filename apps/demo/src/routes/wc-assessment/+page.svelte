@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { READING_COMPREHENSION_ASSESSMENT } from '#lib/sample-assessments.js';
 	import { getSecurityConfig } from '#lib/player-config.js';
+	import { localeProviderFromUrl } from '#lib/demo-locale.js';
 	import { assignProps } from '@pie-qti/qti-common';
 
 	let status = $state<'booting' | 'registering' | 'registered' | 'rendered' | 'error'>('booting');
@@ -77,11 +78,12 @@
 			const host = el ?? document.querySelector('pie-qti-assessment-player');
 			if (!host) throw new Error('Element not mounted');
 
+			const i18nProvider = await localeProviderFromUrl();
 			assignProps(host, {
 				referenceMode: true,
 				assessmentTestXml,
 				items,
-				config: { role: 'candidate', navigationMode: 'nonlinear', showSections: true },
+				config: { role: 'candidate', navigationMode: 'nonlinear', showSections: true, ...(i18nProvider ? { i18nProvider } : {}) },
 				security: getSecurityConfig(),
 			});
 

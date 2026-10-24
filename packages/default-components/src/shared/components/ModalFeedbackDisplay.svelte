@@ -42,7 +42,7 @@
 		<div class="modal-box max-w-3xl">
 			<!-- Close button -->
 			<button
-				class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
+				class="btn btn-sm btn-circle btn-ghost absolute end-2 top-2"
 				type="button"
 				onclick={handleClose}
 				aria-label={i18n?.t('feedback.close') ?? 'Close feedback'}

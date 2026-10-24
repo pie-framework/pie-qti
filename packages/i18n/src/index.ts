@@ -44,6 +44,10 @@ export type { LanguageAttributes, TextDirection } from './core/direction.js';
 // Accessible names and live-region messages
 export { formatList, isImeComposing, joinSentences, translate, translatePlural } from './core/accessible-text.js';
 
+// Pseudo-locales for layout and coverage testing
+export { PSEUDO_LOCALE_EXPANDED, PSEUDO_LOCALE_RTL, pseudoLocalize } from './core/pseudo.js';
+export type { PseudoLocalizeOptions } from './core/pseudo.js';
+
 // Types
 export type {
 	LocaleCode,

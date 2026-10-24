@@ -351,8 +351,8 @@
 	:global(.mb-3) {
 		margin-bottom: 0.75rem;
 	}
-	:global(.mr-2) {
-		margin-right: 0.5rem;
+	:global(.me-2) {
+		margin-inline-end: 0.5rem;
 	}
 	:global(.w-full) {
 		width: 100%;
