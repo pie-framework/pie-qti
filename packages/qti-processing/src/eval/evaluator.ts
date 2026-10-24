@@ -2,6 +2,7 @@ import Decimal from 'decimal.js';
 import type { ExpressionNode } from '../ast/types.js';
 import type { DeclarationContext } from '../runtime/context.js';
 import { normalizeResponse } from '../runtime/normalize.js';
+import { xsdPatternToRegExp } from '../runtime/xsd-pattern.js';
 import type { BaseType, Cardinality, LookupTableTable, Mapping, MappingEntry, QtiValue } from '../runtime/types.js';
 import {
 	coerceBaseValue,
@@ -975,13 +976,8 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			const sv = toStringValue(value);
 			const sp = toStringValue(pattern);
 
-			try {
-				const re = new RegExp(sp, expr.caseSensitive ? undefined : 'i');
-				return qtiValue('boolean', 'single', re.test(sv));
-			} catch {
-				// Invalid regex pattern
-				return qtiValue('boolean', 'single', false);
-			}
+			const re = xsdPatternToRegExp(sp, expr.caseSensitive ? '' : 'i');
+			return qtiValue('boolean', 'single', re?.test(sv) ?? false);
 		}
 		case 'expr.lt':
 			return qtiValue('boolean', 'single', toNumber(evalExpr(env, expr.a)) < toNumber(evalExpr(env, expr.b)));

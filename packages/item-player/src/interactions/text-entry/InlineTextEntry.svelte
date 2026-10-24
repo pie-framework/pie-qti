@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { I18nProvider } from '@pie-qti/i18n';
+	import { xsdPatternSource } from '@pie-qti/qti-processing';
 	import type { TextEntryInteractionData } from '../shared/types.js';
 
 	interface Props {
@@ -57,7 +58,7 @@
 	class={['qti-inline-input', correctAnswer !== null ? 'qti-inline-input-correct' : '', inputWidthClass ?? '', extraClasses].filter(Boolean).join(' ')}
 	style={inputWidthClass ? 'min-width: 100px; display: inline-block; margin: 0 4px;' : `width: ${interaction.expectedLength * 8}px; min-width: 100px; display: inline-block; margin: 0 4px;`}
 	placeholder={interaction.placeholderText || '...'}
-	pattern={interaction.patternMask || undefined}
+	pattern={interaction.patternMask ? xsdPatternSource(interaction.patternMask) : undefined}
 	title={interaction.patternMask ? `Format: ${interaction.patternMask}` : undefined}
 	data-format={interaction.format || undefined}
 	aria-label={`${interaction.accessibility?.label ?? `Text entry ${interaction.responseId}`}${correctAnswer ? '. Correct answer: ' + correctAnswer : ''}`}

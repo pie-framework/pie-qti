@@ -918,11 +918,21 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 			};
 		}
 		case 'patternmatch': {
+			// `pattern` is a StringOrVariableRef attribute: an XSD pattern, or `{TEMPLATE}`. A
+			// second child expression is still read when the attribute is absent.
+			const raw = getAttr(el, 'pattern');
+			const reference = raw ? /^\{([^{}\s]+)\}$/.exec(raw.trim()) : null;
+			const pattern: ExpressionNode | undefined = reference
+				? { kind: 'expr.variable', id: newAstId('expr'), identifier: reference[1]! }
+				: raw
+					? { kind: 'expr.baseValue', id: newAstId('expr'), baseType: 'string', text: raw }
+					: kids[1] && buildExpression(kids[1], options);
+			if (!kids[0] || !pattern) return { kind: 'expr.null', id };
 			return {
 				kind: 'expr.patternMatch',
 				id,
-				value: buildExpression(kids[0]!, options),
-				pattern: buildExpression(kids[1]!, options),
+				value: buildExpression(kids[0], options),
+				pattern,
 				caseSensitive: boolAttr('caseSensitive', true),
 			};
 		}
