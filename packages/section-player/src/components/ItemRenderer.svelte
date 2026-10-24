@@ -131,6 +131,7 @@
 					accessibilityCatalogs={itemSpeech.catalogs}
 					language={itemSpeech.language}
 					scopeElement={itemScopeElement}
+					{i18n}
 				/>
 			</header>
 		{/if}

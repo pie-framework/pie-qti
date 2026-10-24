@@ -97,6 +97,7 @@
 									accessibilityCatalogs={readablePassages.get(passage.identifier)?.catalogs}
 									language={passage.language}
 									scopeElement={passageScopeElements[passage.identifier] ?? null}
+									{i18n}
 								/>
 								<button
 									type="button"

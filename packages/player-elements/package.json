@@ -39,6 +39,7 @@
   },
   "devDependencies": {
     "@pie-qti/default-components": "workspace:*",
+    "@pie-qti/i18n": "workspace:*",
     "@pie-qti/qti-common": "workspace:*",
     "@pie-qti/section-player": "workspace:*",
     "@biomejs/biome": "^2.5.15",
