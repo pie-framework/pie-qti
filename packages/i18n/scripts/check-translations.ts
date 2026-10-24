@@ -2,14 +2,14 @@
 /**
  * Translation Coverage Checker
  *
- * This script compares all locale files against the en-US reference to detect:
+ * This script compares all locale files against the en reference to detect:
  * 1. Missing keys in other locales
- * 2. Extra keys that don't exist in en-US (likely obsolete)
- * 3. Keys with identical values to en-US (likely untranslated)
+ * 2. Extra keys that don't exist in en (likely obsolete)
+ * 3. Keys with identical values to en (likely untranslated)
  *
  * Usage:
  *   bun run scripts/check-translations.ts
- *   bun run scripts/check-translations.ts --locale nl-NL  # Check specific locale
+ *   bun run scripts/check-translations.ts --locale=nl  # Check specific locale
  *   bun run scripts/check-translations.ts --fix           # Auto-add missing keys with TODO markers
  */
 
@@ -19,7 +19,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const LOCALES_DIR = join(__dirname, '../src/locales');
-const REFERENCE_LOCALE = 'en-US';
+const REFERENCE_LOCALE = 'en';
 
 interface TranslationObject {
 	[key: string]: string | TranslationObject;
@@ -95,12 +95,12 @@ async function getLocaleFiles(): Promise<string[]> {
 /**
  * Check if a key is a valid plural form extension
  *
- * A locale may carry more CLDR categories than en-US does — Arabic has six where
+ * A locale may carry more CLDR categories than en does — Arabic has six where
  * English has two — so a `.two` or `.few` leaf is expected extra data, not an
  * obsolete key. Recognised anywhere a plural sub-object lives, not just under
  * `plurals.*`: the transform.* namespace uses the same convention. The sibling
  * check is what keeps this from excusing a genuine typo — the key only passes if
- * en-US defines the same parent with at least one category leaf.
+ * en defines the same parent with at least one category leaf.
  */
 const PLURAL_CATEGORIES = ['zero', 'one', 'two', 'few', 'many', 'other'];
 
@@ -182,7 +182,7 @@ function formatLocaleReport(
 	}
 
 	if (untranslated.length > 0) {
-		report += `\n⚠️  Potentially Untranslated (${untranslated.length}) - Same value as en-US:\n`;
+		report += `\n⚠️  Potentially Untranslated (${untranslated.length}) - Same value as en:\n`;
 		report += `${'─'.repeat(80)}\n`;
 		untranslated.sort().forEach((key) => {
 			report += `  • ${key}\n`;

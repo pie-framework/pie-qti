@@ -1,5 +1,5 @@
 /**
- * Spanish (Spain) translations
+ * Spanish translations
  *
  * Guidelines for translators:
  * - Keep messages concise for UI constraints

@@ -26,6 +26,7 @@ import {
 import type { ElementNameMapper, AttributeNameMapper } from '@pie-qti/qti-common';
 import { prepareContentMarkup } from '@pie-qti/qti-common/accessibility';
 import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
+import { DefaultI18nProvider, type I18nProvider } from '@pie-qti/i18n';
 import {
 	Qti2xElementNameMapper,
 	Qti2xAttributeNameMapper,
@@ -771,18 +772,11 @@ export class Player {
 	}
 
 	/**
-	 * Create a simple fallback i18n provider when none is provided
-	 * This avoids a hard dependency on @pie-qti/i18n
+	 * The provider used when the host passes none: English, from the catalog
+	 * `@pie-qti/i18n` bundles eagerly.
 	 */
-	private createDefaultI18nProvider(): any {
-		return {
-			getLocale: () => 'en-US',
-			setLocale: () => {},
-			t: (key: string) => key, // Fallback to key
-			plural: (key: string) => key,
-			formatNumber: (value: number) => value.toString(),
-			formatDate: (date: Date) => date.toISOString(),
-		};
+	private createDefaultI18nProvider(): I18nProvider {
+		return new DefaultI18nProvider('en-US');
 	}
 
 	/**

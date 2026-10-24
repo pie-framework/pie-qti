@@ -47,7 +47,7 @@ function flattenObject(obj: any, prefix = ''): Record<string, string> {
  * Load all English translation values to compare against
  */
 async function loadEnglishTranslations(): Promise<Map<string, { key: string; value: string }>> {
-	const enUSPath = join(LOCALES_DIR, 'en-US.ts');
+	const enUSPath = join(LOCALES_DIR, 'en.ts');
 
 	// Dynamically import the locale file
 	const localeModule = await import(enUSPath);

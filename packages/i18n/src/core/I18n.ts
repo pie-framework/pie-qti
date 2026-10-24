@@ -7,33 +7,67 @@
  */
 
 import type { I18nProvider, InterpolationValues, PluralOptions } from './I18nProvider.js';
-import type { LocaleCode, FrameworkLocaleCode, MessageKey, LocaleMessages } from './types.js';
-import enUS from '../locales/en-US.js';
+import type { LocaleCode, MessageKey, LocaleMessages } from './types.js';
+import { normalizeLanguageTag } from './language-tags.js';
+import {
+	FRAMEWORK_CATALOGS,
+	type FrameworkCatalogCode,
+	localeLookupSequence,
+	resolveFrameworkLocale,
+	stepServes,
+} from './negotiation.js';
+import en from '../locales/en.js';
 
 /**
- * Lazy loaders for the framework locales.
+ * Lazy loaders for the framework catalogs, keyed by language.
  *
  * An explicit static map rather than a bundler macro: `tsc` emits these
  * `import()` calls verbatim, so the published package evaluates anywhere ESM
  * does — webpack, esbuild, Rollup, Node, or a browser loading the files
  * directly. Every bundler still sees the specifiers statically, so each locale
  * remains its own chunk and a host that only renders English never fetches the
- * others. Adding a locale means adding a line here alongside the file.
+ * others. Adding a locale means adding a line here alongside the file and its
+ * key in `FRAMEWORK_CATALOGS`.
  *
- * en-US is a plain static import because it is the fallback for every missing
+ * `en` is a plain static import because it is the fallback for every missing
  * key in every other locale, so it must be resolvable synchronously in the
  * constructor.
  */
-const localeLoaders: Record<FrameworkLocaleCode, () => Promise<{ default: LocaleMessages }>> = {
-	'en-US': () => Promise.resolve({ default: enUS }),
-	'ar-SA': () => import('../locales/ar-SA.js'),
-	'es-ES': () => import('../locales/es-ES.js'),
-	'fr-FR': () => import('../locales/fr-FR.js'),
-	'nl-NL': () => import('../locales/nl-NL.js'),
-	'ro-RO': () => import('../locales/ro-RO.js'),
-	'th-TH': () => import('../locales/th-TH.js'),
-	'zh-CN': () => import('../locales/zh-CN.js'),
+const localeLoaders: Record<FrameworkCatalogCode, () => Promise<{ default: LocaleMessages }>> = {
+	en: () => Promise.resolve({ default: en }),
+	ar: () => import('../locales/ar.js'),
+	es: () => import('../locales/es.js'),
+	fr: () => import('../locales/fr.js'),
+	nl: () => import('../locales/nl.js'),
+	ro: () => import('../locales/ro.js'),
+	th: () => import('../locales/th.js'),
+	'zh-Hans': () => import('../locales/zh-Hans.js'),
 };
+
+/** Catalog keys by their normalized form, which is what a lookup step is. */
+const catalogsByStep = new Map<string, FrameworkCatalogCode>(
+	FRAMEWORK_CATALOGS.map((code) => [normalizeLanguageTag(code), code])
+);
+
+/**
+ * The locale every lookup falls back to. Walked like any other tag, so custom
+ * messages keyed `en-US` and the framework `en` catalog both serve it.
+ */
+const FALLBACK_LOCALE = 'en-US';
+
+/**
+ * A tag `Intl` accepts for the active locale: POSIX separators and suffixes
+ * are rewritten (`ar_SA` → `ar-SA`), and a tag `Intl` still rejects formats as
+ * English rather than throwing.
+ */
+function intlLocale(tag: string): string {
+	const candidate = tag.trim().replace(/_/g, '-').split(/[.@]/)[0];
+	try {
+		return Intl.getCanonicalLocales(candidate)[0] ?? FALLBACK_LOCALE;
+	} catch {
+		return FALLBACK_LOCALE;
+	}
+}
 
 /**
  * Whether to log missing-translation warnings.
@@ -73,53 +107,78 @@ const RTL_LANGUAGES = new Set([
 
 export class DefaultI18nProvider implements I18nProvider {
 	/** Shared across instances: constructing Intl.PluralRules is not cheap */
-	private static pluralRules: Map<LocaleCode, Intl.PluralRules> = new Map();
+	private static pluralRules: Map<string, Intl.PluralRules> = new Map();
 
 	private currentLocale: LocaleCode;
-	private messages: Record<LocaleCode, LocaleMessages>;
+	private messages: Partial<Record<FrameworkCatalogCode, LocaleMessages>>;
 	private customMessages: Record<string, LocaleMessages>; // Client-provided translations
-	private fallbackLocale: LocaleCode = 'en-US';
-	private loadedLocales: Set<LocaleCode> = new Set();
+	private loadedLocales: Set<FrameworkCatalogCode> = new Set();
+	private pendingLoads: Map<FrameworkCatalogCode, Promise<void>> = new Map();
 
+	/**
+	 * Settles once the catalog for this provider's locale is loaded. Set only on
+	 * a `withLocale()` view created before that catalog was resident; the view
+	 * starts the load itself. Never rejects: a failed load is logged and the view
+	 * keeps rendering through the English fallback.
+	 */
+	ready?: Promise<void>;
+
+	/**
+	 * @param locale - Active locale; any BCP 47 or POSIX tag. The host owns this
+	 *   value: the provider reads no storage and persists nothing.
+	 * @param customMessages - Host translations by locale tag, consulted before
+	 *   the framework catalogs.
+	 */
 	constructor(locale: LocaleCode = 'en-US', customMessages?: Record<string, LocaleMessages>) {
-		// Read persisted locale from localStorage if available
-		// This allows locale changes to persist across page reloads
-		const storedLocale = typeof localStorage !== 'undefined'
-			? localStorage.getItem('pie-qti-locale')
-			: null;
-
-		this.currentLocale = (storedLocale as LocaleCode) || locale;
-		this.messages = {} as Record<LocaleCode, LocaleMessages>;
+		this.currentLocale = locale;
+		this.messages = {};
 		this.customMessages = customMessages || {};
 
-		// en-US is the fallback for every other locale, so it is always present
-		this.messages['en-US'] = enUS;
-		this.loadedLocales.add('en-US');
+		// en is the fallback for every other locale, so it is always present
+		this.messages.en = en;
+		this.loadedLocales.add('en');
 	}
 
 	/**
-	 * Load locale messages dynamically (framework locales only)
-	 * For custom locales, use the customMessages parameter in the constructor or addCustomMessages()
+	 * Load the framework catalog that serves a locale tag.
+	 *
+	 * The tag is negotiated (`es-MX` loads `es`, `zh-CN` loads `zh-Hans`). A tag
+	 * no framework catalog serves resolves without loading anything: it renders
+	 * from custom messages and the English fallback. Rejects only when a catalog
+	 * module fails to load.
 	 */
-	async loadLocale(locale: FrameworkLocaleCode): Promise<void> {
-		if (this.loadedLocales.has(locale)) {
-			return; // Already loaded
+	async loadLocale(locale: LocaleCode): Promise<void> {
+		const code = resolveFrameworkLocale(locale);
+		if (!code || this.loadedLocales.has(code)) return;
+
+		let pending = this.pendingLoads.get(code);
+		if (!pending) {
+			pending = localeLoaders[code]()
+				.then((module) => {
+					this.messages[code] = module.default;
+					this.loadedLocales.add(code);
+				})
+				.finally(() => {
+					this.pendingLoads.delete(code);
+				});
+			this.pendingLoads.set(code, pending);
 		}
 
 		try {
-			const loader = localeLoaders[locale];
-
-			if (!loader) {
-				throw new Error(`Locale '${locale}' is not a framework locale`);
-			}
-
-			const module = await loader();
-			this.messages[locale] = module.default;
-			this.loadedLocales.add(locale);
+			await pending;
 		} catch (error) {
 			console.error(`[i18n] Failed to load locale '${locale}':`, error);
 			throw error;
 		}
+	}
+
+	/**
+	 * Whether every catalog a locale needs is resident: true for a tag no
+	 * framework catalog serves, since there is nothing to load.
+	 */
+	isLocaleLoaded(locale: LocaleCode): boolean {
+		const code = resolveFrameworkLocale(locale);
+		return !code || this.loadedLocales.has(code);
 	}
 
 	/**
@@ -128,9 +187,8 @@ export class DefaultI18nProvider implements I18nProvider {
 	 * For custom locales, translations should be provided via customMessages.
 	 */
 	setLocale(locale: string): void {
-		// Allow setting custom locales even if not in loadedLocales
-		// They will use customMessages + fallback to en-US
-		if (!this.loadedLocales.has(locale as LocaleCode) && !this.customMessages[locale]) {
+		const hasCustom = Object.keys(this.customMessages).some((tag) => localeLookupSequence(locale).includes(normalizeLanguageTag(tag)));
+		if (!this.isLocaleLoaded(locale) && !hasCustom) {
 			console.warn(`[i18n] Locale '${locale}' not loaded and no custom messages provided. Using fallback locale.`);
 		}
 		this.currentLocale = locale as LocaleCode;
@@ -200,11 +258,7 @@ export class DefaultI18nProvider implements I18nProvider {
 		let rules = DefaultI18nProvider.pluralRules.get(this.currentLocale);
 
 		if (!rules) {
-			try {
-				rules = new Intl.PluralRules(this.currentLocale);
-			} catch {
-				return count === 1 ? 'one' : 'other';
-			}
+			rules = new Intl.PluralRules(intlLocale(this.currentLocale));
 			DefaultI18nProvider.pluralRules.set(this.currentLocale, rules);
 		}
 
@@ -219,7 +273,7 @@ export class DefaultI18nProvider implements I18nProvider {
 	getDirection(): 'ltr' | 'rtl' {
 		try {
 			// textInfo is the authoritative CLDR answer where the engine has it
-			const textInfo = (new Intl.Locale(this.currentLocale) as { textInfo?: { direction?: string } })
+			const textInfo = (new Intl.Locale(this.currentLocale.replace(/_/g, '-')) as { textInfo?: { direction?: string } })
 				.textInfo;
 			if (textInfo?.direction === 'rtl' || textInfo?.direction === 'ltr') {
 				return textInfo.direction;
@@ -240,15 +294,22 @@ export class DefaultI18nProvider implements I18nProvider {
 	 * catalog is parsed twice. This is what lets two players on one page render
 	 * different locales from one provider: the locale is per-view, the catalogs
 	 * are per-provider.
+	 *
+	 * When the catalog its locale negotiates to is not resident, the view loads
+	 * it and `ready` settles when that load does; until then it renders through
+	 * the English fallback. A view over a resident catalog has no `ready`.
 	 */
-	withLocale(locale: LocaleCode): I18nProvider {
-		if (locale === this.currentLocale) return this;
+	withLocale(locale: LocaleCode): DefaultI18nProvider {
+		if (locale === this.currentLocale && this.isLocaleLoaded(locale)) return this;
 
 		const view = new DefaultI18nProvider(locale, this.customMessages);
-		// The constructor prefers a persisted locale; an explicit view must not.
-		view.currentLocale = locale;
 		view.messages = this.messages;
 		view.loadedLocales = this.loadedLocales;
+		view.pendingLoads = this.pendingLoads;
+		if (!view.isLocaleLoaded(locale)) {
+			// loadLocale() has already logged a failure; the view falls back to English.
+			view.ready = view.loadLocale(locale).catch(() => {});
+		}
 		return view;
 	}
 
@@ -256,38 +317,46 @@ export class DefaultI18nProvider implements I18nProvider {
 	 * Format number according to locale
 	 */
 	formatNumber(value: number, options?: Intl.NumberFormatOptions): string {
-		return new Intl.NumberFormat(this.currentLocale, options).format(value);
+		return new Intl.NumberFormat(intlLocale(this.currentLocale), options).format(value);
 	}
 
 	/**
 	 * Format date according to locale
 	 */
 	formatDate(date: Date, options?: Intl.DateTimeFormatOptions): string {
-		return new Intl.DateTimeFormat(this.currentLocale, options).format(date);
+		return new Intl.DateTimeFormat(intlLocale(this.currentLocale), options).format(date);
 	}
 
 	/**
 	 * Get nested message by dot notation key
-	 * Priority: custom messages > current locale > fallback locale
+	 *
+	 * Walks the active locale's negotiation sequence, then the English fallback's.
+	 * At each step custom messages come before the framework catalog, so for
+	 * `es-MX` the order is custom `es-MX`, custom `es`, framework `es`, custom
+	 * `en-US`, custom `en`, framework `en`.
 	 */
 	private getMessage(key: string): string | undefined {
-		// 1. Try custom messages first (client overrides)
-		const customMessage = this.getMessageFromObject(key, this.customMessages[this.currentLocale]);
-		if (customMessage !== undefined) return customMessage;
+		return this.lookupMessage(key, this.currentLocale) ?? this.lookupMessage(key, FALLBACK_LOCALE);
+	}
 
-		// 2. Try current locale from framework defaults
-		const messages = this.messages[this.currentLocale];
-		if (messages) {
-			const message = this.getMessageFromObject(key, messages);
-			if (message !== undefined) return message;
+	private lookupMessage(key: string, locale: string): string | undefined {
+		const customTags = Object.keys(this.customMessages);
+
+		for (const step of localeLookupSequence(locale)) {
+			for (const tag of customTags) {
+				if (normalizeLanguageTag(tag) !== step || !stepServes(locale, step, tag)) continue;
+				const custom = this.getMessageFromObject(key, this.customMessages[tag]);
+				if (custom !== undefined) return custom;
+			}
+
+			const code = catalogsByStep.get(step);
+			if (code && stepServes(locale, step, code)) {
+				const message = this.getMessageFromObject(key, this.messages[code]);
+				if (message !== undefined) return message;
+			}
 		}
 
-		// 3. Try custom fallback locale
-		const customFallback = this.getMessageFromObject(key, this.customMessages[this.fallbackLocale]);
-		if (customFallback !== undefined) return customFallback;
-
-		// 4. Try framework fallback locale
-		return this.getMessageFromFallback(key);
+		return undefined;
 	}
 
 	/**
@@ -313,13 +382,6 @@ export class DefaultI18nProvider implements I18nProvider {
 		return typeof current === 'string' ? current : undefined;
 	}
 
-	/**
-	 * Get message from fallback locale (framework defaults)
-	 */
-	private getMessageFromFallback(key: string): string | undefined {
-		const messages = this.messages[this.fallbackLocale];
-		return this.getMessageFromObject(key, messages);
-	}
 
 	/**
 	 * Add or update custom messages for a locale

@@ -1,5 +1,5 @@
 /**
- * English (United States) translations
+ * English translations
  *
  * Guidelines for translators:
  * - Keep messages concise for UI constraints

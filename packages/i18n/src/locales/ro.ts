@@ -1,5 +1,5 @@
 /**
- * Romanian (Romania) translations
+ * Romanian translations
  *
  * Guidelines for translators:
  * - Keep messages concise for UI constraints

@@ -44,7 +44,7 @@ handled by the same rule.
 Example locale structure:
 
 ```typescript
-// en-US.ts
+// en.ts
 export default {
   plurals: {
     items: {
@@ -100,7 +100,7 @@ The framework includes plural forms for common scenarios:
 To add new plural forms to your locale:
 
 ```typescript
-// locales/en-US.ts
+// locales/en.ts
 export default {
   plurals: {
     // Add your custom plural
@@ -119,7 +119,7 @@ export default {
 Then translate to other locales:
 
 ```typescript
-// locales/es-ES.ts
+// locales/es.ts
 export default {
   plurals: {
     participants: {
@@ -176,7 +176,7 @@ const translations = $derived({
 Some languages (like Thai, Chinese, Japanese) don't have plural forms. For these, use the same text for both:
 
 ```typescript
-// th-TH.ts (Thai)
+// th.ts (Thai)
 plurals: {
   items: {
     one: '{count} รายการ',    // Same for both
@@ -192,7 +192,7 @@ Languages with more than two plural forms are handled by `DefaultI18nProvider` i
 Define whichever categories the language uses:
 
 ```typescript
-// ar-SA.ts — Arabic distinguishes six
+// ar.ts — Arabic distinguishes six
 plurals: {
   items: {
     zero: '{count} عنصر',
@@ -539,7 +539,7 @@ testLocales.forEach(locale => {
 When adding custom plurals, document them clearly:
 
 ```typescript
-// locales/en-US.ts
+// locales/en.ts
 
 /**
  * Custom plural forms for the application

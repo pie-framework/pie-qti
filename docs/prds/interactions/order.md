@@ -469,7 +469,7 @@ AC-E10: Fractions-order sample (math content, no shuffle)
 - Extractor: `packages/item-player/src/interactions/order/extractor.ts`
 - Type (component-facing): `packages/item-player/src/interactions/shared/types.ts` — `OrderInteractionData`
 - Extractor type: `packages/item-player/src/interactions/order/extractor.ts` — `OrderData`
-- i18n keys: `packages/i18n/src/locales/en-US.ts` — `interactions.order.*`
+- i18n keys: `packages/i18n/src/locales/en.ts` — `interactions.order.*`
 - Eval scenarios: `docs/evals/default-components/order/evals.yaml`
 - QTI 3.0 fixture: `packages/qti-common/src/__tests__/fixtures/qti3-order-interaction.xml`
 - Real-world fixture: `packages/to-pie/tests/fixtures/qti-samples/math-assessment/fractions-order.xml`

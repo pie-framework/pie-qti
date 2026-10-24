@@ -1,5 +1,5 @@
 /**
- * Thai (Thailand) translations
+ * Thai translations
  *
  * Guidelines for translators:
  * - Keep messages concise for UI constraints
