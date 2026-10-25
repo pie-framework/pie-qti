@@ -84,7 +84,7 @@ const resolver: PassageResolver = async (passageId: string) => {
     id: passage.id,
     title: passage.title,
     content: passage.htmlContent,
-    metadata: passage.searchMetaData
+    metadata: passage.extensions
   };
 };
 
@@ -119,7 +119,7 @@ const pieItem = {
         }
       ]
     },
-    searchMetaData: { subject: 'Science' }
+    extensions: { subject: 'Science' }
   },
   config: { ... }
 };

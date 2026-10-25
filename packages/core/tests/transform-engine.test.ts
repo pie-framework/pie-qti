@@ -17,7 +17,7 @@ function createMockPlugin(): MockTransformPlugin {
 				id: 'test-item',
 				uuid: 'test-uuid',
 				config: { id: 'test-uuid', models: [], elements: {} },
-				searchMetaData: {},
+				extensions: {},
 			},
 		],
 	});

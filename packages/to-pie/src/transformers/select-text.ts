@@ -105,7 +105,7 @@ export function transformSelectText(
       },
     },
     metadata: {
-      searchMetaData: {
+      extensions: {
         title: itemId,
         itemType: 'ST',
         source: 'qti22',

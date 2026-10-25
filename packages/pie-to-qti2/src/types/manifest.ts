@@ -102,8 +102,8 @@ export interface Resource {
   /** PIE `baseId`, written as a LOM `general/identifier` */
   baseId?: string;
 
-  /** PIE `searchMetaData`, written as LOM classifications */
-  searchMetaData?: Record<string, unknown>;
+  /** PIE `extensions`, written as LOM classifications */
+  extensions?: Record<string, unknown>;
 
   /** File entries */
   files?: ResourceFile[];
@@ -196,8 +196,8 @@ export interface ItemResource {
   /** PIE `baseId`, written as a LOM `general/identifier` */
   baseId?: string;
 
-  /** PIE `searchMetaData`, written as LOM classifications */
-  searchMetaData?: Record<string, unknown>;
+  /** PIE `extensions`, written as LOM classifications */
+  extensions?: Record<string, unknown>;
 
   /** Locale for this specific variant (e.g., "en-US", "es-ES") */
   locale?: string;
@@ -225,8 +225,8 @@ export interface PassageResource {
   /** PIE `baseId`, written as a LOM `general/identifier` */
   baseId?: string;
 
-  /** PIE `searchMetaData`, written as LOM classifications */
-  searchMetaData?: Record<string, unknown>;
+  /** PIE `extensions`, written as LOM classifications */
+  extensions?: Record<string, unknown>;
 
   /** Locale for this specific variant (e.g., "en-US", "es-ES") */
   locale?: string;

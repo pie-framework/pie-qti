@@ -59,7 +59,7 @@ describe('transformMatch', () => {
       values: [false, true], // B matches D (Fish)
     });
 
-    expect(result.metadata?.searchMetaData?.itemType).toBe('MA');
+    expect(result.metadata?.extensions?.itemType).toBe('MA');
   });
 
   test('should lock choice order when shuffle=false', () => {

@@ -38,7 +38,7 @@ For PIE → QTI, the original PIE source is serialised as the digested sidecar `
 
 For QTI → PIE (not this package), the QTI source XML is stored in `pieItem.metadata.qtiSource.xml`. When this package encounters a PIE item with that field, it reconstructs QTI by returning the stored XML verbatim instead of running a generator (see `reconstructFromQtiSource`).
 
-Carrying the source beside the document rather than inside it keeps the QTI free of foreign elements — QTI 2.2 admits no extension elements in `assessmentItem`, so neither the source model nor its `baseId` and `searchMetaData` can be embedded — while the `<resource>` reference keeps the package self-describing.
+Carrying the source beside the document rather than inside it keeps the QTI free of foreign elements — QTI 2.2 admits no extension elements in `assessmentItem`, so neither the source model nor its `baseId` and `extensions` can be embedded — while the `<resource>` reference keeps the package self-describing.
 
 ### What is lossy
 
@@ -74,7 +74,7 @@ Lossy information examples:
 - **FR-6:** When `generatePackage: true` is set, the plugin SHALL produce an IMS CP v1.1 `imsmanifest.xml` declaring all items, passages, and their dependencies in dependency order (passages first, then items, then assessments).
 - **FR-7:** A `GeneratorRegistry` SHALL allow a caller to register a custom generator with `override: true` to replace any built-in generator for a given element type.
 - **FR-8:** A registered wildcard generator SHALL be tried as a last resort when no typed generator matches.
-- **FR-9:** PIE `searchMetaData` fields SHALL be serialised as `<qti-metadata-field>` elements inside a `<qti-metadata>` block in the item XML.
+- **FR-9:** When generating a package, the plugin SHALL write each PIE `extensions` key as an IEEE LOM `classification` on the item's manifest `<resource>`, with `taxonPath/source` `pie:extension:<key>`, no `purpose`, and the JSON of any value other than a string in the classification's `description`.
 - **FR-10:** PIE `baseId` SHALL be preserved as `externalId` metadata and `sourceSystemId="pie"` in the QTI item, enabling the reverse transform to restore the original identifier.
 - **FR-11:** A PIE object with a top-level `sections` array SHALL be treated as an assessment and transformed to `<assessmentTest>` rather than `<assessmentItem>`.
 - **FR-12:** `outcomeProcessingXml`, `branchRule`, and `preCondition` on assessment items SHALL be inserted verbatim into the generated QTI without re-parsing or re-serialisation.
@@ -105,7 +105,7 @@ Lossy information examples:
 ### Lossless path via the PIE source sidecar
 
 **Decision:** The full PIE item is serialised into a sidecar file, `<item>.pie.json` (`PieSourceSidecar`, `format: 'pie-qti/pie-source'`), written beside the QTI item and referenced from the item's `<resource>` in a content package. The sidecar records the `qtiDigest` of the generated QTI document.
-**Rationale:** QTI 2.2 admits no foreign elements in `assessmentItem`, so the document cannot carry the source model, its `baseId`, or its `searchMetaData` without breaking schema validation. A digested sidecar keeps the XML clean and lets the reverse transform trust it only while the document is unchanged — `qtiDigest` still matches — falling back to the body when the sidecar is missing or stale.
+**Rationale:** QTI 2.2 admits no foreign elements in `assessmentItem`, so the document cannot carry the source model, its `baseId`, or its `extensions` without breaking schema validation. A digested sidecar keeps the XML clean and lets the reverse transform trust it only while the document is unchanged — `qtiDigest` still matches — falling back to the body when the sidecar is missing or stale.
 **Alternatives considered:** embedding the JSON as `<pie:sourceModel>` CDATA inside the QTI root (the original design; rejected because schemas that disallow extension elements fail the document); base64-encoded attribute; JSON stored as escaped XML attribute text.
 **Consequences:** The transform output is a file pair (item XML plus sidecar) rather than a single file; `TransformOutput.items[].sidecar` carries the sidecar for callers that do not build a package. A consumer that drops the sidecar loses the lossless round-trip but keeps valid, renderable QTI.
 
@@ -235,11 +235,12 @@ AC-8: PIE assessment to assessmentTest
         AND the testPart contains two <assessmentItemRef> elements
         AND outcomeProcessingXml (if set on the input) appears verbatim inside <outcomeProcessing>
 
-AC-9: searchMetaData preservation
-  Given: A PIE item with searchMetaData: { subject: 'Math', gradeLevel: ['5', '6'] }
-  When: transform() is called
-  Then: output.items[0].content contains <qti-metadata-field name="subject" value="Math"/>
-        AND <qti-metadata-field name="gradeLevel" value="5,6" data-type="array"/>
+AC-9: extensions preservation
+  Given: A PIE item with extensions: { subject: 'Math', gradeLevel: ['6', '5'] }
+  When: transform() is called with generatePackage: true
+  Then: output.manifest has a classification with source pie:extension:subject and taxon 'Math'
+        AND one with source pie:extension:gradeLevel, taxa '6' and '5', and description ["6","5"]
+        AND transformQtiPackageToPie on that package without the sidecar returns the same extensions
 
 AC-10: baseId round-trip
   Given: A PIE item with baseId: 'stable-id-001'

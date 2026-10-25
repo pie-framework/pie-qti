@@ -44,7 +44,7 @@ export interface ResolvedPassage {
  *     id: passage.id,
  *     title: passage.title,
  *     content: passage.htmlContent,
- *     metadata: passage.searchMetaData
+ *     metadata: passage.extensions
  *   };
  * };
  * ```

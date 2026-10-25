@@ -1,5 +1,5 @@
 /**
- * Item `baseId` and `searchMetaData` travel as IEEE LOM on the item's manifest resource: the
+ * Item `baseId` and `extensions` travel as IEEE LOM on the item's manifest resource: the
  * manifest validates against IMS CP with LOM, and to-pie reads both back without the sidecar.
  */
 
@@ -29,19 +29,23 @@ async function schemaErrors(manifestXml: string): Promise<string[]> {
     .filter((message) => !/fails to validate\s*$/.test(message.trim()));
 }
 
-const searchMetaData = {
+const extensions = {
   subject: 'Math & Logic',
-  gradeLevel: ['3', '4'],
+  gradeLevel: ['4', '3'],
+  single: ['only'],
+  empty: [],
   dok: 2,
   standards: [{ code: '3.OA.1', source: 'CCSS' }],
+  nested: { review: { by: 'qa', passes: [1, null, 'x'] } },
   reviewed: true,
+  retired: null,
 };
 
 const pieItem: PieItem = {
   id: 'item-1',
   baseId: 'base-item-1',
   passage: 'passage-1',
-  searchMetaData,
+  extensions,
   config: {
     id: 'item-1',
     models: [
@@ -75,16 +79,17 @@ async function exportPackage() {
 }
 
 describe('manifest LOM', () => {
-  test('carries baseId and searchMetaData on the item resource and validates as IMS CP with LOM', async () => {
+  test('carries baseId and extensions on the item resource and validates as IMS CP with LOM', async () => {
     const output = await exportPackage();
     const manifestXml: string = output.manifest;
 
     expect(manifestXml).toContain('xmlns:imsmd="http://ltsc.ieee.org/xsd/LOM"');
     expect(manifestXml).toContain('<imsmd:catalog>pie:baseId</imsmd:catalog>');
     expect(manifestXml).toContain('<imsmd:entry>base-item-1</imsmd:entry>');
-    expect(manifestXml).toContain('pie:searchMetaData:subject');
-    expect(manifestXml).toContain('<imsmd:value>discipline</imsmd:value>');
-    expect(manifestXml).toContain('pie:searchMetaData:genre');
+    expect(manifestXml).toContain('pie:extension:subject');
+    expect(manifestXml).toContain('pie:extension:genre');
+    expect(manifestXml).not.toContain('pie:searchMetaData:');
+    expect(manifestXml).not.toContain('<imsmd:purpose>');
     expect(await schemaErrors(manifestXml)).toEqual([]);
   });
 
@@ -119,22 +124,34 @@ describe('manifest LOM', () => {
     expect((await schemaErrors(manifestXml)).join('\n')).toContain('bogus');
   });
 
-  test('to-pie reads baseId and searchMetaData back when the package has no sidecar', async () => {
-    const output = await exportPackage();
+  async function importWithoutSidecar(manifestXml: string, output: any) {
     const files = new Map<string, string>([
       [`items/${pieItem.baseId}.xml`, output.items[0].content],
       ...output.passageFiles.map((file: any) => [file.filePath, file.xml] as [string, string]),
     ]);
-
     const result = await transformQtiPackageToPie({
-      manifestXml: output.manifest,
+      manifestXml,
       fileAccess: { readText: (path) => files.get(path) ?? null },
     });
-
     expect(result.items).toHaveLength(1);
-    const item = result.items[0].content;
+    return result.items[0].content;
+  }
+
+  test('to-pie reads baseId and extensions back when the package has no sidecar', async () => {
+    const output = await exportPackage();
+    const item = await importWithoutSidecar(output.manifest, output);
+
     expect(item.config.models.map((model: any) => model.element)).toContain('multiple-choice');
     expect(item.baseId).toBe('base-item-1');
-    expect(item.searchMetaData).toEqual(searchMetaData);
+    expect(item.extensions).toEqual(extensions);
+    expect(Object.keys(item.extensions)).toEqual(Object.keys(extensions));
+  });
+
+  test('to-pie reads the same extensions from a package written with the legacy LOM source', async () => {
+    const output = await exportPackage();
+    const legacyManifest = output.manifest.replaceAll('pie:extension:', 'pie:searchMetaData:');
+    const item = await importWithoutSidecar(legacyManifest, output);
+
+    expect(item.extensions).toEqual(extensions);
   });
 });

@@ -134,7 +134,7 @@ export function transformDragInTheBlankInteraction(
       },
     },
     metadata: {
-      searchMetaData: {
+      extensions: {
         title: itemId,
         itemType: 'DITB',
         source: 'qti22',

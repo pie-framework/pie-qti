@@ -127,7 +127,7 @@ export function transformMatchListInteraction(
       },
     },
     metadata: {
-      searchMetaData: {
+      extensions: {
         title: itemId,
         itemType: 'ML',
         source: 'qti22',

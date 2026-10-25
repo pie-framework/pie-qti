@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'bun:test';
 import { readPieResourceLom } from '../src/utils/manifest-lom';
 
-const classification = (key: string, entries: string[], description?: string) => `
+const classification = (key: string, entries: string[], description?: string, prefix = 'pie:extension:') => `
           <imsmd:classification>
             <imsmd:taxonPath>
-              <imsmd:source><imsmd:string language="x-none">pie:searchMetaData:${key}</imsmd:string></imsmd:source>
+              <imsmd:source><imsmd:string language="x-none">${prefix}${key}</imsmd:string></imsmd:source>
               ${entries.map((entry) => `<imsmd:taxon><imsmd:entry><imsmd:string language="x-none">${entry}</imsmd:string></imsmd:entry></imsmd:taxon>`).join('')}
             </imsmd:taxonPath>
             ${description === undefined ? '' : `<imsmd:description><imsmd:string language="x-none">${description}</imsmd:string></imsmd:description>`}
@@ -37,7 +37,7 @@ describe('readPieResourceLom', () => {
     expect(lom.has('item2')).toBe(false);
   });
 
-  test('decodes searchMetaData values with their types', () => {
+  test('decodes extension values with their types', () => {
     const lom = readPieResourceLom(
       manifest(
         [
@@ -51,7 +51,7 @@ describe('readPieResourceLom', () => {
       )
     );
 
-    expect(lom.get('item1')?.searchMetaData).toEqual({
+    expect(lom.get('item1')?.extensions).toEqual({
       subject: 'Math & Logic',
       gradeLevel: ['3', '4'],
       dok: 2,
@@ -59,6 +59,20 @@ describe('readPieResourceLom', () => {
       padded: ' spaced ',
       untyped: ['x', 'y'],
     });
+  });
+
+  test('reads the legacy source prefix, the current one winning per key', () => {
+    const lom = readPieResourceLom(
+      manifest(
+        [
+          classification('subject', ['Science'], undefined, 'pie:searchMetaData:'),
+          classification('dok', ['3'], '3', 'pie:searchMetaData:'),
+          classification('subject', ['Math']),
+        ].join('')
+      )
+    );
+
+    expect(lom.get('item1')?.extensions).toEqual({ subject: 'Math', dok: 3 });
   });
 
   test('ignores classifications from other taxonomies', () => {

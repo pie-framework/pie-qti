@@ -1,21 +1,22 @@
 /**
  * PIE item metadata carried as LOM on a package resource
  *
- * pie-to-qti2 writes a PIE item's `baseId` and `searchMetaData` as LOM on the item's `<resource>`
+ * pie-to-qti2 writes a PIE item's `baseId` and `extensions` as LOM on the item's `<resource>`
  * (encoding in `@pie-qti/transform-types` `pie-lom`). Element names are matched by local name, so
  * either LOM binding is read, and only entries carrying the PIE catalog and source markers count.
  */
 
 import {
   PIE_LOM_BASE_ID_CATALOG,
-  PIE_LOM_SEARCH_METADATA_SOURCE,
+  PIE_LOM_EXTENSION_SOURCE,
+  PIE_LOM_LEGACY_EXTENSION_SOURCE,
   type TransformOutput,
 } from '@pie-qti/transform-types';
 import { XMLParser } from 'fast-xml-parser';
 
 export interface PieResourceLom {
   baseId?: string;
-  searchMetaData?: Record<string, unknown>;
+  extensions?: Record<string, unknown>;
 }
 
 type XmlNode = Record<string, unknown>;
@@ -47,7 +48,7 @@ export function readPieResourceLom(manifestXml: string): Map<string, PieResource
     if (typeof identifier !== 'string') continue;
     const loms = children(resource, 'metadata').flatMap((metadata) => children(metadata, 'lom'));
     const lom = readLom(loms);
-    if (lom.baseId !== undefined || lom.searchMetaData !== undefined) {
+    if (lom.baseId !== undefined || lom.extensions !== undefined) {
       byResource.set(identifier, lom);
     }
   }
@@ -55,7 +56,7 @@ export function readPieResourceLom(manifestXml: string): Map<string, PieResource
 }
 
 /**
- * Fill each PIE item's `baseId` and `searchMetaData` from its resource's LOM. A value the item
+ * Fill each PIE item's `baseId` and `extensions` from its resource's LOM. A value the item
  * already has wins, so a fresh sidecar's source model is unchanged.
  */
 export function applyPieResourceLom(output: TransformOutput, lom: PieResourceLom | undefined): void {
@@ -66,8 +67,8 @@ export function applyPieResourceLom(output: TransformOutput, lom: PieResourceLom
     if (lom.baseId !== undefined && !content.baseId) {
       content.baseId = lom.baseId;
     }
-    if (lom.searchMetaData !== undefined) {
-      content.searchMetaData = { ...lom.searchMetaData, ...(content.searchMetaData ?? {}) };
+    if (lom.extensions !== undefined) {
+      content.extensions = { ...lom.extensions, ...(content.extensions ?? {}) };
     }
   }
 }
@@ -85,25 +86,30 @@ function readLom(loms: XmlNode[]): PieResourceLom {
     }
   }
 
-  const searchMetaData: Record<string, unknown> = {};
+  // A key under the current prefix wins over the same key under the legacy one.
+  const legacy: Record<string, unknown> = {};
+  const current: Record<string, unknown> = {};
   for (const classification of loms.flatMap((lom) => children(lom, 'classification'))) {
     const taxonPath = [...children(classification, 'taxonPath'), ...children(classification, 'taxonpath')][0];
     const source = taxonPath ? langStringText(children(taxonPath, 'source')[0]) : undefined;
-    if (!taxonPath || !source?.startsWith(PIE_LOM_SEARCH_METADATA_SOURCE)) continue;
-    const key = source.slice(PIE_LOM_SEARCH_METADATA_SOURCE.length);
+    const prefix = [PIE_LOM_EXTENSION_SOURCE, PIE_LOM_LEGACY_EXTENSION_SOURCE].find((p) => source?.startsWith(p));
+    if (!taxonPath || !source || !prefix) continue;
+    const key = source.slice(prefix.length);
     if (!key) continue;
+    const target = prefix === PIE_LOM_EXTENSION_SOURCE ? current : legacy;
     const typed = decodeJson(langStringText(children(classification, 'description')[0]));
     if (typed.ok) {
-      searchMetaData[key] = typed.value;
+      target[key] = typed.value;
       continue;
     }
     const entries = children(taxonPath, 'taxon')
       .map((taxon) => langStringText(children(taxon, 'entry')[0]))
       .filter((entry): entry is string => entry !== undefined);
-    if (entries.length === 1) searchMetaData[key] = entries[0];
-    else if (entries.length > 1) searchMetaData[key] = entries;
+    if (entries.length === 1) target[key] = entries[0];
+    else if (entries.length > 1) target[key] = entries;
   }
-  if (Object.keys(searchMetaData).length > 0) result.searchMetaData = searchMetaData;
+  const extensions = { ...legacy, ...current };
+  if (Object.keys(extensions).length > 0) result.extensions = extensions;
   return result;
 }
 

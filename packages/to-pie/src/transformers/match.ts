@@ -120,7 +120,7 @@ export function transformMatchInteraction(
       },
     },
     metadata: {
-      searchMetaData: {
+      extensions: {
         title: itemId,
         itemType: 'MA',
         source: 'qti22',

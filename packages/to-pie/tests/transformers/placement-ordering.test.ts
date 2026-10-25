@@ -46,7 +46,7 @@ describe('transformPlacementOrdering', () => {
     expect(model.correctResponse[1]).toEqual({ id: '0' }); // A = index 0
     expect(model.correctResponse[2]).toEqual({ id: '1' }); // B = index 1
 
-    expect(result.metadata?.searchMetaData?.itemType).toBe('PO');
+    expect(result.metadata?.extensions?.itemType).toBe('PO');
   });
 
   test('should handle vertical orientation', () => {
