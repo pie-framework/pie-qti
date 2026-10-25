@@ -5,6 +5,7 @@
 	import type { QtiSectionToolConfig } from '@pie-qti/section-player';
 	import { SAMPLE_ASSESSMENTS } from '#lib/sample-assessments.js';
 	import { getSecurityConfig } from '#lib/player-config.js';
+	import { localeProviderFromUrl } from '#lib/demo-locale.js';
 
 	type Status = 'booting' | 'registering' | 'registered' | 'rendered' | 'error';
 	type SectionDelta = {
@@ -58,7 +59,7 @@
 		return false;
 	}
 
-	async function buildComposition() {
+	async function buildComposition(i18nProvider: Awaited<ReturnType<typeof localeProviderFromUrl>>) {
 		if (!sample) throw new Error('Interaction showcase sample not found');
 
 		const security = getSecurityConfig();
@@ -72,6 +73,7 @@
 			},
 			role: 'candidate',
 			security,
+			i18nProvider,
 		});
 
 		return toSectionComposition(player, {
@@ -100,8 +102,10 @@
 				lastDelta = (event as CustomEvent<SectionDelta>).detail;
 			});
 
+			const i18n = await localeProviderFromUrl();
+			if (i18n) (host as HTMLElement & { i18n?: unknown }).i18n = i18n;
 			assignProps(host, {
-				composition: await buildComposition(),
+				composition: await buildComposition(i18n),
 				security: getSecurityConfig(),
 			});
 

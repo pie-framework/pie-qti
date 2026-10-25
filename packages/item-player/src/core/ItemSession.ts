@@ -114,6 +114,7 @@ export interface ItemSessionBinding {
 		lang?: string,
 		options?: { stimulusIdentifier?: string }
 	): HtmlContent | null;
+	getContentLanguage(): string | undefined;
 	getComponentRegistry(): ItemSessionComponentRegistry;
 	getDeliveryContext(): ResolvedItemDeliveryContext | undefined;
 	getSecurityConfig(): PlayerSecurityConfig | undefined;
@@ -339,6 +340,10 @@ export class LiveItemSession implements ItemSession {
 			onPnpChange: (listener: () => void) => {
 				this.assertActive();
 				return this.player.onPnpChange(() => listener());
+			},
+			getContentLanguage: () => {
+				this.assertActive();
+				return this.player.getContentLanguage();
 			},
 			getCatalogEntry: (
 				idref: string,

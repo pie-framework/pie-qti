@@ -283,30 +283,34 @@ The PIE-QTI player includes a lightweight, type-safe internationalization system
 ### Key features
 
 - **Type-safe translations**: TypeScript autocomplete for all message keys
-- **Runtime locale switching**: Change language via provider (persisted to localStorage with `SvelteI18nProvider`)
+- **Host-owned locale**: The host passes the locale in; the library reads no storage. `SvelteI18nProvider` persists to localStorage and reloads on change only when the host opts in
+- **Locale negotiation**: Any BCP 47 or POSIX tag resolves by language (`es-MX` → `es`, `ar_SA` → `ar`, `zh-CN` → `zh-Hans`); `zh-TW` and `zh-Hant` fall back to English
+- **English by default**: The item and assessment players render English when the host passes no provider
 - **Web Component compatible**: Works within Shadow DOM boundaries
 - **Small bundle size**: <10 KB gzipped (core + default English locale)
 - **On-demand loading**: Additional locales loaded asynchronously when needed
 
 ### Supported locales
 
-| Locale Code | Language                    |
-|-------------|-----------------------------|
-| `en-US`     | English (United States)     |
-| `es-ES`     | Spanish (Spain)             |
-| `fr-FR`     | French (France)             |
-| `nl-NL`     | Dutch (Netherlands)         |
-| `ro-RO`     | Romanian (Romania)          |
-| `ar-SA`     | Arabic (Saudi Arabia)       |
-| `zh-CN`     | Chinese (Simplified)        |
-| `th-TH`     | Thai (Thailand)             |
+Catalogs are keyed by language, and by script for Chinese. The region-qualified codes (`es-ES`, `zh-CN`, …) remain valid inputs.
+
+| Catalog   | Language              |
+|-----------|-----------------------|
+| `en`      | English               |
+| `es`      | Spanish               |
+| `fr`      | French                |
+| `nl`      | Dutch                 |
+| `ro`      | Romanian              |
+| `ar`      | Arabic                |
+| `zh-Hans` | Chinese (Simplified)  |
+| `th`      | Thai                  |
 
 ### Architecture
 
 The i18n system consists of:
 
-1. **`DefaultI18nProvider`** (`packages/i18n/src/core/I18n.ts`) - Core provider: message lookup, interpolation, pluralization, lazy locale loading via Vite glob imports
-2. **`SvelteI18nProvider`** (`packages/i18n/src/providers/SvelteI18nProvider.ts`) - Wraps any `I18nProvider`; persists locale to localStorage and triggers page reload on locale change
+1. **`DefaultI18nProvider`** (`packages/i18n/src/core/I18n.ts`) - Core provider: locale negotiation, message lookup, interpolation, pluralization; English is bundled, other catalogs load through dynamic imports
+2. **`SvelteI18nProvider`** (`packages/i18n/src/providers/SvelteI18nProvider.ts`) - Wraps any `I18nProvider`; loads the negotiated catalog on `setLocale()`, and persists to localStorage and reloads the page when the host opts in (`persistLocale`, `reloadOnLocaleChange`)
 3. **Locale files** (`packages/i18n/src/locales/*.ts`) - TypeScript modules with structured translation messages
 4. **`LocaleSwitcher` component** (`packages/i18n/src/components/LocaleSwitcher.svelte`) - Dropdown UI for runtime locale selection
 
@@ -315,7 +319,7 @@ The i18n system consists of:
 ```typescript
 import { createDefaultSvelteI18nProvider } from '@pie-qti/i18n';
 
-const provider = createDefaultSvelteI18nProvider('en-US');
+const provider = await createDefaultSvelteI18nProvider('en-US');
 ```
 
 ### Message namespaces
@@ -332,7 +336,7 @@ Translations are organized by feature:
 ### Key references
 
 - `packages/i18n/README.md` - Full API documentation
-- `packages/i18n/src/locales/en-US.ts` - Complete list of available translation keys
+- `packages/i18n/src/locales/en.ts` - Complete list of available translation keys
 
 ---
 

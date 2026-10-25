@@ -149,6 +149,7 @@
 					class: 'pie-tiptap tiptap-prose',
 					style: `min-height: ${initialMinHeight}px`,
 					role: 'textbox',
+					dir: 'auto',
 					'aria-multiline': 'true',
 					'aria-label': initialEditorLabel,
 				},
@@ -300,7 +301,7 @@
 	/* Placeholder */
 	:global(.pie-tiptap p.is-editor-empty:first-child::before) {
 		content: attr(data-placeholder);
-		float: left;
+		float: inline-start;
 		color: color-mix(in oklch, var(--pie-qti-base-content, oklch(21% 0 0)) 45%, transparent);
 		pointer-events: none;
 		height: 0;

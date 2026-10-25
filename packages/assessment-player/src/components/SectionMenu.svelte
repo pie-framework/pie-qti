@@ -198,7 +198,7 @@
 	.section-dropdown-content {
 		position: absolute;
 		top: 4rem;
-		right: 1rem;
+		inset-inline-end: 1rem;
 		width: 20rem;
 		max-height: 24rem;
 		overflow-y: auto;
@@ -224,7 +224,7 @@
 		border-radius: 0.375rem;
 		cursor: pointer;
 		transition: background-color 0.2s;
-		text-align: left;
+		text-align: start;
 	}
 
 	.section-item:hover:not(:disabled) {
@@ -264,8 +264,7 @@
 
 	@media (max-width: 640px) {
 		.section-dropdown-content {
-			right: 0;
-			left: 0;
+			inset-inline: 0;
 			width: auto;
 			margin: 0 1rem;
 		}

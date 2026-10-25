@@ -19,16 +19,15 @@ Runs on every push to `master` and `develop`, and on pull requests targeting tho
 **Jobs:**
 
 1. **Lint & Typecheck** - Runs Biome linting, Svelte checks, and TypeScript type checking
-2. **Translation Coverage** - Verifies locale coverage
-3. **Hardcoded String Scan** - Informational i18n scan
-4. **Doc Links** - Verifies every relative link and heading anchor across all markdown resolves (`bun run check:doc-links`)
-5. **Unit Tests** - Runs package test suites through `bun run test`
-6. **End-to-End Tests** - Runs the Playwright E2E suites against the demo app (`bun run test:e2e`)
-7. **QTI Public Certification Gate** - Runs clean-room public certification coverage
-8. **Accessibility Verification** - Runs `bun run verify:a11y` with Playwright Chromium
-9. **Deployability (Apps)** - Builds deployable demo/docs apps and smoke-checks outputs
-10. **Publish Readiness** - Builds packages and runs package publishing readiness checks
-11. **All Checks** - Summary job that ensures required checks pass
+2. **Translation Coverage** - Verifies locale coverage and fails on hard-coded learner-visible strings (`bun run check:i18n`)
+3. **Doc Links** - Verifies every relative link and heading anchor across all markdown resolves (`bun run check:doc-links`)
+4. **Unit Tests** - Runs package test suites through `bun run test`
+5. **End-to-End Tests** - Runs the Playwright E2E suites against the demo app (`bun run test:e2e`)
+6. **QTI Public Certification Gate** - Runs clean-room public certification coverage
+7. **Accessibility Verification** - Runs `bun run verify:a11y` with Playwright Chromium
+8. **Deployability (Apps)** - Builds deployable demo/docs apps and smoke-checks outputs
+9. **Publish Readiness** - Builds packages and runs package publishing readiness checks
+10. **All Checks** - Summary job that ensures required checks pass
 
 **Artifacts:**
 - Package build outputs from the publish-readiness job

@@ -10,13 +10,22 @@
 
   <script lang="ts">
     import LocaleSwitcher from './LocaleSwitcher.svelte';
-    import { createDefaultSvelteI18nProvider, type SvelteI18nProvider } from '@pie-qti/i18n';
+    import {
+      createDefaultSvelteI18nProvider,
+      DEFAULT_LOCALE_STORAGE_KEY,
+      type SvelteI18nProvider,
+    } from '@pie-qti/i18n';
 
     let i18n = $state<SvelteI18nProvider | null>(null);
 
     $effect(() => {
-      // Reads the persisted locale from localStorage and loads its catalog
-      createDefaultSvelteI18nProvider().then((provider) => (i18n = provider));
+      // The app owns the locale: it reads the stored value, and opts into
+      // persisting it and reloading on change. The provider reads no storage.
+      const saved = localStorage.getItem(DEFAULT_LOCALE_STORAGE_KEY) ?? 'en-US';
+      createDefaultSvelteI18nProvider(saved, undefined, {
+        persistLocale: true,
+        reloadOnLocaleChange: true,
+      }).then((provider) => (i18n = provider));
     });
   </script>
 
@@ -28,8 +37,9 @@
     />
   {/if}
 
-  Note: SvelteI18nProvider.setLocale() persists the locale and then reloads the
-  page, so this component does not need to propagate the change itself.
+  Note: with the options above, SvelteI18nProvider.setLocale() persists the
+  locale and then reloads the page, so this component does not need to
+  propagate the change itself.
 -->
 
 <script lang="ts">

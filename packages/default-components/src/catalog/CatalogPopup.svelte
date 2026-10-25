@@ -1,6 +1,7 @@
 <svelte:options customElement="pie-qti-catalog-popup" />
 
 <script lang="ts">
+	import { isImeComposing, translate, type I18nProvider } from '@pie-qti/i18n';
 	import type { HtmlContent, PlayerSecurityConfig } from '@pie-qti/item-player';
 	import { htmlToString, sanitizeResourceUrl, sanitizeSharedHtml } from '@pie-qti/item-player/security';
 	/**
@@ -21,9 +22,10 @@
 		label: string;
 		/** Callback when the popup is closed. */
 		onClose: () => void;
+		i18n?: I18nProvider;
 	}
 
-	const { content, security, label, onClose }: Props = $props();
+	const { content, security, label, onClose, i18n }: Props = $props();
 
 	// Illustrated-glossary: if content looks like a URL, render as <img>
 	const contentString = $derived(htmlToString(content));
@@ -47,7 +49,7 @@
 	});
 
 	function handleKeyDown(event: KeyboardEvent) {
-		if (event.key === 'Escape') {
+		if (event.key === 'Escape' && !isImeComposing(event)) {
 			event.preventDefault();
 			onClose();
 			return;
@@ -96,7 +98,7 @@
 			bind:this={closeBtn}
 			type="button"
 			class="qti-catalog-popup__close"
-			aria-label="Close"
+			aria-label={translate(i18n, 'common.close', 'Close')}
 			onclick={onClose}
 		>✕</button>
 	</div>

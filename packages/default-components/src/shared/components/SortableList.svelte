@@ -8,7 +8,7 @@ export type SortableIndexLabels = 'decimal' | 'lower-alpha' | 'upper-alpha' | 'n
  * Accessible via drag-and-drop, keyboard (Space/Enter to grab, arrow keys to move), or touch
  */
 
-import type { I18nProvider } from '@pie-qti/i18n';
+import { joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
 import type { HtmlContent } from '@pie-qti/item-player';
 import { htmlToString } from '@pie-qti/item-player/security';
 import { touchDrag } from '@pie-qti/qti-common';
@@ -110,7 +110,7 @@ function handleKeyDown(event: KeyboardEvent, id: string) {
 
 	const currentIndex = orderedIds.indexOf(id);
 	const item = items.find((i) => i.id === id);
-	const itemName = item ? itemLabel(item) : 'Item';
+	const itemName = item ? itemLabel(item) : translate(i18n, 'interactions.order.itemFallback', 'Item');
 
 	// Space or Enter: Pick up or drop item
 	if (event.key === ' ' || event.key === 'Enter') {
@@ -141,26 +141,43 @@ function handlePickupOrDrop(
 	if (keyboardSelectedId === id) {
 		// Drop item
 		keyboardSelectedId = null;
-		announceText = `${itemName} dropped at position ${currentIndex + 1} of ${orderedIds.length}`;
+		announceText = translate(i18n, 'interactions.order.itemDropped', '{item} dropped at position {position} of {total}', {
+			item: itemName, position: currentIndex + 1, total: orderedIds.length,
+		});
 	} else {
 		// Pick up item
 		keyboardSelectedId = id;
-		announceText = `${itemName} grabbed. Current position ${currentIndex + 1} of ${orderedIds.length}. Use arrow keys to move, Space or Enter to drop.`;
+		announceText = translate(
+			i18n,
+			'interactions.order.itemGrabbed',
+			'{item} grabbed. Current position {position} of {total}. Use arrow keys to move, Space or Enter to drop.',
+			{ item: itemName, position: currentIndex + 1, total: orderedIds.length },
+		);
 	}
 }
 
 function handleCancelSelection(event: KeyboardEvent, itemName: string) {
 	event.preventDefault();
-	announceText = `${itemName} selection cancelled`;
+	announceText = translate(i18n, 'interactions.order.selectionCancelled', '{item} selection cancelled', { item: itemName });
 	keyboardSelectedId = null;
+}
+
+function announceMoved(itemName: string, position: number): string {
+	return translate(i18n, 'interactions.order.itemMoved', '{item} moved to position {position} of {total}', {
+		item: itemName, position, total: orderedIds.length,
+	});
 }
 
 function handleArrowKeyMovement(event: KeyboardEvent, itemName: string, currentIndex: number) {
 	const focusedItem = event.currentTarget as HTMLButtonElement;
+	// Horizontal lists run in the inline direction, so the earlier key mirrors under RTL.
+	const rtl = getComputedStyle(focusedItem).direction === 'rtl';
+	const earlierKey = rtl ? 'ArrowRight' : 'ArrowLeft';
+	const laterKey = rtl ? 'ArrowLeft' : 'ArrowRight';
 	if (event.key === 'ArrowUp' && orientation === 'vertical' && currentIndex > 0) {
 		event.preventDefault();
 		moveItem(currentIndex, currentIndex - 1);
-		announceText = `${itemName} moved to position ${currentIndex} of ${orderedIds.length}`;
+		announceText = announceMoved(itemName, currentIndex);
 	} else if (
 		event.key === 'ArrowDown' &&
 		orientation === 'vertical' &&
@@ -168,19 +185,19 @@ function handleArrowKeyMovement(event: KeyboardEvent, itemName: string, currentI
 	) {
 		event.preventDefault();
 		moveItem(currentIndex, currentIndex + 1);
-		announceText = `${itemName} moved to position ${currentIndex + 2} of ${orderedIds.length}`;
-	} else if (event.key === 'ArrowLeft' && orientation === 'horizontal' && currentIndex > 0) {
+		announceText = announceMoved(itemName, currentIndex + 2);
+	} else if (event.key === earlierKey && orientation === 'horizontal' && currentIndex > 0) {
 		event.preventDefault();
 		moveItem(currentIndex, currentIndex - 1);
-		announceText = `${itemName} moved to position ${currentIndex} of ${orderedIds.length}`;
+		announceText = announceMoved(itemName, currentIndex);
 	} else if (
-		event.key === 'ArrowRight' &&
+		event.key === laterKey &&
 		orientation === 'horizontal' &&
 		currentIndex < orderedIds.length - 1
 	) {
 		event.preventDefault();
 		moveItem(currentIndex, currentIndex + 1);
-		announceText = `${itemName} moved to position ${currentIndex + 2} of ${orderedIds.length}`;
+		announceText = announceMoved(itemName, currentIndex + 2);
 	}
 	if (event.defaultPrevented) {
 		// Moving a keyed DOM node can blur it even when its component survives.
@@ -206,9 +223,10 @@ async function moveWithButton(event: MouseEvent, id: string, offset: number) {
 	const item = items.find((entry) => entry.id === orderedIds[index]);
 	keyboardSelectedId = null;
 	moveItem(index, index + offset);
-	announceText = i18n?.t('interactions.order.itemMoved', {
-		item: item ? itemLabel(item) : 'Item', position: index + offset + 1, total: orderedIds.length,
-	}) ?? `Moved to position ${index + offset + 1} of ${orderedIds.length}`;
+	announceText = announceMoved(
+		item ? itemLabel(item) : translate(i18n, 'interactions.order.itemFallback', 'Item'),
+		index + offset + 1,
+	);
 	await tick();
 	// Keep repeated moves keyboard accessible; at a boundary focus the item.
 	if (button.isConnected && !button.disabled) button.focus();
@@ -216,7 +234,7 @@ async function moveWithButton(event: MouseEvent, id: string, offset: number) {
 }
 
 function itemLabel(item: Item): string {
-	return toPlainText(item.text) || 'Item';
+	return toPlainText(item.text) || translate(i18n, 'interactions.order.itemFallback', 'Item');
 }
 
 function toPlainText(html: HtmlContent): string {
@@ -238,7 +256,11 @@ function toPlainText(html: HtmlContent): string {
 
 <!-- Instructions for keyboard users -->
 <div id="sortable-instructions" class="sr-only">
-	Press Space or Enter to grab an item. Use arrow keys to move the item. Press Space or Enter again to drop. Press Escape to cancel.
+	{translate(
+		i18n,
+		'interactions.order.keyboardInstructions',
+		'Press Space or Enter to grab an item. Use arrow keys to move the item. Press Space or Enter again to drop. Press Escape to cancel.',
+	)}
 </div>
 
 <div
@@ -270,13 +292,19 @@ function toPlainText(html: HtmlContent): string {
 					ondragend={handleDragEnd}
 					onkeydown={(e) => handleKeyDown(e, id)}
 					disabled={disabled}
-					aria-label="{label}. Position {index + 1} of {orderedIds.length}{isGrabbed ? '. Grabbed. Use arrow keys to move.' : ''}{isCorrect ? '. Correct position' : ''}"
+					aria-label={joinSentences(
+						translate(i18n, 'interactions.order.itemPosition', '{item}. Position {position} of {total}.', {
+							item: label, position: index + 1, total: orderedIds.length,
+						}),
+						isGrabbed && translate(i18n, 'interactions.order.grabbed', 'Grabbed. Use arrow keys to move.'),
+						isCorrect && translate(i18n, 'accessibility.correctPosition', 'Correct position.'),
+					)}
 					aria-grabbed={isGrabbed}
 					data-grabbed={isGrabbed}
 					data-correct={isCorrect}
 					data-disabled={disabled}
 					part="item"
-					class="qti-sortable-item flex items-center gap-2 p-3 bg-base-200 rounded select-none transition-all w-full text-left"
+					class="qti-sortable-item flex items-center gap-2 p-3 bg-base-200 rounded select-none transition-all w-full text-start"
 					class:cursor-grab={!disabled && !isGrabbed}
 					class:cursor-not-allowed={disabled}
 					class:opacity-50={disabled || draggedId === id}
@@ -302,13 +330,13 @@ function toPlainText(html: HtmlContent): string {
 							aria-label="{i18n?.t('interactions.order.moveEarlier') ?? 'Move earlier'}: {label}"
 							title={i18n?.t('interactions.order.moveEarlier') ?? 'Move earlier'}
 							onclick={(event) => moveWithButton(event, id, -1)}>
-							<span aria-hidden="true">{orientation === 'horizontal' ? '←' : '↑'}</span>
+							<span class="qti-sortable-glyph" aria-hidden="true">{orientation === 'horizontal' ? '←' : '↑'}</span>
 						</button>
 						<button type="button" class="qti-sortable-move" disabled={index === orderedIds.length - 1}
 							aria-label="{i18n?.t('interactions.order.moveLater') ?? 'Move later'}: {label}"
 							title={i18n?.t('interactions.order.moveLater') ?? 'Move later'}
 							onclick={(event) => moveWithButton(event, id, 1)}>
-							<span aria-hidden="true">{orientation === 'horizontal' ? '→' : '↓'}</span>
+							<span class="qti-sortable-glyph" aria-hidden="true">{orientation === 'horizontal' ? '→' : '↓'}</span>
 						</button>
 					</div>
 				{/if}
@@ -331,6 +359,10 @@ function toPlainText(html: HtmlContent): string {
 
 	.qti-sortable-row { display: flex; gap: 0.5rem; align-items: center; min-width: 0; }
 	.qti-sortable-moves { display: flex; flex: 0 0 auto; gap: 0.25rem; }
+	.qti-sortable-list[data-orientation='horizontal'] .qti-sortable-glyph:dir(rtl) {
+		display: inline-block;
+		transform: scaleX(-1);
+	}
 	.qti-sortable-move {
 		min-width: 44px; min-height: 44px; border-radius: 0.375rem;
 		border: 1px solid var(--pie-qti-base-content, #333);
@@ -350,7 +382,7 @@ function toPlainText(html: HtmlContent): string {
 		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
 		background: var(--pie-qti-base-200, oklch(98% 0 0));
 		color: var(--pie-qti-base-content, oklch(21% 0 0));
-		text-align: left;
+		text-align: start;
 		user-select: none;
 		transition: background-color 120ms ease, border-color 120ms ease, outline-color 120ms ease,
 			opacity 120ms ease;

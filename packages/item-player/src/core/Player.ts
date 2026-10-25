@@ -26,6 +26,7 @@ import {
 import type { ElementNameMapper, AttributeNameMapper } from '@pie-qti/qti-common';
 import { prepareContentMarkup } from '@pie-qti/qti-common/accessibility';
 import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
+import { DefaultI18nProvider, type I18nProvider } from '@pie-qti/i18n';
 import {
 	Qti2xElementNameMapper,
 	Qti2xAttributeNameMapper,
@@ -771,18 +772,11 @@ export class Player {
 	}
 
 	/**
-	 * Create a simple fallback i18n provider when none is provided
-	 * This avoids a hard dependency on @pie-qti/i18n
+	 * The provider used when the host passes none: English, from the catalog
+	 * `@pie-qti/i18n` bundles eagerly.
 	 */
-	private createDefaultI18nProvider(): any {
-		return {
-			getLocale: () => 'en-US',
-			setLocale: () => {},
-			t: (key: string) => key, // Fallback to key
-			plural: (key: string) => key,
-			formatNumber: (value: number) => value.toString(),
-			formatDate: (date: Date) => date.toISOString(),
-		};
+	private createDefaultI18nProvider(): I18nProvider {
+		return new DefaultI18nProvider('en-US');
 	}
 
 	/**
@@ -919,7 +913,7 @@ export class Player {
 	private responsesMatchCorrect(): boolean | undefined {
 		const responses = Object.values(this.decls).filter((d) => (d as any).__kind === 'response');
 		if (responses.length === 0 || responses.some((d) => d.correctResponse?.kind !== 'value')) return undefined;
-		const env = { ctx: this.ctx, ops: this.ops, rng: this.rng, customOperators: this.config.customOperators };
+		const env = this.processingEnv();
 		return responses.every((d) =>
 			toBoolean(
 				evalExpr(env, {
@@ -1333,16 +1327,22 @@ export class Player {
 	// Execution
 	// ----------------------------------------------------------------------------
 
+	/** The evaluator's environment, which reads responses in the item's content language. */
+	private processingEnv() {
+		return {
+			ctx: this.ctx,
+			ops: this.ops,
+			rng: this.rng,
+			language: this.getContentLanguage(),
+			customOperators: this.config.customOperators,
+		};
+	}
+
 	private execTemplateProcessing(): void {
 		this.interactionDataCache = null;
 		if (!this.templateProcessingProgram) return;
 		execProgram(
-			{
-				ctx: this.ctx,
-				ops: this.ops,
-				rng: this.rng,
-				customOperators: this.config.customOperators,
-			},
+			this.processingEnv(),
 			this.templateProcessingProgram
 		);
 	}
@@ -1350,12 +1350,7 @@ export class Player {
 	private execResponseProcessingProgram(): void {
 		if (!this.responseProcessingProgram) return;
 		execProgram(
-			{
-				ctx: this.ctx,
-				ops: this.ops,
-				rng: this.rng,
-				customOperators: this.config.customOperators,
-			},
+			this.processingEnv(),
 			this.responseProcessingProgram
 		);
 	}
@@ -1363,12 +1358,7 @@ export class Player {
 	private execOutcomeProcessingProgram(): void {
 		if (!this.outcomeProcessingProgram) return;
 		execProgram(
-			{
-				ctx: this.ctx,
-				ops: this.ops,
-				rng: this.rng,
-				customOperators: this.config.customOperators,
-			},
+			this.processingEnv(),
 			this.outcomeProcessingProgram
 		);
 	}
@@ -1389,7 +1379,7 @@ export class Player {
 			} as any;
 			return toBoolean(
 				evalExpr(
-					{ ctx: this.ctx, ops: this.ops, rng: this.rng, customOperators: this.config.customOperators },
+					this.processingEnv(),
 					expression,
 				),
 			);
@@ -1407,7 +1397,7 @@ export class Player {
 			const response = this.ctx.getValue('RESPONSE');
 			if (response.kind === 'null') return 0;
 			const mapped = evalExpr(
-				{ ctx: this.ctx, ops: this.ops, rng: this.rng, customOperators: this.config.customOperators },
+				this.processingEnv(),
 				{
 					kind: point ? 'expr.mapResponsePoint' : 'expr.mapResponse',
 					id: point ? 'fixed-template-map-response-point' : 'fixed-template-map-response',
@@ -1848,7 +1838,7 @@ export class Player {
 				const fieldIdentifier = this.getAttrMapped(valueElement, 'fieldIdentifier');
 				const fieldBaseType = this.getAttrMapped(valueElement, 'baseType') as BaseType | null;
 				if (!fieldIdentifier || !fieldBaseType) continue;
-				record[fieldIdentifier] = coerceBaseValue(fieldBaseType, valueElement.textContent || '');
+				record[fieldIdentifier] = coerceBaseValue(fieldBaseType, valueElement.textContent || '', this.getContentLanguage());
 			}
 			return Object.keys(record).length > 0
 				? qtiValue(undefined, 'record', record)
@@ -1862,12 +1852,12 @@ export class Player {
 				baseType,
 				cardinality,
 				values.map((t) => {
-					const v = coerceBaseValue(baseType, t);
+					const v = coerceBaseValue(baseType, t, this.getContentLanguage());
 					return v.kind === 'value' ? v.value : null;
 				})
 			);
 		}
-		return coerceBaseValue(baseType, values[0] ?? '');
+		return coerceBaseValue(baseType, values[0] ?? '', this.getContentLanguage());
 	}
 
 	private parseMapping(mappingEl: Element, baseType: BaseType) {
@@ -1974,10 +1964,10 @@ export class Player {
 				.filter((s) => s.length > 0)
 				.map((t) => {
 					if (extendedTextBase && (baseType === 'integer' || baseType === 'float')) {
-						const numeric = createExtendedTextNumericRecord(t, extendedTextBase);
+						const numeric = createExtendedTextNumericRecord(t, extendedTextBase, this.getContentLanguage());
 						return baseType === 'integer' ? numeric.integerValue : numeric.floatValue;
 					}
-					const v = coerceBaseValue(baseType, t);
+					const v = coerceBaseValue(baseType, t, this.getContentLanguage());
 					return v.kind === 'value' ? v.value : null;
 				})
 				.filter((v) => v !== null);
@@ -1988,11 +1978,11 @@ export class Player {
 		const t = String(raw ?? '').trim();
 		if (t.length === 0) return qtiNull(baseType, cardinality);
 		if (extendedTextBase && (baseType === 'integer' || baseType === 'float')) {
-			const numeric = createExtendedTextNumericRecord(t, extendedTextBase);
+			const numeric = createExtendedTextNumericRecord(t, extendedTextBase, this.getContentLanguage());
 			const value = baseType === 'integer' ? numeric.integerValue : numeric.floatValue;
 			return value === null ? qtiNull(baseType, 'single') : qtiValue(baseType, 'single', value);
 		}
-		return coerceBaseValue(baseType, t);
+		return coerceBaseValue(baseType, t, this.getContentLanguage());
 	}
 
 	private getExtendedTextBase(responseIdentifier: string): number | undefined {
@@ -2011,7 +2001,7 @@ export class Player {
 					return qtiNull(undefined, 'record');
 				}
 			} else {
-				source = createExtendedTextNumericRecord(stringSource, base);
+				source = createExtendedTextNumericRecord(stringSource, base, this.getContentLanguage());
 			}
 		}
 		if (!source || typeof source !== 'object' || Array.isArray(source)) {
@@ -2051,7 +2041,7 @@ export class Player {
 			} else if (fieldBaseType === 'file' && typeof fieldValue === 'object') {
 				fields[fieldIdentifier] = qtiValue('file', 'single', fieldValue);
 			} else {
-				fields[fieldIdentifier] = coerceBaseValue(fieldBaseType, String(fieldValue));
+				fields[fieldIdentifier] = coerceBaseValue(fieldBaseType, String(fieldValue), this.getContentLanguage());
 			}
 		}
 

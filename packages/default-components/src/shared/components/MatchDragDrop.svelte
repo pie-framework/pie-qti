@@ -7,7 +7,7 @@
 
 import type { AssociableChoice } from '@pie-qti/item-player';
 import { htmlToString } from '@pie-qti/item-player/security';
-import type { I18nProvider } from '@pie-qti/i18n';
+import { formatList, joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
 import { touchDrag } from '@pie-qti/qti-common';
 import { tick } from 'svelte';
 import { createOrUpdatePair, getSourceForTarget, getTargetsForSource, removePairBySource } from '../utils/pairHelpers.js';
@@ -125,11 +125,14 @@ function createMatch(sourceId: string, targetId: string): boolean {
 	const sourceCount = getTargetsForSource(newPairs, sourceId).length;
 	if ((maxAssociations > 0 && newPairs.length > maxAssociations) ||
 		((source.matchMax ?? 1) > 0 && sourceCount > (source.matchMax ?? 1))) {
-		announceText = 'Maximum associations reached. Remove a pair to add a new one.';
+		announceText = translate(i18n, 'interactions.match.maxReached', 'Maximum associations reached. Remove a pair to add a new one.');
 		return false;
 	}
 	onPairsChange(newPairs);
-	announceText = `${choiceLabel(source)}: ${choiceLabel(target)}`;
+	announceText = translate(i18n, 'interactions.match.pairCreated', '{source} matched with {target}.', {
+		source: choiceLabel(source),
+		target: choiceLabel(target),
+	});
 	return true;
 }
 
@@ -141,7 +144,7 @@ function clearMatch(sourceId: string) {
 	const newPairs = removePairBySource(pairs, sourceId);
 	onPairsChange(newPairs);
 
-	announceText = `Match cleared for ${sourceName}`;
+	announceText = translate(i18n, 'interactions.match.matchCleared', 'Match cleared for {item}', { item: sourceName });
 }
 </script>
 
@@ -154,7 +157,7 @@ function clearMatch(sourceId: string) {
 
 <!-- Instructions for keyboard users -->
 <div id="match-instructions" class="sr-only">
-	Press Space or Enter to select a source item. Tab to navigate to targets. Press Space or Enter on a target to create a match. Press Escape to cancel selection.
+	{translate(i18n, 'interactions.match.keyboardInstructions', 'Press Space or Enter to select a source item. Tab to navigate to targets. Press Space or Enter on a target to create a match. Press Escape to cancel selection.')}
 </div>
 
 <div
@@ -194,7 +197,15 @@ function clearMatch(sourceId: string) {
 					onclick={() => selectSource(source.identifier)}
 					onkeydown={cancelSelection}
 					disabled={disabled}
-					aria-label="{sourceLabel}{targetItems.length ? '. Matched with ' + targetItems.map((target) => choiceLabel(target, 'Target')).join(', ') : ''}{isSelected ? '. Selected for matching' : ''}{isCorrect ? '. Correct answer' : ''}"
+					aria-label={joinSentences(
+						translate(i18n, 'accessibility.sentence', '{text}.', { text: sourceLabel }),
+						targetItems.length > 0 &&
+							translate(i18n, 'interactions.match.matchedWithSentence', 'Matched with {targets}.', {
+								targets: formatList(i18n, targetItems.map((target) => choiceLabel(target, 'Target'))),
+							}),
+						isSelected && translate(i18n, 'interactions.match.selectedForMatchingSentence', 'Selected for matching.'),
+						isCorrect && translate(i18n, 'accessibility.correctAnswer', 'Correct answer.'),
+					)}
 					aria-pressed={isSelected}
 					data-matched={matchedTargets.length > 0}
 					data-selected={isSelected}
@@ -228,7 +239,7 @@ function clearMatch(sourceId: string) {
 								{/if}
 							{/if}
 							{#if isCorrect && matchedTargets.length === 0}
-								<span class="badge badge-success badge-sm ml-2">{i18n?.t('interactions.choice.correct', 'Correct') ?? 'Correct'}</span>
+								<span class="badge badge-success badge-sm ms-2">{i18n?.t('interactions.choice.correct', 'Correct') ?? 'Correct'}</span>
 							{/if}
 						</div>
 						{#if !disabled && canDragMore}
@@ -240,9 +251,9 @@ function clearMatch(sourceId: string) {
 					<button
 						type="button"
 						part="source-clear"
-						class="qti-match-clear btn btn-xs btn-ghost absolute top-2 right-2"
+						class="qti-match-clear btn btn-xs btn-ghost absolute top-2 end-2"
 						onclick={() => clearMatch(source.identifier)}
-						aria-label="Clear match for {sourceLabel}"
+						aria-label={translate(i18n, 'interactions.match.clearMatch', 'Clear match for {source}', { source: sourceLabel })}
 					>
 						✕
 					</button>
@@ -279,7 +290,14 @@ function clearMatch(sourceId: string) {
 				onkeydown={cancelSelection}
 				disabled={disabled || (!selectedSourceId && !draggedSourceId)}
 				aria-disabled={isBlocked ? 'true' : undefined}
-				aria-label="{targetLabel}{matchedSource && sourceItem ? '. Matched with ' + choiceLabel(sourceItem) : '. Available for matching'}{isCorrect ? '. Correct answer' : ''}{isBlocked ? '. Not compatible with selected source' : ''}"
+				aria-label={joinSentences(
+					translate(i18n, 'accessibility.sentence', '{text}.', { text: targetLabel }),
+					matchedSource && sourceItem
+						? translate(i18n, 'interactions.match.matchedWithSentence', 'Matched with {targets}.', { targets: choiceLabel(sourceItem) })
+						: translate(i18n, 'interactions.match.availableForMatchingSentence', 'Available for matching.'),
+					isCorrect && translate(i18n, 'accessibility.correctAnswer', 'Correct answer.'),
+					isBlocked && translate(i18n, 'interactions.match.notCompatibleSentence', 'Not compatible with the selected source.'),
+				)}
 				data-matched={!!matchedSource}
 				data-highlight={isHighlight}
 				data-correct={isCorrect}
@@ -368,7 +386,7 @@ function clearMatch(sourceId: string) {
 		border: 2px solid var(--pie-qti-base-300, oklch(95% 0 0));
 		background: var(--pie-qti-base-200, oklch(98% 0 0));
 		color: var(--pie-qti-base-content, oklch(21% 0 0));
-		text-align: left;
+		text-align: start;
 		user-select: none;
 		transition: background-color 120ms ease, border-color 120ms ease, outline-color 120ms ease,
 			opacity 120ms ease;
@@ -412,7 +430,7 @@ function clearMatch(sourceId: string) {
 	.qti-match-clear {
 		position: absolute;
 		top: 0.5rem;
-		right: 0.5rem;
+		inset-inline-end: 0.5rem;
 		width: 1.5rem;
 		height: 1.5rem;
 		display: inline-flex;
@@ -435,7 +453,7 @@ function clearMatch(sourceId: string) {
 		border: 2px dashed var(--pie-qti-base-300, oklch(95% 0 0));
 		background: var(--pie-qti-base-100, oklch(100% 0 0));
 		color: var(--pie-qti-base-content, oklch(21% 0 0));
-		text-align: left;
+		text-align: start;
 		min-height: 60px;
 		transition: background-color 120ms ease, border-color 120ms ease, outline-color 120ms ease,
 			opacity 120ms ease;

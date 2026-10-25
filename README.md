@@ -101,7 +101,8 @@ See [STYLING.md](packages/default-components/STYLING.md) for the full styling co
 The player UI supports multiple languages with runtime locale switching:
 
 - **Type-safe translations** — TypeScript autocomplete for all message keys
-- **Runtime switching** — Change language without page reload
+- **Runtime switching** — A player's `locale` attribute changes its language in place, without a page reload
+- **Language negotiation** — Regional and POSIX tags reach their language's catalog (`es-MX` → `es`, `ar_SA` → `ar`); the host owns the locale and the package reads no storage
 - **Custom translations** — Clients provide complete locale bundles or override specific strings
 - **Small bundle** — <10 KB gzipped (core + default locale)
 

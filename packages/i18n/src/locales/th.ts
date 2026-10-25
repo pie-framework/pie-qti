@@ -1,5 +1,5 @@
 /**
- * Thai (Thailand) translations
+ * Thai translations
  *
  * Guidelines for translators:
  * - Keep messages concise for UI constraints
@@ -173,6 +173,7 @@ export default {
 			keyboard: 'แป้นพิมพ์',
 			update: 'อัปเดต',
 			insert: 'แทรก',
+			correctAnswerHeading: 'คำตอบที่ถูกต้อง:',
 		},
 
 		slider: {
@@ -199,6 +200,7 @@ export default {
 			altText: 'การโต้ตอบฮอตสปอต',
 			unknownImageDimensions:
 				'ไม่สามารถแสดงฮอตสปอตนี้ได้: ไม่ทราบขนาดของรูปภาพ จึงไม่สามารถกำหนดตำแหน่งพื้นที่ที่เลือกได้ โปรดเพิ่มความกว้างและความสูงให้กับรูปภาพ หรือระบุขนาดของไฟล์',
+			correctList: 'ถูกต้อง: {ids}',
 		},
 
 		selectPoint: {
@@ -215,6 +217,7 @@ export default {
 			pointsSelected: 'จุดที่เลือก:',
 			minimumMet: '✓ ถึงขั้นต่ำแล้ว',
 			selectAtLeast: 'เลือกอย่างน้อย {minChoices}',
+			correctPointAt: 'จุดคำตอบที่ถูกต้องที่พิกัด {x}, {y}',
 		},
 
 		match: {
@@ -239,6 +242,12 @@ export default {
 			navigateToTarget: 'นำทางไปยังเป้าหมายและกด Space หรือ Enter เพื่อจับคู่',
 			selectionCancelled: 'ยกเลิกการเลือก',
 			matchCleared: 'ล้างการจับคู่สำหรับ {item} แล้ว',
+			maxReached: 'ถึงจำนวนการจับคู่สูงสุดแล้ว ลบคู่หนึ่งออกเพื่อเพิ่มคู่ใหม่',
+			pairCreated: 'จับคู่ {source} กับ {target} แล้ว',
+			matchedWithSentence: 'จับคู่กับ {targets}',
+			selectedForMatchingSentence: 'เลือกเพื่อจับคู่แล้ว',
+			availableForMatchingSentence: 'พร้อมสำหรับการจับคู่',
+			notCompatibleSentence: 'ไม่เข้ากันกับต้นทางที่เลือก',
 		},
 
 		gapMatch: {
@@ -274,6 +283,22 @@ export default {
 			labelPlaced: 'วาง {label} บนฮอตสปอต {hotspot} แล้ว',
 			hotspot: 'ฮอตสปอต {number}',
 			contains: 'มี: {label}',
+			labelRemoved: 'ลบ {label} ออกจากฮอตสปอตแล้ว',
+			pickedUp: 'หยิบ {label} แล้ว กด Tab ไปยังฮอตสปอตแล้วกด Enter เพื่อวาง',
+			alreadyPlacedSentence: 'วางบนฮอตสปอตแล้ว',
+			unavailableSentence: 'ไม่พร้อมใช้งานเนื่องจากข้อจำกัดของกลุ่มการจับคู่',
+			heldHint: 'หยิบแล้ว กด Tab ไปยังฮอตสปอตแล้วกด Enter เพื่อวาง',
+			pickUpHint: 'กด Space หรือ Enter เพื่อหยิบ',
+			selectedHint: 'เลือกเพื่อวางแล้ว',
+			selectHint: 'กด Space เพื่อเลือก',
+			hotspotContains: 'ฮอตสปอต {number} มี {label}',
+			hotspotCorrectAnswer: 'ฮอตสปอต {number} คำตอบที่ถูกต้อง: {label}',
+			hotspotEmpty: 'ฮอตสปอต {number} ว่าง',
+			hotspotAvailable: 'ฮอตสปอต {number} พร้อมใช้งาน',
+			placeHereHint: 'กด Enter เพื่อวาง {label} ที่นี่',
+			placeLabelHint: 'กด Space หรือ Enter เพื่อวางป้ายกำกับ',
+			labelFallback: 'ป้ายกำกับ',
+			pickUpInstructions: 'กด Space หรือ Enter เพื่อหยิบป้ายกำกับ กด Tab ไปยังฮอตสปอตบนภาพแล้วกด Enter เพื่อวาง กด Escape เพื่อยกเลิก',
 		},
 
 		order: {
@@ -293,6 +318,9 @@ export default {
 			itemDropped: 'วาง {item} ที่ตำแหน่ง {position} จาก {total} แล้ว',
 			itemMoved: 'ย้าย {item} ไปยังตำแหน่ง {position} จาก {total} แล้ว',
 			selectionCancelled: 'ยกเลิกการเลือก {item}',
+			itemPosition: '{item} ตำแหน่ง {position} จาก {total}',
+			itemFallback: 'รายการ',
+			orderConfirmed: 'ยืนยันลำดับแล้ว',
 		},
 
 		associate: {
@@ -314,6 +342,7 @@ export default {
 			associationsCount: 'ความสัมพันธ์ ({count}/{max})',
 			clickHotspotsToAssociate: 'คลิกสองฮอตสปอตบนภาพเพื่อสร้างความสัมพันธ์',
 			clickAnotherHotspot: 'เลือกแล้ว: <strong>{label}</strong> คลิกฮอตสปอตอื่นเพื่อสร้างความสัมพันธ์',
+			removeAssociationBetween: 'ลบความสัมพันธ์ระหว่าง {first} และ {second}',
 		},
 
 		positionObject: {
@@ -331,6 +360,12 @@ export default {
 			availableObjectsCount: 'วัตถุที่พร้อมใช้งาน ({count}/{max})',
 			dragObjectsInstruction: 'ลากวัตถุบนแคนวาสเพื่อวางตำแหน่ง',
 			used: '{usageCount}/{matchMax} ใช้แล้ว',
+			objectSelected: 'เลือก {object} แล้ว กด Tab ไปที่แคนวาส แล้วใช้ปุ่มลูกศรเพื่อจัดตำแหน่ง กด Enter เพื่อวางหรือ Escape เพื่อยกเลิก',
+			objectPlacedAt: 'วาง {object} ที่ {x}%, {y}% แล้ว',
+			placementCancelled: 'ยกเลิกการวางแล้ว',
+			correctPositionFor: 'ตำแหน่งที่ถูกต้องของ {label} ที่ ({x}, {y})',
+			availableObjectsTotal: 'วัตถุที่พร้อมใช้งาน ({count})',
+			paletteInstructions: 'ลากวัตถุไปบนแคนวาส หรือกด Enter หรือ Space บนวัตถุ แล้วใช้ปุ่มลูกศรเพื่อวางตำแหน่งบนแคนวาส',
 		},
 
 		endAttempt: {
@@ -357,8 +392,10 @@ export default {
 			playCount: 'จำนวนครั้งที่เล่น:',
 			remaining: 'เหลืออยู่:',
 			requirementMet: '✓ ตรงตามข้อกำหนดแล้ว',
-			playAtLeast: 'เล่นอย่างน้อย {minPlays} ครั้ง',
-			playAtLeastPlural: 'เล่นอย่างน้อย {minPlays} ครั้ง',
+			playAtLeastCount: {
+				one: 'เล่นอย่างน้อย {count} ครั้ง',
+				other: 'เล่นอย่างน้อย {count} ครั้ง',
+			},
 			browserNoSupport: 'เบราว์เซอร์ของคุณไม่รองรับประเภทสื่อนี้',
 			audioNoSupport: 'เบราว์เซอร์ของคุณไม่รองรับองค์ประกอบเสียง',
 			videoNoSupport: 'เบราว์เซอร์ของคุณไม่รองรับองค์ประกอบวิดีโอ',
@@ -384,11 +421,15 @@ export default {
 			placeholder: 'ป้อนคำตอบด้วยตนเอง (สำรอง)',
 			attributes: 'แอตทริบิวต์',
 			xml: 'XML',
+			promptHeading: 'พรอมต์:',
 		},
 
 		inline: {
 			placeholder: '...',
 			selectPlaceholder: 'เลือก...',
+			textEntryLabel: 'ช่องป้อนข้อความ {id}',
+			choiceLabel: 'ตัวเลือกในบรรทัด {id}',
+			formatHint: 'รูปแบบ: {mask}',
 		},
 	},
 
@@ -488,6 +529,9 @@ export default {
 			loadFailed: 'โหลดคำถามไม่สำเร็จ',
 			saveFailed: 'บันทึกคำตอบไม่สำเร็จ',
 		},
+		playerLabel: 'เครื่องเล่นการประเมิน',
+		instructions: 'คำแนะนำ',
+		rubrics: 'เกณฑ์การให้คะแนน',
 	},
 
 	i18n: {
@@ -504,6 +548,20 @@ export default {
 		newQuestion: 'โหลดคำถามใหม่แล้ว',
 		answerRecorded: 'บันทึกคำตอบแล้ว',
 		resizer: 'ปรับขนาดแผงข้อความและคำถาม',
+		sentence: '{text}',
+		correctAnswer: 'คำตอบที่ถูกต้อง',
+		correctAnswerIs: 'คำตอบที่ถูกต้อง: {answer}',
+		correctPosition: 'ตำแหน่งที่ถูกต้อง',
+		positionPercent: 'ตำแหน่ง: {x}%, {y}%',
+		catalogShowDefinition: 'แสดงคำจำกัดความ: {term}',
+		catalogShowTranslation: 'แสดงคำแปล: {term}',
+		catalogShowIllustratedGlossary: 'แสดงอภิธานศัพท์พร้อมภาพประกอบ: {term}',
+		catalogRequestPronunciation: 'ขอการออกเสียง: {term}',
+		catalogRequestSigningDefinition: 'ขอคำจำกัดความเป็นภาษามือ: {term}',
+		catalogRequestBrailleText: 'ขอข้อความอักษรเบรลล์: {term}',
+		catalogRequestAudioDescription: 'ขอคำบรรยายเสียง: {term}',
+		catalogRequestExtendedDescription: 'ขอคำอธิบายเพิ่มเติม: {term}',
+		catalogRequestUsage: 'ขอ {usage}: {term}',
 	},
 
 	demo: {

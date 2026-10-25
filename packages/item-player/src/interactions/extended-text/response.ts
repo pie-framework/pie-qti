@@ -1,3 +1,4 @@
+import { normalizeResponse, numberMarks } from '@pie-qti/qti-processing';
 import type { ExtendedTextInteractionData } from '../shared/types.js';
 
 export const EXTENDED_TEXT_RECORD_FIELD_TYPES = {
@@ -141,9 +142,22 @@ function parseNumericString(input: string, base: number): ParsedNumericString {
 	};
 }
 
-/** Build the eight-field numeric detail record mandated by QTI. */
-export function createExtendedTextNumericRecord(input: string, base = 10): ExtendedTextNumericRecord {
-	const parsed = parseNumericString(input, base);
+/**
+ * The number as `parseNumericString` reads it: digits in any script folded to
+ * 0-9, and the content language's decimal mark read as a point.
+ */
+function asciiNumberText(input: string, language: string | undefined): string {
+	const folded = normalizeResponse(input, { language });
+	const { decimal } = numberMarks(language);
+	return decimal !== '.' && !folded.includes('.') ? folded.replace(decimal, '.') : folded;
+}
+
+/**
+ * Build the eight-field numeric detail record mandated by QTI. `stringValue`
+ * keeps the input as typed; the numeric fields read it in `language`.
+ */
+export function createExtendedTextNumericRecord(input: string, base = 10, language?: string): ExtendedTextNumericRecord {
+	const parsed = parseNumericString(asciiNumberText(input, language), base);
 	return {
 		stringValue: input,
 		floatValue: parsed.value,

@@ -2,7 +2,7 @@
 
 <script lang="ts">
 	import type { SliderInteractionData } from '@pie-qti/item-player';
-	import type { I18nProvider } from '@pie-qti/i18n';
+	import { joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
@@ -77,7 +77,15 @@
 				step={parsedInteraction.step}
 				class="qti-slider-input range range-primary flex-1"
 				value={currentValue}
-				aria-label="Slider value from {parsedInteraction.lowerBound} to {parsedInteraction.upperBound}{isShowingCorrect && parsedCorrectResponse !== null ? '. Correct answer: ' + parsedCorrectResponse : ''}"
+				aria-label={joinSentences(
+					translate(i18n, 'interactions.slider.ariaLabel', 'Slider value from {lowerBound} to {upperBound}', {
+						lowerBound: parsedInteraction.lowerBound,
+						upperBound: parsedInteraction.upperBound,
+					}),
+					isShowingCorrect &&
+						parsedCorrectResponse !== null &&
+						translate(i18n, 'accessibility.correctAnswerIs', 'Correct answer: {answer}.', { answer: parsedCorrectResponse }),
+				)}
 				aria-valuemin={parsedInteraction.lowerBound}
 				aria-valuemax={parsedInteraction.upperBound}
 				aria-valuenow={currentValue}

@@ -1,5 +1,5 @@
 /**
- * Spanish (Spain) translations
+ * Spanish translations
  *
  * Guidelines for translators:
  * - Keep messages concise for UI constraints
@@ -173,6 +173,7 @@ export default {
 			keyboard: 'Teclado',
 			update: 'Actualizar',
 			insert: 'Insertar',
+			correctAnswerHeading: 'Respuesta correcta:',
 		},
 
 		slider: {
@@ -199,6 +200,7 @@ export default {
 			altText: 'Interacción de zona activa',
 			unknownImageDimensions:
 				'Esta zona activa no se puede mostrar: se desconoce el tamaño de su imagen, por lo que no se pueden colocar las regiones seleccionables. Añade ancho y alto a la imagen o proporciona las dimensiones del archivo.',
+			correctList: 'Correcto: {ids}',
 		},
 
 		selectPoint: {
@@ -215,6 +217,7 @@ export default {
 			pointsSelected: 'Puntos seleccionados:',
 			minimumMet: '✓ Mínimo cumplido',
 			selectAtLeast: 'Selecciona al menos {minChoices}',
+			correctPointAt: 'Punto de la respuesta correcta en coordenadas {x}, {y}',
 		},
 
 		match: {
@@ -239,6 +242,12 @@ export default {
 			navigateToTarget: 'Navega a un objetivo y presiona Espacio o Enter para emparejar',
 			selectionCancelled: 'Selección cancelada',
 			matchCleared: 'Emparejamiento limpiado para {item}',
+			maxReached: 'Se alcanzó el máximo de asociaciones. Elimina un par para añadir uno nuevo.',
+			pairCreated: '{source} emparejado con {target}.',
+			matchedWithSentence: 'Emparejado con {targets}.',
+			selectedForMatchingSentence: 'Seleccionado para emparejar.',
+			availableForMatchingSentence: 'Disponible para emparejar.',
+			notCompatibleSentence: 'No compatible con el origen seleccionado.',
 		},
 
 		gapMatch: {
@@ -274,6 +283,22 @@ export default {
 			labelPlaced: '{label} colocado en el punto activo {hotspot}',
 			hotspot: 'Punto activo {number}',
 			contains: 'Contiene: {label}',
+			labelRemoved: '{label} eliminado del punto activo.',
+			pickedUp: 'Agarrado: {label}. Ve con Tab a un punto activo y presiona Intro para colocarlo.',
+			alreadyPlacedSentence: 'Ya colocado en un punto activo.',
+			unavailableSentence: 'No disponible por una restricción del grupo de emparejamiento.',
+			heldHint: 'Agarrado. Ve con Tab a un punto activo y presiona Intro para colocarlo.',
+			pickUpHint: 'Presiona Espacio o Intro para agarrar.',
+			selectedHint: 'Seleccionado para colocación.',
+			selectHint: 'Presiona Espacio para seleccionar.',
+			hotspotContains: 'Punto activo {number}. Contiene {label}.',
+			hotspotCorrectAnswer: 'Punto activo {number}. Respuesta correcta: {label}.',
+			hotspotEmpty: 'Punto activo {number}. Vacío.',
+			hotspotAvailable: 'Punto activo {number}. Disponible.',
+			placeHereHint: 'Presiona Intro para colocar {label} aquí.',
+			placeLabelHint: 'Presiona Espacio o Intro para colocar la etiqueta.',
+			labelFallback: 'Etiqueta',
+			pickUpInstructions: 'Presiona Espacio o Enter para tomar una etiqueta. Tab hasta un punto activo de la imagen y presiona Enter para colocarla. Presiona Escape para cancelar.',
 		},
 
 		order: {
@@ -293,6 +318,9 @@ export default {
 			itemDropped: '{item} soltado en la posición {position} de {total}',
 			itemMoved: '{item} movido a la posición {position} de {total}',
 			selectionCancelled: 'Selección de {item} cancelada',
+			itemPosition: '{item}. Posición {position} de {total}.',
+			itemFallback: 'Elemento',
+			orderConfirmed: 'Orden confirmado',
 		},
 
 		associate: {
@@ -314,6 +342,7 @@ export default {
 			associationsCount: 'Asociaciones ({count}/{max})',
 			clickHotspotsToAssociate: 'Haz clic en dos puntos activos en la imagen para crear una asociación.',
 			clickAnotherHotspot: 'Seleccionado: <strong>{label}</strong>. Haz clic en otro punto activo para crear una asociación.',
+			removeAssociationBetween: 'Eliminar asociación entre {first} y {second}',
 		},
 
 		positionObject: {
@@ -331,6 +360,12 @@ export default {
 			availableObjectsCount: 'Objetos disponibles ({count}/{max})',
 			dragObjectsInstruction: 'Arrastra objetos sobre el lienzo para posicionarlos.',
 			used: '{usageCount}/{matchMax} usado',
+			objectSelected: '{object} seleccionado. Ve con Tab al lienzo y usa las flechas para posicionarlo. Presiona Intro para colocarlo o Escape para cancelar.',
+			objectPlacedAt: '{object} colocado en {x} %, {y} %.',
+			placementCancelled: 'Colocación cancelada.',
+			correctPositionFor: 'Posición correcta de {label} en ({x}, {y})',
+			availableObjectsTotal: 'Objetos disponibles ({count})',
+			paletteInstructions: 'Arrastra objetos sobre el lienzo, o presiona Enter o Espacio sobre un objeto y usa las teclas de flecha para posicionarlo en el lienzo.',
 		},
 
 		endAttempt: {
@@ -357,8 +392,11 @@ export default {
 			playCount: 'Número de reproducciones:',
 			remaining: 'Restante:',
 			requirementMet: '✓ Requisito cumplido',
-			playAtLeast: 'Reproducir al menos {minPlays} vez',
-			playAtLeastPlural: 'Reproducir al menos {minPlays} veces',
+			playAtLeastCount: {
+				one: 'Reproducir al menos {count} vez',
+				many: 'Reproducir al menos {count} veces',
+				other: 'Reproducir al menos {count} veces',
+			},
 			browserNoSupport: 'Tu navegador no admite este tipo de medio.',
 			audioNoSupport: 'Tu navegador no admite el elemento de audio.',
 			videoNoSupport: 'Tu navegador no admite el elemento de video.',
@@ -384,11 +422,15 @@ export default {
 			placeholder: 'Ingresa una respuesta manual (alternativa)',
 			attributes: 'Atributos',
 			xml: 'XML',
+			promptHeading: 'Indicación:',
 		},
 
 		inline: {
 			placeholder: '...',
 			selectPlaceholder: 'Seleccionar...',
+			textEntryLabel: 'Entrada de texto {id}',
+			choiceLabel: 'Opción en línea {id}',
+			formatHint: 'Formato: {mask}',
 		},
 	},
 
@@ -488,6 +530,9 @@ export default {
 			loadFailed: 'Error al cargar pregunta.',
 			saveFailed: 'Error al guardar respuesta.',
 		},
+		playerLabel: 'Reproductor de evaluación',
+		instructions: 'Instrucciones',
+		rubrics: 'Rúbricas',
 	},
 
 	i18n: {
@@ -504,6 +549,20 @@ export default {
 		newQuestion: 'Nueva pregunta cargada',
 		answerRecorded: 'Respuesta registrada',
 		resizer: 'Redimensionar paneles de pasaje y pregunta',
+		sentence: '{text}.',
+		correctAnswer: 'Respuesta correcta.',
+		correctAnswerIs: 'Respuesta correcta: {answer}.',
+		correctPosition: 'Posición correcta.',
+		positionPercent: 'Posición: {x} %, {y} %.',
+		catalogShowDefinition: 'Mostrar definición: {term}',
+		catalogShowTranslation: 'Mostrar traducción: {term}',
+		catalogShowIllustratedGlossary: 'Mostrar glosario ilustrado: {term}',
+		catalogRequestPronunciation: 'Solicitar pronunciación: {term}',
+		catalogRequestSigningDefinition: 'Solicitar definición en lengua de señas: {term}',
+		catalogRequestBrailleText: 'Solicitar texto en braille: {term}',
+		catalogRequestAudioDescription: 'Solicitar audiodescripción: {term}',
+		catalogRequestExtendedDescription: 'Solicitar descripción ampliada: {term}',
+		catalogRequestUsage: 'Solicitar {usage}: {term}',
 	},
 
 	demo: {

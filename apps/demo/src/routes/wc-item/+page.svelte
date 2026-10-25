@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { SAMPLE_ITEMS } from '#lib/sample-items.js';
 	import { getSecurityConfig } from '#lib/player-config.js';
+	import { localeProviderFromUrl } from '#lib/demo-locale.js';
 	import { assignProps } from '@pie-qti/qti-common';
 
 	let status = $state<'booting' | 'registering' | 'registered' | 'rendered' | 'error'>('booting');
@@ -44,6 +45,8 @@
 
 			if (!el) throw new Error('Element not mounted');
 
+			const i18n = await localeProviderFromUrl();
+			if (i18n) el.i18n = i18n;
 			assignProps(el, {
 				itemXml: sample?.xml ?? '',
 				identifier: sample?.id ?? 'item',

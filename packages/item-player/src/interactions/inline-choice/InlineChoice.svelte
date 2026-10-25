@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { I18nProvider } from '@pie-qti/i18n';
+	import { joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
 	import type { InlineChoiceInteractionData } from '../shared/types.js';
 
 	interface Props {
@@ -22,6 +22,10 @@
 
 	const displayValue = $derived(correctAnswer !== null ? correctAnswer : response);
 	const correctChoice = $derived(correctAnswer ? interaction.choices.find((choice) => choice.identifier === correctAnswer) : null);
+	const label = $derived(
+		interaction.accessibility?.label ??
+			translate(i18n, 'interactions.inline.choiceLabel', 'Inline choice {id}', { id: interaction.responseId }),
+	);
 
 	function handleChange(event: Event) {
 		const value = (event.currentTarget as HTMLSelectElement | null)?.value ?? '';
@@ -36,7 +40,12 @@
 	<select
 		class:qti-inline-select={true}
 		class:qti-inline-select-correct={correctAnswer !== null}
-		aria-label={`${interaction.accessibility?.label ?? `Inline choice ${interaction.responseId}`}${correctAnswer && correctChoice ? '. Correct answer: ' + correctChoice.text : ''}`}
+		aria-label={correctAnswer && correctChoice
+			? joinSentences(
+					translate(i18n, 'accessibility.sentence', '{text}.', { text: label }),
+					translate(i18n, 'accessibility.correctAnswerIs', 'Correct answer: {answer}.', { answer: correctChoice.text }),
+				)
+			: label}
 		aria-describedby={interaction.accessibility?.description ? `${interaction.responseId}-description` : undefined}
 		value={displayValue}
 		onchange={handleChange}
@@ -89,7 +98,7 @@
 	.qti-inline-choice-correct-badge {
 		position: absolute;
 		top: -1.5rem;
-		left: 0;
+		inset-inline-start: 0;
 		display: inline-flex;
 		align-items: center;
 		white-space: nowrap;

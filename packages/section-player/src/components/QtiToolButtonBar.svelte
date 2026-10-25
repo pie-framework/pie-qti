@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { ToolkitCoordinator, ToolRegistry } from '@pie-players/pie-assessment-toolkit';
+	import { interfaceLocaleAttributes, type I18nProvider } from '@pie-qti/i18n';
 	// pie-assessment-toolkit 0.3.65 moved the concrete tool registrations out of the
 	// toolkit core, so a host composes the capabilities it wants. The two
 	// registrations are imported individually rather than through
@@ -24,6 +25,8 @@
 		/** The scope's content language, from its `xml:lang`; sets the tools' language and TTS voice. */
 		language?: string;
 		scopeElement?: HTMLElement | null;
+		/** The section's interface locale, which the toolkit takes as its own. */
+		i18n?: I18nProvider;
 	}
 
 	const {
@@ -35,12 +38,16 @@
 		accessibilityCatalogs = [],
 		language,
 		scopeElement = null,
+		i18n,
 	}: Props = $props();
 
 	let shellHost = $state<HTMLElement | null>(null);
 	let toolkitElement = $state<HTMLElement | null>(null);
 	let toolkitCoordinator = $state<ToolkitCoordinator | null>(null);
 	let toolkitElementsReady = $state(false);
+	// The toolkit's `locale` attribute is its only locale driver: its chrome stamps
+	// that locale's lang/dir and renders from its own catalogs.
+	const interfaceLocale = $derived(interfaceLocaleAttributes(i18n)?.lang);
 	const visibleTools = $derived(tools.filter((tool) => tool.enabled !== false));
 	const hasTts = $derived(visibleTools.some((tool) => tool.toolId === 'textToSpeech'));
 	const calculatorTool = $derived(visibleTools.find((tool) => tool.toolId === 'calculator'));
@@ -202,6 +209,7 @@
 				tools={toolsConfig}
 				{toolRegistry}
 				coordinator={toolkitCoordinator}
+				locale={interfaceLocale}
 				lazy-init={false}
 			>
 				<pie-item-scope
@@ -233,7 +241,7 @@
 <style>
 	.qti-pie-tool-shell {
 		display: inline-flex;
-		margin-left: auto;
+		margin-inline-start: auto;
 	}
 
 	pie-assessment-toolkit,

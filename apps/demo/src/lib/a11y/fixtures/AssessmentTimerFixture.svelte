@@ -60,6 +60,6 @@
 	</div>
 
 	<div class="relative min-h-32 border border-base-300 rounded-box p-4">
-		<AssessmentTimer player={player as any} showElapsed={true} position="top-left" />
+		<AssessmentTimer player={player as any} showElapsed={true} position="top-start" />
 	</div>
 </div>

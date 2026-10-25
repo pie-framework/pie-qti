@@ -1,3 +1,4 @@
+import type { I18nProvider } from '@pie-qti/i18n';
 import type { PciConfiguration, PlayerSecurityConfig } from '@pie-qti/item-player';
 import type { ResolvedQtiSectionComposition } from '@pie-qti/section-player';
 import SectionPlayerSplitPane from '../../../section-player/src/components/SectionPlayerSplitPane.svelte';
@@ -19,6 +20,7 @@ type SectionPlayerElementProps = {
 	composition: ResolvedQtiSectionComposition;
 	security?: PlayerSecurityConfig;
 	pci?: PciConfiguration;
+	i18n?: I18nProvider;
 	typeset?: (root: HTMLElement) => void | Promise<void>;
 	onResponseChange: (itemIdentifier: string, responseIdentifier: string, value: unknown) => void;
 };
@@ -27,6 +29,7 @@ export abstract class QtiSectionPlayerElementBase extends BaseSvelteMountElement
 	#composition: ResolvedQtiSectionComposition | null = null;
 	#security: PlayerSecurityConfig | undefined;
 	#pci: PciConfiguration | undefined;
+	#i18n: I18nProvider | undefined;
 	#typeset: ((root: HTMLElement) => void | Promise<void>) | undefined;
 
 	get composition() {
@@ -58,6 +61,21 @@ export abstract class QtiSectionPlayerElementBase extends BaseSvelteMountElement
 
 	set pci(value: PciConfiguration | undefined) {
 		this.#pci = value;
+		if (this.isConnected) {
+			this._mountOrUpdate();
+		}
+	}
+
+	/**
+	 * The interface locale provider. It drives the section chrome, the tool
+	 * toolkit and the item players the section mounts. JS-only because it is an object.
+	 */
+	get i18n(): I18nProvider | undefined {
+		return this.#i18n;
+	}
+
+	set i18n(value: I18nProvider | undefined) {
+		this.#i18n = value;
 		if (this.isConnected) {
 			this._mountOrUpdate();
 		}
@@ -109,6 +127,7 @@ export abstract class QtiSectionPlayerElementBase extends BaseSvelteMountElement
 			composition,
 			security: this.#security ?? composition.security,
 			pci: this.#pci,
+			i18n: this.#i18n,
 			typeset: this.#typeset,
 			onResponseChange: (itemIdentifier, responseIdentifier, value) => {
 				const detail: QtiSectionResponseDeltaDetail = {

@@ -268,3 +268,17 @@ describe('late-submission combinations', () => {
 		p.destroy();
 	});
 });
+
+describe('TimeManager.formatTime digits', () => {
+	test('pads with Western digits by default', () => {
+		expect(TimeManager.formatTime(65)).toBe('1:05');
+		expect(TimeManager.formatTime(3725)).toBe('1:02:05');
+	});
+
+	test('takes the locale digits from a number formatter', () => {
+		const format = (value: number, options?: Intl.NumberFormatOptions) =>
+			new Intl.NumberFormat('ar-EG-u-nu-arab', options).format(value);
+		expect(TimeManager.formatTime(65, format)).toBe('١:٠٥');
+		expect(TimeManager.formatTime(3725, format)).toBe('١:٠٢:٠٥');
+	});
+});

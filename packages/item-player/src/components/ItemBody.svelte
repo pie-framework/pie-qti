@@ -6,7 +6,7 @@
 	import { getItemSessionBinding, type ItemSession } from '../core/ItemSession';
 	import type { InteractionResponseValue, QTIChangeEventDetail } from '../web-components';
 	import type { ExtractedPci } from '../pci/types';
-	import type { I18nProvider } from '@pie-qti/i18n';
+	import { contentLanguageAttributes, type I18nProvider } from '@pie-qti/i18n';
 	import type { QtiHeuristicsConfig } from '@pie-qti/ims-cp-core';
 	import { typesetAction } from './actions/typesetAction';
 	import { glossaryAction } from '../catalog/glossaryAction';
@@ -46,14 +46,6 @@
 	const itemBodyScope = `qti-item-body-${++nextItemBodyScopeId}`;
 	const itemBodyScopeSelector = `[data-qti-item-body-scope="${itemBodyScope}"]`;
 
-	// Publish the locale's writing direction on the item body root. `direction` is
-	// an inherited CSS property, so this reaches interaction components inside
-	// shadow roots without any per-component wiring. Left unset when no provider
-	// is supplied, so an English-only host keeps whatever the page already has.
-	// `lang` names the content's language when the item declares one, and the
-	// locale's otherwise; glossary lookups and read-aloud read it.
-	const locale = $derived(i18n?.getLocale());
-	const direction = $derived(i18n?.getDirection?.());
 	const binding = $derived(getItemSessionBinding(session));
 	const sessionView = $derived.by(() => {
 		void revision;
@@ -71,6 +63,12 @@
 				console.error(`Failed to get tag name for ${interaction.type}:`, error)
 		});
 	});
+	// The item body is a content root: `lang` and `dir` are the item's declared
+	// language and its direction, never the interface locale's. Content that
+	// declares none inherits both from the player's chrome. `direction` is an
+	// inherited CSS property, so it reaches interactions inside shadow roots;
+	// glossary lookups and read-aloud read `lang`.
+	const contentAttributes = $derived(contentLanguageAttributes(presentation.contentLanguage));
 	const blockMounts = $derived.by(() =>
 		presentation.flow.flatMap((node) =>
 			node.kind === 'interaction' && node.mount.placement === 'block' ? [node.mount] : []
@@ -152,8 +150,8 @@
 	bind:this={rootEl}
 	class="qti-item-body"
 	data-qti-item-body-scope={itemBodyScope}
-	lang={presentation.contentLanguage ?? locale}
-	dir={direction}
+	lang={contentAttributes?.lang}
+	dir={contentAttributes?.dir}
 	use:typesetAction={{ typeset }}
 	use:glossaryAction={{ player: binding }}
 >
@@ -287,9 +285,9 @@
 	 */
 	:global(.qti-feedback-inline) {
 		display: inline-block;
-		margin-left: 0.5rem;
-		padding-left: 0.5rem;
-		border-left: 2px solid var(--pie-qti-base-content, currentColor);
+		margin-inline-start: 0.5rem;
+		padding-inline-start: 0.5rem;
+		border-inline-start: 2px solid var(--pie-qti-base-content, currentColor);
 		opacity: 0.8;
 	}
 

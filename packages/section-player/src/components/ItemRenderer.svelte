@@ -116,7 +116,7 @@
 {:else if !playerLoaded}
 	<div class="flex items-center justify-center p-8" role="status">
 		<span class="loading loading-spinner loading-lg" aria-hidden="true"></span>
-		<span class="ml-4">{i18n?.t('item.loading', 'Loading item...')}</span>
+		<span class="ms-4">{i18n?.t('item.loading', 'Loading item...')}</span>
 	</div>
 {:else}
 	<article class="item-container" aria-labelledby={itemRef.title || hasHeaderTools ? `section-item-title-${itemRef.identifier}` : undefined}>
@@ -131,6 +131,7 @@
 					accessibilityCatalogs={itemSpeech.catalogs}
 					language={itemSpeech.language}
 					scopeElement={itemScopeElement}
+					{i18n}
 				/>
 			</header>
 		{/if}

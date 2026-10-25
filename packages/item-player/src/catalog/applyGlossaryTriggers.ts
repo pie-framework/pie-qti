@@ -1,14 +1,15 @@
+import { isImeComposing, translate, type I18nProvider } from '@pie-qti/i18n';
 import type { CatalogSupportPreference } from '../pnp/types.js';
 import type { PnpProfile } from '../pnp/types.js';
 import { htmlToString } from '../core/trustedTypes.js';
 import type { HtmlContent } from '../types/index.js';
 
 const PLATFORM_USAGES = [
-	{ usage: 'tts-pronunciation', flag: 'ttsPronunciation', label: 'Request pronunciation', text: 'P' },
-	{ usage: 'signing-definition', flag: 'signingDefinition', label: 'Request signing definition', text: 'S' },
-	{ usage: 'braille-text', flag: 'brailleText', label: 'Request braille text', text: 'B' },
-	{ usage: 'audio-description', flag: 'audioDescription', label: 'Request audio description', text: 'A' },
-	{ usage: 'extended-description', flag: 'extendedDescription', label: 'Request extended description', text: 'D' },
+	{ usage: 'tts-pronunciation', flag: 'ttsPronunciation', labelKey: 'accessibility.catalogRequestPronunciation', label: 'Request pronunciation: {term}', text: 'P' },
+	{ usage: 'signing-definition', flag: 'signingDefinition', labelKey: 'accessibility.catalogRequestSigningDefinition', label: 'Request signing definition: {term}', text: 'S' },
+	{ usage: 'braille-text', flag: 'brailleText', labelKey: 'accessibility.catalogRequestBrailleText', label: 'Request braille text: {term}', text: 'B' },
+	{ usage: 'audio-description', flag: 'audioDescription', labelKey: 'accessibility.catalogRequestAudioDescription', label: 'Request audio description: {term}', text: 'A' },
+	{ usage: 'extended-description', flag: 'extendedDescription', labelKey: 'accessibility.catalogRequestExtendedDescription', label: 'Request extended description: {term}', text: 'D' },
 ] as const;
 const ILLUSTRATED_GLOSSARY_USAGE = 'illustrated-glossary';
 const BUILT_IN_POPUP_USAGES = new Set<string>([
@@ -22,6 +23,8 @@ const SAFE_CATALOG_USAGE = /^[a-z][a-z0-9._-]*$/;
 
 interface HostCatalogSupport {
 	usage: string;
+	/** Catalog key of the button's accessible name; `label` is its English fallback, with `{term}` and `{usage}` placeholders. */
+	labelKey: string;
 	label: string;
 	text: string;
 	languageCode?: string;
@@ -33,6 +36,8 @@ interface CatalogComponentRegistry {
 
 export interface GlossaryPlayer {
 	getPnp(): PnpProfile | undefined;
+	/** Typed `unknown` to match `ItemSessionBinding`; read through `playerI18n`. */
+	getI18nProvider?(): unknown;
 	getCatalogEntry(
 		idref: string,
 		usage: string,
@@ -54,10 +59,15 @@ export interface GlossaryPlayer {
  * audio-description) the player fires a `qti-catalog-lookup` CustomEvent instead of
  * mounting a popup — the host application handles those usages.
  */
+function playerI18n(player: GlossaryPlayer): I18nProvider | undefined {
+	return player.getI18nProvider?.() as I18nProvider | undefined;
+}
+
 export function applyGlossaryTriggers(container: HTMLElement, player: GlossaryPlayer): () => void {
 	cleanupGlossaryTriggers(container);
 	const pnp = player.getPnp();
 	if (!pnp) return () => cleanupGlossaryTriggers(container);
+	const i18n = playerI18n(player);
 
 	const glossaryOn = pnp.content?.glossaryOnScreen === true;
 	const kwTranslation = pnp.content?.keywordTranslation;
@@ -90,7 +100,10 @@ export function applyGlossaryTriggers(container: HTMLElement, player: GlossaryPl
 		wrapper.appendChild(termEl);
 
 		if (glossaryOn) {
-			const btn = createTriggerButton(termEl.textContent ?? idref, 'glossary-on-screen', 'Show definition');
+			const btn = createTriggerButton(
+				translate(i18n, 'accessibility.catalogShowDefinition', 'Show definition: {term}', { term: termEl.textContent ?? idref }),
+				'glossary-on-screen',
+			);
 			wrapper.appendChild(btn);
 
 			btn.addEventListener('click', () => {
@@ -110,7 +123,10 @@ export function applyGlossaryTriggers(container: HTMLElement, player: GlossaryPl
 
 		if (kwOn) {
 			const lang = kwTranslation!.languageCode;
-			const btn = createTriggerButton(termEl.textContent ?? idref, 'keyword-translation', 'Show translation');
+			const btn = createTriggerButton(
+				translate(i18n, 'accessibility.catalogShowTranslation', 'Show translation: {term}', { term: termEl.textContent ?? idref }),
+				'keyword-translation',
+			);
 			wrapper.appendChild(btn);
 
 			btn.addEventListener('click', () => {
@@ -129,7 +145,12 @@ export function applyGlossaryTriggers(container: HTMLElement, player: GlossaryPl
 		}
 
 		if (illustratedOn) {
-			const btn = createTriggerButton(termEl.textContent ?? idref, ILLUSTRATED_GLOSSARY_USAGE, 'Show illustrated glossary');
+			const btn = createTriggerButton(
+				translate(i18n, 'accessibility.catalogShowIllustratedGlossary', 'Show illustrated glossary: {term}', {
+					term: termEl.textContent ?? idref,
+				}),
+				ILLUSTRATED_GLOSSARY_USAGE,
+			);
 			wrapper.appendChild(btn);
 
 			btn.addEventListener('click', () => {
@@ -179,13 +200,13 @@ export function cleanupGlossaryTriggers(container: HTMLElement): void {
 	}
 }
 
-function createTriggerButton(termText: string, usage: string, labelPrefix: string, text?: string): HTMLButtonElement {
+function createTriggerButton(label: string, usage: string, text?: string): HTMLButtonElement {
 	const btn = document.createElement('button');
 	btn.type = 'button';
 	btn.className = 'qti-catalog-trigger';
 	btn.style.cssText =
 		'display:inline-flex;align-items:center;justify-content:center;min-width:1.75rem;min-height:1.75rem;margin-inline:0.25rem;line-height:1;';
-	btn.setAttribute('aria-label', `${labelPrefix}: ${termText}`);
+	btn.setAttribute('aria-label', label);
 	btn.setAttribute('data-catalog-usage', usage);
 	btn.textContent = text ?? (usage === 'keyword-translation' ? 'T' : usage === ILLUSTRATED_GLOSSARY_USAGE ? 'I' : '?');
 	return btn;
@@ -201,7 +222,12 @@ function addHostCatalogSupportButton(
 ): void {
 	const html = player.getCatalogEntry(idref, support.usage, support.languageCode, { stimulusIdentifier });
 	if (html === null) return;
-	const btn = createTriggerButton(termEl.textContent ?? idref, support.usage, support.label, support.text);
+	const i18n = playerI18n(player);
+	const label = translate(i18n, support.labelKey, support.label, {
+		term: termEl.textContent ?? idref,
+		usage: support.usage.replace(/[-_]+/g, ' '),
+	});
+	const btn = createTriggerButton(label, support.usage, support.text);
 	wrapper.appendChild(btn);
 	btn.addEventListener('click', () => {
 		btn.dispatchEvent(
@@ -232,7 +258,8 @@ function getHostCatalogSupports(platformSupports: Record<string, CatalogSupportP
 		.filter(({ usage, preference }) => usage !== null && isSupportActive(preference) && !isReservedCatalogUsage(usage))
 		.map(({ usage, preference }) => ({
 			usage: usage!,
-			label: `Request ${usage!.replace(/[-_]+/g, ' ')}`,
+			labelKey: 'accessibility.catalogRequestUsage',
+			label: 'Request {usage}: {term}',
 			text: usage!.slice(0, 1).toUpperCase(),
 			languageCode: getSupportLanguageCode(preference),
 		}));
@@ -299,16 +326,18 @@ function mountPopup(
 		const el = document.createElement(catalogPopupTag) as HTMLElement & {
 			content: HtmlContent;
 			label: string;
+			i18n?: I18nProvider;
 			onClose: () => void;
 		};
 		el.content = html;
 		el.label = label;
+		el.i18n = playerI18n(player);
 		el.onClose = cleanup;
 		anchor.appendChild(el);
 		popupEl = el;
 	} else {
 		// Minimal fallback for environments without default-components
-		popupEl = buildFallbackPopup(label, html, cleanup);
+		popupEl = buildFallbackPopup(label, html, cleanup, playerI18n(player));
 		anchor.appendChild(popupEl);
 	}
 
@@ -319,7 +348,7 @@ function mountPopup(
  * Minimal accessible fallback popup used when no catalogPopup component is registered.
  * Uses DaisyUI card classes where available; degrades gracefully without them.
  */
-function buildFallbackPopup(label: string, html: HtmlContent, close: () => void): HTMLElement {
+function buildFallbackPopup(label: string, html: HtmlContent, close: () => void, i18n?: I18nProvider): HTMLElement {
 	const popup = document.createElement('div');
 	popup.className = 'card card-bordered bg-base-100 shadow-lg qti-catalog-popup';
 	popup.setAttribute('role', 'dialog');
@@ -337,7 +366,7 @@ function buildFallbackPopup(label: string, html: HtmlContent, close: () => void)
 	const closeBtn = document.createElement('button');
 	closeBtn.type = 'button';
 	closeBtn.className = 'btn btn-ghost btn-xs';
-	closeBtn.setAttribute('aria-label', 'Close');
+	closeBtn.setAttribute('aria-label', translate(i18n, 'common.close', 'Close'));
 	closeBtn.textContent = '✕';
 
 	header.appendChild(title);
@@ -365,7 +394,7 @@ function buildFallbackPopup(label: string, html: HtmlContent, close: () => void)
 	const focusableSelector = 'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 	function handleKeyDown(e: KeyboardEvent) {
-		if (e.key === 'Escape') {
+		if (e.key === 'Escape' && !isImeComposing(e)) {
 			e.preventDefault();
 			closeBtn.click();
 			return;

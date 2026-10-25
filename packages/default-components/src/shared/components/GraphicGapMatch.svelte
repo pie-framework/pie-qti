@@ -5,7 +5,7 @@
  * Supports keyboard, mouse, and touch interactions
  */
 
-import type { I18nProvider } from '@pie-qti/i18n';
+import { joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
 import type { GraphicGapMatchInteractionData } from '@pie-qti/item-player';
 import { touchDrag } from '@pie-qti/qti-common';
 import { createOrUpdatePair, getSourceForTarget, getTargetForSource, removePairBySource } from '../utils/pairHelpers.js';
@@ -33,19 +33,19 @@ interface Props {
 
 const { gapTexts, hotspots, pairs, imageData, imageWidth, imageHeight, disabled = false, i18n, onPairsChange }: Props = $props();
 
-// Reactive translations
-const translations = $derived({
-	keyboardInstructions: i18n?.t('interactions.graphicGapMatch.keyboardInstructions') ?? 'interactions.graphicGapMatch.keyboardInstructions',
-	availableLabel: i18n?.t('interactions.graphicGapMatch.availableLabel') ?? 'interactions.graphicGapMatch.availableLabel',
-	availableHeading: i18n?.t('interactions.graphicGapMatch.availableHeading') ?? 'interactions.graphicGapMatch.availableHeading',
-	alreadyPlaced: i18n?.t('interactions.graphicGapMatch.alreadyPlaced') ?? 'interactions.graphicGapMatch.alreadyPlaced',
-	selectedForPlacement: i18n?.t('interactions.graphicGapMatch.selectedForPlacement') ?? 'interactions.graphicGapMatch.selectedForPlacement',
-	pressSpaceToSelect: i18n?.t('interactions.graphicGapMatch.pressSpaceToSelect') ?? 'interactions.graphicGapMatch.pressSpaceToSelect',
-	pressSpaceToPlace: i18n?.t('interactions.graphicGapMatch.pressSpaceToPlace') ?? 'interactions.graphicGapMatch.pressSpaceToPlace',
-	removeFromHotspot: (label: string) => i18n?.t('interactions.graphicGapMatch.removeFromHotspot', { label }) ?? `interactions.graphicGapMatch.removeFromHotspot (${label})`,
-	hotspot: (number: number) => i18n?.t('interactions.graphicGapMatch.hotspot', { number }) ?? `interactions.graphicGapMatch.hotspot (${number})`,
-	contains: (label: string) => i18n?.t('interactions.graphicGapMatch.contains', { label }) ?? `interactions.graphicGapMatch.contains (${label})`,
-});
+function labelFallback(): string {
+	return translate(i18n, 'interactions.graphicGapMatch.labelFallback', 'Label');
+}
+
+/** Accessible name of a hotspot: its number and contents, then the drop hint while a label is selected. */
+function hotspotAriaLabel(number: number, contains: string | undefined, labelSelected: boolean): string {
+	return joinSentences(
+		contains
+			? translate(i18n, 'interactions.graphicGapMatch.hotspotContains', 'Hotspot {number}. Contains {label}.', { number, label: contains })
+			: translate(i18n, 'interactions.graphicGapMatch.hotspotAvailable', 'Hotspot {number}. Available.', { number }),
+		labelSelected && translate(i18n, 'interactions.graphicGapMatch.placeLabelHint', 'Press Space or Enter to place the label.'),
+	);
+}
 
 let draggedTextId = $state<string | null>(null);
 let hoveredHotspotId = $state<string | null>(null);
@@ -85,18 +85,18 @@ function handleHotspotDrop(event: DragEvent, hotspotId: string) {
 function clearMatch(gapTextId: string) {
 	if (disabled) return;
 	const gapTextObj = gapTexts.find((g) => g.identifier === gapTextId);
-	const gapTextName = gapTextObj?.text || 'Label';
+	const gapTextName = gapTextObj?.text || labelFallback();
 
 	const newPairs = removePairBySource(pairs, gapTextId);
 	onPairsChange(newPairs);
 
-	announceText = `${gapTextName} removed from hotspot`;
+	announceText = translate(i18n, 'interactions.graphicGapMatch.labelRemoved', '{label} removed from hotspot.', { label: gapTextName });
 }
 
 function selectLabel(gapTextId: string) {
 	if (disabled || getTargetForSource(pairs, gapTextId)) return;
 	selectedTextId = selectedTextId === gapTextId ? null : gapTextId;
-	const item = gapTexts.find((label) => label.identifier === gapTextId)?.text ?? 'Label';
+	const item = gapTexts.find((label) => label.identifier === gapTextId)?.text ?? labelFallback();
 	announceText = selectedTextId
 		? (i18n?.t('interactions.match.selected', { item }) ?? `${item} selected`)
 		: (i18n?.t('common.selectionCancelled') ?? 'Selection cancelled');
@@ -110,11 +110,12 @@ function cancelSelection(event: KeyboardEvent) {
 
 function selectHotspot(hotspotId: string) {
 	if (disabled || !selectedTextId) return;
-	const label = gapTexts.find((entry) => entry.identifier === selectedTextId)?.text ?? 'Label';
+	const label = gapTexts.find((entry) => entry.identifier === selectedTextId)?.text ?? labelFallback();
 	onPairsChange(createOrUpdatePair(pairs, selectedTextId, hotspotId));
-	announceText = i18n?.t('interactions.graphicGapMatch.labelPlaced', {
-		label, hotspot: hotspots.findIndex((entry) => entry.identifier === hotspotId) + 1,
-	}) ?? `${label} placed`;
+	announceText = translate(i18n, 'interactions.graphicGapMatch.labelPlaced', '{label} placed on hotspot {hotspot}', {
+		label,
+		hotspot: hotspots.findIndex((entry) => entry.identifier === hotspotId) + 1,
+	});
 	selectedTextId = null;
 }
 
@@ -150,7 +151,11 @@ function parseCoords(hotspot: Hotspot): { x: number; y: number; width: number; h
 
 <!-- Instructions for keyboard users -->
 <div id="graphic-gap-match-instructions" class="sr-only">
-	Press Space or Enter to select a label. Tab to navigate to hotspots on the image. Press Space or Enter on a hotspot to place the label. Press Escape to cancel selection.
+	{translate(
+		i18n,
+		'interactions.graphicGapMatch.keyboardInstructions',
+		'Press Space or Enter to select a label. Tab to navigate to hotspots on the image. Press Space or Enter on a hotspot to place the label. Press Escape to cancel selection.',
+	)}
 </div>
 
 <div class="space-y-4" role="region" aria-describedby="graphic-gap-match-instructions">
@@ -173,7 +178,13 @@ function parseCoords(hotspot: Hotspot): { x: number; y: number; width: number; h
 					onkeydown={cancelSelection}
 					disabled={disabled || !!matchedHotspot}
 					aria-pressed={isSelected}
-					aria-label="{gapText.text}{matchedHotspot ? '. Already placed on hotspot' : ''}{isSelected ? '. Selected for placement' : '. Press Space to select'}"
+					aria-label={joinSentences(
+						translate(i18n, 'accessibility.sentence', '{text}.', { text: gapText.text }),
+						!!matchedHotspot && translate(i18n, 'interactions.graphicGapMatch.alreadyPlacedSentence', 'Already placed on a hotspot.'),
+						isSelected
+							? translate(i18n, 'interactions.graphicGapMatch.selectedHint', 'Selected for placement.')
+							: translate(i18n, 'interactions.graphicGapMatch.selectHint', 'Press Space to select.'),
+					)}
 					class="btn btn-md font-medium transition-all"
 					class:btn-primary={!matchedHotspot && !isSelected}
 					class:btn-accent={isSelected}
@@ -191,7 +202,7 @@ function parseCoords(hotspot: Hotspot): { x: number; y: number; width: number; h
 						type="button"
 						class="btn btn-sm btn-circle btn-error"
 						onclick={() => clearMatch(gapText.identifier)}
-						aria-label="Remove {gapText.text} from hotspot"
+						aria-label={translate(i18n, 'interactions.graphicGapMatch.removeFromHotspot', 'Remove {label} from hotspot', { label: gapText.text })}
 						title={i18n?.t('interactions.graphicGapMatch.removeLabel') ?? 'Remove label'}
 					>
 						✕
@@ -226,7 +237,7 @@ function parseCoords(hotspot: Hotspot): { x: number; y: number; width: number; h
 						<circle
 							role="button"
 							tabindex={disabled || !selectedTextId ? -1 : 0}
-							aria-label="Hotspot {hotspotIndex + 1}{matchedGapText && gapTextObj ? '. Contains ' + gapTextObj.text : '. Available'}{selectedTextId ? '. Press Space or Enter to place label' : ''}"
+							aria-label={hotspotAriaLabel(hotspotIndex + 1, matchedGapText ? gapTextObj?.text : undefined, !!selectedTextId)}
 							cx={cx}
 							cy={cy}
 							r={r}
@@ -251,7 +262,7 @@ function parseCoords(hotspot: Hotspot): { x: number; y: number; width: number; h
 						<rect
 							role="button"
 							tabindex={disabled || !selectedTextId ? -1 : 0}
-							aria-label="Hotspot {hotspotIndex + 1}{matchedGapText && gapTextObj ? '. Contains ' + gapTextObj.text : '. Available'}{selectedTextId ? '. Press Space or Enter to place label' : ''}"
+							aria-label={hotspotAriaLabel(hotspotIndex + 1, matchedGapText ? gapTextObj?.text : undefined, !!selectedTextId)}
 							x={x}
 							y={y}
 							width={width}
