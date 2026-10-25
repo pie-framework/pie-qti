@@ -17,8 +17,8 @@ export interface QtiItemMetadata {
 	description?: string;
 	/** Language code (e.g., "en-US") */
 	language?: string;
-	/** Search metadata for filtering/categorization */
-	searchMetadata?: Record<string, any>;
+	/** Host-owned key/value pairs of the PIE item, or the QTI metadata fields */
+	extensions?: Record<string, any>;
 	/** Detected interaction types */
 	interactionTypes?: string[];
 }
@@ -99,9 +99,9 @@ export function extractIdentifierFromQtiXml(xmlContent: string): string | undefi
 }
 
 /**
- * Extract search metadata from QTI item XML content
+ * Extract a PIE item's extensions from QTI item XML content
  *
- * Priority 1: Check for PIE extension with embedded searchMetaData (perfect reconstruction)
+ * Priority 1: Check for PIE extension with embedded extensions (perfect reconstruction)
  * Priority 2: Parse QTI metadata section with qti-metadata-field elements
  *
  * @param xmlContent QTI XML content as string
@@ -117,11 +117,11 @@ export function extractIdentifierFromQtiXml(xmlContent: string): string | undefi
  *     </qti-metadata>
  *   </assessmentItem>
  * `;
- * const metadata = extractSearchMetadataFromQtiXml(xml);
+ * const metadata = extractExtensionsFromQtiXml(xml);
  * // { domain: "math", gradeLevel: ["5", "6", "7"] }
  * ```
  */
-export function extractSearchMetadataFromQtiXml(xmlContent: string): Record<string, any> {
+export function extractExtensionsFromQtiXml(xmlContent: string): Record<string, any> {
 	if (!xmlContent) return {};
 
 	const metadata: Record<string, any> = {};
@@ -134,8 +134,10 @@ export function extractSearchMetadataFromQtiXml(xmlContent: string): Record<stri
 	if (pieExtensionMatch && pieExtensionMatch[1]) {
 		try {
 			const sourceModel = JSON.parse(pieExtensionMatch[1].trim());
-			if (sourceModel.searchMetaData) {
-				return sourceModel.searchMetaData;
+			// `searchMetaData` is the bag's name in PIE items written before `extensions`
+			const extensions = sourceModel.extensions ?? sourceModel.searchMetaData;
+			if (extensions) {
+				return extensions;
 			}
 		} catch (e) {
 			// Fall through to QTI metadata parsing
@@ -243,7 +245,7 @@ export function extractInteractionTypesFromQtiXml(xmlContent: string): string[] 
  * // {
  * //   identifier: "item1",
  * //   title: "Question 1",
- * //   searchMetadata: {...},
+ * //   extensions: {...},
  * //   interactionTypes: ["choiceInteraction"]
  * // }
  * ```
@@ -252,7 +254,7 @@ export function extractQtiItemMetadata(xmlContent: string): QtiItemMetadata {
 	return {
 		identifier: extractIdentifierFromQtiXml(xmlContent),
 		title: extractTitleFromQtiXml(xmlContent),
-		searchMetadata: extractSearchMetadataFromQtiXml(xmlContent),
+		extensions: extractExtensionsFromQtiXml(xmlContent),
 		interactionTypes: extractInteractionTypesFromQtiXml(xmlContent),
 	};
 }

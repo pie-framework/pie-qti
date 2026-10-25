@@ -53,7 +53,7 @@ describe('transformHotspot', () => {
       correct: false,
     });
 
-    expect(result.metadata?.searchMetaData?.itemType).toBe('HS');
+    expect(result.metadata?.extensions?.itemType).toBe('HS');
   });
 
   test('should handle polygon hotspots', () => {

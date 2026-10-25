@@ -94,7 +94,7 @@ describe('QtiToPiePlugin', () => {
 
     expectSuccessfulTransform(output, 1);
     expect(output.items[0].content.id).toBe('choice-001');
-    expect(output.items[0].content.metadata?.searchMetaData.title).toBe('Sample Multiple Choice');
+    expect(output.items[0].content.metadata?.extensions.title).toBe('Sample Multiple Choice');
     expect(output.items[0].content.config.markup).toContain('<multiple-choice ');
     expect(output.items[0].content.config.models[0]?.element).toBe('multiple-choice');
     expect(output.items[0].content.config.markup).toContain(
@@ -506,7 +506,7 @@ describe('QtiToPiePlugin', () => {
     const sourceModel = {
       id: 'sidecar-item',
       config: { models: [{ id: '1', element: 'pie-mc', prompt: 'From the sidecar' }], elements: { 'pie-mc': '@pie-element/multiple-choice@11.0.0' } },
-      searchMetaData: { subject: 'Math' },
+      extensions: { subject: 'Math' },
     };
 
     const output = await plugin.transform(
@@ -524,7 +524,7 @@ describe('QtiToPiePlugin', () => {
 
     expect(output.items[0].content.id).toBe('sidecar-item');
     expect(output.items[0].content.config.models[0].prompt).toBe('From the sidecar');
-    expect(output.items[0].content.searchMetaData).toEqual({ subject: 'Math' });
+    expect(output.items[0].content.extensions).toEqual({ subject: 'Math' });
     expect(output.warnings?.some((w) => w.code === 'PIE_EXTENSION_UNREADABLE')).toBeFalsy();
   });
 

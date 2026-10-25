@@ -23,7 +23,7 @@ Known approximations, each valid QTI:
   their PIE rule exactly.
 - **Externally scored elements.** Extended response, `customInteraction` and rubric-scored items
   declare `SCORE` and `MAXSCORE` and leave `SCORE` to a human scorer or the PIE runtime.
-- **Metadata.** `baseId` and `searchMetaData` travel in the sidecar and, for a QTI consumer that
+- **Metadata.** `baseId` and `extensions` travel in the sidecar and, for a QTI consumer that
   ignores it, as IEEE LOM on the item's `<resource>` in the package manifest (see
   [Manifest Generation](./MANIFEST-GENERATION.md#resource-metadata)). A bare item transform has no
   manifest, so only the sidecar carries them.
@@ -152,7 +152,7 @@ item's `<resource>` in the content package. A bare item transform returns it as 
   "format": "pie-qti/pie-source",
   "version": 1,
   "qtiDigest": "sha256:…",
-  "sourceModel": { "id": "item-123", "baseId": "…", "searchMetaData": { … }, "config": { … } },
+  "sourceModel": { "id": "item-123", "baseId": "…", "extensions": { … }, "config": { … } },
   "generator": { "package": "@pie-qti/pie-to-qti2", "version": "…" },
   "elementType": "@pie-element/multiple-choice",
   "generatedAt": "2026-10-09T12:00:00.000Z"

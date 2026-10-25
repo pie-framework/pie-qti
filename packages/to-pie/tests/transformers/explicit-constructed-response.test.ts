@@ -31,7 +31,7 @@ describe('transformExplicitConstructedResponse', () => {
       '0': [{ label: 'Paris', value: '0' }],
     });
     expect(model.maxLengthPerChoice).toEqual([15]);
-    expect(result.metadata?.searchMetaData?.itemType).toBe('ECR');
+    expect(result.metadata?.extensions?.itemType).toBe('ECR');
   });
 
   test('should handle multiple text entry interactions', () => {

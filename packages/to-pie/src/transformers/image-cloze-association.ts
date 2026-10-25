@@ -162,7 +162,7 @@ export function transformImageClozeAssociationInteraction(
       },
     },
     metadata: {
-      searchMetaData: {
+      extensions: {
         title: itemId,
         itemType: 'ICA',
         source: 'qti22',

@@ -130,8 +130,7 @@ export async function transformExtendedResponseInteraction(
       elements,
     },
     metadata: {
-      // Renaissance-specific search metadata
-      searchMetaData: {
+      extensions: {
         title,
         itemType,
         source: 'qti22',

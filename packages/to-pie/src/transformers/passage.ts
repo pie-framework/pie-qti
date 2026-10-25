@@ -96,7 +96,7 @@ export function transformPassage(
       },
     },
     metadata: {
-      searchMetaData: {
+      extensions: {
         title: itemId,
         itemType: 'PASSAGE',
         source: 'qti22',

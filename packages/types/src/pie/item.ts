@@ -4,6 +4,15 @@
  * Core types for PIE assessment items as pure TypeScript interfaces.
  */
 
+/** A JSON value */
+export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+
+/**
+ * Host-owned key/value pairs on PIE content. Keys are opaque and case-sensitive; PIE defines none,
+ * and a PIE round trip through QTI keeps every key, value type and array order.
+ */
+export type ContentExtensions = Record<string, JsonValue>;
+
 /**
  * PIE Item - root structure for an assessment item
  */
@@ -21,17 +30,13 @@ export interface PieItem {
   config: PieItemConfig;
 
   /**
-   * Optional vendor-specific metadata
-   * Plugins can add custom metadata fields here (e.g., searchMetaData for Renaissance)
+   * Optional transform metadata
+   * Plugins can add custom metadata fields here
    */
   metadata?: Record<string, any>;
 
-  /**
-   * Optional search metadata for item discovery/filtering
-   * Used by Renaissance and other vendors for faceted search
-   * Common fields: subject, gradeLevel, DOK, standard, tags, difficulty, etc.
-   */
-  searchMetaData?: Record<string, any>;
+  /** Host-owned key/value pairs that PIE carries and never interprets */
+  extensions?: ContentExtensions;
 
   /** Collection IDs this item belongs to */
   collectionIds?: string[];
@@ -98,7 +103,8 @@ export interface PiePassageStimulus {
   /** External system identifier */
   externalId?: string;
   config: PiePassageConfig;
-  searchMetaData?: Record<string, any>;
+  /** Host-owned key/value pairs that PIE carries and never interprets */
+  extensions?: ContentExtensions;
 }
 
 /**

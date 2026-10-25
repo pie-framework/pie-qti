@@ -39,7 +39,7 @@ describe('transformPassage', () => {
     expect(model.textEnabled).toBe(true);
     expect(model.teacherInstructionsEnabled).toBe(false);
 
-    expect(result.metadata?.searchMetaData?.itemType).toBe('PASSAGE');
+    expect(result.metadata?.extensions?.itemType).toBe('PASSAGE');
   });
 
   test('should transform assessmentStimulus (QTI 2.2 correct format) to PIE passage', () => {

@@ -3,11 +3,11 @@
  *
  * The QTI 2.2 content packaging profile admits IEEE LOM (`http://ltsc.ieee.org/xsd/LOM`) in a
  * resource's `<metadata>`. A resource's title, description and language go in `general`; a PIE
- * item's `baseId` and `searchMetaData` follow the encoding in `@pie-qti/transform-types`
- * (`PIE_LOM_BASE_ID_CATALOG`, `PIE_LOM_SEARCH_METADATA_SOURCE`).
+ * item's `baseId` and `extensions` follow the encoding in `@pie-qti/transform-types`
+ * (`PIE_LOM_BASE_ID_CATALOG`, `PIE_LOM_EXTENSION_SOURCE`).
  */
 
-import { PIE_LOM_BASE_ID_CATALOG, PIE_LOM_SEARCH_METADATA_SOURCE } from '@pie-qti/transform-types';
+import { PIE_LOM_BASE_ID_CATALOG, PIE_LOM_EXTENSION_SOURCE } from '@pie-qti/transform-types';
 
 export const LOM_NAMESPACE = 'http://ltsc.ieee.org/xsd/LOM';
 export const LOM_SCHEMA_LOCATION = 'http://www.imsglobal.org/xsd/imsmd_loose_v1p3p2.xsd';
@@ -17,22 +17,8 @@ export interface ResourceLom {
   title?: string;
   description?: string;
   language?: string;
-  searchMetaData?: Record<string, unknown>;
+  extensions?: Record<string, unknown>;
 }
-
-/**
- * LOMv1.0 classification purpose of the common `searchMetaData` keys, by lowercased key. Other keys
- * are classified as `idea`.
- */
-const PURPOSES: Record<string, string> = {
-  subject: 'discipline',
-  gradelevel: 'educational level',
-  dok: 'skill level',
-  depthofknowledge: 'skill level',
-  standard: 'competency',
-  standards: 'competency',
-  bloomstaxonomy: 'educational objective',
-};
 
 type LomNode = [name: string, content: string | LomNode[], attributes?: string];
 
@@ -57,7 +43,7 @@ export function renderResourceLom(lom: ResourceLom, indent: string): string[] {
 
   const categories: LomNode[] = [];
   if (general.length > 0) categories.push(['general', general]);
-  for (const [key, value] of Object.entries(lom.searchMetaData ?? {})) {
+  for (const [key, value] of Object.entries(lom.extensions ?? {})) {
     if (value !== undefined) categories.push(classification(key, value));
   }
   if (categories.length === 0) return [];
@@ -68,16 +54,9 @@ function classification(key: string, value: unknown): LomNode {
   const values = (Array.isArray(value) ? value : [value]).filter((entry) => entry !== null && entry !== undefined);
   const children: LomNode[] = [
     [
-      'purpose',
-      [
-        ['source', 'LOMv1.0'],
-        ['value', PURPOSES[key.toLowerCase()] ?? 'idea'],
-      ],
-    ],
-    [
       'taxonPath',
       [
-        langString('source', `${PIE_LOM_SEARCH_METADATA_SOURCE}${key}`),
+        langString('source', `${PIE_LOM_EXTENSION_SOURCE}${key}`),
         ...values.map((entry): LomNode => [
           'taxon',
           [langString('entry', typeof entry === 'string' ? entry : JSON.stringify(entry))],

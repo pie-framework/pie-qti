@@ -74,7 +74,7 @@ export function transformNumberLineInteraction(
       },
     },
     metadata: {
-      searchMetaData: {
+      extensions: {
         title: assessmentItem.getAttribute('title') || itemId,
         itemType: 'number-line',
         source: 'qti22',

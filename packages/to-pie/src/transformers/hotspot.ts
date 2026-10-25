@@ -154,7 +154,7 @@ export function transformHotspotInteraction(
       },
     },
     metadata: {
-      searchMetaData: {
+      extensions: {
         title: itemId,
         itemType: 'HS',
         source: 'qti22',

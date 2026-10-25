@@ -132,7 +132,7 @@ export function transformExplicitConstructedResponseInteractions(
       },
     },
     metadata: {
-      searchMetaData: {
+      extensions: {
         title: itemId,
         itemType: 'ECR',
         source: 'qti22',

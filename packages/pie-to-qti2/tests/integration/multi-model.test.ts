@@ -79,11 +79,11 @@ describe('Multi-Model Support', () => {
     expect(result.metadata.hasPassages).toBe(true);
   });
 
-  test('should preserve searchMetaData in QTI', async () => {
+  test('should preserve extensions in QTI', async () => {
     const pieItem: PieItem = {
       id: 'item-with-metadata',
       uuid: '444e4567-e89b-12d3-a456-426614174000',
-      searchMetaData: {
+      extensions: {
         subject: 'Science',
         gradeLevel: ['8', '9'],
         DOK: 'DOK3',
@@ -117,11 +117,11 @@ describe('Multi-Model Support', () => {
     expectSidecarIsolation(qtiXml, result, pieItem);
   });
 
-  test('should handle passage + interaction + searchMetaData together', async () => {
+  test('should handle passage + interaction + extensions together', async () => {
     const pieItem: PieItem = {
       id: 'complete-multi-model',
       uuid: '666e4567-e89b-12d3-a456-426614174000',
-      searchMetaData: {
+      extensions: {
         subject: 'ELA',
         gradeLevel: ['6', '7'],
         standard: 'CCSS.ELA-LITERACY.RL.6.1',

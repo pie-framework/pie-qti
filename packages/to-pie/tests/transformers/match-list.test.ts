@@ -68,7 +68,7 @@ describe('transformMatchList', () => {
     expect(model.answers[1]).toEqual({ id: 1, title: 'Answer B' });
     expect(model.answers[2]).toEqual({ id: 2, title: 'Answer C' });
 
-    expect(result.metadata?.searchMetaData?.itemType).toBe('ML');
+    expect(result.metadata?.extensions?.itemType).toBe('ML');
   });
 
   test('should handle shuffle=true', () => {

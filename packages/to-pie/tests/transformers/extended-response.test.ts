@@ -61,9 +61,9 @@ describe('transformExtendedResponse', () => {
     expect(result.id).toBe('er-001');
     expect(result.uuid).toBeDefined();
     expect(result.config).toBeDefined();
-    expect(result.metadata?.searchMetaData.title).toBe('Essay Question');
-    expect(result.metadata?.searchMetaData.itemType).toBe('ER');
-    expect(result.metadata?.searchMetaData.source).toBe('qti22');
+    expect(result.metadata?.extensions.title).toBe('Essay Question');
+    expect(result.metadata?.extensions.itemType).toBe('ER');
+    expect(result.metadata?.extensions.source).toBe('qti22');
 
     // Verify PIE element configuration
     expect(result.config.elements['extended-text-entry']).toBe('@pie-element/extended-text-entry@latest');
@@ -83,7 +83,7 @@ describe('transformExtendedResponse', () => {
 
     const result = await transformExtendedResponse(itemElement, 'fe-001');
 
-    expect(result.metadata?.searchMetaData.itemType).toBe('FE');
+    expect(result.metadata?.extensions.itemType).toBe('FE');
 
     const model = result.config.models[0];
     expect(model.mathInput).toBe(true);
@@ -130,7 +130,7 @@ describe('transformExtendedResponse', () => {
       maxScore: 4,
     });
 
-    expect(result.metadata?.searchMetaData.maxScore).toBe(4);
+    expect(result.metadata?.extensions.maxScore).toBe(4);
   });
 
   test('should throw error if no extendedTextInteraction found', async () => {

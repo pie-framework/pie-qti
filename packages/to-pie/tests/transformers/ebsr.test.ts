@@ -90,7 +90,7 @@ describe('transformEbsr', () => {
     expect(model.partB.choices[0].correct).toBe(true);
     expect(model.partB.choiceMode).toBe('radio');
 
-    expect(result.metadata?.searchMetaData?.itemType).toBe('EBSR');
+    expect(result.metadata?.extensions?.itemType).toBe('EBSR');
   });
 
   test('should handle multiple correct answers (checkbox mode)', () => {

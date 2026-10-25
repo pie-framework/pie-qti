@@ -58,7 +58,7 @@ export function buildManifest(input: ManifestInput): ImsManifest {
         href: passage.filePath,
         metadata,
         baseId: passage.baseId,
-        searchMetaData: passage.searchMetaData,
+        extensions: passage.extensions,
         files: passage.files?.map(f => ({ href: f })),
       });
     }
@@ -86,7 +86,7 @@ export function buildManifest(input: ManifestInput): ImsManifest {
       href: item.filePath,
       metadata,
       baseId: item.baseId,
-      searchMetaData: item.searchMetaData,
+      extensions: item.extensions,
       files: item.files?.map(f => ({ href: f })),
       dependencies: dependencies.length > 0 ? dependencies : undefined,
     });
@@ -209,7 +209,7 @@ export function manifestToXml(manifest: ImsManifest): string {
         title: optionalString(resource.metadata?.title),
         description: optionalString(resource.metadata?.description),
         language: optionalString(resource.metadata?.language),
-        searchMetaData: resource.searchMetaData,
+        extensions: resource.extensions,
       },
       '        '
     );
@@ -307,8 +307,8 @@ export function generateSingleItemManifest(
  * @returns Manifest XML string
  */
 export function generateBatchManifest(
-  items: Array<Pick<ItemResource, 'id' | 'filePath' | 'dependencies' | 'baseId' | 'searchMetaData'>>,
-  passages: Array<Pick<PassageResource, 'id' | 'filePath' | 'baseId' | 'searchMetaData'>>,
+  items: Array<Pick<ItemResource, 'id' | 'filePath' | 'dependencies' | 'baseId' | 'extensions'>>,
+  passages: Array<Pick<PassageResource, 'id' | 'filePath' | 'baseId' | 'extensions'>>,
   options?: ManifestGenerationOptions
 ): string {
   const input: ManifestInput = {
@@ -317,13 +317,13 @@ export function generateBatchManifest(
       filePath: item.filePath,
       dependencies: item.dependencies,
       baseId: item.baseId,
-      searchMetaData: item.searchMetaData,
+      extensions: item.extensions,
     })),
     passages: passages.map(p => ({
       id: p.id,
       filePath: p.filePath,
       baseId: p.baseId,
-      searchMetaData: p.searchMetaData,
+      extensions: p.extensions,
     })),
     options,
   };
@@ -347,8 +347,8 @@ export function generateBatchManifest(
 export function generateAssessmentManifest(
   assessmentId: string,
   assessmentPath: string,
-  items: Array<Pick<ItemResource, 'id' | 'filePath' | 'dependencies' | 'baseId' | 'searchMetaData'>>,
-  passages: Array<Pick<PassageResource, 'id' | 'filePath' | 'baseId' | 'searchMetaData'>> = [],
+  items: Array<Pick<ItemResource, 'id' | 'filePath' | 'dependencies' | 'baseId' | 'extensions'>>,
+  passages: Array<Pick<PassageResource, 'id' | 'filePath' | 'baseId' | 'extensions'>> = [],
   options?: ManifestGenerationOptions
 ): string {
   const itemIds = items.map(item => item.id);
@@ -359,13 +359,13 @@ export function generateAssessmentManifest(
       filePath: item.filePath,
       dependencies: item.dependencies,
       baseId: item.baseId,
-      searchMetaData: item.searchMetaData,
+      extensions: item.extensions,
     })),
     passages: passages.map(p => ({
       id: p.id,
       filePath: p.filePath,
       baseId: p.baseId,
-      searchMetaData: p.searchMetaData,
+      extensions: p.extensions,
     })),
     assessments: [
       {

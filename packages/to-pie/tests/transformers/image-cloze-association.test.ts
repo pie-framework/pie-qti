@@ -66,7 +66,7 @@ describe('transformImageClozeAssociation', () => {
     expect(model.validation.validResponse.value[0].images).toEqual(['<img src="image1.png">']);
     expect(model.validation.validResponse.value[1].images).toEqual(['<img src="image2.png">']);
 
-    expect(result.metadata?.searchMetaData?.itemType).toBe('ICA');
+    expect(result.metadata?.extensions?.itemType).toBe('ICA');
   });
 
   test('should handle multiple correct images per zone', () => {

@@ -368,11 +368,11 @@
 							</div>
 						{/if}
 
-						{#if itemMetadata.searchMetadata && Object.keys(itemMetadata.searchMetadata).length > 0}
+						{#if itemMetadata.extensions && Object.keys(itemMetadata.extensions).length > 0}
 							<div class="md:col-span-2">
-								<h3 class="font-semibold text-sm text-base-content/70">Search Metadata</h3>
+								<h3 class="font-semibold text-sm text-base-content/70">Extensions</h3>
 								<div class="bg-base-300 rounded p-3 mt-1">
-									<pre class="text-xs">{JSON.stringify(itemMetadata.searchMetadata, null, 2)}</pre>
+									<pre class="text-xs">{JSON.stringify(itemMetadata.extensions, null, 2)}</pre>
 								</div>
 							</div>
 						{/if}

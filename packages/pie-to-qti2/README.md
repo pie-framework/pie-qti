@@ -15,7 +15,7 @@ Each direction uses the embedded source only while the content beside it is unch
 
 - **17+ PIE Elements**: Complete coverage of all major PIE element types including interactions, passages, rubrics, and assessments
 - **Multi-Model Support**: Handles PIE items with multiple models (passages, interactions, rubrics) in a single QTI item
-- **searchMetaData Preservation**: Maintains Renaissance metadata (subject, gradeLevel, DOK, standards, difficulty) through the sidecar
+- **Extensions Preservation**: Keeps the item's host-owned `extensions` (subject, gradeLevel, DOK, standards and the like) through the sidecar and the manifest's LOM
 - **External Passage Support**: Generates separate passage files with `<object>` references for reusable stimulus content
 - **IMS Content Packages**: Automatic manifest generation for distributable QTI packages with proper resource declarations
 - **BaseId Support**: Stable/public identifier handling for consistent resource references across systems
@@ -148,7 +148,7 @@ const resolver = async (passageId: string) => {
     id: passage.id,
     title: passage.title,
     content: passage.htmlContent,
-    metadata: passage.searchMetaData
+    metadata: passage.extensions
   };
 };
 
@@ -255,12 +255,12 @@ transform returns it as the output item's `sidecar`:
   "format": "pie-qti/pie-source",
   "version": 1,
   "qtiDigest": "sha256:…",
-  "sourceModel": { "id": "item-1", "searchMetaData": { … }, "config": { … } }
+  "sourceModel": { "id": "item-1", "extensions": { … }, "config": { … } }
 }
 ```
 
 `@pie-qti/to-pie` uses the sidecar only while the QTI item still has the recorded `qtiDigest`.
-The item's `baseId` and `searchMetaData` are also written as IEEE LOM on its manifest resource, which
+The item's `baseId` and `extensions` are also written as IEEE LOM on its manifest resource, which
 to-pie reads when the sidecar is absent or stale.
 
 ### Multi-Model Support
@@ -270,7 +270,7 @@ PIE items with multiple models (passages, interactions, rubrics) are combined in
 ```typescript
 const pieItem: PieItem = {
   id: 'multi-model-item',
-  searchMetaData: {
+  extensions: {
     subject: 'Science',
     gradeLevel: ['8', '9'],
     DOK: 'DOK3'

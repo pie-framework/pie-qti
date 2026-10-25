@@ -509,7 +509,7 @@ describe('transformQtiPackageToPie', () => {
 				},
 			});
 
-		test('fills baseId and searchMetaData when the sidecar is stale', async () => {
+		test('fills baseId and extensions when the sidecar is stale', async () => {
 			const stale = JSON.stringify({
 				format: 'pie-qti/pie-source',
 				version: 1,
@@ -522,7 +522,7 @@ describe('transformQtiPackageToPie', () => {
 			const item = result.items[0].content;
 			expect(item.config.models[0].element).toBe('multiple-choice');
 			expect(item.baseId).toBe('base-1');
-			expect(item.searchMetaData).toEqual({ subject: 'Math' });
+			expect(item.extensions).toEqual({ subject: 'Math' });
 		});
 
 		test('leaves a fresh sidecar source model as written', async () => {
@@ -533,7 +533,7 @@ describe('transformQtiPackageToPie', () => {
 				sourceModel: {
 					id: 'from-sidecar',
 					baseId: 'sidecar-base',
-					searchMetaData: { subject: 'Science' },
+					extensions: { subject: 'Science' },
 					config: { models: [{ id: '1', element: 'pie-mc' }] },
 				},
 			});
@@ -543,7 +543,7 @@ describe('transformQtiPackageToPie', () => {
 			const item = result.items[0].content;
 			expect(item.id).toBe('from-sidecar');
 			expect(item.baseId).toBe('sidecar-base');
-			expect(item.searchMetaData).toEqual({ subject: 'Science' });
+			expect(item.extensions).toEqual({ subject: 'Science' });
 		});
 	});
 
