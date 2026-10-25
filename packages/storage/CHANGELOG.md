@@ -1,5 +1,11 @@
 # @pie-qti/storage
 
+## 1.0.0-beta.2
+
+### Patch Changes
+
+- @pie-qti/transform-types@0.1.31
+
 ## 1.0.0-beta.1
 
 ### Patch Changes

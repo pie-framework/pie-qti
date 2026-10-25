@@ -1,5 +1,14 @@
 # @pie-qti/qti-processing
 
+## 1.0.0-beta.2
+
+### Patch Changes
+
+- a202037: Response processing reads responses in the item's content language: string comparisons and mapping keys ignore bidi controls, tatweel and Unicode encoding differences, case-insensitive comparisons fold case in that language, and numbers accept digits in any script, the Arabic separators and the language's decimal mark. `EvalEnv` takes an optional `language`, and `coerceBaseValue` an optional third argument. Stored responses are unchanged.
+- dba1477: `patternMatch` and the text-entry `patternMask` follow XML Schema pattern rules: a pattern must match the whole response, and `\d` matches decimal digits in any script. `patternMatch` reads its pattern from the `pattern` attribute, including a `{TEMPLATE}` reference, where it previously required a second child expression and failed to build otherwise. `xsdPatternToRegExp` and `xsdPatternSource` are exported from `@pie-qti/qti-processing`.
+- Updated dependencies [5dbabcc]
+  - @pie-qti/qti-common@1.0.0-beta.2
+
 ## 1.0.0-beta.1
 
 ### Patch Changes

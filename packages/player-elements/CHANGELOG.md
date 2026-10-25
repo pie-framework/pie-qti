@@ -1,5 +1,22 @@
 # @pie-qti/player-elements
 
+## 1.0.0-beta.2
+
+### Patch Changes
+
+- cf99206: The section's interface locale now reaches the pie-players tool toolkit through its `locale` attribute, so tool chrome takes that locale's `lang`/`dir` and labels from the toolkit's catalogs. The section player elements gain an `i18n` property, and `@pie-players/*` moves to 1.0.0-beta.6.
+- Updated dependencies [d8f9b4d]
+- Updated dependencies [5dbabcc]
+- Updated dependencies [d0e249b]
+- Updated dependencies [e874155]
+- Updated dependencies [a202037]
+- Updated dependencies [572c3d3]
+- Updated dependencies [67d94ee]
+- Updated dependencies [dba1477]
+  - @pie-qti/item-player@1.0.0-beta.2
+  - @pie-qti/assessment-player@1.0.0-beta.2
+  - @pie-qti/ims-cp-core@1.0.0-beta.2
+
 ## 1.0.0-beta.1
 
 ### Patch Changes

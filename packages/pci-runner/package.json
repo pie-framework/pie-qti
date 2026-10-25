@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/pci-runner",
-  "version": "1.0.0-beta.1",
+  "version": "1.0.0-beta.2",
   "description": "Deployable QTI 3.0 PCI sandbox runner: a static page that executes Portable Custom Interaction modules in a sandboxed cross-origin frame and bridges the spec contract over postMessage",
   "type": "module",
   "main": "./dist/pci-runner.js",
