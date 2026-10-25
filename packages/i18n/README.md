@@ -189,6 +189,23 @@ render in English. Any key missing from the resolved catalog falls back to Engli
 checker below). Values that still match English are reported by the checker as *untranslated*
 rather than missing.
 
+### Numbers and dates
+
+`formatNumber` and `formatDate` do not take the runtime's defaults, which follow whatever CLDR its
+ICU ships. Digits come from a table pinned to CLDR 48 and the calendar is Gregorian:
+
+```typescript
+new DefaultI18nProvider('ar').formatNumber(1234.5);     // '1,234.5'
+new DefaultI18nProvider('ar-EG').formatNumber(1234.5);  // '١٬٢٣٤٫٥'
+new DefaultI18nProvider('ar-MA').formatNumber(1234.5);  // '1.234,5'
+new DefaultI18nProvider('fa-IR').formatDate(date);      // Gregorian year, Extended Arabic-Indic digits
+```
+
+A host that wants other digits or a local calendar sets them on the locale: `ar-SA-u-nu-latn`,
+`fa-IR-u-ca-persian`. Catalog lookup and the `lang` attribute ignore the extension. Numbers passed
+to `t()` and `plural()` are formatted the same way, so `{count}` follows the locale.
+`formattingLocale(tag)` and `numberingSystemFor(tag)` expose the resolution.
+
 **Note:** Additional locales can be provided via custom translations (see below). Custom messages are
 matched along the same lookup sequence, so a `de` entry serves `de-AT`.
 

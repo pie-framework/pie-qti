@@ -41,6 +41,9 @@ export {
 } from './core/direction.js';
 export type { LanguageAttributes, TextDirection } from './core/direction.js';
 
+// Digits and calendar for locale formatting
+export { formattingLocale, numberingSystemFor } from './core/numbering.js';
+
 // Accessible names and live-region messages
 export { formatList, isImeComposing, joinSentences, translate, translatePlural } from './core/accessible-text.js';
 

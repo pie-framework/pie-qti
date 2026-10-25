@@ -10,6 +10,7 @@ import type { I18nProvider, InterpolationValues, PluralOptions } from './I18nPro
 import type { LocaleCode, MessageKey, LocaleMessages } from './types.js';
 import { languageDirection } from './direction.js';
 import { normalizeLanguageTag } from './language-tags.js';
+import { formattingLocale } from './numbering.js';
 import {
 	FRAMEWORK_CATALOGS,
 	type FrameworkCatalogCode,
@@ -199,9 +200,11 @@ export class DefaultI18nProvider implements I18nProvider {
 
 		if (!interpolationValues) return message;
 
-		// Simple interpolation: replace {key} with values[key]
+		// Replace {key} with values[key]; numbers take the locale's digits
 		return message.replace(/\{(\w+)\}/g, (match, k) => {
-			return String(interpolationValues[k] ?? match);
+			const value = interpolationValues[k];
+			if (typeof value === 'number') return this.formatNumber(value);
+			return String(value ?? match);
 		});
 	}
 
@@ -278,17 +281,20 @@ export class DefaultI18nProvider implements I18nProvider {
 	}
 
 	/**
-	 * Format number according to locale
+	 * Format a number in the locale's pinned numbering system
+	 *
+	 * @example formatNumber(1234.5) => "1,234.5" for ar, "١٬٢٣٤٫٥" for ar-EG
 	 */
 	formatNumber(value: number, options?: Intl.NumberFormatOptions): string {
-		return new Intl.NumberFormat(intlLocale(this.currentLocale), options).format(value);
+		return new Intl.NumberFormat(formattingLocale(this.currentLocale), options).format(value);
 	}
 
 	/**
-	 * Format date according to locale
+	 * Format a date in the locale's pinned numbering system, on the Gregorian
+	 * calendar unless the locale carries `-u-ca-`
 	 */
 	formatDate(date: Date, options?: Intl.DateTimeFormatOptions): string {
-		return new Intl.DateTimeFormat(intlLocale(this.currentLocale), options).format(date);
+		return new Intl.DateTimeFormat(formattingLocale(this.currentLocale), options).format(date);
 	}
 
 	/**
