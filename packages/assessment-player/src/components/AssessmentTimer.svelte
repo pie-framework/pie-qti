@@ -22,6 +22,8 @@
 
 	let { player, i18n, showElapsed = false, position = 'top-end' }: Props = $props();
 
+	const formatTime = (seconds: number) => TimeManager.formatTime(seconds, i18n?.formatNumber?.bind(i18n));
+
 	// State
 	let remainingSeconds = $state<number | null>(null);
 	let elapsedSeconds = $state(0);
@@ -43,8 +45,8 @@
 			remainingSeconds = remaining;
 			announcementPriority = 'polite';
 			announcement =
-				i18n?.t('assessment.timer.timeRemaining', { time: TimeManager.formatTime(remaining) }) ??
-				`Time remaining: ${TimeManager.formatTime(remaining)}`;
+				i18n?.t('assessment.timer.timeRemaining', { time: formatTime(remaining) }) ??
+				`Time remaining: ${formatTime(remaining)}`;
 		});
 
 		const unsubscribeExpired = player.onTimeExpired(() => {
@@ -70,10 +72,10 @@
 	// Derived values
 	const displayTime = $derived(() => {
 		if (remainingSeconds !== null && remainingSeconds >= 0) {
-			return TimeManager.formatTime(remainingSeconds);
+			return formatTime(remainingSeconds);
 		}
 		if (showElapsed) {
-			return TimeManager.formatTime(elapsedSeconds);
+			return formatTime(elapsedSeconds);
 		}
 		return null;
 	});
@@ -81,11 +83,11 @@
 	const timerLabel = $derived(() => {
 		if (remainingSeconds !== null) {
 			return isExpired
-				? (i18n?.t('assessment.timer.expired') ?? 'assessment.timer.expired')
-				: (i18n?.t('assessment.timer.remaining') ?? 'assessment.timer.remaining');
+				? (i18n?.t('assessment.timer.expired', 'Time Expired') ?? 'Time Expired')
+				: (i18n?.t('assessment.timer.remaining', 'Time Remaining') ?? 'Time Remaining');
 		}
 		if (showElapsed) {
-			return i18n?.t('assessment.timer.elapsed') ?? 'assessment.timer.elapsed';
+			return i18n?.t('assessment.timer.elapsed', 'Time Elapsed') ?? 'Time Elapsed';
 		}
 		return null;
 	});

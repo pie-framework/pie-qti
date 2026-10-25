@@ -66,6 +66,8 @@ describe('canonicalLanguageTag', () => {
 		['zh-hans-cn', 'zh-Hans-CN'],
 		['es_ES.UTF-8', 'es-ES'],
 		['ar', 'ar'],
+		['ar-EG-u-nu-latn', 'ar-EG'],
+		['fa-IR-u-ca-persian', 'fa-IR'],
 	])('%s becomes %s', (tag, expected) => {
 		expect(canonicalLanguageTag(tag)).toBe(expected);
 	});

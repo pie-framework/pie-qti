@@ -253,14 +253,15 @@ describe('DefaultI18nProvider — pluralization', () => {
 		const arabic = (await import('../src/locales/ar.js')).default;
 		const items = arabic.plurals.items;
 
-		// zero / one / two / few (3–10) / many (11–99) / other (100, 101, …)
-		expect(i18n.plural('plurals.items', { count: 0 })).toBe(items.zero.replace('{count}', '0'));
+		// zero / one / two / few (3–10) / many (11–99) / other (100, 101, …), with
+		// the count in ar-SA's Arabic-Indic digits
+		expect(i18n.plural('plurals.items', { count: 0 })).toBe(items.zero.replace('{count}', '٠'));
 		expect(i18n.plural('plurals.items', { count: 1 })).toBe(items.one);
 		expect(i18n.plural('plurals.items', { count: 2 })).toBe(items.two);
-		expect(i18n.plural('plurals.items', { count: 3 })).toBe(items.few.replace('{count}', '3'));
-		expect(i18n.plural('plurals.items', { count: 11 })).toBe(items.many.replace('{count}', '11'));
+		expect(i18n.plural('plurals.items', { count: 3 })).toBe(items.few.replace('{count}', '٣'));
+		expect(i18n.plural('plurals.items', { count: 11 })).toBe(items.many.replace('{count}', '١١'));
 		expect(i18n.plural('plurals.items', { count: 100 })).toBe(
-			items.other.replace('{count}', '100')
+			items.other.replace('{count}', '١٠٠')
 		);
 
 		// The six forms are genuinely distinct, so a one/other implementation
@@ -380,7 +381,7 @@ describe('locale catalogs — no ICU MessageFormat', () => {
 
 		expect(i18n.plural('transform.samples.itemCount', { count: 2 })).toBe(itemCount.two);
 		expect(i18n.plural('transform.samples.itemCount', { count: 11 })).toBe(
-			itemCount.many.replace('{count}', '11')
+			itemCount.many.replace('{count}', '١١')
 		);
 	});
 });
@@ -402,6 +403,45 @@ describe('DefaultI18nProvider — Intl formatting', () => {
 			timeZone: 'UTC',
 		});
 		expect(result).toBe('1/9/26');
+	});
+
+	// CLDR 48 digits, pinned so the runtime's ICU does not decide them
+	test.each([
+		['ar', '1,234.5'],
+		['ar-EG', '١٬٢٣٤٫٥'],
+		['ar-SA', '١٬٢٣٤٫٥'],
+		['ar-MA', '1.234,5'],
+		['ar-AE', '1,234.5'],
+		['fa-IR', '۱٬۲۳۴٫۵'],
+		['ur-IN', '۱٬۲۳۴٫۵'],
+		['ar-EG-u-nu-latn', '1,234.5'],
+	])('%s formats 1234.5 as %s', (locale, expected) => {
+		expect(new DefaultI18nProvider(locale).formatNumber(1234.5)).toBe(expected);
+	});
+
+	test.each([
+		['ar-SA', '٢٠٢٦'],
+		['fa-IR', '۲۰۲۶'],
+		['th-TH', '2026'],
+	])('%s dates are Gregorian', (locale, year) => {
+		const result = new DefaultI18nProvider(locale).formatDate(new Date('2026-01-09T12:00:00Z'), {
+			year: 'numeric',
+			timeZone: 'UTC',
+		});
+		expect(result).toContain(year);
+	});
+
+	test('a host calendar extension is honoured', () => {
+		const result = new DefaultI18nProvider('fa-IR-u-ca-persian').formatDate(new Date('2026-01-09T12:00:00Z'), {
+			year: 'numeric',
+			timeZone: 'UTC',
+		});
+		expect(result).toContain('۱۴۰۴');
+	});
+
+	test('numbers interpolated into a message take the locale digits', () => {
+		const i18n = new DefaultI18nProvider('ar-EG', { 'ar-EG': { demo: { of: '{current} / {total} ({id})' } } });
+		expect(i18n.t('demo.of', { current: 3, total: 12, id: '42' })).toBe('٣ / ١٢ (42)');
 	});
 });
 

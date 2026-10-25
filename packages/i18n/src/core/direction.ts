@@ -68,7 +68,9 @@ export function languageDirection(tag: string | null | undefined): TextDirection
 /**
  * The canonical form of a usable language tag, or `undefined` for anything a
  * language in use would not be: `es_MX` becomes `es-MX`, `NL-nl` becomes
- * `nl-NL`, and `Spanish` or an empty string are not tags.
+ * `nl-NL`, and `Spanish` or an empty string are not tags. Unicode extensions
+ * are dropped (`ar-EG-u-nu-latn` becomes `ar-EG`): they steer formatting and
+ * have no place in a `lang` attribute.
  */
 export function canonicalLanguageTag(tag: string | null | undefined): string | undefined {
 	const candidate = (tag ?? '').trim().replace(/_/g, '-').split(/[.@]/)[0] ?? '';
@@ -76,7 +78,8 @@ export function canonicalLanguageTag(tag: string | null | undefined): string | u
 	// in use has an ISO 639 code of two or three letters.
 	if (!/^[a-z]{2,3}(-|$)/i.test(candidate)) return undefined;
 	try {
-		return Intl.getCanonicalLocales(candidate)[0];
+		const canonical = Intl.getCanonicalLocales(candidate)[0];
+		return canonical ? new Intl.Locale(canonical).baseName : undefined;
 	} catch {
 		return undefined;
 	}
