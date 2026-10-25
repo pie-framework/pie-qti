@@ -1,5 +1,11 @@
 # @pie-qti/transform-types
 
+## 0.1.31
+
+### Patch Changes
+
+- @pie-qti/logger@1.0.0-beta.2
+
 ## 0.1.30
 
 ### Patch Changes

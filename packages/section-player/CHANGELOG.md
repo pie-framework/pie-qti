@@ -1,5 +1,27 @@
 # @pie-qti/section-player
 
+## 1.0.0-beta.2
+
+### Patch Changes
+
+- 5dbabcc: Content and interface direction are now separate: player chrome takes `lang` and `dir` from the interface locale, while the item body, passages, rubrics and modal feedback take them from the content's `xml:lang`, and content that declares no language inherits the chrome's. Nested `xml:lang` spans get a `dir` where their direction differs from the surrounding text. `@pie-qti/i18n` exports `languageDirection`, `canonicalLanguageTag`, `contentLanguageAttributes` and `interfaceLocaleAttributes`, and `@pie-qti/section-player` now depends on `@pie-qti/i18n` directly.
+- 572c3d3: Add `pseudoLocalize` with the `en-XA` and `ar-XB` pseudo-locales, and a physical-direction CSS check in `check:i18n`. Interaction and chrome markup that still used `ml-*`, `mr-*` and `right-*` utilities now uses their logical forms, so it mirrors under right-to-left locales.
+- 67d94ee: Player chrome and interaction layout use logical CSS properties, so they mirror under `dir="rtl"`, and horizontal order lists move items with the arrow keys in the inline direction. `AssessmentTimer` accepts `top-end`/`top-start`/`bottom-end`/`bottom-start` and defaults to `top-end`; the physical values keep working.
+- cf99206: The section's interface locale now reaches the pie-players tool toolkit through its `locale` attribute, so tool chrome takes that locale's `lang`/`dir` and labels from the toolkit's catalogs. The section player elements gain an `i18n` property, and `@pie-players/*` moves to 1.0.0-beta.6.
+- Updated dependencies [d8f9b4d]
+- Updated dependencies [5dbabcc]
+- Updated dependencies [d0e249b]
+- Updated dependencies [e874155]
+- Updated dependencies [a202037]
+- Updated dependencies [572c3d3]
+- Updated dependencies [67d94ee]
+- Updated dependencies [dba1477]
+  - @pie-qti/i18n@1.0.0-beta.2
+  - @pie-qti/default-components@1.0.0-beta.2
+  - @pie-qti/item-player@1.0.0-beta.2
+  - @pie-qti/qti-common@1.0.0-beta.2
+  - @pie-qti/ims-cp-core@1.0.0-beta.2
+
 ## 1.0.0-beta.1
 
 ### Patch Changes
