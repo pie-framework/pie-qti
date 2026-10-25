@@ -167,7 +167,7 @@
 
 [data-qti-layout='single-column'] .qti-layout-row > * {
 	width: 100%;
-	margin-left: 0;
+	margin-inline-start: 0;
 }
 
 /* =============================================================================

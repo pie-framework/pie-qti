@@ -111,7 +111,7 @@ bun run test:e2e:ui -- tests/playwright/i18n-evals.pw.ts
 ## Implementation Details
 
 ### localStorage Keys
-- **`pie-qti-locale`**: Stores selected locale code (e.g., "es-ES")
+- **`pie-qti-locale`**: Stores selected locale code (e.g., "es-ES"). The demo opts into this persistence and reads the key back itself; `@pie-qti/i18n` reads no storage
 
 ### i18n Provider
 - Created in root layout (`+layout.svelte`)
@@ -141,7 +141,7 @@ All evals include spirit checks to validate:
 ## Related Documentation
 
 - **i18n package**: `packages/i18n/README.md`
-- **Translation keys**: `packages/i18n/src/locales/en-US.ts`
+- **Translation keys**: `packages/i18n/src/locales/en.ts`
 - **Sample items**: `apps/demo/src/lib/sample-items-i18n/`
 - **Settings menu**: `apps/demo/src/lib/components/SettingsMenu.svelte`
 

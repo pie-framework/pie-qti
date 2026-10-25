@@ -17,8 +17,8 @@
 		navState.totalItems > 0 ? ((navState.currentIndex + 1) / navState.totalItems) * 100 : 0,
 	);
 
-	// Simplified translations - no manual subscriptions needed
-	// Locale changes trigger page refresh, so reactivity is not required
+	// Recomputed when the `i18n` prop changes. A setLocale() on the same provider
+	// object is not tracked: the host re-renders, passes a new provider, or reloads.
 	const translations = $derived({
 		question: i18n?.t('assessment.question', { current: navState.currentIndex + 1, total: navState.totalItems })
 			?? `Question ${navState.currentIndex + 1} of ${navState.totalItems}`,

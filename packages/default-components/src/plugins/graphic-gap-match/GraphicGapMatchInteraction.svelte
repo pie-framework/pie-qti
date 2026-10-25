@@ -9,7 +9,7 @@
 
 import type { GraphicGapMatchInteractionData } from '@pie-qti/item-player';
 import { normalizeCssPixelLength, normalizePixelDimension } from '@pie-qti/item-player/security';
-import type { I18nProvider } from '@pie-qti/i18n';
+import { joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
 import { touchDrag } from '@pie-qti/qti-common';
 import { createQtiChangeEvent } from '../../shared/utils/eventHelpers.js';
 import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
@@ -173,7 +173,7 @@ function handleHotspotDrop(event: DragEvent, hotspotId: string) {
 function clearMatch(gapTextId: string) {
 	if (disabled || !parsedInteraction) return;
 	const gapTextObj = parsedInteraction.gapTexts.find((g) => g.identifier === gapTextId);
-	const gapTextName = gapTextObj?.text || 'Label';
+	const gapTextName = gapTextObj?.text || labelFallback();
 
 	const newPairs = pairs.filter((p) => !p.startsWith(`${gapTextId} `));
 	isInternalUpdate = true; // Mark as internal update
@@ -187,7 +187,7 @@ function clearMatch(gapTextId: string) {
 		rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction.responseId, valueArray));
 	}
 
-	liveMessage = `${gapTextName} removed from hotspot`;
+	liveMessage = translate(i18n, 'interactions.graphicGapMatch.labelRemoved', '{label} removed from hotspot.', { label: gapTextName });
 }
 
 /**
@@ -195,12 +195,46 @@ function clearMatch(gapTextId: string) {
  * Checks gapTexts first, then gapImages.
  */
 function getLabelName(labelId: string): string {
-	if (!parsedInteraction) return 'Label';
+	if (!parsedInteraction) return labelFallback();
 	const text = parsedInteraction.gapTexts.find((g) => g.identifier === labelId);
 	if (text) return text.text;
 	const img = parsedInteraction.gapImages.find((g) => g.identifier === labelId);
 	if (img) return img.alt || img.identifier;
-	return 'Label';
+	return labelFallback();
+}
+
+function labelFallback(): string {
+	return translate(i18n, 'interactions.graphicGapMatch.labelFallback', 'Label');
+}
+
+function cancelledMessage(): string {
+	return translate(i18n, 'common.selectionCancelled', 'Selection cancelled');
+}
+
+/** Accessible name of a palette label: its name, then its state, then what a key press does. */
+function paletteLabelAriaLabel(name: string, placed: boolean, unavailable: boolean, held: boolean): string {
+	return joinSentences(
+		translate(i18n, 'accessibility.sentence', '{text}.', { text: name }),
+		placed
+			? translate(i18n, 'interactions.graphicGapMatch.alreadyPlacedSentence', 'Already placed on a hotspot.')
+			: unavailable && translate(i18n, 'interactions.graphicGapMatch.unavailableSentence', 'Not available due to a match group restriction.'),
+		held
+			? translate(i18n, 'interactions.graphicGapMatch.heldHint', 'Picked up. Tab to a hotspot and press Enter to place it.')
+			: translate(i18n, 'interactions.graphicGapMatch.pickUpHint', 'Press Space or Enter to pick up.'),
+	);
+}
+
+/** Accessible name of a hotspot: its number and contents, then the drop hint while a label is held. */
+function hotspotAriaLabel(number: number, contains: string | undefined, correct: string | undefined, heldLabel: string | null): string {
+	const state = contains
+		? translate(i18n, 'interactions.graphicGapMatch.hotspotContains', 'Hotspot {number}. Contains {label}.', { number, label: contains })
+		: correct
+			? translate(i18n, 'interactions.graphicGapMatch.hotspotCorrectAnswer', 'Hotspot {number}. Correct answer: {label}.', { number, label: correct })
+			: translate(i18n, 'interactions.graphicGapMatch.hotspotEmpty', 'Hotspot {number}. Empty.', { number });
+	return joinSentences(
+		state,
+		heldLabel && translate(i18n, 'interactions.graphicGapMatch.placeHereHint', 'Press Enter to place {label} here.', { label: heldLabel }),
+	);
 }
 
 // Phase-1 handler: pick up or put down a label from the palette.
@@ -210,11 +244,11 @@ function handleLabelActivate(labelId: string) {
 	if (pickedUpLabel === labelId) {
 		// Second press on the same label cancels the pick-up
 		pickedUpLabel = null;
-		liveMessage = 'Cancelled.';
+		liveMessage = cancelledMessage();
 	} else {
 		pickedUpLabel = labelId;
 		const name = getLabelName(labelId);
-		liveMessage = `Picked up: ${name}. Tab to a hotspot and press Enter to place it.`;
+		liveMessage = translate(i18n, 'interactions.graphicGapMatch.pickedUp', 'Picked up: {label}. Tab to a hotspot and press Enter to place it.', { label: name });
 	}
 }
 
@@ -227,7 +261,7 @@ function handleLabelKeyDown(event: KeyboardEvent, labelId: string) {
 	} else if (event.key === 'Escape' && pickedUpLabel) {
 		event.preventDefault();
 		pickedUpLabel = null;
-		liveMessage = 'Cancelled.';
+		liveMessage = cancelledMessage();
 	}
 }
 
@@ -254,7 +288,7 @@ function placePickedUpLabelOnHotspot(hotspotId: string) {
 		rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction.responseId, valueArray));
 	}
 
-	liveMessage = `Placed ${labelName} on hotspot ${hotspotIndex + 1}.`;
+	liveMessage = translate(i18n, 'interactions.graphicGapMatch.labelPlaced', '{label} placed on hotspot {hotspot}', { label: labelName, hotspot: hotspotIndex + 1 });
 	pickedUpLabel = null;
 }
 
@@ -274,7 +308,7 @@ function handleRootKeyDown(event: KeyboardEvent) {
 	if (event.key === 'Escape' && pickedUpLabel) {
 		event.preventDefault();
 		pickedUpLabel = null;
-		liveMessage = 'Cancelled.';
+		liveMessage = cancelledMessage();
 	}
 }
 
@@ -303,7 +337,11 @@ function handleRootKeyDown(event: KeyboardEvent) {
 
 		<!-- Instructions for keyboard users -->
 		<div id="graphic-gap-match-instructions" class="sr-only">
-			Press Space or Enter to pick up a label. Tab to a hotspot on the image and press Enter to place it. Press Escape to cancel.
+			{translate(
+				i18n,
+				'interactions.graphicGapMatch.pickUpInstructions',
+				'Press Space or Enter to pick up a label. Tab to a hotspot on the image and press Enter to place it. Press Escape to cancel.',
+			)}
 		</div>
 
 		<div
@@ -342,7 +380,7 @@ function handleRootKeyDown(event: KeyboardEvent) {
 								disabled={disabled || !!matchedHotspot}
 								aria-disabled={isUnavailable ? 'true' : undefined}
 								aria-pressed={isHeld}
-								aria-label="{gapText.text}{matchedHotspot ? '. Already placed on hotspot' : isUnavailable ? '. Not available due to match group restriction' : ''}{isHeld ? '. Picked up. Tab to a hotspot and press Enter to place.' : '. Press Space or Enter to pick up'}"
+								aria-label={paletteLabelAriaLabel(gapText.text, !!matchedHotspot, isUnavailable, isHeld)}
 								class="btn btn-md font-medium transition-all"
 								class:btn-primary={!matchedHotspot && !isHeld}
 								class:qti-ggm-label-held={isHeld}
@@ -362,7 +400,7 @@ function handleRootKeyDown(event: KeyboardEvent) {
 									part="label-remove"
 									class="btn btn-sm btn-circle btn-error"
 									onclick={() => clearMatch(gapText.identifier)}
-									aria-label="Remove {gapText.text} from hotspot"
+									aria-label={translate(i18n, 'interactions.graphicGapMatch.removeFromHotspot', 'Remove {label} from hotspot', { label: gapText.text })}
 									title={i18n?.t('interactions.graphicGapMatch.removeLabel') ?? 'Remove label'}
 								>
 									✕
@@ -389,7 +427,7 @@ function handleRootKeyDown(event: KeyboardEvent) {
 								disabled={disabled || !!matchedHotspot}
 								aria-disabled={isUnavailable ? 'true' : undefined}
 								aria-pressed={isHeld}
-								aria-label="{gapImage.alt || gapImage.identifier}{matchedHotspot ? '. Already placed on hotspot' : isUnavailable ? '. Not available due to match group restriction' : ''}{isHeld ? '. Picked up. Tab to a hotspot and press Enter to place.' : '. Press Space or Enter to pick up'}"
+								aria-label={paletteLabelAriaLabel(gapImage.alt || gapImage.identifier, !!matchedHotspot, isUnavailable, isHeld)}
 								class="btn btn-md p-1 transition-all"
 								class:btn-primary={!matchedHotspot && !isHeld}
 								class:qti-ggm-label-held={isHeld}
@@ -411,7 +449,9 @@ function handleRootKeyDown(event: KeyboardEvent) {
 									part="label-remove"
 									class="btn btn-sm btn-circle btn-error"
 									onclick={() => clearMatch(gapImage.identifier)}
-									aria-label="Remove {gapImage.alt || gapImage.identifier} from hotspot"
+									aria-label={translate(i18n, 'interactions.graphicGapMatch.removeFromHotspot', 'Remove {label} from hotspot', {
+										label: gapImage.alt || gapImage.identifier,
+									})}
 									title={i18n?.t('interactions.graphicGapMatch.removeLabel') ?? 'Remove label'}
 								>
 									✕
@@ -464,7 +504,12 @@ function handleRootKeyDown(event: KeyboardEvent) {
 								<circle
 									role="button"
 									tabindex={disabled ? -1 : 0}
-									aria-label="Hotspot {hotspotIndex + 1}{matchedGapText && gapTextObj ? '. Contains ' + gapTextObj.text : correctGapTextObj ? '. Correct answer: ' + correctGapTextObj.text : '. Empty'}{hotspotReady ? '. Press Enter to place ' + pickedUpLabelName + ' here' : ''}"
+									aria-label={hotspotAriaLabel(
+										hotspotIndex + 1,
+										matchedGapText ? gapTextObj?.text : undefined,
+										correctGapTextObj?.text,
+										hotspotReady ? pickedUpLabelName : null,
+									)}
 									cx={cx}
 									cy={cy}
 									r={r}
@@ -490,7 +535,12 @@ function handleRootKeyDown(event: KeyboardEvent) {
 								<rect
 									role="button"
 									tabindex={disabled ? -1 : 0}
-									aria-label="Hotspot {hotspotIndex + 1}{matchedGapText && gapTextObj ? '. Contains ' + gapTextObj.text : correctGapTextObj ? '. Correct answer: ' + correctGapTextObj.text : '. Empty'}{hotspotReady ? '. Press Enter to place ' + pickedUpLabelName + ' here' : ''}"
+									aria-label={hotspotAriaLabel(
+										hotspotIndex + 1,
+										matchedGapText ? gapTextObj?.text : undefined,
+										correctGapTextObj?.text,
+										hotspotReady ? pickedUpLabelName : null,
+									)}
 									x={x}
 									y={y}
 									width={width}

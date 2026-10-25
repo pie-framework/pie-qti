@@ -5,8 +5,8 @@ test.use({ hasTouch: true, viewport: { width: 375, height: 900 } });
 for (const nested of [false, true]) {
 	test(`touch reorders the published interaction through ${nested ? 'nested' : 'one'} shadow roots`, async ({ page }) => {
 		await page.goto(`fixtures/touch-drag?nested=${nested}`);
-		const source = page.getByRole('button', { name: 'One. Position 1 of 3', exact: true });
-		const target = page.getByRole('button', { name: 'Three. Position 3 of 3', exact: true });
+		const source = page.getByRole('button', { name: 'One. Position 1 of 3.', exact: true });
+		const target = page.getByRole('button', { name: 'Three. Position 3 of 3.', exact: true });
 		await source.scrollIntoViewIfNeeded();
 		await target.scrollIntoViewIfNeeded();
 		const from = await source.boundingBox();
@@ -27,14 +27,14 @@ for (const nested of [false, true]) {
 		await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
 		await expect(page.getByTestId('response')).toHaveText('["two","three","one"]');
 		await expect(page.getByTestId('change-count')).toHaveText('Changes: 1');
-		await expect(page.getByRole('button', { name: 'One. Position 3 of 3', exact: true })).not.toHaveCSS('opacity', '0.5');
+		await expect(page.getByRole('button', { name: 'One. Position 3 of 3.', exact: true })).not.toHaveCSS('opacity', '0.5');
 		await session.detach();
 	});
 }
 
 test('a cancelled touch does not commit an answer or leave the source faded', async ({ page }) => {
 	await page.goto('fixtures/touch-drag?nested=true');
-	const source = page.getByRole('button', { name: 'One. Position 1 of 3', exact: true });
+	const source = page.getByRole('button', { name: 'One. Position 1 of 3.', exact: true });
 	await source.scrollIntoViewIfNeeded();
 	const box = await source.boundingBox();
 	expect(box).not.toBeNull();

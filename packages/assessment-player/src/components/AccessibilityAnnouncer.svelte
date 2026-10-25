@@ -19,9 +19,12 @@
 	interface Props {
 		/** Priority level for announcements */
 		priority?: 'polite' | 'assertive';
+		/** The interface locale's `lang` and `dir`, which announcements are in. */
+		lang?: string;
+		dir?: 'ltr' | 'rtl';
 	}
 
-	const { priority = 'polite' }: Props = $props();
+	const { priority = 'polite', lang, dir }: Props = $props();
 
 	let announcement = $state('');
 	let currentPriority = $state<'polite' | 'assertive'>('polite');
@@ -89,6 +92,8 @@
 	- role="status": Indicates this is a status message
 -->
 <div
+	{lang}
+	{dir}
 	class="sr-only"
 	role="status"
 	aria-live={currentPriority}

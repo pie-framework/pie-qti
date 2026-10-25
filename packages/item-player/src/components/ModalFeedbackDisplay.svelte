@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { ModalFeedback } from '../types';
-	import type { I18nProvider } from '@pie-qti/i18n';
+	import { contentLanguageAttributes, type I18nProvider } from '@pie-qti/i18n';
 	import { typesetAction } from './actions/typesetAction';
 
 	interface Props {
@@ -8,9 +8,12 @@
 		onClose?: () => void;
 		typeset?: (element: HTMLElement) => void;
 		i18n?: I18nProvider;
+		/** The item's declared language, which the authored title and content are in. */
+		contentLanguage?: string;
 	}
 
-	let { feedback = [], onClose, typeset, i18n }: Props = $props();
+	let { feedback = [], onClose, typeset, i18n, contentLanguage }: Props = $props();
+	const contentAttributes = $derived(contentLanguageAttributes(contentLanguage));
 
 	// Show modal if there's feedback
 	const hasActiveFeedback = $derived(feedback.length > 0);
@@ -51,7 +54,12 @@
 
 			<!-- Feedback content -->
 			{#each feedback as item, index}
-				<div class:qti-feedback-item={true} class:qti-feedback-item-bordered={index < feedback.length - 1}>
+				<div
+					class:qti-feedback-item={true}
+					class:qti-feedback-item-bordered={index < feedback.length - 1}
+					lang={contentAttributes?.lang}
+					dir={contentAttributes?.dir}
+				>
 					{#if item.title}
 						<h3 id={index === 0 ? modalTitleId : undefined} class="qti-feedback-title">{item.title}</h3>
 					{/if}
@@ -129,7 +137,7 @@
 	.qti-feedback-close-button {
 		position: absolute;
 		top: 0.5rem;
-		right: 0.5rem;
+		inset-inline-end: 0.5rem;
 		width: 2rem;
 		height: 2rem;
 		padding: 0;

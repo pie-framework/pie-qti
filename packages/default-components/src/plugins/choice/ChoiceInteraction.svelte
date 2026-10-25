@@ -364,7 +364,7 @@
 
 	.qti-eliminate-btn {
 		position: absolute;
-		right: 0.25rem;
+		inset-inline-end: 0.25rem;
 		top: 50%;
 		transform: translateY(-50%);
 		background: none;

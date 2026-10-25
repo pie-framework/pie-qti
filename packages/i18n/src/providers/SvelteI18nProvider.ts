@@ -1,19 +1,39 @@
 /**
  * Svelte-specific I18n provider.
  *
- * Wraps any I18nProvider and persists locale to localStorage. Locale changes
- * trigger a page reload so that all components pick up the new locale without
- * needing reactive stores.
+ * Wraps any I18nProvider. `setLocale()` loads the catalog the locale negotiates
+ * to and switches the wrapped provider. Persisting the locale to localStorage
+ * and reloading the page afterwards are opt-in (`SvelteI18nProviderOptions`):
+ * a host that turns on reload gets every component re-rendered in the new
+ * locale without reactive stores; a host that does not re-renders itself.
  */
 
 import type { I18nProvider, PluralOptions } from '../core/I18nProvider.js';
-import type { LocaleCode, FrameworkLocaleCode, LocaleMessages } from '../core/types.js';
+import type { LocaleCode, LocaleMessages } from '../core/types.js';
+
+/** The localStorage key `persistLocale` writes by default. */
+export const DEFAULT_LOCALE_STORAGE_KEY = 'pie-qti-locale';
+
+export interface SvelteI18nProviderOptions {
+	/**
+	 * Write the locale to localStorage on `setLocale()`. Off by default. The
+	 * provider never reads it back: a host that persists reads the key at startup
+	 * and passes the value as the locale, so the host stays the only locale driver.
+	 */
+	persistLocale?: boolean;
+	/** localStorage key for `persistLocale`. Defaults to `'pie-qti-locale'`. */
+	storageKey?: string;
+	/** Reload the page after `setLocale()`. Off by default. */
+	reloadOnLocaleChange?: boolean;
+}
 
 export class SvelteI18nProvider implements I18nProvider {
 	private provider: I18nProvider;
+	private options: SvelteI18nProviderOptions;
 
-	constructor(provider: I18nProvider) {
+	constructor(provider: I18nProvider, options: SvelteI18nProviderOptions = {}) {
 		this.provider = provider;
+		this.options = options;
 	}
 
 	getLocale(): string {
@@ -21,14 +41,13 @@ export class SvelteI18nProvider implements I18nProvider {
 	}
 
 	async setLocale(locale: string): Promise<void> {
-		// Load the locale if using DefaultI18nProvider (only for framework locales)
+		// DefaultI18nProvider negotiates the tag and resolves without loading when
+		// no framework catalog serves it, so only a failed module load lands here.
 		if ('loadLocale' in this.provider && typeof this.provider.loadLocale === 'function') {
-			// Only load framework locales; custom locales should be provided via customMessages
 			try {
-				await this.provider.loadLocale(locale as FrameworkLocaleCode);
+				await this.provider.loadLocale(locale);
 			} catch {
-				// If framework locale doesn't exist, assume it's a custom locale
-				console.debug(`[i18n] Locale '${locale}' not available as framework locale, assuming custom locale`);
+				console.debug(`[i18n] Locale '${locale}' failed to load; rendering through the fallback locale`);
 			}
 		}
 
@@ -37,15 +56,11 @@ export class SvelteI18nProvider implements I18nProvider {
 			await result;
 		}
 
-		// Store locale in localStorage for persistence across page loads
-		if (typeof localStorage !== 'undefined') {
-			localStorage.setItem('pie-qti-locale', locale);
+		if (this.options.persistLocale && typeof localStorage !== 'undefined') {
+			localStorage.setItem(this.options.storageKey ?? DEFAULT_LOCALE_STORAGE_KEY, locale);
 		}
 
-		// Trigger page reload to apply new locale
-		// This simplifies the codebase significantly by eliminating the need for
-		// complex reactivity patterns in every component
-		if (typeof window !== 'undefined') {
+		if (this.options.reloadOnLocaleChange && typeof window !== 'undefined') {
 			window.location.reload();
 		}
 	}
@@ -63,11 +78,10 @@ export class SvelteI18nProvider implements I18nProvider {
 	}
 
 	/**
-	 * A locale-scoped view, wrapped so the caller keeps the Svelte provider's API.
+	 * A locale-scoped view of the wrapped provider, with its `ready` intact.
 	 *
-	 * The view deliberately does not inherit the reload-on-setLocale behaviour of
-	 * its parent: a per-element locale override exists precisely to avoid a
-	 * page-wide reload.
+	 * The view does not inherit persistence or reload-on-setLocale: a
+	 * per-element locale override exists precisely to avoid page-wide effects.
 	 */
 	withLocale(locale: string): I18nProvider {
 		const view = this.provider.withLocale?.(locale);
@@ -92,38 +106,35 @@ export class SvelteI18nProvider implements I18nProvider {
 /**
  * Factory function to create a Svelte i18n provider
  * @param provider - Base I18nProvider to wrap
+ * @param options - Opt-in persistence and reload behaviour
  */
-export function createSvelteI18nProvider(provider: I18nProvider): SvelteI18nProvider {
-	return new SvelteI18nProvider(provider);
+export function createSvelteI18nProvider(
+	provider: I18nProvider,
+	options?: SvelteI18nProviderOptions
+): SvelteI18nProvider {
+	return new SvelteI18nProvider(provider, options);
 }
 
 /**
- * Helper function to create a Svelte provider with the default implementation
- * @param locale - Initial locale code (ignored if locale is stored in localStorage)
+ * Helper function to create a Svelte provider with the default implementation,
+ * its locale's catalog already loaded
+ * @param locale - Initial locale tag; the host owns it (no storage is read)
  * @param customMessages - Optional custom translations to add or override framework defaults
+ * @param options - Opt-in persistence and reload behaviour
  */
 export async function createDefaultSvelteI18nProvider(
 	locale: LocaleCode = 'en-US',
-	customMessages?: Record<string, LocaleMessages>
+	customMessages?: Record<string, LocaleMessages>,
+	options?: SvelteI18nProviderOptions
 ): Promise<SvelteI18nProvider> {
 	const { DefaultI18nProvider } = await import('../core/I18n.js');
-
-	// DefaultI18nProvider constructor reads from localStorage automatically
-	// Pass the locale parameter as fallback if nothing in localStorage
 	const provider = new DefaultI18nProvider(locale, customMessages);
 
-	// Get the actual locale that will be used (either from localStorage or fallback)
-	const actualLocale = provider.getLocale() as FrameworkLocaleCode;
-
-	// Load the locale if it's not en-US (en-US is already loaded eagerly)
-	if (actualLocale !== 'en-US') {
-		try {
-			await provider.loadLocale(actualLocale);
-		} catch (error) {
-			// If framework locale doesn't exist, assume it's a custom locale
-			console.debug(`[i18n] Locale '${actualLocale}' not available as framework locale, assuming custom locale`);
-		}
+	try {
+		await provider.loadLocale(locale);
+	} catch {
+		console.debug(`[i18n] Locale '${locale}' failed to load; rendering through the fallback locale`);
 	}
 
-	return createSvelteI18nProvider(provider);
+	return createSvelteI18nProvider(provider, options);
 }

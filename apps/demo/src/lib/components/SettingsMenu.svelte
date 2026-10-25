@@ -8,7 +8,7 @@
   - Language selector with 8 available locales
   - Theme selector with all DaisyUI themes + high-contrast
   - localStorage persistence
-  - Page reload pattern for locale changes
+  - Page reload pattern for locale changes (opted into in +layout.svelte)
   - Visual indicators for active selections
   - Accessible keyboard navigation
 -->

@@ -8,12 +8,53 @@ export type { I18nProvider, InterpolationValues, PluralOptions } from './core/I1
 // Default implementation
 export { DefaultI18nProvider, createDefaultI18nProvider } from './core/I18n.js';
 
-// Svelte-specific provider with reactive stores
-export { SvelteI18nProvider, createSvelteI18nProvider, createDefaultSvelteI18nProvider } from './providers/SvelteI18nProvider.js';
+// Svelte-specific provider with opt-in persistence and reload
+export {
+	SvelteI18nProvider,
+	createSvelteI18nProvider,
+	createDefaultSvelteI18nProvider,
+	DEFAULT_LOCALE_STORAGE_KEY,
+} from './providers/SvelteI18nProvider.js';
+export type { SvelteI18nProviderOptions } from './providers/SvelteI18nProvider.js';
+
+// Language tags and locale negotiation
+export {
+	normalizeLanguageTag,
+	languageTagLookupSequence,
+	languageTagScript,
+	languageTagScriptsMatch,
+} from './core/language-tags.js';
+export {
+	FRAMEWORK_CATALOGS,
+	localeLookupSequence,
+	matchLanguageTag,
+	resolveFrameworkLocale,
+} from './core/negotiation.js';
+export type { FrameworkCatalogCode } from './core/negotiation.js';
+
+// Writing direction and the lang/dir pairs players write on their roots
+export {
+	canonicalLanguageTag,
+	contentLanguageAttributes,
+	interfaceLocaleAttributes,
+	languageDirection,
+} from './core/direction.js';
+export type { LanguageAttributes, TextDirection } from './core/direction.js';
+
+// Digits and calendar for locale formatting
+export { formattingLocale, numberingSystemFor } from './core/numbering.js';
+
+// Accessible names and live-region messages
+export { formatList, isImeComposing, joinSentences, translate, translatePlural } from './core/accessible-text.js';
+
+// Pseudo-locales for layout and coverage testing
+export { PSEUDO_LOCALE_EXPANDED, PSEUDO_LOCALE_RTL, pseudoLocalize } from './core/pseudo.js';
+export type { PseudoLocalizeOptions } from './core/pseudo.js';
 
 // Types
 export type {
 	LocaleCode,
+	FrameworkLocaleCode,
 	MessageKey,
 	LocaleMessages,
 } from './core/types.js';

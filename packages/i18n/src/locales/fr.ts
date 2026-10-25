@@ -1,5 +1,5 @@
 /**
- * French (France) translations
+ * French translations
  *
  * Guidelines for translators:
  * - Keep messages concise for UI constraints
@@ -172,6 +172,7 @@ export default {
 			keyboard: 'Clavier',
 			update: 'Mettre à jour',
 			insert: 'Insérer',
+			correctAnswerHeading: 'Bonne réponse :',
 		},
 
 		slider: {
@@ -198,6 +199,7 @@ export default {
 			altText: 'Interaction de zone sensible',
 			unknownImageDimensions:
 				'Cette zone sensible ne peut pas être affichée : la taille de son image est inconnue, les régions sélectionnables ne peuvent donc pas être positionnées. Ajoutez une largeur et une hauteur à l\'image, ou fournissez les dimensions du fichier.',
+			correctList: 'Correct : {ids}',
 		},
 
 		selectPoint: {
@@ -214,6 +216,7 @@ export default {
 			pointsSelected: 'Points sélectionnés :',
 			minimumMet: '✓ Minimum atteint',
 			selectAtLeast: 'Sélectionnez au moins {minChoices}',
+			correctPointAt: 'Point de la bonne réponse aux coordonnées {x}, {y}',
 		},
 
 		match: {
@@ -238,6 +241,12 @@ export default {
 			navigateToTarget: 'Naviguez vers une cible et appuyez sur Espace ou Entrée pour associer',
 			selectionCancelled: 'Sélection annulée',
 			matchCleared: 'Association effacée pour {item}',
+			maxReached: 'Nombre maximal d\'associations atteint. Supprimez une paire pour en ajouter une nouvelle.',
+			pairCreated: '{source} associé à {target}.',
+			matchedWithSentence: 'Associé à {targets}.',
+			selectedForMatchingSentence: 'Sélectionné pour l\'association.',
+			availableForMatchingSentence: 'Disponible pour l\'association.',
+			notCompatibleSentence: 'Incompatible avec l\'élément source sélectionné.',
 		},
 
 		gapMatch: {
@@ -273,6 +282,22 @@ export default {
 			labelPlaced: '{label} placé sur la zone sensible {hotspot}',
 			hotspot: 'Zone sensible {number}',
 			contains: 'Contient : {label}',
+			labelRemoved: '{label} retiré de la zone sensible.',
+			pickedUp: 'Saisi : {label}. Allez avec Tab sur une zone sensible et appuyez sur Entrée pour le placer.',
+			alreadyPlacedSentence: 'Déjà placé sur une zone sensible.',
+			unavailableSentence: 'Indisponible en raison d\'une restriction de groupe d\'association.',
+			heldHint: 'Saisi. Allez avec Tab sur une zone sensible et appuyez sur Entrée pour le placer.',
+			pickUpHint: 'Appuyez sur Espace ou Entrée pour saisir.',
+			selectedHint: 'Sélectionné pour placement.',
+			selectHint: 'Appuyez sur Espace pour sélectionner.',
+			hotspotContains: 'Zone sensible {number}. Contient {label}.',
+			hotspotCorrectAnswer: 'Zone sensible {number}. Bonne réponse : {label}.',
+			hotspotEmpty: 'Zone sensible {number}. Vide.',
+			hotspotAvailable: 'Zone sensible {number}. Disponible.',
+			placeHereHint: 'Appuyez sur Entrée pour placer {label} ici.',
+			placeLabelHint: 'Appuyez sur Espace ou Entrée pour placer l\'étiquette.',
+			labelFallback: 'Étiquette',
+			pickUpInstructions: 'Appuyez sur Espace ou Entrée pour prendre une étiquette. Tab jusqu\'à une zone sensible de l\'image, puis appuyez sur Entrée pour la placer. Appuyez sur Échap pour annuler.',
 		},
 
 		order: {
@@ -292,6 +317,9 @@ export default {
 			itemDropped: '{item} déposé à la position {position} sur {total}',
 			itemMoved: '{item} déplacé à la position {position} sur {total}',
 			selectionCancelled: 'Sélection de {item} annulée',
+			itemPosition: '{item}. Position {position} sur {total}.',
+			itemFallback: 'Élément',
+			orderConfirmed: 'Ordre confirmé',
 		},
 
 		associate: {
@@ -313,6 +341,7 @@ export default {
 			associationsCount: 'Associations ({count}/{max})',
 			clickHotspotsToAssociate: 'Cliquez sur deux zones sensibles sur l\'image pour créer une association.',
 			clickAnotherHotspot: 'Sélectionné : <strong>{label}</strong>. Cliquez sur une autre zone sensible pour créer une association.',
+			removeAssociationBetween: 'Supprimer l\'association entre {first} et {second}',
 		},
 
 		positionObject: {
@@ -330,6 +359,12 @@ export default {
 			availableObjectsCount: 'Objets disponibles ({count}/{max})',
 			dragObjectsInstruction: 'Faites glisser les objets sur le canevas pour les positionner.',
 			used: '{usageCount}/{matchMax} utilisé',
+			objectSelected: '{object} sélectionné. Allez avec Tab sur le canevas, puis utilisez les touches fléchées pour le positionner. Appuyez sur Entrée pour le placer ou sur Échap pour annuler.',
+			objectPlacedAt: '{object} placé à {x} %, {y} %.',
+			placementCancelled: 'Placement annulé.',
+			correctPositionFor: 'Position correcte de {label} à ({x}, {y})',
+			availableObjectsTotal: 'Objets disponibles ({count})',
+			paletteInstructions: 'Faites glisser les objets sur le canevas, ou appuyez sur Entrée ou Espace sur un objet, puis utilisez les touches fléchées pour le positionner sur le canevas.',
 		},
 
 		endAttempt: {
@@ -356,8 +391,11 @@ export default {
 			playCount: 'Nombre de lectures :',
 			remaining: 'Restant :',
 			requirementMet: '✓ Exigence satisfaite',
-			playAtLeast: 'Lire au moins {minPlays} fois',
-			playAtLeastPlural: 'Lire au moins {minPlays} fois',
+			playAtLeastCount: {
+				one: 'Lire au moins {count} fois',
+				many: 'Lire au moins {count} fois',
+				other: 'Lire au moins {count} fois',
+			},
 			browserNoSupport: 'Votre navigateur ne prend pas en charge ce type de média.',
 			audioNoSupport: 'Votre navigateur ne prend pas en charge l\'élément audio.',
 			videoNoSupport: 'Votre navigateur ne prend pas en charge l\'élément vidéo.',
@@ -383,11 +421,15 @@ export default {
 			placeholder: 'Entrez une réponse manuelle (solution de secours)',
 			attributes: 'Attributs',
 			xml: 'XML',
+			promptHeading: 'Invite :',
 		},
 
 		inline: {
 			placeholder: '...',
 			selectPlaceholder: 'Sélectionner...',
+			textEntryLabel: 'Saisie de texte {id}',
+			choiceLabel: 'Choix en ligne {id}',
+			formatHint: 'Format : {mask}',
 		},
 	},
 
@@ -487,6 +529,9 @@ export default {
 			loadFailed: 'Échec du chargement de la question.',
 			saveFailed: 'Échec de l\'enregistrement de la réponse.',
 		},
+		playerLabel: 'Lecteur d\'évaluation',
+		instructions: 'Consignes',
+		rubrics: 'Grilles d\'évaluation',
 	},
 
 	i18n: {
@@ -503,6 +548,20 @@ export default {
 		newQuestion: 'Nouvelle question chargée',
 		answerRecorded: 'Réponse enregistrée',
 		resizer: 'Redimensionner les panneaux de passage et de question',
+		sentence: '{text}.',
+		correctAnswer: 'Bonne réponse.',
+		correctAnswerIs: 'Bonne réponse : {answer}.',
+		correctPosition: 'Position correcte.',
+		positionPercent: 'Position : {x} %, {y} %.',
+		catalogShowDefinition: 'Afficher la définition : {term}',
+		catalogShowTranslation: 'Afficher la traduction : {term}',
+		catalogShowIllustratedGlossary: 'Afficher le glossaire illustré : {term}',
+		catalogRequestPronunciation: 'Demander la prononciation : {term}',
+		catalogRequestSigningDefinition: 'Demander la définition en langue des signes : {term}',
+		catalogRequestBrailleText: 'Demander le texte en braille : {term}',
+		catalogRequestAudioDescription: 'Demander l\'audiodescription : {term}',
+		catalogRequestExtendedDescription: 'Demander la description détaillée : {term}',
+		catalogRequestUsage: 'Demander {usage} : {term}',
 	},
 
 	demo: {

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { ModalFeedback } from '@pie-qti/item-player';
-	import type { I18nProvider } from '@pie-qti/i18n';
+	import { translate, type I18nProvider } from '@pie-qti/i18n';
 	import { typesetAction } from '../actions/typesetAction';
 
 	interface Props {
@@ -42,7 +42,7 @@
 		<div class="modal-box max-w-3xl">
 			<!-- Close button -->
 			<button
-				class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
+				class="btn btn-sm btn-circle btn-ghost absolute end-2 top-2"
 				type="button"
 				onclick={handleClose}
 				aria-label={i18n?.t('feedback.close') ?? 'Close feedback'}
@@ -70,7 +70,7 @@
 			<!-- Action buttons -->
 			<div class="modal-action">
 				<button class="btn btn-primary" type="button" onclick={handleClose}>
-					Continue
+					{translate(i18n, 'common.continue', 'Continue')}
 				</button>
 			</div>
 		</div>

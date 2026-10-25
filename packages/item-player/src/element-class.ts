@@ -108,6 +108,8 @@ export class PieQtiItemPlayerElement extends HTMLElementBase {
 	#pci: AssessmentItemDefinitionConfig['pci'];
 	#plugins: readonly AssessmentItemDefinitionPlugin[] | undefined;
 	#session: ItemSession | undefined;
+	/** The provider and locale whose view's `ready` this element already awaits. */
+	#awaited: { i18n: I18nProvider; locale: string } | undefined;
 	#responses: PieQtiItemPlayerResponseMap | undefined;
 
 	get itemXml() {
@@ -139,9 +141,11 @@ export class PieQtiItemPlayerElement extends HTMLElementBase {
 	 *
 	 * Applied by asking the provider for a locale-scoped view rather than by
 	 * calling `setLocale()` on it: the provider is shared with everything else on
-	 * the page, and `SvelteI18nProvider.setLocale()` reloads the document. Two
+	 * the page, and a host may have it persist or reload on `setLocale()`. Two
 	 * players can therefore carry different `locale` attributes over one provider.
-	 * Has no effect without an `i18n` provider — there is nothing to translate with.
+	 * A view whose catalog is not loaded renders English first and re-renders once
+	 * its `ready` settles. Has no effect without an `i18n` provider — there is
+	 * nothing to translate with.
 	 */
 	get locale(): string | undefined {
 		return this.#locale;
@@ -304,7 +308,27 @@ export class PieQtiItemPlayerElement extends HTMLElementBase {
 	 */
 	#resolveI18n(): I18nProvider | undefined {
 		if (!this.#i18n || !this.#locale) return this.#i18n;
-		return this.#i18n.withLocale?.(this.#locale) ?? this.#i18n;
+		const view = this.#i18n.withLocale?.(this.#locale) ?? this.#i18n;
+		this.#awaitCatalog(this.#i18n, this.#locale, view);
+		return view;
+	}
+
+	/**
+	 * Re-render once when the view's catalog finishes loading. Once per provider
+	 * and locale: renders in between get fresh views over the same load, and a
+	 * provider that sets `ready` on every view cannot loop. A change of provider
+	 * or locale meanwhile drops the re-render; that change rendered, and awaits,
+	 * its own view.
+	 */
+	#awaitCatalog(i18n: I18nProvider, locale: string, view: I18nProvider) {
+		if (!view.ready) return;
+		if (this.#awaited?.i18n === i18n && this.#awaited.locale === locale) return;
+		const awaited = { i18n, locale };
+		this.#awaited = awaited;
+		void view.ready.then(() => {
+			if (this.#awaited !== awaited || this.#i18n !== i18n || this.#locale !== locale) return;
+			this.#update();
+		});
 	}
 
 	#getProps(): ItemPlayerElementProps {

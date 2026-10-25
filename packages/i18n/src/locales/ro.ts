@@ -1,5 +1,5 @@
 /**
- * Romanian (Romania) translations
+ * Romanian translations
  *
  * Guidelines for translators:
  * - Keep messages concise for UI constraints
@@ -172,6 +172,7 @@ export default {
 			keyboard: 'Tastatură',
 			update: 'Actualizează',
 			insert: 'Inserează',
+			correctAnswerHeading: 'Răspuns corect:',
 		},
 
 		slider: {
@@ -198,6 +199,7 @@ export default {
 			altText: 'Interacțiune hotspot',
 			unknownImageDimensions:
 				'Acest hotspot nu poate fi afișat: dimensiunea imaginii sale este necunoscută, așa că regiunile selectabile nu pot fi poziționate. Adăugați lățime și înălțime imaginii sau furnizați dimensiunile fișierului.',
+			correctList: 'Corect: {ids}',
 		},
 
 		selectPoint: {
@@ -214,6 +216,7 @@ export default {
 			pointsSelected: 'Puncte selectate:',
 			minimumMet: '✓ Minim atins',
 			selectAtLeast: 'Selectează cel puțin {minChoices}',
+			correctPointAt: 'Punctul răspunsului corect la coordonatele {x}, {y}',
 		},
 
 		match: {
@@ -238,6 +241,12 @@ export default {
 			navigateToTarget: 'Navighează la o țintă și apasă Spațiu sau Enter pentru a potrivi',
 			selectionCancelled: 'Selecție anulată',
 			matchCleared: 'Potrivire ștearsă pentru {item}',
+			maxReached: 'S-a atins numărul maxim de asocieri. Elimină o pereche pentru a adăuga una nouă.',
+			pairCreated: '{source} potrivit cu {target}.',
+			matchedWithSentence: 'Potrivit cu {targets}.',
+			selectedForMatchingSentence: 'Selectat pentru potrivire.',
+			availableForMatchingSentence: 'Disponibil pentru potrivire.',
+			notCompatibleSentence: 'Incompatibil cu sursa selectată.',
 		},
 
 		gapMatch: {
@@ -273,6 +282,22 @@ export default {
 			labelPlaced: '{label} plasat pe hotspot {hotspot}',
 			hotspot: 'Hotspot {number}',
 			contains: 'Conține: {label}',
+			labelRemoved: '{label} eliminat de pe hotspot.',
+			pickedUp: 'Apucat: {label}. Mergi cu Tab la un hotspot și apasă Enter pentru a-l plasa.',
+			alreadyPlacedSentence: 'Deja plasat pe un hotspot.',
+			unavailableSentence: 'Indisponibil din cauza unei restricții de grup de potrivire.',
+			heldHint: 'Apucat. Mergi cu Tab la un hotspot și apasă Enter pentru a-l plasa.',
+			pickUpHint: 'Apasă Spațiu sau Enter pentru a apuca.',
+			selectedHint: 'Selectat pentru plasare.',
+			selectHint: 'Apasă Spațiu pentru a selecta.',
+			hotspotContains: 'Hotspot {number}. Conține {label}.',
+			hotspotCorrectAnswer: 'Hotspot {number}. Răspuns corect: {label}.',
+			hotspotEmpty: 'Hotspot {number}. Gol.',
+			hotspotAvailable: 'Hotspot {number}. Disponibil.',
+			placeHereHint: 'Apasă Enter pentru a plasa {label} aici.',
+			placeLabelHint: 'Apasă Spațiu sau Enter pentru a plasa eticheta.',
+			labelFallback: 'Etichetă',
+			pickUpInstructions: 'Apasă Spațiu sau Enter pentru a prelua o etichetă. Tab până la un hotspot de pe imagine și apasă Enter pentru a o plasa. Apasă Escape pentru a anula.',
 		},
 
 		order: {
@@ -292,6 +317,9 @@ export default {
 			itemDropped: '{item} plasat la poziția {position} din {total}',
 			itemMoved: '{item} mutat la poziția {position} din {total}',
 			selectionCancelled: 'Selecție {item} anulată',
+			itemPosition: '{item}. Poziția {position} din {total}.',
+			itemFallback: 'Element',
+			orderConfirmed: 'Ordine confirmată',
 		},
 
 		associate: {
@@ -313,6 +341,7 @@ export default {
 			associationsCount: 'Asocieri ({count}/{max})',
 			clickHotspotsToAssociate: 'Clic pe două hotspot-uri pe imagine pentru a crea o asociere.',
 			clickAnotherHotspot: 'Selectat: <strong>{label}</strong>. Clic pe un alt hotspot pentru a crea o asociere.',
+			removeAssociationBetween: 'Elimină asocierea dintre {first} și {second}',
 		},
 
 		positionObject: {
@@ -330,6 +359,12 @@ export default {
 			availableObjectsCount: 'Obiecte disponibile ({count}/{max})',
 			dragObjectsInstruction: 'Trage obiectele pe canvas pentru a le poziționa.',
 			used: '{usageCount}/{matchMax} folosit',
+			objectSelected: '{object} selectat. Mergi cu Tab la canvas, apoi folosește săgețile pentru a-l poziționa. Apasă Enter pentru a-l plasa sau Escape pentru a anula.',
+			objectPlacedAt: '{object} plasat la {x}%, {y}%.',
+			placementCancelled: 'Plasare anulată.',
+			correctPositionFor: 'Poziția corectă pentru {label} la ({x}, {y})',
+			availableObjectsTotal: 'Obiecte disponibile ({count})',
+			paletteInstructions: 'Trage obiectele pe canvas sau apasă Enter ori Spațiu pe un obiect, apoi folosește tastele săgeți pentru a-l poziționa pe canvas.',
 		},
 
 		endAttempt: {
@@ -356,8 +391,11 @@ export default {
 			playCount: 'Număr de redări:',
 			remaining: 'Rămas:',
 			requirementMet: '✓ Cerință îndeplinită',
-			playAtLeast: 'Redați cel puțin {minPlays} ori',
-			playAtLeastPlural: 'Redați cel puțin {minPlays} ori',
+			playAtLeastCount: {
+				one: 'Redați cel puțin {count} dată',
+				few: 'Redați cel puțin {count} ori',
+				other: 'Redați cel puțin {count} de ori',
+			},
 			browserNoSupport: 'Browserul tău nu suportă acest tip de media.',
 			audioNoSupport: 'Browserul tău nu suportă elementul audio.',
 			videoNoSupport: 'Browserul tău nu suportă elementul video.',
@@ -383,11 +421,15 @@ export default {
 			placeholder: 'Introdu un răspuns manual (alternativ)',
 			attributes: 'Atribute',
 			xml: 'XML',
+			promptHeading: 'Prompt:',
 		},
 
 		inline: {
 			placeholder: '...',
 			selectPlaceholder: 'Selectare...',
+			textEntryLabel: 'Introducere text {id}',
+			choiceLabel: 'Alegere în text {id}',
+			formatHint: 'Format: {mask}',
 		},
 	},
 
@@ -487,6 +529,9 @@ export default {
 			loadFailed: 'Încărcarea întrebării a eșuat.',
 			saveFailed: 'Salvarea răspunsului a eșuat.',
 		},
+		playerLabel: 'Player de evaluare',
+		instructions: 'Instrucțiuni',
+		rubrics: 'Rubrici',
 	},
 
 	i18n: {
@@ -503,6 +548,20 @@ export default {
 		newQuestion: 'Întrebare nouă încărcată',
 		answerRecorded: 'Răspuns înregistrat',
 		resizer: 'Redimensionează panourile de pasaj și întrebare',
+		sentence: '{text}.',
+		correctAnswer: 'Răspuns corect.',
+		correctAnswerIs: 'Răspuns corect: {answer}.',
+		correctPosition: 'Poziție corectă.',
+		positionPercent: 'Poziție: {x}%, {y}%.',
+		catalogShowDefinition: 'Afișează definiția: {term}',
+		catalogShowTranslation: 'Afișează traducerea: {term}',
+		catalogShowIllustratedGlossary: 'Afișează glosarul ilustrat: {term}',
+		catalogRequestPronunciation: 'Solicită pronunția: {term}',
+		catalogRequestSigningDefinition: 'Solicită definiția în limbajul semnelor: {term}',
+		catalogRequestBrailleText: 'Solicită textul în braille: {term}',
+		catalogRequestAudioDescription: 'Solicită descrierea audio: {term}',
+		catalogRequestExtendedDescription: 'Solicită descrierea extinsă: {term}',
+		catalogRequestUsage: 'Solicită {usage}: {term}',
 	},
 
 	demo: {

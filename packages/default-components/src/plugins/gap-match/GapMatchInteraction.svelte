@@ -3,7 +3,7 @@
 <script lang="ts">
 	import type { GapMatchInteractionData, PlayerSecurityConfig } from '@pie-qti/item-player';
 	import { normalizeCssPixelLength, sanitizeSharedHtml } from '@pie-qti/item-player/security';
-	import type { I18nProvider } from '@pie-qti/i18n';
+	import { joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
@@ -215,18 +215,22 @@
 					btn.classList.add('qti-gm-gap-correct');
 				}
 				// K-02: update aria-label to hint drop action when a word is held
-				let filledAriaLabel: string;
-				if (pickedUpWord !== null) {
-					const heldWordText = getWordText(pickedUpWord);
-					filledAriaLabel =
-						i18n?.t('interactions.gapMatch.filledGapAriaLabelWithHeld', { gapId, word, heldWord: heldWordText }) ??
-						`Blank ${gapId}, filled with ${word}. Press Enter to replace with ${heldWordText}.${isCorrect ? ' Correct answer.' : ''}`;
-				} else {
-					filledAriaLabel =
-						i18n?.t('interactions.gapMatch.filledGapAriaLabel', { gapId, word }) ??
-						`Blank ${gapId}, filled with ${word}. Click to clear.${isCorrect ? ' Correct answer.' : ''}`;
-				}
-				btn.setAttribute('aria-label', filledAriaLabel);
+				const filledAriaLabel =
+					pickedUpWord !== null
+						? translate(
+								i18n,
+								'interactions.gapMatch.filledGapAriaLabelWithHeld',
+								'Blank {gapId}, filled with {word}. Select to replace with {heldWord}.',
+								{ gapId, word, heldWord: getWordText(pickedUpWord) },
+							)
+						: translate(i18n, 'interactions.gapMatch.filledGapAriaLabel', 'Blank {gapId}, filled with {word}. Click to clear.', {
+								gapId,
+								word,
+							});
+				btn.setAttribute(
+					'aria-label',
+					joinSentences(filledAriaLabel, isCorrect && translate(i18n, 'accessibility.correctAnswer', 'Correct answer.')),
+				);
 			} else {
 				// Keep the gap visually blank (no letters), but still accessible.
 				btn.textContent = '';
@@ -238,18 +242,22 @@
 					btn.removeAttribute('data-empty');
 				}
 				// K-02: update aria-label to hint drop action when a word is held
-				let ariaLabel: string;
-				if (pickedUpWord !== null) {
-					const heldWordText = getWordText(pickedUpWord);
-					ariaLabel =
-						i18n?.t('interactions.gapMatch.blankGapAriaLabelWithHeld', { gapId, heldWord: heldWordText }) ??
-						`Blank ${gapId}. Press Enter to place ${heldWordText} here.${isCorrect ? ' Correct answer: ' + getWordText(correct) : ''}`;
-				} else {
-					ariaLabel =
-						i18n?.t('interactions.gapMatch.blankGapAriaLabel', { gapId }) ??
-						`Blank ${gapId}. Drop an answer here.${isCorrect ? ' Correct answer: ' + getWordText(correct) : ''}`;
-				}
-				btn.setAttribute('aria-label', ariaLabel);
+				const ariaLabel =
+					pickedUpWord !== null
+						? translate(i18n, 'interactions.gapMatch.blankGapAriaLabelWithHeld', 'Blank {gapId}. Select to place {heldWord} here.', {
+								gapId,
+								heldWord: getWordText(pickedUpWord),
+							})
+						: translate(i18n, 'interactions.gapMatch.blankGapAriaLabel', 'Blank {gapId}. Drop an answer here.', { gapId });
+				btn.setAttribute(
+					'aria-label',
+					joinSentences(
+						ariaLabel,
+						isCorrect &&
+							correct &&
+							translate(i18n, 'accessibility.correctAnswerIs', 'Correct answer: {answer}.', { answer: getWordText(correct) }),
+					),
+				);
 			}
 
 			// K-02: apply "ready to receive" visual class when a word is held
@@ -419,7 +427,7 @@
 			aria-label={i18n?.t('interactions.gapMatch.availableLabel') ?? 'Available words to place'}
 		>
 			<div class="qti-gm-palette-title w-full text-sm text-base-content/70 font-semibold mb-2">
-				Available words:
+				{translate(i18n, 'interactions.gapMatch.availableHeading', 'Available words:')}
 			</div>
 			{#each parsedInteraction.gapTexts as gapText (gapText.identifier)}
 				{@const used = isWordUsed(gapText.identifier)}
@@ -455,7 +463,7 @@
 							part="word-remove"
 							class="btn btn-sm btn-circle btn-error"
 							onclick={() => clearWord(gapText.identifier)}
-							aria-label="Remove {gapText.text} from the blanks"
+							aria-label={translate(i18n, 'interactions.gapMatch.removeFromBlanks', 'Remove {word} from the blanks', { word: gapText.text })}
 							title={i18n?.t('interactions.gapMatch.removeWord') ?? 'Remove word'}
 						>
 							✕

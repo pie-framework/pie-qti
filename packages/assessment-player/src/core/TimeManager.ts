@@ -502,17 +502,27 @@ export class TimeManager {
 
 	/**
 	 * Format time as MM:SS or HH:MM:SS
+	 *
+	 * Pass the provider's `formatNumber` to render the locale's digits; without
+	 * it the digits are Western.
 	 */
-	static formatTime(seconds: number): string {
+	static formatTime(
+		seconds: number,
+		formatNumber?: (value: number, options?: Intl.NumberFormatOptions) => string
+	): string {
 		const hours = Math.floor(seconds / 3600);
 		const minutes = Math.floor((seconds % 3600) / 60);
 		const secs = seconds % 60;
+		const format = (value: number, digits: number) =>
+			formatNumber
+				? formatNumber(value, { minimumIntegerDigits: digits, useGrouping: false })
+				: value.toString().padStart(digits, '0');
 
 		if (hours > 0) {
-			return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+			return `${format(hours, 1)}:${format(minutes, 2)}:${format(secs, 2)}`;
 		}
 
-		return `${minutes}:${secs.toString().padStart(2, '0')}`;
+		return `${format(minutes, 1)}:${format(secs, 2)}`;
 	}
 
 	/**

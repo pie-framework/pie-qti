@@ -59,3 +59,41 @@ describe.each([
 		expect(prepareContentMarkup(xml, [], { hidingStyles: false })).toEqual(prepared);
 	});
 });
+
+describe('content direction', () => {
+	const body = (root: string, content: string) =>
+		prepareContentMarkup(
+			`<?xml version="1.0"?>\n<!-- authored -->\n<qti-assessment-item ${root} identifier="dir"><qti-item-body>${content}</qti-item-body></qti-assessment-item>`
+		).xml;
+
+	test('gives a span the direction of its language where it differs from its context', () => {
+		expect(body('xml:lang="en"', '<p>Say <span xml:lang="ar">مرحبا</span></p>')).toContain(
+			'<span xml:lang="ar" lang="ar" dir="rtl">مرحبا</span>'
+		);
+		expect(body('xml:lang="ar"', '<p>قل <span xml:lang="fr">bonjour</span></p>')).toContain(
+			'<span xml:lang="fr" lang="fr" dir="ltr">bonjour</span>'
+		);
+	});
+
+	test('leaves a span whose direction matches its context without dir', () => {
+		expect(body('xml:lang="en"', '<p><span xml:lang="fr">bonjour</span></p>')).toContain(
+			'<span xml:lang="fr" lang="fr">bonjour</span>'
+		);
+		expect(body('', '<p><span xml:lang="es">hola</span></p>')).toContain('<span xml:lang="es" lang="es">hola</span>');
+	});
+
+	test('takes the context from the nearest ancestor with a language or dir', () => {
+		expect(body('xml:lang="en"', '<div xml:lang="ar"><span xml:lang="ur">سلام</span></div>')).toContain(
+			'<span xml:lang="ur" lang="ur">سلام</span>'
+		);
+		expect(body('xml:lang="ar"', '<div dir="ltr"><span xml:lang="ar">مرحبا</span></div>')).toContain(
+			'<span xml:lang="ar" lang="ar" dir="rtl">مرحبا</span>'
+		);
+	});
+
+	test('keeps an authored dir', () => {
+		expect(body('xml:lang="en"', '<span xml:lang="ar" dir="ltr">AR-123</span>')).toContain(
+			'<span xml:lang="ar" dir="ltr" lang="ar">AR-123</span>'
+		);
+	});
+});

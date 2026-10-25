@@ -9,6 +9,7 @@
 
 import { describe, expect, test, beforeEach, afterEach } from 'bun:test';
 import { DefaultI18nProvider, createDefaultI18nProvider } from '../src/core/I18n.js';
+import { FRAMEWORK_CATALOGS, resolveFrameworkLocale } from '../src/core/negotiation.js';
 import { SvelteI18nProvider } from '../src/providers/SvelteI18nProvider.js';
 
 const LOCALE_STORAGE_KEY = 'pie-qti-locale';
@@ -148,15 +149,22 @@ describe('DefaultI18nProvider — locale loading', () => {
 		expect(i18n.t('common.submit')).toBe('Enviar');
 	});
 
-	test('loadLocale rejects for a locale the framework does not ship', async () => {
+	test('loadLocale resolves without loading for a locale the framework does not ship', async () => {
 		const i18n = new DefaultI18nProvider('en-US');
-		expect(i18n.loadLocale('xx-XX' as any)).rejects.toThrow(
-			/Locale 'xx-XX' is not a framework locale/
-		);
+		await i18n.loadLocale('xx-XX');
+		i18n.setLocale('xx-XX');
+		expect(i18n.t('common.submit')).toBe('Submit');
+	});
+
+	test('concurrent loads of one catalog share a single import', async () => {
+		const i18n = new DefaultI18nProvider('en-US');
+		await Promise.all([i18n.loadLocale('es-ES'), i18n.loadLocale('es-MX'), i18n.loadLocale('es')]);
+		i18n.setLocale('es-MX');
+		expect(i18n.t('common.submit')).toBe('Enviar');
 	});
 
 	test('every locale in the loader map actually loads', async () => {
-		const locales = ['ar-SA', 'es-ES', 'fr-FR', 'nl-NL', 'ro-RO', 'th-TH', 'zh-CN'] as const;
+		const locales = ['ar', 'es', 'fr', 'nl', 'ro', 'th', 'zh-Hans', 'ar-SA', 'es-ES', 'zh-CN'] as const;
 		for (const locale of locales) {
 			const i18n = new DefaultI18nProvider('en-US');
 			await i18n.loadLocale(locale);
@@ -242,17 +250,18 @@ describe('DefaultI18nProvider — pluralization', () => {
 		await i18n.loadLocale('ar-SA');
 		i18n.setLocale('ar-SA');
 
-		const arabic = (await import('../src/locales/ar-SA.js')).default;
+		const arabic = (await import('../src/locales/ar.js')).default;
 		const items = arabic.plurals.items;
 
-		// zero / one / two / few (3–10) / many (11–99) / other (100, 101, …)
-		expect(i18n.plural('plurals.items', { count: 0 })).toBe(items.zero.replace('{count}', '0'));
+		// zero / one / two / few (3–10) / many (11–99) / other (100, 101, …), with
+		// the count in ar-SA's Arabic-Indic digits
+		expect(i18n.plural('plurals.items', { count: 0 })).toBe(items.zero.replace('{count}', '٠'));
 		expect(i18n.plural('plurals.items', { count: 1 })).toBe(items.one);
 		expect(i18n.plural('plurals.items', { count: 2 })).toBe(items.two);
-		expect(i18n.plural('plurals.items', { count: 3 })).toBe(items.few.replace('{count}', '3'));
-		expect(i18n.plural('plurals.items', { count: 11 })).toBe(items.many.replace('{count}', '11'));
+		expect(i18n.plural('plurals.items', { count: 3 })).toBe(items.few.replace('{count}', '٣'));
+		expect(i18n.plural('plurals.items', { count: 11 })).toBe(items.many.replace('{count}', '١١'));
 		expect(i18n.plural('plurals.items', { count: 100 })).toBe(
-			items.other.replace('{count}', '100')
+			items.other.replace('{count}', '١٠٠')
 		);
 
 		// The six forms are genuinely distinct, so a one/other implementation
@@ -264,8 +273,8 @@ describe('DefaultI18nProvider — pluralization', () => {
 	});
 
 	test('every plurals.* key resolves for every framework locale', async () => {
-		const locales = ['en-US', 'ar-SA', 'es-ES', 'fr-FR', 'nl-NL', 'ro-RO', 'th-TH', 'zh-CN'] as const;
-		const enUS = (await import('../src/locales/en-US.js')).default;
+		const locales = ['en', 'ar', 'es', 'fr', 'nl', 'ro', 'th', 'zh-Hans'] as const;
+		const enUS = (await import('../src/locales/en.js')).default;
 		const keys = Object.keys(enUS.plurals);
 
 		for (const locale of locales) {
@@ -311,16 +320,7 @@ describe('DefaultI18nProvider — pluralization', () => {
 describe('locale catalogs — no ICU MessageFormat', () => {
 	// The runtime interpolates `{name}` only; an ICU argument would render its own
 	// source text to users. The transform.* namespace used to carry six of them.
-	const FRAMEWORK_LOCALES = [
-		'en-US',
-		'ar-SA',
-		'es-ES',
-		'fr-FR',
-		'nl-NL',
-		'ro-RO',
-		'th-TH',
-		'zh-CN',
-	] as const;
+	const FRAMEWORK_LOCALES = FRAMEWORK_CATALOGS;
 
 	function* walk(node: any, path: string[] = []): Generator<[string, string]> {
 		for (const [key, value] of Object.entries(node)) {
@@ -376,12 +376,12 @@ describe('locale catalogs — no ICU MessageFormat', () => {
 		await i18n.loadLocale('ar-SA');
 		i18n.setLocale('ar-SA');
 
-		const arabic = (await import('../src/locales/ar-SA.js')).default;
+		const arabic = (await import('../src/locales/ar.js')).default;
 		const itemCount = arabic.transform.samples.itemCount;
 
 		expect(i18n.plural('transform.samples.itemCount', { count: 2 })).toBe(itemCount.two);
 		expect(i18n.plural('transform.samples.itemCount', { count: 11 })).toBe(
-			itemCount.many.replace('{count}', '11')
+			itemCount.many.replace('{count}', '١١')
 		);
 	});
 });
@@ -403,6 +403,45 @@ describe('DefaultI18nProvider — Intl formatting', () => {
 			timeZone: 'UTC',
 		});
 		expect(result).toBe('1/9/26');
+	});
+
+	// CLDR 48 digits, pinned so the runtime's ICU does not decide them
+	test.each([
+		['ar', '1,234.5'],
+		['ar-EG', '١٬٢٣٤٫٥'],
+		['ar-SA', '١٬٢٣٤٫٥'],
+		['ar-MA', '1.234,5'],
+		['ar-AE', '1,234.5'],
+		['fa-IR', '۱٬۲۳۴٫۵'],
+		['ur-IN', '۱٬۲۳۴٫۵'],
+		['ar-EG-u-nu-latn', '1,234.5'],
+	])('%s formats 1234.5 as %s', (locale, expected) => {
+		expect(new DefaultI18nProvider(locale).formatNumber(1234.5)).toBe(expected);
+	});
+
+	test.each([
+		['ar-SA', '٢٠٢٦'],
+		['fa-IR', '۲۰۲۶'],
+		['th-TH', '2026'],
+	])('%s dates are Gregorian', (locale, year) => {
+		const result = new DefaultI18nProvider(locale).formatDate(new Date('2026-01-09T12:00:00Z'), {
+			year: 'numeric',
+			timeZone: 'UTC',
+		});
+		expect(result).toContain(year);
+	});
+
+	test('a host calendar extension is honoured', () => {
+		const result = new DefaultI18nProvider('fa-IR-u-ca-persian').formatDate(new Date('2026-01-09T12:00:00Z'), {
+			year: 'numeric',
+			timeZone: 'UTC',
+		});
+		expect(result).toContain('۱۴۰۴');
+	});
+
+	test('numbers interpolated into a message take the locale digits', () => {
+		const i18n = new DefaultI18nProvider('ar-EG', { 'ar-EG': { demo: { of: '{current} / {total} ({id})' } } });
+		expect(i18n.t('demo.of', { current: 3, total: 12, id: '42' })).toBe('٣ / ١٢ (42)');
 	});
 });
 
@@ -480,20 +519,38 @@ describe('DefaultI18nProvider — withLocale', () => {
 		expect(i18n.t('common.submit')).toBe('Enviar');
 	});
 
-	test('a view for the active locale is the provider itself', () => {
+	test('a view for the active, loaded locale is the provider itself', () => {
 		const i18n = new DefaultI18nProvider('en-US');
 		expect(i18n.withLocale('en-US')).toBe(i18n);
 	});
 
-	test('a persisted locale does not override an explicit view', () => {
-		stubLocalStorage({ [LOCALE_STORAGE_KEY]: 'ar-SA' });
-		try {
-			const i18n = new DefaultI18nProvider('en-US');
-			expect(i18n.getLocale()).toBe('ar-SA'); // constructor honours storage
-			expect(i18n.withLocale('es-ES').getLocale()).toBe('es-ES'); // the view does not
-		} finally {
-			clearGlobalStubs();
-		}
+	test('a view for the active but unloaded locale is a loading view', async () => {
+		const i18n = new DefaultI18nProvider('fr-FR');
+		const view = i18n.withLocale('fr-FR');
+		expect(view).not.toBe(i18n);
+		await view.ready;
+		expect(i18n.t('common.next')).toBe('Suivant');
+	});
+
+	test('an unloaded view renders English, then its own locale once ready settles', async () => {
+		const i18n = new DefaultI18nProvider('en-US');
+		const view = i18n.withLocale('es-MX');
+
+		expect(view.t('common.submit')).toBe('Submit');
+		await view.ready;
+		expect(view.t('common.submit')).toBe('Enviar');
+		expect(i18n.t('common.submit')).toBe('Submit'); // the parent keeps its locale
+	});
+
+	test('a view over a resident catalog, or none to load, has no ready', async () => {
+		const i18n = new DefaultI18nProvider('en-US');
+		expect(i18n.withLocale('de-DE').ready).toBeUndefined();
+		expect(i18n.withLocale('en-GB').ready).toBeUndefined();
+
+		await i18n.withLocale('fr-FR').ready;
+		const resident = i18n.withLocale('fr-CA');
+		expect(resident.ready).toBeUndefined();
+		expect(resident.t('common.next')).toBe('Suivant');
 	});
 
 	test('custom messages carry into the view', () => {
@@ -504,22 +561,87 @@ describe('DefaultI18nProvider — withLocale', () => {
 	});
 });
 
-describe('DefaultI18nProvider — localStorage', () => {
+describe('DefaultI18nProvider — the host owns the locale', () => {
 	afterEach(clearGlobalStubs);
 
-	test('a stored locale overrides the constructor argument', () => {
-		stubLocalStorage({ [LOCALE_STORAGE_KEY]: 'es-ES' });
-		expect(new DefaultI18nProvider('en-US').getLocale()).toBe('es-ES');
-	});
-
-	test('the constructor argument is used when nothing is stored', () => {
-		stubLocalStorage();
-		expect(new DefaultI18nProvider('fr-FR').getLocale()).toBe('fr-FR');
+	test('a stored pie-qti-locale does not override the host locale', () => {
+		const store = stubLocalStorage({ [LOCALE_STORAGE_KEY]: 'es-ES' });
+		const i18n = new DefaultI18nProvider('en-US');
+		expect(i18n.getLocale()).toBe('en-US');
+		expect(i18n.t('common.submit')).toBe('Submit');
+		i18n.setLocale('fr-FR');
+		expect(store.get(LOCALE_STORAGE_KEY)).toBe('es-ES'); // nothing written either
 	});
 
 	test('construction does not throw where localStorage is absent', () => {
 		clearGlobalStubs();
 		expect(new DefaultI18nProvider('en-US').getLocale()).toBe('en-US');
+	});
+});
+
+describe('DefaultI18nProvider — locale negotiation', () => {
+	test.each([
+		['ar', 'ar'],
+		['ar-EG', 'ar'],
+		['ar_SA', 'ar'],
+		['ar-SA', 'ar'],
+		['es-MX', 'es'],
+		['es_ES', 'es'],
+		['es-419', 'es'],
+		['fr-CA', 'fr'],
+		['nl-BE', 'nl'],
+		['en-GB', 'en'],
+		['zh', 'zh-Hans'],
+		['zh-CN', 'zh-Hans'],
+		['zh-SG', 'zh-Hans'],
+		['zh-Hans-CN', 'zh-Hans'],
+	])('%s resolves to the %s catalog', (tag, catalog) => {
+		expect(resolveFrameworkLocale(tag)).toBe(catalog as (typeof FRAMEWORK_CATALOGS)[number]);
+	});
+
+	test.each(['zh-TW', 'zh-HK', 'zh-Hant', 'zh-Hant-TW', 'de-DE', 'not a tag'])(
+		'%s has no framework catalog',
+		(tag) => {
+			expect(resolveFrameworkLocale(tag)).toBeUndefined();
+		}
+	);
+
+	test.each([
+		['ar', 'ar'],
+		['ar-EG', 'ar'],
+		['ar_SA', 'ar'],
+		['es-MX', 'es'],
+	] as const)('%s renders the %s catalog', async (tag, catalog) => {
+		const messages = (await import(`../src/locales/${catalog}.js`)).default;
+		const i18n = new DefaultI18nProvider(tag);
+		await i18n.loadLocale(tag);
+		expect(i18n.t('common.submit')).toBe(messages.common.submit);
+		expect(i18n.t('common.submit')).not.toBe('Submit');
+	});
+
+	test('zh-TW does not render the Simplified catalog', async () => {
+		const i18n = new DefaultI18nProvider('zh-TW');
+		await i18n.loadLocale('zh-CN'); // resident, but not for this request
+		await i18n.loadLocale('zh-TW');
+		expect(i18n.t('common.submit')).toBe('Submit');
+	});
+
+	test('custom messages keyed by language serve a regional request', () => {
+		const i18n = new DefaultI18nProvider('de-AT', { de: { common: { submit: 'Absenden' } } });
+		expect(i18n.t('common.submit')).toBe('Absenden');
+	});
+
+	test('a regional custom key beats the language catalog', async () => {
+		const i18n = new DefaultI18nProvider('es-MX', { 'es-MX': { common: { submit: 'Mandar' } } });
+		await i18n.loadLocale('es-MX');
+		expect(i18n.t('common.submit')).toBe('Mandar');
+		expect(i18n.t('common.cancel')).toBe('Cancelar');
+	});
+
+	test('POSIX tags format through Intl', () => {
+		const i18n = new DefaultI18nProvider('nl_NL');
+		expect(i18n.formatNumber(1234.56)).toBe('1.234,56');
+		expect(i18n.getDirection()).toBe('ltr');
 	});
 });
 
@@ -539,7 +661,7 @@ describe('SvelteI18nProvider', () => {
 		expect(svelte.t('common.submit')).toBe('Enviar');
 	});
 
-	test('setLocale persists the locale and reloads the page', async () => {
+	test('setLocale neither persists nor reloads by default', async () => {
 		const store = stubLocalStorage();
 		let reloads = 0;
 		(globalThis as any).window = { location: { reload: () => void reloads++ } };
@@ -547,8 +669,34 @@ describe('SvelteI18nProvider', () => {
 		const svelte = new SvelteI18nProvider(new DefaultI18nProvider('en-US'));
 		await svelte.setLocale('es-ES');
 
+		expect(store.has(LOCALE_STORAGE_KEY)).toBe(false);
+		expect(reloads).toBe(0);
+	});
+
+	test('setLocale persists the locale and reloads the page when the host opts in', async () => {
+		const store = stubLocalStorage();
+		let reloads = 0;
+		(globalThis as any).window = { location: { reload: () => void reloads++ } };
+
+		const svelte = new SvelteI18nProvider(new DefaultI18nProvider('en-US'), {
+			persistLocale: true,
+			reloadOnLocaleChange: true,
+		});
+		await svelte.setLocale('es-ES');
+
 		expect(store.get(LOCALE_STORAGE_KEY)).toBe('es-ES');
 		expect(reloads).toBe(1);
+	});
+
+	test('persistLocale honours a custom storage key', async () => {
+		const store = stubLocalStorage();
+		const svelte = new SvelteI18nProvider(new DefaultI18nProvider('en-US'), {
+			persistLocale: true,
+			storageKey: 'host-locale',
+		});
+		await svelte.setLocale('fr-FR');
+		expect(store.get('host-locale')).toBe('fr-FR');
+		expect(store.has(LOCALE_STORAGE_KEY)).toBe(false);
 	});
 
 	test('setLocale tolerates a custom locale with no framework catalog', async () => {
@@ -583,8 +731,11 @@ describe('SvelteI18nProvider', () => {
 		let reloads = 0;
 		(globalThis as any).window = { location: { reload: () => void reloads++ } };
 
-		const svelte = new SvelteI18nProvider(new DefaultI18nProvider('en-US'));
-		svelte.withLocale('es-ES');
+		const svelte = new SvelteI18nProvider(new DefaultI18nProvider('en-US'), {
+			persistLocale: true,
+			reloadOnLocaleChange: true,
+		});
+		await svelte.withLocale('es-ES').ready;
 
 		expect(reloads).toBe(0);
 	});

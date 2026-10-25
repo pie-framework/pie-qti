@@ -2,7 +2,7 @@
 
 <script lang="ts">
 	import type { EndAttemptInteractionData } from '@pie-qti/item-player';
-	import type { I18nProvider } from '@pie-qti/i18n';
+	import { translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
@@ -74,7 +74,7 @@
 				<svg
 					xmlns="http://www.w3.org/2000/svg"
 					part="icon"
-					class="qti-icon h-6 w-6 mr-2"
+					class="qti-icon h-6 w-6 me-2"
 					fill="none"
 					viewBox="0 0 24 24"
 					stroke="currentColor"
@@ -91,7 +91,7 @@
 				<svg
 					xmlns="http://www.w3.org/2000/svg"
 					part="icon"
-					class="qti-icon h-6 w-6 mr-2"
+					class="qti-icon h-6 w-6 me-2"
 					fill="none"
 					viewBox="0 0 24 24"
 					stroke="currentColor"
@@ -123,7 +123,7 @@
 						d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
 					/>
 				</svg>
-				<span>Your attempt has been ended and can no longer be modified.</span>
+				<span>{translate(i18n, 'interactions.endAttempt.warningMessage', 'Your attempt has been ended and can no longer be modified.')}</span>
 			</div>
 		{/if}
 		</div>

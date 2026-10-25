@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, tick, getContext } from 'svelte';
-	import { DefaultI18nProvider, type I18nProvider } from '@pie-qti/i18n';
+	import { DefaultI18nProvider, interfaceLocaleAttributes, type I18nProvider } from '@pie-qti/i18n';
 	import type { QtiSharedHtmlBlock } from '@pie-qti/section-player';
 	import { SectionPlayerSplitPane, SectionPlayerVertical, TestFeedback as SectionTestFeedback } from '../../../section-player/src/components/index.js';
 	import type { BackendAssessmentPlayerConfig } from '../core/AssessmentPlayer.js';
@@ -32,6 +32,9 @@
 	const contextI18n = $derived(contextI18nWrapper?.value ?? undefined);
 	const fallbackI18n = new DefaultI18nProvider();
 	const i18n = $derived(config.i18nProvider ?? contextI18n ?? fallbackI18n);
+	// The shell is chrome: it takes the interface locale, and the passages and
+	// items inside set their own from their content language.
+	const interfaceAttributes = $derived(interfaceLocaleAttributes(i18n));
 	// The core and cached item definitions retain one provider reference, while a
 	// host may finish loading its actual provider after this shell mounts. Resolve
 	// methods against the current provider and preserve their receiver.
@@ -313,10 +316,10 @@
 </script>
 
 <!-- Accessibility announcer for screen readers -->
-<AccessibilityAnnouncer bind:this={announcer} />
+<AccessibilityAnnouncer bind:this={announcer} lang={interfaceAttributes?.lang} dir={interfaceAttributes?.dir} />
 
 {#if error}
-	<div class="assessment-error">
+	<div class="assessment-error" lang={interfaceAttributes?.lang} dir={interfaceAttributes?.dir}>
 		<div class="alert alert-error" role="alert" aria-live="assertive">
 			<svg
 				xmlns="http://www.w3.org/2000/svg"
@@ -335,14 +338,22 @@
 		</div>
 	</div>
 {:else if !player || navState.currentIndex < 0}
-	<div class="assessment-loading">
+	<div class="assessment-loading" lang={interfaceAttributes?.lang} dir={interfaceAttributes?.dir}>
 		<div class="flex items-center justify-center p-8" role="status" aria-live="polite">
 			<span class="loading loading-spinner loading-lg"></span>
-			<span class="ml-4">{i18n.t('assessment.loading')}</span>
+			<span class="ms-4">{i18n.t('assessment.loading')}</span>
 		</div>
 	</div>
 {:else}
-	<div bind:this={rootEl} class="assessment-shell" role="region" aria-label="Assessment player" aria-busy={isSubmitting}>
+	<div
+		bind:this={rootEl}
+		class="assessment-shell"
+		lang={interfaceAttributes?.lang}
+		dir={interfaceAttributes?.dir}
+		role="region"
+		aria-label={i18n.t('assessment.playerLabel', 'Assessment player')}
+		aria-busy={isSubmitting}
+	>
 		<!-- Header with title and section menu -->
 		<AssessmentHeader
 			title={initSession.assessmentId || (i18n?.t('assessment.title') ?? 'Assessment')}

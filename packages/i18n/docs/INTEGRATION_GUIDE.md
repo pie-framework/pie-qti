@@ -67,13 +67,13 @@ The i18n system is designed to be **optional but recommended**:
 ### When i18n is Provided
 
 ```typescript
-// Framework handles locale fallback automatically:
-// 1. Custom messages (if provided)
-// 2. Current locale (e.g., es-ES)
-// 3. en-US (always eagerly loaded)
-// 4. Key itself (if still missing)
+// Framework handles locale fallback automatically. Each step walks the tag's
+// lookup sequence (es-MX, then es), custom messages before framework catalogs:
+// 1. Current locale (e.g., es-MX → the es catalog)
+// 2. English (en, always eagerly loaded)
+// 3. Key itself (if still missing)
 
-i18n.t('common.submit') // Returns: "Submit" (en-US default)
+i18n.t('common.submit') // Returns: "Submit" (English default)
 ```
 
 ### When i18n is Missing
@@ -82,6 +82,9 @@ i18n.t('common.submit') // Returns: "Submit" (en-US default)
 // Component falls back to message key:
 i18n?.t('common.submit') ?? 'common.submit' // Returns: "common.submit"
 ```
+
+The item and assessment players never leave their components without a provider: when the host
+passes none, they render with an English `DefaultI18nProvider`.
 
 ### Benefits of This Approach
 
@@ -135,7 +138,7 @@ const translations = $derived({
 **Why $derived?**
 - Keeps translation lookups declarative and tied to the component's inputs
 - Re-evaluates whenever the `i18n` prop or interpolation values change
-- Locale switches go through `SvelteI18nProvider.setLocale()`, which persists the locale and reloads the page, so components always render with the active locale
+- A component re-renders when the host passes a new provider or `withLocale()` view; a host that switches locale in place with `SvelteI18nProvider.setLocale()` opts into `reloadOnLocaleChange` so every component renders with the active locale
 
 ### Step 3: Use Translations in Template
 
@@ -184,9 +187,9 @@ const translations = $derived({
 const title = i18n?.t('page.title') ?? 'page.title';
 ```
 
-**Note:** Locale changes through `SvelteI18nProvider.setLocale()` persist the locale and reload the
-page, so components render correctly after a locale switch. `$derived` still matters for values
-that change within a component's lifetime (props, state, interpolated values).
+**Note:** `SvelteI18nProvider.setLocale()` persists the locale and reloads the page only when the host
+opts in (`persistLocale`, `reloadOnLocaleChange`). `$derived` matters either way for values that
+change within a component's lifetime (props, state, interpolated values).
 
 ### Interpolation
 
@@ -258,9 +261,9 @@ assessment.*         // Assessment player messages
 accessibility.*      // Accessibility messages
 ```
 
-### Step 2: Add to en-US Locale
+### Step 2: Add to the English Catalog
 
-Open `packages/i18n/src/locales/en-US.ts`:
+Open `packages/i18n/src/locales/en.ts`:
 
 ```typescript
 export default {
@@ -297,7 +300,7 @@ const translations = $derived({
 
 ### Step 4: TypeScript Autocomplete
 
-TypeScript will automatically provide autocomplete for your new keys! The i18n package generates types from the en-US locale.
+TypeScript will automatically provide autocomplete for your new keys! The i18n package generates types from the English catalog.
 
 ---
 
@@ -322,13 +325,19 @@ const i18nProvider = await createDefaultSvelteI18nProvider('es-ES'); // Spanish
 
 ```svelte
 <script lang="ts">
-import { createDefaultSvelteI18nProvider } from '@pie-qti/i18n';
+import { createDefaultSvelteI18nProvider, DEFAULT_LOCALE_STORAGE_KEY } from '@pie-qti/i18n';
 
-const i18nProvider = await createDefaultSvelteI18nProvider('en-US');
+// The host owns the locale: it reads its stored value and opts into persistence
+// and reload. The provider never reads storage.
+const saved = localStorage.getItem(DEFAULT_LOCALE_STORAGE_KEY) ?? 'en-US';
+const i18nProvider = await createDefaultSvelteI18nProvider(saved, undefined, {
+  persistLocale: true,
+  reloadOnLocaleChange: true,
+});
 
 async function switchLocale(locale: string) {
   await i18nProvider.setLocale(locale);
-  // Persists the locale to localStorage and reloads the page, so every
+  // Writes the locale to localStorage and reloads the page, so every
   // component renders with the new locale after the reload.
 }
 </script>
@@ -841,4 +850,4 @@ function clearAll() {
 ## Need Help?
 
 - Check existing components for examples: [NavigationBar.svelte](../../assessment-player/src/components/NavigationBar.svelte)
-- Review the [en-US locale file](../src/locales/en-US.ts) for available keys
+- Review the [English catalog](../src/locales/en.ts) for available keys

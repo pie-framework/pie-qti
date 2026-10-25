@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { I18nProvider } from '@pie-qti/i18n';
+	import { interfaceLocaleAttributes, type I18nProvider } from '@pie-qti/i18n';
 	import type { PciConfiguration, PlayerSecurityConfig, PnpProfile } from '@pie-qti/item-player';
 	import type { QtiSectionFrameworkError, ResolvedQtiSectionComposition } from '../contracts/index.js';
 	import {
@@ -77,9 +77,13 @@
 		const event = notifyFrameworkError(composition, error);
 		onFrameworkError?.(event);
 	}
+
+	// The section's chrome takes the interface locale; passages and items set
+	// their own from their content language.
+	const interfaceAttributes = $derived(interfaceLocaleAttributes(i18n));
 </script>
 
-<div class="section-player-vertical">
+<div class="section-player-vertical" lang={interfaceAttributes?.lang} dir={interfaceAttributes?.dir}>
 	<RubricDisplay
 		passages={composition.sharedContext.passages}
 		{role}

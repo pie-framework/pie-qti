@@ -5,7 +5,8 @@ Lightweight, type-safe internationalization (i18n) package for the PIE-QTI playe
 ## Features
 
 - ✅ **Type-Safe Translations** - TypeScript autocomplete for all message keys
-- ✅ **Locale Persistence** - Locale persists across page reloads via localStorage (`SvelteI18nProvider`)
+- ✅ **Host-Owned Locale** - The host passes the locale in; nothing is read from storage. Persisting to localStorage and reloading on change are opt-in (`SvelteI18nProvider`)
+- ✅ **Locale Negotiation** - Any BCP 47 or POSIX tag resolves by language: `es-MX` and `es_ES` reach Spanish, `ar-EG` reaches Arabic
 - ✅ **Framework Agnostic** - Core provider works with any JavaScript framework
 - ✅ **Svelte Integration** - Simple `$derived` pattern for Svelte 5 components
 - ✅ **Web Component Compatible** - Works within Shadow DOM boundaries
@@ -13,7 +14,7 @@ Lightweight, type-safe internationalization (i18n) package for the PIE-QTI playe
 - ✅ **On-Demand Loading** - Load additional locales asynchronously
 - ✅ **Built-in Formatting** - Number and date formatting via `Intl` APIs
 - ✅ **Custom Translations** - Override or extend framework translations
-- ✅ **8 Languages Supported** - en-US (source locale), ar-SA, es-ES, fr-FR, nl-NL, ro-RO, th-TH, zh-CN
+- ✅ **8 Languages Supported** - en (source locale), ar, es, fr, nl, ro, th, zh-Hans
 
 ## Installation
 
@@ -31,9 +32,9 @@ import { DefaultI18nProvider } from '@pie-qti/i18n';
 // Create provider with default locale
 const i18n = new DefaultI18nProvider('en-US');
 
-// Optional: Load additional locales
-await i18n.loadLocale('es-ES');
-await i18n.loadLocale('fr-FR');
+// Optional: Load additional locales (any tag for the language works)
+await i18n.loadLocale('es-MX');
+await i18n.loadLocale('fr');
 ```
 
 ### 2. Use in Components (Svelte 5)
@@ -48,7 +49,7 @@ interface Props {
 
 let { i18n }: Props = $props();
 
-// Simple pattern - locale changes trigger page refresh
+// Recomputed whenever the i18n prop changes
 const translations = $derived({
   submit: i18n?.t('common.submit') ?? 'Submit',
   cancel: i18n?.t('common.cancel') ?? 'Cancel'
@@ -59,7 +60,7 @@ const translations = $derived({
 <button>{translations.cancel}</button>
 ```
 
-**Note:** Translations are evaluated once when the component loads. If you need to update translations, the page will reload when the locale changes.
+**Note:** `$derived` recomputes when the `i18n` prop changes. A `setLocale()` on the same provider object is not tracked; the host re-renders, passes a new provider or `withLocale()` view, or opts into reload (below).
 
 ### 3. Switch Locales
 
@@ -73,18 +74,27 @@ The two providers behave differently:
   i18n.setLocale('es-ES');
   ```
 
-- `SvelteI18nProvider.setLocale()` stores the locale in localStorage and triggers a page reload, so
-  every component picks up the new locale on the fresh page.
+- `SvelteI18nProvider.setLocale()` loads the catalog the locale negotiates to, then switches. It
+  persists and reloads only when the host opts in:
 
   ```typescript
-  // Switch to Spanish (persists to localStorage, then reloads the page)
-  await i18n.setLocale('es-ES');
+  import { createDefaultSvelteI18nProvider, DEFAULT_LOCALE_STORAGE_KEY } from '@pie-qti/i18n';
 
-  // On next page load, i18n will automatically use 'es-ES'
+  // The host reads its own stored value; the provider never reads storage
+  const saved = localStorage.getItem(DEFAULT_LOCALE_STORAGE_KEY) ?? 'en-US';
+  const i18n = await createDefaultSvelteI18nProvider(saved, undefined, {
+    persistLocale: true,        // write the locale to localStorage on setLocale()
+    reloadOnLocaleChange: true, // reload the page after setLocale()
+    // storageKey: 'my-app-locale', // defaults to 'pie-qti-locale'
+  });
+
+  await i18n.setLocale('es-ES'); // persists, then reloads
   ```
 
-To render a specific player or element in another locale without reloading, use the
-`withLocale(locale)` view (available on providers that support it) instead of `setLocale()`.
+To render a specific player or element in another locale without touching the shared provider, use
+the `withLocale(locale)` view instead of `setLocale()`. When that locale's catalog is not loaded yet,
+the view renders English and carries a `ready` promise that settles once the catalog arrives; the
+player custom elements re-render on it.
 
 ## API Reference
 
@@ -103,6 +113,7 @@ interface I18nProvider {
   plural?(key: string, options: { count: number; [key: string]: any }): string;
   getDirection?(): 'ltr' | 'rtl';
   withLocale?(locale: string): I18nProvider;
+  readonly ready?: Promise<void>; // set on a withLocale() view still loading its catalog
   formatNumber?(value: number, options?: Intl.NumberFormatOptions): string;
   formatDate?(date: Date, options?: Intl.DateTimeFormatOptions): string;
 }
@@ -126,11 +137,11 @@ const customMessages = {
 };
 const i18n = new DefaultI18nProvider('en-US', customMessages);
 
-// Load additional locales
+// Load additional locales; resolves without loading for a language with no catalog
 await i18n.loadLocale('es-ES');
 
-// Switch locales
-await i18n.setLocale('es-ES');
+// Switch locales (synchronous)
+i18n.setLocale('es-ES');
 
 // Translate
 const text = i18n.t('common.submit');
@@ -144,34 +155,59 @@ Svelte-specific wrapper that extends `I18nProvider`:
 ```typescript
 import { createDefaultSvelteI18nProvider } from '@pie-qti/i18n';
 
-// Create Svelte provider
+// Create Svelte provider; the locale's catalog is loaded before it resolves
 const i18n = await createDefaultSvelteI18nProvider('en-US');
 
 // Same API as I18nProvider
 const text = i18n.t('common.submit');
-await i18n.setLocale('es-ES'); // Persists to localStorage and triggers a page reload
+await i18n.setLocale('es-ES'); // Loads and switches; no persistence or reload unless opted in
 ```
 
 ### Supported Locales
 
-The framework currently includes 8 locales:
+The framework currently includes 8 catalogs, keyed by language (and by script for Chinese):
 
-| Locale Code | Language                  | Status                        |
-|-------------|---------------------------|-------------------------------|
-| `en-US`     | English (United States)   | ✅ Complete (source locale)   |
-| `ar-SA`     | Arabic (Saudi Arabia)     | ✅ Complete                   |
-| `es-ES`     | Spanish (Spain)           | ✅ Complete                   |
-| `fr-FR`     | French (France)           | ✅ Complete                   |
-| `nl-NL`     | Dutch (Netherlands)       | ✅ Complete                   |
-| `ro-RO`     | Romanian (Romania)        | ✅ Complete                   |
-| `th-TH`     | Thai (Thailand)           | ✅ Complete                   |
-| `zh-CN`     | Chinese (Simplified)      | ✅ Complete                   |
+| Catalog   | Language              | Served tags (examples)               | Status                      |
+|-----------|-----------------------|--------------------------------------|-----------------------------|
+| `en`      | English               | `en`, `en-US`, `en-GB`               | ✅ Complete (source locale) |
+| `ar`      | Arabic                | `ar`, `ar-SA`, `ar-EG`, `ar_SA`      | ✅ Complete                 |
+| `es`      | Spanish               | `es`, `es-ES`, `es-MX`, `es-419`     | ✅ Complete                 |
+| `fr`      | French                | `fr`, `fr-FR`, `fr-CA`               | ✅ Complete                 |
+| `nl`      | Dutch                 | `nl`, `nl-NL`, `nl-BE`               | ✅ Complete                 |
+| `ro`      | Romanian              | `ro`, `ro-RO`                        | ✅ Complete                 |
+| `th`      | Thai                  | `th`, `th-TH`                        | ✅ Complete                 |
+| `zh-Hans` | Chinese (Simplified)  | `zh`, `zh-CN`, `zh-SG`, `zh-Hans`    | ✅ Complete                 |
 
-"Complete" means every en-US key exists in the locale (verified by the translation coverage
+A tag walks its RFC 4647 lookup sequence (`es-MX`, then `es`), with the language's CLDR likely script
+inserted before the bare language, so `zh-CN` reaches `zh-Hans`. A catalog reached by widening must
+share the request's script: `zh-TW`, `zh-HK` and `zh-Hant` do not get the Simplified catalog and
+render in English. Any key missing from the resolved catalog falls back to English.
+`resolveFrameworkLocale(tag)` answers which catalog serves a tag. The old region-qualified codes
+(`es-ES`, `zh-CN`, …) remain valid `FrameworkLocaleCode` inputs.
+
+"Complete" means every English key exists in the locale (verified by the translation coverage
 checker below). Values that still match English are reported by the checker as *untranslated*
 rather than missing.
 
-**Note:** Additional locales can be provided via custom translations (see below).
+### Numbers and dates
+
+`formatNumber` and `formatDate` do not take the runtime's defaults, which follow whatever CLDR its
+ICU ships. Digits come from a table pinned to CLDR 48 and the calendar is Gregorian:
+
+```typescript
+new DefaultI18nProvider('ar').formatNumber(1234.5);     // '1,234.5'
+new DefaultI18nProvider('ar-EG').formatNumber(1234.5);  // '١٬٢٣٤٫٥'
+new DefaultI18nProvider('ar-MA').formatNumber(1234.5);  // '1.234,5'
+new DefaultI18nProvider('fa-IR').formatDate(date);      // Gregorian year, Extended Arabic-Indic digits
+```
+
+A host that wants other digits or a local calendar sets them on the locale: `ar-SA-u-nu-latn`,
+`fa-IR-u-ca-persian`. Catalog lookup and the `lang` attribute ignore the extension. Numbers passed
+to `t()` and `plural()` are formatted the same way, so `{count}` follows the locale.
+`formattingLocale(tag)` and `numberingSystemFor(tag)` expose the resolution.
+
+**Note:** Additional locales can be provided via custom translations (see below). Custom messages are
+matched along the same lookup sequence, so a `de` entry serves `de-AT`.
 
 ## Message Keys
 
@@ -196,7 +232,7 @@ $t('invalid.key')
 - `assessment.*` - Assessment player UI
 - `accessibility.*` - ARIA labels and screen reader text
 
-See [en-US.ts](./src/locales/en-US.ts) for the complete list of available keys.
+See [en.ts](./src/locales/en.ts) for the complete list of available keys.
 
 ## Custom Translations
 
@@ -294,14 +330,14 @@ let { i18n = $bindable() }: Props = $props();
 const t = $derived((key: string, fallback: string) => i18n?.t(key) ?? fallback);
 ```
 
-**Note:** No manual subscriptions or reactivity tracking needed. Locale changes trigger a page reload, so components always render with the correct locale.
+**Note:** No manual subscriptions needed. Components re-render when the host passes a new provider or view; hosts that change the locale in place opt into reload.
 
 ## Bundle Size
 
 | Component                     | Size (gzipped) |
 |-------------------------------|----------------|
 | Core i18n logic               | ~2 KB          |
-| English locale (en-US)        | ~8 KB          |
+| English catalog (en)          | ~8 KB          |
 | Additional locale (on-demand) | ~8 KB each     |
 | **Total (default)**           | **~10 KB**     |
 
@@ -312,7 +348,7 @@ For detailed guides, see the `docs/` directory:
 - **[Integration Guide](./docs/INTEGRATION_GUIDE.md)** - Complete guide for adding i18n to components
 - **[Component UI Patterns](./docs/INTEGRATION_GUIDE.md#component-ui-patterns)** - Svelte 5 + DaisyUI patterns and examples
 - **[Advanced Features](./docs/ADVANCED_FEATURES.md)** - Pluralization, number & date formatting
-- **[Message Keys](./src/locales/en-US.ts)** - All available translation keys and namespaces
+- **[Message Keys](./src/locales/en.ts)** - All available translation keys and namespaces
 
 ## Development
 
@@ -321,7 +357,7 @@ For detailed guides, see the `docs/` directory:
 1. Add to English locale:
 
    ```typescript
-   // src/locales/en-US.ts
+   // src/locales/en.ts
    export default {
      myFeature: {
        newMessage: 'My new message',
@@ -348,12 +384,12 @@ The package includes an automated translation coverage checker that ensures all 
 bun run check-translations
 
 # Check specific locale
-bun run scripts/check-translations.ts --locale nl-NL
+bun run scripts/check-translations.ts --locale=nl
 ```
 
 The checker:
 
-- ✅ **Automatically discovers** all keys from en-US (no hardcoded lists)
+- ✅ **Automatically discovers** all keys from en (no hardcoded lists)
 - ✅ **Automatically detects** all locale files (no configuration)
 - ✅ **Reports missing keys** in other locales
 - ✅ **Detects obsolete keys** that should be removed
@@ -370,33 +406,46 @@ and options.
 
 ### Hardcoded String Scanner
 
-The package includes a scanner that detects hardcoded English strings in component files that should use i18n:
+The scanner parses Svelte templates with the Svelte compiler and reports learner-visible strings that bypass the catalog: template text, and `aria-label`, `title` and `placeholder` values on DOM elements that are static text or a template literal. Script literals, component props and test directories are out of scope. A finding names the catalog key when en already carries the string.
 
 ```bash
-# Scan default components package
+# Scan every package (advisory)
 bun run scan-hardcoded
+
+# Exit 1 on any finding; `bun run check:i18n` and CI run it this way
+bun run scan-hardcoded --strict
 
 # Scan a custom path
 bun run scan-hardcoded --path=../custom-components
 ```
 
-The scanner:
-
-- ✅ **Detects hardcoded strings** that match translation values in en-US
-- ✅ **Suggests the correct i18n key** to use for each match
-- ✅ **Scans .svelte and .ts files** recursively
-- ✅ **Provides exact replacement code** for each hardcoded string
-
-**Example output:**
+Put `<!-- i18n-ignore -->` before an element or text node that no learner reads in their own language, such as a code sample; the node and its subtree are skipped.
 
 ```text
-📄 plugins/graphic-order/GraphicOrderInteraction.svelte (1 match)
-────────────────────────────────────────────────────────────────
-  Line 138: <h3>Order (drag to reorder)</h3>
-           Use: i18n?.t('interactions.graphicOrder.orderHeading') ?? 'Order (drag to reorder)'
+packages/default-components: 1 finding(s)
+  packages/default-components/src/plugins/order/OrderInteraction.svelte:212 text"Order confirmed" → t('interactions.order.orderConfirmed')
 ```
 
-This tool helps maintain consistency by ensuring all user-facing strings use the i18n system.
+### Physical-Direction CSS Check
+
+`bun run check-physical-css` reports CSS that does not mirror under `dir="rtl"`: `margin-left`, `right: 0`, `text-align: left`, `border-top-left-radius`, and Tailwind utilities such as `ml-2`, `right-2` and `text-left` in `class` attributes. Use the logical form (`margin-inline-start`, `inset-inline-end`, `text-align: start`, `ms-2`, `end-2`, `text-start`). It runs last in `check:i18n` and exits 1 on any finding.
+
+Graphic and spatial interactions are exempt, since their coordinates are image space. For CSS physical by definition, such as the QTI `qti-align-left` class, put an `i18n-physical` comment on the line or the line above.
+
+### Pseudo-Locales
+
+`pseudoLocalize(en)` turns a catalog into accented, lengthened, bracketed English with the same keys and placeholders. Register it under `PSEUDO_LOCALE_RTL` (`ar-XB`) to see untranslated strings, truncation and clipping in a right-to-left layout, or under `PSEUDO_LOCALE_EXPANDED` (`en-XA`) for expansion alone:
+
+```typescript
+import { DefaultI18nProvider, PSEUDO_LOCALE_RTL, pseudoLocalize } from '@pie-qti/i18n';
+import en from '@pie-qti/i18n/locales/en.js';
+
+const i18n = new DefaultI18nProvider(PSEUDO_LOCALE_RTL, { [PSEUDO_LOCALE_RTL]: pseudoLocalize(en) });
+await i18n.loadLocale(PSEUDO_LOCALE_RTL);
+i18n.t('common.close'); // '[Çĺóšé ~~]'
+```
+
+The demo's web-component routes accept `?locale=ar-XB`, which `apps/demo/tests/playwright/rtl-matrix.pw.ts` runs alongside `ar`.
 
 ### Running Tests
 

@@ -1,5 +1,6 @@
 <script lang="ts">
-	import type { I18nProvider } from '@pie-qti/i18n';
+	import { joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
+	import { xsdPatternSource } from '@pie-qti/qti-processing';
 	import type { TextEntryInteractionData } from '../shared/types.js';
 
 	interface Props {
@@ -22,6 +23,10 @@
 
 	let validationError = $state<string | null>(null);
 	const displayValue = $derived(correctAnswer !== null ? correctAnswer : response);
+	const label = $derived(
+		interaction.accessibility?.label ??
+			translate(i18n, 'interactions.inline.textEntryLabel', 'Text entry {id}', { id: interaction.responseId }),
+	);
 	const inputWidthClass = $derived((interaction.interactionClasses ?? []).find((className) => className.startsWith('qti-input-width-')));
 	const extraClasses = $derived((interaction.interactionClasses ?? []).filter((className) => !className.startsWith('qti-input-width-')).join(' '));
 	const errorId = $derived(`${interaction.responseId}-error`);
@@ -57,10 +62,16 @@
 	class={['qti-inline-input', correctAnswer !== null ? 'qti-inline-input-correct' : '', inputWidthClass ?? '', extraClasses].filter(Boolean).join(' ')}
 	style={inputWidthClass ? 'min-width: 100px; display: inline-block; margin: 0 4px;' : `width: ${interaction.expectedLength * 8}px; min-width: 100px; display: inline-block; margin: 0 4px;`}
 	placeholder={interaction.placeholderText || '...'}
-	pattern={interaction.patternMask || undefined}
-	title={interaction.patternMask ? `Format: ${interaction.patternMask}` : undefined}
+	pattern={interaction.patternMask ? xsdPatternSource(interaction.patternMask) : undefined}
+	title={interaction.patternMask ? translate(i18n, 'interactions.inline.formatHint', 'Format: {mask}', { mask: interaction.patternMask }) : undefined}
 	data-format={interaction.format || undefined}
-	aria-label={`${interaction.accessibility?.label ?? `Text entry ${interaction.responseId}`}${correctAnswer ? '. Correct answer: ' + correctAnswer : ''}`}
+	dir="auto"
+	aria-label={correctAnswer
+		? joinSentences(
+				translate(i18n, 'accessibility.sentence', '{text}.', { text: label }),
+				translate(i18n, 'accessibility.correctAnswerIs', 'Correct answer: {answer}.', { answer: correctAnswer }),
+			)
+		: label}
 	aria-invalid={validationError ? 'true' : undefined}
 	aria-describedby={describedBy}
 	value={displayValue}

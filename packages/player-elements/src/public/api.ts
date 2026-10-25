@@ -864,6 +864,7 @@ export interface QtiSectionPlayerElement extends HTMLElement {
 	composition: QtiSectionComposition | null;
 	security?: QtiPlayerSecurityConfig;
 	pci?: QtiPciConfiguration;
+	i18n?: QtiI18nProvider;
 	typeset?: (root: HTMLElement) => void | Promise<void>;
 	addEventListener<K extends keyof QtiSectionPlayerEventMap>(
 		type: K,

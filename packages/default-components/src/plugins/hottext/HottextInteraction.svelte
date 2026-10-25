@@ -2,7 +2,7 @@
 
 <script lang="ts">
 	import type { HottextInteractionData } from '@pie-qti/item-player';
-	import type { I18nProvider } from '@pie-qti/i18n';
+	import { translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
 	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
@@ -227,12 +227,12 @@
 		<div part="footer" class="qti-hottext-footer flex items-center justify-between text-sm text-base-content/70">
 			<div>
 				<span class="font-medium">{i18n?.t('interactions.hottext.selected') ?? 'Selected'}:</span>
-				<span class="ml-2">{selectedIds.length} / {parsedInteraction.hottextChoices?.length ?? 0}</span>
+				<span class="ms-2">{selectedIds.length} / {parsedInteraction.hottextChoices?.length ?? 0}</span>
 				{#if parsedInteraction.minChoices > 0}
 					{#if selectedIds.length >= parsedInteraction.minChoices}
-						<span class="badge badge-success badge-sm ml-2">✓ {i18n?.t('interactions.hottext.minimumMet') ?? 'Minimum met'}</span>
+						<span class="badge badge-success badge-sm ms-2">✓ {i18n?.t('interactions.hottext.minimumMet') ?? 'Minimum met'}</span>
 					{:else}
-						<span class="badge badge-warning badge-sm ml-2">{i18n?.t('interactions.hottext.selectAtLeast', `Select at least ${parsedInteraction.minChoices}`) ?? `Select at least ${parsedInteraction.minChoices}`}</span>
+						<span class="badge badge-warning badge-sm ms-2">{i18n?.t('interactions.hottext.selectAtLeast', `Select at least ${parsedInteraction.minChoices}`) ?? `Select at least ${parsedInteraction.minChoices}`}</span>
 					{/if}
 				{/if}
 			</div>
@@ -257,7 +257,7 @@
 					}}
 					{disabled}
 				>
-					Clear Selection
+					{translate(i18n, 'interactions.hottext.clearSelection', 'Clear Selection')}
 				</button>
 			{/if}
 		</div>

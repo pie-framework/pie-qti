@@ -71,11 +71,11 @@ describe.each([
 
 describe('inline controls', () => {
 	test.each([
-		['text-entry/InlineTextEntry.svelte', 'Text entry'],
-		['inline-choice/InlineChoice.svelte', 'Inline choice'],
-	])('%s takes the authored label and description', (file, fallback) => {
+		['text-entry/InlineTextEntry.svelte', 'interactions.inline.textEntryLabel'],
+		['inline-choice/InlineChoice.svelte', 'interactions.inline.choiceLabel'],
+	])('%s takes the authored label and description', (file, fallbackKey) => {
 		const source = readFileSync(new URL(`../../src/interactions/${file}`, import.meta.url), 'utf8');
-		expect(source).toContain(`interaction.accessibility?.label ?? \`${fallback} \${interaction.responseId}\``);
+		expect(source).toMatch(new RegExp(`interaction\\.accessibility\\?\\.label \\?\\?\\s+translate\\(i18n, '${fallbackKey.replaceAll('.', '\\.')}'`));
 		expect(source).toContain('{#if interaction.accessibility?.description}');
 		expect(source).toContain('aria-describedby=');
 	});

@@ -8,6 +8,7 @@
 	import { page } from '$app/state';
 	import {
 		createDefaultSvelteI18nProvider,
+		DEFAULT_LOCALE_STORAGE_KEY,
 		type SvelteI18nProvider,
 		type LocaleCode
 	} from '@pie-qti/i18n';
@@ -66,13 +67,16 @@
 	];
 
 	onMount(async () => {
-		// Load saved locale from localStorage or use default
-		// pie-qti-locale is managed by SvelteI18nProvider
-		const savedLocale = (localStorage.getItem('pie-qti-locale') as LocaleCode) || 'en-US';
+		// The demo owns its locale: it reads the key the provider persists to and
+		// passes the value in. The provider itself never reads storage.
+		const savedLocale = (localStorage.getItem(DEFAULT_LOCALE_STORAGE_KEY) as LocaleCode) || 'en-US';
 		currentLocale = savedLocale;
 
-		// Initialize i18n system
-		i18n = await createDefaultSvelteI18nProvider(savedLocale);
+		// Persist and reload on locale change are opt-in; the demo wants both
+		i18n = await createDefaultSvelteI18nProvider(savedLocale, undefined, {
+			persistLocale: true,
+			reloadOnLocaleChange: true,
+		});
 
 		// Register QTI player web components on the client only.
 		// This module touches browser globals (customElements/window) and must not run during prerender/SSR.
@@ -94,7 +98,7 @@
 
 	async function changeLocale(newLocale: LocaleCode) {
 		if (i18n) {
-			// setLocale stores to localStorage and triggers page reload
+			// With the options above, setLocale stores to localStorage and reloads the page
 			await i18n.setLocale(newLocale);
 		}
 	}

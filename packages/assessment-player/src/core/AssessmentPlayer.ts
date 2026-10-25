@@ -19,7 +19,7 @@ import {
 	type QTIRole,
 	type SerializedItemSessionState,
 } from '@pie-qti/item-player';
-import type { I18nProvider } from '@pie-qti/i18n';
+import { DefaultI18nProvider, type I18nProvider } from '@pie-qti/i18n';
 import { isShownByIdentifier } from '@pie-qti/qti-common';
 import type { QtiSectionRuntimeHostContract, QtiSectionToolConfig } from '@pie-qti/section-player';
 import type {
@@ -1421,17 +1421,11 @@ export class AssessmentPlayer {
 	}
 
 	/**
-	 * Create a simple fallback i18n provider when none is provided
+	 * The provider used when the host passes none: English, from the catalog
+	 * `@pie-qti/i18n` bundles eagerly.
 	 */
 	private createDefaultI18nProvider(): I18nProvider {
-		return {
-			getLocale: () => 'en-US',
-			setLocale: () => {},
-			t: (key: string) => key, // Fallback to key
-			plural: (key: string) => key,
-			formatNumber: (value: number) => value.toString(),
-			formatDate: (date: Date) => date.toISOString(),
-		};
+		return new DefaultI18nProvider('en-US');
 	}
 }
 

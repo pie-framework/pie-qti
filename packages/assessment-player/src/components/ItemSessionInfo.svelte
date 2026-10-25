@@ -146,7 +146,7 @@
 	.item-session-info.floating {
 		position: fixed;
 		bottom: 1rem;
-		right: 1rem;
+		inset-inline-end: 1rem;
 		padding: 0.75rem 1rem;
 		background: hsl(var(--b1));
 		border-radius: 0.5rem;
@@ -225,8 +225,7 @@
 	@media (max-width: 640px) {
 		.item-session-info.floating {
 			bottom: 0.5rem;
-			right: 0.5rem;
-			left: 0.5rem;
+			inset-inline: 0.5rem;
 			padding: 0.5rem 0.75rem;
 		}
 

@@ -44,6 +44,9 @@ export {
 } from './dom/svelteMountController.js';
 export { touchDrag, touchDragStyles } from './dom/touchDrag.js';
 
+// Writing direction
+export { languageDirection, type TextDirection } from './language/direction.js';
+
 // Parser factory
 export {
 	createQtiParser,

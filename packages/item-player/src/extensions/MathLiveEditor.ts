@@ -8,7 +8,7 @@
  */
 
 import type { MathfieldElement } from 'mathlive';
-import type { I18nProvider } from '@pie-qti/i18n';
+import { isImeComposing, type I18nProvider } from '@pie-qti/i18n';
 
 // Import MathLive CSS from the local package
 import 'mathlive/mathlive-static.css';
@@ -68,10 +68,7 @@ export async function openMathLiveEditor(options: MathLiveEditorOptions): Promis
 	overlay.className = 'modal modal-open';
 	overlay.style.cssText = `
 		position: fixed;
-		top: 0;
-		left: 0;
-		right: 0;
-		bottom: 0;
+		inset: 0;
 		background: rgba(0, 0, 0, 0.5);
 		display: flex;
 		align-items: center;
@@ -263,7 +260,7 @@ export async function openMathLiveEditor(options: MathLiveEditorOptions): Promis
 	};
 
 	const handleEscape = (e: KeyboardEvent) => {
-		if (e.key === 'Escape') {
+		if (e.key === 'Escape' && !isImeComposing(e)) {
 			handleCancel();
 		}
 	};

@@ -8,11 +8,21 @@
 		i18n?: I18nProvider;
 		/** Show timer even when no time limit */
 		showElapsed?: boolean;
-		/** Position of timer */
-		position?: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left';
+		/** Position of timer. `start`/`end` follow the inline direction; `left`/`right` are physical. */
+		position?:
+			| 'top-end'
+			| 'top-start'
+			| 'bottom-end'
+			| 'bottom-start'
+			| 'top-right'
+			| 'top-left'
+			| 'bottom-right'
+			| 'bottom-left';
 	}
 
-	let { player, i18n, showElapsed = false, position = 'top-right' }: Props = $props();
+	let { player, i18n, showElapsed = false, position = 'top-end' }: Props = $props();
+
+	const formatTime = (seconds: number) => TimeManager.formatTime(seconds, i18n?.formatNumber?.bind(i18n));
 
 	// State
 	let remainingSeconds = $state<number | null>(null);
@@ -35,8 +45,8 @@
 			remainingSeconds = remaining;
 			announcementPriority = 'polite';
 			announcement =
-				i18n?.t('assessment.timer.timeRemaining', { time: TimeManager.formatTime(remaining) }) ??
-				`Time remaining: ${TimeManager.formatTime(remaining)}`;
+				i18n?.t('assessment.timer.timeRemaining', { time: formatTime(remaining) }) ??
+				`Time remaining: ${formatTime(remaining)}`;
 		});
 
 		const unsubscribeExpired = player.onTimeExpired(() => {
@@ -62,10 +72,10 @@
 	// Derived values
 	const displayTime = $derived(() => {
 		if (remainingSeconds !== null && remainingSeconds >= 0) {
-			return TimeManager.formatTime(remainingSeconds);
+			return formatTime(remainingSeconds);
 		}
 		if (showElapsed) {
-			return TimeManager.formatTime(elapsedSeconds);
+			return formatTime(elapsedSeconds);
 		}
 		return null;
 	});
@@ -73,27 +83,20 @@
 	const timerLabel = $derived(() => {
 		if (remainingSeconds !== null) {
 			return isExpired
-				? (i18n?.t('assessment.timer.expired') ?? 'assessment.timer.expired')
-				: (i18n?.t('assessment.timer.remaining') ?? 'assessment.timer.remaining');
+				? (i18n?.t('assessment.timer.expired', 'Time Expired') ?? 'Time Expired')
+				: (i18n?.t('assessment.timer.remaining', 'Time Remaining') ?? 'Time Remaining');
 		}
 		if (showElapsed) {
-			return i18n?.t('assessment.timer.elapsed') ?? 'assessment.timer.elapsed';
+			return i18n?.t('assessment.timer.elapsed', 'Time Elapsed') ?? 'Time Elapsed';
 		}
 		return null;
 	});
-
-	// Position classes
-	const positionClasses = {
-		'top-right': 'top-4 right-4',
-		'top-left': 'top-4 left-4',
-		'bottom-right': 'bottom-4 right-4',
-		'bottom-left': 'bottom-4 left-4',
-	};
 </script>
 
 {#if displayTime()}
 	<div
-		class="assessment-timer {positionClasses[position]}"
+		class="assessment-timer"
+		data-position={position}
 		class:warning={isWarning && !isExpired}
 		class:expired={isExpired}
 		role="timer"
@@ -133,6 +136,31 @@
 		gap: 0.75rem;
 		box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
 		transition: all 0.3s ease;
+	}
+
+	.assessment-timer[data-position^='top'] {
+		top: 1rem;
+	}
+
+	.assessment-timer[data-position^='bottom'] {
+		bottom: 1rem;
+	}
+
+	.assessment-timer[data-position$='-end'] {
+		inset-inline-end: 1rem;
+	}
+
+	.assessment-timer[data-position$='-start'] {
+		inset-inline-start: 1rem;
+	}
+
+	/* The physical position values stay physical; -start and -end mirror. */
+	.assessment-timer[data-position$='-right'] {
+		right: 1rem; /* i18n-physical */
+	}
+
+	.assessment-timer[data-position$='-left'] {
+		left: 1rem; /* i18n-physical */
 	}
 
 	.assessment-timer.warning {

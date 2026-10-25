@@ -21,8 +21,9 @@ test('a late context provider updates the assessment without losing its answer',
 	await expect(answer).toBeChecked();
 });
 
-
-test('a stored French locale stays translated when navigating between items', async ({ page }) => {
+// The provider reads no storage. The demo opts into persistence and reads the
+// key back itself, so a host-persisted locale still drives a cold load.
+test('a host-persisted French locale stays translated when navigating between items', async ({ page }) => {
 	await page.addInitScript(() => localStorage.setItem('pie-qti-locale', 'fr-FR'));
 	await page.goto('assessment-demo');
 	await expect(page.getByTestId('assessment-next')).toHaveText(/Suivant/);

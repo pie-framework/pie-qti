@@ -5,7 +5,7 @@
 	 * This does not execute custom logic; it provides visibility + optional manual response entry.
 	 */
 
-	import type { I18nProvider } from '@pie-qti/i18n';
+	import { translate, type I18nProvider } from '@pie-qti/i18n';
 	import type { HtmlContent } from '@pie-qti/item-player';
 
 	interface Props {
@@ -50,10 +50,14 @@
 		<div>
 			<div class="font-semibold">{i18n?.t('interactions.custom.unsupported') ?? 'Unsupported customInteraction'}</div>
 			<div class="text-sm">
-				This item contains a vendor-specific interaction. This player does not execute custom interactions.
+				{translate(
+					i18n,
+					'interactions.custom.description',
+					'This item contains a vendor-specific interaction. This player does not execute custom interactions.',
+				)}
 			</div>
 			{#if prompt}
-				<div class="text-sm mt-2"><strong>Prompt:</strong> <span class="qti-rich-content">{@html prompt}</span></div>
+				<div class="text-sm mt-2"><strong>{translate(i18n, 'interactions.custom.promptHeading', 'Prompt:')}</strong> <span class="qti-rich-content">{@html prompt}</span></div>
 			{/if}
 		</div>
 	</div>
@@ -78,20 +82,20 @@
 	{/if}
 
 	<button part="toggle" type="button" class="qti-custom-toggle btn btn-sm btn-outline" onclick={() => (open = !open)}>
-		{open ? 'Hide' : 'Show'} details
+		{open ? translate(i18n, 'common.hideDetails', 'Hide details') : translate(i18n, 'common.showDetails', 'Show details')}
 	</button>
 
 	{#if open}
 		<div part="details" class="qti-custom-details card bg-base-100 border border-base-300">
 			<div class="qti-custom-details-body card-body">
-				<h3 part="details-title" class="qti-custom-details-title card-title text-base">Details</h3>
+				<h3 part="details-title" class="qti-custom-details-title card-title text-base">{translate(i18n, 'common.details', 'Details')}</h3>
 				<div class="text-sm">
 					<div class="font-semibold mb-1">{i18n?.t('interactions.custom.attributes') ?? 'Attributes'}</div>
 					<pre part="attributes" class="qti-custom-pre text-xs bg-base-200 p-2 rounded overflow-auto">{JSON.stringify(rawAttributes, null, 2)}</pre>
 				</div>
 				{#if xml}
 					<div class="text-sm">
-						<div class="font-semibold mb-1">XML</div>
+						<div class="font-semibold mb-1">{translate(i18n, 'interactions.custom.xml', 'XML')}</div>
 						<pre part="xml" class="qti-custom-pre text-xs bg-base-200 p-2 rounded overflow-auto">{xml}</pre>
 					</div>
 				{/if}

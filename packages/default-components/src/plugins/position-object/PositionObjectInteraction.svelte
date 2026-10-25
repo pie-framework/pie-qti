@@ -41,7 +41,7 @@
 <script lang="ts">
 	import type { PositionObjectInteractionData } from '@pie-qti/item-player';
 	import { normalizePixelDimension } from '@pie-qti/item-player/security';
-	import type { I18nProvider } from '@pie-qti/i18n';
+	import { joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import DragHandle from '../../shared/components/DragHandle.svelte';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
@@ -404,7 +404,12 @@
 			crosshairY = 0.5;
 		}
 
-		liveMessage = `${stage.label} selected. Tab to canvas, then use arrow keys to position. Press Enter to place, Escape to cancel.`;
+		liveMessage = translate(
+			i18n,
+			'interactions.positionObject.objectSelected',
+			'{object} selected. Tab to the canvas, then use the arrow keys to position it. Press Enter to place it or Escape to cancel.',
+			{ object: stage.label },
+		);
 
 		// Move focus to the canvas so arrow keys work immediately
 		requestAnimationFrame(() => imageContainer?.focus());
@@ -459,7 +464,11 @@
 		}
 
 		const pct = (v: number) => Math.round(v * 100);
-		liveMessage = `${stage.label} placed at ${pct(crosshairX)}%, ${pct(crosshairY)}%.`;
+		liveMessage = translate(i18n, 'interactions.positionObject.objectPlacedAt', '{object} placed at {x}%, {y}%.', {
+			object: stage.label,
+			x: pct(crosshairX),
+			y: pct(crosshairY),
+		});
 
 		selectedStageId = null;
 		crosshairActive = false;
@@ -499,7 +508,7 @@
 				event.preventDefault();
 				selectedStageId = null;
 				crosshairActive = false;
-				liveMessage = 'Placement cancelled.';
+				liveMessage = translate(i18n, 'interactions.positionObject.placementCancelled', 'Placement cancelled.');
 				return;
 			default:
 				return;
@@ -507,7 +516,7 @@
 
 		// Announce updated position after arrow movement
 		const pct = (v: number) => Math.round(v * 100);
-		liveMessage = `Position: ${pct(crosshairX)}%, ${pct(crosshairY)}%.`;
+		liveMessage = translate(i18n, 'accessibility.positionPercent', 'Position: {x}%, {y}%.', { x: pct(crosshairX), y: pct(crosshairY) });
 	}
 </script>
 
@@ -572,7 +581,16 @@
 							ondragstart={(e) => handleDragStart(e, position.stageId, index)}
 							role="button"
 							tabindex={canInteract ? 0 : -1}
-							aria-label="Positioned {stage.label} at ({position.x}, {position.y}){isCorrect ? '. Correct position' : ''}"
+							aria-label={joinSentences(
+								translate(i18n, 'accessibility.sentence', '{text}.', {
+									text: translate(i18n, 'interactions.positionObject.positioned', 'Positioned {label} at ({x}, {y})', {
+										label: stage.label,
+										x: position.x,
+										y: position.y,
+									}),
+								}),
+								isCorrect && translate(i18n, 'accessibility.correctPosition', 'Correct position.'),
+							)}
 						>
 							{#if stage.objectData}
 								{#if stage.objectData.type === 'svg' && stage.objectData.content}
@@ -610,7 +628,7 @@
 										e.stopPropagation();
 										removePosition(index);
 									}}
-									aria-label="Remove {stage.label}"
+									aria-label={translate(i18n, 'interactions.positionObject.removeObject', 'Remove {object}', { object: stage.label })}
 								>
 									<svg
 										xmlns="http://www.w3.org/2000/svg"
@@ -643,7 +661,11 @@
 								part="correct-placed"
 								class="qti-po-placed qti-po-placed-correct qti-po-placed-ghost absolute pointer-events-none"
 								style="left: {correctPos.x * scaleFactor}px; top: {correctPos.y * scaleFactor}px; z-index: {5 + index}; transform-origin: top left;"
-								aria-label="Correct position for {stage.label} at ({correctPos.x}, {correctPos.y})"
+								aria-label={translate(i18n, 'interactions.positionObject.correctPositionFor', 'Correct position for {label} at ({x}, {y})', {
+									label: stage.label,
+									x: correctPos.x,
+									y: correctPos.y,
+								})}
 							>
 								{#if stage.objectData}
 									{#if stage.objectData.type === 'svg' && stage.objectData.content}
@@ -710,8 +732,13 @@
 
 			{#if parsedInteraction.minChoices > 0}
 				<div class="text-xs text-base-content/60 mt-2">
-					Minimum required: {parsedInteraction.minChoices} {#if parsedInteraction.maxChoices > 0}
-						| Maximum: {parsedInteraction.maxChoices}
+					{translate(i18n, 'interactions.positionObject.minimumRequired', 'Minimum required: {minChoices}', {
+						minChoices: parsedInteraction.minChoices,
+					})}
+					{#if parsedInteraction.maxChoices > 0}
+						| {translate(i18n, 'interactions.positionObject.maximumAllowed', 'Maximum: {maxChoices}', {
+							maxChoices: parsedInteraction.maxChoices,
+						})}
 					{/if}
 				</div>
 			{/if}
@@ -722,10 +749,23 @@
 			<div class="qti-po-card card bg-base-100 border border-base-300 h-full">
 				<div class="qti-po-card-body card-body p-4">
 					<h3 class="card-title text-sm">
-						Available Objects ({positions.length}{#if parsedInteraction.maxChoices > 0}/{parsedInteraction.maxChoices}{/if})
+						{parsedInteraction.maxChoices > 0
+							? translate(i18n, 'interactions.positionObject.availableObjectsCount', 'Available Objects ({count}/{max})', {
+									count: positions.length,
+									max: parsedInteraction.maxChoices,
+								})
+							: translate(i18n, 'interactions.positionObject.availableObjectsTotal', 'Available Objects ({count})', {
+									count: positions.length,
+								})}
 					</h3>
 
-					<p class="text-xs text-base-content/60 mb-2">Drag objects onto the canvas, or press Enter/Space on an object then use arrow keys to position it on the canvas.</p>
+					<p class="text-xs text-base-content/60 mb-2">
+						{translate(
+							i18n,
+							'interactions.positionObject.paletteInstructions',
+							'Drag objects onto the canvas, or press Enter or Space on an object, then use the arrow keys to position it on the canvas.',
+						)}
+					</p>
 
 					<div class="space-y-2">
 						{#each parsedInteraction.positionObjectStages as stage}
@@ -741,7 +781,17 @@
 								onkeydown={(e) => handlePaletteKeydown(e, stage.identifier)}
 								role="button"
 								tabindex={canInteract && canDrag ? 0 : -1}
-								aria-label="{stage.label} ({usageCount}/{stage.matchMax} used){selectedStageId === stage.identifier ? '. Selected for placement' : ''}"
+								aria-label={joinSentences(
+									translate(i18n, 'accessibility.sentence', '{text}.', {
+										text: translate(i18n, 'interactions.positionObject.objectUsage', '{label} ({usageCount}/{matchMax} used)', {
+											label: stage.label,
+											usageCount,
+											matchMax: stage.matchMax,
+										}),
+									}),
+									selectedStageId === stage.identifier &&
+										translate(i18n, 'interactions.graphicGapMatch.selectedHint', 'Selected for placement.'),
+								)}
 								aria-pressed={selectedStageId === stage.identifier}
 							>
 								<!-- Object Preview -->
@@ -770,7 +820,10 @@
 								<div class="flex-1 min-w-0">
 									<div class="font-medium text-sm truncate">{stage.label}</div>
 									<div class="text-xs text-base-content/60">
-										{usageCount}/{stage.matchMax} used
+										{translate(i18n, 'interactions.positionObject.used', '{usageCount}/{matchMax} used', {
+											usageCount,
+											matchMax: stage.matchMax,
+										})}
 									</div>
 								</div>
 
