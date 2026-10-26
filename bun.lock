@@ -60,7 +60,7 @@
         "@types/node": "^26.6.4",
         "@types/unzipper": "^0.10.11",
         "@types/xml2js": "^0.4.14",
-        "daisyui": "^5.7.28",
+        "daisyui": "^5.7.50",
         "js-yaml": "^5.5.0",
         "svelte": "^5.57.1",
         "svelte-check": "^4.7.6",
@@ -93,7 +93,7 @@
         "@tailwindcss/typography": "^0.5.20",
         "@tailwindcss/vite": "^4.3.3",
         "@types/node": "^26.6.4",
-        "daisyui": "^5.7.28",
+        "daisyui": "^5.7.50",
         "svelte": "^5.57.1",
         "svelte-check": "^4.7.6",
         "tailwindcss": "^4.2.2",
@@ -1240,7 +1240,7 @@
 
     "cssom": ["cssom@0.5.0", "", {}, "sha512-iKuQcq+NdHqlAcwUY0o/HL69XQrUaQdMjmStJ8JFmUaiiQErlhrmuigkg/CU4E2J0IyUKUrMAgl36TvN67MqTw=="],
 
-    "daisyui": ["daisyui@5.7.28", "", {}, "sha512-BxQap2QOj7NQy5nEsjTHRmybmUZP3t+O5G6vfdidZuptBsh/QyKN9wbdrGDZk198fMI3UyYnA/rCWlggZIhGnw=="],
+    "daisyui": ["daisyui@5.7.50", "", {}, "sha512-+/LRqnTCoc7s/bJEKKwtJSwzeXCVdAmRdNmZeZzgHCaQ9PJyl7j+2V2U32GQDMyD+VDkP9e/+JGoC72Y1hLk7w=="],
 
     "data-urls": ["data-urls@8.0.0", "", { "dependencies": { "whatwg-mimetype": "^5.0.0", "whatwg-url": "^17.1.2" } }, "sha512-JQUCCK+/CAGbGGx618PlFZMXH81Jtj7t73CHv9dd/zVWvxgGT2zLFRjnKb+Ng46GIwcy+f7f88qd4duqllK+WQ=="],
 
