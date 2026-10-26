@@ -20,7 +20,7 @@
     "@pie-qti/logger": "workspace:*",
     "@pie-qti/storage": "workspace:*",
     "@pie-qti/transform-types": "workspace:*",
-    "node-html-parser": "^9.0.4"
+    "node-html-parser": "^9.0.5"
   },
   "devDependencies": {
     "@types/bun": "^1.4.4",
