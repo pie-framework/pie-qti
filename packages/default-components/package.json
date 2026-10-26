@@ -35,7 +35,7 @@
     "@tiptap/extension-mathematics": "3.32.0",
     "@tiptap/extension-placeholder": "3.32.0",
     "@tiptap/starter-kit": "3.32.0",
-    "mathlive": "^0.110.0"
+    "mathlive": "^0.111.1"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.6.2",
