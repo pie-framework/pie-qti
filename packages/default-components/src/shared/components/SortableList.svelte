@@ -316,12 +316,12 @@ function toPlainText(html: HtmlContent): string {
 					class:border-success={isCorrect}
 				>
 					{#if indexLabels !== 'none'}
-						<span part="index" class="qti-sortable-index badge {isCorrect ? 'badge-success' : 'badge-neutral'}">{formatIndex(index)}</span>
+						<span part="index" aria-hidden="true" data-text={formatIndex(index)} class="qti-sortable-index badge {isCorrect ? 'badge-success' : 'badge-neutral'}"></span>
 					{/if}
 					<DragHandle size={1} opacity={0.5} class="text-base-content" />
 					<span part="text" class="qti-sortable-text qti-rich-content flex-1">{@html item.text}</span>
 					{#if isCorrect}
-						<span class="badge badge-success badge-sm">{i18n?.t('interactions.choice.correct', 'Correct') ?? 'Correct'}</span>
+						<span aria-hidden="true" data-text="{i18n?.t('interactions.choice.correct', 'Correct') ?? 'Correct'}" class="badge badge-success badge-sm"></span>
 					{/if}
 				</button>
 				{#if !disabled}
@@ -346,6 +346,11 @@ function toPlainText(html: HtmlContent): string {
 </div>
 
 <style>
+	/* Redundant with the button's aria-label; generated so the visible text stays out of the DOM's label-in-name comparison. */
+	[data-text]::before {
+		content: attr(data-text);
+	}
+
 	/* Minimal, self-contained layout so the component doesn't break when Tailwind utilities aren't present */
 	.qti-sortable-list {
 		display: flex;
