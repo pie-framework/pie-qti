@@ -1,5 +1,14 @@
 # @pie-qti/default-components
 
+## 1.0.0-beta.3
+
+### Patch Changes
+
+- e69c39d: The ordering and matching controls keep their accessible names but no longer render redundant index, "Correct", match and hint labels as DOM text, so the visible text is contained in each name (WCAG 2.5.3).
+- @pie-qti/item-player@1.0.0-beta.3
+  - @pie-qti/i18n@1.0.0-beta.3
+  - @pie-qti/qti-common@1.0.0-beta.3
+
 ## 1.0.0-beta.2
 
 ### Patch Changes

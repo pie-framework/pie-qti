@@ -1,5 +1,11 @@
 # @pie-qti/qti-processing
 
+## 1.0.0-beta.3
+
+### Patch Changes
+
+- @pie-qti/qti-common@1.0.0-beta.3
+
 ## 1.0.0-beta.2
 
 ### Patch Changes
