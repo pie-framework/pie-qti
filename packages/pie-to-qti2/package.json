@@ -35,7 +35,7 @@
 		"@pie-qti/qti-common": "workspace:*",
 		"@pie-qti/transform-core": "workspace:*",
 		"@pie-qti/transform-types": "workspace:*",
-		"node-html-parser": "^9.0.4",
+		"node-html-parser": "^9.0.5",
 		"uuid": "^14.0.1",
 		"xml-formatter": "^3.6.4"
 	},

@@ -44,7 +44,7 @@
 		"@pie-qti/test-utils": "workspace:*",
 		"@pie-qti/transform-types": "workspace:*",
 		"ajv": "^8.20.0",
-		"node-html-parser": "^9.0.4"
+		"node-html-parser": "^9.0.5"
 	},
 	"devDependencies": {
 		"typescript": "^5.9.3"

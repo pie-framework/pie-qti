@@ -107,7 +107,7 @@
       "devDependencies": {
         "@pie-qti/item-player": "workspace:*",
         "@types/bun": "^1.4.4",
-        "node-html-parser": "^9.0.4",
+        "node-html-parser": "^9.0.5",
         "svelte": "^5.57.1",
         "typescript": "^5.9.3",
       },
@@ -128,7 +128,7 @@
         "@pie-qti/qti-common": "workspace:*",
         "@pie-qti/qti-processing": "workspace:*",
         "@pie-qti/section-player": "workspace:*",
-        "node-html-parser": "^9.0.4",
+        "node-html-parser": "^9.0.5",
       },
       "devDependencies": {
         "@biomejs/biome": "^2.6.2",
@@ -160,7 +160,7 @@
         "@pie-qti/test-utils": "workspace:*",
         "@pie-qti/transform-types": "workspace:*",
         "ajv": "^8.20.0",
-        "node-html-parser": "^9.0.4",
+        "node-html-parser": "^9.0.5",
       },
       "devDependencies": {
         "typescript": "^5.9.3",
@@ -198,7 +198,7 @@
       "dependencies": {
         "@pie-qti/to-pie": "workspace:*",
         "@pie-qti/transform-types": "workspace:*",
-        "node-html-parser": "^9.0.4",
+        "node-html-parser": "^9.0.5",
         "uuid": "^14.0.1",
       },
       "devDependencies": {
@@ -231,7 +231,7 @@
       "version": "1.0.0-beta.2",
       "dependencies": {
         "@pie-qti/logger": "workspace:*",
-        "node-html-parser": "^9.0.4",
+        "node-html-parser": "^9.0.5",
       },
       "devDependencies": {
         "typescript": "^5.9.3",
@@ -259,7 +259,7 @@
         "@pie-qti/qti-common": "workspace:*",
         "@pie-qti/qti-processing": "workspace:*",
         "mathlive": "^0.111.1",
-        "node-html-parser": "^9.0.4",
+        "node-html-parser": "^9.0.5",
       },
       "devDependencies": {
         "@biomejs/biome": "^2.6.2",
@@ -296,7 +296,7 @@
         "@pie-qti/qti-common": "workspace:*",
         "@pie-qti/transform-core": "workspace:*",
         "@pie-qti/transform-types": "workspace:*",
-        "node-html-parser": "^9.0.4",
+        "node-html-parser": "^9.0.5",
         "uuid": "^14.0.1",
         "xml-formatter": "^3.6.4",
       },
@@ -333,7 +333,7 @@
       "name": "@pie-qti/qti-common",
       "version": "1.0.0-beta.2",
       "dependencies": {
-        "node-html-parser": "^9.0.4",
+        "node-html-parser": "^9.0.5",
       },
       "devDependencies": {
         "@types/bun": "^1.4.4",
@@ -425,7 +425,7 @@
         "@pie-qti/logger": "workspace:*",
         "@pie-qti/storage": "workspace:*",
         "@pie-qti/transform-types": "workspace:*",
-        "node-html-parser": "^9.0.4",
+        "node-html-parser": "^9.0.5",
       },
       "devDependencies": {
         "@types/bun": "^1.4.4",
@@ -459,7 +459,7 @@
         "@pie-qti/transform-types": "workspace:*",
         "fast-xml-parser": "^5.11.2",
         "image-size": "^2.0.4",
-        "node-html-parser": "^9.0.4",
+        "node-html-parser": "^9.0.5",
         "uuid": "^14.0.1",
         "xmllint-wasm": "^5.3.0",
       },
@@ -515,7 +515,7 @@
         "@pie-qti/to-pie": "workspace:*",
         "@pie-qti/transform-core": "workspace:*",
         "@pie-qti/transform-types": "workspace:*",
-        "node-html-parser": "^9.0.4",
+        "node-html-parser": "^9.0.5",
       },
       "devDependencies": {
         "@types/node": "^26.6.4",
@@ -1552,7 +1552,7 @@
 
     "node-emoji": ["node-emoji@2.2.0", "", { "dependencies": { "@sindresorhus/is": "^4.6.0", "char-regex": "^1.0.2", "emojilib": "^2.4.0", "skin-tone": "^2.0.0" } }, "sha512-Z3lTE9pLaJF47NyMhd4ww1yFTAP8YhYI8SleJiHzM46Fgpm5cnNzSl9XfzFNqbaz+VlJrIj3fXQ4DeN1Rjm6cw=="],
 
-    "node-html-parser": ["node-html-parser@9.0.4", "", { "dependencies": { "css-select": "^5.1.0", "entities": "^8.0.0" } }, "sha512-reUSrZkF1rO7hEYe5mJwtbVcQ6mB5QrViCZH6Wv+iz3er/PA9Q50gol15dMLQRDfdli4VzqPMPR24HNRFgVKFw=="],
+    "node-html-parser": ["node-html-parser@9.0.5", "", { "dependencies": { "css-select": "^5.1.0", "entities": "^8.0.0" } }, "sha512-LpUc74Ax3L6AsxTEqoep0GDqCBbsPjtn74sYaiazxGXfwhe6iqD4E5sHTJFCU+wBxVMX+Dd7mvLim0QM1vsvpw=="],
 
     "node-int64": ["node-int64@0.4.0", "", {}, "sha512-O5lz91xSOeoXP6DulyHfllpq+Eg00MWitZIbtPfoSEvqIHdl5gfcY6hYzDWnj0qD5tz52PI08u9qUvSVeUBeHw=="],
 

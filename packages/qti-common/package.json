@@ -3,7 +3,7 @@
   "version": "1.0.0-beta.2",
   "main": "./dist/index.js",
   "dependencies": {
-    "node-html-parser": "^9.0.4"
+    "node-html-parser": "^9.0.5"
   },
   "devDependencies": {
     "@types/bun": "^1.4.4",

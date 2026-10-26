@@ -19,7 +19,7 @@
   "dependencies": {
     "@pie-qti/to-pie": "workspace:*",
     "@pie-qti/transform-types": "workspace:*",
-    "node-html-parser": "^9.0.4",
+    "node-html-parser": "^9.0.5",
     "uuid": "^14.0.1"
   },
   "devDependencies": {
