@@ -23,7 +23,7 @@ describe('QTI 2.2.2 Structure Verification', () => {
     const pieItem: PieItem = {
       id: 'inspect-item',
       uuid: '111e4567-e89b-12d3-a456-426614174000',
-      searchMetaData: {
+      extensions: {
         subject: 'Science',
         gradeLevel: ['8', '9'],
         DOK: 'DOK3',

@@ -66,7 +66,6 @@ jobs:
         with:
           node-version-file: .nvmrc
           registry-url: https://registry.npmjs.org
-          always-auth: true
 
       # npm trusted publishing (OIDC) requires npm >= 11.5.1, and Node 22.16 ships npm
       # 10.x, so the bundled CLI is upgraded explicitly. Harmless for token publishes.
@@ -242,7 +241,7 @@ jobs:
           echo "PUBLISH_NPM_TOKEN=" >> "$GITHUB_ENV"
           echo "PUBLISH_NODE_AUTH_TOKEN=" >> "$GITHUB_ENV"
 
-          # actions/setup-node was called with registry-url + always-auth, so it wrote an
+          # actions/setup-node was called with registry-url, so it wrote an
           # .npmrc containing `//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}`. Under
           # OIDC there is no token, so that line would expand to an empty credential and
           # npm would attempt (and fail) token auth instead of falling through to trusted

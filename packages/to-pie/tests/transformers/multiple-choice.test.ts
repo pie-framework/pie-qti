@@ -55,9 +55,9 @@ describe('transformMultipleChoice', () => {
     expect(result.uuid).toBeDefined();
     expect(result.config).toBeDefined();
     expect(result.metadata).toBeDefined();
-    expect(result.metadata?.searchMetaData?.title).toBe('Basic Math');
-    expect(result.metadata?.searchMetaData?.itemType).toBe('MC');
-    expect(result.metadata?.searchMetaData?.source).toBe('qti22');
+    expect(result.metadata?.extensions?.title).toBe('Basic Math');
+    expect(result.metadata?.extensions?.itemType).toBe('MC');
+    expect(result.metadata?.extensions?.source).toBe('qti22');
 
     // Verify PIE element configuration
     expect(result.config.elements['multiple-choice']).toBe('@pie-element/multiple-choice@latest');
@@ -92,7 +92,7 @@ describe('transformMultipleChoice', () => {
 
     const result = await transformMultipleChoice(itemElement, 'mc-multi-001');
 
-    expect(result.metadata?.searchMetaData?.itemType).toBe('MCA');
+    expect(result.metadata?.extensions?.itemType).toBe('MCA');
 
     const model = result.config.models[0];
     expect(model.choiceMode).toBe('checkbox');

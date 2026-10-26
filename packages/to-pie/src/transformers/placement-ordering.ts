@@ -127,7 +127,7 @@ export function transformPlacementOrderingInteraction(
       },
     },
     metadata: {
-      searchMetaData: {
+      extensions: {
         title: itemId,
         itemType: 'PO',
         source: 'qti22',

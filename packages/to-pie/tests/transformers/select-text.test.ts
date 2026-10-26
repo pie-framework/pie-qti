@@ -42,7 +42,7 @@ describe('transformSelectText', () => {
     expect(matToken).toBeDefined();
     expect(matToken?.correct).toBe(false);
 
-    expect(result.metadata?.searchMetaData?.itemType).toBe('ST');
+    expect(result.metadata?.extensions?.itemType).toBe('ST');
   });
 
   test('should handle multiple correct answers', () => {

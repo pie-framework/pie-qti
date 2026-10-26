@@ -128,7 +128,7 @@ describe('External Passage Integration', () => {
           ],
           elements: {},
         },
-        searchMetaData: { subject: 'Physics' },
+        extensions: { subject: 'Physics' },
       },
       config: {
         id: 'uuid-2',

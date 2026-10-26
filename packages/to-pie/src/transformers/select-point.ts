@@ -336,7 +336,7 @@ function buildItem(
       elements: { [elementKey]: `${element}@latest` },
     },
     metadata: {
-      searchMetaData: {
+      extensions: {
         title: context.assessmentItem.getAttribute('title') || context.itemId,
         itemType: elementKey,
         source: 'qti22',

@@ -45,7 +45,7 @@ describe('transformInlineDropdown', () => {
       label: 'Berlin',
       correct: false,
     });
-    expect(result.metadata?.searchMetaData?.itemType).toBe('ID');
+    expect(result.metadata?.extensions?.itemType).toBe('ID');
   });
 
   test('should handle multiple inline choice interactions', () => {

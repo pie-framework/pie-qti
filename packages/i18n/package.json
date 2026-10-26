@@ -38,9 +38,9 @@
   "license": "MIT",
   "devDependencies": {
     "svelte": "^5.57.1",
-    "svelte-check": "^4.7.5",
+    "svelte-check": "^4.7.7",
     "typescript": "^5.9.3",
-    "@types/bun": "^1.4.3"
+    "@types/bun": "^1.4.4"
   },
   "repository": {
     "type": "git",

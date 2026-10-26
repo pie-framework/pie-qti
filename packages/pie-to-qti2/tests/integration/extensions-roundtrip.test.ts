@@ -1,7 +1,7 @@
 /**
- * searchMetaData Round-Trip Tests
+ * Extensions Round-Trip Tests
  *
- * Verify that searchMetaData is preserved perfectly through PIE → QTI → PIE transformations
+ * Verify that extensions are preserved perfectly through PIE → QTI → PIE transformations
  */
 
 import { describe, expect, test } from 'bun:test';
@@ -10,7 +10,7 @@ import type { PieItem } from '@pie-qti/transform-types';
 import { PieToQtiPlugin } from '../../src/plugin.js';
 import { expectSidecarIsolation } from '../helpers/sidecar.js';
 
-describe('searchMetaData Round-Trip', () => {
+describe('Extensions Round-Trip', () => {
   const pieToQti = new PieToQtiPlugin();
   const qtiToPie = new QtiToPiePlugin();
 
@@ -22,11 +22,11 @@ describe('searchMetaData Round-Trip', () => {
     error: () => {},
   };
 
-  test('should preserve searchMetaData with all data types', async () => {
+  test('should preserve extensions with all data types', async () => {
     const originalPie: PieItem = {
       id: 'metadata-item-1',
       uuid: '888e4567-e89b-12d3-a456-426614174000',
-      searchMetaData: {
+      extensions: {
         subject: 'Mathematics',
         gradeLevel: ['9', '10', '11'],
         DOK: 'DOK2',
@@ -65,7 +65,7 @@ describe('searchMetaData Round-Trip', () => {
     const qtiXml = qtiResult.items[0].content as string;
 
     expectSidecarIsolation(qtiXml);
-    expect(qtiResult.items[0].sidecar?.sourceModel.searchMetaData).toEqual(originalPie.searchMetaData);
+    expect(qtiResult.items[0].sidecar?.sourceModel.extensions).toEqual(originalPie.extensions);
 
     // QTI → PIE
     const pieResult = await qtiToPie.transform(
@@ -74,23 +74,23 @@ describe('searchMetaData Round-Trip', () => {
     );
     const reconstructedPie = pieResult.items[0].content;
 
-    // Verify searchMetaData is perfectly reconstructed
-    expect(reconstructedPie.searchMetaData).toBeDefined();
-    expect(reconstructedPie.searchMetaData!.subject).toBe('Mathematics');
-    expect(reconstructedPie.searchMetaData!.gradeLevel).toEqual(['9', '10', '11']);
-    expect(reconstructedPie.searchMetaData!.DOK).toBe('DOK2');
-    expect(reconstructedPie.searchMetaData!.standard).toBe('CCSS.MATH.HSA.REI.B.3');
-    expect(reconstructedPie.searchMetaData!.tags).toEqual(['algebra', 'equations', 'solving']);
-    expect(reconstructedPie.searchMetaData!.difficulty).toBe(0.72);
-    expect(reconstructedPie.searchMetaData!.discrimination).toBe(0.45);
-    expect(reconstructedPie.searchMetaData!.bloomsTaxonomy).toBe('Apply');
+    // Verify extensions is perfectly reconstructed
+    expect(reconstructedPie.extensions).toBeDefined();
+    expect(reconstructedPie.extensions!.subject).toBe('Mathematics');
+    expect(reconstructedPie.extensions!.gradeLevel).toEqual(['9', '10', '11']);
+    expect(reconstructedPie.extensions!.DOK).toBe('DOK2');
+    expect(reconstructedPie.extensions!.standard).toBe('CCSS.MATH.HSA.REI.B.3');
+    expect(reconstructedPie.extensions!.tags).toEqual(['algebra', 'equations', 'solving']);
+    expect(reconstructedPie.extensions!.difficulty).toBe(0.72);
+    expect(reconstructedPie.extensions!.discrimination).toBe(0.45);
+    expect(reconstructedPie.extensions!.bloomsTaxonomy).toBe('Apply');
   });
 
-  test('should handle multi-model item with passage and searchMetaData', async () => {
+  test('should handle multi-model item with passage and extensions', async () => {
     const originalPie: PieItem = {
       id: 'complex-item-1',
       uuid: '999e4567-e89b-12d3-a456-426614174000',
-      searchMetaData: {
+      extensions: {
         subject: 'ELA',
         gradeLevel: ['7', '8'],
         DOK: 'DOK3',
@@ -136,7 +136,7 @@ describe('searchMetaData Round-Trip', () => {
     expect(qtiXml).toContain('stimulus');
     expect(qtiXml).toContain('Understanding Theme');
     expectSidecarIsolation(qtiXml);
-    expect(qtiResult.items[0].sidecar?.sourceModel.searchMetaData).toEqual(originalPie.searchMetaData);
+    expect(qtiResult.items[0].sidecar?.sourceModel.extensions).toEqual(originalPie.extensions);
 
     // QTI → PIE
     const pieResult = await qtiToPie.transform(
@@ -148,16 +148,16 @@ describe('searchMetaData Round-Trip', () => {
     // Verify both passage and metadata are reconstructed
     expect(reconstructedPie.config.models.length).toBeGreaterThanOrEqual(1);
 
-    // Check searchMetaData
-    expect(reconstructedPie.searchMetaData).toBeDefined();
-    expect(reconstructedPie.searchMetaData!.subject).toBe('ELA');
-    expect(reconstructedPie.searchMetaData!.gradeLevel).toEqual(['7', '8']);
-    expect(reconstructedPie.searchMetaData!.DOK).toBe('DOK3');
-    expect(reconstructedPie.searchMetaData!.complexity).toBe('high');
-    expect(reconstructedPie.searchMetaData!.estimatedTime).toBe(180);
+    // Check extensions
+    expect(reconstructedPie.extensions).toBeDefined();
+    expect(reconstructedPie.extensions!.subject).toBe('ELA');
+    expect(reconstructedPie.extensions!.gradeLevel).toEqual(['7', '8']);
+    expect(reconstructedPie.extensions!.DOK).toBe('DOK3');
+    expect(reconstructedPie.extensions!.complexity).toBe('high');
+    expect(reconstructedPie.extensions!.estimatedTime).toBe(180);
   });
 
-  test('should handle item without searchMetaData gracefully', async () => {
+  test('should handle item without extensions gracefully', async () => {
     const originalPie: PieItem = {
       id: 'no-metadata-item',
       uuid: 'aaae4567-e89b-12d3-a456-426614174000',
@@ -190,7 +190,7 @@ describe('searchMetaData Round-Trip', () => {
 
     // Should not have metadata section (or empty)
     expect(qtiXml).toContain('assessmentItem');
-    // No qti-metadata section expected for items without searchMetaData
+    // No qti-metadata section expected for items without extensions
 
     // QTI → PIE
     const pieResult = await qtiToPie.transform(
@@ -199,7 +199,7 @@ describe('searchMetaData Round-Trip', () => {
     );
     const reconstructedPie = pieResult.items[0].content;
 
-    // Should still work, just no searchMetaData
+    // Should still work, just no extensions
     expect(reconstructedPie.id).toBe('no-metadata-item');
     expect(reconstructedPie.config.models[0].element).toBe('@pie-element/multiple-choice');
   });
@@ -208,7 +208,7 @@ describe('searchMetaData Round-Trip', () => {
     const originalPie: PieItem = {
       id: 'edge-case-item',
       uuid: 'bbbe4567-e89b-12d3-a456-426614174000',
-      searchMetaData: {
+      extensions: {
         subject: 'Science',
         tags: [], // Empty array
         difficulty: 0, // Zero value
@@ -238,7 +238,7 @@ describe('searchMetaData Round-Trip', () => {
     const qtiXml = qtiResult.items[0].content as string;
 
     expectSidecarIsolation(qtiXml);
-    expect(qtiResult.items[0].sidecar?.sourceModel.searchMetaData).toEqual(originalPie.searchMetaData);
+    expect(qtiResult.items[0].sidecar?.sourceModel.extensions).toEqual(originalPie.extensions);
 
     // QTI → PIE
     const pieResult = await qtiToPie.transform(
@@ -248,19 +248,19 @@ describe('searchMetaData Round-Trip', () => {
     const reconstructedPie = pieResult.items[0].content;
 
     // Verify edge cases preserved
-    expect(reconstructedPie.searchMetaData!.subject).toBe('Science');
-    expect(reconstructedPie.searchMetaData!.difficulty).toBe(0);
+    expect(reconstructedPie.extensions!.subject).toBe('Science');
+    expect(reconstructedPie.extensions!.difficulty).toBe(0);
 
     // Empty arrays should be preserved
-    expect(reconstructedPie.searchMetaData!.tags).toEqual([]);
-    expect(reconstructedPie.searchMetaData!.relatedStandards).toEqual([]);
+    expect(reconstructedPie.extensions!.tags).toEqual([]);
+    expect(reconstructedPie.extensions!.relatedStandards).toEqual([]);
   });
 
   test('should use PIE extension for perfect reconstruction', async () => {
     const originalPie: PieItem = {
       id: 'extension-test',
       uuid: 'ccce4567-e89b-12d3-a456-426614174000',
-      searchMetaData: {
+      extensions: {
         customField: 'custom value',
         nestedData: {
           level1: {
@@ -296,7 +296,7 @@ describe('searchMetaData Round-Trip', () => {
     const qtiXml = qtiResult.items[0].content as string;
 
     expectSidecarIsolation(qtiXml);
-    expect(qtiResult.items[0].sidecar?.sourceModel.searchMetaData).toEqual(originalPie.searchMetaData);
+    expect(qtiResult.items[0].sidecar?.sourceModel.extensions).toEqual(originalPie.extensions);
 
     // QTI → PIE (should extract from PIE extension for perfect match)
     const pieResult = await qtiToPie.transform(
@@ -306,9 +306,9 @@ describe('searchMetaData Round-Trip', () => {
     const reconstructedPie = pieResult.items[0].content;
 
     // With PIE extension, even nested/complex data should be preserved
-    expect(reconstructedPie.searchMetaData).toBeDefined();
-    expect(reconstructedPie.searchMetaData!.customField).toBe('custom value');
-    // Note: nested objects in searchMetaData should be preserved via PIE extension
-    expect(reconstructedPie.searchMetaData!.subject).toBe('Test');
+    expect(reconstructedPie.extensions).toBeDefined();
+    expect(reconstructedPie.extensions!.customField).toBe('custom value');
+    // Note: nested objects in extensions should be preserved via PIE extension
+    expect(reconstructedPie.extensions!.subject).toBe('Test');
   });
 });

@@ -352,7 +352,7 @@ export class PieToQtiPlugin implements TransformPlugin {
     }
 
     // The PIE item travels beside the QTI for a lossless round-trip: QTI admits no foreign elements
-    // in an item, so neither the source model nor its baseId and searchMetaData can be embedded.
+    // in an item, so neither the source model nor its baseId and extensions can be embedded.
     const sidecar: PieSourceSidecar = {
       format: PIE_SOURCE_SIDECAR_FORMAT,
       version: 1,
@@ -407,13 +407,13 @@ export class PieToQtiPlugin implements TransformPlugin {
             files: [pieSourceSidecarPath(`items/${pieItem.baseId || pieItem.id}.xml`)],
             dependencies: generatedPassageFiles.map(pf => pf.id),
             baseId: pieItem.baseId,
-            searchMetaData: pieItem.searchMetaData,
+            extensions: pieItem.extensions,
           },
         ],
         passages: generatedPassageFiles.map(pf => ({
           id: pf.id,
           filePath: pf.filePath,
-          searchMetaData: pf.metadata,
+          extensions: pf.metadata,
         })),
         options: {
           packageId: `pkg-${pieItem.baseId || pieItem.id}`,

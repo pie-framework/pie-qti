@@ -231,15 +231,15 @@ function clearMatch(sourceId: string) {
 						<div class="qti-match-source-text flex-1">
 							<div class="qti-match-source-title qti-rich-inline-content font-medium">{@html source.text}</div>
 							{#if targetItems.length > 0}
-								<div class="qti-match-source-sub text-sm mt-1">→ {targetItems.map((target) => choiceLabel(target, 'Target')).join(', ')}</div>
+								<div aria-hidden="true" data-text="→ {targetItems.map((target) => choiceLabel(target, 'Target')).join(', ')}" class="qti-match-source-sub text-sm mt-1"></div>
 							{:else if isCorrect && correctTargets.length > 0}
 								{@const correctTargetItems = correctTargets.map((tid) => targetSet.find((t) => t.identifier === tid)).filter(Boolean)}
 								{#if correctTargetItems.length > 0}
-									<div class="qti-match-source-sub text-sm mt-1">→ {correctTargetItems.map((target) => choiceLabel(target, 'Target')).join(', ')}</div>
+									<div aria-hidden="true" data-text="→ {correctTargetItems.map((target) => choiceLabel(target, 'Target')).join(', ')}" class="qti-match-source-sub text-sm mt-1"></div>
 								{/if}
 							{/if}
 							{#if isCorrect && matchedTargets.length === 0}
-								<span class="badge badge-success badge-sm ms-2">{i18n?.t('interactions.choice.correct', 'Correct') ?? 'Correct'}</span>
+								<span aria-hidden="true" data-text="{i18n?.t('interactions.choice.correct', 'Correct') ?? 'Correct'}" class="badge badge-success badge-sm ms-2"></span>
 							{/if}
 						</div>
 						{#if !disabled && canDragMore}
@@ -320,21 +320,23 @@ function clearMatch(sourceId: string) {
 				<div class="qti-match-target-content flex flex-col gap-1">
 					<div class="qti-match-target-title qti-rich-inline-content font-medium text-base-content/70">{@html target.text}</div>
 					{#if matchedSource && sourceItem}
-						<div class="qti-match-target-sub text-sm text-primary font-medium">← {choiceLabel(sourceItem)}</div>
+						<div aria-hidden="true" data-text="← {choiceLabel(sourceItem)}" class="qti-match-target-sub text-sm text-primary font-medium"></div>
 					{:else if isCorrect && correctSource}
 						{@const correctSourceItem = sourceSet.find((s) => s.identifier === correctSource)}
 						{#if correctSourceItem}
-							<div class="qti-match-target-sub text-sm text-success font-medium">← {choiceLabel(correctSourceItem)}</div>
+							<div aria-hidden="true" data-text="← {choiceLabel(correctSourceItem)}" class="qti-match-target-sub text-sm text-success font-medium"></div>
 						{/if}
 					{:else if !disabled}
-						<div class="qti-match-target-hint text-xs text-base-content/70 italic">
-							{selectedSourceId
+						<div
+							aria-hidden="true"
+							data-text={selectedSourceId
 								? (i18n?.t('interactions.match.selectTarget') ?? 'Select to match')
 								: (i18n?.t('interactions.match.dropTarget') ?? 'Drop item here')}
-						</div>
+							class="qti-match-target-hint text-xs text-base-content/70 italic"
+						></div>
 					{/if}
 					{#if isCorrect && !matchedSource}
-						<span class="badge badge-success badge-sm mt-1">{i18n?.t('interactions.choice.correct', 'Correct') ?? 'Correct'}</span>
+						<span aria-hidden="true" data-text="{i18n?.t('interactions.choice.correct', 'Correct') ?? 'Correct'}" class="badge badge-success badge-sm mt-1"></span>
 					{/if}
 				</div>
 			</button>
@@ -343,6 +345,11 @@ function clearMatch(sourceId: string) {
 </div>
 
 <style>
+	/* Redundant with the button's aria-label; generated so the visible text stays out of the DOM's label-in-name comparison. */
+	[data-text]::before {
+		content: attr(data-text);
+	}
+
 	[draggable="true"] {
 		touch-action: none;
 	}

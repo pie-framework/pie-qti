@@ -31,15 +31,15 @@
 		"@pie-qti/ims-cp-core": "workspace:*",
 		"@pie-qti/qti-common": "workspace:*",
 		"@pie-qti/qti-processing": "workspace:*",
-		"mathlive": "^0.110.0",
-		"node-html-parser": "^9.0.4"
+		"mathlive": "^0.111.1",
+		"node-html-parser": "^9.0.5"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^2.5.15",
+		"@biomejs/biome": "^2.6.2",
 		"@sveltejs/vite-plugin-svelte": "^7.3.1",
 		"@types/node": "^26.6.4",
 		"svelte": "^5.57.1",
-		"svelte-check": "^4.7.5",
+		"svelte-check": "^4.7.7",
 		"typescript": "^5.9.3",
 		"vite": "^8.3.4",
 		"vite-plugin-dts": "^5.1.2"

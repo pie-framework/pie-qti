@@ -35,16 +35,16 @@
     "@tiptap/extension-mathematics": "3.32.0",
     "@tiptap/extension-placeholder": "3.32.0",
     "@tiptap/starter-kit": "3.32.0",
-    "mathlive": "^0.110.0"
+    "mathlive": "^0.111.1"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.15",
+    "@biomejs/biome": "^2.6.2",
     "@sveltejs/vite-plugin-svelte": "7.3.1",
     "@types/node": "^26.6.4",
     "jsdom": "^30.1.3",
     "linkedom": "^0.18.13",
     "svelte": "5.57.1",
-    "svelte-check": "^4.7.5",
+    "svelte-check": "^4.7.7",
     "typescript": "^5.9.3",
     "vite": "8.3.4",
     "vitest": "^5.0.5"

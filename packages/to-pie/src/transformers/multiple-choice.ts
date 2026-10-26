@@ -166,8 +166,7 @@ export async function transformMultipleChoiceInteraction(
       elements,
     },
     metadata: {
-      // Renaissance-specific search metadata
-      searchMetaData: {
+      extensions: {
         title,
         itemType: choiceMode === 'radio' ? 'MC' : 'MCA',
         source: 'qti22',

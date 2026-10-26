@@ -427,12 +427,12 @@ assert.deepEqual(reconstructed, original);
 
 ### 4. Handle Metadata Properly
 
-Use `searchMetaData` for content metadata:
+Use `extensions` for host-owned metadata:
 
 ```typescript
 const pieItem = {
   id: 'item-1',
-  searchMetaData: {
+  extensions: {
     subject: 'Mathematics',
     gradeLevel: ['8', '9'],
     DOK: 'DOK3',
@@ -604,12 +604,12 @@ const assessment = {
 
 **Cause:** Using non-standard PIE properties
 
-**Solution:** Use documented PIE schema and `searchMetaData` for custom metadata:
+**Solution:** Use documented PIE schema and `extensions` for custom metadata:
 
 ```typescript
 const pieItem = {
   id: 'item-1',
-  searchMetaData: {
+  extensions: {
     customField: 'value'  // Custom metadata goes here
   },
   config: {

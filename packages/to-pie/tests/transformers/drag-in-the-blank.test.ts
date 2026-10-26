@@ -39,7 +39,7 @@ describe('transformDragInTheBlank', () => {
     expect(model.choices[0]).toEqual({ id: '0', value: 'cat' });
     expect(model.choices[1]).toEqual({ id: '1', value: 'dog' });
     expect(model.correctResponse).toEqual({ '0': '0' }); // gap 0 -> choice 0
-    expect(result.metadata?.searchMetaData?.itemType).toBe('DITB');
+    expect(result.metadata?.extensions?.itemType).toBe('DITB');
   });
 
   test('should handle multiple gaps', () => {

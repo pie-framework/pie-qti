@@ -344,7 +344,7 @@ const result = await plugin.transform({ content: qtiXml, sidecar: sidecarJson },
 The sidecar records a digest of the QTI item it was written beside, and is used only while the item
 still has that digest:
 
-- **Unchanged item:** the original PIE item is returned verbatim, with `baseId`, `searchMetaData` and
+- **Unchanged item:** the original PIE item is returned verbatim, with `baseId`, `extensions` and
   vendor configuration.
 - **Item edited after export:** the QTI body is transformed, with a `PIE_SOURCE_STALE` warning and a
   `fallback` trace event.
@@ -359,7 +359,7 @@ only while the config is unchanged.
 
 ### Metadata Preservation
 
-`baseId` and `searchMetaData` travel in the sidecar. Without a fresh one, `transformQtiPackageToPie`
+`baseId` and `extensions` travel in the sidecar. Without a fresh one, `transformQtiPackageToPie`
 reads them from the IEEE LOM pie-to-qti2 writes on the item's manifest resource, keeping any value the
 item already has; a bare item transform reads `baseId` from a `qti-metadata-field` named `externalId`
 or `baseId`, which earlier pie-to-qti2 releases wrote.

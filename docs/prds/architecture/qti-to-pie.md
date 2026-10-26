@@ -149,8 +149,8 @@ A composite that mixes in an interaction outside the scoped set, repeats a non-r
 ### The standard MetadataExtractor is registered in the constructor
 
 **Decision:** `createStandardMetadataExtractor()` is called in the constructor and registered with `vendor: 'standard'`. It runs when no vendor-specific extractor matches.
-**Rationale:** Every PIE item needs `searchMetaData` populated from QTI metadata fields (subject, grade level, DOK, etc.). Making this automatic prevents callers from forgetting to register it. Callers who want to override metadata extraction for a specific vendor register an extractor with `vendor: 'acme'`; the standard extractor continues to handle all other vendors.
-**Alternatives considered:** Requiring callers to register all extractors explicitly — rejected because it creates a footgun (forgetting searchMetaData extraction produces items that are invisible to search systems).
+**Rationale:** Every PIE item needs `extensions` populated from QTI metadata fields (subject, grade level, DOK, etc.). Making this automatic prevents callers from forgetting to register it. Callers who want to override metadata extraction for a specific vendor register an extractor with `vendor: 'acme'`; the standard extractor continues to handle all other vendors.
+**Alternatives considered:** Requiring callers to register all extractors explicitly — rejected because it creates a footgun (forgetting metadata extraction produces items that are invisible to search systems).
 **Consequences:** Vendor packages that want to completely replace standard metadata extraction for their content must register an extractor with `vendor` matching the detected vendor ID. They cannot prevent the standard extractor from running for non-vendor content.
 
 ---
@@ -236,7 +236,7 @@ Key source files:
 - `VendorInfo.confidence` is a float 0.0–1.0. The minimum threshold for vendor dispatch is 0.6 (hardcoded in `detectVendor`). A detector's internal threshold to return a result is independent — the `AcmeVendorDetector` has a separate threshold of 0.3 before returning a result at all.
 - `VendorTransformer.transform` receives the pre-parsed `parsedDoc` (a `node-html-parser` `HTMLElement`). The doc is re-used from the plugin's parse call. Vendor transformers must not use it after the transform call returns, as the reference is not guaranteed to remain valid.
 - `embedQtiSourceInPie` returns a new object (spread) — it does not mutate the input `pieItem`.
-- Metadata extraction result is merged onto `pieItem.searchMetaData` with transformer-generated metadata winning on key conflict (`{ ...extractedMetadata, ...(pieItem.metadata?.searchMetaData || {}) }`).
+- Metadata extraction result is merged onto `pieItem.extensions` with transformer-generated metadata winning on key conflict (`{ ...extracted.extensions, ...(pieItem.metadata?.extensions || {}) }`).
 - The plugin's `id` is `'qti22-to-pie'`, `sourceFormat` is `'qti22'`, `targetFormat` is `'pie'`. These values are used as keys by the engine's `PluginRegistry` — changing them is a breaking API change.
 
 ---
@@ -311,13 +311,13 @@ AC-10: Standard metadata extractor runs by default
   Given: QTI XML with <qti-metadata-field name="subject" value="Mathematics"/>
          and no vendor-specific MetadataExtractor registered
   When: transform is called
-  Then: result.items[0].content.searchMetaData.subject equals 'Mathematics'
+  Then: result.items[0].content.extensions.subject equals 'Mathematics'
 
 AC-11: Vendor metadata extractor takes priority over standard
   Given: A registered MetadataExtractor with vendor='acme' returning { subject: 'Science' }
          and QTI XML that the AcmeVendorDetector detects with confidence >= 0.6
   When: transform is called
-  Then: result.items[0].content.searchMetaData.subject equals 'Science' (from vendor extractor)
+  Then: result.items[0].content.extensions.subject equals 'Science' (from vendor extractor)
         not 'Mathematics' (from standard extractor)
 
 AC-12: Scoped composite items compose into one PIE item

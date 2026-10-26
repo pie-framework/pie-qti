@@ -41,7 +41,7 @@ import {
   withItemBodyPartition,
 } from './utils/item-body-partition.js';
 import { serializeChildrenWithReplacements } from './utils/markup-extraction.js';
-import { extractSearchMetadata } from './utils/metadata-extraction.js';
+import { extractExtensions } from './utils/metadata-extraction.js';
 import { passageResourceIndex } from './utils/passage-resources.js';
 import { makePieItemPlayerReady } from './utils/player-config.js';
 import { hasPieExtension, type PieExtensionData } from './utils/pie-extension.js';
@@ -642,23 +642,23 @@ export class QtiToPiePlugin implements TransformPlugin {
         const extractedMetadata = metadataExtractor.extract(authoredXml, authoredDoc, vendorInfo || { vendor: 'standard', confidence: 1.0 });
         logger?.info(`Extracted metadata using ${metadataExtractor.vendor} extractor`);
 
-        // Apply extracted searchMetadata
-        if (extractedMetadata.searchMetadata && Object.keys(extractedMetadata.searchMetadata).length > 0) {
-          logger?.info(`Extracted searchMetaData with ${Object.keys(extractedMetadata.searchMetadata).length} fields`);
-          pieItem.searchMetaData = {
-            ...extractedMetadata.searchMetadata,
+        // Apply extracted extensions
+        if (extractedMetadata.extensions && Object.keys(extractedMetadata.extensions).length > 0) {
+          logger?.info(`Extracted extensions with ${Object.keys(extractedMetadata.extensions).length} fields`);
+          pieItem.extensions = {
+            ...extractedMetadata.extensions,
             // Preserve any transformer-generated metadata
-            ...(pieItem.metadata?.searchMetaData || {}),
+            ...(pieItem.metadata?.extensions || {}),
           };
         }
       } else {
         // Fallback to old method if no extractor available
-        const extractedSearchMetadata = extractSearchMetadata(authoredDoc);
-        if (Object.keys(extractedSearchMetadata).length > 0) {
-          logger?.info(`Extracted searchMetaData with ${Object.keys(extractedSearchMetadata).length} fields (legacy method)`);
-          pieItem.searchMetaData = {
-            ...extractedSearchMetadata,
-            ...(pieItem.metadata?.searchMetaData || {}),
+        const extractedExtensions = extractExtensions(authoredDoc);
+        if (Object.keys(extractedExtensions).length > 0) {
+          logger?.info(`Extracted extensions with ${Object.keys(extractedExtensions).length} fields (legacy method)`);
+          pieItem.extensions = {
+            ...extractedExtensions,
+            ...(pieItem.metadata?.extensions || {}),
           };
         }
       }

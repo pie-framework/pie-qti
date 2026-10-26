@@ -163,12 +163,12 @@ export function generatePassageFromStimulus(
     externalId: stimulus.externalId,
     title,
     content,
-    metadata: stimulus.searchMetaData,
+    metadata: stimulus.extensions,
     piePassage: stimulus,
   };
 
   return generatePassageFile(resolved, {
-    metadata: stimulus.searchMetaData,
+    metadata: stimulus.extensions,
     targetVersion,
   });
 }

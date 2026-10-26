@@ -139,7 +139,7 @@ export function transformInlineDropdownInteractions(
       },
     },
     metadata: {
-      searchMetaData: {
+      extensions: {
         title: itemId,
         itemType: 'ID',
         source: 'qti22',

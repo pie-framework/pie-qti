@@ -134,7 +134,7 @@ export function transformAssociateToCategorize(
       },
     },
     metadata: {
-      searchMetaData: {
+      extensions: {
         title: itemId,
         itemType: 'CAT',
         source: 'qti22',

@@ -37,11 +37,11 @@
     "@pie-qti/qti-common": "workspace:*"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.15",
+    "@biomejs/biome": "^2.6.2",
     "@types/node": "^26.6.4",
     "linkedom": "^0.18.13",
     "svelte": "^5.57.1",
-    "svelte-check": "^4.7.5",
+    "svelte-check": "^4.7.7",
     "typescript": "^5.9.3"
   },
   "exports": {

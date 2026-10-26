@@ -138,7 +138,7 @@ export function transformEbsrInteractions(
       },
     },
     metadata: {
-      searchMetaData: {
+      extensions: {
         title: itemId,
         itemType: 'EBSR',
         source: 'qti22',

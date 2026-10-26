@@ -172,7 +172,7 @@ describe('mapping answer key is filtered by sign', () => {
     );
 
     // upperBound="0" is not a usable weight and nothing scores positively.
-    expect(result.metadata?.searchMetaData?.maxScore).toBeUndefined();
+    expect(result.metadata?.extensions?.maxScore).toBeUndefined();
     // The mapping is still present, so partial credit was declared.
     expect(result.config.models[0].partialScoring).toBe(true);
   });
@@ -200,7 +200,7 @@ describe('partialScoring and item weight derived from the source', () => {
     );
 
     expect(result.config.models[0].partialScoring).toBe(false);
-    expect(result.metadata?.searchMetaData?.maxScore).toBeUndefined();
+    expect(result.metadata?.extensions?.maxScore).toBeUndefined();
   });
 
   test('a mapping implies partial scoring', async () => {
@@ -219,7 +219,7 @@ describe('partialScoring and item weight derived from the source', () => {
     );
 
     // upperBound=3 beats MAXSCORE=9 and the summed mapEntry values of 5.
-    expect(result.metadata?.searchMetaData?.maxScore).toBe(3);
+    expect(result.metadata?.extensions?.maxScore).toBe(3);
   });
 
   test('weight falls back to the MAXSCORE outcome', async () => {
@@ -229,7 +229,7 @@ describe('partialScoring and item weight derived from the source', () => {
     );
 
     // MAXSCORE=4 beats the summed mapEntry values of 2.
-    expect(result.metadata?.searchMetaData?.maxScore).toBe(4);
+    expect(result.metadata?.extensions?.maxScore).toBe(4);
   });
 
   test('weight falls back to the summed positive mapEntry values', async () => {
@@ -239,7 +239,7 @@ describe('partialScoring and item weight derived from the source', () => {
     );
 
     // 0.5 + 1.5; the -1 entry is not subtracted.
-    expect(result.metadata?.searchMetaData?.maxScore).toBe(2);
+    expect(result.metadata?.extensions?.maxScore).toBe(2);
   });
 
   test('a non-numeric upperBound is rejected rather than parsed to NaN', async () => {
@@ -249,8 +249,8 @@ describe('partialScoring and item weight derived from the source', () => {
     );
 
     // upperBound="Max:3" is real TEKSbank content. Number() gives NaN.
-    expect(result.metadata?.searchMetaData?.maxScore).toBe(2);
-    expect(Number.isNaN(result.metadata?.searchMetaData?.maxScore)).toBe(false);
+    expect(result.metadata?.extensions?.maxScore).toBe(2);
+    expect(Number.isNaN(result.metadata?.extensions?.maxScore)).toBe(false);
   });
 
   test('an upperBound with a trailing space still parses', async () => {
@@ -260,7 +260,7 @@ describe('partialScoring and item weight derived from the source', () => {
     );
 
     // upperBound="2 " is real TEKSbank content and is a usable weight.
-    expect(result.metadata?.searchMetaData?.maxScore).toBe(2);
+    expect(result.metadata?.extensions?.maxScore).toBe(2);
   });
 });
 
@@ -272,7 +272,7 @@ describe('choice cardinality accounts for the answer count', () => {
     );
 
     expect(result.config.models[0].choiceMode).toBe('checkbox');
-    expect(result.metadata?.searchMetaData?.itemType).toBe('MCA');
+    expect(result.metadata?.extensions?.itemType).toBe('MCA');
   });
 
   test('two correct answers override a contradicting maxChoices="1"', async () => {
@@ -282,7 +282,7 @@ describe('choice cardinality accounts for the answer count', () => {
     );
 
     expect(result.config.models[0].choiceMode).toBe('checkbox');
-    expect(result.metadata?.searchMetaData?.itemType).toBe('MCA');
+    expect(result.metadata?.extensions?.itemType).toBe('MCA');
   });
 
   test('cardinality is derived after the mapping-based answer key', async () => {
@@ -303,7 +303,7 @@ describe('choice cardinality accounts for the answer count', () => {
     );
 
     expect(result.config.models[0].choiceMode).toBe('radio');
-    expect(result.metadata?.searchMetaData?.itemType).toBe('MC');
+    expect(result.metadata?.extensions?.itemType).toBe('MC');
   });
 });
 
