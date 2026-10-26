@@ -35,7 +35,7 @@
   "license": "MIT",
   "dependencies": {},
   "devDependencies": {
-    "@biomejs/biome": "^2.5.15",
+    "@biomejs/biome": "^2.6.2",
     "@pie-qti/item-player": "workspace:*",
     "typescript": "^5.9.3",
     "vite": "^8.3.4"
