@@ -4,7 +4,7 @@
   "main": "./dist/index.js",
   "devDependencies": {
     "@pie-qti/item-player": "workspace:*",
-    "@types/bun": "^1.4.3",
+    "@types/bun": "^1.4.4",
     "node-html-parser": "^9.0.4",
     "svelte": "^5.57.1",
     "typescript": "^5.9.3"
