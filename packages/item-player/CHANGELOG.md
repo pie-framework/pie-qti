@@ -1,5 +1,15 @@
 # @pie-qti/item-player
 
+## 1.0.0-beta.3
+
+### Patch Changes
+
+- Updated dependencies [c408053]
+  - @pie-qti/ims-cp-core@1.0.0-beta.3
+  - @pie-qti/i18n@1.0.0-beta.3
+  - @pie-qti/qti-common@1.0.0-beta.3
+  - @pie-qti/qti-processing@1.0.0-beta.3
+
 ## 1.0.0-beta.2
 
 ### Patch Changes

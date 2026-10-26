@@ -1,5 +1,9 @@
 # @pie-qti/i18n
 
+## 1.0.0-beta.3
+
+No changes in this release.
+
 ## 1.0.0-beta.2
 
 ### Patch Changes
