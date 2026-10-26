@@ -1,5 +1,20 @@
 # @pie-qti/to-pie
 
+## 0.2.0
+
+### Minor Changes
+
+- c408053: The host-owned metadata bag on PIE items and passages is renamed from `searchMetaData` to `extensions` (typed `ContentExtensions`), and transformers and `MetadataExtractor` results write `extensions`. Package manifests carry it as LOM classifications with source `pie:extension:<key>` and no `purpose`; `PIE_LOM_SEARCH_METADATA_SOURCE` is replaced by `PIE_LOM_EXTENSION_SOURCE`. Import still reads the `pie:searchMetaData:` source and a legacy item's `searchMetaData`. In `@pie-qti/ims-cp-core`, `extractSearchMetadataFromQtiXml` is renamed `extractExtensionsFromQtiXml` and `QtiItemMetadata.searchMetadata` becomes `extensions`.
+
+### Patch Changes
+
+- Updated dependencies [c408053]
+  - @pie-qti/transform-types@0.2.0
+  - @pie-qti/ims-cp-core@1.0.0-beta.3
+  - @pie-qti/transform-core@0.2.0
+  - @pie-qti/ims-cp-node@1.0.0-beta.3
+  - @pie-qti/qti-common@1.0.0-beta.3
+
 ## 0.1.31
 
 ### Patch Changes

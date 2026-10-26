@@ -1,5 +1,14 @@
 # @pie-qti/test-utils
 
+## 1.0.0-beta.3
+
+### Patch Changes
+
+- Updated dependencies [c408053]
+  - @pie-qti/transform-types@0.2.0
+  - @pie-qti/storage@1.0.0-beta.3
+  - @pie-qti/logger@1.0.0-beta.3
+
 ## 1.0.0-beta.2
 
 ### Patch Changes

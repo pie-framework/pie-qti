@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/demo-vendor-extensions",
-  "version": "1.0.0-beta.2",
+  "version": "1.0.0-beta.3",
   "description": "Demo vendor extensions for QTI transformation - showcases all customization points",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
