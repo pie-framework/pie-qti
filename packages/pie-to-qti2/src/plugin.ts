@@ -408,6 +408,8 @@ export class PieToQtiPlugin implements TransformPlugin {
             dependencies: generatedPassageFiles.map(pf => pf.id),
             baseId: pieItem.baseId,
             extensions: pieItem.extensions,
+            curriculumStandards: pieItem.curriculumStandards,
+            skillLevels: pieItem.skillLevels,
           },
         ],
         passages: generatedPassageFiles.map(pf => ({

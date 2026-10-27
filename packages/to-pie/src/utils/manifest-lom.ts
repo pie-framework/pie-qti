@@ -1,15 +1,23 @@
 /**
  * PIE item metadata carried as LOM on a package resource
  *
- * pie-to-qti2 writes a PIE item's `baseId` and `extensions` as LOM on the item's `<resource>`
- * (encoding in `@pie-qti/transform-types` `pie-lom`). Element names are matched by local name, so
- * either LOM binding is read, and only entries carrying the PIE catalog and source markers count.
+ * pie-to-qti2 writes a PIE item's `baseId` and `extensions` as LOM on the item's `<resource>`, and
+ * its `curriculumStandards` and `skillLevels` as CSM and LOM (encoding in `@pie-qti/transform-types`
+ * `pie-lom`). Element names are matched by local name, so either LOM binding is read. `baseId` and
+ * `extensions` count only under the PIE catalog and source markers; standards and skill levels are
+ * read from any package, and only their PIE extensions need the PIE sources.
  */
 
 import {
+  type CurriculumStandard,
+  LOM_SKILL_LEVEL_PURPOSE,
   PIE_LOM_BASE_ID_CATALOG,
+  PIE_LOM_CURRICULUM_STANDARD_SOURCE,
   PIE_LOM_EXTENSION_SOURCE,
   PIE_LOM_LEGACY_EXTENSION_SOURCE,
+  PIE_LOM_NONE_APPLIES_SOURCE,
+  PIE_LOM_SKILL_LEVEL_SOURCE,
+  type SkillLevel,
   type TransformOutput,
 } from '@pie-qti/transform-types';
 import { XMLParser } from 'fast-xml-parser';
@@ -17,6 +25,8 @@ import { XMLParser } from 'fast-xml-parser';
 export interface PieResourceLom {
   baseId?: string;
   extensions?: Record<string, unknown>;
+  curriculumStandards?: CurriculumStandard[];
+  skillLevels?: SkillLevel[];
 }
 
 type XmlNode = Record<string, unknown>;
@@ -46,9 +56,10 @@ export function readPieResourceLom(manifestXml: string): Map<string, PieResource
   for (const resource of resources) {
     const identifier = resource['@_identifier'];
     if (typeof identifier !== 'string') continue;
-    const loms = children(resource, 'metadata').flatMap((metadata) => children(metadata, 'lom'));
-    const lom = readLom(loms);
-    if (lom.baseId !== undefined || lom.extensions !== undefined) {
+    const metadata = children(resource, 'metadata');
+    const loms = metadata.flatMap((node) => children(node, 'lom'));
+    const lom = { ...readLom(loms), ...readAlignments(metadata, loms) };
+    if (Object.values(lom).some((value) => value !== undefined)) {
       byResource.set(identifier, lom);
     }
   }
@@ -69,6 +80,12 @@ export function applyPieResourceLom(output: TransformOutput, lom: PieResourceLom
     }
     if (lom.extensions !== undefined) {
       content.extensions = { ...lom.extensions, ...(content.extensions ?? {}) };
+    }
+    if (lom.curriculumStandards !== undefined && content.curriculumStandards === undefined) {
+      content.curriculumStandards = lom.curriculumStandards;
+    }
+    if (lom.skillLevels !== undefined && content.skillLevels === undefined) {
+      content.skillLevels = lom.skillLevels;
     }
   }
 }
@@ -111,6 +128,105 @@ function readLom(loms: XmlNode[]): PieResourceLom {
   const extensions = { ...legacy, ...current };
   if (Object.keys(extensions).length > 0) result.extensions = extensions;
   return result;
+}
+
+interface LomClassification {
+  purpose?: string;
+  source?: string;
+  /** The first taxonPath's taxa: `id`, else the entry text. */
+  taxa: string[];
+  description?: string;
+}
+
+/**
+ * Standards from CSM, skill levels from LOM purpose "skill level", then each one's `purpose` and
+ * PIE extensions from the classifications that name it. A field is `[]` only when the package
+ * says none applies.
+ */
+function readAlignments(
+  metadata: XmlNode[],
+  loms: XmlNode[]
+): Pick<PieResourceLom, 'curriculumStandards' | 'skillLevels'> {
+  const standards: CurriculumStandard[] = [];
+  for (const csm of metadata
+    .flatMap((node) => children(node, 'curriculumStandardsMetadataSet'))
+    .flatMap((set) => children(set, 'curriculumStandardsMetadata'))) {
+    const providerId = trimmed(csm['@_providerId']);
+    if (!providerId) continue;
+    for (const labelled of children(csm, 'setOfGUIDs').flatMap((set) => children(set, 'labelledGUID'))) {
+      const guid = trimmed(text(children(labelled, 'GUID')[0]));
+      if (!guid) continue;
+      const caseItemURI = trimmed(text(children(labelled, 'caseItemURI')[0]));
+      const label = trimmed(text(children(labelled, 'label')[0]));
+      standards.push({
+        providerId,
+        guid,
+        ...(caseItemURI === undefined ? {} : { caseItemURI }),
+        ...(label === undefined ? {} : { label }),
+      });
+    }
+  }
+
+  const classifications = loms.flatMap((lom) => children(lom, 'classification')).map(readClassification);
+  const skillLevels: SkillLevel[] = [];
+  const noneApplies = new Set<string>();
+  for (const { purpose, source, taxa } of classifications) {
+    const id = taxa.at(-1);
+    if (purpose === LOM_SKILL_LEVEL_PURPOSE && source && id) skillLevels.push({ source, id });
+    if (purpose === undefined && source === PIE_LOM_NONE_APPLIES_SOURCE) taxa.forEach((field) => noneApplies.add(field));
+  }
+
+  const standard = (providerId: string | undefined, guid: string | undefined) =>
+    standards.find((entry) => entry.providerId === providerId && entry.guid.toLowerCase() === guid?.toLowerCase());
+  for (const { purpose, source, taxa, description } of classifications) {
+    if (purpose !== undefined && purpose !== LOM_SKILL_LEVEL_PURPOSE) {
+      const entry = standard(source, taxa.at(-1));
+      if (entry && entry.purpose === undefined) entry.purpose = purpose;
+      continue;
+    }
+    if (purpose !== undefined) continue;
+    const members = decodeJson(description);
+    if (!members.ok || !isNode(members.value)) continue;
+    const { primary, provenance, derivedFrom, rationale } = members.value;
+    if (source === PIE_LOM_CURRICULUM_STANDARD_SOURCE) {
+      const entry = standard(taxa[0], taxa[1]);
+      if (!entry) continue;
+      if (typeof primary === 'boolean') entry.primary = primary;
+      if (typeof provenance === 'string') entry.provenance = provenance as CurriculumStandard['provenance'];
+      if (isNode(derivedFrom) && typeof derivedFrom.providerId === 'string' && typeof derivedFrom.guid === 'string') {
+        entry.derivedFrom = { providerId: derivedFrom.providerId, guid: derivedFrom.guid };
+      }
+    } else if (source === PIE_LOM_SKILL_LEVEL_SOURCE) {
+      const entry = skillLevels.find((level) => level.source === taxa[0] && level.id === taxa[1]);
+      if (entry && typeof rationale === 'string') entry.rationale = rationale;
+    }
+  }
+
+  return {
+    curriculumStandards:
+      standards.length > 0 ? standards : noneApplies.has('curriculumStandards') ? [] : undefined,
+    skillLevels: skillLevels.length > 0 ? skillLevels : noneApplies.has('skillLevels') ? [] : undefined,
+  };
+}
+
+function readClassification(classification: XmlNode): LomClassification {
+  const purpose = children(classification, 'purpose')[0];
+  const taxonPath = [...children(classification, 'taxonPath'), ...children(classification, 'taxonpath')][0];
+  return {
+    purpose: purpose ? trimmed(text(children(purpose, 'value')[0])) : undefined,
+    source: taxonPath ? trimmed(langStringText(children(taxonPath, 'source')[0])) : undefined,
+    taxa: children(taxonPath, 'taxon')
+      .map((taxon) => trimmed(text(children(taxon, 'id')[0])) ?? trimmed(langStringText(children(taxon, 'entry')[0])))
+      .filter((value): value is string => value !== undefined),
+    description: langStringText(children(classification, 'description')[0]),
+  };
+}
+
+/** Text with surrounding whitespace removed; empty reads as absent. */
+function trimmed(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const result = value.trim();
+  return result === '' ? undefined : result;
 }
 
 function decodeJson(raw: string | undefined): { ok: true; value: unknown } | { ok: false } {

@@ -4,6 +4,8 @@
  * Types for generating imsmanifest.xml files according to IMS CP specification
  */
 
+import type { CurriculumStandard, SkillLevel } from '@pie-qti/transform-types';
+
 /**
  * IMS Content Package manifest structure
  */
@@ -105,6 +107,12 @@ export interface Resource {
   /** PIE `extensions`, written as LOM classifications */
   extensions?: Record<string, unknown>;
 
+  /** PIE `curriculumStandards`, written as CSM and LOM in a QTI 3 package */
+  curriculumStandards?: CurriculumStandard[];
+
+  /** PIE `skillLevels`, written as LOM classifications in a QTI 3 package */
+  skillLevels?: SkillLevel[];
+
   /** File entries */
   files?: ResourceFile[];
 
@@ -198,6 +206,12 @@ export interface ItemResource {
 
   /** PIE `extensions`, written as LOM classifications */
   extensions?: Record<string, unknown>;
+
+  /** PIE `curriculumStandards`, written as CSM and LOM in a QTI 3 package */
+  curriculumStandards?: CurriculumStandard[];
+
+  /** PIE `skillLevels`, written as LOM classifications in a QTI 3 package */
+  skillLevels?: SkillLevel[];
 
   /** Locale for this specific variant (e.g., "en-US", "es-ES") */
   locale?: string;
