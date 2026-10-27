@@ -15,12 +15,16 @@ export type ContentExtensions = Record<string, JsonValue>;
 
 /**
  * A standard or skill the content is aligned to: QTI 3 Curriculum Standards Metadata 1.1, one
- * entry per `labelledGUID`. `providerId` + `guid` is the key; GUIDs compare case-insensitively.
+ * entry per `labelledGUID`. `providerId` + `guid` is the key, an absent `providerId` reading as
+ * "AB"; GUIDs compare case-insensitively.
  * Mirrors `CurriculumStandard` in `@pie-players/pie-players-shared/types`.
  */
 export interface CurriculumStandard {
-  /** CSM `curriculumStandardsMetadata@providerId`: who issued `guid`, e.g. "AB", "CASE". */
-  providerId: string;
+  /**
+   * CSM `curriculumStandardsMetadata@providerId`: who issued `guid`, e.g. "AB", "CASE". Absent
+   * means "AB" (Academic Benchmarks), as CSM 1.1 leaves the attribute optional.
+   */
+  providerId?: string;
   /** CSM `labelledGUID/GUID`, as the provider issued it. */
   guid: string;
   /** CSM `labelledGUID/caseItemURI`, for a CASE framework item. */
@@ -34,7 +38,7 @@ export interface CurriculumStandard {
   primary?: boolean;
   provenance?: 'authored' | 'derived' | 'imported';
   /** The alignment this one was derived from. */
-  derivedFrom?: { providerId: string; guid: string };
+  derivedFrom?: { providerId?: string; guid: string };
 }
 
 /**

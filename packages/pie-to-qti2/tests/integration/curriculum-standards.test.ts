@@ -140,6 +140,22 @@ describe('curriculum standards and skill levels in a QTI 3 package', () => {
     expect(item.skillLevels).toEqual(skillLevels);
   });
 
+  test('keep a providerless standard providerless, its LOM naming it "AB"', async () => {
+    const providerless: CurriculumStandard[] = [
+      { guid: 'ABCD0003-0000-4000-8000-00000000000C', purpose: 'prerequisite', primary: true },
+      { providerId: 'AB', guid: 'ABCD0004-0000-4000-8000-00000000000D' },
+    ];
+    const output = await exportPackage(itemWith({ curriculumStandards: providerless }));
+    expect(output.manifest).toContain('<imscsmd:curriculumStandardsMetadata>');
+    expect([...output.manifest.matchAll(/curriculumStandardsMetadata providerId="([^"]+)"/g)].map((m) => m[1])).toEqual([
+      'AB',
+    ]);
+    expect(await schemaErrors(output.manifest)).toEqual([]);
+
+    const item = await importWithoutSidecar(output);
+    expect(item.curriculumStandards).toEqual(providerless);
+  });
+
   test('keep [] apart from absent', async () => {
     const output = await exportPackage(itemWith({ curriculumStandards: [] }));
     expect(output.manifest).not.toContain('imscsmd:curriculumStandardsMetadataSet');

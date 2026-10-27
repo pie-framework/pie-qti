@@ -145,13 +145,34 @@ describe('readPieResourceLom: standards and skill levels', () => {
     });
   });
 
-  test('skips CSM entries without a provider or a GUID', () => {
+  test('keeps a CSM block without a provider, leaving providerId absent and naming it "AB" in LOM', () => {
     const lom = readPieResourceLom(
       csmManifest(`
         <csm:curriculumStandardsMetadataSet>
           <csm:curriculumStandardsMetadata>
             <csm:setOfGUIDs><csm:labelledGUID><csm:GUID>00000000-0000-4000-8000-000000000001</csm:GUID></csm:labelledGUID></csm:setOfGUIDs>
           </csm:curriculumStandardsMetadata>
+        </csm:curriculumStandardsMetadataSet>
+        <imsmd:lom>
+          <imsmd:classification>
+            <imsmd:purpose><imsmd:source>LOMv1.0</imsmd:source><imsmd:value>prerequisite</imsmd:value></imsmd:purpose>
+            <imsmd:taxonPath>
+              <imsmd:source><imsmd:string language="x-none">AB</imsmd:string></imsmd:source>
+              <imsmd:taxon><imsmd:id>00000000-0000-4000-8000-000000000001</imsmd:id></imsmd:taxon>
+            </imsmd:taxonPath>
+          </imsmd:classification>
+        </imsmd:lom>`)
+    );
+
+    expect(lom.get('item1')?.curriculumStandards).toEqual([
+      { guid: '00000000-0000-4000-8000-000000000001', purpose: 'prerequisite' },
+    ]);
+  });
+
+  test('skips CSM entries without a GUID', () => {
+    const lom = readPieResourceLom(
+      csmManifest(`
+        <csm:curriculumStandardsMetadataSet>
           <csm:curriculumStandardsMetadata providerId="CASE">
             <csm:setOfGUIDs><csm:labelledGUID><csm:label>SYN.2</csm:label><csm:GUID> </csm:GUID></csm:labelledGUID></csm:setOfGUIDs>
           </csm:curriculumStandardsMetadata>

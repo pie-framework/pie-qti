@@ -10,6 +10,7 @@
 
 import {
   type CurriculumStandard,
+  DEFAULT_CURRICULUM_STANDARD_PROVIDER_ID,
   LOM_SKILL_LEVEL_PURPOSE,
   PIE_LOM_BASE_ID_CATALOG,
   PIE_LOM_CURRICULUM_STANDARD_SOURCE,
@@ -152,14 +153,13 @@ function readAlignments(
     .flatMap((node) => children(node, 'curriculumStandardsMetadataSet'))
     .flatMap((set) => children(set, 'curriculumStandardsMetadata'))) {
     const providerId = trimmed(csm['@_providerId']);
-    if (!providerId) continue;
     for (const labelled of children(csm, 'setOfGUIDs').flatMap((set) => children(set, 'labelledGUID'))) {
       const guid = trimmed(text(children(labelled, 'GUID')[0]));
       if (!guid) continue;
       const caseItemURI = trimmed(text(children(labelled, 'caseItemURI')[0]));
       const label = trimmed(text(children(labelled, 'label')[0]));
       standards.push({
-        providerId,
+        ...(providerId === undefined ? {} : { providerId }),
         guid,
         ...(caseItemURI === undefined ? {} : { caseItemURI }),
         ...(label === undefined ? {} : { label }),
@@ -176,8 +176,13 @@ function readAlignments(
     if (purpose === undefined && source === PIE_LOM_NONE_APPLIES_SOURCE) taxa.forEach((field) => noneApplies.add(field));
   }
 
+  // LOM names a standard by its effective provider, so a providerless CSM block matches "AB".
   const standard = (providerId: string | undefined, guid: string | undefined) =>
-    standards.find((entry) => entry.providerId === providerId && entry.guid.toLowerCase() === guid?.toLowerCase());
+    standards.find(
+      (entry) =>
+        (entry.providerId ?? DEFAULT_CURRICULUM_STANDARD_PROVIDER_ID) === providerId &&
+        entry.guid.toLowerCase() === guid?.toLowerCase()
+    );
   for (const { purpose, source, taxa, description } of classifications) {
     if (purpose !== undefined && purpose !== LOM_SKILL_LEVEL_PURPOSE) {
       const entry = standard(source, taxa.at(-1));
@@ -193,8 +198,9 @@ function readAlignments(
       if (!entry) continue;
       if (typeof primary === 'boolean') entry.primary = primary;
       if (typeof provenance === 'string') entry.provenance = provenance as CurriculumStandard['provenance'];
-      if (isNode(derivedFrom) && typeof derivedFrom.providerId === 'string' && typeof derivedFrom.guid === 'string') {
-        entry.derivedFrom = { providerId: derivedFrom.providerId, guid: derivedFrom.guid };
+      if (isNode(derivedFrom) && typeof derivedFrom.guid === 'string') {
+        const { providerId } = derivedFrom;
+        entry.derivedFrom = { ...(typeof providerId === 'string' ? { providerId } : {}), guid: derivedFrom.guid };
       }
     } else if (source === PIE_LOM_SKILL_LEVEL_SOURCE) {
       const entry = skillLevels.find((level) => level.source === taxa[0] && level.id === taxa[1]);

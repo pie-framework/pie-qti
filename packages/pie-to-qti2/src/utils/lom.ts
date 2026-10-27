@@ -10,6 +10,7 @@
 
 import {
   type CurriculumStandard,
+  DEFAULT_CURRICULUM_STANDARD_PROVIDER_ID,
   LOM_SKILL_LEVEL_PURPOSE,
   PIE_LOM_BASE_ID_CATALOG,
   PIE_LOM_CURRICULUM_STANDARD_SOURCE,
@@ -90,7 +91,7 @@ export function renderCurriculumStandardsMetadata(standards: CurriculumStandard[
         ]),
       ],
     ],
-    `providerId="${escapeXml(run[0].providerId)}"`,
+    run[0].providerId === undefined ? undefined : `providerId="${escapeXml(run[0].providerId)}"`,
   ]);
   return renderNode(['curriculumStandardsMetadataSet', metadata], indent, 'imscsmd');
 }
@@ -99,7 +100,7 @@ function standardClassifications(standards: CurriculumStandard[] | undefined): L
   if (!standards) return [];
   if (standards.length === 0) return [noneApplies('curriculumStandards')];
   const nodes: LomNode[] = [];
-  for (const { providerId, guid, purpose, primary, provenance, derivedFrom } of standards) {
+  for (const { providerId = DEFAULT_CURRICULUM_STANDARD_PROVIDER_ID, guid, purpose, primary, provenance, derivedFrom } of standards) {
     if (purpose !== undefined) nodes.push(purposeClassification(purpose, providerId, guid));
     const members = definedMembers({ primary, provenance, derivedFrom });
     if (members) nodes.push(pieClassification(PIE_LOM_CURRICULUM_STANDARD_SOURCE, providerId, guid, members));

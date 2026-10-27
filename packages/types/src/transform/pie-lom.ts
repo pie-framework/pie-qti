@@ -27,7 +27,8 @@ export const PIE_LOM_LEGACY_EXTENSION_SOURCE = 'pie:searchMetaData:';
  * `curriculumStandards` and `skillLevels` travel on the item's `<resource>` in a QTI 3 package:
  *
  * - Each standard is a CSM 1.1 `labelledGUID`, under a `curriculumStandardsMetadata` per run of
- *   consecutive entries sharing a `providerId`, so document order is entry order.
+ *   consecutive entries sharing a `providerId`, so document order is entry order. A standard
+ *   without `providerId` goes under a `curriculumStandardsMetadata` without the attribute.
  * - A standard's `purpose` is a LOM `classification` with that `purpose`, whose `taxonPath/source` is
  *   the `providerId` and whose `taxon/id` is the GUID.
  * - Each skill level is a LOM `classification` with purpose "skill level", `taxonPath/source` the
@@ -40,6 +41,12 @@ export const PIE_LOM_LEGACY_EXTENSION_SOURCE = 'pie:searchMetaData:';
  * - A field written as `[]` is a `classification` whose source is
  *   {@link PIE_LOM_NONE_APPLIES_SOURCE}, with one `taxon/id` naming the field.
  */
+
+/**
+ * The issuer of a `CurriculumStandard` whose `providerId` is absent. LOM classifications name a
+ * standard by this effective value.
+ */
+export const DEFAULT_CURRICULUM_STANDARD_PROVIDER_ID = 'AB';
 
 /** LOM `classification/taxonPath/source` of a standard's PIE extensions. */
 export const PIE_LOM_CURRICULUM_STANDARD_SOURCE = 'pie:curriculumStandard';
