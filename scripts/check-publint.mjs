@@ -99,19 +99,19 @@ const isIgnoredSpecifier = (specifier) => {
 	);
 };
 
+// Asset-style specifiers (css/fonts/images) legitimately appear in shipped js
+// without a resolvable .js target; they are handled by bundlers, not this walk.
+const ASSET_SPECIFIER_PATTERN = /\.(css|scss|svg|png|jpe?g|gif|webp|woff2?|ttf|otf|json)(\?.*)?$/i;
+
 const collectRuntimeImportSpecifiers = (content) => {
+	// Parsed with Bun's transpiler rather than regex: regex matching picks up
+	// specifiers inside comments (JSDoc examples, commented-out exports) and
+	// string literals, which then fail relative resolution or dependency
+	// checks for code that never runs. scanImports covers static imports,
+	// bare side-effect imports, export-from, dynamic imports, and require.
 	const out = new Set();
-	const patterns = [
-		/import\s+[^'"`]*?\sfrom\s*['"]([^'"]+)['"]/g,
-		/import\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
-		/export\s+[^'"`]*?\sfrom\s*['"]([^'"]+)['"]/g,
-		/require\(\s*['"]([^'"]+)['"]\s*\)/g,
-	];
-	for (const pattern of patterns) {
-		let match;
-		while ((match = pattern.exec(content))) {
-			out.add(match[1]);
-		}
+	for (const entry of new Bun.Transpiler({ loader: "js" }).scanImports(content)) {
+		out.add(entry.path);
 	}
 	return out;
 };
@@ -162,12 +162,27 @@ const validateRuntimeImportClosure = (dir, pkg) => {
 		visited.add(jsFile);
 
 		const content = readFileSync(jsFile, "utf8");
-		const specifiers = collectRuntimeImportSpecifiers(content);
+		let specifiers;
+		try {
+			specifiers = collectRuntimeImportSpecifiers(content);
+		} catch (error) {
+			failures.push(
+				`${path.relative(ROOT, jsFile)} could not be parsed for import scanning: ${error.message}`,
+			);
+			continue;
+		}
 		for (const specifier of specifiers) {
 			if (!isExternalSpecifier(specifier)) {
 				const relativeTarget = resolveRelativeImport(jsFile, specifier);
-				if (relativeTarget && !visited.has(relativeTarget)) {
-					queue.push(relativeTarget);
+				if (relativeTarget) {
+					if (!visited.has(relativeTarget)) queue.push(relativeTarget);
+				} else if (!ASSET_SPECIFIER_PATTERN.test(specifier)) {
+					// A relative import that resolves to nothing means the shipped
+					// closure is broken; silently skipping it would hide exactly
+					// the class of packaging bug this check exists for.
+					failures.push(
+						`${path.relative(ROOT, jsFile)} has an unresolvable relative import "${specifier}"`,
+					);
 				}
 				continue;
 			}
