@@ -10,6 +10,7 @@ import type { HTMLElement } from 'node-html-parser';
 import { parse } from 'node-html-parser';
 import { v4 as uuid } from 'uuid';
 import { createMissingElementError } from '../utils/qti-errors.js';
+import { detectQtiVersion } from '../utils/qti-version.js';
 
 // QTI 3.0 Type Definitions
 
@@ -317,13 +318,6 @@ export function transformAssessmentTest(
   };
 
   return assessment;
-}
-
-function detectQtiVersion(qtiXml: string): PieAssessment['qtiVersion'] {
-  if (qtiXml.includes('imsqtiasi_v3p0') || qtiXml.includes('imsqti_v3p0')) return '3.0';
-  if (qtiXml.includes('imsqti_v2p2')) return '2.2';
-  if (qtiXml.includes('imsqti_v2p1')) return '2.1';
-  return 'unknown';
 }
 
 /**
