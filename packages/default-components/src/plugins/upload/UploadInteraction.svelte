@@ -2,12 +2,12 @@
 
 <script lang="ts">
 	import type { UploadInteractionData, QTIFileResponse } from '@pie-qti/item-player';
+	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { htmlToString } from '@pie-qti/item-player/security';
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import FileUpload from '../../shared/components/FileUpload.svelte';
-	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
-	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
+		import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
 	import { typesetAction } from '../../shared/actions/typesetAction';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
@@ -35,11 +35,7 @@
 	function handleChange(value: QTIFileResponse | null) {
 		response = value;
 		// Call onChange callback if provided (for Svelte component usage)
-		onChange?.(value);
-		// Dispatch event for web component usage - event will bubble up to the host element
-		if (rootElement && parsedInteraction) {
-			rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction.responseId, value));
-		}
+		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: value, onChange });
 	}
 </script>
 

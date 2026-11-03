@@ -2,12 +2,12 @@
 
 <script lang="ts">
 	import type { GraphicAssociateInteractionData } from '@pie-qti/item-player';
+	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { normalizePixelDimension } from '@pie-qti/item-player/security';
 	import { translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
-	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
-	import { isCompatibleMatchGroup } from '../../shared/utils/matchGroupUtils';
+		import { isCompatibleMatchGroup } from '../../shared/utils/matchGroupUtils';
 	import { countPairsWithId, pairIncludesId } from '../../shared/utils/pairHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
@@ -95,11 +95,7 @@
 			pairs = [...pairs, newPair];
 			response = pairs;
 			// Call onChange callback if provided (for Svelte component usage)
-			onChange?.(pairs);
-			// Dispatch custom event for web component usage - event will bubble up to the host element
-			if (rootElement) {
-				rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction?.responseId, pairs));
-			}
+			emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: pairs, onChange });
 			selectedHotspot = null;
 		}
 	}
@@ -109,11 +105,7 @@
 		pairs = pairs.filter((_, i) => i !== index);
 		response = pairs;
 		// Call onChange callback if provided (for Svelte component usage)
-		onChange?.(pairs);
-		// Dispatch custom event for web component usage - event will bubble up to the host element
-		if (rootElement) {
-			rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction?.responseId, pairs));
-		}
+		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: pairs, onChange });
 	}
 
 	function getHotspotById(id: string) {
@@ -298,6 +290,7 @@
 								onclick={() => handleHotspotClick(hotspot.identifier)}
 								disabled={!canInteract || isMaxed}
 								aria-disabled={isBlocked ? 'true' : undefined}
+								aria-pressed={isHotspotSelected(hotspot.identifier)}
 								aria-label="{hotspot.label} ({usageCount}/{hotspot.matchMax} connections){isCorrect ? '. Correct answer' : isBlocked ? '. Not available due to match group restriction' : ''}"
 							>
 								<span class="text-xs font-bold text-primary-content">{hotspot.label}</span>
@@ -320,6 +313,7 @@
 								onclick={() => handleHotspotClick(hotspot.identifier)}
 								disabled={!canInteract || isMaxed}
 								aria-disabled={isBlocked ? 'true' : undefined}
+								aria-pressed={isHotspotSelected(hotspot.identifier)}
 								aria-label="{hotspot.label} ({usageCount}/{hotspot.matchMax} connections){isCorrect ? '. Correct answer' : isBlocked ? '. Not available due to match group restriction' : ''}"
 							>
 								<span class="text-xs font-bold text-primary-content">{hotspot.label}</span>
@@ -342,6 +336,7 @@
 								onclick={() => handleHotspotClick(hotspot.identifier)}
 								disabled={!canInteract || isMaxed}
 								aria-disabled={isBlocked ? 'true' : undefined}
+								aria-pressed={isHotspotSelected(hotspot.identifier)}
 								aria-label="{hotspot.label} ({usageCount}/{hotspot.matchMax} connections){isCorrect ? '. Correct answer' : isBlocked ? '. Not available due to match group restriction' : ''}"
 							>
 								<span class="text-xs font-bold text-primary-content">{hotspot.label}</span>
@@ -370,6 +365,7 @@
 								onclick={() => handleHotspotClick(hotspot.identifier)}
 								disabled={!canInteract || isMaxed}
 								aria-disabled={isBlocked ? 'true' : undefined}
+								aria-pressed={isHotspotSelected(hotspot.identifier)}
 								aria-label="{hotspot.label} ({usageCount}/{hotspot.matchMax} connections){isCorrect ? '. Correct answer' : isBlocked ? '. Not available due to match group restriction' : ''}"
 							>
 								<span class="text-xs font-bold text-primary-content">{hotspot.label}</span>

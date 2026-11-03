@@ -2,13 +2,13 @@
 
 <script lang="ts">
 	import type { GraphicOrderInteractionData } from '@pie-qti/item-player';
+	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { normalizePixelDimension } from '@pie-qti/item-player/security';
 	import { translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import SortableList from '../../shared/components/SortableList.svelte';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
-	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
-	import { interactionAria } from '../../shared/utils/interactionAria';
+		import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 
 	interface Props {
@@ -76,11 +76,7 @@
 		orderedIds = newOrder;
 		response = orderedIds;
 		// Call onChange callback if provided (for Svelte component usage)
-		onChange?.(orderedIds);
-		// Dispatch custom event for web component usage - event will bubble up to the host element
-		if (rootElement) {
-			rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction?.responseId, orderedIds));
-		}
+		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: orderedIds, onChange });
 	}
 
 	function confirmOrder() {
@@ -91,11 +87,7 @@
 		response = currentOrder;
 
 		// Call onChange callback if provided (for Svelte component usage)
-		onChange?.(currentOrder);
-		// Dispatch custom event for web component usage - event will bubble up to the host element
-		if (rootElement) {
-			rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction?.responseId, currentOrder));
-		}
+		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: currentOrder, onChange });
 	}
 
 	function getChoiceByIdentifier(identifier: string) {

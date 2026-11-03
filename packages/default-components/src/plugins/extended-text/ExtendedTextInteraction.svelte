@@ -2,6 +2,7 @@
 
 <script lang="ts">
 	import type { ExtendedTextInteractionData } from '@pie-qti/item-player';
+	import { emitInteractionChange, emitQtiChange } from '../../shared/utils/eventHelpers';
 	import {
 		createExtendedTextResponse,
 		createExtendedTextStringResponse,
@@ -13,7 +14,6 @@
 	import RichTextEditor from '../../shared/components/RichTextEditor.svelte';
 	import { typesetAction } from '../../shared/actions/typesetAction';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
-	import { emitInteractionChange, emitQtiChange } from '../../shared/utils/eventHelpers';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
 
 	interface Props {

@@ -2,9 +2,9 @@
 
 <script lang="ts">
 	import type { MediaInteractionData } from '@pie-qti/item-player';
+	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { translate, translatePlural, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
-	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
@@ -56,12 +56,7 @@
 	function handleEndedCountPlay() {
 		playCount++;
 		response = playCount;
-		// Call onChange callback if provided (for Svelte component usage)
-		onChange?.(playCount);
-		// Dispatch event for web component usage - event will bubble up to the host element
-		if (rootElement) {
-			rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction?.responseId, playCount));
-		}
+		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: playCount, onChange });
 	}
 
 	/**

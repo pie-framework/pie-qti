@@ -2,10 +2,10 @@
 
 <script lang="ts">
 	import type { GapMatchInteractionData, HtmlContent, PlayerSecurityConfig } from '@pie-qti/item-player';
+	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { normalizeCssPixelLength, sanitizeSharedHtml } from '@pie-qti/item-player/security';
 	import { joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
-	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
 	import { isCompatibleMatchGroup } from '../../shared/utils/matchGroupUtils';
 	import { interactionAria } from '../../shared/utils/interactionAria';
@@ -121,12 +121,7 @@
 		}
 
 		response = newPairs;
-		// Call onChange callback if provided (for Svelte component usage)
-		onChange?.(newPairs);
-		// Dispatch event for web component usage - event will bubble up to the host element
-		if (rootElement) {
-			rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction?.responseId, newPairs));
-		}
+		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: newPairs, onChange });
 	}
 
 	function isWordUsed(wordId: string): boolean {
@@ -254,12 +249,7 @@
 		if (disabled) return;
 		const newPairs = pairs.filter((p: string) => !p.startsWith(`${wordId} `));
 		response = newPairs;
-		// Call onChange callback if provided (for Svelte component usage)
-		onChange?.(newPairs);
-		// Dispatch event for web component usage - event will bubble up to the host element
-		if (rootElement) {
-			rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction?.responseId, newPairs));
-		}
+		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: newPairs, onChange });
 	}
 
 </script>

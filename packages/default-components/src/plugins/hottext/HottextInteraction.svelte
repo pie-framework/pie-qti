@@ -2,11 +2,11 @@
 
 <script lang="ts">
 	import type { HottextInteractionData } from '@pie-qti/item-player';
+	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
-	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
-	import { HOTTEXT_SELECTOR } from './hottextSelector';
+		import { HOTTEXT_SELECTOR } from './hottextSelector';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 
@@ -17,7 +17,7 @@
 		disabled?: boolean;
 		role?: string;
 		i18n?: I18nProvider;
-		onChange?: (value: string | string[]) => void;
+		onChange?: (value: string | string[] | null) => void;
 	}
 
 	let { interaction = $bindable(), response = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), onChange }: Props = $props();
@@ -101,14 +101,8 @@
 			: selectedIds;
 
 		response = responseValue;
-		// Call onChange callback if provided (for Svelte component usage)
-		if (responseValue !== null) {
-			onChange?.(responseValue);
-		}
-		// Dispatch custom event for web component usage - event will bubble up to the host element
-		if (rootElement) {
-			rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction.responseId, responseValue));
-		}
+		// Emit unconditionally: a null value is the deselect/clear signal the player listens for.
+		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: responseValue, onChange });
 		updateHottextStyles();
 	}
 
@@ -246,13 +240,7 @@
 						// Return null for single selection, empty array for multiple
 						const responseValue = parsedInteraction!.maxChoices === 1 ? null : [];
 						response = responseValue;
-						if (responseValue !== null) {
-							onChange?.(responseValue);
-						}
-						// Dispatch custom event for web component usage - event will bubble up to the host element
-						if (rootElement) {
-							rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction?.responseId, responseValue));
-						}
+						emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: responseValue, onChange });
 						updateHottextStyles();
 					}}
 					{disabled}
