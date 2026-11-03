@@ -13,11 +13,17 @@
  * demonstrate when they're triggered during transformation.
  */
 
-export { AcmeVendorDetector } from './acme-vendor-detector.js';
-export { AcmeSliderTransformer } from './acme-slider-transformer.js';
-export { AcmeAssetResolver } from './acme-asset-resolver.js';
-export { AcmeCssClassExtractor } from './acme-css-extractor.js';
-export { AcmeMetadataExtractor } from './acme-metadata-extractor.js';
+import { AcmeVendorDetector } from './acme-vendor-detector.js';
+import { AcmeSliderTransformer } from './acme-slider-transformer.js';
+import { AcmeAssetResolver } from './acme-asset-resolver.js';
+import { AcmeCssClassExtractor } from './acme-css-extractor.js';
+import { AcmeMetadataExtractor } from './acme-metadata-extractor.js';
+
+export { AcmeVendorDetector };
+export { AcmeSliderTransformer };
+export { AcmeAssetResolver };
+export { AcmeCssClassExtractor };
+export { AcmeMetadataExtractor };
 
 /**
  * Convenience function to create all Acme vendor extensions
@@ -38,12 +44,6 @@ export { AcmeMetadataExtractor } from './acme-metadata-extractor.js';
  * ```
  */
 export function createAcmeExtensions() {
-  const { AcmeVendorDetector } = require('./acme-vendor-detector.js');
-  const { AcmeSliderTransformer } = require('./acme-slider-transformer.js');
-  const { AcmeAssetResolver } = require('./acme-asset-resolver.js');
-  const { AcmeCssClassExtractor } = require('./acme-css-extractor.js');
-  const { AcmeMetadataExtractor } = require('./acme-metadata-extractor.js');
-
   return {
     detector: new AcmeVendorDetector(),
     transformer: new AcmeSliderTransformer(),
