@@ -113,7 +113,14 @@ const DOCUMENT_LANGUAGE_PATTERN = /^(?:\s*<(?:\?[\s\S]*?\?|!--[\s\S]*?--|![^>]*)
 const ATTRIBUTE_PATTERN = /([^\s=/>]+)(?:\s*=\s*("[^"]*"|'[^']*'|[^\s"'>]+))?/g;
 const XMLNS_ATTRIBUTE_PATTERN = /\s+xmlns(?::[\w.-]+)?\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'>]+)/g;
 const SSML_PREFIX_PATTERN = /\bxmlns:([\w.-]+)\s*=\s*(["'])(.*?)\2/g;
-const IDREF_PATTERN = /\bdata-catalog-idref\s*=\s*(["'])(.*?)\1/g;
+/** Matches a data-catalog-idref attribute value, quoted (single/double) or bare. */
+export const CATALOG_IDREF_PATTERN =
+	/\bdata-catalog-idref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>/]+))/g;
+
+/** Extracts the idref captured by a {@link CATALOG_IDREF_PATTERN} match. */
+export function catalogIdrefFromMatch(match: RegExpMatchArray): string {
+	return (match[1] ?? match[2] ?? match[3]).trim();
+}
 const CATALOG_ID_PATTERN = /<(?:[\w.-]+:)?catalog\b[^>]*?\bid\s*=\s*(["'])(.*?)\1/g;
 /** One character of text: an entity or character reference counts as the character it names. */
 const TEXT_UNIT_PATTERN = /&(?:#\d+|#x[\da-f]+|[a-z][\da-z]*);|[\s\S]/gi;
@@ -181,7 +188,7 @@ export function prepareContentMarkup(
 	const spoken: PreparedMarkup['spoken'] = [];
 	const wraps: Wrap[] = [];
 	const taken = new Set([
-		...[...qtiXml.matchAll(IDREF_PATTERN)].map((match) => match[2] as string),
+		...[...qtiXml.matchAll(CATALOG_IDREF_PATTERN)].map(catalogIdrefFromMatch),
 		...[...qtiXml.matchAll(CATALOG_ID_PATTERN)].map((match) => match[2] as string),
 		...links.map((link) => link.idref),
 	]);
@@ -558,6 +565,14 @@ export function escapeText(text: string): string {
 	return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+/**
+ * Escape a value for use inside an XML attribute delimited by either quote style:
+ * escapes `& < > " '` so the result is safe in `"..."` and `'...'` alike.
+ */
+export function escapeXmlAttribute(value: string): string {
+	return escapeText(value).replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+}
+
 function escapeAttribute(value: string): string {
-	return escapeText(value).replace(/"/g, '&quot;');
+	return escapeXmlAttribute(value);
 }

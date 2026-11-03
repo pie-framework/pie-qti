@@ -33,6 +33,8 @@ import {
   mediaKind,
   prepareContentMarkup,
   readApipAccessElements,
+	CATALOG_IDREF_PATTERN,
+	catalogIdrefFromMatch,
 } from '@pie-qti/qti-common/accessibility';
 import type { PieItem, TransformOutput } from '@pie-qti/transform-types';
 import { type HTMLElement, NodeType, parse } from 'node-html-parser';
@@ -68,7 +70,6 @@ export interface QtiAccessibility {
 
 const SPOKEN = 'spoken';
 const SIGN_LANGUAGE = 'sign-language';
-const IDREF_PATTERN = /\bdata-catalog-idref\s*=\s*(["'])(.*?)\1/g;
 const SSML_DEFAULT_NAMESPACE = /^<speak\s+xmlns\s*=\s*(["'])http:\/\/www\.w3\.org\/2001\/10\/synthesis\1(?=[\s>/])/;
 const MEDIA_FRAGMENT_PATTERN = /^t=(?:npt:)?([\d.:]*)(?:,([\d.:]+))?$/;
 
@@ -241,7 +242,7 @@ function idrefsIn(value: unknown): Set<string> {
   const idrefs = new Set<string>();
   const visit = (node: unknown): void => {
     if (typeof node === 'string') {
-      for (const match of node.matchAll(IDREF_PATTERN)) idrefs.add((match[2] as string).trim());
+      for (const match of node.matchAll(CATALOG_IDREF_PATTERN)) idrefs.add(catalogIdrefFromMatch(match));
     } else if (Array.isArray(node)) {
       node.forEach(visit);
     } else if (typeof node === 'object' && node !== null) {

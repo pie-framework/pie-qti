@@ -4,6 +4,7 @@
  * Utilities for constructing well-formed QTI 2.2 XML documents
  */
 
+import { escapeXmlAttribute } from '@pie-qti/qti-common/accessibility';
 import formatXml from 'xml-formatter';
 import type { AssessmentItemOptions } from '../types/index.js';
 import { toQtiXhtml } from './xhtml.js';
@@ -151,15 +152,11 @@ export function imageMimeType(url: string): string {
 }
 
 /**
- * Escape XML special characters
+ * Escape XML special characters (attribute-safe: safe inside "..." and '...' alike).
+ * Delegates to the canonical implementation in @pie-qti/qti-common.
  */
 export function escapeXml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
+  return escapeXmlAttribute(text);
 }
 
 /**
