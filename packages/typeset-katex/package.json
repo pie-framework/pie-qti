@@ -39,7 +39,9 @@
   "publishConfig": {
     "access": "public"
   },
-  "sideEffects": false,
+  "sideEffects": [
+    "./dist/css.js"
+  ],
   "engines": {
     "node": ">=20.19.0"
   },
