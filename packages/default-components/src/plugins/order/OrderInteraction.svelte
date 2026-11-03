@@ -162,14 +162,13 @@
 				onReorder={handleReorder}
 			/>
 			{#if eliminationTool}
-				<div class="qti-order-elimination-col" aria-hidden="true">
+				<div class="qti-order-elimination-col">
 					{#each orderedIds as id (id)}
 						<button
 							type="button"
 							class="qti-eliminate-btn"
 							aria-label={eliminationLabel(id)}
 							aria-pressed={eliminatedChoices.has(id)}
-							aria-hidden="false"
 							onclick={() => toggleElimination(id)}
 							data-eliminated={eliminatedChoices.has(id) ? '' : undefined}
 						>✕</button>
