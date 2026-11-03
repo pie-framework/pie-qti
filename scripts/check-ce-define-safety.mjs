@@ -6,7 +6,14 @@
  * Allowed pattern:
  *   if (!customElements.get(TAG)) customElements.define(TAG, Cls);
  *
- * Also detects duplicate literal tag names across files.
+ * Also validates shipped bundles: dist/**\/*.js of every package is checked
+ * the same way, because the Svelte compiler emits bare (unguarded)
+ * customElements.define() calls for <svelte:options customElement="..."> —
+ * a source-level scan cannot see those. Bundles are expected to be guarded
+ * by scripts/guard-custom-elements.mjs at build time.
+ *
+ * Also detects duplicate literal tag names across files (source only —
+ * shipped bundles legitimately re-emit tags that are now registration-safe).
  */
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
@@ -15,6 +22,7 @@ import path from 'node:path';
 const ROOT = process.cwd();
 const SEARCH_ROOT = path.join(ROOT, 'packages');
 const SOURCE_EXTENSIONS = new Set(['.ts', '.js', '.mjs', '.svelte']);
+const DIST_EXTENSIONS = new Set(['.js', '.mjs']);
 
 // Matches any customElements.define() call.
 const DEFINE_PATTERN = /customElements\.define\s*\(/g;
@@ -43,12 +51,36 @@ function collectSourceFiles(dir, out) {
 		}
 		if (SOURCE_EXTENSIONS.has(path.extname(entry.name))) out.push(absPath);
 	}
+	return out;
+}
+
+/**
+ * Collect .js/.mjs files under every packages/<pkg>/dist directory that
+ * exists (dist is gitignored, so it is only present after a build).
+ * Minified bundle files are scanned verbatim — no comment stripping.
+ */
+function collectDistFiles(root, out) {
+	if (!existsSync(root)) return out;
+	for (const entry of readdirSync(root, { withFileTypes: true })) {
+		if (!entry.isDirectory() || shouldSkipDir(entry.name)) continue;
+		const distDir = path.join(root, entry.name, 'dist');
+		if (!existsSync(distDir)) continue;
+		const walk = (dir) => {
+			for (const distEntry of readdirSync(dir, { withFileTypes: true })) {
+				const absPath = path.join(dir, distEntry.name);
+				if (distEntry.isDirectory()) walk(absPath);
+				else if (DIST_EXTENSIONS.has(path.extname(distEntry.name))) out.push(absPath);
+			}
+		};
+		walk(distDir);
+	}
+	return out;
 }
 
 const relPath = (absPath) => path.relative(ROOT, absPath).replace(/\\/g, '/');
 
-const files = [];
-if (existsSync(SEARCH_ROOT)) collectSourceFiles(SEARCH_ROOT, files);
+const files = collectSourceFiles(SEARCH_ROOT, []);
+const distFiles = collectDistFiles(SEARCH_ROOT, []);
 
 const failures = [];
 const literalTagOwners = new Map();
@@ -74,6 +106,26 @@ for (const file of files) {
 	}
 }
 
+// Shipped bundles: every emitted define must be guarded. Bundle files are
+// checked verbatim; the comment stripper would truncate minified single-line
+// files (its // rule can match inside string literals such as base64 data).
+let distDefineCount = 0;
+for (const file of distFiles) {
+	const relative = relPath(file);
+	const content = readFileSync(file, 'utf8');
+
+	DEFINE_PATTERN.lastIndex = 0;
+	while (DEFINE_PATTERN.test(content)) {
+		distDefineCount++;
+	}
+	DEFINE_PATTERN.lastIndex = 0;
+	if (DEFINE_PATTERN.test(content) && !GUARDED_PATTERN.test(content)) {
+		failures.push(
+			`[unguarded-define-in-dist] ${relative}: shipped bundle contains customElements.define() without a customElements.get() guard — run scripts/guard-custom-elements.mjs in the package build`,
+		);
+	}
+}
+
 for (const [tag, owners] of literalTagOwners.entries()) {
 	if (owners.size > 1) {
 		failures.push(
@@ -88,4 +140,6 @@ if (failures.length > 0) {
 	process.exit(1);
 }
 
-console.log(`[check-ce-define-safety] OK — ${files.length} source files checked`);
+console.log(
+	`[check-ce-define-safety] OK — ${files.length} source files, ${distFiles.length} dist files (${distDefineCount} shipped defines, all guarded)`,
+);

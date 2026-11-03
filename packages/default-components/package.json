@@ -6,7 +6,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "rm -rf dist && tsc && vite build && mkdir -p dist/shared/styles && cp src/shared/styles/qti-shared-vocabulary.css src/shared/styles/qti-pnp.css dist/shared/styles/",
+    "build": "rm -rf dist && tsc && vite build && node ../../scripts/guard-custom-elements.mjs . && mkdir -p dist/shared/styles && cp src/shared/styles/qti-shared-vocabulary.css src/shared/styles/qti-pnp.css dist/shared/styles/",
     "test": "bun test && bun run test:component",
     "test:component": "vitest run",
     "typecheck": "tsc --noEmit",
