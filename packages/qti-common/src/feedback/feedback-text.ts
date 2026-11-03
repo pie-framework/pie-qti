@@ -11,7 +11,7 @@
  * 3. Pass custom transforms via the feedbackTransforms option
  */
 
-import { isShownByIdentifier } from '@pie-qti/qti-common';
+import { isShownByIdentifier } from './visibility.js';
 
 /**
  * Text pattern replacement for feedback content
