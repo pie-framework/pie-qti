@@ -19,6 +19,7 @@ import {
   PIE_LOM_SKILL_LEVEL_SOURCE,
   type SkillLevel,
 } from '@pie-qti/transform-types';
+import { escapeXml } from './qti-builder.js';
 
 export const LOM_NAMESPACE = 'http://ltsc.ieee.org/xsd/LOM';
 export const LOM_SCHEMA_LOCATION = 'http://www.imsglobal.org/xsd/imsmd_loose_v1p3p2.xsd';
@@ -189,11 +190,3 @@ function renderNode([name, content, attributes]: LomNode, indent: string, prefix
   ];
 }
 
-function escapeXml(unsafe: string): string {
-  return unsafe
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-}

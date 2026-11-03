@@ -19,6 +19,7 @@ import {
 } from '@pie-qti/transform-types';
 import { createAssessmentGenerator } from './generators/assessment.js';
 import { generateManifest } from './generators/manifest-generator.js';
+import { escapeXml } from './utils/qti-builder.js';
 import {
   generatePassageFile,
   generatePassageFromStimulus,
@@ -664,11 +665,3 @@ function hasQtiSource(pieItem: PieItem): boolean {
 /**
  * Escape XML special characters
  */
-function escapeXml(unsafe: string): string {
-  return String(unsafe)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-}
