@@ -56,14 +56,6 @@ export default {
 		errorNoData: 'No se proporcionaron datos de interacción',
 	},
 
-	units: {
-		bytes: '{count} bytes',
-		kilobytes: '{count} KB',
-		megabytes: '{count} MB',
-		seconds: '{count} segundos',
-		minutes: '{count} minutos',
-		hours: '{count} horas',
-	},
 
 	// Ejemplos de pluralización
 	// Use i18n.plural('plurals.items', { count: n }) para acceder a estos
@@ -106,13 +98,6 @@ export default {
 		},
 	},
 
-	validation: {
-		required: 'Este campo es obligatorio',
-		invalidFormat: 'Formato no válido',
-		tooShort: 'Demasiado corto (mínimo {min} caracteres)',
-		tooLong: 'Demasiado largo (máximo {max} caracteres)',
-		outOfRange: 'El valor debe estar entre {min} y {max}',
-	},
 
 	interactions: {
 		choice: {
@@ -446,11 +431,6 @@ export default {
 		attempt: 'Intento {numAttempts}',
 	},
 
-	itemSession: {
-		attempt: 'Intento {numAttempts}',
-		attemptsRemaining: '{attemptsRemaining} intentos restantes',
-		maxAttempts: 'Intentos máximos: {maxAttempts}',
-	},
 
 	feedback: {
 		close: 'Cerrar retroalimentación',
@@ -565,124 +545,6 @@ export default {
 		catalogRequestUsage: 'Solicitar {usage}: {term}',
 	},
 
-	demo: {
-		selectSampleItem: 'Seleccionar elemento de muestra',
-		configurationPanel: 'Panel de configuración',
-		viewingAs: 'Viendo como',
-		role: 'Rol',
-		candidate: 'Candidato',
-		author: 'Autor',
-		proctor: 'Supervisor',
-		scorer: 'Calificador',
-		tutor: 'Tutor',
-		showCorrectAnswers: 'Mostrar respuestas correctas',
-		showFeedback: 'Mostrar retroalimentación',
-		settings_aria: 'Abrir menú de configuración',
-		xmlEditor: 'Editor XML',
-
-		// Navigation
-		appName: 'Reproductor PIE QTI',
-		home: 'Inicio',
-		itemDemo: 'Demo de Ítem',
-		assessmentDemo: 'Demo de Evaluación',
-		likertDemo: 'Demo de Plugin Likert',
-		iframeDemo: 'Demo de Iframe',
-		theme: 'Tema',
-
-		// Home Page
-		homeTitle: 'Reproductor QTI',
-		homeSubtitle: 'Un reproductor moderno e independiente del framework para elementos de evaluación QTI. Funciona 100% del lado del cliente por defecto, con hooks opcionales del lado del servidor para uso en producción.',
-		homeMetaDescription: 'Reproductor QTI moderno con integración de backend opcional',
-		tryItems: 'Probar Ítems',
-		tryAssessments: 'Probar Evaluaciones',
-		trySectionPlayer: 'Reproductor de Sección',
-		pluginDemo: 'Demo de Plugin',
-		dropQtiFile: 'Suelte el archivo QTI XML aquí',
-		orClickToSelect: 'o haga clic para seleccionar un archivo',
-		selectFile: 'Seleccionar Archivo',
-		selectedFile: 'Seleccionado:',
-		loadInPlayer: 'Cargar en Reproductor',
-		footerTitle: 'Reproductor QTI',
-		footerLicense: 'Licencia MIT • Código Abierto',
-
-		// Settings Panel
-		settings: 'Configuración',
-		candidateStudent: 'Candidato (Estudiante)',
-		testConstructor: 'Constructor de Pruebas',
-		controlsRubricVisibility: 'Controla la visibilidad de rúbrica y visualización de respuestas correctas',
-		useBackendScoring: 'Usar Calificación en Servidor',
-		scoreOnServer: 'Calificar respuestas en el servidor en lugar del cliente',
-		sessionManagement: 'Gestión de Sesión',
-		saving: 'Guardando...',
-		saveSession: 'Guardar Sesión',
-		loadSession: 'Cargar Sesión',
-
-		// Export & Template
-		exportResponses: 'Exportar Respuestas',
-		json: 'JSON',
-		csv: 'CSV',
-		templateProcessing: 'Procesamiento de Plantilla',
-		rerunTemplateProcessing: 'Volver a ejecutar templateProcessing y restablecer la sesión del ítem',
-		regenerateVariant: 'Regenerar Variante',
-		templateVariablesDebug: 'Variables de Plantilla (Depuración)',
-		variable: 'Variable',
-		value: 'Valor',
-
-		// Keyboard Shortcuts
-		keyboardShortcuts: 'Atajos de Teclado',
-		submitAnswersShortcut: 'Enviar respuestas',
-		tryAgainShortcut: 'Intentar de nuevo',
-		exportJsonShortcut: 'Exportar JSON',
-		saveSessionShortcut: 'Guardar sesión',
-		useCmdOnMacOS: 'Usar <kbd class="kbd kbd-xs">Cmd</kbd> en macOS',
-
-		// Results Panel
-		results: 'Resultados',
-		score: 'Puntuación',
-		outcomeVariables: 'Variables de Resultado',
-
-		// Misc
-		format: 'Formato',
-		selectItemOrPasteXml: 'Seleccione un ítem de muestra o pegue XML personalizado para comenzar.',
-		pageTitle: 'Demo del Reproductor - Reproductor PIE QTI',
-
-		// Sample Item Descriptions
-		sampleItemDescriptions: {
-			'': 'Elemento personalizado cargado',
-			'simple-choice': 'Problema matemático básico de resta con distractores plausibles',
-			'partial-credit': 'Opción múltiple con crédito parcial usando mapResponse',
-			'capital-cities': 'Pregunta de geografía con opciones mezcladas',
-			'text-entry': 'Pregunta de completar espacios con coincidencia sin distinción de mayúsculas',
-			'extended-text': 'Pregunta de respuesta de texto multilínea',
-			'inline-choice': 'Menú desplegable integrado en el texto',
-			'order-interaction': 'Organizar elementos en la secuencia correcta',
-			'match-interaction': 'Emparejar elementos de dos columnas',
-			'associate-interaction': 'Crear asociaciones entre elementos',
-			'gap-match': 'Arrastrar palabras en los espacios del texto',
-			'graphic-gap-match-solar-system': 'Etiquetar los cuatro planetas interiores de nuestro sistema solar',
-			'slider': 'Seleccionar un valor en un control deslizante numérico',
-			'hotspot': 'Hacer clic en el Planeta Azul en esta pregunta de astronomía',
-			'hotspot-partial-credit': 'Identificar planeta con agua líquida (crédito parcial por planetas terrestres)',
-			'template-variable-demo': 'templateProcessing genera valores; responseProcessing los califica',
-			'upload-interaction': 'Subir un archivo como respuesta (baseType=file)',
-			'drawing-interaction': 'Dibujar en un lienzo (baseType=file, dataUrl PNG)',
-			'media-audio': 'Reproductor de audio con seguimiento de reproducciones y requisito minPlays',
-			'media-video': 'Reproductor de video con seguimiento de reproducciones y límite maxPlays',
-			'hottext-single': 'Hacer clic para seleccionar una sola palabra dentro del texto (pregunta de gramática)',
-			'hottext-multiple': 'Hacer clic para seleccionar múltiples segmentos de texto (comprensión lectora)',
-			'select-point': 'Hacer clic en la imagen para seleccionar una ubicación de punto (pregunta de geografía)',
-			'graphic-order': 'Arrastrar para reordenar elementos en una imagen (capas geológicas)',
-			'graphic-associate': 'Hacer clic en pares de zonas activas para crear asociaciones (emparejamiento de órganos)',
-			'position-object': 'Arrastrar y posicionar objetos de mobiliario en un plano de habitación',
-			'end-attempt': 'Botón para finalizar el intento de evaluación',
-			'custom-interaction': 'Muestra una interfaz alternativa para customInteraction y permite una respuesta manual',
-			'choice-with-stimulus': 'Pregunta con pasaje de lectura integrado en línea',
-			'math-inline': 'Opción múltiple con renderización de matemáticas MathML en línea',
-			'math-extended': 'Respuesta extendida con MathML y editor de texto enriquecido para mostrar trabajo matemático',
-			'math-fractions': 'Aritmética de fracciones con visualización de bloques MathML',
-			'adaptive-capitals': 'Pregunta adaptativa de múltiples intentos con retroalimentación y pistas progresivas',
-		},
-	},
 
 	transform: {
 		// App title and navigation
