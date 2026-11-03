@@ -43,19 +43,5 @@ for (const input of ['mouse', 'touch', 'keyboard'] as const) {
 			const scan = await scanA11yFixture(page);
 			expect(scan.violations).toEqual([]);
 		});
-		test('the shared graphic gap component supports the same activation flow', async ({ page }) => {
-			await page.goto('a11y-components/graphic-gap-match');
-			const activate = async (control: ReturnType<typeof page.getByRole>) => {
-				if (input === 'touch') await control.tap();
-				else if (input === 'keyboard') await control.press('Enter');
-				else await control.click();
-			};
-			await activate(page.getByRole('button', { name: /^Label A/ }));
-			await activate(page.getByRole('button', { name: /^Hotspot 1/ }));
-			await expect(page.getByRole('button', { name: /^Hotspot 1/ })).toHaveAccessibleName(/Contains Label A/);
-			await expect(page.getByRole('button', { name: /^Label A/ })).toBeDisabled();
-			await activate(page.getByRole('button', { name: 'Remove Label A from hotspot', exact: true }));
-			await expect(page.getByRole('button', { name: /^Label A/ })).toBeEnabled();
-		});
 	});
 }

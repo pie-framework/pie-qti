@@ -48,5 +48,4 @@ Types live in [`@pie-qti/transform-types`](../types) and are re-exported from th
 
 - [`@pie-qti/to-pie`](../to-pie) — QTI → PIE plugin
 - [`@pie-qti/pie-to-qti2`](../pie-to-qti2) — PIE → QTI 2.2 plugin
-- [`@pie-qti/storage`](../storage) — filesystem/S3/database storage backends
 - [`@pie-qti/transform-cli`](../../tools/cli) — CLI driving this engine
