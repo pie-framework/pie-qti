@@ -13,6 +13,7 @@
 		type LocaleCode
 	} from '@pie-qti/i18n';
 	import SettingsMenu from '#lib/components/SettingsMenu.svelte';
+	import { DEMO_MESSAGES } from '#lib/i18n/demo-messages.js';
 
 	const { children } = $props();
 	let theme = $state('light');
@@ -72,8 +73,9 @@
 		const savedLocale = (localStorage.getItem(DEFAULT_LOCALE_STORAGE_KEY) as LocaleCode) || 'en-US';
 		currentLocale = savedLocale;
 
-		// Persist and reload on locale change are opt-in; the demo wants both
-		i18n = await createDefaultSvelteI18nProvider(savedLocale, undefined, {
+		// Persist and reload on locale change are opt-in; the demo wants both.
+		// DEMO_MESSAGES carries the app-shell strings (owned here, not in the framework catalog).
+		i18n = await createDefaultSvelteI18nProvider(savedLocale, DEMO_MESSAGES, {
 			persistLocale: true,
 			reloadOnLocaleChange: true,
 		});

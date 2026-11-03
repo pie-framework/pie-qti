@@ -55,14 +55,6 @@ export default {
 		errorNoData: 'Nu au fost furnizate date de interacțiune',
 	},
 
-	units: {
-		bytes: '{count} octeți',
-		kilobytes: '{count} KB',
-		megabytes: '{count} MB',
-		seconds: '{count} secunde',
-		minutes: '{count} minute',
-		hours: '{count} ore',
-	},
 
 	// Exemple de pluralizare
 	// Utilizați i18n.plural('plurals.items', { count: n }) pentru a accesa acestea
@@ -105,13 +97,6 @@ export default {
 		},
 	},
 
-	validation: {
-		required: 'Acest câmp este obligatoriu',
-		invalidFormat: 'Format invalid',
-		tooShort: 'Prea scurt (minim {min} caractere)',
-		tooLong: 'Prea lung (maxim {max} caractere)',
-		outOfRange: 'Valoarea trebuie să fie între {min} și {max}',
-	},
 
 	interactions: {
 		choice: {
@@ -445,11 +430,6 @@ export default {
 		attempt: 'Încercarea {numAttempts}',
 	},
 
-	itemSession: {
-		attempt: 'Încercarea {numAttempts}',
-		attemptsRemaining: '{attemptsRemaining} încercări rămase',
-		maxAttempts: 'Încercări maxime: {maxAttempts}',
-	},
 
 	feedback: {
 		close: 'Închide feedback-ul',
@@ -564,124 +544,6 @@ export default {
 		catalogRequestUsage: 'Solicită {usage}: {term}',
 	},
 
-	demo: {
-		selectSampleItem: 'Selectează element de probă',
-		configurationPanel: 'Panou de configurare',
-		viewingAs: 'Vizualizare ca',
-		role: 'Rol',
-		candidate: 'Candidat',
-		author: 'Autor',
-		proctor: 'Supraveghetor',
-		scorer: 'Evaluator',
-		tutor: 'Tutor',
-		showCorrectAnswers: 'Arată răspunsurile corecte',
-		showFeedback: 'Arată feedback',
-		settings_aria: 'Deschide meniul de setări',
-		xmlEditor: 'Editor XML',
-
-		// Navigation
-		appName: 'Player PIE QTI',
-		home: 'Acasă',
-		itemDemo: 'Demo Item',
-		assessmentDemo: 'Demo Evaluare',
-		likertDemo: 'Demo Plugin Likert',
-		iframeDemo: 'Demo Iframe',
-		theme: 'Temă',
-
-		// Home Page
-		homeTitle: 'Player QTI',
-		homeSubtitle: 'Un player modern, independent de framework, pentru elemente de evaluare QTI. Funcționează 100% pe partea clientului în mod implicit, cu hook-uri opționale pe partea serverului pentru utilizare în producție.',
-		homeMetaDescription: 'Player QTI modern cu integrare backend opțională',
-		tryItems: 'Încearcă Elemente',
-		tryAssessments: 'Încearcă Evaluări',
-		trySectionPlayer: 'Player de Secțiune',
-		pluginDemo: 'Demo Plugin',
-		dropQtiFile: 'Plasați fișierul QTI XML aici',
-		orClickToSelect: 'sau faceți clic pentru a selecta un fișier',
-		selectFile: 'Selectează Fișier',
-		selectedFile: 'Selectat:',
-		loadInPlayer: 'Încarcă în Player',
-		footerTitle: 'Player QTI',
-		footerLicense: 'Licență MIT • Open Source',
-
-		// Settings Panel
-		settings: 'Setări',
-		candidateStudent: 'Candidat (Elev)',
-		testConstructor: 'Constructor de Test',
-		controlsRubricVisibility: 'Controlează vizibilitatea rubricii și afișarea răspunsurilor corecte',
-		useBackendScoring: 'Folosește Evaluare pe Server',
-		scoreOnServer: 'Evaluează răspunsurile pe server în loc de client',
-		sessionManagement: 'Gestionare Sesiune',
-		saving: 'Se salvează...',
-		saveSession: 'Salvează Sesiunea',
-		loadSession: 'Încarcă Sesiunea',
-
-		// Export & Template
-		exportResponses: 'Exportă Răspunsuri',
-		json: 'JSON',
-		csv: 'CSV',
-		templateProcessing: 'Procesare Șablon',
-		rerunTemplateProcessing: 'Rulează din nou templateProcessing și resetează sesiunea itemului',
-		regenerateVariant: 'Regenerează Varianta',
-		templateVariablesDebug: 'Variabile Șablon (Depanare)',
-		variable: 'Variabilă',
-		value: 'Valoare',
-
-		// Keyboard Shortcuts
-		keyboardShortcuts: 'Comenzi Rapide',
-		submitAnswersShortcut: 'Trimite răspunsuri',
-		tryAgainShortcut: 'Încearcă din nou',
-		exportJsonShortcut: 'Exportă JSON',
-		saveSessionShortcut: 'Salvează sesiunea',
-		useCmdOnMacOS: 'Folosește <kbd class="kbd kbd-xs">Cmd</kbd> pe macOS',
-
-		// Results Panel
-		results: 'Rezultate',
-		score: 'Scor',
-		outcomeVariables: 'Variabile de Rezultat',
-
-		// Misc
-		format: 'Format',
-		selectItemOrPasteXml: 'Selectează un element de probă sau lipește XML personalizat pentru a începe.',
-		pageTitle: 'Demo Player - Player PIE QTI',
-
-		// Sample Item Descriptions
-		sampleItemDescriptions: {
-			'': 'Element personalizat încărcat',
-			'simple-choice': 'Problemă de bază de scădere cu distractori plauzibili',
-			'partial-credit': 'Alegere multiplă cu credit parțial folosind mapResponse',
-			'capital-cities': 'Întrebare de geografie cu opțiuni amestecate',
-			'text-entry': 'Întrebare de completare cu potrivire insensibilă la majuscule',
-			'extended-text': 'Întrebare de răspuns text pe mai multe linii',
-			'inline-choice': 'Meniu drop-down încorporat în text',
-			'order-interaction': 'Aranjează elementele în secvența corectă',
-			'match-interaction': 'Potrivește elementele din două coloane',
-			'associate-interaction': 'Creează asocieri între elemente',
-			'gap-match': 'Trage cuvinte în spațiile din text',
-			'graphic-gap-match-solar-system': 'Etichetează cele patru planete interioare ale sistemului nostru solar',
-			'slider': 'Selectează o valoare pe un cursor numeric',
-			'hotspot': 'Fă clic pe Planeta Albastră în această întrebare de astronomie',
-			'hotspot-partial-credit': 'Identifică planeta cu apă lichidă (credit parțial pentru planete terestre)',
-			'template-variable-demo': 'templateProcessing generează valori; responseProcessing le evaluează',
-			'upload-interaction': 'Încarcă un fișier ca răspuns (baseType=file)',
-			'drawing-interaction': 'Desenează pe o pânză (baseType=file, PNG dataUrl)',
-			'media-audio': 'Player audio cu urmărire număr de redări și cerință minPlays',
-			'media-video': 'Player video cu urmărire număr de redări și limită maxPlays',
-			'hottext-single': 'Fă clic pentru a selecta un singur cuvânt în text (întrebare de gramatică)',
-			'hottext-multiple': 'Fă clic pentru a selecta mai multe segmente de text (înțelegere lectură)',
-			'select-point': 'Fă clic pe imagine pentru a selecta o locație de punct (întrebare de geografie)',
-			'graphic-order': 'Trage pentru a rearanja elementele pe o imagine (straturi geologice)',
-			'graphic-associate': 'Fă clic pe perechi de zone active pentru a crea asocieri (potrivire organe)',
-			'position-object': 'Trage și poziționează obiecte de mobilier pe un plan de cameră',
-			'end-attempt': 'Buton pentru a încheia tentativa de evaluare',
-			'custom-interaction': 'Afișează o interfață de rezervă pentru customInteraction și permite un răspuns manual',
-			'choice-with-stimulus': 'Întrebare cu pasaj de lectură încorporat inline',
-			'math-inline': 'Alegere multiplă cu randare matematică MathML inline',
-			'math-extended': 'Răspuns extins cu MathML și editor text îmbogățit pentru a arăta munca matematică',
-			'math-fractions': 'Aritmetică fracții cu afișare bloc MathML',
-			'adaptive-capitals': 'Întrebare adaptivă cu mai multe încercări cu feedback și indicii progresive',
-		},
-	},
 
 	transform: {
 		// App title and navigation

@@ -53,14 +53,6 @@ export default {
 		errorNoData: 'لم يتم توفير بيانات التفاعل',
 	},
 
-	units: {
-		bytes: '{count} بايت',
-		kilobytes: '{count} كيلوبايت',
-		megabytes: '{count} ميجابايت',
-		seconds: '{count} ثانية',
-		minutes: '{count} دقيقة',
-		hours: '{count} ساعة',
-	},
 
 	// Pluralization examples
 	// Use i18n.plural('plurals.items', { count: n }) to access these
@@ -135,13 +127,6 @@ export default {
 		},
 	},
 
-	validation: {
-		required: 'هذا الحقل مطلوب',
-		invalidFormat: 'تنسيق غير صالح',
-		tooShort: 'قصير جدًا (الحد الأدنى {min} حرفًا)',
-		tooLong: 'طويل جدًا (الحد الأقصى {max} حرفًا)',
-		outOfRange: 'يجب أن تكون القيمة بين {min} و {max}',
-	},
 
 	interactions: {
 		choice: {
@@ -493,11 +478,6 @@ export default {
 		attempt: 'المحاولة {numAttempts}',
 	},
 
-	itemSession: {
-		attempt: 'المحاولة {numAttempts}',
-		attemptsRemaining: '{attemptsRemaining} محاولات متبقية',
-		maxAttempts: 'الحد الأقصى للمحاولات: {maxAttempts}',
-	},
 
 	feedback: {
 		close: 'إغلاق التعليقات',
@@ -612,124 +592,6 @@ export default {
 		catalogRequestUsage: 'طلب {usage}: {term}',
 	},
 
-	demo: {
-		selectSampleItem: 'اختر عنصرًا نموذجيًا',
-		configurationPanel: 'لوحة التكوين',
-		viewingAs: 'المشاهدة كـ',
-		role: 'الدور',
-		candidate: 'مرشح',
-		author: 'مؤلف',
-		proctor: 'مراقب',
-		scorer: 'مصحح',
-		tutor: 'مدرس',
-		showCorrectAnswers: 'إظهار الإجابات الصحيحة',
-		showFeedback: 'إظهار التعليقات',
-		settings_aria: 'فتح قائمة الإعدادات',
-		xmlEditor: 'محرر XML',
-
-		// Navigation
-		appName: 'مشغل PIE QTI',
-		home: 'الصفحة الرئيسية',
-		itemDemo: 'عرض العنصر',
-		assessmentDemo: 'عرض التقييم',
-		likertDemo: 'عرض مكون Likert',
-		iframeDemo: 'عرض Iframe',
-		theme: 'السمة',
-
-		// Home Page
-		homeTitle: 'مشغل QTI',
-		homeSubtitle: 'مشغل حديث ومستقل عن الإطار لعناصر تقييم QTI. يعمل بنسبة 100% على جانب العميل بشكل افتراضي، مع خطافات اختيارية على جانب الخادم للاستخدام في بيئة الإنتاج.',
-		homeMetaDescription: 'مشغل QTI حديث مع تكامل اختياري للخلفية',
-		tryItems: 'تجربة العناصر',
-		tryAssessments: 'تجربة التقييمات',
-		trySectionPlayer: 'مشغل القسم',
-		pluginDemo: 'عرض المكون الإضافي',
-		dropQtiFile: 'أسقط ملف QTI XML هنا',
-		orClickToSelect: 'أو انقر لاختيار ملف',
-		selectFile: 'اختيار ملف',
-		selectedFile: 'المحدد:',
-		loadInPlayer: 'تحميل في المشغل',
-		footerTitle: 'مشغل QTI',
-		footerLicense: 'ترخيص MIT • مفتوح المصدر',
-
-		// Settings Panel
-		settings: 'الإعدادات',
-		candidateStudent: 'مرشح (طالب)',
-		testConstructor: 'منشئ الاختبار',
-		controlsRubricVisibility: 'يتحكم في رؤية معايير التقييم وعرض الإجابات الصحيحة',
-		useBackendScoring: 'استخدام تصحيح الخادم',
-		scoreOnServer: 'تصحيح الإجابات على الخادم بدلاً من جانب العميل',
-		sessionManagement: 'إدارة الجلسة',
-		saving: 'جارٍ الحفظ...',
-		saveSession: 'حفظ الجلسة',
-		loadSession: 'تحميل الجلسة',
-
-		// Export & Template
-		exportResponses: 'تصدير الإجابات',
-		json: 'JSON',
-		csv: 'CSV',
-		templateProcessing: 'معالجة القالب',
-		rerunTemplateProcessing: 'إعادة تشغيل معالجة القالب وإعادة تعيين جلسة العنصر',
-		regenerateVariant: 'إعادة إنشاء البديل',
-		templateVariablesDebug: 'متغيرات القالب (تصحيح الأخطاء)',
-		variable: 'المتغير',
-		value: 'القيمة',
-
-		// Keyboard Shortcuts
-		keyboardShortcuts: 'اختصارات لوحة المفاتيح',
-		submitAnswersShortcut: 'إرسال الإجابات',
-		tryAgainShortcut: 'حاول مرة أخرى',
-		exportJsonShortcut: 'تصدير JSON',
-		saveSessionShortcut: 'حفظ الجلسة',
-		useCmdOnMacOS: 'استخدم <kbd class="kbd kbd-xs">Cmd</kbd> على macOS',
-
-		// Results Panel
-		results: 'النتائج',
-		score: 'الدرجة',
-		outcomeVariables: 'متغيرات النتيجة',
-
-		// Misc
-		format: 'التنسيق',
-		selectItemOrPasteXml: 'اختر عنصرًا نموذجيًا أو الصق XML مخصصًا للبدء.',
-		pageTitle: 'عرض المشغل - مشغل PIE QTI',
-
-		// Sample Item Descriptions
-		sampleItemDescriptions: {
-			'': 'عنصر مخصص تم تحميله',
-			'simple-choice': 'مسألة طرح كلامية أساسية مع خيارات معقولة',
-			'partial-credit': 'اختيار متعدد مع درجة جزئية باستخدام mapResponse',
-			'capital-cities': 'سؤال جغرافي مع خيارات مختلطة',
-			'text-entry': 'سؤال ملء الفراغ مع مطابقة غير حساسة لحالة الأحرف',
-			'extended-text': 'سؤال استجابة نصية متعددة الأسطر',
-			'inline-choice': 'قائمة منسدلة مضمنة في النص',
-			'order-interaction': 'ترتيب العناصر بالتسلسل الصحيح',
-			'match-interaction': 'مطابقة العناصر من عمودين',
-			'associate-interaction': 'إنشاء ارتباطات بين العناصر',
-			'gap-match': 'سحب الكلمات إلى الفراغات في النص',
-			'graphic-gap-match-solar-system': 'تسمية الكواكب الأربعة الداخلية من نظامنا الشمسي',
-			'slider': 'اختيار قيمة على شريط تمرير رقمي',
-			'hotspot': 'انقر على الكوكب الأزرق في سؤال الفلك هذا',
-			'hotspot-partial-credit': 'تحديد الكوكب الذي يحتوي على ماء سائل (درجة جزئية للكواكب الأرضية)',
-			'template-variable-demo': 'معالجة القالب تولد القيم؛ معالجة الاستجابة تقيمها',
-			'upload-interaction': 'تحميل ملف كاستجابة (baseType=file)',
-			'drawing-interaction': 'الرسم على لوحة (baseType=file، PNG dataUrl)',
-			'media-audio': 'مشغل صوت مع تتبع عدد مرات التشغيل ومتطلب minPlays',
-			'media-video': 'مشغل فيديو مع تتبع عدد مرات التشغيل وحد maxPlays',
-			'hottext-single': 'انقر لتحديد كلمة واحدة داخل النص (سؤال نحوي)',
-			'hottext-multiple': 'انقر لتحديد مقاطع نصية متعددة (فهم القراءة)',
-			'select-point': 'انقر على الصورة لتحديد موقع نقطة (سؤال جغرافي)',
-			'graphic-order': 'اسحب لإعادة ترتيب العناصر على صورة (طبقات جيولوجية)',
-			'graphic-associate': 'انقر على أزواج من النقاط الساخنة لإنشاء ارتباطات (مطابقة الأعضاء)',
-			'position-object': 'اسحب وضع كائنات الأثاث على مخطط الغرفة',
-			'end-attempt': 'زر لإنهاء محاولة التقييم',
-			'custom-interaction': 'يعرض واجهة احتياطية لـ customInteraction ويسمح باستجابة يدوية',
-			'choice-with-stimulus': 'سؤال مع فقرة قراءة مضمنة',
-			'math-inline': 'اختيار متعدد مع عرض رياضيات MathML مضمنة',
-			'math-extended': 'استجابة موسعة مع MathML ومحرر نص منسق لعرض العمل الرياضي',
-			'math-fractions': 'حساب الكسور مع عرض كتلة MathML',
-			'adaptive-capitals': 'سؤال تكيفي متعدد المحاولات مع تعليقات وتلميحات تقدمية',
-		},
-	},
 
 	transform: {
 		// App title and navigation

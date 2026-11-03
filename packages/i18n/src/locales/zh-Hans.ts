@@ -53,14 +53,6 @@ export default {
 		errorNoData: '未提供交互数据',
 	},
 
-	units: {
-		bytes: '{count} 字节',
-		kilobytes: '{count} KB',
-		megabytes: '{count} MB',
-		seconds: '{count} 秒',
-		minutes: '{count} 分钟',
-		hours: '{count} 小时',
-	},
 
 	// 复数示例
 	// 使用 i18n.plural('plurals.items', { count: n }) 访问这些内容
@@ -103,13 +95,6 @@ export default {
 		},
 	},
 
-	validation: {
-		required: '此字段为必填项',
-		invalidFormat: '格式无效',
-		tooShort: '太短(最少 {min} 个字符)',
-		tooLong: '太长(最多 {max} 个字符)',
-		outOfRange: '值必须在 {min} 和 {max} 之间',
-	},
 
 	interactions: {
 		choice: {
@@ -457,11 +442,6 @@ export default {
 		attempt: '尝试 {numAttempts}',
 	},
 
-	itemSession: {
-		attempt: '尝试 {numAttempts}',
-		attemptsRemaining: '剩余 {attemptsRemaining} 次尝试',
-		maxAttempts: '最多尝试次数:{maxAttempts}',
-	},
 
 	feedback: {
 		close: '关闭反馈',
@@ -576,124 +556,6 @@ export default {
 		catalogRequestUsage: '请求 {usage}：{term}',
 	},
 
-	demo: {
-		selectSampleItem: '选择示例项目',
-		configurationPanel: '配置面板',
-		viewingAs: '查看身份',
-		role: '角色',
-		candidate: '考生',
-		author: '作者',
-		proctor: '监考员',
-		scorer: '评分员',
-		tutor: '辅导员',
-		showCorrectAnswers: '显示正确答案',
-		showFeedback: '显示反馈',
-		settings_aria: '打开设置菜单',
-		xmlEditor: 'XML 编辑器',
-
-		// 导航
-		appName: 'PIE QTI 播放器',
-		home: '主页',
-		itemDemo: '项目演示',
-		assessmentDemo: '评估演示',
-		likertDemo: 'Likert 插件演示',
-		iframeDemo: 'Iframe 演示',
-		theme: '主题',
-
-		// Home Page
-		homeTitle: 'QTI 播放器',
-		homeSubtitle: '一个现代的、与框架无关的 QTI 评估项目播放器。默认情况下 100% 在客户端运行，并提供可选的服务器端钩子用于生产环境。',
-		homeMetaDescription: '具有可选后端集成的现代 QTI 播放器',
-		tryItems: '尝试项目',
-		tryAssessments: '尝试评估',
-		trySectionPlayer: '章节播放器',
-		pluginDemo: '插件演示',
-		dropQtiFile: '将 QTI XML 文件拖放到此处',
-		orClickToSelect: '或点击选择文件',
-		selectFile: '选择文件',
-		selectedFile: '已选择:',
-		loadInPlayer: '在播放器中加载',
-		footerTitle: 'QTI 播放器',
-		footerLicense: 'MIT 许可 • 开源',
-
-		// 设置面板
-		settings: '设置',
-		candidateStudent: '考生(学生)',
-		testConstructor: '测试构建者',
-		controlsRubricVisibility: '控制评分标准可见性和正确答案显示',
-		useBackendScoring: '使用后端评分',
-		scoreOnServer: '在服务器而非客户端评分响应',
-		sessionManagement: '会话管理',
-		saving: '保存中...',
-		saveSession: '保存会话',
-		loadSession: '加载会话',
-
-		// 导出和模板
-		exportResponses: '导出响应',
-		json: 'JSON',
-		csv: 'CSV',
-		templateProcessing: '模板处理',
-		rerunTemplateProcessing: '重新运行模板处理并重置项目会话',
-		regenerateVariant: '重新生成变体',
-		templateVariablesDebug: '模板变量(调试)',
-		variable: '变量',
-		value: '值',
-
-		// 键盘快捷键
-		keyboardShortcuts: '键盘快捷键',
-		submitAnswersShortcut: '提交答案',
-		tryAgainShortcut: '重试',
-		exportJsonShortcut: '导出 JSON',
-		saveSessionShortcut: '保存会话',
-		useCmdOnMacOS: '在 macOS 上使用 <kbd class="kbd kbd-xs">Cmd</kbd>',
-
-		// 结果面板
-		results: '结果',
-		score: '得分',
-		outcomeVariables: '结果变量',
-
-		// 其他
-		format: '格式',
-		selectItemOrPasteXml: '选择示例项目或粘贴自定义 XML 以开始。',
-		pageTitle: '播放器演示 - PIE QTI 播放器',
-
-		// 示例项目描述
-		sampleItemDescriptions: {
-			'': '自定义上传项目',
-			'simple-choice': '带有合理干扰项的基础减法应用题',
-			'partial-credit': '使用 mapResponse 的部分得分多项选择题',
-			'capital-cities': '带有随机选项的地理问题',
-			'text-entry': '不区分大小写匹配的填空题',
-			'extended-text': '多行文本响应问题',
-			'inline-choice': '嵌入文本中的下拉菜单',
-			'order-interaction': '按正确顺序排列项目',
-			'match-interaction': '匹配两列中的项目',
-			'associate-interaction': '在项目之间创建关联',
-			'gap-match': '将单词拖入文本中的空白处',
-			'graphic-gap-match-solar-system': '标记太阳系的四个内行星',
-			'slider': '在数字滑块上选择一个值',
-			'hotspot': '在这个天文问题中点击蓝色星球',
-			'hotspot-partial-credit': '识别有液态水的行星(类地行星部分得分)',
-			'template-variable-demo': 'templateProcessing 生成值;responseProcessing 根据它们评分',
-			'upload-interaction': '上传文件作为响应(baseType=file)',
-			'drawing-interaction': '在画布上绘制(baseType=file,PNG dataUrl)',
-			'media-audio': '带有播放次数跟踪和最小播放次数要求的音频播放器',
-			'media-video': '带有播放次数跟踪和最大播放次数限制的视频播放器',
-			'hottext-single': '点击以在文本中选择单个单词(语法问题)',
-			'hottext-multiple': '点击以选择多个文本片段(阅读理解)',
-			'select-point': '点击图像以选择一个点的位置(地理问题)',
-			'graphic-order': '拖动以重新排列图像上的项目(地质层)',
-			'graphic-associate': '点击热点对以创建关联(器官匹配)',
-			'position-object': '在房间布局上拖动和定位家具物体',
-			'end-attempt': '结束评估尝试的按钮',
-			'custom-interaction': '显示 customInteraction 的备用 UI 并允许手动响应',
-			'choice-with-stimulus': '内嵌阅读文章的问题',
-			'math-inline': '带有 MathML 行内数学渲染的多项选择题',
-			'math-extended': '带有 MathML 和富文本编辑器的扩展响应,用于展示数学工作',
-			'math-fractions': '带有 MathML 块级显示的分数算术',
-			'adaptive-capitals': '带有渐进式反馈和提示的多次尝试自适应问题',
-		},
-	},
 
 	transform: {
 		// 应用标题和导航
