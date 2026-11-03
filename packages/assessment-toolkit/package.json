@@ -22,7 +22,6 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@pie-qti/ims-cp-core": "workspace:*",
     "@pie-qti/section-player": "workspace:*"
   },
   "devDependencies": {

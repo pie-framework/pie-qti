@@ -33,7 +33,6 @@
 	"license": "MIT",
 	"dependencies": {
 		"@pie-qti/qti-common": "workspace:*",
-		"@pie-qti/transform-core": "workspace:*",
 		"@pie-qti/transform-types": "workspace:*",
 		"node-html-parser": "^9.0.5",
 		"uuid": "^14.0.1",
@@ -42,6 +41,7 @@
 	"devDependencies": {
 		"@pie-qti/item-player": "workspace:*",
 		"@pie-qti/to-pie": "workspace:*",
+		"@pie-qti/transform-core": "workspace:*",
 		"typescript": "^5.9.3",
 		"xmllint-wasm": "^5.3.0"
 	},

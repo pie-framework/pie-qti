@@ -48,7 +48,6 @@ import {
 	resolveCheckedPackagePath,
 	resolveCheckedPackagePathFromFile,
 } from '@pie-qti/ims-cp-core';
-import { parse } from 'node-html-parser';
 import type {
 	AssessmentSessionState,
 	AssessmentScoringResult,
