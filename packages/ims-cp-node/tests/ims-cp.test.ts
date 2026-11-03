@@ -187,6 +187,30 @@ describe('ims-cp-node', () => {
 		}
 	});
 
+	// A hostile absolute href used to be silently rewritten into the package
+	// (leading slashes stripped by normalization); it must be rejected instead.
+	test('loadResolvedManifest rejects absolute resource hrefs instead of rewriting them', async () => {
+		const root = await mkdtemp(path.join(tmpdir(), 'ims-cp-absolute-href-'));
+		try {
+			await writeFile(
+				path.join(root, 'imsmanifest.xml'),
+				`<?xml version="1.0" encoding="UTF-8"?>
+<manifest xmlns="http://www.imsglobal.org/xsd/imscp_v1p1" identifier="MANIFEST-ABS">
+  <organizations/>
+  <resources>
+    <resource identifier="EVIL-1" type="imsqti_item_xmlv2p1" href="/etc/passwd">
+      <file href="/etc/passwd"/>
+    </resource>
+  </resources>
+</manifest>`,
+				'utf8',
+			);
+			await expect(loadResolvedManifest(root)).rejects.toThrow(/Unsafe/);
+		} finally {
+			await rm(root, { recursive: true, force: true });
+		}
+	});
+
 	test('loadResolvedManifest resolves resource hrefs relative to manifest location', async () => {
 		const root = await createSamplePackage();
 

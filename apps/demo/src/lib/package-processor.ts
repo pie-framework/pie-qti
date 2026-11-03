@@ -101,6 +101,7 @@ export async function processPackage(file: File): Promise<PackageStructure> {
 
 	const pkg = await openPackage(file, {
 		storage,
+		persist: true,
 		maxFileSize: 50 * 1024 * 1024, // 50MB
 		maxFiles: 1000
 	});

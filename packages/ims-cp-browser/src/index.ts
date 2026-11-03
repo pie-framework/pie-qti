@@ -41,6 +41,7 @@ export type { ResolveImagesOptions, LoggerLike } from './image-resolver.js';
  */
 export async function openPackage(file: File, options: OpenPackageOptions = {}): Promise<VirtualPackage> {
 	const {
+		persist = false,
 		storage = new SessionStorageBackend(),
 		maxFileSize = 50 * 1024 * 1024, // 50MB
 		maxCompressedSize = 100 * 1024 * 1024, // 100MB
@@ -69,8 +70,8 @@ export async function openPackage(file: File, options: OpenPackageOptions = {}):
 	// Create virtual package
 	const pkg = createVirtualPackage(packageId, files, manifest, storage);
 
-	// Optionally save to storage
-	if (storage) {
+	// Persistence is opt-in (see OpenPackageOptions.persist): text-only snapshot, quota-bound.
+	if (persist && storage) {
 		await pkg.save();
 	}
 
