@@ -20,7 +20,6 @@
       "@pie-qti/qti-common",
       "@pie-qti/qti-processing",
       "@pie-qti/section-player",
-      "@pie-qti/storage",
       "@pie-qti/test-utils",
       "@pie-qti/theme",
       "@pie-qti/theme-daisyui",
