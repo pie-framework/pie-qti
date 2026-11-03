@@ -271,7 +271,8 @@ export interface AssessmentRubricBlock {
 	/** Rubric content (HTML) */
 	content: string;
 	/** View controls when rubric is shown */
-	view: QTIRole[];
+	/** Authored QTI `view` tokens (arbitrary token lists, not just roles). */
+	view: string[];
 	/** Optional rubric use (QTI rubricBlock@use), e.g. "passage" */
 	use?: string;
 }

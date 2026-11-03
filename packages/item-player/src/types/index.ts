@@ -2,6 +2,7 @@
  * Core QTI types for the player
  */
 
+import type { I18nProvider } from '@pie-qti/i18n';
 import type {
 	BaseType as ProcessingBaseType,
 	Cardinality as ProcessingCardinality,
@@ -315,7 +316,7 @@ export interface ItemSessionEngineConfig {
 	 * Optional i18n provider for internationalization.
 	 * If not provided, defaults to DefaultI18nProvider with English messages.
 	 */
-	i18nProvider?: any; // Will be I18nProvider from @pie-qti/i18n
+	i18nProvider?: I18nProvider;
 	/**
 	 * Optional registry for executing QTI <customOperator> expressions.
 	 * Keyed by operator `class` (preferred) or `definition` URI.

@@ -13,11 +13,11 @@ import type {
  * This is a generic interface to avoid circular dependencies with specific plugins
  */
 export interface VendorExtensionPlugin {
-	registerVendorDetector?: (detector: any) => void;
+	registerVendorDetector?: (extension: unknown) => void;
 	registerVendorTransformer?: (transformer: any) => void;
-	registerAssetResolver?: (resolver: any) => void;
-	registerCssClassExtractor?: (extractor: any) => void;
-	registerMetadataExtractor?: (extractor: any) => void;
+	registerAssetResolver?: (extension: unknown) => void;
+	registerCssClassExtractor?: (extension: unknown) => void;
+	registerMetadataExtractor?: (extension: unknown) => void;
 }
 
 /**
@@ -62,7 +62,7 @@ export async function registerExtensions(
 		for (const detectorConfig of config.detectors) {
 			try {
 				const detector = await loadVendorModule(detectorConfig);
-				plugin.registerVendorDetector(detector as any);
+				plugin.registerVendorDetector(detector);
 			} catch (error) {
 				console.warn(
 					`Failed to load vendor detector ${detectorConfig.module}:`,
@@ -77,7 +77,7 @@ export async function registerExtensions(
 		for (const transformerConfig of config.transformers) {
 			try {
 				const transformer = await loadVendorModule(transformerConfig);
-				plugin.registerVendorTransformer(transformer as any);
+				plugin.registerVendorTransformer(transformer);
 			} catch (error) {
 				console.warn(
 					`Failed to load vendor transformer ${transformerConfig.module}:`,
@@ -92,7 +92,7 @@ export async function registerExtensions(
 		for (const resolverConfig of config.assetResolvers) {
 			try {
 				const resolver = await loadVendorModule(resolverConfig);
-				plugin.registerAssetResolver(resolver as any);
+				plugin.registerAssetResolver(resolver);
 			} catch (error) {
 				console.warn(
 					`Failed to load asset resolver ${resolverConfig.module}:`,
@@ -107,7 +107,7 @@ export async function registerExtensions(
 		for (const extractorConfig of config.cssClassExtractors) {
 			try {
 				const extractor = await loadVendorModule(extractorConfig);
-				plugin.registerCssClassExtractor(extractor as any);
+				plugin.registerCssClassExtractor(extractor);
 			} catch (error) {
 				console.warn(
 					`Failed to load CSS class extractor ${extractorConfig.module}:`,
@@ -122,7 +122,7 @@ export async function registerExtensions(
 		for (const extractorConfig of config.metadataExtractors) {
 			try {
 				const extractor = await loadVendorModule(extractorConfig);
-				plugin.registerMetadataExtractor(extractor as any);
+				plugin.registerMetadataExtractor(extractor);
 			} catch (error) {
 				console.warn(
 					`Failed to load metadata extractor ${extractorConfig.module}:`,
