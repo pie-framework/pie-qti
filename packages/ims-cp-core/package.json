@@ -33,6 +33,10 @@
     "./qti3-shared-content": {
       "types": "./dist/qti3-shared-content.d.ts",
       "import": "./dist/qti3-shared-content.js"
+    },
+    "./archive-limits": {
+      "types": "./dist/archive/limits.d.ts",
+      "import": "./dist/archive/limits.js"
     }
   },
   "dependencies": {

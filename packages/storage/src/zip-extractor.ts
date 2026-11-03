@@ -12,6 +12,11 @@ import type {
 	StorageBackend,
 	ExtractionResult,
 } from '@pie-qti/transform-types';
+import {
+	DEFAULT_ARCHIVE_EXTRACTION_LIMITS,
+	exceedsCompressionRatio,
+	resolveArchiveLimit,
+} from '@pie-qti/ims-cp-core';
 
 export interface StorageZipExtractorOptions {
 	/** Maximum compressed ZIP input size in bytes (default: 100MB). */
@@ -26,59 +31,32 @@ export interface StorageZipExtractorOptions {
 
 type ResolvedStorageZipExtractorOptions = Required<StorageZipExtractorOptions>;
 
-const DEFAULT_ARCHIVE_LIMITS: ResolvedStorageZipExtractorOptions = {
-	maxCompressedSize: 100 * 1024 * 1024,
-	maxTotalUncompressedSize: 250 * 1024 * 1024,
-	maxEntries: 1000,
-	maxCompressionRatio: 200,
-};
+const DEFAULT_ARCHIVE_LIMITS = DEFAULT_ARCHIVE_EXTRACTION_LIMITS;
 
 function resolveOptions(options: StorageZipExtractorOptions): ResolvedStorageZipExtractorOptions {
 	return {
-		maxCompressedSize: resolveLimit(
+		maxCompressedSize: resolveArchiveLimit(
 			options.maxCompressedSize,
 			DEFAULT_ARCHIVE_LIMITS.maxCompressedSize,
 			'maxCompressedSize',
 		),
-		maxTotalUncompressedSize: resolveLimit(
+		maxTotalUncompressedSize: resolveArchiveLimit(
 			options.maxTotalUncompressedSize,
 			DEFAULT_ARCHIVE_LIMITS.maxTotalUncompressedSize,
 			'maxTotalUncompressedSize',
 		),
-		maxEntries: resolveLimit(
+		maxEntries: resolveArchiveLimit(
 			options.maxEntries,
 			DEFAULT_ARCHIVE_LIMITS.maxEntries,
 			'maxEntries',
 			true,
 		),
-		maxCompressionRatio: resolveLimit(
+		maxCompressionRatio: resolveArchiveLimit(
 			options.maxCompressionRatio,
 			DEFAULT_ARCHIVE_LIMITS.maxCompressionRatio,
 			'maxCompressionRatio',
 		),
 	};
-}
-
-function resolveLimit(
-	value: number | undefined,
-	fallback: number,
-	name: string,
-	requireInteger = false,
-): number {
-	const resolved = value ?? fallback;
-	if (
-		resolved !== Number.POSITIVE_INFINITY &&
-		(!Number.isFinite(resolved) || resolved < 0 || (requireInteger && !Number.isInteger(resolved)))
-	) {
-		throw new Error(`${name} must be a non-negative ${requireInteger ? 'integer' : 'number'}`);
-	}
-	return resolved;
-}
-
-function exceedsCompressionRatio(uncompressed: number, compressed: number, maximum: number): boolean {
-	if (uncompressed === 0 || maximum === Number.POSITIVE_INFINITY) return false;
-	if (compressed <= 0) return true;
-	return uncompressed / compressed > maximum;
 }
 
 function assertArchiveMetadata(
