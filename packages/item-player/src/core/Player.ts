@@ -162,7 +162,7 @@ export class Player {
 	/** Template variables declared with `mathVariable`, substituted into MathML. */
 	private mathVariableIds: ReadonlySet<string> | null = null;
 	private componentRegistry: ComponentRegistry;
-	private i18nProvider: any; // I18nProvider from @pie-qti/i18n
+	private i18nProvider: I18nProvider;
 	private mapper: ElementNameMapper;
 
 	private warnedImpliedZeroMaxScore = false;
@@ -749,7 +749,7 @@ export class Player {
 	 * Get the i18n provider instance
 	 * @returns I18nProvider instance
 	 */
-	public getI18nProvider(): any {
+	public getI18nProvider(): I18nProvider {
 		return this.i18nProvider;
 	}
 

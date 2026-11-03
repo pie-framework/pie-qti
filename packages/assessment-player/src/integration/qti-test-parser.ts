@@ -366,7 +366,7 @@ export async function parseAssessmentTestXml(
 		const rubricBlocks = rubricBlockEls.length > 0
 			? rubricBlockEls.map((b, idx) => ({
 				identifier: getAttr(b, 'identifier') ?? `${identifier}-rubric-${idx + 1}`,
-				view: (getAttr(b, 'view') ?? 'candidate').split(/\s+/).filter(Boolean) as any[],
+				view: (getAttr(b, 'view') ?? 'candidate').split(/\s+/).filter(Boolean),
 				use: getAttr(b, 'use'),
 				content: serializeXml(b),
 			}))
@@ -559,7 +559,7 @@ export async function parseAssessmentTestXml(
 		const tpRubricBlocks = tpRubricBlockEls.length > 0
 			? tpRubricBlockEls.map((b, idx) => ({
 				identifier: getAttr(b, 'identifier') ?? `${tpIdentifier}-rubric-${idx + 1}`,
-				view: (getAttr(b, 'view') ?? 'candidate').split(/\s+/).filter(Boolean) as any[],
+				view: (getAttr(b, 'view') ?? 'candidate').split(/\s+/).filter(Boolean),
 				use: getAttr(b, 'use'),
 				content: serializeXml(b),
 			}))
