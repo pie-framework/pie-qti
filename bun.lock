@@ -33,7 +33,6 @@
         "@pie-qti/player-elements": "workspace:*",
         "@pie-qti/qti-common": "workspace:*",
         "@pie-qti/section-player": "workspace:*",
-        "@pie-qti/theme-daisyui": "workspace:*",
         "@pie-qti/typeset-katex": "workspace:*",
         "@pie-qti/web-component-loaders": "workspace:*",
         "@tiptap/core": "3.32.0",
@@ -121,7 +120,6 @@
       "version": "1.0.0-beta.3",
       "dependencies": {
         "@pie-qti/assessment-toolkit": "workspace:*",
-        "@pie-qti/default-components": "workspace:*",
         "@pie-qti/i18n": "workspace:*",
         "@pie-qti/ims-cp-core": "workspace:*",
         "@pie-qti/item-player": "workspace:*",
@@ -142,7 +140,6 @@
       "name": "@pie-qti/assessment-toolkit",
       "version": "1.0.0-beta.3",
       "dependencies": {
-        "@pie-qti/ims-cp-core": "workspace:*",
         "@pie-qti/section-player": "workspace:*",
       },
       "devDependencies": {
@@ -185,7 +182,7 @@
         "@types/node": "^26.6.4",
         "jsdom": "^30.1.3",
         "linkedom": "^0.18.13",
-        "svelte": "5.57.1",
+        "svelte": "^5.57.1",
         "svelte-check": "^4.7.7",
         "typescript": "^5.9.3",
         "vite": "8.3.4",
