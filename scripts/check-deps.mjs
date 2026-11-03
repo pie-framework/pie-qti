@@ -7,6 +7,11 @@ import { builtinModules } from "node:module";
 const ROOT = process.cwd();
 const rootManifestPath = path.join(ROOT, "package.json");
 
+const publishPolicyPath = path.join(ROOT, "scripts", "publish-policy.json");
+const publishPolicy = fs.existsSync(publishPolicyPath) ? readJson(publishPolicyPath) : {};
+const publishableWorkspaceRoots = new Set(publishPolicy.workspaceRoots ?? ["packages", "tools"]);
+const publishablePackageNamePrefix = publishPolicy.publishablePackageNamePrefix ?? "@pie-qti/";
+
 const SOURCE_EXTENSIONS = new Set([
 	".js",
 	".jsx",
@@ -148,6 +153,54 @@ function collectSpecifiers(content) {
 	}
 
 	return [...out];
+}
+
+function isTypeOnlyImportStatement(matchedText) {
+	return /^\s*(?:import|export)\s+type\s/.test(matchedText);
+}
+
+/**
+ * Specifiers imported as runtime values (as opposed to `import type` / `export type`,
+ * which are erased at compile time and therefore legitimately satisfied by a
+ * devDependency). Dynamic imports, require() and bare side-effect imports are
+ * always runtime.
+ */
+function collectValueImportSpecifiers(content) {
+	const out = new Set();
+	const cleanContent = stripComments(content);
+	const patterns = [
+		/import\s+[^'"`]*?\sfrom\s*['"]([^'"]+)['"]/g,
+		/import\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
+		/export\s+[^'"`]*?\sfrom\s*['"]([^'"]+)['"]/g,
+		/require\(\s*['"]([^'"]+)['"]\s*\)/g,
+		/^\s*import\s*['"]([^'"]+)['"]\s*;?\s*$/gm,
+	];
+
+	for (const re of patterns) {
+		let match;
+		while ((match = re.exec(cleanContent))) {
+			if (isTypeOnlyImportStatement(match[0])) continue;
+			out.add(match[1]);
+		}
+	}
+
+	return [...out];
+}
+
+/**
+ * True for files that end up in the shipped runtime path (src/ or lib/), excluding
+ * anything test-shaped. Only these files require a dependency to live in
+ * `dependencies`; tests, scripts and examples may use devDependencies.
+ */
+function isRuntimeSourceFile(workspaceDir, filePath) {
+	const relative = path.relative(workspaceDir, filePath);
+	const segments = relative.split(path.sep);
+	if (!segments.includes("src") && !segments.includes("lib")) return false;
+	if (segments.some((segment) => ["__tests__", "tests", "fixtures", "mocks"].includes(segment))) {
+		return false;
+	}
+	if (/\.(?:test|spec|vitest|stories)\.[cm]?[jt]sx?$/.test(relative)) return false;
+	return true;
 }
 
 function walkFiles(startDir, result, workspaceRoot = startDir) {
@@ -318,6 +371,14 @@ function main() {
 
 	for (const workspace of workspaceEntries) {
 		const manifest = readJson(workspace.manifestPath);
+		const relativeDir = path.relative(ROOT, workspace.dir);
+		const isPublishableWorkspace =
+			publishableWorkspaceRoots.has(relativeDir.split(path.sep)[0]) &&
+			workspace.name.startsWith(publishablePackageNamePrefix);
+		const runtimeDependencies = new Set([
+			...Object.keys(manifest.dependencies ?? {}),
+			...Object.keys(manifest.peerDependencies ?? {}),
+		]);
 		const declared = new Set([
 			...Object.keys(manifest.dependencies ?? {}),
 			...Object.keys(manifest.devDependencies ?? {}),
@@ -373,6 +434,29 @@ function main() {
 					// the exports map, so validating against exports reports false
 					// positives. The published export surface is already covered properly
 					// by check-pack-exports, check-publint and check-attw.
+
+					// Section discipline: for a publishable package, a runtime value import
+					// of a workspace package must be declared in `dependencies` (or
+					// `peerDependencies`). Declaring it only in `devDependencies` used to
+					// pass this checker (which unions every section) while publishing a
+					// package that only works when hoisting resolves the undeclared runtime
+					// link — AGENTS.md documents this as the most common dependency
+					// mistake. Type-only imports are erased at compile time, so devDependencies
+					// remain valid for them.
+					if (
+						isPublishableWorkspace &&
+						isRuntimeSourceFile(workspace.dir, filePath) &&
+						collectValueImportSpecifiers(content).includes(specifier) &&
+						!runtimeDependencies.has(packageName)
+					) {
+						violations.push({
+							type: "workspace-runtime-import-outside-dependencies",
+							workspace: workspace.name,
+							file: path.relative(ROOT, filePath),
+							specifier,
+							packageName,
+						});
+					}
 					continue;
 				}
 
@@ -455,6 +539,11 @@ function main() {
 		if (violation.type === "missing-dependency") {
 			logger(
 				`  [missing-dependency] ${violation.workspace}: ${violation.file} imports "${violation.specifier}" but "${violation.packageName}" is not declared.`,
+			);
+		} else if (violation.type === "workspace-runtime-import-outside-dependencies") {
+			logger(
+				`  [workspace-runtime-import-outside-dependencies] ${violation.workspace}: ${violation.file} value-imports "${violation.specifier}" at runtime, but "${violation.packageName}" is not in dependencies/peerDependencies (only in devDependencies or undeclared).\n` +
+					`      fix: move the entry to dependencies — a published package must not rely on hoisting to resolve its runtime imports.`,
 			);
 		} else if (violation.type === "unresolvable-workspace-import") {
 			const cause =

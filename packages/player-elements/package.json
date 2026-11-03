@@ -34,13 +34,13 @@
   "license": "MIT",
   "dependencies": {
     "@pie-qti/assessment-player": "workspace:*",
+    "@pie-qti/default-components": "workspace:*",
     "@pie-qti/ims-cp-core": "workspace:*",
-    "@pie-qti/item-player": "workspace:*"
+    "@pie-qti/item-player": "workspace:*",
+    "@pie-qti/qti-common": "workspace:*"
   },
   "devDependencies": {
-    "@pie-qti/default-components": "workspace:*",
     "@pie-qti/i18n": "workspace:*",
-    "@pie-qti/qti-common": "workspace:*",
     "@pie-qti/section-player": "workspace:*",
     "@biomejs/biome": "^2.6.2",
     "@sveltejs/vite-plugin-svelte": "^7.3.1",

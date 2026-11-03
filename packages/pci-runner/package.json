@@ -33,10 +33,11 @@
     "assessment"
   ],
   "license": "MIT",
-  "dependencies": {},
+  "dependencies": {
+    "@pie-qti/item-player": "workspace:*"
+  },
   "devDependencies": {
     "@biomejs/biome": "^2.6.2",
-    "@pie-qti/item-player": "workspace:*",
     "typescript": "^5.9.3",
     "vite": "^8.3.4"
   },
