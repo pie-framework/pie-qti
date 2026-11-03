@@ -1,7 +1,6 @@
 export type A11yFixtureId =
 	| 'sortable-list'
 	| 'match-drag-drop'
-	| 'graphic-gap-match'
 	| 'inline-interaction-renderer'
 	| 'file-upload'
 	| 'drawing-canvas'
@@ -29,7 +28,6 @@ export interface A11yFixture {
 export const A11Y_FIXTURES: A11yFixture[] = [
 	{ id: 'sortable-list', title: 'SortableList component fixture' },
 	{ id: 'match-drag-drop', title: 'MatchDragDrop component fixture' },
-	{ id: 'graphic-gap-match', title: 'GraphicGapMatch component fixture' },
 	{ id: 'inline-interaction-renderer', title: 'Inline interactions through ItemBody' },
 	{ id: 'file-upload', title: 'FileUpload component fixture' },
 	{ id: 'drawing-canvas', title: 'DrawingCanvas component fixture' },
