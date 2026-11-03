@@ -35,9 +35,6 @@
   "bugs": {
     "url": "https://github.com/pie-framework/pie-qti/issues"
   },
-  "publishConfig": {
-    "access": "public"
-  },
   "sideEffects": false,
   "engines": {
     "node": ">=20.19.0"
@@ -45,5 +42,6 @@
   "files": [
     "dist"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "private": true
 }
