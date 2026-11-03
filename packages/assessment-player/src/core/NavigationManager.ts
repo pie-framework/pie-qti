@@ -1,115 +1,28 @@
 /**
- * NavigationManager
+ * Visited-item tracking for the assessment player's navigation UI hints.
  *
- * Handles navigation logic for linear and nonlinear assessment modes.
- * - Linear: Sequential forward navigation only; once left, an item cannot be revisited
- * - Nonlinear: Free navigation (can jump to any item)
+ * Deliberately NOT a navigation decision-maker: QTI's real navigation rules
+ * (testPart sequencing, time locks, review-after-submit, branch targets) live in
+ * `AssessmentPlayer`'s `canNavigateByTestPart`/`canNext`/`canPrevious`, which read
+ * session state this class knows nothing about. Keeping only visit tracking here
+ * avoids a second, divergent source of navigation truth.
  */
 
 export type NavigationMode = 'linear' | 'nonlinear';
 
 export class NavigationManager {
-	private mode: NavigationMode;
-	private totalItems: number;
 	private visitedItems: Set<number>;
 
-	constructor(mode: NavigationMode, totalItems: number) {
-		this.mode = mode;
-		this.totalItems = totalItems;
+	constructor() {
 		this.visitedItems = new Set<number>();
 	}
 
-	/**
-	 * Check if navigation to a specific index is allowed
-	 */
-	canNavigateTo(targetIndex: number, currentIndex: number): boolean {
-		// Out of bounds check
-		if (targetIndex < 0 || targetIndex >= this.totalItems) {
-			return false;
-		}
-
-		// In nonlinear mode, can navigate anywhere
-		if (this.mode === 'nonlinear') {
-			return true;
-		}
-
-		// Linear mode permits staying on the current item or advancing exactly
-		// one item. QTI forbids returning after the candidate moves on.
-		return targetIndex === currentIndex || targetIndex === currentIndex + 1;
-	}
-
-	/**
-	 * Check if "next" navigation is allowed
-	 */
-	canNext(currentIndex: number): boolean {
-		return currentIndex < this.totalItems - 1;
-	}
-
-	/**
-	 * Check if "previous" navigation is allowed
-	 */
-	canPrevious(currentIndex: number): boolean {
-		return this.mode === 'nonlinear' && currentIndex > 0;
-	}
-
-	/**
-	 * Get the next valid index
-	 */
-	getNextIndex(currentIndex: number): number | null {
-		if (!this.canNext(currentIndex)) {
-			return null;
-		}
-		return currentIndex + 1;
-	}
-
-	/**
-	 * Get the previous valid index
-	 */
-	getPreviousIndex(currentIndex: number): number | null {
-		if (!this.canPrevious(currentIndex)) {
-			return null;
-		}
-		return currentIndex - 1;
-	}
-
-	/**
-	 * Mark an item as visited
-	 */
+	/** Mark an item as visited. */
 	markVisited(index: number): void {
 		this.visitedItems.add(index);
 	}
 
-	/**
-	 * Check if an item has been visited
-	 */
-	isVisited(index: number): boolean {
-		return this.visitedItems.has(index);
-	}
-
-	/**
-	 * Get all visited item indices
-	 */
-	getVisitedItems(): number[] {
-		return Array.from(this.visitedItems).sort((a, b) => a - b);
-	}
-
-	/**
-	 * Get navigation mode
-	 */
-	getMode(): NavigationMode {
-		return this.mode;
-	}
-
-	/**
-	 * Reset visited items (e.g., for retaking assessment)
-	 */
-	reset(): void {
-		this.visitedItems.clear();
-	}
-
-	/**
-	 * Restore state (for save/resume)
-	 */
+	/** Restore visited state (for save/resume). */
 	restoreState(visitedItems: number[]): void {
 		this.visitedItems = new Set(visitedItems);
 	}
