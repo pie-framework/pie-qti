@@ -8,6 +8,7 @@
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
 	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
 	import { isCompatibleMatchGroup } from '../../shared/utils/matchGroupUtils';
+	import { countPairsWithId, pairIncludesId } from '../../shared/utils/pairHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 
@@ -73,7 +74,7 @@
 		if (!hotspot) return;
 
 		// Count how many times this hotspot is already used
-		const usageCount = pairs.filter((pair) => pair.includes(hotspotId)).length;
+		const usageCount = countPairsWithId(pairs, hotspotId);
 		if (usageCount >= hotspot.matchMax) {
 			// This hotspot is at its maximum connections
 			return;
@@ -124,7 +125,7 @@
 	}
 
 	function getHotspotUsageCount(id: string): number {
-		return pairs.filter((pair) => pair.includes(id)).length;
+		return countPairsWithId(pairs, id);
 	}
 
 	function isHotspotMaxed(id: string): boolean {
@@ -152,7 +153,7 @@
 
 	function isHotspotInCorrectPair(id: string): boolean {
 		if (!isShowingCorrect) return false;
-		return correctPairs.some((p) => p.includes(id));
+		return correctPairs.some((p) => pairIncludesId(p, id));
 	}
 
 	// Calculate center point of a hotspot for visual connections

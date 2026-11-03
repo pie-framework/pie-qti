@@ -11,6 +11,8 @@ import {
 	removePairBySource,
 	removePair,
 	removePairByTarget,
+	pairIncludesId,
+	countPairsWithId,
 } from '../../../src/shared/utils/pairHelpers.js';
 
 describe('pairHelpers', () => {
@@ -246,6 +248,45 @@ describe('pairHelpers', () => {
 			expect(pairs).toContain('C T1');
 			expect(pairs).not.toContain('A T1');
 			expect(pairs).toContain('B T2');
+		});
+	});
+
+	describe('pairIncludesId', () => {
+		test('should match identifier as source token', () => {
+			expect(pairIncludesId('A T1', 'A')).toBe(true);
+		});
+
+		test('should match identifier as target token', () => {
+			expect(pairIncludesId('A T1', 'T1')).toBe(true);
+		});
+
+		test('should not match substring collisions between identifiers', () => {
+			// "H1" is a substring of "H10" but a different identifier
+			expect(pairIncludesId('H10 T2', 'H1')).toBe(false);
+			expect(pairIncludesId('A1 T1', 'A')).toBe(false);
+			expect(pairIncludesId('A T10', 'T1')).toBe(false);
+		});
+
+		test('should not match unrelated identifiers', () => {
+			expect(pairIncludesId('A T1', 'B')).toBe(false);
+		});
+	});
+
+	describe('countPairsWithId', () => {
+		test('should count pairs using an identifier as source or target', () => {
+			const pairs = ['H1 T1', 'H1 T2', 'H2 T1'];
+			expect(countPairsWithId(pairs, 'H1')).toBe(2);
+			expect(countPairsWithId(pairs, 'T1')).toBe(2);
+			expect(countPairsWithId(pairs, 'H2')).toBe(1);
+			expect(countPairsWithId(pairs, 'H9')).toBe(0);
+		});
+
+		test('should not cross-count identifiers that are substrings of other tokens', () => {
+			// "H10 H11" contains neither "H1" nor "H11" spelled "H1"
+			const pairs = ['H10 H11'];
+			expect(countPairsWithId(pairs, 'H1')).toBe(0);
+			expect(countPairsWithId(pairs, 'H10')).toBe(1);
+			expect(countPairsWithId(pairs, 'H11')).toBe(1);
 		});
 	});
 });
