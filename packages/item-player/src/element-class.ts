@@ -8,7 +8,7 @@
 
 import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
 import type { I18nProvider } from '@pie-qti/i18n';
-import { createSvelteMountController } from '@pie-qti/qti-common';
+import { createSvelteMountController, warnOnce } from '@pie-qti/qti-common';
 import { mount, unmount } from 'svelte';
 import { createSubscriber } from 'svelte/reactivity';
 import ItemPlayer from './components/ItemPlayer.svelte';
@@ -151,6 +151,12 @@ export class PieQtiItemPlayerElement extends HTMLElementBase {
 		return this.#locale;
 	}
 	set locale(value: string | null | undefined) {
+		if (value && !this.#i18n) {
+			warnOnce(
+				'item-player:locale-without-provider',
+				'locale attribute set but no i18n provider configured: it has no effect. Pass an I18nProvider via the i18n property.',
+			);
+		}
 		this.#locale = value ?? undefined;
 		this.#update();
 	}

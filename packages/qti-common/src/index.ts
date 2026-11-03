@@ -54,6 +54,7 @@ export { touchDrag, touchDragStyles } from './dom/touchDrag.js';
 
 // Writing direction
 export { languageDirection, type TextDirection } from './language/direction.js';
+export { warnOnce } from './diagnostics/warn-once.js';
 
 // Parser factory
 export {

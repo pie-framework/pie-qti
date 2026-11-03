@@ -8,6 +8,7 @@
 	import type { PnpProfile } from '../pnp/types';
 	import type { InteractionResponseValue } from '../web-components';
 	import { interfaceLocaleAttributes, type I18nProvider } from '@pie-qti/i18n';
+	import { warnOnce } from '@pie-qti/qti-common';
 	import { untrack } from 'svelte';
 	import ItemBody from './ItemBody.svelte';
 	import ModalFeedbackDisplay from './ModalFeedbackDisplay.svelte';
@@ -195,6 +196,17 @@
 	// The player's chrome (status, submit, feedback controls) takes the interface
 	// locale; the item body inside sets its own from the item's language.
 	const interfaceAttributes = $derived(interfaceLocaleAttributes(i18n));
+
+	// Surface silently-degraded setup: without a provider, error banners show raw
+	// message keys and lang/dir attributes are never set.
+	$effect(() => {
+		if (!i18n) {
+			warnOnce(
+				'item-player:i18n-missing',
+				'No i18n provider configured: UI messages will render as raw keys (e.g. item.parsingError) and lang/dir attributes are not set. Pass an I18nProvider from @pie-qti/i18n via the i18n property.',
+			);
+		}
+	});
 	const contentLanguage = $derived(activeSession ? getItemSessionBinding(activeSession).getContentLanguage() : undefined);
 </script>
 
