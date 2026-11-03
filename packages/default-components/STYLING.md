@@ -291,6 +291,21 @@ Parts:
 
 - `root`
 
+## Light-DOM shared classes (`@pie-qti/default-components/shared.css`)
+
+Interaction custom elements render in Shadow DOM, so they do not need host stylesheets. A few
+shared components also render **light-DOM** content (e.g. `.sr-only` live regions and instruction
+panels mounted outside a shadow root). Those rely on a small global stylesheet that the build
+emits to `dist/shared.css`:
+
+```js
+import '@pie-qti/default-components/shared.css';
+```
+
+This is optional: import it only when hosting light-DOM shared components (the same classes are
+otherwise covered inside each shadow root by `ShadowBaseStyles`). The stylesheet also carries the
+KaTeX stylesheet and fonts used by the rich-text editor.
+
 ## Baseline class styling (Shadow DOM)
 
 The default web components include a small baseline stylesheet (`ShadowBaseStyles`) to provide minimal styling for common DaisyUI classnames (e.g. `btn`, `alert`, `badge`, `card`, `select`) **inside Shadow DOM** when the host does not load DaisyUI/Tailwind CSS.
