@@ -4,7 +4,7 @@
  * Validates the structure and integrity of IMS Content Packages
  */
 
-import { QTI3_CP_NAMESPACE } from '../generators/manifest-generator.js';
+import { generateManifest, QTI3_CP_NAMESPACE } from '../generators/manifest-generator.js';
 import type { ManifestInput } from '../types/manifest.js';
 
 export interface ValidationResult {
@@ -301,7 +301,6 @@ export function validatePackage(input: ManifestInput): ValidationResult {
 
   // Generate manifest and validate output
   try {
-    const { generateManifest } = require('../generators/manifest-generator.js');
     const manifestXml = generateManifest(input);
     const outputValidation = validateGeneratedManifest(manifestXml);
 

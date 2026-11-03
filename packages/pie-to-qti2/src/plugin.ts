@@ -17,6 +17,7 @@ import {
   type TransformPlugin,
   sourceDigest,
 } from '@pie-qti/transform-types';
+import { createAssessmentGenerator } from './generators/assessment.js';
 import { generateManifest } from './generators/manifest-generator.js';
 import {
   generatePassageFile,
@@ -437,8 +438,6 @@ export class PieToQtiPlugin implements TransformPlugin {
   private transformAssessment(assessment: any, startTime: number, logger: any): TransformOutput {
     logger?.info('Transforming PIE assessment to QTI assessmentTest');
 
-    // Dynamically import and use AssessmentGenerator
-    const { createAssessmentGenerator } = require('./generators/assessment.js');
     const generator = createAssessmentGenerator();
 
     if (!generator.canHandle(assessment)) {
@@ -455,7 +454,7 @@ export class PieToQtiPlugin implements TransformPlugin {
     };
 
     const result = generator.generate(context);
-    const warnings: string[] = [...(result.warnings || [])];
+    const warnings: string[] = [...(result.metadata?.warnings || [])];
     const catalogWarning = catalogsNotExportedWarning(
       `Assessment "${assessment.identifier || assessment.id}"`,
       assessment,
