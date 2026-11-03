@@ -38,7 +38,16 @@ describe('player-elements package metadata', () => {
 		]) {
 			expect(packageJson.dependencies?.[dependency]).toBe('workspace:*');
 		}
-		expect(packageJson.devDependencies?.['@pie-qti/default-components']).toBe('workspace:*');
+		// Shipped declarations (dist/elements/*.d.ts) import types from these
+		// packages, so they must be real dependencies — consumer typechecks fail
+		// if they only ever lived in devDependencies.
+		for (const dependency of [
+			'@pie-qti/default-components',
+			'@pie-qti/i18n',
+			'@pie-qti/section-player',
+		]) {
+			expect(packageJson.dependencies?.[dependency]).toBe('workspace:*');
+		}
 	});
 
 	test('keeps the published declaration facade framework-neutral', () => {
