@@ -69,10 +69,6 @@
 			"types": "./dist/pci/index.d.ts",
 			"import": "./dist/pci/index.js"
 		},
-		"./components/utils": {
-			"types": "./dist/components/utils/index.d.ts",
-			"import": "./dist/components/utils/index.js"
-		},
 		"./element": {
 			"types": "./dist/element.d.ts",
 			"import": "./dist/element.js"

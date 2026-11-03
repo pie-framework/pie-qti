@@ -6,7 +6,7 @@
 
 import { describe, expect, test } from 'bun:test';
 import { convertQti2ToQti3 } from '@pie-qti/qti-common';
-import { processFeedbackInline } from '../../src/components/utils/feedbackUtils.js';
+import { processFeedbackInline } from '@pie-qti/qti-common';
 import { createAssessmentItemDefinition } from '../../src/core/AssessmentItemDefinition.js';
 import { Player } from '../../src/core/Player.js';
 import type { ItemPresentation } from '../../src/presentation/itemPresentationPlan.js';

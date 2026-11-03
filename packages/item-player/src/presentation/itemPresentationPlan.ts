@@ -16,7 +16,7 @@ import type {
 	QTIRole,
 	RubricBlock,
 } from '../types/index.js';
-import { processFeedbackInline } from '../components/utils/feedbackUtils.js';
+import { processFeedbackInline } from '@pie-qti/qti-common';
 import { buildScopedStylesheetCss } from '../components/utils/stylesheetRender.js';
 import { buildEffectiveStimulusContent, injectStimulusContent } from '../components/utils/stimulusRender.js';
 import {
