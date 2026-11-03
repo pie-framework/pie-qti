@@ -8,8 +8,15 @@ import type {
 	ProcessingFragmentResolver,
 	QtiValue,
 } from '@pie-qti/qti-processing';
+import type {
+	AttributeNameMapper,
+	ElementNameMapper,
+} from '@pie-qti/qti-common';
+import type { I18nProvider } from '@pie-qti/i18n';
 import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
 import type { PciConfiguration } from '../pci/types.js';
+import type { ComponentRegistry } from '../core/ComponentRegistry.js';
+import type { ExtractionRegistry } from '../extraction/ExtractionRegistry.js';
 import type { ResponseValidationResult } from './responseValidation.js';
 
 /**
@@ -300,22 +307,22 @@ export interface ItemSessionEngineConfig {
 	 * Defaults to Qti2xElementNameMapper (primary supported QTI format).
 	 * @since 0.2.0
 	 */
-	elementNameMapper?: any; // Will be ElementNameMapper from @pie-qti/qti-common
+	elementNameMapper?: ElementNameMapper;
 	/**
 	 * Optional attribute name mapper for handling different QTI versions.
 	 * Defaults to Qti2xAttributeNameMapper (primary supported QTI format).
 	 * @since 0.3.0
 	 */
-	attributeNameMapper?: any; // Will be AttributeNameMapper from @pie-qti/qti-common
+	attributeNameMapper?: AttributeNameMapper;
 	/** Optional web component registry for custom interaction components */
-	componentRegistry?: any; // Will be ComponentRegistry, but avoiding circular dependency
+	componentRegistry?: ComponentRegistry;
 	/** Optional extraction registry for custom element extractors */
-	extractionRegistry?: any; // Will be ExtractionRegistry, but avoiding circular dependency
+	extractionRegistry?: ExtractionRegistry;
 	/**
 	 * Optional i18n provider for internationalization.
 	 * If not provided, defaults to DefaultI18nProvider with English messages.
 	 */
-	i18nProvider?: any; // Will be I18nProvider from @pie-qti/i18n
+	i18nProvider?: I18nProvider;
 	/**
 	 * Optional registry for executing QTI <customOperator> expressions.
 	 * Keyed by operator `class` (preferred) or `definition` URI.

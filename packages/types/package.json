@@ -25,7 +25,8 @@
 	],
 	"license": "MIT",
 	"dependencies": {
-		"@pie-qti/logger": "workspace:*"
+		"@pie-qti/logger": "workspace:*",
+		"node-html-parser": "^9.0.5"
 	},
 	"devDependencies": {
 		"typescript": "^5.9.3"

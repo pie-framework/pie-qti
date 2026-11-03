@@ -6,7 +6,9 @@ export { DetectFormatActivity } from './detect-format-activity.js';
 export type { DetectFormatInput, DetectFormatOutput } from './detect-format-activity.js';
 
 export { DetectVendorActivity } from './detect-vendor-activity.js';
-export type { DetectVendorInput, DetectVendorOutput, VendorInfo } from './detect-vendor-activity.js';
+// VendorInfo is intentionally not re-exported here: the canonical
+// vendor-detection contract of that name lives in @pie-qti/transform-types.
+export type { DetectVendorInput, DetectVendorOutput } from './detect-vendor-activity.js';
 
 export { ParseXmlActivity } from './parse-xml-activity.js';
 export type { ParseXmlInput, ParseXmlOutput } from './parse-xml-activity.js';

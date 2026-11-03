@@ -5,6 +5,7 @@
  */
 
 import type { LogContext, ServerLogger } from '@pie-qti/logger/server';
+import type { StorageBackend } from '../storage/index.js';
 
 export type { LogContext, ServerLogger };
 
@@ -174,7 +175,7 @@ export interface TransformContext {
   options?: Record<string, any>;
 
   /** Storage backend for file operations */
-  storage?: any; // StorageBackend from storage package - using any to avoid circular dependency
+  storage?: StorageBackend;
 
   /** Current session identifier */
   sessionId?: string;
