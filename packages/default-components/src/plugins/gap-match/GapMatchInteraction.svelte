@@ -1,7 +1,7 @@
 <svelte:options customElement="pie-qti-gap-match" />
 
 <script lang="ts">
-	import type { GapMatchInteractionData, PlayerSecurityConfig } from '@pie-qti/item-player';
+	import type { GapMatchInteractionData, HtmlContent, PlayerSecurityConfig } from '@pie-qti/item-player';
 	import { normalizeCssPixelLength, sanitizeSharedHtml } from '@pie-qti/item-player/security';
 	import { joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
@@ -45,11 +45,35 @@
 	// Get reference to the root element for event dispatching
 	let rootElement: HTMLDivElement | undefined = $state();
 
-	// Rendered prompt container - we keep the original HTML structure and insert live gap targets.
-	let promptContainer: HTMLDivElement | undefined = $state();
+	// Gap currently under a drag operation (drives the drag-over highlight)
+	let dragOverGap: string | null = $state(null);
 
-	// Track cleanup functions for event listeners to prevent memory leaks
-	let cleanupFunctions: (() => void)[] = [];
+	/**
+	 * The prompt, split on the extractor's `[GAP:id]` text markers so each gap renders as a live
+	 * control between sanitized HTML segments. Each segment is sanitized and handed to the
+	 * `{@html}` sink independently: every sink call stays policy-checked, so the Trusted Types
+	 * guarantee holds without post-egress string surgery on sanitized markup.
+	 */
+	type PromptSegment = { html: HtmlContent; gapId?: string };
+
+	const promptSegments = $derived.by((): PromptSegment[] => {
+		const source = parsedInteraction?.promptText;
+		if (typeof source !== 'string') {
+			// TrustedHTML (or null) cannot be marker-split as a string; it renders whole, without live gaps.
+			return source ? [{ html: source }] : [];
+		}
+		const segments: PromptSegment[] = [];
+		const marker = /\[GAP:([^\]]+)\]/g;
+		let cursor = 0;
+		let match: RegExpExecArray | null;
+		while ((match = marker.exec(source))) {
+			if (match.index > cursor) segments.push({ html: sanitizeSharedHtml(source.slice(cursor, match.index), security) });
+			segments.push({ html: '', gapId: match[1] ?? '' });
+			cursor = match.index + match[0].length;
+		}
+		if (cursor < source.length) segments.push({ html: sanitizeSharedHtml(source.slice(cursor), security) });
+		return segments;
+	});
 
 	// Words that cannot be placed because they share a matchGroup with an already-placed word
 	const unavailableWords = $derived.by(() => {
@@ -154,6 +178,78 @@
 		}
 	}
 
+	// Accessible name for a gap, composed with the held-word hint and correct-answer state.
+	function gapAriaLabel(gapId: string): string {
+		const selected = getSelectedWord(gapId);
+		const correct = getCorrectWord(gapId);
+		const isCorrect = isCorrectGap(gapId);
+		if (selected) {
+			const word = getWordText(selected);
+			const label =
+				pickedUpWord !== null
+					? translate(
+							i18n,
+							'interactions.gapMatch.filledGapAriaLabelWithHeld',
+							'Blank {gapId}, filled with {word}. Select to replace with {heldWord}.',
+							{ gapId, word, heldWord: getWordText(pickedUpWord) },
+						)
+					: translate(i18n, 'interactions.gapMatch.filledGapAriaLabel', 'Blank {gapId}, filled with {word}. Click to clear.', {
+							gapId,
+							word,
+						});
+			return joinSentences(label, isCorrect && translate(i18n, 'accessibility.correctAnswer', 'Correct answer.'));
+		}
+		const label =
+			pickedUpWord !== null
+				? translate(i18n, 'interactions.gapMatch.blankGapAriaLabelWithHeld', 'Blank {gapId}. Select to place {heldWord} here.', {
+						gapId,
+						heldWord: getWordText(pickedUpWord),
+					})
+				: translate(i18n, 'interactions.gapMatch.blankGapAriaLabel', 'Blank {gapId}. Drop an answer here.', { gapId });
+		return joinSentences(
+			label,
+			isCorrect &&
+				correct &&
+				translate(i18n, 'accessibility.correctAnswerIs', 'Correct answer: {answer}.', { answer: getWordText(correct) }),
+		);
+	}
+
+	function onGapDragOver(gapId: string, e: DragEvent) {
+		if (disabled) return;
+		e.preventDefault();
+		dragOverGap = gapId;
+	}
+
+	function onGapDragLeave(gapId: string) {
+		if (dragOverGap === gapId) dragOverGap = null;
+	}
+
+	function onGapDrop(gapId: string, e: DragEvent) {
+		if (disabled) return;
+		e.preventDefault();
+		dragOverGap = null;
+		const wordId = e.dataTransfer?.getData('text/plain') ?? '';
+		if (!wordId) return;
+		handleGapChange(gapId, wordId);
+	}
+
+	function onGapClick(gapId: string) {
+		if (disabled) return;
+		// K-02: if a word is held, drop it into this gap
+		if (pickedUpWord !== null) {
+			const wordText = getWordText(pickedUpWord);
+			handleGapChange(gapId, pickedUpWord);
+			liveMessage =
+				i18n?.t('interactions.gapMatch.placed', { word: wordText, gapId }) ??
+				`Placed ${wordText} in blank ${gapId}.`;
+			pickedUpWord = null;
+		} else {
+			// No word held: clear this gap if it has a word
+			const current = getSelectedWord(gapId);
+			if (current) handleGapChange(gapId, '');
+		}
+	}
+
 	function clearWord(wordId: string) {
 		if (disabled) return;
 		const newPairs = pairs.filter((p: string) => !p.startsWith(`${wordId} `));
@@ -166,230 +262,6 @@
 		}
 	}
 
-	function renderPromptWithGaps() {
-		if (!promptContainer || !parsedInteraction?.promptText) return;
-
-		const activeElement = (promptContainer.getRootNode() as Document | ShadowRoot).activeElement;
-		const focusedGapId = activeElement && promptContainer.contains(activeElement)
-			? activeElement.getAttribute('data-gap-id') : null;
-
-		// Clean up any existing event listeners before creating new ones
-		cleanupFunctions.forEach(cleanup => cleanup());
-		cleanupFunctions = [];
-
-		const tpl = document.createElement('template');
-		const promptHtml =
-			typeof parsedInteraction.promptText === 'string'
-				? sanitizeSharedHtml(parsedInteraction.promptText, security)
-				: parsedInteraction.promptText;
-		// Preserve a TrustedHTML object all the way to the sink. Gap controls are
-		// composed afterwards with DOM operations, so no post-egress string rewrite
-		// can invalidate the security guarantee.
-		tpl.innerHTML = promptHtml as any;
-		replaceGapMarkers(tpl.content);
-		promptContainer.replaceChildren();
-		promptContainer.appendChild(tpl.content.cloneNode(true));
-
-		const placeholders = Array.from(
-			promptContainer.querySelectorAll<HTMLSpanElement>('[data-gap-placeholder]')
-		);
-		for (const ph of placeholders) {
-			const gapId = ph.getAttribute('data-gap-placeholder') ?? '';
-			if (!gapId) continue;
-
-			const btn = document.createElement('button');
-			btn.type = 'button';
-			btn.setAttribute('part', 'gap');
-			btn.setAttribute('data-gap-id', gapId);
-			// Match the look/feel of other interactions (DaisyUI input/select styling when present).
-			btn.className = 'qti-gm-gap-target select select-bordered select-sm';
-
-			const selected = getSelectedWord(gapId);
-			const correct = getCorrectWord(gapId);
-			const isCorrect = isCorrectGap(gapId);
-			if (selected) {
-				const word = getWordText(selected);
-				btn.textContent = word;
-				btn.removeAttribute('data-empty');
-				if (isCorrect) {
-					btn.classList.add('qti-gm-gap-correct');
-				}
-				// K-02: update aria-label to hint drop action when a word is held
-				const filledAriaLabel =
-					pickedUpWord !== null
-						? translate(
-								i18n,
-								'interactions.gapMatch.filledGapAriaLabelWithHeld',
-								'Blank {gapId}, filled with {word}. Select to replace with {heldWord}.',
-								{ gapId, word, heldWord: getWordText(pickedUpWord) },
-							)
-						: translate(i18n, 'interactions.gapMatch.filledGapAriaLabel', 'Blank {gapId}, filled with {word}. Click to clear.', {
-								gapId,
-								word,
-							});
-				btn.setAttribute(
-					'aria-label',
-					joinSentences(filledAriaLabel, isCorrect && translate(i18n, 'accessibility.correctAnswer', 'Correct answer.')),
-				);
-			} else {
-				// Keep the gap visually blank (no letters), but still accessible.
-				btn.textContent = '';
-				btn.setAttribute('data-empty', 'true');
-				if (isCorrect && correct) {
-					const correctWord = getWordText(correct);
-					btn.textContent = correctWord;
-					btn.classList.add('qti-gm-gap-correct');
-					btn.removeAttribute('data-empty');
-				}
-				// K-02: update aria-label to hint drop action when a word is held
-				const ariaLabel =
-					pickedUpWord !== null
-						? translate(i18n, 'interactions.gapMatch.blankGapAriaLabelWithHeld', 'Blank {gapId}. Select to place {heldWord} here.', {
-								gapId,
-								heldWord: getWordText(pickedUpWord),
-							})
-						: translate(i18n, 'interactions.gapMatch.blankGapAriaLabel', 'Blank {gapId}. Drop an answer here.', { gapId });
-				btn.setAttribute(
-					'aria-label',
-					joinSentences(
-						ariaLabel,
-						isCorrect &&
-							correct &&
-							translate(i18n, 'accessibility.correctAnswerIs', 'Correct answer: {answer}.', { answer: getWordText(correct) }),
-					),
-				);
-			}
-
-			// K-02: apply "ready to receive" visual class when a word is held
-			if (pickedUpWord !== null) {
-				btn.classList.add('qti-gm-gap-ready');
-			}
-
-			if (disabled) btn.setAttribute('aria-disabled', 'true');
-
-			const onDragEnter = (e: DragEvent) => {
-				if (disabled) return;
-				e.preventDefault();
-				btn.classList.add('is-dragover');
-			};
-
-			const onDragOver = (e: DragEvent) => {
-				if (disabled) return;
-				e.preventDefault();
-				btn.classList.add('is-dragover');
-			};
-
-			const onDragLeave = () => {
-				btn.classList.remove('is-dragover');
-			};
-
-			const onDrop = (e: DragEvent) => {
-				if (disabled) return;
-				e.preventDefault();
-				btn.classList.remove('is-dragover');
-				const wordId = e.dataTransfer?.getData('text/plain') ?? '';
-				if (!wordId) return;
-				handleGapChange(gapId, wordId);
-			};
-
-			const onClick = () => {
-				if (disabled) return;
-				// K-02: if a word is held, drop it into this gap
-				if (pickedUpWord !== null) {
-					const wordText = getWordText(pickedUpWord);
-					handleGapChange(gapId, pickedUpWord);
-					liveMessage =
-						i18n?.t('interactions.gapMatch.placed', { word: wordText, gapId }) ??
-						`Placed ${wordText} in blank ${gapId}.`;
-					pickedUpWord = null;
-				} else {
-					// No word held: clear this gap if it has a word
-					const current = getSelectedWord(gapId);
-					if (current) handleGapChange(gapId, '');
-				}
-			};
-
-			// K-02: keydown handler for gap buttons
-			const onKeydown = (e: KeyboardEvent) => {
-				if (disabled) return;
-				if (e.key === 'Enter' || e.key === ' ') {
-					e.preventDefault();
-					onClick();
-				} else if (e.key === 'Escape') {
-					if (pickedUpWord !== null) {
-						pickedUpWord = null;
-						liveMessage = i18n?.t('common.selectionCancelled') ?? 'Pick-up cancelled.';
-					}
-				}
-			};
-
-			btn.addEventListener('dragenter', onDragEnter);
-			btn.addEventListener('dragover', onDragOver);
-			btn.addEventListener('dragleave', onDragLeave);
-			btn.addEventListener('drop', onDrop);
-			btn.addEventListener('click', onClick);
-			btn.addEventListener('keydown', onKeydown);
-
-			// Store cleanup functions to remove event listeners later
-			cleanupFunctions.push(() => {
-				btn.removeEventListener('dragenter', onDragEnter);
-				btn.removeEventListener('dragover', onDragOver);
-				btn.removeEventListener('dragleave', onDragLeave);
-				btn.removeEventListener('drop', onDrop);
-				btn.removeEventListener('click', onClick);
-				btn.removeEventListener('keydown', onKeydown);
-			});
-
-			ph.replaceWith(btn);
-		}
-		if (focusedGapId) {
-			const replacement = Array.from(promptContainer.querySelectorAll<HTMLButtonElement>('[data-gap-id]'))
-				.find((button) => button.dataset.gapId === focusedGapId);
-			replacement?.focus({ preventScroll: true });
-		}
-	}
-
-	function replaceGapMarkers(root: DocumentFragment): void {
-		const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-		const textNodes: Text[] = [];
-		while (walker.nextNode()) textNodes.push(walker.currentNode as Text);
-
-		for (const textNode of textNodes) {
-			const text = textNode.data;
-			const pattern = /\[GAP:([^\]]+)\]/g;
-			let match: RegExpExecArray | null;
-			let offset = 0;
-			let replaced = false;
-			const fragment = document.createDocumentFragment();
-			while ((match = pattern.exec(text))) {
-				replaced = true;
-				if (match.index > offset) fragment.append(text.slice(offset, match.index));
-				const marker = document.createElement('span');
-				marker.dataset.gapPlaceholder = match[1] ?? '';
-				fragment.append(marker);
-				offset = match.index + match[0].length;
-			}
-			if (!replaced) continue;
-			if (offset < text.length) fragment.append(text.slice(offset));
-			textNode.replaceWith(fragment);
-		}
-	}
-
-	// Re-render prompt when interaction or response changes (keeps selected word labels in sync)
-	$effect(() => {
-		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
-		parsedInteraction?.promptText;
-		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
-		pairs.length;
-		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
-		correctPairs.length;
-		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
-		isShowingCorrect;
-		// K-02: re-render whenever pickedUpWord changes so gap aria-labels and styles update
-		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
-		pickedUpWord;
-		renderPromptWithGaps();
-	});
 </script>
 
 <ShadowBaseStyles />
@@ -409,11 +281,6 @@
 	{#if !parsedInteraction}
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
-		{#if parsedInteraction.prompt}
-			<div part="prompt" class="qti-gm-prompt qti-rich-content font-semibold">
-				{@html parsedInteraction.prompt}
-			</div>
-		{/if}
 
 		<p>{i18n?.t('interactions.gapMatch.pointerInstructions') ?? 'Select a word, then select a blank. You can also drag and drop.'}</p>
 
@@ -473,10 +340,46 @@
 			{/each}
 		</div>
 
-	<!-- Render the text with gaps as drop targets, preserving original HTML structure -->
-	<div part="text" class="qti-gm-text qti-rich-content p-4 bg-base-100 border border-base-300 rounded">
-		<div bind:this={promptContainer} class="qti-gm-inline"></div>
-	</div>
+	{#snippet gapButton(gapId: string)}
+		{@const selected = getSelectedWord(gapId)}
+		{@const showCorrect = isCorrectGap(gapId)}
+		{@const showWord = selected || (showCorrect ? getCorrectWord(gapId) : '')}
+		<button
+			part="gap"
+			type="button"
+			data-gap-id={gapId}
+			class="qti-gm-gap-target select select-bordered select-sm"
+			class:qti-gm-gap-correct={showCorrect}
+			class:qti-gm-gap-ready={pickedUpWord !== null}
+			class:is-dragover={dragOverGap === gapId}
+			data-empty={showWord === '' ? 'true' : undefined}
+			aria-disabled={disabled ? 'true' : undefined}
+			aria-label={gapAriaLabel(gapId)}
+			ondragover={(e: DragEvent) => onGapDragOver(gapId, e)}
+			ondragleave={() => onGapDragLeave(gapId)}
+			ondrop={(e: DragEvent) => onGapDrop(gapId, e)}
+			onclick={() => onGapClick(gapId)}
+		>
+			{showWord === '' ? '' : getWordText(showWord)}
+		</button>
+	{/snippet}
+	{#if promptSegments.length > 0}
+		<!-- The prompt with live gap controls, rendered once. The extractor's promptText IS the
+		     prompt with <gap> elements rewritten to [GAP:id] markers; rendering `prompt` as well
+		     would show the sentence twice, once with dead markers. -->
+		<div part="text" class="qti-gm-text qti-rich-content p-4 bg-base-100 border border-base-300 rounded">
+			<div class="qti-gm-inline">
+				{#each promptSegments as seg, i (i)}
+					{#if seg.gapId}{@render gapButton(seg.gapId)}{:else}{@html seg.html}{/if}
+				{/each}
+			</div>
+		</div>
+	{:else if parsedInteraction.prompt}
+		<!-- No marker text available (e.g. hand-built data): fall back to the static prompt. -->
+		<div part="prompt" class="qti-gm-prompt qti-rich-content font-semibold">
+			{@html parsedInteraction.prompt}
+		</div>
+	{/if}
 		</div>
 	{/if}
 </div>
