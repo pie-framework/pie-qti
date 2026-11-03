@@ -1,5 +1,8 @@
 # Demo Vendor Extensions
 
+> **In-repo example.** This package is `private` and is not published to npm. It exists as living documentation of the five vendor extension points (see `docs/TRANSFORMATION-ENGINE.md`); copy the classes into your own vendor package rather than depending on this one.
+
+
 Demonstrates all 5 vendor extension points for QTI-to-PIE transformation.
 
 ## Overview
