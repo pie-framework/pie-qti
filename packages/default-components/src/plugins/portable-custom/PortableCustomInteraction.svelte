@@ -8,11 +8,11 @@
 		PlayerSecurityConfig,
 		PortableCustomInteractionData,
 	} from '@pie-qti/item-player';
+	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
 	import { PciHost } from '@pie-qti/item-player/pci';
 	import { sanitizeSharedHtml } from '@pie-qti/item-player/security';
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
-	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';

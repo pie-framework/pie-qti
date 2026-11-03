@@ -2,11 +2,11 @@
 
 <script lang="ts">
 	import type { MatchInteractionData } from '@pie-qti/item-player';
+	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import { typesetAction } from '../../shared/actions/typesetAction';
 	import MatchDragDrop from '../../shared/components/MatchDragDrop.svelte';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
-	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
@@ -52,12 +52,7 @@
 
 	function handlePairsChange(newPairs: string[]) {
 		response = newPairs;
-		// Call onChange callback if provided (for Svelte component usage)
-		onChange?.(newPairs);
-		// Dispatch event for web component usage - event will bubble up to the host element
-		if (rootElement) {
-			rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction?.responseId, newPairs));
-		}
+		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: newPairs, onChange });
 	}
 </script>
 

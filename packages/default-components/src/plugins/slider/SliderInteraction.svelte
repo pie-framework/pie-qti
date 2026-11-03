@@ -2,10 +2,10 @@
 
 <script lang="ts">
 	import type { SliderInteractionData } from '@pie-qti/item-player';
+	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
-	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
-	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
+		import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 
@@ -46,11 +46,7 @@
 	function handleChange(value: number) {
 		response = value;
 		// Call onChange callback if provided (for Svelte component usage)
-		onChange?.(value);
-		// Dispatch custom event for web component usage - event will bubble up to the host element
-		if (rootElement) {
-			rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction?.responseId, value));
-		}
+		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: value, onChange });
 	}
 </script>
 

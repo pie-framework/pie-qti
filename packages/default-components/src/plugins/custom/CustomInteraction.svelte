@@ -2,12 +2,12 @@
 
 <script lang="ts">
 	import type { CustomInteractionData } from '@pie-qti/item-player';
+	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import CustomInteractionFallback from '../../shared/components/CustomInteractionFallback.svelte';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
-	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
-	import { interactionAria } from '../../shared/utils/interactionAria';
+		import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 
 	interface Props {
@@ -34,11 +34,7 @@
 	function handleChange(value: string | null) {
 		response = value;
 		// Call onChange callback if provided (for Svelte component usage)
-		onChange?.(value);
-		// Dispatch custom event for web component usage - event will bubble up to the host element
-		if (rootElement) {
-			rootElement.dispatchEvent(createQtiChangeEvent(customInteraction?.responseId, value));
-		}
+		emitInteractionChange({ target: rootElement, responseId: customInteraction?.responseId, value: value, onChange });
 	}
 </script>
 

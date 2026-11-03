@@ -2,11 +2,11 @@
 
 <script lang="ts">
 	import type { Point, SelectPointInteractionData } from '@pie-qti/item-player';
+	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { normalizePixelDimension } from '@pie-qti/item-player/security';
 	import { joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
-	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
-	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
+		import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 
@@ -183,9 +183,7 @@
 		// Normalize outward response shape to canonical QTI form (even if inbound was legacy/object form).
 		response = canonicalValue;
 		// Call onChange callback if provided (for Svelte component usage)
-		onChange?.(canonicalValue);
-		// Dispatch event for web component usage - event will bubble up to the host element
-		rootElement?.dispatchEvent(createQtiChangeEvent(parsedInteraction?.responseId, canonicalValue));
+		emitInteractionChange({ target: rootElement ?? undefined, responseId: parsedInteraction?.responseId, value: canonicalValue, onChange });
 	}
 
 	/**
@@ -199,9 +197,7 @@
 				? (selectedPoints[0] ? `${selectedPoints[0].x} ${selectedPoints[0].y}` : null)
 				: selectedPoints.map((p) => `${p.x} ${p.y}`);
 		response = canonicalValue;
-		// Call onChange callback if provided (for Svelte component usage)
-		onChange?.(canonicalValue);
-		rootElement?.dispatchEvent(createQtiChangeEvent(parsedInteraction?.responseId, canonicalValue));
+		emitInteractionChange({ target: rootElement ?? undefined, responseId: parsedInteraction?.responseId, value: canonicalValue, onChange });
 	}
 
 	/**
@@ -215,9 +211,7 @@
 				? null
 				: [];
 		response = canonicalValue;
-		// Call onChange callback if provided (for Svelte component usage)
-		onChange?.(canonicalValue);
-		rootElement?.dispatchEvent(createQtiChangeEvent(parsedInteraction?.responseId, canonicalValue));
+		emitInteractionChange({ target: rootElement ?? undefined, responseId: parsedInteraction?.responseId, value: canonicalValue, onChange });
 	}
 
 	/**
@@ -252,8 +246,7 @@
 				? (selectedPoints[0] ? `${selectedPoints[0].x} ${selectedPoints[0].y}` : null)
 				: selectedPoints.map((p) => `${p.x} ${p.y}`);
 		response = canonicalValue;
-		onChange?.(canonicalValue);
-		rootElement?.dispatchEvent(createQtiChangeEvent(parsedInteraction?.responseId, canonicalValue));
+		emitInteractionChange({ target: rootElement ?? undefined, responseId: parsedInteraction?.responseId, value: canonicalValue, onChange });
 	}
 
 	/**

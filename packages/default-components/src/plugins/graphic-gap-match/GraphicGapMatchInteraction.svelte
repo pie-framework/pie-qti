@@ -8,10 +8,10 @@
  */
 
 import type { GraphicGapMatchInteractionData } from '@pie-qti/item-player';
+	import { touchDrag } from '@pie-qti/qti-common';
+import { emitInteractionChange } from '../../shared/utils/eventHelpers.js';
 import { normalizeCssPixelLength, normalizePixelDimension } from '@pie-qti/item-player/security';
 import { joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
-import { touchDrag } from '@pie-qti/qti-common';
-import { createQtiChangeEvent } from '../../shared/utils/eventHelpers.js';
 import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
 import { interactionAria } from '../../shared/utils/interactionAria';
 import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
@@ -159,12 +159,7 @@ function handleHotspotDrop(event: DragEvent, hotspotId: string) {
 	pairs = newPairs;
 	response = pairs;
 	// Call onChange callback if provided (for Svelte component usage)
-	onChange?.(pairs);
-	// Dispatch custom event for web component usage - dispatch from rootElement to ensure it bubbles out of Shadow DOM
-	const valueArray = Array.isArray(pairs) ? [...pairs] : [];
-	if (rootElement) {
-		rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction.responseId, valueArray));
-	}
+	emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: pairs, onChange });
 
 	draggedTextId = null;
 	hoveredHotspotId = null;
@@ -180,12 +175,7 @@ function clearMatch(gapTextId: string) {
 	pairs = newPairs;
 	response = pairs;
 	// Call onChange callback if provided (for Svelte component usage)
-	onChange?.(pairs);
-	// Dispatch custom event for web component usage - dispatch from rootElement to ensure it bubbles out of Shadow DOM
-	const valueArray = Array.isArray(pairs) ? [...pairs] : [];
-	if (rootElement) {
-		rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction.responseId, valueArray));
-	}
+	emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: pairs, onChange });
 
 	liveMessage = translate(i18n, 'interactions.graphicGapMatch.labelRemoved', '{label} removed from hotspot.', { label: gapTextName });
 }
@@ -281,12 +271,7 @@ function placePickedUpLabelOnHotspot(hotspotId: string) {
 	pairs = newPairs;
 	response = pairs;
 	// Call onChange callback if provided (for Svelte component usage)
-	onChange?.(pairs);
-	// Dispatch custom event for web component usage - dispatch from rootElement to ensure it bubbles out of Shadow DOM
-	const valueArray = Array.isArray(pairs) ? [...pairs] : [];
-	if (rootElement) {
-		rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction.responseId, valueArray));
-	}
+	emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: pairs, onChange });
 
 	liveMessage = translate(i18n, 'interactions.graphicGapMatch.labelPlaced', '{label} placed on hotspot {hotspot}', { label: labelName, hotspot: hotspotIndex + 1 });
 	pickedUpLabel = null;

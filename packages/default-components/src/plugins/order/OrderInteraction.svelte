@@ -2,11 +2,11 @@
 
 <script lang="ts">
 	import type { OrderInteractionData } from '@pie-qti/item-player';
+	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { translate, type I18nProvider } from '@pie-qti/i18n';
 	import { typesetAction } from '../../shared/actions/typesetAction';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import SortableList, { type SortableIndexLabels } from '../../shared/components/SortableList.svelte';
-	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
@@ -86,12 +86,7 @@
 	function handleReorder(newOrder: string[]) {
 		hasConfirmed = true; // Auto-confirm on drag
 		response = newOrder;
-		// Call onChange callback if provided (for Svelte component usage)
-		onChange?.(newOrder);
-		// Dispatch event for web component usage - event will bubble up to the host element
-		if (rootElement) {
-			rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction?.responseId, newOrder));
-		}
+		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: newOrder, onChange });
 	}
 
 	function confirmOrder() {
@@ -101,12 +96,7 @@
 		const currentOrder = orderedIds;
 		response = currentOrder;
 
-		// Call onChange callback if provided (for Svelte component usage)
-		onChange?.(currentOrder);
-		// Dispatch event for web component usage - event will bubble up to the host element
-		if (rootElement) {
-			rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction?.responseId, currentOrder));
-		}
+		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: currentOrder, onChange });
 	}
 
 	// Reset confirmation state when response is externally cleared

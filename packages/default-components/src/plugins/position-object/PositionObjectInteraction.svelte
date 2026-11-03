@@ -40,13 +40,13 @@
 
 <script lang="ts">
 	import type { PositionObjectInteractionData } from '@pie-qti/item-player';
+	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { normalizePixelDimension } from '@pie-qti/item-player/security';
 	import { joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import DragHandle from '../../shared/components/DragHandle.svelte';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
-	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
-	import { interactionAria } from '../../shared/utils/interactionAria';
+		import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 
 	interface Position {
@@ -257,11 +257,7 @@
 
 		response = responseValue;
 		// Call onChange callback if provided (for Svelte component usage)
-		onChange?.(responseValue);
-		// Dispatch custom event for web component usage - event will bubble up to the host element
-		if (rootElement) {
-			rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction?.responseId, responseValue));
-		}
+		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: responseValue, onChange });
 		draggedStageId = null;
 		draggedPositionIndex = null;
 	}
@@ -284,11 +280,7 @@
 
 		response = responseValue;
 		// Call onChange callback if provided (for Svelte component usage)
-		onChange?.(responseValue);
-		// Dispatch custom event for web component usage - event will bubble up to the host element
-		if (rootElement) {
-			rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction?.responseId, responseValue));
-		}
+		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: responseValue, onChange });
 	}
 
 	function getStageById(id: string) {
@@ -458,10 +450,7 @@
 
 		const responseValue = positions.map((pos) => `${Math.round(pos.x)} ${Math.round(pos.y)}`);
 		response = responseValue;
-		onChange?.(responseValue);
-		if (rootElement) {
-			rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction?.responseId, responseValue));
-		}
+		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: responseValue, onChange });
 
 		const pct = (v: number) => Math.round(v * 100);
 		liveMessage = translate(i18n, 'interactions.positionObject.objectPlacedAt', '{object} placed at {x}%, {y}%.', {
