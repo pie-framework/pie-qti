@@ -9,7 +9,6 @@
 	import CustomInteractionFallbackFixture from '#lib/a11y/fixtures/CustomInteractionFallbackFixture.svelte';
 	import DrawingCanvasFixture from '#lib/a11y/fixtures/DrawingCanvasFixture.svelte';
 	import FileUploadFixture from '#lib/a11y/fixtures/FileUploadFixture.svelte';
-	import GraphicGapMatchFixture from '#lib/a11y/fixtures/GraphicGapMatchFixture.svelte';
 	import InlineInteractionRendererFixture from '#lib/a11y/fixtures/InlineInteractionRendererFixture.svelte';
 	import MatchDragDropFixture from '#lib/a11y/fixtures/MatchDragDropFixture.svelte';
 	import SortableListFixture from '#lib/a11y/fixtures/SortableListFixture.svelte';
@@ -52,8 +51,6 @@
 				<SortableListFixture />
 			{:else if fixture === 'match-drag-drop'}
 				<MatchDragDropFixture />
-			{:else if fixture === 'graphic-gap-match'}
-				<GraphicGapMatchFixture />
 			{:else if fixture === 'inline-interaction-renderer'}
 				<InlineInteractionRendererFixture />
 			{:else if fixture === 'file-upload'}
