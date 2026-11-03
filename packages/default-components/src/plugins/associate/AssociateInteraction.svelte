@@ -8,6 +8,7 @@
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
 	import { isCompatibleMatchGroup } from '../../shared/utils/matchGroupUtils';
+	import { pairIncludesId } from '../../shared/utils/pairHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 
@@ -110,12 +111,12 @@
 	}
 
 	function isInPair(choiceId: string): boolean {
-		return pairs.some((p) => p.includes(choiceId));
+		return pairs.some((p) => pairIncludesId(p, choiceId));
 	}
 
 	function isCorrectPair(choiceId: string): boolean {
 		if (!isShowingCorrect) return false;
-		return (parsedCorrectResponse || []).some((p) => p.includes(choiceId));
+		return (parsedCorrectResponse || []).some((p) => pairIncludesId(p, choiceId));
 	}
 
 	function isCorrectPairMatch(id1: string, id2: string): boolean {

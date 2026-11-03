@@ -107,3 +107,26 @@ export function isSourcePaired(pairs: string[], sourceId: string): boolean {
 export function isTargetPaired(pairs: string[], targetId: string): boolean {
 	return pairs.some((p) => p.endsWith(` ${targetId}`));
 }
+
+/**
+ * Checks if a pair string contains an identifier as its source or target token.
+ * Matches whole tokens only: "A B" contains "B" but not a substring like "B2".
+ * @param pair - A "sourceId targetId" pair string
+ * @param id - The identifier to look for
+ * @returns True if the identifier is either token of the pair
+ */
+export function pairIncludesId(pair: string, id: string): boolean {
+	const spaceIndex = pair.indexOf(' ');
+	if (spaceIndex === -1) return pair === id;
+	return pair.slice(0, spaceIndex) === id || pair.slice(spaceIndex + 1) === id;
+}
+
+/**
+ * Counts how many pairs contain an identifier as source or target
+ * @param pairs - Array of "sourceId targetId" pair strings
+ * @param id - The identifier to count
+ * @returns Number of pairs involving the identifier
+ */
+export function countPairsWithId(pairs: string[], id: string): number {
+	return pairs.filter((p) => pairIncludesId(p, id)).length;
+}
