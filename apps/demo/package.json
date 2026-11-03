@@ -31,7 +31,6 @@
     "@pie-qti/player-elements": "workspace:*",
     "@pie-qti/qti-common": "workspace:*",
     "@pie-qti/section-player": "workspace:*",
-    "@pie-qti/theme-daisyui": "workspace:*",
     "@pie-qti/typeset-katex": "workspace:*",
     "@pie-qti/web-component-loaders": "workspace:*",
     "@tiptap/core": "3.32.0",

@@ -13,6 +13,7 @@
 		}
 	},
 	"scripts": {
+	"typecheck": "tsc --noEmit",
 		"build": "rm -rf dist tsconfig.build.tsbuildinfo && tsc -p tsconfig.build.json",
 		"test": "bun test"
 	},
