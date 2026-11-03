@@ -10,6 +10,7 @@
  */
 
 import { createWriteStream, existsSync } from 'node:fs';
+import { exceedsCompressionRatio, hasUnsafeEncodedPathToken, isPackageRelativeHref, resolveLimit } from '@pie-qti/ims-cp-core';
 import { lstat, mkdir, mkdtemp, readdir, readFile, realpath, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -189,28 +190,6 @@ function resolveArchiveLimits(options: ArchiveExtractionLimits): ResolvedArchive
       'maxCompressionRatio',
     ),
   };
-}
-
-function resolveLimit(
-  value: number | undefined,
-  fallback: number,
-  name: string,
-  requireInteger = false,
-): number {
-  const resolved = value ?? fallback;
-  if (
-    resolved !== Number.POSITIVE_INFINITY &&
-    (!Number.isFinite(resolved) || resolved < 0 || (requireInteger && !Number.isInteger(resolved)))
-  ) {
-    throw new Error(`${name} must be a non-negative ${requireInteger ? 'integer' : 'number'}`);
-  }
-  return resolved;
-}
-
-function exceedsCompressionRatio(uncompressed: number, compressed: number, maximum: number): boolean {
-  if (uncompressed === 0 || maximum === Number.POSITIVE_INFINITY) return false;
-  if (compressed <= 0) return true;
-  return uncompressed / compressed > maximum;
 }
 
 function assertArchiveMetadata(
@@ -440,8 +419,17 @@ function joinPosix(...parts: Array<string | undefined>) {
 function applyXmlBase(parentBase: string, xmlBase?: string) {
   if (!xmlBase) return parentBase;
   // xml:base can be absolute URI; we treat it as a path-like base and normalize to a package-relative path
-  // for our file-resolution use-case.
+  // for our file-resolution use-case. Absolute, protocol-bearing, or encoded-traversal bases are
+  // rejected outright (never silently rewritten into the package).
+  if (!isSafeRelativePath(xmlBase)) {
+    throw new Error(`Unsafe xml:base in manifest: ${xmlBase}`);
+  }
   return joinPosix(parentBase, xmlBase);
+}
+
+/** A manifest href/xml:base that stays inside the package (no absolute, protocol, or encoded traversal forms). */
+function isSafeRelativePath(value: string): boolean {
+  return isPackageRelativeHref(value) && !hasUnsafeEncodedPathToken(value);
 }
 
 /**
@@ -472,8 +460,16 @@ export async function loadResolvedManifest(packageRoot: string): Promise<Resolve
 
   const resolveResource = (r: ManifestResource): ResolvedManifestResource => {
     const baseResource = applyXmlBase(baseManifest, r.xmlBase);
+    if (r.href && !isSafeRelativePath(r.href)) {
+      throw new Error(`Unsafe resource href in manifest: ${r.href}`);
+    }
     const hrefResolved = r.href ? joinPosix(baseResource, r.href) : undefined;
-    const filesResolved = (r.files ?? []).map((f: string) => joinPosix(baseResource, f));
+    const filesResolved = (r.files ?? []).map((f: string) => {
+      if (!isSafeRelativePath(f)) {
+        throw new Error(`Unsafe resource file href in manifest: ${f}`);
+      }
+      return joinPosix(baseResource, f);
+    });
     return { ...r, hrefResolved, filesResolved };
   };
 

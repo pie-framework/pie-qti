@@ -5,7 +5,11 @@
 import JSZip from 'jszip';
 import { parseManifest } from '@pie-qti/ims-cp-core/manifest-parser';
 import type { ParsedManifest } from '@pie-qti/ims-cp-core/manifest-parser';
-import { resolveCheckedPackagePath } from '@pie-qti/ims-cp-core';
+import {
+	exceedsCompressionRatio,
+	resolveCheckedPackagePath,
+	resolveLimit,
+} from '@pie-qti/ims-cp-core';
 import { toPosixPath, dirname } from './path-utils.js';
 import type { VirtualFile, ExtractOptions } from './types.js';
 
@@ -178,22 +182,6 @@ function getInputSize(input: unknown): number | null {
 	return null;
 }
 
-function resolveLimit(
-	value: number | undefined,
-	fallback: number,
-	name: string,
-	requireInteger = false,
-): number {
-	const resolved = value ?? fallback;
-	if (
-		resolved !== Number.POSITIVE_INFINITY &&
-		(!Number.isFinite(resolved) || resolved < 0 || (requireInteger && !Number.isInteger(resolved)))
-	) {
-		throw new Error(`${name} must be a non-negative ${requireInteger ? 'integer' : 'number'}`);
-	}
-	return resolved;
-}
-
 function getZipEntrySizes(zipEntry: JSZip.JSZipObject): {
 	compressed: number | null;
 	uncompressed: number | null;
@@ -205,12 +193,6 @@ function getZipEntrySizes(zipEntry: JSZip.JSZipObject): {
 		compressed: typeof data?.compressedSize === 'number' ? data.compressedSize : null,
 		uncompressed: typeof data?.uncompressedSize === 'number' ? data.uncompressedSize : null,
 	};
-}
-
-function exceedsCompressionRatio(uncompressed: number, compressed: number, maximum: number): boolean {
-	if (uncompressed === 0 || maximum === Number.POSITIVE_INFINITY) return false;
-	if (compressed <= 0) return true;
-	return uncompressed / compressed > maximum;
 }
 
 /**

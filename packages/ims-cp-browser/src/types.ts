@@ -16,6 +16,13 @@ export interface VirtualFile {
 export interface OpenPackageOptions {
 	/** Optional storage backend (defaults to sessionStorage) */
 	storage?: import('./storage.js').StorageBackend;
+	/**
+	 * Opt in to saving the (text-only) package snapshot to `storage` after opening.
+	 * Off by default: `save()` serializes into the backend's quota (sessionStorage is
+	 * typically ~5MB) and binary files are not persisted, so a restored package is
+	 * missing its images/media.
+	 */
+	persist?: boolean;
 	/** Maximum file size in bytes (default: 50MB) */
 	maxFileSize?: number;
 	/** Maximum compressed archive input size in bytes (default: 100MB) */
