@@ -66,7 +66,7 @@
 						if (parts.length === 2) {
 							const x = Number(parts[0]);
 							const y = Number(parts[1]);
-							if (!isNaN(x) && !isNaN(y)) {
+							if (!Number.isNaN(x) && !Number.isNaN(y)) {
 								return { x, y } satisfies Point;
 							}
 						}
@@ -75,7 +75,7 @@
 					if (v && typeof v === 'object' && v.x !== undefined && v.y !== undefined) {
 						const x = Number(v.x);
 						const y = Number(v.y);
-						if (!isNaN(x) && !isNaN(y)) {
+						if (!Number.isNaN(x) && !Number.isNaN(y)) {
 							return { x, y } satisfies Point;
 						}
 					}
@@ -87,14 +87,14 @@
 			if (parts.length === 2) {
 				const x = Number(parts[0]);
 				const y = Number(parts[1]);
-				if (!isNaN(x) && !isNaN(y)) {
+				if (!Number.isNaN(x) && !Number.isNaN(y)) {
 					return [{ x, y }];
 				}
 			}
 		} else if (value && typeof value === 'object' && value.x !== undefined && value.y !== undefined) {
 			const x = Number(value.x);
 			const y = Number(value.y);
-			if (!isNaN(x) && !isNaN(y)) {
+			if (!Number.isNaN(x) && !Number.isNaN(y)) {
 				return [{ x, y }];
 			}
 		}

@@ -14,6 +14,7 @@ describe('release workflow', () => {
 	test('opens the back-merge PR after any publish, whatever the checks before it did', () => {
 		const step = workflowSource.slice(workflowSource.indexOf('- name: Open master -> develop back-merge PR'));
 		const header = step.slice(0, step.indexOf('run: |'));
+		// biome-ignore lint/suspicious/noTemplateCurlyInString: asserting the workflow's literal GitHub Actions `${{ }}` expression syntax
 		expect(header).toContain("if: ${{ !cancelled() && steps.changesets.outputs.published == 'true' }}");
 		expect(header).toContain('continue-on-error: true');
 		expect(step).toContain('--base develop');

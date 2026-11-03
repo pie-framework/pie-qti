@@ -154,7 +154,7 @@
 					}
 				}
 
-				if (stageId && !isNaN(x) && !isNaN(y)) {
+				if (stageId && !Number.isNaN(x) && !Number.isNaN(y)) {
 					newPositions.push({ stageId, x, y });
 				}
 			}
@@ -338,7 +338,7 @@
 					}
 				}
 
-				if (stageId && !isNaN(x) && !isNaN(y)) {
+				if (stageId && !Number.isNaN(x) && !Number.isNaN(y)) {
 					correctPositions.push({ stageId, x, y });
 				}
 			}
