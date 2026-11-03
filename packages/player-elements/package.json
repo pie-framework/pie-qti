@@ -24,7 +24,7 @@
     }
   },
   "scripts": {
-    "build": "vite build && tsc -p ./tsconfig.build.json && tsc -p ./tsconfig.public.json",
+    "build": "vite build && node ../../scripts/guard-custom-elements.mjs . && tsc -p ./tsconfig.build.json && tsc -p ./tsconfig.public.json",
     "test": "bun test && tsc -p ./tsconfig.types.test.json && tsc -p ./tsconfig.published-types.test.json",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
