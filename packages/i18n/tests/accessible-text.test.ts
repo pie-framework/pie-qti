@@ -77,6 +77,7 @@ describe('scanHardcodedStrings', () => {
 				[
 					'<script>const diagnostic = "Not reported";</script>',
 					'<p>Continue</p>',
+					// biome-ignore lint/suspicious/noTemplateCurlyInString: fixture source text needs a literal Svelte template interpolation
 					'<button aria-label={`Remove ${item}`} title="Close"></button>',
 					'<input placeholder="Type {x}" />',
 					'<Widget title="Component prop" />',
