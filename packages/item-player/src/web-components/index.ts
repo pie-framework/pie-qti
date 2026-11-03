@@ -4,8 +4,7 @@
  * Framework-agnostic web components that can be used in any JavaScript environment
  */
 
-// Export base classes and interfaces
-export { QTIInteractionBase } from './QTIInteractionBase.js';
+// Export event classes and interfaces
 export {
 	QTIChangeEvent,
 	type InteractionResponseValue,

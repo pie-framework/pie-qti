@@ -1150,14 +1150,7 @@ export class Player {
 			const responseId = i.responseIdentifier;
 			const decl = this.decls[responseId];
 			const value = responses[responseId];
-			const isMeaningfulEntry = (entry: unknown): boolean => {
-				if (entry === null || entry === undefined) return false;
-				if (typeof entry !== 'string') return true;
-				const comparable = i.type === 'extendedTextInteraction' && i.format === 'xhtml'
-					? entry.replace(/<[^>]*>/g, '').replace(/&nbsp;|&#160;/gi, ' ')
-					: entry;
-				return comparable.trim().length > 0;
-			};
+			const isMeaningfulEntry = (entry: unknown): boolean => isMeaningfulResponseEntry(entry, i);
 
 			const constrainedChoices: Array<{ identifier: string; matchMin?: number }> = [
 				...(i.choices ?? []),
@@ -1295,14 +1288,7 @@ export class Player {
 		for (const i of this.getResponseInteractions()) {
 			const id = i.responseIdentifier;
 			const v = responses[id];
-			const isMeaningful = (entry: unknown): boolean => {
-				if (entry === null || entry === undefined) return false;
-				if (typeof entry !== 'string') return true;
-				const comparable = i.type === 'extendedTextInteraction' && i.format === 'xhtml'
-					? entry.replace(/<[^>]*>/g, '').replace(/&nbsp;|&#160;/gi, ' ')
-					: entry;
-				return comparable.trim().length > 0;
-			};
+			const isMeaningful = (entry: unknown): boolean => isMeaningfulResponseEntry(entry, i);
 			if (i.type === 'mediaInteraction') {
 				if (Number(v || 0) > 0) return true;
 				continue;
@@ -2219,6 +2205,23 @@ function createSessionGuid(): string {
 			'requires crypto.randomUUID or crypto.getRandomValues (present in all supported ' +
 			'browsers and in Node >= 20).',
 	);
+}
+
+/**
+ * True when a response entry carries meaningful learner input. Extended-text items
+ * authored as XHTML are stripped to plain text first, so markup-only answers do not
+ * count as "answered". Shared by response validation and attempted-state tracking.
+ */
+function isMeaningfulResponseEntry(
+	entry: unknown,
+	interaction: { type?: string; format?: string },
+): boolean {
+	if (entry === null || entry === undefined) return false;
+	if (typeof entry !== 'string') return true;
+	const comparable = interaction.type === 'extendedTextInteraction' && interaction.format === 'xhtml'
+		? entry.replace(/<[^>]*>/g, '').replace(/&nbsp;|&#160;/gi, ' ')
+		: entry;
+	return comparable.trim().length > 0;
 }
 
 function cloneDeclarationMap(declarations: DeclarationMap): DeclarationMap {
