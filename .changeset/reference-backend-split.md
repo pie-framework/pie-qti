@@ -1,0 +1,5 @@
+---
+'@pie-qti/assessment-player': patch
+---
+
+Split the 1,741-line `ReferenceBackendAdapter` reference file into focused modules and remove its never-called demo item-bank machinery. The QTI assessmentTest parser now lives in `integration/qti-test-parser.ts` (the adapter's static `parseAssessmentTestXml` delegates to it — call sites are unaffected), navigation (branch rules, preconditions, eligibility) in `integration/test-navigation.ts` as pure functions, and the localStorage session store in `integration/session-store.ts`. `ReferenceBackendAdapter.queryItemBank` and its client-side bank cache/fetch simulation are removed: the method was an optional convenience on the backend contract that nothing in the repo ever called. `NavigationManager` is reduced to visited-item tracking (`markVisited`/`restoreState`): its unused decision API (`canNext`, `canNavigateTo`, …) disagreed with the player's real navigation rules, which live in `AssessmentPlayer` and read session state the manager never saw.

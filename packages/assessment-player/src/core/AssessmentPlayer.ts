@@ -222,8 +222,7 @@ export class AssessmentPlayer {
 
 		this.items = this.flattenItems(this.assessment);
 
-		const navigationMode = this.assessment.navigationMode || 'nonlinear';
-		this.navigationManager = new NavigationManager(navigationMode, this.items.length);
+		this.navigationManager = new NavigationManager();
 
 		// Item session control is a UI hint; backend remains authoritative.
 		this.sessionCoordinator = new AssessmentSessionCoordinator({
