@@ -1,5 +1,16 @@
 # @pie-qti/storage
 
+## 1.0.0-beta.4
+
+### Patch Changes
+
+- fb2b4e2: Converge the zip-extraction safety policy into `@pie-qti/ims-cp-core` (new `./archive-limits` subpath and root exports: `ArchiveExtractionLimits`, `DEFAULT_ARCHIVE_EXTRACTION_LIMITS`, `resolveArchiveLimit`, `exceedsCompressionRatio`). The identical guardrail constants (100 MB compressed / 250 MB uncompressed / 1000 entries / compression-ratio 200), limit validation, and ratio math were copy-pasted across the jszip (browser), unzipper (node), and adm-zip (storage) engines and could drift independently; all three now share the one authority. Engine-specific checks (per-entry size sanity, symlink guards, per-file size limits) remain with each engine. `@pie-qti/storage` gains a dependency on `@pie-qti/ims-cp-core` for the shared policy.
+- c03fb89: Correct the package's bundler contract and document its environment. The root entry registers the `filesystem`/`s3`/`database` backends into the shared registry at import time; `sideEffects` now declares this (`["./dist/index.js"]`) instead of claiming the package is side-effect free, so bundlers no longer license dropping the registration when the root entry is used. A README documents that the package is Node-only, what each entry targets, the optional AWS peer dependencies, and clarifies that `./session-storage` is a server-side session path manager (browser sessionStorage backends live in `@pie-qti/ims-cp-browser`), that the `database` backend is a throwing stub, and removes a leftover `s3-backend.ts.patch` from `src/`.
+- Updated dependencies [fb2b4e2]
+- Updated dependencies [29210b4]
+  - @pie-qti/ims-cp-core@1.0.0-beta.4
+  - @pie-qti/transform-types@0.2.1
+
 ## 1.0.0-beta.3
 
 ### Patch Changes

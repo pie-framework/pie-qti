@@ -1,5 +1,11 @@
 # @pie-qti/typeset-katex
 
+## 1.0.0-beta.4
+
+### Patch Changes
+
+- bb30306: Declare the `./css` entry as a side effect. The `@pie-qti/typeset-katex/css` export exists solely to pull in `katex/dist/katex.min.css`, but the package previously declared `"sideEffects": false`, licensing bundlers to tree-shake away the very module the export provides. CSS imported through `@pie-qti/typeset-katex/css` is now preserved.
+
 ## 1.0.0-beta.3
 
 No changes in this release.
