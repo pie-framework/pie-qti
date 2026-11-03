@@ -4,6 +4,10 @@
  *
  * Note: This is a demonstration/stub implementation.
  * Full database implementation would require database client library.
+ *
+ * The root entry registers this backend under the 'database' key; every
+ * method throws until a real implementation replaces it. Do not select
+ * this backend in production configuration.
  */
 
 import type { StorageBackend } from '@pie-qti/transform-types';

@@ -1,6 +1,11 @@
 /**
  * Session Storage
- * Session-aware storage wrapper for managing transform sessions
+ * Session-aware storage wrapper for managing transform sessions.
+ *
+ * Server-side only: this manages session *paths and metadata* over an
+ * injected StorageBackend (filesystem/database), not the browser's
+ * sessionStorage API. Browser sessionStorage-based storage lives in
+ * @pie-qti/ims-cp-browser (SessionStorageBackend).
  */
 
 import type {
