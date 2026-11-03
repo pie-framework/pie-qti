@@ -297,7 +297,11 @@ export class AssessmentSessionCoordinator {
 	}
 }
 
-function hasAnyResponse(responses: Record<string, unknown>): boolean {
+/**
+ * True when any response value in the record carries learner input. Shared with the
+ * reference backend adapter so "answered" is decided identically on both sides.
+ */
+export function hasAnyResponse(responses: Record<string, unknown>): boolean {
 	for (const value of Object.values(responses)) {
 		if (value == null) continue;
 		if (Array.isArray(value)) {

@@ -83,9 +83,11 @@ import {
 	evaluateTestCondition,
 	qtiElementNameMapper,
 	resolveItemSessionControl,
+	shuffleArray,
 	testOutcomeDeclarations,
 	toCanonicalQtiName,
 } from '../core/testStructure.js';
+import { hasAnyResponse } from '../core/AssessmentSessionCoordinator.js';
 import { defaultItemTestState, type ItemTestState, scoreAssessmentItemForTest } from './assessment-item-scorer.js';
 
 /**
@@ -169,19 +171,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 	}
 
 	private hasAnyResponse(responses: Record<string, unknown>): boolean {
-		for (const value of Object.values(responses)) {
-			if (value == null) continue;
-			if (Array.isArray(value)) {
-				if (value.length > 0) return true;
-				continue;
-			}
-			if (typeof value === 'string') {
-				if (value.trim().length > 0) return true;
-				continue;
-			}
-			return true;
-		}
-		return false;
+		return hasAnyResponse(responses);
 	}
 
 	/**
@@ -1749,11 +1739,3 @@ export class ReferenceBackendAdapter implements BackendAdapter {
  * comparator is inconsistent, so the result depends on the sort algorithm and leaves
  * elements biased toward their original positions.
  */
-function shuffleArray<T>(arr: T[], rng: () => number): T[] {
-	const out = [...arr];
-	for (let i = out.length - 1; i > 0; i--) {
-		const j = Math.floor(rng() * (i + 1));
-		[out[i], out[j]] = [out[j], out[i]];
-	}
-	return out;
-}
