@@ -29,6 +29,31 @@ definition helpers from `@pie-qti/player-elements/elements` for manual registrat
 that provide their own interaction elements can import `@pie-qti/player-elements/register-players`
 to register only the four player/section elements.
 
+## Build model: this package ships the compiled UI
+
+`@pie-qti/player-elements` is the publishable UI artifact of the platform. Its vite build compiles
+Svelte component sources from the sibling packages' source trees (`assessment-player`,
+`section-player`, `item-player`) and inlines them, together with the Svelte runtime and all
+interaction implementations, into a self-contained bundle with zero runtime bare imports.
+
+Consequences for consumers:
+
+- The section and assessment **UI** you run is whatever was compiled into this package's `dist`.
+  Install `@pie-qti/player-elements` and treat it (plus `@pie-qti/web-component-loaders`) as the
+  versioned UI surface — do not expect UI changes from upgrading `@pie-qti/section-player` or
+  `@pie-qti/assessment-player` alone.
+- The headless **contracts and APIs** of those packages (`resolveQtiSectionComposition`,
+  `AssessmentPlayer`, `BackendAdapter`, the item definition/session model) are real runtime
+  dependencies and are published independently for JS-only and server-side use.
+- Dependencies that exist only for this build-time source compilation (or only for the Svelte
+  sources consumed here) are declared explicitly and allowlisted with reasons in
+  `scripts/publish-policy.json` under `dependenciesUnreferencedByDist`; the
+  `check:dist-dependencies` gate keeps that declaration honest.
+
+Consequences for maintainers: this package can only be built inside the monorepo, and landing UI
+changes requires a release of `@pie-qti/player-elements` (the platform fixed-version group releases
+all packages in lockstep, so this is automatic).
+
 ## Item element
 
 ```js
