@@ -11,7 +11,6 @@ export {
 	ComponentRegistry,
 	createComponentRegistry,
 } from './core/ComponentRegistry.js';
-export * from './core/constants.js';
 // Export drawing utilities
 export * from './utils/drawingUtils.js';
 export {
@@ -58,7 +57,7 @@ export type {
 	InteractionDeliveryPathSegment,
 	InteractionDeliverySchema,
 	ValidationResult,
-	VariableDeclaration,
+	ExtractionVariableDeclaration,
 } from './extraction/index.js';
 export {
 	createExtractionContext,
@@ -76,17 +75,6 @@ export {
 // If you need non-web-component rendering, build it externally against the public extraction APIs.
 // Export all types including adaptive item types
 export * from './types/index.js';
-// Export utilities
-export {
-	globalPerformanceMonitor,
-	type PerformanceEntry,
-	PerformanceMonitor,
-	type PerformanceMonitorConfig,
-	type PerformanceReport,
-} from './utils/PerformanceMonitor.js';
-
-export { isResponseEmpty } from './utils/responseUtils.js';
-
 // PNP profile (AfA PNP 3.0, QTI 3's per-candidate profile)
 export type { PnpProfile, PnpTextAppearance, PnpToolSupports } from './pnp/types.js';
 export { applyPnpToRoot } from './pnp/applyPnp.js';

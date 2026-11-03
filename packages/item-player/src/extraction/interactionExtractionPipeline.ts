@@ -4,7 +4,7 @@ import type { ExtractionRegistry } from './ExtractionRegistry.js';
 import { createExtractionContext } from './createContext.js';
 import { interactionAccessibility, readAloudAttributes } from './interactionAccessibility.js';
 import { finalizeInteractionDelivery } from './interactionSecurity.js';
-import type { VariableDeclaration as ExtractionVariableDeclaration } from './types.js';
+import type { ExtractionVariableDeclaration } from './types.js';
 import type { DeclarationMap } from '@pie-qti/qti-processing';
 import type { ExtractionConfig } from './types.js';
 import type {

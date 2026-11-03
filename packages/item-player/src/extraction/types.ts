@@ -33,7 +33,7 @@ export interface ExtractionContext {
 	dom: QTIElement;
 
 	/** Variable declarations from responseDeclaration/outcomeDeclaration */
-	declarations: Map<string, VariableDeclaration>;
+	declarations: Map<string, ExtractionVariableDeclaration>;
 
 	/** Utility functions for DOM manipulation and extraction */
 	utils: ExtractionUtils;
@@ -56,7 +56,7 @@ export interface ExtractionContext {
 /**
  * Variable declaration from QTI responseDeclaration/outcomeDeclaration
  */
-export interface VariableDeclaration {
+export interface ExtractionVariableDeclaration {
 	identifier: string;
 	cardinality: 'single' | 'multiple' | 'ordered' | 'record';
 	baseType?: string;

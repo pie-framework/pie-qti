@@ -58,7 +58,7 @@ export type {
 	ExtractionResult,
 	ExtractionUtils,
 	ValidationResult,
-	VariableDeclaration,
+	ExtractionVariableDeclaration,
 } from './types.js';
 export { ExtractionError, isErrorResult, isSuccessResult } from './types.js';
 // Utilities

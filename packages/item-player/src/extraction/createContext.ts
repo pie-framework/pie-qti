@@ -6,7 +6,7 @@
 
 import type { ElementNameMapper, AttributeNameMapper } from '@pie-qti/qti-common';
 import type { QTIElement } from '../interactions/shared/types.js';
-import type { ExtractionConfig, ExtractionContext, VariableDeclaration } from './types.js';
+import type { ExtractionConfig, ExtractionContext, ExtractionVariableDeclaration } from './types.js';
 import { createExtractionUtils } from './utils.js';
 import { createShuffleRng } from '../core/shuffle.js';
 
@@ -34,7 +34,7 @@ export function createExtractionContext(
 	element: QTIElement,
 	responseId: string,
 	dom: QTIElement,
-	declarations: Map<string, VariableDeclaration>,
+	declarations: Map<string, ExtractionVariableDeclaration>,
 	config: ExtractionConfig,
 	sessionGuid?: string
 ): ExtractionContext {
