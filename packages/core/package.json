@@ -41,12 +41,12 @@
 	"dependencies": {
 		"@pie-qti/element-schemas": "workspace:*",
 		"@pie-qti/logger": "workspace:*",
-		"@pie-qti/test-utils": "workspace:*",
 		"@pie-qti/transform-types": "workspace:*",
 		"ajv": "^8.20.0",
 		"node-html-parser": "^9.0.5"
 	},
 	"devDependencies": {
+		"@pie-qti/test-utils": "workspace:*",
 		"typescript": "^5.9.3"
 	},
 	"repository": {
