@@ -9,6 +9,7 @@
 
 import type { GraphicGapMatchInteractionData } from '@pie-qti/item-player';
 	import { touchDrag } from '@pie-qti/qti-common';
+import HotspotShape from '../../shared/components/HotspotShape.svelte';
 import { emitInteractionChange } from '../../shared/utils/eventHelpers.js';
 import { normalizeCssPixelLength, normalizePixelDimension } from '@pie-qti/item-player/security';
 import { joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
@@ -483,68 +484,33 @@ function handleRootKeyDown(event: KeyboardEvent) {
 
 						<g>
 							<!-- Hotspot drop zone -->
-							{#if hotspot.shape === 'circle'}
-								{@const [cx, cy, r] = hotspot.coords.split(',').map(Number)}
-								{@const hotspotIndex = parsedInteraction.hotspots.findIndex((h) => h.identifier === hotspot.identifier)}
-								<circle
-									role="button"
-									tabindex={disabled ? -1 : 0}
-									aria-label={hotspotAriaLabel(
-										hotspotIndex + 1,
-										matchedGapText ? gapTextObj?.text : undefined,
-										correctGapTextObj?.text,
-										hotspotReady ? pickedUpLabelName : null,
-									)}
-									cx={cx}
-									cy={cy}
-									r={r}
-									fill={matchedGapText ? '#10b981' : isCorrect ? '#10b981' : hotspotReady ? '#3b82f6' : isHovered ? '#3b82f6' : 'transparent'}
-									fill-opacity={matchedGapText ? '0.3' : isCorrect ? '0.2' : hotspotReady ? '0.15' : isHovered ? '0.2' : '0'}
-									stroke={matchedGapText ? '#10b981' : isCorrect ? '#10b981' : hotspotReady ? '#3b82f6' : isHovered ? '#3b82f6' : '#6b7280'}
-									stroke-width={hotspotReady ? '3' : '2'}
-									stroke-dasharray={matchedGapText || isCorrect ? '' : hotspotReady ? '6,3' : '4,4'}
-									class="qti-ggm-hotspot transition-all{hotspotReady ? ' qti-ggm-hotspot-ready' : ''}"
-									data-filled={matchedGapText ? '' : undefined}
-									style="pointer-events: auto; cursor: {disabled ? 'not-allowed' : hotspotReady ? 'copy' : 'pointer'};"
-									ondragover={(e) => handleHotspotDragOver(e, hotspot.identifier)}
-									ondragleave={handleHotspotDragLeave}
-									ondrop={(e) => handleHotspotDrop(e, hotspot.identifier)}
-									onclick={() => placePickedUpLabelOnHotspot(hotspot.identifier)}
-									onkeydown={(e) => handleHotspotKeyDown(e, hotspot.identifier)}
-								/>
-							{:else if hotspot.shape === 'rect'}
-								{@const [x, y, right, bottom] = hotspot.coords.split(',').map(Number)}
-								{@const width = right - x}
-								{@const height = bottom - y}
-								{@const hotspotIndex = parsedInteraction.hotspots.findIndex((h) => h.identifier === hotspot.identifier)}
-								<rect
-									role="button"
-									tabindex={disabled ? -1 : 0}
-									aria-label={hotspotAriaLabel(
-										hotspotIndex + 1,
-										matchedGapText ? gapTextObj?.text : undefined,
-										correctGapTextObj?.text,
-										hotspotReady ? pickedUpLabelName : null,
-									)}
-									x={x}
-									y={y}
-									width={width}
-									height={height}
-									fill={matchedGapText ? '#10b981' : isCorrect ? '#10b981' : hotspotReady ? '#3b82f6' : isHovered ? '#3b82f6' : 'transparent'}
-									fill-opacity={matchedGapText ? '0.3' : isCorrect ? '0.2' : hotspotReady ? '0.15' : isHovered ? '0.2' : '0'}
-									stroke={matchedGapText ? '#10b981' : isCorrect ? '#10b981' : hotspotReady ? '#3b82f6' : isHovered ? '#3b82f6' : '#6b7280'}
-									stroke-width={hotspotReady ? '3' : '2'}
-									stroke-dasharray={matchedGapText || isCorrect ? '' : hotspotReady ? '6,3' : '4,4'}
-									class="qti-ggm-hotspot transition-all{hotspotReady ? ' qti-ggm-hotspot-ready' : ''}"
-									data-filled={matchedGapText ? '' : undefined}
-									style="pointer-events: auto; cursor: {disabled ? 'not-allowed' : hotspotReady ? 'copy' : 'pointer'};"
-									ondragover={(e) => handleHotspotDragOver(e, hotspot.identifier)}
-									ondragleave={handleHotspotDragLeave}
-									ondrop={(e) => handleHotspotDrop(e, hotspot.identifier)}
-									onclick={() => placePickedUpLabelOnHotspot(hotspot.identifier)}
-									onkeydown={(e) => handleHotspotKeyDown(e, hotspot.identifier)}
-								/>
-							{/if}
+							<HotspotShape
+								shape={hotspot.shape}
+								coords={hotspot.coords}
+								label={hotspotAriaLabel(
+									parsedInteraction.hotspots.findIndex((h) => h.identifier === hotspot.identifier) + 1,
+									matchedGapText ? gapTextObj?.text : undefined,
+									correctGapTextObj?.text,
+									hotspotReady ? pickedUpLabelName : null,
+								)}
+								{disabled}
+								presentation={{
+									fill: matchedGapText ? '#10b981' : isCorrect ? '#10b981' : hotspotReady ? '#3b82f6' : isHovered ? '#3b82f6' : 'transparent',
+									'fill-opacity': matchedGapText ? '0.3' : isCorrect ? '0.2' : hotspotReady ? '0.15' : isHovered ? '0.2' : '0',
+									stroke: matchedGapText ? '#10b981' : isCorrect ? '#10b981' : hotspotReady ? '#3b82f6' : isHovered ? '#3b82f6' : '#6b7280',
+									'stroke-width': hotspotReady ? '3' : '2',
+									'stroke-dasharray': matchedGapText || isCorrect ? '' : hotspotReady ? '6,3' : '4,4',
+									class: `qti-ggm-hotspot transition-all${hotspotReady ? ' qti-ggm-hotspot-ready' : ''}`,
+									'data-filled': matchedGapText ? '' : undefined,
+									style: `pointer-events: auto; cursor: ${disabled ? 'not-allowed' : hotspotReady ? 'copy' : 'pointer'};`,
+								}}
+								ondragover={(e) => handleHotspotDragOver(e, hotspot.identifier)}
+								ondragleave={handleHotspotDragLeave}
+								ondrop={(e) => handleHotspotDrop(e, hotspot.identifier)}
+								onclick={() => placePickedUpLabelOnHotspot(hotspot.identifier)}
+								onkeydown={(e) => handleHotspotKeyDown(e, hotspot.identifier)}
+							/>
+
 
 							<!-- Label text on hotspot if matched or correct -->
 							{#if matchedGapText && gapTextObj}
@@ -615,7 +581,7 @@ function handleRootKeyDown(event: KeyboardEvent) {
 	}
 
 	/* qti-unselected-hidden: empty drop zones show only while focused; they stay operable */
-	.qti-graphic-gap-match-interaction.qti-unselected-hidden .qti-ggm-hotspot:not([data-filled]):not(:focus-visible) {
+	.qti-graphic-gap-match-interaction.qti-unselected-hidden :global(.qti-ggm-hotspot:not([data-filled]):not(:focus-visible)) {
 		fill-opacity: 0;
 		stroke-opacity: 0;
 		animation: none;
