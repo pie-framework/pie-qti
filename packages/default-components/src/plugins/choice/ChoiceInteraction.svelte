@@ -3,6 +3,7 @@
 <script lang="ts">
 	import type { ChoiceInteractionData } from '@pie-qti/item-player';
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
+	import { createEliminationTool, eliminationActionLabel } from '../../shared/utils/eliminationTool.svelte';
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import { normalizeHeuristicsConfig, type QtiHeuristicsConfig } from '@pie-qti/item-player';
 	import { processFeedbackInline } from '@pie-qti/item-player/components/utils';
@@ -92,27 +93,11 @@
 	// Get reference to the root element for event dispatching
 	let rootElement: HTMLDivElement | undefined = $state();
 
-	// Elimination tool state: set of eliminated choice identifiers.
-	// Eliminated choices remain in DOM and in the response; only visually dimmed.
-	let eliminatedChoices = $state(new Set<string>());
-
-	function toggleElimination(identifier: string) {
-		const next = new Set(eliminatedChoices);
-		if (next.has(identifier)) {
-			next.delete(identifier);
-		} else {
-			next.add(identifier);
-		}
-		eliminatedChoices = next;
-	}
-
-	function eliminationLabel(identifier: string): string {
-		const isEliminated = eliminatedChoices.has(identifier);
-		const action = isEliminated
-			? (i18n?.t('interactions.choice.restoreChoice') ?? 'Restore')
-			: (i18n?.t('interactions.choice.eliminateChoice') ?? 'Eliminate');
-		return action;
-	}
+	// Elimination tool (QTI 3.0 PNP §6.2): eliminated choices remain in DOM and in the response;
+	// only the candidate's view of them changes.
+	const elimination = createEliminationTool();
+	const eliminationLabel = (identifier: string): string =>
+		eliminationActionLabel(elimination.isEliminated(identifier), i18n);
 
 	// Answer masking state: choices the candidate has revealed. A masked choice cannot be selected.
 	let revealedChoices = $state(new Set<string>());
@@ -203,7 +188,7 @@
 			<div
 				part="option"
 				class="qti-choice-option form-control"
-				data-eliminated={eliminatedChoices.has(choice.identifier) ? '' : undefined}
+				data-eliminated={elimination.isEliminated(choice.identifier) ? '' : undefined}
 				data-masked={isMasked(choice.identifier) ? '' : undefined}
 			>
 				{#if isMasked(choice.identifier)}
@@ -239,8 +224,8 @@
 						type="button"
 						class="qti-eliminate-btn"
 						aria-label={eliminationLabel(choice.identifier)}
-						aria-pressed={eliminatedChoices.has(choice.identifier)}
-						onclick={() => toggleElimination(choice.identifier)}
+						aria-pressed={elimination.isEliminated(choice.identifier)}
+						onclick={() => elimination.toggle(choice.identifier)}
 					>✕</button>
 				{/if}
 			</div>
@@ -253,7 +238,7 @@
 			<div
 				part="option"
 				class="qti-choice-option form-control"
-				data-eliminated={eliminatedChoices.has(choice.identifier) ? '' : undefined}
+				data-eliminated={elimination.isEliminated(choice.identifier) ? '' : undefined}
 				data-masked={isMasked(choice.identifier) ? '' : undefined}
 			>
 				{#if isMasked(choice.identifier)}
@@ -291,8 +276,8 @@
 						type="button"
 						class="qti-eliminate-btn"
 						aria-label={eliminationLabel(choice.identifier)}
-						aria-pressed={eliminatedChoices.has(choice.identifier)}
-						onclick={() => toggleElimination(choice.identifier)}
+						aria-pressed={elimination.isEliminated(choice.identifier)}
+						onclick={() => elimination.toggle(choice.identifier)}
 					>✕</button>
 				{/if}
 			</div>
