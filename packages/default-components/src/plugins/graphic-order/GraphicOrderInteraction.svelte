@@ -3,6 +3,7 @@
 <script lang="ts">
 	import type { GraphicOrderInteractionData } from '@pie-qti/item-player';
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
+	import { createConfirmationFlow } from '../../shared/utils/confirmationFlow.svelte';
 	import { normalizePixelDimension } from '@pie-qti/item-player/security';
 	import { translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
@@ -42,22 +43,21 @@
 	let imageContainer: HTMLDivElement | null = $state(null);
 	let imageElement: HTMLElement | null = $state(null);
 
-	// Track whether user has confirmed their order
-	let hasConfirmed = $state(false);
 
 	// Track initial order to detect if user has made changes
 	const initialOrder = $derived(parsedInteraction?.hotspotChoices.map((c) => c.identifier) || []);
-	const hasReordered = $derived(
-		orderedIds.length > 0 &&
-		orderedIds.some((id, index) => id !== initialOrder[index])
-	);
 
-	// Show confirmation button when response is null or when not confirmed yet
-	const needsConfirmation = $derived(
-		!disabled &&
-		(!parsedResponse || !hasConfirmed) &&
-		orderedIds.length > 0
-	);
+	const confirmation = createConfirmationFlow({
+		orderedIds: () => orderedIds,
+		initialOrder: () => initialOrder,
+		disabled: () => disabled,
+		response: () => parsedResponse,
+		commit: (order) => {
+			orderedIds = order;
+			response = order;
+			emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: order, onChange });
+		},
+	});
 
 	$effect(() => {
 		// Sync with parent response changes
@@ -66,28 +66,14 @@
 
 	// Reset confirmation state when response is externally cleared
 	$effect(() => {
-		if (parsedResponse === null || (Array.isArray(parsedResponse) && parsedResponse.length === 0)) {
-			hasConfirmed = false;
-		}
+		confirmation.resetIfCleared();
 	});
 
 	function handleReorder(newOrder: string[]) {
-		hasConfirmed = true; // Auto-confirm on drag
+		confirmation.autoConfirm(); // Auto-confirm on drag
 		orderedIds = newOrder;
 		response = orderedIds;
-		// Call onChange callback if provided (for Svelte component usage)
 		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: orderedIds, onChange });
-	}
-
-	function confirmOrder() {
-		if (disabled || hasConfirmed) return;
-
-		hasConfirmed = true;
-		const currentOrder = orderedIds;
-		response = currentOrder;
-
-		// Call onChange callback if provided (for Svelte component usage)
-		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: currentOrder, onChange });
 	}
 
 	function getChoiceByIdentifier(identifier: string) {
@@ -154,21 +140,21 @@
 
 						<!-- Confirmation button for WCAG 2.2 SC 3.3.4 compliance -->
 						<div part="confirm" class="qti-go-confirm mt-4 pt-3 border-t border-base-300">
-							{#if needsConfirmation}
+							{#if confirmation.needsConfirmation}
 								<button
 									type="button"
 									class="btn btn-primary btn-sm w-full"
-									onclick={confirmOrder}
+									onclick={confirmation.confirmOrder}
 									aria-label={i18n?.t('interactions.graphicOrder.confirmAria') ?? 'Confirm this order as your answer'}
 								>
-									{hasReordered
+									{confirmation.hasReordered
 										? (i18n?.t('interactions.graphicOrder.confirmOrder') ?? 'Confirm Order')
 										: (i18n?.t('interactions.graphicOrder.confirmOrderNoChanges') ?? 'Confirm Order (No Changes)')}
 								</button>
 								<p class="text-xs text-base-content/60 mt-2 text-center">
 									{i18n?.t('interactions.graphicOrder.instruction') ?? 'Drag to reorder, or click to confirm'}
 								</p>
-							{:else if hasConfirmed}
+							{:else if confirmation.hasConfirmed}
 								<div class="alert alert-success py-2">
 									<svg
 										xmlns="http://www.w3.org/2000/svg"
