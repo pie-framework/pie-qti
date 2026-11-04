@@ -37,7 +37,7 @@
     "@tiptap/extension-code-block": "3.32.0",
     "@tiptap/extension-code-block-lowlight": "3.32.0",
     "@tiptap/extension-document": "3.32.0",
-    "@tiptap/extension-history": "3.32.0",
+    "@tiptap/extension-history": "3.32.2",
     "@tiptap/extension-text": "3.32.2",
     "@tiptap/pm": "3.32.0",
     "highlight.js": "^11.11.1",
