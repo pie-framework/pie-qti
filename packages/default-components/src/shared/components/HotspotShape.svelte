@@ -7,7 +7,8 @@
 	 * activation and drag events. Visual state is owned by the plugin: pass colors, classes,
 	 * styles and data-attributes through `presentation`, which is spread onto the element.
 	 *
-	 * Must be rendered inside an `<svg>` tree (it inherits the SVG namespace from context).
+	 * Renders in the SVG namespace regardless of compile-time context, so it works both inside
+	 * an `<svg>` tree and in a standalone component template.
 	 */
 	interface Props {
 		/** QTI shape: 'circle' | 'ellipse' | 'poly' | 'rect'. */
@@ -79,6 +80,7 @@
 </script>
 
 <svelte:element
+	xmlns="http://www.w3.org/2000/svg"
 	this={tag}
 	{...geometry}
 	{...presentation}
