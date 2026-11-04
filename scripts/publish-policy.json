@@ -1,88 +1,97 @@
 {
-	"requiredPublishConfigAccess": "public",
-	"requiredFields": [
-		"license",
-		"homepage",
-		"bugs",
-		"files",
-		"sideEffects"
-	],
-	"requireRepositoryDirectory": true,
-	"requireExportsOrMainTypes": true,
-	"requireNodeEngine": true,
-	"defaultNodeEngine": ">=20.19.0",
-	"workspaceRoots": [
-		"packages",
-		"tools"
-	],
-	"publishablePackageNamePrefix": "@pie-qti/",
-	"prereleaseVersionGroup": "@pie-qti/assessment-player",
-	"allowedUndeclaredRuntimeImports": {
-		"*": [
-			"bun:test"
-		]
-	},
-	"dependenciesUnreferencedByDist": {
-		"@pie-qti/default-components": {
-			"@pie-qti/item-player": "bundled into dist/plugins.js by vite",
-			"@pie-qti/qti-common": "bundled into dist/plugins.js by vite"
-		},
-		"@pie-qti/player-elements": {
-			"@pie-qti/assessment-player": "fully self-contained bundle: all runtime deps are inlined by vite",
-			"@pie-qti/default-components": "fully self-contained bundle: all runtime deps are inlined by vite",
-			"@pie-qti/i18n": "fully self-contained bundle: all runtime deps are inlined by vite",
-			"@pie-qti/ims-cp-core": "fully self-contained bundle: all runtime deps are inlined by vite",
-			"@pie-qti/item-player": "fully self-contained bundle: all runtime deps are inlined by vite",
-			"@pie-qti/section-player": "fully self-contained bundle: all runtime deps are inlined by vite"
-		},
-		"@pie-qti/section-player": {
-			"@pie-players/pie-assessment-toolkit": "consumed by Svelte sources compiled into @pie-qti/player-elements, not by this package's contracts-only dist",
-			"@pie-players/pie-default-tool-loaders": "consumed by Svelte sources compiled into @pie-qti/player-elements, not by this package's contracts-only dist",
-			"@pie-players/pie-tool-calculator-desmos": "consumed by Svelte sources compiled into @pie-qti/player-elements, not by this package's contracts-only dist",
-			"@pie-players/pie-tool-tts-inline": "consumed by Svelte sources compiled into @pie-qti/player-elements, not by this package's contracts-only dist",
-			"@pie-qti/default-components": "consumed by Svelte sources compiled into @pie-qti/player-elements, not by this package's contracts-only dist",
-			"@pie-qti/i18n": "consumed by Svelte sources compiled into @pie-qti/player-elements, not by this package's contracts-only dist",
-			"@pie-qti/ims-cp-core": "consumed by Svelte sources compiled into @pie-qti/player-elements, not by this package's contracts-only dist"
-		},
-		"@pie-qti/transform-cli": {
-			"@oclif/plugin-help": "oclif framework plugin, resolved dynamically at CLI runtime"
-		}
-	},
-	"attwSuppressInternalResolutionPackages": [],
-	"requiredPackageSideEffects": {
-		"@pie-qti/default-components": [
-			"./dist/plugins.js"
-		],
-		"@pie-qti/player-elements": [
-			"./dist/register.js"
-		],
-		"@pie-qti/item-player": [
-			"./dist/element.js"
-		],
-		"@pie-qti/pie-to-qti2": [
-			"./dist/generators/index.js"
-		]
-	},
-	"forbiddenPublicExports": {
-		"@pie-qti/item-player": [
-			"./components"
-		],
-		"@pie-qti/assessment-player": [
-			"./components"
-		],
-		"@pie-qti/default-components": [
-			"./shared/components"
-		],
-		"@pie-qti/i18n": [
-			"./components"
-		],
-		"@pie-qti/section-player": [
-			"./components"
-		]
-	},
-	"assetDirectories": {
-		"@pie-qti/to-pie": [
-			"schemas/"
-		]
-	}
+  "requiredPublishConfigAccess": "public",
+  "requiredFields": [
+    "license",
+    "homepage",
+    "bugs",
+    "files",
+    "sideEffects"
+  ],
+  "requireRepositoryDirectory": true,
+  "requireExportsOrMainTypes": true,
+  "requireNodeEngine": true,
+  "defaultNodeEngine": ">=20.19.0",
+  "workspaceRoots": [
+    "packages",
+    "tools"
+  ],
+  "publishablePackageNamePrefix": "@pie-qti/",
+  "prereleaseVersionGroup": "@pie-qti/assessment-player",
+  "allowedUndeclaredRuntimeImports": {
+    "*": [
+      "bun:test"
+    ]
+  },
+  "dependenciesUnreferencedByDist": {
+    "@pie-qti/default-components": {
+      "@pie-qti/item-player": "bundled into dist/plugins.js by vite",
+      "@pie-qti/qti-common": "bundled into dist/plugins.js by vite"
+    },
+    "@pie-qti/player-elements": {
+      "@pie-qti/assessment-player": "fully self-contained bundle: all runtime deps are inlined by vite",
+      "@pie-qti/default-components": "fully self-contained bundle: all runtime deps are inlined by vite",
+      "@pie-qti/i18n": "fully self-contained bundle: all runtime deps are inlined by vite",
+      "@pie-qti/ims-cp-core": "fully self-contained bundle: all runtime deps are inlined by vite",
+      "@pie-qti/item-player": "fully self-contained bundle: all runtime deps are inlined by vite",
+      "@pie-qti/qti-common": "bundled into dist by vite; runtime source imports it for the svelte mount controller",
+      "@pie-qti/section-player": "fully self-contained bundle: all runtime deps are inlined by vite"
+    },
+    "@pie-qti/section-player": {
+      "@pie-players/pie-assessment-toolkit": "consumed by Svelte sources compiled into @pie-qti/player-elements, not by this package's contracts-only dist",
+      "@pie-players/pie-calculator-desmos": "consumed by Svelte sources compiled into @pie-qti/player-elements, not by this package\u2019s contracts-only dist",
+      "@pie-players/pie-default-tool-loaders": "consumed by Svelte sources compiled into @pie-qti/player-elements, not by this package's contracts-only dist",
+      "@pie-players/pie-tool-calculator-desmos": "consumed by Svelte sources compiled into @pie-qti/player-elements, not by this package's contracts-only dist",
+      "@pie-players/pie-tool-tts-inline": "consumed by Svelte sources compiled into @pie-qti/player-elements, not by this package's contracts-only dist",
+      "@pie-players/tts-client-server": "consumed by Svelte sources compiled into @pie-qti/player-elements, not by this package\u2019s contracts-only dist",
+      "@pie-qti/default-components": "consumed by Svelte sources compiled into @pie-qti/player-elements, not by this package's contracts-only dist",
+      "@pie-qti/i18n": "consumed by Svelte sources compiled into @pie-qti/player-elements, not by this package's contracts-only dist",
+      "@pie-qti/ims-cp-core": "consumed by Svelte sources compiled into @pie-qti/player-elements, not by this package's contracts-only dist"
+    },
+    "@pie-qti/transform-cli": {
+      "@oclif/plugin-help": "oclif framework plugin, resolved dynamically at CLI runtime"
+    },
+    "@pie-qti/assessment-player": {
+      "node-html-parser": "bundled into dist by the vite build; runtime source imports it for manifest XML parsing"
+    },
+    "@pie-qti/pci-runner": {
+      "@pie-qti/item-player": "bundled into dist by vite; runtime source imports the pci contracts subpath"
+    }
+  },
+  "attwSuppressInternalResolutionPackages": [],
+  "requiredPackageSideEffects": {
+    "@pie-qti/default-components": [
+      "./dist/plugins.js"
+    ],
+    "@pie-qti/player-elements": [
+      "./dist/register.js"
+    ],
+    "@pie-qti/item-player": [
+      "./dist/element.js"
+    ],
+    "@pie-qti/pie-to-qti2": [
+      "./dist/generators/index.js"
+    ]
+  },
+  "forbiddenPublicExports": {
+    "@pie-qti/item-player": [
+      "./components"
+    ],
+    "@pie-qti/assessment-player": [
+      "./components"
+    ],
+    "@pie-qti/default-components": [
+      "./shared/components"
+    ],
+    "@pie-qti/i18n": [
+      "./components"
+    ],
+    "@pie-qti/section-player": [
+      "./components"
+    ]
+  },
+  "assetDirectories": {
+    "@pie-qti/to-pie": [
+      "schemas/"
+    ]
+  }
 }
