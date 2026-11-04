@@ -8,6 +8,7 @@
 		import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
+	import HotspotShape from '../../shared/components/HotspotShape.svelte';
 
 	interface Props {
 		interaction?: HotspotInteractionData | string;
@@ -139,92 +140,30 @@
 					{#each parsedInteraction.hotspotChoices as choice}
 						{@const isSelected = parsedResponse === choice.identifier}
 						{@const isCorrectChoice = isCorrect(choice.identifier)}
-						{@const coords = choice.coords.split(',').map(Number)}
 
 						{@const shapeLabel = choice.hotspotLabel || `Hotspot ${choice.identifier}`}
 						{@const ariaLabel = `${shapeLabel}${isCorrectChoice ? '. Correct answer' : ''}`}
 
-						{#if choice.shape === 'circle'}
-							<!-- Circle: coords are cx, cy, radius -->
-							<circle
-								cx={coords[0]}
-								cy={coords[1]}
-								r={coords[2]}
-								fill={isSelected ? 'rgba(59, 130, 246, 0.3)' : isCorrectChoice ? 'rgba(34, 197, 94, 0.3)' : 'rgba(0, 0, 0, 0)'}
-								stroke={isSelected ? '#3b82f6' : isCorrectChoice ? '#22c55e' : 'transparent'}
-								stroke-width="2"
-								class="qti-hotspot-shape hover:fill-[rgba(59,130,246,0.1)] transition-all"
-								role="button"
-								aria-label={ariaLabel}
-								aria-pressed={isSelected ? 'true' : 'false'}
-								data-selected={isSelected ? '' : undefined}
-								tabindex={disabled ? -1 : 0}
-								onclick={() => handleClick(choice.identifier)}
-								onkeydown={(e) => handleKeyDown(e, choice.identifier)}
-							/>
-						{:else if choice.shape === 'rect'}
-							<!-- Rectangle: QTI coords are left,top,right,bottom -->
-							<rect
-								x={coords[0]}
-								y={coords[1]}
-								width={coords[2] - coords[0]}
-								height={coords[3] - coords[1]}
-								fill={isSelected ? 'rgba(59, 130, 246, 0.3)' : isCorrectChoice ? 'rgba(34, 197, 94, 0.3)' : 'rgba(0, 0, 0, 0)'}
-								stroke={isSelected ? '#3b82f6' : isCorrectChoice ? '#22c55e' : 'transparent'}
-								stroke-width="2"
-								class="qti-hotspot-shape hover:fill-[rgba(59,130,246,0.1)] transition-all"
-								role="button"
-								aria-label={ariaLabel}
-								aria-pressed={isSelected ? 'true' : 'false'}
-								data-selected={isSelected ? '' : undefined}
-								tabindex={disabled ? -1 : 0}
-								onclick={() => handleClick(choice.identifier)}
-								onkeydown={(e) => handleKeyDown(e, choice.identifier)}
-							/>
-						{:else if choice.shape === 'ellipse'}
-							<!-- Ellipse: QTI coords are cx,cy,rx,ry -->
-							<ellipse
-								cx={coords[0]}
-								cy={coords[1]}
-								rx={coords[2]}
-								ry={coords[3]}
-								fill={isSelected ? 'rgba(59, 130, 246, 0.3)' : isCorrectChoice ? 'rgba(34, 197, 94, 0.3)' : 'rgba(0, 0, 0, 0)'}
-								stroke={isSelected ? '#3b82f6' : isCorrectChoice ? '#22c55e' : 'transparent'}
-								stroke-width="2"
-								class="qti-hotspot-shape hover:fill-[rgba(59,130,246,0.1)] transition-all"
-								role="button"
-								aria-label={ariaLabel}
-								aria-pressed={isSelected ? 'true' : 'false'}
-								data-selected={isSelected ? '' : undefined}
-								tabindex={disabled ? -1 : 0}
-								onclick={() => handleClick(choice.identifier)}
-								onkeydown={(e) => handleKeyDown(e, choice.identifier)}
-							/>
-						{:else if choice.shape === 'poly'}
-							<!-- Polygon: coords are x1,y1,x2,y2,... -->
-							{@const points = coords
-								.reduce((acc: string[], val: number, idx: number) => {
-									if (idx % 2 === 0 && idx + 1 < coords.length) {
-										acc.push(`${coords[idx]},${coords[idx + 1]}`);
-									}
-									return acc;
-								}, [])
-								.join(' ')}
-							<polygon
-								{points}
-								fill={isSelected ? 'rgba(59, 130, 246, 0.3)' : isCorrectChoice ? 'rgba(34, 197, 94, 0.3)' : 'rgba(0, 0, 0, 0)'}
-								stroke={isSelected ? '#3b82f6' : isCorrectChoice ? '#22c55e' : 'transparent'}
-								stroke-width="2"
-								class="qti-hotspot-shape hover:fill-[rgba(59,130,246,0.1)] transition-all"
-								role="button"
-								aria-label={ariaLabel}
-								aria-pressed={isSelected ? 'true' : 'false'}
-								data-selected={isSelected ? '' : undefined}
-								tabindex={disabled ? -1 : 0}
-								onclick={() => handleClick(choice.identifier)}
-								onkeydown={(e) => handleKeyDown(e, choice.identifier)}
-							/>
-						{/if}
+						<HotspotShape
+							shape={choice.shape}
+							coords={choice.coords}
+							label={ariaLabel}
+							{disabled}
+							pressed={isSelected}
+							presentation={{
+								fill: isSelected
+									? 'rgba(59, 130, 246, 0.3)'
+									: isCorrectChoice
+										? 'rgba(34, 197, 94, 0.3)'
+										: 'rgba(0, 0, 0, 0)',
+								stroke: isSelected ? '#3b82f6' : isCorrectChoice ? '#22c55e' : 'transparent',
+								'stroke-width': '2',
+								class: 'qti-hotspot-shape hover:fill-[rgba(59,130,246,0.1)] transition-all',
+								'data-selected': isSelected ? '' : undefined,
+							}}
+							onclick={() => handleClick(choice.identifier)}
+							onkeydown={(e) => handleKeyDown(e, choice.identifier)}
+						/>
 					{/each}
 				</svg>
 				{/if}
@@ -258,27 +197,27 @@
 	}
 
 	/* qti-selections-light / qti-selections-dark: outlines and selections that contrast with a dark or light image */
-	.qti-selections-light .qti-hotspot-shape {
+	.qti-selections-light :global(.qti-hotspot-shape) {
 		fill: rgba(255, 255, 255, 0.1);
 		stroke: rgba(255, 255, 255, 0.8);
 	}
-	.qti-selections-light .qti-hotspot-shape[data-selected] {
+	.qti-selections-light :global(.qti-hotspot-shape[data-selected]) {
 		fill: rgba(255, 255, 255, 0.5);
 		stroke: #fff;
 		stroke-width: 3;
 	}
-	.qti-selections-dark .qti-hotspot-shape {
+	.qti-selections-dark :global(.qti-hotspot-shape) {
 		fill: rgba(0, 0, 0, 0.1);
 		stroke: rgba(0, 0, 0, 0.8);
 	}
-	.qti-selections-dark .qti-hotspot-shape[data-selected] {
+	.qti-selections-dark :global(.qti-hotspot-shape[data-selected]) {
 		fill: rgba(0, 0, 0, 0.5);
 		stroke: #000;
 		stroke-width: 3;
 	}
 
 	/* qti-unselected-hidden: unselected hotspots show only while focused; they stay operable */
-	.qti-unselected-hidden .qti-hotspot-shape:not([data-selected]):not(:focus-visible) {
+	.qti-unselected-hidden :global(.qti-hotspot-shape:not([data-selected]):not(:focus-visible)) {
 		fill: transparent;
 		stroke: transparent;
 	}

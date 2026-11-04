@@ -1,7 +1,7 @@
 <svelte:options customElement="pie-qti-graphic-associate" />
 
 <script lang="ts">
-	import type { GraphicAssociateInteractionData } from '@pie-qti/item-player';
+	import type { GraphicAssociateHotspot, GraphicAssociateInteractionData } from '@pie-qti/item-player';
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { normalizePixelDimension } from '@pie-qti/item-player/security';
 	import { translate, type I18nProvider } from '@pie-qti/i18n';
@@ -272,105 +272,53 @@
 						{@const usageCount = getHotspotUsageCount(hotspot.identifier)}
 						{@const isCorrect = isHotspotInCorrectPair(hotspot.identifier)}
 
-						{#if hotspot.shape === 'rect'}
-							{@const [x1, y1, x2, y2] = hotspot.coords.split(',').map(Number)}
-							<button
-								part="hotspot"
-								class="qti-ga-hotspot absolute border-2 transition-all {isSelected
-									? 'bg-primary/40 border-primary border-4'
-									: isCorrect
-										? 'bg-success/20 border-success'
-										: 'bg-primary/10 border-primary hover:bg-primary/20'} {isMaxed || isBlocked
-									? 'opacity-40 cursor-not-allowed'
-									: canInteract
-										? 'cursor-pointer'
-										: 'cursor-not-allowed opacity-70'}"
-								style="left: {x1}px; top: {y1}px; width: {x2 - x1}px; height: {y2 -
-									y1}px; z-index: 20;"
-								onclick={() => handleHotspotClick(hotspot.identifier)}
-								disabled={!canInteract || isMaxed}
-								aria-disabled={isBlocked ? 'true' : undefined}
-								aria-pressed={isHotspotSelected(hotspot.identifier)}
-								aria-label="{hotspot.label} ({usageCount}/{hotspot.matchMax} connections){isCorrect ? '. Correct answer' : isBlocked ? '. Not available due to match group restriction' : ''}"
-							>
-								<span class="text-xs font-bold text-primary-content">{hotspot.label}</span>
-							</button>
-						{:else if hotspot.shape === 'circle'}
-							{@const [cx, cy, r] = hotspot.coords.split(',').map(Number)}
-							<button
-								part="hotspot"
-								class="qti-ga-hotspot qti-ga-hotspot-circle absolute rounded-full border-2 flex items-center justify-center transition-all {isSelected
-									? 'bg-primary/40 border-primary border-4'
-									: isCorrect
-										? 'bg-success/20 border-success'
-										: 'bg-primary/10 border-primary hover:bg-primary/20'} {isMaxed || isBlocked
-									? 'opacity-40 cursor-not-allowed'
-									: canInteract
-										? 'cursor-pointer'
-										: 'cursor-not-allowed opacity-70'}"
-								style="left: {cx - r}px; top: {cy - r}px; width: {r * 2}px; height: {r *
-									2}px; z-index: 20;"
-								onclick={() => handleHotspotClick(hotspot.identifier)}
-								disabled={!canInteract || isMaxed}
-								aria-disabled={isBlocked ? 'true' : undefined}
-								aria-pressed={isHotspotSelected(hotspot.identifier)}
-								aria-label="{hotspot.label} ({usageCount}/{hotspot.matchMax} connections){isCorrect ? '. Correct answer' : isBlocked ? '. Not available due to match group restriction' : ''}"
-							>
-								<span class="text-xs font-bold text-primary-content">{hotspot.label}</span>
-							</button>
-						{:else if hotspot.shape === 'ellipse'}
-							<!-- Ellipse: QTI coords are cx,cy,rx,ry — use bounding box for hit target -->
-							{@const [cx, cy, rx, ry] = hotspot.coords.split(',').map(Number)}
-							<button
-								part="hotspot"
-								class="qti-ga-hotspot absolute border-2 flex items-center justify-center transition-all {isSelected
-									? 'bg-primary/40 border-primary border-4'
-									: isCorrect
-										? 'bg-success/20 border-success'
-										: 'bg-primary/10 border-primary hover:bg-primary/20'} {isMaxed || isBlocked
-									? 'opacity-40 cursor-not-allowed'
-									: canInteract
-										? 'cursor-pointer'
-										: 'cursor-not-allowed opacity-70'}"
-								style="left: {cx - rx}px; top: {cy - ry}px; width: {rx * 2}px; height: {ry * 2}px; border-radius: 50%; z-index: 20;"
-								onclick={() => handleHotspotClick(hotspot.identifier)}
-								disabled={!canInteract || isMaxed}
-								aria-disabled={isBlocked ? 'true' : undefined}
-								aria-pressed={isHotspotSelected(hotspot.identifier)}
-								aria-label="{hotspot.label} ({usageCount}/{hotspot.matchMax} connections){isCorrect ? '. Correct answer' : isBlocked ? '. Not available due to match group restriction' : ''}"
-							>
-								<span class="text-xs font-bold text-primary-content">{hotspot.label}</span>
-							</button>
-						{:else if hotspot.shape === 'poly'}
-							<!-- Polygon: use axis-aligned bounding box of all vertices for hit target -->
-							{@const pts = hotspot.coords.split(',').map(Number)}
-							{@const xs = pts.filter((_, i) => i % 2 === 0)}
-							{@const ys = pts.filter((_, i) => i % 2 !== 0)}
-							{@const x1 = Math.min(...xs)}
-							{@const y1 = Math.min(...ys)}
-							{@const x2 = Math.max(...xs)}
-							{@const y2 = Math.max(...ys)}
-							<button
-								part="hotspot"
-								class="qti-ga-hotspot absolute border-2 flex items-center justify-center transition-all {isSelected
-									? 'bg-primary/40 border-primary border-4'
-									: isCorrect
-										? 'bg-success/20 border-success'
-										: 'bg-primary/10 border-primary hover:bg-primary/20'} {isMaxed || isBlocked
-									? 'opacity-40 cursor-not-allowed'
-									: canInteract
-										? 'cursor-pointer'
-										: 'cursor-not-allowed opacity-70'}"
-								style="left: {x1}px; top: {y1}px; width: {x2 - x1}px; height: {y2 - y1}px; z-index: 20;"
-								onclick={() => handleHotspotClick(hotspot.identifier)}
-								disabled={!canInteract || isMaxed}
-								aria-disabled={isBlocked ? 'true' : undefined}
-								aria-pressed={isHotspotSelected(hotspot.identifier)}
-								aria-label="{hotspot.label} ({usageCount}/{hotspot.matchMax} connections){isCorrect ? '. Correct answer' : isBlocked ? '. Not available due to match group restriction' : ''}"
-							>
-								<span class="text-xs font-bold text-primary-content">{hotspot.label}</span>
-							</button>
-						{/if}
+					{#snippet hotspotButton(hotspot: GraphicAssociateHotspot, style: string, extraClass: string)}
+						{@const isSelected = isHotspotSelected(hotspot.identifier)}
+						{@const isMaxed = isHotspotMaxed(hotspot.identifier)}
+						{@const isBlocked = blockedHotspots.has(hotspot.identifier)}
+						{@const usageCount = getHotspotUsageCount(hotspot.identifier)}
+						{@const isCorrect = isHotspotInCorrectPair(hotspot.identifier)}
+						<button
+							part="hotspot"
+							class="qti-ga-hotspot absolute border-2 transition-all {extraClass} {isSelected
+								? 'bg-primary/40 border-primary border-4'
+								: isCorrect
+									? 'bg-success/20 border-success'
+									: 'bg-primary/10 border-primary hover:bg-primary/20'} {isMaxed || isBlocked
+							? 'opacity-40 cursor-not-allowed'
+							: canInteract
+								? 'cursor-pointer'
+								: 'cursor-not-allowed opacity-70'}"
+							style="{style} z-index: 20;"
+							onclick={() => handleHotspotClick(hotspot.identifier)}
+							disabled={!canInteract || isMaxed}
+							aria-disabled={isBlocked ? 'true' : undefined}
+							aria-pressed={isHotspotSelected(hotspot.identifier)}
+							aria-label="{hotspot.label} ({usageCount}/{hotspot.matchMax} connections){isCorrect ? '. Correct answer' : isBlocked ? '. Not available due to match group restriction' : ''}"
+						>
+							<span class="text-xs font-bold text-primary-content">{hotspot.label}</span>
+						</button>
+					{/snippet}
+
+					{#if hotspot.shape === 'rect'}
+						{@const [x1, y1, x2, y2] = hotspot.coords.split(',').map(Number)}
+						{@render hotspotButton(hotspot, `left: ${x1}px; top: ${y1}px; width: ${x2 - x1}px; height: ${y2 - y1}px;`, '')}
+					{:else if hotspot.shape === 'circle'}
+						{@const [cx, cy, r] = hotspot.coords.split(',').map(Number)}
+						{@render hotspotButton(hotspot, `left: ${cx - r}px; top: ${cy - r}px; width: ${r * 2}px; height: ${r * 2}px;`, 'rounded-full qti-ga-hotspot-circle flex items-center justify-center')}
+					{:else if hotspot.shape === 'ellipse'}
+						{@const [cx, cy, rx, ry] = hotspot.coords.split(',').map(Number)}
+						{@render hotspotButton(hotspot, `left: ${cx - rx}px; top: ${cy - ry}px; width: ${rx * 2}px; height: ${ry * 2}px; border-radius: 50%;`, 'flex items-center justify-center')}
+					{:else if hotspot.shape === 'poly'}
+						{@const pts = hotspot.coords.split(',').map(Number)}
+						{@const xs = pts.filter((_, i) => i % 2 === 0)}
+						{@const ys = pts.filter((_, i) => i % 2 !== 0)}
+						{@const x1 = Math.min(...xs)}
+						{@const y1 = Math.min(...ys)}
+						{@const x2 = Math.max(...xs)}
+						{@const y2 = Math.max(...ys)}
+						{@render hotspotButton(hotspot, `left: ${x1}px; top: ${y1}px; width: ${x2 - x1}px; height: ${y2 - y1}px;`, 'flex items-center justify-center')}
+					{/if}
 					{/each}
 				</div>
 

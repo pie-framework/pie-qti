@@ -45,6 +45,9 @@ describe('HotspotInteraction (pie-qti-hotspot)', () => {
 
 		const shapes = qa(mounted, '.qti-hotspot-shape');
 		expect(shapes).toHaveLength(2);
+		// The shapes must be real SVG elements (not HTML-namespace lookalikes), or .focus()
+		// does not exist on them and keyboard/focus behavior breaks in the browser.
+		expect(shapes[0]).toBeInstanceOf(SVGElement);
 		expect(shapes[0]!.getAttribute('role')).toBe('button');
 		expect(shapes[0]!.getAttribute('tabindex')).toBe('0');
 		expect(shapes[0]!.getAttribute('aria-label')).toBe('The sun');
