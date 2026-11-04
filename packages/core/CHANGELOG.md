@@ -1,5 +1,22 @@
 # @pie-qti/transform-core
 
+## 0.2.1
+
+### Patch Changes
+
+- 15ef671: Align declared dependencies with what shipped code actually imports, enforced by a new `check:dist-dependencies` gate (added to `verify:publish:quick` and `lint:all`):
+  
+  - `@pie-qti/player-elements` now declares `@pie-qti/default-components`, `@pie-qti/i18n`, and `@pie-qti/section-player` as real dependencies: shipped declarations import their types, so consumer typechecks no longer depend on hoisted installs.
+  - `@pie-qti/transform-core` no longer installs `@pie-qti/test-utils` (and transitively `@pie-qti/storage`) at runtime; the same cleanup moves build-only `@pie-qti/transform-core` out of `@pie-qti/to-pie` / `@pie-qti/pie-to-qti2` runtime dependencies, drops unused `@tiptap/*` runtime entries from `@pie-qti/default-components` (bundled into its bundle, now devDependencies), and removes never-imported dependencies from `@pie-qti/assessment-player`, `@pie-qti/assessment-toolkit`, `@pie-qti/test-utils`, and `@pie-qti/section-player` (the two `@pie-players` packages that were only ever resolved transitively).
+- 29210b4: Type the extension seams that were previously `any`:
+  
+  - `@pie-qti/transform-types` now owns the vendor extension contracts (`VendorDetector`, `VendorTransformer`, `AssetResolver`, `CssClassExtractor`, `MetadataExtractor`, `VendorInfo`, `VendorClasses`, `CustomAttributes`, `VendorExtensionHooks`), so config-driven vendor modules are type-checked at the transform-core registry boundary instead of being cast through `any`. `@pie-qti/to-pie` re-exports the same names from its historical import path. `TransformContext.storage` is now typed as `StorageBackend` (the interface already lived in transform-types). `@pie-qti/transform-core` no longer re-exports its orchestration-internal `VendorInfo` variant, which was ambiguous next to the canonical contract.
+  - `@pie-qti/item-player`'s definition config extension points are now typed: `elementNameMapper`/`attributeNameMapper` (`@pie-qti/qti-common` mapper types), `componentRegistry`/`extractionRegistry` (the publicly exported registry classes), and `i18nProvider` (`@pie-qti/i18n`). Code that passed arbitrary objects to these options will now fail typecheck; pass the documented types instead.
+- Updated dependencies [29210b4]
+  - @pie-qti/transform-types@0.2.1
+  - @pie-qti/logger@1.0.0-beta.4
+  - @pie-qti/element-schemas@1.0.0-beta.4
+
 ## 0.2.0
 
 ### Patch Changes

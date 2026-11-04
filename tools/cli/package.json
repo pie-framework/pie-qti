@@ -1,6 +1,6 @@
 {
 	"name": "@pie-qti/transform-cli",
-	"version": "0.2.0",
+	"version": "0.2.1",
 	"description": "CLI tool for QTI ↔ PIE transformations",
 	"type": "module",
 	"bin": {
