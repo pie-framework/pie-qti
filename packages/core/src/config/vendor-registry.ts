@@ -4,20 +4,26 @@
  */
 
 import type {
+	AssetResolver,
+	CssClassExtractor,
+	MetadataExtractor,
+	VendorDetector,
 	VendorExtensionConfig,
 	VendorExtensionModuleConfig,
+	VendorTransformer,
 } from '@pie-qti/transform-types';
 
 /**
- * Plugin interface with vendor extension registration methods
- * This is a generic interface to avoid circular dependencies with specific plugins
+ * Plugin interface with vendor extension registration methods. The hook
+ * contracts live in @pie-qti/transform-types so that config-driven vendor
+ * modules are type-checked here, at the framework boundary.
  */
 export interface VendorExtensionPlugin {
-	registerVendorDetector?: (extension: unknown) => void;
-	registerVendorTransformer?: (transformer: any) => void;
-	registerAssetResolver?: (extension: unknown) => void;
-	registerCssClassExtractor?: (extension: unknown) => void;
-	registerMetadataExtractor?: (extension: unknown) => void;
+	registerVendorDetector?: (detector: VendorDetector) => void;
+	registerVendorTransformer?: (transformer: VendorTransformer) => void;
+	registerAssetResolver?: (resolver: AssetResolver) => void;
+	registerCssClassExtractor?: (extractor: CssClassExtractor) => void;
+	registerMetadataExtractor?: (extractor: MetadataExtractor) => void;
 }
 
 /**
@@ -61,7 +67,7 @@ export async function registerExtensions(
 	if (config.detectors && plugin.registerVendorDetector) {
 		for (const detectorConfig of config.detectors) {
 			try {
-				const detector = await loadVendorModule(detectorConfig);
+				const detector = await loadVendorModule<VendorDetector>(detectorConfig);
 				plugin.registerVendorDetector(detector);
 			} catch (error) {
 				console.warn(
@@ -76,7 +82,7 @@ export async function registerExtensions(
 	if (config.transformers && plugin.registerVendorTransformer) {
 		for (const transformerConfig of config.transformers) {
 			try {
-				const transformer = await loadVendorModule(transformerConfig);
+				const transformer = await loadVendorModule<VendorTransformer>(transformerConfig);
 				plugin.registerVendorTransformer(transformer);
 			} catch (error) {
 				console.warn(
@@ -91,7 +97,7 @@ export async function registerExtensions(
 	if (config.assetResolvers && plugin.registerAssetResolver) {
 		for (const resolverConfig of config.assetResolvers) {
 			try {
-				const resolver = await loadVendorModule(resolverConfig);
+				const resolver = await loadVendorModule<AssetResolver>(resolverConfig);
 				plugin.registerAssetResolver(resolver);
 			} catch (error) {
 				console.warn(
@@ -106,7 +112,7 @@ export async function registerExtensions(
 	if (config.cssClassExtractors && plugin.registerCssClassExtractor) {
 		for (const extractorConfig of config.cssClassExtractors) {
 			try {
-				const extractor = await loadVendorModule(extractorConfig);
+				const extractor = await loadVendorModule<CssClassExtractor>(extractorConfig);
 				plugin.registerCssClassExtractor(extractor);
 			} catch (error) {
 				console.warn(
@@ -121,7 +127,7 @@ export async function registerExtensions(
 	if (config.metadataExtractors && plugin.registerMetadataExtractor) {
 		for (const extractorConfig of config.metadataExtractors) {
 			try {
-				const extractor = await loadVendorModule(extractorConfig);
+				const extractor = await loadVendorModule<MetadataExtractor>(extractorConfig);
 				plugin.registerMetadataExtractor(extractor);
 			} catch (error) {
 				console.warn(

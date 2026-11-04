@@ -6,7 +6,7 @@
 	import { createEliminationTool, eliminationActionLabel } from '../../shared/utils/eliminationTool.svelte';
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import { normalizeHeuristicsConfig, type QtiHeuristicsConfig } from '@pie-qti/item-player';
-	import { processFeedbackInline } from '@pie-qti/item-player/components/utils';
+	import { processFeedbackInline } from '@pie-qti/qti-common';
 	import { typesetAction } from '../../shared/actions/typesetAction';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';

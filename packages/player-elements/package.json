@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/player-elements",
-  "version": "1.0.0-beta.3",
+  "version": "1.0.0-beta.4",
   "description": "QTI (2.x and 3.0) player web components (custom elements) for framework-agnostic embedding",
   "type": "module",
   "main": "./dist/index.js",
@@ -24,7 +24,7 @@
     }
   },
   "scripts": {
-    "build": "vite build && tsc -p ./tsconfig.build.json && tsc -p ./tsconfig.public.json",
+    "build": "vite build && node ../../scripts/guard-custom-elements.mjs . && tsc -p ./tsconfig.build.json && tsc -p ./tsconfig.public.json",
     "test": "bun test && tsc -p ./tsconfig.types.test.json && tsc -p ./tsconfig.published-types.test.json",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
@@ -35,13 +35,13 @@
   "dependencies": {
     "@pie-qti/assessment-player": "workspace:*",
     "@pie-qti/default-components": "workspace:*",
+    "@pie-qti/i18n": "workspace:*",
     "@pie-qti/ims-cp-core": "workspace:*",
     "@pie-qti/item-player": "workspace:*",
-    "@pie-qti/qti-common": "workspace:*"
+    "@pie-qti/qti-common": "workspace:*",
+    "@pie-qti/section-player": "workspace:*"
   },
   "devDependencies": {
-    "@pie-qti/i18n": "workspace:*",
-    "@pie-qti/section-player": "workspace:*",
     "@biomejs/biome": "^2.6.4",
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "esbuild": "^0.28.2",

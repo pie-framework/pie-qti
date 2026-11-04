@@ -1,5 +1,18 @@
 # @pie-qti/qti-common
 
+## 1.0.0-beta.4
+
+### Patch Changes
+
+- a4ef12c: Move the feedback-text utilities (`cleanFeedbackText`, `processFeedbackInline`, `DEFAULT_FEEDBACK_TRANSFORMS`, `DEFAULT_FEEDBACK_OUTCOME_ID`, `FeedbackTransform`, `ProcessFeedbackInlineOptions`) to `@pie-qti/qti-common`, which already owns the feedback visibility rule they build on (`isShownByIdentifier`). The `@pie-qti/item-player/components/utils` subpath export is removed — it existed only to expose these two functions to a single internal consumer. Import the functions from `@pie-qti/item-player`'s or `@pie-qti/qti-common`'s main entry instead.
+- 406c76c: Surface silently-degraded host setup as one-time console warnings (new `warnOnce` helper in `@pie-qti/qti-common`):
+  
+  - No `i18n` provider on the item player: UI messages would render as raw keys (e.g. `item.parsingError`) and `lang`/`dir` attributes are never set.
+  - `locale` attribute set without an `i18n` provider: previously a silent no-op.
+  - Section TTS tool using the default host-served `/api/tts` endpoint: the host must serve that route or override the provider config.
+  
+  Warnings fire only on actual misconfiguration (deliberately not environment-gated, since the workspace ships both tsc- and vite-built outputs and a missing-wiring warning is useful in production too).
+
 ## 1.0.0-beta.3
 
 No changes in this release.

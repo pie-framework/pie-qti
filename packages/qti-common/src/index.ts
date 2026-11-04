@@ -20,6 +20,14 @@ export {
 
 // Feedback and template visibility
 export { isShownByIdentifier, matchesIdentifier } from './feedback/visibility.js';
+export {
+	cleanFeedbackText,
+	processFeedbackInline,
+	DEFAULT_FEEDBACK_OUTCOME_ID,
+	DEFAULT_FEEDBACK_TRANSFORMS,
+	type FeedbackTransform,
+	type ProcessFeedbackInlineOptions,
+} from './feedback/feedback-text.js';
 
 // Version detection
 export { detectQtiVersion } from './version-detection/detectQtiVersion.js';
@@ -46,6 +54,7 @@ export { touchDrag, touchDragStyles } from './dom/touchDrag.js';
 
 // Writing direction
 export { languageDirection, type TextDirection } from './language/direction.js';
+export { warnOnce } from './diagnostics/warn-once.js';
 
 // Parser factory
 export {

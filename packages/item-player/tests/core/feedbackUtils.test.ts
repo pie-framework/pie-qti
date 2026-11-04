@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { processFeedbackInline } from '../../src/components/utils/feedbackUtils.js';
+import { processFeedbackInline } from '@pie-qti/qti-common';
 
 describe('processFeedbackInline', () => {
 	test('matches feedback identifiers inside multiple outcome values', () => {

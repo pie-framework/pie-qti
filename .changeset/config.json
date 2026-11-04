@@ -7,7 +7,6 @@
       "@pie-qti/assessment-player",
       "@pie-qti/assessment-toolkit",
       "@pie-qti/default-components",
-      "@pie-qti/demo-vendor-extensions",
       "@pie-qti/element-schemas",
       "@pie-qti/i18n",
       "@pie-qti/ims-cp-browser",

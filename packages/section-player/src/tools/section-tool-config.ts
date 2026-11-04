@@ -82,6 +82,8 @@ function liftLegacyProviderKeys(provider: Record<string, unknown>): Record<strin
 	return lifted;
 }
 
+import { warnOnce } from '@pie-qti/qti-common';
+
 /**
  * The TTS provider config for one scope. The content language sets the synthesis language and,
  * for Polly, the voice; a voice the host configures wins.
@@ -93,6 +95,12 @@ export function resolveSectionTtsProviderConfig(
 	const hostConfig = liftLegacyProviderKeys(provider);
 	const resolved: Record<string, unknown> = { ...defaultSectionTtsProviderConfig, ...hostConfig };
 	const polly = resolved.backend === 'server' && resolved.serverProvider === 'polly';
+	if (polly && resolved.endpointMode === 'synthesizePath' && resolved.apiEndpoint === defaultSectionTtsProviderConfig.apiEndpoint && !('apiEndpoint' in hostConfig)) {
+		warnOnce(
+			'section-player:tts-default-endpoint',
+			`TTS tool uses the default host-served endpoint ${String(defaultSectionTtsProviderConfig.apiEndpoint)}: the host must serve that route (Polly-backed) or override sectionTools[].provider.apiEndpoint.`,
+		);
+	}
 	const voice = typeof hostConfig.defaultVoice === 'string' ? undefined : polly ? pollyVoiceForLanguage(language) : undefined;
 
 	return {

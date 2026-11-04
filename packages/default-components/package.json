@@ -1,12 +1,12 @@
 {
   "name": "@pie-qti/default-components",
-  "version": "1.0.0-beta.3",
+  "version": "1.0.0-beta.4",
   "description": "Default Svelte-based component implementations for QTI (2.x and 3.0) player",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "rm -rf dist && tsc && vite build && mkdir -p dist/shared/styles && cp src/shared/styles/qti-shared-vocabulary.css src/shared/styles/qti-pnp.css dist/shared/styles/",
+    "build": "rm -rf dist && tsc && vite build && node ../../scripts/guard-custom-elements.mjs . && mkdir -p dist/shared/styles && cp src/shared/styles/qti-shared-vocabulary.css src/shared/styles/qti-pnp.css dist/shared/styles/ && mv dist/assets/default-components.css dist/shared.css",
     "test": "bun test && bun run test:component",
     "test:component": "vitest run",
     "typecheck": "tsc --noEmit",
@@ -31,15 +31,15 @@
     "@pie-qti/i18n": "workspace:*",
     "@pie-qti/item-player": "workspace:*",
     "@pie-qti/qti-common": "workspace:*",
-    "@tiptap/core": "3.32.0",
-    "@tiptap/extension-mathematics": "3.32.0",
-    "@tiptap/extension-placeholder": "3.32.0",
-    "@tiptap/starter-kit": "3.32.0",
     "mathlive": "^0.111.1"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.6.4",
     "@sveltejs/vite-plugin-svelte": "7.3.1",
+    "@tiptap/core": "3.32.0",
+    "@tiptap/extension-mathematics": "3.32.0",
+    "@tiptap/extension-placeholder": "3.32.0",
+    "@tiptap/starter-kit": "3.32.0",
     "@types/node": "^26.6.6",
     "jsdom": "^30.1.3",
     "linkedom": "^0.18.13",
@@ -63,22 +63,6 @@
       "types": "./dist/shared/index.d.ts",
       "import": "./dist/shared/index.js"
     },
-    "./plugins/*/index": {
-      "types": "./dist/plugins/*/index.d.ts",
-      "import": "./dist/plugins/*/index.js"
-    },
-    "./shared/utils/*": {
-      "types": "./dist/shared/utils/*.d.ts",
-      "import": "./dist/shared/utils/*.js"
-    },
-    "./shared/actions/*": {
-      "types": "./dist/shared/actions/*.d.ts",
-      "import": "./dist/shared/actions/*.js"
-    },
-    "./shared/extensions/*": {
-      "types": "./dist/shared/extensions/*.d.ts",
-      "import": "./dist/shared/extensions/*.js"
-    },
     "./shared/styles/qti-shared-vocabulary.css": {
       "style": "./dist/shared/styles/qti-shared-vocabulary.css",
       "default": "./dist/shared/styles/qti-shared-vocabulary.css"
@@ -94,6 +78,10 @@
     "./qti-pnp.css": {
       "style": "./dist/shared/styles/qti-pnp.css",
       "default": "./dist/shared/styles/qti-pnp.css"
+    },
+    "./shared.css": {
+      "style": "./dist/shared.css",
+      "default": "./dist/shared.css"
     }
   },
   "repository": {
@@ -110,6 +98,7 @@
   },
   "sideEffects": [
     "./dist/plugins.js",
+    "./dist/shared.css",
     "./dist/shared/styles/*.css"
   ],
   "engines": {

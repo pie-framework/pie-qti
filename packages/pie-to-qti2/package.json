@@ -1,6 +1,6 @@
 {
 	"name": "@pie-qti/pie-to-qti2",
-	"version": "0.2.0",
+	"version": "0.2.1",
 	"description": "PIE to QTI 2.2 transformation plugin",
 	"main": "./dist/index.js",
 	"module": "./dist/index.js",
@@ -41,6 +41,7 @@
 	"devDependencies": {
 		"@pie-qti/item-player": "workspace:*",
 		"@pie-qti/to-pie": "workspace:*",
+		"@pie-qti/transform-core": "workspace:*",
 		"typescript": "^5.9.3",
 		"xmllint-wasm": "^5.3.0"
 	},

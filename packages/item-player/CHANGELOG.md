@@ -1,5 +1,30 @@
 # @pie-qti/item-player
 
+## 1.0.0-beta.4
+
+### Patch Changes
+
+- a4ef12c: Move the feedback-text utilities (`cleanFeedbackText`, `processFeedbackInline`, `DEFAULT_FEEDBACK_TRANSFORMS`, `DEFAULT_FEEDBACK_OUTCOME_ID`, `FeedbackTransform`, `ProcessFeedbackInlineOptions`) to `@pie-qti/qti-common`, which already owns the feedback visibility rule they build on (`isShownByIdentifier`). The `@pie-qti/item-player/components/utils` subpath export is removed — it existed only to expose these two functions to a single internal consumer. Import the functions from `@pie-qti/item-player`'s or `@pie-qti/qti-common`'s main entry instead.
+- bc58949: Fix the MathLive stylesheet import in the optional `MathLiveEditor` extension: `mathlive/mathlive-static.css` is not an exported path in `mathlive@0.111.x` (the exports map only exposes `./static.css`), so resolving the extension failed under strict package-exports resolution. Now imports `mathlive/static.css`, matching `@pie-qti/default-components`.
+- 406c76c: Surface silently-degraded host setup as one-time console warnings (new `warnOnce` helper in `@pie-qti/qti-common`):
+  
+  - No `i18n` provider on the item player: UI messages would render as raw keys (e.g. `item.parsingError`) and `lang`/`dir` attributes are never set.
+  - `locale` attribute set without an `i18n` provider: previously a silent no-op.
+  - Section TTS tool using the default host-served `/api/tts` endpoint: the host must serve that route or override the provider config.
+  
+  Warnings fire only on actual misconfiguration (deliberately not environment-gated, since the workspace ships both tsc- and vite-built outputs and a missing-wiring warning is useful in production too).
+- 29210b4: Type the extension seams that were previously `any`:
+  
+  - `@pie-qti/transform-types` now owns the vendor extension contracts (`VendorDetector`, `VendorTransformer`, `AssetResolver`, `CssClassExtractor`, `MetadataExtractor`, `VendorInfo`, `VendorClasses`, `CustomAttributes`, `VendorExtensionHooks`), so config-driven vendor modules are type-checked at the transform-core registry boundary instead of being cast through `any`. `@pie-qti/to-pie` re-exports the same names from its historical import path. `TransformContext.storage` is now typed as `StorageBackend` (the interface already lived in transform-types). `@pie-qti/transform-core` no longer re-exports its orchestration-internal `VendorInfo` variant, which was ambiguous next to the canonical contract.
+  - `@pie-qti/item-player`'s definition config extension points are now typed: `elementNameMapper`/`attributeNameMapper` (`@pie-qti/qti-common` mapper types), `componentRegistry`/`extractionRegistry` (the publicly exported registry classes), and `i18nProvider` (`@pie-qti/i18n`). Code that passed arbitrary objects to these options will now fail typecheck; pass the documented types instead.
+- Updated dependencies [a4ef12c]
+- Updated dependencies [406c76c]
+- Updated dependencies [fb2b4e2]
+  - @pie-qti/qti-common@1.0.0-beta.4
+  - @pie-qti/ims-cp-core@1.0.0-beta.4
+  - @pie-qti/qti-processing@1.0.0-beta.4
+  - @pie-qti/i18n@1.0.0-beta.4
+
 ## 1.0.0-beta.3
 
 ### Patch Changes

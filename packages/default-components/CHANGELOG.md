@@ -1,5 +1,27 @@
 # @pie-qti/default-components
 
+## 1.0.0-beta.4
+
+### Patch Changes
+
+- b91a4a3: Narrow the published surface and expose the shared global stylesheet:
+  
+  - The deep wildcard exports `./plugins/*/index`, `./shared/utils/*`, `./shared/actions/*`, and `./shared/extensions/*` are removed. They had no consumers in the workspace and permanently froze internal file layout; import from the `.` or `./plugins` / `./shared` entries instead.
+  - The global light-DOM stylesheet that the build already emitted (shared `.sr-only` classes plus the KaTeX stylesheet/fonts used by the rich-text editor) was previously shipped in `dist/assets/` but reachable by no export. It is now published as a stable `@pie-qti/default-components/shared.css` entry (`"style"` condition) and documented in STYLING.md: import it only when hosting light-DOM shared components.
+- 15ef671: Align declared dependencies with what shipped code actually imports, enforced by a new `check:dist-dependencies` gate (added to `verify:publish:quick` and `lint:all`):
+  
+  - `@pie-qti/player-elements` now declares `@pie-qti/default-components`, `@pie-qti/i18n`, and `@pie-qti/section-player` as real dependencies: shipped declarations import their types, so consumer typechecks no longer depend on hoisted installs.
+  - `@pie-qti/transform-core` no longer installs `@pie-qti/test-utils` (and transitively `@pie-qti/storage`) at runtime; the same cleanup moves build-only `@pie-qti/transform-core` out of `@pie-qti/to-pie` / `@pie-qti/pie-to-qti2` runtime dependencies, drops unused `@tiptap/*` runtime entries from `@pie-qti/default-components` (bundled into its bundle, now devDependencies), and removes never-imported dependencies from `@pie-qti/assessment-player`, `@pie-qti/assessment-toolkit`, `@pie-qti/test-utils`, and `@pie-qti/section-player` (the two `@pie-players` packages that were only ever resolved transitively).
+- a4ef12c: Move the feedback-text utilities (`cleanFeedbackText`, `processFeedbackInline`, `DEFAULT_FEEDBACK_TRANSFORMS`, `DEFAULT_FEEDBACK_OUTCOME_ID`, `FeedbackTransform`, `ProcessFeedbackInlineOptions`) to `@pie-qti/qti-common`, which already owns the feedback visibility rule they build on (`isShownByIdentifier`). The `@pie-qti/item-player/components/utils` subpath export is removed — it existed only to expose these two functions to a single internal consumer. Import the functions from `@pie-qti/item-player`'s or `@pie-qti/qti-common`'s main entry instead.
+- 25ae481: Guard all custom-element registrations emitted in shipped bundles. Importing `@pie-qti/default-components/plugins` directly, or via `@pie-qti/player-elements/register`, no longer throws `InvalidStateError` when the elements are already registered — loading several of these entry points together, or loading the same one twice, is now safe. Builds additionally run a new post-build guard step, and `check:ce-define-safety` now also validates shipped `dist` bundles, not only source.
+- Updated dependencies [a4ef12c]
+- Updated dependencies [bc58949]
+- Updated dependencies [406c76c]
+- Updated dependencies [29210b4]
+  - @pie-qti/item-player@1.0.0-beta.4
+  - @pie-qti/qti-common@1.0.0-beta.4
+  - @pie-qti/i18n@1.0.0-beta.4
+
 ## 1.0.0-beta.3
 
 ### Patch Changes

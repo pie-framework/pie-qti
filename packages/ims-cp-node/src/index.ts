@@ -10,7 +10,7 @@
  */
 
 import { createWriteStream, existsSync } from 'node:fs';
-import { exceedsCompressionRatio, hasUnsafeEncodedPathToken, isPackageRelativeHref, resolveLimit } from '@pie-qti/ims-cp-core';
+import { exceedsCompressionRatio, hasUnsafeEncodedPathToken, isPackageRelativeHref, resolveArchiveLimit } from '@pie-qti/ims-cp-core';
 import { lstat, mkdir, mkdtemp, readdir, readFile, realpath, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -168,23 +168,23 @@ async function assertNoSymlinkEscape(rootDir: string, candidatePath: string): Pr
 
 function resolveArchiveLimits(options: ArchiveExtractionLimits): ResolvedArchiveLimits {
   return {
-    maxCompressedSize: resolveLimit(
+    maxCompressedSize: resolveArchiveLimit(
       options.maxCompressedSize,
       DEFAULT_ARCHIVE_LIMITS.maxCompressedSize,
       'maxCompressedSize',
     ),
-    maxTotalUncompressedSize: resolveLimit(
+    maxTotalUncompressedSize: resolveArchiveLimit(
       options.maxTotalUncompressedSize,
       DEFAULT_ARCHIVE_LIMITS.maxTotalUncompressedSize,
       'maxTotalUncompressedSize',
     ),
-    maxEntries: resolveLimit(
+    maxEntries: resolveArchiveLimit(
       options.maxEntries,
       DEFAULT_ARCHIVE_LIMITS.maxEntries,
       'maxEntries',
       true,
     ),
-    maxCompressionRatio: resolveLimit(
+    maxCompressionRatio: resolveArchiveLimit(
       options.maxCompressionRatio,
       DEFAULT_ARCHIVE_LIMITS.maxCompressionRatio,
       'maxCompressionRatio',

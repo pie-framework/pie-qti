@@ -5,11 +5,7 @@
 import JSZip from 'jszip';
 import { parseManifest } from '@pie-qti/ims-cp-core/manifest-parser';
 import type { ParsedManifest } from '@pie-qti/ims-cp-core/manifest-parser';
-import {
-	exceedsCompressionRatio,
-	resolveCheckedPackagePath,
-	resolveLimit,
-} from '@pie-qti/ims-cp-core';
+import { DEFAULT_ARCHIVE_EXTRACTION_LIMITS, exceedsCompressionRatio, resolveArchiveLimit, resolveCheckedPackagePath } from '@pie-qti/ims-cp-core';
 import { toPosixPath, dirname } from './path-utils.js';
 import type { VirtualFile, ExtractOptions } from './types.js';
 
@@ -28,22 +24,27 @@ export async function extractPackage(
 	file: File,
 	options: ExtractOptions = {},
 ): Promise<{ files: Map<string, VirtualFile>; manifestXml: string; manifestPath: string }> {
-	const maxFileSize = resolveLimit(options.maxFileSize, 50 * 1024 * 1024, 'maxFileSize');
-	const maxCompressedSize = resolveLimit(
+	const maxFileSize = resolveArchiveLimit(options.maxFileSize, 50 * 1024 * 1024, 'maxFileSize');
+	const maxCompressedSize = resolveArchiveLimit(
 		options.maxCompressedSize,
-		100 * 1024 * 1024,
+		DEFAULT_ARCHIVE_EXTRACTION_LIMITS.maxCompressedSize,
 		'maxCompressedSize',
 	);
-	const maxTotalUncompressedSize = resolveLimit(
+	const maxTotalUncompressedSize = resolveArchiveLimit(
 		options.maxTotalUncompressedSize,
-		250 * 1024 * 1024,
+		DEFAULT_ARCHIVE_EXTRACTION_LIMITS.maxTotalUncompressedSize,
 		'maxTotalUncompressedSize',
 	);
-	const maxEntries = resolveLimit(options.maxEntries, 1000, 'maxEntries', true);
-	const maxFiles = resolveLimit(options.maxFiles, 1000, 'maxFiles', true);
-	const maxCompressionRatio = resolveLimit(
+	const maxEntries = resolveArchiveLimit(
+		options.maxEntries,
+		DEFAULT_ARCHIVE_EXTRACTION_LIMITS.maxEntries,
+		'maxEntries',
+		true,
+	);
+	const maxFiles = resolveArchiveLimit(options.maxFiles, 1000, 'maxFiles', true);
+	const maxCompressionRatio = resolveArchiveLimit(
 		options.maxCompressionRatio,
-		200,
+		DEFAULT_ARCHIVE_EXTRACTION_LIMITS.maxCompressionRatio,
 		'maxCompressionRatio',
 	);
 	const compressedInputSize = getInputSize(file);
@@ -182,6 +183,7 @@ function getInputSize(input: unknown): number | null {
 	return null;
 }
 
+
 function getZipEntrySizes(zipEntry: JSZip.JSZipObject): {
 	compressed: number | null;
 	uncompressed: number | null;
@@ -194,6 +196,7 @@ function getZipEntrySizes(zipEntry: JSZip.JSZipObject): {
 		uncompressed: typeof data?.uncompressedSize === 'number' ? data.uncompressedSize : null,
 	};
 }
+
 
 /**
  * Find imsmanifest.xml in the extracted files

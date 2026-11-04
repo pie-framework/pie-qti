@@ -346,7 +346,13 @@ export interface QtiSectionRuntimeHost {
 
 export interface QtiAssessmentPlayerConfig {
 	role?: QtiRole;
-	/** Seeds selection and ordering when the element runs its built-in reference backend. */
+	/**
+	 * Seeds selection and ordering when the element runs its built-in reference
+	 * backend (reference/preview mode). Ignored in authoritative-backend
+	 * delivery: there the backend draws selection and ordering at session
+	 * start. This mirrors the deprecated, ignored `rng` on the headless
+	 * assessment-player config.
+	 */
 	rng?: () => number;
 	plugins?: readonly QtiAssessmentItemDefinitionPlugin[];
 	i18nProvider?: QtiI18nProvider;

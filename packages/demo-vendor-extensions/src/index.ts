@@ -19,11 +19,13 @@ import { AcmeAssetResolver } from './acme-asset-resolver.js';
 import { AcmeCssClassExtractor } from './acme-css-extractor.js';
 import { AcmeMetadataExtractor } from './acme-metadata-extractor.js';
 
-export { AcmeVendorDetector };
-export { AcmeSliderTransformer };
-export { AcmeAssetResolver };
-export { AcmeCssClassExtractor };
-export { AcmeMetadataExtractor };
+export {
+	AcmeVendorDetector,
+	AcmeSliderTransformer,
+	AcmeAssetResolver,
+	AcmeCssClassExtractor,
+	AcmeMetadataExtractor,
+};
 
 /**
  * Convenience function to create all Acme vendor extensions

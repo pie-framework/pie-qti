@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/ims-cp-core",
-  "version": "1.0.0-beta.3",
+  "version": "1.0.0-beta.4",
   "description": "Core IMS Content Package manifest parsing utilities (browser + Node.js)",
   "type": "module",
   "main": "./dist/index.js",
@@ -33,6 +33,10 @@
     "./qti3-shared-content": {
       "types": "./dist/qti3-shared-content.d.ts",
       "import": "./dist/qti3-shared-content.js"
+    },
+    "./archive-limits": {
+      "types": "./dist/archive/limits.d.ts",
+      "import": "./dist/archive/limits.js"
     }
   },
   "dependencies": {
