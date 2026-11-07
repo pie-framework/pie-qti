@@ -21,7 +21,25 @@ export type DaisyThemeTokens = {
 	warningContent?: string;
 	error?: string;
 	errorContent?: string;
+	/** DaisyUI `--radius-box` (cards, alerts, modals). */
+	radiusBox?: string;
+	/** DaisyUI `--radius-field` (buttons, inputs, selects). */
+	radiusField?: string;
 };
+
+/**
+ * Message/state text and control-boundary tokens. These are intentionally not
+ * derived from DaisyUI's fill colours, which fail 4.5:1 as text; they keep the
+ * `@pie-qti/theme` defaults and pick the light or dark value from the
+ * `color-scheme` every DaisyUI theme declares. Kept identical to bridge.css.
+ */
+const DAISY_ACCESSIBLE_TEXT_VARIABLES = {
+	'--pie-qti-error-text': 'light-dark(#b91c1c, #f87171)',
+	'--pie-qti-warning-text': 'light-dark(#92400e, #fbbf24)',
+	'--pie-qti-success-text': 'light-dark(#15803d, #4ade80)',
+	'--pie-qti-info-text': 'light-dark(#1d4ed8, #60a5fa)',
+	'--pie-qti-border-strong': 'light-dark(#767676, #9ca3af)',
+} as const satisfies QtiThemeVariables;
 
 function normalize(value: string | null | undefined): string | undefined {
 	const trimmed = value?.trim();
@@ -61,6 +79,9 @@ export function mapDaisyThemeToQtiVariables(tokens: DaisyThemeTokens): QtiThemeV
 		'--pie-qti-error': tokens.error ?? 'var(--color-error)',
 		'--pie-qti-error-content': tokens.errorContent ?? 'var(--color-error-content)',
 		'--pie-qti-focus': tokens.primary ?? 'var(--color-primary)',
+		...DAISY_ACCESSIBLE_TEXT_VARIABLES,
+		'--pie-qti-radius': tokens.radiusBox ?? 'var(--radius-box, 0.5rem)',
+		'--pie-qti-radius-sm': tokens.radiusField ?? 'var(--radius-field, 0.25rem)',
 	});
 }
 
@@ -87,6 +108,8 @@ export function readDaisyThemeTokensFromElement(element: HTMLElement): DaisyThem
 		warningContent: normalize(computed.getPropertyValue('--color-warning-content')),
 		error: normalize(computed.getPropertyValue('--color-error')),
 		errorContent: normalize(computed.getPropertyValue('--color-error-content')),
+		radiusBox: normalize(computed.getPropertyValue('--radius-box')),
+		radiusField: normalize(computed.getPropertyValue('--radius-field')),
 	};
 
 	return tokens.base100 || tokens.primary || tokens.baseContent ? tokens : null;
@@ -117,6 +140,8 @@ export function mapResolvedDaisyThemeToQtiVariables(
 		'--pie-qti-error': tokens.error,
 		'--pie-qti-error-content': tokens.errorContent,
 		'--pie-qti-focus': tokens.primary,
+		'--pie-qti-radius': tokens.radiusBox,
+		'--pie-qti-radius-sm': tokens.radiusField,
 	});
 }
 

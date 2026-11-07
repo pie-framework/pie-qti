@@ -23,4 +23,24 @@
 	--pie-qti-error: var(--color-error);
 	--pie-qti-error-content: var(--color-error-content);
 	--pie-qti-focus: var(--color-primary);
+
+	/*
+	 * Message/state TEXT is deliberately NOT mapped to DaisyUI's
+	 * info/success/warning/error colours: those are fills, and as text on
+	 * white they reach only 1.8:1 to 2.9:1 in the DaisyUI light theme.
+	 * The bridge keeps the @pie-qti/theme defaults instead and
+	 * selects the light or dark value from the color-scheme that every DaisyUI
+	 * theme declares.
+	 */
+	--pie-qti-error-text: light-dark(#b91c1c, #f87171);
+	--pie-qti-warning-text: light-dark(#92400e, #fbbf24);
+	--pie-qti-success-text: light-dark(#15803d, #4ade80);
+	--pie-qti-info-text: light-dark(#1d4ed8, #60a5fa);
+
+	/* Control boundaries and non-text cues: >= 3:1 on base-100/base-200. */
+	--pie-qti-border-strong: light-dark(#767676, #9ca3af);
+
+	/* Shape tokens follow DaisyUI's radius scale: boxes and fields. */
+	--pie-qti-radius: var(--radius-box, 0.5rem);
+	--pie-qti-radius-sm: var(--radius-field, 0.25rem);
 }
