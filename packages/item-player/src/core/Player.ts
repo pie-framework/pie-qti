@@ -12,10 +12,12 @@ import {
 	durationSecondsFromMilliseconds,
 	evalExpr,
 	execProgram,
+	findAssessmentItem,
 	findDescendants,
 	findFirstDescendant,
 	getAttr,
 	OperatorRegistry,
+	parseXml,
 	type ProcessingProgram,
 	type QtiValue,
 	qtiNull,
@@ -76,6 +78,11 @@ import type { ResponseValidationResult } from '../types/responseValidation.js';
 import type { ComponentRegistry } from './ComponentRegistry.js';
 import { createComponentRegistry } from './ComponentRegistry.js';
 import { collectItemDiagnostics, type QtiItemDiagnostic, reportItemDiagnostics } from './compliance.js';
+import {
+	findMatchGroupViolations,
+	type MatchGroupConstraints,
+	readMatchGroupConstraints,
+} from './matchGroups.js';
 import { createSeededRng } from './random.js';
 import {
 	resolveResponseProcessingTemplate,
@@ -126,6 +133,7 @@ interface PreparedPlayerDefinition {
 	readonly catalogIndex: CatalogIndex;
 	readonly stimulusCatalogIndexes: Map<string, CatalogIndex>;
 	readonly diagnostics: readonly QtiItemDiagnostic[];
+	readonly matchGroupConstraints: ReadonlyMap<string, MatchGroupConstraints>;
 }
 
 interface PlayerConstructionOptions {
@@ -188,6 +196,8 @@ export class Player {
 	private sessionGuid: string;
 	private lifecycleStatus: ItemLifecycleStatus = 'initial';
 	private diagnostics: readonly QtiItemDiagnostic[] = [];
+	/** matchGroup constraints of the item's pairing interactions, by response identifier. */
+	private matchGroupConstraints: ReadonlyMap<string, MatchGroupConstraints> = new Map();
 	private sessionStartedAt: number;
 	private accumulatedDurationMs = 0;
 	/** Time on task at the last duration update, in milliseconds. */
@@ -369,9 +379,16 @@ export class Player {
 			this._catalogIndex = mergeCatalogs(mergedCatalog, deliveryItemCatalog);
 		}
 
-		// Compliance findings: reported (or rejected, in strict mode) once, when the item compiles.
-		this.diagnostics =
-			prepared?.diagnostics ?? this.compileDiagnostics(config.itemXml ?? '', versionDetection ?? undefined);
+		// Checks that read the item as authored, before the content pass: matchGroup constraints, and
+		// compliance findings, reported (or rejected, in strict mode) once, when the item compiles.
+		if (prepared) {
+			this.matchGroupConstraints = prepared.matchGroupConstraints;
+			this.diagnostics = prepared.diagnostics;
+		} else {
+			const sourceItem = findAssessmentItem(parseXml(config.itemXml ?? ''));
+			this.matchGroupConstraints = readMatchGroupConstraints(sourceItem, this.mapper);
+			this.diagnostics = this.compileDiagnostics(config.itemXml ?? '', sourceItem, versionDetection ?? undefined);
+		}
 	}
 
 	/** @internal Definition compiler capture; parser artifacts remain module-private. */
@@ -393,6 +410,7 @@ export class Player {
 			catalogIndex: this._catalogIndex,
 			stimulusCatalogIndexes: this._stimulusCatalogIndexes,
 			diagnostics: this.diagnostics,
+			matchGroupConstraints: this.matchGroupConstraints,
 		});
 	}
 
@@ -796,12 +814,17 @@ export class Player {
 	 * warnings otherwise. Strict mode with `rejectUnknownExtensions` throws a `QtiComplianceError`
 	 * on any finding; otherwise they are logged unless `logDeviations` is false.
 	 */
-	private compileDiagnostics(sourceXml: string, versionDetection?: QtiVersionDetection): readonly QtiItemDiagnostic[] {
+	private compileDiagnostics(
+		sourceXml: string,
+		sourceItem: Element,
+		versionDetection?: QtiVersionDetection,
+	): readonly QtiItemDiagnostic[] {
 		const compliance = this.config.strictQtiCompliance;
 		const strict = compliance?.enabled === true;
 		const diagnostics = Object.freeze(
 			collectItemDiagnostics({
 				itemXml: sourceXml,
+				item: sourceItem,
 				versionDetection,
 				elementNameMapper: this.mapper,
 				extractionRegistry: this.extractionRegistry,
@@ -1251,6 +1274,16 @@ export class Player {
 			) {
 				errors.push(`Response '${responseId}' exceeds maxStrings=${i.maxStrings}`);
 			}
+			const shapeErrorCount = errors.length;
+
+			// matchGroup restricts which choices may pair. The renderers enforce it while the
+			// candidate works; a restored or programmatic response is checked here.
+			const matchGroups = this.matchGroupConstraints.get(responseId);
+			if (matchGroups) {
+				for (const pair of findMatchGroupViolations(value, matchGroups)) {
+					errors.push(`Response '${responseId}' pairs ${pair.replace(' ', ' with ')}, which matchGroup does not allow`);
+				}
+			}
 
 			const valid = errors.length === 0;
 			entries[responseId] = {
@@ -1263,14 +1296,14 @@ export class Player {
 				warnings,
 			};
 
-			for (const e of errors) {
+			errors.forEach((e, index) => {
 				issues.push({
 					responseId,
-					code: 'invalid_shape',
+					code: index < shapeErrorCount ? 'invalid_shape' : 'match_group',
 					message: e,
 					severity: 'error',
 				});
-			}
+			});
 		}
 
 		const allValid = Object.values(entries).every((e) => e.valid);

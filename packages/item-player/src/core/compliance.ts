@@ -63,6 +63,8 @@ export class QtiComplianceError extends Error {
 export interface CollectItemDiagnosticsInput {
 	/** The item XML as authored. */
 	readonly itemXml: string;
+	/** `itemXml`'s assessment item element, when the caller has already parsed it. */
+	readonly item?: Element;
 	/** The item's version detection, when the caller already has it. */
 	readonly versionDetection?: QtiVersionDetection;
 	/** The mapper the player resolves the item's element names with. */
@@ -98,7 +100,7 @@ export function collectItemDiagnostics(input: CollectItemDiagnosticsInput): QtiI
 		});
 	}
 
-	const item = findAssessmentItem(parseXml(input.itemXml));
+	const item = input.item ?? findAssessmentItem(parseXml(input.itemXml));
 	const vocabulary: QtiVocabularyVersion = input.elementNameMapper.version === '3.0' ? '3.0' : '2.x';
 	findings.push(...unknownElementFindings(item, vocabulary));
 
