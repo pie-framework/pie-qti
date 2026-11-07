@@ -23,7 +23,7 @@ The fixture list is defined in `src/lib/a11y/fixtures.ts` and includes item-play
 ## Running Tests
 
 ```bash
-# Run all accessibility tests
+# Run all accessibility tests (Chromium)
 bun run test:a11y
 
 # Run with UI mode (interactive debugging)
@@ -32,9 +32,19 @@ bun run test:a11y:ui
 # Run in headed mode (see browser)
 bun run test:e2e:headed
 
-# Run all E2E tests
+# Run all E2E tests (Chromium)
 bun run test:e2e
+
+# Run the @cross-browser subset on WebKit and Firefox
+# (once: bunx playwright install webkit firefox)
+bun run test:e2e:cross-browser
 ```
+
+Behavior regressions that axe cannot see (identifier leaks in accessible names, image
+alternatives, state-dependent contrast, focus visibility, modal mechanics) live in
+`playwright/a11y-regression.pw.ts`. What each suite covers, which tests run on WebKit and
+Firefox, and what still needs manual screen-reader testing is documented in
+[docs/development/accessibility-testing.md](../../../docs/development/accessibility-testing.md).
 
 ## Test Design Philosophy
 
