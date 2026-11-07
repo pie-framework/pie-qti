@@ -20,6 +20,13 @@
 		/** Open or close the review screen. */
 		reviewOpen?: boolean;
 		onToggleReview?: () => void;
+		/**
+		 * Show the Submit control regardless of the item position — set when an expired
+		 * time limit left no reachable item, so the candidate can always finish the test.
+		 */
+		showSubmit?: boolean;
+		/** Blocks interaction and focus while a proctor pause holds the assessment. */
+		inert?: boolean;
 	}
 
 	const {
@@ -35,12 +42,17 @@
 		showReview = false,
 		reviewOpen = false,
 		onToggleReview,
+		showSubmit = false,
+		inert = false,
 	}: Props = $props();
 
 	const progressPercentage = $derived(
 		navState.totalItems > 0 ? ((navState.currentIndex + 1) / navState.totalItems) * 100 : 0,
 	);
 	const isLastItem = $derived(navState.currentIndex === navState.totalItems - 1);
+	// Submit sits at the row's end on the last item — or whenever the shell demands it
+	// (an expiry dead end), so finishing the test is never out of reach.
+	const showSubmitButton = $derived(isLastItem || showSubmit);
 	// Structural unavailability disables the control; a transition in flight only marks it
 	// unavailable so the activated button keeps focus while the next item loads.
 	const busy = $derived(navState.isLoading);
@@ -108,7 +120,7 @@
 	}
 </script>
 
-<nav class="navigation-bar pie-qti-chrome" aria-label={translations.label} aria-busy={busy}>
+<nav class="navigation-bar pie-qti-chrome" aria-label={translations.label} aria-busy={busy} inert={inert || undefined}>
 	<div class="navigation-buttons">
 		<button
 			type="button"
@@ -206,7 +218,7 @@
 			</button>
 		{/if}
 
-		{#if isLastItem}
+		{#if showSubmitButton}
 			<!--
 				Final submission: a destructive, irreversible action, styled apart from the
 				filled primary Next and routed through the shell's confirmation dialog.

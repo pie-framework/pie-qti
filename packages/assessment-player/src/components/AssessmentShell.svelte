@@ -1,9 +1,11 @@
 <script lang="ts">
 	import { onMount, tick, getContext } from 'svelte';
 	import { DefaultI18nProvider, interfaceLocaleAttributes, type I18nProvider } from '@pie-qti/i18n';
+	import { normalizeQtiSharedContext } from '@pie-qti/assessment-toolkit';
 	import type { QtiSharedHtmlBlock } from '@pie-qti/section-player';
 	import {
 		PlayerBaseStyles,
+		RubricDisplay,
 		SectionPlayerSplitPane,
 		SectionPlayerVertical,
 		TestFeedback as SectionTestFeedback,
@@ -11,6 +13,7 @@
 	import type { BackendAssessmentPlayerConfig } from '../core/AssessmentPlayer.js';
 	import { AssessmentPlayer } from '../core/AssessmentPlayer.js';
 	import { assessmentErrorDisplay, isAssessmentPlayerError } from '../core/errors.js';
+	import { TimeManager } from '../core/TimeManager.js';
 	import type { ReviewGroup } from './ReviewScreen.svelte';
 	import type { BackendAdapter, InitSessionRequest } from '../integration/api-contract.js';
 	import { toSectionComposition } from '../integration/toSectionComposition.js';
@@ -23,6 +26,7 @@
 	import AccessibilityAnnouncer from './AccessibilityAnnouncer.svelte';
 	import AssessmentDialog from './AssessmentDialog.svelte';
 	import AssessmentHeader from './AssessmentHeader.svelte';
+	import AssessmentTimer from './AssessmentTimer.svelte';
 	import NavigationBar from './NavigationBar.svelte';
 	import ReviewScreen from './ReviewScreen.svelte';
 
@@ -49,9 +53,16 @@
 		 * in full-viewport mode.
 		 */
 		headingLevel?: number;
+		/**
+		 * Opt-in begin gate: show an accessible start screen (title, the time the
+		 * candidate has, test instructions) and only start the clocks and delivery
+		 * when the candidate activates Begin. Off by default: delivery starts at
+		 * session creation, as before.
+		 */
+		beginGate?: boolean;
 	}
 
-	const { backend, initSession, config = {}, onSubmit, typeset, fullViewport = false, headingLevel }: Props = $props();
+	const { backend, initSession, config = {}, onSubmit, typeset, fullViewport = false, headingLevel, beginGate = false }: Props = $props();
 
 	// Get i18n from context (set by +layout.svelte)
 	const contextI18nWrapper = getContext<{ value: I18nProvider | null } | undefined>('i18n');
@@ -142,6 +153,30 @@
 	// commits) and the cannot-return warning for leaving a test part.
 	let submitDialogOpen = $state(false);
 	let leavePartDialogOpen = $state(false);
+	// Time administration: countdown state, begin gate, proctor pause, expiry notices.
+	let timerLimited = $state(false);
+	let timerHidden = $state(false);
+	let paused = $state(false);
+	let pauseReason = $state<string | undefined>(undefined);
+	/** The begin gate holds delivery: the core was created without starting it. */
+	let startPending = $state(false);
+	let startHeadingEl = $state<HTMLElement | null>(null);
+	let pauseHeadingEl = $state<HTMLElement | null>(null);
+	/** Where focus was when a pause began; it returns there on resume. */
+	let focusBeforePause: HTMLElement | null = null;
+	/**
+	 * Expiry notices. `scope`: a part/section/question limit expired and delivery moved
+	 * on (acknowledge only). `submit`: the whole test expired (or an expiry dead end
+	 * left no reachable item) — the dialog carries the Submit action so the candidate is
+	 * never stranded, whatever item they are on.
+	 */
+	let expiryDialog = $state<{
+		mode: 'scope' | 'submit';
+		scope: 'assessment' | 'testPart' | 'section' | 'item';
+	} | null>(null);
+	let expiryDialogOpen = $state(false);
+	/** An expiry left no reachable item; Submit must be offered wherever the candidate is. */
+	let submitRequired = $state(false);
 
 	const sectionComposition = $derived.by(() => {
 		responseVersion;
@@ -161,6 +196,32 @@
 	);
 	// The assessmentTest `title`, else a localized generic title — never the identifier.
 	const assessmentTitle = $derived(player?.getAssessmentTitle() ?? i18n.t('assessment.title', 'Assessment'));
+
+	// The begin gate: the start screen holds until the candidate activates Begin.
+	const awaitingBegin = $derived(player !== null && startPending);
+
+	/** The start screen's content: title, the time the candidate has, test instructions. */
+	const startInfo = $derived.by(() => {
+		if (!player) return null;
+		return player.getStartInfo();
+	});
+	const startBlocks = $derived.by(() => {
+		const role = config.role ?? 'candidate';
+		return normalizeQtiSharedContext({ rubricBlocks: startInfo?.rubricBlocks ?? [], role });
+	});
+	const startTimeLine = $derived.by(() => {
+		const seconds = startInfo?.testTimeLimitSeconds;
+		if (seconds === undefined) return null;
+		const minutes = seconds / 60;
+		const format = (value: number, options?: Intl.NumberFormatOptions) =>
+			i18n.formatNumber?.(value, options) ?? String(value);
+		if (Number.isInteger(minutes) && minutes > 0) {
+			return minutes === 1
+				? i18n.t('assessment.start.timeMinutesOne', 'You have 1 minute.')
+				: i18n.t('assessment.start.timeMinutes', 'You have {count} minutes.', { count: minutes });
+		}
+		return i18n.t('assessment.start.timeExact', 'You have {time}.', { time: TimeManager.formatTime(seconds, (value, opts) => format(value, opts)) });
+	});
 
 	// Review data: recomputed when the item, its responses or flags change. The core
 	// helpers are the single source of answered/flag/jump-legality truth.
@@ -221,9 +282,10 @@
 
 	// Initialize player
 	onMount(() => {
-		// Never allow infinite "Loading assessment..." state
+		// Never allow infinite "Loading assessment..." state. Behind a begin gate the
+		// clock only starts once the candidate has begun.
 		initTimeout = setTimeout(() => {
-			if (!hasFirstItem && !error) {
+			if (!hasFirstItem && !error && !startPending) {
 				error = { message: i18n.t('assessment.loadingError'), supportCode: null };
 				announcer?.announce(error.message, 3000, 'assertive');
 			}
@@ -236,11 +298,15 @@
 			allowSectionNavigation: config.allowSectionNavigation !== false,
 			showProgress: config.showProgress !== false,
 			...config,
+			// The shell prop and the core option open the same gate.
+			beginGate: beginGate || config.beginGate === true,
 			i18nProvider: playerI18n,
 		};
 
 		(async () => {
-			player = await AssessmentPlayer.create(playerConfig);
+			const created = await AssessmentPlayer.create(playerConfig);
+			startPending = !created.hasStarted();
+			player = created;
 
 			// Get sections
 			sections = player.getAllSections();
@@ -282,23 +348,93 @@
 				stateVersion += 1;
 			});
 
-			// Terminal branching (QTI EXIT_TEST) finalizes the core like a normal submit;
-			// the shell shows the same completed state without a submit call.
+			// Terminal branching (QTI EXIT_TEST) and the whole-test time expiry finalize the
+			// core like a normal submit; the shell shows the same completed state.
 			player.onComplete(() => {
 				isComplete = true;
+				submitRequired = false;
 				sections = player?.getAllSections() ?? [];
 				updateState();
 			});
 
-			// If backend did not restore a current item, start at index 0.
-			if (player.getNavigationState().currentIndex < 0) {
+			// A hard time limit ran out: the core auto-finalizes a whole-test expiry; a
+			// scope dead end leaves the candidate to submit from wherever they are.
+			player.onTimeExpired((event) => {
+				updateState();
+				if (event.autoFinalized) {
+					// The completed view arrives through onComplete; say why it happened, and
+					// hand the results to the host like a Submit (submit() returns them now).
+					announcer?.announce(i18n.t('assessment.timeExpiry.autoSubmitted'), 4000, 'assertive');
+					submitDialogOpen = false;
+					leavePartDialogOpen = false;
+					expiryDialogOpen = false;
+					expiryDialog = null;
+					reviewOpen = false;
+					void player
+						?.submit()
+						.then((results) => {
+							if (results) onSubmit?.(results);
+						})
+						.catch(() => {});
+					return;
+				}
+				if (event.submissionRequired) {
+					submitRequired = true;
+					expiryDialog = { mode: 'submit', scope: event.scope };
+					expiryDialogOpen = true;
+				}
+			});
+
+			// A part, section or question limit expired: its items closed and delivery
+			// moved on (or hit the dead end handled above).
+			player.onScopeTimeExpired((event) => {
+				updateState();
+				if (!event.deliveryContinues) return;
+				expiryDialog = { mode: 'scope', scope: event.scope };
+				expiryDialogOpen = true;
+			});
+
+			// A proctor pause freezes the clocks and blocks the shell; the overlay says so.
+			player.onPauseChange((isPaused, reason) => {
+				const wasPaused = paused;
+				paused = isPaused;
+				pauseReason = reason;
+				if (isPaused) {
+					if (!wasPaused) {
+						const active = document.activeElement;
+						focusBeforePause = active instanceof HTMLElement && active !== document.body ? active : null;
+					}
+					const message = reason
+						? i18n.t('assessment.pause.withReason', 'The assessment is paused: {reason}', { reason })
+						: i18n.t('assessment.pause.announcement', 'The assessment is paused.');
+					announcer?.announce(message, 4000, 'assertive');
+					void tick().then(() => pauseHeadingEl?.focus());
+				} else {
+					announcer?.announce(i18n.t('assessment.pause.resumed', 'The assessment is running again.'), 3000, 'assertive');
+					// Focus returns where it was, or to the question when that element is gone.
+					const target = focusBeforePause;
+					focusBeforePause = null;
+					void tick().then(async () => {
+						updateState();
+						await tick();
+						if (target?.isConnected && !target.closest('[inert]')) target.focus();
+						else await manageFocusAfterNavigation();
+					});
+				}
+			});
+
+			// If backend did not restore a current item, start at index 0 — unless the
+			// begin gate holds, in which case start() enters it.
+			if (!startPending && player.getNavigationState().currentIndex < 0) {
 				await player.navigateTo(0);
 			} else {
 				updateState();
-				hasFirstItem = true;
-				if (initTimeout) {
-					clearTimeout(initTimeout);
-					initTimeout = null;
+				if (!startPending) {
+					hasFirstItem = true;
+					if (initTimeout) {
+						clearTimeout(initTimeout);
+						initTimeout = null;
+					}
 				}
 			}
 		})().catch((err) => {
@@ -318,6 +454,13 @@
 		};
 	});
 
+	$effect(() => {
+		// The start screen lands focus on its heading, like a dialog.
+		if (awaitingBegin) {
+			void tick().then(() => startHeadingEl?.focus());
+		}
+	});
+
 	function updateState() {
 		if (!player) return;
 
@@ -326,6 +469,8 @@
 		currentRubricBlocks = player.getCurrentRubricBlocks();
 		currentResponses = player.getResponses();
 		testFeedback = player.getVisibleFeedback();
+		timerLimited = player.getTimeState().limited;
+		timerHidden = player.isTimerHidden();
 		stateVersion += 1;
 	}
 
@@ -425,6 +570,8 @@
 	 * Manage focus after navigation so screen reader users are aware of the content change.
 	 */
 	async function manageFocusAfterNavigation() {
+		// A pause holds focus on its overlay; the inert content cannot take it.
+		if (paused) return;
 		await focusQuestion();
 	}
 
@@ -481,6 +628,60 @@
 			? i18n.t('assessment.flag.flaggedAnnouncement', { number: navState.currentIndex + 1 })
 			: i18n.t('assessment.flag.unflaggedAnnouncement', { number: navState.currentIndex + 1 });
 		announcer?.announce(message, 1500);
+	}
+
+	// ---------------------------------------------------------------------------
+	// Time administration: begin gate, timer visibility, expiry notices
+	// ---------------------------------------------------------------------------
+
+	/** The core enters the first item asynchronously; wait for it like the shell's boot. */
+	async function waitForFirstItem(timeoutMs = 5000): Promise<boolean> {
+		const deadline = Date.now() + timeoutMs;
+		while (Date.now() < deadline) {
+			if ((player?.getNavigationState().currentIndex ?? -1) >= 0) return true;
+			await new Promise((resolve) => setTimeout(resolve, 25));
+		}
+		return false;
+	}
+
+	/**
+	 * Open the begin gate: start the clocks and enter the first item, then focus and
+	 * announce it like a navigation. Also the imperative `start()` export.
+	 */
+	async function handleBegin() {
+		if (!player || !startPending || isComplete) return;
+		startPending = false;
+		player.start();
+		await waitForFirstItem();
+		updateState();
+		await manageFocusAfterNavigation();
+		announceCurrentQuestion();
+	}
+
+	/** The candidate's hide/show choice rides the session state, like flags. */
+	function handleToggleTimerHidden(hidden: boolean) {
+		if (!player) return;
+		player.setTimerHidden(hidden);
+		timerHidden = hidden;
+	}
+
+	async function handleExpiryConfirm() {
+		const mode = expiryDialog?.mode;
+		expiryDialogOpen = false;
+		if (mode === 'submit') {
+			// The dialog carries the Submit action: an expired test ends here (or shows
+			// the retry alert when the backend refused).
+			await performSubmit();
+			return;
+		}
+		// Delivery already moved on: focus and announce the new question like a navigation.
+		await manageFocusAfterNavigation();
+		announceCurrentQuestion();
+	}
+
+	function handleExpiryClose() {
+		expiryDialog = null;
+		expiryDialogOpen = false;
 	}
 
 	// ---------------------------------------------------------------------------
@@ -629,6 +830,26 @@
 		return player?.submit();
 	}
 
+	/** Open the begin gate (showing the start screen) and start delivery and the clocks. */
+	export function start() {
+		return handleBegin();
+	}
+
+	/** Whether delivery has begun (false while a begin gate holds the start screen). */
+	export function hasStarted() {
+		return player?.hasStarted() ?? false;
+	}
+
+	/** Proctor pause: freeze every clock and block the shell until `resume()`. */
+	export function pause(reason?: string) {
+		player?.pause(reason);
+	}
+
+	/** End a proctor pause; the clocks continue where they froze. */
+	export function resume() {
+		player?.resume();
+	}
+
 	export function updateResponse(responseId: string, value: unknown) {
 		return player?.updateResponse(responseId, value);
 	}
@@ -679,6 +900,65 @@
 			</p>
 		</div>
 	</div>
+{:else if awaitingBegin}
+	<!--
+		Begin gate: delivery and the clocks hold until the candidate begins. The screen
+		names the assessment, states the time it allows, and shows the test's own
+		instructions; Begin lands focus on the first question like a navigation.
+	-->
+	<svelte:element
+		this={fullViewport ? 'main' : 'section'}
+		class="assessment-start pie-qti-chrome"
+		class:full-viewport={fullViewport}
+		lang={interfaceAttributes?.lang}
+		dir={interfaceAttributes?.dir}
+		aria-labelledby={titleId}
+		data-testid="assessment-start"
+	>
+		<div class="assessment-start-card">
+			<svelte:element
+				this={`h${titleHeadingLevel}`}
+				bind:this={startHeadingEl}
+				id={titleId}
+				class="assessment-start-title"
+				tabindex="-1"
+			>
+				{assessmentTitle}
+			</svelte:element>
+			{#if startTimeLine}
+				<p class="assessment-start-time" data-testid="assessment-start-time">{startTimeLine}</p>
+			{/if}
+			{#if startInfo?.hasScopedTimeLimits}
+				<p class="assessment-start-note">
+					{i18n.t('assessment.start.scopedTimeLimits', 'Some parts of this test have their own time limits.')}
+				</p>
+			{/if}
+			{#if startBlocks.rubricBlocks.length > 0}
+				<!-- The first test part's candidate instructions, role-filtered like in delivery. -->
+				<div class="assessment-start-section">
+					<RubricDisplay
+						rubricBlocks={startBlocks.rubricBlocks}
+						role={sectionRole}
+						{i18n}
+						security={config.security}
+						host={config.sectionHost}
+						{typeset}
+						headingLevel={titleHeadingLevel + 1}
+					/>
+				</div>
+			{/if}
+			<button
+				type="button"
+				class="assessment-start-button"
+				data-testid="assessment-begin"
+				onclick={() => void handleBegin()}
+			>
+				{startInfo?.resuming
+					? i18n.t('assessment.start.resume', 'Continue')
+					: i18n.t('assessment.start.begin', 'Begin')}
+			</button>
+		</div>
+	</svelte:element>
 {:else if !player || navState.currentIndex < 0}
 	<div class="assessment-loading pie-qti-chrome" lang={interfaceAttributes?.lang} dir={interfaceAttributes?.dir}>
 		<div class="assessment-loading-status" role="status" aria-live="polite">
@@ -704,7 +984,7 @@
 			{i18n.t('assessment.skipToQuestion', 'Skip to question')}
 		</a>
 
-		<!-- Header with title and section menu (legal navigation targets only) -->
+		<!-- Header with title, countdown timer and section menu (legal navigation targets only) -->
 		<AssessmentHeader
 			title={assessmentTitle}
 			{titleId}
@@ -713,9 +993,21 @@
 			currentSectionIndex={navState.currentSection?.index}
 			showSections={config.showSections}
 			allowSectionNavigation={!isSubmitting && !isComplete && config.allowSectionNavigation !== false}
+			inert={paused}
 			{i18n}
 			onSectionSelect={handleSectionSelect}
-		/>
+		>
+			{#snippet actions()}
+				{#if timerLimited && player && !isComplete}
+					<AssessmentTimer
+						{player}
+						{i18n}
+						hidden={timerHidden}
+						onToggleHidden={handleToggleTimerHidden}
+					/>
+				{/if}
+			{/snippet}
+		</AssessmentHeader>
 
 		<!-- Test feedback: `during` once outcomes exist, `atEnd` once its test or test part has ended -->
 		{#if testFeedback.length > 0}
@@ -769,6 +1061,7 @@
 			tabindex="-1"
 			role={fullViewport ? undefined : 'region'}
 			aria-label={i18n?.t('accessibility.itemBody') ?? 'Question content'}
+			inert={paused || undefined}
 		>
 			{#if reviewOpen && reviewData}
 				<ReviewScreen
@@ -843,6 +1136,8 @@
 				showReview={!isComplete && reviewData !== null}
 				{reviewOpen}
 				onToggleReview={toggleReview}
+				showSubmit={submitRequired && !isComplete}
+				inert={paused}
 			/>
 		{/if}
 
@@ -945,6 +1240,59 @@
 			{i18n}
 			onConfirm={handleLeavePartConfirm}
 		/>
+
+		<!--
+			Time expiry notices. Scope expiry: acknowledge the move to the next question.
+			Dead end / whole-test expiry that could not auto-finalize: the dialog carries
+			the Submit action so the candidate can finish wherever they are.
+		-->
+		{#if expiryDialog}
+			{@const scopeTitle = expiryDialog.scope === 'testPart'
+				? i18n.t('assessment.timeExpiry.partTitle', 'The time for this part is over')
+				: expiryDialog.scope === 'section'
+					? i18n.t('assessment.timeExpiry.sectionTitle', 'The time for this section is over')
+					: expiryDialog.scope === 'item'
+						? i18n.t('assessment.timeExpiry.questionTitle', 'The time for this question is over')
+						: i18n.t('assessment.timeExpiry.submitTitle', 'The time for this test is over')}
+			<AssessmentDialog
+				bind:open={expiryDialogOpen}
+				title={scopeTitle}
+				description={
+					expiryDialog.mode === 'submit'
+						? i18n.t('assessment.timeExpiry.submitDescription', 'You can no longer change your answers. Submit your test to finish.')
+						: expiryDialog.scope === 'item'
+							? i18n.t('assessment.timeExpiry.questionDescription', 'You are moving on to the next question.')
+							: i18n.t('assessment.timeExpiry.scopeDescription', 'You are moving on to the next part of the test.')
+				}
+				confirmLabel={
+					expiryDialog.mode === 'submit'
+						? i18n.t('assessment.navigation.submit', 'Submit')
+						: i18n.t('assessment.timeExpiry.continue', 'Continue')
+				}
+				tone={expiryDialog.mode === 'submit' ? 'danger' : 'primary'}
+				// Escape may dismiss either notice; a dismissed submit notice leaves the
+				// Submit control in the navigation bar, so the candidate is never stuck.
+				showCancel={expiryDialog.mode !== 'submit'}
+				busy={isSubmitting}
+				{i18n}
+				onConfirm={handleExpiryConfirm}
+				onClose={handleExpiryClose}
+			/>
+		{/if}
+
+		<!-- Proctor pause: an overlay replaces the blocked shell, naming the reason. -->
+		{#if paused}
+			<div class="pause-overlay" data-testid="assessment-pause-overlay">
+				<div class="pause-card" role="status" aria-live="assertive">
+					<h3 class="pause-title" tabindex="-1" bind:this={pauseHeadingEl}>
+						{i18n.t('assessment.pause.title', 'Assessment paused')}
+					</h3>
+					<p class="pause-reason">
+						{pauseReason ?? i18n.t('assessment.pause.message', 'Your test has been paused. Please wait until it resumes.')}
+					</p>
+				</div>
+			</div>
+		{/if}
 	</svelte:element>
 {/if}
 
@@ -1313,6 +1661,127 @@
 		padding-inline-start: var(--pie-qti-space-2, 0.5rem);
 		font-size: 0.85em;
 		color: var(--pie-qti-warning-text, #92400e);
+	}
+
+	/* Begin gate: the start screen before the clocks run. */
+	.assessment-start {
+		box-sizing: border-box;
+		flex: 1 1 auto;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: var(--pie-qti-space-6, 2rem) var(--pie-qti-space-4, 1rem);
+		overflow-y: auto;
+	}
+
+	.assessment-start.full-viewport {
+		min-block-size: 100dvh;
+		padding-block-start: max(var(--pie-qti-space-6, 2rem), env(safe-area-inset-top, 0px));
+		padding-block-end: max(var(--pie-qti-space-6, 2rem), env(safe-area-inset-bottom, 0px));
+	}
+
+	.assessment-start-card {
+		box-sizing: border-box;
+		inline-size: min(42rem, 100%);
+		padding: var(--pie-qti-space-6, 2rem);
+		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		border-radius: var(--pie-qti-radius, 0.5rem);
+		background: var(--pie-qti-base-100, oklch(100% 0 0));
+		color: var(--pie-qti-base-content, oklch(21% 0 0));
+	}
+
+	.assessment-start-title {
+		margin: 0 0 var(--pie-qti-space-3, 0.75rem);
+		font-size: 1.375em;
+		font-weight: 700;
+		line-height: 1.3;
+		overflow-wrap: anywhere;
+	}
+
+	.assessment-start-title:focus-visible {
+		outline: 2px solid var(--pie-qti-focus, #4338ca);
+		outline-offset: 2px;
+	}
+
+	.assessment-start-time {
+		margin: 0 0 var(--pie-qti-space-4, 1rem);
+		font-weight: 600;
+	}
+
+	.assessment-start-note {
+		margin: 0 0 var(--pie-qti-space-4, 1rem);
+	}
+
+	.assessment-start-section {
+		margin-block-end: var(--pie-qti-space-4, 1rem);
+	}
+
+	.assessment-start-button {
+		box-sizing: border-box;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-inline-size: var(--pie-qti-control-min-size, 2.75rem);
+		min-block-size: var(--pie-qti-control-min-size, 2.75rem);
+		padding-block: var(--pie-qti-space-2, 0.5rem);
+		padding-inline: var(--pie-qti-space-6, 2rem);
+		border: 1px solid var(--pie-qti-primary, oklch(45% 0.24 277));
+		border-radius: var(--pie-qti-radius, 0.5rem);
+		background: var(--pie-qti-primary, oklch(45% 0.24 277));
+		color: var(--pie-qti-primary-content, oklch(98% 0.01 277));
+		font: inherit;
+		font-weight: 600;
+		line-height: 1.25;
+		cursor: pointer;
+	}
+
+	.assessment-start-button:hover {
+		background: color-mix(in oklab, var(--pie-qti-primary, oklch(45% 0.24 277)) 85%, black);
+	}
+
+	.assessment-start-button:focus-visible {
+		outline: 2px solid var(--pie-qti-focus, #4338ca);
+		outline-offset: 2px;
+	}
+
+	/* Proctor pause: blocks the shell and names the reason. */
+	.pause-overlay {
+		position: absolute;
+		inset: 0;
+		z-index: 30;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: var(--pie-qti-space-4, 1rem);
+		background: color-mix(in oklab, var(--pie-qti-base-100, oklch(100% 0 0)) 92%, black);
+	}
+
+	.pause-card {
+		box-sizing: border-box;
+		inline-size: min(28rem, 100%);
+		padding: var(--pie-qti-space-6, 2rem);
+		border: 1px solid var(--pie-qti-border-strong, #767676);
+		border-radius: var(--pie-qti-radius, 0.5rem);
+		background: var(--pie-qti-base-100, oklch(100% 0 0));
+		color: var(--pie-qti-base-content, oklch(21% 0 0));
+		box-shadow: 0 1.25rem 2.75rem rgb(0 0 0 / 0.25);
+	}
+
+	.pause-title {
+		margin: 0 0 var(--pie-qti-space-3, 0.75rem);
+		font-size: 1.25em;
+		font-weight: 700;
+		line-height: 1.3;
+	}
+
+	.pause-title:focus-visible {
+		outline: 2px solid var(--pie-qti-focus, #4338ca);
+		outline-offset: 2px;
+	}
+
+	.pause-reason {
+		margin: 0;
+		overflow-wrap: anywhere;
 	}
 
 	/* Phones: slimmer gutters. */

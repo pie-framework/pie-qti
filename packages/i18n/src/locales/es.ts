@@ -623,6 +623,41 @@ export default {
 			timeRemaining: 'Tiempo restante: {time}',
 			timeElapsed: 'Tiempo transcurrido: {time}',
 			timeUp: '¡Se acabó el tiempo!',
+			warningMinutesOne: 'Queda 1 minuto',
+			warningMinutes: 'Quedan {count} minutos',
+			warningTime: 'Quedan {time}',
+			paused: 'En pausa',
+			showTimer: 'Mostrar temporizador',
+			hideTimer: 'Ocultar temporizador',
+		},
+
+		start: {
+			begin: 'Comenzar',
+			resume: 'Continuar',
+			timeMinutesOne: 'Tienes 1 minuto.',
+			timeMinutes: 'Tienes {count} minutos.',
+			timeExact: 'Tienes {time}.',
+			scopedTimeLimits: 'Algunas partes de esta prueba tienen su propio límite de tiempo.',
+		},
+
+		timeExpiry: {
+			autoSubmitted: 'Se acabó el tiempo. Tus respuestas se han entregado.',
+			submitTitle: 'Se acabó el tiempo de esta prueba',
+			submitDescription: 'Ya no puedes cambiar tus respuestas. Entrega la prueba para terminar.',
+			partTitle: 'Se acabó el tiempo de esta parte',
+			sectionTitle: 'Se acabó el tiempo de esta sección',
+			questionTitle: 'Se acabó el tiempo de esta pregunta',
+			scopeDescription: 'Pasas a la siguiente parte de la prueba.',
+			questionDescription: 'Pasas a la siguiente pregunta.',
+			continue: 'Continuar',
+		},
+
+		pause: {
+			title: 'Evaluación en pausa',
+			message: 'Tu prueba está en pausa. Espera a que se reanude.',
+			announcement: 'La evaluación está en pausa.',
+			withReason: 'La evaluación está en pausa: {reason}',
+			resumed: 'La evaluación se ha reanudado.',
 		},
 
 		feedback: {
@@ -667,6 +702,7 @@ export default {
 				commentsNotAllowed: 'Los comentarios no están permitidos en esta pregunta.',
 				submitFailed: 'No se pudieron enviar tus respuestas. Tus respuestas siguen aquí. Por favor, inténtalo de nuevo.',
 				finalizeFailed: 'Aún no se pudo enviar la evaluación. Tus respuestas siguen aquí. Por favor, inténtalo de nuevo.',
+				assessmentPaused: 'Tu evaluación está en pausa. Espera a que se reanude.',
 				outcomeProcessingFailed: 'Tus respuestas fueron guardadas, pero no se pudieron calcular los resultados. Contacta a soporte si esto persiste.',
 			},
 		},

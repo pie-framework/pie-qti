@@ -17,9 +17,18 @@ import type { TimeLimits } from '../types/index.js';
 export interface TimeManagerConfig {
 	/** Assessment-level time limits */
 	assessmentTimeLimits?: TimeLimits;
-	/** Warning threshold (seconds before expiry) */
+	/**
+	 * Warning threshold (seconds before expiry). Kept for compatibility; merged into
+	 * `warningThresholds`.
+	 */
 	warningThreshold?: number;
-	/** Callback when time warning is triggered */
+	/**
+	 * Warning thresholds (seconds before expiry), largest first. Each fires once per
+	 * limiting scope when the remaining time first reaches it, in addition to
+	 * `warningThreshold`.
+	 */
+	warningThresholds?: number[];
+	/** Callback when a warning threshold is reached */
 	onWarning?: (remainingSeconds: number) => void;
 	/** Callback when time expires */
 	onExpired?: () => void;
@@ -44,6 +53,17 @@ export interface ActiveTimeScopes {
 	testPart?: { identifier: string; timeLimits?: TimeLimits };
 	section?: { identifier: string; timeLimits?: TimeLimits };
 	item?: { identifier: string; timeLimits?: TimeLimits };
+}
+
+/** The active hard maximum that runs out first: what a countdown UI shows. */
+export interface NearestTimeLimit {
+	/** The scope the limit was authored on; `assessment` is the whole test. */
+	scope: 'assessment' | 'testPart' | 'section' | 'item';
+	/** Scope identifier; undefined for the assessment scope. */
+	identifier?: string;
+	/** Seconds left (may be fractional; the ticking UI rounds up). */
+	remainingSeconds: number;
+	allowLateSubmission: boolean;
 }
 
 export interface TimeTrackingState {
@@ -176,11 +196,14 @@ export class TimeManager {
 			if (activeRemaining) {
 				const { key, remainingSeconds } = activeRemaining;
 
-				// Trigger warning
-				const warningThreshold = this.config.warningThreshold ?? 60;
-				if (!this.warningTriggered.has(key) && remainingSeconds <= warningThreshold && remainingSeconds > 0) {
-					this.warningTriggered.add(key);
-					this.config.onWarning?.(remainingSeconds);
+				// Trigger each configured warning threshold once, largest first, per scope.
+				for (const threshold of this.warningThresholdList()) {
+					const warningKey = `${key}@${threshold}`;
+					if (this.warningTriggered.has(warningKey)) continue;
+					if (remainingSeconds <= threshold && remainingSeconds > 0) {
+						this.warningTriggered.add(warningKey);
+						this.config.onWarning?.(remainingSeconds);
+					}
 				}
 
 				// Tick callback
@@ -192,15 +215,31 @@ export class TimeManager {
 		}, 1000);
 	}
 
+	/** Every configured warning threshold, deduplicated, largest first. */
+	private warningThresholdList(): number[] {
+		const thresholds = new Set<number>(this.config.warningThresholds ?? []);
+		thresholds.add(this.config.warningThreshold ?? 60);
+		return [...thresholds].sort((a, b) => b - a);
+	}
+
 	private getActiveCandidates(): Array<{
 		key: string;
 		remainingSeconds: number;
 		allowLateSubmission: boolean;
+		scope: NearestTimeLimit['scope'];
+		identifier?: string;
 	}> {
-		const candidates: Array<{ key: string; remainingSeconds: number; allowLateSubmission: boolean }> = [];
+		const candidates: Array<{
+			key: string;
+			remainingSeconds: number;
+			allowLateSubmission: boolean;
+			scope: NearestTimeLimit['scope'];
+			identifier?: string;
+		}> = [];
 		if (this.maxTimeSeconds !== null) {
 			candidates.push({
 				key: 'assessment',
+				scope: 'assessment',
 				remainingSeconds: this.maxTimeSeconds - this.getElapsedSeconds(),
 				allowLateSubmission: this.config.assessmentTimeLimits?.allowLateSubmission === true,
 			});
@@ -211,6 +250,8 @@ export class TimeManager {
 			if (!active || max === null) continue;
 			candidates.push({
 				key: `${scope}:${active.identifier}`,
+				scope,
+				identifier: active.identifier,
 				remainingSeconds: max - this.getScopeElapsedMs(scope, active.identifier) / 1000,
 				allowLateSubmission: active.timeLimits?.allowLateSubmission === true,
 			});
@@ -218,13 +259,27 @@ export class TimeManager {
 		return candidates;
 	}
 
-	private nearestRemaining(
-		candidates: Array<{ key: string; remainingSeconds: number; allowLateSubmission: boolean }>,
-	): { key: string; remainingSeconds: number; allowLateSubmission: boolean } | null {
+	private nearestRemaining<T extends { remainingSeconds: number }>(candidates: T[]): T | null {
 		if (candidates.length === 0) return null;
 		return candidates.reduce((nearest, candidate) =>
 			candidate.remainingSeconds < nearest.remainingSeconds ? candidate : nearest
 		);
+	}
+
+	/**
+	 * The active hard maximum that runs out first — the countdown a shell displays — or
+	 * null when nothing limits the current scope.
+	 */
+	getNearestLimit(): NearestTimeLimit | null {
+		const candidates = this.getActiveCandidates();
+		if (candidates.length === 0) return null;
+		const nearest = this.nearestRemaining(candidates)!;
+		return {
+			scope: nearest.scope,
+			identifier: nearest.identifier,
+			remainingSeconds: nearest.remainingSeconds,
+			allowLateSubmission: nearest.allowLateSubmission,
+		};
 	}
 
 	private getActiveRemaining(): { key: string; remainingSeconds: number; allowLateSubmission: boolean } | null {
@@ -385,6 +440,15 @@ export class TimeManager {
 	getRemainingSeconds(): number | null {
 		const active = this.getActiveRemaining();
 		return active ? Math.max(0, Math.ceil(active.remainingSeconds)) : null;
+	}
+
+	/**
+	 * Remaining seconds on the assessment-level limit only (null when the test has no
+	 * maximum); what a start screen states as "You have N minutes".
+	 */
+	getAssessmentRemainingSeconds(): number | null {
+		if (this.maxTimeSeconds === null) return null;
+		return Math.max(0, Math.ceil(this.maxTimeSeconds - this.getElapsedSeconds()));
 	}
 
 	/**

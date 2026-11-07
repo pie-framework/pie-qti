@@ -215,8 +215,7 @@ nothing depends on host CSS frameworks.
   `--pie-qti-radius*` and `--pie-qti-control-min-size` tokens.
 - Icons carry `width`/`height` attributes and are sized by component CSS; no Tailwind
   utility is load-bearing. DaisyUI and Tailwind classes are not used by the shell, the
-  navigation bar, the section menu or the review screen. `AssessmentTimer` still carries
-  some and is restyled separately.
+  navigation bar, the section menu, the review screen or the timer.
 - Svelte injects the component CSS at mount, so the published `@pie-qti/player-elements`
   bundle ships it; hosts load no stylesheet for the shell.
 
@@ -262,6 +261,66 @@ nothing depends on host CSS frameworks.
 - After navigation, focus moves to the question through the layout's
   `focusActiveItem()`, which first selects the question tab when the panes are stacked.
   Navigation buttons stay focusable (`aria-disabled`) while a transition is in flight.
+
+### Timer and time administration
+
+- **The countdown is in the header, not an overlay.** When the active scope chain
+  carries a hard maximum (`AssessmentPlayer.getTimeState().limited`), the shell mounts
+  `AssessmentTimer` beside the title. It styles itself on the tokens, reserves layout
+  space, mirrors for RTL, and shows the ACTIVE scope's nearest maximum with a
+  programmatic name ("Time remaining: 12:34"). The ticking readout is `role="timer"`
+  with its live region OFF — a per-second `aria-live` would chatter. PNP extended time
+  is applied by `TimeManager`, so the countdown matches the enforced limits.
+- **Threshold warnings are separate announcements.** `timeWarningThreshold` (default 60)
+  and `timeWarningThresholds` (e.g. `[300, 60]`) each fire once per limiting scope
+  through `onTimeWarning`; the timer re-announces them through its own polite
+  `role="status"` region ("5 minutes remaining"). The 2.2.1 guidance holds: candidates
+  are warned before time runs out, and PNP extended time is honoured.
+- **The candidate can hide the countdown.** A ≥44px show/hide toggle (`aria-expanded`)
+  collapses the readout; the choice lives in the session state
+  (`AssessmentSessionState.timerHidden`, `setTimerHidden`/`isTimerHidden`) like flags,
+  so it survives navigation and save/resume. Warnings and expiry still announce while
+  the readout is hidden.
+- **Scope expiry is surfaced, never silent.** A test part, section or item limit without
+  late submission locks its items (`TimeManager.onScopeExpired` → `handleScopeExpired`);
+  delivery moves to the next unlocked item and the shell shows an AssessmentDialog
+  notice ("The time for this section is over — you are moving on"), announces the new
+  question position, and moves focus like a navigation (`onScopeTimeExpired` event,
+  `deliveryContinues` says whether delivery could move).
+- **An expiry dead end can never strand the candidate.** When nothing unlocked remains,
+  the core reports `onTimeExpired({ submissionRequired: true })`, the shell shows the
+  expiry dialog with a Submit action, and the navigation bar offers Submit in place of
+  Next wherever the candidate is. Ending the test then is the mandated collection: the
+  frozen responses go out as `timing.submissionReason: 'time-expired'` (the reference
+  backend accepts them; production backends remain authoritative), and minimum times and
+  response validation cannot hold a closed delivery open.
+- **Whole-test expiry auto-finalizes.** When the assessment limit expires without late
+  submission, the core runs the same finalization as `submit()` (pending simultaneous
+  responses, the open individual-mode item, `finalizeAssessment`, `onComplete`,
+  outcomes/testFeedback), bypassing minimum-time checks; a failure keeps the session
+  open, surfaces through `onError`, and the expiry dialog offers Submit. The host hears
+  `onTimeExpired({ autoFinalized: true })` and the element's `time-expired` event.
+  `allowLateSubmission` keeps the test open past the limit instead.
+- **Begin gate (opt-in).** With `beginGate` (shell prop / `begin-gate` attribute), the
+  core is created without entering an item and `TimeManager` holds: the shell shows an
+  accessible start screen — assessmentTest title, "You have N minutes" (PNP applied,
+  `getStartInfo()`), the first test part's role-filtered rubric blocks, and a Begin
+  control with focus on the heading. `start()` (Begin, or the imperative API) enters the
+  first (or restored) item and starts every clock. Without the gate, delivery and the
+  clocks start at session creation, exactly as before; a resumed session's start screen
+  shows the time that remains. Begin-gate time never counts: submissions carry the
+  candidate's test clock (`timing.assessmentElapsedMs`/`assessmentLimitSeconds`).
+- **Proctor pause/resume.** `pause(reason?)` freezes every clock (assessment, part,
+  section, item, and the live attempt's QTI `duration` via a suspend + snapshot),
+  rejects candidate actions with a coded `assessmentPaused` error, and asks the shell
+  for an overlay carrying the host-supplied, candidate-facing reason; the shell makes
+  header/content/navigation inert and moves focus to the overlay, announcing the pause
+  through `role="status"` (`onPauseChange` / `player-pause` / `player-resume` events).
+  A pause requested during a transition applies when it settles; while paused the reason
+  can be replaced. `resume()` reopens the attempt from the pause snapshot, so paused
+  time never counts as time on task, and the countdown continues where it froze. A
+  snapshot taken while paused carries `timing.isPaused`/`pauseReason` and reopens paused.
+  PNP extended time stays consistent (it scales the limits the frozen clocks measure).
 
 ### Shared dialog
 
@@ -418,7 +477,8 @@ to score them.
 | Item rendering | `AssessmentItemDefinition` / `ItemSession` (via `@pie-qti/item-player`) | Assessment-player creates and owns the active live session; section and item-element adapters receive the same reference. Plugins/security/i18n are definition inputs. | Custom extractor + web component for a vendor interaction type |
 | Definition plugins | `AssessmentItemDefinitionPlugin[]` in `BackendAssessmentPlayerConfig.plugins` | Supply a fixed synchronous extractor/renderer plugin list; it is compiled into every cached item definition. | Vendor interaction extraction and tag mapping |
 | Custom outcome processing | Backend adapter / host application | Implement assessment-level outcome policy in the backend or host integration. | Compute aggregate outcomes before returning updated assessment state |
-| Time events | `onTimeWarning()`, `onTimeExpired()`, `onTimeTick()` | Subscribe after construction and retain the returned unsubscribe function. | Display a countdown banner or request host-owned submission |
+| Time events | `onTimeWarning()`, `onTimeExpired(event)`, `onScopeTimeExpired(event)`, `onTimeTick()`, `getTimeState()`, `getStartInfo()` | Subscribe after construction and retain the returned unsubscribe function. `onTimeExpired` reports `autoFinalized` (whole-test expiry submitted) or `submissionRequired` (nothing unlocked remains). | Display a countdown banner (`getTimeState()`), react to expiry, host-owned submission |
+| Begin gate / pause | `beginGate` config, `start()` / `hasStarted()`, `pause(reason?)` / `resume()` / `isPaused()` / `getPauseReason()`, `onPauseChange()` | Set `beginGate: true` (or the `begin-gate` attribute) to hold delivery behind the shell's start screen; call `pause(reason)` for proctor pauses. | Gate delivery until the candidate begins; proctor controls |
 | Persistence | `getState()` / `restoreState()` and `BackendAdapter.saveState()` | The host chooses save cadence and calls its adapter explicitly; any local draft fallback is host-owned. | Persist to a session table with an optional host storage fallback |
 
 ---
@@ -511,6 +571,32 @@ AC-12: Timer fires warning and expiry callbacks
   Then: onTimeWarning fires with remainingSeconds approximately 3
   When: 5 seconds elapse
   Then: onTimeExpired fires and isTimeExpired() returns true
+
+AC-13: Whole-test expiry auto-finalizes
+  Given: An assessment with timeLimits.maxTime (no allowLateSubmission) and pending responses
+  When: The limit expires
+  Then: The core finalizes like submit() (pending responses collected, outcomes computed,
+        complete fires) and onTimeExpired reports autoFinalized; results are the same
+        object a later submit() returns
+
+AC-14: An expiry dead end leaves Submit reachable
+  Given: A test part limit expired and no unlocked item remains
+  When: The candidate is on a locked item that is not the last
+  Then: onTimeExpired reports submissionRequired, the shell offers Submit in place of Next,
+        and the backend accepts the collected responses marked submissionReason 'time-expired'
+
+AC-15: The begin gate holds delivery and the clocks
+  Given: AssessmentPlayer.create with beginGate: true and an assessment maxTime
+  When: Time passes before start() is called
+  Then: hasStarted() is false, no item session exists, totalTime stays 0 and remaining is
+        unchanged; after start() the first item is entered and the clocks run
+
+AC-16: A proctor pause freezes every clock and blocks candidate actions
+  Given: A running assessment with an active item session
+  When: pause('reason') is called
+  Then: remaining time, scope times and the item's duration freeze; next/submit/updateResponse
+        reject with assessmentPaused; resume() reopens the attempt with responses intact and
+        the clocks continue from the frozen point
 ```
 
 ```
@@ -590,6 +676,21 @@ AC-A8: The review screen lists every delivered item with its state
   Then: Each item shows its state as text plus an icon grouped by candidate-visible
         section, the current item is aria-current, and only navigation-legal items
         offer a jump (linear parts show status only, with an explanatory note)
+
+AC-A9: The countdown never chatters and warns through its own region
+  Given: A timed assessment with warning thresholds
+  When: The countdown ticks and a threshold is reached
+  Then: The ticking readout is role="timer" with aria-live off and a programmatic name
+        ("Time remaining: 12:34"); each threshold announces once through a separate
+        polite status region; expiry announces assertively; the candidate's hide/show
+        toggle persists across navigation
+
+AC-A10: Scope expiry is announced and focus follows delivery
+  Given: A section limit expired while items remain outside it
+  When: Delivery moves to the next unlocked item
+  Then: An acknowledge dialog says the scope's time is over and the candidate is moving
+        on; after it closes, focus moves to the question and "Question X of Y" is
+        announced; the start screen and expiry dialog pass axe AA
 ```
 
 ### Edge cases

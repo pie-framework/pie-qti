@@ -623,6 +623,41 @@ export default {
 			timeRemaining: 'Temps restant : {time}',
 			timeElapsed: 'Temps écoulé : {time}',
 			timeUp: 'Temps écoulé !',
+			warningMinutesOne: 'Il reste 1 minute',
+			warningMinutes: 'Il reste {count} minutes',
+			warningTime: 'Il reste {time}',
+			paused: 'En pause',
+			showTimer: 'Afficher le minuteur',
+			hideTimer: 'Masquer le minuteur',
+		},
+
+		start: {
+			begin: 'Commencer',
+			resume: 'Reprendre',
+			timeMinutesOne: 'Vous disposez d\'une minute.',
+			timeMinutes: 'Vous disposez de {count} minutes.',
+			timeExact: 'Vous disposez de {time}.',
+			scopedTimeLimits: 'Certaines parties de ce test ont leur propre limite de temps.',
+		},
+
+		timeExpiry: {
+			autoSubmitted: 'Le temps est écoulé. Vos réponses ont été soumises.',
+			submitTitle: 'Le temps imparti pour ce test est écoulé',
+			submitDescription: 'Vous ne pouvez plus modifier vos réponses. Soumettez votre test pour terminer.',
+			partTitle: 'Le temps imparti pour cette partie est écoulé',
+			sectionTitle: 'Le temps imparti pour cette section est écoulé',
+			questionTitle: 'Le temps imparti pour cette question est écoulé',
+			scopeDescription: 'Vous passez à la partie suivante du test.',
+			questionDescription: 'Vous passez à la question suivante.',
+			continue: 'Continuer',
+		},
+
+		pause: {
+			title: 'Évaluation en pause',
+			message: 'Votre test a été mis en pause. Veuillez patienter jusqu\'à sa reprise.',
+			announcement: 'L\'évaluation est en pause.',
+			withReason: 'L\'évaluation est en pause : {reason}',
+			resumed: 'L\'évaluation a repris.',
 		},
 
 		feedback: {
@@ -667,6 +702,7 @@ export default {
 				commentsNotAllowed: 'Les commentaires ne sont pas autorisés pour cette question.',
 				submitFailed: 'Vos réponses n\'ont pas pu être envoyées. Vos réponses sont toujours là. Veuillez réessayer.',
 				finalizeFailed: 'L\'évaluation n\'a pas encore pu être envoyée. Vos réponses sont toujours là. Veuillez réessayer.',
+				assessmentPaused: 'Votre évaluation est en pause. Veuillez patienter jusqu\'à sa reprise.',
 				outcomeProcessingFailed: 'Vos réponses ont été enregistrées, mais les résultats n\'ont pas pu être calculés. Veuillez contacter l\'assistance si le problème persiste.',
 			},
 		},

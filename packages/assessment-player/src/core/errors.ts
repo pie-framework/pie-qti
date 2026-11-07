@@ -39,6 +39,8 @@ export type AssessmentPlayerErrorCode =
 	| 'submitFailed'
 	/** The backend failed to finalize the assessment. */
 	| 'finalizeFailed'
+	/** A proctor (or the host) paused the assessment; candidate actions are unavailable. */
+	| 'assessmentPaused'
 	/** Test-level outcome processing failed on the backend. */
 	| 'outcomeProcessingFailed'
 	/** Anything else: shells show a generic localized message plus a support code. */

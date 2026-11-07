@@ -366,7 +366,12 @@ export interface QtiAssessmentPlayerConfig {
 	showSections?: boolean;
 	allowSectionNavigation?: boolean;
 	showProgress?: boolean;
+	/** Seconds before a time limit expires at which a warning is announced. Default 60. */
 	timeWarningThreshold?: number;
+	/** Additional warning thresholds in seconds, e.g. `[300, 60]`; each is announced once per limit. */
+	timeWarningThresholds?: number[];
+	/** Opt-in begin gate, like the `begin-gate` attribute: delivery and the clocks wait for Begin. */
+	beginGate?: boolean;
 	pnp?: QtiPnpProfile;
 	/**
 	 * Shared catalog files from the content package manifest (resource type
@@ -413,6 +418,33 @@ export interface QtiAssessmentLoadErrorDetail {
 	message: string;
 }
 
+/** Core/backend failure (`player-error`). Never render `message` to candidates. */
+export interface QtiAssessmentErrorDetail {
+	/** Stable code when the failure is a coded assessment-player error. */
+	code?: string;
+	message: string;
+}
+
+/**
+ * A hard time limit ran out with no late submission (`time-expired`): the whole test —
+ * the player then submits automatically (`autoFinalized`) — or a part, section or
+ * question whose expiry left nothing to work on (`submissionRequired`).
+ */
+export interface QtiAssessmentTimeExpiredDetail {
+	scope: 'assessment' | 'testPart' | 'section' | 'item';
+	/** The expired scope's identifier; absent for the whole test. */
+	identifier?: string;
+	/** The player already submitted the test automatically. */
+	autoFinalized: boolean;
+	/** The candidate must submit now (auto-submit failed, or nothing unlocked remains). */
+	submissionRequired: boolean;
+}
+
+/** A proctor pause started (`player-pause`); `reason` is the text the candidate sees. */
+export interface QtiAssessmentPauseDetail {
+	reason?: string;
+}
+
 export interface QtiAssessmentPlayerEventMap {
 	ready: CustomEvent<void>;
 	'load-start': CustomEvent<void>;
@@ -423,6 +455,10 @@ export interface QtiAssessmentPlayerEventMap {
 	'response-change': CustomEvent<QtiAssessmentResponseChangeDetail>;
 	submit: CustomEvent<QtiAssessmentSubmitDetail>;
 	complete: CustomEvent<void>;
+	'player-error': CustomEvent<QtiAssessmentErrorDetail>;
+	'time-expired': CustomEvent<QtiAssessmentTimeExpiredDetail>;
+	'player-pause': CustomEvent<QtiAssessmentPauseDetail>;
+	'player-resume': CustomEvent<void>;
 }
 
 export type QtiItemMap = Record<string, string>;
@@ -453,6 +489,8 @@ export interface QtiAssessmentPlayerElement extends HTMLElement {
 	fullViewport: boolean;
 	/** Heading level (1–6) of the assessment title; passage and item titles follow one below. Reflects `heading-level`. */
 	headingLevel?: number;
+	/** Opt-in begin gate: a start screen holds delivery and the clocks until Begin. Reflects `begin-gate`. */
+	beginGate: boolean;
 	next(): Promise<void>;
 	previous(): Promise<void>;
 	navigateTo(index: number): Promise<void>;
@@ -463,6 +501,14 @@ export interface QtiAssessmentPlayerElement extends HTMLElement {
 	restoreState(
 		state: QtiAssessmentSessionState,
 	): Promise<void> | undefined;
+	/** Open the begin gate (as the candidate's Begin does): delivery and the clocks start. */
+	start(): Promise<void>;
+	/** Whether delivery has begun (false while the begin gate holds the start screen). */
+	hasStarted(): boolean;
+	/** Proctor pause: freeze every clock and block candidate input until `resume()`. */
+	pause(reason?: string): void;
+	/** End a proctor pause. */
+	resume(): void;
 	addEventListener<K extends keyof QtiAssessmentPlayerEventMap>(
 		type: K,
 		listener: (

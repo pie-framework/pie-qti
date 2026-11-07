@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { I18nProvider } from '@pie-qti/i18n';
+	import type { Snippet } from 'svelte';
 	import SectionMenu from './SectionMenu.svelte';
 
 	interface Section {
@@ -34,6 +35,10 @@
 		i18n?: I18nProvider;
 		/** Section selection callback */
 		onSectionSelect?: (sectionIndex: number) => void;
+		/** Header-side actions (the countdown timer), kept outside the title block. */
+		actions?: Snippet;
+		/** Blocks interaction and focus while a proctor pause holds the assessment. */
+		inert?: boolean;
 	}
 
 	const {
@@ -45,7 +50,9 @@
 		showSections = true,
 		allowSectionNavigation = true,
 		i18n,
-		onSectionSelect
+		onSectionSelect,
+		actions,
+		inert = false,
 	}: Props = $props();
 
 	const headingTag = $derived(`h${Math.min(6, Math.max(1, Math.round(headingLevel)))}`);
@@ -65,10 +72,16 @@
 	);
 </script>
 
-<header class="assessment-header">
+<header class="assessment-header" inert={inert || undefined}>
 	<div class="assessment-title">
 		<svelte:element this={headingTag} id={titleId} class="assessment-title-text">{title}</svelte:element>
 	</div>
+
+	{#if actions}
+		<div class="assessment-header-actions">
+			{@render actions()}
+		</div>
+	{/if}
 
 	{#if showSections && sections.length > 1}
 		<SectionMenu
@@ -96,6 +109,13 @@
 
 	.assessment-title {
 		flex: 1 1 12rem;
+		min-inline-size: 0;
+	}
+
+	.assessment-header-actions {
+		display: flex;
+		align-items: center;
+		flex: 0 1 auto;
 		min-inline-size: 0;
 	}
 

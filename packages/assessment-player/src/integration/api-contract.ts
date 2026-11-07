@@ -333,6 +333,23 @@ export interface SubmitTimingEvidence {
 	limitSeconds?: number;
 	expired?: boolean;
 	allowLateSubmission?: boolean;
+	/**
+	 * The candidate's assessment clock in ms when the test has a maximum time. It runs
+	 * only while delivery runs: time behind an opt-in begin gate or a proctor pause is
+	 * excluded, unlike a wall clock measured from session creation.
+	 */
+	assessmentElapsedMs?: number;
+	/** The test's maximum time in seconds after PNP extended time, when it has one. */
+	assessmentLimitSeconds?: number;
+	/**
+	 * Why this submission runs: `candidate` (default) for a normal candidate action,
+	 * `time-expired` for the terminal response collection a hard time limit triggers
+	 * (the whole-test auto-submit, and the submit from an expiry dead end). Backends
+	 * must accept a `time-expired` submission whose scope expired: the delivery window
+	 * closed with the expiry, and collecting the pending responses is the mandated
+	 * terminal step.
+	 */
+	submissionReason?: 'candidate' | 'time-expired';
 }
 
 /**
@@ -433,6 +450,8 @@ export interface AssessmentSessionState {
 	itemComments?: Record<string, string>;
 	/** Items the candidate flagged for review, keyed by item identifier. */
 	itemFlags?: Record<string, boolean>;
+	/** Whether the candidate chose to hide the countdown timer (a persisted shell preference). */
+	timerHidden?: boolean;
 	/** Time tracking */
 	timing: {
 		/** Session start time */
@@ -449,7 +468,13 @@ export interface AssessmentSessionState {
 		currentItemIdentifier?: string;
 		currentSectionIdentifier?: string;
 		currentTestPartIdentifier?: string;
+		/**
+		 * A proctor pause was in force when the state was saved: a restored session
+		 * reopens paused, its clocks frozen, until the host resumes it.
+		 */
 		isPaused?: boolean;
+		/** The candidate-facing reason the proctor gave for the pause. */
+		pauseReason?: string;
 	};
 }
 
