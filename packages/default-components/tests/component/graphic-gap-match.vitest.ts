@@ -140,4 +140,24 @@ describe('GraphicGapMatchInteraction (pie-qti-graphic-gap-match)', () => {
 		expect(error?.textContent).toContain('The image could not be loaded.');
 		expect(error?.textContent).toContain('The water cycle over a lake');
 	});
+
+	test('two renderings of the same item keep their own instruction and description ids', async () => {
+		const data = ggmData({
+			imageData: { ...ggmData().imageData!, altDescription: 'Clouds form above the lake, then rain falls.' },
+		});
+		const first = mountInteraction(GraphicGapMatchInteraction, { interaction: data });
+		const second = mountInteraction(GraphicGapMatchInteraction, { interaction: data });
+		await settle();
+
+		const ids = Array.from(document.querySelectorAll('[id]'), (element) => element.id);
+		expect(ids.filter((id, index) => ids.indexOf(id) !== index)).toEqual([]);
+		for (const mounted of [first, second]) {
+			const instructions = document.getElementById(q(mounted, '[part="region"]')?.getAttribute('aria-describedby') ?? '');
+			expect(mounted.host.contains(instructions)).toBe(true);
+			expect(instructions?.textContent).toContain('Press Space or Enter to pick up a label.');
+			const description = document.getElementById(q(mounted, 'img[part="image"]')?.getAttribute('aria-describedby') ?? '');
+			expect(mounted.host.contains(description)).toBe(true);
+			expect(description?.textContent).toBe('Clouds form above the lake, then rain falls.');
+		}
+	});
 });

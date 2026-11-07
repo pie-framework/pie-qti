@@ -27,9 +27,11 @@
 
 	RESPONSE POINT:
 	- Each point is the position, in the stage image's natural pixel space, of the
-	  object's centre point (QTI: "The point records the coordinates, with respect to
-	  the stage, of the centre point of the image being positioned"). Objects render
-	  centred on their point, so the recorded value is what the candidate sees.
+	  object's reference point (QTI `centerPoint`: "the point on the image being
+	  positioned that is to be treated as the centre as an offset from the top-left
+	  corner of the image ... By default this is the centre of the image's bounding
+	  rectangle"). Objects render with that point on their recorded point, and a
+	  dragged object is held by it, so the recorded value is what the candidate sees.
 
 	NON-STANDARD EXTENSION (Current Implementation):
 	- This component supports multiple positionObjectStage elements with identifiers
@@ -90,8 +92,9 @@
 	const imageHeight = $derived(
 		Number(normalizePixelDimension(parsedInteraction?.imageData?.height, '600') ?? '600'),
 	);
-	// Objects are placed by their centre (the QTI default reference point).
-	const centred = $derived(parsedInteraction?.centerPoint !== false);
+	// The authored reference point (QTI centerPoint), in object image pixels from
+	// its top-left; null means the QTI default, the object's centre.
+	const centerPoint = $derived(validCenterPoint(parsedInteraction?.centerPoint));
 
 	const imageData = $derived(parsedInteraction?.imageData ?? null);
 	const imageAlt = $derived(
@@ -109,6 +112,30 @@
 
 	function objectDimension(value: unknown): number {
 		return Number(normalizePixelDimension(value, '50') ?? '50');
+	}
+
+	/**
+	 * Validate the reference point: hosts may hand the web component JSON, and
+	 * anything but a finite point means the QTI default.
+	 */
+	function validCenterPoint(value: unknown): { x: number; y: number } | null {
+		if (!value || typeof value !== 'object') return null;
+		const { x, y } = value as { x?: unknown; y?: unknown };
+		return typeof x === 'number' && Number.isFinite(x) && typeof y === 'number' && Number.isFinite(y) ? { x, y } : null;
+	}
+
+	/**
+	 * Where an object's reference point sits within it, as fractions of its
+	 * size: the authored centerPoint, else the centre of its bounding rectangle
+	 * (the QTI default). A text-only object has no image space, so it uses its
+	 * centre.
+	 */
+	function referenceFraction(stage: PositionObjectStage): { x: number; y: number } {
+		if (!centerPoint || !stage.objectData) return { x: 0.5, y: 0.5 };
+		return {
+			x: centerPoint.x / objectDimension(stage.objectData.width),
+			y: centerPoint.y / objectDimension(stage.objectData.height),
+		};
 	}
 
 	// Get reference to the root element for event dispatching
@@ -235,7 +262,7 @@
 		draggedStageId = stageId;
 		draggedPositionIndex = existingIndex ?? null;
 
-		// Set drag image to be the object being dragged, at its rendered size, held by its centre
+		// Set drag image to be the object being dragged, at its rendered size, held by its reference point
 		if (event.dataTransfer) {
 			event.dataTransfer.effectAllowed = 'move';
 
@@ -264,7 +291,10 @@
 				}
 
 				document.body.appendChild(dragImage);
-				event.dataTransfer.setDragImage(dragImage, width / 2, height / 2);
+				// The pointer holds the reference point: where it is released is the
+				// recorded point, and the object renders with that point there.
+				const reference = referenceFraction(stage);
+				event.dataTransfer.setDragImage(dragImage, width * reference.x, height * reference.y);
 
 				// Clean up after a short delay
 				setTimeout(() => dragImage.remove(), 0);
@@ -277,7 +307,7 @@
 
 		event.preventDefault();
 
-		// The pointer marks the object's reference point (its centre, held under the pointer)
+		// The pointer marks the object's reference point (held under the pointer)
 		const point = stagePointFromClient(event.clientX, event.clientY);
 		if (point) {
 			if (draggedPositionIndex !== null) {
@@ -346,20 +376,23 @@
 		);
 	}
 
-	/** Placement box of an object in percentages of the stage, so it scales with the stage. */
+	/**
+	 * Placement box of an object in percentages of the stage, so it scales with
+	 * the stage. The box's top-left sits on the point, then shifts back by the
+	 * reference point so that point (not the corner) lands on the recorded point.
+	 */
 	function objectBoxStyle(stage: PositionObjectStage, position: { x: number; y: number }, zIndex: number): string {
 		const width = stage.objectData ? `${(objectDimension(stage.objectData.width) / imageWidth) * 100}%` : 'auto';
 		const height = stage.objectData ? `${(objectDimension(stage.objectData.height) / imageHeight) * 100}%` : 'auto';
+		const reference = referenceFraction(stage);
 		return [
 			`left: ${(position.x / imageWidth) * 100}%`,
 			`top: ${(position.y / imageHeight) * 100}%`,
 			`width: ${width}`,
 			`height: ${height}`,
 			`z-index: ${zIndex}`,
-			centred ? 'transform: translate(-50%, -50%)' : '',
-		]
-			.filter(Boolean)
-			.join('; ');
+			`transform: translate(${-reference.x * 100 || 0}%, ${-reference.y * 100 || 0}%)`,
+		].join('; ');
 	}
 
 	function percent(value: number, total: number): number {

@@ -407,11 +407,26 @@ export interface PositionObjectStage {
 	label: string;
 }
 
+/**
+ * A point on a draggable object image, in that image's own pixel coordinates,
+ * measured from its top-left corner (QTI `centerPoint`, horizontal then vertical).
+ */
+export interface PositionObjectCenterPoint {
+	x: number;
+	y: number;
+}
+
 export interface PositionObjectInteractionData extends BaseInteractionData<'positionObjectInteraction'> {
 	prompt: HtmlContent | null;
 	maxChoices: number;
 	minChoices: number;
-	centerPoint: boolean;
+	/**
+	 * The point on the object image treated as the object's position: it is the
+	 * point placed under the candidate's pointer and recorded, in stage
+	 * coordinates, as the response. `null` is the QTI default, the centre of the
+	 * object image's bounding rectangle.
+	 */
+	centerPoint: PositionObjectCenterPoint | null;
 	imageData: ImageData | null;
 	positionObjectStages: PositionObjectStage[];
 }

@@ -110,7 +110,7 @@ The response array stored in `player.declarations` is NOT canonicalized when the
 
 **Keyboard navigation:** The two-step click model must be fully operable by keyboard. Each choice button must be reachable by `Tab`, activatable by `Enter` or `Space`. The first activation marks the choice as pending; the second activation on a different choice completes the pair. No pointer events should be required.
 
-**Focus management:** After a pair is created, focus must remain on a logically appropriate element (the grid of choices) so that keyboard users can continue forming pairs without re-navigating.
+**Focus management:** After a pair is created, focus must remain on a logically appropriate element (the grid of choices) so that keyboard users can continue forming pairs without re-navigating. After a pair is removed, focus must remain in the pair list — on the remove button of the pair that moved into the removed row, or, when no pairs remain, back on the first choice.
 
 **ARIA roles and labels:** Each choice button must have a discernible accessible name (the choice text). The pending state must be communicated to assistive technology — at minimum via `aria-pressed="true"` or `aria-selected="true"` on the pending button, and an `aria-live` region that announces pair creation and removal. The helper message area should use `role="status"` or `aria-live="polite"`.
 
