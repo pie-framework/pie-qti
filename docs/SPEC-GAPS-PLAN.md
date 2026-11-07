@@ -20,11 +20,22 @@ AI agent or a human engineer. Sections are ordered by priority tier.
 > `@pie-qti/*` packages only, never workspace source or local tarballs, so official-package
 > evidence always attaches to a published version rather than to this tree.
 >
-> The remediation reviewed on 2026-07-13 was released as `0.1.21` and confirmed there: the private
-> runner reports all four QTI 2.2 and QTI 3.0 Basic and Advanced DELIVERY suites green for that
-> candidate. Changes released after `0.1.21`, and anything unreleased, carry no official-package
-> evidence — `0.1.22` touched item rendering, so re-pinning the runner to it means a re-run, not a
-> re-pin. None of these statuses is a conformance or certification claim.
+> The remediation reviewed on 2026-07-13 was released as `0.1.21`. The private runner originally
+> reported all four QTI 2.2 and QTI 3.0 Basic and Advanced DELIVERY suites green for that candidate,
+> but those runners only asserted structure and rendering: items constructed and rendered, test
+> structure parsed. They did not exercise scoring discrimination or end-to-end delivery outcomes,
+> and the browser harness rendered no block interactions for packaged candidates. Re-run in
+> 2026-11 with runners that assert scoring and delivery semantics (and a synthetic self-test that
+> proves they can fail), `0.1.21` still shows two defects on the fixture content:
+>
+> - test-level `sum(testVariables(SCORE))` evaluates INVALID, so a test-level `SCORE` is never
+>   computed and finalize returns no outcomes;
+> - QTI 3.0 item results are attributed to the identifier `"unknown"`.
+>
+> Both are fixed in this tree (`c7857034`, `30b045d3`) and first shipped in `1.0.0-beta.0`; they
+> carry no official-package evidence until the runner is re-pinned to a published version that
+> contains them and re-run. Changes released after `0.1.21`, and anything unreleased, carry no
+> official-package evidence. None of these statuses is a conformance or certification claim.
 
 ---
 

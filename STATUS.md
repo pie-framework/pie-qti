@@ -64,9 +64,14 @@ The public repository uses clean-room certification coverage only.
   public repository and belongs in the private conformance runner.
 - That runner consumes published NPM candidates only. Current working-tree fixes
   cannot be exercised by the official suite until a new candidate is published and
-  pinned; prior green evidence applies to the previously published candidate.
-- The private runner now drives DOM-level interaction and score discrimination in a
-  browser, not construction/no-throw alone. A residue of criteria remains
+  pinned; prior evidence applies to the previously published candidate.
+- Earlier "green" official-suite results were structure/render-level only (items
+  constructed and rendered, test structure parsed). The private runner now records an
+  assertion level per check and requires scoring discrimination and end-to-end delivery
+  outcomes; it is guarded by a synthetic self-test that proves the checks can fail. On
+  the pinned `0.1.21` candidate it reports two defects that are already fixed in this
+  tree (test-level `sum(testVariables(…))` and QTI 3.0 result attribution); see
+  [`docs/SPEC-GAPS-PLAN.md`](docs/SPEC-GAPS-PLAN.md). A residue of criteria remains
   manual-only where the content under test declares no correct response.
 - Certifiable lines are QTI 2.2 and QTI 3.0 DELIVERY (Basic and Advanced) plus the
   QTI 3.0 Elevated Accessibility profile. The QTI 2.1 certification line is closed;
