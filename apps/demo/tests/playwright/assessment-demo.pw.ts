@@ -41,7 +41,7 @@ test.describe('/assessment-demo', () => {
 		await next.click();
 		// Wait a bit for validation to trigger
 		await page.waitForTimeout(500);
-		await expect(page.getByText(/must answer this item/i)).toBeVisible({ timeout: 10000 });
+		await expect(page.getByText(/must answer this question/i)).toBeVisible({ timeout: 10000 });
 
 		// Provide an order response by dispatching a qti-change from the host element.
 		const interaction = await orderHost.evaluate((el: any) => {

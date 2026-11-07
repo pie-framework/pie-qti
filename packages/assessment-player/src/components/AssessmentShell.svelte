@@ -67,6 +67,19 @@
 		};
 	}
 
+	/**
+	 * A failed submission reassures the candidate that nothing was lost. Uncoded failures
+	 * (the backend rejected or the network dropped) get the localized submit-failure message
+	 * plus a support code rather than the generic one; backend text is still never shown.
+	 */
+	function localizeSubmitError(err: unknown): { message: string; supportCode: string | null } {
+		if (isAssessmentPlayerError(err)) return localizeError(err);
+		return {
+			message: i18n.t('assessment.errors.codes.submitFailed'),
+			supportCode: assessmentErrorDisplay(err).supportCode,
+		};
+	}
+
 	let player = $state<AssessmentPlayer | null>(null);
 	let navState = $state<NavigationState>({
 		currentIndex: -1,
@@ -319,7 +332,7 @@
 				return;
 			}
 			console.error('Failed to submit assessment:', err);
-			submitError = localizeError(err);
+			submitError = localizeSubmitError(err);
 			// Keep the shell and its session available after the core restores a
 			// failed submission. Already accepted responses are retained for retry.
 			updateState();
