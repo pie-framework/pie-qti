@@ -18,6 +18,7 @@
 	import type { QtiHeuristicsConfig } from '@pie-qti/ims-cp-core';
 	import { typesetAction } from './actions/typesetAction';
 	import { glossaryAction } from '../catalog/glossaryAction';
+	import { isWithinPnpSurface } from '../pnp/applyPnp';
 	import { assignProps } from '@pie-qti/qti-common';
 	import { createItemBodyRenderer, type MountedInteraction } from './utils/itemBodyRenderer';
 	import { sentenceContextId } from './utils/sentenceContext';
@@ -118,7 +119,11 @@
 	$effect(() => {
 		if (!rootEl) return;
 		void revision;
-		binding.applyPnp(rootEl);
+		// Display needs are applied once, by the outermost surface that renders this item.
+		// Inside a section player's surface (`applyPnpToSurface`), the section applies them to
+		// its passages, rubrics, tool bars and this item alike — including the candidate's own
+		// display settings — so the item body applies none that would override them.
+		if (!isWithinPnpSurface(rootEl)) binding.applyPnp(rootEl);
 		const handler = (e: Event) => handleQtiChange(e as QtiChangeDomEvent);
 		const el = rootEl; // Capture reference for cleanup
 		el.addEventListener('qti-change', handler as EventListener);

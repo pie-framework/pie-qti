@@ -682,6 +682,18 @@ export default {
 		passages: 'Pasaje',
 		question: 'Întrebare',
 		passageAndQuestion: 'Pasaj și întrebare',
+		// The candidate's display settings tool and its dialog.
+		displaySettings: {
+			title: 'Setări de afișare',
+			description: 'Modificările se aplică imediat și rămân active pe parcursul acestei sesiuni.',
+			textSize: 'Dimensiunea textului',
+			sizeDefault: 'Implicit',
+			sizeLarge: 'Mare',
+			sizeLarger: 'Mai mare',
+			sizeLargest: 'Cel mai mare',
+			highContrast: 'Text cu contrast mai mare',
+			textSpacing: 'Spațiere mai mare a textului',
+		},
 	},
 
 	i18n: {

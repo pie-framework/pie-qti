@@ -2,9 +2,9 @@
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import type { PciConfiguration, PlayerSecurityConfig, PnpProfile } from '@pie-qti/item-player';
 	import { assignProps } from '@pie-qti/qti-common';
-	import { onMount } from 'svelte';
-	import type { QtiSectionFrameworkError, QtiSectionItemRef, QtiSectionRole } from '../contracts/index.js';
+	import type { QtiSectionFrameworkError, QtiSectionItemRef, QtiSectionRole, QtiSectionToolConfig } from '../contracts/index.js';
 	import { extractItemSpeech } from '../tts/spoken-catalogs.js';
+	import type { QtiDisplaySettingsControls } from '../tools/display-settings.js';
 	import QtiToolButtonBar from './QtiToolButtonBar.svelte';
 
 	type ItemPlayerResponseChangeEvent = CustomEvent<{ responseId: string; value: unknown }>;
@@ -12,6 +12,8 @@
 	interface Props {
 		itemRef: QtiSectionItemRef;
 		responses?: Record<string, unknown>;
+		/** The tools the item header offers; defaults to the item ref's own. */
+		tools?: QtiSectionToolConfig[];
 		role?: QtiSectionRole;
 		disabled?: boolean;
 		i18n?: I18nProvider;
@@ -21,6 +23,10 @@
 		typeset?: (root: HTMLElement) => void | Promise<void>;
 		/** Heading level of the item title, so it fits the page outline. Default 3. */
 		headingLevel?: number;
+		/** The assessment the item's tool bar names. */
+		assessmentId?: string;
+		/** The section's display settings dialog; present, the item header opens it from its tool bar. */
+		displaySettingsControls?: QtiDisplaySettingsControls | null;
 		onResponseChange?: (itemIdentifier: string, responseIdentifier: string, value: unknown) => void;
 		onFrameworkError?: (error: QtiSectionFrameworkError) => void;
 	}
@@ -28,6 +34,7 @@
 	const {
 		itemRef,
 		responses,
+		tools,
 		role = 'candidate',
 		disabled = false,
 		i18n,
@@ -36,6 +43,8 @@
 		pnp,
 		typeset,
 		headingLevel = 3,
+		assessmentId,
+		displaySettingsControls = null,
 		onResponseChange,
 		onFrameworkError,
 	}: Props = $props();
@@ -48,8 +57,9 @@
 	let loadFailed = $state(false);
 	let itemScopeElement = $state<HTMLElement | null>(null);
 	const itemTitle = $derived(itemRef.title?.trim() || (i18n?.t('sectionPlayer.question', 'Question') ?? 'Question'));
-	const hasHeaderTools = $derived((itemRef.tools?.length ?? 0) > 0);
-	const showHeader = $derived(Boolean(itemRef.title?.trim()) || hasHeaderTools);
+	const headerTools = $derived(tools ?? itemRef.tools);
+	const hasHeaderTools = $derived((headerTools?.length ?? 0) > 0);
+	const showHeader = $derived(Boolean(itemRef.title?.trim()) || hasHeaderTools || displaySettingsControls !== null);
 	const itemSpeech = $derived(extractItemSpeech(itemRef.itemXml, { security }));
 	const headingTag = $derived(`h${Math.min(6, Math.max(1, Math.round(headingLevel)))}`);
 
@@ -60,7 +70,10 @@
 		await customElements.whenDefined('pie-qti-item-player');
 	}
 
-	onMount(() => {
+	// An item with no XML renders the alert straight away; the element load can wait
+	// until there is one to present.
+	$effect(() => {
+		if (playerLoaded || loadFailed || !itemRef.itemXml) return;
 		let cancelled = false;
 		void loadItemPlayerElement()
 			.then(() => {
@@ -80,7 +93,6 @@
 					});
 				}
 			});
-
 		return () => {
 			cancelled = true;
 		};
@@ -124,12 +136,17 @@
 		<span>{i18n?.t('item.loading', 'Loading item...')}</span>
 	</div>
 {:else}
-	<article class="item-container" aria-labelledby={showHeader ? titleId : undefined}>
+	<article
+		class="item-container"
+		aria-labelledby={Boolean(itemRef.title?.trim()) || hasHeaderTools ? titleId : undefined}
+	>
 		{#if showHeader}
 			<header class="item-header">
-				<svelte:element this={headingTag} id={titleId} class="item-title">{itemTitle}</svelte:element>
+				{#if Boolean(itemRef.title?.trim()) || hasHeaderTools}
+					<svelte:element this={headingTag} id={titleId} class="item-title">{itemTitle}</svelte:element>
+				{/if}
 				<QtiToolButtonBar
-					tools={itemRef.tools}
+					tools={headerTools}
 					scopeId={itemRef.identifier}
 					scopeLabel="question"
 					sourceXml={itemRef.itemXml}
@@ -137,6 +154,9 @@
 					language={itemSpeech.language}
 					scopeElement={itemScopeElement}
 					{i18n}
+					{assessmentId}
+					{pnp}
+					{displaySettingsControls}
 				/>
 			</header>
 		{/if}

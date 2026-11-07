@@ -690,6 +690,18 @@ export default {
 		passages: '文章',
 		question: '问题',
 		passageAndQuestion: '文章和问题',
+		// The candidate's display settings tool and its dialog.
+		displaySettings: {
+			title: '显示设置',
+			description: '更改会立即生效，并在本次会话期间保持。',
+			textSize: '文字大小',
+			sizeDefault: '默认',
+			sizeLarge: '大',
+			sizeLarger: '较大',
+			sizeLargest: '最大',
+			highContrast: '更高对比度文字',
+			textSpacing: '增加文字间距',
+		},
 	},
 
 	i18n: {

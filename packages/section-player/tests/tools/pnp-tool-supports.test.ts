@@ -3,6 +3,7 @@ import { convertQti2ToQti3 } from '@pie-qti/qti-common';
 import {
 	applyToolSupports,
 	companionMaterialsOf,
+	companionToolIds,
 	resolveQtiSectionComposition,
 	type QtiSectionModel,
 	type QtiSectionToolConfig,
@@ -57,6 +58,12 @@ describe.each([
 	test('reads the companion materials', () => {
 		expect(companionMaterialsOf(itemXml)).toEqual({ calculator: { type: 'graphing' }, protractor: true });
 		expect(companionMaterialsOf(plainXml)).toBeUndefined();
+	});
+
+	test('names the tools the companion materials list, which the item tool bar requires', () => {
+		expect(companionToolIds(companionMaterialsOf(itemXml))).toEqual(['calculator', 'protractor']);
+		expect(companionToolIds(companionMaterialsOf(plainXml))).toEqual([]);
+		expect(companionToolIds({ ruler: true })).toEqual(['ruler']);
 	});
 
 	test('companion materials turn on the offered tools of their item', () => {

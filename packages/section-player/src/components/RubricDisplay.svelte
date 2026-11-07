@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { I18nProvider } from '@pie-qti/i18n';
-	import type { PlayerSecurityConfig } from '@pie-qti/item-player';
+	import type { PlayerSecurityConfig, PnpProfile } from '@pie-qti/item-player';
 	import type {
 		QtiSectionRole,
 		QtiSectionRuntimeHostContract,
@@ -23,6 +23,10 @@
 		typeset?: (root: HTMLElement) => void | Promise<void>;
 		/** Heading level of the passage titles, so they fit the page outline. Default 3. */
 		headingLevel?: number;
+		/** The assessment the passages' tool bar names. */
+		assessmentId?: string;
+		/** The candidate's PNP; its tool supports refine what the passages' tool bars show. */
+		pnp?: PnpProfile;
 	}
 
 	const {
@@ -35,6 +39,8 @@
 		host,
 		typeset,
 		headingLevel = 3,
+		assessmentId,
+		pnp,
 	}: Props = $props();
 
 	const uid = $props.id();
@@ -125,6 +131,8 @@
 									language={passage.language}
 									scopeElement={passageScopeElements[passage.identifier] ?? null}
 									{i18n}
+									{assessmentId}
+									{pnp}
 								/>
 								<button
 									type="button"

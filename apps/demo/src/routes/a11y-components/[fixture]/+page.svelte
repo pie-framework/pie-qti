@@ -21,6 +21,7 @@
 	import MediaInteractionFixture from '#lib/a11y/fixtures/MediaInteractionFixture.svelte';
 	import ModalFeedbackFixture from '#lib/a11y/fixtures/ModalFeedbackFixture.svelte';
 	import PnpCatalogStimulusFixture from '#lib/a11y/fixtures/PnpCatalogStimulusFixture.svelte';
+	import SectionPnpDisplayFixture from '#lib/a11y/fixtures/SectionPnpDisplayFixture.svelte';
 	import SectionRubricDisplayFixture from '#lib/a11y/fixtures/SectionRubricDisplayFixture.svelte';
 
 	interface Props {
@@ -90,6 +91,8 @@
 				<AssessmentDialogFixture />
 			{:else if fixture === 'pnp-catalog-stimulus'}
 				<PnpCatalogStimulusFixture />
+			{:else if fixture === 'section-pnp-display'}
+				<SectionPnpDisplayFixture />
 			{:else}
 				<div class="alert alert-error">
 					Unknown fixture: <code class="font-mono">{data.fixture}</code>

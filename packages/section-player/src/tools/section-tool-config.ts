@@ -1,3 +1,6 @@
+import type { PnpProfile } from '@pie-qti/item-player';
+import { warnOnce } from '@pie-qti/qti-common';
+
 export const defaultSectionTtsProviderConfig = {
 	backend: 'server',
 	serverProvider: 'polly',
@@ -82,7 +85,34 @@ function liftLegacyProviderKeys(provider: Record<string, unknown>): Record<strin
 	return lifted;
 }
 
-import { warnOnce } from '@pie-qti/qti-common';
+/**
+ * The assessment a section tool bar binds to its toolkit: the host's assessment
+ * identity, and the candidate's PNP tool supports as its personal needs profile.
+ * With PNP enforcement on, the toolkit reads the profile to protect granted tools
+ * (they skip its content-relevance check, so a granted ruler shows on an item
+ * without math markup) and to withdraw prohibited ones.
+ */
+export function toolkitAssessmentOf(
+	assessmentId: string,
+	pnp: PnpProfile | undefined,
+): { id: string; personalNeedsProfile?: Record<string, unknown> } {
+	const tools = pnp?.tools;
+	const supports = tools?.supports ?? [];
+	const prohibitedSupports = tools?.prohibitedSupports ?? [];
+	const activateAtInit = tools?.activateAtInit ?? [];
+	if (supports.length === 0 && prohibitedSupports.length === 0 && activateAtInit.length === 0) {
+		return { id: assessmentId };
+	}
+	return {
+		id: assessmentId,
+		personalNeedsProfile: {
+			supports: [...supports],
+			...(prohibitedSupports.length > 0 ? { prohibitedSupports: [...prohibitedSupports] } : {}),
+			...(activateAtInit.length > 0 ? { activateAtInit: [...activateAtInit] } : {}),
+			...(tools?.toolParameters ? { toolParameters: tools.toolParameters } : {}),
+		},
+	};
+}
 
 /**
  * The TTS provider config for one scope. The content language sets the synthesis language and,

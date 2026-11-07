@@ -77,6 +77,46 @@ export function applyPnpToRoot(rootEl: HTMLElement, pnp: PnpProfile | undefined)
 	else rootEl.removeAttribute(TEXT_APPEARANCE_ATTR);
 }
 
+/**
+ * Marks a PNP surface: an element that applies the candidate's display needs to
+ * everything it renders, its item players included (a section player's layout).
+ */
+export const PNP_SURFACE_ATTRIBUTE = 'data-qti-pnp-surface';
+
+/**
+ * Apply a profile's display needs to a surface that renders more than one item's
+ * content — passages, rubrics, tool bars and items. Everything inside takes them
+ * from the surface: an item body inside one applies none of its own, so the surface
+ * decides one colour scheme, text appearance and polarity for all of it (and an
+ * inverting filter is never applied twice). Nothing outside the surface changes.
+ */
+export function applyPnpToSurface(surfaceEl: HTMLElement, pnp: PnpProfile | undefined): void {
+	surfaceEl.setAttribute(PNP_SURFACE_ATTRIBUTE, '');
+	applyPnpToRoot(surfaceEl, pnp);
+}
+
+/** Stop being a PNP surface: its display attributes go, and items inside apply their own again. */
+export function clearPnpSurface(surfaceEl: HTMLElement): void {
+	surfaceEl.removeAttribute(PNP_SURFACE_ATTRIBUTE);
+	applyPnpToRoot(surfaceEl, undefined);
+}
+
+/** Whether an ancestor of `el`, looking through shadow roots, is a PNP surface. */
+export function isWithinPnpSurface(el: Element): boolean {
+	let node: Element | null | undefined = el.parentElement ?? shadowHostOf(el);
+	while (node) {
+		if (node.closest(`[${PNP_SURFACE_ATTRIBUTE}]`)) return true;
+		node = shadowHostOf(node);
+	}
+	return false;
+}
+
+/** The host of the shadow root `node` sits in, if any. */
+function shadowHostOf(node: Node): Element | null {
+	const root = node.getRootNode?.() as { host?: Element } | undefined;
+	return root?.host ?? null;
+}
+
 function setProperty(rootEl: HTMLElement, property: string, value: string | undefined): void {
 	if (value === undefined) rootEl.style?.removeProperty?.(property);
 	else rootEl.style?.setProperty?.(property, value);

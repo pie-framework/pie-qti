@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import type {
   QtiSectionActiveItemChangeEvent,
+  QtiSectionDisplaySettingsEvent,
   QtiSectionFrameworkError,
   QtiSectionResponseDeltaEvent,
   QtiSectionSnapshot,
@@ -8,6 +9,7 @@ import type {
 } from '../../src/index.js';
 import {
   notifyActiveItemChange,
+  notifyDisplaySettingsChange,
   notifyFrameworkError,
   notifyResponseDelta,
   notifySnapshotChange,
@@ -103,5 +105,21 @@ describe('runtime host notifications', () => {
       message: 'Unable to load the QTI item player.',
     });
     expect(events.errors).toEqual([frameworkError]);
+  });
+
+  test('reports the candidate\'s display settings with the profile the section renders with', () => {
+    const composition = createComposition({ responses: [], activeItems: [], snapshots: [], errors: [] });
+    const received: QtiSectionDisplaySettingsEvent[] = [];
+    composition.host = { ...composition.host, onDisplaySettingsChange: (event) => received.push(event) };
+    const settings = { textSize: 2 as const, highContrast: true, textSpacing: false };
+    const pnp = { display: { colorScheme: 'blackwhite' as const, textAppearance: { fontSize: 16 } } };
+
+    const event = notifyDisplaySettingsChange(composition, settings, pnp);
+
+    expect(event).toEqual({ sectionIdentifier: 'section-1', settings, pnp });
+    expect(received).toEqual([event]);
+    // The event carries a copy: later changes to the caller's settings do not rewrite it.
+    settings.highContrast = false;
+    expect(event.settings.highContrast).toBe(true);
   });
 });
