@@ -7,6 +7,7 @@
 
 import type {
 	AssessmentSessionState,
+	OutcomeProcessingError,
 	SecureAssessment,
 	SessionId,
 } from './api-contract.js';
@@ -34,6 +35,12 @@ export interface StoredSession {
 	finalized: boolean;
 	/** Per-item variables and flags from the latest submission, read by test-level outcome processing. */
 	itemTestStates?: Record<string, ItemTestState>;
+	/**
+	 * Set when test-level outcome processing failed: candidate responses stay persisted,
+	 * but SCORE/testFeedback outcomes could not be computed and the error must surface
+	 * to the host instead of failing silently.
+	 */
+	outcomeProcessingError?: OutcomeProcessingError;
 }
 
 export function generateSessionId(assessmentId: string, candidateId: string): SessionId {

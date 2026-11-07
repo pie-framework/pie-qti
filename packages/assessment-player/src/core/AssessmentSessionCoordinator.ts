@@ -1,9 +1,11 @@
 import type { SerializedItemSessionState } from '@pie-qti/item-player';
 import type { AssessmentSessionState } from '../integration/api-contract.js';
 import type { ItemResult } from '../types/index.js';
+import { AssessmentPlayerError } from './errors.js';
 import {
 	ItemSessionController,
 	type ItemSessionControlSettings,
+	type ItemNavigationBlockReason,
 	type ItemSessionState,
 } from './ItemSessionController.js';
 
@@ -180,7 +182,7 @@ export class AssessmentSessionCoordinator {
 	canNavigateAway(
 		itemIdentifier: string,
 		responses: Record<string, unknown>
-	): { allowed: boolean; reason?: string } {
+	): { allowed: boolean; reason?: ItemNavigationBlockReason } {
 		return this.#sessionController.canNavigateAway(itemIdentifier, hasAnyResponse(responses));
 	}
 
@@ -200,10 +202,13 @@ export class AssessmentSessionCoordinator {
 		return this.#sessionController.getItemSettings(itemIdentifier);
 	}
 
-	/** Records the candidate's comment on an item; throws unless its allowComment is on. */
+	/** Records the candidate's comment on an item; throws a coded error unless its allowComment is on. */
 	setItemComment(itemIdentifier: string, comment: string): void {
 		if (!this.#sessionController.canComment(itemIdentifier)) {
-			throw new Error(`Comments are not allowed for item "${itemIdentifier}".`);
+			throw new AssessmentPlayerError(
+				'commentsNotAllowed',
+				`Comments are not allowed for item "${itemIdentifier}".`,
+			);
 		}
 		this.#state.itemComments = { ...(this.#state.itemComments ?? {}), [itemIdentifier]: comment };
 	}

@@ -7,6 +7,27 @@
 
 export type QTIRole = import('@pie-qti/item-player').QTIRole;
 export type ResolvedItemDeliveryContext = import('@pie-qti/item-player').ResolvedItemDeliveryContext;
+export type OutcomeProcessingError = import('../integration/api-contract.js').OutcomeProcessingError;
+
+/**
+ * A candidate-facing section as listed by `AssessmentPlayer.getAllSections()`.
+ *
+ * Sections with `visible="false"` (or hidden by an invisible ancestor) are never
+ * listed: per QTI their content appears as part of the parent and their titles are
+ * not surfaced.
+ */
+export interface CandidateSectionView {
+	id: string;
+	title?: string;
+	/** Position within the candidate-facing section list. */
+	index: number;
+	/**
+	 * Whether jumping to this section is legal right now (navigationMode, test part
+	 * locks and finalization). Illegal targets must not be offered to the candidate;
+	 * navigating to one is rejected with an `AssessmentPlayerError`.
+	 */
+	navigable: boolean;
+}
 
 /**
  * Minimal item reference shape used by the UI renderer.
@@ -35,7 +56,14 @@ export interface NavigationState {
 	totalItems: number;
 	canNext: boolean;
 	canPrevious: boolean;
+	/**
+	 * True while a navigation or submission transition is in flight. Shells must
+	 * disable navigation controls while this is set; the core also serializes
+	 * transitions so concurrent calls are rejected as busy.
+	 */
 	isLoading: boolean;
+	/** True once the assessment is finalized; navigation is closed afterwards. */
+	isComplete?: boolean;
 	currentSection?: {
 		id: string;
 		title?: string;
@@ -56,6 +84,11 @@ export interface AssessmentResults {
 	maxScore: number;
 	itemResults: ItemResult[];
 	completedAt: Date;
+	/**
+	 * Set when test-level outcome processing failed on the backend: responses were
+	 * accepted and persisted, but SCORE/testFeedback outcomes could not be computed.
+	 */
+	outcomeProcessingError?: OutcomeProcessingError;
 }
 
 /** A test feedback block `AssessmentPlayer.getVisibleFeedback()` shows now. */

@@ -1,7 +1,17 @@
 export { AssessmentPlayer } from './AssessmentPlayer.js';
+export {
+	AssessmentPlayerError,
+	assessmentErrorDisplay,
+	isAssessmentPlayerError,
+	shortSupportCode,
+	type AssessmentErrorDisplay,
+	type AssessmentPlayerErrorCode,
+	type AssessmentPlayerErrorParams,
+} from './errors.js';
 export type {
 	ItemSessionControlSettings,
 	ItemSessionState,
+	ItemNavigationBlockReason,
 } from './ItemSessionController.js';
 export { ItemSessionController } from './ItemSessionController.js';
 export type { NavigationMode } from './NavigationManager.js';

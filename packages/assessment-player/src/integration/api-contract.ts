@@ -74,6 +74,20 @@ export type TestOutcomeValue =
 /** Test-level outcome values keyed by outcome identifier (e.g. "PASS", "GRADE"). */
 export type TestOutcomeValues = Record<string, TestOutcomeValue>;
 
+/**
+ * Structured, typed failure of test-level outcome processing.
+ *
+ * Delivery continues and candidate responses stay persisted; the error is carried on
+ * the session/results so hosts can surface it (onError callback/event) instead of
+ * SCORE/testFeedback silently never computing.
+ */
+export interface OutcomeProcessingError {
+	/** Stable code — currently always `OUTCOME_PROCESSING_FAILED`. */
+	code: 'OUTCOME_PROCESSING_FAILED';
+	/** Backend-side detail for logs and host callbacks; never shown verbatim to candidates. */
+	message: string;
+}
+
 // ============================================================================
 // ASSESSMENT STRUCTURE (CLIENT-SAFE)
 // ============================================================================
@@ -337,6 +351,8 @@ export interface SubmitResponsesResponse {
 	updatedState?: AssessmentSessionState;
 	/** Test-level outcome values after the outcome processing this submission triggers */
 	outcomes?: TestOutcomeValues;
+	/** Set when test-level outcome processing failed; responses are still accepted and persisted. */
+	outcomeProcessingError?: OutcomeProcessingError;
 	/** Error message if success=false */
 	error?: string;
 }
@@ -462,6 +478,8 @@ export interface FinalizeAssessmentResponse {
 	feedback?: string;
 	/** Test-level outcome values after outcomeProcessing; testFeedback visibility reads them. */
 	outcomes?: TestOutcomeValues;
+	/** Set when test-level outcome processing failed; item results are still returned. */
+	outcomeProcessingError?: OutcomeProcessingError;
 	/** Server timestamp */
 	finalizedAt: number;
 }

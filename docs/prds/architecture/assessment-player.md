@@ -52,6 +52,37 @@ After `initSession` returns, `AssessmentPlayer` immediately flattens all `Secure
 - **`individual`**: The candidate submits each item independently as they navigate away. The backend scores each response immediately. The client calls `submitCurrentItem()` inside `next()` before navigating forward. This enables per-item branching decisions (`nextItemIdentifier` in `SubmitResponsesResponse`).
 - **`simultaneous`**: All responses are withheld until the candidate explicitly finalizes the assessment. In `submit()`, the player iterates over all items that have not yet been submitted, sends each response to the backend in sequence, then calls `finalizeAssessment()`. The distinction matters for backend scoring: simultaneous mode allows the server to apply test-wide scoring rules that depend on the full response set before producing any scores.
 
+### Why every terminal transition routes through one finalization path
+
+QTI `branchRule` targets can end delivery early: `EXIT_TEST` terminates the test (remaining items
+are not presented), `EXIT_TESTPART` ends the current test part, and `EXIT_SECTION` ends the current
+section. All of them — and the explicit `submit()` call — route through the same internal
+end-of-test path: pending simultaneous-mode responses are submitted, the current individual-mode
+item is submitted if needed, the backend finalizes (outcome processing runs, results are produced),
+`complete` fires, and navigation closes (`canNext`/`canPrevious` become false; further navigation
+rejects with a typed `testFinalized` error). `EXIT_TESTPART`/`EXIT_SECTION` first continue with the
+next delivered item outside the ended scope, finalizing the ended test part when delivery leaves it
+or nothing follows.
+
+### Why navigation transitions are serialized
+
+In individual submission mode `next()` submits before advancing, so navigation and submission share
+one backend round-trip. The core runs every public navigation/submit call through a transition lock:
+while one transition is in flight, further navigation or submit calls reject with a typed
+`navigationInFlight` error instead of racing it. `getNavigationState().isLoading` exposes the real
+in-flight flag (also via `onBusyChange` and `isBusy()`), so shells disable Previous/Next/Submit and
+set `aria-busy` while busy. A failed submit restores the candidate to the same item with the
+response intact and retryable.
+
+### Why candidate-facing errors are coded
+
+The core throws `AssessmentPlayerError` with a stable `code` (plus interpolation `params`) for every
+candidate-visible failure. The `message` keeps the original text — including raw backend error
+strings — for logs and host callbacks (`config.onError`, the web component's `player-error` event),
+but shells render only the localized message from `assessment.errors.codes.<code>`; anything
+uncoded renders as a generic localized message plus a short support code, never a raw backend or
+engine string.
+
 ### Why persistence is host-driven
 
 `AssessmentPlayer` exposes `getState()`/`restoreState()` and requires `BackendAdapter.saveState()` in
@@ -77,7 +108,7 @@ host decides when a draft is durable and whether client storage is appropriate.
 |---|---|
 | `testPart.navigationMode` (linear / nonlinear) | Full |
 | `testPart.submissionMode` (individual / simultaneous) | Full |
-| `assessmentSection.visible` | Full (hidden sections omitted from section menu) |
+| `assessmentSection.visible` | Full (invisible sections — and sections under an invisible ancestor — are never listed candidate-facing: omitted from the section list, never surfaced next to the question counter; their items still deliver in order) |
 | `assessmentSection.rubricBlock` (view-filtered) | Full |
 | `timeLimits.minTime` / `maxTime` (assessment, testPart, section, item) | Runtime enforcement with independent persisted clocks; edge/browser coverage remains |
 | `timeLimits.allowLateSubmission` | Full |
@@ -88,7 +119,7 @@ host decides when a draft is durable and whether client storage is appropriate.
 | `itemSessionControl.showFeedback` / `showSolution` | Applied to the item presentation |
 | `itemSessionControl.validateResponses` | Applied when the attempt ends |
 | `preCondition` (testPart, section, item ref) | Evaluated by the backend on entering each |
-| `branchRule` (item ref, section, testPart) | Evaluated by the backend; returned as `nextItemIdentifier` |
+| `branchRule` (item ref, section, testPart) | Evaluated by the backend; returned as `nextItemIdentifier`. `EXIT_TEST`/`EXIT_TESTPART`/`EXIT_SECTION` terminate the ended scope through the same finalization path as `submit()` |
 | `variableMapping` / `templateDefault` | Full |
 | `testFeedback` (outcome-based) | Full for preserved structured feedback and finalized backend feedback |
 | `assessmentSection.selection` (direct children, with replacement) | Drawn by the backend at session start |
