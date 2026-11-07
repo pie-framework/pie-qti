@@ -105,6 +105,9 @@ describe('DaisyUI bridge tiers', () => {
 		for (const fill of FILLS) {
 			expect(declaring(`--pie-qti-${fill}-content`)).toEqual([null, RELATIVE_COLOR.find((c) => !c.includes('light-dark'))]);
 		}
+		for (const token of STATE_TEXT_TOKENS) {
+			expect(declaring(token)).toEqual([null, RELATIVE_COLOR.find((c) => c.includes('light-dark'))]);
+		}
 	});
 
 	test('without the tiers, the bridge passes DaisyUI colours through unchanged', () => {
@@ -178,6 +181,54 @@ describe('text on fills in every stock DaisyUI theme', () => {
 			}
 		});
 	}
+});
+
+describe('state text on surfaces in every stock DaisyUI theme', () => {
+	/** The documented surface bounds the fixed state text values are adjusted against. */
+	const LIGHT_SURFACE_MIN_LUMINANCE = 0.625;
+	const DARK_SURFACE_MAX_LUMINANCE = 0.05;
+
+	for (const [name, { scheme, variables }] of Object.entries(STOCK_THEMES)) {
+		test(`${name}: every state text token >= ${WCAG_TEXT}:1 on base-100 and base-200 (current engines)`, () => {
+			const bridged = bridgeVariables(variables);
+			for (const token of STATE_TEXT_TOKENS) {
+				const { value, label } = minimumOnSurfaces(bridged, scheme, token);
+				expect(value, label).toBeGreaterThanOrEqual(WCAG_TEXT);
+			}
+		});
+	}
+
+	test('the surfaces lie within the documented state text guarantee bounds', () => {
+		for (const { scheme, variables } of Object.values(STOCK_THEMES)) {
+			const bridged = bridgeVariables(variables);
+			for (const surface of BASE_SURFACES) {
+				const luminance = relativeLuminance(parseCssColor(bridged[surface], scheme));
+				if (scheme === 'light') expect(luminance, surface).toBeGreaterThanOrEqual(LIGHT_SURFACE_MIN_LUMINANCE);
+				else expect(luminance, surface).toBeLessThanOrEqual(DARK_SURFACE_MAX_LUMINANCE);
+			}
+		}
+	});
+
+	test('a state text value that already clears the bound is kept in every theme', () => {
+		// Measured with daisyui 5.7.50: the amber warning values pass as they are.
+		for (const { variables } of Object.values(STOCK_THEMES)) {
+			const bridged = bridgeVariables(variables);
+			const light = toHex(parseCssColor(bridged['--pie-qti-warning-text'], 'light'));
+			const dark = toHex(parseCssColor(bridged['--pie-qti-warning-text'], 'dark'));
+			expect([light, dark]).toEqual(['#92400e', '#fbbf24']);
+		}
+	});
+
+	test('without the relative-colour tier the fixed values pass on neutral surfaces only', () => {
+		const fallback = bridgeVariables(STOCK_THEMES.light.variables, ENGINES.baseline);
+		expect(fallback['--pie-qti-error-text']).toBe('light-dark(#b91c1c, #f87171)');
+		// On the plain white light theme even the fallback clears 4.5:1.
+		const neutral = bridgeVariables(STOCK_THEMES.light.variables, ENGINES.colorMixOnly);
+		for (const token of STATE_TEXT_TOKENS) {
+			const { value, label } = minimumOnSurfaces(neutral, 'light', token);
+			expect(value, label).toBeGreaterThanOrEqual(WCAG_TEXT);
+		}
+	});
 });
 
 describe('DaisyUI light and dark themes: text and boundaries', () => {

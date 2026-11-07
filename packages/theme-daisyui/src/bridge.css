@@ -29,9 +29,13 @@
 	 * Message/state TEXT is deliberately NOT mapped to DaisyUI's
 	 * info/success/warning/error colours: those are fills, and as text on
 	 * white they reach only 1.8:1 to 2.9:1 in the DaisyUI light theme.
-	 * The bridge keeps the @pie-qti/theme defaults instead and
-	 * selects the light or dark value from the color-scheme that every DaisyUI
-	 * theme declares.
+	 * The bridge keeps the @pie-qti/theme defaults instead and selects the
+	 * light or dark value from the color-scheme that every DaisyUI theme
+	 * declares. The relative-colour tier below darkens (light themes) or
+	 * lightens (dark themes) these just far enough to clear 4.5:1 on the
+	 * tinted surfaces of themes such as garden, aqua, retro and nord; engines
+	 * without relative colour syntax keep the values here, which hold on
+	 * neutral surfaces only.
 	 */
 	--pie-qti-error-text: light-dark(#b91c1c, #f87171);
 	--pie-qti-warning-text: light-dark(#92400e, #fbbf24);
@@ -140,6 +144,78 @@
 @supports (color: color(from red srgb-linear clamp(0, (0.5 - r) * 1000000, 1) calc(g * min(1, 0.5 / max(0.0001, b))) calc(b + max(0, 0.5 - min(r, 1)) * (1 - b)) / 1)) and (color: light-dark(red, blue)) {
 	:root,
 	[data-theme] {
+		/*
+		 * Message/state text: the fixed light and dark values, darkened (light
+		 * themes) or lightened (dark themes) in linear light just far enough to
+		 * reach >= 4.5:1 against both base surfaces of every stock theme:
+		 * - light: scaled towards black until its relative luminance is <= 0.1,
+		 *   which clears 4.5:1 (4.66:1 at the exact bound) on any surface of
+		 *   luminance >= 0.625 (about #cfcfcf or lighter);
+		 * - dark: mixed towards white until its luminance is >= 0.4, which
+		 *   clears 4.5:1 (4.63:1 at the exact bound) on any surface of
+		 *   luminance <= 0.05 (about #3f3f3f or darker).
+		 * A value already within the bound stays as it is, so neutral-surface
+		 * themes keep the familiar colours. Every stock DaisyUI theme's
+		 * base-100 and base-200 lie within those bounds. Engines without
+		 * relative colour syntax keep the plain fixed values above.
+		 */
+		--pie-qti-error-text: light-dark(
+			color(
+				from #b91c1c srgb-linear
+				calc(r * min(1, 0.1 / max(0.0001, 0.2126 * max(r, 0) + 0.7152 * max(g, 0) + 0.0722 * max(b, 0))))
+				calc(g * min(1, 0.1 / max(0.0001, 0.2126 * max(r, 0) + 0.7152 * max(g, 0) + 0.0722 * max(b, 0))))
+				calc(b * min(1, 0.1 / max(0.0001, 0.2126 * max(r, 0) + 0.7152 * max(g, 0) + 0.0722 * max(b, 0)))) / 1
+			),
+			color(
+				from #f87171 srgb-linear
+				calc(r + max(0, (0.4 - (0.2126 * min(r, 1) + 0.7152 * min(g, 1) + 0.0722 * min(b, 1))) / max(0.0001, 1 - (0.2126 * min(r, 1) + 0.7152 * min(g, 1) + 0.0722 * min(b, 1)))) * (1 - r))
+				calc(g + max(0, (0.4 - (0.2126 * min(r, 1) + 0.7152 * min(g, 1) + 0.0722 * min(b, 1))) / max(0.0001, 1 - (0.2126 * min(r, 1) + 0.7152 * min(g, 1) + 0.0722 * min(b, 1)))) * (1 - g))
+				calc(b + max(0, (0.4 - (0.2126 * min(r, 1) + 0.7152 * min(g, 1) + 0.0722 * min(b, 1))) / max(0.0001, 1 - (0.2126 * min(r, 1) + 0.7152 * min(g, 1) + 0.0722 * min(b, 1)))) * (1 - b)) / 1
+			)
+		);
+		--pie-qti-warning-text: light-dark(
+			color(
+				from #92400e srgb-linear
+				calc(r * min(1, 0.1 / max(0.0001, 0.2126 * max(r, 0) + 0.7152 * max(g, 0) + 0.0722 * max(b, 0))))
+				calc(g * min(1, 0.1 / max(0.0001, 0.2126 * max(r, 0) + 0.7152 * max(g, 0) + 0.0722 * max(b, 0))))
+				calc(b * min(1, 0.1 / max(0.0001, 0.2126 * max(r, 0) + 0.7152 * max(g, 0) + 0.0722 * max(b, 0)))) / 1
+			),
+			color(
+				from #fbbf24 srgb-linear
+				calc(r + max(0, (0.4 - (0.2126 * min(r, 1) + 0.7152 * min(g, 1) + 0.0722 * min(b, 1))) / max(0.0001, 1 - (0.2126 * min(r, 1) + 0.7152 * min(g, 1) + 0.0722 * min(b, 1)))) * (1 - r))
+				calc(g + max(0, (0.4 - (0.2126 * min(r, 1) + 0.7152 * min(g, 1) + 0.0722 * min(b, 1))) / max(0.0001, 1 - (0.2126 * min(r, 1) + 0.7152 * min(g, 1) + 0.0722 * min(b, 1)))) * (1 - g))
+				calc(b + max(0, (0.4 - (0.2126 * min(r, 1) + 0.7152 * min(g, 1) + 0.0722 * min(b, 1))) / max(0.0001, 1 - (0.2126 * min(r, 1) + 0.7152 * min(g, 1) + 0.0722 * min(b, 1)))) * (1 - b)) / 1
+			)
+		);
+		--pie-qti-success-text: light-dark(
+			color(
+				from #15803d srgb-linear
+				calc(r * min(1, 0.1 / max(0.0001, 0.2126 * max(r, 0) + 0.7152 * max(g, 0) + 0.0722 * max(b, 0))))
+				calc(g * min(1, 0.1 / max(0.0001, 0.2126 * max(r, 0) + 0.7152 * max(g, 0) + 0.0722 * max(b, 0))))
+				calc(b * min(1, 0.1 / max(0.0001, 0.2126 * max(r, 0) + 0.7152 * max(g, 0) + 0.0722 * max(b, 0)))) / 1
+			),
+			color(
+				from #4ade80 srgb-linear
+				calc(r + max(0, (0.4 - (0.2126 * min(r, 1) + 0.7152 * min(g, 1) + 0.0722 * min(b, 1))) / max(0.0001, 1 - (0.2126 * min(r, 1) + 0.7152 * min(g, 1) + 0.0722 * min(b, 1)))) * (1 - r))
+				calc(g + max(0, (0.4 - (0.2126 * min(r, 1) + 0.7152 * min(g, 1) + 0.0722 * min(b, 1))) / max(0.0001, 1 - (0.2126 * min(r, 1) + 0.7152 * min(g, 1) + 0.0722 * min(b, 1)))) * (1 - g))
+				calc(b + max(0, (0.4 - (0.2126 * min(r, 1) + 0.7152 * min(g, 1) + 0.0722 * min(b, 1))) / max(0.0001, 1 - (0.2126 * min(r, 1) + 0.7152 * min(g, 1) + 0.0722 * min(b, 1)))) * (1 - b)) / 1
+			)
+		);
+		--pie-qti-info-text: light-dark(
+			color(
+				from #1d4ed8 srgb-linear
+				calc(r * min(1, 0.1 / max(0.0001, 0.2126 * max(r, 0) + 0.7152 * max(g, 0) + 0.0722 * max(b, 0))))
+				calc(g * min(1, 0.1 / max(0.0001, 0.2126 * max(r, 0) + 0.7152 * max(g, 0) + 0.0722 * max(b, 0))))
+				calc(b * min(1, 0.1 / max(0.0001, 0.2126 * max(r, 0) + 0.7152 * max(g, 0) + 0.0722 * max(b, 0)))) / 1
+			),
+			color(
+				from #60a5fa srgb-linear
+				calc(r + max(0, (0.4 - (0.2126 * min(r, 1) + 0.7152 * min(g, 1) + 0.0722 * min(b, 1))) / max(0.0001, 1 - (0.2126 * min(r, 1) + 0.7152 * min(g, 1) + 0.0722 * min(b, 1)))) * (1 - r))
+				calc(g + max(0, (0.4 - (0.2126 * min(r, 1) + 0.7152 * min(g, 1) + 0.0722 * min(b, 1))) / max(0.0001, 1 - (0.2126 * min(r, 1) + 0.7152 * min(g, 1) + 0.0722 * min(b, 1)))) * (1 - g))
+				calc(b + max(0, (0.4 - (0.2126 * min(r, 1) + 0.7152 * min(g, 1) + 0.0722 * min(b, 1))) / max(0.0001, 1 - (0.2126 * min(r, 1) + 0.7152 * min(g, 1) + 0.0722 * min(b, 1)))) * (1 - b)) / 1
+			)
+		);
+
 		--pie-qti-focus: light-dark(
 			color(
 				from var(--color-primary) srgb-linear

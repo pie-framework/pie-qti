@@ -200,6 +200,9 @@ describe('MediaInteraction (pie-qti-media) without a play limit', () => {
 		expect(tracks[1]!.hasAttribute('default')).toBe(false);
 		// The video is named by the prompt.
 		expect(video.getAttribute('aria-labelledby')).toBe(q(m, '[part="prompt"]')!.id);
+		// Playback stays in the page on iOS: no fullscreen takeover that hides the question.
+		expect(video.hasAttribute('playsinline')).toBe(true);
+		expect(video.hasAttribute('webkit-playsinline')).toBe(true);
 		// Without a limit there are no custom controls.
 		expect(q(m, '[part="controls"]')).toBeNull();
 	});
@@ -452,6 +455,7 @@ describe('MediaInteraction (pie-qti-media) with maxPlays', () => {
 		const video = q<HTMLVideoElement>(m, 'video')!;
 		expect(video.hasAttribute('controls')).toBe(false);
 		expect(video.hasAttribute('playsinline')).toBe(true);
+		expect(video.hasAttribute('webkit-playsinline')).toBe(true);
 		// Svelte sets this as the reflecting IDL property, which jsdom does not implement.
 		expect(
 			video.hasAttribute('disablepictureinpicture') ||

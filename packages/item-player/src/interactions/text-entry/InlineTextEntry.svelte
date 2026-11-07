@@ -2,7 +2,8 @@
 	import { joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
 	import { xsdPatternSource } from '@pie-qti/qti-processing';
 	import type { InlineInteractionPosition } from '../../presentation/itemPresentationPlan.js';
-	import { inlineInteractionLabel, textEntryInputMode, textEntryPatternMessage } from '../inline/accessibleName.js';
+	import { inlineInteractionLabel, textEntryPatternMessage } from '../inline/accessibleName.js';
+	import { textEntryInputMode } from './inputMode.js';
 	import type { TextEntryInteractionData } from '../shared/types.js';
 
 	interface Props {
@@ -38,7 +39,7 @@
 	const validationError = $derived(invalid ? textEntryPatternMessage(i18n, interaction) : null);
 	const displayValue = $derived(correctAnswer !== null ? correctAnswer : response);
 	const label = $derived(inlineInteractionLabel(i18n, interaction, position));
-	const inputMode = $derived(textEntryInputMode(interaction.baseType));
+	const inputMode = $derived(textEntryInputMode(interaction));
 	const inputWidthClass = $derived((interaction.interactionClasses ?? []).find((className) => className.startsWith('qti-input-width-')));
 	const extraClasses = $derived((interaction.interactionClasses ?? []).filter((className) => !className.startsWith('qti-input-width-')).join(' '));
 	const describedBy = $derived(
@@ -68,7 +69,8 @@
 
 <!--
 	Spelling, capitalization and autocomplete help would answer spelling and vocabulary items for
-	the candidate, so the browser offers none. A numeric response gets a numeric keyboard.
+	the candidate, so the browser offers none. A numeric keyboard is only requested when the
+	authored patternMask proves the answer cannot be negative: phone number pads have no minus key.
 -->
 <input
 	type="text"

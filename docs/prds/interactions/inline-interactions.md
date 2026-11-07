@@ -146,6 +146,7 @@ The extractor reads and exposes `patternMask` as a string on `TextEntryInteracti
 - **FR-T3:** When `placeholderText` is present in the extracted data, it must appear as the input's `placeholder` attribute.
 - **FR-T4:** The response value stored must be the raw string typed by the candidate. No trimming, normalisation, or type coercion is applied by the renderer; coercion is the scoring layer's responsibility.
 - **FR-T5:** When `patternMask` is present in the extracted data, it must (once G-04 is resolved) be wired to the `pattern` attribute of the `<input>` and must trigger an accessible validation message when violated.
+- **FR-T6:** A numeric response (`baseType` `integer` or `float`) requests a numeric on-screen keyboard (`inputmode="numeric"` or `"decimal"`) only when its `patternMask` provably excludes `-` (for example `^[0-9]+$`): phone number pads offer no minus key, so a negative answer must stay typable. Every other response keeps the default text keyboard.
 
 ### `inlineChoiceInteraction`
 
@@ -448,7 +449,7 @@ AC-E8: Interaction markup without interaction data
 
 ## Open questions
 
-- [ ] **G-03 priority**: The `format` attribute is a display hint. For numeric formats specifically, should the input switch to `type="number"` or remain `type="text"`? Using `type="number"` has known accessibility issues (screen reader announces "spin button"; step arrows clutter the input; leading zeros are stripped). Decision needed before closing G-03. (Numeric responses already get a numeric on-screen keyboard through `inputmode`.)
+- [ ] **G-03 priority**: The `format` attribute is a display hint. For numeric formats specifically, should the input switch to `type="number"` or remain `type="text"`? Using `type="number"` has known accessibility issues (screen reader announces "spin button"; step arrows clutter the input; leading zeros are stripped). Decision needed before closing G-03. (Numeric responses get a numeric on-screen keyboard through `inputmode`, but only when the authored `patternMask` proves the answer cannot be negative — FR-T6 — since phone number pads have no minus key.)
 - [ ] **Performance with large cloze passages**: No measurement of slot placement at 20+ inline interactions. If items with dense cloze (20+ blanks) are in the target content set, this should be benchmarked.
 
 ---

@@ -29,7 +29,7 @@ const PARTS = `<?xml version="1.0" encoding="UTF-8"?>
     <p class="part-b">Part B: explain your answer.</p>
     <extendedTextInteraction responseIdentifier="PART_B" expectedLines="2"/>
     <p class="after-b">Text after Part B.</p>
-    <p class="blanks">The capital of France is <textEntryInteraction responseIdentifier="CAPITAL_PARIS" expectedLength="10"/>, it has <textEntryInteraction responseIdentifier="BRIDGES" expectedLength="4"/> bridges and lies in <inlineChoiceInteraction responseIdentifier="CONTINENT"><inlineChoice identifier="eu">Europe</inlineChoice><inlineChoice identifier="as">Asia</inlineChoice></inlineChoiceInteraction>.</p>
+    <p class="blanks">The capital of France is <textEntryInteraction responseIdentifier="CAPITAL_PARIS" expectedLength="10"/>, it has <textEntryInteraction responseIdentifier="BRIDGES" expectedLength="4" patternMask="^[0-9]+$"/> bridges and lies in <inlineChoiceInteraction responseIdentifier="CONTINENT"><inlineChoice identifier="eu">Europe</inlineChoice><inlineChoice identifier="as">Asia</inlineChoice></inlineChoiceInteraction>.</p>
     <p class="separate">A separate paragraph.</p>
     <p class="dated">Date of the visit: <textEntryInteraction responseIdentifier="DATE" expectedLength="10" patternMask="[0-9]{2}/[0-9]{2}/[0-9]{4}" placeholderText="dd/mm/yyyy"/></p>
     <div class="qti-layout-row">

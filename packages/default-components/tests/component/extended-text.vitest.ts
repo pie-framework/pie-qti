@@ -251,19 +251,64 @@ describe('ExtendedTextInteraction (pie-qti-extended-text)', () => {
 		expect(textarea.getAttribute('autocapitalize')).toBe('off');
 	});
 
-	test.each([
-		['integer', 10, 'single', 'numeric'],
-		['float', 10, 'single', 'decimal'],
-		[undefined, 10, 'record', 'decimal'],
-		['string', 10, 'single', null],
-		// Digits above 9 are letters in base 16.
-		['integer', 16, 'single', null],
-	] as const)('a %s response in base %d (%s) gets inputmode %j', async (baseType, base, cardinality, inputmode) => {
-		const m = mountExtendedText({ interaction: extendedTextData({ baseType, base, cardinality }) });
+	test('a PNP spell-checker grant opts in like the prop, object or JSON', async () => {
+		const granted = mountExtendedText({
+			interaction: extendedTextData({ responseId: 'PNP_A', prompt: null }),
+			pnp: { cognitive: { spellChecker: true } },
+		});
+		const grantedJson = mountExtendedText({
+			interaction: extendedTextData({ responseId: 'PNP_B', prompt: null }),
+			pnp: JSON.stringify({ cognitive: { spellChecker: true } }),
+		});
+		const withoutGrant = mountExtendedText({
+			interaction: extendedTextData({ responseId: 'PNP_C', prompt: null }),
+			pnp: { cognitive: {} },
+		});
 		await settle();
 
-		expect(q(m, 'textarea')!.getAttribute('inputmode')).toBe(inputmode);
+		for (const m of [granted, grantedJson]) {
+			const textarea = q<HTMLTextAreaElement>(m, 'textarea')!;
+			expect(textarea.getAttribute('spellcheck')).toBe('true');
+			expect(textarea.getAttribute('autocorrect')).toBe('on');
+		}
+		expect(q<HTMLTextAreaElement>(withoutGrant, 'textarea')!.getAttribute('spellcheck')).toBe('false');
 	});
+
+	test('the PNP spell-checker grant reaches the rich text editor too', async () => {
+		const m = mountExtendedText({
+			interaction: extendedTextData({ format: 'xhtml', responseId: 'PNP_RICH', prompt: null }),
+			pnp: { cognitive: { spellChecker: true } },
+		});
+		await settle();
+
+		const surface = q<HTMLElement>(m, '[contenteditable]')!;
+		expect(surface.getAttribute('spellcheck')).toBe('true');
+		expect(surface.getAttribute('autocorrect')).toBe('on');
+		expect(surface.getAttribute('autocapitalize')).toBe('off');
+	});
+
+	test.each([
+		// A numeric keyboard is only safe when the patternMask proves the answer
+		// cannot be negative: phone number pads have no minus key.
+		['integer', 10, 'single', '^[0-9]+$', 'numeric'],
+		['float', 10, 'single', '[0-9]+([.][0-9]+)?', 'decimal'],
+		[undefined, 10, 'record', '[0-9]+', 'decimal'],
+		// No mask, or a mask that can match `-`, keeps the text keyboard.
+		['integer', 10, 'single', null, null],
+		['float', 10, 'single', null, null],
+		['integer', 10, 'single', '-?[0-9]+', null],
+		['string', 10, 'single', '^[0-9]+$', null],
+		// Digits above 9 are letters in base 16.
+		['integer', 16, 'single', '^[0-9]+$', null],
+	] as const)(
+		'a %s response in base %d (%s) masked %j gets inputmode %j',
+		async (baseType, base, cardinality, patternMask, inputmode) => {
+			const m = mountExtendedText({ interaction: extendedTextData({ baseType, base, cardinality, patternMask }) });
+			await settle();
+
+			expect(q(m, 'textarea')!.getAttribute('inputmode')).toBe(inputmode);
+		},
+	);
 
 	test('disabled items render a disabled textarea that emits nothing', async () => {
 		const m = mountExtendedText({ interaction: extendedTextData(), disabled: true });

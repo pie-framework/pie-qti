@@ -10,7 +10,6 @@ import { DefaultI18nProvider } from '@pie-qti/i18n';
 import { createAssessmentItemDefinition } from '../../src/core/AssessmentItemDefinition.js';
 import {
 	inlineInteractionLabel,
-	textEntryInputMode,
 	textEntryPatternMessage,
 } from '../../src/interactions/inline/accessibleName.js';
 import type { TextEntryInteractionData } from '../../src/interactions/shared/types.js';
@@ -46,12 +45,7 @@ describe('inlineInteractionLabel', () => {
 });
 
 describe('textEntryInputMode', () => {
-	test('a numeric response gets a numeric keyboard', () => {
-		expect(textEntryInputMode('integer')).toBe('numeric');
-		expect(textEntryInputMode('float')).toBe('decimal');
-		expect(textEntryInputMode('string')).toBeUndefined();
-		expect(textEntryInputMode(undefined)).toBeUndefined();
-	});
+	// The keyboard rule itself lives in `text-entry-input-mode.test.ts`.
 
 	test('the text entry carries its response baseType and authored title', () => {
 		const session = createAssessmentItemDefinition({

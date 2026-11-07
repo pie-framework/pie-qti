@@ -29,16 +29,6 @@ export function inlineInteractionLabel(
 }
 
 /**
- * The `inputmode` for a text entry bound to `baseType`: a numeric keyboard for integers, one
- * with a decimal separator for floats, the default keyboard otherwise.
- */
-export function textEntryInputMode(baseType: string | undefined): 'numeric' | 'decimal' | undefined {
-	if (baseType === 'integer') return 'numeric';
-	if (baseType === 'float') return 'decimal';
-	return undefined;
-}
-
-/**
  * The message for a text entry whose answer does not match its pattern mask: the author's own
  * message when there is one, else a localized sentence that names the expected format by the
  * item's placeholder hint when it has one. The pattern mask itself is an XSD regular expression,
