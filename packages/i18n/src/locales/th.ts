@@ -680,6 +680,18 @@ export default {
 		passages: 'ข้อความ',
 		question: 'คำถาม',
 		passageAndQuestion: 'ข้อความและคำถาม',
+		// The candidate's display settings tool and its dialog.
+		displaySettings: {
+			title: 'การตั้งค่าการแสดงผล',
+			description: 'การเปลี่ยนแปลงมีผลทันทีและคงอยู่ตลอดเซสชันนี้',
+			textSize: 'ขนาดตัวอักษร',
+			sizeDefault: 'ค่าเริ่มต้น',
+			sizeLarge: 'ใหญ่',
+			sizeLarger: 'ใหญ่ขึ้น',
+			sizeLargest: 'ใหญ่ที่สุด',
+			highContrast: 'ข้อความคอนทราสต์สูงขึ้น',
+			textSpacing: 'ระยะห่างข้อความเพิ่มขึ้น',
+		},
 	},
 
 	i18n: {

@@ -679,6 +679,18 @@ export default {
 		passages: 'Teksten',
 		question: 'Vraag',
 		passageAndQuestion: 'Tekst en vraag',
+		// The candidate's display settings tool and its dialog.
+		displaySettings: {
+			title: 'Weergave-instellingen',
+			description: 'Wijzigingen gelden meteen en blijven aan voor deze sessie.',
+			textSize: 'Tekstgrootte',
+			sizeDefault: 'Standaard',
+			sizeLarge: 'Groot',
+			sizeLarger: 'Groter',
+			sizeLargest: 'Grootst',
+			highContrast: 'Tekst met meer contrast',
+			textSpacing: 'Extra tekstafstand',
+		},
 	},
 
 	i18n: {

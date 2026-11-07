@@ -685,6 +685,18 @@ export default {
 		passages: 'Passages',
 		question: 'Question',
 		passageAndQuestion: 'Passage et question',
+		// The candidate's display settings tool and its dialog.
+		displaySettings: {
+			title: 'Paramètres d’affichage',
+			description: 'Les modifications s’appliquent immédiatement et restent actives pendant cette session.',
+			textSize: 'Taille du texte',
+			sizeDefault: 'Par défaut',
+			sizeLarge: 'Grand',
+			sizeLarger: 'Plus grand',
+			sizeLargest: 'Le plus grand',
+			highContrast: 'Texte plus contrasté',
+			textSpacing: 'Espacement du texte accru',
+		},
 	},
 
 	i18n: {

@@ -685,6 +685,18 @@ export default {
 		passages: 'Pasajes',
 		question: 'Pregunta',
 		passageAndQuestion: 'Pasaje y pregunta',
+		// The candidate's display settings tool and its dialog.
+		displaySettings: {
+			title: 'Configuración de visualización',
+			description: 'Los cambios se aplican de inmediato y se mantienen durante esta sesión.',
+			textSize: 'Tamaño del texto',
+			sizeDefault: 'Predeterminado',
+			sizeLarge: 'Grande',
+			sizeLarger: 'Más grande',
+			sizeLargest: 'El más grande',
+			highContrast: 'Texto con más contraste',
+			textSpacing: 'Más espacio en el texto',
+		},
 	},
 
 	i18n: {

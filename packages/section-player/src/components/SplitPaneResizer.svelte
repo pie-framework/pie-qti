@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { onMount, tick, untrack, type Snippet } from 'svelte';
 	import { interfaceLocaleAttributes, type I18nProvider } from '@pie-qti/i18n';
+	import type { PnpProfile } from '@pie-qti/item-player';
+	import { pnpSurface } from '../pnp/section-surface.js';
 
 	type Pane = 'context' | 'item';
 
@@ -9,6 +11,11 @@
 		storageKey?: string;
 		leftPane?: Snippet;
 		children?: Snippet;
+		/**
+		 * Rendered last inside the layout, outside both panes: a modal the section opens
+		 * (its display settings dialog) stays on the PNP surface whichever pane is shown.
+		 */
+		overlay?: Snippet;
 		onRightPaneReady?: (element: HTMLElement) => void;
 		/**
 		 * Identity of the item shown in the item pane. When it changes while the
@@ -16,6 +23,11 @@
 		 * presented item is visible.
 		 */
 		activeItemKey?: string;
+		/**
+		 * The candidate's display needs, applied to this layout as the section's PNP
+		 * surface: passages, rubrics, tool bars, chrome and items all take them from here.
+		 */
+		pnp?: PnpProfile;
 	}
 
 	const {
@@ -23,8 +35,10 @@
 		storageKey = 'pie-qti22-assessment-player.splitLeftPct',
 		leftPane,
 		children,
+		overlay,
 		onRightPaneReady,
 		activeItemKey,
+		pnp,
 	}: Props = $props();
 
 	const minLeftPct = 25;
@@ -58,6 +72,8 @@
 	const tablistLabel = $derived(
 		i18n?.t('sectionPlayer.passageAndQuestion', 'Passage and question') ?? 'Passage and question',
 	);
+	/** The profile's single-column need: the panes stack behind their tabs at any width. */
+	const singleColumn = $derived(pnp?.display?.singleColumn === true);
 
 	function clampPct(pct: number) {
 		return Math.min(maxLeftPct, Math.max(minLeftPct, pct));
@@ -165,10 +181,12 @@
 	}
 
 	function applyStacked(next: boolean) {
-		if (next === isStacked) return;
+		// A single-column accommodation stacks the panes whatever the width.
+		const effective = singleColumn || next;
+		if (effective === isStacked) return;
 		// Keep a focused control visible: stacking hides the pane that is not selected.
-		if (next && rightPaneEl?.contains(document.activeElement)) selectedPane = 'item';
-		isStacked = next;
+		if (effective && rightPaneEl?.contains(document.activeElement)) selectedPane = 'item';
+		isStacked = effective;
 	}
 
 	/** Width is the layout's own border box, which its parent decides, so stacking cannot feed back into it. */
@@ -180,7 +198,13 @@
 
 	$effect(() => {
 		const el = splitContainerEl;
+		// Read here, so an accommodation flip re-runs the evaluation.
+		const forcedSingleColumn = singleColumn;
 		if (!el) return;
+		if (forcedSingleColumn) {
+			untrack(() => applyStacked(true));
+			return;
+		}
 		untrack(() => evaluateWidth(el.getBoundingClientRect().width));
 
 		if (typeof ResizeObserver === 'undefined') {
@@ -280,6 +304,7 @@
 	lang={interfaceAttributes?.lang}
 	dir={interfaceAttributes?.dir}
 	bind:this={splitContainerEl}
+	use:pnpSurface={pnp}
 	style={`--split-left: ${splitLeftPct}%;`}
 >
 	{#if isStacked}
@@ -363,6 +388,10 @@
 			{@render children()}
 		{/if}
 	</section>
+
+	{#if overlay}
+		{@render overlay()}
+	{/if}
 </div>
 
 <style>
@@ -525,6 +554,18 @@
 		.pane {
 			overflow: visible;
 		}
+	}
+
+	/*
+	 * This layout is the section's PNP surface, so inverted polarity applies here,
+	 * to everything it renders. Filters are not inherited and a second one cancels
+	 * the first, so an inverting root nested inside another applies none of its own:
+	 * an item body inside this surface, or this surface inside a host root that
+	 * already inverts. The outer filter and its un-inverted media cover the subtree.
+	 */
+	.split-layout:global([data-qti-invert-polarity='invert']) :global([data-qti-invert-polarity='invert']),
+	:global([data-qti-invert-polarity='invert']) .split-layout:global([data-qti-invert-polarity='invert']) {
+		filter: none;
 	}
 
 	@media (prefers-reduced-motion: no-preference) {

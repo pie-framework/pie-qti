@@ -8,9 +8,11 @@ section context.
 The npm package ships **headless TypeScript contracts and helpers** only:
 
 - `ResolvedQtiSectionComposition` and the runtime-host contract (`.` entry),
-- `resolveQtiSectionComposition()` — resolve an assessment test into section compositions,
+- `resolveQtiSectionComposition()` — resolve an assessment test into section compositions; pass
+  `assessmentId` and the candidate's `pnp`, which the composition carries to the layouts,
 - role-view visibility helpers and PNP tool-support helpers (`applyToolSupports`,
-  `companionMaterialsOf`).
+  `companionMaterialsOf`, `companionToolIds`),
+- display-settings helpers (`withDisplaySettings`, `displaySettingsOf`, `QtiCandidateDisplaySettings`).
 
 ## Build model: where the UI lives
 
@@ -19,6 +21,36 @@ consumed as source by `@pie-qti/player-elements`, whose vite build compiles them
 self-contained custom-element bundle (`pie-qti-section-player-splitpane` /
 `pie-qti-section-player-vertical`). The npm artifact you install here is contracts-only by design;
 see the [player-elements build model](../player-elements/README.md#build-model-this-package-ships-the-compiled-ui).
+
+## Accommodations on the section surface
+
+A section layout is one PNP display scope. It applies its profile — its `pnp` prop, else the
+composition's `pnp`, with the candidate's display settings applied — to its own root with
+`applyPnpToSurface` from `@pie-qti/item-player`. The colour scheme, inverted polarity,
+single-column layout and text appearance then cover everything it renders: passages and stimuli,
+rubric blocks, tool bars, the Passage/Question tabs, item headers and the items. Item bodies inside
+the surface apply no display needs of their own, so one profile governs passage and question
+alike. The host page outside the layout is never repainted;
+[Display scope](../../docs/prds/systems/pnp.md#display-scope) gives the exact boundaries. A
+single-column need stacks the split pane behind its tabs at any width. The default runtime
+stylesheet (`@pie-qti/web-component-loaders/default-runtime.css`, or
+`@pie-qti/default-components/qti-pnp.css`) renders the attributes.
+
+### Display settings tool
+
+The candidate adjusts their display themselves from the "Display settings" button in the item
+tool bar: text size (four steps), higher-contrast text and extra text spacing, each through the PNP
+display mechanism above, in a native modal dialog on the section surface. Settings last for the
+page session, per assessment. Layout props:
+
+| Prop | Purpose |
+|------|---------|
+| `displaySettings` | `false` leaves the tool out (default `true`) |
+| `initialDisplaySettings` | The settings the controls start with, e.g. `displaySettingsOf(persistedPnp)` |
+| `onDisplaySettingsChange` | Hears `{ sectionIdentifier, settings, pnp }`; `pnp` is the effective profile to persist and pass back as the candidate's PNP |
+
+The same event reaches `QtiSectionRuntimeHostContract.onDisplaySettingsChange` (the composition's
+`host`), which is how a custom-element host hears it.
 
 ## Tool integration (`@pie-players`)
 
@@ -34,6 +66,17 @@ exact pins; upgrading requires bumping all of them in lockstep (toolkit registry
 be loaded twice under different version strings). Two of the toolkit's transitive tools
 (`pie-calculator-desmos`, `tts-client-server`) resolve transitively and are intentionally not
 declared directly.
+
+The tool bars register four packaged tools: `textToSpeech`, `calculator`, `ruler` and
+`protractor`. The ruler and protractor load through the loaders package's lazy module loaders when
+they first render, so they add no dependency of their own. Each tool bar binds its toolkit to the
+composition's `assessmentId` (the section identifier when there is none) with PNP enforcement on
+and the candidate's PNP tool supports as the bound profile: a granted tool shows whatever the
+toolkit's content check makes of the markup, a prohibited one is withdrawn. An item's companion
+materials (`calculator`, `rule`, `protractor`) become the item scope's required tools.
+Section-scoped tools render on the active item's tool bar, beside its own. The packaged
+registrations keep the calculator, ruler and protractor off passage tool bars, which render
+read-aloud.
 
 ### Text-to-speech endpoint
 

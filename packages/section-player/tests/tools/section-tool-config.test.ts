@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { pollyVoiceForLanguage, resolveSectionTtsProviderConfig } from '../../src/tools/section-tool-config';
+import { pollyVoiceForLanguage, resolveSectionTtsProviderConfig, toolkitAssessmentOf } from '../../src/tools/section-tool-config';
 
 describe('resolveSectionTtsProviderConfig', () => {
 	test('keeps Polly defaults when no provider override is supplied', () => {
@@ -86,5 +86,38 @@ describe('resolveSectionTtsProviderConfig', () => {
 	test('finds no voice for a language without one', () => {
 		expect(pollyVoiceForLanguage('xx')).toBeUndefined();
 		expect(pollyVoiceForLanguage('pt_PT')).toBe('Ines');
+	});
+});
+
+describe('toolkitAssessmentOf', () => {
+	test('names the assessment and binds no profile without PNP tool supports', () => {
+		expect(toolkitAssessmentOf('assessment-1', undefined)).toEqual({ id: 'assessment-1' });
+		expect(toolkitAssessmentOf('assessment-1', { display: { colorScheme: 'blackwhite' } })).toEqual({ id: 'assessment-1' });
+	});
+
+	test('binds the candidate\'s tool supports as the toolkit profile', () => {
+		expect(
+			toolkitAssessmentOf('assessment-1', {
+				tools: {
+					supports: ['ruler', 'calculator'],
+					prohibitedSupports: ['textToSpeech'],
+					activateAtInit: ['ruler'],
+					toolParameters: { calculator: { type: 'scientific' } },
+				},
+			}),
+		).toEqual({
+			id: 'assessment-1',
+			personalNeedsProfile: {
+				supports: ['ruler', 'calculator'],
+				prohibitedSupports: ['textToSpeech'],
+				activateAtInit: ['ruler'],
+				toolParameters: { calculator: { type: 'scientific' } },
+			},
+		});
+		// A prohibition alone still binds, with no supports.
+		expect(toolkitAssessmentOf('a', { tools: { prohibitedSupports: ['calculator'] } }).personalNeedsProfile).toEqual({
+			supports: [],
+			prohibitedSupports: ['calculator'],
+		});
 	});
 });

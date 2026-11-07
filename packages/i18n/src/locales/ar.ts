@@ -744,6 +744,18 @@ export default {
 		passages: 'النصوص',
 		question: 'السؤال',
 		passageAndQuestion: 'النص والسؤال',
+		// The candidate's display settings tool and its dialog.
+		displaySettings: {
+			title: 'إعدادات العرض',
+			description: 'تُطبَّق التغييرات فورًا وتبقى مفعّلة طوال هذه الجلسة.',
+			textSize: 'حجم النص',
+			sizeDefault: 'افتراضي',
+			sizeLarge: 'كبير',
+			sizeLarger: 'أكبر',
+			sizeLargest: 'الأكبر',
+			highContrast: 'نص بتباين أعلى',
+			textSpacing: 'تباعد إضافي للنص',
+		},
 	},
 
 	i18n: {

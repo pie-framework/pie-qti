@@ -54,6 +54,18 @@ export interface QtiSectionFrameworkError {
   cause?: unknown;
 }
 
+/**
+ * The candidate changed their display settings. `pnp` is the profile the section
+ * now renders with: the host's PNP with the settings applied. Settings last for the
+ * session; a host that wants them to persist stores `pnp` and passes it back as the
+ * candidate's PNP next time.
+ */
+export interface QtiSectionDisplaySettingsEvent {
+  sectionIdentifier: string;
+  settings: import('../tools/display-settings.js').QtiCandidateDisplaySettings;
+  pnp: import('@pie-qti/item-player').PnpProfile;
+}
+
 export interface QtiSectionRuntimeHostContract {
   resolvePackageUrl?(href: string, context: QtiPackageResolveContext): string | null;
   readPackageFile?(href: string, context: QtiPackageResolveContext): Promise<string | Uint8Array | null>;
@@ -63,4 +75,5 @@ export interface QtiSectionRuntimeHostContract {
   onActiveItemChange?(event: QtiSectionActiveItemChangeEvent): void;
   onSnapshotChange?(snapshot: import('./layout-contract.js').QtiSectionSnapshot): void;
   onFrameworkError?(error: QtiSectionFrameworkError): void;
+  onDisplaySettingsChange?(event: QtiSectionDisplaySettingsEvent): void;
 }

@@ -268,5 +268,7 @@ export function resolveQtiSectionComposition(
 		diagnostics: [...diagnostics, ...sharedContext.assetDiagnostics],
 		security: options.security,
 		host: options.host,
+		assessmentId: options.assessmentId ?? options.section.assessmentId,
+		pnp: options.pnp,
 	};
 }
