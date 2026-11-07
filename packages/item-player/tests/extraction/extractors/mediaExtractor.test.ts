@@ -3,6 +3,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
+import { Qti3AttributeNameMapper, Qti3ElementNameMapper } from '@pie-qti/qti-common';
 import { standardMediaExtractor } from '../../../src/interactions/media/extractor.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
@@ -48,9 +49,29 @@ describe('standardMediaExtractor', () => {
 
 			const result = standardMediaExtractor.extract(element, context);
 
-			// Should use first source
+			// The first source stays the single-URL `src`; every source is kept in order
+			// so the browser can fall back to the next one it can play.
 			expect(result.mediaElement.src).toBe('audio.mp3');
 			expect(result.mediaElement.mimeType).toBe('audio/mpeg');
+			expect(result.mediaElement.sources).toEqual([
+				{ src: 'audio.mp3', mimeType: 'audio/mpeg' },
+				{ src: 'audio.ogg', mimeType: 'audio/ogg' },
+			]);
+			expect(result.mediaElement.tracks).toEqual([]);
+		});
+
+		test('reads the src attribute of an audio element without source children', () => {
+			const xml = `
+				<mediaInteraction responseIdentifier="RESPONSE">
+					<audio src="audio.mp3"></audio>
+				</mediaInteraction>
+			`;
+
+			const element = parseQTI(xml);
+			const result = standardMediaExtractor.extract(element, createTestContext(element, 'RESPONSE'));
+
+			expect(result.mediaElement.src).toBe('audio.mp3');
+			expect(result.mediaElement.sources).toEqual([{ src: 'audio.mp3', mimeType: '' }]);
 		});
 
 		test('throws error if audio element has no source', () => {
@@ -110,6 +131,94 @@ describe('standardMediaExtractor', () => {
 
 			expect(result.mediaElement.width).toBe(640);
 			expect(result.mediaElement.height).toBe(480);
+		});
+
+		test('extracts every source and every caption, subtitle and description track', () => {
+			const xml = `
+				<mediaInteraction responseIdentifier="RESPONSE">
+					<video width="320" height="180" crossorigin="anonymous">
+						<source src="clip.webm" type="video/webm"/>
+						<source src="clip.mp4" type="video/mp4"/>
+						<track kind="captions" srclang="en" label="English" src="captions-en.vtt" default="true"/>
+						<track kind="subtitles" srclang="es" label="Español" src="subtitles-es.vtt"/>
+						<track kind="descriptions" srclang="en" src="descriptions.vtt" default="false"/>
+						<track srclang="fr" src="no-kind.vtt"/>
+						<track kind="caption" src="typo.vtt"/>
+						<track kind="captions" label="Missing source"/>
+					</video>
+				</mediaInteraction>
+			`;
+
+			const element = parseQTI(xml);
+			const result = standardMediaExtractor.extract(element, createTestContext(element, 'RESPONSE'));
+
+			expect(result.mediaElement).toMatchObject({
+				type: 'video',
+				src: 'clip.webm',
+				mimeType: 'video/webm',
+				width: 320,
+				height: 180,
+				crossOrigin: 'anonymous',
+			});
+			expect(result.mediaElement.sources).toEqual([
+				{ src: 'clip.webm', mimeType: 'video/webm' },
+				{ src: 'clip.mp4', mimeType: 'video/mp4' },
+			]);
+			expect(result.mediaElement.tracks).toEqual([
+				{ kind: 'captions', srclang: 'en', label: 'English', src: 'captions-en.vtt', default: true },
+				{ kind: 'subtitles', srclang: 'es', label: 'Español', src: 'subtitles-es.vtt' },
+				{ kind: 'descriptions', srclang: 'en', src: 'descriptions.vtt' },
+				// HTML reads a missing kind as subtitles and an unknown one as metadata.
+				{ kind: 'subtitles', srclang: 'fr', src: 'no-kind.vtt' },
+				{ kind: 'metadata', src: 'typo.vtt' },
+			]);
+		});
+
+		test('reads the HTML boolean default attribute by presence', () => {
+			const xml = `
+				<mediaInteraction responseIdentifier="RESPONSE">
+					<video>
+						<source src="clip.mp4" type="video/mp4"/>
+						<track kind="captions" src="valueless.vtt" default/>
+						<track kind="captions" src="named.vtt" default="default"/>
+						<track kind="captions" src="off.vtt" default="0"/>
+					</video>
+				</mediaInteraction>
+			`;
+
+			const element = parseQTI(xml);
+			const result = standardMediaExtractor.extract(element, createTestContext(element, 'RESPONSE'));
+
+			expect(result.mediaElement.tracks?.map((track) => track.default ?? false)).toEqual([true, true, false]);
+		});
+
+		test('extracts QTI 3.0 qti-media-interaction video sources and tracks', () => {
+			const xml = `
+				<qti-media-interaction response-identifier="RESPONSE" autostart="false" min-plays="1" max-plays="2">
+					<qti-prompt>Watch the clip.</qti-prompt>
+					<video width="640" height="360">
+						<source src="clip.mp4" type="video/mp4"/>
+						<track kind="captions" srclang="en" label="English captions" src="captions.vtt"/>
+					</video>
+				</qti-media-interaction>
+			`;
+
+			const element = parseQTI(xml);
+			const context = createTestContext(element, 'RESPONSE', element, new Map(), {
+				elementNameMapper: new Qti3ElementNameMapper(),
+				attributeNameMapper: new Qti3AttributeNameMapper(),
+			} as any);
+
+			expect(standardMediaExtractor.canHandle(element, context)).toBe(true);
+			const result = standardMediaExtractor.extract(element, context);
+
+			expect(result.minPlays).toBe(1);
+			expect(result.maxPlays).toBe(2);
+			expect(result.prompt).toBe('Watch the clip.');
+			expect(result.mediaElement.sources).toEqual([{ src: 'clip.mp4', mimeType: 'video/mp4' }]);
+			expect(result.mediaElement.tracks).toEqual([
+				{ kind: 'captions', srclang: 'en', label: 'English captions', src: 'captions.vtt' },
+			]);
 		});
 
 		test('throws error if video element has no source', () => {
@@ -289,7 +398,9 @@ describe('standardMediaExtractor', () => {
 			const validation = standardMediaExtractor.validate!(data);
 
 			expect(validation.valid).toBe(true);
-			expect(validation.warnings).toContain('mediaInteraction has loop=true with maxPlays - loop may be ignored');
+			expect(validation.warnings).toContain(
+				'mediaInteraction has loop=true with maxPlays - looping stops once maxPlays plays have started'
+			);
 		});
 	});
 });

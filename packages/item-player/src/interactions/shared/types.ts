@@ -288,12 +288,37 @@ export interface PortableCustomInteractionData
 	extends BaseInteractionData<'portableCustomInteraction'>,
 		ExtractedPci {}
 
+/** One authored `<source>` of an audio or video element. */
+export interface MediaElementSource {
+	src: string;
+	mimeType: string;
+}
+
+/** The timed text track kinds HTML defines for `<track>`. */
+export type MediaTrackKind = 'subtitles' | 'captions' | 'descriptions' | 'chapters' | 'metadata';
+
+/** One authored `<track>` of an audio or video element: captions, subtitles, descriptions. */
+export interface MediaElementTrack {
+	src: string;
+	kind: MediaTrackKind;
+	srclang?: string;
+	label?: string;
+	default?: boolean;
+}
+
 export interface MediaElement {
 	type: 'audio' | 'video' | 'object';
+	/** The object's `data`, or the first source of an audio or video element. */
 	src: string;
 	mimeType: string;
 	width?: number;
 	height?: number;
+	/** Every source of an audio or video element, in document order (the browser picks the first it can play). */
+	sources?: MediaElementSource[];
+	/** Every text track of an audio or video element, in document order. */
+	tracks?: MediaElementTrack[];
+	/** The authored `crossorigin` mode; cross-origin caption files load only with one. */
+	crossOrigin?: 'anonymous' | 'use-credentials';
 }
 
 export interface MediaInteractionData extends BaseInteractionData<'mediaInteraction'> {

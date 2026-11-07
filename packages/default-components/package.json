@@ -98,6 +98,7 @@
   },
   "sideEffects": [
     "./dist/plugins.js",
+    "./dist/chunks/mathlive*.js",
     "./dist/shared.css",
     "./dist/shared/styles/*.css"
   ],

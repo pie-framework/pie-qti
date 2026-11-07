@@ -237,9 +237,11 @@ Parts:
 - `prompt`
 - `editor`
 - `string`
+- `string-label` (the visible "Response N" label of a multi-part response)
 - `add-string`
 - `remove-string`
 - `counter`
+- `announcer` (visually hidden polite live region)
 - `correct-answer`
 
 The embedded rich text editor additionally exposes:
@@ -260,10 +262,21 @@ Parts:
 
 Parts:
 
+- `root`
 - `prompt`
 - `media`
+- `controls` (rendered when a play limit applies; replaces native controls)
+- `play-button`
+- `mute-button`
+- `captions` (the captions/subtitles choice, for video with text tracks)
+- `time`
 - `stats`
+- `plays-left`
+- `plays-needed`
+- `limit` (the "Maximum play limit reached" notice)
 - `limit-icon`
+- `unavailable` (shown in place of a blocked `<object>` embed)
+- `announcer` (visually hidden polite live region)
 
 ### `pie-qti-custom` (`customInteraction`)
 

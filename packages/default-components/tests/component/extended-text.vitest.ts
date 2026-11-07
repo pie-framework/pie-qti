@@ -3,6 +3,7 @@ import type { ExtendedTextInteractionData } from '@pie-qti/item-player';
 import ExtendedTextInteraction from '../../src/plugins/extended-text/ExtendedTextInteraction.svelte';
 import {
 	cleanupInteraction,
+	type MountedInteraction,
 	mountInteraction,
 	qa,
 	q,
@@ -30,82 +31,336 @@ function extendedTextData(
 	};
 }
 
+const mounted: MountedInteraction[] = [];
+
+function mountExtendedText(props: Record<string, unknown>) {
+	const instance = mountInteraction(ExtendedTextInteraction, props);
+	mounted.push(instance);
+	return instance;
+}
+
+function announcement(m: MountedInteraction): string {
+	return (q(m, '[part="announcer"]')?.textContent ?? '').trim();
+}
+
+async function click(element: Element) {
+	element.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+	await settle();
+}
+
+/** The accessible name a screen reader computes from aria-labelledby, aria-label or a label. */
+function accessibleName(element: Element): string {
+	const labelledby = element.getAttribute('aria-labelledby');
+	if (labelledby) {
+		return labelledby
+			.split(/\s+/)
+			.map((id) => element.ownerDocument.getElementById(id)?.textContent?.trim() ?? '')
+			.join(' ')
+			.trim();
+	}
+	const label = element.getAttribute('aria-label');
+	if (label) return label;
+	const labels = (element as HTMLTextAreaElement).labels;
+	return labels && labels.length > 0 ? Array.from(labels).map((l) => l.textContent?.trim()).join(' ') : '';
+}
+
 afterEach(() => {
+	cleanupInteraction(...mounted.splice(0));
 	for (const node of Array.from(document.body.children)) node.remove();
 });
 
 describe('ExtendedTextInteraction (pie-qti-extended-text)', () => {
 	test('plain-format items render a textarea and typing emits the response', async () => {
-		const mounted = mountInteraction(ExtendedTextInteraction, {
-			interaction: extendedTextData(),
-		});
+		const m = mountExtendedText({ interaction: extendedTextData() });
 		await settle();
 
-		const textarea = q<HTMLTextAreaElement>(mounted, 'textarea');
+		const textarea = q<HTMLTextAreaElement>(m, 'textarea');
 		expect(textarea).toBeTruthy();
-		expect(textarea?.getAttribute('aria-label')).toBe('Type here');
 
 		type(textarea!, 'Photosynthesis converts light.');
 		await settle();
 
-		expect(mounted.instance.response).toBe('Photosynthesis converts light.');
-		expect(mounted.events).toHaveLength(1);
-		expect(mounted.events[0]!.detail).toMatchObject({
+		expect(m.instance.response).toBe('Photosynthesis converts light.');
+		expect(m.events).toHaveLength(1);
+		expect(m.events[0]!.detail).toMatchObject({
 			responseId: 'RESPONSE',
 			value: 'Photosynthesis converts light.',
 		});
 	});
 
-	test('the expected-length counter counts down while typing', async () => {
-		const mounted = mountInteraction(ExtendedTextInteraction, {
-			interaction: extendedTextData({ expectedLength: 20, interactionClasses: ['qti-counter-down'] }),
+	test('the prompt names the field and the placeholder stays a hint', async () => {
+		const m = mountExtendedText({ interaction: extendedTextData() });
+		await settle();
+
+		const textarea = q<HTMLTextAreaElement>(m, 'textarea')!;
+		const prompt = q(m, '[part="prompt"]')!;
+		expect(textarea.getAttribute('aria-labelledby')).toBe(prompt.id);
+		expect(accessibleName(textarea)).toBe('Explain your reasoning.');
+		expect(textarea.hasAttribute('aria-label')).toBe(false);
+		expect(textarea.getAttribute('placeholder')).toBe('Type here');
+	});
+
+	test('without a prompt the field gets a generic localized name, not the placeholder', async () => {
+		const m = mountExtendedText({ interaction: extendedTextData({ prompt: null }) });
+		await settle();
+
+		const textarea = q<HTMLTextAreaElement>(m, 'textarea')!;
+		expect(textarea.getAttribute('aria-label')).toBe('Response');
+		expect(textarea.getAttribute('placeholder')).toBe('Type here');
+	});
+
+	test('the counter describes the field quietly and announces only on reaching the expected length', async () => {
+		const m = mountExtendedText({
+			interaction: extendedTextData({ expectedLength: 5, interactionClasses: ['qti-counter-down'] }),
 		});
 		await settle();
 
-		type(q<HTMLTextAreaElement>(mounted, 'textarea')!, 'abcd');
-		await settle();
+		const textarea = q<HTMLTextAreaElement>(m, 'textarea')!;
+		const counter = q(m, '[part="counter"]')!;
+		expect(counter.hasAttribute('aria-live')).toBe(false);
+		expect(counter.getAttribute('role')).toBeNull();
+		expect(textarea.getAttribute('aria-describedby')).toBe(counter.id);
+		expect(counter.textContent).toBe('5 characters remaining');
 
-		const counter = q(mounted, '[part="counter"]');
-		expect(counter?.getAttribute('aria-live')).toBe('polite');
-		expect(counter?.textContent).toContain('16');
+		type(textarea, 'abcd');
+		await settle();
+		expect(counter.textContent).toBe('1 character remaining');
+		expect(announcement(m)).toBe('');
+
+		type(textarea, 'abcde');
+		await settle();
+		expect(counter.textContent).toBe('0 characters remaining');
+		expect(announcement(m)).toBe('Expected length of 5 characters reached.');
+
+		// Typing on past the threshold says nothing more.
+		const live = q(m, '[part="announcer"]')!;
+		const before = live.textContent;
+		type(textarea, 'abcdef');
+		await settle();
+		expect(live.textContent).toBe(before);
+
+		// Dropping below and reaching it again is a new moment worth hearing.
+		type(textarea, 'abc');
+		await settle();
+		expect(live.textContent).toBe(before);
+		type(textarea, 'abcde');
+		await settle();
+		expect(live.textContent).not.toBe(before);
+		expect(announcement(m)).toBe('Expected length of 5 characters reached.');
 	});
 
-	test('multiple strings get one independently editable region each', async () => {
-		const mounted = mountInteraction(ExtendedTextInteraction, {
+	test('the counting-up counter shows used of expected characters', async () => {
+		const m = mountExtendedText({
+			interaction: extendedTextData({ expectedLength: 20, interactionClasses: ['qti-counter-up'] }),
+		});
+		await settle();
+
+		type(q<HTMLTextAreaElement>(m, 'textarea')!, 'abcd');
+		await settle();
+		expect(q(m, '[part="counter"]')!.textContent).toBe('4 / 20 characters');
+	});
+
+	test('multiple strings get one independently named region each', async () => {
+		const m = mountExtendedText({
 			interaction: extendedTextData({ cardinality: 'multiple', minStrings: 0, maxStrings: 3 }),
 		});
 		await settle();
 
-		expect(qa(mounted, 'textarea')).toHaveLength(1);
+		expect(qa(m, 'textarea')).toHaveLength(1);
 
 		// The candidate grows the answer set explicitly with the add-string control.
-		q(mounted, 'button[part="add-string"]')?.dispatchEvent(
-			new MouseEvent('click', { bubbles: true }),
-		);
-		await settle();
-		expect(qa(mounted, 'textarea')).toHaveLength(2);
+		await click(q(m, 'button[part="add-string"]')!);
+		expect(qa(m, 'textarea')).toHaveLength(2);
+		// Adding moves focus to the new, empty response.
+		expect(document.activeElement).toBe(qa(m, 'textarea')[1]);
 
-		const areas = qa<HTMLTextAreaElement>(mounted, 'textarea');
+		const areas = qa<HTMLTextAreaElement>(m, 'textarea');
 		type(areas[0]!, 'first');
 		type(areas[1]!, 'second');
 		await settle();
-		expect(mounted.instance.response).toEqual(['first', 'second']);
+		expect(m.instance.response).toEqual(['first', 'second']);
+
+		// The prompt names the group; each field is named by its visible label.
+		const group = q(m, '[part="editor"]')!;
+		expect(group.getAttribute('role')).toBe('group');
+		expect(group.getAttribute('aria-labelledby')).toBe(q(m, '[part="prompt"]')!.id);
+		expect(areas.map(accessibleName)).toEqual(['Response 1', 'Response 2']);
+		expect(qa(m, '[part="string-label"]').map((label) => label.textContent?.trim())).toEqual([
+			'Response 1',
+			'Response 2',
+		]);
 	});
 
-	test('disabled items render a disabled textarea that emits nothing', async () => {
-		const mounted = mountInteraction(ExtendedTextInteraction, {
-			interaction: extendedTextData(),
-			disabled: true,
+	test('remove buttons name the response they remove and keep focus nearby', async () => {
+		const m = mountExtendedText({
+			interaction: extendedTextData({ cardinality: 'ordered', minStrings: 0, maxStrings: 0 }),
+			response: ['alpha', 'beta', 'gamma'],
 		});
 		await settle();
 
-		const textarea = q<HTMLTextAreaElement>(mounted, 'textarea')!;
+		const removeButtons = qa<HTMLButtonElement>(m, 'button[part="remove-string"]');
+		expect(removeButtons.map((button) => button.textContent?.trim())).toEqual([
+			'Remove response 1',
+			'Remove response 2',
+			'Remove response 3',
+		]);
+		// Distinct visible names, so no aria-label overrides them.
+		expect(removeButtons.every((button) => !button.hasAttribute('aria-label'))).toBe(true);
+
+		// Removing the last response focuses the one before it.
+		removeButtons[2]!.focus();
+		await click(removeButtons[2]!);
+		expect(m.instance.response).toEqual(['alpha', 'beta']);
+		expect(document.activeElement).toBe(qa(m, 'textarea')[1]);
+		expect(announcement(m)).toBe('Response 3 removed.');
+
+		// Removing the first response focuses the response that moved up into its place.
+		const first = qa<HTMLButtonElement>(m, 'button[part="remove-string"]')[0]!;
+		first.focus();
+		await click(first);
+		expect(m.instance.response).toEqual(['beta']);
+		expect(document.activeElement).toBe(qa(m, 'textarea')[0]);
+		expect(qa<HTMLTextAreaElement>(m, 'textarea')[0]!.value).toBe('beta');
+		expect(announcement(m)).toBe('Response 1 removed.');
+	});
+
+	test('spell check, autocorrect and autocapitalize are off by default', async () => {
+		const m = mountExtendedText({ interaction: extendedTextData() });
+		await settle();
+
+		const textarea = q<HTMLTextAreaElement>(m, 'textarea')!;
+		expect(textarea.getAttribute('spellcheck')).toBe('false');
+		expect(textarea.getAttribute('autocorrect')).toBe('off');
+		expect(textarea.getAttribute('autocapitalize')).toBe('off');
+	});
+
+	test.each([
+		[true, 'true', 'on'],
+		['true', 'true', 'on'],
+		['', 'true', 'on'],
+		['false', 'false', 'off'],
+		[false, 'false', 'off'],
+	])('the spellcheck prop %j opts in to spelling help', async (spellcheck, expected, autocorrect) => {
+		const m = mountExtendedText({ interaction: extendedTextData(), spellcheck });
+		await settle();
+
+		const textarea = q<HTMLTextAreaElement>(m, 'textarea')!;
+		expect(textarea.getAttribute('spellcheck')).toBe(expected);
+		expect(textarea.getAttribute('autocorrect')).toBe(autocorrect);
+		// Capitalization is assessed in writing items: never automatic.
+		expect(textarea.getAttribute('autocapitalize')).toBe('off');
+	});
+
+	test.each([
+		['integer', 10, 'single', 'numeric'],
+		['float', 10, 'single', 'decimal'],
+		[undefined, 10, 'record', 'decimal'],
+		['string', 10, 'single', null],
+		// Digits above 9 are letters in base 16.
+		['integer', 16, 'single', null],
+	] as const)('a %s response in base %d (%s) gets inputmode %j', async (baseType, base, cardinality, inputmode) => {
+		const m = mountExtendedText({ interaction: extendedTextData({ baseType, base, cardinality }) });
+		await settle();
+
+		expect(q(m, 'textarea')!.getAttribute('inputmode')).toBe(inputmode);
+	});
+
+	test('disabled items render a disabled textarea that emits nothing', async () => {
+		const m = mountExtendedText({ interaction: extendedTextData(), disabled: true });
+		await settle();
+
+		const textarea = q<HTMLTextAreaElement>(m, 'textarea')!;
 		expect(textarea.disabled).toBe(true);
 		// A disabled textarea must not react to activation (clicks are no-ops on it).
 		textarea.click();
 		await settle();
 
-		expect(mounted.instance.response).toBeUndefined();
-		expect(mounted.events).toHaveLength(0);
+		expect(m.instance.response).toBeUndefined();
+		expect(m.events).toHaveLength(0);
+	});
+
+	test('uses the i18n provider for names, counters and announcements', async () => {
+		const messages: Record<string, string> = {
+			'interactions.extendedText.responseLabel': 'Antwoord',
+			'interactions.extendedText.expectedLengthReached.other': 'Verwachte lengte van {count} tekens bereikt.',
+		};
+		const i18n = {
+			getLocale: () => 'nl',
+			setLocale: () => {},
+			t: (key: string, fallback?: unknown, values?: Record<string, unknown>) => {
+				const message = messages[key] ?? (typeof fallback === 'string' ? fallback : key);
+				return message.replace(/\{(\w+)\}/g, (_match, name: string) => String(values?.[name] ?? ''));
+			},
+		};
+		const m = mountExtendedText({
+			interaction: extendedTextData({ prompt: null, expectedLength: 2, interactionClasses: ['qti-counter-up'] }),
+			i18n,
+		});
+		await settle();
+
+		const textarea = q<HTMLTextAreaElement>(m, 'textarea')!;
+		expect(textarea.getAttribute('aria-label')).toBe('Antwoord');
+		type(textarea, 'ab');
+		await settle();
+		expect(announcement(m)).toBe('Verwachte lengte van 2 tekens bereikt.');
+	});
+});
+
+describe('ExtendedTextInteraction rich text (format="xhtml")', () => {
+	function editable(m: MountedInteraction) {
+		return q<HTMLElement>(m, '[contenteditable]')!;
+	}
+
+	test('the editor surface is named by the prompt and keeps the placeholder a hint', async () => {
+		const m = mountExtendedText({ interaction: extendedTextData({ format: 'xhtml' }) });
+		await settle();
+
+		const surface = editable(m);
+		expect(surface.getAttribute('role')).toBe('textbox');
+		expect(surface.getAttribute('aria-multiline')).toBe('true');
+		expect(surface.getAttribute('aria-labelledby')).toBe(q(m, '[part="prompt"]')!.id);
+		expect(surface.hasAttribute('aria-label')).toBe(false);
+		expect(surface.getAttribute('aria-placeholder')).toBe('Type here');
+	});
+
+	test('writing assistance is off by default and follows the spellcheck prop', async () => {
+		const off = mountExtendedText({ interaction: extendedTextData({ format: 'xhtml' }) });
+		const on = mountExtendedText({
+			interaction: extendedTextData({ format: 'xhtml', responseId: 'OTHER' }),
+			spellcheck: true,
+		});
+		await settle();
+
+		expect(editable(off).getAttribute('spellcheck')).toBe('false');
+		expect(editable(off).getAttribute('autocorrect')).toBe('off');
+		expect(editable(off).getAttribute('autocapitalize')).toBe('off');
+		expect(editable(on).getAttribute('spellcheck')).toBe('true');
+		expect(editable(on).getAttribute('autocorrect')).toBe('on');
+		expect(editable(on).getAttribute('autocapitalize')).toBe('off');
+	});
+
+	test('toolbar buttons are named, report their toggle state, and the read-only state is exposed', async () => {
+		const m = mountExtendedText({ interaction: extendedTextData({ format: 'xhtml' }), disabled: true });
+		await settle();
+
+		const buttons = qa<HTMLButtonElement>(m, 'button[part="toolbar-button"]');
+		expect(buttons.map((button) => button.getAttribute('aria-label') ?? button.textContent?.trim())).toEqual([
+			'Bold',
+			'Italic',
+			'Insert inline math',
+			'Insert block math',
+		]);
+		expect(buttons[0]!.getAttribute('aria-pressed')).toBe('false');
+		expect(buttons.every((button) => button.disabled)).toBe(true);
+		expect(editable(m).getAttribute('aria-readonly')).toBe('true');
+	});
+
+	test('the counter describes the rich text editor', async () => {
+		const m = mountExtendedText({
+			interaction: extendedTextData({ format: 'xhtml', expectedLength: 10, interactionClasses: ['qti-counter-down'] }),
+		});
+		await settle();
+
+		expect(editable(m).getAttribute('aria-describedby')).toBe(q(m, '[part="counter"]')!.id);
 	});
 });

@@ -1,20 +1,111 @@
 /**
  * Standard QTI mediaInteraction extractor
  *
- * Extracts data from mediaInteraction elements (video/audio playback)
+ * Extracts data from mediaInteraction elements (video/audio playback): every
+ * `<source>` and every `<track>` (captions, subtitles, descriptions) of QTI 2.2
+ * and QTI 3.0 `audio`/`video` content, or the legacy QTI 2.1 `<object>`.
  */
 
-import type { ElementExtractor } from '../../extraction/types.js';
+import type { ElementExtractor, ExtractionUtils } from '../../extraction/types.js';
+import type {
+	MediaElement,
+	MediaElementSource,
+	MediaElementTrack,
+	MediaTrackKind,
+	QTIElement,
+} from '../shared/types.js';
+
+export type { MediaElement };
+
+const TRACK_KINDS: readonly MediaTrackKind[] = ['subtitles', 'captions', 'descriptions', 'chapters', 'metadata'];
 
 /**
- * Media element data
+ * The track kind as HTML reads it: a missing kind is `subtitles`, an
+ * unrecognized one is `metadata` (which no browser displays).
  */
-export interface MediaElement {
-	type: 'audio' | 'video' | 'object';
-	src: string;
-	mimeType: string;
-	width?: number;
-	height?: number;
+function trackKind(value: string | undefined): MediaTrackKind {
+	if (value === undefined || value.trim() === '') return 'subtitles';
+	const normalized = value.trim().toLowerCase();
+	return TRACK_KINDS.find((kind) => kind === normalized) ?? 'metadata';
+}
+
+/**
+ * An HTML boolean attribute, which QTI XML writes as an `xs:boolean`: present
+ * means on (`default`, `default="default"`, `default="true"`), except an
+ * explicit `false` or `0`.
+ */
+function isBooleanAttributeOn(element: QTIElement, name: string): boolean {
+	const value = element.getAttribute(name);
+	if (value === undefined || value === null) return false;
+	const normalized = value.trim().toLowerCase();
+	return normalized !== 'false' && normalized !== '0';
+}
+
+/** HTML's CORS mode for a media element: an empty or unknown value is `anonymous`. */
+function crossOriginMode(element: QTIElement): MediaElement['crossOrigin'] {
+	const value = element.getAttribute('crossorigin');
+	if (value === undefined || value === null) return undefined;
+	return value.trim().toLowerCase() === 'use-credentials' ? 'use-credentials' : 'anonymous';
+}
+
+/**
+ * Every source of an audio or video element, in document order. As in HTML, a
+ * `src` attribute on the element itself takes precedence over `<source>` children.
+ */
+function readSources(mediaElement: QTIElement, utils: ExtractionUtils): MediaElementSource[] {
+	const ownSrc = utils.getAttribute(mediaElement, 'src', '');
+	if (ownSrc) return [{ src: ownSrc, mimeType: '' }];
+	return utils.getChildrenByTag(mediaElement, 'source').map((source) => ({
+		src: utils.getAttribute(source, 'src', ''),
+		mimeType: utils.getAttribute(source, 'type', ''),
+	}));
+}
+
+/** Every text track (captions, subtitles, descriptions, chapters) of an audio or video element. */
+function readTracks(mediaElement: QTIElement, utils: ExtractionUtils): MediaElementTrack[] {
+	return utils
+		.getChildrenByTag(mediaElement, 'track')
+		.map((track) => {
+			const parsed: MediaElementTrack = {
+				src: utils.getAttribute(track, 'src', ''),
+				kind: trackKind(track.getAttribute('kind')),
+			};
+			const srclang = utils.getAttribute(track, 'srclang', '');
+			if (srclang) parsed.srclang = srclang;
+			const label = utils.getAttribute(track, 'label', '');
+			if (label) parsed.label = label;
+			if (isBooleanAttributeOn(track, 'default')) parsed.default = true;
+			return parsed;
+		})
+		.filter((track) => track.src !== '');
+}
+
+/** An audio or video element with all of its sources and text tracks. */
+function readPlayableMedia(
+	type: 'audio' | 'video',
+	mediaElement: QTIElement,
+	utils: ExtractionUtils,
+): MediaElement {
+	const sources = readSources(mediaElement, utils);
+	const [firstSource] = sources;
+	if (!firstSource) {
+		throw new Error(`${type} element must contain at least one source element`);
+	}
+	const crossOrigin = crossOriginMode(mediaElement);
+	return {
+		type,
+		src: firstSource.src,
+		mimeType: firstSource.mimeType,
+		...(type === 'video'
+			? {
+					width: utils.getNumberAttribute(mediaElement, 'width', 640),
+					height: utils.getNumberAttribute(mediaElement, 'height', 480),
+				}
+			: {}),
+		sources,
+		tracks: readTracks(mediaElement, utils),
+		...(crossOrigin ? { crossOrigin } : {}),
+	};
 }
 
 /**
@@ -58,43 +149,18 @@ export const standardMediaExtractor: ElementExtractor<MediaData> = {
 		const promptElements = utils.getChildrenByTag(element, 'prompt');
 		const prompt = promptElements.length > 0 ? utils.getHtmlContent(promptElements[0]) : null;
 
-		// Extract media element (audio, video, or object)
+		// Extract media element (audio, video, or object). The schema allows exactly
+		// one; should several appear, the last kind checked wins, as before.
 		let mediaElement: MediaElement | null = null;
 
-		// Check for audio element
-		const audioElements = utils.getChildrenByTag(element, 'audio');
-		if (audioElements.length > 0) {
-			const audioElement = audioElements[0];
-			const sourceElements = utils.getChildrenByTag(audioElement, 'source');
-			if (sourceElements.length === 0) {
-				throw new Error('audio element must contain at least one source element');
-			}
-			const firstSource = sourceElements[0];
-			mediaElement = {
-				type: 'audio',
-				src: utils.getAttribute(firstSource, 'src', ''),
-				mimeType: utils.getAttribute(firstSource, 'type', ''),
-			};
+		const [audioElement] = utils.getChildrenByTag(element, 'audio');
+		if (audioElement) {
+			mediaElement = readPlayableMedia('audio', audioElement, utils);
 		}
 
-		// Check for video element
-		const videoElements = utils.getChildrenByTag(element, 'video');
-		if (videoElements.length > 0) {
-			const videoElement = videoElements[0];
-			const sourceElements = utils.getChildrenByTag(videoElement, 'source');
-			if (sourceElements.length === 0) {
-				throw new Error('video element must contain at least one source element');
-			}
-			const firstSource = sourceElements[0];
-			const width = utils.getNumberAttribute(videoElement, 'width', 640);
-			const height = utils.getNumberAttribute(videoElement, 'height', 480);
-			mediaElement = {
-				type: 'video',
-				src: utils.getAttribute(firstSource, 'src', ''),
-				mimeType: utils.getAttribute(firstSource, 'type', ''),
-				width,
-				height,
-			};
+		const [videoElement] = utils.getChildrenByTag(element, 'video');
+		if (videoElement) {
+			mediaElement = readPlayableMedia('video', videoElement, utils);
 		}
 
 		// Check for object element
@@ -154,9 +220,9 @@ export const standardMediaExtractor: ElementExtractor<MediaData> = {
 			errors.push(`maxPlays (${data.maxPlays}) must be greater than or equal to minPlays (${data.minPlays})`);
 		}
 
-		// Warn if loop is true with maxPlays
+		// Looping honors the limit: playback restarts only until maxPlays plays have started.
 		if (data.loop && data.maxPlays > 0) {
-			warnings.push('mediaInteraction has loop=true with maxPlays - loop may be ignored');
+			warnings.push('mediaInteraction has loop=true with maxPlays - looping stops once maxPlays plays have started');
 		}
 
 		return {

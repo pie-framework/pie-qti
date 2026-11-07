@@ -5,19 +5,19 @@
   Type: interaction
   Packages: @pie-qti/default-components, @pie-qti/item-player
   QTI type (interactions only): extendedTextInteraction
-  Last reviewed: 2026-04-28
+  Last reviewed: 2026-11-07
 -->
 
 **Status:** draft  
 **Type:** interaction  
 **Packages:** `@pie-qti/default-components`, `@pie-qti/item-player`  
-**Last reviewed:** 2026-04-28
+**Last reviewed:** 2026-11-07
 
 ---
 
 ## Summary
 
-`extendedTextInteraction` is the QTI interaction type for multi-line free-text entry. It is the standard vehicle for short-answer, constructed-response, and essay items in K-12 assessments. The PIE-QTI implementation renders the interaction as a rich-text editor (`RichTextEditor.svelte`, backed by TipTap) rather than a plain `<textarea>`. The response variable has baseType `string` and cardinality `single`. Machine scoring via `patternMask` is supported at the extraction level but not yet enforced as a live input constraint (see G-04 below). Human scoring via instructor rubric is the expected path for most deployed items.
+`extendedTextInteraction` is the QTI interaction type for multi-line free-text entry. It is the standard vehicle for short-answer, constructed-response, and essay items in K-12 assessments. The PIE-QTI implementation renders `format="xhtml"` as a rich-text editor (`RichTextEditor.svelte`, backed by TipTap) and `format="plain"`/`"preformatted"` as a native `<textarea>`; `multiple`/`ordered` cardinality renders one named field per response string, with add and remove controls. The response variable has baseType `string` and cardinality `single`. Machine scoring via `patternMask` is supported at the extraction level but not yet enforced as a live input constraint (see G-04 below). Human scoring via instructor rubric is the expected path for most deployed items.
 
 ---
 
@@ -103,7 +103,12 @@ The QTI 3.0 tag name is `qti-extended-text-interaction` (kebab-case) with attrib
 - **FR-9:** The extractor must apply default values when attributes are absent: `expectedLines=3`, `expectedLength=200`, `format="plain"`, `placeholderText=""`.
 - **FR-10:** The extractor must emit a validation error if `expectedLines < 1` or `expectedLength < 1`. It must emit a validation warning (not error) for an unrecognized `format` value.
 - **FR-11:** The toolbar must include Bold, Italic, Insert Inline Math, and Insert Block Math controls. All toolbar controls must be disabled when the editor is not editable.
-- **FR-12:** The math editor (MathLive modal) must open when the user activates Insert Inline Math or Insert Block Math. Confirming the modal must insert a KaTeX-rendered math node at the cursor. Cancelling must return focus to the editor without modification.
+- **FR-12:** The math editor (MathLive modal) must open when the user activates Insert Inline Math or Insert Block Math. Confirming the modal must insert a KaTeX-rendered math node at the cursor and return focus to the editor. Cancelling (Cancel, Escape, or a click on the backdrop) must close it without modification and return focus to the control that opened it — the toolbar button, or the editor when an existing math node was opened for editing.
+- **FR-21:** Each response field must be named by the interaction prompt (single field) or by its visible "Response N" label inside a group the prompt names (multiple/ordered); without a prompt a single field gets the localized generic name "Response". `placeholderText` is a hint only (`placeholder`/`aria-placeholder`), never the accessible name.
+- **FR-22:** Each remove control must name the response it removes ("Remove response 2"). After removing a response, focus must move to the response before it, or — when the first was removed — to the response that took its place. Adding a response must move focus to the new field.
+- **FR-23:** The QTI 3.0 counters (`qti-counter-up`, `qti-counter-down` with `expectedLength`) must describe the field (`aria-describedby`) without being live regions; a polite live region must announce only when the count reaches `expectedLength` (again only after the count has dropped below it).
+- **FR-24:** Response fields must default to `spellcheck="false"`, `autocorrect="off"` and `autocapitalize="off"`, so spelling and writing items give every candidate the same help. The component's `spellcheck` prop (boolean, or `"true"` on the custom element) opts in to spell check and autocorrect; automatic capitalization stays off either way.
+- **FR-25:** A plain-text field for a numeric response must request a numeric virtual keyboard: `inputmode="numeric"` for `integer`, `"decimal"` for `float` and numeric `record` cardinality. A `base` above 10 (letters as digits) keeps the text keyboard.
 - **FR-13:** When the `response` prop is updated externally while the editor is not focused, the editor content must update to reflect the new value without triggering a `qti-change` event.
 - **FR-14:** When the `response` prop is updated externally while the editor is focused (active editing), the external update must be silently ignored to prevent clobbering in-progress input.
 
@@ -114,12 +119,13 @@ The QTI 3.0 tag name is `qti-extended-text-interaction` (kebab-case) with attrib
 ### Accessibility
 
 - **WCAG 2.2 Level AA** is mandatory for all assessment interactions.
-- The TipTap editor div must have `role="textbox"`, `aria-multiline="true"`, and `aria-label` set to the placeholder text (or a localized label from i18n). These are set via TipTap's `editorProps.attributes`. If the placeholder text is empty, the `aria-label` must fall back to the i18n key `interactions.extendedText.placeholder`.
+- The TipTap editor surface must have `role="textbox"` and `aria-multiline="true"`, be named by the prompt (`aria-labelledby`) or the field's visible label, and expose the placeholder as `aria-placeholder`. A counter, when shown, is its description (`aria-describedby`). A read-only editor exposes `aria-readonly="true"`. These attributes are set through TipTap's `editorProps.attributes` and kept current without re-creating the editor.
+- Control boundaries (the textarea and editor borders) use `--pie-qti-border-strong` (fallback `#767676`, 4.5:1 on white) for WCAG 1.4.11; focus shows a 2px `--pie-qti-focus` outline with a 2px offset; counter and placeholder text keep 4.5:1 (no opacity or transparency).
 - Toolbar buttons must have `aria-label` attributes sourced from i18n keys (`interactions.extendedText.bold`, `interactions.extendedText.italic`, `interactions.extendedText.insertInlineMath`, `interactions.extendedText.insertBlockMath`). Button labels must not rely on visual icon alone.
 - The correct-response panel (scorer role) must be reachable by keyboard and have sufficient color contrast. The current implementation uses `bg-success bg-opacity-10 border-success` DaisyUI classes — contrast must be verified against all 32 supported themes.
 - When G-04 (`patternMask`) is implemented: the validation error message must be associated to the editor via `aria-describedby`. The error must appear on blur (not on every keystroke) to avoid ARIA live-region spam. An `aria-live="polite"` region must announce the error when it appears.
-- The MathLive modal (triggered by toolbar math buttons) must trap focus while open and return focus to the triggering toolbar button on close (both confirm and cancel paths).
-- Touch targets for toolbar buttons must be at least 44×44px on mobile per WCAG 2.5.8 (Target Size, Minimum).
+- The MathLive modal (triggered by toolbar math buttons) follows the WAI-ARIA APG modal dialog pattern: `role="dialog"`, `aria-modal="true"`, named by its title and described by its instructions; the math field has an associated label; focus moves into the field on open, Tab and Shift+Tab stay inside, Escape cancels (taking precedence over MathLive's own Escape binding), and focus returns as FR-12 describes. All of its strings come from the `interactions.mathInput` catalog section. The dialog carries the opener's writing direction. While MathLive's virtual keyboard is open, the dialog is laid out above it, so its focused control is never obscured (WCAG 2.4.11) and its buttons stay usable; if the math field cannot take focus (MathLive failed to load), focus goes to the next control in the dialog.
+- Touch targets for toolbar, add and remove buttons and the math dialog's buttons are at least 44×44px (the K-12 primary size; WCAG 2.5.8 requires 24×24). The Bold and Italic toolbar buttons expose their state with `aria-pressed`.
 
 ### Performance
 
@@ -131,6 +137,8 @@ The QTI 3.0 tag name is `qti-extended-text-interaction` (kebab-case) with attrib
 - The editor must be usable on iOS Safari (touch) and Android Chrome. The TipTap `contenteditable` div is used for this; browser virtual keyboards should open naturally without extra handling.
 - The toolbar must wrap (`flex-wrap: wrap`) on narrow viewports so buttons do not overflow horizontally.
 - The editor container must not set a fixed `height` — only `min-height` — so the editor expands naturally on mobile as the candidate types.
+- Numeric responses request a numeric keyboard (FR-25). Phone number pads (notably iPhone's `numeric`/`decimal` pads) offer no minus sign or exponent, so a negative or exponent answer cannot be typed on them; items that expect such answers should use `baseType="string"` with response processing that parses the number, until a sign control is provided.
+- Writing assistance (spell check, autocorrect, autocapitalize) is off by default on both the textarea and the rich-text editor (FR-24), so mobile keyboards give no automatic corrections either. There is no PNP field for spell checking yet; the host grants it through the `spellcheck` component prop.
 
 ### Security
 
@@ -139,7 +147,7 @@ The QTI 3.0 tag name is `qti-extended-text-interaction` (kebab-case) with attrib
 
 ### i18n
 
-- All user-visible strings (toolbar labels, placeholder fallback, error messages) must be sourced from `@pie-qti/i18n` via the `i18n` prop.
+- All user-visible strings (toolbar labels, placeholder fallback, field and remove-button names, counters, announcements, error messages) must be sourced from `@pie-qti/i18n` via the `i18n` prop: `interactions.extendedText.*`, and `interactions.mathInput.*` for the math dialog (with `common.cancel`). Counters and announcements use plural messages (`translatePlural`).
 - The `i18n` prop is optional; every `i18n?.t(key, fallback)` call must provide a hardcoded English fallback so the component renders correctly without an i18n provider.
 - RTL language support: the TipTap editor inherits document direction. No explicit RTL handling is currently implemented beyond CSS inheritance.
 
@@ -287,7 +295,7 @@ AC-12: Insert Inline Math
 AC-13: MathLive modal cancel
   Given: The MathLive modal is open from clicking Insert Inline Math
   When: The candidate clicks Cancel
-  Then: The modal closes and the editor content is unchanged; focus returns to the editor
+  Then: The modal closes and the editor content is unchanged; focus returns to the Insert Inline Math button
 
 AC-14: External value update (unfocused)
   Given: The editor is rendered with response="initial content"
@@ -335,15 +343,17 @@ AC-A1: Editor ARIA role
   When: Inspecting the TipTap editor div
   Then: The element has role="textbox" and aria-multiline="true"
 
-AC-A2: Editor aria-label
-  Given: placeholderText="Enter your essay response"
+AC-A2: Field named by the prompt
+  Given: A prompt "Explain your reasoning." and placeholderText="Enter your essay response"
   When: The component renders
-  Then: The TipTap editor div has aria-label="Enter your essay response"
+  Then: The field (textarea or TipTap editor) has aria-labelledby pointing at the prompt
+  And: The placeholder is a hint only (placeholder / aria-placeholder), not the name
 
-AC-A3: Editor aria-label fallback
-  Given: placeholderText is empty and no i18n provider is given
+AC-A3: Field name without a prompt
+  Given: No prompt and no i18n provider
   When: The component renders
-  Then: The TipTap editor div has a non-empty aria-label (the hardcoded fallback string)
+  Then: A single field is named "Response"; fields of a multi-part response are named
+        by their visible "Response N" labels
 
 AC-A4: Toolbar button accessible names
   Given: The component is rendered
@@ -368,8 +378,33 @@ AC-A7: Correct-response panel contrast
 AC-A8: Read-only state communicated to assistive technology
   Given: disabled=true
   When: Inspecting the TipTap editor div
-  Then: The element has aria-readonly="true" or aria-disabled="true" so screen readers announce the non-editable state
-  Notes: TipTap's editable=false may not set these automatically; verify and add via editorProps.attributes if needed.
+  Then: The element has aria-readonly="true", so screen readers announce the non-editable state
+
+AC-A9: Counter is quiet; reaching the expected length is announced
+  Given: expectedLength=5 and class qti-counter-down
+  When: The candidate types four characters, then a fifth, then a sixth
+  Then: The counter (the field's description) reads "1 character remaining", then "0 characters remaining"
+  And: The polite live region announces "Expected length of 5 characters reached." once, at the fifth
+  And: The counter element is not itself a live region
+
+AC-A10: Remove buttons are distinct and keep focus
+  Given: An ordered response with three strings
+  When: The candidate activates "Remove response 3"
+  Then: The response is removed, "Response 3 removed." is announced, and focus moves to Response 2's field
+
+AC-A11: Writing assistance defaults
+  Given: No spellcheck prop
+  When: The component renders
+  Then: The field has spellcheck="false", autocorrect="off", autocapitalize="off"
+  And: With spellcheck={true} (or spellcheck="true" on the element) it has spellcheck="true",
+       autocorrect="on", and autocapitalize stays "off"
+
+AC-A12: MathLive dialog semantics
+  Given: The candidate activates "Insert inline math" from the keyboard
+  When: The dialog opens
+  Then: It is role="dialog" aria-modal="true", named "Insert inline math" and described by
+        its instructions; focus is in the labelled math field; Tab and Shift+Tab stay inside
+  And: Escape closes it without inserting and focus returns to the "Insert inline math" button
 ```
 
 ### G-04 gap behavior (current state and target state)
@@ -434,7 +469,9 @@ AC-E6: format="xhtml" — same editor as plain
 ## Open questions
 
 - [ ] Should `format="preFormatted"` render the editor with a monospace font (e.g. `font-family: monospace` on `.pie-tiptap`) to signal to the candidate that formatting is significant? There is no spec requirement, but it would be a useful UX hint for code or data entry items.
-- [ ] Should `expectedLength` surface a visible character count to the candidate (e.g. "0 / 200 characters")? This is not required by the spec but is common in LMS implementations. If added, the counter must be announced accessibly for screen readers (debounced `aria-live` region).
+- [x] Should `expectedLength` surface a visible character count? Resolved: the QTI 3.0 shared-vocabulary classes `qti-counter-up`/`qti-counter-down` opt in to a visible counter; it describes the field and is announced only at the expected length (FR-23).
+- [ ] Should the candidate's PNP carry a spell-check grant (AfA PNP 3.0 `spell-checker-on-screen`) that the item player maps to the `spellcheck` prop? Today a host sets the prop itself.
+- [ ] Numeric responses on phone number pads cannot take a minus sign (see Cross-platform). Should numeric fields get a sign toggle, or fall back to the text keyboard when negative answers are plausible?
 - [ ] The `format="xhtml"` case is currently silently served as a plain rich-text editor. Should the extractor emit a warning when `format="xhtml"` is detected, since the rendering is not XHTML-compliant?
 
 ---
