@@ -1,16 +1,18 @@
 /**
  * Standard QTI gapMatchInteraction extractor
  *
- * Extracts data from gapMatchInteraction elements (drag words into gaps)
+ * Extracts data from gapMatchInteraction elements (drag words or images into gaps)
  */
 
-import type { ElementExtractor } from '../../extraction/types.js';
+import type { ElementExtractor, ExtractionUtils } from '../../extraction/types.js';
+import type { QTIElement } from '../../interactions/shared/types.js';
 import { maybeShuffle } from '../../core/shuffle.js';
-import { normalizeCssPixelLength } from '../../security/styleValues.js';
+import { normalizeCssPixelLength, normalizePixelDimension } from '../../security/styleValues.js';
 
 const GAP_ELEMENT_PATTERN = /<(?:qti-gap|gap)(?=[\s/>])([^>]*)\/?>/gi;
 const GAP_CLOSE_PATTERN = /<\/(?:qti-gap|gap)>/gi;
 const GAP_TEXT_PATTERN = /<(?:qti-gap-text|gapText)\b[\s\S]*?<\/(?:qti-gap-text|gapText)>/gi;
+const GAP_IMG_PATTERN = /<(?:qti-gap-img|gapImg)\b[\s\S]*?<\/(?:qti-gap-img|gapImg)>/gi;
 const GAP_MATCH_OPEN_PATTERN = /<(?:qti-gap-match-interaction|gapMatchInteraction)\b[^>]*>/i;
 const GAP_MATCH_CLOSE_PATTERN = /<\/(?:qti-gap-match-interaction|gapMatchInteraction)>/i;
 const PROMPT_PATTERN = /<(?:qti-prompt|prompt)\b[\s\S]*?<\/(?:qti-prompt|prompt)>/gi;
@@ -26,12 +28,30 @@ function promptTextFromInteractionBody(interactionHtml: string): string {
 		.replace(GAP_MATCH_CLOSE_PATTERN, '')
 		.replace(PROMPT_PATTERN, '')
 		.replace(GAP_TEXT_PATTERN, '')
+		.replace(GAP_IMG_PATTERN, '')
 		.replace(GAP_ELEMENT_PATTERN, (_match, attrs: string) => {
 			const id = extractAttribute(attrs, 'identifier');
 			return id ? `[GAP:${id}]` : '';
 		})
 		.replace(GAP_CLOSE_PATTERN, '')
 		.trim();
+}
+
+/**
+ * An image choice extracted from a gapImg (QTI 2.x) or qti-gap-img (QTI 3.0)
+ * element. QTI 2.x wraps the image in an <object data="…" …>fallback alt</object>;
+ * QTI 3.0 allows a plain <img src alt> as well.
+ */
+export interface GapMatchImage {
+	identifier: string;
+	src: string;
+	alt: string;
+	matchMax: number;
+	matchMin?: number;
+	matchGroup?: string[];
+	classes?: string[];
+	width?: number;
+	height?: number;
 }
 
 /**
@@ -46,6 +66,7 @@ export interface GapMatchData {
 		matchGroup?: string[];
 		classes?: string[];
 	}>;
+	gapImages: GapMatchImage[];
 	gaps: string[];
 	shuffle: boolean;
 	prompt: string | null;
@@ -53,15 +74,73 @@ export interface GapMatchData {
 }
 
 /**
+ * Extracts one draggable image choice from gapImg/qti-gap-img content.
+ */
+function extractGapImage(
+	gapImg: QTIElement,
+	utils: Pick<
+		ExtractionUtils,
+		'getClasses' | 'getNumberAttribute' | 'getAttribute' | 'getChildrenByTag' | 'getTextContent'
+	>,
+): GapMatchImage {
+	const classes = utils.getClasses(gapImg);
+	const matchMax = utils.getNumberAttribute(gapImg, 'matchMax', 1);
+	const matchMin = utils.getNumberAttribute(gapImg, 'matchMin', 0);
+	const matchGroupRaw = utils.getAttribute(gapImg, 'matchGroup', '');
+	const matchGroup = matchGroupRaw.split(/\s+/).filter(Boolean);
+
+	let src = '';
+	let alt = '';
+	let width: number | undefined;
+	let height: number | undefined;
+
+	// QTI 2.x: <gapImg><object data="…" width height>alt text</object></gapImg>
+	const objectChildren = utils.getChildrenByTag(gapImg, 'object');
+	if (objectChildren.length > 0) {
+		const obj = objectChildren[0];
+		src = utils.getAttribute(obj, 'data', '');
+		alt = utils.getTextContent(obj);
+		const w = normalizePixelDimension(utils.getAttribute(obj, 'width', ''));
+		const h = normalizePixelDimension(utils.getAttribute(obj, 'height', ''));
+		if (w) width = Number(w);
+		if (h) height = Number(h);
+	}
+
+	// QTI 3.0: <qti-gap-img><img src="…" alt="…" /></qti-gap-img>
+	const imgChildren = utils.getChildrenByTag(gapImg, 'img');
+	if (imgChildren.length > 0 && !src) {
+		const img = imgChildren[0];
+		src = utils.getAttribute(img, 'src', '');
+		alt = utils.getAttribute(img, 'alt', '');
+		const w = normalizePixelDimension(utils.getAttribute(img, 'width', ''));
+		const h = normalizePixelDimension(utils.getAttribute(img, 'height', ''));
+		if (w) width = Number(w);
+		if (h) height = Number(h);
+	}
+
+	return {
+		identifier: utils.getAttribute(gapImg, 'identifier', ''),
+		src,
+		alt,
+		matchMax,
+		...(matchMin > 0 ? { matchMin } : {}),
+		...(matchGroup.length > 0 ? { matchGroup } : {}),
+		...(classes.length > 0 ? { classes } : {}),
+		...(width !== undefined ? { width } : {}),
+		...(height !== undefined ? { height } : {}),
+	};
+}
+
+/**
  * Standard QTI gap match interaction extractor
- * Handles gapMatchInteraction elements (drag words into gaps in text)
+ * Handles gapMatchInteraction elements (drag words or images into gaps in text)
  */
 export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 	id: 'qti:gap-match-interaction',
 	name: 'QTI Standard Gap Match Interaction',
 	priority: 10,
 	elementTypes: ['gapMatchInteraction'],
-	description: 'Extracts standard QTI gapMatchInteraction (drag words into gaps)',
+	description: 'Extracts standard QTI gapMatchInteraction (drag words or images into gaps)',
 
 	canHandle(element, context) {
 		// All gapMatchInteraction elements are standard
@@ -71,7 +150,7 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 	extract(element, context) {
 		const { utils } = context;
 
-		// Extract gapText children (draggable items)
+		// Extract gapText children (draggable text items)
 		const gapTextElements = utils.getChildrenByTag(element, 'gapText');
 		const gapTexts = gapTextElements.map((gapText) => {
 			const classes = utils.getClasses(gapText);
@@ -89,6 +168,28 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 				...(classes.length > 0 ? { classes } : {}),
 			};
 		});
+
+		// Extract gapImg children (draggable image items; QTI 2.x gapImg / QTI 3.0 qti-gap-img)
+		const gapImgElements = utils.getChildrenByTag(element, 'gapImg');
+		const gapImages = gapImgElements.map((gapImg) => extractGapImage(gapImg, utils));
+
+		// Extract attributes
+		const shuffle = utils.getBooleanAttribute(element, 'shuffle');
+
+		// Shuffle the combined choice pool so words and images interleave, then
+		// restore the split view the renderer consumes.
+		if (gapTexts.length > 0 || gapImages.length > 0) {
+			const combined: Array<
+				{ type: 'text'; choice: (typeof gapTexts)[number] } | { type: 'image'; choice: GapMatchImage }
+			> = [...gapTexts.map((choice) => ({ type: 'text' as const, choice })), ...gapImages.map((choice) => ({ type: 'image' as const, choice }))];
+			const shuffled = maybeShuffle(combined, shuffle, context.shuffleRng);
+			gapTexts.length = 0;
+			gapImages.length = 0;
+			for (const entry of shuffled) {
+				if (entry.type === 'text') gapTexts.push(entry.choice);
+				else gapImages.push(entry.choice);
+			}
+		}
 
 		// Extract prompt (optional) and process gap placeholders.
 		// NOTE: Many QTI items place `<gap>` elements in the interaction content (e.g. a `<p>`/`<blockquote>`)
@@ -138,8 +239,7 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 			}
 		}
 
-		// Extract attributes
-		const shuffle = utils.getBooleanAttribute(element, 'shuffle');
+		// Extract interaction-level classes and attributes
 		const interactionClasses = utils.getClasses(element);
 		const choicesContainerWidth = normalizeCssPixelLength(
 			utils.getAttribute(element, 'data-choices-container-width', ''),
@@ -148,7 +248,8 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 		const minSelectionsMessage = utils.getAttribute(element, 'data-min-selections-message', '') || null;
 
 		return {
-			gapTexts: maybeShuffle(gapTexts, shuffle, context.shuffleRng),
+			gapTexts,
+			gapImages,
 			gaps,
 			shuffle,
 			prompt,
@@ -163,9 +264,9 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 	validate(data) {
 		const errors: string[] = [];
 
-		// Validate gapTexts exist
-		if (!data.gapTexts || data.gapTexts.length === 0) {
-			errors.push('gapMatchInteraction must have at least one gapText');
+		// Validate draggable choices exist (gapText or gapImg — QTI 2.1/2.2/3.0 allow both)
+		if ((!data.gapTexts || data.gapTexts.length === 0) && (!data.gapImages || data.gapImages.length === 0)) {
+			errors.push('gapMatchInteraction must have at least one gapText or gapImg');
 		}
 
 		// Validate gaps exist
@@ -173,21 +274,41 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 			errors.push('gapMatchInteraction must have at least one gap in the prompt');
 		}
 
+		// Identifiers of gapText and gapImg choices share one response-identifier space:
+		// a collision would make "wordId gapId" response pairs ambiguous.
+		const choiceIdentifiers = new Set<string>();
+		const validateChoiceIdentifier = (identifier: string, kind: string): void => {
+			if (!identifier) {
+				errors.push(`All ${kind} choices must have an identifier`);
+			} else if (choiceIdentifiers.has(identifier)) {
+				errors.push(`Duplicate choice identifier: ${identifier}`);
+			} else {
+				choiceIdentifiers.add(identifier);
+			}
+		};
+
 		// Validate gapText identifiers
 		if (data.gapTexts) {
-			const identifiers = new Set<string>();
 			for (const gapText of data.gapTexts) {
-				if (!gapText.identifier) {
-					errors.push('All gapTexts must have an identifier');
-				} else if (identifiers.has(gapText.identifier)) {
-					errors.push(`Duplicate gapText identifier: ${gapText.identifier}`);
-				} else {
-					identifiers.add(gapText.identifier);
-				}
+				validateChoiceIdentifier(gapText.identifier, 'gapText');
 
 				// Validate matchMax
 				if (gapText.matchMax < 0) {
 					errors.push(`matchMax must be non-negative for gapText ${gapText.identifier}`);
+				}
+			}
+		}
+
+		// Validate gapImg identifiers and image sources
+		if (data.gapImages) {
+			for (const gapImage of data.gapImages) {
+				validateChoiceIdentifier(gapImage.identifier, 'gapImg');
+
+				if (gapImage.matchMax < 0) {
+					errors.push(`matchMax must be non-negative for gapImg ${gapImage.identifier}`);
+				}
+				if (!gapImage.src) {
+					errors.push(`gapImg ${gapImage.identifier} must reference an image source`);
 				}
 			}
 		}

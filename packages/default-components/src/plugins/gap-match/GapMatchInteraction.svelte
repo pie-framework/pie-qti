@@ -5,6 +5,7 @@
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { normalizeCssPixelLength, sanitizeSharedHtml } from '@pie-qti/item-player/security';
 	import { joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
+	import { tick } from 'svelte';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
 	import { isCompatibleMatchGroup } from '../../shared/utils/matchGroupUtils';
@@ -75,29 +76,82 @@
 		return segments;
 	});
 
+	/** 1-based position of each gap in reading order, for localized-ordinal names. */
+	const gapPositions = $derived.by(() => {
+		const positions = new Map<string, number>();
+		let count = 0;
+		for (const segment of promptSegments) {
+			if (segment.gapId && !positions.has(segment.gapId)) positions.set(segment.gapId, (count += 1));
+		}
+		return { positions, total: count };
+	});
+
+	/**
+	 * The draggable pool: gapText words and gapImg image tiles share one identifier
+	 * space and one set of placement rules, so everything downstream (palette,
+	 * drop handling, pick-up flow, matchMax/matchGroup constraints) works on this
+	 * combined list. Image choices are named by their alt text.
+	 */
+	type PaletteWord = {
+		identifier: string;
+		kind: 'text' | 'image';
+		/** Readable name: gapText content, or the image's alt text. */
+		name: string;
+		src?: string;
+		width?: number;
+		height?: number;
+		matchMax: number;
+		matchGroup?: string[];
+	};
+
+	const paletteWords = $derived.by((): PaletteWord[] => {
+		const interaction = parsedInteraction;
+		if (!interaction) return [];
+		const words: PaletteWord[] = (interaction.gapTexts ?? []).map((gapText) => ({
+			identifier: gapText.identifier,
+			kind: 'text' as const,
+			name: gapText.text,
+			matchMax: gapText.matchMax,
+			...(gapText.matchGroup ? { matchGroup: gapText.matchGroup } : {}),
+		}));
+		for (const gapImage of interaction.gapImages ?? []) {
+			words.push({
+				identifier: gapImage.identifier,
+				kind: 'image',
+				name: gapImage.alt || gapImage.identifier,
+				src: gapImage.src,
+				...(gapImage.width !== undefined ? { width: gapImage.width } : {}),
+				...(gapImage.height !== undefined ? { height: gapImage.height } : {}),
+				matchMax: gapImage.matchMax,
+				...(gapImage.matchGroup ? { matchGroup: gapImage.matchGroup } : {}),
+			});
+		}
+		return words;
+	});
+
 	// Words that cannot be placed because they share a matchGroup with an already-placed word
 	const unavailableWords = $derived.by(() => {
 		if (!parsedInteraction) return new Set<string>();
 		const placedGroups = new Set<string>();
 		for (const pair of pairs) {
 			const wordId = pair.split(' ')[0];
-			const gt = parsedInteraction.gapTexts.find((g) => g.identifier === wordId);
-			gt?.matchGroup?.forEach((g) => placedGroups.add(g));
+			const word = paletteWords.find((g) => g.identifier === wordId);
+			word?.matchGroup?.forEach((g) => placedGroups.add(g));
 		}
 		return new Set(
-			parsedInteraction.gapTexts
-				.filter((gt) => {
-					const isPlaced = pairs.some((p) => p.startsWith(`${gt.identifier} `));
+			paletteWords
+				.filter((word) => {
+					const isPlaced = pairs.some((p) => p.startsWith(`${word.identifier} `));
 					if (isPlaced) return false;
-					return gt.matchGroup?.some((g) => placedGroups.has(g)) ?? false;
+					return word.matchGroup?.some((g) => placedGroups.has(g)) ?? false;
 				})
-				.map((gt) => gt.identifier)
+				.map((word) => word.identifier)
 		);
 	});
 
 	function getMatchMax(wordId: string): number {
-		const gt = parsedInteraction?.gapTexts?.find((g) => g.identifier === wordId);
-		return gt?.matchMax ?? 1;
+		const word = paletteWords.find((g) => g.identifier === wordId);
+		return word?.matchMax ?? 1;
 	}
 
 	function handleGapChange(gapId: string, wordId: string) {
@@ -145,8 +199,8 @@
 	}
 
 	function getWordText(wordId: string): string {
-		const w = parsedInteraction?.gapTexts?.find((gt) => gt.identifier === wordId);
-		return w?.text ?? wordId;
+		const word = paletteWords.find((w) => w.identifier === wordId);
+		return word?.name ?? wordId;
 	}
 
 	function onWordDragStart(e: DragEvent, wordId: string) {
@@ -159,25 +213,44 @@
 	function selectWord(wordId: string) {
 		if (disabled || isWordUsed(wordId) || unavailableWords.has(wordId)) return;
 		pickedUpWord = pickedUpWord === wordId ? null : wordId;
-		const item = getWordText(wordId);
+		const word = getWordText(wordId);
 		liveMessage = pickedUpWord
-			? (i18n?.t('interactions.match.selected', { item }) ?? `${item} selected`)
-			: (i18n?.t('common.selectionCancelled') ?? 'Selection cancelled');
+			? translate(i18n, 'interactions.gapMatch.wordSelected', '{word} picked up. Select a blank to place it, or press Escape to cancel.', { word })
+			: translate(i18n, 'interactions.gapMatch.pickUpCancelled', 'Pick-up of {word} cancelled.', { word });
 	}
 
-	// K-02: global Escape handler to cancel pick-up from anywhere in the component
+	// K-02: global Escape handler to cancel pick-up from anywhere in the component.
+	// Focus returns to the word that was held, since the gap it was hovering lost
+	// its "ready" state and the word is what the user resumes from.
 	function onRootKeydown(e: KeyboardEvent) {
 		if (e.key === 'Escape' && pickedUpWord !== null) {
+			const wordId = pickedUpWord;
 			pickedUpWord = null;
-			liveMessage = i18n?.t('common.selectionCancelled') ?? 'Pick-up cancelled.';
+			liveMessage = translate(i18n, 'interactions.gapMatch.pickUpCancelled', 'Pick-up of {word} cancelled.', {
+				word: getWordText(wordId),
+			});
+			void tick().then(() => {
+				const heldButton = Array.from(
+					rootElement?.querySelectorAll<HTMLButtonElement>('[data-word-id]') ?? []
+				).find((button) => button.dataset.wordId === wordId);
+				heldButton?.focus();
+			});
 		}
 	}
 
 	// Accessible name for a gap, composed with the held-word hint and correct-answer state.
+	// Gaps are named with localized ordinals ("Blank 2 of 4"), never the raw QTI gap
+	// identifier, which can leak the answer to screen reader users. Reading order puts
+	// each inline gap in its sentence, so the surrounding context is already available
+	// to assistive technology without a describedby copy of the whole passage.
 	function gapAriaLabel(gapId: string): string {
 		const selected = getSelectedWord(gapId);
 		const correct = getCorrectWord(gapId);
 		const isCorrect = isCorrectGap(gapId);
+		const ordinals = {
+			position: gapPositions.positions.get(gapId) ?? 0,
+			total: gapPositions.total,
+		};
 		if (selected) {
 			const word = getWordText(selected);
 			const label =
@@ -185,22 +258,22 @@
 					? translate(
 							i18n,
 							'interactions.gapMatch.filledGapAriaLabelWithHeld',
-							'Blank {gapId}, filled with {word}. Select to replace with {heldWord}.',
-							{ gapId, word, heldWord: getWordText(pickedUpWord) },
+							'Blank {position} of {total}, filled with {word}. Select to replace with {heldWord}.',
+							{ ...ordinals, word, heldWord: getWordText(pickedUpWord) },
 						)
-					: translate(i18n, 'interactions.gapMatch.filledGapAriaLabel', 'Blank {gapId}, filled with {word}. Click to clear.', {
-							gapId,
+					: translate(i18n, 'interactions.gapMatch.filledGapAriaLabel', 'Blank {position} of {total}, filled with {word}. Select to clear.', {
+							...ordinals,
 							word,
 						});
 			return joinSentences(label, isCorrect && translate(i18n, 'accessibility.correctAnswer', 'Correct answer.'));
 		}
 		const label =
 			pickedUpWord !== null
-				? translate(i18n, 'interactions.gapMatch.blankGapAriaLabelWithHeld', 'Blank {gapId}. Select to place {heldWord} here.', {
-						gapId,
+				? translate(i18n, 'interactions.gapMatch.blankGapAriaLabelWithHeld', 'Blank {position} of {total}. Select to place {heldWord} here.', {
+						...ordinals,
 						heldWord: getWordText(pickedUpWord),
 					})
-				: translate(i18n, 'interactions.gapMatch.blankGapAriaLabel', 'Blank {gapId}. Drop an answer here.', { gapId });
+				: translate(i18n, 'interactions.gapMatch.blankGapAriaLabel', 'Blank {position} of {total}. Drop an answer here.', ordinals);
 		return joinSentences(
 			label,
 			isCorrect &&
@@ -234,9 +307,11 @@
 		if (pickedUpWord !== null) {
 			const wordText = getWordText(pickedUpWord);
 			handleGapChange(gapId, pickedUpWord);
-			liveMessage =
-				i18n?.t('interactions.gapMatch.placed', { word: wordText, gapId }) ??
-				`Placed ${wordText} in blank ${gapId}.`;
+			liveMessage = translate(i18n, 'interactions.gapMatch.placed', 'Placed {word} in blank {position} of {total}.', {
+				word: wordText,
+				position: gapPositions.positions.get(gapId) ?? 0,
+				total: gapPositions.total,
+			});
 			pickedUpWord = null;
 		} else {
 			// No word held: clear this gap if it has a word
@@ -286,10 +361,10 @@
 			<div class="qti-gm-palette-title w-full text-sm text-base-content/70 font-semibold mb-2">
 				{translate(i18n, 'interactions.gapMatch.availableHeading', 'Available words:')}
 			</div>
-			{#each parsedInteraction.gapTexts as gapText (gapText.identifier)}
-				{@const used = isWordUsed(gapText.identifier)}
-				{@const isHeld = pickedUpWord === gapText.identifier}
-				{@const isUnavailable = unavailableWords.has(gapText.identifier)}
+			{#each paletteWords as word (word.identifier)}
+				{@const used = isWordUsed(word.identifier)}
+				{@const isHeld = pickedUpWord === word.identifier}
+				{@const isUnavailable = unavailableWords.has(word.identifier)}
 				<div class="inline-flex items-center gap-1">
 					<button
 						part="word"
@@ -303,24 +378,29 @@
 						class:cursor-not-allowed={disabled || isUnavailable}
 						class:opacity-40={isUnavailable}
 						class:opacity-70={disabled}
-						data-word-id={gapText.identifier}
+						data-word-id={word.identifier}
 						draggable={!disabled && !used && !isUnavailable}
 						aria-disabled={disabled || used || isUnavailable}
 						aria-pressed={isHeld}
 						disabled={disabled || used}
-						ondragstart={(e: DragEvent) => onWordDragStart(e, gapText.identifier)}
-						onclick={() => selectWord(gapText.identifier)}
-						aria-label={gapText.text}
+						ondragstart={(e: DragEvent) => onWordDragStart(e, word.identifier)}
+						onclick={() => selectWord(word.identifier)}
+						aria-label={word.name}
 					>
-						{gapText.text}
+						{#if word.kind === 'image'}
+							<!-- alt="" on the tile: the button's aria-label is the image's alt text. -->
+							<img class="qti-gm-word-img" src={word.src} alt="" width={word.width} height={word.height} />
+						{:else}
+							{word.name}
+						{/if}
 					</button>
 					{#if used && !disabled}
 						<button
 							type="button"
 							part="word-remove"
-							class="btn btn-sm btn-circle btn-error"
-							onclick={() => clearWord(gapText.identifier)}
-							aria-label={translate(i18n, 'interactions.gapMatch.removeFromBlanks', 'Remove {word} from the blanks', { word: gapText.text })}
+							class="qti-gm-word-remove btn btn-sm btn-circle btn-error"
+							onclick={() => clearWord(word.identifier)}
+							aria-label={translate(i18n, 'interactions.gapMatch.removeFromBlanks', 'Remove {word} from the blanks', { word: word.name })}
 							title={i18n?.t('interactions.gapMatch.removeWord') ?? 'Remove word'}
 						>
 							✕
@@ -334,6 +414,7 @@
 		{@const selected = getSelectedWord(gapId)}
 		{@const showCorrect = isCorrectGap(gapId)}
 		{@const showWord = selected || (showCorrect ? getCorrectWord(gapId) : '')}
+		{@const shownWord = showWord === '' ? null : paletteWords.find((w) => w.identifier === showWord)}
 		<button
 			part="gap"
 			type="button"
@@ -350,7 +431,11 @@
 			ondrop={(e: DragEvent) => onGapDrop(gapId, e)}
 			onclick={() => onGapClick(gapId)}
 		>
-			{showWord === '' ? '' : getWordText(showWord)}
+			{#if shownWord?.kind === 'image'}
+				<img class="qti-gm-gap-img" src={shownWord.src} alt="" width={shownWord.width} height={shownWord.height} />
+			{:else}
+				{showWord === '' ? '' : getWordText(showWord)}
+			{/if}
 		</button>
 	{/snippet}
 	{#if promptSegments.length > 0}
@@ -434,6 +519,9 @@
 		align-items: center;
 		justify-content: center;
 		min-width: 6.25rem;
+		/* K-12 target size: the blanks are this interaction's primary targets
+		   (WCAG 2.5.8 minimum is 24px; primary controls aim at 44px). */
+		min-height: 2.75rem;
 		margin: 0 0.25rem;
 		/* Height/padding/border/background should come from DaisyUI `select select-sm`
 		   (or ShadowBaseStyles fallback), so empty and filled gaps match exactly. */
@@ -446,13 +534,11 @@
 			background-color 120ms ease;
 	}
 	:global(.qti-gm-gap-target[data-empty='true']) {
-		/* Same size + base styling as a filled gap, but dashed to indicate "drop here". */
+		/* Same size + base styling as a filled gap, but dashed to indicate "drop here".
+		   1.4.11: the blank's boundary is a control boundary and needs 3:1, which a
+		   washed-out base-300 blend cannot provide on the page background. */
 		border-style: dashed;
-		border-color: color-mix(
-			in oklch,
-			var(--pie-qti-base-content, oklch(21% 0 0)) 18%,
-			var(--pie-qti-base-300, oklch(95% 0 0))
-		);
+		border-color: var(--pie-qti-border-strong, #767676);
 	}
 	:global(.qti-gm-gap-target[data-empty='true']::before) {
 		/* Ensure empty gaps reserve the same line-height as filled gaps (no visible text). */
@@ -480,7 +566,8 @@
 		box-shadow: 0 0 0 2px color-mix(in oklch, var(--pie-qti-primary, oklch(45% 0.24 277)) 22%, transparent);
 	}
 	:global(.qti-gm-gap-target:focus-visible) {
-		outline: 2px solid color-mix(in oklch, var(--pie-qti-primary, oklch(45% 0.24 277)) 50%, transparent);
+		/* No alpha: a 50% primary ring measures 2.64:1, below the 3:1 focus indicator. */
+		outline: 2px solid var(--pie-qti-focus, #4338ca);
 		outline-offset: 2px;
 	}
 	:global(.qti-gm-gap-target:hover) {
@@ -500,9 +587,23 @@
 	.qti-gm-palette [part='word'][draggable='true']:active {
 		cursor: grabbing;
 	}
-	/* K-02: "held" visual for the picked-up word button */
+	/* K-02: "held" visual for the picked-up word button. 1.4.11: warning yellow
+	   reads 1.68:1 against the palette; a control-state cue needs 3:1. */
 	:global(.qti-gm-word-held) {
-		outline: 3px solid var(--pie-qti-warning, oklch(84% 0.2 85));
+		outline: 3px solid var(--pie-qti-border-strong, #767676);
 		outline-offset: 2px;
+	}
+	/* Image choice tiles in the palette and inside filled gaps. */
+	:global(.qti-gm-word-img),
+	:global(.qti-gm-gap-img) {
+		max-height: 2rem;
+		width: auto;
+		display: block;
+	}
+	/* K-12 target size for the per-word clear button (matches the match clear button). */
+	:global(.qti-gm-word-remove) {
+		width: 2.75rem;
+		height: 2.75rem;
+		font-size: 1rem;
 	}
 </style>

@@ -10,9 +10,9 @@ export type SortableIndexLabels = 'decimal' | 'lower-alpha' | 'upper-alpha' | 'n
 
 import { joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
 import type { HtmlContent } from '@pie-qti/item-player';
-import { htmlToString } from '@pie-qti/item-player/security';
 import { touchDrag } from '@pie-qti/qti-common';
-import { tick } from 'svelte';
+import { tick, type Snippet } from 'svelte';
+import { accessibleTextFromHtml } from '../utils/accessibleText.js';
 import DragHandle from './DragHandle.svelte';
 import '../styles/shared.css';
 
@@ -32,6 +32,12 @@ interface Props {
 	indexSuffix?: string;
 	disabled?: boolean;
 	i18n?: I18nProvider;
+	/**
+	 * Rendered at the end of every row (e.g. an elimination toggle) so per-item
+	 * controls align with their item at any row height, instead of drifting in a
+	 * separate column sized against the row pitch.
+	 */
+	rowTrailing?: Snippet<[Item]>;
 	onReorder: (newOrder: string[]) => void;
 }
 
@@ -44,8 +50,12 @@ const {
 	indexSuffix = '',
 	disabled = false,
 	i18n,
+	rowTrailing,
 	onReorder,
 }: Props = $props();
+
+// Unique id prefix so aria-labelledby/describedby survive several lists in one document.
+const uid = $props.id();
 
 function formatIndex(index: number): string {
 	if (indexLabels === 'decimal') return `${index + 1}${indexSuffix}`;
@@ -234,18 +244,20 @@ async function moveWithButton(event: MouseEvent, id: string, offset: number) {
 }
 
 function itemLabel(item: Item): string {
-	return toPlainText(item.text) || translate(i18n, 'interactions.order.itemFallback', 'Item');
+	// Image alt and MathML alttext participate, unlike raw textContent.
+	return accessibleTextFromHtml(item.text) || translate(i18n, 'interactions.order.itemFallback', 'Item');
 }
 
-function toPlainText(html: HtmlContent): string {
-	if (typeof document !== 'undefined') {
-		const template = document.createElement('template');
-		// Passing the value through unchanged preserves TrustedHTML identity at
-		// this parsing sink; the resulting text is used only for accessibility.
-		template.innerHTML = html as any;
-		return (template.content.textContent ?? '').replace(/\s+/g, ' ').trim();
-	}
-	return htmlToString(html).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+/** Position/state sentences for the row's aria-describedby target. */
+function itemState(index: number, isGrabbed: boolean, isCorrect: boolean): string {
+	return joinSentences(
+		translate(i18n, 'interactions.order.position', 'Position {current} of {total}', {
+			current: index + 1,
+			total: orderedIds.length,
+		}),
+		isGrabbed && translate(i18n, 'interactions.order.grabbed', 'Grabbed. Use arrow keys to move.'),
+		isCorrect && translate(i18n, 'accessibility.correctPosition', 'Correct position.'),
+	);
 }
 </script>
 
@@ -280,6 +292,8 @@ function toPlainText(html: HtmlContent): string {
 			{@const correctIndex = correctOrder.indexOf(id)}
 			{@const isCorrect = correctIndex !== -1 && correctIndex === index}
 			{@const label = itemLabel(item)}
+			{@const textId = `${uid}-item-${id}-text`}
+			{@const stateId = `${uid}-item-${id}-state`}
 			<div role="listitem" class="qti-sortable-row">
 				<button
 					type="button"
@@ -292,13 +306,8 @@ function toPlainText(html: HtmlContent): string {
 					ondragend={handleDragEnd}
 					onkeydown={(e) => handleKeyDown(e, id)}
 					disabled={disabled}
-					aria-label={joinSentences(
-						translate(i18n, 'interactions.order.itemPosition', '{item}. Position {position} of {total}.', {
-							item: label, position: index + 1, total: orderedIds.length,
-						}),
-						isGrabbed && translate(i18n, 'interactions.order.grabbed', 'Grabbed. Use arrow keys to move.'),
-						isCorrect && translate(i18n, 'accessibility.correctPosition', 'Correct position.'),
-					)}
+					aria-labelledby={textId}
+					aria-describedby={stateId}
 					aria-grabbed={isGrabbed}
 					data-grabbed={isGrabbed}
 					data-correct={isCorrect}
@@ -319,7 +328,8 @@ function toPlainText(html: HtmlContent): string {
 						<span part="index" aria-hidden="true" data-text={formatIndex(index)} class="qti-sortable-index badge {isCorrect ? 'badge-success' : 'badge-neutral'}"></span>
 					{/if}
 					<DragHandle size={1} opacity={0.5} class="text-base-content" />
-					<span part="text" class="qti-sortable-text qti-rich-content flex-1">{@html item.text}</span>
+					<!-- The name source: image alt and MathML participate in name computation here. -->
+					<span id={textId} part="text" class="qti-sortable-text qti-rich-content flex-1">{@html item.text}</span>
 					{#if isCorrect}
 						<span aria-hidden="true" data-text="{i18n?.t('interactions.choice.correct', 'Correct') ?? 'Correct'}" class="badge badge-success badge-sm"></span>
 					{/if}
@@ -327,19 +337,23 @@ function toPlainText(html: HtmlContent): string {
 				{#if !disabled}
 					<div class="qti-sortable-moves">
 						<button type="button" class="qti-sortable-move" disabled={index === 0}
-							aria-label="{i18n?.t('interactions.order.moveEarlier') ?? 'Move earlier'}: {label}"
-							title={i18n?.t('interactions.order.moveEarlier') ?? 'Move earlier'}
+							aria-label={translate(i18n, 'interactions.order.moveEarlierItem', 'Move {item} earlier', { item: label })}
+							title={translate(i18n, 'interactions.order.moveEarlierItem', 'Move {item} earlier', { item: label })}
 							onclick={(event) => moveWithButton(event, id, -1)}>
 							<span class="qti-sortable-glyph" aria-hidden="true">{orientation === 'horizontal' ? '←' : '↑'}</span>
 						</button>
 						<button type="button" class="qti-sortable-move" disabled={index === orderedIds.length - 1}
-							aria-label="{i18n?.t('interactions.order.moveLater') ?? 'Move later'}: {label}"
-							title={i18n?.t('interactions.order.moveLater') ?? 'Move later'}
+							aria-label={translate(i18n, 'interactions.order.moveLaterItem', 'Move {item} later', { item: label })}
+							title={translate(i18n, 'interactions.order.moveLaterItem', 'Move {item} later', { item: label })}
 							onclick={(event) => moveWithButton(event, id, 1)}>
 							<span class="qti-sortable-glyph" aria-hidden="true">{orientation === 'horizontal' ? '→' : '↓'}</span>
 						</button>
 					</div>
 				{/if}
+				{#if rowTrailing}
+					{@render rowTrailing(item)}
+				{/if}
+				<span id={stateId} class="sr-only">{itemState(index, isGrabbed, isCorrect)}</span>
 			</div>
 		{/if}
 	{/each}
@@ -375,7 +389,7 @@ function toPlainText(html: HtmlContent): string {
 		font-size: 1.25rem; cursor: pointer;
 	}
 	.qti-sortable-move:disabled { opacity: 0.4; cursor: default; }
-	.qti-sortable-move:focus-visible { outline: 2px solid var(--pie-qti-primary, #4338ca); outline-offset: 2px; }
+	.qti-sortable-move:focus-visible { outline: 2px solid var(--pie-qti-focus, #4338ca); outline-offset: 2px; }
 	.qti-sortable-item {
 		min-width: 0;
 		display: flex;
@@ -393,7 +407,7 @@ function toPlainText(html: HtmlContent): string {
 			opacity 120ms ease;
 	}
 	.qti-sortable-item:focus-visible {
-		outline: 2px solid var(--pie-qti-primary, oklch(45% 0.24 277));
+		outline: 2px solid var(--pie-qti-focus, #4338ca);
 		outline-offset: 2px;
 	}
 	.qti-sortable-item[data-grabbed='true'] {

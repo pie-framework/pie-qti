@@ -240,12 +240,13 @@ export default {
 			selectedForMatchingSentence: 'Geselecteerd voor koppeling.',
 			availableForMatchingSentence: 'Beschikbaar voor koppeling.',
 			notCompatibleSentence: 'Niet compatibel met de geselecteerde bron.',
+			selectionCancelledItem: 'Selectie van {item} geannuleerd.',
 		},
 
 		gapMatch: {
-			filledGapAriaLabelWithHeld: 'Lege plek {gapId}, ingevuld met {word}. Selecteer om te vervangen door {heldWord}.',
-			blankGapAriaLabelWithHeld: 'Lege plek {gapId}. Selecteer om {heldWord} hier te plaatsen.',
-			placed: '{word} is geplaatst in lege plek {gapId}.',
+			filledGapAriaLabelWithHeld: 'Lege plek {position} van {total}, ingevuld met {word}. Selecteer om te vervangen door {heldWord}.',
+			blankGapAriaLabelWithHeld: 'Lege plek {position} van {total}. Selecteer om {heldWord} hier te plaatsen.',
+			placed: '{word} is geplaatst in lege plek {position} van {total}.',
 			pointerInstructions: 'Selecteer een woord en daarna een lege plek. Je kunt ook slepen.',
 			instruction: 'Sleep woorden om de lege plaatsen in te vullen',
 			available: 'Beschikbare woorden',
@@ -255,8 +256,10 @@ export default {
 			removeFromBlanks: '{word} verwijderen uit de lege plaatsen',
 			selectPlaceholder: 'Selecteren...',
 			gapAriaLabel: 'Gat {gapId}',
-			blankGapAriaLabel: 'Lege plek {gapId}. Sleep hier een antwoord naartoe.',
-			filledGapAriaLabel: 'Lege plek {gapId}, ingevuld met {word}. Klik om te wissen.',
+			blankGapAriaLabel: 'Lege plek {position} van {total}. Sleep hier een antwoord naartoe.',
+			filledGapAriaLabel: 'Lege plek {position} van {total}, ingevuld met {word}. Selecteer om te wissen.',
+			wordSelected: '{word} opgepakt. Selecteer een lege plek om het te plaatsen, of druk op Escape om te annuleren.',
+			pickUpCancelled: 'Het oppakken van {word} is geannuleerd.',
 		},
 
 		graphicGapMatch: {
@@ -294,8 +297,10 @@ export default {
 		},
 
 		order: {
-			moveEarlier: 'Naar voren',
-			moveLater: 'Naar achteren',
+			moveEarlierItem: '{item} naar voren verplaatsen',
+			moveLaterItem: '{item} naar achteren verplaatsen',
+			eliminateItem: '{item} schrappen',
+			restoreItem: '{item} terugzetten',
 			instruction: 'Gebruik de verplaatsknoppen of sleep items om de volgorde te wijzigen.',
 			keyboardInstructions: 'Druk op Spatie of Enter om een item te pakken. Gebruik pijltjestoetsen om het item te verplaatsen. Druk opnieuw op Spatie of Enter om neer te zetten. Druk op Escape om te annuleren.',
 			grabbed: 'Gepakt. Gebruik pijltjestoetsen om te verplaatsen.',
@@ -310,7 +315,6 @@ export default {
 			itemDropped: '{item} neergezet op positie {position} van {total}',
 			itemMoved: '{item} verplaatst naar positie {position} van {total}',
 			selectionCancelled: '{item} selectie geannuleerd',
-			itemPosition: '{item}. Positie {position} van {total}.',
 			itemFallback: 'Item',
 			orderConfirmed: 'Volgorde bevestigd',
 		},
@@ -335,6 +339,7 @@ export default {
 			clickHotspotsToAssociate: 'Klik op twee hotspots op de afbeelding om een associatie te maken.',
 			clickAnotherHotspot: 'Geselecteerd: <strong>{label}</strong>. Klik op een andere hotspot om een associatie te maken.',
 			removeAssociationBetween: 'Associatie tussen {first} en {second} verwijderen',
+			inPairSentence: 'Zit in een associatie.',
 		},
 
 		positionObject: {

@@ -96,7 +96,7 @@ const STANDARD_INTERACTION_MODULE_DEFINITIONS = [
 		type: 'gapMatchInteraction',
 		extractor: standardGapMatchExtractor,
 		placement: 'block',
-		delivery: [prompt, htmlField('promptText')],
+		delivery: [prompt, htmlField('promptText'), urlField('img', 'gapImages', '*', 'src')],
 	},
 	{
 		type: 'sliderInteraction',

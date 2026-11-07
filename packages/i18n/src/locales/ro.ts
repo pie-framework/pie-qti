@@ -240,12 +240,13 @@ export default {
 			selectedForMatchingSentence: 'Selectat pentru potrivire.',
 			availableForMatchingSentence: 'Disponibil pentru potrivire.',
 			notCompatibleSentence: 'Incompatibil cu sursa selectată.',
+			selectionCancelledItem: 'Selecția lui {item} a fost anulată.',
 		},
 
 		gapMatch: {
-			filledGapAriaLabelWithHeld: 'Spațiul {gapId}, completat cu {word}. Selectează pentru a înlocui cu {heldWord}.',
-			blankGapAriaLabelWithHeld: 'Spațiul {gapId}. Selectează pentru a plasa {heldWord} aici.',
-			placed: '{word} a fost plasat în spațiul {gapId}.',
+			filledGapAriaLabelWithHeld: 'Spațiul {position} din {total}, completat cu {word}. Selectează pentru a înlocui cu {heldWord}.',
+			blankGapAriaLabelWithHeld: 'Spațiul {position} din {total}. Selectează pentru a plasa {heldWord} aici.',
+			placed: '{word} a fost plasat în spațiul {position} din {total}.',
 			pointerInstructions: 'Selectează un cuvânt, apoi un spațiu liber. Poți și să tragi și să plasezi.',
 			instruction: 'Trage cuvinte pentru a completa spațiile libere',
 			available: 'Cuvinte disponibile',
@@ -255,8 +256,10 @@ export default {
 			removeFromBlanks: 'Elimină {word} din spațiile libere',
 			selectPlaceholder: 'Selectare...',
 			gapAriaLabel: 'Spațiu {gapId}',
-			blankGapAriaLabel: 'Spațiu liber {gapId}. Plasează un răspuns aici.',
-			filledGapAriaLabel: 'Spațiu liber {gapId}, completat cu {word}. Clic pentru a șterge.',
+			blankGapAriaLabel: 'Spațiu liber {position} din {total}. Plasează un răspuns aici.',
+			filledGapAriaLabel: 'Spațiu liber {position} din {total}, completat cu {word}. Selectează pentru a șterge.',
+			wordSelected: '{word} a fost apucat. Selectează un spațiu liber pentru a-l plasa, sau apasă Escape pentru a anula.',
+			pickUpCancelled: 'Preluarea lui {word} a fost anulată.',
 		},
 
 		graphicGapMatch: {
@@ -294,8 +297,10 @@ export default {
 		},
 
 		order: {
-			moveEarlier: 'Mută înainte',
-			moveLater: 'Mută după',
+			moveEarlierItem: 'Mută {item} înainte',
+			moveLaterItem: 'Mută {item} după',
+			eliminateItem: 'Elimină {item}',
+			restoreItem: 'Restabilește {item}',
 			instruction: 'Folosește butoanele de mutare sau trage elementele pentru a le reordona.',
 			keyboardInstructions: 'Apasă Spațiu sau Enter pentru a apuca un element. Folosește săgețile pentru a muta elementul. Apasă din nou Spațiu sau Enter pentru a plasa. Apasă Escape pentru a anula.',
 			grabbed: 'Apucat. Folosește săgețile pentru a muta.',
@@ -310,7 +315,6 @@ export default {
 			itemDropped: '{item} plasat la poziția {position} din {total}',
 			itemMoved: '{item} mutat la poziția {position} din {total}',
 			selectionCancelled: 'Selecție {item} anulată',
-			itemPosition: '{item}. Poziția {position} din {total}.',
 			itemFallback: 'Element',
 			orderConfirmed: 'Ordine confirmată',
 		},
@@ -335,6 +339,7 @@ export default {
 			clickHotspotsToAssociate: 'Clic pe două hotspot-uri pe imagine pentru a crea o asociere.',
 			clickAnotherHotspot: 'Selectat: <strong>{label}</strong>. Clic pe un alt hotspot pentru a crea o asociere.',
 			removeAssociationBetween: 'Elimină asocierea dintre {first} și {second}',
+			inPairSentence: 'Face parte din o asociere.',
 		},
 
 		positionObject: {
