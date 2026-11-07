@@ -2,6 +2,8 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+// Every stock DaisyUI theme, as the installed daisyui package defines it.
+import daisyThemes from 'daisyui/theme/object';
 // Test-only colour maths shared with the @pie-qti/theme contrast test.
 import {
 	type ColorScheme,
@@ -10,6 +12,7 @@ import {
 	contrastRatio,
 	parseCssColor,
 	parseCustomPropertyBlocks,
+	relativeLuminance,
 	toHex,
 } from '../../theme/tests/support/wcag-contrast';
 
@@ -19,61 +22,19 @@ const bridgeCss = readFileSync(resolve(__dirname, '../src/bridge.css'), 'utf8');
 const WCAG_TEXT = 4.5;
 const WCAG_NON_TEXT = 3;
 
-/**
- * DaisyUI 5 built-in `light` and `dark` theme values (daisyui@5.7.50
- * themes.css), the themes the demo app ships by default. Only the variables
- * the bridge reads are listed. Update these when DaisyUI changes its palettes.
- */
-const DAISY_THEMES: Record<ColorScheme, CssVariables> = {
-	light: {
-		'--color-base-100': 'oklch(100% 0 0)',
-		'--color-base-200': 'oklch(98% 0 0)',
-		'--color-base-300': 'oklch(95% 0 0)',
-		'--color-base-content': 'oklch(21% 0.006 285.885)',
-		'--color-primary': 'oklch(45% 0.24 277.023)',
-		'--color-primary-content': 'oklch(93% 0.034 272.788)',
-		'--color-secondary': 'oklch(65% 0.241 354.308)',
-		'--color-secondary-content': 'oklch(94% 0.028 342.258)',
-		'--color-accent': 'oklch(77% 0.152 181.912)',
-		'--color-accent-content': 'oklch(38% 0.063 188.416)',
-		'--color-neutral': 'oklch(14% 0.005 285.823)',
-		'--color-neutral-content': 'oklch(92% 0.004 286.32)',
-		'--color-info': 'oklch(74% 0.16 232.661)',
-		'--color-info-content': 'oklch(29% 0.066 243.157)',
-		'--color-success': 'oklch(76% 0.177 163.223)',
-		'--color-success-content': 'oklch(37% 0.077 168.94)',
-		'--color-warning': 'oklch(82% 0.189 84.429)',
-		'--color-warning-content': 'oklch(41% 0.112 45.904)',
-		'--color-error': 'oklch(71% 0.194 13.428)',
-		'--color-error-content': 'oklch(27% 0.105 12.094)',
-		'--radius-box': '0.5rem',
-		'--radius-field': '0.25rem',
-	},
-	dark: {
-		'--color-base-100': 'oklch(25.33% 0.016 252.42)',
-		'--color-base-200': 'oklch(23.26% 0.014 253.1)',
-		'--color-base-300': 'oklch(21.15% 0.012 254.09)',
-		'--color-base-content': 'oklch(97.807% 0.029 256.847)',
-		'--color-primary': 'oklch(58% 0.233 277.117)',
-		'--color-primary-content': 'oklch(96% 0.018 272.314)',
-		'--color-secondary': 'oklch(65% 0.241 354.308)',
-		'--color-secondary-content': 'oklch(94% 0.028 342.258)',
-		'--color-accent': 'oklch(77% 0.152 181.912)',
-		'--color-accent-content': 'oklch(38% 0.063 188.416)',
-		'--color-neutral': 'oklch(14% 0.005 285.823)',
-		'--color-neutral-content': 'oklch(92% 0.004 286.32)',
-		'--color-info': 'oklch(74% 0.16 232.661)',
-		'--color-info-content': 'oklch(29% 0.066 243.157)',
-		'--color-success': 'oklch(76% 0.177 163.223)',
-		'--color-success-content': 'oklch(37% 0.077 168.94)',
-		'--color-warning': 'oklch(82% 0.189 84.429)',
-		'--color-warning-content': 'oklch(41% 0.112 45.904)',
-		'--color-error': 'oklch(71% 0.194 13.428)',
-		'--color-error-content': 'oklch(27% 0.105 12.094)',
-		'--radius-box': '0.5rem',
-		'--radius-field': '0.25rem',
-	},
-};
+/** The documented luminance bounds of the surfaces the preferred focus tier is guaranteed on. */
+const LIGHT_SURFACE_MIN_LUMINANCE = 0.625;
+const DARK_SURFACE_MAX_LUMINANCE = 0.05;
+
+type DaisyTheme = { scheme: ColorScheme; variables: CssVariables };
+
+const STOCK_THEMES: Record<string, DaisyTheme> = Object.fromEntries(
+	Object.entries(daisyThemes as unknown as Record<string, Record<string, string>>).map(([name, theme]) => {
+		const { 'color-scheme': scheme, ...variables } = theme;
+		if (scheme !== 'light' && scheme !== 'dark') throw new Error(`${name}: unexpected color-scheme ${scheme}`);
+		return [name, { scheme, variables }];
+	}),
+);
 
 /** PIE-branded primaries declared for the demo's light/dark themes. */
 const DEMO_BRAND_PRIMARY: Record<ColorScheme, string> = {
@@ -90,16 +51,27 @@ const TEXT_TOKENS = [
 	'--pie-qti-info-text',
 ] as const;
 const STATE_TEXT_TOKENS = TEXT_TOKENS.filter((token) => token !== '--pie-qti-base-content');
+const FILLS = ['primary', 'secondary', 'accent', 'neutral', 'info', 'success', 'warning', 'error'] as const;
 
-function bridgeBlock() {
-	const block = parseCustomPropertyBlocks(bridgeCss).find((candidate) => candidate.selectors.includes('[data-theme]'));
-	if (!block) throw new Error('bridge.css must declare a :root, [data-theme] block');
-	return block;
-}
+const bridgeBlocks = parseCustomPropertyBlocks(bridgeCss).filter((block) => block.selectors.includes('[data-theme]'));
+const conditions = [...new Set(bridgeBlocks.flatMap((block) => (block.supports ? [block.supports] : [])))];
+const COLOR_MIX = conditions.filter((condition) => condition.includes('color-mix('));
+const RELATIVE_COLOR = conditions.filter((condition) => condition.includes('(from '));
 
-/** The --pie-qti-* values a DaisyUI-themed element computes through the bridge. */
-function bridgeVariables(daisyTheme: CssVariables): CssVariables {
-	return computeCustomProperties(bridgeBlock().declarations, daisyTheme);
+/** Engines by the bridge tiers they pass. */
+const ENGINES = {
+	/** Relative colour syntax and light-dark(): current Chrome, Edge, Firefox and Safari. */
+	current: new Set(conditions),
+	/** color-mix() only: for example Chrome 111-122, Firefox 113-127 and Safari 16.2-17. */
+	colorMixOnly: new Set(COLOR_MIX),
+	/** None of the tiers: the plain DaisyUI values. */
+	baseline: new Set<string>(),
+} as const;
+
+/** The --pie-qti-* values a DaisyUI-themed element computes through the bridge in an engine. */
+function bridgeVariables(daisyTheme: CssVariables, supported: ReadonlySet<string> = ENGINES.current): CssVariables {
+	const applied = bridgeBlocks.filter((block) => block.supports === null || supported.has(block.supports));
+	return computeCustomProperties(Object.assign({}, ...applied.map((block) => block.declarations)), daisyTheme);
 }
 
 function ratio(variables: CssVariables, scheme: ColorScheme, foreground: string, background: string) {
@@ -111,47 +83,134 @@ function ratio(variables: CssVariables, scheme: ColorScheme, foreground: string,
 	};
 }
 
-describe('DaisyUI bridge contrast guarantees', () => {
-	for (const scheme of ['light', 'dark'] as const) {
-		describe(`DaisyUI ${scheme} theme`, () => {
-			const variables = bridgeVariables(DAISY_THEMES[scheme]);
+function minimumOnSurfaces(variables: CssVariables, scheme: ColorScheme, token: string) {
+	return BASE_SURFACES.map((surface) => ratio(variables, scheme, token, surface)).reduce((lowest, current) =>
+		current.value < lowest.value ? current : lowest,
+	);
+}
 
-			for (const token of TEXT_TOKENS) {
-				for (const surface of BASE_SURFACES) {
-					test(`${token} on ${surface} >= ${WCAG_TEXT}:1`, () => {
-						const { value, label } = ratio(variables, scheme, token, surface);
-						expect(value, label).toBeGreaterThanOrEqual(WCAG_TEXT);
-					});
-				}
-			}
+describe('DaisyUI bridge tiers', () => {
+	test('reads every stock DaisyUI theme from the installed package', () => {
+		expect(Object.keys(STOCK_THEMES).length).toBeGreaterThanOrEqual(35);
+		expect(STOCK_THEMES.light.scheme).toBe('light');
+		expect(STOCK_THEMES.dark.scheme).toBe('dark');
+	});
 
+	test('has a color-mix() focus tier and relative-colour focus and text-on-fill tiers', () => {
+		expect(COLOR_MIX).toHaveLength(1);
+		expect(RELATIVE_COLOR).toHaveLength(2);
+		const declaring = (token: string) =>
+			bridgeBlocks.filter((block) => token in block.declarations).map((block) => block.supports);
+		expect(declaring('--pie-qti-focus')).toEqual([null, ...COLOR_MIX, RELATIVE_COLOR.find((c) => c.includes('light-dark'))]);
+		for (const fill of FILLS) {
+			expect(declaring(`--pie-qti-${fill}-content`)).toEqual([null, RELATIVE_COLOR.find((c) => !c.includes('light-dark'))]);
+		}
+	});
+
+	test('without the tiers, the bridge passes DaisyUI colours through unchanged', () => {
+		const { variables } = STOCK_THEMES.light;
+		const baseline = bridgeVariables(variables, ENGINES.baseline);
+		expect(baseline['--pie-qti-focus']).toBe(variables['--color-primary']);
+		for (const fill of FILLS) {
+			expect(baseline[`--pie-qti-${fill}-content`]).toBe(variables[`--color-${fill}-content`]);
+		}
+	});
+});
+
+describe('focus indicator in every stock DaisyUI theme', () => {
+	for (const [name, { scheme, variables }] of Object.entries(STOCK_THEMES)) {
+		for (const engine of ['current', 'colorMixOnly'] as const) {
+			test(`${name}: --pie-qti-focus >= ${WCAG_NON_TEXT}:1 on base-100 and base-200 (${engine} engines)`, () => {
+				const { value, label } = minimumOnSurfaces(bridgeVariables(variables, ENGINES[engine]), scheme, '--pie-qti-focus');
+				expect(value, label).toBeGreaterThanOrEqual(WCAG_NON_TEXT);
+			});
+		}
+
+		test(`${name}: surfaces lie within the documented focus guarantee bounds`, () => {
+			const bridged = bridgeVariables(variables);
 			for (const surface of BASE_SURFACES) {
-				test(`--pie-qti-border-strong on ${surface} >= ${WCAG_NON_TEXT}:1`, () => {
-					const { value, label } = ratio(variables, scheme, '--pie-qti-border-strong', surface);
-					expect(value, label).toBeGreaterThanOrEqual(WCAG_NON_TEXT);
-				});
-
-				test(`--pie-qti-focus on ${surface} >= ${WCAG_NON_TEXT}:1 (stock and PIE-branded primary)`, () => {
-					for (const primary of [DAISY_THEMES[scheme]['--color-primary'], DEMO_BRAND_PRIMARY[scheme]]) {
-						const branded = bridgeVariables({ ...DAISY_THEMES[scheme], '--color-primary': primary });
-						const { value, label } = ratio(branded, scheme, '--pie-qti-focus', surface);
-						expect(value, label).toBeGreaterThanOrEqual(WCAG_NON_TEXT);
-					}
-				});
+				const luminance = relativeLuminance(parseCssColor(bridged[surface], scheme));
+				if (scheme === 'light') expect(luminance, surface).toBeGreaterThanOrEqual(LIGHT_SURFACE_MIN_LUMINANCE);
+				else expect(luminance, surface).toBeLessThanOrEqual(DARK_SURFACE_MAX_LUMINANCE);
 			}
 		});
 	}
 
+	for (const scheme of ['light', 'dark'] as const) {
+		test(`PIE-branded ${scheme} primary keeps a >= ${WCAG_NON_TEXT}:1 focus in every tier`, () => {
+			const branded = { ...STOCK_THEMES[scheme].variables, '--color-primary': DEMO_BRAND_PRIMARY[scheme] };
+			for (const engine of ['current', 'colorMixOnly'] as const) {
+				const { value, label } = minimumOnSurfaces(bridgeVariables(branded, ENGINES[engine]), scheme, '--pie-qti-focus');
+				expect(value, `${label} [${engine}]`).toBeGreaterThanOrEqual(WCAG_NON_TEXT);
+			}
+		});
+	}
+
+	test('the preferred tier keeps a primary that already clears the bounds unchanged', () => {
+		const unchanged = (variables: CssVariables, scheme: ColorScheme) => {
+			const bridged = bridgeVariables(variables);
+			return toHex(parseCssColor(bridged['--pie-qti-focus'], scheme)) === toHex(parseCssColor(bridged['--pie-qti-primary'], scheme));
+		};
+		expect(unchanged(STOCK_THEMES.light.variables, 'light')).toBe(true);
+		expect(unchanged({ ...STOCK_THEMES.dark.variables, '--color-primary': DEMO_BRAND_PRIMARY.dark }, 'dark')).toBe(true);
+		const kept = Object.values(STOCK_THEMES).filter(({ scheme, variables }) => unchanged(variables, scheme));
+		// Measured with daisyui 5.7.50: 17 of 35 stock primaries are kept as they are.
+		expect(kept.length).toBeGreaterThanOrEqual(15);
+	});
+});
+
+describe('text on fills in every stock DaisyUI theme', () => {
+	const black = parseCssColor('#000000');
+	const white = parseCssColor('#ffffff');
+
+	for (const [name, { scheme, variables }] of Object.entries(STOCK_THEMES)) {
+		test(`${name}: every *-content >= ${WCAG_TEXT}:1 on its fill, black or white by the fill's luminance`, () => {
+			const bridged = bridgeVariables(variables);
+			for (const fill of FILLS) {
+				const background = parseCssColor(bridged[`--pie-qti-${fill}`], scheme);
+				const content = parseCssColor(bridged[`--pie-qti-${fill}-content`], scheme);
+				const { value, label } = ratio(bridged, scheme, `--pie-qti-${fill}-content`, `--pie-qti-${fill}`);
+				expect(value, label).toBeGreaterThanOrEqual(WCAG_TEXT);
+				// Computed independently of the CSS: the better of black and white on the displayed fill.
+				const [onBlack, onWhite] = [contrastRatio(black, background), contrastRatio(white, background)];
+				expect([toHex(black), toHex(white)], label).toContain(toHex(content));
+				expect(value, label).toBeCloseTo(Math.max(onBlack, onWhite), 1);
+			}
+		});
+	}
+});
+
+describe('DaisyUI light and dark themes: text and boundaries', () => {
+	for (const scheme of ['light', 'dark'] as const) {
+		const variables = bridgeVariables(STOCK_THEMES[scheme].variables);
+		for (const token of TEXT_TOKENS) {
+			for (const surface of BASE_SURFACES) {
+				test(`${scheme}: ${token} on ${surface} >= ${WCAG_TEXT}:1`, () => {
+					const { value, label } = ratio(variables, scheme, token, surface);
+					expect(value, label).toBeGreaterThanOrEqual(WCAG_TEXT);
+				});
+			}
+		}
+
+		for (const surface of BASE_SURFACES) {
+			test(`${scheme}: --pie-qti-border-strong on ${surface} >= ${WCAG_NON_TEXT}:1`, () => {
+				const { value, label } = ratio(variables, scheme, '--pie-qti-border-strong', surface);
+				expect(value, label).toBeGreaterThanOrEqual(WCAG_NON_TEXT);
+			});
+		}
+	}
+
 	test('never maps message/state text tokens to DaisyUI colours', () => {
-		const declarations = bridgeBlock().declarations;
-		for (const token of [...STATE_TEXT_TOKENS, '--pie-qti-border-strong']) {
-			expect(declarations[token], token).toBeDefined();
-			expect(declarations[token], token).not.toContain('var(--color-');
+		for (const block of bridgeBlocks) {
+			for (const token of [...STATE_TEXT_TOKENS, '--pie-qti-border-strong']) {
+				if (block.supports === null) expect(block.declarations[token], token).toBeDefined();
+				if (token in block.declarations) expect(block.declarations[token], token).not.toContain('var(--color-');
+			}
 		}
 	});
 
 	test('maps DaisyUI radius tokens with the @pie-qti/theme defaults as fallbacks', () => {
-		const declarations = bridgeBlock().declarations;
+		const declarations = bridgeBlocks[0].declarations;
 		expect(declarations['--pie-qti-radius']).toBe('var(--radius-box, 0.5rem)');
 		expect(declarations['--pie-qti-radius-sm']).toBe('var(--radius-field, 0.25rem)');
 		expect(computeCustomProperties({ '--x': declarations['--pie-qti-radius'] })['--x']).toBe('0.5rem');

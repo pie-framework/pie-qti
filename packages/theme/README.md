@@ -58,7 +58,10 @@ Rules of thumb:
 
 The guarantees cover the default palettes in `tokens.css` and are enforced by
 `tests/theme-contrast.test.ts`. Hosts that override colour tokens own the
-contrast of their overrides.
+contrast of their overrides. The DaisyUI bridge derives `--pie-qti-focus` and
+the `*-content` tokens so that they keep these guarantees in every stock
+DaisyUI theme (text on fills in engines with relative colour syntax); see its
+[contrast guarantees](../theme-daisyui/README.md#contrast-guarantees).
 
 ### Default values and measured contrast
 
