@@ -97,7 +97,8 @@
 
 	.qti-selection-message {
 		font-size: 0.875rem;
-		color: var(--pie-qti-warning, oklch(77% 0.194 82));
+		/* Text token, not a fill token: warning yellow fails 1.4.3 as text. */
+		color: var(--pie-qti-warning-text, #92400e);
 		margin-top: 0.5rem;
 	}
 </style>
