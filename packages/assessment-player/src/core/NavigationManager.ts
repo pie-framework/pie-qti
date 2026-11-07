@@ -22,6 +22,11 @@ export class NavigationManager {
 		this.visitedItems.add(index);
 	}
 
+	/** Whether the candidate has been presented this item (by flat index). */
+	isVisited(index: number): boolean {
+		return this.visitedItems.has(index);
+	}
+
 	/** Restore visited state (for save/resume). */
 	restoreState(visitedItems: number[]): void {
 		this.visitedItems = new Set(visitedItems);

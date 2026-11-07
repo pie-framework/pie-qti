@@ -16,5 +16,14 @@ export type {
 export { ItemSessionController } from './ItemSessionController.js';
 export type { NavigationMode } from './NavigationManager.js';
 export { NavigationManager } from './NavigationManager.js';
+export {
+	interactionResponseIdentifiers,
+	isAnsweredValue,
+	itemAnswerStatus,
+	itemTitleFromXml,
+	type ForwardTransitionInfo,
+	type ItemAnswerStatus,
+	type ReviewItemView,
+} from './reviewState.js';
 export type { TimeManagerConfig, TimeTrackingState } from './TimeManager.js';
 export { TimeManager } from './TimeManager.js';

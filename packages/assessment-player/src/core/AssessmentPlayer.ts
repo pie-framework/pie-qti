@@ -62,6 +62,14 @@ import {
 	testOutcomeDeclarations,
 } from './testStructure.js';
 import { extendTimeLimit, TimeManager } from './TimeManager.js';
+import {
+	interactionResponseIdentifiers,
+	itemAnswerStatus,
+	itemTitleFromXml,
+	type ForwardTransitionInfo,
+	type ItemAnswerStatus,
+	type ReviewItemView,
+} from './reviewState.js';
 
 export interface BackendAssessmentPlayerConfig {
 	backend: BackendAdapter;
@@ -230,6 +238,9 @@ export class AssessmentPlayer {
 	private timeWarningListeners = new Set<(remainingSeconds: number) => void>();
 	private timeExpiredListeners = new Set<() => void>();
 	private timeTickListeners = new Set<(remainingSeconds: number, elapsedSeconds: number) => void>();
+	private flagChangeListeners = new Set<(itemIdentifier: string, flagged: boolean) => void>();
+	/** Item XML–derived review facts (interaction response ids, item title) per item identifier. */
+	private readonly reviewInfoCache = new Map<string, { responseIds: string[]; title?: string }>();
 
 	private constructor(private config: BackendAssessmentPlayerConfig, init: InitSessionResponse) {
 		this.backend = config.backend;
@@ -528,6 +539,123 @@ export class AssessmentPlayer {
 			index,
 			navigable: this.isLegalSectionTarget(section),
 		}));
+	}
+
+	/**
+	 * Whether jumping straight to a delivered item is legal right now: false once the test
+	 * has finalized, and — for any item other than the current one — false while the target
+	 * is time-locked, its review policy forbids returning, or the navigation rules (linear
+	 * mode, test-part sequencing) do not reach it. The review screen renders illegal targets
+	 * status-only; `navigateTo()` still enforces this authoritatively.
+	 */
+	public isNavigationTargetLegal(index: number): boolean {
+		if (this.finalized || this.currentItemIndex < 0) return false;
+		const target = this.items[index];
+		if (!target) return false;
+		if (target !== this.items[this.currentItemIndex]) {
+			if (this.isItemLocked(target)) return false;
+			if (!this.sessionCoordinator.canReview(target.identifier)) return false;
+			if (!this.canNavigateByTestPart(index, this.currentItemIndex)) return false;
+		}
+		return true;
+	}
+
+	private reviewInfoFor(itemIdentifier: string): { responseIds: string[]; title?: string } {
+		const cached = this.reviewInfoCache.get(itemIdentifier);
+		if (cached) return cached;
+		const flat = this.items.find((item) => item.identifier === itemIdentifier);
+		const info = flat
+			? {
+				responseIds: interactionResponseIdentifiers(flat.item.itemXml),
+				title: itemTitleFromXml(flat.item.itemXml),
+			}
+			: { responseIds: [] };
+		this.reviewInfoCache.set(itemIdentifier, info);
+		return info;
+	}
+
+	/**
+	 * Answered / partially answered / unanswered for one delivered item, from its
+	 * candidate responses (one verdict per interaction for composite items). The single
+	 * definition of "answered" the review screen, section menu and submit confirmation share.
+	 */
+	public getItemAnswerStatus(itemIdentifier: string): ItemAnswerStatus {
+		const info = this.reviewInfoFor(itemIdentifier);
+		return itemAnswerStatus(this.sessionCoordinator.getResponses(itemIdentifier), info.responseIds);
+	}
+
+	/** How many delivered items carry a response (answered or partially answered). */
+	public getAnsweredItemCount(): number {
+		return this.items.filter((item) => this.getItemAnswerStatus(item.identifier) !== 'unanswered').length;
+	}
+
+	/** Every delivered item as the review screen lists it: status, flag, visited, jump legality. */
+	public getReviewItems(): ReviewItemView[] {
+		return this.items.map((item) => ({
+			identifier: item.identifier,
+			index: item.index,
+			number: item.index + 1,
+			sectionId: item.presentedSection?.identifier ?? null,
+			title: this.reviewInfoFor(item.identifier).title,
+			status: this.getItemAnswerStatus(item.identifier),
+			flagged: this.sessionCoordinator.isItemFlagged(item.identifier),
+			visited: this.navigationManager.isVisited(item.index) || item.index === this.currentItemIndex,
+			jumpAllowed: this.isNavigationTargetLegal(item.index),
+			isCurrent: item.index === this.currentItemIndex,
+		}));
+	}
+
+	/**
+	 * What the candidate's next forward step would do. QTI test parts are delivered in
+	 * sequence and cannot be re-entered, so a step that leaves the current part is the
+	 * irreversible move the shell confirms before making.
+	 */
+	public getForwardTransitionInfo(): ForwardTransitionInfo {
+		const current = this.items[this.currentItemIndex];
+		const nextIndex =
+			this.finalized || this.currentItemIndex < 0 ? -1 : this.nextUnlockedIndex(this.currentItemIndex);
+		const next = nextIndex >= 0 ? this.items[nextIndex] : undefined;
+		return {
+			nextIndex: next ? nextIndex : null,
+			leavesTestPart: Boolean(current && next && next.testPart !== current.testPart),
+		};
+	}
+
+	/**
+	 * Set (or clear) the candidate's flag-for-review on an item; defaults to the current
+	 * item. Flag state lives in the session state (`itemFlags`), survives navigation and
+	 * is part of `getState()` snapshots.
+	 */
+	public setItemFlag(flagged: boolean, itemIdentifier?: string): void {
+		const id = itemIdentifier ?? this.items[this.currentItemIndex]?.identifier;
+		if (!id) return;
+		this.sessionCoordinator.setItemFlag(id, flagged);
+		for (const listener of this.flagChangeListeners) listener(id, flagged);
+	}
+
+	/** Toggle the current (or given) item's flag; returns the new state. */
+	public toggleItemFlag(itemIdentifier?: string): boolean {
+		const id = itemIdentifier ?? this.items[this.currentItemIndex]?.identifier;
+		if (!id) return false;
+		const flagged = !this.sessionCoordinator.isItemFlagged(id);
+		this.setItemFlag(flagged, id);
+		return flagged;
+	}
+
+	public isItemFlagged(itemIdentifier?: string): boolean {
+		const id = itemIdentifier ?? this.items[this.currentItemIndex]?.identifier;
+		return id ? this.sessionCoordinator.isItemFlagged(id) : false;
+	}
+
+	/** Identifiers of the items currently flagged for review. */
+	public getFlaggedItemIdentifiers(): string[] {
+		return this.sessionCoordinator.getFlaggedItemIdentifiers();
+	}
+
+	/** Fires when an item's flag-for-review state changes. */
+	public onFlagChange(listener: (itemIdentifier: string, flagged: boolean) => void): () => void {
+		this.flagChangeListeners.add(listener);
+		return () => this.flagChangeListeners.delete(listener);
 	}
 
 	public getNavigationState(): NavigationState {
@@ -1031,6 +1159,7 @@ export class AssessmentPlayer {
 		}
 
 		this.currentItemIndex = index;
+		this.navigationManager.markVisited(index);
 		const q = this.items[index]!;
 		this.state.currentItemIdentifier = q.identifier;
 		this.timeManager?.activateScopes({
@@ -1718,6 +1847,8 @@ export class AssessmentPlayer {
 		this.timeWarningListeners.clear();
 		this.timeExpiredListeners.clear();
 		this.timeTickListeners.clear();
+		this.flagChangeListeners.clear();
+		this.reviewInfoCache.clear();
 	}
 
 	// ---------------------------------------------------------------------------

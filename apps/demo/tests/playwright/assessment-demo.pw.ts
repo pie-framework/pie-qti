@@ -108,9 +108,7 @@ test.describe('/assessment-demo', () => {
 		await expect(page.locator('pie-qti-choice').first()).toBeVisible({ timeout: 10000 });
 
 		// Open the section menu (only shown when multiple sections exist).
-		// The button has an icon (hamburger menu) and may have localized text.
-		// Find it by the SVG path that represents the hamburger icon.
-		const sectionsButton = page.locator('button.btn:has(svg path[d*="M4 6h16M4 12h16M4 18h16"])').first();
+		const sectionsButton = page.locator('button.section-menu-toggle').first();
 		await expect(sectionsButton).toBeVisible({ timeout: 10000 });
 		await sectionsButton.click();
 
@@ -162,7 +160,11 @@ test.describe('/assessment-demo', () => {
 		}
 
 		await expect(submit).toBeVisible({ timeout: 10000 });
+		// Submitting is confirmed first (WCAG 3.3.4); the end screen follows the explicit confirm.
 		await submit.click();
+		const confirmDialog = page.getByRole('dialog', { name: 'Submit your test?' });
+		await expect(confirmDialog).toBeVisible({ timeout: 10000 });
+		await confirmDialog.getByTestId('assessment-dialog-confirm').click();
 
 		// End screen should render.
 		await expect(page.getByRole('heading', { name: /assessment complete/i })).toBeVisible();
@@ -201,7 +203,11 @@ test.describe('/assessment-demo', () => {
 			await page.waitForTimeout(300);
 		}
 		await expect(submit).toBeVisible({ timeout: 10000 });
+		// Submitting is confirmed first (WCAG 3.3.4); the end screen follows the explicit confirm.
 		await submit.click();
+		const confirmDialog = page.getByRole('dialog', { name: 'Submit your test?' });
+		await expect(confirmDialog).toBeVisible({ timeout: 10000 });
+		await confirmDialog.getByTestId('assessment-dialog-confirm').click();
 
 		// End screen: total score should not be 0.
 		await expect(page.getByRole('heading', { name: /assessment complete/i })).toBeVisible();
@@ -270,7 +276,11 @@ test.describe('/assessment-demo', () => {
 			await page.waitForTimeout(300);
 		}
 		await expect(submit).toBeVisible({ timeout: 10000 });
+		// Submitting is confirmed first (WCAG 3.3.4); the end screen follows the explicit confirm.
 		await submit.click();
+		const confirmDialog = page.getByRole('dialog', { name: 'Submit your test?' });
+		await expect(confirmDialog).toBeVisible({ timeout: 10000 });
+		await confirmDialog.getByTestId('assessment-dialog-confirm').click();
 
 		await expect(page.getByRole('heading', { name: /assessment complete/i })).toBeVisible();
 		const totalText = await page.locator('.stat-value').first().innerText();

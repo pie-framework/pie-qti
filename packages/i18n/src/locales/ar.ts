@@ -627,6 +627,47 @@ export default {
 			jumpTo: 'انتقل إلى السؤال {number}',
 			sectionMenu: 'قائمة الأقسام',
 			progress: 'التقدم: {percent}%',
+			answeredCount: 'تمت الإجابة على {answered} من {total}',
+		},
+
+		flag: {
+			label: 'علّم للمراجعة',
+			flaggedAnnouncement: 'تم تعليم السؤال {number} للمراجعة.',
+			unflaggedAnnouncement: 'تمت إزالة تعليم السؤال {number}.',
+		},
+
+		review: {
+			title: 'راجع إجاباتك',
+			open: 'مراجعة الأسئلة',
+			backToQuestion: 'العودة إلى السؤال',
+			flagged: 'معلَّم للمراجعة',
+			flaggedCount: 'تم تعليم {count} للمراجعة',
+			questionsGroup: 'الأسئلة',
+			linearNote: 'في هذا الجزء يمكنك المضي قدمًا فقط، لذلك تُعرض هذه الأسئلة للمراجعة فقط.',
+			goToItem: 'الانتقال إلى السؤال {number}',
+			currentItem: 'السؤال الحالي',
+			statusAnswered: 'تمت الإجابة',
+			statusPartially: 'تمت الإجابة جزئيًا',
+			statusUnanswered: 'لم تتم الإجابة',
+			notVisited: 'لم يُزر بعد',
+		},
+
+		submit: {
+			dialogTitle: 'هل تريد تسجيل اختبارك؟',
+			dialogDescription: 'لا يمكنك تغيير إجاباتك بعد التسجيل.',
+			flaggedLine: 'تم تعليم {count} من الأسئلة للمراجعة',
+			unansweredHeading: 'لم تتم الإجابة على {count} من الأسئلة',
+			unansweredHeadingOne: 'لم تتم الإجابة على سؤال واحد',
+			allAnswered: 'لقد أجبت على جميع الأسئلة.',
+			confirm: 'تسجيل الاختبار',
+			cancel: 'متابعة العمل',
+		},
+
+		leavePart: {
+			title: 'مغادرة هذا الجزء؟',
+			description: 'بعد المتابعة، لا يمكنك العودة إلى أسئلة هذا الجزء.',
+			confirm: 'متابعة',
+			cancel: 'البقاء في هذا الجزء',
 		},
 
 		sections: {

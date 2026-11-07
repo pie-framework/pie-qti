@@ -215,9 +215,8 @@ nothing depends on host CSS frameworks.
   `--pie-qti-radius*` and `--pie-qti-control-min-size` tokens.
 - Icons carry `width`/`height` attributes and are sized by component CSS; no Tailwind
   utility is load-bearing. DaisyUI and Tailwind classes are not used by the shell, the
-  navigation bar or the section layouts. `SectionMenu` and `AssessmentTimer` still carry
-  some and are restyled separately; until then the header keeps the section menu sized and
-  on the tokens.
+  navigation bar, the section menu or the review screen. `AssessmentTimer` still carries
+  some and is restyled separately.
 - Svelte injects the component CSS at mount, so the published `@pie-qti/player-elements`
   bundle ships it; hosts load no stylesheet for the shell.
 
@@ -238,8 +237,10 @@ nothing depends on host CSS frameworks.
   phones). Nothing is pinned: header, content and navigation flow in one scroll — the page's
   when the host gives no height, the shell's own when it does (WCAG 1.4.10, 2.4.11).
 - **Narrow containers.** The navigation bar is a size container: one row of Previous, the
-  position and Next/Submit; below `18rem` the arrows carry Previous/Next and the names stay
-  for assistive technology. Below a `48rem` container width the split layout becomes a
+  position (with the answered count), the per-item actions and Next/Submit. Below a `30rem`
+  container width the position moves to its own row and Previous/Next/Review collapse to
+  icons — their names stay for assistive technology, and the flag keeps its visible label
+  at every width. Below a `48rem` container width the split layout becomes a
   Passage/Question tab switch (APG tabs: arrow keys mirror right-to-left, Home/End,
   `aria-controls`/`aria-labelledby` panels); a newly presented item selects the question
   tab. Wide containers keep the keyboard-resizable splitter. Nested paddings collapse to one
@@ -271,6 +272,39 @@ submit confirmation, time notices and resume prompts: native `<dialog>` + `showM
 the trigger on close, Escape cancelling unless `dismissible` is false, `busy` keeping the
 actions focusable but unavailable, `closeOnConfirm`, and `onConfirm`/`onCancel`/`onClose`
 callbacks with a `bind:open` state.
+
+### Submit safety, review screen and flags (WCAG 3.3.4)
+
+- **Submit is confirmed, never accidental.** The final-submission control sits in the
+  navigation bar styled apart from the primary Next (outlined, error-toned, with a distinct
+  icon). Activating it opens the `AssessmentDialog` confirmation, which states how many
+  questions are answered ("8 of 12 answered") and flagged, names every unanswered question,
+  and links back to each one the navigation rules can still reach (linear parts render
+  status only). Cancel (or Escape) closes it and returns focus to the Submit control; the
+  submission itself runs only on the explicit confirm. A failed submission closes the dialog
+  so the alert and the "Try Again" control are reachable, and moves focus there.
+- **Leaving a test part is confirmed.** QTI parts are delivered in sequence and cannot be
+  re-entered, so when Next would leave the current part the shell first shows a "you cannot
+  return" confirmation (`AssessmentPlayer.getForwardTransitionInfo()` reports the boundary).
+- **Review screen + item palette.** The navigation bar offers a review view (also reachable
+  from the submit confirmation) listing every delivered item grouped by candidate-visible
+  section, each with answered / partially answered / unanswered, flagged-for-review and
+  not-yet-visited as text plus an icon (never colour alone), jump buttons where
+  `AssessmentPlayer.isNavigationTargetLegal()` allows, `aria-current` on the live item, and
+  a note that explains why linear parts list status only. Reflows to 320px.
+- **Flag for review.** The navigation bar carries a per-item toggle with a visible label and
+  `aria-pressed`. Flag state lives in the core session state (`AssessmentSessionState.itemFlags`),
+  survives navigation, is reported through `setItemFlag`/`toggleItemFlag`/`isItemFlagged`/
+  `getFlaggedItemIdentifiers()` and `onFlagChange`, and is part of `getState()` snapshots
+  (the upcoming autosave unit persists it with the rest).
+- **One definition of "answered".** `core/reviewState.ts` decides it from the responses
+  (non-null, non-empty; per interaction for composite items → answered / partially answered
+  / unanswered). `AssessmentPlayer.getItemAnswerStatus()`, `getAnsweredItemCount()` and
+  `getReviewItems()` feed the review screen, the section menu and the confirmation alike.
+- **Section menu is a disclosure.** The header menu is a button with `aria-expanded` plus a
+  plain list of section buttons (not a `role="menu"`): each section shows its answered
+  count, only legal jump targets are enabled, the current section is `aria-current`, Escape
+  or an outside press closes it, and it styles itself on the tokens.
 
 ### Host CSS reaching item content
 
@@ -542,6 +576,20 @@ AC-A6: Skip link and dialog focus
   Then: Focus moves to the active question
   When: An AssessmentDialog opens and is dismissed with Escape
   Then: Focus moves to its title on open and returns to its trigger on close
+
+AC-A7: Submit is confirmed with the unanswered questions named
+  Given: An assessment with unanswered questions on its last item
+  When: The candidate activates Submit
+  Then: A confirmation dialog names the answered count and each unanswered question,
+        links back to the reachable ones, and the test is not finalized without an
+        explicit confirm; cancel returns focus to the Submit control
+
+AC-A8: The review screen lists every delivered item with its state
+  Given: Items answered, partially answered, unanswered, flagged and unvisited
+  When: The candidate opens the review screen from the navigation bar
+  Then: Each item shows its state as text plus an icon grouped by candidate-visible
+        section, the current item is aria-current, and only navigation-legal items
+        offer a jump (linear parts show status only, with an explanatory note)
 ```
 
 ### Edge cases
@@ -576,7 +624,7 @@ AC-E4: Backend returns updatedState after submitCurrentItem; responses are not l
 
 - QTI spec: §2 (Assessment Architecture), §2.1–2.4
 - Implementation: `packages/assessment-player/src/core/AssessmentPlayer.ts`, `NavigationManager.ts`, `ItemSessionController.ts`, `TimeManager.ts`
-- Shell: `packages/assessment-player/src/components/` (`AssessmentShell`, `NavigationBar`, `AssessmentHeader`, `AssessmentDialog`); section layouts and the base layer: `packages/section-player/src/components/` (`SplitPaneResizer`, `SectionPlayerSplitPane`, `SectionPlayerVertical`, `PlayerBaseStyles`)
+- Shell: `packages/assessment-player/src/components/` (`AssessmentShell`, `NavigationBar`, `AssessmentHeader`, `AssessmentDialog`, `ReviewScreen`, `SectionMenu`); review/answered-state core helpers: `packages/assessment-player/src/core/reviewState.ts`; section layouts and the base layer: `packages/section-player/src/components/` (`SplitPaneResizer`, `SectionPlayerSplitPane`, `SectionPlayerVertical`, `PlayerBaseStyles`)
 - API contract: `packages/assessment-player/src/integration/api-contract.ts`
 - Adjacent PRDs: `docs/prds/architecture/item-player.md`, `docs/prds/architecture/response-processing.md`
 - Existing docs: `packages/assessment-player/BACKEND-INTEGRATION.md`, `packages/assessment-player/EXTENSIBILITY.md`

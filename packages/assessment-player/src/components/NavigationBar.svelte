@@ -9,9 +9,33 @@
 		onNext?: () => void;
 		onSubmit?: () => void;
 		showProgress?: boolean;
+		/** Items carrying a response (answered or partially answered), for the "8 of 12 answered" count. */
+		answeredCount?: number;
+		/** Whether the candidate has flagged the current item for review. */
+		flagged?: boolean;
+		/** Toggle the current item's flag-for-review. */
+		onToggleFlag?: () => void;
+		/** Whether the review screen can be opened (hidden once the test is complete). */
+		showReview?: boolean;
+		/** Open or close the review screen. */
+		reviewOpen?: boolean;
+		onToggleReview?: () => void;
 	}
 
-	const { navState, i18n, onPrevious, onNext, onSubmit, showProgress = true }: Props = $props();
+	const {
+		navState,
+		i18n,
+		onPrevious,
+		onNext,
+		onSubmit,
+		showProgress = true,
+		answeredCount,
+		flagged = false,
+		onToggleFlag,
+		showReview = false,
+		reviewOpen = false,
+		onToggleReview,
+	}: Props = $props();
 
 	const progressPercentage = $derived(
 		navState.totalItems > 0 ? ((navState.currentIndex + 1) / navState.totalItems) * 100 : 0,
@@ -46,14 +70,25 @@
 			i18n?.t('assessment.question', { current: navState.currentIndex + 1, total: navState.totalItems }) ??
 			`Question ${navState.currentIndex + 1} of ${navState.totalItems}`;
 		const percent = Math.round(progressPercentage);
+		const answered =
+			answeredCount === undefined || !showProgress
+				? null
+				: i18n?.t('assessment.navigation.answeredCount', { answered: answeredCount, total: navState.totalItems }) ??
+					`${answeredCount} of ${navState.totalItems} answered`;
+		const progress = `${i18n?.t('assessment.navigation.progress', { percent }) ?? `Progress: ${percent}%`}: ${question}`;
 		return {
 			question,
 			section: sectionLabel(),
+			answered,
 			label: i18n?.t('accessibility.navigationRegion') ?? 'Assessment navigation',
 			previous: i18n?.t('common.previous') ?? 'Previous',
 			next: i18n?.t('common.next') ?? 'Next',
 			submit: i18n?.t('assessment.navigation.submit') ?? 'Submit',
-			progress: `${i18n?.t('assessment.navigation.progress', { percent }) ?? `Progress: ${percent}%`}: ${question}`,
+			flag: i18n?.t('assessment.flag.label') ?? 'Flag for review',
+			reviewOpen: i18n?.t('assessment.review.backToQuestion') ?? 'Back to question',
+			reviewClosed: i18n?.t('assessment.review.open') ?? 'Review questions',
+			// The progress bar's name carries the position and the answered count.
+			progress: answered ? `${progress}. ${answered}` : progress,
 		};
 	});
 
@@ -105,6 +140,9 @@
 					{#if translations.section}
 						<span class="progress-section-title">{translations.section}</span>
 					{/if}
+					{#if translations.answered}
+						<span class="progress-answered" data-testid="assessment-answered-count">{translations.answered}</span>
+					{/if}
 				</div>
 				<progress class="progress-bar" value={progressPercentage} max="100" aria-label={translations.progress}></progress>
 			</div>
@@ -112,15 +150,86 @@
 			<div class="navigation-spacer"></div>
 		{/if}
 
-		{#if isLastItem}
-			<!-- Submit button on last item -->
+		{#if showReview}
 			<button
 				type="button"
-				class="nav-button primary"
+				class="nav-button"
+				data-testid="assessment-review"
+				aria-expanded={reviewOpen}
+				aria-disabled={busy ? 'true' : undefined}
+				onclick={() => (busy ? undefined : onToggleReview?.())}
+			>
+				<svg
+					class="nav-icon"
+					xmlns="http://www.w3.org/2000/svg"
+					width="20"
+					height="20"
+					fill="none"
+					viewBox="0 0 24 24"
+					stroke="currentColor"
+					aria-hidden="true"
+				>
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+				</svg>
+				<span class="nav-button-label collapsible">{reviewOpen ? translations.reviewOpen : translations.reviewClosed}</span>
+			</button>
+		{/if}
+
+		{#if onToggleFlag}
+			<button
+				type="button"
+				class="nav-button flag-button"
+				class:flagged={flagged}
+				data-testid="assessment-flag"
+				aria-pressed={flagged}
+				aria-disabled={busy ? 'true' : undefined}
+				onclick={() => (busy ? undefined : onToggleFlag?.())}
+			>
+				<svg
+					class="nav-icon"
+					xmlns="http://www.w3.org/2000/svg"
+					width="20"
+					height="20"
+					fill="none"
+					viewBox="0 0 24 24"
+					stroke="currentColor"
+					aria-hidden="true"
+				>
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1zM4 22v-7"
+					/>
+				</svg>
+				<span class="nav-button-label">{translations.flag}</span>
+			</button>
+		{/if}
+
+		{#if isLastItem}
+			<!--
+				Final submission: a destructive, irreversible action, styled apart from the
+				filled primary Next and routed through the shell's confirmation dialog.
+			-->
+			<button
+				type="button"
+				class="nav-button submit-button"
 				data-testid="assessment-submit"
 				onclick={handleSubmit}
 				aria-disabled={busy ? 'true' : undefined}
 			>
+				<svg
+					class="nav-icon"
+					xmlns="http://www.w3.org/2000/svg"
+					width="20"
+					height="20"
+					fill="none"
+					viewBox="0 0 24 24"
+					stroke="currentColor"
+					aria-hidden="true"
+				>
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
+				</svg>
 				<span class="nav-button-label">{translations.submit}</span>
 			</button>
 		{:else}
@@ -160,7 +269,7 @@
 		background: var(--pie-qti-base-100, oklch(100% 0 0));
 	}
 
-	/* One row: Previous, the position, Next or Submit. */
+	/* One row: Previous, the position, the item actions, Next or Submit. */
 	.navigation-buttons {
 		display: flex;
 		align-items: center;
@@ -196,6 +305,11 @@
 
 	.progress-section-title {
 		font-size: 0.875em;
+	}
+
+	.progress-answered {
+		font-size: 0.875em;
+		color: var(--pie-qti-base-content, oklch(21% 0 0));
 	}
 
 	.progress-bar {
@@ -275,6 +389,36 @@
 		background: color-mix(in oklab, var(--pie-qti-primary, oklch(45% 0.24 277)) 85%, black);
 	}
 
+	/*
+	 * Final submission. Deliberately unlike Next: an outlined, error-toned control
+	 * (the action is irreversible), never mistaken for the forward navigation even
+	 * before its confirmation dialog opens.
+	 */
+	.nav-button.submit-button {
+		border: 2px solid var(--pie-qti-error-text, #b91c1c);
+		background: var(--pie-qti-base-100, oklch(100% 0 0));
+		color: var(--pie-qti-error-text, #b91c1c);
+	}
+
+	.nav-button.submit-button:hover:not([aria-disabled='true']) {
+		background: color-mix(in oklab, var(--pie-qti-error-text, #b91c1c) 8%, var(--pie-qti-base-100, oklch(100% 0 0)));
+	}
+
+	/* The per-item flag toggle shows its pressed state in the icon fill, not colour alone. */
+	.nav-button.flag-button[aria-pressed='true'] {
+		border-color: var(--pie-qti-warning-text, #92400e);
+		color: var(--pie-qti-warning-text, #92400e);
+	}
+
+	.nav-button.flag-button[aria-pressed='true'] .nav-icon {
+		fill: currentColor;
+	}
+
+	/* The flag keeps its visible label at every width; it may use more of the row. */
+	.nav-button.flag-button {
+		max-inline-size: 60%;
+	}
+
 	.nav-button:focus-visible {
 		outline: 2px solid var(--pie-qti-focus, #4338ca);
 		outline-offset: 2px;
@@ -305,22 +449,32 @@
 		}
 	}
 
+	/*
+	 * Narrow containers (phones, 400% zoom in a padded host): the position moves to its
+	 * own row above the buttons and the navigational buttons shrink to icons — their
+	 * names stay for assistive technology. The flag keeps its visible label at every
+	 * width (it is never icon-only), so the button row stays on one line.
+	 */
 	@container (max-width: 30rem) {
 		.navigation-buttons {
+			flex-wrap: wrap;
 			gap: var(--pie-qti-space-2, 0.5rem);
+		}
+
+		.progress-section {
+			flex-basis: 100%;
+			order: -1;
 		}
 
 		.nav-button {
 			padding-inline: var(--pie-qti-space-2, 0.5rem);
 		}
 
-		.progress-section-title {
+		.progress-section-title,
+		.progress-answered {
 			font-size: 0.8125em;
 		}
-	}
 
-	/* Very narrow (small phones, 400% zoom in a padded host): the arrows carry Previous/Next, the names stay for AT. */
-	@container (max-width: 18rem) {
 		.nav-button-label.collapsible {
 			position: absolute;
 			inline-size: 1px;

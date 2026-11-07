@@ -567,6 +567,47 @@ export default {
 			jumpTo: 'Salt la întrebarea {number}',
 			sectionMenu: 'Meniu secțiune',
 			progress: 'Progres: {percent}%',
+			answeredCount: '{answered} din {total} răspunse',
+		},
+
+		flag: {
+			label: 'Marchează pentru revizuire',
+			flaggedAnnouncement: 'Întrebarea {number} a fost marcată pentru revizuire.',
+			unflaggedAnnouncement: 'Marcajul întrebării {number} a fost eliminat.',
+		},
+
+		review: {
+			title: 'Verifică-ți răspunsurile',
+			open: 'Revizuiește întrebările',
+			backToQuestion: 'Înapoi la întrebare',
+			flagged: 'Marcată',
+			flaggedCount: '{count} marcate pentru revizuire',
+			questionsGroup: 'Întrebări',
+			linearNote: 'În această parte te poți deplasa doar înainte, deci aceste întrebări sunt listate doar pentru revizuire.',
+			goToItem: 'Mergi la întrebarea {number}',
+			currentItem: 'Întrebarea curentă',
+			statusAnswered: 'Răspunsă',
+			statusPartially: 'Parțial răspunsă',
+			statusUnanswered: 'Fără răspuns',
+			notVisited: 'Încă nevizitată',
+		},
+
+		submit: {
+			dialogTitle: 'Predai testul?',
+			dialogDescription: 'Nu mai poți modifica răspunsurile după predare.',
+			flaggedLine: '{count} întrebări marcate pentru revizuire',
+			unansweredHeading: '{count} întrebări fără răspuns',
+			unansweredHeadingOne: '1 întrebare fără răspuns',
+			allAnswered: 'Ai răspuns la toate întrebările.',
+			confirm: 'Predă testul',
+			cancel: 'Continuă lucrul',
+		},
+
+		leavePart: {
+			title: 'Părăsești această parte?',
+			description: 'După ce continui, nu te mai poți întoarce la întrebările din această parte.',
+			confirm: 'Continuă',
+			cancel: 'Rămâi în această parte',
 		},
 
 		sections: {

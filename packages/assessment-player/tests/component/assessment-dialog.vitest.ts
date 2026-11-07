@@ -147,6 +147,23 @@ describe('AssessmentDialog', () => {
 		expect(state.open).toBe(true);
 	});
 
+	test('a confirm handler that unmounts the dialog does not touch torn-down state', async () => {
+		const onClose = vi.fn();
+		// A host may swap the whole shell (and this dialog with it) while onConfirm runs.
+		const { state, m } = await openDialog({
+			onClose,
+			onConfirm: () => {
+				m.destroy();
+			},
+		});
+
+		m.host.querySelector<HTMLButtonElement>('[data-testid="assessment-dialog-confirm"]')!.click();
+		await settle();
+
+		expect(state.open).toBe(true);
+		expect(onClose).not.toHaveBeenCalled();
+	});
+
 	test('busy actions stay focusable but unavailable, and ignore activation', async () => {
 		const onConfirm = vi.fn();
 		const { m } = await openDialog({ busy: true, onConfirm });

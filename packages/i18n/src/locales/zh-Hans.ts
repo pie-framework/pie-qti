@@ -575,6 +575,47 @@ export default {
 			jumpTo: '跳转到问题 {number}',
 			sectionMenu: '部分菜单',
 			progress: '进度:{percent}%',
+			answeredCount: '已答 {answered}/{total} 题',
+		},
+
+		flag: {
+			label: '标记待复查',
+			flaggedAnnouncement: '已标记第 {number} 题待复查。',
+			unflaggedAnnouncement: '已取消第 {number} 题的标记。',
+		},
+
+		review: {
+			title: '检查你的答案',
+			open: '复查题目',
+			backToQuestion: '返回当前题目',
+			flagged: '已标记',
+			flaggedCount: '{count} 题已标记待复查',
+			questionsGroup: '题目',
+			linearNote: '此部分只能向前作答，以下题目仅供复查。',
+			goToItem: '转到第 {number} 题',
+			currentItem: '当前题目',
+			statusAnswered: '已回答',
+			statusPartially: '部分回答',
+			statusUnanswered: '未回答',
+			notVisited: '尚未浏览',
+		},
+
+		submit: {
+			dialogTitle: '提交试卷？',
+			dialogDescription: '提交后将无法修改答案。',
+			flaggedLine: '{count} 题已标记待复查',
+			unansweredHeading: '{count} 题未回答',
+			unansweredHeadingOne: '1 题未回答',
+			allAnswered: '你已回答所有题目。',
+			confirm: '提交试卷',
+			cancel: '继续作答',
+		},
+
+		leavePart: {
+			title: '离开此部分？',
+			description: '继续后，你将无法返回此部分中的题目。',
+			confirm: '继续',
+			cancel: '留在此部分',
 		},
 
 		sections: {

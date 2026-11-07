@@ -173,6 +173,9 @@
 		} else {
 			onCancel?.();
 		}
+		// onConfirm may have torn this dialog down (a host can swap the whole shell on
+		// submit); a destroyed component must not touch its reactive props again.
+		if (!dialogEl?.isConnected) return;
 		open = false;
 		onClose?.(reason);
 	}

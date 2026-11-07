@@ -563,6 +563,47 @@ export default {
 			jumpTo: 'ข้ามไปที่คำถาม {number}',
 			sectionMenu: 'เมนูส่วน',
 			progress: 'ความคืบหน้า: {percent}%',
+			answeredCount: 'ตอบแล้ว {answered} จาก {total} ข้อ',
+		},
+
+		flag: {
+			label: 'ทำเครื่องหมายเพื่อทบทวน',
+			flaggedAnnouncement: 'ทำเครื่องหมายคำถามข้อ {number} เพื่อทบทวนแล้ว',
+			unflaggedAnnouncement: 'ลบเครื่องหมายคำถามข้อ {number} แล้ว',
+		},
+
+		review: {
+			title: 'ตรวจทานคำตอบของคุณ',
+			open: 'ทบทวนคำถาม',
+			backToQuestion: 'กลับไปที่คำถาม',
+			flagged: 'ทำเครื่องหมายไว้',
+			flaggedCount: 'ทำเครื่องหมายไว้ {count} ข้อ',
+			questionsGroup: 'คำถาม',
+			linearNote: 'ในส่วนนี้คุณเดินหน้าได้อย่างเดียว จึงแสดงคำถามเหล่านี้เพื่อทบทวนเท่านั้น',
+			goToItem: 'ไปที่คำถามข้อ {number}',
+			currentItem: 'คำถามปัจจุบัน',
+			statusAnswered: 'ตอบแล้ว',
+			statusPartially: 'ตอบบางส่วน',
+			statusUnanswered: 'ยังไม่ได้ตอบ',
+			notVisited: 'ยังไม่ได้เปิดดู',
+		},
+
+		submit: {
+			dialogTitle: 'ส่งข้อสอบของคุณหรือไม่?',
+			dialogDescription: 'คุณจะไม่สามารถเปลี่ยนคำตอบได้หลังจากส่งแล้ว',
+			flaggedLine: 'ทำเครื่องหมายเพื่อทบทวน {count} ข้อ',
+			unansweredHeading: 'ยังไม่ได้ตอบ {count} ข้อ',
+			unansweredHeadingOne: 'ยังไม่ได้ตอบ 1 ข้อ',
+			allAnswered: 'คุณตอบครบทุกข้อแล้ว',
+			confirm: 'ส่งข้อสอบ',
+			cancel: 'ทำต่อไป',
+		},
+
+		leavePart: {
+			title: 'ออกจากส่วนนี้หรือไม่?',
+			description: 'เมื่อดำเนินการต่อไป คุณจะไม่สามารถกลับมาที่คำถามในส่วนนี้ได้',
+			confirm: 'ดำเนินการต่อ',
+			cancel: 'อยู่ในส่วนนี้ต่อไป',
 		},
 
 		sections: {

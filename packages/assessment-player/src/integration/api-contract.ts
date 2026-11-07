@@ -431,6 +431,8 @@ export interface AssessmentSessionState {
 	itemSessions?: Record<string, SerializedItemSessionState>;
 	/** Candidate comments per item, captured where allowComment is on. */
 	itemComments?: Record<string, string>;
+	/** Items the candidate flagged for review, keyed by item identifier. */
+	itemFlags?: Record<string, boolean>;
 	/** Time tracking */
 	timing: {
 		/** Session start time */

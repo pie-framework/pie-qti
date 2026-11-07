@@ -568,6 +568,47 @@ export default {
 			jumpTo: 'Ir a pregunta {number}',
 			sectionMenu: 'Menú de sección',
 			progress: 'Progreso: {percent}%',
+			answeredCount: '{answered} de {total} respondidas',
+		},
+
+		flag: {
+			label: 'Marcar para revisar',
+			flaggedAnnouncement: 'Pregunta {number} marcada para revisar.',
+			unflaggedAnnouncement: 'Se quitó la marca de la pregunta {number}.',
+		},
+
+		review: {
+			title: 'Revisa tus respuestas',
+			open: 'Revisar preguntas',
+			backToQuestion: 'Volver a la pregunta',
+			flagged: 'Marcada',
+			flaggedCount: '{count} marcadas para revisar',
+			questionsGroup: 'Preguntas',
+			linearNote: 'En esta parte solo puedes avanzar, por lo que estas preguntas se muestran solo para revisión.',
+			goToItem: 'Ir a la pregunta {number}',
+			currentItem: 'Pregunta actual',
+			statusAnswered: 'Respondida',
+			statusPartially: 'Parcialmente respondida',
+			statusUnanswered: 'Sin responder',
+			notVisited: 'Aún no visitada',
+		},
+
+		submit: {
+			dialogTitle: '¿Entregar tu prueba?',
+			dialogDescription: 'No podrás cambiar tus respuestas después de entregar.',
+			flaggedLine: '{count} preguntas marcadas para revisar',
+			unansweredHeading: '{count} preguntas sin responder',
+			unansweredHeadingOne: '1 pregunta sin responder',
+			allAnswered: 'Has respondido todas las preguntas.',
+			confirm: 'Entregar prueba',
+			cancel: 'Seguir trabajando',
+		},
+
+		leavePart: {
+			title: '¿Salir de esta parte?',
+			description: 'Después de continuar, no podrás volver a las preguntas de esta parte.',
+			confirm: 'Continuar',
+			cancel: 'Quedarse en esta parte',
 		},
 
 		sections: {

@@ -12,7 +12,8 @@ test.describe('assessment accessibility behavior', () => {
 
 		await toggle.click();
 		await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-		await expect(page.getByRole('menuitemradio', { name: /section 1/i })).toBeFocused();
+		// A disclosure, not a role="menu": the current section button receives focus on open.
+		await expect(page.getByRole('button', { name: /section 1/i })).toBeFocused();
 
 		await page.keyboard.press('Escape');
 		await expect(toggle).toHaveAttribute('aria-expanded', 'false');

@@ -68,6 +68,7 @@ export class AssessmentSessionCoordinator {
 					: undefined,
 			itemSessionStates: this.#itemSessionStateSnapshot(),
 			itemComments: this.#state.itemComments ? { ...this.#state.itemComments } : undefined,
+			itemFlags: this.#state.itemFlags ? { ...this.#state.itemFlags } : undefined,
 			timing: {
 				...this.#state.timing,
 				itemTimes: { ...this.#state.timing.itemTimes },
@@ -215,6 +216,22 @@ export class AssessmentSessionCoordinator {
 
 	getItemComment(itemIdentifier: string): string | undefined {
 		return this.#state.itemComments?.[itemIdentifier];
+	}
+
+	/** Sets (or clears) the candidate's flag-for-review on an item. */
+	setItemFlag(itemIdentifier: string, flagged: boolean): void {
+		const flags = { ...(this.#state.itemFlags ?? {}) };
+		if (flagged) flags[itemIdentifier] = true;
+		else delete flags[itemIdentifier];
+		this.#state.itemFlags = flags;
+	}
+
+	isItemFlagged(itemIdentifier: string): boolean {
+		return this.#state.itemFlags?.[itemIdentifier] === true;
+	}
+
+	getFlaggedItemIdentifiers(): string[] {
+		return Object.keys(this.#state.itemFlags ?? {}).filter((id) => this.#state.itemFlags?.[id] === true);
 	}
 
 	recordAttempt(itemIdentifier: string): void {

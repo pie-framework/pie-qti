@@ -11,6 +11,7 @@
 	import type { BackendAssessmentPlayerConfig } from '../core/AssessmentPlayer.js';
 	import { AssessmentPlayer } from '../core/AssessmentPlayer.js';
 	import { assessmentErrorDisplay, isAssessmentPlayerError } from '../core/errors.js';
+	import type { ReviewGroup } from './ReviewScreen.svelte';
 	import type { BackendAdapter, InitSessionRequest } from '../integration/api-contract.js';
 	import { toSectionComposition } from '../integration/toSectionComposition.js';
 	import type {
@@ -20,8 +21,10 @@
 		VisibleTestFeedback,
 	} from '../types/index.js';
 	import AccessibilityAnnouncer from './AccessibilityAnnouncer.svelte';
+	import AssessmentDialog from './AssessmentDialog.svelte';
 	import AssessmentHeader from './AssessmentHeader.svelte';
 	import NavigationBar from './NavigationBar.svelte';
+	import ReviewScreen from './ReviewScreen.svelte';
 
 	interface Props {
 		backend: BackendAdapter;
@@ -131,6 +134,14 @@
 	let announcer = $state<AccessibilityAnnouncer | null>(null);
 	let responseVersion = $state(0);
 	let stateVersion = $state(0);
+	// Review screen + flag toggle
+	let reviewOpen = $state(false);
+	let reviewScreen = $state<ReviewScreen | null>(null);
+	// Submit confirmation (WCAG 3.3.4: submitting the test is irreversible, so it is
+	// confirmed, with the unanswered and flagged questions named before the candidate
+	// commits) and the cannot-return warning for leaving a test part.
+	let submitDialogOpen = $state(false);
+	let leavePartDialogOpen = $state(false);
 
 	const sectionComposition = $derived.by(() => {
 		responseVersion;
@@ -148,18 +159,65 @@
 			rawHtml: item.content,
 		}))
 	);
-	// The section menu only offers legal navigation targets for the current
-	// navigationMode (linear: none beyond staying; nonlinear: the current test part).
-	const menuSections = $derived(
-		sections
-			.filter((section) => section.navigable)
-			.map((section, index) => ({ ...section, index })),
-	);
-	const menuCurrentSectionIndex = $derived(
-		navState.currentSection ? menuSections.find((s) => s.id === navState.currentSection?.id)?.index : undefined,
-	);
 	// The assessmentTest `title`, else a localized generic title — never the identifier.
 	const assessmentTitle = $derived(player?.getAssessmentTitle() ?? i18n.t('assessment.title', 'Assessment'));
+
+	// Review data: recomputed when the item, its responses or flags change. The core
+	// helpers are the single source of answered/flag/jump-legality truth.
+	const reviewData = $derived.by(() => {
+		responseVersion;
+		stateVersion;
+		navState.currentIndex;
+		isComplete;
+		if (!player || navState.currentIndex < 0) return null;
+		const items = player.getReviewItems();
+		const sectionGroups: ReviewGroup[] = player.getAllSections().map((section) => ({
+			id: section.id,
+			index: section.index,
+			title: section.title,
+			navigable: section.navigable,
+			items: [],
+		}));
+		const groupById = new Map(sectionGroups.map((group) => [group.id as string, group]));
+		const sectionless: ReviewGroup = { id: null, index: -1, navigable: false, items: [] };
+		for (const item of items) {
+			const group = item.sectionId !== null ? groupById.get(item.sectionId) : undefined;
+			(group ?? sectionless).items.push(item);
+		}
+		const groups = sectionGroups.filter((group) => group.items.length > 0);
+		if (sectionless.items.length > 0) groups.push(sectionless);
+		return {
+			groups,
+			answeredCount: player.getAnsweredItemCount(),
+			totalItems: items.length,
+			flaggedCount: items.filter((item) => item.flagged).length,
+		};
+	});
+	const currentFlagged = $derived.by(() => {
+		stateVersion;
+		return player ? player.isItemFlagged() : false;
+	});
+	// The section menu lists every candidate-visible section with its live answered
+	// count; only legal jump targets are enabled inside the menu.
+	const headerSections = $derived.by(() => {
+		responseVersion;
+		stateVersion;
+		navState.currentSection?.id;
+		if (!player || navState.currentIndex < 0) return [];
+		const items = player.getReviewItems();
+		return player.getAllSections().map((section) => {
+			const members = items.filter((item) => item.sectionId === section.id);
+			return {
+				id: section.id,
+				title: section.title,
+				index: section.index,
+				navigable: section.navigable,
+				answered: members.filter((item) => item.status !== 'unanswered').length,
+				total: members.length,
+				isCurrent: navState.currentSection?.id === section.id,
+			};
+		});
+	});
 
 	// Initialize player
 	onMount(() => {
@@ -217,6 +275,11 @@
 
 			player.onBusyChange(() => {
 				updateState();
+			});
+
+			player.onFlagChange(() => {
+				// Flag state lives in the core session state; re-render whatever shows it.
+				stateVersion += 1;
 			});
 
 			// Terminal branching (QTI EXIT_TEST) finalizes the core like a normal submit;
@@ -285,7 +348,7 @@
 		}
 	}
 
-	async function handleNext() {
+	async function doNext() {
 		if (!player || isSubmitting || isComplete) return;
 		try {
 			navError = null;
@@ -297,6 +360,26 @@
 			console.error('Next navigation failed:', err);
 			navError = localizeError(err);
 		}
+	}
+
+	/**
+	 * Next is routed through a "you cannot return" confirmation when it would leave the
+	 * current test part: QTI parts are delivered in sequence and cannot be re-entered.
+	 */
+	async function handleNext() {
+		if (!player || isSubmitting || isComplete) return;
+		const info = player.getForwardTransitionInfo();
+		if (info.leavesTestPart && info.nextIndex !== null) {
+			navError = null;
+			leavePartDialogOpen = true;
+			return;
+		}
+		await doNext();
+	}
+
+	async function handleLeavePartConfirm() {
+		leavePartDialogOpen = false;
+		await doNext();
 	}
 
 	/**
@@ -312,10 +395,10 @@
 		announcer?.announce(msg, 1500);
 	}
 
-	async function handleSectionSelect(menuIndex: number) {
-		if (!player || isSubmitting || isComplete || !menuSections[menuIndex]) return;
-
-		const section = menuSections[menuIndex];
+	async function handleSectionSelect(sectionIndex: number) {
+		if (!player || isSubmitting || isComplete) return;
+		const section = headerSections.find((candidate) => candidate.index === sectionIndex);
+		if (!section) return;
 		try {
 			await player.navigateToSection(section.id);
 			await manageFocusAfterNavigation();
@@ -351,8 +434,128 @@
 		void focusQuestion();
 	}
 
-	async function handleSubmit() {
+	// ---------------------------------------------------------------------------
+	// Review screen + item palette
+	// ---------------------------------------------------------------------------
+
+	async function toggleReview() {
+		if (!player || isComplete || reviewData === null) return;
+		if (reviewOpen) {
+			reviewOpen = false;
+			await focusQuestion();
+			return;
+		}
+		reviewOpen = true;
+		await tick();
+		reviewScreen?.focusTitle();
+	}
+
+	/** Jump from the review palette (or the submit dialog) to an item, then focus it. */
+	async function jumpToItem(index: number, { closePanel = true } = {}) {
+		if (!player || isComplete) return;
+		try {
+			await player.navigateTo(index);
+			if (closePanel && reviewOpen) reviewOpen = false;
+			await manageFocusAfterNavigation();
+			announceCurrentQuestion();
+		} catch (err) {
+			if (isBusyRejection(err)) return;
+			console.error('Jump navigation failed:', err);
+			navError = localizeError(err);
+		}
+	}
+
+	async function handleReviewJump(index: number) {
+		await jumpToItem(index);
+	}
+
+	// ---------------------------------------------------------------------------
+	// Flag for review
+	// ---------------------------------------------------------------------------
+
+	function handleToggleFlag() {
 		if (!player || isSubmitting || isComplete) return;
+		player.toggleItemFlag();
+		const flagged = player.isItemFlagged();
+		const message = flagged
+			? i18n.t('assessment.flag.flaggedAnnouncement', { number: navState.currentIndex + 1 })
+			: i18n.t('assessment.flag.unflaggedAnnouncement', { number: navState.currentIndex + 1 });
+		announcer?.announce(message, 1500);
+	}
+
+	// ---------------------------------------------------------------------------
+	// Submit: confirmation first (WCAG 3.3.4), then the irreversible core transition
+	// ---------------------------------------------------------------------------
+
+	interface SubmitDialogItem {
+		number: number;
+		index: number;
+		jumpAllowed: boolean;
+	}
+
+	let submitSummary = $state<{
+		answeredCount: number;
+		total: number;
+		flaggedCount: number;
+		unanswered: SubmitDialogItem[];
+	} | null>(null);
+
+	const submitTranslations = $derived.by(() => {
+		const t = (key: string, fallback: string, values?: Record<string, string | number>) =>
+			i18n?.t(key, fallback, values) ?? fallback;
+		return {
+			dialogTitle: t('assessment.submit.dialogTitle', 'Submit your test?'),
+			dialogDescription: t('assessment.submit.dialogDescription', 'You cannot change your answers after you submit.'),
+			answeredLine:
+				submitSummary === null
+					? ''
+					: t('assessment.navigation.answeredCount', '{answered} of {total} answered', {
+						answered: submitSummary.answeredCount,
+						total: submitSummary.total,
+					}),
+			flaggedLine:
+				submitSummary && submitSummary.flaggedCount > 0
+					? t('assessment.submit.flaggedLine', '{count} questions are flagged for review', {
+						count: submitSummary.flaggedCount,
+					})
+					: null,
+			unansweredHeading:
+				submitSummary && submitSummary.unanswered.length > 0
+					? submitSummary.unanswered.length === 1
+						? t('assessment.submit.unansweredHeadingOne', '1 question is not answered')
+						: t('assessment.submit.unansweredHeading', '{count} questions are not answered', {
+							count: submitSummary.unanswered.length,
+						})
+					: null,
+			allAnswered: t('assessment.submit.allAnswered', 'You have answered all the questions.'),
+			confirm: t('assessment.submit.confirm', 'Submit test'),
+			cancel: t('assessment.submit.cancel', 'Keep working'),
+			reviewAction: t('assessment.review.open', 'Review questions'),
+		};
+	});
+
+	function openSubmitDialog() {
+		if (!player || isSubmitting || isComplete) return;
+		const items = player.getReviewItems();
+		submitSummary = {
+			answeredCount: player.getAnsweredItemCount(),
+			total: items.length,
+			flaggedCount: items.filter((item) => item.flagged).length,
+			unanswered: items
+				.filter((item) => item.status === 'unanswered')
+				.map((item) => ({ number: item.number, index: item.index, jumpAllowed: item.jumpAllowed })),
+		};
+		navError = null;
+		submitDialogOpen = true;
+	}
+
+	/**
+	 * The real terminal transition, shared by the confirmation dialog and the imperative
+	 * API. Returns false when the submission failed (the shell then shows the alert and
+	 * moves focus to the retry control); true once the test has ended.
+	 */
+	async function performSubmit(): Promise<boolean> {
+		if (!player || isSubmitting || isComplete) return false;
 
 		submitError = null;
 		isSubmitting = true;
@@ -360,28 +563,47 @@
 		try {
 			results = await player.submit();
 		} catch (err) {
-			if (isBusyRejection(err)) {
-				isSubmitting = false;
-				return;
+			if (!isBusyRejection(err)) {
+				console.error('Failed to submit assessment:', err);
+				submitError = localizeSubmitError(err);
+				// Keep the shell and its session available after the core restores a
+				// failed submission. Already accepted responses are retained for retry.
+				updateState();
 			}
-			console.error('Failed to submit assessment:', err);
-			submitError = localizeSubmitError(err);
-			// Keep the shell and its session available after the core restores a
-			// failed submission. Already accepted responses are retained for retry.
-			updateState();
-			return;
+			return false;
 		} finally {
 			isSubmitting = false;
-			if (submitError) {
-				await tick();
-				retryButton?.focus();
-			}
 		}
 
 		testFeedback = player.getVisibleFeedback();
 		sections = player.getAllSections();
 		isComplete = true;
 		onSubmit?.(results);
+		return true;
+	}
+
+	async function handleDialogSubmit() {
+		const succeeded = await performSubmit();
+		// Close whether it worked or not: on failure the alert and the retry control
+		// must be reachable, and they sit behind the modal otherwise.
+		submitDialogOpen = false;
+		if (!succeeded) {
+			await tick();
+			retryButton?.focus();
+		}
+	}
+
+	async function handleDialogReview() {
+		submitDialogOpen = false;
+		if (reviewData === null) return;
+		reviewOpen = true;
+		await tick();
+		reviewScreen?.focusTitle();
+	}
+
+	async function handleDialogJump(index: number) {
+		submitDialogOpen = false;
+		await jumpToItem(index);
 	}
 
 	/**
@@ -405,6 +627,10 @@
 
 	export async function submit() {
 		return player?.submit();
+	}
+
+	export function updateResponse(responseId: string, value: unknown) {
+		return player?.updateResponse(responseId, value);
 	}
 
 	export function getResponses() {
@@ -483,8 +709,8 @@
 			title={assessmentTitle}
 			{titleId}
 			headingLevel={titleHeadingLevel}
-			sections={menuSections}
-			currentSectionIndex={menuCurrentSectionIndex}
+			sections={headerSections}
+			currentSectionIndex={navState.currentSection?.index}
 			showSections={config.showSections}
 			allowSectionNavigation={!isSubmitting && !isComplete && config.allowSectionNavigation !== false}
 			{i18n}
@@ -539,12 +765,24 @@
 			bind:this={contentEl}
 			id={contentId}
 			class="assessment-content"
-			class:has-passage={hasSplitPane}
+			class:has-passage={hasSplitPane && !reviewOpen}
 			tabindex="-1"
 			role={fullViewport ? undefined : 'region'}
 			aria-label={i18n?.t('accessibility.itemBody') ?? 'Question content'}
 		>
-			{#if sectionComposition}
+			{#if reviewOpen && reviewData}
+				<ReviewScreen
+					bind:this={reviewScreen}
+					groups={reviewData.groups}
+					answeredCount={reviewData.answeredCount}
+					totalItems={reviewData.totalItems}
+					flaggedCount={reviewData.flaggedCount}
+					headingLevel={titleHeadingLevel + 1}
+					busy={navState.isLoading || isSubmitting}
+					{i18n}
+					onJump={handleReviewJump}
+				/>
+			{:else if sectionComposition}
 				{#if sectionComposition.layout === 'split-pane'}
 					<SectionPlayerSplitPane
 						bind:this={splitLayout}
@@ -581,7 +819,7 @@
 						<span class="support-code">{i18n.t('assessment.errors.supportCode', { code: submitError.supportCode })}</span>
 					{/if}
 				</p>
-				<button bind:this={retryButton} type="button" class="retry-button" onclick={handleSubmit} disabled={isSubmitting}>
+				<button bind:this={retryButton} type="button" class="retry-button" onclick={() => void performSubmit()} disabled={isSubmitting}>
 					{i18n?.t('common.tryAgain') ?? 'Try Again'}
 				</button>
 			</div>
@@ -597,10 +835,116 @@
 				{i18n}
 				onPrevious={handlePrevious}
 				onNext={handleNext}
-				onSubmit={handleSubmit}
+				onSubmit={openSubmitDialog}
 				showProgress={config.showProgress !== false}
+				answeredCount={reviewData?.answeredCount}
+				flagged={currentFlagged}
+				onToggleFlag={handleToggleFlag}
+				showReview={!isComplete && reviewData !== null}
+				{reviewOpen}
+				onToggleReview={toggleReview}
 			/>
 		{/if}
+
+		<!--
+			Submit confirmation: names the unanswered and flagged questions, links back to
+			them when the navigation rules allow, and requires an explicit confirm. Focus
+			returns to the Submit control on cancel.
+		-->
+		<AssessmentDialog
+			bind:open={submitDialogOpen}
+			title={submitTranslations.dialogTitle}
+			description={submitTranslations.dialogDescription}
+			tone="danger"
+			closeOnConfirm={false}
+			busy={isSubmitting}
+			{i18n}
+			onConfirm={handleDialogSubmit}
+		>
+			{#snippet children()}
+				<p class="submit-dialog-summary" data-testid="submit-dialog-summary">
+					<strong>{submitTranslations.answeredLine}</strong>
+				</p>
+				{#if submitTranslations.flaggedLine}
+					<p class="submit-dialog-line">{submitTranslations.flaggedLine}</p>
+				{/if}
+				{#if submitTranslations.unansweredHeading && submitSummary}
+					<p class="submit-dialog-line" id={`${uid}-unanswered-heading`}>{submitTranslations.unansweredHeading}</p>
+					<ul class="submit-dialog-items" aria-labelledby={`${uid}-unanswered-heading`}>
+						{#each submitSummary.unanswered as item (item.index)}
+							<li>
+								{#if item.jumpAllowed}
+									<button
+										type="button"
+										class="submit-dialog-jump"
+										data-testid={`submit-dialog-jump-${item.number}`}
+										disabled={isSubmitting}
+										onclick={() => void handleDialogJump(item.index)}
+									>
+										{i18n.t('assessment.review.goToItem', 'Go to question {number}', { number: item.number })}
+									</button>
+								{:else}
+									<span class="submit-dialog-static">
+										{i18n.t('assessment.question', 'Question {current} of {total}', {
+											current: item.number,
+											total: submitSummary?.total ?? 0,
+										})}
+									</span>
+								{/if}
+							</li>
+						{/each}
+					</ul>
+				{:else}
+					<p class="submit-dialog-line">{submitTranslations.allAnswered}</p>
+				{/if}
+			{/snippet}
+			{#snippet actions({ close })}
+				<button
+					type="button"
+					class="submit-dialog-action"
+					data-testid="submit-dialog-review"
+					aria-disabled={isSubmitting ? 'true' : undefined}
+					onclick={() => {
+						close('cancel');
+						void handleDialogReview();
+					}}
+				>
+					{submitTranslations.reviewAction}
+				</button>
+				<!-- svelte-ignore a11y_autofocus -->
+				<button
+					type="button"
+					class="submit-dialog-action"
+					data-testid="assessment-dialog-cancel"
+					autofocus
+					aria-disabled={isSubmitting ? 'true' : undefined}
+					onclick={() => close('cancel')}
+				>
+					{submitTranslations.cancel}
+				</button>
+				<button
+					type="button"
+					class="submit-dialog-action danger"
+					data-testid="assessment-dialog-confirm"
+					aria-disabled={isSubmitting ? 'true' : undefined}
+					onclick={() => close('confirm')}
+				>
+					{submitTranslations.confirm}
+				</button>
+			{/snippet}
+		</AssessmentDialog>
+
+		<!-- Leaving a test part is irreversible: confirm with a clear "cannot return" -->
+		<AssessmentDialog
+			bind:open={leavePartDialogOpen}
+			title={i18n.t('assessment.leavePart.title', 'Leave this part?')}
+			description={i18n.t('assessment.leavePart.description', 'After you continue, you cannot return to the questions in this part.')}
+			confirmLabel={i18n.t('assessment.leavePart.confirm', 'Continue')}
+			cancelLabel={i18n.t('assessment.leavePart.cancel', 'Stay on this part')}
+			dismissible={false}
+			{i18n}
+			onConfirm={handleLeavePartConfirm}
+		/>
 	</svelte:element>
 {/if}
 
@@ -860,6 +1204,109 @@
 		margin: 0;
 		padding-block: var(--pie-qti-space-2, 0.5rem);
 		padding-inline: var(--pie-qti-space-4, 1rem);
+	}
+
+	/* Submit-confirmation dialog body */
+	.submit-dialog-summary {
+		margin: 0 0 var(--pie-qti-space-2, 0.5rem);
+		font-size: 1.0625em;
+	}
+
+	.submit-dialog-line {
+		margin: 0 0 var(--pie-qti-space-2, 0.5rem);
+	}
+
+	.submit-dialog-items {
+		margin: 0 0 var(--pie-qti-space-2, 0.5rem);
+		padding: 0;
+		list-style: none;
+		display: flex;
+		flex-direction: column;
+		gap: var(--pie-qti-space-2, 0.5rem);
+		max-block-size: 12rem;
+		overflow-y: auto;
+	}
+
+	.submit-dialog-jump {
+		box-sizing: border-box;
+		display: inline-flex;
+		align-items: center;
+		min-inline-size: var(--pie-qti-control-min-size, 2.75rem);
+		min-block-size: var(--pie-qti-control-min-size, 2.75rem);
+		padding-block: var(--pie-qti-space-2, 0.5rem);
+		padding-inline: var(--pie-qti-space-4, 1rem);
+		border: 1px solid var(--pie-qti-border-strong, #767676);
+		border-radius: var(--pie-qti-radius, 0.5rem);
+		background: var(--pie-qti-base-100, oklch(100% 0 0));
+		color: var(--pie-qti-base-content, oklch(21% 0 0));
+		font: inherit;
+		font-weight: 600;
+		line-height: 1.25;
+		text-align: start;
+		cursor: pointer;
+	}
+
+	.submit-dialog-jump:hover:not(:disabled) {
+		background: var(--pie-qti-base-200, oklch(98% 0 0));
+	}
+
+	.submit-dialog-jump:focus-visible {
+		outline: 2px solid var(--pie-qti-focus, #4338ca);
+		outline-offset: 2px;
+	}
+
+	.submit-dialog-jump:disabled {
+		cursor: not-allowed;
+		opacity: 0.55;
+	}
+
+	.submit-dialog-static {
+		font-weight: 600;
+	}
+
+	/* The dialog's action buttons (the actions snippet keeps the shell's CSS scope). */
+	.submit-dialog-action {
+		box-sizing: border-box;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-inline-size: var(--pie-qti-control-min-size, 2.75rem);
+		min-block-size: var(--pie-qti-control-min-size, 2.75rem);
+		padding-block: var(--pie-qti-space-2, 0.5rem);
+		padding-inline: var(--pie-qti-space-4, 1rem);
+		border: 1px solid var(--pie-qti-border-strong, #767676);
+		border-radius: var(--pie-qti-radius, 0.5rem);
+		background: var(--pie-qti-base-100, oklch(100% 0 0));
+		color: var(--pie-qti-base-content, oklch(21% 0 0));
+		font: inherit;
+		font-weight: 600;
+		line-height: 1.25;
+		text-align: center;
+		cursor: pointer;
+	}
+
+	.submit-dialog-action:hover:not([aria-disabled='true']) {
+		background: var(--pie-qti-base-200, oklch(98% 0 0));
+	}
+
+	.submit-dialog-action.danger {
+		border-color: var(--pie-qti-error-text, #b91c1c);
+		background: var(--pie-qti-error-text, #b91c1c);
+		color: oklch(98% 0.01 277);
+	}
+
+	.submit-dialog-action.danger:hover:not([aria-disabled='true']) {
+		background: color-mix(in oklab, var(--pie-qti-error-text, #b91c1c) 85%, black);
+	}
+
+	.submit-dialog-action:focus-visible {
+		outline: 2px solid var(--pie-qti-focus, #4338ca);
+		outline-offset: 2px;
+	}
+
+	.submit-dialog-action[aria-disabled='true'] {
+		cursor: not-allowed;
+		opacity: 0.6;
 	}
 
 	.support-code {
