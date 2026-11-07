@@ -3,10 +3,10 @@
 <script lang="ts">
 	import type { AssociateInteractionData, HtmlContent } from '@pie-qti/item-player';
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
-	import { htmlToString } from '@pie-qti/item-player/security';
 	import { translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
+	import { accessibleTextFromHtml } from '../../shared/utils/accessibleText.js';
 	import { isCompatibleMatchGroup } from '../../shared/utils/matchGroupUtils';
 	import { pairIncludesId } from '../../shared/utils/pairHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
@@ -126,13 +126,14 @@
 		);
 	}
 
-	function toPlainText(html: HtmlContent): string {
-		return htmlToString(html).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-	}
-
+	/**
+	 * Readable choice name for labels and announcements. Image alt and MathML
+	 * alttext participate. Identifiers never prefix the name: they are
+	 * meaningless (and potentially answer-leaking) to candidates using a screen
+	 * reader, so they only serve as a last resort for content-less choices.
+	 */
 	function getChoiceLabel(choice: { identifier: string; text: HtmlContent }): string {
-		const text = toPlainText(choice.text);
-		return text ? `${choice.identifier}: ${text}` : choice.identifier;
+		return accessibleTextFromHtml(choice.text) || choice.identifier;
 	}
 
 	function getRemoveAssociationLabel(choice1: { identifier: string; text: HtmlContent }, choice2: { identifier: string; text: HtmlContent }): string {
@@ -145,6 +146,9 @@
 	const correctPairs = $derived(
 		isShowingCorrect && parsedCorrectResponse ? parsedCorrectResponse : []
 	);
+
+	// Unique id prefix so aria-labelledby/describedby survive several interactions in one document.
+	const uid = $props.id();
 </script>
 
 <ShadowBaseStyles />
@@ -167,20 +171,23 @@
 			{@const inPair = isInPair(choice.identifier)}
 			{@const isCorrect = isCorrectPair(choice.identifier)}
 			{@const isBlocked = blockedChoices.has(choice.identifier)}
+			{@const choiceTextId = `${uid}-choice-${choice.identifier}-text`}
+			{@const choiceStateId = `${uid}-choice-${choice.identifier}-state`}
 			<button
 				part="choice"
 				class="btn btn-outline {isSelected ? 'btn-accent' : inPair ? 'btn-primary' : isCorrect ? 'btn-success' : 'btn-neutral'}"
 				class:opacity-40={isBlocked}
 				class:cursor-not-allowed={isBlocked}
 				type="button"
-				aria-label={getChoiceLabel(choice)}
+				aria-labelledby={choiceTextId}
+				aria-describedby={`${helperId} ${choiceStateId}`}
 				aria-pressed={isSelected}
 				aria-disabled={isBlocked ? 'true' : undefined}
-				aria-describedby={helperId}
 				onclick={() => handleChoiceClick(choice.identifier)}
 				{disabled}
 			>
-				<span class="qti-associate-choice-text qti-rich-inline-content">
+				<!-- The name source: image alt and MathML participate in name computation here. -->
+				<span id={choiceTextId} class="qti-associate-choice-text qti-rich-inline-content">
 					{@html choice.text}
 				</span>
 				{#if isSelected}
@@ -188,6 +195,9 @@
 				{:else if inPair}
 					<span class="ms-2">✓</span>
 				{/if}
+				<span id={choiceStateId} class="sr-only">
+					{inPair && translate(i18n, 'interactions.associate.inPairSentence', 'In an association.')}
+				</span>
 			</button>
 		{/each}
 	</div>

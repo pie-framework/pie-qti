@@ -4,7 +4,8 @@
 	import type { OrderInteractionData } from '@pie-qti/item-player';
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { createConfirmationFlow } from '../../shared/utils/confirmationFlow.svelte';
-	import { createEliminationTool, eliminationActionLabel } from '../../shared/utils/eliminationTool.svelte';
+	import { createEliminationTool } from '../../shared/utils/eliminationTool.svelte';
+	import { accessibleTextFromHtml } from '../../shared/utils/accessibleText.js';
 	import { translate, type I18nProvider } from '@pie-qti/i18n';
 	import { typesetAction } from '../../shared/actions/typesetAction';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
@@ -96,8 +97,15 @@
 
 	// Elimination tool (QTI 3.0 PNP §6.2): scratch-work toggles; the response is untouched.
 	const elimination = createEliminationTool();
-	const eliminationLabel = (identifier: string): string =>
-		eliminationActionLabel(elimination.isEliminated(identifier), i18n);
+	// Each toggle is named for its item (image alt and MathML included), not just
+	// "Eliminate", so screen reader users know which choice a toggle acts on.
+	const eliminationLabel = (identifier: string): string => {
+		const choice = parsedInteraction?.choices.find((c) => c.identifier === identifier);
+		const item = accessibleTextFromHtml(choice?.text) || identifier;
+		return elimination.isEliminated(identifier)
+			? translate(i18n, 'interactions.order.restoreItem', 'Restore {item}', { item })
+			: translate(i18n, 'interactions.order.eliminateItem', 'Eliminate {item}', { item });
+	};
 </script>
 
 <ShadowBaseStyles />
@@ -113,7 +121,7 @@
 			</div>
 		{/if}
 
-		<div class="qti-order-sortable-wrapper" class:qti-order-with-elimination={eliminationTool}>
+		<div class="qti-order-sortable-wrapper">
 			<SortableList
 				items={parsedInteraction.choices.map(c => ({ id: c.identifier, text: c.text }))}
 				{orderedIds}
@@ -124,21 +132,21 @@
 				{indexSuffix}
 				{disabled}
 				onReorder={handleReorder}
-			/>
-			{#if eliminationTool}
-				<div class="qti-order-elimination-col">
-					{#each orderedIds as id (id)}
+			>
+				{#snippet rowTrailing(item)}
+					{#if eliminationTool}
+						<!-- Lives in its item's row, so the toggle aligns with the item at any row height. -->
 						<button
 							type="button"
 							class="qti-eliminate-btn"
-							aria-label={eliminationLabel(id)}
-							aria-pressed={elimination.isEliminated(id)}
-							onclick={() => elimination.toggle(id)}
-							data-eliminated={elimination.isEliminated(id) ? '' : undefined}
+							aria-label={eliminationLabel(item.id)}
+							aria-pressed={elimination.isEliminated(item.id)}
+							onclick={() => elimination.toggle(item.id)}
+							data-eliminated={elimination.isEliminated(item.id) ? '' : undefined}
 						>✕</button>
-					{/each}
-				</div>
-			{/if}
+					{/if}
+				{/snippet}
+			</SortableList>
 		</div>
 
 		<!-- Confirmation button for WCAG 2.2 SC 3.3.4 compliance -->
@@ -193,33 +201,26 @@
 		position: relative;
 	}
 
-	.qti-order-with-elimination {
-		display: grid;
-		grid-template-columns: 1fr auto;
-		gap: 0.25rem;
-		align-items: start;
-	}
-
-	.qti-order-elimination-col {
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-	}
-
+	/* K-12 target size: each toggle is a primary control in its item's row. */
 	.qti-eliminate-btn {
 		background: none;
 		border: 1px solid currentColor;
 		border-radius: 50%;
-		width: 1.75rem;
-		height: 1.75rem;
-		font-size: 0.75rem;
+		width: 2.75rem;
+		height: 2.75rem;
+		font-size: 0.875rem;
 		cursor: pointer;
 		opacity: 0.4;
 		padding: 0;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		flex-shrink: 0;
+		flex: 0 0 auto;
+	}
+
+	.qti-eliminate-btn:focus-visible {
+		outline: 2px solid var(--pie-qti-focus, #4338ca);
+		outline-offset: 2px;
 	}
 
 	.qti-eliminate-btn:hover,
