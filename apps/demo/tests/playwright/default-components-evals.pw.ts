@@ -185,10 +185,20 @@ async function runStep(page: Page, file: EvalFile, step: EvalStep): Promise<{ su
 					extractIdentifierHint(step.target.hint) ??
 					extractIdentifierHint(step.target.description);
 				if (id) {
-					// Click the real SVG shape (its accessible name carries the hotspot
-					// identifier, authored label, or both) so SVG hit-testing and the
-					// shadow-DOM event path are exercised, not bypassed.
-					await host.getByRole('button', { name: id }).first().click();
+					// Click the real SVG shape so SVG hit-testing and the shadow-DOM event
+					// path are exercised, not bypassed. A region's accessible name is its
+					// authored hotspotLabel, else its position ("Region 2 of 4") — never its
+					// identifier, which could reveal the answer — so resolve the identifier
+					// to that name from the interaction data.
+					const choices: Array<{ identifier: string; hotspotLabel?: string }> = await host.evaluate((el: any) => {
+						const raw = el.interaction ?? el.getAttribute('interaction');
+						const interaction = typeof raw === 'string' ? JSON.parse(raw) : raw;
+						return interaction?.hotspotChoices ?? [];
+					});
+					const index = choices.findIndex((choice) => choice.identifier === id);
+					if (index < 0) throw new Error(`Unknown hotspot ${id}`);
+					const name = choices[index].hotspotLabel?.trim() || `Region ${index + 1} of ${choices.length}`;
+					await host.getByRole('button', { name, exact: true }).first().click();
 					return {};
 				}
 			}
