@@ -299,6 +299,7 @@ export default {
 			filledGapAriaLabel: 'Spațiu liber {position} din {total}, completat cu {word}. Selectează pentru a șterge.',
 			wordSelected: '{word} a fost apucat. Selectează un spațiu liber pentru a-l plasa, sau apasă Escape pentru a anula.',
 			pickUpCancelled: 'Preluarea lui {word} a fost anulată.',
+			notCompatibleSentence: 'Incompatibil cu cuvântul selectat.',
 		},
 
 		graphicGapMatch: {
@@ -382,6 +383,7 @@ export default {
 			clickAnotherHotspot: 'Selectat: <strong>{label}</strong>. Clic pe un alt hotspot pentru a crea o asociere.',
 			removeAssociationBetween: 'Elimină asocierea dintre {first} și {second}',
 			inPairSentence: 'Face parte din o asociere.',
+			removedAssociationBetween: 'Asocierea dintre {first} și {second} a fost eliminată.',
 		},
 
 		positionObject: {

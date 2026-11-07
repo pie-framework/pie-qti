@@ -310,6 +310,7 @@ export default {
 			filledGapAriaLabel: '第 {position} 处空白（共 {total} 处），已填入 {word}。选择以清除。',
 			wordSelected: '已拿起 {word}。选择一处空白以放置，或按 Esc 键取消。',
 			pickUpCancelled: '已取消拿起 {word}。',
+			notCompatibleSentence: '与所选词语不兼容。',
 		},
 
 		graphicGapMatch: {
@@ -393,6 +394,7 @@ export default {
 			clickAnotherHotspot: '已选择:<strong>{label}</strong>。点击另一个热点以创建关联。',
 			removeAssociationBetween: '移除 {first} 与 {second} 之间的关联',
 			inPairSentence: '已在一个关联中。',
+			removedAssociationBetween: '已移除 {first} 与 {second} 之间的关联。',
 		},
 
 		positionObject: {

@@ -299,6 +299,7 @@ export default {
 			filledGapAriaLabel: 'Blanc {position} sur {total}, rempli avec {word}. Sélectionnez pour effacer.',
 			wordSelected: '{word} saisi. Sélectionnez un blanc pour le placer, ou appuyez sur Échap pour annuler.',
 			pickUpCancelled: 'La saisie de {word} a été annulée.',
+			notCompatibleSentence: 'Incompatible avec le mot sélectionné.',
 		},
 
 		graphicGapMatch: {
@@ -382,6 +383,7 @@ export default {
 			clickAnotherHotspot: 'Sélectionné : <strong>{label}</strong>. Cliquez sur une autre zone sensible pour créer une association.',
 			removeAssociationBetween: 'Supprimer l\'association entre {first} et {second}',
 			inPairSentence: 'Fait partie d\'une association.',
+			removedAssociationBetween: 'Association entre {first} et {second} supprimée.',
 		},
 
 		positionObject: {

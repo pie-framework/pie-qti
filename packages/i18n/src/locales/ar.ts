@@ -350,6 +350,7 @@ export default {
 			filledGapAriaLabel: 'الفراغ {position} من {total}، تم ملؤه بـ {word}. اختر للمسح.',
 			wordSelected: 'تم التقاط {word}. اختر فراغًا لوضعه، أو اضغط على Escape للإلغاء.',
 			pickUpCancelled: 'تم إلغاء التقاط {word}.',
+			notCompatibleSentence: 'غير متوافق مع الكلمة المحددة.',
 		},
 
 		graphicGapMatch: {
@@ -433,6 +434,7 @@ export default {
 			clickAnotherHotspot: 'محدد: <strong>{label}</strong>. انقر على نقطة ساخنة أخرى لإنشاء ارتباط.',
 			removeAssociationBetween: 'إزالة الارتباط بين {first} و{second}',
 			inPairSentence: 'ضمن ارتباط قائم.',
+			removedAssociationBetween: 'تمت إزالة الارتباط بين {first} و{second}.',
 		},
 
 		positionObject: {

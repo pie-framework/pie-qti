@@ -160,4 +160,116 @@ describe('GraphicGapMatchInteraction (pie-qti-graphic-gap-match)', () => {
 			expect(description?.textContent).toBe('Clouds form above the lake, then rain falls.');
 		}
 	});
+
+	describe('matchGroup (the rule response validation applies)', () => {
+		// QTI: a label's matchGroup lists the hotspots it may be matched with, a hotspot's the labels.
+		function groupedData(): GraphicGapMatchInteractionData {
+			return ggmData({
+				gapTexts: [
+					{ identifier: 'RAIN', text: 'Rain', matchMax: 1, matchGroup: ['LAKE'] },
+					{ identifier: 'SUN', text: 'Sun', matchMax: 1, matchGroup: ['SKY', 'LAKE'] },
+				],
+				gapImages: [],
+				hotspots: [
+					{ identifier: 'SKY', shape: 'circle', coords: '300,50,8', matchMax: 1, matchGroup: ['SUN'] },
+					{ identifier: 'LAKE', shape: 'rect', coords: '20,120,220,190', matchMax: 1, matchGroup: ['RAIN'] },
+				],
+			});
+		}
+
+		function label(mounted: { host: HTMLElement }, text: string): HTMLButtonElement {
+			return qa<HTMLButtonElement>(mounted, '[part="labels"] button').find((b) => b.textContent?.trim() === text)!;
+		}
+
+		test('a held label marks the hotspots that refuse it, and they refuse the placement', async () => {
+			const mounted = mountInteraction(GraphicGapMatchInteraction, { interaction: groupedData() });
+			await settle();
+
+			pressKey(label(mounted, 'Rain'), 'Enter');
+			await settle();
+			const [sky, lake] = hotspotTargets(mounted);
+			expect(sky!.getAttribute('aria-disabled')).toBe('true');
+			expect(sky!.getAttribute('aria-label')).toBe('Hotspot 1. Empty. Not available due to a match group restriction.');
+			expect(lake!.getAttribute('aria-disabled')).toBeNull();
+			expect(lake!.getAttribute('aria-label')).toContain('Press Enter to place Rain here.');
+
+			// Refused: nothing is placed and Rain stays held.
+			pressKey(sky!, 'Enter');
+			await settle();
+			expect(mounted.events).toHaveLength(0);
+			expect(label(mounted, 'Rain').getAttribute('aria-pressed')).toBe('true');
+			expect(q(mounted, '[aria-live="polite"]')?.textContent?.trim()).toBe('Not available due to a match group restriction.');
+
+			pressKey(hotspotTargets(mounted)[1]!, 'Enter');
+			await settle();
+			expect(mounted.instance.response).toEqual(['RAIN LAKE']);
+		});
+
+		test('the hotspot side constrains too: a hotspot accepts only the labels its matchGroup names', async () => {
+			// Sun names both hotspots, but the lake names only Rain. The renderer used to ignore a
+			// hotspot's matchGroup entirely.
+			const mounted = mountInteraction(GraphicGapMatchInteraction, { interaction: groupedData() });
+			await settle();
+
+			pressKey(label(mounted, 'Sun'), 'Enter');
+			await settle();
+			const [sky, lake] = hotspotTargets(mounted);
+			expect(sky!.getAttribute('aria-disabled')).toBeNull();
+			expect(lake!.getAttribute('aria-disabled')).toBe('true');
+		});
+
+		test('a pointer drop onto a hotspot that refuses the label is ignored', async () => {
+			const mounted = mountInteraction(GraphicGapMatchInteraction, { interaction: groupedData() });
+			await settle();
+
+			label(mounted, 'Rain').dispatchEvent(new Event('dragstart', { bubbles: true }));
+			await settle();
+			hotspotTargets(mounted)[0]!.dispatchEvent(new Event('drop', { bubbles: true, cancelable: true }));
+			await settle();
+
+			expect(mounted.events).toHaveLength(0);
+		});
+
+		test('a dragged label is judged on its own, not on a label still held from the keyboard', async () => {
+			// Rain is held (the sky refuses it); Sun is then dragged, and the sky accepts Sun.
+			const mounted = mountInteraction(GraphicGapMatchInteraction, { interaction: groupedData() });
+			await settle();
+
+			pressKey(label(mounted, 'Rain'), 'Enter');
+			await settle();
+			label(mounted, 'Sun').dispatchEvent(new Event('dragstart', { bubbles: true }));
+			await settle();
+
+			const [sky, lake] = hotspotTargets(mounted);
+			const overSky = new Event('dragover', { bubbles: true, cancelable: true });
+			sky!.dispatchEvent(overSky);
+			expect(overSky.defaultPrevented).toBe(true);
+			const overLake = new Event('dragover', { bubbles: true, cancelable: true });
+			lake!.dispatchEvent(overLake);
+			expect(overLake.defaultPrevented).toBe(false);
+
+			sky!.dispatchEvent(new Event('drop', { bubbles: true, cancelable: true }));
+			await settle();
+			expect(mounted.instance.response).toEqual(['SUN SKY']);
+		});
+
+		test('labels sharing a token stay available after one is placed', async () => {
+			// Rain and Sun share "LAKE"; the former renderer made Sun unavailable once Rain was placed,
+			// though response validation accepts Sun on the sky.
+			const mounted = mountInteraction(GraphicGapMatchInteraction, {
+				interaction: groupedData(),
+				response: ['RAIN LAKE'],
+			});
+			await settle();
+
+			const sun = label(mounted, 'Sun');
+			expect(sun.hasAttribute('aria-disabled')).toBe(false);
+			expect(sun.getAttribute('aria-label')).not.toContain('match group');
+			pressKey(sun, 'Enter');
+			await settle();
+			pressKey(hotspotTargets(mounted)[0]!, 'Enter');
+			await settle();
+			expect(mounted.instance.response).toEqual(['RAIN LAKE', 'SUN SKY']);
+		});
+	});
 });

@@ -3,6 +3,8 @@
  */
 
 import { describe, expect, test } from 'bun:test';
+import { Player } from '../../../src/core/Player.js';
+import type { GapMatchInteractionData } from '../../../src/interactions/shared/types.js';
 import { standardGapMatchExtractor } from '../../../src/interactions/gap-match/extractor.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
@@ -368,6 +370,72 @@ describe('standardGapMatchExtractor', () => {
 			const result = standardGapMatchExtractor.extract(element, context);
 
 			expect(result.gapTexts[0].matchGroup).toBeUndefined();
+		});
+
+		test('reads each gap matchGroup (the choices it accepts) inside the prompt', () => {
+			const xml = `
+				<gapMatchInteraction responseIdentifier="RESPONSE" shuffle="false">
+					<prompt>First <gap identifier="G1" matchGroup="T1 T2" /> then <gap identifier="G2" />.</prompt>
+					<gapText identifier="T1" matchMax="1">one</gapText>
+				</gapMatchInteraction>
+			`;
+			const element = parseQTI(xml);
+
+			const result = standardGapMatchExtractor.extract(element, createTestContext(element, 'RESPONSE'));
+
+			expect(result.gaps).toEqual(['G1', 'G2']);
+			expect(result.gapMatchGroups).toEqual({ G1: ['T1', 'T2'] });
+		});
+
+		test('reads each gap matchGroup when the gaps sit in body content beside the prompt', () => {
+			const xml = `
+				<gapMatchInteraction responseIdentifier="RESPONSE" shuffle="false">
+					<prompt>Fill the gaps.</prompt>
+					<gapText identifier="T1" matchMax="1">one</gapText>
+					<p>First <gap identifier="G1" /> then <gap matchGroup="T1" identifier="G2" />.</p>
+				</gapMatchInteraction>
+			`;
+			const element = parseQTI(xml);
+
+			const result = standardGapMatchExtractor.extract(element, createTestContext(element, 'RESPONSE'));
+
+			expect(result.gaps).toEqual(['G1', 'G2']);
+			expect(result.gapMatchGroups).toEqual({ G2: ['T1'] });
+		});
+
+		test('omits gapMatchGroups when no gap authors one', () => {
+			const xml = `
+				<gapMatchInteraction responseIdentifier="RESPONSE" shuffle="false">
+					<prompt>Fill: <gap identifier="G1" /></prompt>
+					<gapText identifier="T1" matchMax="1" matchGroup="G1">Item</gapText>
+				</gapMatchInteraction>
+			`;
+			const element = parseQTI(xml);
+
+			const result = standardGapMatchExtractor.extract(element, createTestContext(element, 'RESPONSE'));
+
+			expect(result).not.toHaveProperty('gapMatchGroups');
+		});
+	});
+
+	describe('delivered interaction data', () => {
+		test('gaps are delivered as the identifier strings of GapMatchInteractionData, with QTI 3.0 match-group', () => {
+			const itemXml = `<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="gm3">
+				<qti-response-declaration identifier="RESPONSE" cardinality="multiple" base-type="directedPair"/>
+				<qti-item-body>
+					<qti-gap-match-interaction response-identifier="RESPONSE">
+						<qti-gap-text identifier="W1" match-max="1" match-group="G1">one</qti-gap-text>
+						<qti-gap-text identifier="W2" match-max="1">two</qti-gap-text>
+						<p>First <qti-gap identifier="G1"/> then <qti-gap identifier="G2" match-group="W2"/>.</p>
+					</qti-gap-match-interaction>
+				</qti-item-body>
+			</qti-assessment-item>`;
+
+			const [interaction] = new Player({ itemXml }).getInteractionData() as GapMatchInteractionData[];
+
+			expect(interaction?.gaps).toEqual(['G1', 'G2']);
+			expect(interaction?.gapMatchGroups).toEqual({ G2: ['W2'] });
+			expect(interaction?.gapTexts.find((gapText) => gapText.identifier === 'W1')?.matchGroup).toEqual(['G1']);
 		});
 	});
 

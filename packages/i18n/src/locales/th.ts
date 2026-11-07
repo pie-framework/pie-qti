@@ -298,6 +298,7 @@ export default {
 			filledGapAriaLabel: 'ช่องว่างที่ {position} จาก {total} เติมด้วย {word} แล้ว เลือกเพื่อล้าง',
 			wordSelected: 'หยิบ {word} แล้ว เลือกช่องว่างเพื่อวาง หรือกด Escape เพื่อยกเลิก',
 			pickUpCancelled: 'ยกเลิกการหยิบ {word} แล้ว',
+			notCompatibleSentence: 'ไม่เข้ากันกับคำที่เลือก',
 		},
 
 		graphicGapMatch: {
@@ -381,6 +382,7 @@ export default {
 			clickAnotherHotspot: 'เลือกแล้ว: <strong>{label}</strong> คลิกฮอตสปอตอื่นเพื่อสร้างความสัมพันธ์',
 			removeAssociationBetween: 'ลบความสัมพันธ์ระหว่าง {first} และ {second}',
 			inPairSentence: 'อยู่ในความสัมพันธ์แล้ว',
+			removedAssociationBetween: 'ลบความสัมพันธ์ระหว่าง {first} และ {second} แล้ว',
 		},
 
 		positionObject: {

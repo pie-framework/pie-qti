@@ -1,14 +1,31 @@
+import { isMatchGroupCompatible } from '@pie-qti/item-player';
+
 /**
- * Returns true if a source and target choice are compatible for pairing.
- *
- * Per QTI spec, an empty/absent matchGroup is unrestricted (pairs with anything).
- * Two non-empty matchGroups are compatible only if they share at least one value.
+ * A choice, gap or hotspot that takes part in pairings, with its authored `matchGroup`.
+ * The renderer data omits the attribute when the author wrote none.
  */
-export function isCompatibleMatchGroup(
-	sourceGroups: string[] | undefined,
-	targetGroups: string[] | undefined
-): boolean {
-	if (!sourceGroups || sourceGroups.length === 0) return true;
-	if (!targetGroups || targetGroups.length === 0) return true;
-	return sourceGroups.some((g) => targetGroups.includes(g));
+export interface MatchGroupBearer {
+	identifier: string;
+	matchGroup?: string[];
+}
+
+/**
+ * Whether the delivered UI may pair `a` with `b`: exactly the rule response validation applies
+ * (`isMatchGroupCompatible` from `@pie-qti/item-player`), so the UI never allows a pair that
+ * validation rejects nor blocks one it accepts.
+ *
+ * QTI defines `matchGroup` as "a list of the identifiers for the objects that can be matched
+ * with this" choice, gap text, gap image, gap or hotspot: QTI 2.2.4 ASI Information Model
+ * (Final Release, 2021) Tables 5.98.5, 5.39.4, 5.37.4, 5.36.4 and 5.5.4; QTI 3.0 ASI
+ * Information Model (Final Release 1.0, 2022) Tables 5.131.5, 5.58.4, 5.56.4, 5.55.4 and 5.7.4.
+ * Content also uses the tokens as shared group labels, and the shared rule accepts a pair when
+ * either reading allows it. A side the interaction does not have is left to other validation,
+ * as response validation does.
+ */
+export function isCompatibleMatchGroup(a: MatchGroupBearer | null | undefined, b: MatchGroupBearer | null | undefined): boolean {
+	if (!a || !b) return true;
+	return isMatchGroupCompatible(
+		{ identifier: a.identifier, matchGroup: a.matchGroup ?? [] },
+		{ identifier: b.identifier, matchGroup: b.matchGroup ?? [] },
+	);
 }

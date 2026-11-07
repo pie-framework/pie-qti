@@ -47,6 +47,9 @@ export type {
 /** The attribute on the empty slot that marks an interaction's authored position in the body. */
 export { INTERACTION_SLOT_ATTRIBUTE } from './presentation/itemPresentationPlan.js';
 export { getRoleCapabilities, type RoleCapabilities } from './core/rolePolicy.js';
+// The pure matchGroup pairing rule shared by response validation and the renderers,
+// so the delivered UI can never allow a pair validation rejects nor block one it accepts.
+export { isMatchGroupCompatible, type MatchGroupChoice } from './core/matchGroups.js';
 // Render-facing interaction contracts. Standard extractors remain implementation details.
 export type * from './interactions/shared/types.js';
 export {

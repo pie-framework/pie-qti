@@ -94,10 +94,11 @@ reports each pair of a restored or programmatic response that `matchGroup` forbi
 included (`packages/item-player/src/core/matchGroups.ts`). The specification defines `matchGroup`
 as the identifiers a choice may be matched with, while the example above and the default
 components read the tokens as group labels; validation refuses a pair only when neither reading
-allows it (see `docs/QTI_techguide.md` §7.4). Open: the default components still apply only the
-label reading (blocking pairs the specification allows), ignore `matchGroup` on gaps and hotspots
-(not extracted), and treat it in gap match as mutual exclusion among choices; they should reuse
-`isMatchGroupCompatible`.
+allows it (see `docs/QTI_techguide.md` §7.4). Done (2026-11-07): the default components now reuse
+`isMatchGroupCompatible` for every pairing — associate and match choices, gap-match gaps
+(`matchGroup` delivered per gap), graphic-gap-match hotspots and graphic-associate hotspots — so
+the delivered UI offers exactly the pairs validation accepts, and a held or dragged label no
+longer makes unrelated labels unavailable.
 
 Action
 1. Add `matchGroup?: string[]` to the choice type in each affected extractor's data interface.

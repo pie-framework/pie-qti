@@ -3,6 +3,8 @@
  */
 
 import { describe, expect, test } from 'bun:test';
+import { Player } from '../../../src/core/Player.js';
+import type { GraphicGapMatchInteractionData } from '../../../src/interactions/shared/types.js';
 import { standardGraphicGapMatchExtractor } from '../../../src/interactions/graphic-gap-match/extractor.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
@@ -281,6 +283,43 @@ describe('standardGraphicGapMatchExtractor', () => {
 			const result = standardGraphicGapMatchExtractor.extract(element, context);
 
 			expect(result.gapTexts[0].matchGroup).toBeUndefined();
+		});
+
+		test('extracts each associableHotspot matchGroup (the labels it accepts), omitted when absent', () => {
+			const xml = `
+				<graphicGapMatchInteraction responseIdentifier="RESPONSE">
+					<object type="image/png" data="diagram.png" />
+					<gapText identifier="T1" matchMax="1">Item</gapText>
+					<associableHotspot identifier="H1" shape="rect" coords="0,0,100,100" matchMax="1" matchGroup="T1 T2" />
+					<associableHotspot identifier="H2" shape="rect" coords="0,0,50,50" matchMax="1" />
+				</graphicGapMatchInteraction>
+			`;
+			const element = parseQTI(xml);
+			const context = createTestContext(element, 'RESPONSE');
+
+			const result = standardGraphicGapMatchExtractor.extract(element, context);
+
+			expect(result.hotspots[0]?.matchGroup).toEqual(['T1', 'T2']);
+			expect(result.hotspots[1]).not.toHaveProperty('matchGroup');
+		});
+
+		test('delivers QTI 3.0 match-group on qti-associable-hotspot', () => {
+			const itemXml = `<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="ggm3">
+				<qti-response-declaration identifier="RESPONSE" cardinality="multiple" base-type="directedPair"/>
+				<qti-item-body>
+					<qti-graphic-gap-match-interaction response-identifier="RESPONSE">
+						<object type="image/png" data="map.png" width="100" height="100"></object>
+						<qti-gap-text identifier="FLAG" match-max="1" match-group="CITY">Flag</qti-gap-text>
+						<qti-associable-hotspot identifier="CITY" shape="circle" coords="10,10,5" match-max="1"/>
+						<qti-associable-hotspot identifier="SEA" shape="circle" coords="50,50,5" match-max="1" match-group="BOAT"/>
+					</qti-graphic-gap-match-interaction>
+				</qti-item-body>
+			</qti-assessment-item>`;
+
+			const [interaction] = new Player({ itemXml }).getInteractionData() as GraphicGapMatchInteractionData[];
+
+			expect(interaction?.hotspots.map((hotspot) => hotspot.matchGroup)).toEqual([undefined, ['BOAT']]);
+			expect(interaction?.gapTexts[0]?.matchGroup).toEqual(['CITY']);
 		});
 	});
 

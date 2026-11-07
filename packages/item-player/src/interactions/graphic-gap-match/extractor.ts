@@ -51,7 +51,7 @@ export interface GraphicGapMatchData {
 		width?: number;
 		height?: number;
 	}>;
-	hotspots: Array<{ identifier: string; shape: string; coords: string; matchMax: number }>;
+	hotspots: Array<{ identifier: string; shape: string; coords: string; matchMax: number; matchGroup?: string[] }>;
 	prompt: string | null;
 }
 
@@ -202,12 +202,20 @@ export const standardGraphicGapMatchExtractor: ElementExtractor<GraphicGapMatchD
 
 		// Extract associableHotspot elements (gap targets)
 		const hotspotElements = utils.getChildrenByTag(element, 'associableHotspot');
-		const hotspots = hotspotElements.map((hotspot) => ({
-			identifier: utils.getAttribute(hotspot, 'identifier', ''),
-			shape: utils.getAttribute(hotspot, 'shape', 'rect'),
-			coords: utils.getAttribute(hotspot, 'coords', ''),
-			matchMax: utils.getNumberAttribute(hotspot, 'matchMax', 1),
-		}));
+		const hotspots = hotspotElements.map((hotspot) => {
+			const matchGroup = utils
+				.getAttribute(hotspot, 'matchGroup', '')
+				.split(/\s+/)
+				.filter(Boolean);
+			return {
+				identifier: utils.getAttribute(hotspot, 'identifier', ''),
+				shape: utils.getAttribute(hotspot, 'shape', 'rect'),
+				coords: utils.getAttribute(hotspot, 'coords', ''),
+				matchMax: utils.getNumberAttribute(hotspot, 'matchMax', 1),
+				// Authored matchGroup: the identifiers of the labels that may be matched with this hotspot.
+				...(matchGroup.length > 0 ? { matchGroup } : {}),
+			};
+		});
 
 		// Extract prompt (optional)
 		const promptElements = utils.getChildrenByTag(element, 'prompt');

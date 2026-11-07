@@ -5,13 +5,13 @@
   Type: interaction
   Packages: @pie-qti/default-components, @pie-qti/item-player
   QTI type: gapMatchInteraction
-  Last reviewed: 2026-04-28
+  Last reviewed: 2026-11-07
 -->
 
 **Status:** draft  
 **Type:** interaction  
 **Packages:** `@pie-qti/default-components` (component), `@pie-qti/item-player` (extractor, type)  
-**Last reviewed:** 2026-04-28
+**Last reviewed:** 2026-11-07
 
 ---
 
@@ -37,7 +37,7 @@ This is distinct from `matchInteraction` (a grid of row-column pairings) and `as
 
 **Why gaps are `<button>` elements and not `<input>` or `<select>`**: Gaps receive drop events (drag-and-drop) and click events (click-to-clear). A native `<select>` dropdown would be more accessible in some respects but would not support drop events without additional scripting, and its visual appearance inside prose text is harder to control cross-browser. A `<button>` can receive both pointer and keyboard events, can be styled to match the surrounding text flow, and allows precise ARIA labelling. The keyboard interaction model (Tab to reach, Enter/Space to clear, focus-visible ring) follows the button pattern from the ARIA Authoring Practices Guide.
 
-**Why gapImg is out of scope for this interaction**: The QTI spec defines both `<gapText>` (text labels) and `<gapImg>` (image labels) as valid gap choices for `gapMatchInteraction`. Image-based gap matching — where the candidate drags a thumbnail image into a gap — is implemented separately in `graphicGapMatchInteraction`, which uses `<gapImg>` and `<associableHotspot>` on a background image. The `gapMatchExtractor` only handles `<gapText>` children; `<gapImg>` within a text-based `gapMatchInteraction` is not extracted and will be silently ignored. This is a known limitation. The `graphicGapMatchInteraction` PRD covers image-based gap matching.
+**Why gapImg shares the palette with gapText**: The QTI spec defines both `<gapText>` (text labels) and `<gapImg>` (image labels) as valid gap choices for `gapMatchInteraction`. The extractor delivers `<gapImg>` choices as `gapImages`, and the component renders them as image tiles named by their alt text in the same palette, with the same placement rules as words. Image labels placed on a background image instead of into prose are `graphicGapMatchInteraction` (see its PRD).
 
 ---
 
@@ -50,7 +50,7 @@ This is distinct from `matchInteraction` (a grid of row-column pairings) and `as
 
 | Attribute | Support | Behaviour |
 |-----------|---------|-----------|
-| medallion`responseIdentifier` | ✅ Full | Extracted as `responseId`; used in `qti-change` event payload |
+| `responseIdentifier` | ✅ Full | Extracted as `responseId`; used in `qti-change` event payload |
 | `shuffle` | ✅ Full | Shuffles the `gapTexts` palette order at extraction time, seeded from the item session GUID; stable for the whole session, including across re-renders and reloads |
 
 ### Supported attributes on `gapText`
@@ -59,8 +59,8 @@ This is distinct from `matchInteraction` (a grid of row-column pairings) and `as
 |-----------|---------|-----------|
 | `identifier` | ✅ Full | Required; deduplicated; forms the first element of each `directedPair` response value |
 | `matchMax` | ✅ Full | Extracted as `number`; default `1`; `0` = unlimited; `>0` = ceiling; enforced at interaction time (move vs. multi-use) |
-| `matchMin` | ✅ Extracted, not enforced | Extracted and present in `GapMatchData`; included in `GapMatchInteractionData` only when `> 0`; **not validated at submission time** (see G-06) |
-| `matchGroup` | ❌ Not extracted | Spec: restricts which gaps can accept this label. Not in `GapMatchData` or `GapMatchInteractionData`. See G-01. |
+| `matchMin` | ✅ Full (G-06) | Delivered when `> 0`; `Player.validateResponses()` reports the response incomplete while the label is used fewer times |
+| `matchGroup` | ✅ Full (G-01) | Delivered as `gapTexts[]`/`gapImages[].matchGroup`: the gaps this label may fill. Applied with the gap's own `matchGroup` by the shared rule (see Resolved gaps) |
 | class (CSS classes) | ✅ Partial | Extracted as `classes?: string[]`; not used to filter targets in the default component |
 
 ### Supported attributes on `gap`
@@ -68,6 +68,7 @@ This is distinct from `matchInteraction` (a grid of row-column pairings) and `as
 | Attribute | Support | Behaviour |
 |-----------|---------|-----------|
 | `identifier` | ✅ Full | Required; deduplicated; forms the second element of each `directedPair` response value |
+| `matchGroup` | ✅ Full (G-01) | Delivered as `gapMatchGroups[gapId]`: the labels this gap accepts. Read wherever the gap sits (prompt or body content), as `matchGroup` (QTI 2.x) or `match-group` (QTI 3.0) |
 | `required` | ❌ Not extracted | Spec: when `true`, the gap must be filled for a valid response. Not extracted. Treated as optional by the component. |
 
 ### Response variable contract
@@ -86,10 +87,13 @@ This is distinct from `matchInteraction` (a grid of row-column pairings) and `as
 
 ### Known gaps
 
-- **G-01 (`matchGroup` not extracted):** The `matchGroup` attribute on `gapText` restricts which gaps can accept that label. Without it, all labels appear as valid drop targets for all gaps, which may allow nonsensical pairings in items with a large heterogeneous label pool. Tracked in `docs/SPEC-GAPS-PLAN.md` §G-01.
-- **G-06 (`matchMin` not validated at submission):** `matchMin > 0` means the label must appear in the response at least that many times for the response to be considered complete. Extracted and stored, but `Player.validateResponse()` does not check this constraint. A candidate who does not use a required label can still submit. Tracked in `docs/SPEC-GAPS-PLAN.md` §G-06.
 - **`gap required` not extracted:** The `required` attribute on individual `<gap>` elements (spec: the gap must be filled) is not extracted or enforced. All gaps are treated as optional at submission time.
-- **`gapImg` not supported:** Text-based `gapMatchInteraction` items that use `<gapImg>` source labels instead of (or in addition to) `<gapText>` will have the image labels silently ignored by the extractor. Use `graphicGapMatchInteraction` for image-based gap choices.
+
+### Resolved gaps
+
+- **G-01 (`matchGroup`, Done):** QTI 2.2 and 3.0 define `matchGroup` on `gapText`, `gapImg` and `gap` as "a list of the identifiers for the objects that can be matched with" it (QTI 2.2.4 ASI Information Model, Tables 5.39.4, 5.37.4, 5.36.4; QTI 3.0, Tables 5.58.4, 5.56.4, 5.55.4). The component decides every placement with `isMatchGroupCompatible` from `@pie-qti/item-player`, the rule `Player.validateResponses()` applies: while a label is held or dragged, the gaps that refuse it are `aria-disabled`, say so in their name, do not accept a drag, and refuse the placement (a held label stays held and the refusal is announced). The rule accepts a pairing when either reading allows it: the specification's (the label and the gap name each other) or the shared-group-label reading some content uses (shared token; a side without `matchGroup` is unrestricted). `matchGroup` no longer makes other labels unavailable once one is placed: it constrains label–gap pairs only.
+- **G-06 (`matchMin`, Done):** `Player.validateResponses()` counts each label's appearances and reports the response incomplete while any label is below its `matchMin`.
+- **`gapImg`:** extracted as `gapImages` and rendered in the palette (see Background).
 
 ---
 
@@ -117,8 +121,8 @@ This is distinct from `matchInteraction` (a grid of row-column pairings) and `as
 
 WCAG 2.2 Level AA is mandatory.
 
-- **Keyboard alternative to drag-and-drop (WCAG 2.1 SC 2.1.1):** The interaction must be fully operable without a mouse. The current click-to-clear mechanism removes a placed label. A keyboard user must also be able to _place_ a label. The existing implementation uses `<button>` elements for both labels and gaps, but lacks a keyboard flow to select a label from the palette and then assign it to a gap (select-then-place). This is a known accessibility gap that must be closed: one accepted pattern is to Tab to a palette label, press Enter/Space to "pick it up", then Tab to the target gap and press Enter/Space to "place" it.
-- **Accessible names for gaps (WCAG 1.3.1):** Each gap button must have a meaningful `aria-label`. The current implementation provides: empty gaps → `"Blank [gapId]. Drop an answer here."` (with correct-answer hint when in scorer mode); filled gaps → `"Blank [gapId], filled with [word]. Click to clear."`. These must be translated via the `i18n` provider when available.
+- **Keyboard alternative to drag-and-drop (WCAG 2.1 SC 2.1.1):** Implemented as a pick-up flow (K-02): Tab to a palette label and press Enter/Space to pick it up, Tab to a gap and press Enter/Space to place it; Escape cancels and returns focus to the label. Each step is announced in a polite live region. The same select-then-place flow serves single-pointer and touch users.
+- **Accessible names for gaps (WCAG 1.3.1):** Each gap button has a translated `aria-label` with its reading-order position, never the gap identifier (which can leak the answer): empty gaps → "Blank 2 of 4. Drop an answer here." (or "Select to place {word} here." while a label is held); filled gaps → "Blank 2 of 4, filled with {word}. Select to clear." A gap whose `matchGroup` refuses the held label adds "Not compatible with the selected word.", and the scorer view adds the correct answer.
 - **Accessible name for palette (WCAG 1.3.1):** The palette container has `role="group"` with `aria-label="Available words to place"`. This groups the labels so screen-reader users understand the purpose of the button cluster.
 - **Touch targets (WCAG 2.2 SC 2.5.8):** Palette label buttons and gap target buttons must each present a minimum 44×44 CSS px tap target on mobile.
 - **Focus visibility (WCAG 2.4.11):** Gap buttons and palette buttons must display a 2px focus-visible outline that meets 3:1 contrast with the surrounding background.
@@ -215,17 +219,20 @@ interface GapMatchInteractionData extends BaseInteractionData {
     identifier: string;       // gapText identifier
     text: string;             // text content of the gapText element
     matchMax: number;         // 0 = unlimited; >= 1 = ceiling
-    // matchMin is intentionally absent from this type; present in GapMatchData only
+    matchMin?: number;        // present when > 0
+    matchGroup?: string[];    // present when authored: the gaps this label may fill
   }>;
-  gaps: Array<{
-    identifier: string;       // gap identifier
-    index: number;            // positional index (order in passage)
+  gapImages?: Array<{         // gapImg choices; same placement rules as gapTexts
+    identifier: string; src: string; alt: string; matchMax: number;
+    matchMin?: number; matchGroup?: string[]; width?: number; height?: number;
   }>;
+  gaps: string[];             // gap identifiers, in reading order
+  gapMatchGroups?: Record<string, string[]>; // per gap identifier, when authored: the labels it accepts
   promptText: string;         // HTML string with [GAP:id] placeholders replacing <gap> elements
 }
 ```
 
-Note: the extractor's internal `GapMatchData` also includes `matchMin` and `classes` on each `gapText` entry, but `matchMin` is omitted from `GapMatchInteractionData` when its value is `0` (the default). `matchMin > 0` entries are present in `GapMatchData` but not propagated to the component type — this is the practical consequence of G-06.
+`gaps` is the plain identifier list the extractor delivers; a compile-time check in the extractor proves the delivered data satisfies this contract. The component derives each gap's position from the `[GAP:id]` markers in `promptText`.
 
 **Invariants enforced by the extractor's `validate()` method:**
 - At least one `gapText` must exist (error if zero).
@@ -236,9 +243,7 @@ Note: the extractor's internal `GapMatchData` also includes `matchMin` and `clas
 
 **Invariants NOT enforced:**
 - The number of gaps vs. the number of labels (no warning when `gaps.length >= gapTexts.length`).
-- `matchMin > 0` usage at submission time (G-06).
 - `gap.required` — not extracted, not checked (see Known gaps).
-- `matchGroup` pairing constraints (G-01).
 
 ### Response value format
 
@@ -425,13 +430,24 @@ AC-E6: HTML content in stimulus preserves formatting after gap injection
   Given: an item where the passage contains <strong>, <em>, and a nested <ul> around gap elements
   When: the item renders
   Then: the formatted text is intact; gap buttons appear at the correct inline positions; no tags appear as literal text
+
+AC-E7: matchGroup refuses a pairing neither side allows (G-01)
+  Given: gapText W1 with matchGroup="G1", gap G2 with matchGroup="W2"
+  When: the candidate picks up W1 (or drags it)
+  Then: G2 is aria-disabled and its name adds "Not compatible with the selected word."; placing W1 there
+        adds no pair and keeps W1 held; G1 accepts W1 ("W1 G1")
+
+AC-E8: matchGroup on the gap constrains too, and placed labels never block other labels
+  Given: gapText W3 with matchGroup="G1 G2", gap G2 with matchGroup="W2"; W4 and W5 share matchGroup="set"
+  When: W3 is picked up; separately, W4 is placed and then W5 is picked up
+  Then: G2 refuses W3 (G2 does not name W3, and they share no token); W5 stays available after W4 is placed
+  Notes: player.validateResponses() accepts exactly the pairs the UI allows (isMatchGroupCompatible)
 ```
 
 ---
 
 ## Open questions
 
-- [ ] **Keyboard select-then-place flow**: The interaction currently has no keyboard mechanism to place a label in a gap without a mouse (only click-to-clear exists for keyboard users). What is the intended design? Options: (a) Tab to palette label, press Enter to "pick up", Tab to gap, press Enter to "place"; (b) Open a dropdown/listbox at each gap button that contains the available labels; (c) Use ARIA `combobox` on each gap with the palette as the option list. This must be resolved before the interaction can be considered WCAG 2.1 SC 2.1.1 compliant.
 - [ ] **Touch/mobile drag-and-drop**: The HTML Drag and Drop API does not fire `dragstart`/`drop` on iOS Safari. Is there a pointer-events or touch-events fallback planned? Until resolved, mobile candidates can only clear gaps, not fill them via drag.
 - [ ] **Large pool performance**: At what label count does `renderPromptWithGaps()` become perceptibly slow? Should a threshold trigger a different rendering strategy (e.g. virtual list for the palette)?
 
@@ -441,9 +457,10 @@ AC-E6: HTML content in stimulus preserves formatting after gap injection
 
 - QTI spec: `docs/QTI_techguide.md` §3.1.5
 - Response processing and scoring: `docs/QTI-RESPONSE-TRACKING-AND-SCORING.md`
-- Spec gaps: `docs/SPEC-GAPS-PLAN.md` — G-01 (`matchGroup`), G-06 (`matchMin` validation)
+- Spec gaps: `docs/SPEC-GAPS-PLAN.md` — G-01 (`matchGroup`, Done), G-06 (`matchMin` validation, Done)
+- Shared pairing rule: `packages/item-player/src/core/matchGroups.ts` (`isMatchGroupCompatible`), used through `packages/default-components/src/shared/utils/matchGroupUtils.ts`
 - Component: `packages/default-components/src/plugins/gap-match/GapMatchInteraction.svelte`
 - Extractor: `packages/item-player/src/interactions/gap-match/extractor.ts`
 - Types: `packages/item-player/src/interactions/shared/types.ts` — `GapMatchInteractionData`
 - Evals: `docs/evals/default-components/gap-match/evals.yaml`
-- Adjacent PRDs: [match.md](match.md) (shares `matchGroup`/`matchMin` gaps), [associate.md](associate.md) (shares `directedPair`/`pair` semantics), [graphic-gap-match.md](graphic-gap-match.md) (image-based variant; uses `gapImg`)
+- Adjacent PRDs: [match.md](match.md) (shares the `matchGroup`/`matchMin` rules), [associate.md](associate.md) (shares `directedPair`/`pair` semantics), [graphic-gap-match.md](graphic-gap-match.md) (image-based variant; uses `gapImg`)

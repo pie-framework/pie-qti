@@ -5,13 +5,13 @@
   Type: interaction
   Packages: @pie-qti/default-components, @pie-qti/item-player
   QTI type: graphicAssociateInteraction
-  Last reviewed: 2026-04-28
+  Last reviewed: 2026-11-07
 -->
 
 **Status:** draft  
 **Type:** interaction  
 **Packages:** `@pie-qti/default-components` (component), `@pie-qti/item-player` (extractor)  
-**Last reviewed:** 2026-04-28
+**Last reviewed:** 2026-11-07
 
 ---
 
@@ -81,9 +81,9 @@ At lower grade bands (K–5), the interaction complexity (two-step click model, 
 | `shape` | ✅ Partial | `rect` and `circle` rendered. `poly` and `ellipse` are defined in the QTI spec but are not handled — hotspots with those shapes are silently skipped at render time (the extractor extracts them, but the component template has no branch for them). See Known gaps. |
 | `coords` | ✅ Full (for supported shapes) | `rect`: `x1,y1,x2,y2`. `circle`: `cx,cy,r`. The hotspot button dimensions and the SVG line endpoint are both computed from `coords`. |
 | `matchMax` | ✅ Full | Per-hotspot maximum connections. Enforced at selection time: clicking a maxed hotspot as the first selection is silently rejected; the button is `disabled` when maxed. |
-| `matchMin` | ✅ Extracted, not enforced | Extracted and stored on the hotspot data object. Not validated at submission time. See Known gaps (G-06). |
-| `matchGroup` | ❌ Not extracted | Spec: restricts which hotspots can be paired with each other. Not read from XML; not enforced in the UI. See Known gaps (G-01). |
-| `class` (CSS classes) | ✅ Partial | Extracted as `classes?: string[]`; not currently used for rendering or `matchGroup` enforcement. |
+| `matchMin` | ✅ Full (G-06) | Extracted when `> 0`; `Player.validateResponses()` reports the response incomplete while a hotspot is used fewer times |
+| `matchGroup` | ✅ Full (G-01) | Extracted into `associableHotspots[].matchGroup`: the hotspots this one may be associated with. Enforced in the UI by the rule response validation applies (see Resolved gaps) |
+| `class` (CSS classes) | ✅ Partial | Extracted as `classes?: string[]`; not currently used for rendering. |
 
 ### Image container
 
@@ -109,11 +109,13 @@ The `width` and `height` attributes of `<object>` set the pixel dimensions of th
 - **MATCH_CORRECT** — exact match against `correctResponse`. Scores `1.0` when the response set equals the correct set exactly; `0.0` otherwise. This is the template used in the demo item (organ → function). Partial credit requires `MAP_RESPONSE` with `mapEntry` per pair.
 - **MAP_RESPONSE** — each `mapEntry` maps a `"ID1 ID2"` string to a point value. Because pairs are unordered, the item author must write one `mapEntry` per pair in the canonical order they appear in the correct response. The response processing engine must compare both orderings when evaluating `mapEntry` keys for `pair` values — verify this behavior in `packages/qti-processing/` before authoring partial-credit items.
 
+### Resolved gaps
+
+**G-01 (`matchGroup`, Done):** QTI 2.2 and 3.0 define `matchGroup` on `associableHotspot` as "a list of the identifiers for the objects that can be matched with this hotspot" (QTI 2.2.4 ASI Information Model, Table 5.5.4; QTI 3.0, Table 5.7.4). The extractor reads it into `associableHotspots[].matchGroup`. While a hotspot is selected, the component marks the hotspots it may not be associated with `aria-disabled`, dims them, adds "Not available due to a match group restriction." to their names and refuses the pair, deciding with `isMatchGroupCompatible` from `@pie-qti/item-player`, the rule `Player.validateResponses()` applies. The rule accepts a pair when either reading allows it: the specification's (each hotspot names the other) or the shared-group-label reading some content uses (shared token; a hotspot without `matchGroup` is unrestricted). See `docs/SPEC-GAPS-PLAN.md` §G-01.
+
+**G-06 (`matchMin`, Done):** `Player.validateResponses()` counts each hotspot's appearances across pairs and reports the response incomplete while any hotspot is below its `matchMin`. See `docs/SPEC-GAPS-PLAN.md` §G-06.
+
 ### Known gaps
-
-**G-01 (`matchGroup` not extracted):** The `matchGroup` attribute on `associableHotspot` restricts which hotspots can pair with each other. Not extracted. Any `matchGroup` constraints in the QTI XML are silently ignored. See `docs/SPEC-GAPS-PLAN.md` §G-01.
-
-**G-06 (`matchMin` not enforced at submission):** `matchMin` on `associableHotspot` declares the minimum number of times each hotspot must appear in the response. Extracted but not validated at submission time. A response missing required hotspot usages is accepted. See `docs/SPEC-GAPS-PLAN.md` §G-06.
 
 **Unsupported hotspot shapes:** `poly` and `ellipse` shapes are valid QTI `associableHotspot` types but are not rendered by the component. Hotspots with these shapes are extracted (data is present) but the Svelte template has no rendering branch for them and they do not appear on screen. Item authors using `poly` hotspots will see blank interaction areas. This is an undocumented gap not yet tracked in SPEC-GAPS-PLAN.
 
@@ -558,7 +560,7 @@ Then: No prompt element is rendered (no empty paragraph or whitespace);
 
 ## Open questions
 
-- [ ] Should duplicate pair creation be blocked in the UI? The current code allows it when `matchMax > 1` on both hotspots. The QTI spec is silent on this for `graphicAssociateInteraction`. A consistent policy should be established before G-01 (`matchGroup`) is implemented, since `matchGroup` filtering logic interacts with pair deduplication.
+- [ ] Should duplicate pair creation be blocked in the UI? The current code allows it when `matchMax > 1` on both hotspots. The QTI spec is silent on this for `graphicAssociateInteraction`. A consistent policy should account for `matchGroup`, which already filters the partners of a selected hotspot.
 - [ ] Should `maxAssociations=0` be treated as unlimited (like `maxChoices=0` in `choiceInteraction`) or as an authoring error (current behavior)? The QTI spec section for `graphicAssociateInteraction` does not explicitly state the semantics of `maxAssociations=0`.
 - [ ] The `poly` and `ellipse` hotspot shapes are silently unsupported. Should this be tracked as a formal spec gap item in `SPEC-GAPS-PLAN.md`? The `coords` format for `poly` (`x1,y1,x2,y2,...`) would need a new geometric center calculation and a new rendering strategy (SVG `<polygon>` element positioned absolutely, or a clip path).
 
@@ -567,7 +569,8 @@ Then: No prompt element is rendered (no empty paragraph or whitespace);
 ## Related
 
 - QTI spec: `docs/QTI_techguide.md` §3.3.4
-- Spec gaps: `docs/SPEC-GAPS-PLAN.md` §G-01 (`matchGroup`), §G-06 (`matchMin` enforcement)
+- Spec gaps: `docs/SPEC-GAPS-PLAN.md` §G-01 (`matchGroup`, Done), §G-06 (`matchMin` enforcement, Done)
+- Shared pairing rule: `packages/item-player/src/core/matchGroups.ts` (`isMatchGroupCompatible`), used through `packages/default-components/src/shared/utils/matchGroupUtils.ts`
 - Response tracking: `docs/QTI-RESPONSE-TRACKING-AND-SCORING.md`
 - Component: `packages/default-components/src/plugins/graphic-associate/GraphicAssociateInteraction.svelte`
 - Extractor: `packages/item-player/src/interactions/graphic-associate/extractor.ts`
