@@ -24,13 +24,17 @@ Runs on every push to `master` and `develop`, and on pull requests targeting tho
 4. **Unit Tests** - Runs package test suites through `bun run test`
 5. **End-to-End Tests** - Runs the Playwright E2E suites against the demo app (`bun run test:e2e`)
 6. **QTI Public Certification Gate** - Runs clean-room public certification coverage
-7. **Accessibility Verification** - Runs `bun run verify:a11y` with Playwright Chromium
+7. **Accessibility Verification** - Runs `bun run verify:a11y` with Playwright Chromium, then the
+   `@cross-browser` subset (accessibility regressions plus a core smoke set) on WebKit and Firefox;
+   see [docs/development/accessibility-testing.md](../../docs/development/accessibility-testing.md)
 8. **Deployability (Apps)** - Builds deployable demo/docs apps and smoke-checks outputs
 9. **Publish Readiness** - Builds packages and runs package publishing readiness checks
 10. **All Checks** - Summary job that ensures required checks pass
 
 **Artifacts:**
 - Package build outputs from the publish-readiness job
+- Playwright reports from the end-to-end job (`playwright-report`) and the accessibility job
+  (`playwright-report-accessibility`)
 
 ### Release (`release.yml`)
 

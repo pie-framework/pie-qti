@@ -23,6 +23,16 @@ const chromiumUse = CHROMIUM_EXECUTABLE_PATH
 		}
 	: devices['Desktop Chrome'];
 
+/**
+ * WebKit and Firefox run only the tests tagged `@cross-browser`: the accessibility
+ * regression set (`a11y-regression.pw.ts`) and the core smoke subset
+ * (`cross-browser-smoke.pw.ts`) — item rendering order, assessment navigation/submit and
+ * a few scored interaction evals. Chromium runs the whole suite, tagged tests included.
+ * Select the extra engines explicitly: `playwright test --project=webkit --project=firefox`
+ * (or `bun run test:e2e:cross-browser`).
+ */
+const CROSS_BROWSER_TAG = /@cross-browser/;
+
 export default defineConfig({
 	testDir: './tests/playwright',
 	testMatch: '**/*.pw.ts', // Custom pattern to avoid Bun test discovery
@@ -43,6 +53,16 @@ export default defineConfig({
 		{
 			name: 'chromium',
 			use: chromiumUse
+		},
+		{
+			name: 'webkit',
+			use: devices['Desktop Safari'],
+			grep: CROSS_BROWSER_TAG
+		},
+		{
+			name: 'firefox',
+			use: devices['Desktop Firefox'],
+			grep: CROSS_BROWSER_TAG
 		}
 	],
 
