@@ -30,6 +30,7 @@ describe('standardPositionObjectExtractor', () => {
 			src: 'map.png',
 			width: '600',
 			height: '400',
+			alt: 'Map',
 		});
 		expect(result.positionObjectStages).toEqual([
 			{
@@ -41,11 +42,28 @@ describe('standardPositionObjectExtractor', () => {
 					src: 'city.png',
 					width: '30',
 					height: '30',
+					alt: 'City marker',
 				},
 			},
 		]);
 		expect(result.minChoices).toBe(1);
 		expect(result.maxChoices).toBe(3);
+	});
+
+	test('never names the draggable object by its response identifier', () => {
+		// Identifiers can reveal the answer key to assistive technology; the
+		// renderer substitutes a localized generic name for an unnamed object.
+		const result = extract(`
+			<positionObjectStage>
+				<object data="map.png" type="image/png"/>
+				<positionObjectInteraction responseIdentifier="AIRPORT_CORRECT_SITE">
+					<object data="marker.png" type="image/png"/>
+				</positionObjectInteraction>
+			</positionObjectStage>
+		`, 'AIRPORT_CORRECT_SITE');
+
+		expect(result.positionObjectStages[0].label).toBe('');
+		expect(JSON.stringify(result.positionObjectStages[0].label)).not.toContain('AIRPORT');
 	});
 
 	test('uses the QTI maxChoices default of one', () => {

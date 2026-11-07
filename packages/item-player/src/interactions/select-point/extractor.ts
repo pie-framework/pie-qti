@@ -6,6 +6,7 @@
 
 import type { ElementExtractor } from '../../extraction/types.js';
 import { normalizePixelDimension } from '../../security/styleValues.js';
+import { extractImageAlternative, imgAlternativeSource } from '../shared/imageAlt.js';
 
 /**
  * Image data for select point interaction
@@ -16,6 +17,12 @@ export interface ImageData {
 	content?: string;
 	width?: string;
 	height?: string;
+	/** Short text alternative extracted from the QTI source. */
+	alt?: string;
+	/** Longer description for complex images (SVG <desc>, aria description). */
+	altDescription?: string;
+	/** True only when the author explicitly marked the image decorative (`<img alt="">`). */
+	decorative?: boolean;
 }
 
 /**
@@ -45,7 +52,7 @@ export const standardSelectPointExtractor: ElementExtractor<SelectPointData> = {
 	},
 
 	extract(element, context) {
-		const { utils } = context;
+		const { utils, dom } = context;
 
 		// Extract image data from object or img element
 		const objectElements = utils.getChildrenByTag(element, 'object');
@@ -64,27 +71,29 @@ export const standardSelectPointExtractor: ElementExtractor<SelectPointData> = {
 				utils.getAttribute(objectElement, 'height', ''),
 				'300',
 			);
+			const content = type.startsWith('image/svg') ? utils.getHtmlContent(objectElement) : '';
 
-			if (type.startsWith('image/svg')) {
-				// Extract inline SVG content - get full content including <svg> tag
-				const content = utils.getHtmlContent(objectElement);
+			if (/<svg[\s>]/i.test(content)) {
+				// Inline SVG: <object type="image/svg+xml"><svg>...</svg></object>
 				imageData = {
 					type: 'svg',
 					content,
 					width,
 					height,
+					...extractImageAlternative(objectElement, utils, dom, { inlineSvgContent: content }),
 				};
 			} else {
-				// External image reference
+				// External image (or SVG file) reference; the <object>'s text is its alternative
 				imageData = {
 					type: 'image',
 					src: data,
 					width,
 					height,
+					...extractImageAlternative(objectElement, utils, dom),
 				};
 			}
 		} else if (imgElements.length > 0) {
-			// Handle img element as fallback
+			// QTI 3.0 <img>: the alt attribute is the text alternative (alt="" = decorative)
 			const imgElement = imgElements[0];
 			const src = utils.getAttribute(imgElement, 'src', '');
 			const width = normalizePixelDimension(
@@ -100,6 +109,7 @@ export const standardSelectPointExtractor: ElementExtractor<SelectPointData> = {
 				src,
 				width,
 				height,
+				...extractImageAlternative(imgElement, utils, dom, imgAlternativeSource(imgElement)),
 			};
 		}
 

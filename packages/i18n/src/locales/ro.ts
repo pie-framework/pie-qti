@@ -142,6 +142,8 @@ export default {
 			updated: 'Desen actualizat.',
 			cleared: 'Desen șters.',
 			generated: 'Generat:',
+			imageFallback: 'Fundalul desenului',
+			imageLoadError: 'Imaginea de fundal nu a putut fi încărcată.',
 		},
 
 		extendedText: {
@@ -193,6 +195,10 @@ export default {
 			unknownImageDimensions:
 				'Acest hotspot nu poate fi afișat: dimensiunea imaginii sale este necunoscută, așa că regiunile selectabile nu pot fi poziționate. Adăugați lățime și înălțime imaginii sau furnizați dimensiunile fișierului.',
 			correctList: 'Corect: {ids}',
+			imageFallback: 'Imaginea acestei întrebări',
+			imageLoadError: 'Imaginea nu a putut fi încărcată.',
+			regionOfTotal: 'Regiunea {index} din {total}',
+			selectedRegion: 'Selectat: {region}',
 		},
 
 		selectPoint: {
@@ -210,6 +216,16 @@ export default {
 			minimumMet: '✓ Minim atins',
 			selectAtLeast: 'Selectează cel puțin {minChoices}',
 			correctPointAt: 'Punctul răspunsului corect la coordonatele {x}, {y}',
+			imageFallback: 'Imaginea acestei întrebări',
+			imageLoadError: 'Imaginea nu a putut fi încărcată.',
+			stageLabel: 'Zonă de selectare a punctelor',
+			keyboardInstructions: 'Fă clic pe imagine pentru a plasa un punct. De la tastatură, mută focalizarea pe imagine, deplasează cursorul în cruce cu tastele săgeți (ține apăsat Shift pentru pași mai mici) și apasă Enter sau Spațiu pentru a plasa un punct.',
+			placedPoints: 'Puncte plasate',
+			pointAtPercent: 'Punctul {index} la {x}%, {y}%',
+			percentPosition: '{x}%, {y}%',
+			pointPlaced: 'Punctul {index} a fost plasat la {x}%, {y}%.',
+			pointRemoved: 'Punctul {index} a fost eliminat.',
+			allPointsRemoved: 'Toate punctele au fost eliminate.',
 		},
 
 		match: {
@@ -294,6 +310,9 @@ export default {
 			placeLabelHint: 'Apasă Spațiu sau Enter pentru a plasa eticheta.',
 			labelFallback: 'Etichetă',
 			pickUpInstructions: 'Apasă Spațiu sau Enter pentru a prelua o etichetă. Tab până la un hotspot de pe imagine și apasă Enter pentru a o plasa. Apasă Escape pentru a anula.',
+			imageFallback: 'Imaginea acestei întrebări',
+			imageLoadError: 'Imaginea nu a putut fi încărcată.',
+			unknownImageDimensions: 'Hotspot-urile nu pot fi afișate: dimensiunea imaginii este necunoscută. Adăugați lățime și înălțime imaginii.',
 		},
 
 		order: {
@@ -363,6 +382,13 @@ export default {
 			correctPositionFor: 'Poziția corectă pentru {label} la ({x}, {y})',
 			availableObjectsTotal: 'Obiecte disponibile ({count})',
 			paletteInstructions: 'Trage obiectele pe canvas sau apasă Enter ori Spațiu pe un obiect, apoi folosește tastele săgeți pentru a-l poziționa pe canvas.',
+			imageFallback: 'Imaginea acestei întrebări',
+			imageLoadError: 'Imaginea nu a putut fi încărcată.',
+			objectFallback: 'Obiectul {index}',
+			objectRemoved: '{object} a fost eliminat.',
+			canvasActiveLabel: 'Zonă de poziționare: folosește tastele săgeți pentru a muta cursorul în cruce, Enter pentru a plasa și Escape pentru a anula',
+			placedAtPercent: '{label} la {x}%, {y}%',
+			correctPositionAtPercent: 'Poziția corectă pentru {label}: {x}%, {y}%',
 		},
 
 		endAttempt: {
@@ -411,6 +437,23 @@ export default {
 			confirmOrder: 'Confirmă ordinea',
 			confirmOrderNoChanges: 'Confirmă ordinea (Fără modificări)',
 			confirmAria: 'Confirmă această ordine ca răspuns',
+			imageFallback: 'Imaginea acestei întrebări',
+			imageLoadError: 'Imaginea nu a putut fi încărcată.',
+			unlabeledItem: 'Elementul {index}',
+		},
+
+		graphicAssociate: {
+			imageFallback: 'Imaginea acestei întrebări',
+			imageLoadError: 'Imaginea nu a putut fi încărcată.',
+			unlabeledHotspot: 'Regiunea {index}',
+			hotspotConnections: '{label} ({usageCount}/{matchMax} conexiuni)',
+			notAvailableSentence: 'Indisponibil din cauza unei restricții de grup de potrivire.',
+			selectAnotherHotspot: 'Selectat: {label}. Selectează alt hotspot pentru a crea o asociere.',
+			associationsCount: 'Asocieri ({count}/{max})',
+			clickHotspotsToAssociate: 'Selectează două hotspot-uri pe imagine pentru a crea o asociere.',
+			pairDescription: '{first} asociat cu {second}',
+			removeAssociation: 'Elimină asocierea dintre {first} și {second}',
+			minimumRequired: 'Minim necesar: {minAssociations}',
 		},
 
 		custom: {

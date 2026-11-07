@@ -143,6 +143,8 @@ export default {
 			updated: 'Dibujo actualizado.',
 			cleared: 'Dibujo limpiado.',
 			generated: 'Generado:',
+			imageFallback: 'Fondo del dibujo',
+			imageLoadError: 'No se pudo cargar la imagen de fondo.',
 		},
 
 		extendedText: {
@@ -194,6 +196,10 @@ export default {
 			unknownImageDimensions:
 				'Esta zona activa no se puede mostrar: se desconoce el tamaño de su imagen, por lo que no se pueden colocar las regiones seleccionables. Añade ancho y alto a la imagen o proporciona las dimensiones del archivo.',
 			correctList: 'Correcto: {ids}',
+			imageFallback: 'Imagen de esta pregunta',
+			imageLoadError: 'No se pudo cargar la imagen.',
+			regionOfTotal: 'Región {index} de {total}',
+			selectedRegion: 'Seleccionado: {region}',
 		},
 
 		selectPoint: {
@@ -211,6 +217,16 @@ export default {
 			minimumMet: '✓ Mínimo cumplido',
 			selectAtLeast: 'Selecciona al menos {minChoices}',
 			correctPointAt: 'Punto de la respuesta correcta en coordenadas {x}, {y}',
+			imageFallback: 'Imagen de esta pregunta',
+			imageLoadError: 'No se pudo cargar la imagen.',
+			stageLabel: 'Área de selección de puntos',
+			keyboardInstructions: 'Haz clic en la imagen para colocar un punto. Con el teclado, enfoca la imagen, mueve la cruz con las teclas de flecha (mantén Mayús para pasos más pequeños) y pulsa Intro o Espacio para colocar un punto.',
+			placedPoints: 'Puntos colocados',
+			pointAtPercent: 'Punto {index} en {x} %, {y} %',
+			percentPosition: '{x} %, {y} %',
+			pointPlaced: 'Punto {index} colocado en {x} %, {y} %.',
+			pointRemoved: 'Punto {index} eliminado.',
+			allPointsRemoved: 'Se eliminaron todos los puntos.',
 		},
 
 		match: {
@@ -295,6 +311,9 @@ export default {
 			placeLabelHint: 'Presiona Espacio o Intro para colocar la etiqueta.',
 			labelFallback: 'Etiqueta',
 			pickUpInstructions: 'Presiona Espacio o Enter para tomar una etiqueta. Tab hasta un punto activo de la imagen y presiona Enter para colocarla. Presiona Escape para cancelar.',
+			imageFallback: 'Imagen de esta pregunta',
+			imageLoadError: 'No se pudo cargar la imagen.',
+			unknownImageDimensions: 'No se pueden mostrar las zonas activas: se desconoce el tamaño de la imagen. Añade ancho y alto a la imagen.',
 		},
 
 		order: {
@@ -364,6 +383,13 @@ export default {
 			correctPositionFor: 'Posición correcta de {label} en ({x}, {y})',
 			availableObjectsTotal: 'Objetos disponibles ({count})',
 			paletteInstructions: 'Arrastra objetos sobre el lienzo, o presiona Enter o Espacio sobre un objeto y usa las teclas de flecha para posicionarlo en el lienzo.',
+			imageFallback: 'Imagen de esta pregunta',
+			imageLoadError: 'No se pudo cargar la imagen.',
+			objectFallback: 'Objeto {index}',
+			objectRemoved: '{object} eliminado.',
+			canvasActiveLabel: 'Lienzo de posicionamiento: usa las teclas de flecha para mover la cruz, Intro para colocar y Escape para cancelar',
+			placedAtPercent: '{label} en {x} %, {y} %',
+			correctPositionAtPercent: 'Posición correcta de {label}: {x} %, {y} %',
 		},
 
 		endAttempt: {
@@ -412,6 +438,23 @@ export default {
 			confirmOrder: 'Confirmar orden',
 			confirmOrderNoChanges: 'Confirmar orden (Sin cambios)',
 			confirmAria: 'Confirmar este orden como tu respuesta',
+			imageFallback: 'Imagen de esta pregunta',
+			imageLoadError: 'No se pudo cargar la imagen.',
+			unlabeledItem: 'Elemento {index}',
+		},
+
+		graphicAssociate: {
+			imageFallback: 'Imagen de esta pregunta',
+			imageLoadError: 'No se pudo cargar la imagen.',
+			unlabeledHotspot: 'Región {index}',
+			hotspotConnections: '{label} ({usageCount}/{matchMax} conexiones)',
+			notAvailableSentence: 'No disponible por una restricción del grupo de emparejamiento.',
+			selectAnotherHotspot: 'Seleccionado: {label}. Selecciona otra zona activa para crear una asociación.',
+			associationsCount: 'Asociaciones ({count}/{max})',
+			clickHotspotsToAssociate: 'Selecciona dos zonas activas en la imagen para crear una asociación.',
+			pairDescription: '{first} asociado con {second}',
+			removeAssociation: 'Eliminar la asociación entre {first} y {second}',
+			minimumRequired: 'Mínimo requerido: {minAssociations}',
 		},
 
 		custom: {

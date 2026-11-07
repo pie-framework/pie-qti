@@ -9,6 +9,7 @@ import {
 	normalizeCssPixelLength,
 	normalizePixelDimension,
 } from '../../security/styleValues.js';
+import { extractImageAlternative, imgAlternativeSource } from '../shared/imageAlt.js';
 
 /**
  * Image data for graphic gap match interaction
@@ -19,6 +20,12 @@ export interface ImageData {
 	content?: string;
 	width?: number;
 	height?: number;
+	/** Short text alternative extracted from the QTI source. */
+	alt?: string;
+	/** Longer description for complex images (SVG <desc>, aria description). */
+	altDescription?: string;
+	/** True only when the author explicitly marked the image decorative (`<img alt="">`). */
+	decorative?: boolean;
 }
 
 /**
@@ -65,10 +72,11 @@ export const standardGraphicGapMatchExtractor: ElementExtractor<GraphicGapMatchD
 	},
 
 	extract(element, context) {
-		const { utils } = context;
+		const { utils, dom } = context;
 
-		// Extract image data from object element
+		// Extract image data from the object element (QTI 2.x / 3.0) or an img element (QTI 3.0)
 		const objectElements = utils.getChildrenByTag(element, 'object');
+		const imgElements = objectElements.length === 0 ? utils.getChildrenByTag(element, 'img') : [];
 		let imageData: ImageData | null = null;
 
 		if (objectElements.length > 0) {
@@ -92,6 +100,7 @@ export const standardGraphicGapMatchExtractor: ElementExtractor<GraphicGapMatchD
 						content,
 						...(width ? { width } : {}),
 						...(height ? { height } : {}),
+						...extractImageAlternative(objectElement, utils, dom, { inlineSvgContent: content }),
 					};
 				} else {
 					// External SVG file reference — render via <img src>
@@ -100,6 +109,7 @@ export const standardGraphicGapMatchExtractor: ElementExtractor<GraphicGapMatchD
 						src: data,
 						...(width ? { width } : {}),
 						...(height ? { height } : {}),
+						...extractImageAlternative(objectElement, utils, dom),
 					};
 				}
 			} else {
@@ -109,8 +119,21 @@ export const standardGraphicGapMatchExtractor: ElementExtractor<GraphicGapMatchD
 					src: data,
 					...(width ? { width } : {}),
 					...(height ? { height } : {}),
+					...extractImageAlternative(objectElement, utils, dom),
 				};
 			}
+		} else if (imgElements.length > 0) {
+			// QTI 3.0 <img>: the alt attribute is the text alternative (alt="" = decorative)
+			const imgElement = imgElements[0];
+			const normalizedWidth = normalizePixelDimension(utils.getAttribute(imgElement, 'width', ''));
+			const normalizedHeight = normalizePixelDimension(utils.getAttribute(imgElement, 'height', ''));
+			imageData = {
+				type: 'image',
+				src: utils.getAttribute(imgElement, 'src', ''),
+				...(normalizedWidth ? { width: Number(normalizedWidth) } : {}),
+				...(normalizedHeight ? { height: Number(normalizedHeight) } : {}),
+				...extractImageAlternative(imgElement, utils, dom, imgAlternativeSource(imgElement)),
+			};
 		}
 
 		// Extract interaction-level attributes
@@ -143,16 +166,26 @@ export const standardGraphicGapMatchExtractor: ElementExtractor<GraphicGapMatchD
 			const matchGroupRaw = utils.getAttribute(gapImg, 'matchGroup', '');
 			const matchGroup = matchGroupRaw.split(/\s+/).filter(Boolean);
 			const objectChildren = utils.getChildrenByTag(gapImg, 'object');
+			const imgChildren = objectChildren.length === 0 ? utils.getChildrenByTag(gapImg, 'img') : [];
 			let src = '';
 			let alt = '';
 			let width: number | undefined;
 			let height: number | undefined;
-			if (objectChildren.length > 0) {
-				const obj = objectChildren[0];
-				src = utils.getAttribute(obj, 'data', '');
-				alt = utils.getTextContent(obj);
-				const w = normalizePixelDimension(utils.getAttribute(obj, 'width', ''));
-				const h = normalizePixelDimension(utils.getAttribute(obj, 'height', ''));
+			// The image's text alternative names the draggable label for assistive
+			// technology; an empty alt never falls back to the identifier.
+			const imageElement = objectChildren[0] ?? imgChildren[0];
+			if (imageElement) {
+				const isImg = objectChildren.length === 0;
+				src = utils.getAttribute(imageElement, isImg ? 'src' : 'data', '');
+				alt =
+					extractImageAlternative(
+						imageElement,
+						utils,
+						dom,
+						isImg ? imgAlternativeSource(imageElement) : {},
+					).alt ?? '';
+				const w = normalizePixelDimension(utils.getAttribute(imageElement, 'width', ''));
+				const h = normalizePixelDimension(utils.getAttribute(imageElement, 'height', ''));
 				if (w) width = Number(w);
 				if (h) height = Number(h);
 			}

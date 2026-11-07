@@ -58,6 +58,24 @@ export function qa<T extends Element = Element>(
 	return Array.from(mounted.host.querySelectorAll<T>(selector));
 }
 
+/**
+ * Approximate accessible name: `aria-labelledby` (ids resolved in the element's
+ * root), then `aria-label`, then text content. Enough for asserting what a
+ * screen reader hears without a full accname implementation.
+ */
+export function accessibleName(element: Element): string {
+	const root = element.getRootNode() as Document | ShadowRoot;
+	const labelledBy = element.getAttribute('aria-labelledby');
+	if (labelledBy) {
+		return labelledBy
+			.split(/\s+/)
+			.map((id) => root.getElementById(id)?.textContent?.trim() ?? '')
+			.filter(Boolean)
+			.join(' ');
+	}
+	return element.getAttribute('aria-label') ?? element.textContent?.trim() ?? '';
+}
+
 /** Simulate a user changing a checkbox/radio input. */
 export function check(input: HTMLInputElement, checked: boolean): void {
 	input.checked = checked;

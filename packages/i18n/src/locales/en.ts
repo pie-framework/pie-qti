@@ -153,6 +153,8 @@ export default {
 			updated: 'Drawing updated.',
 			cleared: 'Drawing cleared.',
 			generated: 'Generated:',
+			imageFallback: 'Drawing background',
+			imageLoadError: 'The background image could not be loaded.',
 		},
 
 		extendedText: {
@@ -204,6 +206,10 @@ export default {
 			unknownImageDimensions:
 				'This hotspot cannot be shown: the size of its image is unknown, so the selectable regions cannot be placed. Add width and height to the image, or supply the asset dimensions.',
 			correctList: 'Correct: {ids}',
+			imageFallback: 'Image for this question',
+			imageLoadError: 'The image could not be loaded.',
+			regionOfTotal: 'Region {index} of {total}',
+			selectedRegion: 'Selected: {region}',
 		},
 
 		selectPoint: {
@@ -221,6 +227,16 @@ export default {
 			minimumMet: '✓ Minimum met',
 			selectAtLeast: 'Select at least {minChoices}',
 			correctPointAt: 'Correct answer point at coordinates {x}, {y}',
+			imageFallback: 'Image for this question',
+			imageLoadError: 'The image could not be loaded.',
+			stageLabel: 'Point selection area',
+			keyboardInstructions: 'Click the image to place a point. With a keyboard, focus the image, move the crosshair with the arrow keys (hold Shift for smaller steps) and press Enter or Space to place a point.',
+			placedPoints: 'Placed points',
+			pointAtPercent: 'Point {index} at {x}%, {y}%',
+			percentPosition: '{x}%, {y}%',
+			pointPlaced: 'Point {index} placed at {x}%, {y}%.',
+			pointRemoved: 'Point {index} removed.',
+			allPointsRemoved: 'All points removed.',
 		},
 
 		match: {
@@ -307,6 +323,9 @@ export default {
 			placeLabelHint: 'Press Space or Enter to place the label.',
 			labelFallback: 'Label',
 			pickUpInstructions: 'Press Space or Enter to pick up a label. Tab to a hotspot on the image and press Enter to place it. Press Escape to cancel.',
+			imageFallback: 'Image for this question',
+			imageLoadError: 'The image could not be loaded.',
+			unknownImageDimensions: 'The hotspots cannot be shown: the size of the image is unknown. Add width and height to the image.',
 		},
 
 		order: {
@@ -376,6 +395,13 @@ export default {
 			correctPositionFor: 'Correct position for {label} at ({x}, {y})',
 			availableObjectsTotal: 'Available Objects ({count})',
 			paletteInstructions: 'Drag objects onto the canvas, or press Enter or Space on an object, then use the arrow keys to position it on the canvas.',
+			imageFallback: 'Image for this question',
+			imageLoadError: 'The image could not be loaded.',
+			objectFallback: 'Object {index}',
+			objectRemoved: '{object} removed.',
+			canvasActiveLabel: 'Positioning canvas: use the arrow keys to move the crosshair, Enter to place, Escape to cancel',
+			placedAtPercent: '{label} at {x}%, {y}%',
+			correctPositionAtPercent: 'Correct position for {label}: {x}%, {y}%',
 		},
 
 		endAttempt: {
@@ -423,6 +449,23 @@ export default {
 			confirmOrder: 'Confirm Order',
 			confirmOrderNoChanges: 'Confirm Order (No Changes)',
 			confirmAria: 'Confirm this order as your answer',
+			imageFallback: 'Image for this question',
+			imageLoadError: 'The image could not be loaded.',
+			unlabeledItem: 'Item {index}',
+		},
+
+		graphicAssociate: {
+			imageFallback: 'Image for this question',
+			imageLoadError: 'The image could not be loaded.',
+			unlabeledHotspot: 'Region {index}',
+			hotspotConnections: '{label} ({usageCount}/{matchMax} connections)',
+			notAvailableSentence: 'Not available due to a match group restriction.',
+			selectAnotherHotspot: 'Selected: {label}. Select another hotspot to create an association.',
+			associationsCount: 'Associations ({count}/{max})',
+			clickHotspotsToAssociate: 'Select two hotspots on the image to create an association.',
+			pairDescription: '{first} associated with {second}',
+			removeAssociation: 'Remove association between {first} and {second}',
+			minimumRequired: 'Minimum required: {minAssociations}',
 		},
 
 		custom: {

@@ -6,6 +6,7 @@
 
 import type { ElementExtractor } from '../../extraction/types.js';
 import { normalizePixelDimension } from '../../security/styleValues.js';
+import { extractImageAlternative, imgAlternativeSource } from '../shared/imageAlt.js';
 
 /**
  * Image data for hotspot interaction
@@ -16,6 +17,12 @@ export interface ImageData {
 	content?: string;
 	width?: string;
 	height?: string;
+	/** Short text alternative extracted from the QTI source. */
+	alt?: string;
+	/** Longer description for complex images (SVG <desc>, aria description). */
+	altDescription?: string;
+	/** True only when the author explicitly marked the image decorative (`<img alt="">`). */
+	decorative?: boolean;
 }
 
 /**
@@ -52,10 +59,11 @@ export const standardHotspotExtractor: ElementExtractor<HotspotData> = {
 	},
 
 	extract(element, context) {
-		const { utils } = context;
+		const { utils, dom } = context;
 
-		// Extract image data from object element
+		// Extract image data from the object element (QTI 2.x / 3.0) or an img element (QTI 3.0)
 		const objectElements = utils.getChildrenByTag(element, 'object');
+		const imgElements = objectElements.length === 0 ? utils.getChildrenByTag(element, 'img') : [];
 		let imageData: ImageData | null = null;
 
 		if (objectElements.length > 0) {
@@ -65,6 +73,8 @@ export const standardHotspotExtractor: ElementExtractor<HotspotData> = {
 			const width = normalizePixelDimension(utils.getAttribute(objectElement, 'width', ''));
 			const height = normalizePixelDimension(utils.getAttribute(objectElement, 'height', ''));
 
+			// Author-provided text alternative (WCAG 1.1.1): aria-* on the element,
+			// inline SVG <title>/<desc>, or the <object>'s fallback text content.
 			if (type.startsWith('image/svg')) {
 				// Inline SVG: <object type="image/svg+xml"><svg>...</svg></object>
 				// External SVG: <object type="image/svg+xml" data="path/to/file.svg"/>
@@ -77,6 +87,7 @@ export const standardHotspotExtractor: ElementExtractor<HotspotData> = {
 						content,
 						...(width ? { width } : {}),
 						...(height ? { height } : {}),
+						...extractImageAlternative(objectElement, utils, dom, { inlineSvgContent: content }),
 					};
 				} else {
 					// External SVG file reference — render via <img src> (SVG renders in img tags)
@@ -85,6 +96,7 @@ export const standardHotspotExtractor: ElementExtractor<HotspotData> = {
 						src: data,
 						...(width ? { width } : {}),
 						...(height ? { height } : {}),
+						...extractImageAlternative(objectElement, utils, dom),
 					};
 				}
 			} else {
@@ -94,8 +106,21 @@ export const standardHotspotExtractor: ElementExtractor<HotspotData> = {
 					src: data,
 					...(width ? { width } : {}),
 					...(height ? { height } : {}),
+					...extractImageAlternative(objectElement, utils, dom),
 				};
 			}
+		} else if (imgElements.length > 0) {
+			// QTI 3.0 <img>: the alt attribute is the text alternative (alt="" = decorative)
+			const imgElement = imgElements[0];
+			const width = normalizePixelDimension(utils.getAttribute(imgElement, 'width', ''));
+			const height = normalizePixelDimension(utils.getAttribute(imgElement, 'height', ''));
+			imageData = {
+				type: 'image',
+				src: utils.getAttribute(imgElement, 'src', ''),
+				...(width ? { width } : {}),
+				...(height ? { height } : {}),
+				...extractImageAlternative(imgElement, utils, dom, imgAlternativeSource(imgElement)),
+			};
 		}
 
 		// Extract hotspotChoice children
