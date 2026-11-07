@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, test } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import ChoiceInteraction from '../../src/plugins/choice/ChoiceInteraction.svelte';
 import type { ChoiceInteractionData } from '@pie-qti/item-player';
 import {
@@ -104,6 +106,23 @@ describe('ChoiceInteraction (pie-qti-choice)', () => {
 		expect(alert?.textContent).toContain('Only one answer allowed');
 	});
 
+	test('a refused selection is announced with a localized default when no message is authored', async () => {
+		const mounted = mountInteraction(ChoiceInteraction, {
+			interaction: choiceData({ maxChoices: 2 }),
+		});
+		await settle();
+
+		expect(q(mounted, '[role="alert"]')).toBeNull();
+
+		const inputs = qa<HTMLInputElement>(mounted, 'input[type="checkbox"]');
+		check(inputs[0]!, true);
+		check(inputs[1]!, true);
+		await settle();
+
+		const alert = q(mounted, '[role="alert"]');
+		expect(alert?.textContent).toContain('You can select up to 2. Deselect one to choose another.');
+	});
+
 	test('deselecting a checkbox updates the response array', async () => {
 		const mounted = mountInteraction(ChoiceInteraction, {
 			interaction: choiceData({ maxChoices: 0 }),
@@ -158,7 +177,28 @@ describe('ChoiceInteraction (pie-qti-choice)', () => {
 		expect(unnamedRoot?.getAttribute('aria-label')).toBe('Answer choices');
 	});
 
-	test('elimination tool: toggling marks the choice eliminated and announced', async () => {
+	test('the group is always associated with the prompt, even without the structured-label PNP', async () => {
+		const mounted = mountInteraction(ChoiceInteraction, { interaction: choiceData() });
+		await settle();
+
+		const root = q(mounted, '[part="root"]');
+		const prompt = q(mounted, '[part="prompt"]');
+		expect(root?.getAttribute('role')).toBe('group');
+		expect(root?.getAttribute('aria-labelledby')).toBe(prompt?.id);
+	});
+
+	test('an authored accessible name still beats the prompt', async () => {
+		const mounted = mountInteraction(ChoiceInteraction, {
+			interaction: choiceData({ accessibility: { label: 'Pick a fruit' } }),
+		});
+		await settle();
+
+		const root = q(mounted, '[part="root"]');
+		expect(root?.getAttribute('aria-label')).toBe('Pick a fruit');
+		expect(root?.getAttribute('aria-labelledby')).toBeNull();
+	});
+
+	test('elimination tool: the toggle is named by its action plus the choice content', async () => {
 		const mounted = mountInteraction(ChoiceInteraction, {
 			interaction: choiceData(),
 			eliminationTool: true,
@@ -167,11 +207,27 @@ describe('ChoiceInteraction (pie-qti-choice)', () => {
 
 		const eliminate = q(mounted, 'button.qti-eliminate-btn');
 		expect(eliminate?.getAttribute('aria-pressed')).toBe('false');
+		// The accessible name is composed via aria-labelledby from the verb and the
+		// rendered choice text, not from flattened button content.
+		const labelledBy = eliminate?.getAttribute('aria-labelledby') ?? '';
+		const name = labelledBy
+			.split(' ')
+			.map((id) => mounted.host.querySelector(`#${CSS.escape(id)}`)?.textContent?.trim())
+			.filter(Boolean)
+			.join(' ');
+		expect(name).toBe('Eliminate Alpha');
+
 		eliminate?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 		await settle();
 
 		expect(eliminate?.getAttribute('aria-pressed')).toBe('true');
-		expect(eliminate?.getAttribute('aria-label')).toBe('Restore');
+		const restoreLabelledBy = eliminate?.getAttribute('aria-labelledby') ?? '';
+		const restoreName = restoreLabelledBy
+			.split(' ')
+			.map((id) => mounted.host.querySelector(`#${CSS.escape(id)}`)?.textContent?.trim())
+			.filter(Boolean)
+			.join(' ');
+		expect(restoreName).toBe('Restore Alpha');
 		expect(eliminate?.closest('[part="option"]')?.hasAttribute('data-eliminated')).toBe(true);
 		// Elimination is scratch work: the response is untouched.
 		expect(mounted.instance.response).toBeUndefined();
@@ -212,6 +268,57 @@ describe('ChoiceInteraction (pie-qti-choice)', () => {
 		expect(mounted.instance.response).toBeUndefined();
 		expect(mounted.events).toHaveLength(0);
 	});
+
+	test('the selected row carries a visible selected-state marker', async () => {
+		const mounted = mountInteraction(ChoiceInteraction, { interaction: choiceData() });
+		await settle();
+
+		const labels = qa(mounted, 'label[part="label"]');
+		expect(labels.every((label) => !label.hasAttribute('data-selected'))).toBe(true);
+
+		check(q<HTMLInputElement>(mounted, 'input[type="radio"]')!, true);
+		await settle();
+
+		const updatedLabels = qa(mounted, 'label[part="label"]');
+		expect(updatedLabels[0]?.hasAttribute('data-selected')).toBe(true);
+		expect(updatedLabels[1]?.hasAttribute('data-selected')).toBe(false);
+	});
+
+	test('clear answer: a single-choice selection can be retracted and announces the cleared response', async () => {
+		const mounted = mountInteraction(ChoiceInteraction, { interaction: choiceData() });
+		await settle();
+
+		// No clear button before a selection exists.
+		expect(q(mounted, 'button[part="clear"]')).toBeNull();
+
+		check(q<HTMLInputElement>(mounted, 'input[type="radio"]')!, true);
+		await settle();
+
+		const clear = q<HTMLButtonElement>(mounted, 'button[part="clear"]');
+		expect(clear?.textContent?.trim()).toBe('Clear answer');
+		clear?.focus();
+		clear?.click();
+		await settle();
+
+		expect(mounted.instance.response).toBeNull();
+		expect(mounted.events.at(-1)?.detail).toMatchObject({ responseId: 'RESPONSE', value: null });
+		// Focus moves to the first choice so keyboard users stay inside the interaction.
+		expect(document.activeElement?.getAttribute('type')).toBe('radio');
+		// The clear button is gone once there is nothing to clear.
+		expect(q(mounted, 'button[part="clear"]')).toBeNull();
+	});
+
+	test('clear answer is not offered for multiple choice', async () => {
+		const mounted = mountInteraction(ChoiceInteraction, {
+			interaction: choiceData({ maxChoices: 2 }),
+		});
+		await settle();
+
+		check(q<HTMLInputElement>(mounted, 'input[type="checkbox"]')!, true);
+		await settle();
+
+		expect(q(mounted, 'button[part="clear"]')).toBeNull();
+	});
 });
 
 describe('ChoiceInteraction keyboard support', () => {
@@ -233,5 +340,40 @@ describe('ChoiceInteraction keyboard support', () => {
 		input.dispatchEvent(new Event('change', { bubbles: true }));
 		await settle();
 		expect(mounted.instance.response).toBe('A');
+	});
+});
+
+// jsdom does not compute shadow styles, so the CSS contracts are asserted against
+// the component source (same approach as tests/pnp-styles.test.ts).
+describe('ChoiceInteraction style contracts', () => {
+	const source = readFileSync(resolve(process.cwd(), 'src/plugins/choice/ChoiceInteraction.svelte'), 'utf8');
+
+	test('hidden input controls still show a focus indicator on the row (WCAG 2.4.7)', () => {
+		expect(source).toContain('.qti-choice-label:has(input:focus-visible)');
+		expect(source).toContain('outline: 2px solid var(--pie-qti-focus, #4338ca)');
+		// Fallback for engines without :has()
+		expect(source).toContain('.qti-choice-label:focus-within');
+	});
+
+	test('the selection limit message uses the warning-text token (WCAG 1.4.3)', () => {
+		expect(source).toContain('color: var(--pie-qti-warning-text, #92400e)');
+	});
+
+	test('the elimination toggle is a 44px target with a 3:1 boundary (WCAG 2.5.8/1.4.11)', () => {
+		const btnCss = source.slice(source.indexOf('.qti-eliminate-btn {'), source.indexOf('/* Eliminated choices'));
+		expect(btnCss).toContain('width: 2.75rem');
+		expect(btnCss).toContain('height: 2.75rem');
+		expect(btnCss).toContain('var(--pie-qti-border-strong, #767676)');
+		expect(btnCss).not.toContain('opacity: 0.4');
+	});
+
+	test('rows are at least 44px tall with 1rem base text (K-12 targets)', () => {
+		expect(source).toContain('min-height: 2.75rem');
+		expect(source).toContain('font-size: 1rem');
+	});
+
+	test('multi-column layouts collapse on narrow containers (WCAG 1.4.10)', () => {
+		expect(source).toContain('@container (max-width: 40rem)');
+		expect(source).toContain('container-type: inline-size');
 	});
 });
