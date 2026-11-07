@@ -45,7 +45,10 @@ describe('CustomInteraction fallback (pie-qti-custom)', () => {
 		expect(warning?.textContent).toContain('Sequence the tiles using the vendor widget.');
 
 		// Manual response entry keeps the item answerable despite the unsupported logic.
-		expect(q<HTMLTextAreaElement>(mounted, 'textarea')?.getAttribute('id')).toBe('custom-RESPONSE');
+		// The id is instance-unique and stays paired with its own label.
+		const textarea = q<HTMLTextAreaElement>(mounted, 'textarea')!;
+		expect(textarea.id).not.toBe('custom-RESPONSE');
+		expect(q<HTMLLabelElement>(mounted, `label[for="${textarea.id}"]`)).not.toBeNull();
 		// Show details works: attributes and XML are inspectable on demand.
 		expect(q(mounted, '.qti-custom-details')).toBeNull();
 		q<HTMLButtonElement>(mounted, 'button.qti-custom-toggle')!.click();
@@ -152,20 +155,11 @@ describe('CustomInteraction fallback (pie-qti-custom)', () => {
 		expect(textarea.getAttribute('tabindex')).not.toBe('-1');
 	});
 
-	// FIXME — known product bug (duplicate ids across instances): the fallback derives its textarea
-	// id purely from the response id (`custom-${responseId}`), so two renderings of the same
-	// item — candidate + scorer view, two players on one page — produce two elements with
-	// id `custom-RESPONSE`. The second instance's `label[for]` then resolves to the first
-	// instance's textarea (label/name association broken for AT). Same-id hygiene is
-	// enforced elsewhere: the choice interaction keeps instance-unique ids on purpose, and
-	// match/associate moved their ids to $props.id() the same way.
-	// Repro: mount CustomInteraction twice with the same interaction data; both textareas
-	// have id 'custom-RESPONSE' (CustomInteraction.svelte passes
-	// testIdInput={`custom-input-${responseId}`}, CustomInteractionFallback.svelte uses
-	// id={`custom-${responseId}`}).
-	// Vitest has no `test.fixme`: `test.skip` is the marker. Remove it in the change that
-	// fixes the bug.
-	test.skip('two renderings of the same item keep unique textarea ids and labels', async () => {
+	// Regression: the fallback used to derive its textarea id purely from the response id
+	// (`custom-${responseId}`), so two renderings of the same item shared an id and the
+	// second instance's `label[for]` resolved to the first instance's textarea. Ids are
+	// instance-unique now ($props.id()), like match/associate.
+	test('two renderings of the same item keep unique textarea ids and labels', async () => {
 		const first = mountInteraction(CustomInteraction, { interaction: customData(), i18n });
 		const second = mountInteraction(CustomInteraction, { interaction: customData(), i18n });
 		await settle();
@@ -182,16 +176,10 @@ describe('CustomInteraction fallback (pie-qti-custom)', () => {
 		cleanupInteraction(first, second);
 	});
 
-	// FIXME — known product bug (i18n provider never reaches the fallback): CustomInteraction
-	// accepts an `i18n` prop but does not forward it to CustomInteractionFallback, which
-	// renders its English literal defaults for every candidate-facing string. Hosts with a
-	// translating provider get English fallback UI (the wrapper's own aria attributes and
-	// InteractionDescription do respect the provider, so the gap is the fallback body).
-	// Repro: mount CustomInteraction with a provider that translates
-	// 'interactions.custom.unsupported' to French; the warning headline still reads
-	// "Unsupported customInteraction" (CustomInteraction.svelte renders
-	// <CustomInteractionFallback …> without {i18n}). Skipped until fixed, as above.
-	test.skip('the fallback speaks the language of the provided i18n provider', async () => {
+	// Regression: CustomInteraction accepted an `i18n` prop but did not forward it to
+	// CustomInteractionFallback, which rendered its English literal defaults for every
+	// candidate-facing string. The provider is forwarded now.
+	test('the fallback speaks the language of the provided i18n provider', async () => {
 		const translations: Record<string, string> = {
 			'interactions.custom.unsupported': 'customInteraction non prise en charge',
 			'interactions.custom.manualResponse': 'Réponse manuelle (facultatif)',

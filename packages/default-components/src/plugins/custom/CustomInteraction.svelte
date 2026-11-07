@@ -52,6 +52,7 @@
 			rawAttributes={customInteraction.rawAttributes}
 			xml={customInteraction.xml}
 			{disabled}
+			{i18n}
 			value={parsedResponse}
 			onChange={handleChange}
 			testIdInput={`custom-input-${customInteraction.responseId}`}

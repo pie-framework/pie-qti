@@ -625,15 +625,11 @@ test.describe('modal semantics', () => {
 
 	// Known product bug: Shift+Tab from the math field (the dialog's first control and its
 	// initial focus) does not wrap to the last control. MathLive handles Shift+Tab itself
-	// and calls preventDefault (no `move-out` is dispatched for an empty field), and the
-	// trap in packages/default-components/src/shared/extensions/modalDialog.ts (handleTab,
-	// `if (... event.defaultPrevented) return;`) defers to any editor that prevented the
-	// default — so the APG wrap never runs and focus stays in the field. Forward Tab works
-	// only because MathLive then moves focus along document order. Repro: open the
-	// math-editor fixture, activate "Insert inline math", press Shift+Tab: focus stays in
-	// the math field instead of moving to "Insert". (The jsdom component test passes
-	// because its stand-in math-field does not swallow Tab.)
-	test.fixme('the math-input dialog wraps Shift+Tab from the math field to the last control', CROSS_BROWSER, async ({
+	// Regression: MathLive claims Shift+Tab itself, so the dialog's Tab trap deferred to it
+	// and backward navigation was dead from the field. The dialog now listens for MathLive's
+	// `move-out` event (fired when an arrow/Tab key has nowhere to go inside the field) and
+	// wraps focus to the dialog's controls.
+	test('the math-input dialog wraps Shift+Tab from the math field to the last control', CROSS_BROWSER, async ({
 		page,
 	}) => {
 		const root = await openFixture(page, 'math-editor');

@@ -14,7 +14,7 @@
 import type { MathfieldElement } from 'mathlive';
 // Import MathLive CSS from the local package
 import 'mathlive/static.css';
-import { createModalDialog } from './modalDialog.js';
+import { createModalDialog, getFocusableElements } from './modalDialog.js';
 
 // Dynamically import MathLive to register the custom element
 let mathLiveLoaded: Promise<void> | null = null;
@@ -366,9 +366,43 @@ export async function openMathLiveEditor(options: MathLiveEditorOptions): Promis
 		onEscape: () => close(false),
 	});
 
+	// MathLive reports when an arrow/Tab key has nowhere to go inside the field
+	// (`move-out`): wrap focus to the dialog's controls instead of staying stuck.
+	// The dialog's own Tab handler only covers keys MathLive did not claim, so
+	// this is what makes forward wrapping work from the field.
+	const handleMoveOut = (event: Event) => {
+		if (closed) return;
+		const direction = (event as CustomEvent<{ direction?: string }>).detail?.direction;
+		const focusable = getFocusableElements(dialog);
+		if (focusable.length === 0) return;
+		if (direction === 'backward') focusable[focusable.length - 1]!.focus();
+		else if (direction === 'forward') focusable[0]!.focus();
+	};
+	mathfield.addEventListener('move-out', handleMoveOut);
+
+	// MathLive claims Tab/Shift+Tab for placeholder navigation and prevents default
+	// even at the field's boundary — including empty fields, where it dispatches no
+	// `move-out` — so the dialog's Tab trap never sees those keys and backward
+	// navigation is dead. Interaction model for this dialog: Tab keeps MathLive's
+	// placeholder navigation (forward wrapping via `move-out`); Shift+Tab always
+	// leaves the field backward. Reverse placeholder traversal stays on the arrow
+	// keys, which MathLive exits correctly via `move-out`.
+	const handleFieldShiftTabCapture = (event: KeyboardEvent) => {
+		if (closed || event.key !== 'Tab' || !event.shiftKey) return;
+		if (!event.composedPath().includes(mathfield)) return;
+		event.preventDefault();
+		event.stopPropagation();
+		const focusable = getFocusableElements(dialog);
+		if (focusable.length === 0) return;
+		focusable[focusable.length - 1]!.focus();
+	};
+	document.addEventListener('keydown', handleFieldShiftTabCapture, true);
+
 	function teardown() {
 		closed = true;
 		if (focusTimer !== undefined) clearTimeout(focusTimer);
+		mathfield.removeEventListener('move-out', handleMoveOut);
+		document.removeEventListener('keydown', handleFieldShiftTabCapture, true);
 		cancelButton.removeEventListener('click', handleCancel);
 		confirmButton.removeEventListener('click', handleConfirm);
 		overlay.removeEventListener('click', handleOverlayClick);

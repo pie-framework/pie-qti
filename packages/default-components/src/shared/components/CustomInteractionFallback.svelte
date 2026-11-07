@@ -32,6 +32,11 @@
 		i18n,
 	}: Props = $props();
 
+	// Instance-unique, so two renderings of the same item on one page don't share
+	// a label/input id pair.
+	const uid = $props.id();
+	const inputId = `${uid}-manual-input`;
+
 	let open = $state(false);
 	let manualValue = $state('');
 
@@ -48,7 +53,7 @@
 <div part="root" class="qti-custom-fallback space-y-3">
 	<div part="warning" class="qti-custom-warning alert alert-warning">
 		<div>
-			<div class="font-semibold">{i18n?.t('interactions.custom.unsupported') ?? 'Unsupported customInteraction'}</div>
+				<div class="font-semibold">{translate(i18n, 'interactions.custom.unsupported', 'Unsupported customInteraction')}</div>
 			<div class="text-sm">
 				{translate(
 					i18n,
@@ -64,11 +69,11 @@
 
 	{#if onChange}
 		<div part="manual" class="qti-custom-manual form-control">
-			<label part="manual-label" class="qti-custom-manual-label label" for={`custom-${responseId}`}>
+			<label part="manual-label" class="qti-custom-manual-label label" for={inputId}>
 				<span class="label-text font-semibold">{i18n?.t('interactions.custom.manualResponse') ?? 'Manual response (optional)'}</span>
 			</label>
 			<textarea
-				id={`custom-${responseId}`}
+				id={inputId}
 				data-testid={testIdInput}
 				part="manual-input"
 				class="qti-custom-manual-input textarea textarea-bordered w-full"
@@ -136,9 +141,14 @@
 		min-height: 4.5rem;
 		padding: 0.5rem 0.75rem;
 		border-radius: 0.5rem;
-		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		/* A form control's boundary needs 3:1 non-text contrast (WCAG 1.4.11). */
+		border: 1px solid var(--pie-qti-border-strong, #767676);
 		background: var(--pie-qti-base-100, oklch(100% 0 0));
 		color: var(--pie-qti-base-content, oklch(21% 0 0));
+	}
+	.qti-custom-manual-input:focus-visible {
+		outline: 2px solid var(--pie-qti-focus, #4338ca);
+		outline-offset: 2px;
 	}
 	.qti-custom-toggle {
 		align-self: start;
