@@ -70,9 +70,13 @@
 
 .qti-well {
 	padding: 1em;
-	border: 1px solid #ccc;
+	/*
+	 * Theme-aware surface (a fixed light grey broke dark themes and PNP colour
+	 * schemes); the border is a non-text boundary at >= 3:1 (WCAG 1.4.11).
+	 */
+	border: 1px solid var(--pie-qti-border-strong, #767676);
 	border-radius: 4px;
-	background-color: #f9f9f9;
+	background-color: var(--pie-qti-base-200, #f9f9f9);
 }
 
 /* =============================================================================

@@ -11,12 +11,26 @@ This package provides a ready-to-use **KaTeX implementation** of that `typeset` 
 
 ### What it does
 
-- **Typesets LaTeX delimiters** using KaTeX auto-render:
+- **Typesets LaTeX delimiters** in text using KaTeX auto-render:
   - Inline: `\\( ... \\)`
   - Display: `\\[ ... \\]` and `$$ ... $$`
 - Optionally supports single-dollar inline math `$...$` (off by default).
-- **Preprocesses MathML** (`<math>` / `<m:math>`) by converting common QTI MathML patterns to LaTeX, then rendering with KaTeX.
+- **Leaves authored MathML native.** `<math>` content is never converted to LaTeX: browsers render
+  MathML Core natively, and the authored structure and `alttext` reach sighted and
+  assistive-technology users unchanged. LaTeX-looking text inside `<math>` is never typeset.
+- Applies two lossless normalisations so authored MathML renders natively:
+  - Prefixed MathML that the HTML parser cannot recognise (for example QTI 2.x
+    `<m:math xmlns:m="…">`) is re-created as real MathML elements, keeping its attributes
+    (including `alttext` and `display`).
+  - `<mfenced>`, which MathML Core (and therefore Chromium) does not render, is expanded into
+    its MathML 3 equivalent: an `<mrow>` with fence and separator `<mo>` elements.
 - Avoids mutating editable content (`contenteditable="true"`) to prevent breaking editors.
+
+Typesetting is idempotent, so it is safe to call repeatedly as content updates.
+
+MathML Core does not cover every MathML 3 feature (for example `menclose` notations or most
+`mathvariant` values); such content renders as the browser supports it rather than being
+rewritten.
 
 ### Install (workspace)
 

@@ -54,6 +54,17 @@ describe('PNP colour schemes', () => {
 		expect(css).toContain('--color-base-content: var(--qti-scheme-fg);');
 		expect(css).toContain('--pie-qti-base-100: var(--qti-scheme-bg);');
 	});
+
+	test.each([
+		'--pie-qti-error-text',
+		'--pie-qti-warning-text',
+		'--pie-qti-success-text',
+		'--pie-qti-info-text',
+		'--pie-qti-border-strong',
+		'--pie-qti-focus',
+	])('draws %s in the scheme foreground', (token) => {
+		expect(css).toContain(`${token}: var(--qti-scheme-fg);`);
+	});
 });
 
 describe('PNP display needs', () => {
@@ -73,4 +84,12 @@ describe('PNP display needs', () => {
 			expect(css).toContain(`var(--qti-${token})`);
 		},
 	);
+
+	test.each([
+		['--pie-qti-font-size-base', '--qti-font-size'],
+		['--pie-qti-font-family', '--qti-font-family'],
+		['--pie-qti-line-height', '--qti-line-height'],
+	])('feeds text appearance into the %s typography token', (token, source) => {
+		expect(css).toContain(`${token}: var(${source});`);
+	});
 });

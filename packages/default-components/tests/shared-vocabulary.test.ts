@@ -33,6 +33,13 @@ describe('shared vocabulary stylesheet', () => {
 	])('styles %s', (selector) => {
 		expect(sharedCss).toContain(selector);
 	});
+
+	it('draws qti-well from theme tokens so it follows dark themes and PNP schemes', () => {
+		const well = /\.qti-well\s*\{([^}]*)\}/.exec(sharedCss)?.[1] ?? '';
+		expect(well).toContain('border: 1px solid var(--pie-qti-border-strong, #767676);');
+		expect(well).toContain('background-color: var(--pie-qti-base-200, #f9f9f9);');
+		expect(well).not.toMatch(/#ccc\b/);
+	});
 });
 
 describe('interaction accessible names', () => {
