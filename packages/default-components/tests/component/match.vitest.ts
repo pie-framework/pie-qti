@@ -151,6 +151,26 @@ describe('MatchInteraction (pie-qti-match)', () => {
 		expect(states).toEqual(['Available for matching.', 'Available for matching.']);
 		cleanupInteraction(mounted);
 	});
+
+	test('two renderings of the same item name their structured group by their own prompt', async () => {
+		// Same responseId twice (e.g. a review pane beside the live item): the
+		// prompt id must come from the component instance, not from the item.
+		const first = mountInteraction(MatchInteraction, { interaction: matchData(), structuredLabelSupport: true });
+		const second = mountInteraction(MatchInteraction, { interaction: matchData(), structuredLabelSupport: true });
+		await settle();
+
+		const ids = Array.from(document.querySelectorAll('[id]'), (element) => element.id);
+		expect(ids.filter((id, index) => ids.indexOf(id) !== index)).toEqual([]);
+		for (const mounted of [first, second]) {
+			const group = q(mounted, '.qti-match-interaction');
+			expect(group?.getAttribute('role')).toBe('group');
+			const prompt = document.getElementById(group?.getAttribute('aria-labelledby') ?? '');
+			expect(prompt?.getAttribute('part')).toBe('prompt');
+			expect(mounted.host.contains(prompt)).toBe(true);
+			expect(prompt?.textContent?.trim()).toBe('Match each capital with its country.');
+		}
+		cleanupInteraction(first, second);
+	});
 });
 
 describe('MatchDragDrop instance-unique ids', () => {

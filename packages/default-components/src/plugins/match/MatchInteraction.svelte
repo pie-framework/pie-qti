@@ -26,6 +26,11 @@
 
 	let { interaction = $bindable(), response = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), typeset, onChange, structuredLabelSupport = false }: Props = $props();
 
+	// Unique per component instance: two renderings of the same item on one page
+	// must not share prompt ids (their aria references would cross).
+	const uid = $props.id();
+	const promptId = `${uid}-prompt`;
+
 	// Parse props that may be JSON strings (web component usage)
 	const parsedInteraction = $derived(parseJsonProp<MatchInteractionData>(interaction));
 	const parsedResponse = $derived(parseJsonProp<string[]>(response));
@@ -33,12 +38,9 @@
 	const isShowingCorrect = $derived(role === 'scorer' && parsedCorrectResponse !== null);
 
 	// G-13 structured labels: the answer set becomes one ARIA group named by the prompt.
-	const promptId = $derived(
-		parsedInteraction ? `qti-match-prompt-${parsedInteraction.responseId.replace(/[^A-Za-z0-9_-]/g, '-')}` : undefined
-	);
 	const structuredAria = $derived.by(() => {
 		if (!structuredLabelSupport || !parsedInteraction) return {};
-		if (parsedInteraction.prompt) return { role: 'group', 'aria-labelledby': promptId ?? '' };
+		if (parsedInteraction.prompt) return { role: 'group', 'aria-labelledby': promptId };
 		// An authored accessible name beats the generic group label.
 		if (parsedInteraction.accessibility?.label) return { role: 'group' };
 		return { role: 'group', 'aria-label': i18n?.t('interactions.match.groupLabel') ?? 'Matching items' };

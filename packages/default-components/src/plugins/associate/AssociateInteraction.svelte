@@ -2,6 +2,7 @@
 
 <script lang="ts">
 	import type { AssociateInteractionData, HtmlContent } from '@pie-qti/item-player';
+	import { tick } from 'svelte';
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
@@ -58,7 +59,11 @@
 
 	// Ensure response is always an array
 	const pairs = $derived(parsedResponse || []);
-	const helperId = $derived(`associate-helper-${parsedInteraction?.responseId ?? 'unknown'}`);
+
+	// Unique id prefix so aria-labelledby/describedby survive several interactions
+	// in one document, including two renderings of the same item.
+	const uid = $props.id();
+	const helperId = `${uid}-helper`;
 
 	function emitChange(newPairs: string[]) {
 		response = newPairs;
@@ -106,8 +111,20 @@
 	}
 
 	function removePair(index: number) {
-		const newPairs = pairs.filter((_, i) => i !== index);
-		emitChange(newPairs);
+		emitChange(pairs.filter((_, i) => i !== index));
+		void moveFocusAfterRemoval(index);
+	}
+
+	/**
+	 * The activated button may be gone, which would drop keyboard focus to the
+	 * document. Focus stays on the pair list (the pair now in that row, else the
+	 * new last one), or returns to the choices when no pair is left to remove.
+	 */
+	async function moveFocusAfterRemoval(removedIndex: number) {
+		await tick();
+		const buttons = rootElement?.querySelectorAll<HTMLButtonElement>('[part="pair-remove"]');
+		const nextPair = buttons?.[Math.min(removedIndex, buttons.length - 1)];
+		(nextPair ?? rootElement?.querySelector<HTMLButtonElement>('[part="choice"]'))?.focus();
 	}
 
 	function isInPair(choiceId: string): boolean {
@@ -146,9 +163,6 @@
 	const correctPairs = $derived(
 		isShowingCorrect && parsedCorrectResponse ? parsedCorrectResponse : []
 	);
-
-	// Unique id prefix so aria-labelledby/describedby survive several interactions in one document.
-	const uid = $props.id();
 </script>
 
 <ShadowBaseStyles />
@@ -180,7 +194,7 @@
 				class:cursor-not-allowed={isBlocked}
 				type="button"
 				aria-labelledby={choiceTextId}
-				aria-describedby={`${helperId} ${choiceStateId}`}
+				aria-describedby={isShowingCorrect ? choiceStateId : `${helperId} ${choiceStateId}`}
 				aria-pressed={isSelected}
 				aria-disabled={isBlocked ? 'true' : undefined}
 				onclick={() => handleChoiceClick(choice.identifier)}
@@ -196,7 +210,7 @@
 					<span class="ms-2">✓</span>
 				{/if}
 				<span id={choiceStateId} class="sr-only">
-					{inPair && translate(i18n, 'interactions.associate.inPairSentence', 'In an association.')}
+					{inPair ? translate(i18n, 'interactions.associate.inPairSentence', 'In an association.') : ''}
 				</span>
 			</button>
 		{/each}
@@ -258,13 +272,13 @@
 						{/if}
 						<button
 							part="pair-remove"
-							class="btn btn-sm btn-ghost btn-circle"
+							class="qti-associate-pair-remove"
 							type="button"
 							aria-label={getRemoveAssociationLabel(choice1, choice2)}
 							onclick={() => removePair(index)}
 							{disabled}
 						>
-							✕
+							<span aria-hidden="true">✕</span>
 						</button>
 					</div>
 				{/if}
@@ -318,6 +332,42 @@
 		gap: 0.75rem;
 		padding: 0.5rem;
 		border-radius: 0.75rem;
+	}
+	/*
+	 * Pair remove: 44×44 CSS px, the K-12 house target (above the 24px WCAG 2.5.8
+	 * minimum). Self-contained so the size holds without DaisyUI's btn classes.
+	 */
+	.qti-associate-pair-remove {
+		flex: 0 0 auto;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		box-sizing: border-box;
+		inline-size: 44px;
+		block-size: 44px;
+		min-inline-size: 44px;
+		min-block-size: 44px;
+		margin: 0;
+		padding: 0;
+		border: 1px solid var(--pie-qti-border-strong, #767676);
+		border-radius: 999px;
+		background: transparent;
+		color: var(--pie-qti-error-text, #b91c1c);
+		font: inherit;
+		font-size: 1rem;
+		line-height: 1;
+		cursor: pointer;
+	}
+	.qti-associate-pair-remove:hover:not(:disabled) {
+		background: color-mix(in srgb, var(--pie-qti-error-text, #b91c1c) 10%, transparent);
+	}
+	.qti-associate-pair-remove:focus-visible {
+		outline: 2px solid var(--pie-qti-focus, #4338ca);
+		outline-offset: 2px;
+	}
+	.qti-associate-pair-remove:disabled {
+		cursor: not-allowed;
+		opacity: 0.5;
 	}
 	.qti-associate-helper {
 		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
