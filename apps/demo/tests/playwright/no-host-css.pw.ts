@@ -341,7 +341,7 @@ const NO_CSS_SRC_DOC = String.raw`<!doctype html>
           { identifier: 'W1', text: 'one', matchMax: 1 },
           { identifier: 'W2', text: 'two', matchMax: 1 }
         ],
-        gaps: [{ identifier: 'G1', index: 0 }, { identifier: 'G2', index: 1 }],
+        gaps: ['G1', 'G2'],
         promptText: 'Count: [GAP:G1] and [GAP:G2].'
       };
       gm.response = [];

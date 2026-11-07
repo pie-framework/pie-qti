@@ -101,6 +101,40 @@ describe('MatchInteraction (pie-qti-match)', () => {
 		cleanupInteraction(mounted);
 	});
 
+	test('matchGroup names partner identifiers: only the named target accepts the source', async () => {
+		// QTI 2.2/3.0: a source's matchGroup lists the target identifiers it may pair with. The
+		// former label-only rule blocked paris–france ([france] and [paris] share no token) and
+		// would let this through.
+		const mounted = mountInteraction(MatchInteraction, {
+			interaction: matchData({
+				sourceSet: [
+					{ identifier: 'paris', text: '<p>Paris</p>', matchMax: 1, matchGroup: ['france'] },
+					{ identifier: 'rome', text: '<p>Rome</p>', matchMax: 1 },
+				],
+				targetSet: [
+					{ identifier: 'france', text: '<p>France</p>', matchMax: 1, matchGroup: ['paris'] },
+					{ identifier: 'italy', text: '<p>Italy</p>', matchMax: 1, matchGroup: ['rome'] },
+				],
+			}),
+		});
+		await settle();
+
+		q<HTMLButtonElement>(mounted, '[data-source-id="paris"]')?.click();
+		await settle();
+		const [france, italy] = qa<HTMLButtonElement>(mounted, '[part="target"]');
+		expect(france!.getAttribute('aria-disabled')).toBeNull();
+		expect(italy!.getAttribute('aria-disabled')).toBe('true');
+
+		italy!.click();
+		await settle();
+		expect(mounted.events).toHaveLength(0);
+
+		france!.click();
+		await settle();
+		expect(mounted.instance.response).toEqual(['paris france']);
+		cleanupInteraction(mounted);
+	});
+
 	test('Escape cancels a selected source, announces it and returns focus to the source', async () => {
 		const mounted = mountInteraction(MatchInteraction, { interaction: matchData() });
 		await settle();

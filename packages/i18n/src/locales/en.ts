@@ -316,6 +316,7 @@ export default {
 			filledGapAriaLabel: 'Blank {position} of {total}, filled with {word}. Select to clear.',
 			wordSelected: '{word} picked up. Select a blank to place it, or press Escape to cancel.',
 			pickUpCancelled: 'Pick-up of {word} cancelled.',
+			notCompatibleSentence: 'Not compatible with the selected word.',
 		},
 
 		graphicGapMatch: {
@@ -399,6 +400,7 @@ export default {
 			clickAnotherHotspot: 'Selected: <strong>{label}</strong>. Click another hotspot to create an association.',
 			removeAssociationBetween: 'Remove association between {first} and {second}',
 			inPairSentence: 'In an association.',
+			removedAssociationBetween: 'Removed association between {first} and {second}.',
 		},
 
 		positionObject: {

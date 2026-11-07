@@ -5,7 +5,7 @@
  */
 
 import type { ElementExtractor, ExtractionUtils } from '../../extraction/types.js';
-import type { QTIElement } from '../../interactions/shared/types.js';
+import type { DeliveredInteraction, GapMatchInteractionData, QTIElement } from '../../interactions/shared/types.js';
 import { maybeShuffle } from '../../core/shuffle.js';
 import { normalizeCssPixelLength, normalizePixelDimension } from '../../security/styleValues.js';
 
@@ -68,10 +68,22 @@ export interface GapMatchData {
 	}>;
 	gapImages: GapMatchImage[];
 	gaps: string[];
+	/** Authored `matchGroup` tokens per gap identifier; present only when a gap authors one. */
+	gapMatchGroups?: Record<string, string[]>;
 	shuffle: boolean;
 	prompt: string | null;
 	promptText: string;
 }
+
+/**
+ * Compile-time proof that what this extractor delivers satisfies the canonical
+ * `GapMatchInteractionData` contract: `gaps` are the plain identifiers the
+ * pipeline delivers (an object shape here would silently disagree at runtime).
+ */
+const DELIVERED_MATCHES_CONTRACT: DeliveredInteraction<'gapMatchInteraction', GapMatchData> extends GapMatchInteractionData
+	? true
+	: false = true;
+void DELIVERED_MATCHES_CONTRACT;
 
 /**
  * Extracts one draggable image choice from gapImg/qti-gap-img content.
@@ -239,6 +251,24 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 			}
 		}
 
+		// Each gap's authored matchGroup (QTI 2.2/3.0: the identifiers of the choices that may be
+		// matched with it), read from the parsed source wherever the gap sits, with
+		// version-aware attribute names (matchGroup / match-group).
+		const gapMatchGroups: Record<string, string[]> = {};
+		const visitGaps = (node: QTIElement): void => {
+			for (const child of node.childNodes ?? []) {
+				const candidate = child as QTIElement;
+				if (!candidate.rawTagName) continue;
+				if (utils.matchesTag(candidate, 'gap')) {
+					const identifier = utils.getAttribute(candidate, 'identifier', '');
+					const tokens = utils.getAttribute(candidate, 'matchGroup', '').split(/\s+/).filter(Boolean);
+					if (identifier && tokens.length > 0) gapMatchGroups[identifier] = tokens;
+				}
+				visitGaps(candidate);
+			}
+		};
+		visitGaps(element);
+
 		// Extract interaction-level classes and attributes
 		const interactionClasses = utils.getClasses(element);
 		const choicesContainerWidth = normalizeCssPixelLength(
@@ -251,6 +281,7 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 			gapTexts,
 			gapImages,
 			gaps,
+			...(Object.keys(gapMatchGroups).length > 0 ? { gapMatchGroups } : {}),
 			shuffle,
 			prompt,
 			promptText,

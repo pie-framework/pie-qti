@@ -53,6 +53,18 @@
 	// Get reference to the root element for event dispatching
 	let rootElement: HTMLDivElement | undefined = $state();
 
+	// Polite announcements of pair removals, for the screen-reader live region below.
+	let removalAnnouncement = $state('');
+
+	/**
+	 * Put `message` in the live region. Removing the same pair again would leave the text
+	 * unchanged, which assistive technology does not announce, so a repeated message toggles a
+	 * trailing zero-width space (silent to screen readers) to make it a change again.
+	 */
+	function announceRemoval(message: string) {
+		removalAnnouncement = removalAnnouncement === message ? `${message}\u200b` : message;
+	}
+
 	// Use external selection state if provided, otherwise use internal state
 	let internalSelectedForPairing = $state<string | null>(null);
 	const selectedForPairing = $derived(externalSelectedForPairing ?? internalSelectedForPairing);
@@ -84,7 +96,7 @@
 		const src = parsedInteraction.choices.find((c) => c.identifier === selectedForPairing);
 		return new Set(
 			parsedInteraction.choices
-				.filter((c) => c.identifier !== selectedForPairing && !isCompatibleMatchGroup(src?.matchGroup, c.matchGroup))
+				.filter((c) => c.identifier !== selectedForPairing && !isCompatibleMatchGroup(src, c))
 				.map((c) => c.identifier)
 		);
 	});
@@ -111,7 +123,21 @@
 	}
 
 	function removePair(index: number) {
+		const removed = pairs[index];
 		emitChange(pairs.filter((_, i) => i !== index));
+		// Announce the removal politely: the focused remove button vanishes with the pair,
+		// so the live region is what tells assistive technology what just happened.
+		if (removed) {
+			const [id1, id2] = removed.split(' ');
+			const choice1 = parsedInteraction?.choices.find((c) => c.identifier === id1);
+			const choice2 = parsedInteraction?.choices.find((c) => c.identifier === id2);
+			announceRemoval(
+				translate(i18n, 'interactions.associate.removedAssociationBetween', 'Removed association between {first} and {second}.', {
+					first: choice1 ? getChoiceLabel(choice1) : id1,
+					second: choice2 ? getChoiceLabel(choice2) : id2,
+				}),
+			);
+		}
 		void moveFocusAfterRemoval(index);
 	}
 
@@ -169,6 +195,8 @@
 
 <div bind:this={rootElement} {...interactionAria(parsedInteraction)} part="root" class="qti-associate-interaction space-y-3">
 	<InteractionDescription interaction={parsedInteraction} />
+	<!-- Polite announcements (pair removal) that survive the changed/focused controls themselves. -->
+	<div aria-live="polite" aria-atomic="true" class="qti-associate-live-region">{removalAnnouncement}</div>
 	{#if !parsedInteraction}
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
@@ -372,5 +400,17 @@
 	.qti-associate-helper {
 		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
 		background: var(--pie-qti-base-200, oklch(98% 0 0));
+	}
+	/* Visually hidden live region, self-contained so it hides without Tailwind. */
+	.qti-associate-live-region {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border: 0;
 	}
 </style>

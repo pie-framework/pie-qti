@@ -5,19 +5,19 @@
   Type: interaction
   Packages: @pie-qti/default-components, @pie-qti/item-player
   QTI type: matchInteraction
-  Last reviewed: 2026-04-28
+  Last reviewed: 2026-11-07
 -->
 
 **Status:** draft  
 **Type:** interaction  
 **Packages:** `@pie-qti/default-components` (component), `@pie-qti/item-player` (extractor)  
-**Last reviewed:** 2026-04-28
+**Last reviewed:** 2026-11-07
 
 ---
 
 ## Summary
 
-`matchInteraction` presents two distinct, labelled sets of choices — a source column and a target column — and asks the candidate to pair items across them. Each pair is recorded as a `source target` directed string in a `multiple`-cardinality `directedPair` response variable. The implementation renders a two-column drag-and-drop interface (`MatchDragDrop.svelte`) that also supports keyboard and touch pairing, enforces per-choice reuse limits via `matchMax`, and gates correct-answer display behind the `scorer` role. Two spec attributes that affect pairing constraints — `matchGroup` and `matchMin` — are not yet fully honoured; their gaps are documented in §QTI specification alignment.
+`matchInteraction` presents two distinct, labelled sets of choices — a source column and a target column — and asks the candidate to pair items across them. Each pair is recorded as a `source target` directed string in a `multiple`-cardinality `directedPair` response variable. The implementation renders a two-column drag-and-drop interface (`MatchDragDrop.svelte`) that also supports keyboard and touch pairing, enforces per-choice reuse limits via `matchMax`, and gates correct-answer display behind the `scorer` role. The `matchGroup` pairing constraint is enforced in the UI by the same rule response validation applies, and `matchMin` and `minAssociations` are enforced at response validation (§QTI specification alignment).
 
 ---
 
@@ -51,9 +51,9 @@ Drag-and-drop is not accessible by default. The keyboard pattern is: Tab to a so
 
 When `shuffle=true`, the extractor returns `sourceSet` and `targetSet` shuffled independently (successive draws from the same session-seeded PRNG, so the two sets do not share a permutation). Shuffle state is not serialised as a separate field: the order is a pure function of the item session GUID and the `responseIdentifier`, and `Player` persists and restores that GUID, so re-parsing the item within the same session reproduces the same order. This is consistent with how `choiceInteraction` handles shuffle.
 
-### Why `minAssociations` on the interaction is not extracted
+### `minAssociations` on the interaction
 
-`minAssociations` at the interaction level declares the minimum total number of pairs the candidate must form before the response is considered complete. It is not extracted — neither the extractor's `MatchData` nor the `MatchInteractionData` type has a `minAssociations` field. This is an unimplemented gap. The validator does not enforce it. This is separate from and in addition to the per-choice `matchMin` gap (G-06), which declares per-choice minimum usage count.
+`minAssociations` at the interaction level declares the minimum total number of pairs the candidate must form before the response is considered complete. The extractor delivers it as `MatchInteractionData.minAssociations` (only when greater than zero), and `Player.validateResponses()` reports the response incomplete while fewer pairs exist. This is separate from the per-choice `matchMin` (G-06), which declares a per-choice minimum usage count.
 
 ---
 
@@ -69,7 +69,7 @@ When `shuffle=true`, the extractor returns `sourceSet` and `targetSet` shuffled 
 | `responseIdentifier` | ✅ Full | Extracted as `responseId`; used in `qti-change` event payload |
 | `shuffle` | ✅ Full | Shuffles each set independently at extraction time, seeded from the item session GUID; stable for the whole session, including across re-renders and reloads |
 | `maxAssociations` | ✅ Full | Limits total pairs that can be formed; `0` = unlimited per spec; defaults to `1`; enforced in the UI via `matchMax` per source choice |
-| `minAssociations` | ❌ Not extracted | Spec: minimum total pairs required; not in `MatchInteractionData`; not enforced at submission |
+| `minAssociations` | ✅ Full | Minimum total pairs; extracted when `> 0` and enforced by `Player.validateResponses()` (incomplete below it) |
 
 ### Supported attributes on `simpleAssociableChoice`
 
@@ -77,8 +77,8 @@ When `shuffle=true`, the extractor returns `sourceSet` and `targetSet` shuffled 
 |-----------|---------|-----------|
 | `identifier` | ✅ Full | Required; deduplicated within each set |
 | `matchMax` | ✅ Full | Extracted; controls how many times a source choice can be paired. When `matchMax` pairs for a source are formed, its drag handle is hidden and it cannot be re-selected as a keyboard source |
-| `matchMin` | ❌ Gap (G-06) | Extracted but not validated at submission. See Known gaps. |
-| `matchGroup` | ❌ Gap (G-01) | Not extracted. See Known gaps. |
+| `matchMin` | ✅ Full (G-06) | Extracted when `> 0`; `Player.validateResponses()` reports the response incomplete while a choice is used fewer times |
+| `matchGroup` | ✅ Full (G-01) | Extracted into `sourceSet[]`/`targetSet[].matchGroup`; restricts which targets a source may be paired with, in the UI and in response validation. See Resolved gaps. |
 | class (CSS classes) | ✅ Partial | Extracted as `classes?: string[]`; passed through in the data model; not applied as CSS classes by the default component |
 
 ### Response variable contract
@@ -94,16 +94,13 @@ When `shuffle=true`, the extractor returns `sourceSet` and `targetSet` shuffled 
 - **MATCH_CORRECT** — full credit when the response array exactly matches `correctResponse` (all correct pairs present, no extras, considering set equality). Used when every pair must be correct for full credit.
 - **MAP_RESPONSE** — partial credit via `mapping` on the `ResponseDeclaration`. Each `mapEntry` key is a `"source target"` string. The scoring engine sums the mapped values for each pair in the response. Unmapped pairs receive `mappingDefault` (typically `0`). This is the standard scoring path for match interactions where each correct pair is worth one point.
 
-### Known gaps
+### Resolved gaps
 
-**G-01: `matchGroup` not extracted (`matchExtractor.ts` and `MatchDragDrop.svelte`)**  
-The `matchGroup` attribute on `simpleAssociableChoice` is a space-separated list of identifiers. When present, a choice may only be paired with a choice that shares at least one group identifier. For example, a source choice with `matchGroup="science"` may only be matched to target choices that also declare `"science"` in their `matchGroup`. The extractor currently ignores this attribute; `AssociableChoice` has no `matchGroup` field; the UI therefore allows any source to be paired with any target. For items authored without `matchGroup`, this is correct. For items that use `matchGroup` to prevent nonsensical pairings in larger pools, all pairings remain available and the authored constraint is silently violated. Tracked as G-01 in `docs/SPEC-GAPS-PLAN.md`.
+**G-01: `matchGroup`** (`docs/SPEC-GAPS-PLAN.md` §G-01, Done). QTI 2.2 and 3.0 define `matchGroup` on a `simpleAssociableChoice` as "a list of the identifiers for the objects that can be matched with this choice" (QTI 2.2.4 ASI Information Model, Table 5.98.5; QTI 3.0, Table 5.131.5); empty or absent means unrestricted. The extractor reads it into `sourceSet[]`/`targetSet[].matchGroup`. `MatchDragDrop.svelte` decides every pairing with `isMatchGroupCompatible` from `@pie-qti/item-player`, the rule `Player.validateResponses()` applies to the response: while a source is selected or dragged, the targets the rule forbids are `aria-disabled` and refuse activation and drops. The rule accepts a pair when either reading allows it: the specification's (each side names the other), or the shared-group-label reading some content uses (the two sides share a token; a side without `matchGroup` is unrestricted). So the UI never offers a pair validation rejects, nor blocks one it accepts.
 
-**G-06: `matchMin` not validated at submission (`matchExtractor.ts`, response validation)**  
-`matchMin` on a `simpleAssociableChoice` declares the minimum number of times that choice must appear in the response. The extractor reads it and it is present in the data model object returned by the extractor's `extract()` method (as a field on each choice in `sourceSet`/`targetSet`). However, `MatchInteractionData.sourceSet` uses the `AssociableChoice` interface, which does not include `matchMin`. The validator in `matchExtractor.ts` does not check submission-time compliance. If `matchMin=1` for a source choice, the player will not prevent submission of an incomplete response. Tracked as G-06 in `docs/SPEC-GAPS-PLAN.md`.
+**G-06: `matchMin`** (`docs/SPEC-GAPS-PLAN.md` §G-06, Done). The extractor delivers `matchMin` on each choice when greater than zero, and `Player.validateResponses()` counts each choice's appearances across pairs, reporting the response incomplete while any choice is below its `matchMin`.
 
-**`minAssociations` not extracted**  
-`minAssociations` on the interaction element is not in `MatchData` or `MatchInteractionData` and is not enforced. Not tracked as a numbered gap in `SPEC-GAPS-PLAN.md` at the time of writing but is equivalent in severity to `minChoices` on `choiceInteraction`.
+**`minAssociations`**: extracted and enforced by `Player.validateResponses()` (see Background).
 
 ---
 
@@ -120,7 +117,7 @@ The `matchGroup` attribute on `simpleAssociableChoice` is a space-separated list
 - **FR-9:** When `role='scorer'` and `correctResponse` is provided, highlight correct pairings with a success (green) colour and show "Correct" badges. Do not reveal correct answers to any other role.
 - **FR-10:** Render the `prompt` HTML content above the matching grid when present.
 - **FR-11:** On mobile viewports (≤640px), stack the source and target columns vertically rather than side-by-side, and support touch drag-and-drop via the `touchDrag` action.
-- **FR-12:** In the absence of `matchGroup` (G-01), any source may be paired with any target. Do not apply any pairing restriction based on unextracted attributes.
+- **FR-12:** Apply `matchGroup` with the shared rule (`isMatchGroupCompatible` from `@pie-qti/item-player`) for every input method: while a source is selected or dragged, mark the targets it may not be paired with `aria-disabled="true"` and refuse their activation and drops. Without `matchGroup` on either side, any source may be paired with any target.
 
 ---
 
@@ -171,11 +168,11 @@ The `matchGroup` attribute on `simpleAssociableChoice` is a space-separated list
 **Rationale:** Side-by-side columns at 375px (iPhone SE) would give each column ~175px — too narrow for typical choice text. Stacking preserves readability. On touch devices, candidates can scroll to see both sets before pairing.  
 **Consequences:** On narrow viewports, the mental model is "scroll down to see targets", which requires more spatial reasoning than a side-by-side layout. Items with short choice text may benefit from a horizontal layout even on mobile; this can be achieved via `::part(grid)` override by the host.
 
-### `MatchInteractionData` uses `AssociableChoice` which does not include `matchMin`
+### `AssociableChoice` carries the pairing constraints
 
-**Decision:** The `AssociableChoice` interface (used for both source and target sets in `MatchInteractionData`) currently only has `identifier`, `text`, and `matchMax`. The extractor's `MatchData` also omits `matchMin`.  
-**Rationale:** `matchMin` is extracted by the extractor at parse time (via `getNumberAttribute`) into the local choice shape but then discarded before returning from `extract()`, because `AssociableChoice` has no `matchMin` field. This gap was preserved because `matchMin` validation is a separate, deferred work item (G-06).  
-**Consequences:** Even if G-06 is fixed in the validation layer, the type contract must be updated to include `matchMin` before validation can be performed downstream.
+**Decision:** `AssociableChoice` (used for both sets of `MatchInteractionData`) carries `matchMin` and `matchGroup` when authored, next to `identifier`, `text` and `matchMax`.  
+**Rationale:** The renderer needs `matchGroup` to offer only the pairings validation accepts, and response validation needs `matchMin`; delivering them on the choice keeps one source of truth for both.  
+**Consequences:** Hosts that build `MatchInteractionData` by hand can author the same constraints; omitting them leaves pairing unrestricted.
 
 ---
 
@@ -190,6 +187,8 @@ interface AssociableChoice {
   identifier: string;   // from simpleAssociableChoice identifier attribute
   text: string;         // HTML content of simpleAssociableChoice
   matchMax: number;     // from matchMax attribute; defaults to 1
+  matchMin?: number;    // from matchMin, when > 0
+  matchGroup?: string[]; // from matchGroup, when authored: identifiers this choice may be paired with
   classes?: string[];   // CSS classes from the element, when present
 }
 
@@ -198,6 +197,7 @@ interface MatchInteractionData extends BaseInteractionData {
   responseId: string;          // from responseIdentifier attribute
   shuffle: boolean;            // shuffled order applied at extraction time
   maxAssociations: number;     // 0 = unlimited; defaults to 1
+  minAssociations?: number;    // from minAssociations, when > 0
   prompt: string | null;       // HTML content of <prompt> child, or null
   sourceSet: AssociableChoice[]; // items from first simpleMatchSet
   targetSet: AssociableChoice[]; // items from second simpleMatchSet
@@ -211,10 +211,9 @@ interface MatchInteractionData extends BaseInteractionData {
 - All `identifier` values in `targetSet` are non-empty and unique within the set (error on duplicate)
 - `maxAssociations >= 0` (error if negative)
 
-**Invariants not enforced (gaps):**
-- `minAssociations` is not in the type; not enforced at submission
-- `matchMin` per choice is not in `AssociableChoice`; not enforced at submission (G-06)
-- `matchGroup` per choice is not in `AssociableChoice`; pairing restrictions not enforced (G-01)
+**Invariants enforced at response validation (`Player.validateResponses()`):**
+- at least `minAssociations` pairs, and each choice used at least its `matchMin` times (incomplete otherwise)
+- every pair allowed by `matchGroup` (a `match_group` error otherwise); the UI applies the same rule
 
 **Fallback behaviour:** If the XML has no `simpleMatchSet` children (malformed), the extractor falls back to treating all `simpleAssociableChoice` descendants as both source and target sets. This preserves functional display of badly-structured content at the cost of violating the two-set structural constraint.
 
@@ -392,40 +391,33 @@ AC-A9: Disabled inputs convey state to assistive technology
   Then: the button is announced as disabled (HTML disabled attribute present)
 ```
 
-### Gap behaviour (G-01: `matchGroup` not extracted)
+### matchGroup (G-01)
 
 ```
 AC-G1: Without matchGroup, any source pairs with any target
-  Given: a QTI item whose simpleAssociableChoice elements have matchGroup attributes in the XML
+  Given: a QTI item whose simpleAssociableChoice elements author no matchGroup
   When: the item is extracted and rendered
-  Then: all source-to-target pairings remain available; the UI does not restrict any pairing;
-        no error is thrown or logged related to matchGroup
+  Then: all source-to-target pairings remain available; no target is marked aria-disabled
 
-AC-G2: matchGroup attribute produces no visible effect
-  Given: two source choices — S1 with matchGroup="animal" and S2 with matchGroup="plant" —
-         and two target choices — T1 with matchGroup="animal" and T2 with matchGroup="plant"
-  When: the candidate attempts to pair S1 with T2 (mismatched groups)
-  Then: the pairing succeeds; "S1 T2" is added to the response; no validation error prevents it
-  Notes: This is the expected behaviour given G-01. When G-01 is resolved, this AC should be
-         updated: the pairing should be rejected by the UI when matchGroups are incompatible.
+AC-G2: matchGroup names the partners (the QTI reading)
+  Given: source S1 with matchGroup="T1", and targets T1 with matchGroup="S1" and T2 with matchGroup="S2"
+  When: the candidate selects S1
+  Then: T2 is aria-disabled and activating or dropping on it adds no pair; T1 accepts S1 ("S1 T1")
+
+AC-G3: Shared group labels pair too (the same rule as response validation)
+  Given: S1 with matchGroup="animal", T1 with matchGroup="animal", T2 with matchGroup="plant"
+  When: the candidate selects S1
+  Then: T1 accepts S1; T2 is aria-disabled
+  Notes: Player.validateResponses() accepts exactly the pairs the UI allows (isMatchGroupCompatible)
 ```
 
-### Gap behaviour (G-06: `matchMin` not validated)
+### matchMin (G-06)
 
 ```
-AC-G3: matchMin on source choice does not block submission
-  Given: a QTI item where source choice S1 has matchMin="1" in the XML
-  When: the candidate submits without pairing S1
-  Then: the submission proceeds; the response does not include any pair for S1; no validation
-        error is raised; SCORE is computed based on the (incomplete) response
-  Notes: This is the expected behaviour given G-06. When G-06 is resolved, this AC should be
-         updated: the player should return a validation error indicating S1 has not met its
-         minimum usage requirement.
-
-AC-G4: matchMin=0 has no effect (always the current behaviour)
-  Given: a QTI item where all source choices have matchMin="0"
-  When: the candidate submits with some pairs empty
-  Then: the submission proceeds without any matchMin-related validation error
+AC-G4: matchMin on a source choice makes the response incomplete until it is used
+  Given: a QTI item where source choice S1 has matchMin="1"
+  When: player.validateResponses() runs on a response without a pair for S1
+  Then: the response is reported incomplete; once S1 is paired it is complete
 ```
 
 ### Edge cases
@@ -473,7 +465,7 @@ AC-E7: Response prop is null or undefined
 
 ## Open questions
 
-- [ ] Should `minAssociations` on the interaction be extracted and surfaced as a submission-time validation hint (e.g., "You must form at least N matches")? Currently not extracted. Equivalent severity to `minChoices` on `choiceInteraction`.
+- [ ] Should the component surface `minAssociations` as a visible hint (e.g., "You must form at least N matches")? It is enforced by `Player.validateResponses()` but not shown.
 - [ ] Should targets with `matchMax > 1` be able to accept multiple sources? The current one-source-per-target UI constraint is a practical simplification. A real item requiring many-to-one targeting should trigger a design discussion before implementation.
 - [ ] Should the `matchMax=0` unlimited convention trigger a validator warning similar to `maxChoices=0` in `choiceInteraction`? Currently no warning is emitted.
 
@@ -483,7 +475,8 @@ AC-E7: Response prop is null or undefined
 
 - QTI spec: `docs/QTI_techguide.md` §3.1.4
 - Response processing: `docs/QTI-RESPONSE-TRACKING-AND-SCORING.md`
-- Spec gaps: `docs/SPEC-GAPS-PLAN.md` — G-01 (matchGroup not extracted), G-06 (matchMin not validated)
+- Spec gaps: `docs/SPEC-GAPS-PLAN.md` — G-01 (`matchGroup`, Done), G-06 (`matchMin`, Done)
+- Shared pairing rule: `packages/item-player/src/core/matchGroups.ts` (`isMatchGroupCompatible`), used through `packages/default-components/src/shared/utils/matchGroupUtils.ts`
 - Component: `packages/default-components/src/plugins/match/MatchInteraction.svelte`
 - Shared UI: `packages/default-components/src/shared/components/MatchDragDrop.svelte`
 - Pair utilities: `packages/default-components/src/shared/utils/pairHelpers.ts`

@@ -5,13 +5,13 @@
   Type: interaction
   Packages: @pie-qti/default-components, @pie-qti/item-player
   QTI type: associateInteraction
-  Last reviewed: 2026-04-28
+  Last reviewed: 2026-11-07
 -->
 
 **Status:** draft  
 **Type:** interaction  
 **Packages:** `@pie-qti/default-components` (component), `@pie-qti/item-player` (extractor)  
-**Last reviewed:** 2026-04-28
+**Last reviewed:** 2026-11-07
 
 ---
 
@@ -80,7 +80,7 @@ The response array stored in `player.declarations` is NOT canonicalized when the
 
 ### Resolved gaps
 
-**G-01 — `matchGroup`** (`SPEC-GAPS-PLAN.md §G-01`, Done). The extractor reads `matchGroup` into `choices[].matchGroup`, and the component makes choices with no shared group inert while a choice is pending.
+**G-01 — `matchGroup`** (`SPEC-GAPS-PLAN.md §G-01`, Done). QTI 2.2 and 3.0 define `matchGroup` on `simpleAssociableChoice` as "a list of the identifiers for the objects that can be matched with this choice" (QTI 2.2.4 ASI Information Model, Table 5.98.5; QTI 3.0, Table 5.131.5); empty or absent means unrestricted. The extractor reads it into `choices[].matchGroup`. While a choice is pending, the component decides with `isMatchGroupCompatible` from `@pie-qti/item-player` — the rule `Player.validateResponses()` applies — which partners are offered: a choice is inert when neither reading allows the pair, the specification's (the choices name each other) or the shared-group-label reading some content uses (shared token). So the UI never offers a pair validation rejects, nor blocks one it accepts.
 
 **G-06 — `matchMin` at submission** (`SPEC-GAPS-PLAN.md §G-06`, Done). `Player.validateResponses()` counts each choice's appearances across pairs and reports the response incomplete while any choice is below its `matchMin`.
 
@@ -112,7 +112,7 @@ The response array stored in `player.declarations` is NOT canonicalized when the
 
 **Focus management:** After a pair is created, focus must remain on a logically appropriate element (the grid of choices) so that keyboard users can continue forming pairs without re-navigating. After a pair is removed, focus must remain in the pair list — on the remove button of the pair that moved into the removed row, or, when no pairs remain, back on the first choice.
 
-**ARIA roles and labels:** Each choice button must have a discernible accessible name (the choice text). The pending state must be communicated to assistive technology — at minimum via `aria-pressed="true"` or `aria-selected="true"` on the pending button, and an `aria-live` region that announces pair creation and removal. The helper message area should use `role="status"` or `aria-live="polite"`.
+**ARIA roles and labels:** Each choice button must have a discernible accessible name (the choice text). The pending state must be communicated to assistive technology — at minimum via `aria-pressed="true"` or `aria-selected="true"` on the pending button, and an `aria-live` region that announces pair creation and removal. Pair removal is announced through a dedicated polite live region: the focused remove button vanishes with the pair, so the region is what tells assistive technology what happened; removing the same pair again re-announces. The helper message area should use `role="status"` or `aria-live="polite"`.
 
 **Remove buttons:** Each pair's remove button (`✕`) must have an accessible label beyond the symbol: `aria-label="Remove association: [choice1 text] and [choice2 text]"`.
 
@@ -408,10 +408,17 @@ AC-E3: Response restoration
   Then: Both pairs are shown in the Current Associations list on initial render
         No qti-change event fires on mount
 
-AC-E4: G-01 — matchGroup restricts partners
+AC-E4: G-01 — matchGroup restricts partners (both readings)
   Given: An item with matchGroup="set-a" on choices A and B, matchGroup="set-b" on choices C and D
   When: The candidate selects choice A as pending
   Then: Choices C and D are inert; B remains a valid partner
+
+AC-E9: G-01 — a partner named by identifier pairs even without a shared token
+  Given: Choice Paris with matchGroup="France", choice France with matchGroup="Paris",
+         choice Rome with matchGroup="Italy"
+  When: The candidate selects Paris as pending
+  Then: France is a valid partner although the two matchGroups share no token (the QTI reading);
+        Rome is inert and cannot complete the pair
 
 AC-E5: G-06 — matchMin enforced at submission
   Given: An item with matchMin=1 on choice A (A must be used at least once)

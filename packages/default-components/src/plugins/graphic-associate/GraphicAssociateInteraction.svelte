@@ -71,12 +71,11 @@
 	// Hotspots incompatible with the currently selected hotspot due to matchGroup constraints
 	const blockedHotspots = $derived.by(() => {
 		if (!selectedHotspot || !parsedInteraction) return new Set<string>();
-		type WithMatchGroup = { identifier: string; matchGroup?: string[] };
-		const hotspots = parsedInteraction.associableHotspots as (typeof parsedInteraction.associableHotspots[number] & WithMatchGroup)[];
+		const hotspots = parsedInteraction.associableHotspots;
 		const src = hotspots.find((h) => h.identifier === selectedHotspot);
 		return new Set(
 			hotspots
-				.filter((h) => h.identifier !== selectedHotspot && !isCompatibleMatchGroup(src?.matchGroup, h.matchGroup))
+				.filter((h) => h.identifier !== selectedHotspot && !isCompatibleMatchGroup(src, h))
 				.map((h) => h.identifier)
 		);
 	});

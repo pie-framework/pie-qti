@@ -5,13 +5,13 @@
   Type: interaction
   Packages: @pie-qti/default-components, @pie-qti/item-player
   QTI type: graphicGapMatchInteraction
-  Last reviewed: 2026-04-28
+  Last reviewed: 2026-11-07
 -->
 
 **Status:** draft
 **Type:** interaction
 **Packages:** `@pie-qti/default-components` (component), `@pie-qti/item-player` (extractor)
-**Last reviewed:** 2026-04-28
+**Last reviewed:** 2026-11-07
 
 ---
 
@@ -19,7 +19,7 @@
 
 `graphicGapMatchInteraction` is the most complex interaction in the set. It presents a background image with defined `<associableHotspot>` regions and a pool of draggable `<gapImg>` or `<gapText>` choices. The candidate assigns one choice to each hotspot by drag-and-drop (mouse or touch) or by a two-step keyboard workflow. Each assignment produces a `directedPair` value of the form `"choiceIdentifier hotspotIdentifier"`. The interaction collects a `multiple`-cardinality, `directedPair`-baseType response and is scored with `map_response` partial credit (one point per correct pair) or `match_correct` all-or-nothing scoring.
 
-The current implementation renders text-label choice pools (`gapText`) rendered as DaisyUI buttons. The canonical QTI spec also allows image-label choices (`gapImg`), which are **not yet handled** by the extractor; this is a documented divergence.
+The implementation renders both text labels (`gapText`) and image labels (`gapImg`, named by the image's text alternative) as buttons in one choice pool.
 
 ---
 
@@ -83,7 +83,7 @@ When `role="scorer"` and `correctResponse` is provided, the label pool (the `gap
 | `identifier` | ✅ Full | Required; deduplicated in validator |
 | `matchMax` | ✅ Full | Extracted; controls how many times a label can be used. When `matchMax=1` (default), the label button is disabled and shows "placed" state once matched |
 | `matchMin` | ✅ Extracted, not validated | Extracted to the local `GraphicGapMatchData` shape; not in `GraphicGapMatchInteractionData` type; not enforced at submission |
-| `matchGroup` | ❌ Gap (G-01) | Not extracted. Pairing restrictions not enforced. See Known gaps. |
+| `matchGroup` | ✅ Full (G-01) | Delivered as `gapTexts[]`/`gapImages[].matchGroup`: the hotspots this label may be placed on. Applied with the hotspot's own `matchGroup` by the shared rule (see Resolved gaps) |
 | CSS classes | ✅ Partial | Extracted as `classes?: string[]`; present in `GraphicGapMatchData` but not surfaced in `GraphicGapMatchInteractionData` |
 
 ### Supported attributes on `associableHotspot`
@@ -95,13 +95,11 @@ When `role="scorer"` and `correctResponse` is provided, the label pool (the `gap
 | `coords` | ✅ Partial | Parsed for `circle` and `rect`. `poly` uses only the first coordinate pair plus a fixed size. |
 | `matchMax` | ✅ Full | Extracted; when a hotspot already has a label placed on it, a subsequent drop replaces the occupant (enforces `matchMax=1` semantics implicitly) |
 | `matchMin` | ❌ Not extracted | Not in `AssociableHotspot` type; not validated at submission |
-| `matchGroup` | ❌ Gap (G-01) | Not extracted. See Known gaps. |
+| `matchGroup` | ✅ Full (G-01) | Delivered as `hotspots[].matchGroup`: the labels this hotspot accepts (see Resolved gaps) |
 
-### `gapImg` element — not supported
+### `gapImg` element
 
-The canonical QTI specification defines `graphicGapMatchInteraction` as having `gapImg` child elements (each containing an `<object>` image), not `gapText`. The standard IMS sample XML (see `packages/to-pie/tests/fixtures/qti-samples/graphic-interactions/graphic_gap_match.xml`) uses `gapImg`. However, the extractor (`graphicGapMatchExtractor.ts`) reads only `gapText` children, not `gapImg`. All demo items and test fixtures in this codebase use `gapText` elements. `gapImg` children in a QTI XML file will silently produce an empty choice pool.
-
-This is a significant divergence from spec: standard QTI `graphicGapMatchInteraction` uses `gapImg`, but the implementation only supports `gapText`. See Known gaps.
+`gapImg` choices (each holding an `<object>` or `<img>` image) are extracted as `gapImages` with their `src`, size, `matchMax` and `matchGroup`, and render as image buttons in the same pool as `gapText` labels. A gap image is named by its image's text alternative; one without any gets the generic, localized name "Label", never its identifier.
 
 ### Response variable contract
 
@@ -116,13 +114,13 @@ This is a significant divergence from spec: standard QTI `graphicGapMatchInterac
 - **MAP_RESPONSE** — partial credit via `mapping` on the `responseDeclaration`. Each `mapEntry` key is a `"gapTextId hotspotId"` string. The scoring engine sums mapped values for each pair in the response. This is the most common scoring path for this interaction (one point per correctly placed label). Use `lowerBound="0"` to prevent negative total scores when wrong placements have negative `mappedValue`.
 - **MATCH_CORRECT** — full credit only when the response array exactly equals `correctResponse` (all correct pairs, no incorrect ones). Appropriate only when every label must be correctly placed for full credit.
 
+### Resolved gaps
+
+**G-01: `matchGroup`** (`docs/SPEC-GAPS-PLAN.md` §G-01, Done). QTI 2.2 and 3.0 define `matchGroup` on `gapText`, `gapImg` and `associableHotspot` as "a list of the identifiers for the objects that can be matched with" it (QTI 2.2.4 ASI Information Model, Tables 5.39.4, 5.37.4, 5.5.4; QTI 3.0, Tables 5.58.4, 5.56.4, 5.7.4). The component decides every placement with `isMatchGroupCompatible` from `@pie-qti/item-player`, the rule `Player.validateResponses()` applies: while a label is held or dragged, the hotspots that refuse it are `aria-disabled`, dimmed, named "Not available due to a match group restriction." and do not accept a drag; a refused keyboard placement keeps the label held and announces why. The label being dragged is judged on its own, even when another label is held from the keyboard. The rule accepts a pairing when either reading allows it: the specification's (label and hotspot name each other) or the shared-group-label reading some content uses (shared token; a side without `matchGroup` is unrestricted). `matchGroup` constrains label–hotspot pairs only: placing one label never makes another unavailable.
+
+**`gapImg`**: extracted and rendered (see `gapImg` element above).
+
 ### Known gaps
-
-**G-01: `matchGroup` not extracted (`graphicGapMatchExtractor.ts` and `GraphicGapMatchInteraction.svelte`)**
-The `matchGroup` attribute on `gapText`, `gapImg`, and `associableHotspot` is a space-separated list of identifiers. When present, a choice may only be dropped onto a hotspot that shares at least one group identifier. The extractor ignores this attribute; the component allows any label to be dropped on any hotspot regardless of authored pairing restrictions. For items not using `matchGroup`, this is correct. For items authored with `matchGroup` to prevent nonsensical pairings, the authored constraint is silently violated. Tracked as G-01 in `docs/SPEC-GAPS-PLAN.md`.
-
-**`gapImg` not extracted**
-The QTI spec defines `gapImg` as the standard choice element for `graphicGapMatchInteraction`. The extractor only reads `gapText` children. `gapImg` elements in the source XML are silently ignored, producing an empty choice pool. This means standard `graphicGapMatchInteraction` items from other QTI authoring tools (which use `gapImg`) will fail to render. The fix requires adding `gapImg` extraction to the extractor, rendering the nested `<object>` image in the choice pool, and updating `GraphicGapMatchInteractionData.gapTexts` (or adding a parallel `gapImgs` field). Not yet tracked as a numbered gap in `SPEC-GAPS-PLAN.md`.
 
 **`maxAssociations` not extracted**
 The interaction-level `maxAssociations` attribute is not read by the extractor and is absent from `GraphicGapMatchInteractionData`. The UI does not enforce an upper bound on total pairs formed. For items where the number of labels equals the number of hotspots (the common case), this is not observable: all labels can be placed exactly once by default. It becomes an issue only when the label pool is deliberately larger than the hotspot count and the author intends to limit total placements.
@@ -163,7 +161,7 @@ WCAG 2.2 Level AA is mandatory. Assessment-specific concerns compound the genera
 - **`aria-live="polite"` region** must announce placements, removals, and selection changes as they occur.
 - **Visually hidden instruction block** must describe the keyboard workflow; the interaction region must reference it via `aria-describedby`.
 - **Background image alt text:** The background image (`<object>` element) requires an accessible description. SVG backgrounds rendered inline need either an accessible `<title>` child or an `aria-label` on the containing element. Currently the SVG is rendered with `{@html}` and carries no accessible name — this is a known gap to address in content authoring guidelines.
-- **`gapImg` objectLabel:** The `objectLabel` attribute on `gapImg` elements (spec-defined accessibility label for image choices) is not extracted. When `gapImg` support is added, `objectLabel` must be used as the `aria-label` for the choice button.
+- **`gapImg` objectLabel:** The `objectLabel` attribute on `gapImg` elements is not extracted; image labels are named by their image's text alternative instead.
 - **Touch targets:** Label buttons must have a minimum touch target size of 44×44px (WCAG 2.2 SC 2.5.8 minimum 24×24px; assessment best practice is 44×44px). Hotspot regions' interactive area must satisfy the same constraint.
 - **Color is not the only indicator:** Placed (green) vs. available (primary) vs. selected (accent) state must be distinguishable without relying on color alone. The label text, `aria-pressed`, and button `disabled` state together provide non-color cues.
 
@@ -229,15 +227,11 @@ The following string keys must be provided via the `i18n` prop or fall back to t
 
 **Consequences:** If an author sets `matchMax > 1` on a hotspot, only one label can be placed on it via the UI. The single pair is still emitted correctly in the response; the constraint is a UI limitation, not a data corruption.
 
-### `gapText` used instead of spec-standard `gapImg`
+### `gapText` and `gapImg` share one choice pool
 
-**Decision:** The extractor reads `gapText` children (QTI text labels) rather than `gapImg` children (QTI image labels) for the choice pool. The demo and fixture items are authored with `gapText` elements.
-
-**Rationale:** The interaction was initially built for text-label diagram tasks (planet names, organ labels, airport codes). `gapText` elements are simpler to extract and render as DaisyUI buttons. Adding `gapImg` support requires rendering embedded `<object>` images inside buttons, handling missing `objectLabel` for accessibility, and deciding whether to render the image content on the hotspot rather than text. These are all solvable problems but were deferred.
-
-**Alternatives considered:** Support `gapImg` from day one. Not pursued due to complexity and absence of `gapImg`-based test content at implementation time.
-
-**Consequences:** Any standard QTI `graphicGapMatchInteraction` item exported by a third-party authoring tool (which will use `gapImg`) will render with an empty choice pool. Interoperability with external QTI content is blocked until `gapImg` extraction is implemented.
+**Decision:** Text labels (`gapText`) and image labels (`gapImg`) are delivered separately (`gapTexts`, `gapImages`) and rendered in one pool with the same placement, `matchMax` and `matchGroup` rules.  
+**Rationale:** The QTI choice element for this interaction is `gapImg`; content also uses `gapText`. One set of rules keeps keyboard, pointer and touch placement identical for both.  
+**Consequences:** A placed image label is shown on its hotspot by name, not by its image (see Open questions).
 
 ### `poly` shape uses bounding-box approximation
 
@@ -287,8 +281,6 @@ interface GraphicGapMatchInteractionData extends BaseInteractionData {
 **Invariants not enforced (gaps):**
 - `maxAssociations` on interaction not in type; not enforced
 - `matchMin` per gapText extracted into extractor-local shape but discarded before returning from `extract()` (not in `GraphicGapMatchInteractionData`)
-- `matchGroup` per gapText / associableHotspot not extracted; pairing restrictions not enforced (G-01)
-- `gapImg` elements not read; items using `gapImg` produce empty `gapTexts`
 
 ### Response format
 
@@ -480,35 +472,32 @@ AC-A10: Color is not the sole state indicator
         (selected), or visual affordance (cursor, border style)
 ```
 
-### Gap behavior (G-01: `matchGroup` not extracted)
+### matchGroup (G-01)
 
 ```
-AC-G1: Items with matchGroup attributes render without error
-  Given: a graphicGapMatchInteraction whose gapText elements have matchGroup attributes in the XML
+AC-G1: Without matchGroup, any label goes on any hotspot
+  Given: a graphicGapMatchInteraction whose labels and hotspots author no matchGroup
+  When: the candidate holds or drags any label
+  Then: every hotspot accepts it; none is aria-disabled
+
+AC-G2: matchGroup restricts placements on both sides, by the rule validation applies
+  Given: label RAIN with matchGroup="LAKE", label SUN with matchGroup="SKY LAKE",
+         hotspot SKY with matchGroup="SUN", hotspot LAKE with matchGroup="RAIN"
+  When: the candidate holds RAIN, then SUN
+  Then: holding RAIN, SKY is aria-disabled and named "Not available due to a match group restriction.";
+        placing RAIN on SKY adds nothing and keeps RAIN held; RAIN on LAKE gives "RAIN LAKE"
+        holding SUN, LAKE refuses it (LAKE names only RAIN); SUN on SKY gives "SUN SKY"
+  Notes: player.validateResponses() accepts exactly the pairs the UI allows (isMatchGroupCompatible)
+```
+
+### gapImg
+
+```
+AC-G3: gapImg elements are extracted and rendered as image labels
+  Given: a graphicGapMatchInteraction containing gapImg children
   When: the item is extracted and rendered
-  Then: all labels are displayed in the pool; all hotspots are valid drop targets regardless of
-        matchGroup values; no error is thrown or logged; no pairing is blocked
-
-AC-G2: matchGroup produces no visible restriction
-  Given: label L1 with matchGroup="region-a" and hotspot H2 with matchGroup="region-b"
-         (incompatible groups per spec)
-  When: the candidate places L1 on H2
-  Then: the pair "L1 H2" is added to the response; the response is submitted normally
-  Notes: When G-01 is resolved, this AC must be updated: the UI should prevent the incompatible
-         pairing by only activating hotspots whose matchGroup is compatible with the selected label.
-```
-
-### Gap behavior (`gapImg` not supported)
-
-```
-AC-G3: gapImg elements in XML produce empty choice pool
-  Given: a graphicGapMatchInteraction containing only gapImg children (no gapText)
-  When: the item is extracted and rendered
-  Then: the label pool is empty (no buttons rendered); the extractor does not throw an error
-        (but the validator should emit a warning: "graphicGapMatchInteraction must have at least
-        one gapText"); the image stage and hotspots render correctly
-  Notes: This documents current behavior. When gapImg support is added, this AC must be updated:
-         gapImg elements should be extracted and rendered as image buttons in the pool.
+  Then: each gapImg is an image button in the pool, named by its text alternative (generic name when
+        it has none, never its identifier), and can be placed like a text label
 ```
 
 ### Edge cases
@@ -577,7 +566,6 @@ AC-E10: Rapid successive drops on same hotspot
 ## Open questions
 
 - [ ] Should `maxAssociations` be extracted and enforced? For items where the label pool is larger than the hotspot count (distractor items), `maxAssociations` limits how many total placements the candidate can make. Without it, the candidate can freely place all available labels. This is not blocking for current content but is a spec compliance issue.
-- [ ] Should `gapImg` support be added as a numbered spec gap in `SPEC-GAPS-PLAN.md`? It currently has no gap ID but is as significant as G-01 for interoperability with third-party QTI content.
 - [ ] Should the background image carry an accessible name (alt text)? The `<object>` element in QTI XML supports child text fallback content and an `aria-label`. The extractor currently discards anything other than the image data. Adding an `altText` field to `ImageData` and passing it to the SVG container would address this.
 - [ ] For `gapImg` image labels placed on a hotspot: should the image be rendered as an SVG `<image>` element on the hotspot, or should a thumbnail badge overlay the hotspot in HTML? SVG `<image>` is simpler; HTML overlay has richer accessibility options.
 - [ ] Should `poly` hotspot rendering be prioritized? It is needed for items with irregular (non-rectangular, non-circular) regions such as country shapes on maps.
@@ -588,7 +576,8 @@ AC-E10: Rapid successive drops on same hotspot
 
 - QTI spec: `docs/QTI_techguide.md` §3.3.5 — graphicGapMatchInteraction
 - Response processing: `docs/QTI-RESPONSE-TRACKING-AND-SCORING.md` — directedPair semantics, map_response template
-- Spec gaps: `docs/SPEC-GAPS-PLAN.md` — G-01 (matchGroup not extracted)
+- Spec gaps: `docs/SPEC-GAPS-PLAN.md` — G-01 (`matchGroup`, Done)
+- Shared pairing rule: `packages/item-player/src/core/matchGroups.ts` (`isMatchGroupCompatible`), used through `packages/default-components/src/shared/utils/matchGroupUtils.ts`
 - Component: `packages/default-components/src/plugins/graphic-gap-match/GraphicGapMatchInteraction.svelte`
 - Extractor: `packages/item-player/src/interactions/graphic-gap-match/extractor.ts`
 - Types: `packages/item-player/src/interactions/shared/types.ts` — `GraphicGapMatchInteractionData`, `AssociableHotspot`
@@ -596,4 +585,4 @@ AC-E10: Rapid successive drops on same hotspot
 - Evals: `docs/evals/default-components/graphic-gap-match/evals.yaml`
 - Sample XML (spec-standard, uses gapImg): `packages/to-pie/tests/fixtures/qti-samples/graphic-interactions/graphic_gap_match.xml`
 - Sample XML (demo, uses gapText): `apps/demo/src/lib/sample-items.ts` (GRAPHIC_GAP_MATCH_SOLAR_SYSTEM)
-- Adjacent PRDs: `docs/prds/interactions/match.md` (directedPair semantics, matchGroup G-01), `docs/prds/interactions/hotspot.md` (hotspot coordinate system, shape rendering)
+- Adjacent PRDs: `docs/prds/interactions/match.md` (directedPair semantics, the shared `matchGroup` rule), `docs/prds/interactions/hotspot.md` (hotspot coordinate system, shape rendering)

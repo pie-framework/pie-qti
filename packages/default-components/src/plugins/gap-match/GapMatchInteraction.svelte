@@ -49,6 +49,10 @@
 	// Gap currently under a drag operation (drives the drag-over highlight)
 	let dragOverGap: string | null = $state(null);
 
+	// Word being dragged with the pointer: its data is unreadable during dragover, so the
+	// gaps that refuse it (matchGroup) are known from here.
+	let draggedWord: string | null = $state(null);
+
 	/**
 	 * The prompt, split on the extractor's `[GAP:id]` text markers so each gap renders as a live
 	 * control between sanitized HTML segments. Each segment is sanitized and handed to the
@@ -129,24 +133,23 @@
 		return words;
 	});
 
-	// Words that cannot be placed because they share a matchGroup with an already-placed word
-	const unavailableWords = $derived.by(() => {
-		if (!parsedInteraction) return new Set<string>();
-		const placedGroups = new Set<string>();
-		for (const pair of pairs) {
-			const wordId = pair.split(' ')[0];
-			const word = paletteWords.find((g) => g.identifier === wordId);
-			word?.matchGroup?.forEach((g) => placedGroups.add(g));
-		}
-		return new Set(
-			paletteWords
-				.filter((word) => {
-					const isPlaced = pairs.some((p) => p.startsWith(`${word.identifier} `));
-					if (isPlaced) return false;
-					return word.matchGroup?.some((g) => placedGroups.has(g)) ?? false;
-				})
-				.map((word) => word.identifier)
-		);
+	/**
+	 * Whether `matchGroup` lets a word go into a gap: the word's `matchGroup` names the gaps
+	 * it may fill and the gap's names the words it accepts, read by the same rule response
+	 * validation applies (`isCompatibleMatchGroup`), so the UI and validation agree.
+	 */
+	function canPlaceWord(wordId: string, gapId: string): boolean {
+		const word = paletteWords.find((w) => w.identifier === wordId);
+		if (!word) return false;
+		return isCompatibleMatchGroup(word, { identifier: gapId, matchGroup: parsedInteraction?.gapMatchGroups?.[gapId] });
+	}
+
+	// Gaps the dragged or held word may not fill (matchGroup); they stay focusable but are
+	// marked unavailable, and refuse a drop. An active drag is what a drop would place.
+	const blockedGapIds = $derived.by(() => {
+		const wordId = draggedWord ?? pickedUpWord;
+		if (wordId === null) return new Set<string>();
+		return new Set([...gapPositions.positions.keys()].filter((gapId) => !canPlaceWord(wordId, gapId)));
 	});
 
 	function getMatchMax(wordId: string): number {
@@ -155,6 +158,9 @@
 	}
 
 	function handleGapChange(gapId: string, wordId: string) {
+		// matchGroup: refuse a placement the gap does not accept (clearing stays allowed).
+		if (wordId && !canPlaceWord(wordId, gapId)) return;
+
 		// Remove any existing pair for this gap (each gap holds one word)
 		let newPairs = pairs.filter((p: string) => !p.endsWith(` ${gapId}`));
 
@@ -208,10 +214,16 @@
 		if (!e.dataTransfer) return;
 		e.dataTransfer.setData('text/plain', wordId);
 		e.dataTransfer.effectAllowed = 'move';
+		draggedWord = wordId;
+	}
+
+	function onWordDragEnd() {
+		draggedWord = null;
+		dragOverGap = null;
 	}
 
 	function selectWord(wordId: string) {
-		if (disabled || isWordUsed(wordId) || unavailableWords.has(wordId)) return;
+		if (disabled || isWordUsed(wordId)) return;
 		pickedUpWord = pickedUpWord === wordId ? null : wordId;
 		const word = getWordText(wordId);
 		liveMessage = pickedUpWord
@@ -247,6 +259,10 @@
 		const selected = getSelectedWord(gapId);
 		const correct = getCorrectWord(gapId);
 		const isCorrect = isCorrectGap(gapId);
+		// matchGroup: the held or dragged word may not go here.
+		const notCompatible =
+			blockedGapIds.has(gapId) &&
+			translate(i18n, 'interactions.gapMatch.notCompatibleSentence', 'Not compatible with the selected word.');
 		const ordinals = {
 			position: gapPositions.positions.get(gapId) ?? 0,
 			total: gapPositions.total,
@@ -265,7 +281,7 @@
 							...ordinals,
 							word,
 						});
-			return joinSentences(label, isCorrect && translate(i18n, 'accessibility.correctAnswer', 'Correct answer.'));
+			return joinSentences(label, notCompatible, isCorrect && translate(i18n, 'accessibility.correctAnswer', 'Correct answer.'));
 		}
 		const label =
 			pickedUpWord !== null
@@ -276,6 +292,7 @@
 				: translate(i18n, 'interactions.gapMatch.blankGapAriaLabel', 'Blank {position} of {total}. Drop an answer here.', ordinals);
 		return joinSentences(
 			label,
+			notCompatible,
 			isCorrect &&
 				correct &&
 				translate(i18n, 'accessibility.correctAnswerIs', 'Correct answer: {answer}.', { answer: getWordText(correct) }),
@@ -284,6 +301,8 @@
 
 	function onGapDragOver(gapId: string, e: DragEvent) {
 		if (disabled) return;
+		// matchGroup: not a drop target for the dragged word; leave the browser's "no drop" feedback.
+		if (blockedGapIds.has(gapId)) return;
 		e.preventDefault();
 		dragOverGap = gapId;
 	}
@@ -296,8 +315,10 @@
 		if (disabled) return;
 		e.preventDefault();
 		dragOverGap = null;
+		draggedWord = null;
 		const wordId = e.dataTransfer?.getData('text/plain') ?? '';
 		if (!wordId) return;
+		// handleGapChange refuses a word the gap does not accept (matchGroup).
 		handleGapChange(gapId, wordId);
 	}
 
@@ -305,6 +326,11 @@
 		if (disabled) return;
 		// K-02: if a word is held, drop it into this gap
 		if (pickedUpWord !== null) {
+			if (!canPlaceWord(pickedUpWord, gapId)) {
+				// matchGroup: this gap does not accept the held word; it stays held.
+				liveMessage = translate(i18n, 'interactions.gapMatch.notCompatibleSentence', 'Not compatible with the selected word.');
+				return;
+			}
 			const wordText = getWordText(pickedUpWord);
 			handleGapChange(gapId, pickedUpWord);
 			liveMessage = translate(i18n, 'interactions.gapMatch.placed', 'Placed {word} in blank {position} of {total}.', {
@@ -364,26 +390,25 @@
 			{#each paletteWords as word (word.identifier)}
 				{@const used = isWordUsed(word.identifier)}
 				{@const isHeld = pickedUpWord === word.identifier}
-				{@const isUnavailable = unavailableWords.has(word.identifier)}
 				<div class="inline-flex items-center gap-1">
 					<button
 						part="word"
 						type="button"
 						class="btn btn-md font-medium transition-all"
-						class:btn-primary={!used && !isHeld && !isUnavailable}
+						class:btn-primary={!used && !isHeld}
 						class:btn-success={used && !isHeld}
 						class:btn-warning={isHeld}
 						class:qti-gm-word-held={isHeld}
-						class:cursor-grab={!disabled && !used && !isUnavailable}
-						class:cursor-not-allowed={disabled || isUnavailable}
-						class:opacity-40={isUnavailable}
+						class:cursor-grab={!disabled && !used}
+						class:cursor-not-allowed={disabled}
 						class:opacity-70={disabled}
 						data-word-id={word.identifier}
-						draggable={!disabled && !used && !isUnavailable}
-						aria-disabled={disabled || used || isUnavailable}
+						draggable={!disabled && !used}
+						aria-disabled={disabled || used}
 						aria-pressed={isHeld}
 						disabled={disabled || used}
 						ondragstart={(e: DragEvent) => onWordDragStart(e, word.identifier)}
+						ondragend={onWordDragEnd}
 						onclick={() => selectWord(word.identifier)}
 						aria-label={word.name}
 					>
@@ -421,10 +446,10 @@
 			data-gap-id={gapId}
 			class="qti-gm-gap-target select select-bordered select-sm"
 			class:qti-gm-gap-correct={showCorrect}
-			class:qti-gm-gap-ready={pickedUpWord !== null}
+			class:qti-gm-gap-ready={pickedUpWord !== null && !blockedGapIds.has(gapId)}
 			class:is-dragover={dragOverGap === gapId}
 			data-empty={showWord === '' ? 'true' : undefined}
-			aria-disabled={disabled ? 'true' : undefined}
+			aria-disabled={disabled || blockedGapIds.has(gapId) ? 'true' : undefined}
 			aria-label={gapAriaLabel(gapId)}
 			ondragover={(e: DragEvent) => onGapDragOver(gapId, e)}
 			ondragleave={() => onGapDragLeave(gapId)}

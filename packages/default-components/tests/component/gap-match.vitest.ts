@@ -21,7 +21,7 @@ function gapData(overrides: Partial<GapMatchInteractionData> = {}): GapMatchInte
 			{ identifier: 'W1', text: 'blue', matchMax: 1 },
 			{ identifier: 'W2', text: 'green', matchMax: 1 },
 		],
-		gaps: [{ identifier: 'G1', index: 0 }],
+		gaps: ['G1'],
 		...overrides,
 	};
 }
@@ -60,10 +60,7 @@ describe('GapMatchInteraction (pie-qti-gap-match)', () => {
 		const mounted = mountInteraction(GapMatchInteraction, {
 			interaction: gapData({
 				promptText: 'A [GAP:G2] b [GAP:G1] c.',
-				gaps: [
-					{ identifier: 'G1', index: 0 },
-					{ identifier: 'G2', index: 1 },
-				],
+				gaps: ['G1', 'G2'],
 			}),
 		});
 		await settle();
@@ -162,10 +159,7 @@ describe('GapMatchInteraction (pie-qti-gap-match)', () => {
 		const mounted = mountInteraction(GapMatchInteraction, {
 			interaction: gapData({
 				promptText: 'A [GAP:G1] b [GAP:G2] c.',
-				gaps: [
-					{ identifier: 'G1', index: 0 },
-					{ identifier: 'G2', index: 1 },
-				],
+				gaps: ['G1', 'G2'],
 			}),
 		});
 		await settle();
@@ -228,6 +222,164 @@ describe('GapMatchInteraction (pie-qti-gap-match)', () => {
 			q(mounted, 'button[data-gap-id="G1"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 			await settle();
 			expect(mounted.instance.response).toEqual([]);
+			cleanupInteraction(mounted);
+		});
+	});
+
+	describe('matchGroup (the rule response validation applies)', () => {
+		const click = (element: Element | null) => element?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+		test('a held word marks the gaps its matchGroup does not name, and they refuse it', async () => {
+			// QTI: a gapText's matchGroup lists the gaps it may be matched with, a gap's the words.
+			// G2 names only W2, and W1 names only G1, so neither reading allows W1 in G2.
+			const mounted = mountInteraction(GapMatchInteraction, {
+				interaction: gapData({
+					promptText: 'First [GAP:G1] then [GAP:G2].',
+					gaps: ['G1', 'G2'],
+					gapMatchGroups: { G2: ['W2'] },
+					gapTexts: [
+						{ identifier: 'W1', text: 'one', matchMax: 1, matchGroup: ['G1'] },
+						{ identifier: 'W2', text: 'two', matchMax: 1 },
+					],
+				}),
+			});
+			await settle();
+
+			click(q(mounted, 'button[data-word-id="W1"]'));
+			await settle();
+			const g1 = q(mounted, 'button[data-gap-id="G1"]');
+			const g2 = q(mounted, 'button[data-gap-id="G2"]');
+			expect(g1?.getAttribute('aria-disabled')).toBeNull();
+			expect(g2?.getAttribute('aria-disabled')).toBe('true');
+			expect(g2?.getAttribute('aria-label')).toContain('Not compatible with the selected word.');
+
+			// Refused: no pair, the word stays held, and the refusal is announced.
+			click(g2);
+			await settle();
+			expect(mounted.events).toHaveLength(0);
+			expect(q(mounted, 'button[data-word-id="W1"]')?.getAttribute('aria-pressed')).toBe('true');
+			expect(liveRegion(mounted)).toBe('Not compatible with the selected word.');
+
+			click(g1);
+			await settle();
+			expect(mounted.instance.response).toEqual(['W1 G1']);
+			cleanupInteraction(mounted);
+		});
+
+		test('a pointer drop onto a gap that refuses the word is ignored', async () => {
+			const mounted = mountInteraction(GapMatchInteraction, {
+				interaction: gapData({
+					promptText: 'First [GAP:G1] then [GAP:G2].',
+					gaps: ['G1', 'G2'],
+					gapMatchGroups: { G2: ['W2'] },
+					gapTexts: [
+						{ identifier: 'W1', text: 'one', matchMax: 1, matchGroup: ['G1'] },
+						{ identifier: 'W2', text: 'two', matchMax: 1 },
+					],
+				}),
+			});
+			await settle();
+
+			const drop = new Event('drop', { bubbles: true, cancelable: true });
+			Object.defineProperty(drop, 'dataTransfer', { value: { getData: () => 'W1' } });
+			q(mounted, 'button[data-gap-id="G2"]')?.dispatchEvent(drop);
+			await settle();
+
+			expect(mounted.events).toHaveLength(0);
+			cleanupInteraction(mounted);
+		});
+
+		test('while a word is dragged, the gaps that refuse it are marked and do not accept the drag', async () => {
+			const mounted = mountInteraction(GapMatchInteraction, {
+				interaction: gapData({
+					promptText: 'First [GAP:G1] then [GAP:G2].',
+					gaps: ['G1', 'G2'],
+					gapMatchGroups: { G2: ['W2'] },
+					gapTexts: [
+						{ identifier: 'W1', text: 'one', matchMax: 1, matchGroup: ['G1'] },
+						{ identifier: 'W2', text: 'two', matchMax: 1 },
+					],
+				}),
+			});
+			await settle();
+
+			const dragEvent = (type: string): Event => {
+				const event = new Event(type, { bubbles: true, cancelable: true });
+				Object.defineProperty(event, 'dataTransfer', {
+					value: { setData: () => {}, getData: () => 'W1', effectAllowed: '', dropEffect: '' },
+				});
+				return event;
+			};
+			const word = q(mounted, 'button[data-word-id="W1"]');
+			const g1 = q(mounted, 'button[data-gap-id="G1"]');
+			const g2 = q(mounted, 'button[data-gap-id="G2"]');
+
+			word?.dispatchEvent(dragEvent('dragstart'));
+			await settle();
+			expect(g2?.getAttribute('aria-disabled')).toBe('true');
+			expect(g1?.getAttribute('aria-disabled')).toBeNull();
+
+			// Not cancelling dragover is what tells the browser the drop is not allowed here.
+			const overRefusing = dragEvent('dragover');
+			g2?.dispatchEvent(overRefusing);
+			expect(overRefusing.defaultPrevented).toBe(false);
+			const overAccepting = dragEvent('dragover');
+			g1?.dispatchEvent(overAccepting);
+			expect(overAccepting.defaultPrevented).toBe(true);
+
+			word?.dispatchEvent(dragEvent('dragend'));
+			await settle();
+			expect(g2?.getAttribute('aria-disabled')).toBeNull();
+			expect(mounted.events).toHaveLength(0);
+			cleanupInteraction(mounted);
+		});
+
+		test('the gap side constrains too: a gap accepts only the words its matchGroup names', async () => {
+			// W3 names both gaps, but G2 names only W2, so W3 may not fill G2. The renderer used to
+			// ignore a gap's matchGroup entirely.
+			const mounted = mountInteraction(GapMatchInteraction, {
+				interaction: gapData({
+					promptText: 'First [GAP:G1] then [GAP:G2].',
+					gaps: ['G1', 'G2'],
+					gapMatchGroups: { G2: ['W2'] },
+					gapTexts: [
+						{ identifier: 'W2', text: 'two', matchMax: 1 },
+						{ identifier: 'W3', text: 'three', matchMax: 1, matchGroup: ['G1', 'G2'] },
+					],
+				}),
+			});
+			await settle();
+
+			click(q(mounted, 'button[data-word-id="W3"]'));
+			await settle();
+			expect(q(mounted, 'button[data-gap-id="G1"]')?.getAttribute('aria-disabled')).toBeNull();
+			expect(q(mounted, 'button[data-gap-id="G2"]')?.getAttribute('aria-disabled')).toBe('true');
+			cleanupInteraction(mounted);
+		});
+
+		test('words sharing a group label stay available after one is placed', async () => {
+			// Response validation accepts both placements; the former renderer made W5 unavailable
+			// as soon as W4 (same label) was placed.
+			const mounted = mountInteraction(GapMatchInteraction, {
+				interaction: gapData({
+					promptText: 'First [GAP:G1] then [GAP:G2].',
+					gaps: ['G1', 'G2'],
+					gapTexts: [
+						{ identifier: 'W4', text: 'four', matchMax: 1, matchGroup: ['set'] },
+						{ identifier: 'W5', text: 'five', matchMax: 1, matchGroup: ['set'] },
+					],
+				}),
+				response: ['W4 G1'],
+			});
+			await settle();
+
+			const w5 = q(mounted, 'button[data-word-id="W5"]');
+			expect(w5?.getAttribute('aria-disabled')).toBe('false');
+			click(w5);
+			await settle();
+			click(q(mounted, 'button[data-gap-id="G2"]'));
+			await settle();
+			expect(mounted.instance.response).toEqual(['W4 G1', 'W5 G2']);
 			cleanupInteraction(mounted);
 		});
 	});

@@ -1,3 +1,4 @@
+import { DefaultI18nProvider } from '@pie-qti/i18n';
 import { afterEach, describe, expect, test } from 'vitest';
 import AssociateInteraction from '../../src/plugins/associate/AssociateInteraction.svelte';
 import type { AssociateInteractionData } from '@pie-qti/item-player';
@@ -174,5 +175,132 @@ describe('AssociateInteraction (pie-qti-associate)', () => {
 			}
 		}
 		cleanupInteraction(mounted);
+	});
+
+	test('removing a pair is announced politely with readable names, and focus still moves on', async () => {
+		const mounted = mountInteraction(AssociateInteraction, {
+			interaction: associateData(),
+			response: ['B_cap B_country', 'A_cap A_country'],
+		});
+		await settle();
+
+		const live = q(mounted, '.qti-associate-live-region');
+		expect(live?.getAttribute('aria-live')).toBe('polite');
+		expect(live?.getAttribute('aria-atomic')).toBe('true');
+		expect(live?.textContent?.trim()).toBe('');
+
+		const removes = qa<HTMLButtonElement>(mounted, '[part="pair-remove"]');
+		removes[0]!.focus();
+		removes[0]!.click();
+		await settle();
+
+		// Names come from accessibleTextFromHtml: the image's alt text, never an identifier.
+		expect(live?.textContent?.trim()).toBe('Removed association between Rome skyline and Italy.');
+		expect(mounted.instance.response).toEqual(['A_cap A_country']);
+		// The focus behavior is kept: focus moves to the pair now in the removed row.
+		expect(document.activeElement).toBe(q(mounted, '[part="pair-remove"]'));
+		cleanupInteraction(mounted);
+	});
+
+	test('removing the same pair again re-announces the removal', async () => {
+		const mounted = mountInteraction(AssociateInteraction, { interaction: associateData() });
+		await settle();
+		const live = q(mounted, '.qti-associate-live-region')!;
+		const pairThenRemove = async () => {
+			const [paris, france] = choiceButtons(mounted);
+			paris!.click();
+			await settle();
+			france!.click();
+			await settle();
+			q<HTMLButtonElement>(mounted, '[part="pair-remove"]')!.click();
+			await settle();
+		};
+
+		await pairThenRemove();
+		const firstText = live.textContent;
+		expect(firstText?.trim()).toBe('Removed association between Paris and France.');
+
+		await pairThenRemove();
+		// The same message must still be a text change, or the live region stays silent: a toggled
+		// zero-width space (not read by screen readers) makes it one.
+		expect(mounted.instance.response).toEqual([]);
+		expect(live.textContent).not.toBe(firstText);
+		expect(live.textContent?.replace(/\u200b/g, '').trim()).toBe('Removed association between Paris and France.');
+		cleanupInteraction(mounted);
+	});
+
+	test('the removal announcement is localized', async () => {
+		const nl = new DefaultI18nProvider('nl');
+		await nl.loadLocale('nl');
+		const mounted = mountInteraction(AssociateInteraction, {
+			interaction: associateData(),
+			response: ['A_cap A_country'],
+			i18n: nl,
+		});
+		await settle();
+
+		q<HTMLButtonElement>(mounted, '[part="pair-remove"]')!.click();
+		await settle();
+
+		expect(q(mounted, '.qti-associate-live-region')?.textContent?.trim()).toBe(
+			'Associatie tussen Paris en France verwijderd.',
+		);
+		cleanupInteraction(mounted);
+	});
+
+	describe('matchGroup (the rule response validation applies)', () => {
+		test('matchGroup lists partner identifiers: the named partner pairs, others stay inert', async () => {
+			// QTI 2.2/3.0: matchGroup is the list of identifiers a choice may be matched with.
+			// The former label-only rule blocked Paris–France here ([A_country] and [A_cap] share no token).
+			const mounted = mountInteraction(AssociateInteraction, {
+				interaction: associateData({
+					choices: [
+						{ identifier: 'A_cap', text: '<p>Paris</p>', matchMax: 1, matchGroup: ['A_country'] },
+						{ identifier: 'A_country', text: '<p>France</p>', matchMax: 1, matchGroup: ['A_cap'] },
+						{ identifier: 'B_cap', text: '<p>Rome</p>', matchMax: 1, matchGroup: ['B_country'] },
+						{ identifier: 'B_country', text: '<p>Italy</p>', matchMax: 1, matchGroup: ['B_cap'] },
+					],
+				}),
+			});
+			await settle();
+
+			const [paris, france, rome] = choiceButtons(mounted);
+			paris!.click();
+			await settle();
+			expect(france!.getAttribute('aria-disabled')).toBeNull();
+			expect(rome!.getAttribute('aria-disabled')).toBe('true');
+
+			// A blocked partner cannot complete the pair.
+			rome!.click();
+			await settle();
+			expect(mounted.events).toHaveLength(0);
+
+			france!.click();
+			await settle();
+			expect(mounted.instance.response).toEqual(['A_cap A_country']);
+			cleanupInteraction(mounted);
+		});
+
+		test('tokens shared as group labels still pair (AC-E4)', async () => {
+			const mounted = mountInteraction(AssociateInteraction, {
+				interaction: associateData({
+					choices: [
+						{ identifier: 'A', text: '<p>A</p>', matchMax: 1, matchGroup: ['set-a'] },
+						{ identifier: 'B', text: '<p>B</p>', matchMax: 1, matchGroup: ['set-a'] },
+						{ identifier: 'C', text: '<p>C</p>', matchMax: 1, matchGroup: ['set-b'] },
+						{ identifier: 'D', text: '<p>D</p>', matchMax: 1, matchGroup: ['set-b'] },
+					],
+				}),
+			});
+			await settle();
+
+			const [a, b, c, d] = choiceButtons(mounted);
+			a!.click();
+			await settle();
+			expect(b!.getAttribute('aria-disabled')).toBeNull();
+			expect(c!.getAttribute('aria-disabled')).toBe('true');
+			expect(d!.getAttribute('aria-disabled')).toBe('true');
+			cleanupInteraction(mounted);
+		});
 	});
 });

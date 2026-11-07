@@ -303,6 +303,7 @@ export default {
 			filledGapAriaLabel: 'Lege plek {position} van {total}, ingevuld met {word}. Selecteer om te wissen.',
 			wordSelected: '{word} opgepakt. Selecteer een lege plek om het te plaatsen, of druk op Escape om te annuleren.',
 			pickUpCancelled: 'Het oppakken van {word} is geannuleerd.',
+			notCompatibleSentence: 'Niet compatibel met het geselecteerde woord.',
 		},
 
 		graphicGapMatch: {
@@ -386,6 +387,7 @@ export default {
 			clickAnotherHotspot: 'Geselecteerd: <strong>{label}</strong>. Klik op een andere hotspot om een associatie te maken.',
 			removeAssociationBetween: 'Associatie tussen {first} en {second} verwijderen',
 			inPairSentence: 'Zit in een associatie.',
+			removedAssociationBetween: 'Associatie tussen {first} en {second} verwijderd.',
 		},
 
 		positionObject: {

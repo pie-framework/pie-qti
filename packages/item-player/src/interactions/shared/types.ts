@@ -128,7 +128,10 @@ export interface AssociableChoice {
 	matchMax: number;
 	/** Minimum number of times this choice must appear in the response (QTI matchMin) */
 	matchMin?: number;
-	/** Pairing constraint: choice can only be paired with others sharing a group value (QTI matchGroup) */
+	/**
+	 * Authored `matchGroup` (QTI 2.2/3.0: the identifiers of the choices this one may be paired
+	 * with; content also uses the tokens as shared group labels). Empty/absent: unrestricted.
+	 */
 	matchGroup?: string[];
 	/** CSS classes from the choice element for custom renderer detection */
 	classes?: string[];
@@ -177,7 +180,13 @@ export interface GapMatchInteractionData extends BaseInteractionData<'gapMatchIn
 		width?: number;
 		height?: number;
 	}>;
-	gaps: Array<{ identifier: string; index: number }>;
+	/** Identifiers of the `<gap>` elements, in reading order (what the extractor delivers). */
+	gaps: string[];
+	/**
+	 * Authored `matchGroup` tokens per gap identifier (QTI 2.2/3.0: the identifiers of the
+	 * choices that may be matched with this gap). Present only when a gap authors one.
+	 */
+	gapMatchGroups?: Record<string, string[]>;
 	/** Finalized HTML template containing `[GAP:identifier]` text markers. */
 	promptText: HtmlContent;
 	/** CSS classes from the gapMatchInteraction element (e.g. qti-choices-top, qti-choices-bottom) */
@@ -242,6 +251,8 @@ export interface AssociableHotspot {
 	shape: string;
 	coords: string;
 	matchMax: number;
+	/** Authored `matchGroup`: the identifiers of the labels that may be matched with this hotspot. */
+	matchGroup?: string[];
 }
 
 export interface GraphicGapMatchInteractionData extends BaseInteractionData<'graphicGapMatchInteraction'> {
@@ -382,7 +393,10 @@ export interface GraphicAssociateHotspot {
 	coords: string;
 	matchMax: number;
 	label: string;
-	/** Pairing constraint: hotspot can only be associated with others sharing a group value (QTI matchGroup) */
+	/**
+	 * Authored `matchGroup` (QTI 2.2/3.0: the identifiers of the hotspots this one may be
+	 * associated with; content also uses the tokens as shared group labels).
+	 */
 	matchGroup?: string[];
 }
 

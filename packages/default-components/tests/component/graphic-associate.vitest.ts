@@ -181,4 +181,34 @@ describe('GraphicAssociateInteraction (pie-qti-graphic-associate)', () => {
 		expect(error?.textContent).toContain('The image could not be loaded.');
 		expect(error?.textContent).toContain('Body diagram');
 	});
+
+	test('matchGroup names partner hotspots: only a named partner completes the pair', async () => {
+		// QTI 2.2/3.0: an associableHotspot's matchGroup lists the hotspots it may be matched with.
+		// The former label-only rule blocked Heart–Lungs ([H2] and [H1] share no token).
+		const mounted = mountInteraction(GraphicAssociateInteraction, {
+			interaction: associateData({
+				associableHotspots: [
+					{ identifier: 'H1', shape: 'rect', coords: '0,0,40,20', matchMax: 1, label: 'Heart', matchGroup: ['H2'] },
+					{ identifier: 'H2', shape: 'rect', coords: '50,0,90,20', matchMax: 1, label: 'Lungs', matchGroup: ['H1'] },
+					{ identifier: 'H10', shape: 'rect', coords: '0,25,40,45', matchMax: 1, label: 'Liver', matchGroup: ['H3'] },
+				],
+			}),
+		});
+		await settle();
+
+		const [heart, lungs, liver] = qa<HTMLButtonElement>(mounted, 'button[part="hotspot"]');
+		heart!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		await settle();
+		expect(lungs!.getAttribute('aria-disabled')).toBeNull();
+		expect(liver!.getAttribute('aria-disabled')).toBe('true');
+		expect(liver!.getAttribute('aria-label')).toContain('Not available due to a match group restriction.');
+
+		liver!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		await settle();
+		expect(mounted.events).toHaveLength(0);
+
+		lungs!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		await settle();
+		expect(mounted.instance.response).toEqual(['H1 H2']);
+	});
 });

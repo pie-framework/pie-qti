@@ -37,7 +37,7 @@ const blockedTargetIds = $derived.by(() => {
 	const src = sourceSet.find((s) => s.identifier === activeSourceId);
 	return new Set(
 		targetSet
-			.filter((t) => !isCompatibleMatchGroup(src?.matchGroup, t.matchGroup))
+			.filter((t) => !isCompatibleMatchGroup(src, t))
 			.map((t) => t.identifier)
 	);
 });
@@ -133,7 +133,7 @@ function createMatch(sourceId: string, targetId: string): boolean {
 	if (disabled) return false;
 	const source = sourceSet.find((choice) => choice.identifier === sourceId);
 	const target = targetSet.find((choice) => choice.identifier === targetId);
-	if (!source || !target || !isCompatibleMatchGroup(source.matchGroup, target.matchGroup)) return false;
+	if (!source || !target || !isCompatibleMatchGroup(source, target)) return false;
 	const newPairs = createOrUpdatePair(pairs, sourceId, targetId);
 	const sourceCount = getTargetsForSource(newPairs, sourceId).length;
 	if ((maxAssociations > 0 && newPairs.length > maxAssociations) ||
