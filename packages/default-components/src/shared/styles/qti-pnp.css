@@ -131,6 +131,12 @@
 	--pie-qti-neutral: var(--qti-scheme-fg);
 	--pie-qti-neutral-content: var(--qti-scheme-bg);
 	--pie-qti-focus: var(--qti-scheme-fg);
+	/* Message/state text and control boundaries draw in the scheme's two colours. */
+	--pie-qti-error-text: var(--qti-scheme-fg);
+	--pie-qti-warning-text: var(--qti-scheme-fg);
+	--pie-qti-success-text: var(--qti-scheme-fg);
+	--pie-qti-info-text: var(--qti-scheme-fg);
+	--pie-qti-border-strong: var(--qti-scheme-fg);
 }
 
 [data-qti-colorscheme] :where(a),
@@ -174,13 +180,19 @@
    Text appearance: each property the profile sets is a token on the attribute
    ============================================================================= */
 
+/*
+ * The --pie-qti-* typography tokens follow the profile too, so player chrome
+ * sized from those tokens keeps the candidate's text appearance.
+ */
 [data-qti-text-appearance~='font-size'] {
 	font-size: var(--qti-font-size);
+	--pie-qti-font-size-base: var(--qti-font-size);
 }
 
 [data-qti-text-appearance~='font-family'],
 [data-qti-text-appearance~='font-family'] :where(p, li, td, th, label, span, div, button, input, textarea, select) {
 	font-family: var(--qti-font-family);
+	--pie-qti-font-family: var(--qti-font-family);
 }
 
 [data-qti-text-appearance~='font-color'] {
@@ -198,6 +210,7 @@
 [data-qti-text-appearance~='line-height'],
 [data-qti-text-appearance~='line-height'] :where(p, li, td, th, label, span, div) {
 	line-height: var(--qti-line-height);
+	--pie-qti-line-height: var(--qti-line-height);
 }
 
 [data-qti-text-appearance~='letter-spacing'] {
