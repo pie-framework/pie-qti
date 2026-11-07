@@ -4,6 +4,22 @@
  * These defaults keep QTI players readable in hosts that do not load a theme
  * bridge. Host apps may override any --pie-qti-* variable on :root or on a
  * container that wraps QTI player elements.
+ *
+ * Contrast guarantees (WCAG 2.2 AA, enforced by tests/theme-contrast.test.ts):
+ * - Text tokens (--pie-qti-error-text/-warning-text/-success-text/-info-text,
+ *   --pie-qti-base-content, and every --pie-qti-*-content): >= 4.5:1 on
+ *   --pie-qti-base-100 and --pie-qti-base-200 within the same theme.
+ * - Non-text tokens (--pie-qti-border-strong, --pie-qti-focus): >= 3:1 on
+ *   --pie-qti-base-100 and --pie-qti-base-200 within the same theme.
+ *
+ * Text vs fills vs borders:
+ * - Message/state TEXT (feedback, alerts, labels) uses the *-text tokens.
+ * - Fills (badge, button, alert backgrounds) use the state tokens
+ *   (--pie-qti-error, --pie-qti-warning, ...) paired with their *-content
+ *   token for text ON that fill.
+ * - Control boundaries (input/button borders, non-text cues) use
+ *   --pie-qti-border-strong; --pie-qti-focus is reserved for :focus-visible
+ *   outlines.
  */
 
 :root,
@@ -11,7 +27,7 @@
 	--pie-qti-primary: oklch(45% 0.24 277);
 	--pie-qti-primary-content: oklch(98% 0.01 277);
 	--pie-qti-secondary: oklch(65% 0.241 354.308);
-	--pie-qti-secondary-content: oklch(98% 0.01 354.308);
+	--pie-qti-secondary-content: oklch(22% 0.08 354.308);
 	--pie-qti-accent: oklch(77% 0.152 181.912);
 	--pie-qti-accent-content: oklch(20% 0.03 181.912);
 	--pie-qti-neutral: oklch(32% 0 0);
@@ -27,8 +43,40 @@
 	--pie-qti-warning: oklch(82% 0.189 84.429);
 	--pie-qti-warning-content: oklch(20% 0.04 84.429);
 	--pie-qti-error: oklch(71% 0.194 13.428);
-	--pie-qti-error-content: oklch(98% 0.01 13.428);
+	--pie-qti-error-content: oklch(25% 0.1 13.428);
 	--pie-qti-focus: var(--pie-qti-primary);
+
+	/*
+	 * Message/state text colors on base surfaces (>= 4.5:1 on base-100/base-200).
+	 * Light values match the component fallbacks:
+	 * #b91c1c, #92400e, #15803d, #1d4ed8.
+	 */
+	--pie-qti-error-text: #b91c1c;
+	--pie-qti-warning-text: #92400e;
+	--pie-qti-success-text: #15803d;
+	--pie-qti-info-text: #1d4ed8;
+
+	/* Control boundaries and other non-text cues (>= 3:1 on base-100/base-200). */
+	--pie-qti-border-strong: #767676;
+
+	/*
+	 * Typography, spacing, and shape tokens for player shells. They inherit
+	 * from the host by default so the shell follows the embedding app's
+	 * typography; override them on :root or a container to restyle a player.
+	 */
+	--pie-qti-font-family: inherit;
+	--pie-qti-font-size-base: 1rem;
+	--pie-qti-line-height: 1.5;
+	--pie-qti-radius: 0.5rem;
+	--pie-qti-radius-sm: 0.25rem;
+	--pie-qti-space-1: 0.25rem;
+	--pie-qti-space-2: 0.5rem;
+	--pie-qti-space-3: 0.75rem;
+	--pie-qti-space-4: 1rem;
+	--pie-qti-space-5: 1.5rem;
+	--pie-qti-space-6: 2rem;
+	/* Minimum interactive control size (WCAG 2.2 target size baseline). */
+	--pie-qti-control-min-size: 2.75rem;
 }
 
 [data-qti-theme='dark'] {
@@ -51,6 +99,18 @@
 	--pie-qti-warning: oklch(82% 0.189 84.429);
 	--pie-qti-warning-content: oklch(15% 0.04 84.429);
 	--pie-qti-error: oklch(71% 0.194 13.428);
-	--pie-qti-error-content: oklch(98% 0.01 13.428);
+	--pie-qti-error-content: oklch(25% 0.1 13.428);
 	--pie-qti-focus: var(--pie-qti-primary);
+
+	/*
+	 * Message/state text colors on dark base surfaces
+	 * (#f87171, #fbbf24, #4ade80, #60a5fa) and control boundaries
+	 * (#9ca3af); all verified >= 4.5:1 (text) / >= 3:1 (non-text) against
+	 * base-100 and base-200.
+	 */
+	--pie-qti-error-text: #f87171;
+	--pie-qti-warning-text: #fbbf24;
+	--pie-qti-success-text: #4ade80;
+	--pie-qti-info-text: #60a5fa;
+	--pie-qti-border-strong: #9ca3af;
 }
