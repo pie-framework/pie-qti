@@ -245,7 +245,7 @@ Defined in `src/runtime/types.ts`. Three kinds: `'null'` (no value), `'value'` (
   - `cardinality: 'single'`, `baseType: 'integer'` → `value` is a JS `number` (integer).
   - `cardinality: 'single'`, `baseType: 'float'` → `value` is a JS `number`.
   - `cardinality: 'single'`, `baseType: 'boolean'` → `value` is a JS `boolean`.
-  - `cardinality: 'single'`, `baseType: 'duration'` → `value` is a JS `number` representing milliseconds (NOT an ISO 8601 string; see `coerceBaseValue`).
+  - `cardinality: 'single'`, `baseType: 'duration'` → `value` is a JS `number` of seconds, as QTI defines durations (`coerceBaseValue` reads `30` and, leniently, ISO 8601 `PT30S` to `30`).
   - `cardinality: 'multiple' | 'ordered'` → `value` is an array of the scalar type above.
   - `cardinality: 'single'`, `baseType: 'pair'` → `value` is a string `"A B"` with identifiers sorted (unordered).
   - `cardinality: 'single'`, `baseType: 'directedPair'` → `value` is a string `"A B"` (ordered).
@@ -370,10 +370,10 @@ AC-E2: invalid kind does not propagate as boolean true
   When: evalExpr is called
   Then: The result is not kind 'value' with value true; it must be either kind 'invalid' or kind 'null'
 
-AC-E3: duration values are stored as milliseconds, compared correctly
-  Given: Two duration values PT5S and PT3S
-  When: durationLT(PT3S, PT5S) is evaluated
-  Then: The result is kind 'value' with value true
+AC-E3: duration values are stored as seconds, compared correctly
+  Given: Two duration values 5 and PT3S
+  When: durationLT(PT3S, 5) is evaluated
+  Then: The result is kind 'value' with value true; a malformed duration operand gives kind 'invalid'
 
 AC-E4: pair normalization makes A B == B A
   Given: Two single pair values 'X Y' and 'Y X'
