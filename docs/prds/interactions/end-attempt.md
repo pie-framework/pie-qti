@@ -100,9 +100,9 @@ Crucially, the `endAttemptInteraction` button is not a "submit answer" button �
 
 ### How `countAttempt` changes the semantics
 
-The `countAttempt` attribute (default `true`) controls whether clicking the `endAttemptInteraction` increments `numAttempts`. Item authors use `countAttempt="false"` for hint requests or "show me an example" buttons where the click should not penalise the candidate. With `countAttempt=true` (the default and most common case), the click is treated as a full attempt submission. With `countAttempt=false`, the click triggers scoring without incrementing the attempt counter. This allows authors to offer multiple hints before the first "real" scored attempt.
+The `countAttempt` attribute (default `true`) controls whether clicking the `endAttemptInteraction` increments `numAttempts`. Item authors use `countAttempt="false"` for hint requests or "show me an example" buttons where the click should not penalise the candidate. With `countAttempt=true` (the default and most common case), the click is treated as a full attempt submission. With `countAttempt=false`, the click triggers scoring without incrementing the attempt counter, and the session is not finalized: response processing runs so hint outcomes and feedback compute, then the candidate continues on an open session. This works on adaptive and non-adaptive items alike and lets authors offer multiple hints before the first "real" scored attempt.
 
-In PIE-QTI, `countAttempt` is part of the delivered `EndAttemptInteractionData`. The item-session adapter passes that value in `{ action: 'submitAttempt', countAttempt }` when the control triggers submission.
+In PIE-QTI, `countAttempt` is part of the delivered `EndAttemptInteractionData`. The item-session adapter passes that value in `{ action: 'submitAttempt', countAttempt }` (adaptive) or `{ action: 'endAttempt', countAttempt }` (non-adaptive) when the control triggers submission. In assessment delivery the same value reaches the backend as `countAttempt` on the `SubmitResponsesRequest`, so servers can honor it too.
 
 ### Why `endAttemptInteraction` is not a content interaction
 
@@ -147,7 +147,14 @@ A regular submit button in the player chrome submits all interactions at once, r
 
 ### Adaptive item requirements
 
-The QTI spec states that `endAttemptInteraction` is only meaningful when `adaptive="true"` is set on the parent `assessmentItem`. Placing it in a non-adaptive item is not prohibited by the XML schema, but the outcome is undefined — response processing runs once, the session closes, and the `boolean` variable is simply a part of the scored response like any other. The current implementation does not warn or block when `endAttemptInteraction` appears in a non-adaptive item.
+The QTI spec states that `endAttemptInteraction` is only meaningful when `adaptive="true"` is set on the parent `assessmentItem`. Placing it in a non-adaptive item is not prohibited by the XML schema, and the engine defines its behavior fully: response processing runs, and with `countAttempt="false"` the attempt is not counted (`numAttempts` unchanged, `completionStatus` not forced to `completed`) so the session stays open and the candidate continues — hint buttons work on plain items, not only adaptive ones. With `countAttempt=true` (default), the counted attempt finalizes the non-adaptive item as before. The implementation does not warn or block when `endAttemptInteraction` appears in a non-adaptive item.
+
+### Who decides the submission: session ownership
+
+Activating the interaction only writes its boolean response; what ends the attempt depends on who owns the session:
+
+- **Standalone delivery** (the player owns the session): the item player submits itself, dispatching `{ action: 'submitAttempt', countAttempt }` for adaptive items and `{ action: 'endAttempt', countAttempt }` for non-adaptive ones.
+- **Assessment delivery** (the session is injected — `session` prop / `pie-qti-item-player`): the player never closes an externally owned session locally. The `AssessmentPlayer` recognizes the end-attempt response on the session's normal response path and decides per QTI submission mode (see `docs/prds/architecture/assessment-player.md`): individual mode submits the item through the backend with `countAttempt` honored; simultaneous mode records the response and defers response processing to the end of the testPart.
 
 ### QTI 3.0 name mapping
 
@@ -409,11 +416,14 @@ AC-18: disabled=true prop prevents click before activation
   When: the user attempts to click the button or press Enter/Space on it
   Then: no qti-change event fires; the button retains its pre-click visual state
 
-AC-19: Non-adaptive item with endAttemptInteraction processes without error
+AC-19: Non-adaptive item honors countAttempt
   Given: an assessmentItem with adaptive="false" containing an endAttemptInteraction
-  When: the button is clicked and the player processes the response
-  Then: response processing runs once; completionStatus is set to "completed";
-        no JavaScript error is thrown (behaviour is defined even if not spec-recommended)
+  When: the button is clicked with countAttempt="false" and the attempt ends
+  Then: response processing runs (outcomes and feedback compute); numAttempts stays 0;
+        completionStatus is not forced to "completed"; the session stays open (interacting) and
+        the candidate continues; a later counted attempt finalizes and closes the session.
+        With countAttempt="true" (default) the single counted attempt finalizes immediately.
+        No JavaScript error is thrown in either case
 
 AC-20: Response variable resets correctly between attempts in adaptive scenario
   Given: an adaptive item where the first attempt sets the endAttemptInteraction to true,

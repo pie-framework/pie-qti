@@ -126,9 +126,14 @@
 						command.responseIdentifier,
 						current.responses[command.responseIdentifier] as ItemResponseValue
 					);
-					// Activating an endAttemptInteraction ends the attempt. Submit after this dispatch
-					// has finished notifying, so every subscriber sees the response change first.
-					const request = endAttemptRequest(transition, () => nextSession?.present().flow ?? []);
+					// Activating an endAttemptInteraction ends the attempt. Only a session this player
+					// owns is submitted here, after the dispatch has finished notifying so every
+					// subscriber sees the response change first. An externally owned session (assessment
+					// delivery) is decided by its owner — closing it locally would make the owner's
+					// later submission throw.
+					const request = ownsSession
+						? endAttemptRequest(transition, () => nextSession?.present().flow ?? [])
+						: null;
 					if (request) {
 						queueMicrotask(() => {
 							if (activeSession === nextSession) submit(request.countAttempt);

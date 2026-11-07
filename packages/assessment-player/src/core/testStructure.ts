@@ -7,6 +7,7 @@ import {
 	buildExpression,
 	DeclarationContext,
 	type DeclarationMap,
+	durationSecondsFromMilliseconds,
 	evalExpr,
 	OperatorRegistry,
 	parseXml,
@@ -45,6 +46,48 @@ const ADAPTIVE_ITEM_ROOT = /<(?:[\w-]+:)?(?:qti-assessment-item|assessmentItem)\
 /** True when the item root declares `adaptive="true"`. */
 export function isAdaptiveItemXml(itemXml: string): boolean {
 	return ADAPTIVE_ITEM_ROOT.test(itemXml);
+}
+
+export interface EndAttemptInteractionInfo {
+	/** The response declaration the interaction is bound to. */
+	responseIdentifier: string;
+	/** QTI `countAttempt` (QTI 3 `count-attempt`); true unless authored as false. */
+	countAttempt: boolean;
+}
+
+/**
+ * The item's endAttemptInteraction bindings, read from the item XML. Assessment delivery uses this
+ * to recognize an end-attempt response on the session's normal response path: activation counts the
+ * attempt unless authored with countAttempt="false" (a hint request).
+ */
+export function endAttemptInteractionInfo(itemXml: string): EndAttemptInteractionInfo[] {
+	const out: EndAttemptInteractionInfo[] = [];
+	let root: Element | null = null;
+	try {
+		root = parseXml(itemXml).documentElement;
+	} catch {
+		return out;
+	}
+	if (!root) return out;
+	const visit = (element: Element): void => {
+		const name = toCanonicalQtiName(element.localName ?? element.nodeName).toLowerCase();
+		if (name === 'endattemptinteraction') {
+			const responseIdentifier =
+				element.getAttribute('responseIdentifier') ?? element.getAttribute('response-identifier');
+			const raw = element.getAttribute('countAttempt') ?? element.getAttribute('count-attempt');
+			if (responseIdentifier) {
+				out.push({
+					responseIdentifier,
+					countAttempt: raw ? raw.trim().toLowerCase() !== 'false' : true,
+				});
+			}
+		}
+		for (let child = element.firstChild; child; child = child.nextSibling) {
+			if (child.nodeType === 1) visit(child as Element);
+		}
+	};
+	visit(root);
+	return out;
 }
 
 /**
@@ -358,6 +401,46 @@ export function addItemVariableDeclarations(
 	}
 	for (const [identifier, value] of Object.entries(unprefixed)) {
 		if (!decls[identifier]) decls[identifier] = declaration(identifier, value);
+	}
+	return decls;
+}
+
+/** Millisecond scope clocks the timing state carries; absent clocks read as 0 seconds. */
+export interface ScopeTiming {
+	/** Total assessment elapsed time (ms). */
+	totalTime?: number;
+	/** Elapsed time per testPart identifier (ms). */
+	testPartTimes?: Record<string, number>;
+	/** Elapsed time per section identifier (ms). */
+	sectionTimes?: Record<string, number>;
+}
+
+/**
+ * Adds the QTI built-in duration variables test-scope expressions read: `duration` for the whole
+ * test, `TESTPART_ID.duration` and `SECTION_ID.duration` for each delivered part and section.
+ * QTI durations are seconds; the timing state keeps milliseconds, so the values are converted.
+ * Authored identifiers win: an existing declaration is never replaced.
+ */
+export function addScopeDurationDeclarations(
+	decls: DeclarationMap,
+	assessment: SecureAssessment,
+	timing: ScopeTiming | undefined,
+): DeclarationMap {
+	const durationSeconds = (ms: number | undefined): number =>
+		durationSecondsFromMilliseconds(Number(ms) || 0);
+	const putDuration = (identifier: string, seconds: number): void => {
+		if (!decls[identifier]) decls[identifier] = declaration(identifier, qtiValue('duration', 'single', seconds));
+	};
+	putDuration('duration', durationSeconds(timing?.totalTime));
+	const visitSections = (sections: readonly SecureSection[]): void => {
+		for (const section of sections) {
+			putDuration(`${section.identifier}.duration`, durationSeconds(timing?.sectionTimes?.[section.identifier]));
+			visitSections(section.sections ?? []);
+		}
+	};
+	for (const testPart of assessment.testParts ?? []) {
+		putDuration(`${testPart.identifier}.duration`, durationSeconds(timing?.testPartTimes?.[testPart.identifier]));
+		visitSections(testPart.sections ?? []);
 	}
 	return decls;
 }

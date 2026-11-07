@@ -13,6 +13,7 @@ import {
 	type AssessmentItemDefinition,
 	type AssessmentItemDefinitionPlugin,
 	type ItemSession,
+	type ItemSessionTransition,
 	type PciConfiguration,
 	type PnpProfile,
 	type PlayerSecurityConfig,
@@ -52,6 +53,7 @@ import { AssessmentPlayerError, type AssessmentPlayerErrorCode } from './errors.
 import { NavigationManager } from './NavigationManager.js';
 import {
 	deliveredItems,
+	endAttemptInteractionInfo,
 	evaluateTestExpression,
 	isAdaptiveItemXml,
 	plainQtiValue,
@@ -196,11 +198,15 @@ export class AssessmentPlayer {
 	private items: FlatItem[] = [];
 	private currentItemIndex = -1;
 	private readonly itemDefinitions = new Map<string, AssessmentItemDefinition>();
+	/** endAttemptInteraction bindings per item: response identifier → countAttempt. */
+	private readonly endAttemptResponses = new Map<string, Map<string, boolean>>();
 	private currentItemSession: ItemSession | null = null;
 	private currentItemSessionUnsubscribe: (() => void) | null = null;
 	/** Test-level outcomes from the last outcome processing; null until it first runs. */
 	private testOutcomes: TestOutcomeValues | null = null;
 	private finalized = false;
+	/** Set by destroy(); a scheduled end-attempt submission after teardown is dropped. */
+	private destroyed = false;
 	/** Results produced by the finalization; returned when submit() is called again after the end. */
 	private finalResults: AssessmentResults | null = null;
 	/** Scopes whose time limit expired without late submission, keyed `scope:identifier`. */
@@ -746,6 +752,11 @@ export class AssessmentPlayer {
 	): SerializedItemSessionState {
 		const validateResponses = this.sessionCoordinator.mustValidateResponses(q.identifier);
 		const endAttempt = (session: ItemSession): SerializedItemSessionState => {
+			// A session whose attempt already ended contributes its accepted state unchanged;
+			// dispatching another end-attempt on it would throw and fail the final submission.
+			if (!isWritableItemLifecycle(session.state().lifecycleStatus)) {
+				return session.serialize();
+			}
 			const result = session.dispatch({ action: 'endAttempt', validateResponses }).result;
 			if (result?.validation && !result.validation.valid) {
 				throw new Error(result.validation.issues[0]?.message || `Submit failed: invalid response for item ${q.identifier}`);
@@ -756,7 +767,7 @@ export class AssessmentPlayer {
 		if (
 			active === q &&
 			this.currentItemSession &&
-			this.currentItemSession.state().lifecycleStatus !== 'suspended'
+			isWritableItemLifecycle(this.currentItemSession.state().lifecycleStatus)
 		) {
 			return endAttempt(this.currentItemSession);
 		}
@@ -813,6 +824,61 @@ export class AssessmentPlayer {
 			if (this.mirrorSessionResponses(q.identifier, transition.current.responses)) {
 				this.notifyResponseChange();
 			}
+			this.scheduleEndAttemptSubmission(q, session, transition);
+		});
+	}
+
+	/** The item's endAttemptInteraction bindings, parsed from its item XML once and cached. */
+	private endAttemptResponseMap(q: FlatItem): Map<string, boolean> {
+		let map = this.endAttemptResponses.get(q.identifier);
+		if (!map) {
+			map = new Map();
+			for (const info of endAttemptInteractionInfo(q.item.itemXml)) {
+				map.set(info.responseIdentifier, info.countAttempt);
+			}
+			this.endAttemptResponses.set(q.identifier, map);
+		}
+		return map;
+	}
+
+	/**
+	 * QTI endAttempt on the response path: a candidate activating an endAttemptInteraction writes
+	 * its boolean response. Assessment delivery decides what that means — the item session is
+	 * owned here and must never be closed by a renderer. In a simultaneous test part the response
+	 * processing is deferred to the end of the part, so the response is recorded like any other.
+	 * In an individual test part the item is submitted through the normal per-item path with the
+	 * interaction's countAttempt honored; the candidate stays on the item.
+	 */
+	private scheduleEndAttemptSubmission(q: FlatItem, session: ItemSession, transition: ItemSessionTransition): void {
+		const command = transition.command;
+		if (command.action !== 'setResponse') return;
+		const responseId = command.responseIdentifier;
+		// Only the change to true activates the interaction; re-writing the value is inert.
+		if (transition.current.responses[responseId] !== true || transition.previous.responses[responseId] === true) {
+			return;
+		}
+		const countAttempt = this.endAttemptResponseMap(q).get(responseId);
+		if (countAttempt === undefined) return;
+		if ((q.testPart.submissionMode ?? this.assessment.submissionMode) !== 'individual') return;
+
+		queueMicrotask(() => {
+			void this.runExclusive(async () => {
+				if (
+					this.destroyed ||
+					this.finalized ||
+					this.currentItemSession !== session ||
+					this.items[this.currentItemIndex] !== q
+				) {
+					return;
+				}
+				if (!isWritableItemLifecycle(session.state().lifecycleStatus)) return;
+				await this.submitCurrentItemInternal({ countAttempt, followBranching: false });
+			}).catch((error) => {
+				// A concurrent navigation or submission owns the transition; its own path submits
+				// this response. Anything else surfaces to the host without breaking delivery.
+				if (error instanceof AssessmentPlayerError && error.code === 'navigationInFlight') return;
+				this.config.onError?.(error instanceof Error ? error : new Error(String(error)));
+			});
 		});
 	}
 
@@ -1095,7 +1161,10 @@ export class AssessmentPlayer {
 		return this.runExclusive(() => this.submitCurrentItemInternal());
 	}
 
-	private async submitCurrentItemInternal(): Promise<ItemResult> {
+	private async submitCurrentItemInternal(
+		options: { countAttempt?: boolean; followBranching?: boolean } = {},
+	): Promise<ItemResult> {
+		const countAttempt = options.countAttempt ?? true;
 		const q = this.items[this.currentItemIndex];
 		if (!q) throw new AssessmentPlayerError('invalidNavigationTarget', 'No current item');
 		this.assertMinimumTime('item', q);
@@ -1110,25 +1179,31 @@ export class AssessmentPlayer {
 		let res: Awaited<ReturnType<BackendAdapter['submitResponses']>>;
 		try {
 			if (submittedSession) {
-				const transition = submittedSession.dispatch({
-					action: 'endAttempt',
-					validateResponses: this.sessionCoordinator.mustValidateResponses(q.identifier),
-				});
-				const attempt = transition.result;
-				if (!attempt) throw new Error('Item session did not produce an end-attempt result');
-				if (attempt.validation && !attempt.validation.valid) {
+				// A session whose attempt already ended contributes its accepted state unchanged;
+				// dispatching another end-attempt on it would throw and fail the submission.
+				const transition = isWritableItemLifecycle(submittedSession.state().lifecycleStatus)
+					? submittedSession.dispatch({
+							action: 'endAttempt',
+							countAttempt,
+							validateResponses: this.sessionCoordinator.mustValidateResponses(q.identifier),
+						})
+					: undefined;
+				const attempt = transition?.result;
+				if (transition && !attempt) throw new Error('Item session did not produce an end-attempt result');
+				if (attempt?.validation && !attempt.validation.valid) {
 					throw new AssessmentPlayerError(
 						'attemptValidationFailed',
 						attempt.validation.issues[0]?.message || 'Submit failed: invalid response',
 					);
 				}
-				itemSession = attempt.sessionState;
+				itemSession = attempt?.sessionState ?? submittedSession.serialize();
 			}
 			res = await this.backend.submitResponses({
 				sessionId: this.sessionId,
 				itemIdentifier: q.identifier,
 				responses: responses as any,
 				submittedAt,
+				countAttempt,
 				timeSpent: itemSession?.duration,
 				timing: this.getSubmitTimingEvidence(q, itemSession?.duration ?? 0),
 				itemSession: this.config.sendItemSessionToBackend ? itemSession : undefined,
@@ -1164,66 +1239,79 @@ export class AssessmentPlayer {
 			this.sessionCoordinator.setItemSession(q.identifier, itemSession);
 		}
 
-		if (res.updatedState) {
-			const localResponses = cloneData(this.state.itemResponses || {})!;
-			localResponses[q.identifier] = cloneResponseRecord(responses) as any;
-			this.sessionCoordinator.replaceStatePreservingResponsesAndSessions(
-				res.updatedState,
-				localResponses,
-				cloneData(this.state.itemSessions || {})!,
-			);
-		} else {
-			// Minimal state update when backend doesn't return full state.
-			this.state.itemScores = this.state.itemScores || {};
-			this.state.itemScores[q.identifier] = res.result;
-			this.sessionCoordinator.markVisited(q.identifier);
-			this.state.itemResponses[q.identifier] = responses as any;
-			if (itemSession) {
-				this.sessionCoordinator.setItemSession(q.identifier, itemSession);
-			}
-		}
-
 		this.setTestOutcomes(res.outcomes);
 		this.reportOutcomeProcessingError(res.outcomeProcessingError);
 
-		const itemResult: ItemResult = {
+		// An uncounted submission (QTI endAttempt countAttempt=false, a hint request) persists the
+		// response and session but records no result and consumes no attempt: the candidate stays
+		// on the item and a later submission carries the final response.
+		if (countAttempt) {
+			if (res.updatedState) {
+				const localResponses = cloneData(this.state.itemResponses || {})!;
+				localResponses[q.identifier] = cloneResponseRecord(responses) as any;
+				this.sessionCoordinator.replaceStatePreservingResponsesAndSessions(
+					res.updatedState,
+					localResponses,
+					cloneData(this.state.itemSessions || {})!,
+				);
+			} else {
+				// Minimal state update when backend doesn't return full state.
+				this.state.itemScores = this.state.itemScores || {};
+				this.state.itemScores[q.identifier] = res.result;
+				this.sessionCoordinator.markVisited(q.identifier);
+				this.state.itemResponses[q.identifier] = responses as any;
+				if (itemSession) {
+					this.sessionCoordinator.setItemSession(q.identifier, itemSession);
+				}
+			}
+
+			const itemResult: ItemResult = {
+				itemIdentifier: q.identifier,
+				score: res.result.score,
+				maxScore: res.result.maxScore,
+				responses: { ...responses },
+			};
+			this.sessionCoordinator.setItemResult(itemResult);
+
+			// Track item session rules (review/attempts) and visited items for navigation hints.
+			try {
+				this.sessionCoordinator.recordAttempt(q.identifier);
+			} catch {
+				// ignore
+			}
+			this.sessionCoordinator.markAnswered(q.identifier, responses);
+			this.navigationManager.markVisited(this.currentItemIndex);
+
+			// Apply the backend's branching decision, if any. QTI branchRule semantics:
+			// - EXIT_TEST terminates the test: remaining items are not presented and the test
+			//   finalizes exactly like a normal end of test.
+			// - EXIT_TESTPART ends the current test part; EXIT_SECTION ends the current section.
+			//   Delivery continues with the next item outside the ended scope; when none follows
+			//   (for the part, or the test), the ended scope finalizes like a normal end of test.
+			if (options.followBranching !== false && res.nextItemIdentifier) {
+				const special = res.nextItemIdentifier;
+				if (special === 'EXIT_TEST') {
+					await this.endTestInternal();
+				} else if (special === 'EXIT_TESTPART' || special === 'EXIT_SECTION') {
+					await this.applyExitBoundary(special, q);
+				} else {
+					const nextIdx = this.items.findIndex((x) => x.identifier === special);
+					if (nextIdx >= 0) {
+						await this.performNavigateTo(nextIdx, { restoring: true });
+					}
+				}
+			}
+
+			return itemResult;
+		}
+
+		this.sessionCoordinator.markAnswered(q.identifier, responses);
+		return {
 			itemIdentifier: q.identifier,
 			score: res.result.score,
 			maxScore: res.result.maxScore,
 			responses: { ...responses },
 		};
-		this.sessionCoordinator.setItemResult(itemResult);
-
-		// Track item session rules (review/attempts) and visited items for navigation hints.
-		try {
-			this.sessionCoordinator.recordAttempt(q.identifier);
-		} catch {
-			// ignore
-		}
-		this.sessionCoordinator.markAnswered(q.identifier, responses);
-		this.navigationManager.markVisited(this.currentItemIndex);
-
-		// Apply the backend's branching decision, if any. QTI branchRule semantics:
-		// - EXIT_TEST terminates the test: remaining items are not presented and the test
-		//   finalizes exactly like a normal end of test.
-		// - EXIT_TESTPART ends the current test part; EXIT_SECTION ends the current section.
-		//   Delivery continues with the next item outside the ended scope; when none follows
-		//   (for the part, or the test), the ended scope finalizes like a normal end of test.
-		if (res.nextItemIdentifier) {
-			const special = res.nextItemIdentifier;
-			if (special === 'EXIT_TEST') {
-				await this.endTestInternal();
-			} else if (special === 'EXIT_TESTPART' || special === 'EXIT_SECTION') {
-				await this.applyExitBoundary(special, q);
-			} else {
-				const nextIdx = this.items.findIndex((x) => x.identifier === special);
-				if (nextIdx >= 0) {
-					await this.performNavigateTo(nextIdx, { restoring: true });
-				}
-			}
-		}
-
-		return itemResult;
 	}
 
 	/**
@@ -1617,6 +1705,7 @@ export class AssessmentPlayer {
 	}
 
 	public destroy(): void {
+		this.destroyed = true;
 		this.timeManager?.destroy();
 		this.releaseCurrentItemSession();
 		this.itemDefinitions.clear();

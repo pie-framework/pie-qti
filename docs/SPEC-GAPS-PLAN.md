@@ -491,9 +491,9 @@ parent limit still closes the scope, and the effective-limit and remaining-time 
 QTI duration variables are seconds (2026-11-07): the item's built-in `duration` variable, and
 `ITEM.duration` as test-level expressions read it, hold seconds, and Results Reporting output writes
 the test, test-part and section durations in seconds. Clocks and host-facing `duration` / `timing`
-fields stay in milliseconds. Open: test-level outcome processing does not yet declare the built-in
-`duration`, `PART.duration` and `SECTION.duration` variables; expose them from the timing state in
-seconds (`durationSecondsFromMilliseconds` in `@pie-qti/qti-processing`).
+fields stay in milliseconds. Test-level outcome processing declares the built-in `duration`,
+`TESTPART_ID.duration` and `SECTION_ID.duration` variables from the timing state, converted to
+seconds (`durationSecondsFromMilliseconds` in `@pie-qti/qti-processing`) (2026-11-07).
 
 Action
 Done for the tracked runtime and evidence gaps. Candidate-facing minimum-time affordances (countdown
@@ -503,6 +503,9 @@ Test signal
 - `packages/assessment-player/tests/time-limit-edges.test.ts`: deterministic-clock tests exercise
   item, section, part, and test min/max limits and verify recorded durations (submit timing
   evidence), expiry ordering, and navigation/submission behavior.
+- `packages/assessment-player/tests/outcome-processing-durations.test.ts`: QTI 2.2 and 3.0 outcome
+  processing reads `duration`, `TESTPART_ID.duration` and `SECTION_ID.duration` in seconds, and
+  `ITEM_ID.duration` from the serialized item session.
 
 ---
 

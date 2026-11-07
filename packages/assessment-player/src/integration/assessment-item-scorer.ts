@@ -51,6 +51,7 @@ export function scoreAssessmentItemForTest({
 		let result;
 		let testState: ItemTestState;
 		try {
+			const adaptive = session.state().adaptive;
 			result = session.dispatch(
 				itemSession
 					? { action: 'scoreAttempt' }
@@ -58,6 +59,11 @@ export function scoreAssessmentItemForTest({
 			).result?.scoring;
 			if (!result) throw new Error('QTI scoring produced no result');
 			testState = snapshotTestState(itemXml, session, result.correct);
+			// The scorer keeps its throwaway session uncounted (countAttempt:false), which since the
+			// QTI countAttempt semantics no longer finalizes a non-adaptive item. A scored submission
+			// of a non-adaptive item is still the end of its attempt; only adaptive items report
+			// completion from their own completionStatus.
+			result = { ...result, completed: adaptive ? result.completed : true };
 		} finally {
 			session.dispose();
 		}

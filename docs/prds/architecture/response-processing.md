@@ -146,6 +146,7 @@ The QTI processing model is inherently stateful: `setOutcomeValue` and `setTempl
 ### Known divergences from spec
 
 - **`outcomeProcessing` inputs are the backend's (G-11):** the test-level expressions evaluate over whatever `TestItemState` the backend supplies. `ReferenceBackendAdapter` supplies one per delivered item, submitted or not, with typed variables, section path, categories, weights, declared normal bounds and the presented/responded/correct/incorrect/selected flags; a production backend must build the same from its authoritative session state. `outcomeMinimum` and `outcomeMaximum` read the declared `normalMinimum`/`normalMaximum`.
+- **Built-in scope durations (G-22):** test-level outcome processing can read the QTI built-in `duration` of the test, each testPart (`TESTPART_ID.duration`) and each section (`SECTION_ID.duration`), plus each item's own `duration` as `ITEM_ID.duration`. All are `duration` baseType in **seconds** (QTI), declared by the assessment layer from the persisted timing clocks — those clocks themselves stay in milliseconds. Authored identifiers are never replaced: a test that declares its own `duration` outcome wins.
 - **`xi:include` is a parse error, not a no-op:** The spec implies `xi:include` should be resolved. The engine throws instead of silently ignoring it, to surface content authoring errors early.
 
 ---

@@ -310,6 +310,12 @@ export interface SubmitResponsesRequest {
 	submittedAt: number;
 	/** Time spent on item (ms) for analytics */
 	timeSpent?: number;
+	/**
+	 * QTI endAttempt countAttempt (default true). False marks a hint / "show me" submission that
+	 * runs response processing without consuming an attempt: backends must not count it toward
+	 * maxAttempts and must not record it as the item's result — the candidate continues.
+	 */
+	countAttempt?: boolean;
 	/** Optional client timing evidence; production backends remain authoritative. */
 	timing?: SubmitTimingEvidence;
 	/**

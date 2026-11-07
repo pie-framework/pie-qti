@@ -697,11 +697,15 @@ export class Player {
 			return this.createItemSessionActionResult('endAttempt', this.saveItemSession(), { validation });
 		}
 
+		// QTI countAttempt=false (hint / "show me"): response processing runs so outcomes and
+		// feedback compute, but the attempt is not counted and the session stays open for the
+		// candidate to continue — only a counted attempt finalizes a non-adaptive item.
+		const countAttempt = options.countAttempt ?? true;
 		const scoring = this.isAdaptive()
-			? this.runAdaptiveSubmitAttempt(options.countAttempt ?? true)
+			? this.runAdaptiveSubmitAttempt(countAttempt)
 			: this.runResponseProcessing({
-					finalizeNonAdaptiveAttempt: true,
-					countAttempt: options.countAttempt ?? true,
+					finalizeNonAdaptiveAttempt: countAttempt,
+					countAttempt,
 				});
 		this.lifecycleStatus = scoring.completed ? 'closed' : 'interacting';
 
