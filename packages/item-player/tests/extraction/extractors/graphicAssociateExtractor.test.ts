@@ -108,7 +108,9 @@ describe('standardGraphicAssociateExtractor', () => {
 		expect(result.associableHotspots[0].matchMax).toBe(1);
 	});
 
-	test('uses identifier as label if text content is empty', () => {
+	test('never uses the identifier as label when the hotspot has no text', () => {
+		// Identifiers can reveal the answer key to assistive technology; the
+		// renderer names an unlabelled hotspot by position instead.
 		const xml = `
 			<graphicAssociateInteraction responseIdentifier="RESPONSE">
 				<object data="test.png" type="image/png"/>
@@ -121,7 +123,56 @@ describe('standardGraphicAssociateExtractor', () => {
 
 		const result = standardGraphicAssociateExtractor.extract(element, context);
 
-		expect(result.associableHotspots[0].label).toBe('HOTSPOT_ONE');
+		expect(result.associableHotspots[0].label).toBe('');
+	});
+
+	test('uses the authored hotspotLabel as label', () => {
+		const xml = `
+			<graphicAssociateInteraction responseIdentifier="RESPONSE">
+				<object data="test.png" type="image/png"/>
+				<associableHotspot identifier="HOTSPOT_ONE" shape="rect" coords="0,0,50,50" hotspotLabel="Lungs"/>
+			</graphicAssociateInteraction>
+		`;
+
+		const element = parseQTI(xml);
+		const result = standardGraphicAssociateExtractor.extract(element, createTestContext(element, 'RESPONSE'));
+
+		expect(result.associableHotspots[0].label).toBe('Lungs');
+	});
+
+	test('keeps the inline SVG title and desc as the image alternative', () => {
+		const xml = `
+			<graphicAssociateInteraction responseIdentifier="RESPONSE">
+				<object type="image/svg+xml" width="600" height="400">
+					<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400">
+						<title>Body systems</title>
+						<desc>Outline of a human torso showing the heart and lungs.</desc>
+						<text x="10" y="20">Heart</text>
+					</svg>
+				</object>
+				<associableHotspot identifier="A" shape="rect" coords="0,0,50,50">A</associableHotspot>
+			</graphicAssociateInteraction>
+		`;
+
+		const element = parseQTI(xml);
+		const result = standardGraphicAssociateExtractor.extract(element, createTestContext(element, 'RESPONSE'));
+
+		expect(result.imageData?.alt).toBe('Body systems');
+		expect(result.imageData?.altDescription).toBe('Outline of a human torso showing the heart and lungs.');
+	});
+
+	test('prefers an authored aria-label on the object over its fallback text', () => {
+		const xml = `
+			<graphicAssociateInteraction responseIdentifier="RESPONSE">
+				<object data="test.png" type="image/png" aria-label="Food web diagram">fallback</object>
+				<associableHotspot identifier="A" shape="rect" coords="0,0,50,50">A</associableHotspot>
+			</graphicAssociateInteraction>
+		`;
+
+		const element = parseQTI(xml);
+		const result = standardGraphicAssociateExtractor.extract(element, createTestContext(element, 'RESPONSE'));
+
+		expect(result.imageData?.alt).toBe('Food web diagram');
 	});
 
 	test('handles multiple associableHotspots with different matchMax values', () => {

@@ -1,5 +1,6 @@
 import type { ElementExtractor } from '../../extraction/types.js';
 import { normalizePixelDimension } from '../../security/styleValues.js';
+import { extractImageAlternative } from '../shared/imageAlt.js';
 import type { QTIElement } from '../shared/types.js';
 
 export interface ImageData {
@@ -8,6 +9,12 @@ export interface ImageData {
 	content?: string;
 	width?: string;
 	height?: string;
+	/** Short text alternative extracted from the QTI source. */
+	alt?: string;
+	/** Longer description for complex images (SVG <desc>, aria description). */
+	altDescription?: string;
+	/** True only when the author explicitly marked the image decorative. */
+	decorative?: boolean;
 }
 
 export interface PositionObjectData {
@@ -19,6 +26,11 @@ export interface PositionObjectData {
 	 */
 	positionObjectStages: Array<{
 		identifier: string;
+		/**
+		 * The draggable object's authored text alternative. Empty when the author
+		 * gave none: the renderer then names it generically. Never the response
+		 * identifier, which can leak the answer key to assistive technology.
+		 */
 		label: string;
 		matchMax: number;
 		objectData: ImageData | null;
@@ -32,12 +44,13 @@ export interface PositionObjectData {
 
 function imageDataFromObject(
 	objectElement: QTIElement | undefined,
-	utils: Parameters<ElementExtractor<PositionObjectData>['extract']>[1]['utils'],
+	context: Parameters<ElementExtractor<PositionObjectData>['extract']>[1],
 	defaultWidth: string,
 	defaultHeight: string,
 ): ImageData | null {
 	if (!objectElement) return null;
 
+	const { utils, dom } = context;
 	const type = utils.getAttribute(objectElement, 'type', '');
 	const data = utils.getAttribute(objectElement, 'data', '');
 	const width = normalizePixelDimension(
@@ -51,10 +64,22 @@ function imageDataFromObject(
 	const content = utils.getHtmlContent(objectElement);
 
 	if (type.startsWith('image/svg') && /<svg[\s>]/i.test(content)) {
-		return { type: 'svg', content, width, height };
+		return {
+			type: 'svg',
+			content,
+			width,
+			height,
+			...extractImageAlternative(objectElement, utils, dom, { inlineSvgContent: content }),
+		};
 	}
 
-	return { type: 'image', src: data, width, height };
+	return {
+		type: 'image',
+		src: data,
+		width,
+		height,
+		...extractImageAlternative(objectElement, utils, dom),
+	};
 }
 
 export const standardPositionObjectExtractor: ElementExtractor<PositionObjectData> = {
@@ -81,11 +106,13 @@ export const standardPositionObjectExtractor: ElementExtractor<PositionObjectDat
 
 		const backgroundObject = stage ? utils.getChildrenByTag(stage, 'object')[0] : undefined;
 		const draggableObject = utils.getChildrenByTag(element, 'object')[0];
-		const imageData = imageDataFromObject(backgroundObject, utils, '500', '300');
-		const objectData = imageDataFromObject(draggableObject, utils, '50', '50');
+		const imageData = imageDataFromObject(backgroundObject, context, '500', '300');
+		const objectData = imageDataFromObject(draggableObject, context, '50', '50');
 		const maxChoices = utils.getNumberAttribute(element, 'maxChoices', 1);
 		const minChoices = utils.getNumberAttribute(element, 'minChoices', 0);
-		const label = utils.getTextContent(draggableObject).trim() || responseId;
+		// The draggable object's authored alternative names it. No identifier
+		// fallback: the renderer substitutes a localized generic name instead.
+		const label = objectData?.alt ?? '';
 		const classes = utils.getClasses(element);
 		const prompt = utils.getPrompt(element);
 

@@ -185,6 +185,12 @@ export interface ImageData {
 	src?: string;
 	width: string;
 	height: string;
+	/** Short text alternative extracted from the QTI source (see `shared/imageAlt.ts`). */
+	alt?: string;
+	/** Longer description for complex images (SVG `<desc>`, resolved aria description). */
+	altDescription?: string;
+	/** True only when the author explicitly marked the image decorative (`<img alt="">`). */
+	decorative?: boolean;
 }
 
 export interface HotspotChoice {

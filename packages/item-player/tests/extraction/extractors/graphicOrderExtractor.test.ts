@@ -104,7 +104,9 @@ describe('standardGraphicOrderExtractor', () => {
 		expect(result.hotspotChoices[0].coords).toBe('0,0,50,50');
 	});
 
-	test('uses identifier as label if text content is empty', () => {
+	test('never uses the identifier as label when the hotspot has no text', () => {
+		// Identifiers can reveal the answer key to assistive technology; the
+		// renderer names an unlabelled hotspot by position instead.
 		const xml = `
 			<graphicOrderInteraction responseIdentifier="RESPONSE">
 				<object data="test.png" type="image/png"/>
@@ -117,7 +119,52 @@ describe('standardGraphicOrderExtractor', () => {
 
 		const result = standardGraphicOrderExtractor.extract(element, context);
 
-		expect(result.hotspotChoices[0].label).toBe('ITEM_A');
+		expect(result.hotspotChoices[0].label).toBe('');
+	});
+
+	test('uses the authored hotspotLabel as label', () => {
+		const xml = `
+			<graphicOrderInteraction responseIdentifier="RESPONSE">
+				<object data="test.png" type="image/png"/>
+				<hotspotChoice identifier="ITEM_A" shape="rect" coords="0,0,50,50" hotspotLabel="Mercury"/>
+			</graphicOrderInteraction>
+		`;
+
+		const element = parseQTI(xml);
+		const result = standardGraphicOrderExtractor.extract(element, createTestContext(element, 'RESPONSE'));
+
+		expect(result.hotspotChoices[0].label).toBe('Mercury');
+	});
+
+	test('keeps the image text alternative from the object fallback text', () => {
+		const xml = `
+			<graphicOrderInteraction responseIdentifier="RESPONSE">
+				<object data="planets.png" type="image/png" width="400" height="200">The four inner planets</object>
+				<hotspotChoice identifier="A" shape="rect" coords="0,0,50,50"/>
+			</graphicOrderInteraction>
+		`;
+
+		const element = parseQTI(xml);
+		const result = standardGraphicOrderExtractor.extract(element, createTestContext(element, 'RESPONSE'));
+
+		expect(result.imageData?.alt).toBe('The four inner planets');
+		expect(result.imageData?.decorative).toBeUndefined();
+	});
+
+	test('reads an external SVG object as an image and keeps its fallback text as alt', () => {
+		const xml = `
+			<graphicOrderInteraction responseIdentifier="RESPONSE">
+				<object data="planets.svg" type="image/svg+xml" width="400" height="200">Planet diagram</object>
+				<hotspotChoice identifier="A" shape="rect" coords="0,0,50,50"/>
+			</graphicOrderInteraction>
+		`;
+
+		const element = parseQTI(xml);
+		const result = standardGraphicOrderExtractor.extract(element, createTestContext(element, 'RESPONSE'));
+
+		expect(result.imageData?.type).toBe('image');
+		expect(result.imageData?.src).toBe('planets.svg');
+		expect(result.imageData?.alt).toBe('Planet diagram');
 	});
 
 	test('handles missing prompt', () => {

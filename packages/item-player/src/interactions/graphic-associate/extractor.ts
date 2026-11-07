@@ -6,6 +6,7 @@
 
 import type { ElementExtractor } from '../../extraction/types.js';
 import { normalizePixelDimension } from '../../security/styleValues.js';
+import { extractImageAlternative, imgAlternativeSource } from '../shared/imageAlt.js';
 
 /**
  * Image data for graphic associate interaction
@@ -16,6 +17,12 @@ export interface ImageData {
 	content?: string;
 	width?: string;
 	height?: string;
+	/** Short text alternative extracted from the QTI source. */
+	alt?: string;
+	/** Longer description for complex images (SVG <desc>, aria description). */
+	altDescription?: string;
+	/** True only when the author explicitly marked the image decorative (`<img alt="">`). */
+	decorative?: boolean;
 }
 
 /**
@@ -25,6 +32,11 @@ export interface GraphicAssociateData {
 	imageData: ImageData | null;
 	associableHotspots: Array<{
 		identifier: string;
+		/**
+		 * The hotspot's authored text (`hotspotLabel` or element text). Empty when
+		 * the author gave none: the renderer then names it by position. Never the
+		 * identifier, which can leak the answer key to assistive technology.
+		 */
 		label: string;
 		shape: string;
 		coords: string;
@@ -55,10 +67,11 @@ export const standardGraphicAssociateExtractor: ElementExtractor<GraphicAssociat
 	},
 
 	extract(element, context) {
-		const { utils } = context;
+		const { utils, dom } = context;
 
-		// Extract image data from object element
+		// Extract image data from the object element (QTI 2.x / 3.0) or an img element (QTI 3.0)
 		const objectElements = utils.getChildrenByTag(element, 'object');
+		const imgElements = objectElements.length === 0 ? utils.getChildrenByTag(element, 'img') : [];
 		let imageData: ImageData | null = null;
 
 		if (objectElements.length > 0) {
@@ -73,25 +86,37 @@ export const standardGraphicAssociateExtractor: ElementExtractor<GraphicAssociat
 				utils.getAttribute(objectElement, 'height', ''),
 				'300',
 			);
+			const content = type.startsWith('image/svg') ? utils.getHtmlContent(objectElement) : '';
 
-			if (type.startsWith('image/svg')) {
-				// Extract inline SVG content - get full content including <svg> tag
-				const content = utils.getHtmlContent(objectElement);
+			if (/<svg[\s>]/i.test(content)) {
+				// Inline SVG: <object type="image/svg+xml"><svg>...</svg></object>
 				imageData = {
 					type: 'svg',
 					content,
 					width,
 					height,
+					...extractImageAlternative(objectElement, utils, dom, { inlineSvgContent: content }),
 				};
 			} else {
-				// External image reference
+				// External image (or SVG file) reference; the <object>'s text is its alternative
 				imageData = {
 					type: 'image',
 					src: data,
 					width,
 					height,
+					...extractImageAlternative(objectElement, utils, dom),
 				};
 			}
+		} else if (imgElements.length > 0) {
+			// QTI 3.0 <img>: the alt attribute is the text alternative (alt="" = decorative)
+			const imgElement = imgElements[0];
+			imageData = {
+				type: 'image',
+				src: utils.getAttribute(imgElement, 'src', ''),
+				width: normalizePixelDimension(utils.getAttribute(imgElement, 'width', ''), '500'),
+				height: normalizePixelDimension(utils.getAttribute(imgElement, 'height', ''), '300'),
+				...extractImageAlternative(imgElement, utils, dom, imgAlternativeSource(imgElement)),
+			};
 		}
 
 		// Extract associableHotspot children
@@ -106,9 +131,10 @@ export const standardGraphicAssociateExtractor: ElementExtractor<GraphicAssociat
 			const matchGroupRaw = utils.getAttribute(hotspot, 'matchGroup', '');
 			const matchGroup = matchGroupRaw.split(/\s+/).filter(Boolean);
 
-			// Get text content as label, use identifier as fallback
-			const textContent = utils.getTextContent(hotspot).trim();
-			const label = textContent || identifier;
+			// The authored label: hotspotLabel (QTI 2.2 / 3.0), else the hotspot's text.
+			// No identifier fallback — identifiers can reveal the answer key.
+			const label =
+				utils.getAttribute(hotspot, 'hotspotLabel', '').trim() || utils.getTextContent(hotspot).trim();
 
 			return {
 				identifier,
