@@ -1,0 +1,181 @@
+import type { SelectPointInteractionData } from '@pie-qti/item-player';
+import { afterEach, describe, expect, test, vi } from 'vitest';
+import SelectPointInteraction from '../../src/plugins/select-point/SelectPointInteraction.svelte';
+import { mountInteraction, pressKey, q, qa, settle } from './helpers';
+
+afterEach(() => {
+	vi.restoreAllMocks();
+	for (const node of Array.from(document.body.children)) node.remove();
+});
+
+function selectPointData(overrides: Partial<SelectPointInteractionData> = {}): SelectPointInteractionData {
+	return {
+		type: 'selectPointInteraction',
+		responseId: 'RESPONSE',
+		prompt: '<p>Mark the capital.</p>',
+		maxChoices: 1,
+		minChoices: 0,
+		imageData: { type: 'image', src: 'map.png', width: '500', height: '300', alt: 'Map of the country' },
+		...overrides,
+	};
+}
+
+function surface(mounted: { host: HTMLElement }): HTMLElement {
+	return q<HTMLElement>(mounted, '[part="selection-area"]')!;
+}
+
+function liveRegion(mounted: { host: HTMLElement }): string {
+	return q(mounted, '[aria-live="polite"]')?.textContent?.trim() ?? '';
+}
+
+/** Pretend the image is rendered at `width`×`height` CSS px at (left, top). */
+function mockRect(element: Element, left: number, top: number, width: number, height: number) {
+	vi.spyOn(element, 'getBoundingClientRect').mockReturnValue({
+		left,
+		top,
+		width,
+		height,
+		right: left + width,
+		bottom: top + height,
+		x: left,
+		y: top,
+		toJSON: () => ({}),
+	} as DOMRect);
+}
+
+describe('SelectPointInteraction (pie-qti-select-point)', () => {
+	test('renders the authored alt text on the image', async () => {
+		const mounted = mountInteraction(SelectPointInteraction, { interaction: selectPointData() });
+		await settle();
+
+		expect(q<HTMLImageElement>(mounted, 'img[part="image"]')?.getAttribute('alt')).toBe('Map of the country');
+	});
+
+	test('the selection area is a focusable application with documented keys, not a button', async () => {
+		const mounted = mountInteraction(SelectPointInteraction, { interaction: selectPointData() });
+		await settle();
+
+		const area = surface(mounted);
+		expect(area.getAttribute('role')).toBe('application');
+		expect(area.getAttribute('tabindex')).toBe('0');
+		expect(area.getAttribute('aria-label')).toBe('Point selection area');
+		const instructions = mounted.host.querySelector(`[id="${area.getAttribute('aria-describedby')}"]`);
+		expect(instructions?.textContent).toContain('arrow keys');
+		expect(instructions?.textContent).toContain('Enter or Space');
+		// No role="button" anywhere around the image.
+		expect(q(mounted, '[part="stage"][role="button"], .qti-sp-canvas [role="button"]')).toBeNull();
+	});
+
+	test('no interactive element is nested inside the selection area or the image stage', async () => {
+		const mounted = mountInteraction(SelectPointInteraction, {
+			interaction: selectPointData({ maxChoices: 2 }),
+			response: ['100 100', '200 150'],
+		});
+		await settle();
+
+		const stage = q(mounted, '[part="stage"]')!;
+		expect(stage.querySelectorAll('button, [role="button"], a[href], input')).toHaveLength(0);
+		// The markers on the image are decorative mirrors of the accessible point list.
+		expect(stage.querySelector('[part="point"]')?.closest('[aria-hidden="true"]')).not.toBeNull();
+	});
+
+	test('keyboard placement: arrows move the crosshair, Enter places a point in image pixels', async () => {
+		const mounted = mountInteraction(SelectPointInteraction, { interaction: selectPointData() });
+		await settle();
+
+		const area = surface(mounted);
+		area.focus();
+		await settle();
+		pressKey(area, 'ArrowRight');
+		pressKey(area, 'ArrowRight');
+		pressKey(area, 'ArrowDown');
+		await settle();
+		expect(liveRegion(mounted)).toBe('Position: 60%, 55%.');
+
+		pressKey(area, 'Enter');
+		await settle();
+
+		// 60% of 500 and 55% of 300, in the image's natural pixel space
+		expect(mounted.instance.response).toBe('300 165');
+		expect(mounted.events.at(-1)?.detail).toMatchObject({ responseId: 'RESPONSE', value: '300 165' });
+		expect(liveRegion(mounted)).toBe('Point 1 placed at 60%, 55%.');
+	});
+
+	test('pointer placement maps the scaled rendering back to natural image coordinates', async () => {
+		const mounted = mountInteraction(SelectPointInteraction, { interaction: selectPointData() });
+		await settle();
+
+		// The 500×300 image is rendered at half size (250×150) at (10, 20).
+		const area = surface(mounted);
+		mockRect(area, 10, 20, 250, 150);
+		area.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: 10 + 125, clientY: 20 + 75 }));
+		await settle();
+
+		expect(mounted.instance.response).toBe('250 150');
+	});
+
+	test('placed points are listed with "Remove point N" buttons; removal is announced', async () => {
+		const mounted = mountInteraction(SelectPointInteraction, {
+			interaction: selectPointData({ maxChoices: 2 }),
+			response: ['100 60', '400 240'],
+		});
+		await settle();
+
+		const items = qa(mounted, '[part="points"] li');
+		expect(items).toHaveLength(2);
+		expect(items[0]!.textContent).toContain('Point 1 at 20%, 20%');
+		const removeButtons = qa<HTMLButtonElement>(mounted, '[part="remove-point"]');
+		expect(removeButtons.map((button) => button.textContent?.trim())).toEqual(['Remove point 1', 'Remove point 2']);
+
+		removeButtons[0]!.click();
+		await settle();
+
+		expect(mounted.instance.response).toEqual(['400 240']);
+		expect(liveRegion(mounted)).toBe('Point 1 removed.');
+		expect(qa(mounted, '[part="points"] li')).toHaveLength(1);
+	});
+
+	test('reaching maxChoices announces the limit instead of placing', async () => {
+		const mounted = mountInteraction(SelectPointInteraction, {
+			interaction: selectPointData(),
+			response: '100 100',
+		});
+		await settle();
+
+		const area = surface(mounted);
+		pressKey(area, 'Enter');
+		await settle();
+
+		expect(mounted.events).toHaveLength(0);
+		expect(liveRegion(mounted)).toContain('Maximum points reached');
+	});
+
+	test('a failed image shows a localized message; the selection area keeps working', async () => {
+		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		const mounted = mountInteraction(SelectPointInteraction, { interaction: selectPointData() });
+		await settle();
+
+		q<HTMLImageElement>(mounted, 'img[part="image"]')!.dispatchEvent(new Event('error'));
+		await settle();
+
+		expect(q(mounted, '[part="image-error"]')?.textContent).toContain('The image could not be loaded.');
+		expect(surface(mounted)).not.toBeNull();
+		expect(warn).toHaveBeenCalled();
+	});
+
+	test('disabled: the selection area leaves the tab order and ignores input', async () => {
+		const mounted = mountInteraction(SelectPointInteraction, {
+			interaction: selectPointData(),
+			disabled: true,
+		});
+		await settle();
+
+		const area = surface(mounted);
+		expect(area.getAttribute('tabindex')).toBe('-1');
+		pressKey(area, 'Enter');
+		area.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: 5, clientY: 5 }));
+		await settle();
+
+		expect(mounted.events).toHaveLength(0);
+	});
+});

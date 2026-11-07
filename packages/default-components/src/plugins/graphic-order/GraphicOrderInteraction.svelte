@@ -9,8 +9,9 @@
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import SortableList from '../../shared/components/SortableList.svelte';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
-		import { interactionAria } from '../../shared/utils/interactionAria';
+	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
+	import { escapeHtml, imageAltText } from '../hotspot/graphicRegions';
 
 	interface Props {
 		interaction?: GraphicOrderInteractionData | string;
@@ -24,6 +25,8 @@
 
 	let { interaction = $bindable(), response = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), onChange }: Props = $props();
 
+	const uid = $props.id();
+
 	// Parse props that may be JSON strings (web component usage)
 	const parsedInteraction = $derived(parseJsonProp<GraphicOrderInteractionData>(interaction));
 	const parsedResponse = $derived(parseJsonProp<string[]>(response));
@@ -35,17 +38,45 @@
 	const imageHeight = $derived(
 		normalizePixelDimension(parsedInteraction?.imageData?.height, '300') ?? '300',
 	);
+	// Reflow (WCAG 1.4.10): the image scales down with its container, never past its natural size.
+	const mediaStyle = $derived(`max-width: ${imageWidth}px; aspect-ratio: ${imageWidth} / ${imageHeight};`);
+
+	const imageData = $derived(parsedInteraction?.imageData ?? null);
+	const imageAlt = $derived(
+		imageAltText(imageData, translate(i18n, 'interactions.graphicOrder.imageFallback', 'Image for this question')),
+	);
+	const imageDescription = $derived(imageData?.decorative ? '' : (imageData?.altDescription ?? ''));
+	const imageDescriptionId = $derived(`${uid}-image-description`);
+	let failedSrc = $state<string | null>(null);
+	const imageFailed = $derived(!!imageData?.src && failedSrc === imageData.src);
+
+	function handleImageError() {
+		failedSrc = imageData?.src ?? null;
+		console.warn(`[pie-qti-graphic-order] The image failed to load: ${imageData?.src ?? ''}`);
+	}
 
 	// Get reference to the root element for event dispatching
 	let rootElement: HTMLDivElement | undefined = $state();
 
 	let orderedIds = $state<string[]>([]);
-	let imageContainer: HTMLDivElement | null = $state(null);
-	let imageElement: HTMLElement | null = $state(null);
-
 
 	// Track initial order to detect if user has made changes
 	const initialOrder = $derived(parsedInteraction?.hotspotChoices.map((c) => c.identifier) || []);
+
+	/**
+	 * The sortable items: each hotspot's authored label, else a localized
+	 * ordinal by authored position — never its identifier, which can reveal the
+	 * answer key. Labels are plain text, escaped for the list's HTML renderer.
+	 */
+	const sortableItems = $derived(
+		(parsedInteraction?.hotspotChoices ?? []).map((choice, index) => ({
+			id: choice.identifier,
+			text: escapeHtml(
+				choice.label?.trim() ||
+					translate(i18n, 'interactions.graphicOrder.unlabeledItem', 'Item {index}', { index: index + 1 }),
+			),
+		})),
+	);
 
 	const confirmation = createConfirmationFlow({
 		orderedIds: () => orderedIds,
@@ -75,10 +106,6 @@
 		response = orderedIds;
 		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: orderedIds, onChange });
 	}
-
-	function getChoiceByIdentifier(identifier: string) {
-		return parsedInteraction?.hotspotChoices.find((c) => c.identifier === identifier);
-	}
 </script>
 
 <ShadowBaseStyles />
@@ -98,27 +125,42 @@
 			<!-- Image Area -->
 			<div part="image-area" class="qti-go-image-area">
 				<div
-					bind:this={imageContainer}
 					part="stage"
 					class="qti-go-stage relative border-2 border-base-300 rounded-lg overflow-hidden bg-base-200"
 				>
-					{#if parsedInteraction.imageData}
-						{#if parsedInteraction.imageData.type === 'svg' && parsedInteraction.imageData.content}
-							<div
-								bind:this={imageElement}
-								class="w-full h-auto"
-								style="width: {imageWidth}px; height: {imageHeight}px;"
-							>
-								{@html parsedInteraction.imageData.content}
-							</div>
-						{:else if parsedInteraction.imageData.src}
-							<img
-								bind:this={imageElement}
-								src={parsedInteraction.imageData.src}
-								alt={i18n?.t('interactions.graphicOrder.altText') ?? 'Ordering diagram'}
-								class="w-full h-auto"
-								style="width: {imageWidth}px; height: {imageHeight}px;"
-							/>
+					{#if imageData}
+						<div class="qti-go-media" style={mediaStyle}>
+							{#if imageData.type === 'svg' && imageData.content}
+								<div
+									part="image"
+									class="qti-go-image"
+									role={imageData.decorative ? undefined : 'img'}
+									aria-hidden={imageData.decorative ? 'true' : undefined}
+									aria-label={imageData.decorative ? undefined : imageAlt}
+									aria-describedby={imageDescription ? imageDescriptionId : undefined}
+								>
+									{@html imageData.content}
+								</div>
+							{:else if imageFailed}
+								<div part="image-error" class="qti-go-image qti-go-image-error">
+									<p>{translate(i18n, 'interactions.graphicOrder.imageLoadError', 'The image could not be loaded.')}</p>
+									{#if imageData.alt && !imageData.decorative}
+										<p>{imageData.alt}</p>
+									{/if}
+								</div>
+							{:else if imageData.src}
+								<img
+									part="image"
+									src={imageData.src}
+									alt={imageAlt}
+									aria-describedby={imageDescription ? imageDescriptionId : undefined}
+									class="qti-go-image"
+									onerror={handleImageError}
+								/>
+							{/if}
+						</div>
+						{#if imageDescription}
+							<p id={imageDescriptionId} class="qti-go-sr-only">{imageDescription}</p>
 						{/if}
 					{/if}
 				</div>
@@ -130,11 +172,12 @@
 					<div class="qti-go-card-body card-body p-4">
 						<h3 part="panel-title" class="qti-go-title card-title text-sm">{i18n?.t('interactions.graphicOrder.orderHeading') ?? 'Order (drag to reorder)'}</h3>
 						<SortableList
-							items={parsedInteraction.hotspotChoices.map(c => ({ id: c.identifier, text: c.label }))}
+							items={sortableItems}
 							{orderedIds}
 							correctOrder={isShowingCorrect ? (parsedCorrectResponse || []) : []}
 							orientation="vertical"
 							{disabled}
+							{i18n}
 							onReorder={handleReorder}
 						/>
 
@@ -162,6 +205,7 @@
 										viewBox="0 0 24 24"
 										part="confirmed-icon"
 										class="qti-icon qti-go-confirmed stroke-current shrink-0 w-5 h-5"
+										aria-hidden="true"
 									>
 										<path
 											stroke-linecap="round"
@@ -214,6 +258,36 @@
 		border: 2px solid var(--pie-qti-base-300, oklch(95% 0 0));
 		background: var(--pie-qti-base-200, oklch(98% 0 0));
 	}
+	/* The image fills the available width up to its natural size, keeping its aspect ratio. */
+	.qti-go-media {
+		position: relative;
+		width: 100%;
+	}
+	.qti-go-image {
+		display: block;
+		width: 100%;
+		height: 100%;
+		object-fit: contain;
+	}
+	.qti-go-image :global(svg) {
+		display: block;
+		width: 100%;
+		height: 100%;
+	}
+	.qti-go-image-error {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 0.25rem;
+		padding: 1rem;
+		box-sizing: border-box;
+		text-align: center;
+		color: var(--pie-qti-error-text, #b91c1c);
+	}
+	.qti-go-image-error p {
+		margin: 0;
+	}
 	.qti-go-card {
 		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
 		border-radius: 0.75rem;
@@ -226,5 +300,16 @@
 		border-top: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
 		padding-top: 0.75rem;
 		margin-top: 1rem;
+	}
+	.qti-go-sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border: 0;
 	}
 </style>
