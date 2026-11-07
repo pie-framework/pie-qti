@@ -156,4 +156,26 @@ describe('section player custom elements', () => {
 		]);
 		expect(eventOptions).toEqual([{ bubbles: true, composed: true }]);
 	});
+
+	test('heading-level reaches the layout as headingLevel and reflects the property', () => {
+		if (!customElements.get('test-qti-section-player-splitpane')) {
+			customElements.define('test-qti-section-player-splitpane', TestSplitPaneElement);
+		}
+		const element = document.createElement('test-qti-section-player-splitpane') as TestSplitPaneElement;
+		element.composition = createComposition();
+		expect(element.exposeProps().headingLevel).toBeUndefined();
+
+		element.attributeChangedCallback('heading-level', null, '2');
+		expect(element.headingLevel).toBe(2);
+		expect(element.exposeProps().headingLevel).toBe(2);
+
+		element.attributeChangedCallback('heading-level', '2', 'seven');
+		expect(element.headingLevel).toBeUndefined();
+		expect('headingLevel' in element.exposeProps()).toBe(false);
+
+		element.headingLevel = 4;
+		expect(element.getAttribute('heading-level')).toBe('4');
+		element.headingLevel = undefined;
+		expect(element.hasAttribute('heading-level')).toBe(false);
+	});
 });

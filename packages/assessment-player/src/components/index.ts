@@ -7,6 +7,10 @@
  * `@pie-qti/player-elements/register` (or its `/elements` manual-registration entry).
  */
 
+export {
+	default as AssessmentDialog,
+	type AssessmentDialogCloseReason,
+} from './AssessmentDialog.svelte';
 export { default as AssessmentHeader } from './AssessmentHeader.svelte';
 export { default as AssessmentShell } from './AssessmentShell.svelte';
 export { default as AssessmentTimer } from './AssessmentTimer.svelte';

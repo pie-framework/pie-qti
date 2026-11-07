@@ -502,6 +502,15 @@ export class AssessmentPlayer {
 	// ---------------------------------------------------------------------------
 
 	/**
+	 * The assessmentTest `title` the backend returned, trimmed, or `undefined` when it
+	 * has none. Shells fall back to a localized generic title, never the identifier.
+	 */
+	public getAssessmentTitle(): string | undefined {
+		const title = this.assessment.title?.trim();
+		return title ? title : undefined;
+	}
+
+	/**
 	 * Candidate-facing sections: visible sections only (QTI `visible="false"` sections are
 	 * not presented as sections and their titles never surface), each with whether jumping
 	 * to it is legal right now for the current navigationMode.

@@ -1,3 +1,4 @@
+export { default as PlayerBaseStyles } from './PlayerBaseStyles.svelte';
 export { default as RubricDisplay } from './RubricDisplay.svelte';
 export { default as SectionPlayerSplitPane } from './SectionPlayerSplitPane.svelte';
 export { default as SectionPlayerVertical } from './SectionPlayerVertical.svelte';

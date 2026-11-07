@@ -12,6 +12,7 @@ import {
 	resolveItemsForAssessment,
 } from '../qti/resolveItems.js';
 import type { ParsedAssessmentSection, ParsedAssessmentTest } from '../qti/types.js';
+import { parseHeadingLevel } from '../utils/heading-level.js';
 import { safeJsonParse } from '../utils/json.js';
 import { BaseSvelteMountElement } from './BaseSvelteMountElement.js';
 
@@ -71,6 +72,9 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 			// Common
 			'config-json',
 			'security-json',
+			// Presentation
+			'full-viewport',
+			'heading-level',
 		];
 	}
 
@@ -90,6 +94,8 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 	#security: PlayerSecurityConfig | undefined;
 	#pci: PciConfiguration | undefined;
 	#referenceMode = false;
+	#fullViewport = false;
+	#headingLevel: number | undefined;
 	#backend: BackendAdapter | undefined;
 	#hostBackend: BackendAdapter | undefined;
 	#initSession: InitSessionRequest | undefined;
@@ -128,6 +134,15 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 	}
 
 	attributeChangedCallback(name: string, _oldValue: string | null, newValue: string | null) {
+		if (name === 'full-viewport' || name === 'heading-level') {
+			if (name === 'full-viewport') this.#fullViewport = newValue !== null && newValue !== 'false';
+			else this.#headingLevel = parseHeadingLevel(newValue);
+			// Presentation only: never re-resolve the assessment for it. A mounted shell
+			// re-renders with it, like a `config` change.
+			if (this.#allowMount) this._mountOrUpdate();
+			return;
+		}
+
 		if (name === 'assessment-test-xml') {
 			this.#assessmentTestXml = newValue;
 		}
@@ -178,6 +193,32 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 		if (this.#allowMount) {
 			this._mountOrUpdate();
 		}
+	}
+
+	/**
+	 * Fill the viewport (`100dvh`, safe-area aware, page-level landmarks) instead of
+	 * the element's box. Reflects the `full-viewport` attribute; set it before the
+	 * element mounts — a mounted shell re-renders, like a `config` change.
+	 */
+	get fullViewport(): boolean {
+		return this.#fullViewport;
+	}
+	set fullViewport(value: boolean) {
+		if (value) this.setAttribute('full-viewport', '');
+		else this.removeAttribute('full-viewport');
+	}
+
+	/**
+	 * Heading level (1–6) of the assessment title so it fits the host page outline;
+	 * passage and item titles follow one level below. Reflects `heading-level`.
+	 */
+	get headingLevel(): number | undefined {
+		return this.#headingLevel;
+	}
+	set headingLevel(value: number | undefined) {
+		const level = parseHeadingLevel(value === undefined ? null : String(value));
+		if (level === undefined) this.removeAttribute('heading-level');
+		else this.setAttribute('heading-level', String(level));
 	}
 
 	get security() {
@@ -612,6 +653,8 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 			backend: this.#backend,
 			initSession: this.#initSession,
 			config: baseConfig,
+			fullViewport: this.#fullViewport,
+			...(this.#headingLevel === undefined ? {} : { headingLevel: this.#headingLevel }),
 			onSubmit: (results: AssessmentResults) => {
 				const detail: QtiAssessmentSubmitDetail = { results };
 				this.dispatchEvent(

@@ -102,6 +102,33 @@ describe('assessment player security boundary', () => {
 		expect(props.config.security?.parsingLimits?.enabled).toBe(true);
 	});
 
+	test('presentation attributes reach the shell without re-resolving the assessment', () => {
+		const element = createElement();
+		element.backend = backend;
+		element.initSession = { assessmentId: 'assessment-1', candidateId: 'candidate-1' };
+		const props = () => element.exposeProps() as unknown as { fullViewport: boolean; headingLevel?: number };
+		expect(props().fullViewport).toBe(false);
+		expect('headingLevel' in props()).toBe(false);
+
+		element.attributeChangedCallback('full-viewport', null, '');
+		element.attributeChangedCallback('heading-level', null, '1');
+		expect(element.fullViewport).toBe(true);
+		expect(props()).toMatchObject({ fullViewport: true, headingLevel: 1 });
+
+		element.attributeChangedCallback('full-viewport', '', 'false');
+		element.attributeChangedCallback('heading-level', '1', '9');
+		expect(element.fullViewport).toBe(false);
+		expect(element.headingLevel).toBeUndefined();
+		// The injected backend and session survive: presentation never reloads the assessment.
+		expect(element.backend).toBe(backend);
+		expect(element.initSession).toEqual({ assessmentId: 'assessment-1', candidateId: 'candidate-1' });
+
+		element.fullViewport = true;
+		element.headingLevel = 3;
+		expect(element.getAttribute('full-viewport')).toBe('');
+		expect(element.getAttribute('heading-level')).toBe('3');
+	});
+
 	test('preserves an explicit parsing-limit opt-out', () => {
 		const element = createElement();
 		element.security = { parsingLimits: { enabled: false } };

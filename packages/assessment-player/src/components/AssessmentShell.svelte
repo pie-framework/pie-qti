@@ -2,7 +2,12 @@
 	import { onMount, tick, getContext } from 'svelte';
 	import { DefaultI18nProvider, interfaceLocaleAttributes, type I18nProvider } from '@pie-qti/i18n';
 	import type { QtiSharedHtmlBlock } from '@pie-qti/section-player';
-	import { SectionPlayerSplitPane, SectionPlayerVertical, TestFeedback as SectionTestFeedback } from '../../../section-player/src/components/index.js';
+	import {
+		PlayerBaseStyles,
+		SectionPlayerSplitPane,
+		SectionPlayerVertical,
+		TestFeedback as SectionTestFeedback,
+	} from '../../../section-player/src/components/index.js';
 	import type { BackendAssessmentPlayerConfig } from '../core/AssessmentPlayer.js';
 	import { AssessmentPlayer } from '../core/AssessmentPlayer.js';
 	import { assessmentErrorDisplay, isAssessmentPlayerError } from '../core/errors.js';
@@ -29,9 +34,21 @@
 		onSubmit?: (results: AssessmentResults) => void;
 		/** Math typesetting function (KaTeX, MathJax, etc.) */
 		typeset?: (root: HTMLElement) => void | Promise<void>;
+		/**
+		 * Own the whole viewport: `100dvh` tall, clear of notches and home indicators
+		 * (needs `viewport-fit=cover`), with page-level `header`/`main`/`nav`
+		 * landmarks. Off by default: the shell fills its host container.
+		 */
+		fullViewport?: boolean;
+		/**
+		 * Heading level of the assessment title, so the shell fits the host page
+		 * outline; passage and item titles follow one level below. Default 2, or 1
+		 * in full-viewport mode.
+		 */
+		headingLevel?: number;
 	}
 
-	const { backend, initSession, config = {}, onSubmit, typeset }: Props = $props();
+	const { backend, initSession, config = {}, onSubmit, typeset, fullViewport = false, headingLevel }: Props = $props();
 
 	// Get i18n from context (set by +layout.svelte)
 	const contextI18nWrapper = getContext<{ value: I18nProvider | null } | undefined>('i18n');
@@ -67,6 +84,10 @@
 		};
 	}
 
+	const uid = $props.id();
+	const titleId = `${uid}-title`;
+	const contentId = `${uid}-content`;
+
 	let player = $state<AssessmentPlayer | null>(null);
 	let navState = $state<NavigationState>({
 		currentIndex: -1,
@@ -86,8 +107,10 @@
 	let submitError = $state<{ message: string; supportCode: string | null } | null>(null);
 	let isSubmitting = $state(false);
 	let retryButton = $state<HTMLButtonElement | null>(null);
+	let contentEl = $state<HTMLElement | null>(null);
 	let itemPaneEl = $state<HTMLElement | null>(null);
-	let rootEl = $state<HTMLElement | null>(null);
+	let splitLayout = $state<SectionPlayerSplitPane | null>(null);
+	let verticalLayout = $state<SectionPlayerVertical | null>(null);
 	let testFeedback = $state<VisibleTestFeedback[]>([]);
 	let isComplete = $state(false);
 	let initTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -103,6 +126,7 @@
 	});
 	const hasSplitPane = $derived(sectionComposition?.layout === 'split-pane');
 	const sectionRole = $derived(config.role ?? 'candidate');
+	const titleHeadingLevel = $derived(Math.min(5, Math.max(1, Math.round(headingLevel ?? (fullViewport ? 1 : 2)))));
 	const testFeedbackBlocks = $derived<QtiSharedHtmlBlock[]>(
 		testFeedback.map((item) => ({
 			identifier: item.key,
@@ -121,6 +145,8 @@
 	const menuCurrentSectionIndex = $derived(
 		navState.currentSection ? menuSections.find((s) => s.id === navState.currentSection?.id)?.index : undefined,
 	);
+	// The assessmentTest `title`, else a localized generic title — never the identifier.
+	const assessmentTitle = $derived(player?.getAssessmentTitle() ?? i18n.t('assessment.title', 'Assessment'));
 
 	// Initialize player
 	onMount(() => {
@@ -158,7 +184,9 @@
 					initTimeout = null;
 				}
 				await tick();
-				itemPaneEl?.scrollTo({ top: 0, behavior: 'auto' });
+				// A new item starts at its top, whichever region scrolls.
+				contentEl?.scrollTo?.({ top: 0, behavior: 'auto' });
+				itemPaneEl?.scrollTo?.({ top: 0, behavior: 'auto' });
 			});
 
 			player.onSectionChange(() => {
@@ -286,23 +314,28 @@
 	}
 
 	/**
-	 * Manage focus after navigation to improve accessibility.
-	 * Moves focus to the content area so screen reader users are aware of the content change.
+	 * Focus the active question through its section layout — which first selects the
+	 * question tab when passage and question share a narrow viewport — falling back to
+	 * the content region.
+	 */
+	async function focusQuestion(): Promise<void> {
+		await tick(); // Wait for DOM updates
+		const layout = hasSplitPane ? splitLayout : verticalLayout;
+		if ((await layout?.focusActiveItem()) === true) return;
+		contentEl?.focus();
+	}
+
+	/**
+	 * Manage focus after navigation so screen reader users are aware of the content change.
 	 */
 	async function manageFocusAfterNavigation() {
-		await tick(); // Wait for DOM updates
+		await focusQuestion();
+	}
 
-		// Try to focus on the item pane (for split pane layout)
-		if (itemPaneEl) {
-			itemPaneEl.focus();
-			return;
-		}
-
-		// Otherwise focus on the content area
-		const contentEl = document.querySelector('.assessment-content') as HTMLElement;
-		if (contentEl) {
-			contentEl.focus();
-		}
+	function handleSkipToQuestion(event: MouseEvent) {
+		// The question is focused in place; the host page's URL and router stay untouched.
+		event.preventDefault();
+		void focusQuestion();
 	}
 
 	async function handleSubmit() {
@@ -374,17 +407,23 @@
 	}
 </script>
 
+<PlayerBaseStyles />
+
 <!-- Accessibility announcer for screen readers -->
 <AccessibilityAnnouncer bind:this={announcer} lang={interfaceAttributes?.lang} dir={interfaceAttributes?.dir} />
 
 {#if error}
-	<div class="assessment-error" lang={interfaceAttributes?.lang} dir={interfaceAttributes?.dir}>
-		<div class="alert alert-error" role="alert" aria-live="assertive">
+	<div class="assessment-error pie-qti-chrome" lang={interfaceAttributes?.lang} dir={interfaceAttributes?.dir}>
+		<div class="assessment-alert error" role="alert" aria-live="assertive">
 			<svg
+				class="assessment-alert-icon"
 				xmlns="http://www.w3.org/2000/svg"
-				class="stroke-current shrink-0 h-6 w-6"
+				width="24"
+				height="24"
 				fill="none"
 				viewBox="0 0 24 24"
+				stroke="currentColor"
+				aria-hidden="true"
 			>
 				<path
 					stroke-linecap="round"
@@ -393,36 +432,49 @@
 					d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
 				/>
 			</svg>
-			<span>{error.message}</span>
-			{#if error.supportCode}
-				<span class="support-code">{i18n.t('assessment.errors.supportCode', { code: error.supportCode })}</span>
-			{/if}
+			<p class="assessment-alert-message">
+				<span>{error.message}</span>
+				{#if error.supportCode}
+					<span class="support-code">{i18n.t('assessment.errors.supportCode', { code: error.supportCode })}</span>
+				{/if}
+			</p>
 		</div>
 	</div>
 {:else if !player || navState.currentIndex < 0}
-	<div class="assessment-loading" lang={interfaceAttributes?.lang} dir={interfaceAttributes?.dir}>
-		<div class="flex items-center justify-center p-8" role="status" aria-live="polite">
-			<span class="loading loading-spinner loading-lg"></span>
-			<span class="ms-4">{i18n.t('assessment.loading')}</span>
+	<div class="assessment-loading pie-qti-chrome" lang={interfaceAttributes?.lang} dir={interfaceAttributes?.dir}>
+		<div class="assessment-loading-status" role="status" aria-live="polite">
+			<span class="assessment-spinner" aria-hidden="true"></span>
+			<span>{i18n.t('assessment.loading')}</span>
 		</div>
 	</div>
 {:else}
-	<div
-		bind:this={rootEl}
-		class="assessment-shell"
+	<!--
+		Embedded, the shell is one region named by the assessment title inside the host
+		page. Full-viewport, it is the page: its header, main and nav are landmarks.
+	-->
+	<svelte:element
+		this={fullViewport ? 'div' : 'section'}
+		class="assessment-shell pie-qti-chrome"
+		class:full-viewport={fullViewport}
 		lang={interfaceAttributes?.lang}
 		dir={interfaceAttributes?.dir}
-		role="region"
-		aria-label={i18n.t('assessment.playerLabel', 'Assessment player')}
+		aria-labelledby={fullViewport ? undefined : titleId}
 		aria-busy={isSubmitting || navState.isLoading}
 	>
+		<a class="skip-link" href={`#${contentId}`} onclick={handleSkipToQuestion}>
+			{i18n.t('assessment.skipToQuestion', 'Skip to question')}
+		</a>
+
 		<!-- Header with title and section menu (legal navigation targets only) -->
 		<AssessmentHeader
-			title={initSession.assessmentId || (i18n?.t('assessment.title') ?? 'Assessment')}
+			title={assessmentTitle}
+			{titleId}
+			headingLevel={titleHeadingLevel}
 			sections={menuSections}
 			currentSectionIndex={menuCurrentSectionIndex}
 			showSections={config.showSections}
 			allowSectionNavigation={!isSubmitting && !isComplete && config.allowSectionNavigation !== false}
+			{i18n}
 			onSectionSelect={handleSectionSelect}
 		/>
 
@@ -440,12 +492,16 @@
 
 		{#if navError}
 			<div class="assessment-nav-error">
-				<div class="alert alert-warning" role="alert" aria-live="assertive">
+				<div class="assessment-alert warning" role="alert" aria-live="assertive">
 					<svg
+						class="assessment-alert-icon"
 						xmlns="http://www.w3.org/2000/svg"
-						class="stroke-current shrink-0 h-6 w-6"
+						width="24"
+						height="24"
 						fill="none"
 						viewBox="0 0 24 24"
+						stroke="currentColor"
+						aria-hidden="true"
 					>
 						<path
 							stroke-linecap="round"
@@ -454,46 +510,55 @@
 							d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
 						/>
 					</svg>
-					<span>{navError.message}</span>
-					{#if navError.supportCode}
-						<span class="support-code">{i18n.t('assessment.errors.supportCode', { code: navError.supportCode })}</span>
-					{/if}
+					<p class="assessment-alert-message">
+						<span>{navError.message}</span>
+						{#if navError.supportCode}
+							<span class="support-code">{i18n.t('assessment.errors.supportCode', { code: navError.supportCode })}</span>
+						{/if}
+					</p>
 				</div>
 			</div>
 		{/if}
 
-		<!-- Main content area -->
-		<div
-			class:has-passage={hasSplitPane}
+		<!-- Question content: the scrolling region the skip link leads to -->
+		<svelte:element
+			this={fullViewport ? 'main' : 'div'}
+			bind:this={contentEl}
+			id={contentId}
 			class="assessment-content"
+			class:has-passage={hasSplitPane}
 			tabindex="-1"
-			role="region"
+			role={fullViewport ? undefined : 'region'}
 			aria-label={i18n?.t('accessibility.itemBody') ?? 'Question content'}
 		>
 			{#if sectionComposition}
 				{#if sectionComposition.layout === 'split-pane'}
 					<SectionPlayerSplitPane
+						bind:this={splitLayout}
 						composition={sectionComposition}
 						{i18n}
 						security={config.security}
 						pci={config.pci}
 						pnp={config.pnp}
 						{typeset}
+						headingLevel={titleHeadingLevel + 1}
 						onItemPaneReady={(el) => (itemPaneEl = el)}
 					/>
 				{:else}
 					<SectionPlayerVertical
+						bind:this={verticalLayout}
 						composition={sectionComposition}
 						{i18n}
 						security={config.security}
 						pci={config.pci}
 						pnp={config.pnp}
 						{typeset}
+						headingLevel={titleHeadingLevel + 1}
 						onItemPaneReady={(el) => (itemPaneEl = el)}
 					/>
 				{/if}
 			{/if}
-		</div>
+		</svelte:element>
 
 		{#if submitError}
 			<div class="assessment-submit-error">
@@ -503,7 +568,7 @@
 						<span class="support-code">{i18n.t('assessment.errors.supportCode', { code: submitError.supportCode })}</span>
 					{/if}
 				</p>
-				<button bind:this={retryButton} type="button" class="btn btn-primary" onclick={handleSubmit} disabled={isSubmitting}>
+				<button bind:this={retryButton} type="button" class="retry-button" onclick={handleSubmit} disabled={isSubmitting}>
 					{i18n?.t('common.tryAgain') ?? 'Try Again'}
 				</button>
 			</div>
@@ -523,45 +588,209 @@
 				showProgress={config.showProgress !== false}
 			/>
 		{/if}
-	</div>
+	</svelte:element>
 {/if}
 
 <style>
+	/*
+	 * Layout. The shell fills its host container (`block-size: 100%`). When the host
+	 * gives no height it sizes to its content between a usable minimum and the
+	 * viewport, so Previous/Next stay reachable; header and nav sit outside the
+	 * scrolling content and never cover it. Hosts tune the bounds with
+	 * --pie-qti-assessment-min-block-size / --pie-qti-assessment-max-block-size.
+	 */
 	.assessment-shell {
+		box-sizing: border-box;
+		position: relative;
 		display: flex;
 		flex-direction: column;
-		height: 100vh;
-		overflow: hidden;
-		background: var(--color-base-100);
+		inline-size: 100%;
+		block-size: 100%;
+		min-block-size: var(--pie-qti-assessment-min-block-size, min(32rem, 100dvh));
+		max-block-size: var(--pie-qti-assessment-max-block-size, 100dvh);
+		background: var(--pie-qti-base-100, oklch(100% 0 0));
+	}
+
+	@supports not (height: 100dvh) {
+		.assessment-shell {
+			min-block-size: var(--pie-qti-assessment-min-block-size, min(32rem, 100vh));
+			max-block-size: var(--pie-qti-assessment-max-block-size, 100vh);
+		}
+	}
+
+	/* Full viewport: the dynamic viewport (iOS toolbars) minus notch and home-indicator insets. */
+	.assessment-shell.full-viewport {
+		block-size: 100dvh;
+		min-block-size: 0;
+		max-block-size: none;
+		padding-block-start: env(safe-area-inset-top, 0px);
+		padding-block-end: env(safe-area-inset-bottom, 0px);
+		/* Safe-area insets are physical by definition. */
+		padding-left: env(safe-area-inset-left, 0px); /* i18n-physical */
+		padding-right: env(safe-area-inset-right, 0px); /* i18n-physical */
+	}
+
+	@supports not (height: 100dvh) {
+		.assessment-shell.full-viewport {
+			block-size: 100vh;
+		}
 	}
 
 	.assessment-content {
-		flex: 1;
-		padding: 2rem;
-		max-width: 1200px;
-		margin: 0 auto;
-		width: 100%;
+		box-sizing: border-box;
+		display: flex;
+		flex-direction: column;
+		flex: 1 1 auto;
+		min-block-size: 0;
+		inline-size: 100%;
 		overflow: auto;
+		/* Focused controls scroll clear of the region's edges (and keep their focus ring). */
+		scroll-padding-block: var(--pie-qti-space-6, 2rem);
 	}
 
-	.assessment-content:focus {
-		outline: 2px solid var(--color-primary);
+	.assessment-content:focus-visible {
+		outline: 2px solid var(--pie-qti-focus, #4338ca);
 		outline-offset: -2px;
 	}
 
+	/* Passage layouts scroll each pane themselves. */
 	.assessment-content.has-passage {
-		padding: 0;
-		max-width: none;
 		overflow: hidden;
+	}
+
+	/*
+	 * Short viewports (400% zoom, landscape phones): header and nav stop reserving
+	 * room. Everything flows in one scroll — the page's, or the shell's own when the
+	 * host gave it a fixed height — and nothing is pinned over the content.
+	 */
+	@media (max-height: 30rem) {
+		.assessment-shell {
+			max-block-size: none;
+			overflow-y: auto;
+			scroll-padding-block: var(--pie-qti-space-4, 1rem);
+		}
+
+		.assessment-content,
+		.assessment-content.has-passage {
+			flex: none;
+			overflow: visible;
+		}
+	}
+
+	.skip-link {
+		position: absolute;
+		inset-block-start: var(--pie-qti-space-2, 0.5rem);
+		inset-inline-start: var(--pie-qti-space-2, 0.5rem);
+		z-index: 20;
+		box-sizing: border-box;
+		/* Visually hidden until focused. */
+		inline-size: 1px;
+		block-size: 1px;
+		padding: 0;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+		border-radius: var(--pie-qti-radius-sm, 0.25rem);
+		background: var(--pie-qti-primary, oklch(45% 0.24 277));
+		color: var(--pie-qti-primary-content, oklch(98% 0.01 277));
+		font-weight: 600;
+		text-decoration: underline;
+	}
+
+	.skip-link:focus {
+		display: inline-flex;
+		align-items: center;
+		inline-size: auto;
+		block-size: auto;
+		min-block-size: var(--pie-qti-control-min-size, 2.75rem);
+		padding-block: var(--pie-qti-space-2, 0.5rem);
+		padding-inline: var(--pie-qti-space-4, 1rem);
+		overflow: visible;
+		clip-path: none;
+		white-space: normal;
+		outline: 2px solid var(--pie-qti-focus, #4338ca);
+		outline-offset: 2px;
 	}
 
 	.assessment-error,
 	.assessment-loading {
-		padding: 2rem;
+		box-sizing: border-box;
+		padding: var(--pie-qti-space-6, 2rem);
+	}
+
+	.assessment-loading-status {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: var(--pie-qti-space-4, 1rem);
+	}
+
+	.assessment-spinner {
+		flex: none;
+		inline-size: 2rem;
+		block-size: 2rem;
+		box-sizing: border-box;
+		border: 3px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		border-block-start-color: var(--pie-qti-primary, oklch(45% 0.24 277));
+		border-radius: 50%;
+	}
+
+	@media (prefers-reduced-motion: no-preference) {
+		.assessment-spinner {
+			animation: assessment-spin 0.9s linear infinite;
+		}
+	}
+
+	@keyframes assessment-spin {
+		to {
+			transform: rotate(360deg);
+		}
+	}
+
+	.assessment-alert {
+		box-sizing: border-box;
+		display: flex;
+		align-items: flex-start;
+		gap: var(--pie-qti-space-3, 0.75rem);
+		padding: var(--pie-qti-space-3, 0.75rem) var(--pie-qti-space-4, 1rem);
+		border: 1px solid var(--pie-qti-border-strong, #767676);
+		border-inline-start-width: 4px;
+		border-radius: var(--pie-qti-radius, 0.5rem);
+		background: var(--pie-qti-base-100, oklch(100% 0 0));
+		color: var(--pie-qti-base-content, oklch(21% 0 0));
+	}
+
+	.assessment-alert.error {
+		border-color: var(--pie-qti-error-text, #b91c1c);
+	}
+
+	.assessment-alert.warning {
+		border-color: var(--pie-qti-warning-text, #92400e);
+	}
+
+	.assessment-alert-icon {
+		flex: none;
+		inline-size: 1.5rem;
+		block-size: 1.5rem;
+	}
+
+	.assessment-alert.error .assessment-alert-icon {
+		color: var(--pie-qti-error-text, #b91c1c);
+	}
+
+	.assessment-alert.warning .assessment-alert-icon {
+		color: var(--pie-qti-warning-text, #92400e);
+	}
+
+	.assessment-alert-message {
+		margin: 0;
+		min-inline-size: 0;
+		overflow-wrap: anywhere;
 	}
 
 	.assessment-nav-error {
-		padding: 1rem 2rem 0;
+		padding-block: var(--pie-qti-space-3, 0.75rem) 0;
+		padding-inline: var(--pie-qti-space-5, 1.5rem);
 	}
 
 	.assessment-submit-error {
@@ -569,33 +798,76 @@
 		align-items: center;
 		justify-content: space-between;
 		flex-wrap: wrap;
-		gap: 1rem;
-		padding: 1rem;
-		border-top: 2px solid var(--color-error);
+		gap: var(--pie-qti-space-3, 0.75rem);
+		padding-block: var(--pie-qti-space-3, 0.75rem);
+		padding-inline: var(--pie-qti-space-4, 1rem);
+		border-block-start: 2px solid var(--pie-qti-error-text, #b91c1c);
 	}
 
 	.assessment-submit-error p {
 		flex: 1 1 16rem;
+		margin: 0;
 		overflow-wrap: anywhere;
 	}
 
+	.retry-button {
+		box-sizing: border-box;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-inline-size: var(--pie-qti-control-min-size, 2.75rem);
+		min-block-size: var(--pie-qti-control-min-size, 2.75rem);
+		padding-block: var(--pie-qti-space-2, 0.5rem);
+		padding-inline: var(--pie-qti-space-5, 1.5rem);
+		border: 1px solid var(--pie-qti-primary, oklch(45% 0.24 277));
+		border-radius: var(--pie-qti-radius, 0.5rem);
+		background: var(--pie-qti-primary, oklch(45% 0.24 277));
+		color: var(--pie-qti-primary-content, oklch(98% 0.01 277));
+		font: inherit;
+		font-weight: 600;
+		line-height: 1.25;
+		cursor: pointer;
+	}
+
+	.retry-button:hover:not(:disabled) {
+		background: color-mix(in oklab, var(--pie-qti-primary, oklch(45% 0.24 277)) 85%, black);
+	}
+
+	.retry-button:focus-visible {
+		outline: 2px solid var(--pie-qti-focus, #4338ca);
+		outline-offset: 2px;
+	}
+
+	.retry-button:disabled {
+		cursor: not-allowed;
+		opacity: 0.6;
+	}
+
 	.assessment-submit-status {
-		padding: 0.5rem 1rem;
+		margin: 0;
+		padding-block: var(--pie-qti-space-2, 0.5rem);
+		padding-inline: var(--pie-qti-space-4, 1rem);
 	}
 
 	.support-code {
-		padding-inline-start: 0.5rem;
+		padding-inline-start: var(--pie-qti-space-2, 0.5rem);
 		font-size: 0.85em;
 		color: var(--pie-qti-warning-text, #92400e);
 	}
 
-	@media (max-width: 768px) {
-		.assessment-content {
-			padding: 1rem;
+	/* Phones: slimmer gutters. */
+	@media (max-width: 40rem) {
+		.assessment-error,
+		.assessment-loading {
+			padding: var(--pie-qti-space-4, 1rem);
 		}
 
-		.assessment-content.has-passage {
-			padding: 0;
+		.assessment-nav-error {
+			padding-inline: var(--pie-qti-space-3, 0.75rem);
+		}
+
+		.assessment-content {
+			scroll-padding-block: var(--pie-qti-space-3, 0.75rem);
 		}
 	}
 </style>

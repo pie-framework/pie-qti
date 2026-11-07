@@ -19,6 +19,8 @@
 		pci?: PciConfiguration;
 		pnp?: PnpProfile;
 		typeset?: (root: HTMLElement) => void | Promise<void>;
+		/** Heading level of the item title, so it fits the page outline. Default 3. */
+		headingLevel?: number;
 		onResponseChange?: (itemIdentifier: string, responseIdentifier: string, value: unknown) => void;
 		onFrameworkError?: (error: QtiSectionFrameworkError) => void;
 	}
@@ -33,16 +35,23 @@
 		pci,
 		pnp,
 		typeset,
+		headingLevel = 3,
 		onResponseChange,
 		onFrameworkError,
 	}: Props = $props();
 
+	const uid = $props.id();
+	const titleId = `${uid}-title`;
+
 	let playerLoaded = $state(false);
-	let errorMessage = $state<string | null>(null);
+	/** The item player failed to load; the detail goes to `onFrameworkError`, never to the candidate. */
+	let loadFailed = $state(false);
 	let itemScopeElement = $state<HTMLElement | null>(null);
-	const itemTitle = $derived(itemRef.title ?? 'Question');
+	const itemTitle = $derived(itemRef.title?.trim() || (i18n?.t('sectionPlayer.question', 'Question') ?? 'Question'));
 	const hasHeaderTools = $derived((itemRef.tools?.length ?? 0) > 0);
+	const showHeader = $derived(Boolean(itemRef.title?.trim()) || hasHeaderTools);
 	const itemSpeech = $derived(extractItemSpeech(itemRef.itemXml, { security }));
+	const headingTag = $derived(`h${Math.min(6, Math.max(1, Math.round(headingLevel)))}`);
 
 	async function loadItemPlayerElement() {
 		if (!customElements.get('pie-qti-item-player')) {
@@ -62,7 +71,7 @@
 			.catch((error) => {
 				if (!cancelled) {
 					const message = error instanceof Error ? error.message : 'Unable to load the QTI item player.';
-					errorMessage = message;
+					loadFailed = true;
 					onFrameworkError?.({
 						itemIdentifier: itemRef.identifier,
 						code: 'item-player-load-failed',
@@ -102,27 +111,23 @@
 
 </script>
 
-{#if errorMessage}
-	<div class="alert alert-error" role="alert">
-		<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+{#if loadFailed || !itemRef.itemXml}
+	<div class="item-alert" role="alert">
+		<svg class="item-alert-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
 			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
 		</svg>
-		<span>{i18n?.t('item.loadError', 'Error loading item: {error}', { error: errorMessage })}</span>
-	</div>
-{:else if !itemRef.itemXml}
-	<div class="alert alert-error" role="alert">
-		<span>{i18n?.t('item.loadingError') ?? 'No item XML provided'}</span>
+		<span>{i18n?.t('item.loadingError') ?? 'Failed to load item'}</span>
 	</div>
 {:else if !playerLoaded}
-	<div class="flex items-center justify-center p-8" role="status">
-		<span class="loading loading-spinner loading-lg" aria-hidden="true"></span>
-		<span class="ms-4">{i18n?.t('item.loading', 'Loading item...')}</span>
+	<div class="item-loading" role="status">
+		<span class="item-spinner" aria-hidden="true"></span>
+		<span>{i18n?.t('item.loading', 'Loading item...')}</span>
 	</div>
 {:else}
-	<article class="item-container" aria-labelledby={itemRef.title || hasHeaderTools ? `section-item-title-${itemRef.identifier}` : undefined}>
-		{#if itemRef.title || hasHeaderTools}
+	<article class="item-container" aria-labelledby={showHeader ? titleId : undefined}>
+		{#if showHeader}
 			<header class="item-header">
-				<h3 id={`section-item-title-${itemRef.identifier}`} class="text-lg font-semibold">{itemTitle}</h3>
+				<svelte:element this={headingTag} id={titleId} class="item-title">{itemTitle}</svelte:element>
 				<QtiToolButtonBar
 					tools={itemRef.tools}
 					scopeId={itemRef.identifier}
@@ -136,7 +141,7 @@
 			</header>
 		{/if}
 
-		<div class="item-content" bind:this={itemScopeElement}>
+		<div class="item-content pie-qti-content" bind:this={itemScopeElement}>
 			<pie-qti-item-player
 				use:itemPlayerProps={{
 					session: itemRef.session,
@@ -158,20 +163,76 @@
 
 <style>
 	.item-container {
-		width: 100%;
-		padding: 1rem;
+		box-sizing: border-box;
+		inline-size: 100%;
 	}
 
 	.item-header {
 		display: flex;
+		flex-wrap: wrap;
 		align-items: center;
 		justify-content: space-between;
-		gap: 1rem;
-		margin-bottom: 1rem;
+		gap: var(--pie-qti-space-2, 0.5rem) var(--pie-qti-space-4, 1rem);
+		margin-block-end: var(--pie-qti-space-3, 0.75rem);
+	}
+
+	.item-title {
+		margin: 0;
+		font-size: 1.125em;
+		font-weight: 600;
+		line-height: 1.3;
+		overflow-wrap: anywhere;
 	}
 
 	.item-content {
-		width: 100%;
+		inline-size: 100%;
 		position: relative;
+	}
+
+	.item-alert {
+		display: flex;
+		align-items: flex-start;
+		gap: var(--pie-qti-space-3, 0.75rem);
+		padding: var(--pie-qti-space-4, 1rem);
+		border: 1px solid var(--pie-qti-error-text, #b91c1c);
+		border-inline-start-width: 4px;
+		border-radius: var(--pie-qti-radius, 0.5rem);
+		background: var(--pie-qti-base-100, oklch(100% 0 0));
+		color: var(--pie-qti-error-text, #b91c1c);
+	}
+
+	.item-alert-icon {
+		flex: none;
+		inline-size: 1.5rem;
+		block-size: 1.5rem;
+	}
+
+	.item-loading {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: var(--pie-qti-space-3, 0.75rem);
+		padding: var(--pie-qti-space-6, 2rem);
+	}
+
+	.item-spinner {
+		flex: none;
+		inline-size: 1.5rem;
+		block-size: 1.5rem;
+		border: 3px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		border-block-start-color: var(--pie-qti-primary, oklch(45% 0.24 277));
+		border-radius: 50%;
+	}
+
+	@media (prefers-reduced-motion: no-preference) {
+		.item-spinner {
+			animation: item-spin 0.9s linear infinite;
+		}
+	}
+
+	@keyframes item-spin {
+		to {
+			transform: rotate(360deg);
+		}
 	}
 </style>

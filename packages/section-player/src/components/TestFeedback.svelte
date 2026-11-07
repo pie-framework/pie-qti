@@ -27,7 +27,7 @@
 				{security}
 				{host}
 				sanitizeContext={{ kind: 'test-feedback', source: item.source }}
-				class="test-feedback-content"
+				class="test-feedback-content pie-qti-content"
 				{typeset}
 			/>
 		{/each}
@@ -38,25 +38,35 @@
 	.test-feedback {
 		display: flex;
 		flex-direction: column;
-		gap: 1rem;
-		margin: 1rem 0;
+		gap: var(--pie-qti-space-3, 0.75rem);
+		margin-block: var(--pie-qti-space-3, 0.75rem);
+		margin-inline: var(--pie-qti-space-4, 1rem);
 	}
 
-	:global(.test-feedback-content) {
-		padding: 1rem;
-		border-radius: 0.5rem;
-		background-color: var(--feedback-bg, #f0f9ff);
-		border: 1px solid var(--feedback-border, #0ea5e9);
-		color: var(--feedback-text, #0c4a6e);
+	/* `--feedback-*` stay available as host overrides; the defaults follow the theme tokens. */
+	.test-feedback :global(.test-feedback-content) {
+		padding: var(--pie-qti-space-4, 1rem);
+		border-radius: var(--pie-qti-radius, 0.5rem);
+		background-color: var(--feedback-bg, var(--pie-qti-base-200, oklch(98% 0 0)));
+		border: 1px solid var(--feedback-border, var(--pie-qti-base-300, oklch(95% 0 0)));
+		border-inline-start: 4px solid var(--feedback-border, var(--pie-qti-info-text, #1d4ed8));
+		color: var(--feedback-text, var(--pie-qti-base-content, oklch(21% 0 0)));
 		line-height: 1.6;
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 	}
 
-	:global(.test-feedback-content p) {
-		margin: 0 0 0.5rem 0;
+	.test-feedback :global(.test-feedback-content > :first-child) {
+		margin-block-start: 0;
 	}
 
-	:global(.test-feedback-content p:last-child) {
-		margin-bottom: 0;
+	.test-feedback :global(.test-feedback-content > :last-child) {
+		margin-block-end: 0;
+	}
+
+	.test-feedback :global(.test-feedback-content p) {
+		margin-block: 0 0.5em;
+	}
+
+	.test-feedback :global(.test-feedback-content p:last-child) {
+		margin-block-end: 0;
 	}
 </style>
