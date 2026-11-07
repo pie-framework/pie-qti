@@ -1,7 +1,9 @@
 import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { createAssessmentItemDefinition } from '../../src/core/AssessmentItemDefinition.js';
 import { Player } from '../../src/core/Player.js';
+import { UnsupportedResponseProcessingTemplateError } from '../../src/core/responseProcessingTemplates.js';
 
 const OFFICIAL_TEMPLATES = join(
 	import.meta.dir,
@@ -152,5 +154,44 @@ describe('fixed response-processing templates', () => {
 
 		expect(correct).toMatchObject({ SCORE: 2, FEEDBACK: 'correct' });
 		expect(incorrect).toMatchObject({ SCORE: 1, FEEDBACK: 'incorrect' });
+	});
+});
+
+describe('unsupported response-processing templates', () => {
+	test('an unknown template URI fails compilation with a typed error', () => {
+		const templateUri = 'https://example.org/rptemplates/vendor_partial_credit.xml';
+		let caught: unknown;
+		try {
+			createAssessmentItemDefinition({
+				itemXml: itemXml({ processing: `<qti-response-processing template="${templateUri}"/>` }),
+			});
+		} catch (error) {
+			caught = error;
+		}
+		expect(caught).toBeInstanceOf(UnsupportedResponseProcessingTemplateError);
+		expect(caught).toMatchObject({
+			code: 'unsupported-response-processing-template',
+			templateUri,
+			itemIdentifier: 'template-test',
+		});
+	});
+
+	test('a direct Player construction rejects it too, instead of scoring defaults', () => {
+		expect(
+			() => new Player({ itemXml: itemXml({ processing: fixedTemplate('no_such_template') }) }),
+		).toThrow(UnsupportedResponseProcessingTemplateError);
+	});
+
+	test('a template URI with no file name is unsupported', () => {
+		expect(
+			() => new Player({ itemXml: itemXml({ processing: '<qti-response-processing template="https://example.org/"/>' }) }),
+		).toThrow(UnsupportedResponseProcessingTemplateError);
+	});
+
+	test('inline rules take precedence over an unknown template reference', () => {
+		const processing = `<qti-response-processing template="https://example.org/rptemplates/unknown">
+			<qti-set-outcome-value identifier="SCORE"><qti-base-value base-type="float">3</qti-base-value></qti-set-outcome-value>
+		</qti-response-processing>`;
+		expect(process(processing, { RESPONSE: 'B' }).SCORE).toBe(3);
 	});
 });

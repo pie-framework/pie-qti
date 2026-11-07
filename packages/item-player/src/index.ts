@@ -20,6 +20,13 @@ export {
 	type AssessmentItemDefinitionPlugin,
 } from './core/AssessmentItemDefinition.js';
 export {
+	QtiComplianceError,
+	type QtiItemDiagnostic,
+	type QtiItemDiagnosticCode,
+	type QtiItemDiagnosticSeverity,
+} from './core/compliance.js';
+export { UnsupportedResponseProcessingTemplateError } from './core/responseProcessingTemplates.js';
+export {
 	type ItemPresentationView,
 	type ItemSession,
 	type ItemSessionCommand,

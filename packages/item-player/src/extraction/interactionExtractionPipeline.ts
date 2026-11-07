@@ -35,6 +35,9 @@ export function extractInteractionData({
 	contentHandlers,
 }: InteractionExtractionPipelineInput): readonly BaseInteractionData[] {
 	const declMap = projectDeclarationsForExtraction(declarations);
+	// Discovery yields only registered element types that bind a response. Elements it skips (an
+	// unregistered type, or a QTI interaction without a responseIdentifier) are reported when the
+	// item compiles, by findUnextractableInteractions (see core/compliance.ts).
 	const elements = document.findExtractionElements(
 		getRegisteredElementTypes(extractionRegistry),
 		contentHandlers,

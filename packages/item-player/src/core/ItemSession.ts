@@ -64,6 +64,10 @@ export interface ItemSessionView {
 	readonly lifecycleStatus: ItemLifecycleStatus;
 	readonly completionStatus: CompletionStatus;
 	readonly numAttempts: number;
+	/**
+	 * Time on task in milliseconds. `context.duration`, the QTI built-in variable, holds the same
+	 * time in seconds.
+	 */
 	readonly duration: number;
 	readonly adaptive: boolean;
 	readonly completed: boolean;
