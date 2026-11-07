@@ -23,7 +23,7 @@ function positionData(overrides: Partial<PositionObjectInteractionData> = {}): P
 		prompt: null,
 		maxChoices: 2,
 		minChoices: 0,
-		centerPoint: true,
+		centerPoint: null,
 		imageData: { type: 'image', src: 'region-map.png', width: '600', height: '400', alt: 'Map of the region' },
 		positionObjectStages: [
 			{
@@ -156,6 +156,85 @@ describe('PositionObjectInteraction (pie-qti-position-object)', () => {
 		expect(style).toContain('top: 25%');
 		expect(style).toMatch(/width: 6\.66+7?%/);
 		expect(style).toContain('transform: translate(-50%, -50%)');
+	});
+
+	test('an authored centerPoint is the point placed on the recorded position', async () => {
+		// The 40×40 plane's reference point is 10px in, 5px down: QTI centerPoint="10 5".
+		const mounted = mountInteraction(PositionObjectInteraction, {
+			interaction: positionData({ centerPoint: { x: 10, y: 5 } }),
+			response: ['150 100'],
+		});
+		await settle();
+
+		const style = q<HTMLElement>(mounted, '[part="placed"]')?.getAttribute('style') ?? '';
+		// The box corner starts on the point and shifts back by (10/40, 5/40) of its size.
+		expect(style).toContain('left: 25%');
+		expect(style).toContain('top: 25%');
+		expect(style).toContain('transform: translate(-25%, -12.5%)');
+	});
+
+	test('keyboard placement with a centerPoint records the crosshair as the reference point', async () => {
+		const mounted = mountInteraction(PositionObjectInteraction, {
+			interaction: positionData({ centerPoint: { x: 10, y: 5 } }),
+		});
+		await settle();
+
+		pressKey(paletteItem(mounted), 'Enter');
+		await settle();
+		pressKey(canvas(mounted), 'ArrowRight');
+		await settle();
+		pressKey(canvas(mounted), 'Enter');
+		await settle();
+
+		// The crosshair (55%, 50%) is the response, and the object's reference point sits on it.
+		expect(mounted.instance.response).toEqual(['330 200']);
+		const style = q<HTMLElement>(mounted, '[part="placed"]')?.getAttribute('style') ?? '';
+		expect(Number(style.match(/left: ([\d.]+)%/)?.[1])).toBeCloseTo(55, 6);
+		expect(Number(style.match(/top: ([\d.]+)%/)?.[1])).toBeCloseTo(50, 6);
+		expect(style).toContain('transform: translate(-25%, -12.5%)');
+	});
+
+	test('a dragged object is held by its reference point', async () => {
+		const mounted = mountInteraction(PositionObjectInteraction, {
+			interaction: positionData({ centerPoint: { x: 10, y: 5 } }),
+		});
+		await settle();
+
+		const setDragImage = vi.fn();
+		const dragStart = new Event('dragstart', { bubbles: true, cancelable: true });
+		Object.defineProperty(dragStart, 'dataTransfer', { value: { effectAllowed: 'none', setDragImage } });
+		paletteItem(mounted).dispatchEvent(dragStart);
+
+		// jsdom renders nothing, so the scale is 1: the 40×40 object is held 10px in, 5px down.
+		expect(setDragImage).toHaveBeenCalledWith(expect.any(HTMLElement), 10, 5);
+	});
+
+	test('hand-built data without a valid centerPoint falls back to the object centre', async () => {
+		const mounted = mountInteraction(PositionObjectInteraction, {
+			// A host passing JSON may still send the legacy boolean.
+			interaction: JSON.stringify({ ...positionData(), centerPoint: true }),
+			response: ['150 100'],
+		});
+		await settle();
+
+		expect(q<HTMLElement>(mounted, '[part="placed"]')?.getAttribute('style')).toContain('transform: translate(-50%, -50%)');
+	});
+
+	test('two renderings of the same item keep their own image description ids', async () => {
+		const data = positionData({
+			imageData: { ...positionData().imageData!, altDescription: 'Two runways cross north of the lake.' },
+		});
+		const first = mountInteraction(PositionObjectInteraction, { interaction: data });
+		const second = mountInteraction(PositionObjectInteraction, { interaction: data });
+		await settle();
+
+		const ids = Array.from(document.querySelectorAll('[id]'), (element) => element.id);
+		expect(ids.filter((id, index) => ids.indexOf(id) !== index)).toEqual([]);
+		for (const mounted of [first, second]) {
+			const description = document.getElementById(q(mounted, 'img[part="image"]')?.getAttribute('aria-describedby') ?? '');
+			expect(mounted.host.contains(description)).toBe(true);
+			expect(description?.textContent).toBe('Two runways cross north of the lake.');
+		}
 	});
 
 	test('a placed object is a group holding its remove button, not a button inside a button', async () => {

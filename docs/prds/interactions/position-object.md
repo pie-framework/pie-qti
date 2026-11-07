@@ -73,7 +73,7 @@ The only example in the IMS QTI 2.2 specification places multiple copies of an i
 | `responseIdentifier` | ✅ Full | Extracted as `responseId`; used as the key in `qti-change` event payload |
 | `maxChoices` | ✅ Full | Maximum total placements across all stages. `0` = unlimited. Enforced by the component: the palette item becomes non-draggable when the limit is reached |
 | `minChoices` | ✅ Extracted, not enforced | Present in `PositionObjectInteractionData`. Not validated at submit time. See Known gaps |
-| `centerPoint` | ✅ Full | When `true` (the default), drop coordinates are adjusted so the object's center lands at the drop point. When `false`, the top-left corner lands at the drop point |
+| `centerPoint` | ✅ Full | The point on the object image treated as the object's position: an offset from the object image's top-left corner, in its own pixels, horizontal then vertical (IntegerList of two). That point is held under the pointer, placed on the recorded point, and recorded as the response. When absent, the spec default applies: the centre of the object image's bounding rectangle. Read in every spelling: `centerPoint` (QTI 2.2), `centrePoint` (QTI 2.1 schema), `center-point` (QTI 3.0) and `centre-point` (a QTI 2.1 item converted to QTI 3.0). A malformed value is treated as absent |
 
 ### Supported attributes on `positionObjectStage`
 
@@ -126,6 +126,7 @@ No `positionObjectInteraction`-specific items appear in `docs/SPEC-GAPS-PLAN.md`
 - **Keyboard placement not implemented**: The spec does not mandate a specific keyboard mechanism, but WCAG 2.2 requires all drag-and-drop operations to be operable without a mouse. See Non-functional requirements.
 - **`positionObjectStage` XML hierarchy**: Standard QTI 2.2 places `positionObjectStage` as a sibling of `positionObjectInteraction` in the item body. This implementation expects `positionObjectStage` elements as direct children of `positionObjectInteraction` during extraction. Items authored to strict spec structure may not extract correctly. See Design Decisions.
 - **Multi-session state restoration**: Because object identity is not encoded in the response, state restoration for multi-stage items uses best-effort array-order mapping. Positions may appear on the wrong stage after reload. Single-stage items restore correctly.
+- **`centerPoint` on an object without a declared size**: `centerPoint` is measured in the object image's pixels, but its natural size is only known from the declared `width`/`height`. An object that declares neither renders in the 50×50 fallback box, so an authored point is taken against that box and lands off by the image's scale. The response point is unaffected; only where the object is drawn around it shifts. Authors using `centerPoint` should declare the object's size.
 
 ---
 
@@ -136,7 +137,7 @@ No `positionObjectInteraction`-specific items appear in `docs/SPEC-GAPS-PLAN.md`
 - **FR-3:** A candidate SHALL be able to drag a stage from the palette and drop it at any coordinate on the canvas.
 - **FR-4:** After each placement, the component SHALL emit a `qti-change` event carrying the `responseIdentifier` and the updated response array of `"x y"` strings in natural image coordinates.
 - **FR-5:** Coordinates recorded in the response SHALL be in the background image's natural coordinate system (i.e. scaled back from any CSS scaling applied to the container).
-- **FR-6:** When `centerPoint` is `true`, the recorded coordinate SHALL be the center of the dropped object, not its top-left corner.
+- **FR-6:** The recorded coordinate SHALL be the stage position of the object's reference point: its authored `centerPoint`, or the centre of its bounding rectangle when none is authored. The placed object SHALL render with that point on the recorded coordinate, for pointer, touch, click-to-place and keyboard placement alike.
 - **FR-7:** A placed object SHALL be re-draggable to a new position within the canvas. Moving an existing placement SHALL update its coordinate in the response array at the same index.
 - **FR-8:** A placed object SHALL have a remove button that removes it from the canvas and restores it as available in the palette.
 - **FR-9:** The palette item for a stage SHALL become non-draggable (visually dimmed, `draggable=false`) when that stage's `matchMax` placements have been used.
@@ -216,19 +217,19 @@ Until this is implemented, this interaction does not satisfy WCAG 2.2 SC 2.1.1 f
 
 **Consequences:** The `stageId` round-trip through QTI format is lossy. On response restoration, `stageId` must be inferred from array order. Items with a single stage are not affected. Items with multiple stages will have degraded state restoration fidelity if the candidate placed objects out of stage order.
 
-### `centerPoint` defaults to `true`
+### `centerPoint` is a point, defaulting to the object's centre
 
-**Decision:** The extractor defaults `centerPoint` to `true` when the attribute is absent.
+**Decision:** The extractor reads `centerPoint` as an `{ x, y }` offset in the object image's own pixels, or `null` when it is absent or malformed. The component treats `null` as the centre of the object's bounding rectangle.
 
-**Rationale:** The QTI 2.2 spec does not define a default for `centerPoint`. In practice, center-point placement is more natural: when a candidate drops a star icon, they intend the star's center to land at the drop location, not the star's top-left corner. Using `true` as the default matches this expectation and matches what item authors typically expect.
+**Rationale:** The QTI information model (QTI 2.2.4 ASI Information Model, Table 5.81.1) defines it: "The centrePoint attribute defines the point on the image being positioned that is to be treated as the centre as an offset from the top-left corner of the image in horizontal, vertical order. By default this is the centre of the image's bounding rectangle." An earlier version of this component modelled it as a boolean (`true` = centre, `false` = top-left corner), which could not express an authored point such as the tip of a pin.
 
-**Alternatives considered:** Defaulting to `false` (top-left) would match the spec's silence but produce counter-intuitive UX.
+**Alternatives considered:** Keeping the boolean alongside a new offset field was rejected: two fields for one concept, one of them not in the spec. The legacy top-left placement is expressible as `centerPoint="0 0"`.
 
-**Consequences:** Items where the author intended `centerPoint=false` but omitted the attribute will have a 0.5×width/height coordinate offset. Coordinates in existing `correctResponse` values must have been authored under the same `centerPoint` assumption.
+**Consequences:** `PositionObjectInteractionData.centerPoint` is `PositionObjectCenterPoint | null`. A host that hands the web component JSON with the legacy boolean gets the default (centre) placement. Coordinates in `correctResponse` and `areaMapping` are stage positions of the reference point, so they must be authored against the same `centerPoint`.
 
 ### Scale factor conversion on drop
 
-**Decision:** Drop event coordinates are converted from CSS-pixel space back to natural image coordinate space before being recorded in the response and before `centerPoint` adjustment is applied.
+**Decision:** Drop event coordinates are converted from CSS-pixel space back to natural image coordinate space before being recorded in the response. The pointer marks the object's reference point (the drag image is held by it), so no `centerPoint` adjustment is applied to the recorded point; the reference point only offsets where the object is drawn.
 
 **Rationale:** The canvas container scales the background image to fill available width. The `imageContainer.offsetWidth` divided by the declared image `width` gives the scale factor. All coordinates stored in the response and all `areaMapping` coordinates in the `responseDeclaration` reference natural image pixels. Failing to convert would produce responses that only score correctly when the canvas is at exactly 100% of the declared image width.
 
@@ -268,9 +269,15 @@ interface PositionObjectInteractionData extends BaseInteractionData {
   prompt: string | null;
   maxChoices: number;    // 0 = unlimited
   minChoices: number;    // 0 = no minimum
-  centerPoint: boolean;  // true = center drop point; default true
+  centerPoint: PositionObjectCenterPoint | null;  // null = centre of the object's bounding rectangle
   imageData: ImageData | null;
   positionObjectStages: PositionObjectStage[];
+}
+
+/** Offset from the object image's top-left corner, in its own pixels (QTI centerPoint). */
+interface PositionObjectCenterPoint {
+  x: number;
+  y: number;
 }
 
 interface PositionObjectStage {
@@ -300,9 +307,9 @@ The response wire format (QTI) is `string[]` where each element is `"x y"` with 
 ```
 Given: An item with one positionObjectStage (maxChoices=1, stage matchMax=1)
 When: The candidate drags the stage from the palette and drops it at approximately (150, 80)
-Then: The response is ["150 80"] (or coordinates within ±1px of the drop point adjusted for centerPoint)
+Then: The response is ["150 80"] (or coordinates within ±1px of the drop point)
       The stage in the palette shows "1/1 used" and is non-draggable
-      The placed object is visible on the canvas at the correct position
+      The placed object is visible on the canvas with its reference point at the drop position
 ```
 
 **AC-2: Single object multiple placements**
@@ -349,20 +356,20 @@ Then: The response is updated: the coordinate for that placement changes to "200
       The old position is no longer shown on the canvas
 ```
 
-**AC-7: centerPoint=true coordinate adjustment**
+**AC-7: Default reference point is the object centre**
 ```
-Given: An item with centerPoint=true and a stage object of width=24, height=24
+Given: An item without centerPoint and a stage object of width=24, height=24
 When: The candidate drops the object such that the pointer is at canvas coordinates (110, 90)
-Then: The recorded coordinate is "110 90" (center of the object lands at pointer)
-      Notes: The component subtracts half the object dimensions from the drop point before recording
+Then: The recorded coordinate is "110 90" and the object's centre is drawn at (110, 90)
+      Notes: The drag image is held by its centre; the box is shifted back by half its size
 ```
 
-**AC-8: centerPoint=false coordinate adjustment**
+**AC-8: Authored centerPoint is the placed and recorded point**
 ```
-Given: An item with centerPoint=false and a stage object of width=24, height=24
+Given: An item with centerPoint="12 24" and a stage object of width=24, height=24 (a pin whose tip is bottom-centre)
 When: The candidate drops the object such that the pointer is at canvas coordinates (110, 90)
-Then: The recorded coordinate is "110 90" (top-left of object lands at pointer)
-      Notes: No dimension adjustment is applied
+Then: The recorded coordinate is "110 90" and the pin's tip is drawn at (110, 90)
+      Notes: The drag image is held by the tip; keyboard placement records the crosshair the same way
 ```
 
 **AC-9: Coordinate scaling — canvas at 50% width**

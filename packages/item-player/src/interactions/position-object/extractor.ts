@@ -1,7 +1,7 @@
 import type { ElementExtractor } from '../../extraction/types.js';
 import { normalizePixelDimension } from '../../security/styleValues.js';
 import { extractImageAlternative } from '../shared/imageAlt.js';
-import type { QTIElement } from '../shared/types.js';
+import type { PositionObjectCenterPoint, QTIElement } from '../shared/types.js';
 
 export interface ImageData {
 	type: 'image' | 'svg';
@@ -36,10 +36,32 @@ export interface PositionObjectData {
 		objectData: ImageData | null;
 		classes?: string[];
 	}>;
-	centerPoint: boolean;
+	/**
+	 * The point on the draggable object image treated as its position, as an
+	 * offset from the object image's top-left corner in its own pixels. `null`
+	 * when unauthored: the QTI default is the centre of its bounding rectangle.
+	 */
+	centerPoint: PositionObjectCenterPoint | null;
 	maxChoices: number;
 	minChoices: number;
 	prompt: string | null;
+}
+
+/**
+ * Read the authored reference point. QTI 2.2 spells the attribute `centerPoint`
+ * and the QTI 2.1 schema `centrePoint`; the attribute mapper resolves the QTI 3.0
+ * kebab-case form of either. The value is two numbers, horizontal then vertical,
+ * whitespace-separated (a comma is tolerated, as in `coords`). Anything else
+ * counts as unauthored, so the object falls back to the QTI default, its centre.
+ */
+function readCenterPoint(
+	element: QTIElement,
+	{ utils }: Parameters<ElementExtractor<PositionObjectData>['extract']>[1],
+): PositionObjectCenterPoint | null {
+	const authored = utils.getAttribute(element, 'centerPoint') || utils.getAttribute(element, 'centrePoint');
+	const parts = authored.trim().split(/[\s,]+/);
+	if (parts.length !== 2 || !parts.every((part) => /^[+-]?\d+(\.\d+)?$/.test(part))) return null;
+	return { x: Number(parts[0]), y: Number(parts[1]) };
 }
 
 function imageDataFromObject(
@@ -127,9 +149,9 @@ export const standardPositionObjectExtractor: ElementExtractor<PositionObjectDat
 					...(classes.length > 0 ? { classes } : {}),
 				},
 			],
-			// The renderer currently represents the QTI default (the object's centre)
-			// as a boolean. Explicit centre coordinates remain a follow-up API change.
-			centerPoint: true,
+			// The point on the draggable object recorded as its position; null keeps
+			// the QTI default (the centre of the object's bounding rectangle).
+			centerPoint: readCenterPoint(element, context),
 			maxChoices,
 			minChoices,
 			prompt,
@@ -159,6 +181,19 @@ export const standardPositionObjectExtractor: ElementExtractor<PositionObjectDat
 		if (data.minChoices < 0) errors.push('minChoices must be non-negative');
 		if (data.maxChoices > 0 && data.minChoices > data.maxChoices) {
 			errors.push('minChoices cannot exceed maxChoices');
+		}
+
+		const objectWidth = Number(draggable?.objectData?.width);
+		const objectHeight = Number(draggable?.objectData?.height);
+		if (
+			data.centerPoint &&
+			objectWidth > 0 &&
+			objectHeight > 0 &&
+			(data.centerPoint.x < 0 || data.centerPoint.y < 0 || data.centerPoint.x > objectWidth || data.centerPoint.y > objectHeight)
+		) {
+			warnings.push(
+				`centerPoint ${data.centerPoint.x} ${data.centerPoint.y} lies outside the ${objectWidth}×${objectHeight} object image`,
+			);
 		}
 
 		if (data.imageData?.type === 'image') {

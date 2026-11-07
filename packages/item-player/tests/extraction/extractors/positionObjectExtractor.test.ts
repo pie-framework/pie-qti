@@ -1,16 +1,31 @@
 import { describe, expect, test } from 'bun:test';
+import { convertQti2ToQti3, Qti3AttributeNameMapper } from '@pie-qti/qti-common';
+import { createAssessmentItemDefinition } from '../../../src/core/AssessmentItemDefinition.js';
 import { standardPositionObjectExtractor } from '../../../src/interactions/position-object/extractor.js';
-import type { QTIElement } from '../../../src/interactions/shared/types.js';
+import type { PositionObjectInteractionData, QTIElement } from '../../../src/interactions/shared/types.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
-function extract(xml: string, responseId = 'RESPONSE') {
+const CENTER_POINT_ITEM = `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="airport" title="Airport" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="point"/>
+  <itemBody>
+    <positionObjectStage>
+      <object type="image/png" data="map.png" width="600" height="400">Map</object>
+      <positionObjectInteraction responseIdentifier="RESPONSE" maxChoices="1" centerPoint="10 5">
+        <object type="image/png" data="plane.png" width="40" height="40">Plane</object>
+      </positionObjectInteraction>
+    </positionObjectStage>
+  </itemBody>
+</assessmentItem>`;
+
+function extract(xml: string, responseId = 'RESPONSE', config?: Record<string, unknown>) {
 	const stage = parseQTI(xml);
 	const interaction = stage.childNodes.find((node) =>
-		(node as QTIElement).rawTagName?.toLowerCase().includes('positionobjectinteraction'),
+		(node as QTIElement).rawTagName?.toLowerCase().replace(/-/g, '').includes('positionobjectinteraction'),
 	) as QTIElement;
 	return standardPositionObjectExtractor.extract(
 		interaction,
-		createTestContext(interaction, responseId, stage),
+		createTestContext(interaction, responseId, stage, new Map(), config as never),
 	);
 }
 
@@ -78,6 +93,89 @@ describe('standardPositionObjectExtractor', () => {
 
 		expect(result.maxChoices).toBe(1);
 		expect(result.positionObjectStages[0].matchMax).toBe(1);
+	});
+
+	test('without the attribute, centerPoint is null (the QTI default: the object centre)', () => {
+		const result = extract(`
+			<positionObjectStage>
+				<object data="map.png" type="image/png"/>
+				<positionObjectInteraction responseIdentifier="RESPONSE">
+					<object data="marker.png" type="image/png"/>
+				</positionObjectInteraction>
+			</positionObjectStage>
+		`);
+
+		expect(result.centerPoint).toBeNull();
+	});
+
+	test('reads centerPoint="x y" as the object image offset from its top-left', () => {
+		const result = extract(`
+			<positionObjectStage>
+				<object data="map.png" type="image/png"/>
+				<positionObjectInteraction responseIdentifier="RESPONSE" centerPoint="10 5">
+					<object data="marker.png" type="image/png" width="40" height="40"/>
+				</positionObjectInteraction>
+			</positionObjectStage>
+		`);
+
+		expect(result.centerPoint).toEqual({ x: 10, y: 5 });
+	});
+
+	test('reads the QTI 2.1 spelling centrePoint', () => {
+		const result = extract(`
+			<positionObjectStage>
+				<object data="map.png" type="image/png"/>
+				<positionObjectInteraction responseIdentifier="RESPONSE" centrePoint="24 0">
+					<object data="marker.png" type="image/png" width="40" height="40"/>
+				</positionObjectInteraction>
+			</positionObjectStage>
+		`);
+
+		expect(result.centerPoint).toEqual({ x: 24, y: 0 });
+	});
+
+	test('reads the QTI 3.0 spelling center-point through the attribute mapper', () => {
+		const result = extract(
+			`
+			<qti-position-object-stage>
+				<object data="map.png" type="image/png"/>
+				<qti-position-object-interaction response-identifier="RESPONSE" center-point="3 30">
+					<object data="marker.png" type="image/png" width="40" height="40"/>
+				</qti-position-object-interaction>
+			</qti-position-object-stage>
+		`,
+			'RESPONSE',
+			{ attributeNameMapper: new Qti3AttributeNameMapper() },
+		);
+
+		expect(result.centerPoint).toEqual({ x: 3, y: 30 });
+	});
+
+	test.each(['10', '10 5 3', 'ten five', '10px 5px', ''])('a malformed centerPoint (%p) counts as unauthored', (value) => {
+		const result = extract(`
+			<positionObjectStage>
+				<object data="map.png" type="image/png"/>
+				<positionObjectInteraction responseIdentifier="RESPONSE" centerPoint="${value}">
+					<object data="marker.png" type="image/png"/>
+				</positionObjectInteraction>
+			</positionObjectStage>
+		`);
+		expect(result.centerPoint).toBeNull();
+	});
+
+	test('warns when the centerPoint lies outside the object image', () => {
+		const data = extract(`
+			<positionObjectStage>
+				<object data="map.png" type="image/png"/>
+				<positionObjectInteraction responseIdentifier="RESPONSE" centerPoint="100 5">
+					<object data="marker.png" type="image/png" width="40" height="40"/>
+				</positionObjectInteraction>
+			</positionObjectStage>
+		`);
+		const validation = standardPositionObjectExtractor.validate!(data);
+
+		expect(validation.valid).toBe(true);
+		expect(validation.warnings?.some((warning) => warning.includes('lies outside the 40×40 object image'))).toBe(true);
 	});
 
 	test('replaces authored CSS payloads in background and draggable dimensions', () => {
@@ -166,5 +264,26 @@ describe('standardPositionObjectExtractor', () => {
 
 		expect(validation.valid).toBe(false);
 		expect(validation.errors).toContain('minChoices cannot exceed maxChoices');
+	});
+});
+
+describe.each([
+	['QTI 2.2 centerPoint', CENTER_POINT_ITEM],
+	['QTI 3.0 center-point', convertQti2ToQti3(CENTER_POINT_ITEM)],
+	['QTI 2.1 centrePoint', CENTER_POINT_ITEM.replace('centerPoint=', 'centrePoint=')],
+	['QTI 2.1 converted to QTI 3.0', convertQti2ToQti3(CENTER_POINT_ITEM.replace('centerPoint=', 'centrePoint='))],
+])('positionObject centerPoint through the item pipeline (%s)', (_version, itemXml) => {
+	test('the authored reference point reaches the interaction data as x/y', () => {
+		const definition = createAssessmentItemDefinition({ itemXml });
+		const session = definition.openSession();
+		try {
+			const presentation = session.present();
+			const mount = presentation.flow.flatMap((node) => (node.kind === 'interaction' ? [node.mount] : []))
+				.find((entry) => entry.interaction.responseId === 'RESPONSE');
+			const data = mount?.interaction as PositionObjectInteractionData | undefined;
+			expect(data?.centerPoint).toEqual({ x: 10, y: 5 });
+		} finally {
+			session.dispose();
+		}
 	});
 });
