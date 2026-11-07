@@ -209,4 +209,29 @@ describe('AssessmentDialog', () => {
 		expect(dialog.hasAttribute('open')).toBe(true);
 		expect(document.activeElement).toBe(dialog.querySelector('h2'));
 	});
+
+	test('a close event queued by an earlier close does not shut the reopened dialog', async () => {
+		// Browsers fire `close` from a queued task, and Chromium runs input (the click that
+		// reopens the dialog) before it, so the stale event can arrive after the reopen.
+		HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) {
+			this.setAttribute('open', '');
+		};
+		HTMLDialogElement.prototype.close = function close(this: HTMLDialogElement) {
+			this.removeAttribute('open');
+			setTimeout(() => this.dispatchEvent(new Event('close')), 20);
+		};
+		const onClose = vi.fn();
+		const { state, dialog } = await openDialog({ onClose });
+
+		state.open = false;
+		await settle();
+		expect(dialog.hasAttribute('open')).toBe(false);
+		state.open = true;
+		await settle();
+		await new Promise((resolve) => setTimeout(resolve, 50));
+
+		expect(state.open).toBe(true);
+		expect(dialog.hasAttribute('open')).toBe(true);
+		expect(onClose).not.toHaveBeenCalled();
+	});
 });

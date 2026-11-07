@@ -90,6 +90,8 @@
 	let returnTarget: HTMLElement | null = null;
 	/** A confirm handler is still running; further activations are ignored. */
 	let confirming = false;
+	/** close() calls we issued ourselves; their `close` events must not be mistaken for cancels. */
+	let expectedCloses = 0;
 
 	const confirmText = $derived(confirmLabel ?? i18n?.t('common.confirm') ?? 'Confirm');
 	const cancelText = $derived(cancelLabel ?? i18n?.t('common.cancel') ?? 'Cancel');
@@ -123,8 +125,12 @@
 
 	function hide(el: HTMLDialogElement) {
 		if (!isShown(el)) return;
-		if (!usesFallback && typeof el.close === 'function') el.close();
-		else el.removeAttribute('open');
+		if (!usesFallback && typeof el.close === 'function') {
+			expectedCloses += 1;
+			el.close();
+		} else {
+			el.removeAttribute('open');
+		}
 		restoreFocus();
 	}
 
@@ -193,8 +199,15 @@
 	}
 
 	function handleCloseEvent() {
-		// The browser closed the dialog itself (a repeated Escape may override
-		// `preventDefault`): report it as a cancel and return focus.
+		// Chromium queues `close` as a task and can run fresh input first, so an event for a
+		// previous close can arrive after the dialog was reopened — it must not cancel it.
+		// Consume the close events we caused ourselves; only a browser-initiated close (no
+		// matching close() call, e.g. a repeated Escape overriding `preventDefault`) reports
+		// a cancel and returns focus.
+		if (expectedCloses > 0) {
+			expectedCloses -= 1;
+			return;
+		}
 		if (!open) return;
 		restoreFocus();
 		onCancel?.();
