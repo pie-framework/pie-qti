@@ -6,7 +6,7 @@
 	import { translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
-		import { HOTTEXT_SELECTOR } from './hottextSelector';
+	import { HOTTEXT_SELECTOR } from './hottextSelector';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 
@@ -55,6 +55,11 @@
 	});
 	let contentElement: HTMLDivElement | null = $state(null);
 
+	/** Sanitize an identifier for use in an element id. */
+	function safeId(identifier: string): string {
+		return identifier.replace(/[^A-Za-z0-9_-]/g, '-');
+	}
+
 	/**
 	 * Check if selection limit has been reached
 	 */
@@ -77,6 +82,38 @@
 	 */
 	function isCorrect(identifier: string): boolean {
 		return isShowingCorrect && correctIds.includes(identifier);
+	}
+
+	/**
+	 * Give each hottext a structured accessible name: the rendered content plus a
+	 * localized state word, referenced with `aria-labelledby` instead of flattened
+	 * `textContent`. Returns the ids to reference.
+	 */
+	function ensureAccessibleNameStructure(htmlElem: HTMLElement, identifier: string): { textId: string; stateId: string; correctId: string } {
+		const textId = `qti-hottext-text-${safeId(identifier)}`;
+		const stateId = `qti-hottext-state-${safeId(identifier)}`;
+		const correctId = `qti-hottext-correct-${safeId(identifier)}`;
+
+		let textSpan = htmlElem.querySelector<HTMLSpanElement>(':scope > [data-hottext-text]');
+		if (!textSpan) {
+			// Wrap the rendered content once so `aria-labelledby` can point at it.
+			textSpan = document.createElement('span');
+			textSpan.setAttribute('data-hottext-text', '');
+			while (htmlElem.firstChild) textSpan.appendChild(htmlElem.firstChild);
+			htmlElem.appendChild(textSpan);
+		}
+		textSpan.id = textId;
+
+		let stateSpan = htmlElem.querySelector<HTMLSpanElement>(':scope > [data-hottext-state]');
+		if (!stateSpan) {
+			stateSpan = document.createElement('span');
+			stateSpan.setAttribute('data-hottext-state', '');
+			stateSpan.classList.add('sr-only');
+			htmlElem.appendChild(stateSpan);
+		}
+		stateSpan.id = stateId;
+
+		return { textId, stateId, correctId };
 	}
 
 	/**
@@ -122,6 +159,16 @@
 				// Update ARIA state
 				htmlElem.setAttribute('aria-pressed', selected ? 'true' : 'false');
 
+				// Update the localized state word in the accessible name
+				const stateSpan = htmlElem.querySelector<HTMLElement>(':scope > [data-hottext-state]');
+				if (stateSpan) {
+					stateSpan.textContent = translate(
+						i18n,
+						selected ? 'interactions.hottext.selectedState' : 'interactions.hottext.selectableState',
+						selected ? 'Selected' : 'Selectable'
+					);
+				}
+
 				// Update classes
 				const isCorrectChoice = isCorrect(identifier);
 				if (selected) {
@@ -139,6 +186,37 @@
 					htmlElem.classList.add('correct');
 				} else {
 					htmlElem.classList.remove('correct');
+				}
+
+				// Scorer view: mark correct hottexts with more than color — a hidden
+				// "Correct answer" phrase joins the accessible name (WCAG 1.4.1).
+				const textSpan = htmlElem.querySelector<HTMLElement>(':scope > [data-hottext-text]');
+				let correctSpan = htmlElem.querySelector<HTMLElement>(':scope > [data-hottext-correct]');
+				if (isCorrectChoice) {
+					if (!correctSpan) {
+						correctSpan = document.createElement('span');
+						correctSpan.setAttribute('data-hottext-correct', '');
+						correctSpan.classList.add('sr-only');
+						htmlElem.appendChild(correctSpan);
+					}
+					correctSpan.id = `qti-hottext-correct-${safeId(identifier)}`;
+					correctSpan.textContent = translate(
+						i18n,
+						'accessibility.correctAnswerIs',
+						'Correct answer: {answer}.',
+						{ answer: textSpan?.textContent?.trim() ?? identifier }
+					);
+				} else {
+					correctSpan?.remove();
+				}
+
+				// Accessible name = rendered content + localized state (+ correct marker)
+				const labelIds: string[] = [];
+				if (textSpan?.id) labelIds.push(textSpan.id);
+				if (stateSpan?.id) labelIds.push(stateSpan.id);
+				if (isCorrectChoice && correctSpan?.id) labelIds.push(correctSpan.id);
+				if (labelIds.length > 0) {
+					htmlElem.setAttribute('aria-labelledby', labelIds.join(' '));
 				}
 			}
 		});
@@ -167,9 +245,8 @@
 				htmlElem.setAttribute('tabindex', disabled ? '-1' : '0');
 				htmlElem.setAttribute('aria-pressed', isSelected(identifier) ? 'true' : 'false');
 
-				// Get text content for aria-label
-				const textContent = htmlElem.textContent || identifier;
-				htmlElem.setAttribute('aria-label', `Selectable text: ${textContent}`);
+				// Structured accessible name from the rendered content + a localized state
+				ensureAccessibleNameStructure(htmlElem, identifier);
 
 				// Add click handler
 				htmlElem.onclick = () => handleHottextClick(identifier);
@@ -193,6 +270,21 @@
 	$effect(() => {
 		updateHottextStyles();
 	});
+
+	// Selection limit message: an authored message, or a localized default so a
+	// refused selection is never silent (WCAG 3.3.1 / 4.1.3).
+	const maxChoices = $derived(parsedInteraction?.maxChoices ?? 0);
+	const maxMessage = $derived.by(() => {
+		const authored = parsedInteraction?.maxSelectionsMessage;
+		if (authored) return authored;
+		return translate(
+			i18n,
+			'interactions.hottext.maxChoicesReached',
+			'You can select up to {max}. Deselect one to choose another.',
+			{ max: maxChoices }
+		);
+	});
+	const showMaxMessage = $derived(maxChoices > 0 && selectedIds.length >= maxChoices);
 </script>
 
 <ShadowBaseStyles />
@@ -213,20 +305,20 @@
 			part="content"
 			class="hottext-content qti-hottext-content qti-rich-content prose max-w-none"
 			role="group"
-			aria-label={i18n?.t('interactions.hottext.ariaLabel') ?? 'Text selection interaction'}
+			aria-label={translate(i18n, 'interactions.hottext.ariaLabel', 'Text selection interaction')}
 		>
 			{@html parsedInteraction.contentHtml}
 		</div>
 
 		<div part="footer" class="qti-hottext-footer flex items-center justify-between text-sm text-base-content/70">
 			<div>
-				<span class="font-medium">{i18n?.t('interactions.hottext.selected') ?? 'Selected'}:</span>
+				<span class="font-medium">{translate(i18n, 'interactions.hottext.selected', 'Selected:')}</span>
 				<span class="ms-2">{selectedIds.length} / {parsedInteraction.hottextChoices?.length ?? 0}</span>
 				{#if parsedInteraction.minChoices > 0}
 					{#if selectedIds.length >= parsedInteraction.minChoices}
-						<span class="badge badge-success badge-sm ms-2">✓ {i18n?.t('interactions.hottext.minimumMet') ?? 'Minimum met'}</span>
+						<span class="badge badge-success badge-sm ms-2">✓ {translate(i18n, 'interactions.hottext.minimumMet', 'Minimum met')}</span>
 					{:else}
-						<span class="badge badge-warning badge-sm ms-2">{i18n?.t('interactions.hottext.selectAtLeast', `Select at least ${parsedInteraction.minChoices}`) ?? `Select at least ${parsedInteraction.minChoices}`}</span>
+						<span class="badge badge-warning badge-sm ms-2">{translate(i18n, 'interactions.hottext.selectAtLeast', `Select at least ${parsedInteraction.minChoices}`, { minChoices: parsedInteraction.minChoices })}</span>
 					{/if}
 				{/if}
 			</div>
@@ -249,8 +341,8 @@
 				</button>
 			{/if}
 		</div>
-		{#if parsedInteraction.maxSelectionsMessage && selectedIds.length >= parsedInteraction.maxChoices && parsedInteraction.maxChoices > 0}
-			<p class="qti-selection-message" role="alert">{parsedInteraction.maxSelectionsMessage}</p>
+		{#if showMaxMessage}
+			<p class="qti-selection-message" role="alert">{maxMessage}</p>
 		{/if}
 	{/if}
 </div>
@@ -258,20 +350,27 @@
 <style>
 	.qti-selection-message {
 		font-size: 0.875rem;
-		color: var(--pie-qti-warning, oklch(77% 0.194 82));
+		color: var(--pie-qti-warning-text, #92400e);
 		margin-top: 0.25rem;
 	}
 
-	/* qti-input-control-hidden: hide visual selection indicators but keep keyboard-accessible */
+	/* qti-input-control-hidden: hide visual selection indicators but keep keyboard-accessible.
+	   The control keeps its focus ring: focus must stay visible (WCAG 2.4.7). */
 	.qti-input-control-hidden :global(hottext),
 	.qti-input-control-hidden :global(qti-hottext) {
 		cursor: pointer;
-		outline: none;
 	}
 	.qti-input-control-hidden :global(hottext[data-selected]),
 	.qti-input-control-hidden :global(qti-hottext[data-selected]) {
 		background-color: transparent;
 		text-decoration: underline;
+	}
+
+	/* Focus must stay visible in every mode, including with hidden input controls */
+	:global(.hottext-content hottext:focus-visible),
+	:global(.hottext-content qti-hottext:focus-visible) {
+		outline: 2px solid var(--pie-qti-focus, #4338ca);
+		outline-offset: 2px;
 	}
 
 	/* qti-unselected-hidden: unselected hottexts read as plain text until focused; they stay operable */
@@ -302,16 +401,17 @@
 		user-select: none;
 	}
 
+	/* Selectable cue (WCAG 1.4.11): a border at 3:1 against the background, not a faint fill */
 	:global(.hottext-content hottext.selectable),
 	:global(.hottext-content qti-hottext.selectable) {
-		background-color: color-mix(in oklch, var(--pie-qti-base-content, oklch(21% 0 0)) 10%, transparent);
-		border: 1px solid color-mix(in oklch, var(--pie-qti-base-content, oklch(21% 0 0)) 20%, transparent);
+		background-color: color-mix(in oklch, var(--pie-qti-base-content, oklch(21% 0 0)) 6%, transparent);
+		border: 1px solid var(--pie-qti-border-strong, #767676);
 	}
 
 	:global(.hottext-content hottext.selectable:hover),
 	:global(.hottext-content qti-hottext.selectable:hover) {
 		background-color: color-mix(in oklch, var(--pie-qti-primary, oklch(45% 0.24 277)) 20%, transparent);
-		border-color: color-mix(in oklch, var(--pie-qti-primary, oklch(45% 0.24 277)) 40%, transparent);
+		border-color: var(--pie-qti-border-strong, #767676);
 	}
 
 	:global(.hottext-content hottext.selected),
@@ -321,6 +421,7 @@
 		font-weight: 600;
 	}
 
+	/* Scorer view: correct hottexts get an underline in addition to the color change (WCAG 1.4.1) */
 	:global(.hottext-content hottext.correct),
 	:global(.hottext-content qti-hottext.correct) {
 		background-color: color-mix(in oklch, var(--pie-qti-success, oklch(76% 0.177 163.223)) 8%, transparent);
@@ -328,5 +429,8 @@
 		border-radius: 0.25rem;
 		padding: 2px 4px;
 		margin: -2px -4px;
+		text-decoration: underline;
+		text-decoration-thickness: 2px;
+		text-underline-offset: 0.15em;
 	}
 </style>

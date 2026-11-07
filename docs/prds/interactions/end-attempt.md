@@ -5,13 +5,13 @@
   Type: interaction
   Packages: @pie-qti/default-components, @pie-qti/item-player
   QTI type: endAttemptInteraction
-  Last reviewed: 2026-04-28
+  Last reviewed: 2026-11-07
 -->
 
 **Status:** draft  
 **Type:** interaction  
 **Packages:** `@pie-qti/default-components` (component), `@pie-qti/item-player` (extractor)  
-**Last reviewed:** 2026-04-28
+**Last reviewed:** 2026-11-07
 
 ---
 
@@ -164,17 +164,17 @@ There are no open spec-gap items in `docs/SPEC-GAPS-PLAN.md` that apply directly
 
 ## Functional requirements
 
-- **FR-1:** When rendered, display a button whose visible label is the value of the `title` attribute.
-- **FR-2:** When the button is clicked and `disabled` is `false` and the button has not already been activated in this attempt, set the response variable to `true` and dispatch a `qti-change` CustomEvent carrying `{ responseIdentifier, value: true }`.
-- **FR-3:** After the button is activated, visually disable it and show a confirmation state (checkmark icon + "Attempt Ended" or "Requested" label). The button must not be clickable a second time within the same attempt.
+- **FR-1:** When rendered, display a button whose visible label is the value of the `title` attribute (and whose accessible name is that visible text).
+- **FR-2:** When the button is clicked and `disabled` is `false` and the button has not already been activated in this attempt: for `countAttempt=true` (default), first show an inline confirmation step (message plus confirm/cancel buttons, focus moved to the confirm button, Escape cancels); only after the candidate confirms, set the response variable to `true` and dispatch a `qti-change` CustomEvent carrying `{ responseIdentifier, value: true }`. For `countAttempt=false`, the click ends immediately without the extra step.
+- **FR-3:** After the attempt is ended, visually disable the button, show a status message (checkmark icon + "Attempt Ended" or "Requested" label; for `countAttempt=true` also "Your attempt has ended."), and move focus to that status element (`tabindex="-1"`, `role="status"`). The button must not be clickable a second time within the same attempt.
 - **FR-4:** When `disabled=true` is passed as a prop, the button must be non-interactive before activation and must not respond to clicks.
-- **FR-5:** When the `response` prop is updated to `true` externally (e.g. session restore), reflect the activated/disabled visual state without requiring a button click.
-- **FR-6:** When the `response` prop is updated to `null` or `false` externally (e.g. attempt reset), restore the button to its pre-click interactive state.
+- **FR-5:** When the `response` prop is updated to `true` externally (e.g. session restore), reflect the activated/disabled visual state without requiring a button click and without moving focus.
+- **FR-6:** When the `response` prop is updated to `null` or `false` externally (e.g. attempt reset), restore the button to its pre-click interactive state (the confirmation step re-arms).
 - **FR-7:** When `countAttempt=true` (default), the player must increment `numAttempts` before running response processing when this button triggers submission.
 - **FR-8:** When `countAttempt=false`, the player must dispatch `{ action: 'submitAttempt', countAttempt: false }` so `numAttempts` is not incremented.
 - **FR-9:** When the `prompt` child element is present, render its HTML content above the button.
-- **FR-10:** When `countAttempt=true` and the button has been clicked, display an inline warning message that communicates the attempt cannot be modified.
-- **FR-11:** The interaction must only trigger one scoring pass per click. Rapid double-clicks must not result in two submit-attempt dispatches.
+- **FR-10:** When `countAttempt=true` and the attempt has ended, display an inline status message ("Your attempt has ended.") that is announced (`role="status"`) and receives focus.
+- **FR-11:** The interaction must only trigger one scoring pass per confirmed click. Rapid double-clicks must not result in two submit-attempt dispatches.
 - **FR-12:** For adaptive items, after `endAttemptInteraction` triggers a scoring pass that leaves `completionStatus = "incomplete"`, the rest of the item interactions (e.g. a `choiceInteraction`) must remain interactive for the next attempt.
 
 ---
@@ -183,29 +183,32 @@ There are no open spec-gap items in `docs/SPEC-GAPS-PLAN.md` that apply directly
 
 - **Accessibility:**
   - The button element must use a native HTML `<button>` element, not a `<div>` or `<span>`, so it is reachable by Tab and activatable by Enter/Space without custom key handlers.
-  - The button must have an accessible label that communicates the action clearly. The `title` attribute value must be used as `aria-label` when the visible button label does not fully describe the action (e.g. when the button shows only an icon in activated state). The current implementation applies `aria-label={parsedInteraction.title}` unconditionally — this is the correct behaviour.
+  - The accessible name must come from the visible text (the authored `title`, or "Attempt Ended"/"Requested" once ended). No `aria-label` is applied — an `aria-label` that stops matching the visible label after activation would violate WCAG 2.5.3 (label in name).
   - The button must never display the raw identifier `"endAttemptInteraction"` as its label. Authors must supply a `title` describing the action in plain language: "I don't know", "Request Hint", "Give Up", or equivalent.
-  - The disabled state after activation must use the native `disabled` attribute (which removes the button from the tab sequence and prevents focus) rather than `aria-disabled` alone, since the interaction is genuinely complete.
-  - The confirmation message shown after activation must be accessible to screen readers. It must not be hidden with `visibility: hidden` or `display: none`. The current implementation renders it conditionally inside the DOM with `{#if hasEnded && parsedInteraction.countAttempt}`, which is correct.
-  - Touch targets on the button must be at least 44×44 CSS px (WCAG 2.2 SC 2.5.8). The `btn-lg` class from DaisyUI provides a target height of approximately 48px, satisfying this requirement.
+  - Because ending a counted attempt is irreversible, it requires an inline confirmation step (WCAG 3.3.4): the confirm/cancel controls appear with focus moved to the confirm button, and Escape cancels back to the end button.
+  - The disabled state after activation must use the native `disabled` attribute (which removes the button from the tab sequence and prevents focus) rather than `aria-disabled` alone, since the interaction is genuinely complete. Because the button removes its own focus, focus is programmatically moved to the status message (`tabindex="-1"`, `role="status"`), which announces the ended message.
+  - The ended message must be accessible to screen readers and announced: it lives in a `role="status"` element that receives focus. It must not be hidden with `visibility: hidden` or `display: none`.
+  - Touch targets on all controls (end, confirm, cancel buttons) must be at least 44×44 CSS px (WCAG 2.2 SC 2.5.8). The component styles its controls with self-contained CSS on theme tokens (`--pie-qti-*`, `--pie-qti-warning-text`, `--pie-qti-border-strong`, `--pie-qti-focus`), so it does not rely on host frameworks such as DaisyUI.
 - **Performance:** The button component is trivially lightweight. No performance constraints beyond the standard 16 ms render budget.
-- **Cross-platform:** The button must be activatable by touch tap on mobile. Native `<button>` satisfies this. The `btn-lg` size class ensures an adequate touch target on small screens.
+- **Cross-platform:** The button must be activatable by touch tap on mobile. Native `<button>` satisfies this; the component's own styles guarantee a ≥44 px target on small screens.
 - **Security:** The `prompt` content is rendered via `{@html}`, which means it must be sanitized upstream by the item player's HTML sanitizer before reaching this component. The component trusts the values it receives.
-- **i18n:** The post-click label text is translated under two keys:
-  - `interactions.endAttempt.ended` (shown when `countAttempt=true`) — falls back to `"Attempt Ended"`
-  - `interactions.endAttempt.requested` (shown when `countAttempt=false`) — falls back to `"Requested"`
-  - The confirmation message `"Your attempt has been ended and can no longer be modified."` is currently a hard-coded string in the component and is not covered by the i18n provider. This is an open i18n gap.
+- **i18n:** All candidate-visible strings are translated under `interactions.endAttempt`:
+  - `ended` (shown when `countAttempt=true`) — falls back to `"Attempt Ended"`
+  - `requested` (shown when `countAttempt=false`) — falls back to `"Requested"`
+  - `warningMessage` — `"Your attempt has ended."` (shown in the status after a counted attempt ends)
+  - `confirmMessage` — the question shown in the confirmation step
+  - `confirm` / `cancel` — the confirmation step's button labels
 
 ---
 
 ## Design decisions
 
-### Once-and-done activation within a single attempt
+### Confirmation-gated activation for counted attempts
 
-**Decision:** Once the button is clicked, `hasEnded` is set to `true` and the button is permanently disabled for the current attempt. There is no undo.  
-**Rationale:** `endAttemptInteraction` in QTI is semantically a one-way gate: clicking it means "end this attempt now." Allowing it to be clicked again would either dispatch two submit-attempt commands (breaking the adaptive lifecycle) or require complex deduplication logic. The spec does not define a way to "un-end" an attempt.
-**Alternatives considered:** Allowing the button to toggle (clicking again reverts to `null` state). Rejected: not specced, confusing UX, creates lifecycle bugs.  
-**Consequences:** Item authors must not design items that require the candidate to click `endAttemptInteraction` more than once per attempt. If a session is reset for a new attempt, the button must be reset to its pre-click state by passing `response=null` from the player.
+**Decision:** For `countAttempt=true`, the first click opens an inline confirmation step (message + confirm/cancel, focus on the confirm button, Escape cancels). The `qti-change` event (value `true`) is emitted only after the candidate confirms. For `countAttempt=false` (hint-style requests), the click ends immediately. Once ended, `hasEnded` stays `true` and the button is disabled for the current attempt — there is no undo.  
+**Rationale:** Ending a counted attempt is irreversible (it triggers scoring), which WCAG 3.3.4 requires protecting with a confirmation or undo. An undo is not possible in the adaptive lifecycle, so the interaction confirms before committing. Hint requests are cheap and repeatable, so they skip the extra step.  
+**Alternatives considered:** Allowing the button to toggle (clicking again reverts to `null` state). Rejected: not specced, confusing UX, creates lifecycle bugs. A modal dialog. Rejected: an inline step keeps focus in place and works inside shadow DOM without focus-trap machinery.  
+**Consequences:** Item authors must not design items that require the candidate to click `endAttemptInteraction` more than once per attempt. If a session is reset for a new attempt, the button must be reset to its pre-click state by passing `response=null` from the player (which also re-arms the confirmation).
 
 ### Button state is driven by `response` prop, not internal state alone
 
@@ -228,12 +231,12 @@ There are no open spec-gap items in `docs/SPEC-GAPS-PLAN.md` that apply directly
 **Alternatives considered:** Including `endAttemptInteraction` in completeness checks with a special `optional` flag. Rejected: adds complexity with no benefit.  
 **Consequences:** Players that compute "have all interactions been answered?" must use `getResponseInteractions()`, not `getInteractions()`, to get the correct answer.
 
-### Confirmation message only appears when `countAttempt=true`
+### Ended message only appears when `countAttempt=true`
 
-**Decision:** The warning message "Your attempt has been ended and can no longer be modified" is only shown when `countAttempt=true`.  
-**Rationale:** When `countAttempt=false` (hint request scenario), the candidate may still submit a real answer after requesting the hint. Showing a "cannot be modified" warning would be incorrect and alarming. The button still shows the activated "Requested" state, which is sufficient feedback.  
-**Alternatives considered:** Always show some confirmation message. Rejected: the "cannot be modified" message implies session finality, which only applies when the attempt was counted.  
-**Consequences:** Items that use `countAttempt=false` will not show a warning after the button click. Item authors relying on this for "give up" scenarios where the item truly ends should use `countAttempt=true`.
+**Decision:** The status message "Your attempt has ended." is only shown when `countAttempt=true`.  
+**Rationale:** When `countAttempt=false` (hint request scenario), the candidate may still submit a real answer after requesting the hint. Showing a "your attempt has ended" message would be incorrect and alarming. The button still shows the activated "Requested" state, and the focus target status element carries that state for screen readers.  
+**Alternatives considered:** Always show some confirmation message. Rejected: an ended message implies session finality, which only applies when the attempt was counted.  
+**Consequences:** Items that use `countAttempt=false` will not show an ended message after the button click. Item authors relying on this for "give up" scenarios where the item truly ends should use `countAttempt=true`.
 
 ---
 
@@ -303,28 +306,32 @@ AC-1: Button renders with authored title
   When: the item renders
   Then: a visible button labeled "I don't know" is present in the item body
 
-AC-2: Button click sets response to true and fires qti-change
-  Given: the item from AC-1 is rendered and the button has not been clicked
+AC-2: Button click leads to confirmation, then sets response to true and fires qti-change
+  Given: the item from AC-1 (countAttempt=true) is rendered and the button has not been clicked
   When: the user clicks the button
-  Then: a qti-change event fires with responseIdentifier matching the interaction's responseIdentifier
-        and value=true; the response variable in the player is set to true
+  Then: an inline confirmation step appears with focus on the confirm button and no event fires;
+        when the user confirms, a qti-change event fires with responseIdentifier matching the
+        interaction's responseIdentifier and value=true; the response variable is set to true
+  Notes: Escape cancels the confirmation and returns focus to the end button without emitting;
+         with countAttempt=false the click ends immediately without the confirmation step
 
 AC-3: Response is false/null before any click
   Given: the item from AC-1 is freshly rendered with no prior session state
   When: the player reads the response for the endAttemptInteraction's responseIdentifier
   Then: the value is null (not false, not undefined)
 
-AC-4: Button disables immediately after click
+AC-4: Button disables after confirmed end; focus moves to the status
   Given: the item from AC-1 is rendered
-  When: the user clicks the button
-  Then: the button has disabled=true; a second click within the same attempt does not fire a second
-        qti-change event; the button cannot be re-activated by Enter or Space
+  When: the user confirms ending the attempt
+  Then: the button has disabled=true; a second activation does not fire a second qti-change event;
+        the button cannot be re-activated by Enter or Space; focus moves to the role="status"
+        message (the button removed its own focus target)
 
-AC-5: Activated state shows confirmation icon and changed label
-  Given: countAttempt=true, button has been clicked
+AC-5: Activated state shows confirmation icon, changed label, and announced status
+  Given: countAttempt=true, attempt has been ended
   When: the activated state is rendered
   Then: a checkmark icon is visible; the button text reads "Attempt Ended" (or i18n equivalent);
-        a warning alert reads "Your attempt has been ended and can no longer be modified"
+        the role="status" message reads "Your attempt has ended." and receives focus
 
 AC-6: countAttempt=false - no warning message, different label
   Given: an item with countAttempt="false" and button has been clicked
@@ -429,10 +436,11 @@ AC-A2: Button is activatable by Enter and Space
   When: the user presses Enter or Space
   Then: the button activates; a qti-change event fires with value=true; the button becomes disabled
 
-AC-A3: aria-label communicates the action
+AC-A3: The visible label is the accessible name
   Given: the item renders the endAttemptInteraction button
   When: a screen reader announces the button
-  Then: the accessible name comes from the title attribute (e.g., "I don't know" or "Request Hint");
+  Then: the accessible name is the visible text ("I don't know", "Request Hint", or the authored
+        title; "Attempt Ended"/"Requested" after ending) with no overriding aria-label;
         the raw identifier "endAttemptInteraction" never appears in the accessible name
 
 AC-A4: Disabled state after activation is announced by screen readers
@@ -441,16 +449,24 @@ AC-A4: Disabled state after activation is announced by screen readers
   Then: the button's disabled state is conveyed; screen readers should indicate it is unavailable
         (native disabled attribute handles this)
 
-AC-A5: Confirmation message is in the DOM and accessible
-  Given: countAttempt=true, button has been clicked
-  When: a screen reader navigates to the item content after button activation
-  Then: the warning message "Your attempt has been ended and can no longer be modified" is reachable
-        in the DOM and readable; it must not be hidden via CSS that removes it from the a11y tree
+AC-A5: Ended message is announced and receives focus
+  Given: countAttempt=true, attempt has been ended
+  When: the status element renders
+  Then: the message "Your attempt has ended." is reachable in the DOM inside a role="status"
+        element with tabindex="-1"; keyboard focus moves to it; it must not be hidden via CSS
+        that removes it from the a11y tree
 
-AC-A6: Touch target meets minimum size requirement
+AC-A6: Irreversible end requires confirmation
+  Given: countAttempt=true (default)
+  When: the candidate clicks the end button
+  Then: an inline confirmation step appears with focus moved to the confirm button;
+        Escape cancels back to the end button; the response is only emitted after confirming
+        (WCAG 3.3.4)
+
+AC-A7: Touch target meets minimum size requirement
   Given: the item is rendered on a mobile viewport (375px wide)
-  When: the button is measured
-  Then: the button's tappable area is at least 44×44 CSS px per WCAG 2.2 SC 2.5.8
+  When: any of the controls (end, confirm, cancel) is measured
+  Then: its tappable area is at least 44×44 CSS px per WCAG 2.2 SC 2.5.8
 ```
 
 ### Edge cases
@@ -490,7 +506,7 @@ AC-E5: Interaction data absent (null/undefined interaction prop)
 ## Open questions
 
 - [ ] **Response variable reset protocol between attempts:** The spec is clear that response variables bound to `endAttemptInteraction` should be reset to `null` at the start of each new attempt so the prior-click state does not bleed into the next scoring pass. The current submit-attempt action does not appear to explicitly reset `boolean` response variables before running response processing. Verify that the adaptive attempt cycle resets the `endAttemptInteraction` response variable; add a regression test if it does not.
-- [ ] **i18n coverage for the hard-coded confirmation message:** "Your attempt has been ended and can no longer be modified." is not covered by an i18n key. A follow-up should add `interactions.endAttempt.endedMessage` to the i18n framework and use it in the component.
+- [x] **i18n coverage for the ended message:** Resolved — the ended message uses `interactions.endAttempt.warningMessage` ("Your attempt has ended."), and the confirmation step uses `interactions.endAttempt.confirmMessage`, `confirm`, and `cancel`.
 - [ ] **Non-adaptive item warning:** Should the extractor or the player emit a warning when `endAttemptInteraction` appears in an item where `adaptive="false"`? Currently silent. Decide whether this is a validation error, a warning, or intentionally permitted.
 
 ---

@@ -108,6 +108,10 @@ export default {
 			correct: 'Correcto',
 			revealChoice: 'Mostrar opción {index}',
 			groupLabel: 'Opciones de respuesta',
+			maxChoicesReached: 'Puedes seleccionar hasta {max}. Desmarca una para elegir otra.',
+			clearAnswer: 'Borrar respuesta',
+			eliminateChoice: 'Descartar',
+			restoreChoice: 'Restaurar',
 		},
 
 		upload: {
@@ -169,6 +173,7 @@ export default {
 			step: 'Paso: {step}',
 			ariaLabel: 'Valor del deslizador de {lowerBound} a {upperBound}',
 			statTitle: 'Valor seleccionado',
+			noValueSelected: 'Sin valor seleccionado',
 		},
 
 		hottext: {
@@ -176,6 +181,9 @@ export default {
 			selectText: 'Selecciona texto del pasaje',
 			clearSelection: 'Limpiar selección',
 			ariaLabel: 'Interacción de selección de texto',
+			selectableState: 'Seleccionable',
+			selectedState: 'Seleccionado',
+			maxChoicesReached: 'Puedes seleccionar hasta {max}. Desmarca una para elegir otra.',
 		},
 
 		hotspot: {
@@ -357,8 +365,10 @@ export default {
 			buttonLabel: 'Finalizar intento',
 			ended: 'Intento finalizado',
 			requested: 'Solicitado',
-			warningMessage: 'Tu intento ha finalizado y ya no se puede modificar.',
+			warningMessage: 'Tu intento ha finalizado.',
 			confirmMessage: '¿Estás seguro de que quieres finalizar tu intento? No podrás cambiar tus respuestas.',
+			confirm: 'Sí, finalizar intento',
+			cancel: 'Cancelar',
 		},
 
 		media: {

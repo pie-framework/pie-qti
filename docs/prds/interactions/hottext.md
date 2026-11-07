@@ -5,13 +5,13 @@
   Type: interaction
   Packages: @pie-qti/default-components, @pie-qti/item-player
   QTI type: hottextInteraction
-  Last reviewed: 2026-04-28
+  Last reviewed: 2026-11-07
 -->
 
 **Status:** draft  
 **Type:** interaction  
 **Packages:** `@pie-qti/default-components` (component), `@pie-qti/item-player` (extractor)  
-**Last reviewed:** 2026-04-28
+**Last reviewed:** 2026-11-07
 
 ---
 
@@ -99,12 +99,12 @@
 - **FR-1:** Render the interaction content HTML inside a `role="group"` container. The `<hottext>` elements within the HTML must be keyboard-focusable and mouse-clickable.
 - **FR-2:** When a candidate clicks or activates (Enter/Space) an unselected hottext span and the selection count is below `maxChoices`, add the span's identifier to the response and visually mark the span as selected.
 - **FR-3:** When a candidate clicks or activates a selected hottext span, remove its identifier from the response and visually revert the span to unselected.
-- **FR-4:** When the selection count equals `maxChoices`, clicking an unselected span must have no effect (the span is not selected, no event fires). The `selectable` visual cue must be removed from unselected spans in this state.
+- **FR-4:** When the selection count equals `maxChoices`, clicking an unselected span must have no effect (the span is not selected, no event fires). The `selectable` visual cue must be removed from unselected spans in this state, and the refusal is announced: the authored `maxSelectionsMessage` (role="alert") is shown, or a localized default ("You can select up to {max}. Deselect one to choose another.") when none is authored.
 - **FR-5:** When `maxChoices=1`, the response value emitted is a bare identifier string (or `null` on clear). When `maxChoices>1`, the response value emitted is `string[]`.
 - **FR-6:** On each selection change, emit a `qti-change` CustomEvent with `{ responseIdentifier, value }` from the root element. The event must bubble.
 - **FR-7:** Accept a `response` prop and reflect it as the initial selection state without firing a `qti-change` event on mount.
 - **FR-8:** When `disabled=true`, all hottext spans must be non-interactive (`cursor: default`, `tabindex="-1"`). The "Clear Selection" button must also be disabled.
-- **FR-9:** When `role='scorer'` and `correctResponse` is provided, visually mark correct hottext spans with the `correct` class (green background). Do not reveal correct answers to any other role.
+- **FR-9:** When `role='scorer'` and `correctResponse` is provided, visually mark correct hottext spans with the `correct` class (green background **and** an underline, so the marker never relies on color alone) and add a hidden "Correct answer" phrase to each correct span's accessible name. Do not reveal correct answers to any other role.
 - **FR-10:** Display a footer showing `selected / total_hottext_count` and a "Clear Selection" button that appears only when at least one span is selected.
 - **FR-11:** Render the optional `<prompt>` HTML above the passage content when present.
 - **FR-12:** When no `interaction` data is provided, render a localized error message instead of an empty div.
@@ -119,7 +119,7 @@ WCAG 2.2 Level AA is mandatory for all assessment interactions.
 
 - **Keyboard operability (SC 2.1.1):** Every hottext span must receive focus via Tab in document order. Space and Enter must activate the focused span. A user must be able to complete the interaction entirely by keyboard without using a mouse.
 - **Focus visible (SC 2.4.7 / 2.4.11):** Focused hottext spans must have a visible focus indicator that meets contrast and size requirements. The browser's default `:focus` ring is not sufficient for custom elements; the implementation must explicitly style `:focus-visible` or provide a substitute.
-- **Name, role, value (SC 4.1.2):** Each `<hottext>` element receives `role="button"`, `aria-pressed="true/false"`, and an `aria-label` of `"Selectable text: <text content>"`. The `aria-pressed` attribute is updated on every selection change so screen readers announce the toggle state. The container receives `role="group"` with an `aria-label` identifying it as the selection area.
+- **Name, role, value (SC 4.1.2):** Each `<hottext>` element receives `role="button"`, `aria-pressed="true/false"`, and an accessible name composed via `aria-labelledby` from the rendered content plus a hidden, localized state word ("Selectable"/"Selected"). No flattened `textContent` label and no hardcoded English prefix is used. The `aria-pressed` attribute and the state word are updated on every selection change. The container receives `role="group"` with an `aria-label` identifying it as the selection area.
 - **Touch targets (SC 2.5.8):** On mobile viewports, hottext spans must meet the 24×24 CSS px minimum target size. The implementation adds `padding: 2px 4px` inline, which may not be sufficient for very short spans (single characters or punctuation). Item authors should avoid single-character hottext spans.
 - **Reading order (SC 1.3.2):** The prose reading order must not be altered by the interaction framework. The content HTML is injected verbatim; no reordering occurs.
 - **User select disabled on spans (CSS `user-select: none`):** To prevent accidental text selection when clicking quickly, hottext spans have `user-select: none`. This is acceptable for the span itself but must not disable text selection in surrounding prose (WCAG SC 1.4.12 requires text reflow support, not selection disablement).
@@ -145,10 +145,11 @@ WCAG 2.2 Level AA is mandatory for all assessment interactions.
 
 ### Internationalization
 
-- The footer label "Selected:" is not currently passed through the `i18n` provider. This is a gap — it should use `i18n?.t('interactions.hottext.selected', 'Selected:')`.
-- The "Clear Selection" button label should use `i18n?.t('interactions.hottext.clearSelection', 'Clear Selection')`.
-- The container `aria-label` uses `i18n?.t('interactions.hottext.ariaLabel') ?? 'Text selection interaction'`.
-- The `aria-label` on individual hottext spans is hardcoded as `"Selectable text: {textContent}"`. The prefix "Selectable text:" should be externalized to the i18n provider.
+- Footer label: `interactions.hottext.selected` ("Selected:").
+- "Clear Selection" button: `interactions.hottext.clearSelection`.
+- Container `aria-label`: `interactions.hottext.ariaLabel`.
+- Per-span state words: `interactions.hottext.selectableState` / `interactions.hottext.selectedState`.
+- Refusal message default: `interactions.hottext.maxChoicesReached` ({max} interpolated); the authored `maxSelectionsMessage` wins when present.
 - RTL support: the component does not set a fixed text direction; it inherits from the host. This should be correct for RTL passages as long as the host sets `dir="rtl"`.
 
 ---
@@ -431,8 +432,8 @@ AC-E7: No interaction data provided
 AC-E8: Empty hottext span (no text content)
   Given: a hottext element with no text content (e.g. <hottext identifier="H1"/>)
   When: the item renders
-  Then: the span is still selectable (click/key);
-        aria-label falls back to the identifier string ("Selectable text: H1")
+  Then: the span is still selectable (click/key); its accessible name carries the
+        localized state word ("Selectable") from the aria-labelledby structure
 
 AC-E9: Response synced to external state change
   Given: the item from AC-5 with H2 selected via user interaction
@@ -445,9 +446,8 @@ AC-E9: Response synced to external state change
 ## Open questions
 
 - [ ] **`maxChoices=0` bug**: The `canSelectMore` derived value is `selectedIds.length < parsedInteraction.maxChoices`. When `maxChoices=0` this is always false, blocking all selections. Is `maxChoices=0` a valid value for `hottextInteraction`? The spec says it means unlimited, but the extractor defaults to `1` when absent. If `0` is a valid authored value, the component needs a guard: `maxChoices === 0 || selectedIds.length < maxChoices`.
-- [ ] **`maxChoices=1` does not auto-deselect**: When `maxChoices=1` and a span is already selected, clicking a different span is blocked (not deselected). Should single-select hottext behave like radio buttons (click automatically switches selection)? The current behavior requires the candidate to explicitly deselect before selecting a different span, which is non-obvious.
+- [ ] **`maxChoices=1` does not auto-deselect**: When `maxChoices=1` and a span is already selected, clicking a different span is blocked (not deselected). Should single-select hottext behave like radio buttons (click automatically switches selection)? The current behavior requires the candidate to explicitly deselect before selecting a different span, which is non-obvious — the localized `maxChoicesReached` message now at least explains it.
 - [ ] **`minChoices` gap**: Should `minChoices` be added to `HottextInteractionData` and surfaced as a "Select at least N" footer hint? This is low-effort to add but requires agreement on the UI pattern.
-- [ ] **i18n gap**: The "Selected:" label and "Clear Selection" button label are not run through the `i18n` provider. Should they be, and what are the canonical key names?
 - [ ] **Touch target size for short spans**: Single-word hottext spans (especially short words like "a", "or", "in") may not meet the 24×24 px touch target minimum. Should the component enforce a minimum `min-width` / `min-height` on hottext elements?
 
 ---

@@ -108,6 +108,10 @@ export default {
 			correct: 'ถูกต้อง',
 			revealChoice: 'แสดงตัวเลือก {index}',
 			groupLabel: 'ตัวเลือกคำตอบ',
+			maxChoicesReached: 'คุณเลือกได้สูงสุด {max} รายการ ให้ยกเลิกการเลือกหนึ่งรายการเพื่อเลือกรายการอื่น',
+			clearAnswer: 'ล้างคำตอบ',
+			eliminateChoice: 'ตัดออก',
+			restoreChoice: 'เรียกคืน',
 		},
 
 		upload: {
@@ -169,6 +173,7 @@ export default {
 			step: 'ขั้น: {step}',
 			ariaLabel: 'ค่าแถบเลื่อนจาก {lowerBound} ถึง {upperBound}',
 			statTitle: 'ค่าที่เลือก',
+			noValueSelected: 'ยังไม่ได้เลือกค่า',
 		},
 
 		hottext: {
@@ -176,6 +181,9 @@ export default {
 			selectText: 'เลือกข้อความจากข้อความ',
 			clearSelection: 'ล้างการเลือก',
 			ariaLabel: 'การโต้ตอบการเลือกข้อความ',
+			selectableState: 'เลือกได้',
+			selectedState: 'เลือกแล้ว',
+			maxChoicesReached: 'คุณเลือกได้สูงสุด {max} รายการ ให้ยกเลิกการเลือกหนึ่งรายการเพื่อเลือกรายการอื่น',
 		},
 
 		hotspot: {
@@ -357,8 +365,10 @@ export default {
 			buttonLabel: 'สิ้นสุดการพยายาม',
 			ended: 'การพยายามสิ้นสุดแล้ว',
 			requested: 'ร้องขอแล้ว',
-			warningMessage: 'การพยายามของคุณสิ้นสุดแล้วและไม่สามารถแก้ไขได้อีก',
+			warningMessage: 'การพยายามของคุณสิ้นสุดแล้ว',
 			confirmMessage: 'คุณแน่ใจหรือไม่ว่าต้องการสิ้นสุดการพยายาม? คุณจะไม่สามารถเปลี่ยนคำตอบได้',
+			confirm: 'ใช่ ให้สิ้นสุดการพยายาม',
+			cancel: 'ยกเลิก',
 		},
 
 		media: {

@@ -107,6 +107,10 @@ export default {
 			correct: 'Correct',
 			revealChoice: 'Keuze {index} tonen',
 			groupLabel: 'Antwoordopties',
+			maxChoicesReached: 'Je kunt maximaal {max} selecteren. Deselecteer er een om een andere te kiezen.',
+			clearAnswer: 'Antwoord wissen',
+			eliminateChoice: 'Uitsluiten',
+			restoreChoice: 'Herstellen',
 		},
 
 		upload: {
@@ -168,6 +172,7 @@ export default {
 			step: 'Stap: {step}',
 			ariaLabel: 'Schuifregelaarwaarde van {lowerBound} tot {upperBound}',
 			statTitle: 'Geselecteerde waarde',
+			noValueSelected: 'Geen waarde geselecteerd',
 		},
 
 		hottext: {
@@ -175,6 +180,9 @@ export default {
 			selectText: 'Selecteer tekst uit de passage',
 			clearSelection: 'Selectie wissen',
 			ariaLabel: 'Tekstselectie-interactie',
+			selectableState: 'Selecteerbaar',
+			selectedState: 'Geselecteerd',
+			maxChoicesReached: 'Je kunt maximaal {max} selecteren. Deselecteer er een om een andere te kiezen.',
 		},
 
 		hotspot: {
@@ -356,8 +364,10 @@ export default {
 			buttonLabel: 'Poging beëindigen',
 			ended: 'Poging beëindigd',
 			requested: 'Aangevraagd',
-			warningMessage: 'Je poging is beëindigd en kan niet meer worden gewijzigd.',
+			warningMessage: 'Je poging is beëindigd.',
 			confirmMessage: 'Weet je zeker dat je je poging wilt beëindigen? Je kunt je antwoorden niet meer wijzigen.',
+			confirm: 'Ja, poging beëindigen',
+			cancel: 'Annuleren',
 		},
 
 		media: {

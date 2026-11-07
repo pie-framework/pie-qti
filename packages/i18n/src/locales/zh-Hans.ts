@@ -105,6 +105,10 @@ export default {
 			correct: '正确',
 			revealChoice: '显示选项 {index}',
 			groupLabel: '答案选项',
+			maxChoicesReached: '最多可选择 {max} 项。请先取消一项选择,再选择其他项。',
+			clearAnswer: '清除答案',
+			eliminateChoice: '排除',
+			restoreChoice: '恢复',
 		},
 
 		upload: {
@@ -179,6 +183,7 @@ export default {
 			step: '步长:{step}',
 			ariaLabel: '滑块值从 {lowerBound} 到 {upperBound}',
 			statTitle: '已选择的值',
+			noValueSelected: '未选择任何值',
 		},
 
 		hottext: {
@@ -186,6 +191,9 @@ export default {
 			selectText: '从文章中选择文本',
 			clearSelection: '清除选择',
 			ariaLabel: '文本选择交互',
+			selectableState: '可选择',
+			selectedState: '已选择',
+			maxChoicesReached: '最多可选择 {max} 项。请先取消一项选择,再选择其他项。',
 		},
 
 		hotspot: {
@@ -369,8 +377,10 @@ export default {
 			buttonLabel: '结束尝试',
 			ended: '尝试已结束',
 			requested: '已请求',
-			warningMessage: '你的尝试已结束,无法再进行修改。',
+			warningMessage: '你的尝试已结束。',
 			confirmMessage: '你确定要结束尝试吗?你将无法更改你的答案。',
+			confirm: '是,结束尝试',
+			cancel: '取消',
 		},
 
 		media: {

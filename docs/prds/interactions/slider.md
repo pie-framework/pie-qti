@@ -5,13 +5,13 @@
   Type: interaction
   Packages: @pie-qti/default-components, @pie-qti/item-player
   QTI type: sliderInteraction
-  Last reviewed: 2026-04-28
+  Last reviewed: 2026-11-07
 -->
 
 **Status:** draft  
 **Type:** interaction  
 **Packages:** `@pie-qti/default-components` (component), `@pie-qti/item-player` (extractor)  
-**Last reviewed:** 2026-04-28
+**Last reviewed:** 2026-11-07
 
 ---
 
@@ -25,7 +25,7 @@
 
 **Why a slider rather than a text input for numeric responses**: A slider forces the candidate to select from a constrained numeric range, which eliminates free-text parsing problems (invalid characters, out-of-range values, locale-specific decimal separators) and gives a visual representation of relative position within the range. The tradeoff is reduced precision for large continuous ranges — a `step=1` slider spanning 0–1000 has 1001 discrete positions, but a narrow track makes selecting a specific value like 137 difficult with touch or coarse motor control. Text input is the better choice when the exact value matters and the range is large; sliders are better when communicating approximate position or relative magnitude is the goal. Item authors should set `step` explicitly to match the pedagogical precision level.
 
-**Why the default initial value is the midpoint**: Before any candidate interaction, the slider must display some position. The spec does not mandate a default value, but placing the thumb at `lowerBound` (0) could be misread as an active "zero" response rather than "no answer". The implementation uses the midpoint (`Math.floor((lowerBound + upperBound) / 2)`) so the thumb is visually neutral — neither at an extreme nor at zero — which reduces the chance of a candidate inadvertently submitting the initial position as their answer. This does not solve the fundamental "no response" ambiguity (see Known gaps), but it reduces false zeros in scoring.
+**Why the thumb rests at the midpoint, without claiming a value**: Before any candidate interaction, the slider must display some position. The spec does not mandate a default value, but placing the thumb at `lowerBound` (0) could be misread as an active "zero" response rather than "no answer". The implementation rests the thumb at the midpoint (`Math.floor((lowerBound + upperBound) / 2)`) so it is visually neutral — neither at an extreme nor at zero — while the readout and `aria-valuetext` state plainly that no value is selected yet, so the resting position can never be mistaken for an answer.
 
 **Why `step=0` (continuous) is not spec-valid**: The QTI spec requires `step > 0`. The underlying HTML `<input type="range">` uses `step="any"` for a continuous slider, but QTI has no such concept — every valid response must be a member of the discrete set `{lowerBound, lowerBound+step, lowerBound+2*step, …, upperBound}`. The extractor validates that `step > 0` and emits an error if not. Authoring tools that want fine-grained float selection should use a small but non-zero step (e.g. `step="0.01"` over a 0–10 range).
 
@@ -52,17 +52,17 @@
 | `lowerBound` | Required | ✅ Full | Numeric lower bound; default `0` if absent (extractor default, not spec default) |
 | `upperBound` | Required | ✅ Full | Numeric upper bound; default `100` if absent |
 | `step` | Optional | ✅ Full | Step size; default `1`. Propagated directly to `<input type="range" step>` and to the response value. Non-positive values produce an extraction error. |
-| `stepLabel` | Optional | ✅ Extracted, not rendered | Extracted as a boolean flag in `SliderInteractionData`. The QTI spec says "display a label at each step interval". This is **not currently rendered** — no tick marks or step labels appear in the component. See Known gaps. |
-| `orientation` | Optional | ✅ Extracted, not rendered | Extracted as `"horizontal"` or `"vertical"`. The component **always renders horizontally**. Vertical orientation is not implemented. See Known gaps. |
-| `reverse` | Optional | ✅ Extracted, not rendered | Extracted as boolean. The component **does not invert the track direction**. The `reverse` attribute is silently ignored during rendering. See Known gaps. |
-| `<prompt>` child element | Optional | ✅ Full | Extracted as HTML string; rendered via `{@html}` above the track |
+| `stepLabel` | Optional | ✅ Full | Extracted as a boolean flag in `SliderInteractionData`. When `true`, the component renders a `<datalist>` tick list plus a visible value label per step (up to 12 steps; beyond that, labels would be unreadable and are omitted). |
+| `orientation` | Optional | ✅ Full | `"vertical"` renders a native vertical range slider (`writing-mode: vertical-rl`), with the minimum at the bottom and the maximum on top. |
+| `reverse` | Optional | ✅ Full | `true` inverts the track direction: for horizontal sliders the minimum sits on the inline end; for vertical sliders the minimum sits on top. |
+| `<prompt>` child element | Optional | ✅ Full | Extracted as HTML string; rendered via `{@html}` above the track. It is also the slider's accessible name via `aria-labelledby`. |
 
 ### Response variable contract
 
 - **baseType:** `integer` or `float` — both are valid per spec; the component returns a JavaScript `Number`. The response processing engine treats the value as `float` unless the `responseDeclaration` declares `baseType="integer"`, in which case comparison operators apply integer semantics.
 - **cardinality:** `single` (always; the spec does not permit other cardinalities)
 - **Value format:** a number in the closed interval `[lowerBound, upperBound]` that is a member of the step grid
-- **Null / unanswered state:** before any candidate interaction, the component holds the midpoint value internally but does **not** emit a `qti-change` event. The response variable remains `null` in the Player's variable store. If the candidate submits without touching the slider, the response is `null`, not the midpoint. See Known gaps.
+- **Null / unanswered state:** before any candidate interaction the thumb rests at the midpoint, but the component never presents it as a selected value: the readout shows a localized "No value selected", the track carries a distinct untouched visual state, `aria-valuenow` is omitted and `aria-valuetext` announces "No value selected". No `qti-change` event is emitted; the response variable remains `null` until the first interaction.
 
 ### Standard response processing templates
 
@@ -72,14 +72,7 @@
 
 ### Known gaps
 
-None of the spec gaps (G-01 through G-15) in `docs/SPEC-GAPS-PLAN.md` directly target sliderInteraction, but the following attribute-level gaps exist in the current implementation and are tracked here for completeness:
-
-| Gap | Attribute | Status | Impact |
-|-----|-----------|--------|--------|
-| Slider-A | `orientation="vertical"` | Extracted but not rendered; component always horizontal | Items authored with vertical orientation render as horizontal |
-| Slider-B | `reverse="true"` | Extracted but not rendered; track direction not inverted | Items authored with reverse orientation render left-to-right |
-| Slider-C | `stepLabel` | Extracted but no tick marks or step labels rendered | Step labels declared in content are silently dropped |
-| Slider-D | Unanswered / null state | No "no-response" state distinguishable from the midpoint visually | Candidates may not know they must move the slider to register a response |
+The former attribute-level gaps (Slider-A `orientation="vertical"`, Slider-B `reverse`, Slider-C `stepLabel`, Slider-D unanswered null state) are implemented: vertical orientation renders a native vertical slider, reverse flips the track direction, step labels render while they stay readable (≤12 steps), and the untouched state announces and displays "No value selected" instead of the midpoint.
 
 ---
 
@@ -108,8 +101,8 @@ None of the spec gaps (G-01 through G-15) in `docs/SPEC-GAPS-PLAN.md` directly t
 
 WCAG 2.2 Level AA compliance is mandatory. The native `<input type="range">` provides substantial baseline accessibility but requires explicit ARIA augmentation:
 
-- **ARIA attributes:** `aria-valuemin`, `aria-valuemax`, `aria-valuenow`, and `aria-label` MUST be present and kept in sync with the current state. The browser updates `aria-valuenow` automatically for native range inputs, but explicit attributes ensure compatibility with older assistive technology.
-- **Accessible label:** The `aria-label` attribute on the input MUST describe the purpose and range. The current implementation uses `"Slider value from {lowerBound} to {upperBound}"`. When `role="scorer"`, the label also appends `". Correct answer: {value}"`.
+- **ARIA attributes:** `aria-valuemin`, `aria-valuemax`, `aria-valuenow`, and `aria-valuetext` MUST be present (or deliberately omitted) in line with the current state. Before the first interaction `aria-valuenow` is omitted and `aria-valuetext` is the localized "No value selected"; once a value is selected, `aria-valuenow` and `aria-valuetext` carry the number.
+- **Accessible label:** The slider is named by its authored `<prompt>` via `aria-labelledby`. Without a prompt, it falls back to `aria-label` = `"Slider value from {lowerBound} to {upperBound}"` (localized). When `role="scorer"`, the value text also carries `"Correct answer: {value}"`.
 - **Live value announcement:** When the slider value changes via keyboard, the browser announces the new `aria-valuenow` automatically through the native range input's role=slider semantics. No additional live region is required for keyboard navigation. Touch-drag changes also trigger native announcements.
 - **Keyboard navigation:** The `<input type="range">` provides native keyboard support. These key bindings MUST work:
   - Arrow Right / Arrow Up: increment by one `step`
@@ -138,7 +131,7 @@ WCAG 2.2 Level AA compliance is mandatory. The native `<input type="range">` pro
 
 ### i18n
 
-- **`interactions.slider.statTitle`** i18n key labels the readout ("Selected Value"). This MUST be translated in all supported locales.
+- **`interactions.slider.statTitle`** i18n key labels the readout ("Selected Value"); **`interactions.slider.noValueSelected`** is the untouched-state readout and `aria-valuetext` ("No value selected"). Both MUST be translated in all supported locales.
 - Numeric values are displayed as-is (no locale number formatting). If the assessment locale uses a comma decimal separator, numeric readouts may appear inconsistent with locale expectations. This is a known limitation; no fix is planned for the current release.
 - RTL locales: horizontal track direction for RTL languages has not been tested. The CSS `flex-direction` and the browser's native range input behaviour under `dir="rtl"` should be verified before enabling RTL support.
 
@@ -146,19 +139,19 @@ WCAG 2.2 Level AA compliance is mandatory. The native `<input type="range">` pro
 
 ## Design decisions
 
-### Initial value at midpoint, not at lowerBound
+### Initial thumb at midpoint, value state distinct from it
 
-**Decision:** Before any candidate interaction, `currentValue` is `Math.floor((lowerBound + upperBound) / 2)`.  
-**Rationale:** Placing the initial thumb at `lowerBound` (typically 0) risks a candidate submitting a 0 response without intending it. Placing at midpoint is visually neutral and does not bias toward either end. This does not fully solve the "no response" problem (see Known gaps, Slider-D), but reduces accidental zero submissions.  
+**Decision:** Before any candidate interaction, the thumb rests at `Math.floor((lowerBound + upperBound) / 2)`, but the component never presents that position as a value: the readout shows a localized "No value selected" in a distinct untouched visual state, `aria-valuenow` is omitted, and `aria-valuetext` announces "No value selected". The first interaction sets the value.  
+**Rationale:** Placing the initial thumb at `lowerBound` (typically 0) risks a candidate submitting a 0 response without intending it, and showing the midpoint as a "Selected Value" made candidates believe they had answered when the response was still `null` (the old Slider-D gap). Separating the resting position from the value state removes the ambiguity while keeping the slider keyboard-operable (arrow keys start from the resting position).  
 **Alternatives considered:** (a) Displaying no thumb / empty state — not possible with native `<input type="range">` without hiding the element, which breaks keyboard navigation; (b) `lowerBound` as default — increases false-zero submissions; (c) requiring the author to declare a `defaultValue` in the `responseDeclaration` — not universally done in existing content.  
-**Consequences:** Candidates who have not touched the slider but submit will have `response=null` (the response variable stays null until a `qti-change` event fires), but the visual display shows the midpoint. This visual/state mismatch is the central unresolved tension of this interaction.
+**Consequences:** Candidates who submit without touching the slider still have `response=null` (the response variable stays null until a `qti-change` event fires), but the UI now says so plainly.
 
 ### Null response until first interaction
 
-**Decision:** The Player's response variable for the slider remains `null` until the candidate first moves the slider and a `qti-change` event fires. The component renders the midpoint visually but does not emit an initial-value event.  
+**Decision:** The Player's response variable for the slider remains `null` until the candidate first moves the slider and a `qti-change` event fires. The component renders the resting thumb but does not emit an initial-value event.  
 **Rationale:** Emitting a `qti-change` on mount would silently pre-fill the response with the midpoint, making it impossible to distinguish "candidate chose the midpoint" from "candidate never touched the slider". Keeping the variable `null` allows response processing to handle the unanswered case explicitly (e.g. `isNull` branch in `responseCondition`).  
 **Alternatives considered:** Emitting an event on mount — rejected because it conflates "no interaction" with "selected midpoint".  
-**Consequences:** A candidate who sees the midpoint visually but submits without touching the slider will have their response processed as `null`. If the `responseProcessing` does not handle `isNull`, the scoring behaviour is undefined. Item authors using `map_response` templates MUST include an `isNull` check (as shown in the reference sample).
+**Consequences:** A candidate who submits without touching the slider will have their response processed as `null`. If the `responseProcessing` does not handle `isNull`, the scoring behaviour is undefined. Item authors using `map_response` templates MUST include an `isNull` check (as shown in the reference sample).
 
 ### `mapResponse` key lookup for numeric types
 
@@ -167,12 +160,11 @@ WCAG 2.2 Level AA compliance is mandatory. The native `<input type="range">` pro
 **Alternatives considered:** Numeric comparison with tolerance — adds complexity to the evaluator and couples it to baseType knowledge.  
 **Consequences:** Item authors MUST NOT use `mapResponse` for float slider responses. Use `responseCondition` with `gte`/`lte` operators instead (see `slider-decimal-steps` sample). This constraint should be documented in authoring guidance.
 
-### `reverse`, `orientation`, and `stepLabel` are silently ignored
+### `reverse`, `orientation`, and `stepLabel` are rendered
 
-**Decision:** These three attributes are extracted and stored in `SliderInteractionData` but have no effect on rendering in the current component.  
-**Rationale:** Implementing vertical orientation requires CSS transforms or a custom painted slider that replaces the native range input; this sacrifices the native accessibility support that horizontal range inputs provide. `reverse` requires either CSS (`direction: rtl` on the input, which has cross-browser inconsistencies) or mirroring the value math. `stepLabel` requires a separate DOM structure for tick labels that must be pixel-aligned with step positions. None of these were prioritised for initial implementation.  
-**Alternatives considered:** Using CSS `transform: rotate(90deg)` for vertical — inconsistent hit-testing and keyboard behaviour across browsers. Using `direction: rtl` for reverse — does not reliably invert the native thumb position in all browsers.  
-**Consequences:** Items authored with `reverse="true"` will silently render left-to-right. Items with `orientation="vertical"` will render horizontally. Items with `stepLabel="true"` will not display tick marks. These are documented gaps (Slider-A, Slider-B, Slider-C) that must be fixed before this implementation can claim full QTI 2.2 conformance.
+**Decision:** The three authored attributes are honoured by the component: `orientation="vertical"` switches the native range input to `writing-mode: vertical-rl` (min at the bottom, max on top), `reverse` flips the direction (`direction: rtl` on the input, with the bound labels reordered to match), and `stepLabel` renders a `<datalist>` tick list plus a visible value per step while there are at most 12 steps.  
+**Rationale:** Modern browsers support vertical range inputs natively via `writing-mode`, which preserves the native keyboard and screen-reader behaviour that a CSS-rotated or custom-painted slider would lose. Capping rendered labels at 12 keeps them readable; beyond that, labels would overlap and stop helping.  
+**Consequences:** Items authored with `orientation="vertical"` and `reverse="true"` now render faithfully. Items with `stepLabel="true"` and more than 12 steps still render, without tick labels (the values remain on the thumb readout).
 
 ---
 
@@ -186,15 +178,14 @@ export interface SliderInteractionData extends BaseInteractionData {
   lowerBound: number;
   upperBound: number;
   step: number;
-  orientation: string;   // 'horizontal' | 'vertical' — extracted but not rendered
-  reverse: boolean;      // extracted but not rendered
+  stepLabel?: boolean;   // render a label at each step interval (≤12 steps)
+  orientation: string;   // 'horizontal' | 'vertical'
+  reverse: boolean;      // invert the track direction
   prompt: string | null; // HTML string or null
 }
 ```
 
 `BaseInteractionData` contributes `responseId: string` (the `responseIdentifier` attribute value).
-
-The `stepLabel` boolean is present on `SliderData` but is intentionally omitted from `SliderInteractionData` — it is not propagated to the component because the component has no way to render it. When `stepLabel` is implemented, it must be added to `SliderInteractionData`.
 
 The `qti-change` event payload (`createQtiChangeEvent(responseId, value)`) carries:
 - `detail.responseId: string` — the response variable identifier
@@ -213,7 +204,8 @@ AC-1: Basic render with bounds and value
   Given: a sliderInteraction with lowerBound=0, upperBound=100, step=5
   When: the component renders
   Then: the track is visible; "0" label appears to the left; "100" label appears to the right;
-        a numeric readout shows the midpoint value (50); the slider thumb is positioned at midpoint
+        the readout shows "No value selected" in the distinct untouched state;
+        the slider thumb rests at the midpoint without claiming it as a value
   Notes: midpoint = Math.floor((0 + 100) / 2) = 50
 
 AC-2: Prompt is rendered
@@ -337,7 +329,8 @@ AC-A1: ARIA label is present
 AC-A2: ARIA value attributes are correct
   Given: a slider at value 50 (midpoint)
   When: the component renders
-  Then: aria-valuemin=0; aria-valuemax=100; aria-valuenow=50
+  Then: aria-valuemin=0; aria-valuemax=100; aria-valuenow=50; aria-valuetext is "50"
+  Notes: for an untouched slider aria-valuenow is omitted and aria-valuetext is "No value selected"
 
 AC-A3: ARIA valuenow updates on change
   Given: a slider at value 50; input has focus
@@ -389,17 +382,15 @@ AC-E4: step does not evenly divide range — validation warning
   When: the extractor validates
   Then: a warning is emitted (step does not evenly divide range); component renders with steps 0, 3, 6, 9 (upperBound 10 is not reachable)
 
-AC-E5: reverse="true" silently ignored
+AC-E5: reverse="true" inverts the track
   Given: a sliderInteraction with reverse="true", lowerBound=0, upperBound=10
   When: the component renders
-  Then: the track renders left-to-right (lowerBound on left); no error is thrown; the functional behaviour is correct (values still in [0,10])
-  Notes: this is a known gap (Slider-B); document in test as expected failure until implemented
+  Then: the track renders right-to-left (lowerBound on the inline end); no error is thrown; the functional behaviour is correct (values still in [0,10])
 
-AC-E6: orientation="vertical" silently ignored
+AC-E6: orientation="vertical" renders vertically
   Given: a sliderInteraction with orientation="vertical"
   When: the component renders
-  Then: the track renders horizontally; no error is thrown
-  Notes: known gap Slider-A
+  Then: the track renders vertically with the maximum on top and the minimum below; no error is thrown
 
 AC-E7: No prompt
   Given: a sliderInteraction with no <prompt> child
@@ -427,9 +418,9 @@ AC-E10: mapResponse with float values — string key precision risk
 
 ## Open questions
 
-- [ ] **Null state UI**: Should the component visually distinguish "unset" (null) from "set to midpoint"? Options: greyed-out thumb before first interaction; explicit "move to answer" instruction; auto-submission of midpoint on first focus. No decision has been made.
-- [ ] **stepLabel rendering**: When `stepLabel="true"` is implemented, how should tick labels be spaced on mobile when there are 20+ steps? Absolute positioning above/below the track vs. custom datalist element vs. SVG overlay. The `<datalist>` approach (linking via `list` attribute on the range input) provides native accessibility but limited styling control.
-- [ ] **Vertical orientation accessibility**: A CSS `rotate(90deg)` approach changes the keyboard axis (up/down arrows would then match visual direction, but the native range input would still map left/right to the value axis). A custom painted slider would be needed for correct vertical keyboard semantics.
+- [x] **Null state UI**: Resolved — the component distinguishes "unset" (null) from "set to midpoint" with a localized "No value selected" readout, a distinct untouched visual state, and `aria-valuetext`.
+- [x] **stepLabel rendering**: Resolved — the `<datalist>` approach (linked via the `list` attribute) plus a visible label row is used, capped at 12 steps for readability.
+- [x] **Vertical orientation accessibility**: Resolved — the native `writing-mode: vertical-rl` slider keeps native keyboard and screen-reader semantics (unlike a CSS rotation).
 
 ---
 

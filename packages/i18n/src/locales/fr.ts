@@ -107,6 +107,10 @@ export default {
 			correct: 'Correct',
 			revealChoice: 'Afficher le choix {index}',
 			groupLabel: 'Options de réponse',
+			maxChoicesReached: 'Vous pouvez sélectionner jusqu’à {max} réponses. Désélectionnez-en une pour en choisir une autre.',
+			clearAnswer: 'Effacer la réponse',
+			eliminateChoice: 'Écarter',
+			restoreChoice: 'Rétablir',
 		},
 
 		upload: {
@@ -168,6 +172,7 @@ export default {
 			step: 'Pas : {step}',
 			ariaLabel: 'Valeur du curseur de {lowerBound} à {upperBound}',
 			statTitle: 'Valeur sélectionnée',
+			noValueSelected: 'Aucune valeur sélectionnée',
 		},
 
 		hottext: {
@@ -175,6 +180,9 @@ export default {
 			selectText: 'Sélectionnez du texte dans le passage',
 			clearSelection: 'Effacer la sélection',
 			ariaLabel: 'Interaction de sélection de texte',
+			selectableState: 'Sélectionnable',
+			selectedState: 'Sélectionné',
+			maxChoicesReached: 'Vous pouvez sélectionner jusqu’à {max} réponses. Désélectionnez-en une pour en choisir une autre.',
 		},
 
 		hotspot: {
@@ -356,8 +364,10 @@ export default {
 			buttonLabel: 'Terminer la tentative',
 			ended: 'Tentative terminée',
 			requested: 'Demandé',
-			warningMessage: 'Votre tentative a été terminée et ne peut plus être modifiée.',
+			warningMessage: 'Votre tentative est terminée.',
 			confirmMessage: 'Êtes-vous sûr de vouloir terminer votre tentative ? Vous ne pourrez plus modifier vos réponses.',
+			confirm: 'Oui, terminer la tentative',
+			cancel: 'Annuler',
 		},
 
 		media: {

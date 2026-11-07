@@ -5,13 +5,13 @@
   Type: interaction
   Packages: @pie-qti/default-components, @pie-qti/item-player
   QTI type: choiceInteraction
-  Last reviewed: 2026-04-27
+  Last reviewed: 2026-11-07
 -->
 
 **Status:** draft  
 **Type:** interaction  
 **Packages:** `@pie-qti/default-components` (component), `@pie-qti/item-player` (extractor)  
-**Last reviewed:** 2026-04-27
+**Last reviewed:** 2026-11-07
 
 ---
 
@@ -82,8 +82,8 @@
 
 ### Known gaps
 
-- **G-09 (PNP elimination tool):** Implemented for `choiceInteraction`; when `pnp.cognitive.eliminationTool` is enabled, each choice can be visually eliminated without removing it from the response pool.
-- **G-13 (PNP structural labels):** Done. When `pnp.display.structuredLabelSupport` is enabled, the choice set is announced as one `role="group"` named by the prompt (i18n fallback otherwise; an authored accessibility name still wins). Markup contract and NVDA checklist in `packages/item-player/docs/PNP.md`; tracked as Done in `docs/SPEC-GAPS-PLAN.md`.
+- **G-09 (PNP elimination tool):** Implemented for `choiceInteraction`; when `pnp.cognitive.eliminationTool` is enabled, each choice can be visually eliminated without removing it from the response pool. Each toggle is named from its localized action ("Eliminate"/"Restore") plus the rendered choice text via `aria-labelledby`, and is a 44×44 px target.
+- **G-13 (PNP structural labels):** Done. The choice set is announced as one `role="group"` associated with the prompt via `aria-labelledby` by default (no longer gated on `pnp.display.structuredLabelSupport`; the prop is kept for API compatibility). Without a prompt the group gets a localized generic name; an authored accessibility name still wins. Markup contract and NVDA checklist in `packages/item-player/docs/PNP.md`; tracked as Done in `docs/SPEC-GAPS-PLAN.md`.
 - **`minChoices` not enforced:** The spec requires the player to treat the response as incomplete if fewer than `minChoices` identifiers are selected. Not extracted or validated.
 
 ---
@@ -99,15 +99,20 @@
 - **FR-7:** When `role='scorer'` and `correctResponse` is provided, visually distinguish correct choices (green highlight, badge). Do not reveal correct answers to any other role.
 - **FR-8:** Render `feedbackInline` elements inside choice text, in either QTI spelling, conditionally on `outcomeValues` by the shared visibility rule.
 - **FR-9:** Render the `prompt` HTML content above the choice list when present.
+- **FR-10:** When a selection is refused because `maxChoices` is reached, show and announce (`role="alert"`) the authored `maxSelectionsMessage`, or a localized default ("You can select up to {max}. Deselect one to choose another.") when none is authored. A refused selection must never be silent.
+- **FR-11:** For single-cardinality items with a selection, render a localized "Clear answer" button that emits a `null` response and returns focus to the choice list.
+- **FR-12:** Each choice row is a target of at least 44 px height with a selected state that does not rely on color alone (border weight + background + the native checked control), and base choice text of at least 1rem.
+- **FR-13:** Keyboard focus is always visible, including under the QTI 3.0 `qti-input-control-hidden` shared-vocabulary class: the row shows the focus indicator via `:has(input:focus-visible)` (with a `:focus-within` fallback).
+- **FR-14:** `qti-choices-stacking-N` and horizontal layouts collapse to a single column when the interaction container is narrow (container query, with a media-query fallback), per WCAG 1.4.10 reflow.
 
 ---
 
 ## Non-functional requirements
 
-- **Accessibility:** Each choice must be a native `<input type="radio">` or `<input type="checkbox">` wrapped in a `<label>`. The label must contain both the input and the choice text so the entire label is clickable. Radio inputs sharing the same `name` attribute form an ARIA radio group. Touch targets must be at least 44×44 CSS px (WCAG 2.2 SC 2.5.8). The component must be operable by keyboard: Tab to reach the group, arrow keys to navigate within radio groups, Space to toggle checkboxes.
+- **Accessibility:** Each choice must be a native `<input type="radio">` or `<input type="checkbox">` wrapped in a `<label>`. The label must contain both the input and the choice text so the entire label is clickable. Radio inputs sharing the same `name` attribute form an ARIA radio group. Touch targets must be at least 44×44 CSS px (WCAG 2.2 SC 2.5.8): the whole choice row is the target, and the elimination toggle is a 44×44 px circle. The component must be operable by keyboard: Tab to reach the group, arrow keys to navigate within radio groups, Space to toggle checkboxes. Keyboard focus must stay visible on the row even when the native control is hidden (`qti-input-control-hidden`), and the selection-limit alert uses the `--pie-qti-warning-text` token for WCAG 1.4.3 contrast.
 - **Performance:** Extraction and rendering must complete in under 16 ms for up to 10 choices on a mid-range mobile device. Shadow DOM means no layout recalculation from host-page style changes.
-- **Cross-platform:** Touch selection (tap to choose) must work identically to mouse click. The interaction must be usable on both portrait and landscape mobile orientations.
-- **i18n:** The "Correct" badge label is translated via the `i18n` provider under key `interactions.choice.correct`. Falls back to the string `'Correct'` when no provider is supplied.
+- **Cross-platform:** Touch selection (tap to choose) must work identically to mouse click. The interaction must be usable on both portrait and landscape mobile orientations. Multi-column shared-vocabulary layouts collapse to one column on narrow containers (WCAG 1.4.10).
+- **i18n:** Candidate-visible strings are translated via the `i18n` provider: `interactions.choice.correct`, `interactions.choice.groupLabel`, `interactions.choice.maxChoicesReached` ({max} interpolated), `interactions.choice.clearAnswer`, `interactions.choice.eliminateChoice`, `interactions.choice.restoreChoice`, `interactions.choice.revealChoice`. Each falls back to its English string when no provider is supplied.
 - **Security:** Choice text is rendered via `{@html}`. Content is sanitized upstream by the item player's HTML sanitizer before reaching the component. The component trusts the `interaction.choices[*].text` values as safe HTML.
 
 ---
@@ -260,6 +265,26 @@ AC-A5: Disabled state is conveyed
   Given: the item rendered with disabled=true
   When: a screen reader reaches a choice input
   Then: the input is announced as disabled
+
+AC-A6: Focus is visible with hidden input controls
+  Given: an item whose choiceInteraction carries the qti-input-control-hidden class
+  When: the user Tabs to a choice
+  Then: the choice row shows a visible focus indicator (2px outline on the row)
+
+AC-A7: The group is named by the prompt
+  Given: an item whose choiceInteraction has a prompt
+  When: a screen reader reaches the answer set
+  Then: the set is announced as one group whose accessible name is the prompt text
+
+AC-A8: A refused selection is announced
+  Given: a multi-select item at maxChoices with no authored message
+  When: the user attempts one more selection
+  Then: the refusal is shown and announced via a localized role="alert" message
+
+AC-A9: The elimination toggle names its choice
+  Given: the elimination tool is enabled
+  When: a screen reader reaches a toggle
+  Then: it is announced as "Eliminate" (or "Restore" once used) followed by the choice text
 ```
 
 ### Edge cases
