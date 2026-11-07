@@ -181,6 +181,8 @@ export default {
 			updated: 'تم تحديث الرسم.',
 			cleared: 'تم مسح الرسم.',
 			generated: 'تم إنشاؤه:',
+			imageFallback: 'خلفية الرسم',
+			imageLoadError: 'تعذّر تحميل صورة الخلفية.',
 		},
 
 		extendedText: {
@@ -228,6 +230,10 @@ export default {
 			unknownImageDimensions:
 				'لا يمكن عرض هذه النقطة الساخنة: أبعاد صورتها غير معروفة، لذا لا يمكن تحديد مواضع المناطق القابلة للتحديد. أضف العرض والارتفاع إلى الصورة، أو حدد أبعاد الملف.',
 			correctList: 'الصحيح: {ids}',
+			imageFallback: 'صورة هذا السؤال',
+			imageLoadError: 'تعذّر تحميل الصورة.',
+			regionOfTotal: 'المنطقة {index} من {total}',
+			selectedRegion: 'المحدد: {region}',
 		},
 
 		selectPoint: {
@@ -245,6 +251,16 @@ export default {
 			minimumMet: '✓ تم تحقيق الحد الأدنى',
 			selectAtLeast: 'اختر على الأقل {minChoices}',
 			correctPointAt: 'نقطة الإجابة الصحيحة عند الإحداثيات {x}، {y}',
+			imageFallback: 'صورة هذا السؤال',
+			imageLoadError: 'تعذّر تحميل الصورة.',
+			stageLabel: 'منطقة تحديد النقاط',
+			keyboardInstructions: 'انقر على الصورة لوضع نقطة. باستخدام لوحة المفاتيح، انقل التركيز إلى الصورة، وحرّك علامة التصويب بمفاتيح الأسهم (اضغط مع الاستمرار على Shift لخطوات أصغر)، ثم اضغط Enter أو مسافة لوضع نقطة.',
+			placedPoints: 'النقاط الموضوعة',
+			pointAtPercent: 'النقطة {index} عند {x}٪، {y}٪',
+			percentPosition: '{x}٪، {y}٪',
+			pointPlaced: 'تم وضع النقطة {index} عند {x}٪، {y}٪.',
+			pointRemoved: 'تمت إزالة النقطة {index}.',
+			allPointsRemoved: 'تمت إزالة جميع النقاط.',
 		},
 
 		match: {
@@ -328,6 +344,9 @@ export default {
 			placeLabelHint: 'اضغط على مفتاح المسافة أو Enter لوضع التسمية.',
 			labelFallback: 'تسمية',
 			pickUpInstructions: 'اضغط على مفتاح المسافة أو الإدخال لالتقاط تسمية. اضغط على Tab للانتقال إلى نقطة ساخنة على الصورة، ثم اضغط على الإدخال لوضعها. اضغط على Escape للإلغاء.',
+			imageFallback: 'صورة هذا السؤال',
+			imageLoadError: 'تعذّر تحميل الصورة.',
+			unknownImageDimensions: 'لا يمكن عرض النقاط الساخنة: أبعاد الصورة غير معروفة. أضف العرض والارتفاع إلى الصورة.',
 		},
 
 		order: {
@@ -395,6 +414,13 @@ export default {
 			correctPositionFor: 'الموضع الصحيح لـ {label} عند ({x}، {y})',
 			availableObjectsTotal: 'الكائنات المتاحة ({count})',
 			paletteInstructions: 'اسحب الكائنات على اللوحة، أو اضغط على الإدخال أو المسافة على كائن، ثم استخدم مفاتيح الأسهم لوضعه على اللوحة.',
+			imageFallback: 'صورة هذا السؤال',
+			imageLoadError: 'تعذّر تحميل الصورة.',
+			objectFallback: 'الكائن {index}',
+			objectRemoved: 'تمت إزالة {object}.',
+			canvasActiveLabel: 'لوحة تحديد المواضع: استخدم مفاتيح الأسهم لتحريك علامة التصويب، وEnter للوضع، وEscape للإلغاء',
+			placedAtPercent: '{label} عند {x}٪، {y}٪',
+			correctPositionAtPercent: 'الموضع الصحيح لـ {label}: {x}٪، {y}٪',
 		},
 
 		endAttempt: {
@@ -444,6 +470,23 @@ export default {
 			confirmOrder: 'تأكيد الترتيب',
 			confirmOrderNoChanges: 'تأكيد الترتيب (لا توجد تغييرات)',
 			confirmAria: 'تأكيد هذا الترتيب كإجابتك',
+			imageFallback: 'صورة هذا السؤال',
+			imageLoadError: 'تعذّر تحميل الصورة.',
+			unlabeledItem: 'العنصر {index}',
+		},
+
+		graphicAssociate: {
+			imageFallback: 'صورة هذا السؤال',
+			imageLoadError: 'تعذّر تحميل الصورة.',
+			unlabeledHotspot: 'المنطقة {index}',
+			hotspotConnections: '{label} ({usageCount}/{matchMax} اتصالات)',
+			notAvailableSentence: 'غير متاح بسبب قيد مجموعة المطابقة.',
+			selectAnotherHotspot: 'المحدد: {label}. اختر نقطة ساخنة أخرى لإنشاء ارتباط.',
+			associationsCount: 'الارتباطات ({count}/{max})',
+			clickHotspotsToAssociate: 'اختر نقطتين ساخنتين على الصورة لإنشاء ارتباط.',
+			pairDescription: '{first} مرتبط بـ {second}',
+			removeAssociation: 'إزالة الارتباط بين {first} و{second}',
+			minimumRequired: 'الحد الأدنى المطلوب: {minAssociations}',
 		},
 
 		custom: {

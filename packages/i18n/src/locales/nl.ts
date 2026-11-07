@@ -138,6 +138,8 @@ export default {
 			updated: 'Tekening bijgewerkt.',
 			cleared: 'Tekening gewist.',
 			generated: 'Gegenereerd:',
+			imageFallback: 'Achtergrond van de tekening',
+			imageLoadError: 'De achtergrondafbeelding kon niet worden geladen.',
 		},
 
 		extendedText: {
@@ -185,6 +187,10 @@ export default {
 			unknownImageDimensions:
 				'Deze hotspot kan niet worden weergegeven: de afmetingen van de afbeelding zijn onbekend, waardoor de selecteerbare gebieden niet geplaatst kunnen worden. Voeg breedte en hoogte toe aan de afbeelding of geef de afmetingen van het bestand op.',
 			correctList: 'Juist: {ids}',
+			imageFallback: 'Afbeelding bij deze vraag',
+			imageLoadError: 'De afbeelding kon niet worden geladen.',
+			regionOfTotal: 'Gebied {index} van {total}',
+			selectedRegion: 'Geselecteerd: {region}',
 		},
 
 		selectPoint: {
@@ -202,6 +208,16 @@ export default {
 			minimumMet: '✓ Minimum bereikt',
 			selectAtLeast: 'Selecteer minimaal {minChoices}',
 			correctPointAt: 'Punt van het juiste antwoord op coördinaten {x}, {y}',
+			imageFallback: 'Afbeelding bij deze vraag',
+			imageLoadError: 'De afbeelding kon niet worden geladen.',
+			stageLabel: 'Gebied voor het kiezen van punten',
+			keyboardInstructions: 'Klik op de afbeelding om een punt te plaatsen. Met het toetsenbord: zet de focus op de afbeelding, verplaats het vizier met de pijltjestoetsen (houd Shift ingedrukt voor kleinere stappen) en druk op Enter of spatie om een punt te plaatsen.',
+			placedPoints: 'Geplaatste punten',
+			pointAtPercent: 'Punt {index} op {x}%, {y}%',
+			percentPosition: '{x}%, {y}%',
+			pointPlaced: 'Punt {index} geplaatst op {x}%, {y}%.',
+			pointRemoved: 'Punt {index} verwijderd.',
+			allPointsRemoved: 'Alle punten verwijderd.',
 		},
 
 		match: {
@@ -283,6 +299,9 @@ export default {
 			placeLabelHint: 'Druk op Spatie of Enter om het label te plaatsen.',
 			labelFallback: 'Label',
 			pickUpInstructions: 'Druk op Spatie of Enter om een label op te pakken. Tab naar een hotspot op de afbeelding en druk op Enter om het te plaatsen. Druk op Escape om te annuleren.',
+			imageFallback: 'Afbeelding bij deze vraag',
+			imageLoadError: 'De afbeelding kon niet worden geladen.',
+			unknownImageDimensions: 'De hotspots kunnen niet worden weergegeven: de afmetingen van de afbeelding zijn onbekend. Voeg breedte en hoogte toe aan de afbeelding.',
 		},
 
 		order: {
@@ -350,6 +369,13 @@ export default {
 			correctPositionFor: 'Juiste positie voor {label} op ({x}, {y})',
 			availableObjectsTotal: 'Beschikbare objecten ({count})',
 			paletteInstructions: 'Sleep objecten op het canvas, of druk op Enter of Spatie op een object en gebruik de pijltjestoetsen om het op het canvas te positioneren.',
+			imageFallback: 'Afbeelding bij deze vraag',
+			imageLoadError: 'De afbeelding kon niet worden geladen.',
+			objectFallback: 'Voorwerp {index}',
+			objectRemoved: '{object} verwijderd.',
+			canvasActiveLabel: 'Positioneringsvlak: gebruik de pijltjestoetsen om het vizier te verplaatsen, Enter om te plaatsen en Escape om te annuleren',
+			placedAtPercent: '{label} op {x}%, {y}%',
+			correctPositionAtPercent: 'Juiste positie voor {label}: {x}%, {y}%',
 		},
 
 		endAttempt: {
@@ -395,6 +421,23 @@ export default {
 			confirmOrder: 'Volgorde bevestigen',
 			confirmOrderNoChanges: 'Volgorde bevestigen (Geen wijzigingen)',
 			confirmAria: 'Bevestig deze volgorde als je antwoord',
+			imageFallback: 'Afbeelding bij deze vraag',
+			imageLoadError: 'De afbeelding kon niet worden geladen.',
+			unlabeledItem: 'Onderdeel {index}',
+		},
+
+		graphicAssociate: {
+			imageFallback: 'Afbeelding bij deze vraag',
+			imageLoadError: 'De afbeelding kon niet worden geladen.',
+			unlabeledHotspot: 'Gebied {index}',
+			hotspotConnections: '{label} ({usageCount}/{matchMax} verbindingen)',
+			notAvailableSentence: 'Niet beschikbaar door een beperking van de koppelgroep.',
+			selectAnotherHotspot: 'Geselecteerd: {label}. Selecteer nog een hotspot om een associatie te maken.',
+			associationsCount: 'Associaties ({count}/{max})',
+			clickHotspotsToAssociate: 'Selecteer twee hotspots op de afbeelding om een associatie te maken.',
+			pairDescription: '{first} geassocieerd met {second}',
+			removeAssociation: 'Associatie tussen {first} en {second} verwijderen',
+			minimumRequired: 'Minimaal vereist: {minAssociations}',
 		},
 
 		custom: {

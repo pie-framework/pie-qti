@@ -139,6 +139,8 @@ export default {
 			updated: 'อัปเดตภาพวาดแล้ว',
 			cleared: 'ล้างภาพวาดแล้ว',
 			generated: 'สร้างแล้ว:',
+			imageFallback: 'พื้นหลังของภาพวาด',
+			imageLoadError: 'ไม่สามารถโหลดรูปภาพพื้นหลังได้',
 		},
 
 		extendedText: {
@@ -186,6 +188,10 @@ export default {
 			unknownImageDimensions:
 				'ไม่สามารถแสดงฮอตสปอตนี้ได้: ไม่ทราบขนาดของรูปภาพ จึงไม่สามารถกำหนดตำแหน่งพื้นที่ที่เลือกได้ โปรดเพิ่มความกว้างและความสูงให้กับรูปภาพ หรือระบุขนาดของไฟล์',
 			correctList: 'ถูกต้อง: {ids}',
+			imageFallback: 'รูปภาพสำหรับคำถามนี้',
+			imageLoadError: 'ไม่สามารถโหลดรูปภาพได้',
+			regionOfTotal: 'พื้นที่ {index} จาก {total}',
+			selectedRegion: 'เลือกแล้ว: {region}',
 		},
 
 		selectPoint: {
@@ -203,6 +209,16 @@ export default {
 			minimumMet: '✓ ถึงขั้นต่ำแล้ว',
 			selectAtLeast: 'เลือกอย่างน้อย {minChoices}',
 			correctPointAt: 'จุดคำตอบที่ถูกต้องที่พิกัด {x}, {y}',
+			imageFallback: 'รูปภาพสำหรับคำถามนี้',
+			imageLoadError: 'ไม่สามารถโหลดรูปภาพได้',
+			stageLabel: 'พื้นที่เลือกจุด',
+			keyboardInstructions: 'คลิกที่รูปภาพเพื่อวางจุด หากใช้แป้นพิมพ์ ให้โฟกัสที่รูปภาพ ใช้ปุ่มลูกศรเพื่อเลื่อนเป้าเล็ง (กด Shift ค้างไว้เพื่อเลื่อนทีละน้อย) แล้วกด Enter หรือ Space เพื่อวางจุด',
+			placedPoints: 'จุดที่วางแล้ว',
+			pointAtPercent: 'จุดที่ {index} ที่ {x}%, {y}%',
+			percentPosition: 'ตำแหน่ง {x}%, {y}%',
+			pointPlaced: 'วางจุดที่ {index} ที่ {x}%, {y}% แล้ว',
+			pointRemoved: 'ลบจุดที่ {index} แล้ว',
+			allPointsRemoved: 'ลบจุดทั้งหมดแล้ว',
 		},
 
 		match: {
@@ -284,6 +300,9 @@ export default {
 			placeLabelHint: 'กด Space หรือ Enter เพื่อวางป้ายกำกับ',
 			labelFallback: 'ป้ายกำกับ',
 			pickUpInstructions: 'กด Space หรือ Enter เพื่อหยิบป้ายกำกับ กด Tab ไปยังฮอตสปอตบนภาพแล้วกด Enter เพื่อวาง กด Escape เพื่อยกเลิก',
+			imageFallback: 'รูปภาพสำหรับคำถามนี้',
+			imageLoadError: 'ไม่สามารถโหลดรูปภาพได้',
+			unknownImageDimensions: 'ไม่สามารถแสดงฮอตสปอตได้: ไม่ทราบขนาดของรูปภาพ โปรดเพิ่มความกว้างและความสูงให้กับรูปภาพ',
 		},
 
 		order: {
@@ -351,6 +370,13 @@ export default {
 			correctPositionFor: 'ตำแหน่งที่ถูกต้องของ {label} ที่ ({x}, {y})',
 			availableObjectsTotal: 'วัตถุที่พร้อมใช้งาน ({count})',
 			paletteInstructions: 'ลากวัตถุไปบนแคนวาส หรือกด Enter หรือ Space บนวัตถุ แล้วใช้ปุ่มลูกศรเพื่อวางตำแหน่งบนแคนวาส',
+			imageFallback: 'รูปภาพสำหรับคำถามนี้',
+			imageLoadError: 'ไม่สามารถโหลดรูปภาพได้',
+			objectFallback: 'วัตถุ {index}',
+			objectRemoved: 'ลบ {object} แล้ว',
+			canvasActiveLabel: 'พื้นที่จัดตำแหน่ง: ใช้ปุ่มลูกศรเพื่อเลื่อนเป้าเล็ง กด Enter เพื่อวาง หรือ Escape เพื่อยกเลิก',
+			placedAtPercent: '{label} ที่ {x}%, {y}%',
+			correctPositionAtPercent: 'ตำแหน่งที่ถูกต้องของ {label}: {x}%, {y}%',
 		},
 
 		endAttempt: {
@@ -396,6 +422,23 @@ export default {
 			confirmOrder: 'ยืนยันลำดับ',
 			confirmOrderNoChanges: 'ยืนยันลำดับ (ไม่มีการเปลี่ยนแปลง)',
 			confirmAria: 'ยืนยันลำดับนี้เป็นคำตอบของคุณ',
+			imageFallback: 'รูปภาพสำหรับคำถามนี้',
+			imageLoadError: 'ไม่สามารถโหลดรูปภาพได้',
+			unlabeledItem: 'รายการ {index}',
+		},
+
+		graphicAssociate: {
+			imageFallback: 'รูปภาพสำหรับคำถามนี้',
+			imageLoadError: 'ไม่สามารถโหลดรูปภาพได้',
+			unlabeledHotspot: 'พื้นที่ {index}',
+			hotspotConnections: '{label} ({usageCount}/{matchMax} การเชื่อมต่อ)',
+			notAvailableSentence: 'ไม่พร้อมใช้งานเนื่องจากข้อจำกัดของกลุ่มการจับคู่',
+			selectAnotherHotspot: 'เลือกแล้ว: {label} เลือกฮอตสปอตอื่นเพื่อสร้างความสัมพันธ์',
+			associationsCount: 'ความสัมพันธ์ ({count}/{max})',
+			clickHotspotsToAssociate: 'เลือกฮอตสปอตสองจุดบนภาพเพื่อสร้างความสัมพันธ์',
+			pairDescription: '{first} สัมพันธ์กับ {second}',
+			removeAssociation: 'ลบความสัมพันธ์ระหว่าง {first} และ {second}',
+			minimumRequired: 'จำเป็นขั้นต่ำ: {minAssociations}',
 		},
 
 		custom: {

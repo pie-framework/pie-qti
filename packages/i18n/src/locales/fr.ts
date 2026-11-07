@@ -138,6 +138,8 @@ export default {
 			updated: 'Dessin mis à jour.',
 			cleared: 'Dessin effacé.',
 			generated: 'Généré :',
+			imageFallback: 'Arrière-plan du dessin',
+			imageLoadError: 'L\'image d\'arrière-plan n\'a pas pu être chargée.',
 		},
 
 		extendedText: {
@@ -185,6 +187,10 @@ export default {
 			unknownImageDimensions:
 				'Cette zone sensible ne peut pas être affichée : la taille de son image est inconnue, les régions sélectionnables ne peuvent donc pas être positionnées. Ajoutez une largeur et une hauteur à l\'image, ou fournissez les dimensions du fichier.',
 			correctList: 'Correct : {ids}',
+			imageFallback: 'Image de cette question',
+			imageLoadError: 'L\'image n\'a pas pu être chargée.',
+			regionOfTotal: 'Région {index} sur {total}',
+			selectedRegion: 'Sélectionné : {region}',
 		},
 
 		selectPoint: {
@@ -202,6 +208,16 @@ export default {
 			minimumMet: '✓ Minimum atteint',
 			selectAtLeast: 'Sélectionnez au moins {minChoices}',
 			correctPointAt: 'Point de la bonne réponse aux coordonnées {x}, {y}',
+			imageFallback: 'Image de cette question',
+			imageLoadError: 'L\'image n\'a pas pu être chargée.',
+			stageLabel: 'Zone de sélection de points',
+			keyboardInstructions: 'Cliquez sur l\'image pour placer un point. Au clavier, placez le focus sur l\'image, déplacez le réticule avec les touches fléchées (maintenez Maj pour des pas plus petits) et appuyez sur Entrée ou Espace pour placer un point.',
+			placedPoints: 'Points placés',
+			pointAtPercent: 'Point {index} à {x} %, {y} %',
+			percentPosition: '{x} %, {y} %',
+			pointPlaced: 'Point {index} placé à {x} %, {y} %.',
+			pointRemoved: 'Point {index} supprimé.',
+			allPointsRemoved: 'Tous les points ont été supprimés.',
 		},
 
 		match: {
@@ -283,6 +299,9 @@ export default {
 			placeLabelHint: 'Appuyez sur Espace ou Entrée pour placer l\'étiquette.',
 			labelFallback: 'Étiquette',
 			pickUpInstructions: 'Appuyez sur Espace ou Entrée pour prendre une étiquette. Tab jusqu\'à une zone sensible de l\'image, puis appuyez sur Entrée pour la placer. Appuyez sur Échap pour annuler.',
+			imageFallback: 'Image de cette question',
+			imageLoadError: 'L\'image n\'a pas pu être chargée.',
+			unknownImageDimensions: 'Les zones sensibles ne peuvent pas être affichées : la taille de l\'image est inconnue. Ajoutez une largeur et une hauteur à l\'image.',
 		},
 
 		order: {
@@ -350,6 +369,13 @@ export default {
 			correctPositionFor: 'Position correcte de {label} à ({x}, {y})',
 			availableObjectsTotal: 'Objets disponibles ({count})',
 			paletteInstructions: 'Faites glisser les objets sur le canevas, ou appuyez sur Entrée ou Espace sur un objet, puis utilisez les touches fléchées pour le positionner sur le canevas.',
+			imageFallback: 'Image de cette question',
+			imageLoadError: 'L\'image n\'a pas pu être chargée.',
+			objectFallback: 'Objet {index}',
+			objectRemoved: '{object} supprimé.',
+			canvasActiveLabel: 'Zone de positionnement : utilisez les touches fléchées pour déplacer le réticule, Entrée pour placer, Échap pour annuler',
+			placedAtPercent: '{label} à {x} %, {y} %',
+			correctPositionAtPercent: 'Position correcte de {label} : {x} %, {y} %',
 		},
 
 		endAttempt: {
@@ -396,6 +422,23 @@ export default {
 			confirmOrder: 'Confirmer l\'ordre',
 			confirmOrderNoChanges: 'Confirmer l\'ordre (Aucun changement)',
 			confirmAria: 'Confirmer cet ordre comme votre réponse',
+			imageFallback: 'Image de cette question',
+			imageLoadError: 'L\'image n\'a pas pu être chargée.',
+			unlabeledItem: 'Élément {index}',
+		},
+
+		graphicAssociate: {
+			imageFallback: 'Image de cette question',
+			imageLoadError: 'L\'image n\'a pas pu être chargée.',
+			unlabeledHotspot: 'Région {index}',
+			hotspotConnections: '{label} ({usageCount}/{matchMax} connexions)',
+			notAvailableSentence: 'Indisponible en raison d\'une restriction de groupe d\'association.',
+			selectAnotherHotspot: 'Sélectionné : {label}. Sélectionnez une autre zone sensible pour créer une association.',
+			associationsCount: 'Associations ({count}/{max})',
+			clickHotspotsToAssociate: 'Sélectionnez deux zones sensibles sur l\'image pour créer une association.',
+			pairDescription: '{first} associé à {second}',
+			removeAssociation: 'Supprimer l\'association entre {first} et {second}',
+			minimumRequired: 'Minimum requis : {minAssociations}',
 		},
 
 		custom: {

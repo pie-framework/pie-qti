@@ -149,6 +149,8 @@ export default {
 			updated: '绘图已更新。',
 			cleared: '绘图已清除。',
 			generated: '已生成:',
+			imageFallback: '绘图背景',
+			imageLoadError: '无法加载背景图像。',
 		},
 
 		extendedText: {
@@ -196,6 +198,10 @@ export default {
 			unknownImageDimensions:
 				'无法显示此热点：其图像尺寸未知，因此无法定位可选区域。请为图像添加宽度和高度，或提供资源尺寸。',
 			correctList: '正确：{ids}',
+			imageFallback: '本题的图像',
+			imageLoadError: '无法加载图像。',
+			regionOfTotal: '第 {index} 个区域，共 {total} 个',
+			selectedRegion: '已选择：{region}',
 		},
 
 		selectPoint: {
@@ -213,6 +219,16 @@ export default {
 			minimumMet: '✓ 已满足最小要求',
 			selectAtLeast: '至少选择 {minChoices} 个',
 			correctPointAt: '坐标为 {x}, {y} 的正确答案点',
+			imageFallback: '本题的图像',
+			imageLoadError: '无法加载图像。',
+			stageLabel: '选点区域',
+			keyboardInstructions: '点击图像放置一个点。使用键盘时，请将焦点移到图像上，用方向键移动十字准线（按住 Shift 可小步移动），然后按 Enter 或空格键放置一个点。',
+			placedPoints: '已放置的点',
+			pointAtPercent: '点 {index} 位于 {x}%，{y}%',
+			percentPosition: '{x}%，{y}%',
+			pointPlaced: '已在 {x}%，{y}% 处放置点 {index}。',
+			pointRemoved: '已移除点 {index}。',
+			allPointsRemoved: '已移除所有点。',
 		},
 
 		match: {
@@ -296,6 +312,9 @@ export default {
 			placeLabelHint: '按空格键或 Enter 键放置标签。',
 			labelFallback: '标签',
 			pickUpInstructions: '按空格键或回车键拾取标签。按 Tab 键移到图像上的热点，然后按回车键放置。按 Esc 键取消。',
+			imageFallback: '本题的图像',
+			imageLoadError: '无法加载图像。',
+			unknownImageDimensions: '无法显示热点：图像尺寸未知。请为图像添加宽度和高度。',
 		},
 
 		order: {
@@ -363,6 +382,13 @@ export default {
 			correctPositionFor: '{label} 的正确位置在 ({x}, {y})',
 			availableObjectsTotal: '可用的物体({count})',
 			paletteInstructions: '将物体拖动到画布上，或在物体上按回车键或空格键，然后使用方向键在画布上定位。',
+			imageFallback: '本题的图像',
+			imageLoadError: '无法加载图像。',
+			objectFallback: '对象 {index}',
+			objectRemoved: '已移除 {object}。',
+			canvasActiveLabel: '定位画布：使用方向键移动十字准线，按 Enter 放置，按 Escape 取消',
+			placedAtPercent: '{label} 位于 {x}%，{y}%',
+			correctPositionAtPercent: '{label} 的正确位置：{x}%，{y}%',
 		},
 
 		endAttempt: {
@@ -408,6 +434,23 @@ export default {
 			confirmOrder: '确认顺序',
 			confirmOrderNoChanges: '确认顺序(无更改)',
 			confirmAria: '将此顺序确认为你的答案',
+			imageFallback: '本题的图像',
+			imageLoadError: '无法加载图像。',
+			unlabeledItem: '项目 {index}',
+		},
+
+		graphicAssociate: {
+			imageFallback: '本题的图像',
+			imageLoadError: '无法加载图像。',
+			unlabeledHotspot: '区域 {index}',
+			hotspotConnections: '{label}（{usageCount}/{matchMax} 个连接）',
+			notAvailableSentence: '因匹配组限制而不可用。',
+			selectAnotherHotspot: '已选择：{label}。请选择另一个热点以创建关联。',
+			associationsCount: '关联（{count}/{max}）',
+			clickHotspotsToAssociate: '选择图像上的两个热点以创建关联。',
+			pairDescription: '{first} 与 {second} 关联',
+			removeAssociation: '移除 {first} 与 {second} 之间的关联',
+			minimumRequired: '最少需要：{minAssociations}',
 		},
 
 		custom: {
