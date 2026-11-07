@@ -1,5 +1,5 @@
 import type { AssessmentResults, BackendAdapter, BackendAssessmentPlayerConfig, InitSessionRequest } from '@pie-qti/assessment-player';
-import { ReferenceBackendAdapter } from '@pie-qti/assessment-player';
+import { isAssessmentPlayerError, ReferenceBackendAdapter } from '@pie-qti/assessment-player';
 import type { PciConfiguration, PlayerSecurityConfig } from '@pie-qti/item-player';
 import { enforceItemXmlLimits } from '@pie-qti/item-player/security';
 import AssessmentShell from '../../../assessment-player/src/components/AssessmentShell.svelte';
@@ -37,6 +37,14 @@ export type QtiAssessmentLoadErrorDetail = {
 	message: string;
 };
 
+/** Core/backend failure surfaced through the `player-error` event (see `config.onError`). */
+export type QtiAssessmentErrorDetail = {
+	/** Stable code when the failure is a coded `AssessmentPlayerError`. */
+	code?: string;
+	/** Raw message, for logs and host diagnostics — never render it to candidates. */
+	message: string;
+};
+
 export interface QtiAssessmentPlayerEventMap {
 	ready: CustomEvent<void>;
 	'load-start': CustomEvent<void>;
@@ -47,6 +55,7 @@ export interface QtiAssessmentPlayerEventMap {
 	'response-change': CustomEvent<QtiAssessmentResponseChangeDetail>;
 	submit: CustomEvent<QtiAssessmentSubmitDetail>;
 	complete: CustomEvent<void>;
+	'player-error': CustomEvent<QtiAssessmentErrorDetail>;
 }
 
 export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<string, unknown>> {
@@ -583,6 +592,19 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 			},
 			onComplete: () => {
 				this.dispatchEvent(new CustomEvent('complete', { bubbles: true, composed: true }));
+			},
+			onError: (error: Error) => {
+				const detail: QtiAssessmentErrorDetail = {
+					code: isAssessmentPlayerError(error) ? error.code : undefined,
+					message: error.message,
+				};
+				this.dispatchEvent(
+					new CustomEvent<QtiAssessmentErrorDetail>('player-error', {
+						detail,
+						bubbles: true,
+						composed: true,
+					}),
+				);
 			},
 		};
 
