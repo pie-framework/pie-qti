@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, test } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import type { HottextInteractionData } from '@pie-qti/item-player';
 import HottextInteraction from '../../src/plugins/hottext/HottextInteraction.svelte';
 import {
@@ -28,6 +30,15 @@ function hottextData(overrides: Partial<HottextInteractionData> = {}): HottextIn
 	};
 }
 
+/** Compose the accessible name a screen reader builds from aria-labelledby. */
+function nameFromLabelledBy(host: HTMLElement, element: Element): string {
+	const ids = (element.getAttribute('aria-labelledby') ?? '').split(' ').filter(Boolean);
+	return ids
+		.map((id) => host.querySelector(`#${CSS.escape(id)}`)?.textContent?.trim())
+		.filter(Boolean)
+		.join(' ');
+}
+
 afterEach(() => {
 	for (const node of Array.from(document.body.children)) node.remove();
 });
@@ -39,11 +50,28 @@ describe('HottextInteraction (pie-qti-hottext)', () => {
 
 		const hottexts = qa(mounted, '[role="button"]');
 		expect(hottexts).toHaveLength(3);
-		for (const hottext of hottexts) {
+		const expectedNames = ['fern Selectable', 'oak Selectable', 'rock Selectable'];
+		hottexts.forEach((hottext, index) => {
 			expect(hottext.getAttribute('tabindex')).toBe('0');
 			expect(hottext.getAttribute('aria-pressed')).toBe('false');
-			expect(hottext.getAttribute('aria-label')).toContain('Selectable text');
-		}
+			// The name comes from the rendered content plus a localized state word via
+			// aria-labelledby — never a hardcoded English label.
+			expect(hottext.getAttribute('aria-label')).toBeNull();
+			expect(nameFromLabelledBy(mounted.host, hottext)).toBe(expectedNames[index]);
+		});
+	});
+
+	test('the localized state word in the name follows the selection', async () => {
+		const mounted = mountInteraction(HottextInteraction, { interaction: hottextData() });
+		await settle();
+
+		const target = qa(mounted, '[role="button"]')[1]!;
+		target.click();
+		await settle();
+
+		expect(target.getAttribute('aria-pressed')).toBe('true');
+		expect(nameFromLabelledBy(mounted.host, target)).toBe('oak Selected');
+		expect(nameFromLabelledBy(mounted.host, qa(mounted, '[role="button"]')[0]!)).toBe('fern Selectable');
 	});
 
 	test('clicking a hottext selects it and emits a single-value response', async () => {
@@ -148,5 +176,70 @@ describe('HottextInteraction (pie-qti-hottext)', () => {
 		targets[2]!.click();
 		await settle();
 		expect(mounted.instance.response).toEqual(['H1', 'H2']);
+	});
+
+	test('a refused selection is announced with a localized default when no message is authored', async () => {
+		const mounted = mountInteraction(HottextInteraction, {
+			interaction: hottextData({ maxChoices: 2 }),
+		});
+		await settle();
+
+		expect(q(mounted, '[role="alert"]')).toBeNull();
+
+		const targets = qa(mounted, '[role="button"]');
+		targets[0]!.click();
+		targets[1]!.click();
+		await settle();
+
+		const alert = q(mounted, '[role="alert"]');
+		expect(alert?.textContent).toContain('You can select up to 2. Deselect one to choose another.');
+	});
+
+	test('the authored max-selections message wins over the default', async () => {
+		const mounted = mountInteraction(HottextInteraction, {
+			interaction: hottextData({ maxChoices: 1, maxSelectionsMessage: 'Only one phrase allowed' }),
+		});
+		await settle();
+
+		qa(mounted, '[role="button"]')[0]!.click();
+		await settle();
+
+		expect(q(mounted, '[role="alert"]')?.textContent).toContain('Only one phrase allowed');
+	});
+
+	test('scorer view marks correct hottexts beyond color: hidden text in the name plus underline style', async () => {
+		const mounted = mountInteraction(HottextInteraction, {
+			interaction: hottextData(),
+			role: 'scorer',
+			correctResponse: 'H2',
+		});
+		await settle();
+
+		const correct = qa(mounted, '[role="button"]')[1]!;
+		expect(correct.classList.contains('correct')).toBe(true);
+		// Non-color indicator: an sr-only "Correct answer" phrase joins the accessible name.
+		expect(nameFromLabelledBy(mounted.host, correct)).toBe('oak Selectable Correct answer: oak.');
+		// The other hottexts carry no correct marker.
+		expect(nameFromLabelledBy(mounted.host, qa(mounted, '[role="button"]')[0]!)).toBe('fern Selectable');
+	});
+});
+
+// jsdom does not compute shadow styles, so the CSS contracts are asserted against
+// the component source (same approach as tests/pnp-styles.test.ts).
+describe('HottextInteraction style contracts', () => {
+	const source = readFileSync(resolve(process.cwd(), 'src/plugins/hottext/HottextInteraction.svelte'), 'utf8');
+
+	test('focus stays visible even with hidden input controls (WCAG 2.4.7)', () => {
+		expect(source).toContain('outline: 2px solid var(--pie-qti-focus, #4338ca)');
+		expect(source).not.toContain('outline: none');
+	});
+
+	test('the selectable cue uses the border-strong token (WCAG 1.4.11)', () => {
+		const selectableCss = source.slice(source.indexOf('hottext.selectable),'), source.indexOf('hottext.selectable:hover)'));
+		expect(selectableCss).toContain('var(--pie-qti-border-strong, #767676)');
+	});
+
+	test('the selection limit message uses the warning-text token (WCAG 1.4.3)', () => {
+		expect(source).toContain('color: var(--pie-qti-warning-text, #92400e)');
 	});
 });
