@@ -590,6 +590,16 @@ export default {
 		playerLabel: 'مشغل التقييم',
 		instructions: 'التعليمات',
 		rubrics: 'معايير التقييم',
+		skipToQuestion: 'الانتقال إلى السؤال',
+	},
+
+	// Section player chrome: passage/question panes and their headings.
+	sectionPlayer: {
+		passage: 'النص',
+		passageNumbered: 'النص {number}',
+		passages: 'النصوص',
+		question: 'السؤال',
+		passageAndQuestion: 'النص والسؤال',
 	},
 
 	i18n: {

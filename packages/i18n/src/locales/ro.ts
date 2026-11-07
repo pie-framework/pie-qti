@@ -542,6 +542,16 @@ export default {
 		playerLabel: 'Player de evaluare',
 		instructions: 'Instrucțiuni',
 		rubrics: 'Rubrici',
+		skipToQuestion: 'Salt la întrebare',
+	},
+
+	// Section player chrome: passage/question panes and their headings.
+	sectionPlayer: {
+		passage: 'Pasaj',
+		passageNumbered: 'Pasajul {number}',
+		passages: 'Pasaje',
+		question: 'Întrebare',
+		passageAndQuestion: 'Pasaj și întrebare',
 	},
 
 	i18n: {
