@@ -201,10 +201,30 @@
 	--pie-qti-base-content: var(--qti-font-color);
 }
 
+/* Raised surfaces take the candidate's background too, so text on them keeps the chosen contrast. */
 [data-qti-text-appearance~='background-color'] {
 	background-color: var(--qti-background-color);
 	--color-base-100: var(--qti-background-color);
+	--color-base-200: var(--qti-background-color);
 	--pie-qti-base-100: var(--qti-background-color);
+	--pie-qti-base-200: var(--qti-background-color);
+}
+
+/*
+ * The theme's message/state text, control boundary and focus colours are only checked
+ * against the theme's own surfaces. With the candidate's own text or background colour they
+ * draw in the text colour instead: the candidate's (--pie-qti-base-content is the font colour
+ * on this element), or the theme's when only a background is chosen. They keep the contrast
+ * the candidate chose; state is also conveyed by icons and text, never by colour alone.
+ */
+[data-qti-text-appearance~='font-color'],
+[data-qti-text-appearance~='background-color'] {
+	--pie-qti-error-text: var(--pie-qti-base-content, oklch(21% 0 0));
+	--pie-qti-warning-text: var(--pie-qti-base-content, oklch(21% 0 0));
+	--pie-qti-success-text: var(--pie-qti-base-content, oklch(21% 0 0));
+	--pie-qti-info-text: var(--pie-qti-base-content, oklch(21% 0 0));
+	--pie-qti-border-strong: var(--pie-qti-base-content, oklch(21% 0 0));
+	--pie-qti-focus: var(--pie-qti-base-content, oklch(21% 0 0));
 }
 
 [data-qti-text-appearance~='line-height'],
