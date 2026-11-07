@@ -223,6 +223,11 @@ async function runStep(page: Page, file: EvalFile, step: EvalStep): Promise<{ su
 				const host = page.locator(tagName);
 				await expect(host).toBeVisible();
 				await host.getByRole('button').first().click();
+				// A counted attempt now asks for confirmation before the response is emitted.
+				const confirmButton = host.locator('[part="confirm-button"]');
+				if ((await confirmButton.count()) > 0) {
+					await confirmButton.click();
+				}
 				return {};
 			}
 			// Generic fallback: click by quoted text anywhere in component.
