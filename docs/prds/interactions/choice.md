@@ -50,7 +50,7 @@
 
 | Attribute | Support | Behaviour |
 |-----------|---------|-----------|
-| `responseIdentifier` | ✅ Full | Extracted as `responseId`; used as radio `name` attribute and in `qti-change` event payload |
+| `responseIdentifier` | ✅ Full | Extracted as `responseId`; used in the `qti-change` event payload. The radio group `name` is unique per rendered instance instead, so two renderings of the same item never share a radio group |
 | `shuffle` | ✅ Full | Shuffles choice order at extraction time, seeded from the item session GUID; stable for the whole session, including across re-renders and reloads |
 | `maxChoices` | ✅ Full | `1` → radio buttons; `>1` or `0` → checkboxes; `0` triggers a validator warning |
 | `minChoices` | ❌ Not extracted | Spec defines this as a completeness constraint. Not in `ChoiceInteractionData`; not enforced. See Known gaps. |
@@ -90,8 +90,8 @@
 
 ## Functional requirements
 
-- **FR-1:** When `maxChoices=1`, render choices as mutually exclusive radio buttons within a named group. Selecting one deselects all others.
-- **FR-2:** When `maxChoices>1` or `maxChoices=0`, render choices as independent checkboxes.
+- **FR-1:** When `maxChoices=1`, render choices as mutually exclusive radio buttons within a named group. Selecting one deselects all others. Re-activating the selected radio keeps it selected (single cardinality does not toggle off); the FR-11 "Clear answer" button is the way to retract the answer.
+- **FR-2:** When `maxChoices>1` or `maxChoices=0`, render choices as independent checkboxes. Unchecking a selected checkbox removes it from the response.
 - **FR-3:** On each selection change, emit a `qti-change` CustomEvent with `{ responseIdentifier, value }` from the root element. The event must bubble.
 - **FR-4:** Accept a `response` prop (string for single, string[] for multiple) and reflect it as checked state without requiring a re-render of the whole component.
 - **FR-5:** When `disabled=true`, all inputs must be non-interactive. Disabled state must be visually distinct.
@@ -109,7 +109,7 @@
 
 ## Non-functional requirements
 
-- **Accessibility:** Each choice must be a native `<input type="radio">` or `<input type="checkbox">` wrapped in a `<label>`. The label must contain both the input and the choice text so the entire label is clickable. Radio inputs sharing the same `name` attribute form an ARIA radio group. Touch targets must be at least 44×44 CSS px (WCAG 2.2 SC 2.5.8): the whole choice row is the target, and the elimination toggle is a 44×44 px circle. The component must be operable by keyboard: Tab to reach the group, arrow keys to navigate within radio groups, Space to toggle checkboxes. Keyboard focus must stay visible on the row even when the native control is hidden (`qti-input-control-hidden`), and the selection-limit alert uses the `--pie-qti-warning-text` token for WCAG 1.4.3 contrast.
+- **Accessibility:** Each choice must be a native `<input type="radio">` or `<input type="checkbox">` wrapped in a `<label>`. The label must contain both the input and the choice text so the entire label is clickable. Radio inputs sharing the same `name` attribute form an ARIA radio group; the name and every id the component references (prompt, choice text, elimination verb) are unique per rendered instance, so several interactions, or two renderings of one item, can share a document. Touch targets must be at least 44×44 CSS px (WCAG 2.2 SC 2.5.8): the whole choice row is the target, and the elimination toggle is a 44×44 px circle. The component must be operable by keyboard: Tab to reach the group, arrow keys to navigate within radio groups, Space to toggle checkboxes. Keyboard focus must stay visible on the row even when the native control is hidden (`qti-input-control-hidden`), and the selection-limit alert uses the `--pie-qti-warning-text` token for WCAG 1.4.3 contrast.
 - **Performance:** Extraction and rendering must complete in under 16 ms for up to 10 choices on a mid-range mobile device. Shadow DOM means no layout recalculation from host-page style changes.
 - **Cross-platform:** Touch selection (tap to choose) must work identically to mouse click. The interaction must be usable on both portrait and landscape mobile orientations. Multi-column shared-vocabulary layouts collapse to one column on narrow containers (WCAG 1.4.10).
 - **i18n:** Candidate-visible strings are translated via the `i18n` provider: `interactions.choice.correct`, `interactions.choice.groupLabel`, `interactions.choice.maxChoicesReached` ({max} interpolated), `interactions.choice.clearAnswer`, `interactions.choice.eliminateChoice`, `interactions.choice.restoreChoice`, `interactions.choice.revealChoice`. Each falls back to its English string when no provider is supplied.

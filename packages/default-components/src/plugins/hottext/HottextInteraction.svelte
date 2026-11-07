@@ -55,6 +55,10 @@
 	});
 	let contentElement: HTMLDivElement | null = $state(null);
 
+	// Unique id prefix so the aria-labelledby parts survive several hottext interactions
+	// (or two renderings of the same item) in one document.
+	const uid = $props.id();
+
 	/** Sanitize an identifier for use in an element id. */
 	function safeId(identifier: string): string {
 		return identifier.replace(/[^A-Za-z0-9_-]/g, '-');
@@ -68,6 +72,12 @@
 		parsedInteraction
 			? parsedInteraction.maxChoices === 0 || selectedIds.length < parsedInteraction.maxChoices
 			: false
+	);
+
+	// An unselected hottext can still be chosen: below the cap, or always when a single
+	// selection switches (maxChoices=1). Drives the visible "selectable" cue.
+	const canChooseUnselected = $derived(
+		parsedInteraction ? parsedInteraction.maxChoices === 1 || canSelectMore : false
 	);
 
 	/**
@@ -90,9 +100,9 @@
 	 * `textContent`. Returns the ids to reference.
 	 */
 	function ensureAccessibleNameStructure(htmlElem: HTMLElement, identifier: string): { textId: string; stateId: string; correctId: string } {
-		const textId = `qti-hottext-text-${safeId(identifier)}`;
-		const stateId = `qti-hottext-state-${safeId(identifier)}`;
-		const correctId = `qti-hottext-correct-${safeId(identifier)}`;
+		const textId = `${uid}-hottext-text-${safeId(identifier)}`;
+		const stateId = `${uid}-hottext-state-${safeId(identifier)}`;
+		const correctId = `${uid}-hottext-correct-${safeId(identifier)}`;
 
 		let textSpan = htmlElem.querySelector<HTMLSpanElement>(':scope > [data-hottext-text]');
 		if (!textSpan) {
@@ -117,19 +127,30 @@
 	}
 
 	/**
-	 * Handle hottext element click
+	 * Handle hottext element click.
+	 *
+	 * Selection semantics match ChoiceInteraction where the widgets overlap:
+	 * - `maxChoices=1` (single cardinality) is radio-like: selecting another hottext
+	 *   replaces the current selection instead of being refused.
+	 * - Activating a selected hottext deselects it for every cardinality: each span is an
+	 *   `aria-pressed` toggle button, and removing a selection never exceeds `maxChoices`.
+	 * - With `maxChoices>1`, a selection beyond the cap is refused; the cap message explains it.
 	 */
 	function handleHottextClick(identifier: string) {
 		if (disabled || !parsedInteraction) return;
 
-		const currentlySelected = isSelected(identifier);
-
-		if (currentlySelected) {
+		if (isSelected(identifier)) {
 			// Deselect
 			selectedIds = selectedIds.filter((id) => id !== identifier);
+		} else if (parsedInteraction.maxChoices === 1) {
+			// Switch: the new hottext replaces the previous selection
+			selectedIds = [identifier];
 		} else if (canSelectMore) {
 			// Select
 			selectedIds = [...selectedIds, identifier];
+		} else {
+			// Refused at the cap: nothing changes, so nothing is emitted
+			return;
 		}
 
 		// Return single string for maxChoices=1, array for multiple selection
@@ -176,7 +197,7 @@
 					htmlElem.classList.remove('selectable');
 				} else {
 					htmlElem.classList.remove('selected');
-					if (canSelectMore && !disabled) {
+					if (canChooseUnselected && !disabled) {
 						htmlElem.classList.add('selectable');
 					} else {
 						htmlElem.classList.remove('selectable');
@@ -199,7 +220,7 @@
 						correctSpan.classList.add('sr-only');
 						htmlElem.appendChild(correctSpan);
 					}
-					correctSpan.id = `qti-hottext-correct-${safeId(identifier)}`;
+					correctSpan.id = `${uid}-hottext-correct-${safeId(identifier)}`;
 					correctSpan.textContent = translate(
 						i18n,
 						'accessibility.correctAnswerIs',
@@ -271,8 +292,10 @@
 		updateHottextStyles();
 	});
 
-	// Selection limit message: an authored message, or a localized default so a
-	// refused selection is never silent (WCAG 3.3.1 / 4.1.3).
+	// Selection limit message: an authored message is shown at the cap for any cardinality;
+	// without one, a localized default is shown whenever a selection can actually be refused
+	// (maxChoices>1). Single selection switches instead of refusing, so it needs no default.
+	// Same rule as ChoiceInteraction (WCAG 3.3.1 / 4.1.3).
 	const maxChoices = $derived(parsedInteraction?.maxChoices ?? 0);
 	const maxMessage = $derived.by(() => {
 		const authored = parsedInteraction?.maxSelectionsMessage;
@@ -284,7 +307,9 @@
 			{ max: maxChoices }
 		);
 	});
-	const showMaxMessage = $derived(maxChoices > 0 && selectedIds.length >= maxChoices);
+	const showMaxMessage = $derived(
+		maxChoices > 0 && selectedIds.length >= maxChoices && (!!parsedInteraction?.maxSelectionsMessage || maxChoices > 1)
+	);
 </script>
 
 <ShadowBaseStyles />

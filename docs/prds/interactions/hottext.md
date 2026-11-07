@@ -58,7 +58,7 @@
 | Attribute | Support | Behaviour |
 |-----------|---------|-----------|
 | `responseIdentifier` | Full | Extracted as `responseId`; used in `qti-change` event payload |
-| `maxChoices` | Full | Enforced at selection time: once `selectedIds.length === maxChoices`, further selections are blocked until a deselection occurs. Default `1` when absent. |
+| `maxChoices` | Full | Enforced at selection time. With `maxChoices=1` a new selection replaces the current one (radio-like). With `maxChoices>1`, once `selectedIds.length === maxChoices` further selections are refused until a deselection occurs. Default `1` when absent. |
 | `minChoices` | Partial — extracted, not surfaced | Extracted by `standardHottextExtractor` (conditionally included in `HottextData` when `> 0`) and validated structurally. **Not present in `HottextInteractionData`** and not surfaced to the component, so no "minimum required" UI hint is shown. See Known gaps. |
 
 ### Supported attributes on `<hottext>`
@@ -97,9 +97,9 @@
 ## Functional requirements
 
 - **FR-1:** Render the interaction content HTML inside a `role="group"` container. The `<hottext>` elements within the HTML must be keyboard-focusable and mouse-clickable.
-- **FR-2:** When a candidate clicks or activates (Enter/Space) an unselected hottext span and the selection count is below `maxChoices`, add the span's identifier to the response and visually mark the span as selected.
-- **FR-3:** When a candidate clicks or activates a selected hottext span, remove its identifier from the response and visually revert the span to unselected.
-- **FR-4:** When the selection count equals `maxChoices`, clicking an unselected span must have no effect (the span is not selected, no event fires). The `selectable` visual cue must be removed from unselected spans in this state, and the refusal is announced: the authored `maxSelectionsMessage` (role="alert") is shown, or a localized default ("You can select up to {max}. Deselect one to choose another.") when none is authored.
+- **FR-2:** When a candidate clicks or activates (Enter/Space) an unselected hottext span and the selection count is below `maxChoices`, add the span's identifier to the response and visually mark the span as selected. When `maxChoices=1` and another span is already selected, the activated span replaces it (radio-like switching, as in `choiceInteraction`): the previous span is deselected and one `qti-change` fires with the new identifier.
+- **FR-3:** When a candidate clicks or activates a selected hottext span, remove its identifier from the response and visually revert the span to unselected. This holds for every `maxChoices`: each span is an `aria-pressed` toggle button, and removing a selection never exceeds the limit.
+- **FR-4:** When `maxChoices>1` and the selection count equals `maxChoices`, clicking an unselected span must have no effect (the span is not selected, no event fires). The `selectable` visual cue must be removed from unselected spans in this state, and the refusal is announced: the authored `maxSelectionsMessage` (role="alert") is shown, or a localized default ("You can select up to {max}. Deselect one to choose another.") when none is authored. With `maxChoices=1` nothing is ever refused, so unselected spans keep the `selectable` cue and no default message is shown; an authored `maxSelectionsMessage` is still shown once a span is selected, as in `choiceInteraction`.
 - **FR-5:** When `maxChoices=1`, the response value emitted is a bare identifier string (or `null` on clear). When `maxChoices>1`, the response value emitted is `string[]`.
 - **FR-6:** On each selection change, emit a `qti-change` CustomEvent with `{ responseIdentifier, value }` from the root element. The event must bubble.
 - **FR-7:** Accept a `response` prop and reflect it as the initial selection state without firing a `qti-change` event on mount.
@@ -119,7 +119,7 @@ WCAG 2.2 Level AA is mandatory for all assessment interactions.
 
 - **Keyboard operability (SC 2.1.1):** Every hottext span must receive focus via Tab in document order. Space and Enter must activate the focused span. A user must be able to complete the interaction entirely by keyboard without using a mouse.
 - **Focus visible (SC 2.4.7 / 2.4.11):** Focused hottext spans must have a visible focus indicator that meets contrast and size requirements. The browser's default `:focus` ring is not sufficient for custom elements; the implementation must explicitly style `:focus-visible` or provide a substitute.
-- **Name, role, value (SC 4.1.2):** Each `<hottext>` element receives `role="button"`, `aria-pressed="true/false"`, and an accessible name composed via `aria-labelledby` from the rendered content plus a hidden, localized state word ("Selectable"/"Selected"). No flattened `textContent` label and no hardcoded English prefix is used. The `aria-pressed` attribute and the state word are updated on every selection change. The container receives `role="group"` with an `aria-label` identifying it as the selection area.
+- **Name, role, value (SC 4.1.2):** Each `<hottext>` element receives `role="button"`, `aria-pressed="true/false"`, and an accessible name composed via `aria-labelledby` from the rendered content plus a hidden, localized state word ("Selectable"/"Selected"). The referenced ids are unique per interaction instance, so two hottext interactions in one document never label each other's spans. No flattened `textContent` label and no hardcoded English prefix is used. The `aria-pressed` attribute and the state word are updated on every selection change. The container receives `role="group"` with an `aria-label` identifying it as the selection area.
 - **Touch targets (SC 2.5.8):** On mobile viewports, hottext spans must meet the 24×24 CSS px minimum target size. The implementation adds `padding: 2px 4px` inline, which may not be sufficient for very short spans (single characters or punctuation). Item authors should avoid single-character hottext spans.
 - **Reading order (SC 1.3.2):** The prose reading order must not be altered by the interaction framework. The content HTML is injected verbatim; no reordering occurs.
 - **User select disabled on spans (CSS `user-select: none`):** To prevent accidental text selection when clicking quickly, hottext spans have `user-select: none`. This is acceptable for the span itself but must not disable text selection in surrounding prose (WCAG SC 1.4.12 requires text reflow support, not selection disablement).
@@ -149,7 +149,7 @@ WCAG 2.2 Level AA is mandatory for all assessment interactions.
 - "Clear Selection" button: `interactions.hottext.clearSelection`.
 - Container `aria-label`: `interactions.hottext.ariaLabel`.
 - Per-span state words: `interactions.hottext.selectableState` / `interactions.hottext.selectedState`.
-- Refusal message default: `interactions.hottext.maxChoicesReached` ({max} interpolated); the authored `maxSelectionsMessage` wins when present.
+- Refusal message default: `interactions.hottext.maxChoicesReached` ({max} interpolated), shown only when a selection can be refused (`maxChoices>1`); the authored `maxSelectionsMessage` wins when present.
 - RTL support: the component does not set a fixed text direction; it inherits from the host. This should be correct for RTL passages as long as the host sets `dir="rtl"`.
 
 ---
@@ -165,10 +165,10 @@ WCAG 2.2 Level AA is mandatory for all assessment interactions.
 
 ### `canSelectMore` gates click handling at interaction time, not in the DOM
 
-**Decision:** When `selectedIds.length === maxChoices`, the click handler for unselected spans returns early. The `selectable` CSS class is removed from unselected spans.  
-**Rationale:** Disabling `tabindex` on non-selectable spans when the limit is reached would improve accessibility (no focus stops on non-interactive elements) but would require re-sweeping the DOM on every selection change. The current approach keeps non-selected spans keyboard-focusable even when they cannot be selected, with the visual cue of no `selectable` styling. This is a tradeoff: keyboard users can still Tab to spans that cannot be activated, which wastes Tab stops, but preserving focusability avoids the risk of focus being lost or teleported on a selection change.  
-**Alternatives considered:** Set `tabindex="-1"` on non-selectable spans when at capacity. Rejected for this implementation; left as a future improvement.  
-**Consequences:** A keyboard user at capacity will Tab to inactive spans. The `aria-pressed="false"` state on those spans is accurate (not selected), but there is no ARIA attribute that communicates "cannot be selected right now". A future improvement could use `aria-disabled="true"` on non-selectable spans at capacity.
+**Decision:** With `maxChoices>1`, when `selectedIds.length === maxChoices`, the click handler for unselected spans returns early without emitting. The `selectable` CSS class is removed from unselected spans. With `maxChoices=1` the handler never refuses: activating an unselected span replaces the selection, so unselected spans keep the `selectable` class.  
+**Rationale:** Single cardinality follows the radio pattern candidates know from `choiceInteraction`: choosing another option switches the answer instead of requiring a deselection first. Real assessments expect this; refusing the second selection forced an extra step and an error message on every change of mind. Deselecting a selected span stays available for every cardinality because each span is exposed as an `aria-pressed` toggle button, whose activation toggles; the "Clear Selection" button remains the visible retraction path. For `maxChoices>1`, disabling `tabindex` on non-selectable spans when the limit is reached would improve accessibility (no focus stops on non-interactive elements) but would require re-sweeping the DOM on every selection change. The current approach keeps non-selected spans keyboard-focusable even when they cannot be selected, with the visual cue of no `selectable` styling. This is a tradeoff: keyboard users can still Tab to spans that cannot be activated, which wastes Tab stops, but preserving focusability avoids the risk of focus being lost or teleported on a selection change.  
+**Alternatives considered:** Set `tabindex="-1"` on non-selectable spans when at capacity. Rejected for this implementation; left as a future improvement. Refusing a second selection under `maxChoices=1` (the earlier behavior) was replaced by switching.  
+**Consequences:** A keyboard user at a `maxChoices>1` capacity will Tab to inactive spans. The `aria-pressed="false"` state on those spans is accurate (not selected), but there is no ARIA attribute that communicates "cannot be selected right now". A future improvement could use `aria-disabled="true"` on non-selectable spans at capacity.
 
 ### `minChoices` is extracted but not forwarded to the component
 
@@ -252,11 +252,9 @@ AC-2: Single-select: selecting a second span deselects the first
   Given: the item from AC-1 with H2 already selected
   When: the candidate clicks H1 ("cat")
   Then: H1 is selected; H2 is deselected; the footer shows "1 / 3";
-        qti-change fires with value="H1"
-  Notes: because maxChoices=1, clicking when at capacity deselects the previous selection
-         implicitly — the current implementation blocks selection when at capacity,
-         meaning the candidate must deselect H2 first before H1 can be selected.
-         Verify actual behavior matches documented behavior.
+        qti-change fires with value="H1"; no selection-limit alert appears
+  Notes: radio-like switching, as in choiceInteraction; Enter/Space on H1 switches the same way.
+         Activating the selected span instead deselects it (FR-3), emitting value=null.
 
 AC-3: Single-select correct answer scores 1
   Given: the item from AC-1 with correct answer H2 (MATCH_CORRECT template)

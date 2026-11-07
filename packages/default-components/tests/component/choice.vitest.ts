@@ -319,6 +319,85 @@ describe('ChoiceInteraction (pie-qti-choice)', () => {
 
 		expect(q(mounted, 'button[part="clear"]')).toBeNull();
 	});
+
+	test('single choice does not toggle off: re-activating the selected radio keeps the answer', async () => {
+		const mounted = mountInteraction(ChoiceInteraction, { interaction: choiceData() });
+		await settle();
+
+		const [alpha, beta] = qa<HTMLInputElement>(mounted, 'input[type="radio"]');
+		check(alpha!, true);
+		await settle();
+		alpha!.click();
+		await settle();
+
+		// Native radio semantics (QTI single cardinality): no retraction by re-selection.
+		expect(alpha!.checked).toBe(true);
+		expect(mounted.instance.response).toBe('A');
+		expect(mounted.events.every((event) => event.detail.value === 'A')).toBe(true);
+
+		// Choosing another option switches; Clear answer is the explicit retraction.
+		check(beta!, true);
+		await settle();
+		expect(mounted.instance.response).toBe('B');
+		expect(alpha!.checked).toBe(false);
+		expect(q(mounted, '[role="alert"]')).toBeNull();
+		q<HTMLButtonElement>(mounted, 'button[part="clear"]')!.click();
+		await settle();
+		expect(mounted.instance.response).toBeNull();
+	});
+
+	test('multiple choice toggles off: unchecking the selected checkbox removes it', async () => {
+		const mounted = mountInteraction(ChoiceInteraction, {
+			interaction: choiceData({ maxChoices: 2 }),
+		});
+		await settle();
+
+		const alpha = q<HTMLInputElement>(mounted, 'input[type="checkbox"]')!;
+		alpha.click();
+		await settle();
+		expect(mounted.instance.response).toEqual(['A']);
+		alpha.click();
+		await settle();
+		expect(alpha.checked).toBe(false);
+		expect(mounted.instance.response).toEqual([]);
+	});
+
+	test('two renderings of the same item keep instance-unique ids and separate radio groups', async () => {
+		const first = mountInteraction(ChoiceInteraction, { interaction: choiceData(), eliminationTool: true });
+		const second = mountInteraction(ChoiceInteraction, { interaction: choiceData(), eliminationTool: true });
+		await settle();
+
+		const ids = Array.from(document.querySelectorAll('[id]'), (element) => element.id);
+		expect(ids.filter((id, index) => ids.indexOf(id) !== index)).toEqual([]);
+
+		for (const mounted of [first, second]) {
+			const references = [
+				...qa(mounted, '[aria-labelledby]').flatMap((element) =>
+					(element.getAttribute('aria-labelledby') ?? '').split(' ').filter(Boolean),
+				),
+			];
+			expect(references.length).toBeGreaterThan(0);
+			for (const id of references) {
+				expect(mounted.host.contains(document.getElementById(id)), `#${id}`).toBe(true);
+			}
+			// One radio group per instance.
+			const names = new Set(qa<HTMLInputElement>(mounted, 'input[type="radio"]').map((input) => input.name));
+			expect(names.size).toBe(1);
+		}
+		const firstName = q<HTMLInputElement>(first, 'input[type="radio"]')!.name;
+		const secondName = q<HTMLInputElement>(second, 'input[type="radio"]')!.name;
+		expect(firstName).not.toBe(secondName);
+
+		// Answering the second rendering must not uncheck the first one's radio.
+		const firstAlpha = q<HTMLInputElement>(first, 'input[type="radio"]')!;
+		check(firstAlpha, true);
+		check(qa<HTMLInputElement>(second, 'input[type="radio"]')[1]!, true);
+		await settle();
+		expect(firstAlpha.checked).toBe(true);
+		expect(first.instance.response).toBe('A');
+		expect(second.instance.response).toBe('B');
+		cleanupInteraction(first, second);
+	});
 });
 
 describe('ChoiceInteraction keyboard support', () => {

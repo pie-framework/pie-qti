@@ -49,6 +49,9 @@ let announceText = $state<string>(''); // For screen reader announcements
 
 // Unique id prefix so aria-labelledby/describedby survive several interactions in one document.
 const uid = $props.id();
+const instructionsId = `${uid}-match-instructions`;
+const sourceHeadingId = `${uid}-source-heading`;
+const targetHeadingId = `${uid}-target-heading`;
 
 function choiceLabel(choice: AssociableChoice | null | undefined, fallback = 'Item'): string {
 	if (!choice) return fallback;
@@ -166,7 +169,7 @@ function clearMatch(sourceId: string) {
 <p class="qti-match-pointer-instructions">{i18n?.t('interactions.match.pointerInstructions') ?? 'Select a source item, then select its target. You can also drag and drop.'}</p>
 
 <!-- Instructions for keyboard users -->
-<div id="match-instructions" class="sr-only">
+<div id={instructionsId} class="sr-only">
 	{translate(i18n, 'interactions.match.keyboardInstructions', 'Press Space or Enter to select a source item. Tab to navigate to targets. Press Space or Enter on a target to create a match. Press Escape to cancel selection.')}
 </div>
 
@@ -175,17 +178,17 @@ function clearMatch(sourceId: string) {
 	class="qti-match-grid grid grid-cols-2 gap-6"
 	part="grid"
 	role="region"
-	aria-describedby="match-instructions"
+	aria-describedby={instructionsId}
 >
 	<!-- Source Set (Left Column) -->
 	<div
 		part="source-column"
 		class="qti-match-col space-y-2"
 		role="group"
-		aria-labelledby={structuredLabels ? 'qti-match-source-heading' : undefined}
+		aria-labelledby={structuredLabels ? sourceHeadingId : undefined}
 		aria-label={structuredLabels ? undefined : (i18n?.t('interactions.match.sourceItemsLabel') ?? 'Source items to match')}
 	>
-		<h3 id="qti-match-source-heading" part="source-heading" class="qti-match-heading font-semibold text-sm text-base-content/70 mb-3">
+		<h3 id={sourceHeadingId} part="source-heading" class="qti-match-heading font-semibold text-sm text-base-content/70 mb-3">
 			{i18n?.t('interactions.match.sourceItemsLabel') ?? 'Source items to match'}
 		</h3>
 		{#each sourceSet as source (source.identifier)}
@@ -283,10 +286,10 @@ function clearMatch(sourceId: string) {
 		part="target-column"
 		class="qti-match-col space-y-2"
 		role="group"
-		aria-labelledby={structuredLabels ? 'qti-match-target-heading' : undefined}
+		aria-labelledby={structuredLabels ? targetHeadingId : undefined}
 		aria-label={structuredLabels ? undefined : (i18n?.t('interactions.match.targetItemsLabel') ?? 'Target items for matching')}
 	>
-		<h3 id="qti-match-target-heading" part="target-heading" class="qti-match-heading font-semibold text-sm text-base-content/70 mb-3">
+		<h3 id={targetHeadingId} part="target-heading" class="qti-match-heading font-semibold text-sm text-base-content/70 mb-3">
 			{i18n?.t('interactions.match.targetItemsLabel') ?? 'Target items for matching'}
 		</h3>
 		{#each targetSet as target (target.identifier)}
